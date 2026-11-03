@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -50,6 +51,7 @@ func (f *fakePipeline) Export(context.Context, string, []core.Segment, []core.Se
 func newTestApp(p media.Pipeline) (*app, *ui.Tester, chan func()) {
 	updates := make(chan func(), 16)
 	a := newApp(p, func(fn func()) { updates <- fn })
+	a.libraryDir = "/videos"
 	return a, ui.NewTester(a.view, 1100, 720), updates
 }
 
@@ -155,6 +157,13 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 	}
 	if len(reloaded.jobs) != 1 || reloaded.jobs[0].SubtitlePath != "/videos/talk.bilingual.srt" || reloaded.jobs[0].Language != "简体中文" {
 		t.Fatalf("saved %#v", reloaded.jobs)
+	}
+}
+
+func TestItemVideoUsesTheFolderName(t *testing.T) {
+	got := jobName(core.Job{VideoPath: "/Movies/影视库.vimpo/Learn Rust [abc]/video.mp4"})
+	if got != "Learn Rust [abc]" {
+		t.Fatalf("name = %q", got)
 	}
 }
 
@@ -327,7 +336,7 @@ func TestSettingsPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	for _, text := range []string{"资料库", "当前资料库", "~/Movies/LingoCut", "切换", "界面语言", "简体中文", "当前版本", appVersion, "组件", "yt-dlp", "FFmpeg", "whisper-cli", "未安装"} {
+	for _, text := range []string{"资料库", "~/Movies/LingoCut", "创建资料库", "导入已有资料库", "移出", "界面语言", "简体中文", "当前版本", appVersion, "组件", "yt-dlp", "FFmpeg", "whisper-cli", "未安装"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
@@ -378,8 +387,9 @@ func TestSwitchLibraryStopsTheJobAndRemembersTheDirectory(t *testing.T) {
 	if _, err := os.Stat(dir); err != nil {
 		t.Fatal(err)
 	}
-	if loadSavedSettings(a.settingsPath).LibraryDir != dir {
-		t.Fatalf("saved %#v", loadSavedSettings(a.settingsPath))
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.LibraryDir != dir || len(saved.Libraries) != 1 || saved.Libraries[0] != dir {
+		t.Fatalf("saved %#v", saved)
 	}
 	settle(t, a, tt, updates)
 	if a.running() {
@@ -442,6 +452,73 @@ func TestAISettingsSelectsAProvider(t *testing.T) {
 	}
 	if loadSavedSettings(a.settingsPath).LLMBaseURL != "https://api.openai.com/v1" {
 		t.Fatalf("saved %#v", loadSavedSettings(a.settingsPath))
+	}
+}
+
+func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
+	parent := t.TempDir()
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.libraryDir = ""
+	a.libraries = nil
+	a.libraryParent = parent
+	a.libraryName = "第一库"
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	tt.Frame()
+	for _, text := range []string{"先准备一个资料库", "创建资料库", "导入已有资料库", "更改位置"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
+	}
+	if err := tt.Click("创建资料库"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	first := filepath.Join(parent, "第一库.vimpo")
+	if a.libraryDir != first {
+		t.Fatalf("library = %q", a.libraryDir)
+	}
+	if _, err := os.Stat(first); err != nil {
+		t.Fatal(err)
+	}
+	if tt.HasText("先准备一个资料库") {
+		t.Fatal("the welcome stayed after the library was created")
+	}
+	a.libraryName = "第二库"
+	a.makingLibrary = true
+	a.page = pageGeneral
+	tt.Frame()
+	if err := tt.Click("确认创建"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	second := filepath.Join(parent, "第二库.vimpo")
+	if a.libraryDir != second || len(a.libraries) != 2 {
+		t.Fatalf("library %q list %v", a.libraryDir, a.libraries)
+	}
+	if err := tt.Click("第一库.vimpo"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.libraryDir != first {
+		t.Fatalf("switched library = %q", a.libraryDir)
+	}
+	if err := tt.Click("通用"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("移出 第一库.vimpo"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.libraryDir != second {
+		t.Fatalf("after forget, library = %q", a.libraryDir)
+	}
+	if _, err := os.Stat(first); err != nil {
+		t.Fatal(err)
+	}
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.LibraryDir != second || len(saved.Libraries) != 1 || saved.Libraries[0] != second {
+		t.Fatalf("saved %#v", saved)
 	}
 }
 
@@ -516,9 +593,14 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d=1:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
 		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
 	}
+	srt := filepath.Join(dir, "clip.srt")
+	if err := os.WriteFile(srt, []byte("1\n00:00:00,000 --> 00:00:01,000\n画面上的字幕\nOn the picture.\n\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.library.jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video,
+		ID: "clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		VideoPath: video, SubtitlePath: srt,
 	}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
@@ -537,6 +619,16 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 	}
 	if a.play == nil || a.play.player.Playing() {
 		t.Fatal("video started before the play button")
+	}
+	deadline = time.After(2 * time.Second)
+	for textCount(tt, "画面上的字幕") < 2 {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-deadline:
+			t.Fatalf("subtitle did not show on the picture: %q", tt.Texts())
+		}
+		tt.Frame()
 	}
 	if err := tt.Click("播放"); err != nil {
 		t.Fatal(err)
@@ -599,18 +691,210 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 	if err := tt.Click("播放"); err != nil {
 		t.Fatal(err)
 	}
-	tt.Advance(time.Second + 200*time.Millisecond)
-	tt.Frame()
-	after := sampleStage(tt.Image())
+	until := time.Now().Add(4 * time.Second)
+	after := before
+	for time.Now().Before(until) {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		after = sampleStage(tt.Image())
+		if after != before {
+			break
+		}
+		time.Sleep(40 * time.Millisecond)
+	}
 	if before == after {
 		t.Fatalf("picture stayed %v playing %v held %v err %v", before, a.play.player.Playing(), a.play.paused, a.play.player.Err())
 	}
 }
 
+func TestPlaybackStopsAtTheEnd(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	dir := t.TempDir()
+	video := filepath.Join(dir, "clip.mp4")
+	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=160x90:d=1:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
+		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
+	}
+	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a.library.jobs = []core.Job{{
+		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+	}}
+	t.Cleanup(a.stopPlayback)
+	tt.Frame()
+	if err := tt.Click("clip"); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.After(8 * time.Second)
+	for a.play == nil {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-deadline:
+			t.Fatalf("player did not open: %q", a.playErr)
+		}
+		tt.Frame()
+	}
+	if a.play.duration <= 0 {
+		t.Fatal("clip has no duration")
+	}
+	if err := tt.Click("播放"); err != nil {
+		t.Fatal(err)
+	}
+	until := time.Now().Add(4 * time.Second)
+	for time.Now().Before(until) && (a.play == nil || !a.play.finished) {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		time.Sleep(20 * time.Millisecond)
+	}
+	if a.play == nil || !a.play.finished || a.play.player.Playing() {
+		t.Fatalf("finished %v playing %v", a.play != nil && a.play.finished, a.play != nil && a.play.player.Playing())
+	}
+	head := a.play.playhead()
+	if head > a.play.duration {
+		t.Fatalf("playhead %s past %s", head, a.play.duration)
+	}
+	tt.Advance(time.Second)
+	tt.Frame()
+	if a.play.player.Playing() || a.play.playhead() != head {
+		t.Fatalf("kept playing at %s", a.play.playhead())
+	}
+}
+
+func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	dir := t.TempDir()
+	video := filepath.Join(dir, "clip.mp4")
+	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y",
+		"-f", "lavfi", "-i", "color=c=red:s=160x90:d=1:r=10",
+		"-f", "lavfi", "-i", "color=c=blue:s=160x90:d=1:r=10",
+		"-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0",
+		"-c:v", "mpeg4", "-pix_fmt", "yuv420p", video,
+	).CombinedOutput(); err != nil {
+		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
+	}
+	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a.library.jobs = []core.Job{{
+		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+	}}
+	t.Cleanup(a.stopPlayback)
+	tt.Frame()
+	if err := tt.Click("clip"); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.After(8 * time.Second)
+	for a.play == nil {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-deadline:
+			t.Fatalf("player did not open: %q", a.playErr)
+		}
+		tt.Frame()
+	}
+	before := sampleStage(tt.Image())
+	a.seekPlayback(time.Second + 200*time.Millisecond)
+	until := time.Now().Add(4 * time.Second)
+	after := before
+	for time.Now().Before(until) {
+		select {
+		case fn := <-updates:
+			fn()
+		default:
+		}
+		tt.Frame()
+		if a.play != nil && !a.play.paused && a.play.playhead() >= time.Second {
+			after = sampleStage(tt.Image())
+			if after != before {
+				return
+			}
+		}
+		time.Sleep(30 * time.Millisecond)
+	}
+	head := time.Duration(0)
+	paused := false
+	if a.play != nil {
+		head = a.play.playhead()
+		paused = a.play.paused
+	}
+	t.Fatalf("picture stayed %v head %s paused %v err %q", after, head, paused, a.playErr)
+}
+
+func TestFilmChaptersCoverTheTranscript(t *testing.T) {
+	cues := []core.Segment{
+		{Start: 0, End: 7 * time.Second, Text: "第一句\nFirst."},
+		{Start: 7 * time.Second, End: 40 * time.Second, Text: "第二句\nSecond."},
+		{Start: 40 * time.Second, End: 70 * time.Second, Text: "第三句\nThird."},
+		{Start: 70 * time.Second, End: 100 * time.Second, Text: "第四句\nFourth."},
+	}
+	chapters := filmChapters(cues)
+	if len(chapters) != 4 {
+		t.Fatalf("chapters %d", len(chapters))
+	}
+	if chapters[0].Title != "第一句" || chapters[0].Start != 0 || chapters[3].End != 100*time.Second {
+		t.Fatalf("chapters %#v", chapters)
+	}
+}
+
+func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srt := filepath.Join(dir, "talk.bilingual.srt")
+	body := "1\n00:00:01,000 --> 00:00:02,500\n你好。\nHello.\n\n2\n01:02:03,004 --> 01:02:05,000\n再见。\nBye.\n\n"
+	if err := os.WriteFile(srt, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.library.jobs = []core.Job{{
+		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		VideoPath: video, SubtitlePath: srt,
+	}}
+	tt.Frame()
+	if err := tt.Click("talk"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	waitUpdate(t, updates)
+	tt.Frame()
+	if err := tt.Click("精彩片段"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	for _, text := range []string{"你好。", "2 段", "0:01"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
+	}
+	if err := tt.Click("字幕样式"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("译文在上") || !tt.HasText("字号") || !tt.HasText("底框") || !tt.HasText("恢复默认样式") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+func textCount(tt *ui.Tester, s string) int {
+	n := 0
+	for _, text := range tt.Texts() {
+		if strings.Contains(text, s) {
+			n++
+		}
+	}
+	return n
+}
+
 func sampleStage(img *image.RGBA) [3]uint8 {
-	// The film picture sits in the page, right of the sidebar.
+	// The film picture fills the page while it is open, so the middle of the window is on it.
 	b := img.Bounds()
-	x, y := b.Min.X+520, b.Min.Y+180
+	x, y := (b.Min.X+b.Max.X)/2, (b.Min.Y+b.Max.Y)/2
 	if x >= b.Max.X {
 		x = b.Max.X - 1
 	}

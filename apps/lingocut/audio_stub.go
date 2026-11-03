@@ -2,10 +2,12 @@
 
 package main
 
+import "time"
+
 // pcmAudio is the sound of a film. This build has no afplay, so the picture plays alone.
 type pcmAudio struct{}
 
-func openPCM(string, string) (*pcmAudio, error) { return nil, nil }
+func openPCM(string, string, time.Duration) (*pcmAudio, error) { return nil, nil }
 
 func (a *pcmAudio) Start() {}
 

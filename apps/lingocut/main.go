@@ -34,6 +34,10 @@ type app struct {
 	openKey          string
 	subs             subtitleView
 	libraryDir       string
+	libraries        []string
+	libraryName      string
+	libraryParent    string
+	makingLibrary    bool
 	settingsPath     string
 	modelsDir        string
 	extraModelDirs   []string
@@ -50,6 +54,8 @@ type app struct {
 	llmCredential    func(context.Context, bool) (media.Endpoint, error)
 	testingLLM       bool
 	llmTestResult    string
+	filmSide         string
+	cue              cueLook
 	toolVersions     map[string]string
 	versionGen       int
 	videos           []media.Video
@@ -61,6 +67,8 @@ type app struct {
 	playPath         string
 	playErr          string
 	playGen          int
+	playFrom         time.Duration
+	playJump         bool
 	removed          map[string]bool
 	job              *core.Job
 	library          library
@@ -121,14 +129,31 @@ func (a *app) startFilm(item film) {
 }
 
 func (a *app) pickLibrary() {
+	current := a.libraryDir
+	if current == "" {
+		current = a.libraryPlace()
+	}
+	a.pickFolder("导入资料库", "导入", current, func(dir string) {
+		a.switchLibrary(dir)
+		a.makingLibrary = false
+		a.page = pageFilms
+	})
+}
+
+func (a *app) pickLibraryParent() {
+	a.pickFolder("资料库放在哪里", "选择", a.libraryPlace(), func(dir string) {
+		a.libraryParent = dir
+	})
+}
+
+func (a *app) pickFolder(title, button, current string, done func(string)) {
 	win := a.win
 	update := a.update
-	current := a.libraryDir
 	go func() {
 		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
 			Parent:            win,
-			Title:             "选择资料库",
-			ButtonLabel:       "切换",
+			Title:             title,
+			ButtonLabel:       button,
 			Directory:         true,
 			CreateDirectories: true,
 			DefaultPath:       current,
@@ -141,9 +166,50 @@ func (a *app) pickLibrary() {
 			if len(paths) == 0 {
 				return
 			}
-			a.switchLibrary(paths[0])
+			done(paths[0])
 		})
 	}()
+}
+
+// createLibrary makes a .vimpo bundle and switches to it. A folder that is already there is opened as it is.
+func (a *app) createLibrary() {
+	file, err := libraryFileName(a.libraryName)
+	if err != nil {
+		a.saveErr = err.Error()
+		return
+	}
+	dir := filepath.Join(a.libraryPlace(), file)
+	if info, statErr := os.Stat(dir); statErr == nil && !info.IsDir() {
+		a.saveErr = "这个位置已经有同名文件"
+		return
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		a.saveErr = err.Error()
+		return
+	}
+	a.switchLibrary(dir)
+	a.makingLibrary = false
+	a.page = pageFilms
+}
+
+func libraryFileName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	name = strings.TrimSuffix(name, ".vimpo")
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", errors.New("先写资料库的名称")
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return "", errors.New("资料库名称不能包含路径")
+	}
+	return name + ".vimpo", nil
+}
+
+func (a *app) libraryPlace() string {
+	if strings.TrimSpace(a.libraryParent) != "" {
+		return a.libraryParent
+	}
+	return media.MoviesDir()
 }
 
 // switchLibrary points new downloads at dir and stops a job that is still writing into the previous one.
@@ -152,11 +218,63 @@ func (a *app) switchLibrary(dir string) {
 	if dir == "." || dir == "" {
 		return
 	}
+	a.libraries = addLibrary(a.libraries, dir)
 	if filepath.Clean(a.libraryDir) == dir {
+		if err := a.saveSettings(); err != nil {
+			a.saveErr = "资料库无法保存：" + err.Error()
+		}
 		return
 	}
+	a.applyLibrary(dir)
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = "资料库无法保存：" + err.Error()
+		return
+	}
+	a.saveErr = ""
+}
+
+// forgetLibrary drops dir from the list. The folder on disk stays.
+func (a *app) forgetLibrary(dir string) {
+	dir = filepath.Clean(dir)
+	kept := make([]string, 0, len(a.libraries))
+	for _, item := range a.libraries {
+		if filepath.Clean(item) != dir {
+			kept = append(kept, item)
+		}
+	}
+	a.libraries = kept
+	if filepath.Clean(a.libraryDir) != dir {
+		if err := a.saveSettings(); err != nil {
+			a.saveErr = "资料库无法保存：" + err.Error()
+		}
+		return
+	}
+	next := ""
+	if len(a.libraries) > 0 {
+		next = a.libraries[0]
+	}
+	a.applyLibrary(next)
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = "资料库无法保存：" + err.Error()
+		return
+	}
+	a.saveErr = ""
+}
+
+func (a *app) applyLibrary(dir string) {
 	if a.running() {
 		a.stop()
+	}
+	a.openKey = ""
+	a.stopPlayback()
+	if dir == "" {
+		a.libraryDir = ""
+		if tools, ok := a.pipeline.(media.Tools); ok {
+			tools.OutputDir = ""
+			a.pipeline = tools
+		}
+		a.videos = nil
+		return
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		a.saveErr = err.Error()
@@ -167,12 +285,29 @@ func (a *app) switchLibrary(dir string) {
 		tools.OutputDir = dir
 		a.pipeline = tools
 	}
-	if err := a.saveSettings(); err != nil {
-		a.saveErr = "资料库无法保存：" + err.Error()
-	} else {
-		a.saveErr = ""
-	}
+	ensureLibraryLogo(dir)
 	a.refreshLibrary()
+}
+
+func (a *app) knownLibraries() []string {
+	out := append([]string{}, a.libraries...)
+	if a.libraryDir != "" {
+		out = addLibrary(out, a.libraryDir)
+	}
+	return out
+}
+
+func addLibrary(libraries []string, dir string) []string {
+	dir = filepath.Clean(strings.TrimSpace(dir))
+	if dir == "" || dir == "." {
+		return libraries
+	}
+	for _, item := range libraries {
+		if filepath.Clean(item) == dir {
+			return libraries
+		}
+	}
+	return append(libraries, dir)
 }
 
 func (a *app) saveSettings() error {
@@ -185,6 +320,7 @@ func (a *app) saveSettings() error {
 	contextOn := a.translateContext
 	saved := savedSettings{
 		LibraryDir:       a.libraryDir,
+		Libraries:        append([]string{}, a.knownLibraries()...),
 		LLMProvider:      a.llmProvider,
 		Language:         a.language,
 		TranslatePrompt:  a.translatePrompt,
@@ -218,6 +354,7 @@ func loadSavedSettings(path string) savedSettings {
 		return savedSettings{}
 	}
 	saved.LibraryDir = strings.TrimSpace(saved.LibraryDir)
+	saved.Libraries = cleanLibraries(saved.Libraries)
 	saved.WhisperModel = strings.TrimSpace(saved.WhisperModel)
 	saved.LLMBaseURL = strings.TrimSpace(saved.LLMBaseURL)
 	saved.LLMModel = strings.TrimSpace(saved.LLMModel)
@@ -229,15 +366,16 @@ func loadSavedSettings(path string) savedSettings {
 }
 
 type savedSettings struct {
-	LibraryDir       string `json:"libraryDir,omitempty"`
-	WhisperModel     string `json:"whisperModel,omitempty"`
-	LLMProvider      string `json:"llmProvider,omitempty"`
-	LLMBaseURL       string `json:"llmBaseURL,omitempty"`
-	LLMModel         string `json:"llmModel,omitempty"`
-	LLMAPIKey        string `json:"llmAPIKey,omitempty"`
-	Language         string `json:"language,omitempty"`
-	TranslatePrompt  string `json:"translatePrompt,omitempty"`
-	TranslateContext *bool  `json:"translateContext,omitempty"`
+	LibraryDir       string   `json:"libraryDir,omitempty"`
+	Libraries        []string `json:"libraries,omitempty"`
+	WhisperModel     string   `json:"whisperModel,omitempty"`
+	LLMProvider      string   `json:"llmProvider,omitempty"`
+	LLMBaseURL       string   `json:"llmBaseURL,omitempty"`
+	LLMModel         string   `json:"llmModel,omitempty"`
+	LLMAPIKey        string   `json:"llmAPIKey,omitempty"`
+	Language         string   `json:"language,omitempty"`
+	TranslatePrompt  string   `json:"translatePrompt,omitempty"`
+	TranslateContext *bool    `json:"translateContext,omitempty"`
 }
 
 type llmPreset struct {
@@ -507,6 +645,16 @@ func (a *app) refreshLibrary() {
 	if a.libraryDir == "" {
 		return
 	}
+	moved, err := media.GatherVideos(a.libraryDir)
+	if err != nil {
+		a.saveErr = err.Error()
+		return
+	}
+	if a.retargetLibrary(moved) || a.relocateMissing() {
+		if err := a.library.save(); err != nil {
+			a.saveErr = "视频库无法保存：" + err.Error()
+		}
+	}
 	videos, err := media.ListVideos(a.libraryDir)
 	if err != nil {
 		a.saveErr = err.Error()
@@ -515,10 +663,54 @@ func (a *app) refreshLibrary() {
 	a.videos = videos
 }
 
+// retargetLibrary points jobs at files GatherVideos moved into per-video folders.
+func (a *app) retargetLibrary(moved map[string]string) bool {
+	if len(moved) == 0 {
+		return false
+	}
+	changed := false
+	for i, job := range a.library.jobs {
+		if next, ok := moved[job.VideoPath]; ok {
+			a.library.jobs[i].VideoPath = next
+			changed = true
+		}
+		if next, ok := moved[job.SubtitlePath]; ok {
+			a.library.jobs[i].SubtitlePath = next
+			changed = true
+		}
+	}
+	return changed
+}
+
+func (a *app) relocateMissing() bool {
+	changed := false
+	for i, job := range a.library.jobs {
+		if next, ok := media.Relocate(a.libraryDir, job.VideoPath); ok {
+			a.library.jobs[i].VideoPath = next
+			changed = true
+		}
+		if next, ok := media.Relocate(a.libraryDir, job.SubtitlePath); ok {
+			a.library.jobs[i].SubtitlePath = next
+			changed = true
+		}
+	}
+	return changed
+}
+
+func cleanLibraries(dirs []string) []string {
+	var out []string
+	for _, dir := range dirs {
+		out = addLibrary(out, dir)
+	}
+	return out
+}
+
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 	return &app{
 		language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true,
-		pipeline: pipeline, update: update,
+		libraryName: "影视库",
+		cue:         defaultCueLook(),
+		pipeline:    pipeline, update: update,
 	}
 }
 
@@ -585,6 +777,11 @@ func (a *app) newDraft() {
 
 func (a *app) start() {
 	if a.running() {
+		return
+	}
+	if strings.TrimSpace(a.libraryDir) == "" {
+		a.job = nil
+		a.status = "先创建或导入一个资料库"
 		return
 	}
 	job, err := core.NewJob(a.source)
@@ -658,6 +855,7 @@ type subtitleView struct {
 	err   string
 	ready bool
 	list  ui.ListState
+	clips ui.ListState
 }
 
 // loadSubtitles reads path off the UI thread. An empty path means this film has no subtitle yet.
@@ -736,8 +934,7 @@ func jobTitle(job core.Job) string {
 
 func jobName(job core.Job) string {
 	if job.VideoPath != "" {
-		base := filepath.Base(job.VideoPath)
-		return strings.TrimSuffix(base, filepath.Ext(base))
+		return displayVideoName(job.VideoPath)
 	}
 	parsed, err := url.Parse(job.Source)
 	if err != nil || parsed.Host == "" {
@@ -761,6 +958,19 @@ func jobName(job core.Job) string {
 	return title
 }
 
+func displayVideoName(path string) string {
+	base := filepath.Base(path)
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+	if name != "video" {
+		return name
+	}
+	parent := filepath.Base(filepath.Dir(path))
+	if parent == "" || parent == "." || parent == string(filepath.Separator) {
+		return name
+	}
+	return parent
+}
+
 func (a *app) posterOf(video string) ui.ImageSource {
 	if video == "" {
 		return nil
@@ -770,11 +980,11 @@ func (a *app) posterOf(video string) ui.ImageSource {
 
 // ensurePoster grabs one frame the first time a card needs it. A miss is remembered so the card does not retry every frame.
 func (a *app) ensurePoster(video string) {
-	if a.posterDir == "" || video == "" || a.update == nil || a.posters[video] != nil || a.posterMiss[video] || a.posterBusy[video] {
+	if video == "" || a.update == nil || a.posters[video] != nil || a.posterMiss[video] || a.posterBusy[video] {
 		return
 	}
-	tools, ok := a.pipeline.(media.Tools)
-	if !ok || tools.FFmpeg == "" {
+	dest := posterDest(a.posterDir, video)
+	if dest == "" {
 		a.markPosterMiss(video)
 		return
 	}
@@ -782,14 +992,25 @@ func (a *app) ensurePoster(video string) {
 		a.markPosterMiss(video)
 		return
 	}
+	tools, ok := a.pipeline.(media.Tools)
+	if info, err := os.Stat(dest); err == nil && info.Size() > 0 {
+		ok = true
+		tools.FFmpeg = ""
+	}
+	if !ok || (tools.FFmpeg == "" && !fileExists(dest)) {
+		a.markPosterMiss(video)
+		return
+	}
 	if a.posterBusy == nil {
 		a.posterBusy = map[string]bool{}
 	}
 	a.posterBusy[video] = true
-	dest := filepath.Join(a.posterDir, posterKey(video)+".jpg")
 	update, ffmpeg := a.update, tools.FFmpeg
 	go func() {
-		err := media.GrabPoster(context.Background(), ffmpeg, video, dest)
+		var err error
+		if _, statErr := os.Stat(dest); statErr != nil {
+			err = media.GrabPoster(context.Background(), ffmpeg, video, dest)
+		}
 		var img ui.ImageSource
 		if err == nil {
 			data, readErr := os.ReadFile(dest)
@@ -823,6 +1044,21 @@ func (a *app) markPosterMiss(video string) {
 func posterKey(video string) string {
 	sum := sha256.Sum256([]byte(video))
 	return hex.EncodeToString(sum[:8])
+}
+
+func posterDest(posterDir, video string) string {
+	if strings.TrimSuffix(filepath.Base(video), filepath.Ext(video)) == "video" {
+		return filepath.Join(filepath.Dir(video), "cover.jpg")
+	}
+	if posterDir == "" {
+		return ""
+	}
+	return filepath.Join(posterDir, posterKey(video)+".jpg")
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir() && info.Size() > 0
 }
 
 func shorten(s string, n int) string {
@@ -896,13 +1132,20 @@ func main() {
 	a.settingsPath = filepath.Join(filepath.Dir(defaultLibraryPath()), "settings.json")
 	a.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.extraModelDirs = defaultExtraModelDirs()
-	a.libraryDir = tools.OutputDir
 	saved := loadSavedSettings(a.settingsPath)
-	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && saved.LibraryDir != "" {
-		a.libraryDir = saved.LibraryDir
-		tools.OutputDir = saved.LibraryDir
-		a.pipeline = tools
+	a.libraries = cleanLibraries(saved.Libraries)
+	if saved.LibraryDir != "" {
+		a.libraries = addLibrary(a.libraries, saved.LibraryDir)
 	}
+	if env := os.Getenv("LINGOCUT_OUTPUT_DIR"); env != "" {
+		a.libraryDir = env
+	} else if saved.LibraryDir != "" {
+		a.libraryDir = saved.LibraryDir
+	} else if len(a.libraries) > 0 {
+		a.libraryDir = a.libraries[0]
+	}
+	tools.OutputDir = a.libraryDir
+	a.pipeline = tools
 	if os.Getenv("LINGOCUT_WHISPER_MODEL") == "" && saved.WhisperModel != "" {
 		if info, err := os.Stat(saved.WhisperModel); err == nil && !info.IsDir() && info.Size() > 0 {
 			tools.WhisperModel = saved.WhisperModel
@@ -937,6 +1180,28 @@ func main() {
 		a.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
 	a.openLibrary(defaultLibraryPath())
+	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.libraryDir) == filepath.Clean(media.LegacyLibraryDir()) {
+		bundle := media.DefaultLibraryDir()
+		moved, err := media.AdoptLibrary(a.libraryDir, bundle)
+		if a.retargetLibrary(moved) {
+			if saveErr := a.library.save(); saveErr != nil && err == nil {
+				err = saveErr
+			}
+		}
+		if err != nil {
+			a.saveErr = "影视库无法整理：" + err.Error()
+		} else {
+			media.RemoveEmptyLibrary(a.libraryDir)
+			a.libraries = addLibrary(a.libraries, bundle)
+			a.libraryDir = bundle
+			tools.OutputDir = bundle
+			a.pipeline = tools
+			if saveErr := a.saveSettings(); saveErr != nil {
+				a.saveErr = "资料库无法保存：" + saveErr.Error()
+			}
+		}
+	}
+	ensureLibraryLogo(a.libraryDir)
 	a.refreshLibrary()
 	mygo.App.WhenReady(func() {
 		win = mygo.NewWindow(mygo.WindowOptions{

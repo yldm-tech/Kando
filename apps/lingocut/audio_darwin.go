@@ -6,8 +6,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"syscall"
+	"time"
 )
 
 // pcmAudio plays the video's audio. YouTube downloads are often Opus, which afplay reports as a zero-length track, so ffplay is used when it sits beside ffmpeg.
@@ -20,20 +22,25 @@ type pcmAudio struct {
 	exited chan struct{}
 }
 
-func openPCM(ffmpeg, path string) (*pcmAudio, error) {
-	name, args, err := audioCommand(ffmpeg, path)
+func openPCM(ffmpeg, path string, at time.Duration) (*pcmAudio, error) {
+	name, args, err := audioCommand(ffmpeg, path, at)
 	if err != nil {
 		return nil, err
 	}
 	return &pcmAudio{name: name, args: args, exited: make(chan struct{})}, nil
 }
 
-func audioCommand(ffmpeg, path string) (string, []string, error) {
+func audioCommand(ffmpeg, path string, at time.Duration) (string, []string, error) {
 	if path == "" {
 		return "", nil, exec.ErrNotFound
 	}
+	args := []string{"-nodisp", "-autoexit", "-vn", "-loglevel", "error"}
+	if at > 0 {
+		args = append(args, "-ss", strconv.FormatFloat(at.Seconds(), 'f', 3, 64))
+	}
+	args = append(args, path)
 	if ffplay := ffplayPath(ffmpeg); ffplay != "" {
-		return ffplay, []string{"-nodisp", "-autoexit", "-vn", "-loglevel", "error", path}, nil
+		return ffplay, args, nil
 	}
 	if _, err := exec.LookPath("afplay"); err != nil {
 		return "", nil, err

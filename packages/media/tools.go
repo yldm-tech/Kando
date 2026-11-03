@@ -40,7 +40,7 @@ const (
 func ToolsFromEnv() Tools {
 	outputDir := os.Getenv("LINGOCUT_OUTPUT_DIR")
 	if outputDir == "" {
-		outputDir = defaultOutputDir()
+		outputDir = DefaultLibraryDir()
 	}
 	translator := ChatTranslator{
 		BaseURL: os.Getenv("LINGOCUT_LLM_BASE_URL"),
@@ -72,16 +72,28 @@ func ToolsFromEnv() Tools {
 	}
 }
 
-func defaultOutputDir() string {
+// DefaultLibraryDir is the vimpo bundle that holds one folder per video. LegacyLibraryDir is the plain folder used before that.
+func DefaultLibraryDir() string {
+	return filepath.Join(moviesDir(), "影视库.vimpo")
+}
+
+func LegacyLibraryDir() string {
+	return filepath.Join(moviesDir(), "LingoCut")
+}
+
+// MoviesDir is the folder a new library is created in unless the user picks another place.
+func MoviesDir() string { return moviesDir() }
+
+func moviesDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(os.TempDir(), "LingoCut")
+		return os.TempDir()
 	}
 	folder := "Videos"
 	if runtime.GOOS == "darwin" {
 		folder = "Movies"
 	}
-	return filepath.Join(home, folder, "LingoCut")
+	return filepath.Join(home, folder)
 }
 
 // Apps opened from Finder or a desktop launcher get a minimal PATH that omits package manager directories.
@@ -148,7 +160,7 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		"-f", "bv*+ba/b",
 		"--merge-output-format", "mp4",
 		"-P", t.OutputDir,
-		"-o", "%(title).80B [%(id)s].%(ext)s",
+		"-o", "%(title).80B [%(id)s]/video.%(ext)s",
 		"--print", "after_move:filepath",
 		"--", source,
 	)

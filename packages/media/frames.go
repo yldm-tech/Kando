@@ -17,8 +17,9 @@ import (
 const frameMaxWidth = 960
 
 var (
-	sizePattern = regexp.MustCompile(`\b(\d{2,5})x(\d{2,5})\b`)
-	fpsPattern  = regexp.MustCompile(`([\d.]+) fps`)
+	sizePattern     = regexp.MustCompile(`\b(\d{2,5})x(\d{2,5})\b`)
+	fpsPattern      = regexp.MustCompile(`([\d.]+) fps`)
+	durationPattern = regexp.MustCompile(`Duration: (\d+):(\d+):(\d+(?:\.\d+)?)`)
 )
 
 // FrameReader streams a video's pictures. Next draws every frame into the same image; the caller copies it before the next Next.
@@ -28,6 +29,8 @@ type FrameReader struct {
 	frame    time.Duration
 	width    int
 	height   int
+	duration time.Duration
+	at       time.Duration
 	buf      []byte
 	pending  *image.RGBA
 	cmd      *exec.Cmd
@@ -38,17 +41,26 @@ type FrameReader struct {
 
 // OpenFrames starts ffmpeg and reads the first picture, so the caller learns a bad file before playback.
 func OpenFrames(ffmpeg, path string) (*FrameReader, error) {
+	return OpenFramesAt(ffmpeg, path, 0)
+}
+
+// OpenFramesAt starts at at, so a chapter can open in the middle of the file.
+func OpenFramesAt(ffmpeg, path string, at time.Duration) (*FrameReader, error) {
 	if ffmpeg == "" || path == "" {
 		return nil, errors.New("video source is missing")
 	}
-	width, height, frame, err := probePicture(ffmpeg, path)
+	if at < 0 {
+		at = 0
+	}
+	width, height, frame, duration, err := probePicture(ffmpeg, path)
 	if err != nil {
 		return nil, err
 	}
-	reader, err := startFrames(ffmpeg, path, width, height, frame)
+	reader, err := startFrames(ffmpeg, path, width, height, frame, at)
 	if err != nil {
 		return nil, err
 	}
+	reader.duration = duration
 	if err := reader.read(); err != nil {
 		reader.Close()
 		return nil, err
@@ -72,7 +84,7 @@ func (r *FrameReader) Next() (image.Image, time.Duration, error) {
 // Rewind starts the video from its first picture again.
 func (r *FrameReader) Rewind() error {
 	r.stopProcess()
-	next, err := startFrames(r.ffmpeg, r.path, r.width, r.height, r.frame)
+	next, err := startFrames(r.ffmpeg, r.path, r.width, r.height, r.frame, r.at)
 	if err != nil {
 		return err
 	}
@@ -85,6 +97,14 @@ func (r *FrameReader) Rewind() error {
 	}
 	r.pending = r.picture()
 	return nil
+}
+
+// Duration is the length ffmpeg reported for the file.
+func (r *FrameReader) Duration() time.Duration {
+	if r == nil {
+		return 0
+	}
+	return r.duration
 }
 
 // Close stops ffmpeg. It is safe to call more than once.
@@ -117,16 +137,20 @@ func (r *FrameReader) picture() *image.RGBA {
 	return &image.RGBA{Pix: r.buf, Stride: r.width * 4, Rect: image.Rect(0, 0, r.width, r.height)}
 }
 
-func startFrames(ffmpeg, path string, width, height int, frame time.Duration) (*FrameReader, error) {
+func startFrames(ffmpeg, path string, width, height int, frame, at time.Duration) (*FrameReader, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(ctx, ffmpeg,
-		"-nostdin", "-loglevel", "error",
+	args := []string{"-nostdin", "-loglevel", "error"}
+	if at > 0 {
+		args = append(args, "-ss", strconv.FormatFloat(at.Seconds(), 'f', 3, 64))
+	}
+	args = append(args,
 		"-i", path,
 		"-map", "0:v:0", "-an",
 		"-vf", "scale="+strconv.Itoa(width)+":"+strconv.Itoa(height),
 		"-f", "rawvideo", "-pix_fmt", "rgba",
 		"pipe:1",
 	)
+	cmd := exec.CommandContext(ctx, ffmpeg, args...)
 	cmd.Stderr = io.Discard
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -138,13 +162,13 @@ func startFrames(ffmpeg, path string, width, height int, frame time.Duration) (*
 		return nil, err
 	}
 	return &FrameReader{
-		ffmpeg: ffmpeg, path: path, frame: frame, width: width, height: height,
+		ffmpeg: ffmpeg, path: path, frame: frame, width: width, height: height, at: at,
 		buf: make([]byte, width*height*4),
 		cmd: cmd, stdout: stdout, cancel: cancel,
 	}, nil
 }
 
-func probePicture(ffmpeg, path string) (width, height int, frame time.Duration, err error) {
+func probePicture(ffmpeg, path string) (width, height int, frame, duration time.Duration, err error) {
 	cmd := exec.Command(ffmpeg, "-hide_banner", "-nostdin", "-i", path)
 	var stderr bytes.Buffer
 	cmd.Stdout = io.Discard
@@ -159,16 +183,16 @@ func probePicture(ffmpeg, path string) (width, height int, frame time.Duration, 
 		}
 	}
 	if video == "" {
-		return 0, 0, 0, errors.New("video has no picture")
+		return 0, 0, 0, 0, errors.New("video has no picture")
 	}
 	size := sizePattern.FindStringSubmatch(video)
 	if size == nil {
-		return 0, 0, 0, errors.New("video size is missing")
+		return 0, 0, 0, 0, errors.New("video size is missing")
 	}
 	width, _ = strconv.Atoi(size[1])
 	height, _ = strconv.Atoi(size[2])
 	if width < 2 || height < 2 {
-		return 0, 0, 0, errors.New("video size is missing")
+		return 0, 0, 0, 0, errors.New("video size is missing")
 	}
 	width, height = fitFrame(width, height)
 	fps := 25.0
@@ -177,7 +201,18 @@ func probePicture(ffmpeg, path string) (width, height int, frame time.Duration, 
 			fps = parsed
 		}
 	}
-	return width, height, time.Duration(float64(time.Second) / fps), nil
+	return width, height, time.Duration(float64(time.Second) / fps), parseDuration(text), nil
+}
+
+func parseDuration(text string) time.Duration {
+	match := durationPattern.FindStringSubmatch(text)
+	if match == nil {
+		return 0
+	}
+	hours, _ := strconv.Atoi(match[1])
+	minutes, _ := strconv.Atoi(match[2])
+	seconds, _ := strconv.ParseFloat(match[3], 64)
+	return time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute + time.Duration(seconds*float64(time.Second))
 }
 
 func fitFrame(width, height int) (int, int) {

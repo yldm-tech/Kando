@@ -13,7 +13,7 @@ func TestAudioCommandPrefersFFplay(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4")
+	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 0)
 	if err != nil {
 		t.Fatal(err)
 	}

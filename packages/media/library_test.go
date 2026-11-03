@@ -32,6 +32,161 @@ func TestListVideosFiltersAndSortsByNewest(t *testing.T) {
 	}
 }
 
+func TestListVideosIncludesAFolderPerVideo(t *testing.T) {
+	dir := t.TempDir()
+	folder := filepath.Join(dir, "talk")
+	if err := os.Mkdir(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(folder, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "talk.bilingual.srt"), []byte("s"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	videos, err := ListVideos(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(videos) != 1 || videos[0].Path != video {
+		t.Fatalf("videos = %#v", videos)
+	}
+}
+
+func TestGatherVideosMovesLooseFilesIntoAFolder(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	srt := filepath.Join(dir, "talk.srt")
+	bilingual := filepath.Join(dir, "talk.bilingual.srt")
+	note := filepath.Join(dir, "notes.txt")
+	for _, path := range []string{video, srt, bilingual, note} {
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	moved, err := GatherVideos(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved[video] != filepath.Join(dir, "talk", "video.mp4") || moved[bilingual] != filepath.Join(dir, "talk", "video.bilingual.srt") {
+		t.Fatalf("moved = %#v", moved)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "talk", "video.srt")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(note); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(video); !os.IsNotExist(err) {
+		t.Fatal("video stayed in the library root")
+	}
+}
+
+func TestListVideosUsesTheFolderNameForAnItemVideo(t *testing.T) {
+	dir := t.TempDir()
+	folder := filepath.Join(dir, "Learn Rust [abc]")
+	if err := os.Mkdir(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "video.mp4"), []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "video.en.srt"), []byte("s"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	videos, err := ListVideos(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(videos) != 1 || videos[0].Name != "Learn Rust [abc].mp4" {
+		t.Fatalf("videos = %#v", videos)
+	}
+}
+
+func TestAdoptLibraryMovesAFolderIntoTheBundle(t *testing.T) {
+	from := filepath.Join(t.TempDir(), "LingoCut")
+	to := filepath.Join(t.TempDir(), "影视库.vimpo")
+	folder := filepath.Join(from, "talk [abc]")
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(folder, "talk [abc].mp4")
+	srt := filepath.Join(folder, "talk [abc].bilingual.srt")
+	kept := filepath.Join(to, "already")
+	if err := os.MkdirAll(kept, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(kept, "video.mp4"), []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(to, "library.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{video, srt} {
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	moved, err := AdoptLibrary(from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantVideo := filepath.Join(to, "talk [abc]", "video.mp4")
+	wantSRT := filepath.Join(to, "talk [abc]", "video.bilingual.srt")
+	if moved[video] != wantVideo || moved[srt] != wantSRT {
+		t.Fatalf("moved = %#v", moved)
+	}
+	if _, err := os.Stat(filepath.Join(kept, "video.mp4")); err != nil {
+		t.Fatal(err)
+	}
+	if data, err := os.ReadFile(filepath.Join(to, "library.json")); err != nil || string(data) != "{}" {
+		t.Fatalf("library.json = %q %v", data, err)
+	}
+}
+
+func TestAdoptLibraryRemembersAnItemThatIsAlreadyNamedVideo(t *testing.T) {
+	root := t.TempDir()
+	from := filepath.Join(root, "LingoCut")
+	to := filepath.Join(root, "影视库.vimpo")
+	folder := filepath.Join(from, "talk")
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(folder, "video.mp4")
+	srt := filepath.Join(folder, "video.bilingual.srt")
+	for _, path := range []string{video, srt} {
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	moved, err := AdoptLibrary(from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved[video] != filepath.Join(to, "talk", "video.mp4") || moved[srt] != filepath.Join(to, "talk", "video.bilingual.srt") {
+		t.Fatalf("moved = %#v", moved)
+	}
+}
+
+func TestRelocateFindsTheSameItemUnderTheBundle(t *testing.T) {
+	root := t.TempDir()
+	folder := filepath.Join(root, "talk")
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "video.mp4"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := Relocate(root, filepath.Join(root, "gone", "talk", "video.mp4"))
+	if !ok || got != filepath.Join(folder, "video.mp4") {
+		t.Fatalf("relocate = %q %v", got, ok)
+	}
+	if _, ok := Relocate(root, filepath.Join(folder, "video.mp4")); ok {
+		t.Fatal("an existing file was relocated")
+	}
+}
+
 func TestListVideosReturnsEmptyForMissingDirectory(t *testing.T) {
 	videos, err := ListVideos(filepath.Join(t.TempDir(), "missing"))
 	if err != nil {

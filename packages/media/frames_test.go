@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestOpenFramesReadsPictures(t *testing.T) {
@@ -28,6 +29,9 @@ func TestOpenFramesReadsPictures(t *testing.T) {
 	}
 	if img.Bounds().Dx() != 160 || img.Bounds().Dy() != 90 || dur <= 0 {
 		t.Fatalf("frame %v for %s", img.Bounds(), dur)
+	}
+	if reader.Duration() < 900*time.Millisecond || reader.Duration() > 1500*time.Millisecond {
+		t.Fatalf("duration %s", reader.Duration())
 	}
 	if _, _, err := reader.Next(); err != nil {
 		t.Fatal(err)
