@@ -14,7 +14,7 @@
  		return nil, sum, err
  	}
 +	if overlap {
-+		if err := s.waitForWindow(ctx, p); err != nil {
++		if err := waitForWindow(ctx, p); err != nil {
 +			return nil, sum, err
 +		}
 +		s.replaceLive()

@@ -11,17 +11,14 @@ import (
 // overlapTimeout bounds how long the running build waits for the next one's window. Past it the running build is stopped anyway, as a build that shows no window would never replace it.
 const overlapTimeout = 15 * time.Second
 
-// waitForWindow waits until p shows a window, so that the running build can quit with the new one already on screen. It returns at once when the running build has no window on screen either, as when the user is on another Space: there is nothing to cover then. It fails when p exits first, which keeps the running build; p is stopped when ctx ends.
-func (s *devSession) waitForWindow(ctx context.Context, p *devProcess) error {
-	s.liveMu.Lock()
-	running := s.live
-	s.liveMu.Unlock()
+// waitForWindow waits until p shows a window, so that the running build can quit with the new one already on screen. It waits even when the running build's window is out of sight, as on another Space: the new window opens on the active Space, and quitting the running build first would still take the app's icon out of the Dock for a moment. It fails when p exits first, which keeps the running build; p is stopped when ctx ends.
+func waitForWindow(ctx context.Context, p *devProcess) error {
 	pid := p.cmd.Process.Pid
 	deadline := time.NewTimer(overlapTimeout)
 	defer deadline.Stop()
 	tick := time.NewTicker(30 * time.Millisecond)
 	defer tick.Stop()
-	for !windowProbe(pid) && (running == nil || windowProbe(running.cmd.Process.Pid)) {
+	for !windowProbe(pid) {
 		select {
 		case <-ctx.Done():
 			p.stop()
