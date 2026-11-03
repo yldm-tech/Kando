@@ -1161,6 +1161,16 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 	a.ossBucket = "oss-clips"
 	a.ossAccessKey = "oss-key"
 	a.ossSecret = "oss-secret"
+	a.cosRegion = "ap-guangzhou"
+	a.cosBucket = "video-1250000000"
+	a.cosAccessKey = "cos-key"
+	a.cosSecret = "cos-secret"
+	a.compatEndpoint = "https://s3.example.com"
+	a.compatRegion = "us-east-1"
+	a.compatBucket = "compat-clips"
+	a.compatAccessKey = "compat-key"
+	a.compatSecret = "compat-secret"
+	a.compatPath = true
 	if err := a.saveSettings(); err != nil {
 		t.Fatal(err)
 	}
@@ -1183,6 +1193,12 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 	}
 	if loaded.OSSRegion != "cn-hangzhou" || loaded.OSSBucket != "oss-clips" || loaded.OSSAccessKey != "oss-key" || loaded.OSSSecret != "oss-secret" {
 		t.Fatal("oss fields did not round-trip")
+	}
+	if loaded.COSRegion != "ap-guangzhou" || loaded.COSBucket != "video-1250000000" || loaded.COSAccessKey != "cos-key" || loaded.COSSecret != "cos-secret" {
+		t.Fatal("cos fields did not round-trip")
+	}
+	if loaded.CompatEndpoint != "https://s3.example.com" || loaded.CompatRegion != "us-east-1" || !loaded.CompatPathStyle || loaded.CompatSecret != "compat-secret" {
+		t.Fatal("s3 compatible fields did not round-trip")
 	}
 }
 
@@ -1405,6 +1421,79 @@ func TestBeginUploadUsesTheOSSRegion(t *testing.T) {
 	}
 	if a.uploaded[cloud.KindOSS+"\n"+video] == "" {
 		t.Fatal("oss upload was not recorded")
+	}
+}
+
+func TestBeginUploadUsesCOS(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.googleEmail = "a@b.c"
+	a.storage = "tencent"
+	a.cosRegion = "ap-guangzhou"
+	a.cosBucket = "video-1250000000"
+	a.cosAccessKey = "key"
+	a.cosSecret = "secret-value"
+	var kind, region, bucket string
+	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+		kind, region, bucket = cfg.Kind, cfg.Region, cfg.Bucket
+		return nil
+	}
+	a.BeginUpload(films.Film{VideoPath: video})
+	waitUpdate(t, updates)
+	if kind != cloud.KindCOS || region != "ap-guangzhou" || bucket != "video-1250000000" {
+		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
+	}
+}
+
+func TestBeginUploadUsesACompatibleEndpoint(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.googleEmail = "a@b.c"
+	a.storage = "compat"
+	a.compatEndpoint = "https://play.min.io"
+	a.compatRegion = "us-east-1"
+	a.compatBucket = "clips"
+	a.compatAccessKey = "key"
+	a.compatSecret = "secret-value"
+	a.compatPath = true
+	var kind, endpoint string
+	var pathStyle bool
+	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+		kind, endpoint, pathStyle = cfg.Kind, cfg.Endpoint, cfg.PathStyle
+		return nil
+	}
+	a.BeginUpload(films.Film{VideoPath: video})
+	waitUpdate(t, updates)
+	if kind != cloud.KindCompat || endpoint != "https://play.min.io" || !pathStyle {
+		t.Fatalf("kind %q endpoint %q path %v", kind, endpoint, pathStyle)
+	}
+}
+
+func TestAccountPageShowsCOSFields(t *testing.T) {
+	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.storage = cloud.KindCOS
+	tt.Frame()
+	if err := tt.Click("账号"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, text := range []string{"腾讯云 COS", "ap-guangzhou", "1250000000", "SecretId"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
 	}
 }
 

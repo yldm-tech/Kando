@@ -97,6 +97,26 @@ func (a *app) OSSAccessKey() *string { return &a.ossAccessKey }
 
 func (a *app) OSSSecret() *string { return &a.ossSecret }
 
+func (a *app) COSRegion() *string { return &a.cosRegion }
+
+func (a *app) COSBucket() *string { return &a.cosBucket }
+
+func (a *app) COSAccessKey() *string { return &a.cosAccessKey }
+
+func (a *app) COSSecret() *string { return &a.cosSecret }
+
+func (a *app) CompatEndpoint() *string { return &a.compatEndpoint }
+
+func (a *app) CompatRegion() *string { return &a.compatRegion }
+
+func (a *app) CompatBucket() *string { return &a.compatBucket }
+
+func (a *app) CompatAccessKey() *string { return &a.compatAccessKey }
+
+func (a *app) CompatSecret() *string { return &a.compatSecret }
+
+func (a *app) CompatPathStyle() *bool { return &a.compatPath }
+
 func (a *app) ShowR2Secret() bool { return a.showR2Secret }
 
 func (a *app) ToggleR2Secret() { a.showR2Secret = !a.showR2Secret }
@@ -219,6 +239,10 @@ func (a *app) uploadBlocked() string {
 		return "先在「账号」里填写 S3"
 	case cloud.KindOSS:
 		return "先在「账号」里填写 OSS"
+	case cloud.KindCOS:
+		return "先在「账号」里填写 COS"
+	case cloud.KindCompat:
+		return "先在「账号」里填写 S3 兼容"
 	default:
 		return "先在「账号」里填写 R2"
 	}
@@ -242,6 +266,24 @@ func (a *app) currentStore() cloud.Store {
 			AccessKey: strings.TrimSpace(a.ossAccessKey),
 			Secret:    strings.TrimSpace(a.ossSecret),
 		}
+	case cloud.KindCOS:
+		return cloud.Store{
+			Kind:      cloud.KindCOS,
+			Region:    strings.TrimSpace(a.cosRegion),
+			Bucket:    strings.TrimSpace(a.cosBucket),
+			AccessKey: strings.TrimSpace(a.cosAccessKey),
+			Secret:    strings.TrimSpace(a.cosSecret),
+		}
+	case cloud.KindCompat:
+		return cloud.Store{
+			Kind:      cloud.KindCompat,
+			Endpoint:  strings.TrimSpace(a.compatEndpoint),
+			Region:    strings.TrimSpace(a.compatRegion),
+			Bucket:    strings.TrimSpace(a.compatBucket),
+			AccessKey: strings.TrimSpace(a.compatAccessKey),
+			Secret:    strings.TrimSpace(a.compatSecret),
+			PathStyle: a.compatPath,
+		}
 	default:
 		return cloud.Store{
 			Kind:      cloud.KindR2,
@@ -261,6 +303,10 @@ func (a *app) uploadLabel() string {
 		return "上传到 S3"
 	case cloud.KindOSS:
 		return "上传到 OSS"
+	case cloud.KindCOS:
+		return "上传到 COS"
+	case cloud.KindCompat:
+		return "上传到 S3 兼容"
 	default:
 		return "上传到 R2"
 	}
@@ -280,6 +326,11 @@ func storeReady(cfg cloud.Store) bool {
 	case cloud.KindOSS:
 		endpoint, region := cloud.OSS(cfg.Region)
 		return endpoint != "" && region != ""
+	case cloud.KindCOS:
+		endpoint, region := cloud.COS(cfg.Region)
+		return endpoint != "" && region != ""
+	case cloud.KindCompat:
+		return cloud.CompatEndpoint(cfg.Endpoint) != "" && cloud.Region(cfg.Region) != ""
 	default:
 		return cloud.Endpoint(cfg.Endpoint) != ""
 	}
@@ -287,7 +338,7 @@ func storeReady(cfg cloud.Store) bool {
 
 func storeKind(kind string) string {
 	switch kind {
-	case cloud.KindS3, cloud.KindOSS:
+	case cloud.KindS3, cloud.KindOSS, cloud.KindCOS, cloud.KindCompat:
 		return kind
 	default:
 		return cloud.KindR2
@@ -310,6 +361,16 @@ func applyCloudEnv(a *app, saved savedSettings) {
 	a.ossBucket = firstSet(os.Getenv("LINGOCUT_OSS_BUCKET"), saved.OSSBucket)
 	a.ossAccessKey = firstSet(os.Getenv("LINGOCUT_OSS_ACCESS_KEY"), saved.OSSAccessKey)
 	a.ossSecret = firstSet(os.Getenv("LINGOCUT_OSS_SECRET"), saved.OSSSecret)
+	a.cosRegion = firstSet(os.Getenv("LINGOCUT_COS_REGION"), saved.COSRegion)
+	a.cosBucket = firstSet(os.Getenv("LINGOCUT_COS_BUCKET"), saved.COSBucket)
+	a.cosAccessKey = firstSet(os.Getenv("LINGOCUT_COS_ACCESS_KEY"), saved.COSAccessKey)
+	a.cosSecret = firstSet(os.Getenv("LINGOCUT_COS_SECRET"), saved.COSSecret)
+	a.compatEndpoint = firstSet(os.Getenv("LINGOCUT_S3COMPAT_ENDPOINT"), saved.CompatEndpoint)
+	a.compatRegion = firstSet(os.Getenv("LINGOCUT_S3COMPAT_REGION"), saved.CompatRegion)
+	a.compatBucket = firstSet(os.Getenv("LINGOCUT_S3COMPAT_BUCKET"), saved.CompatBucket)
+	a.compatAccessKey = firstSet(os.Getenv("LINGOCUT_S3COMPAT_ACCESS_KEY"), saved.CompatAccessKey)
+	a.compatSecret = firstSet(os.Getenv("LINGOCUT_S3COMPAT_SECRET"), saved.CompatSecret)
+	a.compatPath = pathStyleFrom(os.Getenv("LINGOCUT_S3COMPAT_PATH_STYLE"), saved.CompatPathStyle)
 }
 
 func storageFrom(raw string) string {
@@ -318,8 +379,23 @@ func storageFrom(raw string) string {
 		return cloud.KindS3
 	case "oss", "aliyun":
 		return cloud.KindOSS
+	case "cos", "tencent":
+		return cloud.KindCOS
+	case "compat", "s3compat":
+		return cloud.KindCompat
 	default:
 		return cloud.KindR2
+	}
+}
+
+func pathStyleFrom(env string, saved bool) bool {
+	switch strings.ToLower(strings.TrimSpace(env)) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return saved
 	}
 }
 

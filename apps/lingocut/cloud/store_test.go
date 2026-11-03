@@ -40,6 +40,40 @@ func TestOSSBuildsTheS3Endpoint(t *testing.T) {
 	}
 }
 
+func TestCOSBuildsTheEndpoint(t *testing.T) {
+	endpoint, region := COS(" ap-guangzhou ")
+	if endpoint != "https://cos.ap-guangzhou.myqcloud.com" || region != "ap-guangzhou" {
+		t.Fatalf("endpoint %q region %q", endpoint, region)
+	}
+	endpoint, region = COS("https://cos.ap-beijing.myqcloud.com/")
+	if endpoint != "https://cos.ap-beijing.myqcloud.com" || region != "ap-beijing" {
+		t.Fatalf("url endpoint %q region %q", endpoint, region)
+	}
+	if e, r := COS("https://example.com"); e != "" || r != "" {
+		t.Fatalf("foreign url %q %q", e, r)
+	}
+}
+
+func TestNewCOSRejectsABlankRegion(t *testing.T) {
+	if _, err := NewCOS("", "key", "secret"); err == nil {
+		t.Fatal("blank region was accepted")
+	}
+	client, err := NewCOS("ap-guangzhou", "key", "secret")
+	if err != nil || client == nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNewCompatRequiresAnEndpoint(t *testing.T) {
+	if _, err := NewCompat("s3.example.com", "us-east-1", "key", "secret", true); err == nil {
+		t.Fatal("a host without a scheme was accepted")
+	}
+	client, err := NewCompat("https://s3.example.com/", "us-east-1", "key", "secret", true)
+	if err != nil || client == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNewOSSRejectsABlankRegion(t *testing.T) {
 	if _, err := NewOSS("", "key", "secret"); err == nil {
 		t.Fatal("blank region was accepted")

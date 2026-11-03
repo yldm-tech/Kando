@@ -18,9 +18,13 @@ const (
 	KindS3 = "s3"
 	// KindOSS uploads to Alibaba Cloud OSS.
 	KindOSS = "oss"
+	// KindCOS uploads to Tencent Cloud COS.
+	KindCOS = "cos"
+	// KindCompat uploads to another S3-compatible endpoint.
+	KindCompat = "compat"
 )
 
-// Store is one bucket the user owns, either Cloudflare R2 or Amazon S3.
+// Store is one bucket the user owns.
 type Store struct {
 	Kind      string
 	Endpoint  string
@@ -28,6 +32,7 @@ type Store struct {
 	Bucket    string
 	AccessKey string
 	Secret    string
+	PathStyle bool
 }
 
 type client struct {
@@ -59,6 +64,10 @@ func Open(cfg Store) (Client, error) {
 		return NewS3(cfg.Region, cfg.AccessKey, cfg.Secret)
 	case KindOSS:
 		return NewOSS(cfg.Region, cfg.AccessKey, cfg.Secret)
+	case KindCOS:
+		return NewCOS(cfg.Region, cfg.AccessKey, cfg.Secret)
+	case KindCompat:
+		return NewCompat(cfg.Endpoint, cfg.Region, cfg.AccessKey, cfg.Secret, cfg.PathStyle)
 	default:
 		return NewR2(cfg.Endpoint, cfg.AccessKey, cfg.Secret)
 	}

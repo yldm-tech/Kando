@@ -39,7 +39,9 @@ The app reads its settings from the environment:
 - `LINGOCUT_GOOGLE_CLIENT_ID` — Google OAuth client id for the account page. It is not saved. `LINGOCUT_GOOGLE_CLIENT_SECRET` is optional.
 - `LINGOCUT_R2_ENDPOINT`, `LINGOCUT_R2_BUCKET`, `LINGOCUT_R2_ACCESS_KEY`, `LINGOCUT_R2_SECRET` — Cloudflare R2, used when set instead of the values saved in settings. The endpoint may be an account id or a full URL.
 - `LINGOCUT_S3_REGION`, `LINGOCUT_S3_BUCKET`, `LINGOCUT_S3_ACCESS_KEY`, `LINGOCUT_S3_SECRET` — Amazon S3. The region is a name such as `ap-northeast-1`. `LINGOCUT_STORAGE=s3` selects S3.
-- `LINGOCUT_OSS_REGION`, `LINGOCUT_OSS_BUCKET`, `LINGOCUT_OSS_ACCESS_KEY`, `LINGOCUT_OSS_SECRET` — Alibaba Cloud OSS. The region is a name such as `cn-hangzhou`. `LINGOCUT_STORAGE=oss` selects OSS. Otherwise the upload goes to R2.
+- `LINGOCUT_OSS_REGION`, `LINGOCUT_OSS_BUCKET`, `LINGOCUT_OSS_ACCESS_KEY`, `LINGOCUT_OSS_SECRET` — Alibaba Cloud OSS. The region is a name such as `cn-hangzhou`. `LINGOCUT_STORAGE=oss` selects OSS.
+- `LINGOCUT_COS_REGION`, `LINGOCUT_COS_BUCKET`, `LINGOCUT_COS_ACCESS_KEY`, `LINGOCUT_COS_SECRET` — Tencent Cloud COS. The region is a name such as `ap-guangzhou`, and the bucket name includes the APPID. `LINGOCUT_STORAGE=cos` selects COS.
+- `LINGOCUT_S3COMPAT_ENDPOINT`, `LINGOCUT_S3COMPAT_REGION`, `LINGOCUT_S3COMPAT_BUCKET`, `LINGOCUT_S3COMPAT_ACCESS_KEY`, `LINGOCUT_S3COMPAT_SECRET` — any other S3-compatible store. `LINGOCUT_S3COMPAT_PATH_STYLE=1` turns on path-style addressing, which MinIO needs. `LINGOCUT_STORAGE=compat` selects it. Otherwise the upload goes to R2.
 
 Finished and in-progress jobs are listed in the sidebar and remembered in `library.json` under the user config directory (`~/Library/Application Support/LingoCut` on macOS).
 

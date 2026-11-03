@@ -90,6 +90,16 @@ type app struct {
 	ossBucket        string
 	ossAccessKey     string
 	ossSecret        string
+	cosRegion        string
+	cosBucket        string
+	cosAccessKey     string
+	cosSecret        string
+	compatEndpoint   string
+	compatRegion     string
+	compatBucket     string
+	compatAccessKey  string
+	compatSecret     string
+	compatPath       bool
 	showR2Secret     bool
 	uploadPath       string
 	uploadWritten    int64
@@ -706,6 +716,16 @@ func (a *app) saveSettings() error {
 		OSSBucket:        a.ossBucket,
 		OSSAccessKey:     a.ossAccessKey,
 		OSSSecret:        a.ossSecret,
+		COSRegion:        a.cosRegion,
+		COSBucket:        a.cosBucket,
+		COSAccessKey:     a.cosAccessKey,
+		COSSecret:        a.cosSecret,
+		CompatEndpoint:   a.compatEndpoint,
+		CompatRegion:     a.compatRegion,
+		CompatBucket:     a.compatBucket,
+		CompatAccessKey:  a.compatAccessKey,
+		CompatSecret:     a.compatSecret,
+		CompatPathStyle:  a.compatPath,
 	}
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
@@ -758,6 +778,15 @@ func loadSavedSettings(path string) savedSettings {
 	saved.OSSBucket = strings.TrimSpace(saved.OSSBucket)
 	saved.OSSAccessKey = strings.TrimSpace(saved.OSSAccessKey)
 	saved.OSSSecret = strings.TrimSpace(saved.OSSSecret)
+	saved.COSRegion = strings.TrimSpace(saved.COSRegion)
+	saved.COSBucket = strings.TrimSpace(saved.COSBucket)
+	saved.COSAccessKey = strings.TrimSpace(saved.COSAccessKey)
+	saved.COSSecret = strings.TrimSpace(saved.COSSecret)
+	saved.CompatEndpoint = strings.TrimSpace(saved.CompatEndpoint)
+	saved.CompatRegion = strings.TrimSpace(saved.CompatRegion)
+	saved.CompatBucket = strings.TrimSpace(saved.CompatBucket)
+	saved.CompatAccessKey = strings.TrimSpace(saved.CompatAccessKey)
+	saved.CompatSecret = strings.TrimSpace(saved.CompatSecret)
 	return saved
 }
 
@@ -788,6 +817,16 @@ type savedSettings struct {
 	OSSBucket        string                `json:"ossBucket,omitempty"`
 	OSSAccessKey     string                `json:"ossAccessKey,omitempty"`
 	OSSSecret        string                `json:"ossSecret,omitempty"`
+	COSRegion        string                `json:"cosRegion,omitempty"`
+	COSBucket        string                `json:"cosBucket,omitempty"`
+	COSAccessKey     string                `json:"cosAccessKey,omitempty"`
+	COSSecret        string                `json:"cosSecret,omitempty"`
+	CompatEndpoint   string                `json:"s3CompatEndpoint,omitempty"`
+	CompatRegion     string                `json:"s3CompatRegion,omitempty"`
+	CompatBucket     string                `json:"s3CompatBucket,omitempty"`
+	CompatAccessKey  string                `json:"s3CompatAccessKey,omitempty"`
+	CompatSecret     string                `json:"s3CompatSecret,omitempty"`
+	CompatPathStyle  bool                  `json:"s3CompatPathStyle,omitempty"`
 }
 
 type savedInode struct {

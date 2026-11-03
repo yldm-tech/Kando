@@ -29,6 +29,16 @@ type App interface {
 	OSSBucket() *string
 	OSSAccessKey() *string
 	OSSSecret() *string
+	COSRegion() *string
+	COSBucket() *string
+	COSAccessKey() *string
+	COSSecret() *string
+	CompatEndpoint() *string
+	CompatRegion() *string
+	CompatBucket() *string
+	CompatAccessKey() *string
+	CompatSecret() *string
+	CompatPathStyle() *bool
 	ShowR2Secret() bool
 	ToggleR2Secret()
 	Save() error
@@ -59,6 +69,30 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 				func() { textRow(c, t, "oss-access", "Access Key", "", a.OSSAccessKey(), a) },
 				func() { secretRow(c, t, "oss-secret", a.OSSSecret(), a) },
 			)
+		case "cos":
+			card(c, t,
+				func() { storageRow(c, t, a) },
+				func() { textRow(c, t, "cos-region", "Region", "例如 ap-guangzhou。", a.COSRegion(), a) },
+				func() {
+					textRow(c, t, "cos-bucket", "Bucket", "要带 APPID，例如 video-1250000000。", a.COSBucket(), a)
+				},
+				func() { textRow(c, t, "cos-access", "Access Key", "填 SecretId。", a.COSAccessKey(), a) },
+				func() { secretRow(c, t, "cos-secret", a.COSSecret(), a) },
+			)
+		case "compat":
+			card(c, t,
+				func() { storageRow(c, t, a) },
+				func() {
+					textRow(c, t, "compat-endpoint", "Endpoint", "完整的 https 地址。", a.CompatEndpoint(), a)
+				},
+				func() {
+					textRow(c, t, "compat-region", "Region", "签名用的区域名。MinIO 通常填 us-east-1。", a.CompatRegion(), a)
+				},
+				func() { textRow(c, t, "compat-bucket", "Bucket", "", a.CompatBucket(), a) },
+				func() { textRow(c, t, "compat-access", "Access Key", "", a.CompatAccessKey(), a) },
+				func() { secretRow(c, t, "compat-secret", a.CompatSecret(), a) },
+				func() { pathStyleRow(c, t, a) },
+			)
 		default:
 			card(c, t,
 				func() { storageRow(c, t, a) },
@@ -78,7 +112,7 @@ func storageRow(c *ui.Context, t *ui.Theme, a App) {
 		sel := components.Select(c, selected)
 		sel.Trigger.Children(func() { components.Text(c, storageLabel(*selected)).SingleLine() })
 		sel.Popup(func(ui.Element) {
-			for _, id := range []string{"r2", "s3", "oss"} {
+			for _, id := range []string{"r2", "s3", "oss", "cos", "compat"} {
 				id := id
 				sel.Item(id).Children(func() { components.Text(c, storageLabel(id)).SingleLine() })
 			}
@@ -95,9 +129,24 @@ func storageLabel(id string) string {
 		return "Amazon S3"
 	case "oss":
 		return "阿里云 OSS"
+	case "cos":
+		return "腾讯云 COS"
+	case "compat":
+		return "S3 兼容"
 	default:
 		return "Cloudflare R2"
 	}
+}
+
+func pathStyleRow(c *ui.Context, t *ui.Theme, a App) {
+	fieldRow(c, t, "路径样式", "MinIO 打开。B2、Wasabi、华为云、七牛保持关闭。", func() {
+		c.Key("compat-path")
+		before := *a.CompatPathStyle()
+		components.Switch(c, a.CompatPathStyle(), "路径样式", components.SwitchOptions{HideLabel: true})
+		if *a.CompatPathStyle() != before {
+			_ = a.Save()
+		}
+	})
 }
 
 func googleRow(c *ui.Context, t *ui.Theme, a App) {
