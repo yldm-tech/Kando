@@ -1,0 +1,24 @@
+--- a/cmd/mygo/dev.go
++++ b/cmd/mygo/dev.go
+@@ -626,10 +626,20 @@
+ 	} else if err := placeBuild(stage, dir, res); err != nil {
+ 		return nil, sum, err
+ 	}
+-	s.stopLive()
++	// LingoCut: where a window can be probed, the running build keeps its window until the new build shows one; the run loop then stops it (tools/mygo-dev).
++	overlap := windowProbe != nil && s.liveRunning()
++	if !overlap {
++		s.stopLive()
++	}
+ 	if p, err = s.launch(exe); err != nil {
+ 		return nil, sum, err
+ 	}
++	if overlap {
++		if err := s.waitForWindow(ctx, p); err != nil {
++			return nil, sum, err
++		}
++		s.replaceLive()
++	}
+ 	return p, sum, nil
+ }
+ 
