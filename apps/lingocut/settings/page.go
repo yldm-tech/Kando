@@ -296,11 +296,16 @@ func (s screen) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool
 	place(func() {
 		s.llmList(c, t, listWidth)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(18).Children(func() {
-			ui.Column(c).Background(t.Surface).Radius(12).Padding(14, 16).Gap(4).Children(func() {
-				ui.Text(c, preset.Name).Bold()
-				if preset.Blurb != "" {
-					ui.Text(c, preset.Blurb).TextColor(t.TextMuted).FontSize(12).Wrap()
+			ui.Row(c).Background(t.Surface).Radius(12).Padding(14, 16).Gap(12).AlignItems(ui.Center).Children(func() {
+				if mark := providerMark(preset.ID); mark != nil {
+					ui.Image(c, mark).Size(28, 28).Shrink(0)
 				}
+				ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
+					ui.Text(c, preset.Name).Bold()
+					if preset.Blurb != "" {
+						ui.Text(c, preset.Blurb).TextColor(t.TextMuted).FontSize(12).Wrap()
+					}
+				})
 			})
 			ui.Text(c, "连接")
 			ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
@@ -389,8 +394,8 @@ func (s screen) llmList(c *ui.Context, t *ui.Theme, width float32) {
 			id := preset.ID
 			name := preset.Name
 			row.Children(func() {
-				if s.LLMProvider() == id {
-					ui.Box(c).Size(8, 8).Radius(4).Background(ui.Hex("#3d9a6a"))
+				if mark := providerMark(id); mark != nil {
+					ui.Image(c, mark).Size(16, 16).Shrink(0)
 				}
 				ui.Text(c, name)
 			})

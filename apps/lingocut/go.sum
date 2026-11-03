@@ -36,6 +36,8 @@ github.com/oneo-me/onevra/source v0.2026.17 h1:2arCN5YIa7fDL48dtKH76nXnyVW2gPSlz
 github.com/oneo-me/onevra/source v0.2026.17/go.mod h1:/+3SV9M2gM5Gq4ljua6afXcp+s4+3Lk/5wWSOg/qSAA=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
+github.com/yldm-tech/ai-logo/mygo v1.15.0 h1:l2wpuIseEEv3d/DufMIqYu9q1oVPxwmJr2OzA0QPSf4=
+github.com/yldm-tech/ai-logo/mygo v1.15.0/go.mod h1:vex0tOqgXeQKEZZkCnQLAW2vyQywbw10GIepzUBCMqE=
 github.com/yldm-tech/nodra v1.1.0 h1:Nchhltvve8EWNyChtpVzFAy8hwQt6OhpKHX9G2078ts=
 github.com/yldm-tech/nodra v1.1.0/go.mod h1:Xv8gzEzE8B2noBatHYTLGloXenXxabR6i9HFeHcD4Yk=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
