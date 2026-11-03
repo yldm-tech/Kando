@@ -1,33 +1,35 @@
 package main
 
 import (
+	"lingocut/apps/lingocut/film"
+	"lingocut/apps/lingocut/films"
+	"lingocut/apps/lingocut/settings"
+	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/oneo-me/onevra/source/shells/sidebar"
+	appshell "github.com/oneo-me/onevra/source/shells/sidebar"
 	"github.com/oneo-me/onevra/source/theme"
 )
 
 const (
-	pageFilms     = ""
-	pageYouTube   = "youtube"
-	pageGeneral   = "general"
-	pageSpeech    = "speech"
-	pageAI        = "ai"
-	pageTranslate = "translate"
+	pageFilms     = sidebar.PageFilms
+	pageYouTube   = sidebar.PageYouTube
+	pageGeneral   = sidebar.PageGeneral
+	pageSpeech    = sidebar.PageSpeech
+	pageAI        = sidebar.PageAI
+	pageTranslate = sidebar.PageTranslate
 
 	appVersion = "0.1.0"
 
-	sidebarWidth float32 = 248
-	pagePadX     float32 = 32
-	cardMinWidth float32 = 280
-	cardGap      float32 = 18
+	sidebarWidth = sidebar.Width
+	pagePadX     = sidebar.PagePadX
 )
 
 func (a *app) view(c *ui.Context) {
 	theme.Apply(c)
 	t := c.Theme()
-	films := a.films()
+	items := a.films()
 	// The traffic lights sit on the dark content. The band under them is the drag region.
 	bar := c.TitleBar()
 	ui.Column(c).Fill().AlignItems(ui.Stretch).Children(func() {
@@ -36,14 +38,14 @@ func (a *app) view(c *ui.Context) {
 		}
 		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
 			if a.page != pageFilms || a.openKey == "" {
-				a.sidebar(c, t, len(films))
+				sidebar.Show(c, t, len(items), appLogo, a)
 			}
-			a.mainColumn(c, t, films)
+			a.mainColumn(c, t, items)
 		})
 	})
 }
 
-func (a *app) mainColumn(c *ui.Context, t *ui.Theme, films []film) {
+func (a *app) mainColumn(c *ui.Context, t *ui.Theme, items []films.Film) {
 	padX, padY := pagePadX, float32(28)
 	if a.page == pageFilms && a.openKey != "" {
 		padX, padY = 16, 12
@@ -65,27 +67,29 @@ func (a *app) mainColumn(c *ui.Context, t *ui.Theme, films []film) {
 		case pageGeneral, pageSpeech, pageAI, pageTranslate:
 			ui.Scroll(c).Grow(1).Children(func() {
 				ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
-					a.settings(c, t)
+					settings.Show(c, t, appVersion, a)
 				})
 			})
 		default:
-			a.libraryPage(c, t, films)
+			films.Show(c, t, a, items, func(c *ui.Context, t *ui.Theme, item films.Film) {
+				film.Show(c, t, a, item)
+			})
 		}
 	})
 }
 
 // shellBody is the main column under Onevra's floating header. Opening a film replaces the sidebar page; closing it restores the sidebar.
 func (a *app) shellBody(c *ui.Context) {
-	film := a.page == pageFilms && a.openKey != ""
-	if a.shell != nil && film != a.shellFilm {
-		a.shellFilm = film
-		if film {
+	open := a.page == pageFilms && a.openKey != ""
+	if a.shell != nil && open != a.shellFilm {
+		a.shellFilm = open
+		if open {
 			a.shell.SetPage(func(c *ui.Context) { a.shellBody(c) })
 		} else {
 			a.shell.SetPage(nil)
 		}
 	}
-	ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).Children(func() {
+	ui.Column(c).Fill().Padding(appshell.HeaderHeight(c), 0, 0, 0).Children(func() {
 		a.mainColumn(c, c.Theme(), a.films())
 	})
 }

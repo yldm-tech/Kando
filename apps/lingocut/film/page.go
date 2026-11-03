@@ -1,63 +1,112 @@
-package main
+package film
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
+	"lingocut/apps/lingocut/films"
 	"lingocut/packages/core"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/oneo-me/onevra/source/components"
 )
 
-func (a *app) filmPage(c *ui.Context, t *ui.Theme, item film) {
+// App is the open film the player page reads and the clicks it reports.
+type App interface {
+	OpenKey() string
+	SetOpenKey(string)
+	StopPlayback()
+	Reveal(path string)
+	Running() bool
+	Stop()
+	StartFilm(item films.Film)
+	Remove(id string)
+	RetryOpen(id string)
+	Play() Player
+	PlayPath() string
+	PlayErr() string
+	Subs() Subs
+	SubList() *ui.ListState
+	ClipList() *ui.ListState
+	FilmSide() string
+	SetFilmSide(string)
+	Seek(at time.Duration)
+	Cue() *Look
+}
+
+// Player is the picture currently open.
+type Player interface {
+	Widget() *ui.VideoPlayer
+	Playing() bool
+	Settle()
+	Toggle()
+	Head() time.Duration
+	Length() time.Duration
+}
+
+// Subs is the subtitle file open on the film page.
+type Subs struct {
+	Key   string
+	Ready bool
+	Err   string
+	Cues  []core.Segment
+}
+
+type screen struct{ App }
+
+// Show draws the open film.
+func Show(c *ui.Context, t *ui.Theme, a App, item films.Film) {
+	screen{a}.filmPage(c, t, item)
+}
+
+func (s screen) filmPage(c *ui.Context, t *ui.Theme, item films.Film) {
 	ui.Column(c).Grow(1).MinHeight(0).Gap(12).Children(func() {
-		a.filmTop(c, t, item)
+		s.filmTop(c, t, item)
 		ui.Row(c).Grow(1).MinHeight(0).Gap(16).AlignItems(ui.Stretch).Children(func() {
-			a.playerPane(c, t)
-			a.subtitlePane(c, t, item)
+			s.playerPane(c, t)
+			s.subtitlePane(c, t, item)
 		})
 	})
 }
 
-func (a *app) filmTop(c *ui.Context, t *ui.Theme, item film) {
+func (s screen) filmTop(c *ui.Context, t *ui.Theme, item films.Film) {
 	ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 		c.Key("film-back")
 		if components.Button(c, "返回", components.ButtonSecondary).Shrink(0).Clicked() {
-			a.openKey = ""
-			a.stopPlayback()
+			s.SetOpenKey("")
+			s.StopPlayback()
 		}
-		title := item.name
+		title := item.Name
 		if title == "" {
-			title = item.title
+			title = item.Title
 		}
 		ui.Text(c, title).FontSize(18).Bold().Grow(1).Wrap()
-		if item.stage != "" {
+		if item.Stage != "" {
 			color := t.Accent
-			if item.stage == core.StageFailed {
+			if item.Stage == core.StageFailed {
 				color = t.Danger
 			}
-			ui.Text(c, stageLabel(item.stage)).TextColor(color).Bold().Shrink(0)
+			ui.Text(c, films.StageLabel(item.Stage)).TextColor(color).Bold().Shrink(0)
 		}
-		path := item.subtitlePath
+		path := item.SubtitlePath
 		if path == "" {
-			path = item.videoPath
+			path = item.VideoPath
 		}
 		if path != "" {
 			c.Key("film-reveal")
 			if components.Button(c, "在访达中显示", components.ButtonSecondary).Shrink(0).Clicked() {
-				a.reveal(path)
+				s.Reveal(path)
 			}
 		}
 	})
-	a.filmActions(c, item)
+	s.filmActions(c, item)
 }
 
-func (a *app) filmActions(c *ui.Context, item film) {
-	showCancel := item.jobID != "" && item.stage != "" && !item.stage.Done()
-	showStart := item.jobID == ""
-	showFailed := item.jobID != "" && item.stage == core.StageFailed && !a.running()
+func (s screen) filmActions(c *ui.Context, item films.Film) {
+	showCancel := item.JobID != "" && item.Stage != "" && !item.Stage.Done()
+	showStart := item.JobID == ""
+	showFailed := item.JobID != "" && item.Stage == core.StageFailed && !s.Running()
 	if !showCancel && !showStart && !showFailed {
 		return
 	}
@@ -65,55 +114,49 @@ func (a *app) filmActions(c *ui.Context, item film) {
 		if showCancel {
 			c.Key("film-cancel")
 			if components.Button(c, "取消", components.ButtonSecondary).Clicked() {
-				a.stop()
+				s.Stop()
 			}
 		}
 		if showStart {
 			c.Key("film-start")
-			if ui.PrimaryButton(c, "开始处理").Disabled(a.running()).Clicked() {
-				a.startFilm(item)
+			if ui.PrimaryButton(c, "开始处理").Disabled(s.Running()).Clicked() {
+				s.StartFilm(item)
 			}
 		}
 		if showFailed {
 			c.Key("film-remove")
 			if components.Button(c, "移除", components.ButtonSecondary).Clicked() {
-				a.remove(item.jobID)
+				s.Remove(item.JobID)
 			}
 			c.Key("film-retry")
 			if ui.PrimaryButton(c, "重试").Clicked() {
-				if job, ok := a.library.find(item.jobID); ok {
-					a.retry(job)
-					if a.job != nil {
-						a.openKey = a.job.ID
-						a.loadSubtitles(a.job.ID, a.job.SubtitlePath)
-					}
-				}
+				s.RetryOpen(item.JobID)
 			}
 		}
 	})
 }
 
-func (a *app) playerPane(c *ui.Context, t *ui.Theme) {
-	if a.play == nil && a.playPath == "" && a.playErr == "" {
+func (s screen) playerPane(c *ui.Context, t *ui.Theme) {
+	if s.Play() == nil && s.PlayPath() == "" && s.PlayErr() == "" {
 		return
 	}
 	stage := ui.Box(c).Grow(1).MinWidth(0).MinHeight(240).Radius(12).Clip().Background(ui.Hex("#000000")).Cursor(ui.CursorPointer)
-	if a.play != nil && stage.Clicked() {
-		a.togglePlay(c)
+	if s.Play() != nil && stage.Clicked() {
+		s.togglePlay(c)
 	}
 	stage.Children(func() {
 		switch {
-		case a.play != nil:
-			ui.Video(c, a.play.player).Fill().Fit(ui.Contain)
-			a.play.settlePlay()
-			if !a.play.player.Playing() {
-				a.playButton(c, t)
+		case s.Play() != nil:
+			ui.Video(c, s.Play().Widget()).Fill().Fit(ui.Contain)
+			s.Play().Settle()
+			if !s.Play().Playing() {
+				s.playButton(c, t)
 			}
-			a.playCue(c, t)
-			a.playTransport(c, t)
-		case a.playErr != "":
+			s.playCue(c, t)
+			s.playTransport(c, t)
+		case s.PlayErr() != "":
 			ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-				ui.Text(c, a.playErr).TextColor(t.Text)
+				ui.Text(c, s.PlayErr()).TextColor(t.Text)
 			})
 		default:
 			ui.Column(c).Fill().AlignItems(ui.Center).Justify(ui.Center).Children(func() {
@@ -124,26 +167,26 @@ func (a *app) playerPane(c *ui.Context, t *ui.Theme) {
 }
 
 // togglePlay starts or holds the picture. The button is built after the video, so the frame that handles the click has already drawn a paused frame; the extra frame is what starts the clock.
-func (a *app) togglePlay(c *ui.Context) {
-	if a.play == nil {
+func (s screen) togglePlay(c *ui.Context) {
+	if s.Play() == nil {
 		return
 	}
-	a.play.toggle()
+	s.Play().Toggle()
 	c.Invalidate()
 }
 
 // playButton is the round control on the picture. It shows while the video is held.
-func (a *app) playButton(c *ui.Context, t *ui.Theme) {
+func (s screen) playButton(c *ui.Context, t *ui.Theme) {
 	label := "播放"
 	glyph := iconPlay
-	if a.play.player.Playing() {
+	if s.Play().Playing() {
 		label = "暂停"
 		glyph = iconPause
 	}
 	ui.Row(c).Absolute().Left(0).Top(0).Right(0).Bottom(0).AlignItems(ui.Center).Justify(ui.Center).PassThrough().Children(func() {
 		btn := ui.Row(c).Size(68, 68).Radius(34).Background(ui.RGBA(180, 180, 180, 0.42)).AlignItems(ui.Center).Justify(ui.Center).Cursor(ui.CursorPointer).Label(label)
 		if btn.Clicked() {
-			a.togglePlay(c)
+			s.togglePlay(c)
 		}
 		btn.Children(func() {
 			ui.Icon(c, glyph).Size(30, 30).TextColor(t.Text)
@@ -152,20 +195,20 @@ func (a *app) playButton(c *ui.Context, t *ui.Theme) {
 }
 
 // playCue draws the current bilingual line on the picture, above the transport.
-func (a *app) playCue(c *ui.Context, _ *ui.Theme) {
-	if a.play == nil || a.subs.key != a.openKey || !a.subs.ready {
+func (s screen) playCue(c *ui.Context, _ *ui.Theme) {
+	if s.Play() == nil || s.Subs().Key != s.OpenKey() || !s.Subs().Ready {
 		return
 	}
-	cue, ok := cueAt(a.subs.cues, a.play.playhead())
+	cue, ok := CueAt(s.Subs().Cues, s.Play().Head())
 	if !ok {
 		return
 	}
-	lines := a.styledLines(cue.Text)
+	lines := s.styledLines(cue.Text)
 	if len(lines) == 0 {
 		return
 	}
-	block := ui.Column(c).Absolute().Left(32).Right(32).Bottom(a.cue.Bottom).Gap(2).Padding(8, 14).Radius(8).AlignItems(ui.Center).PassThrough()
-	if a.cue.Box {
+	block := ui.Column(c).Absolute().Left(32).Right(32).Bottom(s.Cue().Bottom).Gap(2).Padding(8, 14).Radius(8).AlignItems(ui.Center).PassThrough()
+	if s.Cue().Box {
 		block.Background(ui.RGBA(0, 0, 0, 0.55))
 	}
 	block.Children(func() {
@@ -177,40 +220,40 @@ func (a *app) playCue(c *ui.Context, _ *ui.Theme) {
 			if family := fontFamily(line.face.Family); family != "" {
 				text.Font(family)
 			}
-			if a.cue.Shadow {
+			if s.Cue().Shadow {
 				text.Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, 0.95))
 			}
 		}
 	})
 }
 
-func (a *app) playTransport(c *ui.Context, t *ui.Theme) {
+func (s screen) playTransport(c *ui.Context, t *ui.Theme) {
 	ui.Row(c).Absolute().Left(16).Right(16).Bottom(14).Gap(12).AlignItems(ui.Center).Children(func() {
 		glyph := iconPlay
 		btn := ui.Row(c).Size(28, 28).Shrink(0).AlignItems(ui.Center).Justify(ui.Center).Cursor(ui.CursorPointer)
-		if a.play.player.Playing() {
+		if s.Play().Playing() {
 			glyph = iconPause
 			btn.Label("暂停")
 		}
 		if btn.Clicked() {
-			a.togglePlay(c)
+			s.togglePlay(c)
 		}
 		btn.Children(func() {
 			ui.Icon(c, glyph).Size(16, 16).TextColor(t.Text)
 		})
-		clock := cueClock(a.play.playhead())
-		if a.play.duration > 0 {
-			clock += " / " + cueClock(a.play.duration)
+		clock := cueClock(s.Play().Head())
+		if s.Play().Length() > 0 {
+			clock += " / " + cueClock(s.Play().Length())
 		}
 		ui.Text(c, clock).FontSize(12).Shrink(0)
-		a.playTrack(c, t)
+		s.playTrack(c, t)
 	})
 }
 
-func (a *app) playTrack(c *ui.Context, t *ui.Theme) {
+func (s screen) playTrack(c *ui.Context, t *ui.Theme) {
 	frac := float32(0)
-	if a.play.duration > 0 {
-		frac = float32(a.play.playhead()) / float32(a.play.duration)
+	if s.Play().Length() > 0 {
+		frac = float32(s.Play().Head()) / float32(s.Play().Length())
 		if frac > 1 {
 			frac = 1
 		}
@@ -225,100 +268,100 @@ func (a *app) playTrack(c *ui.Context, t *ui.Theme) {
 	})
 }
 
-func (a *app) subtitlePane(c *ui.Context, t *ui.Theme, item film) {
+func (s screen) subtitlePane(c *ui.Context, t *ui.Theme, item films.Film) {
 	pane := ui.Column(c).MinHeight(0).Gap(10)
-	if a.play != nil || a.playPath != "" || a.playErr != "" {
+	if s.Play() != nil || s.PlayPath() != "" || s.PlayErr() != "" {
 		pane.Width(340).Shrink(0)
 	} else {
 		pane.Grow(1)
 	}
 	pane.Children(func() {
-		a.filmTabs(c, t)
-		switch a.filmSide {
+		s.filmTabs(c, t)
+		switch s.FilmSide() {
 		case "clips":
-			a.chapterPane(c, t)
+			s.chapterPane(c, t)
 		case "style":
-			a.cueStylePane(c, t)
+			s.cueStylePane(c, t)
 		default:
-			a.transcriptPane(c, t, item)
+			s.transcriptPane(c, t, item)
 		}
 	})
 }
 
-func (a *app) filmTabs(c *ui.Context, t *ui.Theme) {
+func (s screen) filmTabs(c *ui.Context, t *ui.Theme) {
 	ui.Row(c).Gap(4).Children(func() {
 		for _, tab := range []struct{ id, label string }{
 			{"", "文稿"},
 			{"clips", "精彩片段"},
 			{"style", "字幕样式"},
 		} {
-			a.filmTab(c, tab.id, tab.label)
+			s.filmTab(c, tab.id, tab.label)
 		}
 	})
 }
 
-func (a *app) filmTab(c *ui.Context, id, label string) {
+func (s screen) filmTab(c *ui.Context, id, label string) {
 	tab := ui.Row(c).Padding(6, 10).Radius(8).Label(label).Cursor(ui.CursorPointer)
-	if a.filmSide == id {
+	if s.FilmSide() == id {
 		tab.Background(ui.Hex("#4a3824"))
 	}
 	if tab.Clicked() {
-		a.filmSide = id
+		s.SetFilmSide(id)
 	}
 	tab.Children(func() {
 		ui.Text(c, label).FontSize(13)
 	})
 }
 
-func (a *app) transcriptPane(c *ui.Context, t *ui.Theme, item film) {
-	ready := a.subs.key == item.key && a.subs.ready
-	if ready && a.subs.err == "" && item.subtitlePath != "" {
-		ui.Text(c, fmt.Sprintf("%d 句", len(a.subs.cues))).TextColor(t.TextMuted).FontSize(12)
+func (s screen) transcriptPane(c *ui.Context, t *ui.Theme, item films.Film) {
+	ready := s.Subs().Key == item.Key && s.Subs().Ready
+	if ready && s.Subs().Err == "" && item.SubtitlePath != "" {
+		ui.Text(c, fmt.Sprintf("%d 句", len(s.Subs().Cues))).TextColor(t.TextMuted).FontSize(12)
 	}
 	switch {
 	case !ready:
 		ui.Text(c, "正在读取字幕…").TextColor(t.TextMuted)
-	case a.subs.err != "":
-		ui.Text(c, a.subs.err).TextColor(t.Danger).Wrap()
-	case item.subtitlePath == "":
+	case s.Subs().Err != "":
+		ui.Text(c, s.Subs().Err).TextColor(t.Danger).Wrap()
+	case item.SubtitlePath == "":
 		ui.Text(c, "还没有字幕。处理完成后会显示在这里。").TextColor(t.TextMuted).Wrap()
-	case len(a.subs.cues) == 0:
+	case len(s.Subs().Cues) == 0:
 		ui.Text(c, "这份字幕是空的。").TextColor(t.TextMuted)
 	default:
-		ui.List(c, &a.subs.list, len(a.subs.cues), func(i int) {
-			a.cueRow(c, t, a.subs.cues[i])
+		ui.List(c, s.SubList(), len(s.Subs().Cues), func(i int) {
+			s.cueRow(c, t, s.Subs().Cues[i])
 		}).Grow(1).Gap(14)
 	}
 }
 
-func (a *app) chapterPane(c *ui.Context, t *ui.Theme) {
-	ready := a.subs.ready
-	chapters := filmChapters(a.subs.cues)
-	if ready && a.subs.err == "" && len(chapters) > 0 {
+func (s screen) chapterPane(c *ui.Context, t *ui.Theme) {
+	ready := s.Subs().Ready
+	chapters := Chapters(s.Subs().Cues)
+	if ready && s.Subs().Err == "" && len(chapters) > 0 {
 		end := chapters[len(chapters)-1].End
 		ui.Text(c, fmt.Sprintf("%d 段 · 共 %s", len(chapters), cueClock(end))).TextColor(t.TextMuted).FontSize(12)
 	}
 	switch {
 	case !ready:
 		ui.Text(c, "正在读取字幕…").TextColor(t.TextMuted)
-	case a.subs.err != "":
-		ui.Text(c, a.subs.err).TextColor(t.Danger).Wrap()
+	case s.Subs().Err != "":
+		ui.Text(c, s.Subs().Err).TextColor(t.Danger).Wrap()
 	case len(chapters) == 0:
 		ui.Text(c, "还没有可以分段的字幕。").TextColor(t.TextMuted).Wrap()
 	default:
-		ui.List(c, &a.subs.clips, len(chapters), func(i int) {
-			a.chapterRow(c, t, i, chapters[i])
+		ui.List(c, s.ClipList(), len(chapters), func(i int) {
+			s.chapterRow(c, t, i, chapters[i])
 		}).Grow(1).Gap(8)
 	}
 }
 
-func (a *app) chapterRow(c *ui.Context, t *ui.Theme, index int, ch filmChapter) {
+func (s screen) chapterRow(c *ui.Context, t *ui.Theme, index int, ch Chapter) {
 	row := ui.Column(c).Padding(8, 10).Radius(8).Gap(4).Cursor(ui.CursorPointer)
-	if a.chapterActive(ch) {
+	if s.chapterActive(ch) {
 		row.Background(ui.Hex("#4a3824"))
 	}
 	if row.Clicked() {
-		a.seekPlayback(ch.Start)
+		s.Seek(ch.Start)
 	}
 	row.Children(func() {
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -334,59 +377,59 @@ func (a *app) chapterRow(c *ui.Context, t *ui.Theme, index int, ch filmChapter) 
 	})
 }
 
-func (a *app) chapterActive(ch filmChapter) bool {
-	if a.play == nil {
+func (s screen) chapterActive(ch Chapter) bool {
+	if s.Play() == nil {
 		return false
 	}
-	at := a.play.playhead()
+	at := s.Play().Head()
 	return at >= ch.Start && (ch.End <= ch.Start || at < ch.End)
 }
 
-func (a *app) cueStylePane(c *ui.Context, t *ui.Theme) {
+func (s screen) cueStylePane(c *ui.Context, t *ui.Theme) {
 	ui.Scroll(c).Grow(1).Children(func() {
 		ui.Column(c).WidthPercent(100).Gap(14).Children(func() {
 			ui.Text(c, "预设").TextColor(t.TextMuted).FontSize(12)
 			ui.Row(c).Gap(8).Children(func() {
-				a.cuePresetCard(c, t, "outline", "描边")
-				a.cuePresetCard(c, t, "box", "底框")
-				a.cuePresetCard(c, t, "large", "大字")
+				s.cuePresetCard(c, t, "outline", "描边")
+				s.cuePresetCard(c, t, "box", "底框")
+				s.cuePresetCard(c, t, "large", "大字")
 			})
 			ui.Text(c, "文字").TextColor(t.TextMuted).FontSize(12)
-			a.cueChoiceRow(c, t, []cueChoice{{"translation", "译文"}, {"original", "原文"}}, a.cue.Edit, func(id string) { a.cue.Edit = id })
-			face := a.editedFace()
-			a.cueField(c, t, "字体", func() {
-				c.Key("cue-font-" + a.cue.Edit)
+			s.cueChoiceRow(c, t, []Choice{{"translation", "译文"}, {"original", "原文"}}, s.Cue().Edit, func(id string) { s.Cue().Edit = id })
+			face := s.editedFace()
+			s.cueField(c, t, "字体", func() {
+				c.Key("cue-font-" + s.Cue().Edit)
 				choiceSelect(c, &face.Family, []string{"默认", "苹方", "冬青黑体"}).Width(120)
 			})
-			a.cueStepper(c, t, "字号", &face.Size, 2, 12, 72)
-			a.cueColors(c, t, face)
+			s.cueStepper(c, t, "字号", &face.Size, 2, 12, 72)
+			s.cueColors(c, t, face)
 			ui.Row(c).MinHeight(36).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, "加粗").Grow(1)
 				components.Switch(c, &face.Bold, "加粗", components.SwitchOptions{HideLabel: true})
 			})
 			if components.Button(c, "使用原文样式", components.ButtonSecondary).Clicked() {
-				a.cue.Translation = a.cue.Original
+				s.Cue().Translation = s.Cue().Original
 			}
 			ui.Text(c, "双语").TextColor(t.TextMuted).FontSize(12)
-			a.cueChoiceRow(c, t, []cueChoice{{"translation", "译文在上"}, {"original", "原文在上"}, {"translation-only", "只要译文"}}, a.cue.Order, func(id string) { a.cue.Order = id })
+			s.cueChoiceRow(c, t, []Choice{{"translation", "译文在上"}, {"original", "原文在上"}, {"translation-only", "只要译文"}}, s.Cue().Order, func(id string) { s.Cue().Order = id })
 			ui.Text(c, "位置").TextColor(t.TextMuted).FontSize(12)
-			a.cueStepper(c, t, "高底部", &a.cue.Bottom, 4, 24, 160)
+			s.cueStepper(c, t, "高底部", &s.Cue().Bottom, 4, 24, 160)
 			if components.Button(c, "恢复默认样式", components.ButtonSecondary).Clicked() {
-				a.cue = defaultCueLook()
+				*s.Cue() = DefaultLook()
 			}
 		})
 	})
 }
 
-func (a *app) cuePresetCard(c *ui.Context, t *ui.Theme, id, label string) {
+func (s screen) cuePresetCard(c *ui.Context, t *ui.Theme, id, label string) {
 	card := ui.Column(c).Width(96).Grow(1).Padding(10, 6).Radius(10).Gap(6).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(label)
-	if a.cue.Preset == id {
+	if s.Cue().Preset == id {
 		card.Background(ui.Hex("#4a3824"))
 	} else {
 		card.Background(t.Surface)
 	}
 	if card.Clicked() {
-		a.applyCuePreset(id)
+		s.applyCuePreset(id)
 	}
 	card.Children(func() {
 		switch id {
@@ -403,11 +446,11 @@ func (a *app) cuePresetCard(c *ui.Context, t *ui.Theme, id, label string) {
 	})
 }
 
-type cueChoice struct {
+type Choice struct {
 	id, label string
 }
 
-func (a *app) cueChoiceRow(c *ui.Context, t *ui.Theme, choices []cueChoice, current string, set func(string)) {
+func (s screen) cueChoiceRow(c *ui.Context, t *ui.Theme, choices []Choice, current string, set func(string)) {
 	ui.Row(c).Gap(4).Children(func() {
 		for _, choice := range choices {
 			chip := ui.Row(c).Grow(1).Padding(6, 8).Radius(8).AlignItems(ui.Center).Justify(ui.Center).Cursor(ui.CursorPointer).Label(choice.label)
@@ -430,7 +473,7 @@ func (a *app) cueChoiceRow(c *ui.Context, t *ui.Theme, choices []cueChoice, curr
 	})
 }
 
-func (a *app) cueField(c *ui.Context, t *ui.Theme, label string, control func()) {
+func (s screen) cueField(c *ui.Context, t *ui.Theme, label string, control func()) {
 	ui.Row(c).MinHeight(36).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, label).Grow(1)
 		_ = t
@@ -438,7 +481,7 @@ func (a *app) cueField(c *ui.Context, t *ui.Theme, label string, control func())
 	})
 }
 
-func (a *app) cueStepper(c *ui.Context, t *ui.Theme, label string, value *float32, step, min, max float32) {
+func (s screen) cueStepper(c *ui.Context, t *ui.Theme, label string, value *float32, step, min, max float32) {
 	ui.Row(c).MinHeight(36).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, label).Grow(1)
 		if components.Button(c, "−", components.ButtonSecondary).Label(label+"减小").Clicked() && *value > min {
@@ -452,7 +495,7 @@ func (a *app) cueStepper(c *ui.Context, t *ui.Theme, label string, value *float3
 	})
 }
 
-func (a *app) cueColors(c *ui.Context, t *ui.Theme, face *cueFace) {
+func (s screen) cueColors(c *ui.Context, t *ui.Theme, face *Face) {
 	ui.Row(c).MinHeight(36).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "颜色").Grow(1)
 		for _, color := range []struct{ name, hex string }{{"白色", "#f6f1e8"}, {"黄色", "#f5d76e"}, {"橙色", "#e39b2d"}} {
@@ -468,10 +511,10 @@ func (a *app) cueColors(c *ui.Context, t *ui.Theme, face *cueFace) {
 	})
 }
 
-func (a *app) cueRow(c *ui.Context, t *ui.Theme, seg core.Segment) {
-	lines := a.styledLines(seg.Text)
+func (s screen) cueRow(c *ui.Context, t *ui.Theme, seg core.Segment) {
+	lines := s.styledLines(seg.Text)
 	row := ui.Column(c).Gap(2).Padding(8, 10).Radius(8)
-	if a.cueActive(seg) {
+	if s.cueActive(seg) {
 		row.Background(ui.Hex("#4a3824"))
 	}
 	row.Children(func() {
@@ -485,21 +528,21 @@ func (a *app) cueRow(c *ui.Context, t *ui.Theme, seg core.Segment) {
 	})
 }
 
-func (a *app) cueActive(seg core.Segment) bool {
-	if a.play == nil || a.subs.key != a.openKey || !a.subs.ready {
+func (s screen) cueActive(seg core.Segment) bool {
+	if s.Play() == nil || s.Subs().Key != s.OpenKey() || !s.Subs().Ready {
 		return false
 	}
-	cur, ok := cueAt(a.subs.cues, a.play.playhead())
+	cur, ok := CueAt(s.Subs().Cues, s.Play().Head())
 	return ok && cur.Start == seg.Start && cur.Text == seg.Text
 }
 
-type filmChapter struct {
+type Chapter struct {
 	Start, End    time.Duration
 	Title, Detail string
 }
 
-// filmChapters groups the transcript into a handful of stretches, using the lines already in the file.
-func filmChapters(cues []core.Segment) []filmChapter {
+// Chapters groups the transcript into a handful of stretches, using the lines already in the file.
+func Chapters(cues []core.Segment) []Chapter {
 	if len(cues) == 0 {
 		return nil
 	}
@@ -518,7 +561,7 @@ func filmChapters(cues []core.Segment) []filmChapter {
 		want = len(cues)
 	}
 	base, extra := len(cues)/want, len(cues)%want
-	out := make([]filmChapter, 0, want)
+	out := make([]Chapter, 0, want)
 	i := 0
 	for n := 0; n < want; n++ {
 		size := base
@@ -531,7 +574,7 @@ func filmChapters(cues []core.Segment) []filmChapter {
 	return out
 }
 
-func chapterFrom(group []core.Segment) filmChapter {
+func chapterFrom(group []core.Segment) Chapter {
 	title, detail := splitCue(group[0].Text)
 	if title == "" {
 		title, detail = detail, ""
@@ -551,79 +594,79 @@ func chapterFrom(group []core.Segment) filmChapter {
 	if end < group[0].Start {
 		end = group[0].Start
 	}
-	return filmChapter{Start: group[0].Start, End: end, Title: shorten(title, 36), Detail: shorten(detail, 48)}
+	return Chapter{Start: group[0].Start, End: end, Title: films.Shorten(title, 36), Detail: films.Shorten(detail, 48)}
 }
 
-type cueFace struct {
+type Face struct {
 	Family string
 	Size   float32
 	Color  string
 	Bold   bool
 }
 
-type cueLook struct {
+type Look struct {
 	Preset, Edit, Order string
 	Bottom              float32
 	Box, Shadow         bool
-	Translation         cueFace
-	Original            cueFace
+	Translation         Face
+	Original            Face
 }
 
 type styledLine struct {
 	text string
-	face cueFace
+	face Face
 }
 
-func defaultCueLook() cueLook {
-	return cueLook{
+func DefaultLook() Look {
+	return Look{
 		Preset: "box", Edit: "translation", Order: "translation", Bottom: 56, Box: true,
-		Translation: cueFace{Family: "默认", Size: 18, Color: "#f6f1e8", Bold: true},
-		Original:    cueFace{Family: "默认", Size: 14, Color: "#b3a38f"},
+		Translation: Face{Family: "默认", Size: 18, Color: "#f6f1e8", Bold: true},
+		Original:    Face{Family: "默认", Size: 14, Color: "#b3a38f"},
 	}
 }
 
-func (a *app) applyCuePreset(id string) {
-	a.cue.Preset = id
+func (s screen) applyCuePreset(id string) {
+	s.Cue().Preset = id
 	switch id {
 	case "outline":
-		a.cue.Box, a.cue.Shadow = false, true
-		a.cue.Translation.Size, a.cue.Original.Size = 18, 14
+		s.Cue().Box, s.Cue().Shadow = false, true
+		s.Cue().Translation.Size, s.Cue().Original.Size = 18, 14
 	case "large":
-		a.cue.Box, a.cue.Shadow = true, false
-		a.cue.Translation.Size, a.cue.Original.Size = 32, 22
+		s.Cue().Box, s.Cue().Shadow = true, false
+		s.Cue().Translation.Size, s.Cue().Original.Size = 32, 22
 	default:
-		a.cue.Preset = "box"
-		a.cue.Box, a.cue.Shadow = true, false
-		a.cue.Translation.Size, a.cue.Original.Size = 18, 14
+		s.Cue().Preset = "box"
+		s.Cue().Box, s.Cue().Shadow = true, false
+		s.Cue().Translation.Size, s.Cue().Original.Size = 18, 14
 	}
 }
 
-func (a *app) editedFace() *cueFace {
-	if a.cue.Edit == "original" {
-		return &a.cue.Original
+func (s screen) editedFace() *Face {
+	if s.Cue().Edit == "original" {
+		return &s.Cue().Original
 	}
-	return &a.cue.Translation
+	return &s.Cue().Translation
 }
 
-func (a *app) styledLines(text string) []styledLine {
+func (s screen) styledLines(text string) []styledLine {
 	translation, original := splitCue(text)
-	add := func(lines []styledLine, s string, face cueFace) []styledLine {
+	add := func(lines []styledLine, s string, face Face) []styledLine {
 		if s == "" {
 			return lines
 		}
 		return append(lines, styledLine{text: s, face: face})
 	}
-	switch a.cue.Order {
+	switch s.Cue().Order {
 	case "original":
-		return add(add(nil, original, a.cue.Original), translation, a.cue.Translation)
+		return add(add(nil, original, s.Cue().Original), translation, s.Cue().Translation)
 	case "translation-only":
-		lines := add(nil, translation, a.cue.Translation)
+		lines := add(nil, translation, s.Cue().Translation)
 		if len(lines) == 0 {
-			lines = add(lines, original, a.cue.Original)
+			lines = add(lines, original, s.Cue().Original)
 		}
 		return lines
 	default:
-		return add(add(nil, translation, a.cue.Translation), original, a.cue.Original)
+		return add(add(nil, translation, s.Cue().Translation), original, s.Cue().Original)
 	}
 }
 
@@ -659,4 +702,33 @@ func cueClock(d time.Duration) string {
 		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
 	}
 	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// CueAt is the subtitle line covering at. A zero end means the line stays until the next one.
+func CueAt(cues []core.Segment, at time.Duration) (core.Segment, bool) {
+	var found core.Segment
+	ok := false
+	for _, cue := range cues {
+		if cue.Start > at {
+			break
+		}
+		if cue.End > at || cue.End == 0 {
+			found = cue
+			ok = true
+		}
+	}
+	return found, ok
+}
+
+func choiceSelect(c *ui.Context, selected *string, options []string) ui.Element {
+	sel := components.Select(c, selected)
+	current := *selected
+	sel.Trigger.Children(func() { components.Text(c, current).SingleLine() })
+	sel.Popup(func(ui.Element) {
+		for _, opt := range options {
+			opt := opt
+			sel.Item(opt).Children(func() { components.Text(c, opt).SingleLine() })
+		}
+	})
+	return sel.Trigger
 }

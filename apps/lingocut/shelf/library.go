@@ -1,4 +1,4 @@
-package main
+package shelf
 
 import (
 	"context"
@@ -12,13 +12,13 @@ import (
 
 const storedCanceled = "canceled"
 
-// library is the videos this machine has processed, newest first.
-type library struct {
+// Library is the videos this machine has processed, newest first.
+type Library struct {
 	path string
-	jobs []core.Job
+	Jobs []core.Job
 }
 
-func defaultLibraryPath() string {
+func DefaultPath() string {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		dir = os.TempDir()
@@ -26,9 +26,9 @@ func defaultLibraryPath() string {
 	return filepath.Join(dir, "LingoCut", "library.json")
 }
 
-// loadLibrary reads the library at path. A missing file is an empty library. A corrupt file is empty too, and the error says why.
-func loadLibrary(path string) (library, error) {
-	lib := library{path: path}
+// Load reads the library at path. A missing file is an empty library. A corrupt file is empty too, and the error says why.
+func Load(path string) (Library, error) {
+	lib := Library{path: path}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -40,25 +40,25 @@ func loadLibrary(path string) (library, error) {
 	if err := json.Unmarshal(data, &stored); err != nil {
 		return lib, err
 	}
-	lib.jobs = make([]core.Job, len(stored))
+	lib.Jobs = make([]core.Job, len(stored))
 	for i, s := range stored {
-		lib.jobs[i] = s.job()
+		lib.Jobs[i] = s.job()
 	}
 	return lib, nil
 }
 
-func (l *library) upsert(job core.Job) {
-	for i := range l.jobs {
-		if l.jobs[i].ID == job.ID {
-			l.jobs[i] = job
+func (l *Library) Upsert(job core.Job) {
+	for i := range l.Jobs {
+		if l.Jobs[i].ID == job.ID {
+			l.Jobs[i] = job
 			return
 		}
 	}
-	l.jobs = append([]core.Job{job}, l.jobs...)
+	l.Jobs = append([]core.Job{job}, l.Jobs...)
 }
 
-func (l *library) find(id string) (core.Job, bool) {
-	for _, job := range l.jobs {
+func (l *Library) Find(id string) (core.Job, bool) {
+	for _, job := range l.Jobs {
 		if job.ID == id {
 			return job, true
 		}
@@ -66,16 +66,16 @@ func (l *library) find(id string) (core.Job, bool) {
 	return core.Job{}, false
 }
 
-// save writes the library atomically. An empty path keeps the library in memory, which tests use.
-func (l library) save() error {
+// Save writes the library atomically. An empty path keeps the library in memory, which tests use.
+func (l Library) Save() error {
 	if l.path == "" {
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(l.path), 0o700); err != nil {
 		return err
 	}
-	stored := make([]storedJob, len(l.jobs))
-	for i, job := range l.jobs {
+	stored := make([]storedJob, len(l.Jobs))
+	for i, job := range l.Jobs {
 		stored[i] = storeJob(job)
 	}
 	data, err := json.MarshalIndent(stored, "", "  ")

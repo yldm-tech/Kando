@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"lingocut/packages/core"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -132,6 +131,18 @@ func (a *app) stopPlayback() {
 }
 
 // playhead is how far the picture itself has gotten. It stays on the last frame once the file ends, instead of following the time since play was pressed.
+func (p *filmPlay) Widget() *ui.VideoPlayer { return p.player }
+
+func (p *filmPlay) Playing() bool { return p.player != nil && p.player.Playing() }
+
+func (p *filmPlay) Settle() { p.settlePlay() }
+
+func (p *filmPlay) Toggle() { p.toggle() }
+
+func (p *filmPlay) Head() time.Duration { return p.playhead() }
+
+func (p *filmPlay) Length() time.Duration { return p.duration }
+
 func (p *filmPlay) playhead() time.Duration {
 	if p.finished && p.duration > 0 {
 		return p.duration
@@ -243,18 +254,3 @@ func (d *frameDecoder) Rewind() error {
 }
 
 func (d *frameDecoder) Close() error { return d.frames.Close() }
-
-func cueAt(cues []core.Segment, at time.Duration) (core.Segment, bool) {
-	var found core.Segment
-	ok := false
-	for _, cue := range cues {
-		if cue.Start > at {
-			break
-		}
-		if cue.End > at || cue.End == 0 {
-			found = cue
-			ok = true
-		}
-	}
-	return found, ok
-}

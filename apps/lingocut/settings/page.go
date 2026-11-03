@@ -1,10 +1,12 @@
-package main
+package settings
 
 import (
 	"fmt"
 	"path/filepath"
 	"strings"
 
+	"lingocut/apps/lingocut/films"
+	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -12,28 +14,81 @@ import (
 	"github.com/oneo-me/onevra/source/icons/lucide"
 )
 
-func (a *app) settings(c *ui.Context, t *ui.Theme) {
-	tools, ok := a.pipeline.(media.Tools)
-	switch a.page {
-	case pageGeneral:
-		a.generalSettings(c, t, tools, ok)
-	case pageSpeech:
-		a.speechSettings(c, t, tools)
-	case pageAI:
-		a.aiSettings(c, t, tools, ok)
-	case pageTranslate:
-		a.translateSettings(c, t)
+// Preset is one translation service the settings page can select.
+type Preset struct {
+	ID, Name, Blurb, Group string
+}
+
+// App is the settings the page reads and the edits it reports.
+type App interface {
+	Page() string
+	Tools() (media.Tools, bool)
+	Language() *string
+	TranslateContext() *bool
+	TranslatePrompt() *string
+	Save() error
+	LibraryDir() string
+	Reveal(path string)
+	LibraryMenu(m *ui.Menu)
+	Redetect()
+	ToolVersion(path string) string
+	SpeechDirs() []string
+	UseSpeechModel(path string)
+	Downloading() string
+	DownloadWritten() int64
+	DownloadTotal() int64
+	DownloadErr() string
+	CancelDownload()
+	DownloadModel(id string)
+	CurrentPreset() (Preset, bool)
+	Presets() []Preset
+	LLMProvider() string
+	SetLLMProvider(id string)
+	ProviderID(base string) string
+	LLMBase() *string
+	LLMKey() *string
+	LLMModel() *string
+	ShowLLMKey() bool
+	ToggleLLMKey()
+	ApplyLLM()
+	TestingLLM() bool
+	TestLLM()
+	LLMResult() string
+	SelectLLM(id string)
+}
+
+type screen struct {
+	App
+	version string
+}
+
+// Show draws the settings page for the current section.
+func Show(c *ui.Context, t *ui.Theme, version string, a App) {
+	screen{App: a, version: version}.settings(c, t)
+}
+
+func (s screen) settings(c *ui.Context, t *ui.Theme) {
+	tools, ok := s.Tools()
+	switch s.Page() {
+	case sidebar.PageGeneral:
+		s.generalSettings(c, t, tools, ok)
+	case sidebar.PageSpeech:
+		s.speechSettings(c, t, tools)
+	case sidebar.PageAI:
+		s.aiSettings(c, t, tools, ok)
+	case sidebar.PageTranslate:
+		s.translateSettings(c, t)
 	}
 }
 
-func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
+func (s screen) translateSettings(c *ui.Context, t *ui.Theme) {
 	ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
 		ui.Row(c).MinHeight(48).Padding(8, 0).Gap(16).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "默认翻译为").Grow(1)
 			c.Key("translate-language")
-			choice := choiceSelect(c, &a.language, languageChoices(a.language)).Width(160)
+			choice := choiceSelect(c, s.Language(), languageChoices(*s.Language())).Width(160)
 			if choice.Changed() {
-				a.saveSettings()
+				s.Save()
 			}
 		})
 		ui.Box(c).Fill().Height(1).Background(t.Border)
@@ -43,20 +98,20 @@ func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
 				ui.Text(c, "翻译时参考前面的句子，同一句里的碎片会按顺序接上。").TextColor(t.TextMuted).FontSize(12).Wrap()
 			})
 			c.Key("translate-context")
-			before := a.translateContext
-			components.Switch(c, &a.translateContext, "智能翻译", components.SwitchOptions{HideLabel: true})
-			if a.translateContext != before {
-				a.saveSettings()
+			before := *s.TranslateContext()
+			components.Switch(c, s.TranslateContext(), "智能翻译", components.SwitchOptions{HideLabel: true})
+			if *s.TranslateContext() != before {
+				s.Save()
 			}
 		})
 	})
 	ui.Text(c, "提示词")
-	usingDefault := strings.TrimSpace(a.translatePrompt) == strings.TrimSpace(media.DefaultSubtitlePrompt)
+	usingDefault := strings.TrimSpace(*s.TranslatePrompt()) == strings.TrimSpace(media.DefaultSubtitlePrompt)
 	ui.Column(c).Background(t.Surface).Radius(12).Padding(12, 16).Gap(10).Children(func() {
 		c.Key("translate-prompt")
-		prompt := components.TextBox(c, &a.translatePrompt, components.TextBoxOptions{Multiline: true}).Height(148).Label("提示词")
+		prompt := components.TextBox(c, s.TranslatePrompt(), components.TextBoxOptions{Multiline: true}).Height(148).Label("提示词")
 		if prompt.Changed() {
-			a.saveSettings()
+			s.Save()
 		}
 		ui.Box(c).Fill().Height(1).Background(t.Border)
 		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
@@ -68,8 +123,8 @@ func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
 			c.Key("translate-reset")
 			reset := components.Button(c, "恢复默认", components.ButtonSecondary).Disabled(usingDefault)
 			if reset.Clicked() {
-				a.translatePrompt = media.DefaultSubtitlePrompt
-				a.saveSettings()
+				*s.TranslatePrompt() = media.DefaultSubtitlePrompt
+				s.Save()
 			}
 		})
 	})
@@ -102,10 +157,10 @@ func languageChoices(current string) []string {
 	return append([]string{current}, choices...)
 }
 
-func (a *app) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, known bool) {
+func (s screen) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, known bool) {
 	settingSection(c, t, "资料库", "每部影片是资料库里的一个文件夹，视频、封面和字幕都是普通文件。切换资料库会停止进行中的任务。从列表拿掉一个资料库不会删除里面的文件。", func() {
 		settingCard(c, t, func() {
-			a.currentLibraryRow(c, t)
+			s.currentLibraryRow(c, t)
 		})
 	})
 	settingSection(c, t, "语言", "", func() {
@@ -115,29 +170,29 @@ func (a *app) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, kno
 	})
 	settingSection(c, t, "更新", "", func() {
 		settingCard(c, t, func() {
-			settingLine(c, t, "当前版本", appVersion, nil)
+			settingLine(c, t, "当前版本", s.version, nil)
 		})
 	})
 	settingSection(c, t, "组件", "", func() {
 		settingCard(c, t,
-			func() { a.toolLine(c, t, "yt-dlp", tools.YTDLP) },
-			func() { a.toolLine(c, t, "FFmpeg", tools.FFmpeg) },
-			func() { a.toolLine(c, t, "whisper-cli", tools.Whisper) },
+			func() { s.toolLine(c, t, "yt-dlp", tools.YTDLP) },
+			func() { s.toolLine(c, t, "FFmpeg", tools.FFmpeg) },
+			func() { s.toolLine(c, t, "whisper-cli", tools.Whisper) },
 		)
 		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "这些程序来自本机，LingoCut 不负责安装或更新。").TextColor(t.TextMuted).FontSize(12).Grow(1).Wrap()
 			if known {
 				c.Key("redetect")
 				if components.Button(c, "重新检测", components.ButtonSecondary).Clicked() {
-					a.redetectTools()
+					s.Redetect()
 				}
 			}
 		})
 	})
 }
 
-func (a *app) speechSettings(c *ui.Context, t *ui.Theme, tools media.Tools) {
-	dirs := a.speechSearchDirs()
+func (s screen) speechSettings(c *ui.Context, t *ui.Theme, tools media.Tools) {
+	dirs := s.SpeechDirs()
 	models := media.SpeechModels()
 	ui.Column(c).Gap(8).Children(func() {
 		ui.Text(c, "Whisper")
@@ -147,21 +202,21 @@ func (a *app) speechSettings(c *ui.Context, t *ui.Theme, tools media.Tools) {
 					ui.Box(c).Fill().Height(1).Background(t.Border)
 				}
 				installed := media.ResolveSpeechModel(tools.WhisperModel, dirs, model.File)
-				a.speechModelRow(c, t, model, installed, installed != "" && filepath.Clean(installed) == filepath.Clean(tools.WhisperModel))
+				s.speechModelRow(c, t, model, installed, installed != "" && filepath.Clean(installed) == filepath.Clean(tools.WhisperModel))
 			}
 		})
 		ui.Text(c, "自动识别语言，支持智能断句。越大越准，也越慢、越占空间；不确定就用推荐的。").TextColor(t.TextMuted).FontSize(12).Wrap()
-		if a.downloadErr != "" {
-			ui.Text(c, a.downloadErr).TextColor(t.Danger).FontSize(12).Wrap()
+		if s.DownloadErr() != "" {
+			ui.Text(c, s.DownloadErr()).TextColor(t.Danger).FontSize(12).Wrap()
 		}
 	})
 }
 
-func (a *app) speechModelRow(c *ui.Context, t *ui.Theme, model media.SpeechModel, installed string, selected bool) {
+func (s screen) speechModelRow(c *ui.Context, t *ui.Theme, model media.SpeechModel, installed string, selected bool) {
 	c.Key(model.ID)
 	row := ui.Row(c).Padding(12, 4).Gap(12).AlignItems(ui.Center)
 	if installed != "" && row.Clicked() {
-		a.useSpeechModel(installed)
+		s.UseSpeechModel(installed)
 	}
 	row.Children(func() {
 		mark := ui.Box(c).Size(16, 16).Radius(8)
@@ -180,19 +235,19 @@ func (a *app) speechModelRow(c *ui.Context, t *ui.Theme, model media.SpeechModel
 			ui.Text(c, model.Blurb).TextColor(t.TextMuted).FontSize(12).Wrap()
 			ui.Text(c, fmt.Sprintf("速度 %s  准确 %s  %s", stars(model.Speed), stars(model.Accuracy), model.SizeLabel)).TextColor(t.TextMuted).FontSize(12)
 		})
-		a.speechModelAction(c, t, model, installed)
+		s.speechModelAction(c, t, model, installed)
 	})
 }
 
-func (a *app) speechModelAction(c *ui.Context, t *ui.Theme, model media.SpeechModel, installed string) {
-	if a.downloading == model.ID {
+func (s screen) speechModelAction(c *ui.Context, t *ui.Theme, model media.SpeechModel, installed string) {
+	if s.Downloading() == model.ID {
 		label := "取消"
-		if a.downloadTotal > 0 {
-			label = fmt.Sprintf("%d%%", a.downloadWritten*100/a.downloadTotal)
+		if s.DownloadTotal() > 0 {
+			label = fmt.Sprintf("%d%%", s.DownloadWritten()*100/s.DownloadTotal())
 		}
 		c.Key(model.ID + "-cancel")
 		if components.Button(c, label, components.ButtonSecondary).Clicked() {
-			a.cancelDownload()
+			s.CancelDownload()
 		}
 		return
 	}
@@ -202,7 +257,7 @@ func (a *app) speechModelAction(c *ui.Context, t *ui.Theme, model media.SpeechMo
 	}
 	c.Key(model.ID + "-download")
 	if components.Button(c, "下载", components.ButtonSecondary).Clicked() {
-		a.downloadSpeechModel(model.ID)
+		s.DownloadModel(model.ID)
 	}
 }
 
@@ -216,17 +271,17 @@ func stars(n int) string {
 	return strings.Repeat("★", n) + strings.Repeat("☆", 5-n)
 }
 
-func (a *app) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) {
+func (s screen) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) {
 	if !known {
 		settingSection(c, t, "翻译服务", "", func() {
 			settingCard(c, t, func() { settingLine(c, t, "服务", "未配置", nil) })
 		})
 		return
 	}
-	preset, _ := llmPresetByID(a.llmProvider)
+	preset, _ := s.CurrentPreset()
 	// The provider list sits beside the form while the page is wide enough, and above it when it is not.
 	width, _ := c.Size()
-	wide := contentWidth(width) >= 640
+	wide := films.ContentWidth(width) >= 640
 	listWidth := float32(196)
 	if !wide {
 		listWidth = 0
@@ -239,7 +294,7 @@ func (a *app) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) 
 		ui.Column(c).Gap(16).Children(children)
 	}
 	place(func() {
-		a.llmList(c, t, listWidth)
+		s.llmList(c, t, listWidth)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(18).Children(func() {
 			ui.Column(c).Background(t.Surface).Radius(12).Padding(14, 16).Gap(4).Children(func() {
 				ui.Text(c, preset.Name).Bold()
@@ -249,92 +304,92 @@ func (a *app) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) 
 			})
 			ui.Text(c, "连接")
 			ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
-				a.llmField(c, t, "Base URL", "任何兼容 OpenAI Chat Completions 的服务都可以。", func() {
+				s.llmField(c, t, "Base URL", "任何兼容 OpenAI Chat Completions 的服务都可以。", func() {
 					c.Key("llm-base")
-					input := fitControl(components.TextBox(c, &a.llmBase, components.TextBoxOptions{}).Label("Base URL"))
+					input := fitControl(components.TextBox(c, s.LLMBase(), components.TextBoxOptions{}).Label("Base URL"))
 					if input.Changed() {
-						a.llmProvider = llmProviderID(a.llmBase)
-						a.applyLLM()
+						s.SetLLMProvider(s.ProviderID(*s.LLMBase()))
+						s.ApplyLLM()
 					}
 				})
 				ui.Box(c).Fill().Height(1).Background(t.Border)
 				hint := "只保存在本机设置文件里。"
-				if a.llmProvider == "everyapi" && strings.TrimSpace(a.llmKey) == "" {
+				if s.LLMProvider() == "everyapi" && strings.TrimSpace(*s.LLMKey()) == "" {
 					hint = "留空则使用本机 everyapi 登录。"
 				}
-				a.llmField(c, t, "API Key", hint, func() {
+				s.llmField(c, t, "API Key", hint, func() {
 					c.Key("llm-key")
-					input := fitControl(components.TextBox(c, &a.llmKey, components.TextBoxOptions{}).Label("API Key"))
-					if !a.showLLMKey {
+					input := fitControl(components.TextBox(c, s.LLMKey(), components.TextBoxOptions{}).Label("API Key"))
+					if !s.ShowLLMKey() {
 						input.Password()
 					}
 					if input.Changed() {
-						a.applyLLM()
+						s.ApplyLLM()
 					}
 					c.Key("llm-reveal")
 					label := "显示"
-					if a.showLLMKey {
+					if s.ShowLLMKey() {
 						label = "隐藏"
 					}
 					if components.Button(c, label, components.ButtonSecondary).Shrink(0).Clicked() {
-						a.showLLMKey = !a.showLLMKey
+						s.ToggleLLMKey()
 					}
 				})
 				ui.Box(c).Fill().Height(1).Background(t.Border)
-				a.llmField(c, t, "模型", "", func() {
+				s.llmField(c, t, "模型", "", func() {
 					c.Key("llm-model")
-					input := fitControl(components.TextBox(c, &a.llmModel, components.TextBoxOptions{}).Label("模型"))
+					input := fitControl(components.TextBox(c, s.LLMModel(), components.TextBoxOptions{}).Label("模型"))
 					if input.Changed() {
-						a.applyLLM()
+						s.ApplyLLM()
 					}
 				})
 				ui.Box(c).Fill().Height(1).Background(t.Border)
-				a.llmField(c, t, "连接", "", func() {
+				s.llmField(c, t, "连接", "", func() {
 					c.Key("llm-test")
 					label := "测试"
-					if a.testingLLM {
+					if s.TestingLLM() {
 						label = "正在测试…"
 					}
-					if components.Button(c, label, components.ButtonSecondary).Clicked() && !a.testingLLM {
-						a.testLLM()
+					if components.Button(c, label, components.ButtonSecondary).Clicked() && !s.TestingLLM() {
+						s.TestLLM()
 					}
 				})
 			})
-			if a.llmTestResult != "" {
+			if s.LLMResult() != "" {
 				color := t.TextMuted
-				if a.llmTestResult != "连接成功" {
+				if s.LLMResult() != "连接成功" {
 					color = t.Danger
 				}
-				ui.Text(c, a.llmTestResult).TextColor(color).FontSize(12).Wrap()
+				ui.Text(c, s.LLMResult()).TextColor(color).FontSize(12).Wrap()
 			}
 		})
 	})
 }
 
-func (a *app) llmList(c *ui.Context, t *ui.Theme, width float32) {
+func (s screen) llmList(c *ui.Context, t *ui.Theme, width float32) {
 	col := ui.Column(c).Gap(2).Shrink(0)
 	if width > 0 {
 		col.Width(width)
 	}
 	col.Children(func() {
 		group := ""
-		for _, preset := range llmPresets() {
+		for _, preset := range s.Presets() {
 			if preset.Group != group {
 				group = preset.Group
 				ui.Text(c, group).TextColor(t.TextMuted).FontSize(12).Padding(12, 8, 4, 8)
 			}
 			c.Key("llm-" + preset.ID)
 			row := ui.Row(c).Padding(7, 10).Radius(8).Gap(8).AlignItems(ui.Center)
-			if a.llmProvider == preset.ID {
+			if s.LLMProvider() == preset.ID {
 				row.Background(ui.Hex("#4a3824"))
 			}
 			if row.Clicked() {
-				a.selectLLM(preset.ID)
+				s.SelectLLM(preset.ID)
 			}
 			id := preset.ID
 			name := preset.Name
 			row.Children(func() {
-				if a.llmProvider == id {
+				if s.LLMProvider() == id {
 					ui.Box(c).Size(8, 8).Radius(4).Background(ui.Hex("#3d9a6a"))
 				}
 				ui.Text(c, name)
@@ -347,7 +402,7 @@ func fitControl(e ui.Element) ui.Element {
 	return e.MinWidth(120).MaxWidth(320).Basis(200)
 }
 
-func (a *app) llmField(c *ui.Context, t *ui.Theme, label, hint string, control func()) {
+func (s screen) llmField(c *ui.Context, t *ui.Theme, label, hint string, control func()) {
 	ui.Row(c).Wrap().MinHeight(52).Padding(10, 0).Gap(16).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Text(c, label)
@@ -359,13 +414,13 @@ func (a *app) llmField(c *ui.Context, t *ui.Theme, label, hint string, control f
 	})
 }
 
-func (a *app) toolLine(c *ui.Context, t *ui.Theme, name, path string) {
+func (s screen) toolLine(c *ui.Context, t *ui.Theme, name, path string) {
 	detail := "未安装"
 	color := t.Danger
 	if path != "" {
 		color = ui.Hex("#3d9a6a")
-		detail = displayPath(path)
-		if version := a.toolVersions[path]; version != "" {
+		detail = films.DisplayPath(path)
+		if version := s.ToolVersion(path); version != "" {
 			detail = version + " · " + detail
 		}
 	}
@@ -378,11 +433,11 @@ func (a *app) toolLine(c *ui.Context, t *ui.Theme, name, path string) {
 	})
 }
 
-func (a *app) currentLibraryRow(c *ui.Context, t *ui.Theme) {
-	dir := a.snap().LibraryDir
+func (s screen) currentLibraryRow(c *ui.Context, t *ui.Theme) {
+	dir := s.LibraryDir()
 	path := "还没有资料库"
 	if dir != "" {
-		path = displayPath(dir)
+		path = films.DisplayPath(dir)
 	}
 	ui.Row(c).MinHeight(48).Padding(8, 0).Gap(12).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "当前资料库").Shrink(0)
@@ -391,12 +446,12 @@ func (a *app) currentLibraryRow(c *ui.Context, t *ui.Theme) {
 		if dir == "" {
 			folder.Cursor(ui.CursorDefault)
 		} else if folder.Clicked() {
-			a.reveal(dir)
+			s.Reveal(dir)
 		}
 		folder.Children(func() {
 			components.Icon(c, lucide.Folder).Size(16, 16).TextColor(t.TextMuted)
 		})
-		components.Button(c, "切换", components.ButtonSecondary).Shrink(0).PopoverMenuButton(func(m *ui.Menu) { a.libraryMenu(m) })
+		components.Button(c, "切换", components.ButtonSecondary).Shrink(0).PopoverMenuButton(func(m *ui.Menu) { s.LibraryMenu(m) })
 	})
 }
 

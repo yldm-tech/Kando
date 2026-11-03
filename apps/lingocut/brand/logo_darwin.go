@@ -1,6 +1,6 @@
 //go:build darwin
 
-package main
+package brand
 
 import (
 	"os"
@@ -15,8 +15,8 @@ import (
 const libraryIconAttr = "com.lingocut.libraryIcon"
 const libraryIconVersion = "2"
 
-// ensureLibraryLogo gives a .lingocut bundle a Finder icon: the system folder with the app mark on its face. A bundle that already has this version is left untouched.
-func ensureLibraryLogo(dir string) {
+// Ensure gives a .lingocut bundle a Finder icon: the system folder with the app mark on its face. A bundle that already has this version is left untouched.
+func Ensure(dir string, png []byte) {
 	if filepath.Ext(dir) != media.LibraryExt {
 		return
 	}
@@ -28,7 +28,7 @@ func ensureLibraryLogo(dir string) {
 		return
 	}
 	path := file.Name()
-	if _, err := file.Write(appIconPNG); err != nil {
+	if _, err := file.Write(png); err != nil {
 		file.Close()
 		os.Remove(path)
 		return

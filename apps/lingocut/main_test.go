@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"lingocut/apps/lingocut/film"
+	"lingocut/apps/lingocut/films"
+	"lingocut/apps/lingocut/shelf"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
 
@@ -116,7 +119,7 @@ func TestViewCancelsRunningJob(t *testing.T) {
 
 func TestRetryKeepsTheSameCard(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "same", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Language: "简体中文",
 		Stage: core.StageFailed, VideoPath: "/videos/Colibri [TRWgBxVAb1M].mp4",
 		Err: errors.New("translate: translation API returned 401"),
@@ -125,13 +128,13 @@ func TestRetryKeepsTheSameCard(t *testing.T) {
 	if err := tt.Click("重试"); err != nil {
 		t.Fatalf("%v; texts %q", err, tt.Texts())
 	}
-	if len(a.library.jobs) != 1 || a.library.jobs[0].ID != "same" || a.library.jobs[0].Stage == core.StageFailed {
-		t.Fatalf("right after retry: %#v", a.library.jobs)
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].ID != "same" || a.library.Jobs[0].Stage == core.StageFailed {
+		t.Fatalf("right after retry: %#v", a.library.Jobs)
 	}
 
 	settle(t, a, tt, updates)
-	if len(a.library.jobs) != 1 || a.library.jobs[0].ID != "same" || a.library.jobs[0].Stage != core.StageComplete {
-		t.Fatalf("after retry: %#v", a.library.jobs)
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].ID != "same" || a.library.Jobs[0].Stage != core.StageComplete {
+		t.Fatalf("after retry: %#v", a.library.Jobs)
 	}
 	if tt.HasText("失败") {
 		t.Fatalf("failed card stayed: %q", tt.Texts())
@@ -151,12 +154,12 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 		t.Fatalf("texts %q missing the count", tt.Texts())
 	}
 
-	reloaded, err := loadLibrary(path)
+	reloaded, err := shelf.Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(reloaded.jobs) != 1 || reloaded.jobs[0].SubtitlePath != "/videos/talk.bilingual.srt" || reloaded.jobs[0].Language != "简体中文" {
-		t.Fatalf("saved %#v", reloaded.jobs)
+	if len(reloaded.Jobs) != 1 || reloaded.Jobs[0].SubtitlePath != "/videos/talk.bilingual.srt" || reloaded.Jobs[0].Language != "简体中文" {
+		t.Fatalf("saved %#v", reloaded.Jobs)
 	}
 }
 
@@ -175,8 +178,8 @@ func TestYouTubeJobNameUsesTheVideoID(t *testing.T) {
 }
 
 func TestFilmColumnsFollowTheWindow(t *testing.T) {
-	if filmColumns(900) != 2 || filmColumns(1100) != 2 || filmColumns(1680) != 4 || filmColumns(700) != 1 {
-		t.Fatalf("columns 900=%d 1100=%d 1680=%d 700=%d", filmColumns(900), filmColumns(1100), filmColumns(1680), filmColumns(700))
+	if films.Columns(900) != 2 || films.Columns(1100) != 2 || films.Columns(1680) != 4 || films.Columns(700) != 1 {
+		t.Fatalf("columns 900=%d 1100=%d 1680=%d 700=%d", films.Columns(900), films.Columns(1100), films.Columns(1680), films.Columns(700))
 	}
 }
 
@@ -627,7 +630,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 func TestFilmsStayInsideTheOpenLibrary(t *testing.T) {
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.edit(func(s *session) { s.LibraryDir = "/libraries/one" })
-	a.library.jobs = []core.Job{
+	a.library.Jobs = []core.Job{
 		{ID: "in", Stage: core.StageComplete, VideoPath: "/libraries/one/a/video.mp4"},
 		{ID: "out", Stage: core.StageComplete, VideoPath: "/libraries/two/b/video.mp4"},
 		{ID: "soon", Stage: core.StageDownloading, LibraryDir: "/libraries/one"},
@@ -637,7 +640,7 @@ func TestFilmsStayInsideTheOpenLibrary(t *testing.T) {
 	})
 	var names []string
 	for _, item := range a.films() {
-		names = append(names, item.key)
+		names = append(names, item.Key)
 	}
 	if strings.Join(names, ",") != "in,soon,/libraries/one/c/video.mp4" {
 		t.Fatalf("films = %v", names)
@@ -660,18 +663,18 @@ func TestRefreshDropsAVideoRemovedFromTheLibrary(t *testing.T) {
 	}
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.jobs = []core.Job{{ID: "talk", Stage: core.StageComplete, VideoPath: video}}
+	a.library.Jobs = []core.Job{{ID: "talk", Stage: core.StageComplete, VideoPath: video}}
 	a.openKey = "talk"
 	a.refreshLibrary()
-	if len(a.snap().Videos) != 1 || len(a.library.jobs) != 1 {
-		t.Fatalf("videos %d jobs %d", len(a.snap().Videos), len(a.library.jobs))
+	if len(a.snap().Videos) != 1 || len(a.library.Jobs) != 1 {
+		t.Fatalf("videos %d jobs %d", len(a.snap().Videos), len(a.library.Jobs))
 	}
 	if err := os.RemoveAll(folder); err != nil {
 		t.Fatal(err)
 	}
 	a.refreshLibrary()
-	if len(a.snap().Videos) != 0 || len(a.library.jobs) != 0 || a.openKey != "" {
-		t.Fatalf("videos %d jobs %d open %q", len(a.snap().Videos), len(a.library.jobs), a.openKey)
+	if len(a.snap().Videos) != 0 || len(a.library.Jobs) != 0 || a.openKey != "" {
+		t.Fatalf("videos %d jobs %d open %q", len(a.snap().Videos), len(a.library.Jobs), a.openKey)
 	}
 }
 
@@ -698,7 +701,7 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	}
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
@@ -753,7 +756,7 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
@@ -825,7 +828,7 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
@@ -875,7 +878,7 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
@@ -936,7 +939,7 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
@@ -989,7 +992,7 @@ func TestFilmChaptersCoverTheTranscript(t *testing.T) {
 		{Start: 40 * time.Second, End: 70 * time.Second, Text: "第三句\nThird."},
 		{Start: 70 * time.Second, End: 100 * time.Second, Text: "第四句\nFourth."},
 	}
-	chapters := filmChapters(cues)
+	chapters := film.Chapters(cues)
 	if len(chapters) != 4 {
 		t.Fatalf("chapters %d", len(chapters))
 	}
@@ -1011,7 +1014,7 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 	}
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
@@ -1069,11 +1072,11 @@ func TestCueAtFollowsThePlayhead(t *testing.T) {
 		{Start: time.Second, End: 2500 * time.Millisecond, Text: "你好。"},
 		{Start: time.Hour, End: time.Hour + time.Second, Text: "再见。"},
 	}
-	got, ok := cueAt(cues, 1500*time.Millisecond)
+	got, ok := film.CueAt(cues, 1500*time.Millisecond)
 	if !ok || got.Text != "你好。" {
 		t.Fatalf("cue %q ok %v", got.Text, ok)
 	}
-	if _, ok := cueAt(cues, 0); ok {
+	if _, ok := film.CueAt(cues, 0); ok {
 		t.Fatal("a cue before the first line")
 	}
 }
@@ -1114,7 +1117,7 @@ func TestOpenFilmStartsLocalVideo(t *testing.T) {
 
 func TestRemoveOnCardDoesNotOpenTheFilm(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
-	a.library.jobs = []core.Job{{
+	a.library.Jobs = []core.Job{{
 		ID: "j", Source: "https://example.com/v", Stage: core.StageFailed, Err: errors.New("boom"),
 		LibraryDir: a.snap().LibraryDir,
 	}}
@@ -1122,8 +1125,8 @@ func TestRemoveOnCardDoesNotOpenTheFilm(t *testing.T) {
 	if err := tt.Click("移除"); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
-	if a.openKey != "" || len(a.library.jobs) != 0 {
-		t.Fatalf("open %q jobs %#v", a.openKey, a.library.jobs)
+	if a.openKey != "" || len(a.library.Jobs) != 0 {
+		t.Fatalf("open %q jobs %#v", a.openKey, a.library.Jobs)
 	}
 }
 

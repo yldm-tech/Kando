@@ -16,12 +16,17 @@ import (
 	"strings"
 	"time"
 
+	"lingocut/apps/lingocut/brand"
+	"lingocut/apps/lingocut/film"
+	"lingocut/apps/lingocut/films"
+	"lingocut/apps/lingocut/shelf"
+	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	"github.com/oneo-me/onevra/source/shells/sidebar"
+	appshell "github.com/oneo-me/onevra/source/shells/sidebar"
 	"github.com/oneo-me/onevra/source/theme"
 	"github.com/yldm-tech/nodra"
 )
@@ -56,7 +61,7 @@ type app struct {
 	testingLLM       bool
 	llmTestResult    string
 	filmSide         string
-	cue              cueLook
+	cue              film.Look
 	toolVersions     map[string]string
 	versionGen       int
 	posterDir        string
@@ -71,10 +76,10 @@ type app struct {
 	playJump         bool
 	removed          map[string]bool
 	job              *core.Job
-	library          library
+	library          shelf.Library
 	pipeline         media.Pipeline
 	win              *mygo.Window
-	shell            *sidebar.Shell
+	shell            *appshell.Shell
 	shellFilm        bool
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
@@ -117,8 +122,8 @@ func (a *app) importLocal(path string) {
 }
 
 // startFilm processes a video that is already in the library and stays on it.
-func (a *app) startFilm(item film) {
-	a.importLocal(item.videoPath)
+func (a *app) startFilm(item films.Film) {
+	a.importLocal(item.VideoPath)
 	if a.status != "已选择本地视频" {
 		return
 	}
@@ -341,7 +346,7 @@ func (a *app) applyLibrary(dir string) {
 		tools.OutputDir = dir
 		a.pipeline = tools
 	}
-	ensureLibraryLogo(dir)
+	brand.Ensure(dir, appIconPNG)
 	a.refreshLibrary()
 	a.restartLibraryWatch()
 }
@@ -360,22 +365,22 @@ func (a *app) adoptRenamedLibrary(next string) {
 
 func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
 	changed := false
-	for i, job := range a.library.jobs {
+	for i, job := range a.library.Jobs {
 		if job.LibraryDir != "" && filepath.Clean(job.LibraryDir) == filepath.Clean(oldRoot) {
-			a.library.jobs[i].LibraryDir = newRoot
+			a.library.Jobs[i].LibraryDir = newRoot
 			changed = true
 		}
 		if next, ok := replacePathPrefix(oldRoot, newRoot, job.VideoPath); ok {
-			a.library.jobs[i].VideoPath = next
+			a.library.Jobs[i].VideoPath = next
 			changed = true
 		}
 		if next, ok := replacePathPrefix(oldRoot, newRoot, job.SubtitlePath); ok {
-			a.library.jobs[i].SubtitlePath = next
+			a.library.Jobs[i].SubtitlePath = next
 			changed = true
 		}
 	}
 	if changed {
-		if err := a.library.save(); err != nil {
+		if err := a.library.Save(); err != nil {
 			a.saveErr = "视频库无法保存：" + err.Error()
 		}
 	}
@@ -992,7 +997,7 @@ func (a *app) refreshLibrary() {
 		return
 	}
 	if a.retargetLibrary(moved) || a.relocateMissing() || a.retargetRenamed() || a.dropMissing() {
-		if err := a.library.save(); err != nil {
+		if err := a.library.Save(); err != nil {
 			a.saveErr = "视频库无法保存：" + err.Error()
 		}
 	}
@@ -1007,9 +1012,9 @@ func (a *app) refreshLibrary() {
 func (a *app) retargetRenamed() bool {
 	root := a.snap().LibraryDir
 	var missing, live []string
-	for _, job := range a.library.jobs {
+	for _, job := range a.library.Jobs {
 		for _, path := range []string{job.VideoPath, job.SubtitlePath} {
-			if path == "" || !pathInDir(root, path) {
+			if path == "" || !films.InDir(root, path) {
 				continue
 			}
 			if _, err := os.Stat(path); err != nil {
@@ -1028,13 +1033,13 @@ func (a *app) retargetLibrary(moved map[string]string) bool {
 		return false
 	}
 	changed := false
-	for i, job := range a.library.jobs {
+	for i, job := range a.library.Jobs {
 		if next, ok := moved[job.VideoPath]; ok {
-			a.library.jobs[i].VideoPath = next
+			a.library.Jobs[i].VideoPath = next
 			changed = true
 		}
 		if next, ok := moved[job.SubtitlePath]; ok {
-			a.library.jobs[i].SubtitlePath = next
+			a.library.Jobs[i].SubtitlePath = next
 			changed = true
 		}
 	}
@@ -1042,9 +1047,9 @@ func (a *app) retargetLibrary(moved map[string]string) bool {
 }
 
 func (a *app) dropMissing() bool {
-	kept := make([]core.Job, 0, len(a.library.jobs))
+	kept := make([]core.Job, 0, len(a.library.Jobs))
 	changed := false
-	for _, job := range a.library.jobs {
+	for _, job := range a.library.Jobs {
 		if job.VideoPath != "" && job.Stage.Done() {
 			if _, err := os.Stat(job.VideoPath); err != nil {
 				changed = true
@@ -1058,21 +1063,21 @@ func (a *app) dropMissing() bool {
 		kept = append(kept, job)
 	}
 	if changed {
-		a.library.jobs = kept
+		a.library.Jobs = kept
 	}
 	return changed
 }
 
 func (a *app) relocateMissing() bool {
 	changed := false
-	for i, job := range a.library.jobs {
+	for i, job := range a.library.Jobs {
 		root := a.snap().LibraryDir
 		if next, ok := media.Relocate(root, job.VideoPath); ok {
-			a.library.jobs[i].VideoPath = next
+			a.library.Jobs[i].VideoPath = next
 			changed = true
 		}
 		if next, ok := media.Relocate(root, job.SubtitlePath); ok {
-			a.library.jobs[i].SubtitlePath = next
+			a.library.Jobs[i].SubtitlePath = next
 			changed = true
 		}
 	}
@@ -1090,14 +1095,14 @@ func cleanLibraries(dirs []string) []string {
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 	return &app{
 		language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true,
-		cue:      defaultCueLook(),
+		cue:      film.DefaultLook(),
 		store:    newSessionStore(),
 		pipeline: pipeline, update: update,
 	}
 }
 
 func (a *app) openLibrary(path string) {
-	lib, err := loadLibrary(path)
+	lib, err := shelf.Load(path)
 	a.library = lib
 	if err != nil {
 		a.saveErr = "视频库无法读取：" + err.Error()
@@ -1105,7 +1110,7 @@ func (a *app) openLibrary(path string) {
 }
 
 func (a *app) running() bool {
-	for _, job := range a.library.jobs {
+	for _, job := range a.library.Jobs {
 		if job.Stage != "" && !job.Stage.Done() {
 			return true
 		}
@@ -1118,17 +1123,17 @@ func (a *app) remove(id string) {
 		a.removed = map[string]bool{}
 	}
 	a.removed[id] = true
-	kept := make([]core.Job, 0, len(a.library.jobs))
-	for _, job := range a.library.jobs {
+	kept := make([]core.Job, 0, len(a.library.Jobs))
+	for _, job := range a.library.Jobs {
 		if job.ID != id {
 			kept = append(kept, job)
 		}
 	}
-	a.library.jobs = kept
+	a.library.Jobs = kept
 	if a.selectedID == id {
 		a.newDraft()
 	}
-	if err := a.library.save(); err != nil {
+	if err := a.library.Save(); err != nil {
 		a.saveErr = "视频库无法保存：" + err.Error()
 	}
 }
@@ -1216,8 +1221,8 @@ func (a *app) show(job core.Job) {
 	if a.removed[job.ID] {
 		return
 	}
-	a.library.upsert(job)
-	if err := a.library.save(); err != nil {
+	a.library.Upsert(job)
+	if err := a.library.Save(); err != nil {
 		a.saveErr = "视频库无法保存：" + err.Error()
 	} else {
 		a.saveErr = ""
@@ -1484,27 +1489,6 @@ func shorten(s string, n int) string {
 	return string(r[:n-1]) + "…"
 }
 
-func stageLabel(stage core.Stage) string {
-	switch stage {
-	case core.StageQueued:
-		return "排队"
-	case core.StageDownloading:
-		return "下载中"
-	case core.StageTranscribing:
-		return "转录中"
-	case core.StageTranslating:
-		return "翻译中"
-	case core.StageExporting:
-		return "导出中"
-	case core.StageComplete:
-		return "已完成"
-	case core.StageFailed:
-		return "失败"
-	default:
-		return string(stage)
-	}
-}
-
 func statusText(job core.Job) string {
 	switch job.Stage {
 	case core.StageQueued:
@@ -1545,7 +1529,7 @@ func main() {
 	tools := media.ToolsFromEnv()
 	a := newApp(tools, func(fn func()) { win.Update(fn) })
 	defer func() { _ = a.store.Close() }()
-	a.settingsPath = filepath.Join(filepath.Dir(defaultLibraryPath()), "settings.json")
+	a.settingsPath = filepath.Join(filepath.Dir(shelf.DefaultPath()), "settings.json")
 	a.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.extraModelDirs = defaultExtraModelDirs()
 	saved := loadSavedSettings(a.settingsPath)
@@ -1607,12 +1591,12 @@ func main() {
 	if cache, err := os.UserCacheDir(); err == nil {
 		a.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
-	a.openLibrary(defaultLibraryPath())
+	a.openLibrary(shelf.DefaultPath())
 	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.snap().LibraryDir) == filepath.Clean(media.VimpoLibraryDir()) {
 		bundle := media.DefaultLibraryDir()
 		moved, err := media.DetachOwnVideos(a.snap().LibraryDir, bundle)
 		if a.retargetLibrary(moved) {
-			if saveErr := a.library.save(); saveErr != nil && err == nil {
+			if saveErr := a.library.Save(); saveErr != nil && err == nil {
 				err = saveErr
 			}
 		}
@@ -1637,7 +1621,7 @@ func main() {
 		bundle := media.DefaultLibraryDir()
 		moved, err := media.AdoptLibrary(from, bundle)
 		if a.retargetLibrary(moved) {
-			if saveErr := a.library.save(); saveErr != nil && err == nil {
+			if saveErr := a.library.Save(); saveErr != nil && err == nil {
 				err = saveErr
 			}
 		}
@@ -1658,13 +1642,13 @@ func main() {
 		}
 	}
 	for _, dir := range a.knownLibraries() {
-		ensureLibraryLogo(dir)
+		brand.Ensure(dir, appIconPNG)
 	}
 	a.refreshLibrary()
 	a.restartLibraryWatch()
 	mygo.Theme.SetSource(mygo.ThemeDark)
 	mygo.App.WhenReady(func() {
-		shell := sidebar.NewShell(sidebar.ShellOptions{
+		shell := appshell.NewShell(appshell.ShellOptions{
 			Title:     "LingoCut",
 			Width:     1100,
 			Height:    720,
@@ -1674,8 +1658,8 @@ func main() {
 			LeftWidth: int(sidebarWidth),
 			Theme:     theme.Onevra,
 			Left: func(c *ui.Context) {
-				ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).Children(func() {
-					a.sidebar(c, c.Theme(), len(a.films()))
+				ui.Column(c).Fill().Padding(appshell.HeaderHeight(c), 0, 0, 0).Children(func() {
+					sidebar.Show(c, c.Theme(), len(a.films()), appLogo, a)
 				})
 			},
 			Content: func(c *ui.Context) { a.shellBody(c) },
