@@ -410,6 +410,44 @@ func TestMissingLibraryFollowsTheRenamedBundle(t *testing.T) {
 	}
 }
 
+func TestRenameMovesTheInodeWithTheLibrary(t *testing.T) {
+	parent := t.TempDir()
+	old := filepath.Join(parent, "影视库.lingocut")
+	next := filepath.Join(parent, "missav.lingocut")
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) {
+		s.LibraryDir = old
+		s.Libraries = []string{old}
+	})
+	a.rememberID(old, media.MakeDirID(7, 99))
+	a.renameLibraryPath(old, next)
+	if _, ok := a.snap().Inodes[old]; ok {
+		t.Fatal("old path kept its inode")
+	}
+	dev, ino, ok := a.inode(next).Parts()
+	if !ok || dev != 7 || ino != 99 {
+		t.Fatalf("inode = %d %d ok=%v", dev, ino, ok)
+	}
+	if a.snap().LibraryDir != next {
+		t.Fatalf("open library = %q", a.snap().LibraryDir)
+	}
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.LibraryDir != next {
+		t.Fatalf("saved library = %q", saved.LibraryDir)
+	}
+	got := saved.LibraryInodes[next]
+	if got.Dev != 7 || got.Ino != 99 {
+		t.Fatalf("saved inode = %+v", got)
+	}
+	if _, ok := saved.LibraryInodes[old]; ok {
+		t.Fatal("saved the old path")
+	}
+}
+
 func containsPath(paths []string, want string) bool {
 	want = filepath.Clean(want)
 	for _, path := range paths {

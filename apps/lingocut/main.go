@@ -37,8 +37,6 @@ type app struct {
 	subs             subtitleView
 	store            *nodra.Store[session]
 	libraryWatch     chan struct{}
-	libraryID        media.DirID
-	libraryIDs       map[string]media.DirID
 	settingsPath     string
 	modelsDir        string
 	extraModelDirs   []string
@@ -280,7 +278,10 @@ func (a *app) forgetLibrary(dir string) {
 			kept = append(kept, item)
 		}
 	}
-	a.edit(func(st *session) { st.Libraries = kept })
+	a.edit(func(st *session) {
+		st.Libraries = kept
+		delete(st.Inodes, dir)
+	})
 	if filepath.Clean(s.LibraryDir) != dir {
 		if err := a.saveSettings(); err != nil {
 			a.saveErr = "资料库无法保存：" + err.Error()
@@ -310,7 +311,6 @@ func (a *app) applyLibrary(dir string) {
 			s.LibraryDir = ""
 			s.Videos = nil
 		})
-		a.libraryID = media.DirID{}
 		if tools, ok := a.pipeline.(media.Tools); ok {
 			tools.OutputDir = ""
 			a.pipeline = tools
@@ -319,7 +319,7 @@ func (a *app) applyLibrary(dir string) {
 		return
 	}
 	if _, err := os.Stat(dir); err != nil && filepath.Clean(dir) == filepath.Clean(a.snap().LibraryDir) {
-		if next, ok := media.FindDir(filepath.Dir(dir), a.libraryID); ok {
+		if next, ok := media.FindDir(filepath.Dir(dir), a.inode(dir)); ok {
 			a.adoptRenamedLibrary(next)
 			dir = next
 		}
@@ -328,9 +328,11 @@ func (a *app) applyLibrary(dir string) {
 		a.saveErr = err.Error()
 		return
 	}
-	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.libraryID = media.IdentifyDir(dir)
-	a.rememberLibrary(dir)
+	id := media.IdentifyDir(dir)
+	a.edit(func(s *session) {
+		s.LibraryDir = dir
+		putInode(s, dir, id)
+	})
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		tools.OutputDir = dir
 		a.pipeline = tools
@@ -346,19 +348,7 @@ func (a *app) adoptRenamedLibrary(next string) {
 	if filepath.Clean(prev) == filepath.Clean(next) {
 		return
 	}
-	libs := dropLibrary(a.snap().Libraries, prev)
-	libs = addLibrary(libs, next)
-	a.edit(func(s *session) {
-		s.Libraries = libs
-		s.LibraryDir = next
-	})
-	a.libraryID = media.IdentifyDir(next)
-	a.rememberLibrary(next)
-	if tools, ok := a.pipeline.(media.Tools); ok {
-		tools.OutputDir = next
-		a.pipeline = tools
-	}
-	a.retargetLibraryPrefix(prev, next)
+	a.renameLibraryPath(prev, next)
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = "资料库无法保存：" + err.Error()
 	}
@@ -404,22 +394,19 @@ func dirIDSet(id media.DirID) bool {
 }
 
 func (a *app) rememberLibrary(dir string) {
-	id := media.IdentifyDir(dir)
-	if _, _, ok := id.Parts(); !ok {
-		return
-	}
-	if a.libraryIDs == nil {
-		a.libraryIDs = map[string]media.DirID{}
-	}
-	a.libraryIDs[filepath.Clean(dir)] = id
+	a.rememberID(dir, media.IdentifyDir(dir))
 }
 
-func (a *app) savedLibraryInodes() map[string]savedInode {
-	if len(a.libraryIDs) == 0 {
+func (a *app) inode(dir string) media.DirID {
+	return a.snap().Inodes[filepath.Clean(dir)]
+}
+
+func inodesForSave(ids map[string]media.DirID) map[string]savedInode {
+	if len(ids) == 0 {
 		return nil
 	}
-	out := make(map[string]savedInode, len(a.libraryIDs))
-	for path, id := range a.libraryIDs {
+	out := make(map[string]savedInode, len(ids))
+	for path, id := range ids {
 		dev, ino, ok := id.Parts()
 		if !ok {
 			continue
@@ -433,19 +420,36 @@ func (a *app) savedLibraryInodes() map[string]savedInode {
 }
 
 func (a *app) restoreLibraryInodes(saved map[string]savedInode) {
-	for path, id := range saved {
-		a.rememberID(path, media.MakeDirID(id.Dev, id.Ino))
+	if len(saved) == 0 {
+		return
 	}
+	a.edit(func(s *session) {
+		for path, id := range saved {
+			putInode(s, path, media.MakeDirID(id.Dev, id.Ino))
+		}
+	})
 }
 
 func (a *app) rememberID(dir string, id media.DirID) {
-	if _, _, ok := id.Parts(); !ok {
+	if !dirIDSet(id) {
 		return
 	}
-	if a.libraryIDs == nil {
-		a.libraryIDs = map[string]media.DirID{}
+	a.edit(func(s *session) { putInode(s, dir, id) })
+}
+
+// putInode records dir's identity on the session being edited. The map is the clone nodra hands the update.
+func putInode(s *session, dir string, id media.DirID) {
+	if s == nil || !dirIDSet(id) {
+		return
 	}
-	a.libraryIDs[filepath.Clean(dir)] = id
+	dir = filepath.Clean(dir)
+	if dir == "" || dir == "." {
+		return
+	}
+	if s.Inodes == nil {
+		s.Inodes = map[string]media.DirID{}
+	}
+	s.Inodes[dir] = id
 }
 
 // renameLibraryPath keeps a library that was renamed in Finder, including one that is not the library currently open.
@@ -454,30 +458,25 @@ func (a *app) renameLibraryPath(old, next string) {
 	if old == "" || next == "" || old == next {
 		return
 	}
-	id := a.libraryIDs[old]
-	if _, _, ok := id.Parts(); !ok {
+	id := a.inode(old)
+	if !dirIDSet(id) {
 		id = media.IdentifyDir(next)
 	}
-	if a.libraryIDs == nil {
-		a.libraryIDs = map[string]media.DirID{}
-	}
-	delete(a.libraryIDs, old)
-	a.rememberID(next, id)
-	s := a.snap()
-	libs := addLibrary(dropLibrary(s.Libraries, old), next)
-	current := s.LibraryDir
-	if filepath.Clean(current) == old {
-		current = next
-		a.libraryID = id
+	opened := filepath.Clean(a.snap().LibraryDir) == old
+	a.edit(func(st *session) {
+		delete(st.Inodes, old)
+		putInode(st, next, id)
+		st.Libraries = addLibrary(dropLibrary(st.Libraries, old), next)
+		if filepath.Clean(st.LibraryDir) == old {
+			st.LibraryDir = next
+		}
+	})
+	if opened {
 		if tools, ok := a.pipeline.(media.Tools); ok {
 			tools.OutputDir = next
 			a.pipeline = tools
 		}
 	}
-	a.edit(func(st *session) {
-		st.Libraries = libs
-		st.LibraryDir = current
-	})
 	a.retargetLibraryPrefix(old, next)
 }
 
@@ -489,7 +488,7 @@ func (a *app) reconcileMissingLibraries() bool {
 			a.rememberLibrary(dir)
 			continue
 		}
-		if id := a.libraryIDs[filepath.Clean(dir)]; dirIDSet(id) {
+		if id := a.inode(dir); dirIDSet(id) {
 			if next, ok := media.FindDir(filepath.Dir(dir), id); ok {
 				a.renameLibraryPath(dir, next)
 				changed = true
@@ -544,7 +543,7 @@ func (a *app) syncRenamedLibraries() bool {
 			a.rememberLibrary(dir)
 			continue
 		}
-		id := a.libraryIDs[filepath.Clean(dir)]
+		id := a.inode(dir)
 		next, ok := media.FindDir(filepath.Dir(dir), id)
 		if !ok || filepath.Clean(next) == filepath.Clean(dir) {
 			continue
@@ -647,10 +646,11 @@ func (a *app) saveSettings() error {
 		return err
 	}
 	contextOn := a.translateContext
+	shelf := a.snap()
 	saved := savedSettings{
-		LibraryDir:       a.snap().LibraryDir,
+		LibraryDir:       shelf.LibraryDir,
 		Libraries:        append([]string{}, a.knownLibraries()...),
-		LibraryInodes:    a.savedLibraryInodes(),
+		LibraryInodes:    inodesForSave(shelf.Inodes),
 		LLMProvider:      a.llmProvider,
 		Language:         a.language,
 		TranslatePrompt:  a.translatePrompt,
@@ -1540,6 +1540,7 @@ func main() {
 	var win *mygo.Window
 	tools := media.ToolsFromEnv()
 	a := newApp(tools, func(fn func()) { win.Update(fn) })
+	defer func() { _ = a.store.Close() }()
 	a.settingsPath = filepath.Join(filepath.Dir(defaultLibraryPath()), "settings.json")
 	a.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.extraModelDirs = defaultExtraModelDirs()
@@ -1652,7 +1653,6 @@ func main() {
 			}
 		}
 	}
-	a.libraryID = media.IdentifyDir(a.snap().LibraryDir)
 	for _, dir := range a.knownLibraries() {
 		ensureLibraryLogo(dir)
 	}

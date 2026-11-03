@@ -1,6 +1,7 @@
 package main
 
 import (
+	"maps"
 	"slices"
 
 	"lingocut/packages/media"
@@ -8,7 +9,7 @@ import (
 	"github.com/yldm-tech/nodra"
 )
 
-// session is the library shelf the window draws. Nodra publishes a snapshot when it changes, and the window redraws from that snapshot.
+// session is the library shelf the window draws. Paths and the inode of each folder stay in this one value, so a rename updates both together. Nodra publishes a snapshot when it changes, and the window redraws from that snapshot.
 type session struct {
 	LibraryDir    string
 	Libraries     []string
@@ -16,6 +17,7 @@ type session struct {
 	LibraryParent string
 	MakingLibrary bool
 	Videos        []media.Video
+	Inodes        map[string]media.DirID
 }
 
 func newSessionStore() *nodra.Store[session] {
@@ -25,6 +27,7 @@ func newSessionStore() *nodra.Store[session] {
 func cloneSession(s session) session {
 	s.Libraries = slices.Clone(s.Libraries)
 	s.Videos = slices.Clone(s.Videos)
+	s.Inodes = maps.Clone(s.Inodes)
 	return s
 }
 
