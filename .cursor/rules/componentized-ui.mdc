@@ -7,7 +7,7 @@ alwaysApply: true
 
 界面按一块一块写。`apps/lingocut/view.go` 只负责把窗口壳和各页面接起来。新的一块界面新建文件，不要再往 `view.go` 或任何一个已经很大的文件里追加。
 
-改到某块界面时，把那一块从大文件里挪到自己的文件，而不是在原地加代码。一个文件只放一个界面：侧栏、片库、播放页、设置页各自一个文件，和 `view.go` 同包。文件名用这块界面的名字，例如 `sidebar.go`、`library.go`、`film.go`、`settings.go`。
+改到某块界面时，把那一块从大文件里挪到自己的文件，而不是在原地加代码。一个文件只放一个界面：侧栏、片库、播放页、设置页各自一个文件，和 `view.go` 同包。文件名用这块界面的名字，例如 `sidebar.go`、`films.go`、`film.go`、`settings.go`。`library.go` 是任务记录，不是界面。
 
 控件用 Onevra（`github.com/oneo-me/onevra/source`）：侧栏壳、按钮、输入、开关、选择、图标。Onevra 没有的才用 MyGo 的布局原语自己画，例如播放画面和字幕层。不要再手写一套已经有的按钮或输入框。
 
