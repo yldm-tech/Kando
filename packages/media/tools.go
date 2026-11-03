@@ -3,6 +3,7 @@ package media
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"lingocut/packages/core"
 )
@@ -49,6 +51,11 @@ func ToolsFromEnv() Tools {
 		translator.BaseURL = EveryAPIBaseURL
 		if translator.APIKey == "" {
 			translator.APIKey = os.Getenv("EVERYAPI_API_KEY")
+		}
+		if translator.APIKey == "" {
+			if cli := lookTool("everyapi"); cli != "" {
+				translator.Credential = everyAPICredential(cli)
+			}
 		}
 		if translator.Model == "" {
 			translator.Model = EveryAPIModel
@@ -107,8 +114,15 @@ func (t Tools) Check() error {
 	if t.Translator.Model == "" {
 		errs = append(errs, errors.New("LINGOCUT_LLM_MODEL is not set"))
 	}
-	if t.Translator.BaseURL == EveryAPIBaseURL && t.Translator.APIKey == "" {
-		errs = append(errs, errors.New("EVERYAPI_API_KEY is not set; create one with `everyapi token create --name lingocut`"))
+	if t.Translator.Credential != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		_, err := t.Translator.Credential(ctx, false)
+		cancel()
+		if err != nil {
+			errs = append(errs, err)
+		}
+	} else if t.Translator.BaseURL == EveryAPIBaseURL && t.Translator.APIKey == "" {
+		errs = append(errs, errors.New("EveryAPI is not signed in; run `everyapi auth login` or set EVERYAPI_API_KEY"))
 	}
 	return errors.Join(errs...)
 }
@@ -162,6 +176,41 @@ func (t Tools) Translate(ctx context.Context, segments []core.Segment, language 
 
 func (t Tools) Export(_ context.Context, videoPath string, original, translated []core.Segment) (string, error) {
 	return exportSubtitles(videoPath, original, translated)
+}
+
+// everyAPICredentialVersion is the output version of `everyapi auth credential` this package understands; the CLI bumps it only for incompatible changes.
+const everyAPICredentialVersion = 1
+
+// everyAPICredential reads the signed-in EveryAPI CLI's relay key through `everyapi auth credential`, which refreshes OAuth keys under its own lock and resolves the gateway region. renew invalidates a key the gateway rejected.
+func everyAPICredential(cli string) func(context.Context, bool) (Endpoint, error) {
+	return func(ctx context.Context, renew bool) (Endpoint, error) {
+		args := []string{"auth", "credential", "--format=json"}
+		if renew {
+			args = append(args, "--invalidate")
+		}
+		out, err := run(ctx, cli, args...)
+		if err != nil {
+			if strings.Contains(err.Error(), "EVERYAPI_CREDENTIAL_ERROR:not_logged_in") {
+				return Endpoint{}, errors.New("EveryAPI is not signed in; run `everyapi auth login`")
+			}
+			return Endpoint{}, fmt.Errorf("EveryAPI credential: %w", err)
+		}
+		var cred struct {
+			Version int    `json:"version"`
+			BaseURL string `json:"base_url"`
+			APIKey  string `json:"api_key"`
+		}
+		if err := json.Unmarshal([]byte(out), &cred); err != nil {
+			return Endpoint{}, fmt.Errorf("EveryAPI credential: %w", err)
+		}
+		if cred.Version != everyAPICredentialVersion {
+			return Endpoint{}, fmt.Errorf("EveryAPI credential version %d is not supported; update LingoCut", cred.Version)
+		}
+		if cred.BaseURL == "" || cred.APIKey == "" {
+			return Endpoint{}, errors.New("EveryAPI credential is missing its base URL or key")
+		}
+		return Endpoint{BaseURL: cred.BaseURL, APIKey: cred.APIKey}, nil
+	}
 }
 
 // run executes a tool and returns its stdout, folding the end of stderr into the error.

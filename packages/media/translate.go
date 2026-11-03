@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,14 +23,30 @@ type ChatTranslator struct {
 	BaseURL string
 	APIKey  string
 	Model   string
+	// Credential, when set, replaces BaseURL and APIKey for each translation. renew asks for a new key after the API rejected the previous one.
+	Credential func(ctx context.Context, renew bool) (Endpoint, error)
 	// Client defaults to an http.Client with a two-minute timeout.
 	Client *http.Client
+}
+
+// Endpoint is where translation requests go and the bearer key they carry.
+type Endpoint struct {
+	BaseURL string
+	APIKey  string
 }
 
 func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
 	if strings.TrimSpace(language) == "" {
 		return nil, fmt.Errorf("target language is empty")
 	}
+	endpoint := Endpoint{BaseURL: t.BaseURL, APIKey: t.APIKey}
+	if t.Credential != nil {
+		var err error
+		if endpoint, err = t.Credential(ctx, false); err != nil {
+			return nil, err
+		}
+	}
+	renewed := false
 	out := make([]core.Segment, 0, len(segments))
 	for start := 0; start < len(segments); start += translateBatch {
 		batch := segments[start:min(start+translateBatch, len(segments))]
@@ -37,7 +54,15 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		for i, s := range batch {
 			texts[i] = s.Text
 		}
-		lines, err := t.translateTexts(ctx, texts, language)
+		lines, err := t.translateTexts(ctx, endpoint, texts, language)
+		var status *statusError
+		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
+			renewed = true
+			if endpoint, err = t.Credential(ctx, true); err != nil {
+				return nil, err
+			}
+			lines, err = t.translateTexts(ctx, endpoint, texts, language)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +91,18 @@ type chatResponse struct {
 	} `json:"choices"`
 }
 
-func (t ChatTranslator) translateTexts(ctx context.Context, texts []string, language string) ([]string, error) {
+// statusError is a non-200 reply from the translation API.
+type statusError struct {
+	code   int
+	status string
+	detail string
+}
+
+func (e *statusError) Error() string {
+	return fmt.Sprintf("translation API returned %s: %s", e.status, e.detail)
+}
+
+func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language string) ([]string, error) {
 	input, err := json.Marshal(texts)
 	if err != nil {
 		return nil, err
@@ -82,7 +118,7 @@ func (t ChatTranslator) translateTexts(ctx context.Context, texts []string, lang
 		return nil, err
 	}
 
-	reply, err := t.complete(ctx, body)
+	reply, err := t.complete(ctx, endpoint, body)
 	if err != nil {
 		return nil, err
 	}
@@ -108,14 +144,14 @@ const (
 var retryBaseDelay = 2 * time.Second
 
 // complete posts body to the chat endpoint, retrying rate limits and server errors, which gateways return when upstream capacity is briefly exhausted.
-func (t ChatTranslator) complete(ctx context.Context, body []byte) (chatResponse, error) {
+func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []byte) (chatResponse, error) {
 	client := t.Client
 	if client == nil {
 		client = &http.Client{Timeout: 2 * time.Minute}
 	}
 	delay := retryBaseDelay
 	for attempt := 1; ; attempt++ {
-		reply, retryAfter, err := t.completeOnce(ctx, client, body)
+		reply, retryAfter, err := completeOnce(ctx, client, endpoint, body)
 		if err == nil || retryAfter < 0 || attempt == maxAttempts {
 			return reply, err
 		}
@@ -135,14 +171,14 @@ func (t ChatTranslator) complete(ctx context.Context, body []byte) (chatResponse
 }
 
 // completeOnce makes one request. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait.
-func (t ChatTranslator) completeOnce(ctx context.Context, client *http.Client, body []byte) (reply chatResponse, retryAfter time.Duration, err error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(t.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
+func completeOnce(ctx context.Context, client *http.Client, endpoint Endpoint, body []byte) (reply chatResponse, retryAfter time.Duration, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(endpoint.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return reply, -1, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if t.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+t.APIKey)
+	if endpoint.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+endpoint.APIKey)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -151,7 +187,7 @@ func (t ChatTranslator) completeOnce(ctx context.Context, client *http.Client, b
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		err := fmt.Errorf("translation API returned %s: %s", resp.Status, strings.TrimSpace(string(detail)))
+		err := &statusError{code: resp.StatusCode, status: resp.Status, detail: strings.TrimSpace(string(detail))}
 		if resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500 {
 			return reply, -1, err
 		}

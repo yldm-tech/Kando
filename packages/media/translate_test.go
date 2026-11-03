@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -156,6 +157,43 @@ func TestChatTranslatorStopsRetryingWhenCancelled(t *testing.T) {
 	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
 	if _, err := tr.Translate(ctx, []core.Segment{{Text: "hello"}}, "English"); err != context.DeadlineExceeded {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestChatTranslatorRenewsRejectedLogin(t *testing.T) {
+	var seen []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("Authorization"))
+		if len(seen) == 1 {
+			http.Error(w, `{"error":{"code":"invalid_api_key"}}`, http.StatusUnauthorized)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": `["hello"]`}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	var renews int
+	tr := ChatTranslator{
+		Model: "m",
+		Credential: func(_ context.Context, renew bool) (Endpoint, error) {
+			renews++
+			key := "old"
+			if renew {
+				key = "new"
+			}
+			return Endpoint{BaseURL: srv.URL, APIKey: key}, nil
+		},
+	}
+	got, err := tr.Translate(context.Background(), []core.Segment{{Text: "a"}}, "English")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got[0].Text != "hello" || renews != 2 {
+		t.Fatalf("renews = %d, got %#v", renews, got)
+	}
+	if !reflect.DeepEqual(seen, []string{"Bearer old", "Bearer new"}) {
+		t.Fatalf("authorization = %v", seen)
 	}
 }
 

@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,7 +82,8 @@ func TestToolsFromEnvTranslator(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			setLLMEnv(t, tc.baseURL, tc.apiKey, tc.model, tc.everyAPIKey)
-			if got := ToolsFromEnv().Translator; got != tc.want {
+			got := ToolsFromEnv().Translator
+			if got.Credential != nil || got.BaseURL != tc.want.BaseURL || got.APIKey != tc.want.APIKey || got.Model != tc.want.Model {
 				t.Fatalf("translator = %#v, want %#v", got, tc.want)
 			}
 		})
@@ -90,12 +92,60 @@ func TestToolsFromEnvTranslator(t *testing.T) {
 
 func TestToolsCheckRequiresEveryAPIKey(t *testing.T) {
 	tools := Tools{Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: EveryAPIModel}}
-	if err := tools.Check(); err == nil || !strings.Contains(err.Error(), "EVERYAPI_API_KEY") {
+	if err := tools.Check(); err == nil || !strings.Contains(err.Error(), "everyapi auth login") {
 		t.Fatalf("err = %v", err)
 	}
 	tools.Translator = ChatTranslator{BaseURL: "http://localhost:11434/v1", Model: "qwen3"}
-	if err := tools.Check(); err != nil && strings.Contains(err.Error(), "EVERYAPI_API_KEY") {
-		t.Fatalf("custom provider asked for an EveryAPI key: %v", err)
+	if err := tools.Check(); err != nil && strings.Contains(err.Error(), "everyapi auth login") {
+		t.Fatalf("custom provider asked for an EveryAPI login: %v", err)
+	}
+}
+
+func writeFakeEveryAPI(t *testing.T, script string) {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "everyapi")
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+}
+
+func TestToolsFromEnvUsesSignedInCLI(t *testing.T) {
+	writeFakeEveryAPI(t, `#!/bin/sh
+if [ "$1" = auth ] && [ "$2" = credential ]; then
+  printf '%s\n' '{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"from-login"}'
+  exit 0
+fi
+exit 1
+`)
+	setLLMEnv(t, "", "", "", "")
+	tools := ToolsFromEnv()
+	if tools.Translator.APIKey != "" || tools.Translator.Credential == nil {
+		t.Fatalf("translator = %#v", tools.Translator)
+	}
+	got, err := tools.Translator.Credential(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != (Endpoint{BaseURL: EveryAPIBaseURL, APIKey: "from-login"}) {
+		t.Fatalf("endpoint = %#v", got)
+	}
+	if err := tools.Check(); err != nil && strings.Contains(err.Error(), "EveryAPI") {
+		t.Fatal(err)
+	}
+}
+
+func TestToolsFromEnvReportsSignedOutCLI(t *testing.T) {
+	writeFakeEveryAPI(t, `#!/bin/sh
+echo 'EVERYAPI_CREDENTIAL_ERROR:not_logged_in: not logged in' >&2
+exit 1
+`)
+	setLLMEnv(t, "", "", "", "")
+	tools := ToolsFromEnv()
+	_, err := tools.Translator.Credential(context.Background(), false)
+	if err == nil || !strings.Contains(err.Error(), "everyapi auth login") {
+		t.Fatalf("err = %v", err)
 	}
 }
 
