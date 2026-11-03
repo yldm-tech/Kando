@@ -1,6 +1,8 @@
 package account
 
 import (
+	"strings"
+
 	"github.com/egoist/mygo/ui"
 	"github.com/oneo-me/onevra/source/components"
 )
@@ -13,10 +15,16 @@ type App interface {
 	GoogleConfigured() bool
 	SignInGoogle()
 	SignOutGoogle()
+	Storage() *string
+	StorageKind() string
 	R2Endpoint() *string
 	R2Bucket() *string
 	R2AccessKey() *string
 	R2Secret() *string
+	S3Region() *string
+	S3Bucket() *string
+	S3AccessKey() *string
+	S3Secret() *string
 	ShowR2Secret() bool
 	ToggleR2Secret()
 	Save() error
@@ -27,14 +35,50 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 	section(c, t, "Google", "登录只用来标明是谁上传的。刷新令牌保存在本机设置文件里。", func() {
 		card(c, t, func() { googleRow(c, t, a) })
 	})
-	section(c, t, "Cloudflare R2", "视频不会在下载完成时自动上传。到播放页点「上传到 R2」。密钥只保存在本机设置文件里。", func() {
+	section(c, t, "对象存储", "视频不会在下载完成时自动上传。到播放页点上传。两套密钥分开保存，只存在本机设置文件里。", func() {
+		if a.StorageKind() == "s3" {
+			card(c, t,
+				func() { storageRow(c, t, a) },
+				func() { textRow(c, t, "s3-region", "Region", "例如 ap-northeast-1。", a.S3Region(), a) },
+				func() { textRow(c, t, "s3-bucket", "Bucket", "", a.S3Bucket(), a) },
+				func() { textRow(c, t, "s3-access", "Access Key", "", a.S3AccessKey(), a) },
+				func() { secretRow(c, t, "s3-secret", a.S3Secret(), a) },
+			)
+			return
+		}
 		card(c, t,
+			func() { storageRow(c, t, a) },
 			func() { endpointRow(c, t, a) },
 			func() { textRow(c, t, "r2-bucket", "Bucket", "", a.R2Bucket(), a) },
 			func() { textRow(c, t, "r2-access", "Access Key", "", a.R2AccessKey(), a) },
-			func() { secretRow(c, t, a) },
+			func() { secretRow(c, t, "r2-secret", a.R2Secret(), a) },
 		)
 	})
+}
+
+func storageRow(c *ui.Context, t *ui.Theme, a App) {
+	fieldRow(c, t, "位置", "", func() {
+		c.Key("storage-kind")
+		selected := a.Storage()
+		sel := components.Select(c, selected)
+		sel.Trigger.Children(func() { components.Text(c, storageLabel(*selected)).SingleLine() })
+		sel.Popup(func(ui.Element) {
+			for _, id := range []string{"r2", "s3"} {
+				id := id
+				sel.Item(id).Children(func() { components.Text(c, storageLabel(id)).SingleLine() })
+			}
+		})
+		if sel.Trigger.Changed() {
+			_ = a.Save()
+		}
+	})
+}
+
+func storageLabel(id string) string {
+	if strings.EqualFold(strings.TrimSpace(id), "s3") {
+		return "Amazon S3"
+	}
+	return "Cloudflare R2"
 }
 
 func googleRow(c *ui.Context, t *ui.Theme, a App) {
@@ -91,10 +135,10 @@ func textRow(c *ui.Context, t *ui.Theme, key, label, hint string, value *string,
 	})
 }
 
-func secretRow(c *ui.Context, t *ui.Theme, a App) {
-	fieldRow(c, t, "Secret", "只保存在本机设置文件里。", func() {
-		c.Key("r2-secret")
-		input := fit(components.TextBox(c, a.R2Secret(), components.TextBoxOptions{}).Label("Secret"))
+func secretRow(c *ui.Context, t *ui.Theme, key string, value *string, a App) {
+	fieldRow(c, t, "Secret", "", func() {
+		c.Key(key)
+		input := fit(components.TextBox(c, value, components.TextBoxOptions{}).Label("Secret"))
 		if !a.ShowR2Secret() {
 			input.Password()
 		}

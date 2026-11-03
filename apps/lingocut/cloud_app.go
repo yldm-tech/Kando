@@ -69,6 +69,10 @@ func (a *app) SignOutGoogle() {
 	}
 }
 
+func (a *app) Storage() *string { return &a.storage }
+
+func (a *app) StorageKind() string { return a.storageKind() }
+
 func (a *app) R2Endpoint() *string { return &a.r2Endpoint }
 
 func (a *app) R2Bucket() *string { return &a.r2Bucket }
@@ -76,6 +80,14 @@ func (a *app) R2Bucket() *string { return &a.r2Bucket }
 func (a *app) R2AccessKey() *string { return &a.r2AccessKey }
 
 func (a *app) R2Secret() *string { return &a.r2Secret }
+
+func (a *app) S3Region() *string { return &a.s3Region }
+
+func (a *app) S3Bucket() *string { return &a.s3Bucket }
+
+func (a *app) S3AccessKey() *string { return &a.s3AccessKey }
+
+func (a *app) S3Secret() *string { return &a.s3Secret }
 
 func (a *app) ShowR2Secret() bool { return a.showR2Secret }
 
@@ -85,7 +97,7 @@ func (a *app) UploadView(item films.Film) film.Upload {
 	if strings.TrimSpace(item.VideoPath) == "" {
 		return film.Upload{}
 	}
-	view := film.Upload{Show: true, Label: "上传到 R2"}
+	view := film.Upload{Show: true, Label: a.uploadLabel()}
 	if a.uploadPath == item.VideoPath {
 		view.Detail = uploadProgress(a.uploadWritten, a.uploadTotal)
 		return view
@@ -99,11 +111,12 @@ func (a *app) UploadView(item films.Film) film.Upload {
 		return view
 	}
 	view.Enabled = true
-	if a.uploadErrPath == item.VideoPath && a.uploadErr != "" {
+	done := a.uploadMemo(item.VideoPath)
+	if a.uploadErrPath == done && a.uploadErr != "" {
 		view.Detail = a.uploadErr
 		return view
 	}
-	if key := a.uploaded[item.VideoPath]; key != "" {
+	if key := a.uploaded[done]; key != "" {
 		view.Detail = "已上传 " + key
 	}
 	return view
@@ -139,17 +152,12 @@ func (a *app) BeginUpload(item films.Film) {
 	a.uploadWritten, a.uploadTotal = 0, 0
 	a.uploadErr = ""
 	a.uploadErrPath = ""
-	cfg := cloud.R2Config{
-		Endpoint:  strings.TrimSpace(a.r2Endpoint),
-		Bucket:    strings.TrimSpace(a.r2Bucket),
-		AccessKey: strings.TrimSpace(a.r2AccessKey),
-		Secret:    strings.TrimSpace(a.r2Secret),
-	}
+	cfg := a.currentStore()
 	videoPath := item.VideoPath
 	go a.runUpload(videoPath, videoKey, cfg, files)
 }
 
-func (a *app) runUpload(videoPath, videoKey string, cfg cloud.R2Config, files []cloud.File) {
+func (a *app) runUpload(videoPath, videoKey string, cfg cloud.Store, files []cloud.File) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	err := a.putFiles(ctx, cfg, files, func(written, total int64) {
@@ -166,23 +174,28 @@ func (a *app) runUpload(videoPath, videoKey string, cfg cloud.R2Config, files []
 		}
 		a.uploadPath = ""
 		a.uploadWritten, a.uploadTotal = 0, 0
+		kind := cloud.KindR2
+		if cfg.Kind == cloud.KindS3 {
+			kind = cloud.KindS3
+		}
+		done := kind + "\n" + videoPath
 		if err != nil {
 			a.uploadErr = uploadFailure(err, cfg.Secret, cfg.AccessKey)
-			a.uploadErrPath = videoPath
+			a.uploadErrPath = done
 			return
 		}
 		if a.uploaded == nil {
 			a.uploaded = map[string]string{}
 		}
-		a.uploaded[videoPath] = videoKey
+		a.uploaded[done] = videoKey
 	})
 }
 
-func (a *app) putFiles(ctx context.Context, cfg cloud.R2Config, files []cloud.File, progress func(written, total int64)) error {
+func (a *app) putFiles(ctx context.Context, cfg cloud.Store, files []cloud.File, progress func(written, total int64)) error {
 	if a.uploader != nil {
 		return a.uploader(ctx, cfg, files, progress)
 	}
-	client, err := cloud.NewR2(cfg.Endpoint, cfg.AccessKey, cfg.Secret)
+	client, err := cloud.Open(cfg)
 	if err != nil {
 		return err
 	}
@@ -193,19 +206,84 @@ func (a *app) uploadBlocked() string {
 	if strings.TrimSpace(a.googleEmail) == "" {
 		return "先在「账号」里登录 Google"
 	}
-	if cloud.Endpoint(a.r2Endpoint) == "" || strings.TrimSpace(a.r2Bucket) == "" || strings.TrimSpace(a.r2AccessKey) == "" || strings.TrimSpace(a.r2Secret) == "" {
-		return "先在「账号」里填写 R2"
+	cfg := a.currentStore()
+	if storeReady(cfg) {
+		return ""
 	}
-	return ""
+	if cfg.Kind == cloud.KindS3 {
+		return "先在「账号」里填写 S3"
+	}
+	return "先在「账号」里填写 R2"
+}
+
+func (a *app) currentStore() cloud.Store {
+	if a.storageKind() == cloud.KindS3 {
+		return cloud.Store{
+			Kind:      cloud.KindS3,
+			Region:    strings.TrimSpace(a.s3Region),
+			Bucket:    strings.TrimSpace(a.s3Bucket),
+			AccessKey: strings.TrimSpace(a.s3AccessKey),
+			Secret:    strings.TrimSpace(a.s3Secret),
+		}
+	}
+	return cloud.Store{
+		Kind:      cloud.KindR2,
+		Endpoint:  strings.TrimSpace(a.r2Endpoint),
+		Bucket:    strings.TrimSpace(a.r2Bucket),
+		AccessKey: strings.TrimSpace(a.r2AccessKey),
+		Secret:    strings.TrimSpace(a.r2Secret),
+	}
+}
+
+func (a *app) storageKind() string {
+	if strings.EqualFold(strings.TrimSpace(a.storage), cloud.KindS3) {
+		return cloud.KindS3
+	}
+	return cloud.KindR2
+}
+
+func (a *app) uploadLabel() string {
+	if a.storageKind() == cloud.KindS3 {
+		return "上传到 S3"
+	}
+	return "上传到 R2"
+}
+
+func (a *app) uploadMemo(path string) string {
+	return a.storageKind() + "\n" + path
+}
+
+func storeReady(cfg cloud.Store) bool {
+	if strings.TrimSpace(cfg.Bucket) == "" || strings.TrimSpace(cfg.AccessKey) == "" || strings.TrimSpace(cfg.Secret) == "" {
+		return false
+	}
+	if cfg.Kind == cloud.KindS3 {
+		return cloud.Region(cfg.Region) != ""
+	}
+	return cloud.Endpoint(cfg.Endpoint) != ""
 }
 
 func applyCloudEnv(a *app, saved savedSettings) {
 	a.googleEmail = strings.TrimSpace(saved.GoogleEmail)
 	a.googleRefresh = strings.TrimSpace(saved.GoogleRefresh)
+	a.storage = storageFrom(firstSet(os.Getenv("LINGOCUT_STORAGE"), saved.Storage))
 	a.r2Endpoint = firstSet(os.Getenv("LINGOCUT_R2_ENDPOINT"), saved.R2Endpoint)
 	a.r2Bucket = firstSet(os.Getenv("LINGOCUT_R2_BUCKET"), saved.R2Bucket)
 	a.r2AccessKey = firstSet(os.Getenv("LINGOCUT_R2_ACCESS_KEY"), saved.R2AccessKey)
 	a.r2Secret = firstSet(os.Getenv("LINGOCUT_R2_SECRET"), saved.R2Secret)
+	a.s3Region = firstSet(os.Getenv("LINGOCUT_S3_REGION"), saved.S3Region)
+	a.s3Bucket = firstSet(os.Getenv("LINGOCUT_S3_BUCKET"), saved.S3Bucket)
+	a.s3AccessKey = firstSet(os.Getenv("LINGOCUT_S3_ACCESS_KEY"), saved.S3AccessKey)
+	a.s3Secret = firstSet(os.Getenv("LINGOCUT_S3_SECRET"), saved.S3Secret)
+}
+
+func storageFrom(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "s3", "aws":
+		return cloud.KindS3
+	default:
+		return cloud.KindR2
+	}
 }
 
 func firstSet(values ...string) string {

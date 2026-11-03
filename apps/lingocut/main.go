@@ -77,10 +77,15 @@ type app struct {
 	googleBusy       bool
 	googleErr        string
 	googleLogin      func(context.Context, cloud.GoogleConfig) (cloud.Account, error)
+	storage          string
 	r2Endpoint       string
 	r2Bucket         string
 	r2AccessKey      string
 	r2Secret         string
+	s3Region         string
+	s3Bucket         string
+	s3AccessKey      string
+	s3Secret         string
 	showR2Secret     bool
 	uploadPath       string
 	uploadWritten    int64
@@ -88,7 +93,7 @@ type app struct {
 	uploadErr        string
 	uploadErrPath    string
 	uploaded         map[string]string
-	uploader         func(context.Context, cloud.R2Config, []cloud.File, func(written, total int64)) error
+	uploader         func(context.Context, cloud.Store, []cloud.File, func(written, total int64)) error
 	playGen          int
 	playFrom         time.Duration
 	playJump         bool
@@ -684,10 +689,15 @@ func (a *app) saveSettings() error {
 		TranslateContext: &contextOn,
 		GoogleEmail:      a.googleEmail,
 		GoogleRefresh:    a.googleRefresh,
+		Storage:          a.storageKind(),
 		R2Endpoint:       a.r2Endpoint,
 		R2Bucket:         a.r2Bucket,
 		R2AccessKey:      a.r2AccessKey,
 		R2Secret:         a.r2Secret,
+		S3Region:         a.s3Region,
+		S3Bucket:         a.s3Bucket,
+		S3AccessKey:      a.s3AccessKey,
+		S3Secret:         a.s3Secret,
 	}
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
@@ -727,10 +737,15 @@ func loadSavedSettings(path string) savedSettings {
 	saved.TranslatePrompt = strings.TrimSpace(saved.TranslatePrompt)
 	saved.GoogleEmail = strings.TrimSpace(saved.GoogleEmail)
 	saved.GoogleRefresh = strings.TrimSpace(saved.GoogleRefresh)
+	saved.Storage = strings.TrimSpace(saved.Storage)
 	saved.R2Endpoint = strings.TrimSpace(saved.R2Endpoint)
 	saved.R2Bucket = strings.TrimSpace(saved.R2Bucket)
 	saved.R2AccessKey = strings.TrimSpace(saved.R2AccessKey)
 	saved.R2Secret = strings.TrimSpace(saved.R2Secret)
+	saved.S3Region = strings.TrimSpace(saved.S3Region)
+	saved.S3Bucket = strings.TrimSpace(saved.S3Bucket)
+	saved.S3AccessKey = strings.TrimSpace(saved.S3AccessKey)
+	saved.S3Secret = strings.TrimSpace(saved.S3Secret)
 	return saved
 }
 
@@ -748,10 +763,15 @@ type savedSettings struct {
 	TranslateContext *bool                 `json:"translateContext,omitempty"`
 	GoogleEmail      string                `json:"googleEmail,omitempty"`
 	GoogleRefresh    string                `json:"googleRefresh,omitempty"`
+	Storage          string                `json:"storage,omitempty"`
 	R2Endpoint       string                `json:"r2Endpoint,omitempty"`
 	R2Bucket         string                `json:"r2Bucket,omitempty"`
 	R2AccessKey      string                `json:"r2AccessKey,omitempty"`
 	R2Secret         string                `json:"r2Secret,omitempty"`
+	S3Region         string                `json:"s3Region,omitempty"`
+	S3Bucket         string                `json:"s3Bucket,omitempty"`
+	S3AccessKey      string                `json:"s3AccessKey,omitempty"`
+	S3Secret         string                `json:"s3Secret,omitempty"`
 }
 
 type savedInode struct {

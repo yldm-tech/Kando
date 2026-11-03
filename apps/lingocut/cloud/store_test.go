@@ -9,6 +9,25 @@ import (
 	"testing"
 )
 
+func TestRegionRejectsAURL(t *testing.T) {
+	if got := Region(" ap-northeast-1 "); got != "ap-northeast-1" {
+		t.Fatalf("region = %q", got)
+	}
+	if Region("https://s3.amazonaws.com") != "" || Region("us east 1") != "" || Region("") != "" {
+		t.Fatal("region accepted something that is not a region name")
+	}
+}
+
+func TestNewS3RejectsABlankRegion(t *testing.T) {
+	if _, err := NewS3("", "key", "secret"); err == nil {
+		t.Fatal("blank region was accepted")
+	}
+	client, err := NewS3("ap-northeast-1", "key", "secret")
+	if err != nil || client == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestEndpointAcceptsAnAccountIDOrURL(t *testing.T) {
 	if got := Endpoint("abc123"); got != "https://abc123.r2.cloudflarestorage.com" {
 		t.Fatalf("account id endpoint = %q", got)

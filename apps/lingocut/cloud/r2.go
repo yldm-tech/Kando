@@ -11,15 +11,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-// R2Config is the user's own Cloudflare R2 bucket.
-type R2Config struct {
+const (
+	// KindR2 uploads to Cloudflare R2.
+	KindR2 = "r2"
+	// KindS3 uploads to Amazon S3.
+	KindS3 = "s3"
+)
+
+// Store is one bucket the user owns, either Cloudflare R2 or Amazon S3.
+type Store struct {
+	Kind      string
 	Endpoint  string
+	Region    string
 	Bucket    string
 	AccessKey string
 	Secret    string
 }
 
-type r2Client struct {
+type client struct {
 	api *s3.Client
 }
 
@@ -38,10 +47,18 @@ func NewR2(endpoint, accessKey, secret string) (Client, error) {
 		UsePathStyle:               true,
 		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
 	})
-	return &r2Client{api: api}, nil
+	return &client{api: api}, nil
 }
 
-func (c *r2Client) Put(ctx context.Context, bucket, key, contentType string, body io.Reader, size int64) error {
+// Open builds the client for the selected kind. It does not talk to the network.
+func Open(cfg Store) (Client, error) {
+	if cfg.Kind == KindS3 {
+		return NewS3(cfg.Region, cfg.AccessKey, cfg.Secret)
+	}
+	return NewR2(cfg.Endpoint, cfg.AccessKey, cfg.Secret)
+}
+
+func (c *client) Put(ctx context.Context, bucket, key, contentType string, body io.Reader, size int64) error {
 	_, err := c.api.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(bucket),
 		Key:           aws.String(key),

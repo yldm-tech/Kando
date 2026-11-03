@@ -1148,10 +1148,15 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.googleEmail = "a@b.c"
 	a.googleRefresh = "rt-test"
+	a.storage = "s3"
 	a.r2Endpoint = "acct"
 	a.r2Bucket = "clips"
 	a.r2AccessKey = "key"
 	a.r2Secret = "secret-value"
+	a.s3Region = "ap-northeast-1"
+	a.s3Bucket = "aws-clips"
+	a.s3AccessKey = "aws-key"
+	a.s3Secret = "aws-secret"
 	if err := a.saveSettings(); err != nil {
 		t.Fatal(err)
 	}
@@ -1169,6 +1174,9 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 	if loaded.GoogleRefresh != "rt-test" || loaded.R2AccessKey != "key" || loaded.R2Secret != "secret-value" {
 		t.Fatal("secret fields did not round-trip")
 	}
+	if loaded.Storage != "s3" || loaded.S3Region != "ap-northeast-1" || loaded.S3Bucket != "aws-clips" || loaded.S3AccessKey != "aws-key" || loaded.S3Secret != "aws-secret" {
+		t.Fatal("s3 fields did not round-trip")
+	}
 }
 
 func TestR2EnvOverridesSavedSettings(t *testing.T) {
@@ -1176,9 +1184,17 @@ func TestR2EnvOverridesSavedSettings(t *testing.T) {
 	t.Setenv("LINGOCUT_R2_ENDPOINT", "")
 	t.Setenv("LINGOCUT_R2_SECRET", "")
 	a := newApp(&fakePipeline{}, func(func()) {})
-	applyCloudEnv(a, savedSettings{R2Bucket: "from-file", R2Endpoint: "https://example.r2.cloudflarestorage.com", R2Secret: "saved-secret"})
+	t.Setenv("LINGOCUT_STORAGE", "s3")
+	t.Setenv("LINGOCUT_S3_REGION", "eu-west-1")
+	applyCloudEnv(a, savedSettings{
+		Storage: "r2", R2Bucket: "from-file", R2Endpoint: "https://example.r2.cloudflarestorage.com", R2Secret: "saved-secret",
+		S3Region: "ap-northeast-1", S3Bucket: "saved-bucket",
+	})
 	if a.r2Bucket != "from-env" || a.r2Endpoint != "https://example.r2.cloudflarestorage.com" || a.r2Secret != "saved-secret" {
 		t.Fatalf("bucket %q endpoint %q", a.r2Bucket, a.r2Endpoint)
+	}
+	if a.storage != "s3" || a.s3Region != "eu-west-1" || a.s3Bucket != "saved-bucket" {
+		t.Fatalf("storage %q region %q bucket %q", a.storage, a.s3Region, a.s3Bucket)
 	}
 }
 
@@ -1263,8 +1279,8 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	}}
 	uploadedFiles := make(chan []cloud.File, 2)
 	var bucket string
-	a.uploader = func(_ context.Context, cfg cloud.R2Config, files []cloud.File, progress func(int64, int64)) error {
-		if cfg.Secret != "secret-value" || cfg.AccessKey != "key" {
+	a.uploader = func(_ context.Context, cfg cloud.Store, files []cloud.File, progress func(int64, int64)) error {
+		if cfg.Kind != cloud.KindR2 || cfg.Secret != "secret-value" || cfg.AccessKey != "key" {
 			return errors.New("credentials were not passed")
 		}
 		bucket = cfg.Bucket
@@ -1294,7 +1310,7 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	got := takeUpload(t, uploadedFiles)
-	waitUntil(t, updates, func() bool { return a.uploaded[video] != "" })
+	waitUntil(t, updates, func() bool { return a.uploaded[cloud.KindR2+"\n"+video] != "" })
 	tt.Frame()
 	want := cloud.ObjectKey("a@b.c", sidebar.Title(dir), video)
 	if bucket != "clips" || len(got) != 2 || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
@@ -1318,6 +1334,58 @@ func takeUpload(t *testing.T, uploadedFiles <-chan []cloud.File) []cloud.File {
 		t.Fatal("upload did not run")
 	}
 	return nil
+}
+
+func TestBeginUploadUsesTheS3Region(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.googleEmail = "a@b.c"
+	a.storage = cloud.KindS3
+	a.s3Region = "ap-northeast-1"
+	a.s3Bucket = "aws-clips"
+	a.s3AccessKey = "key"
+	a.s3Secret = "secret-value"
+	var kind, region, bucket string
+	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+		kind, region, bucket = cfg.Kind, cfg.Region, cfg.Bucket
+		if cfg.Secret != "secret-value" {
+			return errors.New("secret was not passed")
+		}
+		return nil
+	}
+	a.BeginUpload(films.Film{VideoPath: video})
+	waitUpdate(t, updates)
+	if kind != cloud.KindS3 || region != "ap-northeast-1" || bucket != "aws-clips" {
+		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
+	}
+	if a.uploaded[cloud.KindS3+"\n"+video] == "" {
+		t.Fatal("s3 upload was not recorded")
+	}
+}
+
+func TestAccountPageShowsS3Fields(t *testing.T) {
+	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.storage = cloud.KindS3
+	tt.Frame()
+	if err := tt.Click("账号"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, text := range []string{"Amazon S3", "Region", "例如 ap-northeast-1", "Bucket", "Access Key", "Secret"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
+	}
+	if tt.HasText("Account ID") {
+		t.Fatal("the R2 endpoint hint is showing on the S3 form")
+	}
 }
 
 func TestUploadFailureHidesTheSecret(t *testing.T) {

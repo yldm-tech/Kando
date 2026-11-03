@@ -17,7 +17,7 @@ type File struct {
 	ContentType string
 }
 
-// Client stores one object. The R2 client implements it.
+// Client stores one object. The R2 and S3 clients implement it.
 type Client interface {
 	Put(ctx context.Context, bucket, key, contentType string, body io.Reader, size int64) error
 }
@@ -33,6 +33,15 @@ func Endpoint(raw string) string {
 		return raw
 	}
 	return "https://" + raw + ".r2.cloudflarestorage.com"
+}
+
+// Region accepts an AWS region name such as ap-northeast-1.
+func Region(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.ContainsAny(raw, " /\\") || strings.Contains(raw, "://") {
+		return ""
+	}
+	return raw
 }
 
 // ObjectKey is {email}/{library}/{video folder}/{file}.
