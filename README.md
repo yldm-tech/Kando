@@ -37,4 +37,6 @@ The app reads its settings from the environment:
 - `LINGOCUT_LLM_API_KEY` or `EVERYAPI_API_KEY` — optional bearer token that overrides the signed-in account.
 - `LINGOCUT_OUTPUT_DIR` — where videos and subtitles go, default `~/Movies/LingoCut` on macOS and `~/Videos/LingoCut` elsewhere.
 
+Finished and in-progress jobs are listed in the sidebar and remembered in `library.json` under the user config directory (`~/Library/Application Support/LingoCut` on macOS).
+
 Rate limits and server errors from the provider are retried up to three times.

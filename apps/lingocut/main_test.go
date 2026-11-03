@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func (f *fakePipeline) Export(context.Context, string, []core.Segment, []core.Se
 func newTestApp(p *fakePipeline) (*app, *ui.Tester, chan func()) {
 	updates := make(chan func(), 16)
 	a := newApp(p, func(fn func()) { updates <- fn })
-	return a, ui.NewTester(a.view, 820, 560), updates
+	return a, ui.NewTester(a.view, 860, 560), updates
 }
 
 func settle(t *testing.T, a *app, tt *ui.Tester, updates chan func()) {
@@ -101,6 +102,41 @@ func TestViewCancelsRunningJob(t *testing.T) {
 	settle(t, a, tt, updates)
 	if !tt.HasText("已取消") || !tt.HasText("开始处理") {
 		t.Fatalf("texts %q after cancelling", tt.Texts())
+	}
+}
+
+func TestLibraryShowsAndRestoresJob(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.openLibrary(path)
+	startJob(t, tt, "https://example.com/video")
+	settle(t, a, tt, updates)
+	if !tt.HasText("talk") || !tt.HasText("已完成") {
+		t.Fatalf("texts %q after the job", tt.Texts())
+	}
+
+	if err := tt.Click("新建"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.selectedID != "" || a.status != "" || tt.HasText("完成：") {
+		t.Fatalf("draft did not clear: id %q status %q texts %q", a.selectedID, a.status, tt.Texts())
+	}
+
+	if err := tt.Click("talk"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("完成：/videos/talk.bilingual.srt") {
+		t.Fatalf("texts %q after selecting the job", tt.Texts())
+	}
+
+	reloaded, err := loadLibrary(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reloaded.jobs) != 1 || reloaded.jobs[0].SubtitlePath != "/videos/talk.bilingual.srt" || reloaded.jobs[0].Language != "简体中文" {
+		t.Fatalf("saved %#v", reloaded.jobs)
 	}
 }
 

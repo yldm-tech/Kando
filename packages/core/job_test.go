@@ -7,8 +7,15 @@ func TestNewJobTrimsSourceAndQueuesIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if job.Source != "https://example.com/video" || job.Stage != StageQueued {
+	if job.ID == "" || job.Source != "https://example.com/video" || job.Stage != StageQueued {
 		t.Fatalf("unexpected job: %#v", job)
+	}
+	other, err := NewJob("https://example.com/other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if other.ID == job.ID {
+		t.Fatal("two jobs got the same id")
 	}
 }
 

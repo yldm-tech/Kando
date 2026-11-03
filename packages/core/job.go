@@ -1,6 +1,8 @@
 package core
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"net/url"
 	"strings"
@@ -34,7 +36,9 @@ type Segment struct {
 }
 
 type Job struct {
+	ID           string
 	Source       string
+	Language     string
 	Stage        Stage
 	VideoPath    string
 	SubtitlePath string
@@ -52,5 +56,13 @@ func NewJob(source string) (Job, error) {
 		return Job{}, errors.New("video source must be a valid URL")
 	}
 
-	return Job{Source: source, Stage: StageQueued}, nil
+	return Job{ID: newID(), Source: source, Stage: StageQueued}, nil
+}
+
+func newID() string {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return hex.EncodeToString([]byte(time.Now().Format(time.RFC3339Nano)))
+	}
+	return hex.EncodeToString(b[:])
 }
