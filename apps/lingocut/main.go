@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"lingocut/apps/lingocut/brand"
+	"lingocut/apps/lingocut/cloud"
 	"lingocut/apps/lingocut/film"
 	"lingocut/apps/lingocut/films"
 	"lingocut/apps/lingocut/shelf"
@@ -71,6 +72,23 @@ type app struct {
 	play             *filmPlay
 	playPath         string
 	playErr          string
+	googleEmail      string
+	googleRefresh    string
+	googleBusy       bool
+	googleErr        string
+	googleLogin      func(context.Context, cloud.GoogleConfig) (cloud.Account, error)
+	r2Endpoint       string
+	r2Bucket         string
+	r2AccessKey      string
+	r2Secret         string
+	showR2Secret     bool
+	uploadPath       string
+	uploadWritten    int64
+	uploadTotal      int64
+	uploadErr        string
+	uploadErrPath    string
+	uploaded         map[string]string
+	uploader         func(context.Context, cloud.R2Config, []cloud.File, func(written, total int64)) error
 	playGen          int
 	playFrom         time.Duration
 	playJump         bool
@@ -664,6 +682,12 @@ func (a *app) saveSettings() error {
 		Language:         a.language,
 		TranslatePrompt:  a.translatePrompt,
 		TranslateContext: &contextOn,
+		GoogleEmail:      a.googleEmail,
+		GoogleRefresh:    a.googleRefresh,
+		R2Endpoint:       a.r2Endpoint,
+		R2Bucket:         a.r2Bucket,
+		R2AccessKey:      a.r2AccessKey,
+		R2Secret:         a.r2Secret,
 	}
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
@@ -701,6 +725,12 @@ func loadSavedSettings(path string) savedSettings {
 	saved.LLMProvider = strings.TrimSpace(saved.LLMProvider)
 	saved.Language = strings.TrimSpace(saved.Language)
 	saved.TranslatePrompt = strings.TrimSpace(saved.TranslatePrompt)
+	saved.GoogleEmail = strings.TrimSpace(saved.GoogleEmail)
+	saved.GoogleRefresh = strings.TrimSpace(saved.GoogleRefresh)
+	saved.R2Endpoint = strings.TrimSpace(saved.R2Endpoint)
+	saved.R2Bucket = strings.TrimSpace(saved.R2Bucket)
+	saved.R2AccessKey = strings.TrimSpace(saved.R2AccessKey)
+	saved.R2Secret = strings.TrimSpace(saved.R2Secret)
 	return saved
 }
 
@@ -716,6 +746,12 @@ type savedSettings struct {
 	Language         string                `json:"language,omitempty"`
 	TranslatePrompt  string                `json:"translatePrompt,omitempty"`
 	TranslateContext *bool                 `json:"translateContext,omitempty"`
+	GoogleEmail      string                `json:"googleEmail,omitempty"`
+	GoogleRefresh    string                `json:"googleRefresh,omitempty"`
+	R2Endpoint       string                `json:"r2Endpoint,omitempty"`
+	R2Bucket         string                `json:"r2Bucket,omitempty"`
+	R2AccessKey      string                `json:"r2AccessKey,omitempty"`
+	R2Secret         string                `json:"r2Secret,omitempty"`
 }
 
 type savedInode struct {
@@ -1588,6 +1624,7 @@ func main() {
 	if saved.TranslateContext != nil {
 		a.translateContext = *saved.TranslateContext
 	}
+	applyCloudEnv(a, saved)
 	if cache, err := os.UserCacheDir(); err == nil {
 		a.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}

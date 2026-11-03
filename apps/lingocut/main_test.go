@@ -12,9 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"lingocut/apps/lingocut/cloud"
 	"lingocut/apps/lingocut/film"
 	"lingocut/apps/lingocut/films"
 	"lingocut/apps/lingocut/shelf"
+	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
 
@@ -328,6 +330,8 @@ func TestShortVersion(t *testing.T) {
 }
 
 func TestSettingsPages(t *testing.T) {
+	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	t.Setenv("LINGOCUT_GOOGLE_CLIENT_SECRET", "")
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatal(err)
@@ -379,6 +383,15 @@ func TestSettingsPages(t *testing.T) {
 	}
 	tt.Frame()
 	for _, text := range []string{"默认翻译为", "简体中文", "智能翻译", "提示词", "正在使用默认提示词", "恢复默认", "{{language}}"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
+	}
+	if err := tt.Click("账号"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, text := range []string{"Google", "未登录", "使用 Google 登录", "LINGOCUT_GOOGLE_CLIENT_ID", "Cloudflare R2", "Endpoint", "Bucket", "Access Key", "Secret"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
@@ -1127,6 +1140,215 @@ func TestRemoveOnCardDoesNotOpenTheFilm(t *testing.T) {
 	}
 	if a.openKey != "" || len(a.library.Jobs) != 0 {
 		t.Fatalf("open %q jobs %#v", a.openKey, a.library.Jobs)
+	}
+}
+
+func TestCloudSettingsRoundTrip(t *testing.T) {
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.googleEmail = "a@b.c"
+	a.googleRefresh = "rt-test"
+	a.r2Endpoint = "acct"
+	a.r2Bucket = "clips"
+	a.r2AccessKey = "key"
+	a.r2Secret = "secret-value"
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("mode %o", info.Mode().Perm())
+	}
+	loaded := loadSavedSettings(a.settingsPath)
+	if loaded.GoogleEmail != "a@b.c" || loaded.R2Bucket != "clips" || loaded.R2Endpoint != "acct" {
+		t.Fatalf("email %q bucket %q endpoint %q", loaded.GoogleEmail, loaded.R2Bucket, loaded.R2Endpoint)
+	}
+	if loaded.GoogleRefresh != "rt-test" || loaded.R2AccessKey != "key" || loaded.R2Secret != "secret-value" {
+		t.Fatal("secret fields did not round-trip")
+	}
+}
+
+func TestR2EnvOverridesSavedSettings(t *testing.T) {
+	t.Setenv("LINGOCUT_R2_BUCKET", "from-env")
+	t.Setenv("LINGOCUT_R2_ENDPOINT", "")
+	t.Setenv("LINGOCUT_R2_SECRET", "")
+	a := newApp(&fakePipeline{}, func(func()) {})
+	applyCloudEnv(a, savedSettings{R2Bucket: "from-file", R2Endpoint: "https://example.r2.cloudflarestorage.com", R2Secret: "saved-secret"})
+	if a.r2Bucket != "from-env" || a.r2Endpoint != "https://example.r2.cloudflarestorage.com" || a.r2Secret != "saved-secret" {
+		t.Fatalf("bucket %q endpoint %q", a.r2Bucket, a.r2Endpoint)
+	}
+}
+
+func TestGoogleSignInSavesTheAccount(t *testing.T) {
+	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.googleLogin = func(context.Context, cloud.GoogleConfig) (cloud.Account, error) {
+		t.Fatal("login ran without a client id")
+		return cloud.Account{}, nil
+	}
+	a.SignInGoogle()
+	if a.googleBusy {
+		t.Fatal("sign-in started without a client id")
+	}
+
+	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "client")
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.googleLogin = func(_ context.Context, cfg cloud.GoogleConfig) (cloud.Account, error) {
+		if cfg.ClientID != "client" || cfg.Open == nil {
+			return cloud.Account{}, errors.New("bad config")
+		}
+		return cloud.Account{Email: "a@b.c", RefreshToken: "rt-test"}, nil
+	}
+	a.SignInGoogle()
+	if !a.googleBusy {
+		t.Fatal("sign-in did not start")
+	}
+	waitUpdate(t, updates)
+	if a.googleEmail != "a@b.c" || a.googleBusy || a.googleErr != "" || a.googleRefresh != "rt-test" {
+		t.Fatalf("email %q busy %v err %q", a.googleEmail, a.googleBusy, a.googleErr)
+	}
+	raw, err := os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"googleEmail": "a@b.c"`) || !strings.Contains(string(raw), `"googleRefresh": "rt-test"`) {
+		t.Fatal("account was not saved")
+	}
+	tt.Frame()
+	if err := tt.Click("账号"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("a@b.c") || !tt.HasText("退出") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("退出"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.googleEmail != "" || a.googleRefresh != "" || !tt.HasText("使用 Google 登录") {
+		t.Fatal("still signed in")
+	}
+	raw, err = os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "rt-test") || strings.Contains(string(raw), "a@b.c") {
+		t.Fatal("signed-out account is still in the file")
+	}
+}
+
+func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
+	dir := t.TempDir()
+	videoDir := filepath.Join(dir, "talk")
+	if err := os.Mkdir(videoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(videoDir, "talk.mp4")
+	srt := filepath.Join(videoDir, "talk.bilingual.srt")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(srt, []byte("1\n00:00:01,000 --> 00:00:02,000\n你好。\nHello.\n\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{{
+		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		VideoPath: video, SubtitlePath: srt,
+	}}
+	uploadedFiles := make(chan []cloud.File, 2)
+	var bucket string
+	a.uploader = func(_ context.Context, cfg cloud.R2Config, files []cloud.File, progress func(int64, int64)) error {
+		if cfg.Secret != "secret-value" || cfg.AccessKey != "key" {
+			return errors.New("credentials were not passed")
+		}
+		bucket = cfg.Bucket
+		if progress != nil {
+			progress(1, 1)
+		}
+		uploadedFiles <- append([]cloud.File(nil), files...)
+		return nil
+	}
+	tt.Frame()
+	if err := tt.Click("talk"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	waitUpdate(t, updates)
+	tt.Frame()
+	if !tt.HasText("上传到 R2") || !tt.HasText("先在「账号」里登录 Google") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	a.googleEmail = "a@b.c"
+	a.r2Endpoint = "acct"
+	a.r2Bucket = "clips"
+	a.r2AccessKey = "key"
+	a.r2Secret = "secret-value"
+	tt.Frame()
+	if err := tt.Click("上传到 R2"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	got := takeUpload(t, uploadedFiles)
+	waitUntil(t, updates, func() bool { return a.uploaded[video] != "" })
+	tt.Frame()
+	want := cloud.ObjectKey("a@b.c", sidebar.Title(dir), video)
+	if bucket != "clips" || len(got) != 2 || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
+		t.Fatalf("bucket %q keys %#v", bucket, keysOf(got))
+	}
+	if !tt.HasText("已上传") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("上传到 R2"); err != nil {
+		t.Fatal(err)
+	}
+	takeUpload(t, uploadedFiles)
+}
+
+func takeUpload(t *testing.T, uploadedFiles <-chan []cloud.File) []cloud.File {
+	t.Helper()
+	select {
+	case files := <-uploadedFiles:
+		return files
+	case <-time.After(5 * time.Second):
+		t.Fatal("upload did not run")
+	}
+	return nil
+}
+
+func TestUploadFailureHidesTheSecret(t *testing.T) {
+	msg := uploadFailure(errors.New("signature secret-value"), "secret-value", "key")
+	if msg != "上传失败" || strings.Contains(msg, "secret-value") {
+		t.Fatalf("msg = %q", msg)
+	}
+	plain := uploadFailure(errors.New("status 403"), "secret-value", "key")
+	if plain != "上传失败：status 403" {
+		t.Fatalf("msg = %q", plain)
+	}
+}
+
+func keysOf(files []cloud.File) []string {
+	out := make([]string, len(files))
+	for i, file := range files {
+		out[i] = file.Key
+	}
+	return out
+}
+
+func waitUntil(t *testing.T, updates <-chan func(), done func() bool) {
+	t.Helper()
+	timeout := time.After(5 * time.Second)
+	for !done() {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-timeout:
+			t.Fatal("timed out waiting for a background update")
+		}
 	}
 }
 

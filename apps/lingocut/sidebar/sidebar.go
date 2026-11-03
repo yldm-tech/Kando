@@ -19,6 +19,7 @@ const (
 	PageSpeech    = "speech"
 	PageAI        = "ai"
 	PageTranslate = "translate"
+	PageAccount   = "account"
 
 	Width        float32 = 248
 	PagePadX     float32 = 32
@@ -54,6 +55,7 @@ func Show(c *ui.Context, t *ui.Theme, count int, logo *ui.Bitmap, a App) {
 			nav(c, a, PageSpeech, "语音识别", "")
 			nav(c, a, PageAI, "AI 服务", "")
 			nav(c, a, PageTranslate, "翻译", "")
+			nav(c, a, PageAccount, "账号", "")
 		})
 		if a.SaveErr() != "" {
 			ui.Text(c, a.SaveErr()).TextColor(t.Danger).Wrap().Padding(8, 8, 0, 8)
@@ -141,6 +143,8 @@ func navLucide(page string) *ui.SVG {
 		return lucide.Sparkles()
 	case PageTranslate:
 		return lucide.Languages()
+	case PageAccount:
+		return lucide.User()
 	default:
 		return lucide.Clapperboard()
 	}

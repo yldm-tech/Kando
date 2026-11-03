@@ -36,6 +36,8 @@ The app reads its settings from the environment:
 - `LINGOCUT_LLM_BASE_URL` — set it to use a custom OpenAI-compatible provider instead of EveryAPI, such as `https://api.openai.com/v1` or `http://localhost:11434/v1` for Ollama. The signed-in EveryAPI account is not used then.
 - `LINGOCUT_LLM_API_KEY` or `EVERYAPI_API_KEY` — optional bearer token that overrides the signed-in account.
 - `LINGOCUT_OUTPUT_DIR` — where videos and subtitles go, default `~/Movies/LingoCut` on macOS and `~/Videos/LingoCut` elsewhere.
+- `LINGOCUT_GOOGLE_CLIENT_ID` — Google OAuth client id for the account page. It is not saved. `LINGOCUT_GOOGLE_CLIENT_SECRET` is optional.
+- `LINGOCUT_R2_ENDPOINT`, `LINGOCUT_R2_BUCKET`, `LINGOCUT_R2_ACCESS_KEY`, `LINGOCUT_R2_SECRET` — Cloudflare R2, used when set instead of the values saved in settings. The endpoint may be an account id or a full URL.
 
 Finished and in-progress jobs are listed in the sidebar and remembered in `library.json` under the user config directory (`~/Library/Application Support/LingoCut` on macOS).
 

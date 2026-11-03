@@ -33,6 +33,16 @@ type App interface {
 	SetFilmSide(string)
 	Seek(at time.Duration)
 	Cue() *Look
+	UploadView(item films.Film) Upload
+	BeginUpload(item films.Film)
+}
+
+// Upload is the manual R2 action on a film that already has a local video.
+type Upload struct {
+	Show    bool
+	Enabled bool
+	Label   string
+	Detail  string
 }
 
 // Player is the picture currently open.
@@ -101,6 +111,24 @@ func (s screen) filmTop(c *ui.Context, t *ui.Theme, item films.Film) {
 		}
 	})
 	s.filmActions(c, item)
+	s.uploadRow(c, t, item)
+}
+
+func (s screen) uploadRow(c *ui.Context, t *ui.Theme, item films.Film) {
+	view := s.UploadView(item)
+	if !view.Show {
+		return
+	}
+	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
+		c.Key("film-upload")
+		btn := components.Button(c, view.Label, components.ButtonSecondary).Disabled(!view.Enabled)
+		if view.Enabled && btn.Clicked() {
+			s.BeginUpload(item)
+		}
+		if view.Detail != "" {
+			ui.Text(c, view.Detail).TextColor(t.TextMuted).FontSize(12).Grow(1).Wrap()
+		}
+	})
 }
 
 func (s screen) filmActions(c *ui.Context, item films.Film) {

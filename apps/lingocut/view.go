@@ -1,6 +1,7 @@
 package main
 
 import (
+	"lingocut/apps/lingocut/account"
 	"lingocut/apps/lingocut/film"
 	"lingocut/apps/lingocut/films"
 	"lingocut/apps/lingocut/settings"
@@ -19,6 +20,7 @@ const (
 	pageSpeech    = sidebar.PageSpeech
 	pageAI        = sidebar.PageAI
 	pageTranslate = sidebar.PageTranslate
+	pageAccount   = sidebar.PageAccount
 
 	appVersion = "0.1.0"
 
@@ -68,6 +70,12 @@ func (a *app) mainColumn(c *ui.Context, t *ui.Theme, items []films.Film) {
 			ui.Scroll(c).Grow(1).Children(func() {
 				ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
 					settings.Show(c, t, appVersion, a)
+				})
+			})
+		case pageAccount:
+			ui.Scroll(c).Grow(1).Children(func() {
+				ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
+					account.Show(c, t, a)
 				})
 			})
 		default:
