@@ -27,15 +27,32 @@ type Tools struct {
 	Translator   ChatTranslator
 }
 
+// EveryAPI is the default translation provider; setting LINGOCUT_LLM_BASE_URL switches to any other OpenAI-compatible provider.
+const (
+	EveryAPIBaseURL = "https://api.everyapi.ai/v1"
+	EveryAPIModel   = "claude-haiku-5-5"
+)
+
 // ToolsFromEnv configures Tools from LINGOCUT_* environment variables and the executables it can find.
 func ToolsFromEnv() Tools {
 	outputDir := os.Getenv("LINGOCUT_OUTPUT_DIR")
 	if outputDir == "" {
 		outputDir = defaultOutputDir()
 	}
-	baseURL := os.Getenv("LINGOCUT_LLM_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://api.openai.com/v1"
+	translator := ChatTranslator{
+		BaseURL: os.Getenv("LINGOCUT_LLM_BASE_URL"),
+		APIKey:  os.Getenv("LINGOCUT_LLM_API_KEY"),
+		Model:   os.Getenv("LINGOCUT_LLM_MODEL"),
+	}
+	// EveryAPI defaults apply only without a custom provider, so its key and model names never reach another API.
+	if translator.BaseURL == "" {
+		translator.BaseURL = EveryAPIBaseURL
+		if translator.APIKey == "" {
+			translator.APIKey = os.Getenv("EVERYAPI_API_KEY")
+		}
+		if translator.Model == "" {
+			translator.Model = EveryAPIModel
+		}
 	}
 	return Tools{
 		OutputDir:    outputDir,
@@ -43,11 +60,7 @@ func ToolsFromEnv() Tools {
 		FFmpeg:       lookTool("ffmpeg"),
 		Whisper:      lookTool("whisper-cli"),
 		WhisperModel: os.Getenv("LINGOCUT_WHISPER_MODEL"),
-		Translator: ChatTranslator{
-			BaseURL: baseURL,
-			APIKey:  os.Getenv("LINGOCUT_LLM_API_KEY"),
-			Model:   os.Getenv("LINGOCUT_LLM_MODEL"),
-		},
+		Translator:   translator,
 	}
 }
 
@@ -93,6 +106,9 @@ func (t Tools) Check() error {
 	}
 	if t.Translator.Model == "" {
 		errs = append(errs, errors.New("LINGOCUT_LLM_MODEL is not set"))
+	}
+	if t.Translator.BaseURL == EveryAPIBaseURL && t.Translator.APIKey == "" {
+		errs = append(errs, errors.New("EVERYAPI_API_KEY is not set; create one with `everyapi token create --name lingocut`"))
 	}
 	return errors.Join(errs...)
 }

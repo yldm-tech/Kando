@@ -96,6 +96,69 @@ func TestChatTranslatorReportsHTTPErrors(t *testing.T) {
 	}
 }
 
+// flakyChat fails with the given statuses in order, then translates by echoing.
+func flakyChat(t *testing.T, statuses ...int) (*httptest.Server, *int) {
+	t.Helper()
+	old := retryBaseDelay
+	retryBaseDelay = time.Millisecond
+	t.Cleanup(func() { retryBaseDelay = old })
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls <= len(statuses) {
+			http.Error(w, `{"error":{"code":"channel:capacity_limited"}}`, statuses[calls-1])
+			return
+		}
+		var req chatRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": req.Messages[1].Content}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &calls
+}
+
+func TestChatTranslatorRetriesCapacityErrors(t *testing.T) {
+	srv, calls := flakyChat(t, http.StatusTooManyRequests, http.StatusServiceUnavailable)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	got, err := tr.Translate(context.Background(), []core.Segment{{Text: "hello"}}, "English")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *calls != 3 || got[0].Text != "hello" {
+		t.Fatalf("calls = %d, got %#v", *calls, got)
+	}
+}
+
+func TestChatTranslatorGivesUpAfterMaxAttempts(t *testing.T) {
+	srv, calls := flakyChat(t, http.StatusTooManyRequests, http.StatusTooManyRequests, http.StatusTooManyRequests, http.StatusTooManyRequests)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	_, err := tr.Translate(context.Background(), []core.Segment{{Text: "hello"}}, "English")
+	if err == nil || !strings.Contains(err.Error(), "capacity_limited") || *calls != maxAttempts {
+		t.Fatalf("calls = %d, err = %v", *calls, err)
+	}
+}
+
+func TestChatTranslatorDoesNotRetryClientErrors(t *testing.T) {
+	srv, calls := flakyChat(t, http.StatusUnauthorized)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	if _, err := tr.Translate(context.Background(), []core.Segment{{Text: "hello"}}, "English"); err == nil || *calls != 1 {
+		t.Fatalf("calls = %d, err = %v", *calls, err)
+	}
+}
+
+func TestChatTranslatorStopsRetryingWhenCancelled(t *testing.T) {
+	srv, _ := flakyChat(t, http.StatusTooManyRequests, http.StatusTooManyRequests)
+	retryBaseDelay = time.Hour
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	if _, err := tr.Translate(ctx, []core.Segment{{Text: "hello"}}, "English"); err != context.DeadlineExceeded {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestChatTranslatorRequiresLanguage(t *testing.T) {
 	if _, err := (ChatTranslator{}).Translate(context.Background(), []core.Segment{{Text: "a"}}, " "); err == nil {
 		t.Fatal("expected an error")

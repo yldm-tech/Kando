@@ -30,18 +30,72 @@ func TestToolsCheckPassesWhenConfigured(t *testing.T) {
 	}
 }
 
+func setLLMEnv(t *testing.T, baseURL, apiKey, model, everyAPIKey string) {
+	t.Setenv("LINGOCUT_LLM_BASE_URL", baseURL)
+	t.Setenv("LINGOCUT_LLM_API_KEY", apiKey)
+	t.Setenv("LINGOCUT_LLM_MODEL", model)
+	t.Setenv("EVERYAPI_API_KEY", everyAPIKey)
+}
+
 func TestToolsFromEnv(t *testing.T) {
 	t.Setenv("LINGOCUT_OUTPUT_DIR", "/out")
 	t.Setenv("LINGOCUT_WHISPER_MODEL", "/models/small.bin")
-	t.Setenv("LINGOCUT_LLM_BASE_URL", "")
-	t.Setenv("LINGOCUT_LLM_API_KEY", "key")
-	t.Setenv("LINGOCUT_LLM_MODEL", "gpt")
+	setLLMEnv(t, "", "", "", "")
 	tools := ToolsFromEnv()
 	if tools.OutputDir != "/out" || tools.WhisperModel != "/models/small.bin" {
 		t.Fatalf("unexpected tools: %#v", tools)
 	}
-	if tools.Translator != (ChatTranslator{BaseURL: "https://api.openai.com/v1", APIKey: "key", Model: "gpt"}) {
-		t.Fatalf("unexpected translator: %#v", tools.Translator)
+}
+
+func TestToolsFromEnvTranslator(t *testing.T) {
+	for _, tc := range []struct {
+		name                                string
+		baseURL, apiKey, model, everyAPIKey string
+		want                                ChatTranslator
+	}{
+		{
+			name:        "EveryAPI by default",
+			everyAPIKey: "sk-everyapi",
+			want:        ChatTranslator{BaseURL: EveryAPIBaseURL, APIKey: "sk-everyapi", Model: EveryAPIModel},
+		},
+		{
+			name:        "EveryAPI with chosen key and model",
+			apiKey:      "sk-lingocut",
+			model:       "doubao-seed-2.0-mini",
+			everyAPIKey: "sk-everyapi",
+			want:        ChatTranslator{BaseURL: EveryAPIBaseURL, APIKey: "sk-lingocut", Model: "doubao-seed-2.0-mini"},
+		},
+		{
+			name:        "custom provider ignores EveryAPI defaults",
+			baseURL:     "http://localhost:11434/v1",
+			everyAPIKey: "sk-everyapi",
+			want:        ChatTranslator{BaseURL: "http://localhost:11434/v1"},
+		},
+		{
+			name:    "custom provider",
+			baseURL: "https://llm.example.com/v1",
+			apiKey:  "key",
+			model:   "m",
+			want:    ChatTranslator{BaseURL: "https://llm.example.com/v1", APIKey: "key", Model: "m"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setLLMEnv(t, tc.baseURL, tc.apiKey, tc.model, tc.everyAPIKey)
+			if got := ToolsFromEnv().Translator; got != tc.want {
+				t.Fatalf("translator = %#v, want %#v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestToolsCheckRequiresEveryAPIKey(t *testing.T) {
+	tools := Tools{Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: EveryAPIModel}}
+	if err := tools.Check(); err == nil || !strings.Contains(err.Error(), "EVERYAPI_API_KEY") {
+		t.Fatalf("err = %v", err)
+	}
+	tools.Translator = ChatTranslator{BaseURL: "http://localhost:11434/v1", Model: "qwen3"}
+	if err := tools.Check(); err != nil && strings.Contains(err.Error(), "EVERYAPI_API_KEY") {
+		t.Fatalf("custom provider asked for an EveryAPI key: %v", err)
 	}
 }
 

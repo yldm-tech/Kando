@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 // translateBatch bounds how many lines go into one request, keeping replies within common output token limits.
 const translateBatch = 40
 
-// ChatTranslator translates through an OpenAI-compatible /chat/completions endpoint, such as OpenAI or a local Ollama server.
+// ChatTranslator translates through an OpenAI-compatible /chat/completions endpoint, such as EveryAPI, OpenAI or a local Ollama server.
 type ChatTranslator struct {
 	BaseURL string
 	APIKey  string
@@ -81,31 +82,9 @@ func (t ChatTranslator) translateTexts(ctx context.Context, texts []string, lang
 		return nil, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(t.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
+	reply, err := t.complete(ctx, body)
 	if err != nil {
 		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if t.APIKey != "" {
-		req.Header.Set("Authorization", "Bearer "+t.APIKey)
-	}
-	client := t.Client
-	if client == nil {
-		client = &http.Client{Timeout: 2 * time.Minute}
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return nil, fmt.Errorf("translation API returned %s: %s", resp.Status, strings.TrimSpace(string(detail)))
-	}
-
-	var reply chatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&reply); err != nil {
-		return nil, fmt.Errorf("decode translation response: %w", err)
 	}
 	if len(reply.Choices) == 0 {
 		return nil, fmt.Errorf("translation API returned no choices")
@@ -118,6 +97,74 @@ func (t ChatTranslator) translateTexts(ctx context.Context, texts []string, lang
 		return nil, fmt.Errorf("translation returned %d lines for %d", len(lines), len(texts))
 	}
 	return lines, nil
+}
+
+const (
+	maxAttempts   = 3
+	maxRetryAfter = 30 * time.Second
+)
+
+// retryBaseDelay doubles after each failed attempt unless the server sends Retry-After.
+var retryBaseDelay = 2 * time.Second
+
+// complete posts body to the chat endpoint, retrying rate limits and server errors, which gateways return when upstream capacity is briefly exhausted.
+func (t ChatTranslator) complete(ctx context.Context, body []byte) (chatResponse, error) {
+	client := t.Client
+	if client == nil {
+		client = &http.Client{Timeout: 2 * time.Minute}
+	}
+	delay := retryBaseDelay
+	for attempt := 1; ; attempt++ {
+		reply, retryAfter, err := t.completeOnce(ctx, client, body)
+		if err == nil || retryAfter < 0 || attempt == maxAttempts {
+			return reply, err
+		}
+		wait := delay
+		if retryAfter > 0 {
+			wait = min(retryAfter, maxRetryAfter)
+		}
+		delay *= 2
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return chatResponse{}, ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+// completeOnce makes one request. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait.
+func (t ChatTranslator) completeOnce(ctx context.Context, client *http.Client, body []byte) (reply chatResponse, retryAfter time.Duration, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(t.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return reply, -1, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if t.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+t.APIKey)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return reply, -1, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		err := fmt.Errorf("translation API returned %s: %s", resp.Status, strings.TrimSpace(string(detail)))
+		if resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500 {
+			return reply, -1, err
+		}
+		retryAfter = 0
+		if secs, convErr := strconv.Atoi(resp.Header.Get("Retry-After")); convErr == nil && secs > 0 {
+			retryAfter = time.Duration(secs) * time.Second
+		}
+		return reply, retryAfter, err
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&reply); err != nil {
+		return reply, -1, fmt.Errorf("decode translation response: %w", err)
+	}
+	return reply, -1, nil
 }
 
 // stripCodeFence removes the ```json fence that chat models often wrap around JSON.
