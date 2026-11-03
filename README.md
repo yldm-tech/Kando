@@ -23,6 +23,8 @@ make test
 make dev
 ```
 
+`make dev` runs MyGo's `mygo dev` patched by `tools/mygo-dev`: on macOS, a reload keeps the running window until the new build shows its own, instead of quitting it first, so saving a change does not look like the app quitting. If the patch stops applying after a MyGo upgrade, it warns and falls back to the stock `go tool mygo dev`; update `tools/mygo-dev/dev.go.patch` against the new `cmd/mygo/dev.go` then.
+
 ## Media pipeline
 
 A job downloads the video with `yt-dlp`, extracts audio with `ffmpeg`, transcribes it locally with whisper.cpp (`whisper-cli`), translates the lines through an OpenAI-compatible chat API, and writes `<video>.srt` and `<video>.bilingual.srt` next to the video. Install the tools first, for example `brew install yt-dlp ffmpeg whisper-cpp` on macOS.
