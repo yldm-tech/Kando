@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -168,6 +169,26 @@ func TestToolsDownloadReturnsLocalFileWithoutYTDLP(t *testing.T) {
 	}
 	if got != video {
 		t.Fatalf("path = %q, want %q", got, video)
+	}
+}
+
+func TestToolsDownloadUnescapesLocalFileURL(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "访谈 01.mp4")
+	if err := os.WriteFile(video, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := (Tools{}).Download(context.Background(), (&url.URL{Scheme: "file", Path: video}).String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != video {
+		t.Fatalf("path = %q, want %q", got, video)
+	}
+}
+
+func TestLocalVideoPathRejectsRemoteFileHost(t *testing.T) {
+	if path, ok := localVideoPath("file://other-machine/video.mp4"); ok || path != "" {
+		t.Fatalf("path = %q, ok = %v", path, ok)
 	}
 }
 
