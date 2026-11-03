@@ -23,4 +23,14 @@ make test
 make dev
 ```
 
-The current MVP contains the native shell and URL validation. Media processing will be added behind the `packages/media` boundary so the same core can ship on macOS, Windows, and Linux.
+## Media pipeline
+
+A job downloads the video with `yt-dlp`, extracts audio with `ffmpeg`, transcribes it locally with whisper.cpp (`whisper-cli`), translates the lines through an OpenAI-compatible chat API, and writes `<video>.srt` and `<video>.bilingual.srt` next to the video. Install the tools first, for example `brew install yt-dlp ffmpeg whisper-cpp` on macOS.
+
+The app reads its settings from the environment:
+
+- `LINGOCUT_WHISPER_MODEL` (required) — path of a whisper.cpp ggml model, such as `ggml-small.bin`.
+- `LINGOCUT_LLM_MODEL` (required) — chat model used for translation.
+- `LINGOCUT_LLM_BASE_URL` — API base URL, default `https://api.openai.com/v1`; use `http://localhost:11434/v1` for Ollama.
+- `LINGOCUT_LLM_API_KEY` — bearer token, if the API needs one.
+- `LINGOCUT_OUTPUT_DIR` — where videos and subtitles go, default `~/Movies/LingoCut` on macOS and `~/Videos/LingoCut` elsewhere.
