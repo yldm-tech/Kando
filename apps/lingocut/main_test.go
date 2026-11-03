@@ -18,7 +18,7 @@ func TestView(t *testing.T) {
 	if err := tt.Click("开始处理"); err != nil {
 		t.Fatal(err)
 	}
-	if a.job == nil || a.status != "任务已加入队列" {
+	if a.job == nil || a.status != "正在下载…" {
 		t.Errorf("texts %q after typing a name", tt.Texts())
 	}
 }
