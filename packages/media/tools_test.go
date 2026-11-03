@@ -156,6 +156,21 @@ func TestToolsTranscribeRejectsEmptyVideoPath(t *testing.T) {
 	}
 }
 
+func TestToolsDownloadReturnsLocalFileWithoutYTDLP(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "talk.mp4")
+	if err := os.WriteFile(video, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	url := "file://" + video
+	got, err := (Tools{}).Download(context.Background(), url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != video {
+		t.Fatalf("path = %q, want %q", got, video)
+	}
+}
+
 func TestLastLineAndTail(t *testing.T) {
 	if got := lastLine("[download] 100%\n/videos/a.mp4\n\n"); got != "/videos/a.mp4" {
 		t.Fatalf("lastLine = %q", got)

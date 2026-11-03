@@ -42,6 +42,9 @@ func ListVideos(directory string) ([]Video, error) {
 	return videos, nil
 }
 
+// IsVideoFile reports whether name has an extension the library lists.
+func IsVideoFile(name string) bool { return isVideoFile(name) }
+
 func isVideoFile(name string) bool {
 	switch strings.ToLower(filepath.Ext(name)) {
 	case ".mp4", ".m4v", ".mov", ".mkv", ".webm", ".avi", ".flv":

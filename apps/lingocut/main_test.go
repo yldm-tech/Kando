@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/egoist/mygo/ui"
 	"lingocut/packages/core"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // fakePipeline finishes every stage at once unless block is set, in which case Download waits for cancellation.
@@ -127,11 +129,73 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 	}
 }
 
+func TestViewShowsDownloadedVideosInLibrary(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "interview.mp4"), []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.libraryDir = dir
+	a.refreshLibrary()
+	tt.Frame()
+	if !tt.HasText("interview.mp4") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+func TestDropImportsLocalVideo(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "interview.mp4")
+	if err := os.WriteFile(src, []byte("video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.Frame()
+	r, ok := tt.Find("开始处理")
+	if !ok {
+		t.Fatal("missing start button")
+	}
+	if !tt.DropFiles(r.X+r.W/2, r.Y+r.H/2, src) {
+		t.Fatal("the library did not take the dropped file")
+	}
+	tt.Frame()
+	if a.source != "file://"+src || a.status != "已选择本地视频" {
+		t.Fatalf("source %q status %q texts %q", a.source, a.status, tt.Texts())
+	}
+}
+
+func TestImportIgnoresNonVideo(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(src, []byte("nope"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.libraryDir = dir
+	a.importLocal(src)
+	if a.status != "没有可导入的视频" {
+		t.Fatalf("status %q", a.status)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "notes.txt")); !os.IsNotExist(err) {
+		t.Fatal("non-video was copied")
+	}
+}
+
 func TestViewRejectsInvalidSource(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	startJob(t, tt, "not-a-url")
 	tt.Frame()
 	if a.job != nil || !tt.HasText("video source must be a valid URL") {
 		t.Fatalf("texts %q after an invalid source", tt.Texts())
+	}
+}
+
+func TestImportLocalVideoSetsFileSource(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.importLocal("/Users/test/interview.mp4")
+	if a.source != "file:///Users/test/interview.mp4" {
+		t.Fatalf("source = %q", a.source)
+	}
+	if a.status != "已选择本地视频" {
+		t.Fatalf("status = %q", a.status)
 	}
 }

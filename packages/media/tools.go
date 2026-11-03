@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -128,6 +129,12 @@ func (t Tools) Check() error {
 }
 
 func (t Tools) Download(ctx context.Context, source string) (string, error) {
+	if path, ok := localVideoPath(source); ok {
+		if _, err := os.Stat(path); err != nil {
+			return "", err
+		}
+		return path, nil
+	}
 	out, err := run(ctx, t.YTDLP,
 		"--no-playlist",
 		"-f", "bv*+ba/b",
@@ -145,6 +152,15 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		return "", errors.New("yt-dlp did not report the downloaded file")
 	}
 	return path, nil
+}
+
+// localVideoPath reports the disk path of a file:// video the user picked. Other URLs are downloaded.
+func localVideoPath(source string) (string, bool) {
+	parsed, err := url.Parse(source)
+	if err != nil || parsed.Scheme != "file" || parsed.Path == "" {
+		return "", false
+	}
+	return parsed.Path, true
 }
 
 func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment, error) {

@@ -52,7 +52,14 @@ func NewJob(source string) (Job, error) {
 	}
 
 	parsed, err := url.ParseRequestURI(source)
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+	if err != nil || parsed.Scheme == "" {
+		return Job{}, errors.New("video source must be a valid URL")
+	}
+	if parsed.Scheme == "file" {
+		if parsed.Path == "" {
+			return Job{}, errors.New("video source must be a valid URL")
+		}
+	} else if parsed.Host == "" {
 		return Job{}, errors.New("video source must be a valid URL")
 	}
 

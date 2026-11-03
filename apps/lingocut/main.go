@@ -27,9 +27,44 @@ type app struct {
 	job        *core.Job
 	library    library
 	pipeline   media.Pipeline
+	win        *mygo.Window
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 	cancel context.CancelFunc
+}
+
+func (a *app) pickVideos() {
+	win := a.win
+	update := a.update
+	go func() {
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+			Parent:      win,
+			Title:       "选择视频",
+			ButtonLabel: "打开",
+			Multiple:    true,
+			Filters:     []mygo.FileFilter{{Name: "视频", Extensions: []string{"mp4", "m4v", "mov", "mkv", "webm", "avi", "flv"}}},
+		})
+		update(func() {
+			if err != nil {
+				a.status = err.Error()
+				return
+			}
+			if len(paths) > 0 {
+				a.importLocal(paths[0])
+			}
+		})
+	}()
+}
+
+// importLocal points the next job at a video already on disk. The pipeline reads it directly and does not download it.
+func (a *app) importLocal(path string) {
+	if !media.IsVideoFile(path) {
+		a.status = "没有可导入的视频"
+		return
+	}
+	a.source = (&url.URL{Scheme: "file", Path: path}).String()
+	a.status = "已选择本地视频"
+	a.page = pageFilms
 }
 
 func (a *app) refreshLibrary() {
@@ -239,6 +274,7 @@ func main() {
 			// The window shows the interface MyGo draws, not a web page.
 			Content: ui.View(a.view),
 		})
+		a.win = win
 	})
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)

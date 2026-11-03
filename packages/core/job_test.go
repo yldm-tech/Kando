@@ -40,3 +40,13 @@ func TestNewJobRejectsInvalidSource(t *testing.T) {
 		t.Fatal("expected invalid URL to be rejected")
 	}
 }
+
+func TestNewJobAcceptsLocalFileURL(t *testing.T) {
+	job, err := NewJob("file:///Users/test/video.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Source != "file:///Users/test/video.mp4" || job.Stage != StageQueued {
+		t.Fatalf("unexpected job: %#v", job)
+	}
+}

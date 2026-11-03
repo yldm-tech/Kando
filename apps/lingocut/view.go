@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/egoist/mygo/ui"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
+
+	"github.com/egoist/mygo/ui"
 )
 
 const (
@@ -42,7 +43,19 @@ func (a *app) view(c *ui.Context) {
 	films := a.films()
 	ui.Row(c).Fill().Children(func() {
 		a.sidebar(c, t, len(films))
-		ui.Column(c).Fill().Padding(28, 32).Gap(20).Children(func() {
+		body := ui.Column(c).Fill().Padding(28, 32).Gap(20)
+		if files := body.DroppedFiles(); len(files) > 0 {
+			for _, file := range files {
+				if media.IsVideoFile(file) {
+					a.importLocal(file)
+					break
+				}
+			}
+		}
+		if body.FileDragOver() {
+			body.Background(t.Surface)
+		}
+		body.Children(func() {
 			switch a.page {
 			case pageGeneral, pageSpeech, pageAI, pageTranslate:
 				a.settings(c, t)
@@ -54,7 +67,7 @@ func (a *app) view(c *ui.Context) {
 }
 
 func (a *app) sidebar(c *ui.Context, t *ui.Theme, count int) {
-	ui.Column(c).Width(248).Fill().Padding(18, 14).Gap(4).Children(func() {
+	ui.Column(c).Fill().Width(248).Padding(18, 14).Gap(4).Children(func() {
 		ui.Column(c).Padding(4, 8, 12, 8).Gap(2).Children(func() {
 			ui.Text(c, "LingoCut").FontSize(18).Bold()
 			ui.Text(c, countLabel(count)).TextColor(t.TextMuted).FontSize(12)
@@ -104,6 +117,10 @@ func (a *app) libraryPage(c *ui.Context, t *ui.Theme, films []film) {
 				a.stop()
 			}
 		} else {
+			c.Key("files")
+			if ui.Button(c, "本地文件").Clicked() {
+				a.pickVideos()
+			}
 			c.Key("start")
 			if ui.PrimaryButton(c, "开始处理").Clicked() {
 				a.start()
@@ -111,7 +128,11 @@ func (a *app) libraryPage(c *ui.Context, t *ui.Theme, films []film) {
 		}
 	})
 	if a.job == nil && a.status != "" {
-		ui.Text(c, a.status).TextColor(t.Danger).Wrap()
+		color := t.Danger
+		if a.status == "已选择本地视频" {
+			color = t.TextMuted
+		}
+		ui.Text(c, a.status).TextColor(color).Wrap()
 	}
 	shown := films
 	if a.page == pageYouTube {
