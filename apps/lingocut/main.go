@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -34,6 +35,7 @@ type app struct {
 	openKey          string
 	subs             subtitleView
 	libraryDir       string
+	libraryWatch     chan struct{}
 	libraries        []string
 	libraryName      string
 	libraryParent    string
@@ -171,7 +173,7 @@ func (a *app) pickFolder(title, button, current string, done func(string)) {
 	}()
 }
 
-// createLibrary makes a .vimpo bundle and switches to it. A folder that is already there is opened as it is.
+// createLibrary makes a .lingocut bundle and switches to it. A folder that is already there is opened as it is.
 func (a *app) createLibrary() {
 	file, err := libraryFileName(a.libraryName)
 	if err != nil {
@@ -179,8 +181,15 @@ func (a *app) createLibrary() {
 		return
 	}
 	dir := filepath.Join(a.libraryPlace(), file)
-	if info, statErr := os.Stat(dir); statErr == nil && !info.IsDir() {
-		a.saveErr = "这个位置已经有同名文件"
+	if info, statErr := os.Stat(dir); statErr == nil {
+		if info.IsDir() {
+			a.saveErr = "已经有这个资料库，换个名字"
+		} else {
+			a.saveErr = "这个位置已经有同名文件"
+		}
+		return
+	} else if !os.IsNotExist(statErr) {
+		a.saveErr = statErr.Error()
 		return
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -194,7 +203,7 @@ func (a *app) createLibrary() {
 
 func libraryFileName(name string) (string, error) {
 	name = strings.TrimSpace(name)
-	name = strings.TrimSuffix(name, ".vimpo")
+	name = strings.TrimSuffix(name, media.LibraryExt)
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", errors.New("先写资料库的名称")
@@ -202,7 +211,32 @@ func libraryFileName(name string) (string, error) {
 	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
 		return "", errors.New("资料库名称不能包含路径")
 	}
-	return name + ".vimpo", nil
+	return name + media.LibraryExt, nil
+}
+
+// beginNewLibrary opens the create form even when a library is already open, and picks a name that is not taken.
+func (a *app) beginNewLibrary() {
+	a.openKey = ""
+	a.stopPlayback()
+	a.makingLibrary = true
+	a.page = pageFilms
+	a.libraryName = a.freeLibraryName()
+	a.saveErr = ""
+}
+
+func (a *app) freeLibraryName() string {
+	parent := a.libraryPlace()
+	base := "影视库"
+	if _, err := os.Stat(filepath.Join(parent, base+media.LibraryExt)); os.IsNotExist(err) {
+		return base
+	}
+	for n := 2; n < 100; n++ {
+		name := fmt.Sprintf("%s %d", base, n)
+		if _, err := os.Stat(filepath.Join(parent, name+media.LibraryExt)); os.IsNotExist(err) {
+			return name
+		}
+	}
+	return base
 }
 
 func (a *app) libraryPlace() string {
@@ -274,6 +308,7 @@ func (a *app) applyLibrary(dir string) {
 			a.pipeline = tools
 		}
 		a.videos = nil
+		a.restartLibraryWatch()
 		return
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -287,6 +322,31 @@ func (a *app) applyLibrary(dir string) {
 	}
 	ensureLibraryLogo(dir)
 	a.refreshLibrary()
+	a.restartLibraryWatch()
+}
+
+// restartLibraryWatch follows the current library folder. A new file, a deletion, or a rewrite refreshes the list on the UI thread.
+func (a *app) restartLibraryWatch() {
+	if a.libraryWatch != nil {
+		close(a.libraryWatch)
+		a.libraryWatch = nil
+	}
+	if a.libraryDir == "" || a.update == nil {
+		return
+	}
+	stop := make(chan struct{})
+	a.libraryWatch = stop
+	dir := a.libraryDir
+	update := a.update
+	go media.WatchLibrary(dir, time.Second, stop, func() {
+		update(func() {
+			if a.libraryWatch != stop || filepath.Clean(a.libraryDir) != filepath.Clean(dir) {
+				return
+			}
+			a.refreshLibrary()
+			a.reloadOpenSubtitles()
+		})
+	})
 }
 
 func (a *app) knownLibraries() []string {
@@ -295,6 +355,17 @@ func (a *app) knownLibraries() []string {
 		out = addLibrary(out, a.libraryDir)
 	}
 	return out
+}
+
+func dropLibrary(libraries []string, dir string) []string {
+	dir = filepath.Clean(dir)
+	kept := make([]string, 0, len(libraries))
+	for _, item := range libraries {
+		if filepath.Clean(item) != dir {
+			kept = append(kept, item)
+		}
+	}
+	return kept
 }
 
 func addLibrary(libraries []string, dir string) []string {
@@ -650,7 +721,7 @@ func (a *app) refreshLibrary() {
 		a.saveErr = err.Error()
 		return
 	}
-	if a.retargetLibrary(moved) || a.relocateMissing() {
+	if a.retargetLibrary(moved) || a.relocateMissing() || a.dropMissing() {
 		if err := a.library.save(); err != nil {
 			a.saveErr = "视频库无法保存：" + err.Error()
 		}
@@ -678,6 +749,28 @@ func (a *app) retargetLibrary(moved map[string]string) bool {
 			a.library.jobs[i].SubtitlePath = next
 			changed = true
 		}
+	}
+	return changed
+}
+
+func (a *app) dropMissing() bool {
+	kept := make([]core.Job, 0, len(a.library.jobs))
+	changed := false
+	for _, job := range a.library.jobs {
+		if job.VideoPath != "" && job.Stage.Done() {
+			if _, err := os.Stat(job.VideoPath); err != nil {
+				changed = true
+				if a.openKey == job.ID {
+					a.openKey = ""
+					a.stopPlayback()
+				}
+				continue
+			}
+		}
+		kept = append(kept, job)
+	}
+	if changed {
+		a.library.jobs = kept
 	}
 	return changed
 }
@@ -807,6 +900,9 @@ func (a *app) run(job core.Job) {
 		tools.Translator.Context = a.translateContext
 		a.pipeline = tools
 	}
+	if job.LibraryDir == "" {
+		job.LibraryDir = a.libraryDir
+	}
 	a.selectedID = job.ID
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -832,7 +928,6 @@ func (a *app) show(job core.Job) {
 		return
 	}
 	a.library.upsert(job)
-	a.refreshLibrary()
 	if err := a.library.save(); err != nil {
 		a.saveErr = "视频库无法保存：" + err.Error()
 	} else {
@@ -856,6 +951,9 @@ type subtitleView struct {
 	ready bool
 	list  ui.ListState
 	clips ui.ListState
+	mod   time.Time
+	size  int64
+	seen  bool
 }
 
 // loadSubtitles reads path off the UI thread. An empty path means this film has no subtitle yet.
@@ -876,6 +974,7 @@ func (a *app) loadSubtitles(key, path string) {
 	}
 	go func() {
 		data, err := os.ReadFile(path)
+		info, statErr := os.Stat(path)
 		var cues []core.Segment
 		msg := ""
 		if err != nil {
@@ -895,8 +994,31 @@ func (a *app) loadSubtitles(key, path string) {
 			a.subs.cues = cues
 			a.subs.err = msg
 			a.subs.ready = true
+			if statErr == nil {
+				a.subs.mod = info.ModTime()
+				a.subs.size = info.Size()
+				a.subs.seen = true
+			}
 		})
 	}()
+}
+
+// reloadOpenSubtitles reads the open subtitle again when the file on disk was rewritten or removed.
+func (a *app) reloadOpenSubtitles() {
+	if a.subs.key == "" || a.subs.path == "" {
+		return
+	}
+	info, err := os.Stat(a.subs.path)
+	if err != nil {
+		if !a.subs.ready || a.subs.err != "" {
+			return
+		}
+	} else if a.subs.seen && a.subs.size == info.Size() && a.subs.mod.Equal(info.ModTime()) {
+		return
+	}
+	key, path := a.subs.key, a.subs.path
+	a.subs.path = ""
+	a.loadSubtitles(key, path)
 }
 
 // revealInFolder shows path in the system file manager. Tests replace it.
@@ -993,9 +1115,13 @@ func (a *app) ensurePoster(video string) {
 		return
 	}
 	tools, ok := a.pipeline.(media.Tools)
+	replace := false
 	if info, err := os.Stat(dest); err == nil && info.Size() > 0 {
-		ok = true
-		tools.FFmpeg = ""
+		replace = media.PosterTooDark(dest)
+		if !replace {
+			ok = true
+			tools.FFmpeg = ""
+		}
 	}
 	if !ok || (tools.FFmpeg == "" && !fileExists(dest)) {
 		a.markPosterMiss(video)
@@ -1008,7 +1134,7 @@ func (a *app) ensurePoster(video string) {
 	update, ffmpeg := a.update, tools.FFmpeg
 	go func() {
 		var err error
-		if _, statErr := os.Stat(dest); statErr != nil {
+		if _, statErr := os.Stat(dest); statErr != nil || replace {
 			err = media.GrabPoster(context.Background(), ffmpeg, video, dest)
 		}
 		var img ui.ImageSource
@@ -1180,6 +1306,27 @@ func main() {
 		a.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
 	a.openLibrary(defaultLibraryPath())
+	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.libraryDir) == filepath.Clean(media.VimpoLibraryDir()) {
+		bundle := media.DefaultLibraryDir()
+		moved, err := media.DetachOwnVideos(a.libraryDir, bundle)
+		if a.retargetLibrary(moved) {
+			if saveErr := a.library.save(); saveErr != nil && err == nil {
+				err = saveErr
+			}
+		}
+		if err != nil {
+			a.saveErr = "资料库无法搬出：" + err.Error()
+		} else {
+			a.libraries = dropLibrary(a.libraries, media.VimpoLibraryDir())
+			a.libraries = addLibrary(a.libraries, bundle)
+			a.libraryDir = bundle
+			tools.OutputDir = bundle
+			a.pipeline = tools
+			if saveErr := a.saveSettings(); saveErr != nil {
+				a.saveErr = "资料库无法保存：" + saveErr.Error()
+			}
+		}
+	}
 	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.libraryDir) == filepath.Clean(media.LegacyLibraryDir()) {
 		bundle := media.DefaultLibraryDir()
 		moved, err := media.AdoptLibrary(a.libraryDir, bundle)
@@ -1203,6 +1350,7 @@ func main() {
 	}
 	ensureLibraryLogo(a.libraryDir)
 	a.refreshLibrary()
+	a.restartLibraryWatch()
 	mygo.App.WhenReady(func() {
 		win = mygo.NewWindow(mygo.WindowOptions{
 			Title:           "LingoCut",

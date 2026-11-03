@@ -1,10 +1,12 @@
 package media
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 type Video struct {
@@ -51,6 +53,70 @@ func ListVideos(directory string) ([]Video, error) {
 		return videos[i].ModTime > videos[j].ModTime
 	})
 	return videos, nil
+}
+
+// LibraryStamp describes the library folder and the files one level down. It changes when a video, subtitle, or folder is added, removed, or rewritten.
+func LibraryStamp(dir string) (string, error) {
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		writeStamp(&b, entry)
+		if !entry.IsDir() {
+			continue
+		}
+		nested, err := os.ReadDir(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		for _, item := range nested {
+			if strings.HasPrefix(item.Name(), ".") {
+				continue
+			}
+			writeStamp(&b, item)
+		}
+	}
+	return b.String(), nil
+}
+
+func writeStamp(b *strings.Builder, entry os.DirEntry) {
+	var size, mod int64
+	if info, err := entry.Info(); err == nil {
+		size = info.Size()
+		mod = info.ModTime().UnixNano()
+	}
+	fmt.Fprintf(b, "%s %t %d %d\n", entry.Name(), entry.IsDir(), size, mod)
+}
+
+// WatchLibrary calls changed when LibraryStamp changes. The first look is the baseline and does not call changed. stop ends the watch.
+func WatchLibrary(dir string, every time.Duration, stop <-chan struct{}, changed func()) {
+	if every <= 0 {
+		every = time.Second
+	}
+	prev, _ := LibraryStamp(dir)
+	ticker := time.NewTicker(every)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			next, err := LibraryStamp(dir)
+			if err != nil || next == prev {
+				continue
+			}
+			prev = next
+			changed()
+		}
+	}
 }
 
 // IsVideoFile reports whether name has an extension the library lists.
@@ -130,7 +196,7 @@ func GatherVideos(dir string) (map[string]string, error) {
 	return moved, nil
 }
 
-// AdoptLibrary moves videos from the old plain folder into a vimpo bundle, then gives each one the video.<ext> name. An existing destination is skipped, so a video already in the bundle stays put.
+// AdoptLibrary moves videos from the old plain folder into a library bundle, then gives each one the video.<ext> name. An existing destination is skipped, so a video already in the bundle stays put.
 func AdoptLibrary(from, to string) (map[string]string, error) {
 	from, to = filepath.Clean(from), filepath.Clean(to)
 	if from == to {
@@ -186,6 +252,55 @@ func AdoptLibrary(from, to string) (map[string]string, error) {
 				continue
 			}
 			moved[filepath.Join(src, rel)] = next
+		}
+	}
+	return moved, nil
+}
+
+// DetachOwnVideos moves folders out of another app's library. A folder that contains item.json stays, and so do files sitting in the library root.
+func DetachOwnVideos(from, to string) (map[string]string, error) {
+	from, to = filepath.Clean(from), filepath.Clean(to)
+	if from == to {
+		return nil, nil
+	}
+	entries, err := os.ReadDir(from)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(to, 0o755); err != nil {
+		return nil, err
+	}
+	moved := map[string]string{}
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		src := filepath.Join(from, entry.Name())
+		if _, err := os.Stat(filepath.Join(src, "item.json")); err == nil {
+			continue
+		}
+		dst := filepath.Join(to, entry.Name())
+		if _, err := os.Stat(dst); err == nil {
+			continue
+		}
+		if err := os.Rename(src, dst); err != nil {
+			return moved, err
+		}
+		if err := filepath.WalkDir(dst, func(path string, item os.DirEntry, err error) error {
+			if err != nil || item.IsDir() {
+				return err
+			}
+			rel, err := filepath.Rel(dst, path)
+			if err != nil {
+				return nil
+			}
+			moved[filepath.Join(src, rel)] = path
+			return nil
+		}); err != nil {
+			return moved, err
 		}
 	}
 	return moved, nil

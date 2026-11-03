@@ -106,7 +106,7 @@ func TestListVideosUsesTheFolderNameForAnItemVideo(t *testing.T) {
 
 func TestAdoptLibraryMovesAFolderIntoTheBundle(t *testing.T) {
 	from := filepath.Join(t.TempDir(), "LingoCut")
-	to := filepath.Join(t.TempDir(), "影视库.vimpo")
+	to := filepath.Join(t.TempDir(), "影视库.lingocut")
 	folder := filepath.Join(from, "talk [abc]")
 	if err := os.MkdirAll(folder, 0o755); err != nil {
 		t.Fatal(err)
@@ -145,10 +145,50 @@ func TestAdoptLibraryMovesAFolderIntoTheBundle(t *testing.T) {
 	}
 }
 
+func TestDetachOwnVideosLeavesTheOtherAppsItems(t *testing.T) {
+	root := t.TempDir()
+	from := filepath.Join(root, "影视库.vimpo")
+	to := filepath.Join(root, "影视库.lingocut")
+	own := filepath.Join(from, "talk")
+	theirs := filepath.Join(from, "course")
+	if err := os.MkdirAll(own, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(theirs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(own, "video.mp4")
+	if err := os.WriteFile(video, []byte("own"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(theirs, "item.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(theirs, "video.mp4"), []byte("theirs"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(from, "library.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	moved, err := DetachOwnVideos(from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved[video] != filepath.Join(to, "talk", "video.mp4") {
+		t.Fatalf("moved = %#v", moved)
+	}
+	if _, err := os.Stat(filepath.Join(theirs, "video.mp4")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(from, "library.json")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAdoptLibraryRemembersAnItemThatIsAlreadyNamedVideo(t *testing.T) {
 	root := t.TempDir()
 	from := filepath.Join(root, "LingoCut")
-	to := filepath.Join(root, "影视库.vimpo")
+	to := filepath.Join(root, "影视库.lingocut")
 	folder := filepath.Join(from, "talk")
 	if err := os.MkdirAll(folder, 0o755); err != nil {
 		t.Fatal(err)
@@ -184,6 +224,28 @@ func TestRelocateFindsTheSameItemUnderTheBundle(t *testing.T) {
 	}
 	if _, ok := Relocate(root, filepath.Join(folder, "video.mp4")); ok {
 		t.Fatal("an existing file was relocated")
+	}
+}
+
+func TestWatchLibraryReportsANewFile(t *testing.T) {
+	dir := t.TempDir()
+	stop := make(chan struct{})
+	defer close(stop)
+	got := make(chan struct{}, 1)
+	go WatchLibrary(dir, 20*time.Millisecond, stop, func() {
+		select {
+		case got <- struct{}{}:
+		default:
+		}
+	})
+	time.Sleep(40 * time.Millisecond)
+	if err := os.WriteFile(filepath.Join(dir, "talk.mp4"), []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-got:
+	case <-time.After(time.Second):
+		t.Fatal("watch did not notice the new video")
 	}
 }
 

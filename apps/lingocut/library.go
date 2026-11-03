@@ -97,13 +97,14 @@ type storedJob struct {
 	Stage        core.Stage `json:"stage"`
 	VideoPath    string     `json:"videoPath,omitempty"`
 	SubtitlePath string     `json:"subtitlePath,omitempty"`
+	LibraryDir   string     `json:"libraryDir,omitempty"`
 	Error        string     `json:"error,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
 	stored := storedJob{
 		ID: job.ID, Source: job.Source, Language: job.Language, Stage: job.Stage,
-		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath,
+		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
 	}
 	if errors.Is(job.Err, context.Canceled) {
 		stored.Error = storedCanceled
@@ -116,7 +117,7 @@ func storeJob(job core.Job) storedJob {
 func (s storedJob) job() core.Job {
 	job := core.Job{
 		ID: s.ID, Source: s.Source, Language: s.Language, Stage: s.Stage,
-		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath,
+		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
 	}
 	switch s.Error {
 	case "":

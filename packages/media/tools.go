@@ -72,8 +72,16 @@ func ToolsFromEnv() Tools {
 	}
 }
 
-// DefaultLibraryDir is the vimpo bundle that holds one folder per video. LegacyLibraryDir is the plain folder used before that.
+// LibraryExt is LingoCut's own library bundle suffix.
+const LibraryExt = ".lingocut"
+
+// DefaultLibraryDir is the bundle that holds one folder per video. LegacyLibraryDir is the plain folder used before that.
 func DefaultLibraryDir() string {
+	return filepath.Join(moviesDir(), "影视库"+LibraryExt)
+}
+
+// VimpoLibraryDir is the other app's library. LingoCut does not store its videos there.
+func VimpoLibraryDir() string {
 	return filepath.Join(moviesDir(), "影视库.vimpo")
 }
 

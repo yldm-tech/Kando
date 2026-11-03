@@ -161,7 +161,7 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 }
 
 func TestItemVideoUsesTheFolderName(t *testing.T) {
-	got := jobName(core.Job{VideoPath: "/Movies/影视库.vimpo/Learn Rust [abc]/video.mp4"})
+	got := jobName(core.Job{VideoPath: "/Movies/影视库.lingocut/Learn Rust [abc]/video.mp4"})
 	if got != "Learn Rust [abc]" {
 		t.Fatalf("name = %q", got)
 	}
@@ -336,7 +336,7 @@ func TestSettingsPages(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	for _, text := range []string{"资料库", "~/Movies/LingoCut", "创建资料库", "导入已有资料库", "移出", "界面语言", "简体中文", "当前版本", appVersion, "组件", "yt-dlp", "FFmpeg", "whisper-cli", "未安装"} {
+	for _, text := range []string{"资料库", "~/Movies/LingoCut", "新建资料库", "导入已有资料库", "移出", "界面语言", "简体中文", "当前版本", appVersion, "组件", "yt-dlp", "FFmpeg", "whisper-cli", "未安装"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
@@ -473,7 +473,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	first := filepath.Join(parent, "第一库.vimpo")
+	first := filepath.Join(parent, "第一库.lingocut")
 	if a.libraryDir != first {
 		t.Fatalf("library = %q", a.libraryDir)
 	}
@@ -483,19 +483,23 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if tt.HasText("先准备一个资料库") {
 		t.Fatal("the welcome stayed after the library was created")
 	}
+	if err := tt.Click("新建资料库"); err != nil {
+		t.Fatal(err)
+	}
 	a.libraryName = "第二库"
-	a.makingLibrary = true
-	a.page = pageGeneral
 	tt.Frame()
-	if err := tt.Click("确认创建"); err != nil {
+	if !tt.HasText("新建资料库") || !tt.HasText("创建资料库") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("创建资料库"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	second := filepath.Join(parent, "第二库.vimpo")
+	second := filepath.Join(parent, "第二库.lingocut")
 	if a.libraryDir != second || len(a.libraries) != 2 {
 		t.Fatalf("library %q list %v", a.libraryDir, a.libraries)
 	}
-	if err := tt.Click("第一库.vimpo"); err != nil {
+	if err := tt.Click("第一库.lingocut"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -506,7 +510,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("移出 第一库.vimpo"); err != nil {
+	if err := tt.Click("移出 第一库.lingocut"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -519,6 +523,55 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	saved := loadSavedSettings(a.settingsPath)
 	if saved.LibraryDir != second || len(saved.Libraries) != 1 || saved.Libraries[0] != second {
 		t.Fatalf("saved %#v", saved)
+	}
+}
+
+func TestFilmsStayInsideTheOpenLibrary(t *testing.T) {
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.libraryDir = "/libraries/one"
+	a.library.jobs = []core.Job{
+		{ID: "in", Stage: core.StageComplete, VideoPath: "/libraries/one/a/video.mp4"},
+		{ID: "out", Stage: core.StageComplete, VideoPath: "/libraries/two/b/video.mp4"},
+		{ID: "soon", Stage: core.StageDownloading, LibraryDir: "/libraries/one"},
+	}
+	a.videos = []media.Video{{Path: "/libraries/one/c/video.mp4", Name: "c.mp4"}}
+	var names []string
+	for _, item := range a.films() {
+		names = append(names, item.key)
+	}
+	if strings.Join(names, ",") != "in,soon,/libraries/one/c/video.mp4" {
+		t.Fatalf("films = %v", names)
+	}
+	a.libraryDir = "/libraries/empty"
+	if len(a.films()) != 0 {
+		t.Fatalf("empty library films = %#v", a.films())
+	}
+}
+
+func TestRefreshDropsAVideoRemovedFromTheLibrary(t *testing.T) {
+	dir := t.TempDir()
+	folder := filepath.Join(dir, "talk")
+	if err := os.Mkdir(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(folder, "video.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.libraryDir = dir
+	a.library.jobs = []core.Job{{ID: "talk", Stage: core.StageComplete, VideoPath: video}}
+	a.openKey = "talk"
+	a.refreshLibrary()
+	if len(a.videos) != 1 || len(a.library.jobs) != 1 {
+		t.Fatalf("videos %d jobs %d", len(a.videos), len(a.library.jobs))
+	}
+	if err := os.RemoveAll(folder); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	if len(a.videos) != 0 || len(a.library.jobs) != 0 || a.openKey != "" {
+		t.Fatalf("videos %d jobs %d open %q", len(a.videos), len(a.library.jobs), a.openKey)
 	}
 }
 
@@ -544,6 +597,7 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, tt, updates := newTestApp(&fakePipeline{})
+	a.libraryDir = dir
 	a.library.jobs = []core.Job{{
 		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
@@ -598,6 +652,7 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a.libraryDir = dir
 	a.library.jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
@@ -669,6 +724,7 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a.libraryDir = dir
 	a.library.jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
 	}}
@@ -718,6 +774,7 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a.libraryDir = dir
 	a.library.jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
 	}}
@@ -778,6 +835,7 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a.libraryDir = dir
 	a.library.jobs = []core.Job{{
 		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
 	}}
@@ -852,6 +910,7 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, tt, updates := newTestApp(&fakePipeline{})
+	a.libraryDir = dir
 	a.library.jobs = []core.Job{{
 		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
@@ -957,6 +1016,7 @@ func TestRemoveOnCardDoesNotOpenTheFilm(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.library.jobs = []core.Job{{
 		ID: "j", Source: "https://example.com/v", Stage: core.StageFailed, Err: errors.New("boom"),
+		LibraryDir: a.libraryDir,
 	}}
 	tt.Frame()
 	if err := tt.Click("移除"); err != nil {

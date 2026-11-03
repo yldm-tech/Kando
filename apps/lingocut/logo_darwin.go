@@ -9,14 +9,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"lingocut/packages/media"
 )
 
 //go:embed resources/icon.png
 var appIconPNG []byte
 
-// ensureLibraryLogo gives a .vimpo bundle a Finder icon. A bundle that already has one, such as an existing 影视库.vimpo, is left untouched.
+// ensureLibraryLogo gives a .lingocut bundle a Finder icon. A bundle that already has one is left untouched.
 func ensureLibraryLogo(dir string) {
-	if filepath.Ext(dir) != ".vimpo" || hasCustomIcon(dir) {
+	if filepath.Ext(dir) != media.LibraryExt || hasCustomIcon(dir) {
 		return
 	}
 	file, err := os.CreateTemp("", "lingocut-icon-*.png")

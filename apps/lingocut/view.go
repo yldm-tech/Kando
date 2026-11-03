@@ -116,6 +116,8 @@ func (a *app) sidebar(c *ui.Context, t *ui.Theme, count int) {
 			for _, dir := range libs {
 				a.libraryNav(c, t, dir)
 			}
+			a.libraryAction(c, t, "新建资料库", a.beginNewLibrary)
+			a.libraryAction(c, t, "导入资料库", a.pickLibrary)
 		}
 		a.section(c, t, "影片")
 		a.nav(c, t, pageFilms, "全部影片", fmt.Sprintf("%d", count))
@@ -147,15 +149,33 @@ func (a *app) libraryNav(c *ui.Context, t *ui.Theme, dir string) {
 	})
 }
 
+func (a *app) libraryAction(c *ui.Context, t *ui.Theme, label string, fn func()) {
+	row := ui.Row(c).Padding(7, 10).Radius(8).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(label)
+	if row.Clicked() {
+		fn()
+	}
+	row.Children(func() {
+		ui.Text(c, label).TextColor(t.TextMuted)
+	})
+}
+
 func (a *app) welcomeLibrary(c *ui.Context, t *ui.Theme) {
+	title := "先准备一个资料库"
+	if a.libraryDir != "" {
+		title = "新建资料库"
+	}
 	ui.Column(c).Grow(1).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		ui.Column(c).Width(440).Gap(14).Children(func() {
-			ui.Text(c, "先准备一个资料库").FontSize(28).Bold()
-			ui.Text(c, "一个资料库是一个 .vimpo 文件夹，里面每个视频一个文件夹，访达里会带上图标。可以建多个，之后在侧边栏或通用设置里切换。").TextColor(t.TextMuted).Wrap()
+			ui.Text(c, title).FontSize(28).Bold()
+			ui.Text(c, "一个资料库是一个 .lingocut 文件夹，里面每个视频一个文件夹，访达里会带上图标。可以建多个，之后在侧边栏切换。").TextColor(t.TextMuted).Wrap()
 			a.libraryDraft(c, t, "创建资料库")
-			ui.Text(c, "已经有资料库").TextColor(t.TextMuted).FontSize(12)
-			if ui.Button(c, "导入已有资料库").Clicked() {
-				a.pickLibrary()
+			if a.libraryDir == "" {
+				ui.Text(c, "已经有资料库").TextColor(t.TextMuted).FontSize(12)
+				if ui.Button(c, "导入已有资料库").Clicked() {
+					a.pickLibrary()
+				}
+			} else if ui.Button(c, "取消新建").Clicked() {
+				a.makingLibrary = false
 			}
 			if a.saveErr != "" {
 				ui.Text(c, a.saveErr).TextColor(t.Danger).Wrap()
@@ -215,12 +235,16 @@ func (a *app) nav(c *ui.Context, t *ui.Theme, page, label, badge string) {
 }
 
 func (a *app) libraryPage(c *ui.Context, t *ui.Theme, films []film) {
-	if a.libraryDir == "" {
+	if a.libraryDir == "" || a.makingLibrary {
 		a.welcomeLibrary(c, t)
 		return
 	}
 	if a.openKey != "" {
 		if item, ok := findFilm(films, a.openKey); ok {
+			a.filmPage(c, t, item)
+			return
+		}
+		if item, ok := a.jobFilm(a.openKey); ok {
 			a.filmPage(c, t, item)
 			return
 		}
@@ -1125,7 +1149,7 @@ func languageChoices(current string) []string {
 }
 
 func (a *app) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, known bool) {
-	settingSection(c, t, "资料库", "每个资料库是一个 .vimpo 文件夹，访达里带自己的图标。切换会停止进行中的任务。移出只从列表去掉，不删除文件。", func() {
+	settingSection(c, t, "资料库", "每个资料库是一个 .lingocut 文件夹，访达里带自己的图标。切换会停止进行中的任务。移出只从列表去掉，不删除文件。", func() {
 		libs := a.knownLibraries()
 		if len(libs) > 0 {
 			lines := make([]func(), 0, len(libs))
@@ -1135,17 +1159,13 @@ func (a *app) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, kno
 			}
 			settingCard(c, t, lines...)
 		}
-		if len(libs) == 0 || a.makingLibrary {
+		if len(libs) == 0 {
 			a.libraryDraft(c, t, "确认创建")
 		}
 		ui.Row(c).Gap(8).Children(func() {
 			if len(libs) > 0 {
-				label := "创建资料库"
-				if a.makingLibrary {
-					label = "取消创建"
-				}
-				if ui.Button(c, label).Clicked() {
-					a.makingLibrary = !a.makingLibrary
+				if ui.Button(c, "新建资料库").Clicked() {
+					a.beginNewLibrary()
 				}
 			}
 			if ui.Button(c, "导入已有资料库").Clicked() {
@@ -1511,6 +1531,9 @@ func (a *app) films() []film {
 	out := make([]film, 0, len(a.library.jobs)+len(a.videos))
 	for i := range a.library.jobs {
 		job := a.library.jobs[i]
+		if !a.jobInLibrary(job) {
+			continue
+		}
 		if job.VideoPath != "" {
 			used[job.VideoPath] = true
 		}
@@ -1522,7 +1545,7 @@ func (a *app) films() []film {
 		})
 	}
 	for _, video := range a.videos {
-		if used[video.Path] {
+		if used[video.Path] || !pathInDir(a.libraryDir, video.Path) {
 			continue
 		}
 		name := strings.TrimSuffix(video.Name, filepath.Ext(video.Name))
@@ -1531,6 +1554,41 @@ func (a *app) films() []film {
 		})
 	}
 	return out
+}
+
+// jobInLibrary reports whether job belongs on the open library's shelf. A finished job follows its video file. A job that has not downloaded yet follows the library it was started in.
+func (a *app) jobInLibrary(job core.Job) bool {
+	if a.libraryDir == "" {
+		return false
+	}
+	if job.VideoPath != "" {
+		return pathInDir(a.libraryDir, job.VideoPath)
+	}
+	if job.LibraryDir != "" {
+		return filepath.Clean(job.LibraryDir) == filepath.Clean(a.libraryDir)
+	}
+	return !job.Stage.Done()
+}
+
+func (a *app) jobFilm(id string) (film, bool) {
+	job, ok := a.library.find(id)
+	if !ok {
+		return film{}, false
+	}
+	name := jobName(job)
+	return film{
+		key: job.ID, title: shorten(name, 22), name: name, source: job.Source,
+		detail: statusText(job), stage: job.Stage, jobID: job.ID,
+		videoPath: job.VideoPath, subtitlePath: job.SubtitlePath,
+	}, true
+}
+
+func pathInDir(dir, path string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(path))
+	if err != nil || rel == "." {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func posterColor(key string) ui.Color {

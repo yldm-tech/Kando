@@ -42,7 +42,9 @@ type Job struct {
 	Stage        Stage
 	VideoPath    string
 	SubtitlePath string
-	Err          error
+	// LibraryDir is the library that owns this job. Empty means it was saved before libraries were separate.
+	LibraryDir string
+	Err        error
 }
 
 func NewJob(source string) (Job, error) {
