@@ -20,13 +20,28 @@ type app struct {
 	status     string
 	selectedID string
 	saveErr    string
+	page       string
+	libraryDir string
+	videos     []media.Video
+	removed    map[string]bool
 	job        *core.Job
 	library    library
-	rows       ui.ListState
 	pipeline   media.Pipeline
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 	cancel context.CancelFunc
+}
+
+func (a *app) refreshLibrary() {
+	if a.libraryDir == "" {
+		return
+	}
+	videos, err := media.ListVideos(a.libraryDir)
+	if err != nil {
+		a.saveErr = err.Error()
+		return
+	}
+	a.videos = videos
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -50,69 +65,33 @@ func (a *app) running() bool {
 	return false
 }
 
-func (a *app) view(c *ui.Context) {
-	t := c.Theme()
-	running := a.running()
-	ui.Row(c).Fill().Children(func() {
-		ui.Column(c).Width(220).Fill().Padding(16).Gap(8).Children(func() {
-			ui.Text(c, "LingoCut").FontSize(24).Bold()
-			ui.Text(c, "下载、转录、翻译视频").TextColor(t.TextMuted)
-			if ui.Button(c, "新建").Clicked() {
-				a.newDraft()
-			}
-			ui.Text(c, "视频库").FontSize(14).Bold().Padding(12, 0, 0, 0)
-			if len(a.library.jobs) == 0 {
-				ui.Text(c, "还没有视频").TextColor(t.TextMuted)
-			} else {
-				ui.List(c, &a.rows, len(a.library.jobs), func(i int) {
-					job := a.library.jobs[i]
-					row := ui.Column(c).Padding(6, 8).Gap(2).Radius(6)
-					if job.ID == a.selectedID {
-						row.Background(t.Surface)
-					}
-					if row.Clicked() {
-						a.selectJob(job.ID)
-					}
-					row.Children(func() {
-						ui.Text(c, jobTitle(job))
-						ui.Text(c, stageLabel(job.Stage)).TextColor(t.TextMuted).FontSize(12)
-					})
-				}).Grow(1)
-			}
-			if a.saveErr != "" {
-				ui.Text(c, a.saveErr).TextColor(t.TextMuted).Wrap()
-			}
-		})
-		ui.Column(c).Fill().Padding(32).Gap(16).Children(func() {
-			heading := "新建任务"
-			if job, ok := a.library.find(a.selectedID); ok {
-				heading = jobTitle(job)
-			}
-			ui.Text(c, heading).FontSize(26).Bold()
-			ui.Text(c, "粘贴一个视频链接，LingoCut 会在本机完成处理。").TextColor(t.TextMuted)
-			ui.TextInput(c, &a.source).Placeholder("https://...").Label("视频链接").Width(440).Disabled(running)
-			ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "翻译成").TextColor(t.TextMuted)
-				ui.TextInput(c, &a.language).Placeholder("简体中文").Label("目标语言").Width(160).Disabled(running)
-			})
-			if running {
-				c.Key("cancel")
-				if ui.Button(c, "取消").Width(120).Clicked() {
-					a.stop()
-				}
-			} else {
-				c.Key("start")
-				if ui.PrimaryButton(c, "开始处理").Width(120).Clicked() {
-					a.start()
-				}
-			}
-			if a.status != "" {
-				ui.Text(c, a.status).TextColor(t.TextMuted).Width(440).Wrap().Selectable()
-			}
-			ui.Text(c, "处理流程").FontSize(14).Bold().Padding(18, 0, 0, 0)
-			ui.Text(c, "下载 → 本地转录 → 翻译 → 导出双语字幕").TextColor(t.TextMuted)
-		})
-	})
+func (a *app) remove(id string) {
+	if a.removed == nil {
+		a.removed = map[string]bool{}
+	}
+	a.removed[id] = true
+	kept := make([]core.Job, 0, len(a.library.jobs))
+	for _, job := range a.library.jobs {
+		if job.ID != id {
+			kept = append(kept, job)
+		}
+	}
+	a.library.jobs = kept
+	if a.selectedID == id {
+		a.newDraft()
+	}
+	if err := a.library.save(); err != nil {
+		a.saveErr = "视频库无法保存：" + err.Error()
+	}
+}
+
+func (a *app) retry(job core.Job) {
+	a.source = job.Source
+	if job.Language != "" {
+		a.language = job.Language
+	}
+	a.page = pageFilms
+	a.start()
 }
 
 func (a *app) newDraft() {
@@ -120,20 +99,6 @@ func (a *app) newDraft() {
 	a.job = nil
 	a.source = ""
 	a.status = ""
-}
-
-func (a *app) selectJob(id string) {
-	job, ok := a.library.find(id)
-	if !ok {
-		return
-	}
-	a.selectedID = id
-	a.job = &job
-	a.source = job.Source
-	if job.Language != "" {
-		a.language = job.Language
-	}
-	a.status = statusText(job)
 }
 
 func (a *app) start() {
@@ -171,7 +136,11 @@ func (a *app) stop() {
 }
 
 func (a *app) show(job core.Job) {
+	if a.removed[job.ID] {
+		return
+	}
 	a.library.upsert(job)
+	a.refreshLibrary()
 	if err := a.library.save(); err != nil {
 		a.saveErr = "视频库无法保存：" + err.Error()
 	} else {
@@ -253,15 +222,18 @@ func statusText(job core.Job) string {
 
 func main() {
 	var win *mygo.Window
-	a := newApp(media.ToolsFromEnv(), func(fn func()) { win.Update(fn) })
+	tools := media.ToolsFromEnv()
+	a := newApp(tools, func(fn func()) { win.Update(fn) })
+	a.libraryDir = tools.OutputDir
 	a.openLibrary(defaultLibraryPath())
+	a.refreshLibrary()
 	mygo.App.WhenReady(func() {
 		win = mygo.NewWindow(mygo.WindowOptions{
 			Title:     "LingoCut",
-			Width:     860,
-			Height:    560,
-			MinWidth:  720,
-			MinHeight: 460,
+			Width:     1100,
+			Height:    720,
+			MinWidth:  900,
+			MinHeight: 560,
 			// Opens where the user left it last time.
 			StateKey: "main",
 			// The window shows the interface MyGo draws, not a web page.

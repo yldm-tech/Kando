@@ -43,7 +43,7 @@ func (f *fakePipeline) Export(context.Context, string, []core.Segment, []core.Se
 func newTestApp(p *fakePipeline) (*app, *ui.Tester, chan func()) {
 	updates := make(chan func(), 16)
 	a := newApp(p, func(fn func()) { updates <- fn })
-	return a, ui.NewTester(a.view, 860, 560), updates
+	return a, ui.NewTester(a.view, 1100, 720), updates
 }
 
 func settle(t *testing.T, a *app, tt *ui.Tester, updates chan func()) {
@@ -111,24 +111,11 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 	a.openLibrary(path)
 	startJob(t, tt, "https://example.com/video")
 	settle(t, a, tt, updates)
-	if !tt.HasText("talk") || !tt.HasText("已完成") {
+	if !tt.HasText("talk") || !tt.HasText("已完成") || !tt.HasText("完成：/videos/talk.bilingual.srt") {
 		t.Fatalf("texts %q after the job", tt.Texts())
 	}
-
-	if err := tt.Click("新建"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if a.selectedID != "" || a.status != "" || tt.HasText("完成：") {
-		t.Fatalf("draft did not clear: id %q status %q texts %q", a.selectedID, a.status, tt.Texts())
-	}
-
-	if err := tt.Click("talk"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if !tt.HasText("完成：/videos/talk.bilingual.srt") {
-		t.Fatalf("texts %q after selecting the job", tt.Texts())
+	if !tt.HasText("1 部影片") || !tt.HasText("1") {
+		t.Fatalf("texts %q missing the count", tt.Texts())
 	}
 
 	reloaded, err := loadLibrary(path)
