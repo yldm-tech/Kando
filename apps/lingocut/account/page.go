@@ -25,6 +25,10 @@ type App interface {
 	S3Bucket() *string
 	S3AccessKey() *string
 	S3Secret() *string
+	OSSRegion() *string
+	OSSBucket() *string
+	OSSAccessKey() *string
+	OSSSecret() *string
 	ShowR2Secret() bool
 	ToggleR2Secret()
 	Save() error
@@ -35,8 +39,9 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 	section(c, t, "Google", "登录只用来标明是谁上传的。刷新令牌保存在本机设置文件里。", func() {
 		card(c, t, func() { googleRow(c, t, a) })
 	})
-	section(c, t, "对象存储", "视频不会在下载完成时自动上传。到播放页点上传。两套密钥分开保存，只存在本机设置文件里。", func() {
-		if a.StorageKind() == "s3" {
+	section(c, t, "对象存储", "视频不会在下载完成时自动上传。到播放页点上传。各处的密钥分开保存，只存在本机设置文件里。", func() {
+		switch a.StorageKind() {
+		case "s3":
 			card(c, t,
 				func() { storageRow(c, t, a) },
 				func() { textRow(c, t, "s3-region", "Region", "例如 ap-northeast-1。", a.S3Region(), a) },
@@ -44,15 +49,25 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 				func() { textRow(c, t, "s3-access", "Access Key", "", a.S3AccessKey(), a) },
 				func() { secretRow(c, t, "s3-secret", a.S3Secret(), a) },
 			)
-			return
+		case "oss":
+			card(c, t,
+				func() { storageRow(c, t, a) },
+				func() {
+					textRow(c, t, "oss-region", "Region", "例如 cn-hangzhou。内网填 cn-hangzhou-internal。", a.OSSRegion(), a)
+				},
+				func() { textRow(c, t, "oss-bucket", "Bucket", "", a.OSSBucket(), a) },
+				func() { textRow(c, t, "oss-access", "Access Key", "", a.OSSAccessKey(), a) },
+				func() { secretRow(c, t, "oss-secret", a.OSSSecret(), a) },
+			)
+		default:
+			card(c, t,
+				func() { storageRow(c, t, a) },
+				func() { endpointRow(c, t, a) },
+				func() { textRow(c, t, "r2-bucket", "Bucket", "", a.R2Bucket(), a) },
+				func() { textRow(c, t, "r2-access", "Access Key", "", a.R2AccessKey(), a) },
+				func() { secretRow(c, t, "r2-secret", a.R2Secret(), a) },
+			)
 		}
-		card(c, t,
-			func() { storageRow(c, t, a) },
-			func() { endpointRow(c, t, a) },
-			func() { textRow(c, t, "r2-bucket", "Bucket", "", a.R2Bucket(), a) },
-			func() { textRow(c, t, "r2-access", "Access Key", "", a.R2AccessKey(), a) },
-			func() { secretRow(c, t, "r2-secret", a.R2Secret(), a) },
-		)
 	})
 }
 
@@ -63,7 +78,7 @@ func storageRow(c *ui.Context, t *ui.Theme, a App) {
 		sel := components.Select(c, selected)
 		sel.Trigger.Children(func() { components.Text(c, storageLabel(*selected)).SingleLine() })
 		sel.Popup(func(ui.Element) {
-			for _, id := range []string{"r2", "s3"} {
+			for _, id := range []string{"r2", "s3", "oss"} {
 				id := id
 				sel.Item(id).Children(func() { components.Text(c, storageLabel(id)).SingleLine() })
 			}
@@ -75,10 +90,14 @@ func storageRow(c *ui.Context, t *ui.Theme, a App) {
 }
 
 func storageLabel(id string) string {
-	if strings.EqualFold(strings.TrimSpace(id), "s3") {
+	switch strings.ToLower(strings.TrimSpace(id)) {
+	case "s3":
 		return "Amazon S3"
+	case "oss":
+		return "阿里云 OSS"
+	default:
+		return "Cloudflare R2"
 	}
-	return "Cloudflare R2"
 }
 
 func googleRow(c *ui.Context, t *ui.Theme, a App) {

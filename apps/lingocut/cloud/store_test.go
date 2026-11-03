@@ -18,6 +18,38 @@ func TestRegionRejectsAURL(t *testing.T) {
 	}
 }
 
+func TestOSSBuildsTheS3Endpoint(t *testing.T) {
+	endpoint, region := OSS(" cn-hangzhou ")
+	if endpoint != "https://s3.oss-cn-hangzhou.aliyuncs.com" || region != "cn-hangzhou" {
+		t.Fatalf("endpoint %q region %q", endpoint, region)
+	}
+	endpoint, region = OSS("oss-cn-hongkong")
+	if endpoint != "https://s3.oss-cn-hongkong.aliyuncs.com" || region != "cn-hongkong" {
+		t.Fatalf("prefixed endpoint %q region %q", endpoint, region)
+	}
+	endpoint, region = OSS("cn-hangzhou-internal")
+	if endpoint != "https://s3.oss-cn-hangzhou-internal.aliyuncs.com" || region != "cn-hangzhou" {
+		t.Fatalf("internal endpoint %q region %q", endpoint, region)
+	}
+	endpoint, region = OSS("https://oss-cn-beijing.aliyuncs.com/")
+	if endpoint != "https://s3.oss-cn-beijing.aliyuncs.com" || region != "cn-beijing" {
+		t.Fatalf("url endpoint %q region %q", endpoint, region)
+	}
+	if e, r := OSS("https://example.com"); e != "" || r != "" {
+		t.Fatalf("foreign url %q %q", e, r)
+	}
+}
+
+func TestNewOSSRejectsABlankRegion(t *testing.T) {
+	if _, err := NewOSS("", "key", "secret"); err == nil {
+		t.Fatal("blank region was accepted")
+	}
+	client, err := NewOSS("cn-hangzhou", "key", "secret")
+	if err != nil || client == nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNewS3RejectsABlankRegion(t *testing.T) {
 	if _, err := NewS3("", "key", "secret"); err == nil {
 		t.Fatal("blank region was accepted")

@@ -89,6 +89,14 @@ func (a *app) S3AccessKey() *string { return &a.s3AccessKey }
 
 func (a *app) S3Secret() *string { return &a.s3Secret }
 
+func (a *app) OSSRegion() *string { return &a.ossRegion }
+
+func (a *app) OSSBucket() *string { return &a.ossBucket }
+
+func (a *app) OSSAccessKey() *string { return &a.ossAccessKey }
+
+func (a *app) OSSSecret() *string { return &a.ossSecret }
+
 func (a *app) ShowR2Secret() bool { return a.showR2Secret }
 
 func (a *app) ToggleR2Secret() { a.showR2Secret = !a.showR2Secret }
@@ -174,11 +182,7 @@ func (a *app) runUpload(videoPath, videoKey string, cfg cloud.Store, files []clo
 		}
 		a.uploadPath = ""
 		a.uploadWritten, a.uploadTotal = 0, 0
-		kind := cloud.KindR2
-		if cfg.Kind == cloud.KindS3 {
-			kind = cloud.KindS3
-		}
-		done := kind + "\n" + videoPath
+		done := storeKind(cfg.Kind) + "\n" + videoPath
 		if err != nil {
 			a.uploadErr = uploadFailure(err, cfg.Secret, cfg.AccessKey)
 			a.uploadErrPath = done
@@ -210,14 +214,19 @@ func (a *app) uploadBlocked() string {
 	if storeReady(cfg) {
 		return ""
 	}
-	if cfg.Kind == cloud.KindS3 {
+	switch cfg.Kind {
+	case cloud.KindS3:
 		return "先在「账号」里填写 S3"
+	case cloud.KindOSS:
+		return "先在「账号」里填写 OSS"
+	default:
+		return "先在「账号」里填写 R2"
 	}
-	return "先在「账号」里填写 R2"
 }
 
 func (a *app) currentStore() cloud.Store {
-	if a.storageKind() == cloud.KindS3 {
+	switch a.storageKind() {
+	case cloud.KindS3:
 		return cloud.Store{
 			Kind:      cloud.KindS3,
 			Region:    strings.TrimSpace(a.s3Region),
@@ -225,28 +234,36 @@ func (a *app) currentStore() cloud.Store {
 			AccessKey: strings.TrimSpace(a.s3AccessKey),
 			Secret:    strings.TrimSpace(a.s3Secret),
 		}
-	}
-	return cloud.Store{
-		Kind:      cloud.KindR2,
-		Endpoint:  strings.TrimSpace(a.r2Endpoint),
-		Bucket:    strings.TrimSpace(a.r2Bucket),
-		AccessKey: strings.TrimSpace(a.r2AccessKey),
-		Secret:    strings.TrimSpace(a.r2Secret),
+	case cloud.KindOSS:
+		return cloud.Store{
+			Kind:      cloud.KindOSS,
+			Region:    strings.TrimSpace(a.ossRegion),
+			Bucket:    strings.TrimSpace(a.ossBucket),
+			AccessKey: strings.TrimSpace(a.ossAccessKey),
+			Secret:    strings.TrimSpace(a.ossSecret),
+		}
+	default:
+		return cloud.Store{
+			Kind:      cloud.KindR2,
+			Endpoint:  strings.TrimSpace(a.r2Endpoint),
+			Bucket:    strings.TrimSpace(a.r2Bucket),
+			AccessKey: strings.TrimSpace(a.r2AccessKey),
+			Secret:    strings.TrimSpace(a.r2Secret),
+		}
 	}
 }
 
-func (a *app) storageKind() string {
-	if strings.EqualFold(strings.TrimSpace(a.storage), cloud.KindS3) {
-		return cloud.KindS3
-	}
-	return cloud.KindR2
-}
+func (a *app) storageKind() string { return storageFrom(a.storage) }
 
 func (a *app) uploadLabel() string {
-	if a.storageKind() == cloud.KindS3 {
+	switch a.storageKind() {
+	case cloud.KindS3:
 		return "上传到 S3"
+	case cloud.KindOSS:
+		return "上传到 OSS"
+	default:
+		return "上传到 R2"
 	}
-	return "上传到 R2"
 }
 
 func (a *app) uploadMemo(path string) string {
@@ -257,10 +274,24 @@ func storeReady(cfg cloud.Store) bool {
 	if strings.TrimSpace(cfg.Bucket) == "" || strings.TrimSpace(cfg.AccessKey) == "" || strings.TrimSpace(cfg.Secret) == "" {
 		return false
 	}
-	if cfg.Kind == cloud.KindS3 {
+	switch cfg.Kind {
+	case cloud.KindS3:
 		return cloud.Region(cfg.Region) != ""
+	case cloud.KindOSS:
+		endpoint, region := cloud.OSS(cfg.Region)
+		return endpoint != "" && region != ""
+	default:
+		return cloud.Endpoint(cfg.Endpoint) != ""
 	}
-	return cloud.Endpoint(cfg.Endpoint) != ""
+}
+
+func storeKind(kind string) string {
+	switch kind {
+	case cloud.KindS3, cloud.KindOSS:
+		return kind
+	default:
+		return cloud.KindR2
+	}
 }
 
 func applyCloudEnv(a *app, saved savedSettings) {
@@ -275,12 +306,18 @@ func applyCloudEnv(a *app, saved savedSettings) {
 	a.s3Bucket = firstSet(os.Getenv("LINGOCUT_S3_BUCKET"), saved.S3Bucket)
 	a.s3AccessKey = firstSet(os.Getenv("LINGOCUT_S3_ACCESS_KEY"), saved.S3AccessKey)
 	a.s3Secret = firstSet(os.Getenv("LINGOCUT_S3_SECRET"), saved.S3Secret)
+	a.ossRegion = firstSet(os.Getenv("LINGOCUT_OSS_REGION"), saved.OSSRegion)
+	a.ossBucket = firstSet(os.Getenv("LINGOCUT_OSS_BUCKET"), saved.OSSBucket)
+	a.ossAccessKey = firstSet(os.Getenv("LINGOCUT_OSS_ACCESS_KEY"), saved.OSSAccessKey)
+	a.ossSecret = firstSet(os.Getenv("LINGOCUT_OSS_SECRET"), saved.OSSSecret)
 }
 
 func storageFrom(raw string) string {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "s3", "aws":
 		return cloud.KindS3
+	case "oss", "aliyun":
+		return cloud.KindOSS
 	default:
 		return cloud.KindR2
 	}

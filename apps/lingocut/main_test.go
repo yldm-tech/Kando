@@ -1157,6 +1157,10 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 	a.s3Bucket = "aws-clips"
 	a.s3AccessKey = "aws-key"
 	a.s3Secret = "aws-secret"
+	a.ossRegion = "cn-hangzhou"
+	a.ossBucket = "oss-clips"
+	a.ossAccessKey = "oss-key"
+	a.ossSecret = "oss-secret"
 	if err := a.saveSettings(); err != nil {
 		t.Fatal(err)
 	}
@@ -1177,6 +1181,9 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 	if loaded.Storage != "s3" || loaded.S3Region != "ap-northeast-1" || loaded.S3Bucket != "aws-clips" || loaded.S3AccessKey != "aws-key" || loaded.S3Secret != "aws-secret" {
 		t.Fatal("s3 fields did not round-trip")
 	}
+	if loaded.OSSRegion != "cn-hangzhou" || loaded.OSSBucket != "oss-clips" || loaded.OSSAccessKey != "oss-key" || loaded.OSSSecret != "oss-secret" {
+		t.Fatal("oss fields did not round-trip")
+	}
 }
 
 func TestR2EnvOverridesSavedSettings(t *testing.T) {
@@ -1186,15 +1193,17 @@ func TestR2EnvOverridesSavedSettings(t *testing.T) {
 	a := newApp(&fakePipeline{}, func(func()) {})
 	t.Setenv("LINGOCUT_STORAGE", "s3")
 	t.Setenv("LINGOCUT_S3_REGION", "eu-west-1")
+	t.Setenv("LINGOCUT_OSS_REGION", "cn-beijing")
 	applyCloudEnv(a, savedSettings{
 		Storage: "r2", R2Bucket: "from-file", R2Endpoint: "https://example.r2.cloudflarestorage.com", R2Secret: "saved-secret",
 		S3Region: "ap-northeast-1", S3Bucket: "saved-bucket",
+		OSSRegion: "cn-hangzhou",
 	})
 	if a.r2Bucket != "from-env" || a.r2Endpoint != "https://example.r2.cloudflarestorage.com" || a.r2Secret != "saved-secret" {
 		t.Fatalf("bucket %q endpoint %q", a.r2Bucket, a.r2Endpoint)
 	}
-	if a.storage != "s3" || a.s3Region != "eu-west-1" || a.s3Bucket != "saved-bucket" {
-		t.Fatalf("storage %q region %q bucket %q", a.storage, a.s3Region, a.s3Bucket)
+	if a.storage != "s3" || a.s3Region != "eu-west-1" || a.s3Bucket != "saved-bucket" || a.ossRegion != "cn-beijing" {
+		t.Fatalf("storage %q region %q bucket %q oss %q", a.storage, a.s3Region, a.s3Bucket, a.ossRegion)
 	}
 }
 
@@ -1366,6 +1375,55 @@ func TestBeginUploadUsesTheS3Region(t *testing.T) {
 	}
 	if a.uploaded[cloud.KindS3+"\n"+video] == "" {
 		t.Fatal("s3 upload was not recorded")
+	}
+}
+
+func TestBeginUploadUsesTheOSSRegion(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.googleEmail = "a@b.c"
+	a.storage = "aliyun"
+	a.ossRegion = "cn-hangzhou"
+	a.ossBucket = "oss-clips"
+	a.ossAccessKey = "key"
+	a.ossSecret = "secret-value"
+	var kind, region, bucket string
+	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+		kind, region, bucket = cfg.Kind, cfg.Region, cfg.Bucket
+		return nil
+	}
+	a.BeginUpload(films.Film{VideoPath: video})
+	waitUpdate(t, updates)
+	if kind != cloud.KindOSS || region != "cn-hangzhou" || bucket != "oss-clips" {
+		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
+	}
+	if a.uploaded[cloud.KindOSS+"\n"+video] == "" {
+		t.Fatal("oss upload was not recorded")
+	}
+}
+
+func TestAccountPageShowsOSSFields(t *testing.T) {
+	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.storage = cloud.KindOSS
+	tt.Frame()
+	if err := tt.Click("账号"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, text := range []string{"阿里云 OSS", "Region", "cn-hangzhou", "Bucket", "Access Key", "Secret"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
+	}
+	if tt.HasText("Account ID") || tt.HasText("ap-northeast-1") {
+		t.Fatal("another provider's hint is showing on the OSS form")
 	}
 }
 

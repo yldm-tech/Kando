@@ -16,6 +16,8 @@ const (
 	KindR2 = "r2"
 	// KindS3 uploads to Amazon S3.
 	KindS3 = "s3"
+	// KindOSS uploads to Alibaba Cloud OSS.
+	KindOSS = "oss"
 )
 
 // Store is one bucket the user owns, either Cloudflare R2 or Amazon S3.
@@ -52,10 +54,14 @@ func NewR2(endpoint, accessKey, secret string) (Client, error) {
 
 // Open builds the client for the selected kind. It does not talk to the network.
 func Open(cfg Store) (Client, error) {
-	if cfg.Kind == KindS3 {
+	switch cfg.Kind {
+	case KindS3:
 		return NewS3(cfg.Region, cfg.AccessKey, cfg.Secret)
+	case KindOSS:
+		return NewOSS(cfg.Region, cfg.AccessKey, cfg.Secret)
+	default:
+		return NewR2(cfg.Endpoint, cfg.AccessKey, cfg.Secret)
 	}
-	return NewR2(cfg.Endpoint, cfg.AccessKey, cfg.Secret)
 }
 
 func (c *client) Put(ctx context.Context, bucket, key, contentType string, body io.Reader, size int64) error {

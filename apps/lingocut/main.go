@@ -86,6 +86,10 @@ type app struct {
 	s3Bucket         string
 	s3AccessKey      string
 	s3Secret         string
+	ossRegion        string
+	ossBucket        string
+	ossAccessKey     string
+	ossSecret        string
 	showR2Secret     bool
 	uploadPath       string
 	uploadWritten    int64
@@ -698,6 +702,10 @@ func (a *app) saveSettings() error {
 		S3Bucket:         a.s3Bucket,
 		S3AccessKey:      a.s3AccessKey,
 		S3Secret:         a.s3Secret,
+		OSSRegion:        a.ossRegion,
+		OSSBucket:        a.ossBucket,
+		OSSAccessKey:     a.ossAccessKey,
+		OSSSecret:        a.ossSecret,
 	}
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
@@ -746,6 +754,10 @@ func loadSavedSettings(path string) savedSettings {
 	saved.S3Bucket = strings.TrimSpace(saved.S3Bucket)
 	saved.S3AccessKey = strings.TrimSpace(saved.S3AccessKey)
 	saved.S3Secret = strings.TrimSpace(saved.S3Secret)
+	saved.OSSRegion = strings.TrimSpace(saved.OSSRegion)
+	saved.OSSBucket = strings.TrimSpace(saved.OSSBucket)
+	saved.OSSAccessKey = strings.TrimSpace(saved.OSSAccessKey)
+	saved.OSSSecret = strings.TrimSpace(saved.OSSSecret)
 	return saved
 }
 
@@ -772,6 +784,10 @@ type savedSettings struct {
 	S3Bucket         string                `json:"s3Bucket,omitempty"`
 	S3AccessKey      string                `json:"s3AccessKey,omitempty"`
 	S3Secret         string                `json:"s3Secret,omitempty"`
+	OSSRegion        string                `json:"ossRegion,omitempty"`
+	OSSBucket        string                `json:"ossBucket,omitempty"`
+	OSSAccessKey     string                `json:"ossAccessKey,omitempty"`
+	OSSSecret        string                `json:"ossSecret,omitempty"`
 }
 
 type savedInode struct {
