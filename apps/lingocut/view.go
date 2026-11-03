@@ -11,6 +11,7 @@ import (
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/yldm-tech/nodra"
 )
 
 const (
@@ -102,23 +103,7 @@ func (a *app) mainColumn(c *ui.Context, t *ui.Theme, films []film) {
 
 func (a *app) sidebar(c *ui.Context, t *ui.Theme, count int) {
 	ui.Column(c).Width(sidebarWidth).Shrink(0).Padding(18, 14).Gap(2).Children(func() {
-		ui.Row(c).Padding(4, 8, 14, 8).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Row(c).Size(28, 28).Radius(8).Background(t.Accent).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-				ui.Icon(c, iconMark).Size(16, 16).TextColor(t.AccentText)
-			})
-			ui.Column(c).Gap(1).Children(func() {
-				ui.Text(c, "LingoCut").FontSize(15).Bold()
-				ui.Text(c, countLabel(count)).TextColor(t.TextMuted).FontSize(12)
-			})
-		})
-		if libs := a.knownLibraries(); len(libs) > 0 {
-			a.section(c, t, "资料库")
-			for _, dir := range libs {
-				a.libraryNav(c, t, dir)
-			}
-			a.libraryAction(c, t, "新建资料库", a.beginNewLibrary)
-			a.libraryAction(c, t, "导入资料库", a.pickLibrary)
-		}
+		a.librarySwitcher(c, t, count)
 		a.section(c, t, "影片")
 		a.nav(c, t, pageFilms, "全部影片", fmt.Sprintf("%d", count))
 		a.section(c, t, "来源")
@@ -134,48 +119,71 @@ func (a *app) sidebar(c *ui.Context, t *ui.Theme, count int) {
 	})
 }
 
-func (a *app) libraryNav(c *ui.Context, t *ui.Theme, dir string) {
-	title := libraryTitle(dir)
-	row := ui.Row(c).Padding(7, 10).Radius(8).Gap(8).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(title)
-	if filepath.Clean(a.libraryDir) == filepath.Clean(dir) {
-		row.Background(ui.Hex("#4a3824"))
+// librarySwitcher is the current library. Its menu lists the others and the actions that used to sit in the sidebar.
+func (a *app) librarySwitcher(c *ui.Context, t *ui.Theme, count int) {
+	title := "选择资料库"
+	if dir := a.snap().LibraryDir; dir != "" {
+		title = libraryTitle(dir)
 	}
-	if row.Clicked() {
-		a.switchLibrary(dir)
-	}
-	row.Children(func() {
-		ui.Icon(c, iconFilm).Size(15, 15).TextColor(t.TextMuted)
-		ui.Text(c, title).Grow(1)
+	head := ui.Row(c).Padding(4, 8, 14, 8).Gap(10).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("资料库菜单")
+	head.PopoverMenuButton(func(m *ui.Menu) { a.libraryMenu(m) })
+	head.Children(func() {
+		ui.Row(c).Size(28, 28).Radius(8).Background(t.Accent).AlignItems(ui.Center).Justify(ui.Center).Shrink(0).Children(func() {
+			ui.Icon(c, iconMark).Size(16, 16).TextColor(t.AccentText)
+		})
+		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
+			ui.Text(c, title).FontSize(15).Bold()
+			ui.Text(c, countLabel(count)).TextColor(t.TextMuted).FontSize(12)
+		})
+		ui.Icon(c, iconChevron).Size(14, 14).TextColor(t.TextMuted).Shrink(0)
 	})
 }
 
-func (a *app) libraryAction(c *ui.Context, t *ui.Theme, label string, fn func()) {
-	row := ui.Row(c).Padding(7, 10).Radius(8).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(label)
-	if row.Clicked() {
-		fn()
+func (a *app) libraryMenu(m *ui.Menu) {
+	currentDir := a.snap().LibraryDir
+	for _, dir := range a.knownLibraries() {
+		dir := dir
+		current := filepath.Clean(currentDir) == filepath.Clean(dir)
+		if m.Item(libraryTitle(dir)).Radio(current).Chosen() {
+			a.edit(func(s *session) { s.MakingLibrary = false })
+			a.page = pageFilms
+			a.switchLibrary(dir)
+		}
 	}
-	row.Children(func() {
-		ui.Text(c, label).TextColor(t.TextMuted)
-	})
+	if m.Item("新建资料库...").Chosen() {
+		a.beginNewLibrary()
+	}
+	if m.Item("打开资料库...").Chosen() {
+		a.pickLibrary()
+	}
+	m.Separator()
+	if m.Item("在 Finder 中显示").Disabled(currentDir == "").Chosen() {
+		a.reveal(currentDir)
+	}
+	if len(a.knownLibraries()) > 1 {
+		if m.Item("从列表移出").Chosen() {
+			a.forgetLibrary(currentDir)
+		}
+	}
 }
 
 func (a *app) welcomeLibrary(c *ui.Context, t *ui.Theme) {
 	title := "先准备一个资料库"
-	if a.libraryDir != "" {
+	if a.snap().LibraryDir != "" {
 		title = "新建资料库"
 	}
 	ui.Column(c).Grow(1).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		ui.Column(c).Width(440).Gap(14).Children(func() {
 			ui.Text(c, title).FontSize(28).Bold()
-			ui.Text(c, "一个资料库是一个 .lingocut 文件夹，里面每个视频一个文件夹，访达里会带上图标。可以建多个，之后在侧边栏切换。").TextColor(t.TextMuted).Wrap()
+			ui.Text(c, "一个资料库是一个 .lingocut 文件夹，里面每个视频一个文件夹，访达里会带上图标。建好后从左上角的菜单切换。").TextColor(t.TextMuted).Wrap()
 			a.libraryDraft(c, t, "创建资料库")
-			if a.libraryDir == "" {
+			if a.snap().LibraryDir == "" {
 				ui.Text(c, "已经有资料库").TextColor(t.TextMuted).FontSize(12)
 				if ui.Button(c, "导入已有资料库").Clicked() {
 					a.pickLibrary()
 				}
 			} else if ui.Button(c, "取消新建").Clicked() {
-				a.makingLibrary = false
+				a.edit(func(s *session) { s.MakingLibrary = false })
 			}
 			if a.saveErr != "" {
 				ui.Text(c, a.saveErr).TextColor(t.Danger).Wrap()
@@ -186,7 +194,17 @@ func (a *app) welcomeLibrary(c *ui.Context, t *ui.Theme) {
 
 func (a *app) libraryDraft(c *ui.Context, t *ui.Theme, confirm string) {
 	ui.Text(c, "名称").TextColor(t.TextMuted).FontSize(12)
-	ui.TextInput(c, &a.libraryName).Label("资料库名称").Placeholder("影视库")
+	name, err := nodra.BindField(a.store, func(s session) string { return s.LibraryName }, func(s *session, value string) error {
+		s.LibraryName = value
+		return nil
+	})
+	if err != nil {
+		ui.Text(c, err.Error()).TextColor(t.Danger)
+		return
+	}
+	_ = name.Edit(func(value *string) bool {
+		return ui.TextInput(c, value).Label("资料库名称").Placeholder("影视库").Changed()
+	})
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "位置").TextColor(t.TextMuted).Shrink(0)
 		ui.Text(c, displayPath(a.libraryPlace())).Grow(1).TextColor(t.Text)
@@ -201,6 +219,7 @@ func (a *app) libraryDraft(c *ui.Context, t *ui.Theme, confirm string) {
 
 func libraryTitle(dir string) string {
 	base := filepath.Base(dir)
+	base = strings.TrimSuffix(base, media.LibraryExt)
 	if base == "" || base == "." || base == string(filepath.Separator) {
 		return dir
 	}
@@ -235,7 +254,8 @@ func (a *app) nav(c *ui.Context, t *ui.Theme, page, label, badge string) {
 }
 
 func (a *app) libraryPage(c *ui.Context, t *ui.Theme, films []film) {
-	if a.libraryDir == "" || a.makingLibrary {
+	shelf := a.snap()
+	if shelf.LibraryDir == "" || shelf.MakingLibrary {
 		a.welcomeLibrary(c, t)
 		return
 	}
@@ -1149,28 +1169,9 @@ func languageChoices(current string) []string {
 }
 
 func (a *app) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, known bool) {
-	settingSection(c, t, "资料库", "每个资料库是一个 .lingocut 文件夹，访达里带自己的图标。切换会停止进行中的任务。移出只从列表去掉，不删除文件。", func() {
-		libs := a.knownLibraries()
-		if len(libs) > 0 {
-			lines := make([]func(), 0, len(libs))
-			for _, dir := range libs {
-				dir := dir
-				lines = append(lines, func() { a.librarySettingRow(c, t, dir) })
-			}
-			settingCard(c, t, lines...)
-		}
-		if len(libs) == 0 {
-			a.libraryDraft(c, t, "确认创建")
-		}
-		ui.Row(c).Gap(8).Children(func() {
-			if len(libs) > 0 {
-				if ui.Button(c, "新建资料库").Clicked() {
-					a.beginNewLibrary()
-				}
-			}
-			if ui.Button(c, "导入已有资料库").Clicked() {
-				a.pickLibrary()
-			}
+	settingSection(c, t, "资料库", "每部影片是资料库里的一个文件夹，视频、封面和字幕都是普通文件。切换资料库会停止进行中的任务。从列表拿掉一个资料库不会删除里面的文件。", func() {
+		settingCard(c, t, func() {
+			a.currentLibraryRow(c, t)
 		})
 	})
 	settingSection(c, t, "语言", "", func() {
@@ -1443,22 +1444,25 @@ func (a *app) toolLine(c *ui.Context, t *ui.Theme, name, path string) {
 	})
 }
 
-func (a *app) librarySettingRow(c *ui.Context, t *ui.Theme, dir string) {
-	title := libraryTitle(dir)
-	current := filepath.Clean(a.libraryDir) == filepath.Clean(dir)
-	row := ui.Row(c).MinHeight(44).Padding(8, 0).Gap(12).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label(title)
-	if row.Clicked() {
-		a.switchLibrary(dir)
+func (a *app) currentLibraryRow(c *ui.Context, t *ui.Theme) {
+	dir := a.snap().LibraryDir
+	path := "还没有资料库"
+	if dir != "" {
+		path = displayPath(dir)
 	}
-	row.Children(func() {
-		text := ui.Text(c, title)
-		if current {
-			text.Bold()
+	ui.Row(c).MinHeight(48).Padding(8, 0).Gap(12).AlignItems(ui.Center).Children(func() {
+		ui.Text(c, "当前资料库").Shrink(0)
+		ui.Text(c, path).Grow(1).TextColor(t.TextMuted).FontSize(13).Wrap()
+		folder := ui.Row(c).Size(28, 28).Radius(6).AlignItems(ui.Center).Justify(ui.Center).Cursor(ui.CursorPointer).Shrink(0).Label("打开所在文件夹")
+		if dir == "" {
+			folder.Cursor(ui.CursorDefault)
+		} else if folder.Clicked() {
+			a.reveal(dir)
 		}
-		ui.Text(c, displayPath(dir)).Grow(1).TextColor(t.TextMuted).FontSize(12)
-		if ui.Button(c, "移出").Label("移出 " + title).Clicked() {
-			a.forgetLibrary(dir)
-		}
+		folder.Children(func() {
+			ui.Icon(c, iconFolder).Size(16, 16).TextColor(t.TextMuted)
+		})
+		ui.Button(c, "切换").Shrink(0).PopoverMenuButton(func(m *ui.Menu) { a.libraryMenu(m) })
 	})
 }
 
@@ -1527,8 +1531,10 @@ type film struct {
 }
 
 func (a *app) films() []film {
+	shelf := a.snap()
+	videos := shelf.Videos
 	used := map[string]bool{}
-	out := make([]film, 0, len(a.library.jobs)+len(a.videos))
+	out := make([]film, 0, len(a.library.jobs)+len(videos))
 	for i := range a.library.jobs {
 		job := a.library.jobs[i]
 		if !a.jobInLibrary(job) {
@@ -1544,8 +1550,9 @@ func (a *app) films() []film {
 			videoPath: job.VideoPath, subtitlePath: job.SubtitlePath,
 		})
 	}
-	for _, video := range a.videos {
-		if used[video.Path] || !pathInDir(a.libraryDir, video.Path) {
+	root := shelf.LibraryDir
+	for _, video := range videos {
+		if used[video.Path] || !pathInDir(root, video.Path) {
 			continue
 		}
 		name := strings.TrimSuffix(video.Name, filepath.Ext(video.Name))
@@ -1558,14 +1565,15 @@ func (a *app) films() []film {
 
 // jobInLibrary reports whether job belongs on the open library's shelf. A finished job follows its video file. A job that has not downloaded yet follows the library it was started in.
 func (a *app) jobInLibrary(job core.Job) bool {
-	if a.libraryDir == "" {
+	root := a.snap().LibraryDir
+	if root == "" {
 		return false
 	}
 	if job.VideoPath != "" {
-		return pathInDir(a.libraryDir, job.VideoPath)
+		return pathInDir(root, job.VideoPath)
 	}
 	if job.LibraryDir != "" {
-		return filepath.Clean(job.LibraryDir) == filepath.Clean(a.libraryDir)
+		return filepath.Clean(job.LibraryDir) == filepath.Clean(root)
 	}
 	return !job.Stage.Done()
 }

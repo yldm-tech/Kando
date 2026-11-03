@@ -232,7 +232,7 @@ func TestWatchLibraryReportsANewFile(t *testing.T) {
 	stop := make(chan struct{})
 	defer close(stop)
 	got := make(chan struct{}, 1)
-	go WatchLibrary(dir, 20*time.Millisecond, stop, func() {
+	go WatchLibrary(dir, 20*time.Millisecond, stop, func(string) {
 		select {
 		case got <- struct{}{}:
 		default:
@@ -246,6 +246,80 @@ func TestWatchLibraryReportsANewFile(t *testing.T) {
 	case <-got:
 	case <-time.After(time.Second):
 		t.Fatal("watch did not notice the new video")
+	}
+}
+
+func TestWatchLibraryFollowsARename(t *testing.T) {
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "影视库.lingocut")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stop := make(chan struct{})
+	defer close(stop)
+	got := make(chan string, 1)
+	go WatchLibrary(dir, 20*time.Millisecond, stop, func(next string) {
+		select {
+		case got <- next:
+		default:
+		}
+	})
+	time.Sleep(40 * time.Millisecond)
+	renamed := filepath.Join(parent, "missav.lingocut")
+	if err := os.Rename(dir, renamed); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case next := <-got:
+		if next != renamed {
+			t.Fatalf("watch reported %q", next)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("watch did not notice the renamed library")
+	}
+}
+
+func TestRetargetRenamedFolder(t *testing.T) {
+	root := t.TempDir()
+	old := filepath.Join(root, "Talk [abc]")
+	if err := os.Mkdir(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(old, "video.mp4")
+	srt := filepath.Join(old, "video.bilingual.srt")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(srt, []byte("s"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	next := filepath.Join(root, "Renamed [abc]")
+	if err := os.Rename(old, next); err != nil {
+		t.Fatal(err)
+	}
+	moved := RetargetRenamed(root, []string{video, srt}, nil)
+	if moved[video] != filepath.Join(next, "video.mp4") || moved[srt] != filepath.Join(next, "video.bilingual.srt") {
+		t.Fatalf("moved = %#v", moved)
+	}
+}
+
+func TestRetargetRenamedSingleFolderWithoutAnID(t *testing.T) {
+	root := t.TempDir()
+	old := filepath.Join(root, "talk")
+	if err := os.Mkdir(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(old, "video.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	next := filepath.Join(root, "renamed")
+	if err := os.Rename(old, next); err != nil {
+		t.Fatal(err)
+	}
+	moved := RetargetRenamed(root, []string{video}, nil)
+	if moved[video] != filepath.Join(next, "video.mp4") {
+		t.Fatalf("moved = %#v", moved)
 	}
 }
 

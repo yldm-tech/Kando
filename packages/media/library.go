@@ -96,11 +96,15 @@ func writeStamp(b *strings.Builder, entry os.DirEntry) {
 	fmt.Fprintf(b, "%s %t %d %d\n", entry.Name(), entry.IsDir(), size, mod)
 }
 
-// WatchLibrary calls changed when LibraryStamp changes. The first look is the baseline and does not call changed. stop ends the watch.
-func WatchLibrary(dir string, every time.Duration, stop <-chan struct{}, changed func()) {
+// WatchLibrary calls changed with the library directory when its contents change or the directory itself is renamed. The first look is the baseline and does not call changed. stop ends the watch. changed receives the directory to read, which is the renamed path when the folder moved.
+func WatchLibrary(dir string, every time.Duration, stop <-chan struct{}, changed func(dir string)) {
+	if changed == nil {
+		return
+	}
 	if every <= 0 {
 		every = time.Second
 	}
+	id := identifyDir(dir)
 	prev, _ := LibraryStamp(dir)
 	ticker := time.NewTicker(every)
 	defer ticker.Stop()
@@ -109,12 +113,20 @@ func WatchLibrary(dir string, every time.Duration, stop <-chan struct{}, changed
 		case <-stop:
 			return
 		case <-ticker.C:
-			next, err := LibraryStamp(dir)
-			if err != nil || next == prev {
+			current := dir
+			if _, err := os.Stat(dir); err != nil {
+				if next, ok := findDirID(filepath.Dir(dir), id); ok {
+					current = next
+				}
+			}
+			next, err := LibraryStamp(current)
+			if err != nil || (current == dir && next == prev) {
 				continue
 			}
+			dir = current
+			id = identifyDir(dir)
 			prev = next
-			changed()
+			changed(dir)
 		}
 	}
 }
@@ -319,6 +331,113 @@ func Relocate(root, path string) (string, bool) {
 		return "", false
 	}
 	return next, true
+}
+
+// RetargetRenamed pairs files that disappeared under root with videos now in the library. A folder renamed in Finder keeps its [id] when the title still has one; otherwise a single missing video is paired with the single unclaimed video. Companion files beside a moved video follow that video.
+func RetargetRenamed(root string, missing, live []string) map[string]string {
+	if root == "" || len(missing) == 0 {
+		return nil
+	}
+	videos, err := ListVideos(root)
+	if err != nil || len(videos) == 0 {
+		return nil
+	}
+	taken := map[string]bool{}
+	for _, path := range live {
+		taken[filepath.Clean(path)] = true
+	}
+	free := make([]Video, 0, len(videos))
+	for _, video := range videos {
+		if !taken[filepath.Clean(video.Path)] {
+			free = append(free, video)
+		}
+	}
+	var gone []string
+	for _, path := range missing {
+		if path == "" || !pathInside(root, path) || !isVideoFile(filepath.Base(path)) {
+			continue
+		}
+		gone = append(gone, path)
+	}
+	moved := map[string]string{}
+	used := map[string]bool{}
+	for _, old := range gone {
+		id := folderID(filepath.Base(filepath.Dir(old)))
+		if id == "" {
+			continue
+		}
+		hit := ""
+		ambiguous := false
+		for _, video := range free {
+			if used[video.Path] || folderID(filepath.Base(filepath.Dir(video.Path))) != id {
+				continue
+			}
+			if hit != "" {
+				ambiguous = true
+				break
+			}
+			hit = video.Path
+		}
+		if hit != "" && !ambiguous {
+			moved[old] = hit
+			used[hit] = true
+		}
+	}
+	var leftGone []string
+	var leftFree []string
+	for _, old := range gone {
+		if _, ok := moved[old]; !ok {
+			leftGone = append(leftGone, old)
+		}
+	}
+	for _, video := range free {
+		if !used[video.Path] {
+			leftFree = append(leftFree, video.Path)
+		}
+	}
+	if len(leftGone) == 1 && len(leftFree) == 1 {
+		moved[leftGone[0]] = leftFree[0]
+	}
+	for _, path := range missing {
+		if path == "" {
+			continue
+		}
+		if _, ok := moved[path]; ok {
+			continue
+		}
+		oldDir := filepath.Clean(filepath.Dir(path))
+		for oldVideo, newVideo := range moved {
+			if filepath.Clean(filepath.Dir(oldVideo)) != oldDir {
+				continue
+			}
+			next := filepath.Join(filepath.Dir(newVideo), filepath.Base(path))
+			if _, err := os.Stat(next); err == nil {
+				moved[path] = next
+			}
+			break
+		}
+	}
+	if len(moved) == 0 {
+		return nil
+	}
+	return moved
+}
+
+func folderID(name string) string {
+	start := strings.LastIndex(name, "[")
+	end := strings.LastIndex(name, "]")
+	if start < 0 || end <= start {
+		return ""
+	}
+	return name[start+1 : end]
+}
+
+func pathInside(dir, path string) bool {
+	rel, err := filepath.Rel(filepath.Clean(dir), filepath.Clean(path))
+	if err != nil || rel == "." {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // RemoveEmptyLibrary deletes dir when only hidden files remain.

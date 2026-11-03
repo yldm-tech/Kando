@@ -21,6 +21,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/yldm-tech/nodra"
 )
 
 type app struct {
@@ -34,12 +35,10 @@ type app struct {
 	page             string
 	openKey          string
 	subs             subtitleView
-	libraryDir       string
+	store            *nodra.Store[session]
 	libraryWatch     chan struct{}
-	libraries        []string
-	libraryName      string
-	libraryParent    string
-	makingLibrary    bool
+	libraryID        media.DirID
+	libraryIDs       map[string]media.DirID
 	settingsPath     string
 	modelsDir        string
 	extraModelDirs   []string
@@ -60,7 +59,6 @@ type app struct {
 	cue              cueLook
 	toolVersions     map[string]string
 	versionGen       int
-	videos           []media.Video
 	posterDir        string
 	posters          map[string]ui.ImageSource
 	posterMiss       map[string]bool
@@ -131,20 +129,20 @@ func (a *app) startFilm(item film) {
 }
 
 func (a *app) pickLibrary() {
-	current := a.libraryDir
+	current := a.snap().LibraryDir
 	if current == "" {
 		current = a.libraryPlace()
 	}
 	a.pickFolder("导入资料库", "导入", current, func(dir string) {
 		a.switchLibrary(dir)
-		a.makingLibrary = false
+		a.edit(func(s *session) { s.MakingLibrary = false })
 		a.page = pageFilms
 	})
 }
 
 func (a *app) pickLibraryParent() {
 	a.pickFolder("资料库放在哪里", "选择", a.libraryPlace(), func(dir string) {
-		a.libraryParent = dir
+		a.edit(func(s *session) { s.LibraryParent = dir })
 	})
 }
 
@@ -175,7 +173,7 @@ func (a *app) pickFolder(title, button, current string, done func(string)) {
 
 // createLibrary makes a .lingocut bundle and switches to it. A folder that is already there is opened as it is.
 func (a *app) createLibrary() {
-	file, err := libraryFileName(a.libraryName)
+	file, err := libraryFileName(a.snap().LibraryName)
 	if err != nil {
 		a.saveErr = err.Error()
 		return
@@ -197,7 +195,7 @@ func (a *app) createLibrary() {
 		return
 	}
 	a.switchLibrary(dir)
-	a.makingLibrary = false
+	a.edit(func(s *session) { s.MakingLibrary = false })
 	a.page = pageFilms
 }
 
@@ -218,9 +216,12 @@ func libraryFileName(name string) (string, error) {
 func (a *app) beginNewLibrary() {
 	a.openKey = ""
 	a.stopPlayback()
-	a.makingLibrary = true
 	a.page = pageFilms
-	a.libraryName = a.freeLibraryName()
+	name := a.freeLibraryName()
+	a.edit(func(s *session) {
+		s.MakingLibrary = true
+		s.LibraryName = name
+	})
 	a.saveErr = ""
 }
 
@@ -240,8 +241,8 @@ func (a *app) freeLibraryName() string {
 }
 
 func (a *app) libraryPlace() string {
-	if strings.TrimSpace(a.libraryParent) != "" {
-		return a.libraryParent
+	if parent := strings.TrimSpace(a.snap().LibraryParent); parent != "" {
+		return parent
 	}
 	return media.MoviesDir()
 }
@@ -252,8 +253,10 @@ func (a *app) switchLibrary(dir string) {
 	if dir == "." || dir == "" {
 		return
 	}
-	a.libraries = addLibrary(a.libraries, dir)
-	if filepath.Clean(a.libraryDir) == dir {
+	s := a.snap()
+	libs := addLibrary(s.Libraries, dir)
+	a.edit(func(st *session) { st.Libraries = libs })
+	if filepath.Clean(s.LibraryDir) == dir {
 		if err := a.saveSettings(); err != nil {
 			a.saveErr = "资料库无法保存：" + err.Error()
 		}
@@ -270,22 +273,23 @@ func (a *app) switchLibrary(dir string) {
 // forgetLibrary drops dir from the list. The folder on disk stays.
 func (a *app) forgetLibrary(dir string) {
 	dir = filepath.Clean(dir)
-	kept := make([]string, 0, len(a.libraries))
-	for _, item := range a.libraries {
+	s := a.snap()
+	kept := make([]string, 0, len(s.Libraries))
+	for _, item := range s.Libraries {
 		if filepath.Clean(item) != dir {
 			kept = append(kept, item)
 		}
 	}
-	a.libraries = kept
-	if filepath.Clean(a.libraryDir) != dir {
+	a.edit(func(st *session) { st.Libraries = kept })
+	if filepath.Clean(s.LibraryDir) != dir {
 		if err := a.saveSettings(); err != nil {
 			a.saveErr = "资料库无法保存：" + err.Error()
 		}
 		return
 	}
 	next := ""
-	if len(a.libraries) > 0 {
-		next = a.libraries[0]
+	if len(kept) > 0 {
+		next = kept[0]
 	}
 	a.applyLibrary(next)
 	if err := a.saveSettings(); err != nil {
@@ -302,20 +306,31 @@ func (a *app) applyLibrary(dir string) {
 	a.openKey = ""
 	a.stopPlayback()
 	if dir == "" {
-		a.libraryDir = ""
+		a.edit(func(s *session) {
+			s.LibraryDir = ""
+			s.Videos = nil
+		})
+		a.libraryID = media.DirID{}
 		if tools, ok := a.pipeline.(media.Tools); ok {
 			tools.OutputDir = ""
 			a.pipeline = tools
 		}
-		a.videos = nil
 		a.restartLibraryWatch()
 		return
+	}
+	if _, err := os.Stat(dir); err != nil && filepath.Clean(dir) == filepath.Clean(a.snap().LibraryDir) {
+		if next, ok := media.FindDir(filepath.Dir(dir), a.libraryID); ok {
+			a.adoptRenamedLibrary(next)
+			dir = next
+		}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		a.saveErr = err.Error()
 		return
 	}
-	a.libraryDir = dir
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.libraryID = media.IdentifyDir(dir)
+	a.rememberLibrary(dir)
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		tools.OutputDir = dir
 		a.pipeline = tools
@@ -325,34 +340,277 @@ func (a *app) applyLibrary(dir string) {
 	a.restartLibraryWatch()
 }
 
-// restartLibraryWatch follows the current library folder. A new file, a deletion, or a rewrite refreshes the list on the UI thread.
+// adoptRenamedLibrary points the shelf at a library folder that was renamed in Finder. The folder on disk is the same one; only its path changed.
+func (a *app) adoptRenamedLibrary(next string) {
+	prev := a.snap().LibraryDir
+	if filepath.Clean(prev) == filepath.Clean(next) {
+		return
+	}
+	libs := dropLibrary(a.snap().Libraries, prev)
+	libs = addLibrary(libs, next)
+	a.edit(func(s *session) {
+		s.Libraries = libs
+		s.LibraryDir = next
+	})
+	a.libraryID = media.IdentifyDir(next)
+	a.rememberLibrary(next)
+	if tools, ok := a.pipeline.(media.Tools); ok {
+		tools.OutputDir = next
+		a.pipeline = tools
+	}
+	a.retargetLibraryPrefix(prev, next)
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = "资料库无法保存：" + err.Error()
+	}
+}
+
+func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
+	changed := false
+	for i, job := range a.library.jobs {
+		if job.LibraryDir != "" && filepath.Clean(job.LibraryDir) == filepath.Clean(oldRoot) {
+			a.library.jobs[i].LibraryDir = newRoot
+			changed = true
+		}
+		if next, ok := replacePathPrefix(oldRoot, newRoot, job.VideoPath); ok {
+			a.library.jobs[i].VideoPath = next
+			changed = true
+		}
+		if next, ok := replacePathPrefix(oldRoot, newRoot, job.SubtitlePath); ok {
+			a.library.jobs[i].SubtitlePath = next
+			changed = true
+		}
+	}
+	if changed {
+		if err := a.library.save(); err != nil {
+			a.saveErr = "视频库无法保存：" + err.Error()
+		}
+	}
+}
+
+func replacePathPrefix(oldRoot, newRoot, path string) (string, bool) {
+	if path == "" || oldRoot == "" {
+		return "", false
+	}
+	rel, err := filepath.Rel(filepath.Clean(oldRoot), filepath.Clean(path))
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return filepath.Join(newRoot, rel), true
+}
+
+func dirIDSet(id media.DirID) bool {
+	_, _, ok := id.Parts()
+	return ok
+}
+
+func (a *app) rememberLibrary(dir string) {
+	id := media.IdentifyDir(dir)
+	if _, _, ok := id.Parts(); !ok {
+		return
+	}
+	if a.libraryIDs == nil {
+		a.libraryIDs = map[string]media.DirID{}
+	}
+	a.libraryIDs[filepath.Clean(dir)] = id
+}
+
+func (a *app) savedLibraryInodes() map[string]savedInode {
+	if len(a.libraryIDs) == 0 {
+		return nil
+	}
+	out := make(map[string]savedInode, len(a.libraryIDs))
+	for path, id := range a.libraryIDs {
+		dev, ino, ok := id.Parts()
+		if !ok {
+			continue
+		}
+		out[path] = savedInode{Dev: dev, Ino: ino}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func (a *app) restoreLibraryInodes(saved map[string]savedInode) {
+	for path, id := range saved {
+		a.rememberID(path, media.MakeDirID(id.Dev, id.Ino))
+	}
+}
+
+func (a *app) rememberID(dir string, id media.DirID) {
+	if _, _, ok := id.Parts(); !ok {
+		return
+	}
+	if a.libraryIDs == nil {
+		a.libraryIDs = map[string]media.DirID{}
+	}
+	a.libraryIDs[filepath.Clean(dir)] = id
+}
+
+// renameLibraryPath keeps a library that was renamed in Finder, including one that is not the library currently open.
+func (a *app) renameLibraryPath(old, next string) {
+	old, next = filepath.Clean(old), filepath.Clean(next)
+	if old == "" || next == "" || old == next {
+		return
+	}
+	id := a.libraryIDs[old]
+	if _, _, ok := id.Parts(); !ok {
+		id = media.IdentifyDir(next)
+	}
+	if a.libraryIDs == nil {
+		a.libraryIDs = map[string]media.DirID{}
+	}
+	delete(a.libraryIDs, old)
+	a.rememberID(next, id)
+	s := a.snap()
+	libs := addLibrary(dropLibrary(s.Libraries, old), next)
+	current := s.LibraryDir
+	if filepath.Clean(current) == old {
+		current = next
+		a.libraryID = id
+		if tools, ok := a.pipeline.(media.Tools); ok {
+			tools.OutputDir = next
+			a.pipeline = tools
+		}
+	}
+	a.edit(func(st *session) {
+		st.Libraries = libs
+		st.LibraryDir = current
+	})
+	a.retargetLibraryPrefix(old, next)
+}
+
+// reconcileMissingLibraries points a saved path that is gone at the renamed bundle. A saved inode wins. Without one, a single missing library and a single new .lingocut bundle in the same folder are the same library.
+func (a *app) reconcileMissingLibraries() bool {
+	changed := false
+	for _, dir := range a.knownLibraries() {
+		if _, err := os.Stat(dir); err == nil {
+			a.rememberLibrary(dir)
+			continue
+		}
+		if id := a.libraryIDs[filepath.Clean(dir)]; dirIDSet(id) {
+			if next, ok := media.FindDir(filepath.Dir(dir), id); ok {
+				a.renameLibraryPath(dir, next)
+				changed = true
+				continue
+			}
+		}
+	}
+	var missing []string
+	for _, dir := range a.knownLibraries() {
+		if _, err := os.Stat(dir); err != nil {
+			missing = append(missing, dir)
+		}
+	}
+	if len(missing) != 1 {
+		return changed
+	}
+	extras := unlistedBundles(filepath.Dir(missing[0]), a.knownLibraries())
+	if len(extras) != 1 {
+		return changed
+	}
+	a.renameLibraryPath(missing[0], extras[0])
+	return true
+}
+
+func unlistedBundles(parent string, known []string) []string {
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		return nil
+	}
+	have := map[string]bool{}
+	for _, dir := range known {
+		have[filepath.Clean(dir)] = true
+	}
+	var out []string
+	for _, entry := range entries {
+		if !entry.IsDir() || filepath.Ext(entry.Name()) != media.LibraryExt {
+			continue
+		}
+		path := filepath.Join(parent, entry.Name())
+		if !have[filepath.Clean(path)] {
+			out = append(out, path)
+		}
+	}
+	return out
+}
+
+// syncRenamedLibraries notices a library folder renamed in Finder, whether or not it is the one open.
+func (a *app) syncRenamedLibraries() bool {
+	changed := false
+	for _, dir := range a.knownLibraries() {
+		if _, err := os.Stat(dir); err == nil {
+			a.rememberLibrary(dir)
+			continue
+		}
+		id := a.libraryIDs[filepath.Clean(dir)]
+		next, ok := media.FindDir(filepath.Dir(dir), id)
+		if !ok || filepath.Clean(next) == filepath.Clean(dir) {
+			continue
+		}
+		a.renameLibraryPath(dir, next)
+		changed = true
+	}
+	if changed {
+		if err := a.saveSettings(); err != nil {
+			a.saveErr = "资料库无法保存：" + err.Error()
+		}
+	}
+	return changed
+}
+
+// restartLibraryWatch follows the current library folder. A new file, a deletion, a rewrite, or a rename of the folder itself refreshes the shelf on the UI thread.
 func (a *app) restartLibraryWatch() {
 	if a.libraryWatch != nil {
 		close(a.libraryWatch)
 		a.libraryWatch = nil
 	}
-	if a.libraryDir == "" || a.update == nil {
+	dir := a.snap().LibraryDir
+	if dir == "" || a.update == nil {
 		return
 	}
 	stop := make(chan struct{})
 	a.libraryWatch = stop
-	dir := a.libraryDir
 	update := a.update
-	go media.WatchLibrary(dir, time.Second, stop, func() {
+	go media.WatchLibrary(dir, time.Second, stop, func(next string) {
 		update(func() {
-			if a.libraryWatch != stop || filepath.Clean(a.libraryDir) != filepath.Clean(dir) {
+			if a.libraryWatch != stop {
 				return
+			}
+			if next != "" && filepath.Clean(next) != filepath.Clean(a.snap().LibraryDir) {
+				a.adoptRenamedLibrary(next)
 			}
 			a.refreshLibrary()
 			a.reloadOpenSubtitles()
 		})
 	})
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				update(func() {
+					if a.libraryWatch != stop {
+						return
+					}
+					if a.syncRenamedLibraries() && filepath.Clean(a.snap().LibraryDir) != "" {
+						a.refreshLibrary()
+					}
+				})
+			}
+		}
+	}()
 }
 
 func (a *app) knownLibraries() []string {
-	out := append([]string{}, a.libraries...)
-	if a.libraryDir != "" {
-		out = addLibrary(out, a.libraryDir)
+	s := a.snap()
+	out := append([]string{}, s.Libraries...)
+	if s.LibraryDir != "" {
+		out = addLibrary(out, s.LibraryDir)
 	}
 	return out
 }
@@ -390,8 +648,9 @@ func (a *app) saveSettings() error {
 	}
 	contextOn := a.translateContext
 	saved := savedSettings{
-		LibraryDir:       a.libraryDir,
+		LibraryDir:       a.snap().LibraryDir,
 		Libraries:        append([]string{}, a.knownLibraries()...),
+		LibraryInodes:    a.savedLibraryInodes(),
 		LLMProvider:      a.llmProvider,
 		Language:         a.language,
 		TranslatePrompt:  a.translatePrompt,
@@ -437,16 +696,22 @@ func loadSavedSettings(path string) savedSettings {
 }
 
 type savedSettings struct {
-	LibraryDir       string   `json:"libraryDir,omitempty"`
-	Libraries        []string `json:"libraries,omitempty"`
-	WhisperModel     string   `json:"whisperModel,omitempty"`
-	LLMProvider      string   `json:"llmProvider,omitempty"`
-	LLMBaseURL       string   `json:"llmBaseURL,omitempty"`
-	LLMModel         string   `json:"llmModel,omitempty"`
-	LLMAPIKey        string   `json:"llmAPIKey,omitempty"`
-	Language         string   `json:"language,omitempty"`
-	TranslatePrompt  string   `json:"translatePrompt,omitempty"`
-	TranslateContext *bool    `json:"translateContext,omitempty"`
+	LibraryDir       string                `json:"libraryDir,omitempty"`
+	Libraries        []string              `json:"libraries,omitempty"`
+	LibraryInodes    map[string]savedInode `json:"libraryInodes,omitempty"`
+	WhisperModel     string                `json:"whisperModel,omitempty"`
+	LLMProvider      string                `json:"llmProvider,omitempty"`
+	LLMBaseURL       string                `json:"llmBaseURL,omitempty"`
+	LLMModel         string                `json:"llmModel,omitempty"`
+	LLMAPIKey        string                `json:"llmAPIKey,omitempty"`
+	Language         string                `json:"language,omitempty"`
+	TranslatePrompt  string                `json:"translatePrompt,omitempty"`
+	TranslateContext *bool                 `json:"translateContext,omitempty"`
+}
+
+type savedInode struct {
+	Dev uint64 `json:"dev"`
+	Ino uint64 `json:"ino"`
 }
 
 type llmPreset struct {
@@ -713,25 +978,44 @@ func shortVersion(line string) string {
 }
 
 func (a *app) refreshLibrary() {
-	if a.libraryDir == "" {
+	dir := a.snap().LibraryDir
+	if dir == "" {
 		return
 	}
-	moved, err := media.GatherVideos(a.libraryDir)
+	moved, err := media.GatherVideos(dir)
 	if err != nil {
 		a.saveErr = err.Error()
 		return
 	}
-	if a.retargetLibrary(moved) || a.relocateMissing() || a.dropMissing() {
+	if a.retargetLibrary(moved) || a.relocateMissing() || a.retargetRenamed() || a.dropMissing() {
 		if err := a.library.save(); err != nil {
 			a.saveErr = "视频库无法保存：" + err.Error()
 		}
 	}
-	videos, err := media.ListVideos(a.libraryDir)
+	videos, err := media.ListVideos(dir)
 	if err != nil {
 		a.saveErr = err.Error()
 		return
 	}
-	a.videos = videos
+	a.edit(func(s *session) { s.Videos = videos })
+}
+
+func (a *app) retargetRenamed() bool {
+	root := a.snap().LibraryDir
+	var missing, live []string
+	for _, job := range a.library.jobs {
+		for _, path := range []string{job.VideoPath, job.SubtitlePath} {
+			if path == "" || !pathInDir(root, path) {
+				continue
+			}
+			if _, err := os.Stat(path); err != nil {
+				missing = append(missing, path)
+			} else {
+				live = append(live, path)
+			}
+		}
+	}
+	return a.retargetLibrary(media.RetargetRenamed(root, missing, live))
 }
 
 // retargetLibrary points jobs at files GatherVideos moved into per-video folders.
@@ -778,11 +1062,12 @@ func (a *app) dropMissing() bool {
 func (a *app) relocateMissing() bool {
 	changed := false
 	for i, job := range a.library.jobs {
-		if next, ok := media.Relocate(a.libraryDir, job.VideoPath); ok {
+		root := a.snap().LibraryDir
+		if next, ok := media.Relocate(root, job.VideoPath); ok {
 			a.library.jobs[i].VideoPath = next
 			changed = true
 		}
-		if next, ok := media.Relocate(a.libraryDir, job.SubtitlePath); ok {
+		if next, ok := media.Relocate(root, job.SubtitlePath); ok {
 			a.library.jobs[i].SubtitlePath = next
 			changed = true
 		}
@@ -801,9 +1086,9 @@ func cleanLibraries(dirs []string) []string {
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 	return &app{
 		language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true,
-		libraryName: "影视库",
-		cue:         defaultCueLook(),
-		pipeline:    pipeline, update: update,
+		cue:      defaultCueLook(),
+		store:    newSessionStore(),
+		pipeline: pipeline, update: update,
 	}
 }
 
@@ -872,7 +1157,7 @@ func (a *app) start() {
 	if a.running() {
 		return
 	}
-	if strings.TrimSpace(a.libraryDir) == "" {
+	if strings.TrimSpace(a.snap().LibraryDir) == "" {
 		a.job = nil
 		a.status = "先创建或导入一个资料库"
 		return
@@ -901,7 +1186,7 @@ func (a *app) run(job core.Job) {
 		a.pipeline = tools
 	}
 	if job.LibraryDir == "" {
-		job.LibraryDir = a.libraryDir
+		job.LibraryDir = a.snap().LibraryDir
 	}
 	a.selectedID = job.ID
 
@@ -1259,18 +1544,30 @@ func main() {
 	a.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.extraModelDirs = defaultExtraModelDirs()
 	saved := loadSavedSettings(a.settingsPath)
-	a.libraries = cleanLibraries(saved.Libraries)
+	libs := cleanLibraries(saved.Libraries)
 	if saved.LibraryDir != "" {
-		a.libraries = addLibrary(a.libraries, saved.LibraryDir)
+		libs = addLibrary(libs, saved.LibraryDir)
 	}
+	libraryDir := ""
 	if env := os.Getenv("LINGOCUT_OUTPUT_DIR"); env != "" {
-		a.libraryDir = env
+		libraryDir = env
 	} else if saved.LibraryDir != "" {
-		a.libraryDir = saved.LibraryDir
-	} else if len(a.libraries) > 0 {
-		a.libraryDir = a.libraries[0]
+		libraryDir = saved.LibraryDir
+	} else if len(libs) > 0 {
+		libraryDir = libs[0]
 	}
-	tools.OutputDir = a.libraryDir
+	a.edit(func(s *session) {
+		s.Libraries = libs
+		s.LibraryDir = libraryDir
+	})
+	a.restoreLibraryInodes(saved.LibraryInodes)
+	if a.reconcileMissingLibraries() {
+		libraryDir = a.snap().LibraryDir
+		if err := a.saveSettings(); err != nil {
+			a.saveErr = "资料库无法保存：" + err.Error()
+		}
+	}
+	tools.OutputDir = libraryDir
 	a.pipeline = tools
 	if os.Getenv("LINGOCUT_WHISPER_MODEL") == "" && saved.WhisperModel != "" {
 		if info, err := os.Stat(saved.WhisperModel); err == nil && !info.IsDir() && info.Size() > 0 {
@@ -1306,9 +1603,9 @@ func main() {
 		a.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
 	a.openLibrary(defaultLibraryPath())
-	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.libraryDir) == filepath.Clean(media.VimpoLibraryDir()) {
+	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.snap().LibraryDir) == filepath.Clean(media.VimpoLibraryDir()) {
 		bundle := media.DefaultLibraryDir()
-		moved, err := media.DetachOwnVideos(a.libraryDir, bundle)
+		moved, err := media.DetachOwnVideos(a.snap().LibraryDir, bundle)
 		if a.retargetLibrary(moved) {
 			if saveErr := a.library.save(); saveErr != nil && err == nil {
 				err = saveErr
@@ -1317,9 +1614,12 @@ func main() {
 		if err != nil {
 			a.saveErr = "资料库无法搬出：" + err.Error()
 		} else {
-			a.libraries = dropLibrary(a.libraries, media.VimpoLibraryDir())
-			a.libraries = addLibrary(a.libraries, bundle)
-			a.libraryDir = bundle
+			libs := dropLibrary(a.snap().Libraries, media.VimpoLibraryDir())
+			libs = addLibrary(libs, bundle)
+			a.edit(func(s *session) {
+				s.Libraries = libs
+				s.LibraryDir = bundle
+			})
 			tools.OutputDir = bundle
 			a.pipeline = tools
 			if saveErr := a.saveSettings(); saveErr != nil {
@@ -1327,9 +1627,10 @@ func main() {
 			}
 		}
 	}
-	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.libraryDir) == filepath.Clean(media.LegacyLibraryDir()) {
+	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.snap().LibraryDir) == filepath.Clean(media.LegacyLibraryDir()) {
+		from := a.snap().LibraryDir
 		bundle := media.DefaultLibraryDir()
-		moved, err := media.AdoptLibrary(a.libraryDir, bundle)
+		moved, err := media.AdoptLibrary(from, bundle)
 		if a.retargetLibrary(moved) {
 			if saveErr := a.library.save(); saveErr != nil && err == nil {
 				err = saveErr
@@ -1338,9 +1639,12 @@ func main() {
 		if err != nil {
 			a.saveErr = "影视库无法整理：" + err.Error()
 		} else {
-			media.RemoveEmptyLibrary(a.libraryDir)
-			a.libraries = addLibrary(a.libraries, bundle)
-			a.libraryDir = bundle
+			media.RemoveEmptyLibrary(from)
+			libs := addLibrary(a.snap().Libraries, bundle)
+			a.edit(func(s *session) {
+				s.Libraries = libs
+				s.LibraryDir = bundle
+			})
 			tools.OutputDir = bundle
 			a.pipeline = tools
 			if saveErr := a.saveSettings(); saveErr != nil {
@@ -1348,7 +1652,8 @@ func main() {
 			}
 		}
 	}
-	ensureLibraryLogo(a.libraryDir)
+	a.libraryID = media.IdentifyDir(a.snap().LibraryDir)
+	ensureLibraryLogo(a.snap().LibraryDir)
 	a.refreshLibrary()
 	a.restartLibraryWatch()
 	mygo.App.WhenReady(func() {
@@ -1366,6 +1671,7 @@ func main() {
 			Content: ui.View(a.view),
 		})
 		a.win = win
+		nodra.Invalidate(a.store, win)
 		a.loadToolVersions()
 	})
 	if err := mygo.App.Run(); err != nil {
