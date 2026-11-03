@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,4 +75,90 @@ func formatSRT(segments []core.Segment) string {
 func srtTime(d time.Duration) string {
 	ms := d.Milliseconds()
 	return fmt.Sprintf("%02d:%02d:%02d,%03d", ms/3_600_000, ms/60_000%60, ms/1000%60, ms%1000)
+}
+
+// ParseSRT reads a SubRip file. A cue's text keeps its line breaks, so a bilingual cue is the translation, a newline, then the original line.
+func ParseSRT(data []byte) ([]core.Segment, error) {
+	text := strings.TrimPrefix(string(data), "\uFEFF")
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+	var out []core.Segment
+	bad := 0
+	for _, block := range strings.Split(text, "\n\n") {
+		block = strings.TrimSpace(block)
+		if block == "" {
+			continue
+		}
+		lines := strings.Split(block, "\n")
+		i := 0
+		if !strings.Contains(lines[0], "-->") {
+			i = 1
+		}
+		if i >= len(lines) {
+			bad++
+			continue
+		}
+		start, end, ok := parseSRTSpan(lines[i])
+		if !ok {
+			bad++
+			continue
+		}
+		body := strings.TrimSpace(strings.Join(lines[i+1:], "\n"))
+		if body == "" {
+			continue
+		}
+		out = append(out, core.Segment{Start: start, End: end, Text: body})
+	}
+	if bad > 0 && len(out) == 0 {
+		return nil, fmt.Errorf("could not read subtitles")
+	}
+	return out, nil
+}
+
+func parseSRTSpan(line string) (time.Duration, time.Duration, bool) {
+	parts := strings.Split(line, "-->")
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	start, ok1 := parseSRTClock(parts[0])
+	end, ok2 := parseSRTClock(parts[1])
+	if !ok1 || !ok2 {
+		return 0, 0, false
+	}
+	return start, end, true
+}
+
+func parseSRTClock(s string) (time.Duration, bool) {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexAny(s, " \t"); i >= 0 {
+		s = s[:i]
+	}
+	parts := strings.Split(s, ":")
+	if len(parts) != 3 {
+		return 0, false
+	}
+	h, err1 := strconv.Atoi(parts[0])
+	m, err2 := strconv.Atoi(parts[1])
+	rest := strings.ReplaceAll(parts[2], ",", ".")
+	secParts := strings.SplitN(rest, ".", 2)
+	sec, err3 := strconv.Atoi(secParts[0])
+	if err1 != nil || err2 != nil || err3 != nil || h < 0 || m < 0 || sec < 0 {
+		return 0, false
+	}
+	ms := 0
+	if len(secParts) == 2 {
+		frac := secParts[1]
+		if len(frac) > 3 {
+			frac = frac[:3]
+		}
+		for len(frac) < 3 {
+			frac += "0"
+		}
+		var err error
+		ms, err = strconv.Atoi(frac)
+		if err != nil {
+			return 0, false
+		}
+	}
+	return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute + time.Duration(sec)*time.Second + time.Duration(ms)*time.Millisecond, true
 }

@@ -74,6 +74,30 @@ func TestExportSubtitles(t *testing.T) {
 	}
 }
 
+func TestParseSRTRoundTrip(t *testing.T) {
+	original := []core.Segment{
+		{Start: time.Second, End: 2500 * time.Millisecond, Text: "你好。\nHello."},
+		{Start: time.Hour + 2*time.Minute + 3*time.Second + 4*time.Millisecond, End: time.Hour + 2*time.Minute + 5*time.Second, Text: "再见。\nBye."},
+	}
+	got, err := ParseSRT([]byte(formatSRT(original)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, original) {
+		t.Fatalf("got %#v", got)
+	}
+}
+
+func TestParseSRTRejectsGarbage(t *testing.T) {
+	if _, err := ParseSRT([]byte("not a subtitle")); err == nil {
+		t.Fatal("expected an error")
+	}
+	got, err := ParseSRT(nil)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("empty: %v %#v", err, got)
+	}
+}
+
 func TestExportSubtitlesRejectsMismatchedLines(t *testing.T) {
 	video := filepath.Join(t.TempDir(), "talk.mp4")
 	if _, err := exportSubtitles(video, []core.Segment{{Text: "a"}}, nil); err == nil {

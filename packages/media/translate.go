@@ -18,11 +18,23 @@ import (
 // translateBatch bounds how many lines go into one request, keeping replies within common output token limits.
 const translateBatch = 40
 
+// DefaultSubtitlePrompt is the style instruction used when ChatTranslator.Prompt is empty. {{language}} becomes the target language. The JSON reply rule is appended separately and is not part of this text.
+const DefaultSubtitlePrompt = "You are a professional subtitle translator. Translate every subtitle line into {{language}}.\n- Keep each translation natural, concise and suitable for on-screen subtitles.\n- Lines may be sentence fragments that continue in the next line; translate them so they read naturally in order."
+
+const subtitleReplyRule = "The user sends a JSON array of subtitle lines in order. Reply with only a JSON array of strings with exactly the same number of elements, each the translation of the line at the same index. Do not merge, split, or skip lines."
+
+// contextLines is how many earlier lines of the same video go with a batch when context is on. Subtitle text is short, but an entire film can still crowd a small model.
+const contextLines = 80
+
 // ChatTranslator translates through an OpenAI-compatible /chat/completions endpoint, such as EveryAPI, OpenAI or a local Ollama server.
 type ChatTranslator struct {
 	BaseURL string
 	APIKey  string
 	Model   string
+	// Prompt is the style instruction. {{language}} is replaced with the target language. Empty uses DefaultSubtitlePrompt.
+	Prompt string
+	// Context includes earlier lines of the same video with each batch.
+	Context bool
 	// Credential, when set, replaces BaseURL and APIKey for each translation. renew asks for a new key after the API rejected the previous one.
 	Credential func(ctx context.Context, renew bool) (Endpoint, error)
 	// Client defaults to an http.Client with a two-minute timeout.
@@ -33,6 +45,37 @@ type ChatTranslator struct {
 type Endpoint struct {
 	BaseURL string
 	APIKey  string
+}
+
+// Ping checks that the chat endpoint accepts one short request with the configured model.
+func (t ChatTranslator) Ping(ctx context.Context) error {
+	if strings.TrimSpace(t.Model) == "" {
+		return errors.New("model is empty")
+	}
+	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
+	if t.Credential != nil {
+		var err error
+		if endpoint, err = t.Credential(ctx, false); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(endpoint.BaseURL) == "" {
+		return errors.New("base URL is empty")
+	}
+	body, err := json.Marshal(chatRequest{
+		Model:       t.Model,
+		Temperature: 0,
+		Messages:    []chatMessage{{Role: "user", Content: "ping"}},
+	})
+	if err != nil {
+		return err
+	}
+	client := t.Client
+	if client == nil {
+		client = &http.Client{Timeout: 30 * time.Second}
+	}
+	_, _, err = completeOnce(ctx, client, endpoint, body)
+	return err
 }
 
 func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
@@ -48,20 +91,26 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 	}
 	renewed := false
 	out := make([]core.Segment, 0, len(segments))
+	var earlier []string
 	for start := 0; start < len(segments); start += translateBatch {
 		batch := segments[start:min(start+translateBatch, len(segments))]
 		texts := make([]string, len(batch))
 		for i, s := range batch {
 			texts[i] = s.Text
 		}
-		lines, err := t.translateTexts(ctx, endpoint, texts, language)
+		var contextSoFar []string
+		if t.Context {
+			contextSoFar = earlier
+		}
+		lines, err := t.translateTexts(ctx, endpoint, texts, language, contextSoFar)
+		earlier = append(earlier, texts...)
 		var status *statusError
 		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
 			renewed = true
 			if endpoint, err = t.Credential(ctx, true); err != nil {
 				return nil, err
 			}
-			lines, err = t.translateTexts(ctx, endpoint, texts, language)
+			lines, err = t.translateTexts(ctx, endpoint, texts, language, contextSoFar)
 		}
 		if err != nil {
 			return nil, err
@@ -102,7 +151,23 @@ func (e *statusError) Error() string {
 	return fmt.Sprintf("translation API returned %s: %s", e.status, e.detail)
 }
 
-func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language string) ([]string, error) {
+func subtitlePrompt(custom, language string, earlier []string) string {
+	prompt := strings.TrimSpace(custom)
+	if prompt == "" {
+		prompt = DefaultSubtitlePrompt
+	}
+	prompt = strings.ReplaceAll(prompt, "{{language}}", language)
+	if len(earlier) > contextLines {
+		earlier = earlier[len(earlier)-contextLines:]
+	}
+	if len(earlier) > 0 {
+		encoded, _ := json.Marshal(earlier)
+		prompt += "\n\nEarlier lines from the same video, for context only. Do not translate them again:\n" + string(encoded)
+	}
+	return prompt + "\n\n" + subtitleReplyRule
+}
+
+func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language string, earlier []string) ([]string, error) {
 	input, err := json.Marshal(texts)
 	if err != nil {
 		return nil, err
@@ -110,7 +175,7 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 	body, err := json.Marshal(chatRequest{
 		Model: t.Model,
 		Messages: []chatMessage{
-			{Role: "system", Content: fmt.Sprintf("You translate video subtitles into %s. The user sends a JSON array of subtitle lines in order. Reply with only a JSON array of strings with exactly the same number of elements, each the translation of the line at the same index. Do not merge, split, or skip lines.", language)},
+			{Role: "system", Content: subtitlePrompt(t.Prompt, language, earlier)},
 			{Role: "user", Content: string(input)},
 		},
 	})

@@ -197,8 +197,60 @@ func TestChatTranslatorRenewsRejectedLogin(t *testing.T) {
 	}
 }
 
+func TestTranslatePromptAndContext(t *testing.T) {
+	srv, seen := fakeChat(t, upper)
+	segments := make([]core.Segment, translateBatch+1)
+	for i := range segments {
+		segments[i] = core.Segment{Text: fmt.Sprintf("line %d", i)}
+	}
+	tr := ChatTranslator{
+		BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m", Context: true,
+		Prompt: "Translate into {{language}} in a formal tone.",
+	}
+	if _, err := tr.Translate(context.Background(), segments, "日本語"); err != nil {
+		t.Fatal(err)
+	}
+	first := (*seen)[0].Messages[0].Content
+	second := (*seen)[1].Messages[0].Content
+	if !strings.Contains(first, "Translate into 日本語 in a formal tone.") || strings.Contains(first, "Earlier lines") {
+		t.Fatalf("first prompt = %q", first)
+	}
+	if !strings.Contains(second, "line 0") || !strings.Contains(second, "Earlier lines") {
+		t.Fatalf("second prompt = %q", second)
+	}
+}
+
 func TestChatTranslatorRequiresLanguage(t *testing.T) {
 	if _, err := (ChatTranslator{}).Translate(context.Background(), []core.Segment{{Text: "a"}}, " "); err == nil {
 		t.Fatal("expected an error")
+	}
+}
+
+func TestPing(t *testing.T) {
+	if err := (ChatTranslator{BaseURL: "https://example.com/v1"}).Ping(context.Background()); err == nil {
+		t.Fatal("expected an empty model to fail")
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/chat/completions" || r.Header.Get("Authorization") != "Bearer secret" {
+			http.Error(w, "no", http.StatusUnauthorized)
+			return
+		}
+		var req chatRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.Model != "m" || len(req.Messages) != 1 {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": "ok"}}},
+		})
+	}))
+	defer srv.Close()
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m", Client: srv.Client()}
+	if err := tr.Ping(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }

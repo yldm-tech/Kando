@@ -100,6 +100,14 @@ func lookTool(name string) string {
 	return ""
 }
 
+// Relook finds yt-dlp, ffmpeg and whisper-cli again. The output directory and the translator stay as they are.
+func (t Tools) Relook() Tools {
+	t.YTDLP = lookTool("yt-dlp")
+	t.FFmpeg = lookTool("ffmpeg")
+	t.Whisper = lookTool("whisper-cli")
+	return t
+}
+
 func (t Tools) Check() error {
 	var errs []error
 	for _, tool := range []struct{ name, path string }{{"yt-dlp", t.YTDLP}, {"ffmpeg", t.FFmpeg}, {"whisper-cli", t.Whisper}} {
