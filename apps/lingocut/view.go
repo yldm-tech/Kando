@@ -11,6 +11,10 @@ import (
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/oneo-me/onevra/source/components"
+	"github.com/oneo-me/onevra/source/icons/lucide"
+	"github.com/oneo-me/onevra/source/shells/sidebar"
+	"github.com/oneo-me/onevra/source/theme"
 	"github.com/yldm-tech/nodra"
 )
 
@@ -24,35 +28,14 @@ const (
 
 	appVersion = "0.1.0"
 
-	// windowBackground matches the theme so the hidden title bar is not a light strip.
-	windowBackground = "#16120e"
-
 	sidebarWidth float32 = 248
 	pagePadX     float32 = 32
 	cardMinWidth float32 = 280
 	cardGap      float32 = 18
 )
 
-func lingoTheme() *ui.Theme {
-	t := ui.DarkTheme()
-	t.Background = ui.Hex(windowBackground)
-	t.Surface = ui.Hex("#2c241c")
-	t.SurfaceHover = ui.Hex("#3a3126")
-	t.SurfacePressed = ui.Hex("#4a3b2c")
-	t.Border = ui.Hex("#3d342b")
-	t.Text = ui.Hex("#f6f1e8")
-	t.TextMuted = ui.Hex("#b3a38f")
-	t.Accent = ui.Hex("#e39b2d")
-	t.AccentHover = ui.Hex("#f0b04a")
-	t.AccentPressed = ui.Hex("#c4841c")
-	t.AccentText = ui.Hex("#1a140e")
-	t.Danger = ui.Hex("#ef5350")
-	t.Radius = 12
-	return t
-}
-
 func (a *app) view(c *ui.Context) {
-	c.SetTheme(lingoTheme())
+	theme.Apply(c)
 	t := c.Theme()
 	films := a.films()
 	// The traffic lights sit on the dark content. The band under them is the drag region.
@@ -102,20 +85,39 @@ func (a *app) mainColumn(c *ui.Context, t *ui.Theme, films []film) {
 }
 
 func (a *app) sidebar(c *ui.Context, t *ui.Theme, count int) {
-	ui.Column(c).Width(sidebarWidth).Shrink(0).Padding(18, 14).Gap(2).Children(func() {
+	components.Sidebar(c).Width(sidebarWidth).Shrink(0).Children(func() {
 		a.librarySwitcher(c, t, count)
-		a.section(c, t, "影片")
-		a.nav(c, t, pageFilms, "全部影片", fmt.Sprintf("%d", count))
-		a.section(c, t, "来源")
-		a.nav(c, t, pageYouTube, "YouTube", "")
-		a.section(c, t, "设置")
-		a.nav(c, t, pageGeneral, "通用", "")
-		a.nav(c, t, pageSpeech, "语音识别", "")
-		a.nav(c, t, pageAI, "AI 服务", "")
-		a.nav(c, t, pageTranslate, "翻译", "")
+		components.SidebarSection(c, "影片", func() {
+			a.nav(c, pageFilms, "全部影片", fmt.Sprintf("%d", count))
+		})
+		components.SidebarSection(c, "来源", func() {
+			a.nav(c, pageYouTube, "YouTube", "")
+		})
+		components.SidebarSection(c, "设置", func() {
+			a.nav(c, pageGeneral, "通用", "")
+			a.nav(c, pageSpeech, "语音识别", "")
+			a.nav(c, pageAI, "AI 服务", "")
+			a.nav(c, pageTranslate, "翻译", "")
+		})
 		if a.saveErr != "" {
 			ui.Text(c, a.saveErr).TextColor(t.Danger).Wrap().Padding(8, 8, 0, 8)
 		}
+	})
+}
+
+// shellBody is the main column under Onevra's floating header. Opening a film replaces the sidebar page; closing it restores the sidebar.
+func (a *app) shellBody(c *ui.Context) {
+	film := a.page == pageFilms && a.openKey != ""
+	if a.shell != nil && film != a.shellFilm {
+		a.shellFilm = film
+		if film {
+			a.shell.SetPage(func(c *ui.Context) { a.shellBody(c) })
+		} else {
+			a.shell.SetPage(nil)
+		}
+	}
+	ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).Children(func() {
+		a.mainColumn(c, c.Theme(), a.films())
 	})
 }
 
@@ -133,7 +135,7 @@ func (a *app) librarySwitcher(c *ui.Context, t *ui.Theme, count int) {
 			ui.Text(c, title).FontSize(15).Bold()
 			ui.Text(c, countLabel(count)).TextColor(t.TextMuted).FontSize(12)
 		})
-		ui.Icon(c, iconChevron).Size(14, 14).TextColor(t.TextMuted).Shrink(0)
+		components.Icon(c, lucide.ChevronDown).Size(14, 14).TextColor(t.TextMuted).Shrink(0)
 	})
 }
 
@@ -177,10 +179,10 @@ func (a *app) welcomeLibrary(c *ui.Context, t *ui.Theme) {
 			a.libraryDraft(c, t, "创建资料库")
 			if a.snap().LibraryDir == "" {
 				ui.Text(c, "已经有资料库").TextColor(t.TextMuted).FontSize(12)
-				if ui.Button(c, "导入已有资料库").Clicked() {
+				if components.Button(c, "导入已有资料库", components.ButtonSecondary).Clicked() {
 					a.pickLibrary()
 				}
-			} else if ui.Button(c, "取消新建").Clicked() {
+			} else if components.Button(c, "取消新建", components.ButtonSecondary).Clicked() {
 				a.edit(func(s *session) { s.MakingLibrary = false })
 			}
 			if a.saveErr != "" {
@@ -201,16 +203,16 @@ func (a *app) libraryDraft(c *ui.Context, t *ui.Theme, confirm string) {
 		return
 	}
 	_ = name.Edit(func(value *string) bool {
-		return ui.TextInput(c, value).Label("资料库名称").Placeholder("影视库").Changed()
+		return components.TextBox(c, value, components.TextBoxOptions{}).Label("资料库名称").Placeholder("影视库").Changed()
 	})
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "位置").TextColor(t.TextMuted).Shrink(0)
 		ui.Text(c, displayPath(a.libraryPlace())).Grow(1).TextColor(t.Text)
-		if ui.Button(c, "更改位置").Clicked() {
+		if components.Button(c, "更改位置", components.ButtonSecondary).Clicked() {
 			a.pickLibraryParent()
 		}
 	})
-	if ui.Button(c, confirm).Clicked() {
+	if components.Button(c, confirm, components.ButtonPrimary).Clicked() {
 		a.createLibrary()
 	}
 }
@@ -224,31 +226,38 @@ func libraryTitle(dir string) string {
 	return base
 }
 
-func (a *app) section(c *ui.Context, t *ui.Theme, label string) {
-	ui.Text(c, label).TextColor(t.TextMuted).FontSize(12).Padding(14, 8, 4, 8)
-}
-
-func (a *app) nav(c *ui.Context, t *ui.Theme, page, label, badge string) {
-	row := ui.Row(c).Padding(7, 10).Radius(8).Gap(8).AlignItems(ui.Center)
-	if a.page == page {
-		row.Background(ui.Hex("#4a3824"))
+func (a *app) nav(c *ui.Context, page, label, badge string) {
+	var trailing func(*ui.Context, float32)
+	if badge != "" {
+		trailing = func(c *ui.Context, _ float32) {
+			components.Text(c, badge).TextColor(c.Theme().TextMuted)
+		}
 	}
-	if row.Clicked() {
+	item := components.SidebarItemWithSlots(c, label, a.page == page, func(c *ui.Context, size float32) {
+		components.Icon(c, navLucide(page)).Size(size, size)
+	}, trailing)
+	if item.Clicked() {
 		a.page = page
 		a.openKey = ""
 		a.stopPlayback()
 	}
-	row.Children(func() {
-		color := t.TextMuted
-		if a.page == page {
-			color = t.Text
-		}
-		ui.Icon(c, navIcon(page)).Size(15, 15).TextColor(color)
-		ui.Text(c, label).Grow(1)
-		if badge != "" {
-			ui.Text(c, badge).TextColor(t.TextMuted).FontSize(12)
-		}
-	})
+}
+
+func navLucide(page string) *ui.SVG {
+	switch page {
+	case pageYouTube:
+		return lucide.TvMinimalPlay()
+	case pageGeneral:
+		return lucide.Settings()
+	case pageSpeech:
+		return lucide.AudioLines()
+	case pageAI:
+		return lucide.Sparkles()
+	case pageTranslate:
+		return lucide.Languages()
+	default:
+		return lucide.Clapperboard()
+	}
 }
 
 func (a *app) libraryPage(c *ui.Context, t *ui.Theme, films []film) {
@@ -282,16 +291,16 @@ func (a *app) libraryPage(c *ui.Context, t *ui.Theme, films []film) {
 		})
 		if running {
 			c.Key("cancel")
-			if ui.Button(c, "取消").Shrink(0).Clicked() {
+			if components.Button(c, "取消", components.ButtonSecondary).Shrink(0).Clicked() {
 				a.stop()
 			}
 		} else {
 			c.Key("files")
-			if ui.Button(c, "本地文件").Shrink(0).Clicked() {
+			if components.Button(c, "本地文件", components.ButtonSecondary).Shrink(0).Clicked() {
 				a.pickVideos()
 			}
 			c.Key("start")
-			if ui.Button(c, "开始处理").Shrink(0).Clicked() {
+			if components.Button(c, "开始处理", components.ButtonPrimary).Shrink(0).Clicked() {
 				a.start()
 			}
 		}
@@ -370,7 +379,7 @@ func (a *app) card(c *ui.Context, t *ui.Theme, item film) {
 						ui.Text(c, label).TextColor(color).Bold()
 					}
 					if item.jobID != "" && item.stage == core.StageFailed && !a.running() {
-						if ui.Button(c, "移除").Clicked() {
+						if components.Button(c, "移除", components.ButtonSecondary).Clicked() {
 							a.remove(item.jobID)
 						}
 						if ui.PrimaryButton(c, "重试").Clicked() {
@@ -444,7 +453,7 @@ func (a *app) filmPage(c *ui.Context, t *ui.Theme, item film) {
 func (a *app) filmTop(c *ui.Context, t *ui.Theme, item film) {
 	ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 		c.Key("film-back")
-		if ui.Button(c, "返回").Shrink(0).Clicked() {
+		if components.Button(c, "返回", components.ButtonSecondary).Shrink(0).Clicked() {
 			a.openKey = ""
 			a.stopPlayback()
 		}
@@ -466,7 +475,7 @@ func (a *app) filmTop(c *ui.Context, t *ui.Theme, item film) {
 		}
 		if path != "" {
 			c.Key("film-reveal")
-			if ui.Button(c, "在访达中显示").Shrink(0).Clicked() {
+			if components.Button(c, "在访达中显示", components.ButtonSecondary).Shrink(0).Clicked() {
 				a.reveal(path)
 			}
 		}
@@ -484,7 +493,7 @@ func (a *app) filmActions(c *ui.Context, item film) {
 	ui.Row(c).Gap(8).Children(func() {
 		if showCancel {
 			c.Key("film-cancel")
-			if ui.Button(c, "取消").Clicked() {
+			if components.Button(c, "取消", components.ButtonSecondary).Clicked() {
 				a.stop()
 			}
 		}
@@ -496,7 +505,7 @@ func (a *app) filmActions(c *ui.Context, item film) {
 		}
 		if showFailed {
 			c.Key("film-remove")
-			if ui.Button(c, "移除").Clicked() {
+			if components.Button(c, "移除", components.ButtonSecondary).Clicked() {
 				a.remove(item.jobID)
 			}
 			c.Key("film-retry")
@@ -776,22 +785,22 @@ func (a *app) cueStylePane(c *ui.Context, t *ui.Theme) {
 			face := a.editedFace()
 			a.cueField(c, t, "字体", func() {
 				c.Key("cue-font-" + a.cue.Edit)
-				ui.Select(c, &face.Family, []string{"默认", "苹方", "冬青黑体"}).Width(120)
+				choiceSelect(c, &face.Family, []string{"默认", "苹方", "冬青黑体"}).Width(120)
 			})
 			a.cueStepper(c, t, "字号", &face.Size, 2, 12, 72)
 			a.cueColors(c, t, face)
 			ui.Row(c).MinHeight(36).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, "加粗").Grow(1)
-				ui.Switch(c, &face.Bold).Label("加粗")
+				components.Switch(c, &face.Bold, "加粗", components.SwitchOptions{HideLabel: true})
 			})
-			if ui.Button(c, "使用原文样式").Clicked() {
+			if components.Button(c, "使用原文样式", components.ButtonSecondary).Clicked() {
 				a.cue.Translation = a.cue.Original
 			}
 			ui.Text(c, "双语").TextColor(t.TextMuted).FontSize(12)
 			a.cueChoiceRow(c, t, []cueChoice{{"translation", "译文在上"}, {"original", "原文在上"}, {"translation-only", "只要译文"}}, a.cue.Order, func(id string) { a.cue.Order = id })
 			ui.Text(c, "位置").TextColor(t.TextMuted).FontSize(12)
 			a.cueStepper(c, t, "高底部", &a.cue.Bottom, 4, 24, 160)
-			if ui.Button(c, "恢复默认样式").Clicked() {
+			if components.Button(c, "恢复默认样式", components.ButtonSecondary).Clicked() {
 				a.cue = defaultCueLook()
 			}
 		})
@@ -861,11 +870,11 @@ func (a *app) cueField(c *ui.Context, t *ui.Theme, label string, control func())
 func (a *app) cueStepper(c *ui.Context, t *ui.Theme, label string, value *float32, step, min, max float32) {
 	ui.Row(c).MinHeight(36).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, label).Grow(1)
-		if ui.Button(c, "−").Label(label+"减小").Clicked() && *value > min {
+		if components.Button(c, "−", components.ButtonSecondary).Label(label+"减小").Clicked() && *value > min {
 			*value -= step
 		}
 		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(13)
-		if ui.Button(c, "+").Label(label+"增大").Clicked() && *value < max {
+		if components.Button(c, "+", components.ButtonSecondary).Label(label+"增大").Clicked() && *value < max {
 			*value += step
 		}
 		_ = t
@@ -1109,7 +1118,7 @@ func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
 		ui.Row(c).MinHeight(48).Padding(8, 0).Gap(16).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "默认翻译为").Grow(1)
 			c.Key("translate-language")
-			choice := ui.Select(c, &a.language, languageChoices(a.language)).Width(160)
+			choice := choiceSelect(c, &a.language, languageChoices(a.language)).Width(160)
 			if choice.Changed() {
 				a.saveSettings()
 			}
@@ -1121,8 +1130,9 @@ func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
 				ui.Text(c, "翻译时参考前面的句子，同一句里的碎片会按顺序接上。").TextColor(t.TextMuted).FontSize(12).Wrap()
 			})
 			c.Key("translate-context")
-			toggle := ui.Switch(c, &a.translateContext).Label("智能翻译")
-			if toggle.Changed() {
+			before := a.translateContext
+			components.Switch(c, &a.translateContext, "智能翻译", components.SwitchOptions{HideLabel: true})
+			if a.translateContext != before {
 				a.saveSettings()
 			}
 		})
@@ -1131,7 +1141,7 @@ func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
 	usingDefault := strings.TrimSpace(a.translatePrompt) == strings.TrimSpace(media.DefaultSubtitlePrompt)
 	ui.Column(c).Background(t.Surface).Radius(12).Padding(12, 16).Gap(10).Children(func() {
 		c.Key("translate-prompt")
-		prompt := ui.TextArea(c, &a.translatePrompt).Height(148).Label("提示词")
+		prompt := components.TextBox(c, &a.translatePrompt, components.TextBoxOptions{Multiline: true}).Height(148).Label("提示词")
 		if prompt.Changed() {
 			a.saveSettings()
 		}
@@ -1143,7 +1153,7 @@ func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
 			}
 			ui.Text(c, label).TextColor(t.TextMuted).Grow(1)
 			c.Key("translate-reset")
-			reset := ui.Button(c, "恢复默认").Disabled(usingDefault)
+			reset := components.Button(c, "恢复默认", components.ButtonSecondary).Disabled(usingDefault)
 			if reset.Clicked() {
 				a.translatePrompt = media.DefaultSubtitlePrompt
 				a.saveSettings()
@@ -1151,6 +1161,19 @@ func (a *app) translateSettings(c *ui.Context, t *ui.Theme) {
 		})
 	})
 	ui.Text(c, "用 {{language}} 代表目标语言。可以加上风格要求，例如口语化、人名保留英文。返回的 JSON 行数由 LingoCut 自动要求，不用写在这里。").TextColor(t.TextMuted).FontSize(12).Wrap()
+}
+
+func choiceSelect(c *ui.Context, selected *string, options []string) ui.Element {
+	sel := components.Select(c, selected)
+	current := *selected
+	sel.Trigger.Children(func() { components.Text(c, current).SingleLine() })
+	sel.Popup(func(ui.Element) {
+		for _, opt := range options {
+			opt := opt
+			sel.Item(opt).Children(func() { components.Text(c, opt).SingleLine() })
+		}
+	})
+	return sel.Trigger
 }
 
 func languageChoices(current string) []string {
@@ -1192,7 +1215,7 @@ func (a *app) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, kno
 			ui.Text(c, "这些程序来自本机，LingoCut 不负责安装或更新。").TextColor(t.TextMuted).FontSize(12).Grow(1).Wrap()
 			if known {
 				c.Key("redetect")
-				if ui.Button(c, "重新检测").Clicked() {
+				if components.Button(c, "重新检测", components.ButtonSecondary).Clicked() {
 					a.redetectTools()
 				}
 			}
@@ -1255,7 +1278,7 @@ func (a *app) speechModelAction(c *ui.Context, t *ui.Theme, model media.SpeechMo
 			label = fmt.Sprintf("%d%%", a.downloadWritten*100/a.downloadTotal)
 		}
 		c.Key(model.ID + "-cancel")
-		if ui.Button(c, label).Clicked() {
+		if components.Button(c, label, components.ButtonSecondary).Clicked() {
 			a.cancelDownload()
 		}
 		return
@@ -1265,7 +1288,7 @@ func (a *app) speechModelAction(c *ui.Context, t *ui.Theme, model media.SpeechMo
 		return
 	}
 	c.Key(model.ID + "-download")
-	if ui.Button(c, "下载").Clicked() {
+	if components.Button(c, "下载", components.ButtonSecondary).Clicked() {
 		a.downloadSpeechModel(model.ID)
 	}
 }
@@ -1315,7 +1338,7 @@ func (a *app) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) 
 			ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
 				a.llmField(c, t, "Base URL", "任何兼容 OpenAI Chat Completions 的服务都可以。", func() {
 					c.Key("llm-base")
-					input := fitControl(ui.TextInput(c, &a.llmBase).Label("Base URL"))
+					input := fitControl(components.TextBox(c, &a.llmBase, components.TextBoxOptions{}).Label("Base URL"))
 					if input.Changed() {
 						a.llmProvider = llmProviderID(a.llmBase)
 						a.applyLLM()
@@ -1328,7 +1351,7 @@ func (a *app) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) 
 				}
 				a.llmField(c, t, "API Key", hint, func() {
 					c.Key("llm-key")
-					input := fitControl(ui.TextInput(c, &a.llmKey).Label("API Key"))
+					input := fitControl(components.TextBox(c, &a.llmKey, components.TextBoxOptions{}).Label("API Key"))
 					if !a.showLLMKey {
 						input.Password()
 					}
@@ -1340,14 +1363,14 @@ func (a *app) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) 
 					if a.showLLMKey {
 						label = "隐藏"
 					}
-					if ui.Button(c, label).Shrink(0).Clicked() {
+					if components.Button(c, label, components.ButtonSecondary).Shrink(0).Clicked() {
 						a.showLLMKey = !a.showLLMKey
 					}
 				})
 				ui.Box(c).Fill().Height(1).Background(t.Border)
 				a.llmField(c, t, "模型", "", func() {
 					c.Key("llm-model")
-					input := fitControl(ui.TextInput(c, &a.llmModel).Label("模型"))
+					input := fitControl(components.TextBox(c, &a.llmModel, components.TextBoxOptions{}).Label("模型"))
 					if input.Changed() {
 						a.applyLLM()
 					}
@@ -1359,7 +1382,7 @@ func (a *app) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool) 
 					if a.testingLLM {
 						label = "正在测试…"
 					}
-					if ui.Button(c, label).Clicked() && !a.testingLLM {
+					if components.Button(c, label, components.ButtonSecondary).Clicked() && !a.testingLLM {
 						a.testLLM()
 					}
 				})
@@ -1458,9 +1481,9 @@ func (a *app) currentLibraryRow(c *ui.Context, t *ui.Theme) {
 			a.reveal(dir)
 		}
 		folder.Children(func() {
-			ui.Icon(c, iconFolder).Size(16, 16).TextColor(t.TextMuted)
+			components.Icon(c, lucide.Folder).Size(16, 16).TextColor(t.TextMuted)
 		})
-		ui.Button(c, "切换").Shrink(0).PopoverMenuButton(func(m *ui.Menu) { a.libraryMenu(m) })
+		components.Button(c, "切换", components.ButtonSecondary).Shrink(0).PopoverMenuButton(func(m *ui.Menu) { a.libraryMenu(m) })
 	})
 }
 

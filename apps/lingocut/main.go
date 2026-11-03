@@ -21,6 +21,8 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/oneo-me/onevra/source/shells/sidebar"
+	"github.com/oneo-me/onevra/source/theme"
 	"github.com/yldm-tech/nodra"
 )
 
@@ -72,6 +74,8 @@ type app struct {
 	library          library
 	pipeline         media.Pipeline
 	win              *mygo.Window
+	shell            *sidebar.Shell
+	shellFilm        bool
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 	cancel context.CancelFunc
@@ -1658,20 +1662,26 @@ func main() {
 	}
 	a.refreshLibrary()
 	a.restartLibraryWatch()
+	mygo.Theme.SetSource(mygo.ThemeDark)
 	mygo.App.WhenReady(func() {
-		win = mygo.NewWindow(mygo.WindowOptions{
-			Title:           "LingoCut",
-			Width:           1100,
-			Height:          720,
-			MinWidth:        900,
-			MinHeight:       560,
-			TitleBarStyle:   mygo.TitleBarHidden,
-			BackgroundColor: windowBackground,
-			// Opens where the user left it last time.
-			StateKey: "main",
-			// The window shows the interface MyGo draws, not a web page.
-			Content: ui.View(a.view),
+		shell := sidebar.NewShell(sidebar.ShellOptions{
+			Title:     "LingoCut",
+			Width:     1100,
+			Height:    720,
+			MinWidth:  900,
+			MinHeight: 560,
+			StateKey:  "main",
+			LeftWidth: int(sidebarWidth),
+			Theme:     theme.Onevra,
+			Left: func(c *ui.Context) {
+				ui.Column(c).Fill().Padding(sidebar.HeaderHeight(c), 0, 0, 0).Children(func() {
+					a.sidebar(c, c.Theme(), len(a.films()))
+				})
+			},
+			Content: func(c *ui.Context) { a.shellBody(c) },
 		})
+		a.shell = shell
+		win = shell.Window()
 		a.win = win
 		nodra.Invalidate(a.store, win)
 		a.loadToolVersions()
