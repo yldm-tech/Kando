@@ -4,65 +4,68 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
-	"strings"
+
+	"lingocut/packages/core"
 )
 
-// Pipeline is the cross-platform boundary for media processing.
-// Implementations will be provided by the desktop application and platform
-// adapters without leaking OS-specific details into the core package.
+var ErrNoSpeech = errors.New("no speech found in the video")
+
+// Pipeline is the cross-platform boundary for media processing. Implementations keep OS-specific details out of the core package.
 type Pipeline interface {
-	Download(ctx context.Context, source, outputTemplate string) (string, error)
-	Transcribe(videoPath string) (string, error)
-	Translate(subtitlePath string, language string) (string, error)
-	Export(videoPath string, subtitlePaths ...string) (string, error)
+	// Check reports missing tools or settings before a job spends time downloading.
+	Check() error
+	Download(ctx context.Context, source string) (string, error)
+	Transcribe(ctx context.Context, videoPath string) ([]core.Segment, error)
+	Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error)
+	// Export writes the subtitles next to the video and returns the bilingual subtitle path.
+	Export(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error)
 }
 
-var ErrDownloaderNotFound = errors.New("yt-dlp was not found; install yt-dlp and try again")
-
-type Downloader struct {
-	Binary string
-}
-
-func (d Downloader) Download(ctx context.Context, source, outputTemplate string) (string, error) {
-	if strings.TrimSpace(source) == "" {
-		return "", errors.New("video source is empty")
+// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and the final job is returned.
+func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
+	enter := func(stage core.Stage) {
+		job.Stage = stage
+		report(job)
 	}
-	if strings.TrimSpace(outputTemplate) == "" {
-		return "", errors.New("download output template is empty")
+	fail := func(step string, err error) core.Job {
+		job.Err = fmt.Errorf("%s: %w", step, err)
+		enter(core.StageFailed)
+		return job
 	}
 
-	binary := d.Binary
-	if binary == "" {
-		binary = "yt-dlp"
-	}
-	if _, err := exec.LookPath(binary); err != nil {
-		return "", ErrDownloaderNotFound
+	if err := p.Check(); err != nil {
+		return fail("check", err)
 	}
 
-	args := []string{"--no-playlist", "--print", "after_move:filepath", "-o", outputTemplate, source}
-	cmd := exec.CommandContext(ctx, binary, args...)
-	output, err := cmd.Output()
+	enter(core.StageDownloading)
+	video, err := p.Download(ctx, job.Source)
 	if err != nil {
-		if ctx.Err() != nil {
-			return "", ctx.Err()
-		}
-		return "", fmt.Errorf("yt-dlp failed: %w", err)
+		return fail("download", err)
+	}
+	job.VideoPath = video
+
+	enter(core.StageTranscribing)
+	original, err := p.Transcribe(ctx, video)
+	if err != nil {
+		return fail("transcribe", err)
+	}
+	if len(original) == 0 {
+		return fail("transcribe", ErrNoSpeech)
 	}
 
-	path := strings.TrimSpace(string(output))
-	if path == "" {
-		return "", errors.New("yt-dlp completed without returning a file path")
+	enter(core.StageTranslating)
+	translated, err := p.Translate(ctx, original, language)
+	if err != nil {
+		return fail("translate", err)
 	}
-	return path, nil
-}
 
-func (d Downloader) Transcribe(string) (string, error) {
-	return "", errors.New("transcription is not implemented")
-}
-func (d Downloader) Translate(string, string) (string, error) {
-	return "", errors.New("translation is not implemented")
-}
-func (d Downloader) Export(string, ...string) (string, error) {
-	return "", errors.New("export is not implemented")
+	enter(core.StageExporting)
+	subtitles, err := p.Export(ctx, video, original, translated)
+	if err != nil {
+		return fail("export", err)
+	}
+	job.SubtitlePath = subtitles
+
+	enter(core.StageComplete)
+	return job
 }

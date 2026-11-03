@@ -4,11 +4,16 @@ go 1.27.3
 
 tool github.com/egoist/mygo/cmd/mygo
 
-require github.com/egoist/mygo v0.7.4
+require (
+	github.com/egoist/mygo v0.7.4
+	lingocut/packages/core v0.0.0
+	lingocut/packages/media v0.0.0
+)
 
-require lingocut/packages/core v0.0.0
-
-replace lingocut/packages/core => ../../packages/core
+replace (
+	lingocut/packages/core => ../../packages/core
+	lingocut/packages/media => ../../packages/media
+)
 
 require (
 	github.com/ebitengine/purego v0.11.1 // indirect
