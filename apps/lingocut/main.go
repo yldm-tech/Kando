@@ -1653,7 +1653,9 @@ func main() {
 		}
 	}
 	a.libraryID = media.IdentifyDir(a.snap().LibraryDir)
-	ensureLibraryLogo(a.snap().LibraryDir)
+	for _, dir := range a.knownLibraries() {
+		ensureLibraryLogo(dir)
+	}
 	a.refreshLibrary()
 	a.restartLibraryWatch()
 	mygo.App.WhenReady(func() {

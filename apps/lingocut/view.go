@@ -128,9 +128,7 @@ func (a *app) librarySwitcher(c *ui.Context, t *ui.Theme, count int) {
 	head := ui.Row(c).Padding(4, 8, 14, 8).Gap(10).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("资料库菜单")
 	head.PopoverMenuButton(func(m *ui.Menu) { a.libraryMenu(m) })
 	head.Children(func() {
-		ui.Row(c).Size(28, 28).Radius(8).Background(t.Accent).AlignItems(ui.Center).Justify(ui.Center).Shrink(0).Children(func() {
-			ui.Icon(c, iconMark).Size(16, 16).TextColor(t.AccentText)
-		})
+		ui.Image(c, appLogo).Size(28, 28).Shrink(0)
 		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
 			ui.Text(c, title).FontSize(15).Bold()
 			ui.Text(c, countLabel(count)).TextColor(t.TextMuted).FontSize(12)

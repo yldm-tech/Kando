@@ -1,6 +1,23 @@
 package main
 
-import "github.com/egoist/mygo/ui"
+import (
+	_ "embed"
+
+	"github.com/egoist/mygo/ui"
+)
+
+//go:embed resources/icon.png
+var appIconPNG []byte
+
+var appLogo = mustDecodeLogo(appIconPNG)
+
+func mustDecodeLogo(data []byte) *ui.Bitmap {
+	bmp, err := ui.DecodeBitmap(data)
+	if err != nil {
+		panic(err)
+	}
+	return bmp
+}
 
 func icon(src string) *ui.SVG {
 	parsed, err := ui.ParseSVG([]byte(src))
