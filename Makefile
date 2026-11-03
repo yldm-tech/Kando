@@ -6,7 +6,7 @@ test:
 	go test ./apps/lingocut/...
 
 dev:
-	go tool mygo dev -C apps/lingocut
+	go tool mygo dev apps/lingocut
 
 build:
-	go tool mygo build -C apps/lingocut
+	go tool mygo build apps/lingocut
