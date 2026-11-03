@@ -3,28 +3,56 @@
 package main
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"syscall"
 )
 
-// pcmAudio plays the video file's own audio with afplay. Pause stops the process and resume continues it, so the sound stays with the picture.
+// pcmAudio plays the video's audio. YouTube downloads are often Opus, which afplay reports as a zero-length track, so ffplay is used when it sits beside ffmpeg.
 type pcmAudio struct {
-	path   string
+	name   string
+	args   []string
 	cmd    *exec.Cmd
 	mu     sync.Mutex
 	once   sync.Once
 	exited chan struct{}
 }
 
-func openPCM(_, path string) (*pcmAudio, error) {
-	if path == "" {
-		return nil, exec.ErrNotFound
-	}
-	if _, err := exec.LookPath("afplay"); err != nil {
+func openPCM(ffmpeg, path string) (*pcmAudio, error) {
+	name, args, err := audioCommand(ffmpeg, path)
+	if err != nil {
 		return nil, err
 	}
-	return &pcmAudio{path: path, exited: make(chan struct{})}, nil
+	return &pcmAudio{name: name, args: args, exited: make(chan struct{})}, nil
+}
+
+func audioCommand(ffmpeg, path string) (string, []string, error) {
+	if path == "" {
+		return "", nil, exec.ErrNotFound
+	}
+	if ffplay := ffplayPath(ffmpeg); ffplay != "" {
+		return ffplay, []string{"-nodisp", "-autoexit", "-vn", "-loglevel", "error", path}, nil
+	}
+	if _, err := exec.LookPath("afplay"); err != nil {
+		return "", nil, err
+	}
+	return "afplay", []string{path}, nil
+}
+
+func ffplayPath(ffmpeg string) string {
+	if ffmpeg != "" {
+		candidate := filepath.Join(filepath.Dir(ffmpeg), "ffplay")
+		st, err := os.Stat(candidate)
+		if err == nil && !st.IsDir() && st.Mode()&0o111 != 0 {
+			return candidate
+		}
+	}
+	if p, err := exec.LookPath("ffplay"); err == nil {
+		return p
+	}
+	return ""
 }
 
 func (a *pcmAudio) Start() {
@@ -36,7 +64,7 @@ func (a *pcmAudio) Start() {
 	if a.cmd != nil {
 		return
 	}
-	cmd := exec.Command("afplay", a.path)
+	cmd := exec.Command(a.name, a.args...)
 	if err := cmd.Start(); err != nil {
 		return
 	}
