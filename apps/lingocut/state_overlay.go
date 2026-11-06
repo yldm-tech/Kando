@@ -51,7 +51,15 @@ var cheatsheetLayout = []struct {
 	{"播放", []cheatsheetLine{
 		{"播放 / 暂停", []cheatsheet.Combo{{Key: ui.KeySpace}}},
 		{"后退 / 前进 5 秒", []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}},
+		{"后退 / 前进 30 秒", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyLeft}, {Mods: ui.Cmd, Key: ui.KeyRight}}},
 		{"", []cheatsheet.Combo{{Key: ui.KeyF}}},
+	}},
+	{"字幕", []cheatsheetLine{
+		{"显示 / 隐藏", []cheatsheet.Combo{{Key: ui.KeyV}}},
+		{"切换显示方式", []cheatsheet.Combo{{Key: ui.KeyS}}},
+		{"字幕延迟 −/+ 0.1 秒", []cheatsheet.Combo{{Key: ui.KeyZ}, {Key: ui.KeyX}}},
+		{"侧栏", []cheatsheet.Combo{{Mods: ui.Cmd | ui.Shift, Key: ui.KeyT}}},
+		{"搜索台词", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyF}}},
 	}},
 	{"窗口", []cheatsheetLine{
 		{"", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeySlash}}},
@@ -67,8 +75,10 @@ type cheatsheetLine struct {
 }
 
 // cheatsheetGroups is the shortcut table as the cheat sheet lists it: the groups and lines of cheatsheetLayout, then every row the layout does not place, under its menu's group (grouped, menu.go), in a group of the layout of that name or in a group of its own after them. So the sheet lists the whole table, and a row an area adds shows on it before the layout names it.
-func (a *app) cheatsheetGroups() []cheatsheet.Group {
-	rows := a.shortcuts()
+func (a *app) cheatsheetGroups() []cheatsheet.Group { return cheatsheetGroupsOf(a.shortcuts()) }
+
+// cheatsheetGroupsOf arranges rows of the shortcut table as cheatsheetGroups describes.
+func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
 	labels := map[cheatsheet.Combo]string{}
 	for _, s := range rows {
 		k := cheatsheet.Combo{Mods: s.Mods, Key: s.Key}

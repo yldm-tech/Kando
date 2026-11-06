@@ -167,6 +167,44 @@ func TestCheatsheetFollowsThePrototypeLayout(t *testing.T) {
 	}
 }
 
+// TestCheatsheetPlacesOtherAreasRows checks the layout against a fixed table, so rows another area adds land where the prototype's sheet puts them and cannot change this test: the 30-second skips join under 播放, the subtitle keys and ⇧⌘T form 字幕 right after 播放, a row the layout does not name (⌘=) joins its menu's group, and a group the layout does not know follows the layout's groups.
+func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
+	rows := []shortcut{
+		{Group: "播放", Label: "播放/暂停", Key: ui.KeySpace},
+		{Group: "播放", Label: "后退 5 秒", Key: ui.KeyLeft},
+		{Group: "播放", Label: "前进 5 秒", Key: ui.KeyRight},
+		{Group: "播放", Label: "后退 30 秒", Mods: ui.Cmd, Key: ui.KeyLeft},
+		{Group: "播放", Label: "前进 30 秒", Mods: ui.Cmd, Key: ui.KeyRight},
+		{Group: "字幕", Label: "显示/隐藏字幕", Key: ui.KeyV},
+		{Group: "字幕", Label: "切换原文/译文/双语", Key: ui.KeyS},
+		{Group: "字幕", Label: "字幕提前 0.1 秒", Key: ui.KeyZ},
+		{Group: "字幕", Label: "字幕推后 0.1 秒", Key: ui.KeyX},
+		{Group: "字幕", Label: "放大字幕", Mods: ui.Cmd, Key: ui.KeyEqual},
+		{Group: "字幕", Label: "搜索字幕", Mods: ui.Cmd, Key: ui.KeyF},
+		{Group: "显示", Label: "显示/隐藏侧栏", Mods: ui.Cmd | ui.Shift, Key: ui.KeyT},
+		{Group: "显示", Label: "全屏", Key: ui.KeyF},
+		{Group: "窗口", Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash},
+		{Group: "学习", Label: "复习", Key: ui.KeyR},
+	}
+	var got []string
+	for _, g := range cheatsheetGroupsOf(rows) {
+		line := g.Title + ":"
+		for _, k := range g.Keys {
+			line += " " + k.Label
+		}
+		got = append(got, line)
+	}
+	want := []string{
+		"播放: 播放 / 暂停 后退 / 前进 5 秒 后退 / 前进 30 秒 全屏",
+		"字幕: 显示 / 隐藏 切换显示方式 字幕延迟 −/+ 0.1 秒 侧栏 搜索台词 放大字幕",
+		"窗口: 快捷键速查",
+		"学习: 复习",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("cheat sheet groups\n%q\nwant\n%q", got, want)
+	}
+}
+
 // TestCheatsheetIsDark checks that the cheat sheet is drawn in the player's dark theme over the light window, as dark glass: its tint, rgb(28, 28, 32) at 86%, over the blurred white window under the sheet's scrim, black at 25%, gives about rgb(51, 51, 54).
 func TestCheatsheetIsDark(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
