@@ -24,8 +24,8 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 	if !tt.HasText("talk") || !tt.HasText("已完成") {
 		t.Fatalf("texts %q after the job", tt.Texts())
 	}
-	if !tt.HasText("1 部影片") || !tt.HasText("1") {
-		t.Fatalf("texts %q missing the count", tt.Texts())
+	if n := sidebarCount(t, tt, "全部影片"); n != "1" {
+		t.Fatalf("全部影片 shows %q films, texts %q", n, tt.Texts())
 	}
 
 	reloaded, err := shelf.Load(path)
