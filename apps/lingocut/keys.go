@@ -17,7 +17,9 @@ type shortcut struct {
 	Key   ui.Key
 	// When reports whether the shortcut applies now; nil means always.
 	When func() bool
-	Run  func()
+	// Checked reports whether the menu bar shows a ✓ by the row, as by the screen the window shows now; nil means the row is a plain command.
+	Checked func() bool
+	Run     func()
 }
 
 // shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go and the menu bar's in state_menu.go.

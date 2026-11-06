@@ -2,11 +2,12 @@ package main
 
 import "github.com/egoist/mygo"
 
-// The system file dialogs. They run off the UI thread and report back through update.
+// The system file dialogs. They run off the UI thread and report back through update. Each holds the window's modal flag (holdModal) until it reports.
 
 func (a *app) pickVideos() {
 	win := a.win
 	update := a.update
+	release := a.holdModal()
 	go func() {
 		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
 			Parent:      win,
@@ -16,6 +17,7 @@ func (a *app) pickVideos() {
 			Filters:     []mygo.FileFilter{{Name: "视频", Extensions: []string{"mp4", "m4v", "mov", "mkv", "webm", "avi", "flv"}}},
 		})
 		update(func() {
+			release()
 			if err != nil {
 				a.queue.status = err.Error()
 				return
@@ -30,6 +32,7 @@ func (a *app) pickVideos() {
 func (a *app) pickFolder(title, button, current string, done func(string)) {
 	win := a.win
 	update := a.update
+	release := a.holdModal()
 	go func() {
 		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
 			Parent:            win,
@@ -40,6 +43,7 @@ func (a *app) pickFolder(title, button, current string, done func(string)) {
 			DefaultPath:       current,
 		})
 		update(func() {
+			release()
 			if err != nil {
 				a.saveErr = err.Error()
 				return

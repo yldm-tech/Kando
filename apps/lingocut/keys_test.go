@@ -207,3 +207,22 @@ func TestPlayerKeysAfterTheFilmLeaves(t *testing.T) {
 		}
 	}
 }
+
+// TestModalDialogsNest checks the window's modal flag: it stays up while any dialog holds it, as a file panel opened from a sheet does, and a release that runs twice counts once.
+func TestModalDialogsNest(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	if a.modalOpen() {
+		t.Fatal("modal open on a new window")
+	}
+	sheet := a.holdModal()
+	panel := a.holdModal()
+	panel()
+	panel()
+	if !a.modalOpen() {
+		t.Fatal("closing the file panel closed the sheet's hold too")
+	}
+	sheet()
+	if a.modalOpen() {
+		t.Fatalf("modal still open after every dialog closed: %d", a.overlay.modal)
+	}
+}
