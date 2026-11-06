@@ -114,8 +114,8 @@ func TestViewCancelsRunningJob(t *testing.T) {
 	}
 }
 
-// TestFilmPageCancelsTheFilmItShows checks that 取消 on an open film cancels that film's job through Cancel(id), and that RunningJob names the job while it runs.
-func TestFilmPageCancelsTheFilmItShows(t *testing.T) {
+// TestFilmCancelStopsItsOwnJob checks that 取消 on an open film cancels that film's job through Cancel(id), and that RunningJob names the job while it runs.
+func TestFilmCancelStopsItsOwnJob(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{block: true})
 	if err := a.Enqueue("https://example.com/v"); err != nil {
 		t.Fatal(err)
