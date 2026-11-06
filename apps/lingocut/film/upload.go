@@ -43,7 +43,7 @@ func (s screen) uploadCapsule(c *ui.Context, item films.Film) {
 				}
 			}
 			c.Key("film-upload-close")
-			if flatIconButton(c, iconClose, "关闭提示").Shrink(0).Clicked() {
+			if breeze.FlatIconButton(c, iconClose, "关闭提示").Shrink(0).Clicked() {
 				*note = false
 			}
 		})

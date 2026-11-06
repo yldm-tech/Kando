@@ -12,7 +12,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// topBar is the player's title bar over the picture: the back button, the film's title and where it stands, and the film's actions. It is the platform's header bar without its face, so the picture shows through it; it keeps clear of the window controls and moves the window when dragged. In the content column beside the sidebar it is paneHeaderBar, which starts at the column's edge. It fades with the transport.
+// topBar is the player's title bar over the picture: the back button, the film's title and where it stands, and the film's actions. It is the platform's header bar without its face, so the picture shows through it; it keeps clear of the window controls and moves the window when dragged. In the content column beside the sidebar it starts at the column's edge, the traffic lights being over the sidebar. It fades with the transport.
 func (s screen) topBar(c *ui.Context, item films.Film, fade float32, shown bool) {
 	holder := ui.Column(c).Absolute().Left(0).Top(0).Right(0).Opacity(fade)
 	if !shown {
@@ -20,13 +20,9 @@ func (s screen) topBar(c *ui.Context, item films.Film, fade float32, shown bool)
 	}
 	holder.Children(func() {
 		c.Key("film-top")
-		header := breeze.HeaderBar
-		if !s.FillsWindow() {
-			header = paneHeaderBar
-		}
-		bar := header(c, title(item), s.status(item), func() {
+		bar := breeze.HeaderBar(c, title(item), s.status(item), func() {
 			c.Key("film-back")
-			if flatIconButton(c, iconChevronLeft, "返回资料库").Clicked() {
+			if breeze.FlatIconButton(c, iconChevronLeft, "返回资料库").Clicked() {
 				s.SetOpenKey("")
 				s.StopPlayback()
 			}
@@ -83,13 +79,13 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 	}
 	if path != "" {
 		c.Key("film-reveal")
-		if flatIconButton(c, iconFolder, "在访达中显示").Clicked() {
+		if breeze.FlatIconButton(c, iconFolder, "在访达中显示").Clicked() {
 			s.Reveal(path)
 		}
 	}
 	if view := s.UploadView(item); view.Show {
 		c.Key("film-upload")
-		if iconLabelButton(c, nil, view.Label).Clicked() {
+		if breeze.IconLabelButton(c, nil, view.Label).Clicked() {
 			*s.UploadNote() = true
 			if view.Enabled {
 				s.BeginUpload(item)
@@ -99,7 +95,7 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 	// A finished film can be processed again from the start, as the prototype's ⋯ menu offers; a failed one has 重试 already.
 	if item.JobID != "" && item.Stage == core.StageComplete && s.RunningJob() == "" {
 		c.Key("film-more")
-		flatIconButton(c, iconMore, "更多操作").Menu(func(m *ui.Menu) {
+		breeze.FlatIconButton(c, iconMore, "更多操作").Menu(func(m *ui.Menu) {
 			if m.Item("重新处理整部影片").Chosen() {
 				s.RetryOpen(item.JobID)
 			}

@@ -69,7 +69,7 @@ func (s screen) subsTab(c *ui.Context, t *ui.Theme, item films.Film) {
 	ready := subs.Key == item.Key && subs.Ready
 	ui.Column(c).Padding(0, 14, 8, 14).Gap(8).Children(func() {
 		c.Key("film-search")
-		field := breeze.SearchField(c, s.Search()).Placeholder("搜索台词  " + shortcutText(c, ui.Cmd, ui.KeyF)).Label("搜索台词")
+		field := breeze.SearchField(c, s.Search()).Placeholder("搜索台词  " + breeze.ShortcutText(c, ui.Cmd, ui.KeyF)).Label("搜索台词")
 		if focus := s.SearchFocus(); *focus {
 			field.Focus()
 			*focus = false

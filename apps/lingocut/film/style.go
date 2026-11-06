@@ -29,7 +29,7 @@ func (s screen) styleView(c *ui.Context) {
 	changed := false
 	ui.Row(c).Gap(6).Padding(12, 12, 8, 12).AlignItems(ui.Center).Children(func() {
 		c.Key("film-style-back")
-		if flatIconButton(c, iconChevronLeft, "返回侧栏").Clicked() {
+		if breeze.FlatIconButton(c, iconChevronLeft, "返回侧栏").Clicked() {
 			s.SetStyleView(false)
 		}
 		ui.Text(c, "字幕样式").FontSize(14).Bold()

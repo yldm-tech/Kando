@@ -182,8 +182,6 @@ func (a *app) ToggleFullScreen() {
 	}
 }
 
-func (a *app) FillsWindow() bool { return a.filmFillsWindow() }
-
 // filmFillsWindow reports whether the open film takes the whole window, without the sidebar and the page's padding and under the title bar. A film opened from 全部影片 does.
 func (a *app) filmFillsWindow() bool { return a.page == pageFilms && a.openKey != "" }
 

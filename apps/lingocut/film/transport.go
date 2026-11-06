@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
@@ -23,12 +24,12 @@ func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool) 
 	bar.Children(func() {
 		ui.Row(c).Gap(2).AlignItems(ui.Center).Shrink(0).Children(func() {
 			c.Key("film-back5")
-			if flatIconButton(c, iconBack5, "后退 5 秒").Tooltip("后退 5 秒 " + shortcutText(c, 0, ui.KeyLeft)).Clicked() {
+			if breeze.FlatIconButton(c, iconBack5, "后退 5 秒").Tooltip("后退 5 秒 " + breeze.ShortcutText(c, 0, ui.KeyLeft)).Clicked() {
 				s.Skip(-5 * time.Second)
 			}
 			s.playButton(c)
 			c.Key("film-forward5")
-			if flatIconButton(c, iconForward5, "前进 5 秒").Tooltip("前进 5 秒 " + shortcutText(c, 0, ui.KeyRight)).Clicked() {
+			if breeze.FlatIconButton(c, iconForward5, "前进 5 秒").Tooltip("前进 5 秒 " + breeze.ShortcutText(c, 0, ui.KeyRight)).Clicked() {
 				s.Skip(5 * time.Second)
 			}
 		})
@@ -48,11 +49,11 @@ func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool) 
 			s.modeMenu(c, t)
 			c.Key("film-panel")
 			on := s.Panel()
-			if flatToggle(c, &on, iconPanel, "侧栏").Tooltip("侧栏 " + shortcutText(c, ui.Shift|ui.Cmd, ui.KeyT)).Changed() {
+			if breeze.FlatToggle(c, &on, iconPanel, "侧栏").Tooltip("侧栏 " + breeze.ShortcutText(c, ui.Shift|ui.Cmd, ui.KeyT)).Changed() {
 				s.TogglePanel()
 			}
 			c.Key("film-full")
-			if flatIconButton(c, iconFullScreen, "全屏").Tooltip("全屏 F").Clicked() {
+			if breeze.FlatIconButton(c, iconFullScreen, "全屏").Tooltip("全屏 F").Clicked() {
 				s.ToggleFullScreen()
 			}
 		})
@@ -64,13 +65,13 @@ func (s screen) playButton(c *ui.Context) {
 	c.Key("film-play")
 	switch {
 	case s.Play() == nil:
-		flatIconButton(c, iconPlay, "正在打开").Disabled(true)
+		breeze.FlatIconButton(c, iconPlay, "正在打开").Disabled(true)
 	case s.Play().Playing():
-		if flatIconButton(c, iconPause, "暂停").Tooltip("暂停 空格").Clicked() {
+		if breeze.FlatIconButton(c, iconPause, "暂停").Tooltip("暂停 空格").Clicked() {
 			s.togglePlay(c)
 		}
 	default:
-		if flatIconButton(c, iconPlay, "播放").Tooltip("播放 空格").Clicked() {
+		if breeze.FlatIconButton(c, iconPlay, "播放").Tooltip("播放 空格").Clicked() {
 			s.togglePlay(c)
 		}
 	}

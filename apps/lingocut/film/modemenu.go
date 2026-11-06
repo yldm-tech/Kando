@@ -37,7 +37,7 @@ func (s screen) modeMenu(c *ui.Context, t *ui.Theme) {
 	c.Key("film-mode")
 	name := ModeName(s.SubMode())
 	open := s.ModeMenu()
-	btn := iconLabelButton(c, iconSubtitles, name).Label("字幕：" + name).Tooltip("字幕 " + shortcutText(c, 0, ui.KeyS) + " / " + shortcutText(c, 0, ui.KeyV))
+	btn := breeze.IconLabelButton(c, iconSubtitles, name).Label("字幕：" + name).Tooltip("字幕 " + breeze.ShortcutText(c, 0, ui.KeyS) + " / " + breeze.ShortcutText(c, 0, ui.KeyV))
 	if btn.Clicked() {
 		*open = !*open
 	}
@@ -83,7 +83,7 @@ func (s screen) modeRow(c *ui.Context, t *ui.Theme, mode, note string, key ui.Ke
 				breeze.Text(c, note, breeze.TextCaption|breeze.TextSecondary).Wrap()
 			}
 		})
-		breeze.Text(c, shortcutText(c, 0, key), breeze.TextCaption|breeze.TextSecondary).Shrink(0)
+		breeze.Text(c, breeze.ShortcutText(c, 0, key), breeze.TextCaption|breeze.TextSecondary).Shrink(0)
 	})
 }
 

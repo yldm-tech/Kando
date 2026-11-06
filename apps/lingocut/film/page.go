@@ -86,8 +86,6 @@ type App interface {
 	OpenSettings(section string)
 	// ToggleFullScreen enters or leaves full screen.
 	ToggleFullScreen()
-	// FillsWindow reports whether the film takes the whole window, as one opened from 全部影片 does, or shows in the content column beside the sidebar.
-	FillsWindow() bool
 }
 
 // Upload is the manual upload of a film that already has a local video to the storage set in 账号.
