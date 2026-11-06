@@ -173,6 +173,81 @@ func TestMenuWaitsBehindTheCheatsheet(t *testing.T) {
 	}
 }
 
+// TestMenuKeepsMygosDefaultCommands checks that the menu bar keeps what the one mygo installs for an app without its own has beyond the table: ⌃⌘F full screen on every page, not only with a film open, and the Edit menu's 粘贴并匹配样式 and 语音.
+func TestMenuKeepsMygosDefaultCommands(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.Frame()
+	menu := mygo.NewMenu(a.menuBar())
+	var full *mygo.MenuItem
+	roles := map[mygo.MenuRole]bool{}
+	var walk func([]*mygo.MenuItem)
+	walk = func(items []*mygo.MenuItem) {
+		for _, it := range items {
+			roles[it.Role] = true
+			if it.Role == mygo.RoleToggleFullScreen {
+				full = it
+			}
+			walk(it.Submenu)
+		}
+	}
+	for _, m := range menu.Items() {
+		if m.Label == "显示" {
+			walk(m.Submenu)
+		}
+	}
+	if full == nil || full.Disabled {
+		t.Fatalf("显示 has no enabled full screen item without a film: %+v", full)
+	}
+	if full.Accelerator != "Ctrl+Cmd+F" {
+		t.Fatalf("full screen accelerator %q", full.Accelerator)
+	}
+	for _, m := range menu.Items() {
+		if m.Label == "编辑" {
+			walk(m.Submenu)
+		}
+	}
+	for _, role := range []mygo.MenuRole{mygo.RolePasteAndMatchStyle, mygo.RoleStartSpeaking, mygo.RoleStopSpeaking} {
+		if !roles[role] {
+			t.Fatalf("编辑 has no %q item", role)
+		}
+	}
+}
+
+// TestMenuWaitsBehindAFilePanel checks that while a file panel is up as a sheet over the window, every menu bar command waits, the cheat sheet's too, and that a click from a menu built before the panel came up does nothing.
+func TestMenuWaitsBehindAFilePanel(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	tt.Frame()
+	library := findMenuItem(t, a.menuBar(), "文件", "新建资料库…")
+	settings := findMenuItem(t, a.menuBar(), "LingoCut", "设置…")
+	sheet := findMenuItem(t, a.menuBar(), "帮助", "快捷键速查")
+	release := a.holdModal()
+	tt.Frame()
+	bar := a.menuBar()
+	for _, it := range []struct{ menu, label string }{{"文件", "打开资料库…"}, {"文件", "新建资料库…"}, {"文件", "打开本地视频…"}, {"文件", "在访达中显示资料库"}, {"LingoCut", "设置…"}, {"窗口", "片库"}, {"帮助", "快捷键速查"}} {
+		if !findMenuItem(t, bar, it.menu, it.label).Disabled {
+			t.Fatalf("%s › %s enabled behind a file panel", it.menu, it.label)
+		}
+	}
+	choose(t, library, updates)
+	if a.snap().MakingLibrary {
+		t.Fatal("新建资料库… ran behind a file panel")
+	}
+	choose(t, settings, updates)
+	if a.prefs.open {
+		t.Fatalf("设置… ran behind a file panel: settings open at %q", a.prefs.section)
+	}
+	choose(t, sheet, updates)
+	if a.overlay.cheatsheet {
+		t.Fatal("快捷键速查 opened the cheat sheet behind a file panel")
+	}
+	// Once the panel has closed, the commands run again.
+	release()
+	tt.Frame()
+	if findMenuItem(t, a.menuBar(), "LingoCut", "设置…").Disabled {
+		t.Fatal("设置… still disabled after the file panel closed")
+	}
+}
+
 // TestSyncMenuInstallsOnlyChanges checks that the installed menu bar is replaced when what it shows changes, and left alone by frames that change none of it.
 func TestSyncMenuInstallsOnlyChanges(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})

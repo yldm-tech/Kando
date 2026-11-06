@@ -63,7 +63,7 @@ func (a *app) syncMenu() {
 	mygo.App.SetMenu(mygo.NewMenu(items))
 }
 
-// menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog is up, none of the rows are (holds).
+// menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up as a sheet, none of the rows are (holds).
 func (a *app) menuBar() []*mygo.MenuItem {
 	order, rows := grouped(a.shortcuts())
 	own := map[[2]int]bool{}
@@ -100,8 +100,13 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			menu = &mygo.MenuItem{Label: group, Submenu: then(then(items(group), reveal), &mygo.MenuItem{Label: "关闭窗口", Role: mygo.RoleClose})}
 		case "编辑":
 			sub := []*mygo.MenuItem{{Label: "撤销", Role: mygo.RoleUndo}, {Label: "重做", Role: mygo.RoleRedo}}
-			sub = then(sub, &mygo.MenuItem{Label: "剪切", Role: mygo.RoleCut}, &mygo.MenuItem{Label: "拷贝", Role: mygo.RoleCopy}, &mygo.MenuItem{Label: "粘贴", Role: mygo.RolePaste}, &mygo.MenuItem{Label: "删除", Role: mygo.RoleDelete}, &mygo.MenuItem{Label: "全选", Role: mygo.RoleSelectAll})
+			// 粘贴并匹配样式 and 语音 keep what the Edit menu of the menu bar mygo installs for an app without its own has.
+			sub = then(sub, &mygo.MenuItem{Label: "剪切", Role: mygo.RoleCut}, &mygo.MenuItem{Label: "拷贝", Role: mygo.RoleCopy}, &mygo.MenuItem{Label: "粘贴", Role: mygo.RolePaste}, &mygo.MenuItem{Label: "粘贴并匹配样式", Role: mygo.RolePasteAndMatchStyle}, &mygo.MenuItem{Label: "删除", Role: mygo.RoleDelete}, &mygo.MenuItem{Label: "全选", Role: mygo.RoleSelectAll})
+			sub = then(sub, &mygo.MenuItem{Label: "语音", Submenu: []*mygo.MenuItem{{Label: "开始讲话", Role: mygo.RoleStartSpeaking}, {Label: "停止讲话", Role: mygo.RoleStopSpeaking}}})
 			menu = &mygo.MenuItem{Label: group, Submenu: then(sub, items(group)...)}
+		case "显示":
+			// 切换全屏幕 keeps ⌃⌘F on every page, as the View menu of the menu bar mygo installs for an app without its own has it. The table's 全屏 is the player's single key F, which works only while a film is open.
+			menu = &mygo.MenuItem{Label: group, Submenu: then(items(group), &mygo.MenuItem{Label: "切换全屏幕", Role: mygo.RoleToggleFullScreen})}
 		case "窗口":
 			sub := then([]*mygo.MenuItem{{Label: "最小化", Role: mygo.RoleMinimize}, {Label: "缩放", Role: mygo.RoleZoom}}, items(group)...)
 			sub = then(sub, &mygo.MenuItem{Label: "前置全部窗口", Role: mygo.RoleFront})
