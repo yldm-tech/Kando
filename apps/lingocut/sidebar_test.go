@@ -22,25 +22,83 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestSidebarKeepsContentBelowTheTitleBar checks that the drag band under the title bar pushes the content beside the sidebar down: by the title bar's height, and on macOS by no more than the sidebar card's top row, though the real window's title bar is 64 points tall with the traffic lights moved into that row. The sidebar clears the traffic lights in its own card (TestSidebarCardClearsTheTrafficLights).
+// TestSidebarKeepsContentBelowTheTitleBar checks the drag band over the content by the rule contentBand follows: a page that draws its own header bar at its top (pageOwnsTitleBar) owns the room under the title bar and gets no band over it, so nothing on it moves down as far as a band would push it; any other page gets the band, which moves its top down by exactly the band's height and nothing on it further (what is centered in the room left moves half as far): the title bar's height, and on macOS no more than the sidebar card's top row, though the real window's title bar is 64 points tall with the traffic lights moved into that row. It reads only where the content's texts sit, not what the pages show, so it holds for whichever page draws a header bar: the library page beside the sidebar, and an open film that hides the sidebar. The sidebar clears the traffic lights in its own card (TestSidebarCardClearsTheTrafficLights).
 func TestSidebarKeepsContentBelowTheTitleBar(t *testing.T) {
 	// 64 and 84 are what mygo's TitleBar reports for the real macOS window, whose 14-point traffic lights sit at {24, 25}.
 	tall := float32(64)
 	if runtime.GOOS == "darwin" {
 		tall = sidebar.LightsRow
 	}
-	for _, c := range []struct {
-		bar  ui.TitleBar
-		want float32
+	open := func(a *app) {
+		a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+		a.openKey = "j"
+	}
+	for _, scene := range []struct {
+		name  string
+		setup func(*app)
 	}{
-		{ui.TitleBar{Height: 28, Left: 80}, 28},
-		{ui.TitleBar{Height: 64, Left: 84}, tall},
+		{"the library page", nil},
+		{"an open film", open},
 	} {
-		shifts, _ := titleBarShifts(t, c.bar, nil, "开始处理")
-		if d := shifts[0]; abs32(d-c.want) > 0.5 {
-			t.Fatalf("开始处理 moved %v under a %v-high title bar, want %v", d, c.bar.Height, c.want)
+		for _, c := range []struct {
+			bar  ui.TitleBar
+			band float32
+		}{
+			{ui.TitleBar{Height: 28, Left: 80}, 28},
+			{ui.TitleBar{Height: 64, Left: 84}, tall},
+		} {
+			owns, top, shifts := contentShifts(t, c.bar, scene.setup)
+			if !owns && abs32(shifts[top]-c.band) > 0.5 {
+				t.Fatalf("%s draws no header bar of its own, yet its top text %q moved %v under a %v-high title bar, want the drag band's %v", scene.name, top, shifts[top], c.bar.Height, c.band)
+			}
+			for text, d := range shifts {
+				if owns && d >= c.band-0.5 {
+					t.Fatalf("%s draws its own header bar, yet %q moved %v under a %v-high title bar, as far as a %v-high drag band over it would push it", scene.name, text, d, c.bar.Height, c.band)
+				}
+				if !owns && d > c.band+0.5 {
+					t.Fatalf("%s draws no header bar of its own, yet %q moved %v under a %v-high title bar, further than the drag band's %v", scene.name, text, d, c.bar.Height, c.band)
+				}
+			}
 		}
 	}
+}
+
+// contentShifts renders the window without a title bar and with bar, after setup, and returns whether the page in the content column draws its own header bar (pageOwnsTitleBar), the column's top text without a title bar, and how far down bar moved each text in that column, right of the sidebar while it shows.
+func contentShifts(t *testing.T, bar ui.TitleBar, setup func(*app)) (owns bool, top string, shifts map[string]float32) {
+	t.Helper()
+	plain, plainTT, _ := newTestApp(&fakePipeline{})
+	barred, barredTT, _ := newTestApp(&fakePipeline{})
+	barredTT.SetTitleBar(bar)
+	if setup != nil {
+		setup(plain)
+		setup(barred)
+	}
+	plainTT.Frame()
+	barredTT.Frame()
+	left := float32(0)
+	if plain.sidebarShown() {
+		left = sidebar.Width
+	}
+	shifts = map[string]float32{}
+	topY := float32(0)
+	for _, text := range plainTT.Texts() {
+		before, _ := plainTT.Find(text)
+		if before.X < left {
+			continue
+		}
+		if top == "" || before.Y < topY {
+			top, topY = text, before.Y
+		}
+		after, ok := barredTT.Find(text)
+		if !ok {
+			t.Fatalf("%q shown without a title bar is missing under one: %q", text, barredTT.Texts())
+		}
+		shifts[text] = after.Y - before.Y
+	}
+	if len(shifts) == 0 {
+		t.Fatalf("no text right of x=%v in %q", left, plainTT.Texts())
+	}
+	return barred.pageOwnsTitleBar(), top, shifts
 }
 
 // sidebarCount is the count the sidebar shows after label, the text that follows it.
