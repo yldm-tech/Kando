@@ -21,7 +21,7 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 	a.openLibrary(path)
 	startJob(t, tt, "https://example.com/video")
 	settle(t, a, tt, updates)
-	if !tt.HasText("talk") || !tt.HasText("已完成") {
+	if !tt.HasText("talk") || !tt.HasText("最近完成") {
 		t.Fatalf("texts %q after the job", tt.Texts())
 	}
 	if !tt.HasText("1 部影片") || !tt.HasText("1") {
@@ -52,7 +52,7 @@ func TestYouTubeJobNameUsesTheVideoID(t *testing.T) {
 }
 
 func TestFilmColumnsFollowTheWindow(t *testing.T) {
-	if films.Columns(900) != 2 || films.Columns(1100) != 2 || films.Columns(1680) != 4 || films.Columns(700) != 1 {
+	if films.Columns(900) != 2 || films.Columns(1100) != 3 || films.Columns(1680) != 5 || films.Columns(700) != 1 {
 		t.Fatalf("columns 900=%d 1100=%d 1680=%d 700=%d", films.Columns(900), films.Columns(1100), films.Columns(1680), films.Columns(700))
 	}
 }
@@ -95,7 +95,7 @@ func TestViewShowsDownloadedVideosInLibrary(t *testing.T) {
 	}
 }
 
-func TestDropImportsLocalVideo(t *testing.T) {
+func TestDropQueuesLocalVideo(t *testing.T) {
 	src := filepath.Join(t.TempDir(), "interview.mp4")
 	if err := os.WriteFile(src, []byte("video"), 0o644); err != nil {
 		t.Fatal(err)
@@ -110,8 +110,8 @@ func TestDropImportsLocalVideo(t *testing.T) {
 		t.Fatal("the library did not take the dropped file")
 	}
 	tt.Frame()
-	if a.queue.source != "file://"+src || a.queue.status != "已选择本地视频" {
-		t.Fatalf("source %q status %q texts %q", a.queue.source, a.queue.status, tt.Texts())
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "file://"+src || !tt.HasText("已加入，开始处理。") {
+		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
 	}
 }
 
@@ -136,8 +136,8 @@ func TestViewRejectsInvalidSource(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	startJob(t, tt, "not-a-url")
 	tt.Frame()
-	if a.queue.job != nil || !tt.HasText("video source must be a valid URL") {
-		t.Fatalf("texts %q after an invalid source", tt.Texts())
+	if a.queue.job != nil || !tt.HasText("这不像一个视频链接") || a.queue.source != "not-a-url" {
+		t.Fatalf("texts %q source %q after an invalid source", tt.Texts(), a.queue.source)
 	}
 }
 

@@ -1,14 +1,12 @@
 package films
 
 import (
-	"strings"
 	"time"
 
 	"lingocut/apps/lingocut/sidebar"
-	"lingocut/packages/core"
 
+	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // App is the shelf the films page reads and the clicks it reports.
@@ -19,24 +17,42 @@ type App interface {
 	Page() string
 	OpenKey() string
 	SetOpenKey(string)
+	// Source is the link being typed into the top bar.
 	Source() *string
-	Status() string
-	HasJob() bool
 	PlaybackOpen() bool
 	StopPlayback()
 	PickLibrary()
+	// BeginNew opens the new-library sheet.
+	BeginNew()
 	CancelMaking()
 	LibraryPlace() string
 	PickLibraryParent()
 	CreateLibrary()
 	BindName(edit func(*string) bool) error
+	// NewLibraryPath is where the new-library sheet would create the library, or why it cannot.
+	NewLibraryPath() (string, error)
+	// Start adds the link in the top bar to the queue, or says in the notice why it cannot.
 	Start()
+	// PickVideos asks for local videos and adds them to the queue.
 	PickVideos()
+	// DropFiles adds the videos among files dropped on the page to the queue.
+	DropFiles(paths []string)
 	Poster(path string) ui.ImageSource
-	EnsurePoster(path string)
+	// Duration is how long the video at path plays, 0 until it is known.
+	Duration(path string) time.Duration
+	// Quote is the first bilingual line of a film's subtitles, for the hero: the translation and the original. Both are empty until the subtitles have been read.
+	Quote(item Film) (translation, original string)
 	Open(item Film)
+	// OpenAt opens a film and starts its picture at at.
+	OpenAt(item Film, at time.Duration)
+	Reveal(path string)
+	// Reprocess makes the subtitles of a done film again.
+	Reprocess(item Film)
+	// Remove drops a job's card; its video, if any, stays in the library.
 	Remove(id string)
 	Retry(id string)
+	// FailureHint says, for a failed job, what went wrong and the settings section that fixes it ("" when none does).
+	FailureHint(item Film) (reason, section string)
 	JobFilm(id string) (Film, bool)
 	// SourceFilter is the sidebar source the page shows, sidebar.SourceAll or another sidebar.Source value.
 	SourceFilter() string
@@ -50,14 +66,30 @@ type App interface {
 	OpenSettings(section string)
 	// ResumeAt is where the video at path stopped playing last time, or 0.
 	ResumeAt(path string) time.Duration
+	// Notice is the message bar under the top bar.
+	Notice() *Notice
+	// QueueExpanded is whether 处理中 shows every card rather than the first QueueShown.
+	QueueExpanded() *bool
+	// AskRemove asks to confirm moving a film's folder to the Trash.
+	AskRemove(item Film)
+	// Removing is the film AskRemove asked about and whether its confirmation is open.
+	Removing() (open *bool, item Film)
+	// TrashFilm moves a film's folder to the Trash and takes it off the shelf.
+	TrashFilm(item Film)
 }
 
-// Show draws the shelf. showFilm draws the open film; the page stays here so the shelf does not import the player.
+// Notice is the message bar under the top bar: why a link or a file was not added, or that it was.
+type Notice struct {
+	// Kind is "warning" or "success", as breeze.InfoBar takes it.
+	Kind string
+	Text string
+	// Section is the settings section 打开设置 opens; empty shows no button.
+	Section string
+	Open    bool
+}
+
+// Show draws the library page, or the open film over it. showFilm draws the open film; the page stays here so the shelf does not import the player.
 func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Context, *ui.Theme, Film)) {
-	if a.LibraryDir() == "" || a.MakingLibrary() {
-		welcome(c, t, a)
-		return
-	}
 	if key := a.OpenKey(); key != "" {
 		if item, ok := Find(items, key); ok {
 			showFilm(c, t, item)
@@ -72,176 +104,67 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	if a.OpenKey() == "" && a.PlaybackOpen() {
 		a.StopPlayback()
 	}
-	running := a.RunningJob() != ""
-	ui.Row(c).Wrap().Gap(10).AlignItems(ui.Center).Children(func() {
-		ui.Row(c).Grow(1).MinWidth(240).Height(40).Radius(20).Background(t.Surface).Padding(0, 14).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, linkIcon).Size(15, 15).TextColor(t.TextMuted).Shrink(0)
-			field := ui.TextInputBase(c, a.Source()).Placeholder("粘贴视频链接，或把本地视频拖进来").Label("视频链接").Grow(1).Disabled(running)
-			if field.Submitted() && !running {
-				a.Start()
-			}
-		})
-		if running {
-			c.Key("cancel")
-			if breeze.Button(c, "取消").Shrink(0).Clicked() {
-				a.Cancel(a.RunningJob())
-			}
-		} else {
-			c.Key("files")
-			if breeze.Button(c, "本地文件").Shrink(0).Clicked() {
-				a.PickVideos()
-			}
-			c.Key("start")
-			if breeze.PrimaryButton(c, "开始处理").Shrink(0).Clicked() {
-				a.Start()
-			}
-		}
-	})
-	if !a.HasJob() && a.Status() != "" {
-		color := t.Danger
-		if a.Status() == "已选择本地视频" {
-			color = t.TextMuted
-		}
-		ui.Text(c, a.Status()).TextColor(color).Wrap()
-	}
 	source := a.SourceFilter()
 	if a.Page() == sidebar.PageYouTube {
 		source = sidebar.SourceYouTube
 	}
-	shown := BySource(items, source)
-	if len(shown) == 0 {
-		ui.Text(c, "还没有影片").TextColor(t.TextMuted)
-		return
+	page := ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch)
+	if files := page.DroppedFiles(); len(files) > 0 {
+		a.DropFiles(files)
 	}
-	ui.Scroll(c).Grow(1).Children(func() {
-		width, _ := c.Size()
-		ui.Grid(c).Columns(Columns(width)).Gap(sidebar.CardGap).AlignItems(ui.Start).Children(func() {
-			for _, item := range shown {
-				card(c, t, a, item)
-			}
-		})
-	})
-}
-
-func welcome(c *ui.Context, t *ui.Theme, a App) {
-	title := "先准备一个资料库"
-	if a.LibraryDir() != "" {
-		title = "新建资料库"
-	}
-	ui.Column(c).Grow(1).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-		ui.Column(c).Width(440).Gap(14).Children(func() {
-			ui.Text(c, title).FontSize(28).Bold()
-			ui.Text(c, "一个资料库是一个 .lingocut 文件夹，里面每个视频一个文件夹，访达里会带上图标。建好后从左上角的菜单切换。").TextColor(t.TextMuted).Wrap()
-			draft(c, t, a, "创建资料库")
-			if a.LibraryDir() == "" {
-				ui.Text(c, "已经有资料库").TextColor(t.TextMuted).FontSize(12)
-				if breeze.Button(c, "导入已有资料库").Clicked() {
-					a.PickLibrary()
-				}
-			} else if breeze.Button(c, "取消新建").Clicked() {
-				a.CancelMaking()
-			}
-			if a.SaveErr() != "" {
-				ui.Text(c, a.SaveErr()).TextColor(t.Danger).Wrap()
-			}
-		})
-	})
-}
-
-func draft(c *ui.Context, t *ui.Theme, a App, confirm string) {
-	ui.Text(c, "名称").TextColor(t.TextMuted).FontSize(12)
-	if err := a.BindName(func(value *string) bool {
-		return breeze.TextInput(c, value).Label("资料库名称").Placeholder("影视库").Changed()
-	}); err != nil {
-		ui.Text(c, err.Error()).TextColor(t.Danger)
-		return
-	}
-	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "位置").TextColor(t.TextMuted).Shrink(0)
-		ui.Text(c, DisplayPath(a.LibraryPlace())).Grow(1).TextColor(t.Text)
-		if breeze.Button(c, "更改位置").Clicked() {
-			a.PickLibraryParent()
+	dragging := page.FileDragOver()
+	page.Children(func() {
+		topBar(c, t, a, source)
+		notice(c, a)
+		if a.LibraryDir() == "" {
+			noLibrary(c, a)
+		} else {
+			shelf(c, t, a, items, source)
+		}
+		if dragging {
+			dropZone(c, t)
 		}
 	})
-	if breeze.PrimaryButton(c, confirm).Clicked() {
-		a.CreateLibrary()
-	}
+	newLibrary(c, t, a)
+	removeDialog(c, a)
 }
 
-func card(c *ui.Context, t *ui.Theme, a App, item Film) {
-	a.EnsurePoster(item.VideoPath)
-	col := ui.Column(c).WidthPercent(100).Gap(8).Cursor(ui.CursorPointer)
-	if col.Clicked() {
-		a.Open(item)
+// shelf is the scrolling part of the page: the hero, 处理中 and the done grid of the films from source.
+func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
+	shown := BySource(items, source)
+	if len(items) == 0 {
+		emptyLibrary(c, a)
+		return
 	}
-	col.Children(func() {
-		frame := ui.Box(c).Height(168).Radius(10).Clip().Background(posterColor(item.Key))
-		frame.Children(func() {
-			if img := a.Poster(item.VideoPath); img != nil {
-				ui.Image(c, img).WidthPercent(100).Height(168).Fit(ui.Cover)
-			}
-			ui.Column(c).Absolute().Left(10).Right(10).Bottom(10).Gap(6).Children(func() {
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-					if label := posterLabel(item); label != "" {
-						color := onPoster
-						if item.Stage == core.StageFailed && label != "已取消" {
-							color = t.Danger
-						}
-						ui.Text(c, label).TextColor(color).Bold()
+	if len(shown) == 0 {
+		emptySource(c, t)
+		return
+	}
+	var queue, done []Film
+	for _, item := range shown {
+		if InQueue(item) {
+			queue = append(queue, item)
+		} else {
+			done = append(done, item)
+		}
+	}
+	ui.Box(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
+		ui.Scroll(c).Grow(1).Children(func() {
+			ui.Column(c).WidthPercent(100).Gap(26).Padding(14, 0, 32, 0).Children(func() {
+				if source == sidebar.SourceAll {
+					if item, ok := HeroFilm(done); ok {
+						hero(c, a, item)
 					}
-					if item.JobID != "" && item.Stage == core.StageFailed && a.RunningJob() == "" {
-						if breeze.Button(c, "移除").Clicked() {
-							a.Remove(item.JobID)
-						}
-						if breeze.PrimaryButton(c, "重试").Clicked() {
-							a.Retry(item.JobID)
-						}
-					}
-				})
-				if note := posterNote(item); note != "" {
-					ui.Text(c, note).FontSize(12).TextColor(onPoster).Wrap()
+				}
+				if len(queue) > 0 {
+					queueSection(c, t, a, QueueOrder(queue))
+				}
+				if len(done) > 0 {
+					grid(c, t, a, done, source)
 				}
 			})
 		})
-		if item.JobID != "" && item.Stage == core.StageComplete {
-			ui.Text(c, "翻译").TextColor(t.Accent).FontSize(12)
-		}
-		name := item.Name
-		if name == "" {
-			name = item.Title
-		}
-		ui.Text(c, name).Wrap()
+		// The top of the shelf fades into the page as it scrolls under the top bar, as macOS fades content under a bar of controls.
+		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(14).PassThrough().Material(glass.ScrollEdge{Background: t.Background})
 	})
-}
-
-// onPoster is the text on a poster, which is a picture or a dark color in either theme.
-var onPoster = ui.Hex("#F5F5F7")
-
-func posterLabel(item Film) string {
-	if item.Stage == core.StageFailed && item.Detail == "已取消" {
-		return "已取消"
-	}
-	if item.Stage == "" {
-		return ""
-	}
-	return StageLabel(item.Stage)
-}
-
-func posterNote(item Film) string {
-	if item.Stage != core.StageFailed || item.Detail == "" || item.Detail == "已取消" {
-		return ""
-	}
-	detail := strings.TrimPrefix(item.Detail, "失败：")
-	switch {
-	case strings.Contains(detail, "LINGOCUT_WHISPER_MODEL"), strings.Contains(detail, "whisper model"):
-		return "先在「语音识别」里选一个模型"
-	case strings.Contains(detail, "is not installed"):
-		return "本机还没装好处理视频的程序"
-	case strings.Contains(detail, "EveryAPI is not signed in"):
-		return "先登录 EveryAPI，或在「AI 服务」里填 Key"
-	case strings.Contains(detail, "LINGOCUT_LLM_MODEL"):
-		return "先在「AI 服务」里填模型"
-	default:
-		return Shorten(detail, 42)
-	}
 }

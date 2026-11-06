@@ -19,6 +19,9 @@ func jobName(job core.Job) string {
 		return displayVideoName(job.VideoPath)
 	}
 	parsed, err := url.Parse(job.Source)
+	if err == nil && parsed.Scheme == "file" && parsed.Path != "" {
+		return displayVideoName(parsed.Path)
+	}
 	if err != nil || parsed.Host == "" {
 		return job.Source
 	}

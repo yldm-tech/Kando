@@ -89,7 +89,7 @@ func TestViewRunsJobToCompletion(t *testing.T) {
 	}
 
 	settle(t, a, tt, updates)
-	if !tt.HasText("已完成") || !tt.HasText("talk") {
+	if !tt.HasText("最近完成") || !tt.HasText("talk") || tt.HasText("处理中") {
 		t.Fatalf("texts %q after the job", tt.Texts())
 	}
 	if p.language != "简体中文" {
@@ -104,7 +104,7 @@ func TestViewCancelsRunningJob(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{block: true})
 	startJob(t, tt, "https://example.com/video")
 	tt.Frame()
-	if err := tt.Click("取消"); err != nil {
+	if err := tt.Click("取消处理"); err != nil {
 		t.Fatalf("%v; texts %q", err, tt.Texts())
 	}
 
