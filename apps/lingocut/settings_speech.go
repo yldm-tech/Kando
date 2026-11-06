@@ -15,11 +15,11 @@ import (
 // Settings › 语音识别 and 通用: the whisper model, its download, and the tools' versions.
 
 func (a *app) speechSearchDirs() []string {
-	dirs := []string{a.modelsDir}
+	dirs := []string{a.prefs.modelsDir}
 	if tools, ok := a.pipeline.(media.Tools); ok && tools.WhisperModel != "" {
 		dirs = append(dirs, filepath.Dir(tools.WhisperModel))
 	}
-	return append(dirs, a.extraModelDirs...)
+	return append(dirs, a.prefs.extraModelDirs...)
 }
 
 func (a *app) useSpeechModel(path string) {
@@ -36,20 +36,20 @@ func (a *app) useSpeechModel(path string) {
 
 func (a *app) downloadSpeechModel(id string) {
 	model, ok := media.SpeechModelByID(id)
-	if !ok || a.downloading != "" {
+	if !ok || a.prefs.downloading != "" {
 		return
 	}
-	if a.modelsDir == "" {
-		a.downloadErr = "还没有模型目录"
+	if a.prefs.modelsDir == "" {
+		a.prefs.downloadErr = "还没有模型目录"
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	a.downloading = id
-	a.downloadWritten = 0
-	a.downloadTotal = 0
-	a.downloadErr = ""
-	a.downloadCancel = cancel
-	dir := a.modelsDir
+	a.prefs.downloading = id
+	a.prefs.downloadWritten = 0
+	a.prefs.downloadTotal = 0
+	a.prefs.downloadErr = ""
+	a.prefs.downloadCancel = cancel
+	dir := a.prefs.modelsDir
 	update := a.update
 	go func() {
 		var last time.Time
@@ -59,22 +59,22 @@ func (a *app) downloadSpeechModel(id string) {
 			}
 			last = time.Now()
 			update(func() {
-				if a.downloading != id {
+				if a.prefs.downloading != id {
 					return
 				}
-				a.downloadWritten = written
-				a.downloadTotal = total
+				a.prefs.downloadWritten = written
+				a.prefs.downloadTotal = total
 			})
 		})
 		update(func() {
-			if a.downloading != id {
+			if a.prefs.downloading != id {
 				return
 			}
-			a.downloading = ""
-			a.downloadCancel = nil
+			a.prefs.downloading = ""
+			a.prefs.downloadCancel = nil
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
-					a.downloadErr = err.Error()
+					a.prefs.downloadErr = err.Error()
 				}
 				return
 			}
@@ -84,8 +84,8 @@ func (a *app) downloadSpeechModel(id string) {
 }
 
 func (a *app) cancelDownload() {
-	if a.downloadCancel != nil {
-		a.downloadCancel()
+	if a.prefs.downloadCancel != nil {
+		a.prefs.downloadCancel()
 	}
 }
 
@@ -105,8 +105,8 @@ func (a *app) loadToolVersions() {
 		return
 	}
 	paths := []string{tools.YTDLP, tools.FFmpeg, tools.Whisper}
-	a.versionGen++
-	gen := a.versionGen
+	a.prefs.versionGen++
+	gen := a.prefs.versionGen
 	update := a.update
 	go func() {
 		versions := map[string]string{}
@@ -119,10 +119,10 @@ func (a *app) loadToolVersions() {
 			}
 		}
 		update(func() {
-			if a.versionGen != gen {
+			if a.prefs.versionGen != gen {
 				return
 			}
-			a.toolVersions = versions
+			a.prefs.toolVersions = versions
 		})
 	}()
 }

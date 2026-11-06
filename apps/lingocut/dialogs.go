@@ -17,7 +17,7 @@ func (a *app) pickVideos() {
 		})
 		update(func() {
 			if err != nil {
-				a.status = err.Error()
+				a.queue.status = err.Error()
 				return
 			}
 			if len(paths) > 0 {

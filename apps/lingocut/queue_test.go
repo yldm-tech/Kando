@@ -48,11 +48,11 @@ func TestEnqueueSaysWhyASourceIsRefused(t *testing.T) {
 	if err := a.Enqueue("not a link"); err == nil {
 		t.Fatal("a bad link was added")
 	}
-	a.language = " "
+	a.prefs.language = " "
 	if err := a.Enqueue("https://example.com/v"); err == nil || err.Error() != "请填写目标语言" {
 		t.Fatalf("err %v", err)
 	}
-	a.language = "简体中文"
+	a.prefs.language = "简体中文"
 	a.edit(func(s *session) { s.LibraryDir = "" })
 	if err := a.Enqueue("https://example.com/v"); err == nil || err.Error() != "先创建或导入一个资料库" {
 		t.Fatalf("err %v", err)
@@ -74,6 +74,6 @@ func TestCancelLeavesOtherJobsAlone(t *testing.T) {
 	if !a.running() {
 		t.Fatal("the running job stopped")
 	}
-	a.Cancel(a.selectedID)
+	a.Cancel(a.queue.selectedID)
 	waitUntil(t, updates, func() bool { return !a.running() })
 }

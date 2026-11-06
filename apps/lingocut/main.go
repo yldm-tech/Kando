@@ -1,16 +1,13 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 
 	"lingocut/apps/lingocut/brand"
-	"lingocut/apps/lingocut/cloud"
 	"lingocut/apps/lingocut/shelf"
-	"lingocut/packages/core"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo"
@@ -18,94 +15,36 @@ import (
 	"github.com/yldm-tech/nodra"
 )
 
+// app is the window's state. The fields here are the ones every area shares: the shelf, the pipeline, the window and which page shows. Each area keeps its own state in a struct of its own, declared in that area's file; an area adds a field to its struct there, not to app.
 type app struct {
-	source           string
-	language         string
-	translatePrompt  string
-	translateContext bool
-	status           string
-	selectedID       string
-	saveErr          string
-	page             string
-	openKey          string
-	store            *nodra.Store[session]
-	libraryWatch     chan struct{}
-	settingsPath     string
-	modelsDir        string
-	extraModelDirs   []string
-	downloading      string
-	downloadWritten  int64
-	downloadTotal    int64
-	downloadErr      string
-	downloadCancel   context.CancelFunc
-	llmProvider      string
-	llmBase          string
-	llmModel         string
-	llmKey           string
-	showLLMKey       bool
-	llmCredential    func(context.Context, bool) (media.Endpoint, error)
-	testingLLM       bool
-	llmTestResult    string
-	toolVersions     map[string]string
-	versionGen       int
-	posterDir        string
-	posters          map[string]ui.ImageSource
-	posterMiss       map[string]bool
-	posterBusy       map[string]bool
-	googleEmail      string
-	googleRefresh    string
-	googleBusy       bool
-	googleErr        string
-	googleLogin      func(context.Context, cloud.GoogleConfig) (cloud.Account, error)
-	storage          string
-	r2Endpoint       string
-	r2Bucket         string
-	r2AccessKey      string
-	r2Secret         string
-	s3Region         string
-	s3Bucket         string
-	s3AccessKey      string
-	s3Secret         string
-	ossRegion        string
-	ossBucket        string
-	ossAccessKey     string
-	ossSecret        string
-	cosRegion        string
-	cosBucket        string
-	cosAccessKey     string
-	cosSecret        string
-	compatEndpoint   string
-	compatRegion     string
-	compatBucket     string
-	compatAccessKey  string
-	compatSecret     string
-	compatPath       bool
-	showR2Secret     bool
-	uploadPath       string
-	uploadWritten    int64
-	uploadTotal      int64
-	uploadErr        string
-	uploadErrPath    string
-	uploaded         map[string]string
-	uploader         func(context.Context, cloud.Store, []cloud.File, func(written, total int64)) error
-	removed          map[string]bool
-	job              *core.Job
-	library          shelf.Library
-	pipeline         media.Pipeline
-	win              *mygo.Window
-	lib              libraryUI
-	player           playerUI
-	overlay          overlayUI
+	saveErr      string
+	page         string
+	openKey      string
+	store        *nodra.Store[session]
+	libraryWatch chan struct{}
+	settingsPath string
+	library      shelf.Library
+	pipeline     media.Pipeline
+	win          *mygo.Window
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
-	cancel context.CancelFunc
+
+	side    sidebarUI  // state_sidebar.go
+	lib     libraryUI  // state_library.go
+	queue   jobQueue   // queue.go
+	player  playerUI   // state_player.go
+	prefs   settingsUI // state_settings.go
+	cloud   cloudUI    // state_cloud.go
+	overlay overlayUI  // state_overlay.go
+	menu    menuUI     // state_menu.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 	return &app{
-		language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true,
+		side:     newSidebarUI(),
 		lib:      newLibraryUI(),
 		player:   newPlayerUI(),
+		prefs:    newSettingsUI(),
 		store:    newSessionStore(),
 		pipeline: pipeline, update: update,
 	}
@@ -117,8 +56,8 @@ func main() {
 	a := newApp(tools, func(fn func()) { win.Update(fn) })
 	defer func() { _ = a.store.Close() }()
 	a.settingsPath = filepath.Join(filepath.Dir(shelf.DefaultPath()), "settings.json")
-	a.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
-	a.extraModelDirs = defaultExtraModelDirs()
+	a.prefs.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
+	a.prefs.extraModelDirs = defaultExtraModelDirs()
 	saved := loadSavedSettings(a.settingsPath)
 	libs := cleanLibraries(saved.Libraries)
 	if saved.LibraryDir != "" {
@@ -165,21 +104,21 @@ func main() {
 		tools.Translator.Credential = nil
 	}
 	a.syncLLM(tools)
-	a.llmCredential = credential
+	a.prefs.llmCredential = credential
 	if saved.Language != "" {
-		a.language = saved.Language
+		a.prefs.language = saved.Language
 	}
 	if saved.TranslatePrompt != "" {
-		a.translatePrompt = saved.TranslatePrompt
+		a.prefs.translatePrompt = saved.TranslatePrompt
 	}
 	if saved.TranslateContext != nil {
-		a.translateContext = *saved.TranslateContext
+		a.prefs.translateContext = *saved.TranslateContext
 	}
 	applyCloudEnv(a, saved)
 	a.restorePlayer(saved)
 	a.overlay.onboarded = saved.Onboarded
 	if cache, err := os.UserCacheDir(); err == nil {
-		a.posterDir = filepath.Join(cache, "LingoCut", "posters")
+		a.lib.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
 	a.openLibrary(shelf.DefaultPath())
 	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.snap().LibraryDir) == filepath.Clean(media.VimpoLibraryDir()) {

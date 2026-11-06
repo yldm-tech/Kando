@@ -68,7 +68,7 @@ func settle(t *testing.T, a *app, tt *ui.Tester, updates chan func()) {
 		case fn := <-updates:
 			fn()
 		case <-timeout:
-			t.Fatalf("job still running, status %q", a.status)
+			t.Fatalf("job still running, status %q", a.queue.status)
 		}
 	}
 	tt.Frame()
@@ -89,7 +89,7 @@ func TestViewRunsJobToCompletion(t *testing.T) {
 	p := &fakePipeline{}
 	a, tt, updates := newTestApp(p)
 	startJob(t, tt, "https://example.com/video")
-	if a.job == nil || a.status != "任务已加入队列" {
+	if a.queue.job == nil || a.queue.status != "任务已加入队列" {
 		t.Fatalf("texts %q after starting", tt.Texts())
 	}
 
@@ -286,8 +286,8 @@ func TestDropImportsLocalVideo(t *testing.T) {
 		t.Fatal("the library did not take the dropped file")
 	}
 	tt.Frame()
-	if a.source != "file://"+src || a.status != "已选择本地视频" {
-		t.Fatalf("source %q status %q texts %q", a.source, a.status, tt.Texts())
+	if a.queue.source != "file://"+src || a.queue.status != "已选择本地视频" {
+		t.Fatalf("source %q status %q texts %q", a.queue.source, a.queue.status, tt.Texts())
 	}
 }
 
@@ -300,8 +300,8 @@ func TestImportIgnoresNonVideo(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.importLocal(src)
-	if a.status != "没有可导入的视频" {
-		t.Fatalf("status %q", a.status)
+	if a.queue.status != "没有可导入的视频" {
+		t.Fatalf("status %q", a.queue.status)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "notes.txt")); !os.IsNotExist(err) {
 		t.Fatal("non-video was copied")
@@ -312,7 +312,7 @@ func TestViewRejectsInvalidSource(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	startJob(t, tt, "not-a-url")
 	tt.Frame()
-	if a.job != nil || !tt.HasText("video source must be a valid URL") {
+	if a.queue.job != nil || !tt.HasText("video source must be a valid URL") {
 		t.Fatalf("texts %q after an invalid source", tt.Texts())
 	}
 }
@@ -507,7 +507,7 @@ func TestSpeechModelSelectionIsSaved(t *testing.T) {
 		t.Fatal(err)
 	}
 	a, tt, _ := newTestApp(media.Tools{})
-	a.modelsDir = dir
+	a.prefs.modelsDir = dir
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt.Frame()
 	if err := tt.Click("语音识别"); err != nil {
@@ -1115,8 +1115,8 @@ func TestOpenFilmStartsLocalVideo(t *testing.T) {
 		t.Fatal(err)
 	}
 	settle(t, a, tt, updates)
-	if a.job == nil || a.job.Stage != core.StageComplete || a.openKey != a.job.ID {
-		t.Fatalf("open %q job %#v", a.openKey, a.job)
+	if a.queue.job == nil || a.queue.job.Stage != core.StageComplete || a.openKey != a.queue.job.ID {
+		t.Fatalf("open %q job %#v", a.openKey, a.queue.job)
 	}
 	if !tt.HasText("已完成") || !tt.HasText("返回") {
 		t.Fatalf("texts %q", tt.Texts())
@@ -1146,31 +1146,31 @@ func TestRemoveOnCardDoesNotOpenTheFilm(t *testing.T) {
 func TestCloudSettingsRoundTrip(t *testing.T) {
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
-	a.googleEmail = "a@b.c"
-	a.googleRefresh = "rt-test"
-	a.storage = "s3"
-	a.r2Endpoint = "acct"
-	a.r2Bucket = "clips"
-	a.r2AccessKey = "key"
-	a.r2Secret = "secret-value"
-	a.s3Region = "ap-northeast-1"
-	a.s3Bucket = "aws-clips"
-	a.s3AccessKey = "aws-key"
-	a.s3Secret = "aws-secret"
-	a.ossRegion = "cn-hangzhou"
-	a.ossBucket = "oss-clips"
-	a.ossAccessKey = "oss-key"
-	a.ossSecret = "oss-secret"
-	a.cosRegion = "ap-guangzhou"
-	a.cosBucket = "video-1250000000"
-	a.cosAccessKey = "cos-key"
-	a.cosSecret = "cos-secret"
-	a.compatEndpoint = "https://s3.example.com"
-	a.compatRegion = "us-east-1"
-	a.compatBucket = "compat-clips"
-	a.compatAccessKey = "compat-key"
-	a.compatSecret = "compat-secret"
-	a.compatPath = true
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.googleRefresh = "rt-test"
+	a.cloud.storage = "s3"
+	a.cloud.r2Endpoint = "acct"
+	a.cloud.r2Bucket = "clips"
+	a.cloud.r2AccessKey = "key"
+	a.cloud.r2Secret = "secret-value"
+	a.cloud.s3Region = "ap-northeast-1"
+	a.cloud.s3Bucket = "aws-clips"
+	a.cloud.s3AccessKey = "aws-key"
+	a.cloud.s3Secret = "aws-secret"
+	a.cloud.ossRegion = "cn-hangzhou"
+	a.cloud.ossBucket = "oss-clips"
+	a.cloud.ossAccessKey = "oss-key"
+	a.cloud.ossSecret = "oss-secret"
+	a.cloud.cosRegion = "ap-guangzhou"
+	a.cloud.cosBucket = "video-1250000000"
+	a.cloud.cosAccessKey = "cos-key"
+	a.cloud.cosSecret = "cos-secret"
+	a.cloud.compatEndpoint = "https://s3.example.com"
+	a.cloud.compatRegion = "us-east-1"
+	a.cloud.compatBucket = "compat-clips"
+	a.cloud.compatAccessKey = "compat-key"
+	a.cloud.compatSecret = "compat-secret"
+	a.cloud.compatPath = true
 	if err := a.saveSettings(); err != nil {
 		t.Fatal(err)
 	}
@@ -1215,41 +1215,41 @@ func TestR2EnvOverridesSavedSettings(t *testing.T) {
 		S3Region: "ap-northeast-1", S3Bucket: "saved-bucket",
 		OSSRegion: "cn-hangzhou",
 	})
-	if a.r2Bucket != "from-env" || a.r2Endpoint != "https://example.r2.cloudflarestorage.com" || a.r2Secret != "saved-secret" {
-		t.Fatalf("bucket %q endpoint %q", a.r2Bucket, a.r2Endpoint)
+	if a.cloud.r2Bucket != "from-env" || a.cloud.r2Endpoint != "https://example.r2.cloudflarestorage.com" || a.cloud.r2Secret != "saved-secret" {
+		t.Fatalf("bucket %q endpoint %q", a.cloud.r2Bucket, a.cloud.r2Endpoint)
 	}
-	if a.storage != "s3" || a.s3Region != "eu-west-1" || a.s3Bucket != "saved-bucket" || a.ossRegion != "cn-beijing" {
-		t.Fatalf("storage %q region %q bucket %q oss %q", a.storage, a.s3Region, a.s3Bucket, a.ossRegion)
+	if a.cloud.storage != "s3" || a.cloud.s3Region != "eu-west-1" || a.cloud.s3Bucket != "saved-bucket" || a.cloud.ossRegion != "cn-beijing" {
+		t.Fatalf("storage %q region %q bucket %q oss %q", a.cloud.storage, a.cloud.s3Region, a.cloud.s3Bucket, a.cloud.ossRegion)
 	}
 }
 
 func TestGoogleSignInSavesTheAccount(t *testing.T) {
 	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
 	a, tt, updates := newTestApp(&fakePipeline{})
-	a.googleLogin = func(context.Context, cloud.GoogleConfig) (cloud.Account, error) {
+	a.cloud.googleLogin = func(context.Context, cloud.GoogleConfig) (cloud.Account, error) {
 		t.Fatal("login ran without a client id")
 		return cloud.Account{}, nil
 	}
 	a.SignInGoogle()
-	if a.googleBusy {
+	if a.cloud.googleBusy {
 		t.Fatal("sign-in started without a client id")
 	}
 
 	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "client")
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
-	a.googleLogin = func(_ context.Context, cfg cloud.GoogleConfig) (cloud.Account, error) {
+	a.cloud.googleLogin = func(_ context.Context, cfg cloud.GoogleConfig) (cloud.Account, error) {
 		if cfg.ClientID != "client" || cfg.Open == nil {
 			return cloud.Account{}, errors.New("bad config")
 		}
 		return cloud.Account{Email: "a@b.c", RefreshToken: "rt-test"}, nil
 	}
 	a.SignInGoogle()
-	if !a.googleBusy {
+	if !a.cloud.googleBusy {
 		t.Fatal("sign-in did not start")
 	}
 	waitUpdate(t, updates)
-	if a.googleEmail != "a@b.c" || a.googleBusy || a.googleErr != "" || a.googleRefresh != "rt-test" {
-		t.Fatalf("email %q busy %v err %q", a.googleEmail, a.googleBusy, a.googleErr)
+	if a.cloud.googleEmail != "a@b.c" || a.cloud.googleBusy || a.cloud.googleErr != "" || a.cloud.googleRefresh != "rt-test" {
+		t.Fatalf("email %q busy %v err %q", a.cloud.googleEmail, a.cloud.googleBusy, a.cloud.googleErr)
 	}
 	raw, err := os.ReadFile(a.settingsPath)
 	if err != nil {
@@ -1270,7 +1270,7 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.googleEmail != "" || a.googleRefresh != "" || !tt.HasText("使用 Google 登录") {
+	if a.cloud.googleEmail != "" || a.cloud.googleRefresh != "" || !tt.HasText("使用 Google 登录") {
 		t.Fatal("still signed in")
 	}
 	raw, err = os.ReadFile(a.settingsPath)
@@ -1304,7 +1304,7 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	}}
 	uploadedFiles := make(chan []cloud.File, 2)
 	var bucket string
-	a.uploader = func(_ context.Context, cfg cloud.Store, files []cloud.File, progress func(int64, int64)) error {
+	a.cloud.uploader = func(_ context.Context, cfg cloud.Store, files []cloud.File, progress func(int64, int64)) error {
 		if cfg.Kind != cloud.KindR2 || cfg.Secret != "secret-value" || cfg.AccessKey != "key" {
 			return errors.New("credentials were not passed")
 		}
@@ -1325,17 +1325,17 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	if !tt.HasText("上传到 R2") || !tt.HasText("先在「账号」里登录 Google") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	a.googleEmail = "a@b.c"
-	a.r2Endpoint = "acct"
-	a.r2Bucket = "clips"
-	a.r2AccessKey = "key"
-	a.r2Secret = "secret-value"
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.r2Endpoint = "acct"
+	a.cloud.r2Bucket = "clips"
+	a.cloud.r2AccessKey = "key"
+	a.cloud.r2Secret = "secret-value"
 	tt.Frame()
 	if err := tt.Click("上传到 R2"); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	got := takeUpload(t, uploadedFiles)
-	waitUntil(t, updates, func() bool { return a.uploaded[cloud.KindR2+"\n"+video] != "" })
+	waitUntil(t, updates, func() bool { return a.cloud.uploaded[cloud.KindR2+"\n"+video] != "" })
 	tt.Frame()
 	want := cloud.ObjectKey("a@b.c", sidebar.Title(dir), video)
 	if bucket != "clips" || len(got) != 2 || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
@@ -1370,14 +1370,14 @@ func TestBeginUploadUsesTheS3Region(t *testing.T) {
 	updates := make(chan func(), 4)
 	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.googleEmail = "a@b.c"
-	a.storage = cloud.KindS3
-	a.s3Region = "ap-northeast-1"
-	a.s3Bucket = "aws-clips"
-	a.s3AccessKey = "key"
-	a.s3Secret = "secret-value"
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.storage = cloud.KindS3
+	a.cloud.s3Region = "ap-northeast-1"
+	a.cloud.s3Bucket = "aws-clips"
+	a.cloud.s3AccessKey = "key"
+	a.cloud.s3Secret = "secret-value"
 	var kind, region, bucket string
-	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+	a.cloud.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
 		kind, region, bucket = cfg.Kind, cfg.Region, cfg.Bucket
 		if cfg.Secret != "secret-value" {
 			return errors.New("secret was not passed")
@@ -1389,7 +1389,7 @@ func TestBeginUploadUsesTheS3Region(t *testing.T) {
 	if kind != cloud.KindS3 || region != "ap-northeast-1" || bucket != "aws-clips" {
 		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
 	}
-	if a.uploaded[cloud.KindS3+"\n"+video] == "" {
+	if a.cloud.uploaded[cloud.KindS3+"\n"+video] == "" {
 		t.Fatal("s3 upload was not recorded")
 	}
 }
@@ -1403,14 +1403,14 @@ func TestBeginUploadUsesTheOSSRegion(t *testing.T) {
 	updates := make(chan func(), 4)
 	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.googleEmail = "a@b.c"
-	a.storage = "aliyun"
-	a.ossRegion = "cn-hangzhou"
-	a.ossBucket = "oss-clips"
-	a.ossAccessKey = "key"
-	a.ossSecret = "secret-value"
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.storage = "aliyun"
+	a.cloud.ossRegion = "cn-hangzhou"
+	a.cloud.ossBucket = "oss-clips"
+	a.cloud.ossAccessKey = "key"
+	a.cloud.ossSecret = "secret-value"
 	var kind, region, bucket string
-	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+	a.cloud.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
 		kind, region, bucket = cfg.Kind, cfg.Region, cfg.Bucket
 		return nil
 	}
@@ -1419,7 +1419,7 @@ func TestBeginUploadUsesTheOSSRegion(t *testing.T) {
 	if kind != cloud.KindOSS || region != "cn-hangzhou" || bucket != "oss-clips" {
 		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
 	}
-	if a.uploaded[cloud.KindOSS+"\n"+video] == "" {
+	if a.cloud.uploaded[cloud.KindOSS+"\n"+video] == "" {
 		t.Fatal("oss upload was not recorded")
 	}
 }
@@ -1433,14 +1433,14 @@ func TestBeginUploadUsesCOS(t *testing.T) {
 	updates := make(chan func(), 4)
 	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.googleEmail = "a@b.c"
-	a.storage = "tencent"
-	a.cosRegion = "ap-guangzhou"
-	a.cosBucket = "video-1250000000"
-	a.cosAccessKey = "key"
-	a.cosSecret = "secret-value"
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.storage = "tencent"
+	a.cloud.cosRegion = "ap-guangzhou"
+	a.cloud.cosBucket = "video-1250000000"
+	a.cloud.cosAccessKey = "key"
+	a.cloud.cosSecret = "secret-value"
 	var kind, region, bucket string
-	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+	a.cloud.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
 		kind, region, bucket = cfg.Kind, cfg.Region, cfg.Bucket
 		return nil
 	}
@@ -1460,17 +1460,17 @@ func TestBeginUploadUsesACompatibleEndpoint(t *testing.T) {
 	updates := make(chan func(), 4)
 	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.googleEmail = "a@b.c"
-	a.storage = "compat"
-	a.compatEndpoint = "https://play.min.io"
-	a.compatRegion = "us-east-1"
-	a.compatBucket = "clips"
-	a.compatAccessKey = "key"
-	a.compatSecret = "secret-value"
-	a.compatPath = true
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.storage = "compat"
+	a.cloud.compatEndpoint = "https://play.min.io"
+	a.cloud.compatRegion = "us-east-1"
+	a.cloud.compatBucket = "clips"
+	a.cloud.compatAccessKey = "key"
+	a.cloud.compatSecret = "secret-value"
+	a.cloud.compatPath = true
 	var kind, endpoint string
 	var pathStyle bool
-	a.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+	a.cloud.uploader = func(_ context.Context, cfg cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
 		kind, endpoint, pathStyle = cfg.Kind, cfg.Endpoint, cfg.PathStyle
 		return nil
 	}
@@ -1484,7 +1484,7 @@ func TestBeginUploadUsesACompatibleEndpoint(t *testing.T) {
 func TestAccountPageShowsCOSFields(t *testing.T) {
 	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
 	a, tt, _ := newTestApp(&fakePipeline{})
-	a.storage = cloud.KindCOS
+	a.cloud.storage = cloud.KindCOS
 	tt.Frame()
 	if err := tt.Click("账号"); err != nil {
 		t.Fatal(err)
@@ -1500,7 +1500,7 @@ func TestAccountPageShowsCOSFields(t *testing.T) {
 func TestAccountPageShowsOSSFields(t *testing.T) {
 	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
 	a, tt, _ := newTestApp(&fakePipeline{})
-	a.storage = cloud.KindOSS
+	a.cloud.storage = cloud.KindOSS
 	tt.Frame()
 	if err := tt.Click("账号"); err != nil {
 		t.Fatal(err)
@@ -1519,7 +1519,7 @@ func TestAccountPageShowsOSSFields(t *testing.T) {
 func TestAccountPageShowsS3Fields(t *testing.T) {
 	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
 	a, tt, _ := newTestApp(&fakePipeline{})
-	a.storage = cloud.KindS3
+	a.cloud.storage = cloud.KindS3
 	tt.Frame()
 	if err := tt.Click("账号"); err != nil {
 		t.Fatal(err)
@@ -1580,10 +1580,10 @@ func waitUpdate(t *testing.T, updates <-chan func()) {
 func TestImportLocalVideoSetsFileSource(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	a.importLocal("/Users/test/interview.mp4")
-	if a.source != "file:///Users/test/interview.mp4" {
-		t.Fatalf("source = %q", a.source)
+	if a.queue.source != "file:///Users/test/interview.mp4" {
+		t.Fatalf("source = %q", a.queue.source)
 	}
-	if a.status != "已选择本地视频" {
-		t.Fatalf("status = %q", a.status)
+	if a.queue.status != "已选择本地视频" {
+		t.Fatalf("status = %q", a.queue.status)
 	}
 }

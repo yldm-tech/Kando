@@ -9,8 +9,6 @@ import (
 // overlayUI is what is drawn over the window's pages: the shortcut cheat sheet, and later the first-run guide and the command palette.
 type overlayUI struct {
 	cheatsheet bool
-	// menuBar is set once the app installs its own menu bar. From then on the menu's accelerators run the ⌘ shortcuts and wireKeys leaves them alone, so a shortcut does not run twice.
-	menuBar bool
 	// onboarded is saved once the first-run guide has been seen.
 	onboarded bool
 }

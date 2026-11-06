@@ -40,12 +40,12 @@ func (a *app) FilmCount() int { return len(a.films()) }
 
 func (a *app) Logo() *ui.Bitmap { return appLogo }
 
-func (a *app) SourceFilter() string { return a.lib.filter }
+func (a *app) SourceFilter() string { return a.side.filter }
 
 // SetSourceFilter goes to the library page, closing the open film, and shows the films from source there.
 func (a *app) SetSourceFilter(source string) {
 	a.Select(pageFilms)
-	a.lib.filter = source
+	a.side.filter = source
 }
 
 func (a *app) SourceCount(source string) int { return len(films.BySource(a.films(), source)) }

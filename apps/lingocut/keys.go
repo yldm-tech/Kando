@@ -40,7 +40,7 @@ func (a *app) wireKeys(c *ui.Context) {
 		if s.Run == nil || (s.When != nil && !s.When()) {
 			continue
 		}
-		if a.overlay.menuBar && s.Mods&ui.Cmd != 0 {
+		if a.menu.menuBar && s.Mods&ui.Cmd != 0 {
 			continue
 		}
 		c.OnShortcut(s.Mods, s.Key, s.guarded())

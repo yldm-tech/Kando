@@ -15,11 +15,11 @@ func (a *app) Tools() (media.Tools, bool) {
 	return tools, ok
 }
 
-func (a *app) Language() *string { return &a.language }
+func (a *app) Language() *string { return &a.prefs.language }
 
-func (a *app) TranslateContext() *bool { return &a.translateContext }
+func (a *app) TranslateContext() *bool { return &a.prefs.translateContext }
 
-func (a *app) TranslatePrompt() *string { return &a.translatePrompt }
+func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
 
 func (a *app) Save() error { return a.saveSettings() }
 
@@ -28,30 +28,30 @@ func (a *app) LibraryMenu(m *ui.Menu) { sidebar.Menu(m, a) }
 func (a *app) Redetect() { a.redetectTools() }
 
 func (a *app) ToolVersion(path string) string {
-	if a.toolVersions == nil {
+	if a.prefs.toolVersions == nil {
 		return ""
 	}
-	return a.toolVersions[path]
+	return a.prefs.toolVersions[path]
 }
 
 func (a *app) SpeechDirs() []string { return a.speechSearchDirs() }
 
 func (a *app) UseSpeechModel(path string) { a.useSpeechModel(path) }
 
-func (a *app) Downloading() string { return a.downloading }
+func (a *app) Downloading() string { return a.prefs.downloading }
 
-func (a *app) DownloadWritten() int64 { return a.downloadWritten }
+func (a *app) DownloadWritten() int64 { return a.prefs.downloadWritten }
 
-func (a *app) DownloadTotal() int64 { return a.downloadTotal }
+func (a *app) DownloadTotal() int64 { return a.prefs.downloadTotal }
 
-func (a *app) DownloadErr() string { return a.downloadErr }
+func (a *app) DownloadErr() string { return a.prefs.downloadErr }
 
 func (a *app) CancelDownload() { a.cancelDownload() }
 
 func (a *app) DownloadModel(id string) { a.downloadSpeechModel(id) }
 
 func (a *app) CurrentPreset() (settings.Preset, bool) {
-	preset, ok := llmPresetByID(a.llmProvider)
+	preset, ok := llmPresetByID(a.prefs.llmProvider)
 	if !ok {
 		return settings.Preset{}, false
 	}
@@ -67,29 +67,29 @@ func (a *app) Presets() []settings.Preset {
 	return out
 }
 
-func (a *app) LLMProvider() string { return a.llmProvider }
+func (a *app) LLMProvider() string { return a.prefs.llmProvider }
 
-func (a *app) SetLLMProvider(id string) { a.llmProvider = id }
+func (a *app) SetLLMProvider(id string) { a.prefs.llmProvider = id }
 
 func (a *app) ProviderID(base string) string { return llmProviderID(base) }
 
-func (a *app) LLMBase() *string { return &a.llmBase }
+func (a *app) LLMBase() *string { return &a.prefs.llmBase }
 
-func (a *app) LLMKey() *string { return &a.llmKey }
+func (a *app) LLMKey() *string { return &a.prefs.llmKey }
 
-func (a *app) LLMModel() *string { return &a.llmModel }
+func (a *app) LLMModel() *string { return &a.prefs.llmModel }
 
-func (a *app) ShowLLMKey() bool { return a.showLLMKey }
+func (a *app) ShowLLMKey() bool { return a.prefs.showLLMKey }
 
-func (a *app) ToggleLLMKey() { a.showLLMKey = !a.showLLMKey }
+func (a *app) ToggleLLMKey() { a.prefs.showLLMKey = !a.prefs.showLLMKey }
 
 func (a *app) ApplyLLM() { a.applyLLM() }
 
-func (a *app) TestingLLM() bool { return a.testingLLM }
+func (a *app) TestingLLM() bool { return a.prefs.testingLLM }
 
 func (a *app) TestLLM() { a.testLLM() }
 
-func (a *app) LLMResult() string { return a.llmTestResult }
+func (a *app) LLMResult() string { return a.prefs.llmTestResult }
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }
 

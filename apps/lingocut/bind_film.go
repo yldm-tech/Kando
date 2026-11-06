@@ -16,9 +16,9 @@ func (a *app) StartFilm(item films.Film) { a.startFilm(item) }
 func (a *app) RetryOpen(id string) {
 	if job, ok := a.library.Find(id); ok {
 		a.retry(job)
-		if a.job != nil {
-			a.openKey = a.job.ID
-			a.loadSubtitles(a.job.ID, a.job.SubtitlePath)
+		if a.queue.job != nil {
+			a.openKey = a.queue.job.ID
+			a.loadSubtitles(a.queue.job.ID, a.queue.job.SubtitlePath)
 		}
 	}
 }

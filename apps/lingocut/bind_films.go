@@ -16,13 +16,13 @@ func (a *app) OpenKey() string { return a.openKey }
 
 func (a *app) SetOpenKey(key string) { a.openKey = key }
 
-func (a *app) Source() *string { return &a.source }
+func (a *app) Source() *string { return &a.queue.source }
 
-func (a *app) Status() string { return a.status }
+func (a *app) Status() string { return a.queue.status }
 
 func (a *app) Running() bool { return a.running() }
 
-func (a *app) HasJob() bool { return a.job != nil }
+func (a *app) HasJob() bool { return a.queue.job != nil }
 
 func (a *app) PlaybackOpen() bool {
 	return a.player.play != nil || a.player.playPath != "" || a.player.playErr != ""

@@ -11,6 +11,16 @@ import (
 	"lingocut/packages/media"
 )
 
+// jobQueue is the job being made and run: the link field and the line under it, the job the page follows, the jobs removed while they ran and how to stop the one running.
+type jobQueue struct {
+	source     string
+	status     string
+	selectedID string
+	job        *core.Job
+	removed    map[string]bool
+	cancel     context.CancelFunc
+}
+
 // errBusy is Enqueue's answer while a job runs. Jobs run one at a time and, until the queue keeps the others waiting, a source given while one runs is not added.
 var errBusy = errors.New("已有视频在处理，等它完成后再添加")
 
@@ -35,7 +45,7 @@ func (a *app) Enqueue(sources ...string) error {
 // Cancel stops job id if it is the one running. Its card stays, marked 已取消.
 func (a *app) Cancel(id string) {
 	job, ok := a.library.Find(id)
-	if !ok || job.Stage.Done() || id != a.selectedID {
+	if !ok || job.Stage.Done() || id != a.queue.selectedID {
 		return
 	}
 	a.stop()
@@ -50,7 +60,7 @@ func (a *app) newJob(source string) (core.Job, error) {
 	if err != nil {
 		return core.Job{}, err
 	}
-	language := strings.TrimSpace(a.language)
+	language := strings.TrimSpace(a.prefs.language)
 	if language == "" {
 		return core.Job{}, errors.New("请填写目标语言")
 	}
@@ -61,11 +71,11 @@ func (a *app) newJob(source string) (core.Job, error) {
 // importLocal points the next job at a video already on disk. The pipeline reads it directly and does not download it.
 func (a *app) importLocal(path string) {
 	if !media.IsVideoFile(path) {
-		a.status = "没有可导入的视频"
+		a.queue.status = "没有可导入的视频"
 		return
 	}
-	a.source = (&url.URL{Scheme: "file", Path: path}).String()
-	a.status = "已选择本地视频"
+	a.queue.source = (&url.URL{Scheme: "file", Path: path}).String()
+	a.queue.status = "已选择本地视频"
 	a.page = pageFilms
 	a.openKey = ""
 }
@@ -73,15 +83,15 @@ func (a *app) importLocal(path string) {
 // startFilm processes a video that is already in the library and stays on it.
 func (a *app) startFilm(item films.Film) {
 	a.importLocal(item.VideoPath)
-	if a.status != "已选择本地视频" {
+	if a.queue.status != "已选择本地视频" {
 		return
 	}
 	a.start()
-	if a.job == nil {
+	if a.queue.job == nil {
 		return
 	}
-	a.openKey = a.job.ID
-	a.loadSubtitles(a.job.ID, a.job.SubtitlePath)
+	a.openKey = a.queue.job.ID
+	a.loadSubtitles(a.queue.job.ID, a.queue.job.SubtitlePath)
 }
 
 func (a *app) running() bool {
@@ -94,10 +104,10 @@ func (a *app) running() bool {
 }
 
 func (a *app) remove(id string) {
-	if a.removed == nil {
-		a.removed = map[string]bool{}
+	if a.queue.removed == nil {
+		a.queue.removed = map[string]bool{}
 	}
-	a.removed[id] = true
+	a.queue.removed[id] = true
 	kept := make([]core.Job, 0, len(a.library.Jobs))
 	for _, job := range a.library.Jobs {
 		if job.ID != id {
@@ -105,7 +115,7 @@ func (a *app) remove(id string) {
 		}
 	}
 	a.library.Jobs = kept
-	if a.selectedID == id {
+	if a.queue.selectedID == id {
 		a.newDraft()
 	}
 	if err := a.library.Save(); err != nil {
@@ -120,10 +130,10 @@ func (a *app) retry(job core.Job) {
 	job.Err = nil
 	job.Stage = core.StageQueued
 	if strings.TrimSpace(job.Language) == "" {
-		job.Language = strings.TrimSpace(a.language)
+		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if job.Language == "" {
-		a.status = "请填写目标语言"
+		a.queue.status = "请填写目标语言"
 		return
 	}
 	a.page = pageFilms
@@ -131,20 +141,20 @@ func (a *app) retry(job core.Job) {
 }
 
 func (a *app) newDraft() {
-	a.selectedID = ""
-	a.job = nil
-	a.source = ""
-	a.status = ""
+	a.queue.selectedID = ""
+	a.queue.job = nil
+	a.queue.source = ""
+	a.queue.status = ""
 }
 
 func (a *app) start() {
 	if a.running() {
 		return
 	}
-	job, err := a.newJob(a.source)
+	job, err := a.newJob(a.queue.source)
 	if err != nil {
-		a.job = nil
-		a.status = err.Error()
+		a.queue.job = nil
+		a.queue.status = err.Error()
 		return
 	}
 	a.run(job)
@@ -153,17 +163,17 @@ func (a *app) start() {
 // run keeps job.ID, so a retry updates the card already on screen.
 func (a *app) run(job core.Job) {
 	if tools, ok := a.pipeline.(media.Tools); ok {
-		tools.Translator.Prompt = a.translatePrompt
-		tools.Translator.Context = a.translateContext
+		tools.Translator.Prompt = a.prefs.translatePrompt
+		tools.Translator.Context = a.prefs.translateContext
 		a.pipeline = tools
 	}
 	if job.LibraryDir == "" {
 		job.LibraryDir = a.snap().LibraryDir
 	}
-	a.selectedID = job.ID
+	a.queue.selectedID = job.ID
 
 	ctx, cancel := context.WithCancel(context.Background())
-	a.cancel = cancel
+	a.queue.cancel = cancel
 	a.show(job)
 	pipeline, update := a.pipeline, a.update
 	go func() {
@@ -175,13 +185,13 @@ func (a *app) run(job core.Job) {
 }
 
 func (a *app) stop() {
-	if a.cancel != nil {
-		a.cancel()
+	if a.queue.cancel != nil {
+		a.queue.cancel()
 	}
 }
 
 func (a *app) show(job core.Job) {
-	if a.removed[job.ID] {
+	if a.queue.removed[job.ID] {
 		return
 	}
 	a.library.Upsert(job)
@@ -190,9 +200,9 @@ func (a *app) show(job core.Job) {
 	} else {
 		a.saveErr = ""
 	}
-	if a.selectedID == job.ID {
-		a.job = &job
-		a.status = statusText(job)
+	if a.queue.selectedID == job.ID {
+		a.queue.job = &job
+		a.queue.status = statusText(job)
 	}
 	if a.openKey == job.ID {
 		a.loadSubtitles(job.ID, job.SubtitlePath)

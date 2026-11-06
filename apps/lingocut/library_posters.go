@@ -19,15 +19,15 @@ func (a *app) posterOf(video string) ui.ImageSource {
 	if video == "" {
 		return nil
 	}
-	return a.posters[video]
+	return a.lib.posters[video]
 }
 
 // ensurePoster grabs one frame the first time a card needs it. A miss is remembered so the card does not retry every frame.
 func (a *app) ensurePoster(video string) {
-	if video == "" || a.update == nil || a.posters[video] != nil || a.posterMiss[video] || a.posterBusy[video] {
+	if video == "" || a.update == nil || a.lib.posters[video] != nil || a.lib.posterMiss[video] || a.lib.posterBusy[video] {
 		return
 	}
-	dest := posterDest(a.posterDir, video)
+	dest := posterDest(a.lib.posterDir, video)
 	if dest == "" {
 		a.markPosterMiss(video)
 		return
@@ -49,10 +49,10 @@ func (a *app) ensurePoster(video string) {
 		a.markPosterMiss(video)
 		return
 	}
-	if a.posterBusy == nil {
-		a.posterBusy = map[string]bool{}
+	if a.lib.posterBusy == nil {
+		a.lib.posterBusy = map[string]bool{}
 	}
-	a.posterBusy[video] = true
+	a.lib.posterBusy[video] = true
 	update, ffmpeg := a.update, tools.FFmpeg
 	go func() {
 		var err error
@@ -69,24 +69,24 @@ func (a *app) ensurePoster(video string) {
 			}
 		}
 		update(func() {
-			delete(a.posterBusy, video)
+			delete(a.lib.posterBusy, video)
 			if err != nil || img == nil {
 				a.markPosterMiss(video)
 				return
 			}
-			if a.posters == nil {
-				a.posters = map[string]ui.ImageSource{}
+			if a.lib.posters == nil {
+				a.lib.posters = map[string]ui.ImageSource{}
 			}
-			a.posters[video] = img
+			a.lib.posters[video] = img
 		})
 	}()
 }
 
 func (a *app) markPosterMiss(video string) {
-	if a.posterMiss == nil {
-		a.posterMiss = map[string]bool{}
+	if a.lib.posterMiss == nil {
+		a.lib.posterMiss = map[string]bool{}
 	}
-	a.posterMiss[video] = true
+	a.lib.posterMiss[video] = true
 }
 
 func posterKey(video string) string {

@@ -57,27 +57,27 @@ func llmProviderID(base string) string {
 
 func (a *app) syncLLM(tools media.Tools) {
 	a.pipeline = tools
-	a.llmBase = tools.Translator.BaseURL
-	a.llmModel = tools.Translator.Model
-	a.llmKey = tools.Translator.APIKey
-	a.llmCredential = tools.Translator.Credential
-	a.llmProvider = llmProviderID(tools.Translator.BaseURL)
+	a.prefs.llmBase = tools.Translator.BaseURL
+	a.prefs.llmModel = tools.Translator.Model
+	a.prefs.llmKey = tools.Translator.APIKey
+	a.prefs.llmCredential = tools.Translator.Credential
+	a.prefs.llmProvider = llmProviderID(tools.Translator.BaseURL)
 }
 
 func (a *app) selectLLM(id string) {
-	if a.llmProvider == id {
+	if a.prefs.llmProvider == id {
 		return
 	}
 	preset, ok := llmPresetByID(id)
 	if !ok {
 		return
 	}
-	a.llmProvider = id
+	a.prefs.llmProvider = id
 	if preset.BaseURL != "" {
-		a.llmBase = preset.BaseURL
+		a.prefs.llmBase = preset.BaseURL
 	}
 	if preset.Model != "" {
-		a.llmModel = preset.Model
+		a.prefs.llmModel = preset.Model
 	}
 	a.applyLLM()
 }
@@ -87,12 +87,12 @@ func (a *app) applyLLM() {
 	if !ok {
 		return
 	}
-	tools.Translator.BaseURL = strings.TrimSpace(a.llmBase)
-	tools.Translator.Model = strings.TrimSpace(a.llmModel)
-	tools.Translator.APIKey = strings.TrimSpace(a.llmKey)
+	tools.Translator.BaseURL = strings.TrimSpace(a.prefs.llmBase)
+	tools.Translator.Model = strings.TrimSpace(a.prefs.llmModel)
+	tools.Translator.APIKey = strings.TrimSpace(a.prefs.llmKey)
 	tools.Translator.Credential = nil
 	if tools.Translator.BaseURL == media.EveryAPIBaseURL && tools.Translator.APIKey == "" {
-		tools.Translator.Credential = a.llmCredential
+		tools.Translator.Credential = a.prefs.llmCredential
 	}
 	a.pipeline = tools
 	if err := a.saveSettings(); err != nil {
@@ -102,11 +102,11 @@ func (a *app) applyLLM() {
 
 func (a *app) testLLM() {
 	tools, ok := a.pipeline.(media.Tools)
-	if !ok || a.testingLLM {
+	if !ok || a.prefs.testingLLM {
 		return
 	}
-	a.testingLLM = true
-	a.llmTestResult = ""
+	a.prefs.testingLLM = true
+	a.prefs.llmTestResult = ""
 	translator := tools.Translator
 	update := a.update
 	go func() {
@@ -114,12 +114,12 @@ func (a *app) testLLM() {
 		defer cancel()
 		err := translator.Ping(ctx)
 		update(func() {
-			a.testingLLM = false
+			a.prefs.testingLLM = false
 			if err != nil {
-				a.llmTestResult = err.Error()
+				a.prefs.llmTestResult = err.Error()
 				return
 			}
-			a.llmTestResult = "连接成功"
+			a.prefs.llmTestResult = "连接成功"
 		})
 	}()
 }
