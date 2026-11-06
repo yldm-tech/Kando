@@ -19,10 +19,10 @@ type Key struct {
 	Key   ui.Key
 }
 
-// Show draws the cheat sheet over the window in the dark theme while *open. Escape or a click outside it sets *open to false.
+// Show draws the cheat sheet over the window in the dark theme while *open. Escape, ⌘/ or a click outside it sets *open to false.
 func Show(c *ui.Context, dark *ui.Theme, open *bool, groups []Group) {
 	ui.Themed(c, dark).Absolute().Children(func() {
-		breeze.Modal(c, open, func() {
+		panel := breeze.Modal(c, open, func() {
 			breeze.Text(c, "键盘快捷键", breeze.TextTitle)
 			ui.Row(c).Wrap().Gap(24).AlignItems(ui.Start).Children(func() {
 				for _, g := range groups {
@@ -38,5 +38,9 @@ func Show(c *ui.Context, dark *ui.Theme, open *bool, groups []Group) {
 				}
 			})
 		}).Width(560)
+		// The window's ⌘/ that opened the sheet waits behind the modal, and nothing in the sheet takes the focus, so the sheet takes the key as an overlay to close again.
+		if panel.OverlayShortcut(ui.Cmd, ui.KeySlash) {
+			*open = false
+		}
 	})
 }

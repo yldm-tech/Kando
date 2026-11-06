@@ -109,6 +109,16 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 			t.Fatalf("cheat sheet misses %q under %q: %q", s.Label, s.Group, tt.Texts())
 		}
 	}
+	tt.Key(ui.Cmd, ui.KeySlash)
+	tt.Frame()
+	if a.overlay.cheatsheet || tt.HasText("键盘快捷键") {
+		t.Fatalf("a second ⌘/ left the cheat sheet open: %q", tt.Texts())
+	}
+	tt.Key(ui.Cmd, ui.KeySlash)
+	tt.Frame()
+	if !a.overlay.cheatsheet {
+		t.Fatal("⌘/ did not open the cheat sheet again")
+	}
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
 	if a.overlay.cheatsheet || tt.HasText("键盘快捷键") {
@@ -183,5 +193,18 @@ func TestDroppedVideoIsReadyToProcess(t *testing.T) {
 	a.dropFiles([]string{note, video})
 	if a.source != "file://"+video {
 		t.Fatalf("source %q", a.source)
+	}
+}
+
+// TestPlayerKeysAfterTheFilmLeaves checks that a player key pressed in the frame the open film drops out of the library does nothing. wireKeys registers the key before the page closes the film in the same build, so the key must check again when it runs.
+func TestPlayerKeysAfterTheFilmLeaves(t *testing.T) {
+	for _, key := range []ui.Key{ui.KeySpace, ui.KeyLeft, ui.KeyRight} {
+		a, tt, _ := openClip(t, 2)
+		a.library.Jobs = nil
+		tt.Key(0, key)
+		tt.Frame()
+		if a.openKey != "" || a.player.play != nil {
+			t.Fatalf("key %v: open %q play %v after the film left", key, a.openKey, a.player.play != nil)
+		}
 	}
 }

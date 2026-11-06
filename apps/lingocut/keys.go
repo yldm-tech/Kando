@@ -33,6 +33,8 @@ func (a *app) appKeys() []shortcut {
 }
 
 // wireKeys registers the table with the window once per frame. A shortcut whose When is false is left out of this frame. Single keys go through OnShortcut, so a focused text field or button that takes the key keeps it. Once the app has its own menu bar, ⌘ shortcuts are the menu's accelerators and are not registered here.
+//
+// OnShortcut runs a handler only after the whole view has been built, and the pages can change the state When reads during that build (the library page closes a film that left the library and stops its playback), so When is checked again when the key runs.
 func (a *app) wireKeys(c *ui.Context) {
 	for _, s := range a.shortcuts() {
 		if s.Run == nil || (s.When != nil && !s.When()) {
@@ -41,6 +43,18 @@ func (a *app) wireKeys(c *ui.Context) {
 		if a.overlay.menuBar && s.Mods&ui.Cmd != 0 {
 			continue
 		}
-		c.OnShortcut(s.Mods, s.Key, s.Run)
+		c.OnShortcut(s.Mods, s.Key, s.guarded())
+	}
+}
+
+// guarded is Run behind a fresh check of When.
+func (s shortcut) guarded() func() {
+	if s.When == nil {
+		return s.Run
+	}
+	return func() {
+		if s.When() {
+			s.Run()
+		}
 	}
 }
