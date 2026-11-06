@@ -67,6 +67,14 @@ func (a *app) sidebarColumn(c *ui.Context, t *ui.Theme, bar ui.TitleBar) {
 	})
 }
 
+// contentBand is the height of the drag band over the content, under the title bar: the title bar's own, or none while the open film draws its own header bar there (filmOwnsTitleBar).
+func (a *app) contentBand(bar ui.TitleBar) float32 {
+	if a.filmOwnsTitleBar() {
+		return 0
+	}
+	return bar.Height
+}
+
 // trafficLights is where main puts the window's traffic lights, over the sidebar's top left corner.
 func trafficLights() *mygo.Point { return &mygo.Point{X: 16, Y: 16} }
 

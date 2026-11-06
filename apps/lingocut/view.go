@@ -23,7 +23,7 @@ const (
 	pagePadX     = sidebar.PagePadX
 )
 
-// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown and sidebarColumn in bind_sidebar.go, filmFillsWindow in bind_film.go, dropFiles in bind_films.go, settingsPage in bind_settings.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
+// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn and contentBand in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, dropFiles in bind_films.go, settingsPage in bind_settings.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
 func (a *app) view(c *ui.Context) {
 	t, dark := palette(c)
 	a.wireKeys(c)
@@ -45,12 +45,12 @@ func (a *app) view(c *ui.Context) {
 			content.Background(t.Background)
 		}
 		content.Children(func() {
-			if bar.Height > 0 {
+			if band := a.contentBand(bar); band > 0 {
 				left := bar.Left
 				if showSidebar {
 					left = 0
 				}
-				ui.Row(c).Height(bar.Height).Padding(0, bar.Right, 0, left).DragWindow()
+				ui.Row(c).Height(band).Padding(0, bar.Right, 0, left).DragWindow()
 			}
 			a.mainColumn(c, t, dark, items)
 		})
@@ -62,7 +62,7 @@ func (a *app) view(c *ui.Context) {
 func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
 	padX, padY := pagePadX, float32(28)
 	if a.filmFillsWindow() {
-		padX, padY = 16, 12
+		padX, padY = a.filmPadding()
 	}
 	body := ui.Column(c).Grow(1).MinWidth(0).Padding(padY, padX).Gap(20)
 	if files := body.DroppedFiles(); len(files) > 0 {

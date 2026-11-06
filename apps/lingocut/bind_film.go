@@ -78,6 +78,12 @@ func (a *app) ToggleFullScreen() {
 // filmFillsWindow reports whether the open film takes the whole window, without the sidebar and with less padding around it. A film opened from 全部影片 does.
 func (a *app) filmFillsWindow() bool { return a.page == pageFilms && a.openKey != "" }
 
+// filmOwnsTitleBar reports whether the open film draws its own header bar under the title bar, keeping clear of the traffic lights and dragging the window, so the content has no drag band over it (contentBand). Today's film page does not.
+func (a *app) filmOwnsTitleBar() bool { return false }
+
+// filmPadding is the padding around an open film that fills the window (filmFillsWindow).
+func (a *app) filmPadding() (x, y float32) { return 16, 12 }
+
 // closeFilm goes back from the open film to the page it was opened from, as the film's 返回 button does.
 func (a *app) closeFilm() {
 	a.openKey = ""
