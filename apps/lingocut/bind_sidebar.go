@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"runtime"
 
 	"lingocut/apps/lingocut/films"
@@ -54,17 +55,26 @@ func (a *app) SetSourceFilter(source string) {
 
 func (a *app) SourceCount(source string) int { return len(films.BySource(a.films(), source)) }
 
+// LibraryCount is the count countLibraries last read for the library at dir.
+func (a *app) LibraryCount(dir string) (int, bool) {
+	n, ok := a.side.libraryCounts[filepath.Clean(dir)]
+	return n, ok
+}
+
+func (a *app) Readiness() sidebar.Readiness { return a.readiness() }
+
+// sidebarLibraryChanged runs after the open library changed (libraryChanged in sidebarHooks): the sidebar shows all of the new library's films, and the switcher's counts are read again, the library just left among them.
+func (a *app) sidebarLibraryChanged() {
+	a.side.filter = sidebar.SourceAll
+	a.countLibraries()
+}
+
 // sidebarShown reports whether the window shows the sidebar. A film opened from 全部影片 takes the whole window.
 func (a *app) sidebarShown() bool { return !a.filmFillsWindow() }
 
-// sidebarColumn is the sidebar at the window's left, under the drag band over it.
-func (a *app) sidebarColumn(c *ui.Context, t *ui.Theme, bar ui.TitleBar) {
-	ui.Column(c).Shrink(0).AlignItems(ui.Stretch).Children(func() {
-		if bar.Height > 0 {
-			ui.Row(c).Height(bar.Height).Padding(0, 0, 0, bar.Left).DragWindow()
-		}
-		sidebar.Show(c, t, a)
-	})
+// sidebarColumn is the sidebar at the window's left. The top row of its card holds the traffic lights and drags the window, so it needs no drag band over it.
+func (a *app) sidebarColumn(c *ui.Context, t *ui.Theme, _ ui.TitleBar) {
+	sidebar.Show(c, t, a)
 }
 
 // contentBand is the height of the drag band over the content, under the title bar: the title bar's own, or none while the open film draws its own header bar there (filmOwnsTitleBar).

@@ -1,7 +1,6 @@
 package sidebar
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -9,7 +8,6 @@ import (
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 const (
@@ -21,7 +19,8 @@ const (
 	PageTranslate = "translate"
 	PageAccount   = "account"
 
-	Width        float32 = 248
+	// Width is the sidebar's column: the card and the gutter of the window's material around it.
+	Width        float32 = 236
 	PagePadX     float32 = 32
 	CardMinWidth float32 = 280
 	CardGap      float32 = 18
@@ -50,8 +49,8 @@ type App interface {
 	Forget(dir string)
 	// FilmCount is how many films the open library holds.
 	FilmCount() int
-	// Logo is the app's icon.
-	Logo() *ui.Bitmap
+	// LibraryCount is how many films the library at dir holds, for a library that is not open; ok is false until the count has been read.
+	LibraryCount(dir string) (n int, ok bool)
 	// SourceFilter is the source the library page shows, SourceAll or another Source value.
 	SourceFilter() string
 	// SetSourceFilter shows the library page filtered by source and closes the open film.
@@ -60,57 +59,52 @@ type App interface {
 	SourceCount(source string) int
 	// OpenSettings shows the settings at section, one of the settings package's Section values; "" opens 通用.
 	OpenSettings(section string)
+	// Readiness is what the status line at the foot of the sidebar says.
+	Readiness() Readiness
 }
 
+// The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a hairline and a soft shadow, 8 points in from the window's edges.
+const (
+	cardMargin float32 = 8
+	cardRadius float32 = 14
+	// lightsRow is the empty row at the top of the card that the traffic lights sit in.
+	lightsRow float32 = 48
+)
+
+var (
+	cardFill     = ui.RGBA(255, 255, 255, 0.42)
+	cardHairline = ui.RGBA(0, 0, 0, 0.06)
+	cardShadow   = ui.RGBA(30, 50, 90, 0.08)
+	// gutterFill stands in for the window's material where the window has none (Tester, a window without vibrancy): the prototype's frosted strip over a white page.
+	gutterFill = ui.Hex("#F0F2F6")
+)
+
+// Show draws the sidebar: a column Width wide holding the card with the library switcher, the sources and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
 func Show(c *ui.Context, t *ui.Theme, a App) {
-	count := a.FilmCount()
-	logo := a.Logo()
-	ui.Column(c).Width(Width).Shrink(0).Grow(1).Children(func() {
-		switcher(c, t, count, logo, a)
-		// The sidebar writes a click or an arrow key on another item into sel and Select runs when the page changes; a click on the item already chosen leaves sel alone, so nav calls Select itself to close the open film and go back to the page's grid.
-		sel := a.Page()
-		breeze.Sidebar(c, &sel, func() {
-			breeze.SidebarSection(c, "影片", nil, func() {
-				nav(c, a, PageFilms, "全部影片", fmt.Sprintf("%d", count))
-			})
-			breeze.SidebarSection(c, "来源", nil, func() {
-				nav(c, a, PageYouTube, "YouTube", "")
-			})
-			breeze.SidebarSection(c, "设置", nil, func() {
-				nav(c, a, PageGeneral, "通用", "")
-				nav(c, a, PageSpeech, "语音识别", "")
-				nav(c, a, PageAI, "AI 服务", "")
-				nav(c, a, PageTranslate, "翻译", "")
-				nav(c, a, PageAccount, "账号", "")
-			})
-		}).Background(ui.Transparent).Grow(1)
-		if sel != a.Page() {
-			a.Select(sel)
-		}
-		if a.SaveErr() != "" {
-			ui.Text(c, a.SaveErr()).TextColor(t.Danger).Wrap().Padding(8, 8, 0, 8)
-		}
-	})
-}
-
-// switcher is the current library. Its menu lists the others and the actions that used to sit in the sidebar.
-func switcher(c *ui.Context, t *ui.Theme, count int, logo *ui.Bitmap, a App) {
-	title := "选择资料库"
-	if dir := a.LibraryDir(); dir != "" {
-		title = Title(dir)
+	col := ui.Column(c).Width(Width).Shrink(0).AlignItems(ui.Stretch).Padding(cardMargin, 0, cardMargin, cardMargin)
+	// With the window's material on, the gutter around the card shows it; without it, the gutter is painted.
+	if !c.Vibrancy() {
+		col.Background(gutterFill)
 	}
-	head := ui.Row(c).Padding(4, 8, 14, 8).Gap(10).AlignItems(ui.Center).Cursor(ui.CursorPointer).Label("资料库菜单")
-	head.PopoverMenuButton(func(m *ui.Menu) { Menu(m, a) })
-	head.Children(func() {
-		ui.Image(c, logo).Size(28, 28).Shrink(0)
-		ui.Column(c).Gap(1).Grow(1).MinWidth(0).Children(func() {
-			ui.Text(c, title).FontSize(15).Bold()
-			ui.Text(c, fmt.Sprintf("%d 部影片", count)).TextColor(t.TextMuted).FontSize(12)
+	col.Children(func() {
+		card := ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Radius(cardRadius).Background(cardFill).Border(0.5, cardHairline).Shadow(0, 4, 14, 0, cardShadow)
+		card.Children(func() {
+			top := float32(10)
+			if c.TitleBar().Height > 0 {
+				top = lightsRow
+			}
+			ui.Row(c).Height(top).Shrink(0).DragWindow()
+			switcher(c, t, a)
+			sources(c, a)
+			if a.SaveErr() != "" {
+				ui.Text(c, a.SaveErr()).TextColor(t.Danger).Wrap().Padding(8, 16, 0, 16)
+			}
+			footer(c, t, a)
 		})
-		ui.Icon(c, iconChevronDown).Size(14, 14).TextColor(t.TextMuted).Shrink(0)
 	})
 }
 
+// Menu is the library menu of the settings page's 切换 button: the known libraries, new and open, reveal, and forgetting the open one.
 func Menu(m *ui.Menu, a App) {
 	currentDir := a.LibraryDir()
 	for _, dir := range a.KnownLibraries() {
@@ -144,35 +138,4 @@ func Title(dir string) string {
 		return dir
 	}
 	return base
-}
-
-func nav(c *ui.Context, a App, page, label, badge string) {
-	item := breeze.SidebarItem(c, page, navIcon(page), label)
-	if item.Clicked() && page == a.Page() {
-		a.Select(page)
-	}
-	if badge != "" {
-		item.Children(func() {
-			breeze.Text(c, badge, breeze.TextSecondary)
-		})
-	}
-}
-
-func navIcon(page string) *ui.SVG {
-	switch page {
-	case PageYouTube:
-		return iconTvMinimalPlay
-	case PageGeneral:
-		return iconSettings
-	case PageSpeech:
-		return iconAudioLines
-	case PageAI:
-		return iconSparkles
-	case PageTranslate:
-		return iconLanguages
-	case PageAccount:
-		return iconUser
-	default:
-		return iconClapperboard
-	}
 }
