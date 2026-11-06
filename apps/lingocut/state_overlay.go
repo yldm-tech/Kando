@@ -41,18 +41,19 @@ func (a *app) holdModal() (release func()) {
 // modalOpen reports whether a modal dialog is up over the window (holdModal). The cheat sheet is not one of them: it lets its own ⌘/ through.
 func (a *app) modalOpen() bool { return a.overlay.modal > 0 }
 
-// cheatsheetGroups is the shortcut table grouped for the cheat sheet, in the order the groups first appear.
+// cheatsheetGroups is the shortcut table grouped for the cheat sheet, in the menu bar's order of the groups (grouped, menu.go).
 func (a *app) cheatsheetGroups() []cheatsheet.Group {
+	order, rows := grouped(a.shortcuts())
 	var groups []cheatsheet.Group
-	index := map[string]int{}
-	for _, s := range a.shortcuts() {
-		i, ok := index[s.Group]
-		if !ok {
-			i = len(groups)
-			index[s.Group] = i
-			groups = append(groups, cheatsheet.Group{Title: s.Group})
+	for _, title := range order {
+		if len(rows[title]) == 0 {
+			continue
 		}
-		groups[i].Keys = append(groups[i].Keys, cheatsheet.Key{Label: s.Label, Mods: s.Mods, Key: s.Key})
+		g := cheatsheet.Group{Title: title}
+		for _, s := range rows[title] {
+			g.Keys = append(g.Keys, cheatsheet.Key{Label: s.Label, Mods: s.Mods, Key: s.Key})
+		}
+		groups = append(groups, g)
 	}
 	return groups
 }
@@ -75,6 +76,6 @@ func (a *app) overlayHooks() areaHooks {
 // overlayKeys are the shortcuts of the overlays.
 func (a *app) overlayKeys() []shortcut {
 	return []shortcut{
-		{Group: "帮助", Label: "键盘快捷键", Mods: ui.Cmd, Key: ui.KeySlash, Run: a.toggleCheatsheet},
+		{Group: "帮助", Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash, Run: a.toggleCheatsheet},
 	}
 }
