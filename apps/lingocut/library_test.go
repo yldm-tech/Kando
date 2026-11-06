@@ -858,3 +858,24 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 		}
 	}
 }
+
+// TestLibraryPageOwnsTheTitleBar checks that the library page says it draws its own header bar under the title bar (libraryOwnsTitleBar), so contentBand leaves that room to it, on 全部影片 and YouTube, and that it stops saying so while a film is open over it.
+func TestLibraryPageOwnsTheTitleBar(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+	tt.Frame()
+	if !a.libraryOwnsTitleBar() {
+		t.Fatalf("the library page on %q does not own the title bar", a.page)
+	}
+	a.Select(pageYouTube)
+	tt.Frame()
+	if !a.libraryOwnsTitleBar() {
+		t.Fatalf("the library page on %q does not own the title bar", a.page)
+	}
+	a.Select(pageFilms)
+	a.openKey = "j"
+	tt.Frame()
+	if a.libraryOwnsTitleBar() {
+		t.Fatal("the library page owns the title bar under an open film")
+	}
+}
