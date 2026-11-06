@@ -43,21 +43,21 @@ type App interface {
 func Show(c *ui.Context, t *ui.Theme, count int, logo *ui.Bitmap, a App) {
 	ui.Column(c).Width(Width).Shrink(0).Grow(1).Children(func() {
 		switcher(c, t, count, logo, a)
-		// The sidebar writes a click or an arrow key into sel; Select only runs when the page really changes, since it closes the open film.
+		// The sidebar writes a click or an arrow key on another item into sel and Select runs when the page changes; a click on the item already chosen leaves sel alone, so nav calls Select itself to close the open film and go back to the page's grid.
 		sel := a.Page()
 		breeze.Sidebar(c, &sel, func() {
 			breeze.SidebarSection(c, "影片", nil, func() {
-				nav(c, PageFilms, "全部影片", fmt.Sprintf("%d", count))
+				nav(c, a, PageFilms, "全部影片", fmt.Sprintf("%d", count))
 			})
 			breeze.SidebarSection(c, "来源", nil, func() {
-				nav(c, PageYouTube, "YouTube", "")
+				nav(c, a, PageYouTube, "YouTube", "")
 			})
 			breeze.SidebarSection(c, "设置", nil, func() {
-				nav(c, PageGeneral, "通用", "")
-				nav(c, PageSpeech, "语音识别", "")
-				nav(c, PageAI, "AI 服务", "")
-				nav(c, PageTranslate, "翻译", "")
-				nav(c, PageAccount, "账号", "")
+				nav(c, a, PageGeneral, "通用", "")
+				nav(c, a, PageSpeech, "语音识别", "")
+				nav(c, a, PageAI, "AI 服务", "")
+				nav(c, a, PageTranslate, "翻译", "")
+				nav(c, a, PageAccount, "账号", "")
 			})
 		}).Background(ui.Transparent).Grow(1)
 		if sel != a.Page() {
@@ -122,8 +122,11 @@ func Title(dir string) string {
 	return base
 }
 
-func nav(c *ui.Context, page, label, badge string) {
+func nav(c *ui.Context, a App, page, label, badge string) {
 	item := breeze.SidebarItem(c, page, navIcon(page), label)
+	if item.Clicked() && page == a.Page() {
+		a.Select(page)
+	}
 	if badge != "" {
 		item.Children(func() {
 			breeze.Text(c, badge, breeze.TextSecondary)

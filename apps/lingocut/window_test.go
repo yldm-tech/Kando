@@ -114,3 +114,22 @@ func TestSidebarArrowKeysChangeThePage(t *testing.T) {
 		t.Fatalf("page %q after Up, want %q", a.page, pageFilms)
 	}
 }
+
+// TestSidebarClickOnTheCurrentPageClosesTheFilm checks that clicking the page already chosen in the sidebar, while a film from that page is open, closes the film and goes back to its grid.
+func TestSidebarClickOnTheCurrentPageClosesTheFilm(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.page = pageYouTube
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+	a.openKey = "j"
+	tt.Frame()
+	if !tt.HasText("返回") {
+		t.Fatalf("film not open: %q", tt.Texts())
+	}
+	if err := tt.Click("YouTube"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.openKey != "" || a.page != pageYouTube {
+		t.Fatalf("clicking the current sidebar item left page %q open %q", a.page, a.openKey)
+	}
+}

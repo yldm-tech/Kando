@@ -1755,9 +1755,13 @@ func main() {
 	a.restartLibraryWatch()
 	mygo.Theme.SetSource(mygo.ThemeDark)
 	mygo.App.WhenReady(func() {
+		// The sidebar's material: AppKit's source list on macOS and Mica on Windows, whose NavigationView pane is transparent over it, as Onevra's shell chose.
 		vibrancy := mygo.VibrancyNone
-		if runtime.GOOS == "darwin" {
+		switch runtime.GOOS {
+		case "darwin":
 			vibrancy = mygo.VibrancySidebar
+		case "windows":
+			vibrancy = mygo.VibrancyMica
 		}
 		win = mygo.NewWindow(mygo.WindowOptions{
 			Title:                "LingoCut",
