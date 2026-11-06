@@ -2,9 +2,6 @@ package main
 
 import (
 	"testing"
-	"time"
-
-	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -17,18 +14,7 @@ func TestScreenshotsCheatsheet(t *testing.T) {
 		tt.Frame()
 	})
 	f.shoot(t, "cheatsheet-film", func(a *app, tt *ui.Tester, updates chan func()) {
-		screenshotClick(t, tt, "Colibri")
-		_, tools := f.pipeline.(media.Tools)
-		deadline := time.After(8 * time.Second)
-		for !tt.HasText("蜂鸟每秒振翅五十次。") || (tools && !tt.HasText("播放")) {
-			select {
-			case fn := <-updates:
-				fn()
-			case <-deadline:
-				t.Fatalf("film did not load: %q err %q", tt.Texts(), a.player.playErr)
-			}
-			tt.Frame()
-		}
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
 		tt.Key(ui.Cmd, ui.KeySlash)
 		tt.Frame()
 	})

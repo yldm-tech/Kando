@@ -66,7 +66,7 @@ func TestMenuBarListsTheShortcutTable(t *testing.T) {
 	}
 }
 
-// TestMenuGroupsTheTableInMenuOrder checks that a group the menu bar does not name gets a menu before 窗口, and that the cheat sheet lists its groups in the menu bar's order.
+// TestMenuGroupsTheTableInMenuOrder checks that a group the menu bar does not name gets a menu before 窗口.
 func TestMenuGroupsTheTableInMenuOrder(t *testing.T) {
 	order, rows := grouped([]shortcut{{Group: "帮助"}, {Group: "学习"}, {Group: "播放"}, {Group: "学习"}})
 	if at, win := slices.Index(order, "学习"), slices.Index(order, "窗口"); at < 0 || at != win-1 || slices.Index(order, "显示") > at {
@@ -74,16 +74,6 @@ func TestMenuGroupsTheTableInMenuOrder(t *testing.T) {
 	}
 	if len(rows["学习"]) != 2 {
 		t.Fatalf("rows %v", rows)
-	}
-	a, _, _ := newTestApp(&fakePipeline{})
-	var titles []string
-	for _, g := range a.cheatsheetGroups() {
-		titles = append(titles, g.Title)
-	}
-	for i := 1; i < len(titles); i++ {
-		if slices.Index(menuOrder, titles[i-1]) >= slices.Index(menuOrder, titles[i]) {
-			t.Fatalf("cheat sheet groups out of order: %q", titles)
-		}
 	}
 }
 
