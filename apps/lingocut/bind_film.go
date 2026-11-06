@@ -50,6 +50,14 @@ func (a *app) Seek(at time.Duration) { a.seekPlayback(at) }
 
 func (a *app) Cue() *film.Look { return &a.player.look }
 
+func (a *app) SubMode() string { return a.player.subMode }
+
+func (a *app) SetSubMode(mode string) { a.player.subMode = mode }
+
+func (a *app) SubOrder() string { return a.player.subOrder }
+
+func (a *app) SetSubOrder(order string) { a.player.subOrder = order }
+
 // ToggleFullScreen enters or leaves full screen. Without a window, as in tests, it does nothing.
 func (a *app) ToggleFullScreen() {
 	if a.win != nil {

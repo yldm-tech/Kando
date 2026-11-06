@@ -33,6 +33,12 @@ type App interface {
 	SetFilmSide(string)
 	Seek(at time.Duration)
 	Cue() *Look
+	// SubMode is which lines of a bilingual cue show: SubBilingual, SubTranslation, SubOriginal or SubOff.
+	SubMode() string
+	SetSubMode(mode string)
+	// SubOrder is which line of a bilingual cue goes on top: SubTranslationFirst or SubOriginalFirst.
+	SubOrder() string
+	SetSubOrder(order string)
 	UploadView(item films.Film) Upload
 	BeginUpload(item films.Film)
 	// ToggleFullScreen enters or leaves full screen.
@@ -228,7 +234,7 @@ func (s screen) playButton(c *ui.Context, t *ui.Theme) {
 
 // playCue draws the current bilingual line on the picture, above the transport.
 func (s screen) playCue(c *ui.Context, _ *ui.Theme) {
-	if s.Play() == nil || s.Subs().Key != s.OpenKey() || !s.Subs().Ready {
+	if s.Play() == nil || s.Subs().Key != s.OpenKey() || !s.Subs().Ready || s.SubMode() == SubOff {
 		return
 	}
 	cue, ok := CueAt(s.Subs().Cues, s.Play().Head())
@@ -443,11 +449,12 @@ func (s screen) cueStylePane(c *ui.Context, t *ui.Theme) {
 				s.Cue().Translation = s.Cue().Original
 			}
 			ui.Text(c, "双语").TextColor(t.TextMuted).FontSize(12)
-			s.cueChoiceRow(c, t, []Choice{{"translation", "译文在上"}, {"original", "原文在上"}, {"translation-only", "只要译文"}}, s.Cue().Order, func(id string) { s.Cue().Order = id })
+			s.cueChoiceRow(c, t, []Choice{{SubTranslationFirst, "译文在上"}, {SubOriginalFirst, "原文在上"}, {SubTranslation, "只要译文"}}, s.linesChoice(), s.chooseLines)
 			ui.Text(c, "位置").TextColor(t.TextMuted).FontSize(12)
 			s.cueStepper(c, t, "高底部", &s.Cue().Bottom, 4, 24, 160)
 			if breeze.Button(c, "恢复默认样式").Clicked() {
 				*s.Cue() = DefaultLook()
+				s.chooseLines(SubTranslationFirst)
 			}
 		})
 	})
@@ -636,13 +643,34 @@ type Face struct {
 	Bold   bool
 }
 
+// Look is how subtitles are drawn. Which lines show and which goes on top are not part of it: they are the app's SubMode and SubOrder.
 type Look struct {
-	Preset, Edit, Order string
-	Bottom              float32
-	Box, Shadow         bool
-	Translation         Face
-	Original            Face
+	Preset, Edit string
+	Bottom       float32
+	Box, Shadow  bool
+	Translation  Face
+	Original     Face
 }
+
+// Subtitle modes: which lines of a bilingual cue the player shows. V steps through them in this order.
+const (
+	SubBilingual   = "bilingual"
+	SubTranslation = "translation"
+	SubOriginal    = "original"
+	SubOff         = "off"
+)
+
+// Subtitle orders: which line of a bilingual cue goes on top.
+const (
+	SubTranslationFirst = "translation-first"
+	SubOriginalFirst    = "original-first"
+)
+
+// What the player shows for a cue that has no translation yet.
+const (
+	UntranslatedDim   = "dim"
+	UntranslatedBlank = "blank"
+)
 
 type styledLine struct {
 	text string
@@ -651,7 +679,7 @@ type styledLine struct {
 
 func DefaultLook() Look {
 	return Look{
-		Preset: "box", Edit: "translation", Order: "translation", Bottom: 56, Box: true,
+		Preset: "box", Edit: "translation", Bottom: 56, Box: true,
 		Translation: Face{Family: "默认", Size: 18, Color: "#f6f1e8", Bold: true},
 		Original:    Face{Family: "默认", Size: 14, Color: "#b3a38f"},
 	}
@@ -680,6 +708,7 @@ func (s screen) editedFace() *Face {
 	return &s.Cue().Translation
 }
 
+// styledLines is the lines of a cue as SubMode and SubOrder pick them, for the picture and the transcript. SubOff counts as bilingual here: it hides only the line on the picture (playCue), and the transcript keeps both.
 func (s screen) styledLines(text string) []styledLine {
 	translation, original := splitCue(text)
 	add := func(lines []styledLine, s string, face Face) []styledLine {
@@ -688,18 +717,38 @@ func (s screen) styledLines(text string) []styledLine {
 		}
 		return append(lines, styledLine{text: s, face: face})
 	}
-	switch s.Cue().Order {
-	case "original":
-		return add(add(nil, original, s.Cue().Original), translation, s.Cue().Translation)
-	case "translation-only":
+	switch s.SubMode() {
+	case SubTranslation:
 		lines := add(nil, translation, s.Cue().Translation)
 		if len(lines) == 0 {
 			lines = add(lines, original, s.Cue().Original)
 		}
 		return lines
-	default:
-		return add(add(nil, translation, s.Cue().Translation), original, s.Cue().Original)
+	case SubOriginal:
+		return add(nil, original, s.Cue().Original)
 	}
+	if s.SubOrder() == SubOriginalFirst {
+		return add(add(nil, original, s.Cue().Original), translation, s.Cue().Translation)
+	}
+	return add(add(nil, translation, s.Cue().Translation), original, s.Cue().Original)
+}
+
+// linesChoice is the chip of the 双语 row that is on: 只要译文 in SubTranslation mode, else the order.
+func (s screen) linesChoice() string {
+	if s.SubMode() == SubTranslation {
+		return SubTranslation
+	}
+	return s.SubOrder()
+}
+
+// chooseLines applies a chip of the 双语 row: 只要译文 switches to SubTranslation, an order shows both lines in that order.
+func (s screen) chooseLines(id string) {
+	if id == SubTranslation {
+		s.SetSubMode(SubTranslation)
+		return
+	}
+	s.SetSubOrder(id)
+	s.SetSubMode(SubBilingual)
 }
 
 func fontFamily(name string) string {

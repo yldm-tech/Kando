@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"lingocut/apps/lingocut/film"
 	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
@@ -17,9 +18,9 @@ func TestPlayerSettingsRoundTrip(t *testing.T) {
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.player.look.Translation.Size = 30
 	a.player.look.Original.Color = "#FFD60A"
-	a.player.subMode = subOriginal
-	a.player.subOrder = subOriginalFirst
-	a.player.untranslated = untranslatedBlank
+	a.player.subMode = film.SubOriginal
+	a.player.subOrder = film.SubOriginalFirst
+	a.player.untranslated = film.UntranslatedBlank
 	a.player.yieldSubs = false
 	a.overlay.onboarded = true
 	if err := a.saveSettings(); err != nil {
@@ -29,7 +30,7 @@ func TestPlayerSettingsRoundTrip(t *testing.T) {
 	b, _, _ := newTestApp(&fakePipeline{})
 	b.restorePlayer(saved)
 	b.overlay.onboarded = saved.Onboarded
-	if b.player.look != a.player.look || b.player.subMode != subOriginal || b.player.subOrder != subOriginalFirst || b.player.untranslated != untranslatedBlank || b.player.yieldSubs || !b.overlay.onboarded {
+	if b.player.look != a.player.look || b.player.subMode != film.SubOriginal || b.player.subOrder != film.SubOriginalFirst || b.player.untranslated != film.UntranslatedBlank || b.player.yieldSubs || !b.overlay.onboarded {
 		t.Fatalf("restored %+v onboarded %v from %+v", b.player, b.overlay.onboarded, saved)
 	}
 }
@@ -49,6 +50,47 @@ func TestPlayerSettingsDefaults(t *testing.T) {
 	def := newPlayerUI()
 	if a.player.look != def.look || a.player.subMode != def.subMode || a.player.subOrder != def.subOrder || a.player.untranslated != def.untranslated || a.player.yieldSubs != def.yieldSubs {
 		t.Fatalf("player %+v, want the defaults %+v", a.player, def)
+	}
+}
+
+// TestDefaultLookIsNotSaved checks that a look the user has not changed is left out of the settings, so a later DefaultLook reaches them, and that switching the face being edited is not a change.
+func TestDefaultLookIsNotSaved(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.player.look.Edit = "original"
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if look, ok := raw["look"]; ok {
+		t.Fatalf("the default look was saved: %s", look)
+	}
+}
+
+// TestSavedLookKeepsNewDefaults checks that a saved look without a field, as one saved before the field existed, keeps the default for that field.
+func TestSavedLookKeepsNewDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	data, err := json.Marshal(map[string]any{"look": map[string]any{"Preset": "large", "Translation": map[string]any{"Size": 32}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.restorePlayer(loadSavedSettings(path))
+	want := film.DefaultLook()
+	want.Preset = "large"
+	want.Translation.Size = 32
+	if a.player.look != want {
+		t.Fatalf("look %+v, want %+v", a.player.look, want)
 	}
 }
 

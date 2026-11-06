@@ -681,7 +681,7 @@ func (a *app) saveSettings() error {
 		return err
 	}
 	contextOn := a.translateContext
-	look, yieldSubs := a.player.look, a.player.yieldSubs
+	yieldSubs := a.player.yieldSubs
 	shelf := a.snap()
 	saved := savedSettings{
 		LibraryDir:       shelf.LibraryDir,
@@ -716,7 +716,7 @@ func (a *app) saveSettings() error {
 		CompatAccessKey:  a.compatAccessKey,
 		CompatSecret:     a.compatSecret,
 		CompatPathStyle:  a.compatPath,
-		Look:             &look,
+		Look:             changedLook(a.player.look),
 		SubMode:          a.player.subMode,
 		SubOrder:         a.player.subOrder,
 		Untranslated:     a.player.untranslated,
@@ -746,7 +746,9 @@ func loadSavedSettings(path string) savedSettings {
 	if err != nil {
 		return savedSettings{}
 	}
-	var saved savedSettings
+	// A saved look is read over the default, so a field it lacks, such as one added after it was saved, keeps the default.
+	look := film.DefaultLook()
+	saved := savedSettings{Look: &look}
 	if json.Unmarshal(data, &saved) != nil {
 		return savedSettings{}
 	}

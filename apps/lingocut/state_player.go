@@ -6,26 +6,6 @@ import (
 	"lingocut/apps/lingocut/film"
 )
 
-// Subtitle modes: which lines of a bilingual cue the player shows. V steps through them in this order.
-const (
-	subBilingual   = "bilingual"
-	subTranslation = "translation"
-	subOriginal    = "original"
-	subOff         = "off"
-)
-
-// Subtitle orders: which line of a bilingual cue goes on top.
-const (
-	subTranslationFirst = "translation-first"
-	subOriginalFirst    = "original-first"
-)
-
-// What the player shows for a cue that has no translation yet.
-const (
-	untranslatedDim   = "dim"
-	untranslatedBlank = "blank"
-)
-
 // playerUI is the state of the open film: the picture, the subtitle file and how subtitles look. The settings in it are saved with the app's settings (savedSettings).
 type playerUI struct {
 	play     *filmPlay
@@ -37,11 +17,11 @@ type playerUI struct {
 	subs     subtitleView
 	filmSide string
 	look     film.Look
-	// subMode is one of subBilingual, subTranslation, subOriginal or subOff.
+	// subMode is one of film.SubBilingual, film.SubTranslation, film.SubOriginal or film.SubOff. It is the one owner of which lines show; film.Look does not hold it.
 	subMode string
-	// subOrder is subTranslationFirst or subOriginalFirst.
+	// subOrder is film.SubTranslationFirst or film.SubOriginalFirst. It is the one owner of which line goes on top.
 	subOrder string
-	// untranslated is untranslatedDim or untranslatedBlank.
+	// untranslated is film.UntranslatedDim or film.UntranslatedBlank.
 	untranslated string
 	// yieldSubs moves the subtitles up while the player's controls show.
 	yieldSubs bool
@@ -52,9 +32,9 @@ type playerUI struct {
 func newPlayerUI() playerUI {
 	return playerUI{
 		look:         film.DefaultLook(),
-		subMode:      subBilingual,
-		subOrder:     subTranslationFirst,
-		untranslated: untranslatedDim,
+		subMode:      film.SubBilingual,
+		subOrder:     film.SubTranslationFirst,
+		untranslated: film.UntranslatedDim,
 		yieldSubs:    true,
 	}
 }
@@ -78,24 +58,34 @@ func (a *app) rememberPosition(play *filmPlay) {
 // ResumeAt is where the video at path stopped last time, or 0 when it was not watched or was watched to the end.
 func (a *app) ResumeAt(path string) time.Duration { return a.player.positions[path] }
 
-// restorePlayer takes the subtitle settings saved last time. A value this version does not know keeps the default.
+// restorePlayer takes the subtitle settings saved last time. A value this version does not know keeps the default; loadSavedSettings reads a saved look over film.DefaultLook, so a field it lacks keeps the default too.
 func (a *app) restorePlayer(saved savedSettings) {
 	if saved.Look != nil {
 		a.player.look = *saved.Look
 	}
 	switch saved.SubMode {
-	case subBilingual, subTranslation, subOriginal, subOff:
+	case film.SubBilingual, film.SubTranslation, film.SubOriginal, film.SubOff:
 		a.player.subMode = saved.SubMode
 	}
 	switch saved.SubOrder {
-	case subTranslationFirst, subOriginalFirst:
+	case film.SubTranslationFirst, film.SubOriginalFirst:
 		a.player.subOrder = saved.SubOrder
 	}
 	switch saved.Untranslated {
-	case untranslatedDim, untranslatedBlank:
+	case film.UntranslatedDim, film.UntranslatedBlank:
 		a.player.untranslated = saved.Untranslated
 	}
 	if saved.YieldSubs != nil {
 		a.player.yieldSubs = *saved.YieldSubs
 	}
+}
+
+// changedLook is the look saveSettings stores: nil while it is still film.DefaultLook, so the default is not saved as if the user had chosen it and a later default reaches those who never changed theirs. Edit, the face the style pane is editing, is not part of the look's appearance and does not count as a change.
+func changedLook(look film.Look) *film.Look {
+	def := film.DefaultLook()
+	def.Edit = look.Edit
+	if look == def {
+		return nil
+	}
+	return &look
 }
