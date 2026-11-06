@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"lingocut/packages/core"
+	"kando/packages/core"
 )
 
 type whisperOutput struct {

@@ -1,5 +1,5 @@
 go 1.27.3
 
-use ./apps/lingocut
+use ./apps/kando
 use ./packages/core
 use ./packages/media

@@ -37,7 +37,7 @@ type Link struct {
 	List string
 	// Host is the host name in lower case without "www." or "m.". It is empty for a local file.
 	Host string
-	// SiteName is the name people know the site by, such as "YouTube", "哔哩哔哩" or "Vimeo"; empty for a site LingoCut does not know.
+	// SiteName is the name people know the site by, such as "YouTube", "哔哩哔哩" or "Vimeo"; empty for a site Kando does not know.
 	SiteName string
 	// Short reports a b23.tv short link, whose video is only known once the link is followed.
 	Short bool

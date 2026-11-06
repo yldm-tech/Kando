@@ -1,10 +1,10 @@
-# LingoCut
+# Kando (看懂)
 
 A native desktop video transcription and translation app built with Go and MyGo.
 
 ## Repository layout
 
-- `apps/lingocut` — native UI application and platform packaging entry point.
+- `apps/kando` — native UI application and platform packaging entry point.
 - `packages/core` — platform-independent jobs, states, and domain contracts.
 - `packages/media` — media pipeline boundary for download, transcription, translation, and export.
 - `platforms/darwin` — macOS-specific integrations.
@@ -33,18 +33,22 @@ Translation goes through [EveryAPI](https://everyapi.ai) by default, using the a
 
 The app reads its settings from the environment:
 
-- `LINGOCUT_WHISPER_MODEL` (required) — path of a whisper.cpp ggml model, such as `ggml-small.bin`.
-- `LINGOCUT_LLM_MODEL` — translation model, default `claude-haiku-5-5` on EveryAPI; required with a custom provider. `everyapi models list` shows what EveryAPI offers.
-- `LINGOCUT_LLM_BASE_URL` — set it to use a custom OpenAI-compatible provider instead of EveryAPI, such as `https://api.openai.com/v1` or `http://localhost:11434/v1` for Ollama. The signed-in EveryAPI account is not used then.
-- `LINGOCUT_LLM_API_KEY` or `EVERYAPI_API_KEY` — optional bearer token that overrides the signed-in account.
-- `LINGOCUT_OUTPUT_DIR` — where videos and subtitles go, default `~/Movies/LingoCut` on macOS and `~/Videos/LingoCut` elsewhere.
-- `LINGOCUT_GOOGLE_CLIENT_ID` — Google OAuth client id for the account page. It is not saved. `LINGOCUT_GOOGLE_CLIENT_SECRET` is optional.
-- `LINGOCUT_R2_ENDPOINT`, `LINGOCUT_R2_BUCKET`, `LINGOCUT_R2_ACCESS_KEY`, `LINGOCUT_R2_SECRET` — Cloudflare R2, used when set instead of the values saved in settings. The endpoint may be an account id or a full URL.
-- `LINGOCUT_S3_REGION`, `LINGOCUT_S3_BUCKET`, `LINGOCUT_S3_ACCESS_KEY`, `LINGOCUT_S3_SECRET` — Amazon S3. The region is a name such as `ap-northeast-1`. `LINGOCUT_STORAGE=s3` selects S3.
-- `LINGOCUT_OSS_REGION`, `LINGOCUT_OSS_BUCKET`, `LINGOCUT_OSS_ACCESS_KEY`, `LINGOCUT_OSS_SECRET` — Alibaba Cloud OSS. The region is a name such as `cn-hangzhou`. `LINGOCUT_STORAGE=oss` selects OSS.
-- `LINGOCUT_COS_REGION`, `LINGOCUT_COS_BUCKET`, `LINGOCUT_COS_ACCESS_KEY`, `LINGOCUT_COS_SECRET` — Tencent Cloud COS. The region is a name such as `ap-guangzhou`, and the bucket name includes the APPID. `LINGOCUT_STORAGE=cos` selects COS.
-- `LINGOCUT_S3COMPAT_ENDPOINT`, `LINGOCUT_S3COMPAT_REGION`, `LINGOCUT_S3COMPAT_BUCKET`, `LINGOCUT_S3COMPAT_ACCESS_KEY`, `LINGOCUT_S3COMPAT_SECRET` — any other S3-compatible store. `LINGOCUT_S3COMPAT_PATH_STYLE=1` turns on path-style addressing, which MinIO needs. `LINGOCUT_STORAGE=compat` selects it. Otherwise the upload goes to R2.
+- `KANDO_WHISPER_MODEL` (required) — path of a whisper.cpp ggml model, such as `ggml-small.bin`.
+- `KANDO_LLM_MODEL` — translation model, default `claude-haiku-5-5` on EveryAPI; required with a custom provider. `everyapi models list` shows what EveryAPI offers.
+- `KANDO_LLM_BASE_URL` — set it to use a custom OpenAI-compatible provider instead of EveryAPI, such as `https://api.openai.com/v1` or `http://localhost:11434/v1` for Ollama. The signed-in EveryAPI account is not used then.
+- `KANDO_LLM_API_KEY` or `EVERYAPI_API_KEY` — optional bearer token that overrides the signed-in account.
+- `KANDO_OUTPUT_DIR` — where videos and subtitles go, default `~/Movies/影视库.kando` on macOS and `~/Videos/影视库.kando` elsewhere.
+- `KANDO_GOOGLE_CLIENT_ID` — Google OAuth client id for the account page. It is not saved. `KANDO_GOOGLE_CLIENT_SECRET` is optional.
+- `KANDO_R2_ENDPOINT`, `KANDO_R2_BUCKET`, `KANDO_R2_ACCESS_KEY`, `KANDO_R2_SECRET` — Cloudflare R2, used when set instead of the values saved in settings. The endpoint may be an account id or a full URL.
+- `KANDO_S3_REGION`, `KANDO_S3_BUCKET`, `KANDO_S3_ACCESS_KEY`, `KANDO_S3_SECRET` — Amazon S3. The region is a name such as `ap-northeast-1`. `KANDO_STORAGE=s3` selects S3.
+- `KANDO_OSS_REGION`, `KANDO_OSS_BUCKET`, `KANDO_OSS_ACCESS_KEY`, `KANDO_OSS_SECRET` — Alibaba Cloud OSS. The region is a name such as `cn-hangzhou`. `KANDO_STORAGE=oss` selects OSS.
+- `KANDO_COS_REGION`, `KANDO_COS_BUCKET`, `KANDO_COS_ACCESS_KEY`, `KANDO_COS_SECRET` — Tencent Cloud COS. The region is a name such as `ap-guangzhou`, and the bucket name includes the APPID. `KANDO_STORAGE=cos` selects COS.
+- `KANDO_S3COMPAT_ENDPOINT`, `KANDO_S3COMPAT_REGION`, `KANDO_S3COMPAT_BUCKET`, `KANDO_S3COMPAT_ACCESS_KEY`, `KANDO_S3COMPAT_SECRET` — any other S3-compatible store. `KANDO_S3COMPAT_PATH_STYLE=1` turns on path-style addressing, which MinIO needs. `KANDO_STORAGE=compat` selects it. Otherwise the upload goes to R2.
 
-Finished and in-progress jobs are listed in the sidebar and remembered in `library.json` under the user config directory (`~/Library/Application Support/LingoCut` on macOS).
+Finished and in-progress jobs are listed in the sidebar and remembered in `library.json` under the user config directory (`~/Library/Application Support/Kando` on macOS).
 
 Rate limits and server errors from the provider are retried up to three times.
+
+## Upgrading from the old name
+
+Nothing reads the old names. Quit the app first. Then rename the config folder to `Kando`; it holds `library.json`, `settings.json`, `window-state.json` and the downloaded models. Next, rename each library's suffix to `.kando`. Do this after renaming the config folder and before launching. On macOS and Linux the saved inodes let the app follow every renamed library. On Windows the app can only match one missing library to one new `.kando` bundle in the same folder, so rename one library per folder at a time and launch the app once after each rename. Then rename each environment variable's prefix to `KANDO_`. After the first launch, choose the speech model again in 设置 › 语音识别: the model file moved with the folder and shows as downloaded, but the saved choice still points at the old path. Finally, delete the old app bundles, the poster cache, and the old window-state folders. Old to new: `~/Library/Application Support/LingoCut` (`%AppData%\LingoCut` on Windows, `~/.config/LingoCut` on Linux) to `Kando`, `X.lingocut` to `X.kando`, `LINGOCUT_*` to `KANDO_*`. To delete: `lingocut.app` and `lingocut Dev.app`; the poster cache `~/Library/Caches/LingoCut` (`%LocalAppData%\LingoCut` on Windows, `~/.cache/LingoCut` on Linux); on Linux the lowercase `~/.config/lingocut`; and, if you ran `make dev`, `~/Library/Application Support/lingocut Dev`.

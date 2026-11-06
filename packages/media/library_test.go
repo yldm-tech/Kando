@@ -105,8 +105,8 @@ func TestListVideosUsesTheFolderNameForAnItemVideo(t *testing.T) {
 }
 
 func TestAdoptLibraryMovesAFolderIntoTheBundle(t *testing.T) {
-	from := filepath.Join(t.TempDir(), "LingoCut")
-	to := filepath.Join(t.TempDir(), "影视库.lingocut")
+	from := filepath.Join(t.TempDir(), "Videos")
+	to := filepath.Join(t.TempDir(), "影视库.kando")
 	folder := filepath.Join(from, "talk [abc]")
 	if err := os.MkdirAll(folder, 0o755); err != nil {
 		t.Fatal(err)
@@ -148,7 +148,7 @@ func TestAdoptLibraryMovesAFolderIntoTheBundle(t *testing.T) {
 func TestDetachOwnVideosLeavesTheOtherAppsItems(t *testing.T) {
 	root := t.TempDir()
 	from := filepath.Join(root, "影视库.vimpo")
-	to := filepath.Join(root, "影视库.lingocut")
+	to := filepath.Join(root, "影视库.kando")
 	own := filepath.Join(from, "talk")
 	theirs := filepath.Join(from, "course")
 	if err := os.MkdirAll(own, 0o755); err != nil {
@@ -187,8 +187,8 @@ func TestDetachOwnVideosLeavesTheOtherAppsItems(t *testing.T) {
 
 func TestAdoptLibraryRemembersAnItemThatIsAlreadyNamedVideo(t *testing.T) {
 	root := t.TempDir()
-	from := filepath.Join(root, "LingoCut")
-	to := filepath.Join(root, "影视库.lingocut")
+	from := filepath.Join(root, "Videos")
+	to := filepath.Join(root, "影视库.kando")
 	folder := filepath.Join(from, "talk")
 	if err := os.MkdirAll(folder, 0o755); err != nil {
 		t.Fatal(err)
@@ -251,7 +251,7 @@ func TestWatchLibraryReportsANewFile(t *testing.T) {
 
 func TestWatchLibraryFollowsARename(t *testing.T) {
 	parent := t.TempDir()
-	dir := filepath.Join(parent, "影视库.lingocut")
+	dir := filepath.Join(parent, "影视库.kando")
 	if err := os.Mkdir(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -265,7 +265,7 @@ func TestWatchLibraryFollowsARename(t *testing.T) {
 		}
 	})
 	time.Sleep(40 * time.Millisecond)
-	renamed := filepath.Join(parent, "missav.lingocut")
+	renamed := filepath.Join(parent, "missav.kando")
 	if err := os.Rename(dir, renamed); err != nil {
 		t.Fatal(err)
 	}

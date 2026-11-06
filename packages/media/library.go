@@ -208,7 +208,7 @@ func GatherVideos(dir string) (map[string]string, error) {
 	return moved, nil
 }
 
-// AdoptLibrary moves videos from the old plain folder into a library bundle, then gives each one the video.<ext> name. An existing destination is skipped, so a video already in the bundle stays put.
+// AdoptLibrary moves videos from a plain folder into a library bundle, then gives each one the video.<ext> name. An existing destination is skipped, so a video already in the bundle stays put.
 func AdoptLibrary(from, to string) (map[string]string, error) {
 	from, to = filepath.Clean(from), filepath.Clean(to)
 	if from == to {
