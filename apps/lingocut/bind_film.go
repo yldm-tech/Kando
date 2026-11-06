@@ -58,6 +58,16 @@ func (a *app) SubOrder() string { return a.player.subOrder }
 
 func (a *app) SetSubOrder(order string) { a.player.subOrder = order }
 
+// Untranslated and YieldSubs are the player's settings, which the settings pages edit too. Both areas use these, so they are declared once, here, with the state they read.
+
+func (a *app) Untranslated() string { return a.player.untranslated }
+
+func (a *app) SetUntranslated(mode string) { a.player.untranslated = mode }
+
+func (a *app) YieldSubs() bool { return a.player.yieldSubs }
+
+func (a *app) SetYieldSubs(on bool) { a.player.yieldSubs = on }
+
 // ToggleFullScreen enters or leaves full screen. Without a window, as in tests, it does nothing.
 func (a *app) ToggleFullScreen() {
 	if a.win != nil {
