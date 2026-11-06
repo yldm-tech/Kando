@@ -1,7 +1,9 @@
 package film
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,29 +31,13 @@ var (
 // panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段 and the film's files under three tabs, or the subtitle style in their place.
 func (s screen) panel(c *ui.Context, t *ui.Theme, item films.Film) {
 	box := ui.Column(c).Absolute().Right(16).Top(62).Bottom(18).Width(panelWidth).Radius(22).Clip().Role(ui.RoleGroup).Label("侧栏")
-	glassFace(box, ui.RGBA(28, 28, 32, 0.6), 34, 0.2).Shadow(0, 20, 50, 0, ui.RGBA(0, 0, 0, 0.35))
+	glassFace(box, ui.RGBA(28, 28, 32, 0.6), 34, 0.2, 22).Shadow(0, 20, 50, 0, ui.RGBA(0, 0, 0, 0.35))
 	box.Children(func() {
 		if s.StyleView() {
 			s.styleView(c)
 			return
 		}
-		ui.Column(c).Padding(14, 14, 10, 14).Children(func() {
-			chosen := 0
-			for i, tab := range panelTabs {
-				if tab.id == s.FilmSide() {
-					chosen = i
-				}
-			}
-			c.Key("film-tabs")
-			labels := make([]string, len(panelTabs))
-			for i, tab := range panelTabs {
-				labels[i] = tab.label
-			}
-			breeze.Tabs(c, &chosen, labels...).Background(ui.RGBA(255, 255, 255, 0.1))
-			if panelTabs[chosen].id != s.FilmSide() {
-				s.SetFilmSide(panelTabs[chosen].id)
-			}
-		})
+		ui.Column(c).Padding(14, 14, 10, 14).Children(func() { s.panelTabBar(c) })
 		switch s.FilmSide() {
 		case "clips":
 			s.clipsTab(c, t)
@@ -63,19 +49,53 @@ func (s screen) panel(c *ui.Context, t *ui.Theme, item films.Film) {
 	})
 }
 
+// panelTabBar is the prototype's tab bar across the panel (template 718-724): a track of white at 10%, its tabs sharing its width, the chosen one lit with white at 22% and its label semibold. breeze's Tabs keep their own width, centered, so the bar is MyGo's tabs (ui.TabsBase), whose keys and roles are a tab list's, with the prototype's look.
+func (s screen) panelTabBar(c *ui.Context) {
+	chosen := 0
+	for i, tab := range panelTabs {
+		if tab.id == s.FilmSide() {
+			chosen = i
+		}
+	}
+	c.Key("film-tabs")
+	tabs := ui.TabsBase(c, &chosen, len(panelTabs))
+	tabs.List.Height(32).Padding(3).Radius(12).Background(ui.RGBA(255, 255, 255, 0.1)).Label("侧栏").Children(func() {
+		for i, tab := range panelTabs {
+			t := tabs.Tab(i).Grow(1).Basis(0).Height(26).Radius(9).Justify(ui.Center).AlignItems(ui.Center)
+			weight := 400
+			if i == chosen {
+				t.Background(ui.RGBA(255, 255, 255, 0.22))
+				weight = 600
+			} else if t.Hovered() {
+				t.Background(panelLine)
+			}
+			t.Children(func() { ui.Text(c, tab.label).FontSize(12).FontWeight(weight).SingleLine() })
+		}
+	})
+	if panelTabs[chosen].id != s.FilmSide() {
+		s.SetFilmSide(panelTabs[chosen].id)
+	}
+}
+
 // subsTab lists the cues with the time each starts, the playing one lit and kept in view as it changes. A click plays from a cue. The field above it searches both lines.
 func (s screen) subsTab(c *ui.Context, t *ui.Theme, item films.Film) {
 	subs := s.Subs()
 	ready := subs.Key == item.Key && subs.Ready
 	ui.Column(c).Padding(0, 14, 8, 14).Gap(8).Children(func() {
 		c.Key("film-search")
+		// The prototype's field is 30 high, white at 10%, its text 12; its bezel and its edge stay the platform's.
 		field := breeze.SearchField(c, s.Search()).Placeholder("搜索台词  " + breeze.ShortcutText(c, ui.Cmd, ui.KeyF)).Label("搜索台词")
+		field.Height(30).Background(ui.RGBA(255, 255, 255, 0.1)).FontSize(12)
 		if focus := s.SearchFocus(); *focus {
 			field.Focus()
 			*focus = false
 		}
 		if ready && subs.Err == "" && len(subs.Cues) > 0 {
-			breeze.Text(c, fmt.Sprintf("%d 句", len(subs.Cues)), breeze.TextCaption|breeze.TextSecondary)
+			// How many lines the list holds, as the prototype's chip 全部 shows it.
+			ui.Row(c).Height(24).Padding(0, 10).Radius(12).Gap(3).AlignItems(ui.Center).AlignSelf(ui.Start).Background(ui.RGBA(255, 255, 255, 0.25)).Children(func() {
+				ui.Text(c, "全部").FontSize(11).FontWeight(600)
+				ui.Text(c, fmt.Sprint(len(subs.Cues))).FontSize(11).FontWeight(600).Opacity(0.6)
+			})
 		}
 	})
 	body := ui.Column(c).Grow(1).MinHeight(0).Padding(0, 8, 12, 8)
@@ -93,8 +113,8 @@ func (s screen) subsTab(c *ui.Context, t *ui.Theme, item films.Film) {
 			s.cueList(c, subs.Cues)
 		}
 	})
-	ui.Row(c).Padding(8, 14, 12, 14).BorderWidth(0.5, 0, 0, 0).BorderColor(panelLine).Children(func() {
-		breeze.Text(c, "单击跳到该句", breeze.TextCaption|breeze.TextSecondary)
+	ui.Row(c).Padding(8, 14, 12, 14).BorderWidth(1, 0, 0, 0).BorderColor(panelLine).Children(func() {
+		ui.Text(c, "单击跳到该句").FontSize(11).LineHeight(15.0 / 11).Opacity(0.55)
 	})
 }
 
@@ -127,7 +147,7 @@ func (s screen) cueList(c *ui.Context, cues []core.Segment) {
 	ui.List(c, list, len(shown), func(row int) {
 		i := shown[row]
 		s.cueRow(c, cues[i], i == current)
-	}).Grow(1).Gap(2)
+	}).Grow(1)
 }
 
 // cueRow is one cue of the list: its start, the translation and the original under it. A click plays from its start.
@@ -146,14 +166,14 @@ func (s screen) cueRow(c *ui.Context, cue core.Segment, current bool) {
 		s.Seek(cue.Start + s.Delay())
 	}
 	row.Children(func() {
-		ui.Text(c, cueClock(cue.Start)).FontSize(11).FontFeatures("tnum").Opacity(0.7).Width(38).Shrink(0).Margin(2, 0, 0, 0)
+		ui.Text(c, cueClockTenths(cue.Start)).FontSize(11).FontFeatures("tnum").Opacity(0.7).Width(38).Shrink(0).Margin(2, 0, 0, 0)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			main := ui.Text(c, translation).FontSize(14).Wrap()
+			main := ui.Text(c, translation).FontSize(14).LineHeight(19.0 / 14).Wrap()
 			if current {
 				main.FontWeight(600)
 			}
 			if original != "" {
-				ui.Text(c, original).FontSize(12).Opacity(0.7).Wrap()
+				ui.Text(c, original).FontSize(12).LineHeight(16.0 / 12).Opacity(0.7).Wrap()
 			}
 		})
 	})
@@ -172,7 +192,9 @@ func (s screen) clipsTab(c *ui.Context, t *ui.Theme) {
 		case len(chapters) == 0:
 			panelNote(c, "还没有可以分段的字幕。")
 		default:
-			breeze.Text(c, "按时间把字幕平均切成 4–12 段，每段约 30 秒。", breeze.TextCaption|breeze.TextSecondary).Wrap()
+			ui.Row(c).MinHeight(30).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "按时间把字幕平均切成 4–12 段，每段约 30 秒。").FontSize(11).LineHeight(15.0 / 11).Opacity(0.7).Wrap()
+			})
 			ui.List(c, s.ClipList(), len(chapters), func(i int) {
 				s.chapterRow(c, i, chapters[i])
 			}).Grow(1).Gap(8)
@@ -197,12 +219,12 @@ func (s screen) chapterRow(c *ui.Context, index int, ch Chapter) {
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Text(c, fmt.Sprintf("片段 %d · %s–%s", index+1, cueClock(ch.Start), cueClock(ch.End))).FontSize(11).FontWeight(600).Opacity(0.7)
-			text := ui.Text(c, ch.Title).FontSize(13).Wrap()
+			text := ui.Text(c, ch.Title).FontSize(13).FontWeight(500).LineHeight(18.0 / 13).SingleLine()
 			if active {
 				text.Bold()
 			}
 			if ch.Detail != "" {
-				ui.Text(c, ch.Detail).FontSize(11).Opacity(0.6).Wrap()
+				ui.Text(c, ch.Detail).FontSize(11).LineHeight(15.0 / 11).Opacity(0.6).SingleLine()
 			}
 		})
 	})
@@ -223,14 +245,14 @@ func (s screen) chapterActive(ch Chapter) bool {
 func (s screen) infoTab(c *ui.Context, item films.Film) {
 	info := s.Info()
 	ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-		ui.Column(c).WidthPercent(100).Padding(0, 14, 16, 14).Gap(8).Children(func() {
+		ui.Column(c).WidthPercent(100).Padding(0, 14, 16, 14).Gap(12).Children(func() {
 			if info.Folder != "" {
 				panelHeading(c, "影片文件夹")
 				panelGroup(c, func() {
 					ui.Column(c).Padding(10, 12).Gap(8).Children(func() {
-						ui.Text(c, films.DisplayPath(info.Folder)).FontSize(12).Font("Menlo").Opacity(0.9).Wrap()
+						ui.Text(c, films.DisplayPath(info.Folder)).FontSize(12).LineHeight(17.0 / 12).Font("Menlo").Opacity(0.9).Wrap()
 						c.Key("film-info-reveal")
-						if breeze.Button(c, "在访达中显示").AlignSelf(ui.Start).Clicked() {
+						if breeze.Button(c, "在访达中显示").Height(26).AlignSelf(ui.Start).Clicked() {
 							s.Reveal(item.VideoPath)
 						}
 					})
@@ -239,7 +261,7 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 			if len(info.Files) > 0 {
 				panelHeading(c, "文件")
 				panelGroup(c, func() {
-					for i, f := range info.Files {
+					for i, f := range filesInOrder(info.Files) {
 						fileRow(c, f, i > 0)
 					}
 				})
@@ -251,30 +273,71 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 					if source == "" || strings.HasPrefix(source, "file://") {
 						source = "本地文件"
 					}
-					ui.Text(c, source).FontSize(12).Opacity(0.9).Wrap()
-					ui.Text(c, "任务记录保存在 ~/Library/Application Support/LingoCut/library.json").FontSize(12).Opacity(0.65).Wrap()
+					ui.Text(c, source).FontSize(12).LineHeight(17.0 / 12).Opacity(0.9).Wrap()
+					ui.Text(c, "任务记录保存在 ~/Library/Application Support/LingoCut/library.json").FontSize(12).LineHeight(17.0 / 12).Opacity(0.65).Wrap()
 				})
 			})
 		})
 	})
 }
 
-// fileRow is a file of the film's folder: a tile with its kind, its name and its size.
+// fileRow is a file of the film's folder: a tile with its kind, its name, and what it is with its size.
 func fileRow(c *ui.Context, f File, divided bool) {
 	row := ui.Row(c).Gap(10).MinHeight(44).Padding(6, 12).AlignItems(ui.Center)
 	if divided {
-		row.BorderWidth(0.5, 0, 0, 0).BorderColor(panelLine)
+		row.BorderWidth(1, 0, 0, 0).BorderColor(panelLine)
 	}
 	row.Children(func() {
 		tag, color := fileTag(f.Name)
 		ui.Box(c).Size(28, 28).Radius(7).Shrink(0).Background(color).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Text(c, tag).FontSize(9).FontWeight(800)
+			ui.Text(c, tag).FontSize(9).FontWeight(800).LetterSpacing(0.3)
 		})
-		ui.Column(c).MinWidth(0).Children(func() {
+		ui.Column(c).MinWidth(0).Gap(1).Children(func() {
 			ui.Text(c, f.Name).FontSize(12).Font("Menlo").Wrap()
-			ui.Text(c, fileSize(f.Size)).FontSize(11).Opacity(0.65)
+			about := fileSize(f.Size)
+			if kind := fileKind(f.Name); kind != "" {
+				about = kind + " · " + about
+			}
+			ui.Text(c, about).FontSize(11).Opacity(0.65)
 		})
 	})
+}
+
+// fileKind is what a file the pipeline writes into a film's folder is, as the prototype's 信息 names them (script 3261-3266), or "" for another file.
+func fileKind(name string) string {
+	switch {
+	case strings.HasSuffix(name, ".bilingual.srt"):
+		return "双语字幕"
+	case name == "cover.jpg":
+		return "封面"
+	}
+	switch strings.ToUpper(strings.TrimPrefix(fileExt(name), ".")) {
+	case "SRT", "VTT", "ASS":
+		return "原文字幕"
+	case "MP4", "MKV", "MOV", "WEBM", "M4V":
+		return "视频"
+	}
+	return ""
+}
+
+// filesInOrder is files as the prototype lists a film's folder: the video, the cover, the subtitles, then the rest, the shorter name first within each, as video.srt before video.bilingual.srt.
+func filesInOrder(files []File) []File {
+	rank := func(f File) int {
+		switch fileKind(f.Name) {
+		case "视频":
+			return 0
+		case "封面":
+			return 1
+		case "原文字幕", "双语字幕":
+			return 2
+		}
+		return 3
+	}
+	out := slices.Clone(files)
+	slices.SortStableFunc(out, func(a, b File) int {
+		return cmp.Or(cmp.Compare(rank(a), rank(b)), cmp.Compare(len(a.Name), len(b.Name)), strings.Compare(a.Name, b.Name))
+	})
+	return out
 }
 
 // fileTag is the kind a file's tile shows and its color, after the prototype's (script 3261-3266).
@@ -314,7 +377,7 @@ func fileSize(n int64) string {
 }
 
 func panelHeading(c *ui.Context, text string) {
-	ui.Text(c, text).FontSize(11).FontWeight(700).Opacity(0.6).Padding(4, 4, 0, 4)
+	ui.Text(c, text).FontSize(11).FontWeight(700).Opacity(0.6).Padding(0, 4)
 }
 
 // panelGroup is a card of the panel, a lighter glass holding rows.

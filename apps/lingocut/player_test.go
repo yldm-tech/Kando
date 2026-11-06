@@ -48,7 +48,7 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	tt.Frame()
 	waitUntil(t, updates, func() bool { return a.player.subs.ready })
 	tt.Frame()
-	for _, text := range []string{"返回", "已完成", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "2 句", "在访达中显示"} {
+	for _, text := range []string{"返回", "字幕 100%", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "全部", "在访达中显示"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
@@ -477,7 +477,7 @@ func TestOpenFilmClearsTheTitleBar(t *testing.T) {
 	}
 }
 
-// TestFilmInTheColumnStartsAtItsEdge checks that a film opened from the YouTube page, which shows in the content column beside the sidebar, puts its back button at the column's edge rather than leaving room for the traffic lights, which are over the sidebar.
+// TestFilmInTheColumnStartsAtItsEdge checks that a film opened from the YouTube page, which shows in the content column beside the sidebar, puts its back button the prototype's padding of 20 from the column's edge rather than leaving room for the traffic lights, which are over the sidebar.
 func TestFilmInTheColumnStartsAtItsEdge(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
@@ -493,8 +493,8 @@ func TestFilmInTheColumnStartsAtItsEdge(t *testing.T) {
 		t.Fatalf("missing the back button in %q", tt.Texts())
 	}
 	edge := float32(sidebarWidth + pagePadX)
-	if back.X < edge || back.X-edge > 16 {
-		t.Fatalf("back button at %v, want it within 16 of the column's edge at %v", back, edge)
+	if back.X < edge || back.X-edge > 20 {
+		t.Fatalf("back button at %v, want it within 20 of the column's edge at %v", back, edge)
 	}
 }
 

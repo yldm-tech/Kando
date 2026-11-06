@@ -25,7 +25,7 @@ func (s screen) uploadCapsule(c *ui.Context, item films.Film) {
 	}
 	ui.Row(c).Absolute().Left(0).Right(0).Top(64).Justify(ui.Center).PassThrough().Children(func() {
 		capsule := ui.Row(c).MaxWidthPercent(70).Wrap().Gap(10).Padding(8, 8, 8, 16).Radius(18).AlignItems(ui.Center).TextColor(onGlass).Role(ui.RoleStatus)
-		glassFace(capsule, ui.RGBA(30, 30, 34, 0.72), 24, 0.2).Children(func() {
+		glassFace(capsule, ui.RGBA(30, 30, 34, 0.72), 24, 0.2, 18).Children(func() {
 			dot, ok := uploadDots[view.Status]
 			if !ok {
 				dot = uploadDots[UploadDone]

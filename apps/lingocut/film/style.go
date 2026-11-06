@@ -12,10 +12,12 @@ var stylePresets = []struct {
 	id, label  string
 	box        bool
 	tran, orig float32
+	// sample is the size of the 字幕 its card shows.
+	sample float32
 }{
-	{"outline", "描边", false, 30, 22},
-	{"box", "底框", true, 30, 22},
-	{"large", "大字", false, 42, 30},
+	{"outline", "描边", false, 30, 22, 15},
+	{"box", "底框", true, 30, 22, 15},
+	{"large", "大字", false, 42, 30, 20},
 }
 
 // styleColors are the colors a line can take.
@@ -29,7 +31,7 @@ func (s screen) styleView(c *ui.Context) {
 	changed := false
 	ui.Row(c).Gap(6).Padding(12, 12, 8, 12).AlignItems(ui.Center).Children(func() {
 		c.Key("film-style-back")
-		if breeze.FlatIconButton(c, iconChevronLeft, "返回侧栏").Clicked() {
+		if glyphButton(c, iconChevronSmall, "返回侧栏", 28, 28, 7, 11).Clicked() {
 			s.SetStyleView(false)
 		}
 		ui.Text(c, "字幕样式").FontSize(14).Bold()
@@ -43,14 +45,16 @@ func (s screen) styleView(c *ui.Context) {
 				}
 			}
 			c.Key("film-style-preset")
-			before := preset
-			breeze.Segmented(c, &preset, "描边", "底框", "大字").Label("预设").AlignSelf(ui.Center)
-			if preset != before {
-				p := stylePresets[preset]
-				look.Preset, look.Box, look.Shadow = p.id, p.box, !p.box
-				look.Translation.Size, look.Original.Size = p.tran, p.orig
-				changed = true
-			}
+			ui.Row(c).Gap(8).Role(ui.RoleRadioGroup).Label("预设").Children(func() {
+				for i, p := range stylePresets {
+					c.Key("film-style-preset-" + p.id)
+					if presetCard(c, p.label, p.box, p.sample, i == preset).Clicked() && i != preset {
+						look.Preset, look.Box, look.Shadow = p.id, p.box, !p.box
+						look.Translation.Size, look.Original.Size = p.tran, p.orig
+						changed = true
+					}
+				}
+			})
 			panelGroup(c, func() {
 				styleRow(c, "字体", false, func() {
 					c.Key("film-style-font")
@@ -102,6 +106,28 @@ func (s screen) styleView(c *ui.Context) {
 	}
 }
 
+// presetCard is a preset of the style view, a card of the prototype's (template 652-657): 字幕 drawn as the preset draws it, outlined or on a box, over its name, the chosen card lit and ringed in white.
+func presetCard(c *ui.Context, label string, box bool, sample float32, on bool) ui.Element {
+	card := ui.ButtonBase(c).Column().Grow(1).Basis(0).MinWidth(0).Gap(6).Padding(10, 4, 8, 4).Radius(12).AlignItems(ui.Center).Label(label).Role(ui.RoleRadio).Checked(on)
+	if on {
+		card.Background(ui.RGBA(255, 255, 255, 0.16)).InsetShadow(0, 0, 0, 1.5, onGlass)
+	} else {
+		card.Background(ui.RGBA(255, 255, 255, 0.06)).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, 0.15))
+	}
+	card.Children(func() {
+		ui.Row(c).Height(26).AlignItems(ui.Center).Role(ui.RoleNone).Children(func() {
+			line := styledLine{text: "字幕", face: Face{Size: sample, Color: "#FFFFFF", Bold: true}}
+			if box {
+				ui.Box(c).Padding(0, 8).Radius(5).Background(ui.RGBA(0, 0, 0, 0.7)).Children(func() { lineText(c, line).LineHeight(26.0 / sample).TextColor(onGlass) })
+				return
+			}
+			subtitleLine(c, line, false, true)
+		})
+		ui.Text(c, label).FontSize(12)
+	})
+	return card
+}
+
 // faceGroup sets one line's size, between lo and hi, its color and whether it is bold. It reports whether any changed.
 func (s screen) faceGroup(c *ui.Context, name string, face *Face, lo, hi float64) bool {
 	changed := false
@@ -137,14 +163,16 @@ func (s screen) faceGroup(c *ui.Context, name string, face *Face, lo, hi float64
 	return changed
 }
 
-// styleRow is a row of a style group: its label, then its controls at the end, under a hairline when divided.
+// styleRow is a row of a style group: its label, then its controls at the end, under a hairline from 12 in when divided, as the prototype's grouped lists.
 func styleRow(c *ui.Context, label string, divided bool, controls func()) {
 	row := ui.Row(c).Gap(10).MinHeight(40).Padding(6, 12).AlignItems(ui.Center)
 	if divided {
-		row.BorderWidth(0.5, 0, 0, 0).BorderColor(ui.RGBA(255, 255, 255, 0.12))
+		row.Draw(func(p *ui.Painter, r ui.Rect) {
+			p.Fill(ui.Rect{X: r.X + 12, Y: r.Y, W: r.W - 12, H: 0.5}, ui.RGBA(255, 255, 255, 0.12), 0)
+		})
 	}
 	row.Children(func() {
-		ui.Text(c, label).Width(56).Shrink(0)
+		ui.Text(c, label).FontSize(13).MinWidth(40).Shrink(0)
 		ui.Row(c).Grow(1).Gap(10).AlignItems(ui.Center).Justify(ui.End).Children(controls)
 	})
 }

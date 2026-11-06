@@ -17,7 +17,7 @@ func (s screen) osd(c *ui.Context, now time.Time) {
 	}
 	c.After(left)
 	pill := ui.Row(c).Absolute().Left(20).Top(66).Padding(6, 12).Radius(12).TextColor(onGlass).PassThrough().Role(ui.RoleStatus)
-	glassFace(pill, ui.RGBA(28, 28, 32, 0.62), 20, 0.2).Children(func() {
+	glassFace(pill, ui.RGBA(28, 28, 32, 0.62), 20, 0.2, 12).Children(func() {
 		ui.Text(c, text).FontSize(13).FontWeight(600)
 	})
 }

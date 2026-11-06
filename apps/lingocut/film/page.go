@@ -280,19 +280,21 @@ func (s screen) bigPlay(c *ui.Context) {
 	}
 	ui.Row(c).Absolute().Left(0).Right(right).TopPercent(42).Justify(ui.Center).PassThrough().Children(func() {
 		btn := ui.ButtonBase(c).Size(76, 76).Margin(-38, 0, 0, 0).Radius(38).AlignItems(ui.Center).Justify(ui.Center).Label("播放")
-		glassFace(btn, ui.RGBA(255, 255, 255, 0.18), 20, 0.35)
+		glassFace(btn, ui.RGBA(255, 255, 255, 0.18), 20, 0.35, 38)
 		if btn.Clicked() {
 			s.togglePlay(c)
 		}
 		btn.Children(func() {
-			ui.Icon(c, iconPlay).Size(28, 28).TextColor(onGlass).Margin(0, 0, 0, 4)
+			ui.Icon(c, iconBigPlay).Size(28, 30).TextColor(onGlass)
 		})
 	})
 }
 
-// glassFace gives e the player's glass: what is under it blurred by blur, tinted with fill, inside a half-point white ring of alpha ring.
-func glassFace(e ui.Element, fill ui.Color, blur, ring float32) ui.Element {
-	return e.Material(glass.Blur{Radius: blur}).Background(fill).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, ring))
+// glassFace gives e, whose corners are radius, the player's glass: what is under it blurred by blur, tinted with fill, inside a half-point white ring of alpha ring. A material takes the place of an element's background, so the tint is painted over the blur, under e's children, rather than set as its background.
+func glassFace(e ui.Element, fill ui.Color, blur, ring, radius float32) ui.Element {
+	return e.Radius(radius).Material(glass.Blur{Radius: blur}).Draw(func(p *ui.Painter, r ui.Rect) {
+		p.Fill(r, fill, radius)
+	}).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, ring))
 }
 
 // title is how the film is named in the title bar.
@@ -324,6 +326,14 @@ func cueClock(d time.Duration) string {
 		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
 	}
 	return fmt.Sprintf("%d:%02d", m, s)
+}
+
+// cueClockTenths is cueClock with the tenth of a second, as the subtitle list shows a line's start ("0:10.4").
+func cueClockTenths(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	return fmt.Sprintf("%s.%d", cueClock(d), d.Milliseconds()/100%10)
 }
 
 // CueAt is the subtitle line covering at. A zero end means the line stays until the next one.
