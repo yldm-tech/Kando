@@ -37,7 +37,6 @@ type cloudUI struct {
 	compatAccessKey string
 	compatSecret    string
 	compatPath      bool
-	showR2Secret    bool
 	uploadPath      string
 	uploadWritten   int64
 	uploadTotal     int64

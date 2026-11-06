@@ -17,10 +17,7 @@ func (a *app) saveSettings() error {
 	if err := os.MkdirAll(filepath.Dir(a.settingsPath), 0o700); err != nil {
 		return err
 	}
-	var saved savedSettings
-	saved.savedShelf = a.saveShelf()
-	a.areasSave(&saved)
-	data, err := json.MarshalIndent(saved, "", "  ")
+	data, err := json.MarshalIndent(a.settingsFile(), "", "  ")
 	if err != nil {
 		return err
 	}
@@ -30,6 +27,14 @@ func (a *app) saveSettings() error {
 		return err
 	}
 	return os.Rename(tmp, a.settingsPath)
+}
+
+// settingsFile is the settings as saveSettings writes them.
+func (a *app) settingsFile() savedSettings {
+	var saved savedSettings
+	saved.savedShelf = a.saveShelf()
+	a.areasSave(&saved)
+	return saved
 }
 
 // restoreSettings takes back what settings.json holds at startup: the shelf first, then each area's part (areaHooks.restore). A library renamed while the app was closed is saved under its new path only after that, because saveSettings writes every area's state and, before the areas restore theirs, that state is the defaults.

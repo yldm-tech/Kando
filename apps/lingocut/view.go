@@ -23,7 +23,7 @@ const (
 	pagePadX     = sidebar.PagePadX
 )
 
-// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn and contentBand in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, dropFiles in bind_films.go, settingsPage in bind_settings.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
+// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn and contentBand in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, dropFiles in bind_films.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
 func (a *app) view(c *ui.Context) {
 	t, dark := palette(c)
 	a.wireKeys(c)
@@ -75,9 +75,6 @@ func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
 		body.Background(t.Surface)
 	}
 	body.Children(func() {
-		if a.settingsPage(c, t) {
-			return
-		}
 		films.Show(c, t, a, items, func(c *ui.Context, _ *ui.Theme, item films.Film) {
 			film.Show(c, dark, a, item)
 		})

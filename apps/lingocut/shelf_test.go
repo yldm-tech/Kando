@@ -134,14 +134,14 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if a.snap().LibraryDir != first {
 		t.Fatalf("switched library = %q", a.snap().LibraryDir)
 	}
-	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	if err := tt.Click("切换"); err != nil {
-		t.Fatal(err)
+	general := settingsOpenAt(a, tt, settings.SectionGeneral)
+	if !general.HasText("第一库") || !general.HasText("只从 LingoCut 的列表里拿掉") {
+		t.Fatalf("texts %q", general.Texts())
 	}
-	if err := tt.Click("从列表移出"); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
+	if err := general.Click("移出"); err != nil {
+		t.Fatalf("%v texts %q", err, general.Texts())
 	}
-	tt.Frame()
+	general.Frame()
 	if a.snap().LibraryDir != second {
 		t.Fatalf("after forget, library = %q", a.snap().LibraryDir)
 	}
