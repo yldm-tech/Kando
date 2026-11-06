@@ -4,8 +4,8 @@ import (
 	"errors"
 	"image/png"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"lingocut/packages/core"
@@ -16,15 +16,16 @@ import (
 
 // The screenshot tests render the main scenes to PNG files in the directory named by LINGOCUT_SCREENSHOTS, so a visual change can be compared before and after. They are skipped when the variable is unset. Each area renders its own scenes in its own screenshot_<area>_test.go (TestScreenshots<Area>), from the library this file makes; `go test -run TestScreenshots` renders them all. The window is light, as main sets it.
 
-// screenshotFixture is the library every scene starts from: a finished film, Colibri, with a bilingual subtitle, and a link whose translation failed.
+// screenshotFixture is the library every scene starts from: a finished film, Colibri, with a bilingual subtitle, and a link whose translation failed. The scenes do not see this machine: home is a new empty home folder, the library is ~/Movies/影视库.lingocut in it, and the pipeline runs the fake ffmpeg, yt-dlp and whisper-cli in ~/bin (fake_tools_test.go), so every path a scene shows starts with ~ and the versions and the picture are the same everywhere. A scene that needs another folder makes it under home.
 type screenshotFixture struct {
 	out      string
+	home     string
 	lib      string
 	pipeline media.Pipeline
 	jobs     []core.Job
 }
 
-// newScreenshotFixture makes the library in a temporary folder, or skips t when LINGOCUT_SCREENSHOTS is unset. With ffmpeg on the PATH, Colibri is a real two-second clip and the pipeline can play it.
+// newScreenshotFixture makes the library in a fake home folder (screenshotHome), or skips t when LINGOCUT_SCREENSHOTS is unset. Colibri's video is a placeholder the fake ffmpeg plays as a two-second clip (writeFakeClip).
 func newScreenshotFixture(t *testing.T) *screenshotFixture {
 	t.Helper()
 	out := os.Getenv("LINGOCUT_SCREENSHOTS")
@@ -34,36 +35,47 @@ func newScreenshotFixture(t *testing.T) *screenshotFixture {
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_SECRET", "")
-	lib := filepath.Join(t.TempDir(), "影视库.lingocut")
-	if err := os.Mkdir(lib, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	var pipeline media.Pipeline = &fakePipeline{}
+	home := screenshotHome(t)
+	lib := filepath.Join(home, "Movies", "影视库.lingocut")
 	clip := filepath.Join(lib, "Colibri", "video.mp4")
-	if err := os.MkdirAll(filepath.Dir(clip), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if ffmpeg, err := exec.LookPath("ffmpeg"); err == nil {
-		if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=640x360:d=2:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", clip).CombinedOutput(); err != nil {
-			t.Fatalf("ffmpeg could not make a clip: %v %s", err, out)
-		}
-		pipeline = media.Tools{FFmpeg: ffmpeg}
-	} else if err := os.WriteFile(clip, []byte("v"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeClip(t, clip, 2, "9CC9E0", "4F7F6A")
 	srt := filepath.Join(lib, "Colibri", "video.bilingual.srt")
 	cues := "1\n00:00:00,000 --> 00:00:01,000\n蜂鸟每秒振翅五十次。\nHummingbirds beat their wings fifty times a second.\n\n2\n00:00:01,000 --> 00:00:02,000\n它们能向后飞。\nThey can fly backwards.\n\n"
 	if err := os.WriteFile(srt, []byte(cues), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	bin := filepath.Join(home, "bin")
+	pipeline := media.Tools{
+		OutputDir:  lib,
+		YTDLP:      fakeTool(t, bin, "yt-dlp"),
+		FFmpeg:     fakeTool(t, bin, "ffmpeg"),
+		Whisper:    fakeTool(t, bin, "whisper-cli"),
+		Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel},
+	}
 	jobs := []core.Job{
 		{ID: "colibri", Source: "file://" + clip, Language: "简体中文", Stage: core.StageComplete, VideoPath: clip, SubtitlePath: srt, LibraryDir: lib},
 		{ID: "talk", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("translate: translation API returned 401"), LibraryDir: lib},
 	}
-	return &screenshotFixture{out: out, lib: lib, pipeline: pipeline, jobs: jobs}
+	return &screenshotFixture{out: out, home: home, lib: lib, pipeline: pipeline, jobs: jobs}
+}
+
+// screenshotHome cuts t off from this machine until it ends and returns the fake home folder: HOME (USERPROFILE on Windows) is a new empty folder, so the config, cache and speech model folders are empty ones in it and the window shows paths in it as ~; the XDG folders follow HOME; PATH is only ~/bin, where the fixture puts the fake tools, so nothing finds a tool installed here; and every LINGOCUT_ and EVERYAPI_ variable is blank, so no credentials, endpoints, models or library folder of this machine reach a scene.
+func screenshotHome(t *testing.T) string {
+	t.Helper()
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		if strings.HasPrefix(name, "LINGOCUT_") || strings.HasPrefix(name, "EVERYAPI_") {
+			t.Setenv(name, "")
+		}
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	for _, name := range []string{"XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"} {
+		t.Setenv(name, "")
+	}
+	t.Setenv("PATH", filepath.Join(home, "bin"))
+	return home
 }
 
 // shoot opens the window on the library at 1100×720, runs steps and saves what it shows as name.png.
