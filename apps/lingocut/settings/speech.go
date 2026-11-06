@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"lingocut/apps/lingocut/settings/form"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -24,23 +25,20 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 		}
 	}
 	sel := chosen
-	breeze.PreferencesGroup(c, "whisper 模型", "自动识别语言，支持智能断句。越大越准，也越慢、越占空间；不确定就用推荐的。模型从 HuggingFace 下载，取消后不留下半截文件；其他应用已经下好的模型（Vimpo、hyperframes）会直接选用，不用复制。", nil, func() {
-		for i, model := range models {
-			c.Key(model.ID)
-			subtitle := model.Blurb + "\n" + fmt.Sprintf("速度 %s  准确 %s  %s", stars(model.Speed), stars(model.Accuracy), model.SizeLabel)
-			suffix := func() {
-				if model.Recommended {
-					breeze.Badge(c, "推荐")
+	form.Label(c, "whisper 模型", 6, nil)
+	form.Card(c, func() {
+		// One radio group, so that Tab stops once in it and the arrows choose among the models on disk.
+		ui.RadioGroup(c, func() {
+			for i, model := range models {
+				if i > 0 {
+					form.Separator(c, false)
 				}
-				s.modelAction(c, model, installed[i])
+				c.Key(model.ID)
+				s.modelRow(c, &sel, model, installed[i])
 			}
-			if installed[i] != "" {
-				breeze.RadioRow(c, &sel, model.ID, model.Name, subtitle, suffix)
-			} else {
-				breeze.ActionRow(c, model.Name, subtitle, suffix)
-			}
-		}
+		}).Label("whisper 模型").Gap(0).AlignItems(ui.Stretch)
 	})
+	form.Note(c, "自动识别语言，支持智能断句。越大越准，也越慢、越占空间；不确定就用推荐的。模型从 HuggingFace 下载，取消后不留下半截文件；其他应用已经下好的模型（Vimpo、hyperframes）会直接选用，不用复制。", 0)
 	if sel != chosen {
 		for i, model := range models {
 			if model.ID == sel {
@@ -49,8 +47,25 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 		}
 	}
 	if s.DownloadErr() != "" {
-		breeze.Text(c, s.DownloadErr(), breeze.TextCaption).TextColor(t.Danger).Wrap()
+		ui.Text(c, s.DownloadErr()).FontSize(11).TextColor(t.Danger).Wrap().Padding(0, 12)
 	}
+}
+
+// modelRow is a whisper model as the prototype's engine rows: its radio button, its name with 推荐 after it over what it is good for and its speed, accuracy and size, and what it offers at the end. A model not on disk cannot be chosen, so its radio button is disabled.
+func (s screen) modelRow(c *ui.Context, sel *string, model media.SpeechModel, installed string) {
+	ui.Row(c).Shrink(0).MinHeight(54).Padding(8, 14).Gap(12).AlignItems(ui.Center).Children(func() {
+		breeze.Radio(c, sel, model.ID, "").Label(model.Name).Disabled(installed == "")
+		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
+			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, model.Name).FontSize(13).FontWeight(600).TextColor(form.Text)
+				if model.Recommended {
+					form.Badge(c, "推荐")
+				}
+			})
+			ui.Text(c, model.Blurb+"\n"+fmt.Sprintf("速度 %s  准确 %s  %s", stars(model.Speed), stars(model.Accuracy), model.SizeLabel)).FontSize(11).FixedLineHeight(15).TextColor(form.Secondary).Wrap()
+		})
+		ui.Row(c).Shrink(0).Gap(8).AlignItems(ui.Center).Children(func() { s.modelAction(c, model, installed) })
+	})
 }
 
 // modelAction is what a model offers at the end of its row: its download's progress with a way to cancel it, 已下载, or 下载.
@@ -62,17 +77,17 @@ func (s screen) modelAction(c *ui.Context, model media.SpeechModel, installed st
 		}
 		breeze.Progress(c, progress).Width(110).Label(model.Name + " 下载进度")
 		c.Key(model.ID + "-cancel")
-		if breeze.Button(c, "取消").Clicked() {
+		if form.Button(c, "取消", false).Clicked() {
 			s.CancelDownload()
 		}
 		return
 	}
 	if installed != "" {
-		breeze.Text(c, "已下载", breeze.TextSecondary)
+		form.Value(c, "已下载", 12)
 		return
 	}
 	c.Key(model.ID + "-download")
-	if breeze.Button(c, "下载").Disabled(s.Downloading() != "").Clicked() && s.Downloading() == "" {
+	if form.Button(c, "下载", false).Disabled(s.Downloading() != "").Clicked() && s.Downloading() == "" {
 		s.DownloadModel(model.ID)
 	}
 }

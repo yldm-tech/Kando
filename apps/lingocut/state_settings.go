@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"runtime"
 	"strings"
 
 	"lingocut/apps/lingocut/settings"
@@ -151,14 +150,6 @@ func (a *app) openSettingsWindow() {
 		w.Invalidate()
 		return
 	}
-	// The sidebar's material, as the main window has it: AppKit's source list on macOS and Mica on Windows.
-	vibrancy := mygo.VibrancyNone
-	switch runtime.GOOS {
-	case "darwin":
-		vibrancy = mygo.VibrancySidebar
-	case "windows":
-		vibrancy = mygo.VibrancyMica
-	}
 	w := mygo.NewWindow(mygo.WindowOptions{
 		Title:             "设置",
 		Width:             880,
@@ -171,9 +162,8 @@ func (a *app) openSettingsWindow() {
 		DisableFullScreen: true,
 		TitleBarStyle:     mygo.TitleBarHidden,
 		// The traffic lights sit in a band 50 high, as the prototype's settings rail has them.
+		// No material: the prototype's settings draw their rail and pages in plain colors, without a backdrop blur.
 		TrafficLightPosition: &mygo.Point{X: 18, Y: 18},
-		Transparent:          runtime.GOOS == "darwin",
-		Vibrancy:             vibrancy,
 		Content:              ui.View(a.settingsView),
 	})
 	a.prefs.win = w
