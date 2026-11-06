@@ -1,13 +1,136 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	"image/png"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
+	"time"
+
+	"lingocut/packages/core"
+	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsLibrary renders the library page (screenshot_helpers_test.go).
+// TestScreenshotsLibrary renders the library page at the prototype's window size (1304×782) to PNG files in the directory named by LINGOCUT_SCREENSHOTS (screenshot_helpers_test.go), with the prototype's films: the hero, 处理中 with waiting, running and failed jobs, the grid, the empty pages, the new-library sheet and the 从资料库移除 confirmation. The shared fixture's two films are too few for the hero, the queue and the grid at once, so the scenes use a library of their own. It is skipped when the variable is unset, and without ffmpeg, which makes the clips the posters come from.
 func TestScreenshotsLibrary(t *testing.T) {
-	f := newScreenshotFixture(t)
-	f.shoot(t, "library", func(*app, *ui.Tester, chan func()) {})
+	out := newScreenshotFixture(t).out
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg is not installed")
+	}
+	lib := filepath.Join(t.TempDir(), "我的影片.lingocut")
+	// clip makes the folder of a film in the library with a video of the given length drawn by an ffmpeg test source.
+	clip := func(name, source string, seconds int) string {
+		t.Helper()
+		video := filepath.Join(lib, name, "video.mp4")
+		if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		src := fmt.Sprintf("%s=s=320x180:d=%d:r=1", source, seconds)
+		if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", src, "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
+			t.Fatalf("ffmpeg could not make %s: %v %s", name, err, out)
+		}
+		return video
+	}
+	rivers := clip("How Rivers Shape Landscapes", "testsrc2", 180)
+	srt := filepath.Join(filepath.Dir(rivers), "video.bilingual.srt")
+	cues := "1\n00:00:01,000 --> 00:00:04,000\n每条河都始于高山上的一股细流。\nEvery river begins as a trickle high in the mountains.\n\n"
+	if err := os.WriteFile(srt, []byte(cues), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	algebra := clip("Linear Algebra, Lecture 1", "smptebars", 180)
+	meeting := clip("会议录屏 2026-10-28", "rgbtestsrc", 180)
+	tides := clip("The Tide Pools of Monterey", "testsrc", 180)
+	market := clip("Morning Market in Kyoto", "smptehdbars", 120)
+	finished := func(id, source, video string) core.Job {
+		return core.Job{ID: id, Source: source, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: filepath.Join(filepath.Dir(video), "video.bilingual.srt"), LibraryDir: lib}
+	}
+	jobs := []core.Job{
+		{ID: "market", Source: "https://www.youtube.com/watch?v=Kyoto0market", Language: "简体中文", Stage: core.StageTranslating, VideoPath: market, LibraryDir: lib},
+		{ID: "ocean", Source: "https://www.youtube.com/watch?v=Ocean0curre", Language: "简体中文", Stage: core.StageQueued, LibraryDir: lib},
+		{ID: "street", Source: "https://www.youtube.com/watch?v=Street0food", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: yt-dlp: ERROR: Unable to extract nsig function"), LibraryDir: lib},
+		{ID: "lesson", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("check: LINGOCUT_WHISPER_MODEL is not set"), LibraryDir: lib},
+		finished("rivers", "https://www.youtube.com/watch?v=TRWgBxVAb1M", rivers),
+		finished("algebra", "https://www.youtube.com/watch?v=Linear0alge", algebra),
+		finished("meeting", "file://"+meeting, meeting),
+		finished("tides", "https://www.youtube.com/watch?v=Tide0pools0", tides),
+	}
+
+	shoot := func(name string, width, height int, setup func(a *app), steps func(a *app, tt *ui.Tester)) {
+		t.Helper()
+		updates := make(chan func(), 64)
+		a := newApp(media.Tools{FFmpeg: ffmpeg}, func(fn func()) { updates <- fn })
+		a.edit(func(s *session) {
+			s.LibraryDir = lib
+			s.Libraries = []string{lib}
+			s.LibraryParent = "/Volumes/Media/影片"
+		})
+		a.setResumePositions(map[string]time.Duration{rivers: 100 * time.Second})
+		setup(a)
+		a.refreshLibrary()
+		tt := ui.NewTester(a.view, width, height)
+		tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
+		tt.Frame()
+		// The posters are grabbed in the background, from the shelf or, before this page was split, from the first frame.
+		deadline := time.After(30 * time.Second)
+		for len(a.lib.posterBusy) > 0 {
+			select {
+			case fn := <-updates:
+				fn()
+			case <-deadline:
+				t.Fatalf("posters did not load: %v", a.lib.posterBusy)
+			}
+		}
+		tt.Frame()
+		steps(a, tt)
+		tt.Frame()
+		file, err := os.Create(filepath.Join(out, name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer file.Close()
+		if err := png.Encode(file, tt.Image()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	withJobs := func(a *app) { a.library.Jobs = append([]core.Job(nil), jobs...) }
+	none := func(*app, *ui.Tester) {}
+	// try clicks label when the page has it; the page before this change lacks some of them.
+	try := func(tt *ui.Tester, label string) {
+		if tt.Click(label) == nil {
+			tt.Frame()
+		}
+	}
+
+	shoot("library", 1304, 782, withJobs, func(_ *app, tt *ui.Tester) { try(tt, "开始处理") })
+	shoot("library-full", 1304, 1500, withJobs, none)
+	shoot("library-empty", 1304, 782, func(a *app) {
+		empty := filepath.Join(t.TempDir(), "新资料库.lingocut")
+		if err := os.Mkdir(empty, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		a.edit(func(s *session) { s.LibraryDir = empty })
+	}, none)
+	shoot("library-none", 1304, 782, func(a *app) {
+		a.edit(func(s *session) {
+			s.LibraryDir = ""
+			s.Libraries = nil
+		})
+	}, none)
+	shoot("library-new", 1304, 782, withJobs, func(_ *app, tt *ui.Tester) {
+		try(tt, "资料库菜单")
+		try(tt, "新建资料库...")
+	})
+	shoot("library-remove", 1304, 1100, withJobs, func(_ *app, tt *ui.Tester) {
+		if tt.RightClick("Linear Algebra, Lecture 1") == nil {
+			if tt.ChooseMenuItem("从资料库移除…") == nil {
+				tt.Frame()
+			}
+		}
+	})
 }

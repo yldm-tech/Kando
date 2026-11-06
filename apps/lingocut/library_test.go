@@ -6,9 +6,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"lingocut/apps/lingocut/films"
+	"lingocut/apps/lingocut/settings"
 	"lingocut/apps/lingocut/shelf"
+	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
 
@@ -217,3 +220,390 @@ func TestImportLocalVideoSetsFileSource(t *testing.T) {
 		t.Fatalf("status = %q", a.queue.status)
 	}
 }
+
+// libraryWith makes a library folder holding one film, name/video.mp4 with its bilingual subtitles, and an app showing it with the film's job finished.
+func libraryWith(t *testing.T, name string) (a *app, tt *ui.Tester, video string) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.lingocut")
+	video = filepath.Join(lib, name, "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	srt := filepath.Join(lib, name, "video.bilingual.srt")
+	for path, body := range map[string]string{video: "v", srt: "1\n00:00:01,000 --> 00:00:02,000\n你好。\nHello.\n\n"} {
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, tt, _ = newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	a.library.Jobs = []core.Job{{ID: "film", Source: "https://youtu.be/TRWgBxVAb1M", Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: srt, LibraryDir: lib}}
+	a.refreshLibrary()
+	tt.Frame()
+	return a, tt, video
+}
+
+// fakeTrash moves what goes to the Trash into a folder of the test's, and lists it.
+func fakeTrash(t *testing.T) *[]string {
+	t.Helper()
+	bin := t.TempDir()
+	var trashed []string
+	prev := trashItem
+	trashItem = func(path string) error {
+		trashed = append(trashed, path)
+		return os.Rename(path, filepath.Join(bin, filepath.Base(path)))
+	}
+	t.Cleanup(func() { trashItem = prev })
+	return &trashed
+}
+
+func countText(tt *ui.Tester, s string) int {
+	n := 0
+	for _, text := range tt.Texts() {
+		if text == s {
+			n++
+		}
+	}
+	return n
+}
+
+func TestDropQueuesEveryVideo(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() {
+		a.Cancel(a.RunningJob())
+		for a.RunningJob() != "" {
+			(<-updates)()
+		}
+	})
+	src := t.TempDir()
+	var paths []string
+	for _, name := range []string{"one.mp4", "two.mov", "three.mkv", "notes.txt"} {
+		path := filepath.Join(src, name)
+		if err := os.WriteFile(path, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, path)
+	}
+	tt.Frame()
+	r, ok := tt.Find("开始处理")
+	if !ok {
+		t.Fatal("missing start button")
+	}
+	if !tt.DropFiles(r.X+r.W/2, r.Y+r.H/2, paths...) {
+		t.Fatal("the library did not take the dropped files")
+	}
+	tt.Frame()
+	if len(a.library.Jobs) == 0 {
+		t.Fatalf("no job was queued: %q", tt.Texts())
+	}
+	// Each video either got a job, whose card shows, or the message bar says why the queue did not take it, as the queue of one job at a time does with errBusy.
+	for _, path := range paths[:3] {
+		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		queued := false
+		for _, job := range a.library.Jobs {
+			queued = queued || job.Source == "file://"+path
+		}
+		if queued && !tt.HasText(name) {
+			t.Fatalf("no card for %s: %q", name, tt.Texts())
+		}
+		if !queued && !tt.HasText(errBusy.Error()) {
+			t.Fatalf("%s was dropped without a word: %q", name, tt.Texts())
+		}
+	}
+	for _, job := range a.library.Jobs {
+		if strings.HasSuffix(job.Source, "notes.txt") {
+			t.Fatal("a text file was queued")
+		}
+	}
+	if got := countText(tt, "取消处理"); got != len(a.library.Jobs) {
+		t.Fatalf("%d cards for %d jobs: %q", got, len(a.library.Jobs), tt.Texts())
+	}
+}
+
+func TestDropWithoutVideosSaysWhatCanBeAdded(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	note := filepath.Join(t.TempDir(), "notes.txt")
+	if err := os.WriteFile(note, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.dropFiles([]string{note})
+	tt.Frame()
+	if len(a.library.Jobs) != 0 || !tt.HasText(noticeNoVideo) {
+		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
+	}
+	if err := tt.Click("Close"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText(noticeNoVideo) {
+		t.Fatal("the message bar stayed after Close")
+	}
+}
+
+func TestQueueShowsEveryWaitingJob(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	for i := range 8 {
+		a.library.Jobs = append(a.library.Jobs, core.Job{ID: string(rune('a' + i)), Source: "https://youtu.be/clip" + string(rune('a'+i)), Stage: core.StageQueued, LibraryDir: "/videos"})
+	}
+	tt.Frame()
+	if got := countText(tt, "排队中 · 等待前面的任务"); got != 6 || !tt.HasText("显示全部 8 个") || !tt.HasText("8 个进行中") {
+		t.Fatalf("%d cards: %q", got, tt.Texts())
+	}
+	if err := tt.Click("显示全部 8 个"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if got := countText(tt, "排队中 · 等待前面的任务"); got != 8 || !tt.HasText("收起") {
+		t.Fatalf("%d cards after 显示全部: %q", got, tt.Texts())
+	}
+}
+
+func TestEnterKeepsTheFilmWhenRemoving(t *testing.T) {
+	a, tt, video := libraryWith(t, "Talk")
+	trashed := fakeTrash(t)
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if err := tt.ChooseMenuItem("从资料库移除…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if !tt.HasText("要从资料库移除「Talk」吗？") {
+		t.Fatalf("no confirmation: %q", tt.Texts())
+	}
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if len(*trashed) != 0 || len(a.library.Jobs) != 1 || tt.HasText("要从资料库移除「Talk」吗？") {
+		t.Fatalf("Enter removed the film: trashed %v jobs %d texts %q", *trashed, len(a.library.Jobs), tt.Texts())
+	}
+	if _, err := os.Stat(video); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := tt.RightClick("Talk"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("从资料库移除…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if err := tt.Click("移除"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if len(*trashed) != 1 || (*trashed)[0] != filepath.Dir(video) {
+		t.Fatalf("trashed %v, want the film's folder", *trashed)
+	}
+	if len(a.library.Jobs) != 0 || len(a.snap().Videos) != 0 {
+		t.Fatalf("jobs %#v videos %#v", a.library.Jobs, a.snap().Videos)
+	}
+	if _, ok := tt.Find("Talk"); ok || !tt.HasText("已把「Talk」移到废纸篓") {
+		t.Fatalf("texts %q after removing", tt.Texts())
+	}
+}
+
+func TestRemovingKeepsAVideoOutsideTheLibrary(t *testing.T) {
+	lib := filepath.Join(t.TempDir(), "我的影片.lingocut")
+	if err := os.Mkdir(lib, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(t.TempDir(), "interview.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	trashed := fakeTrash(t)
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	a.library.Jobs = []core.Job{{ID: "local", Source: fileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib}}
+	tt.Frame()
+	if _, ok := tt.Find("interview"); !ok {
+		t.Fatalf("a local video processed in this library is not on its shelf: %q", tt.Texts())
+	}
+	a.AskRemove(a.films()[0])
+	tt.Frame()
+	if !tt.HasText("会留在原处") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("移除"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(*trashed) != 0 || len(a.library.Jobs) != 0 {
+		t.Fatalf("trashed %v jobs %#v", *trashed, a.library.Jobs)
+	}
+	if _, err := os.Stat(video); err != nil {
+		t.Fatal("the video outside the library was touched")
+	}
+}
+
+func TestFilmFilesKeepsOtherVideosOfTheFolder(t *testing.T) {
+	lib := t.TempDir()
+	dir := filepath.Join(lib, "Talks")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"one.mp4", "one.bilingual.srt", "two.mp4"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := filmFiles(lib, filmOf(filepath.Join(dir, "one.mp4")))
+	want := []string{filepath.Join(dir, "one.mp4"), filepath.Join(dir, "one.bilingual.srt")}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("filmFiles = %v, want %v", got, want)
+	}
+	if got := filmFiles(lib, filmOf(filepath.Join(lib, "loose.mp4"))); len(got) != 1 {
+		t.Fatalf("a video at the library's root took more than itself: %v", got)
+	}
+}
+
+func TestPrecheckSaysWhatToFix(t *testing.T) {
+	ready := media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", WhisperModel: "model.bin", Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", APIKey: "k"}}
+	link := []string{"https://youtu.be/TRWgBxVAb1M"}
+	for _, tc := range []struct {
+		name    string
+		tools   func(*media.Tools)
+		sources []string
+		noLib   bool
+		msg     string
+		section string
+	}{
+		{name: "empty", sources: []string{"  "}, msg: noticeEmpty},
+		{name: "not a link", sources: []string{"hello"}, msg: noticeNotLink},
+		{name: "no library", sources: link, noLib: true, msg: noticeNoLib},
+		{name: "no yt-dlp", sources: link, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: noticeTools + "：yt-dlp", section: settings.SectionGeneral},
+		{name: "a local file needs no yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }},
+		{name: "no model", sources: link, tools: func(t *media.Tools) { t.WhisperModel = "" }, msg: noticeModel, section: settings.SectionSpeech},
+		{name: "no LLM model", sources: link, tools: func(t *media.Tools) { t.Translator.Model = "" }, msg: noticeLLMModel, section: settings.SectionAI},
+		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }, msg: noticeEveryAPI, section: settings.SectionAI},
+		{name: "ready", sources: link},
+	} {
+		tools := ready
+		if tc.tools != nil {
+			tc.tools(&tools)
+		}
+		a := newApp(tools, func(func()) {})
+		if !tc.noLib {
+			a.edit(func(s *session) { s.LibraryDir = "/videos" })
+		}
+		msg, section := a.precheck(tc.sources)
+		if msg != tc.msg || section != tc.section {
+			t.Errorf("%s: precheck = %q, %q; want %q, %q", tc.name, msg, section, tc.msg, tc.section)
+		}
+	}
+}
+
+func TestNoticeOpensTheSettingThatFixesIt(t *testing.T) {
+	a, tt, _ := newTestApp(media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", Translator: media.ChatTranslator{Model: "m", APIKey: "k"}})
+	startJob(t, tt, "https://youtu.be/TRWgBxVAb1M")
+	tt.Frame()
+	if len(a.library.Jobs) != 0 || !tt.HasText(noticeModel) || a.queue.source == "" {
+		t.Fatalf("jobs %d source %q texts %q", len(a.library.Jobs), a.queue.source, tt.Texts())
+	}
+	if err := tt.Click("打开设置"); err != nil {
+		t.Fatal(err)
+	}
+	wantSettings(t, a, settings.SectionSpeech)
+}
+
+func TestFailedCardOpensTheSettingThatFixesIt(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageFailed, Err: errors.New("check: LINGOCUT_WHISPER_MODEL is not set"), LibraryDir: "/videos"}}
+	tt.Frame()
+	if !tt.HasText(noticeModel) || !tt.HasText("1 个需要处理") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("打开设置"); err != nil {
+		t.Fatal(err)
+	}
+	wantSettings(t, a, settings.SectionSpeech)
+}
+
+func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) {
+		s.LibraryDir = ""
+		s.LibraryParent = t.TempDir()
+	})
+	tt.Frame()
+	if err := tt.Click("新建资料库…"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if !a.MakingLibrary() || !tt.HasText("影视库.lingocut") {
+		t.Fatalf("sheet did not open with the path: %q", tt.Texts())
+	}
+	tt.ClickAt(5, 5)
+	tt.Frame()
+	if !a.MakingLibrary() {
+		t.Fatal("a click outside closed the sheet")
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.MakingLibrary() || tt.HasText("影视库.lingocut") {
+		t.Fatalf("Escape left the sheet open: %q", tt.Texts())
+	}
+}
+
+func TestPostersAreReadByTheShelfNotTheView(t *testing.T) {
+	lib := t.TempDir()
+	video := filepath.Join(lib, "Talk", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, updates := newTestApp(media.Tools{FFmpeg: filepath.Join(t.TempDir(), "ffmpeg")})
+	a.edit(func(s *session) {
+		s.LibraryDir = lib
+		s.Videos = []media.Video{{Path: video, Name: "Talk"}}
+	})
+	tt.Frame()
+	if len(a.lib.posterBusy) != 0 || len(a.lib.posterMiss) != 0 {
+		t.Fatalf("drawing the page asked for posters: busy %v miss %v", a.lib.posterBusy, a.lib.posterMiss)
+	}
+	a.refreshLibrary()
+	if !a.lib.posterBusy[video] {
+		t.Fatalf("the shelf did not ask for the poster: busy %v miss %v", a.lib.posterBusy, a.lib.posterMiss)
+	}
+	waitUpdate(t, updates)
+	if a.lib.posterBusy[video] || !a.lib.posterMiss[video] {
+		t.Fatalf("busy %v miss %v after the grab failed", a.lib.posterBusy, a.lib.posterMiss)
+	}
+}
+
+func TestHeroOffersToContinue(t *testing.T) {
+	a, tt, video := libraryWith(t, "Talk")
+	if !tt.HasText("“你好。”") || !tt.HasText("Hello.") || !tt.HasText("播放") || !tt.HasText("在访达中显示") {
+		t.Fatalf("hero %q", tt.Texts())
+	}
+	a.player.positions = map[string]time.Duration{video: 42 * time.Second}
+	tt.Frame()
+	if !tt.HasText("从 0:42 继续") || !tt.HasText("从头看") {
+		t.Fatalf("hero %q", tt.Texts())
+	}
+	if err := tt.Click("从头看"); err != nil {
+		t.Fatal(err)
+	}
+	if a.openKey != "film" {
+		t.Fatalf("open %q", a.openKey)
+	}
+}
+
+func TestEmptySourceSaysSo(t *testing.T) {
+	a, tt, _ := libraryWith(t, "Talk")
+	a.SetSourceFilter(sidebar.SourceBilibili)
+	tt.Frame()
+	if !tt.HasText("这个来源下还没有影片。") || !tt.HasText("哔哩哔哩") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+func TestLocalJobNameUsesTheFileName(t *testing.T) {
+	if got := jobName(core.Job{Source: fileURL("/Users/me/Downloads/Interview 2.mp4")}); got != "Interview 2" {
+		t.Fatalf("name = %q", got)
+	}
+}
+
+func filmOf(video string) films.Film { return films.Film{Key: video, VideoPath: video} }
