@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.6
 	github.com/egoist/mygo v0.7.4
 	github.com/yldm-tech/ai-logo/mygo v1.15.0
-	github.com/yldm-tech/mygo-breeze-ui v0.2.0
+	github.com/yldm-tech/mygo-breeze-ui v0.8.0
 	github.com/yldm-tech/nodra v1.1.0
 	golang.org/x/oauth2 v0.37.0
 	lingocut/packages/core v0.0.0
