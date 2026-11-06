@@ -2,51 +2,39 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"image/png"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"lingocut/packages/core"
-	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsLibrary renders the library page at the prototype's window size (1304×782) to PNG files in the directory named by LINGOCUT_SCREENSHOTS (screenshot_helpers_test.go), with the prototype's films: the hero, 处理中 with waiting, running and failed jobs, the grid, the empty pages, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, and a video dropped over an open film. The shared fixture's two films are too few for the hero, the queue and the grid at once, so the scenes use a library of their own. It is skipped when the variable is unset, and without ffmpeg, which makes the clips the posters come from.
+// TestScreenshotsLibrary renders the library page at the prototype's window size (1304×782) to PNG files in the directory named by LINGOCUT_SCREENSHOTS (screenshot_helpers_test.go), with the prototype's films: the hero, 处理中 with waiting, running and failed jobs, the grid, the empty pages, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, and a video dropped over an open film. The shared fixture's two films are too few for the hero, the queue and the grid at once, so the scenes use a library of their own, in the fixture's fake home, whose videos are placeholders the fake ffmpeg draws the posters from. It is skipped when the variable is unset.
 func TestScreenshotsLibrary(t *testing.T) {
-	out := newScreenshotFixture(t).out
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		t.Skip("ffmpeg is not installed")
-	}
-	lib := filepath.Join(t.TempDir(), "我的影片.lingocut")
-	// clip makes the folder of a film in the library with a video of the given length drawn by an ffmpeg test source.
-	clip := func(name, source string, seconds int) string {
+	f := newScreenshotFixture(t)
+	out := f.out
+	lib := filepath.Join(f.home, "Movies", "我的影片.lingocut")
+	// clip makes the folder of a film in the library with a placeholder video of the given length, whose picture the fake ffmpeg draws from top to bottom (writeFakeClip).
+	clip := func(name string, seconds int, top, bottom string) string {
 		t.Helper()
 		video := filepath.Join(lib, name, "video.mp4")
-		if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		src := fmt.Sprintf("%s=s=320x180:d=%d:r=1", source, seconds)
-		if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", src, "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
-			t.Fatalf("ffmpeg could not make %s: %v %s", name, err, out)
-		}
+		writeFakeClip(t, video, seconds, top, bottom)
 		return video
 	}
-	rivers := clip("How Rivers Shape Landscapes", "testsrc2", 180)
+	rivers := clip("How Rivers Shape Landscapes", 180, "8DB9D2", "3E6A5B")
 	srt := filepath.Join(filepath.Dir(rivers), "video.bilingual.srt")
 	cues := "1\n00:00:01,000 --> 00:00:04,000\n每条河都始于高山上的一股细流。\nEvery river begins as a trickle high in the mountains.\n\n"
 	if err := os.WriteFile(srt, []byte(cues), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	algebra := clip("Linear Algebra, Lecture 1", "smptebars", 180)
-	meeting := clip("会议录屏 2026-10-28", "rgbtestsrc", 180)
-	tides := clip("The Tide Pools of Monterey", "testsrc", 180)
-	market := clip("Morning Market in Kyoto", "smptehdbars", 120)
+	algebra := clip("Linear Algebra, Lecture 1", 180, "3B3F6B", "1C1E33")
+	meeting := clip("会议录屏 2026-10-28", 180, "D9D4CC", "8A8279")
+	tides := clip("The Tide Pools of Monterey", 180, "E3B27A", "6E4A3A")
+	market := clip("Morning Market in Kyoto", 120, "C9645A", "5A2E2A")
 	finished := func(id, source, video string) core.Job {
 		return core.Job{ID: id, Source: source, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: filepath.Join(filepath.Dir(video), "video.bilingual.srt"), LibraryDir: lib}
 	}
@@ -64,11 +52,11 @@ func TestScreenshotsLibrary(t *testing.T) {
 	shoot := func(name string, width, height int, setup func(a *app), steps func(a *app, tt *ui.Tester)) {
 		t.Helper()
 		updates := make(chan func(), 64)
-		a := newApp(media.Tools{FFmpeg: ffmpeg}, func(fn func()) { updates <- fn })
+		a := newApp(f.pipeline, func(fn func()) { updates <- fn })
 		a.edit(func(s *session) {
 			s.LibraryDir = lib
 			s.Libraries = []string{lib}
-			s.LibraryParent = "/Volumes/Media/影片"
+			s.LibraryParent = filepath.Join(f.home, "Movies")
 		})
 		a.setResumePositions(map[string]time.Duration{rivers: 100 * time.Second})
 		setup(a)
@@ -110,7 +98,7 @@ func TestScreenshotsLibrary(t *testing.T) {
 	shoot("library", 1304, 782, withJobs, func(_ *app, tt *ui.Tester) { try(tt, "开始处理") })
 	shoot("library-full", 1304, 1500, withJobs, none)
 	shoot("library-empty", 1304, 782, func(a *app) {
-		empty := filepath.Join(t.TempDir(), "新资料库.lingocut")
+		empty := filepath.Join(f.home, "Movies", "新资料库.lingocut")
 		if err := os.Mkdir(empty, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -142,7 +130,10 @@ func TestScreenshotsLibrary(t *testing.T) {
 		}
 	}, removeAlgebra)
 	// A video dropped over an open film: the window goes back to the library, whose message bar says what became of it.
-	dropped := filepath.Join(t.TempDir(), "Ocean Currents.mp4")
+	dropped := filepath.Join(f.home, "Downloads", "Ocean Currents.mp4")
+	if err := os.MkdirAll(filepath.Dir(dropped), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(dropped, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)
 	}
