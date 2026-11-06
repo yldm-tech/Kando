@@ -15,6 +15,10 @@ type playerUI struct {
 	playGen  int
 	playFrom time.Duration
 	playJump bool
+	// opening is where the video being opened will start, which the transport shows until its picture comes.
+	opening time.Duration
+	// length is the open video's length once known, kept while a seek opens it again.
+	length   time.Duration
 	subs     subtitleView
 	filmSide string
 	look     film.Look
@@ -28,6 +32,33 @@ type playerUI struct {
 	yieldSubs bool
 	// positions is where each video was when its playback stopped, by video path, so it can resume there.
 	positions map[string]time.Duration
+	// lastMode is the mode V turns the subtitles back on to.
+	lastMode string
+	// panel shows the side panel over the picture. It stays as it is from film to film.
+	panel bool
+	film  filmUI
+}
+
+// filmUI is the player's state that belongs to the one film open, which opening another starts afresh (resetFilm).
+type filmUI struct {
+	styleView   bool
+	modeMenu    bool
+	delay       time.Duration
+	search      string
+	searchFocus bool
+	follow      int
+	scrub       float64
+	scrubbing   bool
+	uploadNote  bool
+	// info is the film's folder as readFilmInfo read it for the video at infoFor.
+	info    film.Info
+	infoFor string
+	// osd is the message on the picture; osdAt is when it started showing, zero until it first shows.
+	osd   string
+	osdAt time.Time
+	// moved is when the pointer last moved over the player, at pointer.
+	moved   time.Time
+	pointer [2]float32
 }
 
 func newPlayerUI() playerUI {
@@ -37,7 +68,22 @@ func newPlayerUI() playerUI {
 		subOrder:     film.SubTranslationFirst,
 		untranslated: film.UntranslatedDim,
 		yieldSubs:    true,
+		lastMode:     film.SubBilingual,
+		panel:        true,
+		film:         filmUI{follow: -1},
 	}
+}
+
+// resetFilm starts the state of one film afresh, as another film opens.
+func (a *app) resetFilm() {
+	a.player.film = filmUI{follow: -1}
+	a.player.length = 0
+}
+
+// flash shows text on the picture for a moment.
+func (a *app) flash(text string) {
+	a.player.film.osd = text
+	a.player.film.osdAt = time.Time{}
 }
 
 // rememberPosition keeps where the open video stopped, so ResumeAt can offer to continue from there. A video watched to the end starts over.
@@ -73,6 +119,9 @@ func (a *app) restorePlayer(saved savedSettings) {
 	switch saved.SubMode {
 	case film.SubBilingual, film.SubTranslation, film.SubOriginal, film.SubOff:
 		a.player.subMode = saved.SubMode
+		if saved.SubMode != film.SubOff {
+			a.player.lastMode = saved.SubMode
+		}
 	}
 	switch saved.SubOrder {
 	case film.SubTranslationFirst, film.SubOriginalFirst:
@@ -129,11 +178,9 @@ func (a *app) closeFilmThatLeft() {
 	a.closeFilm()
 }
 
-// changedLook is the look saveSettings stores: nil while it is still film.DefaultLook, so the default is not saved as if the user had chosen it and a later default reaches those who never changed theirs. Edit, the face the style pane is editing, is not part of the look's appearance and does not count as a change.
+// changedLook is the look saveSettings stores: nil while it is still film.DefaultLook, so the default is not saved as if the user had chosen it and a later default reaches those who never changed theirs.
 func changedLook(look film.Look) *film.Look {
-	def := film.DefaultLook()
-	def.Edit = look.Edit
-	if look == def {
+	if look == film.DefaultLook() {
 		return nil
 	}
 	return &look

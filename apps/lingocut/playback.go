@@ -2,9 +2,12 @@ package main
 
 import (
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	"lingocut/apps/lingocut/film"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -38,6 +41,12 @@ func (a *app) startPlayback(path string) {
 	a.player.playFrom = 0
 	a.player.playJump = false
 	a.stopPlayback()
+	// A seek opens the same video again and keeps the film's state; anything else is a film opening.
+	if !jump {
+		a.resetFilm()
+		a.readFilmInfo(path)
+	}
+	a.player.opening = at
 	ffmpeg := a.ffmpegPath()
 	if path == "" || ffmpeg == "" {
 		return
@@ -93,6 +102,39 @@ func (a *app) startPlayback(path string) {
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
 				duration: frames.Duration(), paused: paused,
 			}
+			if frames.Duration() > 0 {
+				a.player.length = frames.Duration()
+			}
+		})
+	}()
+}
+
+// readFilmInfo lists the folder of the video at path off the UI thread, for the player's 信息 tab. A film without a video has nothing to list.
+func (a *app) readFilmInfo(path string) {
+	if path == "" || a.update == nil {
+		return
+	}
+	dir := filepath.Dir(path)
+	a.player.film.infoFor = path
+	update := a.update
+	go func() {
+		entries, err := os.ReadDir(dir)
+		files := make([]film.File, 0, len(entries))
+		for _, entry := range entries {
+			if err != nil || entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+				continue
+			}
+			info, statErr := entry.Info()
+			if statErr != nil {
+				continue
+			}
+			files = append(files, film.File{Name: entry.Name(), Size: info.Size()})
+		}
+		update(func() {
+			if a.player.film.infoFor != path {
+				return
+			}
+			a.player.film.info = film.Info{Folder: dir, Files: files}
 		})
 	}()
 }

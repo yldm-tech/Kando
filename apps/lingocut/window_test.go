@@ -113,12 +113,12 @@ func TestWindowIsLightAndTheFilmDark(t *testing.T) {
 	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
 	a.openKey = "j"
 	tt.Frame()
-	r, ok := tt.Find("返回")
+	r, ok := tt.Find("返回资料库")
 	if !ok {
 		t.Fatalf("film not open: %q", tt.Texts())
 	}
 	img = tt.Image()
-	// Left of the back button is the film page's own padding.
+	// Left of the back button is the film's own black, under its title bar.
 	px := img.RGBAAt(int((r.X-6)*scale), int((r.Y+r.H/2)*scale))
 	if px.R > 60 || px.G > 60 || px.B > 60 {
 		t.Fatalf("film page = %v, want dark", px)

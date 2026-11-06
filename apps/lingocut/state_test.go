@@ -53,11 +53,12 @@ func TestPlayerSettingsDefaults(t *testing.T) {
 	}
 }
 
-// TestDefaultLookIsNotSaved checks that a look the user has not changed is left out of the settings, so a later DefaultLook reaches them, and that switching the face being edited is not a change.
+// TestDefaultLookIsNotSaved checks that a look the user has not changed is left out of the settings, so a later DefaultLook reaches them, and that subtitles made larger with ⌘+ and back with ⌘− count as unchanged.
 func TestDefaultLookIsNotSaved(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
-	a.player.look.Edit = "original"
+	a.scaleSubtitles(2)
+	a.scaleSubtitles(-2)
 	if err := a.saveSettings(); err != nil {
 		t.Fatal(err)
 	}

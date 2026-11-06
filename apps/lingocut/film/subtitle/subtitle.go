@@ -11,14 +11,17 @@ type Face struct {
 
 // Look is how subtitles are drawn. Which lines show and which goes on top are not part of it: they are the app's SubMode and SubOrder.
 type Look struct {
-	Preset, Edit string
-	Bottom       float32
-	Box, Shadow  bool
-	Translation  Face
-	Original     Face
+	// Preset is the style view's preset last picked: "outline", "box" or "large".
+	Preset string
+	// Box puts each line on a dark box; Shadow draws an outline around the glyphs.
+	Box, Shadow bool
+	// High lifts the subtitles to about a third of the picture's height, from the bottom.
+	High        bool
+	Translation Face
+	Original    Face
 }
 
-// Subtitle modes: which lines of a bilingual cue the player shows. V steps through them in this order.
+// Subtitle modes: which lines of a bilingual cue the player shows. S steps through the three that show lines, in the order original, translation, bilingual.
 const (
 	Bilingual   = "bilingual"
 	Translation = "translation"
@@ -39,4 +42,10 @@ const (
 )
 
 // PreviewInset is how far above a preview tile's bottom edge the settings' sample cue sits, so the preview shows the subtitles as high as the player draws them. The player owns where subtitles sit; the settings read it only through this.
-func (l Look) PreviewInset() float32 { return l.Bottom / 3 }
+func (l Look) PreviewInset() float32 {
+	// The player draws subtitles 44 points above the window's bottom, or at about 30% of its height when High; a preview tile is about a third of that scale.
+	if l.High {
+		return 40
+	}
+	return 15
+}

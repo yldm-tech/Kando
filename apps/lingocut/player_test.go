@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"lingocut/apps/lingocut/film"
+	"lingocut/apps/lingocut/films"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
 
@@ -44,9 +46,9 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	waitUpdate(t, updates)
+	waitUntil(t, updates, func() bool { return a.player.subs.ready })
 	tt.Frame()
-	for _, text := range []string{"返回", "已完成", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "2 句", "在访达中显示"} {
+	for _, text := range []string{"返回", "字幕 100%", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "全部", "在访达中显示"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
@@ -57,7 +59,7 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	if revealed != srt {
 		t.Fatalf("revealed %q", revealed)
 	}
-	if err := tt.Click("返回"); err != nil {
+	if err := tt.Click("返回资料库"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -128,7 +130,7 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 	if a.player.play == nil || a.player.play.player.Playing() || !tt.HasText("播放") {
 		t.Fatalf("playing %v texts %q", a.player.play != nil && a.player.play.player.Playing(), tt.Texts())
 	}
-	if err := tt.Click("返回"); err != nil {
+	if err := tt.Click("返回资料库"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -318,7 +320,7 @@ func TestFilmChaptersCoverTheTranscript(t *testing.T) {
 		{Start: 40 * time.Second, End: 70 * time.Second, Text: "第三句\nThird."},
 		{Start: 70 * time.Second, End: 100 * time.Second, Text: "第四句\nFourth."},
 	}
-	chapters := film.Chapters(cues)
+	chapters := film.Chapters(cues, 0)
 	if len(chapters) != 4 {
 		t.Fatalf("chapters %d", len(chapters))
 	}
@@ -334,7 +336,7 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 		t.Fatal(err)
 	}
 	srt := filepath.Join(dir, "talk.bilingual.srt")
-	body := "1\n00:00:01,000 --> 00:00:02,500\n你好。\nHello.\n\n2\n01:02:03,004 --> 01:02:05,000\n再见。\nBye.\n\n"
+	body := "1\n00:00:01,000 --> 00:00:02,500\n你好。\nHello.\n\n2\n00:01:02,004 --> 00:01:05,000\n再见。\nBye.\n\n"
 	if err := os.WriteFile(srt, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -349,23 +351,57 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	waitUpdate(t, updates)
+	waitUntil(t, updates, func() bool { return a.player.subs.ready && a.player.film.info.Folder != "" })
 	tt.Frame()
-	if err := tt.Click("精彩片段"); err != nil {
+	if err := tt.Click("片段"); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	for _, text := range []string{"你好。", "2 段", "0:01"} {
+	// 65 seconds of subtitles make the least 4 片段, each named after the line that started last by its start.
+	for _, text := range []string{"片段 1 · 0:00–0:16", "片段 4 · 0:48–1:05", "你好。", "Hello."} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("字幕样式"); err != nil {
+	if err := tt.Click("信息"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
+	for _, text := range []string{"影片文件夹", films.DisplayPath(dir), "talk.mp4", "talk.bilingual.srt", "本地文件"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
+	}
+	a.SetStyleView(true)
+	tt.Frame()
 	if !tt.HasText("译文在上") || !tt.HasText("字号") || !tt.HasText("底框") || !tt.HasText("恢复默认样式") {
 		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("底框"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if look := a.player.look; look.Preset != "box" || !look.Box || look.Shadow {
+		t.Fatalf("look %+v after 底框", look)
+	}
+	if err := tt.Click("原文在上"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.player.subOrder != film.SubOriginalFirst {
+		t.Fatalf("order %q after 原文在上", a.player.subOrder)
+	}
+	if err := tt.Click("恢复默认样式"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.player.look != film.DefaultLook() {
+		t.Fatalf("look %+v after reset", a.player.look)
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.player.film.styleView || a.openKey == "" || !tt.HasText("片段") {
+		t.Fatalf("Escape left style %v open %q", a.player.film.styleView, a.openKey)
 	}
 }
 
@@ -410,25 +446,55 @@ func TestOpenFilmStartsLocalVideo(t *testing.T) {
 	if !tt.HasText("已完成") || !tt.HasText("返回") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	waitUpdate(t, updates)
+	waitUntil(t, updates, func() bool { return a.player.subs.ready })
 	tt.Frame()
 	if !tt.HasText("字幕文件不在了") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
 
-// TestOpenFilmClearsTheTitleBar checks that an open film hides the sidebar and that its top row still clears the traffic lights, moving down by the title bar's height.
+// TestOpenFilmClearsTheTitleBar checks that an open film hides the sidebar and fills the window up to its top edge, its header bar putting the back button after the traffic lights at the same height, with the film's own dark under the title bar.
 func TestOpenFilmClearsTheTitleBar(t *testing.T) {
 	open := func(a *app) {
 		a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
 		a.openKey = "j"
 	}
-	shifts, barred := titleBarShifts(t, ui.TitleBar{Height: 28, Left: 80}, open, "返回")
-	if abs32(shifts[0]-28) > 0.5 {
-		t.Fatalf("返回 moved %v under a 28-high title bar", shifts[0])
+	_, plain := titleBarShifts(t, ui.TitleBar{}, open, "返回资料库")
+	shifts, barred := titleBarShifts(t, ui.TitleBar{Height: 28, Left: 80}, open, "返回资料库")
+	before, _ := plain.Find("返回资料库")
+	after, _ := barred.Find("返回资料库")
+	if before.X >= 80 || after.X < 80 || abs32(shifts[0]) > 0.5 {
+		t.Fatalf("back button at %v without the traffic lights and %v beside them", before, after)
 	}
 	if barred.HasText("全部影片") {
 		t.Fatalf("sidebar shown over an open film: %q", barred.Texts())
+	}
+	img := barred.Image()
+	scale := float32(img.Bounds().Dx()) / 1100
+	// The film's own black is under the title bar too.
+	if px := img.RGBAAt(int(600*scale), int(4*scale)); px.R > 40 || px.G > 40 || px.B > 40 {
+		t.Fatalf("title bar over an open film = %v, want the film's dark", px)
+	}
+}
+
+// TestFilmInTheColumnStartsAtItsEdge checks that a film opened from the YouTube page, which shows in the content column beside the sidebar, puts its back button the prototype's padding of 20 from the column's edge rather than leaving room for the traffic lights, which are over the sidebar.
+func TestFilmInTheColumnStartsAtItsEdge(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
+	a.page = pageYouTube
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://www.youtube.com/watch?v=abc", Stage: core.StageQueued}}
+	a.openKey = "j"
+	tt.Frame()
+	if !tt.HasText("全部影片") {
+		t.Fatalf("sidebar hidden beside a film from the YouTube page: %q", tt.Texts())
+	}
+	back, ok := tt.Find("返回资料库")
+	if !ok {
+		t.Fatalf("missing the back button in %q", tt.Texts())
+	}
+	edge := float32(sidebarWidth + pagePadX)
+	if back.X < edge || back.X-edge > 20 {
+		t.Fatalf("back button at %v, want it within 20 of the column's edge at %v", back, edge)
 	}
 }
 
@@ -462,4 +528,168 @@ func TestRefreshClosesAFilmThatLeftTheShelf(t *testing.T) {
 	if a.openKey != "" || a.player.playPath != "" {
 		t.Fatalf("open %q playing %q after the film left the shelf", a.openKey, a.player.playPath)
 	}
+}
+
+// TestSubtitleKeys checks V, S, Z and X on an open film: V hides the subtitles and brings back the mode they had, S steps original, translation, bilingual, and Z and X move them a tenth of a second, each saying so on the picture for a moment.
+func TestSubtitleKeys(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	key := func(k ui.Key, mode, osd string) {
+		t.Helper()
+		tt.Key(0, k)
+		tt.Frame()
+		if a.player.subMode != mode || !tt.HasText(osd) {
+			t.Fatalf("after %v: mode %q, want %q; texts %q", k, a.player.subMode, mode, tt.Texts())
+		}
+	}
+	key(ui.KeyS, film.SubOriginal, "字幕：仅原文")
+	key(ui.KeyV, film.SubOff, "字幕：关闭")
+	key(ui.KeyV, film.SubOriginal, "字幕：仅原文")
+	key(ui.KeyS, film.SubTranslation, "字幕：仅译文")
+	key(ui.KeyS, film.SubBilingual, "字幕：双语")
+	key(ui.KeyZ, film.SubBilingual, "字幕 -0.1 秒")
+	key(ui.KeyZ, film.SubBilingual, "字幕 -0.2 秒")
+	key(ui.KeyX, film.SubBilingual, "字幕 -0.1 秒")
+	if a.player.film.delay != -100*time.Millisecond {
+		t.Fatalf("delay %v", a.player.film.delay)
+	}
+	tt.Advance(1500 * time.Millisecond)
+	tt.Frame()
+	if tt.HasText("字幕 -0.1 秒") {
+		t.Fatalf("the message stayed on the picture: %q", tt.Texts())
+	}
+}
+
+// TestModeMenuPicksTheMode opens the transport's subtitle menu, picks a mode in it, and checks that Escape closes the menu without leaving the film.
+func TestModeMenuPicksTheMode(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	click := func(label string) {
+		t.Helper()
+		if err := tt.Click(label); err != nil {
+			t.Fatalf("%v; texts %q", err, tt.Texts())
+		}
+		tt.Frame()
+	}
+	click("字幕：双语")
+	if !a.player.film.modeMenu || !tt.HasText("字幕延迟") {
+		t.Fatalf("menu not open: %q", tt.Texts())
+	}
+	click("仅原文")
+	if a.player.subMode != film.SubOriginal || a.player.film.modeMenu || tt.HasText("字幕延迟") {
+		t.Fatalf("mode %q menu %v", a.player.subMode, a.player.film.modeMenu)
+	}
+	click("字幕：仅原文")
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.player.film.modeMenu || a.openKey == "" {
+		t.Fatalf("Escape: menu %v open %q", a.player.film.modeMenu, a.openKey)
+	}
+	click("字幕：仅原文")
+	click("样式…")
+	if !a.player.film.styleView || !a.player.panel || !tt.HasText("恢复默认样式") {
+		t.Fatalf("style view %v panel %v", a.player.film.styleView, a.player.panel)
+	}
+}
+
+// TestFindFocusesTheSubtitleSearch checks that ⌘F opens the side panel on its subtitle list, with the keyboard in its search field, and that ⇧⌘T hides and shows the panel.
+func TestFindFocusesTheSubtitleSearch(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
+	tt.Frame()
+	if a.player.panel || tt.HasText("搜索台词") {
+		t.Fatalf("⇧⌘T left the panel: %q", tt.Texts())
+	}
+	a.player.filmSide = "info"
+	tt.Key(ui.Cmd, ui.KeyF)
+	tt.Frame()
+	tt.Frame()
+	if !a.player.panel || a.player.filmSide != "" || !tt.Focused("搜索台词") {
+		t.Fatalf("panel %v side %q focused %v", a.player.panel, a.player.filmSide, tt.Focused("搜索台词"))
+	}
+	tt.Type("river")
+	tt.Frame()
+	if a.player.film.search != "river" {
+		t.Fatalf("search %q", a.player.film.search)
+	}
+}
+
+// TestPanelShowsWithoutAPicture checks that a film with no picture, here for want of ffmpeg, shows its side panel even when the panel was hidden on the film before, since it has no transport to bring the panel back from.
+func TestPanelShowsWithoutAPicture(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+	a.player.panel = false
+	a.openKey = "j"
+	tt.Frame()
+	if _, ok := tt.Find("侧栏"); !ok || !tt.HasText("搜索台词") {
+		t.Fatalf("no side panel on a film without a picture: %q", tt.Texts())
+	}
+}
+
+// TestControlsFadeWhileTheFilmPlays checks that the controls and the pointer hide once the pointer rests for 2.5 seconds on a playing film, and come back when it moves.
+func TestControlsFadeWhileTheFilmPlays(t *testing.T) {
+	a, tt, _ := openClip(t, 10)
+	tt.Move(400, 300)
+	tt.Frame()
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if !a.player.play.player.Playing() {
+		t.Fatal("Space did not start the film")
+	}
+	tt.Advance(time.Second)
+	tt.Frame()
+	if tt.Cursor() == ui.CursorNone {
+		t.Fatal("the pointer hid a second after it moved")
+	}
+	tt.Advance(2 * time.Second)
+	tt.Frame()
+	if tt.Cursor() != ui.CursorNone {
+		t.Fatalf("cursor %v after the pointer rested", tt.Cursor())
+	}
+	tt.Move(420, 310)
+	tt.Frame()
+	if tt.Cursor() == ui.CursorNone {
+		t.Fatal("moving the pointer did not bring the controls back")
+	}
+	tt.Key(0, ui.KeySpace)
+	tt.Advance(3 * time.Second)
+	tt.Frame()
+	if tt.Cursor() == ui.CursorNone {
+		t.Fatal("the controls hid while the film was held")
+	}
+}
+
+// TestScrubberSeeksOnRelease drags the scrubber and checks that the video opens again at the new time only once the pointer lets go, since each seek starts the decoders over.
+func TestScrubberSeeksOnRelease(t *testing.T) {
+	a, tt, updates := openClip(t, 12)
+	r, ok := tt.Find("进度")
+	if !ok {
+		t.Fatalf("no scrubber in %q", tt.Texts())
+	}
+	y := r.Y + r.H/2
+	gen := a.player.playGen
+	tt.Press(r.X+r.W*0.25, y)
+	tt.Frame()
+	tt.Move(r.X+r.W*0.75, y)
+	tt.Frame()
+	if a.player.playGen != gen {
+		t.Fatal("the video opened again while the scrubber was held")
+	}
+	// The value follows the pointer across the track, past the middle.
+	want := time.Duration(a.player.film.scrub * float64(time.Second))
+	if want < a.PlayLength()/2 || !tt.HasText(cueClockOf(want)) {
+		t.Fatalf("the preview does not show where the scrubber is: %q", tt.Texts())
+	}
+	tt.Release(r.X+r.W*0.75, y)
+	tt.Frame()
+	if a.player.playGen == gen {
+		t.Fatal("releasing the scrubber did not seek")
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	if head := a.player.play.playhead(); head < want-time.Second || head > want+time.Second {
+		t.Fatalf("head %v after the drag, want about %v", head, want)
+	}
+}
+
+// cueClockOf writes d as the player's clock does, m:ss.
+func cueClockOf(d time.Duration) string {
+	return fmt.Sprintf("%d:%02d", int(d.Minutes()), int(d.Seconds())%60)
 }
