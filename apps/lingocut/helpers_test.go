@@ -190,3 +190,30 @@ func wantSettings(t *testing.T, a *app, section string) {
 		t.Fatalf("settings open %v at %q, want open at %q", a.prefs.open, a.prefs.section, section)
 	}
 }
+
+// titleBarShifts draws the window twice, without a title bar and under bar, after setup has run on each app, and returns how far down each text sits under bar, and the window drawn under it.
+func titleBarShifts(t *testing.T, bar ui.TitleBar, setup func(*app), texts ...string) ([]float32, *ui.Tester) {
+	t.Helper()
+	plain, plainTT, _ := newTestApp(&fakePipeline{})
+	barred, barredTT, _ := newTestApp(&fakePipeline{})
+	barredTT.SetTitleBar(bar)
+	if setup != nil {
+		setup(plain)
+		setup(barred)
+	}
+	plainTT.Frame()
+	barredTT.Frame()
+	shifts := make([]float32, len(texts))
+	for i, text := range texts {
+		before, ok := plainTT.Find(text)
+		if !ok {
+			t.Fatalf("missing %q in %q", text, plainTT.Texts())
+		}
+		after, ok := barredTT.Find(text)
+		if !ok {
+			t.Fatalf("missing %q in %q", text, barredTT.Texts())
+		}
+		shifts[i] = after.Y - before.Y
+	}
+	return shifts, barredTT
+}

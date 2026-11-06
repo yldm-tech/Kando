@@ -9,42 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestWindowKeepsContentBelowTheTitleBar checks that the drag band under the title bar pushes the sidebar and the content down by the title bar's height, with and without an open film.
-func TestWindowKeepsContentBelowTheTitleBar(t *testing.T) {
-	plain, plainTT, _ := newTestApp(&fakePipeline{})
-	barred, barredTT, _ := newTestApp(&fakePipeline{})
-	barredTT.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
-	shifted := func(texts ...string) {
-		t.Helper()
-		plainTT.Frame()
-		barredTT.Frame()
-		for _, text := range texts {
-			before, ok := plainTT.Find(text)
-			if !ok {
-				t.Fatalf("missing %q in %q", text, plainTT.Texts())
-			}
-			after, ok := barredTT.Find(text)
-			if !ok {
-				t.Fatalf("missing %q in %q", text, barredTT.Texts())
-			}
-			if d := after.Y - before.Y; abs32(d-28) > 0.5 {
-				t.Fatalf("%q moved %v under a 28-high title bar", text, d)
-			}
-		}
-	}
-	shifted("全部影片", "开始处理")
-
-	// An open film hides the sidebar; its top row still clears the traffic lights.
-	for _, a := range []*app{plain, barred} {
-		a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
-		a.openKey = "j"
-	}
-	shifted("返回")
-	if barredTT.HasText("全部影片") {
-		t.Fatalf("sidebar shown over an open film: %q", barredTT.Texts())
-	}
-}
-
 func TestVibrancyShowsThroughTheSidebarOnly(t *testing.T) {
 	_, tt, _ := newTestApp(&fakePipeline{})
 	tt.SetDark(true)

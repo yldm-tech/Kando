@@ -10,6 +10,8 @@ import (
 	"lingocut/apps/lingocut/film"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestOpenFilmShowsBilingualLines(t *testing.T) {
@@ -412,5 +414,20 @@ func TestOpenFilmStartsLocalVideo(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("字幕文件不在了") {
 		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// TestOpenFilmClearsTheTitleBar checks that an open film hides the sidebar and that its top row still clears the traffic lights, moving down by the title bar's height.
+func TestOpenFilmClearsTheTitleBar(t *testing.T) {
+	open := func(a *app) {
+		a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+		a.openKey = "j"
+	}
+	shifts, barred := titleBarShifts(t, ui.TitleBar{Height: 28, Left: 80}, open, "返回")
+	if abs32(shifts[0]-28) > 0.5 {
+		t.Fatalf("返回 moved %v under a 28-high title bar", shifts[0])
+	}
+	if barred.HasText("全部影片") {
+		t.Fatalf("sidebar shown over an open film: %q", barred.Texts())
 	}
 }
