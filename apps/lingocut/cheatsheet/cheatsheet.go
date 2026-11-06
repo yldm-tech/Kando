@@ -46,7 +46,7 @@ func Show(c *ui.Context, dark *ui.Theme, open *bool, groups []Group) {
 				ui.Row(c).Gap(10).AlignItems(ui.Center).Margin(0, 0, 14, 0).Children(func() {
 					breeze.Text(c, "快捷键", breeze.TextSubtitle).Bold().Grow(1)
 					breeze.Text(c, "单键只在没有输入框获焦时生效", breeze.TextSecondary).FontSize(12)
-					if flatIconButton(c, iconClose, "关闭").Clicked() {
+					if breeze.FlatIconButton(c, iconClose, "关闭").Clicked() {
 						*open = false
 					}
 				})
@@ -74,7 +74,7 @@ func group(c *ui.Context, g Group) {
 		for _, k := range g.Keys {
 			ui.Row(c).Gap(10).AlignItems(ui.Center).MinHeight(22).Children(func() {
 				breeze.Text(c, k.Label).Grow(1).MinWidth(0)
-				shortcutLabel(c, k.Mods, k.Key)
+				breeze.ShortcutLabel(c, k.Mods, k.Key)
 			})
 		}
 	})
