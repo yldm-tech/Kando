@@ -1,13 +1,13 @@
 name: Package
 
-# Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own. CI calls it to check that every package builds and keeps them as artifacts of the run; Release calls it with the tag it made and uploads them to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
+# Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's packages, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>. CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the packages to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
 #
 # The packages are not signed for other machines: the macOS app is signed ad hoc, which Gatekeeper blocks until the user allows it, and the Windows installers carry no signature, for which SmartScreen warns. Signing them needs a Developer ID certificate and notary credentials, and a code signing certificate, as repository secrets (see MyGo's docs/github-actions.md).
 on:
   workflow_call:
     inputs:
       tag:
-        description: The release tag to build and upload the packages to; empty builds the checked-out commit and keeps the packages as artifacts of the run
+        description: The release tag to build the packages of, which must match the version in mygo.json; empty builds the checked-out commit
         type: string
         default: ""
 
@@ -16,6 +16,9 @@ jobs:
     name: Package (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    # mygo build runs MyGo's code and the tools it calls, so the job holds a read-only token and keeps no git credentials; Release uploads the packages from a job of its own.
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -25,19 +28,29 @@ jobs:
           - { name: Windows, os: ubuntu-latest, platform: "windows/amd64,windows/arm64", packages: "*-setup-*.exe" }
           - { name: Linux, os: ubuntu-latest, platform: "linux/amd64,linux/arm64", packages: "*.deb *.tar.gz", script: linux-amd64/install.sh }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
+          persist-credentials: false
       # A tag that does not match the version in mygo.json would upload packages named for another version.
       - name: Check the version
         if: inputs.tag != ''
         env:
           TAG: ${{ inputs.tag }}
         run: test "$TAG" = "v$(jq -r .version apps/kando/mygo.json)"
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.work
-          cache-dependency-path: apps/kando/go.sum
+          cache: false
+      # A Go cache of each platform's own, as CI's jobs keep (see ci.yml).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+          key: go-${{ runner.os }}-package-${{ matrix.name }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-package-${{ matrix.name }}-
       - name: Install NSIS, for the Windows installers
         if: matrix.name == 'Windows'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
@@ -45,10 +58,10 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
         run: go tool mygo build -platform "$PLATFORM" -o "$RUNNER_TEMP/packages" apps/kando
-      # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures.
-      - name: List the packages
-        id: packages
+      # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures. They are copied into one folder, as a release holds its files side by side, with their SHA-256 taken here from the files mygo build made.
+      - name: Collect the packages
         env:
+          NAME: ${{ matrix.name }}
           PLATFORM: ${{ matrix.platform }}
           PACKAGES: ${{ matrix.packages }}
           SCRIPT: ${{ matrix.script }}
@@ -75,29 +88,23 @@ jobs:
             fi
             files+=("$SCRIPT")
           fi
-          printf '%s\n' "${files[@]}"
-          {
-            echo "files<<EOF"
-            printf '%s\n' "${files[@]/#/$RUNNER_TEMP/packages/}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          out=$RUNNER_TEMP/out
+          mkdir "$out"
+          for file in "${files[@]}"; do
+            if [ -e "$out/${file##*/}" ]; then
+              echo "::error::mygo build made two packages named ${file##*/}"
+              exit 1
+            fi
+            cp "$file" "$out/"
+          done
+          cd "$out"
+          shasum -a 256 -- * > "$RUNNER_TEMP/checksums-$NAME.txt"
+          mv "$RUNNER_TEMP/checksums-$NAME.txt" .
+          cat "checksums-$NAME.txt"
       - name: Keep the packages
-        if: inputs.tag == ''
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kando-${{ matrix.name }}
-          path: ${{ steps.packages.outputs.files }}
+          path: ${{ runner.temp }}/out/
           retention-days: 7
           if-no-files-found: error
-      - name: Upload to the release
-        if: inputs.tag != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
-          FILES: ${{ steps.packages.outputs.files }}
-        run: |
-          files=()
-          while IFS= read -r file; do
-            files+=("$file")
-          done <<<"$FILES"
-          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber

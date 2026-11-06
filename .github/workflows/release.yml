@@ -1,6 +1,6 @@
 name: Release
 
-# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and commits that to main as chore(release), tags the commit, and creates a draft GitHub release with generated notes. The Package workflow then builds the app for macOS, Windows and Linux from the tag and uploads the packages to the draft, and the last job adds their checksums and publishes it. Run it by hand to force a bump.
+# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and commits that to main as chore(release), tags the commit, and creates a draft GitHub release with generated notes. The Package workflow then builds the app for macOS, Windows and Linux from the tag, and the last job checks the macOS and Linux packages (Windows is held back, #6) against the checksums Package took, attests their provenance, uploads them with checksums.txt to the draft and publishes it. Run it by hand from main to force a bump; it releases only a commit main's CI has passed on.
 #
 # The jobs run in one workflow, one after another, because a tag pushed with the workflow's GITHUB_TOKEN starts no other workflow.
 on:
@@ -26,15 +26,17 @@ concurrency:
 jobs:
   version:
     name: Version
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    # A run by hand must start from main: from another branch it would push that branch's commits to main.
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      actions: read
       contents: write
     outputs:
       tag: ${{ steps.commit.outputs.sha != '' && steps.version.outputs.version || '' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
@@ -52,6 +54,27 @@ jobs:
           else
             echo "Nothing to release at $SHA" >> "$GITHUB_STEP_SUMMARY"
           fi
+      # A run that CI started follows CI's success on the commit; a run by hand checks that main's CI passed on it.
+      - name: Check CI
+        if: steps.version.outputs.version != '' && github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$SHA&event=push&status=success" --jq .total_count)
+          if [ "$passed" -eq 0 ]; then
+            echo "::error::CI has not passed on $SHA, main's head; release it once it has."
+            exit 1
+          fi
+      # MyGo makes the identifier the app's identity on every platform, so a release would hand users an app under the template's placeholder, which they would keep after it is renamed.
+      - name: Check the identifier
+        if: steps.version.outputs.version != ''
+        run: |
+          identifier=$(jq -r .identifier apps/kando/mygo.json)
+          if [[ $identifier == com.example.* ]]; then
+            echo "::error::apps/kando/mygo.json's identifier is still the placeholder $identifier; set the app's real one before releasing."
+            exit 1
+          fi
       # The version goes to main in a commit of its own, which the tag points at, so that the app built from the tagged tree carries it. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
       - name: Commit the version
         id: commit
@@ -68,7 +91,10 @@ jobs:
           if git push origin HEAD:refs/heads/main; then
             echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           else
-            echo "main moved on; its next release takes these commits" >> "$GITHUB_STEP_SUMMARY"
+            # A push that a branch rule refuses fails here too, so the message names both causes.
+            message="Could not fast-forward main. Either main moved on, and its next release takes these commits, or a rule on main refused github-actions[bot], which then needs a bypass of the rule."
+            echo "::warning::$message"
+            echo "$message" >> "$GITHUB_STEP_SUMMARY"
           fi
       - name: Tag
         if: steps.commit.outputs.sha != ''
@@ -78,7 +104,7 @@ jobs:
         run: |
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "refs/tags/$VERSION"
-      # The packages are not signed yet (see package.yml), so the notes tell users how to open them; drop this note once the workflow signs them.
+      # The packages are not signed yet (see package.yml), so the notes tell users how to open them; drop this note once the workflow signs them. Windows has no packages until #6 is fixed (see the Publish job).
       - name: Draft the release
         if: steps.commit.outputs.sha != ''
         env:
@@ -87,7 +113,7 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
           > [!NOTE]
-          > These builds are not signed yet. On macOS, open `Kando.app` once, then choose Open Anyway in System Settings > Privacy & Security, or run `xattr -dr com.apple.quarantine /Applications/Kando.app`. On Windows, choose More info > Run anyway when SmartScreen warns about the installer. `checksums.txt` lists the SHA-256 of every file.
+          > These builds are not signed yet. On macOS, open `Kando.app` once, then choose Open Anyway in System Settings > Privacy & Security, or run `xattr -dr com.apple.quarantine /Applications/Kando.app`. There is no Windows build yet (#6). `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
           EOF
           gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$VERSION" --generate-notes --notes-file "$RUNNER_TEMP/notes.md"
 
@@ -96,7 +122,7 @@ jobs:
     needs: version
     if: needs.version.outputs.tag != ''
     permissions:
-      contents: write
+      contents: read
     uses: ./.github/workflows/package.yml
     with:
       tag: ${{ needs.version.outputs.tag }}
@@ -108,17 +134,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
+      attestations: write
       contents: write
+      id-token: write
     steps:
-      - name: Checksums and publish
+      # Windows is held back: its tests fail on bugs of the app's own, local videos among them (#6). Download kando-Windows here too once they pass.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kando-macOS
+          path: dist
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kando-Linux
+          path: dist
+      # The Package jobs took the checksums from the files mygo build made, so this catches a package changed on its way here.
+      - name: Check the checksums
+        working-directory: dist
+        run: |
+          cat checksums-*.txt > checksums.txt
+          rm checksums-*.txt
+          sha256sum --check --strict checksums.txt
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: dist/checksums.txt
+      - name: Upload and publish
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.version.outputs.tag }}
         run: |
-          mkdir dist
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist
-          # A run again of this job finds the checksums of the one before among the files.
-          rm -f dist/checksums.txt
-          (cd dist && sha256sum -- * > checksums.txt && cat checksums.txt)
-          gh release upload "$TAG" dist/checksums.txt --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # label-pr.sh <pr-number>
 #
-# Gives a pull request the type label its Conventional Commit title calls for (feat is feature, fix is bug, a type ending in "!" is also breaking, ...) and the size label of its changed lines, taking away the type and size labels it no longer fits. A title that is not a Conventional Commit fails, as the Release workflow reads versions from these titles once they are squash-merged.
+# Gives a pull request the type label its Conventional Commit title calls for (feat is feature, fix is bug, a type ending in "!" is also breaking, ...) and the size label of its changed lines, taking away the type and size labels it no longer fits. A title that is not a Conventional Commit fails, and so does a commit whose subject is not one (merge commits aside): the Release workflow reads versions from the commits that reach main, which are the pull request's own commits when it is merged, and its title or its one commit's subject when it is squashed.
 set -euo pipefail
 
 pr=$1
@@ -78,3 +78,11 @@ if [ "${#args[@]}" -gt 0 ]; then
   gh pr edit "$pr" "${args[@]}"
 fi
 echo "#$pr: ${wanted[*]}"
+
+types='feat|fix|perf|refactor|docs|test|ci|build|chore|style|revert'
+mapfile -t bad < <(gh api --paginate "repos/{owner}/{repo}/pulls/$pr/commits" --jq '.[] | select((.parents | length) == 1) | .commit.message | split("\n")[0]' | grep -vE "^($types)(\([^)]*\))?!?: .+" || true)
+if [ "${#bad[@]}" -gt 0 ]; then
+  echo "::error::These commits are not Conventional Commits, which the Release workflow reads versions from once they reach main: reword them, for example with git rebase -i, or squash-merge the pull request."
+  printf '  %s\n' "${bad[@]}"
+  exit 1
+fi

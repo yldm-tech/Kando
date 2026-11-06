@@ -1,4 +1,4 @@
-# Weekly updates of the three Go modules and the workflows' actions, minor and patch updates of each grouped in one pull request. Dependabot titles them as Conventional Commits (chore(deps): ...), which the Labels workflow requires. A MyGo update that tools/mygo-dev/dev.go.patch no longer applies to fails the "mygo-dev patch" job of CI.
+# Weekly updates of the three Go modules and the workflows' actions, minor and patch updates of each grouped in one pull request, and security updates as they come. Dependabot titles them as Conventional Commits, which the Labels workflow requires: fix(deps) for the Go modules, which are built into the app, so that merging one releases a patch version with it (security updates take the same title); ci(deps) for the actions, which release nothing. The actions are pinned to commit SHAs with their version in a comment, and Dependabot updates both. A MyGo update that tools/mygo-dev/dev.go.patch no longer applies to fails the "mygo-dev patch" job of CI.
 version: 2
 updates:
   - package-ecosystem: gomod
@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: weekly
     commit-message:
-      prefix: chore
+      prefix: fix
       include: scope
     labels: [dependencies]
     groups:

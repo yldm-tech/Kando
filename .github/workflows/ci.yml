@@ -21,20 +21,32 @@ jobs:
     name: Test (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    # Windows is not in the matrix yet: the tests fail there on bugs of the app's own, such as local videos, whose file:// sources are built from Windows paths that core.NewJob rejects, and on tests that assume Unix file modes and paths. The Build job still compiles and vets every package for Windows, and Package builds its installers. Add a Windows row once those are fixed.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: Linux, os: ubuntu-latest }
-          - { name: macOS, os: macos-latest }
+          # ffmpeg: the rows that install ffmpeg set KANDO_REQUIRE_FFMPEG, which fails the tests that need it rather than letting them skip.
+          - { name: Linux, os: ubuntu-latest, ffmpeg: "1" }
+          - { name: macOS, os: macos-latest, ffmpeg: "1" }
+          # Windows runs only the packages that pass there. The others fail on bugs of the app's own, such as local videos, whose file:// sources are built from Windows paths that core.NewJob rejects, and on tests that assume Unix file modes and paths (#6); Release holds the Windows installers back until they pass. Run all three modules here once #6 is fixed.
+          - { name: Windows, os: windows-latest, pkgs: "./packages/core/... ./apps/kando/cloud/... ./apps/kando/film/... ./apps/kando/films/... ./apps/kando/settings/..." }
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.work
-          cache-dependency-path: apps/kando/go.sum
-      # MyGo's tester renders native UI in memory, with no window or display, but on Linux it lays out text with Pango and Cairo, which it loads at run time: without them text does not show and the tests that find elements by their text fail. The CJK fonts draw the app's Chinese. ffmpeg runs in the tests of frames, posters, key frames and the player, which skip without it.
+          cache: false
+      # Each job that builds keeps a Go cache of its own. setup-go's cache has one key for every job, so the first job to finish (Lint, which builds next to nothing) saved it, and every other job rebuilt from scratch on every run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+            ~/AppData/Local/go-build
+          key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-
+      # MyGo's tester renders native UI in memory, with no window or display, but on Linux it lays out text with Pango and Cairo, which it loads at run time: without them text does not show and the tests that find elements by their text fail. The CJK fonts draw the app's Chinese. ffmpeg runs in the tests of frames, posters, key frames and the player, which fail without it where the row sets KANDO_REQUIRE_FFMPEG.
       - name: Install Pango, fonts and ffmpeg
         if: runner.os == 'Linux'
         run: |
@@ -46,18 +58,24 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE: "1"
           HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: brew install ffmpeg
-      - run: go test $PKGS
+      - name: Test
+        shell: bash
+        env:
+          KANDO_REQUIRE_FFMPEG: ${{ matrix.ffmpeg }}
+          TEST_PKGS: ${{ matrix.pkgs || env.PKGS }}
+        run: go test $TEST_PKGS
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No Go cache: this job builds little, and the cache storage is left to the jobs that build (see the Test job).
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.work
-          cache-dependency-path: apps/kando/go.sum
+          cache: false
       - name: gofmt
         run: |
           unformatted=$(gofmt -l .)
@@ -91,11 +109,18 @@ jobs:
       matrix:
         goos: [linux, darwin, windows]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.work
-          cache-dependency-path: apps/kando/go.sum
+          cache: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-
       # go vet compiles the tests too, such as the macOS-only audio_darwin_test.go.
       - name: Build and vet
         env:
@@ -111,11 +136,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No Go cache: this job builds little, and the cache storage is left to the jobs that build (see the Test job).
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.work
-          cache-dependency-path: apps/kando/go.sum
+          cache: false
       - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
       # govulncheck needs a module, so it runs in each one; the workspace still resolves the modules' replaced packages.
       - run: |
@@ -131,11 +157,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No Go cache: this job builds little, and the cache storage is left to the jobs that build (see the Test job).
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.work
-          cache-dependency-path: apps/kando/go.sum
+          cache: false
       - name: Patch and build the CLI
         run: |
           here=$PWD/tools/mygo-dev
