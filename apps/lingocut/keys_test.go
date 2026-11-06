@@ -146,10 +146,14 @@ func TestCheatsheetIsDark(t *testing.T) {
 
 func TestSettingsShortcutOpensSettings(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
+	a.prefs.section = settings.SectionAccount
 	tt.Frame()
 	tt.Key(ui.Cmd, ui.KeyComma)
 	tt.Frame()
 	wantSettings(t, a, settings.SectionGeneral)
+	if a.page != pageFilms {
+		t.Fatalf("⌘, left the library for page %q", a.page)
+	}
 }
 
 // TestMenuBarTakesCommandShortcuts checks that once the app has its own menu bar, ⌘ shortcuts are left to the menu's accelerators and single keys still work.
@@ -159,8 +163,8 @@ func TestMenuBarTakesCommandShortcuts(t *testing.T) {
 	tt.Frame()
 	tt.Key(ui.Cmd, ui.KeyComma)
 	tt.Frame()
-	if a.page != pageFilms {
-		t.Fatalf("⌘, ran beside the menu bar: page %q", a.page)
+	if a.prefs.open {
+		t.Fatalf("⌘, ran beside the menu bar: settings open at %q", a.prefs.section)
 	}
 }
 

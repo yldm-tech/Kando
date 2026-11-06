@@ -130,10 +130,10 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 	}
 	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
-	if !tt.HasText("a@b.c") || !tt.HasText("退出") {
+	if !tt.HasText("a@b.c") || !tt.HasText("退出登录") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	if err := tt.Click("退出"); err != nil {
+	if err := tt.Click("退出登录"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The account page's reads and writes (account.App). Signing in and out with Google lives in cloud_app.go.
+// The settings window's 账号与上传 category's reads and writes (account.App). Signing in and out with Google lives in cloud_app.go.
 
 func (a *app) GoogleEmail() string { return a.cloud.googleEmail }
 
@@ -64,7 +64,3 @@ func (a *app) CompatAccessKey() *string { return &a.cloud.compatAccessKey }
 func (a *app) CompatSecret() *string { return &a.cloud.compatSecret }
 
 func (a *app) CompatPathStyle() *bool { return &a.cloud.compatPath }
-
-func (a *app) ShowR2Secret() bool { return a.cloud.showR2Secret }
-
-func (a *app) ToggleR2Secret() { a.cloud.showR2Secret = !a.cloud.showR2Secret }

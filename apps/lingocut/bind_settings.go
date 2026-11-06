@@ -1,15 +1,11 @@
 package main
 
 import (
-	"lingocut/apps/lingocut/account"
 	"lingocut/apps/lingocut/settings"
-	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/media"
-
-	"github.com/egoist/mygo/ui"
 )
 
-// The settings pages' reads and writes (settings.App).
+// The settings window's reads and writes (settings.App). The 账号与上传 category's are in bind_account.go; the subtitle settings the player shares (Untranslated, YieldSubs and their setters) in bind_film.go.
 
 func (a *app) Tools() (media.Tools, bool) {
 	tools, ok := a.pipeline.(media.Tools)
@@ -23,8 +19,6 @@ func (a *app) TranslateContext() *bool { return &a.prefs.translateContext }
 func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
 
 func (a *app) Save() error { return a.saveSettings() }
-
-func (a *app) LibraryMenu(m *ui.Menu) { sidebar.Menu(m, a) }
 
 func (a *app) Redetect() { a.redetectTools() }
 
@@ -80,10 +74,6 @@ func (a *app) LLMKey() *string { return &a.prefs.llmKey }
 
 func (a *app) LLMModel() *string { return &a.prefs.llmModel }
 
-func (a *app) ShowLLMKey() bool { return a.prefs.showLLMKey }
-
-func (a *app) ToggleLLMKey() { a.prefs.showLLMKey = !a.prefs.showLLMKey }
-
 func (a *app) ApplyLLM() { a.applyLLM() }
 
 func (a *app) TestingLLM() bool { return a.prefs.testingLLM }
@@ -94,54 +84,35 @@ func (a *app) LLMResult() string { return a.prefs.llmTestResult }
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }
 
-// OpenSettings shows the settings at section, one of the settings package's Section values; "" or a value it does not know opens 通用. It records the request in the settings' own state (prefs.open, prefs.section), which is what other areas and their tests read. The settings are sidebar pages until they get a window of their own, so for now it also selects the page, which closes the open film; 字幕外观 and 快捷键 have no page yet and show 通用.
+// OpenSettings shows the settings window at section, one of the settings package's Section values; "" or a section it does not know opens 通用. The window opens beside the main one, which keeps its page and its open film. It records the request in the settings' own state (prefs.open, prefs.section), which is what other areas and their tests read.
 func (a *app) OpenSettings(section string) {
-	switch section {
-	case settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionLook, settings.SectionShortcuts, settings.SectionAccount:
-	default:
+	if !settings.Known(section) {
 		section = settings.SectionGeneral
 	}
 	a.prefs.open = true
 	a.prefs.section = section
-	page, _ := settingsSectionPage(section)
-	a.Select(page)
+	a.showSettingsWindow()
 }
 
-// settingsSectionPage is the sidebar page that shows section while the settings are sidebar pages. 字幕外观 and 快捷键 have none and show 通用; ok is false for them and for a value that is not a section.
-func settingsSectionPage(section string) (page string, ok bool) {
-	switch section {
-	case settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionAccount:
-		return section, true
+func (a *app) SettingsSection() string {
+	if a.prefs.section == "" {
+		return settings.SectionGeneral
 	}
-	return pageGeneral, false
+	return a.prefs.section
 }
 
-// isSettingsPage reports whether page is one of the sidebar pages the settings live on until they get a window of their own.
-func isSettingsPage(page string) bool {
-	switch page {
-	case pageGeneral, pageSpeech, pageAI, pageTranslate, pageAccount:
-		return true
-	}
-	return false
-}
+func (a *app) SetSettingsSection(section string) { a.prefs.section = section }
 
-// settingsPage draws the settings page a.page names, 账号 among them, and reports whether a.page is one. view shows the library otherwise.
-func (a *app) settingsPage(c *ui.Context, t *ui.Theme) bool {
-	switch a.page {
-	case pageGeneral, pageSpeech, pageAI, pageTranslate:
-		ui.Scroll(c).Grow(1).Children(func() {
-			ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
-				settings.Show(c, t, appVersion, a)
-			})
-		})
-	case pageAccount:
-		ui.Scroll(c).Grow(1).Children(func() {
-			ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
-				account.Show(c, t, a)
-			})
-		})
-	default:
-		return false
+func (a *app) SettingsQuery() *string { return &a.prefs.query }
+
+func (a *app) ShortcutQuery() *string { return &a.prefs.shortcutQuery }
+
+// Shortcuts is the app's shortcut table as the 快捷键 page lists it.
+func (a *app) Shortcuts() []settings.Shortcut {
+	table := a.shortcuts()
+	out := make([]settings.Shortcut, len(table))
+	for i, s := range table {
+		out[i] = settings.Shortcut{Group: s.Group, Label: s.Label, Mods: s.Mods, Key: s.Key}
 	}
-	return true
+	return out
 }
