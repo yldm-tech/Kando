@@ -11,7 +11,7 @@ import (
 func TestAudioCommandPrefersFFplay(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip(err)
+		skipWithoutFFmpeg(t, "%v", err)
 	}
 	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 0)
 	if err != nil {

@@ -71,12 +71,12 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 func TestOpenFilmPlaysTheVideo(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
 	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d=1:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
 	}
 	srt := filepath.Join(dir, "clip.srt")
 	if err := os.WriteFile(srt, []byte("1\n00:00:00,000 --> 00:00:01,000\n画面上的字幕\nOn the picture.\n\n"), 0o644); err != nil {
@@ -142,7 +142,7 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 func TestPlaybackAdvancesThePicture(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
@@ -152,7 +152,7 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 		"-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0",
 		"-c:v", "mpeg4", "-pix_fmt", "yuv420p", video,
 	).CombinedOutput(); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
@@ -197,12 +197,12 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 func TestPlaybackStopsAtTheEnd(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
 	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=160x90:d=1:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
@@ -253,7 +253,7 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
@@ -263,7 +263,7 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 		"-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0",
 		"-c:v", "mpeg4", "-pix_fmt", "yuv420p", video,
 	).CombinedOutput(); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })

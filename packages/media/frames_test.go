@@ -2,21 +2,31 @@ package media
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 )
 
+// skipWithoutFFmpeg skips a test that needs ffmpeg when ffmpeg is missing or cannot make its clip. CI sets KANDO_REQUIRE_FFMPEG where it installs ffmpeg, and there the test fails instead, so that it cannot pass by skipping.
+func skipWithoutFFmpeg(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("KANDO_REQUIRE_FFMPEG") != "" {
+		t.Fatalf(format, args...)
+	}
+	t.Skipf(format, args...)
+}
+
 func TestOpenFramesReadsPictures(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
 	if _, err := run(context.Background(), ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d=1:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v", err)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v", err)
 	}
 	reader, err := OpenFrames(ffmpeg, video)
 	if err != nil {
