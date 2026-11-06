@@ -11,14 +11,17 @@ type Face struct {
 
 // Look is how subtitles are drawn. Which lines show and which goes on top are not part of it: they are the app's SubMode and SubOrder.
 type Look struct {
-	Preset, Edit string
-	Bottom       float32
-	Box, Shadow  bool
-	Translation  Face
-	Original     Face
+	// Preset is the style view's preset last picked: "outline", "box" or "large".
+	Preset string
+	// Box puts each line on a dark box; Shadow draws an outline around the glyphs.
+	Box, Shadow bool
+	// High lifts the subtitles to about a third of the picture's height, from the bottom.
+	High        bool
+	Translation Face
+	Original    Face
 }
 
-// Subtitle modes: which lines of a bilingual cue the player shows. V steps through them in this order.
+// Subtitle modes: which lines of a bilingual cue the player shows. S steps through the three that show lines, in the order original, translation, bilingual.
 const (
 	Bilingual   = "bilingual"
 	Translation = "translation"

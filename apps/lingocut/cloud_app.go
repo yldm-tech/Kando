@@ -66,24 +66,36 @@ func (a *app) UploadView(item films.Film) film.Upload {
 	view := film.Upload{Show: true, Label: a.uploadLabel()}
 	if a.cloud.uploadPath == item.VideoPath {
 		view.Detail = uploadProgress(a.cloud.uploadWritten, a.cloud.uploadTotal)
+		view.Status = film.UploadBusy
+		if a.cloud.uploadTotal > 0 {
+			view.Progress = float64(a.cloud.uploadWritten) / float64(a.cloud.uploadTotal)
+		}
 		return view
 	}
 	if a.cloud.uploadPath != "" {
 		view.Detail = "正在上传另一部影片"
+		view.Status = film.UploadBlocked
 		return view
 	}
 	if reason := a.uploadBlocked(); reason != "" {
 		view.Detail = reason
+		view.Status = film.UploadBlocked
+		view.Fix = "去设置"
+		if strings.TrimSpace(a.cloud.googleEmail) == "" {
+			view.Fix = "去登录"
+		}
 		return view
 	}
 	view.Enabled = true
 	done := a.uploadMemo(item.VideoPath)
 	if a.cloud.uploadErrPath == done && a.cloud.uploadErr != "" {
 		view.Detail = a.cloud.uploadErr
+		view.Status = film.UploadFailed
 		return view
 	}
 	if key := a.cloud.uploaded[done]; key != "" {
 		view.Detail = "已上传 " + key
+		view.Status = film.UploadDone
 	}
 	return view
 }
