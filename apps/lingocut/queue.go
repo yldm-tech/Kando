@@ -72,6 +72,16 @@ func (a *app) Cancel(id string) {
 	a.stop()
 }
 
+// RunningJob is the ID of the job being processed now, or "" when none is. Jobs run one at a time and, until the queue keeps others waiting, an unfinished job is the one running.
+func (a *app) RunningJob() string {
+	for _, job := range a.library.Jobs {
+		if job.Stage != "" && !job.Stage.Done() {
+			return job.ID
+		}
+	}
+	return ""
+}
+
 // newJob makes the job for source in the open library and the target language, or returns why it cannot.
 func (a *app) newJob(source string) (core.Job, error) {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {

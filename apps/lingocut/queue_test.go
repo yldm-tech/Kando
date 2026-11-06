@@ -114,6 +114,28 @@ func TestViewCancelsRunningJob(t *testing.T) {
 	}
 }
 
+// TestFilmPageCancelsTheFilmItShows checks that 取消 on an open film cancels that film's job through Cancel(id), and that RunningJob names the job while it runs.
+func TestFilmPageCancelsTheFilmItShows(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	if err := a.Enqueue("https://example.com/v"); err != nil {
+		t.Fatal(err)
+	}
+	id := a.queue.selectedID
+	if got := a.RunningJob(); got != id {
+		t.Fatalf("RunningJob = %q, want %q", got, id)
+	}
+	a.openKey = id
+	tt.Frame()
+	if err := tt.Click("取消"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return !a.running() })
+	job, ok := a.library.Find(id)
+	if !ok || job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || a.RunningJob() != "" {
+		t.Fatalf("job %+v, RunningJob %q", job, a.RunningJob())
+	}
+}
+
 func TestRetryKeepsTheSameCard(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.library.Jobs = []core.Job{{

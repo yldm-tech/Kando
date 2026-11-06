@@ -18,8 +18,10 @@ type App interface {
 	SetOpenKey(string)
 	StopPlayback()
 	Reveal(path string)
-	Running() bool
-	Stop()
+	// Cancel stops job id if it is waiting or running, as films.App.Cancel does; the page cancels the film it shows.
+	Cancel(id string)
+	// RunningJob is the ID of the job being processed now, or "", as films.App.RunningJob.
+	RunningJob() string
 	StartFilm(item films.Film)
 	Remove(id string)
 	RetryOpen(id string)
@@ -144,7 +146,7 @@ func (s screen) uploadRow(c *ui.Context, t *ui.Theme, item films.Film) {
 func (s screen) filmActions(c *ui.Context, item films.Film) {
 	showCancel := item.JobID != "" && item.Stage != "" && !item.Stage.Done()
 	showStart := item.JobID == ""
-	showFailed := item.JobID != "" && item.Stage == core.StageFailed && !s.Running()
+	showFailed := item.JobID != "" && item.Stage == core.StageFailed && s.RunningJob() == ""
 	if !showCancel && !showStart && !showFailed {
 		return
 	}
@@ -152,12 +154,12 @@ func (s screen) filmActions(c *ui.Context, item films.Film) {
 		if showCancel {
 			c.Key("film-cancel")
 			if breeze.Button(c, "取消").Clicked() {
-				s.Stop()
+				s.Cancel(item.JobID)
 			}
 		}
 		if showStart {
 			c.Key("film-start")
-			if breeze.PrimaryButton(c, "开始处理").Disabled(s.Running()).Clicked() {
+			if breeze.PrimaryButton(c, "开始处理").Disabled(s.RunningJob() != "").Clicked() {
 				s.StartFilm(item)
 			}
 		}

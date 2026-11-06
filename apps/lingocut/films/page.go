@@ -21,7 +21,6 @@ type App interface {
 	SetOpenKey(string)
 	Source() *string
 	Status() string
-	Running() bool
 	HasJob() bool
 	PlaybackOpen() bool
 	StopPlayback()
@@ -32,7 +31,6 @@ type App interface {
 	CreateLibrary()
 	BindName(edit func(*string) bool) error
 	Start()
-	Stop()
 	PickVideos()
 	Poster(path string) ui.ImageSource
 	EnsurePoster(path string)
@@ -44,8 +42,10 @@ type App interface {
 	SourceFilter() string
 	// Enqueue adds a job for each source, a link or a local video's file:// URL, to the open library in the language the settings name, and runs them one after another. The error is why a source was not added.
 	Enqueue(sources ...string) error
-	// Cancel stops job id if it is waiting or running. Its card stays, marked 已取消. Enqueue and Cancel are the contract of the job queue; queue.go in the main package says how much of it runs today.
+	// Cancel stops job id if it is waiting or running. Its card stays, marked 已取消. Enqueue, Cancel and RunningJob are the contract of the job queue; queue.go in the main package says how much of it runs today. Job control is per job: a page cancels the job it shows, never "whatever runs".
 	Cancel(id string)
+	// RunningJob is the ID of the job being processed now, or "" when none is. A job waiting in the queue is not running; its Film.Stage is core.StageQueued.
+	RunningJob() string
 	// OpenSettings shows the settings at section, one of the settings package's Section values.
 	OpenSettings(section string)
 	// ResumeAt is where the video at path stopped playing last time, or 0.
@@ -72,7 +72,7 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	if a.OpenKey() == "" && a.PlaybackOpen() {
 		a.StopPlayback()
 	}
-	running := a.Running()
+	running := a.RunningJob() != ""
 	ui.Row(c).Wrap().Gap(10).AlignItems(ui.Center).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(240).Height(40).Radius(20).Background(t.Surface).Padding(0, 14).Gap(8).AlignItems(ui.Center).Children(func() {
 			ui.Icon(c, linkIcon).Size(15, 15).TextColor(t.TextMuted).Shrink(0)
@@ -84,7 +84,7 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 		if running {
 			c.Key("cancel")
 			if breeze.Button(c, "取消").Shrink(0).Clicked() {
-				a.Stop()
+				a.Cancel(a.RunningJob())
 			}
 		} else {
 			c.Key("files")
@@ -189,7 +189,7 @@ func card(c *ui.Context, t *ui.Theme, a App, item Film) {
 						}
 						ui.Text(c, label).TextColor(color).Bold()
 					}
-					if item.JobID != "" && item.Stage == core.StageFailed && !a.Running() {
+					if item.JobID != "" && item.Stage == core.StageFailed && a.RunningJob() == "" {
 						if breeze.Button(c, "移除").Clicked() {
 							a.Remove(item.JobID)
 						}
