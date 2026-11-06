@@ -112,7 +112,7 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 	}
 	tt.Key(ui.Cmd, ui.KeySlash)
 	tt.Frame()
-	if a.overlay.cheatsheet || tt.HasText("键盘快捷键") {
+	if _, shown := tt.Find("快捷键"); a.overlay.cheatsheet || shown {
 		t.Fatalf("a second ⌘/ left the cheat sheet open: %q", tt.Texts())
 	}
 	tt.Key(ui.Cmd, ui.KeySlash)
@@ -122,25 +122,25 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 	}
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
-	if a.overlay.cheatsheet || tt.HasText("键盘快捷键") {
+	if _, shown := tt.Find("快捷键"); a.overlay.cheatsheet || shown {
 		t.Fatalf("Escape left the cheat sheet open: %q", tt.Texts())
 	}
 }
 
-// TestCheatsheetIsDark checks that the cheat sheet is drawn in the player's dark theme over the light window.
+// TestCheatsheetIsDark checks that the cheat sheet is drawn in the player's dark theme over the light window, as dark glass: its tint, rgb(28, 28, 32) at 86%, over the blurred white window gives about rgb(60, 60, 63).
 func TestCheatsheetIsDark(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.overlay.cheatsheet = true
 	tt.Frame()
-	r, ok := tt.Find("键盘快捷键")
+	r, ok := tt.Find("快捷键")
 	if !ok {
 		t.Fatalf("no cheat sheet: %q", tt.Texts())
 	}
 	img := tt.Image()
 	scale := float32(img.Bounds().Dx()) / 1100
 	px := img.RGBAAt(int((r.X-6)*scale), int((r.Y+r.H/2)*scale))
-	if px.R > 60 || px.G > 60 || px.B > 60 {
-		t.Fatalf("cheat sheet behind its title = %v, want dark", px)
+	if px.R < 50 || px.R > 70 || px.G < 50 || px.G > 70 || px.B < 53 || px.B > 73 {
+		t.Fatalf("cheat sheet behind its title = %v, want the dark glass, about rgb(60, 60, 63)", px)
 	}
 }
 
