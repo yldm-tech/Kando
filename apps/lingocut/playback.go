@@ -33,10 +33,10 @@ func (a *app) ffmpegPath() string {
 
 // startPlayback opens path on the film page. A missing file or a pipeline without ffmpeg leaves the page as a subtitle list.
 func (a *app) startPlayback(path string) {
-	at := a.playFrom
-	jump := a.playJump
-	a.playFrom = 0
-	a.playJump = false
+	at := a.player.playFrom
+	jump := a.player.playJump
+	a.player.playFrom = 0
+	a.player.playJump = false
 	a.stopPlayback()
 	ffmpeg := a.ffmpegPath()
 	if path == "" || ffmpeg == "" {
@@ -45,24 +45,24 @@ func (a *app) startPlayback(path string) {
 	if _, err := os.Stat(path); err != nil {
 		return
 	}
-	a.playGen++
-	gen := a.playGen
-	a.playPath = path
+	a.player.playGen++
+	gen := a.player.playGen
+	a.player.playPath = path
 	update := a.update
 	go func() {
 		frames, err := media.OpenFramesAt(ffmpeg, path, at)
 		if err != nil {
 			update(func() {
-				if a.playGen != gen {
+				if a.player.playGen != gen {
 					return
 				}
-				a.playErr = "这个视频播不了"
+				a.player.playErr = "这个视频播不了"
 			})
 			return
 		}
 		audio, _ := openPCM(ffmpeg, path, at)
 		update(func() {
-			if a.playGen != gen {
+			if a.player.playGen != gen {
 				frames.Close()
 				if audio != nil {
 					audio.Close()
@@ -76,7 +76,7 @@ func (a *app) startPlayback(path string) {
 				if audio != nil {
 					audio.Close()
 				}
-				a.playErr = "这个视频播不了"
+				a.player.playErr = "这个视频播不了"
 				return
 			}
 			paused := true
@@ -89,7 +89,7 @@ func (a *app) startPlayback(path string) {
 			} else {
 				player.Pause()
 			}
-			a.play = &filmPlay{
+			a.player.play = &filmPlay{
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
 				duration: frames.Duration(), paused: paused,
 			}
@@ -99,31 +99,32 @@ func (a *app) startPlayback(path string) {
 
 // seekPlayback opens path again at at and plays from there.
 func (a *app) seekPlayback(at time.Duration) {
-	path := a.playPath
-	if a.play != nil && a.play.path != "" {
-		path = a.play.path
+	path := a.player.playPath
+	if a.player.play != nil && a.player.play.path != "" {
+		path = a.player.play.path
 	}
 	if path == "" || at < 0 {
 		return
 	}
-	a.playFrom = at
-	a.playJump = true
+	a.player.playFrom = at
+	a.player.playJump = true
 	a.startPlayback(path)
 }
 
 // stopPlayback ends the open video. It does nothing when the film page is not playing.
 func (a *app) stopPlayback() {
-	if a.play == nil && a.playPath == "" && a.playErr == "" {
+	if a.player.play == nil && a.player.playPath == "" && a.player.playErr == "" {
 		return
 	}
-	a.playGen++
-	play := a.play
-	a.play = nil
-	a.playPath = ""
-	a.playErr = ""
+	a.player.playGen++
+	play := a.player.play
+	a.player.play = nil
+	a.player.playPath = ""
+	a.player.playErr = ""
 	if play == nil {
 		return
 	}
+	a.rememberPosition(play)
 	if play.audio != nil {
 		play.audio.Close()
 	}

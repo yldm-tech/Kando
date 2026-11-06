@@ -35,6 +35,8 @@ type App interface {
 	Cue() *Look
 	UploadView(item films.Film) Upload
 	BeginUpload(item films.Film)
+	// ToggleFullScreen enters or leaves full screen.
+	ToggleFullScreen()
 }
 
 // Upload is the manual R2 action on a film that already has a local video.
@@ -65,9 +67,11 @@ type Subs struct {
 
 type screen struct{ App }
 
-// Show draws the open film.
-func Show(c *ui.Context, t *ui.Theme, a App, item films.Film) {
-	screen{a}.filmPage(c, t, item)
+// Show draws the open film in dark, the player's theme, which stays dark in the light window.
+func Show(c *ui.Context, dark *ui.Theme, a App, item films.Film) {
+	ui.Themed(c, dark).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Background(dark.Background).Radius(12).Padding(12).Children(func() {
+		screen{a}.filmPage(c, dark, item)
+	})
 }
 
 func (s screen) filmPage(c *ui.Context, t *ui.Theme, item films.Film) {

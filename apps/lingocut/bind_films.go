@@ -2,6 +2,7 @@ package main
 
 import (
 	"lingocut/apps/lingocut/films"
+	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/yldm-tech/nodra"
@@ -24,7 +25,7 @@ func (a *app) Running() bool { return a.running() }
 func (a *app) HasJob() bool { return a.job != nil }
 
 func (a *app) PlaybackOpen() bool {
-	return a.play != nil || a.playPath != "" || a.playErr != ""
+	return a.player.play != nil || a.player.playPath != "" || a.player.playErr != ""
 }
 
 func (a *app) StopPlayback() { a.stopPlayback() }
@@ -86,4 +87,21 @@ func (a *app) JobFilm(id string) (films.Film, bool) {
 func (a *app) films() []films.Film {
 	shot := a.snap()
 	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, jobName, statusText)
+}
+
+// dropFiles opens the first video among files dropped on the page, ready to process.
+func (a *app) dropFiles(paths []string) {
+	for _, path := range paths {
+		if media.IsVideoFile(path) {
+			a.importLocal(path)
+			return
+		}
+	}
+}
+
+// libraryKeys are the library's shortcuts.
+func (a *app) libraryKeys() []shortcut {
+	return []shortcut{
+		{Group: "文件", Label: "打开本地视频…", Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos},
+	}
 }

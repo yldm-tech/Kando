@@ -39,7 +39,6 @@ type app struct {
 	saveErr          string
 	page             string
 	openKey          string
-	subs             subtitleView
 	store            *nodra.Store[session]
 	libraryWatch     chan struct{}
 	settingsPath     string
@@ -58,17 +57,12 @@ type app struct {
 	llmCredential    func(context.Context, bool) (media.Endpoint, error)
 	testingLLM       bool
 	llmTestResult    string
-	filmSide         string
-	cue              film.Look
 	toolVersions     map[string]string
 	versionGen       int
 	posterDir        string
 	posters          map[string]ui.ImageSource
 	posterMiss       map[string]bool
 	posterBusy       map[string]bool
-	play             *filmPlay
-	playPath         string
-	playErr          string
 	googleEmail      string
 	googleRefresh    string
 	googleBusy       bool
@@ -105,14 +99,14 @@ type app struct {
 	uploadErrPath    string
 	uploaded         map[string]string
 	uploader         func(context.Context, cloud.Store, []cloud.File, func(written, total int64)) error
-	playGen          int
-	playFrom         time.Duration
-	playJump         bool
 	removed          map[string]bool
 	job              *core.Job
 	library          shelf.Library
 	pipeline         media.Pipeline
 	win              *mygo.Window
+	lib              libraryUI
+	player           playerUI
+	overlay          overlayUI
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 	cancel context.CancelFunc
@@ -687,6 +681,7 @@ func (a *app) saveSettings() error {
 		return err
 	}
 	contextOn := a.translateContext
+	look, yieldSubs := a.player.look, a.player.yieldSubs
 	shelf := a.snap()
 	saved := savedSettings{
 		LibraryDir:       shelf.LibraryDir,
@@ -721,6 +716,12 @@ func (a *app) saveSettings() error {
 		CompatAccessKey:  a.compatAccessKey,
 		CompatSecret:     a.compatSecret,
 		CompatPathStyle:  a.compatPath,
+		Look:             &look,
+		SubMode:          a.player.subMode,
+		SubOrder:         a.player.subOrder,
+		Untranslated:     a.player.untranslated,
+		YieldSubs:        &yieldSubs,
+		Onboarded:        a.overlay.onboarded,
 	}
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
@@ -822,6 +823,12 @@ type savedSettings struct {
 	CompatAccessKey  string                `json:"s3CompatAccessKey,omitempty"`
 	CompatSecret     string                `json:"s3CompatSecret,omitempty"`
 	CompatPathStyle  bool                  `json:"s3CompatPathStyle,omitempty"`
+	Look             *film.Look            `json:"look,omitempty"`
+	SubMode          string                `json:"subMode,omitempty"`
+	SubOrder         string                `json:"subOrder,omitempty"`
+	Untranslated     string                `json:"untranslated,omitempty"`
+	YieldSubs        *bool                 `json:"yieldSubs,omitempty"`
+	Onboarded        bool                  `json:"onboarded,omitempty"`
 }
 
 type savedInode struct {
@@ -1201,7 +1208,8 @@ func cleanLibraries(dirs []string) []string {
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 	return &app{
 		language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true,
-		cue:      film.DefaultLook(),
+		lib:      newLibraryUI(),
+		player:   newPlayerUI(),
 		store:    newSessionStore(),
 		pipeline: pipeline, update: update,
 	}
@@ -1272,24 +1280,12 @@ func (a *app) start() {
 	if a.running() {
 		return
 	}
-	if strings.TrimSpace(a.snap().LibraryDir) == "" {
-		a.job = nil
-		a.status = "先创建或导入一个资料库"
-		return
-	}
-	job, err := core.NewJob(a.source)
+	job, err := a.newJob(a.source)
 	if err != nil {
 		a.job = nil
 		a.status = err.Error()
 		return
 	}
-	language := strings.TrimSpace(a.language)
-	if language == "" {
-		a.job = nil
-		a.status = "请填写目标语言"
-		return
-	}
-	job.Language = language
 	a.run(job)
 }
 
@@ -1358,18 +1354,18 @@ type subtitleView struct {
 
 // loadSubtitles reads path off the UI thread. An empty path means this film has no subtitle yet.
 func (a *app) loadSubtitles(key, path string) {
-	if a.subs.key == key && a.subs.path == path {
+	if a.player.subs.key == key && a.player.subs.path == path {
 		return
 	}
-	a.subs = subtitleView{key: key, path: path}
+	a.player.subs = subtitleView{key: key, path: path}
 	if path == "" {
-		a.subs.ready = true
+		a.player.subs.ready = true
 		return
 	}
 	update := a.update
 	if update == nil {
-		a.subs.err = "字幕无法读取"
-		a.subs.ready = true
+		a.player.subs.err = "字幕无法读取"
+		a.player.subs.ready = true
 		return
 	}
 	go func() {
@@ -1388,16 +1384,16 @@ func (a *app) loadSubtitles(key, path string) {
 			cues = nil
 		}
 		update(func() {
-			if a.subs.key != key || a.subs.path != path {
+			if a.player.subs.key != key || a.player.subs.path != path {
 				return
 			}
-			a.subs.cues = cues
-			a.subs.err = msg
-			a.subs.ready = true
+			a.player.subs.cues = cues
+			a.player.subs.err = msg
+			a.player.subs.ready = true
 			if statErr == nil {
-				a.subs.mod = info.ModTime()
-				a.subs.size = info.Size()
-				a.subs.seen = true
+				a.player.subs.mod = info.ModTime()
+				a.player.subs.size = info.Size()
+				a.player.subs.seen = true
 			}
 		})
 	}()
@@ -1405,19 +1401,19 @@ func (a *app) loadSubtitles(key, path string) {
 
 // reloadOpenSubtitles reads the open subtitle again when the file on disk was rewritten or removed.
 func (a *app) reloadOpenSubtitles() {
-	if a.subs.key == "" || a.subs.path == "" {
+	if a.player.subs.key == "" || a.player.subs.path == "" {
 		return
 	}
-	info, err := os.Stat(a.subs.path)
+	info, err := os.Stat(a.player.subs.path)
 	if err != nil {
-		if !a.subs.ready || a.subs.err != "" {
+		if !a.player.subs.ready || a.player.subs.err != "" {
 			return
 		}
-	} else if a.subs.seen && a.subs.size == info.Size() && a.subs.mod.Equal(info.ModTime()) {
+	} else if a.player.subs.seen && a.player.subs.size == info.Size() && a.player.subs.mod.Equal(info.ModTime()) {
 		return
 	}
-	key, path := a.subs.key, a.subs.path
-	a.subs.path = ""
+	key, path := a.player.subs.key, a.player.subs.path
+	a.player.subs.path = ""
 	a.loadSubtitles(key, path)
 }
 
@@ -1695,6 +1691,8 @@ func main() {
 		a.translateContext = *saved.TranslateContext
 	}
 	applyCloudEnv(a, saved)
+	a.restorePlayer(saved)
+	a.overlay.onboarded = saved.Onboarded
 	if cache, err := os.UserCacheDir(); err == nil {
 		a.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
@@ -1753,7 +1751,7 @@ func main() {
 	}
 	a.refreshLibrary()
 	a.restartLibraryWatch()
-	mygo.Theme.SetSource(mygo.ThemeDark)
+	mygo.Theme.SetSource(mygo.ThemeLight)
 	mygo.App.WhenReady(func() {
 		// The sidebar's material: AppKit's source list on macOS and Mica on Windows, whose NavigationView pane is transparent over it, as Onevra's shell chose.
 		vibrancy := mygo.VibrancyNone

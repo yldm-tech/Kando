@@ -15,7 +15,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshots renders the main scenes (library, open film, settings > 翻译, account) to PNG files in the directory named by LINGOCUT_SCREENSHOTS, so a visual change can be compared before and after. It is skipped when the variable is unset.
+// TestScreenshots renders the main scenes (library, open film, settings > 翻译, account, the shortcut cheat sheet) to PNG files in the directory named by LINGOCUT_SCREENSHOTS, so a visual change can be compared before and after. The window is light, as main sets it. It is skipped when the variable is unset.
 func TestScreenshots(t *testing.T) {
 	out := os.Getenv("LINGOCUT_SCREENSHOTS")
 	if out == "" {
@@ -63,7 +63,6 @@ func TestScreenshots(t *testing.T) {
 		a.refreshLibrary()
 		t.Cleanup(a.stopPlayback)
 		tt := ui.NewTester(a.view, 1100, 720)
-		tt.SetDark(true)
 		tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
 		tt.Frame()
 		steps(a, tt, updates)
@@ -95,11 +94,15 @@ func TestScreenshots(t *testing.T) {
 			case fn := <-updates:
 				fn()
 			case <-deadline:
-				t.Fatalf("film did not load: %q err %q", tt.Texts(), a.playErr)
+				t.Fatalf("film did not load: %q err %q", tt.Texts(), a.player.playErr)
 			}
 			tt.Frame()
 		}
 	})
 	shoot("settings", func(_ *app, tt *ui.Tester, _ chan func()) { click(tt, "翻译") })
 	shoot("account", func(_ *app, tt *ui.Tester, _ chan func()) { click(tt, "账号") })
+	shoot("cheatsheet", func(_ *app, tt *ui.Tester, _ chan func()) {
+		tt.Key(ui.Cmd, ui.KeySlash)
+		tt.Frame()
+	})
 }

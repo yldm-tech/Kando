@@ -74,6 +74,28 @@ func InDir(dir, path string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
+// SourceOf is the sidebar source a film comes from: the platform core.ParseLink reads from its source, or sidebar.SourceLocal for a film with no source it reads, such as a video found in the library folder.
+func SourceOf(item Film) string {
+	if link, ok := core.ParseLink(item.Source); ok {
+		return string(link.Platform)
+	}
+	return sidebar.SourceLocal
+}
+
+// BySource keeps the films that come from source; sidebar.SourceAll keeps them all.
+func BySource(items []Film, source string) []Film {
+	if source == sidebar.SourceAll {
+		return items
+	}
+	var out []Film
+	for _, item := range items {
+		if SourceOf(item) == source {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
 func Find(items []Film, key string) (Film, bool) {
 	for _, item := range items {
 		if item.Key == key {

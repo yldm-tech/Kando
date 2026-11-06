@@ -6,7 +6,6 @@ import (
 	"lingocut/apps/lingocut/films"
 	"lingocut/apps/lingocut/settings"
 	"lingocut/apps/lingocut/sidebar"
-	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -26,8 +25,10 @@ const (
 	pagePadX     = sidebar.PagePadX
 )
 
+// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown in bind_sidebar.go, filmFillsWindow in bind_film.go, dropFiles in bind_films.go, the shortcut table in keys.go, overlays in state_overlay.go.
 func (a *app) view(c *ui.Context) {
-	t := palette(c)
+	t, dark := palette(c)
+	a.wireKeys(c)
 	items := a.films()
 	// With the window's material on, the sidebar shows it and the content stays opaque.
 	vibrancy := c.Vibrancy()
@@ -36,14 +37,14 @@ func (a *app) view(c *ui.Context) {
 	}
 	// The traffic lights sit at the top left. The band under the title bar is the drag region, above both the sidebar and the content.
 	bar := c.TitleBar()
-	showSidebar := a.page != pageFilms || a.openKey == ""
+	showSidebar := a.sidebarShown()
 	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
 		if showSidebar {
 			ui.Column(c).Shrink(0).AlignItems(ui.Stretch).Children(func() {
 				if bar.Height > 0 {
 					ui.Row(c).Height(bar.Height).Padding(0, 0, 0, bar.Left).DragWindow()
 				}
-				sidebar.Show(c, t, len(items), appLogo, a)
+				sidebar.Show(c, t, a)
 			})
 		}
 		content := ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch)
@@ -58,24 +59,20 @@ func (a *app) view(c *ui.Context) {
 				}
 				ui.Row(c).Height(bar.Height).Padding(0, bar.Right, 0, left).DragWindow()
 			}
-			a.mainColumn(c, t, items)
+			a.mainColumn(c, t, dark, items)
 		})
 	})
+	a.overlays(c, t, dark)
 }
 
-func (a *app) mainColumn(c *ui.Context, t *ui.Theme, items []films.Film) {
+func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
 	padX, padY := pagePadX, float32(28)
-	if a.page == pageFilms && a.openKey != "" {
+	if a.filmFillsWindow() {
 		padX, padY = 16, 12
 	}
 	body := ui.Column(c).Grow(1).MinWidth(0).Padding(padY, padX).Gap(20)
 	if files := body.DroppedFiles(); len(files) > 0 {
-		for _, file := range files {
-			if media.IsVideoFile(file) {
-				a.importLocal(file)
-				break
-			}
-		}
+		a.dropFiles(files)
 	}
 	if body.FileDragOver() {
 		body.Background(t.Surface)
@@ -95,8 +92,8 @@ func (a *app) mainColumn(c *ui.Context, t *ui.Theme, items []films.Film) {
 				})
 			})
 		default:
-			films.Show(c, t, a, items, func(c *ui.Context, t *ui.Theme, item films.Film) {
-				film.Show(c, t, a, item)
+			films.Show(c, t, a, items, func(c *ui.Context, _ *ui.Theme, item films.Film) {
+				film.Show(c, dark, a, item)
 			})
 		}
 	})

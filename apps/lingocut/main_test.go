@@ -784,11 +784,11 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 		case fn := <-updates:
 			fn()
 		case <-deadline:
-			t.Fatalf("play button did not show: %q err %q", tt.Texts(), a.playErr)
+			t.Fatalf("play button did not show: %q err %q", tt.Texts(), a.player.playErr)
 		}
 		tt.Frame()
 	}
-	if a.play == nil || a.play.player.Playing() {
+	if a.player.play == nil || a.player.play.player.Playing() {
 		t.Fatal("video started before the play button")
 	}
 	deadline = time.After(2 * time.Second)
@@ -805,22 +805,22 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.play == nil || !a.play.player.Playing() || !tt.HasText("暂停") {
-		t.Fatalf("playing %v texts %q", a.play != nil && a.play.player.Playing(), tt.Texts())
+	if a.player.play == nil || !a.player.play.player.Playing() || !tt.HasText("暂停") {
+		t.Fatalf("playing %v texts %q", a.player.play != nil && a.player.play.player.Playing(), tt.Texts())
 	}
 	if err := tt.Click("暂停"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.play == nil || a.play.player.Playing() || !tt.HasText("播放") {
-		t.Fatalf("playing %v texts %q", a.play != nil && a.play.player.Playing(), tt.Texts())
+	if a.player.play == nil || a.player.play.player.Playing() || !tt.HasText("播放") {
+		t.Fatalf("playing %v texts %q", a.player.play != nil && a.player.play.player.Playing(), tt.Texts())
 	}
 	if err := tt.Click("返回"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.play != nil || a.openKey != "" {
-		t.Fatalf("open %q play %v", a.openKey, a.play != nil)
+	if a.player.play != nil || a.openKey != "" {
+		t.Fatalf("open %q play %v", a.openKey, a.player.play != nil)
 	}
 }
 
@@ -850,12 +850,12 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 		t.Fatal(err)
 	}
 	deadline := time.After(8 * time.Second)
-	for a.play == nil {
+	for a.player.play == nil {
 		select {
 		case fn := <-updates:
 			fn()
 		case <-deadline:
-			t.Fatalf("player did not open: %q", a.playErr)
+			t.Fatalf("player did not open: %q", a.player.playErr)
 		}
 		tt.Frame()
 	}
@@ -875,7 +875,7 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 		time.Sleep(40 * time.Millisecond)
 	}
 	if before == after {
-		t.Fatalf("picture stayed %v playing %v held %v err %v", before, a.play.player.Playing(), a.play.paused, a.play.player.Err())
+		t.Fatalf("picture stayed %v playing %v held %v err %v", before, a.player.play.player.Playing(), a.player.play.paused, a.player.play.player.Err())
 	}
 }
 
@@ -900,38 +900,38 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	deadline := time.After(8 * time.Second)
-	for a.play == nil {
+	for a.player.play == nil {
 		select {
 		case fn := <-updates:
 			fn()
 		case <-deadline:
-			t.Fatalf("player did not open: %q", a.playErr)
+			t.Fatalf("player did not open: %q", a.player.playErr)
 		}
 		tt.Frame()
 	}
-	if a.play.duration <= 0 {
+	if a.player.play.duration <= 0 {
 		t.Fatal("clip has no duration")
 	}
 	if err := tt.Click("播放"); err != nil {
 		t.Fatal(err)
 	}
 	until := time.Now().Add(4 * time.Second)
-	for time.Now().Before(until) && (a.play == nil || !a.play.finished) {
+	for time.Now().Before(until) && (a.player.play == nil || !a.player.play.finished) {
 		tt.Advance(100 * time.Millisecond)
 		tt.Frame()
 		time.Sleep(20 * time.Millisecond)
 	}
-	if a.play == nil || !a.play.finished || a.play.player.Playing() {
-		t.Fatalf("finished %v playing %v", a.play != nil && a.play.finished, a.play != nil && a.play.player.Playing())
+	if a.player.play == nil || !a.player.play.finished || a.player.play.player.Playing() {
+		t.Fatalf("finished %v playing %v", a.player.play != nil && a.player.play.finished, a.player.play != nil && a.player.play.player.Playing())
 	}
-	head := a.play.playhead()
-	if head > a.play.duration {
-		t.Fatalf("playhead %s past %s", head, a.play.duration)
+	head := a.player.play.playhead()
+	if head > a.player.play.duration {
+		t.Fatalf("playhead %s past %s", head, a.player.play.duration)
 	}
 	tt.Advance(time.Second)
 	tt.Frame()
-	if a.play.player.Playing() || a.play.playhead() != head {
-		t.Fatalf("kept playing at %s", a.play.playhead())
+	if a.player.play.player.Playing() || a.player.play.playhead() != head {
+		t.Fatalf("kept playing at %s", a.player.play.playhead())
 	}
 }
 
@@ -961,12 +961,12 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 		t.Fatal(err)
 	}
 	deadline := time.After(8 * time.Second)
-	for a.play == nil {
+	for a.player.play == nil {
 		select {
 		case fn := <-updates:
 			fn()
 		case <-deadline:
-			t.Fatalf("player did not open: %q", a.playErr)
+			t.Fatalf("player did not open: %q", a.player.playErr)
 		}
 		tt.Frame()
 	}
@@ -981,7 +981,7 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 		default:
 		}
 		tt.Frame()
-		if a.play != nil && !a.play.paused && a.play.playhead() >= time.Second {
+		if a.player.play != nil && !a.player.play.paused && a.player.play.playhead() >= time.Second {
 			after = sampleStage(tt.Image())
 			if after != before {
 				return
@@ -991,11 +991,11 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	}
 	head := time.Duration(0)
 	paused := false
-	if a.play != nil {
-		head = a.play.playhead()
-		paused = a.play.paused
+	if a.player.play != nil {
+		head = a.player.play.playhead()
+		paused = a.player.play.paused
 	}
-	t.Fatalf("picture stayed %v head %s paused %v err %q", after, head, paused, a.playErr)
+	t.Fatalf("picture stayed %v head %s paused %v err %q", after, head, paused, a.player.playErr)
 }
 
 func TestFilmChaptersCoverTheTranscript(t *testing.T) {

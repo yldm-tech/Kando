@@ -133,3 +133,29 @@ func TestSidebarClickOnTheCurrentPageClosesTheFilm(t *testing.T) {
 		t.Fatalf("clicking the current sidebar item left page %q open %q", a.page, a.openKey)
 	}
 }
+
+// TestWindowIsLightAndTheFilmDark checks the palette: the window is light with LingoCut's colors whatever the desktop's appearance, and an open film is drawn in the dark theme.
+func TestWindowIsLightAndTheFilmDark(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.SetDark(true)
+	tt.Frame()
+	img := tt.Image()
+	scale := float32(img.Bounds().Dx()) / 1100
+	if px := img.RGBAAt(int(700*scale), int(680*scale)); px.R != 255 || px.G != 255 || px.B != 255 {
+		t.Fatalf("content = %v, want white", px)
+	}
+
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+	a.openKey = "j"
+	tt.Frame()
+	r, ok := tt.Find("返回")
+	if !ok {
+		t.Fatalf("film not open: %q", tt.Texts())
+	}
+	img = tt.Image()
+	// Left of the back button is the film page's own padding.
+	px := img.RGBAAt(int((r.X-6)*scale), int((r.Y+r.H/2)*scale))
+	if px.R > 60 || px.G > 60 || px.B > 60 {
+		t.Fatalf("film page = %v, want dark", px)
+	}
+}

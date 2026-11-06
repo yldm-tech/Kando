@@ -2,6 +2,7 @@ package films
 
 import (
 	"strings"
+	"time"
 
 	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
@@ -39,6 +40,16 @@ type App interface {
 	Remove(id string)
 	Retry(id string)
 	JobFilm(id string) (Film, bool)
+	// SourceFilter is the sidebar source the page shows, sidebar.SourceAll or another sidebar.Source value.
+	SourceFilter() string
+	// Enqueue adds a job for each source, a link or a local video's file:// URL, to the open library in the language the settings name, and runs them one after another. The error is why a source was not added.
+	Enqueue(sources ...string) error
+	// Cancel stops job id if it is waiting or running. Its card stays, marked 已取消. Enqueue and Cancel are the contract of the job queue; queue.go in the main package says how much of it runs today.
+	Cancel(id string)
+	// OpenSettings shows the settings at section, one of the settings package's Section values.
+	OpenSettings(section string)
+	// ResumeAt is where the video at path stopped playing last time, or 0.
+	ResumeAt(path string) time.Duration
 }
 
 // Show draws the shelf. showFilm draws the open film; the page stays here so the shelf does not import the player.
@@ -93,15 +104,11 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 		}
 		ui.Text(c, a.Status()).TextColor(color).Wrap()
 	}
-	shown := items
+	source := a.SourceFilter()
 	if a.Page() == sidebar.PageYouTube {
-		shown = nil
-		for _, item := range items {
-			if strings.Contains(item.Source, "youtube.com") || strings.Contains(item.Source, "youtu.be") {
-				shown = append(shown, item)
-			}
-		}
+		source = sidebar.SourceYouTube
 	}
+	shown := BySource(items, source)
 	if len(shown) == 0 {
 		ui.Text(c, "还没有影片").TextColor(t.TextMuted)
 		return
@@ -176,7 +183,7 @@ func card(c *ui.Context, t *ui.Theme, a App, item Film) {
 			ui.Column(c).Absolute().Left(10).Right(10).Bottom(10).Gap(6).Children(func() {
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 					if label := posterLabel(item); label != "" {
-						color := t.Text
+						color := onPoster
 						if item.Stage == core.StageFailed && label != "已取消" {
 							color = t.Danger
 						}
@@ -192,7 +199,7 @@ func card(c *ui.Context, t *ui.Theme, a App, item Film) {
 					}
 				})
 				if note := posterNote(item); note != "" {
-					ui.Text(c, note).FontSize(12).TextColor(t.Text).Wrap()
+					ui.Text(c, note).FontSize(12).TextColor(onPoster).Wrap()
 				}
 			})
 		})
@@ -206,6 +213,9 @@ func card(c *ui.Context, t *ui.Theme, a App, item Film) {
 		ui.Text(c, name).Wrap()
 	})
 }
+
+// onPoster is the text on a poster, which is a picture or a dark color in either theme.
+var onPoster = ui.Hex("#F5F5F7")
 
 func posterLabel(item Film) string {
 	if item.Stage == core.StageFailed && item.Detail == "已取消" {

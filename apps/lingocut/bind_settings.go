@@ -92,3 +92,13 @@ func (a *app) TestLLM() { a.testLLM() }
 func (a *app) LLMResult() string { return a.llmTestResult }
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }
+
+// OpenSettings shows the settings at section, one of the settings package's Section values; "" opens 通用. The settings are sidebar pages until they get a window of their own, so this closes the open film; 字幕外观 and 快捷键 have no page yet and open 通用.
+func (a *app) OpenSettings(section string) {
+	switch section {
+	case settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionAccount:
+	default:
+		section = settings.SectionGeneral
+	}
+	a.Select(section)
+}

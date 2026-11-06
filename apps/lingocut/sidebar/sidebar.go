@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"lingocut/packages/core"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -26,6 +27,15 @@ const (
 	CardGap      float32 = 18
 )
 
+// Sources the library can be filtered by. Apart from SourceAll they are the platforms core.ParseLink reads from a film's source; a film without a source it reads is a local file.
+const (
+	SourceAll      = "all"
+	SourceYouTube  = string(core.PlatformYouTube)
+	SourceBilibili = string(core.PlatformBilibili)
+	SourceWeb      = string(core.PlatformWeb)
+	SourceLocal    = string(core.PlatformLocal)
+)
+
 // App is the shelf and navigation the sidebar reads and reports.
 type App interface {
 	LibraryDir() string
@@ -38,9 +48,23 @@ type App interface {
 	PickLibrary()
 	Reveal(path string)
 	Forget(dir string)
+	// FilmCount is how many films the open library holds.
+	FilmCount() int
+	// Logo is the app's icon.
+	Logo() *ui.Bitmap
+	// SourceFilter is the source the library page shows, SourceAll or another Source value.
+	SourceFilter() string
+	// SetSourceFilter shows the library page filtered by source and closes the open film.
+	SetSourceFilter(source string)
+	// SourceCount is how many films of the open library come from source.
+	SourceCount(source string) int
+	// OpenSettings shows the settings at section, one of the settings package's Section values; "" opens 通用.
+	OpenSettings(section string)
 }
 
-func Show(c *ui.Context, t *ui.Theme, count int, logo *ui.Bitmap, a App) {
+func Show(c *ui.Context, t *ui.Theme, a App) {
+	count := a.FilmCount()
+	logo := a.Logo()
 	ui.Column(c).Width(Width).Shrink(0).Grow(1).Children(func() {
 		switcher(c, t, count, logo, a)
 		// The sidebar writes a click or an arrow key on another item into sel and Select runs when the page changes; a click on the item already chosen leaves sel alone, so nav calls Select itself to close the open film and go back to the page's grid.
