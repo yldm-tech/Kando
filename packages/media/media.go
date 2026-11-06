@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"lingocut/packages/core"
+	"kando/packages/core"
 )
 
 var ErrNoSpeech = errors.New("no speech found in the video")

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"lingocut/packages/core"
+	"kando/packages/core"
 )
 
 // Tools runs the pipeline with yt-dlp, ffmpeg and whisper.cpp installed on this machine, and translates with an OpenAI-compatible chat API.

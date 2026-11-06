@@ -1,0 +1,63 @@
+package main
+
+import (
+	"testing"
+	"time"
+
+	"kando/packages/media"
+
+	"github.com/egoist/mygo/ui"
+)
+
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10) and playing with the controls faded (11). It also renders the film on its first line (film), the film opened from the YouTube page, and the film without a picture, as without ffmpeg, with the side panel off.
+func TestScreenshotsPlayer(t *testing.T) {
+	f := newScreenshotFixture(t)
+	f.shoot(t, "film", func(a *app, tt *ui.Tester, updates chan func()) {
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+	})
+	held := func(steps func(a *app, tt *ui.Tester)) func(a *app, tt *ui.Tester, updates chan func()) {
+		return func(a *app, tt *ui.Tester, updates chan func()) {
+			screenshotOpen(t, a, tt, updates, "j1", 0)
+			if steps != nil {
+				steps(a, tt)
+			}
+		}
+	}
+	f.shoot(t, "player-opened", held(nil))
+	f.shoot(t, "player-clips", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "片段") }))
+	f.shoot(t, "player-info", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "信息") }))
+	f.shoot(t, "player-menu", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "字幕：双语") }))
+	f.shoot(t, "player-style", held(func(_ *app, tt *ui.Tester) {
+		screenshotClick(t, tt, "字幕：双语")
+		screenshotClick(t, tt, "样式…")
+	}))
+	// Playing 3 seconds in, on the first line: with the pointer just moved the controls show, and once it has rested for idleAfter they fade, the subtitles moving down into their room.
+	playing := func(rest time.Duration) func(a *app, tt *ui.Tester, updates chan func()) {
+		return func(a *app, tt *ui.Tester, updates chan func()) {
+			screenshotOpen(t, a, tt, updates, "j1", 3*time.Second)
+			a.player.play.Toggle()
+			tt.Frame()
+			a.player.film.moved = tt.Now()
+			tt.Advance(rest)
+			tt.Frame()
+			// Let the fade end.
+			for range 10 {
+				tt.Advance(50 * time.Millisecond)
+				tt.Frame()
+			}
+		}
+	}
+	f.shoot(t, "player-playing", playing(0))
+	f.shoot(t, "player-idle", playing(3*time.Second))
+	f.shoot(t, "player-youtube", func(a *app, tt *ui.Tester, updates chan func()) {
+		a.page = pageYouTube
+		tt.Frame()
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
+	})
+	// Without ffmpeg the film has no picture and no transport.
+	f.shoot(t, "player-no-picture", func(a *app, tt *ui.Tester, updates chan func()) {
+		a.pipeline = media.Tools{}
+		a.player.panel = false
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
+	})
+}

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"lingocut/packages/core"
+	"kando/packages/core"
 )
 
 type fakePipeline struct {

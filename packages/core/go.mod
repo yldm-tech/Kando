@@ -1,3 +1,3 @@
-module lingocut/packages/core
+module kando/packages/core
 
 go 1.27.3

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"lingocut/packages/core"
+	"kando/packages/core"
 )
 
 // fakeChat answers each request with reply(lines), recording the requests it saw.

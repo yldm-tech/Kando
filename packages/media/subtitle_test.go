@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"lingocut/packages/core"
+	"kando/packages/core"
 )
 
 // Trimmed from whisper-cli 1.9.5 output with -oj.

@@ -3,10 +3,10 @@
 test:
 	go test ./packages/core/...
 	go test ./packages/media/...
-	go test ./apps/lingocut/...
+	go test ./apps/kando/...
 
 dev:
-	tools/mygo-dev/dev.sh apps/lingocut
+	tools/mygo-dev/dev.sh apps/kando
 
 build:
-	go tool mygo build apps/lingocut
+	go tool mygo build apps/kando

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"lingocut/packages/core"
+	"kando/packages/core"
 )
 
 // translateBatch bounds how many lines go into one request, keeping replies within common output token limits.
