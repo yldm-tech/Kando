@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -47,8 +48,17 @@ func (a *app) restoreLLM(saved savedSettings) {
 	if os.Getenv("KANDO_LLM_MODEL") == "" && saved.LLMModel != "" {
 		tools.Translator.Model = saved.LLMModel
 	}
-	if os.Getenv("KANDO_LLM_API_KEY") == "" && os.Getenv("EVERYAPI_API_KEY") == "" && saved.LLMAPIKey != "" {
-		tools.Translator.APIKey = saved.LLMAPIKey
+	// A key goes only to the endpoint it belongs to: KANDO_LLM_API_KEY to whichever endpoint is in use, EVERYAPI_API_KEY to EveryAPI only, the saved key to the host it was saved with. ToolsFromEnv may have put EVERYAPI_API_KEY in for its EveryAPI default, which the saved endpoint can replace.
+	if os.Getenv("KANDO_LLM_API_KEY") == "" {
+		everyAPIKey := os.Getenv("EVERYAPI_API_KEY")
+		switch base := tools.Translator.BaseURL; {
+		case base == media.EveryAPIBaseURL && everyAPIKey != "":
+			tools.Translator.APIKey = everyAPIKey
+		case sameLLMHost(base, saved.LLMBaseURL):
+			tools.Translator.APIKey = saved.LLMAPIKey
+		default:
+			tools.Translator.APIKey = ""
+		}
 	}
 	credential := tools.Translator.Credential
 	if tools.Translator.BaseURL != media.EveryAPIBaseURL || tools.Translator.APIKey != "" {
@@ -103,6 +113,19 @@ func llmProviderID(base string) string {
 	return "custom"
 }
 
+// sameLLMHost reports whether two endpoints are on the same scheme and host, so that a key for one may go to the other.
+func sameLLMHost(a, b string) bool {
+	return llmHost(a) == llmHost(b)
+}
+
+func llmHost(base string) string {
+	parsed, err := url.Parse(strings.TrimSpace(base))
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(parsed.Scheme + "://" + parsed.Host)
+}
+
 func (a *app) syncLLM(tools media.Tools) {
 	a.pipeline = tools
 	a.prefs.llmBase = tools.Translator.BaseURL
@@ -135,11 +158,23 @@ func (a *app) applyLLM() {
 	if !ok {
 		return
 	}
-	tools.Translator.BaseURL = strings.TrimSpace(a.prefs.llmBase)
+	base := strings.TrimSpace(a.prefs.llmBase)
+	key := strings.TrimSpace(a.prefs.llmKey)
+	// The key in the field belongs to the endpoint it was in use with. When the service or Base URL moves to another host and the key was not retyped, it is dropped rather than sent there.
+	if key != "" && key == tools.Translator.APIKey && !sameLLMHost(base, tools.Translator.BaseURL) {
+		key = ""
+		a.prefs.llmKey = ""
+	}
+	// Without a key EveryAPI uses EVERYAPI_API_KEY, as at startup (media.ToolsFromEnv), and otherwise the signed-in everyapi CLI.
+	if base == media.EveryAPIBaseURL && key == "" {
+		key = os.Getenv("EVERYAPI_API_KEY")
+		a.prefs.llmKey = key
+	}
+	tools.Translator.BaseURL = base
 	tools.Translator.Model = strings.TrimSpace(a.prefs.llmModel)
-	tools.Translator.APIKey = strings.TrimSpace(a.prefs.llmKey)
+	tools.Translator.APIKey = key
 	tools.Translator.Credential = nil
-	if tools.Translator.BaseURL == media.EveryAPIBaseURL && tools.Translator.APIKey == "" {
+	if base == media.EveryAPIBaseURL && key == "" {
 		tools.Translator.Credential = a.prefs.llmCredential
 	}
 	a.pipeline = tools
