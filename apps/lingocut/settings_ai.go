@@ -157,6 +157,7 @@ func (a *app) testLLM() {
 	a.prefs.testingLLM = true
 	a.prefs.llmTestResult = ""
 	translator := tools.Translator
+	credential := translator.Credential != nil
 	update := a.update
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -166,9 +167,10 @@ func (a *app) testLLM() {
 			a.prefs.testingLLM = false
 			if err != nil {
 				a.prefs.llmTestResult = err.Error()
-				return
+			} else {
+				a.prefs.llmTestResult = "连接成功"
 			}
-			a.prefs.llmTestResult = "连接成功"
+			a.areasLLMTested(err, credential)
 		})
 	}()
 }

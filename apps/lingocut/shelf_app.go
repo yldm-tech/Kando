@@ -668,12 +668,14 @@ func cleanLibraries(dirs []string) []string {
 	return out
 }
 
+// openLibrary reads the shelf's library.json at path into app.library, then runs the areas' shelfLoaded.
 func (a *app) openLibrary(path string) {
 	lib, err := shelf.Load(path)
 	a.library = lib
 	if err != nil {
 		a.saveErr = "视频库无法读取：" + err.Error()
 	}
+	a.areasShelfLoaded()
 }
 
 // revealInFolder shows path in the system file manager. Tests replace it.
