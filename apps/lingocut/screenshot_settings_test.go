@@ -15,14 +15,13 @@ import (
 // TestScreenshotsSettings renders the settings window, one shot per category, at the prototype's 880 by 640 with the traffic lights in their 50-point band (screenshot_helpers_test.go). The window has a view of its own, so it is drawn here rather than through the fixture's shoot, which draws the main window.
 func TestScreenshotsSettings(t *testing.T) {
 	f := newScreenshotFixture(t)
-	// The window only shows the library's path, so it names one in the usual place rather than the test's temporary directory, which would show this machine's paths.
-	home, err := os.UserHomeDir()
-	if err != nil {
+	// The window only shows the library's path, so it names one in the fixture's fake home, which the window shows as ~/Movies/….
+	shown := filepath.Join(f.home, "Movies", "我的影片.lingocut")
+	// Two whisper models on disk, the recommended one in use, so the 语音识别 page shows models that can be chosen beside ones still to download.
+	models := filepath.Join(f.home, "models")
+	if err := os.MkdirAll(models, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	shown := filepath.Join(home, "Movies", "我的影片.lingocut")
-	// Two whisper models on disk, the recommended one in use, so the 语音识别 page shows models that can be chosen beside ones still to download.
-	models := t.TempDir()
 	turbo := filepath.Join(models, "ggml-large-v3-turbo-q5_0.bin")
 	for _, file := range []string{"ggml-base.bin", "ggml-large-v3-turbo-q5_0.bin"} {
 		if err := os.WriteFile(filepath.Join(models, file), []byte("ggml"), 0o644); err != nil {
