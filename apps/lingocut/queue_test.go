@@ -150,13 +150,20 @@ func TestQueueRunsJobsOneAtATimeInOrder(t *testing.T) {
 	}
 	g.release <- struct{}{}
 	settle(t, a, tt, updates)
-	for source, id := range ids {
-		if job := stageOf(t, a, id); job.Stage != core.StageComplete {
-			t.Fatalf("%s ended %+v", source, job)
-		}
+	if len(a.library.Jobs) != 3 || a.queue.active != "" || len(a.queue.order) != 0 {
+		t.Fatalf("after the last job: jobs %+v active %q waiting %q", a.library.Jobs, a.queue.active, a.queue.order)
 	}
-	if textCount(tt, "已完成") != 3 {
-		t.Fatalf("texts %q", tt.Texts())
+	// Each job is complete with its own subtitles, and they finished in the order they were added.
+	var finished time.Time
+	for _, name := range []string{"a", "b", "c"} {
+		job := stageOf(t, a, ids["https://example.com/"+name])
+		if job.Stage != core.StageComplete || job.SubtitlePath != "/videos/"+name+".bilingual.srt" || job.CompletedAt.IsZero() {
+			t.Fatalf("%s ended %+v", name, job)
+		}
+		if !job.CompletedAt.After(finished) {
+			t.Fatalf("%s finished at %v, not after the job before it at %v", name, job.CompletedAt, finished)
+		}
+		finished = job.CompletedAt
 	}
 }
 
