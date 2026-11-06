@@ -32,6 +32,17 @@ func (a *app) saveSettings() error {
 	return os.Rename(tmp, a.settingsPath)
 }
 
+// restoreSettings takes back what settings.json holds at startup: the shelf first, then each area's part (areaHooks.restore). A library renamed while the app was closed is saved under its new path only after that, because saveSettings writes every area's state and, before the areas restore theirs, that state is the defaults.
+func (a *app) restoreSettings(saved savedSettings) {
+	moved := a.restoreShelf(saved)
+	a.areasRestore(saved)
+	if moved {
+		if err := a.saveSettings(); err != nil {
+			a.saveErr = "资料库无法保存：" + err.Error()
+		}
+	}
+}
+
 func loadSavedSettings(path string) savedSettings {
 	data, err := os.ReadFile(path)
 	if err != nil {

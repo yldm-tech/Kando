@@ -531,8 +531,8 @@ func (a *app) saveShelf() savedShelf {
 	}
 }
 
-// restoreShelf points the shelf at the library saved last time, or the one LINGOCUT_OUTPUT_DIR names, and follows libraries renamed while the app was closed. main runs it before the areas restore their own settings (areaHooks.restore).
-func (a *app) restoreShelf(saved savedSettings) {
+// restoreShelf points the shelf at the library saved last time, or the one LINGOCUT_OUTPUT_DIR names, and follows libraries renamed while the app was closed. It reports whether it followed one, so settings.json needs saving; restoreSettings saves it once the areas have restored their own settings, as a save before that would write their defaults.
+func (a *app) restoreShelf(saved savedSettings) (moved bool) {
 	libs := cleanLibraries(saved.Libraries)
 	if saved.LibraryDir != "" {
 		libs = addLibrary(libs, saved.LibraryDir)
@@ -552,14 +552,13 @@ func (a *app) restoreShelf(saved savedSettings) {
 	a.restoreLibraryInodes(saved.LibraryInodes)
 	if a.reconcileMissingLibraries() {
 		libraryDir = a.snap().LibraryDir
-		if err := a.saveSettings(); err != nil {
-			a.saveErr = "资料库无法保存：" + err.Error()
-		}
+		moved = true
 	}
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		tools.OutputDir = libraryDir
 		a.pipeline = tools
 	}
+	return moved
 }
 
 func (a *app) refreshLibrary() {

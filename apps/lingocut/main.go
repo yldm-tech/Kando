@@ -64,8 +64,7 @@ func main() {
 	a.prefs.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.prefs.extraModelDirs = defaultExtraModelDirs()
 	saved := loadSavedSettings(a.settingsPath)
-	a.restoreShelf(saved)
-	a.areasRestore(saved)
+	a.restoreSettings(saved)
 	if cache, err := os.UserCacheDir(); err == nil {
 		a.lib.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
