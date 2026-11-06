@@ -67,8 +67,8 @@ type App interface {
 const (
 	cardMargin float32 = 8
 	cardRadius float32 = 14
-	// lightsRow is the empty row at the top of the card that the traffic lights sit in.
-	lightsRow float32 = 48
+	// LightsRow is the empty row at the top of the card that the traffic lights sit in.
+	LightsRow float32 = 48
 )
 
 var (
@@ -91,7 +91,7 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 		card.Children(func() {
 			top := float32(10)
 			if c.TitleBar().Height > 0 {
-				top = lightsRow
+				top = LightsRow
 			}
 			ui.Row(c).Height(top).Shrink(0).DragWindow()
 			switcher(c, t, a)

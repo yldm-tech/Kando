@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -18,13 +19,23 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestSidebarKeepsContentBelowTheTitleBar checks that the drag band under the title bar pushes the content beside the sidebar down by the title bar's height. The sidebar clears the traffic lights in its own card (TestSidebarCardClearsTheTrafficLights).
+// TestSidebarKeepsContentBelowTheTitleBar checks that the drag band under the title bar pushes the content beside the sidebar down: by the title bar's height, and on macOS by no more than the sidebar card's top row, though the real window's title bar is 64 points tall with the traffic lights moved into that row. The sidebar clears the traffic lights in its own card (TestSidebarCardClearsTheTrafficLights).
 func TestSidebarKeepsContentBelowTheTitleBar(t *testing.T) {
-	texts := []string{"开始处理"}
-	shifts, _ := titleBarShifts(t, ui.TitleBar{Height: 28, Left: 80}, nil, texts...)
-	for i, d := range shifts {
-		if abs32(d-28) > 0.5 {
-			t.Fatalf("%q moved %v under a 28-high title bar", texts[i], d)
+	// 64 and 84 are what mygo's TitleBar reports for the real macOS window, whose 14-point traffic lights sit at {24, 25}.
+	tall := float32(64)
+	if runtime.GOOS == "darwin" {
+		tall = sidebar.LightsRow
+	}
+	for _, c := range []struct {
+		bar  ui.TitleBar
+		want float32
+	}{
+		{ui.TitleBar{Height: 28, Left: 80}, 28},
+		{ui.TitleBar{Height: 64, Left: 84}, tall},
+	} {
+		shifts, _ := titleBarShifts(t, c.bar, nil, "开始处理")
+		if d := shifts[0]; abs32(d-c.want) > 0.5 {
+			t.Fatalf("开始处理 moved %v under a %v-high title bar, want %v", d, c.bar.Height, c.want)
 		}
 	}
 }

@@ -77,16 +77,19 @@ func (a *app) sidebarColumn(c *ui.Context, t *ui.Theme, _ ui.TitleBar) {
 	sidebar.Show(c, t, a)
 }
 
-// contentBand is the height of the drag band over the content, under the title bar: the title bar's own, or none while the open film draws its own header bar there (filmOwnsTitleBar).
+// contentBand is the height of the drag band over the content, under the title bar: none while the open film draws its own header bar there (filmOwnsTitleBar), otherwise the title bar's own. On macOS mygo's title bar leaves as much room under the traffic lights as above them, 64 points once trafficLights moves them down into the sidebar card's top row, so the content keeps a band only as tall as that row, which still clears the traffic lights when an open film hides the sidebar. Elsewhere the window controls fill the title bar, and the band is the title bar.
 func (a *app) contentBand(bar ui.TitleBar) float32 {
 	if a.filmOwnsTitleBar() {
 		return 0
 	}
+	if runtime.GOOS == "darwin" {
+		return min(bar.Height, sidebar.LightsRow)
+	}
 	return bar.Height
 }
 
-// trafficLights is where main puts the window's traffic lights, over the sidebar's top left corner.
-func trafficLights() *mygo.Point { return &mygo.Point{X: 16, Y: 16} }
+// trafficLights is where main puts the window's traffic lights: in the empty top row of the sidebar's card (sidebar.Show), 8 points in from the window's corner, that is 16 from the card's edge and centered in its 48-point row. That makes the title bar mygo reports 64 points tall; contentBand keeps the content's drag band at the card row's 48.
+func trafficLights() *mygo.Point { return &mygo.Point{X: 24, Y: 25} }
 
 // sidebarMaterial is the window's material, which the sidebar shows: AppKit's source list on macOS and Mica on Windows, whose NavigationView pane is transparent over it, as Onevra's shell chose.
 func sidebarMaterial() mygo.Vibrancy {
