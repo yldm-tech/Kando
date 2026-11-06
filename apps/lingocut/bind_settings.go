@@ -29,7 +29,7 @@ func (a *app) ToolVersion(path string) string {
 	return a.prefs.toolVersions[path]
 }
 
-func (a *app) SpeechDirs() []string { return a.speechSearchDirs() }
+func (a *app) InstalledSpeechModel(id string) string { return a.prefs.speechModels[id] }
 
 func (a *app) UseSpeechModel(path string) { a.useSpeechModel(path) }
 
@@ -91,6 +91,7 @@ func (a *app) OpenSettings(section string) {
 	}
 	a.prefs.open = true
 	a.prefs.section = section
+	a.findSpeechModels()
 	a.showSettingsWindow()
 }
 

@@ -14,12 +14,11 @@ import (
 // speech is the 语音识别 page: the whisper models, one of which recognizes speech, and their downloads.
 func (s screen) speech(c *ui.Context, t *ui.Theme) {
 	tools, _ := s.Tools()
-	dirs := s.SpeechDirs()
 	models := media.SpeechModels()
 	installed := make([]string, len(models))
 	chosen := ""
 	for i, model := range models {
-		installed[i] = media.ResolveSpeechModel(tools.WhisperModel, dirs, model.File)
+		installed[i] = s.InstalledSpeechModel(model.ID)
 		if installed[i] != "" && filepath.Clean(installed[i]) == filepath.Clean(tools.WhisperModel) {
 			chosen = model.ID
 		}
@@ -29,12 +28,18 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 		for i, model := range models {
 			c.Key(model.ID)
 			subtitle := model.Blurb + "\n" + fmt.Sprintf("速度 %s  准确 %s  %s", stars(model.Speed), stars(model.Accuracy), model.SizeLabel)
-			radioRow(c, &sel, model.ID, installed[i] != "", model.Name, subtitle, func() {
+			suffix := func() {
 				if model.Recommended {
 					breeze.Badge(c, "推荐")
 				}
 				s.modelAction(c, model, installed[i])
-			})
+			}
+			// Only a model on disk can be chosen, so only its row is a radio row. A model that is not is a plain row with its 下载 button: disabling a radio row would disable the button inside it too.
+			if installed[i] != "" {
+				radioRow(c, &sel, model.ID, model.Name, subtitle, suffix)
+			} else {
+				breeze.ActionRow(c, model.Name, subtitle, suffix)
+			}
 		}
 	})
 	if sel != chosen {
@@ -73,15 +78,15 @@ func (s screen) modelAction(c *ui.Context, model media.SpeechModel, installed st
 	}
 }
 
-// radioRow is a row that chooses value into *selected, with a radio button at its end; a click anywhere on the row chooses it, unless enabled is false. It stands in for breeze.RadioRow of mygo-breeze-ui PR #21 (B8), which also moves the choice with the arrow keys and gives the row the radio role; swap it for that once a breeze release carries it.
-func radioRow[T comparable](c *ui.Context, selected *T, value T, enabled bool, title, subtitle string, suffix func()) ui.Element {
+// radioRow is a row that chooses value into *selected, with a radio button at its end; a click anywhere on the row chooses it. It stands in for breeze.RadioRow of mygo-breeze-ui PR #21 (B8) and has its signature, so swapping it is a rename; that one also moves the choice with the arrow keys and gives the row the radio role.
+func radioRow[T comparable](c *ui.Context, selected *T, value T, title, subtitle string, suffix func()) ui.Element {
 	row := breeze.ActionRow(c, title, subtitle, func() {
 		if suffix != nil {
 			suffix()
 		}
-		breeze.Radio(c, selected, value, "").Label(title).Disabled(!enabled)
+		breeze.Radio(c, selected, value, "").Label(title)
 	})
-	if enabled && row.Clicked() {
+	if row.Clicked() {
 		*selected = value
 	}
 	return row

@@ -20,20 +20,22 @@ type settingsUI struct {
 	translateContext bool
 	modelsDir        string
 	extraModelDirs   []string
-	downloading      string
-	downloadWritten  int64
-	downloadTotal    int64
-	downloadErr      string
-	downloadCancel   context.CancelFunc
-	llmProvider      string
-	llmBase          string
-	llmModel         string
-	llmKey           string
-	llmCredential    func(context.Context, bool) (media.Endpoint, error)
-	testingLLM       bool
-	llmTestResult    string
-	toolVersions     map[string]string
-	versionGen       int
+	// speechModels maps a whisper catalog model's ID to its file on disk, for the models findSpeechModels found.
+	speechModels    map[string]string
+	downloading     string
+	downloadWritten int64
+	downloadTotal   int64
+	downloadErr     string
+	downloadCancel  context.CancelFunc
+	llmProvider     string
+	llmBase         string
+	llmModel        string
+	llmKey          string
+	llmCredential   func(context.Context, bool) (media.Endpoint, error)
+	testingLLM      bool
+	llmTestResult   string
+	toolVersions    map[string]string
+	versionGen      int
 	// open and section are the settings the user asked for: OpenSettings sets open and the settings.Section value it was given, the window's sidebar changes section, and closing the window clears open. Code and tests outside the settings area read these, never app.page, which the settings window leaves alone (D2). section "" is 通用.
 	open    bool
 	section string
@@ -83,7 +85,7 @@ func (a *app) restoreTranslate(saved savedSettings) {
 	}
 }
 
-// settingsHooks: the settings window saves the speech model, the AI service and the translation, asks the tools for their versions once the main window exists, redraws after each background report (downloads, tool versions, the connection test), opens for a settings page chosen in the main sidebar, and keeps the two windows drawing the same settings.
+// settingsHooks: the settings window saves the speech model, the AI service and the translation, asks the tools for their versions once the main window exists, looks for the whisper models on disk again when the tools change, redraws after each background report (downloads, tool versions, the connection test), opens for a settings page chosen in the main sidebar, and keeps the two windows drawing the same settings.
 func (a *app) settingsHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
@@ -96,8 +98,9 @@ func (a *app) settingsHooks() areaHooks {
 			a.restoreLLM(saved)
 			a.restoreTranslate(saved)
 		},
-		ready:       a.loadToolVersions,
-		afterUpdate: a.redrawSettings,
+		ready:        a.loadToolVersions,
+		toolsChanged: func(bool) { a.findSpeechModels() },
+		afterUpdate:  a.redrawSettings,
 		afterFrame: func() {
 			a.followSettingsPage()
 			a.shareSettings(false)

@@ -43,7 +43,8 @@ type App interface {
 	Redetect()
 	ToolVersion(path string) string
 
-	SpeechDirs() []string
+	// InstalledSpeechModel is the file on disk of the whisper catalog model id, "" when it is not downloaded. The app looks the models up when the window opens, when the model in use changes and on 重新检测, never while the page is drawn.
+	InstalledSpeechModel(id string) string
 	UseSpeechModel(path string)
 	Downloading() string
 	DownloadWritten() int64

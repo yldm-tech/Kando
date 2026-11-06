@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -139,6 +140,45 @@ func TestSecretsStayHidden(t *testing.T) {
 		if tt.Clipboard() != "before" {
 			t.Fatalf("Copy took %q from the %s field", tt.Clipboard(), c.row)
 		}
+	}
+}
+
+// TestSpeechModelsAreFoundOutsideTheView checks that the 语音识别 page reads the models on disk from the app, which looks them up when the window opens and not while the page is drawn, and that a model not on disk cannot be chosen.
+func TestSpeechModelsAreFoundOutsideTheView(t *testing.T) {
+	dir := t.TempDir()
+	a, _, _ := newTestApp(media.Tools{})
+	a.prefs.modelsDir = dir
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	tt := newSettingsTester(a, settings.SectionSpeech)
+	if tt.HasText("已下载") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("Base"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tools := a.pipeline.(media.Tools); tools.WhisperModel != "" {
+		t.Fatalf("a model that is not on disk was chosen: %q", tools.WhisperModel)
+	}
+	model := filepath.Join(dir, "ggml-base.bin")
+	if err := os.WriteFile(model, []byte("ggml"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.HasText("已下载") {
+		t.Fatal("drawing the page read the disk")
+	}
+	a.OpenSettings(settings.SectionSpeech)
+	tt.Frame()
+	if !tt.HasText("已下载") {
+		t.Fatalf("opening the window again did not find the model: %q", tt.Texts())
+	}
+	if err := tt.Click("Base"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tools := a.pipeline.(media.Tools); tools.WhisperModel != model {
+		t.Fatalf("model %q", tools.WhisperModel)
 	}
 }
 

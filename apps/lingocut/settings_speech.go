@@ -49,6 +49,19 @@ func (a *app) speechSearchDirs() []string {
 	return append(dirs, a.prefs.extraModelDirs...)
 }
 
+// findSpeechModels looks up which whisper catalog models are on disk, so the 语音识别 page reads them from memory. It runs when the settings window opens, and when the tools change (settingsHooks.toolsChanged): another model is chosen, a finished download included, or 重新检测.
+func (a *app) findSpeechModels() {
+	tools, _ := a.pipeline.(media.Tools)
+	dirs := a.speechSearchDirs()
+	found := map[string]string{}
+	for _, model := range media.SpeechModels() {
+		if path := media.ResolveSpeechModel(tools.WhisperModel, dirs, model.File); path != "" {
+			found[model.ID] = path
+		}
+	}
+	a.prefs.speechModels = found
+}
+
 func (a *app) useSpeechModel(path string) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
