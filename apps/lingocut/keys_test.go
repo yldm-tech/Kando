@@ -146,21 +146,35 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 // TestCheatsheetFollowsThePrototypeLayout checks that the cheat sheet groups the table as the prototype's sheet does, not as the menu bar: 播放 first with ← and → joined on one line and 全屏 under it, then 窗口 with ⌘/, ⌘, and Esc, and the rows the prototype's sheet does not place after them, under their menus' groups, ⌘1 and ⌘2 under 窗口 and 文件's in a group of its own.
 func TestCheatsheetFollowsThePrototypeLayout(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
-	var got []string
-	for _, g := range a.cheatsheetGroups() {
-		line := g.Title + ":"
-		for _, k := range g.Keys {
-			line += " " + k.Label
+	// Other areas add rows to these groups and groups of their own, so this checks that these lines keep their groups and order, not that the sheet has nothing else.
+	want := []struct {
+		title  string
+		labels []string
+	}{
+		{"播放", []string{"播放 / 暂停", "后退 / 前进 5 秒", "全屏"}},
+		{"窗口", []string{"快捷键速查", "设置", "返回资料库", "片库", "播放器"}},
+		{"文件", []string{"打开本地视频…", "新建资料库…", "打开资料库…"}},
+	}
+	groups := a.cheatsheetGroups()
+	at := -1
+	for _, w := range want {
+		i := slices.IndexFunc(groups, func(g cheatsheet.Group) bool { return g.Title == w.title })
+		if i <= at {
+			t.Fatalf("cheat sheet group %s at %d, want it after the previous one (%d) in %v", w.title, i, at, groups)
 		}
-		got = append(got, line)
-	}
-	want := []string{
-		"播放: 播放 / 暂停 后退 / 前进 5 秒 全屏",
-		"窗口: 快捷键速查 设置 返回资料库 片库 播放器",
-		"文件: 打开本地视频… 新建资料库… 打开资料库…",
-	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("cheat sheet groups\n%q\nwant\n%q", got, want)
+		at = i
+		var labels []string
+		for _, k := range groups[i].Keys {
+			labels = append(labels, k.Label)
+		}
+		rest := labels
+		for _, l := range w.labels {
+			j := slices.Index(rest, l)
+			if j < 0 {
+				t.Fatalf("cheat sheet group %s = %q, want %q in this order", w.title, labels, w.labels)
+			}
+			rest = rest[j+1:]
+		}
 	}
 	if k := a.cheatsheetGroups()[0].Keys[1]; !slices.Equal(k.Combos, []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}) {
 		t.Fatalf("后退 / 前进 5 秒 runs %v, want ← and →", k.Combos)
