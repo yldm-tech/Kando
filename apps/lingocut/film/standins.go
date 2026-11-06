@@ -19,6 +19,29 @@ func flatToggle(c *ui.Context, on *bool, icon *ui.SVG, label string) ui.Element 
 	return b
 }
 
+// paneHeaderBar stands in for breeze.HeaderBar of mygo-breeze-ui PR #13 (B3) where the film shows in the content column beside the sidebar, as one opened from the YouTube page does. breeze v0.2.0's HeaderBar leaves room for the window controls wherever it sits, which in the column is an empty stretch at its start, the traffic lights being over the sidebar. Until then it is a row that moves the window when dragged, holding start's controls and end's as toolbars and the title over the subtitle between them, with macOS's measures of a header bar in a pane: the first control 8 points from the column's edge, the title 12 after it, or 20 from the edge without start controls.
+func paneHeaderBar(c *ui.Context, title, subtitle string, start, end func()) ui.Element {
+	bar := ui.Row(c).Shrink(0).FillWidth().MinHeight(52).AlignItems(ui.Center).DragWindow().Role(ui.RoleGroup).Label(title)
+	bar.Children(func() {
+		titleGap := float32(20)
+		if start != nil {
+			// The toolbar's own 8 points of padding after its last control, and 4 more.
+			breeze.Toolbar(c, start).Shrink(0)
+			titleGap = 4
+		}
+		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).MarginStart(titleGap).Justify(ui.Center).Children(func() {
+			breeze.Text(c, title, breeze.TextHeading).SingleLine()
+			if subtitle != "" {
+				breeze.Text(c, subtitle, breeze.TextCaption|breeze.TextSecondary).SingleLine()
+			}
+		})
+		if end != nil {
+			breeze.Toolbar(c, end).Shrink(0)
+		}
+	})
+	return bar
+}
+
 // iconLabelButton stands in for breeze.IconLabelButton of mygo-breeze-ui PR #14 (B7). Until then it is breeze.Button, showing the label without the icon.
 func iconLabelButton(c *ui.Context, _ *ui.SVG, label string) ui.Element {
 	return breeze.Button(c, label)

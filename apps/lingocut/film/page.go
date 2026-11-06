@@ -56,7 +56,7 @@ type App interface {
 	// Delay shifts the subtitles against the picture: a positive delay shows each line later.
 	Delay() time.Duration
 	SetDelay(d time.Duration)
-	// Panel reports whether the side panel shows over the picture, and StyleView whether it shows the subtitle style in place of its tabs.
+	// Panel reports whether the side panel is on, and StyleView whether it shows the subtitle style in place of its tabs. A film without a picture shows the panel whether it is on or not.
 	Panel() bool
 	TogglePanel()
 	StyleView() bool
@@ -86,6 +86,8 @@ type App interface {
 	OpenSettings(section string)
 	// ToggleFullScreen enters or leaves full screen.
 	ToggleFullScreen()
+	// FillsWindow reports whether the film takes the whole window, as one opened from 全部影片 does, or shows in the content column beside the sidebar.
+	FillsWindow() bool
 }
 
 // Upload is the manual upload of a film that already has a local video to the storage set in 账号.
@@ -177,10 +179,15 @@ func Show(c *ui.Context, dark *ui.Theme, a App, item films.Film) {
 		s.uploadCapsule(c, item)
 		s.topBar(c, item, fade, shown)
 		s.transport(c, dark, fade, shown)
-		if s.Panel() {
+		if s.panelShown() {
 			s.panel(c, dark, item)
 		}
 	})
+}
+
+// panelShown reports whether the side panel shows: when it is on, and always while there is no picture, as for a film still downloading, one whose video is gone or any film without ffmpeg. Such a film has no transport, whose toggle is the only control that turns the panel back on, and the panel's subtitle list is all it has to show.
+func (s screen) panelShown() bool {
+	return s.Panel() || (s.Play() == nil && s.PlayPath() == "")
 }
 
 // chromeShown reports whether the title bar and the transport show: always while the film is held or a menu is open, and while playing until the pointer has rested for idleAfter.

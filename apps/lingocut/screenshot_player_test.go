@@ -37,7 +37,7 @@ var riverCues = [][2]string{
 	{"下次过桥时，不妨看看桥下的流水。", "Next time you cross a bridge, look at the water below."},
 }
 
-// TestScreenshotsPlayer renders Colibri open from the library every scene starts from (screenshot_helpers_test.go), once its subtitles and, with ffmpeg, its picture have loaded. With ffmpeg it also renders the prototype's film, How Rivers Shape Landscapes, at the prototype's window size: the player held on a line, its subtitle mode menu, the style view and the 片段 and 信息 tabs.
+// TestScreenshotsPlayer renders Colibri open from the library every scene starts from (screenshot_helpers_test.go), once its subtitles and, with ffmpeg, its picture have loaded. With ffmpeg it also renders the prototype's film, How Rivers Shape Landscapes, at the prototype's window size: the player held on a line, its subtitle mode menu, the style view, the 片段 and 信息 tabs, the film opened from the YouTube page inside the content column, and the film without a picture, as without ffmpeg, with the side panel hidden.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "film", func(a *app, tt *ui.Tester, updates chan func()) {
@@ -79,13 +79,18 @@ func TestScreenshotsPlayer(t *testing.T) {
 	}
 	job := core.Job{ID: "rivers", Source: "https://www.youtube.com/watch?v=riverfilm01", Language: "简体中文", Stage: core.StageComplete, VideoPath: clip, SubtitlePath: subs, LibraryDir: lib}
 
-	shoot := func(name string, steps func(a *app, tt *ui.Tester)) {
+	// prepare, when not nil, changes the app before the film is opened.
+	shoot := func(name string, prepare func(a *app), steps func(a *app, tt *ui.Tester)) {
 		t.Helper()
 		updates := make(chan func(), 64)
 		a := newApp(tools, func(fn func()) { updates <- fn })
 		a.edit(func(s *session) { s.LibraryDir = lib })
 		a.library.Jobs = []core.Job{job}
 		t.Cleanup(a.stopPlayback)
+		if prepare != nil {
+			prepare(a)
+		}
+		picture := a.ffmpegPath() != ""
 		tt := ui.NewTester(a.view, 1304, 782)
 		tt.SetScale(2)
 		tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
@@ -96,7 +101,7 @@ func TestScreenshotsPlayer(t *testing.T) {
 			t.Fatalf("%v; texts %q", err, tt.Texts())
 		}
 		deadline := time.After(10 * time.Second)
-		for a.player.play == nil || !a.player.subs.ready || a.player.film.info.Folder == "" || !tt.HasText(riverCues[1][0]) {
+		for (picture && (a.player.play == nil || !tt.HasText(riverCues[1][0]))) || !a.player.subs.ready || a.player.film.info.Folder == "" {
 			select {
 			case fn := <-updates:
 				fn()
@@ -122,14 +127,20 @@ func TestScreenshotsPlayer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	shoot("player", func(*app, *ui.Tester) {})
-	shoot("player-menu", func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "字幕：双语") })
-	shoot("player-style", func(_ *app, tt *ui.Tester) {
+	shoot("player", nil, func(*app, *ui.Tester) {})
+	shoot("player-menu", nil, func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "字幕：双语") })
+	shoot("player-style", nil, func(_ *app, tt *ui.Tester) {
 		screenshotClick(t, tt, "字幕：双语")
 		screenshotClick(t, tt, "样式…")
 	})
-	shoot("player-clips", func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "片段") })
-	shoot("player-info", func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "信息") })
+	shoot("player-clips", nil, func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "片段") })
+	shoot("player-info", nil, func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "信息") })
+	shoot("player-youtube", func(a *app) { a.page = pageYouTube }, func(*app, *ui.Tester) {})
+	// Without ffmpeg the film has no picture and no transport.
+	shoot("player-no-picture", func(a *app) {
+		a.pipeline = media.Tools{}
+		a.player.panel = false
+	}, func(*app, *ui.Tester) {})
 }
 
 func srtClock(d time.Duration) string {

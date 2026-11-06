@@ -477,6 +477,27 @@ func TestOpenFilmClearsTheTitleBar(t *testing.T) {
 	}
 }
 
+// TestFilmInTheColumnStartsAtItsEdge checks that a film opened from the YouTube page, which shows in the content column beside the sidebar, puts its back button at the column's edge rather than leaving room for the traffic lights, which are over the sidebar.
+func TestFilmInTheColumnStartsAtItsEdge(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
+	a.page = pageYouTube
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://www.youtube.com/watch?v=abc", Stage: core.StageQueued}}
+	a.openKey = "j"
+	tt.Frame()
+	if !tt.HasText("全部影片") {
+		t.Fatalf("sidebar hidden beside a film from the YouTube page: %q", tt.Texts())
+	}
+	back, ok := tt.Find("返回资料库")
+	if !ok {
+		t.Fatalf("missing the back button in %q", tt.Texts())
+	}
+	edge := float32(sidebarWidth + pagePadX)
+	if back.X < edge || back.X-edge > 16 {
+		t.Fatalf("back button at %v, want it within 16 of the column's edge at %v", back, edge)
+	}
+}
+
 // TestRefreshClosesAFilmThatLeftTheShelf checks that an open video closes, and its playback stops, when a refresh of the shelf no longer finds it, without a frame being drawn.
 func TestRefreshClosesAFilmThatLeftTheShelf(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
@@ -588,6 +609,18 @@ func TestFindFocusesTheSubtitleSearch(t *testing.T) {
 	tt.Frame()
 	if a.player.film.search != "river" {
 		t.Fatalf("search %q", a.player.film.search)
+	}
+}
+
+// TestPanelShowsWithoutAPicture checks that a film with no picture, here for want of ffmpeg, shows its side panel even when the panel was hidden on the film before, since it has no transport to bring the panel back from.
+func TestPanelShowsWithoutAPicture(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+	a.player.panel = false
+	a.openKey = "j"
+	tt.Frame()
+	if _, ok := tt.Find("侧栏"); !ok || !tt.HasText("搜索台词") {
+		t.Fatalf("no side panel on a film without a picture: %q", tt.Texts())
 	}
 }
 
