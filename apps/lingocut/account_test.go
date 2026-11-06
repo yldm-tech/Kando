@@ -324,3 +324,20 @@ func TestUploadFailureHidesTheSecret(t *testing.T) {
 		t.Fatalf("msg = %q", plain)
 	}
 }
+
+// TestUploadBlockedPointsToTheSettingsWindow checks every message that blocks an upload sends the user to 设置 › 账号与上传, where the account now lives, not to the 账号 row the sidebar no longer has.
+func TestUploadBlockedPointsToTheSettingsWindow(t *testing.T) {
+	a := newApp(&fakePipeline{}, func(func()) {})
+	if got, want := a.uploadBlocked(), "先在「设置 › 账号与上传」里登录 Google"; got != want {
+		t.Errorf("signed out: %q, want %q", got, want)
+	}
+	a.cloud.googleEmail = "a@b.c"
+	for kind, name := range map[string]string{
+		cloud.KindR2: "R2", cloud.KindS3: "S3", cloud.KindOSS: "OSS", cloud.KindCOS: "COS", cloud.KindCompat: "S3 兼容",
+	} {
+		a.cloud.storage = kind
+		if got, want := a.uploadBlocked(), "先在「设置 › 账号与上传」里填写 "+name; got != want {
+			t.Errorf("%s: %q, want %q", kind, got, want)
+		}
+	}
+}
