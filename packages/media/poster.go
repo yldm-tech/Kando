@@ -98,6 +98,9 @@ func posterOffsets(d time.Duration) []time.Duration {
 	return out
 }
 
+// VideoDuration is how long the video at path plays, read with ffmpeg, or 0 when ffmpeg cannot tell.
+func VideoDuration(ffmpeg, path string) time.Duration { return videoDuration(ffmpeg, path) }
+
 func videoDuration(ffmpeg, path string) time.Duration {
 	_, _, _, duration, err := probePicture(ffmpeg, path)
 	if err != nil {
