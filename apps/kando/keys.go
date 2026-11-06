@@ -30,7 +30,7 @@ func (a *app) shortcuts() []shortcut {
 // appKeys are the shortcuts that work anywhere in the window.
 func (a *app) appKeys() []shortcut {
 	return []shortcut{
-		{Group: "LingoCut", Label: "设置…", Mods: ui.Cmd, Key: ui.KeyComma, Run: func() { a.OpenSettings(settings.SectionGeneral) }},
+		{Group: "看懂", Label: "设置…", Mods: ui.Cmd, Key: ui.KeyComma, Run: func() { a.OpenSettings(settings.SectionGeneral) }},
 	}
 }
 

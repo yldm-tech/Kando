@@ -48,7 +48,7 @@ func (s screen) translate(c *ui.Context, t *ui.Theme) {
 			})
 		})
 	})
-	form.Note(c, "可以加上风格要求，例如口语化、人名保留英文。返回的 JSON 行数由 LingoCut 自动要求，不用写在这里。", 0)
+	form.Note(c, "可以加上风格要求，例如口语化、人名保留英文。返回的 JSON 行数由看懂自动要求，不用写在这里。", 0)
 }
 
 func languageChoices(current string) []string {

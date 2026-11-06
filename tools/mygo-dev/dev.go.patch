@@ -5,7 +5,7 @@
  		return nil, sum, err
  	}
 -	s.stopLive()
-+	// LingoCut: where a window can be probed, the running build keeps its window until the new build shows one; the run loop then stops it (tools/mygo-dev).
++	// Kando: where a window can be probed, the running build keeps its window until the new build shows one; the run loop then stops it (tools/mygo-dev).
 +	overlap := windowProbe != nil && s.liveRunning()
 +	if !overlap {
 +		s.stopLive()

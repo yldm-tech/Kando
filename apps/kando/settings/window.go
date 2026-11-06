@@ -92,7 +92,7 @@ type screen struct {
 	version string
 }
 
-// The rail's look, as the prototype's settings sidebar: 220 points wide with its line along the end, a translucent gray over the window's, and the chosen category in LingoCut's blue.
+// The rail's look, as the prototype's settings sidebar: 220 points wide with its line along the end, a translucent gray over the window's, and the chosen category in Kando's blue.
 const railWidth float32 = 220
 
 var (

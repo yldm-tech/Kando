@@ -84,7 +84,7 @@ func writeFakeScene(t *testing.T, path string, seconds int, scene string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(fmt.Sprintf("lingocut fake scene %d %s\n", seconds, base)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(fmt.Sprintf("kando fake scene %d %s\n", seconds, base)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -95,7 +95,7 @@ func writeFakeClip(t *testing.T, path string, seconds int, top, bottom string) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(fmt.Sprintf("lingocut fake clip %d %s %s\n", seconds, top, bottom)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(fmt.Sprintf("kando fake clip %d %s %s\n", seconds, top, bottom)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -106,14 +106,14 @@ func readFakeClip(path string) (clip fakeClip, ok bool) {
 	if err != nil {
 		return clip, false
 	}
-	if rest, found := strings.CutPrefix(strings.TrimSuffix(string(data), "\n"), "lingocut fake scene "); found {
+	if rest, found := strings.CutPrefix(strings.TrimSuffix(string(data), "\n"), "kando fake scene "); found {
 		seconds, scene, _ := strings.Cut(rest, " ")
 		clip.seconds, err = strconv.Atoi(seconds)
 		clip.scene = scene
 		return clip, err == nil && clip.seconds > 0 && scene != ""
 	}
 	var top, bottom string
-	if _, err := fmt.Sscanf(string(data), "lingocut fake clip %d %s %s", &clip.seconds, &top, &bottom); err != nil || clip.seconds <= 0 {
+	if _, err := fmt.Sscanf(string(data), "kando fake clip %d %s %s", &clip.seconds, &top, &bottom); err != nil || clip.seconds <= 0 {
 		return clip, false
 	}
 	clip.top, ok = fakeColor(top)
@@ -143,7 +143,7 @@ func fakeVersionOnly(args []string, flag, version string) int {
 	return 1
 }
 
-// fakeFFmpeg answers the calls LingoCut makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, for the player; and one frame as JPEG, for a poster. The input must be a placeholder from writeFakeClip; any other file is not a video to it.
+// fakeFFmpeg answers the calls Kando makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, for the player; and one frame as JPEG, for a poster. The input must be a placeholder from writeFakeClip; any other file is not a video to it.
 func fakeFFmpeg(args []string) int {
 	if slices.Contains(args, "-version") {
 		fmt.Println(fakeFFmpegVersion)

@@ -135,7 +135,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 		t.Fatalf("switched library = %q", a.snap().LibraryDir)
 	}
 	general := settingsOpenAt(a, tt, settings.SectionGeneral)
-	if !general.HasText("第一库") || !general.HasText("只从 LingoCut 的列表里拿掉") {
+	if !general.HasText("第一库") || !general.HasText("只从看懂的列表里拿掉") {
 		t.Fatalf("texts %q", general.Texts())
 	}
 	if err := general.Click("移出"); err != nil {

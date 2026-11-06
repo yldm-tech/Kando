@@ -5,10 +5,10 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// accent is LingoCut's blue, used in place of the desktop's accent color.
+// accent is Kando's blue, used in place of the desktop's accent color.
 var accent = ui.Hex("#0A66D8")
 
-// palette builds the two themes of the platform whose controls breeze draws, both in LingoCut's accent: light, the window's, which it sets on the window, and dark, the player's and the cheat sheet's, which they build their subtree in with ui.Themed. Every color the app sets on a theme is set here.
+// palette builds the two themes of the platform whose controls breeze draws, both in Kando's accent: light, the window's, which it sets on the window, and dark, the player's and the cheat sheet's, which they build their subtree in with ui.Themed. Every color the app sets on a theme is set here.
 func palette(c *ui.Context) (light, dark *ui.Theme) {
 	p := breeze.PlatformOf(c)
 	light = breeze.ThemeOf(c, p, false, accent)

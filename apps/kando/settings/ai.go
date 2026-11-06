@@ -9,7 +9,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// ai is the AI 服务 page: the service that translates and how LingoCut reaches it, in one card as the prototype's, with what the fields mean in the footnote under it. The prototype's page starts 6 points lower than one that opens with a section label.
+// ai is the AI 服务 page: the service that translates and how Kando reaches it, in one card as the prototype's, with what the fields mean in the footnote under it. The prototype's page starts 6 points lower than one that opens with a section label.
 func (s screen) ai(c *ui.Context, t *ui.Theme) {
 	if _, known := s.Tools(); !known {
 		form.Card(c, func() {

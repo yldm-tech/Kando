@@ -72,7 +72,7 @@ func ToolsFromEnv() Tools {
 	}
 }
 
-// LibraryExt is LingoCut's own library bundle suffix.
+// LibraryExt is Kando's own library bundle suffix.
 const LibraryExt = ".lingocut"
 
 // DefaultLibraryDir is the bundle that holds one folder per video. LegacyLibraryDir is the plain folder used before that.
@@ -80,7 +80,7 @@ func DefaultLibraryDir() string {
 	return filepath.Join(moviesDir(), "影视库"+LibraryExt)
 }
 
-// VimpoLibraryDir is the other app's library. LingoCut does not store its videos there.
+// VimpoLibraryDir is the other app's library. Kando does not store its videos there.
 func VimpoLibraryDir() string {
 	return filepath.Join(moviesDir(), "影视库.vimpo")
 }
@@ -251,7 +251,7 @@ func everyAPICredential(cli string) func(context.Context, bool) (Endpoint, error
 			return Endpoint{}, fmt.Errorf("EveryAPI credential: %w", err)
 		}
 		if cred.Version != everyAPICredentialVersion {
-			return Endpoint{}, fmt.Errorf("EveryAPI credential version %d is not supported; update LingoCut", cred.Version)
+			return Endpoint{}, fmt.Errorf("EveryAPI credential version %d is not supported; update Kando", cred.Version)
 		}
 		if cred.BaseURL == "" || cred.APIKey == "" {
 			return Endpoint{}, errors.New("EveryAPI credential is missing its base URL or key")

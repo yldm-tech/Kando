@@ -31,17 +31,17 @@ func TestSettingsPages(t *testing.T) {
 	}
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) {
-		s.LibraryDir = filepath.Join(home, "Movies", "LingoCut")
+		s.LibraryDir = filepath.Join(home, "Movies", "Kando")
 		s.Libraries = []string{s.LibraryDir}
 	})
 	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	for _, text := range []string{"资料库", "当前资料库", "LingoCut", "位置", "~/Movies/LingoCut", "在访达中显示", "界面语言", "简体中文", "版本", appVersion, "组件", "yt-dlp", "ffmpeg", "whisper-cli", "未安装"} {
+	for _, text := range []string{"资料库", "当前资料库", "Kando", "位置", "~/Movies/Kando", "在访达中显示", "界面语言", "简体中文", "版本", appVersion, "组件", "yt-dlp", "ffmpeg", "whisper-cli", "未安装"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if tt.HasText("只从 LingoCut 的列表里拿掉") {
+	if tt.HasText("只从看懂的列表里拿掉") {
 		t.Fatalf("the only library can be taken off the list, texts %q", tt.Texts())
 	}
 	if tt.HasText("重新检测") {

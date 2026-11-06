@@ -99,7 +99,7 @@ func TestSidebarSourceLeavesTheSettings(t *testing.T) {
 	}
 }
 
-// TestWindowIsLightAndTheFilmDark checks the palette: the window is light with LingoCut's colors whatever the desktop's appearance, and an open film is drawn in the dark theme.
+// TestWindowIsLightAndTheFilmDark checks the palette: the window is light with Kando's colors whatever the desktop's appearance, and an open film is drawn in the dark theme.
 func TestWindowIsLightAndTheFilmDark(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.SetDark(true)

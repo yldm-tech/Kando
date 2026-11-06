@@ -62,10 +62,10 @@ func TestToolsFromEnvTranslator(t *testing.T) {
 		},
 		{
 			name:        "EveryAPI with chosen key and model",
-			apiKey:      "sk-lingocut",
+			apiKey:      "sk-kando",
 			model:       "doubao-seed-2.0-mini",
 			everyAPIKey: "sk-everyapi",
-			want:        ChatTranslator{BaseURL: EveryAPIBaseURL, APIKey: "sk-lingocut", Model: "doubao-seed-2.0-mini"},
+			want:        ChatTranslator{BaseURL: EveryAPIBaseURL, APIKey: "sk-kando", Model: "doubao-seed-2.0-mini"},
 		},
 		{
 			name:        "custom provider ignores EveryAPI defaults",

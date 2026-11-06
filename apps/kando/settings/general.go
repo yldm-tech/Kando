@@ -10,7 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// general is the 通用 page: the library, the interface language and version, and the programs LingoCut runs.
+// general is the 通用 page: the library, the interface language and version, and the programs Kando runs.
 func (s screen) general(c *ui.Context, t *ui.Theme) {
 	form.Label(c, "资料库", 6, nil)
 	form.Card(c, func() { s.libraryRows(c) })
@@ -38,7 +38,7 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 		form.Separator(c, false)
 		s.toolRow(c, t, "W", "whisper-cli", "语音识别", tools.Whisper)
 	})
-	form.Note(c, "这些程序来自本机，LingoCut 不负责安装或更新。", 0)
+	form.Note(c, "这些程序来自本机，看懂不负责安装或更新。", 0)
 }
 
 // libraryRows choose the library, show where it is, and take it off the list. Without a library they offer to make or open one.
@@ -85,7 +85,7 @@ func (s screen) libraryRows(c *ui.Context) {
 	})
 	if len(dirs) > 1 {
 		form.Separator(c, true)
-		form.Row(c, "从列表移出", "只从 LingoCut 的列表里拿掉，文件留在原处。", func() {
+		form.Row(c, "从列表移出", "只从看懂的列表里拿掉，文件留在原处。", func() {
 			c.Key("library-forget")
 			if form.Button(c, "移出", false).Clicked() {
 				s.Forget(dir)
@@ -110,7 +110,7 @@ func libraryLabels(dirs []string) []string {
 	return labels
 }
 
-// toolRow is one of the programs LingoCut runs: its tile, its name over what it is for and where it was found, and a dot with its version, or 未安装.
+// toolRow is one of the programs Kando runs: its tile, its name over what it is for and where it was found, and a dot with its version, or 未安装.
 func (s screen) toolRow(c *ui.Context, t *ui.Theme, mark, name, use, path string) {
 	where := "未安装"
 	if path != "" {

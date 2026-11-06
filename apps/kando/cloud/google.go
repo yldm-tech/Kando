@@ -115,7 +115,7 @@ func Login(ctx context.Context, cfg GoogleConfig) (Account, error) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, "<!doctype html><meta charset=utf-8><title>LingoCut</title><p>登录完成，可以关闭这个页面。</p>")
+		_, _ = io.WriteString(w, "<!doctype html><meta charset=utf-8><title>看懂</title><p>登录完成，可以关闭这个页面。</p>")
 		select {
 		case ch <- result{code: code}:
 		default:

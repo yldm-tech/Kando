@@ -59,7 +59,7 @@ func TestMenuBarListsTheShortcutTable(t *testing.T) {
 			t.Fatalf("menus out of order: %q", titles)
 		}
 	}
-	for _, want := range []string{"LingoCut", "文件", "编辑", "窗口", "帮助"} {
+	for _, want := range []string{"看懂", "文件", "编辑", "窗口", "帮助"} {
 		if !slices.Contains(titles, want) {
 			t.Fatalf("no %q menu: %q", want, titles)
 		}
@@ -100,7 +100,7 @@ func TestAccelerator(t *testing.T) {
 func TestMenuItemRunsItsShortcut(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	tt.Frame()
-	it := findMenuItem(t, a.menuBar(), "LingoCut", "设置…")
+	it := findMenuItem(t, a.menuBar(), "看懂", "设置…")
 	it.Click(it, nil)
 	if a.prefs.open {
 		t.Fatalf("the click opened the settings at %q before the UI thread ran it", a.prefs.section)
@@ -141,11 +141,11 @@ func TestMenuFollowsTheFilm(t *testing.T) {
 func TestMenuWaitsBehindTheCheatsheet(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	tt.Frame()
-	settings := findMenuItem(t, a.menuBar(), "LingoCut", "设置…")
+	settings := findMenuItem(t, a.menuBar(), "看懂", "设置…")
 	a.toggleCheatsheet()
 	tt.Frame()
 	bar := a.menuBar()
-	if !findMenuItem(t, bar, "LingoCut", "设置…").Disabled || !findMenuItem(t, bar, "文件", "在访达中显示资料库").Disabled {
+	if !findMenuItem(t, bar, "看懂", "设置…").Disabled || !findMenuItem(t, bar, "文件", "在访达中显示资料库").Disabled {
 		t.Fatal("commands enabled behind the cheat sheet")
 	}
 	// An item of a menu built before the sheet opened.
@@ -208,12 +208,12 @@ func TestMenuWaitsBehindAFilePanel(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	tt.Frame()
 	library := findMenuItem(t, a.menuBar(), "文件", "新建资料库…")
-	settings := findMenuItem(t, a.menuBar(), "LingoCut", "设置…")
+	settings := findMenuItem(t, a.menuBar(), "看懂", "设置…")
 	sheet := findMenuItem(t, a.menuBar(), "帮助", "快捷键速查")
 	release := a.holdModal()
 	tt.Frame()
 	bar := a.menuBar()
-	for _, it := range []struct{ menu, label string }{{"文件", "打开资料库…"}, {"文件", "新建资料库…"}, {"文件", "打开本地视频…"}, {"文件", "在访达中显示资料库"}, {"LingoCut", "设置…"}, {"窗口", "片库"}, {"帮助", "快捷键速查"}} {
+	for _, it := range []struct{ menu, label string }{{"文件", "打开资料库…"}, {"文件", "新建资料库…"}, {"文件", "打开本地视频…"}, {"文件", "在访达中显示资料库"}, {"看懂", "设置…"}, {"窗口", "片库"}, {"帮助", "快捷键速查"}} {
 		if !findMenuItem(t, bar, it.menu, it.label).Disabled {
 			t.Fatalf("%s › %s enabled behind a file panel", it.menu, it.label)
 		}
@@ -233,7 +233,7 @@ func TestMenuWaitsBehindAFilePanel(t *testing.T) {
 	// Once the panel has closed, the commands run again.
 	release()
 	tt.Frame()
-	if findMenuItem(t, a.menuBar(), "LingoCut", "设置…").Disabled {
+	if findMenuItem(t, a.menuBar(), "看懂", "设置…").Disabled {
 		t.Fatal("设置… still disabled after the file panel closed")
 	}
 }

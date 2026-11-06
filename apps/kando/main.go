@@ -83,7 +83,7 @@ func main() {
 	mygo.Theme.SetSource(mygo.ThemeLight)
 	mygo.App.WhenReady(func() {
 		win = mygo.NewWindow(mygo.WindowOptions{
-			Title:                "LingoCut",
+			Title:                "看懂",
 			Width:                1100,
 			Height:               720,
 			MinWidth:             900,

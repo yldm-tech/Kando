@@ -81,7 +81,7 @@ func DownloadSpeechModel(ctx context.Context, baseURL, file, dir string, progres
 	if err != nil {
 		return "", err
 	}
-	req.Header.Set("User-Agent", "LingoCut")
+	req.Header.Set("User-Agent", "Kando")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err

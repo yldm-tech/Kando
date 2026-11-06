@@ -13,7 +13,7 @@ import (
 )
 
 // menuOrder is the order of the menu bar's menus. A shortcut's Group names the menu it is listed in, so the menu bar, the cheat sheet and wireKeys read the same table. A group not named here gets a menu of its own before 窗口.
-var menuOrder = []string{"LingoCut", "文件", "编辑", "播放", "字幕", "显示", "窗口", "帮助"}
+var menuOrder = []string{"看懂", "文件", "编辑", "播放", "字幕", "显示", "窗口", "帮助"}
 
 // rememberFilm keeps the film the window shows, for 窗口 › 播放器 to go back to after the window went to another page. menuHooks.afterFrame calls it every frame, after the pages have opened or closed a film.
 func (a *app) rememberFilm() {
@@ -88,11 +88,11 @@ func (a *app) menuBar() []*mygo.MenuItem {
 	for _, group := range order {
 		var menu *mygo.MenuItem
 		switch group {
-		case "LingoCut":
-			sub := then([]*mygo.MenuItem{{Label: "关于 LingoCut", Role: mygo.RoleAbout}}, items(group)...)
+		case "看懂":
+			sub := then([]*mygo.MenuItem{{Label: "关于看懂", Role: mygo.RoleAbout}}, items(group)...)
 			sub = then(sub, &mygo.MenuItem{Label: "服务", Role: mygo.RoleServices})
-			sub = then(sub, &mygo.MenuItem{Label: "隐藏 LingoCut", Role: mygo.RoleHide}, &mygo.MenuItem{Label: "隐藏其他", Role: mygo.RoleHideOthers}, &mygo.MenuItem{Label: "全部显示", Role: mygo.RoleUnhide})
-			sub = then(sub, &mygo.MenuItem{Label: "退出 LingoCut", Role: mygo.RoleQuit})
+			sub = then(sub, &mygo.MenuItem{Label: "隐藏看懂", Role: mygo.RoleHide}, &mygo.MenuItem{Label: "隐藏其他", Role: mygo.RoleHideOthers}, &mygo.MenuItem{Label: "全部显示", Role: mygo.RoleUnhide})
+			sub = then(sub, &mygo.MenuItem{Label: "退出看懂", Role: mygo.RoleQuit})
 			menu = &mygo.MenuItem{Label: group, Submenu: sub}
 		case "文件":
 			reveal := &mygo.MenuItem{Label: "在访达中显示资料库", Disabled: a.holds(false) || a.snap().LibraryDir == "", Click: a.menuClick(false, func() { a.reveal(a.snap().LibraryDir) })}

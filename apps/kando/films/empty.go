@@ -21,7 +21,7 @@ func noLibrary(c *ui.Context, a App) {
 
 // emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频… and 打开已有资料库….
 func emptyLibrary(c *ui.Context, a App) {
-	statusPage(c, startArt, "从一段视频开始", "在上方粘贴 YouTube、哔哩哔哩等视频链接，或把本地视频拖进窗口。LingoCut 会下载视频，识别语音，再生成双语字幕。", func() {
+	statusPage(c, startArt, "从一段视频开始", "在上方粘贴 YouTube、哔哩哔哩等视频链接，或把本地视频拖进窗口。看懂会下载视频，识别语音，再生成双语字幕。", func() {
 		c.Key("empty-pick")
 		if statusButton(breeze.PrimaryButton(c, "选择本地视频…")).Clicked() {
 			a.PickVideos()

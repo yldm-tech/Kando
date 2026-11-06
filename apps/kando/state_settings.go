@@ -12,7 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// settingsUI is the state of the settings window, a child window of the main one that ⌘,, the sidebar's gear and LingoCut › 设置… open: the translation's language and prompt, the speech models and their download, the AI service and the tools' versions, and the window itself. The model and the AI service in use are the pipeline's (media.Tools); these fields are what the window edits and shows.
+// settingsUI is the state of the settings window, a child window of the main one that ⌘,, the sidebar's gear and 看懂 › 设置… open: the translation's language and prompt, the speech models and their download, the AI service and the tools' versions, and the window itself. The model and the AI service in use are the pipeline's (media.Tools); these fields are what the window edits and shows.
 type settingsUI struct {
 	language         string
 	translatePrompt  string
