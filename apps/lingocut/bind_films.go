@@ -25,7 +25,7 @@ func (a *app) OpenKey() string { return a.openKey }
 
 func (a *app) SetOpenKey(key string) { a.openKey = key }
 
-// libraryOwnsTitleBar reports whether the library page draws its own header bar at the top of the content column, keeping clear of the window controls and dragging the window, so the content has no drag band over it (contentBand). It does whenever it shows, on 全部影片 or YouTube with no film open over it: its top bar is a breeze.HeaderBar (films/topbar.go), as tall as the title bar at least.
+// libraryOwnsTitleBar reports whether the library page draws its own header bar at the top of the content column, keeping clear of the window controls and dragging the window, so the content has no drag band over it (contentBand). It does whenever it shows, on 全部影片 or YouTube with no film open over it: its top bar is a breeze.HeaderBar (films/topbar.go), as tall as the title bar at least, across the whole content column, so mainColumn leaves the page's padding to the page.
 func (a *app) libraryOwnsTitleBar() bool {
 	return (a.page == pageFilms || a.page == pageYouTube) && a.openKey == ""
 }

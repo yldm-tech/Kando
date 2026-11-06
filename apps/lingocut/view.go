@@ -63,6 +63,9 @@ func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
 	padX, padY := pagePadX, float32(28)
 	if a.filmFillsWindow() {
 		padX, padY = a.filmPadding()
+	} else if a.libraryOwnsTitleBar() {
+		// The library page's header bar spans the column from its top, and the page pads what is under it itself (films.Show).
+		padX, padY = 0, 0
 	}
 	body := ui.Column(c).Grow(1).MinWidth(0).Padding(padY, padX).Gap(20)
 	if files := body.DroppedFiles(); len(files) > 0 {

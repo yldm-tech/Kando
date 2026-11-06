@@ -88,6 +88,9 @@ type Notice struct {
 	Open    bool
 }
 
+// pagePadBottom is the room under the library page, as under the other pages of the content column.
+const pagePadBottom = 28
+
 // Show draws the library page, or the open film over it. showFilm draws the open film; the page stays here so the shelf does not import the player.
 func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Context, *ui.Theme, Film)) {
 	if key := a.OpenKey(); key != "" {
@@ -114,13 +117,16 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	}
 	dragging := page.FileDragOver()
 	page.Children(func() {
+		// The header bar spans the content column from the window's top, as a unified toolbar spans the pane beside a sidebar; what is under it keeps the page's padding at its sides and bottom.
 		topBar(c, t, a, source)
-		notice(c, a)
-		if a.LibraryDir() == "" {
-			noLibrary(c, a)
-		} else {
-			shelf(c, t, a, items, source)
-		}
+		ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Padding(0, sidebar.PagePadX, pagePadBottom, sidebar.PagePadX).Children(func() {
+			notice(c, a)
+			if a.LibraryDir() == "" {
+				noLibrary(c, a)
+			} else {
+				shelf(c, t, a, items, source)
+			}
+		})
 		if dragging {
 			dropZone(c, t)
 		}

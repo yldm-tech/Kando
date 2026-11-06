@@ -859,13 +859,16 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 	}
 }
 
-// TestLibraryPageOwnsTheTitleBar checks that the library page says it draws its own header bar under the title bar (libraryOwnsTitleBar), so contentBand leaves that room to it, on 全部影片 and YouTube, and that it stops saying so while a film is open over it.
+// TestLibraryPageOwnsTheTitleBar checks that the library page says it draws its own header bar under the title bar (libraryOwnsTitleBar), so contentBand leaves that room to it, on 全部影片 and YouTube, and that it stops saying so while a film is open over it. Without a title bar the header bar starts at the window's top, with no page padding above it: its controls are centered in its 52 points.
 func TestLibraryPageOwnsTheTitleBar(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
 	tt.Frame()
 	if !a.libraryOwnsTitleBar() {
 		t.Fatalf("the library page on %q does not own the title bar", a.page)
+	}
+	if start, ok := tt.Find("开始处理"); !ok || abs32(start.Y+start.H/2-26) > 0.5 {
+		t.Fatalf("开始处理 at %v, want it centered 26 points from the window's top", start)
 	}
 	a.Select(pageYouTube)
 	tt.Frame()
