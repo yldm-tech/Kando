@@ -13,6 +13,8 @@ type overlayUI struct {
 	onboarded bool
 }
 
+func newOverlayUI() overlayUI { return overlayUI{} }
+
 // overlays draws whatever is open over the pages. view calls it last, so it sits above the sidebar and the content. t is the window's theme and dark the player's.
 func (a *app) overlays(c *ui.Context, t, dark *ui.Theme) {
 	if a.overlay.cheatsheet {
@@ -42,6 +44,8 @@ func (a *app) cheatsheetGroups() []cheatsheet.Group {
 type savedOverlay struct {
 	Onboarded bool `json:"onboarded,omitempty"`
 }
+
+func (s *savedOverlay) clean() {}
 
 // overlayHooks: the overlays save whether the first-run guide was seen.
 func (a *app) overlayHooks() areaHooks {

@@ -15,6 +15,8 @@ func newSidebarUI() sidebarUI {
 // savedSidebar is the sidebar's part of settings.json.
 type savedSidebar struct{}
 
+func (s *savedSidebar) clean() {}
+
 func (a *app) sidebarHooks() areaHooks { return areaHooks{} }
 
 // sidebarKeys are the sidebar's shortcuts.

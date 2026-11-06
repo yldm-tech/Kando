@@ -58,7 +58,7 @@ func loadSavedSettings(path string) savedSettings {
 	return saved
 }
 
-// savedSettings is settings.json. Each part is one area's, declared in that area's file next to the code that saves and restores it (areaHooks.save and restore), and encoding/json writes the parts' fields side by side, as one object. An area adds a setting to its own part, not here; two parts must not use the same key (TestSavedSettingsKeysAreUnique).
+// savedSettings is settings.json. Each part is one area's, declared in that area's file next to the code that saves and restores it (areaHooks.save and restore), and encoding/json writes the parts' fields side by side, as one object. An area adds a setting to its own part, not here; two parts must not use the same key (TestSavedSettingsKeysAreUnique), and no part may have a MarshalJSON, UnmarshalJSON, MarshalText or UnmarshalText of its own, because Go promotes it to savedSettings and it would then encode the whole file (TestSavedSettingsPartsHaveNoMarshalers).
 type savedSettings struct {
 	savedShelf     // shelf_app.go
 	savedSidebar   // state_sidebar.go
@@ -73,11 +73,17 @@ type savedSettings struct {
 	savedMenu      // state_menu.go
 }
 
-// clean trims what was read. A part whose text needs trimming has a clean of its own, called here.
+// clean tidies what was read. Every part has a clean of its own, in its own file, which trims its text or does nothing, and each is called here, so an area changes only its own clean.
 func (s *savedSettings) clean() {
 	s.savedShelf.clean()
+	s.savedSidebar.clean()
+	s.savedLibrary.clean()
+	s.savedQueue.clean()
 	s.savedSpeech.clean()
 	s.savedLLM.clean()
 	s.savedTranslate.clean()
 	s.savedCloud.clean()
+	s.savedPlayer.clean()
+	s.savedOverlay.clean()
+	s.savedMenu.clean()
 }

@@ -21,8 +21,12 @@ type jobQueue struct {
 	cancel     context.CancelFunc
 }
 
+func newJobQueue() jobQueue { return jobQueue{} }
+
 // savedQueue is the queue's part of settings.json. The jobs themselves are in the shelf's library.json.
 type savedQueue struct{}
+
+func (s *savedQueue) clean() {}
 
 // queueHooks: a job still writing into the library being left is stopped.
 func (a *app) queueHooks() areaHooks {

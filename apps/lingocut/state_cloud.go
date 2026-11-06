@@ -47,6 +47,8 @@ type cloudUI struct {
 	uploader        func(context.Context, cloud.Store, []cloud.File, func(written, total int64)) error
 }
 
+func newCloudUI() cloudUI { return cloudUI{} }
+
 // savedCloud is the account's part of settings.json: the Google account and each kind of storage.
 type savedCloud struct {
 	GoogleEmail     string `json:"googleEmail,omitempty"`

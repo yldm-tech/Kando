@@ -50,10 +50,16 @@ func (a *app) rememberPosition(play *filmPlay) {
 	}
 	if play.finished || at <= 0 {
 		delete(a.player.positions, play.path)
-		return
+	} else {
+		a.player.positions[play.path] = at
 	}
-	a.player.positions[play.path] = at
+	a.areasPositionsChanged()
 }
+
+// resumePositions and setResumePositions are the player's resume positions by video path, for the area that keeps them on disk with the shelf. The map is the player's own; setResumePositions takes positions over as they are.
+func (a *app) resumePositions() map[string]time.Duration { return a.player.positions }
+
+func (a *app) setResumePositions(positions map[string]time.Duration) { a.player.positions = positions }
 
 // ResumeAt is where the video at path stopped last time, or 0 when it was not watched or was watched to the end.
 func (a *app) ResumeAt(path string) time.Duration { return a.player.positions[path] }
@@ -88,6 +94,9 @@ type savedPlayer struct {
 	Untranslated string     `json:"untranslated,omitempty"`
 	YieldSubs    *bool      `json:"yieldSubs,omitempty"`
 }
+
+// clean leaves the player's settings as they were read; restorePlayer replaces a value it does not know with the default.
+func (s *savedPlayer) clean() {}
 
 func (a *app) savePlayer(saved *savedSettings) {
 	yieldSubs := a.player.yieldSubs

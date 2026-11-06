@@ -6,8 +6,12 @@ type menuUI struct {
 	menuBar bool
 }
 
+func newMenuUI() menuUI { return menuUI{} }
+
 // savedMenu is the menu bar's part of settings.json.
 type savedMenu struct{}
+
+func (s *savedMenu) clean() {}
 
 func (a *app) menuHooks() areaHooks { return areaHooks{} }
 

@@ -41,12 +41,17 @@ type app struct {
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 	return &app{
-		side:     newSidebarUI(),
-		lib:      newLibraryUI(),
-		player:   newPlayerUI(),
-		prefs:    newSettingsUI(),
 		store:    newSessionStore(),
 		pipeline: pipeline, update: update,
+		// One line per area; an area sets up its state in its own constructor.
+		side:    newSidebarUI(),
+		lib:     newLibraryUI(),
+		queue:   newJobQueue(),
+		player:  newPlayerUI(),
+		prefs:   newSettingsUI(),
+		cloud:   newCloudUI(),
+		overlay: newOverlayUI(),
+		menu:    newMenuUI(),
 	}
 }
 

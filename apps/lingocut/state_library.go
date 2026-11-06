@@ -18,4 +18,6 @@ func newLibraryUI() libraryUI {
 // savedLibrary is the library page's part of settings.json. The libraries themselves are the shelf's (savedShelf).
 type savedLibrary struct{}
 
+func (s *savedLibrary) clean() {}
+
 func (a *app) libraryHooks() areaHooks { return areaHooks{} }
