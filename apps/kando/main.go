@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"kando/apps/kando/brand"
+	_ "kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 	"kando/packages/media"
 
