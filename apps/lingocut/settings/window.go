@@ -2,7 +2,7 @@ package settings
 
 import (
 	"lingocut/apps/lingocut/account"
-	"lingocut/apps/lingocut/film"
+	"lingocut/apps/lingocut/film/subtitle"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -72,7 +72,7 @@ type App interface {
 	TranslatePrompt() *string
 
 	// Cue is the subtitle look the player draws with; the 字幕外观 page previews it and does not change it.
-	Cue() *film.Look
+	Cue() *subtitle.Look
 	SubMode() string
 	SetSubMode(mode string)
 	SubOrder() string

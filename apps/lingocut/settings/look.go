@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"lingocut/apps/lingocut/film"
+	"lingocut/apps/lingocut/film/subtitle"
 
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -22,15 +22,15 @@ func (s screen) look(c *ui.Context, t, dark *ui.Theme) {
 	breeze.PreferencesGroup(c, "", "", nil, func() {
 		c.Key("look-mode")
 		choice(c, "默认显示方式", "", s.SubMode, s.SetSubMode, []option{
-			{film.SubOriginal, "仅原文"}, {film.SubTranslation, "仅译文"}, {film.SubBilingual, "双语"},
+			{subtitle.Original, "仅原文"}, {subtitle.Translation, "仅译文"}, {subtitle.Bilingual, "双语"},
 		}, s.Save)
 		c.Key("look-order")
 		choice(c, "双语顺序", "", s.SubOrder, s.SetSubOrder, []option{
-			{film.SubTranslationFirst, "译文在上"}, {film.SubOriginalFirst, "原文在上"},
+			{subtitle.TranslationFirst, "译文在上"}, {subtitle.OriginalFirst, "原文在上"},
 		}, s.Save)
 		c.Key("look-untranslated")
 		choice(c, "仅译文时，译文还没好", "译文到达后立即换上", s.Untranslated, s.SetUntranslated, []option{
-			{film.UntranslatedDim, "弱化原文"}, {film.UntranslatedBlank, "留空"},
+			{subtitle.UntranslatedDim, "弱化原文"}, {subtitle.UntranslatedBlank, "留空"},
 		}, s.Save)
 		c.Key("look-yield")
 		yield := s.YieldSubs()
@@ -99,22 +99,22 @@ func (s screen) lookPreview(c *ui.Context, dark *ui.Theme) {
 // previewLine is a line of the preview and the face it is drawn in.
 type previewLine struct {
 	text string
-	face film.Face
+	face subtitle.Face
 }
 
 // previewLines are the sample cue's lines the display mode shows, the one on top first.
-func previewLines(look film.Look, mode, order string) []previewLine {
+func previewLines(look subtitle.Look, mode, order string) []previewLine {
 	translation := previewLine{previewTranslation, look.Translation}
 	original := previewLine{previewOriginal, look.Original}
 	switch mode {
-	case film.SubOff:
+	case subtitle.Off:
 		return nil
-	case film.SubTranslation:
+	case subtitle.Translation:
 		return []previewLine{translation}
-	case film.SubOriginal:
+	case subtitle.Original:
 		return []previewLine{original}
 	}
-	if order == film.SubOriginalFirst {
+	if order == subtitle.OriginalFirst {
 		return []previewLine{original, translation}
 	}
 	return []previewLine{translation, original}
