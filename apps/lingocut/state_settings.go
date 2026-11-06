@@ -29,6 +29,9 @@ type settingsUI struct {
 	llmTestResult    string
 	toolVersions     map[string]string
 	versionGen       int
+	// open and section are the settings the user asked for: OpenSettings sets open and the settings.Section value it was given, and they stay until the settings close. Code and tests outside the settings area read these, never app.page, because the settings become a window of their own (D2). Until then the settings are sidebar pages, so OpenSettings also selects the page and the settings close when the window shows another page (settingsHooks.afterFrame).
+	open    bool
+	section string
 }
 
 func newSettingsUI() settingsUI {
@@ -81,7 +84,20 @@ func (a *app) settingsHooks() areaHooks {
 			a.restoreLLM(saved)
 			a.restoreTranslate(saved)
 		},
-		ready: a.loadToolVersions,
+		ready:      a.loadToolVersions,
+		afterFrame: a.followSettingsPage,
+	}
+}
+
+// followSettingsPage keeps open and section in step with the sidebar while the settings are its pages: a settings page chosen in the sidebar opens them there, and another page closes them. It goes once the settings have a window of their own.
+func (a *app) followSettingsPage() {
+	page, _ := settingsSectionPage(a.prefs.section)
+	switch {
+	case !isSettingsPage(a.page):
+		a.prefs.open = false
+	case !a.prefs.open || page != a.page:
+		a.prefs.open = true
+		a.prefs.section = a.page
 	}
 }
 

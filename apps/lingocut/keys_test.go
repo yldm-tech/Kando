@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"lingocut/apps/lingocut/settings"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
 
@@ -148,9 +149,7 @@ func TestSettingsShortcutOpensSettings(t *testing.T) {
 	tt.Frame()
 	tt.Key(ui.Cmd, ui.KeyComma)
 	tt.Frame()
-	if a.page != pageGeneral {
-		t.Fatalf("page %q after ⌘,", a.page)
-	}
+	wantSettings(t, a, settings.SectionGeneral)
 }
 
 // TestMenuBarTakesCommandShortcuts checks that once the app has its own menu bar, ⌘ shortcuts are left to the menu's accelerators and single keys still work.

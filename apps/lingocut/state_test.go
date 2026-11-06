@@ -133,18 +133,3 @@ func TestSourcesFilterTheLibrary(t *testing.T) {
 		t.Fatalf("local films not shown alone: %q", tt.Texts())
 	}
 }
-
-func TestOpenSettingsGoesToTheSection(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
-	a.openKey = "x"
-	a.OpenSettings("translate")
-	if a.page != pageTranslate || a.openKey != "" {
-		t.Fatalf("page %q open %q", a.page, a.openKey)
-	}
-	for _, section := range []string{"", "look", "shortcuts", "nope"} {
-		a.OpenSettings(section)
-		if a.page != pageGeneral {
-			t.Fatalf("OpenSettings(%q) went to %q", section, a.page)
-		}
-	}
-}

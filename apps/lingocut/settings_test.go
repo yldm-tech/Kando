@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"lingocut/apps/lingocut/settings"
 	"lingocut/packages/media"
 )
 
@@ -144,5 +145,42 @@ func TestAISettingsSelectsAProvider(t *testing.T) {
 	}
 	if loadSavedSettings(a.settingsPath).LLMBaseURL != "https://api.openai.com/v1" {
 		t.Fatalf("saved %#v", loadSavedSettings(a.settingsPath))
+	}
+}
+
+// TestOpenSettingsGoesToTheSection checks that OpenSettings records the section asked for, falling back to 通用, and, while the settings are sidebar pages, shows its page.
+func TestOpenSettingsGoesToTheSection(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.openKey = "x"
+	a.OpenSettings(settings.SectionTranslate)
+	wantSettings(t, a, settings.SectionTranslate)
+	if a.page != pageTranslate || a.openKey != "" {
+		t.Fatalf("page %q open %q", a.page, a.openKey)
+	}
+	for section, want := range map[string]string{"": settings.SectionGeneral, "nope": settings.SectionGeneral, settings.SectionLook: settings.SectionLook, settings.SectionShortcuts: settings.SectionShortcuts} {
+		a.OpenSettings(section)
+		tt.Frame()
+		wantSettings(t, a, want)
+		if a.page != pageGeneral {
+			t.Fatalf("OpenSettings(%q) showed page %q", section, a.page)
+		}
+	}
+}
+
+// TestSettingsFollowTheSidebarPages checks that, while the settings are sidebar pages, choosing one in the sidebar opens the settings there and choosing another page closes them.
+func TestSettingsFollowTheSidebarPages(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.Frame()
+	if err := tt.Click("翻译"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	wantSettings(t, a, settings.SectionTranslate)
+	if err := tt.Click("全部影片"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.prefs.open {
+		t.Fatalf("settings still open at %q on page %q", a.prefs.section, a.page)
 	}
 }

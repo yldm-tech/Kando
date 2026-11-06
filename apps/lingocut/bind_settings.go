@@ -94,14 +94,35 @@ func (a *app) LLMResult() string { return a.prefs.llmTestResult }
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }
 
-// OpenSettings shows the settings at section, one of the settings package's Section values; "" opens 通用. The settings are sidebar pages until they get a window of their own, so this closes the open film; 字幕外观 and 快捷键 have no page yet and open 通用.
+// OpenSettings shows the settings at section, one of the settings package's Section values; "" or a value it does not know opens 通用. It records the request in the settings' own state (prefs.open, prefs.section), which is what other areas and their tests read. The settings are sidebar pages until they get a window of their own, so for now it also selects the page, which closes the open film; 字幕外观 and 快捷键 have no page yet and show 通用.
 func (a *app) OpenSettings(section string) {
 	switch section {
-	case settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionAccount:
+	case settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionLook, settings.SectionShortcuts, settings.SectionAccount:
 	default:
 		section = settings.SectionGeneral
 	}
-	a.Select(section)
+	a.prefs.open = true
+	a.prefs.section = section
+	page, _ := settingsSectionPage(section)
+	a.Select(page)
+}
+
+// settingsSectionPage is the sidebar page that shows section while the settings are sidebar pages. 字幕外观 and 快捷键 have none and show 通用; ok is false for them and for a value that is not a section.
+func settingsSectionPage(section string) (page string, ok bool) {
+	switch section {
+	case settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionAccount:
+		return section, true
+	}
+	return pageGeneral, false
+}
+
+// isSettingsPage reports whether page is one of the sidebar pages the settings live on until they get a window of their own.
+func isSettingsPage(page string) bool {
+	switch page {
+	case pageGeneral, pageSpeech, pageAI, pageTranslate, pageAccount:
+		return true
+	}
+	return false
 }
 
 // settingsPage draws the settings page a.page names, 账号 among them, and reports whether a.page is one. view shows the library otherwise.

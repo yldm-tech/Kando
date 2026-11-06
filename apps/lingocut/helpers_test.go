@@ -182,3 +182,11 @@ func waitUpdate(t *testing.T, updates <-chan func()) {
 		t.Fatal("timed out waiting for a background update")
 	}
 }
+
+// wantSettings fails t unless the settings are open at section, one of the settings package's Section values. Tests outside the settings area check the settings' own state this way, never a.page, because the settings become a window of their own.
+func wantSettings(t *testing.T, a *app, section string) {
+	t.Helper()
+	if !a.prefs.open || a.prefs.section != section {
+		t.Fatalf("settings open %v at %q, want open at %q", a.prefs.open, a.prefs.section, section)
+	}
+}
