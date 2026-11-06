@@ -213,7 +213,12 @@ func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool) {
 	stage.Children(func() {
 		switch {
 		case s.Play() != nil:
-			ui.Video(c, s.Play().Widget()).Fill().Fit(ui.Contain)
+			box := stage.LayoutBounds()
+			if box.W <= 0 || box.H <= 0 {
+				box.W, box.H = c.Size()
+			}
+			w, h := s.Play().Widget().Size()
+			ui.Video(c, s.Play().Widget()).Fill().Fit(pictureFit(box.W, box.H, w, h))
 			s.Play().Settle()
 		case s.PlayErr() != "":
 			stageNote(c, s.PlayErr(), t.Text)
@@ -223,6 +228,21 @@ func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool) {
 			stageNote(c, item.Detail, t.TextMuted)
 		}
 	})
+}
+
+// maxCrop is the most of a picture's width or height pictureFit cuts off to fill the stage: enough for a 16:9 or 1.85:1 film in a 16:10 window, not for a 2.39:1 film or a 4:3 one, which lose too much of their edges and show whole with bars instead.
+const maxCrop = 0.15
+
+// pictureFit fills the stage, stageW×stageH, with a picture of videoW×videoH, as the prototype does: the title bar and the transport float over the picture, with no black bars under them. A picture whose shape is far from the stage's would lose more than maxCrop of it, so it shows whole (ui.Contain) instead.
+func pictureFit(stageW, stageH float32, videoW, videoH int) ui.Fit {
+	if stageW <= 0 || stageH <= 0 || videoW <= 0 || videoH <= 0 {
+		return ui.Cover
+	}
+	picture, stage := float32(videoW)/float32(videoH), stageW/stageH
+	if 1-min(picture, stage)/max(picture, stage) > maxCrop {
+		return ui.Contain
+	}
+	return ui.Cover
 }
 
 // stageNote is a line in the middle of the picture, in the room the side panel leaves.
