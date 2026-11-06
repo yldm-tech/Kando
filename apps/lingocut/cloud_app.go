@@ -166,7 +166,7 @@ func (a *app) putFiles(ctx context.Context, cfg cloud.Store, files []cloud.File,
 
 func (a *app) uploadBlocked() string {
 	if strings.TrimSpace(a.cloud.googleEmail) == "" {
-		return "先在「账号」里登录 Google"
+		return "先在「设置 › 账号与上传」里登录 Google"
 	}
 	cfg := a.currentStore()
 	if storeReady(cfg) {
@@ -174,15 +174,15 @@ func (a *app) uploadBlocked() string {
 	}
 	switch cfg.Kind {
 	case cloud.KindS3:
-		return "先在「账号」里填写 S3"
+		return "先在「设置 › 账号与上传」里填写 S3"
 	case cloud.KindOSS:
-		return "先在「账号」里填写 OSS"
+		return "先在「设置 › 账号与上传」里填写 OSS"
 	case cloud.KindCOS:
-		return "先在「账号」里填写 COS"
+		return "先在「设置 › 账号与上传」里填写 COS"
 	case cloud.KindCompat:
-		return "先在「账号」里填写 S3 兼容"
+		return "先在「设置 › 账号与上传」里填写 S3 兼容"
 	default:
-		return "先在「账号」里填写 R2"
+		return "先在「设置 › 账号与上传」里填写 R2"
 	}
 }
 
