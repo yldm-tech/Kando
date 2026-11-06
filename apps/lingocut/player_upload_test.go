@@ -5,13 +5,16 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"lingocut/apps/lingocut/cloud"
+	"lingocut/apps/lingocut/films"
 	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 )
 
+// TestUploadSendsTheVideoAndSubtitle drives the player's upload button through UploadView: blocked without an account, then the video and its subtitle sent to the bucket, then done, with the object's key in its line. It does not check the wording of why an upload is blocked, which the settings own.
 func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	dir := t.TempDir()
 	videoDir := filepath.Join(dir, "talk")
@@ -52,8 +55,11 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	tt.Frame()
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText("上传到 R2") || !tt.HasText("先在「账号」里登录 Google") {
-		t.Fatalf("texts %q", tt.Texts())
+	// Without an account the upload is blocked: the button shows, disabled, with a line saying why. The wording of that line is the settings', so only that the window shows one is checked here.
+	item, _ := films.Find(a.films(), a.openKey)
+	view := a.UploadView(item)
+	if !view.Show || view.Enabled || view.Detail == "" || !tt.HasText(view.Label) || !tt.HasText(view.Detail) {
+		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
 	a.cloud.googleEmail = "a@b.c"
 	a.cloud.r2Endpoint = "acct"
@@ -61,7 +67,10 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	a.cloud.r2AccessKey = "key"
 	a.cloud.r2Secret = "secret-value"
 	tt.Frame()
-	if err := tt.Click("上传到 R2"); err != nil {
+	if view = a.UploadView(item); !view.Enabled {
+		t.Fatalf("upload %+v", view)
+	}
+	if err := tt.Click(view.Label); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	got := takeUpload(t, uploadedFiles)
@@ -71,10 +80,10 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	if bucket != "clips" || len(got) != 2 || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
 		t.Fatalf("bucket %q keys %#v", bucket, keysOf(got))
 	}
-	if !tt.HasText("已上传") {
-		t.Fatalf("texts %q", tt.Texts())
+	if view = a.UploadView(item); !view.Enabled || !strings.Contains(view.Detail, want) || !tt.HasText(view.Detail) {
+		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
-	if err := tt.Click("上传到 R2"); err != nil {
+	if err := tt.Click(view.Label); err != nil {
 		t.Fatal(err)
 	}
 	takeUpload(t, uploadedFiles)

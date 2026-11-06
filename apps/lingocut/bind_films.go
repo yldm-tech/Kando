@@ -16,6 +16,9 @@ func (a *app) OpenKey() string { return a.openKey }
 
 func (a *app) SetOpenKey(key string) { a.openKey = key }
 
+// libraryOwnsTitleBar reports whether the library page draws its own header bar at the top of the content column, keeping clear of the window controls and dragging the window, so the content has no drag band over it (contentBand). Today's library page does not.
+func (a *app) libraryOwnsTitleBar() bool { return false }
+
 func (a *app) Source() *string { return &a.queue.source }
 
 func (a *app) Status() string { return a.queue.status }
