@@ -45,13 +45,8 @@ func footer(c *ui.Context, t *ui.Theme, a App) {
 	ui.Row(c).Shrink(0).Margin(8).Padding(10, 12).Gap(10).AlignItems(ui.Center).Radius(11).Background(footerFill).Border(0.5, footerHairline).Label("状态").Children(func() {
 		ui.Box(c).Size(8, 8).Shrink(0).Radius(4).Background(dot)
 		breeze.Text(c, r.Message, breeze.TextCaption).Grow(1).MinWidth(0).Wrap()
-		if flatIconButton(c, iconGear, "设置").Shrink(0).Clicked() {
+		if breeze.FlatIconButton(c, iconGear, "设置").Shrink(0).Clicked() {
 			a.OpenSettings(r.Section)
 		}
 	})
-}
-
-// flatIconButton stands in for breeze.FlatIconButton (yldm-tech/mygo-breeze-ui#15) until a breeze release has it, with the same arguments: the bordered IconButton in its place. Replace the call with breeze.FlatIconButton then.
-func flatIconButton(c *ui.Context, icon *ui.SVG, label string) ui.Element {
-	return breeze.IconButton(c, icon, label)
 }
