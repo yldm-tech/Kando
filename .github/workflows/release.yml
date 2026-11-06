@@ -1,0 +1,124 @@
+name: Release
+
+# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and commits that to main as chore(release), tags the commit, and creates a draft GitHub release with generated notes. The Package workflow then builds the app for macOS, Windows and Linux from the tag and uploads the packages to the draft, and the last job adds their checksums and publishes it. Run it by hand to force a bump.
+#
+# The jobs run in one workflow, one after another, because a tag pushed with the workflow's GITHUB_TOKEN starts no other workflow.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Bump to make, whatever the commits call for
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Version
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.commit.outputs.sha != '' && steps.version.outputs.version || '' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Next version
+        id: version
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(.github/scripts/next-version.sh "$SHA" "$BUMP")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ -n "$version" ]; then
+            echo "Releasing $version from $SHA" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Nothing to release at $SHA" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      # The version goes to main in a commit of its own, which the tag points at, so that the app built from the tagged tree carries it. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
+      - name: Commit the version
+        id: commit
+        if: steps.version.outputs.version != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          .github/scripts/set-version.sh "$VERSION"
+          if ! git diff --quiet; then
+            git commit -am "chore(release): $VERSION"
+          fi
+          if git push origin HEAD:refs/heads/main; then
+            echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          else
+            echo "main moved on; its next release takes these commits" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Tag
+        if: steps.commit.outputs.sha != ''
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          git tag -a "$VERSION" -m "$VERSION" "$SHA"
+          git push origin "refs/tags/$VERSION"
+      # The packages are not signed yet (see package.yml), so the notes tell users how to open them; drop this note once the workflow signs them.
+      - name: Draft the release
+        if: steps.commit.outputs.sha != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cat > "$RUNNER_TEMP/notes.md" <<'EOF'
+          > [!NOTE]
+          > These builds are not signed yet. On macOS, open `Kando.app` once, then choose Open Anyway in System Settings > Privacy & Security, or run `xattr -dr com.apple.quarantine /Applications/Kando.app`. On Windows, choose More info > Run anyway when SmartScreen warns about the installer. `checksums.txt` lists the SHA-256 of every file.
+          EOF
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$VERSION" --generate-notes --notes-file "$RUNNER_TEMP/notes.md"
+
+  package:
+    name: Package
+    needs: version
+    if: needs.version.outputs.tag != ''
+    permissions:
+      contents: write
+    uses: ./.github/workflows/package.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+
+  publish:
+    name: Publish
+    needs: [version, package]
+    if: needs.version.outputs.tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checksums and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          mkdir dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dist
+          # A run again of this job finds the checksums of the one before among the files.
+          rm -f dist/checksums.txt
+          (cd dist && sha256sum -- * > checksums.txt && cat checksums.txt)
+          gh release upload "$TAG" dist/checksums.txt --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

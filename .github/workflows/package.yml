@@ -1,0 +1,103 @@
+name: Package
+
+# Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own. CI calls it to check that every package builds and keeps them as artifacts of the run; Release calls it with the tag it made and uploads them to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
+#
+# The packages are not signed for other machines: the macOS app is signed ad hoc, which Gatekeeper blocks until the user allows it, and the Windows installers carry no signature, for which SmartScreen warns. Signing them needs a Developer ID certificate and notary credentials, and a code signing certificate, as repository secrets (see MyGo's docs/github-actions.md).
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag to build and upload the packages to; empty builds the checked-out commit and keeps the packages as artifacts of the run
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: Package (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # packages: what each target must make, so that a package mygo build leaves out (as it does the Windows installer without NSIS) fails the row rather than going missing from the release. script: the install script of the Linux archives, the same for both architectures, so uploaded once.
+          - { name: macOS, os: macos-latest, platform: "darwin/arm64,darwin/amd64", packages: "*.dmg" }
+          - { name: Windows, os: ubuntu-latest, platform: "windows/amd64,windows/arm64", packages: "*-setup-*.exe" }
+          - { name: Linux, os: ubuntu-latest, platform: "linux/amd64,linux/arm64", packages: "*.deb *.tar.gz", script: linux-amd64/install.sh }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag }}
+      # A tag that does not match the version in mygo.json would upload packages named for another version.
+      - name: Check the version
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: test "$TAG" = "v$(jq -r .version apps/kando/mygo.json)"
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.work
+          cache-dependency-path: apps/kando/go.sum
+      - name: Install NSIS, for the Windows installers
+        if: matrix.name == 'Windows'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
+      - name: Build
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: go tool mygo build -platform "$PLATFORM" -o "$RUNNER_TEMP/packages" apps/kando
+      # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures.
+      - name: List the packages
+        id: packages
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          PACKAGES: ${{ matrix.packages }}
+          SCRIPT: ${{ matrix.script }}
+        run: |
+          cd "$RUNNER_TEMP/packages"
+          shopt -s nullglob
+          read -ra patterns <<<"$PACKAGES"
+          files=()
+          for target in ${PLATFORM//,/ }; do
+            dir=${target/\//-}
+            for pattern in "${patterns[@]}"; do
+              found=("$dir"/$pattern)
+              if [ "${#found[@]}" -ne 1 ]; then
+                echo "::error::mygo build made ${#found[@]} files matching $dir/$pattern, not one"
+                exit 1
+              fi
+              files+=("${found[0]}")
+            done
+          done
+          if [ -n "$SCRIPT" ]; then
+            if [ ! -f "$SCRIPT" ]; then
+              echo "::error::mygo build made no $SCRIPT"
+              exit 1
+            fi
+            files+=("$SCRIPT")
+          fi
+          printf '%s\n' "${files[@]}"
+          {
+            echo "files<<EOF"
+            printf '%s\n' "${files[@]/#/$RUNNER_TEMP/packages/}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Keep the packages
+        if: inputs.tag == ''
+        uses: actions/upload-artifact@v7
+        with:
+          name: kando-${{ matrix.name }}
+          path: ${{ steps.packages.outputs.files }}
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload to the release
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          FILES: ${{ steps.packages.outputs.files }}
+        run: |
+          files=()
+          while IFS= read -r file; do
+            files+=("$file")
+          done <<<"$FILES"
+          gh release upload "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --clobber

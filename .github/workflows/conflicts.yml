@@ -1,0 +1,43 @@
+name: Conflicts
+
+# Labels pull requests that conflict with their base branch (.github/scripts/label-conflicts.sh): every open one when main moves, and one when it is pushed to. pull_request_target runs this workflow as main has it, with a token that may label pull requests from forks too; it checks out main only, never the pull request's code.
+on:
+  push:
+    branches: [main]
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: conflicts-${{ github.event.pull_request.number || 'main' }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    name: Label conflicts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github
+      - name: Ensure the labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: .github/scripts/ensure-labels.sh
+      - name: Label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ]; then
+            .github/scripts/label-conflicts.sh "$PR"
+          else
+            .github/scripts/label-conflicts.sh
+          fi
