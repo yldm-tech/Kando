@@ -24,8 +24,9 @@ func switcher(c *ui.Context, t *ui.Theme, a App) {
 	if dir := a.LibraryDir(); dir != "" {
 		name = Title(dir)
 	}
-	ui.Row(c).Padding(0, 8, 10, 8).AlignItems(ui.Stretch).Children(func() {
-		pill := ui.ButtonBase(c).Grow(1).Height(40).Padding(0, 10).Gap(9).Radius(10).Border(0.5, pillHairline).Label("切换资料库，当前：" + name)
+	ui.Row(c).Padding(0, insetEnd, 10, insetStart).AlignItems(ui.Stretch).Children(func() {
+		// The hairline is a ring inside the edge that takes no room, as the prototype's inset box-shadow.
+		pill := ui.ButtonBase(c).Grow(1).Height(40).Padding(0, 10).Gap(9).Radius(10).InsetShadow(0, 0, 0, 0.5, pillHairline).Label("切换资料库，当前：" + name)
 		if pill.Pressed() {
 			pill.Background(pillOpenFill)
 		} else {
@@ -39,8 +40,9 @@ func switcher(c *ui.Context, t *ui.Theme, a App) {
 				ui.Icon(c, iconFolder).Size(14, 14).TextColor(white)
 			})
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
-				breeze.Text(c, "资料库", breeze.TextCaption, breeze.TextSecondary).FontWeight(700).SingleLine()
-				breeze.Text(c, name, breeze.TextHeading).SingleLine().Ellipsis("…")
+				// The prototype's two lines take 15 and 16 points, the browser's normal line heights for these sizes, which puts the caption's top 4.5 points below the pill's.
+				breeze.Text(c, "资料库", breeze.TextCaption, breeze.TextSecondary).FontWeight(700).LetterSpacing(0.2).LineHeight(1.5).SingleLine()
+				breeze.Text(c, name, breeze.TextHeading).FontWeight(600).LineHeight(16.0 / 13).SingleLine().Ellipsis("…")
 			})
 			ui.Icon(c, iconUpDown).Size(10, 10).TextColor(t.TextMuted).Shrink(0)
 		})

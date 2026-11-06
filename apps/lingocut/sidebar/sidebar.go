@@ -63,18 +63,22 @@ type App interface {
 	Readiness() Readiness
 }
 
-// The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a hairline and a soft shadow, 8 points in from the window's edges.
+// The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a white inner hairline, a dark outer one and a soft shadow, 8 points in from the window's edges.
 const (
 	cardMargin float32 = 8
 	cardRadius float32 = 14
+	// insetStart and insetEnd are how far the switcher, the sources and the status line stand in from the card's edges. In the prototype the card is 231 wide and runs 3 points under the content, so they end 8 points before that hidden edge, 5 before the one that shows.
+	insetStart float32 = 8
+	insetEnd   float32 = 5
 	// LightsRow is the empty row at the top of the card that the traffic lights sit in.
 	LightsRow float32 = 48
 )
 
 var (
-	cardFill     = ui.RGBA(255, 255, 255, 0.42)
-	cardHairline = ui.RGBA(0, 0, 0, 0.06)
-	cardShadow   = ui.RGBA(30, 50, 90, 0.08)
+	cardFill      = ui.RGBA(255, 255, 255, 0.42)
+	cardHighlight = ui.RGBA(255, 255, 255, 0.85)
+	cardHairline  = ui.RGBA(0, 0, 0, 0.06)
+	cardShadow    = ui.RGBA(30, 50, 90, 0.08)
 	// gutterFill stands in for the window's material where the window has none (Tester, a window without vibrancy): the prototype's frosted strip over a white page.
 	gutterFill = ui.Hex("#F0F2F6")
 )
@@ -87,7 +91,9 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 		col.Background(gutterFill)
 	}
 	col.Children(func() {
-		card := ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Radius(cardRadius).Background(cardFill).Border(0.5, cardHairline).Shadow(0, 4, 14, 0, cardShadow)
+		// The hairlines are rings of half a point that take no room, as the prototype's box-shadows: white just inside the edge, dark just outside it.
+		card := ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Radius(cardRadius).Background(cardFill)
+		card.InsetShadow(0, 0, 0, 0.5, cardHighlight).Shadow(0, 0, 0, 0.5, cardHairline).Shadow(0, 4, 14, 0, cardShadow)
 		card.Children(func() {
 			top := float32(10)
 			if c.TitleBar().Height > 0 {

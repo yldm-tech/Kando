@@ -14,17 +14,24 @@ func sources(c *ui.Context, a App) {
 		current = a.SourceFilter()
 	}
 	sel := current
+	mac := breeze.PlatformOf(c) == breeze.Mac
 	breeze.Sidebar(c, &sel, func() {
 		for _, source := range []string{SourceAll, SourceYouTube, SourceBilibili, SourceWeb, SourceLocal} {
 			n := a.SourceCount(source)
 			if source == SourceWeb && n == 0 && current != SourceWeb {
 				continue
 			}
-			breeze.SidebarItem(c, source, sourceIcon(source), SourceLabel(source)).Children(func() {
+			// The prototype's rows stand 2 points apart, where a source list's touch.
+			row := breeze.SidebarItem(c, source, sourceIcon(source), SourceLabel(source)).Margin(0, 0, 2, 0)
+			if mac {
+				// The prototype pads its rows 10 points at the end, for the count, and centers the icon 19 points in, where a source list's is 17.5: its 18-point icon starts 10 in.
+				row.PaddingStart(11).PaddingEnd(10)
+			}
+			row.Children(func() {
 				breeze.Text(c, strconv.Itoa(n), breeze.TextSecondary).FontSize(12).Shrink(0)
 			})
 		}
-	}).Background(ui.Transparent).Padding(0, 8).Grow(1)
+	}).Background(ui.Transparent).Padding(0, insetEnd, 0, insetStart).Grow(1)
 	if sel != current {
 		a.SetSourceFilter(sel)
 	}

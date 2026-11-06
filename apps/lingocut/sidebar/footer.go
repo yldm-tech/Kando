@@ -28,6 +28,7 @@ type Readiness struct {
 var (
 	footerFill     = ui.RGBA(255, 255, 255, 0.55)
 	footerHairline = ui.RGBA(0, 0, 0, 0.06)
+	footerText     = ui.Hex("#3A3A3F")
 	readyDot       = ui.Hex("#30D158")
 	missingDot     = ui.Hex("#FF9F0A")
 )
@@ -42,10 +43,11 @@ func footer(c *ui.Context, t *ui.Theme, a App) {
 	case Missing:
 		dot = missingDot
 	}
-	ui.Row(c).Shrink(0).Margin(8).Padding(10, 12).Gap(10).AlignItems(ui.Center).Radius(11).Background(footerFill).Border(0.5, footerHairline).Label("状态").Children(func() {
+	// The hairline is a ring outside the edge that takes no room, as the prototype's box-shadow. The message is the prototype's 11 points on 15, a point above the platform's caption, and the gear's button its 26-point square, the gear in the message's color.
+	ui.Row(c).Shrink(0).Margin(8, insetEnd, 8, insetStart).Padding(10, 12).Gap(10).AlignItems(ui.Center).Radius(11).Background(footerFill).Shadow(0, 0, 0, 0.5, footerHairline).Label("状态").Children(func() {
 		ui.Box(c).Size(8, 8).Shrink(0).Radius(4).Background(dot)
-		breeze.Text(c, r.Message, breeze.TextCaption).Grow(1).MinWidth(0).Wrap()
-		if breeze.FlatIconButton(c, iconGear, "设置").Shrink(0).Clicked() {
+		breeze.Text(c, r.Message, breeze.TextCaption).FontSize(11).LineHeight(15.0 / 11).TextColor(footerText).Grow(1).MinWidth(0).Wrap()
+		if breeze.FlatIconButton(c, iconGear, "设置").Size(26, 26).TextColor(footerText).Shrink(0).Clicked() {
 			a.OpenSettings(r.Section)
 		}
 	})
