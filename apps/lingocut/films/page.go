@@ -7,7 +7,7 @@ import (
 	"lingocut/packages/core"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/oneo-me/onevra/source/components"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // App is the shelf the films page reads and the clicks it reports.
@@ -72,16 +72,16 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 		})
 		if running {
 			c.Key("cancel")
-			if components.Button(c, "取消", components.ButtonSecondary).Shrink(0).Clicked() {
+			if breeze.Button(c, "取消").Shrink(0).Clicked() {
 				a.Stop()
 			}
 		} else {
 			c.Key("files")
-			if components.Button(c, "本地文件", components.ButtonSecondary).Shrink(0).Clicked() {
+			if breeze.Button(c, "本地文件").Shrink(0).Clicked() {
 				a.PickVideos()
 			}
 			c.Key("start")
-			if components.Button(c, "开始处理", components.ButtonPrimary).Shrink(0).Clicked() {
+			if breeze.PrimaryButton(c, "开始处理").Shrink(0).Clicked() {
 				a.Start()
 			}
 		}
@@ -128,10 +128,10 @@ func welcome(c *ui.Context, t *ui.Theme, a App) {
 			draft(c, t, a, "创建资料库")
 			if a.LibraryDir() == "" {
 				ui.Text(c, "已经有资料库").TextColor(t.TextMuted).FontSize(12)
-				if components.Button(c, "导入已有资料库", components.ButtonSecondary).Clicked() {
+				if breeze.Button(c, "导入已有资料库").Clicked() {
 					a.PickLibrary()
 				}
-			} else if components.Button(c, "取消新建", components.ButtonSecondary).Clicked() {
+			} else if breeze.Button(c, "取消新建").Clicked() {
 				a.CancelMaking()
 			}
 			if a.SaveErr() != "" {
@@ -144,7 +144,7 @@ func welcome(c *ui.Context, t *ui.Theme, a App) {
 func draft(c *ui.Context, t *ui.Theme, a App, confirm string) {
 	ui.Text(c, "名称").TextColor(t.TextMuted).FontSize(12)
 	if err := a.BindName(func(value *string) bool {
-		return components.TextBox(c, value, components.TextBoxOptions{}).Label("资料库名称").Placeholder("影视库").Changed()
+		return breeze.TextInput(c, value).Label("资料库名称").Placeholder("影视库").Changed()
 	}); err != nil {
 		ui.Text(c, err.Error()).TextColor(t.Danger)
 		return
@@ -152,11 +152,11 @@ func draft(c *ui.Context, t *ui.Theme, a App, confirm string) {
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "位置").TextColor(t.TextMuted).Shrink(0)
 		ui.Text(c, DisplayPath(a.LibraryPlace())).Grow(1).TextColor(t.Text)
-		if components.Button(c, "更改位置", components.ButtonSecondary).Clicked() {
+		if breeze.Button(c, "更改位置").Clicked() {
 			a.PickLibraryParent()
 		}
 	})
-	if components.Button(c, confirm, components.ButtonPrimary).Clicked() {
+	if breeze.PrimaryButton(c, confirm).Clicked() {
 		a.CreateLibrary()
 	}
 }
@@ -183,10 +183,10 @@ func card(c *ui.Context, t *ui.Theme, a App, item Film) {
 						ui.Text(c, label).TextColor(color).Bold()
 					}
 					if item.JobID != "" && item.Stage == core.StageFailed && !a.Running() {
-						if components.Button(c, "移除", components.ButtonSecondary).Clicked() {
+						if breeze.Button(c, "移除").Clicked() {
 							a.Remove(item.JobID)
 						}
-						if ui.PrimaryButton(c, "重试").Clicked() {
+						if breeze.PrimaryButton(c, "重试").Clicked() {
 							a.Retry(item.JobID)
 						}
 					}

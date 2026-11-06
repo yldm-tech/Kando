@@ -10,8 +10,7 @@ import (
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/oneo-me/onevra/source/components"
-	"github.com/oneo-me/onevra/source/icons/lucide"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // Preset is one translation service the settings page can select.
@@ -82,7 +81,7 @@ func (s screen) settings(c *ui.Context, t *ui.Theme) {
 }
 
 func (s screen) translateSettings(c *ui.Context, t *ui.Theme) {
-	ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
+	ui.Themed(c, cardTheme(t)).Radius(12).Padding(4, 16).Children(func() {
 		ui.Row(c).MinHeight(48).Padding(8, 0).Gap(16).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, "默认翻译为").Grow(1)
 			c.Key("translate-language")
@@ -99,7 +98,7 @@ func (s screen) translateSettings(c *ui.Context, t *ui.Theme) {
 			})
 			c.Key("translate-context")
 			before := *s.TranslateContext()
-			components.Switch(c, s.TranslateContext(), "智能翻译", components.SwitchOptions{HideLabel: true})
+			breeze.Switch(c, s.TranslateContext()).Label("智能翻译")
 			if *s.TranslateContext() != before {
 				s.Save()
 			}
@@ -107,9 +106,9 @@ func (s screen) translateSettings(c *ui.Context, t *ui.Theme) {
 	})
 	ui.Text(c, "提示词")
 	usingDefault := strings.TrimSpace(*s.TranslatePrompt()) == strings.TrimSpace(media.DefaultSubtitlePrompt)
-	ui.Column(c).Background(t.Surface).Radius(12).Padding(12, 16).Gap(10).Children(func() {
+	ui.Themed(c, cardTheme(t)).Radius(12).Padding(12, 16).Gap(10).Children(func() {
 		c.Key("translate-prompt")
-		prompt := components.TextBox(c, s.TranslatePrompt(), components.TextBoxOptions{Multiline: true}).Height(148).Label("提示词")
+		prompt := breeze.TextArea(c, s.TranslatePrompt()).Height(148).Label("提示词")
 		if prompt.Changed() {
 			s.Save()
 		}
@@ -121,7 +120,7 @@ func (s screen) translateSettings(c *ui.Context, t *ui.Theme) {
 			}
 			ui.Text(c, label).TextColor(t.TextMuted).Grow(1)
 			c.Key("translate-reset")
-			reset := components.Button(c, "恢复默认", components.ButtonSecondary).Disabled(usingDefault)
+			reset := breeze.Button(c, "恢复默认").Disabled(usingDefault)
 			if reset.Clicked() {
 				*s.TranslatePrompt() = media.DefaultSubtitlePrompt
 				s.Save()
@@ -132,16 +131,7 @@ func (s screen) translateSettings(c *ui.Context, t *ui.Theme) {
 }
 
 func choiceSelect(c *ui.Context, selected *string, options []string) ui.Element {
-	sel := components.Select(c, selected)
-	current := *selected
-	sel.Trigger.Children(func() { components.Text(c, current).SingleLine() })
-	sel.Popup(func(ui.Element) {
-		for _, opt := range options {
-			opt := opt
-			sel.Item(opt).Children(func() { components.Text(c, opt).SingleLine() })
-		}
-	})
-	return sel.Trigger
+	return breeze.Select(c, selected, options)
 }
 
 func languageChoices(current string) []string {
@@ -183,7 +173,7 @@ func (s screen) generalSettings(c *ui.Context, t *ui.Theme, tools media.Tools, k
 			ui.Text(c, "这些程序来自本机，LingoCut 不负责安装或更新。").TextColor(t.TextMuted).FontSize(12).Grow(1).Wrap()
 			if known {
 				c.Key("redetect")
-				if components.Button(c, "重新检测", components.ButtonSecondary).Clicked() {
+				if breeze.Button(c, "重新检测").Clicked() {
 					s.Redetect()
 				}
 			}
@@ -196,7 +186,7 @@ func (s screen) speechSettings(c *ui.Context, t *ui.Theme, tools media.Tools) {
 	models := media.SpeechModels()
 	ui.Column(c).Gap(8).Children(func() {
 		ui.Text(c, "Whisper")
-		ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 12).Children(func() {
+		ui.Themed(c, cardTheme(t)).Radius(12).Padding(4, 12).Children(func() {
 			for i, model := range models {
 				if i > 0 {
 					ui.Box(c).Fill().Height(1).Background(t.Border)
@@ -246,7 +236,7 @@ func (s screen) speechModelAction(c *ui.Context, t *ui.Theme, model media.Speech
 			label = fmt.Sprintf("%d%%", s.DownloadWritten()*100/s.DownloadTotal())
 		}
 		c.Key(model.ID + "-cancel")
-		if components.Button(c, label, components.ButtonSecondary).Clicked() {
+		if breeze.Button(c, label).Clicked() {
 			s.CancelDownload()
 		}
 		return
@@ -256,7 +246,7 @@ func (s screen) speechModelAction(c *ui.Context, t *ui.Theme, model media.Speech
 		return
 	}
 	c.Key(model.ID + "-download")
-	if components.Button(c, "下载", components.ButtonSecondary).Clicked() {
+	if breeze.Button(c, "下载").Clicked() {
 		s.DownloadModel(model.ID)
 	}
 }
@@ -308,10 +298,10 @@ func (s screen) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool
 				})
 			})
 			ui.Text(c, "连接")
-			ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
+			ui.Themed(c, cardTheme(t)).Radius(12).Padding(4, 16).Children(func() {
 				s.llmField(c, t, "Base URL", "任何兼容 OpenAI Chat Completions 的服务都可以。", func() {
 					c.Key("llm-base")
-					input := fitControl(components.TextBox(c, s.LLMBase(), components.TextBoxOptions{}).Label("Base URL"))
+					input := fitControl(breeze.TextInput(c, s.LLMBase()).Label("Base URL"))
 					if input.Changed() {
 						s.SetLLMProvider(s.ProviderID(*s.LLMBase()))
 						s.ApplyLLM()
@@ -324,7 +314,7 @@ func (s screen) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool
 				}
 				s.llmField(c, t, "API Key", hint, func() {
 					c.Key("llm-key")
-					input := fitControl(components.TextBox(c, s.LLMKey(), components.TextBoxOptions{}).Label("API Key"))
+					input := fitControl(breeze.TextInput(c, s.LLMKey()).Label("API Key"))
 					if !s.ShowLLMKey() {
 						input.Password()
 					}
@@ -336,14 +326,14 @@ func (s screen) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool
 					if s.ShowLLMKey() {
 						label = "隐藏"
 					}
-					if components.Button(c, label, components.ButtonSecondary).Shrink(0).Clicked() {
+					if breeze.Button(c, label).Shrink(0).Clicked() {
 						s.ToggleLLMKey()
 					}
 				})
 				ui.Box(c).Fill().Height(1).Background(t.Border)
 				s.llmField(c, t, "模型", "", func() {
 					c.Key("llm-model")
-					input := fitControl(components.TextBox(c, s.LLMModel(), components.TextBoxOptions{}).Label("模型"))
+					input := fitControl(breeze.TextInput(c, s.LLMModel()).Label("模型"))
 					if input.Changed() {
 						s.ApplyLLM()
 					}
@@ -355,7 +345,7 @@ func (s screen) aiSettings(c *ui.Context, t *ui.Theme, _ media.Tools, known bool
 					if s.TestingLLM() {
 						label = "正在测试…"
 					}
-					if components.Button(c, label, components.ButtonSecondary).Clicked() && !s.TestingLLM() {
+					if breeze.Button(c, label).Clicked() && !s.TestingLLM() {
 						s.TestLLM()
 					}
 				})
@@ -454,9 +444,9 @@ func (s screen) currentLibraryRow(c *ui.Context, t *ui.Theme) {
 			s.Reveal(dir)
 		}
 		folder.Children(func() {
-			components.Icon(c, lucide.Folder).Size(16, 16).TextColor(t.TextMuted)
+			ui.Icon(c, iconFolder).Size(16, 16).TextColor(t.TextMuted)
 		})
-		components.Button(c, "切换", components.ButtonSecondary).Shrink(0).PopoverMenuButton(func(m *ui.Menu) { s.LibraryMenu(m) })
+		breeze.Button(c, "切换").Shrink(0).PopoverMenuButton(func(m *ui.Menu) { s.LibraryMenu(m) })
 	})
 }
 
@@ -471,7 +461,7 @@ func settingSection(c *ui.Context, t *ui.Theme, title, note string, body func())
 }
 
 func settingCard(c *ui.Context, t *ui.Theme, lines ...func()) {
-	ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
+	ui.Themed(c, cardTheme(t)).Radius(12).Padding(4, 16).Children(func() {
 		for i, line := range lines {
 			if i > 0 {
 				ui.Box(c).Fill().Height(1).Background(t.Border)
@@ -479,6 +469,13 @@ func settingCard(c *ui.Context, t *ui.Theme, lines ...func()) {
 			line()
 		}
 	})
+}
+
+// cardTheme is the theme inside a card: breeze draws a control's face as a tint of the background behind it, so the card's color takes the place of the window's.
+func cardTheme(t *ui.Theme) *ui.Theme {
+	card := *t
+	card.Background = t.Surface
+	return &card
 }
 
 func settingLine(c *ui.Context, t *ui.Theme, label, value string, trailing func()) {

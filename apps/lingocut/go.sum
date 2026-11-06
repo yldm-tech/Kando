@@ -32,12 +32,12 @@ github.com/go-text/typesetting-utils v0.0.0-20260419141703-4ffe8874dabc h1:8FGo2
 github.com/go-text/typesetting-utils v0.0.0-20260419141703-4ffe8874dabc/go.mod h1:3/62I4La/HBRX9TcTpBj4eipLiwzf+vhI+7whTc9V7o=
 github.com/gofrs/flock v0.13.1 h1:jjREztyBeSKBZYAC+mgc1laB+xsgy4kYMf3FbKF2UBo=
 github.com/gofrs/flock v0.13.1/go.mod h1:sf4BFiHwnvgxa25DlQoDqXQnwRMEOwqxRq37P6MzzmE=
-github.com/oneo-me/onevra/source v0.2026.17 h1:2arCN5YIa7fDL48dtKH76nXnyVW2gPSlzyJFb8L4b1Q=
-github.com/oneo-me/onevra/source v0.2026.17/go.mod h1:/+3SV9M2gM5Gq4ljua6afXcp+s4+3Lk/5wWSOg/qSAA=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/yldm-tech/ai-logo/mygo v1.15.0 h1:l2wpuIseEEv3d/DufMIqYu9q1oVPxwmJr2OzA0QPSf4=
 github.com/yldm-tech/ai-logo/mygo v1.15.0/go.mod h1:vex0tOqgXeQKEZZkCnQLAW2vyQywbw10GIepzUBCMqE=
+github.com/yldm-tech/mygo-breeze-ui v0.1.0 h1:AMVwePoHzWUpP4BtrBOdXz8bQtLv+DCF7A9zomfM2JY=
+github.com/yldm-tech/mygo-breeze-ui v0.1.0/go.mod h1:ZfEox1VDVZtA76UoVwmFfgMGRqt3OgNkQEjBb90M19U=
 github.com/yldm-tech/nodra v1.1.0 h1:Nchhltvve8EWNyChtpVzFAy8hwQt6OhpKHX9G2078ts=
 github.com/yldm-tech/nodra v1.1.0/go.mod h1:Xv8gzEzE8B2noBatHYTLGloXenXxabR6i9HFeHcD4Yk=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=

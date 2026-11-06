@@ -21,14 +21,11 @@ import (
 	"lingocut/apps/lingocut/film"
 	"lingocut/apps/lingocut/films"
 	"lingocut/apps/lingocut/shelf"
-	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
-	appshell "github.com/oneo-me/onevra/source/shells/sidebar"
-	"github.com/oneo-me/onevra/source/theme"
 	"github.com/yldm-tech/nodra"
 )
 
@@ -116,8 +113,6 @@ type app struct {
 	library          shelf.Library
 	pipeline         media.Pipeline
 	win              *mygo.Window
-	shell            *appshell.Shell
-	shellFilm        bool
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 	cancel context.CancelFunc
@@ -1760,24 +1755,27 @@ func main() {
 	a.restartLibraryWatch()
 	mygo.Theme.SetSource(mygo.ThemeDark)
 	mygo.App.WhenReady(func() {
-		shell := appshell.NewShell(appshell.ShellOptions{
-			Title:     "LingoCut",
-			Width:     1100,
-			Height:    720,
-			MinWidth:  900,
-			MinHeight: 560,
-			StateKey:  "main",
-			LeftWidth: int(sidebarWidth),
-			Theme:     theme.Onevra,
-			Left: func(c *ui.Context) {
-				ui.Column(c).Fill().Padding(appshell.HeaderHeight(c), 0, 0, 0).Children(func() {
-					sidebar.Show(c, c.Theme(), len(a.films()), appLogo, a)
-				})
-			},
-			Content: func(c *ui.Context) { a.shellBody(c) },
+		// The sidebar's material: AppKit's source list on macOS and Mica on Windows, whose NavigationView pane is transparent over it, as Onevra's shell chose.
+		vibrancy := mygo.VibrancyNone
+		switch runtime.GOOS {
+		case "darwin":
+			vibrancy = mygo.VibrancySidebar
+		case "windows":
+			vibrancy = mygo.VibrancyMica
+		}
+		win = mygo.NewWindow(mygo.WindowOptions{
+			Title:                "LingoCut",
+			Width:                1100,
+			Height:               720,
+			MinWidth:             900,
+			MinHeight:            560,
+			StateKey:             "main",
+			TitleBarStyle:        mygo.TitleBarHidden,
+			TrafficLightPosition: &mygo.Point{X: 16, Y: 16},
+			Transparent:          runtime.GOOS == "darwin",
+			Vibrancy:             vibrancy,
+			Content:              ui.View(a.view),
 		})
-		a.shell = shell
-		win = shell.Window()
 		a.win = win
 		nodra.Invalidate(a.store, win)
 		a.loadToolVersions()
