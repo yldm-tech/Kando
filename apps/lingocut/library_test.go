@@ -270,8 +270,9 @@ func countText(tt *ui.Tester, s string) int {
 func TestDropQueuesEveryVideo(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{block: true})
 	t.Cleanup(func() {
-		a.Cancel(a.RunningJob())
+		// Cancel whatever runs until nothing does: once the queue keeps every dropped video waiting, stopping the running one starts the next.
 		for a.RunningJob() != "" {
+			a.Cancel(a.RunningJob())
 			(<-updates)()
 		}
 	})
