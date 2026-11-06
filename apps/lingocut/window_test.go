@@ -159,3 +159,22 @@ func TestWindowIsLightAndTheFilmDark(t *testing.T) {
 		t.Fatalf("film page = %v, want dark", px)
 	}
 }
+
+func TestTitleBarClearsTheTrafficLights(t *testing.T) {
+	_, tt, _ := newTestApp(&fakePipeline{})
+	tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 70})
+	title, ok := tt.Find("videos")
+	if !ok {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if title.Y < 28 {
+		t.Fatalf("title sits under the traffic lights at y=%v", title.Y)
+	}
+
+	_, plain, _ := newTestApp(&fakePipeline{})
+	plain.Frame()
+	title, ok = plain.Find("videos")
+	if !ok || title.Y >= 28 {
+		t.Fatalf("title y=%v without a title bar", title.Y)
+	}
+}

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"lingocut/packages/core"
@@ -76,4 +78,88 @@ func TestCancelLeavesOtherJobsAlone(t *testing.T) {
 	}
 	a.Cancel(a.queue.selectedID)
 	waitUntil(t, updates, func() bool { return !a.running() })
+}
+
+func TestViewRunsJobToCompletion(t *testing.T) {
+	p := &fakePipeline{}
+	a, tt, updates := newTestApp(p)
+	startJob(t, tt, "https://example.com/video")
+	if a.queue.job == nil || a.queue.status != "任务已加入队列" {
+		t.Fatalf("texts %q after starting", tt.Texts())
+	}
+
+	settle(t, a, tt, updates)
+	if !tt.HasText("已完成") || !tt.HasText("talk") {
+		t.Fatalf("texts %q after the job", tt.Texts())
+	}
+	if p.language != "简体中文" {
+		t.Fatalf("translated into %q", p.language)
+	}
+	if !tt.HasText("开始处理") {
+		t.Fatal("start button did not come back")
+	}
+}
+
+func TestViewCancelsRunningJob(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	startJob(t, tt, "https://example.com/video")
+	tt.Frame()
+	if err := tt.Click("取消"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+
+	settle(t, a, tt, updates)
+	if !tt.HasText("已取消") || !tt.HasText("开始处理") {
+		t.Fatalf("texts %q after cancelling", tt.Texts())
+	}
+}
+
+func TestRetryKeepsTheSameCard(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.library.Jobs = []core.Job{{
+		ID: "same", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Language: "简体中文",
+		Stage: core.StageFailed, VideoPath: "/videos/Colibri [TRWgBxVAb1M].mp4",
+		Err: errors.New("translate: translation API returned 401"),
+	}}
+	tt.Frame()
+	if err := tt.Click("重试"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].ID != "same" || a.library.Jobs[0].Stage == core.StageFailed {
+		t.Fatalf("right after retry: %#v", a.library.Jobs)
+	}
+
+	settle(t, a, tt, updates)
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].ID != "same" || a.library.Jobs[0].Stage != core.StageComplete {
+		t.Fatalf("after retry: %#v", a.library.Jobs)
+	}
+	if tt.HasText("失败") {
+		t.Fatalf("failed card stayed: %q", tt.Texts())
+	}
+}
+
+func TestSwitchLibraryStopsTheJobAndRemembersTheDirectory(t *testing.T) {
+	p := &fakePipeline{block: true}
+	a, tt, updates := newTestApp(p)
+	startJob(t, tt, "https://example.com/video")
+	if !a.running() {
+		t.Fatal("job did not start")
+	}
+	dir := filepath.Join(t.TempDir(), "library")
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.switchLibrary(dir)
+	if a.snap().LibraryDir != dir {
+		t.Fatalf("library = %q", a.snap().LibraryDir)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatal(err)
+	}
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.LibraryDir != dir || len(saved.Libraries) != 1 || saved.Libraries[0] != dir {
+		t.Fatalf("saved %#v", saved)
+	}
+	settle(t, a, tt, updates)
+	if a.running() {
+		t.Fatal("switching the library left the job running")
+	}
 }
