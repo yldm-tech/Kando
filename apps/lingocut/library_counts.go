@@ -9,7 +9,7 @@ import (
 	"lingocut/packages/media"
 )
 
-// countLibraries reads, off the UI thread, how many films each known library that is not open holds, as its shelf would list them, and keeps them in the sidebar's state for the library switcher's menu. The open library's count is the shelf's own.
+// countLibraries reads, off the UI thread, how many films each known library that is not open holds, as its shelf would list them, and keeps them in the sidebar's state for the library switcher's menu, unless a later run started meanwhile. The open library's count is the shelf's own.
 func (a *app) countLibraries() {
 	if a.update == nil {
 		return
@@ -21,6 +21,8 @@ func (a *app) countLibraries() {
 			dirs = append(dirs, filepath.Clean(dir))
 		}
 	}
+	a.side.counting++
+	run := a.side.counting
 	if len(dirs) == 0 {
 		return
 	}
@@ -37,6 +39,9 @@ func (a *app) countLibraries() {
 			counts[dir] = len(films.List(dir, jobs, videos, noName, noName))
 		}
 		update(func() {
+			if run != a.side.counting {
+				return
+			}
 			a.side.libraryCounts = counts
 		})
 	}()

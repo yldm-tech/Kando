@@ -10,6 +10,8 @@ type sidebarUI struct {
 	ready readiness
 	// libraryCounts is how many films each known library that is not open holds, by its cleaned path, read off the UI thread for the library switcher's menu (countLibraries).
 	libraryCounts map[string]int
+	// counting numbers the countLibraries runs, so the counts of a run that ends after a later one are dropped.
+	counting int
 }
 
 func newSidebarUI() sidebarUI {

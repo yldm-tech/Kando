@@ -235,6 +235,41 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	tt.CloseMenu()
 }
 
+// TestLibraryCountsKeepTheLatestRun checks that counts read before a library switch, arriving after the ones read after it, do not replace them and leave the library just left without a count.
+func TestLibraryCountsKeepTheLatestRun(t *testing.T) {
+	parent := t.TempDir()
+	first := filepath.Join(parent, "甲.lingocut")
+	second := filepath.Join(parent, "乙.lingocut")
+	for _, path := range []string{filepath.Join(first, "a.mp4"), filepath.Join(second, "b.mp4"), filepath.Join(second, "c.mp4")} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, _, updates := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) {
+		s.LibraryDir = first
+		s.Libraries = []string{first, second}
+	})
+	// The startup count, of 乙, is still running when the user switches to 乙 and 甲 is counted.
+	a.countLibraries()
+	var startup func()
+	select {
+	case startup = <-updates:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the startup count")
+	}
+	a.edit(func(s *session) { s.LibraryDir = second })
+	a.countLibraries()
+	waitUpdate(t, updates)
+	startup()
+	if n, ok := a.LibraryCount(first); !ok || n != 1 {
+		t.Fatalf("count of the library just left = %d, %v; want 1", n, ok)
+	}
+}
+
 func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 	model := filepath.Join(t.TempDir(), "ggml-base.bin")
 	if err := os.WriteFile(model, []byte("model"), 0o644); err != nil {
