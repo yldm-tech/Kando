@@ -86,12 +86,22 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt.Frame()
-	for _, text := range []string{"先准备一个资料库", "创建资料库", "导入已有资料库", "更改位置"} {
+	for _, text := range []string{"还没有资料库", "新建资料库…", "打开已有资料库…"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("创建资料库"); err != nil {
+	if err := tt.Click("新建资料库…"); err != nil {
+		t.Fatal(err)
+	}
+	a.edit(func(s *session) { s.LibraryName = "第一库" })
+	tt.Frame()
+	for _, text := range []string{"新建资料库", "名称", "位置", "更改…", "取消", "创建"} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in the sheet %q", text, tt.Texts())
+		}
+	}
+	if err := tt.Click("创建"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -102,16 +112,16 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if _, err := os.Stat(first); err != nil {
 		t.Fatal(err)
 	}
-	if tt.HasText("先准备一个资料库") {
-		t.Fatal("the welcome stayed after the library was created")
+	if tt.HasText("还没有资料库") || tt.HasText("新建资料库") {
+		t.Fatalf("the empty page or the sheet stayed after the library was created: %q", tt.Texts())
 	}
 	chooseFromSwitcher(t, tt, "新建资料库…")
 	a.edit(func(s *session) { s.LibraryName = "第二库" })
 	tt.Frame()
-	if !tt.HasText("新建资料库") || !tt.HasText("创建资料库") {
+	if !tt.HasText("新建资料库") || !tt.HasText("创建") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	if err := tt.Click("创建资料库"); err != nil {
+	if err := tt.Click("创建"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()

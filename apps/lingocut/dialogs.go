@@ -19,11 +19,11 @@ func (a *app) pickVideos() {
 		update(func() {
 			release()
 			if err != nil {
-				a.queue.status = err.Error()
+				a.warn(err.Error(), "")
 				return
 			}
 			if len(paths) > 0 {
-				a.importLocal(paths[0])
+				a.dropFiles(paths)
 			}
 		})
 	}()

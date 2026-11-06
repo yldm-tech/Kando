@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"lingocut/packages/media"
 
@@ -22,7 +23,7 @@ func (a *app) posterOf(video string) ui.ImageSource {
 	return a.lib.posters[video]
 }
 
-// ensurePoster grabs one frame the first time a card needs it. A miss is remembered so the card does not retry every frame.
+// ensurePoster grabs one frame of a video the first time the shelf has it, and reads how long the video plays with it. A miss is remembered so the video is not tried again. loadExtras calls it; the page only shows what it found.
 func (a *app) ensurePoster(video string) {
 	if video == "" || a.update == nil || a.lib.posters[video] != nil || a.lib.posterMiss[video] || a.lib.posterBusy[video] {
 		return
@@ -37,6 +38,7 @@ func (a *app) ensurePoster(video string) {
 		return
 	}
 	tools, ok := a.pipeline.(media.Tools)
+	probe := tools.FFmpeg
 	replace := false
 	if info, err := os.Stat(dest); err == nil && info.Size() > 0 {
 		replace = media.PosterTooDark(dest)
@@ -55,6 +57,10 @@ func (a *app) ensurePoster(video string) {
 	a.lib.posterBusy[video] = true
 	update, ffmpeg := a.update, tools.FFmpeg
 	go func() {
+		var length time.Duration
+		if probe != "" {
+			length = media.VideoDuration(probe, video)
+		}
 		var err error
 		if _, statErr := os.Stat(dest); statErr != nil || replace {
 			err = media.GrabPoster(context.Background(), ffmpeg, video, dest)
@@ -70,6 +76,12 @@ func (a *app) ensurePoster(video string) {
 		}
 		update(func() {
 			delete(a.lib.posterBusy, video)
+			if length > 0 {
+				if a.lib.durations == nil {
+					a.lib.durations = map[string]time.Duration{}
+				}
+				a.lib.durations[video] = length
+			}
 			if err != nil || img == nil {
 				a.markPosterMiss(video)
 				return

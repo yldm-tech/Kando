@@ -179,7 +179,7 @@ func TestShortcutsAreUnique(t *testing.T) {
 	}
 }
 
-func TestDroppedVideoIsReadyToProcess(t *testing.T) {
+func TestDroppedVideoIsQueued(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	dir := t.TempDir()
 	note := filepath.Join(dir, "a.txt")
@@ -190,8 +190,8 @@ func TestDroppedVideoIsReadyToProcess(t *testing.T) {
 		}
 	}
 	a.dropFiles([]string{note, video})
-	if a.queue.source != "file://"+video {
-		t.Fatalf("source %q", a.queue.source)
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "file://"+video {
+		t.Fatalf("jobs %#v", a.library.Jobs)
 	}
 }
 
