@@ -3,13 +3,14 @@ package film
 import (
 	"slices"
 	"testing"
+	"time"
 )
 
-// lines is the part of App that styledLines and the 双语 row use; the rest of App is never called.
+// lines is the part of App that styledLines and pictureLines use; the rest of App is never called.
 type lines struct {
 	App
-	look        Look
-	mode, order string
+	look                      Look
+	mode, order, untranslated string
 }
 
 func (l *lines) Cue() *Look               { return &l.look }
@@ -17,6 +18,7 @@ func (l *lines) SubMode() string          { return l.mode }
 func (l *lines) SetSubMode(mode string)   { l.mode = mode }
 func (l *lines) SubOrder() string         { return l.order }
 func (l *lines) SetSubOrder(order string) { l.order = order }
+func (l *lines) Untranslated() string     { return l.untranslated }
 
 func texts(s screen, cue string) []string {
 	var out []string
@@ -49,16 +51,36 @@ func TestStyledLinesFollowModeAndOrder(t *testing.T) {
 	}
 }
 
-// TestLinesRowSetsModeAndOrder checks that the 双语 row's chips write the app's SubMode and SubOrder, and show the chip that is on.
-func TestLinesRowSetsModeAndOrder(t *testing.T) {
-	l := &lines{mode: SubBilingual, order: SubTranslationFirst}
-	s := screen{l}
-	s.chooseLines(SubTranslation)
-	if l.mode != SubTranslation || l.order != SubTranslationFirst || s.linesChoice() != SubTranslation {
-		t.Fatalf("只要译文: mode %q order %q chip %q", l.mode, l.order, s.linesChoice())
+// TestPictureLinesForAMissingTranslation checks what the picture shows in 仅译文 for a cue without a translation: the original dimmed, or nothing when the setting leaves it blank.
+func TestPictureLinesForAMissingTranslation(t *testing.T) {
+	l := &lines{look: DefaultLook(), mode: SubTranslation, order: SubTranslationFirst, untranslated: UntranslatedDim}
+	got := screen{l}.pictureLines("hello")
+	if len(got) != 1 || got[0].text != "hello" || !got[0].dim {
+		t.Fatalf("dim: %+v", got)
 	}
-	s.chooseLines(SubOriginalFirst)
-	if l.mode != SubBilingual || l.order != SubOriginalFirst || s.linesChoice() != SubOriginalFirst {
-		t.Fatalf("原文在上: mode %q order %q chip %q", l.mode, l.order, s.linesChoice())
+	if got := (screen{l}).pictureLines("你好\nhello"); len(got) != 1 || got[0].text != "你好" || got[0].dim {
+		t.Fatalf("translated: %+v", got)
+	}
+	l.untranslated = UntranslatedBlank
+	if got := (screen{l}).pictureLines("hello"); len(got) != 0 {
+		t.Fatalf("blank: %+v", got)
+	}
+	l.mode = SubBilingual
+	if got := (screen{l}).pictureLines("hello"); len(got) != 1 || got[0].dim {
+		t.Fatalf("bilingual: %+v", got)
+	}
+}
+
+func TestDelayText(t *testing.T) {
+	for d, want := range map[time.Duration]string{
+		0:                       "0.0 秒",
+		300 * time.Millisecond:  "+0.3 秒",
+		-100 * time.Millisecond: "-0.1 秒",
+		-20 * time.Millisecond:  "0.0 秒",
+		1500 * time.Millisecond: "+1.5 秒",
+	} {
+		if got := DelayText(d); got != want {
+			t.Errorf("DelayText(%v) = %q, want %q", d, got, want)
+		}
 	}
 }
