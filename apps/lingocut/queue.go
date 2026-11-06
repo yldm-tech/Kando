@@ -116,26 +116,35 @@ func (a *app) newJob(source string) (core.Job, error) {
 	return job, nil
 }
 
-// importLocal points the next job at a video already on disk. The pipeline reads it directly and does not download it.
+// importLocal points the next job at a video already on disk and goes back to the library, closing the open film. The pipeline reads the video directly and does not download it.
 func (a *app) importLocal(path string) {
+	if !a.chooseLocal(path) {
+		return
+	}
+	a.page = pageFilms
+	a.closeFilm()
+}
+
+// chooseLocal puts the video at path in the link field as a file:// URL, or says it is not a video. It reports whether it did.
+func (a *app) chooseLocal(path string) bool {
 	if !media.IsVideoFile(path) {
 		a.queue.status = "没有可导入的视频"
-		return
+		return false
 	}
 	a.queue.source = (&url.URL{Scheme: "file", Path: path}).String()
 	a.queue.status = "已选择本地视频"
-	a.page = pageFilms
-	a.openKey = ""
+	return true
 }
 
-// startFilm processes a video that is already in the library and stays on it.
+// startFilm processes a video that is already in the library and stays on it, with its picture still playing. A job that cannot be added closes the film.
 func (a *app) startFilm(item films.Film) {
-	a.importLocal(item.VideoPath)
-	if a.queue.status != "已选择本地视频" {
+	if !a.chooseLocal(item.VideoPath) {
 		return
 	}
+	a.page = pageFilms
 	a.start()
 	if a.queue.job == nil {
+		a.closeFilm()
 		return
 	}
 	a.openKey = a.queue.job.ID
@@ -157,6 +166,9 @@ func (a *app) remove(id string) {
 	a.queue.removed[id] = true
 	if id == a.queue.active {
 		a.queue.stopActive(context.Canceled)
+	}
+	if a.openKey == id {
+		a.closeFilm()
 	}
 	kept := make([]core.Job, 0, len(a.library.Jobs))
 	for _, job := range a.library.Jobs {

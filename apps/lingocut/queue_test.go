@@ -531,3 +531,38 @@ func TestSwitchLibraryStopsTheJobAndRemembersTheDirectory(t *testing.T) {
 		t.Fatal("switching the library left the job running")
 	}
 }
+
+// TestFilmPageCancelsTheFilmItShows opens a film still waiting in the queue and presses its 取消: that film leaves the queue as 已取消, and the job running meanwhile goes on.
+func TestFilmPageCancelsTheFilmItShows(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b", "https://example.com/c"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	ids := jobIDs(a)
+	a.openKey = ids["https://example.com/b"]
+	tt.Frame()
+	if err := tt.Click("取消"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) {
+		t.Fatalf("b after its 取消 %+v", job)
+	}
+	noneStarted(t, g, updates)
+	if a.queue.active != ids["https://example.com/a"] {
+		t.Fatalf("the film page's 取消 stopped the running job; active %q", a.queue.active)
+	}
+	if job := stageOf(t, a, ids["https://example.com/a"]); job.Stage == core.StageFailed {
+		t.Fatalf("a after b's 取消 %+v", job)
+	}
+	g.release <- struct{}{}
+	if got := nextStarted(t, g, updates); got != "https://example.com/c" {
+		t.Fatalf("after a, %s started", got)
+	}
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageFailed {
+		t.Fatalf("cancelled b ran: %+v", job)
+	}
+}
