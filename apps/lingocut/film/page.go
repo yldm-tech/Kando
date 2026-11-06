@@ -638,42 +638,6 @@ func chapterFrom(group []core.Segment) Chapter {
 	return Chapter{Start: group[0].Start, End: end, Title: films.Shorten(title, 36), Detail: films.Shorten(detail, 48)}
 }
 
-type Face struct {
-	Family string
-	Size   float32
-	Color  string
-	Bold   bool
-}
-
-// Look is how subtitles are drawn. Which lines show and which goes on top are not part of it: they are the app's SubMode and SubOrder.
-type Look struct {
-	Preset, Edit string
-	Bottom       float32
-	Box, Shadow  bool
-	Translation  Face
-	Original     Face
-}
-
-// Subtitle modes: which lines of a bilingual cue the player shows. V steps through them in this order.
-const (
-	SubBilingual   = "bilingual"
-	SubTranslation = "translation"
-	SubOriginal    = "original"
-	SubOff         = "off"
-)
-
-// Subtitle orders: which line of a bilingual cue goes on top.
-const (
-	SubTranslationFirst = "translation-first"
-	SubOriginalFirst    = "original-first"
-)
-
-// What the player shows for a cue that has no translation yet.
-const (
-	UntranslatedDim   = "dim"
-	UntranslatedBlank = "blank"
-)
-
 type styledLine struct {
 	text string
 	face Face
