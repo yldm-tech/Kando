@@ -7,7 +7,6 @@ import (
 	"lingocut/apps/lingocut/sidebar"
 
 	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // grid is the films that are done, as 16:9 posters across the page.
@@ -16,8 +15,8 @@ func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
 	if source == sidebar.SourceAll {
 		title = "全部影片"
 	}
-	ui.Column(c).Gap(14).Children(func() {
-		sectionTitle(c, title, fmt.Sprintf("%d 部", len(done)))
+	ui.Column(c).Margin(26, 0, 0, 0).Gap(14).Children(func() {
+		sectionTitle(c, t, title, fmt.Sprintf("%d 部", len(done)))
 		width, _ := c.Size()
 		ui.Grid(c).Columns(Columns(width)).GapX(CardGapX).GapY(CardGapY).AlignItems(ui.Start).Children(func() {
 			for _, item := range done {
@@ -33,12 +32,12 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 	menu := filmMenu(a, item)
 	name := filmName(item)
 	ui.Column(c).WidthPercent(100).MinWidth(0).Gap(9).ContextMenu(menu).Children(func() {
-		thumb := ui.ButtonBase(c).Label(name).WidthPercent(100).AspectRatio(16.0/9).Radius(13).Clip().Background(posterColor(item.Key)).TransformOrigin(0.5, 0.5)
+		thumb := ui.ButtonBase(c).Label(name).WidthPercent(100).AspectRatio(16.0/9).Radius(13).Clip().Background(thumbFill).TransformOrigin(0.5, 0.5).Border(0.5, ui.RGBA(0, 0, 0, 0.1))
 		if thumb.Clicked() {
 			a.Open(item)
 		}
 		if thumb.Hovered() {
-			thumb.Shadow(0, 8, 22, 0, ui.RGBA(0, 0, 0, 0.2)).Scale(1.015, 1.015)
+			thumb.Shadow(0, 14, 30, 0, ui.RGBA(0, 0, 0, 0.22)).Scale(1.015, 1.015)
 		} else {
 			thumb.Shadow(0, 4, 12, 0, ui.RGBA(0, 0, 0, 0.12))
 		}
@@ -55,11 +54,11 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 		})
 		ui.Row(c).Gap(6).AlignItems(ui.Start).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-				ui.Text(c, name).FontSize(13).FontWeight(600).SingleLine()
-				ui.Text(c, doneMeta(a, item)).FontSize(12).TextColor(t.TextMuted).SingleLine()
+				ui.Text(c, name).FontSize(13).FontWeight(600).FixedLineHeight(17).SingleLine()
+				ui.Text(c, doneMeta(a, item)).FontSize(12).TextColor(t.TextMuted).Wrap().MaxLines(2)
 			})
 			c.Key("film-more")
-			breeze.FlatIconButton(c, moreIcon, "更多操作").Shrink(0).Menu(menu)
+			moreButton(c).Menu(menu)
 		})
 	})
 }
@@ -83,9 +82,24 @@ func filmMenu(a App, item Film) func(m *ui.Menu) {
 	}
 }
 
-// posterChip is a small label over a poster, such as the subtitle language or the length.
+// posterChip is a small label over a poster, such as the subtitle language or the length, on frosted dark glass.
 func posterChip(c *ui.Context, label string) ui.Element {
-	return ui.Text(c, label).FontSize(10).TextColor(onPicture).Background(ui.RGBA(0, 0, 0, 0.42)).Radius(6).Padding(2, 7).SingleLine()
+	return ui.Text(c, label).FontSize(10).TextColor(onPicture).Material(frosted{10, ui.RGBA(0, 0, 0, 0.42)}).Radius(6).Padding(2, 7).SingleLine()
+}
+
+// moreButton is ⋯ beside a poster's title: a 26-point round button with the prototype's three dots, gray while pressed.
+func moreButton(c *ui.Context) ui.Element {
+	b := ui.ButtonBase(c).Label("更多操作").Size(26, 26).Radius(13).Shrink(0).AlignItems(ui.Center).Justify(ui.Center)
+	switch {
+	case b.Pressed():
+		b.Background(ui.RGBA(0, 0, 0, 0.08))
+	case b.Hovered():
+		b.Background(ui.RGBA(0, 0, 0, 0.06))
+	}
+	b.Children(func() {
+		ui.Icon(c, moreIcon).Size(14, 4).TextColor(ui.Hex("#3A3A3F"))
+	})
+	return b
 }
 
 // doneMeta is the line under a poster's title: where the film comes from and how long it is.

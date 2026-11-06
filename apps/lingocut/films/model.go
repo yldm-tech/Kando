@@ -193,7 +193,7 @@ func columnsIn(content, min, gap float32) int {
 
 // ContentWidth is the main column inside the page padding.
 func ContentWidth(windowWidth float32) float32 {
-	w := windowWidth - sidebar.Width - sidebar.PagePadX*2
+	w := windowWidth - sidebar.Width - PagePadX*2
 	if w < 1 {
 		return 1
 	}

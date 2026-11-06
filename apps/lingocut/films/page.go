@@ -5,7 +5,6 @@ import (
 
 	"lingocut/apps/lingocut/sidebar"
 
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -88,8 +87,12 @@ type Notice struct {
 	Open    bool
 }
 
-// pagePadBottom is the room under the library page, as under the other pages of the content column.
-const pagePadBottom = 28
+// The library's content, as the prototype lays it out: inset PagePadX from the content column's sides, starting contentTop down, under the top bar that it scrolls beneath, with pagePadBottom under its last part.
+const (
+	PagePadX      float32 = 24
+	contentTop    float32 = 64
+	pagePadBottom float32 = 32
+)
 
 // Show draws the library page, or the open film over it. showFilm draws the open film; the page stays here so the shelf does not import the player.
 func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Context, *ui.Theme, Film)) {
@@ -117,16 +120,18 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	}
 	dragging := page.FileDragOver()
 	page.Children(func() {
-		// The header bar spans the content column from the window's top, as a unified toolbar spans the pane beside a sidebar; what is under it keeps the page's padding at its sides and bottom.
-		topBar(c, t, a, source)
-		ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Padding(0, sidebar.PagePadX, pagePadBottom, sidebar.PagePadX).Children(func() {
-			notice(c, a)
-			if a.LibraryDir() == "" {
-				noLibrary(c, a)
-			} else {
-				shelf(c, t, a, items, source)
-			}
+		// The page is one scroll view from the content column's top, as the prototype's is: the top bar lies over it, and what is under the bar scrolls beneath it and fades into it.
+		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
+			ui.Column(c).WidthPercent(100).Padding(contentTop, PagePadX, pagePadBottom, PagePadX).Children(func() {
+				notice(c, a)
+				if a.LibraryDir() == "" {
+					noLibrary(c, a)
+				} else {
+					shelf(c, t, a, items, source)
+				}
+			})
 		})
+		topBar(c, t, a, source)
 		if dragging {
 			dropZone(c, t)
 		}
@@ -135,7 +140,7 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	removeDialog(c, a)
 }
 
-// shelf is the scrolling part of the page: the hero, 处理中 and the done grid of the films from source.
+// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none.
 func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 	shown := BySource(items, source)
 	if len(items) == 0 {
@@ -154,24 +159,15 @@ func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 			done = append(done, item)
 		}
 	}
-	// The shelf reaches out over the page's padding at either side, its content padded back in, so that the scroll view does not cut off the hero's and the cards' shadows at the content's edges, and its scroll edge and scroll bar span the page.
-	ui.Box(c).Grow(1).MinHeight(0).Margin(0, -sidebar.PagePadX).AlignItems(ui.Stretch).Children(func() {
-		ui.Scroll(c).Grow(1).Children(func() {
-			ui.Column(c).WidthPercent(100).Gap(26).Padding(14, sidebar.PagePadX, 32, sidebar.PagePadX).Children(func() {
-				if source == sidebar.SourceAll {
-					if item, ok := HeroFilm(done); ok {
-						hero(c, a, item)
-					}
-				}
-				if len(queue) > 0 {
-					queueSection(c, t, a, QueueOrder(queue))
-				}
-				if len(done) > 0 {
-					grid(c, t, a, done, source)
-				}
-			})
-		})
-		// The top of the shelf fades into the page as it scrolls under the top bar, as macOS fades content under a bar of controls.
-		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(14).PassThrough().Material(glass.ScrollEdge{Background: t.Background})
-	})
+	if source == sidebar.SourceAll {
+		if item, ok := HeroFilm(done); ok {
+			hero(c, a, item)
+		}
+	}
+	if len(queue) > 0 {
+		queueSection(c, t, a, QueueOrder(queue))
+	}
+	if len(done) > 0 {
+		grid(c, t, a, done, source)
+	}
 }

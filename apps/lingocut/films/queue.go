@@ -11,15 +11,15 @@ import (
 
 // queueSection is 处理中: a card for every job that is waiting, running, failed or was cancelled, in QueueOrder. Past QueueShown cards it shows the first ones and a button for the rest.
 func queueSection(c *ui.Context, t *ui.Theme, a App, queue []Film) {
-	ui.Column(c).Gap(12).Children(func() {
-		sectionTitle(c, "处理中", QueueSummary(queue))
+	ui.Column(c).Margin(26, 0, 0, 0).Gap(12).Children(func() {
+		sectionTitle(c, t, "处理中", QueueSummary(queue))
 		expanded := a.QueueExpanded()
 		shown := queue
 		if !*expanded && len(shown) > QueueShown {
 			shown = shown[:QueueShown]
 		}
 		width, _ := c.Size()
-		ui.Grid(c).Columns(QueueColumns(width)).Gap(QueueGap).AlignItems(ui.Start).Children(func() {
+		ui.Grid(c).Columns(QueueColumns(width)).Gap(QueueGap).Padding(2, 2, 8, 2).AlignItems(ui.Start).Children(func() {
 			for _, item := range shown {
 				c.Key("queue-" + item.Key)
 				queueCard(c, t, a, item)
@@ -38,12 +38,12 @@ func queueSection(c *ui.Context, t *ui.Theme, a App, queue []Film) {
 	})
 }
 
-// sectionTitle is the heading of a part of the shelf with a dimmed note after it.
-func sectionTitle(c *ui.Context, title, note string) {
-	ui.Row(c).Gap(10).AlignItems(ui.End).Children(func() {
-		breeze.Text(c, title, breeze.TextSubtitle).Bold().Role(ui.RoleHeading).Level(2)
+// sectionTitle is the heading of a part of the shelf with a dimmed note after it on the same baseline.
+func sectionTitle(c *ui.Context, t *ui.Theme, title, note string) {
+	ui.Row(c).Height(26).Gap(10).AlignItems(ui.Baseline).Children(func() {
+		ui.Text(c, title).FontSize(19).Bold().LetterSpacing(-0.2).Role(ui.RoleHeading).Level(2)
 		if note != "" {
-			breeze.Text(c, note, breeze.TextCaption, breeze.TextSecondary).FontSize(12).Margin(0, 0, 2, 0)
+			ui.Text(c, note).FontSize(12).TextColor(t.TextMuted)
 		}
 	})
 }
@@ -61,10 +61,8 @@ func queueCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 	card.Children(func() {
 		queueThumb(c, t, a, item)
 		text := ui.Column(c).Grow(1).MinWidth(0).Gap(4)
-		if !failed {
-			// The end keeps clear of the cancel button over the card's corner.
-			text.Padding(0, 34, 0, 0)
-		}
+		// The end keeps clear of the cancel button over the card's corner.
+		text.Padding(0, 18, 0, 0)
 		text.Children(func() {
 			ui.Text(c, filmName(item)).FontSize(13).FontWeight(600).SingleLine()
 			if failed {
@@ -76,7 +74,7 @@ func queueCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 		})
 		if !failed {
 			c.Key("queue-cancel")
-			if breeze.FlatIconButton(c, closeIcon, "取消处理").Absolute().Top(8).Right(8).Clicked() {
+			if cancelButton(c, t).Clicked() {
 				a.Cancel(item.JobID)
 			}
 		}
@@ -84,15 +82,30 @@ func queueCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 }
 
 // cardFill is the face of a processing card, a step darker than the page.
-func cardFill(t *ui.Theme) ui.Color { return t.Background.Mix(t.Text, 0.04) }
+func cardFill(*ui.Theme) ui.Color { return ui.Hex("#F5F5F7") }
+
+// thumbFill is a thumbnail's face before its picture is there, and placeholderInk the glyph on it.
+var thumbFill, placeholderInk = ui.Hex("#DCDDE2"), ui.Hex("#8E8E95")
+
+// cancelButton is the round × over a waiting or running card's corner, 22 points, its 10-point glyph in the secondary text's gray.
+func cancelButton(c *ui.Context, t *ui.Theme) ui.Element {
+	b := ui.ButtonBase(c).Label("取消处理").Absolute().Top(8).Right(8).Size(22, 22).Radius(11).AlignItems(ui.Center).Justify(ui.Center)
+	if b.Hovered() {
+		b.Background(ui.RGBA(0, 0, 0, 0.06))
+	}
+	b.Children(func() {
+		ui.Icon(c, closeIcon).Size(10, 10).TextColor(t.TextMuted)
+	})
+	return b
+}
 
 // queueThumb is a processing card's 16:9 thumbnail: the poster once there is one, a download glyph until then, and a red mark over a failed job's.
 func queueThumb(c *ui.Context, t *ui.Theme, a App, item Film) {
-	ui.Box(c).Width(112).Shrink(0).AspectRatio(16.0 / 9).Radius(9).Clip().Background(t.Background.Mix(t.Text, 0.12)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+	ui.Box(c).Width(112).Shrink(0).AspectRatio(16.0 / 9).Radius(9).Clip().Background(thumbFill).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
 		if img := a.Poster(item.VideoPath); img != nil {
 			ui.Image(c, img).Absolute().Top(0).Left(0).WidthPercent(100).HeightPercent(100).Fit(ui.Cover)
 		} else {
-			ui.Icon(c, downloadIcon).Size(22, 22).TextColor(t.TextMuted)
+			ui.Icon(c, downloadIcon).Size(22, 22).TextColor(placeholderInk)
 		}
 		if item.Stage == core.StageFailed && !Canceled(item) {
 			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Background(ui.RGBA(0, 0, 0, 0.45)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
@@ -149,7 +162,7 @@ func failedDetail(c *ui.Context, t *ui.Theme, a App, item Film) {
 	if Canceled(item) {
 		ui.Text(c, "已取消").FontSize(11).TextColor(t.TextMuted)
 	} else {
-		ui.Text(c, reason).FontSize(11).TextColor(t.Danger).Wrap().MaxLines(2)
+		ui.Text(c, reason).FontSize(11).TextColor(ui.Hex("#C4291C")).Wrap().MaxLines(2)
 	}
 	ui.Row(c).Wrap().Gap(6).Margin(2, 0, 0, 0).Children(func() {
 		if section != "" {

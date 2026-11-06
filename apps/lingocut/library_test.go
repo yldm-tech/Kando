@@ -332,12 +332,12 @@ func TestDropWithoutVideosSaysWhatCanBeAdded(t *testing.T) {
 	if len(a.library.Jobs) != 0 || !tt.HasText(noticeNoVideo) {
 		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
 	}
-	if err := tt.Click("Close"); err != nil {
+	if err := tt.Click("关闭提示"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
 	if tt.HasText(noticeNoVideo) {
-		t.Fatal("the message bar stayed after Close")
+		t.Fatal("the message bar stayed after ×")
 	}
 }
 
@@ -859,7 +859,7 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 	}
 }
 
-// TestLibraryPageOwnsTheTitleBar checks that the library page says it draws its own header bar under the title bar (libraryOwnsTitleBar), so contentBand leaves that room to it, on 全部影片 and YouTube, and that it stops saying so while a film is open over it. Without a title bar the header bar starts at the window's top, with no page padding above it: its controls are centered in its 52 points.
+// TestLibraryPageOwnsTheTitleBar checks that the library page says it draws its own header bar under the title bar (libraryOwnsTitleBar), so contentBand leaves that room to it, on 全部影片 and YouTube, and that it stops saying so while a film is open over it. Without a title bar the header bar starts at the window's top, with no page padding above it: on macOS it is the prototype's toolbar, 65 points high with 10 above its controls and 18 below them, so its 34-point controls are centered 28.5 points down.
 func TestLibraryPageOwnsTheTitleBar(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
@@ -867,8 +867,8 @@ func TestLibraryPageOwnsTheTitleBar(t *testing.T) {
 	if !a.libraryOwnsTitleBar() {
 		t.Fatalf("the library page on %q does not own the title bar", a.page)
 	}
-	if start, ok := tt.Find("开始处理"); !ok || abs32(start.Y+start.H/2-26) > 0.5 {
-		t.Fatalf("开始处理 at %v, want it centered 26 points from the window's top", start)
+	if start, ok := tt.Find("开始处理"); !ok || abs32(start.Y+start.H/2-28.5) > 0.5 {
+		t.Fatalf("开始处理 at %v, want it centered 28.5 points from the window's top", start)
 	}
 	a.Select(pageYouTube)
 	tt.Frame()
