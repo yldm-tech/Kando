@@ -14,6 +14,7 @@ import (
 	"lingocut/packages/core"
 )
 
+// TestUploadSendsTheVideoAndSubtitle drives the player's upload button. It checks the upload through UploadView's Status and Fix and the texts it hands the capsule, not the wording of why an upload is blocked, which the settings own.
 func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	dir := t.TempDir()
 	videoDir := filepath.Join(dir, "talk")
@@ -56,15 +57,15 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	tt.Frame()
 	item, _ := films.Find(a.films(), a.openKey)
 	view := a.UploadView(item)
-	if !tt.HasText("上传到 R2") || view.Status != film.UploadBlocked || view.Fix != "去登录" || a.player.film.uploadNote {
+	if !tt.HasText(view.Label) || view.Status != film.UploadBlocked || view.Fix != "去登录" || view.Enabled || view.Detail == "" || a.player.film.uploadNote {
 		t.Fatalf("upload %+v note %v texts %q", view, a.player.film.uploadNote, tt.Texts())
 	}
 	// The button stays clickable without an account, and opens a note on what is missing, with the way to fix it, instead of uploading.
-	if err := tt.Click("上传到 R2"); err != nil {
+	if err := tt.Click(view.Label); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	if !a.player.film.uploadNote || !tt.HasText(view.Fix) || a.cloud.uploadPath != "" {
+	if !a.player.film.uploadNote || !tt.HasText(view.Detail) || !tt.HasText(view.Fix) || a.cloud.uploadPath != "" {
 		t.Fatalf("note %v upload %q texts %q", a.player.film.uploadNote, a.cloud.uploadPath, tt.Texts())
 	}
 	if err := tt.Click("关闭提示"); err != nil {
@@ -80,7 +81,11 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	a.cloud.r2AccessKey = "key"
 	a.cloud.r2Secret = "secret-value"
 	tt.Frame()
-	if err := tt.Click("上传到 R2"); err != nil {
+	view = a.UploadView(item)
+	if !view.Enabled || view.Status != "" || view.Fix != "" {
+		t.Fatalf("upload %+v", view)
+	}
+	if err := tt.Click(view.Label); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	got := takeUpload(t, uploadedFiles)
@@ -90,10 +95,11 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	if bucket != "clips" || len(got) != 2 || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
 		t.Fatalf("bucket %q keys %#v", bucket, keysOf(got))
 	}
-	if !tt.HasText("已上传") {
-		t.Fatalf("texts %q", tt.Texts())
+	view = a.UploadView(item)
+	if view.Status != film.UploadDone || !tt.HasText(view.Detail) {
+		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
-	if err := tt.Click("上传到 R2"); err != nil {
+	if err := tt.Click(view.Label); err != nil {
 		t.Fatal(err)
 	}
 	takeUpload(t, uploadedFiles)

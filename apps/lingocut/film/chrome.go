@@ -48,10 +48,10 @@ func (s screen) status(item films.Film) string {
 	return strings.Join(parts, " · ")
 }
 
-// actions are the film's buttons at the end of the title bar: the job's own (start, cancel, retry), then 在访达中显示, the upload and the ⋯ menu.
+// actions are the film's buttons at the end of the title bar: the job's own (start, cancel, retry), then 在访达中显示, the upload and the ⋯ menu. The job buttons act on this film's job only and do not wait for whatever else runs: a job started or retried while another runs waits in the queue behind it.
 func (s screen) actions(c *ui.Context, item films.Film) {
 	running := item.JobID != "" && item.Stage != "" && !item.Stage.Done()
-	failed := item.JobID != "" && item.Stage == core.StageFailed && s.RunningJob() == ""
+	failed := item.JobID != "" && item.Stage == core.StageFailed
 	switch {
 	case running:
 		c.Key("film-cancel")
@@ -60,7 +60,7 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 		}
 	case item.JobID == "":
 		c.Key("film-start")
-		if breeze.PrimaryButton(c, "开始处理").Disabled(s.RunningJob() != "").Clicked() {
+		if breeze.PrimaryButton(c, "开始处理").Clicked() {
 			s.StartFilm(item)
 		}
 	case failed:
@@ -93,7 +93,7 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 		}
 	}
 	// A finished film can be processed again from the start, as the prototype's ⋯ menu offers; a failed one has 重试 already.
-	if item.JobID != "" && item.Stage == core.StageComplete && s.RunningJob() == "" {
+	if item.JobID != "" && item.Stage == core.StageComplete {
 		c.Key("film-more")
 		breeze.FlatIconButton(c, iconMore, "更多操作").Menu(func(m *ui.Menu) {
 			if m.Item("重新处理整部影片").Chosen() {
