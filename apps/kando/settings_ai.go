@@ -41,13 +41,13 @@ func (a *app) restoreLLM(saved savedSettings) {
 	if !ok {
 		return
 	}
-	if os.Getenv("LINGOCUT_LLM_BASE_URL") == "" && saved.LLMBaseURL != "" {
+	if os.Getenv("KANDO_LLM_BASE_URL") == "" && saved.LLMBaseURL != "" {
 		tools.Translator.BaseURL = saved.LLMBaseURL
 	}
-	if os.Getenv("LINGOCUT_LLM_MODEL") == "" && saved.LLMModel != "" {
+	if os.Getenv("KANDO_LLM_MODEL") == "" && saved.LLMModel != "" {
 		tools.Translator.Model = saved.LLMModel
 	}
-	if os.Getenv("LINGOCUT_LLM_API_KEY") == "" && os.Getenv("EVERYAPI_API_KEY") == "" && saved.LLMAPIKey != "" {
+	if os.Getenv("KANDO_LLM_API_KEY") == "" && os.Getenv("EVERYAPI_API_KEY") == "" && saved.LLMAPIKey != "" {
 		tools.Translator.APIKey = saved.LLMAPIKey
 	}
 	credential := tools.Translator.Credential

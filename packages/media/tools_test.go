@@ -14,7 +14,7 @@ func TestToolsCheckListsEveryProblem(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error")
 	}
-	for _, want := range []string{"yt-dlp", "ffmpeg", "whisper-cli", "LINGOCUT_WHISPER_MODEL", "LINGOCUT_LLM_MODEL"} {
+	for _, want := range []string{"yt-dlp", "ffmpeg", "whisper-cli", "KANDO_WHISPER_MODEL", "KANDO_LLM_MODEL"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %s", err, want)
 		}
@@ -33,15 +33,15 @@ func TestToolsCheckPassesWhenConfigured(t *testing.T) {
 }
 
 func setLLMEnv(t *testing.T, baseURL, apiKey, model, everyAPIKey string) {
-	t.Setenv("LINGOCUT_LLM_BASE_URL", baseURL)
-	t.Setenv("LINGOCUT_LLM_API_KEY", apiKey)
-	t.Setenv("LINGOCUT_LLM_MODEL", model)
+	t.Setenv("KANDO_LLM_BASE_URL", baseURL)
+	t.Setenv("KANDO_LLM_API_KEY", apiKey)
+	t.Setenv("KANDO_LLM_MODEL", model)
 	t.Setenv("EVERYAPI_API_KEY", everyAPIKey)
 }
 
 func TestToolsFromEnv(t *testing.T) {
-	t.Setenv("LINGOCUT_OUTPUT_DIR", "/out")
-	t.Setenv("LINGOCUT_WHISPER_MODEL", "/models/small.bin")
+	t.Setenv("KANDO_OUTPUT_DIR", "/out")
+	t.Setenv("KANDO_WHISPER_MODEL", "/models/small.bin")
 	setLLMEnv(t, "", "", "", "")
 	tools := ToolsFromEnv()
 	if tools.OutputDir != "/out" || tools.WhisperModel != "/models/small.bin" {

@@ -53,7 +53,7 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 	}
 	note := "登录只用来标明是谁上传的。刷新令牌保存在本机设置文件里。"
 	if !a.GoogleConfigured() && a.GoogleEmail() == "" {
-		note = "需要设置环境变量 LINGOCUT_GOOGLE_CLIENT_ID；没有设置时登录按钮不可用。Client ID 不写入设置文件。"
+		note = "需要设置环境变量 KANDO_GOOGLE_CLIENT_ID；没有设置时登录按钮不可用。Client ID 不写入设置文件。"
 	}
 	form.Note(c, note, 10)
 	form.Label(c, "对象存储", 6, nil)

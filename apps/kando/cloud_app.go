@@ -22,8 +22,8 @@ func (a *app) SignInGoogle() {
 	a.cloud.googleBusy = true
 	a.cloud.googleErr = ""
 	cfg := cloud.GoogleConfig{
-		ClientID:     os.Getenv("LINGOCUT_GOOGLE_CLIENT_ID"),
-		ClientSecret: os.Getenv("LINGOCUT_GOOGLE_CLIENT_SECRET"),
+		ClientID:     os.Getenv("KANDO_GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("KANDO_GOOGLE_CLIENT_SECRET"),
 		Open:         openBrowser,
 	}
 	login := a.cloud.googleLogin
@@ -298,29 +298,29 @@ func storeKind(kind string) string {
 func applyCloudEnv(a *app, saved savedSettings) {
 	a.cloud.googleEmail = strings.TrimSpace(saved.GoogleEmail)
 	a.cloud.googleRefresh = strings.TrimSpace(saved.GoogleRefresh)
-	a.cloud.storage = storageFrom(firstSet(os.Getenv("LINGOCUT_STORAGE"), saved.Storage))
-	a.cloud.r2Endpoint = firstSet(os.Getenv("LINGOCUT_R2_ENDPOINT"), saved.R2Endpoint)
-	a.cloud.r2Bucket = firstSet(os.Getenv("LINGOCUT_R2_BUCKET"), saved.R2Bucket)
-	a.cloud.r2AccessKey = firstSet(os.Getenv("LINGOCUT_R2_ACCESS_KEY"), saved.R2AccessKey)
-	a.cloud.r2Secret = firstSet(os.Getenv("LINGOCUT_R2_SECRET"), saved.R2Secret)
-	a.cloud.s3Region = firstSet(os.Getenv("LINGOCUT_S3_REGION"), saved.S3Region)
-	a.cloud.s3Bucket = firstSet(os.Getenv("LINGOCUT_S3_BUCKET"), saved.S3Bucket)
-	a.cloud.s3AccessKey = firstSet(os.Getenv("LINGOCUT_S3_ACCESS_KEY"), saved.S3AccessKey)
-	a.cloud.s3Secret = firstSet(os.Getenv("LINGOCUT_S3_SECRET"), saved.S3Secret)
-	a.cloud.ossRegion = firstSet(os.Getenv("LINGOCUT_OSS_REGION"), saved.OSSRegion)
-	a.cloud.ossBucket = firstSet(os.Getenv("LINGOCUT_OSS_BUCKET"), saved.OSSBucket)
-	a.cloud.ossAccessKey = firstSet(os.Getenv("LINGOCUT_OSS_ACCESS_KEY"), saved.OSSAccessKey)
-	a.cloud.ossSecret = firstSet(os.Getenv("LINGOCUT_OSS_SECRET"), saved.OSSSecret)
-	a.cloud.cosRegion = firstSet(os.Getenv("LINGOCUT_COS_REGION"), saved.COSRegion)
-	a.cloud.cosBucket = firstSet(os.Getenv("LINGOCUT_COS_BUCKET"), saved.COSBucket)
-	a.cloud.cosAccessKey = firstSet(os.Getenv("LINGOCUT_COS_ACCESS_KEY"), saved.COSAccessKey)
-	a.cloud.cosSecret = firstSet(os.Getenv("LINGOCUT_COS_SECRET"), saved.COSSecret)
-	a.cloud.compatEndpoint = firstSet(os.Getenv("LINGOCUT_S3COMPAT_ENDPOINT"), saved.CompatEndpoint)
-	a.cloud.compatRegion = firstSet(os.Getenv("LINGOCUT_S3COMPAT_REGION"), saved.CompatRegion)
-	a.cloud.compatBucket = firstSet(os.Getenv("LINGOCUT_S3COMPAT_BUCKET"), saved.CompatBucket)
-	a.cloud.compatAccessKey = firstSet(os.Getenv("LINGOCUT_S3COMPAT_ACCESS_KEY"), saved.CompatAccessKey)
-	a.cloud.compatSecret = firstSet(os.Getenv("LINGOCUT_S3COMPAT_SECRET"), saved.CompatSecret)
-	a.cloud.compatPath = pathStyleFrom(os.Getenv("LINGOCUT_S3COMPAT_PATH_STYLE"), saved.CompatPathStyle)
+	a.cloud.storage = storageFrom(firstSet(os.Getenv("KANDO_STORAGE"), saved.Storage))
+	a.cloud.r2Endpoint = firstSet(os.Getenv("KANDO_R2_ENDPOINT"), saved.R2Endpoint)
+	a.cloud.r2Bucket = firstSet(os.Getenv("KANDO_R2_BUCKET"), saved.R2Bucket)
+	a.cloud.r2AccessKey = firstSet(os.Getenv("KANDO_R2_ACCESS_KEY"), saved.R2AccessKey)
+	a.cloud.r2Secret = firstSet(os.Getenv("KANDO_R2_SECRET"), saved.R2Secret)
+	a.cloud.s3Region = firstSet(os.Getenv("KANDO_S3_REGION"), saved.S3Region)
+	a.cloud.s3Bucket = firstSet(os.Getenv("KANDO_S3_BUCKET"), saved.S3Bucket)
+	a.cloud.s3AccessKey = firstSet(os.Getenv("KANDO_S3_ACCESS_KEY"), saved.S3AccessKey)
+	a.cloud.s3Secret = firstSet(os.Getenv("KANDO_S3_SECRET"), saved.S3Secret)
+	a.cloud.ossRegion = firstSet(os.Getenv("KANDO_OSS_REGION"), saved.OSSRegion)
+	a.cloud.ossBucket = firstSet(os.Getenv("KANDO_OSS_BUCKET"), saved.OSSBucket)
+	a.cloud.ossAccessKey = firstSet(os.Getenv("KANDO_OSS_ACCESS_KEY"), saved.OSSAccessKey)
+	a.cloud.ossSecret = firstSet(os.Getenv("KANDO_OSS_SECRET"), saved.OSSSecret)
+	a.cloud.cosRegion = firstSet(os.Getenv("KANDO_COS_REGION"), saved.COSRegion)
+	a.cloud.cosBucket = firstSet(os.Getenv("KANDO_COS_BUCKET"), saved.COSBucket)
+	a.cloud.cosAccessKey = firstSet(os.Getenv("KANDO_COS_ACCESS_KEY"), saved.COSAccessKey)
+	a.cloud.cosSecret = firstSet(os.Getenv("KANDO_COS_SECRET"), saved.COSSecret)
+	a.cloud.compatEndpoint = firstSet(os.Getenv("KANDO_S3COMPAT_ENDPOINT"), saved.CompatEndpoint)
+	a.cloud.compatRegion = firstSet(os.Getenv("KANDO_S3COMPAT_REGION"), saved.CompatRegion)
+	a.cloud.compatBucket = firstSet(os.Getenv("KANDO_S3COMPAT_BUCKET"), saved.CompatBucket)
+	a.cloud.compatAccessKey = firstSet(os.Getenv("KANDO_S3COMPAT_ACCESS_KEY"), saved.CompatAccessKey)
+	a.cloud.compatSecret = firstSet(os.Getenv("KANDO_S3COMPAT_SECRET"), saved.CompatSecret)
+	a.cloud.compatPath = pathStyleFrom(os.Getenv("KANDO_S3COMPAT_PATH_STYLE"), saved.CompatPathStyle)
 }
 
 func storageFrom(raw string) string {

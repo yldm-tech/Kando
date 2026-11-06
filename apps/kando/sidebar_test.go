@@ -231,8 +231,8 @@ func TestSidebarCardClearsTheTrafficLights(t *testing.T) {
 
 func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	parent := t.TempDir()
-	first := filepath.Join(parent, "甲.lingocut")
-	second := filepath.Join(parent, "乙.lingocut")
+	first := filepath.Join(parent, "甲.kando")
+	second := filepath.Join(parent, "乙.kando")
 	for _, path := range []string{filepath.Join(first, "a", "video.mp4"), filepath.Join(second, "b", "video.mp4"), filepath.Join(second, "talk.mp4")} {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
@@ -296,8 +296,8 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 // TestLibraryCountsKeepTheLatestRun checks that counts read before a library switch, arriving after the ones read after it, do not replace them and leave the library just left without a count.
 func TestLibraryCountsKeepTheLatestRun(t *testing.T) {
 	parent := t.TempDir()
-	first := filepath.Join(parent, "甲.lingocut")
-	second := filepath.Join(parent, "乙.lingocut")
+	first := filepath.Join(parent, "甲.kando")
+	second := filepath.Join(parent, "乙.kando")
 	for _, path := range []string{filepath.Join(first, "a.mp4"), filepath.Join(second, "b.mp4"), filepath.Join(second, "c.mp4")} {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)

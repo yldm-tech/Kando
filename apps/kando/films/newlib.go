@@ -17,7 +17,7 @@ func newLibrary(c *ui.Context, t *ui.Theme, a App) {
 				ui.Image(c, libraryArt).Size(52, 44).Shrink(0)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 					breeze.Text(c, "新建资料库", breeze.TextHeading).FontSize(15).Role(ui.RoleHeading).Level(1)
-					breeze.Text(c, "会创建一个 .lingocut 文件夹，访达里显示带看懂标志的图标。", breeze.TextCaption, breeze.TextSecondary).FontSize(12).Wrap()
+					breeze.Text(c, "会创建一个 .kando 文件夹，访达里显示带看懂标志的图标。", breeze.TextCaption, breeze.TextSecondary).FontSize(12).Wrap()
 				})
 			})
 			var bindErr error

@@ -73,13 +73,13 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 }
 
 func TestR2EnvOverridesSavedSettings(t *testing.T) {
-	t.Setenv("LINGOCUT_R2_BUCKET", "from-env")
-	t.Setenv("LINGOCUT_R2_ENDPOINT", "")
-	t.Setenv("LINGOCUT_R2_SECRET", "")
+	t.Setenv("KANDO_R2_BUCKET", "from-env")
+	t.Setenv("KANDO_R2_ENDPOINT", "")
+	t.Setenv("KANDO_R2_SECRET", "")
 	a := newApp(&fakePipeline{}, func(func()) {})
-	t.Setenv("LINGOCUT_STORAGE", "s3")
-	t.Setenv("LINGOCUT_S3_REGION", "eu-west-1")
-	t.Setenv("LINGOCUT_OSS_REGION", "cn-beijing")
+	t.Setenv("KANDO_STORAGE", "s3")
+	t.Setenv("KANDO_S3_REGION", "eu-west-1")
+	t.Setenv("KANDO_OSS_REGION", "cn-beijing")
 	applyCloudEnv(a, savedSettings{
 		Storage: "r2", R2Bucket: "from-file", R2Endpoint: "https://example.r2.cloudflarestorage.com", R2Secret: "saved-secret",
 		S3Region: "ap-northeast-1", S3Bucket: "saved-bucket",
@@ -94,7 +94,7 @@ func TestR2EnvOverridesSavedSettings(t *testing.T) {
 }
 
 func TestGoogleSignInSavesTheAccount(t *testing.T) {
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.cloud.googleLogin = func(context.Context, cloud.GoogleConfig) (cloud.Account, error) {
 		t.Fatal("login ran without a client id")
@@ -105,7 +105,7 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 		t.Fatal("sign-in started without a client id")
 	}
 
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "client")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "client")
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.cloud.googleLogin = func(_ context.Context, cfg cloud.GoogleConfig) (cloud.Account, error) {
 		if cfg.ClientID != "client" || cfg.Open == nil {
@@ -270,7 +270,7 @@ func TestBeginUploadUsesACompatibleEndpoint(t *testing.T) {
 }
 
 func TestAccountPageShowsCOSFields(t *testing.T) {
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.cloud.storage = cloud.KindCOS
 	tt.Frame()
@@ -283,7 +283,7 @@ func TestAccountPageShowsCOSFields(t *testing.T) {
 }
 
 func TestAccountPageShowsOSSFields(t *testing.T) {
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.cloud.storage = cloud.KindOSS
 	tt.Frame()
@@ -299,7 +299,7 @@ func TestAccountPageShowsOSSFields(t *testing.T) {
 }
 
 func TestAccountPageShowsS3Fields(t *testing.T) {
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.cloud.storage = cloud.KindS3
 	tt.Frame()

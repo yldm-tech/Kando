@@ -82,13 +82,13 @@ func sourceError(err error) string {
 func failureHint(item films.Film) (reason, section string) {
 	detail := strings.TrimPrefix(item.Detail, "失败：")
 	switch {
-	case strings.Contains(detail, "LINGOCUT_WHISPER_MODEL"), strings.Contains(detail, "whisper model"):
+	case strings.Contains(detail, "KANDO_WHISPER_MODEL"), strings.Contains(detail, "whisper model"):
 		return noticeModel, settings.SectionSpeech
 	case strings.Contains(detail, "is not installed"):
 		return noticeTools, settings.SectionGeneral
 	case strings.Contains(detail, "EveryAPI is not signed in"):
 		return noticeEveryAPI, settings.SectionAI
-	case strings.Contains(detail, "LINGOCUT_LLM_MODEL"):
+	case strings.Contains(detail, "KANDO_LLM_MODEL"):
 		return noticeLLMModel, settings.SectionAI
 	case strings.Contains(detail, media.ErrNoSpeech.Error()):
 		return "视频里没有识别出说话的声音", ""

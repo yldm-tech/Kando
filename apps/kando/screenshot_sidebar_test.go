@@ -34,7 +34,7 @@ func TestScreenshotsSidebar(t *testing.T) {
 	})
 	f.shoot(t, "sidebar-empty", func(a *app, tt *ui.Tester, updates chan func()) {
 		screenshotReady(t, f, a)
-		dir := filepath.Join(f.home, "Movies", "未命名资料库.lingocut")
+		dir := filepath.Join(f.home, "Movies", "未命名资料库.kando")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}

@@ -10,11 +10,11 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestScreenshotDropZone renders what the library shows while files are dragged over it, the drop zone over the content column at the prototype's size (1068×782, its window less the sidebar), to drop-zone.png in the directory named by LINGOCUT_SCREENSHOTS. The app's own scenes (TestScreenshotsLibrary in the main package) cannot show it: the tester drops the files it drags over the window in the same step. It is skipped when the variable is unset.
+// TestScreenshotDropZone renders what the library shows while files are dragged over it, the drop zone over the content column at the prototype's size (1068×782, its window less the sidebar), to drop-zone.png in the directory named by KANDO_SCREENSHOTS. The app's own scenes (TestScreenshotsLibrary in the main package) cannot show it: the tester drops the files it drags over the window in the same step. It is skipped when the variable is unset.
 func TestScreenshotDropZone(t *testing.T) {
-	out := os.Getenv("LINGOCUT_SCREENSHOTS")
+	out := os.Getenv("KANDO_SCREENSHOTS")
 	if out == "" {
-		t.Skip("set LINGOCUT_SCREENSHOTS=<dir> to render the screenshots")
+		t.Skip("set KANDO_SCREENSHOTS=<dir> to render the screenshots")
 	}
 	tt := ui.NewTester(func(c *ui.Context) {
 		// The window's light theme, as main's palette sets it.

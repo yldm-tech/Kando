@@ -41,7 +41,7 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 }
 
 func TestItemVideoUsesTheFolderName(t *testing.T) {
-	got := jobName(core.Job{VideoPath: "/Movies/影视库.lingocut/Learn Rust [abc]/video.mp4"})
+	got := jobName(core.Job{VideoPath: "/Movies/影视库.kando/Learn Rust [abc]/video.mp4"})
 	if got != "Learn Rust [abc]" {
 		t.Fatalf("name = %q", got)
 	}
@@ -224,7 +224,7 @@ func TestImportLocalVideoSetsFileSource(t *testing.T) {
 // libraryWith makes a library folder holding one film, name/video.mp4 with its bilingual subtitles, and an app showing it with the film's job finished.
 func libraryWith(t *testing.T, name string) (a *app, tt *ui.Tester, video string) {
 	t.Helper()
-	lib := filepath.Join(t.TempDir(), "我的影片.lingocut")
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
 	video = filepath.Join(lib, name, "video.mp4")
 	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
 		t.Fatal(err)
@@ -537,7 +537,7 @@ func TestEnterKeepsTheFilmWhenRemoving(t *testing.T) {
 }
 
 func TestRemovingKeepsAVideoOutsideTheLibrary(t *testing.T) {
-	lib := filepath.Join(t.TempDir(), "我的影片.lingocut")
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
 	if err := os.Mkdir(lib, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -735,7 +735,7 @@ func TestNoticeOpensTheSettingThatFixesIt(t *testing.T) {
 
 func TestFailedCardOpensTheSettingThatFixesIt(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
-	a.library.Jobs = []core.Job{{ID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageFailed, Err: errors.New("check: LINGOCUT_WHISPER_MODEL is not set"), LibraryDir: "/videos"}}
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageFailed, Err: errors.New("check: KANDO_WHISPER_MODEL is not set"), LibraryDir: "/videos"}}
 	tt.Frame()
 	if !tt.HasText(noticeModel) || !tt.HasText("1 个需要处理") {
 		t.Fatalf("texts %q", tt.Texts())
@@ -757,7 +757,7 @@ func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	if !a.MakingLibrary() || !tt.HasText("影视库.lingocut") || !a.modalOpen() {
+	if !a.MakingLibrary() || !tt.HasText("影视库.kando") || !a.modalOpen() {
 		t.Fatalf("sheet did not open with the path, or does not hold the window (modal %v): %q", a.modalOpen(), tt.Texts())
 	}
 	tt.ClickAt(5, 5)
@@ -767,7 +767,7 @@ func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
 	}
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
-	if a.MakingLibrary() || tt.HasText("影视库.lingocut") {
+	if a.MakingLibrary() || tt.HasText("影视库.kando") {
 		t.Fatalf("Escape left the sheet open: %q", tt.Texts())
 	}
 	tt.Frame()

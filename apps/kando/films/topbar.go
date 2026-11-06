@@ -126,7 +126,7 @@ func PageTitle(source string) string {
 	return "全部影片"
 }
 
-// LibraryName is a library folder's name without its .lingocut suffix.
+// LibraryName is a library folder's name without its .kando suffix.
 func LibraryName(dir string) string {
 	if dir == "" {
 		return ""

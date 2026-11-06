@@ -7,7 +7,7 @@ import (
 
 // noLibrary is the page before there is a library: what a library is, 新建资料库… and 打开已有资料库….
 func noLibrary(c *ui.Context, a App) {
-	statusPage(c, libraryArt, "还没有资料库", "资料库是一个 .lingocut 文件夹，每部影片一个子文件夹，视频、封面和字幕都是普通文件，可以直接在访达里管理。", func() {
+	statusPage(c, libraryArt, "还没有资料库", "资料库是一个 .kando 文件夹，每部影片一个子文件夹，视频、封面和字幕都是普通文件，可以直接在访达里管理。", func() {
 		c.Key("empty-new")
 		if statusButton(breeze.PrimaryButton(c, "新建资料库…")).Clicked() {
 			a.BeginNew()

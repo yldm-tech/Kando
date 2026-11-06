@@ -37,7 +37,7 @@ func (a *app) pickLibraryParent() {
 	})
 }
 
-// createLibrary makes a .lingocut bundle and switches to it. A folder that is already there is opened as it is.
+// createLibrary makes a .kando bundle and switches to it. A folder that is already there is opened as it is.
 func (a *app) createLibrary() {
 	file, err := libraryFileName(a.snap().LibraryName)
 	if err != nil {
@@ -347,7 +347,7 @@ func (a *app) renameLibraryPath(old, next string) {
 	a.retargetLibraryPrefix(old, next)
 }
 
-// reconcileMissingLibraries points a saved path that is gone at the renamed bundle. A saved inode wins. Without one, a single missing library and a single new .lingocut bundle in the same folder are the same library.
+// reconcileMissingLibraries points a saved path that is gone at the renamed bundle. A saved inode wins. Without one, a single missing library and a single new .kando bundle in the same folder are the same library.
 func (a *app) reconcileMissingLibraries() bool {
 	changed := false
 	for _, dir := range a.knownLibraries() {
@@ -531,14 +531,14 @@ func (a *app) saveShelf() savedShelf {
 	}
 }
 
-// restoreShelf points the shelf at the library saved last time, or the one LINGOCUT_OUTPUT_DIR names, and follows libraries renamed while the app was closed. It reports whether it followed one, so settings.json needs saving; restoreSettings saves it once the areas have restored their own settings, as a save before that would write their defaults.
+// restoreShelf points the shelf at the library saved last time, or the one KANDO_OUTPUT_DIR names, and follows libraries renamed while the app was closed. It reports whether it followed one, so settings.json needs saving; restoreSettings saves it once the areas have restored their own settings, as a save before that would write their defaults.
 func (a *app) restoreShelf(saved savedSettings) (moved bool) {
 	libs := cleanLibraries(saved.Libraries)
 	if saved.LibraryDir != "" {
 		libs = addLibrary(libs, saved.LibraryDir)
 	}
 	libraryDir := ""
-	if env := os.Getenv("LINGOCUT_OUTPUT_DIR"); env != "" {
+	if env := os.Getenv("KANDO_OUTPUT_DIR"); env != "" {
 		libraryDir = env
 	} else if saved.LibraryDir != "" {
 		libraryDir = saved.LibraryDir

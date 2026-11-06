@@ -31,7 +31,7 @@ func DefaultPath() string {
 	if err != nil {
 		dir = os.TempDir()
 	}
-	return filepath.Join(dir, "LingoCut", "library.json")
+	return filepath.Join(dir, "Kando", "library.json")
 }
 
 // Load reads the library at path. A missing file is an empty library. A corrupt file is empty too, and the error says why. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.

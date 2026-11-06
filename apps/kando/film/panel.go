@@ -274,7 +274,7 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 						source = "本地文件"
 					}
 					ui.Text(c, source).FontSize(12).LineHeight(17.0 / 12).Opacity(0.9).Wrap()
-					ui.Text(c, "任务记录保存在 ~/Library/Application Support/LingoCut/library.json").FontSize(12).LineHeight(17.0 / 12).Opacity(0.65).Wrap()
+					ui.Text(c, "任务记录保存在 ~/Library/Application Support/Kando/library.json").FontSize(12).LineHeight(17.0 / 12).Opacity(0.65).Wrap()
 				})
 			})
 		})

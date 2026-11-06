@@ -18,9 +18,9 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The screenshot tests render the main scenes to PNG files in the directory named by LINGOCUT_SCREENSHOTS, so a visual change can be compared before and after, and with the prototype. They are skipped when the variable is unset. Each area renders its own scenes in its own screenshot_<area>_test.go (TestScreenshots<Area>), from the library this file makes; `go test -run TestScreenshots` renders them all. The window is light, as main sets it, and the size of the prototype's window (1304×782) unless a scene asks for another.
+// The screenshot tests render the main scenes to PNG files in the directory named by KANDO_SCREENSHOTS, so a visual change can be compared before and after, and with the prototype. They are skipped when the variable is unset. Each area renders its own scenes in its own screenshot_<area>_test.go (TestScreenshots<Area>), from the library this file makes; `go test -run TestScreenshots` renders them all. The window is light, as main sets it, and the size of the prototype's window (1304×782) unless a scene asks for another.
 
-// screenshotFixture is the library every scene starts from: the prototype's (screenshot_prototype_test.go). Its two libraries, 我的影片 (open) and 英语听力, are ~/Movies/<name>.lingocut in a new empty home folder; its films are jobs whose IDs are the prototype's (j1 How Rivers Shape Landscapes, j2 Morning Market in Kyoto, …), each in the prototype's stage, with the prototype's error for a failed one. A film that has its video has it in a folder named after its title, a placeholder the fake ffmpeg plays as the film's scene picture (writeFakeScene); a finished one has the prototype's 18 subtitles beside it, as the pipeline exports them. A film not downloaded yet has no video, as in the app. The scenes do not see this machine: the pipeline runs the fake ffmpeg, yt-dlp and whisper-cli in ~/bin (fake_tools_test.go), so every path a scene shows starts with ~ and the versions and the pictures are the same everywhere. A scene picks a film by its prototype ID (screenshotOpen, f.job) and changes the state it needs in its steps; a scene that needs another folder makes it under home.
+// screenshotFixture is the library every scene starts from: the prototype's (screenshot_prototype_test.go). Its two libraries, 我的影片 (open) and 英语听力, are ~/Movies/<name>.kando in a new empty home folder; its films are jobs whose IDs are the prototype's (j1 How Rivers Shape Landscapes, j2 Morning Market in Kyoto, …), each in the prototype's stage, with the prototype's error for a failed one. A film that has its video has it in a folder named after its title, a placeholder the fake ffmpeg plays as the film's scene picture (writeFakeScene); a finished one has the prototype's 18 subtitles beside it, as the pipeline exports them. A film not downloaded yet has no video, as in the app. The scenes do not see this machine: the pipeline runs the fake ffmpeg, yt-dlp and whisper-cli in ~/bin (fake_tools_test.go), so every path a scene shows starts with ~ and the versions and the pictures are the same everywhere. A scene picks a film by its prototype ID (screenshotOpen, f.job) and changes the state it needs in its steps; a scene that needs another folder makes it under home.
 type screenshotFixture struct {
 	out  string
 	home string
@@ -31,12 +31,12 @@ type screenshotFixture struct {
 	jobs     []core.Job
 }
 
-// newScreenshotFixture makes the prototype's library in a fake home folder (screenshotHome), or skips t when LINGOCUT_SCREENSHOTS is unset.
+// newScreenshotFixture makes the prototype's library in a fake home folder (screenshotHome), or skips t when KANDO_SCREENSHOTS is unset.
 func newScreenshotFixture(t *testing.T) *screenshotFixture {
 	t.Helper()
-	out := os.Getenv("LINGOCUT_SCREENSHOTS")
+	out := os.Getenv("KANDO_SCREENSHOTS")
 	if out == "" {
-		t.Skip("set LINGOCUT_SCREENSHOTS=<dir> to render the screenshots")
+		t.Skip("set KANDO_SCREENSHOTS=<dir> to render the screenshots")
 	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
@@ -51,7 +51,7 @@ func newPrototypeLibrary(t *testing.T, home string) *screenshotFixture {
 	t.Helper()
 	libs := map[string]string{}
 	for _, lib := range protoLibraries {
-		dir := filepath.Join(home, "Movies", lib.Name+".lingocut")
+		dir := filepath.Join(home, "Movies", lib.Name+".kando")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -131,12 +131,12 @@ func (f *screenshotFixture) job(t *testing.T, id string) core.Job {
 	return core.Job{}
 }
 
-// screenshotHome cuts t off from this machine until it ends and returns the fake home folder: HOME (USERPROFILE on Windows) is a new empty folder, so the config, cache and speech model folders are empty ones in it and the window shows paths in it as ~; the XDG folders follow HOME; PATH is only ~/bin, where the fixture puts the fake tools, so nothing finds a tool installed here; and every LINGOCUT_ and EVERYAPI_ variable is blank, so no credentials, endpoints, models or library folder of this machine reach a scene.
+// screenshotHome cuts t off from this machine until it ends and returns the fake home folder: HOME (USERPROFILE on Windows) is a new empty folder, so the config, cache and speech model folders are empty ones in it and the window shows paths in it as ~; the XDG folders follow HOME; PATH is only ~/bin, where the fixture puts the fake tools, so nothing finds a tool installed here; and every KANDO_ and EVERYAPI_ variable is blank, so no credentials, endpoints, models or library folder of this machine reach a scene.
 func screenshotHome(t *testing.T) string {
 	t.Helper()
 	for _, kv := range os.Environ() {
 		name, _, _ := strings.Cut(kv, "=")
-		if strings.HasPrefix(name, "LINGOCUT_") || strings.HasPrefix(name, "EVERYAPI_") {
+		if strings.HasPrefix(name, "KANDO_") || strings.HasPrefix(name, "EVERYAPI_") {
 			t.Setenv(name, "")
 		}
 	}

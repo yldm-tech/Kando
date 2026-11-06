@@ -23,8 +23,8 @@ func TestShortVersion(t *testing.T) {
 }
 
 func TestSettingsPages(t *testing.T) {
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_ID", "")
-	t.Setenv("LINGOCUT_GOOGLE_CLIENT_SECRET", "")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
+	t.Setenv("KANDO_GOOGLE_CLIENT_SECRET", "")
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +64,7 @@ func TestSettingsPages(t *testing.T) {
 		}
 	}
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
-	for _, text := range []string{"Google", "未登录", "使用 Google 登录", "LINGOCUT_GOOGLE_CLIENT_ID", "Cloudflare R2", "Endpoint", "Bucket", "Access Key", "Secret"} {
+	for _, text := range []string{"Google", "未登录", "使用 Google 登录", "KANDO_GOOGLE_CLIENT_ID", "Cloudflare R2", "Endpoint", "Bucket", "Access Key", "Secret"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}

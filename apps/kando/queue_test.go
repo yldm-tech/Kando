@@ -313,8 +313,8 @@ func TestSwitchLibraryStopsTheRunningJob(t *testing.T) {
 			a.libraryWatch = nil
 		}
 	})
-	first := filepath.Join(t.TempDir(), "first.lingocut")
-	second := filepath.Join(t.TempDir(), "second.lingocut")
+	first := filepath.Join(t.TempDir(), "first.kando")
+	second := filepath.Join(t.TempDir(), "second.kando")
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.switchLibrary(first)
 	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {

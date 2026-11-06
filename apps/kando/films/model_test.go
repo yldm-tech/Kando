@@ -79,12 +79,12 @@ func TestClock(t *testing.T) {
 }
 
 func TestALocalVideoFollowsTheLibraryItWasStartedIn(t *testing.T) {
-	job := core.Job{ID: "j", Source: "file:///Users/me/Downloads/talk.mp4", Stage: core.StageComplete, VideoPath: "/Users/me/Downloads/talk.mp4", LibraryDir: "/Movies/a.lingocut"}
-	if !InLibrary("/Movies/a.lingocut", job) || InLibrary("/Movies/b.lingocut", job) {
+	job := core.Job{ID: "j", Source: "file:///Users/me/Downloads/talk.mp4", Stage: core.StageComplete, VideoPath: "/Users/me/Downloads/talk.mp4", LibraryDir: "/Movies/a.kando"}
+	if !InLibrary("/Movies/a.kando", job) || InLibrary("/Movies/b.kando", job) {
 		t.Fatal("a local video kept outside the library does not follow the library it was started in")
 	}
 	job.Source = "https://youtu.be/TRWgBxVAb1M"
-	if InLibrary("/Movies/a.lingocut", job) {
+	if InLibrary("/Movies/a.kando", job) {
 		t.Fatal("a downloaded video outside the library stayed on its shelf")
 	}
 }

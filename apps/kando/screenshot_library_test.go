@@ -10,7 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by LINGOCUT_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, and a video dropped over an open film. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
+// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, and a video dropped over an open film. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
 func TestScreenshotsLibrary(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// onboarding is the message bar the prototype shows once its onboarding is skipped.
@@ -60,7 +60,7 @@ func TestScreenshotsLibrary(t *testing.T) {
 		tt.Type("https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
 	})
 	f.shoot(t, "library-empty", func(a *app, tt *ui.Tester, _ chan func()) {
-		empty := filepath.Join(f.home, "Movies", "未命名资料库.lingocut")
+		empty := filepath.Join(f.home, "Movies", "未命名资料库.kando")
 		if err := os.MkdirAll(empty, 0o755); err != nil {
 			t.Fatal(err)
 		}

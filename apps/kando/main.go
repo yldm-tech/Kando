@@ -71,7 +71,7 @@ func main() {
 	saved := loadSavedSettings(a.settingsPath)
 	a.restoreSettings(saved)
 	if cache, err := os.UserCacheDir(); err == nil {
-		a.lib.posterDir = filepath.Join(cache, "LingoCut", "posters")
+		a.lib.posterDir = filepath.Join(cache, "Kando", "posters")
 	}
 	a.openLibrary(shelf.DefaultPath())
 	a.migrateLibrary()

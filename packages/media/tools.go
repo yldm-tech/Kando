@@ -30,22 +30,22 @@ type Tools struct {
 	Translator   ChatTranslator
 }
 
-// EveryAPI is the default translation provider; setting LINGOCUT_LLM_BASE_URL switches to any other OpenAI-compatible provider.
+// EveryAPI is the default translation provider; setting KANDO_LLM_BASE_URL switches to any other OpenAI-compatible provider.
 const (
 	EveryAPIBaseURL = "https://api.everyapi.ai/v1"
 	EveryAPIModel   = "claude-haiku-5-5"
 )
 
-// ToolsFromEnv configures Tools from LINGOCUT_* environment variables and the executables it can find.
+// ToolsFromEnv configures Tools from KANDO_* environment variables and the executables it can find.
 func ToolsFromEnv() Tools {
-	outputDir := os.Getenv("LINGOCUT_OUTPUT_DIR")
+	outputDir := os.Getenv("KANDO_OUTPUT_DIR")
 	if outputDir == "" {
 		outputDir = DefaultLibraryDir()
 	}
 	translator := ChatTranslator{
-		BaseURL: os.Getenv("LINGOCUT_LLM_BASE_URL"),
-		APIKey:  os.Getenv("LINGOCUT_LLM_API_KEY"),
-		Model:   os.Getenv("LINGOCUT_LLM_MODEL"),
+		BaseURL: os.Getenv("KANDO_LLM_BASE_URL"),
+		APIKey:  os.Getenv("KANDO_LLM_API_KEY"),
+		Model:   os.Getenv("KANDO_LLM_MODEL"),
 	}
 	// EveryAPI defaults apply only without a custom provider, so its key and model names never reach another API.
 	if translator.BaseURL == "" {
@@ -67,15 +67,15 @@ func ToolsFromEnv() Tools {
 		YTDLP:        lookTool("yt-dlp"),
 		FFmpeg:       lookTool("ffmpeg"),
 		Whisper:      lookTool("whisper-cli"),
-		WhisperModel: os.Getenv("LINGOCUT_WHISPER_MODEL"),
+		WhisperModel: os.Getenv("KANDO_WHISPER_MODEL"),
 		Translator:   translator,
 	}
 }
 
 // LibraryExt is Kando's own library bundle suffix.
-const LibraryExt = ".lingocut"
+const LibraryExt = ".kando"
 
-// DefaultLibraryDir is the bundle that holds one folder per video. LegacyLibraryDir is the plain folder used before that.
+// DefaultLibraryDir is the bundle that holds one folder per video.
 func DefaultLibraryDir() string {
 	return filepath.Join(moviesDir(), "影视库"+LibraryExt)
 }
@@ -83,10 +83,6 @@ func DefaultLibraryDir() string {
 // VimpoLibraryDir is the other app's library. Kando does not store its videos there.
 func VimpoLibraryDir() string {
 	return filepath.Join(moviesDir(), "影视库.vimpo")
-}
-
-func LegacyLibraryDir() string {
-	return filepath.Join(moviesDir(), "LingoCut")
 }
 
 // MoviesDir is the folder a new library is created in unless the user picks another place.
@@ -136,12 +132,12 @@ func (t Tools) Check() error {
 		}
 	}
 	if t.WhisperModel == "" {
-		errs = append(errs, errors.New("LINGOCUT_WHISPER_MODEL is not set"))
+		errs = append(errs, errors.New("KANDO_WHISPER_MODEL is not set"))
 	} else if _, err := os.Stat(t.WhisperModel); err != nil {
 		errs = append(errs, fmt.Errorf("whisper model: %w", err))
 	}
 	if t.Translator.Model == "" {
-		errs = append(errs, errors.New("LINGOCUT_LLM_MODEL is not set"))
+		errs = append(errs, errors.New("KANDO_LLM_MODEL is not set"))
 	}
 	if t.Translator.Credential != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -195,7 +191,7 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 	if strings.TrimSpace(videoPath) == "" {
 		return nil, errors.New("video path is empty")
 	}
-	dir, err := os.MkdirTemp("", "lingocut-*")
+	dir, err := os.MkdirTemp("", "kando-*")
 	if err != nil {
 		return nil, err
 	}

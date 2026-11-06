@@ -77,13 +77,13 @@ func TestSavedSettingsPartsHaveNoMarshalers(t *testing.T) {
 
 // TestStartupKeepsTheSettingsWhenALibraryWasRenamed checks that following a library renamed while the app was closed writes settings.json with every area's settings, not with the defaults the areas hold before they restore theirs.
 func TestStartupKeepsTheSettingsWhenALibraryWasRenamed(t *testing.T) {
-	for _, env := range []string{"LINGOCUT_OUTPUT_DIR", "LINGOCUT_LLM_BASE_URL", "LINGOCUT_LLM_MODEL", "LINGOCUT_LLM_API_KEY", "EVERYAPI_API_KEY", "LINGOCUT_R2_SECRET"} {
+	for _, env := range []string{"KANDO_OUTPUT_DIR", "KANDO_LLM_BASE_URL", "KANDO_LLM_MODEL", "KANDO_LLM_API_KEY", "EVERYAPI_API_KEY", "KANDO_R2_SECRET"} {
 		t.Setenv(env, "")
 	}
 	parent := t.TempDir()
-	current := filepath.Join(parent, "影视库.lingocut")
-	old := filepath.Join(parent, "影视库 2.lingocut")
-	renamed := filepath.Join(parent, "renamed.lingocut")
+	current := filepath.Join(parent, "影视库.kando")
+	old := filepath.Join(parent, "影视库 2.kando")
+	renamed := filepath.Join(parent, "renamed.kando")
 	for _, dir := range []string{current, renamed} {
 		if err := os.Mkdir(dir, 0o755); err != nil {
 			t.Fatal(err)

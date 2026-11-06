@@ -11,9 +11,9 @@ import (
 
 func TestMissingLibraryFollowsTheRenamedBundle(t *testing.T) {
 	parent := t.TempDir()
-	current := filepath.Join(parent, "影视库.lingocut")
-	old := filepath.Join(parent, "影视库 2.lingocut")
-	renamed := filepath.Join(parent, "missav.lingocut")
+	current := filepath.Join(parent, "影视库.kando")
+	old := filepath.Join(parent, "影视库 2.kando")
+	renamed := filepath.Join(parent, "missav.kando")
 	if err := os.Mkdir(current, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -39,8 +39,8 @@ func TestMissingLibraryFollowsTheRenamedBundle(t *testing.T) {
 
 func TestRenameMovesTheInodeWithTheLibrary(t *testing.T) {
 	parent := t.TempDir()
-	old := filepath.Join(parent, "影视库.lingocut")
-	next := filepath.Join(parent, "missav.lingocut")
+	old := filepath.Join(parent, "影视库.kando")
+	next := filepath.Join(parent, "missav.kando")
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.edit(func(s *session) {
@@ -105,7 +105,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	first := filepath.Join(parent, "第一库.lingocut")
+	first := filepath.Join(parent, "第一库.kando")
 	if a.snap().LibraryDir != first {
 		t.Fatalf("library = %q", a.snap().LibraryDir)
 	}
@@ -125,7 +125,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	second := filepath.Join(parent, "第二库.lingocut")
+	second := filepath.Join(parent, "第二库.kando")
 	if a.snap().LibraryDir != second || len(a.snap().Libraries) != 2 {
 		t.Fatalf("library %q list %v", a.snap().LibraryDir, a.snap().Libraries)
 	}

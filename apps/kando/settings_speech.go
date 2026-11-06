@@ -27,13 +27,13 @@ func (a *app) saveSpeech(saved *savedSettings) {
 	}
 }
 
-// restoreSpeech uses the model saved last time unless LINGOCUT_WHISPER_MODEL names one or the saved file is gone.
+// restoreSpeech uses the model saved last time unless KANDO_WHISPER_MODEL names one or the saved file is gone.
 func (a *app) restoreSpeech(saved savedSettings) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
 		return
 	}
-	if os.Getenv("LINGOCUT_WHISPER_MODEL") == "" && saved.WhisperModel != "" {
+	if os.Getenv("KANDO_WHISPER_MODEL") == "" && saved.WhisperModel != "" {
 		if info, err := os.Stat(saved.WhisperModel); err == nil && !info.IsDir() && info.Size() > 0 {
 			tools.WhisperModel = saved.WhisperModel
 			a.pipeline = tools

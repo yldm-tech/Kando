@@ -16,7 +16,7 @@ import (
 func TestScreenshotsSettings(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// The window only shows the library's path, so it names one in the fixture's fake home, which the window shows as ~/Movies/….
-	shown := filepath.Join(f.home, "Movies", "我的影片.lingocut")
+	shown := filepath.Join(f.home, "Movies", "我的影片.kando")
 	// Two whisper models on disk, the recommended one in use, so the 语音识别 page shows models that can be chosen beside ones still to download.
 	models := filepath.Join(f.home, "models")
 	if err := os.MkdirAll(models, 0o755); err != nil {

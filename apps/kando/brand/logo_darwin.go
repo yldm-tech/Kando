@@ -12,10 +12,10 @@ import (
 	"kando/packages/media"
 )
 
-const libraryIconAttr = "com.lingocut.libraryIcon"
+const libraryIconAttr = "com.kando.libraryIcon"
 const libraryIconVersion = "2"
 
-// Ensure gives a .lingocut bundle a Finder icon: the system folder with the app mark on its face. A bundle that already has this version is left untouched.
+// Ensure gives a .kando bundle a Finder icon: the system folder with the app mark on its face. A bundle that already has this version is left untouched.
 func Ensure(dir string, png []byte) {
 	if filepath.Ext(dir) != media.LibraryExt {
 		return
@@ -23,7 +23,7 @@ func Ensure(dir string, png []byte) {
 	if libraryIconCurrent(dir) && hasCustomIcon(dir) {
 		return
 	}
-	file, err := os.CreateTemp("", "lingocut-icon-*.png")
+	file, err := os.CreateTemp("", "kando-icon-*.png")
 	if err != nil {
 		return
 	}

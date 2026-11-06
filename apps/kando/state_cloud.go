@@ -134,7 +134,7 @@ func (a *app) saveCloud(saved *savedSettings) {
 	}
 }
 
-// cloudHooks: the account saves the Google account and the storage; the environment's LINGOCUT_* settings win over the saved ones (applyCloudEnv).
+// cloudHooks: the account saves the Google account and the storage; the environment's KANDO_* settings win over the saved ones (applyCloudEnv).
 func (a *app) cloudHooks() areaHooks {
 	return areaHooks{
 		save:    a.saveCloud,

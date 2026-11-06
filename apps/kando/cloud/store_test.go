@@ -107,12 +107,12 @@ func TestEndpointAcceptsAnAccountIDOrURL(t *testing.T) {
 }
 
 func TestObjectKeyUsesEmailLibraryAndVideoFolder(t *testing.T) {
-	got := ObjectKey("a@b.c", "影视库", "/Movies/影视库.lingocut/Learn Rust/video.mp4")
+	got := ObjectKey("a@b.c", "影视库", "/Movies/影视库.kando/Learn Rust/video.mp4")
 	want := "a@b.c/影视库/Learn Rust/video.mp4"
 	if got != want {
 		t.Fatalf("key = %q", got)
 	}
-	sub := SiblingKey(got, "/Movies/影视库.lingocut/Learn Rust/video.bilingual.srt")
+	sub := SiblingKey(got, "/Movies/影视库.kando/Learn Rust/video.bilingual.srt")
 	if sub != "a@b.c/影视库/Learn Rust/video.bilingual.srt" {
 		t.Fatalf("subtitle key = %q", sub)
 	}

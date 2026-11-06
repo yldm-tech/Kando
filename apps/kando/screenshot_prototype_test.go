@@ -8,7 +8,7 @@ import (
 
 // The prototype's data, which the screenshot fixture (screenshot_helpers_test.go) turns into a library, so the scenes show what the design shows. It is the prototype's mock state before its first tick (spec/fixture.json beside the design's screenshots), written out here so the tests read nothing outside this repository. The scene pictures each film shows are in testdata/scenes.
 
-// protoLibrary is one of the prototype's libraries, a folder ~/Movies/<Name>.lingocut in the fixture's fake home. Count is how many films the prototype's library switcher says it holds.
+// protoLibrary is one of the prototype's libraries, a folder ~/Movies/<Name>.kando in the fixture's fake home. Count is how many films the prototype's library switcher says it holds.
 type protoLibrary struct {
 	ID, Name string
 	Count    int

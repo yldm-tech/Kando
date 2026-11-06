@@ -14,7 +14,7 @@ func (a *app) GoogleBusy() bool { return a.cloud.googleBusy }
 func (a *app) GoogleErr() string { return a.cloud.googleErr }
 
 func (a *app) GoogleConfigured() bool {
-	return strings.TrimSpace(os.Getenv("LINGOCUT_GOOGLE_CLIENT_ID")) != ""
+	return strings.TrimSpace(os.Getenv("KANDO_GOOGLE_CLIENT_ID")) != ""
 }
 
 func (a *app) Storage() *string { return &a.cloud.storage }
