@@ -415,6 +415,80 @@ func TestQueueShowsEveryWaitingJob(t *testing.T) {
 	}
 }
 
+// TestLibraryControlsStayOpenWhileAJobRuns checks that nothing on the library page waits for the running job: the link field takes a link, 开始处理 and Enter pass it on, and the failed cards offer 重试 and 移除. Passing on means the queue added the link or the message bar says why it did not, as the queue of one job at a time does with errBusy; a field or button held shut while a job runs would do neither.
+func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() {
+		for a.RunningJob() != "" {
+			a.Cancel(a.RunningJob())
+			(<-updates)()
+		}
+	})
+	a.library.Jobs = []core.Job{
+		{ID: "gone", Source: "https://example.com/gone", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: "/videos"},
+		{ID: "old", Source: "https://example.com/old", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: "/videos"},
+	}
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	if a.RunningJob() == "" {
+		t.Fatal("no job runs")
+	}
+	passedOn := func(source string) bool {
+		for _, job := range a.library.Jobs {
+			if job.Source == source {
+				return true
+			}
+		}
+		return tt.HasText(errBusy.Error())
+	}
+	tt.Frame()
+
+	startJob(t, tt, "https://example.com/b")
+	tt.Frame()
+	if !passedOn("https://example.com/b") {
+		t.Fatalf("开始处理 while a job runs did nothing: %q", tt.Texts())
+	}
+
+	a.queue.source, a.lib.notice = "", films.Notice{}
+	tt.Frame()
+	if err := tt.Click("视频链接"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("https://example.com/c")
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if !passedOn("https://example.com/c") {
+		t.Fatalf("Enter in the link field while a job runs did nothing: %q", tt.Texts())
+	}
+
+	a.lib.notice = films.Notice{}
+	tt.Frame()
+	if countText(tt, "重试") != 2 || countText(tt, "移除") != 2 {
+		t.Fatalf("the failed cards hide 重试 or 移除 while a job runs: %q", tt.Texts())
+	}
+	if err := tt.Click("移除"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	left := ""
+	for _, id := range []string{"gone", "old"} {
+		if _, ok := a.library.Find(id); ok {
+			left += id
+		}
+	}
+	if left != "gone" && left != "old" {
+		t.Fatalf("移除 while a job runs left %q", left)
+	}
+	if err := tt.Click("重试"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if job, _ := a.library.Find(left); job.Stage != core.StageQueued && !tt.HasText(errBusy.Error()) {
+		t.Fatalf("重试 while a job runs did nothing: %+v %q", job, tt.Texts())
+	}
+}
+
 func TestEnterKeepsTheFilmWhenRemoving(t *testing.T) {
 	a, tt, video := libraryWith(t, "Talk")
 	trashed := fakeTrash(t)
