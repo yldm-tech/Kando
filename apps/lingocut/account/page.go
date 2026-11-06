@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/oneo-me/onevra/source/components"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // App is the account page. It draws and reports edits. It does not sign in or upload by itself.
@@ -109,19 +109,24 @@ func storageRow(c *ui.Context, t *ui.Theme, a App) {
 	fieldRow(c, t, "位置", "", func() {
 		c.Key("storage-kind")
 		selected := a.Storage()
-		sel := components.Select(c, selected)
-		sel.Trigger.Children(func() { components.Text(c, storageLabel(*selected)).SingleLine() })
-		sel.Popup(func(ui.Element) {
-			for _, id := range []string{"r2", "s3", "oss", "cos", "compat"} {
-				id := id
-				sel.Item(id).Children(func() { components.Text(c, storageLabel(id)).SingleLine() })
+		// The drop-down shows the storage names; the setting keeps the id.
+		label := storageLabel(*selected)
+		labels := make([]string, len(storageKinds))
+		for i, id := range storageKinds {
+			labels[i] = storageLabel(id)
+		}
+		if breeze.Select(c, &label, labels).Changed() {
+			for _, id := range storageKinds {
+				if storageLabel(id) == label {
+					*selected = id
+				}
 			}
-		})
-		if sel.Trigger.Changed() {
 			_ = a.Save()
 		}
 	})
 }
+
+var storageKinds = []string{"r2", "s3", "oss", "cos", "compat"}
 
 func storageLabel(id string) string {
 	switch strings.ToLower(strings.TrimSpace(id)) {
@@ -142,7 +147,7 @@ func pathStyleRow(c *ui.Context, t *ui.Theme, a App) {
 	fieldRow(c, t, "路径样式", "MinIO 打开。B2、Wasabi、华为云、七牛保持关闭。", func() {
 		c.Key("compat-path")
 		before := *a.CompatPathStyle()
-		components.Switch(c, a.CompatPathStyle(), "路径样式", components.SwitchOptions{HideLabel: true})
+		breeze.Switch(c, a.CompatPathStyle()).Label("路径样式")
 		if *a.CompatPathStyle() != before {
 			_ = a.Save()
 		}
@@ -166,7 +171,7 @@ func googleRow(c *ui.Context, t *ui.Theme, a App) {
 		})
 		if a.GoogleEmail() != "" {
 			c.Key("google-sign-out")
-			if components.Button(c, "退出", components.ButtonSecondary).Shrink(0).Clicked() {
+			if breeze.Button(c, "退出").Shrink(0).Clicked() {
 				a.SignOutGoogle()
 			}
 			return
@@ -176,7 +181,7 @@ func googleRow(c *ui.Context, t *ui.Theme, a App) {
 			label = "正在登录…"
 		}
 		c.Key("google-sign-in")
-		btn := components.Button(c, label, components.ButtonPrimary).Shrink(0).Disabled(a.GoogleBusy() || !a.GoogleConfigured())
+		btn := breeze.PrimaryButton(c, label).Shrink(0).Disabled(a.GoogleBusy() || !a.GoogleConfigured())
 		if a.GoogleConfigured() && !a.GoogleBusy() && btn.Clicked() {
 			a.SignInGoogle()
 		}
@@ -186,7 +191,7 @@ func googleRow(c *ui.Context, t *ui.Theme, a App) {
 func endpointRow(c *ui.Context, t *ui.Theme, a App) {
 	fieldRow(c, t, "Endpoint", "填 Account ID，或完整的 https 地址。", func() {
 		c.Key("r2-endpoint")
-		input := fit(components.TextBox(c, a.R2Endpoint(), components.TextBoxOptions{}).Label("Endpoint"))
+		input := fit(breeze.TextInput(c, a.R2Endpoint()).Label("Endpoint"))
 		if input.Changed() {
 			_ = a.Save()
 		}
@@ -196,7 +201,7 @@ func endpointRow(c *ui.Context, t *ui.Theme, a App) {
 func textRow(c *ui.Context, t *ui.Theme, key, label, hint string, value *string, a App) {
 	fieldRow(c, t, label, hint, func() {
 		c.Key(key)
-		input := fit(components.TextBox(c, value, components.TextBoxOptions{}).Label(label))
+		input := fit(breeze.TextInput(c, value).Label(label))
 		if input.Changed() {
 			_ = a.Save()
 		}
@@ -206,7 +211,7 @@ func textRow(c *ui.Context, t *ui.Theme, key, label, hint string, value *string,
 func secretRow(c *ui.Context, t *ui.Theme, key string, value *string, a App) {
 	fieldRow(c, t, "Secret", "", func() {
 		c.Key(key)
-		input := fit(components.TextBox(c, value, components.TextBoxOptions{}).Label("Secret"))
+		input := fit(breeze.TextInput(c, value).Label("Secret"))
 		if !a.ShowR2Secret() {
 			input.Password()
 		}
@@ -218,7 +223,7 @@ func secretRow(c *ui.Context, t *ui.Theme, key string, value *string, a App) {
 		if a.ShowR2Secret() {
 			label = "隐藏"
 		}
-		if components.Button(c, label, components.ButtonSecondary).Shrink(0).Clicked() {
+		if breeze.Button(c, label).Shrink(0).Clicked() {
 			a.ToggleR2Secret()
 		}
 	})
@@ -235,7 +240,7 @@ func section(c *ui.Context, t *ui.Theme, title, note string, body func()) {
 }
 
 func card(c *ui.Context, t *ui.Theme, lines ...func()) {
-	ui.Column(c).Background(t.Surface).Radius(12).Padding(4, 16).Children(func() {
+	ui.Themed(c, cardTheme(t)).Radius(12).Padding(4, 16).Children(func() {
 		for i, line := range lines {
 			if i > 0 {
 				ui.Box(c).Fill().Height(1).Background(t.Border)
@@ -243,6 +248,13 @@ func card(c *ui.Context, t *ui.Theme, lines ...func()) {
 			line()
 		}
 	})
+}
+
+// cardTheme is the theme inside a card: breeze draws a control's face as a tint of the background behind it, so the card's color takes the place of the window's.
+func cardTheme(t *ui.Theme) *ui.Theme {
+	card := *t
+	card.Background = t.Surface
+	return &card
 }
 
 func fieldRow(c *ui.Context, t *ui.Theme, label, hint string, control func()) {

@@ -9,8 +9,6 @@ import (
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
-	appshell "github.com/oneo-me/onevra/source/shells/sidebar"
-	"github.com/oneo-me/onevra/source/theme"
 )
 
 const (
@@ -29,18 +27,36 @@ const (
 )
 
 func (a *app) view(c *ui.Context) {
-	theme.Apply(c)
-	t := c.Theme()
+	t := palette(c)
 	items := a.films()
-	// The traffic lights sit on the dark content. The band under them is the drag region.
+	// With the window's material on, the sidebar shows it and the content stays opaque.
+	vibrancy := c.Vibrancy()
+	if vibrancy {
+		c.Root().Background(ui.Transparent)
+	}
+	// The traffic lights sit at the top left. The band under the title bar is the drag region, above both the sidebar and the content.
 	bar := c.TitleBar()
-	ui.Column(c).Fill().AlignItems(ui.Stretch).Children(func() {
-		if bar.Height > 0 {
-			ui.Row(c).Height(bar.Height).Padding(0, bar.Right, 0, bar.Left).DragWindow()
-		}
-		ui.Row(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
-			if a.page != pageFilms || a.openKey == "" {
+	showSidebar := a.page != pageFilms || a.openKey == ""
+	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
+		if showSidebar {
+			ui.Column(c).Shrink(0).AlignItems(ui.Stretch).Children(func() {
+				if bar.Height > 0 {
+					ui.Row(c).Height(bar.Height).Padding(0, 0, 0, bar.Left).DragWindow()
+				}
 				sidebar.Show(c, t, len(items), appLogo, a)
+			})
+		}
+		content := ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch)
+		if vibrancy {
+			content.Background(t.Background)
+		}
+		content.Children(func() {
+			if bar.Height > 0 {
+				left := bar.Left
+				if showSidebar {
+					left = 0
+				}
+				ui.Row(c).Height(bar.Height).Padding(0, bar.Right, 0, left).DragWindow()
 			}
 			a.mainColumn(c, t, items)
 		})
@@ -83,21 +99,5 @@ func (a *app) mainColumn(c *ui.Context, t *ui.Theme, items []films.Film) {
 				film.Show(c, t, a, item)
 			})
 		}
-	})
-}
-
-// shellBody is the main column under Onevra's floating header. Opening a film replaces the sidebar page; closing it restores the sidebar.
-func (a *app) shellBody(c *ui.Context) {
-	open := a.page == pageFilms && a.openKey != ""
-	if a.shell != nil && open != a.shellFilm {
-		a.shellFilm = open
-		if open {
-			a.shell.SetPage(func(c *ui.Context) { a.shellBody(c) })
-		} else {
-			a.shell.SetPage(nil)
-		}
-	}
-	ui.Column(c).Fill().Padding(appshell.HeaderHeight(c), 0, 0, 0).Children(func() {
-		a.mainColumn(c, c.Theme(), a.films())
 	})
 }

@@ -9,7 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.13
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.6
 	github.com/egoist/mygo v0.7.4
-	github.com/oneo-me/onevra/source v0.2026.17
+	github.com/yldm-tech/ai-logo/mygo v1.15.0
+	github.com/yldm-tech/mygo-breeze-ui v0.1.0
 	github.com/yldm-tech/nodra v1.1.0
 	golang.org/x/oauth2 v0.37.0
 	lingocut/packages/core v0.0.0
@@ -34,7 +35,6 @@ require (
 	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/go-text/typesetting v0.3.5 // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
-	github.com/yldm-tech/ai-logo/mygo v1.15.0 // indirect
 	golang.org/x/image v0.47.0 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect

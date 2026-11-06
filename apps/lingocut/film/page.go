@@ -9,7 +9,7 @@ import (
 	"lingocut/packages/core"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/oneo-me/onevra/source/components"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // App is the open film the player page reads and the clicks it reports.
@@ -83,7 +83,7 @@ func (s screen) filmPage(c *ui.Context, t *ui.Theme, item films.Film) {
 func (s screen) filmTop(c *ui.Context, t *ui.Theme, item films.Film) {
 	ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 		c.Key("film-back")
-		if components.Button(c, "返回", components.ButtonSecondary).Shrink(0).Clicked() {
+		if breeze.Button(c, "返回").Shrink(0).Clicked() {
 			s.SetOpenKey("")
 			s.StopPlayback()
 		}
@@ -105,7 +105,7 @@ func (s screen) filmTop(c *ui.Context, t *ui.Theme, item films.Film) {
 		}
 		if path != "" {
 			c.Key("film-reveal")
-			if components.Button(c, "在访达中显示", components.ButtonSecondary).Shrink(0).Clicked() {
+			if breeze.Button(c, "在访达中显示").Shrink(0).Clicked() {
 				s.Reveal(path)
 			}
 		}
@@ -121,7 +121,7 @@ func (s screen) uploadRow(c *ui.Context, t *ui.Theme, item films.Film) {
 	}
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		c.Key("film-upload")
-		btn := components.Button(c, view.Label, components.ButtonSecondary).Disabled(!view.Enabled)
+		btn := breeze.Button(c, view.Label).Disabled(!view.Enabled)
 		if view.Enabled && btn.Clicked() {
 			s.BeginUpload(item)
 		}
@@ -141,23 +141,23 @@ func (s screen) filmActions(c *ui.Context, item films.Film) {
 	ui.Row(c).Gap(8).Children(func() {
 		if showCancel {
 			c.Key("film-cancel")
-			if components.Button(c, "取消", components.ButtonSecondary).Clicked() {
+			if breeze.Button(c, "取消").Clicked() {
 				s.Stop()
 			}
 		}
 		if showStart {
 			c.Key("film-start")
-			if ui.PrimaryButton(c, "开始处理").Disabled(s.Running()).Clicked() {
+			if breeze.PrimaryButton(c, "开始处理").Disabled(s.Running()).Clicked() {
 				s.StartFilm(item)
 			}
 		}
 		if showFailed {
 			c.Key("film-remove")
-			if components.Button(c, "移除", components.ButtonSecondary).Clicked() {
+			if breeze.Button(c, "移除").Clicked() {
 				s.Remove(item.JobID)
 			}
 			c.Key("film-retry")
-			if ui.PrimaryButton(c, "重试").Clicked() {
+			if breeze.PrimaryButton(c, "重试").Clicked() {
 				s.RetryOpen(item.JobID)
 			}
 		}
@@ -433,16 +433,16 @@ func (s screen) cueStylePane(c *ui.Context, t *ui.Theme) {
 			s.cueColors(c, t, face)
 			ui.Row(c).MinHeight(36).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, "加粗").Grow(1)
-				components.Switch(c, &face.Bold, "加粗", components.SwitchOptions{HideLabel: true})
+				breeze.Switch(c, &face.Bold).Label("加粗")
 			})
-			if components.Button(c, "使用原文样式", components.ButtonSecondary).Clicked() {
+			if breeze.Button(c, "使用原文样式").Clicked() {
 				s.Cue().Translation = s.Cue().Original
 			}
 			ui.Text(c, "双语").TextColor(t.TextMuted).FontSize(12)
 			s.cueChoiceRow(c, t, []Choice{{"translation", "译文在上"}, {"original", "原文在上"}, {"translation-only", "只要译文"}}, s.Cue().Order, func(id string) { s.Cue().Order = id })
 			ui.Text(c, "位置").TextColor(t.TextMuted).FontSize(12)
 			s.cueStepper(c, t, "高底部", &s.Cue().Bottom, 4, 24, 160)
-			if components.Button(c, "恢复默认样式", components.ButtonSecondary).Clicked() {
+			if breeze.Button(c, "恢复默认样式").Clicked() {
 				*s.Cue() = DefaultLook()
 			}
 		})
@@ -512,11 +512,11 @@ func (s screen) cueField(c *ui.Context, t *ui.Theme, label string, control func(
 func (s screen) cueStepper(c *ui.Context, t *ui.Theme, label string, value *float32, step, min, max float32) {
 	ui.Row(c).MinHeight(36).Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, label).Grow(1)
-		if components.Button(c, "−", components.ButtonSecondary).Label(label+"减小").Clicked() && *value > min {
+		if breeze.Button(c, "−").Label(label+"减小").Clicked() && *value > min {
 			*value -= step
 		}
 		ui.Text(c, fmt.Sprintf("%.0f", *value)).FontSize(13)
-		if components.Button(c, "+", components.ButtonSecondary).Label(label+"增大").Clicked() && *value < max {
+		if breeze.Button(c, "+").Label(label+"增大").Clicked() && *value < max {
 			*value += step
 		}
 		_ = t
@@ -749,14 +749,5 @@ func CueAt(cues []core.Segment, at time.Duration) (core.Segment, bool) {
 }
 
 func choiceSelect(c *ui.Context, selected *string, options []string) ui.Element {
-	sel := components.Select(c, selected)
-	current := *selected
-	sel.Trigger.Children(func() { components.Text(c, current).SingleLine() })
-	sel.Popup(func(ui.Element) {
-		for _, opt := range options {
-			opt := opt
-			sel.Item(opt).Children(func() { components.Text(c, opt).SingleLine() })
-		}
-	})
-	return sel.Trigger
+	return breeze.Select(c, selected, options)
 }

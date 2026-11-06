@@ -8,8 +8,7 @@ import (
 	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
-	"github.com/oneo-me/onevra/source/components"
-	"github.com/oneo-me/onevra/source/icons/lucide"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 const (
@@ -42,21 +41,28 @@ type App interface {
 }
 
 func Show(c *ui.Context, t *ui.Theme, count int, logo *ui.Bitmap, a App) {
-	components.Sidebar(c).Width(Width).Shrink(0).Children(func() {
+	ui.Column(c).Width(Width).Shrink(0).Grow(1).Children(func() {
 		switcher(c, t, count, logo, a)
-		components.SidebarSection(c, "影片", func() {
-			nav(c, a, PageFilms, "全部影片", fmt.Sprintf("%d", count))
-		})
-		components.SidebarSection(c, "来源", func() {
-			nav(c, a, PageYouTube, "YouTube", "")
-		})
-		components.SidebarSection(c, "设置", func() {
-			nav(c, a, PageGeneral, "通用", "")
-			nav(c, a, PageSpeech, "语音识别", "")
-			nav(c, a, PageAI, "AI 服务", "")
-			nav(c, a, PageTranslate, "翻译", "")
-			nav(c, a, PageAccount, "账号", "")
-		})
+		// The sidebar writes a click or an arrow key into sel; Select only runs when the page really changes, since it closes the open film.
+		sel := a.Page()
+		breeze.Sidebar(c, &sel, func() {
+			breeze.SidebarSection(c, "影片", nil, func() {
+				nav(c, PageFilms, "全部影片", fmt.Sprintf("%d", count))
+			})
+			breeze.SidebarSection(c, "来源", nil, func() {
+				nav(c, PageYouTube, "YouTube", "")
+			})
+			breeze.SidebarSection(c, "设置", nil, func() {
+				nav(c, PageGeneral, "通用", "")
+				nav(c, PageSpeech, "语音识别", "")
+				nav(c, PageAI, "AI 服务", "")
+				nav(c, PageTranslate, "翻译", "")
+				nav(c, PageAccount, "账号", "")
+			})
+		}).Background(ui.Transparent).Grow(1)
+		if sel != a.Page() {
+			a.Select(sel)
+		}
 		if a.SaveErr() != "" {
 			ui.Text(c, a.SaveErr()).TextColor(t.Danger).Wrap().Padding(8, 8, 0, 8)
 		}
@@ -77,7 +83,7 @@ func switcher(c *ui.Context, t *ui.Theme, count int, logo *ui.Bitmap, a App) {
 			ui.Text(c, title).FontSize(15).Bold()
 			ui.Text(c, fmt.Sprintf("%d 部影片", count)).TextColor(t.TextMuted).FontSize(12)
 		})
-		components.Icon(c, lucide.ChevronDown).Size(14, 14).TextColor(t.TextMuted).Shrink(0)
+		ui.Icon(c, iconChevronDown).Size(14, 14).TextColor(t.TextMuted).Shrink(0)
 	})
 }
 
@@ -116,36 +122,30 @@ func Title(dir string) string {
 	return base
 }
 
-func nav(c *ui.Context, a App, page, label, badge string) {
-	var trailing func(*ui.Context, float32)
+func nav(c *ui.Context, page, label, badge string) {
+	item := breeze.SidebarItem(c, page, navIcon(page), label)
 	if badge != "" {
-		trailing = func(c *ui.Context, _ float32) {
-			components.Text(c, badge).TextColor(c.Theme().TextMuted)
-		}
-	}
-	item := components.SidebarItemWithSlots(c, label, a.Page() == page, func(c *ui.Context, size float32) {
-		components.Icon(c, navLucide(page)).Size(size, size)
-	}, trailing)
-	if item.Clicked() {
-		a.Select(page)
+		item.Children(func() {
+			breeze.Text(c, badge, breeze.TextSecondary)
+		})
 	}
 }
 
-func navLucide(page string) *ui.SVG {
+func navIcon(page string) *ui.SVG {
 	switch page {
 	case PageYouTube:
-		return lucide.TvMinimalPlay()
+		return iconTvMinimalPlay
 	case PageGeneral:
-		return lucide.Settings()
+		return iconSettings
 	case PageSpeech:
-		return lucide.AudioLines()
+		return iconAudioLines
 	case PageAI:
-		return lucide.Sparkles()
+		return iconSparkles
 	case PageTranslate:
-		return lucide.Languages()
+		return iconLanguages
 	case PageAccount:
-		return lucide.User()
+		return iconUser
 	default:
-		return lucide.Clapperboard()
+		return iconClapperboard
 	}
 }
