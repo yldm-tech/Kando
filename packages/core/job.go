@@ -11,6 +11,9 @@ import (
 
 var ErrEmptySource = errors.New("video source is empty")
 
+// ErrLibrarySwitched is the error of a job that was stopped because another library was opened while it ran.
+var ErrLibrarySwitched = errors.New("stopped because another library was opened")
+
 type Stage string
 
 const (
@@ -44,7 +47,9 @@ type Job struct {
 	SubtitlePath string
 	// LibraryDir is the library that owns this job. Empty means it was saved before libraries were separate.
 	LibraryDir string
-	Err        error
+	// CompletedAt is when the job reached StageComplete; zero until then.
+	CompletedAt time.Time
+	Err         error
 }
 
 func NewJob(source string) (Job, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"lingocut/packages/core"
 )
@@ -21,7 +22,7 @@ type Pipeline interface {
 	Export(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error)
 }
 
-// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and the final job is returned.
+// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and the final job is returned. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	enter := func(stage core.Stage) {
 		job.Stage = stage
@@ -37,7 +38,9 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		return fail("check", err)
 	}
 
-	enter(core.StageDownloading)
+	if _, local := localVideoPath(job.Source); !local {
+		enter(core.StageDownloading)
+	}
 	video, err := p.Download(ctx, job.Source)
 	if err != nil {
 		return fail("download", err)
@@ -65,6 +68,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		return fail("export", err)
 	}
 	job.SubtitlePath = subtitles
+	job.CompletedAt = time.Now()
 
 	enter(core.StageComplete)
 	return job
