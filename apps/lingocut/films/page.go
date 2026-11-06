@@ -148,9 +148,10 @@ func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 			done = append(done, item)
 		}
 	}
-	ui.Box(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
+	// The shelf reaches out over the page's padding at either side, its content padded back in, so that the scroll view does not cut off the hero's and the cards' shadows at the content's edges, and its scroll edge and scroll bar span the page.
+	ui.Box(c).Grow(1).MinHeight(0).Margin(0, -sidebar.PagePadX).AlignItems(ui.Stretch).Children(func() {
 		ui.Scroll(c).Grow(1).Children(func() {
-			ui.Column(c).WidthPercent(100).Gap(26).Padding(14, 0, 32, 0).Children(func() {
+			ui.Column(c).WidthPercent(100).Gap(26).Padding(14, sidebar.PagePadX, 32, sidebar.PagePadX).Children(func() {
 				if source == sidebar.SourceAll {
 					if item, ok := HeroFilm(done); ok {
 						hero(c, a, item)

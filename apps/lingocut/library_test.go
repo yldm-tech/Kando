@@ -838,3 +838,23 @@ func TestLocalJobNameUsesTheFileName(t *testing.T) {
 }
 
 func filmOf(video string) films.Film { return films.Film{Key: video, VideoPath: video} }
+
+// TestHeroShadowReachesPastTheShelf checks that the hero's shadow spreads past its sides into the page's padding, as the prototype's does, rather than stopping in a straight edge where the scroll view would cut it off, which drew a gray band under the hero.
+func TestHeroShadowReachesPastTheShelf(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.openLibrary(filepath.Join(t.TempDir(), "library.json"))
+	startJob(t, tt, "https://example.com/video")
+	settle(t, a, tt, updates)
+	hero, ok := tt.Find("talk")
+	if !ok || hero.H < 300 {
+		t.Fatalf("no hero in %q (found %v)", tt.Texts(), hero)
+	}
+	img := tt.Image()
+	bg := img.RGBAAt(int(hero.X+hero.W/2), int(hero.Y+hero.H+60))
+	for _, x := range []float32{hero.X - 4, hero.X + hero.W + 3} {
+		at := img.RGBAAt(int(x), int(hero.Y+hero.H+4))
+		if at.R >= bg.R {
+			t.Fatalf("at x=%v just below the hero %v the page is %v, as light as the background %v: the shadow stops at the hero's side", x, hero, at, bg)
+		}
+	}
+}
