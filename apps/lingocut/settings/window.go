@@ -111,7 +111,7 @@ func Window(c *ui.Context, t, dark *ui.Theme, version string, a App) {
 			pane.Background(t.Background)
 		}
 		pane.Children(func() {
-			headerBar(c, t, title(s.SettingsSection()))
+			breeze.HeaderBar(c, title(s.SettingsSection()), "", nil, nil)
 			ui.Scroll(c).Grow(1).Children(func() {
 				ui.Column(c).WidthPercent(100).Padding(14, 28, 28, 28).Gap(18).Children(func() {
 					s.page(c, t, dark)
@@ -155,18 +155,9 @@ func (s screen) rail(c *ui.Context, t *ui.Theme, bar ui.TitleBar) {
 	})
 }
 
-// categoryItem is a category of the rail. It stands in for breeze.SidebarItemImage of mygo-breeze-ui PR #16 (B4), which draws the category's own colored tile untinted; until a breeze release carries it, the glyph is drawn alone and tinted as SidebarItem tints icons.
+// categoryItem is a category of the rail, with its colored tile drawn untinted, as the prototype's settings sidebar shows it.
 func categoryItem(c *ui.Context, sec section) ui.Element {
-	return breeze.SidebarItem(c, sec.id, sec.icon, sec.title)
-}
-
-// headerBar is the title of the page beside the rail, a band the window is dragged by with a line under it. It stands in for breeze.HeaderBar placed in a content pane, which mygo-breeze-ui PR #13 (B3) makes keep clear only of the window controls it lies under; swap it for breeze.HeaderBar(c, title, "", nil, nil) once a breeze release carries it. Until then the band keeps clear of the controls at the window's end, where Windows and Linux put them.
-func headerBar(c *ui.Context, t *ui.Theme, title string) {
-	bar := c.TitleBar()
-	ui.Row(c).Height(max(float32(bar.Height), 50)).Shrink(0).Padding(0, float32(bar.Right)+20, 0, 28).AlignItems(ui.Center).DragWindow().Children(func() {
-		breeze.Text(c, title, breeze.TextHeading).Role(ui.RoleHeading).Level(1)
-	})
-	breeze.Divider(c)
+	return breeze.SidebarItemImage(c, sec.id, sec.icon, sec.title)
 }
 
 // page draws the chosen category.
@@ -187,24 +178,4 @@ func (s screen) page(c *ui.Context, t, dark *ui.Theme) {
 	default:
 		s.general(c, t)
 	}
-}
-
-// preferencesGroup is a titled group of rows with an optional control at the end of its title line and a note under it. It stands in for breeze.PreferencesGroup of mygo-breeze-ui PR #21 (B8), which has the same signature and draws the platform's group header; swap it for that once a breeze release carries it. Until then the title is a semibold caption over a breeze.Card, whose rows join as in any Card.
-func preferencesGroup(c *ui.Context, title, description string, suffix, fn func()) ui.Element {
-	group := ui.Column(c).Gap(6).AlignItems(ui.Stretch)
-	group.Children(func() {
-		if title != "" || suffix != nil {
-			ui.Row(c).MinHeight(24).Padding(0, 10).Gap(8).AlignItems(ui.Center).Children(func() {
-				breeze.Text(c, title, breeze.TextCaption, breeze.TextSecondary).Bold().Grow(1)
-				if suffix != nil {
-					suffix()
-				}
-			})
-		}
-		breeze.Card(c, fn)
-		if description != "" {
-			breeze.Text(c, description, breeze.TextCaption, breeze.TextSecondary).Padding(0, 10).Wrap()
-		}
-	})
-	return group
 }

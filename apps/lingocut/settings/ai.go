@@ -10,7 +10,7 @@ import (
 // ai is the AI 服务 page: the service that translates and how LingoCut reaches it.
 func (s screen) ai(c *ui.Context, t *ui.Theme) {
 	if _, known := s.Tools(); !known {
-		preferencesGroup(c, "服务", "", nil, func() {
+		breeze.PreferencesGroup(c, "服务", "", nil, func() {
 			breeze.ActionRow(c, "翻译服务", "", func() {
 				breeze.Text(c, "未配置", breeze.TextSecondary)
 			})
@@ -18,7 +18,7 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 		return
 	}
 	preset, _ := s.CurrentPreset()
-	preferencesGroup(c, "服务", "", nil, func() {
+	breeze.PreferencesGroup(c, "服务", "", nil, func() {
 		breeze.ActionRow(c, "服务", preset.Blurb, func() {
 			if mark := providerMark(preset.ID); mark != nil {
 				ui.Image(c, mark).Size(16, 16).Shrink(0)
@@ -30,7 +30,7 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 	if s.LLMProvider() == "everyapi" && strings.TrimSpace(*s.LLMKey()) == "" {
 		hint = "留空则使用本机 everyapi 登录。"
 	}
-	preferencesGroup(c, "连接", "任何兼容 OpenAI Chat Completions 的服务都可以。", nil, func() {
+	breeze.PreferencesGroup(c, "连接", "任何兼容 OpenAI Chat Completions 的服务都可以。", nil, func() {
 		breeze.ActionRow(c, "Base URL", "", func() {
 			c.Key("llm-base")
 			if fieldWidth(breeze.TextInput(c, s.LLMBase()).Label("Base URL")).Changed() {

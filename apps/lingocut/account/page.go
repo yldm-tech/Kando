@@ -44,13 +44,13 @@ type App interface {
 
 // Show draws the 账号与上传 category: the Google account uploads are filed under, and the object storage they go to.
 func Show(c *ui.Context, t *ui.Theme, a App) {
-	preferencesGroup(c, "Google", "登录只用来标明是谁上传的。刷新令牌保存在本机设置文件里。", nil, func() {
+	breeze.PreferencesGroup(c, "Google", "登录只用来标明是谁上传的。刷新令牌保存在本机设置文件里。", nil, func() {
 		googleRow(c, a)
 	})
 	if a.GoogleErr() != "" {
 		breeze.Text(c, a.GoogleErr(), breeze.TextCaption).TextColor(t.Danger).Padding(0, 10).Wrap()
 	}
-	preferencesGroup(c, "对象存储", "视频不会在下载完成时自动上传。到播放页点上传。各处的密钥分开保存，只存在本机设置文件里。", nil, func() {
+	breeze.PreferencesGroup(c, "对象存储", "视频不会在下载完成时自动上传。到播放页点上传。各处的密钥分开保存，只存在本机设置文件里。", nil, func() {
 		storageRow(c, a)
 		switch a.StorageKind() {
 		case "s3":
@@ -85,26 +85,7 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 			secretRow(c, "r2-secret", "", a.R2Secret(), a)
 		}
 	})
-}
 
-// preferencesGroup is a titled group of rows with an optional control at the end of its title line and a note under it. It stands in for breeze.PreferencesGroup of mygo-breeze-ui PR #21 (B8), which has the same signature and draws the platform's group header; swap it for that once a breeze release carries it. Until then the title is a semibold caption over a breeze.Card, whose rows join as in any Card, drawn as the settings package's stand-in draws it.
-func preferencesGroup(c *ui.Context, title, description string, suffix, fn func()) ui.Element {
-	group := ui.Column(c).Gap(6).AlignItems(ui.Stretch)
-	group.Children(func() {
-		if title != "" || suffix != nil {
-			ui.Row(c).MinHeight(24).Padding(0, 10).Gap(8).AlignItems(ui.Center).Children(func() {
-				breeze.Text(c, title, breeze.TextCaption, breeze.TextSecondary).Bold().Grow(1)
-				if suffix != nil {
-					suffix()
-				}
-			})
-		}
-		breeze.Card(c, fn)
-		if description != "" {
-			breeze.Text(c, description, breeze.TextCaption, breeze.TextSecondary).Padding(0, 10).Wrap()
-		}
-	})
-	return group
 }
 
 func storageRow(c *ui.Context, a App) {

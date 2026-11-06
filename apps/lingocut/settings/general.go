@@ -12,10 +12,10 @@ import (
 
 // general is the 通用 page: the library, the interface language and version, and the programs LingoCut runs.
 func (s screen) general(c *ui.Context, t *ui.Theme) {
-	preferencesGroup(c, "资料库", "每部影片是资料库里的一个文件夹，视频、封面和字幕都是普通文件。切换资料库会停止进行中的任务。从列表移出资料库不会删除里面的文件。", nil, func() {
+	breeze.PreferencesGroup(c, "资料库", "每部影片是资料库里的一个文件夹，视频、封面和字幕都是普通文件。切换资料库会停止进行中的任务。从列表移出资料库不会删除里面的文件。", nil, func() {
 		s.libraryRows(c)
 	})
-	preferencesGroup(c, "", "", nil, func() {
+	breeze.PreferencesGroup(c, "", "", nil, func() {
 		breeze.ActionRow(c, "界面语言", "", func() {
 			breeze.Text(c, "简体中文", breeze.TextSecondary)
 		})
@@ -33,7 +33,7 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 			}
 		}
 	}
-	preferencesGroup(c, "组件", "这些程序来自本机，LingoCut 不负责安装或更新。", redetect, func() {
+	breeze.PreferencesGroup(c, "组件", "这些程序来自本机，LingoCut 不负责安装或更新。", redetect, func() {
 		s.toolRow(c, t, "yt-dlp", "下载在线视频", tools.YTDLP)
 		s.toolRow(c, t, "FFmpeg", "音频转换、截取封面、解码画面", tools.FFmpeg)
 		s.toolRow(c, t, "whisper-cli", "语音识别", tools.Whisper)

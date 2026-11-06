@@ -11,7 +11,7 @@ import (
 
 // translate is the 翻译 page: the language subtitles are translated into, how much context goes with each batch, and the prompt.
 func (s screen) translate(c *ui.Context, t *ui.Theme) {
-	preferencesGroup(c, "翻译", "", nil, func() {
+	breeze.PreferencesGroup(c, "翻译", "", nil, func() {
 		c.Key("translate-language")
 		if breeze.ComboRow(c, "默认目标语言", "新任务译成这种语言。", s.Language(), languageChoices(*s.Language())).Changed() {
 			s.Save()
@@ -22,8 +22,8 @@ func (s screen) translate(c *ui.Context, t *ui.Theme) {
 		}
 	})
 	usingDefault := strings.TrimSpace(*s.TranslatePrompt()) == strings.TrimSpace(media.DefaultSubtitlePrompt)
-	ui.Column(c).Gap(6).AlignItems(ui.Stretch).Children(func() {
-		contentRow(c, "翻译提示词", func() {
+	breeze.PreferencesGroup(c, "", "用 {{language}} 代表目标语言。可以加上风格要求，例如口语化、人名保留英文。返回的 JSON 行数由 LingoCut 自动要求，不用写在这里。", nil, func() {
+		breeze.ContentRow(c, "翻译提示词", func() {
 			c.Key("translate-prompt")
 			if breeze.TextArea(c, s.TranslatePrompt()).Height(148).Label("提示词").Changed() {
 				s.Save()
@@ -41,7 +41,6 @@ func (s screen) translate(c *ui.Context, t *ui.Theme) {
 				}
 			})
 		})
-		breeze.Text(c, "用 {{language}} 代表目标语言。可以加上风格要求，例如口语化、人名保留英文。返回的 JSON 行数由 LingoCut 自动要求，不用写在这里。", breeze.TextCaption, breeze.TextSecondary).Padding(0, 10).Wrap()
 	})
 }
 
@@ -56,14 +55,4 @@ func languageChoices(current string) []string {
 		return choices
 	}
 	return append([]string{current}, choices...)
-}
-
-// contentRow is a row whose content, such as a text area, goes under its label. It stands in for breeze.ContentRow of mygo-breeze-ui PR #21 (B8), which has the same signature and joins the rows of the Card it is built in; swap it for that once a breeze release carries it. Until then it is a Card of its own with the label over the content.
-func contentRow(c *ui.Context, label string, fn func()) ui.Element {
-	return breeze.Card(c, func() {
-		ui.Column(c).Padding(5, 5, 0, 5).Children(func() {
-			breeze.Text(c, label)
-		})
-		fn()
-	})
 }

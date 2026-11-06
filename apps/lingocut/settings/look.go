@@ -19,7 +19,7 @@ func (s screen) look(c *ui.Context, t, dark *ui.Theme) {
 		s.lookPreview(c, dark)
 		breeze.Text(c, "字号、颜色和字体在播放时从侧栏的「字幕样式」调整，这里的改动和播放器同步生效。", breeze.TextCaption, breeze.TextSecondary).Padding(0, 10).Wrap()
 	})
-	preferencesGroup(c, "", "", nil, func() {
+	breeze.PreferencesGroup(c, "", "", nil, func() {
 		c.Key("look-mode")
 		choice(c, "默认显示方式", "", s.SubMode, s.SetSubMode, []option{
 			{film.SubOriginal, "仅原文"}, {film.SubTranslation, "仅译文"}, {film.SubBilingual, "双语"},

@@ -24,7 +24,7 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 		}
 	}
 	sel := chosen
-	preferencesGroup(c, "whisper 模型", "自动识别语言，支持智能断句。越大越准，也越慢、越占空间；不确定就用推荐的。模型从 HuggingFace 下载，取消后不留下半截文件；其他应用已经下好的模型（Vimpo、hyperframes）会直接选用，不用复制。", nil, func() {
+	breeze.PreferencesGroup(c, "whisper 模型", "自动识别语言，支持智能断句。越大越准，也越慢、越占空间；不确定就用推荐的。模型从 HuggingFace 下载，取消后不留下半截文件；其他应用已经下好的模型（Vimpo、hyperframes）会直接选用，不用复制。", nil, func() {
 		for i, model := range models {
 			c.Key(model.ID)
 			subtitle := model.Blurb + "\n" + fmt.Sprintf("速度 %s  准确 %s  %s", stars(model.Speed), stars(model.Accuracy), model.SizeLabel)
@@ -34,9 +34,8 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 				}
 				s.modelAction(c, model, installed[i])
 			}
-			// Only a model on disk can be chosen, so only its row is a radio row. A model that is not is a plain row with its 下载 button: disabling a radio row would disable the button inside it too.
 			if installed[i] != "" {
-				radioRow(c, &sel, model.ID, model.Name, subtitle, suffix)
+				breeze.RadioRow(c, &sel, model.ID, model.Name, subtitle, suffix)
 			} else {
 				breeze.ActionRow(c, model.Name, subtitle, suffix)
 			}
@@ -76,20 +75,6 @@ func (s screen) modelAction(c *ui.Context, model media.SpeechModel, installed st
 	if breeze.Button(c, "下载").Disabled(s.Downloading() != "").Clicked() && s.Downloading() == "" {
 		s.DownloadModel(model.ID)
 	}
-}
-
-// radioRow is a row that chooses value into *selected, with a radio button at its end; a click anywhere on the row chooses it. It stands in for breeze.RadioRow of mygo-breeze-ui PR #21 (B8) and has its signature, so swapping it is a rename; that one also moves the choice with the arrow keys and gives the row the radio role.
-func radioRow[T comparable](c *ui.Context, selected *T, value T, title, subtitle string, suffix func()) ui.Element {
-	row := breeze.ActionRow(c, title, subtitle, func() {
-		if suffix != nil {
-			suffix()
-		}
-		breeze.Radio(c, selected, value, "").Label(title)
-	})
-	if row.Clicked() {
-		*selected = value
-	}
-	return row
 }
 
 func stars(n int) string {

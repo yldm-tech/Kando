@@ -19,7 +19,7 @@ const (
 	SectionAccount   = sectionid.Account
 )
 
-// section is one category of the settings window: its title, its glyph in the sidebar and the words the search field finds it by besides its title.
+// section is one category of the settings window: its title, its tile in the sidebar and the words the search field finds it by besides its title.
 type section struct {
 	id, title string
 	icon      *ui.SVG
