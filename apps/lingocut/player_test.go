@@ -431,3 +431,35 @@ func TestOpenFilmClearsTheTitleBar(t *testing.T) {
 		t.Fatalf("sidebar shown over an open film: %q", barred.Texts())
 	}
 }
+
+// TestRefreshClosesAFilmThatLeftTheShelf checks that an open video closes, and its playback stops, when a refresh of the shelf no longer finds it, without a frame being drawn.
+func TestRefreshClosesAFilmThatLeftTheShelf(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	dir := t.TempDir()
+	video := filepath.Join(dir, "clip", "clip.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.refreshLibrary()
+	items := a.films()
+	if len(items) != 1 {
+		t.Fatalf("films %+v", items)
+	}
+	a.openKey = items[0].Key
+	a.player.playPath = items[0].VideoPath
+	a.refreshLibrary()
+	if a.openKey == "" {
+		t.Fatal("the film closed while it is still on the shelf")
+	}
+	if err := os.Remove(items[0].VideoPath); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	if a.openKey != "" || a.player.playPath != "" {
+		t.Fatalf("open %q playing %q after the film left the shelf", a.openKey, a.player.playPath)
+	}
+}

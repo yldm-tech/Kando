@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"lingocut/apps/lingocut/film"
+	"lingocut/apps/lingocut/films"
 )
 
 // playerUI is the state of the open film: the picture, the subtitle file and how subtitles look. The settings in it are saved with the app's settings (savedSettings).
@@ -109,9 +110,23 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look.
+// playerHooks: the player saves how subtitles look, and closes the open film once it has left the shelf.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer}
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft}
+}
+
+// closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.
+func (a *app) closeFilmThatLeft() {
+	if a.openKey == "" {
+		return
+	}
+	if _, ok := films.Find(a.films(), a.openKey); ok {
+		return
+	}
+	if _, ok := a.library.Find(a.openKey); ok {
+		return
+	}
+	a.closeFilm()
 }
 
 // changedLook is the look saveSettings stores: nil while it is still film.DefaultLook, so the default is not saved as if the user had chosen it and a later default reaches those who never changed theirs. Edit, the face the style pane is editing, is not part of the look's appearance and does not count as a change.
