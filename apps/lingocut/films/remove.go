@@ -1,6 +1,9 @@
 package films
 
-import "github.com/egoist/mygo/ui"
+import (
+	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+)
 
 // removeDialog confirms 从资料库移除 before the film's folder, or only its video and subtitles, goes to the Trash. 取消 is the default, so Enter keeps the film.
 func removeDialog(c *ui.Context, a App) {
@@ -15,7 +18,7 @@ func removeDialog(c *ui.Context, a App) {
 	case folder:
 		message = "影片文件夹会移到废纸篓，里面的视频、封面和字幕都可以从废纸篓找回。"
 	}
-	if destructiveAlertDialog(c, open, "要从资料库移除「"+filmName(item)+"」吗？", message, 0, "移除", "取消") == 0 {
+	if breeze.DestructiveAlertDialog(c, open, "要从资料库移除「"+filmName(item)+"」吗？", message, 0, "移除", "取消") == 0 {
 		a.TrashFilm(item)
 	}
 }

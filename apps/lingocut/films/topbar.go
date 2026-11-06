@@ -14,11 +14,11 @@ import (
 
 // topBar is the bar along the top of the library: the source being shown and the library's name, the link field, 本地视频 and 开始处理. Enter in the field adds the link as 开始处理 does.
 func topBar(c *ui.Context, t *ui.Theme, a App, source string) {
-	headerBar(c, PageTitle(source), LibraryName(a.LibraryDir()), func() {
+	breeze.HeaderBar(c, PageTitle(source), LibraryName(a.LibraryDir()), nil, func() {
 		linkField(c, t, a)
 		breeze.Toolbar(c, func() {
 			c.Key("films-local")
-			if iconLabelButton(c, addVideoIcon, "本地视频").Tooltip("添加本地视频（⌘O）").Clicked() {
+			if breeze.IconLabelButton(c, addVideoIcon, "本地视频").Tooltip("添加本地视频（⌘O）").Clicked() {
 				a.PickVideos()
 			}
 			c.Key("films-start")

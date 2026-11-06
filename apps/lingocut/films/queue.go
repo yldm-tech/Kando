@@ -76,7 +76,7 @@ func queueCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 		})
 		if !failed {
 			c.Key("queue-cancel")
-			if flatIconButton(c, closeIcon, "取消处理").Absolute().Top(8).Right(8).Clicked() {
+			if breeze.FlatIconButton(c, closeIcon, "取消处理").Absolute().Top(8).Right(8).Clicked() {
 				a.Cancel(item.JobID)
 			}
 		}

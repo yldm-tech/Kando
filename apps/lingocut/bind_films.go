@@ -153,6 +153,9 @@ func (a *app) AskRemove(item films.Film) {
 	files := filmFiles(a.snap().LibraryDir, item)
 	a.lib.removeFolder = len(files) == 1 && files[0] == filepath.Dir(item.VideoPath)
 	a.lib.removeOpen = true
+	if a.lib.removeRelease == nil {
+		a.lib.removeRelease = a.holdModal()
+	}
 }
 
 func (a *app) Removing() (*bool, films.Film, bool) {

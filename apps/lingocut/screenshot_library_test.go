@@ -141,7 +141,7 @@ func TestScreenshotsLibrary(t *testing.T) {
 			t.Fatal(err)
 		}
 	}, removeAlgebra)
-	// A video dropped on a settings page: the library's message bar says what became of it.
+	// A video dropped over an open film: the window goes back to the library, whose message bar says what became of it.
 	dropped := filepath.Join(t.TempDir(), "Ocean Currents.mp4")
 	if err := os.WriteFile(dropped, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)

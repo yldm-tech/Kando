@@ -20,5 +20,5 @@ func notice(c *ui.Context, a App) {
 			}
 		}
 	}
-	infoBarActions(c, n.Kind, n.Text, "", &n.Open, actions)
+	breeze.InfoBarActions(c, n.Kind, n.Text, "", &n.Open, actions)
 }

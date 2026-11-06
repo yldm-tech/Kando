@@ -11,7 +11,7 @@ func newLibrary(c *ui.Context, t *ui.Theme, a App) {
 	if !open {
 		return
 	}
-	sheet(c, &open, func() {
+	breeze.Sheet(c, &open, func() {
 		ui.Column(c).Width(440).MaxWidth(440).Gap(14).Children(func() {
 			ui.Row(c).Gap(14).AlignItems(ui.Start).Children(func() {
 				ui.Image(c, libraryArt).Size(52, 44).Shrink(0)

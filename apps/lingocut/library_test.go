@@ -424,13 +424,16 @@ func TestEnterKeepsTheFilmWhenRemoving(t *testing.T) {
 		t.Fatalf("%v menu %q", err, tt.Menu())
 	}
 	tt.Frame()
-	if !tt.HasText("要从资料库移除「Talk」吗？") {
-		t.Fatalf("no confirmation: %q", tt.Texts())
+	if !tt.HasText("要从资料库移除「Talk」吗？") || !a.modalOpen() {
+		t.Fatalf("no confirmation, or it does not hold the window (modal %v): %q", a.modalOpen(), tt.Texts())
 	}
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
 	if len(*trashed) != 0 || len(a.library.Jobs) != 1 || tt.HasText("要从资料库移除「Talk」吗？") {
 		t.Fatalf("Enter removed the film: trashed %v jobs %d texts %q", *trashed, len(a.library.Jobs), tt.Texts())
+	}
+	if a.modalOpen() {
+		t.Fatal("the closed confirmation still holds the window")
 	}
 	if _, err := os.Stat(video); err != nil {
 		t.Fatal(err)
@@ -679,8 +682,8 @@ func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	if !a.MakingLibrary() || !tt.HasText("影视库.lingocut") {
-		t.Fatalf("sheet did not open with the path: %q", tt.Texts())
+	if !a.MakingLibrary() || !tt.HasText("影视库.lingocut") || !a.modalOpen() {
+		t.Fatalf("sheet did not open with the path, or does not hold the window (modal %v): %q", a.modalOpen(), tt.Texts())
 	}
 	tt.ClickAt(5, 5)
 	tt.Frame()
@@ -691,6 +694,10 @@ func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
 	tt.Frame()
 	if a.MakingLibrary() || tt.HasText("影视库.lingocut") {
 		t.Fatalf("Escape left the sheet open: %q", tt.Texts())
+	}
+	tt.Frame()
+	if a.modalOpen() {
+		t.Fatal("the closed sheet still holds the window")
 	}
 }
 

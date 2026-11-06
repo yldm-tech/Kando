@@ -7,6 +7,7 @@ import (
 	"lingocut/apps/lingocut/sidebar"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // grid is the films that are done, as 16:9 posters across the page.
@@ -58,7 +59,7 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 				ui.Text(c, doneMeta(a, item)).FontSize(12).TextColor(t.TextMuted).SingleLine()
 			})
 			c.Key("film-more")
-			flatIconButton(c, moreIcon, "更多操作").Shrink(0).Menu(menu)
+			breeze.FlatIconButton(c, moreIcon, "更多操作").Shrink(0).Menu(menu)
 		})
 	})
 }

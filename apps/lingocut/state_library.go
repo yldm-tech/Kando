@@ -27,6 +27,9 @@ type libraryUI struct {
 	removing     films.Film
 	removeOpen   bool
 	removeFolder bool
+	// removeRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterFrame gives each back once its dialog has closed.
+	removeRelease func()
+	sheetRelease  func()
 	// durations is how long each video plays, by path, read with the poster. A video that has none here is not known yet.
 	durations map[string]time.Duration
 	// quotes is the first bilingual line of each subtitle file read for the hero, by path.
@@ -47,7 +50,7 @@ type savedLibrary struct{}
 
 func (s *savedLibrary) clean() {}
 
-// libraryHooks: the shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it.
+// libraryHooks: the shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. After each frame the library's dialogs hold or give back the window's modal flag.
 func (a *app) libraryHooks() areaHooks {
 	return areaHooks{
 		restore: func(savedSettings) { a.lib.holdExtras = true },
@@ -55,7 +58,24 @@ func (a *app) libraryHooks() areaHooks {
 			a.lib.holdExtras = false
 			a.loadExtras()
 		},
+		afterFrame:   a.libraryModals,
 		shelfChanged: a.loadExtras,
+	}
+}
+
+// libraryModals keeps the window's modal flag held while the library's dialogs are open. AskRemove holds it as the remove confirmation opens, and it is given back here once the confirmation has closed. The new-library sheet is open while the session is making a library, which the shelf and the sidebar start, so the flag is held here from the frame that first draws the sheet until the frame after it closes.
+func (a *app) libraryModals() {
+	if !a.lib.removeOpen && a.lib.removeRelease != nil {
+		a.lib.removeRelease()
+		a.lib.removeRelease = nil
+	}
+	making := a.snap().MakingLibrary
+	switch {
+	case making && a.lib.sheetRelease == nil:
+		a.lib.sheetRelease = a.holdModal()
+	case !making && a.lib.sheetRelease != nil:
+		a.lib.sheetRelease()
+		a.lib.sheetRelease = nil
 	}
 }
 
