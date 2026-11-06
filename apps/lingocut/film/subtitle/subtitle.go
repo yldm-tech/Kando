@@ -42,4 +42,10 @@ const (
 )
 
 // PreviewInset is how far above a preview tile's bottom edge the settings' sample cue sits, so the preview shows the subtitles as high as the player draws them. The player owns where subtitles sit; the settings read it only through this.
-func (l Look) PreviewInset() float32 { return l.Bottom / 3 }
+func (l Look) PreviewInset() float32 {
+	// The player draws subtitles 44 points above the window's bottom, or at about 30% of its height when High; a preview tile is about a third of that scale.
+	if l.High {
+		return 40
+	}
+	return 15
+}

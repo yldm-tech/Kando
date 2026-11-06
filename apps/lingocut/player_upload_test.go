@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"lingocut/apps/lingocut/cloud"
@@ -96,7 +97,7 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 		t.Fatalf("bucket %q keys %#v", bucket, keysOf(got))
 	}
 	view = a.UploadView(item)
-	if view.Status != film.UploadDone || !tt.HasText(view.Detail) {
+	if view.Status != film.UploadDone || !strings.Contains(view.Detail, want) || !tt.HasText(view.Detail) {
 		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
 	if err := tt.Click(view.Label); err != nil {
