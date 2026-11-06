@@ -21,15 +21,21 @@ type savedSidebar struct{}
 
 func (s *savedSidebar) clean() {}
 
-// sidebarHooks keeps the status line and the switcher's counts up to date: both are read once the window exists, the status line again when the tools or the AI service change, and the counts again whenever another library opens.
+// sidebarHooks keeps the status line and the switcher's counts up to date: both are read once the window exists, the status line again when the tools or the AI service change or 测试 reaches the model through the EveryAPI CLI's key, and the counts again whenever another library opens.
 func (a *app) sidebarHooks() areaHooks {
 	return areaHooks{
 		ready: func() {
 			a.checkReadiness(true)
 			a.countLibraries()
 		},
-		toolsChanged:   a.checkReadiness,
-		llmChanged:     func() { a.checkReadiness(false) },
+		toolsChanged: a.checkReadiness,
+		llmChanged:   func() { a.checkReadiness(false) },
+		// Through the EveryAPI CLI's key, a passing 测试 also answers whether the CLI is signed in.
+		llmTested: func(err error, credential bool) {
+			if err == nil && credential {
+				a.signedIn(nil)
+			}
+		},
 		libraryChanged: a.sidebarLibraryChanged,
 	}
 }

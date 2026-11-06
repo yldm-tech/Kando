@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -361,6 +364,76 @@ func TestStatusLineWaitsForTheEveryAPISignIn(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText(readyMessage) {
 		t.Fatalf("the earlier check's answer replaced the later one's: %q", tt.Texts())
+	}
+}
+
+// TestStatusLineAsksForTheSignInOnce checks that the changes that do not ask again, as each keystroke in 「AI 服务」, wait for the sign-in check already running instead of starting another everyapi process each.
+func TestStatusLineAsksForTheSignInOnce(t *testing.T) {
+	model := filepath.Join(t.TempDir(), "ggml-base.bin")
+	if err := os.WriteFile(model, []byte("model"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	answers := make(chan error)
+	tools := media.Tools{YTDLP: "/bin/yt-dlp", FFmpeg: "/bin/ffmpeg", Whisper: "/bin/whisper-cli", WhisperModel: model}
+	tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Credential: func(context.Context, bool) (media.Endpoint, error) {
+		return media.Endpoint{}, <-answers
+	}}
+	a, tt, updates := newTestApp(tools)
+	a.checkReadiness(true)
+	asked := a.side.ready.gen
+	for range 3 {
+		a.checkReadiness(false)
+		tt.Frame()
+		if !tt.HasText(checkingSignIn) {
+			t.Fatalf("missing %q in %q", checkingSignIn, tt.Texts())
+		}
+	}
+	if a.side.ready.gen != asked {
+		t.Fatalf("started %d more sign-in checks while one was running", a.side.ready.gen-asked)
+	}
+	answers <- errors.New("not signed in")
+	waitUpdate(t, updates)
+	tt.Frame()
+	if !tt.HasText(notSignedIn) {
+		t.Fatalf("the running check's answer was dropped: %q", tt.Texts())
+	}
+}
+
+// TestLLMTestAnswersTheSignIn checks that 测试 in 「AI 服务」 succeeding through the EveryAPI CLI's key replaces a kept "not signed in", which only 重新检测 on another page would otherwise ask again.
+func TestLLMTestAnswersTheSignIn(t *testing.T) {
+	model := filepath.Join(t.TempDir(), "ggml-base.bin")
+	if err := os.WriteFile(model, []byte("model"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": "ok"}}},
+		})
+	}))
+	defer srv.Close()
+	signedIn := false
+	tools := media.Tools{YTDLP: "/bin/yt-dlp", FFmpeg: "/bin/ffmpeg", Whisper: "/bin/whisper-cli", WhisperModel: model}
+	tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Client: srv.Client(), Credential: func(context.Context, bool) (media.Endpoint, error) {
+		if !signedIn {
+			return media.Endpoint{}, errors.New("EveryAPI is not signed in")
+		}
+		return media.Endpoint{BaseURL: srv.URL + "/v1", APIKey: "relay"}, nil
+	}}
+	a, tt, updates := newTestApp(tools)
+	a.checkReadiness(true)
+	waitUpdate(t, updates)
+	tt.Frame()
+	if !tt.HasText(notSignedIn) {
+		t.Fatalf("missing %q in %q", notSignedIn, tt.Texts())
+	}
+
+	// The user signs in to the CLI and presses 测试.
+	signedIn = true
+	a.testLLM()
+	waitUpdate(t, updates)
+	tt.Frame()
+	if a.prefs.llmTestResult != "连接成功" || !tt.HasText(readyMessage) {
+		t.Fatalf("test result %q, texts %q", a.prefs.llmTestResult, tt.Texts())
 	}
 }
 
