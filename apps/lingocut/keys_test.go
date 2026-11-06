@@ -144,6 +144,16 @@ func TestCheatsheetIsDark(t *testing.T) {
 	}
 }
 
+// TestCheatsheetWritesEscapeAsEsc checks that 返回资料库's keycap reads Esc, as the prototype writes it, and not macOS's menu glyph ⎋, which on a keycap reads like an undo arrow.
+func TestCheatsheetWritesEscapeAsEsc(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.overlay.cheatsheet = true
+	tt.Frame()
+	if !tt.HasText("返回资料库") || !tt.HasText("Esc") || tt.HasText("⎋") {
+		t.Fatalf("cheat sheet does not write Escape as Esc: %q", tt.Texts())
+	}
+}
+
 func TestSettingsShortcutOpensSettings(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.Frame()

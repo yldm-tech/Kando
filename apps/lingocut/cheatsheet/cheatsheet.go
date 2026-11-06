@@ -74,8 +74,17 @@ func group(c *ui.Context, g Group) {
 		for _, k := range g.Keys {
 			ui.Row(c).Gap(10).AlignItems(ui.Center).MinHeight(22).Children(func() {
 				breeze.Text(c, k.Label).Grow(1).MinWidth(0)
-				breeze.ShortcutLabel(c, k.Mods, k.Key)
+				keycap(c, k)
 			})
 		}
 	})
+}
+
+// keycap draws k's keys as the platform shows a shortcut, except Escape alone, which reads Esc on every platform as the prototype writes it: macOS's menu glyph ⎋ on a keycap reads like an undo arrow.
+func keycap(c *ui.Context, k Key) {
+	if k.Key == ui.KeyEscape && k.Mods == 0 {
+		breeze.Keycaps(c, "Esc").Label("Escape")
+		return
+	}
+	breeze.ShortcutLabel(c, k.Mods, k.Key)
 }
