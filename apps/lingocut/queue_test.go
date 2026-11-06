@@ -84,7 +84,7 @@ func TestViewRunsJobToCompletion(t *testing.T) {
 	p := &fakePipeline{}
 	a, tt, updates := newTestApp(p)
 	startJob(t, tt, "https://example.com/video")
-	if a.queue.job == nil || a.queue.status != "任务已加入队列" {
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://example.com/video" || !tt.HasText("已加入，开始处理。") {
 		t.Fatalf("texts %q after starting", tt.Texts())
 	}
 
