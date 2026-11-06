@@ -31,10 +31,7 @@ func TestSettingsPages(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = filepath.Join(home, "Movies", "LingoCut") })
 	tt.Frame()
-	if err := tt.Click("通用"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
 	for _, text := range []string{"资料库", "当前资料库", "~/Movies/LingoCut", "切换", "界面语言", "简体中文", "当前版本", appVersion, "组件", "yt-dlp", "FFmpeg", "whisper-cli", "未安装"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
@@ -54,35 +51,23 @@ func TestSettingsPages(t *testing.T) {
 	if tt.HasText("重新检测") {
 		t.Fatal("redetect is only for a real tool pipeline")
 	}
-	if err := tt.Click("语音识别"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
 	for _, text := range []string{"Whisper", "Tiny", "Large v3 Turbo（压缩版）", "推荐", "下载"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("AI 服务"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAI)
 	if !tt.HasText("未配置") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	if err := tt.Click("翻译"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionTranslate)
 	for _, text := range []string{"默认翻译为", "简体中文", "智能翻译", "提示词", "正在使用默认提示词", "恢复默认", "{{language}}"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("账号"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"Google", "未登录", "使用 Google 登录", "LINGOCUT_GOOGLE_CLIENT_ID", "Cloudflare R2", "Endpoint", "Bucket", "Access Key", "Secret"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
@@ -100,10 +85,7 @@ func TestSpeechModelSelectionIsSaved(t *testing.T) {
 	a.prefs.modelsDir = dir
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt.Frame()
-	if err := tt.Click("语音识别"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
 	if !tt.HasText("已下载") || !tt.HasText("下载") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
@@ -126,10 +108,7 @@ func TestAISettingsSelectsAProvider(t *testing.T) {
 	a.syncLLM(tools)
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt.Frame()
-	if err := tt.Click("AI 服务"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAI)
 	for _, text := range []string{"EveryAPI", "OpenAI 兼容", "Ollama", "Base URL", "API Key", "模型", "测试"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
@@ -171,9 +150,7 @@ func TestOpenSettingsGoesToTheSection(t *testing.T) {
 func TestSettingsFollowTheSidebarPages(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.Frame()
-	if err := tt.Click("翻译"); err != nil {
-		t.Fatal(err)
-	}
+	a.Select(pageTranslate)
 	tt.Frame()
 	wantSettings(t, a, settings.SectionTranslate)
 	if err := tt.Click("全部影片"); err != nil {

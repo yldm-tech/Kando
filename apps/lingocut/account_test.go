@@ -10,6 +10,7 @@ import (
 
 	"lingocut/apps/lingocut/cloud"
 	"lingocut/apps/lingocut/films"
+	"lingocut/apps/lingocut/settings"
 	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 )
@@ -130,10 +131,7 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 		t.Fatal("account was not saved")
 	}
 	tt.Frame()
-	if err := tt.Click("账号"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	if !tt.HasText("a@b.c") || !tt.HasText("退出") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
@@ -346,10 +344,7 @@ func TestAccountPageShowsCOSFields(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.cloud.storage = cloud.KindCOS
 	tt.Frame()
-	if err := tt.Click("账号"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"腾讯云 COS", "ap-guangzhou", "1250000000", "SecretId"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
@@ -362,10 +357,7 @@ func TestAccountPageShowsOSSFields(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.cloud.storage = cloud.KindOSS
 	tt.Frame()
-	if err := tt.Click("账号"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"阿里云 OSS", "Region", "cn-hangzhou", "Bucket", "Access Key", "Secret"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
@@ -381,10 +373,7 @@ func TestAccountPageShowsS3Fields(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.cloud.storage = cloud.KindS3
 	tt.Frame()
-	if err := tt.Click("账号"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"Amazon S3", "Region", "例如 ap-northeast-1", "Bucket", "Access Key", "Secret"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"lingocut/apps/lingocut/settings"
 	"lingocut/packages/media"
 )
 
@@ -133,10 +134,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if a.snap().LibraryDir != first {
 		t.Fatalf("switched library = %q", a.snap().LibraryDir)
 	}
-	if err := tt.Click("通用"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
 	if err := tt.Click("切换"); err != nil {
 		t.Fatal(err)
 	}
