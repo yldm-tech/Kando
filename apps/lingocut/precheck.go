@@ -27,17 +27,14 @@ func (a *app) precheck(sources []string) (msg, section string) {
 	if len(sources) == 0 {
 		return noticeEmpty, ""
 	}
-	remote := false
 	for _, source := range sources {
 		source = strings.TrimSpace(source)
 		if source == "" {
 			return noticeEmpty, ""
 		}
-		link, ok := core.ParseLink(source)
-		if !ok {
+		if _, ok := core.ParseLink(source); !ok {
 			return noticeNotLink, ""
 		}
-		remote = remote || link.Platform != core.PlatformLocal
 	}
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
 		return noticeNoLib, ""
@@ -46,8 +43,9 @@ func (a *app) precheck(sources []string) (msg, section string) {
 	if !ok {
 		return "", ""
 	}
+	// It asks for every tool media.Tools.Check asks for, so a job it lets through does not fail at its first step. That includes yt-dlp for a local video, which the pipeline reads where it is without downloading, because Check still asks for yt-dlp for every job.
 	var missing []string
-	if remote && tools.YTDLP == "" {
+	if tools.YTDLP == "" {
 		missing = append(missing, "yt-dlp")
 	}
 	if tools.FFmpeg == "" {

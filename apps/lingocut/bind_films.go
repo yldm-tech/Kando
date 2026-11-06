@@ -147,17 +147,22 @@ func (a *app) Notice() *films.Notice { return &a.lib.notice }
 
 func (a *app) QueueExpanded() *bool { return &a.lib.queueOpen }
 
+// AskRemove opens the confirmation of 从资料库移除, and reads now, rather than while the dialog is drawn, whether the film's folder or only its files would go to the Trash.
 func (a *app) AskRemove(item films.Film) {
 	a.lib.removing = item
+	files := filmFiles(a.snap().LibraryDir, item)
+	a.lib.removeFolder = len(files) == 1 && files[0] == filepath.Dir(item.VideoPath)
 	a.lib.removeOpen = true
 }
 
-func (a *app) Removing() (*bool, films.Film) { return &a.lib.removeOpen, a.lib.removing }
+func (a *app) Removing() (*bool, films.Film, bool) {
+	return &a.lib.removeOpen, a.lib.removing, a.lib.removeFolder
+}
 
 // trashItem moves a file or a folder to the Trash. Tests replace it.
 var trashItem = mygo.Shell.TrashItem
 
-// TrashFilm takes a film off the shelf, as 从资料库移除 confirms. A film inside the library goes to the Trash with its folder, or with only its subtitles when that folder holds other videos too. A local video kept outside the library stays where it is and only leaves the shelf.
+// TrashFilm takes a film off the shelf, as 从资料库移除 confirms. A film inside the library goes to the Trash with its folder, or with only its subtitles when that folder holds other videos or folders too. A local video kept outside the library stays where it is and only leaves the shelf.
 func (a *app) TrashFilm(item films.Film) {
 	name := item.Name
 	if name == "" {
@@ -185,7 +190,7 @@ func (a *app) TrashFilm(item films.Film) {
 	}
 }
 
-// filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos too or is the root itself, the video and its subtitles. A video outside the library has none.
+// filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos or any folder too, or is the root itself, the video and its subtitles. A video outside the library has none.
 func filmFiles(root string, item films.Film) []string {
 	video := item.VideoPath
 	if video == "" || !films.InDir(root, video) {
@@ -205,14 +210,14 @@ func filmFiles(root string, item films.Film) []string {
 	return files
 }
 
-// aloneIn reports whether video is the only video in dir.
+// aloneIn reports whether video is the only video in dir and dir has no folder inside it. The shelf lists only the videos directly in a film's folder, so a folder inside may hold videos, or anything else, the user never saw there; the folder then stays, and only the film's files go.
 func aloneIn(dir, video string) bool {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return false
 	}
 	for _, entry := range entries {
-		if !entry.IsDir() && media.IsVideoFile(entry.Name()) && filepath.Join(dir, entry.Name()) != video {
+		if entry.IsDir() || (media.IsVideoFile(entry.Name()) && filepath.Join(dir, entry.Name()) != video) {
 			return false
 		}
 	}
@@ -246,8 +251,11 @@ func (a *app) libraryEnqueue(sources ...string) bool {
 	return added > 0
 }
 
-// dropFiles adds every video among files dropped on the window, or picked with 本地视频, to the queue. Files that are not videos are left out; when none is a video, the message bar says what can be added.
+// dropFiles adds every video among files dropped on the window, or picked with 本地视频, to the queue. Files that are not videos are left out; when none is a video, the message bar says what can be added. Files dropped on another page or over an open film, or picked from there with ⌘O, take the window to the library, whose message bar and queue show what became of them.
 func (a *app) dropFiles(paths []string) {
+	if a.page != pageFilms || a.openKey != "" {
+		a.Select(pageFilms)
+	}
 	var sources []string
 	for _, path := range paths {
 		if media.IsVideoFile(path) {

@@ -340,6 +340,62 @@ func TestDropWithoutVideosSaysWhatCanBeAdded(t *testing.T) {
 	}
 }
 
+// TestDropElsewhereShowsTheLibrary drops files on a settings page and over an open film: neither page shows the library's message bar or queue, so the drop takes the window to the library, where both say what became of the files.
+func TestDropElsewhereShowsTheLibrary(t *testing.T) {
+	src := t.TempDir()
+	video := filepath.Join(src, "talk.mp4")
+	note := filepath.Join(src, "notes.txt")
+	for _, path := range []string{video, note} {
+		if err := os.WriteFile(path, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("settings", func(t *testing.T) {
+		a, tt, updates := newTestApp(&fakePipeline{block: true})
+		t.Cleanup(func() {
+			a.Cancel(a.RunningJob())
+			for a.RunningJob() != "" {
+				(<-updates)()
+			}
+		})
+		a.OpenSettings(settings.SectionTranslate)
+		tt.Frame()
+		wantSettings(t, a, settings.SectionTranslate)
+		w, h := float32(1100), float32(720)
+		if !tt.DropFiles(sidebarWidth+(w-sidebarWidth)/2, h/2, video) {
+			t.Fatal("the settings page did not take the dropped file")
+		}
+		tt.Frame()
+		if a.page != pageFilms || len(a.library.Jobs) != 1 {
+			t.Fatalf("page %q jobs %#v", a.page, a.library.Jobs)
+		}
+		if !tt.HasText("已加入，开始处理。") || !tt.HasText("talk") {
+			t.Fatalf("the drop was not shown: %q", tt.Texts())
+		}
+	})
+
+	t.Run("open film", func(t *testing.T) {
+		a, tt, _ := libraryWith(t, "Talk")
+		a.Open(a.films()[0])
+		tt.Frame()
+		if a.openKey == "" || tt.HasText("开始处理") {
+			t.Fatalf("the film did not open: %q", tt.Texts())
+		}
+		w, h := float32(1100), float32(720)
+		if !tt.DropFiles(w/2, h/2, note) {
+			t.Fatal("the open film did not take the dropped file")
+		}
+		tt.Frame()
+		if a.page != pageFilms || a.openKey != "" || a.PlaybackOpen() {
+			t.Fatalf("page %q open %q playback %v", a.page, a.openKey, a.PlaybackOpen())
+		}
+		if !tt.HasText(noticeNoVideo) {
+			t.Fatalf("the message bar is not shown: %q", tt.Texts())
+		}
+	})
+}
+
 func TestQueueShowsEveryWaitingJob(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	for i := range 8 {
@@ -455,6 +511,65 @@ func TestFilmFilesKeepsOtherVideosOfTheFolder(t *testing.T) {
 	if got := filmFiles(lib, filmOf(filepath.Join(lib, "loose.mp4"))); len(got) != 1 {
 		t.Fatalf("a video at the library's root took more than itself: %v", got)
 	}
+
+	// A folder inside the film's folder is not on the shelf, and may hold videos the user never saw there, so the film's folder stays.
+	course := filepath.Join(lib, "Course")
+	if err := os.MkdirAll(filepath.Join(course, "extras"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"video.mp4", "video.bilingual.srt", filepath.Join("extras", "b.mp4")} {
+		if err := os.WriteFile(filepath.Join(course, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got = filmFiles(lib, filmOf(filepath.Join(course, "video.mp4")))
+	want = []string{filepath.Join(course, "video.mp4"), filepath.Join(course, "video.bilingual.srt")}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("filmFiles = %v, want %v", got, want)
+	}
+}
+
+// TestRemoveSaysWhatGoesToTheTrash checks that the confirmation says the folder goes only when the folder is what TrashFilm moves, and that a folder inside the film's folder stays.
+func TestRemoveSaysWhatGoesToTheTrash(t *testing.T) {
+	const folderText = "影片文件夹会移到废纸篓"
+	const filesText = "视频和它的字幕会移到废纸篓"
+
+	a, tt, video := libraryWith(t, "Talk")
+	a.AskRemove(a.films()[0])
+	tt.Frame()
+	if !tt.HasText(folderText + "，里面的视频、封面和字幕都可以从废纸篓找回。") {
+		t.Fatalf("a film alone in its folder: %q", tt.Texts())
+	}
+	if err := tt.Click("取消"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+
+	extra := filepath.Join(filepath.Dir(video), "extras", "b.mp4")
+	if err := os.MkdirAll(filepath.Dir(extra), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(extra, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	trashed := fakeTrash(t)
+	a.AskRemove(a.films()[0])
+	tt.Frame()
+	texts := strings.Join(tt.Texts(), "\n")
+	if strings.Contains(texts, folderText) || !strings.Contains(texts, filesText) {
+		t.Fatalf("a film whose folder holds another folder: %q", tt.Texts())
+	}
+	if err := tt.Click("移除"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	want := []string{video, filepath.Join(filepath.Dir(video), "video.bilingual.srt")}
+	if strings.Join(*trashed, ",") != strings.Join(want, ",") {
+		t.Fatalf("trashed %v, want %v", *trashed, want)
+	}
+	if _, err := os.Stat(extra); err != nil {
+		t.Fatalf("the video in the folder inside went too: %v", err)
+	}
 }
 
 func TestPrecheckSaysWhatToFix(t *testing.T) {
@@ -472,7 +587,7 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 		{name: "not a link", sources: []string{"hello"}, msg: noticeNotLink},
 		{name: "no library", sources: link, noLib: true, msg: noticeNoLib},
 		{name: "no yt-dlp", sources: link, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: noticeTools + "：yt-dlp", section: settings.SectionGeneral},
-		{name: "a local file needs no yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }},
+		{name: "a local file still needs yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: noticeTools + "：yt-dlp", section: settings.SectionGeneral},
 		{name: "no model", sources: link, tools: func(t *media.Tools) { t.WhisperModel = "" }, msg: noticeModel, section: settings.SectionSpeech},
 		{name: "no LLM model", sources: link, tools: func(t *media.Tools) { t.Translator.Model = "" }, msg: noticeLLMModel, section: settings.SectionAI},
 		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }, msg: noticeEveryAPI, section: settings.SectionAI},
@@ -490,6 +605,40 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 		if msg != tc.msg || section != tc.section {
 			t.Errorf("%s: precheck = %q, %q; want %q, %q", tc.name, msg, section, tc.msg, tc.section)
 		}
+	}
+}
+
+// TestPrecheckAsksForWhatCheckAsks keeps precheck and the pipeline's own Check in step: a local video precheck lets through must not fail Check for a missing tool.
+func TestPrecheckAsksForWhatCheckAsks(t *testing.T) {
+	model := filepath.Join(t.TempDir(), "model.bin")
+	if err := os.WriteFile(model, []byte("m"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ready := media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", WhisperModel: model, Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", APIKey: "k"}}
+	local := []string{fileURL("/videos/v.mp4")}
+	for _, name := range []string{"yt-dlp", "ffmpeg", "whisper-cli"} {
+		tools := ready
+		switch name {
+		case "yt-dlp":
+			tools.YTDLP = ""
+		case "ffmpeg":
+			tools.FFmpeg = ""
+		case "whisper-cli":
+			tools.Whisper = ""
+		}
+		a := newApp(tools, func(func()) {})
+		a.edit(func(s *session) { s.LibraryDir = "/videos" })
+		msg, _ := a.precheck(local)
+		err := tools.Check()
+		if err == nil || !strings.Contains(err.Error(), name+" is not installed") {
+			t.Fatalf("without %s Check = %v", name, err)
+		}
+		if msg != noticeTools+"："+name {
+			t.Errorf("without %s precheck let a local video through to a Check that fails with %v", name, err)
+		}
+	}
+	if err := ready.Check(); err != nil {
+		t.Fatalf("ready tools fail Check: %v", err)
 	}
 }
 

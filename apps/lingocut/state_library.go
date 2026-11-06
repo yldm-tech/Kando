@@ -23,9 +23,10 @@ type libraryUI struct {
 	notice films.Notice
 	// queueOpen shows every card of 处理中 rather than the first films.QueueShown.
 	queueOpen bool
-	// removing is the film whose 从资料库移除 is waiting to be confirmed, while removeOpen.
-	removing   films.Film
-	removeOpen bool
+	// removing is the film whose 从资料库移除 is waiting to be confirmed, while removeOpen. removeFolder is whether its folder, rather than only its video and subtitles, goes to the Trash, as filmFiles decided when it was asked.
+	removing     films.Film
+	removeOpen   bool
+	removeFolder bool
 	// durations is how long each video plays, by path, read with the poster. A video that has none here is not known yet.
 	durations map[string]time.Duration
 	// quotes is the first bilingual line of each subtitle file read for the hero, by path.

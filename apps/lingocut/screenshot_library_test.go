@@ -16,7 +16,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsLibrary renders the library page at the prototype's window size (1304×782) to PNG files in the directory named by LINGOCUT_SCREENSHOTS (screenshot_helpers_test.go), with the prototype's films: the hero, 处理中 with waiting, running and failed jobs, the grid, the empty pages, the new-library sheet and the 从资料库移除 confirmation. The shared fixture's two films are too few for the hero, the queue and the grid at once, so the scenes use a library of their own. It is skipped when the variable is unset, and without ffmpeg, which makes the clips the posters come from.
+// TestScreenshotsLibrary renders the library page at the prototype's window size (1304×782) to PNG files in the directory named by LINGOCUT_SCREENSHOTS (screenshot_helpers_test.go), with the prototype's films: the hero, 处理中 with waiting, running and failed jobs, the grid, the empty pages, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, and a video dropped over an open film. The shared fixture's two films are too few for the hero, the queue and the grid at once, so the scenes use a library of their own. It is skipped when the variable is unset, and without ffmpeg, which makes the clips the posters come from.
 func TestScreenshotsLibrary(t *testing.T) {
 	out := newScreenshotFixture(t).out
 	ffmpeg, err := exec.LookPath("ffmpeg")
@@ -126,11 +126,30 @@ func TestScreenshotsLibrary(t *testing.T) {
 		try(tt, "资料库菜单")
 		try(tt, "新建资料库...")
 	})
-	shoot("library-remove", 1304, 1100, withJobs, func(_ *app, tt *ui.Tester) {
+	removeAlgebra := func(_ *app, tt *ui.Tester) {
 		if tt.RightClick("Linear Algebra, Lecture 1") == nil {
 			if tt.ChooseMenuItem("从资料库移除…") == nil {
 				tt.Frame()
 			}
 		}
+	}
+	shoot("library-remove", 1304, 1100, withJobs, removeAlgebra)
+	// A folder inside the film's folder keeps that folder out of the Trash, and the confirmation says only the video and its subtitles go.
+	shoot("library-remove-files", 1304, 1100, func(a *app) {
+		withJobs(a)
+		if err := os.MkdirAll(filepath.Join(filepath.Dir(algebra), "extras"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}, removeAlgebra)
+	// A video dropped on a settings page: the library's message bar says what became of it.
+	dropped := filepath.Join(t.TempDir(), "Ocean Currents.mp4")
+	if err := os.WriteFile(dropped, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	shoot("drop-on-film", 1304, 782, func(a *app) {
+		withJobs(a)
+		a.openKey = "rivers"
+	}, func(_ *app, tt *ui.Tester) {
+		tt.DropFiles(sidebarWidth+(1304-sidebarWidth)/2, 782/2, dropped)
 	})
 }

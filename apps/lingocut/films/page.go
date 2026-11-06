@@ -72,8 +72,8 @@ type App interface {
 	QueueExpanded() *bool
 	// AskRemove asks to confirm moving a film's folder to the Trash.
 	AskRemove(item Film)
-	// Removing is the film AskRemove asked about and whether its confirmation is open.
-	Removing() (open *bool, item Film)
+	// Removing is the film AskRemove asked about, whether its confirmation is open, and whether its whole folder goes to the Trash rather than only its video and subtitles.
+	Removing() (open *bool, item Film, folder bool)
 	// TrashFilm moves a film's folder to the Trash and takes it off the shelf.
 	TrashFilm(item Film)
 }
