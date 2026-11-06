@@ -105,12 +105,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if tt.HasText("先准备一个资料库") {
 		t.Fatal("the welcome stayed after the library was created")
 	}
-	if err := tt.Click("资料库菜单"); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click("新建资料库..."); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
+	chooseFromSwitcher(t, tt, "新建资料库…")
 	a.edit(func(s *session) { s.LibraryName = "第二库" })
 	tt.Frame()
 	if !tt.HasText("新建资料库") || !tt.HasText("创建资料库") {
@@ -124,12 +119,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if a.snap().LibraryDir != second || len(a.snap().Libraries) != 2 {
 		t.Fatalf("library %q list %v", a.snap().LibraryDir, a.snap().Libraries)
 	}
-	if err := tt.Click("资料库菜单"); err != nil {
-		t.Fatal(err)
-	}
-	if err := tt.Click("第一库"); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
+	chooseFromSwitcher(t, tt, "第一库")
 	tt.Frame()
 	if a.snap().LibraryDir != first {
 		t.Fatalf("switched library = %q", a.snap().LibraryDir)

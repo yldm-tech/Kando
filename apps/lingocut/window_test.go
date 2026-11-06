@@ -4,6 +4,8 @@ import (
 	"image"
 	"testing"
 
+	"lingocut/apps/lingocut/settings"
+	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/core"
 
 	"github.com/egoist/mygo/ui"
@@ -17,9 +19,13 @@ func TestVibrancyShowsThroughTheSidebarOnly(t *testing.T) {
 	tt.Frame()
 	img := tt.Image()
 	scale := float32(img.Bounds().Dx()) / 1100
-	// Below the last sidebar item and below the shelf, both regions are empty.
-	if a := alphaAt(img, scale, 120, 680); a != 0 {
-		t.Fatalf("sidebar alpha = %d, want the window's material to show", a)
+	// The gutter left of the sidebar's card shows the material, the card below the last source lets it through, and the content below the shelf is opaque.
+	// Only the card's soft shadow, a few percent, tints the gutter.
+	if a := alphaAt(img, scale, 3, 400); a > 16 {
+		t.Fatalf("gutter alpha = %d, want the window's material to show", a)
+	}
+	if a := alphaAt(img, scale, 120, 400); a == 0 || a == 255 {
+		t.Fatalf("card alpha = %d, want it translucent", a)
 	}
 	if a := alphaAt(img, scale, 700, 680); a != 255 {
 		t.Fatalf("content alpha = %d, want it opaque", a)
@@ -28,8 +34,8 @@ func TestVibrancyShowsThroughTheSidebarOnly(t *testing.T) {
 	_, plain, _ := newTestApp(&fakePipeline{})
 	plain.SetDark(true)
 	plain.Frame()
-	if a := alphaAt(plain.Image(), scale, 120, 680); a != 255 {
-		t.Fatalf("sidebar alpha without vibrancy = %d, want opaque", a)
+	if a := alphaAt(plain.Image(), scale, 3, 400); a != 255 {
+		t.Fatalf("gutter alpha without vibrancy = %d, want opaque", a)
 	}
 }
 
@@ -57,44 +63,39 @@ func TestPrimaryButtonUsesTheAccent(t *testing.T) {
 	}
 }
 
-func TestSidebarArrowKeysChangeThePage(t *testing.T) {
+func TestSidebarArrowKeysChangeTheSource(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.Frame()
 	if err := tt.Click("全部影片"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.page != pageFilms {
-		t.Fatalf("page %q after clicking the chosen item", a.page)
+	if a.page != pageFilms || a.side.filter != sidebar.SourceAll {
+		t.Fatalf("page %q source %q after clicking the chosen item", a.page, a.side.filter)
 	}
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
-	if a.page != pageYouTube {
-		t.Fatalf("page %q after Down, want %q", a.page, pageYouTube)
+	if a.side.filter != sidebar.SourceYouTube {
+		t.Fatalf("source %q after Down, want %q", a.side.filter, sidebar.SourceYouTube)
 	}
 	tt.Key(0, ui.KeyUp)
 	tt.Frame()
-	if a.page != pageFilms {
-		t.Fatalf("page %q after Up, want %q", a.page, pageFilms)
+	if a.side.filter != sidebar.SourceAll {
+		t.Fatalf("source %q after Up, want %q", a.side.filter, sidebar.SourceAll)
 	}
 }
 
-// TestSidebarClickOnTheCurrentPageClosesTheFilm checks that clicking the page already chosen in the sidebar, while a film from that page is open, closes the film and goes back to its grid.
-func TestSidebarClickOnTheCurrentPageClosesTheFilm(t *testing.T) {
+// TestSidebarSourceLeavesTheSettings checks that a source chosen while a settings page shows, where no source is chosen, goes back to the library filtered by it.
+func TestSidebarSourceLeavesTheSettings(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
-	a.page = pageYouTube
-	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
-	a.openKey = "j"
+	a.OpenSettings(settings.SectionTranslate)
 	tt.Frame()
-	if !tt.HasText("返回") {
-		t.Fatalf("film not open: %q", tt.Texts())
-	}
-	if err := tt.Click("YouTube"); err != nil {
+	if err := tt.Click("本地文件"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.openKey != "" || a.page != pageYouTube {
-		t.Fatalf("clicking the current sidebar item left page %q open %q", a.page, a.openKey)
+	if a.page != pageFilms || a.side.filter != sidebar.SourceLocal {
+		t.Fatalf("page %q source %q after choosing 本地文件 in the settings", a.page, a.side.filter)
 	}
 }
 
@@ -135,10 +136,11 @@ func TestTitleBarClearsTheTrafficLights(t *testing.T) {
 		t.Fatalf("title sits under the traffic lights at y=%v", title.Y)
 	}
 
+	// Without a title bar the sidebar keeps no room for the traffic lights.
 	_, plain, _ := newTestApp(&fakePipeline{})
 	plain.Frame()
-	title, ok = plain.Find("videos")
-	if !ok || title.Y >= 28 {
-		t.Fatalf("title y=%v without a title bar", title.Y)
+	plainTitle, ok := plain.Find("videos")
+	if !ok || plainTitle.Y >= title.Y {
+		t.Fatalf("title y=%v without a title bar, %v with one", plainTitle.Y, title.Y)
 	}
 }
