@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -859,7 +860,7 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 	}
 }
 
-// TestLibraryPageOwnsTheTitleBar checks that the library page says it draws its own header bar under the title bar (libraryOwnsTitleBar), so contentBand leaves that room to it, on 全部影片 and YouTube, and that it stops saying so while a film is open over it. Without a title bar the header bar starts at the window's top, with no page padding above it: on macOS it is the prototype's toolbar, 65 points high with 10 above its controls and 18 below them, so its 34-point controls are centered 28.5 points down.
+// TestLibraryPageOwnsTheTitleBar checks that the library page says it draws its own header bar under the title bar (libraryOwnsTitleBar), so contentBand leaves that room to it, on 全部影片 and YouTube, and that it stops saying so while a film is open over it. Without a title bar the header bar starts at the window's top, with no page padding above it: on macOS it is the prototype's toolbar, 65 points high with 10 above its controls and 18 below them, so its 34-point controls are centered 28.5 points down. Elsewhere the bar is the platform's own header bar (films/topbar.go), whose measures the platform's look sets, so the position is checked on macOS only.
 func TestLibraryPageOwnsTheTitleBar(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
@@ -867,7 +868,7 @@ func TestLibraryPageOwnsTheTitleBar(t *testing.T) {
 	if !a.libraryOwnsTitleBar() {
 		t.Fatalf("the library page on %q does not own the title bar", a.page)
 	}
-	if start, ok := tt.Find("开始处理"); !ok || abs32(start.Y+start.H/2-28.5) > 0.5 {
+	if start, ok := tt.Find("开始处理"); !ok || (runtime.GOOS == "darwin" && abs32(start.Y+start.H/2-28.5) > 0.5) {
 		t.Fatalf("开始处理 at %v, want it centered 28.5 points from the window's top", start)
 	}
 	a.Select(pageYouTube)
