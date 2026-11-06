@@ -1,12 +1,9 @@
 package main
 
 import (
-	"lingocut/apps/lingocut/account"
 	"lingocut/apps/lingocut/film"
 	"lingocut/apps/lingocut/films"
-	"lingocut/apps/lingocut/settings"
 	"lingocut/apps/lingocut/sidebar"
-	"lingocut/packages/media"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -26,8 +23,10 @@ const (
 	pagePadX     = sidebar.PagePadX
 )
 
+// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn and contentBand in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, dropFiles in bind_films.go, settingsPage in bind_settings.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
 func (a *app) view(c *ui.Context) {
-	t := palette(c)
+	t, dark := palette(c)
+	a.wireKeys(c)
 	items := a.films()
 	// With the window's material on, the sidebar shows it and the content stays opaque.
 	vibrancy := c.Vibrancy()
@@ -36,68 +35,48 @@ func (a *app) view(c *ui.Context) {
 	}
 	// The traffic lights sit at the top left. The band under the title bar is the drag region, above both the sidebar and the content.
 	bar := c.TitleBar()
-	showSidebar := a.page != pageFilms || a.openKey == ""
+	showSidebar := a.sidebarShown()
 	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
 		if showSidebar {
-			ui.Column(c).Shrink(0).AlignItems(ui.Stretch).Children(func() {
-				if bar.Height > 0 {
-					ui.Row(c).Height(bar.Height).Padding(0, 0, 0, bar.Left).DragWindow()
-				}
-				sidebar.Show(c, t, len(items), appLogo, a)
-			})
+			a.sidebarColumn(c, t, bar)
 		}
 		content := ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch)
 		if vibrancy {
 			content.Background(t.Background)
 		}
 		content.Children(func() {
-			if bar.Height > 0 {
+			if band := a.contentBand(bar); band > 0 {
 				left := bar.Left
 				if showSidebar {
 					left = 0
 				}
-				ui.Row(c).Height(bar.Height).Padding(0, bar.Right, 0, left).DragWindow()
+				ui.Row(c).Height(band).Padding(0, bar.Right, 0, left).DragWindow()
 			}
-			a.mainColumn(c, t, items)
+			a.mainColumn(c, t, dark, items)
 		})
 	})
+	a.overlays(c, t, dark)
+	a.areasAfterFrame()
 }
 
-func (a *app) mainColumn(c *ui.Context, t *ui.Theme, items []films.Film) {
+func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
 	padX, padY := pagePadX, float32(28)
-	if a.page == pageFilms && a.openKey != "" {
-		padX, padY = 16, 12
+	if a.filmFillsWindow() {
+		padX, padY = a.filmPadding()
 	}
 	body := ui.Column(c).Grow(1).MinWidth(0).Padding(padY, padX).Gap(20)
 	if files := body.DroppedFiles(); len(files) > 0 {
-		for _, file := range files {
-			if media.IsVideoFile(file) {
-				a.importLocal(file)
-				break
-			}
-		}
+		a.dropFiles(files)
 	}
 	if body.FileDragOver() {
 		body.Background(t.Surface)
 	}
 	body.Children(func() {
-		switch a.page {
-		case pageGeneral, pageSpeech, pageAI, pageTranslate:
-			ui.Scroll(c).Grow(1).Children(func() {
-				ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
-					settings.Show(c, t, appVersion, a)
-				})
-			})
-		case pageAccount:
-			ui.Scroll(c).Grow(1).Children(func() {
-				ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
-					account.Show(c, t, a)
-				})
-			})
-		default:
-			films.Show(c, t, a, items, func(c *ui.Context, t *ui.Theme, item films.Film) {
-				film.Show(c, t, a, item)
-			})
+		if a.settingsPage(c, t) {
+			return
 		}
+		films.Show(c, t, a, items, func(c *ui.Context, _ *ui.Theme, item films.Film) {
+			film.Show(c, dark, a, item)
+		})
 	})
 }

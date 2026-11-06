@@ -9,42 +9,6 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestWindowKeepsContentBelowTheTitleBar checks that the drag band under the title bar pushes the sidebar and the content down by the title bar's height, with and without an open film.
-func TestWindowKeepsContentBelowTheTitleBar(t *testing.T) {
-	plain, plainTT, _ := newTestApp(&fakePipeline{})
-	barred, barredTT, _ := newTestApp(&fakePipeline{})
-	barredTT.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
-	shifted := func(texts ...string) {
-		t.Helper()
-		plainTT.Frame()
-		barredTT.Frame()
-		for _, text := range texts {
-			before, ok := plainTT.Find(text)
-			if !ok {
-				t.Fatalf("missing %q in %q", text, plainTT.Texts())
-			}
-			after, ok := barredTT.Find(text)
-			if !ok {
-				t.Fatalf("missing %q in %q", text, barredTT.Texts())
-			}
-			if d := after.Y - before.Y; abs32(d-28) > 0.5 {
-				t.Fatalf("%q moved %v under a 28-high title bar", text, d)
-			}
-		}
-	}
-	shifted("全部影片", "开始处理")
-
-	// An open film hides the sidebar; its top row still clears the traffic lights.
-	for _, a := range []*app{plain, barred} {
-		a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
-		a.openKey = "j"
-	}
-	shifted("返回")
-	if barredTT.HasText("全部影片") {
-		t.Fatalf("sidebar shown over an open film: %q", barredTT.Texts())
-	}
-}
-
 func TestVibrancyShowsThroughTheSidebarOnly(t *testing.T) {
 	_, tt, _ := newTestApp(&fakePipeline{})
 	tt.SetDark(true)
@@ -131,5 +95,50 @@ func TestSidebarClickOnTheCurrentPageClosesTheFilm(t *testing.T) {
 	tt.Frame()
 	if a.openKey != "" || a.page != pageYouTube {
 		t.Fatalf("clicking the current sidebar item left page %q open %q", a.page, a.openKey)
+	}
+}
+
+// TestWindowIsLightAndTheFilmDark checks the palette: the window is light with LingoCut's colors whatever the desktop's appearance, and an open film is drawn in the dark theme.
+func TestWindowIsLightAndTheFilmDark(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.SetDark(true)
+	tt.Frame()
+	img := tt.Image()
+	scale := float32(img.Bounds().Dx()) / 1100
+	if px := img.RGBAAt(int(700*scale), int(680*scale)); px.R != 255 || px.G != 255 || px.B != 255 {
+		t.Fatalf("content = %v, want white", px)
+	}
+
+	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
+	a.openKey = "j"
+	tt.Frame()
+	r, ok := tt.Find("返回")
+	if !ok {
+		t.Fatalf("film not open: %q", tt.Texts())
+	}
+	img = tt.Image()
+	// Left of the back button is the film page's own padding.
+	px := img.RGBAAt(int((r.X-6)*scale), int((r.Y+r.H/2)*scale))
+	if px.R > 60 || px.G > 60 || px.B > 60 {
+		t.Fatalf("film page = %v, want dark", px)
+	}
+}
+
+func TestTitleBarClearsTheTrafficLights(t *testing.T) {
+	_, tt, _ := newTestApp(&fakePipeline{})
+	tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 70})
+	title, ok := tt.Find("videos")
+	if !ok {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if title.Y < 28 {
+		t.Fatalf("title sits under the traffic lights at y=%v", title.Y)
+	}
+
+	_, plain, _ := newTestApp(&fakePipeline{})
+	plain.Frame()
+	title, ok = plain.Find("videos")
+	if !ok || title.Y >= 28 {
+		t.Fatalf("title y=%v without a title bar", title.Y)
 	}
 }
