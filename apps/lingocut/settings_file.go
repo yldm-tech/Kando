@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"lingocut/apps/lingocut/film"
-	"lingocut/packages/media"
 )
 
 // settings.json: what saveSettings writes and loadSavedSettings reads.
@@ -19,55 +17,9 @@ func (a *app) saveSettings() error {
 	if err := os.MkdirAll(filepath.Dir(a.settingsPath), 0o700); err != nil {
 		return err
 	}
-	contextOn := a.prefs.translateContext
-	yieldSubs := a.player.yieldSubs
-	shelf := a.snap()
-	saved := savedSettings{
-		LibraryDir:       shelf.LibraryDir,
-		Libraries:        append([]string{}, a.knownLibraries()...),
-		LibraryInodes:    inodesForSave(shelf.Inodes),
-		LLMProvider:      a.prefs.llmProvider,
-		Language:         a.prefs.language,
-		TranslatePrompt:  a.prefs.translatePrompt,
-		TranslateContext: &contextOn,
-		GoogleEmail:      a.cloud.googleEmail,
-		GoogleRefresh:    a.cloud.googleRefresh,
-		Storage:          a.storageKind(),
-		R2Endpoint:       a.cloud.r2Endpoint,
-		R2Bucket:         a.cloud.r2Bucket,
-		R2AccessKey:      a.cloud.r2AccessKey,
-		R2Secret:         a.cloud.r2Secret,
-		S3Region:         a.cloud.s3Region,
-		S3Bucket:         a.cloud.s3Bucket,
-		S3AccessKey:      a.cloud.s3AccessKey,
-		S3Secret:         a.cloud.s3Secret,
-		OSSRegion:        a.cloud.ossRegion,
-		OSSBucket:        a.cloud.ossBucket,
-		OSSAccessKey:     a.cloud.ossAccessKey,
-		OSSSecret:        a.cloud.ossSecret,
-		COSRegion:        a.cloud.cosRegion,
-		COSBucket:        a.cloud.cosBucket,
-		COSAccessKey:     a.cloud.cosAccessKey,
-		COSSecret:        a.cloud.cosSecret,
-		CompatEndpoint:   a.cloud.compatEndpoint,
-		CompatRegion:     a.cloud.compatRegion,
-		CompatBucket:     a.cloud.compatBucket,
-		CompatAccessKey:  a.cloud.compatAccessKey,
-		CompatSecret:     a.cloud.compatSecret,
-		CompatPathStyle:  a.cloud.compatPath,
-		Look:             changedLook(a.player.look),
-		SubMode:          a.player.subMode,
-		SubOrder:         a.player.subOrder,
-		Untranslated:     a.player.untranslated,
-		YieldSubs:        &yieldSubs,
-		Onboarded:        a.overlay.onboarded,
-	}
-	if tools, ok := a.pipeline.(media.Tools); ok {
-		saved.WhisperModel = tools.WhisperModel
-		saved.LLMBaseURL = tools.Translator.BaseURL
-		saved.LLMModel = tools.Translator.Model
-		saved.LLMAPIKey = tools.Translator.APIKey
-	}
+	var saved savedSettings
+	saved.savedShelf = a.saveShelf()
+	a.areasSave(&saved)
 	data, err := json.MarshalIndent(saved, "", "  ")
 	if err != nil {
 		return err
@@ -87,87 +39,34 @@ func loadSavedSettings(path string) savedSettings {
 	}
 	// A saved look is read over the default, so a field it lacks, such as one added after it was saved, keeps the default.
 	look := film.DefaultLook()
-	saved := savedSettings{Look: &look}
+	saved := savedSettings{savedPlayer: savedPlayer{Look: &look}}
 	if json.Unmarshal(data, &saved) != nil {
 		return savedSettings{}
 	}
-	saved.LibraryDir = strings.TrimSpace(saved.LibraryDir)
-	saved.Libraries = cleanLibraries(saved.Libraries)
-	saved.WhisperModel = strings.TrimSpace(saved.WhisperModel)
-	saved.LLMBaseURL = strings.TrimSpace(saved.LLMBaseURL)
-	saved.LLMModel = strings.TrimSpace(saved.LLMModel)
-	saved.LLMAPIKey = strings.TrimSpace(saved.LLMAPIKey)
-	saved.LLMProvider = strings.TrimSpace(saved.LLMProvider)
-	saved.Language = strings.TrimSpace(saved.Language)
-	saved.TranslatePrompt = strings.TrimSpace(saved.TranslatePrompt)
-	saved.GoogleEmail = strings.TrimSpace(saved.GoogleEmail)
-	saved.GoogleRefresh = strings.TrimSpace(saved.GoogleRefresh)
-	saved.Storage = strings.TrimSpace(saved.Storage)
-	saved.R2Endpoint = strings.TrimSpace(saved.R2Endpoint)
-	saved.R2Bucket = strings.TrimSpace(saved.R2Bucket)
-	saved.R2AccessKey = strings.TrimSpace(saved.R2AccessKey)
-	saved.R2Secret = strings.TrimSpace(saved.R2Secret)
-	saved.S3Region = strings.TrimSpace(saved.S3Region)
-	saved.S3Bucket = strings.TrimSpace(saved.S3Bucket)
-	saved.S3AccessKey = strings.TrimSpace(saved.S3AccessKey)
-	saved.S3Secret = strings.TrimSpace(saved.S3Secret)
-	saved.OSSRegion = strings.TrimSpace(saved.OSSRegion)
-	saved.OSSBucket = strings.TrimSpace(saved.OSSBucket)
-	saved.OSSAccessKey = strings.TrimSpace(saved.OSSAccessKey)
-	saved.OSSSecret = strings.TrimSpace(saved.OSSSecret)
-	saved.COSRegion = strings.TrimSpace(saved.COSRegion)
-	saved.COSBucket = strings.TrimSpace(saved.COSBucket)
-	saved.COSAccessKey = strings.TrimSpace(saved.COSAccessKey)
-	saved.COSSecret = strings.TrimSpace(saved.COSSecret)
-	saved.CompatEndpoint = strings.TrimSpace(saved.CompatEndpoint)
-	saved.CompatRegion = strings.TrimSpace(saved.CompatRegion)
-	saved.CompatBucket = strings.TrimSpace(saved.CompatBucket)
-	saved.CompatAccessKey = strings.TrimSpace(saved.CompatAccessKey)
-	saved.CompatSecret = strings.TrimSpace(saved.CompatSecret)
+	saved.clean()
 	return saved
 }
 
+// savedSettings is settings.json. Each part is one area's, declared in that area's file next to the code that saves and restores it (areaHooks.save and restore), and encoding/json writes the parts' fields side by side, as one object. An area adds a setting to its own part, not here; two parts must not use the same key (TestSavedSettingsKeysAreUnique).
 type savedSettings struct {
-	LibraryDir       string                `json:"libraryDir,omitempty"`
-	Libraries        []string              `json:"libraries,omitempty"`
-	LibraryInodes    map[string]savedInode `json:"libraryInodes,omitempty"`
-	WhisperModel     string                `json:"whisperModel,omitempty"`
-	LLMProvider      string                `json:"llmProvider,omitempty"`
-	LLMBaseURL       string                `json:"llmBaseURL,omitempty"`
-	LLMModel         string                `json:"llmModel,omitempty"`
-	LLMAPIKey        string                `json:"llmAPIKey,omitempty"`
-	Language         string                `json:"language,omitempty"`
-	TranslatePrompt  string                `json:"translatePrompt,omitempty"`
-	TranslateContext *bool                 `json:"translateContext,omitempty"`
-	GoogleEmail      string                `json:"googleEmail,omitempty"`
-	GoogleRefresh    string                `json:"googleRefresh,omitempty"`
-	Storage          string                `json:"storage,omitempty"`
-	R2Endpoint       string                `json:"r2Endpoint,omitempty"`
-	R2Bucket         string                `json:"r2Bucket,omitempty"`
-	R2AccessKey      string                `json:"r2AccessKey,omitempty"`
-	R2Secret         string                `json:"r2Secret,omitempty"`
-	S3Region         string                `json:"s3Region,omitempty"`
-	S3Bucket         string                `json:"s3Bucket,omitempty"`
-	S3AccessKey      string                `json:"s3AccessKey,omitempty"`
-	S3Secret         string                `json:"s3Secret,omitempty"`
-	OSSRegion        string                `json:"ossRegion,omitempty"`
-	OSSBucket        string                `json:"ossBucket,omitempty"`
-	OSSAccessKey     string                `json:"ossAccessKey,omitempty"`
-	OSSSecret        string                `json:"ossSecret,omitempty"`
-	COSRegion        string                `json:"cosRegion,omitempty"`
-	COSBucket        string                `json:"cosBucket,omitempty"`
-	COSAccessKey     string                `json:"cosAccessKey,omitempty"`
-	COSSecret        string                `json:"cosSecret,omitempty"`
-	CompatEndpoint   string                `json:"s3CompatEndpoint,omitempty"`
-	CompatRegion     string                `json:"s3CompatRegion,omitempty"`
-	CompatBucket     string                `json:"s3CompatBucket,omitempty"`
-	CompatAccessKey  string                `json:"s3CompatAccessKey,omitempty"`
-	CompatSecret     string                `json:"s3CompatSecret,omitempty"`
-	CompatPathStyle  bool                  `json:"s3CompatPathStyle,omitempty"`
-	Look             *film.Look            `json:"look,omitempty"`
-	SubMode          string                `json:"subMode,omitempty"`
-	SubOrder         string                `json:"subOrder,omitempty"`
-	Untranslated     string                `json:"untranslated,omitempty"`
-	YieldSubs        *bool                 `json:"yieldSubs,omitempty"`
-	Onboarded        bool                  `json:"onboarded,omitempty"`
+	savedShelf     // shelf_app.go
+	savedSidebar   // state_sidebar.go
+	savedLibrary   // state_library.go
+	savedQueue     // queue.go
+	savedSpeech    // settings_speech.go
+	savedLLM       // settings_ai.go
+	savedTranslate // state_settings.go
+	savedCloud     // state_cloud.go
+	savedPlayer    // state_player.go
+	savedOverlay   // state_overlay.go
+	savedMenu      // state_menu.go
+}
+
+// clean trims what was read. A part whose text needs trimming has a clean of its own, called here.
+func (s *savedSettings) clean() {
+	s.savedShelf.clean()
+	s.savedSpeech.clean()
+	s.savedLLM.clean()
+	s.savedTranslate.clean()
+	s.savedCloud.clean()
 }

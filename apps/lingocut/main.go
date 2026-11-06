@@ -52,124 +52,25 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 
 func main() {
 	var win *mygo.Window
-	tools := media.ToolsFromEnv()
-	a := newApp(tools, func(fn func()) { win.Update(fn) })
+	var a *app
+	a = newApp(media.ToolsFromEnv(), func(fn func()) {
+		win.Update(func() {
+			fn()
+			a.areasAfterUpdate()
+		})
+	})
 	defer func() { _ = a.store.Close() }()
 	a.settingsPath = filepath.Join(filepath.Dir(shelf.DefaultPath()), "settings.json")
 	a.prefs.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.prefs.extraModelDirs = defaultExtraModelDirs()
 	saved := loadSavedSettings(a.settingsPath)
-	libs := cleanLibraries(saved.Libraries)
-	if saved.LibraryDir != "" {
-		libs = addLibrary(libs, saved.LibraryDir)
-	}
-	libraryDir := ""
-	if env := os.Getenv("LINGOCUT_OUTPUT_DIR"); env != "" {
-		libraryDir = env
-	} else if saved.LibraryDir != "" {
-		libraryDir = saved.LibraryDir
-	} else if len(libs) > 0 {
-		libraryDir = libs[0]
-	}
-	a.edit(func(s *session) {
-		s.Libraries = libs
-		s.LibraryDir = libraryDir
-	})
-	a.restoreLibraryInodes(saved.LibraryInodes)
-	if a.reconcileMissingLibraries() {
-		libraryDir = a.snap().LibraryDir
-		if err := a.saveSettings(); err != nil {
-			a.saveErr = "资料库无法保存：" + err.Error()
-		}
-	}
-	tools.OutputDir = libraryDir
-	a.pipeline = tools
-	if os.Getenv("LINGOCUT_WHISPER_MODEL") == "" && saved.WhisperModel != "" {
-		if info, err := os.Stat(saved.WhisperModel); err == nil && !info.IsDir() && info.Size() > 0 {
-			tools.WhisperModel = saved.WhisperModel
-			a.pipeline = tools
-		}
-	}
-	if os.Getenv("LINGOCUT_LLM_BASE_URL") == "" && saved.LLMBaseURL != "" {
-		tools.Translator.BaseURL = saved.LLMBaseURL
-	}
-	if os.Getenv("LINGOCUT_LLM_MODEL") == "" && saved.LLMModel != "" {
-		tools.Translator.Model = saved.LLMModel
-	}
-	if os.Getenv("LINGOCUT_LLM_API_KEY") == "" && os.Getenv("EVERYAPI_API_KEY") == "" && saved.LLMAPIKey != "" {
-		tools.Translator.APIKey = saved.LLMAPIKey
-	}
-	credential := tools.Translator.Credential
-	if tools.Translator.BaseURL != media.EveryAPIBaseURL || tools.Translator.APIKey != "" {
-		tools.Translator.Credential = nil
-	}
-	a.syncLLM(tools)
-	a.prefs.llmCredential = credential
-	if saved.Language != "" {
-		a.prefs.language = saved.Language
-	}
-	if saved.TranslatePrompt != "" {
-		a.prefs.translatePrompt = saved.TranslatePrompt
-	}
-	if saved.TranslateContext != nil {
-		a.prefs.translateContext = *saved.TranslateContext
-	}
-	applyCloudEnv(a, saved)
-	a.restorePlayer(saved)
-	a.overlay.onboarded = saved.Onboarded
+	a.restoreShelf(saved)
+	a.areasRestore(saved)
 	if cache, err := os.UserCacheDir(); err == nil {
 		a.lib.posterDir = filepath.Join(cache, "LingoCut", "posters")
 	}
 	a.openLibrary(shelf.DefaultPath())
-	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.snap().LibraryDir) == filepath.Clean(media.VimpoLibraryDir()) {
-		bundle := media.DefaultLibraryDir()
-		moved, err := media.DetachOwnVideos(a.snap().LibraryDir, bundle)
-		if a.retargetLibrary(moved) {
-			if saveErr := a.library.Save(); saveErr != nil && err == nil {
-				err = saveErr
-			}
-		}
-		if err != nil {
-			a.saveErr = "资料库无法搬出：" + err.Error()
-		} else {
-			libs := dropLibrary(a.snap().Libraries, media.VimpoLibraryDir())
-			libs = addLibrary(libs, bundle)
-			a.edit(func(s *session) {
-				s.Libraries = libs
-				s.LibraryDir = bundle
-			})
-			tools.OutputDir = bundle
-			a.pipeline = tools
-			if saveErr := a.saveSettings(); saveErr != nil {
-				a.saveErr = "资料库无法保存：" + saveErr.Error()
-			}
-		}
-	}
-	if os.Getenv("LINGOCUT_OUTPUT_DIR") == "" && filepath.Clean(a.snap().LibraryDir) == filepath.Clean(media.LegacyLibraryDir()) {
-		from := a.snap().LibraryDir
-		bundle := media.DefaultLibraryDir()
-		moved, err := media.AdoptLibrary(from, bundle)
-		if a.retargetLibrary(moved) {
-			if saveErr := a.library.Save(); saveErr != nil && err == nil {
-				err = saveErr
-			}
-		}
-		if err != nil {
-			a.saveErr = "影视库无法整理：" + err.Error()
-		} else {
-			media.RemoveEmptyLibrary(from)
-			libs := addLibrary(a.snap().Libraries, bundle)
-			a.edit(func(s *session) {
-				s.Libraries = libs
-				s.LibraryDir = bundle
-			})
-			tools.OutputDir = bundle
-			a.pipeline = tools
-			if saveErr := a.saveSettings(); saveErr != nil {
-				a.saveErr = "资料库无法保存：" + saveErr.Error()
-			}
-		}
-	}
+	a.migrateLibrary()
 	for _, dir := range a.knownLibraries() {
 		brand.Ensure(dir, appIconPNG)
 	}
@@ -177,14 +78,6 @@ func main() {
 	a.restartLibraryWatch()
 	mygo.Theme.SetSource(mygo.ThemeLight)
 	mygo.App.WhenReady(func() {
-		// The sidebar's material: AppKit's source list on macOS and Mica on Windows, whose NavigationView pane is transparent over it, as Onevra's shell chose.
-		vibrancy := mygo.VibrancyNone
-		switch runtime.GOOS {
-		case "darwin":
-			vibrancy = mygo.VibrancySidebar
-		case "windows":
-			vibrancy = mygo.VibrancyMica
-		}
 		win = mygo.NewWindow(mygo.WindowOptions{
 			Title:                "LingoCut",
 			Width:                1100,
@@ -193,14 +86,14 @@ func main() {
 			MinHeight:            560,
 			StateKey:             "main",
 			TitleBarStyle:        mygo.TitleBarHidden,
-			TrafficLightPosition: &mygo.Point{X: 16, Y: 16},
+			TrafficLightPosition: trafficLights(),
 			Transparent:          runtime.GOOS == "darwin",
-			Vibrancy:             vibrancy,
+			Vibrancy:             sidebarMaterial(),
 			Content:              ui.View(a.view),
 		})
 		a.win = win
 		nodra.Invalidate(a.store, win)
-		a.loadToolVersions()
+		a.areasReady()
 	})
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)

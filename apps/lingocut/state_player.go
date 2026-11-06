@@ -80,6 +80,31 @@ func (a *app) restorePlayer(saved savedSettings) {
 	}
 }
 
+// savedPlayer is the player's part of settings.json: how subtitles look and which lines show.
+type savedPlayer struct {
+	Look         *film.Look `json:"look,omitempty"`
+	SubMode      string     `json:"subMode,omitempty"`
+	SubOrder     string     `json:"subOrder,omitempty"`
+	Untranslated string     `json:"untranslated,omitempty"`
+	YieldSubs    *bool      `json:"yieldSubs,omitempty"`
+}
+
+func (a *app) savePlayer(saved *savedSettings) {
+	yieldSubs := a.player.yieldSubs
+	saved.savedPlayer = savedPlayer{
+		Look:         changedLook(a.player.look),
+		SubMode:      a.player.subMode,
+		SubOrder:     a.player.subOrder,
+		Untranslated: a.player.untranslated,
+		YieldSubs:    &yieldSubs,
+	}
+}
+
+// playerHooks: the player saves how subtitles look.
+func (a *app) playerHooks() areaHooks {
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer}
+}
+
 // changedLook is the look saveSettings stores: nil while it is still film.DefaultLook, so the default is not saved as if the user had chosen it and a later default reaches those who never changed theirs. Edit, the face the style pane is editing, is not part of the look's appearance and does not count as a change.
 func changedLook(look film.Look) *film.Look {
 	def := film.DefaultLook()

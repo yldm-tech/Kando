@@ -1,8 +1,12 @@
 package main
 
 import (
-	"lingocut/apps/lingocut/films"
+	"runtime"
 
+	"lingocut/apps/lingocut/films"
+	"lingocut/apps/lingocut/sidebar"
+
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -52,3 +56,28 @@ func (a *app) SourceCount(source string) int { return len(films.BySource(a.films
 
 // sidebarShown reports whether the window shows the sidebar. A film opened from 全部影片 takes the whole window.
 func (a *app) sidebarShown() bool { return !a.filmFillsWindow() }
+
+// sidebarColumn is the sidebar at the window's left, under the drag band over it.
+func (a *app) sidebarColumn(c *ui.Context, t *ui.Theme, bar ui.TitleBar) {
+	ui.Column(c).Shrink(0).AlignItems(ui.Stretch).Children(func() {
+		if bar.Height > 0 {
+			ui.Row(c).Height(bar.Height).Padding(0, 0, 0, bar.Left).DragWindow()
+		}
+		sidebar.Show(c, t, a)
+	})
+}
+
+// trafficLights is where main puts the window's traffic lights, over the sidebar's top left corner.
+func trafficLights() *mygo.Point { return &mygo.Point{X: 16, Y: 16} }
+
+// sidebarMaterial is the window's material, which the sidebar shows: AppKit's source list on macOS and Mica on Windows, whose NavigationView pane is transparent over it, as Onevra's shell chose.
+func sidebarMaterial() mygo.Vibrancy {
+	vibrancy := mygo.VibrancyNone
+	switch runtime.GOOS {
+	case "darwin":
+		vibrancy = mygo.VibrancySidebar
+	case "windows":
+		vibrancy = mygo.VibrancyMica
+	}
+	return vibrancy
+}

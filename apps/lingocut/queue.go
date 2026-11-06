@@ -21,6 +21,23 @@ type jobQueue struct {
 	cancel     context.CancelFunc
 }
 
+// savedQueue is the queue's part of settings.json. The jobs themselves are in the shelf's library.json.
+type savedQueue struct{}
+
+// queueHooks: a job still writing into the library being left is stopped.
+func (a *app) queueHooks() areaHooks {
+	return areaHooks{
+		leavingLibrary: func() {
+			if a.running() {
+				a.stop()
+			}
+		},
+	}
+}
+
+// queueKeys are the queue's shortcuts.
+func (a *app) queueKeys() []shortcut { return nil }
+
 // errBusy is Enqueue's answer while a job runs. Jobs run one at a time and, until the queue keeps the others waiting, a source given while one runs is not added.
 var errBusy = errors.New("已有视频在处理，等它完成后再添加")
 
@@ -207,6 +224,7 @@ func (a *app) show(job core.Job) {
 	if a.openKey == job.ID {
 		a.loadSubtitles(job.ID, job.SubtitlePath)
 	}
+	a.areasShelfChanged()
 }
 
 func statusText(job core.Job) string {

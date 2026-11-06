@@ -14,6 +14,33 @@ import (
 
 // Settings › 语音识别 and 通用: the whisper model, its download, and the tools' versions.
 
+// savedSpeech is the speech model's part of settings.json.
+type savedSpeech struct {
+	WhisperModel string `json:"whisperModel,omitempty"`
+}
+
+func (s *savedSpeech) clean() { s.WhisperModel = strings.TrimSpace(s.WhisperModel) }
+
+func (a *app) saveSpeech(saved *savedSettings) {
+	if tools, ok := a.pipeline.(media.Tools); ok {
+		saved.WhisperModel = tools.WhisperModel
+	}
+}
+
+// restoreSpeech uses the model saved last time unless LINGOCUT_WHISPER_MODEL names one or the saved file is gone.
+func (a *app) restoreSpeech(saved savedSettings) {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok {
+		return
+	}
+	if os.Getenv("LINGOCUT_WHISPER_MODEL") == "" && saved.WhisperModel != "" {
+		if info, err := os.Stat(saved.WhisperModel); err == nil && !info.IsDir() && info.Size() > 0 {
+			tools.WhisperModel = saved.WhisperModel
+			a.pipeline = tools
+		}
+	}
+}
+
 func (a *app) speechSearchDirs() []string {
 	dirs := []string{a.prefs.modelsDir}
 	if tools, ok := a.pipeline.(media.Tools); ok && tools.WhisperModel != "" {
@@ -29,6 +56,7 @@ func (a *app) useSpeechModel(path string) {
 	}
 	tools.WhisperModel = path
 	a.pipeline = tools
+	a.areasToolsChanged(false)
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = "模型无法保存：" + err.Error()
 	}
@@ -95,6 +123,7 @@ func (a *app) redetectTools() {
 		return
 	}
 	a.pipeline = tools.Relook()
+	a.areasToolsChanged(true)
 	a.loadToolVersions()
 }
 

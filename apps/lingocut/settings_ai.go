@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"strings"
 	"time"
 
@@ -9,6 +10,53 @@ import (
 )
 
 // Settings › AI 服务: the translation model's provider, endpoint and key.
+
+// savedLLM is the AI service's part of settings.json.
+type savedLLM struct {
+	LLMProvider string `json:"llmProvider,omitempty"`
+	LLMBaseURL  string `json:"llmBaseURL,omitempty"`
+	LLMModel    string `json:"llmModel,omitempty"`
+	LLMAPIKey   string `json:"llmAPIKey,omitempty"`
+}
+
+func (s *savedLLM) clean() {
+	s.LLMBaseURL = strings.TrimSpace(s.LLMBaseURL)
+	s.LLMModel = strings.TrimSpace(s.LLMModel)
+	s.LLMAPIKey = strings.TrimSpace(s.LLMAPIKey)
+	s.LLMProvider = strings.TrimSpace(s.LLMProvider)
+}
+
+func (a *app) saveLLM(saved *savedSettings) {
+	saved.LLMProvider = a.prefs.llmProvider
+	if tools, ok := a.pipeline.(media.Tools); ok {
+		saved.LLMBaseURL = tools.Translator.BaseURL
+		saved.LLMModel = tools.Translator.Model
+		saved.LLMAPIKey = tools.Translator.APIKey
+	}
+}
+
+// restoreLLM uses the AI service saved last time for what the environment does not name. The provider is read from the endpoint, not from the saved llmProvider.
+func (a *app) restoreLLM(saved savedSettings) {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok {
+		return
+	}
+	if os.Getenv("LINGOCUT_LLM_BASE_URL") == "" && saved.LLMBaseURL != "" {
+		tools.Translator.BaseURL = saved.LLMBaseURL
+	}
+	if os.Getenv("LINGOCUT_LLM_MODEL") == "" && saved.LLMModel != "" {
+		tools.Translator.Model = saved.LLMModel
+	}
+	if os.Getenv("LINGOCUT_LLM_API_KEY") == "" && os.Getenv("EVERYAPI_API_KEY") == "" && saved.LLMAPIKey != "" {
+		tools.Translator.APIKey = saved.LLMAPIKey
+	}
+	credential := tools.Translator.Credential
+	if tools.Translator.BaseURL != media.EveryAPIBaseURL || tools.Translator.APIKey != "" {
+		tools.Translator.Credential = nil
+	}
+	a.syncLLM(tools)
+	a.prefs.llmCredential = credential
+}
 
 type llmPreset struct {
 	ID, Name, Blurb, BaseURL, Model, Group string
@@ -95,6 +143,7 @@ func (a *app) applyLLM() {
 		tools.Translator.Credential = a.prefs.llmCredential
 	}
 	a.pipeline = tools
+	a.areasLLMChanged()
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = "翻译服务无法保存：" + err.Error()
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"lingocut/apps/lingocut/account"
 	"lingocut/apps/lingocut/settings"
 	"lingocut/apps/lingocut/sidebar"
 	"lingocut/packages/media"
@@ -101,4 +102,25 @@ func (a *app) OpenSettings(section string) {
 		section = settings.SectionGeneral
 	}
 	a.Select(section)
+}
+
+// settingsPage draws the settings page a.page names, 账号 among them, and reports whether a.page is one. view shows the library otherwise.
+func (a *app) settingsPage(c *ui.Context, t *ui.Theme) bool {
+	switch a.page {
+	case pageGeneral, pageSpeech, pageAI, pageTranslate:
+		ui.Scroll(c).Grow(1).Children(func() {
+			ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
+				settings.Show(c, t, appVersion, a)
+			})
+		})
+	case pageAccount:
+		ui.Scroll(c).Grow(1).Children(func() {
+			ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
+				account.Show(c, t, a)
+			})
+		})
+	default:
+		return false
+	}
+	return true
 }

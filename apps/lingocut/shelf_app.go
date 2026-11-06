@@ -169,9 +169,8 @@ func (a *app) forgetLibrary(dir string) {
 }
 
 func (a *app) applyLibrary(dir string) {
-	if a.running() {
-		a.stop()
-	}
+	defer a.areasLibraryChanged()
+	a.areasLeavingLibrary()
 	a.openKey = ""
 	a.stopPlayback()
 	if dir == "" {
@@ -511,6 +510,58 @@ type savedInode struct {
 	Ino uint64 `json:"ino"`
 }
 
+// savedShelf is the shelf's part of settings.json: the open library, the libraries the app knows and each one's inode.
+type savedShelf struct {
+	LibraryDir    string                `json:"libraryDir,omitempty"`
+	Libraries     []string              `json:"libraries,omitempty"`
+	LibraryInodes map[string]savedInode `json:"libraryInodes,omitempty"`
+}
+
+func (s *savedShelf) clean() {
+	s.LibraryDir = strings.TrimSpace(s.LibraryDir)
+	s.Libraries = cleanLibraries(s.Libraries)
+}
+
+func (a *app) saveShelf() savedShelf {
+	shelf := a.snap()
+	return savedShelf{
+		LibraryDir:    shelf.LibraryDir,
+		Libraries:     append([]string{}, a.knownLibraries()...),
+		LibraryInodes: inodesForSave(shelf.Inodes),
+	}
+}
+
+// restoreShelf points the shelf at the library saved last time, or the one LINGOCUT_OUTPUT_DIR names, and follows libraries renamed while the app was closed. main runs it before the areas restore their own settings (areaHooks.restore).
+func (a *app) restoreShelf(saved savedSettings) {
+	libs := cleanLibraries(saved.Libraries)
+	if saved.LibraryDir != "" {
+		libs = addLibrary(libs, saved.LibraryDir)
+	}
+	libraryDir := ""
+	if env := os.Getenv("LINGOCUT_OUTPUT_DIR"); env != "" {
+		libraryDir = env
+	} else if saved.LibraryDir != "" {
+		libraryDir = saved.LibraryDir
+	} else if len(libs) > 0 {
+		libraryDir = libs[0]
+	}
+	a.edit(func(s *session) {
+		s.Libraries = libs
+		s.LibraryDir = libraryDir
+	})
+	a.restoreLibraryInodes(saved.LibraryInodes)
+	if a.reconcileMissingLibraries() {
+		libraryDir = a.snap().LibraryDir
+		if err := a.saveSettings(); err != nil {
+			a.saveErr = "资料库无法保存：" + err.Error()
+		}
+	}
+	if tools, ok := a.pipeline.(media.Tools); ok {
+		tools.OutputDir = libraryDir
+		a.pipeline = tools
+	}
+}
+
 func (a *app) refreshLibrary() {
 	dir := a.snap().LibraryDir
 	if dir == "" {
@@ -532,6 +583,7 @@ func (a *app) refreshLibrary() {
 		return
 	}
 	a.edit(func(s *session) { s.Videos = videos })
+	a.areasShelfChanged()
 }
 
 func (a *app) retargetRenamed() bool {

@@ -1,10 +1,8 @@
 package main
 
 import (
-	"lingocut/apps/lingocut/account"
 	"lingocut/apps/lingocut/film"
 	"lingocut/apps/lingocut/films"
-	"lingocut/apps/lingocut/settings"
 	"lingocut/apps/lingocut/sidebar"
 
 	"github.com/egoist/mygo/ui"
@@ -25,7 +23,7 @@ const (
 	pagePadX     = sidebar.PagePadX
 )
 
-// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown in bind_sidebar.go, filmFillsWindow in bind_film.go, dropFiles in bind_films.go, the shortcut table in keys.go, overlays in state_overlay.go.
+// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown and sidebarColumn in bind_sidebar.go, filmFillsWindow in bind_film.go, dropFiles in bind_films.go, settingsPage in bind_settings.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
 func (a *app) view(c *ui.Context) {
 	t, dark := palette(c)
 	a.wireKeys(c)
@@ -40,12 +38,7 @@ func (a *app) view(c *ui.Context) {
 	showSidebar := a.sidebarShown()
 	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
 		if showSidebar {
-			ui.Column(c).Shrink(0).AlignItems(ui.Stretch).Children(func() {
-				if bar.Height > 0 {
-					ui.Row(c).Height(bar.Height).Padding(0, 0, 0, bar.Left).DragWindow()
-				}
-				sidebar.Show(c, t, a)
-			})
+			a.sidebarColumn(c, t, bar)
 		}
 		content := ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch)
 		if vibrancy {
@@ -63,6 +56,7 @@ func (a *app) view(c *ui.Context) {
 		})
 	})
 	a.overlays(c, t, dark)
+	a.areasAfterFrame()
 }
 
 func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
@@ -78,23 +72,11 @@ func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
 		body.Background(t.Surface)
 	}
 	body.Children(func() {
-		switch a.page {
-		case pageGeneral, pageSpeech, pageAI, pageTranslate:
-			ui.Scroll(c).Grow(1).Children(func() {
-				ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
-					settings.Show(c, t, appVersion, a)
-				})
-			})
-		case pageAccount:
-			ui.Scroll(c).Grow(1).Children(func() {
-				ui.Column(c).WidthPercent(100).MaxWidth(920).Gap(22).Children(func() {
-					account.Show(c, t, a)
-				})
-			})
-		default:
-			films.Show(c, t, a, items, func(c *ui.Context, _ *ui.Theme, item films.Film) {
-				film.Show(c, dark, a, item)
-			})
+		if a.settingsPage(c, t) {
+			return
 		}
+		films.Show(c, t, a, items, func(c *ui.Context, _ *ui.Theme, item films.Film) {
+			film.Show(c, dark, a, item)
+		})
 	})
 }

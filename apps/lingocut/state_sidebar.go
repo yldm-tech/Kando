@@ -11,3 +11,11 @@ type sidebarUI struct {
 func newSidebarUI() sidebarUI {
 	return sidebarUI{filter: sidebar.SourceAll}
 }
+
+// savedSidebar is the sidebar's part of settings.json.
+type savedSidebar struct{}
+
+func (a *app) sidebarHooks() areaHooks { return areaHooks{} }
+
+// sidebarKeys are the sidebar's shortcuts.
+func (a *app) sidebarKeys() []shortcut { return nil }

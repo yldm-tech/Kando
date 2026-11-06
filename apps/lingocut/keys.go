@@ -20,9 +20,9 @@ type shortcut struct {
 	Run  func()
 }
 
-// shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the library's in bind_films.go, the player's in bind_film.go and the overlays' in state_overlay.go.
+// shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go and the menu bar's in state_menu.go.
 func (a *app) shortcuts() []shortcut {
-	return slices.Concat(a.appKeys(), a.libraryKeys(), a.playerKeys(), a.overlayKeys())
+	return slices.Concat(a.appKeys(), a.sidebarKeys(), a.libraryKeys(), a.queueKeys(), a.playerKeys(), a.settingsKeys(), a.overlayKeys(), a.menuKeys())
 }
 
 // appKeys are the shortcuts that work anywhere in the window.

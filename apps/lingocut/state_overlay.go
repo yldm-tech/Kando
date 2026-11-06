@@ -38,6 +38,19 @@ func (a *app) cheatsheetGroups() []cheatsheet.Group {
 	return groups
 }
 
+// savedOverlay is the overlays' part of settings.json.
+type savedOverlay struct {
+	Onboarded bool `json:"onboarded,omitempty"`
+}
+
+// overlayHooks: the overlays save whether the first-run guide was seen.
+func (a *app) overlayHooks() areaHooks {
+	return areaHooks{
+		save:    func(saved *savedSettings) { saved.Onboarded = a.overlay.onboarded },
+		restore: func(saved savedSettings) { a.overlay.onboarded = saved.Onboarded },
+	}
+}
+
 // overlayKeys are the shortcuts of the overlays.
 func (a *app) overlayKeys() []shortcut {
 	return []shortcut{
