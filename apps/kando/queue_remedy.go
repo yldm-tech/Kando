@@ -157,6 +157,8 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 		}
 	case core.FailNetwork:
 		r = films.Remedy{Headline: "连不上网络", Why: "检查网络连接后再重试。", Actions: []films.RemedyAction{retry}}
+	case core.FailBadLink:
+		r = films.Remedy{Headline: "链接不完整", Why: "链接好像少了一截，重试也下载不了。复制完整的链接，换个链接再试。", Actions: []films.RemedyAction{swap(true)}}
 	case core.FailHost:
 		r = films.Remedy{Headline: "找不到 " + hostOf(job.Source), Why: "网络正常的话，多半是链接里的网址写错了，或者这个网站已经关闭。换个链接，或检查网络后再重试。", Actions: []films.RemedyAction{swap(true), {ID: remedyRetry, Label: "重试"}}}
 	case core.FailCookies:

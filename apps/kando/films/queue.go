@@ -155,7 +155,11 @@ func QueueMeta(item Film) string {
 		return "生成字幕中 · whisper 本机识别"
 	case core.StageTranslating:
 		if RetryWaiting(item) {
-			return fmt.Sprintf("翻译接口限流，%d 秒后重试（%d/%d）", int(p.RetryIn.Round(time.Second)/time.Second), p.Attempt, p.Attempts)
+			why := "翻译接口限流"
+			if p.Unanswered {
+				why = "翻译接口没有回应"
+			}
+			return fmt.Sprintf("%s，%d 秒后重试（%d/%d）", why, int(p.RetryIn.Round(time.Second)/time.Second), p.Attempt, p.Attempts)
 		}
 		if p.Batches > 0 {
 			return fmt.Sprintf("翻译中 · 第 %d/%d 批 · 每批 %d 句", p.Batch, p.Batches, p.BatchSize)
@@ -167,7 +171,7 @@ func QueueMeta(item Film) string {
 	return StageLabel(item.Stage)
 }
 
-// RetryWaiting reports whether the film's translation is waiting to try a rate-limited request again.
+// RetryWaiting reports whether the film's translation is waiting to try a request again: one rate-limited, or one that got no usable answer.
 func RetryWaiting(item Film) bool {
 	return item.Stage == core.StageTranslating && item.Progress.RetryIn > 0
 }

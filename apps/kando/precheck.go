@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"kando/apps/kando/films"
@@ -78,9 +79,12 @@ func sourceError(err error) string {
 	return err.Error()
 }
 
-// failureHint says what a failed job's error means for the user, and the settings section that fixes it ("" when none does).
+// failureHint says in plain Chinese what a failed job's error means for the user, and the settings section that fixes it ("" when none does): a known reason in the user's words, or else the stage that failed and what its tool said, without the tool's prefixes. A job that was stopped rather than failed, as one whose library was switched, already says so in the app's words (statusText), which are kept as they are.
 func failureHint(item films.Film) (reason, section string) {
-	detail := strings.TrimPrefix(item.Detail, "失败：")
+	detail, isError := strings.CutPrefix(item.Detail, "失败：")
+	if !isError {
+		return item.Detail, ""
+	}
 	switch {
 	case strings.Contains(detail, "KANDO_WHISPER_MODEL"), strings.Contains(detail, "whisper model"):
 		return noticeModel, settings.SectionSpeech
@@ -93,5 +97,51 @@ func failureHint(item films.Film) (reason, section string) {
 	case strings.Contains(detail, media.ErrNoSpeech.Error()):
 		return "视频里没有识别出说话的声音", ""
 	}
-	return films.Shorten(detail, 42), ""
+	// media.Run names the stage that failed before its error.
+	stage, rest, ok := strings.Cut(detail, ": ")
+	if !ok {
+		stage, rest = "", detail
+	}
+	if stage == "translate" {
+		switch media.ClassifyTranslate(rest) {
+		case media.TranslateAuth:
+			return "AI 服务不接受这个 Key，去「AI 服务」里检查一下。", settings.SectionAI
+		case media.TranslateRejected:
+			return "AI 服务拒绝了请求，检查「AI 服务」里的地址和模型。", settings.SectionAI
+		case media.TranslateMalformed:
+			return "AI 返回的译文格式不对，已重发几次还是不行。重试，或在「AI 服务」里换个模型。", settings.SectionAI
+		case media.TranslateTimeout:
+			return "AI 服务一直没有回应，已自动重试，还是不行。稍后再重试。", ""
+		case media.TranslateNetwork:
+			return "连不上 AI 服务，检查网络后再重试。", ""
+		case media.TranslateBusy:
+			return "AI 服务一直很忙，已自动重试，还是不行。过几分钟再重试。", ""
+		}
+	}
+	failed, known := stageFailed[stage]
+	if !known {
+		failed, rest = "处理失败", detail
+	}
+	return failed + "：" + films.Shorten(toolMessage(rest), 72), ""
+}
+
+// stageFailed is how a failed card names the stage media.Run says failed, for an error no reason is known for.
+var stageFailed = map[string]string{
+	"check":      "处理失败",
+	"download":   "下载失败",
+	"transcribe": "生成字幕失败",
+	"translate":  "翻译失败",
+	"export":     "导出字幕失败",
+}
+
+// toolPrefix is what comes before what a tool says went wrong in its error: the tool and how it exited (yt-dlp: exit status 1:, or whisper-cli: signal: killed: for one the system stopped), and in yt-dlp's ERROR line the word ERROR and the extractor with the video id ([youtube] abc:).
+var toolPrefix = regexp.MustCompile(`^(?:[\w.+-]+: (?:exit status [^:]*|signal: [^:]*): )?(?:ERROR: )?(?:\[[^\]]+\] (?:[^\s:]+: )?)?`)
+
+// toolMessage is the part of a stage's error that says what went wrong, in its first line, without the tool's prefixes.
+func toolMessage(err string) string {
+	line, _, _ := strings.Cut(strings.TrimSpace(err), "\n")
+	if msg := strings.TrimSpace(toolPrefix.ReplaceAllString(line, "")); msg != "" {
+		return msg
+	}
+	return line
 }

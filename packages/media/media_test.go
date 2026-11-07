@@ -230,3 +230,26 @@ func TestRunSaysWhyTheDownloadFailed(t *testing.T) {
 		t.Fatalf("translate failure kind %q", later.FailKind)
 	}
 }
+
+// partialPipeline translates every line but the first, which its translator could not.
+type partialPipeline struct{ fakePipeline }
+
+func (p *partialPipeline) Translate(_ context.Context, segments []core.Segment, _ string) ([]core.Segment, error) {
+	out := append([]core.Segment(nil), segments...)
+	out[0].Text = ""
+	return out, &UntranslatedError{Lines: 1, Total: len(segments), Err: errors.New("translation returned 1 lines for 2")}
+}
+
+// A film whose translation left some lines untranslated is done, not lost: its job completes and says how many lines are missing.
+func TestRunCompletesAFilmWithUntranslatedLines(t *testing.T) {
+	p := &partialPipeline{fakePipeline{transcribe: []core.Segment{{Text: "a"}, {Text: "b"}}}}
+	stages, job := runStages(p)
+	if job.Stage != core.StageComplete || job.Err != nil || job.Untranslated != 1 || job.SubtitlePath == "" {
+		t.Fatalf("job %+v, stages %v", job, stages)
+	}
+	// Running it again starts the count over.
+	again := Run(context.Background(), &fakePipeline{transcribe: []core.Segment{{Text: "a"}}}, job, "简体中文", func(core.Job) {})
+	if again.Untranslated != 0 {
+		t.Fatalf("again %+v", again)
+	}
+}

@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -357,5 +358,201 @@ func TestChatNeedsAModelAndAnEndpoint(t *testing.T) {
 	}
 	if _, err := (ChatTranslator{Model: "m"}).Chat(context.Background(), "s", "u"); err == nil {
 		t.Fatal("no error without a base URL")
+	}
+}
+
+// replyChat answers the n-th request (from 0) with the chat reply content replies[n], the last one again after them, recording how many requests it saw.
+func replyChat(t *testing.T, replies ...string) (*httptest.Server, *int) {
+	t.Helper()
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		content := replies[min(calls, len(replies)-1)]
+		calls++
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": content}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &calls
+}
+
+// A request the API does not answer in time is sent again, as a rate limit is, and the batch it carried is translated.
+func TestChatTranslatorRetriesATimeout(t *testing.T) {
+	old := retryBaseDelay
+	retryBaseDelay = time.Millisecond
+	t.Cleanup(func() { retryBaseDelay = old })
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			time.Sleep(300 * time.Millisecond)
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": `["你好"]`}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	var waits []core.Progress
+	ctx := WithTrace(context.Background(), &Trace{Progress: func(p core.Progress) {
+		if p.RetryIn > 0 {
+			waits = append(waits, p)
+		}
+	}})
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m", Client: &http.Client{Timeout: 100 * time.Millisecond}}
+	got, err := tr.Translate(ctx, []core.Segment{{Text: "hello"}}, "简体中文")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 || got[0].Text != "你好" {
+		t.Fatalf("calls = %d, got %#v", calls, got)
+	}
+	if len(waits) != 1 || !waits[0].Unanswered {
+		t.Fatalf("waits = %+v, want one wait for a request that was not answered", waits)
+	}
+}
+
+// A reply cut off before its JSON ends is asked for again rather than failing the film.
+func TestChatTranslatorRetriesAReplyItCannotRead(t *testing.T) {
+	old := retryBaseDelay
+	retryBaseDelay = time.Millisecond
+	t.Cleanup(func() { retryBaseDelay = old })
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"[\"你`))
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": `["你好"]`}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	got, err := tr.Translate(context.Background(), []core.Segment{{Text: "hello"}}, "简体中文")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 || got[0].Text != "你好" {
+		t.Fatalf("calls = %d, got %#v", calls, got)
+	}
+}
+
+// A model sometimes answers a half sentence split across two cues with a nested array for one of them; its parts are that line's translation, joined.
+func TestChatTranslatorJoinsANestedLine(t *testing.T) {
+	srv, calls := replyChat(t, `["我们去", ["河边", "看看"], "好吗"]`)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	got, err := tr.Translate(context.Background(), []core.Segment{{Text: "let's go"}, {Text: "to the river and"}, {Text: "see, ok?"}}, "简体中文")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *calls != 1 || got[1].Text != "河边看看" {
+		t.Fatalf("calls = %d, got %#v", *calls, got)
+	}
+	if joined := joinParts([]string{"to the river", "and look"}); joined != "to the river and look" {
+		t.Fatalf("joined words %q", joined)
+	}
+}
+
+// A reply that is not the batch's lines, too few of them or not an array at all, is asked for again.
+func TestChatTranslatorResendsAMalformedBatch(t *testing.T) {
+	srv, calls := replyChat(t, `["只有一句"]`, `好的，以下是翻译`, `["一", "二"]`)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	got, err := tr.Translate(context.Background(), []core.Segment{{Text: "one"}, {Text: "two"}}, "简体中文")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *calls != 3 || got[0].Text != "一" || got[1].Text != "二" {
+		t.Fatalf("calls = %d, got %#v", *calls, got)
+	}
+}
+
+// A batch that still fails after it was sent again stays untranslated, the rest of the film is translated, and the error says how many lines were left.
+func TestChatTranslatorLeavesAFailedBatchUntranslated(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var req chatRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		var lines []string
+		json.Unmarshal([]byte(req.Messages[1].Content), &lines)
+		content := upper(lines)
+		if lines[0] == "line 0" {
+			content = `["broken"]`
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": content}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	segments := make([]core.Segment, translateBatch+3)
+	for i := range segments {
+		segments[i] = core.Segment{Start: time.Duration(i) * time.Second, Text: fmt.Sprintf("line %d", i)}
+	}
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	got, err := tr.Translate(context.Background(), segments, "English")
+	var partial *UntranslatedError
+	if !errors.As(err, &partial) || partial.Lines != translateBatch || partial.Total != len(segments) {
+		t.Fatalf("err = %v", err)
+	}
+	if calls != maxBatchSends+1 || len(got) != len(segments) {
+		t.Fatalf("calls = %d, %d segments", calls, len(got))
+	}
+	if got[0].Text != "" || got[translateBatch-1].Text != "" || got[translateBatch].Text != fmt.Sprintf("LINE %d", translateBatch) || got[translateBatch].Start != segments[translateBatch].Start {
+		t.Fatalf("got %#v", got)
+	}
+}
+
+// Batches that fail one after another are the service's trouble, not their lines': the translation stops rather than sending every batch of the film in vain.
+func TestChatTranslatorStopsAfterFailedBatchesInARow(t *testing.T) {
+	srv, calls := replyChat(t, `not json`)
+	segments := make([]core.Segment, translateBatch*(maxFailedBatches+2))
+	for i := range segments {
+		segments[i] = core.Segment{Text: "a"}
+	}
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	_, err := tr.Translate(context.Background(), segments, "English")
+	var partial *UntranslatedError
+	if err == nil || errors.As(err, &partial) || ClassifyTranslate(err.Error()) != TranslateMalformed {
+		t.Fatalf("err = %v", err)
+	}
+	if *calls != maxFailedBatches*maxBatchSends {
+		t.Fatalf("calls = %d", *calls)
+	}
+}
+
+// A key the API rejects is not a batch's trouble: the translation fails at once.
+func TestChatTranslatorFailsAtOnceOnARejectedKey(t *testing.T) {
+	srv, calls := flakyChat(t, http.StatusForbidden)
+	tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+	segments := make([]core.Segment, translateBatch*2)
+	_, err := tr.Translate(context.Background(), segments, "English")
+	if err == nil || *calls != 1 || ClassifyTranslate(err.Error()) != TranslateAuth {
+		t.Fatalf("calls = %d, err = %v", *calls, err)
+	}
+}
+
+func TestClassifyTranslate(t *testing.T) {
+	for msg, want := range map[string]TranslateFail{
+		"translation API returned 401 Unauthorized: invalid key":                                                                         TranslateAuth,
+		"translation API returned 403 Forbidden: ":                                                                                       TranslateAuth,
+		"translation API returned 404 Not Found: no such model":                                                                          TranslateRejected,
+		"translation API returned 400 Bad Request: model is required":                                                                    TranslateRejected,
+		"translation API returned 429 Too Many Requests: slow down":                                                                      TranslateBusy,
+		"translation API returned 503 Service Unavailable: capacity_limited":                                                             TranslateBusy,
+		`Post "https://api.example.com/v1/chat/completions": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`: TranslateTimeout,
+		"decode translation response: context deadline exceeded (Client.Timeout or context cancellation while reading body)":             TranslateTimeout,
+		`Post "https://api.example.com/v1/chat/completions": dial tcp: lookup api.example.com: no such host`:                             TranslateNetwork,
+		`Post "http://127.0.0.1:1/chat/completions": dial tcp 127.0.0.1:1: connect: connection refused`:                                  TranslateNetwork,
+		"decode translation response: unexpected EOF":                                                                                    TranslateNetwork,
+		"decode translation response: invalid character 'c' looking for beginning of value":                                              TranslateMalformed,
+		"translation is not a JSON array of strings: invalid character '好'":                                                              TranslateMalformed,
+		"translation returned 3 lines for 40":                                                                                            TranslateMalformed,
+		"translation API returned no choices":                                                                                            TranslateMalformed,
+		"something nobody has seen":                                                                                                      "",
+	} {
+		if got := ClassifyTranslate("translate: " + msg); got != want {
+			t.Errorf("%q: %q, want %q", msg, got, want)
+		}
 	}
 }

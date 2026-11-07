@@ -102,7 +102,7 @@ func moreButton(c *ui.Context) ui.Element {
 	return b
 }
 
-// doneMeta is the line under a poster's title: where the film comes from and how long it is.
+// doneMeta is the line under a poster's title: where the film comes from, how long it is, and how many lines its translation left untranslated.
 func doneMeta(a App, item Film) string {
 	parts := []string{SourceLabel(item)}
 	if d := a.Duration(item.VideoPath); d > 0 {
@@ -111,5 +111,16 @@ func doneMeta(a App, item Film) string {
 	if item.JobID == "" {
 		parts = append(parts, "还没有字幕")
 	}
+	if note := untranslatedNote(item); note != "" {
+		parts = append(parts, note)
+	}
 	return strings.Join(parts, " · ")
+}
+
+// untranslatedNote says how many lines of a done film the translation left untranslated, as the prototype words a translation that failed for some lines; "" when it left none.
+func untranslatedNote(item Film) string {
+	if item.Untranslated <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d 句翻译失败，其余已完成", item.Untranslated)
 }

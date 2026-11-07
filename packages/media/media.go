@@ -17,12 +17,13 @@ type Pipeline interface {
 	Check() error
 	Download(ctx context.Context, source string) (string, error)
 	Transcribe(ctx context.Context, videoPath string) ([]core.Segment, error)
+	// Translate returns the segments translated into language. When it left some lines untranslated, with an empty Text, it returns every segment with an *UntranslatedError, and the job completes with them.
 	Translate(ctx context.Context, segments []core.Segment, language string) ([]core.Segment, error)
 	// Export writes the subtitles next to the video and returns the bilingual subtitle path.
 	Export(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error)
 }
 
-// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
+// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done; Untranslated counts the lines this run's translation left untranslated. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	enter := func(stage core.Stage) {
 		job.Stage = stage
@@ -42,6 +43,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			report(job)
 		},
 	})
+	job.Untranslated = 0
 	fail := func(step string, err error) core.Job {
 		job.Err = fmt.Errorf("%s: %w", step, err)
 		enter(core.StageFailed)
@@ -77,6 +79,11 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 
 	enter(core.StageTranslating)
 	translated, err := p.Translate(ctx, original, language)
+	// Lines the translation could not do after trying them again stay untranslated; the rest of the film is not lost for them.
+	var partial *UntranslatedError
+	if errors.As(err, &partial) && len(translated) == len(original) {
+		job.Untranslated, err = partial.Lines, nil
+	}
 	if err != nil {
 		return fail("translate", err)
 	}
