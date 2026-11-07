@@ -126,7 +126,7 @@ func QueueMeta(item Film) string {
 		}
 		return "下载中 · yt-dlp · " + SourceLabel(item)
 	case core.StageTranscribing:
-		return "转录中 · whisper 本机识别"
+		return "生成字幕中 · whisper 本机识别"
 	case core.StageTranslating:
 		return "翻译中 · AI 服务"
 	case core.StageExporting:

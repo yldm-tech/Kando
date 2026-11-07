@@ -148,7 +148,7 @@ func StageLabel(stage core.Stage) string {
 	case core.StageDownloading:
 		return "下载中"
 	case core.StageTranscribing:
-		return "转录中"
+		return "生成字幕中"
 	case core.StageTranslating:
 		return "翻译中"
 	case core.StageExporting:
@@ -255,7 +255,7 @@ func QueueSummary(items []Film) string {
 // Local reports whether the film's video is a file on this machine rather than a link to download.
 func Local(item Film) bool { return SourceOf(item) == sidebar.SourceLocal }
 
-// Steps is how many stages a film's job goes through and how many of them are behind it: a local video is not downloaded, so it has three (转录, 翻译, 导出) and a link four. A queued job has none behind it; a finished one has them all.
+// Steps is how many stages a film's job goes through and how many of them are behind it: a local video is not downloaded, so it has three (生成字幕, 翻译, 导出) and a link four. A queued job has none behind it; a finished one has them all.
 func Steps(item Film) (total, done int) {
 	stages := []core.Stage{core.StageDownloading, core.StageTranscribing, core.StageTranslating, core.StageExporting}
 	if Local(item) {
