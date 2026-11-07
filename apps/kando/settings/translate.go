@@ -15,7 +15,7 @@ func (s screen) translate(c *ui.Context, t *ui.Theme) {
 	form.Card(c, func() {
 		form.Row(c, "默认目标语言", "", func() {
 			c.Key("translate-language")
-			if form.Select(c, s.Language(), languageChoices(*s.Language())).Label("默认目标语言").Changed() {
+			if form.Select(c, s.Language(), LanguageChoices(*s.Language())).Label("默认目标语言").Changed() {
 				s.Save()
 			}
 		})
@@ -51,7 +51,8 @@ func (s screen) translate(c *ui.Context, t *ui.Theme) {
 	form.Note(c, "可以加上风格要求，例如口语化、人名保留英文。返回的 JSON 行数由看懂自动要求，不用写在这里。", 0)
 }
 
-func languageChoices(current string) []string {
+// LanguageChoices is the target languages the settings offer, with current added when it is not one of them, as a language typed into an older version is kept.
+func LanguageChoices(current string) []string {
 	choices := []string{"简体中文", "繁体中文", "English", "日本語", "한국어", "Español", "Français", "Deutsch"}
 	for _, choice := range choices {
 		if choice == current {

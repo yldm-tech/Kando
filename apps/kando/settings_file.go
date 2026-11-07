@@ -65,17 +65,18 @@ func loadSavedSettings(path string) savedSettings {
 
 // savedSettings is settings.json. Each part is one area's, declared in that area's file next to the code that saves and restores it (areaHooks.save and restore), and encoding/json writes the parts' fields side by side, as one object. An area adds a setting to its own part, not here; two parts must not use the same key (TestSavedSettingsKeysAreUnique), and no part may have a MarshalJSON, UnmarshalJSON, MarshalText or UnmarshalText of its own, because Go promotes it to savedSettings and it would then encode the whole file (TestSavedSettingsPartsHaveNoMarshalers).
 type savedSettings struct {
-	savedShelf     // shelf_app.go
-	savedSidebar   // state_sidebar.go
-	savedLibrary   // state_library.go
-	savedQueue     // queue.go
-	savedSpeech    // settings_speech.go
-	savedLLM       // settings_ai.go
-	savedTranslate // state_settings.go
-	savedCloud     // state_cloud.go
-	savedPlayer    // state_player.go
-	savedOverlay   // state_overlay.go
-	savedMenu      // state_menu.go
+	savedShelf      // shelf_app.go
+	savedSidebar    // state_sidebar.go
+	savedLibrary    // state_library.go
+	savedQueue      // queue.go
+	savedSpeech     // settings_speech.go
+	savedLLM        // settings_ai.go
+	savedTranslate  // state_settings.go
+	savedCloud      // state_cloud.go
+	savedPlayer     // state_player.go
+	savedOverlay    // state_overlay.go
+	savedMenu       // state_menu.go
+	savedOnboarding // state_onboarding.go
 }
 
 // clean tidies what was read. Every part has a clean of its own, in its own file, which trims its text or does nothing, and each is called here, so an area changes only its own clean.
@@ -91,4 +92,5 @@ func (s *savedSettings) clean() {
 	s.savedPlayer.clean()
 	s.savedOverlay.clean()
 	s.savedMenu.clean()
+	s.savedOnboarding.clean()
 }
