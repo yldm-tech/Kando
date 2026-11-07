@@ -15,9 +15,9 @@ const (
 	NewIssue = "https://github.com/" + Repo + "/issues/new"
 )
 
-// MaxURL is the longest new-issue link the dialog opens. GitHub answers a longer request line with 414 URI Too Long somewhere past 8 KB, so the link stays under it with room to spare. MaxTitle is GitHub's limit on an issue title.
+// MaxURL is the longest new-issue link the dialog opens. Measured against github.com in November 2026: a browser that is not signed in is sent to the sign-in page with the link as its return address, which fails with 500 once the link passes about 6,950 bytes, and a request line past about 8 KB fails with 414 URI Too Long. The link stays under the lower of the two with room to spare. MaxTitle is GitHub's limit on an issue title.
 const (
-	MaxURL   = 8000
+	MaxURL   = 6000
 	MaxTitle = 256
 )
 
