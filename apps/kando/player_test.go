@@ -694,6 +694,71 @@ func cueClockOf(d time.Duration) string {
 	return fmt.Sprintf("%d:%02d", int(d.Minutes()), int(d.Seconds())%60)
 }
 
+// TestOpeningAFilmKeepsWhereItStopped opens a film that stopped at 0:06 last time from its poster, which holds it on its first frame as the prototype's poster does, and goes back without playing it: the film still continues from 0:06, in the app and in library.json, and the hero still offers 从 0:06 继续.
+func TestOpeningAFilmKeepsWhereItStopped(t *testing.T) {
+	a, tt, _ := openClip(t, 12)
+	path := a.player.play.path
+	a.player.positions = map[string]time.Duration{path: 6 * time.Second}
+	a.areasPositionsChanged()
+	until := time.Now().Add(4 * time.Second)
+	for a.player.play.playhead() <= 0 && time.Now().Before(until) {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		time.Sleep(20 * time.Millisecond)
+	}
+	if a.player.play.Playing() || a.player.play.playhead() <= 0 {
+		t.Fatalf("the film is not held on its first frame: playing %v head %v", a.player.play.Playing(), a.player.play.playhead())
+	}
+	if err := tt.Click("返回资料库"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if at := a.ResumeAt(path); at != 6*time.Second {
+		t.Fatalf("ResumeAt after opening and going back = %v, want 6s", at)
+	}
+	if at := a.library.Positions[path]; at != 6*time.Second {
+		t.Fatalf("library.json keeps %v for the film, want 6s", at)
+	}
+	if !tt.HasText("从 0:06 继续") {
+		t.Fatalf("hero %q", tt.Texts())
+	}
+}
+
+// TestContinuingAFilmKeepsWhereItGotTo continues a film from 0:06 with the hero's 从 0:06 继续, which opens it playing without play being pressed, lets it play on and goes back: where it got to past 0:06 is kept, in the app and in library.json, as a playback opened playing at a point counts as played.
+func TestContinuingAFilmKeepsWhereItGotTo(t *testing.T) {
+	a, tt, updates := openClip(t, 12)
+	path := a.player.play.path
+	if err := tt.Click("返回资料库"); err != nil {
+		t.Fatal(err)
+	}
+	a.player.positions = map[string]time.Duration{path: 6 * time.Second}
+	a.areasPositionsChanged()
+	tt.Frame()
+	if err := tt.Click("从 0:06 继续"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	until := time.Now().Add(4 * time.Second)
+	for a.player.play.playhead() <= 6500*time.Millisecond && time.Now().Before(until) {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !a.player.play.Playing() || a.player.play.playhead() <= 6500*time.Millisecond {
+		t.Fatalf("the film did not play on from 0:06: playing %v head %v", a.player.play.Playing(), a.player.play.playhead())
+	}
+	if err := tt.Click("返回资料库"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if at := a.ResumeAt(path); at <= 6500*time.Millisecond {
+		t.Fatalf("ResumeAt after continuing and going back = %v, want past 0:06.5", at)
+	}
+	if at := a.library.Positions[path]; at != a.ResumeAt(path) {
+		t.Fatalf("library.json keeps %v for the film, want %v", at, a.ResumeAt(path))
+	}
+}
+
 // TestQuittingStopsTheOpenFilm: when the app quits with a film playing, the film stops, so its sound, which plays in a process of its own, ends with the app, and where it stopped is kept for next time.
 func TestQuittingStopsTheOpenFilm(t *testing.T) {
 	a, tt, _ := openClip(t, 5)

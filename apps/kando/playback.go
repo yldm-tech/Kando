@@ -24,6 +24,8 @@ type filmPlay struct {
 	paused   bool
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool
+	// played is set once this playback has played: opened playing at a point picked for it (a seek, 继续, 从头看) or started with play. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
+	played bool
 }
 
 func (a *app) ffmpegPath() string {
@@ -100,7 +102,7 @@ func (a *app) startPlayback(path string) {
 			}
 			a.player.play = &filmPlay{
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
-				duration: frames.Duration(), paused: paused,
+				duration: frames.Duration(), paused: paused, played: jump,
 			}
 			if frames.Duration() > 0 {
 				a.player.length = frames.Duration()
@@ -153,7 +155,7 @@ func (a *app) seekPlayback(at time.Duration) {
 	a.startPlayback(path)
 }
 
-// stopPlayback ends the open video. It does nothing when the film page is not playing.
+// stopPlayback ends the open video and, when it played (filmPlay.played), keeps where it stopped. It does nothing when the film page is not playing.
 func (a *app) stopPlayback() {
 	if a.player.play == nil && a.player.playPath == "" && a.player.playErr == "" {
 		return
@@ -166,7 +168,9 @@ func (a *app) stopPlayback() {
 	if play == nil {
 		return
 	}
-	a.rememberPosition(play)
+	if play.played {
+		a.rememberPosition(play)
+	}
 	if play.audio != nil {
 		play.audio.Close()
 	}
@@ -224,6 +228,7 @@ func (p *filmPlay) toggle() {
 	if p.finished {
 		p.finished = false
 		p.paused = false
+		p.played = true
 		p.restartAudio()
 		p.player.Play()
 		return
@@ -237,6 +242,7 @@ func (p *filmPlay) toggle() {
 		return
 	}
 	p.paused = false
+	p.played = true
 	if p.audio != nil {
 		p.audio.Play()
 	} else {
