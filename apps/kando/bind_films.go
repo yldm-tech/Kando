@@ -86,6 +86,8 @@ func (a *app) DropFiles(paths []string) { a.dropFiles(paths) }
 
 func (a *app) Poster(path string) ui.ImageSource { return a.posterOf(path) }
 
+func (a *app) Thumbnail(item films.Film) ui.ImageSource { return a.thumbnailOf(item) }
+
 func (a *app) Duration(path string) time.Duration { return a.lib.durations[path] }
 
 func (a *app) Quote(item films.Film) (translation, original string) {

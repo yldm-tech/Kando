@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -44,7 +45,7 @@ func parseWhisperJSON(data []byte) ([]core.Segment, error) {
 }
 
 // exportSubtitles writes "<video>.srt" with the original speech and "<video>.bilingual.srt" with each translation above its original line, returning the bilingual path.
-func exportSubtitles(videoPath string, original, translated []core.Segment) (string, error) {
+func exportSubtitles(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error) {
 	if len(original) != len(translated) {
 		return "", fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
 	}
@@ -52,6 +53,8 @@ func exportSubtitles(videoPath string, original, translated []core.Segment) (str
 	if err := os.WriteFile(base+".srt", []byte(formatSRT(original)), 0o644); err != nil {
 		return "", err
 	}
+	// The original is one of the two files written; the context's Trace hears that half the export is done.
+	reportProgress(ctx, core.Fraction(0.5))
 	bilingual := make([]core.Segment, len(original))
 	for i, s := range original {
 		s.Text = translated[i].Text + "\n" + s.Text
@@ -61,6 +64,7 @@ func exportSubtitles(videoPath string, original, translated []core.Segment) (str
 	if err := os.WriteFile(path, []byte(formatSRT(bilingual)), 0o644); err != nil {
 		return "", err
 	}
+	reportProgress(ctx, core.Fraction(1))
 	return path, nil
 }
 

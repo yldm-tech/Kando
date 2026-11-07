@@ -178,3 +178,23 @@ func TestLoadReadsTheOldList(t *testing.T) {
 		t.Fatalf("saved %s", data)
 	}
 }
+
+func TestLibraryKeepsTheVideoNameButNotTheProgress(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{
+		ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageFailed, Err: errors.New("download: no formats"),
+		Title: "Me at the zoo", Thumbnail: "https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg", Progress: core.Fraction(0.4),
+	})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := loaded.Jobs[0]
+	if job.Title != "Me at the zoo" || job.Thumbnail != "https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg" || job.Progress != (core.Progress{}) {
+		t.Fatalf("job = %+v", job)
+	}
+}

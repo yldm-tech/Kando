@@ -86,6 +86,8 @@ type App interface {
 	OpenSettings(section string)
 	// ToggleFullScreen enters or leaves full screen.
 	ToggleFullScreen()
+	// FeedbackSubtitles opens the 反馈问题 dialog for this film's subtitles.
+	FeedbackSubtitles()
 }
 
 // Upload is the manual upload of a film that already has a local video to the storage set in 账号.
@@ -304,6 +306,9 @@ func title(item films.Film) string {
 	}
 	return item.Title
 }
+
+// SplitCue is a bilingual cue's two lines: the translation over the original, or the original alone in a cue that has no translation.
+func SplitCue(text string) (translation, original string) { return splitCue(text) }
 
 func splitCue(text string) (translation, original string) {
 	text = strings.TrimSpace(text)

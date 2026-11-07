@@ -50,3 +50,12 @@ func TestNewJobAcceptsLocalFileURL(t *testing.T) {
 		t.Fatalf("unexpected job: %#v", job)
 	}
 }
+
+func TestFractionClamps(t *testing.T) {
+	for in, want := range map[float64]float64{-0.5: 0, 0: 0, 0.42: 0.42, 1: 1, 3: 1} {
+		p := Fraction(in)
+		if !p.Known || p.Fraction != want {
+			t.Errorf("Fraction(%v) = %+v, want %v", in, p, want)
+		}
+	}
+}

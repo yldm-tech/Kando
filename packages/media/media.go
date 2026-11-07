@@ -22,12 +22,26 @@ type Pipeline interface {
 	Export(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error)
 }
 
-// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and the final job is returned. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
+// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	enter := func(stage core.Stage) {
 		job.Stage = stage
+		job.Progress = core.Progress{}
 		report(job)
 	}
+	ctx = WithTrace(ctx, &Trace{
+		Progress: func(progress core.Progress) {
+			job.Progress = progress
+			report(job)
+		},
+		Info: func(info Info) {
+			if info.Title == "" || (info.Title == job.Title && info.Thumbnail == job.Thumbnail) {
+				return
+			}
+			job.Title, job.Thumbnail = info.Title, info.Thumbnail
+			report(job)
+		},
+	})
 	fail := func(step string, err error) core.Job {
 		job.Err = fmt.Errorf("%s: %w", step, err)
 		enter(core.StageFailed)

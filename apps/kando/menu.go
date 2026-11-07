@@ -112,9 +112,8 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			sub = then(sub, &mygo.MenuItem{Label: "前置全部窗口", Role: mygo.RoleFront})
 			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleWindow, Submenu: sub}
 		case "帮助":
-			if sub := items(group); len(sub) > 0 {
-				menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: sub}
-			}
+			// The feedback dialog's items have no shortcut, so they are not rows of the table (state_feedback.go).
+			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: then(items(group), a.feedbackMenu()...)}
 		default:
 			if sub := items(group); len(sub) > 0 {
 				menu = &mygo.MenuItem{Label: group, Submenu: sub}
