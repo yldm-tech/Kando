@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -881,5 +882,64 @@ func TestLibraryPageOwnsTheTitleBar(t *testing.T) {
 	tt.Frame()
 	if a.libraryOwnsTitleBar() {
 		t.Fatal("the library page owns the title bar under an open film")
+	}
+}
+
+// The library watcher refreshes the shelf every second while yt-dlp downloads. "Me at the zoo" comes as separate video and sound tracks, and a refresh between the two must neither rename the finished video track to video.mp4 under yt-dlp, which then cannot merge it, nor show a track as a film. The download ends with one film, the merged video.
+func TestRefreshDuringADownloadLeavesItsTracksAlone(t *testing.T) {
+	home := t.TempDir()
+	library := filepath.Join(home, "影视库.kando")
+	if err := os.Mkdir(library, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gate := t.TempDir()
+	t.Setenv("FAKE_YTDLP_GATE", gate)
+	tools := media.Tools{OutputDir: library, DownloadTemp: filepath.Join(home, "cache"), YTDLP: fakeTool(t, filepath.Join(home, "bin"), "yt-dlp")}
+	a := newApp(tools, func(func()) {})
+	a.edit(func(s *session) { s.LibraryDir = library })
+	type result struct {
+		path string
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+		done <- result{path, err}
+	}()
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		if _, err := os.Stat(filepath.Join(gate, "tracks")); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("yt-dlp never wrote its tracks")
+		}
+	}
+	a.refreshLibrary()
+	if videos := a.snap().Videos; len(videos) != 0 {
+		t.Errorf("films while downloading: %#v", videos)
+	}
+	if err := os.WriteFile(filepath.Join(gate, "go"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var r result
+	select {
+	case r = <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("download never finished")
+	}
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	a.refreshLibrary()
+	want := filepath.Join(library, "Me at the zoo [jNQXAC9IVRw]", "video.mp4")
+	videos := a.snap().Videos
+	if r.path != want || len(videos) != 1 || videos[0].Path != want {
+		t.Fatalf("downloaded %q, films %#v", r.path, videos)
+	}
+	if _, ok := readFakeClip(want); !ok {
+		t.Fatalf("%s is not the merged video", want)
+	}
+	if entries, _ := os.ReadDir(filepath.Dir(want)); len(entries) != 1 {
+		t.Fatalf("the film's folder holds %v", entries)
 	}
 }

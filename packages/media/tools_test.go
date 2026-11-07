@@ -313,3 +313,181 @@ func TestDownloadTellsYTDLPWhereFFmpegIs(t *testing.T) {
 		t.Fatalf("args %s", data)
 	}
 }
+
+// yt-dlp keeps a split-format video's separate tracks and its .part files in a folder of its own outside the library, so the library watcher only ever sees the merged video; the folder is the same for the same video, so a retry picks up where the last try stopped.
+func TestDownloadKeepsPartialFilesOutsideTheLibrary(t *testing.T) {
+	tool, args := argsYTDLP(t)
+	library, cache := t.TempDir(), t.TempDir()
+	tools := Tools{YTDLP: tool, OutputDir: library, DownloadTemp: cache}
+	temps := map[string]string{}
+	for _, source := range []string{"https://www.youtube.com/watch?v=jNQXAC9IVRw", "https://www.youtube.com/watch?v=jNQXAC9IVRw", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"} {
+		tools.Download(context.Background(), source)
+		home, temp := ytdlpPaths(t, args)
+		if home != library || !filepath.IsAbs(temp) || !pathInside(cache, temp) {
+			t.Fatalf("home %q temp %q", home, temp)
+		}
+		if seen, ok := temps[source]; ok && seen != temp {
+			t.Fatalf("%s: temp %q then %q", source, seen, temp)
+		}
+		temps[source] = temp
+	}
+	if temps["https://www.youtube.com/watch?v=jNQXAC9IVRw"] == temps["https://www.youtube.com/watch?v=dQw4w9WgXcQ"] {
+		t.Fatalf("two videos share a temp folder: %v", temps)
+	}
+}
+
+// ytdlpPaths reads the home path (-P) and the temp path (-P temp:) from the arguments argsYTDLP saved.
+func ytdlpPaths(t *testing.T, args string) (home, temp string) {
+	t.Helper()
+	data, err := os.ReadFile(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(data), "\n")
+	for i := 0; i+1 < len(lines); i++ {
+		if lines[i] != "-P" {
+			continue
+		}
+		if rest, ok := strings.CutPrefix(lines[i+1], "temp:"); ok {
+			temp = rest
+		} else {
+			home = lines[i+1]
+		}
+	}
+	return home, temp
+}
+
+// yt-dlp moves the merged video into the library with a rename only when its temp path is on the library's volume; across volumes it copies the video into video.mp4 in place, so a download stopped during the copy leaves a cut-off video.mp4 that the next try takes for a finished one. When DownloadTemp is not on the library's volume, or cannot be told to be, the partial files go to a hidden folder in the library, which the library never lists, and the folder is gone once the video is in.
+func TestDownloadKeepsPartialFilesOnTheLibrarysVolume(t *testing.T) {
+	notAFolder := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(notAFolder, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tool, args := argsYTDLP(t)
+	library := t.TempDir()
+	tools := Tools{YTDLP: tool, OutputDir: library, DownloadTemp: filepath.Join(notAFolder, "downloads")}
+	tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if _, temp := ytdlpPaths(t, args); !pathInside(filepath.Join(library, ".kando-downloads"), temp) {
+		t.Fatalf("temp %q", temp)
+	}
+	tools.YTDLP, _ = splitYTDLP(t)
+	path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != "track 395track 251" {
+		t.Fatalf("%s = %q", path, data)
+	}
+	if entries, _ := os.ReadDir(library); len(entries) != 1 || entries[0].Name() != filepath.Base(filepath.Dir(path)) {
+		t.Fatalf("library holds %v", entries)
+	}
+}
+
+// splitYTDLP writes a yt-dlp that downloads a split-format video as the real one does: the video and sound tracks go to the temp path (-P temp:) or, without one, next to the video, and are merged into <home>/Me at the zoo [jNQXAC9IVRw]/video.mp4. When that file is already there it is reported as downloaded and left as it is. Each run appends a line to the returned file.
+func splitYTDLP(t *testing.T) (tool, runs string) {
+	t.Helper()
+	dir := t.TempDir()
+	tool, runs = filepath.Join(dir, "yt-dlp"), filepath.Join(dir, "runs")
+	script := `#!/bin/sh
+home=; temp=
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-P) shift; case "$1" in temp:*) temp="${1#temp:}" ;; *) home="$1" ;; esac ;;
+	--) break ;;
+	esac
+	shift
+done
+echo run >> ` + shellQuote(runs) + `
+folder="Me at the zoo [jNQXAC9IVRw]"
+final="$home/$folder/video.mp4"
+if [ -e "$final" ]; then echo "$final"; exit 0; fi
+work="${temp:-$home}/$folder"
+mkdir -p "$work" "$home/$folder" || exit 1
+printf 'track 395' > "$work/video.f395.mp4"
+printf 'track 251' > "$work/video.f251.webm"
+cat "$work/video.f395.mp4" "$work/video.f251.webm" > "$work/video.temp.mp4" || exit 1
+rm "$work/video.f395.mp4" "$work/video.f251.webm"
+mv "$work/video.temp.mp4" "$final" || exit 1
+echo "$final"
+`
+	if err := os.WriteFile(tool, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return tool, runs
+}
+
+func TestDownloadLeavesNoTemporaryFolderBehind(t *testing.T) {
+	tool, _ := splitYTDLP(t)
+	library, cache := t.TempDir(), t.TempDir()
+	tools := Tools{YTDLP: tool, OutputDir: library, DownloadTemp: cache}
+	path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != "track 395track 251" {
+		t.Fatalf("%s = %q", path, data)
+	}
+	if entries, _ := os.ReadDir(cache); len(entries) != 0 {
+		t.Fatalf("temp folders left: %v", entries)
+	}
+	if entries, _ := os.ReadDir(filepath.Dir(path)); len(entries) != 1 {
+		t.Fatalf("library folder holds %v", entries)
+	}
+}
+
+// An earlier Kando renamed the video track of an unfinished download to video.mp4 and left the sound track beside it. yt-dlp takes that silent file for a finished download, so a retry would transcribe it forever; Download notices the leftover track, removes both and downloads the video again.
+func TestDownloadReplacesAVideoLeftWithoutItsSound(t *testing.T) {
+	tool, runs := splitYTDLP(t)
+	library := t.TempDir()
+	folder := filepath.Join(library, "Me at the zoo [jNQXAC9IVRw]")
+	if err := os.Mkdir(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string]string{"video.mp4": "track 395", "video.f251.webm": "track 251"} {
+		if err := os.WriteFile(filepath.Join(folder, name), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tools := Tools{YTDLP: tool, OutputDir: library, DownloadTemp: t.TempDir()}
+	path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); path != filepath.Join(folder, "video.mp4") || string(data) != "track 395track 251" {
+		t.Fatalf("%s = %q", path, data)
+	}
+	if _, err := os.Stat(filepath.Join(folder, "video.f251.webm")); !os.IsNotExist(err) {
+		t.Fatalf("leftover track: %v", err)
+	}
+	if data, _ := os.ReadFile(runs); strings.Count(string(data), "run") != 2 {
+		t.Fatalf("yt-dlp ran %q", data)
+	}
+}
+
+// A video downloaded before, with nothing unfinished beside it, is used as it is.
+func TestDownloadReusesAFinishedVideo(t *testing.T) {
+	tool, runs := splitYTDLP(t)
+	library := t.TempDir()
+	folder := filepath.Join(library, "Me at the zoo [jNQXAC9IVRw]")
+	if err := os.Mkdir(folder, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(folder, "video.mp4")
+	if err := os.WriteFile(video, []byte("finished"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(folder, "video.bilingual.srt"), []byte("1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tools := Tools{YTDLP: tool, OutputDir: library, DownloadTemp: t.TempDir()}
+	path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); path != video || string(data) != "finished" {
+		t.Fatalf("%s = %q", path, data)
+	}
+	if data, _ := os.ReadFile(runs); strings.Count(string(data), "run") != 1 {
+		t.Fatalf("yt-dlp ran %q", data)
+	}
+}
