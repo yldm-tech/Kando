@@ -5,11 +5,14 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/onboarding"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // onboardUI is the state of the first-run guide (onboarding/): the step it shows, whether it was seen, the languages chosen on its first step and the link typed on its last.
@@ -36,15 +39,21 @@ func newOnboardUI() onboardUI {
 	return onboardUI{learning: slices.Clone(onboarding.DefaultLearning)}
 }
 
-// onboardingTip is the note the library shows once the guide has closed, as the prototype's does.
-const onboardingTip = "随时可以在「帮助 › 重新查看入门引导」回到这里。"
+// onboardingTip is the note the library shows once the guide has closed, as the prototype's does. It names the way back that this platform has: the menu bar's 帮助 › 重新查看入门引导 on macOS, F1 (onboardingKeys) where the app has no menu bar of its own.
+func onboardingTip() string {
+	if appMenuBar {
+		return "随时可以在「帮助 › 重新查看入门引导」回到这里。"
+	}
+	return "随时可以按 F1 回到这里。"
+}
 
 // onboardingLibraryName is the library the guide makes when there is none (D8): 我的影片.kando in the folder where new libraries go, ~/Movies at first.
 const onboardingLibraryName = "我的影片"
 
 // savedOnboarding is the guide's part of settings.json.
 type savedOnboarding struct {
-	Onboarded      bool     `json:"onboarded,omitempty"`
+	// Onboarded is written on every save, false while the guide has not been seen through, so a settings.json without it is one from before the guide existed.
+	Onboarded      *bool    `json:"onboarded,omitempty"`
 	LearnLanguages []string `json:"learnLanguages,omitempty"`
 	OnboardingTip  bool     `json:"onboardingTip,omitempty"`
 }
@@ -62,17 +71,26 @@ func (s *savedOnboarding) clean() {
 	s.LearnLanguages = kept
 }
 
-// onboardingHooks: the guide opens by itself at startup on a Mac where Kando has no settings and no library yet, and once the window exists it opens the library it makes; someone who already has a library from before the guide existed counts as having seen it. It saves whether it was seen, the languages chosen and whether its note is still to be read, puts that note back in the message bar at startup, holds the window's modal flag while it is open, and forgets the note once its × has closed it.
+// onboardingHooks: the guide opens by itself at startup when there is no settings.json yet, or one that says it was not seen through (quitting while it is open), and once the window exists it opens a library under it. A settings.json from before the guide existed counts as seen when it names a library, and one that could not be read in full always does, so the guide never makes a library and saves over it. It saves whether it was seen, the languages chosen and whether its note is still to be read, puts that note back in the message bar at startup, holds the window's modal flag while it is open, and forgets the note once its × has closed it.
 func (a *app) onboardingHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
-			saved.savedOnboarding = savedOnboarding{Onboarded: a.onb.done, LearnLanguages: slices.Clone(a.onb.learning), OnboardingTip: a.onb.tip}
+			saved.savedOnboarding = savedOnboarding{Onboarded: new(a.onb.done), LearnLanguages: slices.Clone(a.onb.learning), OnboardingTip: a.onb.tip}
 		},
 		restore: func(saved savedSettings) {
 			if saved.LearnLanguages != nil {
 				a.onb.learning = slices.Clone(saved.LearnLanguages)
 			}
-			a.onb.done = saved.Onboarded || saved.LibraryDir != "" || len(saved.Libraries) > 0
+			switch {
+			case saved.Onboarded != nil:
+				a.onb.done = *saved.Onboarded
+			case a.settingsFound == settingsDamaged:
+				a.onb.done = true
+			case a.settingsFound == settingsNone:
+				a.onb.done = false
+			default:
+				a.onb.done = saved.LibraryDir != "" || len(saved.Libraries) > 0
+			}
 			a.onb.tip = saved.OnboardingTip
 			if a.onb.tip {
 				a.lib.notice = noticeTip()
@@ -86,19 +104,28 @@ func (a *app) onboardingHooks() areaHooks {
 	}
 }
 
-// onboardingReady opens the library the guide makes (D8) once the window exists, when the guide opened by itself and no library is open, so the page under the guide is that library's, empty, rather than one asking for a library. It waits for the window because opening a library starts following its folder, which reports through the window.
+// onboardingReady opens a library under the guide (onboardingLibrary, D8) once the window exists, when the guide opened by itself and no library is open, so the page under the guide is that library's rather than one asking for a library. It waits for the window because opening a library starts following its folder, which reports through the window.
 func (a *app) onboardingReady() {
 	if a.onb.step > 0 {
 		a.onboardingLibrary()
 	}
 }
 
-// onboardingKeys are the guide's shortcuts. 帮助 › 重新查看入门引导 has none; it is an item of the menu bar alone (menu.go).
-func (a *app) onboardingKeys() []shortcut { return nil }
+// onboardingKeys are the guide's shortcuts. On macOS 帮助 › 重新查看入门引导 is an item of the menu bar alone (menu.go), without a key, as the prototype has it. Linux and Windows have no app menu bar, so there it is F1, the key for help there, which the cheat sheet and 设置 › 快捷键 list.
+func (a *app) onboardingKeys() []shortcut {
+	if appMenuBar {
+		return nil
+	}
+	return []shortcut{
+		{Group: "帮助", Label: "重新查看入门引导", Key: ui.KeyF1, When: func() bool { return a.onb.step == 0 }, Run: a.reopenOnboarding},
+	}
+}
 
-func noticeTip() films.Notice { return films.Notice{Kind: "warning", Text: onboardingTip, Open: true} }
+func noticeTip() films.Notice {
+	return films.Notice{Kind: "warning", Text: onboardingTip(), Open: true}
+}
 
-// onboardingAfterFrame holds the window's modal flag while the guide is open and gives it back once it has closed, and forgets the guide's note once the message bar's × has closed it.
+// onboardingAfterFrame holds the window's modal flag while the guide is open and gives it back once it has closed. While the guide's note is still to be read, it takes the message bar whenever nothing else is shown there, as after 已加入，开始处理。 is closed, and it is forgotten once its own × has closed it.
 func (a *app) onboardingAfterFrame() {
 	switch {
 	case a.onb.step > 0 && a.onb.release == nil:
@@ -107,9 +134,13 @@ func (a *app) onboardingAfterFrame() {
 		a.onb.release()
 		a.onb.release = nil
 	}
-	if a.onb.tip && a.lib.notice.Text == onboardingTip && !a.lib.notice.Open {
+	switch {
+	case !a.onb.tip || a.onb.step > 0 || a.lib.notice.Open:
+	case a.lib.notice.Text == onboardingTip():
 		a.onb.tip = false
 		a.onboardingSave()
+	default:
+		a.lib.notice = noticeTip()
 	}
 }
 
@@ -131,9 +162,18 @@ func (a *app) closeOnboarding() {
 	a.onboardingSave()
 }
 
-// onboardingLibrary opens ~/Movies/我的影片.kando, or 我的影片.kando where new libraries go, when no library is open: it makes it as 新建资料库 does (createLibrary), or opens the one already there. A library that is open stays.
+// onboardingLibrary opens a library when none is open. Libraries already in the folder where new libraries go (~/Movies at first) that Kando does not list, as after its settings were lost, are listed and the one changed last is opened. Without any, it opens 我的影片.kando there, making it as 新建资料库 does (createLibrary). A library that is open stays.
 func (a *app) onboardingLibrary() {
 	if strings.TrimSpace(a.snap().LibraryDir) != "" {
+		return
+	}
+	if found := unlistedBundles(a.libraryPlace(), a.knownLibraries()); len(found) > 0 {
+		libs := a.snap().Libraries
+		for _, dir := range found {
+			libs = addLibrary(libs, dir)
+		}
+		a.edit(func(s *session) { s.Libraries = libs })
+		a.switchLibrary(onboardingNewest(found))
 		return
 	}
 	a.edit(func(s *session) { s.LibraryName = onboardingLibraryName })
@@ -147,6 +187,17 @@ func (a *app) onboardingLibrary() {
 		return
 	}
 	a.createLibrary()
+}
+
+// onboardingNewest is the library among dirs whose folder changed last, the first of them when none can be read.
+func onboardingNewest(dirs []string) string {
+	newest, at := dirs[0], time.Time{}
+	for _, dir := range dirs {
+		if info, err := os.Stat(dir); err == nil && info.ModTime().After(at) {
+			newest, at = dir, info.ModTime()
+		}
+	}
+	return newest
 }
 
 func (a *app) onboardingSave() {

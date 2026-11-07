@@ -40,9 +40,12 @@ func (a *app) reopenFilm() {
 	a.Open(item)
 }
 
+// appMenuBar says the app gets a menu bar of its own (installMenu): on macOS, where the menu bar belongs to the app. Commands that are items of the menu bar alone, such as 帮助 › 重新查看入门引导, need another way in where it is false. Tests set it to check the other platforms.
+var appMenuBar = runtime.GOOS == "darwin"
+
 // installMenu gives the app its own menu bar on macOS, where the menu bar belongs to the app. menuHooks.ready calls it once the window exists. From then on the menu's accelerators run the ⌘ shortcuts and wireKeys leaves them alone. Linux and Windows put an app's menu bar inside each window, which would push the window's own title bar down, so there the window keeps running every shortcut itself.
 func (a *app) installMenu() {
-	if runtime.GOOS != "darwin" {
+	if !appMenuBar {
 		return
 	}
 	a.menu.menuBar = true

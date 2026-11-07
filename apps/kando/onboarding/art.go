@@ -41,7 +41,7 @@ func caption(step int) string {
 	case 1:
 		return "看原片，字幕跟着你的语言走"
 	case 2:
-		return "语音识别，就在这台 Mac 上"
+		return "语音识别，就在" + thisComputer + "上"
 	}
 	return "粘贴链接，双语字幕自动生成"
 }

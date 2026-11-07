@@ -2,6 +2,7 @@
 package onboarding
 
 import (
+	"runtime"
 	"strconv"
 
 	"github.com/egoist/mygo/ui"
@@ -10,6 +11,9 @@ import (
 
 // Steps is how many steps the guide has.
 const Steps = 3
+
+// thisComputer is what the guide calls the machine whisper runs on: 这台 Mac on macOS, 这台电脑 elsewhere.
+var thisComputer = map[bool]string{true: "这台 Mac", false: "这台电脑"}[runtime.GOOS == "darwin"]
 
 // ModelState is where a speech model is.
 type ModelState int
@@ -160,7 +164,7 @@ func heading(step int) (title, description string) {
 	case 1:
 		return "欢迎使用看懂", "粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"
 	case 2:
-		return "下载语音识别模型", "语音识别用 whisper.cpp 在这台 Mac 上运行。模型下载一次，之后离线也能用。"
+		return "下载语音识别模型", "语音识别用 whisper.cpp 在" + thisComputer + "上运行。模型下载一次，之后离线也能用。"
 	}
 	return "粘贴第一个链接", "YouTube、哔哩哔哩，以及 yt-dlp 能下载的网站上的视频都可以。"
 }

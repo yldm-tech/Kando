@@ -1,7 +1,9 @@
 package onboarding
 
 import (
+	"runtime"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -34,5 +36,18 @@ func TestEffectiveLeavesOutTheTarget(t *testing.T) {
 	}
 	if got := tiles("English"); len(got) != 6 || slices.Contains(got, "en") {
 		t.Fatalf("tiles(English) = %q", got)
+	}
+}
+
+// TestStepsNameThisComputer checks that the second step names the machine as the platform calls it, so Linux and Windows do not read 这台 Mac.
+func TestStepsNameThisComputer(t *testing.T) {
+	_, description := heading(2)
+	for _, text := range []string{caption(2), description} {
+		if !strings.Contains(text, thisComputer) {
+			t.Fatalf("%q does not name %q", text, thisComputer)
+		}
+		if runtime.GOOS != "darwin" && strings.Contains(text, "Mac") {
+			t.Fatalf("%q says Mac on %s", text, runtime.GOOS)
+		}
 	}
 }

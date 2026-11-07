@@ -29,7 +29,7 @@ func TestPlayerSettingsRoundTrip(t *testing.T) {
 	saved := loadSavedSettings(a.settingsPath)
 	b, _, _ := newTestApp(&fakePipeline{})
 	b.restorePlayer(saved)
-	b.onb.done = saved.Onboarded
+	b.onb.done = saved.Onboarded != nil && *saved.Onboarded
 	if b.player.look != a.player.look || b.player.subMode != film.SubOriginal || b.player.subOrder != film.SubOriginalFirst || b.player.untranslated != film.UntranslatedBlank || b.player.yieldSubs || !b.onb.done {
 		t.Fatalf("restored %+v onboarded %v from %+v", b.player, b.onb.done, saved)
 	}
