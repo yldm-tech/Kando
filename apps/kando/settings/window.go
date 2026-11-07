@@ -66,6 +66,11 @@ type App interface {
 	TestLLM()
 	LLMResult() string
 	SelectLLM(id string)
+	// LLMModels are the models the AI service offers, fetched while its page shows; LoadingLLMModels reports a fetch in flight, LLMModelsErr why the last one failed, and RetryLLMModels fetches again.
+	LLMModels() []string
+	LoadingLLMModels() bool
+	LLMModelsErr() string
+	RetryLLMModels()
 
 	Language() *string
 	TranslateContext() *bool

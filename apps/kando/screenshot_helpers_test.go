@@ -161,6 +161,7 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height i
 	t.Helper()
 	updates := make(chan func(), 64)
 	a := newApp(f.pipeline, func(fn func()) { updates <- fn })
+	a.prefs.listModels = offlineModels
 	a.edit(func(s *session) {
 		s.LibraryDir = f.lib
 		for _, lib := range protoLibraries {

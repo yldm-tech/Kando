@@ -49,6 +49,7 @@ func (f *fakePipeline) Export(context.Context, string, []core.Segment, []core.Se
 func newTestApp(p media.Pipeline) (*app, *ui.Tester, chan func()) {
 	updates := make(chan func(), 16)
 	a := newApp(p, func(fn func()) { updates <- fn })
+	a.prefs.listModels = offlineModels
 	a.edit(func(s *session) { s.LibraryDir = "/videos" })
 	return a, ui.NewTester(a.view, 1100, 720), updates
 }
@@ -216,4 +217,12 @@ func titleBarShifts(t *testing.T, bar ui.TitleBar, setup func(*app), texts ...st
 		shifts[i] = after.Y - before.Y
 	}
 	return shifts, barredTT
+}
+
+// offlineModels stands in for an AI service's model list in tests, which reach no network: the service offers the model already chosen, or none.
+func offlineModels(_ context.Context, t media.ChatTranslator) ([]string, error) {
+	if t.Model == "" {
+		return nil, nil
+	}
+	return []string{t.Model}, nil
 }

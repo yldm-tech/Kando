@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"kando/apps/kando/settings"
@@ -169,5 +171,81 @@ func TestSettingsFollowTheSidebarPages(t *testing.T) {
 	wantSettings(t, a, settings.SectionTranslate)
 	if a.page != pageFilms {
 		t.Fatalf("the main window stayed on page %q", a.page)
+	}
+}
+
+// rejected is an API answer with an HTTP status, as media's errors carry one.
+type rejected int
+
+func (r rejected) Error() string   { return "rejected " + strconv.Itoa(int(r)) }
+func (r rejected) StatusCode() int { return int(r) }
+
+// TestAISettingsChoosesTheModelFromTheServiceList checks that Settings › AI 服务 lists the key before the model, fetches the service's models once it shows instead of having the model typed, picks the service's default model when none was chosen and saves it, and that a list the service refuses says why and fetches again on 重试.
+func TestAISettingsChoosesTheModelFromTheServiceList(t *testing.T) {
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL}}
+	a, main, updates := newTestApp(tools)
+	a.syncLLM(tools)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	calls := 0
+	var answer error
+	a.prefs.listModels = func(_ context.Context, tr media.ChatTranslator) ([]string, error) {
+		calls++
+		if tr.BaseURL != media.EveryAPIBaseURL {
+			t.Errorf("asked %q for its models", tr.BaseURL)
+		}
+		if answer != nil {
+			return nil, answer
+		}
+		return []string{"alpha-chat", media.EveryAPIModel, "zeta-chat"}, nil
+	}
+	main.Frame()
+	if calls != 0 {
+		t.Fatalf("fetched the models with the settings closed")
+	}
+	tt := settingsOpenAt(a, main, settings.SectionAI)
+	main.Frame()
+	waitUntil(t, updates, func() bool { return !a.prefs.llmModelsLoading })
+	if calls != 1 || a.prefs.llmModel != media.EveryAPIModel || loadSavedSettings(a.settingsPath).LLMModel != media.EveryAPIModel {
+		t.Fatalf("calls %d model %q saved %q", calls, a.prefs.llmModel, loadSavedSettings(a.settingsPath).LLMModel)
+	}
+	main.Frame()
+	if calls != 1 {
+		t.Fatalf("fetched again for the same service: %d", calls)
+	}
+	tt.Frame()
+	key, okKey := tt.Find("API Key")
+	model, okModel := tt.Find("模型")
+	if !okKey || !okModel || key.Y >= model.Y {
+		t.Fatalf("API Key %v %+v, 模型 %v %+v", okKey, key, okModel, model)
+	}
+	if err := tt.Click("模型"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("zeta-chat"); err != nil {
+		t.Fatalf("%v: %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if got, _ := a.pipeline.(media.Tools); got.Translator.Model != "zeta-chat" || loadSavedSettings(a.settingsPath).LLMModel != "zeta-chat" {
+		t.Fatalf("model %q saved %q", got.Translator.Model, loadSavedSettings(a.settingsPath).LLMModel)
+	}
+
+	answer = rejected(401)
+	a.RetryLLMModels()
+	waitUntil(t, updates, func() bool { return !a.prefs.llmModelsLoading })
+	tt.Frame()
+	if calls != 2 || !tt.HasText("重试") || a.prefs.llmModelsErr != "服务不接受这个 API Key，取不到模型列表" {
+		t.Fatalf("calls %d error %q texts %q", calls, a.prefs.llmModelsErr, tt.Texts())
+	}
+	if !tt.HasText("zeta-chat") {
+		t.Fatalf("the chosen model left the row: %q", tt.Texts())
+	}
+	answer = nil
+	if err := tt.Click("重试"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, updates, func() bool { return !a.prefs.llmModelsLoading })
+	if calls != 3 || a.prefs.llmModelsErr != "" || len(a.prefs.llmModels) != 3 {
+		t.Fatalf("calls %d error %q models %q", calls, a.prefs.llmModelsErr, a.prefs.llmModels)
 	}
 }

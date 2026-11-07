@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"slices"
 	"strings"
 
 	"kando/apps/kando/settings/form"
@@ -34,19 +35,14 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 			}
 		})
 		form.Separator(c, true)
-		form.Row(c, "模型", "", func() {
-			c.Key("llm-model")
-			if field(breeze.TextInput(c, s.LLMModel()).Label("模型")).Changed() {
-				s.ApplyLLM()
-			}
-		})
-		form.Separator(c, true)
 		form.Row(c, "API Key", "", func() {
 			c.Key("llm-key")
 			if field(breeze.PasswordField(c, s.LLMKey()).Label("API Key")).Changed() {
 				s.ApplyLLM()
 			}
 		})
+		form.Separator(c, true)
+		form.Row(c, "模型", "", func() { s.modelSelect(c, t) })
 		ui.Row(c).Shrink(0).MinHeight(40).Padding(6, 14).Gap(10).AlignItems(ui.Center).Children(func() {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { s.testStatus(c, t) })
 			c.Key("llm-test")
@@ -86,6 +82,35 @@ func (s screen) providerSelect(c *ui.Context) {
 			if label == chosen {
 				s.SelectLLM(presets[i].ID)
 			}
+		}
+	}
+}
+
+// modelSelect chooses the model among those the service lists, which the app fetches once the service, its Base URL and its key are known (the endpoint's GET /models), rather than having it typed. A model chosen before stays on top of the list when the service no longer lists it, so it is not changed behind the user's back. While the list loads, or when it could not be fetched, the row says so, with 重试.
+func (s screen) modelSelect(c *ui.Context, t *ui.Theme) {
+	model := s.LLMModel()
+	options := s.LLMModels()
+	if current := strings.TrimSpace(*model); current != "" && !slices.Contains(options, current) {
+		options = append([]string{current}, options...)
+	}
+	if len(options) > 0 {
+		c.Key("llm-model")
+		if field(form.Select(c, model, options).Label("模型")).Changed() {
+			s.ApplyLLM()
+		}
+	}
+	switch {
+	case s.LoadingLLMModels():
+		if len(options) == 0 {
+			form.Value(c, "正在获取模型列表…", 13)
+		}
+	case s.LLMModelsErr() != "":
+		if len(options) == 0 {
+			ui.Text(c, s.LLMModelsErr()).FontSize(12).TextColor(t.Danger).Shrink(1).Wrap()
+		}
+		c.Key("llm-models-retry")
+		if form.Button(c, "重试", false).Tooltip(s.LLMModelsErr()).Clicked() {
+			s.RetryLLMModels()
 		}
 	}
 }
