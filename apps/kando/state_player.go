@@ -159,9 +159,9 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look, and closes the open film once it has left the shelf.
+// playerHooks: the player saves how subtitles look, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft}
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, quitting: a.stopPlayback}
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.

@@ -100,6 +100,7 @@ func main() {
 		nodra.Invalidate(a.store, win)
 		a.areasReady()
 	})
+	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { a.areasQuitting() })
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
 	}

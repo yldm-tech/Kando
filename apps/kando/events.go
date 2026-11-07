@@ -28,6 +28,8 @@ type areaHooks struct {
 	llmTested func(err error, credential bool)
 	// positionsChanged runs after the player remembered or forgot where a video stopped (rememberPosition), so an area that keeps the positions on disk can save them.
 	positionsChanged func()
+	// quitting runs once when the app quits (main's mygo.App.OnWillQuit), after its windows have closed and before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own.
+	quitting func()
 }
 
 // areas is each area's hooks, in the order they run.
@@ -144,6 +146,14 @@ func (a *app) areasPositionsChanged() {
 	for _, h := range a.areas() {
 		if h.positionsChanged != nil {
 			h.positionsChanged()
+		}
+	}
+}
+
+func (a *app) areasQuitting() {
+	for _, h := range a.areas() {
+		if h.quitting != nil {
+			h.quitting()
 		}
 	}
 }

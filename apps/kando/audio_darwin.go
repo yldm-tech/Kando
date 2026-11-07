@@ -22,6 +22,25 @@ type pcmAudio struct {
 	exited chan struct{}
 }
 
+// audioGuardScript ends the process $1 once its stdin closes, which happens when the app's process ends, however it ends. It ignores the signals a terminal sends its whole process group, so a Ctrl-C to the app still finds it waiting.
+const audioGuardScript = `trap '' INT HUP TERM QUIT; read -r _; kill -CONT "$1" 2>/dev/null; kill -KILL "$1" 2>/dev/null`
+
+// guardAudio starts a small sh that ends the sound's process pid when the app's process ends, even when the app crashes or is killed, since macOS cannot signal a child when its parent dies (Linux's PR_SET_PDEATHSIG). The sh waits on a pipe whose write end only this process holds; the system closes it when the process exits. Ending the returned guard, once pid has exited by itself, keeps it from ever signaling a reused pid.
+func guardAudio(pid int) (*exec.Cmd, *os.File, error) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	defer r.Close()
+	guard := exec.Command("/bin/sh", "-c", audioGuardScript, "kando-audio-guard", strconv.Itoa(pid))
+	guard.Stdin = r
+	if err := guard.Start(); err != nil {
+		w.Close()
+		return nil, nil, err
+	}
+	return guard, w, nil
+}
+
 func openPCM(ffmpeg, path string, at time.Duration) (*pcmAudio, error) {
 	name, args, err := audioCommand(ffmpeg, path, at)
 	if err != nil {
@@ -75,9 +94,19 @@ func (a *pcmAudio) Start() {
 	if err := cmd.Start(); err != nil {
 		return
 	}
+	guard, hold, err := guardAudio(cmd.Process.Pid)
+	if err != nil {
+		// Without its guard the sound would play on after a crash; better no sound than sound nobody can stop.
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return
+	}
 	a.cmd = cmd
 	go func() {
 		cmd.Wait()
+		_ = guard.Process.Kill()
+		_ = guard.Wait()
+		hold.Close()
 		close(a.exited)
 	}()
 }
