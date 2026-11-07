@@ -411,11 +411,32 @@ func TestPaletteIsInTheMenuAndTheCheatsheet(t *testing.T) {
 	t.Fatal("no 窗口 group")
 }
 
-// TestPaletteNotesHowFarTheOpenVideoPlayed checks that each frame notes how far the open video has played, and that closing it writes that point into library.json beside its resume position.
+// stillPlay is the video at video open in the player with its picture at at, playing or paused, as startPlayback leaves it after opening the video there; a seek opens it again the same way, as another playback.
+func stillPlay(t *testing.T, video string, at time.Duration, playing bool) *filmPlay {
+	t.Helper()
+	player, err := ui.NewVideoPlayer(stillFrames{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(player.Close)
+	if playing {
+		player.Play()
+	} else {
+		player.Pause()
+	}
+	return &filmPlay{player: player, frames: &frameDecoder{shown: at}, path: video, duration: 2 * time.Minute, paused: !playing}
+}
+
+// TestPaletteNotesHowFarTheOpenVideoPlayed checks that a video playing on from its start moves the furthest point played with it, frame by frame, and that closing it writes that point into library.json beside its resume position.
 func TestPaletteNotesHowFarTheOpenVideoPlayed(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
-	a := openStill(t, path, "clip", "/v/clip.mp4", 6*time.Second)
+	a := openStill(t, path, "clip", "/v/clip.mp4", 0)
+	a.player.play.player.Play()
 	a.areasAfterFrame()
+	for _, at := range []time.Duration{2 * time.Second, 4 * time.Second, 6 * time.Second} {
+		a.player.play.frames.shown = at
+		a.areasAfterFrame()
+	}
 	if got := a.palette.furthest["/v/clip.mp4"]; got != 6*time.Second {
 		t.Fatalf("noted %v", got)
 	}
@@ -426,6 +447,50 @@ func TestPaletteNotesHowFarTheOpenVideoPlayed(t *testing.T) {
 	}
 	if lib.Furthest["/v/clip.mp4"] != 6*time.Second || lib.Positions["/v/clip.mp4"] != 6*time.Second {
 		t.Fatalf("furthest %v positions %v", lib.Furthest, lib.Positions)
+	}
+}
+
+// TestPaletteDoesNotCountASeekAsWatched checks that only playing on from what was watched moves the furthest point played: not a picture that moved while paused, not a seek past it, paused or playing, nor playing on from there, and that playing on from a seek back into what was watched moves it again. The palette then finds no line the seek passed, and library.json keeps the point watched.
+func TestPaletteDoesNotCountASeekAsWatched(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	item, _ := a.paletteFilm("rivers")
+	video := item.VideoPath
+	watched := 31 * time.Second
+	frames := func(play *filmPlay, at ...time.Duration) {
+		t.Helper()
+		a.player.play = play
+		tt.Frame()
+		for _, to := range at {
+			play.frames.shown = to
+			tt.Frame()
+		}
+		if got := a.palette.furthest[video]; got != watched {
+			t.Fatalf("furthest %v, want %v", got, watched)
+		}
+	}
+	paused := stillPlay(t, video, 20*time.Second, false)
+	frames(paused, 75*time.Second)
+	frames(stillPlay(t, video, 75*time.Second, false), 76*time.Second)
+	frames(stillPlay(t, video, 72*time.Second, true), 73*time.Second, 74*time.Second, 90*time.Second)
+	if h := a.paletteHorizon(item); h != watched {
+		t.Fatalf("horizon %v with the picture at 1:30", h)
+	}
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, "meanders")
+	if v := a.paletteView(); len(v.Lines) != 0 {
+		t.Fatalf("a line the seek passed was found: %+v", v.Lines)
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	back := stillPlay(t, video, 25*time.Second, true)
+	watched = 31 * time.Second
+	frames(back, 28*time.Second, 31*time.Second)
+	watched = 33 * time.Second
+	frames(back, 33*time.Second)
+	a.stopPlayback()
+	if a.library.Furthest[video] != 33*time.Second {
+		t.Fatalf("library.json keeps %v", a.library.Furthest[video])
 	}
 }
 

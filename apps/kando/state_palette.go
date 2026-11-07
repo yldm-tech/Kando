@@ -18,9 +18,12 @@ type paletteUI struct {
 	sel    int
 	moved  bool
 	reveal bool
-	// furthest is how far each video has ever played, by path, kept in library.json with the shelf (shelf.Library.Furthest). The palette finds and sends only lines up to it, so it gives nothing away of what has not been watched. dirty is set while it holds more than library.json does.
+	// furthest is how far each video has been played on from its start, by path (paletteNotePlayed), kept in library.json with the shelf (shelf.Library.Furthest). The palette finds and sends only lines up to it, so it gives nothing away of what has not been watched. dirty is set while it holds more than library.json does.
 	furthest map[string]time.Duration
 	dirty    bool
+	// watching is the playback paletteNotePlayed saw in the frame before, and watchedAt where its picture was then.
+	watching  *filmPlay
+	watchedAt time.Duration
 	// files are the library's subtitle files the palette has read, by path; reading is set while a read started by paletteRead runs.
 	files   map[string]paletteFile
 	reading bool

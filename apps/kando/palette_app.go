@@ -95,10 +95,23 @@ func (a *app) paletteSettle() {
 
 // paletteAfterFrame notes how far the open video has played and lets go of what a palette closed in this frame held.
 func (a *app) paletteAfterFrame() {
-	if play := a.player.play; play != nil && play.path != "" {
-		a.paletteNoteFurthest(play.path, play.playhead())
-	}
+	a.paletteNotePlayed(a.player.play)
 	a.paletteSettle()
+}
+
+// paletteNotePlayed moves the furthest point played of the open video with its picture, but only while it plays on from what was watched already: from the frame before, in the same playback, and from no further than the furthest point played. A seek opens the video again as another playback (seekPlayback), so where it lands is not taken as played, nor is a picture that moved while paused; and playing on from a seek past the furthest point does not count either, so a seek to the end does not give the film away. The prototype likewise moves seen only in its playback tick.
+func (a *app) paletteNotePlayed(play *filmPlay) {
+	if play == nil || play.path == "" {
+		a.palette.watching = nil
+		return
+	}
+	at := play.playhead()
+	prev, same := a.palette.watchedAt, a.palette.watching == play
+	a.palette.watching, a.palette.watchedAt = play, at
+	if !same || !play.Playing() || prev > a.palette.furthest[play.path]+paletteSlack {
+		return
+	}
+	a.paletteNoteFurthest(play.path, at)
 }
 
 // paletteNoteFurthest keeps at as how far the video at path has played, when it is further than before.
@@ -139,13 +152,9 @@ func (a *app) paletteOpenFilm() (films.Film, bool) {
 	return a.paletteFilm(a.openKey)
 }
 
-// paletteHorizon is how far the film has been seen: the furthest point its video ever played to, or where it plays now when that is further.
+// paletteHorizon is how far the film has been seen: the furthest point its video played to from its start. A picture a seek moved further, which paletteNotePlayed does not count, does not move it, so the palette neither lists nor sends a line the seek passed.
 func (a *app) paletteHorizon(item films.Film) time.Duration {
-	at := a.palette.furthest[item.VideoPath]
-	if play := a.player.play; play != nil && item.Key == a.openKey && play.path == item.VideoPath {
-		at = max(at, play.playhead())
-	}
-	return at
+	return a.palette.furthest[item.VideoPath]
 }
 
 // paletteScope is the films whose lines the palette searches: the open film in the player, every film of the library over it.
