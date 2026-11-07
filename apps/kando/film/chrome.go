@@ -148,6 +148,9 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 		if more {
 			c.Key("film-more")
 			glyphButton(c, iconMore, "更多操作", 34, 28, 14, 4).Menu(func(m *ui.Menu) {
+				if m.Item("反馈这部影片的字幕…").Chosen() {
+					s.FeedbackSubtitles()
+				}
 				if m.Item("重新处理整部影片").Chosen() {
 					s.RetryOpen(item.JobID)
 				}
