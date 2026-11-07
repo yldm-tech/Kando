@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -37,7 +38,7 @@ func ListVideos(directory string) ([]Video, error) {
 			videos = append(videos, nested...)
 			continue
 		}
-		if !isVideoFile(entry.Name()) {
+		if !isVideoFile(entry.Name()) || downloadLeftover(entry.Name()) {
 			continue
 		}
 		info, err := entry.Info()
@@ -141,7 +142,7 @@ func videosIn(dir string) ([]Video, error) {
 	}
 	videos := make([]Video, 0, 1)
 	for _, entry := range entries {
-		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || !isVideoFile(entry.Name()) {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || !isVideoFile(entry.Name()) || downloadLeftover(entry.Name()) {
 			continue
 		}
 		info, err := entry.Info()
@@ -153,7 +154,7 @@ func videosIn(dir string) ([]Video, error) {
 	return videos, nil
 }
 
-// GatherVideos moves a loose video and its subtitles into "<name>/video.<ext>", and renames a video already inside a folder to video.<ext>. The returned map is the old path to the new path. A folder that already contains video.<ext> is left alone, including its other subtitle names.
+// GatherVideos moves a loose video and its subtitles into "<name>/video.<ext>", and renames a video already inside a folder to video.<ext>. The returned map is the old path to the new path. A folder that already contains video.<ext> is left alone, including its other subtitle names, and so is one that holds what a download leaves while it runs (downloadLeftover): its single finished track is not a video to rename.
 func GatherVideos(dir string) (map[string]string, error) {
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
@@ -177,7 +178,7 @@ func GatherVideos(dir string) (map[string]string, error) {
 			}
 			continue
 		}
-		if !isVideoFile(entry.Name()) {
+		if !isVideoFile(entry.Name()) || downloadLeftover(entry.Name()) {
 			continue
 		}
 		base := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
@@ -461,10 +462,15 @@ func normalizeItem(folder string) (map[string]string, error) {
 	}
 	var videos []string
 	for _, entry := range entries {
-		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || !isVideoFile(entry.Name()) {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
 			continue
 		}
-		videos = append(videos, entry.Name())
+		if downloadLeftover(entry.Name()) {
+			return nil, nil
+		}
+		if isVideoFile(entry.Name()) {
+			videos = append(videos, entry.Name())
+		}
 	}
 	if len(videos) != 1 || itemVideo(videos[0]) {
 		return nil, nil
@@ -503,6 +509,32 @@ func displayName(dir, name string) string {
 
 func itemVideo(name string) bool {
 	return strings.TrimSuffix(name, filepath.Ext(name)) == "video"
+}
+
+// formatTrack is the name yt-dlp gives one format of a video downloaded as several, video.f<format id>.<ext> for Kando's output template, before it merges them into video.<ext>; YouTube's format ids are digits, sometimes with a suffix such as 251-drc.
+var formatTrack = regexp.MustCompile(`^video\.f[0-9]+(-[0-9a-z]+)?\.[0-9a-z]+$`)
+
+// downloadLeftover reports whether name is something yt-dlp writes while it downloads and removes once the video is merged: a .part file or one of its fragments, the .ytdl file that lets it resume, one format's track, or the merge's video.temp.<ext>. Such a file in a library folder means a download is running there, or one stopped before it merged.
+func downloadLeftover(name string) bool {
+	lower := strings.ToLower(name)
+	if strings.HasSuffix(lower, ".part") || strings.HasSuffix(lower, ".ytdl") || strings.Contains(lower, ".part-frag") {
+		return true
+	}
+	return formatTrack.MatchString(lower) || strings.TrimSuffix(lower, filepath.Ext(lower)) == "video.temp"
+}
+
+// holdsDownloadLeftovers reports whether folder has any file downloadLeftover names.
+func holdsDownloadLeftovers(folder string) bool {
+	entries, err := os.ReadDir(folder)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && downloadLeftover(entry.Name()) {
+			return true
+		}
+	}
+	return false
 }
 
 func isVideoFile(name string) bool {

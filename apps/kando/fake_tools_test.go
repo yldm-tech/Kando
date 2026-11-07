@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The screenshot fixture (screenshot_helpers_test.go) runs the window with fake ffmpeg, yt-dlp and whisper-cli instead of whatever this machine has installed, so the scenes show the same versions, paths and pictures everywhere. Their videos are placeholders the fake ffmpeg plays: a gradient (writeFakeClip) or one of the prototype's scene pictures in testdata/scenes (writeFakeScene). Each fake is a link named after the tool to this test binary; run under that name, the binary acts as the tool and exits before any test runs.
@@ -38,7 +39,7 @@ func init() {
 	case "ffmpeg":
 		os.Exit(fakeFFmpeg(os.Args[1:]))
 	case "yt-dlp":
-		os.Exit(fakeVersionOnly(os.Args[1:], "--version", fakeYTDLPVersion))
+		os.Exit(fakeYTDLP(os.Args[1:]))
 	case "whisper-cli":
 		os.Exit(fakeVersionOnly(os.Args[1:], "--version", fakeWhisperVersion))
 	}
@@ -141,6 +142,95 @@ func fakeVersionOnly(args []string, flag, version string) int {
 	}
 	fmt.Fprintln(os.Stderr, "fake tool: only "+flag+" is supported")
 	return 1
+}
+
+// fakeYTDLPFolder is the folder the fake yt-dlp downloads its one video into, as the real one names "Me at the zoo" with Kando's output template.
+const fakeYTDLPFolder = "Me at the zoo [jNQXAC9IVRw]"
+
+// fakeYTDLP answers --version, and downloads "Me at the zoo" whatever the source as the real yt-dlp downloads a video YouTube serves as separate video and sound: the video track video.f395.mp4, then the sound track, written as video.f251.webm.part and renamed to video.f251.webm when done, both in the temp path (-P temp:) or, without one, in the video's folder under the home path (-P); then it merges them into <home>/Me at the zoo [jNQXAC9IVRw]/video.mp4, a clip the fake ffmpeg plays, and prints its path. A track gone by then fails the merge as the real one fails. A video already there is reported without downloading it again. When FAKE_YTDLP_GATE names a folder, the fake writes "tracks" there while the sound track is still a .part file and waits for "go" before it goes on, so a test can look at the library in between.
+func fakeYTDLP(args []string) int {
+	if slices.Contains(args, "--version") {
+		fmt.Println(fakeYTDLPVersion)
+		return 0
+	}
+	var home, temp string
+	for i := 0; i+1 < len(args) && args[i] != "--"; i++ {
+		if args[i] != "-P" {
+			continue
+		}
+		i++
+		if rest, ok := strings.CutPrefix(args[i], "temp:"); ok {
+			temp = rest
+		} else {
+			home = args[i]
+		}
+	}
+	if home == "" {
+		fmt.Fprintln(os.Stderr, "fake yt-dlp: no -P home path")
+		return 1
+	}
+	final := filepath.Join(home, fakeYTDLPFolder, "video.mp4")
+	if _, err := os.Stat(final); err == nil {
+		fmt.Println(final)
+		return 0
+	}
+	work := filepath.Join(home, fakeYTDLPFolder)
+	if temp != "" {
+		work = filepath.Join(temp, fakeYTDLPFolder)
+	}
+	video, sound := filepath.Join(work, "video.f395.mp4"), filepath.Join(work, "video.f251.webm")
+	fail := func(err error) int {
+		fmt.Fprintln(os.Stderr, "ERROR:", err)
+		return 1
+	}
+	if err := os.MkdirAll(work, 0o755); err != nil {
+		return fail(err)
+	}
+	if err := os.WriteFile(video, []byte("kando fake track 395\n"), 0o644); err != nil {
+		return fail(err)
+	}
+	if err := os.WriteFile(sound+".part", []byte("kando fake track 251\n"), 0o644); err != nil {
+		return fail(err)
+	}
+	if gate := os.Getenv("FAKE_YTDLP_GATE"); gate != "" {
+		if err := os.WriteFile(filepath.Join(gate, "tracks"), nil, 0o644); err != nil {
+			return fail(err)
+		}
+		for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+			if _, err := os.Stat(filepath.Join(gate, "go")); err == nil {
+				break
+			}
+			if time.Now().After(deadline) {
+				return fail(fmt.Errorf("no go in %s", gate))
+			}
+		}
+	}
+	if err := os.Rename(sound+".part", sound); err != nil {
+		return fail(err)
+	}
+	for _, track := range []string{video, sound} {
+		if _, err := os.Stat(track); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: Postprocessing: [Errno 2] No such file or directory: '%s'\n", track)
+			return 1
+		}
+	}
+	merged := filepath.Join(work, "video.temp.mp4")
+	if err := os.WriteFile(merged, []byte("kando fake clip 19 6b8e4e 2f3b2a\n"), 0o644); err != nil {
+		return fail(err)
+	}
+	for _, track := range []string{video, sound} {
+		if err := os.Remove(track); err != nil {
+			return fail(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(final), 0o755); err != nil {
+		return fail(err)
+	}
+	if err := os.Rename(merged, final); err != nil {
+		return fail(err)
+	}
+	fmt.Println(final)
+	return 0
 }
 
 // fakeFFmpeg answers the calls Kando makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, for the player; and one frame as JPEG, for a poster. The input must be a placeholder from writeFakeClip; any other file is not a video to it.

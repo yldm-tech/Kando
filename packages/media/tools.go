@@ -3,6 +3,8 @@ package media
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +23,8 @@ import (
 type Tools struct {
 	// OutputDir receives downloaded videos and their subtitles.
 	OutputDir string
+	// DownloadTemp holds what yt-dlp writes while a video downloads (the separate video and sound tracks of a split format, .part files), one folder per source, so the library under OutputDir only ever sees the merged video. Empty uses a folder in the system's temp folder.
+	DownloadTemp string
 	// YTDLP, FFmpeg and Whisper are executable paths; empty means not found.
 	YTDLP   string
 	FFmpeg  string
@@ -66,8 +70,13 @@ func ToolsFromEnv() Tools {
 			translator.Model = EveryAPIModel
 		}
 	}
+	downloadTemp := ""
+	if cache, err := os.UserCacheDir(); err == nil {
+		downloadTemp = filepath.Join(cache, "Kando", "downloads")
+	}
 	return Tools{
 		OutputDir:    outputDir,
+		DownloadTemp: downloadTemp,
 		YTDLP:        lookTool("yt-dlp"),
 		FFmpeg:       lookTool("ffmpeg"),
 		Whisper:      lookTool("whisper-cli"),
@@ -158,6 +167,8 @@ func (t Tools) Check() error {
 }
 
 // Download fetches source with yt-dlp into its own folder under OutputDir and returns the video's path. While it runs it reports to the context's Trace the video's title and thumbnail, once yt-dlp has looked the video up, and how far the download has gone. When yt-dlp fails before it could say what the video is called, a YouTube video's title and thumbnail are asked of OEmbed, so the card that says why it failed can name it.
+//
+// yt-dlp downloads into a folder of DownloadTemp kept for source and moves only the merged video into the library, where the library watcher would otherwise take a finished video track for a video of its own while the sound track is still downloading (GatherVideos). The folder is removed once the video is in the library and kept when the download fails, so a retry resumes it.
 func (t Tools) Download(ctx context.Context, source string) (string, error) {
 	if path, ok := localVideoPath(source); ok {
 		if _, err := os.Stat(path); err != nil {
@@ -165,11 +176,36 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		}
 		return path, nil
 	}
+	temp, err := t.downloadTempFor(source)
+	if err != nil {
+		return "", err
+	}
 	named := false
+	path, err := t.ytdlpDownload(ctx, source, temp, &named)
+	// An earlier Kando renamed the video track of a download that had not merged yet to video.<ext> and left the other track beside it; yt-dlp takes that silent file for the finished video. Leftovers beside the video mean it never merged, so it is removed with them and downloaded again.
+	if err == nil && holdsDownloadLeftovers(filepath.Dir(path)) && pathInside(t.OutputDir, path) {
+		if err = removeUnmerged(path); err == nil {
+			path, err = t.ytdlpDownload(ctx, source, temp, &named)
+		}
+	}
+	if err != nil {
+		if !named && ctx.Err() == nil && t.OEmbed != "" {
+			if info, ok := lookupOEmbed(ctx, t.OEmbed, source); ok {
+				reportInfo(ctx, info)
+			}
+		}
+		return "", err
+	}
+	_ = os.RemoveAll(temp)
+	return path, nil
+}
+
+// ytdlpDownload runs yt-dlp once for source, with temp as the folder of its partial files, and returns the path it says the video was saved to. named is set once yt-dlp has said what the video is called.
+func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bool) (string, error) {
 	reader := &ytdlpReader{
 		progress: func(p core.Progress) { reportProgress(ctx, p) },
 		info: func(info Info) {
-			named = named || info.Title != ""
+			*named = *named || info.Title != ""
 			reportInfo(ctx, info)
 		},
 	}
@@ -178,6 +214,8 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		"-f", "bv*+ba/b",
 		"--merge-output-format", "mp4",
 		"-P", t.OutputDir,
+		// A relative temp path would be taken as inside the library.
+		"-P", "temp:" + temp,
 		"-o", "%(title).80B [%(id)s]/video.%(ext)s",
 		"--print", ytdlpInfoTemplate,
 		"--print", ytdlpFormatsTemplate,
@@ -193,19 +231,48 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}
-	_, _, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...)
-	if err != nil {
-		if !named && ctx.Err() == nil && t.OEmbed != "" {
-			if info, ok := lookupOEmbed(ctx, t.OEmbed, source); ok {
-				reportInfo(ctx, info)
-			}
-		}
+	if _, _, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...); err != nil {
 		return "", err
 	}
 	if reader.path == "" {
 		return "", errors.New("yt-dlp did not report the downloaded file")
 	}
 	return reader.path, nil
+}
+
+// downloadTempFor is the absolute folder of DownloadTemp that holds source's partial download, the same for the same source.
+func (t Tools) downloadTempFor(source string) (string, error) {
+	base := t.DownloadTemp
+	if base == "" {
+		base = filepath.Join(os.TempDir(), "kando-downloads")
+	}
+	base, err := filepath.Abs(base)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256([]byte(source))
+	return filepath.Join(base, hex.EncodeToString(sum[:8])), nil
+}
+
+// removeUnmerged removes video and the files beside it that a download leaves before it merges (downloadLeftover).
+func removeUnmerged(video string) error {
+	folder := filepath.Dir(video)
+	entries, err := os.ReadDir(folder)
+	if err != nil {
+		return err
+	}
+	remove := []string{video}
+	for _, entry := range entries {
+		if !entry.IsDir() && downloadLeftover(entry.Name()) {
+			remove = append(remove, filepath.Join(folder, entry.Name()))
+		}
+	}
+	for _, path := range remove {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 // localVideoPath reports the disk path of a file:// video the user picked. Other URLs are downloaded.

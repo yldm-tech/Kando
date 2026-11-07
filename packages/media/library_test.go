@@ -332,3 +332,75 @@ func TestListVideosReturnsEmptyForMissingDirectory(t *testing.T) {
 		t.Fatalf("videos = %#v", videos)
 	}
 }
+
+// yt-dlp writes a split-format video as a video track and a sound track and merges them at the end. A folder caught in between holds one finished track and a .part file, which must not be taken for a video the user dropped in and renamed under yt-dlp's feet.
+func TestGatherVideosLeavesAnUnfinishedDownloadAlone(t *testing.T) {
+	for _, files := range [][]string{
+		{"video.f395.mp4", "video.f251.webm.part"},
+		{"video.f395.mp4", "video.f251.webm.ytdl"},
+		{"video.f395.mp4.part-Frag3", "video.f395.mp4.ytdl"},
+		{"video.f251-drc.webm"},
+		{"video.f395.mp4", "video.f251.webm", "video.temp.mp4"},
+	} {
+		dir := t.TempDir()
+		folder := filepath.Join(dir, "Me at the zoo [jNQXAC9IVRw]")
+		if err := os.Mkdir(folder, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range files {
+			if err := os.WriteFile(filepath.Join(folder, name), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		moved, err := GatherVideos(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(moved) != 0 {
+			t.Errorf("%v: moved %v", files, moved)
+		}
+		for _, name := range files {
+			if _, err := os.Stat(filepath.Join(folder, name)); err != nil {
+				t.Errorf("%v: %v", files, err)
+			}
+		}
+	}
+}
+
+func TestGatherVideosLeavesALooseTrackAlone(t *testing.T) {
+	dir := t.TempDir()
+	track := filepath.Join(dir, "video.f395.mp4")
+	if err := os.WriteFile(track, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if moved, err := GatherVideos(dir); err != nil || len(moved) != 0 {
+		t.Fatalf("moved %v, err %v", moved, err)
+	}
+	if _, err := os.Stat(track); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The tracks of a download that never merged are not films: a silent video track and a sound track would each show up as one.
+func TestListVideosSkipsTheTracksOfAnUnfinishedDownload(t *testing.T) {
+	dir := t.TempDir()
+	unfinished := filepath.Join(dir, "Me at the zoo [jNQXAC9IVRw]")
+	merged := filepath.Join(dir, "talk [abc]")
+	for path, names := range map[string][]string{unfinished: {"video.f395.mp4", "video.f251.webm", "video.temp.mp4"}, merged: {"video.mp4", "video.f251.webm"}} {
+		if err := os.Mkdir(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range names {
+			if err := os.WriteFile(filepath.Join(path, name), []byte("x"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	videos, err := ListVideos(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(videos) != 1 || videos[0].Path != filepath.Join(merged, "video.mp4") {
+		t.Fatalf("videos = %#v", videos)
+	}
+}
