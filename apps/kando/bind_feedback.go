@@ -12,22 +12,22 @@ import (
 
 // feedbackOverlay draws the dialog while it is open; overlays calls it.
 func (a *app) feedbackOverlay(c *ui.Context, t *ui.Theme) {
-	if a.fb.open {
-		feedback.Show(c, t, a, &a.fb.open)
+	if a.feedback.open {
+		feedback.Show(c, t, a, &a.feedback.open)
 	}
 }
 
-func (a *app) FeedbackForm() *feedback.Form { return &a.fb.form }
+func (a *app) FeedbackForm() *feedback.Form { return &a.feedback.form }
 
 // FeedbackView works out what the dialog shows from the form and what the app knows now: what each row of 附带信息 attaches, and the issue, scrubbed and fitted to the link.
 func (a *app) FeedbackView() feedback.View {
 	facts := a.feedbackFacts()
-	issue := a.fb.form.Report(facts).Issue(a.feedbackScrubber())
+	issue := a.feedback.form.Report(facts).Issue(a.feedbackScrubber())
 	view := feedback.View{
 		Issue:   issue,
-		Copied:  a.fb.copied != "" && a.fb.copied == issue.Full,
-		Sending: a.fb.sending,
-		Err:     a.fb.err,
+		Copied:  a.feedback.copied != "" && a.feedback.copied == issue.Full,
+		Sending: a.feedback.sending,
+		Err:     a.feedback.err,
 	}
 	view.Env = feedback.Attachment{Detail: facts.App + " · " + facts.OS, Enabled: true}
 	tools := make([]string, len(facts.Tools))
@@ -53,28 +53,28 @@ func (a *app) FeedbackView() feedback.View {
 }
 
 // FeedbackCopied remembers the body 拷贝正文 put on the clipboard, so the button reads 已拷贝 until the body changes.
-func (a *app) FeedbackCopied() { a.fb.copied = a.FeedbackView().Issue.Full }
+func (a *app) FeedbackCopied() { a.feedback.copied = a.FeedbackView().Issue.Full }
 
 // SendFeedback asks the browser to open the prefilled new-issue page off the UI thread, and closes the dialog once it did. If the browser cannot be opened, the dialog stays open and says why, so nothing typed is lost.
 func (a *app) SendFeedback() {
-	if a.fb.sending || strings.TrimSpace(a.fb.form.Title) == "" {
+	if a.feedback.sending || strings.TrimSpace(a.feedback.form.Title) == "" {
 		return
 	}
 	link := a.FeedbackView().Issue.URL
-	a.fb.sending, a.fb.err = true, ""
-	gen, update := a.fb.gen, a.update
+	a.feedback.sending, a.feedback.err = true, ""
+	gen, update := a.feedback.gen, a.update
 	go func() {
 		err := feedbackOpenURL(link)
 		update(func() {
-			if a.fb.gen != gen {
+			if a.feedback.gen != gen {
 				return
 			}
-			a.fb.sending = false
+			a.feedback.sending = false
 			if err != nil {
-				a.fb.err = "没能打开浏览器：" + err.Error() + "。可以用「拷贝正文」拷贝内容，到 github.com/" + feedback.Repo + "/issues/new 里粘贴。"
+				a.feedback.err = "没能打开浏览器：" + err.Error() + "。可以用「拷贝正文」拷贝内容，到 github.com/" + feedback.Repo + "/issues/new 里粘贴。"
 				return
 			}
-			a.fb.open = false
+			a.feedback.open = false
 		})
 	}()
 }
