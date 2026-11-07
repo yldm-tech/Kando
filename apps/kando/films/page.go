@@ -57,9 +57,8 @@ type App interface {
 	// FailureRemedy is what a failed card says and offers when the app knows why its download failed; false shows FailureHint instead. RunRemedy does the action of the remedy's button the user clicked.
 	FailureRemedy(item Film) (Remedy, bool)
 	RunRemedy(item Film, action string)
-	// Swapping is the film whose link 换个链接 is replacing, while open: the link typed so far, and why the last one was refused ("" when none was). SwapLink puts the typed link in place of the film's and runs it again.
-	Swapping() (open *bool, item Film, link *string, refused string)
-	SwapLink()
+	// LinkFocus asks the link field for the keyboard focus once, as 换个链接 does; the field sets it back to false when it has taken the focus.
+	LinkFocus() *bool
 	JobFilm(id string) (Film, bool)
 	// SourceFilter is the sidebar source the page shows, sidebar.SourceAll or another sidebar.Source value.
 	SourceFilter() string
@@ -146,7 +145,6 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	})
 	newLibrary(c, t, a)
 	removeDialog(c, a)
-	swapSheet(c, t, a)
 }
 
 // shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none.

@@ -29,9 +29,10 @@ type jobQueue struct {
 	active string
 	// cancel stops the running job; its cause becomes the job's error when it is core.ErrLibrarySwitched.
 	cancel context.CancelCauseFunc
-	// ytdlp is the yt-dlp the jobs download with and swap is 换个链接's sheet (queue_remedy.go).
+	// ytdlp is the yt-dlp the jobs download with and the browsers it can borrow logins from (queue_remedy.go).
 	ytdlp ytdlpState
-	swap  swapState
+	// linkFocus asks the link field above the library for the keyboard focus once, as 换个链接 does.
+	linkFocus bool
 }
 
 func newJobQueue() jobQueue { return jobQueue{} }
@@ -48,7 +49,7 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, is read then and whenever the tools change; after each frame 换个链接's sheet gives back the modal flag once it has closed. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one.
+// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		leavingLibrary: func() { a.queue.stopActive(core.ErrLibrarySwitched) },
@@ -57,7 +58,6 @@ func (a *app) queueHooks() areaHooks {
 			a.queueReadYTDLP()
 		},
 		toolsChanged:     func(bool) { a.queueReadYTDLP() },
-		afterFrame:       a.queueModals,
 		libraryChanged:   a.pump,
 		shelfLoaded:      func() { a.setResumePositions(maps.Clone(a.library.Positions)) },
 		positionsChanged: a.savePositions,

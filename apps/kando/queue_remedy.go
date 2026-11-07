@@ -12,23 +12,16 @@ import (
 	"github.com/egoist/mygo"
 )
 
-// What a failed download's card offers, by why it failed (core.FailKind), in the prototype's words: the remedies a card can run, the yt-dlp update 更新并重试 runs, and 换个链接's sheet.
+// What a failed download's card offers, by why it failed (core.FailKind), in the prototype's words: the remedies a card can run, and the yt-dlp update 更新并重试 runs.
 
-// ytdlpState is what the queue knows of the yt-dlp it downloads with: its version and how it was installed, read off the UI thread when the window is ready and when the tools change, and whether 更新并重试 is updating it now.
+// ytdlpState is what the queue knows of the yt-dlp it downloads with: its version and how it was installed, and the browsers whose logins it can borrow, read off the UI thread when the window is ready and when the tools change, so a card only reads them; whether 更新并重试 is updating it now; and latest, the version an update found to be the newest there is.
 type ytdlpState struct {
 	path     string
 	version  string
 	install  media.YTDLPInstall
+	browsers []media.Browser
 	updating bool
-}
-
-// swapState is 换个链接's sheet: the card whose link it replaces, the link typed so far and why the last one was refused, while open. release gives back the window's modal flag the sheet holds.
-type swapState struct {
-	open    bool
-	id      string
-	link    string
-	refused string
-	release func()
+	latest   string
 }
 
 // The remedies' action IDs (films.RemedyAction.ID). A borrowed login is remedyBorrow followed by the browser's --cookies-from-browser name.
@@ -39,10 +32,15 @@ const (
 	remedySwap       = "swap"
 	remedyLocal      = "local"
 	remedyDiskAccess = "disk-access"
+	// remedyFindBrowsers looks for the browsers again, for a card that found none to borrow a login from.
+	remedyFindBrowsers = "find-browsers"
 )
 
-// installedBrowsers is the browsers whose logins the cards offer to borrow. Tests replace it.
+// installedBrowsers looks on disk for the browsers whose logins the cards offer to borrow; it runs off the UI thread. Tests replace it.
 var installedBrowsers = media.InstalledBrowsers
+
+// noBrowser is what a card that wants a login says when this machine has no browser yt-dlp can borrow one from, as Windows or Linux without Chrome, Firefox, Edge, Brave or Chromium.
+const noBrowser = "这台电脑上没找到能借用登录的浏览器。在 Chrome、Firefox、Edge、Brave 或 Chromium 里登录后，重新查找。"
 
 // openExternal opens a URL with the system, as the Full Disk Access pane of System Settings. Tests replace it.
 var openExternal = mygo.Shell.OpenExternal
@@ -50,21 +48,44 @@ var openExternal = mygo.Shell.OpenExternal
 // fullDiskAccess is the pane of System Settings that lets an app read Safari's cookies.
 const fullDiskAccess = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
 
-// queueReadYTDLP reads the version of the yt-dlp the pipeline downloads with, and how it was installed, off the UI thread.
+// queueReadYTDLP reads, off the UI thread, the browsers whose logins yt-dlp can borrow, and the version of the yt-dlp the pipeline downloads with and how it was installed.
 func (a *app) queueReadYTDLP() {
-	tools, ok := a.pipeline.(media.Tools)
-	if !ok || tools.YTDLP == "" || a.update == nil {
+	if a.update == nil {
 		return
 	}
+	tools, _ := a.pipeline.(media.Tools)
 	path, update := tools.YTDLP, a.update
 	go func() {
-		version, _ := media.YTDLPVersion(context.Background(), path)
-		install := media.FindYTDLPInstall(path)
+		browsers := installedBrowsers()
+		var version string
+		var install media.YTDLPInstall
+		if path != "" {
+			version, _ = media.YTDLPVersion(context.Background(), path)
+			install = media.FindYTDLPInstall(path)
+		}
 		update(func() {
-			if a.queue.ytdlp.updating {
+			a.queue.ytdlp.browsers = browsers
+			if path == "" || a.queue.ytdlp.updating {
 				return
 			}
 			a.queue.ytdlp.path, a.queue.ytdlp.version, a.queue.ytdlp.install = path, version, install
+		})
+	}()
+}
+
+// queueFindBrowsers looks for the browsers again off the UI thread, for 重新查找浏览器; the message bar says when there is still none.
+func (a *app) queueFindBrowsers() {
+	if a.update == nil {
+		return
+	}
+	update := a.update
+	go func() {
+		browsers := installedBrowsers()
+		update(func() {
+			a.queue.ytdlp.browsers = browsers
+			if len(browsers) == 0 {
+				a.tell("还是没找到能借用登录的浏览器。")
+			}
 		})
 	}()
 }
@@ -77,8 +98,18 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 	}
 	site := films.SourceLabel(item)
 	browser, other := a.remedyBrowsers(job)
+	// borrow is 借用 … 登录并重试, or 重新查找浏览器 when there is no browser to borrow from; why is then followed by noBrowser in place of withBrowser.
 	borrow := func(primary bool) films.RemedyAction {
+		if browser.ID == "" {
+			return films.RemedyAction{ID: remedyFindBrowsers, Label: "重新查找浏览器", Primary: primary}
+		}
 		return films.RemedyAction{ID: remedyBorrow + browser.ID, Label: "借用 " + browser.Name + " 登录并重试", Primary: primary}
+	}
+	why := func(need, withBrowser string) string {
+		if browser.ID == "" {
+			return need + noBrowser
+		}
+		return need + withBrowser
 	}
 	swap := func(primary bool) films.RemedyAction {
 		return films.RemedyAction{ID: remedySwap, Label: "换个链接", Primary: primary}
@@ -103,11 +134,14 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 		if site == "哔哩哔哩" {
 			headline, need = "大会员专享视频", "需要大会员。"
 		}
-		r = films.Remedy{Headline: headline, Why: need + "借用已开通会员的浏览器登录即可。", Actions: []films.RemedyAction{borrow(true), swap(false)}}
+		r = films.Remedy{Headline: headline, Why: why(need, "借用已开通会员的浏览器登录即可。"), Actions: []films.RemedyAction{borrow(true), swap(false)}}
 	case core.FailAge:
 		r = films.Remedy{Headline: "需要年龄验证", Why: "借用浏览器里已登录的 " + site + " 账号即可。", Actions: []films.RemedyAction{borrow(true)}}
+		if browser.ID == "" {
+			r.Why = "要用已登录的 " + site + " 账号。" + noBrowser
+		}
 	case core.FailLogin:
-		r = films.Remedy{Headline: "要登录才能看", Why: hostOf(job.Source) + " 的这个视频需要账号。借用浏览器里已登录的账号即可，不保存密码。", Actions: []films.RemedyAction{borrow(true)}}
+		r = films.Remedy{Headline: "要登录才能看", Why: why(hostOf(job.Source)+" 的这个视频需要账号。", "借用浏览器里已登录的账号即可，不保存密码。"), Actions: []films.RemedyAction{borrow(true)}}
 	case core.FailRegion:
 		r = films.Remedy{Headline: "你所在的地区不能看", Why: "上传者限制了地区。别处有这个视频的话，换个链接。", Actions: []films.RemedyAction{swap(true)}}
 	case core.FailPrivate:
@@ -118,8 +152,13 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 		r = films.Remedy{Headline: hostOf(job.Source) + " 暂不支持", Why: "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", Actions: []films.RemedyAction{swap(true), local(false)}}
 	case core.FailRateLimit:
 		r = films.Remedy{Headline: site + " 暂时限制了下载", Why: "请求太频繁。等几分钟再重试，或借用浏览器里已登录的账号。", Actions: []films.RemedyAction{retry, borrow(false)}}
+		if browser.ID == "" {
+			r.Why, r.Actions = "请求太频繁。等几分钟再重试。", []films.RemedyAction{retry}
+		}
 	case core.FailNetwork:
 		r = films.Remedy{Headline: "连不上网络", Why: "检查网络连接后再重试。", Actions: []films.RemedyAction{retry}}
+	case core.FailHost:
+		r = films.Remedy{Headline: "找不到 " + hostOf(job.Source), Why: "网络正常的话，多半是链接里的网址写错了，或者这个网站已经关闭。换个链接，或检查网络后再重试。", Actions: []films.RemedyAction{swap(true), {ID: remedyRetry, Label: "重试"}}}
 	case core.FailCookies:
 		r = a.cookiesRemedy(job, other)
 	default:
@@ -134,6 +173,10 @@ func (a *app) outdatedRemedy(site string) films.Remedy {
 	if y.updating {
 		return films.Remedy{Headline: "正在更新下载组件…", Why: "更新完会自动重新下载。", Working: true,
 			Actions: []films.RemedyAction{{ID: remedyUpdate, Label: "更新中…", Primary: true, Disabled: true}}}
+	}
+	if y.latest != "" && y.latest == y.version {
+		return films.Remedy{Headline: site + " 改版了，下载组件还没跟上", Why: "本机的 yt-dlp 已是最新的 " + y.version + " 版，网站的修复还没发布，过一两天再重试。",
+			Actions: []films.RemedyAction{{ID: remedyRetry, Label: "重试", Primary: true}, {ID: remedyUpdate, Label: "检查更新"}}}
 	}
 	r := films.Remedy{Headline: site + " 改版了，下载组件要更新", Why: "本机的 yt-dlp 太旧了，更新几秒就好。"}
 	if y.version != "" {
@@ -162,9 +205,9 @@ func (a *app) cookiesRemedy(job core.Job, other media.Browser) films.Remedy {
 	return r
 }
 
-// remedyBrowsers is the browser a card offers to borrow a login from, the one the job borrows already or else the first installed, and another installed one to switch to; other is the zero Browser when there is none.
+// remedyBrowsers is the browser a card offers to borrow a login from, the one the job borrows already or else the first installed, and another installed one to switch to, of those queueReadYTDLP found; either is the zero Browser when there is none.
 func (a *app) remedyBrowsers(job core.Job) (browser, other media.Browser) {
-	installed := installedBrowsers()
+	installed := a.queue.ytdlp.browsers
 	for _, b := range installed {
 		if b.ID == job.Cookies {
 			browser = b
@@ -172,9 +215,6 @@ func (a *app) remedyBrowsers(job core.Job) (browser, other media.Browser) {
 	}
 	if browser.ID == "" && len(installed) > 0 {
 		browser = installed[0]
-	}
-	if browser.ID == "" {
-		browser = media.Browsers[len(media.Browsers)-1]
 	}
 	for _, b := range installed {
 		if b.ID != browser.ID && b.ID != job.Cookies {
@@ -202,10 +242,9 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		a.queueRetry(job)
 		a.tell("已借用 " + media.BrowserName(browser) + " 的登录，开始下载。")
 	case action == remedySwap:
-		a.queue.swap = swapState{open: true, id: job.ID, release: a.queue.swap.release}
-		if a.queue.swap.release == nil {
-			a.queue.swap.release = a.holdModal()
-		}
+		a.queueSwapLink(item)
+	case action == remedyFindBrowsers:
+		a.queueFindBrowsers()
 	case action == remedyLocal:
 		a.pickVideos()
 	case action == remedyDiskAccess:
@@ -240,6 +279,13 @@ func (a *app) queueUpdateYTDLP() {
 			}
 			before := a.queue.ytdlp.version
 			a.queue.ytdlp.path, a.queue.ytdlp.version = path, version
+			// The newest yt-dlp there is fails the same way until the site's fix is out: nothing runs again, and the cards say so.
+			if version == before {
+				a.queue.ytdlp.latest = version
+				a.tell("下载组件 yt-dlp 已是最新的 " + version + " 版，网站的修复还没发布，过一两天再试。")
+				return
+			}
+			a.queue.ytdlp.latest = ""
 			var outdated []core.Job
 			for _, job := range a.library.Jobs {
 				if job.Stage == core.StageFailed && job.FailKind == core.FailOutdated && films.InLibrary(a.snap().LibraryDir, job) {
@@ -249,49 +295,20 @@ func (a *app) queueUpdateYTDLP() {
 			for i := len(outdated) - 1; i >= 0; i-- {
 				a.queueRetry(outdated[i])
 			}
-			done := "下载组件已更新到 " + version
-			if version == before {
-				done = "下载组件 " + version + " 已是最新版本"
-			}
-			a.tell(fmt.Sprintf("%s，已重新开始下载 %d 个视频。", done, len(outdated)))
+			a.tell(fmt.Sprintf("下载组件已更新到 %s，已重新开始下载 %d 个视频。", version, len(outdated)))
 		})
 	}()
 }
 
-func (a *app) Swapping() (*bool, films.Film, *string, string) {
-	item, _ := a.JobFilm(a.queue.swap.id)
-	return &a.queue.swap.open, item, &a.queue.swap.link, a.queue.swap.refused
-}
-
-// SwapLink runs the card 换个链接 is open on again from the link typed in its sheet, with what the old link told about the video forgotten. A link that is not one stays in the sheet with why.
-func (a *app) SwapLink() {
-	link := strings.TrimSpace(a.queue.swap.link)
-	job, ok := a.library.Find(a.queue.swap.id)
-	if !ok {
-		a.queue.swap.open = false
-		return
+// queueSwapLink is 换个链接, as the prototype's swapLink: the card goes, the link field above is emptied and takes the focus, and the message bar says to paste the link from elsewhere there. The link pasted starts a job of its own, so nothing of the old one, such as the login it borrowed for its site, carries over.
+func (a *app) queueSwapLink(item films.Film) {
+	name := item.Name
+	if name == "" {
+		name = item.Title
 	}
-	if msg, _ := a.precheck([]string{link}); msg != "" {
-		a.queue.swap.refused = msg
-		return
-	}
-	if _, err := core.NewJob(link); err != nil {
-		a.queue.swap.refused = sourceError(err)
-		return
-	}
-	job.Source = link
-	job.Title, job.Thumbnail, job.VideoPath = "", "", ""
-	a.queue.swap = swapState{release: a.queue.swap.release}
-	a.queueRetry(job)
-	a.tell("已换成新链接，开始下载。")
-}
-
-// queueModals gives back the window's modal flag 换个链接's sheet held once the sheet has closed, by its buttons or by Escape.
-func (a *app) queueModals() {
-	if !a.queue.swap.open && a.queue.swap.release != nil {
-		a.queue.swap.release()
-		a.queue.swap.release = nil
-	}
+	a.remove(item.JobID)
+	a.queue.source, a.queue.linkFocus = "", true
+	a.tell("已移除「" + name + "」。如果别处有这个视频，把链接粘贴到右上角。")
 }
 
 // hostOf is the site a link points at, without www.
