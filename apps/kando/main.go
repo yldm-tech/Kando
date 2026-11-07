@@ -38,6 +38,7 @@ type app struct {
 	cloud   cloudUI    // state_cloud.go
 	overlay overlayUI  // state_overlay.go
 	menu    menuUI     // state_menu.go
+	palette paletteUI  // state_palette.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -53,6 +54,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		cloud:   newCloudUI(),
 		overlay: newOverlayUI(),
 		menu:    newMenuUI(),
+		palette: newPaletteUI(),
 	}
 }
 

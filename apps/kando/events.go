@@ -43,6 +43,7 @@ func (a *app) areas() []areaHooks {
 		a.playerHooks(),
 		a.overlayHooks(),
 		a.menuHooks(),
+		a.paletteHooks(),
 	}
 }
 

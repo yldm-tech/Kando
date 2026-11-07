@@ -24,6 +24,7 @@ func (a *app) overlays(c *ui.Context, t, dark *ui.Theme) {
 	if a.overlay.cheatsheet {
 		cheatsheet.Show(c, dark, &a.overlay.cheatsheet, a.cheatsheetGroups())
 	}
+	a.paletteOverlay(c, dark)
 }
 
 func (a *app) toggleCheatsheet() { a.overlay.cheatsheet = !a.overlay.cheatsheet }
@@ -62,6 +63,7 @@ var cheatsheetLayout = []struct {
 		{"搜索台词", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyF}}},
 	}},
 	{"窗口", []cheatsheetLine{
+		{"问这部影片 / 命令", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyK}}},
 		{"", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeySlash}}},
 		{"设置", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyComma}}},
 		{"", []cheatsheet.Combo{{Key: ui.KeyEscape}}},
