@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Repo is the GitHub repository feedback goes to, and NewIssue its new-issue page, which takes the title, body and labels from the query.
@@ -210,18 +213,18 @@ func (is Issue) Preview() string {
 	return "标题：" + orValue(is.Title, "（未填写）") + "\n标签：" + is.Label + "\n\n" + is.Body
 }
 
-// Scrubber takes out of text what must not reach a public issue: the home folder becomes ~, other absolute paths become <路径>, and the secrets it knows and anything shaped like a key or token become ***.
+// Scrubber takes out of text what must not reach a public issue: every absolute path becomes <路径>, whole, with the names under it and the spaces in it, the home folder on its own becomes ~, and the secrets it knows and anything shaped like a key or token become ***.
 type Scrubber struct {
-	// Home is the user's home folder; Secrets are values never to send, such as API keys, access keys and the environment's credentials.
+	// Home is the user's home folder; Paths are the files and folders the app knows, such as the libraries, the videos and their subtitles, which are hidden wherever they are written, whatever they have in their names; Secrets are values never to send, such as API keys, access keys and the environment's credentials.
 	Home    string
+	Paths   []string
 	Secrets []string
 }
 
+// PathMark is what a path is written as.
+const PathMark = "<路径>"
+
 var (
-	// unixPath is an absolute path of two or more parts after the start of the text, a space, a quote, a bracket or =, so a URL's // and a ratio such as 1/2 stay.
-	unixPath = regexp.MustCompile(`(^|[\s"'(\[=（])/[^\s/"'()\[\]:：，。、,;]+/[^\s"'()\[\]:：，。、,;]*`)
-	// winPath is an absolute Windows path, as C:\Users.
-	winPath = regexp.MustCompile(`(^|[\s"'(\[=（])[A-Za-z]:\\[^\s"'()\[\]:：，。、,;]*`)
 	// tokens are shapes of credentials that are not among the known secrets: API keys, GitHub tokens, AWS access keys, bearer tokens and key=value pairs naming a secret.
 	tokens = []struct {
 		re   *regexp.Regexp
@@ -234,6 +237,8 @@ var (
 		{regexp.MustCompile(`\bAKIA[0-9A-Z]{16}\b`), "***"},
 		{regexp.MustCompile(`(?i)\b(api[_-]?key|secret|token|password|passwd|access[_-]?key)(\s*[=:]\s*)[^\s&"']+`), "${1}${2}***"},
 	}
+	// extension is a file name's extension, which ends a path: once a path names a file, the words after it are not part of it.
+	extension = regexp.MustCompile(`[^/\\.]\.[A-Za-z0-9]{1,6}$`)
 )
 
 // links are web and file addresses, which a film's error can carry: the video's own link, or a link of the site it came from.
@@ -249,32 +254,58 @@ func (s Scrubber) Clean(text string) string {
 			text = strings.ReplaceAll(text, secret, "***")
 		}
 	}
+	text = s.knownPaths(text)
 	text = s.homeAsTilde(text)
-	text = unixPath.ReplaceAllString(text, "${1}<路径>")
-	text = winPath.ReplaceAllString(text, "${1}<路径>")
+	text = scrubPaths(text, false)
 	for _, t := range tokens {
 		text = t.re.ReplaceAllString(text, t.with)
 	}
 	return text
 }
 
-// homeAsTilde writes the home folder as ~ wherever a path starts with it: followed by a separator or by the end of the path, so /Users/kim does not turn /Users/kimberly into ~berly.
+// NoPaths writes every absolute path in a tool's message as <路径>, for what the app attaches about a film. A tool writes a path with the video's title in it and does not quote it, so a path runs to the end of its line, a closing quote or the ": " of the error after it.
+func NoPaths(text string) string { return scrubPaths(text, true) }
+
+// knownRoot stands in for a path of Paths until scrubPaths hides it with whatever path goes on below it. It starts as an absolute path does and has no space, so scrubPaths takes it as the start of one.
+const knownRoot = "/\x00"
+
+// knownPaths writes each of Paths, the longest first, as knownRoot wherever a path starts with it.
+func (s Scrubber) knownPaths(text string) string {
+	paths := make([]string, 0, len(s.Paths))
+	for _, p := range s.Paths {
+		if p = strings.TrimRight(p, `/\`); len(p) >= 2 {
+			paths = append(paths, p)
+		}
+	}
+	slices.SortFunc(paths, func(a, b string) int { return len(b) - len(a) })
+	for _, p := range paths {
+		text = replacePath(text, p, knownRoot)
+	}
+	return text
+}
+
+// homeAsTilde writes the home folder as ~ wherever a path starts with it, so the user's name is not in the issue even where the rest of a path is.
 func (s Scrubber) homeAsTilde(text string) string {
 	home := strings.TrimRight(s.Home, `/\`)
 	if len(home) < 2 {
 		return text
 	}
+	return replacePath(text, home, "~")
+}
+
+// replacePath writes dir as with wherever it is followed by a separator or by the end of the path, so /Users/kim does not turn /Users/kimberly into ~berly.
+func replacePath(text, dir, with string) string {
 	var b strings.Builder
 	for {
-		i := strings.Index(text, home)
+		i := strings.Index(text, dir)
 		if i < 0 {
 			b.WriteString(text)
 			return b.String()
 		}
-		end := i + len(home)
+		end := i + len(dir)
 		if end == len(text) || !pathChar(text[end]) {
 			b.WriteString(text[:i])
-			b.WriteString("~")
+			b.WriteString(with)
 		} else {
 			b.WriteString(text[:end])
 		}
@@ -282,7 +313,151 @@ func (s Scrubber) homeAsTilde(text string) string {
 	}
 }
 
-// pathChar reports whether c can go on a folder's name, so a home folder followed by it is a longer name, not the home folder.
+// pathChar reports whether c can go on a folder's name, so a folder followed by it is a longer name, not the folder.
 func pathChar(c byte) bool {
 	return c != '/' && c != '\\' && c != ' ' && c != '\t' && c != '\n' && c != '"' && c != '\'' && c != ':' && c != ')' && c != ',' && c != ';'
+}
+
+// quotes are the quotes a path can be written in, by their closing quote. A quoted path runs to its closing quote, spaces and all.
+var quotes = map[rune]rune{'"': '"', '\'': '\'', '`': '`', '“': '”', '‘': '’', '「': '」', '『': '』'}
+
+// scrubPaths writes every absolute path in text as <路径>: one that starts at the start of the text or after anything but a letter, a digit or a character of a path or an address, so a link's // and a ratio such as 1/2 stay, and that has a folder and a name under its root, so a lone / or a /help does not count; a ~ path and a Windows path count from their root. A quoted path runs to its closing quote. Otherwise, with toLineEnd a path runs to the end of its line or the ": " after it, and without it to the end of its word, and on over the next words of the sentence while a later one has a separator or an extension and the path so far names no file, as a folder or a title with spaces does.
+func scrubPaths(text string, toLineEnd bool) string {
+	var b strings.Builder
+	last := 0
+	for i := 0; i < len(text); {
+		_, size := utf8.DecodeRuneInString(text[i:])
+		root := pathRoot(text[i:])
+		if root == 0 || !pathStart(text[:i]) {
+			i += size
+			continue
+		}
+		end := pathEnd(text, i, root, toLineEnd)
+		if end <= i {
+			i += size
+			continue
+		}
+		b.WriteString(text[last:i])
+		b.WriteString(PathMark)
+		last, i = end, end
+	}
+	b.WriteString(text[last:])
+	return b.String()
+}
+
+// pathRoot is the length of the absolute path's root text starts with: / , ~/ or ~\, or a drive such as C:\; 0 when it starts none.
+func pathRoot(text string) int {
+	switch {
+	case strings.HasPrefix(text, "~/"), strings.HasPrefix(text, `~\`):
+		return 2
+	case strings.HasPrefix(text, "/"):
+		return 1
+	case len(text) >= 3 && isLetter(text[0]) && text[1] == ':' && text[2] == '\\':
+		return 3
+	}
+	return 0
+}
+
+// pathStart reports whether a path can start after before: at the start of the text, or after anything but a letter, a digit or a character that goes on a path or an address.
+func pathStart(before string) bool {
+	r, _ := utf8.DecodeLastRuneInString(before)
+	if r == utf8.RuneError {
+		return true
+	}
+	if r < utf8.RuneSelf && (isLetter(byte(r)) || r >= '0' && r <= '9') {
+		return false
+	}
+	return !strings.ContainsRune("_.~/\\:-", r)
+}
+
+func isLetter(c byte) bool { return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' }
+
+// pathEnd is where the path at text[i:] with a root of root bytes ends, as scrubPaths says, or i when it is not a path.
+func pathEnd(text string, i, root int, toLineEnd bool) int {
+	open, _ := utf8.DecodeLastRuneInString(text[:i])
+	if closing, ok := quotes[open]; ok {
+		line := text[i:]
+		if nl := strings.IndexByte(line, '\n'); nl >= 0 {
+			line = line[:nl]
+		}
+		if at := strings.IndexRune(line, closing); at > 0 && isPath(line[:at], root) {
+			return i + at
+		}
+	}
+	if toLineEnd {
+		line := text[i:]
+		if nl := strings.IndexByte(line, '\n'); nl >= 0 {
+			line = line[:nl]
+		}
+		if at := strings.Index(line, ": "); at >= 0 {
+			line = line[:at]
+		}
+		line = trimPathEnd(strings.TrimRightFunc(line, unicode.IsSpace))
+		if !isPath(line, root) {
+			return i
+		}
+		return i + len(line)
+	}
+	end, stop := wordEnd(text, i+root)
+	if !isPath(trimPathEnd(text[i:end]), root) {
+		return i
+	}
+	// On over the next words while one of them still has a separator or an extension, as the rest of a folder's or a title's name with spaces does.
+	for at := end; !stop && !extension.MatchString(trimPathEnd(text[i:end])); {
+		if at >= len(text) || text[at] != ' ' {
+			break
+		}
+		next, nextStop := wordEnd(text, at+1)
+		word := trimPathEnd(text[at+1 : next])
+		if word == "" || pathRoot(word) != 0 {
+			break
+		}
+		if strings.ContainsAny(word, `/\`) || extension.MatchString(word) {
+			end = next
+		}
+		at, stop = next, nextStop
+	}
+	return i + len(trimPathEnd(text[i:end]))
+}
+
+// wordEnd is where the word at text[i:] ends: at a space or a punctuation mark that ends a sentence or a clause. stop says it ended at a punctuation mark, which ends the sentence a path can go on in.
+func wordEnd(text string, i int) (end int, stop bool) {
+	for end = i; end < len(text); {
+		r, size := utf8.DecodeRuneInString(text[end:])
+		if unicode.IsSpace(r) {
+			return end, r == '\n'
+		}
+		if _, quote := quotes[r]; quote || strings.ContainsRune("”’」』<>|,;:，。；：、！？（）《》", r) {
+			return end, true
+		}
+		end += size
+	}
+	return end, true
+}
+
+// trimPathEnd takes off the end of a path what ends the sentence around it: a full stop, and a closing bracket the path did not open.
+func trimPathEnd(p string) string {
+	for p != "" {
+		switch c := p[len(p)-1]; {
+		case c == '.':
+			p = p[:len(p)-1]
+		case c == ')' && strings.Count(p, "(") < strings.Count(p, ")"), c == ']' && strings.Count(p, "[") < strings.Count(p, "]"):
+			p = p[:len(p)-1]
+		default:
+			return p
+		}
+	}
+	return p
+}
+
+// isPath reports whether p, starting with a root of root bytes, is a path: a ~ or a drive path with anything under its root, a known path, or a / path with a folder and a name under it.
+func isPath(p string, root int) bool {
+	if len(p) <= root {
+		return false
+	}
+	if root > 1 || strings.HasPrefix(p, knownRoot) {
+		return true
+	}
+	first, rest, ok := strings.Cut(p[1:], "/")
+	return ok && first != "" && rest != ""
 }

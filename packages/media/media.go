@@ -57,6 +57,11 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 	video, err := p.Download(ctx, job.Source)
 	if err != nil {
+		job.FailKind = ClassifyDownload(err.Error())
+		// A site that still wants a login while the browser's is borrowed has let that login run out.
+		if job.Cookies != "" && (job.FailKind == core.FailLogin || job.FailKind == core.FailAge) {
+			job.FailKind = core.FailLoginExpired
+		}
 		return fail("download", err)
 	}
 	job.VideoPath = video

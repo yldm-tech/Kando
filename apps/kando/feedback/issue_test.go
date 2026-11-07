@@ -110,7 +110,7 @@ func TestIssueTruncatesToGitHubsLimit(t *testing.T) {
 func TestScrubberHidesHomeOtherPathsAndSecrets(t *testing.T) {
 	s := Scrubber{Home: "/Users/kim", Secrets: []string{"sk-live-abcdef123456"}}
 	cases := map[string]string{
-		"open /Users/kim/Movies/a.mp4 failed":             "open ~/Movies/a.mp4 failed",
+		"open /Users/kim/Movies/a.mp4 failed":             "open <路径> failed",
 		"home is /Users/kim":                              "home is ~",
 		"/Users/kimberly/x/y stays out":                   "<路径> stays out",
 		"read /Volumes/Disk/films/a.mp4: denied":          "read <路径>: denied",
@@ -129,8 +129,55 @@ func TestScrubberHidesHomeOtherPathsAndSecrets(t *testing.T) {
 		}
 	}
 	win := Scrubber{Home: `C:\Users\kim`}
-	if got := win.Clean(`C:\Users\kim\Videos\a.mp4 missing`); got != `~\Videos\a.mp4 missing` {
-		t.Errorf("windows home: %q", got)
+	for in, want := range map[string]string{
+		`C:\Users\kim\Videos\a.mp4 missing`: "<路径> missing",
+		`home is C:\Users\kim`:              "home is ~",
+	} {
+		if got := win.Clean(in); got != want {
+			t.Errorf("windows home: Clean(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// TestScrubberHidesWholePaths checks that a path leaves nothing of itself behind: not the names under the home folder, not the parts after a space in a folder or a video's title, and not a path that follows Chinese text or a full-width colon.
+func TestScrubberHidesWholePaths(t *testing.T) {
+	s := Scrubber{Home: "/Users/kim", Paths: []string{"/Volumes/My Disk/影视库，2024.kando"}}
+	cases := map[string]string{
+		"下载失败：/Volumes/Lexar/私人/电影.mp4":                                         "下载失败：<路径>",
+		"打开失败：/Volumes/Lexar/私人相册/家庭.mp4":                                       "打开失败：<路径>",
+		"视频在/Volumes/Lexar/私人/a.mp4":                                            "视频在<路径>",
+		"ffmpeg: error from '/Users/kim/Movies/Kando/Private Family Video.mp4'": "ffmpeg: error from '<路径>'",
+		`open "/Users/kim/Google Drive/Secret Project/clip.mp4"`:                `open "<路径>"`,
+		"open /Users/kim/Google Drive/Secret Project/clip.mp4 now":              "open <路径> now",
+		"home /Users/kim/Movies/Private Film.mp4":                               "home <路径>",
+		"[download] Destination: /Volumes/Lexar/Kando/Some Title [abc].mp4":     "[download] Destination: <路径>",
+		"我把视频放在 /Volumes/Lexar/Kando 里面，打不开":                                    "我把视频放在 <路径> 里面，打不开",
+		"see (/tmp/x/y.log).":          "see (<路径>).",
+		"typed ~/Movies/a.mp4 by hand": "typed <路径> by hand",
+		"库在 /Volumes/My Disk/影视库，2024.kando/videos/a b.mp4 里": "库在 <路径> 里",
+		"按 / 键，或者 /help":                  "按 / 键，或者 /help",
+		"「/Volumes/Lexar/私人 相册/家.mp4」打不开": "「<路径>」打不开",
+	}
+	for in, want := range cases {
+		if got := s.Clean(in); got != want {
+			t.Errorf("Clean(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// TestNoPathsRunsToTheEndOfTheLine checks that a tool's message loses the whole path it names, however many words the video's title has, up to the end of its line, a closing quote or the ": " of the error after it.
+func TestNoPathsRunsToTheEndOfTheLine(t *testing.T) {
+	cases := map[string]string{
+		"download: ERROR: unable to write /Volumes/Lexar/Kando/A Long Title With Many Words：Part 1.mp4\nnext line": "download: ERROR: unable to write <路径>\nnext line",
+		"open /Users/kim/a b/c d.mp4: no such file or directory":                                                   "open <路径>: no such file or directory",
+		"ffmpeg: from '/Volumes/x/My Film.mp4' failed":                                                             "ffmpeg: from '<路径>' failed",
+		"下载失败：/Volumes/Lexar/私人/电影 第二部.mp4":                                                                        "下载失败：<路径>",
+		"HTTP Error 403: Forbidden":                                                                                "HTTP Error 403: Forbidden",
+	}
+	for in, want := range cases {
+		if got := NoPaths(in); got != want {
+			t.Errorf("NoPaths(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 
@@ -148,8 +195,8 @@ func TestIssueScrubsEverythingItSends(t *testing.T) {
 			t.Fatalf("leaked: %q", s)
 		}
 	}
-	if !strings.Contains(issue.Body, "~/Movies/a/video.mp4") {
-		t.Fatalf("home path not kept as ~: %q", issue.Body)
+	if strings.Contains(issue.Body, "video.mp4") || !strings.Contains(issue.Body, "错误：open <路径>: no such file") {
+		t.Fatalf("the path under the home folder is not hidden: %q", issue.Body)
 	}
 }
 

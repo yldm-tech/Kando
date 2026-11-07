@@ -14,7 +14,8 @@ type shortcut struct {
 	Group string
 	Label string
 	Mods  ui.Modifiers
-	Key   ui.Key
+	// Key is the row's key. A row without one (0) is a command of the menu bar only: wireKeys does not register it, and neither the cheat sheet nor Settings › 快捷键 lists it, as there is no key to show.
+	Key ui.Key
 	// When reports whether the shortcut applies now; nil means always.
 	When func() bool
 	// Checked reports whether the menu bar shows a ✓ by the row, as by the screen the window shows now; nil means the row is a plain command.
@@ -22,9 +23,9 @@ type shortcut struct {
 	Run     func()
 }
 
-// shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go and the menu bar's in state_menu.go.
+// shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go and the feedback dialog's in state_feedback.go.
 func (a *app) shortcuts() []shortcut {
-	return slices.Concat(a.appKeys(), a.sidebarKeys(), a.libraryKeys(), a.queueKeys(), a.playerKeys(), a.settingsKeys(), a.overlayKeys(), a.menuKeys(), a.paletteKeys())
+	return slices.Concat(a.appKeys(), a.sidebarKeys(), a.libraryKeys(), a.queueKeys(), a.playerKeys(), a.settingsKeys(), a.overlayKeys(), a.menuKeys(), a.feedbackKeys(), a.paletteKeys())
 }
 
 // appKeys are the shortcuts that work anywhere in the window.
@@ -39,7 +40,7 @@ func (a *app) appKeys() []shortcut {
 // OnShortcut runs a handler only after the whole view has been built, and the pages can change the state When reads during that build (the library page closes a film that left the library and stops its playback), so When is checked again when the key runs.
 func (a *app) wireKeys(c *ui.Context) {
 	for _, s := range a.shortcuts() {
-		if s.Run == nil || (s.When != nil && !s.When()) {
+		if s.Run == nil || s.Key == 0 || (s.When != nil && !s.When()) {
 			continue
 		}
 		if a.menu.menuBar && s.Mods&ui.Cmd != 0 {

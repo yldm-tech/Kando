@@ -77,8 +77,11 @@ type cheatsheetLine struct {
 	combos []cheatsheet.Combo
 }
 
-// cheatsheetGroups is the shortcut table as the cheat sheet lists it: the groups and lines of cheatsheetLayout, then every row the layout does not place, under its menu's group (grouped, menu.go), in a group of the layout of that name or in a group of its own after them. So the sheet lists the whole table, and a row an area adds shows on it before the layout names it.
-func (a *app) cheatsheetGroups() []cheatsheet.Group { return cheatsheetGroupsOf(a.shortcuts()) }
+// cheatsheetGroups is the shortcut table's rows with a key as the cheat sheet lists them: the groups and lines of cheatsheetLayout, then every row the layout does not place, under its menu's group (grouped, menu.go), in a group of the layout of that name or in a group of its own after them. So the sheet lists the whole table, and a row an area adds shows on it before the layout names it.
+func (a *app) cheatsheetGroups() []cheatsheet.Group {
+	rows := slices.DeleteFunc(a.shortcuts(), func(s shortcut) bool { return s.Key == 0 })
+	return cheatsheetGroupsOf(rows)
+}
 
 // cheatsheetGroupsOf arranges rows of the shortcut table as cheatsheetGroups describes.
 func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {

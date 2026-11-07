@@ -28,6 +28,8 @@ type Tools struct {
 	// WhisperModel is the path of a ggml model file for whisper.cpp.
 	WhisperModel string
 	Translator   ChatTranslator
+	// Cookies is the browser whose login Download borrows, as yt-dlp's --cookies-from-browser names it (chrome, safari, firefox, edge, brave); empty borrows none.
+	Cookies string
 	// OEmbed is YouTube's oEmbed endpoint, which names a video yt-dlp could not look up, as one that is age-restricted or blocked where this machine is; empty asks nothing.
 	OEmbed string
 }
@@ -171,7 +173,7 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 			reportInfo(ctx, info)
 		},
 	}
-	_, _, err := runFollowing(ctx, false, reader.line, t.YTDLP,
+	args := []string{
 		"--no-playlist",
 		"-f", "bv*+ba/b",
 		"--merge-output-format", "mp4",
@@ -183,8 +185,15 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		// --print implies --quiet, which hides the progress unless asked for again.
 		"--progress", "--newline",
 		"--progress-template", ytdlpProgressTemplate,
-		"--", source,
-	)
+	}
+	// yt-dlp looks for ffmpeg, which merges the video with its sound, on PATH, which an app opened from Finder does not extend to Homebrew's folder; without it the video is saved silent.
+	if t.FFmpeg != "" {
+		args = append(args, "--ffmpeg-location", t.FFmpeg)
+	}
+	if t.Cookies != "" {
+		args = append(args, "--cookies-from-browser", t.Cookies)
+	}
+	_, _, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...)
 	if err != nil {
 		if !named && ctx.Err() == nil && t.OEmbed != "" {
 			if info, ok := lookupOEmbed(ctx, t.OEmbed, source); ok {

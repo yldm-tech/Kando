@@ -63,19 +63,12 @@ func (a *app) syncMenu() {
 	mygo.App.SetMenu(mygo.NewMenu(items))
 }
 
-// menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up as a sheet, none of the rows are (holds).
+// menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up as a sheet, none of the rows are (holds).
 func (a *app) menuBar() []*mygo.MenuItem {
 	order, rows := grouped(a.shortcuts())
 	own := map[[2]int]bool{}
 	for _, s := range a.overlayKeys() {
 		own[[2]int{int(s.Mods), int(s.Key)}] = true
-	}
-	items := func(group string) []*mygo.MenuItem {
-		var out []*mygo.MenuItem
-		for _, s := range rows[group] {
-			out = append(out, a.menuItem(s, own[[2]int{int(s.Mods), int(s.Key)}]))
-		}
-		return out
 	}
 	// then adds a separator before more, when there is something on both sides of it.
 	then := func(head []*mygo.MenuItem, more ...*mygo.MenuItem) []*mygo.MenuItem {
@@ -83,6 +76,19 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			return append(head, more...)
 		}
 		return append(append(head, mygo.Separator()), more...)
+	}
+	// items are the group's rows, the ones with a key first and the menu's own commands without one after a separator.
+	items := func(group string) []*mygo.MenuItem {
+		var keyed, plain []*mygo.MenuItem
+		for _, s := range rows[group] {
+			it := a.menuItem(s, s.Key != 0 && own[[2]int{int(s.Mods), int(s.Key)}])
+			if s.Key == 0 {
+				plain = append(plain, it)
+			} else {
+				keyed = append(keyed, it)
+			}
+		}
+		return then(keyed, plain...)
 	}
 	var bar []*mygo.MenuItem
 	for _, group := range order {
@@ -112,8 +118,9 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			sub = then(sub, &mygo.MenuItem{Label: "前置全部窗口", Role: mygo.RoleFront})
 			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleWindow, Submenu: sub}
 		case "帮助":
-			// The feedback dialog's items have no shortcut, so they are not rows of the table (state_feedback.go).
-			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: then(items(group), a.feedbackMenu()...)}
+			if sub := items(group); len(sub) > 0 {
+				menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: sub}
+			}
 		default:
 			if sub := items(group); len(sub) > 0 {
 				menu = &mygo.MenuItem{Label: group, Submenu: sub}

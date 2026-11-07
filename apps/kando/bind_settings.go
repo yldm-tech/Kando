@@ -108,12 +108,13 @@ func (a *app) SettingsQuery() *string { return &a.prefs.query }
 
 func (a *app) ShortcutQuery() *string { return &a.prefs.shortcutQuery }
 
-// Shortcuts is the app's shortcut table as the 快捷键 page lists it.
+// Shortcuts is the app's shortcut table as the 快捷键 page lists it: the rows with a key.
 func (a *app) Shortcuts() []settings.Shortcut {
-	table := a.shortcuts()
-	out := make([]settings.Shortcut, len(table))
-	for i, s := range table {
-		out[i] = settings.Shortcut{Group: s.Group, Label: s.Label, Mods: s.Mods, Key: s.Key}
+	var out []settings.Shortcut
+	for _, s := range a.shortcuts() {
+		if s.Key != 0 {
+			out = append(out, settings.Shortcut{Group: s.Group, Label: s.Label, Mods: s.Mods, Key: s.Key})
+		}
 	}
 	return out
 }

@@ -12,20 +12,20 @@ import (
 func TestScreenshotsFeedback(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "feedback", func(a *app, tt *ui.Tester, updates chan func()) {
-		a.fb.system = feedbackSystemName("darwin", "27.2", "arm64")
+		a.feedback.system = feedbackSystemName("darwin", "27.2", "arm64")
 		a.loadToolVersions()
 		screenshotWait(t, tt, updates, "tool versions", func() bool { return len(a.prefs.toolVersions) == 3 })
 		a.openFeedback(feedback.KindBug)
 		tt.Frame()
 	})
 	f.shoot(t, "feedback-film", func(a *app, tt *ui.Tester, updates chan func()) {
-		a.fb.system = feedbackSystemName("darwin", "27.2", "arm64")
+		a.feedback.system = feedbackSystemName("darwin", "27.2", "arm64")
 		a.loadToolVersions()
 		screenshotWait(t, tt, updates, "tool versions", func() bool { return len(a.prefs.toolVersions) == 3 })
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[3].Start)
 		a.FeedbackSubtitles()
 		tt.Frame()
-		a.fb.form.Subs = true
+		a.feedback.form.Subs = true
 		tt.Frame()
 	})
 }

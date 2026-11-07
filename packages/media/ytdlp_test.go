@@ -1,0 +1,96 @@
+package media
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+func writeExec(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFindYTDLPInstallTellsHowItWasInstalled(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the install layouts are Unix ones")
+	}
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Homebrew: bin/yt-dlp links into the Cellar, and bin/brew updates it.
+	cellar := filepath.Join(root, "brew", "Cellar", "yt-dlp", "2026.8.19", "bin", "yt-dlp")
+	writeExec(t, cellar, "#!/opt/homebrew/opt/python/bin/python3\n")
+	writeExec(t, filepath.Join(root, "brew", "bin", "brew"), "#!/bin/sh\n")
+	link := filepath.Join(root, "brew", "bin", "yt-dlp")
+	if err := os.Symlink(cellar, link); err != nil {
+		t.Fatal(err)
+	}
+	if got := FindYTDLPInstall(link); got.Kind != "homebrew" || strings.Join(got.Update, " ") != filepath.Join(root, "brew", "bin", "brew")+" upgrade yt-dlp" {
+		t.Fatalf("homebrew: %+v", got)
+	}
+	// pip: a Python script outside a Cellar.
+	pip := filepath.Join(root, "venv", "bin", "yt-dlp")
+	writeExec(t, pip, "#!"+filepath.Join(root, "venv", "bin", "python3")+"\nimport yt_dlp\n")
+	if got := FindYTDLPInstall(pip); got.Kind != "pip" || got.Update[0] != filepath.Join(root, "venv", "bin", "python3") || got.Update[len(got.Update)-1] != "yt-dlp" {
+		t.Fatalf("pip: %+v", got)
+	}
+	// The standalone build updates itself.
+	standalone := filepath.Join(root, "bin", "yt-dlp")
+	writeExec(t, standalone, "\xcf\xfa\xed\xfe binary")
+	if got := FindYTDLPInstall(standalone); got.Kind != "standalone" || strings.Join(got.Update, " ") != standalone+" -U" {
+		t.Fatalf("standalone: %+v", got)
+	}
+	// One Kando may not replace says how instead.
+	if err := os.Chmod(standalone, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if os.Geteuid() != 0 {
+		if got := FindYTDLPInstall(standalone); got.Update != nil || got.Hint == "" {
+			t.Fatalf("read-only: %+v", got)
+		}
+	}
+}
+
+func TestUpdateYTDLPRunsTheUpdateAndReadsTheNewVersion(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake yt-dlp is a shell script")
+	}
+	dir := t.TempDir()
+	tool := filepath.Join(dir, "yt-dlp")
+	// A standalone yt-dlp that, given -U, replaces its version as the real one replaces itself.
+	writeExec(t, tool, `#!/bin/sh
+v=$(cat "$0.version" 2>/dev/null || echo 2024.03.10)
+case "$1" in
+--version) echo "$v";;
+-U) echo "Current version: stable@$v"; echo "Updating to stable@2026.11.03 ..."; echo 2026.11.03 > "$0.version"; echo "Updated yt-dlp to stable@2026.11.03";;
+esac
+`)
+	if v, err := YTDLPVersion(context.Background(), tool); err != nil || v != "2024.03.10" {
+		t.Fatalf("version %q, %v", v, err)
+	}
+	if v, err := UpdateYTDLP(context.Background(), tool); err != nil || v != "2026.11.03" {
+		t.Fatalf("updated to %q, %v", v, err)
+	}
+}
+
+func TestUpdateYTDLPSaysWhyItCannot(t *testing.T) {
+	if _, err := UpdateYTDLP(context.Background(), ""); err == nil {
+		t.Fatal("updated a missing yt-dlp")
+	}
+}
+
+func TestBrowserName(t *testing.T) {
+	if BrowserName("chrome") != "Chrome" || BrowserName("safari") != "Safari" || BrowserName("vivaldi") != "vivaldi" {
+		t.Fatal("wrong names")
+	}
+}

@@ -131,7 +131,7 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 		}
 	}
 	for _, s := range a.shortcuts() {
-		if !listed[cheatsheet.Combo{Mods: s.Mods, Key: s.Key}] {
+		if s.Key != 0 && !listed[cheatsheet.Combo{Mods: s.Mods, Key: s.Key}] {
 			t.Fatalf("cheat sheet misses the keys of %q", s.Label)
 		}
 	}
@@ -285,6 +285,9 @@ func TestShortcutsAreUnique(t *testing.T) {
 	for _, s := range a.shortcuts() {
 		if s.Group == "" || s.Label == "" || s.Run == nil {
 			t.Fatalf("incomplete shortcut %+v", s)
+		}
+		if s.Key == 0 {
+			continue
 		}
 		k := [2]int{int(s.Mods), int(s.Key)}
 		if other, ok := seen[k]; ok {
