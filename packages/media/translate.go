@@ -123,6 +123,45 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 	return out, nil
 }
 
+// Chat sends one conversation, a system instruction and the user's message, to the same endpoint and model translations use, and returns the model's reply without the code fence a model may wrap around it. A key the API rejects is renewed once through Credential, as Translate does; rate limits and server errors are retried as for a translation.
+func (t ChatTranslator) Chat(ctx context.Context, system, user string) (string, error) {
+	if strings.TrimSpace(t.Model) == "" {
+		return "", errors.New("model is empty")
+	}
+	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
+	if t.Credential != nil {
+		var err error
+		if endpoint, err = t.Credential(ctx, false); err != nil {
+			return "", err
+		}
+	}
+	if strings.TrimSpace(endpoint.BaseURL) == "" {
+		return "", errors.New("base URL is empty")
+	}
+	body, err := json.Marshal(chatRequest{
+		Model:    t.Model,
+		Messages: []chatMessage{{Role: "system", Content: system}, {Role: "user", Content: user}},
+	})
+	if err != nil {
+		return "", err
+	}
+	reply, err := t.complete(ctx, endpoint, body)
+	var status *statusError
+	if t.Credential != nil && errors.As(err, &status) && status.code == http.StatusUnauthorized {
+		if endpoint, err = t.Credential(ctx, true); err != nil {
+			return "", err
+		}
+		reply, err = t.complete(ctx, endpoint, body)
+	}
+	if err != nil {
+		return "", err
+	}
+	if len(reply.Choices) == 0 {
+		return "", errors.New("chat API returned no choices")
+	}
+	return stripCodeFence(reply.Choices[0].Message.Content), nil
+}
+
 type chatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
