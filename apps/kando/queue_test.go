@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -741,6 +742,7 @@ func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
 		{"https://nonexistent-host-kando-review.invalid/video/1", core.FailHost, "", "找不到 nonexistent-host-kando-review.invalid", "网络正常的话，多半是链接里的网址写错了，或者这个网站已经关闭。换个链接，或检查网络后再重试。", []string{"换个链接", "重试"}},
 		{yt, core.FailCookies, "safari", "读不到 Safari 的登录", "macOS 只让有「完全磁盘访问权限」的 App 读 Safari 的登录。在系统设置里允许看懂，回来再重试，或改用别的浏览器。", []string{"打开系统设置", "已允许，重试", "改用 Chrome"}},
 		{yt, core.FailCookies, "chrome", "读不到 Chrome 的登录", "这台电脑上找不到 Chrome 的登录数据。换一个已登录的浏览器再试。", []string{"改用 Safari"}},
+		{"https://www.youtube.com/watch?v=dQw4w9WgX", core.FailBadLink, "", "链接不完整", "链接好像少了一截，重试也下载不了。复制完整的链接，换个链接再试。", []string{"换个链接"}},
 	} {
 		film := failedJob(t, a, tc.source, tc.kind, tc.cookies)
 		if tc.kind == core.FailCookies && tc.cookies == "safari" {
@@ -1005,5 +1007,69 @@ func TestOpenSystemSettingsForSafarisLogin(t *testing.T) {
 	a.RunRemedy(film, remedyDiskAccess)
 	if opened != fullDiskAccess {
 		t.Fatalf("opened %q", opened)
+	}
+}
+
+// failedWith is a failed card of the open library whose job's error is err, as media.Run wraps it.
+func failedWith(t *testing.T, a *app, err string) films.Film {
+	t.Helper()
+	job := core.Job{ID: "f", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageFailed, Err: errors.New(err), LibraryDir: a.snap().LibraryDir}
+	a.library.Jobs = []core.Job{job}
+	film, ok := a.JobFilm(job.ID)
+	if !ok {
+		t.Fatal("no card")
+	}
+	return film
+}
+
+// A failed card says why in plain Chinese, never the pipeline's English: what went wrong with the translation, and 打开设置 to 「AI 服务」 when a setting there fixes it; and for a failure no reason is known for, the stage that failed with what the tool said, without the tool's own prefixes.
+func TestAFailedCardSaysWhyInChinese(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	for _, tc := range []struct {
+		err, reason, section string
+	}{
+		{"translate: decode translation response: context deadline exceeded (Client.Timeout or context cancellation while reading body)", "AI 服务一直没有回应，已自动重试，还是不行。稍后再重试。", ""},
+		{`translate: Post "https://api.example.com/v1/chat/completions": dial tcp: lookup api.example.com: no such host`, "连不上 AI 服务，检查网络后再重试。", ""},
+		{"translate: translation is not a JSON array of strings: invalid character '好' looking for beginning of value", "AI 返回的译文格式不对，已重发几次还是不行。重试，或在「AI 服务」里换个模型。", settings.SectionAI},
+		{"translate: translation returned 3 lines for 40", "AI 返回的译文格式不对，已重发几次还是不行。重试，或在「AI 服务」里换个模型。", settings.SectionAI},
+		{"translate: translation API returned 401 Unauthorized: invalid key", "AI 服务不接受这个 Key，去「AI 服务」里检查一下。", settings.SectionAI},
+		{"translate: translation API returned 403 Forbidden: no access", "AI 服务不接受这个 Key，去「AI 服务」里检查一下。", settings.SectionAI},
+		{"translate: translation API returned 404 Not Found: model not found", "AI 服务拒绝了请求，检查「AI 服务」里的地址和模型。", settings.SectionAI},
+		{"translate: translation API returned 429 Too Many Requests: slow down", "AI 服务一直很忙，已自动重试，还是不行。过几分钟再重试。", ""},
+		{"translate: something nobody has seen", "翻译失败：something nobody has seen", ""},
+		{"download: yt-dlp: exit status 1: ERROR: [generic] abc: Something nobody has seen", "下载失败：Something nobody has seen", ""},
+		{"download: yt-dlp: exit status 1: ERROR: Something else", "下载失败：Something else", ""},
+		{"transcribe: whisper-cli: exit status 3: failed to read audio", "生成字幕失败：failed to read audio", ""},
+		{"export: open /v/a.srt: permission denied", "导出字幕失败：open /v/a.srt: permission denied", ""},
+		{"boom", "处理失败：boom", ""},
+	} {
+		film := failedWith(t, a, tc.err)
+		reason, section := a.FailureHint(film)
+		if reason != tc.reason || section != tc.section {
+			t.Errorf("%q: %q %q, want %q %q", tc.err, reason, section, tc.reason, tc.section)
+		}
+	}
+	failedWith(t, a, "translate: translation API returned 401 Unauthorized: invalid key")
+	tt.Frame()
+	for _, want := range []string{"AI 服务不接受这个 Key，去「AI 服务」里检查一下。", "打开设置", "重试"} {
+		if !tt.HasText(want) {
+			t.Fatalf("the card does not say %q: %q", want, tt.Texts())
+		}
+	}
+	if err := tt.Click("打开设置"); err != nil {
+		t.Fatal(err)
+	}
+	wantSettings(t, a, settings.SectionAI)
+}
+
+// A film whose translation left some lines untranslated is on the shelf as done, and its card and the hero say how many lines are missing.
+func TestADoneFilmSaysWhichLinesAreUntranslated(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	video := filepath.Join(a.snap().LibraryDir, "Talk", "video.mp4")
+	a.library.Jobs = []core.Job{{ID: "d", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: strings.TrimSuffix(video, ".mp4") + ".bilingual.srt", Untranslated: 12, LibraryDir: a.snap().LibraryDir}}
+	tt.Frame()
+	// The poster's line, and the hero's, as the film is the one done last.
+	if textCount(tt, "YouTube · 12 句翻译失败，其余已完成") == 0 || textCount(tt, "YouTube · 已导出 video.bilingual.srt · 12 句翻译失败，其余已完成") == 0 {
+		t.Fatalf("texts %q", tt.Texts())
 	}
 }

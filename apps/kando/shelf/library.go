@@ -174,6 +174,8 @@ type storedJob struct {
 	// FailKind is why the download failed (core.FailKind), and Cookies the browser whose login the job borrows.
 	FailKind core.FailKind `json:"failKind,omitempty"`
 	Cookies  string        `json:"cookies,omitempty"`
+	// Untranslated is how many lines a completed job's translation left untranslated (core.Job.Untranslated).
+	Untranslated int `json:"untranslated,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -181,7 +183,7 @@ func storeJob(job core.Job) storedJob {
 		ID: job.ID, Source: job.Source, Language: job.Language, Stage: job.Stage,
 		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
-		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies,
+		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated,
 	}
 	switch {
 	case errors.Is(job.Err, context.Canceled):
@@ -199,7 +201,7 @@ func (s storedJob) job() core.Job {
 		ID: s.ID, Source: s.Source, Language: s.Language, Stage: s.Stage,
 		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
-		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies,
+		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated,
 	}
 	switch s.Error {
 	case "":

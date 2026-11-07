@@ -15,6 +15,8 @@ var failSigns = []struct {
 	{core.FailCookies, []string{"Cookies.binarycookies", "cookies database", "could not find chrome", "could not find firefox", "failed to decrypt"}},
 	{core.FailDRM, []string{"DRM protection", "DRM protected"}},
 	{core.FailUnsupported, []string{"Unsupported URL"}},
+	// YouTube's watch link with an id cut short (youtube:truncated_id), or without its v= part (youtube:truncated_url, which asks whether the shell split the URL at an &).
+	{core.FailBadLink, []string{"looks truncated", "Incomplete YouTube ID", "forget to quote the URL"}},
 	{core.FailRegion, []string{"geo restriction", "geo-restricted", "not available in your country", "not available from your location", "available in your country"}},
 	{core.FailAge, []string{"confirm your age", "age-restricted", "age restricted", "inappropriate for some users"}},
 	{core.FailMembers, []string{"members-only", "members only", "premium members", "Join this channel", "channel members", "大会员"}},

@@ -8,7 +8,7 @@ import (
 	"kando/packages/core"
 )
 
-// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced. login-vimeo is what an extractor that also takes a password says when it wants a login (yt-dlp's _login_hint "any").
+// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced. badlink-youtube-id and badlink-youtube-url were captured the same way with yt-dlp 2026.08.19 on 2026-11-07, from a watch link whose id lost its last two characters and one that lost its v= part. login-vimeo is what an extractor that also takes a password says when it wants a login (yt-dlp's _login_hint "any").
 func TestClassifyRealYTDLPErrors(t *testing.T) {
 	for file, want := range map[string]core.FailKind{
 		"outdated-youtube.stderr":        core.FailOutdated,
@@ -25,6 +25,8 @@ func TestClassifyRealYTDLPErrors(t *testing.T) {
 		"network-refused.stderr":         core.FailNetwork,
 		"cookies-safari-denied.stderr":   core.FailCookies,
 		"cookies-firefox-missing.stderr": core.FailCookies,
+		"badlink-youtube-id.stderr":      core.FailBadLink,
+		"badlink-youtube-url.stderr":     core.FailBadLink,
 	} {
 		data, err := os.ReadFile(filepath.Join("testdata", "ytdlp", "errors", file))
 		if err != nil {

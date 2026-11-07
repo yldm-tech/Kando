@@ -105,3 +105,25 @@ func TestExportSubtitlesRejectsMismatchedLines(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+// A line the translation left untranslated is written as its original alone, which the player reads back as a cue with no translation yet, rather than as an empty line that would end the SRT cue before its text.
+func TestExportSubtitlesKeepsAnUntranslatedLine(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "talk.mp4")
+	original := []core.Segment{{Start: 0, End: time.Second, Text: "Hello."}, {Start: time.Second, End: 2 * time.Second, Text: "Bye."}}
+	path, err := exportSubtitles(context.Background(), video, original, []core.Segment{{Text: ""}, {Text: "再见。"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ParseSRT(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []core.Segment{{Start: 0, End: time.Second, Text: "Hello."}, {Start: time.Second, End: 2 * time.Second, Text: "再见。\nBye."}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("read back %#v from\n%s", got, data)
+	}
+}

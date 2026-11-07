@@ -51,6 +51,8 @@ type Progress struct {
 	// RetryIn is how long the translation waits before trying a rate-limited or failed request again, as the API's Retry-After asked or the backoff chose; Attempt is the retry about to be made, of Attempts. RetryIn is 0 while no retry is waiting.
 	RetryIn           time.Duration
 	Attempt, Attempts int
+	// Unanswered is true while the translation waits to try again a request that got no usable answer, as one that timed out, lost its connection or came back cut off; false while it waits out a rate limit or a server error.
+	Unanswered bool
 }
 
 // Fraction reports f as a known fraction, clamped to [0, 1].
@@ -77,6 +79,8 @@ type Job struct {
 	Err         error
 	// FailKind is why the download failed, when yt-dlp said why; empty otherwise.
 	FailKind FailKind
+	// Untranslated is how many lines of a completed job's subtitles the translation left untranslated after trying them again; 0 when every line was translated.
+	Untranslated int
 	// Cookies is the browser whose login the download borrows (yt-dlp's --cookies-from-browser name, such as chrome); empty borrows none.
 	Cookies string
 }
@@ -131,4 +135,6 @@ const (
 	FailHost FailKind = "host"
 	// FailCookies is a browser whose login yt-dlp could not read: the system did not allow it, or the browser has no data here.
 	FailCookies FailKind = "cookies"
+	// FailBadLink is a link the site says is cut short or wrong, as a YouTube watch link whose video id lost its last characters: no retry can work, only the whole link.
+	FailBadLink FailKind = "badlink"
 )

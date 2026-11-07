@@ -44,7 +44,7 @@ func parseWhisperJSON(data []byte) ([]core.Segment, error) {
 	return segments, nil
 }
 
-// exportSubtitles writes "<video>.srt" with the original speech and "<video>.bilingual.srt" with each translation above its original line, returning the bilingual path.
+// exportSubtitles writes "<video>.srt" with the original speech and "<video>.bilingual.srt" with each translation above its original line, or the original alone for a line left untranslated, returning the bilingual path.
 func exportSubtitles(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error) {
 	if len(original) != len(translated) {
 		return "", fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
@@ -57,7 +57,10 @@ func exportSubtitles(ctx context.Context, videoPath string, original, translated
 	reportProgress(ctx, core.Fraction(0.5))
 	bilingual := make([]core.Segment, len(original))
 	for i, s := range original {
-		s.Text = translated[i].Text + "\n" + s.Text
+		// A line left untranslated keeps its original alone: an empty line above it would end the cue before its text.
+		if translation := strings.TrimSpace(translated[i].Text); translation != "" {
+			s.Text = translation + "\n" + s.Text
+		}
 		bilingual[i] = s
 	}
 	path := base + ".bilingual.srt"

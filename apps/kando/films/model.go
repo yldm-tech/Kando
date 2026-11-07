@@ -25,6 +25,8 @@ type Film struct {
 	// Progress is how far the job has gone in Stage, as its tool reports it. Thumbnail is the address of the picture the video's site gives it, empty until the download has looked the video up.
 	Progress  core.Progress
 	Thumbnail string
+	// Untranslated is how many lines of a done film's subtitles the translation left untranslated.
+	Untranslated int
 }
 
 func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
@@ -57,7 +59,7 @@ func FromJob(job core.Job, name, detail string) Film {
 		Key: job.ID, Title: Shorten(name, 22), Name: name, Source: job.Source,
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language,
-		Progress: job.Progress, Thumbnail: job.Thumbnail,
+		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated,
 	}
 }
 

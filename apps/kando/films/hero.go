@@ -104,7 +104,7 @@ func hero(c *ui.Context, a App, item Film) {
 	})
 }
 
-// heroMeta is the line under the hero's title: where the film comes from, how long it is and the subtitle file it has.
+// heroMeta is the line under the hero's title: where the film comes from, how long it is, the subtitle file it has and how many of its lines are untranslated.
 func heroMeta(a App, item Film) string {
 	parts := []string{SourceLabel(item)}
 	if d := a.Duration(item.VideoPath); d > 0 {
@@ -112,6 +112,9 @@ func heroMeta(a App, item Film) string {
 	}
 	if item.SubtitlePath != "" {
 		parts = append(parts, "已导出 "+filepath.Base(item.SubtitlePath))
+	}
+	if note := untranslatedNote(item); note != "" {
+		parts = append(parts, note)
 	}
 	return strings.Join(parts, " · ")
 }

@@ -97,6 +97,8 @@ func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 	translate.Batch, translate.Batches, translate.BatchSize = 2, 5, 40
 	waiting := translate
 	waiting.RetryIn, waiting.Attempt, waiting.Attempts = 8*time.Second, 1, 2
+	unanswered := waiting
+	unanswered.Unanswered = true
 	for _, tc := range []struct {
 		name string
 		item Film
@@ -109,6 +111,7 @@ func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 		{"transcribe", Film{Source: yt, Stage: core.StageTranscribing, Progress: core.Fraction(0.23)}, "生成字幕中 · whisper 本机识别 · 23%"},
 		{"translate", Film{Source: yt, Stage: core.StageTranslating, Progress: translate}, "翻译中 · 第 2/5 批 · 每批 40 句"},
 		{"translate waits", Film{Source: yt, Stage: core.StageTranslating, Progress: waiting}, "翻译接口限流，8 秒后重试（1/2）"},
+		{"translate waits after no answer", Film{Source: yt, Stage: core.StageTranslating, Progress: unanswered}, "翻译接口没有回应，8 秒后重试（1/2）"},
 		{"export", Film{Source: yt, Stage: core.StageExporting, Progress: core.Fraction(0.5)}, "导出中 · 写入 video.srt 与 video.bilingual.srt"},
 	} {
 		if got := QueueMeta(tc.item); got != tc.want {
