@@ -3,9 +3,13 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"testing"
+	"time"
 )
 
 func TestAudioCommandPrefersFFplay(t *testing.T) {
@@ -29,5 +33,50 @@ func TestAudioCommandPrefersFFplay(t *testing.T) {
 	}
 	if !got["-nodisp"] || !got["-vn"] {
 		t.Fatalf("args %v", args)
+	}
+}
+
+// TestAudioEndsWithTheApp: the sound plays in a process of its own, and it must not play on once the app's process has ended, however it ended, playing or paused. The app here is a helper process running this test, killed outright, as a crash or a force quit ends it, without closing anything.
+func TestAudioEndsWithTheApp(t *testing.T) {
+	if mode := os.Getenv("KANDO_AUDIO_HELPER"); mode != "" {
+		audio := &pcmAudio{name: "/bin/sleep", args: []string{"60"}, exited: make(chan struct{})}
+		audio.Start()
+		if mode == "paused" {
+			audio.Pause()
+		}
+		fmt.Println(audio.cmd.Process.Pid)
+		time.Sleep(time.Minute)
+		return
+	}
+	for _, mode := range []string{"playing", "paused"} {
+		t.Run(mode, func(t *testing.T) {
+			helper := exec.Command(os.Args[0], "-test.run=^TestAudioEndsWithTheApp$")
+			helper.Env = append(os.Environ(), "KANDO_AUDIO_HELPER="+mode)
+			out, err := helper.StdoutPipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := helper.Start(); err != nil {
+				t.Fatal(err)
+			}
+			var pid int
+			if _, err := fmt.Fscan(out, &pid); err != nil {
+				_ = helper.Process.Kill()
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
+			if err := syscall.Kill(pid, 0); err != nil {
+				t.Fatalf("the sound was not playing: %v", err)
+			}
+			_ = helper.Process.Kill()
+			_ = helper.Wait()
+			deadline := time.Now().Add(5 * time.Second)
+			for syscall.Kill(pid, 0) == nil {
+				if time.Now().After(deadline) {
+					t.Fatalf("the sound (pid %d) still plays after the app ended", pid)
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+		})
 	}
 }

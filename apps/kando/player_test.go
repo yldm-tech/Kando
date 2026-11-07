@@ -693,3 +693,26 @@ func TestScrubberSeeksOnRelease(t *testing.T) {
 func cueClockOf(d time.Duration) string {
 	return fmt.Sprintf("%d:%02d", int(d.Minutes()), int(d.Seconds())%60)
 }
+
+// TestQuittingStopsTheOpenFilm: when the app quits with a film playing, the film stops, so its sound, which plays in a process of its own, ends with the app, and where it stopped is kept for next time.
+func TestQuittingStopsTheOpenFilm(t *testing.T) {
+	a, tt, _ := openClip(t, 5)
+	path := a.player.play.path
+	tt.Key(0, ui.KeySpace)
+	until := time.Now().Add(4 * time.Second)
+	for a.player.play.playhead() <= 0 && time.Now().Before(until) {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		time.Sleep(20 * time.Millisecond)
+	}
+	if a.player.play.playhead() <= 0 {
+		t.Fatal("the film did not start")
+	}
+	a.areasQuitting()
+	if a.player.play != nil {
+		t.Fatal("the film still plays after the app quit")
+	}
+	if a.ResumeAt(path) <= 0 {
+		t.Fatalf("where the film stopped was not kept: %v", a.player.positions)
+	}
+}
