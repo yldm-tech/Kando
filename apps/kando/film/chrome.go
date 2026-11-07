@@ -55,8 +55,8 @@ func (s screen) panelButton(c *ui.Context) {
 	}
 }
 
-// backGap is the room between the traffic lights and the back button. The prototype's 7 points left the back button about 2 points from the zoom button, whose circle ends past MyGo's 80-point room, so a click meant for 返回 often closed or zoomed the window; 24 points keeps them apart, about the gap Finder leaves before its toolbar's back button.
-const backGap = 24
+// backGap is the room between the traffic lights and the back button. The prototype's 7 points left the back button about 2 points from the zoom button, whose circle ends past MyGo's 80-point room, so a click meant for 返回 often closed or zoomed the window; 40 points gives the two controls a clear hit-target gap.
+const backGap = 40
 
 // barStart is where the title bar's content starts: backGap past the room of the traffic lights (MyGo's 80 points) when the bar lies under them; else 20, the prototype's padding. It reads where the previous frame laid the bar out, as a bar in the content column beside the sidebar is not under them, and asks for another frame when the bar is drawn where it lies under other room than it kept clear of, as breeze's HeaderBar does.
 func barStart(c *ui.Context, bar ui.Element) float32 {
