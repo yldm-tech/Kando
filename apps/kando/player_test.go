@@ -632,6 +632,28 @@ func TestPanelLeavesThePictureAlone(t *testing.T) {
 	}
 }
 
+// TestTopBarTogglesThePanel checks the button at the title bar's end that folds the side panel away and brings it back, named for what a click does.
+func TestTopBarTogglesThePanel(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	if !a.player.panel {
+		t.Fatalf("panel off on opening")
+	}
+	if err := tt.Click("收起侧栏"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.player.panel || tt.HasText("搜索台词") {
+		t.Fatalf("收起侧栏 left the panel: %q", tt.Texts())
+	}
+	if err := tt.Click("展开侧栏"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if !a.player.panel || !tt.HasText("搜索台词") {
+		t.Fatalf("展开侧栏 did not bring the panel back: %q", tt.Texts())
+	}
+}
+
 // TestPanelShowsWithoutAPicture checks that a film with no picture, here for want of ffmpeg, shows its side panel even when the panel was hidden on the film before, since it has no transport to bring the panel back from.
 func TestPanelShowsWithoutAPicture(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})

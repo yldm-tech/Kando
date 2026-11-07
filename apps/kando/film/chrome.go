@@ -34,7 +34,25 @@ func (s screen) topBar(c *ui.Context, item films.Film, fade float32, shown bool)
 			ui.Text(c, s.status(item)).FontSize(11).Opacity(0.8).SingleLine()
 		})
 		s.actions(c, item)
+		s.panelButton(c)
 	})
+}
+
+// panelButton folds the side panel away or brings it back from the title bar's top right corner, where it is found without the transport, which hides while the film plays. It is named for what a click does. A film without a picture always shows its panel, so it has none.
+func (s screen) panelButton(c *ui.Context) {
+	if s.Play() == nil && s.PlayPath() == "" {
+		return
+	}
+	label := "展开侧栏"
+	if s.Panel() {
+		label = "收起侧栏"
+	}
+	c.Key("film-top-panel")
+	btn := glyphButton(c, iconPanel, label, 34, 34, 18, 15).Shrink(0).Tooltip(label + " " + breeze.ShortcutText(c, ui.Shift|ui.Cmd, ui.KeyT))
+	glassFace(btn, ui.RGBA(255, 255, 255, 0.12), 20, 0.25, 17)
+	if btn.Clicked() {
+		s.TogglePanel()
+	}
 }
 
 // backGap is the room between the traffic lights and the back button. The prototype's 7 points left the back button about 2 points from the zoom button, whose circle ends past MyGo's 80-point room, so a click meant for 返回 often closed or zoomed the window; 24 points keeps them apart, about the gap Finder leaves before its toolbar's back button.
