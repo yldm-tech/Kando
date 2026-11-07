@@ -424,7 +424,7 @@ func stillPlay(t *testing.T, video string, at time.Duration, playing bool) *film
 	} else {
 		player.Pause()
 	}
-	return &filmPlay{player: player, frames: &frameDecoder{shown: at}, path: video, duration: 2 * time.Minute, paused: !playing}
+	return &filmPlay{player: player, frames: &frameDecoder{shown: at}, path: video, duration: 2 * time.Minute, paused: !playing, played: playing}
 }
 
 // TestPaletteNotesHowFarTheOpenVideoPlayed checks that a video playing on from its start moves the furthest point played with it, frame by frame, and that closing it writes that point into library.json beside its resume position.

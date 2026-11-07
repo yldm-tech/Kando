@@ -61,7 +61,7 @@ func openStill(t *testing.T, path, id, video string, at time.Duration) *app {
 		t.Fatal(err)
 	}
 	a.openKey = id
-	a.player.play = &filmPlay{player: player, frames: &frameDecoder{shown: at}, path: video, duration: 10 * time.Second}
+	a.player.play = &filmPlay{player: player, frames: &frameDecoder{shown: at}, path: video, duration: 10 * time.Second, played: true}
 	t.Cleanup(a.stopPlayback)
 	return a
 }
