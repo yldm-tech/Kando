@@ -75,6 +75,9 @@ func (a *app) useSpeechModel(path string) {
 	}
 }
 
+// whisperModelBaseURL is where downloadSpeechModel fetches the whisper models from. Tests point it at a server of their own.
+var whisperModelBaseURL = media.WhisperModelBaseURL
+
 func (a *app) downloadSpeechModel(id string) {
 	model, ok := media.SpeechModelByID(id)
 	if !ok || a.prefs.downloading != "" {
@@ -94,7 +97,7 @@ func (a *app) downloadSpeechModel(id string) {
 	update := a.update
 	go func() {
 		var last time.Time
-		path, err := media.DownloadSpeechModel(ctx, media.WhisperModelBaseURL, model.File, dir, func(written, total int64) {
+		path, err := media.DownloadSpeechModel(ctx, whisperModelBaseURL, model.File, dir, func(written, total int64) {
 			if time.Since(last) < 200*time.Millisecond && written != total {
 				return
 			}

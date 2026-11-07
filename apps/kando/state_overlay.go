@@ -4,15 +4,14 @@ import (
 	"slices"
 
 	"kando/apps/kando/cheatsheet"
+	"kando/apps/kando/onboarding"
 
 	"github.com/egoist/mygo/ui"
 )
 
-// overlayUI is what is drawn over the window's pages: the shortcut cheat sheet, and later the first-run guide and the command palette.
+// overlayUI is what is drawn over the window's pages: the shortcut cheat sheet, and later the command palette. The first-run guide, drawn over them too, keeps its state in onboardUI (state_onboarding.go).
 type overlayUI struct {
 	cheatsheet bool
-	// onboarded is saved once the first-run guide has been seen.
-	onboarded bool
 	// modal counts the modal dialogs up over the window: a system file panel (dialogs.go), or a sheet or alert an area draws. AppKit keeps the menu bar's items enabled under a window's sheet, so the menu's commands wait while modalOpen is true. Change it only through holdModal.
 	modal int
 }
@@ -24,6 +23,7 @@ func (a *app) overlays(c *ui.Context, t, dark *ui.Theme) {
 	if a.overlay.cheatsheet {
 		cheatsheet.Show(c, dark, &a.overlay.cheatsheet, a.cheatsheetGroups())
 	}
+	onboarding.Show(c, a)
 	a.feedbackOverlay(c, t)
 	a.paletteOverlay(c, dark)
 }
@@ -135,20 +135,13 @@ func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
 	return groups
 }
 
-// savedOverlay is the overlays' part of settings.json.
-type savedOverlay struct {
-	Onboarded bool `json:"onboarded,omitempty"`
-}
+// savedOverlay is the overlays' part of settings.json. Whether the first-run guide was seen is the guide's own part (savedOnboarding).
+type savedOverlay struct{}
 
 func (s *savedOverlay) clean() {}
 
-// overlayHooks: the overlays save whether the first-run guide was seen.
-func (a *app) overlayHooks() areaHooks {
-	return areaHooks{
-		save:    func(saved *savedSettings) { saved.Onboarded = a.overlay.onboarded },
-		restore: func(saved savedSettings) { a.overlay.onboarded = saved.Onboarded },
-	}
-}
+// overlayHooks: the overlays keep nothing in settings.json and do nothing at the shared moments.
+func (a *app) overlayHooks() areaHooks { return areaHooks{} }
 
 // overlayKeys are the shortcuts of the overlays.
 func (a *app) overlayKeys() []shortcut {

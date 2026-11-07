@@ -40,9 +40,12 @@ func (a *app) reopenFilm() {
 	a.Open(item)
 }
 
+// appMenuBar says the app gets a menu bar of its own (installMenu): on macOS, where the menu bar belongs to the app. Commands that are items of the menu bar alone, such as 帮助 › 重新查看入门引导, need another way in where it is false. Tests set it to check the other platforms.
+var appMenuBar = runtime.GOOS == "darwin"
+
 // installMenu gives the app its own menu bar on macOS, where the menu bar belongs to the app. menuHooks.ready calls it once the window exists. From then on the menu's accelerators run the ⌘ shortcuts and wireKeys leaves them alone. Linux and Windows put an app's menu bar inside each window, which would push the window's own title bar down, so there the window keeps running every shortcut itself.
 func (a *app) installMenu() {
-	if runtime.GOOS != "darwin" {
+	if !appMenuBar {
 		return
 	}
 	a.menu.menuBar = true
@@ -77,8 +80,8 @@ func (a *app) menuBar() []*mygo.MenuItem {
 		}
 		return append(append(head, mygo.Separator()), more...)
 	}
-	// items are the group's rows, the ones with a key first and the menu's own commands without one after a separator.
-	items := func(group string) []*mygo.MenuItem {
+	// items are the group's rows, the ones with a key first and the menu's own commands without one after a separator. extra are items of the menu alone that go with the rows that have a key, before that separator.
+	items := func(group string, extra ...*mygo.MenuItem) []*mygo.MenuItem {
 		var keyed, plain []*mygo.MenuItem
 		for _, s := range rows[group] {
 			it := a.menuItem(s, s.Key != 0 && own[[2]int{int(s.Mods), int(s.Key)}])
@@ -88,7 +91,7 @@ func (a *app) menuBar() []*mygo.MenuItem {
 				keyed = append(keyed, it)
 			}
 		}
-		return then(keyed, plain...)
+		return then(append(keyed, extra...), plain...)
 	}
 	var bar []*mygo.MenuItem
 	for _, group := range order {
@@ -118,7 +121,12 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			sub = then(sub, &mygo.MenuItem{Label: "前置全部窗口", Role: mygo.RoleFront})
 			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleWindow, Submenu: sub}
 		case "帮助":
-			if sub := items(group); len(sub) > 0 {
+			// With a menu bar, 重新查看入门引导 is the menu's own item (state_onboarding.go), placed in the prototype's order: 快捷键速查, 重新查看入门引导, then the feedback items after a separator.
+			var guide []*mygo.MenuItem
+			if appMenuBar {
+				guide = append(guide, &mygo.MenuItem{Label: "重新查看入门引导", Disabled: a.holds(false), Click: a.menuClick(false, a.reopenOnboarding)})
+			}
+			if sub := items(group, guide...); len(sub) > 0 {
 				menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: sub}
 			}
 		default:

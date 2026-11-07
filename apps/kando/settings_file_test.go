@@ -116,7 +116,7 @@ func TestStartupKeepsTheSettingsWhenALibraryWasRenamed(t *testing.T) {
 	if !containsPath(saved.Libraries, renamed) || containsPath(saved.Libraries, old) {
 		t.Fatalf("libraries saved as %v, want the renamed one", saved.Libraries)
 	}
-	if saved.Language != "日本語" || saved.LLMAPIKey != "sk-test" || saved.GoogleEmail != "me@example.com" || saved.R2Secret != "secret" || saved.SubMode != film.SubOriginal || !saved.Onboarded {
-		t.Fatalf("settings.json lost the areas' settings: language %q, key %q, account %q, secret %q, subMode %q, onboarded %v", saved.Language, saved.LLMAPIKey, saved.GoogleEmail, saved.R2Secret, saved.SubMode, saved.Onboarded)
+	if saved.Language != "日本語" || saved.LLMAPIKey != "sk-test" || saved.GoogleEmail != "me@example.com" || saved.R2Secret != "secret" || saved.SubMode != film.SubOriginal || saved.Onboarded == nil || !*saved.Onboarded {
+		t.Fatalf("settings.json lost the areas' settings: language %q, key %q, account %q, secret %q, subMode %q, onboarded %v", saved.Language, saved.LLMAPIKey, saved.GoogleEmail, saved.R2Secret, saved.SubMode, saved.Onboarded != nil && *saved.Onboarded)
 	}
 }

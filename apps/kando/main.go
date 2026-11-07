@@ -24,9 +24,11 @@ type app struct {
 	store        *nodra.Store[session]
 	libraryWatch chan struct{}
 	settingsPath string
-	library      shelf.Library
-	pipeline     media.Pipeline
-	win          *mygo.Window
+	// settingsFound is what loadSettings found at settingsPath at startup (settings_file.go).
+	settingsFound settingsFound
+	library       shelf.Library
+	pipeline      media.Pipeline
+	win           *mygo.Window
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 
@@ -40,6 +42,7 @@ type app struct {
 	menu     menuUI     // state_menu.go
 	feedback feedbackUI // state_feedback.go
 	palette  paletteUI  // state_palette.go
+	onb      onboardUI  // state_onboarding.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -57,6 +60,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		menu:     newMenuUI(),
 		feedback: newFeedbackUI(),
 		palette:  newPaletteUI(),
+		onb:      newOnboardUI(),
 	}
 }
 
@@ -73,8 +77,7 @@ func main() {
 	a.settingsPath = filepath.Join(filepath.Dir(shelf.DefaultPath()), "settings.json")
 	a.prefs.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.prefs.extraModelDirs = defaultExtraModelDirs()
-	saved := loadSavedSettings(a.settingsPath)
-	a.restoreSettings(saved)
+	a.restoreSettings(a.loadSettings())
 	if cache, err := os.UserCacheDir(); err == nil {
 		a.lib.posterDir = filepath.Join(cache, "Kando", "posters")
 	}

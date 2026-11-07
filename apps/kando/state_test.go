@@ -22,16 +22,16 @@ func TestPlayerSettingsRoundTrip(t *testing.T) {
 	a.player.subOrder = film.SubOriginalFirst
 	a.player.untranslated = film.UntranslatedBlank
 	a.player.yieldSubs = false
-	a.overlay.onboarded = true
+	a.onb.done = true
 	if err := a.saveSettings(); err != nil {
 		t.Fatal(err)
 	}
 	saved := loadSavedSettings(a.settingsPath)
 	b, _, _ := newTestApp(&fakePipeline{})
 	b.restorePlayer(saved)
-	b.overlay.onboarded = saved.Onboarded
-	if b.player.look != a.player.look || b.player.subMode != film.SubOriginal || b.player.subOrder != film.SubOriginalFirst || b.player.untranslated != film.UntranslatedBlank || b.player.yieldSubs || !b.overlay.onboarded {
-		t.Fatalf("restored %+v onboarded %v from %+v", b.player, b.overlay.onboarded, saved)
+	b.onb.done = saved.Onboarded != nil && *saved.Onboarded
+	if b.player.look != a.player.look || b.player.subMode != film.SubOriginal || b.player.subOrder != film.SubOriginalFirst || b.player.untranslated != film.UntranslatedBlank || b.player.yieldSubs || !b.onb.done {
+		t.Fatalf("restored %+v onboarded %v from %+v", b.player, b.onb.done, saved)
 	}
 }
 
