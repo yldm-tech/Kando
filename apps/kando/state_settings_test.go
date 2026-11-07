@@ -93,7 +93,7 @@ func TestShortcutsPageListsTheTable(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	tt := newSettingsTester(a, settings.SectionShortcuts)
 	for _, s := range a.shortcuts() {
-		if !tt.HasText(s.Label) {
+		if s.Key != 0 && !tt.HasText(s.Label) {
 			t.Fatalf("missing %q in %q", s.Label, tt.Texts())
 		}
 	}

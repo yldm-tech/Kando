@@ -75,6 +75,10 @@ type Job struct {
 	// CompletedAt is when the job reached StageComplete; zero until then.
 	CompletedAt time.Time
 	Err         error
+	// FailKind is why the download failed, when yt-dlp said why; empty otherwise.
+	FailKind FailKind
+	// Cookies is the browser whose login the download borrows (yt-dlp's --cookies-from-browser name, such as chrome); empty borrows none.
+	Cookies string
 }
 
 func NewJob(source string) (Job, error) {
@@ -105,3 +109,26 @@ func newID() string {
 	}
 	return hex.EncodeToString(b[:])
 }
+
+// FailKind is why a download failed, as yt-dlp's errors say, so the card can offer what fixes it. The empty kind is a failure no remedy is known for.
+type FailKind string
+
+const (
+	// FailOutdated is an extractor that no longer understands the site: yt-dlp needs an update.
+	FailOutdated FailKind = "ytdlp"
+	// FailLoginExpired is a video that wants a login although the browser's login was used: it has run out.
+	FailLoginExpired FailKind = "cookie"
+	FailMembers      FailKind = "members"
+	FailAge          FailKind = "age"
+	FailRegion       FailKind = "region"
+	FailPrivate      FailKind = "private"
+	FailDRM          FailKind = "drm"
+	FailUnsupported  FailKind = "unsupported"
+	FailLogin        FailKind = "login"
+	FailRateLimit    FailKind = "ratelimit"
+	FailNetwork      FailKind = "network"
+	// FailHost is a site whose name did not resolve: the link names a host that does not exist, or the network is down.
+	FailHost FailKind = "host"
+	// FailCookies is a browser whose login yt-dlp could not read: the system did not allow it, or the browser has no data here.
+	FailCookies FailKind = "cookies"
+)

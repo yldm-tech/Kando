@@ -32,16 +32,16 @@ type app struct {
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 
-	side    sidebarUI  // state_sidebar.go
-	lib     libraryUI  // state_library.go
-	queue   jobQueue   // queue.go
-	player  playerUI   // state_player.go
-	prefs   settingsUI // state_settings.go
-	cloud   cloudUI    // state_cloud.go
-	overlay overlayUI  // state_overlay.go
-	menu    menuUI     // state_menu.go
-	fb      feedbackUI // state_feedback.go
-	onb     onboardUI  // state_onboarding.go
+	side     sidebarUI  // state_sidebar.go
+	lib      libraryUI  // state_library.go
+	queue    jobQueue   // queue.go
+	player   playerUI   // state_player.go
+	prefs    settingsUI // state_settings.go
+	cloud    cloudUI    // state_cloud.go
+	overlay  overlayUI  // state_overlay.go
+	menu     menuUI     // state_menu.go
+	feedback feedbackUI // state_feedback.go
+	onb      onboardUI  // state_onboarding.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -49,16 +49,16 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		store:    newSessionStore(),
 		pipeline: pipeline, update: update,
 		// One line per area; an area sets up its state in its own constructor.
-		side:    newSidebarUI(),
-		lib:     newLibraryUI(),
-		queue:   newJobQueue(),
-		player:  newPlayerUI(),
-		prefs:   newSettingsUI(),
-		cloud:   newCloudUI(),
-		overlay: newOverlayUI(),
-		menu:    newMenuUI(),
-		fb:      newFeedbackUI(),
-		onb:     newOnboardUI(),
+		side:     newSidebarUI(),
+		lib:      newLibraryUI(),
+		queue:    newJobQueue(),
+		player:   newPlayerUI(),
+		prefs:    newSettingsUI(),
+		cloud:    newCloudUI(),
+		overlay:  newOverlayUI(),
+		menu:     newMenuUI(),
+		feedback: newFeedbackUI(),
+		onb:      newOnboardUI(),
 	}
 }
 

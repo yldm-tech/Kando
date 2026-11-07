@@ -134,6 +134,18 @@ func (a *app) saveCloud(saved *savedSettings) {
 	}
 }
 
+// cloudSecrets are the values of the account and the storage that must not leave the machine, such as in a feedback issue: the Google account and its token, and every kind of storage's endpoint, bucket, access key and secret. Only the storage's kind and the regions are left out. Keep it next to savedCloud: a value added there belongs here too (feedback_test.go checks).
+func (c cloudUI) cloudSecrets() []string {
+	return []string{
+		c.googleEmail, c.googleRefresh,
+		c.r2Endpoint, c.r2Bucket, c.r2AccessKey, c.r2Secret,
+		c.s3Bucket, c.s3AccessKey, c.s3Secret,
+		c.ossBucket, c.ossAccessKey, c.ossSecret,
+		c.cosBucket, c.cosAccessKey, c.cosSecret,
+		c.compatEndpoint, c.compatBucket, c.compatAccessKey, c.compatSecret,
+	}
+}
+
 // cloudHooks: the account saves the Google account and the storage; the environment's KANDO_* settings win over the saved ones (applyCloudEnv).
 func (a *app) cloudHooks() areaHooks {
 	return areaHooks{

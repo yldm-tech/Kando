@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,8 +16,6 @@ import (
 	"kando/apps/kando/films"
 	"kando/packages/core"
 	"kando/packages/media"
-
-	"github.com/egoist/mygo"
 )
 
 // feedbackUI is the state of the 反馈问题 dialog (feedback/): the form, whether it is open, and what the app learned for it.
@@ -51,15 +50,15 @@ func (a *app) feedbackHooks() areaHooks {
 	}
 }
 
-// feedbackMenu is what the dialog adds to the 帮助 menu: 反馈问题…, and 反馈这部影片的字幕… while a film is open or 反馈字幕质量… otherwise, both as the prototype has them.
-func (a *app) feedbackMenu() []*mygo.MenuItem {
+// feedbackKeys are the dialog's rows of the shortcut table, in the 帮助 menu without a key, as the prototype has them: 反馈问题…, and 反馈这部影片的字幕… while a film is open or 反馈字幕质量… otherwise.
+func (a *app) feedbackKeys() []shortcut {
 	subs := "反馈字幕质量…"
 	if a.openKey != "" {
 		subs = "反馈这部影片的字幕…"
 	}
-	return []*mygo.MenuItem{
-		{Label: "反馈问题…", Disabled: a.holds(false), Click: a.menuClick(false, func() { a.openFeedback(feedback.KindBug) })},
-		{Label: subs, Disabled: a.holds(false), Click: a.menuClick(false, func() { a.openFeedback(feedback.KindSubs) })},
+	return []shortcut{
+		{Group: "帮助", Label: "反馈问题…", Run: func() { a.openFeedback(feedback.KindBug) }},
+		{Group: "帮助", Label: subs, Run: func() { a.openFeedback(feedback.KindSubs) }},
 	}
 }
 
@@ -75,20 +74,20 @@ func (a *app) openFeedback(kind feedback.Kind) {
 	if a.player.play != nil && a.player.play.Playing() {
 		a.player.play.toggle()
 	}
-	a.fb.open = true
-	a.fb.form = form
-	a.fb.copied, a.fb.err, a.fb.sending = "", "", false
-	a.fb.gen++
-	if a.fb.release == nil {
-		a.fb.release = a.holdModal()
+	a.feedback.open = true
+	a.feedback.form = form
+	a.feedback.copied, a.feedback.err, a.feedback.sending = "", "", false
+	a.feedback.gen++
+	if a.feedback.release == nil {
+		a.feedback.release = a.holdModal()
 	}
 }
 
 // feedbackModal gives back the modal flag once the dialog has closed, by 取消, Escape or after the browser opened the issue.
 func (a *app) feedbackModal() {
-	if !a.fb.open && a.fb.release != nil {
-		a.fb.release()
-		a.fb.release = nil
+	if !a.feedback.open && a.feedback.release != nil {
+		a.feedback.release()
+		a.feedback.release = nil
 	}
 }
 
@@ -110,7 +109,7 @@ func filmName(item films.Film) string {
 
 // feedbackFacts is what the app knows for the issue now: its version and the system's, the tools' versions and the models in use, the open film's state and the subtitle line at the playhead. None of it is read from disk here; the tools' versions are the ones the settings asked for (loadToolVersions).
 func (a *app) feedbackFacts() feedback.Facts {
-	facts := feedback.Facts{App: "看懂 " + appVersion, OS: a.fb.system}
+	facts := feedback.Facts{App: "看懂 " + appVersion, OS: a.feedback.system}
 	tools, _ := a.pipeline.(media.Tools)
 	for _, tool := range []struct{ name, path string }{{"yt-dlp", tools.YTDLP}, {"ffmpeg", tools.FFmpeg}, {"whisper-cli", tools.Whisper}} {
 		facts.Tools = append(facts.Tools, feedback.Tool{Name: tool.name, Version: a.ToolVersion(tool.path), Missing: tool.path == ""})
@@ -141,7 +140,7 @@ func feedbackTranslator(base, model string) string {
 	return name
 }
 
-// feedbackFilmLines is the open film's state as the issue lists it: where it comes from, the language it is translated into, how far its job got and why it failed, and how many of its subtitles have a translation. The film's link and folder are left out; feedback.NoLinks takes links out of the error, and the issue scrubs paths.
+// feedbackFilmLines is the open film's state as the issue lists it: where it comes from, the language it is translated into, how far its job got and why it failed, and how many of its subtitles have a translation. The film's link and folder are left out; feedback.NoLinks and feedback.NoPaths take links and paths out of the errors, as a tool writes them.
 func (a *app) feedbackFilmLines(item films.Film) []string {
 	lines := []string{"来源：" + films.SourceLabel(item)}
 	if item.Language != "" {
@@ -150,7 +149,7 @@ func (a *app) feedbackFilmLines(item films.Film) []string {
 	if job, ok := a.library.Find(item.JobID); ok {
 		stage := feedbackStage(job.Stage)
 		if job.Stage == core.StageFailed && job.Err != nil {
-			stage += "：" + feedback.NoLinks(job.Err.Error())
+			stage += "：" + feedback.NoPaths(feedback.NoLinks(job.Err.Error()))
 		}
 		lines = append(lines, "处理："+stage)
 	} else {
@@ -159,7 +158,7 @@ func (a *app) feedbackFilmLines(item films.Film) []string {
 	if a.player.subs.key == item.Key && a.player.subs.ready {
 		switch {
 		case a.player.subs.err != "":
-			lines = append(lines, "字幕："+a.player.subs.err)
+			lines = append(lines, "字幕："+feedback.NoPaths(feedback.NoLinks(a.player.subs.err)))
 		case len(a.player.subs.cues) > 0:
 			missing := 0
 			for _, cue := range a.player.subs.cues {
@@ -222,16 +221,13 @@ func feedbackCue(cues []core.Segment, at time.Duration) (core.Segment, bool) {
 	return cues[found], true
 }
 
-// feedbackScrubber takes out of the issue what must not reach it: the home folder becomes ~, and every credential the app holds, the AI service's key and address, the storage's keys, buckets and endpoint, the Google account, and the values of the KANDO_ and EVERYAPI_ environment variables, become ***.
+// feedbackScrubber takes out of the issue what must not reach it: every path becomes <路径>, the files and folders the app knows among them however they are named (feedbackPaths), the home folder on its own becomes ~, and every credential the app holds, the AI service's key and address, the account's and the storage's (cloudSecrets), and the values of the KANDO_ and EVERYAPI_ environment variables, become ***.
 func (a *app) feedbackScrubber() feedback.Scrubber {
 	home, _ := os.UserHomeDir()
-	s := feedback.Scrubber{Home: home}
+	s := feedback.Scrubber{Home: home, Paths: a.feedbackPaths(home)}
 	tools, _ := a.pipeline.(media.Tools)
-	c := a.cloud
-	s.Secrets = append(s.Secrets, a.prefs.llmKey, a.prefs.llmBase, tools.Translator.APIKey, tools.Translator.BaseURL,
-		c.googleEmail, c.googleRefresh,
-		c.ossAccessKey, c.ossSecret, c.ossBucket, c.cosAccessKey, c.cosSecret, c.cosBucket,
-		c.compatEndpoint, c.compatAccessKey, c.compatSecret, c.compatBucket)
+	s.Secrets = append(s.Secrets, a.prefs.llmKey, a.prefs.llmBase, tools.Translator.APIKey, tools.Translator.BaseURL)
+	s.Secrets = append(s.Secrets, a.cloud.cloudSecrets()...)
 	for _, kv := range os.Environ() {
 		name, value, _ := strings.Cut(kv, "=")
 		if strings.HasPrefix(name, "KANDO_") || strings.HasPrefix(name, "EVERYAPI_") {
@@ -247,6 +243,38 @@ func (a *app) feedbackScrubber() feedback.Scrubber {
 	}
 	s.Secrets = kept
 	return s
+}
+
+// feedbackPaths are the files and folders the app knows: the libraries, the folder downloads go to, the tools and the speech model, and every job's video and subtitles and the folders they are in. Their names can have spaces and punctuation a path written in text is not taken to go on over, as a video's title does. The home folder and the folders above it are left out, as the home folder on its own is written as ~.
+func (a *app) feedbackPaths(home string) []string {
+	snap := a.snap()
+	tools, _ := a.pipeline.(media.Tools)
+	paths := append([]string{snap.LibraryDir, tools.OutputDir, tools.YTDLP, tools.FFmpeg, tools.Whisper, tools.WhisperModel}, snap.Libraries...)
+	for _, video := range snap.Videos {
+		paths = append(paths, video.Path, filepath.Dir(video.Path))
+	}
+	for _, job := range a.library.Jobs {
+		paths = append(paths, job.LibraryDir, job.VideoPath, job.SubtitlePath)
+		for _, file := range []string{job.VideoPath, job.SubtitlePath} {
+			if file != "" {
+				paths = append(paths, filepath.Dir(file))
+			}
+		}
+	}
+	home = filepath.Clean(home)
+	kept := paths[:0]
+	for _, p := range paths {
+		if p == "" || !filepath.IsAbs(p) {
+			continue
+		}
+		p = filepath.Clean(p)
+		if p == home || strings.HasPrefix(home, p+string(filepath.Separator)) || p == filepath.Dir(p) {
+			continue
+		}
+		kept = append(kept, p)
+	}
+	slices.Sort(kept)
+	return slices.Compact(kept)
 }
 
 // feedbackPublicEndpoint reports whether address is the public address of one of the AI service presets.
@@ -268,7 +296,7 @@ func (a *app) feedbackDetectSystem() {
 		if version == "" {
 			return
 		}
-		update(func() { a.fb.system = feedbackSystemName(runtime.GOOS, version, runtime.GOARCH) })
+		update(func() { a.feedback.system = feedbackSystemName(runtime.GOOS, version, runtime.GOARCH) })
 	}()
 }
 

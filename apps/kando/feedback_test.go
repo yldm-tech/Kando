@@ -2,9 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +16,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -76,9 +80,9 @@ func openTalk(t *testing.T, a *app, tt *ui.Tester, updates chan func(), at time.
 func chooseHelp(t *testing.T, a *app, tt *ui.Tester, updates chan func(), label string) {
 	t.Helper()
 	it := findMenuItem(t, a.menuBar(), "帮助", label)
-	gen := a.fb.gen
+	gen := a.feedback.gen
 	it.Click(it, nil)
-	waitUntil(t, updates, func() bool { return a.fb.gen != gen })
+	waitUntil(t, updates, func() bool { return a.feedback.gen != gen })
 	tt.Frame()
 }
 
@@ -86,10 +90,10 @@ func TestHelpMenuOpensFeedback(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	tt.Frame()
 	chooseHelp(t, a, tt, updates, "反馈问题…")
-	if !a.fb.open || !tt.HasText("反馈问题") || !tt.HasText("在 GitHub 中打开") {
+	if !a.feedback.open || !tt.HasText("反馈问题") || !tt.HasText("在 GitHub 中打开") {
 		t.Fatalf("dialog not open: %q", tt.Texts())
 	}
-	f := a.fb.form
+	f := a.feedback.form
 	if feedback.Kind(f.Kind) != feedback.KindBug || !f.Env || !f.Tools || f.Film || f.Subs {
 		t.Fatalf("form %+v", f)
 	}
@@ -106,20 +110,20 @@ func TestHelpMenuOpensFeedback(t *testing.T) {
 	}
 	tt.Frame()
 	tt.Frame()
-	if a.fb.open || a.modalOpen() || tt.HasText("在 GitHub 中打开") {
-		t.Fatalf("取消 left the dialog open %v modal %v", a.fb.open, a.modalOpen())
+	if a.feedback.open || a.modalOpen() || tt.HasText("在 GitHub 中打开") {
+		t.Fatalf("取消 left the dialog open %v modal %v", a.feedback.open, a.modalOpen())
 	}
 	if it := findMenuItem(t, a.menuBar(), "帮助", "反馈字幕质量…"); it.Disabled {
 		t.Fatal("反馈字幕质量… is disabled on the library page")
 	}
 	chooseHelp(t, a, tt, updates, "反馈字幕质量…")
-	if feedback.Kind(a.fb.form.Kind) != feedback.KindSubs || a.fb.form.Title != "" {
-		t.Fatalf("form %+v", a.fb.form)
+	if feedback.Kind(a.feedback.form.Kind) != feedback.KindSubs || a.feedback.form.Title != "" {
+		t.Fatalf("form %+v", a.feedback.form)
 	}
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
 	tt.Frame()
-	if a.fb.open || a.modalOpen() {
+	if a.feedback.open || a.modalOpen() {
 		t.Fatal("Escape left the dialog open")
 	}
 }
@@ -139,7 +143,7 @@ func TestFeedbackMenuWaitsBehindAModal(t *testing.T) {
 
 func TestFeedbackPreviewListsTheRealVersions(t *testing.T) {
 	a, tt, updates, _ := feedbackFilmApp(t)
-	a.fb.system = feedbackSystemName("darwin", "27.2", "arm64")
+	a.feedback.system = feedbackSystemName("darwin", "27.2", "arm64")
 	chooseHelp(t, a, tt, updates, "反馈问题…")
 	body := a.FeedbackView().Issue.Body
 	for _, want := range []string{"**类型**：问题", "看懂 " + appVersion + " · macOS 27.2 (arm64)", "yt-dlp 2026.09.14", "ffmpeg 7.1", "whisper-cli 未安装", "识别：ggml-base.bin", "翻译：EveryAPI · " + media.EveryAPIModel} {
@@ -168,7 +172,7 @@ func TestFeedbackOnAFilmAttachesItsStateAndTheLineOnlyWhenAsked(t *testing.T) {
 		t.Fatal("反馈这部影片的字幕… is disabled")
 	}
 	chooseHelp(t, a, tt, updates, "反馈这部影片的字幕…")
-	f := a.fb.form
+	f := a.feedback.form
 	if feedback.Kind(f.Kind) != feedback.KindSubs || f.Title != "字幕问题：talk" || !f.Film || f.Subs {
 		t.Fatalf("form %+v", f)
 	}
@@ -208,8 +212,8 @@ func TestPlayerMoreMenuOpensFeedback(t *testing.T) {
 		t.Fatalf("%v menu %q", err, tt.Menu())
 	}
 	tt.Frame()
-	if !a.fb.open || feedback.Kind(a.fb.form.Kind) != feedback.KindSubs || a.fb.form.Title != "字幕问题：talk" {
-		t.Fatalf("open %v form %+v", a.fb.open, a.fb.form)
+	if !a.feedback.open || feedback.Kind(a.feedback.form.Kind) != feedback.KindSubs || a.feedback.form.Title != "字幕问题：talk" {
+		t.Fatalf("open %v form %+v", a.feedback.open, a.feedback.form)
 	}
 }
 
@@ -221,7 +225,7 @@ func TestFeedbackSendOpensThePrefilledIssue(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if a.fb.sending || len(*opened) > 0 {
+	if a.feedback.sending || len(*opened) > 0 {
 		t.Fatal("在 GitHub 中打开 ran without a title")
 	}
 	if err := tt.Click("标题"); err != nil {
@@ -237,7 +241,7 @@ func TestFeedbackSendOpensThePrefilledIssue(t *testing.T) {
 	if err := tt.Click("在 GitHub 中打开"); err != nil {
 		t.Fatal(err)
 	}
-	waitUntil(t, updates, func() bool { return !a.fb.sending })
+	waitUntil(t, updates, func() bool { return !a.feedback.sending })
 	tt.Frame()
 	tt.Frame()
 	if len(*opened) != 1 {
@@ -254,7 +258,7 @@ func TestFeedbackSendOpensThePrefilledIssue(t *testing.T) {
 	if q.Get("title") != "导出后字幕错位" || q.Get("labels") != "bug" || !strings.Contains(q.Get("body"), "字幕晚了一秒") || !strings.Contains(q.Get("body"), "看懂 "+appVersion) {
 		t.Fatalf("query %v", q)
 	}
-	if a.fb.open || a.modalOpen() {
+	if a.feedback.open || a.modalOpen() {
 		t.Fatal("the dialog stayed open after the browser opened the issue")
 	}
 }
@@ -264,15 +268,15 @@ func TestFeedbackKeepsTheDialogWhenTheBrowserFails(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	tt.Frame()
 	chooseHelp(t, a, tt, updates, "反馈问题…")
-	a.fb.form.Title = "崩溃"
+	a.feedback.form.Title = "崩溃"
 	tt.Frame()
 	if err := tt.Click("在 GitHub 中打开"); err != nil {
 		t.Fatal(err)
 	}
-	waitUntil(t, updates, func() bool { return !a.fb.sending })
+	waitUntil(t, updates, func() bool { return !a.feedback.sending })
 	tt.Frame()
-	if !a.fb.open || a.fb.form.Title != "崩溃" || !strings.Contains(strings.Join(tt.Texts(), "\n"), "没能打开浏览器：no browser") {
-		t.Fatalf("open %v texts %q", a.fb.open, tt.Texts())
+	if !a.feedback.open || a.feedback.form.Title != "崩溃" || !strings.Contains(strings.Join(tt.Texts(), "\n"), "没能打开浏览器：no browser") {
+		t.Fatalf("open %v texts %q", a.feedback.open, tt.Texts())
 	}
 }
 
@@ -280,8 +284,8 @@ func TestFeedbackCopyPutsTheWholeBodyOnTheClipboard(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	tt.Frame()
 	chooseHelp(t, a, tt, updates, "反馈问题…")
-	a.fb.form.Title = "长"
-	a.fb.form.Description = strings.Repeat("字幕在第二段之后全部晚了一秒，", 600)
+	a.feedback.form.Title = "长"
+	a.feedback.form.Description = strings.Repeat("字幕在第二段之后全部晚了一秒，", 600)
 	tt.Frame()
 	view := a.FeedbackView()
 	if !view.Issue.Truncated || !strings.Contains(strings.Join(tt.Texts(), "\n"), "正文太长") {
@@ -297,7 +301,7 @@ func TestFeedbackCopyPutsTheWholeBodyOnTheClipboard(t *testing.T) {
 	if tt.Clipboard() != view.Issue.Full || !tt.HasText("已拷贝") {
 		t.Fatalf("clipboard has %d bytes, want the whole body (%d)", len(tt.Clipboard()), len(view.Issue.Full))
 	}
-	a.fb.form.Description += "再补一句"
+	a.feedback.form.Description += "再补一句"
 	tt.Frame()
 	if tt.HasText("已拷贝") {
 		t.Fatal("已拷贝 stayed after the body changed")
@@ -316,8 +320,8 @@ func TestFeedbackScrubsCredentialsAndTheHomeFolder(t *testing.T) {
 	a.cloud.googleEmail = "someone@example.com"
 	tt.Frame()
 	chooseHelp(t, a, tt, updates, "反馈问题…")
-	a.fb.form.Title = "key sk-live-0123456789abcdef"
-	a.fb.form.Description = "open " + filepath.Join(home, "Movies", "a.kando") + " with https://llm.internal.example/v1 and ea-secret-value-123, oss-secret-998877, someone@example.com, /Volumes/Disk/x/y"
+	a.feedback.form.Title = "key sk-live-0123456789abcdef"
+	a.feedback.form.Description = "open " + filepath.Join(home, "Movies", "a.kando") + " with https://llm.internal.example/v1 and ea-secret-value-123, oss-secret-998877, someone@example.com, /Volumes/Disk/x/y"
 	tt.Frame()
 	issue := a.FeedbackView().Issue
 	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(), strings.Join(tt.Texts(), "\n")} {
@@ -327,8 +331,114 @@ func TestFeedbackScrubsCredentialsAndTheHomeFolder(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(issue.Body, filepath.Join("~", "Movies", "a.kando")) {
-		t.Fatalf("the home folder is not written as ~: %q", issue.Body)
+	if strings.Contains(issue.Body, "a.kando") || !strings.Contains(issue.Body, "open <路径> with") {
+		t.Fatalf("the path under the home folder is not hidden: %q", issue.Body)
+	}
+}
+
+// TestFeedbackScrubsEveryStoredCredential sets every value of the account's part of settings.json (savedCloud) as the saved settings do, and checks that none of them reaches the issue, so the storage a later change adds is scrubbed too. The values are bare hex, as R2's keys are, which no token shape catches. Only the storage's kind and the regions are not secrets.
+func TestFeedbackScrubsEveryStoredCredential(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	var saved savedSettings
+	v := reflect.ValueOf(&saved.savedCloud).Elem()
+	var secrets []string
+	for i := range v.NumField() {
+		name := v.Type().Field(i).Name
+		if v.Field(i).Kind() != reflect.String || name == "Storage" || strings.HasSuffix(name, "Region") {
+			continue
+		}
+		t.Setenv("KANDO_"+strings.ToUpper(name), "")
+		value := fmt.Sprintf("9f8e7d6c5b4a3928%016x", i+1)
+		v.Field(i).SetString(value)
+		secrets = append(secrets, value)
+	}
+	a.cloudHooks().restore(saved)
+	tt.Frame()
+	chooseHelp(t, a, tt, updates, "反馈问题…")
+	a.feedback.form.Title = "upload fails with " + secrets[0]
+	a.feedback.form.Description = "my settings: " + strings.Join(secrets, " ")
+	tt.Frame()
+	issue := a.FeedbackView().Issue
+	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(), strings.Join(tt.Texts(), "\n")} {
+		for _, secret := range secrets {
+			if strings.Contains(s, secret) {
+				t.Fatalf("%q leaked into %q", secret, s)
+			}
+		}
+	}
+}
+
+// TestFeedbackHidesTheFilmsPaths checks that the open film's state carries no path, not even one with spaces and the video's title in it from a tool's message, and that a library the app knows is hidden whole wherever it is written, though its name has a comma and a space.
+func TestFeedbackHidesTheFilmsPaths(t *testing.T) {
+	a, tt, updates, dir := feedbackFilmApp(t)
+	other := filepath.Join(t.TempDir(), "私人，家庭 影片.kando")
+	a.edit(func(s *session) { s.Libraries = append(s.Libraries, other) })
+	openTalk(t, a, tt, updates, 1500*time.Millisecond)
+	a.library.Jobs[0].Stage = core.StageFailed
+	a.library.Jobs[0].Err = errors.New("download: yt-dlp: [download] Destination: " + filepath.Join(dir, "talk", "My Private Title：第二部 [abc].mp4") + "\nERROR: unable to write the file")
+	tt.Frame()
+	chooseHelp(t, a, tt, updates, "反馈这部影片的字幕…")
+	a.feedback.form.Description = "另一个资料库 " + filepath.Join(other, "videos", "a b.mp4") + " 也打不开"
+	tt.Frame()
+	issue := a.FeedbackView().Issue
+	for _, s := range []string{issue.Title, issue.Body, issue.URL, issue.Preview()} {
+		for _, leak := range []string{dir, "My Private", "第二部", "私人", "家庭", "a b.mp4"} {
+			if strings.Contains(s, leak) {
+				t.Fatalf("%q leaked into %q", leak, s)
+			}
+		}
+	}
+	for _, want := range []string{"- 处理：失败：download: yt-dlp: [download] Destination: <路径>\nERROR: unable to write the file", "另一个资料库 <路径> 也打不开"} {
+		if !strings.Contains(issue.Body, want) {
+			t.Fatalf("body misses %q:\n%s", want, issue.Body)
+		}
+	}
+}
+
+// TestFeedbackItemsAreMenuOnlyRows checks that the 反馈 items are rows of the shortcut table without a key: the 帮助 menu lists them after a separator and without an accelerator, and neither the cheat sheet nor the 快捷键 page lists them, as they have no key to show.
+func TestFeedbackItemsAreMenuOnlyRows(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.Frame()
+	var labels []string
+	for _, s := range a.feedbackKeys() {
+		if s.Key != 0 || s.Mods != 0 || s.Group != "帮助" {
+			t.Fatalf("feedback row %+v", s)
+		}
+		labels = append(labels, s.Label)
+	}
+	if !slices.Equal(labels, []string{"反馈问题…", "反馈字幕质量…"}) {
+		t.Fatalf("rows %q", labels)
+	}
+	for _, m := range a.menuBar() {
+		if m.Label != "帮助" {
+			continue
+		}
+		var got []string
+		for _, it := range m.Submenu {
+			if it.Type == mygo.MenuItemSeparator {
+				got = append(got, "-")
+				continue
+			}
+			if it.Accelerator != "" && it.Label != "快捷键速查" {
+				t.Fatalf("%q has accelerator %q", it.Label, it.Accelerator)
+			}
+			got = append(got, it.Label)
+		}
+		if !slices.Equal(got, []string{"快捷键速查", "-", "反馈问题…", "反馈字幕质量…"}) {
+			t.Fatalf("帮助 menu %q", got)
+		}
+	}
+	for _, g := range a.cheatsheetGroups() {
+		for _, k := range g.Keys {
+			if slices.Contains(labels, k.Label) {
+				t.Fatalf("the cheat sheet lists %q", k.Label)
+			}
+		}
+	}
+	for _, s := range a.Shortcuts() {
+		if slices.Contains(labels, s.Label) {
+			t.Fatalf("the 快捷键 page lists %q", s.Label)
+		}
 	}
 }
 
@@ -371,14 +481,14 @@ func TestFeedbackCheckboxTogglesOnce(t *testing.T) {
 	// The check box sits at the row's start, centered on its two lines.
 	tt.ClickAt(row.X+20, row.Y+row.H/2)
 	tt.Frame()
-	if a.fb.form.Env {
+	if a.feedback.form.Env {
 		t.Fatal("a click on the check box left 应用与系统版本 ticked")
 	}
 	if err := tt.Click("应用与系统版本"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !a.fb.form.Env {
+	if !a.feedback.form.Env {
 		t.Fatal("a click on the row did not tick 应用与系统版本 again")
 	}
 }
