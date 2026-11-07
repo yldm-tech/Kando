@@ -37,7 +37,10 @@ func (s screen) topBar(c *ui.Context, item films.Film, fade float32, shown bool)
 	})
 }
 
-// barStart is where the title bar's content starts: 87 points in, 7 past the room of the traffic lights (MyGo's 80 points), where the prototype puts the back button after its traffic lights, when the bar lies under them; else 20, the prototype's padding. It reads where the previous frame laid the bar out, as a bar in the content column beside the sidebar is not under them, and asks for another frame when the bar is drawn where it lies under other room than it kept clear of, as breeze's HeaderBar does.
+// backGap is the room between the traffic lights and the back button. The prototype's 7 points left the back button about 2 points from the zoom button, whose circle ends past MyGo's 80-point room, so a click meant for 返回 often closed or zoomed the window; 24 points keeps them apart, about the gap Finder leaves before its toolbar's back button.
+const backGap = 24
+
+// barStart is where the title bar's content starts: backGap past the room of the traffic lights (MyGo's 80 points) when the bar lies under them; else 20, the prototype's padding. It reads where the previous frame laid the bar out, as a bar in the content column beside the sidebar is not under them, and asks for another frame when the bar is drawn where it lies under other room than it kept clear of, as breeze's HeaderBar does.
 func barStart(c *ui.Context, bar ui.Element) float32 {
 	room := c.TitleBar()
 	under := func(r ui.Rect) float32 {
@@ -57,7 +60,7 @@ func barStart(c *ui.Context, bar ui.Element) float32 {
 		}
 	})
 	if kept > 0 {
-		return kept + 7
+		return kept + backGap
 	}
 	return 20
 }
