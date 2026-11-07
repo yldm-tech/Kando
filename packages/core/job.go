@@ -127,6 +127,8 @@ const (
 	FailLogin        FailKind = "login"
 	FailRateLimit    FailKind = "ratelimit"
 	FailNetwork      FailKind = "network"
+	// FailHost is a site whose name did not resolve: the link names a host that does not exist, or the network is down.
+	FailHost FailKind = "host"
 	// FailCookies is a browser whose login yt-dlp could not read: the system did not allow it, or the browser has no data here.
 	FailCookies FailKind = "cookies"
 )

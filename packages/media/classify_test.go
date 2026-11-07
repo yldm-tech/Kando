@@ -8,7 +8,7 @@ import (
 	"kando/packages/core"
 )
 
-// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced.
+// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced. login-vimeo is what an extractor that also takes a password says when it wants a login (yt-dlp's _login_hint "any").
 func TestClassifyRealYTDLPErrors(t *testing.T) {
 	for file, want := range map[string]core.FailKind{
 		"outdated-youtube.stderr":        core.FailOutdated,
@@ -20,7 +20,8 @@ func TestClassifyRealYTDLPErrors(t *testing.T) {
 		"drm.stderr":                     core.FailDRM,
 		"unsupported.stderr":             core.FailUnsupported,
 		"login-instagram.stderr":         core.FailLogin,
-		"network-dns.stderr":             core.FailNetwork,
+		"login-vimeo.stderr":             core.FailLogin,
+		"network-dns.stderr":             core.FailHost,
 		"network-refused.stderr":         core.FailNetwork,
 		"cookies-safari-denied.stderr":   core.FailCookies,
 		"cookies-firefox-missing.stderr": core.FailCookies,
@@ -45,6 +46,13 @@ func TestClassifyMessagesFromTheYTDLPSource(t *testing.T) {
 		"ERROR: [youtube] abc: This content isn't available, try again later. The current session has been rate-limited by YouTube":               core.FailRateLimit,
 		"ERROR: unable to download video data: HTTP Error 429: Too Many Requests":                                                                 core.FailRateLimit,
 		"ERROR: [vimeo] 1: This video is only available for registered users. Use --cookies-from-browser or --cookies for the authentication.":    core.FailLogin,
+		// _login_hint's other wordings: "password" and "session_cookies", and a message of its own before the "cookies" one.
+		"ERROR: [niconico] sm9: This video is only available for registered users. Use --username and --password, --netrc-cmd, or --netrc (niconico) to provide account credentials": core.FailLogin,
+		"ERROR: [patreon] 1: You need to log in to access this content. Use --cookies for the authentication (--cookies-from-browser might not work).":                               core.FailLogin,
+		"ERROR: [twitter] 1: Requested tweet may only be available when logged in. Use --cookies-from-browser or --cookies for the authentication.":                                  core.FailLogin,
+		// On Linux a name that does not resolve for now is the network, not the site.
+		"ERROR: [generic] 1: Unable to download webpage: <urlopen error [Errno -3] Temporary failure in name resolution>":            core.FailNetwork,
+		"ERROR: [generic] 1: Unable to download webpage: Failed to resolve 'example.invalid' ([Errno -2] Name or service not known)": core.FailHost,
 		"ERROR: something nobody has seen": "",
 	} {
 		if got := ClassifyDownload(msg); got != want {

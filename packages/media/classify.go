@@ -20,8 +20,12 @@ var failSigns = []struct {
 	{core.FailMembers, []string{"members-only", "members only", "premium members", "Join this channel", "channel members", "大会员"}},
 	{core.FailPrivate, []string{"Private video", "This video is private", "video is unavailable", "Video unavailable", "has been removed", "does not exist", "HTTP Error 404", "HTTP Error 410"}},
 	{core.FailRateLimit, []string{"HTTP Error 429", "Too Many Requests", "rate-limit", "rate limit", "not a bot", "try again later"}},
-	{core.FailLogin, []string{"registered users", "login required", "log in", "--cookies-from-browser or --cookies"}},
-	{core.FailNetwork, []string{"Failed to resolve", "nodename nor servname", "Name or service not known", "Temporary failure in name resolution", "Connection refused", "Unable to connect to proxy", "Network is unreachable", "timed out", "Connection reset", "No route to host"}},
+	// yt-dlp's _login_hint ends a login error with a hint of the ways to log in, "Use --cookies, --cookies-from-browser, --username and --password, ... to provide account credentials" for a site that also takes a password; the errors above that carry it are told apart first.
+	{core.FailLogin, []string{"registered users", "login required", "log in", "logged-in", "to provide account credentials", "Use --cookies for the authentication", "--cookies-from-browser"}},
+	// A name that does not resolve for now (EAI_AGAIN) is the network; one that does not resolve at all (EAI_NONAME, macOS's "nodename nor servname") is a host that does not exist, or a network that is down.
+	{core.FailNetwork, []string{"Temporary failure in name resolution"}},
+	{core.FailHost, []string{"Failed to resolve", "nodename nor servname", "Name or service not known"}},
+	{core.FailNetwork, []string{"Connection refused", "Unable to connect to proxy", "Network is unreachable", "timed out", "Connection reset", "No route to host"}},
 	{core.FailOutdated, []string{"Confirm you are on the latest version", "please report this issue", "Unable to extract", "No video formats found", "nsig extraction failed", "Signature extraction failed"}},
 }
 
