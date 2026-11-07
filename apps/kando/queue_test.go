@@ -10,10 +10,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"kando/apps/kando/films"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -672,4 +674,218 @@ func pngBytes(t *testing.T) []byte {
 		t.Fatal(err)
 	}
 	return buf.Bytes()
+}
+
+// failedJob puts a job whose download failed for kind on the shelf of the open library and returns its card.
+func failedJob(t *testing.T, a *app, source string, kind core.FailKind, cookies string) films.Film {
+	t.Helper()
+	job, err := core.NewJob(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job.Language, job.Stage, job.LibraryDir = "简体中文", core.StageFailed, a.snap().LibraryDir
+	job.Err, job.FailKind, job.Cookies, job.Title = errors.New("download: yt-dlp: exit status 1"), kind, cookies, "Coastal Erosion Documentary"
+	a.library.Upsert(job)
+	film, _ := a.JobFilm(job.ID)
+	return film
+}
+
+func withBrowsers(t *testing.T, ids ...string) {
+	t.Helper()
+	old := installedBrowsers
+	installedBrowsers = func() []media.Browser {
+		var out []media.Browser
+		for _, b := range media.Browsers {
+			if slices.Contains(ids, b.ID) {
+				out = append(out, b)
+			}
+		}
+		return out
+	}
+	t.Cleanup(func() { installedBrowsers = old })
+}
+
+func remedyLabels(r films.Remedy) []string {
+	var labels []string
+	for _, action := range r.Actions {
+		labels = append(labels, action.Label)
+	}
+	return labels
+}
+
+func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
+	withBrowsers(t, "chrome", "safari")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	yt, bili := "https://www.youtube.com/watch?v=Rg5Lk2Pz8Wd", "https://www.bilibili.com/video/BV1Hx411c7Pq"
+	a.queue.ytdlp = ytdlpState{path: "/usr/local/bin/yt-dlp", version: "2026.09.14", install: media.YTDLPInstall{Kind: "standalone", Update: []string{"/usr/local/bin/yt-dlp", "-U"}}}
+	for _, tc := range []struct {
+		source        string
+		kind          core.FailKind
+		cookies       string
+		headline, why string
+		actions       []string
+	}{
+		{yt, core.FailOutdated, "", "YouTube 改版了，下载组件要更新", "本机的 yt-dlp 是 2026.09.14 版，更新几秒就好。", []string{"更新并重试"}},
+		{bili, core.FailLoginExpired, "safari", "哔哩哔哩登录已过期", "先在 Safari 里重新登录 B 站，再回来重试。", []string{"已重新登录，重试", "改用 Chrome"}},
+		{yt, core.FailRegion, "", "你所在的地区不能看", "上传者限制了地区。别处有这个视频的话，换个链接。", []string{"换个链接"}},
+		{yt, core.FailPrivate, "", "视频已设为私密或被删除", "没法下载。别处有的话，换个链接。", []string{"换个链接"}},
+		{bili, core.FailMembers, "", "大会员专享视频", "需要大会员。借用已开通会员的浏览器登录即可。", []string{"借用 Chrome 登录并重试", "换个链接"}},
+		{yt, core.FailAge, "", "需要年龄验证", "借用浏览器里已登录的 YouTube 账号即可。", []string{"借用 Chrome 登录并重试"}},
+		{"https://www.netflix.com/watch/1", core.FailDRM, "", "Netflix 受 DRM 保护", "视频是加密的，没法下载。有本地文件的话可以直接拖进来。", []string{"选择本地文件"}},
+		{"https://example.com/", core.FailUnsupported, "", "example.com 暂不支持", "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", []string{"换个链接", "选择本地文件"}},
+		{"https://www.instagram.com/p/C0000000000/", core.FailLogin, "", "要登录才能看", "instagram.com 的这个视频需要账号。借用浏览器里已登录的账号即可，不保存密码。", []string{"借用 Chrome 登录并重试"}},
+		{yt, core.FailNetwork, "", "连不上网络", "检查网络连接后再重试。", []string{"重试"}},
+		{yt, core.FailCookies, "safari", "读不到 Safari 的登录", "", []string{"打开系统设置", "已允许，重试", "改用 Chrome"}},
+	} {
+		film := failedJob(t, a, tc.source, tc.kind, tc.cookies)
+		r, ok := a.FailureRemedy(film)
+		if !ok || r.Headline != tc.headline || (tc.why != "" && r.Why != tc.why) || strings.Join(remedyLabels(r), ",") != strings.Join(tc.actions, ",") {
+			t.Errorf("%s: %+v", tc.kind, r)
+		}
+		a.remove(film.JobID)
+	}
+	// A failure yt-dlp did not explain keeps the plain reason and 重试.
+	plain := failedJob(t, a, yt, "", "")
+	if _, ok := a.FailureRemedy(plain); ok {
+		t.Fatal("an unexplained failure has a remedy")
+	}
+	a.remove(plain.JobID)
+
+	failedJob(t, a, yt, core.FailRegion, "")
+	tt.Frame()
+	for _, want := range []string{"你所在的地区不能看", "上传者限制了地区。别处有这个视频的话，换个链接。", "换个链接", "移除"} {
+		if textCount(tt, want) == 0 {
+			t.Fatalf("the card does not say %q", want)
+		}
+	}
+}
+
+// recordingYTDLP writes a yt-dlp that saves its arguments, one a line, to args and fails as one too old for the site does, printing the real stderr of yt-dlp 2024.03.10 on YouTube.
+func recordingYTDLP(t *testing.T, args string) string {
+	t.Helper()
+	stderr, err := filepath.Abs(filepath.Join("..", "..", "packages", "media", "testdata", "ytdlp", "errors", "outdated-youtube.stderr"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "yt-dlp")
+	script := "#!/bin/sh\nv=$(cat \"$0.version\" 2>/dev/null || echo 2024.03.10)\n" +
+		"case \"$1\" in --version) echo \"$v\"; exit 0;; -U) echo 2026.11.03 > \"$0.version\"; echo 'Updated yt-dlp to stable@2026.11.03'; exit 0;; esac\n" +
+		"for a in \"$@\"; do echo \"$a\"; done >> '" + args + "'\ncat '" + stderr + "' >&2\nexit 1\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// toolsForRemedies is media.Tools that passes Check with tools that are never reached, as a job fails at its download.
+func toolsForRemedies(t *testing.T, ytdlp string) media.Tools {
+	model := filepath.Join(t.TempDir(), "ggml-tiny.bin")
+	if err := os.WriteFile(model, []byte("m"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return media.Tools{OutputDir: "/videos", YTDLP: ytdlp, FFmpeg: "/bin/false", Whisper: "/bin/false", WhisperModel: model, Translator: media.ChatTranslator{BaseURL: "http://127.0.0.1:9/v1", Model: "m"}}
+}
+
+func TestUpdateAndRetryUpdatesYTDLPAndRunsTheFailedDownloadsAgain(t *testing.T) {
+	args := filepath.Join(t.TempDir(), "args")
+	tool := recordingYTDLP(t, args)
+	a, tt, updates := newTestApp(toolsForRemedies(t, tool))
+	if err := a.Enqueue("https://www.youtube.com/watch?v=jNQXAC9IVRw"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	id := a.library.Jobs[0].ID
+	if job := stageOf(t, a, id); job.Stage != core.StageFailed || job.FailKind != core.FailOutdated {
+		t.Fatalf("job %+v", job)
+	}
+	a.queueReadYTDLP()
+	waitUntil(t, updates, func() bool { return a.queue.ytdlp.version != "" })
+	film, _ := a.JobFilm(id)
+	r, _ := a.FailureRemedy(film)
+	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，更新几秒就好。" || r.Actions[0].ID != remedyUpdate {
+		t.Fatalf("remedy %+v", r)
+	}
+	a.RunRemedy(film, remedyUpdate)
+	if r, _ := a.FailureRemedy(film); r.Headline != "正在更新下载组件…" || !r.Actions[0].Disabled {
+		t.Fatalf("while updating %+v", r)
+	}
+	waitUntil(t, updates, func() bool { return !a.queue.ytdlp.updating })
+	if a.queue.ytdlp.version != "2026.11.03" || a.lib.notice.Text != "下载组件已更新到 2026.11.03，已重新开始下载 1 个视频。" {
+		t.Fatalf("version %q, notice %q", a.queue.ytdlp.version, a.lib.notice.Text)
+	}
+	settle(t, a, tt, updates)
+	data, _ := os.ReadFile(args)
+	if strings.Count(string(data), "https://www.youtube.com/watch?v=jNQXAC9IVRw") != 2 {
+		t.Fatalf("yt-dlp ran with\n%s", data)
+	}
+}
+
+func TestBorrowingALoginRunsTheDownloadWithTheBrowsersCookies(t *testing.T) {
+	withBrowsers(t, "chrome", "safari")
+	args := filepath.Join(t.TempDir(), "args")
+	a, tt, updates := newTestApp(toolsForRemedies(t, recordingYTDLP(t, args)))
+	film := failedJob(t, a, "https://www.youtube.com/watch?v=Tq92D6wQ1mg", core.FailAge, "")
+	a.RunRemedy(film, remedyBorrow+"chrome")
+	settle(t, a, tt, updates)
+	data, _ := os.ReadFile(args)
+	if !strings.Contains(string(data), "--cookies-from-browser\nchrome\n") {
+		t.Fatalf("yt-dlp ran with\n%s", data)
+	}
+	if job := stageOf(t, a, film.JobID); job.Cookies != "chrome" {
+		t.Fatalf("job %+v", job)
+	}
+	// The job keeps its browser; switching to another runs with that one.
+	a.RunRemedy(film, remedyBorrow+"safari")
+	settle(t, a, tt, updates)
+	data, _ = os.ReadFile(args)
+	if !strings.Contains(string(data), "--cookies-from-browser\nsafari\n") {
+		t.Fatalf("yt-dlp ran with\n%s", data)
+	}
+}
+
+func TestSwapLinkRunsTheCardFromAnotherLink(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	film := failedJob(t, a, "https://www.youtube.com/watch?v=Rg5Lk2Pz8Wd", core.FailRegion, "")
+	tt.Frame()
+	if err := tt.Click("换个链接"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !a.queue.swap.open || !a.modalOpen() {
+		t.Fatal("换个链接 did not open its sheet")
+	}
+	a.queue.swap.link = "not a link"
+	a.SwapLink()
+	if a.queue.swap.refused != noticeNotLink || !a.queue.swap.open {
+		t.Fatalf("refused %q", a.queue.swap.refused)
+	}
+	a.queue.swap.link = "https://vimeo.com/76979871"
+	a.SwapLink()
+	tt.Frame()
+	if a.queue.swap.open || a.modalOpen() {
+		t.Fatal("the sheet stayed open")
+	}
+	if got := nextStarted(t, g, updates); got != "https://vimeo.com/76979871" {
+		t.Fatalf("started %s", got)
+	}
+	job := stageOf(t, a, film.JobID)
+	if job.Source != "https://vimeo.com/76979871" || job.Title != "" || job.FailKind != "" {
+		t.Fatalf("job %+v", job)
+	}
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+}
+
+func TestOpenSystemSettingsForSafarisLogin(t *testing.T) {
+	var opened string
+	old := openExternal
+	openExternal = func(url string) error { opened = url; return nil }
+	t.Cleanup(func() { openExternal = old })
+	a, _, _ := newTestApp(&fakePipeline{})
+	film := failedJob(t, a, "https://www.youtube.com/watch?v=Tq92D6wQ1mg", core.FailCookies, "safari")
+	a.RunRemedy(film, remedyDiskAccess)
+	if opened != fullDiskAccess {
+		t.Fatalf("opened %q", opened)
+	}
 }
