@@ -23,7 +23,7 @@ import (
 type Tools struct {
 	// OutputDir receives downloaded videos and their subtitles.
 	OutputDir string
-	// DownloadTemp holds what yt-dlp writes while a video downloads (the separate video and sound tracks of a split format, .part files), one folder per source, so the library under OutputDir only ever sees the merged video. Empty uses a folder in the system's temp folder.
+	// DownloadTemp holds what yt-dlp writes while a video downloads (the separate video and sound tracks of a split format, .part files), one folder per source, so the library under OutputDir only ever sees the merged video. Empty uses a folder in the system's temp folder. When it is not on the library's volume a hidden folder of the library is used instead (downloadTempFor).
 	DownloadTemp string
 	// YTDLP, FFmpeg and Whisper are executable paths; empty means not found.
 	YTDLP   string
@@ -168,7 +168,7 @@ func (t Tools) Check() error {
 
 // Download fetches source with yt-dlp into its own folder under OutputDir and returns the video's path. While it runs it reports to the context's Trace the video's title and thumbnail, once yt-dlp has looked the video up, and how far the download has gone. When yt-dlp fails before it could say what the video is called, a YouTube video's title and thumbnail are asked of OEmbed, so the card that says why it failed can name it.
 //
-// yt-dlp downloads into a folder of DownloadTemp kept for source and moves only the merged video into the library, where the library watcher would otherwise take a finished video track for a video of its own while the sound track is still downloading (GatherVideos). The folder is removed once the video is in the library and kept when the download fails, so a retry resumes it.
+// yt-dlp downloads into a folder kept for source (downloadTempFor), in DownloadTemp or a hidden folder of the library, and moves only the merged video into the library, where the library watcher would otherwise take a finished video track for a video of its own while the sound track is still downloading (GatherVideos). The folder is removed once the video is in the library and kept when the download fails, so a retry resumes it.
 func (t Tools) Download(ctx context.Context, source string) (string, error) {
 	if path, ok := localVideoPath(source); ok {
 		if _, err := os.Stat(path); err != nil {
@@ -197,6 +197,10 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		return "", err
 	}
 	_ = os.RemoveAll(temp)
+	// The library's hidden folder goes too once no other download is left in it; a folder that still holds one is not empty and stays.
+	if filepath.Base(filepath.Dir(temp)) == libraryDownloads {
+		_ = os.Remove(filepath.Dir(temp))
+	}
 	return path, nil
 }
 
@@ -240,8 +244,13 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 	return reader.path, nil
 }
 
-// downloadTempFor is the absolute folder of DownloadTemp that holds source's partial download, the same for the same source.
+// libraryDownloads is the hidden folder of the library that holds partial downloads when DownloadTemp is not on the library's volume. The library's readers skip names that start with a dot.
+const libraryDownloads = ".kando-downloads"
+
+// downloadTempFor is the absolute folder that holds source's partial download, the same for the same source and library. It is a folder of DownloadTemp when that is on the library's volume, and otherwise one in the library's hidden libraryDownloads: yt-dlp moves the merged video into the library with a rename only on the same volume, and across volumes copies it into video.<ext> in place, so a download stopped during the copy would leave a cut-off video that the next try takes for a finished one.
 func (t Tools) downloadTempFor(source string) (string, error) {
+	sum := sha256.Sum256([]byte(source))
+	name := hex.EncodeToString(sum[:8])
 	base := t.DownloadTemp
 	if base == "" {
 		base = filepath.Join(os.TempDir(), "kando-downloads")
@@ -250,8 +259,21 @@ func (t Tools) downloadTempFor(source string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256([]byte(source))
-	return filepath.Join(base, hex.EncodeToString(sum[:8])), nil
+	library, err := filepath.Abs(t.OutputDir)
+	if err != nil {
+		return "", err
+	}
+	if os.MkdirAll(base, 0o755) == nil && sameVolume(base, library) {
+		return filepath.Join(base, name), nil
+	}
+	return filepath.Join(library, libraryDownloads, name), nil
+}
+
+// sameVolume reports whether directories a and b are known to be on one volume. A platform without directory identities (IdentifyDir) never knows.
+func sameVolume(a, b string) bool {
+	devA, _, okA := IdentifyDir(a).Parts()
+	devB, _, okB := IdentifyDir(b).Parts()
+	return okA && okB && devA == devB
 }
 
 // removeUnmerged removes video and the files beside it that a download leaves before it merges (downloadLeftover).

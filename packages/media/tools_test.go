@@ -322,21 +322,9 @@ func TestDownloadKeepsPartialFilesOutsideTheLibrary(t *testing.T) {
 	temps := map[string]string{}
 	for _, source := range []string{"https://www.youtube.com/watch?v=jNQXAC9IVRw", "https://www.youtube.com/watch?v=jNQXAC9IVRw", "https://www.youtube.com/watch?v=dQw4w9WgXcQ"} {
 		tools.Download(context.Background(), source)
-		data, _ := os.ReadFile(args)
-		lines := strings.Split(string(data), "\n")
-		var home, temp string
-		for i := 0; i+1 < len(lines); i++ {
-			if lines[i] != "-P" {
-				continue
-			}
-			if rest, ok := strings.CutPrefix(lines[i+1], "temp:"); ok {
-				temp = rest
-			} else {
-				home = lines[i+1]
-			}
-		}
+		home, temp := ytdlpPaths(t, args)
 		if home != library || !filepath.IsAbs(temp) || !pathInside(cache, temp) {
-			t.Fatalf("home %q temp %q, args %s", home, temp, data)
+			t.Fatalf("home %q temp %q", home, temp)
 		}
 		if seen, ok := temps[source]; ok && seen != temp {
 			t.Fatalf("%s: temp %q then %q", source, seen, temp)
@@ -345,6 +333,53 @@ func TestDownloadKeepsPartialFilesOutsideTheLibrary(t *testing.T) {
 	}
 	if temps["https://www.youtube.com/watch?v=jNQXAC9IVRw"] == temps["https://www.youtube.com/watch?v=dQw4w9WgXcQ"] {
 		t.Fatalf("two videos share a temp folder: %v", temps)
+	}
+}
+
+// ytdlpPaths reads the home path (-P) and the temp path (-P temp:) from the arguments argsYTDLP saved.
+func ytdlpPaths(t *testing.T, args string) (home, temp string) {
+	t.Helper()
+	data, err := os.ReadFile(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(data), "\n")
+	for i := 0; i+1 < len(lines); i++ {
+		if lines[i] != "-P" {
+			continue
+		}
+		if rest, ok := strings.CutPrefix(lines[i+1], "temp:"); ok {
+			temp = rest
+		} else {
+			home = lines[i+1]
+		}
+	}
+	return home, temp
+}
+
+// yt-dlp moves the merged video into the library with a rename only when its temp path is on the library's volume; across volumes it copies the video into video.mp4 in place, so a download stopped during the copy leaves a cut-off video.mp4 that the next try takes for a finished one. When DownloadTemp is not on the library's volume, or cannot be told to be, the partial files go to a hidden folder in the library, which the library never lists, and the folder is gone once the video is in.
+func TestDownloadKeepsPartialFilesOnTheLibrarysVolume(t *testing.T) {
+	notAFolder := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(notAFolder, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tool, args := argsYTDLP(t)
+	library := t.TempDir()
+	tools := Tools{YTDLP: tool, OutputDir: library, DownloadTemp: filepath.Join(notAFolder, "downloads")}
+	tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if _, temp := ytdlpPaths(t, args); !pathInside(filepath.Join(library, ".kando-downloads"), temp) {
+		t.Fatalf("temp %q", temp)
+	}
+	tools.YTDLP, _ = splitYTDLP(t)
+	path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != "track 395track 251" {
+		t.Fatalf("%s = %q", path, data)
+	}
+	if entries, _ := os.ReadDir(library); len(entries) != 1 || entries[0].Name() != filepath.Base(filepath.Dir(path)) {
+		t.Fatalf("library holds %v", entries)
 	}
 }
 
