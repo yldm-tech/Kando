@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/shelf"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -75,12 +76,13 @@ type paletteAnswer struct {
 
 func newPaletteUI() paletteUI { return paletteUI{} }
 
-// paletteHooks: the palette reads how far each video was played with the shelf and saves it with the player's resume positions, notes after each frame how far the open video has played, and holds the window's modal flag while it is open. When the shelf's films change while it is open, it reads their subtitle files again.
+// paletteHooks: the palette reads how far each video was played with the shelf and saves it with the player's resume positions and keys it by the new paths of videos that moved, notes after each frame how far the open video has played, and holds the window's modal flag while it is open. When the shelf's films change while it is open, it reads their subtitle files again.
 func (a *app) paletteHooks() areaHooks {
 	return areaHooks{
 		shelfLoaded:      func() { a.palette.furthest = maps.Clone(a.library.Furthest) },
 		positionsChanged: a.paletteSaveFurthest,
 		afterFrame:       a.paletteAfterFrame,
+		videosMoved:      func(move func(string) (string, bool)) { shelf.MoveKeys(a.palette.furthest, move) },
 		shelfChanged: func() {
 			if a.palette.open {
 				a.paletteRead()

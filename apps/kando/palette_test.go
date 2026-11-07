@@ -494,6 +494,71 @@ func TestPaletteDoesNotCountASeekAsWatched(t *testing.T) {
 	}
 }
 
+// TestPaletteFollowsARenamedLibrary checks that what was watched of a film is still known after its library folder was renamed in Finder: the palette still finds its lines watched, in memory and in library.json.
+func TestPaletteFollowsARenamedLibrary(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	path := filepath.Join(t.TempDir(), "library.json")
+	jobs := a.library.Jobs
+	a.openLibrary(path)
+	a.library.Jobs = jobs
+	dir := a.snap().LibraryDir
+	old := filepath.Join(dir, "rivers", "video.mp4")
+	a.palette.furthest = map[string]time.Duration{old: 31 * time.Second}
+	a.library.Furthest = map[string]time.Duration{old: 31 * time.Second}
+	next := dir + " renamed.kando"
+	if err := os.Rename(dir, next); err != nil {
+		t.Fatal(err)
+	}
+	a.renameLibraryPath(dir, next)
+	video := filepath.Join(next, "rivers", "video.mp4")
+	if a.palette.furthest[video] != 31*time.Second || len(a.palette.furthest) != 1 {
+		t.Fatalf("furthest %v", a.palette.furthest)
+	}
+	lib, err := shelf.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lib.Furthest[video] != 31*time.Second || len(lib.Furthest) != 1 {
+		t.Fatalf("library.json keeps %v", lib.Furthest)
+	}
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, "河")
+	if v := a.paletteView(); len(v.Lines) != 2 {
+		t.Fatalf("lines %+v", v.Lines)
+	}
+}
+
+// TestPaletteFollowsVideosGatheredIntoFolders checks that a loose video the library refresh moves into a folder of its own keeps how far it was played, under its new path.
+func TestPaletteFollowsVideosGatheredIntoFolders(t *testing.T) {
+	dir := t.TempDir()
+	loose := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(loose, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.openLibrary(path)
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.palette.furthest = map[string]time.Duration{loose: 12 * time.Second}
+	a.library.Furthest = map[string]time.Duration{loose: 12 * time.Second}
+	a.refreshLibrary()
+	video := filepath.Join(dir, "talk", "video.mp4")
+	if _, err := os.Stat(video); err != nil {
+		t.Fatalf("the refresh did not gather the video: %v", err)
+	}
+	if a.palette.furthest[video] != 12*time.Second || len(a.palette.furthest) != 1 {
+		t.Fatalf("furthest %v", a.palette.furthest)
+	}
+	lib, err := shelf.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lib.Furthest[video] != 12*time.Second || len(lib.Furthest) != 1 {
+		t.Fatalf("library.json keeps %v", lib.Furthest)
+	}
+}
+
 // TestPaletteReadsTheModelsReply checks that a reply in the JSON asked for gives the answer and chips at the starts of the lines it names, that a moment no line seen starts at gives no chip, and that a reply in plain text is shown as it is.
 func TestPaletteReadsTheModelsReply(t *testing.T) {
 	seen := []paletteCue{{start: 400 * time.Millisecond}, {start: 30*time.Second + 400*time.Millisecond}, {start: 62 * time.Second}}

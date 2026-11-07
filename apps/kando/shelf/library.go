@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"time"
@@ -89,6 +90,26 @@ func (l *Library) Find(id string) (core.Job, bool) {
 		}
 	}
 	return core.Job{}, false
+}
+
+// MoveVideos keys the resume positions and furthest points by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
+func (l *Library) MoveVideos(move func(path string) (string, bool)) bool {
+	positions := MoveKeys(l.Positions, move)
+	furthest := MoveKeys(l.Furthest, move)
+	return positions || furthest
+}
+
+// MoveKeys keys what m holds for each video that moved, by path, under the new path move gives for it. It reports whether any moved.
+func MoveKeys(m map[string]time.Duration, move func(path string) (string, bool)) bool {
+	moved := map[string]time.Duration{}
+	for path, at := range m {
+		if next, ok := move(path); ok && next != path {
+			moved[next] = at
+			delete(m, path)
+		}
+	}
+	maps.Copy(m, moved)
+	return len(moved) > 0
 }
 
 // Save writes the library atomically. An empty path keeps the library in memory, which tests use.
