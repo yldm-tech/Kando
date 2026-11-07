@@ -72,13 +72,14 @@ func (a *app) OnboardingAI() onboarding.AI {
 	model := strings.TrimSpace(tools.Translator.Model)
 	switch {
 	case model == "":
-		return onboarding.AI{Text: noLLMModel}
+		return onboarding.AI{Text: noLLMModel, Missing: true}
 	case tools.Translator.Credential == nil && tools.Translator.BaseURL == media.EveryAPIBaseURL && tools.Translator.APIKey == "":
-		return onboarding.AI{Text: notSignedIn}
+		return onboarding.AI{Text: notSignedIn, Missing: true}
+	case tools.Translator.Credential != nil && a.side.ready.signInErr != nil && a.side.ready.signInDone:
+		return onboarding.AI{Text: notSignedIn, Missing: true}
 	case tools.Translator.Credential != nil && !a.side.ready.signInDone:
-		return onboarding.AI{Text: checkingSignIn}
-	case tools.Translator.Credential != nil && a.side.ready.signInErr != nil:
-		return onboarding.AI{Text: notSignedIn}
+		// The sidebar checks the sign-in once the tools and a speech model are there, so before that it is not known.
+		return onboarding.AI{Text: "翻译模型：" + model + " · 用本机登录的 EveryAPI，开始处理前会检查登录"}
 	}
 	return onboarding.AI{Text: "翻译模型：" + model, Ready: true}
 }

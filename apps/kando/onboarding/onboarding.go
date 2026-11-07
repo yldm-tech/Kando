@@ -39,10 +39,11 @@ type Model struct {
 	Err string
 }
 
-// AI is what the second step says about the translation service: a line saying which model translates or what is missing, and whether it is ready.
+// AI is what the second step says about the translation service: a line saying which model translates or what is missing, whether it is ready, and whether something is missing. Neither means it is not known yet, as the EveryAPI sign-in before it was checked.
 type AI struct {
-	Text  string
-	Ready bool
+	Text    string
+	Ready   bool
+	Missing bool
 }
 
 // App is the state the guide reads and the clicks it reports.

@@ -96,7 +96,7 @@ func modelsStep(c *ui.Context, a App) {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
 				ui.Text(c, "翻译 · AI 服务").FontSize(13).TextColor(ink)
 				color := muted
-				if !ai.Ready {
+				if ai.Missing {
 					color = ui.Hex("#B25000")
 				}
 				ui.Text(c, ai.Text).FontSize(11).TextColor(color).Wrap()
