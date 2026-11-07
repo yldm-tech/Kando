@@ -104,11 +104,11 @@ func TestOnboardingStaysClosedOnceSeen(t *testing.T) {
 	}
 }
 
-// TestOnboardingSkipCreatesTheLibrary checks D8: skipping the guide on a Mac without a library makes ~/Movies/我的影片.kando, as 新建资料库 would, opens it, saves it and the onboarded flag, and leaves the library page on 从一段视频开始 with the library's name under the title and the note about 帮助 › 重新查看入门引导.
+// TestOnboardingSkipCreatesTheLibrary checks D8: skipping the guide on a Mac without a library makes 我的影片.kando in ~/Movies (~/Videos off macOS), as 新建资料库 would, opens it, saves it and the onboarded flag, and leaves the library page on 从一段视频开始 with the library's name under the title and the note about 帮助 › 重新查看入门引导.
 func TestOnboardingSkipCreatesTheLibrary(t *testing.T) {
-	a, tt, _, home := newFirstRunApp(t, &fakePipeline{})
+	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
 	click(t, tt, "跳过")
-	want := filepath.Join(home, "Movies", "我的影片"+media.LibraryExt)
+	want := filepath.Join(media.MoviesDir(), "我的影片"+media.LibraryExt)
 	if info, err := os.Stat(want); err != nil || !info.IsDir() {
 		t.Fatalf("library folder: %v", err)
 	}
@@ -142,11 +142,11 @@ func TestOnboardingSkipCreatesTheLibrary(t *testing.T) {
 // TestOnboardingOpensAnExistingLibrary checks that a 我的影片.kando already in ~/Movies, from a run whose settings are gone, is opened as it is rather than refused as a name that is taken.
 func TestOnboardingOpensAnExistingLibrary(t *testing.T) {
 	home := t.TempDir()
-	dir := filepath.Join(home, "Movies", "我的影片"+media.LibraryExt)
+	t.Setenv("HOME", home)
+	dir := filepath.Join(media.MoviesDir(), "我的影片"+media.LibraryExt)
 	if err := os.MkdirAll(filepath.Join(dir, "talk"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("HOME", home)
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = "" })
 	a.settingsPath = filepath.Join(home, "settings.json")
@@ -217,7 +217,7 @@ func TestOnboardingLanguageGoesToTheJobs(t *testing.T) {
 
 // TestOnboardingLinkIsEnqueued checks that the link typed on the last step goes to the queue of the library the guide opened, through Enqueue, and that the button says so.
 func TestOnboardingLinkIsEnqueued(t *testing.T) {
-	a, tt, _, home := newFirstRunApp(t, &fakePipeline{})
+	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
 	click(t, tt, "继续")
 	click(t, tt, "继续")
 	click(t, tt, "第一个视频的链接")
@@ -229,7 +229,7 @@ func TestOnboardingLinkIsEnqueued(t *testing.T) {
 		t.Fatalf("jobs %+v", a.library.Jobs)
 	}
 	job := a.library.Jobs[0]
-	if job.Source != "https://youtube.com/watch?v=k9Yt2LmQ0pX" || job.LibraryDir != filepath.Join(home, "Movies", "我的影片"+media.LibraryExt) {
+	if job.Source != "https://youtube.com/watch?v=k9Yt2LmQ0pX" || job.LibraryDir != filepath.Join(media.MoviesDir(), "我的影片"+media.LibraryExt) {
 		t.Fatalf("job %+v", job)
 	}
 	if a.OnboardingStep() != 0 {
