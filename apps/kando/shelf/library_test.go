@@ -174,3 +174,16 @@ func TestLibraryKeepsTheVideoNameButNotTheProgress(t *testing.T) {
 		t.Fatalf("job = %+v", job)
 	}
 }
+
+func TestLibraryKeepsWhyADownloadFailedAndTheBorrowedLogin(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.bilibili.com/video/BV1xx411c7mD", Stage: core.StageFailed, Err: errors.New("download: login"), FailKind: core.FailLoginExpired, Cookies: "chrome"})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if job := loaded.Jobs[0]; job.FailKind != core.FailLoginExpired || job.Cookies != "chrome" {
+		t.Fatalf("job %+v", job)
+	}
+}
