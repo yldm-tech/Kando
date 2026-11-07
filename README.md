@@ -1,54 +1,181 @@
-# Kando (看懂)
+# Kando（看懂）
 
-A native desktop video transcription and translation app built with Go and MyGo.
+[![CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml)
+[![Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml/badge.svg)](https://github.com/yldm-tech/Kando/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
+[![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
+[![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#install)
+[![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
-## Repository layout
+English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
 
-- `apps/kando` — native UI application and platform packaging entry point.
-- `packages/core` — platform-independent jobs, states, and domain contracts.
-- `packages/media` — media pipeline boundary for download, transcription, translation, and export.
-- `platforms/darwin` — macOS-specific integrations.
-- `platforms/windows` — Windows-specific integrations.
-- `platforms/linux` — Linux-specific integrations.
-- `tools` — repository development tools.
+Kando is a desktop app for learning a language from videos in that language. Paste a YouTube or Bilibili link, or drop a video file on the window: Kando downloads the video with yt-dlp, transcribes the speech on your own computer with whisper.cpp, translates each line through an OpenAI-compatible model, and plays the original video with the original line and its translation on screen together. It is written in Go and draws its native interface with [MyGo](https://github.com/egoist/mygo) and [Breeze UI](https://github.com/yldm-tech/mygo-breeze-ui); there is no web view.
 
-The app uses MyGo's native UI. It does not embed a webview.
+![The library: the most recent film, the jobs in progress and the films in the library](docs/assets/library.png)
+
+The interface is in Simplified Chinese for now. The labels quoted below, such as Settings › 语音识别, are the app's own.
+
+## Features
+
+- Add a video by pasting a link from YouTube, Bilibili or any other site yt-dlp supports, or pick a local file (mp4, mov, mkv, webm and other video files) or drag it onto the window. Local files are transcribed where they are, not copied.
+- Jobs run one after another through download, transcription, translation and export. A failed job says why, links to the setting that fixes it, and can be retried or removed.
+- Speech is recognized on your computer with whisper.cpp, which detects the spoken language. Settings › 语音识别 lists seven whisper models, from Tiny (77.7 MB) to Large v3 (3.1 GB), and downloads the one you choose from Hugging Face.
+- Lines are translated by EveryAPI by default, or by any OpenAI-compatible chat API: Settings › AI 服务 has presets for OpenAI, OpenRouter, Groq, DeepSeek, xAI, Mistral, Qwen (DashScope), Kimi, Zhipu GLM, SiliconFlow, Ollama and LM Studio, plus a custom endpoint. The target language, a context-aware mode that lets the model read the preceding lines, and the prompt can be changed in Settings › 翻译.
+- Each finished video gets two SubRip files next to it: `<video>.srt` with the original lines and `<video>.bilingual.srt` with each translation above its original line (`video.srt` and `video.bilingual.srt` for a downloaded video).
+- The player shows the subtitles as bilingual, original only, translation only or off, with a delay you can adjust in 0.1-second steps and a style you can change. Its side panel lists every line with search (click a line to jump to it), splits the video into 4 to 12 clips of about 30 seconds, and shows the film's files and source. Each film resumes where you stopped watching.
+- Libraries are `.kando` folders of ordinary files you can manage in Finder or a file manager. You can keep several and switch between them from the sidebar, which also filters a library by source: YouTube, Bilibili, other sites and local files.
+- Optional upload of a film's video and bilingual subtitles to your own object storage (Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS or any S3-compatible store), from the player, after signing in with Google. See [Configuration](#configuration).
+- Keyboard shortcuts for playback, subtitles and windows, listed in a cheat sheet (⌘/) and in Settings › 快捷键.
+
+![The player with bilingual subtitles and the side panel's list of lines](docs/assets/player.png)
+
+## Install
+
+### Download
+
+Builds for macOS, Windows and Linux will be attached to [GitHub Releases](https://github.com/yldm-tech/Kando/releases) once a version is published. They are not signed with a Developer ID or code-signing certificate, so the system warns the first time you open Kando:
+
+- macOS: on macOS 15 and later, open Kando once, then choose System Settings › Privacy & Security › Open Anyway. On macOS 14 and earlier, Control-click Kando in Applications and choose Open. Or remove the quarantine flag in Terminal: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
+- Windows: in the SmartScreen dialog, choose More info › Run anyway.
+
+### Build from source
+
+With Go 1.27.3 or later:
+
+```sh
+git clone https://github.com/yldm-tech/Kando.git
+cd Kando
+make build
+```
+
+`make build` runs `go tool mygo build apps/kando` for the platform you are on and writes the result under `apps/kando/build/<os>-<arch>/`: on macOS an ad-hoc signed `Kando.app` and a `.dmg`, on other platforms an executable (Linux also gets a `.deb`, a `.tar.gz` with an install script and a `PKGBUILD`; Windows an installer made with NSIS, which mygo downloads when it is not installed). Without `make`, as on a stock Windows, run `go tool mygo build apps/kando` from the repository root.
+
+## Requirements
+
+Kando runs these programs; it does not install or update them.
+
+| Program | Used for |
+| --- | --- |
+| `yt-dlp` | Downloading online videos. Kando asks for it for every job, local files included. |
+| `ffmpeg` | Extracting the audio, grabbing covers and decoding the picture in the player. On macOS the sound plays through `ffplay` from the same install, or `afplay`. |
+| `whisper-cli` (whisper.cpp) | Speech recognition. |
+| A whisper.cpp ggml model | Download one in Settings › 语音识别, or point `KANDO_WHISPER_MODEL` at a model file. |
+
+On macOS with Homebrew:
+
+```sh
+brew install yt-dlp ffmpeg whisper-cpp
+```
+
+On Windows and Linux, install the same programs with your package manager and make sure they are on `PATH`. Besides `PATH`, Kando looks in `/opt/homebrew/bin`, `/usr/local/bin` and `/home/linuxbrew/.linuxbrew/bin`, because apps opened from Finder or a desktop launcher get a minimal `PATH`. Settings › 通用 shows which programs were found, and 重新检测 looks again.
+
+On Windows and Linux the player currently shows the picture without sound; audio playback is implemented on macOS only.
+
+## Getting started
+
+1. Open Kando. With no library yet, it offers 新建资料库… (a new library, named 影视库 in `~/Movies` on macOS or `~/Videos` elsewhere unless you change it) and 打开已有资料库… (an existing one).
+2. Open Settings (⌘,). In 通用, check that `ffmpeg`, `yt-dlp` and `whisper-cli` show as 已安装.
+3. In 语音识别, click 下载 next to a whisper model; Kando selects it when the download finishes. The one marked 推荐 is Large v3 Turbo（压缩版）, 574 MB. Models that Vimpo or hyperframes already downloaded can be selected without copying.
+4. In AI 服务, set up translation:
+   - EveryAPI (the default): sign in once with the [EveryAPI](https://everyapi.ai) CLI, `everyapi auth login`. Kando asks the CLI for the key (`everyapi auth credential`), so it uses the same login, gateway region and key refresh as the CLI, and you do not paste a token. The default model is `claude-haiku-5-5`; `everyapi models list` shows the others. You can also paste an EveryAPI key into API Key instead.
+   - Another provider: choose it under 服务, or choose OpenAI 兼容 and enter its Base URL, then fill in 模型 and API Key (local servers such as Ollama and LM Studio need no key). 测试连接 sends a short request to check the settings.
+5. In 翻译, pick the default target language: 简体中文 (the default), 繁体中文, English, 日本語, 한국어, Español, Français or Deutsch.
+6. Back in the window, paste a link into the top bar and click 开始处理, or click 本地视频 or drag a video onto the window. The status line at the bottom of the sidebar says 已就绪，可以开始处理 when everything a job needs is in place, and otherwise names what is missing.
+
+When the translation provider answers with a rate limit or a server error, Kando sends the request again, up to three attempts in all.
+
+![Settings › 通用: the open library, the interface language, the version and the programs Kando found](docs/assets/settings-general.png)
+
+![Settings › AI 服务 with EveryAPI selected](docs/assets/settings-ai.png)
+
+## Configuration
+
+Everything below except the Google client id and secret can also be set in the app (the library from the sidebar, the rest in Settings). An environment variable, when set, takes the place of the value saved in the app.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `KANDO_WHISPER_MODEL` | the model chosen in Settings › 语音识别 | Path of a whisper.cpp ggml model file, such as `ggml-small.bin`. |
+| `KANDO_LLM_BASE_URL` | EveryAPI, `https://api.everyapi.ai/v1` | Base URL of an OpenAI-compatible provider, such as `https://api.openai.com/v1`, or `http://localhost:11434/v1` for Ollama. When it is set, the signed-in EveryAPI account is not used. |
+| `KANDO_LLM_MODEL` | `claude-haiku-5-5` on EveryAPI | Translation model. With a custom provider there is no default: set it here or in Settings › AI 服务. |
+| `KANDO_LLM_API_KEY` | none | Bearer token for the translation provider. It overrides the signed-in EveryAPI account. |
+| `EVERYAPI_API_KEY` | none | EveryAPI key, used when `KANDO_LLM_BASE_URL` is unset and `KANDO_LLM_API_KEY` is empty, instead of the CLI login. |
+| `KANDO_OUTPUT_DIR` | the library opened last | Library folder to open at launch, where new videos and subtitles go. |
+| `KANDO_GOOGLE_CLIENT_ID` | none | Google OAuth client id for signing in on Settings › 账号与上传. Without it the sign-in button is disabled. It is never saved to the settings file. |
+| `KANDO_GOOGLE_CLIENT_SECRET` | none | Optional client secret for the same OAuth client. |
+| `KANDO_STORAGE` | `r2` | Where uploads go: `r2`, `s3` (or `aws`), `oss` (or `aliyun`), `cos` (or `tencent`), `compat` (or `s3compat`). Any other value means R2. |
+| `KANDO_R2_ENDPOINT` | none | Cloudflare R2: an account id or a full `https://` endpoint. |
+| `KANDO_R2_BUCKET`, `KANDO_R2_ACCESS_KEY`, `KANDO_R2_SECRET` | none | Cloudflare R2 bucket and keys. |
+| `KANDO_S3_REGION` | none | Amazon S3 region name, such as `ap-northeast-1`. |
+| `KANDO_S3_BUCKET`, `KANDO_S3_ACCESS_KEY`, `KANDO_S3_SECRET` | none | Amazon S3 bucket and keys. |
+| `KANDO_OSS_REGION` | none | Alibaba Cloud OSS region name, such as `cn-hangzhou` (`cn-hangzhou-internal` for the internal network). |
+| `KANDO_OSS_BUCKET`, `KANDO_OSS_ACCESS_KEY`, `KANDO_OSS_SECRET` | none | Alibaba Cloud OSS bucket and keys. |
+| `KANDO_COS_REGION` | none | Tencent Cloud COS region name, such as `ap-guangzhou`. |
+| `KANDO_COS_BUCKET`, `KANDO_COS_ACCESS_KEY`, `KANDO_COS_SECRET` | none | Tencent Cloud COS bucket (its name includes the APPID, such as `video-1250000000`), SecretId and SecretKey. |
+| `KANDO_S3COMPAT_ENDPOINT` | none | Full `https://` endpoint of another S3-compatible store. |
+| `KANDO_S3COMPAT_REGION` | none | Signing region of that store; MinIO usually uses `us-east-1`. |
+| `KANDO_S3COMPAT_BUCKET`, `KANDO_S3COMPAT_ACCESS_KEY`, `KANDO_S3COMPAT_SECRET` | none | Bucket and keys of that store. |
+| `KANDO_S3COMPAT_PATH_STYLE` | off | `1`, `true`, `yes` or `on` turns on path-style addressing, which MinIO needs; `0`, `false`, `no` or `off` turns it off. |
+
+Uploading is manual: open a film and click 上传到 R2 (or the store you chose) in the player. Kando uploads the video and its bilingual subtitles under `<Google account email>/<library>/<film folder>/<file>`; the sign-in only says who uploaded. Videos are never uploaded automatically.
+
+## Libraries and settings
+
+A library is a folder whose name ends in `.kando`. Each downloaded film gets its own folder inside it, `<title> [<video id>]/`, holding `video.mp4`, `cover.jpg`, `video.srt` and `video.bilingual.srt`. They are ordinary files: Kando watches the library folder, so videos added or removed in Finder or a file manager show up in the library. On macOS a `.kando` folder gets a folder icon with the Kando mark in Finder.
+
+Removing a film from the library moves the film's folder to the Trash, or only its video and subtitles when that folder holds other videos or folders too; a local video outside the library folder stays where it is and only leaves the list. Removing a library from the list leaves its folder on disk.
+
+Kando keeps its own files in the user config directory, `~/Library/Application Support/Kando` on macOS, `%AppData%\Kando` on Windows and `~/.config/Kando` on Linux:
+
+- `library.json`: the jobs, finished and in progress, and where each video stopped playing.
+- `settings.json`: the settings, including the API key, the object storage keys and the Google refresh token, in plain text. The file is readable only by your user.
+- `window-state.json`: window sizes and positions.
+- `models/`: whisper models downloaded in Settings › 语音识别.
+
+Cover images of videos that are not named `video.*` are cached in `~/Library/Caches/Kando/posters` on macOS, `%LocalAppData%\Kando\posters` on Windows and `~/.cache/Kando/posters` on Linux.
+
+## Upgrading from LingoCut
+
+Kando was called LingoCut, and nothing reads the old names. To keep your libraries and settings:
+
+1. Quit the app.
+2. Rename the config folder from `LingoCut` to `Kando`: `~/Library/Application Support/LingoCut` on macOS, `%AppData%\LingoCut` on Windows, `~/.config/LingoCut` on Linux. It holds `library.json`, `settings.json`, `window-state.json` and the downloaded models.
+3. Rename each library from `X.lingocut` to `X.kando`, after renaming the config folder and before launching. On macOS and Linux the saved inodes let the app follow every renamed library. On Windows the app can only match one missing library to one new `.kando` folder in the same parent folder, so rename one library per folder at a time and launch the app once after each rename.
+4. Rename each environment variable from `LINGOCUT_*` to `KANDO_*`.
+5. Launch Kando and choose the speech model again in Settings › 语音识别: the model file moved with the folder and shows as downloaded, but the saved choice still points at the old path.
+6. Delete what is left of the old name: `lingocut.app` and `lingocut Dev.app`; the poster cache `~/Library/Caches/LingoCut` (`%LocalAppData%\LingoCut` on Windows, `~/.cache/LingoCut` on Linux); on Linux the lowercase `~/.config/lingocut`; and, if you ran `make dev`, `~/Library/Application Support/lingocut Dev`.
 
 ## Development
 
-Requires Go 1.27.3+.
+Requires Go 1.27.3 or later.
 
 ```sh
-make test
-make dev
+make test   # go test for packages/core, packages/media and apps/kando
+make dev    # run the app with live reload
+make build  # build the app for this platform into apps/kando/build
 ```
 
-`make dev` runs MyGo's `mygo dev` patched by `tools/mygo-dev`: on macOS, a reload keeps the running window until the new build shows its own, instead of quitting it first, so saving a change does not look like the app quitting. If the patch stops applying after a MyGo upgrade, it warns and falls back to the stock `go tool mygo dev`; update `tools/mygo-dev/dev.go.patch` against the new `cmd/mygo/dev.go` then.
+`make dev` runs MyGo's `mygo dev` patched by `tools/mygo-dev`: on macOS, a reload keeps the running window until the new build shows its own, instead of quitting it first, so saving a change does not look like the app quitting. If the patch stops applying after a MyGo upgrade, it warns and falls back to the stock `go tool mygo dev`; update `tools/mygo-dev/dev.go.patch` against the new `cmd/mygo/dev.go` then. The script behind it, `tools/mygo-dev/dev.sh`, is a POSIX shell script.
 
-## Media pipeline
+The screenshot tests render the main scenes to PNG files from a fixed demo library, in an empty fake home folder with fake `ffmpeg`, `yt-dlp` and `whisper-cli`, so they do not read your settings, libraries or tools:
 
-A job downloads the video with `yt-dlp`, extracts audio with `ffmpeg`, transcribes it locally with whisper.cpp (`whisper-cli`), translates the lines through an OpenAI-compatible chat API, and writes `<video>.srt` and `<video>.bilingual.srt` next to the video. Install the tools first, for example `brew install yt-dlp ffmpeg whisper-cpp` on macOS.
+```sh
+KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
+```
 
-Translation goes through [EveryAPI](https://everyapi.ai) by default, using the account already signed in with `everyapi auth login`. The app asks the CLI for the relay key (`everyapi auth credential`), so a desktop launch picks up the same login, gateway region, and key refresh the CLI uses. No separate token is required.
+Repository layout:
 
-The app reads its settings from the environment:
+- `apps/kando`: the app. Each screen has its own directory (`sidebar/`, `films/`, `film/`, `settings/`, `account/`, `cheatsheet/`); `view.go` connects the window to them. `shelf/` is the job record, `cloud/` is Google sign-in and object storage upload, and `brand/` is the Finder icon of a library.
+- `packages/core`: platform-independent jobs, stages and link parsing.
+- `packages/media`: the media pipeline: download, transcription, translation, subtitle export, covers and libraries.
+- `tools/mygo-dev`: the patched `mygo dev` behind `make dev`.
 
-- `KANDO_WHISPER_MODEL` (required) — path of a whisper.cpp ggml model, such as `ggml-small.bin`.
-- `KANDO_LLM_MODEL` — translation model, default `claude-haiku-5-5` on EveryAPI; required with a custom provider. `everyapi models list` shows what EveryAPI offers.
-- `KANDO_LLM_BASE_URL` — set it to use a custom OpenAI-compatible provider instead of EveryAPI, such as `https://api.openai.com/v1` or `http://localhost:11434/v1` for Ollama. The signed-in EveryAPI account is not used then.
-- `KANDO_LLM_API_KEY` or `EVERYAPI_API_KEY` — optional bearer token that overrides the signed-in account.
-- `KANDO_OUTPUT_DIR` — where videos and subtitles go, default `~/Movies/影视库.kando` on macOS and `~/Videos/影视库.kando` elsewhere.
-- `KANDO_GOOGLE_CLIENT_ID` — Google OAuth client id for the account page. It is not saved. `KANDO_GOOGLE_CLIENT_SECRET` is optional.
-- `KANDO_R2_ENDPOINT`, `KANDO_R2_BUCKET`, `KANDO_R2_ACCESS_KEY`, `KANDO_R2_SECRET` — Cloudflare R2, used when set instead of the values saved in settings. The endpoint may be an account id or a full URL.
-- `KANDO_S3_REGION`, `KANDO_S3_BUCKET`, `KANDO_S3_ACCESS_KEY`, `KANDO_S3_SECRET` — Amazon S3. The region is a name such as `ap-northeast-1`. `KANDO_STORAGE=s3` selects S3.
-- `KANDO_OSS_REGION`, `KANDO_OSS_BUCKET`, `KANDO_OSS_ACCESS_KEY`, `KANDO_OSS_SECRET` — Alibaba Cloud OSS. The region is a name such as `cn-hangzhou`. `KANDO_STORAGE=oss` selects OSS.
-- `KANDO_COS_REGION`, `KANDO_COS_BUCKET`, `KANDO_COS_ACCESS_KEY`, `KANDO_COS_SECRET` — Tencent Cloud COS. The region is a name such as `ap-guangzhou`, and the bucket name includes the APPID. `KANDO_STORAGE=cos` selects COS.
-- `KANDO_S3COMPAT_ENDPOINT`, `KANDO_S3COMPAT_REGION`, `KANDO_S3COMPAT_BUCKET`, `KANDO_S3COMPAT_ACCESS_KEY`, `KANDO_S3COMPAT_SECRET` — any other S3-compatible store. `KANDO_S3COMPAT_PATH_STYLE=1` turns on path-style addressing, which MinIO needs. `KANDO_STORAGE=compat` selects it. Otherwise the upload goes to R2.
+[AGENTS.md](AGENTS.md) describes how the interface is split into components and the rules each area follows; read it before changing the UI.
 
-Finished and in-progress jobs are listed in the sidebar and remembered in `library.json` under the user config directory (`~/Library/Application Support/Kando` on macOS).
+## CI and releases
 
-Rate limits and server errors from the provider are retried up to three times.
+The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, and publishes a GitHub release with their checksums.
 
-## Upgrading from the old name
+## License
 
-Nothing reads the old names. Quit the app first. Then rename the config folder to `Kando`; it holds `library.json`, `settings.json`, `window-state.json` and the downloaded models. Next, rename each library's suffix to `.kando`. Do this after renaming the config folder and before launching. On macOS and Linux the saved inodes let the app follow every renamed library. On Windows the app can only match one missing library to one new `.kando` bundle in the same folder, so rename one library per folder at a time and launch the app once after each rename. Then rename each environment variable's prefix to `KANDO_`. After the first launch, choose the speech model again in 设置 › 语音识别: the model file moved with the folder and shows as downloaded, but the saved choice still points at the old path. Finally, delete the old app bundles, the poster cache, and the old window-state folders. Old to new: `~/Library/Application Support/LingoCut` (`%AppData%\LingoCut` on Windows, `~/.config/LingoCut` on Linux) to `Kando`, `X.lingocut` to `X.kando`, `LINGOCUT_*` to `KANDO_*`. To delete: `lingocut.app` and `lingocut Dev.app`; the poster cache `~/Library/Caches/LingoCut` (`%LocalAppData%\LingoCut` on Windows, `~/.cache/LingoCut` on Linux); on Linux the lowercase `~/.config/lingocut`; and, if you ran `make dev`, `~/Library/Application Support/lingocut Dev`.
+[MIT](LICENSE)
