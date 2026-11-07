@@ -153,3 +153,57 @@ func TestRunReadsALocalVideoInPlace(t *testing.T) {
 		t.Fatalf("missing file %+v", failed)
 	}
 }
+
+// tracingPipeline reports through the context's Trace as Tools does: the video's name and how far the download has gone, then how far the transcription has gone.
+type tracingPipeline struct {
+	fakePipeline
+	downloadErr error
+}
+
+func (p *tracingPipeline) Download(ctx context.Context, _ string) (string, error) {
+	reportInfo(ctx, Info{Title: "Me at the zoo", Thumbnail: "https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg"})
+	reportProgress(ctx, core.Fraction(0.4))
+	if p.downloadErr != nil {
+		return "", p.downloadErr
+	}
+	return "/videos/talk.mp4", nil
+}
+
+func (p *tracingPipeline) Transcribe(ctx context.Context, _ string) ([]core.Segment, error) {
+	reportProgress(ctx, core.Fraction(0.7))
+	return []core.Segment{{End: time.Second, Text: "hello"}}, nil
+}
+
+func TestRunReportsWhatTheStagesTrace(t *testing.T) {
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	var seen []core.Job
+	final := Run(context.Background(), &tracingPipeline{}, job, "简体中文", func(j core.Job) { seen = append(seen, j) })
+	if final.Stage != core.StageComplete || final.Title != "Me at the zoo" || final.Thumbnail == "" {
+		t.Fatalf("final = %+v", final)
+	}
+	var downloading, transcribing bool
+	for _, j := range seen {
+		switch {
+		case j.Stage == core.StageDownloading && j.Progress.Known && j.Progress.Fraction == 0.4:
+			downloading = j.Title == "Me at the zoo"
+		case j.Stage == core.StageTranscribing && j.Progress.Known && j.Progress.Fraction == 0.7:
+			transcribing = true
+		case j.Stage == core.StageTranslating && j.Progress.Known && j.Progress.Fraction != 0:
+			t.Fatalf("the translation started with the transcription's progress: %+v", j.Progress)
+		}
+	}
+	if !downloading || !transcribing {
+		t.Fatalf("reports %+v", seen)
+	}
+	if final.Progress != (core.Progress{}) {
+		t.Fatalf("a finished job keeps progress %+v", final.Progress)
+	}
+}
+
+func TestRunKeepsTheTitleOfAFailedDownload(t *testing.T) {
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	final := Run(context.Background(), &tracingPipeline{downloadErr: errors.New("yt-dlp: exit status 1: ERROR: [youtube] jNQXAC9IVRw: Private video")}, job, "简体中文", func(core.Job) {})
+	if final.Stage != core.StageFailed || final.Title != "Me at the zoo" || final.Progress != (core.Progress{}) {
+		t.Fatalf("final = %+v", final)
+	}
+}

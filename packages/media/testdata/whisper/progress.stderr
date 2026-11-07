@@ -1,0 +1,8 @@
+read_audio_data: reading audio data from 'long.wav' ...
+read_audio_data: trying to decode with miniaudio
+whisper_print_progress_callback: progress =  23%
+whisper_print_progress_callback: progress =  50%
+whisper_print_progress_callback: progress =  73%
+whisper_print_progress_callback: progress =  98%
+whisper_print_progress_callback: progress = 100%
+output_json: saving output to 'out2.json'

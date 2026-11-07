@@ -92,8 +92,12 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 	renewed := false
 	out := make([]core.Segment, 0, len(segments))
 	var earlier []string
+	batches := (len(segments) + translateBatch - 1) / translateBatch
 	for start := 0; start < len(segments); start += translateBatch {
 		batch := segments[start:min(start+translateBatch, len(segments))]
+		progress := core.Fraction(float64(start) / float64(len(segments)))
+		progress.Batch, progress.Batches, progress.BatchSize = start/translateBatch+1, batches, translateBatch
+		reportProgress(ctx, progress)
 		texts := make([]string, len(batch))
 		for i, s := range batch {
 			texts[i] = s.Text
@@ -102,7 +106,7 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		if t.Context {
 			contextSoFar = earlier
 		}
-		lines, err := t.translateTexts(ctx, endpoint, texts, language, contextSoFar)
+		lines, err := t.translateTexts(ctx, endpoint, texts, language, contextSoFar, progress)
 		earlier = append(earlier, texts...)
 		var status *statusError
 		if t.Credential != nil && !renewed && errors.As(err, &status) && status.code == http.StatusUnauthorized {
@@ -110,7 +114,7 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			if endpoint, err = t.Credential(ctx, true); err != nil {
 				return nil, err
 			}
-			lines, err = t.translateTexts(ctx, endpoint, texts, language, contextSoFar)
+			lines, err = t.translateTexts(ctx, endpoint, texts, language, contextSoFar, progress)
 		}
 		if err != nil {
 			return nil, err
@@ -120,6 +124,7 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			out = append(out, s)
 		}
 	}
+	reportProgress(ctx, core.Fraction(1))
 	return out, nil
 }
 
@@ -167,7 +172,8 @@ func subtitlePrompt(custom, language string, earlier []string) string {
 	return prompt + "\n\n" + subtitleReplyRule
 }
 
-func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language string, earlier []string) ([]string, error) {
+// translateTexts sends one batch. progress is where the translation stands while it is sent, which a retry's wait is reported with.
+func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, texts []string, language string, earlier []string, progress core.Progress) ([]string, error) {
 	input, err := json.Marshal(texts)
 	if err != nil {
 		return nil, err
@@ -183,7 +189,7 @@ func (t ChatTranslator) translateTexts(ctx context.Context, endpoint Endpoint, t
 		return nil, err
 	}
 
-	reply, err := t.complete(ctx, endpoint, body)
+	reply, err := t.complete(ctx, endpoint, body, progress)
 	if err != nil {
 		return nil, err
 	}
@@ -208,8 +214,8 @@ const (
 // retryBaseDelay doubles after each failed attempt unless the server sends Retry-After.
 var retryBaseDelay = 2 * time.Second
 
-// complete posts body to the chat endpoint, retrying rate limits and server errors, which gateways return when upstream capacity is briefly exhausted.
-func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []byte) (chatResponse, error) {
+// complete posts body to the chat endpoint, retrying rate limits and server errors, which gateways return when upstream capacity is briefly exhausted. Before each retry it reports progress with how long it waits, as the server's Retry-After asked or the backoff chose, and which retry comes; once the wait is over it reports progress as it was.
+func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []byte, progress core.Progress) (chatResponse, error) {
 	client := t.Client
 	if client == nil {
 		client = &http.Client{Timeout: 2 * time.Minute}
@@ -225,6 +231,9 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 			wait = min(retryAfter, maxRetryAfter)
 		}
 		delay *= 2
+		waiting := progress
+		waiting.RetryIn, waiting.Attempt, waiting.Attempts = wait, attempt, maxAttempts-1
+		reportProgress(ctx, waiting)
 		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
@@ -232,6 +241,7 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 			return chatResponse{}, ctx.Err()
 		case <-timer.C:
 		}
+		reportProgress(ctx, progress)
 	}
 }
 
