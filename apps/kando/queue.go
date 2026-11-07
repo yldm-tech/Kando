@@ -285,13 +285,23 @@ func inQueueLibrary(job core.Job, dir string) bool {
 
 // run starts job in the background. It keeps job.ID, so a retry updates the card already on screen. When the pipeline returns, the next queued job starts.
 func (a *app) run(job core.Job) {
+	if job.LibraryDir == "" {
+		job.LibraryDir = a.snap().LibraryDir
+	}
+	// Jobs written by older versions, or jobs interrupted before their language
+	// was saved, can come back from the shelf without a target language. Use the
+	// current translation setting before handing the job to the pipeline; an
+	// empty language makes ChatTranslator reject the whole translation stage.
+	if strings.TrimSpace(job.Language) == "" {
+		if language := strings.TrimSpace(a.prefs.language); language != "" {
+			job.Language = language
+			a.show(job)
+		}
+	}
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		tools.Translator.Prompt = a.prefs.translatePrompt
 		tools.Translator.Context = a.prefs.translateContext
 		a.pipeline = tools
-	}
-	if job.LibraryDir == "" {
-		job.LibraryDir = a.snap().LibraryDir
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	a.queue.active, a.queue.cancel = job.ID, cancel

@@ -415,6 +415,22 @@ func TestRestartResumesInterruptedJobs(t *testing.T) {
 	}
 }
 
+// A queued job from before jobs stored their target language still uses the
+// current translation setting when it resumes after restart.
+func TestRestartFillsMissingTranslationLanguage(t *testing.T) {
+	p := &fakePipeline{}
+	a, tt, updates := newTestApp(p)
+	a.library.Jobs = []core.Job{{ID: "old", Source: "https://example.com/old", Stage: core.StageQueued, LibraryDir: "/videos"}}
+
+	a.pump()
+	settle(t, a, tt, updates)
+
+	job := stageOf(t, a, "old")
+	if job.Language != "简体中文" || p.language != "简体中文" {
+		t.Fatalf("language = %q, pipeline language = %q", job.Language, p.language)
+	}
+}
+
 func TestEnqueueSaysWhyASourceIsRefused(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{block: true})
 	if err := a.Enqueue(); !errors.Is(err, core.ErrEmptySource) {
