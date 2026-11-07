@@ -4,8 +4,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"kando/apps/kando/settings"
+	"kando/apps/kando/shelf"
+	"kando/packages/core"
 	"kando/packages/media"
 )
 
@@ -161,5 +164,96 @@ func TestSwitchLibraryUpdatesOutputDir(t *testing.T) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok || tools.OutputDir != dir {
 		t.Fatalf("output = %#v", a.pipeline)
+	}
+}
+
+// TestLibraryRenamedWhileClosedKeepsItsFilms checks that a library folder renamed while the app was closed keeps its films when the app starts again, as main starts it: the settings are restored before library.json is read, so the jobs, the resume positions and what was watched follow the new path once it is read. A video imported from outside the library stays where it was, so only its job's library tells which shelf it is on.
+func TestLibraryRenamedWhileClosedKeepsItsFilms(t *testing.T) {
+	t.Setenv("KANDO_OUTPUT_DIR", "")
+	parent := t.TempDir()
+	old := filepath.Join(parent, "我的影片.kando")
+	inside := filepath.Join(old, "talk", "video.mp4")
+	away := t.TempDir()
+	outside := filepath.Join(away, "clip.mp4")
+	outsideSub := filepath.Join(away, "clip.srt")
+	if err := os.MkdirAll(filepath.Dir(inside), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{inside, outside, outsideSub} {
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	libraryPath := filepath.Join(t.TempDir(), "library.json")
+
+	before := newApp(&fakePipeline{}, func(func()) {})
+	before.settingsPath = settingsPath
+	before.openLibrary(libraryPath)
+	before.edit(func(s *session) {
+		s.LibraryDir = old
+		s.Libraries = []string{old}
+	})
+	before.rememberLibrary(old)
+	before.library.Jobs = []core.Job{
+		{ID: "clip", Source: "file://" + outside, Stage: core.StageComplete, VideoPath: outside, SubtitlePath: outsideSub, LibraryDir: old},
+		{ID: "talk", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, VideoPath: inside, LibraryDir: old},
+	}
+	before.library.Positions = map[string]time.Duration{outside: 5 * time.Second, inside: 7 * time.Second}
+	before.library.Furthest = map[string]time.Duration{outside: 9 * time.Second, inside: 11 * time.Second}
+	if err := before.library.Save(); err != nil {
+		t.Fatal(err)
+	}
+	if err := before.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+
+	renamed := filepath.Join(parent, "改名库.kando")
+	if err := os.Rename(old, renamed); err != nil {
+		t.Fatal(err)
+	}
+	moved := filepath.Join(renamed, "talk", "video.mp4")
+
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.settingsPath = settingsPath
+	a.restoreSettings(a.loadSettings())
+	a.openLibrary(libraryPath)
+	a.refreshLibrary()
+
+	if a.snap().LibraryDir != renamed {
+		t.Fatalf("open library = %q, want %q", a.snap().LibraryDir, renamed)
+	}
+	if got := a.films(); len(got) != 2 {
+		t.Fatalf("films on the renamed library = %+v, jobs %+v", got, a.library.Jobs)
+	}
+	if at := a.ResumeAt(outside); at != 5*time.Second {
+		t.Fatalf("ResumeAt(outside) = %v", at)
+	}
+	if at := a.ResumeAt(moved); at != 7*time.Second {
+		t.Fatalf("ResumeAt(%s) = %v, positions %v", moved, at, a.resumePositions())
+	}
+	if a.palette.furthest[outside] != 9*time.Second || a.palette.furthest[moved] != 11*time.Second || len(a.palette.furthest) != 2 {
+		t.Fatalf("furthest %v", a.palette.furthest)
+	}
+	lib, err := shelf.Load(libraryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, job := range lib.Jobs {
+		if filepath.Clean(job.LibraryDir) != renamed {
+			t.Fatalf("library.json keeps job %s in %q", job.ID, job.LibraryDir)
+		}
+	}
+	if lib.Positions[moved] != 7*time.Second || lib.Furthest[moved] != 11*time.Second || lib.Positions[outside] != 5*time.Second || lib.Furthest[outside] != 9*time.Second {
+		t.Fatalf("library.json positions %v furthest %v", lib.Positions, lib.Furthest)
+	}
+
+	again := newApp(&fakePipeline{}, func(func()) {})
+	again.settingsPath = settingsPath
+	again.restoreSettings(again.loadSettings())
+	again.openLibrary(libraryPath)
+	again.refreshLibrary()
+	if got := again.films(); again.snap().LibraryDir != renamed || len(got) != 2 {
+		t.Fatalf("after another start: library %q films %+v", again.snap().LibraryDir, got)
 	}
 }

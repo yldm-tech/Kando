@@ -358,7 +358,7 @@ func (a *app) reconcileMissingLibraries() bool {
 		}
 		if id := a.inode(dir); dirIDSet(id) {
 			if next, ok := media.FindDir(filepath.Dir(dir), id); ok {
-				a.renameLibraryPath(dir, next)
+				a.followClosedRename(dir, next)
 				changed = true
 				continue
 			}
@@ -377,8 +377,21 @@ func (a *app) reconcileMissingLibraries() bool {
 	if len(extras) != 1 {
 		return changed
 	}
-	a.renameLibraryPath(missing[0], extras[0])
+	a.followClosedRename(missing[0], extras[0])
 	return true
+}
+
+// libraryRename is a library folder renamed while the app was closed: its saved path and the path it has now.
+type libraryRename struct {
+	old, next string
+}
+
+// followClosedRename follows a library renamed while the app was closed, and remembers the rename for openLibrary. At startup the shelf follows it before library.json is read, so retargetLibraryPrefix in renameLibraryPath finds no jobs yet; openLibrary does it again on the shelf it read.
+func (a *app) followClosedRename(old, next string) {
+	a.renameLibraryPath(old, next)
+	a.edit(func(s *session) {
+		s.Renamed = append(s.Renamed, libraryRename{old: filepath.Clean(old), next: filepath.Clean(next)})
+	})
 }
 
 func unlistedBundles(parent string, known []string) []string {
@@ -532,7 +545,7 @@ func (a *app) saveShelf() savedShelf {
 	}
 }
 
-// restoreShelf points the shelf at the library saved last time, or the one KANDO_OUTPUT_DIR names, and follows libraries renamed while the app was closed. It reports whether it followed one, so settings.json needs saving; restoreSettings saves it once the areas have restored their own settings, as a save before that would write their defaults.
+// restoreShelf points the shelf at the library saved last time, or the one KANDO_OUTPUT_DIR names, and follows libraries renamed while the app was closed; library.json is not read yet, so openLibrary points the jobs at the new paths (followClosedRename). It reports whether it followed one, so settings.json needs saving; restoreSettings saves it once the areas have restored their own settings, as a save before that would write their defaults.
 func (a *app) restoreShelf(saved savedSettings) (moved bool) {
 	libs := cleanLibraries(saved.Libraries)
 	if saved.LibraryDir != "" {
@@ -687,7 +700,7 @@ func cleanLibraries(dirs []string) []string {
 	return out
 }
 
-// openLibrary reads the shelf's library.json at path into app.library, then runs the areas' shelfLoaded.
+// openLibrary reads the shelf's library.json at path into app.library, then runs the areas' shelfLoaded. It then points the jobs, and what library.json and the areas keep by video path (areaHooks.videosMoved), at libraries restoreShelf followed to a new path before the shelf was read, and saves library.json.
 func (a *app) openLibrary(path string) {
 	lib, err := shelf.Load(path)
 	a.library = lib
@@ -695,6 +708,14 @@ func (a *app) openLibrary(path string) {
 		a.saveErr = "视频库无法读取：" + err.Error()
 	}
 	a.areasShelfLoaded()
+	renamed := a.snap().Renamed
+	if len(renamed) == 0 {
+		return
+	}
+	a.edit(func(s *session) { s.Renamed = nil })
+	for _, r := range renamed {
+		a.retargetLibraryPrefix(r.old, r.next)
+	}
 }
 
 // revealInFolder shows path in the system file manager. Tests replace it.

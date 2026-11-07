@@ -18,6 +18,8 @@ type session struct {
 	MakingLibrary bool
 	Videos        []media.Video
 	Inodes        map[string]media.DirID
+	// Renamed is the libraries restoreShelf followed to a new path before library.json was read, oldest first. openLibrary points the jobs, and what is kept by video path, at the new paths once it has read the shelf, then empties it.
+	Renamed []libraryRename
 }
 
 func newSessionStore() *nodra.Store[session] {
@@ -28,6 +30,7 @@ func cloneSession(s session) session {
 	s.Libraries = slices.Clone(s.Libraries)
 	s.Videos = slices.Clone(s.Videos)
 	s.Inodes = maps.Clone(s.Inodes)
+	s.Renamed = slices.Clone(s.Renamed)
 	return s
 }
 
