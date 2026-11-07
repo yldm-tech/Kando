@@ -207,3 +207,26 @@ func TestRunKeepsTheTitleOfAFailedDownload(t *testing.T) {
 		t.Fatalf("final = %+v", final)
 	}
 }
+
+func TestRunSaysWhyTheDownloadFailed(t *testing.T) {
+	age, err := os.ReadFile(filepath.Join("testdata", "ytdlp", "errors", "age-youtube.stderr"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=Tq92D6wQ1mg")
+	failed := Run(context.Background(), &tracingPipeline{downloadErr: errors.New("yt-dlp: exit status 1: " + string(age))}, job, "简体中文", func(core.Job) {})
+	if failed.FailKind != core.FailAge {
+		t.Fatalf("kind %q", failed.FailKind)
+	}
+	// The same answer with a browser's login borrowed means that login has run out.
+	job.Cookies = "chrome"
+	expired := Run(context.Background(), &tracingPipeline{downloadErr: errors.New("yt-dlp: exit status 1: " + string(age))}, job, "简体中文", func(core.Job) {})
+	if expired.FailKind != core.FailLoginExpired {
+		t.Fatalf("kind with cookies %q", expired.FailKind)
+	}
+	// A later stage's failure is not a download's.
+	later := Run(context.Background(), &fakePipeline{transcribe: []core.Segment{{Text: "a"}}, translateErr: errors.New("ERROR: Private video")}, job, "简体中文", func(core.Job) {})
+	if later.FailKind != "" {
+		t.Fatalf("translate failure kind %q", later.FailKind)
+	}
+}

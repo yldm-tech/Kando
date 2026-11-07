@@ -32,6 +32,8 @@ func (a *app) libraryOwnsTitleBar() bool {
 
 func (a *app) Source() *string { return &a.queue.source }
 
+func (a *app) LinkFocus() *bool { return &a.queue.linkFocus }
+
 func (a *app) Status() string { return a.queue.status }
 
 func (a *app) HasJob() bool { return a.queue.job != nil }

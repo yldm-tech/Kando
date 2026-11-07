@@ -54,6 +54,11 @@ type App interface {
 	Retry(id string)
 	// FailureHint says, for a failed job, what went wrong and the settings section that fixes it ("" when none does).
 	FailureHint(item Film) (reason, section string)
+	// FailureRemedy is what a failed card says and offers when the app knows why its download failed; false shows FailureHint instead. RunRemedy does the action of the remedy's button the user clicked.
+	FailureRemedy(item Film) (Remedy, bool)
+	RunRemedy(item Film, action string)
+	// LinkFocus asks the link field for the keyboard focus once, as 换个链接 does; the field sets it back to false when it has taken the focus.
+	LinkFocus() *bool
 	JobFilm(id string) (Film, bool)
 	// SourceFilter is the sidebar source the page shows, sidebar.SourceAll or another sidebar.Source value.
 	SourceFilter() string

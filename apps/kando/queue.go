@@ -29,6 +29,10 @@ type jobQueue struct {
 	active string
 	// cancel stops the running job; its cause becomes the job's error when it is core.ErrLibrarySwitched.
 	cancel context.CancelCauseFunc
+	// ytdlp is the yt-dlp the jobs download with and the browsers it can borrow logins from (queue_remedy.go).
+	ytdlp ytdlpState
+	// linkFocus asks the link field above the library for the keyboard focus once, as 换个链接 does.
+	linkFocus bool
 }
 
 func newJobQueue() jobQueue { return jobQueue{} }
@@ -45,11 +49,15 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one.
+// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
-		leavingLibrary:   func() { a.queue.stopActive(core.ErrLibrarySwitched) },
-		ready:            a.pump,
+		leavingLibrary: func() { a.queue.stopActive(core.ErrLibrarySwitched) },
+		ready: func() {
+			a.pump()
+			a.queueReadYTDLP()
+		},
+		toolsChanged:     func(bool) { a.queueReadYTDLP() },
 		libraryChanged:   a.pump,
 		shelfLoaded:      func() { a.setResumePositions(maps.Clone(a.library.Positions)) },
 		positionsChanged: a.savePositions,
@@ -226,6 +234,7 @@ func (a *app) start() {
 func (a *app) queueAdd(job core.Job) {
 	job.Stage = core.StageQueued
 	job.Err = nil
+	job.FailKind = ""
 	job.CompletedAt = time.Time{}
 	if job.LibraryDir == "" {
 		job.LibraryDir = a.snap().LibraryDir
@@ -285,6 +294,10 @@ func (a *app) run(job core.Job) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	a.queue.active, a.queue.cancel = job.ID, cancel
 	pipeline, update := a.pipeline, a.update
+	if tools, ok := pipeline.(media.Tools); ok {
+		tools.Cookies = job.Cookies
+		pipeline = tools
+	}
 	go func() {
 		defer cancel(nil)
 		// A report that only moves the progress waits in latest, and at most one update carries it to the UI thread: a tool that reports many times a second does not queue an update for each, and the card shows the newest when the window gets to it. Any other report goes as it comes, after the progress already waiting.

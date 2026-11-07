@@ -275,3 +275,41 @@ func TestDownloadDoesNotAskOEmbedForOtherSites(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+// argsYTDLP writes a yt-dlp that saves its arguments to a file, one a line, and fails.
+func argsYTDLP(t *testing.T) (tool, args string) {
+	t.Helper()
+	dir := t.TempDir()
+	tool, args = filepath.Join(dir, "yt-dlp"), filepath.Join(dir, "args")
+	if err := os.WriteFile(tool, []byte("#!/bin/sh\nfor a in \"$@\"; do echo \"$a\"; done > "+shellQuote(args)+"\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return tool, args
+}
+
+func TestDownloadBorrowsTheBrowsersLogin(t *testing.T) {
+	tool, args := argsYTDLP(t)
+	tools := Tools{YTDLP: tool, OutputDir: t.TempDir(), Cookies: "chrome"}
+	tools.Download(context.Background(), "https://www.bilibili.com/video/BV1xx411c7mD")
+	data, _ := os.ReadFile(args)
+	if !strings.Contains(string(data), "--cookies-from-browser\nchrome\n") {
+		t.Fatalf("args %s", data)
+	}
+	tools.Cookies = ""
+	tools.Download(context.Background(), "https://www.bilibili.com/video/BV1xx411c7mD")
+	data, _ = os.ReadFile(args)
+	if strings.Contains(string(data), "--cookies-from-browser") {
+		t.Fatalf("args without cookies %s", data)
+	}
+}
+
+// An app opened from Finder has a PATH without Homebrew's folder, where yt-dlp would look for ffmpeg to merge the video with its sound; Download names the ffmpeg Kando found.
+func TestDownloadTellsYTDLPWhereFFmpegIs(t *testing.T) {
+	tool, args := argsYTDLP(t)
+	tools := Tools{YTDLP: tool, FFmpeg: "/opt/homebrew/bin/ffmpeg", OutputDir: t.TempDir()}
+	tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	data, _ := os.ReadFile(args)
+	if !strings.Contains(string(data), "--ffmpeg-location\n/opt/homebrew/bin/ffmpeg\n") {
+		t.Fatalf("args %s", data)
+	}
+}

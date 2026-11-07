@@ -70,6 +70,10 @@ func linkField(c *ui.Context, t *ui.Theme, a App) {
 	field.Children(func() {
 		ui.Icon(c, linkIcon).Size(15, 15).TextColor(t.TextMuted).Shrink(0)
 		in := ui.TextInputBase(c, value).Placeholder("粘贴 YouTube、哔哩哔哩等视频链接").Label("视频链接").Grow(1).MinWidth(0).FontSize(13).FocusRing(false)
+		if focus := a.LinkFocus(); *focus {
+			in.Focus()
+			*focus = false
+		}
 		if in.Submitted() {
 			a.Start()
 		}

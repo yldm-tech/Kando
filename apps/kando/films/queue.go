@@ -217,13 +217,33 @@ func stepsBar(c *ui.Context, t *ui.Theme, item Film) {
 	})
 }
 
-// failedDetail is what a failed or cancelled card says and offers: why, in red unless it was cancelled, and 打开设置 when a setting fixes it, 重试 and 移除.
+// Remedy is what a failed card says when the app knows why its download failed, as the prototype words each kind: Headline in red (in the accent while Working, as while yt-dlp updates), Why under it, and the Actions that fix it, the primary one first. 移除 always follows them.
+type Remedy struct {
+	Headline, Why string
+	Working       bool
+	Actions       []RemedyAction
+}
+
+// RemedyAction is one button of a Remedy; App.RunRemedy hears its ID when it is clicked.
+type RemedyAction struct {
+	ID, Label         string
+	Primary, Disabled bool
+}
+
+// failInk is the red of a failed card's reason, and whyInk the dark gray of what to do about it.
+var failInk, whyInk = ui.Hex("#C4291C"), ui.Hex("#3A3A3F")
+
+// failedDetail is what a failed or cancelled card says and offers: for a download whose failure the app knows, its remedy (App.FailureRemedy); otherwise why, in red unless it was cancelled, and 打开设置 when a setting fixes it, 重试 and 移除.
 func failedDetail(c *ui.Context, t *ui.Theme, a App, item Film) {
+	if r, ok := a.FailureRemedy(item); ok && !Canceled(item) {
+		remedyDetail(c, t, a, item, r)
+		return
+	}
 	reason, section := a.FailureHint(item)
 	if Canceled(item) {
 		ui.Text(c, "已取消").FontSize(11).TextColor(t.TextMuted)
 	} else {
-		ui.Text(c, reason).FontSize(11).TextColor(ui.Hex("#C4291C")).Wrap().MaxLines(2)
+		ui.Text(c, reason).FontSize(11).TextColor(failInk).Wrap().MaxLines(2)
 	}
 	ui.Row(c).Wrap().Gap(6).Margin(2, 0, 0, 0).Children(func() {
 		if section != "" {
@@ -235,6 +255,32 @@ func failedDetail(c *ui.Context, t *ui.Theme, a App, item Film) {
 		c.Key("queue-retry")
 		if breeze.PrimaryButton(c, "重试").Clicked() {
 			a.Retry(item.JobID)
+		}
+		c.Key("queue-remove")
+		if breeze.Button(c, "移除").Clicked() {
+			a.Remove(item.JobID)
+		}
+	})
+}
+
+func remedyDetail(c *ui.Context, t *ui.Theme, a App, item Film, r Remedy) {
+	headline := ui.Text(c, r.Headline).FontSize(11).TextColor(failInk).Wrap().MaxLines(2)
+	if r.Working {
+		headline.TextColor(t.Accent)
+	}
+	if r.Why != "" {
+		ui.Text(c, r.Why).FontSize(11).FixedLineHeight(15).TextColor(whyInk).Wrap()
+	}
+	ui.Row(c).Wrap().Gap(6).Margin(2, 0, 0, 0).Children(func() {
+		for _, action := range r.Actions {
+			c.Key("queue-remedy-" + action.ID)
+			b := breeze.Button
+			if action.Primary {
+				b = breeze.PrimaryButton
+			}
+			if b(c, action.Label).Disabled(action.Disabled).Clicked() && !action.Disabled {
+				a.RunRemedy(item, action.ID)
+			}
 		}
 		c.Key("queue-remove")
 		if breeze.Button(c, "移除").Clicked() {
