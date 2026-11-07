@@ -36,8 +36,8 @@ github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWD
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
 github.com/yldm-tech/ai-logo/mygo v1.17.0 h1:yhUhk3aGyoRGir2TIGUCspUsNECqPDvLmPpe8HsciKY=
 github.com/yldm-tech/ai-logo/mygo v1.17.0/go.mod h1:vex0tOqgXeQKEZZkCnQLAW2vyQywbw10GIepzUBCMqE=
-github.com/yldm-tech/mygo-breeze-ui v0.8.0 h1:+NKGnctQD0atBRKJX7M/T+Ew7GH/nIaeH4WB9cogOBQ=
-github.com/yldm-tech/mygo-breeze-ui v0.8.0/go.mod h1:ZfEox1VDVZtA76UoVwmFfgMGRqt3OgNkQEjBb90M19U=
+github.com/yldm-tech/mygo-breeze-ui v0.12.0 h1:f3T125iHAh9/L+qIBHv7RpXchh8Xud9cbME213BAPJI=
+github.com/yldm-tech/mygo-breeze-ui v0.12.0/go.mod h1:ZfEox1VDVZtA76UoVwmFfgMGRqt3OgNkQEjBb90M19U=
 github.com/yldm-tech/nodra v1.1.0 h1:Nchhltvve8EWNyChtpVzFAy8hwQt6OhpKHX9G2078ts=
 github.com/yldm-tech/nodra v1.1.0/go.mod h1:Xv8gzEzE8B2noBatHYTLGloXenXxabR6i9HFeHcD4Yk=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=

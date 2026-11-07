@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"kando/apps/kando/sidebar"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -14,6 +15,7 @@ import (
 //   - library-prototype-size: 我的影片 with 全部影片 chosen (library_default)
 //   - sidebar-switcher-open: the library switcher pressed, its menu open (library_switcher_open); the menu is the system's, which the picture does not show
 //   - sidebar-empty: a new empty library, every count 0 (library_empty)
+//   - sidebar-focused: 全部影片 chosen with a click, so the sidebar holds the focus and macOS draws the row in the accent color, its count near white
 func TestScreenshotsSidebar(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "library-prototype-size", func(a *app, tt *ui.Tester, _ chan func()) {
@@ -31,6 +33,14 @@ func TestScreenshotsSidebar(t *testing.T) {
 		if len(tt.Menu()) == 0 {
 			t.Fatal("the switcher's menu did not open")
 		}
+	})
+	f.shoot(t, "sidebar-focused", func(a *app, tt *ui.Tester, _ chan func()) {
+		screenshotReady(t, f, a)
+		tt.Frame()
+		if err := tt.Click(sidebar.SourceLabel(sidebar.SourceAll)); err != nil {
+			t.Fatal(err)
+		}
+		tt.Move(1200, 700)
 	})
 	f.shoot(t, "sidebar-empty", func(a *app, tt *ui.Tester, updates chan func()) {
 		screenshotReady(t, f, a)
