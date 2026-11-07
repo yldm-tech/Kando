@@ -2,6 +2,8 @@ package films
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"kando/packages/core"
 
@@ -69,7 +71,10 @@ func queueCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 				failedDetail(c, t, a, item)
 				return
 			}
-			ui.Text(c, QueueMeta(item)).FontSize(11).TextColor(t.TextMuted)
+			meta := ui.Text(c, QueueMeta(item)).FontSize(11).TextColor(t.TextMuted)
+			if RetryWaiting(item) {
+				meta.TextColor(retryInk)
+			}
 			stepsBar(c, t, item)
 		})
 		if !failed {
@@ -80,6 +85,9 @@ func queueCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 		}
 	})
 }
+
+// retryInk is the orange of a card whose translation waits out a rate limit.
+var retryInk = ui.Hex("#A35200")
 
 // cardFill is the face of a processing card, a step darker than the page.
 func cardFill(*ui.Theme) ui.Color { return ui.Hex("#F5F5F7") }
@@ -99,10 +107,14 @@ func cancelButton(c *ui.Context, t *ui.Theme) ui.Element {
 	return b
 }
 
-// queueThumb is a processing card's 16:9 thumbnail: the poster once there is one, a download glyph until then, and a red mark over a failed job's.
+// queueThumb is a processing card's 16:9 thumbnail: the poster once there is one, the picture the video's site gives it before that, a download glyph until either is there, and a red mark over a failed job's.
 func queueThumb(c *ui.Context, t *ui.Theme, a App, item Film) {
 	ui.Box(c).Width(112).Shrink(0).AspectRatio(16.0 / 9).Radius(9).Clip().Background(thumbFill).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-		if img := a.Poster(item.VideoPath); img != nil {
+		img := a.Poster(item.VideoPath)
+		if img == nil {
+			img = a.Thumbnail(item)
+		}
+		if img != nil {
 			ui.Image(c, img).Absolute().Top(0).Left(0).WidthPercent(100).HeightPercent(100).Fit(ui.Cover)
 		} else {
 			ui.Icon(c, downloadIcon).Size(22, 22).TextColor(placeholderInk)
@@ -115,8 +127,9 @@ func queueThumb(c *ui.Context, t *ui.Theme, a App, item Film) {
 	})
 }
 
-// QueueMeta is the line under a waiting or running job's title: the stage and what does the work.
+// QueueMeta is the line under a waiting or running job's title: the stage and how far it has gone, as its tool reports it, or what does the work until the tool has said.
 func QueueMeta(item Film) string {
+	p := item.Progress
 	switch item.Stage {
 	case core.StageQueued:
 		return "排队中 · 等待前面的任务"
@@ -124,10 +137,29 @@ func QueueMeta(item Film) string {
 		if Local(item) {
 			return "读取中 · 本地文件"
 		}
-		return "下载中 · yt-dlp · " + SourceLabel(item)
+		if !p.Known {
+			return "下载中 · yt-dlp · " + SourceLabel(item)
+		}
+		parts := []string{"下载中", Percent(p.Fraction)}
+		if p.Speed > 0 {
+			parts = append(parts, Rate(p.Speed))
+		}
+		if p.ETA > 0 {
+			parts = append(parts, "还剩 "+Clock(p.ETA))
+		}
+		return strings.Join(parts, " · ")
 	case core.StageTranscribing:
-		return "转录中 · whisper 本机识别"
+		if p.Known {
+			return "生成字幕中 · whisper 本机识别 · " + Percent(p.Fraction)
+		}
+		return "生成字幕中 · whisper 本机识别"
 	case core.StageTranslating:
+		if RetryWaiting(item) {
+			return fmt.Sprintf("翻译接口限流，%d 秒后重试（%d/%d）", int(p.RetryIn.Round(time.Second)/time.Second), p.Attempt, p.Attempts)
+		}
+		if p.Batches > 0 {
+			return fmt.Sprintf("翻译中 · 第 %d/%d 批 · 每批 %d 句", p.Batch, p.Batches, p.BatchSize)
+		}
 		return "翻译中 · AI 服务"
 	case core.StageExporting:
 		return "导出中 · 写入 video.srt 与 video.bilingual.srt"
@@ -135,23 +167,52 @@ func QueueMeta(item Film) string {
 	return StageLabel(item.Stage)
 }
 
-// stepsBar shows the stages of a job as segments: those behind it filled, the one it is in half filled.
+// RetryWaiting reports whether the film's translation is waiting to try a rate-limited request again.
+func RetryWaiting(item Film) bool {
+	return item.Stage == core.StageTranslating && item.Progress.RetryIn > 0
+}
+
+// Percent writes a fraction as a whole percentage, such as 42%.
+func Percent(f float64) string {
+	return fmt.Sprintf("%d%%", int(f*100))
+}
+
+// Rate writes a download speed in bytes a second as the Finder writes sizes, such as 3.2 MB/s.
+func Rate(bytesPerSecond float64) string {
+	const k = 1024.0
+	switch {
+	case bytesPerSecond >= k*k:
+		return fmt.Sprintf("%.1f MB/s", bytesPerSecond/(k*k))
+	case bytesPerSecond >= k:
+		return fmt.Sprintf("%.0f KB/s", bytesPerSecond/k)
+	}
+	return fmt.Sprintf("%.0f B/s", bytesPerSecond)
+}
+
+// stepsBar shows the stages of a job as segments, as the prototype draws them: those behind it filled, the one it is in filled as far as its tool has said, or tinted while it has not said yet, and those ahead empty.
 func stepsBar(c *ui.Context, t *ui.Theme, item Film) {
+	fills := StepFills(item)
 	total, done := Steps(item)
 	running := Running(item)
+	value := float64(done)
+	if done < total {
+		value += fills[done]
+	}
 	track, fill := t.Text.Alpha(0.09), t.Accent
-	ui.Box(c).WidthPercent(100).Height(4).Margin(2, 0, 0, 0).Role(ui.RoleProgress).Label("进度").Range(0, float64(total), float64(done)).Draw(func(p *ui.Painter, r ui.Rect) {
+	known := item.Progress.Known
+	ui.Box(c).WidthPercent(100).Height(4).Margin(2, 0, 0, 0).Role(ui.RoleProgress).Label("进度").Range(0, float64(total), value).Draw(func(p *ui.Painter, r ui.Rect) {
 		const gap = 3
 		w := (r.W - gap*float32(total-1)) / float32(total)
-		for i := range total {
-			color := track
-			switch {
-			case i < done:
-				color = fill
-			case i == done && running:
-				color = fill.Alpha(0.35)
+		for i, f := range fills {
+			segment := ui.Rect{X: r.X + float32(i)*(w+gap), Y: r.Y, W: w, H: r.H}
+			if i == done && running && !known {
+				p.Fill(segment, fill.Alpha(0.35), 2)
+				continue
 			}
-			p.Fill(ui.Rect{X: r.X + float32(i)*(w+gap), Y: r.Y, W: w, H: r.H}, color, 2)
+			p.Fill(segment, track, 2)
+			if f > 0 {
+				p.Fill(ui.Rect{X: segment.X, Y: segment.Y, W: max(segment.W*float32(f), r.H), H: r.H}, fill, 2)
+			}
 		}
 	})
 }

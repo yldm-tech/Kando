@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/films"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -119,4 +120,54 @@ func posterDest(posterDir, video string) string {
 func fileExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir() && info.Size() > 0
+}
+
+// The processing cards' thumbnails: the picture a video's site gives it, shown until the video is downloaded and has a poster of its own, and on a card whose download failed.
+
+func (a *app) thumbnailOf(item films.Film) ui.ImageSource {
+	if item.Thumbnail == "" {
+		return nil
+	}
+	return a.lib.thumbs[item.Thumbnail]
+}
+
+// ensureThumbnail reads the picture at a film's thumbnail address from the posters folder, where it is kept by its address, or fetches it there first, off the UI thread. A miss is remembered so it is not tried again while the app runs. loadExtras calls it; the page only shows what it found.
+func (a *app) ensureThumbnail(item films.Film) {
+	address := item.Thumbnail
+	if address == "" || a.update == nil || a.lib.posterDir == "" || a.lib.thumbs[address] != nil || a.lib.thumbMiss[address] || a.lib.thumbBusy[address] {
+		return
+	}
+	if a.lib.thumbBusy == nil {
+		a.lib.thumbBusy = map[string]bool{}
+	}
+	a.lib.thumbBusy[address] = true
+	dest := filepath.Join(a.lib.posterDir, "site-"+posterKey(address))
+	update := a.update
+	go func() {
+		var err error
+		if !fileExists(dest) {
+			err = media.FetchThumbnail(context.Background(), address, dest)
+		}
+		var img ui.ImageSource
+		if err == nil {
+			var data []byte
+			if data, err = os.ReadFile(dest); err == nil {
+				img, err = ui.DecodeImage(data)
+			}
+		}
+		update(func() {
+			delete(a.lib.thumbBusy, address)
+			if err != nil || img == nil {
+				if a.lib.thumbMiss == nil {
+					a.lib.thumbMiss = map[string]bool{}
+				}
+				a.lib.thumbMiss[address] = true
+				return
+			}
+			if a.lib.thumbs == nil {
+				a.lib.thumbs = map[string]ui.ImageSource{}
+			}
+			a.lib.thumbs[address] = img
+		})
+	}()
 }

@@ -14,7 +14,11 @@ func jobTitle(job core.Job) string {
 	return shorten(jobName(job), 22)
 }
 
+// jobName is the video's title as its site gives it, once the download has looked it up; otherwise the name of its file or folder, or what its link says.
 func jobName(job core.Job) string {
+	if title := strings.TrimSpace(job.Title); title != "" {
+		return title
+	}
 	if job.VideoPath != "" {
 		return displayVideoName(job.VideoPath)
 	}

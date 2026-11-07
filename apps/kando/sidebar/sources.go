@@ -27,8 +27,9 @@ func sources(c *ui.Context, a App) {
 				// The prototype pads its rows 10 points at the end, for the count, and centers the icon 19 points in, where a source list's is 17.5: its 18-point icon starts 10 in.
 				row.PaddingStart(11).PaddingEnd(10)
 			}
+			// SidebarItemDetail turns the count near white on the accent selection while the sidebar has the focus, as the label is, where secondary text would vanish into the blue.
 			row.Children(func() {
-				breeze.Text(c, strconv.Itoa(n), breeze.TextSecondary).FontSize(12).Shrink(0)
+				breeze.SidebarItemDetail(c, strconv.Itoa(n)).FontSize(12)
 			})
 		}
 	}).Background(ui.Transparent).Padding(0, insetEnd, 0, insetStart).Grow(1)

@@ -28,6 +28,8 @@ type Tools struct {
 	// WhisperModel is the path of a ggml model file for whisper.cpp.
 	WhisperModel string
 	Translator   ChatTranslator
+	// OEmbed is YouTube's oEmbed endpoint, which names a video yt-dlp could not look up, as one that is age-restricted or blocked where this machine is; empty asks nothing.
+	OEmbed string
 }
 
 // EveryAPI is the default translation provider; setting KANDO_LLM_BASE_URL switches to any other OpenAI-compatible provider.
@@ -69,6 +71,7 @@ func ToolsFromEnv() Tools {
 		Whisper:      lookTool("whisper-cli"),
 		WhisperModel: os.Getenv("KANDO_WHISPER_MODEL"),
 		Translator:   translator,
+		OEmbed:       YouTubeOEmbed,
 	}
 }
 
@@ -152,6 +155,7 @@ func (t Tools) Check() error {
 	return errors.Join(errs...)
 }
 
+// Download fetches source with yt-dlp into its own folder under OutputDir and returns the video's path. While it runs it reports to the context's Trace the video's title and thumbnail, once yt-dlp has looked the video up, and how far the download has gone. When yt-dlp fails before it could say what the video is called, a YouTube video's title and thumbnail are asked of OEmbed, so the card that says why it failed can name it.
 func (t Tools) Download(ctx context.Context, source string) (string, error) {
 	if path, ok := localVideoPath(source); ok {
 		if _, err := os.Stat(path); err != nil {
@@ -159,23 +163,40 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		}
 		return path, nil
 	}
-	out, err := run(ctx, t.YTDLP,
+	named := false
+	reader := &ytdlpReader{
+		progress: func(p core.Progress) { reportProgress(ctx, p) },
+		info: func(info Info) {
+			named = named || info.Title != ""
+			reportInfo(ctx, info)
+		},
+	}
+	_, _, err := runFollowing(ctx, false, reader.line, t.YTDLP,
 		"--no-playlist",
 		"-f", "bv*+ba/b",
 		"--merge-output-format", "mp4",
 		"-P", t.OutputDir,
 		"-o", "%(title).80B [%(id)s]/video.%(ext)s",
+		"--print", ytdlpInfoTemplate,
+		"--print", ytdlpFormatsTemplate,
 		"--print", "after_move:filepath",
+		// --print implies --quiet, which hides the progress unless asked for again.
+		"--progress", "--newline",
+		"--progress-template", ytdlpProgressTemplate,
 		"--", source,
 	)
 	if err != nil {
+		if !named && ctx.Err() == nil && t.OEmbed != "" {
+			if info, ok := lookupOEmbed(ctx, t.OEmbed, source); ok {
+				reportInfo(ctx, info)
+			}
+		}
 		return "", err
 	}
-	path := lastLine(out)
-	if path == "" {
+	if reader.path == "" {
 		return "", errors.New("yt-dlp did not report the downloaded file")
 	}
-	return path, nil
+	return reader.path, nil
 }
 
 // localVideoPath reports the disk path of a file:// video the user picked. Other URLs are downloaded.
@@ -203,7 +224,13 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 		return nil, err
 	}
 	transcript := filepath.Join(dir, "transcript")
-	if _, err := run(ctx, t.Whisper, "-m", t.WhisperModel, "-l", "auto", "-np", "-oj", "-of", transcript, "-f", audio); err != nil {
+	// -pp prints how far it has gone on stderr, which -np leaves alone.
+	follow := func(line string) {
+		if f, ok := whisperFraction(line); ok {
+			reportProgress(ctx, core.Fraction(f))
+		}
+	}
+	if _, _, err := runFollowing(ctx, true, follow, t.Whisper, "-m", t.WhisperModel, "-l", "auto", "-np", "-pp", "-oj", "-of", transcript, "-f", audio); err != nil {
 		return nil, err
 	}
 	data, err := os.ReadFile(transcript + ".json")
@@ -217,8 +244,8 @@ func (t Tools) Translate(ctx context.Context, segments []core.Segment, language 
 	return t.Translator.Translate(ctx, segments, language)
 }
 
-func (t Tools) Export(_ context.Context, videoPath string, original, translated []core.Segment) (string, error) {
-	return exportSubtitles(videoPath, original, translated)
+func (t Tools) Export(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error) {
+	return exportSubtitles(ctx, videoPath, original, translated)
 }
 
 // everyAPICredentialVersion is the output version of `everyapi auth credential` this package understands; the CLI bumps it only for incompatible changes.
@@ -266,7 +293,7 @@ func run(ctx context.Context, name string, args ...string) (string, error) {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", ctxErr
 		}
-		return "", fmt.Errorf("%s: %w: %s", filepath.Base(name), err, tail(stderr.String(), 400))
+		return "", fmt.Errorf("%s: %w: %s", filepath.Base(name), err, toolError(stderr.String()))
 	}
 	return stdout.String(), nil
 }

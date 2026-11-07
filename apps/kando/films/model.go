@@ -22,6 +22,9 @@ type Film struct {
 	JobID, VideoPath, SubtitlePath   string
 	// Language is what the job translates into, such as 简体中文; empty for a video no job has processed.
 	Language string
+	// Progress is how far the job has gone in Stage, as its tool reports it. Thumbnail is the address of the picture the video's site gives it, empty until the download has looked the video up.
+	Progress  core.Progress
+	Thumbnail string
 }
 
 func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
@@ -54,6 +57,7 @@ func FromJob(job core.Job, name, detail string) Film {
 		Key: job.ID, Title: Shorten(name, 22), Name: name, Source: job.Source,
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language,
+		Progress: job.Progress, Thumbnail: job.Thumbnail,
 	}
 }
 
@@ -148,7 +152,7 @@ func StageLabel(stage core.Stage) string {
 	case core.StageDownloading:
 		return "下载中"
 	case core.StageTranscribing:
-		return "转录中"
+		return "生成字幕中"
 	case core.StageTranslating:
 		return "翻译中"
 	case core.StageExporting:
@@ -255,7 +259,7 @@ func QueueSummary(items []Film) string {
 // Local reports whether the film's video is a file on this machine rather than a link to download.
 func Local(item Film) bool { return SourceOf(item) == sidebar.SourceLocal }
 
-// Steps is how many stages a film's job goes through and how many of them are behind it: a local video is not downloaded, so it has three (转录, 翻译, 导出) and a link four. A queued job has none behind it; a finished one has them all.
+// Steps is how many stages a film's job goes through and how many of them are behind it: a local video is not downloaded, so it has three (生成字幕, 翻译, 导出) and a link four. A queued job has none behind it; a finished one has them all.
 func Steps(item Film) (total, done int) {
 	stages := []core.Stage{core.StageDownloading, core.StageTranscribing, core.StageTranslating, core.StageExporting}
 	if Local(item) {
@@ -265,6 +269,21 @@ func Steps(item Film) (total, done int) {
 		return len(stages), len(stages)
 	}
 	return len(stages), max(slices.Index(stages, item.Stage), 0)
+}
+
+// StepFills is how much of each of a film's stages is behind it, from 0 to 1, in the order Steps counts them: the stages behind it whole, the one it is in as far as its tool has said, and the ones ahead empty.
+func StepFills(item Film) []float64 {
+	total, done := Steps(item)
+	fills := make([]float64, total)
+	for i := range fills {
+		switch {
+		case i < done:
+			fills[i] = 1
+		case i == done && Running(item) && item.Progress.Known:
+			fills[i] = item.Progress.Fraction
+		}
+	}
+	return fills
 }
 
 // SourceLabel names where a film comes from: YouTube, 哔哩哔哩, the site's name, or 本地文件.

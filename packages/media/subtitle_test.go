@@ -1,6 +1,7 @@
 package media
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -48,7 +49,7 @@ func TestExportSubtitles(t *testing.T) {
 	}
 	translated := []core.Segment{{Text: "你好。"}, {Text: "再见。"}}
 
-	path, err := exportSubtitles(video, original, translated)
+	path, err := exportSubtitles(context.Background(), video, original, translated)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestParseSRTRejectsGarbage(t *testing.T) {
 
 func TestExportSubtitlesRejectsMismatchedLines(t *testing.T) {
 	video := filepath.Join(t.TempDir(), "talk.mp4")
-	if _, err := exportSubtitles(video, []core.Segment{{Text: "a"}}, nil); err == nil {
+	if _, err := exportSubtitles(context.Background(), video, []core.Segment{{Text: "a"}}, nil); err == nil {
 		t.Fatal("expected an error")
 	}
 }

@@ -24,6 +24,7 @@ func (a *app) overlays(c *ui.Context, t, dark *ui.Theme) {
 		cheatsheet.Show(c, dark, &a.overlay.cheatsheet, a.cheatsheetGroups())
 	}
 	onboarding.Show(c, a)
+	a.feedbackOverlay(c, t)
 }
 
 func (a *app) toggleCheatsheet() { a.overlay.cheatsheet = !a.overlay.cheatsheet }

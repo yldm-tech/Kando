@@ -8,7 +8,7 @@ func dropZone(c *ui.Context, t *ui.Theme) {
 		ui.Column(c).AlignItems(ui.Center).Gap(8).Padding(18, 28).Radius(16).Background(t.Background.Alpha(0.92)).Shadow(0, 10, 30, 0, ui.RGBA(10, 60, 140, 0.18)).Children(func() {
 			ui.Icon(c, dropIcon).Size(34, 34).TextColor(t.Accent)
 			ui.Text(c, "松开以添加本地视频").FontSize(15).Bold().TextColor(ui.Hex("#0052B0"))
-			ui.Text(c, "本地文件不下载，直接转录").FontSize(12).TextColor(t.TextMuted)
+			ui.Text(c, "本地文件不用下载，直接生成字幕").FontSize(12).TextColor(t.TextMuted)
 		})
 	})
 }

@@ -115,9 +115,9 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			sub = then(sub, &mygo.MenuItem{Label: "前置全部窗口", Role: mygo.RoleFront})
 			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleWindow, Submenu: sub}
 		case "帮助":
-			// 重新查看入门引导 has no shortcut, so it is an item of the menu alone, after 快捷键速查 as the prototype lists it.
+			// 重新查看入门引导 and the feedback dialog's items have no shortcut, so they are items of the menu alone (state_feedback.go), in the prototype's order: 快捷键速查, 重新查看入门引导, then the feedback items.
 			guide := &mygo.MenuItem{Label: "重新查看入门引导", Disabled: a.holds(false), Click: a.menuClick(false, a.reopenOnboarding)}
-			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: append(items(group), guide)}
+			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: then(append(items(group), guide), a.feedbackMenu()...)}
 		default:
 			if sub := items(group); len(sub) > 0 {
 				menu = &mygo.MenuItem{Label: group, Submenu: sub}
