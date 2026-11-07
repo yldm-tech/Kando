@@ -91,6 +91,37 @@ func TestEventsThatTakeTheFilmAwayCloseIt(t *testing.T) {
 	}
 }
 
+// TestResumePositionFollowsARenamedLibrary checks that a video of a library renamed in Finder still resumes where it stopped, in memory and in library.json.
+func TestResumePositionFollowsARenamedLibrary(t *testing.T) {
+	parent := t.TempDir()
+	dir := filepath.Join(parent, "影视库.kando")
+	video := filepath.Join(dir, "talk", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.openLibrary(path)
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{{ID: "talk", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video, LibraryDir: dir}}
+	a.setResumePositions(map[string]time.Duration{video: 3 * time.Second})
+	a.savePositions()
+	next := filepath.Join(parent, "看过.kando")
+	if err := os.Rename(dir, next); err != nil {
+		t.Fatal(err)
+	}
+	a.renameLibraryPath(dir, next)
+	moved := filepath.Join(next, "talk", "video.mp4")
+	if at := a.ResumeAt(moved); at != 3*time.Second {
+		t.Fatalf("ResumeAt(%s) = %v, positions %v", moved, at, a.resumePositions())
+	}
+	again, _, _ := newTestApp(&fakePipeline{})
+	again.openLibrary(path)
+	if at := again.ResumeAt(moved); at != 3*time.Second {
+		t.Fatalf("ResumeAt on disk = %v", at)
+	}
+}
+
 // TestStartFilmKeepsThePicture checks that 开始处理 on an open library video keeps its picture playing while the page moves to the video's new job.
 func TestStartFilmKeepsThePicture(t *testing.T) {
 	dir := t.TempDir()

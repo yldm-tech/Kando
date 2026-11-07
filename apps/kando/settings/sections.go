@@ -46,6 +46,18 @@ func Known(id string) bool {
 	return false
 }
 
+// Title is the heading of section id, as the settings window's sidebar lists it, or "" for an id that is not a section. The command palette names the sections it opens by it.
+func Title(id string) string { return title(id) }
+
+// IDs are the sections in the order the settings window's sidebar lists them.
+func IDs() []string {
+	out := make([]string, len(sections))
+	for i, s := range sections {
+		out[i] = s.id
+	}
+	return out
+}
+
 // title is the heading of section id.
 func title(id string) string {
 	for _, s := range sections {

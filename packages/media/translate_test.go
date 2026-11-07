@@ -288,3 +288,74 @@ func TestChatTranslatorReportsEachBatchAndRetryWait(t *testing.T) {
 		t.Fatalf("done = %+v", done)
 	}
 }
+
+// TestChatSendsTheConversationAndReturnsTheReply checks that Chat posts the system and user messages to the configured endpoint with its key and model, and returns the model's reply as it wrote it, without the code fence a model may wrap around it.
+func TestChatSendsTheConversationAndReturnsTheReply(t *testing.T) {
+	var seen chatRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/chat/completions" || r.Header.Get("Authorization") != "Bearer secret" {
+			http.Error(w, "unexpected request", http.StatusUnauthorized)
+			return
+		}
+		if err := json.NewDecoder(r.Body).Decode(&seen); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": "```json\n{\"answer\":\"ok\"}\n```"}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	tr := ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "secret", Model: "m1"}
+	got, err := tr.Chat(context.Background(), "be brief", "why?")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != `{"answer":"ok"}` {
+		t.Fatalf("reply %q", got)
+	}
+	want := []chatMessage{{Role: "system", Content: "be brief"}, {Role: "user", Content: "why?"}}
+	if seen.Model != "m1" || !reflect.DeepEqual(seen.Messages, want) {
+		t.Fatalf("request %+v", seen)
+	}
+}
+
+// TestChatRenewsRejectedLogin checks that Chat asks the credential for a new key once after the API rejected the first, as Translate does.
+func TestChatRenewsRejectedLogin(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer fresh" {
+			http.Error(w, "expired", http.StatusUnauthorized)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]string{"role": "assistant", "content": "hi"}}},
+		})
+	}))
+	t.Cleanup(srv.Close)
+	var renewed []bool
+	tr := ChatTranslator{Model: "m1", Credential: func(_ context.Context, renew bool) (Endpoint, error) {
+		renewed = append(renewed, renew)
+		key := "stale"
+		if renew {
+			key = "fresh"
+		}
+		return Endpoint{BaseURL: srv.URL, APIKey: key}, nil
+	}}
+	got, err := tr.Chat(context.Background(), "s", "u")
+	if err != nil || got != "hi" {
+		t.Fatalf("reply %q err %v", got, err)
+	}
+	if !reflect.DeepEqual(renewed, []bool{false, true}) {
+		t.Fatalf("credential asked %v", renewed)
+	}
+}
+
+// TestChatNeedsAModelAndAnEndpoint checks that Chat says what is missing rather than posting nowhere.
+func TestChatNeedsAModelAndAnEndpoint(t *testing.T) {
+	if _, err := (ChatTranslator{BaseURL: "http://127.0.0.1:1"}).Chat(context.Background(), "s", "u"); err == nil {
+		t.Fatal("no error without a model")
+	}
+	if _, err := (ChatTranslator{Model: "m"}).Chat(context.Background(), "s", "u"); err == nil {
+		t.Fatal("no error without a base URL")
+	}
+}

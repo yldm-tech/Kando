@@ -69,11 +69,11 @@ func TestMenuBarListsTheShortcutTable(t *testing.T) {
 
 // TestMenuGroupsTheTableInMenuOrder checks that a group the menu bar does not name gets a menu before 窗口.
 func TestMenuGroupsTheTableInMenuOrder(t *testing.T) {
-	order, rows := grouped([]shortcut{{Group: "帮助"}, {Group: "学习"}, {Group: "播放"}, {Group: "学习"}})
-	if at, win := slices.Index(order, "学习"), slices.Index(order, "窗口"); at < 0 || at != win-1 || slices.Index(order, "显示") > at {
+	order, rows := grouped([]shortcut{{Group: "帮助"}, {Group: "工具"}, {Group: "播放"}, {Group: "工具"}})
+	if at, win := slices.Index(order, "工具"), slices.Index(order, "窗口"); at < 0 || at != win-1 || slices.Index(order, "显示") > at {
 		t.Fatalf("order %q", order)
 	}
-	if len(rows["学习"]) != 2 {
+	if len(rows["工具"]) != 2 {
 		t.Fatalf("rows %v", rows)
 	}
 }
