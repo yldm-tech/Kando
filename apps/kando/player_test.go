@@ -612,6 +612,48 @@ func TestFindFocusesTheSubtitleSearch(t *testing.T) {
 	}
 }
 
+// TestPanelLeavesThePictureAlone checks that the open side panel sits beside the picture rather than over it, so nothing of a film (a screencast's text, say) is hidden under it, and that the picture takes the whole window again once the panel is hidden.
+func TestPanelLeavesThePictureAlone(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	picture, ok := tt.Find("画面")
+	if !ok || !a.player.panel {
+		t.Fatalf("picture %v panel %v: %q", ok, a.player.panel, tt.Texts())
+	}
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
+	tt.Frame()
+	tt.Frame()
+	whole, _ := tt.Find("画面")
+	if a.player.panel || whole.X != 0 || whole.W <= picture.W {
+		t.Fatalf("panel %v: picture %+v, with the panel %+v", a.player.panel, whole, picture)
+	}
+	// The panel is 340 points wide, 16 in from the window's right edge.
+	if under := picture.X + picture.W - (whole.W - 16 - 340); under > 0 {
+		t.Fatalf("with the panel open the picture %+v reaches %v points under it in a %v-point window", picture, under, whole.W)
+	}
+}
+
+// TestTopBarTogglesThePanel checks the button at the title bar's end that folds the side panel away and brings it back, named for what a click does.
+func TestTopBarTogglesThePanel(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	if !a.player.panel {
+		t.Fatalf("panel off on opening")
+	}
+	if err := tt.Click("收起侧栏"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.player.panel || tt.HasText("搜索台词") {
+		t.Fatalf("收起侧栏 left the panel: %q", tt.Texts())
+	}
+	if err := tt.Click("展开侧栏"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if !a.player.panel || !tt.HasText("搜索台词") {
+		t.Fatalf("展开侧栏 did not bring the panel back: %q", tt.Texts())
+	}
+}
+
 // TestPanelShowsWithoutAPicture checks that a film with no picture, here for want of ffmpeg, shows its side panel even when the panel was hidden on the film before, since it has no transport to bring the panel back from.
 func TestPanelShowsWithoutAPicture(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
