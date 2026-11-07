@@ -242,7 +242,7 @@ func colorDistance(a, b ui.Color) int {
 	return max(d(a.R, b.R), d(a.G, b.G), d(a.B, b.B))
 }
 
-// TestSidebarCountFollowsTheSelection checks that a source's count stays readable on its chosen row: in the secondary text color without the focus, and on macOS, once a click gives the sidebar the focus and the row is filled with the accent, near white as its label is (breeze.SidebarItemDetail, as AppKit draws a cell's secondary text there); the count of a row not chosen stays secondary.
+// TestSidebarCountFollowsTheSelection checks that a source's count stays readable on its chosen row. On macOS it is in the secondary text color without the focus, as the other rows' counts are, and once a click gives the sidebar the focus and the row is filled with the accent, near white as its label is (breeze.SidebarItemDetail, as AppKit draws a cell's secondary text there). On Windows and GNOME the focus leaves it as it was; there it is not compared with the other rows' counts, as GNOME dims it by opacity over the chosen row's darker fill. The count of a row not chosen stays as it was.
 func TestSidebarCountFollowsTheSelection(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.SetScale(2)
@@ -254,9 +254,11 @@ func TestSidebarCountFollowsTheSelection(t *testing.T) {
 	if got := sidebarCount(t, tt, "全部影片"); got != "2" {
 		t.Fatalf("全部影片 shows %q, want 2", got)
 	}
+	mac := breeze.Current() == breeze.Mac
 	secondary := sidebarCountInk(t, tt, "YouTube")
-	if got := sidebarCountInk(t, tt, "全部影片"); colorDistance(got, secondary) > 8 {
-		t.Fatalf("the chosen row's count without the focus is %v, the others' %v", got, secondary)
+	unfocused := sidebarCountInk(t, tt, "全部影片")
+	if mac && colorDistance(unfocused, secondary) > 8 {
+		t.Fatalf("the chosen row's count without the focus is %v, the others' %v", unfocused, secondary)
 	}
 	if err := tt.Click("全部影片"); err != nil {
 		t.Fatal(err)
@@ -264,12 +266,12 @@ func TestSidebarCountFollowsTheSelection(t *testing.T) {
 	tt.Move(1000, 700)
 	tt.Frame()
 	got := sidebarCountInk(t, tt, "全部影片")
-	if breeze.Current() == breeze.Mac {
+	if mac {
 		if white := ui.Hex("#FFFFFF"); colorDistance(got, white) > 32 {
 			t.Fatalf("the chosen row's count with the focus is %v, want near %v", got, white)
 		}
-	} else if colorDistance(got, secondary) > 8 {
-		t.Fatalf("the chosen row's count with the focus is %v, want %v as without it", got, secondary)
+	} else if colorDistance(got, unfocused) > 8 {
+		t.Fatalf("the chosen row's count with the focus is %v, want %v as without it", got, unfocused)
 	}
 	if other := sidebarCountInk(t, tt, "YouTube"); colorDistance(other, secondary) > 8 {
 		t.Fatalf("a count of a row not chosen turned %v with the focus, want %v", other, secondary)
