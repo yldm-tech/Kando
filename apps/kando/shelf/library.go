@@ -24,6 +24,8 @@ type Library struct {
 	Jobs []core.Job
 	// Positions is where the video at each path stopped playing last time, so it can resume there.
 	Positions map[string]time.Duration
+	// Furthest is how far the video at each path has ever played. Unlike its resume position it stays once the video was watched to the end, so what has been seen of a film is known for good.
+	Furthest map[string]time.Duration
 }
 
 func DefaultPath() string {
@@ -36,7 +38,7 @@ func DefaultPath() string {
 
 // Load reads the library at path. A missing file is an empty library. A corrupt file is empty too, and the error says why. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -60,6 +62,11 @@ func Load(path string) (Library, error) {
 	for path, seconds := range stored.Positions {
 		if seconds > 0 {
 			lib.Positions[path] = time.Duration(seconds * float64(time.Second))
+		}
+	}
+	for path, seconds := range stored.Furthest {
+		if seconds > 0 {
+			lib.Furthest[path] = time.Duration(seconds * float64(time.Second))
 		}
 	}
 	return lib, nil
@@ -104,6 +111,14 @@ func (l Library) Save() error {
 			stored.Positions[path] = at.Seconds()
 		}
 	}
+	for path, at := range l.Furthest {
+		if at > 0 {
+			if stored.Furthest == nil {
+				stored.Furthest = map[string]float64{}
+			}
+			stored.Furthest[path] = at.Seconds()
+		}
+	}
 	data, err := json.MarshalIndent(stored, "", "  ")
 	if err != nil {
 		return err
@@ -116,10 +131,11 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions are in seconds.
+// storedLibrary is library.json. Positions and Furthest are in seconds.
 type storedLibrary struct {
 	Jobs      []storedJob        `json:"jobs"`
 	Positions map[string]float64 `json:"positions,omitempty"`
+	Furthest  map[string]float64 `json:"furthest,omitempty"`
 }
 
 type storedJob struct {

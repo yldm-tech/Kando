@@ -122,6 +122,30 @@ func TestPositionsRoundTrip(t *testing.T) {
 	}
 }
 
+// TestFurthestRoundTrip checks that how far each video was ever played is kept beside the resume positions, under its own key, and that a video played to the end keeps its furthest point when its resume position is dropped.
+func TestFurthestRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib.Furthest["/v/a.mp4"] = 95*time.Second + 250*time.Millisecond
+	lib.Furthest["/v/zero.mp4"] = 0
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Furthest) != 1 || loaded.Furthest["/v/a.mp4"] != 95*time.Second+250*time.Millisecond {
+		t.Fatalf("furthest %v", loaded.Furthest)
+	}
+	if len(loaded.Positions) != 0 {
+		t.Fatalf("positions %v", loaded.Positions)
+	}
+}
+
 // TestLoadReadsTheOldList checks that library.json written before positions were kept, a bare list of jobs, still loads.
 func TestLoadReadsTheOldList(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
