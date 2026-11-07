@@ -149,8 +149,9 @@ const (
 	// idleAfter is how long the pointer rests while the film plays before the controls fade.
 	idleAfter = 2500 * time.Millisecond
 	// panelWidth is the side panel's, and panelRoom the room the subtitles leave for it.
-	panelWidth = 340
-	panelRoom  = 372
+	panelWidth  = 340
+	panelRoom   = 372
+	panelMotion = 350 * time.Millisecond
 )
 
 // onGlass is the text over the player's glass surfaces, which stay dark over any picture.
@@ -170,17 +171,22 @@ func Show(c *ui.Context, dark *ui.Theme, a App, item films.Film) {
 		target = 1
 	}
 	fade := root.Animate("chrome", target, 350*time.Millisecond)
+	panelTarget := float32(0)
+	if s.panelShown() {
+		panelTarget = panelRoom
+	}
+	panelSpace := root.Animate("film-panel-room", panelTarget, panelMotion)
 	root.Children(func() {
-		s.stage(c, dark, item, shown)
+		s.stage(c, dark, item, shown, panelSpace)
 		s.gradients(c, fade)
-		s.bigPlay(c)
-		s.subtitles(c, shown)
+		s.bigPlay(c, panelSpace)
+		s.subtitles(c, shown, panelSpace)
 		s.osd(c, now)
-		s.uploadCapsule(c, item)
+		s.uploadCapsule(c, item, panelSpace)
 		s.topBar(c, item, fade, shown)
-		s.transport(c, dark, fade, shown)
-		if s.panelShown() {
-			s.panel(c, dark, item)
+		s.transport(c, dark, fade, shown, panelSpace)
+		if panelSpace > 0 || panelTarget > 0 {
+			s.panel(c, dark, item, panelSpace)
 		}
 	})
 }
@@ -204,11 +210,8 @@ func (s screen) chromeShown(c *ui.Context, now time.Time) bool {
 }
 
 // stage is the picture, or what stands for it while it opens or cannot play. A click on it starts or holds the film. The pointer hides over it with the controls. While the side panel shows, the stage is the room left of it, as the subtitles' and the transport's are, so the panel never hides part of the picture, such as a screencast's text.
-func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool) {
-	right := float32(0)
-	if s.panelShown() {
-		right = panelRoom
-	}
+func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool, panelSpace float32) {
+	right := panelSpace
 	stage := ui.Box(c).Absolute().Left(0).Top(0).Right(right).Bottom(0).Role(ui.RoleGroup).Label("画面")
 	if !shown {
 		stage.Cursor(ui.CursorNone)
@@ -276,14 +279,11 @@ func (s screen) togglePlay(c *ui.Context) {
 }
 
 // bigPlay is the round button over a held picture, in the middle of the room the side panel leaves.
-func (s screen) bigPlay(c *ui.Context) {
+func (s screen) bigPlay(c *ui.Context, panelSpace float32) {
 	if s.Play() == nil || s.Play().Playing() {
 		return
 	}
-	right := float32(0)
-	if s.Panel() {
-		right = panelRoom
-	}
+	right := panelSpace
 	ui.Row(c).Absolute().Left(0).Right(right).TopPercent(42).Justify(ui.Center).PassThrough().Children(func() {
 		btn := ui.ButtonBase(c).Size(76, 76).Margin(-38, 0, 0, 0).Radius(38).AlignItems(ui.Center).Justify(ui.Center).Label("播放")
 		glassFace(btn, ui.RGBA(255, 255, 255, 0.18), 20, 0.35, 38)

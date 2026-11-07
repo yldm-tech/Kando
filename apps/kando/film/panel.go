@@ -29,8 +29,20 @@ var (
 )
 
 // panel is the glass side panel floating over the right of the picture: the subtitle list, the 片段 and the film's files under three tabs, or the subtitle style in their place.
-func (s screen) panel(c *ui.Context, t *ui.Theme, item films.Film) {
-	box := ui.Column(c).Absolute().Right(16).Top(62).Bottom(18).Width(panelWidth).Radius(22).Clip().Role(ui.RoleGroup).Label("侧栏")
+func (s screen) panel(c *ui.Context, t *ui.Theme, item films.Film, panelSpace float32) {
+	c.Key("film-side-panel")
+	shown := s.panelShown()
+	alpha := panelSpace / panelRoom
+	if alpha < 0 {
+		alpha = 0
+	}
+	if alpha > 1 {
+		alpha = 1
+	}
+	box := ui.Column(c).Absolute().Right(16).Top(62).Bottom(18).Width(panelWidth).Radius(22).Clip().Role(ui.RoleGroup).Label("侧栏").Translate(panelRoom-panelSpace, 0).Opacity(alpha)
+	if !shown {
+		box.PassThrough()
+	}
 	glassFace(box, ui.RGBA(28, 28, 32, 0.6), 34, 0.2, 22).Shadow(0, 20, 50, 0, ui.RGBA(0, 0, 0, 0.35))
 	box.Children(func() {
 		if s.StyleView() {

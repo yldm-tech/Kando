@@ -463,7 +463,7 @@ func TestOpenFilmClearsTheTitleBar(t *testing.T) {
 	shifts, barred := titleBarShifts(t, ui.TitleBar{Height: 28, Left: 80}, open, "返回资料库")
 	before, _ := plain.Find("返回资料库")
 	after, _ := barred.Find("返回资料库")
-	if before.X >= 80 || after.X < 80 || abs32(shifts[0]) > 0.5 {
+	if before.X >= 80 || after.X < 120 || abs32(shifts[0]) > 0.5 {
 		t.Fatalf("back button at %v without the traffic lights and %v beside them", before, after)
 	}
 	if barred.HasText("全部影片") {
@@ -594,6 +594,7 @@ func TestModeMenuPicksTheMode(t *testing.T) {
 func TestFindFocusesTheSubtitleSearch(t *testing.T) {
 	a, tt, _ := openClip(t, 2)
 	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
+	tt.Advance(400 * time.Millisecond)
 	tt.Frame()
 	if a.player.panel || tt.HasText("搜索台词") {
 		t.Fatalf("⇧⌘T left the panel: %q", tt.Texts())
@@ -620,6 +621,7 @@ func TestPanelLeavesThePictureAlone(t *testing.T) {
 		t.Fatalf("picture %v panel %v: %q", ok, a.player.panel, tt.Texts())
 	}
 	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
+	tt.Advance(400 * time.Millisecond)
 	tt.Frame()
 	tt.Frame()
 	whole, _ := tt.Find("画面")
@@ -632,6 +634,29 @@ func TestPanelLeavesThePictureAlone(t *testing.T) {
 	}
 }
 
+// TestPanelAnimatesIntoThePictureRoom checks that closing the side panel grows
+// the picture room over time instead of jumping straight to its final width.
+func TestPanelAnimatesIntoThePictureRoom(t *testing.T) {
+	_, tt, _ := openClip(t, 2)
+	initial, ok := tt.Find("画面")
+	if !ok {
+		t.Fatal("picture is missing before the toggle")
+	}
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyT)
+	tt.Advance(150 * time.Millisecond)
+	tt.Frame()
+	middle, ok := tt.Find("画面")
+	if !ok || middle.W <= initial.W {
+		t.Fatalf("picture did not grow during panel animation: initial %+v, middle %+v", initial, middle)
+	}
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	final, ok := tt.Find("画面")
+	if !ok || final.W <= middle.W {
+		t.Fatalf("picture did not finish growing after panel animation: middle %+v, final %+v", middle, final)
+	}
+}
+
 // TestTopBarTogglesThePanel checks the button at the title bar's end that folds the side panel away and brings it back, named for what a click does.
 func TestTopBarTogglesThePanel(t *testing.T) {
 	a, tt, _ := openClip(t, 2)
@@ -641,6 +666,7 @@ func TestTopBarTogglesThePanel(t *testing.T) {
 	if err := tt.Click("收起侧栏"); err != nil {
 		t.Fatalf("%v; texts %q", err, tt.Texts())
 	}
+	tt.Advance(400 * time.Millisecond)
 	tt.Frame()
 	if a.player.panel || tt.HasText("搜索台词") {
 		t.Fatalf("收起侧栏 left the panel: %q", tt.Texts())
@@ -648,6 +674,7 @@ func TestTopBarTogglesThePanel(t *testing.T) {
 	if err := tt.Click("展开侧栏"); err != nil {
 		t.Fatalf("%v; texts %q", err, tt.Texts())
 	}
+	tt.Advance(400 * time.Millisecond)
 	tt.Frame()
 	if !a.player.panel || !tt.HasText("搜索台词") {
 		t.Fatalf("展开侧栏 did not bring the panel back: %q", tt.Texts())

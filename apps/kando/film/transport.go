@@ -8,13 +8,13 @@ import (
 )
 
 // transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
-func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool) {
+func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, panelSpace float32) {
 	if s.Play() == nil && s.PlayPath() == "" {
 		return
 	}
 	right := float32(20)
-	if s.Panel() {
-		right = panelRoom + 16
+	if panelSpace > 0 {
+		right = panelSpace + 16
 	}
 	bar := ui.Row(c).Absolute().Left(20).Right(right).Bottom(18).Gap(10).Padding(8, 10, 8, 12).Radius(24).AlignItems(ui.Center).TextColor(onGlass).Opacity(fade)
 	glassFace(bar, ui.RGBA(30, 30, 34, 0.5), 28, 0.22, 24).Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.3))

@@ -25,7 +25,7 @@ type styledLine struct {
 }
 
 // subtitles draws the playing cue over the picture, centered above the transport. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves.
-func (s screen) subtitles(c *ui.Context, chrome bool) {
+func (s screen) subtitles(c *ui.Context, chrome bool, panelSpace float32) {
 	if s.Play() == nil || s.Subs().Key != s.OpenKey() || !s.Subs().Ready || s.SubMode() == SubOff {
 		return
 	}
@@ -38,10 +38,7 @@ func (s screen) subtitles(c *ui.Context, chrome bool) {
 		return
 	}
 	look := s.Cue()
-	right := float32(0)
-	if s.Panel() {
-		right = panelRoom
-	}
+	right := panelSpace
 	width, _ := c.Size()
 	layer := ui.Column(c).Absolute().Left(0).Right(right).Padding(0, (width-right)*0.05).Gap(4).AlignItems(ui.Center).PassThrough()
 	yield := chrome && s.YieldSubs()
