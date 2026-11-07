@@ -13,7 +13,7 @@ import (
 )
 
 // menuOrder is the order of the menu bar's menus. A shortcut's Group names the menu it is listed in, so the menu bar, the cheat sheet and wireKeys read the same table. A group not named here gets a menu of its own before 窗口.
-var menuOrder = []string{"看懂", "文件", "编辑", "播放", "字幕", "显示", "窗口", "帮助"}
+var menuOrder = []string{"看懂", "文件", "编辑", "播放", "字幕", "显示", "学习", "窗口", "帮助"}
 
 // rememberFilm keeps the film the window shows, for 窗口 › 播放器 to go back to after the window went to another page. menuHooks.afterFrame calls it every frame, after the pages have opened or closed a film.
 func (a *app) rememberFilm() {

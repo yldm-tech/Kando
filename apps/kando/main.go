@@ -39,6 +39,7 @@ type app struct {
 	overlay  overlayUI  // state_overlay.go
 	menu     menuUI     // state_menu.go
 	feedback feedbackUI // state_feedback.go
+	palette  paletteUI  // state_palette.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -55,6 +56,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		overlay:  newOverlayUI(),
 		menu:     newMenuUI(),
 		feedback: newFeedbackUI(),
+		palette:  newPaletteUI(),
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 	"path/filepath"
 	"time"
@@ -24,6 +25,8 @@ type Library struct {
 	Jobs []core.Job
 	// Positions is where the video at each path stopped playing last time, so it can resume there.
 	Positions map[string]time.Duration
+	// Furthest is how far the video at each path has ever played. Unlike its resume position it stays once the video was watched to the end, so what has been seen of a film is known for good.
+	Furthest map[string]time.Duration
 }
 
 func DefaultPath() string {
@@ -36,7 +39,7 @@ func DefaultPath() string {
 
 // Load reads the library at path. A missing file is an empty library. A corrupt file is empty too, and the error says why. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -62,6 +65,11 @@ func Load(path string) (Library, error) {
 			lib.Positions[path] = time.Duration(seconds * float64(time.Second))
 		}
 	}
+	for path, seconds := range stored.Furthest {
+		if seconds > 0 {
+			lib.Furthest[path] = time.Duration(seconds * float64(time.Second))
+		}
+	}
 	return lib, nil
 }
 
@@ -84,6 +92,26 @@ func (l *Library) Find(id string) (core.Job, bool) {
 	return core.Job{}, false
 }
 
+// MoveVideos keys the resume positions and furthest points by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
+func (l *Library) MoveVideos(move func(path string) (string, bool)) bool {
+	positions := MoveKeys(l.Positions, move)
+	furthest := MoveKeys(l.Furthest, move)
+	return positions || furthest
+}
+
+// MoveKeys keys what m holds for each video that moved, by path, under the new path move gives for it. It reports whether any moved.
+func MoveKeys(m map[string]time.Duration, move func(path string) (string, bool)) bool {
+	moved := map[string]time.Duration{}
+	for path, at := range m {
+		if next, ok := move(path); ok && next != path {
+			moved[next] = at
+			delete(m, path)
+		}
+	}
+	maps.Copy(m, moved)
+	return len(moved) > 0
+}
+
 // Save writes the library atomically. An empty path keeps the library in memory, which tests use.
 func (l Library) Save() error {
 	if l.path == "" {
@@ -104,6 +132,14 @@ func (l Library) Save() error {
 			stored.Positions[path] = at.Seconds()
 		}
 	}
+	for path, at := range l.Furthest {
+		if at > 0 {
+			if stored.Furthest == nil {
+				stored.Furthest = map[string]float64{}
+			}
+			stored.Furthest[path] = at.Seconds()
+		}
+	}
 	data, err := json.MarshalIndent(stored, "", "  ")
 	if err != nil {
 		return err
@@ -116,10 +152,11 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions are in seconds.
+// storedLibrary is library.json. Positions and Furthest are in seconds.
 type storedLibrary struct {
 	Jobs      []storedJob        `json:"jobs"`
 	Positions map[string]float64 `json:"positions,omitempty"`
+	Furthest  map[string]float64 `json:"furthest,omitempty"`
 }
 
 type storedJob struct {

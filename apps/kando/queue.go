@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
 )
@@ -49,7 +50,7 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one.
+// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		leavingLibrary: func() { a.queue.stopActive(core.ErrLibrarySwitched) },
@@ -61,6 +62,7 @@ func (a *app) queueHooks() areaHooks {
 		libraryChanged:   a.pump,
 		shelfLoaded:      func() { a.setResumePositions(maps.Clone(a.library.Positions)) },
 		positionsChanged: a.savePositions,
+		videosMoved:      func(move func(string) (string, bool)) { shelf.MoveKeys(a.resumePositions(), move) },
 	}
 }
 

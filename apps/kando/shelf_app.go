@@ -221,8 +221,9 @@ func (a *app) adoptRenamedLibrary(next string) {
 	}
 }
 
+// retargetLibraryPrefix points the jobs, and what is kept by video path, at the paths under newRoot of their files under oldRoot.
 func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
-	changed := false
+	changed := a.moveVideos(func(path string) (string, bool) { return replacePathPrefix(oldRoot, newRoot, path) })
 	for i, job := range a.library.Jobs {
 		if job.LibraryDir != "" && filepath.Clean(job.LibraryDir) == filepath.Clean(oldRoot) {
 			a.library.Jobs[i].LibraryDir = newRoot
@@ -603,12 +604,15 @@ func (a *app) retargetRenamed() bool {
 	return a.retargetLibrary(media.RetargetRenamed(root, missing, live))
 }
 
-// retargetLibrary points jobs at files GatherVideos moved into per-video folders.
+// retargetLibrary points jobs, and what is kept by video path, at files GatherVideos moved into per-video folders or RetargetRenamed paired.
 func (a *app) retargetLibrary(moved map[string]string) bool {
 	if len(moved) == 0 {
 		return false
 	}
-	changed := false
+	changed := a.moveVideos(func(path string) (string, bool) {
+		next, ok := moved[path]
+		return next, ok
+	})
 	for i, job := range a.library.Jobs {
 		if next, ok := moved[job.VideoPath]; ok {
 			a.library.Jobs[i].VideoPath = next
@@ -644,11 +648,14 @@ func (a *app) dropMissing() bool {
 	return changed
 }
 
+// relocateMissing points jobs whose files are gone at the same folder and file names found elsewhere in the library, and what is kept by the videos' paths with them.
 func (a *app) relocateMissing() bool {
 	changed := false
+	moved := map[string]string{}
 	for i, job := range a.library.Jobs {
 		root := a.snap().LibraryDir
 		if next, ok := media.Relocate(root, job.VideoPath); ok {
+			moved[job.VideoPath] = next
 			a.library.Jobs[i].VideoPath = next
 			changed = true
 		}
@@ -657,7 +664,19 @@ func (a *app) relocateMissing() bool {
 			changed = true
 		}
 	}
+	if len(moved) > 0 {
+		a.moveVideos(func(path string) (string, bool) {
+			next, ok := moved[path]
+			return next, ok
+		})
+	}
 	return changed
+}
+
+// moveVideos keys what library.json and the areas keep by video path by the new paths move gives, after videos moved on disk. It reports whether library.json changed, for the caller to save it.
+func (a *app) moveVideos(move func(path string) (string, bool)) bool {
+	a.areasVideosMoved(move)
+	return a.library.MoveVideos(move)
 }
 
 func cleanLibraries(dirs []string) []string {

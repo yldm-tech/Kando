@@ -122,6 +122,56 @@ func TestPositionsRoundTrip(t *testing.T) {
 	}
 }
 
+// TestFurthestRoundTrip checks that how far each video was ever played is kept beside the resume positions, under its own key, and that a video played to the end keeps its furthest point when its resume position is dropped.
+func TestFurthestRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib.Furthest["/v/a.mp4"] = 95*time.Second + 250*time.Millisecond
+	lib.Furthest["/v/zero.mp4"] = 0
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Furthest) != 1 || loaded.Furthest["/v/a.mp4"] != 95*time.Second+250*time.Millisecond {
+		t.Fatalf("furthest %v", loaded.Furthest)
+	}
+	if len(loaded.Positions) != 0 {
+		t.Fatalf("positions %v", loaded.Positions)
+	}
+}
+
+// TestMoveVideosKeysByTheNewPath checks that when videos moved on disk, their resume positions and furthest points are kept under their new paths, those of videos that did not move stay, and MoveVideos says whether anything moved.
+func TestMoveVideosKeysByTheNewPath(t *testing.T) {
+	lib := Library{
+		Positions: map[string]time.Duration{"/old/a.mp4": 5 * time.Second, "/other/b.mp4": 7 * time.Second},
+		Furthest:  map[string]time.Duration{"/old/a.mp4": 40 * time.Second, "/other/b.mp4": 9 * time.Second},
+	}
+	move := func(path string) (string, bool) {
+		if rest, ok := strings.CutPrefix(path, "/old/"); ok {
+			return "/new/" + rest, true
+		}
+		return "", false
+	}
+	if !lib.MoveVideos(move) {
+		t.Fatal("MoveVideos said nothing moved")
+	}
+	if len(lib.Positions) != 2 || lib.Positions["/new/a.mp4"] != 5*time.Second || lib.Positions["/other/b.mp4"] != 7*time.Second {
+		t.Fatalf("positions %v", lib.Positions)
+	}
+	if len(lib.Furthest) != 2 || lib.Furthest["/new/a.mp4"] != 40*time.Second || lib.Furthest["/other/b.mp4"] != 9*time.Second {
+		t.Fatalf("furthest %v", lib.Furthest)
+	}
+	if lib.MoveVideos(func(string) (string, bool) { return "", false }) {
+		t.Fatal("MoveVideos said something moved when nothing did")
+	}
+}
+
 // TestLoadReadsTheOldList checks that library.json written before positions were kept, a bare list of jobs, still loads.
 func TestLoadReadsTheOldList(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
