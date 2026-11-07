@@ -19,6 +19,10 @@ type libraryUI struct {
 	posters    map[string]ui.ImageSource
 	posterMiss map[string]bool
 	posterBusy map[string]bool
+	// thumbs are the pictures the videos' sites give them, by address, for the processing cards; thumbMiss the addresses that gave none and thumbBusy those being fetched. They are kept in posterDir too.
+	thumbs    map[string]ui.ImageSource
+	thumbMiss map[string]bool
+	thumbBusy map[string]bool
 	// notice is the message bar under the top bar.
 	notice films.Notice
 	// queueOpen shows every card of 处理中 rather than the first films.QueueShown.
@@ -89,7 +93,7 @@ func (a *app) tell(text string) {
 	a.lib.notice = films.Notice{Kind: "success", Text: text, Open: true}
 }
 
-// loadExtras reads what the shelf shows of its films beyond the session: each poster and the video's length, off the UI thread, and the hero's first bilingual line. The shelf calls it when its films change, so the page only reads what it has; nothing is read twice.
+// loadExtras reads what the shelf shows of its films beyond the session: each poster and the video's length, and the site's picture of each processing film, off the UI thread, and the hero's first bilingual line. The shelf calls it when its films change, so the page only reads what it has; nothing is read twice.
 func (a *app) loadExtras() {
 	if a.lib.holdExtras {
 		return
@@ -97,6 +101,9 @@ func (a *app) loadExtras() {
 	items := a.films()
 	for _, item := range items {
 		a.ensurePoster(item.VideoPath)
+		if films.InQueue(item) {
+			a.ensureThumbnail(item)
+		}
 	}
 	if hero, ok := films.HeroFilm(items); ok {
 		a.loadQuote(hero.SubtitlePath)

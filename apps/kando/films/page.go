@@ -37,6 +37,8 @@ type App interface {
 	// DropFiles adds the videos among files dropped on the page to the queue.
 	DropFiles(paths []string)
 	Poster(path string) ui.ImageSource
+	// Thumbnail is the picture the film's site gives it, once it has been fetched, or nil.
+	Thumbnail(item Film) ui.ImageSource
 	// Duration is how long the video at path plays, 0 until it is known.
 	Duration(path string) time.Duration
 	// Quote is the first bilingual line of a film's subtitles, for the hero: the translation and the original. Both are empty until the subtitles have been read.

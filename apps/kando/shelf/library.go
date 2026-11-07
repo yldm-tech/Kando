@@ -127,6 +127,8 @@ type storedJob struct {
 	Source       string     `json:"source"`
 	Language     string     `json:"language,omitempty"`
 	Stage        core.Stage `json:"stage"`
+	Title        string     `json:"title,omitempty"`
+	Thumbnail    string     `json:"thumbnail,omitempty"`
 	VideoPath    string     `json:"videoPath,omitempty"`
 	SubtitlePath string     `json:"subtitlePath,omitempty"`
 	LibraryDir   string     `json:"libraryDir,omitempty"`
@@ -137,6 +139,7 @@ type storedJob struct {
 func storeJob(job core.Job) storedJob {
 	stored := storedJob{
 		ID: job.ID, Source: job.Source, Language: job.Language, Stage: job.Stage,
+		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
 		CompletedAt: job.CompletedAt,
 	}
@@ -154,6 +157,7 @@ func storeJob(job core.Job) storedJob {
 func (s storedJob) job() core.Job {
 	job := core.Job{
 		ID: s.ID, Source: s.Source, Language: s.Language, Stage: s.Stage,
+		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
 		CompletedAt: s.CompletedAt,
 	}

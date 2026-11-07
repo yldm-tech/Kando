@@ -2,11 +2,16 @@ package media
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+
+	"kando/packages/core"
 )
 
 func TestToolsCheckListsEveryProblem(t *testing.T) {
@@ -201,5 +206,72 @@ func TestLastLineAndTail(t *testing.T) {
 	}
 	if got := tail(" short ", 10); got != "short" {
 		t.Fatalf("tail = %q", got)
+	}
+}
+
+// fakeYTDLP writes a yt-dlp that prints the captured stdout and stderr of a real run, then exits with code.
+func fakeYTDLP(t *testing.T, stdout, stderr string, code int) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "yt-dlp")
+	script := "#!/bin/sh\ncat " + shellQuote(stdout) + "\ncat " + shellQuote(stderr) + " >&2\nexit " + strconv.Itoa(code) + "\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func shellQuote(path string) string {
+	if path == "" {
+		return "/dev/null"
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		panic(err)
+	}
+	return "'" + strings.ReplaceAll(abs, "'", `'\''`) + "'"
+}
+
+func TestDownloadFollowsTheRealOutput(t *testing.T) {
+	tools := Tools{YTDLP: fakeYTDLP(t, "testdata/ytdlp/download-youtube.stdout", "", 0), OutputDir: t.TempDir()}
+	var steps []core.Progress
+	var info Info
+	ctx := WithTrace(context.Background(), &Trace{Progress: func(p core.Progress) { steps = append(steps, p) }, Info: func(i Info) { info = i }})
+	path, err := tools.Download(ctx, "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "/library/Me at the zoo [jNQXAC9IVRw]/video.mp4" || info.Title != "Me at the zoo" || len(steps) == 0 || steps[len(steps)-1].Fraction != 1 {
+		t.Fatalf("path %q, info %+v, %d steps", path, info, len(steps))
+	}
+}
+
+func TestDownloadNamesAFailedYouTubeVideoFromOEmbed(t *testing.T) {
+	var asked string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = r.URL.Query().Get("url")
+		w.Write([]byte(`{"title":"Me at the zoo","thumbnail_url":"https://i.ytimg.com/vi/jNQXAC9IVRw/hqdefault.jpg"}`))
+	}))
+	t.Cleanup(srv.Close)
+	tools := Tools{YTDLP: fakeYTDLP(t, "", "testdata/ytdlp/errors/outdated-youtube.stderr", 1), OutputDir: t.TempDir(), OEmbed: srv.URL}
+	var info Info
+	ctx := WithTrace(context.Background(), &Trace{Info: func(i Info) { info = i }})
+	_, err := tools.Download(ctx, "https://youtu.be/jNQXAC9IVRw")
+	if err == nil || !strings.Contains(err.Error(), "No video formats found") {
+		t.Fatalf("err = %v", err)
+	}
+	if asked != "https://www.youtube.com/watch?v=jNQXAC9IVRw" || info.Title != "Me at the zoo" || info.Thumbnail == "" {
+		t.Fatalf("asked %q, info %+v", asked, info)
+	}
+}
+
+func TestDownloadDoesNotAskOEmbedForOtherSites(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("asked oEmbed for %s", r.URL)
+	}))
+	t.Cleanup(srv.Close)
+	tools := Tools{YTDLP: fakeYTDLP(t, "", "testdata/ytdlp/errors/unsupported.stderr", 1), OutputDir: t.TempDir(), OEmbed: srv.URL}
+	if _, err := tools.Download(context.Background(), "https://example.com/"); err == nil {
+		t.Fatal("expected an error")
 	}
 }
