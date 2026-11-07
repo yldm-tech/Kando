@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"kando/apps/kando/film"
@@ -87,7 +88,7 @@ func TestLookSettingsChangeThePlayer(t *testing.T) {
 	}
 }
 
-// TestShortcutsPageListsTheTable checks that the 快捷键 page lists the app's shortcut table and filters it by its search field.
+// TestShortcutsPageListsTheTable checks that the 快捷键 page lists the app's shortcut table, with its keys as the platform writes them (⌘ on macOS, Ctrl elsewhere), and filters it by its search field.
 func TestShortcutsPageListsTheTable(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	tt := newSettingsTester(a, settings.SectionShortcuts)
@@ -96,7 +97,11 @@ func TestShortcutsPageListsTheTable(t *testing.T) {
 			t.Fatalf("missing %q in %q", s.Label, tt.Texts())
 		}
 	}
-	if !tt.HasText("⌘,") || !tt.HasText("⌘/") {
+	settingsKey, cheatsheetKey := "Ctrl+,", "Ctrl+/"
+	if runtime.GOOS == "darwin" {
+		settingsKey, cheatsheetKey = "⌘,", "⌘/"
+	}
+	if !tt.HasText(settingsKey) || !tt.HasText(cheatsheetKey) {
 		t.Fatalf("keys are missing: %q", tt.Texts())
 	}
 	if err := tt.Click("搜索命令或按键"); err != nil {

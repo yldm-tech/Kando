@@ -1,0 +1,37 @@
+# The labels actions/labeler gives a pull request from the files it changes (the Labels workflow).
+"area: app":
+  - changed-files:
+      - any-glob-to-any-file: [apps/kando/*, apps/kando/brand/**, apps/kando/resources/**, apps/kando/testdata/**]
+"area: ui":
+  - changed-files:
+      - any-glob-to-any-file: [apps/kando/sidebar/**, apps/kando/films/**, apps/kando/film/**, apps/kando/settings/**, apps/kando/account/**, apps/kando/cheatsheet/**]
+"area: cloud":
+  - changed-files:
+      - any-glob-to-any-file: apps/kando/cloud/**
+"area: shelf":
+  - changed-files:
+      - any-glob-to-any-file: apps/kando/shelf/**
+"area: i18n":
+  - changed-files:
+      - any-glob-to-any-file: apps/kando/locales/**
+"area: core":
+  - changed-files:
+      - any-glob-to-any-file: packages/core/**
+"area: media":
+  - changed-files:
+      - any-glob-to-any-file: packages/media/**
+"area: tools":
+  - changed-files:
+      - any-glob-to-any-file: tools/**
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file: ["**/*.md", .cursor/**, .agents/**]
+"area: ci":
+  - changed-files:
+      - any-glob-to-any-file: .github/**
+"area: dependencies":
+  - changed-files:
+      - any-glob-to-any-file: ["**/go.mod", "**/go.sum", go.work, go.work.sum]
+"platform: macos":
+  - changed-files:
+      - any-glob-to-any-file: "**/*_darwin*.go"

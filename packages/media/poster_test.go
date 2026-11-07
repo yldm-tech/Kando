@@ -12,12 +12,12 @@ import (
 func TestGrabPoster(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
 	if _, err := run(context.Background(), ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=0x3a2c1e:s=160x90:d=1", "-frames:v", "1", video); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v", err)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v", err)
 	}
 	dest := filepath.Join(dir, "poster.jpg")
 	if err := GrabPoster(context.Background(), ffmpeg, video, dest); err != nil {
@@ -35,7 +35,7 @@ func TestGrabPoster(t *testing.T) {
 func TestGrabPosterSkipsABlackIntro(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
@@ -45,7 +45,7 @@ func TestGrabPosterSkipsABlackIntro(t *testing.T) {
 		"-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0",
 		"-c:v", "mpeg4", "-pix_fmt", "yuv420p", video,
 	); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v", err)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v", err)
 	}
 	dest := filepath.Join(dir, "poster.jpg")
 	if err := GrabPoster(context.Background(), ffmpeg, video, dest); err != nil {

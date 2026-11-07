@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"slices"
 	"testing"
 
@@ -163,7 +164,7 @@ func TestMenuWaitsBehindTheCheatsheet(t *testing.T) {
 	}
 }
 
-// TestMenuKeepsMygosDefaultCommands checks that the menu bar keeps what the one mygo installs for an app without its own has beyond the table: ⌃⌘F full screen on every page, not only with a film open, and the Edit menu's 粘贴并匹配样式 and 语音.
+// TestMenuKeepsMygosDefaultCommands checks that the menu bar keeps what the one mygo installs for an app without its own has beyond the table: full screen on every page, not only with a film open, with mygo's key for it (⌃⌘F on macOS, F11 elsewhere), and the Edit menu's 粘贴并匹配样式 and 语音.
 func TestMenuKeepsMygosDefaultCommands(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.Frame()
@@ -188,7 +189,11 @@ func TestMenuKeepsMygosDefaultCommands(t *testing.T) {
 	if full == nil || full.Disabled {
 		t.Fatalf("显示 has no enabled full screen item without a film: %+v", full)
 	}
-	if full.Accelerator != "Ctrl+Cmd+F" {
+	want := "F11"
+	if runtime.GOOS == "darwin" {
+		want = "Ctrl+Cmd+F"
+	}
+	if full.Accelerator != want {
 		t.Fatalf("full screen accelerator %q", full.Accelerator)
 	}
 	for _, m := range menu.Items() {

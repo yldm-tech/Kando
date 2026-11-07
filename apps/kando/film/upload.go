@@ -23,7 +23,12 @@ func (s screen) uploadCapsule(c *ui.Context, item films.Film) {
 	if !view.Show || view.Detail == "" || (!*note && view.Status != UploadBusy) {
 		return
 	}
-	ui.Row(c).Absolute().Left(0).Right(0).Top(64).Justify(ui.Center).PassThrough().Children(func() {
+	// It is centered in the room the side panel leaves, as the big play button is: over the whole width, a wide capsule in a narrow window reached under the panel, which hid its close button.
+	right := float32(0)
+	if s.panelShown() {
+		right = panelRoom
+	}
+	ui.Row(c).Absolute().Left(0).Right(right).Top(64).Justify(ui.Center).PassThrough().Children(func() {
 		capsule := ui.Row(c).MaxWidthPercent(70).Wrap().Gap(10).Padding(8, 8, 8, 16).Radius(18).AlignItems(ui.Center).TextColor(onGlass).Role(ui.RoleStatus)
 		glassFace(capsule, ui.RGBA(30, 30, 34, 0.72), 24, 0.2, 18).Children(func() {
 			dot, ok := uploadDots[view.Status]

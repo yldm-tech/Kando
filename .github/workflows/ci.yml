@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The repository root is a Go workspace (go.work), not a module, so ./... matches nothing there: the jobs list the three modules.
+env:
+  PKGS: ./apps/kando/... ./packages/core/... ./packages/media/...
+
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ffmpeg: the rows that install ffmpeg set KANDO_REQUIRE_FFMPEG, which fails the tests that need it rather than letting them skip.
+          - { name: Linux, os: ubuntu-latest, ffmpeg: "1" }
+          - { name: macOS, os: macos-latest, ffmpeg: "1" }
+          # Windows runs only the packages that pass there. The others fail on bugs of the app's own, such as local videos, whose file:// sources are built from Windows paths that core.NewJob rejects, and on tests that assume Unix file modes and paths (#6); Release holds the Windows installers back until they pass. Run all three modules here once #6 is fixed.
+          - { name: Windows, os: windows-latest, pkgs: "./packages/core/... ./apps/kando/cloud/... ./apps/kando/film/... ./apps/kando/films/... ./apps/kando/settings/..." }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      # Each job that builds keeps a Go cache of its own. setup-go's cache has one key for every job, so the first job to finish (Lint, which builds next to nothing) saved it, and every other job rebuilt from scratch on every run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+            ~/AppData/Local/go-build
+          key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-
+      # MyGo's tester renders native UI in memory, with no window or display, but on Linux it lays out text with Pango and Cairo, which it loads at run time: without them text does not show and the tests that find elements by their text fail. The CJK fonts draw the app's Chinese. ffmpeg runs in the tests of frames, posters, key frames and the player, which fail without it where the row sets KANDO_REQUIRE_FFMPEG.
+      - name: Install Pango, fonts and ffmpeg
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 libcairo2 libharfbuzz0b libfontconfig1 fonts-noto-cjk ffmpeg
+      - name: Install ffmpeg
+        if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install ffmpeg
+      - name: Test
+        shell: bash
+        env:
+          KANDO_REQUIRE_FFMPEG: ${{ matrix.ffmpeg }}
+          TEST_PKGS: ${{ matrix.pkgs || env.PKGS }}
+        run: go test $TEST_PKGS
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No Go cache: this job builds little, and the cache storage is left to the jobs that build (see the Test job).
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: go mod tidy
+        run: |
+          for module in apps/kando packages/core packages/media; do
+            (cd "$module" && go mod tidy)
+          done
+          git diff --exit-code -- '*go.mod' '*go.sum'
+      # A merge or rebase resolved by hand can leave its markers behind in a file that still builds, such as a Markdown or JSON file.
+      - name: Conflict markers
+        run: |
+          if git grep -nE '^(<<<<<<<|>>>>>>>)( |$)|^\|\|\|\|\|\|\| '; then
+            echo "::error::Conflict markers are left in the files above."
+            exit 1
+          fi
+      - name: shellcheck
+        run: shellcheck .github/scripts/*.sh tools/mygo-dev/dev.sh
+
+  cross:
+    name: Build (${{ matrix.goos }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, darwin, windows]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-
+      # go vet compiles the tests too, such as the macOS-only audio_darwin_test.go.
+      - name: Build and vet
+        env:
+          GOOS: ${{ matrix.goos }}
+        run: |
+          for arch in amd64 arm64; do
+            GOARCH=$arch go build $PKGS
+            GOARCH=$arch go vet $PKGS
+          done
+
+  vulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No Go cache: this job builds little, and the cache storage is left to the jobs that build (see the Test job).
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      # govulncheck needs a module, so it runs in each one; the workspace still resolves the modules' replaced packages.
+      - run: |
+          for module in apps/kando packages/core packages/media; do
+            echo "::group::$module"
+            govulncheck -C "$module" ./...
+            echo "::endgroup::"
+          done
+
+  # make dev builds MyGo's CLI patched by tools/mygo-dev (dev.sh), and falls back to the stock CLI when the patch no longer applies; this does what dev.sh's build does, and fails instead, so that a MyGo upgrade the patch does not fit shows here.
+  mygo-dev:
+    name: mygo-dev patch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # No Go cache: this job builds little, and the cache storage is left to the jobs that build (see the Test job).
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      - name: Patch and build the CLI
+        run: |
+          here=$PWD/tools/mygo-dev
+          work=$RUNNER_TEMP/mygo-dev
+          # go list names the module's directory only once it is in the module cache, which a fresh runner's is not.
+          go mod download github.com/egoist/mygo
+          src=$(go list -m -f '{{.Dir}}' github.com/egoist/mygo)
+          test -n "$src"
+          cp -R "$src" "$work"
+          chmod -R u+w "$work"
+          patch --forward --no-backup-if-mismatch "$work/cmd/mygo/dev.go" "$here/dev.go.patch"
+          cp "$here/overlap.go" "$work/cmd/mygo/kando_overlap.go"
+          cp "$here/overlap_darwin.go" "$work/cmd/mygo/kando_overlap_darwin.go"
+          cp "$here/overlap_other.go" "$work/cmd/mygo/kando_overlap_other.go"
+          cd "$work"
+          for goos in darwin linux windows; do
+            GOWORK=off GOOS=$goos go build -o /dev/null ./cmd/mygo
+          done
+
+  # The packages Release builds, from the same workflow, so that a change that breaks one shows on its pull request.
+  package:
+    name: Package
+    uses: ./.github/workflows/package.yml

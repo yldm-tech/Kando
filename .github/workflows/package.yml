@@ -1,0 +1,110 @@
+name: Package
+
+# Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's packages, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>. CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the packages to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
+#
+# The packages are not signed for other machines: the macOS app is signed ad hoc, which Gatekeeper blocks until the user allows it, and the Windows installers carry no signature, for which SmartScreen warns. Signing them needs a Developer ID certificate and notary credentials, and a code signing certificate, as repository secrets (see MyGo's docs/github-actions.md).
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag to build the packages of, which must match the version in mygo.json; empty builds the checked-out commit
+        type: string
+        default: ""
+
+jobs:
+  build:
+    name: Package (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    # mygo build runs MyGo's code and the tools it calls, so the job holds a read-only token and keeps no git credentials; Release uploads the packages from a job of its own.
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # packages: what each target must make, so that a package mygo build leaves out (as it does the Windows installer without NSIS) fails the row rather than going missing from the release. script: the install script of the Linux archives, the same for both architectures, so uploaded once.
+          - { name: macOS, os: macos-latest, platform: "darwin/arm64,darwin/amd64", packages: "*.dmg" }
+          - { name: Windows, os: ubuntu-latest, platform: "windows/amd64,windows/arm64", packages: "*-setup-*.exe" }
+          - { name: Linux, os: ubuntu-latest, platform: "linux/amd64,linux/arm64", packages: "*.deb *.tar.gz", script: linux-amd64/install.sh }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      # A tag that does not match the version in mygo.json would upload packages named for another version.
+      - name: Check the version
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: test "$TAG" = "v$(jq -r .version apps/kando/mygo.json)"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      # A Go cache of each platform's own, as CI's jobs keep (see ci.yml).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+            ~/Library/Caches/go-build
+          key: go-${{ runner.os }}-package-${{ matrix.name }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-package-${{ matrix.name }}-
+      - name: Install NSIS, for the Windows installers
+        if: matrix.name == 'Windows'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
+      - name: Build
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: go tool mygo build -platform "$PLATFORM" -o "$RUNNER_TEMP/packages" apps/kando
+      # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures. They are copied into one folder, as a release holds its files side by side, with their SHA-256 taken here from the files mygo build made.
+      - name: Collect the packages
+        env:
+          NAME: ${{ matrix.name }}
+          PLATFORM: ${{ matrix.platform }}
+          PACKAGES: ${{ matrix.packages }}
+          SCRIPT: ${{ matrix.script }}
+        run: |
+          cd "$RUNNER_TEMP/packages"
+          shopt -s nullglob
+          read -ra patterns <<<"$PACKAGES"
+          files=()
+          for target in ${PLATFORM//,/ }; do
+            dir=${target/\//-}
+            for pattern in "${patterns[@]}"; do
+              found=("$dir"/$pattern)
+              if [ "${#found[@]}" -ne 1 ]; then
+                echo "::error::mygo build made ${#found[@]} files matching $dir/$pattern, not one"
+                exit 1
+              fi
+              files+=("${found[0]}")
+            done
+          done
+          if [ -n "$SCRIPT" ]; then
+            if [ ! -f "$SCRIPT" ]; then
+              echo "::error::mygo build made no $SCRIPT"
+              exit 1
+            fi
+            files+=("$SCRIPT")
+          fi
+          out=$RUNNER_TEMP/out
+          mkdir "$out"
+          for file in "${files[@]}"; do
+            if [ -e "$out/${file##*/}" ]; then
+              echo "::error::mygo build made two packages named ${file##*/}"
+              exit 1
+            fi
+            cp "$file" "$out/"
+          done
+          cd "$out"
+          shasum -a 256 -- * > "$RUNNER_TEMP/checksums-$NAME.txt"
+          mv "$RUNNER_TEMP/checksums-$NAME.txt" .
+          cat "checksums-$NAME.txt"
+      - name: Keep the packages
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kando-${{ matrix.name }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 7
+          if-no-files-found: error

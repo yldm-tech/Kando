@@ -17,17 +17,26 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// skipWithoutFFmpeg skips a test that needs ffmpeg when ffmpeg is missing or cannot make its clip. CI sets KANDO_REQUIRE_FFMPEG where it installs ffmpeg, and there the test fails instead, so that it cannot pass by skipping.
+func skipWithoutFFmpeg(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("KANDO_REQUIRE_FFMPEG") != "" {
+		t.Fatalf(format, args...)
+	}
+	t.Skipf(format, args...)
+}
+
 // openClip opens a black clip of the given seconds from the library and waits until its picture is loaded.
 func openClip(t *testing.T, seconds int) (*app, *ui.Tester, chan func()) {
 	t.Helper()
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
-		t.Skip("ffmpeg is not installed")
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
 	}
 	dir := t.TempDir()
 	video := filepath.Join(dir, "clip.mp4")
 	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d="+strconv.Itoa(seconds)+":r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
-		t.Skipf("ffmpeg could not make a clip: %v %s", err, out)
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })

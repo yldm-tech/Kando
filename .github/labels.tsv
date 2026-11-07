@@ -1,0 +1,30 @@
+# The labels the workflows give: name, color and description, separated by tabs. ensure-labels.sh creates those missing; it leaves existing ones as they are.
+feature	1d76db	A new feature (feat)
+bug	d73a4a	Something is fixed (fix)
+breaking	b60205	A breaking change (a type ending in !)
+performance	fbca04	Faster or lighter (perf)
+refactor	c5def5	Code changed without changing behavior (refactor)
+documentation	0075ca	Documentation (docs)
+tests	bfd4f2	Tests (test)
+ci	5319e7	Workflows and CI (ci)
+chore	ededed	Maintenance (chore, build, style, revert)
+dependencies	0366d6	Dependency updates
+conflicts	e99695	Conflicts with its base branch
+skip-changelog	ffffff	Left out of the release notes
+area: app	bfdadc	The app shell and state in apps/kando
+area: ui	bfdadc	The screens: sidebar, films, film, settings, account and cheatsheet
+area: cloud	bfdadc	Google sign-in and uploads (apps/kando/cloud)
+area: shelf	bfdadc	The job records (apps/kando/shelf)
+area: i18n	bfdadc	Translations (apps/kando/locales)
+area: core	bfdadc	packages/core
+area: media	bfdadc	The media pipeline (packages/media)
+area: tools	bfdadc	tools
+area: docs	bfdadc	Markdown files and agent rules
+area: ci	bfdadc	.github
+area: dependencies	bfdadc	go.mod, go.sum and go.work files
+platform: macos	f9d0c4	macOS-only code (*_darwin.go)
+size/XS	ededed	Under 10 changed lines
+size/S	ededed	10 to 99 changed lines
+size/M	ededed	100 to 499 changed lines
+size/L	ededed	500 to 999 changed lines
+size/XL	ededed	1000 or more changed lines
