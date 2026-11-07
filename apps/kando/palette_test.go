@@ -395,7 +395,7 @@ func TestPaletteIsInTheMenuAndTheCheatsheet(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.Frame()
 	it := findMenuItem(t, a.menuBar(), "学习", "问这部影片 / 命令…")
-	if it.Accelerator != "Super+k" {
+	if it.Accelerator != accelerator(ui.Cmd, ui.KeyK) {
 		t.Fatalf("accelerator %q", it.Accelerator)
 	}
 	groups := a.cheatsheetGroups()
