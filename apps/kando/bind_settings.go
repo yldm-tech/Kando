@@ -84,6 +84,14 @@ func (a *app) LLMResult() string { return a.prefs.llmTestResult }
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }
 
+func (a *app) LLMModels() []string { return a.prefs.llmModels }
+
+func (a *app) LoadingLLMModels() bool { return a.prefs.llmModelsLoading }
+
+func (a *app) LLMModelsErr() string { return a.prefs.llmModelsErr }
+
+func (a *app) RetryLLMModels() { a.fetchLLMModels(true) }
+
 // OpenSettings shows the settings window at section, one of the settings package's Section values; "" or a section it does not know opens 通用. The window opens beside the main one, which keeps its page and its open film. It records the request in the settings' own state (prefs.open, prefs.section), which is what other areas and their tests read.
 func (a *app) OpenSettings(section string) {
 	if !settings.Known(section) {

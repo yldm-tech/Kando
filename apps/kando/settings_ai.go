@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
+	"kando/apps/kando/settings"
 	"kando/packages/media"
 )
 
@@ -170,6 +174,9 @@ func (a *app) applyLLM() {
 		key = os.Getenv("EVERYAPI_API_KEY")
 		a.prefs.llmKey = key
 	}
+	if base != tools.Translator.BaseURL || key != tools.Translator.APIKey {
+		a.prefs.llmEdited = time.Now()
+	}
 	tools.Translator.BaseURL = base
 	tools.Translator.Model = strings.TrimSpace(a.prefs.llmModel)
 	tools.Translator.APIKey = key
@@ -208,4 +215,104 @@ func (a *app) testLLM() {
 			a.areasLLMTested(err, credential)
 		})
 	}()
+}
+
+// llmTypingPause is how long the Base URL and the key must rest before the models are fetched for them, so typing an address asks the service once, not at every key.
+const llmTypingPause = 700 * time.Millisecond
+
+// llmModelsKey names the service the model list was fetched for: the Base URL, the key, and whether the EveryAPI CLI's login stands in for the key.
+func llmModelsKey(t media.ChatTranslator) string {
+	login := ""
+	if t.Credential != nil {
+		login = "login"
+	}
+	return strings.TrimSpace(t.BaseURL) + "\n" + t.APIKey + "\n" + login
+}
+
+// loadLLMModels fetches the AI service's model list while Settings › AI 服务 shows, once per service, Base URL and key, and again on retry. It waits for typing in the Base URL or the key to pause.
+func (a *app) loadLLMModels() {
+	if !a.prefs.open || a.SettingsSection() != settings.SectionAI {
+		return
+	}
+	a.fetchLLMModels(false)
+}
+
+func (a *app) fetchLLMModels(force bool) {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || a.prefs.listModels == nil || strings.TrimSpace(tools.Translator.BaseURL) == "" {
+		return
+	}
+	key := llmModelsKey(tools.Translator)
+	if !force && key == a.prefs.llmModelsFor {
+		return
+	}
+	if a.prefs.llmModelsLoading && key == a.prefs.llmModelsFor {
+		return
+	}
+	if wait := llmTypingPause - time.Since(a.prefs.llmEdited); wait > 0 {
+		if !a.prefs.llmWaiting {
+			a.prefs.llmWaiting = true
+			update := a.update
+			time.AfterFunc(wait, func() {
+				update(func() {
+					a.prefs.llmWaiting = false
+					a.loadLLMModels()
+				})
+			})
+		}
+		return
+	}
+	a.prefs.llmModelsFor = key
+	a.prefs.llmModelsLoading = true
+	a.prefs.llmModels = nil
+	a.prefs.llmModelsErr = ""
+	translator, list, update := tools.Translator, a.prefs.listModels, a.update
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		models, err := list(ctx, translator)
+		update(func() {
+			if a.prefs.llmModelsFor != key {
+				return
+			}
+			a.prefs.llmModelsLoading = false
+			if err != nil {
+				a.prefs.llmModels = nil
+				a.prefs.llmModelsErr = llmModelsError(err)
+				return
+			}
+			a.prefs.llmModels = models
+			a.adoptLLMModel()
+		})
+	}()
+}
+
+// adoptLLMModel picks a model when none is chosen yet: the service's own default when it offers it, else the first it lists. A model already chosen is kept even when the list lacks it; the drop-down shows it on top.
+func (a *app) adoptLLMModel() {
+	if strings.TrimSpace(a.prefs.llmModel) != "" || len(a.prefs.llmModels) == 0 {
+		return
+	}
+	model := a.prefs.llmModels[0]
+	if preset, ok := llmPresetByID(a.prefs.llmProvider); ok && slices.Contains(a.prefs.llmModels, preset.Model) {
+		model = preset.Model
+	}
+	a.prefs.llmModel = model
+	a.applyLLM()
+}
+
+// llmModelsError says in plain words why the model list could not be fetched.
+func llmModelsError(err error) string {
+	var status interface{ StatusCode() int }
+	if errors.As(err, &status) {
+		switch status.StatusCode() {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return "服务不接受这个 API Key，取不到模型列表"
+		case http.StatusNotFound:
+			return "这个服务不提供模型列表，检查 Base URL"
+		}
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "服务没有按时回复，取不到模型列表"
+	}
+	return "取不到模型列表：" + err.Error()
 }

@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -554,5 +556,44 @@ func TestClassifyTranslate(t *testing.T) {
 		if got := ClassifyTranslate("translate: " + msg); got != want {
 			t.Errorf("%q: %q, want %q", msg, got, want)
 		}
+	}
+}
+
+// TestChatTranslatorListsModels checks that Models asks the endpoint's /models with the key, returns the ids sorted, and renews a key the API rejects once through Credential, as Chat does.
+func TestChatTranslatorListsModels(t *testing.T) {
+	var auth []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		auth = append(auth, r.Header.Get("Authorization"))
+		if r.Header.Get("Authorization") != "Bearer fresh" {
+			http.Error(w, `{"error":"expired"}`, http.StatusUnauthorized)
+			return
+		}
+		_, _ = io.WriteString(w, `{"object":"list","data":[{"id":"zeta-chat"},{"id":"alpha-chat"},{"id":""},{"id":"alpha-chat"}]}`)
+	}))
+	defer server.Close()
+	renewed := false
+	translator := ChatTranslator{Credential: func(_ context.Context, renew bool) (Endpoint, error) {
+		key := "stale"
+		if renew {
+			renewed, key = true, "fresh"
+		}
+		return Endpoint{BaseURL: server.URL + "/v1/", APIKey: key}, nil
+	}}
+	models, err := translator.Models(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !renewed || !slices.Equal(models, []string{"alpha-chat", "zeta-chat"}) {
+		t.Fatalf("renewed %v models %q auth %q", renewed, models, auth)
+	}
+	if _, err := (ChatTranslator{BaseURL: server.URL + "/v1", APIKey: "wrong"}).Models(context.Background()); err == nil || !strings.Contains(err.Error(), "401") {
+		t.Fatalf("a rejected key: %v", err)
+	}
+	if _, err := (ChatTranslator{}).Models(context.Background()); err == nil {
+		t.Fatal("no base URL gave no error")
 	}
 }

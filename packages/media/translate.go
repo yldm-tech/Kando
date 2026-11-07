@@ -239,6 +239,9 @@ type statusError struct {
 	detail string
 }
 
+// StatusCode is the HTTP status the API answered with.
+func (e *statusError) StatusCode() int { return e.code }
+
 func (e *statusError) Error() string {
 	return fmt.Sprintf("translation API returned %s: %s", e.status, e.detail)
 }

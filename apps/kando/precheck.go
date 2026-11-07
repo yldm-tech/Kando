@@ -17,7 +17,7 @@ const (
 	noticeNotLink  = "这不像一个视频链接。支持 YouTube、哔哩哔哩，以及 yt-dlp 能解析的上千个网站。"
 	noticeNoLib    = "先新建或打开一个资料库"
 	noticeModel    = "先在「语音识别」里选一个模型"
-	noticeLLMModel = "先在「AI 服务」里填模型"
+	noticeLLMModel = "先在「AI 服务」里选一个模型"
 	noticeEveryAPI = "先登录 EveryAPI，或在「AI 服务」里填 Key"
 	noticeTools    = "本机还没装好处理视频的程序"
 	noticeNoVideo  = "只能添加视频文件（mp4、mov、mkv、webm 等）。"

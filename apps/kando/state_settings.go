@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -33,8 +34,16 @@ type settingsUI struct {
 	llmCredential   func(context.Context, bool) (media.Endpoint, error)
 	testingLLM      bool
 	llmTestResult   string
-	toolVersions    map[string]string
-	versionGen      int
+	// llmModels are the model ids the AI service offers, fetched for the service, Base URL and key in llmModelsFor; llmModelsLoading is set while a fetch runs and llmModelsErr says why the last one failed. llmEdited is when the Base URL or the key was last typed, so a fetch waits for typing to pause, and llmWaiting is set while a timer waits for that pause. listModels asks a service for its models; tests replace it.
+	llmModels        []string
+	llmModelsFor     string
+	llmModelsLoading bool
+	llmModelsErr     string
+	llmEdited        time.Time
+	llmWaiting       bool
+	listModels       func(context.Context, media.ChatTranslator) ([]string, error)
+	toolVersions     map[string]string
+	versionGen       int
 	// open and section are the settings the user asked for: OpenSettings sets open and the settings.Section value it was given, the window's sidebar changes section, and closing the window clears open. Code and tests outside the settings area read these, never app.page, which the settings window leaves alone (D2). section "" is 通用.
 	open    bool
 	section string
@@ -48,7 +57,7 @@ type settingsUI struct {
 }
 
 func newSettingsUI() settingsUI {
-	return settingsUI{language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true}
+	return settingsUI{language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }}
 }
 
 // savedTranslate is the translation's part of settings.json.
@@ -103,6 +112,7 @@ func (a *app) settingsHooks() areaHooks {
 		afterFrame: func() {
 			a.followSettingsPage()
 			a.shareSettings(false)
+			a.loadLLMModels()
 		},
 	}
 }
