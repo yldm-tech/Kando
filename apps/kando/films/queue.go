@@ -269,7 +269,7 @@ func remedyDetail(c *ui.Context, t *ui.Theme, a App, item Film, r Remedy) {
 		headline.TextColor(t.Accent)
 	}
 	if r.Why != "" {
-		ui.Text(c, r.Why).FontSize(11).LineHeight(15).TextColor(whyInk).Wrap()
+		ui.Text(c, r.Why).FontSize(11).FixedLineHeight(15).TextColor(whyInk).Wrap()
 	}
 	ui.Row(c).Wrap().Gap(6).Margin(2, 0, 0, 0).Children(func() {
 		for _, action := range r.Actions {

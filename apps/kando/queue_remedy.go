@@ -148,11 +148,11 @@ func (a *app) outdatedRemedy(site string) films.Remedy {
 	return r
 }
 
-// cookiesRemedy is the card of a job whose borrowed browser login yt-dlp could not read: Safari's needs Full Disk Access, and another browser may have no data on this machine.
+// cookiesRemedy is the card of a job whose borrowed browser login yt-dlp could not read: Safari's needs Full Disk Access, which yt-dlp reports as an operation not permitted, and a browser may have no login data on this machine.
 func (a *app) cookiesRemedy(job core.Job, other media.Browser) films.Remedy {
 	name := media.BrowserName(job.Cookies)
 	r := films.Remedy{Headline: "读不到 " + name + " 的登录", Why: "这台电脑上找不到 " + name + " 的登录数据。换一个已登录的浏览器再试。"}
-	if job.Cookies == "safari" {
+	if job.Cookies == "safari" && job.Err != nil && strings.Contains(job.Err.Error(), "Operation not permitted") {
 		r.Why = "macOS 只让有「完全磁盘访问权限」的 App 读 Safari 的登录。在系统设置里允许看懂，回来再重试，或改用别的浏览器。"
 		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyDiskAccess, Label: "打开系统设置", Primary: true}, films.RemedyAction{ID: remedyBorrow + "safari", Label: "已允许，重试"})
 	}

@@ -302,3 +302,14 @@ func TestDownloadBorrowsTheBrowsersLogin(t *testing.T) {
 		t.Fatalf("args without cookies %s", data)
 	}
 }
+
+// An app opened from Finder has a PATH without Homebrew's folder, where yt-dlp would look for ffmpeg to merge the video with its sound; Download names the ffmpeg Kando found.
+func TestDownloadTellsYTDLPWhereFFmpegIs(t *testing.T) {
+	tool, args := argsYTDLP(t)
+	tools := Tools{YTDLP: tool, FFmpeg: "/opt/homebrew/bin/ffmpeg", OutputDir: t.TempDir()}
+	tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	data, _ := os.ReadFile(args)
+	if !strings.Contains(string(data), "--ffmpeg-location\n/opt/homebrew/bin/ffmpeg\n") {
+		t.Fatalf("args %s", data)
+	}
+}

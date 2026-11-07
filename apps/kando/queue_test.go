@@ -735,9 +735,16 @@ func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
 		{"https://example.com/", core.FailUnsupported, "", "example.com 暂不支持", "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", []string{"换个链接", "选择本地文件"}},
 		{"https://www.instagram.com/p/C0000000000/", core.FailLogin, "", "要登录才能看", "instagram.com 的这个视频需要账号。借用浏览器里已登录的账号即可，不保存密码。", []string{"借用 Chrome 登录并重试"}},
 		{yt, core.FailNetwork, "", "连不上网络", "检查网络连接后再重试。", []string{"重试"}},
-		{yt, core.FailCookies, "safari", "读不到 Safari 的登录", "", []string{"打开系统设置", "已允许，重试", "改用 Chrome"}},
+		{yt, core.FailCookies, "safari", "读不到 Safari 的登录", "macOS 只让有「完全磁盘访问权限」的 App 读 Safari 的登录。在系统设置里允许看懂，回来再重试，或改用别的浏览器。", []string{"打开系统设置", "已允许，重试", "改用 Chrome"}},
+		{yt, core.FailCookies, "chrome", "读不到 Chrome 的登录", "这台电脑上找不到 Chrome 的登录数据。换一个已登录的浏览器再试。", []string{"改用 Safari"}},
 	} {
 		film := failedJob(t, a, tc.source, tc.kind, tc.cookies)
+		if tc.kind == core.FailCookies && tc.cookies == "safari" {
+			// The real error of yt-dlp reading Safari's cookies without Full Disk Access (packages/media/testdata/ytdlp/errors/cookies-safari-denied.stderr).
+			job, _ := a.library.Find(film.JobID)
+			job.Err = errors.New("download: yt-dlp: exit status 1: ERROR: [Errno 1] Operation not permitted: '/Users/someone/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies'")
+			a.library.Upsert(job)
+		}
 		r, ok := a.FailureRemedy(film)
 		if !ok || r.Headline != tc.headline || (tc.why != "" && r.Why != tc.why) || strings.Join(remedyLabels(r), ",") != strings.Join(tc.actions, ",") {
 			t.Errorf("%s: %+v", tc.kind, r)

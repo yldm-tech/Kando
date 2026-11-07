@@ -186,6 +186,10 @@ func (t Tools) Download(ctx context.Context, source string) (string, error) {
 		"--progress", "--newline",
 		"--progress-template", ytdlpProgressTemplate,
 	}
+	// yt-dlp looks for ffmpeg, which merges the video with its sound, on PATH, which an app opened from Finder does not extend to Homebrew's folder; without it the video is saved silent.
+	if t.FFmpeg != "" {
+		args = append(args, "--ffmpeg-location", t.FFmpeg)
+	}
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}
