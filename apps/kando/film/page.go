@@ -156,7 +156,7 @@ const (
 // onGlass is the text over the player's glass surfaces, which stay dark over any picture.
 var onGlass = ui.Hex("#FFFFFF")
 
-// Show draws the open film over the whole window in dark, the player's theme, which stays dark in the light window. The picture fills the window; the title bar, the transport, the subtitles and the side panel float over it.
+// Show draws the open film over the whole window in dark, the player's theme, which stays dark in the light window. The picture fills the window, or the room left of the side panel while it shows; the title bar, the transport and the subtitles float over it.
 func Show(c *ui.Context, dark *ui.Theme, a App, item films.Film) {
 	s := screen{a}
 	now := c.Now()
@@ -203,9 +203,13 @@ func (s screen) chromeShown(c *ui.Context, now time.Time) bool {
 	return true
 }
 
-// stage is the picture, or what stands for it while it opens or cannot play. A click on it starts or holds the film. The pointer hides over it with the controls.
+// stage is the picture, or what stands for it while it opens or cannot play. A click on it starts or holds the film. The pointer hides over it with the controls. While the side panel shows, the stage is the room left of it, as the subtitles' and the transport's are, so the panel never hides part of the picture, such as a screencast's text.
 func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool) {
-	stage := ui.Box(c).Absolute().Left(0).Top(0).Right(0).Bottom(0)
+	right := float32(0)
+	if s.panelShown() {
+		right = panelRoom
+	}
+	stage := ui.Box(c).Absolute().Left(0).Top(0).Right(right).Bottom(0).Role(ui.RoleGroup).Label("画面")
 	if !shown {
 		stage.Cursor(ui.CursorNone)
 	}
