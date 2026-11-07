@@ -341,7 +341,7 @@ func statusText(job core.Job) string {
 	case core.StageDownloading:
 		return "正在下载视频…"
 	case core.StageTranscribing:
-		return "正在本地转录…"
+		return "正在本机生成字幕…"
 	case core.StageTranslating:
 		return "正在翻译字幕…"
 	case core.StageExporting:
