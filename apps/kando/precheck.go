@@ -79,9 +79,12 @@ func sourceError(err error) string {
 	return err.Error()
 }
 
-// failureHint says in plain Chinese what a failed job's error means for the user, and the settings section that fixes it ("" when none does): a known reason in the user's words, or else the stage that failed and what its tool said, without the tool's prefixes.
+// failureHint says in plain Chinese what a failed job's error means for the user, and the settings section that fixes it ("" when none does): a known reason in the user's words, or else the stage that failed and what its tool said, without the tool's prefixes. A job that was stopped rather than failed, as one whose library was switched, already says so in the app's words (statusText), which are kept as they are.
 func failureHint(item films.Film) (reason, section string) {
-	detail := strings.TrimPrefix(item.Detail, "失败：")
+	detail, isError := strings.CutPrefix(item.Detail, "失败：")
+	if !isError {
+		return item.Detail, ""
+	}
 	switch {
 	case strings.Contains(detail, "KANDO_WHISPER_MODEL"), strings.Contains(detail, "whisper model"):
 		return noticeModel, settings.SectionSpeech
@@ -131,8 +134,8 @@ var stageFailed = map[string]string{
 	"export":     "导出字幕失败",
 }
 
-// toolPrefix is what comes before what a tool says went wrong in its error: the tool and how it exited (yt-dlp: exit status 1:), and in yt-dlp's ERROR line the word ERROR and the extractor with the video id ([youtube] abc:).
-var toolPrefix = regexp.MustCompile(`^(?:[\w.+-]+: (?:exit status|signal) [^:]*: )?(?:ERROR: )?(?:\[[^\]]+\] (?:[^\s:]+: )?)?`)
+// toolPrefix is what comes before what a tool says went wrong in its error: the tool and how it exited (yt-dlp: exit status 1:, or whisper-cli: signal: killed: for one the system stopped), and in yt-dlp's ERROR line the word ERROR and the extractor with the video id ([youtube] abc:).
+var toolPrefix = regexp.MustCompile(`^(?:[\w.+-]+: (?:exit status [^:]*|signal: [^:]*): )?(?:ERROR: )?(?:\[[^\]]+\] (?:[^\s:]+: )?)?`)
 
 // toolMessage is the part of a stage's error that says what went wrong, in its first line, without the tool's prefixes.
 func toolMessage(err string) string {

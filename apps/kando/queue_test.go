@@ -1040,6 +1040,7 @@ func TestAFailedCardSaysWhyInChinese(t *testing.T) {
 		{"download: yt-dlp: exit status 1: ERROR: [generic] abc: Something nobody has seen", "下载失败：Something nobody has seen", ""},
 		{"download: yt-dlp: exit status 1: ERROR: Something else", "下载失败：Something else", ""},
 		{"transcribe: whisper-cli: exit status 3: failed to read audio", "生成字幕失败：failed to read audio", ""},
+		{"transcribe: whisper-cli: signal: killed: whisper_init: out of memory", "生成字幕失败：whisper_init: out of memory", ""},
 		{"export: open /v/a.srt: permission denied", "导出字幕失败：open /v/a.srt: permission denied", ""},
 		{"boom", "处理失败：boom", ""},
 	} {
@@ -1071,5 +1072,19 @@ func TestADoneFilmSaysWhichLinesAreUntranslated(t *testing.T) {
 	// The poster's line, and the hero's, as the film is the one done last.
 	if textCount(tt, "YouTube · 12 句翻译失败，其余已完成") == 0 || textCount(tt, "YouTube · 已导出 video.bilingual.srt · 12 句翻译失败，其余已完成") == 0 {
 		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// A job stopped because another library was opened did not fail: its card says it was stopped, as statusText words it, not 处理失败 in red over that.
+func TestAStoppedCardSaysItWasStopped(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	job := core.Job{ID: "s", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageFailed, Err: core.ErrLibrarySwitched, LibraryDir: a.snap().LibraryDir}
+	a.library.Jobs = []core.Job{job}
+	film, ok := a.JobFilm(job.ID)
+	if !ok {
+		t.Fatal("no card")
+	}
+	if reason, section := a.FailureHint(film); reason != "已停止：切换了资料库" || section != "" {
+		t.Fatalf("%q %q", reason, section)
 	}
 }
