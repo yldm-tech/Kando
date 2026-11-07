@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"kando/apps/kando/films"
@@ -286,11 +287,26 @@ func (a *app) run(job core.Job) {
 	pipeline, update := a.pipeline, a.update
 	go func() {
 		defer cancel(nil)
+		// A report that only moves the progress waits in latest, and at most one update carries it to the UI thread: a tool that reports many times a second does not queue an update for each, and the card shows the newest when the window gets to it. Any other report goes as it comes, after the progress already waiting.
+		var latest atomic.Pointer[core.Job]
+		last := job
 		media.Run(ctx, pipeline, job, job.Language, func(j core.Job) {
 			if j.Stage == core.StageFailed && errors.Is(context.Cause(ctx), core.ErrLibrarySwitched) {
 				j.Err = core.ErrLibrarySwitched
 			}
-			update(func() { a.show(j) })
+			onlyProgress := j.Stage == last.Stage && j.Title == last.Title && j.Thumbnail == last.Thumbnail && j.VideoPath == last.VideoPath && j.Err == nil
+			last = j
+			if !onlyProgress {
+				update(func() { a.show(j) })
+				return
+			}
+			if latest.Swap(&j) == nil {
+				update(func() {
+					if p := latest.Swap(nil); p != nil {
+						a.showProgress(*p)
+					}
+				})
+			}
 		})
 		update(func() { a.finished(job.ID) })
 	}()
@@ -332,6 +348,22 @@ func (a *app) show(job core.Job) {
 		a.loadSubtitles(job.ID, job.SubtitlePath)
 	}
 	a.areasShelfChanged()
+}
+
+// showProgress puts how far job has gone on its card. Only its progress changed since show last saw it, which library.json does not keep, so the shelf is not saved and the areas are not told its films changed. A job removed meanwhile, or one that has moved on to another stage since, is left alone.
+func (a *app) showProgress(job core.Job) {
+	if a.queue.removed[job.ID] {
+		return
+	}
+	shown, ok := a.library.Find(job.ID)
+	if !ok || shown.Stage != job.Stage {
+		return
+	}
+	shown.Progress = job.Progress
+	a.library.Upsert(shown)
+	if a.queue.selectedID == job.ID {
+		a.queue.job = &shown
+	}
 }
 
 func statusText(job core.Job) string {

@@ -88,3 +88,58 @@ func TestALocalVideoFollowsTheLibraryItWasStartedIn(t *testing.T) {
 		t.Fatal("a downloaded video outside the library stayed on its shelf")
 	}
 }
+
+func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
+	yt := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	download := core.Fraction(0.42)
+	download.Speed, download.ETA = 3.2*1024*1024, 12*time.Second
+	translate := core.Fraction(0.25)
+	translate.Batch, translate.Batches, translate.BatchSize = 2, 5, 40
+	waiting := translate
+	waiting.RetryIn, waiting.Attempt, waiting.Attempts = 8*time.Second, 1, 2
+	for _, tc := range []struct {
+		name string
+		item Film
+		want string
+	}{
+		{"queued", Film{Source: yt, Stage: core.StageQueued}, "排队中 · 等待前面的任务"},
+		{"download before yt-dlp says", Film{Source: yt, Stage: core.StageDownloading}, "下载中 · yt-dlp · YouTube"},
+		{"download", Film{Source: yt, Stage: core.StageDownloading, Progress: download}, "下载中 · 42% · 3.2 MB/s · 还剩 0:12"},
+		{"local file", Film{Source: "file:///v/a.mp4", Stage: core.StageDownloading}, "读取中 · 本地文件"},
+		{"transcribe", Film{Source: yt, Stage: core.StageTranscribing, Progress: core.Fraction(0.23)}, "生成字幕中 · whisper 本机识别 · 23%"},
+		{"translate", Film{Source: yt, Stage: core.StageTranslating, Progress: translate}, "翻译中 · 第 2/5 批 · 每批 40 句"},
+		{"translate waits", Film{Source: yt, Stage: core.StageTranslating, Progress: waiting}, "翻译接口限流，8 秒后重试（1/2）"},
+		{"export", Film{Source: yt, Stage: core.StageExporting, Progress: core.Fraction(0.5)}, "导出中 · 写入 video.srt 与 video.bilingual.srt"},
+	} {
+		if got := QueueMeta(tc.item); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+	if !RetryWaiting(Film{Stage: core.StageTranslating, Progress: waiting}) || RetryWaiting(Film{Stage: core.StageTranslating, Progress: translate}) {
+		t.Fatal("RetryWaiting is wrong")
+	}
+}
+
+func TestStepFillsFollowTheStage(t *testing.T) {
+	yt := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	for _, tc := range []struct {
+		item Film
+		want []float64
+	}{
+		{Film{JobID: "1", Source: yt, Stage: core.StageQueued}, []float64{0, 0, 0, 0}},
+		{Film{JobID: "1", Source: yt, Stage: core.StageDownloading, Progress: core.Fraction(0.42)}, []float64{0.42, 0, 0, 0}},
+		{Film{JobID: "1", Source: yt, Stage: core.StageTranslating, Progress: core.Fraction(0.5)}, []float64{1, 1, 0.5, 0}},
+		{Film{JobID: "1", Source: "file:///v/a.mp4", Stage: core.StageExporting, Progress: core.Fraction(1)}, []float64{1, 1, 1}},
+		{Film{JobID: "1", Source: yt, Stage: core.StageComplete}, []float64{1, 1, 1, 1}},
+	} {
+		got := StepFills(tc.item)
+		if len(got) != len(tc.want) {
+			t.Fatalf("%s: %v, want %v", tc.item.Stage, got, tc.want)
+		}
+		for i := range got {
+			if got[i] != tc.want[i] {
+				t.Fatalf("%s: %v, want %v", tc.item.Stage, got, tc.want)
+			}
+		}
+	}
+}

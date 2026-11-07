@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +16,7 @@ import (
 
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
+	"kando/packages/media"
 )
 
 // gatePipeline holds every job in Download until the test lets it through, so a test sees which job runs and in what order. started receives each source as its Download begins.
@@ -572,4 +578,98 @@ func TestFilmPageCancelsTheFilmItShows(t *testing.T) {
 	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageFailed {
 		t.Fatalf("cancelled b ran: %+v", job)
 	}
+}
+
+// ytdlpPipeline downloads with the real media.Tools.Download, run on a yt-dlp script that prints what the real yt-dlp prints for Download's arguments, and stubs the stages after it.
+type ytdlpPipeline struct{ tools media.Tools }
+
+func (p ytdlpPipeline) Check() error { return nil }
+
+func (p ytdlpPipeline) Download(ctx context.Context, source string) (string, error) {
+	return p.tools.Download(ctx, source)
+}
+
+func (ytdlpPipeline) Transcribe(context.Context, string) ([]core.Segment, error) {
+	return []core.Segment{{End: time.Second, Text: "hello"}}, nil
+}
+
+func (ytdlpPipeline) Translate(_ context.Context, segments []core.Segment, _ string) ([]core.Segment, error) {
+	return segments, nil
+}
+
+func (ytdlpPipeline) Export(_ context.Context, video string, _, _ []core.Segment) (string, error) {
+	return strings.TrimSuffix(video, ".mp4") + ".bilingual.srt", nil
+}
+
+// gatedYTDLP writes a yt-dlp that names the video, says a quarter of the download is done (half of the first of two formats) and waits until gate exists before it finishes.
+func gatedYTDLP(t *testing.T, thumbnail, gate string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "yt-dlp")
+	script := `#!/bin/sh
+echo 'kando-info {"id": "jNQXAC9IVRw", "title": "Me at the zoo", "thumbnail": "` + thumbnail + `", "duration": 19}'
+echo 'kando-formats ["395", "251"]'
+echo 'kando-progress downloading 111890 223780 NA 1048576 3 NA NA 395'
+i=0
+while [ ! -e '` + gate + `' ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i+1)); done
+echo 'kando-progress finished 252182 252182 NA NA NA NA NA 251'
+echo '/videos/zoo.mp4'
+`
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestTheCardFollowsTheDownload(t *testing.T) {
+	png := pngBytes(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write(png) }))
+	t.Cleanup(srv.Close)
+	gate := filepath.Join(t.TempDir(), "gate")
+	a, tt, updates := newTestApp(ytdlpPipeline{tools: media.Tools{YTDLP: gatedYTDLP(t, srv.URL+"/hq.jpg", gate), OutputDir: "/videos"}})
+	path := filepath.Join(t.TempDir(), "library.json")
+	a.openLibrary(path)
+	a.lib.posterDir = t.TempDir()
+	if err := a.Enqueue("https://www.youtube.com/watch?v=jNQXAC9IVRw"); err != nil {
+		t.Fatal(err)
+	}
+	id := a.library.Jobs[0].ID
+	waitUntil(t, updates, func() bool { return stageOf(t, a, id).Progress.Known })
+	job := stageOf(t, a, id)
+	if job.Title != "Me at the zoo" || job.Progress.Fraction != 0.25 {
+		t.Fatalf("job %+v", job)
+	}
+	tt.Frame()
+	for _, want := range []string{"Me at the zoo", "下载中 · 25% · 1.0 MB/s · 还剩 0:03"} {
+		if textCount(tt, want) == 0 {
+			t.Fatalf("the card does not say %q", want)
+		}
+	}
+	// The name is saved as soon as it is known, so a download that fails or a quit keeps it.
+	saved, err := shelf.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := saved.Find(id); s.Title != "Me at the zoo" || s.Thumbnail != srv.URL+"/hq.jpg" {
+		t.Fatalf("saved %+v", s)
+	}
+	film, _ := a.JobFilm(id)
+	waitUntil(t, updates, func() bool { return a.Thumbnail(film) != nil })
+
+	if err := os.WriteFile(gate, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, id); job.Stage != core.StageComplete || job.Progress != (core.Progress{}) {
+		t.Fatalf("finished %+v", job)
+	}
+}
+
+// pngBytes is a small picture, as a site's thumbnail.
+func pngBytes(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, image.NewRGBA(image.Rect(0, 0, 16, 9))); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
 }
