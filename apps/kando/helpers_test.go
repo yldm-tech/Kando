@@ -235,3 +235,17 @@ func offlineModels(_ context.Context, t media.ChatTranslator) ([]string, error) 
 	}
 	return []string{t.Model}, nil
 }
+
+// clickRow clicks the middle of the form row labeled label (breeze.ContentRow), where its field is, and fails t unless the field took the focus. The row and its field share the label, and MyGo's Tester.Click targets only the element a label names first, the row, which does not hand a click on to its field.
+func clickRow(t *testing.T, tt *ui.Tester, label string) {
+	t.Helper()
+	r, ok := tt.Find(label)
+	if !ok {
+		t.Fatalf("no row %q in %q", label, tt.Texts())
+	}
+	tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+	tt.Frame()
+	if !tt.Focused(label) {
+		t.Fatalf("clicking the row %q did not focus its field", label)
+	}
+}
