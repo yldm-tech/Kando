@@ -1,11 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
+	"image/png"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -941,5 +949,164 @@ func TestRefreshDuringADownloadLeavesItsTracksAlone(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(filepath.Dir(want)); len(entries) != 1 {
 		t.Fatalf("the film's folder holds %v", entries)
+	}
+}
+
+// coverFilm puts a downloaded film in its own folder of a library on the shelf, with cover.jpg holding kept when kept is not nil and thumbnail as its site's picture, and returns the app, its updates and the film's video and cover. The pipeline names an ffmpeg that is not there, so a frame grab fails.
+func coverFilm(t *testing.T, thumbnail string, kept []byte) (*app, chan func(), string, string) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
+	video := filepath.Join(lib, "Talk", "video.mp4")
+	cover := filepath.Join(lib, "Talk", "cover.jpg")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if kept != nil {
+		if err := os.WriteFile(cover, kept, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, _, updates := newTestApp(media.Tools{FFmpeg: filepath.Join(t.TempDir(), "ffmpeg")})
+	a.lib.posterDir = t.TempDir()
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	a.library.Jobs = []core.Job{{ID: "film", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Thumbnail: thumbnail, Stage: core.StageComplete, VideoPath: video, LibraryDir: lib}}
+	return a, updates, video, cover
+}
+
+// solidPicture is a w×h picture of one color, encoded by encode.
+func solidPicture(t *testing.T, c color.RGBA, encode func(io.Writer, image.Image) error) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 32, 18))
+	draw.Draw(img, img.Bounds(), image.NewUniform(c), image.Point{}, draw.Src)
+	var buf bytes.Buffer
+	if err := encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func encodeJPEG(w io.Writer, img image.Image) error { return jpeg.Encode(w, img, nil) }
+
+// wantCoverColor fails t unless path is a JPEG whose middle is near c.
+func wantCoverColor(t *testing.T, path string, c color.RGBA) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := jpeg.Decode(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("%s is not a JPEG: %v", filepath.Base(path), err)
+	}
+	b := img.Bounds()
+	r, g, bl, _ := img.At(b.Dx()/2, b.Dy()/2).RGBA()
+	near := func(got uint32, want uint8) bool { d := int(got>>8) - int(want); return d > -24 && d < 24 }
+	if !near(r, c.R) || !near(g, c.G) || !near(bl, c.B) {
+		t.Fatalf("%s is %d,%d,%d, want %v", filepath.Base(path), r>>8, g>>8, bl>>8, c)
+	}
+}
+
+var (
+	coverRed  = color.RGBA{220, 30, 30, 255}
+	coverGray = color.RGBA{128, 128, 128, 255}
+)
+
+// A film from a site shows the picture the site gives it, in place of the frame an earlier Kando grabbed into cover.jpg, which now holds the site's picture as JPEG though the site gave a PNG. The picture is fetched once and kept with the processing card's.
+func TestPosterIsTheSitesCover(t *testing.T) {
+	const address = "https://i.ytimg.com/vi/TRWgBxVAb1M/maxresdefault.png"
+	var fetched []string
+	prev := fetchSiteThumbnail
+	fetchSiteThumbnail = func(_ context.Context, addr, dest string) error {
+		fetched = append(fetched, addr)
+		return os.WriteFile(dest, solidPicture(t, coverRed, png.Encode), 0o644)
+	}
+	t.Cleanup(func() { fetchSiteThumbnail = prev })
+	a, updates, video, cover := coverFilm(t, address, solidPicture(t, coverGray, encodeJPEG))
+	a.refreshLibrary()
+	waitUpdate(t, updates)
+	if a.posterOf(video) == nil || a.lib.posterMiss[video] {
+		t.Fatalf("no poster: miss %v", a.lib.posterMiss[video])
+	}
+	wantCoverColor(t, cover, coverRed)
+	if !slices.Equal(fetched, []string{address}) {
+		t.Fatalf("fetched %q", fetched)
+	}
+	if !fileExists(siteThumbnailPath(a.lib.posterDir, address)) {
+		t.Fatal("the site's picture was not kept")
+	}
+	// Found again, the kept picture serves without asking the site, and cover.jpg is left as it is.
+	before, _ := os.Stat(cover)
+	data, err := findCover(context.Background(), coverSources{site: address, siteCache: siteThumbnailPath(a.lib.posterDir, address), video: video, dest: cover})
+	if err != nil || len(data) == 0 {
+		t.Fatal(err)
+	}
+	if after, _ := os.Stat(cover); len(fetched) != 1 || !after.ModTime().Equal(before.ModTime()) {
+		t.Fatalf("fetched %q, cover.jpg rewritten %v", fetched, !after.ModTime().Equal(before.ModTime()))
+	}
+}
+
+// When the site's picture cannot be had, as when the site no longer serves it, the film keeps the cover it has.
+func TestPosterKeepsItsCoverWhenTheSiteHasNone(t *testing.T) {
+	prev := fetchSiteThumbnail
+	fetchSiteThumbnail = func(context.Context, string, string) error { return errors.New("thumbnail: 404 Not Found") }
+	t.Cleanup(func() { fetchSiteThumbnail = prev })
+	prevEmbedded := embeddedCover
+	embeddedCover = func(context.Context, string, string) ([]byte, error) { return nil, errors.New("no cover art") }
+	t.Cleanup(func() { embeddedCover = prevEmbedded })
+	kept := solidPicture(t, coverGray, encodeJPEG)
+	a, updates, video, cover := coverFilm(t, "https://p16-sign.tiktokcdn.com/expired.jpeg", kept)
+	a.refreshLibrary()
+	waitUpdate(t, updates)
+	if a.posterOf(video) == nil {
+		t.Fatal("no poster")
+	}
+	if data, _ := os.ReadFile(cover); !bytes.Equal(data, kept) {
+		t.Fatal("cover.jpg changed")
+	}
+}
+
+// A local video shows the cover art its file carries, kept as JPEG in cover.jpg, rather than a frame of it.
+func TestPosterOfALocalVideoIsItsCoverArt(t *testing.T) {
+	var asked []string
+	prev := embeddedCover
+	embeddedCover = func(_ context.Context, _, video string) ([]byte, error) {
+		asked = append(asked, video)
+		return solidPicture(t, coverRed, png.Encode), nil
+	}
+	t.Cleanup(func() { embeddedCover = prev })
+	a, updates, video, cover := coverFilm(t, "", solidPicture(t, coverGray, encodeJPEG))
+	a.refreshLibrary()
+	waitUpdate(t, updates)
+	if a.posterOf(video) == nil {
+		t.Fatal("no poster")
+	}
+	if !slices.Equal(asked, []string{video}) {
+		t.Fatalf("asked %q for cover art", asked)
+	}
+	wantCoverColor(t, cover, coverRed)
+}
+
+// A WebP picture, as YouTube often gives (testdata/cover.webp is golang.org/x/image's blue-purple-pink.lossy.webp), becomes a JPEG cover; a JPEG stays byte for byte.
+func TestCoverJPEG(t *testing.T) {
+	webp, err := os.ReadFile(filepath.Join("testdata", "cover.webp"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := coverJPEG(webp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := jpeg.Decode(bytes.NewReader(out)); err != nil {
+		t.Fatalf("not a JPEG: %v", err)
+	}
+	kept := solidPicture(t, coverGray, encodeJPEG)
+	if out, err := coverJPEG(kept); err != nil || !bytes.Equal(out, kept) {
+		t.Fatalf("a JPEG was encoded again: %v", err)
+	}
+	if _, err := coverJPEG([]byte("<html>not found</html>")); err == nil {
+		t.Fatal("a page passed for a picture")
 	}
 }

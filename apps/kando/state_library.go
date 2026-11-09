@@ -100,7 +100,7 @@ func (a *app) loadExtras() {
 	}
 	items := a.films()
 	for _, item := range items {
-		a.ensurePoster(item.VideoPath)
+		a.ensurePoster(item)
 		if films.InQueue(item) {
 			a.ensureThumbnail(item)
 		}

@@ -12,6 +12,7 @@ require (
 	github.com/yldm-tech/ai-logo/mygo v1.17.0
 	github.com/yldm-tech/mygo-breeze-ui v0.12.0
 	github.com/yldm-tech/nodra v1.1.0
+	golang.org/x/image v0.47.0
 	golang.org/x/oauth2 v0.37.0
 	kando/packages/core v0.0.0
 	kando/packages/media v0.0.0
@@ -35,7 +36,6 @@ require (
 	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/go-text/typesetting v0.3.5 // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
-	golang.org/x/image v0.47.0 // indirect
 	golang.org/x/net v0.61.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect

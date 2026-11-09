@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,5 +110,29 @@ func TestScreenshotsLibrary(t *testing.T) {
 	f.shoot(t, "drop-on-film", func(a *app, tt *ui.Tester, updates chan func()) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
 		tt.DropFiles(sidebarWidth+(1304-sidebarWidth)/2, 782/2, dropped)
+	})
+	// The hero film with the picture its site gives it, which takes the place of the frame grabbed for it, as a library from an earlier Kando shows once the site is asked. The site's picture is the fixture's generic scene at full size. It runs last: it leaves the site's picture in the film's cover.jpg.
+	f.shoot(t, "library-site-cover", func(a *app, tt *ui.Tester, updates chan func()) {
+		picture, err := os.ReadFile(filepath.Join("testdata", "scenes", "generic-1920.png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		prev := fetchSiteThumbnail
+		fetchSiteThumbnail = func(_ context.Context, _, dest string) error {
+			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+				return err
+			}
+			return os.WriteFile(dest, picture, 0o644)
+		}
+		t.Cleanup(func() { fetchSiteThumbnail = prev })
+		// The site's picture is kept in the posters folder of the app's caches, as main sets it.
+		a.lib.posterDir = filepath.Join(f.home, "Library", "Caches", "Kando", "posters")
+		job := f.job(t, "j1")
+		job.Thumbnail = "https://i.ytimg.com/vi/" + "a1B2c3D4e5F" + "/maxresdefault.jpg"
+		a.library.Upsert(job)
+		delete(a.lib.posters, job.VideoPath)
+		a.loadExtras()
+		screenshotWait(t, tt, updates, "the site's cover", func() bool { return len(a.lib.posterBusy) == 0 })
+		tt.Frame()
 	})
 }

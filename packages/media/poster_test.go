@@ -1,6 +1,7 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -29,6 +30,43 @@ func TestGrabPoster(t *testing.T) {
 	}
 	if _, err := os.Stat(strings.TrimSuffix(dest, filepath.Ext(dest)) + ".grab.jpg"); !os.IsNotExist(err) {
 		t.Fatal("partial poster was left behind")
+	}
+}
+
+// A video's cover art comes back as the file holds it; a video without one has none.
+func TestEmbeddedCover(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
+	}
+	dir := t.TempDir()
+	cover := filepath.Join(dir, "cover.png")
+	with := filepath.Join(dir, "with.mp4")
+	without := filepath.Join(dir, "without.mp4")
+	ctx := context.Background()
+	if _, err := run(ctx, ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=red:s=64x64:d=1", "-frames:v", "1", cover); err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg could not make a picture: %v", err)
+	}
+	if _, err := run(ctx, ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x90:d=1", "-i", cover,
+		"-map", "0", "-map", "1", "-c:v:0", "mpeg4", "-c:v:1", "png", "-disposition:v:1", "attached_pic", with); err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip with cover art: %v", err)
+	}
+	if _, err := run(ctx, ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x90:d=1", "-c:v", "mpeg4", without); err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v", err)
+	}
+	got, err := EmbeddedCover(ctx, ffmpeg, with)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := os.ReadFile(cover)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("cover is %d bytes, the file's own %d", len(got), len(want))
+	}
+	if data, err := EmbeddedCover(ctx, ffmpeg, without); err == nil {
+		t.Fatalf("a video without cover art gave %d bytes", len(data))
 	}
 }
 

@@ -60,6 +60,22 @@ func GrabPoster(ctx context.Context, ffmpeg, video, dest string) error {
 	return os.Rename(tmp, dest)
 }
 
+// EmbeddedCover returns the cover picture a video file carries, as an MP4's or MKV's cover art (an attached picture), byte for byte as the file holds it, PNG or JPEG. It fails for a file that carries none.
+func EmbeddedCover(ctx context.Context, ffmpeg, video string) ([]byte, error) {
+	if ffmpeg == "" || video == "" {
+		return nil, errors.New("cover source is missing")
+	}
+	// 0:v is every picture stream and 0:V those that are not attached pictures, so the two maps leave only the attached ones; with none, ffmpeg has no stream to write and fails.
+	out, err := run(ctx, ffmpeg, "-nostdin", "-loglevel", "error", "-i", video, "-map", "0:v", "-map", "-0:V", "-frames:v", "1", "-c", "copy", "-f", "image2pipe", "pipe:1")
+	if err != nil {
+		return nil, err
+	}
+	if out == "" {
+		return nil, errors.New("embedded cover is empty")
+	}
+	return []byte(out), nil
+}
+
 // GrabFrame returns one JPEG frame at at. It is used for lightweight video previews where a permanent poster file is unnecessary.
 func GrabFrame(ctx context.Context, ffmpeg, video string, at time.Duration) ([]byte, error) {
 	if ffmpeg == "" || video == "" {
