@@ -1,6 +1,6 @@
 name: Package
 
-# Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's packages, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>. CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the packages to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
+# Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's packages, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>. A release build also signs the app's update for each target with the MYGO_UPDATER_PRIVATE_KEY secret and keeps the update files with the packages: the archive of the app as installed, the deltas from earlier versions and the manifest update-<target>.json, from which installed apps update themselves (updates in apps/kando/mygo.json, MyGo's docs/updates.md). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the packages to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
 #
 # The packages are not signed for other machines: the macOS app is signed ad hoc, which Gatekeeper blocks until the user allows it, and the Windows installers carry no signature, for which SmartScreen warns. Signing them needs a Developer ID certificate and notary credentials, and a code signing certificate, as repository secrets (see MyGo's docs/github-actions.md).
 on:
@@ -10,6 +10,10 @@ on:
         description: The release tag to build the packages of, which must match the version in mygo.json; empty builds the checked-out commit
         type: string
         default: ""
+    secrets:
+      MYGO_UPDATER_PRIVATE_KEY:
+        description: The secret key that signs the app's updates (mygo keygen); a release build fails without it, as installed apps could not update to the release
+        required: false
 
 jobs:
   build:
@@ -54,13 +58,22 @@ jobs:
       - name: Install NSIS, for the Windows installers
         if: matrix.name == 'Windows'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
+      # Only a release build gets the key: CI's builds make no updates, which would only be thrown away.
       - name: Build
         env:
           PLATFORM: ${{ matrix.platform }}
-        run: go tool mygo build -platform "$PLATFORM" -o "$RUNNER_TEMP/packages" apps/kando
-      # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures. They are copied into one folder, as a release holds its files side by side, with their SHA-256 taken here from the files mygo build made.
+          TAG: ${{ inputs.tag }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ inputs.tag != '' && secrets.MYGO_UPDATER_PRIVATE_KEY || '' }}
+        run: |
+          if [ -n "$TAG" ] && [ -z "$MYGO_UPDATER_PRIVATE_KEY" ]; then
+            echo "::error::The MYGO_UPDATER_PRIVATE_KEY secret is not set, so the release would carry no update that installed apps could install."
+            exit 1
+          fi
+          go tool mygo build -platform "$PLATFORM" -o "$RUNNER_TEMP/packages" apps/kando
+      # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures. A release build adds each target's update files: exactly one manifest, the archive it names (on Linux the archive above) and the deltas, of which there are none when no earlier release has a manifest. They are copied into one folder, as a release holds its files side by side, with their SHA-256 taken here from the files mygo build made.
       - name: Collect the packages
         env:
+          TAG: ${{ inputs.tag }}
           NAME: ${{ matrix.name }}
           PLATFORM: ${{ matrix.platform }}
           PACKAGES: ${{ matrix.packages }}
@@ -80,6 +93,19 @@ jobs:
               fi
               files+=("${found[0]}")
             done
+            if [ -n "$TAG" ]; then
+              found=("$dir"/update-*.json)
+              if [ "${#found[@]}" -ne 1 ]; then
+                echo "::error::mygo build made ${#found[@]} update manifests in $dir, not one"
+                exit 1
+              fi
+              files+=("${found[0]}")
+              for update in "$dir"/*.tar.gz "$dir"/*.delta; do
+                if [[ " ${files[*]} " != *" $update "* ]]; then
+                  files+=("$update")
+                fi
+              done
+            fi
           done
           if [ -n "$SCRIPT" ]; then
             if [ ! -f "$SCRIPT" ]; then

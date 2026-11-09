@@ -108,6 +108,7 @@ func main() {
 	a.refreshLibrary()
 	a.restartLibraryWatch()
 	mygo.Theme.SetSource(mygo.ThemeLight)
+	useUpdater()
 	mygo.App.WhenReady(func() {
 		win = mygo.NewWindow(mygo.WindowOptions{
 			Title:                locales.LibraryWindowTitle(),

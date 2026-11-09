@@ -9,5 +9,9 @@
   },
   "linux": {
     "command": "kando"
+  },
+  "updates": {
+    "publicKey": "Ixbkzk6yM6p8gK3hgwK8IdnorQCJp9vpRlWUbsZs3LQ=",
+    "github": "yldm-tech/Kando"
   }
 }
