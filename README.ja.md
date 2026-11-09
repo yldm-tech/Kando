@@ -87,11 +87,76 @@ Windows と Linux では、現在プレーヤーは映像のみを表示し、�
 
 ![EveryAPI を選択した「設定」›「AI サービス」](docs/assets/ja/settings-ai.png)
 
+<a id="command-line-and-mcp"></a>
+
+## コマンドラインと MCP
+
+Kando のプログラムは、コマンドライン `kando` と、AI エージェント向けの MCP サーバーも兼ねています。下の表のコマンドを付けて実行すると Kando アプリを操作し、コマンドなしで実行するといつもどおりウィンドウを開きます。
+
+`kando` コマンドを使えるようにするには:
+
+- macOS: Kando を「アプリケーション」フォルダに移動してから、「設定」›「一般」で「コマンドラインツール」の横にある「インストール」をクリックします。`/usr/local/bin`、`/opt/homebrew/bin`、`~/.local/bin` のうち最初に書き込めるフォルダに、Kando を指す `kando` のリンクを作ります。管理者パスワードは求めず、ほかのプログラムの `kando` を置き換えることもありません。ディスクイメージから直接開いたときや、ダウンロード後に macOS が一時的な場所に移して実行しているとき（App Translocation）は、Kando のパスがすぐに使えなくなるため、カードはリンクを作らずに先に Kando を移動するよう案内します。自分でリンクを作ることもできます: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`。
+- Linux: `.deb` と `PKGBUILD` はアプリを `/opt/kando` にインストールし、`/opt/kando/kando` を指すリンク `/usr/bin/kando` を追加します。`.tar.gz` に付いているインストールスクリプトはアプリを `~/.local/kando.app` にインストールし、それを指す `~/.local/bin/kando` を作ります。そこに自分で作ったものではない `kando` があれば、そのまま残します。シェルの `PATH` に `~/.local/bin` がなければ追加してください。
+
+| コマンド | 内容 |
+| --- | --- |
+| `kando status` | 開いているライブラリ、使用中のプログラムとモデル、ジョブを開始できるかどうかを表示します。開始できない場合は足りないものを示します。 |
+| `kando list [--source S] [query]` | ライブラリの動画を新しい順に ID 付きで一覧表示します。`--source` は 1 つのソース（`youtube`、`bilibili`、`local`、またはほかのサイトの名前）に絞り込み、query はタイトルにその文字列を含む動画に絞り込みます。 |
+| `kando show <film-id>` | 1 本の動画を表示します: ソース、ステージ、動画と字幕のパス。 |
+| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation]` | 動画の字幕を SubRip（デフォルト）、1 行 1 字幕のテキスト（`text`）、または JSON で出力します。両方の言語か、片方だけを選べます。 |
+| `kando jobs` | ジョブを一覧表示します: 実行中のもの、待機中のもの、終わったものの順です。 |
+| `kando add <link-or-file>... [--wait]` | 「処理を開始」と同じようにリンクやローカルの動画ファイルをキューに追加し、各ジョブの ID を出力します。相対パスは現在のディレクトリから解釈されます。 |
+| `kando cancel <job-id>` | 実行中のジョブを止めるか、待機中のジョブをキューから外します。 |
+| `kando sites [query] [--limit N]` | Kando がダウンロードできるサイトを、名前、ドメイン、または動画のリンクで検索します。 |
+| `kando open [film-id]` | Kando を最前面に出し、指定した動画を表示します。ID を省くとライブラリを表示します。 |
+| `kando mcp` | 標準入出力で MCP サーバーとして動きます（後述）。 |
+| `kando version` | バージョンを出力します。 |
+| `kando help [command]` | コマンドの一覧、または 1 つのコマンドの使い方とフラグを表示します。 |
+
+アプリを必要とするコマンドは、`settings.json` と同じフォルダにあるソケット `kando.sock`（macOS では `~/Library/Application Support/Kando/kando.sock`、Linux では `~/.config/Kando/kando.sock`、Windows では `%AppData%\Kando\kando.sock`）を通じてアプリとやり取りします。`KANDO_SOCKET` で別のパスを指定できます。2 つ目の Kando を動かすときもこれが必要で、さらに専用の `HOME` も要ります（[設定項目](#configuration)を参照）。Kando が起動していないときは、コマンドがバックグラウンドで起動し、標準エラー出力に `Starting Kando…` と表示して最大 30 秒待ちます。動画の追加には「処理を開始」と同じもの（開いているライブラリ、プログラム、whisper モデルなど）が必要で、足りないものがあると `kando add` はウィンドウに表示されるのと同じメッセージで失敗します。
+
+アプリとやり取りするコマンドはすべて `--json` を受け付け、アプリの応答をテキストではなく JSON で出力します。追加できなかったソースがあると、`kando add` は終了コード 1 で終わります。`--wait` を付けると、追加したジョブがすべて完了または失敗するまで待ち、ジョブのステージや進捗が変わるたびに 1 行出力し、失敗したジョブが 1 つでもあれば同じく終了コード 1 で終わります。`--json` を付けると、進捗は標準エラー出力に、終了時のジョブは標準出力に出力されます。終了コードは、成功が 0、失敗が 1、コマンドの使い方の誤りが 2 です。
+
+`kando mcp` は標準入出力で動く MCP サーバーです。Kando が起動していないときは、ツールが同じように Kando を起動します。
+
+| ツール | 内容 |
+| --- | --- |
+| `kando_status` | アプリのバージョン、開いているライブラリ、ジョブを開始できるかどうかと足りないもの、プログラム、音声認識と翻訳のモデル、翻訳先言語、実行中と待機中のジョブ。 |
+| `kando_list_films` | 開いているライブラリの動画を新しい順に返します。`source` やタイトル中の語（`query`）で絞り込めます。 |
+| `kando_get_film` | ID で指定した 1 本の動画: ステージ、翻訳先言語、動画と字幕のパス。 |
+| `kando_get_subtitles` | 処理が終わった動画のタイムスタンプ付き字幕。両方の言語か片方だけ（`which`）、簡潔なテキストか SRT（`format`）を選べ、`max_cues` を指定すると先頭のその行数だけを返します。 |
+| `kando_add_videos` | リンクやローカルの動画ファイルをキューに追加し、ジョブと、追加できなかったソースごとにスキップした理由を返します。 |
+| `kando_list_jobs` | ジョブのステージ、進捗、ステータス、エラー、完了後は動画の ID とファイルのパス。 |
+| `kando_cancel_job` | 実行中のジョブを止めるか、待機中のジョブをキューから外します。 |
+| `kando_search_sites` | Kando がダウンロードできるサイトを、名前、ドメイン、または動画のリンクで検索します（`limit` を指定しなければ 20 件）。 |
+| `kando_open` | Kando のウィンドウを最前面に出し、動画またはライブラリを表示します。 |
+
+Claude Code にはプログラムのパスを指定して追加します。`kando` が `PATH` にあれば `kando` だけで構いません。
+
+```sh
+claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
+```
+
+ほかの MCP クライアントでは、`mcpServers` の設定に同じコマンドを書きます。
+
+```json
+{
+  "mcpServers": {
+    "kando": {
+      "command": "/Applications/Kando.app/Contents/MacOS/Kando",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+WebMCP に対応したブラウザでは、ランディングページ [kando.yldm.ai](https://kando.yldm.ai) がブラウザのエージェントに WebMCP ツールを提供します: `search_supported_sites` は Kando があるサイトからダウンロードできるかを調べ、`get_download` はシステムに合ったダウンロードリンクを返し、`get_started` は使い始めるまでの手順を返し、`list_features` は Kando の機能を一覧にします。
+
 <a id="configuration"></a>
 
 ## 設定項目
 
-以下の項目は、Google のクライアント ID とシークレットを除き、すべてアプリ内でも設定できます（ライブラリはサイドバーから、それ以外は「設定」から）。環境変数を設定すると、アプリに保存された値の代わりにその値が使われます。
+以下の項目は、Google のクライアント ID とシークレット、`KANDO_SOCKET` を除き、すべてアプリ内でも設定できます（ライブラリはサイドバーから、それ以外は「設定」から）。環境変数を設定すると、アプリに保存された値の代わりにその値が使われます。
 
 | 変数 | デフォルト | 説明 |
 | --- | --- | --- |
@@ -101,6 +166,7 @@ Windows と Linux では、現在プレーヤーは映像のみを表示し、�
 | `KANDO_LLM_API_KEY` | なし | 翻訳プロバイダー用の Bearer トークン。サインイン中の EveryAPI アカウントより優先されます。 |
 | `EVERYAPI_API_KEY` | なし | EveryAPI のキー。`KANDO_LLM_BASE_URL` が未設定で `KANDO_LLM_API_KEY` が空のとき、CLI のログインの代わりに使われます。 |
 | `KANDO_OUTPUT_DIR` | 最後に開いたライブラリ | 起動時に開くライブラリのフォルダ。新しい動画と字幕はここに保存されます。 |
+| `KANDO_SOCKET` | `settings.json` と同じフォルダの `kando.sock` | アプリが待ち受け、`kando` コマンドラインと `kando mcp` が接続するソケットのパス。アプリとコマンドの両方に同じパスを設定します。Kando は 1 人のユーザーにつき 1 つだけ動き、もう一度起動すると最初の Kando が前面に出ます。`KANDO_SOCKET` を設定して起動したものは開発用などの意図した 2 つ目の Kando で、自分のライブラリと設定を使うよう専用の `HOME` も必要です。[コマンドラインと MCP](#command-line-and-mcp) を参照してください。 |
 | `KANDO_GOOGLE_CLIENT_ID` | なし | 「設定」›「アカウントとアップロード」で Google にサインインするための OAuth クライアント ID。未設定の場合、サインインボタンは無効になります。設定ファイルには保存されません。 |
 | `KANDO_GOOGLE_CLIENT_SECRET` | なし | 同じ OAuth クライアントのクライアントシークレット（省略可）。 |
 | `KANDO_STORAGE` | `r2` | アップロード先: `r2`、`s3`（または `aws`）、`oss`（または `aliyun`）、`cos`（または `tencent`）、`compat`（または `s3compat`）。それ以外の値は R2 として扱われます。 |

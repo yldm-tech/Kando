@@ -87,11 +87,76 @@ Windows와 Linux에서는 현재 플레이어가 소리 없이 화면만 보여 
 
 ![EveryAPI를 선택한 설정 › AI 서비스](docs/assets/ko/settings-ai.png)
 
+<a id="command-line-and-mcp"></a>
+
+## 명령줄과 MCP
+
+Kando 프로그램은 명령줄 `kando`이자 AI 에이전트용 MCP 서버이기도 합니다. 아래 표의 명령과 함께 실행하면 Kando 앱을 조작하고, 명령 없이 실행하면 평소처럼 창을 엽니다.
+
+`kando` 명령을 쓰려면:
+
+- macOS: Kando를 응용 프로그램 폴더로 옮긴 다음, 설정 › 일반에서 명령줄 도구 옆의 설치를 클릭합니다. `/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin` 중 처음으로 쓸 수 있는 폴더에 Kando를 가리키는 `kando` 링크를 만들며, 관리자 암호를 묻지 않고 다른 프로그램의 `kando`는 바꾸지 않습니다. 디스크 이미지에서 바로 열었거나, 다운로드 후 macOS가 임시 위치로 옮겨 실행할 때(App Translocation)는 Kando의 경로가 곧 사라지므로, 카드는 곧 끊어질 링크를 만드는 대신 먼저 Kando를 옮기라고 안내합니다. 직접 링크를 만들 수도 있습니다: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`.
+- Linux: `.deb`와 `PKGBUILD`는 앱을 `/opt/kando`에 설치하고 `/opt/kando/kando`를 가리키는 링크 `/usr/bin/kando`를 추가합니다. `.tar.gz`에 들어 있는 설치 스크립트는 앱을 `~/.local/kando.app`에 설치하고 이를 가리키는 `~/.local/bin/kando`를 만들며, 거기에 스크립트가 만들지 않은 `kando`가 있으면 그대로 둡니다. 셸의 `PATH`에 `~/.local/bin`이 없으면 추가하십시오.
+
+| 명령 | 하는 일 |
+| --- | --- |
+| `kando status` | 열려 있는 라이브러리, 사용 중인 프로그램과 모델, 작업을 시작할 수 있는지를 보여 주고, 시작할 수 없으면 무엇이 빠졌는지 알려 줍니다. |
+| `kando list [--source S] [query]` | 라이브러리의 영상을 최신순으로 ID와 함께 나열합니다. `--source`는 한 출처(`youtube`, `bilibili`, `local` 또는 다른 사이트 이름)만 남기고, query는 제목에 그 문자열이 들어 있는 영상만 남깁니다. |
+| `kando show <film-id>` | 영상 하나를 보여 줍니다: 출처, 단계, 동영상과 자막의 경로. |
+| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation]` | 영상의 자막을 SubRip(기본값), 자막 하나당 한 줄인 텍스트(`text`) 또는 JSON으로 출력합니다. 두 언어 모두 또는 한쪽만 고를 수 있습니다. |
+| `kando jobs` | 작업을 나열합니다: 실행 중인 작업, 대기 중인 작업, 끝난 작업 순입니다. |
+| `kando add <link-or-file>... [--wait]` | 처리 시작과 같이 링크와 로컬 동영상 파일을 대기열에 추가하고 각 작업의 ID를 출력합니다. 상대 경로는 현재 디렉터리를 기준으로 합니다. |
+| `kando cancel <job-id>` | 실행 중인 작업을 멈추거나 대기 중인 작업을 대기열에서 뺍니다. |
+| `kando sites [query] [--limit N]` | Kando가 내려받을 수 있는 웹사이트를 이름, 도메인 또는 동영상 링크로 검색합니다. |
+| `kando open [film-id]` | Kando를 맨 앞으로 가져와 지정한 영상을 보여 주고, ID가 없으면 라이브러리를 보여 줍니다. |
+| `kando mcp` | 표준 입력과 표준 출력으로 MCP를 제공합니다(아래 참고). |
+| `kando version` | 버전을 출력합니다. |
+| `kando help [command]` | 명령 목록이나 한 명령의 사용법과 플래그를 보여 줍니다. |
+
+앱이 필요한 명령은 `settings.json`이 있는 폴더의 소켓 `kando.sock`(macOS에서는 `~/Library/Application Support/Kando/kando.sock`, Linux에서는 `~/.config/Kando/kando.sock`, Windows에서는 `%AppData%\Kando\kando.sock`)을 통해 앱과 통신합니다. `KANDO_SOCKET`으로 다른 경로를 지정할 수 있으며, 두 번째 Kando를 실행할 때도 이것과 별도의 `HOME`이 필요합니다([구성](#configuration) 참고). Kando가 실행 중이 아니면 명령이 백그라운드에서 Kando를 시작하고, 표준 오류에 `Starting Kando…`를 출력한 뒤 최대 30초 기다립니다. 동영상을 추가하려면 처리 시작과 같은 것(열린 라이브러리, 프로그램, whisper 모델 등)이 필요하며, 빠진 것이 있으면 `kando add`는 창에 표시되는 것과 같은 메시지로 실패합니다.
+
+앱과 통신하는 명령은 모두 `--json`을 받으며, 앱의 응답을 텍스트 대신 JSON으로 출력합니다. 추가하지 못한 출처가 있으면 `kando add`는 종료 코드 1로 끝납니다. `--wait`를 붙이면 추가한 작업이 모두 완료되거나 실패할 때까지 기다리면서 작업의 단계나 진행률이 바뀔 때마다 한 줄씩 출력하고, 실패한 작업이 하나라도 있으면 마찬가지로 종료 코드 1로 끝납니다. `--json`을 함께 쓰면 진행 상황은 표준 오류로, 끝난 시점의 작업은 표준 출력으로 나갑니다. 종료 코드는 성공 0, 실패 1, 명령을 잘못 사용한 경우 2입니다.
+
+`kando mcp`는 표준 입력과 표준 출력으로 동작하는 MCP 서버입니다. Kando가 실행 중이 아니면 도구가 같은 방식으로 Kando를 시작합니다.
+
+| 도구 | 하는 일 |
+| --- | --- |
+| `kando_status` | 앱 버전, 열려 있는 라이브러리, 작업을 시작할 수 있는지와 빠진 것, 프로그램, 음성 인식과 번역 모델, 대상 언어, 실행 중이거나 대기 중인 작업. |
+| `kando_list_films` | 열려 있는 라이브러리의 영상을 최신순으로 돌려주며, `source`나 제목의 단어(`query`)로 거를 수 있습니다. |
+| `kando_get_film` | ID로 지정한 영상 하나: 단계, 대상 언어, 동영상과 자막의 경로. |
+| `kando_get_subtitles` | 처리가 끝난 영상의 타임스탬프가 붙은 자막. 두 언어 모두 또는 한쪽만(`which`), 간결한 텍스트 또는 SRT(`format`)로 받을 수 있고, `max_cues`를 지정하면 앞에서부터 그 줄 수만 돌려줍니다. |
+| `kando_add_videos` | 링크와 로컬 동영상 파일을 대기열에 추가하고, 작업과 추가하지 못한 출처마다 건너뛴 이유를 돌려줍니다. |
+| `kando_list_jobs` | 작업의 단계, 진행률, 상태, 오류, 그리고 완료 후에는 영상 ID와 파일 경로. |
+| `kando_cancel_job` | 실행 중인 작업을 멈추거나 대기 중인 작업을 대기열에서 뺍니다. |
+| `kando_search_sites` | Kando가 내려받을 수 있는 웹사이트를 이름, 도메인 또는 동영상 링크로 검색합니다(`limit`을 지정하지 않으면 20개). |
+| `kando_open` | Kando 창을 맨 앞으로 가져와 영상이나 라이브러리를 보여 줍니다. |
+
+Claude Code에는 프로그램 경로로 추가합니다. `kando`가 `PATH`에 있으면 `kando`만 써도 됩니다.
+
+```sh
+claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
+```
+
+다른 MCP 클라이언트는 `mcpServers` 설정에 같은 명령을 적습니다.
+
+```json
+{
+  "mcpServers": {
+    "kando": {
+      "command": "/Applications/Kando.app/Contents/MacOS/Kando",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+WebMCP를 지원하는 브라우저에서는 랜딩 페이지 [kando.yldm.ai](https://kando.yldm.ai)가 브라우저 에이전트에게 WebMCP 도구를 제공합니다: `search_supported_sites`는 Kando가 어떤 웹사이트에서 내려받을 수 있는지 확인하고, `get_download`는 시스템에 맞는 다운로드 링크를, `get_started`는 시작 단계를 돌려주며, `list_features`는 Kando의 기능을 나열합니다.
+
 <a id="configuration"></a>
 
 ## 구성
 
-Google 클라이언트 ID와 시크릿을 제외한 아래 항목은 모두 앱에서도 설정할 수 있습니다(라이브러리는 사이드바에서, 나머지는 설정에서). 환경 변수가 설정되어 있으면 앱에 저장된 값 대신 그 값을 사용합니다.
+Google 클라이언트 ID와 시크릿, `KANDO_SOCKET`을 제외한 아래 항목은 모두 앱에서도 설정할 수 있습니다(라이브러리는 사이드바에서, 나머지는 설정에서). 환경 변수가 설정되어 있으면 앱에 저장된 값 대신 그 값을 사용합니다.
 
 | 변수 | 기본값 | 의미 |
 | --- | --- | --- |
@@ -101,6 +166,7 @@ Google 클라이언트 ID와 시크릿을 제외한 아래 항목은 모두 앱�
 | `KANDO_LLM_API_KEY` | 없음 | 번역 제공자용 Bearer 토큰. 로그인한 EveryAPI 계정보다 우선합니다. |
 | `EVERYAPI_API_KEY` | 없음 | EveryAPI 키. `KANDO_LLM_BASE_URL`이 설정되지 않고 `KANDO_LLM_API_KEY`가 비어 있을 때 CLI 로그인 대신 사용합니다. |
 | `KANDO_OUTPUT_DIR` | 마지막으로 연 라이브러리 | 시작할 때 열 라이브러리 폴더. 새 동영상과 자막이 이곳에 저장됩니다. |
+| `KANDO_SOCKET` | `settings.json` 옆의 `kando.sock` | 앱이 대기하고 `kando` 명령줄과 `kando mcp`가 연결하는 소켓의 경로. 앱과 명령 양쪽에 같은 경로를 설정합니다. Kando는 사용자당 하나만 실행되며, 다시 실행하면 이미 실행 중인 Kando가 앞으로 나옵니다. `KANDO_SOCKET`을 설정해 시작한 것은 개발용처럼 일부러 실행하는 두 번째 Kando이며, 자신의 라이브러리와 설정을 쓰도록 별도의 `HOME`도 필요합니다. [명령줄과 MCP](#command-line-and-mcp)를 참고하세요. |
 | `KANDO_GOOGLE_CLIENT_ID` | 없음 | 설정 › 계정 및 업로드에서 로그인할 때 쓰는 Google OAuth 클라이언트 ID. 없으면 로그인 버튼이 비활성화됩니다. 설정 파일에는 저장되지 않습니다. |
 | `KANDO_GOOGLE_CLIENT_SECRET` | 없음 | 같은 OAuth 클라이언트의 클라이언트 시크릿(선택 사항). |
 | `KANDO_STORAGE` | `r2` | 업로드 대상: `r2`, `s3`(또는 `aws`), `oss`(또는 `aliyun`), `cos`(또는 `tencent`), `compat`(또는 `s3compat`). 그 밖의 값은 R2로 간주합니다. |
