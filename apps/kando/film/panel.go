@@ -8,19 +8,29 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// panelTabs are the side panel's tabs, by the FilmSide each one is.
-var panelTabs = []struct{ id, label string }{
-	{"", "字幕"},
-	{"clips", "片段"},
-	{"info", "信息"},
-	{"style", "样式"},
+// panelTabs are the side panel's tabs, by the FilmSide each one is; tabLabel names them.
+var panelTabs = []string{"", "clips", "info", "style"}
+
+// tabLabel is what a tab of the side panel is called in the interface's language.
+func tabLabel(id string) string {
+	switch id {
+	case "clips":
+		return locales.FilmTabClips()
+	case "info":
+		return locales.FilmTabInfo()
+	case "style":
+		return locales.FilmTabStyle()
+	}
+	return locales.FilmSubtitles()
 }
 
 // The side panel's surfaces (prototype template 642-876).
@@ -41,7 +51,7 @@ func (s screen) panel(c *ui.Context, t *ui.Theme, item films.Film, panelSpace fl
 	if alpha > 1 {
 		alpha = 1
 	}
-	box := ui.Column(c).Absolute().Right(16).Top(62).Bottom(18).Width(panelWidth).Radius(22).Clip().Role(ui.RoleGroup).Label("侧栏").Translate(panelRoom-panelSpace, 0).Opacity(alpha)
+	box := ui.Column(c).Absolute().Right(16).Top(62).Bottom(18).Width(panelWidth).Radius(22).Clip().Role(ui.RoleGroup).Label(locales.FilmSidebar()).Translate(panelRoom-panelSpace, 0).Opacity(alpha)
 	if !shown {
 		box.PassThrough()
 	}
@@ -67,7 +77,7 @@ func (s screen) panel(c *ui.Context, t *ui.Theme, item films.Film, panelSpace fl
 func (s screen) panelTabBar(c *ui.Context) {
 	chosen := 0
 	for i, tab := range panelTabs {
-		if tab.id == s.FilmSide() {
+		if tab == s.FilmSide() {
 			chosen = i
 		}
 	}
@@ -76,7 +86,7 @@ func (s screen) panelTabBar(c *ui.Context) {
 		chosen = len(panelTabs) - 1
 	}
 	tabs := ui.TabsBase(c, &chosen, len(panelTabs))
-	tabs.List.Height(32).Padding(3).Radius(12).Background(ui.RGBA(255, 255, 255, 0.1)).Label("侧栏").Children(func() {
+	tabs.List.Height(32).Padding(3).Radius(12).Background(ui.RGBA(255, 255, 255, 0.1)).Label(locales.FilmSidebar()).Children(func() {
 		for i, tab := range panelTabs {
 			t := tabs.Tab(i).Grow(1).Basis(0).Height(26).Radius(9).Justify(ui.Center).AlignItems(ui.Center)
 			weight := 400
@@ -86,7 +96,7 @@ func (s screen) panelTabBar(c *ui.Context) {
 			} else if t.Hovered() {
 				t.Background(panelLine)
 			}
-			t.Children(func() { ui.Text(c, tab.label).FontSize(12).FontWeight(weight).SingleLine() })
+			t.Children(func() { ui.Text(c, tabLabel(tab)).FontSize(12).FontWeight(weight).SingleLine() })
 		}
 	})
 	if chosen == len(panelTabs)-1 {
@@ -96,8 +106,8 @@ func (s screen) panelTabBar(c *ui.Context) {
 	if s.StyleView() {
 		s.SetStyleView(false)
 	}
-	if panelTabs[chosen].id != s.FilmSide() {
-		s.SetFilmSide(panelTabs[chosen].id)
+	if panelTabs[chosen] != s.FilmSide() {
+		s.SetFilmSide(panelTabs[chosen])
 	}
 }
 
@@ -108,7 +118,7 @@ func (s screen) subsTab(c *ui.Context, t *ui.Theme, item films.Film) {
 	ui.Column(c).Padding(0, 14, 8, 14).Gap(8).Children(func() {
 		c.Key("film-search")
 		// The prototype's field is 30 high, white at 10%, its text 12; its bezel and its edge stay the platform's.
-		field := breeze.SearchField(c, s.Search()).Placeholder("搜索台词  " + breeze.ShortcutText(c, ui.Cmd, ui.KeyF)).Label("搜索台词")
+		field := breeze.SearchField(c, s.Search()).Placeholder(locales.FilmSearchLines() + "  " + breeze.ShortcutText(c, ui.Cmd, ui.KeyF)).Label(locales.FilmSearchLines())
 		field.Height(30).Background(ui.RGBA(255, 255, 255, 0.1)).FontSize(12)
 		if focus := s.SearchFocus(); *focus {
 			field.Focus()
@@ -117,7 +127,7 @@ func (s screen) subsTab(c *ui.Context, t *ui.Theme, item films.Film) {
 		if ready && subs.Err == "" && len(subs.Cues) > 0 {
 			// How many lines the list holds, as the prototype's chip 全部 shows it.
 			ui.Row(c).Height(24).Padding(0, 10).Radius(12).Gap(3).AlignItems(ui.Center).AlignSelf(ui.Start).Background(ui.RGBA(255, 255, 255, 0.25)).Children(func() {
-				ui.Text(c, "全部").FontSize(11).FontWeight(600)
+				ui.Text(c, locales.FilmAll()).FontSize(11).FontWeight(600)
 				ui.Text(c, fmt.Sprint(len(subs.Cues))).FontSize(11).FontWeight(600).Opacity(0.6)
 			})
 		}
@@ -126,19 +136,19 @@ func (s screen) subsTab(c *ui.Context, t *ui.Theme, item films.Film) {
 	body.Children(func() {
 		switch {
 		case !ready:
-			panelNote(c, "正在读取字幕…")
+			panelNote(c, locales.FilmLoadingSubtitles())
 		case subs.Err != "":
 			panelNote(c, subs.Err).TextColor(t.Danger)
 		case item.SubtitlePath == "":
-			panelNote(c, "还没有字幕。处理完成后会显示在这里。")
+			panelNote(c, locales.FilmNoSubtitlesYet())
 		case len(subs.Cues) == 0:
-			panelNote(c, "这份字幕是空的。")
+			panelNote(c, locales.FilmSubtitlesEmpty())
 		default:
 			s.cueList(c, subs.Cues)
 		}
 	})
 	ui.Row(c).Padding(8, 14, 12, 14).BorderWidth(1, 0, 0, 0).BorderColor(panelLine).Children(func() {
-		ui.Text(c, "单击跳到该句").FontSize(11).LineHeight(15.0 / 11).Opacity(0.55)
+		ui.Text(c, locales.FilmClickToJump()).FontSize(11).LineHeight(15.0 / 11).Opacity(0.55)
 	})
 }
 
@@ -152,7 +162,7 @@ func (s screen) cueList(c *ui.Context, cues []core.Segment) {
 		}
 	}
 	if len(shown) == 0 {
-		panelNote(c, "没有符合条件的字幕。").TextAlign(ui.Center)
+		panelNote(c, locales.FilmNoMatch()).TextAlign(ui.Center)
 		return
 	}
 	current := -1
@@ -210,14 +220,14 @@ func (s screen) clipsTab(c *ui.Context, t *ui.Theme) {
 	ui.Column(c).Grow(1).MinHeight(0).Padding(0, 14, 14, 14).Gap(8).Children(func() {
 		switch {
 		case !subs.Ready:
-			panelNote(c, "正在读取字幕…")
+			panelNote(c, locales.FilmLoadingSubtitles())
 		case subs.Err != "":
 			panelNote(c, subs.Err).TextColor(t.Danger)
 		case len(chapters) == 0:
-			panelNote(c, "还没有可以分段的字幕。")
+			panelNote(c, locales.FilmNoClipsYet())
 		default:
 			ui.Row(c).MinHeight(30).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "按时间把字幕平均切成 4–12 段，每段约 30 秒。").FontSize(11).LineHeight(15.0 / 11).Opacity(0.7).Wrap()
+				ui.Text(c, locales.FilmClipsNote()).FontSize(11).LineHeight(15.0 / 11).Opacity(0.7).Wrap()
 			})
 			ui.List(c, s.ClipList(), len(chapters), func(i int) {
 				s.chapterRow(c, i, chapters[i])
@@ -228,7 +238,7 @@ func (s screen) clipsTab(c *ui.Context, t *ui.Theme) {
 
 func (s screen) chapterRow(c *ui.Context, index int, ch Chapter) {
 	active := s.chapterActive(ch)
-	row := ui.ButtonBase(c).Row().Gap(12).Padding(8).Radius(12).AlignItems(ui.Center).Label(fmt.Sprintf("片段 %d", index+1))
+	row := ui.ButtonBase(c).Row().Gap(12).Padding(8).Radius(12).AlignItems(ui.Center).Label(locales.FilmClip(index + 1))
 	if active {
 		row.Background(ui.RGBA(255, 255, 255, 0.16))
 	} else if row.Hovered() {
@@ -247,7 +257,7 @@ func (s screen) chapterRow(c *ui.Context, index int, ch Chapter) {
 			ui.Text(c, cueClock(ch.Start)).FontSize(10).FontWeight(600).FontFeatures("tnum").Absolute().Right(4).Bottom(3)
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, fmt.Sprintf("片段 %d · %s–%s", index+1, cueClock(ch.Start), cueClock(ch.End))).FontSize(11).FontWeight(600).Opacity(0.7)
+			ui.Text(c, locales.FilmClipSpan(index+1, cueClock(ch.Start), cueClock(ch.End))).FontSize(11).FontWeight(600).Opacity(0.7)
 			text := ui.Text(c, ch.Title).FontSize(13).FontWeight(500).LineHeight(18.0 / 13).SingleLine()
 			if active {
 				text.Bold()
@@ -293,25 +303,25 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 						infoChip(c, infoStage(item))
 						if item.Language != "" {
-							infoChip(c, item.Language)
+							infoChip(c, languageName(item.Language))
 						}
 					})
 				})
 			})
 			if folder != "" {
-				panelHeading(c, "影片文件夹")
+				panelHeading(c, locales.FilmFolder())
 				panelGroup(c, func() {
 					ui.Column(c).Padding(10, 12).Gap(8).Children(func() {
 						ui.Text(c, films.DisplayPath(folder)).FontSize(11).LineHeight(16.0 / 11).Font("Menlo").Opacity(0.9).Wrap().Selectable()
 						c.Key("film-info-reveal")
-						if breeze.Button(c, "在访达中显示").Height(26).AlignSelf(ui.Start).Clicked() {
+						if breeze.Button(c, locales.FilmShowInFinder()).Height(26).AlignSelf(ui.Start).Clicked() {
 							s.Reveal(item.VideoPath)
 						}
 					})
 				})
 			}
 			if len(files) > 0 {
-				panelHeading(c, "文件")
+				panelHeading(c, locales.FilmFiles())
 				panelGroup(c, func() {
 					for i, f := range filesInOrder(files) {
 						fileRow(c, f, i > 0, func() {
@@ -322,29 +332,29 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 					}
 				})
 			}
-			panelHeading(c, "来源")
+			panelHeading(c, locales.FilmSource())
 			panelGroup(c, func() {
 				ui.Column(c).Padding(10, 12).Gap(6).Children(func() {
 					source := item.Source
 					if source == "" || strings.HasPrefix(source, "file://") {
-						ui.Text(c, "本地文件").FontSize(12).LineHeight(17.0 / 12).Opacity(0.9)
+						ui.Text(c, locales.FilmLocalFile()).FontSize(12).LineHeight(17.0 / 12).Opacity(0.9)
 					} else {
 						ui.Row(c).Gap(6).AlignItems(ui.Start).Children(func() {
 							breeze.Link(c, source, source).FontSize(12).LineHeight(17.0 / 12).Wrap().Grow(1).MinWidth(0)
-							copyInfoButton(c, "复制", source)
+							copyInfoButton(c, locales.FilmCopy(), source)
 						})
 					}
-					ui.Text(c, "任务记录").FontSize(11).Opacity(0.55)
+					ui.Text(c, locales.FilmJobRecord()).FontSize(11).Opacity(0.55)
 					recordPath := s.LibraryPath()
 					if recordPath == "" {
 						recordPath = "~/Library/Application Support/Kando/library.json"
 					}
 					ui.Row(c).Gap(6).AlignItems(ui.Start).Children(func() {
 						ui.Text(c, films.DisplayPath(recordPath)).FontSize(11).LineHeight(15.0 / 11).Font("Menlo").Opacity(0.65).Wrap().Grow(1).MinWidth(0).Selectable()
-						if breeze.FlatButton(c, "打开").Height(24).Padding(0, 8).Clicked() {
+						if breeze.FlatButton(c, locales.FilmOpen()).Height(24).Padding(0, 8).Clicked() {
 							s.Reveal(recordPath)
 						}
-						copyInfoButton(c, "复制", recordPath)
+						copyInfoButton(c, locales.FilmCopy(), recordPath)
 					})
 				})
 			})
@@ -387,10 +397,13 @@ func infoStage(item films.Film) string {
 		return films.StageLabel(item.Stage)
 	}
 	if item.VideoPath != "" {
-		return "本地视频"
+		return locales.FilmLocalVideo()
 	}
-	return "未处理"
+	return locales.FilmUnprocessed()
 }
+
+// languageName is what the info tab shows for the language a film's subtitles were translated into, the value its job saved, such as 简体中文 (subtitle.TargetLanguageName).
+func languageName(saved string) string { return subtitle.TargetLanguageName(saved) }
 
 // fileRow is a file of the film's folder: a tile with its kind, its name, its size, and a reveal action.
 func fileRow(c *ui.Context, f File, divided bool, reveal func()) {
@@ -407,30 +420,53 @@ func fileRow(c *ui.Context, f File, divided bool, reveal func()) {
 			ui.Text(c, f.Name).FontSize(12).Font("Menlo").Wrap()
 			about := fileSize(f.Size)
 			if kind := fileKind(f.Name); kind != "" {
-				about = kind + " · " + about
+				about = kindLabel(kind) + " · " + about
 			}
 			ui.Text(c, about).FontSize(11).Opacity(0.65)
 		})
 		c.Key("film-info-file-" + f.Name)
-		if breeze.FlatButton(c, "显示").Height(24).Padding(0, 8).Shrink(0).Clicked() {
+		if breeze.FlatButton(c, locales.FilmReveal()).Height(24).Padding(0, 8).Shrink(0).Clicked() {
 			reveal()
 		}
 	})
 }
 
-// fileKind is what a file the pipeline writes into a film's folder is, as the prototype's 信息 names them (script 3261-3266), or "" for another file.
+// The kinds of files the pipeline writes into a film's folder, as the prototype's 信息 tells them apart (script 3261-3266); kindLabel names them.
+const (
+	kindVideo     = "video"
+	kindCover     = "cover"
+	kindOriginal  = "original"
+	kindBilingual = "bilingual"
+)
+
+// fileKind is what a file the pipeline writes into a film's folder is, one of the kinds above, or "" for another file.
 func fileKind(name string) string {
 	switch {
 	case strings.HasSuffix(name, ".bilingual.srt"):
-		return "双语字幕"
+		return kindBilingual
 	case name == "cover.jpg":
-		return "封面"
+		return kindCover
 	}
 	switch strings.ToUpper(strings.TrimPrefix(fileExt(name), ".")) {
 	case "SRT", "VTT", "ASS":
-		return "原文字幕"
+		return kindOriginal
 	case "MP4", "MKV", "MOV", "WEBM", "M4V":
-		return "视频"
+		return kindVideo
+	}
+	return ""
+}
+
+// kindLabel is what the info tab calls a kind of file in the interface's language.
+func kindLabel(kind string) string {
+	switch kind {
+	case kindVideo:
+		return locales.FilmKindVideo()
+	case kindCover:
+		return locales.FilmKindCover()
+	case kindOriginal:
+		return locales.FilmKindOriginal()
+	case kindBilingual:
+		return locales.FilmKindBilingual()
 	}
 	return ""
 }
@@ -439,11 +475,11 @@ func fileKind(name string) string {
 func filesInOrder(files []File) []File {
 	rank := func(f File) int {
 		switch fileKind(f.Name) {
-		case "视频":
+		case kindVideo:
 			return 0
-		case "封面":
+		case kindCover:
 			return 1
-		case "原文字幕", "双语字幕":
+		case kindOriginal, kindBilingual:
 			return 2
 		}
 		return 3
@@ -481,7 +517,7 @@ func fileExt(name string) string {
 
 func fileSize(n int64) string {
 	if n < 0 {
-		return "大小未知"
+		return locales.FilmSizeUnknown()
 	}
 	switch {
 	case n >= 1<<30:
@@ -491,7 +527,7 @@ func fileSize(n int64) string {
 	case n >= 1<<10:
 		return fmt.Sprintf("%.0f KB", float64(n)/(1<<10))
 	}
-	return fmt.Sprintf("%d 字节", n)
+	return locales.FilmBytes(int(n))
 }
 
 func panelHeading(c *ui.Context, text string) {

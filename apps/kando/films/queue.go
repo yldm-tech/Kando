@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 
 	"github.com/egoist/mygo/ui"
@@ -14,7 +15,7 @@ import (
 // queueSection is 处理中: a card for every job that is waiting, running, failed or was cancelled, in QueueOrder. Past QueueShown cards it shows the first ones and a button for the rest.
 func queueSection(c *ui.Context, t *ui.Theme, a App, queue []Film) {
 	ui.Column(c).Margin(26, 0, 0, 0).Gap(12).Children(func() {
-		sectionTitle(c, t, "处理中", QueueSummary(queue))
+		sectionTitle(c, t, locales.FilmsQueueTitle(), QueueSummary(queue))
 		expanded := a.QueueExpanded()
 		shown := queue
 		if !*expanded && len(shown) > QueueShown {
@@ -28,9 +29,9 @@ func queueSection(c *ui.Context, t *ui.Theme, a App, queue []Film) {
 			}
 		})
 		if len(queue) > QueueShown {
-			label := fmt.Sprintf("显示全部 %d 个", len(queue))
+			label := locales.FilmsQueueShowAll(len(queue))
 			if *expanded {
-				label = "收起"
+				label = locales.FilmsQueueCollapse()
 			}
 			c.Key("queue-more")
 			if breeze.Button(c, label).AlignSelf(ui.Start).Clicked() {
@@ -97,7 +98,7 @@ var thumbFill, placeholderInk = ui.Hex("#DCDDE2"), ui.Hex("#8E8E95")
 
 // cancelButton is the round × over a waiting or running card's corner, 22 points, its 10-point glyph in the secondary text's gray.
 func cancelButton(c *ui.Context, t *ui.Theme) ui.Element {
-	b := ui.ButtonBase(c).Label("取消处理").Absolute().Top(8).Right(8).Size(22, 22).Radius(11).AlignItems(ui.Center).Justify(ui.Center)
+	b := ui.ButtonBase(c).Label(locales.FilmsQueueCancel()).Absolute().Top(8).Right(8).Size(22, 22).Radius(11).AlignItems(ui.Center).Justify(ui.Center)
 	if b.Hovered() {
 		b.Background(ui.RGBA(0, 0, 0, 0.06))
 	}
@@ -132,41 +133,41 @@ func QueueMeta(item Film) string {
 	p := item.Progress
 	switch item.Stage {
 	case core.StageQueued:
-		return "排队中 · 等待前面的任务"
+		return locales.FilmsQueueWaiting()
 	case core.StageDownloading:
 		if Local(item) {
-			return "读取中 · 本地文件"
+			return locales.FilmsQueueReadingLocal()
 		}
 		if !p.Known {
-			return "下载中 · yt-dlp · " + SourceLabel(item)
+			return locales.FilmsQueueDownloadingFrom(SourceLabel(item))
 		}
-		parts := []string{"下载中", Percent(p.Fraction)}
+		parts := []string{locales.FilmsStageDownloading(), Percent(p.Fraction)}
 		if p.Speed > 0 {
 			parts = append(parts, Rate(p.Speed))
 		}
 		if p.ETA > 0 {
-			parts = append(parts, "还剩 "+Clock(p.ETA))
+			parts = append(parts, locales.FilmsQueueRemaining(Clock(p.ETA)))
 		}
 		return strings.Join(parts, " · ")
 	case core.StageTranscribing:
 		if p.Known {
-			return "生成字幕中 · whisper 本机识别 · " + Percent(p.Fraction)
+			return locales.FilmsQueueTranscribingPercent(Percent(p.Fraction))
 		}
-		return "生成字幕中 · whisper 本机识别"
+		return locales.FilmsQueueTranscribing()
 	case core.StageTranslating:
 		if RetryWaiting(item) {
-			why := "翻译接口限流"
+			seconds := int(p.RetryIn.Round(time.Second) / time.Second)
 			if p.Unanswered {
-				why = "翻译接口没有回应"
+				return locales.FilmsQueueNoAnswer(seconds, p.Attempt, p.Attempts)
 			}
-			return fmt.Sprintf("%s，%d 秒后重试（%d/%d）", why, int(p.RetryIn.Round(time.Second)/time.Second), p.Attempt, p.Attempts)
+			return locales.FilmsQueueRateLimited(seconds, p.Attempt, p.Attempts)
 		}
 		if p.Batches > 0 {
-			return fmt.Sprintf("翻译中 · 第 %d/%d 批 · 每批 %d 句", p.Batch, p.Batches, p.BatchSize)
+			return locales.FilmsQueueTranslatingBatch(p.Batch, p.Batches, p.BatchSize)
 		}
-		return "翻译中 · AI 服务"
+		return locales.FilmsQueueTranslating()
 	case core.StageExporting:
-		return "导出中 · 写入 video.srt 与 video.bilingual.srt"
+		return locales.FilmsQueueExporting()
 	}
 	return StageLabel(item.Stage)
 }
@@ -204,7 +205,7 @@ func stepsBar(c *ui.Context, t *ui.Theme, item Film) {
 	}
 	track, fill := t.Text.Alpha(0.09), t.Accent
 	known := item.Progress.Known
-	ui.Box(c).WidthPercent(100).Height(4).Margin(2, 0, 0, 0).Role(ui.RoleProgress).Label("进度").Range(0, float64(total), value).Draw(func(p *ui.Painter, r ui.Rect) {
+	ui.Box(c).WidthPercent(100).Height(4).Margin(2, 0, 0, 0).Role(ui.RoleProgress).Label(locales.FilmsQueueProgress()).Range(0, float64(total), value).Draw(func(p *ui.Painter, r ui.Rect) {
 		const gap = 3
 		w := (r.W - gap*float32(total-1)) / float32(total)
 		for i, f := range fills {
@@ -245,23 +246,23 @@ func failedDetail(c *ui.Context, t *ui.Theme, a App, item Film) {
 	}
 	reason, section := a.FailureHint(item)
 	if Canceled(item) {
-		ui.Text(c, "已取消").FontSize(11).TextColor(t.TextMuted)
+		ui.Text(c, locales.FilmsQueueCanceled()).FontSize(11).TextColor(t.TextMuted)
 	} else {
 		ui.Text(c, reason).FontSize(11).TextColor(failInk).Wrap().MaxLines(2)
 	}
 	ui.Row(c).Wrap().Gap(6).Margin(2, 0, 0, 0).Children(func() {
 		if section != "" {
 			c.Key("queue-settings")
-			if breeze.Button(c, "打开设置").Clicked() {
+			if breeze.Button(c, locales.FilmsOpenSettings()).Clicked() {
 				a.OpenSettings(section)
 			}
 		}
 		c.Key("queue-retry")
-		if breeze.PrimaryButton(c, "重试").Clicked() {
+		if breeze.PrimaryButton(c, locales.FilmsRetry()).Clicked() {
 			a.Retry(item.JobID)
 		}
 		c.Key("queue-remove")
-		if breeze.Button(c, "移除").Clicked() {
+		if breeze.Button(c, locales.FilmsRemove()).Clicked() {
 			a.Remove(item.JobID)
 		}
 	})
@@ -287,7 +288,7 @@ func remedyDetail(c *ui.Context, t *ui.Theme, a App, item Film, r Remedy) {
 			}
 		}
 		c.Key("queue-remove")
-		if breeze.Button(c, "移除").Clicked() {
+		if breeze.Button(c, locales.FilmsRemove()).Clicked() {
 			a.Remove(item.JobID)
 		}
 	})

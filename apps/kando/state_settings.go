@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 
@@ -33,13 +34,15 @@ type settingsUI struct {
 	llmModel        string
 	llmKey          string
 	llmCredential   func(context.Context, bool) (media.Endpoint, error)
-	testingLLM      bool
-	llmTestResult   string
-	// llmModels are the model ids the AI service offers, fetched for the service, Base URL and key in llmModelsFor; llmModelsLoading is set while a fetch runs and llmModelsErr says why the last one failed. llmEdited is when the Base URL or the key was last typed, so a fetch waits for typing to pause, and llmWaiting is set while a timer waits for that pause. listModels asks a service for its models; tests replace it.
+	// testingLLM is set while the connection test runs; llmTestOK is set when the last one passed and llmTestErr says why it failed. The page words the pass in the language it is shown in (LLMResult).
+	testingLLM bool
+	llmTestOK  bool
+	llmTestErr string
+	// llmModels are the model ids the AI service offers, fetched for the service, Base URL and key in llmModelsFor; llmModelsLoading is set while a fetch runs and llmModelsErr is why the last one failed, which LLMModelsErr words in the language it is shown in. llmEdited is when the Base URL or the key was last typed, so a fetch waits for typing to pause, and llmWaiting is set while a timer waits for that pause. listModels asks a service for its models; tests replace it.
 	llmModels        []string
 	llmModelsFor     string
 	llmModelsLoading bool
-	llmModelsErr     string
+	llmModelsErr     error
 	llmEdited        time.Time
 	llmWaiting       bool
 	listModels       func(context.Context, media.ChatTranslator) ([]string, error)
@@ -58,7 +61,7 @@ type settingsUI struct {
 }
 
 func newSettingsUI() settingsUI {
-	return settingsUI{interfaceLanguage: "zh-Hans", language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }}
+	return settingsUI{interfaceLanguage: locales.Default, language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }}
 }
 
 // savedInterface is the settings window's interface language. It is kept
@@ -69,8 +72,8 @@ type savedInterface struct {
 }
 
 func (s *savedInterface) clean() {
-	if s.InterfaceLanguage != "en" && s.InterfaceLanguage != "zh-Hans" {
-		s.InterfaceLanguage = "zh-Hans"
+	if !locales.Supported(s.InterfaceLanguage) {
+		s.InterfaceLanguage = locales.Default
 	}
 }
 
@@ -190,7 +193,7 @@ func (a *app) openSettingsWindow() {
 		return
 	}
 	w := mygo.NewWindow(mygo.WindowOptions{
-		Title:             "设置",
+		Title:             locales.SettingsWindowTitle(),
 		Width:             880,
 		Height:            640,
 		MinWidth:          720,

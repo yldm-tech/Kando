@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"strings"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -40,9 +41,6 @@ const (
 
 // installedBrowsers looks on disk for the browsers whose logins the cards offer to borrow; it runs off the UI thread. Tests replace it.
 var installedBrowsers = media.InstalledBrowsers
-
-// noBrowser is what a card that wants a login says when this machine has no browser yt-dlp can borrow one from, as Windows or Linux without Chrome, Firefox, Edge, Brave or Chromium.
-const noBrowser = "这台电脑上没找到能借用登录的浏览器。在 Chrome、Firefox、Edge、Brave 或 Chromium 里登录后，重新查找。"
 
 // openExternal opens a URL with the system, as the Full Disk Access pane of System Settings. Tests replace it.
 var openExternal = mygo.Shell.OpenExternal
@@ -86,7 +84,7 @@ func (a *app) queueFindBrowsers() {
 		update(func() {
 			a.queue.ytdlp.browsers = browsers
 			if len(browsers) == 0 {
-				a.tell("还是没找到能借用登录的浏览器。")
+				a.tell(locales.QueueNoBrowserAgain())
 			}
 		})
 	}()
@@ -100,25 +98,25 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 	}
 	site := films.SourceLabel(item)
 	browser, other := a.remedyBrowsers(job)
-	// borrow is 借用 … 登录并重试, or 重新查找浏览器 when there is no browser to borrow from; why is then followed by noBrowser in place of withBrowser.
+	// borrow is 借用 … 登录并重试, or 重新查找浏览器 when there is no browser to borrow from; why is then followed by the sentence that says there is none in place of withBrowser.
 	borrow := func(primary bool) films.RemedyAction {
 		if browser.ID == "" {
-			return films.RemedyAction{ID: remedyFindBrowsers, Label: "重新查找浏览器", Primary: primary}
+			return films.RemedyAction{ID: remedyFindBrowsers, Label: locales.QueueRemedyFindBrowsers(), Primary: primary}
 		}
-		return films.RemedyAction{ID: remedyBorrow + browser.ID, Label: "借用 " + browser.Name + " 登录并重试", Primary: primary}
+		return films.RemedyAction{ID: remedyBorrow + browser.ID, Label: locales.QueueRemedyBorrow(browser.Name), Primary: primary}
 	}
 	why := func(need, withBrowser string) string {
 		if browser.ID == "" {
-			return need + noBrowser
+			return locales.QueueRemedySentences(need, locales.QueueRemedyNoBrowser())
 		}
-		return need + withBrowser
+		return locales.QueueRemedySentences(need, withBrowser)
 	}
 	swap := func(primary bool) films.RemedyAction {
-		return films.RemedyAction{ID: remedySwap, Label: "换个链接", Primary: primary}
+		return films.RemedyAction{ID: remedySwap, Label: locales.QueueRemedySwap(), Primary: primary}
 	}
-	retry := films.RemedyAction{ID: remedyRetry, Label: "重试", Primary: true}
+	retry := films.RemedyAction{ID: remedyRetry, Label: locales.QueueRemedyRetry(), Primary: true}
 	local := func(primary bool) films.RemedyAction {
-		return films.RemedyAction{ID: remedyLocal, Label: "选择本地文件", Primary: primary}
+		return films.RemedyAction{ID: remedyLocal, Label: locales.QueueRemedyLocal(), Primary: primary}
 	}
 	var r films.Remedy
 	switch job.FailKind {
@@ -126,43 +124,43 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 		r = a.outdatedRemedy(site)
 	case core.FailLoginExpired:
 		name := media.BrowserName(job.Cookies)
-		r = films.Remedy{Headline: site + "登录已过期", Why: "先在 " + name + " 里重新登录" + siteShort(site) + "，再回来重试。",
-			Actions: []films.RemedyAction{{ID: remedyBorrow + job.Cookies, Label: "已重新登录，重试", Primary: true}}}
+		r = films.Remedy{Headline: locales.QueueRemedyLoginExpired(site), Why: locales.QueueRemedyLoginExpiredWhy(name, siteShort(job.Source, site)),
+			Actions: []films.RemedyAction{{ID: remedyBorrow + job.Cookies, Label: locales.QueueRemedyRelogged(), Primary: true}}}
 		if other.ID != "" {
-			r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: "改用 " + other.Name})
+			r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: locales.QueueRemedySwitchBrowser(other.Name)})
 		}
 	case core.FailMembers:
-		headline, need := "频道会员专享视频", "需要频道会员。"
-		if site == "哔哩哔哩" {
-			headline, need = "大会员专享视频", "需要大会员。"
+		headline, need := locales.QueueRemedyMembers(), locales.QueueRemedyMembersNeed()
+		if queueBilibili(job.Source) {
+			headline, need = locales.QueueRemedyPremium(), locales.QueueRemedyPremiumNeed()
 		}
-		r = films.Remedy{Headline: headline, Why: why(need, "借用已开通会员的浏览器登录即可。"), Actions: []films.RemedyAction{borrow(true), swap(false)}}
+		r = films.Remedy{Headline: headline, Why: why(need, locales.QueueRemedyMembersBorrow()), Actions: []films.RemedyAction{borrow(true), swap(false)}}
 	case core.FailAge:
-		r = films.Remedy{Headline: "需要年龄验证", Why: "借用浏览器里已登录的 " + site + " 账号即可。", Actions: []films.RemedyAction{borrow(true)}}
+		r = films.Remedy{Headline: locales.QueueRemedyAge(), Why: locales.QueueRemedyAgeWhy(site), Actions: []films.RemedyAction{borrow(true)}}
 		if browser.ID == "" {
-			r.Why = "要用已登录的 " + site + " 账号。" + noBrowser
+			r.Why = locales.QueueRemedySentences(locales.QueueRemedyAgeNeed(site), locales.QueueRemedyNoBrowser())
 		}
 	case core.FailLogin:
-		r = films.Remedy{Headline: "要登录才能看", Why: why(hostOf(job.Source)+" 的这个视频需要账号。", "借用浏览器里已登录的账号即可，不保存密码。"), Actions: []films.RemedyAction{borrow(true)}}
+		r = films.Remedy{Headline: locales.QueueRemedyLogin(), Why: why(locales.QueueRemedyLoginNeed(hostOf(job.Source)), locales.QueueRemedyLoginBorrow()), Actions: []films.RemedyAction{borrow(true)}}
 	case core.FailRegion:
-		r = films.Remedy{Headline: "你所在的地区不能看", Why: "上传者限制了地区。别处有这个视频的话，换个链接。", Actions: []films.RemedyAction{swap(true)}}
+		r = films.Remedy{Headline: locales.QueueRemedyRegion(), Why: locales.QueueRemedyRegionWhy(), Actions: []films.RemedyAction{swap(true)}}
 	case core.FailPrivate:
-		r = films.Remedy{Headline: "视频已设为私密或被删除", Why: "没法下载。别处有的话，换个链接。", Actions: []films.RemedyAction{swap(true)}}
+		r = films.Remedy{Headline: locales.QueueRemedyPrivate(), Why: locales.QueueRemedyPrivateWhy(), Actions: []films.RemedyAction{swap(true)}}
 	case core.FailDRM:
-		r = films.Remedy{Headline: site + " 受 DRM 保护", Why: "视频是加密的，没法下载。有本地文件的话可以直接拖进来。", Actions: []films.RemedyAction{local(true)}}
+		r = films.Remedy{Headline: locales.QueueRemedyDrm(site), Why: locales.QueueRemedyDrmWhy(), Actions: []films.RemedyAction{local(true)}}
 	case core.FailUnsupported:
-		r = films.Remedy{Headline: hostOf(job.Source) + " 暂不支持", Why: "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", Actions: []films.RemedyAction{swap(true), local(false), {ID: remedySites, Label: "查看支持的网站"}}}
+		r = films.Remedy{Headline: locales.QueueRemedyUnsupported(hostOf(job.Source)), Why: locales.QueueRemedyUnsupportedWhy(), Actions: []films.RemedyAction{swap(true), local(false), {ID: remedySites, Label: locales.QueueRemedySites()}}}
 	case core.FailRateLimit:
-		r = films.Remedy{Headline: site + " 暂时限制了下载", Why: "请求太频繁。等几分钟再重试，或借用浏览器里已登录的账号。", Actions: []films.RemedyAction{retry, borrow(false)}}
+		r = films.Remedy{Headline: locales.QueueRemedyRateLimit(site), Why: locales.QueueRemedyRateLimitWhy(), Actions: []films.RemedyAction{retry, borrow(false)}}
 		if browser.ID == "" {
-			r.Why, r.Actions = "请求太频繁。等几分钟再重试。", []films.RemedyAction{retry}
+			r.Why, r.Actions = locales.QueueRemedyRateLimitWait(), []films.RemedyAction{retry}
 		}
 	case core.FailNetwork:
-		r = films.Remedy{Headline: "连不上网络", Why: "检查网络连接后再重试。", Actions: []films.RemedyAction{retry}}
+		r = films.Remedy{Headline: locales.QueueRemedyNetwork(), Why: locales.QueueRemedyNetworkWhy(), Actions: []films.RemedyAction{retry}}
 	case core.FailBadLink:
-		r = films.Remedy{Headline: "链接不完整", Why: "链接好像少了一截，重试也下载不了。复制完整的链接，换个链接再试。", Actions: []films.RemedyAction{swap(true)}}
+		r = films.Remedy{Headline: locales.QueueRemedyBadLink(), Why: locales.QueueRemedyBadLinkWhy(), Actions: []films.RemedyAction{swap(true)}}
 	case core.FailHost:
-		r = films.Remedy{Headline: "找不到 " + hostOf(job.Source), Why: "网络正常的话，多半是链接里的网址写错了，或者这个网站已经关闭。换个链接，或检查网络后再重试。", Actions: []films.RemedyAction{swap(true), {ID: remedyRetry, Label: "重试"}}}
+		r = films.Remedy{Headline: locales.QueueRemedyHost(hostOf(job.Source)), Why: locales.QueueRemedyHostWhy(), Actions: []films.RemedyAction{swap(true), {ID: remedyRetry, Label: locales.QueueRemedyRetry()}}}
 	case core.FailCookies:
 		r = a.cookiesRemedy(job, other)
 	default:
@@ -175,36 +173,47 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 func (a *app) outdatedRemedy(site string) films.Remedy {
 	y := a.queue.ytdlp
 	if y.updating {
-		return films.Remedy{Headline: "正在更新下载组件…", Why: "更新完会自动重新下载。", Working: true,
-			Actions: []films.RemedyAction{{ID: remedyUpdate, Label: "更新中…", Primary: true, Disabled: true}}}
+		return films.Remedy{Headline: locales.QueueRemedyUpdating(), Why: locales.QueueRemedyUpdatingWhy(), Working: true,
+			Actions: []films.RemedyAction{{ID: remedyUpdate, Label: locales.QueueRemedyUpdatingAction(), Primary: true, Disabled: true}}}
 	}
 	if y.latest != "" && y.latest == y.version {
-		return films.Remedy{Headline: site + " 改版了，下载组件还没跟上", Why: "本机的 yt-dlp 已是最新的 " + y.version + " 版，网站的修复还没发布，过一两天再重试。",
-			Actions: []films.RemedyAction{{ID: remedyRetry, Label: "重试", Primary: true}, {ID: remedyUpdate, Label: "检查更新"}}}
+		return films.Remedy{Headline: locales.QueueRemedyOutdatedLatest(site), Why: locales.QueueRemedyOutdatedLatestWhy(y.version),
+			Actions: []films.RemedyAction{{ID: remedyRetry, Label: locales.QueueRemedyRetry(), Primary: true}, {ID: remedyUpdate, Label: locales.QueueRemedyCheckUpdate()}}}
 	}
-	r := films.Remedy{Headline: site + " 改版了，下载组件要更新", Why: "本机的 yt-dlp 太旧了，更新几秒就好。"}
+	r := films.Remedy{Headline: locales.QueueRemedyOutdated(site), Why: locales.QueueRemedyOutdatedWhy()}
 	if y.version != "" {
-		r.Why = "本机的 yt-dlp 是 " + y.version + " 版，更新几秒就好。"
+		r.Why = locales.QueueRemedyOutdatedVersionWhy(y.version)
 	}
 	if y.path != "" && y.install.Update == nil {
-		r.Why = "本机的 yt-dlp 是 " + y.version + " 版，看懂没法替它更新：" + y.install.Hint + "。更新后再重试。"
-		r.Actions = []films.RemedyAction{{ID: remedyRetry, Label: "已更新，重试", Primary: true}}
+		r.Why = locales.QueueRemedyOutdatedManualWhy(y.version, queueYTDLPHint(y.install))
+		r.Actions = []films.RemedyAction{{ID: remedyRetry, Label: locales.QueueRemedyUpdated(), Primary: true}}
 		return r
 	}
-	r.Actions = []films.RemedyAction{{ID: remedyUpdate, Label: "更新并重试", Primary: true}}
+	r.Actions = []films.RemedyAction{{ID: remedyUpdate, Label: locales.QueueRemedyUpdate(), Primary: true}}
 	return r
+}
+
+// queueYTDLPHint says how the user updates a yt-dlp Kando cannot update itself, by how it was installed.
+func queueYTDLPHint(install media.YTDLPInstall) string {
+	switch install.Kind {
+	case "homebrew":
+		return locales.QueueYtdlpHintBrew()
+	case "pipx":
+		return locales.QueueYtdlpHintPipx()
+	}
+	return locales.QueueYtdlpHintStandalone(install.Dir)
 }
 
 // cookiesRemedy is the card of a job whose borrowed browser login yt-dlp could not read: Safari's needs Full Disk Access, which yt-dlp reports as an operation not permitted, and a browser may have no login data on this machine.
 func (a *app) cookiesRemedy(job core.Job, other media.Browser) films.Remedy {
 	name := media.BrowserName(job.Cookies)
-	r := films.Remedy{Headline: "读不到 " + name + " 的登录", Why: "这台电脑上找不到 " + name + " 的登录数据。换一个已登录的浏览器再试。"}
+	r := films.Remedy{Headline: locales.QueueRemedyCookies(name), Why: locales.QueueRemedyCookiesWhy(name)}
 	if job.Cookies == "safari" && job.Err != nil && strings.Contains(job.Err.Error(), "Operation not permitted") {
-		r.Why = "macOS 只让有「完全磁盘访问权限」的 App 读 Safari 的登录。在系统设置里允许看懂，回来再重试，或改用别的浏览器。"
-		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyDiskAccess, Label: "打开系统设置", Primary: true}, films.RemedyAction{ID: remedyBorrow + "safari", Label: "已允许，重试"})
+		r.Why = locales.QueueRemedySafariWhy()
+		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyDiskAccess, Label: locales.QueueRemedyOpenSystemSettings(), Primary: true}, films.RemedyAction{ID: remedyBorrow + "safari", Label: locales.QueueRemedyAllowed()})
 	}
 	if other.ID != "" {
-		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: "改用 " + other.Name, Primary: len(r.Actions) == 0})
+		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: locales.QueueRemedySwitchBrowser(other.Name), Primary: len(r.Actions) == 0})
 	}
 	return r
 }
@@ -244,7 +253,7 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		browser := strings.TrimPrefix(action, remedyBorrow)
 		job.Cookies = browser
 		a.queueRetry(job)
-		a.tell("已借用 " + media.BrowserName(browser) + " 的登录，开始下载。")
+		a.tell(locales.QueueBorrowed(media.BrowserName(browser)))
 	case action == remedySwap:
 		a.queueSwapLink(item)
 	case action == remedyFindBrowsers:
@@ -255,7 +264,7 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		a.OpenSites()
 	case action == remedyDiskAccess:
 		if err := openExternal(fullDiskAccess); err != nil {
-			a.warn("没能打开系统设置："+err.Error(), "")
+			a.warn(locales.QueueOpenSettingsFailed(err.Error()), "")
 		}
 	}
 }
@@ -277,10 +286,19 @@ func (a *app) queueUpdateYTDLP() {
 	path, update := tools.YTDLP, a.update
 	go func() {
 		version, err := media.UpdateYTDLP(context.Background(), path)
+		// A yt-dlp Kando cannot update is named by how it was installed, from which the message bar says how to update it.
+		var install media.YTDLPInstall
+		if errors.Is(err, media.ErrCannotUpdate) {
+			install = media.FindYTDLPInstall(path)
+		}
 		update(func() {
 			a.queue.ytdlp.updating = false
+			if errors.Is(err, media.ErrCannotUpdate) {
+				a.warn(locales.QueueUpdateFailed(queueYTDLPHint(install)), "")
+				return
+			}
 			if err != nil {
-				a.warn("没能更新下载组件 yt-dlp："+err.Error(), "")
+				a.warn(locales.QueueUpdateFailed(err.Error()), "")
 				return
 			}
 			before := a.queue.ytdlp.version
@@ -288,7 +306,7 @@ func (a *app) queueUpdateYTDLP() {
 			// The newest yt-dlp there is fails the same way until the site's fix is out: nothing runs again, and the cards say so.
 			if version == before {
 				a.queue.ytdlp.latest = version
-				a.tell("下载组件 yt-dlp 已是最新的 " + version + " 版，网站的修复还没发布，过一两天再试。")
+				a.tell(locales.QueueYtdlpLatest(version))
 				return
 			}
 			a.queue.ytdlp.latest = ""
@@ -301,7 +319,7 @@ func (a *app) queueUpdateYTDLP() {
 			for i := len(outdated) - 1; i >= 0; i-- {
 				a.queueRetry(outdated[i])
 			}
-			a.tell(fmt.Sprintf("下载组件已更新到 %s，已重新开始下载 %d 个视频。", version, len(outdated)))
+			a.tell(locales.QueueYtdlpUpdated(version, len(outdated)))
 		})
 	}()
 }
@@ -314,7 +332,7 @@ func (a *app) queueSwapLink(item films.Film) {
 	}
 	a.remove(item.JobID)
 	a.queue.source, a.queue.linkFocus = "", true
-	a.tell("已移除「" + name + "」。如果别处有这个视频，把链接粘贴到右上角。")
+	a.tell(locales.QueueSwapRemoved(name))
 }
 
 // hostOf is the site a link points at, without www.
@@ -325,10 +343,16 @@ func hostOf(source string) string {
 	return source
 }
 
-// siteShort is how a sentence names a site after 登录: B 站 for 哔哩哔哩.
-func siteShort(site string) string {
-	if site == "哔哩哔哩" {
-		return " B 站"
+// siteShort is how a sentence names the site of source after 登录: B 站 for 哔哩哔哩, else site.
+func siteShort(source, site string) string {
+	if queueBilibili(source) {
+		return locales.QueueRemedyBilibiliShort()
 	}
-	return " " + site
+	return site
+}
+
+// queueBilibili reports whether source is a 哔哩哔哩 link, whose cards say 大会员 and B 站.
+func queueBilibili(source string) bool {
+	link, ok := core.ParseLink(source)
+	return ok && link.Platform == core.PlatformBilibili
 }

@@ -1,6 +1,8 @@
 package films
 
 import (
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -16,18 +18,18 @@ func newLibrary(c *ui.Context, t *ui.Theme, a App) {
 			ui.Row(c).Gap(14).AlignItems(ui.Start).Children(func() {
 				ui.Image(c, libraryArt).Size(52, 44).Shrink(0)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-					breeze.Text(c, "新建资料库", breeze.TextHeading).FontSize(15).Role(ui.RoleHeading).Level(1)
-					breeze.Text(c, "会创建一个 .kando 文件夹，访达里显示带看懂标志的图标。", breeze.TextCaption, breeze.TextSecondary).FontSize(12).Wrap()
+					breeze.Text(c, locales.FilmsNewLibraryTitle(), breeze.TextHeading).FontSize(15).Role(ui.RoleHeading).Level(1)
+					breeze.Text(c, locales.FilmsNewLibraryNote(), breeze.TextCaption, breeze.TextSecondary).FontSize(12).Wrap()
 				})
 			})
 			var bindErr error
 			breeze.Card(c, func() {
 				bindErr = a.BindName(func(value *string) bool {
-					return breeze.EntryRow(c, "名称", value).Changed()
+					return breeze.EntryRow(c, locales.FilmsNewLibraryName(), value).Changed()
 				})
-				breeze.ActionRow(c, "位置", DisplayPath(a.LibraryPlace()), func() {
+				breeze.ActionRow(c, locales.FilmsNewLibraryPlace(), DisplayPath(a.LibraryPlace()), func() {
 					c.Key("newlib-place")
-					if breeze.Button(c, "更改…").Clicked() {
+					if breeze.Button(c, locales.FilmsChange()).Clicked() {
 						a.PickLibraryParent()
 					}
 				})
@@ -46,11 +48,11 @@ func newLibrary(c *ui.Context, t *ui.Theme, a App) {
 			}
 			ui.Row(c).Gap(8).Justify(ui.End).Children(func() {
 				c.Key("newlib-cancel")
-				if breeze.Button(c, "取消").Clicked() {
+				if breeze.Button(c, locales.FilmsCancel()).Clicked() {
 					a.CancelMaking()
 				}
 				c.Key("newlib-create")
-				if breeze.PrimaryButton(c, "创建").Disabled(pathErr != nil).Clicked() {
+				if breeze.PrimaryButton(c, locales.FilmsCreate()).Disabled(pathErr != nil).Clicked() {
 					a.CreateLibrary()
 				}
 			})

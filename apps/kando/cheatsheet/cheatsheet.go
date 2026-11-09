@@ -4,6 +4,8 @@ package cheatsheet
 import (
 	"strings"
 
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -72,9 +74,9 @@ func Show(c *ui.Context, dark *ui.Theme, open *bool, groups []Group) {
 				Padding(sheetPadTop, sheetPadX, sheetPadBot, sheetPadX).TextColor(ink).Children(func() {
 				// The header: the title 17 bold, the hint 12 at 60%.
 				ui.Row(c).Gap(10).AlignItems(ui.Center).Margin(0, 0, headerGap, 0).Children(func() {
-					breeze.Text(c, "快捷键", breeze.TextSubtitle).FontSize(17).Bold().Grow(1)
-					ui.Text(c, "单键只在没有输入框获焦时生效").FontSize(12).Opacity(0.6)
-					if breeze.FlatIconButton(c, iconClose, "关闭").Size(closeSize, closeSize).Radius(closeSize / 2).Background(closeFill).TextColor(ink).Clicked() {
+					breeze.Text(c, locales.CheatsheetTitle(), breeze.TextSubtitle).FontSize(17).Bold().Grow(1)
+					ui.Text(c, locales.CheatsheetHint()).FontSize(12).Opacity(0.6)
+					if breeze.FlatIconButton(c, iconClose, locales.CheatsheetClose()).Size(closeSize, closeSize).Radius(closeSize / 2).Background(closeFill).TextColor(ink).Clicked() {
 						*open = false
 					}
 				})

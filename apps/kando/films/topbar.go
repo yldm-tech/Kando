@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -28,7 +29,7 @@ func topBar(c *ui.Context, t *ui.Theme, a App, source string) {
 			localButton(c, a)
 			c.Key("films-start")
 			// The prototype's toolbar pills are 34 points high; the platform draws their faces.
-			if breeze.PrimaryButton(c, "开始处理").Height(34).Radius(17).PaddingX(18).Shadow(0, 2, 8, 0, t.Accent.Alpha(0.3)).Clicked() {
+			if breeze.PrimaryButton(c, locales.FilmsStart()).Height(34).Radius(17).PaddingX(18).Shadow(0, 2, 8, 0, t.Accent.Alpha(0.3)).Clicked() {
 				a.Start()
 			}
 		}).Shrink(0)
@@ -51,11 +52,11 @@ func topBar(c *ui.Context, t *ui.Theme, a App, source string) {
 	bar.Absolute().Top(0).Left(0).Right(0).Background(ui.Transparent).LinearGradient(barFade).Draw(func(*ui.Painter, ui.Rect) {})
 }
 
-// localButton is 本地视频 as the prototype groups it: the platform's toolbar button, 28 points high, in a white pill 104 wide that lifts it off what scrolls under the bar.
+// localButton is 本地视频 as the prototype groups it: the platform's toolbar button, 28 points high, in a white pill at least 104 wide, wider for a longer label, that lifts it off what scrolls under the bar.
 func localButton(c *ui.Context, a App) {
-	ui.Row(c).Width(104).Height(34).Padding(0, 3).Radius(17).AlignItems(ui.Center).Background(ui.RGBA(255, 255, 255, 0.75)).Border(0.5, ui.RGBA(0, 0, 0, 0.12)).Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, 0.06)).Children(func() {
+	ui.Row(c).MinWidth(104).Shrink(0).Height(34).Padding(0, 3).Radius(17).AlignItems(ui.Center).Background(ui.RGBA(255, 255, 255, 0.75)).Border(0.5, ui.RGBA(0, 0, 0, 0.12)).Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, 0.06)).Children(func() {
 		c.Key("films-local")
-		if breeze.IconLabelButton(c, addVideoIcon, "本地视频").Tooltip("添加本地视频（⌘O）").Height(28).Radius(14).Grow(1).Padding(0, 12, 0, 10).Clicked() {
+		if breeze.IconLabelButton(c, addVideoIcon, locales.FilmsLocalVideo()).Tooltip(locales.FilmsLocalVideoTooltip()).Height(28).Radius(14).Grow(1).Padding(0, 12, 0, 10).Clicked() {
 			a.PickVideos()
 		}
 	})
@@ -69,7 +70,7 @@ func linkField(c *ui.Context, t *ui.Theme, a App) {
 	focused := false
 	field.Children(func() {
 		ui.Icon(c, linkIcon).Size(15, 15).TextColor(t.TextMuted).Shrink(0)
-		in := ui.TextInputBase(c, value).Placeholder("粘贴 YouTube、哔哩哔哩等视频链接").Label("视频链接").Grow(1).MinWidth(0).FontSize(13).FocusRing(false)
+		in := ui.TextInputBase(c, value).Placeholder(locales.FilmsLinkPlaceholder()).Label(locales.FilmsLinkLabel()).Grow(1).MinWidth(0).FontSize(13).FocusRing(false)
 		if focus := a.LinkFocus(); *focus {
 			in.Focus()
 			*focus = false
@@ -100,9 +101,9 @@ func linkChip(raw string) (label string, color ui.Color, ok bool) {
 	label = PlatformLabel(link)
 	switch link.Kind {
 	case core.LinkPlaylist:
-		label += " · 合集"
+		label = locales.FilmsLinkPlaylist(label)
 	case core.LinkChannel:
-		label += " · 频道"
+		label = locales.FilmsLinkChannel(label)
 	}
 	switch link.Platform {
 	case core.PlatformYouTube:
@@ -121,13 +122,13 @@ func PageTitle(source string) string {
 	case sidebar.SourceYouTube:
 		return "YouTube"
 	case sidebar.SourceBilibili:
-		return "哔哩哔哩"
+		return locales.SourceBilibili()
 	case sidebar.SourceWeb:
-		return "其他网站"
+		return locales.SourceWeb()
 	case sidebar.SourceLocal:
-		return "本地文件"
+		return locales.SourceLocal()
 	}
-	return "全部影片"
+	return locales.SourceAll()
 }
 
 // LibraryName is a library folder's name without its .kando suffix.

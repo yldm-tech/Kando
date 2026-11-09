@@ -1,8 +1,9 @@
 package feedback
 
 import (
-	"strconv"
 	"strings"
+
+	"kando/apps/kando/locales"
 
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -73,16 +74,16 @@ func Show(c *ui.Context, t *ui.Theme, a App, open *bool) {
 			ui.Scroll(c).Grow(1).Shrink(1).MinHeight(0).Children(func() {
 				ui.Column(c).Gap(12).AlignItems(ui.Stretch).Padding(0, 2).Children(func() {
 					c.Key("feedback-kind")
-					breeze.Segmented(c, &form.Kind, Kinds...).AlignSelf(ui.Start).Label("反馈类型")
+					breeze.Segmented(c, &form.Kind, kindLabels()...).AlignSelf(ui.Start).Label(locales.FeedbackKindsLabel())
 					fields(c, form)
-					section(c, "附带信息")
+					section(c, locales.FeedbackAttachments())
 					breeze.Card(c, func() {
-						attachment(c, "feedback-env", &form.Env, "应用与系统版本", view.Env)
-						attachment(c, "feedback-tools", &form.Tools, "组件与模型", view.Tools)
-						attachment(c, "feedback-film", &form.Film, "当前影片的处理状态", view.Film)
-						attachment(c, "feedback-subs", &form.Subs, "相关字幕原文与译文", view.Subs)
+						attachment(c, "feedback-env", &form.Env, locales.FeedbackAttachEnv(), view.Env)
+						attachment(c, "feedback-tools", &form.Tools, locales.FeedbackAttachTools(), view.Tools)
+						attachment(c, "feedback-film", &form.Film, locales.FeedbackAttachFilm(), view.Film)
+						attachment(c, "feedback-subs", &form.Subs, locales.FeedbackAttachSubs(), view.Subs)
 					})
-					section(c, "Issue 预览")
+					section(c, locales.FeedbackPreview())
 					preview(c, t, view.Issue)
 				})
 			})
@@ -99,8 +100,8 @@ func header(c *ui.Context) {
 			ui.Image(c, iconGitHub).Size(20, 20)
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
-			breeze.Text(c, "反馈问题", breeze.TextHeading).FontSize(15).Bold().Role(ui.RoleHeading).Level(1)
-			breeze.Text(c, "会在浏览器里打开 GitHub 的新建 Issue 页面，内容已经填好，你确认后再提交。Issue 是公开的。", breeze.TextCaption, breeze.TextSecondary).FontSize(12).FixedLineHeight(17).Wrap()
+			breeze.Text(c, locales.FeedbackTitle(), breeze.TextHeading).FontSize(15).Bold().Role(ui.RoleHeading).Level(1)
+			breeze.Text(c, locales.FeedbackIntro(), breeze.TextCaption, breeze.TextSecondary).FontSize(12).FixedLineHeight(17).Wrap()
 		})
 	})
 }
@@ -109,16 +110,16 @@ func header(c *ui.Context) {
 func fields(c *ui.Context, form *Form) {
 	titled := strings.TrimSpace(form.Title) != ""
 	breeze.Card(c, func() {
-		breeze.ContentRow(c, "标题", func() {
+		breeze.ContentRow(c, locales.FeedbackFieldTitle(), func() {
 			c.Key("feedback-title")
-			title := breeze.TextInput(c, &form.Title).Label("标题").Placeholder(titleHint(Kind(form.Kind)))
+			title := breeze.TextInput(c, &form.Title).Label(locales.FeedbackFieldTitle()).Placeholder(titleHint(Kind(form.Kind)))
 			if !titled {
 				title.AutoFocus()
 			}
 		})
-		breeze.ContentRow(c, "描述", func() {
+		breeze.ContentRow(c, locales.FeedbackFieldDescription(), func() {
 			c.Key("feedback-description")
-			description := breeze.TextArea(c, &form.Description).Label("描述").Placeholder(descriptionHint(Kind(form.Kind))).Height(92)
+			description := breeze.TextArea(c, &form.Description).Label(locales.FeedbackFieldDescription()).Placeholder(descriptionHint(Kind(form.Kind))).Height(92)
 			if titled {
 				description.AutoFocus()
 			}
@@ -126,21 +127,26 @@ func fields(c *ui.Context, form *Form) {
 	})
 }
 
+// kindLabels are the segmented control's labels, by Kind, in the interface's language. The issue names the kind with Kind.Name, which stays in Chinese.
+func kindLabels() []string {
+	return []string{locales.FeedbackKindBug(), locales.FeedbackKindIdea(), locales.FeedbackKindSubs()}
+}
+
 func titleHint(k Kind) string {
 	if k == KindIdea {
-		return "一句话说明想要什么"
+		return locales.FeedbackTitleHintIdea()
 	}
-	return "一句话说明问题"
+	return locales.FeedbackTitleHint()
 }
 
 func descriptionHint(k Kind) string {
 	switch k {
 	case KindIdea:
-		return "想要什么功能，用在什么场景"
+		return locales.FeedbackDescriptionHintIdea()
 	case KindSubs:
-		return "哪一句、哪里不对、你觉得应该是什么"
+		return locales.FeedbackDescriptionHintSubs()
 	}
-	return "做了什么、期望看到什么、实际看到什么"
+	return locales.FeedbackDescriptionHint()
 }
 
 // section is a label over a group, 11 bold in the secondary color.
@@ -169,7 +175,7 @@ func preview(c *ui.Context, t *ui.Theme, is Issue) {
 		ui.Text(c, is.Preview()).Font("Menlo").FontSize(12).FixedLineHeight(18).TextColor(t.Text.Alpha(0.8)).Wrap().Selectable().Padding(10, 12)
 	})
 	if is.Truncated {
-		breeze.Text(c, "正文太长，链接里截掉了最后 "+strconv.Itoa(is.Cut)+" 个字。用「拷贝正文」拷贝完整内容，在 GitHub 页面里粘贴替换。", breeze.TextCaption).FontSize(11).TextColor(t.Warning).Wrap().Padding(0, 4)
+		breeze.Text(c, locales.FeedbackTruncated(is.Cut), breeze.TextCaption).FontSize(11).TextColor(t.Warning).Wrap().Padding(0, 4)
 	}
 }
 
@@ -181,21 +187,21 @@ func footer(c *ui.Context, t *ui.Theme, a App, form *Form, view View, open *bool
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 		breeze.Text(c, strings.TrimPrefix(NewIssue, "https://"), breeze.TextCaption, breeze.TextSecondary).Font("Menlo").FontSize(11).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		c.Key("feedback-cancel")
-		if breeze.Button(c, "取消").Clicked() {
+		if breeze.Button(c, locales.FeedbackCancel()).Clicked() {
 			*open = false
 		}
 		c.Key("feedback-copy")
-		copyLabel := "拷贝正文"
+		copyLabel := locales.FeedbackCopy()
 		if view.Copied {
-			copyLabel = "已拷贝"
+			copyLabel = locales.FeedbackCopied()
 		}
-		if breeze.Button(c, copyLabel).Label("拷贝正文").Clicked() {
+		if breeze.Button(c, copyLabel).Label(locales.FeedbackCopy()).Clicked() {
 			c.WriteClipboard(view.Issue.Full)
 			a.FeedbackCopied()
 		}
 		c.Key("feedback-send")
 		ready := strings.TrimSpace(form.Title) != "" && !view.Sending
-		if breeze.PrimaryButton(c, "在 GitHub 中打开").Disabled(!ready).Clicked() && ready {
+		if breeze.PrimaryButton(c, locales.FeedbackOpen()).Disabled(!ready).Clicked() && ready {
 			a.SendFeedback()
 		}
 	})

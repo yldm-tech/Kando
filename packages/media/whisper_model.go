@@ -13,11 +13,9 @@ import (
 // WhisperModelBaseURL is the whisper.cpp ggml model repository.
 const WhisperModelBaseURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 
-// SpeechModel is one whisper.cpp model the speech settings can select.
+// SpeechModel is one whisper.cpp model the speech settings can select. Its name and what it is good for are the app's to say, by ID.
 type SpeechModel struct {
 	ID          string
-	Name        string
-	Blurb       string
 	Speed       int
 	Accuracy    int
 	SizeLabel   string
@@ -28,13 +26,13 @@ type SpeechModel struct {
 // SpeechModels is the whisper.cpp catalog shown in speech settings, smallest first.
 func SpeechModels() []SpeechModel {
 	return []SpeechModel{
-		{ID: "tiny", Name: "Tiny", Blurb: "只想快速试一下。错字较多，只适合发音清楚的英语。", Speed: 5, Accuracy: 2, SizeLabel: "77.7 MB", File: "ggml-tiny.bin"},
-		{ID: "base", Name: "Base", Blurb: "清晰的英语讲解、播客，几乎秒出。", Speed: 4, Accuracy: 3, SizeLabel: "148 MB", File: "ggml-base.bin"},
-		{ID: "small", Name: "Small", Blurb: "日常视频够用，中文和其他语言也基本可靠。", Speed: 3, Accuracy: 4, SizeLabel: "487.6 MB", File: "ggml-small.bin"},
-		{ID: "medium", Name: "Medium", Blurb: "口音重、语速快的内容更准，但明显更慢。", Speed: 2, Accuracy: 4, SizeLabel: "1.53 GB", File: "ggml-medium.bin"},
-		{ID: "large-v3-turbo-q5", Name: "Large v3 Turbo（压缩版）", Blurb: "大多数情况选它：接近最高准确度，体积小、速度快。", Speed: 4, Accuracy: 5, SizeLabel: "574 MB", File: "ggml-large-v3-turbo-q5_0.bin", Recommended: true},
-		{ID: "large-v3-turbo", Name: "Large v3 Turbo", Blurb: "效果与压缩版几乎一样，占用空间约 3 倍。", Speed: 3, Accuracy: 5, SizeLabel: "1.62 GB", File: "ggml-large-v3-turbo.bin"},
-		{ID: "large-v3", Name: "Large v3", Blurb: "最准也最慢。适合嘈杂环境、多人对话或小语种电影。", Speed: 2, Accuracy: 5, SizeLabel: "3.1 GB", File: "ggml-large-v3.bin"},
+		{ID: "tiny", Speed: 5, Accuracy: 2, SizeLabel: "77.7 MB", File: "ggml-tiny.bin"},
+		{ID: "base", Speed: 4, Accuracy: 3, SizeLabel: "148 MB", File: "ggml-base.bin"},
+		{ID: "small", Speed: 3, Accuracy: 4, SizeLabel: "487.6 MB", File: "ggml-small.bin"},
+		{ID: "medium", Speed: 2, Accuracy: 4, SizeLabel: "1.53 GB", File: "ggml-medium.bin"},
+		{ID: "large-v3-turbo-q5", Speed: 4, Accuracy: 5, SizeLabel: "574 MB", File: "ggml-large-v3-turbo-q5_0.bin", Recommended: true},
+		{ID: "large-v3-turbo", Speed: 3, Accuracy: 5, SizeLabel: "1.62 GB", File: "ggml-large-v3-turbo.bin"},
+		{ID: "large-v3", Speed: 2, Accuracy: 5, SizeLabel: "3.1 GB", File: "ggml-large-v3.bin"},
 	}
 }
 

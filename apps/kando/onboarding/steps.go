@@ -1,9 +1,9 @@
 package onboarding
 
 import (
-	"fmt"
 	"slices"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/sectionid"
 
 	"github.com/egoist/mygo/ui"
@@ -29,9 +29,9 @@ func note(c *ui.Context, text string) ui.Element {
 func languagesStep(c *ui.Context, a App) {
 	card(c, func() {
 		ui.Row(c).Height(44).Padding(0, 8, 0, 14).Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "字幕翻译成").FontSize(13).Grow(1)
+			ui.Text(c, locales.OnboardingTranslateInto()).FontSize(13).Grow(1)
 			c.Key("onboarding-language")
-			if breeze.Select(c, a.Language(), a.LanguageChoices()).Label("字幕翻译成").Changed() {
+			if breeze.Select(c, a.Language(), a.LanguageChoices()).Label(locales.OnboardingTranslateInto()).Changed() {
 				a.OnboardingSave()
 			}
 		})
@@ -39,8 +39,8 @@ func languagesStep(c *ui.Context, a App) {
 	target := *a.Language()
 	chosen := Effective(a.OnboardingLearning(), target)
 	ui.Column(c).Gap(8).AlignItems(ui.Stretch).Children(func() {
-		sectionLabel(c, "常看哪些语言的视频 · 可多选")
-		ui.Grid(c).Columns(3).GapX(8).GapY(8).Role(ui.RoleGroup).Label("常看哪些语言的视频").Children(func() {
+		sectionLabel(c, locales.OnboardingWatchLanguages())
+		ui.Grid(c).Columns(3).GapX(8).GapY(8).Role(ui.RoleGroup).Label(locales.OnboardingWatchLanguagesLabel()).Children(func() {
 			for _, code := range tiles(target) {
 				c.Key("onboarding-tile-" + code)
 				if tile(c, code, slices.Contains(chosen, code)).Clicked() {
@@ -49,13 +49,13 @@ func languagesStep(c *ui.Context, a App) {
 			}
 		})
 	})
-	note(c, "没选的语言也能识别：whisper 会自己听出视频说的是哪种语言。选好的语言决定下一步推荐哪个模型。")
+	note(c, locales.OnboardingLanguagesNote())
 }
 
-// tile is a language's tile: its own name over its Chinese name, and a check circle at its top right, blue and ringed in blue while chosen.
+// tile is a language's tile: its own name over its name in the interface's language, and a check circle at its top right, blue and ringed in blue while chosen.
 func tile(c *ui.Context, code string, on bool) ui.Element {
-	name := names[code]
-	b := ui.ButtonBase(c).Label(name[0]).Checked(on).Column().Height(52).Padding(0, 12).Gap(1).Radius(10).Justify(ui.Center).AlignItems(ui.Start)
+	own := autonyms[code]
+	b := ui.ButtonBase(c).Label(own).Checked(on).Column().Height(52).Padding(0, 12).Gap(1).Radius(10).Justify(ui.Center).AlignItems(ui.Start)
 	if on {
 		b.Background(ui.RGBA(10, 102, 216, 0.07)).InsetShadow(0, 0, 0, 1.5, blue)
 	} else {
@@ -65,8 +65,8 @@ func tile(c *ui.Context, code string, on bool) ui.Element {
 		}
 	}
 	b.Children(func() {
-		ui.Text(c, name[0]).FontSize(13).FontWeight(600).TextColor(ink).Lang(code).SingleLine()
-		ui.Text(c, name[1]).FontSize(11).TextColor(gray).SingleLine()
+		ui.Text(c, own).FontSize(13).FontWeight(600).TextColor(ink).Lang(code).SingleLine()
+		ui.Text(c, languageName(code)).FontSize(11).TextColor(gray).SingleLine()
 		mark := checkOff
 		if on {
 			mark = checkOn
@@ -94,7 +94,7 @@ func modelsStep(c *ui.Context, a App) {
 	card(c, func() {
 		ui.Row(c).MinHeight(46).Padding(5, 14).Gap(10).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-				ui.Text(c, "翻译 · AI 服务").FontSize(13).TextColor(ink)
+				ui.Text(c, locales.OnboardingTranslationService()).FontSize(13).TextColor(ink)
 				color := muted
 				if ai.Missing {
 					color = ui.Hex("#B25000")
@@ -105,7 +105,7 @@ func modelsStep(c *ui.Context, a App) {
 				ui.Image(c, readyMark).Size(16, 16).Shrink(0)
 			}
 			c.Key("onboarding-ai")
-			if breeze.Button(c, "设置…").Height(24).Shrink(0).Clicked() {
+			if breeze.Button(c, locales.OnboardingSettings()).Height(24).Shrink(0).Clicked() {
 				a.OpenSettings(sectionid.AI)
 			}
 		})
@@ -116,31 +116,31 @@ func modelsStep(c *ui.Context, a App) {
 func modelRow(c *ui.Context, a App, m Model, busy bool) {
 	ui.Row(c).MinHeight(46).Padding(5, 14).Gap(10).AlignItems(ui.Center).Label(m.Name).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, "语音识别 · "+m.Name).FontSize(13).TextColor(ink).SingleLine()
+			ui.Text(c, locales.OnboardingSpeechModel(m.Name)).FontSize(13).TextColor(ink).SingleLine()
 			sub, color := modelSub(m)
 			ui.Text(c, sub).FontSize(11).TextColor(color).Wrap()
 		})
 		switch m.State {
 		case ModelInUse:
-			ui.Image(c, readyMark).Size(16, 16).Shrink(0).Label("正在使用")
+			ui.Image(c, readyMark).Size(16, 16).Shrink(0).Label(locales.OnboardingInUse())
 		case ModelReady:
 			c.Key("onboarding-use-" + m.ID)
-			if breeze.Button(c, "使用").Height(24).Shrink(0).Clicked() {
+			if breeze.Button(c, locales.OnboardingUse()).Height(24).Shrink(0).Clicked() {
 				a.OnboardingUseModel(m.ID)
 			}
 		case ModelDownloading:
-			breeze.Progress(c, m.Progress).Width(72).Shrink(0).Label("下载进度")
+			breeze.Progress(c, m.Progress).Width(72).Shrink(0).Label(locales.OnboardingDownloadProgress())
 			c.Key("onboarding-cancel-" + m.ID)
-			if breeze.Button(c, "取消").Height(24).Shrink(0).Clicked() {
+			if breeze.Button(c, locales.OnboardingCancel()).Height(24).Shrink(0).Clicked() {
 				a.OnboardingCancelDownload()
 			}
 		default:
-			label := "下载"
+			label := locales.OnboardingDownload()
 			if m.Err != "" {
-				label = "重试"
+				label = locales.OnboardingRetry()
 			}
 			c.Key("onboarding-download-" + m.ID)
-			if breeze.Button(c, label).Height(24).Shrink(0).Disabled(busy).Tooltip("下载 "+m.Name+"（"+m.Size+"）").Clicked() && !busy {
+			if breeze.Button(c, label).Height(24).Shrink(0).Disabled(busy).Tooltip(locales.OnboardingDownloadTooltip(m.Name, m.Size)).Clicked() && !busy {
 				a.OnboardingDownload(m.ID)
 			}
 		}
@@ -151,49 +151,49 @@ func modelRow(c *ui.Context, a App, m Model, busy bool) {
 func modelSub(m Model) (string, ui.Color) {
 	switch m.State {
 	case ModelInUse:
-		return "已下载 · 正在使用", muted
+		return locales.OnboardingModelInUse(), muted
 	case ModelReady:
-		return "已下载 · " + m.Blurb, muted
+		return locales.OnboardingModelDownloaded(m.Blurb), muted
 	case ModelDownloading:
 		if m.Progress < 0 {
-			return "正在连接… · 共 " + m.Size, ui.Hex("#0052B0")
+			return locales.OnboardingModelConnecting(m.Size), ui.Hex("#0052B0")
 		}
-		return fmt.Sprintf("下载中 %d%% · 共 %s", int(m.Progress*100), m.Size), ui.Hex("#0052B0")
+		return locales.OnboardingModelProgress(int(m.Progress*100), m.Size), ui.Hex("#0052B0")
 	}
 	if m.Err != "" {
-		return "下载失败：" + m.Err, ui.Hex("#C4291C")
+		return locales.OnboardingModelFailed(m.Err), ui.Hex("#C4291C")
 	}
-	return "约 " + m.Size + " · " + m.Blurb, muted
+	return locales.OnboardingModelAbout(m.Size, m.Blurb), muted
 }
 
 // modelsHead is the card's head: what is in use, or what is missing.
 func modelsHead(models []Model) string {
 	for _, m := range models {
 		if m.State == ModelInUse {
-			return "语音识别已就绪"
+			return locales.OnboardingModelsReady()
 		}
 	}
 	for _, m := range models {
 		if m.State == ModelDownloading {
-			return "正在下载 " + m.Name
+			return locales.OnboardingModelsDownloading(m.Name)
 		}
 	}
-	return "还没有语音识别模型，下载一个才能生成字幕"
+	return locales.OnboardingModelsMissing()
 }
 
 // modelsNote is the line under the models.
 func modelsNote(models []Model) string {
 	for _, m := range models {
 		if m.State == ModelDownloading {
-			return "下载会在后台继续，可以先进入下一步。"
+			return locales.OnboardingModelsNoteDownloading()
 		}
 	}
 	for _, m := range models {
 		if m.State == ModelInUse {
-			return "以后可以在 设置 › 语音识别 换别的模型。"
+			return locales.OnboardingModelsNoteInUse()
 		}
 	}
-	return "也可以以后再下：设置 › 语音识别 里随时可以下载。"
+	return locales.OnboardingModelsNoteLater()
 }
 
 // linkStep is the third step: the field for the first link and what it reads as.
@@ -206,7 +206,7 @@ func linkStep(c *ui.Context, a App) {
 		field.Children(func() {
 			ui.Icon(c, linkIcon).Size(15, 15).TextColor(gray).Shrink(0)
 			c.Key("onboarding-link")
-			in := ui.TextInputBase(c, value).Placeholder("粘贴 YouTube 或哔哩哔哩链接").Label("第一个视频的链接").Grow(1).MinWidth(0).FontSize(14).FocusRing(false).AutoFocus()
+			in := ui.TextInputBase(c, value).Placeholder(locales.OnboardingLinkPlaceholder()).Label(locales.OnboardingLinkLabel()).Grow(1).MinWidth(0).FontSize(14).FocusRing(false).AutoFocus()
 			if in.Submitted() {
 				if _, ok := LinkHint(*value); ok {
 					a.OnboardingNext()
@@ -223,7 +223,7 @@ func linkStep(c *ui.Context, a App) {
 		case a.OnboardingLinkError() != "" && *value != "":
 			hint, color = a.OnboardingLinkError(), ui.Hex("#C4291C")
 		case hint == "":
-			hint, color = "回车开始；没有链接也可以先跳过，之后把本地视频拖进窗口。", gray
+			hint, color = locales.OnboardingLinkHintEmpty(), gray
 		case !ok:
 			color = ui.Hex("#C4291C")
 		}

@@ -7,7 +7,7 @@ import (
 	"runtime"
 
 	"kando/apps/kando/brand"
-	_ "kando/apps/kando/locales"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 	"kando/packages/media"
 
@@ -93,7 +93,7 @@ func main() {
 	mygo.Theme.SetSource(mygo.ThemeLight)
 	mygo.App.WhenReady(func() {
 		win = mygo.NewWindow(mygo.WindowOptions{
-			Title:                "看懂",
+			Title:                locales.LibraryWindowTitle(),
 			Width:                1100,
 			Height:               720,
 			MinWidth:             900,
@@ -106,6 +106,8 @@ func main() {
 			Content:              ui.View(a.view),
 		})
 		a.win = win
+		// The window's title is set once; it follows the interface's language when Settings › 通用 changes it.
+		mygo.App.OnLocaleChanged(func(string) { win.SetTitle(locales.LibraryWindowTitle()) })
 		nodra.Invalidate(a.store, win)
 		a.areasReady()
 	})

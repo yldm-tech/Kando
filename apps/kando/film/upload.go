@@ -2,6 +2,7 @@ package film
 
 import (
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/sectionid"
 
 	"github.com/egoist/mygo/ui"
@@ -45,7 +46,7 @@ func (s screen) uploadCapsule(c *ui.Context, item films.Film, panelSpace float32
 				}
 			}
 			c.Key("film-upload-close")
-			if breeze.FlatIconButton(c, iconClose, "关闭提示").Shrink(0).Clicked() {
+			if breeze.FlatIconButton(c, iconClose, locales.FilmDismiss()).Shrink(0).Clicked() {
 				*note = false
 			}
 		})

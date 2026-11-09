@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -120,18 +121,18 @@ func Menu(m *ui.Menu, a App) {
 			a.Choose(dir)
 		}
 	}
-	if m.Item("新建资料库...").Chosen() {
+	if m.Item(locales.SidebarMenuNewLibrary()).Chosen() {
 		a.BeginNew()
 	}
-	if m.Item("打开资料库...").Chosen() {
+	if m.Item(locales.SidebarMenuOpenLibrary()).Chosen() {
 		a.PickLibrary()
 	}
 	m.Separator()
-	if m.Item("在 Finder 中显示").Disabled(currentDir == "").Chosen() {
+	if m.Item(locales.SidebarMenuShowInFinder()).Disabled(currentDir == "").Chosen() {
 		a.Reveal(currentDir)
 	}
 	if len(a.KnownLibraries()) > 1 {
-		if m.Item("从列表移出").Chosen() {
+		if m.Item(locales.SidebarMenuForget()).Chosen() {
 			a.Forget(currentDir)
 		}
 	}

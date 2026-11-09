@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 
 	"github.com/egoist/mygo/ui"
@@ -14,13 +15,13 @@ import (
 func (s screen) ai(c *ui.Context, t *ui.Theme) {
 	if _, known := s.Tools(); !known {
 		form.Card(c, func() {
-			form.Row(c, "翻译服务", "", func() { form.Value(c, "未配置", 13) })
+			form.Row(c, locales.SettingsAITranslationService(), "", func() { form.Value(c, locales.SettingsAINotConfigured(), 13) })
 		}).Margin(6, 0, 0, 0)
 		return
 	}
 	preset, _ := s.CurrentPreset()
 	form.Card(c, func() {
-		form.Row(c, "服务", "", func() {
+		form.Row(c, locales.SettingsAIService(), "", func() {
 			if mark := providerMark(preset.ID); mark != nil {
 				ui.Image(c, mark).Size(16, 16).Shrink(0)
 			}
@@ -42,42 +43,42 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 			}
 		})
 		form.Separator(c, true)
-		form.Row(c, "模型", "", func() { s.modelSelect(c, t) })
+		form.Row(c, locales.SettingsAIModel(), "", func() { s.modelSelect(c, t) })
 		ui.Row(c).Shrink(0).MinHeight(40).Padding(6, 14).Gap(10).AlignItems(ui.Center).Children(func() {
 			ui.Row(c).Grow(1).MinWidth(0).Children(func() { s.testStatus(c, t) })
 			c.Key("llm-test")
-			if form.Button(c, "测试连接", false).Disabled(s.TestingLLM()).Clicked() && !s.TestingLLM() {
+			if form.Button(c, locales.SettingsAITest(), false).Disabled(s.TestingLLM()).Clicked() && !s.TestingLLM() {
 				s.TestLLM()
 			}
 		})
 	}).Margin(6, 0, 0, 0)
-	hint := "API Key 只保存在本机设置文件里。"
+	key := locales.SettingsAIKeyStoredLocally()
 	if s.LLMProvider() == "everyapi" && strings.TrimSpace(*s.LLMKey()) == "" {
-		hint = "不填 API Key 时使用本机 everyapi 登录。"
+		key = locales.SettingsAIKeyEveryAPILogin()
 	}
-	note := hint + "任何兼容 OpenAI Chat Completions 的服务都可以；测试连接会发一个很短的请求。"
+	note := locales.SettingsAINote(key, locales.SettingsAICompatible())
 	if preset.Blurb != "" {
-		note = preset.Blurb + "。" + note
+		note = locales.SettingsAINoteWithBlurb(preset.Blurb, key, locales.SettingsAICompatible())
 	}
 	form.Note(c, note, 0)
 }
 
-// providerSelect chooses the service among the presets. The drop-down shows their names, the ones not in the cloud after their group, as 本机 · Ollama; the setting keeps the id. Grouped drop-downs (mygo-breeze-ui B10) are not planned, so the group stays in the name.
+// providerSelect chooses the service among the presets. The drop-down shows their names, the ones on this Mac after their group, as 本机 · Ollama; the setting keeps the id. Grouped drop-downs (mygo-breeze-ui B10) are not planned, so the group stays in the name.
 func (s screen) providerSelect(c *ui.Context) {
 	presets := s.Presets()
 	labels := make([]string, len(presets))
 	chosen := ""
 	for i, preset := range presets {
 		labels[i] = preset.Name
-		if preset.Group == "本机" {
-			labels[i] = preset.Group + " · " + preset.Name
+		if preset.Group == GroupLocal {
+			labels[i] = locales.SettingsAILocalService(preset.Name)
 		}
 		if preset.ID == s.LLMProvider() {
 			chosen = labels[i]
 		}
 	}
 	c.Key("llm-provider")
-	if form.Select(c, &chosen, labels).Label("选择服务").Changed() {
+	if form.Select(c, &chosen, labels).Label(locales.SettingsAIChooseService()).Changed() {
 		for i, label := range labels {
 			if label == chosen {
 				s.SelectLLM(presets[i].ID)
@@ -95,21 +96,21 @@ func (s screen) modelSelect(c *ui.Context, t *ui.Theme) {
 	}
 	if len(options) > 0 {
 		c.Key("llm-model")
-		if field(form.Select(c, model, options).Label("模型")).Changed() {
+		if field(form.Select(c, model, options).Label(locales.SettingsAIModel())).Changed() {
 			s.ApplyLLM()
 		}
 	}
 	switch {
 	case s.LoadingLLMModels():
 		if len(options) == 0 {
-			form.Value(c, "正在获取模型列表…", 13)
+			form.Value(c, locales.SettingsAILoadingModels(), 13)
 		}
 	case s.LLMModelsErr() != "":
 		if len(options) == 0 {
 			ui.Text(c, s.LLMModelsErr()).FontSize(12).TextColor(t.Danger).Shrink(1).Wrap()
 		}
 		c.Key("llm-models-retry")
-		if form.Button(c, "重试", false).Tooltip(s.LLMModelsErr()).Clicked() {
+		if form.Button(c, locales.SettingsAIRetry(), false).Tooltip(s.LLMModelsErr()).Clicked() {
 			s.RetryLLMModels()
 		}
 	}
@@ -117,11 +118,11 @@ func (s screen) modelSelect(c *ui.Context, t *ui.Theme) {
 
 // testStatus is the connection test's state: a dot and a word, the error when it failed.
 func (s screen) testStatus(c *ui.Context, t *ui.Theme) {
-	dot, color, text := form.Idle, form.Secondary, "尚未测试"
+	dot, color, text := form.Idle, form.Secondary, locales.SettingsAIUntested()
 	switch result := s.LLMResult(); {
 	case s.TestingLLM():
-		text = "正在发送测试请求…"
-	case result == "连接成功":
+		text = locales.SettingsAITesting()
+	case result == locales.SettingsAIConnected():
 		dot, color, text = form.OK, form.SuccessText, result
 	case result != "":
 		dot, color, text = t.Danger, t.Danger, result

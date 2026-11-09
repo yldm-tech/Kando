@@ -13,6 +13,7 @@ import (
 type playerUI struct {
 	play     *filmPlay
 	playPath string
+	// playErr is playerErrUnplayable when the video would not open, or "".
 	playErr  string
 	playGen  int
 	playFrom time.Duration

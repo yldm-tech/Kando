@@ -4,21 +4,44 @@ import (
 	"slices"
 	"strings"
 
+	"kando/apps/kando/films/sitename"
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 )
 
 // tileCodes are the languages the first step offers as tiles, in the prototype's order. The one subtitles are translated into is left out, and six are shown.
 var tileCodes = []string{"en", "ja", "ko", "fr", "es", "de", "zh"}
 
-// names are each language's own name and its name in Chinese, as the tiles show them.
-var names = map[string][2]string{
-	"en": {"English", "英语"},
-	"ja": {"日本語", "日语"},
-	"ko": {"한국어", "韩语"},
-	"fr": {"Français", "法语"},
-	"es": {"Español", "西班牙语"},
-	"de": {"Deutsch", "德语"},
-	"zh": {"中文", "普通话"},
+// autonyms are each language's own name, as the tiles show it over languageName.
+var autonyms = map[string]string{
+	"en": "English",
+	"ja": "日本語",
+	"ko": "한국어",
+	"fr": "Français",
+	"es": "Español",
+	"de": "Deutsch",
+	"zh": "中文",
+}
+
+// languageName is the name of the language code in the interface's language, as the tiles show it under its own name.
+func languageName(code string) string {
+	switch code {
+	case "en":
+		return locales.OnboardingLanguageEn()
+	case "ja":
+		return locales.OnboardingLanguageJa()
+	case "ko":
+		return locales.OnboardingLanguageKo()
+	case "fr":
+		return locales.OnboardingLanguageFr()
+	case "es":
+		return locales.OnboardingLanguageEs()
+	case "de":
+		return locales.OnboardingLanguageDe()
+	case "zh":
+		return locales.OnboardingLanguageZh()
+	}
+	return code
 }
 
 // targetCodes maps the settings' target languages (settings › 翻译 › 默认目标语言) to the language they are written in.
@@ -105,22 +128,25 @@ func LinkHint(raw string) (hint string, ok bool) {
 	}
 	link, parsed := core.ParseLink(raw)
 	if !parsed || link.Platform == core.PlatformLocal {
-		return "这不像一个视频链接", false
+		return locales.OnboardingLinkNotVideo(), false
 	}
-	site := link.SiteName
-	if site == "" {
-		site = "这个网站"
-	}
+	site := sitename.Of(link.Site)
 	switch {
+	case link.Kind == core.LinkChannel && site == "":
+		return locales.OnboardingLinkChannelUnnamed(), false
 	case link.Kind == core.LinkChannel:
-		return "这是" + site + "频道的链接。现在一次加入一个视频，请粘贴其中一个视频的链接", false
+		return locales.OnboardingLinkChannel(site), false
+	case link.Kind == core.LinkPlaylist && link.ID == "" && site == "":
+		return locales.OnboardingLinkListUnnamed(), false
 	case link.Kind == core.LinkPlaylist && link.ID == "":
-		return "这是" + site + "列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接", false
+		return locales.OnboardingLinkList(site), false
+	case link.Kind == core.LinkPlaylist && site == "":
+		return locales.OnboardingLinkPlaylistVideoUnnamed(), true
 	case link.Kind == core.LinkPlaylist:
-		return "识别为 " + site + " 视频，只加入这一个，不加入整个列表", true
+		return locales.OnboardingLinkPlaylistVideo(site), true
 	}
-	if link.SiteName == "" {
-		return "识别为网页视频", true
+	if site == "" {
+		return locales.OnboardingLinkWebVideo(), true
 	}
-	return "识别为 " + site + " 视频", true
+	return locales.OnboardingLinkVideo(site), true
 }

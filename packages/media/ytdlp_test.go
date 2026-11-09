@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -55,8 +56,11 @@ func TestFindYTDLPInstallTellsHowItWasInstalled(t *testing.T) {
 		t.Fatal(err)
 	}
 	if os.Geteuid() != 0 {
-		if got := FindYTDLPInstall(standalone); got.Update != nil || got.Hint == "" {
+		if got := FindYTDLPInstall(standalone); got.Update != nil || got.Dir != filepath.Dir(standalone) {
 			t.Fatalf("read-only: %+v", got)
+		}
+		if _, err := UpdateYTDLP(context.Background(), standalone); !errors.Is(err, ErrCannotUpdate) {
+			t.Fatalf("read-only update: %v", err)
 		}
 	}
 }

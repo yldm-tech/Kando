@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 )
 
@@ -143,6 +144,37 @@ func TestStepFillsFollowTheStage(t *testing.T) {
 			if got[i] != tc.want[i] {
 				t.Fatalf("%s: %v, want %v", tc.item.Stage, got, tc.want)
 			}
+		}
+	}
+}
+
+// TestLabelsInEnglish reads a job's line, its stage, where a film comes from and the summary of the queue in English, plurals included.
+func TestLabelsInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	const yt = "https://youtu.be/TRWgBxVAb1M"
+	download := core.Fraction(0.42)
+	download.ETA = 12 * time.Second
+	waiting := core.Fraction(0.25)
+	waiting.RetryIn, waiting.Attempt, waiting.Attempts = time.Second, 1, 2
+	batches := core.Fraction(0.25)
+	batches.Batch, batches.Batches, batches.BatchSize = 1, 3, 1
+	for _, tc := range []struct{ got, want string }{
+		{QueueMeta(Film{Source: yt, Stage: core.StageQueued}), "Queued · Waiting for the jobs ahead"},
+		{QueueMeta(Film{Source: yt, Stage: core.StageDownloading, Progress: download}), "Downloading · 42% · 0:12 left"},
+		{QueueMeta(Film{Source: "https://www.douyin.com/video/1", Stage: core.StageDownloading}), "Downloading · yt-dlp · Douyin"},
+		{QueueMeta(Film{Source: yt, Stage: core.StageTranslating, Progress: waiting}), "Translation API rate-limited, retrying in 1 second (1/2)"},
+		{QueueMeta(Film{Source: yt, Stage: core.StageTranslating, Progress: batches}), "Translating · Batch 1/3 · 1 line per batch"},
+		{StageLabel(core.StageComplete), "Done"},
+		{SourceLabel(Film{Source: "https://www.bilibili.com/video/BV1GJ411x7h7"}), "Bilibili"},
+		{SourceLabel(Film{Source: "https://vimeo.com/76979871"}), "Vimeo"},
+		{SourceLabel(Film{Source: "https://example.com/v"}), "example.com"},
+		{SourceLabel(Film{}), "Local Files"},
+		{QueueSummary([]Film{{Stage: core.StageQueued}, {Stage: core.StageFailed}, {Stage: core.StageFailed}}), "1 in progress · 2 need attention"},
+		{LanguageName("简体中文"), "Simplified Chinese"},
+		{LanguageName("日本語"), "Japanese"},
+	} {
+		if tc.got != tc.want {
+			t.Errorf("%q, want %q", tc.got, tc.want)
 		}
 	}
 }

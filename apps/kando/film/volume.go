@@ -1,6 +1,8 @@
 package film
 
 import (
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -16,10 +18,10 @@ func (s screen) volume(c *ui.Context) {
 		shown = 0
 	}
 	ui.Row(c).Gap(2).AlignItems(ui.Center).Shrink(0).Children(func() {
-		glyph, label := iconVolume, "静音"
+		glyph, label := iconVolume, locales.FilmMute()
 		switch {
 		case muted || volume == 0:
-			glyph, label = iconMuted, "取消静音"
+			glyph, label = iconMuted, locales.FilmUnmute()
 		case volume < 0.5:
 			glyph = iconVolumeLow
 		}
@@ -29,7 +31,7 @@ func (s screen) volume(c *ui.Context) {
 		}
 		c.Key("film-volume")
 		value := shown
-		bar := ui.SliderBase(c, &value, 0, 1).Step(0.1).Width(64).Height(22).PaddingX(volumeKnob / 2).Label("音量")
+		bar := ui.SliderBase(c, &value, 0, 1).Step(0.1).Width(64).Height(22).PaddingX(volumeKnob / 2).Label(locales.FilmVolume())
 		if bar.Changed() {
 			s.SetVolume(value)
 		}

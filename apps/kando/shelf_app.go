@@ -12,6 +12,7 @@ import (
 
 	"kando/apps/kando/brand"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -24,7 +25,7 @@ func (a *app) pickLibrary() {
 	if current == "" {
 		current = a.libraryPlace()
 	}
-	a.pickFolder("导入资料库", "导入", current, func(dir string) {
+	a.pickFolder(locales.LibraryImportTitle(), locales.LibraryImportButton(), current, func(dir string) {
 		a.switchLibrary(dir)
 		a.edit(func(s *session) { s.MakingLibrary = false })
 		a.page = pageFilms
@@ -32,7 +33,7 @@ func (a *app) pickLibrary() {
 }
 
 func (a *app) pickLibraryParent() {
-	a.pickFolder("资料库放在哪里", "选择", a.libraryPlace(), func(dir string) {
+	a.pickFolder(locales.LibraryPlaceTitle(), locales.LibraryPlaceButton(), a.libraryPlace(), func(dir string) {
 		a.edit(func(s *session) { s.LibraryParent = dir })
 	})
 }
@@ -47,9 +48,9 @@ func (a *app) createLibrary() {
 	dir := filepath.Join(a.libraryPlace(), file)
 	if info, statErr := os.Stat(dir); statErr == nil {
 		if info.IsDir() {
-			a.saveErr = "已经有这个资料库，换个名字"
+			a.saveErr = locales.LibraryNameTaken()
 		} else {
-			a.saveErr = "这个位置已经有同名文件"
+			a.saveErr = locales.LibraryFileTaken()
 		}
 		return
 	} else if !os.IsNotExist(statErr) {
@@ -70,10 +71,10 @@ func libraryFileName(name string) (string, error) {
 	name = strings.TrimSuffix(name, media.LibraryExt)
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return "", errors.New("先写资料库的名称")
+		return "", errors.New(locales.LibraryNameEmpty())
 	}
 	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
-		return "", errors.New("资料库名称不能包含路径")
+		return "", errors.New(locales.LibraryNameHasPath())
 	}
 	return name + media.LibraryExt, nil
 }
@@ -93,7 +94,7 @@ func (a *app) beginNewLibrary() {
 
 func (a *app) freeLibraryName() string {
 	parent := a.libraryPlace()
-	base := "影视库"
+	base := locales.LibraryDefaultName()
 	if _, err := os.Stat(filepath.Join(parent, base+media.LibraryExt)); os.IsNotExist(err) {
 		return base
 	}
@@ -124,13 +125,13 @@ func (a *app) switchLibrary(dir string) {
 	a.edit(func(st *session) { st.Libraries = libs })
 	if filepath.Clean(s.LibraryDir) == dir {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = "资料库无法保存：" + err.Error()
+			a.saveErr = locales.LibrarySaveFailed(err.Error())
 		}
 		return
 	}
 	a.applyLibrary(dir)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = "资料库无法保存：" + err.Error()
+		a.saveErr = locales.LibrarySaveFailed(err.Error())
 		return
 	}
 	a.saveErr = ""
@@ -152,7 +153,7 @@ func (a *app) forgetLibrary(dir string) {
 	})
 	if filepath.Clean(s.LibraryDir) != dir {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = "资料库无法保存：" + err.Error()
+			a.saveErr = locales.LibrarySaveFailed(err.Error())
 		}
 		return
 	}
@@ -162,7 +163,7 @@ func (a *app) forgetLibrary(dir string) {
 	}
 	a.applyLibrary(next)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = "资料库无法保存：" + err.Error()
+		a.saveErr = locales.LibrarySaveFailed(err.Error())
 		return
 	}
 	a.saveErr = ""
@@ -217,7 +218,7 @@ func (a *app) adoptRenamedLibrary(next string) {
 	}
 	a.renameLibraryPath(prev, next)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = "资料库无法保存：" + err.Error()
+		a.saveErr = locales.LibrarySaveFailed(err.Error())
 	}
 }
 
@@ -240,7 +241,7 @@ func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
 	}
 	if changed {
 		if err := a.library.Save(); err != nil {
-			a.saveErr = "视频库无法保存：" + err.Error()
+			a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
 		}
 	}
 }
@@ -434,7 +435,7 @@ func (a *app) syncRenamedLibraries() bool {
 	}
 	if changed {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = "资料库无法保存：" + err.Error()
+			a.saveErr = locales.LibrarySaveFailed(err.Error())
 		}
 	}
 	return changed
@@ -587,7 +588,7 @@ func (a *app) refreshLibrary() {
 	}
 	if a.retargetLibrary(moved) || a.relocateMissing() || a.retargetRenamed() || a.dropMissing() {
 		if err := a.library.Save(); err != nil {
-			a.saveErr = "视频库无法保存：" + err.Error()
+			a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
 		}
 	}
 	videos, err := media.ListVideos(dir)
@@ -705,7 +706,7 @@ func (a *app) openLibrary(path string) {
 	lib, err := shelf.Load(path)
 	a.library = lib
 	if err != nil {
-		a.saveErr = "视频库无法读取：" + err.Error()
+		a.saveErr = locales.LibraryShelfReadFailed(err.Error())
 	}
 	a.areasShelfLoaded()
 	renamed := a.snap().Renamed
@@ -737,11 +738,11 @@ func (a *app) reveal(path string) {
 		return
 	}
 	if _, err := os.Stat(path); err != nil {
-		a.saveErr = "文件不在了"
+		a.saveErr = locales.LibraryFileMissing()
 		return
 	}
 	if err := revealInFolder(path); err != nil {
-		a.saveErr = "无法打开所在文件夹：" + err.Error()
+		a.saveErr = locales.LibraryRevealFailed(err.Error())
 		return
 	}
 	a.saveErr = ""

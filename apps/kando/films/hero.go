@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 
 	"github.com/egoist/mygo/plugins/glass"
@@ -49,7 +50,7 @@ func resumeFrom(a App, item Film) (time.Duration, bool) {
 
 // hero is the large card of the film finished last: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does.
 func hero(c *ui.Context, a App, item Film) {
-	box := ui.ButtonBase(c).Label(filmName(item)).Description("最近完成").Height(360).Radius(18).Clip().Background(posterColor(item.Key)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.16)).ContextMenu(filmMenu(a, item))
+	box := ui.ButtonBase(c).Label(filmName(item)).Description(locales.FilmsHeroKicker()).Height(360).Radius(18).Clip().Background(posterColor(item.Key)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.16)).ContextMenu(filmMenu(a, item))
 	if box.Clicked() {
 		a.Open(item)
 	}
@@ -64,9 +65,9 @@ func hero(c *ui.Context, a App, item Film) {
 		}})
 		// Its lines are as high as the prototype's, which the browser gives the fonts, so the text block rises from the bottom as far as it does there.
 		ui.Column(c).Absolute().Left(36).Right(36).Bottom(34).MaxWidth(520).Gap(10).Children(func() {
-			kicker := "最近完成"
+			kicker := locales.FilmsHeroKicker()
 			if item.Language != "" {
-				kicker += " · " + item.Language + "双语"
+				kicker = locales.FilmsHeroKickerBilingual(LanguageName(item.Language))
 			}
 			ui.Text(c, kicker).FontSize(11).FixedLineHeight(16).Bold().LetterSpacing(1.2).TextColor(onPicture.Alpha(0.85))
 			ui.Text(c, filmName(item)).FontSize(34).Bold().FixedLineHeight(40).LetterSpacing(-0.4).TextColor(onPicture).MaxLines(2)
@@ -84,19 +85,19 @@ func hero(c *ui.Context, a App, item Film) {
 			ui.Row(c).Gap(10).Margin(6, 0, 0, 0).Wrap().Children(func() {
 				at, resume := resumeFrom(a, item)
 				c.Key("hero-play")
-				label := "播放"
+				label := locales.FilmsPlay()
 				if resume {
-					label = "从 " + Clock(at) + " 继续"
+					label = locales.FilmsHeroResume(Clock(at))
 				}
 				if heroButton(c, label, true).Clicked() {
 					a.OpenAt(item, at)
 				}
 				c.Key("hero-alt")
 				if resume {
-					if heroButton(c, "从头看", false).Clicked() {
+					if heroButton(c, locales.FilmsHeroFromStart(), false).Clicked() {
 						a.OpenAt(item, 0)
 					}
-				} else if heroButton(c, "在访达中显示", false).Clicked() {
+				} else if heroButton(c, locales.FilmsShowInFinder(), false).Clicked() {
 					a.Reveal(item.VideoPath)
 				}
 			})
@@ -111,7 +112,7 @@ func heroMeta(a App, item Film) string {
 		parts = append(parts, Clock(d))
 	}
 	if item.SubtitlePath != "" {
-		parts = append(parts, "已导出 "+filepath.Base(item.SubtitlePath))
+		parts = append(parts, locales.FilmsHeroExported(filepath.Base(item.SubtitlePath)))
 	}
 	if note := untranslatedNote(item); note != "" {
 		parts = append(parts, note)

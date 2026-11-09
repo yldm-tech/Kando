@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/locales"
 )
 
 // settings.json: what saveSettings writes and loadSavedSettings reads.
@@ -45,7 +46,7 @@ func (a *app) restoreSettings(saved savedSettings) {
 	a.areasRestore(saved)
 	if moved {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = "资料库无法保存：" + err.Error()
+			a.saveErr = locales.SettingsLibrarySaveFailed(err.Error())
 		}
 	}
 }
@@ -68,13 +69,13 @@ func (a *app) loadSettings() savedSettings {
 	saved, found, data, readErr := readSavedSettings(a.settingsPath)
 	a.settingsFound = found
 	if found == settingsDamaged && data == nil {
-		a.saveErr = "设置文件无法读取：" + readErr.Error()
+		a.saveErr = locales.SettingsFileUnreadable(readErr.Error())
 	} else if found == settingsDamaged {
 		bad := a.settingsPath + ".bad"
 		if err := os.WriteFile(bad, data, 0o600); err != nil {
-			a.saveErr = "设置文件有读不懂的内容，也无法另存：" + err.Error()
+			a.saveErr = locales.SettingsFileDamagedUnsaved(err.Error())
 		} else {
-			a.saveErr = "设置文件有读不懂的内容，原文件已另存为 settings.json.bad"
+			a.saveErr = locales.SettingsFileDamaged()
 		}
 	}
 	return saved

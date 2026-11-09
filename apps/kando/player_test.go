@@ -12,6 +12,7 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -464,6 +465,88 @@ func TestFilmChaptersCoverTheTranscript(t *testing.T) {
 	}
 	if chapters[0].Title != "第一句" || chapters[0].Start != 0 || chapters[3].End != 100*time.Second {
 		t.Fatalf("chapters %#v", chapters)
+	}
+}
+
+// TestPlayerInEnglish checks the player in English: the title bar, the subtitle list, the 信息 tab with the saved target language named in English, the mode menu and the style view.
+func TestPlayerInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srt := filepath.Join(dir, "talk.bilingual.srt")
+	body := "1\n00:00:01,000 --> 00:00:02,500\n你好。\nHello.\n\n2\n00:01:02,004 --> 00:01:05,000\n再见。\nBye.\n\n"
+	if err := os.WriteFile(srt, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{{
+		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		VideoPath: video, SubtitlePath: srt,
+	}}
+	tt.Frame()
+	if err := tt.Click("talk"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	waitUntil(t, updates, func() bool { return a.player.subs.ready && a.player.film.info.Folder != "" })
+	tt.Frame()
+	for _, want := range []string{"100% translated", "All", "Click a line to jump to it", "Search Lines", "Show in Finder", "Back to Library", "Subtitles", "Clips", "Info", "Style"} {
+		wantText(t, tt, want)
+	}
+	if err := tt.Click("Info"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	for _, want := range []string{"Film Folder", "Files", "Source", "Local file", "Job record", "Simplified Chinese", "Bilingual subtitles · ", "Video · "} {
+		wantText(t, tt, want)
+	}
+	// The test app has no ffmpeg, so the video stays as it is while opening, which shows the transport.
+	a.player.playPath = video
+	tt.Frame()
+	for _, want := range []string{"Opening video…", "Opening", "Back 5 Seconds", "Forward 5 Seconds", "Mute", "Volume", "Playback position", "Sidebar", "Full Screen", "Hide Sidebar"} {
+		wantText(t, tt, want)
+	}
+	if err := tt.Click("Subtitles: Bilingual"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	for _, want := range []string{"Display", "Off", "Hides only the subtitles", "Original Only", "Translation Only", "Shows the original, dimmed, until the translation is ready", "Subtitle Delay", "0.0 s", "Style…"} {
+		wantText(t, tt, want)
+	}
+	if err := tt.Click("Style…"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, want := range []string{"Playback", "Restore Default Style", "Show Subtitles", "Outline", "Box", "Large", "Font", "Default", "Bilingual Order", "Translation on Top", "Original on Top", "Position", "Higher", "Bottom", "Translation", "Original", "Size", "Color"} {
+		wantText(t, tt, want)
+	}
+	if err := tt.Click("Box"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if look := a.player.look; look.Preset != "box" || look.Translation.Family != "默认" {
+		t.Fatalf("look %+v after Box", look)
+	}
+	// The font menu lists the families in English and the look keeps the saved name of the one chosen.
+	if err := tt.Click("Default"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("PingFang SC"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if look := a.player.look; look.Translation.Family != "苹方" || look.Original.Family != "苹方" {
+		t.Fatalf("look %+v after PingFang SC", look)
+	}
+	for _, chinese := range []string{"字幕", "简体中文", "在访达中显示", "恢复默认样式", "苹方"} {
+		if tt.HasText(chinese) {
+			t.Fatalf("the player still reads %q: %q", chinese, tt.Texts())
+		}
 	}
 }
 

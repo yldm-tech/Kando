@@ -1,6 +1,8 @@
 package films
 
 import (
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -22,12 +24,12 @@ func notice(c *ui.Context, a App) {
 		ui.Text(c, n.Text).FontSize(13).TextColor(ink).Grow(1).MinWidth(0).Wrap()
 		if n.Section != "" {
 			c.Key("notice-settings")
-			if breeze.Button(c, "打开设置").Height(26).Shrink(0).Clicked() {
+			if breeze.Button(c, locales.FilmsOpenSettings()).Height(26).Shrink(0).Clicked() {
 				a.OpenSettings(n.Section)
 			}
 		}
 		c.Key("notice-close")
-		close := ui.ButtonBase(c).Label("关闭提示").Size(24, 24).Radius(12).Shrink(0).AlignItems(ui.Center).Justify(ui.Center)
+		close := ui.ButtonBase(c).Label(locales.FilmsCloseNotice()).Size(24, 24).Radius(12).Shrink(0).AlignItems(ui.Center).Justify(ui.Center)
 		if close.Hovered() {
 			close.Background(ui.RGBA(0, 0, 0, 0.06))
 		}

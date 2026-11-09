@@ -1,6 +1,7 @@
 package main
 
 import (
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sites/catalog"
 
 	"github.com/egoist/mygo/ui"
@@ -27,7 +28,7 @@ func (a *app) sitesHooks() areaHooks {
 // sitesKeys are the sheet's rows of the shortcut table: 支持的网站… in the 帮助 menu, without a key.
 func (a *app) sitesKeys() []shortcut {
 	return []shortcut{
-		{Group: "帮助", Label: "支持的网站…", Run: a.OpenSites},
+		{Group: groupHelp, Label: locales.SitesMenuItem(), Run: a.OpenSites},
 	}
 }
 

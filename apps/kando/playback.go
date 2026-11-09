@@ -92,7 +92,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				if a.player.playGen != gen || keep != nil {
 					return
 				}
-				a.player.playErr = "这个视频播不了"
+				a.player.playErr = playerErrUnplayable
 			})
 			return
 		}
@@ -131,7 +131,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 					audio.Close()
 				}
 				if keep == nil {
-					a.player.playErr = "这个视频播不了"
+					a.player.playErr = playerErrUnplayable
 				}
 				return
 			}

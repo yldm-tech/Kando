@@ -11,7 +11,12 @@ func (a *app) GoogleEmail() string { return a.cloud.googleEmail }
 
 func (a *app) GoogleBusy() bool { return a.cloud.googleBusy }
 
-func (a *app) GoogleErr() string { return a.cloud.googleErr }
+func (a *app) GoogleErr() string {
+	if a.cloud.googleErr == nil {
+		return ""
+	}
+	return a.cloud.googleErr()
+}
 
 func (a *app) GoogleConfigured() bool {
 	return strings.TrimSpace(os.Getenv("KANDO_GOOGLE_CLIENT_ID")) != ""

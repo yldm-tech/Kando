@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo"
@@ -133,7 +133,7 @@ func (a *app) Retry(id string) {
 		return
 	}
 	if a.RunningJob() != "" {
-		a.warn(errBusy.Error(), "")
+		a.warn(errBusy().Error(), "")
 	} else if a.queue.status != "" {
 		a.warn(a.queue.status, "")
 	}
@@ -180,7 +180,7 @@ func (a *app) TrashFilm(item films.Film) {
 	files := filmFiles(a.snap().LibraryDir, item)
 	for _, path := range files {
 		if err := trashItem(path); err != nil {
-			a.warn("没能把「"+name+"」移到废纸篓："+err.Error(), "")
+			a.warn(locales.LibraryTrashFailed(name, err.Error()), "")
 			return
 		}
 	}
@@ -193,9 +193,9 @@ func (a *app) TrashFilm(item films.Film) {
 	}
 	a.refreshLibrary()
 	if len(files) > 0 {
-		a.tell("已把「" + name + "」移到废纸篓")
+		a.tell(locales.LibraryTrashed(name))
 	} else {
-		a.tell("已从资料库移除「" + name + "」")
+		a.tell(locales.LibraryRemoved(name))
 	}
 }
 
@@ -249,13 +249,13 @@ func (a *app) libraryEnqueue(sources ...string) bool {
 	added := len(a.library.Jobs) - before
 	switch {
 	case err != nil && added > 0:
-		a.warn(fmt.Sprintf("已加入 %d 个视频。%s", added, sourceError(err)), "")
+		a.warn(locales.LibraryAddedSome(added, sourceError(err)), "")
 	case err != nil:
 		a.warn(sourceError(err), "")
 	case added > 1:
-		a.tell(fmt.Sprintf("已加入 %d 个视频，开始处理。", added))
+		a.tell(locales.LibraryAddedStarting(added))
 	default:
-		a.tell("已加入，开始处理。")
+		a.tell(locales.LibraryAddedOneStarting())
 	}
 	return added > 0
 }
@@ -272,7 +272,7 @@ func (a *app) dropFiles(paths []string) {
 		}
 	}
 	if len(sources) == 0 {
-		a.warn(noticeNoVideo, "")
+		a.warn(locales.PrecheckNoVideo(), "")
 		return
 	}
 	a.libraryEnqueue(sources...)
@@ -286,6 +286,6 @@ func fileURL(path string) string {
 // libraryKeys are the library's shortcuts.
 func (a *app) libraryKeys() []shortcut {
 	return []shortcut{
-		{Group: "文件", Label: "打开本地视频…", Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos},
+		{Group: groupFile, Label: locales.LibraryOpenVideosMenu(), Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos},
 	}
 }

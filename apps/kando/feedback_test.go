@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"kando/apps/kando/feedback"
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -401,7 +402,7 @@ func TestFeedbackItemsAreMenuOnlyRows(t *testing.T) {
 	tt.Frame()
 	var labels []string
 	for _, s := range a.feedbackKeys() {
-		if s.Key != 0 || s.Mods != 0 || s.Group != "帮助" {
+		if s.Key != 0 || s.Mods != 0 || s.Group != groupHelp {
 			t.Fatalf("feedback row %+v", s)
 		}
 		labels = append(labels, s.Label)
@@ -490,5 +491,34 @@ func TestFeedbackCheckboxTogglesOnce(t *testing.T) {
 	tt.Frame()
 	if !a.feedback.form.Env {
 		t.Fatal("a click on the row did not tick 应用与系统版本 again")
+	}
+}
+
+// TestFeedbackDialogInEnglish reads the dialog and its menu items in English, while the issue it builds stays in Chinese for the maintainers.
+func TestFeedbackDialogInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _, _ := feedbackFilmApp(t)
+	if got := []string{a.feedbackKeys()[0].Label, a.feedbackKeys()[1].Label}; !slices.Equal(got, []string{"Send Feedback…", "Send Subtitle Feedback…"}) {
+		t.Fatalf("menu items %q", got)
+	}
+	a.openFeedback(feedback.KindBug)
+	tt.Frame()
+	for _, want := range []string{"Send Feedback", "Problem", "Suggestion", "Subtitle Quality", "Attached Information", "App and System Versions", "Components and Models", "whisper-cli not installed", "Not in the player, so there's no film to attach", "Issue Preview", "Title: (empty)", "Label: bug", "Cancel", "Copy Text", "Open in GitHub"} {
+		wantText(t, tt, want)
+	}
+	for _, unwanted := range []string{"在 GitHub 中打开", "附带信息", "组件与模型", "标题：（未填写）"} {
+		if textCount(tt, unwanted) > 0 {
+			t.Fatalf("the dialog still reads %q", unwanted)
+		}
+	}
+	body := a.FeedbackView().Issue.Body
+	for _, want := range []string{"**类型**：问题", "### 描述", "whisper-cli 未安装"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("the issue misses %q:\n%s", want, body)
+		}
+	}
+	a.feedback.err = errors.New("no browser")
+	if got, want := a.FeedbackView().Err, "Couldn't open the browser: no browser. Use “Copy Text” to copy the issue and paste it at github.com/yldm-tech/Kando/issues/new."; got != want {
+		t.Fatalf("error %q, want %q", got, want)
 	}
 }

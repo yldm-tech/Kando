@@ -13,6 +13,7 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	cmdpalette "kando/apps/kando/palette"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -34,16 +35,6 @@ const (
 	paletteContextRunes = 40000
 	// paletteAskTimeout is how long a question may take.
 	paletteAskTimeout = 90 * time.Second
-)
-
-const (
-	paletteNoAI        = "回答问题要用 AI 服务，先在「AI 服务」里选好一个模型。"
-	paletteNoAIAction  = "打开「AI 服务」设置"
-	paletteNoSubtitles = "这部影片还没有字幕，没法回答。"
-	paletteNotWatched  = "这部影片还没开始看。先播放一段，再来问。"
-	// paletteNothingFound is the note for a query that found nothing over the library, paletteNothingFoundAsk the one in the player, where Return asks it instead.
-	paletteNothingFound    = "没有找到命令或看过的台词。"
-	paletteNothingFoundAsk = "没有找到命令或看过的台词。按 Return 问这部影片。"
 )
 
 // paletteCommand is a row of the palette's 命令 group: what it says, its shortcut outside the palette, and what it does.
@@ -137,7 +128,7 @@ func (a *app) paletteSaveFurthest() {
 		a.library.Furthest[path] = at
 	}
 	if err := a.library.Save(); err != nil {
-		a.saveErr = "视频库无法保存：" + err.Error()
+		a.saveErr = locales.PaletteLibrarySaveFailed(err.Error())
 	}
 }
 
@@ -301,9 +292,9 @@ func (a *app) paletteCommands() []paletteCommand {
 			if mode == a.player.subMode {
 				continue
 			}
-			out = append(out, paletteCommand{label: "切换为" + film.ModeName(mode), run: func() {
+			out = append(out, paletteCommand{label: locales.PaletteSwitchTo(film.ModeName(mode)), run: func() {
 				a.SetSubMode(mode)
-				a.flash("字幕：" + film.ModeName(mode))
+				a.flash(locales.PaletteSubtitleMode(film.ModeName(mode)))
 			}})
 		}
 	}
@@ -311,11 +302,11 @@ func (a *app) paletteCommands() []paletteCommand {
 	if inFilm {
 		rank := func(group string) int {
 			switch group {
-			case "字幕":
+			case groupSubtitles:
 				return 0
-			case "显示":
+			case groupView:
 				return 1
-			case "播放":
+			case groupPlayback:
 				return 2
 			}
 			return 3
@@ -329,13 +320,13 @@ func (a *app) paletteCommands() []paletteCommand {
 		if s.Mods == ui.Cmd && s.Key == ui.KeyK {
 			continue
 		}
-		if s.Group == "窗口" && s.Checked != nil && s.Checked() {
+		if s.Group == groupWindow && s.Checked != nil && s.Checked() {
 			continue
 		}
 		out = append(out, paletteCommand{label: s.Label, mods: s.Mods, key: s.Key, run: s.guarded()})
 	}
 	for _, id := range settings.IDs() {
-		out = append(out, paletteCommand{label: "设置 › " + settings.Title(id), run: func() { a.OpenSettings(id) }})
+		out = append(out, paletteCommand{label: locales.PaletteSettingsSection(settings.Title(id)), run: func() { a.OpenSettings(id) }})
 	}
 	return out
 }
@@ -362,14 +353,14 @@ func (a *app) paletteView() cmdpalette.View {
 	_, inFilm := a.paletteOpenFilm()
 	v := cmdpalette.View{
 		Query:       &a.palette.query,
-		Placeholder: "命令或看过的台词…",
-		Footer:      "打字时搜命令和看过的台词 · ↑↓ 选择 · Return 执行",
+		Placeholder: locales.PalettePlaceholder(),
+		Footer:      locales.PaletteFooter(),
 		Selected:    -1,
 		Reveal:      a.palette.reveal,
 	}
 	if inFilm {
-		v.Placeholder = "命令、台词，或直接问这部影片…"
-		v.Footer = "打字时只搜命令和台词 · Return 才提问 · ↑↓ 选择"
+		v.Placeholder = locales.PalettePlaceholderFilm()
+		v.Footer = locales.PaletteFooterFilm()
 	}
 	for _, hit := range lines {
 		l := cmdpalette.Line{At: cmdpalette.ClockTenths(hit.cue.start), Translation: hit.cue.translation, Original: hit.cue.original}
@@ -389,9 +380,10 @@ func (a *app) paletteView() cmdpalette.View {
 		v.Selected = min(a.palette.sel, total-1)
 	}
 	if total == 0 && a.palette.answer == nil && strings.TrimSpace(a.palette.query) != "" {
-		v.Empty = paletteNothingFound
+		// Over the library the note says nothing was found; in the player it says Return asks the query instead.
+		v.Empty = locales.PaletteNothingFound()
 		if inFilm {
-			v.Empty = paletteNothingFoundAsk
+			v.Empty = locales.PaletteNothingFoundAsk()
 		}
 	}
 	if ans := a.palette.answer; ans != nil {
@@ -403,11 +395,14 @@ func (a *app) paletteView() cmdpalette.View {
 // paletteAnswerView is the answer card as palette draws it.
 func (a *app) paletteAnswerView(ans *paletteAnswer) *cmdpalette.Answer {
 	out := &cmdpalette.Answer{Busy: ans.busy, Text: ans.text}
+	if ans.say != nil {
+		out.Text = ans.say()
+	}
 	if ans.needsAI {
-		out.Action = paletteNoAIAction
+		out.Action = locales.PaletteNoAIAction()
 	}
 	if !ans.busy && !ans.needsAI && !ans.failed && ans.model != "" {
-		out.Note = fmt.Sprintf("只依据已经播放到的部分（到 %s）· %s 回答", cmdpalette.Clock(ans.horizon), ans.model)
+		out.Note = locales.PaletteAnswerNote(cmdpalette.Clock(ans.horizon), ans.model)
 	}
 	for _, ref := range ans.refs {
 		out.Refs = append(out.Refs, cmdpalette.Clock(ref))
@@ -532,12 +527,12 @@ func (a *app) paletteAsk() {
 	a.paletteDropAnswer()
 	t, ok := a.paletteTranslator()
 	if !ok {
-		a.palette.answer = &paletteAnswer{needsAI: true, text: paletteNoAI}
+		a.palette.answer = &paletteAnswer{needsAI: true, say: locales.PaletteNoAI}
 		return
 	}
 	f, ok := a.palette.files[item.SubtitlePath]
 	if !ok || item.SubtitlePath == "" || len(f.cues) == 0 {
-		a.palette.answer = &paletteAnswer{failed: true, text: paletteNoSubtitles}
+		a.palette.answer = &paletteAnswer{failed: true, say: locales.PaletteNoSubtitles}
 		return
 	}
 	horizon := a.paletteHorizon(item)
@@ -548,13 +543,13 @@ func (a *app) paletteAsk() {
 		}
 	}
 	if len(seen) == 0 {
-		a.palette.answer = &paletteAnswer{failed: true, text: paletteNotWatched}
+		a.palette.answer = &paletteAnswer{failed: true, say: locales.PaletteNotWatched}
 		return
 	}
 	model := strings.TrimSpace(t.Model)
 	a.palette.askGen++
 	gen := a.palette.askGen
-	a.palette.answer = &paletteAnswer{busy: true, text: "正在问 " + model + "…", horizon: horizon, model: model, film: item.Key}
+	a.palette.answer = &paletteAnswer{busy: true, say: func() string { return locales.PaletteAsking(model) }, horizon: horizon, model: model, film: item.Key}
 	ctx, cancel := context.WithTimeout(context.Background(), paletteAskTimeout)
 	a.palette.cancel = cancel
 	system := palettePrompt(a.prefs.language, horizon)
@@ -570,7 +565,7 @@ func (a *app) paletteAsk() {
 			a.palette.cancel = nil
 			if err != nil {
 				// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, so the card offers them as it does when none is set.
-				a.palette.answer = &paletteAnswer{failed: true, needsAI: true, text: "没有拿到回答：" + err.Error()}
+				a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: func() string { return locales.PaletteAskFailed(err.Error()) }}
 				return
 			}
 			text, refs := paletteParseReply(reply, seen)

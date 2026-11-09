@@ -1,9 +1,9 @@
 package films
 
 import (
-	"fmt"
 	"strings"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 
 	"github.com/egoist/mygo/ui"
@@ -11,12 +11,12 @@ import (
 
 // grid is the films that are done, as 16:9 posters across the page.
 func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
-	title := "影片"
+	title := locales.FilmsGridTitle()
 	if source == sidebar.SourceAll {
-		title = "全部影片"
+		title = locales.SourceAll()
 	}
 	ui.Column(c).Margin(26, 0, 0, 0).Gap(14).Children(func() {
-		sectionTitle(c, t, title, fmt.Sprintf("%d 部", len(done)))
+		sectionTitle(c, t, title, locales.FilmsGridCount(len(done)))
 		width, _ := c.Size()
 		ui.Grid(c).Columns(Columns(width)).GapX(CardGapX).GapY(CardGapY).AlignItems(ui.Start).Children(func() {
 			for _, item := range done {
@@ -46,7 +46,7 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 				ui.Image(c, img).Absolute().Top(0).Left(0).WidthPercent(100).HeightPercent(100).Fit(ui.Cover)
 			}
 			if item.Language != "" {
-				posterChip(c, "双语 · "+LanguageShort(item.Language)).Absolute().Left(9).Top(9).LetterSpacing(0.4).Bold()
+				posterChip(c, locales.FilmsPosterBilingual(LanguageShort(item.Language))).Absolute().Left(9).Top(9).LetterSpacing(0.4).Bold()
 			}
 			if d := a.Duration(item.VideoPath); d > 0 {
 				posterChip(c, Clock(d)).Absolute().Right(9).Bottom(9).FontWeight(600).FontFeatures("tnum")
@@ -66,17 +66,17 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 // filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero.
 func filmMenu(a App, item Film) func(m *ui.Menu) {
 	return func(m *ui.Menu) {
-		if m.Item("播放").Chosen() {
+		if m.Item(locales.FilmsPlay()).Chosen() {
 			a.Open(item)
 		}
-		if m.Item("在访达中显示").Chosen() {
+		if m.Item(locales.FilmsShowInFinder()).Chosen() {
 			a.Reveal(item.VideoPath)
 		}
-		if m.Item("重新处理").Chosen() {
+		if m.Item(locales.FilmsReprocess()).Chosen() {
 			a.Reprocess(item)
 		}
 		m.Separator()
-		if m.Item("从资料库移除…").Chosen() {
+		if m.Item(locales.FilmsRemoveFromLibrary()).Chosen() {
 			a.AskRemove(item)
 		}
 	}
@@ -89,7 +89,7 @@ func posterChip(c *ui.Context, label string) ui.Element {
 
 // moreButton is ⋯ beside a poster's title: a 26-point round button with the prototype's three dots, gray while pressed.
 func moreButton(c *ui.Context) ui.Element {
-	b := ui.ButtonBase(c).Label("更多操作").Size(26, 26).Radius(13).Shrink(0).AlignItems(ui.Center).Justify(ui.Center)
+	b := ui.ButtonBase(c).Label(locales.FilmsMoreActions()).Size(26, 26).Radius(13).Shrink(0).AlignItems(ui.Center).Justify(ui.Center)
 	switch {
 	case b.Pressed():
 		b.Background(ui.RGBA(0, 0, 0, 0.08))
@@ -109,7 +109,7 @@ func doneMeta(a App, item Film) string {
 		parts = append(parts, Clock(d))
 	}
 	if item.JobID == "" {
-		parts = append(parts, "还没有字幕")
+		parts = append(parts, locales.FilmsNoSubtitles())
 	}
 	if note := untranslatedNote(item); note != "" {
 		parts = append(parts, note)
@@ -122,5 +122,5 @@ func untranslatedNote(item Film) string {
 	if item.Untranslated <= 0 {
 		return ""
 	}
-	return fmt.Sprintf("%d 句翻译失败，其余已完成", item.Untranslated)
+	return locales.FilmsUntranslated(item.Untranslated)
 }

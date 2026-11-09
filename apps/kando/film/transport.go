@@ -3,6 +3,8 @@ package film
 import (
 	"time"
 
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -24,12 +26,12 @@ func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, 
 	bar.Children(func() {
 		ui.Row(c).Gap(2).AlignItems(ui.Center).Shrink(0).Children(func() {
 			c.Key("film-back5")
-			if skipButton(c, iconBack5, "后退 5 秒").Tooltip("后退 5 秒 " + breeze.ShortcutText(c, 0, ui.KeyLeft)).Clicked() {
+			if skipButton(c, iconBack5, locales.FilmSkipBack(5)).Tooltip(locales.FilmSkipBack(5) + " " + breeze.ShortcutText(c, 0, ui.KeyLeft)).Clicked() {
 				s.Skip(-5 * time.Second)
 			}
 			s.playButton(c)
 			c.Key("film-forward5")
-			if skipButton(c, iconForward5, "前进 5 秒").Tooltip("前进 5 秒 " + breeze.ShortcutText(c, 0, ui.KeyRight)).Clicked() {
+			if skipButton(c, iconForward5, locales.FilmSkipForward(5)).Tooltip(locales.FilmSkipForward(5) + " " + breeze.ShortcutText(c, 0, ui.KeyRight)).Clicked() {
 				s.Skip(5 * time.Second)
 			}
 		})
@@ -50,11 +52,11 @@ func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, 
 			s.modeMenu(c, t)
 			c.Key("film-panel")
 			on := s.Panel()
-			if glyphToggle(c, &on, iconPanel, "侧栏", 34, 30, 18, 15).Tooltip("侧栏 " + breeze.ShortcutText(c, ui.Shift|ui.Cmd, ui.KeyT)).Changed() {
+			if glyphToggle(c, &on, iconPanel, locales.FilmSidebar(), 34, 30, 18, 15).Tooltip(locales.FilmSidebar() + " " + breeze.ShortcutText(c, ui.Shift|ui.Cmd, ui.KeyT)).Changed() {
 				s.TogglePanel()
 			}
 			c.Key("film-full")
-			if glyphButton(c, iconFullScreen, "全屏", 34, 30, 16, 16).Tooltip("全屏 F").Clicked() {
+			if glyphButton(c, iconFullScreen, locales.FilmFullScreen(), 34, 30, 16, 16).Tooltip(locales.FilmFullScreen() + " F").Clicked() {
 				s.ToggleFullScreen()
 			}
 		})
@@ -76,13 +78,13 @@ func (s screen) playButton(c *ui.Context) {
 	c.Key("film-play")
 	switch {
 	case s.Play() == nil:
-		glyphButton(c, iconPlay, "正在打开", 36, 36, 20, 20).Disabled(true)
+		glyphButton(c, iconPlay, locales.FilmOpening(), 36, 36, 20, 20).Disabled(true)
 	case s.Play().Playing():
-		if glyphButton(c, iconPause, "暂停", 36, 36, 20, 20).Tooltip("暂停 空格").Clicked() {
+		if glyphButton(c, iconPause, locales.FilmPause(), 36, 36, 20, 20).Tooltip(locales.FilmPause() + " " + locales.FilmKeySpace()).Clicked() {
 			s.togglePlay(c)
 		}
 	default:
-		if glyphButton(c, iconPlay, "播放", 36, 36, 20, 20).Tooltip("播放 空格").Clicked() {
+		if glyphButton(c, iconPlay, locales.FilmPlay(), 36, 36, 20, 20).Tooltip(locales.FilmPlay() + " " + locales.FilmKeySpace()).Clicked() {
 			s.togglePlay(c)
 		}
 	}

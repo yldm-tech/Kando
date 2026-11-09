@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
 	"kando/packages/media"
@@ -23,14 +24,15 @@ type readiness struct {
 	asking     bool
 }
 
-const (
-	readyMessage   = "已就绪，可以开始处理"
-	noLibrary      = "先新建或打开一个资料库"
-	noSpeechModel  = "先在「语音识别」里选一个模型"
-	noLLMModel     = "先在「AI 服务」里选一个模型"
-	notSignedIn    = "先登录 EveryAPI，或在「AI 服务」里填 Key"
-	checkingSignIn = "正在检查 EveryAPI 登录…"
-	checkingTools  = "正在检查组件…"
+// The status line's messages, said in the interface's language each time the sidebar draws them. Where they say what the library's message bar says, they are its words (locales.Precheck…).
+var (
+	readyMessage   = locales.ReadinessReady
+	noLibrary      = locales.PrecheckNoLibrary
+	noSpeechModel  = locales.PrecheckNoSpeechModel
+	noLLMModel     = locales.PrecheckNoLLMModel
+	notSignedIn    = locales.PrecheckNotSignedIn
+	checkingSignIn = locales.ReadinessCheckingSignIn
+	checkingTools  = locales.ReadinessCheckingTools
 )
 
 // readiness is the status line the sidebar shows. A missing library is read from the shelf as it draws; the rest is what checkReadiness last found.
@@ -51,7 +53,8 @@ func (a *app) checkReadiness(signIn bool) {
 	if !ok {
 		// Another pipeline, as a test's, has only its own check.
 		if err := a.pipeline.Check(); err != nil {
-			a.side.ready.status = sidebar.Readiness{State: sidebar.Missing, Message: err.Error(), Section: settings.SectionGeneral}
+			msg := err.Error()
+			a.side.ready.status = sidebar.Readiness{State: sidebar.Missing, Message: func() string { return msg }, Section: settings.SectionGeneral}
 			return
 		}
 		a.side.ready.status = sidebar.Readiness{State: sidebar.Ready, Message: readyMessage}
@@ -112,11 +115,13 @@ func toolsMissing(tools media.Tools) (sidebar.Readiness, bool) {
 			absent = append(absent, tool.name)
 		}
 	}
-	missing := func(message, section string) (sidebar.Readiness, bool) {
+	missing := func(message func() string, section string) (sidebar.Readiness, bool) {
 		return sidebar.Readiness{State: sidebar.Missing, Message: message, Section: section}, true
 	}
 	if len(absent) > 0 {
-		return missing("缺少组件："+strings.Join(absent, "、"), settings.SectionGeneral)
+		return missing(func() string {
+			return locales.ReadinessMissingTools(strings.Join(absent, locales.PrecheckToolSeparator()))
+		}, settings.SectionGeneral)
 	}
 	if tools.WhisperModel == "" {
 		return missing(noSpeechModel, settings.SectionSpeech)

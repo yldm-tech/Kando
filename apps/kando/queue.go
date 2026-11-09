@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -69,8 +70,8 @@ func (a *app) queueHooks() areaHooks {
 // queueKeys are the queue's shortcuts.
 func (a *app) queueKeys() []shortcut { return nil }
 
-// errBusy was Enqueue's answer while a job ran, before jobs waited in a queue. Enqueue no longer returns it; it stays so code written against the one-job contract still builds.
-var errBusy = errors.New("已有视频在处理，等它完成后再添加")
+// errBusy was Enqueue's answer while a job ran, before jobs waited in a queue. Enqueue no longer returns it; it stays so code written against the one-job contract still builds. It is made when it is said, in the language shown then.
+func errBusy() error { return errors.New(locales.QueueBusy()) }
 
 // Enqueue adds a job for each source, a link or a local video's file:// URL, to the open library in the language the settings name. The jobs run one after another, after those already waiting. A source that cannot be added is skipped and the others are still added; the error is why the first one was not.
 func (a *app) Enqueue(sources ...string) error {
@@ -113,7 +114,7 @@ func (a *app) RunningJob() string { return a.queue.active }
 // newJob makes the job for source in the open library and the target language, or returns why it cannot.
 func (a *app) newJob(source string) (core.Job, error) {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
-		return core.Job{}, errors.New("先创建或导入一个资料库")
+		return core.Job{}, errors.New(locales.QueueNoLibrary())
 	}
 	job, err := core.NewJob(source)
 	if err != nil {
@@ -121,7 +122,7 @@ func (a *app) newJob(source string) (core.Job, error) {
 	}
 	language := strings.TrimSpace(a.prefs.language)
 	if language == "" {
-		return core.Job{}, errors.New("请填写目标语言")
+		return core.Job{}, errors.New(locales.QueueNoLanguage())
 	}
 	job.Language = language
 	return job, nil
@@ -139,11 +140,11 @@ func (a *app) importLocal(path string) {
 // chooseLocal puts the video at path in the link field as a file:// URL, or says it is not a video. It reports whether it did.
 func (a *app) chooseLocal(path string) bool {
 	if !media.IsVideoFile(path) {
-		a.queue.status = "没有可导入的视频"
+		a.queue.status = locales.QueueNoVideoToImport()
 		return false
 	}
 	a.queue.source = (&url.URL{Scheme: "file", Path: path}).String()
-	a.queue.status = "已选择本地视频"
+	a.queue.status = locales.QueueLocalChosen()
 	return true
 }
 
@@ -166,7 +167,7 @@ func (a *app) startFilm(item films.Film) {
 func (a *app) savePositions() {
 	a.library.Positions = maps.Clone(a.resumePositions())
 	if err := a.library.Save(); err != nil {
-		a.saveErr = "视频库无法保存：" + err.Error()
+		a.saveErr = locales.QueueSaveFailed(err.Error())
 	}
 }
 
@@ -192,7 +193,7 @@ func (a *app) remove(id string) {
 		a.newDraft()
 	}
 	if err := a.library.Save(); err != nil {
-		a.saveErr = "视频库无法保存：" + err.Error()
+		a.saveErr = locales.QueueSaveFailed(err.Error())
 	}
 }
 
@@ -205,7 +206,7 @@ func (a *app) retry(job core.Job) {
 		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if job.Language == "" {
-		a.queue.status = "请填写目标语言"
+		a.queue.status = locales.QueueNoLanguage()
 		return
 	}
 	a.page = pageFilms
@@ -361,7 +362,7 @@ func (a *app) show(job core.Job) {
 	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {
-		a.saveErr = "视频库无法保存：" + err.Error()
+		a.saveErr = locales.QueueSaveFailed(err.Error())
 	} else {
 		a.saveErr = ""
 	}
@@ -394,25 +395,25 @@ func (a *app) showProgress(job core.Job) {
 func statusText(job core.Job) string {
 	switch job.Stage {
 	case core.StageQueued:
-		return "任务已加入队列"
+		return locales.QueueStatusQueued()
 	case core.StageDownloading:
-		return "正在下载视频…"
+		return locales.QueueStatusDownloading()
 	case core.StageTranscribing:
-		return "正在本机生成字幕…"
+		return locales.QueueStatusTranscribing()
 	case core.StageTranslating:
-		return "正在翻译字幕…"
+		return locales.QueueStatusTranslating()
 	case core.StageExporting:
-		return "正在导出双语字幕…"
+		return locales.QueueStatusExporting()
 	case core.StageComplete:
-		return "完成：" + job.SubtitlePath
+		return locales.QueueStatusComplete(job.SubtitlePath)
 	case core.StageFailed:
 		if errors.Is(job.Err, context.Canceled) {
-			return "已取消"
+			return locales.QueueStatusCanceled()
 		}
 		if errors.Is(job.Err, core.ErrLibrarySwitched) {
-			return "已停止：切换了资料库"
+			return locales.QueueStatusLibrarySwitched()
 		}
-		return "失败：" + job.Err.Error()
+		return locales.QueueStatusFailed(job.Err.Error())
 	}
 	return string(job.Stage)
 }

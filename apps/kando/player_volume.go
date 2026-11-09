@@ -2,8 +2,9 @@ package main
 
 import (
 	"math"
-	"strconv"
 	"time"
+
+	"kando/apps/kando/locales"
 )
 
 // playerVolumeStep is how much ↑ and ↓ change the volume.
@@ -43,7 +44,7 @@ func (a *app) ToggleMute() {
 		a.flash(playerVolumeText(a.player.volume))
 	} else {
 		a.player.muted = true
-		a.flash("静音")
+		a.flash(locales.PlayerOsdMuted())
 	}
 	a.playerVolumeChanged()
 }
@@ -86,7 +87,7 @@ func (a *app) playerSaveVolume() {
 	}
 	a.player.volumeUnsaved = false
 	if err := a.saveSettings(); err != nil {
-		a.flash("音量设置无法保存")
+		a.flash(locales.PlayerSaveVolumeFailed())
 	}
 }
 
@@ -98,5 +99,5 @@ func (a *app) playerQuitting() {
 
 // playerVolumeText is what the picture says for volume, as "音量 70%".
 func playerVolumeText(volume float64) string {
-	return "音量 " + strconv.Itoa(int(math.Round(volume*100))) + "%"
+	return locales.PlayerOsdVolume(int(math.Round(volume * 100)))
 }

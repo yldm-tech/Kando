@@ -3,6 +3,8 @@ package sidebar
 import (
 	"strconv"
 
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -38,19 +40,19 @@ func sources(c *ui.Context, a App) {
 	}
 }
 
-// SourceLabel is the name the sidebar gives source, which the library page can take as its title.
+// SourceLabel is the name the sidebar gives source in the interface's language, which the library page can take as its title.
 func SourceLabel(source string) string {
 	switch source {
 	case SourceYouTube:
 		return "YouTube"
 	case SourceBilibili:
-		return "哔哩哔哩"
+		return locales.SidebarSourceBilibili()
 	case SourceWeb:
-		return "其他网站"
+		return locales.SidebarSourceWeb()
 	case SourceLocal:
-		return "本地文件"
+		return locales.SidebarSourceLocal()
 	default:
-		return "全部影片"
+		return locales.SidebarSourceAll()
 	}
 }
 

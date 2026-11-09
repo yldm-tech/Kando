@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -234,8 +235,8 @@ func TestAISettingsChoosesTheModelFromTheServiceList(t *testing.T) {
 	a.RetryLLMModels()
 	waitUntil(t, updates, func() bool { return !a.prefs.llmModelsLoading })
 	tt.Frame()
-	if calls != 2 || !tt.HasText("重试") || a.prefs.llmModelsErr != "服务不接受这个 API Key，取不到模型列表" {
-		t.Fatalf("calls %d error %q texts %q", calls, a.prefs.llmModelsErr, tt.Texts())
+	if calls != 2 || !tt.HasText("重试") || a.LLMModelsErr() != "服务不接受这个 API Key，取不到模型列表" {
+		t.Fatalf("calls %d error %q texts %q", calls, a.LLMModelsErr(), tt.Texts())
 	}
 	if !tt.HasText("zeta-chat") {
 		t.Fatalf("the chosen model left the row: %q", tt.Texts())
@@ -245,7 +246,73 @@ func TestAISettingsChoosesTheModelFromTheServiceList(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitUntil(t, updates, func() bool { return !a.prefs.llmModelsLoading })
-	if calls != 3 || a.prefs.llmModelsErr != "" || len(a.prefs.llmModels) != 3 {
-		t.Fatalf("calls %d error %q models %q", calls, a.prefs.llmModelsErr, a.prefs.llmModels)
+	if calls != 3 || a.LLMModelsErr() != "" || len(a.prefs.llmModels) != 3 {
+		t.Fatalf("calls %d error %q models %q", calls, a.LLMModelsErr(), a.prefs.llmModels)
+	}
+}
+
+// TestSettingsInEnglish reads the settings window in English: the sections and their search, the AI service's presets with their group, the whisper models and the target language, which keeps its stored value while the pop-up names it in English.
+func TestSettingsInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}}
+	a, _, _ := newTestApp(tools)
+	a.syncLLM(tools)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	tt := newSettingsTester(a, settings.SectionAI)
+	for _, text := range []string{"General", "Speech Recognition", "AI Service", "Translation", "Subtitle Style", "Keyboard Shortcuts", "Account & Upload", "Service", "Model", "Test Connection", "Not tested", "EveryAPI signed in on this Mac. Without an API Key, the everyapi sign-in on this Mac is used. Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."} {
+		wantText(t, tt, text)
+	}
+	if settings.Title(settings.SectionLook) != "Subtitle Style" {
+		t.Fatalf("title %q", settings.Title(settings.SectionLook))
+	}
+	if err := tt.Click("Choose service"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	for _, text := range []string{"OpenAI Compatible", "Local · Ollama", "Qwen", "SiliconFlow"} {
+		wantText(t, tt, text)
+	}
+
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
+	for _, text := range []string{"whisper Models", "Large v3 Turbo (Compressed)", "Recommended", "Download", "The choice for most cases: close to the highest accuracy, small and fast.\nSpeed ★★★★☆  Accuracy ★★★★★  574 MB"} {
+		wantText(t, tt, text)
+	}
+
+	tt = settingsOpenAt(a, tt, settings.SectionTranslate)
+	for _, text := range []string{"Default target language", "Simplified Chinese", "Smart translation", "Using the default prompt · Write {{language}} for the target language.", "Restore Default"} {
+		wantText(t, tt, text)
+	}
+	if err := tt.Click("Simplified Chinese"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("Japanese"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.prefs.language != "日本語" || loadSavedSettings(a.settingsPath).Language != "日本語" {
+		t.Fatalf("language %q, saved %q", a.prefs.language, loadSavedSettings(a.settingsPath).Language)
+	}
+
+	tt = settingsOpenAt(a, tt, settings.SectionLook)
+	for _, text := range []string{"Default display", "Original Only", "Translation on Top", "Every river begins as a trickle high in the mountains.", "Chaque rivière commence par un mince filet d'eau en haut des montagnes."} {
+		wantText(t, tt, text)
+	}
+
+	if err := tt.Click("Search settings"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("prompt")
+	tt.Frame()
+	if !tt.HasText("Translation") || tt.HasText("Keyboard Shortcuts") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	tt.Type(" nothing like it")
+	tt.Frame()
+	wantText(t, tt, "No matching settings")
+	for _, chinese := range []string{"通用", "测试连接", "推荐", "简体中文", "每条河都始于高山上的一股细流。"} {
+		if tt.HasText(chinese) {
+			t.Fatalf("the settings still read %q: %q", chinese, tt.Texts())
+		}
 	}
 }

@@ -1,3 +1,4001 @@
 {
-  "@@locale": "en"
+  "@@locale": "en",
+  "accountCOSAccessHint": "Enter the SecretId.",
+  "@accountCOSAccessHint": {
+    "description": "Hint under the Tencent Cloud COS Access Key field: Tencent calls it SecretId."
+  },
+  "accountCOSBucketHint": "Include the APPID, for example video-1250000000.",
+  "@accountCOSBucketHint": {
+    "description": "Hint under the Tencent Cloud COS Bucket field."
+  },
+  "accountCOSRegionHint": "For example, ap-guangzhou.",
+  "@accountCOSRegionHint": {
+    "description": "Hint under the Tencent Cloud COS Region field."
+  },
+  "accountCOSSecretHint": "Enter the SecretKey.",
+  "@accountCOSSecretHint": {
+    "description": "Hint under the Tencent Cloud COS Secret field: Tencent calls it SecretKey."
+  },
+  "accountCompatEndpointHint": "The full https address.",
+  "@accountCompatEndpointHint": {
+    "description": "Hint under the S3-compatible storage's Endpoint field."
+  },
+  "accountCompatRegionHint": "The region name used for signing. For MinIO, usually us-east-1.",
+  "@accountCompatRegionHint": {
+    "description": "Hint under the S3-compatible storage's Region field."
+  },
+  "accountFixSettings": "Open Settings",
+  "@accountFixSettings": {
+    "description": "Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage."
+  },
+  "accountFixSignIn": "Sign In",
+  "@accountFixSignIn": {
+    "description": "Button in the player's upload capsule opening Settings › Account & Upload to sign in."
+  },
+  "accountGoogleFailed": "Google sign-in didn't finish",
+  "@accountGoogleFailed": {
+    "description": "Error under the account card when the Google sign-in failed or was cancelled."
+  },
+  "accountNeedsSignIn": "Sign in to Google in Settings › Account & Upload first",
+  "@accountNeedsSignIn": {
+    "description": "Why the player cannot upload: no Google account is signed in. Names the settings page."
+  },
+  "accountNeedsStore": "Fill in {store} in Settings › Account & Upload first",
+  "@accountNeedsStore": {
+    "description": "Why the player cannot upload: the chosen storage is not filled in. Names the settings page.",
+    "placeholders": {
+      "store": {
+        "type": "String",
+        "example": "R2"
+      }
+    }
+  },
+  "accountNoClientNote": "Needs the environment variable KANDO_GOOGLE_CLIENT_ID; without it, the sign-in button is unavailable. The Client ID is not written to the settings file.",
+  "@accountNoClientNote": {
+    "description": "Note under the account card when the Google client ID is not set in the environment."
+  },
+  "accountOSSRegionHint": "For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal.",
+  "@accountOSSRegionHint": {
+    "description": "Hint under the Alibaba Cloud OSS Region field."
+  },
+  "accountPathStyle": "Path Style",
+  "@accountPathStyle": {
+    "description": "Switch of the S3-compatible storage: address the bucket in the path instead of the host name."
+  },
+  "accountPathStyleHint": "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu.",
+  "@accountPathStyleHint": {
+    "description": "Hint under the path style switch: which services need it."
+  },
+  "accountR2EndpointHint": "Enter the Account ID, or the full https address.",
+  "@accountR2EndpointHint": {
+    "description": "Hint under the Cloudflare R2 Endpoint field."
+  },
+  "accountS3RegionHint": "For example, ap-northeast-1.",
+  "@accountS3RegionHint": {
+    "description": "Hint under the Amazon S3 Region field."
+  },
+  "accountSaveFailed": "The account couldn't be saved",
+  "@accountSaveFailed": {
+    "description": "Error under the account card when the settings file could not be written."
+  },
+  "accountSectionAccount": "Account",
+  "@accountSectionAccount": {
+    "description": "Heading of the Google account card on the Account & Upload settings page."
+  },
+  "accountSectionStorage": "Object Storage",
+  "@accountSectionStorage": {
+    "description": "Heading of the object storage card on the Account & Upload settings page."
+  },
+  "accountSignIn": "Sign In with Google",
+  "@accountSignIn": {
+    "description": "Button signing in with Google in the browser."
+  },
+  "accountSignInNote": "Signing in only marks who uploaded. The refresh token is kept in the settings file on this computer.",
+  "@accountSignInNote": {
+    "description": "Note under the account card: what signing in is for and where the token is kept."
+  },
+  "accountSignOut": "Sign Out",
+  "@accountSignOut": {
+    "description": "Button signing out of the Google account."
+  },
+  "accountSignedInWith": "Signed in with Google",
+  "@accountSignedInWith": {
+    "description": "The account row's subtitle under the signed-in email."
+  },
+  "accountSignedOut": "Not Signed In",
+  "@accountSignedOut": {
+    "description": "The account row's title while no Google account is signed in."
+  },
+  "accountSignedOutHint": "Sign in to upload films.",
+  "@accountSignedOutHint": {
+    "description": "The account row's subtitle while no Google account is signed in."
+  },
+  "accountSigningIn": "Signing In…",
+  "@accountSigningIn": {
+    "description": "The sign-in button's title while the browser sign-in runs."
+  },
+  "accountStorageKind": "Type",
+  "@accountStorageKind": {
+    "description": "Row and drop-down choosing the kind of object storage."
+  },
+  "accountStoreCOS": "Tencent Cloud COS",
+  "@accountStoreCOS": {
+    "description": "Tencent Cloud's object storage in the storage drop-down."
+  },
+  "accountStoreCompat": "S3 Compatible",
+  "@accountStoreCompat": {
+    "description": "Any S3-compatible object storage, such as MinIO, in the storage drop-down, on the upload button and in the message asking to fill it in."
+  },
+  "accountStoreOSS": "Alibaba Cloud OSS",
+  "@accountStoreOSS": {
+    "description": "Alibaba Cloud's object storage in the storage drop-down."
+  },
+  "accountUploadFailed": "Upload failed",
+  "@accountUploadFailed": {
+    "description": "Upload error whose cause is hidden because it would show a key."
+  },
+  "accountUploadFailedBecause": "Upload failed: {error}",
+  "@accountUploadFailedBecause": {
+    "description": "Upload error with the storage's error message.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "status 403"
+      }
+    }
+  },
+  "accountUploadNote": "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer.",
+  "@accountUploadNote": {
+    "description": "Note under the object storage card: uploads are by hand, and where the keys are kept."
+  },
+  "accountUploadTo": "Upload to {store}",
+  "@accountUploadTo": {
+    "description": "The player's upload button, naming the storage (R2, S3, OSS, COS or S3 Compatible).",
+    "placeholders": {
+      "store": {
+        "type": "String",
+        "example": "R2"
+      }
+    }
+  },
+  "accountUploaded": "Uploaded {key}",
+  "@accountUploaded": {
+    "description": "The player's upload capsule once the film was uploaded, with the object's key in the bucket.",
+    "placeholders": {
+      "key": {
+        "type": "String",
+        "example": "a@b.c/Movies/Learn Rust/video.mp4"
+      }
+    }
+  },
+  "accountUploading": "Uploading",
+  "@accountUploading": {
+    "description": "The player's upload capsule while the upload starts, before its size is known."
+  },
+  "accountUploadingOther": "Uploading another film",
+  "@accountUploadingOther": {
+    "description": "The player's upload capsule while another film is uploading."
+  },
+  "accountUploadingPercent": "Uploading {percent}%",
+  "@accountUploadingPercent": {
+    "description": "The player's upload capsule while uploading, with how much is done.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "42"
+      }
+    }
+  },
+  "accountVideoMissing": "The video file isn't on this computer",
+  "@accountVideoMissing": {
+    "description": "Upload error when the film's video file is not on disk."
+  },
+  "appSettings": "Settings…",
+  "@appSettings": {
+    "description": "App menu item and shortcut row (⌘,) that opens Settings."
+  },
+  "cheatsheetClose": "Close",
+  "@cheatsheetClose": {
+    "description": "Accessible name of the cheat sheet's close button."
+  },
+  "cheatsheetHint": "Single keys work only while no text field has focus",
+  "@cheatsheetHint": {
+    "description": "Note next to the cheat sheet's title: shortcuts without a modifier key do nothing while a text field is being typed in."
+  },
+  "cheatsheetMenuItem": "Shortcut Cheat Sheet",
+  "@cheatsheetMenuItem": {
+    "description": "Help menu item and shortcut row (⌘/) that opens the list of keyboard shortcuts."
+  },
+  "cheatsheetPalette": "Ask This Film / Commands",
+  "@cheatsheetPalette": {
+    "description": "Cheat sheet line, under Window, for ⌘K, the command palette that also answers questions about the film."
+  },
+  "cheatsheetPlayPause": "Play / Pause",
+  "@cheatsheetPlayPause": {
+    "description": "Cheat sheet line for the Space key in the player."
+  },
+  "cheatsheetSearchLines": "Search Lines",
+  "@cheatsheetSearchLines": {
+    "description": "Cheat sheet line, under Subtitles, for ⌘F, which searches the film's lines."
+  },
+  "cheatsheetSettings": "Settings",
+  "@cheatsheetSettings": {
+    "description": "Cheat sheet line, under Window, for ⌘, which opens Settings."
+  },
+  "cheatsheetSidebar": "Sidebar",
+  "@cheatsheetSidebar": {
+    "description": "Cheat sheet line, under Subtitles, for the key that shows or hides the player's sidebar of lines."
+  },
+  "cheatsheetSkip30": "Back / Forward 30 Seconds",
+  "@cheatsheetSkip30": {
+    "description": "Cheat sheet line for ⌘← and ⌘→ in the player."
+  },
+  "cheatsheetSkip5": "Back / Forward 5 Seconds",
+  "@cheatsheetSkip5": {
+    "description": "Cheat sheet line for the ← and → keys in the player."
+  },
+  "cheatsheetSubtitlesDelay": "Subtitle Delay −/+ 0.1 s",
+  "@cheatsheetSubtitlesDelay": {
+    "description": "Cheat sheet line, under Subtitles, for the Z and X keys that move the subtitles 0.1 second earlier or later."
+  },
+  "cheatsheetSubtitlesMode": "Switch Display Mode",
+  "@cheatsheetSubtitlesMode": {
+    "description": "Cheat sheet line, under Subtitles, for the key that cycles bilingual, translation only and original only."
+  },
+  "cheatsheetSubtitlesShowHide": "Show / Hide",
+  "@cheatsheetSubtitlesShowHide": {
+    "description": "Cheat sheet line, under Subtitles, for the key that shows or hides the subtitles."
+  },
+  "cheatsheetTitle": "Keyboard Shortcuts",
+  "@cheatsheetTitle": {
+    "description": "Title of the shortcut cheat sheet."
+  },
+  "cheatsheetVolume": "Volume Up / Down",
+  "@cheatsheetVolume": {
+    "description": "Cheat sheet line for the ↑ and ↓ keys in the player."
+  },
+  "cloudSignedIn": "Signed in. You can close this page.",
+  "@cloudSignedIn": {
+    "description": "The browser page Google's sign-in returns to, once the app has the sign-in."
+  },
+  "cloudSignedInTitle": "Kando",
+  "@cloudSignedInTitle": {
+    "description": "Title of the browser page Google's sign-in returns to, the app's name."
+  },
+  "feedbackAttachEnv": "App and System Versions",
+  "@feedbackAttachEnv": {
+    "description": "Check box attaching the app's and the system's versions."
+  },
+  "feedbackAttachFilm": "Current Film's Processing Status",
+  "@feedbackAttachFilm": {
+    "description": "Check box attaching the state of the film open in the player."
+  },
+  "feedbackAttachSubs": "Subtitle Original and Translation",
+  "@feedbackAttachSubs": {
+    "description": "Check box attaching the subtitle line at the playhead, its original and its translation."
+  },
+  "feedbackAttachTools": "Components and Models",
+  "@feedbackAttachTools": {
+    "description": "Check box attaching the versions of yt-dlp, ffmpeg and whisper-cli and the models in use."
+  },
+  "feedbackAttachments": "Attached Information",
+  "@feedbackAttachments": {
+    "description": "Heading over the check boxes choosing what the app attaches to the issue."
+  },
+  "feedbackBrowserFailed": "Couldn't open the browser: {error}. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new.",
+  "@feedbackBrowserFailed": {
+    "description": "Error in the feedback dialog when the browser could not be opened, with the way to file the issue by hand.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "exec: \"open\": executable file not found"
+      },
+      "repo": {
+        "type": "String",
+        "example": "yldm-tech/Kando"
+      }
+    }
+  },
+  "feedbackCancel": "Cancel",
+  "@feedbackCancel": {
+    "description": "Button closing the feedback dialog."
+  },
+  "feedbackCopied": "Copied",
+  "@feedbackCopied": {
+    "description": "The copy button's title once it copied the body, until the body changes."
+  },
+  "feedbackCopy": "Copy Text",
+  "@feedbackCopy": {
+    "description": "Button copying the issue's whole body to the clipboard."
+  },
+  "feedbackDescriptionHint": "What you did, what you expected to see, what you saw",
+  "@feedbackDescriptionHint": {
+    "description": "Placeholder of the description field when reporting a problem."
+  },
+  "feedbackDescriptionHintIdea": "What feature you'd like, and when you'd use it",
+  "@feedbackDescriptionHintIdea": {
+    "description": "Placeholder of the description field when suggesting a feature."
+  },
+  "feedbackDescriptionHintSubs": "Which line, what's wrong, and what you think it should be",
+  "@feedbackDescriptionHintSubs": {
+    "description": "Placeholder of the description field when reporting subtitle quality."
+  },
+  "feedbackEnvDetail": "Kando {version} · {system}",
+  "@feedbackEnvDetail": {
+    "description": "Detail under the app and system versions check box.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "0.1.0"
+      },
+      "system": {
+        "type": "String",
+        "example": "macOS 27.2 (arm64)"
+      }
+    }
+  },
+  "feedbackFieldDescription": "Description",
+  "@feedbackFieldDescription": {
+    "description": "Label of the feedback dialog's description field."
+  },
+  "feedbackFieldTitle": "Title",
+  "@feedbackFieldTitle": {
+    "description": "Label of the feedback dialog's title field."
+  },
+  "feedbackFilmDetail": "Source, progress and errors, without file paths or links",
+  "@feedbackFilmDetail": {
+    "description": "Detail under the current film check box while a film is open."
+  },
+  "feedbackFilmNone": "Not in the player, so there's no film to attach",
+  "@feedbackFilmNone": {
+    "description": "Detail under the current film check box, which cannot be ticked, while no film is open in the player."
+  },
+  "feedbackIntro": "Opens GitHub's new issue page in your browser with everything filled in, for you to check and submit. Issues are public.",
+  "@feedbackIntro": {
+    "description": "Line under the feedback dialog's title: what the dialog does."
+  },
+  "feedbackKindBug": "Problem",
+  "@feedbackKindBug": {
+    "description": "Segment of the feedback dialog: the feedback reports a problem."
+  },
+  "feedbackKindIdea": "Suggestion",
+  "@feedbackKindIdea": {
+    "description": "Segment of the feedback dialog: the feedback suggests a feature."
+  },
+  "feedbackKindSubs": "Subtitle Quality",
+  "@feedbackKindSubs": {
+    "description": "Segment of the feedback dialog: the feedback is about the quality of a film's subtitles."
+  },
+  "feedbackKindsLabel": "Feedback type",
+  "@feedbackKindsLabel": {
+    "description": "Accessible name of the segmented control choosing what the feedback is about."
+  },
+  "feedbackMenuFilmSubs": "Send Feedback on This Film's Subtitles…",
+  "@feedbackMenuFilmSubs": {
+    "description": "Help menu item that opens the feedback dialog on the subtitles of the film open in the player."
+  },
+  "feedbackMenuReport": "Send Feedback…",
+  "@feedbackMenuReport": {
+    "description": "Help menu item that opens the feedback dialog, which opens a GitHub issue."
+  },
+  "feedbackMenuSubs": "Send Subtitle Feedback…",
+  "@feedbackMenuSubs": {
+    "description": "Help menu item that opens the feedback dialog on subtitle quality, while no film is open."
+  },
+  "feedbackNoSpeechModel": "No model chosen",
+  "@feedbackNoSpeechModel": {
+    "description": "Stands for the speech model in the components detail when none is chosen."
+  },
+  "feedbackOpen": "Open in GitHub",
+  "@feedbackOpen": {
+    "description": "Button opening the prefilled new-issue page in the browser."
+  },
+  "feedbackPreview": "Issue Preview",
+  "@feedbackPreview": {
+    "description": "Heading over the preview of the GitHub issue."
+  },
+  "feedbackPreviewLabel": "Label: {label}",
+  "@feedbackPreviewLabel": {
+    "description": "Second line of the issue preview: the repository's label the link fills in, such as bug or enhancement.",
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "bug"
+      }
+    }
+  },
+  "feedbackPreviewTitle": "Title: {title}",
+  "@feedbackPreviewTitle": {
+    "description": "First line of the issue preview: the title the link fills in.",
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Subtitles are a second late"
+      }
+    }
+  },
+  "feedbackPreviewUntitled": "(empty)",
+  "@feedbackPreviewUntitled": {
+    "description": "What the issue preview shows for the title while the title field is empty."
+  },
+  "feedbackSubsDetail": "Goes public on GitHub; only the line at the playhead ({time}) is attached",
+  "@feedbackSubsDetail": {
+    "description": "Detail under the subtitle check box: the line goes to a public issue, and when it starts.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "0:12.5"
+      }
+    }
+  },
+  "feedbackSubsNone": "Open a film with subtitles to attach this",
+  "@feedbackSubsNone": {
+    "description": "Detail under the subtitle check box, which cannot be ticked, while no film with subtitles is open."
+  },
+  "feedbackTitle": "Send Feedback",
+  "@feedbackTitle": {
+    "description": "Title of the feedback dialog."
+  },
+  "feedbackTitleHint": "Describe the problem in one sentence",
+  "@feedbackTitleHint": {
+    "description": "Placeholder of the title field when reporting a problem or subtitle quality."
+  },
+  "feedbackTitleHintIdea": "Say what you'd like in one sentence",
+  "@feedbackTitleHintIdea": {
+    "description": "Placeholder of the title field when suggesting a feature."
+  },
+  "feedbackToolMissing": "{name} not installed",
+  "@feedbackToolMissing": {
+    "description": "A tool in the components detail that is not installed.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "whisper-cli"
+      }
+    }
+  },
+  "feedbackToolNoVersion": "{name} version unknown",
+  "@feedbackToolNoVersion": {
+    "description": "A tool in the components detail that did not say its version.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "ffmpeg"
+      }
+    }
+  },
+  "feedbackToolsDetail": "{tools}; transcription {speech} · translation {translator} (no keys)",
+  "@feedbackToolsDetail": {
+    "description": "Detail under the components and models check box: the tools' versions, the speech model and the translation service, never its key.",
+    "placeholders": {
+      "tools": {
+        "type": "String",
+        "example": "yt-dlp 2026.09.14 · ffmpeg 7.1 · whisper-cli not installed"
+      },
+      "speech": {
+        "type": "String",
+        "example": "ggml-base.bin"
+      },
+      "translator": {
+        "type": "String",
+        "example": "EveryAPI · claude-haiku-5-5"
+      }
+    }
+  },
+  "feedbackTruncated": "The text is too long, so the link leaves out its last {count, plural, one {# character} other {# characters}}. Use “Copy Text” to copy all of it and paste it over the text on the GitHub page.",
+  "@feedbackTruncated": {
+    "description": "Warning under the issue preview when the body was cut to fit the link's length.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "120"
+      }
+    }
+  },
+  "filmAll": "All",
+  "@filmAll": {
+    "description": "Chip over the subtitle list, followed by how many lines it holds."
+  },
+  "filmBackToLibrary": "Back to Library",
+  "@filmBackToLibrary": {
+    "description": "The player's back button, and the shortcut row of Escape: closes the film and goes back to the library."
+  },
+  "filmBytes": "{count, plural, one {# byte} other {# bytes}}",
+  "@filmBytes": {
+    "description": "A file's size under 1 KB.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "512"
+      }
+    }
+  },
+  "filmCancel": "Cancel",
+  "@filmCancel": {
+    "description": "Player title bar button: cancels this film's running job."
+  },
+  "filmClickToJump": "Click a line to jump to it",
+  "@filmClickToJump": {
+    "description": "Hint under the subtitle list."
+  },
+  "filmClip": "Clip {number}",
+  "@filmClip": {
+    "description": "Accessible name of a clip in the Clips tab.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "filmClipSpan": "Clip {number} · {start}–{end}",
+  "@filmClipSpan": {
+    "description": "Heading of a clip in the Clips tab: its number and the times it starts and ends.",
+    "placeholders": {
+      "number": {
+        "type": "int",
+        "example": "3"
+      },
+      "start": {
+        "type": "String",
+        "example": "1:00"
+      },
+      "end": {
+        "type": "String",
+        "example": "1:30"
+      }
+    }
+  },
+  "filmClipsNote": "Subtitles are split evenly by time into 4–12 clips of about 30 seconds each.",
+  "@filmClipsNote": {
+    "description": "Line over the Clips tab's list: how the film is cut."
+  },
+  "filmColorOrange": "Orange",
+  "@filmColorOrange": {
+    "description": "A subtitle line's color."
+  },
+  "filmColorWhite": "White",
+  "@filmColorWhite": {
+    "description": "A subtitle line's color."
+  },
+  "filmColorYellow": "Yellow",
+  "@filmColorYellow": {
+    "description": "A subtitle line's color."
+  },
+  "filmCopy": "Copy",
+  "@filmCopy": {
+    "description": "Button copying a link or path to the clipboard."
+  },
+  "filmDelay": "Subtitle Delay",
+  "@filmDelay": {
+    "description": "Row and stepper that shift the subtitles against the picture."
+  },
+  "filmDismiss": "Close Message",
+  "@filmDismiss": {
+    "description": "Close button of the upload notice over the picture."
+  },
+  "filmFaceBold": "Bold {line}",
+  "@filmFaceBold": {
+    "description": "Accessible name of a line's bold toggle.",
+    "placeholders": {
+      "line": {
+        "type": "String",
+        "example": "Translation"
+      }
+    }
+  },
+  "filmFaceColor": "{line}: {color}",
+  "@filmFaceColor": {
+    "description": "Accessible name of a line's color swatch.",
+    "placeholders": {
+      "line": {
+        "type": "String",
+        "example": "Translation"
+      },
+      "color": {
+        "type": "String",
+        "example": "White"
+      }
+    }
+  },
+  "filmFaceSize": "{line} Size",
+  "@filmFaceSize": {
+    "description": "Accessible name of a line's size slider.",
+    "placeholders": {
+      "line": {
+        "type": "String",
+        "example": "Translation"
+      }
+    }
+  },
+  "filmFeedbackSubtitles": "Send Feedback on This Film's Subtitles…",
+  "@filmFeedbackSubtitles": {
+    "description": "Item of the player's ⋯ menu that opens the feedback dialog about this film's subtitles."
+  },
+  "filmFiles": "Files",
+  "@filmFiles": {
+    "description": "Heading in the Info tab over the files in the film's folder."
+  },
+  "filmFolder": "Film Folder",
+  "@filmFolder": {
+    "description": "Heading in the Info tab over the film's folder."
+  },
+  "filmFontDefault": "Default",
+  "@filmFontDefault": {
+    "description": "Subtitle font: the system's default font."
+  },
+  "filmFontHiragino": "Hiragino Sans GB",
+  "@filmFontHiragino": {
+    "description": "Subtitle font: Hiragino Sans GB."
+  },
+  "filmFontPingFang": "PingFang SC",
+  "@filmFontPingFang": {
+    "description": "Subtitle font: PingFang SC."
+  },
+  "filmFullScreen": "Full Screen",
+  "@filmFullScreen": {
+    "description": "Full screen button, and its shortcut row."
+  },
+  "filmHideSidebar": "Hide Sidebar",
+  "@filmHideSidebar": {
+    "description": "Button at the player's top right that folds the side panel away."
+  },
+  "filmJobRecord": "Job record",
+  "@filmJobRecord": {
+    "description": "Label in the Info tab over the path of the library file that records the jobs."
+  },
+  "filmKeySpace": "Space",
+  "@filmKeySpace": {
+    "description": "Name of the space bar, after Play or Pause in their tooltips."
+  },
+  "filmKindBilingual": "Bilingual subtitles",
+  "@filmKindBilingual": {
+    "description": "What a file in the film's folder is: the bilingual subtitle file."
+  },
+  "filmKindCover": "Cover",
+  "@filmKindCover": {
+    "description": "What a file in the film's folder is: the cover image."
+  },
+  "filmKindOriginal": "Original subtitles",
+  "@filmKindOriginal": {
+    "description": "What a file in the film's folder is: a subtitle file in the original language."
+  },
+  "filmKindVideo": "Video",
+  "@filmKindVideo": {
+    "description": "What a file in the film's folder is: the video."
+  },
+  "filmLineOriginal": "Original",
+  "@filmLineOriginal": {
+    "description": "Heading of the style view's group for the original line."
+  },
+  "filmLineTranslation": "Translation",
+  "@filmLineTranslation": {
+    "description": "Heading of the style view's group for the translated line."
+  },
+  "filmLoadingSubtitles": "Loading subtitles…",
+  "@filmLoadingSubtitles": {
+    "description": "Shown in the side panel while the subtitle file is read."
+  },
+  "filmLocalFile": "Local file",
+  "@filmLocalFile": {
+    "description": "The Info tab's source of a film opened from a file on this Mac."
+  },
+  "filmLocalVideo": "Local Video",
+  "@filmLocalVideo": {
+    "description": "Chip in the Info tab of a local video no job has processed."
+  },
+  "filmModeBilingual": "Bilingual",
+  "@filmModeBilingual": {
+    "description": "Subtitle mode: the translation and the original both show."
+  },
+  "filmModeHeading": "Display",
+  "@filmModeHeading": {
+    "description": "Heading of the subtitle mode menu, over the modes."
+  },
+  "filmModeOff": "Off",
+  "@filmModeOff": {
+    "description": "Subtitle mode: no subtitles on the picture. On the player's mode button, its menu, the style view and the on-screen message."
+  },
+  "filmModeOffNote": "Hides only the subtitles",
+  "@filmModeOffNote": {
+    "description": "Line under the Off row of the subtitle mode menu: it hides the subtitles on the picture and nothing else."
+  },
+  "filmModeOriginal": "Original Only",
+  "@filmModeOriginal": {
+    "description": "Subtitle mode: only the original line shows."
+  },
+  "filmModeTranslation": "Translation Only",
+  "@filmModeTranslation": {
+    "description": "Subtitle mode: only the translated line shows."
+  },
+  "filmModeTranslationNote": "Shows the original, dimmed, until the translation is ready",
+  "@filmModeTranslationNote": {
+    "description": "Line under the Translation Only row of the subtitle mode menu."
+  },
+  "filmMoreActions": "More Actions",
+  "@filmMoreActions": {
+    "description": "Accessible name of the player's ⋯ menu button."
+  },
+  "filmMute": "Mute",
+  "@filmMute": {
+    "description": "Speaker button that mutes the film."
+  },
+  "filmNoClipsYet": "No subtitles to split into clips yet.",
+  "@filmNoClipsYet": {
+    "description": "Shown in the Clips tab when there are no subtitles to cut the film by."
+  },
+  "filmNoMatch": "No matching subtitles.",
+  "@filmNoMatch": {
+    "description": "Shown when the subtitle search finds nothing."
+  },
+  "filmNoSubtitlesYet": "No subtitles yet. They'll appear here once processing finishes.",
+  "@filmNoSubtitlesYet": {
+    "description": "Shown in the subtitle list of a film not processed yet."
+  },
+  "filmOpen": "Open",
+  "@filmOpen": {
+    "description": "Button showing the library file in Finder."
+  },
+  "filmOpening": "Opening",
+  "@filmOpening": {
+    "description": "Name of the disabled play button while the video opens."
+  },
+  "filmOpeningVideo": "Opening video…",
+  "@filmOpeningVideo": {
+    "description": "Shown in the middle of the picture while the video opens."
+  },
+  "filmOrderOriginalFirst": "Original on Top",
+  "@filmOrderOriginalFirst": {
+    "description": "Bilingual order: the original over the translation."
+  },
+  "filmOrderTranslationFirst": "Translation on Top",
+  "@filmOrderTranslationFirst": {
+    "description": "Bilingual order: the translation over the original."
+  },
+  "filmPause": "Pause",
+  "@filmPause": {
+    "description": "Pause button."
+  },
+  "filmPicture": "Picture",
+  "@filmPicture": {
+    "description": "Accessible name of the video picture."
+  },
+  "filmPlay": "Play",
+  "@filmPlay": {
+    "description": "Play button."
+  },
+  "filmPlaybackPosition": "Playback position",
+  "@filmPlaybackPosition": {
+    "description": "Accessible name of the scrubber."
+  },
+  "filmPositionBottom": "Bottom",
+  "@filmPositionBottom": {
+    "description": "Subtitle position: at the bottom of the picture."
+  },
+  "filmPositionHigh": "Higher",
+  "@filmPositionHigh": {
+    "description": "Subtitle position: about a third of the way up the picture."
+  },
+  "filmPresetBox": "Box",
+  "@filmPresetBox": {
+    "description": "Subtitle style preset: text on a dark box."
+  },
+  "filmPresetLarge": "Large",
+  "@filmPresetLarge": {
+    "description": "Subtitle style preset: larger outlined text."
+  },
+  "filmPresetOutline": "Outline",
+  "@filmPresetOutline": {
+    "description": "Subtitle style preset: outlined text."
+  },
+  "filmPresetSample": "Aa",
+  "@filmPresetSample": {
+    "description": "Short sample text drawn on each preset card as the preset draws subtitles; keep it to two or three characters."
+  },
+  "filmRemove": "Remove",
+  "@filmRemove": {
+    "description": "Player title bar button: removes this failed film from the library."
+  },
+  "filmReprocess": "Process Entire Film Again",
+  "@filmReprocess": {
+    "description": "Item of the player's ⋯ menu that processes a finished film again from the start."
+  },
+  "filmRetry": "Retry",
+  "@filmRetry": {
+    "description": "Player title bar button: runs this failed film's job again."
+  },
+  "filmReveal": "Show",
+  "@filmReveal": {
+    "description": "Button on a file of the Info tab that shows it in Finder."
+  },
+  "filmSearchLines": "Search Lines",
+  "@filmSearchLines": {
+    "description": "Search field over the subtitle list (its placeholder is followed by its shortcut)."
+  },
+  "filmSeconds": "{seconds} s",
+  "@filmSeconds": {
+    "description": "A signed number of seconds, already written with one decimal or a sign, as the subtitle delay and the skip messages show it.",
+    "placeholders": {
+      "seconds": {
+        "type": "String",
+        "example": "+0.3"
+      }
+    }
+  },
+  "filmShowInFinder": "Show in Finder",
+  "@filmShowInFinder": {
+    "description": "Button that shows the film's file or folder in Finder."
+  },
+  "filmShowSidebar": "Show Sidebar",
+  "@filmShowSidebar": {
+    "description": "Button at the player's top right that brings back the side panel (subtitles, clips, info)."
+  },
+  "filmSidebar": "Sidebar",
+  "@filmSidebar": {
+    "description": "The player's side panel: its accessible name, and the transport button that shows or hides it."
+  },
+  "filmSizeUnknown": "Size unknown",
+  "@filmSizeUnknown": {
+    "description": "A file's size while it is not known yet."
+  },
+  "filmSkipBack": "Back {seconds, plural, one {# Second} other {# Seconds}}",
+  "@filmSkipBack": {
+    "description": "Button and shortcut row moving the picture back.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "filmSkipForward": "Forward {seconds, plural, one {# Second} other {# Seconds}}",
+  "@filmSkipForward": {
+    "description": "Button and shortcut row moving the picture forward.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "5"
+      }
+    }
+  },
+  "filmSource": "Source",
+  "@filmSource": {
+    "description": "Heading in the Info tab over where the film came from."
+  },
+  "filmStartProcessing": "Start Processing",
+  "@filmStartProcessing": {
+    "description": "Player title bar button: starts the job that downloads, transcribes and translates this film."
+  },
+  "filmStatusTranslated": "{percent}% translated",
+  "@filmStatusTranslated": {
+    "description": "Line under the film's title in the player: how much of its subtitles is translated.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "94"
+      }
+    }
+  },
+  "filmStyleColor": "Color",
+  "@filmStyleColor": {
+    "description": "Style view row setting a line's color and weight."
+  },
+  "filmStyleFont": "Font",
+  "@filmStyleFont": {
+    "description": "Style view row choosing the subtitle font."
+  },
+  "filmStyleMenuItem": "Style…",
+  "@filmStyleMenuItem": {
+    "description": "Last row of the subtitle mode menu: opens the subtitle style in the side panel."
+  },
+  "filmStyleOrder": "Bilingual Order",
+  "@filmStyleOrder": {
+    "description": "Style view row choosing which line of a bilingual subtitle goes on top."
+  },
+  "filmStylePlayback": "Playback",
+  "@filmStylePlayback": {
+    "description": "Heading of the style view's first group: which lines show and the delay."
+  },
+  "filmStylePosition": "Position",
+  "@filmStylePosition": {
+    "description": "Style view row choosing how high the subtitles sit."
+  },
+  "filmStylePresets": "Presets",
+  "@filmStylePresets": {
+    "description": "Accessible name of the style view's row of presets."
+  },
+  "filmStyleReset": "Restore Default Style",
+  "@filmStyleReset": {
+    "description": "Button in the style view that puts the subtitle look back to the default."
+  },
+  "filmStyleShow": "Show Subtitles",
+  "@filmStyleShow": {
+    "description": "Style view row choosing the subtitle mode."
+  },
+  "filmStyleSize": "Size",
+  "@filmStyleSize": {
+    "description": "Style view row setting a line's font size."
+  },
+  "filmSubtitles": "Subtitles",
+  "@filmSubtitles": {
+    "description": "The side panel's subtitle tab, and the tooltip of the subtitle mode button (followed by its keys)."
+  },
+  "filmSubtitlesEmpty": "These subtitles are empty.",
+  "@filmSubtitlesEmpty": {
+    "description": "Shown in the subtitle list when the subtitle file has no lines."
+  },
+  "filmSubtitlesMode": "Subtitles: {mode}",
+  "@filmSubtitlesMode": {
+    "description": "Accessible name of the player's subtitle mode button, and the on-screen message after the mode changed.",
+    "placeholders": {
+      "mode": {
+        "type": "String",
+        "example": "Bilingual"
+      }
+    }
+  },
+  "filmTabClips": "Clips",
+  "@filmTabClips": {
+    "description": "Side panel tab listing the film cut into clips of equal time."
+  },
+  "filmTabInfo": "Info",
+  "@filmTabInfo": {
+    "description": "Side panel tab with the film's folder, files and source."
+  },
+  "filmTabStyle": "Style",
+  "@filmTabStyle": {
+    "description": "Side panel tab with the subtitle style."
+  },
+  "filmUnmute": "Unmute",
+  "@filmUnmute": {
+    "description": "Speaker button that unmutes the film."
+  },
+  "filmUnprocessed": "Not Processed",
+  "@filmUnprocessed": {
+    "description": "Chip in the Info tab of a film no job has processed."
+  },
+  "filmVolume": "Volume",
+  "@filmVolume": {
+    "description": "Accessible name of the volume slider."
+  },
+  "filmsCancel": "Cancel",
+  "@filmsCancel": {
+    "description": "Button that closes a sheet or dialog without doing anything."
+  },
+  "filmsChange": "Change…",
+  "@filmsChange": {
+    "description": "Button that opens a folder dialog to choose where the new library goes."
+  },
+  "filmsCloseNotice": "Close Message",
+  "@filmsCloseNotice": {
+    "description": "Accessible name of the × on the message bar."
+  },
+  "filmsCreate": "Create",
+  "@filmsCreate": {
+    "description": "Button that creates the new library."
+  },
+  "filmsDropHint": "Local files skip the download and go straight to subtitles",
+  "@filmsDropHint": {
+    "description": "Line under the drop title: what happens to a dropped local video."
+  },
+  "filmsDropTitle": "Drop to Add Local Videos",
+  "@filmsDropTitle": {
+    "description": "Shown over the library while video files are dragged over the window."
+  },
+  "filmsEmptyDescription": "Paste a link from YouTube, Bilibili or another site above, or drag a video file into the window. Kando downloads the video, recognizes the speech and makes bilingual subtitles.",
+  "@filmsEmptyDescription": {
+    "description": "How to add a first film, on the page of an empty library. The link field is above it."
+  },
+  "filmsEmptyTitle": "Start with a Video",
+  "@filmsEmptyTitle": {
+    "description": "Title of the page of a library that holds no film yet."
+  },
+  "filmsGridCount": "{count, plural, one {# film} other {# films}}",
+  "@filmsGridCount": {
+    "description": "Dimmed note beside the grid's heading: how many films it holds.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "12"
+      }
+    }
+  },
+  "filmsGridTitle": "Films",
+  "@filmsGridTitle": {
+    "description": "Heading of the grid of finished films when the sidebar shows one source."
+  },
+  "filmsHeroExported": "Exported {file}",
+  "@filmsHeroExported": {
+    "description": "Part of the line under the large card's title: the subtitle file that was written.",
+    "placeholders": {
+      "file": {
+        "type": "String",
+        "example": "video.bilingual.srt"
+      }
+    }
+  },
+  "filmsHeroFromStart": "Play from Beginning",
+  "@filmsHeroFromStart": {
+    "description": "Second button of the large card when the film was stopped partway: play from the beginning."
+  },
+  "filmsHeroKicker": "Recently Finished",
+  "@filmsHeroKicker": {
+    "description": "Small label over the title of the large card of the film finished last."
+  },
+  "filmsHeroKickerBilingual": "Recently Finished · {language} Bilingual",
+  "@filmsHeroKickerBilingual": {
+    "description": "Small label over the title of the large card of the film finished last, with the language its subtitles were translated into.",
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "example": "Simplified Chinese"
+      }
+    }
+  },
+  "filmsHeroResume": "Resume from {time}",
+  "@filmsHeroResume": {
+    "description": "Main button of the large card when the film was stopped partway: play from where it stopped.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "12:05"
+      }
+    }
+  },
+  "filmsLanguageTagJapanese": "JA",
+  "@filmsLanguageTagJapanese": {
+    "description": "Very short tag of Japanese on a poster's subtitle badge."
+  },
+  "filmsLanguageTagKorean": "KO",
+  "@filmsLanguageTagKorean": {
+    "description": "Very short tag of Korean on a poster's subtitle badge."
+  },
+  "filmsLanguageTagSimplifiedChinese": "CHS",
+  "@filmsLanguageTagSimplifiedChinese": {
+    "description": "Very short tag of Simplified Chinese on a poster's subtitle badge."
+  },
+  "filmsLanguageTagTraditionalChinese": "CHT",
+  "@filmsLanguageTagTraditionalChinese": {
+    "description": "Very short tag of Traditional Chinese on a poster's subtitle badge."
+  },
+  "filmsLinkChannel": "{site} · Channel",
+  "@filmsLinkChannel": {
+    "description": "Tag at the end of the link field when the link names a channel.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "filmsLinkLabel": "Video Link",
+  "@filmsLinkLabel": {
+    "description": "Accessible name of the toolbar's link field."
+  },
+  "filmsLinkPlaceholder": "Paste a video link from YouTube, Bilibili and more",
+  "@filmsLinkPlaceholder": {
+    "description": "Placeholder of the toolbar's link field."
+  },
+  "filmsLinkPlaylist": "{site} · Playlist",
+  "@filmsLinkPlaylist": {
+    "description": "Tag at the end of the link field when the link names a playlist or collection.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "filmsLocalVideo": "Local Video",
+  "@filmsLocalVideo": {
+    "description": "Toolbar button that opens a file dialog to add video files."
+  },
+  "filmsLocalVideoTooltip": "Add Local Videos (⌘O)",
+  "@filmsLocalVideoTooltip": {
+    "description": "Tooltip of the toolbar button that adds video files, with its shortcut."
+  },
+  "filmsMoreActions": "More Actions",
+  "@filmsMoreActions": {
+    "description": "Accessible name of the ⋯ button beside a poster's title."
+  },
+  "filmsNewLibraryEllipsis": "New Library…",
+  "@filmsNewLibraryEllipsis": {
+    "description": "Button that opens the sheet creating a new library."
+  },
+  "filmsNewLibraryName": "Name",
+  "@filmsNewLibraryName": {
+    "description": "Label of the new library's name field."
+  },
+  "filmsNewLibraryNote": "Creates a .kando folder, which Finder shows with the Kando icon.",
+  "@filmsNewLibraryNote": {
+    "description": "Line under the new-library sheet's title."
+  },
+  "filmsNewLibraryPlace": "Location",
+  "@filmsNewLibraryPlace": {
+    "description": "Label of the row showing the folder the new library goes in."
+  },
+  "filmsNewLibraryTitle": "New Library",
+  "@filmsNewLibraryTitle": {
+    "description": "Title of the sheet that creates a library."
+  },
+  "filmsNoLibraryDescription": "A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you can manage right in Finder.",
+  "@filmsNoLibraryDescription": {
+    "description": "What a library is, on the page before any library exists."
+  },
+  "filmsNoLibraryTitle": "No Library Yet",
+  "@filmsNoLibraryTitle": {
+    "description": "Title of the library page before any library exists."
+  },
+  "filmsNoSubtitles": "No subtitles yet",
+  "@filmsNoSubtitles": {
+    "description": "Part of the line under a poster: the video has not been processed yet."
+  },
+  "filmsOpenLibraryEllipsis": "Open Existing Library…",
+  "@filmsOpenLibraryEllipsis": {
+    "description": "Button that opens a folder dialog to open a library already on disk."
+  },
+  "filmsOpenSettings": "Open Settings",
+  "@filmsOpenSettings": {
+    "description": "Button on a failed job's card or the message bar that opens the settings section that fixes the problem."
+  },
+  "filmsPathNotSet": "Not Set",
+  "@filmsPathNotSet": {
+    "description": "Shown in place of a folder path that has not been chosen."
+  },
+  "filmsPickVideosEllipsis": "Choose Local Videos…",
+  "@filmsPickVideosEllipsis": {
+    "description": "Button on the empty library's page that opens a file dialog to choose videos."
+  },
+  "filmsPlay": "Play",
+  "@filmsPlay": {
+    "description": "Menu item and button that play a film."
+  },
+  "filmsPosterBilingual": "Bilingual · {language}",
+  "@filmsPosterBilingual": {
+    "description": "Small tag over a poster: the film has bilingual subtitles, with the short tag of the translation's language.",
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "example": "EN"
+      }
+    }
+  },
+  "filmsQueueActive": "{count} in progress",
+  "@filmsQueueActive": {
+    "description": "Dimmed note beside the processing heading: how many jobs are waiting or running.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "1"
+      }
+    }
+  },
+  "filmsQueueCancel": "Cancel Processing",
+  "@filmsQueueCancel": {
+    "description": "Accessible name of the × on a waiting or running job's card."
+  },
+  "filmsQueueCanceled": "Canceled",
+  "@filmsQueueCanceled": {
+    "description": "What a cancelled job's card says."
+  },
+  "filmsQueueCollapse": "Show Less",
+  "@filmsQueueCollapse": {
+    "description": "Button under the processing cards that hides all but the first ones again."
+  },
+  "filmsQueueDownloadingFrom": "Downloading · yt-dlp · {site}",
+  "@filmsQueueDownloadingFrom": {
+    "description": "Line under the title of a job whose download has not reported progress yet: the tool and the site.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "filmsQueueExporting": "Exporting · Writing video.srt and video.bilingual.srt",
+  "@filmsQueueExporting": {
+    "description": "Line under the title of a job writing its subtitle files."
+  },
+  "filmsQueueFailed": "{count, plural, one {# needs attention} other {# need attention}}",
+  "@filmsQueueFailed": {
+    "description": "Dimmed note beside the processing heading: how many jobs failed and wait for the user.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "filmsQueueNoAnswer": "Translation API didn't answer, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})",
+  "@filmsQueueNoAnswer": {
+    "description": "Line under the title of a job whose translation request got no usable answer and will be retried.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "8"
+      },
+      "attempt": {
+        "type": "int",
+        "example": "1"
+      },
+      "attempts": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "filmsQueueProgress": "Progress",
+  "@filmsQueueProgress": {
+    "description": "Accessible name of a job's progress bar."
+  },
+  "filmsQueueRateLimited": "Translation API rate-limited, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})",
+  "@filmsQueueRateLimited": {
+    "description": "Line under the title of a job whose translation request was rate-limited and will be retried.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "example": "8"
+      },
+      "attempt": {
+        "type": "int",
+        "example": "1"
+      },
+      "attempts": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "filmsQueueReadingLocal": "Reading · Local file",
+  "@filmsQueueReadingLocal": {
+    "description": "Line under the title of a job reading a local video file."
+  },
+  "filmsQueueRemaining": "{time} left",
+  "@filmsQueueRemaining": {
+    "description": "Part of a downloading job's line: the time left.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "0:12"
+      }
+    }
+  },
+  "filmsQueueShowAll": "Show All {count}",
+  "@filmsQueueShowAll": {
+    "description": "Button under the processing cards that shows the ones hidden.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "9"
+      }
+    }
+  },
+  "filmsQueueTitle": "Processing",
+  "@filmsQueueTitle": {
+    "description": "Heading of the section of jobs waiting, running or failed."
+  },
+  "filmsQueueTranscribing": "Transcribing · whisper on this computer",
+  "@filmsQueueTranscribing": {
+    "description": "Line under the title of a job transcribing the speech with whisper on this computer."
+  },
+  "filmsQueueTranscribingPercent": "Transcribing · whisper on this computer · {percent}",
+  "@filmsQueueTranscribingPercent": {
+    "description": "Line under the title of a job transcribing the speech with whisper on this computer, with how far it has gone.",
+    "placeholders": {
+      "percent": {
+        "type": "String",
+        "example": "23%"
+      }
+    }
+  },
+  "filmsQueueTranslating": "Translating · AI service",
+  "@filmsQueueTranslating": {
+    "description": "Line under the title of a job translating its subtitles before it reports batches."
+  },
+  "filmsQueueTranslatingBatch": "Translating · Batch {batch}/{batches} · {size, plural, one {# line} other {# lines}} per batch",
+  "@filmsQueueTranslatingBatch": {
+    "description": "Line under the title of a job translating its subtitles in batches.",
+    "placeholders": {
+      "batch": {
+        "type": "int",
+        "example": "2"
+      },
+      "batches": {
+        "type": "int",
+        "example": "5"
+      },
+      "size": {
+        "type": "int",
+        "example": "40"
+      }
+    }
+  },
+  "filmsQueueWaiting": "Queued · Waiting for the jobs ahead",
+  "@filmsQueueWaiting": {
+    "description": "Line under a queued job's title."
+  },
+  "filmsRemove": "Remove",
+  "@filmsRemove": {
+    "description": "Button that removes a failed job's card, and the confirming button of removing a film from the library."
+  },
+  "filmsRemoveConfirm": "Remove “{name}” from the library?",
+  "@filmsRemoveConfirm": {
+    "description": "Title of the dialog confirming that a film is removed from the library.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Learn Rust"
+      }
+    }
+  },
+  "filmsRemoveFiles": "The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay where they are.",
+  "@filmsRemoveFiles": {
+    "description": "What removing a film does when its folder holds other files too."
+  },
+  "filmsRemoveFolder": "The film's folder will be moved to the Trash. You can get its video, cover and subtitles back from there.",
+  "@filmsRemoveFolder": {
+    "description": "What removing a film does when it has a folder of its own in the library."
+  },
+  "filmsRemoveFromLibrary": "Remove from Library…",
+  "@filmsRemoveFromLibrary": {
+    "description": "Menu item that asks to remove a film from the library."
+  },
+  "filmsRemoveOutside": "The video isn't in the library folder. It stays where it is and no longer appears in the library.",
+  "@filmsRemoveOutside": {
+    "description": "What removing a film does when its video is outside the library folder."
+  },
+  "filmsReprocess": "Process Again",
+  "@filmsReprocess": {
+    "description": "Menu item that runs a finished film through download, subtitles and translation again."
+  },
+  "filmsRetry": "Retry",
+  "@filmsRetry": {
+    "description": "Button on a failed job's card that runs it again."
+  },
+  "filmsShowInFinder": "Show in Finder",
+  "@filmsShowInFinder": {
+    "description": "Menu item and button that show the film's video file in Finder."
+  },
+  "filmsSourceEmpty": "No films from this source yet.",
+  "@filmsSourceEmpty": {
+    "description": "Shown when no film of the library comes from the source chosen in the sidebar."
+  },
+  "filmsStageComplete": "Done",
+  "@filmsStageComplete": {
+    "description": "Stage of a job: finished."
+  },
+  "filmsStageDownloading": "Downloading",
+  "@filmsStageDownloading": {
+    "description": "Stage of a job: downloading the video."
+  },
+  "filmsStageExporting": "Exporting",
+  "@filmsStageExporting": {
+    "description": "Stage of a job: writing the subtitle files."
+  },
+  "filmsStageFailed": "Failed",
+  "@filmsStageFailed": {
+    "description": "Stage of a job: failed."
+  },
+  "filmsStageQueued": "Queued",
+  "@filmsStageQueued": {
+    "description": "Stage of a job: waiting in the queue."
+  },
+  "filmsStageTranscribing": "Transcribing",
+  "@filmsStageTranscribing": {
+    "description": "Stage of a job: transcribing the speech into subtitles."
+  },
+  "filmsStageTranslating": "Translating",
+  "@filmsStageTranslating": {
+    "description": "Stage of a job: translating the subtitles."
+  },
+  "filmsStart": "Start Processing",
+  "@filmsStart": {
+    "description": "Toolbar button that adds the pasted link to the queue."
+  },
+  "filmsSupportedSites": "Supported Websites…",
+  "@filmsSupportedSites": {
+    "description": "Button on the empty library's page that opens the sheet listing the websites Kando downloads from."
+  },
+  "filmsUntranslated": "{count, plural, one {# line} other {# lines}} failed to translate, the rest are done",
+  "@filmsUntranslated": {
+    "description": "Part of the line under a finished film: how many subtitle lines the translation failed on.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "libraryAddedOneStarting": "Added. Processing started.",
+  "@libraryAddedOneStarting": {
+    "description": "Message bar when one video was added to the queue."
+  },
+  "libraryAddedSome": "{count, plural, one {Added # video.} other {Added # videos.}} {error}",
+  "@libraryAddedSome": {
+    "description": "Message bar when some of the links or files were added to the queue and the others could not be; the error says why.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "2"
+      },
+      "error": {
+        "type": "String",
+        "example": "One link isn't a video."
+      }
+    }
+  },
+  "libraryAddedStarting": "Added {count, plural, one {# video} other {# videos}}. Processing started.",
+  "@libraryAddedStarting": {
+    "description": "Message bar when several videos were added to the queue.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "libraryDefaultName": "Film Library",
+  "@libraryDefaultName": {
+    "description": "Name the new-library sheet suggests for a new library; it becomes the folder's name, followed by a number when taken."
+  },
+  "libraryFileMissing": "The file is no longer there.",
+  "@libraryFileMissing": {
+    "description": "Error when the file to show in Finder is no longer there."
+  },
+  "libraryFileTaken": "A file with this name already exists in this location.",
+  "@libraryFileTaken": {
+    "description": "Error in the new-library sheet: a file of that name is already in the chosen folder."
+  },
+  "libraryImportButton": "Import",
+  "@libraryImportButton": {
+    "description": "Confirming button of the folder dialog that opens a library already on disk."
+  },
+  "libraryImportTitle": "Import Library",
+  "@libraryImportTitle": {
+    "description": "Title of the folder dialog that opens a library already on disk."
+  },
+  "libraryMoveOutFailed": "Couldn't move the library to its new folder: {error}",
+  "@libraryMoveOutFailed": {
+    "description": "Error when Kando could not move its videos out of an older version's library folder into a library of its own.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "libraryNameEmpty": "Enter a name for the library.",
+  "@libraryNameEmpty": {
+    "description": "Error in the new-library sheet: the name field is empty."
+  },
+  "libraryNameHasPath": "A library name can't contain a path.",
+  "@libraryNameHasPath": {
+    "description": "Error in the new-library sheet: the name holds a slash or is . or .."
+  },
+  "libraryNameTaken": "A library with this name already exists. Choose another name.",
+  "@libraryNameTaken": {
+    "description": "Error in the new-library sheet: a library of that name is already in the chosen folder."
+  },
+  "libraryOpenVideosMenu": "Open Local Video…",
+  "@libraryOpenVideosMenu": {
+    "description": "File menu item that opens a file dialog to add local videos."
+  },
+  "libraryPickVideosButton": "Open",
+  "@libraryPickVideosButton": {
+    "description": "Confirming button of the file dialog that chooses videos."
+  },
+  "libraryPickVideosTitle": "Choose Videos",
+  "@libraryPickVideosTitle": {
+    "description": "Title of the file dialog that chooses videos to add."
+  },
+  "libraryPlaceButton": "Choose",
+  "@libraryPlaceButton": {
+    "description": "Confirming button of the folder dialog that chooses where a new library goes."
+  },
+  "libraryPlaceTitle": "Where to Keep the Library",
+  "@libraryPlaceTitle": {
+    "description": "Title of the folder dialog that chooses where a new library goes."
+  },
+  "libraryRemoved": "Removed “{name}” from the library",
+  "@libraryRemoved": {
+    "description": "Message bar after a film whose video is outside the library was taken off the library.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Learn Rust"
+      }
+    }
+  },
+  "libraryRevealFailed": "Couldn't open the enclosing folder: {error}",
+  "@libraryRevealFailed": {
+    "description": "Error when the folder holding a file could not be opened.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "exit status 1"
+      }
+    }
+  },
+  "librarySaveFailed": "Couldn't save the library: {error}",
+  "@librarySaveFailed": {
+    "description": "Error when the list of libraries could not be saved to the settings file.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "libraryShelfReadFailed": "Couldn't read the film list: {error}",
+  "@libraryShelfReadFailed": {
+    "description": "Error when the list of films and jobs (library.json) could not be read.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "unexpected end of JSON input"
+      }
+    }
+  },
+  "libraryShelfSaveFailed": "Couldn't save the film list: {error}",
+  "@libraryShelfSaveFailed": {
+    "description": "Error when the list of films and jobs (library.json) could not be saved.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "libraryTrashFailed": "Couldn't move “{name}” to the Trash: {error}",
+  "@libraryTrashFailed": {
+    "description": "Message bar when a film could not be moved to the Trash.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Learn Rust"
+      },
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "libraryTrashed": "Moved “{name}” to the Trash",
+  "@libraryTrashed": {
+    "description": "Message bar after a film was moved to the Trash.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Learn Rust"
+      }
+    }
+  },
+  "libraryVideoFilter": "Videos",
+  "@libraryVideoFilter": {
+    "description": "Name of the file type filter of the file dialog that chooses videos."
+  },
+  "libraryWindowTitle": "Kando",
+  "@libraryWindowTitle": {
+    "description": "Title of the main window: the app's name."
+  },
+  "menuAbout": "About Kando",
+  "@menuAbout": {
+    "description": "First item of the app menu, which shows the About window."
+  },
+  "menuBringAllToFront": "Bring All to Front",
+  "@menuBringAllToFront": {
+    "description": "Window menu item that brings all the app's windows to the front, as macOS names it."
+  },
+  "menuCloseWindow": "Close Window",
+  "@menuCloseWindow": {
+    "description": "File menu item that closes the window, as macOS names it."
+  },
+  "menuCopy": "Copy",
+  "@menuCopy": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuCut": "Cut",
+  "@menuCut": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuDelete": "Delete",
+  "@menuDelete": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuGroupApp": "Kando",
+  "@menuGroupApp": {
+    "description": "The app's menu in the menu bar, named after the app."
+  },
+  "menuGroupEdit": "Edit",
+  "@menuGroupEdit": {
+    "description": "The Edit menu."
+  },
+  "menuGroupFile": "File",
+  "@menuGroupFile": {
+    "description": "The File menu."
+  },
+  "menuGroupHelp": "Help",
+  "@menuGroupHelp": {
+    "description": "The Help menu."
+  },
+  "menuGroupPlayback": "Playback",
+  "@menuGroupPlayback": {
+    "description": "The menu, and the group of the shortcut tables, of the player's playback commands."
+  },
+  "menuGroupStudy": "Study",
+  "@menuGroupStudy": {
+    "description": "The menu of the study commands: asking about the film, reviewing."
+  },
+  "menuGroupSubtitles": "Subtitles",
+  "@menuGroupSubtitles": {
+    "description": "The menu, and the group of the shortcut tables, of the subtitle commands."
+  },
+  "menuGroupView": "View",
+  "@menuGroupView": {
+    "description": "The View menu."
+  },
+  "menuGroupWindow": "Window",
+  "@menuGroupWindow": {
+    "description": "The Window menu."
+  },
+  "menuHide": "Hide Kando",
+  "@menuHide": {
+    "description": "App menu item that hides the app, as macOS names it."
+  },
+  "menuHideOthers": "Hide Others",
+  "@menuHideOthers": {
+    "description": "App menu item that hides the other apps, as macOS names it."
+  },
+  "menuMinimize": "Minimize",
+  "@menuMinimize": {
+    "description": "Window menu item that minimizes the window to the Dock, as macOS names it."
+  },
+  "menuNewLibrary": "New Library…",
+  "@menuNewLibrary": {
+    "description": "File menu item that creates a new library folder."
+  },
+  "menuOpenLibrary": "Open Library…",
+  "@menuOpenLibrary": {
+    "description": "File menu item that opens another library folder."
+  },
+  "menuPaste": "Paste",
+  "@menuPaste": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuPasteAndMatchStyle": "Paste and Match Style",
+  "@menuPasteAndMatchStyle": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuQuit": "Quit Kando",
+  "@menuQuit": {
+    "description": "Last item of the app menu, which quits the app."
+  },
+  "menuRedo": "Redo",
+  "@menuRedo": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuReopenGuide": "Show Getting Started Guide",
+  "@menuReopenGuide": {
+    "description": "Help menu item that shows the first-run Getting Started guide again."
+  },
+  "menuRevealLibrary": "Show Library in Finder",
+  "@menuRevealLibrary": {
+    "description": "File menu item that shows the open library's folder in Finder."
+  },
+  "menuSelectAll": "Select All",
+  "@menuSelectAll": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuServices": "Services",
+  "@menuServices": {
+    "description": "The app menu's Services submenu, as macOS names it."
+  },
+  "menuShowAll": "Show All",
+  "@menuShowAll": {
+    "description": "App menu item that shows every hidden app again, as macOS names it."
+  },
+  "menuSpeech": "Speech",
+  "@menuSpeech": {
+    "description": "The Edit menu's Speech submenu, as macOS names it."
+  },
+  "menuStartSpeaking": "Start Speaking",
+  "@menuStartSpeaking": {
+    "description": "Item of the Speech submenu that reads the selection aloud, as macOS names it."
+  },
+  "menuStopSpeaking": "Stop Speaking",
+  "@menuStopSpeaking": {
+    "description": "Item of the Speech submenu that stops reading aloud, as macOS names it."
+  },
+  "menuToggleFullScreen": "Toggle Full Screen",
+  "@menuToggleFullScreen": {
+    "description": "View menu item that puts the window in full screen or takes it out."
+  },
+  "menuUndo": "Undo",
+  "@menuUndo": {
+    "description": "Edit menu item, as macOS names it."
+  },
+  "menuWindowLibrary": "Library",
+  "@menuWindowLibrary": {
+    "description": "Window menu item (⌘1) that shows the Library page."
+  },
+  "menuWindowPlayer": "Player",
+  "@menuWindowPlayer": {
+    "description": "Window menu item (⌘2) that goes back to the film last open in the player."
+  },
+  "menuZoom": "Zoom",
+  "@menuZoom": {
+    "description": "Window menu item that zooms the window, as macOS names it."
+  },
+  "onboardingAIConfigured": "Set up",
+  "@onboardingAIConfigured": {
+    "description": "Second step's line about translation when the app runs another pipeline that has its own translation set up."
+  },
+  "onboardingAIModel": "Translation model: {model}",
+  "@onboardingAIModel": {
+    "description": "Second step's line about translation: the model that translates.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "gpt-4o-mini"
+      }
+    }
+  },
+  "onboardingAIModelUnchecked": "Translation model: {model} · Uses the EveryAPI sign-in on this computer, checked before processing starts",
+  "@onboardingAIModelUnchecked": {
+    "description": "Second step's line about translation before the EveryAPI sign-in was checked: the model, and that the sign-in on this computer is used and checked later.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "gpt-4o-mini"
+      }
+    }
+  },
+  "onboardingAddAndStart": "Add and Start",
+  "@onboardingAddAndStart": {
+    "description": "Primary button of the last step with a link: adds it to the queue and closes the guide."
+  },
+  "onboardingAdded": "Added. Processing started.",
+  "@onboardingAdded": {
+    "description": "Message after the guide added its link to the queue."
+  },
+  "onboardingBack": "Back",
+  "@onboardingBack": {
+    "description": "Button going back to the guide's previous step."
+  },
+  "onboardingCancel": "Cancel",
+  "@onboardingCancel": {
+    "description": "Button stopping a speech model's download."
+  },
+  "onboardingCaptionLanguages": "Watch the original, with subtitles in your language",
+  "@onboardingCaptionLanguages": {
+    "description": "Headline over the picture on the guide's left, first step."
+  },
+  "onboardingCaptionLink": "Paste a link, get bilingual subtitles automatically",
+  "@onboardingCaptionLink": {
+    "description": "Headline over the picture on the guide's left, third step."
+  },
+  "onboardingCaptionSpeechComputer": "Speech recognition, right on this computer",
+  "@onboardingCaptionSpeechComputer": {
+    "description": "Headline over the picture on the guide's left, second step, on Linux and Windows."
+  },
+  "onboardingCaptionSpeechMac": "Speech recognition, right on this Mac",
+  "@onboardingCaptionSpeechMac": {
+    "description": "Headline over the picture on the guide's left, second step, on macOS."
+  },
+  "onboardingContinue": "Continue",
+  "@onboardingContinue": {
+    "description": "Primary button going on to the guide's next step."
+  },
+  "onboardingDone": "Done",
+  "@onboardingDone": {
+    "description": "Primary button of the last step without a link: closes the guide."
+  },
+  "onboardingDownload": "Download",
+  "@onboardingDownload": {
+    "description": "Button downloading a speech model."
+  },
+  "onboardingDownloadAndContinue": "Download and Continue",
+  "@onboardingDownloadAndContinue": {
+    "description": "Primary button of the second step when it also starts downloading the recommended speech model."
+  },
+  "onboardingDownloadProgress": "Download progress",
+  "@onboardingDownloadProgress": {
+    "description": "Accessible name of a speech model's download progress bar."
+  },
+  "onboardingDownloadTooltip": "Download {name} ({size})",
+  "@onboardingDownloadTooltip": {
+    "description": "Tooltip of a speech model's download button: the model and the download's size.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Large v3 Turbo"
+      },
+      "size": {
+        "type": "String",
+        "example": "574 MB"
+      }
+    }
+  },
+  "onboardingInUse": "In Use",
+  "@onboardingInUse": {
+    "description": "Accessible name of the check mark on the speech model in use."
+  },
+  "onboardingLanguageDe": "German",
+  "@onboardingLanguageDe": {
+    "description": "German, under its own name on a language tile of the first step."
+  },
+  "onboardingLanguageEn": "English",
+  "@onboardingLanguageEn": {
+    "description": "English, under its own name on a language tile of the first step."
+  },
+  "onboardingLanguageEs": "Spanish",
+  "@onboardingLanguageEs": {
+    "description": "Spanish, under its own name on a language tile of the first step."
+  },
+  "onboardingLanguageFr": "French",
+  "@onboardingLanguageFr": {
+    "description": "French, under its own name on a language tile of the first step."
+  },
+  "onboardingLanguageJa": "Japanese",
+  "@onboardingLanguageJa": {
+    "description": "Japanese, under its own name on a language tile of the first step."
+  },
+  "onboardingLanguageKo": "Korean",
+  "@onboardingLanguageKo": {
+    "description": "Korean, under its own name on a language tile of the first step."
+  },
+  "onboardingLanguageZh": "Mandarin",
+  "@onboardingLanguageZh": {
+    "description": "Mandarin Chinese, the spoken language, under its own name (中文) on a language tile of the first step."
+  },
+  "onboardingLanguagesNote": "Languages you don't choose are recognized too: whisper works out which language a video speaks by itself. The languages you choose decide which model the next step recommends.",
+  "@onboardingLanguagesNote": {
+    "description": "Note under the first step's language tiles."
+  },
+  "onboardingLinkChannel": "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos",
+  "@onboardingLinkChannel": {
+    "description": "Line under the link field for a link to a channel on a named site.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "onboardingLinkChannelUnnamed": "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos",
+  "@onboardingLinkChannelUnnamed": {
+    "description": "Line under the link field for a link to a channel on a site without a known name."
+  },
+  "onboardingLinkDescription": "Any video from YouTube, Bilibili or another site yt-dlp can download from will do.",
+  "@onboardingLinkDescription": {
+    "description": "Line under the third step's title."
+  },
+  "onboardingLinkHintEmpty": "Press Enter to start. No link? Skip for now and drag a local video into the window later.",
+  "@onboardingLinkHintEmpty": {
+    "description": "Line under the third step's link field while it is empty."
+  },
+  "onboardingLinkLabel": "Link to the first video",
+  "@onboardingLinkLabel": {
+    "description": "Accessible name of the third step's link field."
+  },
+  "onboardingLinkList": "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos",
+  "@onboardingLinkList": {
+    "description": "Line under the link field for a link to a playlist on a named site that names no single video.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "onboardingLinkListUnnamed": "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos",
+  "@onboardingLinkListUnnamed": {
+    "description": "Line under the link field for a link to a playlist on a site without a known name that names no single video."
+  },
+  "onboardingLinkNotVideo": "This doesn't look like a video link",
+  "@onboardingLinkNotVideo": {
+    "description": "Line under the third step's link field when the text does not read as a video link."
+  },
+  "onboardingLinkPlaceholder": "Paste a YouTube or Bilibili link",
+  "@onboardingLinkPlaceholder": {
+    "description": "Placeholder of the third step's link field."
+  },
+  "onboardingLinkPlaylistVideo": "Recognized as a {site} video. Only this one is added, not the whole playlist",
+  "@onboardingLinkPlaylistVideo": {
+    "description": "Line under the link field for a link to a video inside a playlist on a named site.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "onboardingLinkPlaylistVideoUnnamed": "Recognized as a web video. Only this one is added, not the whole playlist",
+  "@onboardingLinkPlaylistVideoUnnamed": {
+    "description": "Line under the link field for a link to a video inside a playlist on a site without a known name."
+  },
+  "onboardingLinkTitle": "Paste Your First Link",
+  "@onboardingLinkTitle": {
+    "description": "Title of the guide's third step, where the first video link is pasted."
+  },
+  "onboardingLinkVideo": "Recognized as a {site} video",
+  "@onboardingLinkVideo": {
+    "description": "Line under the link field for a link to a video on a named site.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "onboardingLinkWebVideo": "Recognized as a web video",
+  "@onboardingLinkWebVideo": {
+    "description": "Line under the link field for a link to a video on a site without a known name."
+  },
+  "onboardingLookAround": "Just Look Around",
+  "@onboardingLookAround": {
+    "description": "Button at the guide's top right on its last step: close it without adding a link."
+  },
+  "onboardingModelAbout": "About {size} · {blurb}",
+  "@onboardingModelAbout": {
+    "description": "Line under a speech model not downloaded yet: the download's size and what it suits.",
+    "placeholders": {
+      "size": {
+        "type": "String",
+        "example": "574 MB"
+      },
+      "blurb": {
+        "type": "String",
+        "example": "Most accurate, for most videos"
+      }
+    }
+  },
+  "onboardingModelConnecting": "Connecting… · {size} total",
+  "@onboardingModelConnecting": {
+    "description": "Line under a speech model whose download has started but whose size is not known yet.",
+    "placeholders": {
+      "size": {
+        "type": "String",
+        "example": "574 MB"
+      }
+    }
+  },
+  "onboardingModelDownloaded": "Downloaded · {blurb}",
+  "@onboardingModelDownloaded": {
+    "description": "Line under a downloaded speech model that is not in use: what it suits.",
+    "placeholders": {
+      "blurb": {
+        "type": "String",
+        "example": "Most accurate, for most videos"
+      }
+    }
+  },
+  "onboardingModelFailed": "Download failed: {error}",
+  "@onboardingModelFailed": {
+    "description": "Line under a speech model whose download failed, and why.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "connection reset"
+      }
+    }
+  },
+  "onboardingModelInUse": "Downloaded · In use",
+  "@onboardingModelInUse": {
+    "description": "Line under the speech model in use."
+  },
+  "onboardingModelProgress": "Downloading {percent}% · {size} total",
+  "@onboardingModelProgress": {
+    "description": "Line under a speech model while it downloads: the percentage done and the download's size.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "42"
+      },
+      "size": {
+        "type": "String",
+        "example": "574 MB"
+      }
+    }
+  },
+  "onboardingModelsDescriptionComputer": "Speech recognition runs on this computer with whisper.cpp. Download a model once and it works offline after that.",
+  "@onboardingModelsDescriptionComputer": {
+    "description": "Line under the second step's title on Linux and Windows."
+  },
+  "onboardingModelsDescriptionMac": "Speech recognition runs on this Mac with whisper.cpp. Download a model once and it works offline after that.",
+  "@onboardingModelsDescriptionMac": {
+    "description": "Line under the second step's title on macOS."
+  },
+  "onboardingModelsDownloading": "Downloading {name}",
+  "@onboardingModelsDownloading": {
+    "description": "Head of the second step's card of speech models while one downloads.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Large v3 Turbo"
+      }
+    }
+  },
+  "onboardingModelsMissing": "No speech recognition model yet; download one to make subtitles",
+  "@onboardingModelsMissing": {
+    "description": "Head of the second step's card of speech models when none is on this computer."
+  },
+  "onboardingModelsNoteDownloading": "The download continues in the background, so you can go on to the next step.",
+  "@onboardingModelsNoteDownloading": {
+    "description": "Note under the speech models while one downloads."
+  },
+  "onboardingModelsNoteInUse": "You can switch to another model later in Settings › Speech Recognition.",
+  "@onboardingModelsNoteInUse": {
+    "description": "Note under the speech models when one is in use."
+  },
+  "onboardingModelsNoteLater": "You can also download one later, anytime, in Settings › Speech Recognition.",
+  "@onboardingModelsNoteLater": {
+    "description": "Note under the speech models when none is in use or downloading."
+  },
+  "onboardingModelsReady": "Speech recognition is ready",
+  "@onboardingModelsReady": {
+    "description": "Head of the second step's card of speech models when one is in use."
+  },
+  "onboardingModelsTitle": "Download a Speech Recognition Model",
+  "@onboardingModelsTitle": {
+    "description": "Title of the guide's second step, where a speech recognition model is downloaded."
+  },
+  "onboardingPillLanguages": "Original audio · {language} → {target}",
+  "@onboardingPillLanguages": {
+    "description": "Pill over the example subtitle on the first step: the language of the original audio, and the language subtitles are translated into.",
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "example": "English"
+      },
+      "target": {
+        "type": "String",
+        "example": "Simplified Chinese"
+      }
+    }
+  },
+  "onboardingPillLink": "Paste a link → Subtitles ready",
+  "@onboardingPillLink": {
+    "description": "Pill over the example subtitle on the third step."
+  },
+  "onboardingPillModels": "On-device recognition → AI translation → Bilingual subtitles",
+  "@onboardingPillModels": {
+    "description": "Pill over the example subtitle on the second step: how subtitles are made."
+  },
+  "onboardingPrivacy": "Recognition runs on this device · Translation uses the AI service you set up",
+  "@onboardingPrivacy": {
+    "description": "Line at the guide's foot, next to a lock: where recognition and translation run."
+  },
+  "onboardingReopen": "Show Getting Started Guide",
+  "@onboardingReopen": {
+    "description": "Help menu item, and shortcut on Linux and Windows (F1), that opens the first-run guide again."
+  },
+  "onboardingRetry": "Retry",
+  "@onboardingRetry": {
+    "description": "Button downloading a speech model again after its download failed."
+  },
+  "onboardingSaveFailed": "Couldn't save settings: {error}",
+  "@onboardingSaveFailed": {
+    "description": "Error under the sidebar when the guide could not save the settings.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "onboardingSettings": "Settings…",
+  "@onboardingSettings": {
+    "description": "Button opening Settings › AI Service from the second step."
+  },
+  "onboardingSkip": "Skip",
+  "@onboardingSkip": {
+    "description": "Button at the guide's top right that closes it before the last step."
+  },
+  "onboardingSpeechModel": "Speech Recognition · {name}",
+  "@onboardingSpeechModel": {
+    "description": "Name of a speech model's row on the second step.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Large v3 Turbo"
+      }
+    }
+  },
+  "onboardingStepCounter": "{step} / {steps}",
+  "@onboardingStepCounter": {
+    "description": "The guide's step counter at its top: the step shown and how many steps there are.",
+    "placeholders": {
+      "step": {
+        "type": "int",
+        "example": "1"
+      },
+      "steps": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "onboardingStepOf": "Step {step} of {steps}",
+  "@onboardingStepOf": {
+    "description": "Accessible name of the guide's step dots.",
+    "placeholders": {
+      "step": {
+        "type": "int",
+        "example": "1"
+      },
+      "steps": {
+        "type": "int",
+        "example": "3"
+      }
+    }
+  },
+  "onboardingTipKey": "Press F1 anytime to come back here.",
+  "@onboardingTipKey": {
+    "description": "Note the library shows once the guide has closed, on Linux and Windows, where F1 opens the guide again."
+  },
+  "onboardingTipMenu": "You can come back here anytime from {menu} › {item}.",
+  "@onboardingTipMenu": {
+    "description": "Note the library shows once the guide has closed, on macOS: the menu and its item that open the guide again.",
+    "placeholders": {
+      "menu": {
+        "type": "String",
+        "example": "Help"
+      },
+      "item": {
+        "type": "String",
+        "example": "Show Getting Started Guide"
+      }
+    }
+  },
+  "onboardingTranslateInto": "Translate subtitles into",
+  "@onboardingTranslateInto": {
+    "description": "Label of the first step's drop-down choosing the language subtitles are translated into."
+  },
+  "onboardingTranslationService": "Translation · AI Service",
+  "@onboardingTranslationService": {
+    "description": "Name of the second step's row about the translation service."
+  },
+  "onboardingUse": "Use",
+  "@onboardingUse": {
+    "description": "Button making a downloaded speech model the one in use."
+  },
+  "onboardingWatchLanguages": "Languages of the videos you watch · Choose any",
+  "@onboardingWatchLanguages": {
+    "description": "Heading over the first step's language tiles."
+  },
+  "onboardingWatchLanguagesLabel": "Languages of the videos you watch",
+  "@onboardingWatchLanguagesLabel": {
+    "description": "Accessible name of the group of the first step's language tiles."
+  },
+  "onboardingWelcome": "Welcome to Kando",
+  "@onboardingWelcome": {
+    "description": "Title of the first-run guide's first step, and the accessible name of the guide's sheet."
+  },
+  "onboardingWelcomeDescription": "Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages.",
+  "@onboardingWelcomeDescription": {
+    "description": "Line under the first step's title."
+  },
+  "paletteAnswerNote": "Based only on what has played (up to {at}) · Answered by {model}",
+  "@paletteAnswerNote": {
+    "description": "Footnote under an answer: it rests only on the part of the film played so far, up to a moment, and which model answered.",
+    "placeholders": {
+      "at": {
+        "type": "String",
+        "example": "12:31"
+      },
+      "model": {
+        "type": "String",
+        "example": "gpt-4o-mini"
+      }
+    }
+  },
+  "paletteAskFailed": "No answer came back: {error}",
+  "@paletteAskFailed": {
+    "description": "Answer card when the AI service returned no answer; error is the service's error message.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "401 Unauthorized"
+      }
+    }
+  },
+  "paletteAsking": "Asking {model}…",
+  "@paletteAsking": {
+    "description": "Answer card while the question is on its way to the AI model.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "gpt-4o-mini"
+      }
+    }
+  },
+  "paletteFieldLabel": "Commands, lines or questions",
+  "@paletteFieldLabel": {
+    "description": "Accessible name of the command palette's field."
+  },
+  "paletteFooter": "Type to search commands and watched lines · ↑↓ to select · Return to run",
+  "@paletteFooter": {
+    "description": "Footer of the command palette over the library: what typing, the arrow keys and Return do."
+  },
+  "paletteFooterFilm": "Typing only searches commands and lines · Return asks · ↑↓ to select",
+  "@paletteFooterFilm": {
+    "description": "Footer of the command palette in the player: typing only searches, Return asks the question."
+  },
+  "paletteHeadingAnswer": "Answer",
+  "@paletteHeadingAnswer": {
+    "description": "Heading of the card with the answer to a question about the film."
+  },
+  "paletteHeadingCommands": "Commands",
+  "@paletteHeadingCommands": {
+    "description": "Heading of the commands the command palette found."
+  },
+  "paletteHeadingLines": "Lines",
+  "@paletteHeadingLines": {
+    "description": "Heading of the subtitle lines the command palette found."
+  },
+  "paletteJumpTo": "Jump to {time}",
+  "@paletteJumpTo": {
+    "description": "Accessible name of a chip under an answer that plays the film from the moment the answer rests on.",
+    "placeholders": {
+      "time": {
+        "type": "String",
+        "example": "0:30"
+      }
+    }
+  },
+  "paletteLibrarySaveFailed": "Couldn't save the film list: {error}",
+  "@paletteLibrarySaveFailed": {
+    "description": "Error shown when library.json could not be written after noting how far a video has played.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "paletteMenuItem": "Ask This Film / Commands…",
+  "@paletteMenuItem": {
+    "description": "Study menu item and shortcut row (⌘K) that opens the command palette, which also answers questions about the open film."
+  },
+  "paletteNoAI": "Answering questions needs an AI service. Choose a model in “AI Service” first.",
+  "@paletteNoAI": {
+    "description": "Answer card when no AI service is set to answer questions about the film."
+  },
+  "paletteNoAIAction": "Open AI Service Settings",
+  "@paletteNoAIAction": {
+    "description": "Button on the answer card that opens the AI Service section of Settings."
+  },
+  "paletteNoSubtitles": "This film has no subtitles yet, so it can't be answered.",
+  "@paletteNoSubtitles": {
+    "description": "Answer card when the open film has no subtitles to answer from."
+  },
+  "paletteNotWatched": "You haven't started watching this film. Play some of it first, then ask.",
+  "@paletteNotWatched": {
+    "description": "Answer card when nothing of the open film has been played yet, so there is nothing to answer from."
+  },
+  "paletteNothingFound": "No commands or watched lines found.",
+  "@paletteNothingFound": {
+    "description": "Note when the palette's query found nothing over the library."
+  },
+  "paletteNothingFoundAsk": "No commands or watched lines found. Press Return to ask this film.",
+  "@paletteNothingFoundAsk": {
+    "description": "Note when the palette's query found nothing in the player, where Return asks the query of the film."
+  },
+  "palettePlaceholder": "Commands or watched lines…",
+  "@palettePlaceholder": {
+    "description": "Placeholder of the command palette's field over the library."
+  },
+  "palettePlaceholderFilm": "Commands, lines, or ask this film…",
+  "@palettePlaceholderFilm": {
+    "description": "Placeholder of the command palette's field in the player, where a question can be asked about the open film."
+  },
+  "paletteSettingsSection": "Settings › {section}",
+  "@paletteSettingsSection": {
+    "description": "Command palette command that opens a section of Settings.",
+    "placeholders": {
+      "section": {
+        "type": "String",
+        "example": "AI Service"
+      }
+    }
+  },
+  "paletteSubtitleMode": "Subtitles: {mode}",
+  "@paletteSubtitleMode": {
+    "description": "Brief notice over the player after the palette switched the subtitles' display mode.",
+    "placeholders": {
+      "mode": {
+        "type": "String",
+        "example": "Bilingual"
+      }
+    }
+  },
+  "paletteSwitchTo": "Switch to {mode}",
+  "@paletteSwitchTo": {
+    "description": "Command palette command, in the player, that switches the subtitles to another display mode.",
+    "placeholders": {
+      "mode": {
+        "type": "String",
+        "example": "Translation Only"
+      }
+    }
+  },
+  "playerKeyCycleSubtitles": "Cycle Original/Translation/Bilingual",
+  "@playerKeyCycleSubtitles": {
+    "description": "Shortcut row and menu item: step through the subtitle modes."
+  },
+  "playerKeyDelayEarlier": "Subtitles 0.1 Second Earlier",
+  "@playerKeyDelayEarlier": {
+    "description": "Shortcut row and menu item: subtitles a tenth of a second earlier."
+  },
+  "playerKeyDelayLater": "Subtitles 0.1 Second Later",
+  "@playerKeyDelayLater": {
+    "description": "Shortcut row and menu item: subtitles a tenth of a second later."
+  },
+  "playerKeyLarger": "Larger Subtitles",
+  "@playerKeyLarger": {
+    "description": "Shortcut row and menu item: larger subtitles."
+  },
+  "playerKeyMute": "Mute/Unmute",
+  "@playerKeyMute": {
+    "description": "Shortcut row and menu item: mute or unmute."
+  },
+  "playerKeyPlayPause": "Play/Pause",
+  "@playerKeyPlayPause": {
+    "description": "Shortcut row and menu item: play or pause."
+  },
+  "playerKeySearch": "Search Subtitles",
+  "@playerKeySearch": {
+    "description": "Shortcut row and menu item: search the subtitle list."
+  },
+  "playerKeySmaller": "Smaller Subtitles",
+  "@playerKeySmaller": {
+    "description": "Shortcut row and menu item: smaller subtitles."
+  },
+  "playerKeyToggleSidebar": "Show/Hide Sidebar",
+  "@playerKeyToggleSidebar": {
+    "description": "Shortcut row and menu item: show or hide the player's side panel."
+  },
+  "playerKeyToggleSubtitles": "Show/Hide Subtitles",
+  "@playerKeyToggleSubtitles": {
+    "description": "Shortcut row and menu item: hide the subtitles, or show them again."
+  },
+  "playerKeyVolumeDown": "Volume Down",
+  "@playerKeyVolumeDown": {
+    "description": "Shortcut row and menu item: quieter."
+  },
+  "playerKeyVolumeUp": "Volume Up",
+  "@playerKeyVolumeUp": {
+    "description": "Shortcut row and menu item: louder."
+  },
+  "playerOsdDelay": "Subtitles {delay}",
+  "@playerOsdDelay": {
+    "description": "Message on the picture after the subtitle delay changed.",
+    "placeholders": {
+      "delay": {
+        "type": "String",
+        "example": "+0.3 s"
+      }
+    }
+  },
+  "playerOsdMuted": "Muted",
+  "@playerOsdMuted": {
+    "description": "Message on the picture after the film was muted."
+  },
+  "playerOsdSubtitleSize": "Subtitle Size {size}",
+  "@playerOsdSubtitleSize": {
+    "description": "Message on the picture after the subtitles were made larger or smaller: the translation's font size.",
+    "placeholders": {
+      "size": {
+        "type": "int",
+        "example": "32"
+      }
+    }
+  },
+  "playerOsdVolume": "Volume {percent}%",
+  "@playerOsdVolume": {
+    "description": "Message on the picture after the volume changed.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "70"
+      }
+    }
+  },
+  "playerSaveSubtitlesFailed": "Couldn't save subtitle settings",
+  "@playerSaveSubtitlesFailed": {
+    "description": "Message on the picture when the subtitle settings could not be saved."
+  },
+  "playerSaveVolumeFailed": "Couldn't save the volume",
+  "@playerSaveVolumeFailed": {
+    "description": "Message on the picture when the volume could not be saved."
+  },
+  "playerSubsMissing": "The subtitle file is gone",
+  "@playerSubsMissing": {
+    "description": "Shown in the subtitle list when the subtitle file has been deleted or moved."
+  },
+  "playerSubsUnreadable": "Couldn't read the subtitles",
+  "@playerSubsUnreadable": {
+    "description": "Shown in the subtitle list when the subtitle file cannot be read or parsed."
+  },
+  "playerUnplayable": "This video can't be played",
+  "@playerUnplayable": {
+    "description": "Shown in place of the picture when ffmpeg cannot open the video."
+  },
+  "precheckEmpty": "Paste a video link first, or choose a local file.",
+  "@precheckEmpty": {
+    "description": "Message bar when the link field is empty."
+  },
+  "precheckFailedDownload": "Download failed: {detail}",
+  "@precheckFailedDownload": {
+    "description": "Card of a job whose download failed for an unknown reason, with what yt-dlp said (often English).",
+    "placeholders": {
+      "detail": {
+        "type": "String",
+        "example": "Something nobody has seen"
+      }
+    }
+  },
+  "precheckFailedExport": "Exporting subtitles failed: {detail}",
+  "@precheckFailedExport": {
+    "description": "Card of a job whose subtitle export failed for an unknown reason, with the error (often English).",
+    "placeholders": {
+      "detail": {
+        "type": "String",
+        "example": "open /v/a.srt: permission denied"
+      }
+    }
+  },
+  "precheckFailedProcess": "Processing failed: {detail}",
+  "@precheckFailedProcess": {
+    "description": "Card of a failed job whose failure has no known reason, with what the program said (often English).",
+    "placeholders": {
+      "detail": {
+        "type": "String",
+        "example": "boom"
+      }
+    }
+  },
+  "precheckFailedTranscribe": "Generating subtitles failed: {detail}",
+  "@precheckFailedTranscribe": {
+    "description": "Card of a job whose transcription failed for an unknown reason, with what whisper-cli said (often English).",
+    "placeholders": {
+      "detail": {
+        "type": "String",
+        "example": "failed to read audio"
+      }
+    }
+  },
+  "precheckFailedTranslate": "Translation failed: {detail}",
+  "@precheckFailedTranslate": {
+    "description": "Card of a job whose translation failed for an unknown reason, with what the AI service said (often English).",
+    "placeholders": {
+      "detail": {
+        "type": "String",
+        "example": "something nobody has seen"
+      }
+    }
+  },
+  "precheckNoLLMModel": "Choose a model in “AI Service” first",
+  "@precheckNoLLMModel": {
+    "description": "Message bar and the sidebar's status line when no translation model is chosen; “AI Service” is the settings page."
+  },
+  "precheckNoLibrary": "Create or open a library first",
+  "@precheckNoLibrary": {
+    "description": "Message bar and the sidebar's status line when no library is open."
+  },
+  "precheckNoSpeech": "No speech was recognized in the video",
+  "@precheckNoSpeech": {
+    "description": "Card of a failed job when whisper heard no speech."
+  },
+  "precheckNoSpeechModel": "Choose a model in “Speech Recognition” first",
+  "@precheckNoSpeechModel": {
+    "description": "Message bar and the sidebar's status line when no speech recognition model is chosen; “Speech Recognition” is the settings page."
+  },
+  "precheckNoTools": "The programs that process videos aren't installed yet",
+  "@precheckNoTools": {
+    "description": "Card of a failed job when a program it needs (yt-dlp, ffmpeg, whisper-cli) is not installed."
+  },
+  "precheckNoVideo": "Only video files can be added (mp4, mov, mkv, webm and others).",
+  "@precheckNoVideo": {
+    "description": "Message bar when none of the files dropped or picked is a video."
+  },
+  "precheckNotLink": "This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read.",
+  "@precheckNotLink": {
+    "description": "Message bar when what was pasted is not a link."
+  },
+  "precheckNotSignedIn": "Sign in to EveryAPI first, or enter an API Key in “AI Service”",
+  "@precheckNotSignedIn": {
+    "description": "Message bar and the sidebar's status line when the AI service has no key and EveryAPI is not signed in."
+  },
+  "precheckToolSeparator": ", ",
+  "@precheckToolSeparator": {
+    "description": "What goes between the names of missing programs in a list, such as yt-dlp and ffmpeg."
+  },
+  "precheckToolsMissing": "The programs that process videos aren't installed yet: {tools}",
+  "@precheckToolsMissing": {
+    "description": "Message bar when programs a job needs are not installed, with their names joined by precheckToolSeparator.",
+    "placeholders": {
+      "tools": {
+        "type": "String",
+        "example": "yt-dlp、ffmpeg"
+      }
+    }
+  },
+  "precheckTranslateAuth": "The AI service doesn't accept this key. Check it in “AI Service”.",
+  "@precheckTranslateAuth": {
+    "description": "Card of a job whose translation failed because the AI service refused the key."
+  },
+  "precheckTranslateBusy": "The AI service stayed busy, even after automatic retries. Retry in a few minutes.",
+  "@precheckTranslateBusy": {
+    "description": "Card of a job whose translation failed because the AI service kept answering that it is busy."
+  },
+  "precheckTranslateMalformed": "The AI returned the translation in the wrong format, even after a few retries. Retry, or choose another model in “AI Service”.",
+  "@precheckTranslateMalformed": {
+    "description": "Card of a job whose translation failed because the model's answer was not in the expected format."
+  },
+  "precheckTranslateNetwork": "Can't connect to the AI service. Check your network, then retry.",
+  "@precheckTranslateNetwork": {
+    "description": "Card of a job whose translation failed because the AI service could not be reached."
+  },
+  "precheckTranslateRejected": "The AI service refused the request. Check the address and model in “AI Service”.",
+  "@precheckTranslateRejected": {
+    "description": "Card of a job whose translation failed because the AI service rejected the request, as for an unknown model."
+  },
+  "precheckTranslateTimeout": "The AI service didn't respond, even after automatic retries. Retry later.",
+  "@precheckTranslateTimeout": {
+    "description": "Card of a job whose translation failed because the AI service never answered."
+  },
+  "queueBorrowed": "Using {browser}'s sign-in. Downloading now.",
+  "@queueBorrowed": {
+    "description": "Message bar after the user chose to borrow a browser's sign-in.",
+    "placeholders": {
+      "browser": {
+        "type": "String",
+        "example": "Chrome"
+      }
+    }
+  },
+  "queueBusy": "A video is already being processed. Add this one when it's done",
+  "@queueBusy": {
+    "description": "Message bar when a job cannot be retried because another one is being processed."
+  },
+  "queueLocalChosen": "Local video selected",
+  "@queueLocalChosen": {
+    "description": "Status once a local video was put in the link field."
+  },
+  "queueNoBrowserAgain": "Still no browser whose sign-in Kando can use.",
+  "@queueNoBrowserAgain": {
+    "description": "Message bar after Find Browsers Again still found none."
+  },
+  "queueNoLanguage": "Enter a target language",
+  "@queueNoLanguage": {
+    "description": "Why a job cannot start: the subtitle target language is empty in the settings."
+  },
+  "queueNoLibrary": "Create or import a library first",
+  "@queueNoLibrary": {
+    "description": "Why a link cannot be added: no library is open."
+  },
+  "queueNoVideoToImport": "No video to import",
+  "@queueNoVideoToImport": {
+    "description": "Status when the file chosen to import is not a video."
+  },
+  "queueOpenSettingsFailed": "Couldn't open System Settings: {error}",
+  "@queueOpenSettingsFailed": {
+    "description": "Message bar when System Settings could not be opened.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "exit status 1"
+      }
+    }
+  },
+  "queueRemedyAge": "Age verification required",
+  "@queueRemedyAge": {
+    "description": "Headline of a failed download's card: the video is age-restricted."
+  },
+  "queueRemedyAgeNeed": "It needs a signed-in {site} account.",
+  "@queueRemedyAgeNeed": {
+    "description": "First sentence of the card of an age-restricted video when no browser's sign-in can be borrowed.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyAgeWhy": "Use the {site} account you're signed in to in your browser.",
+  "@queueRemedyAgeWhy": {
+    "description": "What to do about an age-restricted video when a browser's sign-in can be borrowed.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyAllowed": "Allowed, Retry",
+  "@queueRemedyAllowed": {
+    "description": "Button of the card once the user granted Full Disk Access."
+  },
+  "queueRemedyBadLink": "The link is incomplete",
+  "@queueRemedyBadLink": {
+    "description": "Headline of a failed download's card: the link was cut short."
+  },
+  "queueRemedyBadLinkWhy": "Part of the link seems to be missing, so retrying won't download it. Copy the whole link and try again with it.",
+  "@queueRemedyBadLinkWhy": {
+    "description": "What to do about a link that was cut short."
+  },
+  "queueRemedyBilibiliShort": "Bilibili",
+  "@queueRemedyBilibiliShort": {
+    "description": "How a sentence names Bilibili after “sign in to”, its short name where there is one."
+  },
+  "queueRemedyBorrow": "Use {browser} Sign-In and Retry",
+  "@queueRemedyBorrow": {
+    "description": "Button of a failed download's card: download again with the sign-in of a browser.",
+    "placeholders": {
+      "browser": {
+        "type": "String",
+        "example": "Chrome"
+      }
+    }
+  },
+  "queueRemedyCheckUpdate": "Check for Updates",
+  "@queueRemedyCheckUpdate": {
+    "description": "Button of the card: look for a newer yt-dlp again."
+  },
+  "queueRemedyCookies": "Can't read {browser}'s sign-in",
+  "@queueRemedyCookies": {
+    "description": "Headline of a failed download's card when yt-dlp could not read the browser's sign-in.",
+    "placeholders": {
+      "browser": {
+        "type": "String",
+        "example": "Safari"
+      }
+    }
+  },
+  "queueRemedyCookiesWhy": "There's no {browser} sign-in data on this computer. Try another browser you're signed in with.",
+  "@queueRemedyCookiesWhy": {
+    "description": "What to do when the browser has no sign-in data on this computer.",
+    "placeholders": {
+      "browser": {
+        "type": "String",
+        "example": "Chrome"
+      }
+    }
+  },
+  "queueRemedyDrm": "{site} is DRM-protected",
+  "@queueRemedyDrm": {
+    "description": "Headline of a failed download's card: the site encrypts its videos with DRM.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "Netflix"
+      }
+    }
+  },
+  "queueRemedyDrmWhy": "The video is encrypted and can't be downloaded. If you have a local file, drag it in.",
+  "@queueRemedyDrmWhy": {
+    "description": "What to do about a DRM-protected video."
+  },
+  "queueRemedyFindBrowsers": "Find Browsers Again",
+  "@queueRemedyFindBrowsers": {
+    "description": "Button of a failed download's card: look for browsers again."
+  },
+  "queueRemedyHost": "Can't find {host}",
+  "@queueRemedyHost": {
+    "description": "Headline of a failed download's card: the link's host does not resolve.",
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "example.invalid"
+      }
+    }
+  },
+  "queueRemedyHostWhy": "If your network is working, the address in the link is probably wrong, or the website has shut down. Use another link, or check your network and retry.",
+  "@queueRemedyHostWhy": {
+    "description": "What to do when the link's host does not resolve."
+  },
+  "queueRemedyLocal": "Choose Local File",
+  "@queueRemedyLocal": {
+    "description": "Button of a failed download's card: pick a video file on this computer instead."
+  },
+  "queueRemedyLogin": "Sign-in required",
+  "@queueRemedyLogin": {
+    "description": "Headline of a failed download's card: the video needs an account."
+  },
+  "queueRemedyLoginBorrow": "Use the account you're signed in to in your browser. No password is stored.",
+  "@queueRemedyLoginBorrow": {
+    "description": "Second sentence of the card of a video that needs an account, when a browser's sign-in can be borrowed."
+  },
+  "queueRemedyLoginExpired": "Your {site} sign-in has expired",
+  "@queueRemedyLoginExpired": {
+    "description": "Headline of a failed download's card when the borrowed sign-in to the site has expired.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyLoginExpiredWhy": "Sign in to {site} again in {browser}, then come back and retry.",
+  "@queueRemedyLoginExpiredWhy": {
+    "description": "What to do when the borrowed sign-in to the site has expired.",
+    "placeholders": {
+      "browser": {
+        "type": "String",
+        "example": "Safari"
+      },
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyLoginNeed": "This video on {host} needs an account.",
+  "@queueRemedyLoginNeed": {
+    "description": "First sentence of the card of a video that needs an account.",
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "instagram.com"
+      }
+    }
+  },
+  "queueRemedyMembers": "Video for channel members only",
+  "@queueRemedyMembers": {
+    "description": "Headline of a failed download's card: the video is for the channel's paying members."
+  },
+  "queueRemedyMembersBorrow": "Use the sign-in of a browser where your membership is active.",
+  "@queueRemedyMembersBorrow": {
+    "description": "Second sentence of the card of a members-only video, when a browser's sign-in can be borrowed."
+  },
+  "queueRemedyMembersNeed": "It needs a channel membership.",
+  "@queueRemedyMembersNeed": {
+    "description": "First sentence of the card of a video for the channel's members."
+  },
+  "queueRemedyNetwork": "Can't connect to the network",
+  "@queueRemedyNetwork": {
+    "description": "Headline of a failed download's card: no network."
+  },
+  "queueRemedyNetworkWhy": "Check your network connection, then retry.",
+  "@queueRemedyNetworkWhy": {
+    "description": "What to do when there is no network."
+  },
+  "queueRemedyNoBrowser": "Couldn't find a browser on this computer whose sign-in Kando can use. Sign in with Chrome, Firefox, Edge, Brave or Chromium, then look again.",
+  "@queueRemedyNoBrowser": {
+    "description": "Sentence of a failed download's card that wants a sign-in when no browser on this computer has one yt-dlp can borrow."
+  },
+  "queueRemedyOpenSystemSettings": "Open System Settings",
+  "@queueRemedyOpenSystemSettings": {
+    "description": "Button of the card that opens the Full Disk Access pane of System Settings."
+  },
+  "queueRemedyOutdated": "{site} has changed, and the download component needs an update",
+  "@queueRemedyOutdated": {
+    "description": "Headline of a failed download's card when the site changed and yt-dlp needs an update.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyOutdatedLatest": "{site} has changed, and the download component hasn't caught up yet",
+  "@queueRemedyOutdatedLatest": {
+    "description": "Headline of a failed download's card when the site changed and even the newest yt-dlp cannot read it yet.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyOutdatedLatestWhy": "This computer's yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; retry in a day or two.",
+  "@queueRemedyOutdatedLatestWhy": {
+    "description": "What to do when even the newest yt-dlp cannot read the site yet.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2026.08.19"
+      }
+    }
+  },
+  "queueRemedyOutdatedManualWhy": "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Retry once it's updated.",
+  "@queueRemedyOutdatedManualWhy": {
+    "description": "Under the headline when yt-dlp needs an update Kando cannot do itself; hint is how the user updates it (queueYtdlpHint…).",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2024.03.10"
+      },
+      "hint": {
+        "type": "String",
+        "example": "run brew upgrade yt-dlp in a terminal"
+      }
+    }
+  },
+  "queueRemedyOutdatedVersionWhy": "This computer's yt-dlp is version {version}. Updating takes a few seconds.",
+  "@queueRemedyOutdatedVersionWhy": {
+    "description": "Under the headline when yt-dlp needs an update.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2024.03.10"
+      }
+    }
+  },
+  "queueRemedyOutdatedWhy": "This computer's yt-dlp is too old. Updating takes a few seconds.",
+  "@queueRemedyOutdatedWhy": {
+    "description": "Under the headline when yt-dlp needs an update and its version is not known."
+  },
+  "queueRemedyPremium": "Video for Bilibili Premium members only",
+  "@queueRemedyPremium": {
+    "description": "Headline of a failed download's card: the Bilibili video is for Bilibili Premium (大会员) members."
+  },
+  "queueRemedyPremiumNeed": "It needs Bilibili Premium.",
+  "@queueRemedyPremiumNeed": {
+    "description": "First sentence of the card of a Bilibili Premium (大会员) video."
+  },
+  "queueRemedyPrivate": "The video is private or was deleted",
+  "@queueRemedyPrivate": {
+    "description": "Headline of a failed download's card: the video is private or deleted."
+  },
+  "queueRemedyPrivateWhy": "It can't be downloaded. If it's available elsewhere, use another link.",
+  "@queueRemedyPrivateWhy": {
+    "description": "What to do about a private or deleted video."
+  },
+  "queueRemedyRateLimit": "{site} is limiting downloads for now",
+  "@queueRemedyRateLimit": {
+    "description": "Headline of a failed download's card: the site is refusing too many requests.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyRateLimitWait": "Too many requests. Wait a few minutes and retry.",
+  "@queueRemedyRateLimitWait": {
+    "description": "What to do when the site is limiting downloads, when no browser's sign-in can be borrowed."
+  },
+  "queueRemedyRateLimitWhy": "Too many requests. Wait a few minutes and retry, or use the account you're signed in to in your browser.",
+  "@queueRemedyRateLimitWhy": {
+    "description": "What to do when the site is limiting downloads, when a browser's sign-in can be borrowed."
+  },
+  "queueRemedyRegion": "Not available in your region",
+  "@queueRemedyRegion": {
+    "description": "Headline of a failed download's card: the video is blocked in the user's region."
+  },
+  "queueRemedyRegionWhy": "The uploader restricted where it can be watched. If the video is available elsewhere, use another link.",
+  "@queueRemedyRegionWhy": {
+    "description": "What to do about a video blocked in the user's region."
+  },
+  "queueRemedyRelogged": "Signed In Again, Retry",
+  "@queueRemedyRelogged": {
+    "description": "Button of a failed download's card after the user signed in to the site again in the browser."
+  },
+  "queueRemedyRetry": "Retry",
+  "@queueRemedyRetry": {
+    "description": "Button of a failed download's card."
+  },
+  "queueRemedySafariWhy": "macOS only lets apps with Full Disk Access read Safari's sign-in. Allow Kando in System Settings and come back to retry, or use another browser.",
+  "@queueRemedySafariWhy": {
+    "description": "What to do when macOS keeps Safari's cookies from Kando: grant Full Disk Access in System Settings. Use Apple's name of that permission."
+  },
+  "queueRemedySentences": "{first} {second}",
+  "@queueRemedySentences": {
+    "description": "Two sentences of a failed download's card, one after the other: what the video needs, then how to get it.",
+    "placeholders": {
+      "first": {
+        "type": "String",
+        "example": "It needs a channel membership."
+      },
+      "second": {
+        "type": "String",
+        "example": "Use the sign-in of a browser where your membership is active."
+      }
+    }
+  },
+  "queueRemedySites": "See Supported Websites",
+  "@queueRemedySites": {
+    "description": "Button of a failed download's card that opens the sheet of supported websites."
+  },
+  "queueRemedySwap": "Use Another Link",
+  "@queueRemedySwap": {
+    "description": "Button of a failed download's card: remove it and paste a link from elsewhere."
+  },
+  "queueRemedySwitchBrowser": "Use {browser} Instead",
+  "@queueRemedySwitchBrowser": {
+    "description": "Button of a failed download's card: borrow the sign-in of another browser.",
+    "placeholders": {
+      "browser": {
+        "type": "String",
+        "example": "Chrome"
+      }
+    }
+  },
+  "queueRemedyUnsupported": "{host} isn't supported",
+  "@queueRemedyUnsupported": {
+    "description": "Headline of a failed download's card when yt-dlp does not know the site.",
+    "placeholders": {
+      "host": {
+        "type": "String",
+        "example": "missav.ai"
+      }
+    }
+  },
+  "queueRemedyUnsupportedWhy": "No video was found on the page. Use another link, or download it to this computer first and drag it in.",
+  "@queueRemedyUnsupportedWhy": {
+    "description": "What to do when yt-dlp found no video on the page."
+  },
+  "queueRemedyUpdate": "Update and Retry",
+  "@queueRemedyUpdate": {
+    "description": "Button of the card: update yt-dlp and download again."
+  },
+  "queueRemedyUpdated": "Updated, Retry",
+  "@queueRemedyUpdated": {
+    "description": "Button of the card once the user updated yt-dlp themselves."
+  },
+  "queueRemedyUpdating": "Updating the download component…",
+  "@queueRemedyUpdating": {
+    "description": "Headline of the card of a download yt-dlp was too old for, while yt-dlp updates."
+  },
+  "queueRemedyUpdatingAction": "Updating…",
+  "@queueRemedyUpdatingAction": {
+    "description": "Disabled button of the card while yt-dlp updates."
+  },
+  "queueRemedyUpdatingWhy": "The download starts again once it's updated.",
+  "@queueRemedyUpdatingWhy": {
+    "description": "Under the headline while yt-dlp updates."
+  },
+  "queueSaveFailed": "Couldn't save the film list: {error}",
+  "@queueSaveFailed": {
+    "description": "Error line when library.json, the list of jobs, cannot be written.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "open library.json: permission denied"
+      }
+    }
+  },
+  "queueStatusCanceled": "Canceled",
+  "@queueStatusCanceled": {
+    "description": "Status of a job the user cancelled."
+  },
+  "queueStatusComplete": "Done: {path}",
+  "@queueStatusComplete": {
+    "description": "Status of a finished job, with the subtitle file it wrote.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/Users/me/Kando/Talk/video.bilingual.srt"
+      }
+    }
+  },
+  "queueStatusDownloading": "Downloading the video…",
+  "@queueStatusDownloading": {
+    "description": "Status of a job downloading its video."
+  },
+  "queueStatusExporting": "Exporting bilingual subtitles…",
+  "@queueStatusExporting": {
+    "description": "Status of a job writing its bilingual subtitle file."
+  },
+  "queueStatusFailed": "Failed: {error}",
+  "@queueStatusFailed": {
+    "description": "Status of a failed job, with the pipeline's error. The error must come last: the card reads it back after the text before it.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "download: yt-dlp: exit status 1"
+      }
+    }
+  },
+  "queueStatusLibrarySwitched": "Stopped: another library was opened",
+  "@queueStatusLibrarySwitched": {
+    "description": "Status of a job stopped because the user opened another library."
+  },
+  "queueStatusQueued": "Added to the queue",
+  "@queueStatusQueued": {
+    "description": "Status of a job waiting in the queue."
+  },
+  "queueStatusTranscribing": "Generating subtitles on this computer…",
+  "@queueStatusTranscribing": {
+    "description": "Status of a job transcribing the speech into subtitles with whisper on this computer."
+  },
+  "queueStatusTranslating": "Translating the subtitles…",
+  "@queueStatusTranslating": {
+    "description": "Status of a job translating its subtitles."
+  },
+  "queueSwapRemoved": "Removed “{name}”. If the video is available elsewhere, paste its link at the top right.",
+  "@queueSwapRemoved": {
+    "description": "Message bar after Use Another Link removed the failed card; the link field is at the top right of the window.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Coastal Erosion Documentary"
+      }
+    }
+  },
+  "queueUpdateFailed": "Couldn't update the download component yt-dlp: {error}",
+  "@queueUpdateFailed": {
+    "description": "Message bar when yt-dlp could not be updated, with why or how to update it.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "exit status 1"
+      }
+    }
+  },
+  "queueYtdlpHintBrew": "run brew upgrade yt-dlp in a terminal",
+  "@queueYtdlpHintBrew": {
+    "description": "How to update a yt-dlp installed with Homebrew that Kando cannot update; it follows a colon in a sentence."
+  },
+  "queueYtdlpHintPipx": "run pipx upgrade yt-dlp in a terminal",
+  "@queueYtdlpHintPipx": {
+    "description": "How to update a yt-dlp installed with pipx that Kando cannot update; it follows a colon in a sentence."
+  },
+  "queueYtdlpHintStandalone": "yt-dlp is in {dir}, where Kando isn't allowed to replace it; update it the way you installed it, or run sudo yt-dlp -U",
+  "@queueYtdlpHintStandalone": {
+    "description": "How to update a standalone yt-dlp in a folder Kando may not write; it follows a colon in a sentence.",
+    "placeholders": {
+      "dir": {
+        "type": "String",
+        "example": "/usr/local/bin"
+      }
+    }
+  },
+  "queueYtdlpLatest": "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again in a day or two.",
+  "@queueYtdlpLatest": {
+    "description": "Message bar when an update found yt-dlp already the newest.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2026.08.19"
+      }
+    }
+  },
+  "queueYtdlpUpdated": "Updated the download component to {version} and restarted {count, plural, one {# download} other {# downloads}}.",
+  "@queueYtdlpUpdated": {
+    "description": "Message bar after yt-dlp was updated and the downloads it was too old for were queued again.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2026.11.03"
+      },
+      "count": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
+  "readinessCheckingSignIn": "Checking the EveryAPI sign-in…",
+  "@readinessCheckingSignIn": {
+    "description": "The sidebar's status line while Kando asks the everyapi program whether the user is signed in."
+  },
+  "readinessCheckingTools": "Checking components…",
+  "@readinessCheckingTools": {
+    "description": "The sidebar's status line before the programs a job needs have been looked for."
+  },
+  "readinessMissingTools": "Missing components: {tools}",
+  "@readinessMissingTools": {
+    "description": "The sidebar's status line when programs a job needs are not installed, with their names joined by precheckToolSeparator.",
+    "placeholders": {
+      "tools": {
+        "type": "String",
+        "example": "yt-dlp、ffmpeg"
+      }
+    }
+  },
+  "readinessReady": "Ready to process",
+  "@readinessReady": {
+    "description": "The sidebar's status line when a job can start."
+  },
+  "settingsAIBlurbCustom": "Any API compatible with OpenAI Chat Completions",
+  "@settingsAIBlurbCustom": {
+    "description": "What the OpenAI Compatible item is. A phrase."
+  },
+  "settingsAIBlurbDashScope": "Alibaba Cloud DashScope's compatible API",
+  "@settingsAIBlurbDashScope": {
+    "description": "What the Qwen service is: Alibaba Cloud DashScope's compatible API. A phrase."
+  },
+  "settingsAIBlurbDeepSeek": "DeepSeek's OpenAI-compatible API",
+  "@settingsAIBlurbDeepSeek": {
+    "description": "What the DeepSeek service is. A phrase."
+  },
+  "settingsAIBlurbEveryAPI": "EveryAPI signed in on this Mac",
+  "@settingsAIBlurbEveryAPI": {
+    "description": "What the EveryAPI service is, at the start of the footnote. A phrase; the footnote ends it with a period."
+  },
+  "settingsAIBlurbGroq": "Groq's OpenAI-compatible API",
+  "@settingsAIBlurbGroq": {
+    "description": "What the Groq service is. A phrase."
+  },
+  "settingsAIBlurbLMStudio": "LM Studio on this Mac",
+  "@settingsAIBlurbLMStudio": {
+    "description": "What the LM Studio service is: LM Studio running on this Mac. A phrase."
+  },
+  "settingsAIBlurbMistral": "Mistral's OpenAI-compatible API",
+  "@settingsAIBlurbMistral": {
+    "description": "What the Mistral service is. A phrase."
+  },
+  "settingsAIBlurbMoonshot": "Moonshot's OpenAI-compatible API",
+  "@settingsAIBlurbMoonshot": {
+    "description": "What the Kimi service is: Moonshot AI's API. A phrase."
+  },
+  "settingsAIBlurbOllama": "Ollama on this Mac",
+  "@settingsAIBlurbOllama": {
+    "description": "What the Ollama service is: Ollama running on this Mac. A phrase."
+  },
+  "settingsAIBlurbOpenAI": "OpenAI's official API",
+  "@settingsAIBlurbOpenAI": {
+    "description": "What the OpenAI service is. A phrase."
+  },
+  "settingsAIBlurbOpenRouter": "Models from many providers through one API",
+  "@settingsAIBlurbOpenRouter": {
+    "description": "What the OpenRouter service is. A phrase."
+  },
+  "settingsAIBlurbSiliconFlow": "SiliconFlow's OpenAI-compatible API",
+  "@settingsAIBlurbSiliconFlow": {
+    "description": "What the SiliconFlow service is. A phrase."
+  },
+  "settingsAIBlurbXAI": "Grok's OpenAI-compatible API",
+  "@settingsAIBlurbXAI": {
+    "description": "What the xAI service is: the API of xAI's Grok models. A phrase."
+  },
+  "settingsAIBlurbZhipu": "Zhipu's OpenAI-compatible API",
+  "@settingsAIBlurbZhipu": {
+    "description": "What the Zhipu GLM service is. A phrase."
+  },
+  "settingsAIChooseService": "Choose service",
+  "@settingsAIChooseService": {
+    "description": "Accessible name of the pop-up choosing the AI service."
+  },
+  "settingsAICompatible": "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request.",
+  "@settingsAICompatible": {
+    "description": "Last sentence of the AI Service page's footnote."
+  },
+  "settingsAIConnected": "Connected",
+  "@settingsAIConnected": {
+    "description": "Connection test status when the service answered."
+  },
+  "settingsAIKeyEveryAPILogin": "Without an API Key, the everyapi sign-in on this Mac is used.",
+  "@settingsAIKeyEveryAPILogin": {
+    "description": "First sentence of the footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program."
+  },
+  "settingsAIKeyStoredLocally": "The API Key is kept only in the settings file on this Mac.",
+  "@settingsAIKeyStoredLocally": {
+    "description": "First sentence of the AI Service page's footnote."
+  },
+  "settingsAILoadingModels": "Getting the model list…",
+  "@settingsAILoadingModels": {
+    "description": "In the Model row while the service's models are being fetched."
+  },
+  "settingsAILocalService": "Local · {name}",
+  "@settingsAILocalService": {
+    "description": "A service running on this Mac in the service pop-up: the group, then the service's name.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Ollama"
+      }
+    }
+  },
+  "settingsAIModel": "Model",
+  "@settingsAIModel": {
+    "description": "Row title and pop-up name: the model the AI service translates with."
+  },
+  "settingsAIModelsFailed": "Couldn't fetch the model list: {error}",
+  "@settingsAIModelsFailed": {
+    "description": "Why the model list could not be fetched, for another error.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "connection refused"
+      }
+    }
+  },
+  "settingsAIModelsNotFound": "This service doesn't offer a model list; check the Base URL",
+  "@settingsAIModelsNotFound": {
+    "description": "Why the model list could not be fetched: the endpoint has no model list."
+  },
+  "settingsAIModelsTimeout": "The service didn't answer in time, so the model list couldn't be fetched",
+  "@settingsAIModelsTimeout": {
+    "description": "Why the model list could not be fetched: the service did not answer in time."
+  },
+  "settingsAIModelsUnauthorized": "The service doesn't accept this API Key, so the model list couldn't be fetched",
+  "@settingsAIModelsUnauthorized": {
+    "description": "Why the model list could not be fetched: the service refused the key."
+  },
+  "settingsAINameCustom": "OpenAI Compatible",
+  "@settingsAINameCustom": {
+    "description": "Service pop-up item for any other OpenAI-compatible endpoint, whose Base URL is typed in."
+  },
+  "settingsAINameDashScope": "Qwen",
+  "@settingsAINameDashScope": {
+    "description": "Name of Alibaba Cloud's model service Tongyi Qianwen in the service pop-up; its international name is Qwen."
+  },
+  "settingsAINameSiliconFlow": "SiliconFlow",
+  "@settingsAINameSiliconFlow": {
+    "description": "Name of the model service SiliconFlow in the service pop-up."
+  },
+  "settingsAINameZhipu": "Zhipu GLM",
+  "@settingsAINameZhipu": {
+    "description": "Name of Zhipu AI's GLM models in the service pop-up."
+  },
+  "settingsAINotConfigured": "Not set up",
+  "@settingsAINotConfigured": {
+    "description": "Value of the Translation service row when nothing is set up."
+  },
+  "settingsAINote": "{key} {compatible}",
+  "@settingsAINote": {
+    "description": "The AI Service page's footnote: the sentence about the API Key, then the sentence about compatible services.",
+    "placeholders": {
+      "key": {
+        "type": "String",
+        "example": "The API Key is kept only in the settings file on this Mac."
+      },
+      "compatible": {
+        "type": "String",
+        "example": "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
+      }
+    }
+  },
+  "settingsAINoteWithBlurb": "{blurb}. {key} {compatible}",
+  "@settingsAINoteWithBlurb": {
+    "description": "The AI Service page's footnote for a service with a description: the description as a sentence, the sentence about the API Key, then the sentence about compatible services.",
+    "placeholders": {
+      "blurb": {
+        "type": "String",
+        "example": "OpenAI's official API"
+      },
+      "key": {
+        "type": "String",
+        "example": "The API Key is kept only in the settings file on this Mac."
+      },
+      "compatible": {
+        "type": "String",
+        "example": "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
+      }
+    }
+  },
+  "settingsAIRetry": "Retry",
+  "@settingsAIRetry": {
+    "description": "Button fetching the service's models again after a failure."
+  },
+  "settingsAISaveFailed": "Couldn't save the translation service: {error}",
+  "@settingsAISaveFailed": {
+    "description": "Error when the AI service's settings could not be saved to settings.json.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsAIService": "Service",
+  "@settingsAIService": {
+    "description": "Row title: the AI service that translates."
+  },
+  "settingsAITest": "Test Connection",
+  "@settingsAITest": {
+    "description": "Button sending a short request to check the AI service answers."
+  },
+  "settingsAITesting": "Sending a test request…",
+  "@settingsAITesting": {
+    "description": "Connection test status while the test request is in flight."
+  },
+  "settingsAITranslationService": "Translation service",
+  "@settingsAITranslationService": {
+    "description": "Row title on the AI Service page when Kando has no tools to translate with."
+  },
+  "settingsAIUntested": "Not tested",
+  "@settingsAIUntested": {
+    "description": "Connection test status before any test."
+  },
+  "settingsFileDamaged": "The settings file has content Kando can't read; the original was saved as settings.json.bad",
+  "@settingsFileDamaged": {
+    "description": "Notice at startup when settings.json has content Kando cannot read; the file was copied to settings.json.bad. Keep the file name as it is."
+  },
+  "settingsFileDamagedUnsaved": "The settings file has content Kando can't read, and a copy couldn't be saved: {error}",
+  "@settingsFileDamagedUnsaved": {
+    "description": "Error at startup when settings.json has content Kando cannot read and the copy beside it could not be written.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsFileUnreadable": "Couldn't read the settings file: {error}",
+  "@settingsFileUnreadable": {
+    "description": "Error at startup when settings.json could not be read.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsGeneralComponents": "Components",
+  "@settingsGeneralComponents": {
+    "description": "Heading of the card listing the programs Kando runs."
+  },
+  "settingsGeneralCurrentLibrary": "Current library",
+  "@settingsGeneralCurrentLibrary": {
+    "description": "Row title and pop-up name on the General page: the library Kando has open."
+  },
+  "settingsGeneralForget": "Remove from list",
+  "@settingsGeneralForget": {
+    "description": "Row title: take the current library off Kando's list of libraries."
+  },
+  "settingsGeneralForgetButton": "Remove",
+  "@settingsGeneralForgetButton": {
+    "description": "Button taking the current library off the list."
+  },
+  "settingsGeneralForgetHint": "Takes it off Kando's list only; the files stay where they are.",
+  "@settingsGeneralForgetHint": {
+    "description": "Under Remove from list: the files are not deleted."
+  },
+  "settingsGeneralInstalled": "Installed",
+  "@settingsGeneralInstalled": {
+    "description": "A program Kando runs that was found but did not tell its version."
+  },
+  "settingsGeneralInterfaceLanguage": "Interface language",
+  "@settingsGeneralInterfaceLanguage": {
+    "description": "Row title and pop-up name: the language of Kando's interface."
+  },
+  "settingsGeneralLibrary": "Library",
+  "@settingsGeneralLibrary": {
+    "description": "Heading of the General page's library card."
+  },
+  "settingsGeneralLibraryNote": "Switching libraries stops the jobs in progress. Removing a library from the list doesn't delete the files in it.",
+  "@settingsGeneralLibraryNote": {
+    "description": "Footnote under the General page's library card."
+  },
+  "settingsGeneralLocation": "Location",
+  "@settingsGeneralLocation": {
+    "description": "Row title: where the library is on disk."
+  },
+  "settingsGeneralNewLibrary": "New Library…",
+  "@settingsGeneralNewLibrary": {
+    "description": "Button making a new library."
+  },
+  "settingsGeneralNoLibrary": "No library yet",
+  "@settingsGeneralNoLibrary": {
+    "description": "Under Current library when there is no library yet."
+  },
+  "settingsGeneralNotInstalled": "Not Installed",
+  "@settingsGeneralNotInstalled": {
+    "description": "A program Kando runs that was not found."
+  },
+  "settingsGeneralOpenLibrary": "Open Library…",
+  "@settingsGeneralOpenLibrary": {
+    "description": "Button opening an existing library."
+  },
+  "settingsGeneralRedetect": "Detect Again",
+  "@settingsGeneralRedetect": {
+    "description": "Button looking for ffmpeg, yt-dlp and whisper-cli again."
+  },
+  "settingsGeneralShowInFinder": "Show in Finder",
+  "@settingsGeneralShowInFinder": {
+    "description": "Button showing the library folder in Finder."
+  },
+  "settingsGeneralToolDetail": "{use} · {where}",
+  "@settingsGeneralToolDetail": {
+    "description": "Line under a program's name: what it is for, then where it was found or Not Installed.",
+    "placeholders": {
+      "use": {
+        "type": "String",
+        "example": "Downloads online videos"
+      },
+      "where": {
+        "type": "String",
+        "example": "/opt/homebrew/bin/yt-dlp"
+      }
+    }
+  },
+  "settingsGeneralToolsNote": "These programs come from this Mac; Kando doesn't install or update them.",
+  "@settingsGeneralToolsNote": {
+    "description": "Footnote under the programs Kando runs."
+  },
+  "settingsGeneralUseFFmpeg": "Converts audio, grabs covers, decodes frames",
+  "@settingsGeneralUseFFmpeg": {
+    "description": "What ffmpeg is for, under its name."
+  },
+  "settingsGeneralUseWhisper": "Speech recognition",
+  "@settingsGeneralUseWhisper": {
+    "description": "What whisper-cli is for, under its name."
+  },
+  "settingsGeneralUseYTDLP": "Downloads online videos",
+  "@settingsGeneralUseYTDLP": {
+    "description": "What yt-dlp is for, under its name."
+  },
+  "settingsGeneralVersion": "Version",
+  "@settingsGeneralVersion": {
+    "description": "Row title: Kando's version."
+  },
+  "settingsKeywordsAI": "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection",
+  "@settingsKeywordsAI": {
+    "description": "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
+  },
+  "settingsKeywordsAccount": "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style",
+  "@settingsKeywordsAccount": {
+    "description": "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
+  },
+  "settingsKeywordsGeneral": "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again",
+  "@settingsKeywordsGeneral": {
+    "description": "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
+  },
+  "settingsKeywordsLook": "subtitles display bilingual original only translation only order translation original dim blank make room preview",
+  "@settingsKeywordsLook": {
+    "description": "Search keywords of the Subtitle Style settings section, separated by spaces, besides its title. Not shown."
+  },
+  "settingsKeywordsShortcuts": "keyboard keys commands",
+  "@settingsKeywordsShortcuts": {
+    "description": "Search keywords of the Keyboard Shortcuts settings section, separated by spaces, besides its title. Not shown."
+  },
+  "settingsKeywordsSpeech": "whisper models download recognition transcription HuggingFace Vimpo hyperframes",
+  "@settingsKeywordsSpeech": {
+    "description": "Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown."
+  },
+  "settingsKeywordsTranslate": "target language smart translation context prompt restore default",
+  "@settingsKeywordsTranslate": {
+    "description": "Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown."
+  },
+  "settingsLanguageEnglish": "English",
+  "@settingsLanguageEnglish": {
+    "description": "Target language in the pop-up: English."
+  },
+  "settingsLanguageFrench": "French",
+  "@settingsLanguageFrench": {
+    "description": "Target language in the pop-up: French."
+  },
+  "settingsLanguageGerman": "German",
+  "@settingsLanguageGerman": {
+    "description": "Target language in the pop-up: German."
+  },
+  "settingsLanguageJapanese": "Japanese",
+  "@settingsLanguageJapanese": {
+    "description": "Target language in the pop-up: Japanese."
+  },
+  "settingsLanguageKorean": "Korean",
+  "@settingsLanguageKorean": {
+    "description": "Target language in the pop-up: Korean."
+  },
+  "settingsLanguageSimplifiedChinese": "Simplified Chinese",
+  "@settingsLanguageSimplifiedChinese": {
+    "description": "Target language in the pop-up: Simplified Chinese."
+  },
+  "settingsLanguageSpanish": "Spanish",
+  "@settingsLanguageSpanish": {
+    "description": "Target language in the pop-up: Spanish."
+  },
+  "settingsLanguageTraditionalChinese": "Traditional Chinese",
+  "@settingsLanguageTraditionalChinese": {
+    "description": "Target language in the pop-up: Traditional Chinese."
+  },
+  "settingsLibrarySaveFailed": "Couldn't save the library: {error}",
+  "@settingsLibrarySaveFailed": {
+    "description": "Error when the libraries could not be saved to settings.json.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsLookMode": "Default display",
+  "@settingsLookMode": {
+    "description": "Row title: which subtitle lines the player shows by default."
+  },
+  "settingsLookModeBilingual": "Bilingual",
+  "@settingsLookModeBilingual": {
+    "description": "Segment: show both lines."
+  },
+  "settingsLookModeOriginal": "Original Only",
+  "@settingsLookModeOriginal": {
+    "description": "Segment: show only the original line."
+  },
+  "settingsLookModeTranslation": "Translation Only",
+  "@settingsLookModeTranslation": {
+    "description": "Segment: show only the translated line."
+  },
+  "settingsLookNote": "Size, color and font are changed while playing, in “Subtitle Style” in the sidebar. Changes here apply to the player at the same time.",
+  "@settingsLookNote": {
+    "description": "Footnote under the subtitle preview. “Subtitle Style” is the panel of the player's sidebar; use its name there."
+  },
+  "settingsLookOrder": "Bilingual order",
+  "@settingsLookOrder": {
+    "description": "Row title: which line is on top in bilingual subtitles."
+  },
+  "settingsLookOrderOriginalFirst": "Original on Top",
+  "@settingsLookOrderOriginalFirst": {
+    "description": "Segment: the original above the translation."
+  },
+  "settingsLookOrderTranslationFirst": "Translation on Top",
+  "@settingsLookOrderTranslationFirst": {
+    "description": "Segment: the translation above the original."
+  },
+  "settingsLookPreview": "Subtitle preview",
+  "@settingsLookPreview": {
+    "description": "Accessible name of the subtitle preview."
+  },
+  "settingsLookPreviewOff": "Subtitles are off",
+  "@settingsLookPreviewOff": {
+    "description": "In the subtitle preview when the player's subtitles are off."
+  },
+  "settingsLookPreviewOriginal": "Chaque rivière commence par un mince filet d'eau en haut des montagnes.",
+  "@settingsLookPreviewOriginal": {
+    "description": "The original line of the sample subtitle in the preview, in a foreign language as a film's would be: English, except in the English interface, where it is French."
+  },
+  "settingsLookPreviewTag": "Preview",
+  "@settingsLookPreviewTag": {
+    "description": "Small tag in the corner of the subtitle preview."
+  },
+  "settingsLookPreviewTranslation": "Every river begins as a trickle high in the mountains.",
+  "@settingsLookPreviewTranslation": {
+    "description": "The translated line of the sample subtitle in the preview, in the interface's language. The same sentence as settingsLookPreviewOriginal."
+  },
+  "settingsLookUntranslated": "Translation only, before the translation is ready",
+  "@settingsLookUntranslated": {
+    "description": "Row title: what Translation Only shows for a line whose translation has not arrived yet."
+  },
+  "settingsLookUntranslatedBlank": "Leave Blank",
+  "@settingsLookUntranslatedBlank": {
+    "description": "Segment: show nothing until the translation arrives."
+  },
+  "settingsLookUntranslatedDim": "Dim Original",
+  "@settingsLookUntranslatedDim": {
+    "description": "Segment: show the original line dimmed until the translation arrives."
+  },
+  "settingsLookUntranslatedHint": "The translation replaces it as soon as it arrives",
+  "@settingsLookUntranslatedHint": {
+    "description": "Under the row about lines not translated yet."
+  },
+  "settingsLookYield": "Move subtitles up when controls appear",
+  "@settingsLookYield": {
+    "description": "Switch row: move the subtitles up while the player's controls show."
+  },
+  "settingsLookYieldHint": "Keeps them clear of the control bar",
+  "@settingsLookYieldHint": {
+    "description": "Under the switch moving subtitles up."
+  },
+  "settingsSearchLabel": "Search settings",
+  "@settingsSearchLabel": {
+    "description": "Accessible name of the search field at the top of the settings window's sidebar."
+  },
+  "settingsSearchNone": "No matching settings",
+  "@settingsSearchNone": {
+    "description": "Shown in the settings window's sidebar when the search finds no section."
+  },
+  "settingsSearchPlaceholder": "Search",
+  "@settingsSearchPlaceholder": {
+    "description": "Placeholder of the search field at the top of the settings window's sidebar."
+  },
+  "settingsSectionAI": "AI Service",
+  "@settingsSectionAI": {
+    "description": "Settings section and sidebar item: the AI service that translates subtitles."
+  },
+  "settingsSectionAccount": "Account & Upload",
+  "@settingsSectionAccount": {
+    "description": "Settings section and sidebar item: the Google account and the object storage videos are uploaded to."
+  },
+  "settingsSectionGeneral": "General",
+  "@settingsSectionGeneral": {
+    "description": "Settings section and sidebar item: the library, the interface language and the programs Kando runs."
+  },
+  "settingsSectionLook": "Subtitle Style",
+  "@settingsSectionLook": {
+    "description": "Settings section and sidebar item: how the player shows subtitles."
+  },
+  "settingsSectionShortcuts": "Keyboard Shortcuts",
+  "@settingsSectionShortcuts": {
+    "description": "Settings section and sidebar item: the table of keyboard shortcuts."
+  },
+  "settingsSectionSpeech": "Speech Recognition",
+  "@settingsSectionSpeech": {
+    "description": "Settings section and sidebar item: the whisper models that transcribe speech."
+  },
+  "settingsSectionTranslate": "Translation",
+  "@settingsSectionTranslate": {
+    "description": "Settings section and sidebar item: the target language and the translation prompt."
+  },
+  "settingsShortcutsNone": "No matching shortcuts",
+  "@settingsShortcutsNone": {
+    "description": "Shown when the shortcut search finds nothing."
+  },
+  "settingsShortcutsNote": "Single-key shortcuts work only when no text field has the focus.",
+  "@settingsShortcutsNote": {
+    "description": "Note under the shortcut search field."
+  },
+  "settingsShortcutsSearch": "Search commands or keys",
+  "@settingsShortcutsSearch": {
+    "description": "Placeholder and accessible name of the Keyboard Shortcuts page's search field."
+  },
+  "settingsSpeechBlurbBase": "Clear English talks and podcasts, almost instantly.",
+  "@settingsSpeechBlurbBase": {
+    "description": "What the whisper model Base is good for."
+  },
+  "settingsSpeechBlurbLargeV3": "The most accurate and the slowest. For noisy places, conversations among several people, or films in less common languages.",
+  "@settingsSpeechBlurbLargeV3": {
+    "description": "What the whisper model Large v3 is good for."
+  },
+  "settingsSpeechBlurbLargeV3Turbo": "Almost the same results as the compressed version, at about 3 times the space.",
+  "@settingsSpeechBlurbLargeV3Turbo": {
+    "description": "What the whisper model Large v3 Turbo is good for, next to its compressed version."
+  },
+  "settingsSpeechBlurbLargeV3TurboQ5": "The choice for most cases: close to the highest accuracy, small and fast.",
+  "@settingsSpeechBlurbLargeV3TurboQ5": {
+    "description": "What the recommended whisper model Large v3 Turbo (Compressed) is good for."
+  },
+  "settingsSpeechBlurbMedium": "More accurate with strong accents and fast speech, but noticeably slower.",
+  "@settingsSpeechBlurbMedium": {
+    "description": "What the whisper model Medium is good for."
+  },
+  "settingsSpeechBlurbSmall": "Good enough for everyday videos, and mostly reliable for Chinese and other languages too.",
+  "@settingsSpeechBlurbSmall": {
+    "description": "What the whisper model Small is good for."
+  },
+  "settingsSpeechBlurbTiny": "For a quick try only. It makes many mistakes and suits only clearly spoken English.",
+  "@settingsSpeechBlurbTiny": {
+    "description": "What the whisper model Tiny is good for."
+  },
+  "settingsSpeechCancel": "Cancel",
+  "@settingsSpeechCancel": {
+    "description": "Button canceling a whisper model's download."
+  },
+  "settingsSpeechDownload": "Download",
+  "@settingsSpeechDownload": {
+    "description": "Button downloading a whisper model."
+  },
+  "settingsSpeechDownloadProgress": "{model} download progress",
+  "@settingsSpeechDownloadProgress": {
+    "description": "Accessible name of a whisper model's download progress bar.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "Base"
+      }
+    }
+  },
+  "settingsSpeechDownloaded": "Downloaded",
+  "@settingsSpeechDownloaded": {
+    "description": "At the end of a whisper model's row: the model is on disk."
+  },
+  "settingsSpeechModelStats": "Speed {speed}  Accuracy {accuracy}  {size}",
+  "@settingsSpeechModelStats": {
+    "description": "Line under a whisper model: its speed and accuracy as five stars each, then its size. Two spaces between the parts.",
+    "placeholders": {
+      "speed": {
+        "type": "String",
+        "example": "★★★★☆"
+      },
+      "accuracy": {
+        "type": "String",
+        "example": "★★★★★"
+      },
+      "size": {
+        "type": "String",
+        "example": "574 MB"
+      }
+    }
+  },
+  "settingsSpeechModels": "whisper Models",
+  "@settingsSpeechModels": {
+    "description": "Heading of the Speech Recognition page's card, and the name of its radio group. whisper is a program name, kept lowercase."
+  },
+  "settingsSpeechNameLargeV3TurboQ5": "Large v3 Turbo (Compressed)",
+  "@settingsSpeechNameLargeV3TurboQ5": {
+    "description": "Name of the whisper model large-v3-turbo-q5, the quantized (smaller) Large v3 Turbo. Large v3 Turbo is the model's name; translate only the qualifier."
+  },
+  "settingsSpeechNoModelsDir": "There is no models folder yet",
+  "@settingsSpeechNoModelsDir": {
+    "description": "Error on the Speech Recognition page: Kando has no folder to download whisper models into."
+  },
+  "settingsSpeechNote": "Detects the language and breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying.",
+  "@settingsSpeechNote": {
+    "description": "Footnote under the whisper models."
+  },
+  "settingsSpeechRecommended": "Recommended",
+  "@settingsSpeechRecommended": {
+    "description": "Badge after the name of the recommended whisper model."
+  },
+  "settingsSpeechSaveFailed": "Couldn't save the model: {error}",
+  "@settingsSpeechSaveFailed": {
+    "description": "Error when the chosen whisper model could not be saved to settings.json.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsTranslateContext": "Smart translation",
+  "@settingsTranslateContext": {
+    "description": "Switch row: translate with the sentences before in view."
+  },
+  "settingsTranslateContextHint": "Translates with the sentences before in view, and joins the pieces of one sentence in order.",
+  "@settingsTranslateContextHint": {
+    "description": "Under Smart translation."
+  },
+  "settingsTranslatePrompt": "Prompt",
+  "@settingsTranslatePrompt": {
+    "description": "Heading of the card with the prompt sent to the translation model."
+  },
+  "settingsTranslatePromptCustom": "Using a custom prompt · Write '{{language}}' for the target language.",
+  "@settingsTranslatePromptCustom": {
+    "description": "Under the prompt when it was edited. {{language}} is written literally into the prompt and must stay as it is, inside the apostrophes."
+  },
+  "settingsTranslatePromptDefault": "Using the default prompt · Write '{{language}}' for the target language.",
+  "@settingsTranslatePromptDefault": {
+    "description": "Under the prompt when it is the default one. {{language}} is written literally into the prompt and must stay as it is, inside the apostrophes."
+  },
+  "settingsTranslatePromptLabel": "Translation prompt",
+  "@settingsTranslatePromptLabel": {
+    "description": "Accessible name of the text area holding the translation prompt."
+  },
+  "settingsTranslatePromptNote": "You can add style requests, such as a conversational tone or keeping names in English. Kando asks for the number of JSON lines itself, so there's no need to write it here.",
+  "@settingsTranslatePromptNote": {
+    "description": "Footnote under the prompt."
+  },
+  "settingsTranslateRestore": "Restore Default",
+  "@settingsTranslateRestore": {
+    "description": "Button putting the default prompt back."
+  },
+  "settingsTranslateTarget": "Default target language",
+  "@settingsTranslateTarget": {
+    "description": "Row title and pop-up name: the language new jobs translate subtitles into."
+  },
+  "settingsTranslateTargetNote": "New jobs translate into this language.",
+  "@settingsTranslateTargetNote": {
+    "description": "Footnote under the target language."
+  },
+  "settingsWindowTitle": "Settings",
+  "@settingsWindowTitle": {
+    "description": "Title of the settings window, as the Window menu and Mission Control name it."
+  },
+  "sidebarChooseLibrary": "Choose a Library",
+  "@sidebarChooseLibrary": {
+    "description": "The library switcher's name line while no library is open."
+  },
+  "sidebarLibrary": "Library",
+  "@sidebarLibrary": {
+    "description": "Caption over the open library's name in the library switcher at the top of the sidebar."
+  },
+  "sidebarLibraryCount": "{name} · {count, number, ::group-off}",
+  "@sidebarLibraryCount": {
+    "description": "Item of the library switcher's menu: a library and how many films it holds.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "My Films"
+      },
+      "count": {
+        "type": "int",
+        "example": "12"
+      }
+    }
+  },
+  "sidebarMenuForget": "Remove from List",
+  "@sidebarMenuForget": {
+    "description": "Item of the library menu of the settings page's Switch button that takes the open library off the list of known libraries, leaving its files."
+  },
+  "sidebarMenuNewLibrary": "New Library…",
+  "@sidebarMenuNewLibrary": {
+    "description": "Item of the library menu of the settings page's Switch button that makes a new library."
+  },
+  "sidebarMenuOpenLibrary": "Open Library…",
+  "@sidebarMenuOpenLibrary": {
+    "description": "Item of the library menu of the settings page's Switch button that opens a library from disk."
+  },
+  "sidebarMenuShowInFinder": "Show in Finder",
+  "@sidebarMenuShowInFinder": {
+    "description": "Item of the library menu of the settings page's Switch button that shows the open library in Finder."
+  },
+  "sidebarNewLibrary": "New Library…",
+  "@sidebarNewLibrary": {
+    "description": "Item of the library switcher's menu that makes a new library."
+  },
+  "sidebarOpenLibrary": "Open Existing Library…",
+  "@sidebarOpenLibrary": {
+    "description": "Item of the library switcher's menu that opens a library from disk."
+  },
+  "sidebarRevealLibrary": "Show “{name}” in Finder",
+  "@sidebarRevealLibrary": {
+    "description": "Item of the library switcher's menu that shows the open library's folder in Finder.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "My Films"
+      }
+    }
+  },
+  "sidebarSettings": "Settings",
+  "@sidebarSettings": {
+    "description": "Accessible name of the gear on the status card, which opens the settings that fix what is missing."
+  },
+  "sidebarSourceAll": "All Films",
+  "@sidebarSourceAll": {
+    "description": "Sidebar item showing every film of the library; also the library page's title then."
+  },
+  "sidebarSourceBilibili": "Bilibili",
+  "@sidebarSourceBilibili": {
+    "description": "Sidebar item showing the films from Bilibili."
+  },
+  "sidebarSourceLocal": "Local Files",
+  "@sidebarSourceLocal": {
+    "description": "Sidebar item showing the films made from local video files."
+  },
+  "sidebarSourceWeb": "Other Sites",
+  "@sidebarSourceWeb": {
+    "description": "Sidebar item showing the films from websites other than YouTube and Bilibili."
+  },
+  "sidebarStatus": "Status",
+  "@sidebarStatus": {
+    "description": "Accessible name of the status card at the foot of the sidebar."
+  },
+  "sidebarSwitcherLabel": "Switch library, current: {name}",
+  "@sidebarSwitcherLabel": {
+    "description": "Accessible name of the library switcher: what it does and the open library.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "My Films"
+      }
+    }
+  },
+  "sitesCaveat": "Videos that need a sign-in or membership, or that are DRM-encrypted, may not download even from a site on the list.",
+  "@sitesCaveat": {
+    "description": "Second line under the sheet's title."
+  },
+  "sitesDone": "Done",
+  "@sitesDone": {
+    "description": "Button closing the sheet."
+  },
+  "sitesFound": "{count, plural, one {# found} other {# found}} · {source}",
+  "@sitesFound": {
+    "description": "Footer while searching: how many sites the search found, then the list's source.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "2"
+      },
+      "source": {
+        "type": "String",
+        "example": "List from yt-dlp 2026.08.19"
+      }
+    }
+  },
+  "sitesGridLabel": "Websites",
+  "@sitesGridLabel": {
+    "description": "Accessible name of the grid of websites."
+  },
+  "sitesIntro": "Kando downloads videos with yt-dlp, which recognizes the {count, plural, one {# website} other {# websites}} below.",
+  "@sitesIntro": {
+    "description": "First line under the sheet's title: how many websites yt-dlp recognizes.",
+    "placeholders": {
+      "count": {
+        "type": "int",
+        "example": "929"
+      }
+    }
+  },
+  "sitesMenuItem": "Supported Websites…",
+  "@sitesMenuItem": {
+    "description": "Help menu item that opens the sheet listing the websites Kando downloads from."
+  },
+  "sitesNotFound": "“{query}” is not on the list",
+  "@sitesNotFound": {
+    "description": "Heading when the search finds no website.",
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "example": "missav.ai"
+      }
+    }
+  },
+  "sitesNotFoundHint": "You can still try pasting a link from a site that isn't listed: yt-dlp finds standard videos on many web pages, and downloads links that point straight to a video file or an m3u8 playlist.",
+  "@sitesNotFoundHint": {
+    "description": "What may still work when the search finds no website."
+  },
+  "sitesSearchLabel": "Search websites",
+  "@sitesSearchLabel": {
+    "description": "Accessible name of the sheet's search field."
+  },
+  "sitesSearchPlaceholder": "Search by site name or domain, or paste a video link",
+  "@sitesSearchPlaceholder": {
+    "description": "Placeholder of the sheet's search field."
+  },
+  "sitesSource": "List from yt-dlp {version}",
+  "@sitesSource": {
+    "description": "Footer: the yt-dlp release the list was taken from.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2026.08.19"
+      }
+    }
+  },
+  "sitesTileLabel": "{name}, {domain}",
+  "@sitesTileLabel": {
+    "description": "Accessible name of a website's tile: its name and its domain.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "YouTube"
+      },
+      "domain": {
+        "type": "String",
+        "example": "youtube.com"
+      }
+    }
+  },
+  "sitesTitle": "Supported Websites",
+  "@sitesTitle": {
+    "description": "Title of the sheet listing the websites Kando downloads from through yt-dlp."
+  },
+  "sourceAll": "All Films",
+  "@sourceAll": {
+    "description": "Sidebar source and library page title: every film of the library."
+  },
+  "sourceApplePodcasts": "Apple Podcasts",
+  "@sourceApplePodcasts": {
+    "description": "Name of Apple Podcasts (podcasts.apple.com), as Apple names it in each language."
+  },
+  "sourceBilibili": "Bilibili",
+  "@sourceBilibili": {
+    "description": "Name of the video site bilibili, as a source of films and in a link's tag."
+  },
+  "sourceDouyin": "Douyin",
+  "@sourceDouyin": {
+    "description": "Name of the Chinese video site Douyin (douyin.com)."
+  },
+  "sourceDouyu": "Douyu",
+  "@sourceDouyu": {
+    "description": "Name of the Chinese streaming site Douyu (douyu.com)."
+  },
+  "sourceHuya": "Huya",
+  "@sourceHuya": {
+    "description": "Name of the Chinese streaming site Huya (huya.com)."
+  },
+  "sourceIqiyi": "iQIYI",
+  "@sourceIqiyi": {
+    "description": "Name of the Chinese video site iQIYI (iqiyi.com, iq.com)."
+  },
+  "sourceLocal": "Local Files",
+  "@sourceLocal": {
+    "description": "Where a film comes from when it is a video file on this computer: library page title and the source under a poster."
+  },
+  "sourceMangoTV": "Mango TV",
+  "@sourceMangoTV": {
+    "description": "Name of the Chinese video site Mango TV (mgtv.com)."
+  },
+  "sourceNaverTV": "Naver TV",
+  "@sourceNaverTV": {
+    "description": "Name of the Korean video site Naver TV (tv.naver.com)."
+  },
+  "sourceNiconico": "Niconico",
+  "@sourceNiconico": {
+    "description": "Name of the Japanese video site niconico (nicovideo.jp)."
+  },
+  "sourceTencentVideo": "Tencent Video",
+  "@sourceTencentVideo": {
+    "description": "Name of the Chinese video site Tencent Video (v.qq.com)."
+  },
+  "sourceWeb": "Other Sites",
+  "@sourceWeb": {
+    "description": "Library page title for films downloaded from sites other than YouTube and bilibili."
+  },
+  "sourceWeibo": "Weibo",
+  "@sourceWeibo": {
+    "description": "Name of the Chinese site Weibo (weibo.com)."
+  },
+  "sourceXigua": "Xigua Video",
+  "@sourceXigua": {
+    "description": "Name of the Chinese video site Xigua Video (ixigua.com)."
+  },
+  "sourceYouku": "Youku",
+  "@sourceYouku": {
+    "description": "Name of the Chinese video site Youku (youku.com)."
+  }
 }

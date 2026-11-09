@@ -1,6 +1,7 @@
 package main
 
 import (
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 
@@ -19,11 +20,14 @@ func (a *app) Language() *string { return &a.prefs.language }
 func (a *app) InterfaceLanguage() string { return a.prefs.interfaceLanguage }
 
 func (a *app) SetInterfaceLanguage(tag string) {
-	if tag != "en" && tag != "zh-Hans" {
-		tag = "zh-Hans"
+	if !locales.Supported(tag) {
+		tag = locales.Default
 	}
 	a.prefs.interfaceLanguage = tag
 	mygo.App.SetLocale(tag)
+	if w := a.prefs.win; w != nil && !w.IsDestroyed() {
+		w.SetTitle(locales.SettingsWindowTitle())
+	}
 }
 
 func (a *app) TranslateContext() *bool { return &a.prefs.translateContext }
@@ -57,6 +61,7 @@ func (a *app) CancelDownload() { a.cancelDownload() }
 
 func (a *app) DownloadModel(id string) { a.downloadSpeechModel(id) }
 
+// CurrentPreset and Presets read the presets' names and blurbs in the interface's language each time the page draws them.
 func (a *app) CurrentPreset() (settings.Preset, bool) {
 	preset, ok := llmPresetByID(a.prefs.llmProvider)
 	if !ok {
@@ -92,7 +97,13 @@ func (a *app) TestingLLM() bool { return a.prefs.testingLLM }
 
 func (a *app) TestLLM() { a.testLLM() }
 
-func (a *app) LLMResult() string { return a.prefs.llmTestResult }
+// LLMResult is the last connection test's outcome as the page shows it: "" before any, the error when it failed, or locales.SettingsAIConnected when it passed.
+func (a *app) LLMResult() string {
+	if a.prefs.llmTestOK {
+		return locales.SettingsAIConnected()
+	}
+	return a.prefs.llmTestErr
+}
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }
 
@@ -100,7 +111,12 @@ func (a *app) LLMModels() []string { return a.prefs.llmModels }
 
 func (a *app) LoadingLLMModels() bool { return a.prefs.llmModelsLoading }
 
-func (a *app) LLMModelsErr() string { return a.prefs.llmModelsErr }
+func (a *app) LLMModelsErr() string {
+	if a.prefs.llmModelsErr == nil {
+		return ""
+	}
+	return llmModelsError(a.prefs.llmModelsErr)
+}
 
 func (a *app) RetryLLMModels() { a.fetchLLMModels(true) }
 
@@ -133,7 +149,7 @@ func (a *app) Shortcuts() []settings.Shortcut {
 	var out []settings.Shortcut
 	for _, s := range a.shortcuts() {
 		if s.Key != 0 {
-			out = append(out, settings.Shortcut{Group: s.Group, Label: s.Label, Mods: s.Mods, Key: s.Key})
+			out = append(out, settings.Shortcut{Group: groupTitle(s.Group), Label: s.Label, Mods: s.Mods, Key: s.Key})
 		}
 	}
 	return out

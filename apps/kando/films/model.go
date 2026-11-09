@@ -1,6 +1,8 @@
 package films
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/films/sitename"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -27,6 +32,8 @@ type Film struct {
 	Thumbnail string
 	// Untranslated is how many lines of a done film's subtitles the translation left untranslated.
 	Untranslated int
+	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
+	Stopped bool
 }
 
 func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
@@ -60,6 +67,7 @@ func FromJob(job core.Job, name, detail string) Film {
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language,
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated,
+		Stopped: errors.Is(job.Err, context.Canceled),
 	}
 }
 
@@ -123,7 +131,7 @@ func Find(items []Film, key string) (Film, bool) {
 
 func DisplayPath(path string) string {
 	if path == "" {
-		return "未设置"
+		return locales.FilmsPathNotSet()
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
@@ -150,19 +158,19 @@ func Shorten(s string, n int) string {
 func StageLabel(stage core.Stage) string {
 	switch stage {
 	case core.StageQueued:
-		return "排队"
+		return locales.FilmsStageQueued()
 	case core.StageDownloading:
-		return "下载中"
+		return locales.FilmsStageDownloading()
 	case core.StageTranscribing:
-		return "生成字幕中"
+		return locales.FilmsStageTranscribing()
 	case core.StageTranslating:
-		return "翻译中"
+		return locales.FilmsStageTranslating()
 	case core.StageExporting:
-		return "导出中"
+		return locales.FilmsStageExporting()
 	case core.StageComplete:
-		return "已完成"
+		return locales.FilmsStageComplete()
 	case core.StageFailed:
-		return "失败"
+		return locales.FilmsStageFailed()
 	default:
 		return string(stage)
 	}
@@ -218,7 +226,7 @@ func Running(item Film) bool {
 
 // Canceled reports whether the film's job failed because it was cancelled.
 func Canceled(item Film) bool {
-	return item.Stage == core.StageFailed && item.Detail == "已取消"
+	return item.Stage == core.StageFailed && item.Stopped
 }
 
 // QueueOrder sorts the processing cards as they will run: the running job, then the waiting ones oldest first, then the failed ones newest first. items is newest first, as the shelf keeps its jobs.
@@ -250,10 +258,10 @@ func QueueSummary(items []Film) string {
 	}
 	var parts []string
 	if active > 0 {
-		parts = append(parts, fmt.Sprintf("%d 个进行中", active))
+		parts = append(parts, locales.FilmsQueueActive(active))
 	}
 	if failed > 0 {
-		parts = append(parts, fmt.Sprintf("%d 个需要处理", failed))
+		parts = append(parts, locales.FilmsQueueFailed(failed))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -292,7 +300,7 @@ func StepFills(item Film) []float64 {
 func SourceLabel(item Film) string {
 	link, ok := core.ParseLink(item.Source)
 	if !ok {
-		return "本地文件"
+		return locales.SourceLocal()
 	}
 	return PlatformLabel(link)
 }
@@ -303,29 +311,29 @@ func PlatformLabel(link core.Link) string {
 	case core.PlatformYouTube:
 		return "YouTube"
 	case core.PlatformBilibili:
-		return "哔哩哔哩"
+		return locales.SourceBilibili()
 	case core.PlatformLocal:
-		return "本地文件"
+		return locales.SourceLocal()
 	}
-	if link.SiteName != "" {
-		return link.SiteName
+	if name := sitename.Of(link.Site); name != "" {
+		return name
 	}
 	return link.Host
 }
 
-// LanguageShort is a short tag for a subtitle language, such as 简中 for 简体中文, for the badge on a poster.
+// LanguageShort is a short tag for a subtitle language, such as 简中 for 简体中文, for the badge on a poster. language is the target language a job keeps, as settings.json and library.json store it.
 func LanguageShort(language string) string {
 	switch language {
 	case "简体中文":
-		return "简中"
+		return locales.FilmsLanguageTagSimplifiedChinese()
 	case "繁体中文":
-		return "繁中"
+		return locales.FilmsLanguageTagTraditionalChinese()
 	case "English":
 		return "EN"
 	case "日本語":
-		return "日"
+		return locales.FilmsLanguageTagJapanese()
 	case "한국어":
-		return "한"
+		return locales.FilmsLanguageTagKorean()
 	case "Español":
 		return "ES"
 	case "Français":
@@ -335,6 +343,9 @@ func LanguageShort(language string) string {
 	}
 	return language
 }
+
+// LanguageName names a subtitle language in the interface's language (subtitle.TargetLanguageName). language is the target language a job keeps, as settings.json and library.json store it.
+func LanguageName(language string) string { return subtitle.TargetLanguageName(language) }
 
 // Clock writes a duration as a player shows it: 3:05, or 1:02:03 past an hour.
 func Clock(d time.Duration) string {

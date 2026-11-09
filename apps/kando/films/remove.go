@@ -1,6 +1,8 @@
 package films
 
 import (
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -11,14 +13,14 @@ func removeDialog(c *ui.Context, a App) {
 	if !*open {
 		return
 	}
-	message := "视频和它的字幕会移到废纸篓，可以从废纸篓找回。所在文件夹里的其他文件留在原处。"
+	message := locales.FilmsRemoveFiles()
 	switch {
 	case !InDir(a.LibraryDir(), item.VideoPath):
-		message = "视频不在资料库文件夹里，会留在原处，只是不再出现在资料库中。"
+		message = locales.FilmsRemoveOutside()
 	case folder:
-		message = "影片文件夹会移到废纸篓，里面的视频、封面和字幕都可以从废纸篓找回。"
+		message = locales.FilmsRemoveFolder()
 	}
-	if breeze.DestructiveAlertDialog(c, open, "要从资料库移除「"+filmName(item)+"」吗？", message, 0, "移除", "取消") == 0 {
+	if breeze.DestructiveAlertDialog(c, open, locales.FilmsRemoveConfirm(filmName(item)), message, 0, locales.FilmsRemove(), locales.FilmsCancel()) == 0 {
 		a.TrashFilm(item)
 	}
 }

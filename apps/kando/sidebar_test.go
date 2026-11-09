@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
@@ -418,18 +419,18 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 		section  string
 	}{
 		{"no tools", media.Tools{FFmpeg: "/bin/ffmpeg"}, "缺少组件：yt-dlp、whisper-cli", settings.SectionGeneral},
-		{"no model", found, noSpeechModel, settings.SectionSpeech},
-		{"model gone", gone, noSpeechModel, settings.SectionSpeech},
-		{"no translation model", withModel, noLLMModel, settings.SectionAI},
-		{"signed out", signedOut, notSignedIn, settings.SectionAI},
-		{"ready", keyed, readyMessage, settings.SectionGeneral},
-		{"another pipeline", &fakePipeline{}, readyMessage, settings.SectionGeneral},
+		{"no model", found, noSpeechModel(), settings.SectionSpeech},
+		{"model gone", gone, noSpeechModel(), settings.SectionSpeech},
+		{"no translation model", withModel, noLLMModel(), settings.SectionAI},
+		{"signed out", signedOut, notSignedIn(), settings.SectionAI},
+		{"ready", keyed, readyMessage(), settings.SectionGeneral},
+		{"another pipeline", &fakePipeline{}, readyMessage(), settings.SectionGeneral},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			a, tt, _ := newTestApp(c.pipeline)
 			tt.Frame()
-			if !tt.HasText(checkingTools) {
+			if !tt.HasText(checkingTools()) {
 				t.Fatalf("before the first check: %q", tt.Texts())
 			}
 			a.checkReadiness(true)
@@ -450,8 +451,8 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 		a.edit(func(s *session) { s.LibraryDir = "" })
 		a.checkReadiness(true)
 		tt.Frame()
-		if !tt.HasText(noLibrary) {
-			t.Fatalf("missing %q in %q", noLibrary, tt.Texts())
+		if !tt.HasText(noLibrary()) {
+			t.Fatalf("missing %q in %q", noLibrary(), tt.Texts())
 		}
 	})
 }
@@ -473,37 +474,37 @@ func TestStatusLineWaitsForTheEveryAPISignIn(t *testing.T) {
 		tt.Frame()
 	}
 	check(true)
-	if !tt.HasText(checkingSignIn) {
-		t.Fatalf("missing %q in %q", checkingSignIn, tt.Texts())
+	if !tt.HasText(checkingSignIn()) {
+		t.Fatalf("missing %q in %q", checkingSignIn(), tt.Texts())
 	}
 	answers <- errors.New("not signed in")
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(notSignedIn) {
-		t.Fatalf("missing %q in %q", notSignedIn, tt.Texts())
+	if !tt.HasText(notSignedIn()) {
+		t.Fatalf("missing %q in %q", notSignedIn(), tt.Texts())
 	}
 	// Choosing the speech model again keeps the answer instead of asking the CLI again.
 	check(false)
-	if !tt.HasText(notSignedIn) || len(updates) != 0 {
+	if !tt.HasText(notSignedIn()) || len(updates) != 0 {
 		t.Fatalf("asked again: texts %q, %d updates", tt.Texts(), len(updates))
 	}
 	// 重新检测 asks again.
 	check(true)
-	if !tt.HasText(checkingSignIn) {
-		t.Fatalf("missing %q in %q", checkingSignIn, tt.Texts())
+	if !tt.HasText(checkingSignIn()) {
+		t.Fatalf("missing %q in %q", checkingSignIn(), tt.Texts())
 	}
 	// While it waits, an API key replaces the sign-in; the late answer leaves the key's state.
 	keyed := tools
 	keyed.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, APIKey: "k"}
 	a.pipeline = keyed
 	check(false)
-	if !tt.HasText(readyMessage) {
-		t.Fatalf("missing %q in %q", readyMessage, tt.Texts())
+	if !tt.HasText(readyMessage()) {
+		t.Fatalf("missing %q in %q", readyMessage(), tt.Texts())
 	}
 	answers <- errors.New("not signed in")
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(readyMessage) {
+	if !tt.HasText(readyMessage()) {
 		t.Fatalf("late sign-in answer replaced the state: %q", tt.Texts())
 	}
 
@@ -518,13 +519,13 @@ func TestStatusLineWaitsForTheEveryAPISignIn(t *testing.T) {
 	later <- nil
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(readyMessage) {
-		t.Fatalf("missing %q in %q", readyMessage, tt.Texts())
+	if !tt.HasText(readyMessage()) {
+		t.Fatalf("missing %q in %q", readyMessage(), tt.Texts())
 	}
 	answers <- errors.New("not signed in")
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(readyMessage) {
+	if !tt.HasText(readyMessage()) {
 		t.Fatalf("the earlier check's answer replaced the later one's: %q", tt.Texts())
 	}
 }
@@ -546,8 +547,8 @@ func TestStatusLineAsksForTheSignInOnce(t *testing.T) {
 	for range 3 {
 		a.checkReadiness(false)
 		tt.Frame()
-		if !tt.HasText(checkingSignIn) {
-			t.Fatalf("missing %q in %q", checkingSignIn, tt.Texts())
+		if !tt.HasText(checkingSignIn()) {
+			t.Fatalf("missing %q in %q", checkingSignIn(), tt.Texts())
 		}
 	}
 	if a.side.ready.gen != asked {
@@ -556,7 +557,7 @@ func TestStatusLineAsksForTheSignInOnce(t *testing.T) {
 	answers <- errors.New("not signed in")
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(notSignedIn) {
+	if !tt.HasText(notSignedIn()) {
 		t.Fatalf("the running check's answer was dropped: %q", tt.Texts())
 	}
 }
@@ -585,8 +586,8 @@ func TestLLMTestAnswersTheSignIn(t *testing.T) {
 	a.checkReadiness(true)
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(notSignedIn) {
-		t.Fatalf("missing %q in %q", notSignedIn, tt.Texts())
+	if !tt.HasText(notSignedIn()) {
+		t.Fatalf("missing %q in %q", notSignedIn(), tt.Texts())
 	}
 
 	// The user signs in to the CLI and presses 测试.
@@ -594,8 +595,8 @@ func TestLLMTestAnswersTheSignIn(t *testing.T) {
 	a.testLLM()
 	waitUpdate(t, updates)
 	tt.Frame()
-	if a.prefs.llmTestResult != "连接成功" || !tt.HasText(readyMessage) {
-		t.Fatalf("test result %q, texts %q", a.prefs.llmTestResult, tt.Texts())
+	if a.LLMResult() != "连接成功" || !tt.HasText(readyMessage()) {
+		t.Fatalf("test result %q, texts %q", a.LLMResult(), tt.Texts())
 	}
 }
 
@@ -603,9 +604,9 @@ func TestStatusDotIsGreenWhenReady(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.checkReadiness(true)
 	tt.Frame()
-	r, ok := tt.Find(readyMessage)
+	r, ok := tt.Find(readyMessage())
 	if !ok {
-		t.Fatalf("missing %q in %q", readyMessage, tt.Texts())
+		t.Fatalf("missing %q in %q", readyMessage(), tt.Texts())
 	}
 	img := tt.Image()
 	scale := float32(img.Bounds().Dx()) / 1100
@@ -617,4 +618,38 @@ func TestStatusDotIsGreenWhenReady(t *testing.T) {
 			t.Fatalf("dot = %v, want about %v", px, want)
 		}
 	}
+}
+
+// TestSidebarInEnglish checks the sidebar in English: its sources, the switcher and its menu, and a status line that follows the language as it changes, though it was found before the change.
+func TestSidebarInEnglish(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.checkReadiness(true)
+	tt.Frame()
+	wantText(t, tt, "已就绪，可以开始处理")
+
+	testlocale.Use(t, "en")
+	tt.Frame()
+	for _, want := range []string{"All Films", "YouTube", "Bilibili", "Local Files", "Library", "Ready to process"} {
+		wantText(t, tt, want)
+	}
+	// The library page beside the sidebar is another area's, so only the sidebar's own words are checked.
+	for _, chinese := range []string{"本地文件", "状态", "已就绪，可以开始处理"} {
+		wantNoText(t, tt, chinese)
+	}
+	name := sidebar.Title(a.snap().LibraryDir)
+	if err := tt.Click("Switch library, current: " + name); err != nil {
+		t.Fatalf("switcher: %v; texts %q", err, tt.Texts())
+	}
+	menu := tt.Menu()
+	for _, want := range []string{"New Library…", "Open Existing Library…", "Show “" + name + "” in Finder"} {
+		if !slices.Contains(menu, want) {
+			t.Fatalf("menu %q lacks %q", menu, want)
+		}
+	}
+	tt.CloseMenu()
+
+	b, btt, _ := newTestApp(media.Tools{FFmpeg: "/bin/ffmpeg"})
+	b.checkReadiness(true)
+	btt.Frame()
+	wantText(t, btt, "Missing components: yt-dlp, whisper-cli")
 }

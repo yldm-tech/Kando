@@ -70,7 +70,7 @@ func screenshotReady(t *testing.T, f *screenshotFixture, a *app) {
 	tools.Translator.APIKey = "sk-screenshot"
 	a.pipeline = tools
 	a.checkReadiness(true)
-	if r := a.readiness(); r.Message != readyMessage {
-		t.Fatalf("status line %q, want %q", r.Message, readyMessage)
+	if r := a.readiness(); r.Text() != readyMessage() {
+		t.Fatalf("status line %q, want %q", r.Text(), readyMessage())
 	}
 }

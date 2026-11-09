@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/onboarding"
 	"kando/packages/media"
 
@@ -438,8 +440,8 @@ func TestOnboardingAIStatus(t *testing.T) {
 		checked    bool
 		want       onboarding.AI
 	}{
-		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}, false, onboarding.AI{Text: noLLMModel, Missing: true}},
-		{"everyapi without key", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, onboarding.AI{Text: notSignedIn, Missing: true}},
+		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}, false, onboarding.AI{Text: noLLMModel(), Missing: true}},
+		{"everyapi without key", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, onboarding.AI{Text: notSignedIn(), Missing: true}},
 		{"sign-in not checked", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, false, onboarding.AI{Text: "翻译模型：m · 用本机登录的 EveryAPI，开始处理前会检查登录"}},
 		{"signed in", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, onboarding.AI{Text: "翻译模型：m", Ready: true}},
 		{"key", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt", APIKey: "k"}, false, onboarding.AI{Text: "翻译模型：gpt", Ready: true}},
@@ -582,7 +584,7 @@ func TestOnboardingReopensWithoutAMenuBar(t *testing.T) {
 	a.onb.done = true
 	tt.Frame()
 	rows := a.onboardingKeys()
-	if len(rows) != 1 || rows[0].Group != "帮助" || rows[0].Key != ui.KeyF1 || rows[0].Label != "重新查看入门引导" {
+	if len(rows) != 1 || rows[0].Group != groupHelp || rows[0].Key != ui.KeyF1 || rows[0].Label != "重新查看入门引导" {
 		t.Fatalf("rows %+v", rows)
 	}
 	tt.Key(0, ui.KeyF1)
@@ -619,4 +621,48 @@ func TestOnboardingTipWaitsBehindTheFinishMessage(t *testing.T) {
 	wantNoText(t, tt, onboardingTip())
 	_, btt := relaunch(t, a)
 	wantNoText(t, btt, onboardingTip())
+}
+
+// TestOnboardingInEnglish walks the guide in English: each step's title, buttons and lines, what the link field reads a link as, and the note it leaves in the library once it is closed.
+func TestOnboardingInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
+	for _, want := range []string{"Welcome to Kando", "1 / 3", "Skip", "Translate subtitles into", "Languages of the videos you watch · Choose any", "日本語", "Japanese", "Continue"} {
+		wantText(t, tt, want)
+	}
+	for _, chinese := range []string{"欢迎使用看懂", "字幕翻译成", "日语", "继续", "跳过"} {
+		wantNoText(t, tt, chinese)
+	}
+	click(t, tt, "Continue")
+	for _, want := range []string{"2 / 3", "Download a Speech Recognition Model", "Translation · AI Service", "Set up", "Settings…", "Back"} {
+		wantText(t, tt, want)
+	}
+	click(t, tt, "Continue")
+	for _, want := range []string{"Paste Your First Link", "Just Look Around", "Done", "Press Enter to start. No link? Skip for now and drag a local video into the window later."} {
+		wantText(t, tt, want)
+	}
+	*a.OnboardingLink() = "https://www.youtube.com/watch?v=k9Yt2LmQ0pX&list=PL123"
+	tt.Frame()
+	wantText(t, tt, "Recognized as a YouTube video. Only this one is added, not the whole playlist")
+	wantText(t, tt, "Add and Start")
+	*a.OnboardingLink() = ""
+	tt.Frame()
+	click(t, tt, "Just Look Around")
+	tip := onboardingTip()
+	if !strings.Contains(tip, "come back here") {
+		t.Fatalf("tip %q is not English", tip)
+	}
+	wantText(t, tt, tip)
+}
+
+// TestOnboardingTipKnownInEveryLanguage checks that the guide's note is still known as the guide's after the language changed under it, so closing it forgets it rather than showing it again.
+func TestOnboardingTipKnownInEveryLanguage(t *testing.T) {
+	for _, tag := range locales.Interface {
+		if !isOnboardingTip(onboardingTipIn(locales.In(tag))) {
+			t.Fatalf("the %s note is not known", tag)
+		}
+	}
+	if isOnboardingTip("已加入，开始处理。") {
+		t.Fatal("another message counts as the note")
+	}
 }
