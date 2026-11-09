@@ -77,7 +77,7 @@ jobs:
             echo "$TOOLS_RELEASE exists and is left as it is." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          (cd dist && sha256sum *) > "$RUNNER_TEMP/sums.txt"
+          (cd dist && sha256sum -- *) > "$RUNNER_TEMP/sums.txt"
           {
             echo "The ffmpeg and whisper-cli that Kando downloads on its first launch, built by the Tools workflow from the sources pinned in .github/tools.env (ffmpeg $FFMPEG_VERSION, whisper.cpp $WHISPER_VERSION). Each archive carries the licenses of what it holds."
             echo
