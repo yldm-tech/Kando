@@ -21,6 +21,8 @@ type App interface {
 	PlaybackOpen() bool
 	StopPlayback()
 	PickLibrary()
+	// OpenSites opens the 支持的网站 sheet.
+	OpenSites()
 	// BeginNew opens the new-library sheet.
 	BeginNew()
 	CancelMaking()

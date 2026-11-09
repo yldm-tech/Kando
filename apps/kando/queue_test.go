@@ -752,7 +752,7 @@ func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
 		{bili, core.FailMembers, "", "大会员专享视频", "需要大会员。借用已开通会员的浏览器登录即可。", []string{"借用 Chrome 登录并重试", "换个链接"}},
 		{yt, core.FailAge, "", "需要年龄验证", "借用浏览器里已登录的 YouTube 账号即可。", []string{"借用 Chrome 登录并重试"}},
 		{"https://www.netflix.com/watch/1", core.FailDRM, "", "Netflix 受 DRM 保护", "视频是加密的，没法下载。有本地文件的话可以直接拖进来。", []string{"选择本地文件"}},
-		{"https://example.com/", core.FailUnsupported, "", "example.com 暂不支持", "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", []string{"换个链接", "选择本地文件"}},
+		{"https://example.com/", core.FailUnsupported, "", "example.com 暂不支持", "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", []string{"换个链接", "选择本地文件", "查看支持的网站"}},
 		{"https://www.instagram.com/p/C0000000000/", core.FailLogin, "", "要登录才能看", "instagram.com 的这个视频需要账号。借用浏览器里已登录的账号即可，不保存密码。", []string{"借用 Chrome 登录并重试"}},
 		{yt, core.FailNetwork, "", "连不上网络", "检查网络连接后再重试。", []string{"重试"}},
 		{"https://nonexistent-host-kando-review.invalid/video/1", core.FailHost, "", "找不到 nonexistent-host-kando-review.invalid", "网络正常的话，多半是链接里的网址写错了，或者这个网站已经关闭。换个链接，或检查网络后再重试。", []string{"换个链接", "重试"}},

@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestAudioCommandPrefersFFplay(t *testing.T) {
@@ -17,7 +19,7 @@ func TestAudioCommandPrefersFFplay(t *testing.T) {
 	if err != nil {
 		skipWithoutFFmpeg(t, "%v", err)
 	}
-	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 0)
+	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +43,7 @@ func TestAudioCommandSeeksWithThePicture(t *testing.T) {
 	if err != nil {
 		skipWithoutFFmpeg(t, "%v", err)
 	}
-	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 3*time.Second+250*time.Millisecond)
+	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 3*time.Second+250*time.Millisecond, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,5 +103,99 @@ func TestAudioEndsWithTheApp(t *testing.T) {
 				time.Sleep(20 * time.Millisecond)
 			}
 		})
+	}
+}
+
+// TestAudioCommandSetsTheVolume: ffplay plays at the volume as a percentage, afplay as a fraction, and a volume out of range is held within 0 and 1.
+func TestAudioCommandSetsTheVolume(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		skipWithoutFFmpeg(t, "%v", err)
+	}
+	for _, tc := range []struct {
+		volume         float64
+		ffplay, afplay string
+	}{{0.4, "40", "0.40"}, {0, "0", "0.00"}, {1.5, "100", "1.00"}, {-1, "0", "0.00"}} {
+		name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 0, tc.volume)
+		if err != nil {
+			t.Fatal(err)
+		}
+		flag, want := "-volume", tc.ffplay
+		if filepath.Base(name) == "afplay" {
+			flag, want = "-v", tc.afplay
+		}
+		if got := argAfter(args, flag); got != want {
+			t.Fatalf("volume %v: %s %q, want %q; args %v", tc.volume, flag, got, want, args)
+		}
+	}
+}
+
+// TestHeldFilmStartsAtTheNewVolume: the volume changed while the film is held drops the sound it had ready, and play starts it at the new volume.
+func TestHeldFilmStartsAtTheNewVolume(t *testing.T) {
+	a, tt, updates := openClip(t, 2)
+	if a.player.play.audio == nil {
+		t.Skip("no sound player for the clip")
+	}
+	a.SetVolume(0.3)
+	waitUntil(t, updates, func() bool { return a.player.play.volume == 0.3 })
+	if a.player.play.audio != nil {
+		t.Fatal("the held film kept its sound at the old volume")
+	}
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	audio := a.player.play.audio
+	if audio == nil {
+		t.Fatal("play did not start the sound")
+	}
+	flag, want := "-volume", "30"
+	if filepath.Base(audio.name) == "afplay" {
+		flag, want = "-v", "0.30"
+	}
+	if got := argAfter(audio.args, flag); got != want {
+		t.Fatalf("sound started at %q, want %q; args %v", got, want, audio.args)
+	}
+}
+
+func argAfter(args []string, flag string) string {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == flag {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+// TestAfplayPlaysOnlyFromTheStart: without ffplay the sound falls back to afplay, which cannot start partway into a file, so a sound asked for partway, after a seek or a new volume, is none rather than the film's start.
+func TestAfplayPlaysOnlyFromTheStart(t *testing.T) {
+	if _, err := os.Stat("/usr/bin/afplay"); err != nil {
+		t.Skip("no afplay")
+	}
+	t.Setenv("PATH", "/usr/bin")
+	name, args, err := audioCommand("", "/tmp/video.mp4", 0, 0.5)
+	if err != nil || filepath.Base(name) != "afplay" || argAfter(args, "-v") != "0.50" {
+		t.Fatalf("from the start: %s %v %v", name, args, err)
+	}
+	if name, args, err := audioCommand("", "/tmp/video.mp4", 3*time.Second, 0.5); err == nil {
+		t.Fatalf("afplay asked to start 3 seconds in: %s %v", name, args)
+	}
+}
+
+// TestMutedFilmHasNoSound: muting a playing film ends its sound rather than playing silence, and unmuting starts it again at the volume.
+func TestMutedFilmHasNoSound(t *testing.T) {
+	a, tt, updates := openClip(t, 4)
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if a.player.play.audio == nil {
+		t.Skip("no sound player for the clip")
+	}
+	tt.Key(0, ui.KeyM)
+	waitUntil(t, updates, func() bool { return a.player.play.volume == 0 })
+	if a.player.play.audio != nil {
+		t.Fatal("the muted film kept a sound process")
+	}
+	tt.Key(0, ui.KeyM)
+	waitUntil(t, updates, func() bool { return a.player.play.volume == 1 })
+	if a.player.play.audio == nil || argAfter(a.player.play.audio.args, "-volume") != "100" {
+		t.Fatalf("unmuting did not start the sound at the volume: %+v", a.player.play.audio)
 	}
 }

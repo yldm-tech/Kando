@@ -49,6 +49,7 @@ func (a *app) playerDidBecomeActive() {
 	bg := p.background
 	p.backgroundAt, p.backgroundHead, p.background = time.Time{}, 0, nil
 	if bg != nil && bg.opened.Load() {
+		p.returning = sound
 		close(bg.take)
 		return
 	}
@@ -58,6 +59,7 @@ func (a *app) playerDidBecomeActive() {
 	if p.paused || p.finished || p.path == "" || sound()-p.playhead() < backgroundDrift {
 		return
 	}
+	p.returning = sound
 	a.player.playFrom = sound()
 	a.player.playJump = true
 	a.startPlaybackWith(p.path, p, sound)
@@ -71,16 +73,19 @@ func (p *filmPlay) stopBackground() {
 	}
 }
 
-// backgroundSound is where the sound of p is at any moment since the app went inactive, held short of the film's end.
+// backgroundSound is where the sound of p is at any moment since the app went inactive.
 func (p *filmPlay) backgroundSound() func() time.Duration {
 	head, since, length := p.backgroundHead, p.backgroundAt, p.duration
-	return func() time.Duration {
-		at := head + max(time.Since(since), 0)
-		if length > 0 && at >= length {
-			at = max(0, length-100*time.Millisecond)
-		}
-		return at
+	return func() time.Duration { return soundClock(head, since, length, time.Now()) }
+}
+
+// soundClock is where a sound that was at head at since is at now, held short of the end of a film length long (0 when not known).
+func soundClock(head time.Duration, since time.Time, length time.Duration, now time.Time) time.Duration {
+	at := head + max(now.Sub(since), 0)
+	if length > 0 && at >= length {
+		at = max(0, length-100*time.Millisecond)
 	}
+	return at
 }
 
 // followSound watches, off the UI thread, whether the picture of p falls behind its sound, which happens only while the window is out of sight. Once it does, it opens a decoder where the sound is and keeps it on the frame the sound is in, until the app comes back (take) and the picture goes to the UI thread, or p is dropped (quit). A film without ffmpeg has nothing to follow.
@@ -106,14 +111,24 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 		}
 		tick.Stop()
 		bg.opened.Store(true)
+		// Without a picture to hand over, the app coming back leaves the picture where it stood, and the sound clock with it.
+		fail := func() {
+			select {
+			case <-bg.quit:
+			case <-bg.take:
+				update(func() { p.returning = nil })
+			}
+		}
 		at := sound()
 		frames, err := media.OpenFramesAt(ffmpeg, path, at)
 		if err != nil {
+			fail()
 			return
 		}
 		img, dur, err := frames.Next()
 		if err != nil {
 			frames.Close()
+			fail()
 			return
 		}
 		ended := false
@@ -150,6 +165,7 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 
 // takeBackgroundPicture shows, in place of p's picture that stood still, the picture decoded in the background: frames, standing on img, which began at at and lasts dur. The new picture takes p's sound over.
 func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameReader, img image.Image, at, dur time.Duration) {
+	p.returning = nil
 	if a.player.playGen != gen || a.player.play != p || p.paused || p.finished {
 		frames.Close()
 		return
@@ -165,7 +181,7 @@ func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameRea
 	p.audio = nil
 	a.playReplace(&filmPlay{
 		player: player, frames: dec, audio: audio, ffmpeg: p.ffmpeg, path: p.path,
-		duration: p.duration, played: true,
+		duration: p.duration, played: true, volume: p.volume,
 	})
 }
 

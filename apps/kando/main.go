@@ -43,6 +43,7 @@ type app struct {
 	feedback feedbackUI // state_feedback.go
 	palette  paletteUI  // state_palette.go
 	onb      onboardUI  // state_onboarding.go
+	sites    sitesUI    // state_sites.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -61,6 +62,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		feedback: newFeedbackUI(),
 		palette:  newPaletteUI(),
 		onb:      newOnboardUI(),
+		sites:    newSitesUI(),
 	}
 }
 
