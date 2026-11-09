@@ -39,6 +39,17 @@ check_macho() {
   fi
 }
 
+# smoke transcribes a second of silence with the smallest model, so a program that starts but cannot load its backends fails here rather than on a user's computer.
+smoke() {
+  fetch "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin" ggml-tiny.bin be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21
+  "$work/ffmpeg-out/ffmpeg" -nostdin -loglevel error -f lavfi -i anullsrc=r=16000:cl=mono -t 1 -c:a pcm_s16le "$work/silence.wav"
+  if ! "$1" -m "$work/ggml-tiny.bin" -f "$work/silence.wav" -np -oj -of "$work/silence" >"$work/smoke.log" 2>&1 || [ ! -s "$work/silence.json" ]; then
+    cat "$work/smoke.log"
+    echo "::error::whisper-cli could not transcribe"
+    exit 1
+  fi
+}
+
 ffmpeg_darwin() {
   export MACOSX_DEPLOYMENT_TARGET=12.0
   fetch "https://github.com/libsdl-org/SDL/releases/download/release-$SDL2_VERSION/SDL2-$SDL2_VERSION.tar.gz" sdl2.tar.gz "$SDL2_SHA256"
@@ -61,7 +72,7 @@ ffmpeg_darwin() {
     PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig" ./configure --prefix="$prefix" --pkg-config-flags=--static \
       --extra-cflags="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" --extra-ldflags="-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" \
       --disable-autodetect --enable-pthreads --enable-videotoolbox --enable-audiotoolbox --enable-zlib --enable-bzlib --enable-iconv \
-      --enable-sdl2 --enable-libdav1d --disable-ffprobe --disable-doc --disable-debug
+      --enable-sdl2 --enable-libdav1d --disable-ffprobe --disable-doc --disable-debug --extra-libs=-liconv
     make -j "$jobs"
   )
   local dir=$work/ffmpeg-out
@@ -107,9 +118,13 @@ whisper() {
         flags+=(-DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON)
       fi
       ;;
-    linux-*)
-      # A backend per processor generation, loaded from beside the program, so that it runs on any x86-64 or ARM64 and uses what the processor has.
+    linux-amd64)
+      # A backend per processor generation, loaded from beside the program, so that it runs on any x86-64 and uses what the processor has.
       flags+=(-DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON '-DCMAKE_INSTALL_RPATH=$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON)
+      ;;
+    linux-arm64)
+      # The ARM64 variants need a newer compiler than the older Ubuntu has, so it is one program for every ARMv8 processor.
+      flags+=(-DBUILD_SHARED_LIBS=OFF)
       ;;
   esac
   cmake -S "$src" -B "$build" "${flags[@]}"
@@ -121,7 +136,7 @@ whisper() {
       check_macho "$dir/whisper-cli"
       codesign --force --sign - "$dir/whisper-cli"
       ;;
-    linux-*)
+    linux-amd64)
       # The CPU backends are built as targets of their own, which whisper-cli does not depend on.
       cmake --build "$build" --parallel "$jobs"
       # The libraries go under the names the program asks for (their sonames) and the backends under their own, as files rather than links.
@@ -132,10 +147,12 @@ whisper() {
       for backend in "$build"/bin/libggml-cpu-*.so; do
         [ -e "$backend" ] && cp -L "$backend" "$dir/"
       done
-      echo "glibc: $(objdump -T "$dir"/* 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
       ;;
   esac
-  "$dir/whisper-cli" --help >/dev/null 2>&1 || { echo "::error::whisper-cli does not start"; "$dir/whisper-cli" --help; exit 1; }
+  if [[ $target == linux-* ]]; then
+    echo "glibc: $(objdump -T "$dir"/* 2>/dev/null | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1)"
+  fi
+  smoke "$dir/whisper-cli"
   cp "$src/LICENSE" "$dir/LICENSE-whisper.cpp.txt"
   pack "$dir" "whisper-$WHISPER_VERSION-$target.tar.gz"
 }
