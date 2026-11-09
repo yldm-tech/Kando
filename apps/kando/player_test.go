@@ -316,6 +316,44 @@ func TestPlaybackHandsTheSoundToTheReopenedPicture(t *testing.T) {
 	}
 }
 
+// TestPlaybackFollowsTheSoundBehindTheWindow checks that a picture that stands still in the background (the Tester builds no frames, as a window out of sight) is followed by a decoder of its own, whose picture coming back shows at once, where the sound is, with the same sound and without opening the film again.
+func TestPlaybackFollowsTheSoundBehindTheWindow(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	p := a.player.play
+	p.toggle()
+	sound := p.audio
+	a.playerDidResignActive()
+	bg := p.background
+	if bg == nil {
+		t.Fatal("no decoder follows the sound")
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for !bg.opened.Load() {
+		if time.Now().After(deadline) {
+			t.Fatal("the picture standing still was not noticed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(time.Second)
+	gen := a.player.playGen
+	want := p.backgroundSound()()
+	a.playerDidBecomeActive()
+	waitUntil(t, updates, func() bool { return a.player.play != p })
+	next := a.player.play
+	if a.player.playGen != gen {
+		t.Fatal("the film opened again instead of taking the picture decoded in the background")
+	}
+	if next.audio != sound || p.audio != nil {
+		t.Fatalf("the sound started again: %p, was %p", next.audio, sound)
+	}
+	if at := next.playhead(); !next.Playing() || at < want-200*time.Millisecond || at > want+300*time.Millisecond {
+		t.Fatalf("picture playing %v at %v, sound at %v", next.Playing(), at, want)
+	}
+	if p.background != nil || next.background != nil {
+		t.Fatal("a decoder still follows the sound after coming back")
+	}
+}
+
 func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {

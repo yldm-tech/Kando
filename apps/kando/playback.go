@@ -25,6 +25,8 @@ type filmPlay struct {
 	// backgroundAt and backgroundHead are the clock of a film that played as the app went inactive: the playhead then, and when. The sound plays on in the background, while the picture stops as long as the window is out of sight.
 	backgroundAt   time.Time
 	backgroundHead time.Duration
+	// background decodes the picture level with the sound while the window is out of sight (playback_background.go); nil while the app is active.
+	background *backgroundPicture
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool
 	// played is set once this playback has played: opened playing at a point picked for it (a seek, 继续, 从头看) or started with play. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
@@ -138,18 +140,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
 				duration: frames.Duration(), paused: paused, played: jump,
 			}
-			if keep != nil && !keep.backgroundAt.IsZero() {
-				// The app went inactive again while the picture opened: the new picture is level with the sound now.
-				next.backgroundAt, next.backgroundHead = time.Now(), next.playhead()
-			}
-			old := a.player.play
-			a.player.play = next
-			if old != nil {
-				if old.audio != nil {
-					old.audio.Close()
-				}
-				old.player.Close()
-			}
+			a.playReplace(next)
 			if frames.Duration() > 0 {
 				a.player.length = frames.Duration()
 			}
@@ -217,62 +208,11 @@ func (a *app) stopPlayback() {
 	if play.played {
 		a.rememberPosition(play)
 	}
+	play.stopBackground()
 	if play.audio != nil {
 		play.audio.Close()
 	}
 	play.player.Close()
-}
-
-// backgroundDrift is how far the picture may trail the sound when the app comes back before the picture opens again where the sound is. The picture of a window that stayed in sight kept pace with the sound, give or take the frames decoded ahead, and opening it again would only make it jump.
-const backgroundDrift = 200 * time.Millisecond
-
-// playerDidResignActive notes the clock of the playing film as the app goes inactive. Its sound, a process of its own, plays on; VideoPlayer stops the picture only while the window is out of sight.
-func (a *app) playerDidResignActive() {
-	p := a.player.play
-	if p == nil || p.finished || p.paused || !p.player.Playing() {
-		return
-	}
-	p.backgroundAt = time.Now()
-	p.backgroundHead = p.playhead()
-}
-
-// playerDidBecomeActive opens the picture again where the sound is, when the picture stood still behind the window while the sound played on. A picture that kept pace is left alone.
-func (a *app) playerDidBecomeActive() {
-	p := a.player.play
-	if p == nil || p.backgroundAt.IsZero() {
-		return
-	}
-	sound := p.backgroundSound()
-	p.backgroundAt, p.backgroundHead = time.Time{}, 0
-	if p.paused || p.finished || p.path == "" || sound()-p.playhead() < backgroundDrift {
-		return
-	}
-	a.player.playFrom = sound()
-	a.player.playJump = true
-	a.startPlaybackWith(p.path, p, sound)
-}
-
-// backgroundSound is where the sound of p is at any moment since the app went inactive, held short of the film's end.
-func (p *filmPlay) backgroundSound() func() time.Duration {
-	head, since, length := p.backgroundHead, p.backgroundAt, p.duration
-	return func() time.Duration {
-		at := head + max(time.Since(since), 0)
-		if length > 0 && at >= length {
-			at = max(0, length-100*time.Millisecond)
-		}
-		return at
-	}
-}
-
-func skipPlaybackFrames(frames *media.FrameReader, d time.Duration) error {
-	for d > 0 {
-		_, dur, err := frames.Next()
-		if err != nil {
-			return err
-		}
-		d -= dur
-	}
-	return nil
 }
 
 // playhead is how far the picture itself has gotten. It stays on the last frame once the file ends, instead of following the time since play was pressed.
@@ -372,11 +312,20 @@ func (p *filmPlay) restartAudioAt(at time.Duration) {
 // shown is the time of the frames decoded so far, including the one the player is about to show.
 type frameDecoder struct {
 	frames *media.FrameReader
-	mu     sync.Mutex
-	shown  time.Duration
+	// held is a frame read ahead of the decoder, which Next gives first: the frame a picture decoded in the background stood on when it was handed over.
+	held  *ui.VideoFrame
+	mu    sync.Mutex
+	shown time.Duration
 }
 
 func (d *frameDecoder) Next() (ui.VideoFrame, error) {
+	if f := d.held; f != nil {
+		d.held = nil
+		d.mu.Lock()
+		d.shown += f.Duration
+		d.mu.Unlock()
+		return *f, nil
+	}
 	img, dur, err := d.frames.Next()
 	if err != nil {
 		return ui.VideoFrame{}, err
