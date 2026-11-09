@@ -424,7 +424,7 @@ func TestFeedbackItemsAreMenuOnlyRows(t *testing.T) {
 			}
 			got = append(got, it.Label)
 		}
-		if !slices.Equal(got, []string{"快捷键速查", "重新查看入门引导", "-", "反馈问题…", "反馈字幕质量…"}) {
+		if !slices.Equal(got, []string{"快捷键速查", "重新查看入门引导", "-", "反馈问题…", "反馈字幕质量…", "支持的网站…"}) {
 			t.Fatalf("帮助 menu %q", got)
 		}
 	}

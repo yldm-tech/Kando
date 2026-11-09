@@ -1,0 +1,5587 @@
+{
+	"ytdlp": "2026.08.19",
+	"sites": [
+		{
+			"name": "YouTube",
+			"domain": "youtube.com",
+			"aliases": [
+				"youtu.be",
+				"YoutubeLivestreamEmbed",
+				"YoutubeYtBe"
+			],
+			"logo": "youtube.com.png",
+			"featured": true
+		},
+		{
+			"name": "哔哩哔哩",
+			"domain": "bilibili.com",
+			"aliases": [
+				"BiliBiliBangumi",
+				"BiliBiliBangumiMedia",
+				"BiliBiliBangumiSeason",
+				"BiliBiliDynamic",
+				"BiliBili",
+				"BiliBiliPlayer",
+				"BiliLive",
+				"BilibiliAudioAlbum",
+				"BilibiliAudio",
+				"Bilibili category extractor",
+				"BilibiliCheese",
+				"BilibiliCheeseSeason",
+				"BilibiliCollectionList",
+				"BilibiliFavoritesList",
+				"BilibiliPlaylist",
+				"BilibiliSeriesList",
+				"BilibiliSpaceAudio",
+				"BilibiliSpaceVideo",
+				"BilibiliWatchlater"
+			],
+			"logo": "bilibili.com.jpg",
+			"featured": true
+		},
+		{
+			"name": "抖音",
+			"domain": "douyin.com",
+			"aliases": [
+				"Douyin"
+			],
+			"logo": "douyin.com.png",
+			"featured": true
+		},
+		{
+			"name": "TikTok",
+			"domain": "tiktok.com",
+			"aliases": [
+				"vm.tiktok"
+			],
+			"logo": "tiktok.com.png",
+			"featured": true
+		},
+		{
+			"name": "X (Twitter)",
+			"domain": "twitter.com",
+			"aliases": [
+				"x.com",
+				"twitter"
+			],
+			"logo": "twitter.com.png",
+			"featured": true
+		},
+		{
+			"name": "Instagram",
+			"domain": "instagram.com",
+			"logo": "instagram.com.png",
+			"featured": true
+		},
+		{
+			"name": "Facebook",
+			"domain": "facebook.com",
+			"aliases": [
+				"FacebookPluginsVideo"
+			],
+			"logo": "facebook.com.png",
+			"featured": true
+		},
+		{
+			"name": "Vimeo",
+			"domain": "vimeo.com",
+			"logo": "vimeo.com.png",
+			"featured": true
+		},
+		{
+			"name": "Twitch",
+			"domain": "twitch.tv",
+			"logo": "twitch.tv.png",
+			"featured": true
+		},
+		{
+			"name": "niconico",
+			"domain": "nicovideo.jp",
+			"aliases": [
+				"NiconicoUser",
+				"nicovideo"
+			],
+			"logo": "nicovideo.jp.png",
+			"featured": true
+		},
+		{
+			"name": "微博",
+			"domain": "weibo.com",
+			"aliases": [
+				"Weibo",
+				"WeiboUser",
+				"WeiboVideo"
+			],
+			"logo": "weibo.com.png",
+			"featured": true
+		},
+		{
+			"name": "小红书",
+			"domain": "xiaohongshu.com",
+			"aliases": [
+				"XiaoHongShu"
+			],
+			"featured": true
+		},
+		{
+			"name": "西瓜视频",
+			"domain": "ixigua.com",
+			"aliases": [
+				"Ixigua"
+			],
+			"logo": "ixigua.com.png",
+			"featured": true
+		},
+		{
+			"name": "爱奇艺",
+			"domain": "iqiyi.com",
+			"aliases": [
+				"iqiyi"
+			],
+			"logo": "iqiyi.com.png",
+			"featured": true
+		},
+		{
+			"name": "iQIYI 国际版",
+			"domain": "iq.com",
+			"logo": "iq.com.jpg",
+			"featured": true
+		},
+		{
+			"name": "优酷",
+			"domain": "youku.com",
+			"aliases": [
+				"youku"
+			],
+			"logo": "youku.com.png",
+			"featured": true
+		},
+		{
+			"name": "腾讯视频",
+			"domain": "qq.com",
+			"aliases": [
+				"v.qq.com",
+				"qqmusic",
+				"vqq"
+			],
+			"logo": "qq.com.png",
+			"featured": true
+		},
+		{
+			"name": "WeTV",
+			"domain": "wetv.vip",
+			"aliases": [
+				"WeTvSeries"
+			],
+			"logo": "wetv.vip.jpg",
+			"featured": true
+		},
+		{
+			"name": "芒果 TV",
+			"domain": "mgtv.com",
+			"aliases": [
+				"MangoTV"
+			],
+			"logo": "mgtv.com.png",
+			"featured": true
+		},
+		{
+			"name": "AcFun",
+			"domain": "acfun.cn",
+			"aliases": [
+				"AcFunBangumi",
+				"AcFunVideo"
+			],
+			"logo": "acfun.cn.png",
+			"featured": true
+		},
+		{
+			"name": "虎牙",
+			"domain": "huya.com",
+			"aliases": [
+				"huya"
+			],
+			"logo": "huya.com.png",
+			"featured": true
+		},
+		{
+			"name": "斗鱼",
+			"domain": "douyu.com",
+			"aliases": [
+				"DouyuShow",
+				"DouyuTV"
+			],
+			"logo": "douyu.com.png",
+			"featured": true
+		},
+		{
+			"name": "ABEMA",
+			"domain": "abema.tv",
+			"aliases": [
+				"AbemaTV",
+				"AbemaTVTitle"
+			],
+			"logo": "abema.tv.png",
+			"featured": true
+		},
+		{
+			"name": "TVer",
+			"domain": "tver.jp",
+			"logo": "tver.jp.png",
+			"featured": true
+		},
+		{
+			"name": "NHK",
+			"domain": "nhk.or.jp",
+			"aliases": [
+				"NhkForSchoolBangumi",
+				"NhkForSchoolProgramList",
+				"NhkForSchoolSubject",
+				"NhkRadioNewsPage",
+				"NhkRadiru",
+				"NhkRadiruLive",
+				"NhkVod",
+				"NhkVodProgram"
+			],
+			"featured": true
+		},
+		{
+			"name": "Reddit",
+			"domain": "reddit.com",
+			"logo": "reddit.com.png",
+			"featured": true
+		},
+		{
+			"name": "Dailymotion",
+			"domain": "dailymotion.com",
+			"logo": "dailymotion.com.png",
+			"featured": true
+		},
+		{
+			"name": "TED",
+			"domain": "ted.com",
+			"aliases": [
+				"TedEmbed",
+				"TedPlaylist",
+				"TedSeries",
+				"TedTalk"
+			],
+			"logo": "ted.com.png",
+			"featured": true
+		},
+		{
+			"name": "BBC",
+			"domain": "bbc.co.uk",
+			"logo": "bbc.co.uk.png",
+			"featured": true
+		},
+		{
+			"name": "SoundCloud",
+			"domain": "soundcloud.com",
+			"aliases": [
+				"SoundcloudEmbed"
+			],
+			"logo": "soundcloud.com.jpg",
+			"featured": true
+		},
+		{
+			"name": "Bandcamp",
+			"domain": "bandcamp.com",
+			"logo": "bandcamp.com.png",
+			"featured": true
+		},
+		{
+			"name": "Kick",
+			"domain": "kick.com",
+			"logo": "kick.com.png",
+			"featured": true
+		},
+		{
+			"name": "Rumble",
+			"domain": "rumble.com",
+			"aliases": [
+				"RumbleChannel",
+				"RumbleEmbed"
+			],
+			"logo": "rumble.com.png",
+			"featured": true
+		},
+		{
+			"name": "VK",
+			"domain": "vk.com",
+			"logo": "vk.com.png",
+			"featured": true
+		},
+		{
+			"name": "NAVER",
+			"domain": "naver.com",
+			"aliases": [
+				"chzzk"
+			],
+			"logo": "naver.com.png",
+			"featured": true
+		},
+		{
+			"name": "10play",
+			"domain": "10.com.au",
+			"logo": "10.com.au.png"
+		},
+		{
+			"name": "17live",
+			"domain": "17.live",
+			"logo": "17.live.png"
+		},
+		{
+			"name": "1News",
+			"domain": "1news.co.nz",
+			"logo": "1news.co.nz.png"
+		},
+		{
+			"name": "23video",
+			"domain": "twentythree.net",
+			"logo": "twentythree.net.png"
+		},
+		{
+			"name": "24tv.ua",
+			"domain": "24tv.ua",
+			"logo": "24tv.ua.png"
+		},
+		{
+			"name": "3Q SDN",
+			"domain": "3qsdn.com",
+			"aliases": [
+				"3qsdn"
+			],
+			"logo": "3qsdn.com.png"
+		},
+		{
+			"name": "3sat",
+			"domain": "3sat.de",
+			"logo": "3sat.de.png"
+		},
+		{
+			"name": "4tube",
+			"domain": "4tube.com",
+			"logo": "4tube.com.png"
+		},
+		{
+			"name": "56.com",
+			"domain": "56.com",
+			"logo": "56.com.png"
+		},
+		{
+			"name": "7plus",
+			"domain": "7plus.com.au",
+			"logo": "7plus.com.au.png"
+		},
+		{
+			"name": "9GAG",
+			"domain": "9gag.com",
+			"logo": "9gag.com.png"
+		},
+		{
+			"name": "9News",
+			"domain": "9news.com.au",
+			"logo": "9news.com.au.png"
+		},
+		{
+			"name": "9now.com.au",
+			"domain": "9now.com.au",
+			"logo": "9now.com.au.png"
+		},
+		{
+			"name": "ABC Owned Television Stations",
+			"domain": "abc7news.com",
+			"aliases": [
+				"abcotvs"
+			],
+			"logo": "abc7news.com.png"
+		},
+		{
+			"name": "abc.net.au",
+			"domain": "abc.net.au",
+			"logo": "abc.net.au.png"
+		},
+		{
+			"name": "abcotvs",
+			"domain": "abcotvs.com",
+			"logo": "abcotvs.com.png"
+		},
+		{
+			"name": "AcademicEarth",
+			"domain": "academicearth.org",
+			"logo": "academicearth.org.png"
+		},
+		{
+			"name": "acast",
+			"domain": "acast.com",
+			"logo": "acast.com.png"
+		},
+		{
+			"name": "adobetv",
+			"domain": "adobe.com",
+			"logo": "adobe.com.png"
+		},
+		{
+			"name": "AdultSwim",
+			"domain": "adultswim.com",
+			"logo": "adultswim.com.png"
+		},
+		{
+			"name": "aenetworks",
+			"domain": "history.com",
+			"aliases": [
+				"history"
+			],
+			"logo": "history.com.png"
+		},
+		{
+			"name": "aenetworks",
+			"domain": "historyvault.com",
+			"logo": "historyvault.com.png"
+		},
+		{
+			"name": "AeonCo",
+			"domain": "aeon.co",
+			"logo": "aeon.co.png"
+		},
+		{
+			"name": "agalega",
+			"domain": "agalega.gal"
+		},
+		{
+			"name": "AitubeKZ",
+			"domain": "aitube.kz",
+			"aliases": [
+				"AitubeKZVideo"
+			],
+			"logo": "aitube.kz.png"
+		},
+		{
+			"name": "Alibaba",
+			"domain": "alibaba.com",
+			"logo": "alibaba.com.png"
+		},
+		{
+			"name": "AliExpress",
+			"domain": "aliexpress.com",
+			"aliases": [
+				"AliExpressLive"
+			],
+			"logo": "aliexpress.com.png"
+		},
+		{
+			"name": "AlJazeera",
+			"domain": "aljazeera.net",
+			"logo": "aljazeera.net.png"
+		},
+		{
+			"name": "Allocine",
+			"domain": "allocine.fr",
+			"logo": "allocine.fr.png"
+		},
+		{
+			"name": "Allstar",
+			"domain": "allstar.gg",
+			"aliases": [
+				"AllstarProfile"
+			],
+			"logo": "allstar.gg.png"
+		},
+		{
+			"name": "AlphaPorno",
+			"domain": "alphaporno.com",
+			"logo": "alphaporno.com.png"
+		},
+		{
+			"name": "altcensored",
+			"domain": "altcensored.com",
+			"logo": "altcensored.com.png"
+		},
+		{
+			"name": "Alura",
+			"domain": "alura.com.br",
+			"aliases": [
+				"AluraCourse"
+			],
+			"logo": "alura.com.br.png"
+		},
+		{
+			"name": "AmadeusTV",
+			"domain": "amadeus.tv",
+			"logo": "amadeus.tv.jpg"
+		},
+		{
+			"name": "Amara",
+			"domain": "amara.org",
+			"logo": "amara.org.png"
+		},
+		{
+			"name": "Amazon MX Player",
+			"domain": "mxplayer.in",
+			"aliases": [
+				"mxplayer"
+			],
+			"logo": "mxplayer.in.png"
+		},
+		{
+			"name": "AmazonMiniTV",
+			"domain": "amazon.in",
+			"logo": "amazon.in.png"
+		},
+		{
+			"name": "AmazonReviews",
+			"domain": "amazon.com",
+			"logo": "amazon.com.png"
+		},
+		{
+			"name": "AmazonStore",
+			"domain": "amazon.co.uk",
+			"logo": "amazon.co.uk.png"
+		},
+		{
+			"name": "AMCNetworks",
+			"domain": "amc.com",
+			"logo": "amc.com.png"
+		},
+		{
+			"name": "AmericasTestKitchen",
+			"domain": "americastestkitchen.com",
+			"aliases": [
+				"AmericasTestKitchenSeason"
+			],
+			"logo": "americastestkitchen.com.png"
+		},
+		{
+			"name": "AmHistory",
+			"domain": "ahctv.com",
+			"aliases": [
+				"AmHistoryChannel"
+			],
+			"logo": "ahctv.com.png"
+		},
+		{
+			"name": "anderetijden",
+			"domain": "anderetijden.nl",
+			"logo": "anderetijden.nl.png"
+		},
+		{
+			"name": "Angel",
+			"domain": "angel.com",
+			"logo": "angel.com.png"
+		},
+		{
+			"name": "AnimalPlanet",
+			"domain": "animalplanet.com",
+			"logo": "animalplanet.com.png"
+		},
+		{
+			"name": "Animation Digital Network",
+			"domain": "animationdigitalnetwork.com",
+			"aliases": [
+				"ADN",
+				"ADNSeason"
+			],
+			"logo": "animationdigitalnetwork.com.png"
+		},
+		{
+			"name": "ant1newsgr",
+			"domain": "antenna.gr",
+			"logo": "antenna.gr.png"
+		},
+		{
+			"name": "antenna",
+			"domain": "ant1news.gr",
+			"aliases": [
+				"ant1newsgr"
+			],
+			"logo": "ant1news.gr.png"
+		},
+		{
+			"name": "APA",
+			"domain": "apa.at",
+			"logo": "apa.at.jpg"
+		},
+		{
+			"name": "Aparat",
+			"domain": "aparat.com",
+			"logo": "aparat.com.png"
+		},
+		{
+			"name": "apple",
+			"domain": "apple.com",
+			"logo": "apple.com.png"
+		},
+		{
+			"name": "archive.org",
+			"domain": "archive.org",
+			"aliases": [
+				"web.archive"
+			],
+			"logo": "archive.org.png"
+		},
+		{
+			"name": "ARDAudiothek",
+			"domain": "ardaudiothek.de",
+			"aliases": [
+				"ARDAudiothekPlaylist"
+			],
+			"logo": "ardaudiothek.de.png"
+		},
+		{
+			"name": "ARDMediathek",
+			"domain": "ardmediathek.de",
+			"aliases": [
+				"ARDMediathekCollection"
+			],
+			"logo": "ardmediathek.de.png"
+		},
+		{
+			"name": "Art19",
+			"domain": "art19.com",
+			"aliases": [
+				"Art19Show"
+			],
+			"logo": "art19.com.png"
+		},
+		{
+			"name": "ArteTV",
+			"domain": "arte.tv",
+			"aliases": [
+				"ArteTVCategory",
+				"ArteTVEmbed",
+				"ArteTVPlaylist"
+			]
+		},
+		{
+			"name": "AsobiStage",
+			"domain": "asobistore.jp",
+			"aliases": [
+				"asobichannel"
+			],
+			"logo": "asobistore.jp.png"
+		},
+		{
+			"name": "Atres",
+			"domain": "atresplayer.com",
+			"aliases": [
+				"AtresPlayer"
+			],
+			"logo": "atresplayer.com.png"
+		},
+		{
+			"name": "AtScaleConfEvent",
+			"domain": "atscaleconference.com",
+			"logo": "atscaleconference.com.png"
+		},
+		{
+			"name": "AudiMedia",
+			"domain": "audi-mediacenter.com",
+			"logo": "audi-mediacenter.com.png"
+		},
+		{
+			"name": "AudioBoom",
+			"domain": "audioboom.com",
+			"logo": "audioboom.com.png"
+		},
+		{
+			"name": "Audiodraft",
+			"domain": "audiodraft.com",
+			"logo": "audiodraft.com.png"
+		},
+		{
+			"name": "audiomack",
+			"domain": "audiomack.com",
+			"logo": "audiomack.com.png"
+		},
+		{
+			"name": "Audius",
+			"domain": "audius.co",
+			"logo": "audius.co.png"
+		},
+		{
+			"name": "AZMedien",
+			"domain": "telezueri.ch",
+			"logo": "telezueri.ch.png"
+		},
+		{
+			"name": "BanBye",
+			"domain": "banbye.com",
+			"aliases": [
+				"BanByeChannel"
+			],
+			"logo": "banbye.com.png"
+		},
+		{
+			"name": "Bandlab",
+			"domain": "bandlab.com",
+			"aliases": [
+				"BandlabPlaylist"
+			],
+			"logo": "bandlab.com.png"
+		},
+		{
+			"name": "Banned",
+			"domain": "banned.video",
+			"aliases": [
+				"BannedVideo"
+			],
+			"logo": "banned.video.jpg"
+		},
+		{
+			"name": "BBC",
+			"domain": "bbc.com",
+			"logo": "bbc.com.png"
+		},
+		{
+			"name": "BBVTV",
+			"domain": "bbv-tv.net",
+			"aliases": [
+				"BBVTVLive",
+				"BBVTVRecordings"
+			],
+			"logo": "bbv-tv.net.png"
+		},
+		{
+			"name": "BeaconTv",
+			"domain": "beacon.tv",
+			"logo": "beacon.tv.png"
+		},
+		{
+			"name": "Beatport",
+			"domain": "beatport.com",
+			"logo": "beatport.com.png"
+		},
+		{
+			"name": "Beeg",
+			"domain": "beeg.com",
+			"logo": "beeg.com.jpg"
+		},
+		{
+			"name": "Bergens Tidende Articles",
+			"domain": "bt.no",
+			"aliases": [
+				"bt"
+			],
+			"logo": "bt.no.png"
+		},
+		{
+			"name": "BerufeTV",
+			"domain": "arbeitsagentur.de",
+			"logo": "arbeitsagentur.de.png"
+		},
+		{
+			"name": "Bet",
+			"domain": "bet.com",
+			"logo": "bet.com.png"
+		},
+		{
+			"name": "bfmtv",
+			"domain": "bfmtv.com",
+			"logo": "bfmtv.com.jpg"
+		},
+		{
+			"name": "bibeltv",
+			"domain": "bibeltv.de",
+			"logo": "bibeltv.de.png"
+		},
+		{
+			"name": "Bigo",
+			"domain": "bigo.tv",
+			"logo": "bigo.tv.png"
+		},
+		{
+			"name": "Bild",
+			"domain": "bild.de",
+			"logo": "bild.de.png"
+		},
+		{
+			"name": "BiliIntl",
+			"domain": "bilibili.tv",
+			"logo": "bilibili.tv.png"
+		},
+		{
+			"name": "BioBioChileTV",
+			"domain": "biobiochile.cl",
+			"logo": "biobiochile.cl.png"
+		},
+		{
+			"name": "Biography",
+			"domain": "biography.com",
+			"logo": "biography.com.png"
+		},
+		{
+			"name": "BitChute",
+			"domain": "bitchute.com",
+			"aliases": [
+				"BitChuteChannel"
+			],
+			"logo": "bitchute.com.png"
+		},
+		{
+			"name": "Bitmovin",
+			"domain": "bitmovin.com",
+			"logo": "bitmovin.com.png"
+		},
+		{
+			"name": "BlackboardCollaborate",
+			"domain": "bbcollab.com",
+			"aliases": [
+				"BlackboardCollaborateLaunch"
+			]
+		},
+		{
+			"name": "blerp",
+			"domain": "blerp.com",
+			"logo": "blerp.com.png"
+		},
+		{
+			"name": "blogger.com",
+			"domain": "blogger.com",
+			"logo": "blogger.com.png"
+		},
+		{
+			"name": "Bloomberg",
+			"domain": "bloomberg.com",
+			"logo": "bloomberg.com.png"
+		},
+		{
+			"name": "Bluesky",
+			"domain": "bsky.app",
+			"logo": "bsky.app.png"
+		},
+		{
+			"name": "BongaCams",
+			"domain": "bongacams.com",
+			"logo": "bongacams.com.png"
+		},
+		{
+			"name": "Boosty",
+			"domain": "boosty.to",
+			"logo": "boosty.to.png"
+		},
+		{
+			"name": "BostonGlobe",
+			"domain": "bostonglobe.com",
+			"logo": "bostonglobe.com.jpg"
+		},
+		{
+			"name": "Box",
+			"domain": "box.com",
+			"logo": "box.com.png"
+		},
+		{
+			"name": "BoxCast",
+			"domain": "boxcast.tv",
+			"aliases": [
+				"BoxCastVideo"
+			],
+			"logo": "boxcast.tv.png"
+		},
+		{
+			"name": "Bpb",
+			"domain": "bpb.de",
+			"logo": "bpb.de.png"
+		},
+		{
+			"name": "BrainPOP",
+			"domain": "brainpop.com",
+			"aliases": [
+				"BrainPOPELL",
+				"BrainPOPEsp",
+				"BrainPOPFr",
+				"BrainPOPIl",
+				"BrainPOPJr"
+			],
+			"logo": "brainpop.com.jpg"
+		},
+		{
+			"name": "BravoTV",
+			"domain": "bravotv.com",
+			"logo": "bravotv.com.png"
+		},
+		{
+			"name": "BreitBart",
+			"domain": "breitbart.com",
+			"logo": "breitbart.com.png"
+		},
+		{
+			"name": "brightcove",
+			"domain": "brightcove.com",
+			"logo": "brightcove.com.png"
+		},
+		{
+			"name": "brightcove",
+			"domain": "brightcove.net"
+		},
+		{
+			"name": "Brilliantpala",
+			"domain": "brilliantpala.org",
+			"logo": "brilliantpala.org.png"
+		},
+		{
+			"name": "BTVPlus",
+			"domain": "btvplus.bg",
+			"logo": "btvplus.bg.png"
+		},
+		{
+			"name": "Bundesliga",
+			"domain": "bundesliga.com",
+			"logo": "bundesliga.com.png"
+		},
+		{
+			"name": "Bundestag",
+			"domain": "dbtg.tv",
+			"logo": "dbtg.tv.png"
+		},
+		{
+			"name": "BunnyCdn",
+			"domain": "mediadelivery.net"
+		},
+		{
+			"name": "BusinessInsider",
+			"domain": "businessinsider.com",
+			"logo": "businessinsider.com.png"
+		},
+		{
+			"name": "BuzzFeed",
+			"domain": "buzzfeed.com",
+			"logo": "buzzfeed.com.png"
+		},
+		{
+			"name": "C-SPAN",
+			"domain": "c-span.org",
+			"aliases": [
+				"CSpanCongress",
+				"CSpan"
+			],
+			"logo": "c-span.org.png"
+		},
+		{
+			"name": "Caltrans",
+			"domain": "ca.gov",
+			"logo": "ca.gov.png"
+		},
+		{
+			"name": "CAM4",
+			"domain": "cam4.com",
+			"logo": "cam4.com.png"
+		},
+		{
+			"name": "CamFM",
+			"domain": "camfm.co.uk",
+			"aliases": [
+				"CamFMEpisode",
+				"CamFMShow"
+			],
+			"logo": "camfm.co.uk.png"
+		},
+		{
+			"name": "CamModels",
+			"domain": "cammodels.com",
+			"logo": "cammodels.com.png"
+		},
+		{
+			"name": "Camsoda",
+			"domain": "camsoda.com",
+			"logo": "camsoda.com.png"
+		},
+		{
+			"name": "Canal1",
+			"domain": "canal1.com.co",
+			"logo": "canal1.com.co.jpg"
+		},
+		{
+			"name": "CanalAlpha",
+			"domain": "canalalpha.ch",
+			"logo": "canalalpha.ch.png"
+		},
+		{
+			"name": "canalc2.tv",
+			"domain": "canalc2.tv",
+			"logo": "canalc2.tv.png"
+		},
+		{
+			"name": "Canalplus",
+			"domain": "mycanal.fr",
+			"logo": "mycanal.fr.jpg"
+		},
+		{
+			"name": "Canalsurmas",
+			"domain": "canalsurmas.es",
+			"logo": "canalsurmas.es.png"
+		},
+		{
+			"name": "CaracolTvPlay",
+			"domain": "caracoltv.com",
+			"logo": "caracoltv.com.png"
+		},
+		{
+			"name": "cbc.ca",
+			"domain": "cbc.ca",
+			"aliases": [
+				"gem.cbc.ca"
+			],
+			"logo": "cbc.ca.png"
+		},
+		{
+			"name": "CBS News",
+			"domain": "cbsnews.com",
+			"aliases": [
+				"CBSLocalArticle",
+				"CBSLocal",
+				"CBSLocalLive",
+				"cbsnews"
+			],
+			"logo": "cbsnews.com.png"
+		},
+		{
+			"name": "CCMA",
+			"domain": "3cat.cat",
+			"logo": "3cat.cat.png"
+		},
+		{
+			"name": "CDA",
+			"domain": "cda.pl",
+			"aliases": [
+				"CDAFolder"
+			],
+			"logo": "cda.pl.png"
+		},
+		{
+			"name": "Cellebrite",
+			"domain": "cellebrite.com",
+			"logo": "cellebrite.com.png"
+		},
+		{
+			"name": "CeskaTelevize",
+			"domain": "ceskatelevize.cz",
+			"logo": "ceskatelevize.cz.png"
+		},
+		{
+			"name": "CGTN",
+			"domain": "cgtn.com",
+			"logo": "cgtn.com.png"
+		},
+		{
+			"name": "CharlieRose",
+			"domain": "charlierose.com",
+			"logo": "charlierose.com.jpg"
+		},
+		{
+			"name": "Chaturbate",
+			"domain": "chaturbate.com",
+			"logo": "chaturbate.com.png"
+		},
+		{
+			"name": "Chilloutzone",
+			"domain": "chilloutzone.net",
+			"logo": "chilloutzone.net.png"
+		},
+		{
+			"name": "cielotv.it",
+			"domain": "cielotv.it",
+			"logo": "cielotv.it.png"
+		},
+		{
+			"name": "CinetecaMilano",
+			"domain": "cinetecamilano.it",
+			"logo": "cinetecamilano.it.png"
+		},
+		{
+			"name": "Cineverse",
+			"domain": "asiancrush.com",
+			"logo": "asiancrush.com.jpg"
+		},
+		{
+			"name": "CineverseDetails",
+			"domain": "retrocrush.tv",
+			"logo": "retrocrush.tv.png"
+		},
+		{
+			"name": "Cisco Webex",
+			"domain": "webex.com",
+			"aliases": [
+				"ciscowebex"
+			],
+			"logo": "webex.com.png"
+		},
+		{
+			"name": "CiscoLiveSearch",
+			"domain": "cisco.com",
+			"aliases": [
+				"CiscoLiveSession"
+			],
+			"logo": "cisco.com.png"
+		},
+		{
+			"name": "CJSW",
+			"domain": "cjsw.com",
+			"logo": "cjsw.com.png"
+		},
+		{
+			"name": "Clipchamp",
+			"domain": "clipchamp.com",
+			"logo": "clipchamp.com.png"
+		},
+		{
+			"name": "CloudflareStream",
+			"domain": "cloudflarestream.com"
+		},
+		{
+			"name": "CloudyCDN",
+			"domain": "cloudycdn.services"
+		},
+		{
+			"name": "Clyp",
+			"domain": "clyp.it",
+			"logo": "clyp.it.png"
+		},
+		{
+			"name": "CNBC",
+			"domain": "cnbc.com",
+			"aliases": [
+				"CNBCVideo"
+			],
+			"logo": "cnbc.com.png"
+		},
+		{
+			"name": "CNN",
+			"domain": "cnn.com",
+			"logo": "cnn.com.png"
+		},
+		{
+			"name": "CNNIndonesia",
+			"domain": "cnnindonesia.com",
+			"logo": "cnnindonesia.com.png"
+		},
+		{
+			"name": "ComedyCentral",
+			"domain": "cc.com",
+			"aliases": [
+				"southpark.cc.com"
+			],
+			"logo": "cc.com.png"
+		},
+		{
+			"name": "CondeNast",
+			"domain": "wired.com",
+			"logo": "wired.com.png"
+		},
+		{
+			"name": "Cooking",
+			"domain": "cookingchanneltv.com",
+			"aliases": [
+				"CookingChannel",
+				"ScrippsNetworks"
+			],
+			"logo": "cookingchanneltv.com.png"
+		},
+		{
+			"name": "Corus",
+			"domain": "hgtv.ca",
+			"logo": "hgtv.ca.png"
+		},
+		{
+			"name": "Coub",
+			"domain": "coub.com",
+			"logo": "coub.com.png"
+		},
+		{
+			"name": "CozyTV",
+			"domain": "cozy.tv",
+			"logo": "cozy.tv.jpg"
+		},
+		{
+			"name": "cp24",
+			"domain": "cp24.com",
+			"logo": "cp24.com.png"
+		},
+		{
+			"name": "cpac",
+			"domain": "cpac.ca",
+			"logo": "cpac.ca.png"
+		},
+		{
+			"name": "Cracked",
+			"domain": "cracked.com",
+			"logo": "cracked.com.png"
+		},
+		{
+			"name": "Craftsy",
+			"domain": "craftsy.com",
+			"logo": "craftsy.com.png"
+		},
+		{
+			"name": "croatian.film",
+			"domain": "croatian.film",
+			"logo": "croatian.film.png"
+		},
+		{
+			"name": "CrooksAndLiars",
+			"domain": "crooksandliars.com",
+			"logo": "crooksandliars.com.jpg"
+		},
+		{
+			"name": "CrowdBunker",
+			"domain": "crowdbunker.com",
+			"aliases": [
+				"CrowdBunkerChannel"
+			],
+			"logo": "crowdbunker.com.png"
+		},
+		{
+			"name": "Crtvg",
+			"domain": "crtvg.es",
+			"logo": "crtvg.es.png"
+		},
+		{
+			"name": "CTVNews",
+			"domain": "ctvnews.ca",
+			"logo": "ctvnews.ca.png"
+		},
+		{
+			"name": "CultureUnplugged",
+			"domain": "cultureunplugged.com",
+			"logo": "cultureunplugged.com.png"
+		},
+		{
+			"name": "curiositystream",
+			"domain": "curiositystream.com",
+			"logo": "curiositystream.com.png"
+		},
+		{
+			"name": "Cybrary",
+			"domain": "cybrary.it",
+			"aliases": [
+				"CybraryCourse"
+			],
+			"logo": "cybrary.it.jpg"
+		},
+		{
+			"name": "Dacast",
+			"domain": "dacast.com",
+			"aliases": [
+				"DacastPlaylist",
+				"DacastVOD"
+			],
+			"logo": "dacast.com.png"
+		},
+		{
+			"name": "DagelijkseKost",
+			"domain": "een.be",
+			"logo": "een.be.jpg"
+		},
+		{
+			"name": "DailyMail",
+			"domain": "dailymail.co.uk",
+			"logo": "dailymail.co.uk.png"
+		},
+		{
+			"name": "DailyWire",
+			"domain": "dailywire.com",
+			"aliases": [
+				"DailyWirePodcast"
+			],
+			"logo": "dailywire.com.png"
+		},
+		{
+			"name": "damtomo",
+			"domain": "clubdam.com"
+		},
+		{
+			"name": "dangalplay",
+			"domain": "dangalplay.com",
+			"logo": "dangalplay.com.png"
+		},
+		{
+			"name": "daum.net",
+			"domain": "daum.net",
+			"logo": "daum.net.png"
+		},
+		{
+			"name": "daystar",
+			"domain": "daystar.tv",
+			"logo": "daystar.tv.png"
+		},
+		{
+			"name": "DBTV",
+			"domain": "dagbladet.no",
+			"logo": "dagbladet.no.png"
+		},
+		{
+			"name": "DctpTv",
+			"domain": "dctp.tv",
+			"logo": "dctp.tv.png"
+		},
+		{
+			"name": "democracynow",
+			"domain": "democracynow.org",
+			"logo": "democracynow.org.png"
+		},
+		{
+			"name": "DestinationAmerica",
+			"domain": "destinationamerica.com",
+			"logo": "destinationamerica.com.png"
+		},
+		{
+			"name": "DeuxM",
+			"domain": "2m.ma",
+			"aliases": [
+				"DeuxMNews"
+			],
+			"logo": "2m.ma.png"
+		},
+		{
+			"name": "DigitalConcertHall extractor",
+			"domain": "digitalconcerthall.com",
+			"aliases": [
+				"DigitalConcertHall"
+			],
+			"logo": "digitalconcerthall.com.png"
+		},
+		{
+			"name": "Digiteka",
+			"domain": "ultimedia.com",
+			"logo": "ultimedia.com.png"
+		},
+		{
+			"name": "Digiview",
+			"domain": "ladigitale.dev",
+			"logo": "ladigitale.dev.png"
+		},
+		{
+			"name": "DiscogsRelease",
+			"domain": "discogs.com",
+			"aliases": [
+				"DiscogsReleasePlaylist"
+			],
+			"logo": "discogs.com.png"
+		},
+		{
+			"name": "DiscoveryLife",
+			"domain": "discoverylife.com",
+			"logo": "discoverylife.com.png"
+		},
+		{
+			"name": "DiscoveryNetworksDe",
+			"domain": "dmax.de",
+			"logo": "dmax.de.png"
+		},
+		{
+			"name": "DiscoveryPlus",
+			"domain": "discoveryplus.com",
+			"aliases": [
+				"DiscoveryPlusItaly"
+			],
+			"logo": "discoveryplus.com.jpg"
+		},
+		{
+			"name": "DiscoveryPlusIndia",
+			"domain": "discoveryplus.in",
+			"aliases": [
+				"DiscoveryPlusIndiaShow"
+			],
+			"logo": "discoveryplus.in.jpg"
+		},
+		{
+			"name": "DiscoveryPlusItaly",
+			"domain": "discoveryplus.it",
+			"aliases": [
+				"DiscoveryPlusItalyShow"
+			],
+			"logo": "discoveryplus.it.jpg"
+		},
+		{
+			"name": "Disney",
+			"domain": "disney.com",
+			"logo": "disney.com.png"
+		},
+		{
+			"name": "dlf",
+			"domain": "deutschlandfunk.de",
+			"logo": "deutschlandfunk.de.png"
+		},
+		{
+			"name": "dlive",
+			"domain": "dlive.tv",
+			"logo": "dlive.tv.png"
+		},
+		{
+			"name": "DPlay",
+			"domain": "dplay.se"
+		},
+		{
+			"name": "Dropbox",
+			"domain": "dropbox.com",
+			"logo": "dropbox.com.png"
+		},
+		{
+			"name": "Dropout",
+			"domain": "dropout.tv",
+			"aliases": [
+				"DropoutSeason"
+			],
+			"logo": "dropout.tv.png"
+		},
+		{
+			"name": "DrTalks",
+			"domain": "drtalks.com",
+			"logo": "drtalks.com.png"
+		},
+		{
+			"name": "DrTuber",
+			"domain": "drtuber.com",
+			"logo": "drtuber.com.jpg"
+		},
+		{
+			"name": "drtv",
+			"domain": "dr.dk",
+			"aliases": [
+				"DRBonanza"
+			],
+			"logo": "dr.dk.png"
+		},
+		{
+			"name": "Dumpert",
+			"domain": "dumpert.nl",
+			"logo": "dumpert.nl.png"
+		},
+		{
+			"name": "Duoplay",
+			"domain": "duoplay.ee",
+			"logo": "duoplay.ee.png"
+		},
+		{
+			"name": "dvtv",
+			"domain": "aktualne.cz",
+			"logo": "aktualne.cz.png"
+		},
+		{
+			"name": "dzen.ru",
+			"domain": "yandex.ru",
+			"aliases": [
+				"yandexmusic",
+				"YandexVideo",
+				"YandexVideoPreview"
+			],
+			"logo": "yandex.ru.png"
+		},
+		{
+			"name": "EbaumsWorld",
+			"domain": "ebaumsworld.com",
+			"logo": "ebaumsworld.com.png"
+		},
+		{
+			"name": "Ebay",
+			"domain": "ebay.com",
+			"logo": "ebay.com.png"
+		},
+		{
+			"name": "egghead",
+			"domain": "egghead.io",
+			"logo": "egghead.io.png"
+		},
+		{
+			"name": "eggs",
+			"domain": "eggs.mu",
+			"logo": "eggs.mu.png"
+		},
+		{
+			"name": "EinsUndEinsTV",
+			"domain": "1und1.tv",
+			"aliases": [
+				"EinsUndEinsTVLive",
+				"EinsUndEinsTVRecordings"
+			],
+			"logo": "1und1.tv.png"
+		},
+		{
+			"name": "El País",
+			"domain": "elpais.com",
+			"aliases": [
+				"ElPais"
+			],
+			"logo": "elpais.com.png"
+		},
+		{
+			"name": "Elonet",
+			"domain": "finna.fi"
+		},
+		{
+			"name": "ElTreceTV",
+			"domain": "eltrecetv.com.ar",
+			"logo": "eltrecetv.com.ar.jpg"
+		},
+		{
+			"name": "Embedly",
+			"domain": "embedly.com",
+			"logo": "embedly.com.png"
+		},
+		{
+			"name": "EMPFlix",
+			"domain": "empflix.com",
+			"logo": "empflix.com.png"
+		},
+		{
+			"name": "Epicon",
+			"domain": "epicon.in",
+			"aliases": [
+				"EpiconSeries"
+			],
+			"logo": "epicon.in.jpg"
+		},
+		{
+			"name": "EpidemicSound",
+			"domain": "epidemicsound.com",
+			"logo": "epidemicsound.com.png"
+		},
+		{
+			"name": "eplus",
+			"domain": "eplus.jp",
+			"logo": "eplus.jp.png"
+		},
+		{
+			"name": "Epoch",
+			"domain": "theepochtimes.com",
+			"logo": "theepochtimes.com.png"
+		},
+		{
+			"name": "Eporner",
+			"domain": "eporner.com",
+			"logo": "eporner.com.png"
+		},
+		{
+			"name": "Erocast",
+			"domain": "erocast.me",
+			"logo": "erocast.me.png"
+		},
+		{
+			"name": "EroProfile",
+			"domain": "eroprofile.com",
+			"logo": "eroprofile.com.png"
+		},
+		{
+			"name": "ERRArhiiv",
+			"domain": "err.ee",
+			"aliases": [
+				"ERRJupiter"
+			],
+			"logo": "err.ee.png"
+		},
+		{
+			"name": "ertflix",
+			"domain": "ertflix.gr",
+			"logo": "ertflix.gr.png"
+		},
+		{
+			"name": "ertwebtv",
+			"domain": "ert.gr"
+		},
+		{
+			"name": "ESPN",
+			"domain": "go.com",
+			"aliases": [
+				"abcnews",
+				"ESPNArticle"
+			],
+			"logo": "go.com.png"
+		},
+		{
+			"name": "ESPNCricInfo",
+			"domain": "espncricinfo.com",
+			"logo": "espncricinfo.com.png"
+		},
+		{
+			"name": "EttuTv",
+			"domain": "ettu.tv",
+			"logo": "ettu.tv.png"
+		},
+		{
+			"name": "EuroParlWebstream",
+			"domain": "europa.eu",
+			"logo": "europa.eu.png"
+		},
+		{
+			"name": "EuropeanTour",
+			"domain": "europeantour.com",
+			"logo": "europeantour.com.png"
+		},
+		{
+			"name": "Eurosport",
+			"domain": "eurosport.com",
+			"logo": "eurosport.com.png"
+		},
+		{
+			"name": "EUScreen",
+			"domain": "euscreen.eu",
+			"logo": "euscreen.eu.png"
+		},
+		{
+			"name": "EWETV",
+			"domain": "ewe.de",
+			"aliases": [
+				"EWETVLive",
+				"EWETVRecordings"
+			],
+			"logo": "ewe.de.png"
+		},
+		{
+			"name": "Expressen",
+			"domain": "expressen.se",
+			"logo": "expressen.se.png"
+		},
+		{
+			"name": "Fathom",
+			"domain": "fathom.video",
+			"logo": "fathom.video.png"
+		},
+		{
+			"name": "Faulio",
+			"domain": "sba.sa",
+			"aliases": [
+				"FaulioLive"
+			]
+		},
+		{
+			"name": "faz.net",
+			"domain": "faz.net",
+			"logo": "faz.net.png"
+		},
+		{
+			"name": "fc2",
+			"domain": "fc2.com",
+			"logo": "fc2.com.png"
+		},
+		{
+			"name": "Fczenit",
+			"domain": "fc-zenit.ru",
+			"logo": "fc-zenit.ru.png"
+		},
+		{
+			"name": "Fifa",
+			"domain": "fifa.com",
+			"logo": "fifa.com.png"
+		},
+		{
+			"name": "FILMARCHIV ON",
+			"domain": "filmarchiv.at",
+			"aliases": [
+				"FilmArchiv"
+			],
+			"logo": "filmarchiv.at.png"
+		},
+		{
+			"name": "filmon",
+			"domain": "filmon.com",
+			"logo": "filmon.com.jpg"
+		},
+		{
+			"name": "Filmweb",
+			"domain": "filmweb.no",
+			"logo": "filmweb.no.png"
+		},
+		{
+			"name": "FiveThirtyEight",
+			"domain": "fivethirtyeight.com",
+			"logo": "fivethirtyeight.com.png"
+		},
+		{
+			"name": "FiveTV",
+			"domain": "5-tv.ru",
+			"logo": "5-tv.ru.png"
+		},
+		{
+			"name": "Flickr",
+			"domain": "flickr.com",
+			"logo": "flickr.com.png"
+		},
+		{
+			"name": "Floatplane",
+			"domain": "floatplane.com",
+			"aliases": [
+				"FloatplaneChannel"
+			],
+			"logo": "floatplane.com.png"
+		},
+		{
+			"name": "FoodNetwork",
+			"domain": "foodnetwork.com",
+			"logo": "foodnetwork.com.png"
+		},
+		{
+			"name": "FootyRoom",
+			"domain": "footyroom.com",
+			"logo": "footyroom.com.png"
+		},
+		{
+			"name": "Formula1",
+			"domain": "formula1.com",
+			"logo": "formula1.com.png"
+		},
+		{
+			"name": "FOX",
+			"domain": "fox.com",
+			"logo": "fox.com.png"
+		},
+		{
+			"name": "FOX9News",
+			"domain": "fox9.com",
+			"logo": "fox9.com.jpg"
+		},
+		{
+			"name": "foxnews",
+			"domain": "foxnews.com",
+			"aliases": [
+				"FoxNewsVideo"
+			],
+			"logo": "foxnews.com.png"
+		},
+		{
+			"name": "FoxSports",
+			"domain": "foxsports.com",
+			"logo": "foxsports.com.png"
+		},
+		{
+			"name": "fptplay",
+			"domain": "fptplay.vn",
+			"logo": "fptplay.vn.png"
+		},
+		{
+			"name": "FrancaisFacile",
+			"domain": "rfi.fr",
+			"logo": "rfi.fr.png"
+		},
+		{
+			"name": "franceinfo",
+			"domain": "francetvinfo.fr",
+			"logo": "francetvinfo.fr.png"
+		},
+		{
+			"name": "francetv",
+			"domain": "france.tv",
+			"logo": "france.tv.png"
+		},
+		{
+			"name": "Freesound",
+			"domain": "freesound.org",
+			"logo": "freesound.org.png"
+		},
+		{
+			"name": "freespeech.org",
+			"domain": "freespeech.org"
+		},
+		{
+			"name": "FreeTvMovies",
+			"domain": "freetv.com",
+			"aliases": [
+				"freetv"
+			],
+			"logo": "freetv.com.png"
+		},
+		{
+			"name": "FrontendMasters",
+			"domain": "frontendmasters.com",
+			"aliases": [
+				"FrontendMastersCourse",
+				"FrontendMastersLesson"
+			],
+			"logo": "frontendmasters.com.png"
+		},
+		{
+			"name": "Funk",
+			"domain": "funk.net",
+			"logo": "funk.net.png"
+		},
+		{
+			"name": "Funker530",
+			"domain": "funker530.com",
+			"logo": "funker530.com.png"
+		},
+		{
+			"name": "Fux",
+			"domain": "fux.com",
+			"logo": "fux.com.png"
+		},
+		{
+			"name": "FuyinTV",
+			"domain": "fuyin.tv",
+			"logo": "fuyin.tv.png"
+		},
+		{
+			"name": "Gab",
+			"domain": "gab.com",
+			"logo": "gab.com.png"
+		},
+		{
+			"name": "Gaia",
+			"domain": "gaia.com",
+			"logo": "gaia.com.png"
+		},
+		{
+			"name": "GameDevTVDashboard",
+			"domain": "gamedev.tv",
+			"logo": "gamedev.tv.png"
+		},
+		{
+			"name": "GameJolt",
+			"domain": "gamejolt.com",
+			"aliases": [
+				"GameJoltCommunity",
+				"GameJoltGame",
+				"GameJoltGameSoundtrack",
+				"GameJoltSearch",
+				"GameJoltUser"
+			],
+			"logo": "gamejolt.com.png"
+		},
+		{
+			"name": "GameSpot",
+			"domain": "gamespot.com",
+			"logo": "gamespot.com.png"
+		},
+		{
+			"name": "GameStar",
+			"domain": "gamestar.de",
+			"logo": "gamestar.de.png"
+		},
+		{
+			"name": "Gaskrank",
+			"domain": "gaskrank.tv",
+			"logo": "gaskrank.tv.png"
+		},
+		{
+			"name": "GBNews",
+			"domain": "gbnews.com",
+			"logo": "gbnews.com.png"
+		},
+		{
+			"name": "GediDigital",
+			"domain": "lastampa.it",
+			"logo": "lastampa.it.png"
+		},
+		{
+			"name": "Genius",
+			"domain": "genius.com",
+			"aliases": [
+				"GeniusLyrics"
+			],
+			"logo": "genius.com.png"
+		},
+		{
+			"name": "Germanupa",
+			"domain": "germanupa.de",
+			"logo": "germanupa.de.png"
+		},
+		{
+			"name": "GetCourseRu",
+			"domain": "academymel.online"
+		},
+		{
+			"name": "GetCourseRu",
+			"domain": "getcourse.ru",
+			"aliases": [
+				"GetCourseRuPlayer"
+			],
+			"logo": "getcourse.ru.png"
+		},
+		{
+			"name": "Gettr",
+			"domain": "gettr.com",
+			"aliases": [
+				"GettrStreaming"
+			],
+			"logo": "gettr.com.png"
+		},
+		{
+			"name": "GiantBomb",
+			"domain": "giantbomb.com",
+			"logo": "giantbomb.com.png"
+		},
+		{
+			"name": "GlattvisionTV",
+			"domain": "glattvision.ch",
+			"aliases": [
+				"GlattvisionTVLive",
+				"GlattvisionTVRecordings"
+			]
+		},
+		{
+			"name": "Glide",
+			"domain": "glide.me"
+		},
+		{
+			"name": "GlobalPlayer",
+			"domain": "globalplayer.com",
+			"aliases": [
+				"GlobalPlayerAudioEpisode",
+				"GlobalPlayerAudio",
+				"GlobalPlayerLive",
+				"GlobalPlayerLivePlaylist",
+				"GlobalPlayerVideo"
+			],
+			"logo": "globalplayer.com.png"
+		},
+		{
+			"name": "Globo",
+			"domain": "globo.com",
+			"aliases": [
+				"GloboArticle"
+			],
+			"logo": "globo.com.png"
+		},
+		{
+			"name": "glomex",
+			"domain": "glomex.com",
+			"logo": "glomex.com.png"
+		},
+		{
+			"name": "GMANetwork",
+			"domain": "gmanetwork.com",
+			"aliases": [
+				"GMANetworkVideo"
+			],
+			"logo": "gmanetwork.com.png"
+		},
+		{
+			"name": "Go",
+			"domain": "abc.com",
+			"logo": "abc.com.png"
+		},
+		{
+			"name": "GoDiscovery",
+			"domain": "discovery.com",
+			"logo": "discovery.com.png"
+		},
+		{
+			"name": "GodResource",
+			"domain": "godresource.com",
+			"logo": "godresource.com.jpg"
+		},
+		{
+			"name": "Golem",
+			"domain": "golem.de",
+			"logo": "golem.de.png"
+		},
+		{
+			"name": "goodgame",
+			"domain": "goodgame.ru",
+			"logo": "goodgame.ru.png"
+		},
+		{
+			"name": "GoogleDrive",
+			"domain": "google.com",
+			"logo": "google.com.png"
+		},
+		{
+			"name": "GoPro",
+			"domain": "gopro.com",
+			"logo": "gopro.com.png"
+		},
+		{
+			"name": "GoToStage",
+			"domain": "gotostage.com",
+			"logo": "gotostage.com.png"
+		},
+		{
+			"name": "Graspop",
+			"domain": "graspop.be",
+			"logo": "graspop.be.png"
+		},
+		{
+			"name": "Gronkh",
+			"domain": "gronkh.tv",
+			"logo": "gronkh.tv.png"
+		},
+		{
+			"name": "Groupon",
+			"domain": "groupon.com",
+			"logo": "groupon.com.png"
+		},
+		{
+			"name": "Harpodeon",
+			"domain": "harpodeon.com",
+			"logo": "harpodeon.com.jpg"
+		},
+		{
+			"name": "hbo",
+			"domain": "hbo.com",
+			"logo": "hbo.com.png"
+		},
+		{
+			"name": "HearThisAt",
+			"domain": "hearthis.at",
+			"logo": "hearthis.at.png"
+		},
+		{
+			"name": "Heise",
+			"domain": "heise.de",
+			"logo": "heise.de.png"
+		},
+		{
+			"name": "HellPorno",
+			"domain": "hellporno.com",
+			"logo": "hellporno.com.png"
+		},
+		{
+			"name": "hetklokhuis",
+			"domain": "hetklokhuis.nl",
+			"logo": "hetklokhuis.nl.png"
+		},
+		{
+			"name": "HGTVDe",
+			"domain": "hgtv.com",
+			"aliases": [
+				"HGTVUsa"
+			],
+			"logo": "hgtv.com.png"
+		},
+		{
+			"name": "HiDive",
+			"domain": "hidive.com",
+			"logo": "hidive.com.jpg"
+		},
+		{
+			"name": "HistoricFilms",
+			"domain": "historicfilms.com",
+			"logo": "historicfilms.com.png"
+		},
+		{
+			"name": "HitRecord",
+			"domain": "hitrecord.org",
+			"logo": "hitrecord.org.png"
+		},
+		{
+			"name": "HollywoodReporter",
+			"domain": "hollywoodreporter.com",
+			"aliases": [
+				"HollywoodReporterPlaylist"
+			],
+			"logo": "hollywoodreporter.com.png"
+		},
+		{
+			"name": "Holodex",
+			"domain": "holodex.net",
+			"logo": "holodex.net.png"
+		},
+		{
+			"name": "hrfernsehen",
+			"domain": "hessenschau.de",
+			"logo": "hessenschau.de.png"
+		},
+		{
+			"name": "HRTi",
+			"domain": "hrt.hr",
+			"aliases": [
+				"HRTiPlaylist"
+			],
+			"logo": "hrt.hr.png"
+		},
+		{
+			"name": "HSE",
+			"domain": "hse.de",
+			"aliases": [
+				"HSEProduct",
+				"HSEShow"
+			],
+			"logo": "hse.de.jpg"
+		},
+		{
+			"name": "Huffington Post",
+			"domain": "huffingtonpost.com",
+			"aliases": [
+				"HuffPost"
+			],
+			"logo": "huffingtonpost.com.png"
+		},
+		{
+			"name": "Hungama",
+			"domain": "hungama.com",
+			"aliases": [
+				"HungamaAlbumPlaylist",
+				"HungamaSong"
+			],
+			"logo": "hungama.com.png"
+		},
+		{
+			"name": "Hypem",
+			"domain": "hypem.com",
+			"logo": "hypem.com.png"
+		},
+		{
+			"name": "Hytale",
+			"domain": "hytale.com",
+			"logo": "hytale.com.png"
+		},
+		{
+			"name": "Icareus",
+			"domain": "helsinkikanava.fi",
+			"logo": "helsinkikanava.fi.png"
+		},
+		{
+			"name": "IdagioAlbum",
+			"domain": "idagio.com",
+			"aliases": [
+				"IdagioPersonalPlaylist",
+				"IdagioPlaylist",
+				"IdagioRecording",
+				"IdagioTrack"
+			],
+			"logo": "idagio.com.png"
+		},
+		{
+			"name": "Iflix",
+			"domain": "iflix.com",
+			"aliases": [
+				"IflixSeries"
+			],
+			"logo": "iflix.com.jpg"
+		},
+		{
+			"name": "ign.com",
+			"domain": "ign.com",
+			"aliases": [
+				"IGNArticle",
+				"IGNVideo"
+			],
+			"logo": "ign.com.png"
+		},
+		{
+			"name": "iheartradio",
+			"domain": "iheart.com",
+			"logo": "iheart.com.png"
+		},
+		{
+			"name": "IlPost",
+			"domain": "ilpost.it",
+			"logo": "ilpost.it.png"
+		},
+		{
+			"name": "Iltalehti",
+			"domain": "iltalehti.fi",
+			"logo": "iltalehti.fi.png"
+		},
+		{
+			"name": "Imgur",
+			"domain": "imgur.com",
+			"logo": "imgur.com.png"
+		},
+		{
+			"name": "Ina",
+			"domain": "ina.fr",
+			"logo": "ina.fr.png"
+		},
+		{
+			"name": "Inc",
+			"domain": "inc.com",
+			"logo": "inc.com.png"
+		},
+		{
+			"name": "Indavideo",
+			"domain": "indavideo.hu",
+			"aliases": [
+				"IndavideoEmbed"
+			],
+			"logo": "indavideo.hu.png"
+		},
+		{
+			"name": "InfoQ",
+			"domain": "infoq.com",
+			"logo": "infoq.com.png"
+		},
+		{
+			"name": "Internazionale",
+			"domain": "internazionale.it",
+			"logo": "internazionale.it.png"
+		},
+		{
+			"name": "Internet Movie Database trailers",
+			"domain": "imdb.com",
+			"aliases": [
+				"imdb"
+			],
+			"logo": "imdb.com.jpg"
+		},
+		{
+			"name": "InvestigationDiscovery",
+			"domain": "investigationdiscovery.com",
+			"logo": "investigationdiscovery.com.png"
+		},
+		{
+			"name": "IPrima",
+			"domain": "iprima.cz",
+			"aliases": [
+				"IPrimaCNN"
+			],
+			"logo": "iprima.cz.png"
+		},
+		{
+			"name": "Islam",
+			"domain": "islamchannel.tv",
+			"aliases": [
+				"IslamChannel",
+				"IslamChannelSeries"
+			],
+			"logo": "islamchannel.tv.png"
+		},
+		{
+			"name": "IsraelNationalNews",
+			"domain": "israelnationalnews.com",
+			"logo": "israelnationalnews.com.png"
+		},
+		{
+			"name": "ITProTV",
+			"domain": "itpro.tv",
+			"aliases": [
+				"ITProTVCourse"
+			],
+			"logo": "itpro.tv.png"
+		},
+		{
+			"name": "ITV",
+			"domain": "itv.com",
+			"aliases": [
+				"ITVBTCC"
+			],
+			"logo": "itv.com.png"
+		},
+		{
+			"name": "ivi",
+			"domain": "ivi.ru",
+			"logo": "ivi.ru.png"
+		},
+		{
+			"name": "Ivideon TV",
+			"domain": "ivideon.com",
+			"aliases": [
+				"ivideon"
+			],
+			"logo": "ivideon.com.jpg"
+		},
+		{
+			"name": "Ivoox",
+			"domain": "ivoox.com",
+			"logo": "ivoox.com.png"
+		},
+		{
+			"name": "iwara",
+			"domain": "iwara.tv",
+			"logo": "iwara.tv.png"
+		},
+		{
+			"name": "Jamendo",
+			"domain": "jamendo.com",
+			"aliases": [
+				"JamendoAlbum"
+			]
+		},
+		{
+			"name": "JioHotstar",
+			"domain": "hotstar.com",
+			"aliases": [
+				"hotstar"
+			],
+			"logo": "hotstar.com.png"
+		},
+		{
+			"name": "jiosaavn",
+			"domain": "jiosaavn.com",
+			"logo": "jiosaavn.com.png"
+		},
+		{
+			"name": "Joj",
+			"domain": "joj.sk",
+			"logo": "joj.sk.png"
+		},
+		{
+			"name": "Jove",
+			"domain": "jove.com",
+			"logo": "jove.com.png"
+		},
+		{
+			"name": "JTBC",
+			"domain": "jtbc.co.kr",
+			"logo": "jtbc.co.kr.jpg"
+		},
+		{
+			"name": "JWPlatform",
+			"domain": "jwplatform.com",
+			"logo": "jwplatform.com.png"
+		},
+		{
+			"name": "Kakao",
+			"domain": "kakao.com",
+			"logo": "kakao.com.png"
+		},
+		{
+			"name": "Kaltura",
+			"domain": "kaltura.com",
+			"logo": "kaltura.com.png"
+		},
+		{
+			"name": "Kenh14",
+			"domain": "kenh14.vn",
+			"aliases": [
+				"Kenh14Playlist",
+				"Kenh14Video"
+			],
+			"logo": "kenh14.vn.png"
+		},
+		{
+			"name": "khanacademy",
+			"domain": "khanacademy.org",
+			"logo": "khanacademy.org.png"
+		},
+		{
+			"name": "Kicker",
+			"domain": "kicker.de",
+			"logo": "kicker.de.png"
+		},
+		{
+			"name": "KickStarter",
+			"domain": "kickstarter.com",
+			"logo": "kickstarter.com.png"
+		},
+		{
+			"name": "Kika",
+			"domain": "kika.de",
+			"aliases": [
+				"KikaPlaylist"
+			],
+			"logo": "kika.de.png"
+		},
+		{
+			"name": "KinoPoisk",
+			"domain": "kinopoisk.ru",
+			"logo": "kinopoisk.ru.png"
+		},
+		{
+			"name": "Kommunetv",
+			"domain": "kommunetv.no",
+			"logo": "kommunetv.no.png"
+		},
+		{
+			"name": "Kompas",
+			"domain": "kompas.com",
+			"aliases": [
+				"KompasVideo"
+			],
+			"logo": "kompas.com.jpg"
+		},
+		{
+			"name": "KTH",
+			"domain": "kth.se",
+			"logo": "kth.se.png"
+		},
+		{
+			"name": "Ku6",
+			"domain": "ku6.com"
+		},
+		{
+			"name": "Kukulu",
+			"domain": "erinn.biz",
+			"aliases": [
+				"KukuluLive"
+			],
+			"logo": "erinn.biz.png"
+		},
+		{
+			"name": "la7.it",
+			"domain": "la7.it",
+			"logo": "la7.it.png"
+		},
+		{
+			"name": "laracasts",
+			"domain": "laracasts.com",
+			"logo": "laracasts.com.png"
+		},
+		{
+			"name": "LastFM",
+			"domain": "last.fm",
+			"aliases": [
+				"LastFMPlaylist",
+				"LastFMUser"
+			],
+			"logo": "last.fm.png"
+		},
+		{
+			"name": "LaXarxaMes",
+			"domain": "laxarxames.cat",
+			"logo": "laxarxames.cat.png"
+		},
+		{
+			"name": "lbry",
+			"domain": "lbry.tv"
+		},
+		{
+			"name": "lbry",
+			"domain": "odysee.com",
+			"logo": "odysee.com.png"
+		},
+		{
+			"name": "LCI",
+			"domain": "tf1info.fr",
+			"logo": "tf1info.fr.png"
+		},
+		{
+			"name": "LearningOnScreen",
+			"domain": "learningonscreen.ac.uk",
+			"logo": "learningonscreen.ac.uk.png"
+		},
+		{
+			"name": "Lecturio",
+			"domain": "lecturio.com",
+			"aliases": [
+				"LecturioCourse"
+			],
+			"logo": "lecturio.com.png"
+		},
+		{
+			"name": "LecturioDeCourse",
+			"domain": "lecturio.de",
+			"logo": "lecturio.de.png"
+		},
+		{
+			"name": "LeFigaroVideo",
+			"domain": "lefigaro.fr",
+			"aliases": [
+				"LeFigaroVideoEmbed",
+				"LeFigaroVideoSection"
+			],
+			"logo": "lefigaro.fr.png"
+		},
+		{
+			"name": "LEGO",
+			"domain": "lego.com",
+			"logo": "lego.com.png"
+		},
+		{
+			"name": "Lemonde",
+			"domain": "lemonde.fr",
+			"logo": "lemonde.fr.png"
+		},
+		{
+			"name": "Libsyn",
+			"domain": "libsyn.com",
+			"logo": "libsyn.com.png"
+		},
+		{
+			"name": "life",
+			"domain": "life.ru",
+			"logo": "life.ru.png"
+		},
+		{
+			"name": "likee",
+			"domain": "likee.video",
+			"logo": "likee.video.png"
+		},
+		{
+			"name": "LinkedIn",
+			"domain": "linkedin.com",
+			"logo": "linkedin.com.png"
+		},
+		{
+			"name": "Liputan6",
+			"domain": "liputan6.com",
+			"logo": "liputan6.com.png"
+		},
+		{
+			"name": "ListenNotes",
+			"domain": "listennotes.com",
+			"logo": "listennotes.com.png"
+		},
+		{
+			"name": "LiTV",
+			"domain": "litv.tv",
+			"logo": "litv.tv.jpg"
+		},
+		{
+			"name": "Livestreamfails",
+			"domain": "livestreamfails.com",
+			"logo": "livestreamfails.com.png"
+		},
+		{
+			"name": "Lnk",
+			"domain": "lnk.lt",
+			"logo": "lnk.lt.png"
+		},
+		{
+			"name": "loc",
+			"domain": "loc.gov",
+			"logo": "loc.gov.png"
+		},
+		{
+			"name": "Locipo",
+			"domain": "locipo.jp",
+			"aliases": [
+				"LocipoPlaylist"
+			],
+			"logo": "locipo.jp.png"
+		},
+		{
+			"name": "Loco",
+			"domain": "loco.com",
+			"logo": "loco.com.png"
+		},
+		{
+			"name": "loom",
+			"domain": "loom.com",
+			"logo": "loom.com.png"
+		},
+		{
+			"name": "LoveHomePorn",
+			"domain": "lovehomeporn.com",
+			"logo": "lovehomeporn.com.png"
+		},
+		{
+			"name": "LRT",
+			"domain": "lrt.lt",
+			"aliases": [
+				"LRTRadio",
+				"LRTStream",
+				"LRTVOD"
+			],
+			"logo": "lrt.lt.png"
+		},
+		{
+			"name": "LSMReplay",
+			"domain": "lsm.lv",
+			"aliases": [
+				"LSMLREmbed",
+				"LSMLTVEmbed"
+			],
+			"logo": "lsm.lv.png"
+		},
+		{
+			"name": "Lumni",
+			"domain": "lumni.fr",
+			"logo": "lumni.fr.png"
+		},
+		{
+			"name": "maariv.co.il",
+			"domain": "maariv.co.il",
+			"logo": "maariv.co.il.png"
+		},
+		{
+			"name": "MagellanTV",
+			"domain": "magellantv.com",
+			"logo": "magellantv.com.png"
+		},
+		{
+			"name": "MagentaMusik",
+			"domain": "magentamusik.de",
+			"logo": "magentamusik.de.png"
+		},
+		{
+			"name": "mailru",
+			"domain": "mail.ru",
+			"logo": "mail.ru.png"
+		},
+		{
+			"name": "MainStreaming Player",
+			"domain": "msvdn.net",
+			"aliases": [
+				"MainStreaming"
+			]
+		},
+		{
+			"name": "mangomolo",
+			"domain": "mangomolo.com",
+			"logo": "mangomolo.com.png"
+		},
+		{
+			"name": "ManyVids",
+			"domain": "manyvids.com",
+			"logo": "manyvids.com.png"
+		},
+		{
+			"name": "MaoriTV",
+			"domain": "maoritelevision.com",
+			"logo": "maoritelevision.com.png"
+		},
+		{
+			"name": "massengeschmack.tv",
+			"domain": "massengeschmack.tv",
+			"logo": "massengeschmack.tv.png"
+		},
+		{
+			"name": "Masters",
+			"domain": "masters.com",
+			"logo": "masters.com.png"
+		},
+		{
+			"name": "MatchiTV",
+			"domain": "matchi.tv",
+			"logo": "matchi.tv.png"
+		},
+		{
+			"name": "MatchTV",
+			"domain": "matchtv.ru",
+			"logo": "matchtv.ru.png"
+		},
+		{
+			"name": "mave",
+			"domain": "mave.digital",
+			"logo": "mave.digital.png"
+		},
+		{
+			"name": "MBN",
+			"domain": "mbn.co.kr",
+			"logo": "mbn.co.kr.png"
+		},
+		{
+			"name": "MDR",
+			"domain": "mdr.de",
+			"logo": "mdr.de.png"
+		},
+		{
+			"name": "MedalTV",
+			"domain": "medal.tv",
+			"logo": "medal.tv.png"
+		},
+		{
+			"name": "media.ccc.de",
+			"domain": "ccc.de",
+			"logo": "ccc.de.png"
+		},
+		{
+			"name": "Mediaite",
+			"domain": "mediaite.com",
+			"logo": "mediaite.com.jpg"
+		},
+		{
+			"name": "MediaKlikk",
+			"domain": "mediaklikk.hu",
+			"logo": "mediaklikk.hu.png"
+		},
+		{
+			"name": "Medialaan",
+			"domain": "bndestem.nl",
+			"logo": "bndestem.nl.png"
+		},
+		{
+			"name": "Mediaset",
+			"domain": "mediaset.it",
+			"aliases": [
+				"MediasetShow"
+			],
+			"logo": "mediaset.it.jpg"
+		},
+		{
+			"name": "Mediasite",
+			"domain": "h-its.org",
+			"logo": "h-its.org.png"
+		},
+		{
+			"name": "MediasiteCatalog",
+			"domain": "mediasite.com",
+			"logo": "mediasite.com.png"
+		},
+		{
+			"name": "MediasiteNamedCatalog",
+			"domain": "misis.ru",
+			"logo": "misis.ru.jpg"
+		},
+		{
+			"name": "MediaStream",
+			"domain": "mdstrm.com"
+		},
+		{
+			"name": "MediaWorksNZ",
+			"domain": "mediaworks.nz",
+			"aliases": [
+				"MediaWorksNZVOD"
+			]
+		},
+		{
+			"name": "Medici",
+			"domain": "medici.tv",
+			"logo": "medici.tv.png"
+		},
+		{
+			"name": "megaphone.fm",
+			"domain": "megaphone.fm"
+		},
+		{
+			"name": "megatvcom",
+			"domain": "megatv.com",
+			"logo": "megatv.com.png"
+		},
+		{
+			"name": "mellow-fan",
+			"domain": "openrec.tv",
+			"aliases": [
+				"mellowfan"
+			],
+			"logo": "openrec.tv.png"
+		},
+		{
+			"name": "mellowfan",
+			"domain": "mellow-fan.com",
+			"logo": "mellow-fan.com.png"
+		},
+		{
+			"name": "Melon",
+			"domain": "melon.com",
+			"aliases": [
+				"MelonVOD"
+			],
+			"logo": "melon.com.png"
+		},
+		{
+			"name": "Metacritic",
+			"domain": "metacritic.com",
+			"logo": "metacritic.com.png"
+		},
+		{
+			"name": "MicrosoftBuild",
+			"domain": "microsoft.com",
+			"aliases": [
+				"MicrosoftEmbed",
+				"MicrosoftLearnEpisode",
+				"MicrosoftLearnPlaylist",
+				"MicrosoftLearnSession",
+				"MicrosoftMedius"
+			],
+			"logo": "microsoft.com.png"
+		},
+		{
+			"name": "minds",
+			"domain": "minds.com",
+			"logo": "minds.com.jpg"
+		},
+		{
+			"name": "mir24.tv",
+			"domain": "mir24.tv",
+			"logo": "mir24.tv.png"
+		},
+		{
+			"name": "mirrativ",
+			"domain": "mirrativ.com",
+			"logo": "mirrativ.com.png"
+		},
+		{
+			"name": "MirrorCoUK",
+			"domain": "mirror.co.uk",
+			"logo": "mirror.co.uk.png"
+		},
+		{
+			"name": "mixch",
+			"domain": "mixch.tv",
+			"logo": "mixch.tv.png"
+		},
+		{
+			"name": "mixcloud",
+			"domain": "mixcloud.com",
+			"logo": "mixcloud.com.png"
+		},
+		{
+			"name": "Mixlr",
+			"domain": "mixlr.com",
+			"aliases": [
+				"MixlrRecoring"
+			],
+			"logo": "mixlr.com.png"
+		},
+		{
+			"name": "MLB",
+			"domain": "mlb.com",
+			"aliases": [
+				"MLBArticle",
+				"MLBTV",
+				"MLBVideo"
+			],
+			"logo": "mlb.com.png"
+		},
+		{
+			"name": "MLSSoccer",
+			"domain": "mlssoccer.com",
+			"logo": "mlssoccer.com.jpg"
+		},
+		{
+			"name": "MNetTV",
+			"domain": "m-net.de",
+			"aliases": [
+				"MNetTVLive",
+				"MNetTVRecordings"
+			],
+			"logo": "m-net.de.png"
+		},
+		{
+			"name": "Mocha",
+			"domain": "mocha.com.vn",
+			"aliases": [
+				"MochaVideo"
+			],
+			"logo": "mocha.com.vn.png"
+		},
+		{
+			"name": "Mojevideo",
+			"domain": "mojevideo.sk",
+			"logo": "mojevideo.sk.png"
+		},
+		{
+			"name": "Monstercat",
+			"domain": "monstercat.com",
+			"logo": "monstercat.com.png"
+		},
+		{
+			"name": "MovieFap",
+			"domain": "moviefap.com"
+		},
+		{
+			"name": "Moviepilot trailer",
+			"domain": "moviepilot.de",
+			"aliases": [
+				"moviepilot"
+			],
+			"logo": "moviepilot.de.png"
+		},
+		{
+			"name": "MovingImage",
+			"domain": "nls.uk",
+			"logo": "nls.uk.png"
+		},
+		{
+			"name": "MSN",
+			"domain": "msn.com",
+			"logo": "msn.com.png"
+		},
+		{
+			"name": "MTG services",
+			"domain": "tvplay.lv",
+			"aliases": [
+				"mtg"
+			],
+			"logo": "tvplay.lv.png"
+		},
+		{
+			"name": "mtv",
+			"domain": "mtv.com",
+			"logo": "mtv.com.png"
+		},
+		{
+			"name": "MujRozhlas",
+			"domain": "mujrozhlas.cz",
+			"logo": "mujrozhlas.cz.jpg"
+		},
+		{
+			"name": "Murrtube",
+			"domain": "murrtube.net",
+			"logo": "murrtube.net.png"
+		},
+		{
+			"name": "MuseAI",
+			"domain": "muse.ai",
+			"logo": "muse.ai.png"
+		},
+		{
+			"name": "MuseScore",
+			"domain": "musescore.com",
+			"logo": "musescore.com.png"
+		},
+		{
+			"name": "Mux",
+			"domain": "stream.new",
+			"logo": "stream.new.png"
+		},
+		{
+			"name": "Mx3",
+			"domain": "mx3.ch",
+			"aliases": [
+				"Mx3Neo",
+				"Mx3Volksmusik"
+			],
+			"logo": "mx3.ch.png"
+		},
+		{
+			"name": "MySpace",
+			"domain": "myspace.com",
+			"logo": "myspace.com.png"
+		},
+		{
+			"name": "MySpass",
+			"domain": "myspass.de",
+			"logo": "myspass.de.png"
+		},
+		{
+			"name": "MyVideoGe",
+			"domain": "myvideo.ge",
+			"logo": "myvideo.ge.png"
+		},
+		{
+			"name": "MyVidster",
+			"domain": "myvidster.com",
+			"logo": "myvidster.com.png"
+		},
+		{
+			"name": "Mzaalo",
+			"domain": "mzaalo.com",
+			"logo": "mzaalo.com.jpg"
+		},
+		{
+			"name": "N-JOY",
+			"domain": "n-joy.de",
+			"aliases": [
+				"njoy"
+			],
+			"logo": "n-joy.de.png"
+		},
+		{
+			"name": "n-tv.de",
+			"domain": "n-tv.de",
+			"logo": "n-tv.de.png"
+		},
+		{
+			"name": "N1Info",
+			"domain": "n1info.rs",
+			"logo": "n1info.rs.png"
+		},
+		{
+			"name": "N1InfoAsset",
+			"domain": "united.cloud",
+			"logo": "united.cloud.png"
+		},
+		{
+			"name": "NascarClassics",
+			"domain": "nascar.com",
+			"logo": "nascar.com.png"
+		},
+		{
+			"name": "Nate",
+			"domain": "nate.com",
+			"aliases": [
+				"NateProgram"
+			],
+			"logo": "nate.com.png"
+		},
+		{
+			"name": "NationalGeographicTV",
+			"domain": "nationalgeographic.com",
+			"logo": "nationalgeographic.com.png"
+		},
+		{
+			"name": "NBC",
+			"domain": "nbc.com",
+			"logo": "nbc.com.jpg"
+		},
+		{
+			"name": "NBCNews",
+			"domain": "nbcnews.com",
+			"logo": "nbcnews.com.png"
+		},
+		{
+			"name": "nbcolympics",
+			"domain": "nbcolympics.com",
+			"logo": "nbcolympics.com.png"
+		},
+		{
+			"name": "NBCStations",
+			"domain": "nbclosangeles.com",
+			"logo": "nbclosangeles.com.png"
+		},
+		{
+			"name": "ndr",
+			"domain": "ndr.de",
+			"logo": "ndr.de.png"
+		},
+		{
+			"name": "nebula",
+			"domain": "nebula.tv",
+			"logo": "nebula.tv.jpg"
+		},
+		{
+			"name": "NekoHacker",
+			"domain": "nekohacker.com"
+		},
+		{
+			"name": "Nest",
+			"domain": "nest.com",
+			"aliases": [
+				"NestClip"
+			],
+			"logo": "nest.com.png"
+		},
+		{
+			"name": "NetApp",
+			"domain": "netapp.com",
+			"aliases": [
+				"NetAppCollection",
+				"NetAppVideo"
+			],
+			"logo": "netapp.com.png"
+		},
+		{
+			"name": "NetPlusTV",
+			"domain": "netplus.tv",
+			"aliases": [
+				"NetPlusTVLive",
+				"NetPlusTVRecordings"
+			],
+			"logo": "netplus.tv.png"
+		},
+		{
+			"name": "Netzkino",
+			"domain": "netzkino.de",
+			"logo": "netzkino.de.jpg"
+		},
+		{
+			"name": "Newgrounds",
+			"domain": "newgrounds.com",
+			"logo": "newgrounds.com.jpg"
+		},
+		{
+			"name": "NewsPicks",
+			"domain": "newspicks.com",
+			"logo": "newspicks.com.png"
+		},
+		{
+			"name": "Newsy",
+			"domain": "newsy.com",
+			"logo": "newsy.com.png"
+		},
+		{
+			"name": "Nexx",
+			"domain": "nexx.cloud",
+			"aliases": [
+				"NexxEmbed"
+			]
+		},
+		{
+			"name": "nfb",
+			"domain": "nfb.ca",
+			"logo": "nfb.ca.png"
+		},
+		{
+			"name": "NFHSNetwork",
+			"domain": "nfhsnetwork.com",
+			"logo": "nfhsnetwork.com.png"
+		},
+		{
+			"name": "nfl.com",
+			"domain": "buffalobills.com",
+			"logo": "buffalobills.com.png"
+		},
+		{
+			"name": "nfl.com",
+			"domain": "nfl.com",
+			"logo": "nfl.com.png"
+		},
+		{
+			"name": "nhl.com",
+			"domain": "nhl.com",
+			"logo": "nhl.com.png"
+		},
+		{
+			"name": "nick.com",
+			"domain": "nick.com",
+			"logo": "nick.com.png"
+		},
+		{
+			"name": "NiconicoChannelPlus",
+			"domain": "nicochannel.jp",
+			"logo": "nicochannel.jp.png"
+		},
+		{
+			"name": "NinaProtocol",
+			"domain": "ninaprotocol.com"
+		},
+		{
+			"name": "Nintendo",
+			"domain": "nintendo.com",
+			"logo": "nintendo.com.png"
+		},
+		{
+			"name": "Nitter",
+			"domain": "ktachibana.party"
+		},
+		{
+			"name": "NobelPrize",
+			"domain": "nobelprize.org",
+			"logo": "nobelprize.org.jpg"
+		},
+		{
+			"name": "NoicePodcast",
+			"domain": "noice.id",
+			"logo": "noice.id.png"
+		},
+		{
+			"name": "NonkTube",
+			"domain": "nonktube.com"
+		},
+		{
+			"name": "NoodleMagazine",
+			"domain": "noodlemagazine.com",
+			"logo": "noodlemagazine.com.jpg"
+		},
+		{
+			"name": "NOSNLArticle",
+			"domain": "nos.nl",
+			"logo": "nos.nl.png"
+		},
+		{
+			"name": "Nova",
+			"domain": "nova.cz",
+			"aliases": [
+				"NovaEmbed"
+			],
+			"logo": "nova.cz.png"
+		},
+		{
+			"name": "NovaPlay",
+			"domain": "nova.bg",
+			"logo": "nova.bg.png"
+		},
+		{
+			"name": "NowCanal",
+			"domain": "nowcanal.pt",
+			"logo": "nowcanal.pt.png"
+		},
+		{
+			"name": "nowness",
+			"domain": "nowness.com",
+			"logo": "nowness.com.png"
+		},
+		{
+			"name": "npo",
+			"domain": "npo.nl",
+			"logo": "npo.nl.png"
+		},
+		{
+			"name": "Npr",
+			"domain": "npr.org",
+			"logo": "npr.org.png"
+		},
+		{
+			"name": "NRK",
+			"domain": "nrk.no",
+			"aliases": [
+				"NRKPlaylist",
+				"NRKRadioPodkast",
+				"NRKSkole",
+				"NRKTVEpisode",
+				"NRKTVEpisodes",
+				"NRKTV",
+				"NRKTVDirekte",
+				"NRKTVSeason",
+				"NRKTVSeries"
+			],
+			"logo": "nrk.no.png"
+		},
+		{
+			"name": "nts.live",
+			"domain": "nts.live",
+			"logo": "nts.live.png"
+		},
+		{
+			"name": "ntv.ru",
+			"domain": "ntv.ru",
+			"logo": "ntv.ru.jpg"
+		},
+		{
+			"name": "NubilesPorn",
+			"domain": "nubiles-porn.com",
+			"logo": "nubiles-porn.com.png"
+		},
+		{
+			"name": "Nuvid",
+			"domain": "nuvid.com",
+			"logo": "nuvid.com.png"
+		},
+		{
+			"name": "NYTimes",
+			"domain": "nytimes.com",
+			"aliases": [
+				"NYTimesArticle",
+				"NYTimesCookingGuide",
+				"NYTimesCookingRecipe"
+			],
+			"logo": "nytimes.com.png"
+		},
+		{
+			"name": "nzherald",
+			"domain": "nzherald.co.nz",
+			"logo": "nzherald.co.nz.png"
+		},
+		{
+			"name": "NZOnScreen",
+			"domain": "nzonscreen.com",
+			"logo": "nzonscreen.com.png"
+		},
+		{
+			"name": "NZZ",
+			"domain": "nzz.ch",
+			"logo": "nzz.ch.png"
+		},
+		{
+			"name": "ocw.mit.edu",
+			"domain": "mit.edu",
+			"aliases": [
+				"techtv.mit.edu"
+			],
+			"logo": "mit.edu.png"
+		},
+		{
+			"name": "Odnoklassniki",
+			"domain": "ok.ru",
+			"logo": "ok.ru.jpg"
+		},
+		{
+			"name": "OfTV",
+			"domain": "of.tv",
+			"aliases": [
+				"OfTVPlaylist"
+			],
+			"logo": "of.tv.png"
+		},
+		{
+			"name": "OlympicsReplay",
+			"domain": "olympics.com",
+			"logo": "olympics.com.png"
+		},
+		{
+			"name": "Omnyfm",
+			"domain": "omny.fm",
+			"aliases": [
+				"OmnyfmPlaylist",
+				"OmnyfmShow"
+			],
+			"logo": "omny.fm.png"
+		},
+		{
+			"name": "ON24",
+			"domain": "on24.com",
+			"logo": "on24.com.png"
+		},
+		{
+			"name": "OnDemandChina",
+			"domain": "ondemandchina.com",
+			"aliases": [
+				"OnDemandChinaEpisode"
+			],
+			"logo": "ondemandchina.com.png"
+		},
+		{
+			"name": "OnDemandKorea",
+			"domain": "ondemandkorea.com",
+			"aliases": [
+				"OnDemandKoreaProgram"
+			],
+			"logo": "ondemandkorea.com.jpg"
+		},
+		{
+			"name": "OneFootball",
+			"domain": "onefootball.com",
+			"logo": "onefootball.com.png"
+		},
+		{
+			"name": "OnePlacePodcast",
+			"domain": "oneplace.com",
+			"logo": "oneplace.com.png"
+		},
+		{
+			"name": "onet.pl",
+			"domain": "onet.pl",
+			"logo": "onet.pl.png"
+		},
+		{
+			"name": "onet.tv",
+			"domain": "onet.tv",
+			"logo": "onet.tv.png"
+		},
+		{
+			"name": "onsen",
+			"domain": "onsen.ag",
+			"logo": "onsen.ag.png"
+		},
+		{
+			"name": "Opencast",
+			"domain": "oc-video1.ruhr-uni-bochum.de",
+			"aliases": [
+				"OpencastPlaylist"
+			]
+		},
+		{
+			"name": "orf",
+			"domain": "orf.at",
+			"logo": "orf.at.png"
+		},
+		{
+			"name": "OsnatelTV",
+			"domain": "osnatel.de",
+			"aliases": [
+				"OsnatelTVLive",
+				"OsnatelTVRecordings"
+			],
+			"logo": "osnatel.de.png"
+		},
+		{
+			"name": "OutsideTV",
+			"domain": "outsidetv.com",
+			"logo": "outsidetv.com.png"
+		},
+		{
+			"name": "OwnCloud",
+			"domain": "sciebo.de",
+			"logo": "sciebo.de.png"
+		},
+		{
+			"name": "PacktPub",
+			"domain": "packtpub.com",
+			"aliases": [
+				"PacktPubCourse"
+			],
+			"logo": "packtpub.com.png"
+		},
+		{
+			"name": "PalcoMP3",
+			"domain": "palcomp3.com",
+			"logo": "palcomp3.com.png"
+		},
+		{
+			"name": "PalcoMP3",
+			"domain": "palcomp3.com.br",
+			"logo": "palcomp3.com.br.png"
+		},
+		{
+			"name": "PandaTv",
+			"domain": "pandalive.co.kr",
+			"logo": "pandalive.co.kr.png"
+		},
+		{
+			"name": "Panopto",
+			"domain": "panopto.com",
+			"aliases": [
+				"PanoptoList",
+				"PanoptoPlaylist"
+			],
+			"logo": "panopto.com.png"
+		},
+		{
+			"name": "ParamountPressExpress",
+			"domain": "paramountpressexpress.com",
+			"logo": "paramountpressexpress.com.png"
+		},
+		{
+			"name": "Parler",
+			"domain": "parler.com",
+			"logo": "parler.com.png"
+		},
+		{
+			"name": "parliamentlive.tv",
+			"domain": "parliamentlive.tv"
+		},
+		{
+			"name": "Parlview",
+			"domain": "aph.gov.au",
+			"logo": "aph.gov.au.png"
+		},
+		{
+			"name": "parti",
+			"domain": "parti.com",
+			"logo": "parti.com.jpg"
+		},
+		{
+			"name": "patreon",
+			"domain": "patreon.com",
+			"logo": "patreon.com.png"
+		},
+		{
+			"name": "pbs",
+			"domain": "pbs.org",
+			"logo": "pbs.org.png"
+		},
+		{
+			"name": "PBSKids",
+			"domain": "pbskids.org",
+			"logo": "pbskids.org.png"
+		},
+		{
+			"name": "Pear",
+			"domain": "pearvideo.com",
+			"aliases": [
+				"PearVideo"
+			]
+		},
+		{
+			"name": "PeekVids",
+			"domain": "peekvids.com",
+			"logo": "peekvids.com.png"
+		},
+		{
+			"name": "peer.tv",
+			"domain": "peer.tv",
+			"logo": "peer.tv.png"
+		},
+		{
+			"name": "PeerTube",
+			"domain": "debian.social",
+			"logo": "debian.social.png"
+		},
+		{
+			"name": "PeerTube",
+			"domain": "framatube.org",
+			"logo": "framatube.org.png"
+		},
+		{
+			"name": "peloton",
+			"domain": "onepeloton.com",
+			"logo": "onepeloton.com.png"
+		},
+		{
+			"name": "PerformGroup",
+			"domain": "performgroup.com",
+			"logo": "performgroup.com.png"
+		},
+		{
+			"name": "Periscope",
+			"domain": "periscope.tv",
+			"logo": "periscope.tv.jpg"
+		},
+		{
+			"name": "PGATour",
+			"domain": "pgatour.com",
+			"logo": "pgatour.com.png"
+		},
+		{
+			"name": "Philharmonie de Paris",
+			"domain": "philharmoniedeparis.fr",
+			"aliases": [
+				"PhilharmonieDeParis"
+			],
+			"logo": "philharmoniedeparis.fr.png"
+		},
+		{
+			"name": "phoenix.de",
+			"domain": "phoenix.de",
+			"logo": "phoenix.de.png"
+		},
+		{
+			"name": "Photobucket",
+			"domain": "photobucket.com",
+			"logo": "photobucket.com.png"
+		},
+		{
+			"name": "Pia",
+			"domain": "pia-live.jp",
+			"aliases": [
+				"PiaLive"
+			]
+		},
+		{
+			"name": "Piapro",
+			"domain": "piapro.jp",
+			"logo": "piapro.jp.png"
+		},
+		{
+			"name": "picarto",
+			"domain": "picarto.tv",
+			"logo": "picarto.tv.png"
+		},
+		{
+			"name": "Piksel",
+			"domain": "piksel.tech",
+			"logo": "piksel.tech.png"
+		},
+		{
+			"name": "Pinkbike",
+			"domain": "pinkbike.com",
+			"logo": "pinkbike.com.png"
+		},
+		{
+			"name": "Pinterest",
+			"domain": "pinterest.com",
+			"logo": "pinterest.com.png"
+		},
+		{
+			"name": "PinterestCollection",
+			"domain": "pinterest.ca",
+			"logo": "pinterest.ca.png"
+		},
+		{
+			"name": "Platzi",
+			"domain": "platzi.com",
+			"aliases": [
+				"PlatziCourse"
+			],
+			"logo": "platzi.com.png"
+		},
+		{
+			"name": "play.tv",
+			"domain": "play.tv",
+			"logo": "play.tv.png"
+		},
+		{
+			"name": "PlayerFm",
+			"domain": "player.fm",
+			"logo": "player.fm.png"
+		},
+		{
+			"name": "PlaySuisse",
+			"domain": "playsuisse.ch",
+			"logo": "playsuisse.ch.png"
+		},
+		{
+			"name": "PlayVids",
+			"domain": "playvids.com",
+			"logo": "playvids.com.png"
+		},
+		{
+			"name": "pluralsight",
+			"domain": "pluralsight.com",
+			"logo": "pluralsight.com.png"
+		},
+		{
+			"name": "PodbayFM",
+			"domain": "podbay.fm",
+			"aliases": [
+				"PodbayFMChannel"
+			],
+			"logo": "podbay.fm.jpg"
+		},
+		{
+			"name": "Podchaser",
+			"domain": "podchaser.com",
+			"logo": "podchaser.com.png"
+		},
+		{
+			"name": "PokerGo",
+			"domain": "pokergo.com",
+			"aliases": [
+				"PokerGoCollection"
+			],
+			"logo": "pokergo.com.png"
+		},
+		{
+			"name": "PolsatGo",
+			"domain": "polsatgo.pl",
+			"logo": "polsatgo.pl.png"
+		},
+		{
+			"name": "PolskieRadio",
+			"domain": "polskieradio.pl",
+			"logo": "polskieradio.pl.png"
+		},
+		{
+			"name": "Popcorntimes",
+			"domain": "popcorntimes.tv",
+			"logo": "popcorntimes.tv.jpg"
+		},
+		{
+			"name": "PopcornTV",
+			"domain": "popcorntv.it",
+			"logo": "popcorntv.it.jpg"
+		},
+		{
+			"name": "Pornbox",
+			"domain": "pornbox.com",
+			"logo": "pornbox.com.jpg"
+		},
+		{
+			"name": "PornerBros",
+			"domain": "pornerbros.com",
+			"logo": "pornerbros.com.png"
+		},
+		{
+			"name": "PornFlip",
+			"domain": "pornflip.com",
+			"logo": "pornflip.com.png"
+		},
+		{
+			"name": "PornHub",
+			"domain": "pornhub.com",
+			"aliases": [
+				"PornHubPagedVideoList",
+				"PornHubPlaylist",
+				"PornHubUser",
+				"PornHubUserVideosUpload"
+			],
+			"logo": "pornhub.com.png"
+		},
+		{
+			"name": "Pornotube",
+			"domain": "pornotube.com",
+			"logo": "pornotube.com.png"
+		},
+		{
+			"name": "PornTop",
+			"domain": "porntop.com",
+			"logo": "porntop.com.png"
+		},
+		{
+			"name": "PornTube",
+			"domain": "porntube.com",
+			"logo": "porntube.com.png"
+		},
+		{
+			"name": "Pr0gramm",
+			"domain": "pr0gramm.com",
+			"logo": "pr0gramm.com.png"
+		},
+		{
+			"name": "PrankCast",
+			"domain": "prankcast.com",
+			"aliases": [
+				"PrankCastPost"
+			],
+			"logo": "prankcast.com.png"
+		},
+		{
+			"name": "PremiershipRugby",
+			"domain": "premiershiprugby.com",
+			"logo": "premiershiprugby.com.png"
+		},
+		{
+			"name": "PressTV",
+			"domain": "presstv.ir",
+			"logo": "presstv.ir.png"
+		},
+		{
+			"name": "PRXStory",
+			"domain": "prx.org",
+			"aliases": [
+				"PRXAccount",
+				"PRXSeries"
+			],
+			"logo": "prx.org.png"
+		},
+		{
+			"name": "puhutv",
+			"domain": "puhutv.com",
+			"logo": "puhutv.com.png"
+		},
+		{
+			"name": "Pyvideo",
+			"domain": "pyvideo.org",
+			"logo": "pyvideo.org.png"
+		},
+		{
+			"name": "QDance",
+			"domain": "q-dance.com"
+		},
+		{
+			"name": "QingTing",
+			"domain": "qingting.fm",
+			"logo": "qingting.fm.png"
+		},
+		{
+			"name": "QuantumTV",
+			"domain": "quantum-tv.com",
+			"aliases": [
+				"QuantumTVLive",
+				"QuantumTVRecordings"
+			]
+		},
+		{
+			"name": "Radiko",
+			"domain": "radiko.jp",
+			"aliases": [
+				"RadikoRadio"
+			],
+			"logo": "radiko.jp.png"
+		},
+		{
+			"name": "Radio1Be",
+			"domain": "radio1.be",
+			"logo": "radio1.be.jpg"
+		},
+		{
+			"name": "radiocanada",
+			"domain": "radio-canada.ca",
+			"logo": "radio-canada.ca.png"
+		},
+		{
+			"name": "radiofrance",
+			"domain": "radiofrance.fr",
+			"aliases": [
+				"FranceCulture",
+				"RadioFranceLive",
+				"RadioFrancePodcast",
+				"RadioFranceProfile",
+				"RadioFranceProgramSchedule"
+			],
+			"logo": "radiofrance.fr.png"
+		},
+		{
+			"name": "radiokapital",
+			"domain": "radiokapital.pl",
+			"logo": "radiokapital.pl.jpg"
+		},
+		{
+			"name": "RadioRadicale",
+			"domain": "radioradicale.it",
+			"logo": "radioradicale.it.png"
+		},
+		{
+			"name": "RadioZetPodcast",
+			"domain": "radiozet.pl",
+			"logo": "radiozet.pl.png"
+		},
+		{
+			"name": "radlive",
+			"domain": "rad.live",
+			"logo": "rad.live.png"
+		},
+		{
+			"name": "Rai",
+			"domain": "rai.it",
+			"aliases": [
+				"RaiSudtirol"
+			],
+			"logo": "rai.it.png"
+		},
+		{
+			"name": "RaiCultura",
+			"domain": "raicultura.it",
+			"logo": "raicultura.it.png"
+		},
+		{
+			"name": "Raidió Teilifís Éireann TV",
+			"domain": "rte.ie",
+			"aliases": [
+				"rte"
+			],
+			"logo": "rte.ie.png"
+		},
+		{
+			"name": "RaiNews",
+			"domain": "rainews.it",
+			"logo": "rainews.it.jpg"
+		},
+		{
+			"name": "RaiPlay",
+			"domain": "raiplay.it",
+			"aliases": [
+				"RaiPlayLive",
+				"RaiPlayPlaylist"
+			],
+			"logo": "raiplay.it.jpg"
+		},
+		{
+			"name": "RaiPlaySound",
+			"domain": "raiplaysound.it",
+			"aliases": [
+				"RaiPlaySoundLive",
+				"RaiPlaySoundPlaylist"
+			],
+			"logo": "raiplaysound.it.png"
+		},
+		{
+			"name": "RayWenderlich",
+			"domain": "raywenderlich.com",
+			"aliases": [
+				"RayWenderlichCourse"
+			],
+			"logo": "raywenderlich.com.png"
+		},
+		{
+			"name": "RbgTum",
+			"domain": "tum.de",
+			"aliases": [
+				"RbgTumCourse",
+				"RbgTumNewCourse"
+			],
+			"logo": "tum.de.png"
+		},
+		{
+			"name": "RCS",
+			"domain": "corriere.it",
+			"logo": "corriere.it.png"
+		},
+		{
+			"name": "RCSEmbeds",
+			"domain": "rcs.it",
+			"logo": "rcs.it.png"
+		},
+		{
+			"name": "RCSVarious",
+			"domain": "leitv.it",
+			"logo": "leitv.it.jpg"
+		},
+		{
+			"name": "RCTIPlus",
+			"domain": "rctiplus.com",
+			"aliases": [
+				"RCTIPlusSeries",
+				"RCTIPlusTV"
+			],
+			"logo": "rctiplus.com.png"
+		},
+		{
+			"name": "RedBull",
+			"domain": "redbull.com",
+			"aliases": [
+				"RedBullEmbed",
+				"RedBullTVRrnContent"
+			],
+			"logo": "redbull.com.png"
+		},
+		{
+			"name": "RedBullTV",
+			"domain": "redbull.tv",
+			"logo": "redbull.tv.png"
+		},
+		{
+			"name": "RedGifs",
+			"domain": "redgifs.com",
+			"aliases": [
+				"RedGifsSearch",
+				"RedGifsUser"
+			],
+			"logo": "redgifs.com.png"
+		},
+		{
+			"name": "RedTube",
+			"domain": "redtube.com",
+			"logo": "redtube.com.png"
+		},
+		{
+			"name": "ReverbNation",
+			"domain": "reverbnation.com",
+			"logo": "reverbnation.com.png"
+		},
+		{
+			"name": "RideHome",
+			"domain": "ridehome.info"
+		},
+		{
+			"name": "RinseFM",
+			"domain": "rinse.fm",
+			"aliases": [
+				"RinseFMArtistPlaylist"
+			],
+			"logo": "rinse.fm.png"
+		},
+		{
+			"name": "Rokfin",
+			"domain": "rokfin.com",
+			"logo": "rokfin.com.png"
+		},
+		{
+			"name": "RoosterTeeth",
+			"domain": "roosterteeth.com",
+			"aliases": [
+				"RoosterTeethSeries"
+			],
+			"logo": "roosterteeth.com.png"
+		},
+		{
+			"name": "RottenTomatoes",
+			"domain": "rottentomatoes.com",
+			"logo": "rottentomatoes.com.png"
+		},
+		{
+			"name": "Roya",
+			"domain": "roya.tv",
+			"aliases": [
+				"RoyaLive"
+			],
+			"logo": "roya.tv.png"
+		},
+		{
+			"name": "Rozhlas",
+			"domain": "rozhlas.cz",
+			"aliases": [
+				"RozhlasVltava"
+			],
+			"logo": "rozhlas.cz.png"
+		},
+		{
+			"name": "rtl.nl",
+			"domain": "rtlxl.nl",
+			"logo": "rtlxl.nl.png"
+		},
+		{
+			"name": "RTLLu",
+			"domain": "rtl.lu",
+			"aliases": [
+				"RTLLuLive",
+				"RTLLuRadio"
+			],
+			"logo": "rtl.lu.png"
+		},
+		{
+			"name": "RTNews",
+			"domain": "rt.com",
+			"aliases": [
+				"RTDocumentry",
+				"RTDocumentryPlaylist"
+			],
+			"logo": "rt.com.jpg"
+		},
+		{
+			"name": "RTP",
+			"domain": "rtp.pt",
+			"logo": "rtp.pt.png"
+		},
+		{
+			"name": "RTRFM",
+			"domain": "rtrfm.com.au",
+			"logo": "rtrfm.com.au.png"
+		},
+		{
+			"name": "RTVCKaltura",
+			"domain": "rtvc.gov.co"
+		},
+		{
+			"name": "RTVCPlay",
+			"domain": "rtvcplay.co",
+			"aliases": [
+				"RTVCPlayEmbed"
+			],
+			"logo": "rtvcplay.co.jpg"
+		},
+		{
+			"name": "rtve.es",
+			"domain": "rtve.es",
+			"logo": "rtve.es.png"
+		},
+		{
+			"name": "rtvslo.si",
+			"domain": "rtvslo.si",
+			"logo": "rtvslo.si.png"
+		},
+		{
+			"name": "Rudo",
+			"domain": "rudo.video",
+			"aliases": [
+				"RudoVideo"
+			]
+		},
+		{
+			"name": "Rule34",
+			"domain": "rule34video.com",
+			"aliases": [
+				"Rule34Video"
+			],
+			"logo": "rule34video.com.png"
+		},
+		{
+			"name": "Ruptly",
+			"domain": "ruptly.tv"
+		},
+		{
+			"name": "rutube",
+			"domain": "rutube.ru",
+			"logo": "rutube.ru.png"
+		},
+		{
+			"name": "Ruv",
+			"domain": "ruv.is",
+			"logo": "ruv.is.png"
+		},
+		{
+			"name": "S4C",
+			"domain": "s4c.cymru",
+			"aliases": [
+				"S4CSeries"
+			],
+			"logo": "s4c.cymru.png"
+		},
+		{
+			"name": "Saarländischer Rundfunk",
+			"domain": "sr-mediathek.de",
+			"aliases": [
+				"sr"
+			],
+			"logo": "sr-mediathek.de.png"
+		},
+		{
+			"name": "safari",
+			"domain": "safaribooksonline.com",
+			"logo": "safaribooksonline.com.png"
+		},
+		{
+			"name": "SAKTV",
+			"domain": "saktv.ch",
+			"aliases": [
+				"SAKTVLive",
+				"SAKTVRecordings"
+			],
+			"logo": "saktv.ch.png"
+		},
+		{
+			"name": "SaltTV",
+			"domain": "salt.ch",
+			"aliases": [
+				"SaltTVLive",
+				"SaltTVRecordings"
+			],
+			"logo": "salt.ch.png"
+		},
+		{
+			"name": "SampleFocus",
+			"domain": "samplefocus.com",
+			"logo": "samplefocus.com.jpg"
+		},
+		{
+			"name": "Sangiin",
+			"domain": "sangiin.go.jp"
+		},
+		{
+			"name": "SAPO Vídeos",
+			"domain": "sapo.pt",
+			"aliases": [
+				"Sapo"
+			],
+			"logo": "sapo.pt.png"
+		},
+		{
+			"name": "Sauce+",
+			"domain": "sauceplus.com",
+			"aliases": [
+				"SaucePlusChannel",
+				"SaucePlus"
+			],
+			"logo": "sauceplus.com.png"
+		},
+		{
+			"name": "SBS",
+			"domain": "sbs.com.au",
+			"logo": "sbs.com.au.png"
+		},
+		{
+			"name": "sbs.co.kr",
+			"domain": "sbs.co.kr",
+			"logo": "sbs.co.kr.png"
+		},
+		{
+			"name": "schooltv",
+			"domain": "schooltv.nl",
+			"logo": "schooltv.nl.png"
+		},
+		{
+			"name": "Science",
+			"domain": "sciencechannel.com",
+			"aliases": [
+				"ScienceChannel"
+			],
+			"logo": "sciencechannel.com.png"
+		},
+		{
+			"name": "Screen9",
+			"domain": "screen9.com",
+			"logo": "screen9.com.png"
+		},
+		{
+			"name": "Screencast",
+			"domain": "screencast.com",
+			"logo": "screencast.com.png"
+		},
+		{
+			"name": "Screencastify",
+			"domain": "screencastify.com",
+			"logo": "screencastify.com.png"
+		},
+		{
+			"name": "ScreencastOMatic",
+			"domain": "screencast-o-matic.com",
+			"logo": "screencast-o-matic.com.png"
+		},
+		{
+			"name": "ScreenRec",
+			"domain": "screenrec.com",
+			"logo": "screenrec.com.png"
+		},
+		{
+			"name": "scrippsnetworks",
+			"domain": "geniuskitchen.com",
+			"logo": "geniuskitchen.com.png"
+		},
+		{
+			"name": "Scrolller",
+			"domain": "scrolller.com",
+			"logo": "scrolller.com.png"
+		},
+		{
+			"name": "Sen",
+			"domain": "sen.com",
+			"logo": "sen.com.png"
+		},
+		{
+			"name": "senate.gov",
+			"domain": "senate.gov"
+		},
+		{
+			"name": "Servus",
+			"domain": "servustv.com",
+			"logo": "servustv.com.png"
+		},
+		{
+			"name": "SeznamZpravy",
+			"domain": "seznamzpravy.cz",
+			"aliases": [
+				"SeznamZpravyArticle"
+			],
+			"logo": "seznamzpravy.cz.png"
+		},
+		{
+			"name": "Shahid",
+			"domain": "mbc.net",
+			"aliases": [
+				"ShahidShow"
+			],
+			"logo": "mbc.net.png"
+		},
+		{
+			"name": "SharePoint",
+			"domain": "sharepoint.com"
+		},
+		{
+			"name": "ShemarooMe",
+			"domain": "shemaroome.com",
+			"logo": "shemaroome.com.png"
+		},
+		{
+			"name": "Shiey",
+			"domain": "shiey.com",
+			"logo": "shiey.com.png"
+		},
+		{
+			"name": "showroom",
+			"domain": "showroom-live.com",
+			"logo": "showroom-live.com.png"
+		},
+		{
+			"name": "ShugiinItvVod",
+			"domain": "shugiintv.go.jp",
+			"aliases": [
+				"ShugiinItvLive",
+				"ShugiinItvLiveRoom"
+			]
+		},
+		{
+			"name": "simplecast",
+			"domain": "simplecast.com",
+			"logo": "simplecast.com.png"
+		},
+		{
+			"name": "Sina",
+			"domain": "sina.com.cn",
+			"logo": "sina.com.cn.png"
+		},
+		{
+			"name": "Skeb",
+			"domain": "skeb.jp",
+			"logo": "skeb.jp.png"
+		},
+		{
+			"name": "sky",
+			"domain": "sky.com",
+			"logo": "sky.com.jpg"
+		},
+		{
+			"name": "sky",
+			"domain": "skysports.com",
+			"logo": "skysports.com.png"
+		},
+		{
+			"name": "sky.it",
+			"domain": "sky.it",
+			"aliases": [
+				"arte.sky.it",
+				"video.sky.it"
+			],
+			"logo": "sky.it.png"
+		},
+		{
+			"name": "SkyNewsAU",
+			"domain": "skynews.com.au",
+			"logo": "skynews.com.au.png"
+		},
+		{
+			"name": "Slides",
+			"domain": "slideslive.com",
+			"aliases": [
+				"SlidesLive"
+			],
+			"logo": "slideslive.com.png"
+		},
+		{
+			"name": "Slideshare",
+			"domain": "slideshare.net",
+			"logo": "slideshare.net.png"
+		},
+		{
+			"name": "Slutload",
+			"domain": "slutload.com",
+			"logo": "slutload.com.png"
+		},
+		{
+			"name": "smotrim",
+			"domain": "smotrim.ru",
+			"logo": "smotrim.ru.jpg"
+		},
+		{
+			"name": "SnapchatSpotlight",
+			"domain": "snapchat.com",
+			"logo": "snapchat.com.png"
+		},
+		{
+			"name": "SoftWhiteUnderbelly",
+			"domain": "softwhiteunderbelly.com",
+			"logo": "softwhiteunderbelly.com.png"
+		},
+		{
+			"name": "Sohu",
+			"domain": "sohu.com",
+			"aliases": [
+				"SohuV"
+			],
+			"logo": "sohu.com.png"
+		},
+		{
+			"name": "SonyLIV",
+			"domain": "sonyliv.com",
+			"aliases": [
+				"SonyLIVSeries"
+			],
+			"logo": "sonyliv.com.png"
+		},
+		{
+			"name": "soop",
+			"domain": "sooplive.com",
+			"logo": "sooplive.com.png"
+		},
+		{
+			"name": "soundgasm",
+			"domain": "soundgasm.net"
+		},
+		{
+			"name": "southpark.de",
+			"domain": "southpark.de",
+			"logo": "southpark.de.png"
+		},
+		{
+			"name": "southpark.lat",
+			"domain": "southpark.lat",
+			"logo": "southpark.lat.png"
+		},
+		{
+			"name": "southparkstudios.co.uk",
+			"domain": "southparkstudios.co.uk",
+			"logo": "southparkstudios.co.uk.png"
+		},
+		{
+			"name": "southparkstudios.com.br",
+			"domain": "southparkstudios.com.br",
+			"logo": "southparkstudios.com.br.png"
+		},
+		{
+			"name": "southparkstudios.nu",
+			"domain": "southparkstudios.nu",
+			"logo": "southparkstudios.nu.png"
+		},
+		{
+			"name": "SovietsCloset",
+			"domain": "sovietscloset.com",
+			"aliases": [
+				"SovietsClosetPlaylist"
+			],
+			"logo": "sovietscloset.com.png"
+		},
+		{
+			"name": "SpankBang",
+			"domain": "spankbang.com",
+			"aliases": [
+				"SpankBangPlaylist"
+			],
+			"logo": "spankbang.com.png"
+		},
+		{
+			"name": "Spiegel",
+			"domain": "spiegel.de",
+			"logo": "spiegel.de.png"
+		},
+		{
+			"name": "Sport5",
+			"domain": "sport5.co.il",
+			"logo": "sport5.co.il.png"
+		},
+		{
+			"name": "sporteurope",
+			"domain": "sporteurope.tv",
+			"logo": "sporteurope.tv.png"
+		},
+		{
+			"name": "Spreaker",
+			"domain": "spreaker.com",
+			"aliases": [
+				"SpreakerShow"
+			],
+			"logo": "spreaker.com.png"
+		},
+		{
+			"name": "Sprout",
+			"domain": "sproutvideo.com",
+			"aliases": [
+				"SproutVideo"
+			],
+			"logo": "sproutvideo.com.png"
+		},
+		{
+			"name": "SRGSSRPlay",
+			"domain": "srf.ch",
+			"logo": "srf.ch.jpg"
+		},
+		{
+			"name": "Stacommu",
+			"domain": "stacommu.jp",
+			"aliases": [
+				"StacommuLive",
+				"StacommuVOD"
+			],
+			"logo": "stacommu.jp.png"
+		},
+		{
+			"name": "StagePlusVODConcert",
+			"domain": "stage-plus.com",
+			"logo": "stage-plus.com.png"
+		},
+		{
+			"name": "STAR TREK",
+			"domain": "startrek.com",
+			"aliases": [
+				"startrek"
+			],
+			"logo": "startrek.com.png"
+		},
+		{
+			"name": "startv",
+			"domain": "startv.com.tr",
+			"logo": "startv.com.tr.png"
+		},
+		{
+			"name": "Steam",
+			"domain": "steampowered.com",
+			"logo": "steampowered.com.png"
+		},
+		{
+			"name": "SteamCommunity",
+			"domain": "steamcommunity.com",
+			"aliases": [
+				"SteamCommunityBroadcast"
+			],
+			"logo": "steamcommunity.com.png"
+		},
+		{
+			"name": "StoryFire",
+			"domain": "storyfire.com",
+			"aliases": [
+				"StoryFireSeries",
+				"StoryFireUser"
+			]
+		},
+		{
+			"name": "Streaks",
+			"domain": "streaks.jp",
+			"logo": "streaks.jp.png"
+		},
+		{
+			"name": "Streamable",
+			"domain": "streamable.com",
+			"logo": "streamable.com.png"
+		},
+		{
+			"name": "StreamCZ",
+			"domain": "televizeseznam.cz",
+			"logo": "televizeseznam.cz.png"
+		},
+		{
+			"name": "StreetVoice",
+			"domain": "streetvoice.com",
+			"logo": "streetvoice.com.png"
+		},
+		{
+			"name": "Stripchat",
+			"domain": "stripchat.com",
+			"logo": "stripchat.com.png"
+		},
+		{
+			"name": "stv",
+			"domain": "stv.tv",
+			"logo": "stv.tv.png"
+		},
+		{
+			"name": "stvr",
+			"domain": "rtvs.sk",
+			"logo": "rtvs.sk.png"
+		},
+		{
+			"name": "Subsplash",
+			"domain": "subsplash.com",
+			"logo": "subsplash.com.png"
+		},
+		{
+			"name": "Substack",
+			"domain": "substack.com",
+			"logo": "substack.com.jpg"
+		},
+		{
+			"name": "SunPorno",
+			"domain": "sunporno.com",
+			"logo": "sunporno.com.png"
+		},
+		{
+			"name": "sverigesradio",
+			"domain": "sverigesradio.se",
+			"logo": "sverigesradio.se.png"
+		},
+		{
+			"name": "svt",
+			"domain": "svt.se",
+			"logo": "svt.se.png"
+		},
+		{
+			"name": "svt",
+			"domain": "svtplay.se",
+			"logo": "svtplay.se.png"
+		},
+		{
+			"name": "Syfy",
+			"domain": "syfy.com",
+			"logo": "syfy.com.png"
+		},
+		{
+			"name": "SztvHu",
+			"domain": "sztv.hu",
+			"logo": "sztv.hu.png"
+		},
+		{
+			"name": "TapTap",
+			"domain": "taptap.io",
+			"aliases": [
+				"TapTapAppIntl",
+				"TapTapPostIntl"
+			],
+			"logo": "taptap.io.png"
+		},
+		{
+			"name": "TapTapApp",
+			"domain": "taptap.cn",
+			"aliases": [
+				"TapTapMoment"
+			],
+			"logo": "taptap.cn.png"
+		},
+		{
+			"name": "tarangplus",
+			"domain": "tarangplus.in",
+			"logo": "tarangplus.in.png"
+		},
+		{
+			"name": "TBS",
+			"domain": "tbs.com",
+			"logo": "tbs.com.png"
+		},
+		{
+			"name": "TBSJP",
+			"domain": "tbs.co.jp",
+			"aliases": [
+				"TBSJPEpisode",
+				"TBSJPPlaylist",
+				"TBSJPProgram"
+			]
+		},
+		{
+			"name": "TeachableCourse",
+			"domain": "upskillcourses.com",
+			"logo": "upskillcourses.com.png"
+		},
+		{
+			"name": "Teamcoco",
+			"domain": "teamcoco.com",
+			"logo": "teamcoco.com.jpg"
+		},
+		{
+			"name": "TeamTreeHouse",
+			"domain": "teamtreehouse.com",
+			"logo": "teamtreehouse.com.png"
+		},
+		{
+			"name": "Tele13",
+			"domain": "t13.cl",
+			"logo": "t13.cl.png"
+		},
+		{
+			"name": "Tele5",
+			"domain": "tele5.de",
+			"logo": "tele5.de.png"
+		},
+		{
+			"name": "TeleBruxelles",
+			"domain": "bx1.be",
+			"logo": "bx1.be.png"
+		},
+		{
+			"name": "TelecaribePlay",
+			"domain": "telecaribe.co",
+			"logo": "telecaribe.co.jpg"
+		},
+		{
+			"name": "Telecinco",
+			"domain": "telecinco.es",
+			"logo": "telecinco.es.png"
+		},
+		{
+			"name": "Telegraaf",
+			"domain": "telegraaf.nl",
+			"logo": "telegraaf.nl.png"
+		},
+		{
+			"name": "telegram",
+			"domain": "t.me",
+			"logo": "t.me.png"
+		},
+		{
+			"name": "TeleQuebec",
+			"domain": "telequebec.tv",
+			"aliases": [
+				"TeleQuebecEmission",
+				"TeleQuebecLive",
+				"TeleQuebecSquat",
+				"TeleQuebecVideo"
+			],
+			"logo": "telequebec.tv.png"
+		},
+		{
+			"name": "Televize Noe",
+			"domain": "tvnoe.cz",
+			"aliases": [
+				"tvnoe"
+			],
+			"logo": "tvnoe.cz.png"
+		},
+		{
+			"name": "Telewebion",
+			"domain": "telewebion.ir",
+			"logo": "telewebion.ir.png"
+		},
+		{
+			"name": "Telewizja Polska",
+			"domain": "swipeto.pl",
+			"aliases": [
+				"tvp"
+			],
+			"logo": "swipeto.pl.png"
+		},
+		{
+			"name": "TennisTV",
+			"domain": "tennistv.com",
+			"logo": "tennistv.com.png"
+		},
+		{
+			"name": "TF1",
+			"domain": "tf1.fr",
+			"logo": "tf1.fr.jpg"
+		},
+		{
+			"name": "theatercomplextown",
+			"domain": "theater-complex.town",
+			"logo": "theater-complex.town.png"
+		},
+		{
+			"name": "TheChosen",
+			"domain": "thechosen.tv",
+			"logo": "thechosen.tv.jpg"
+		},
+		{
+			"name": "TheGuardianPodcast",
+			"domain": "theguardian.com",
+			"aliases": [
+				"TheGuardianPodcastPlaylist"
+			],
+			"logo": "theguardian.com.png"
+		},
+		{
+			"name": "TheHighWire",
+			"domain": "thehighwire.com",
+			"logo": "thehighwire.com.png"
+		},
+		{
+			"name": "TheIntercept",
+			"domain": "theintercept.com",
+			"logo": "theintercept.com.png"
+		},
+		{
+			"name": "ThePlatform",
+			"domain": "theplatform.com",
+			"aliases": [
+				"ThePlatformFeed"
+			],
+			"logo": "theplatform.com.png"
+		},
+		{
+			"name": "TheStar",
+			"domain": "thestar.com",
+			"logo": "thestar.com.png"
+		},
+		{
+			"name": "TheSun",
+			"domain": "thesun.co.uk",
+			"logo": "thesun.co.uk.png"
+		},
+		{
+			"name": "TheWeather",
+			"domain": "weather.com",
+			"aliases": [
+				"TheWeatherChannel"
+			],
+			"logo": "weather.com.png"
+		},
+		{
+			"name": "ThisAmericanLife",
+			"domain": "thisamericanlife.org",
+			"logo": "thisamericanlife.org.png"
+		},
+		{
+			"name": "ThisOldHouse",
+			"domain": "thisoldhouse.com",
+			"logo": "thisoldhouse.com.png"
+		},
+		{
+			"name": "ThisVid",
+			"domain": "thisvid.com",
+			"aliases": [
+				"ThisVidMember",
+				"ThisVidPlaylist"
+			],
+			"logo": "thisvid.com.png"
+		},
+		{
+			"name": "ThreeSpeak",
+			"domain": "3speak.tv",
+			"aliases": [
+				"ThreeSpeakUser"
+			],
+			"logo": "3speak.tv.jpg"
+		},
+		{
+			"name": "TLC",
+			"domain": "tlc.com",
+			"logo": "tlc.com.png"
+		},
+		{
+			"name": "TMZ",
+			"domain": "tmz.com",
+			"logo": "tmz.com.png"
+		},
+		{
+			"name": "TNAFlix",
+			"domain": "tnaflix.com",
+			"aliases": [
+				"TNAFlixNetworkEmbed"
+			],
+			"logo": "tnaflix.com.png"
+		},
+		{
+			"name": "toggle",
+			"domain": "mewatch.sg",
+			"aliases": [
+				"mewatch"
+			],
+			"logo": "mewatch.sg.png"
+		},
+		{
+			"name": "toggo",
+			"domain": "toggo.de"
+		},
+		{
+			"name": "tokfm",
+			"domain": "tokfm.pl",
+			"logo": "tokfm.pl.png"
+		},
+		{
+			"name": "ToonGoggles",
+			"domain": "toongoggles.com",
+			"logo": "toongoggles.com.jpg"
+		},
+		{
+			"name": "tou.tv",
+			"domain": "tou.tv",
+			"logo": "tou.tv.png"
+		},
+		{
+			"name": "Travel",
+			"domain": "travelchannel.com",
+			"aliases": [
+				"TravelChannel"
+			],
+			"logo": "travelchannel.com.png"
+		},
+		{
+			"name": "TrtCocuk",
+			"domain": "trtcocuk.net.tr",
+			"aliases": [
+				"TrtCocukVideo"
+			]
+		},
+		{
+			"name": "TrtWorld",
+			"domain": "trtworld.com",
+			"logo": "trtworld.com.png"
+		},
+		{
+			"name": "TrueID",
+			"domain": "trueid.id"
+		},
+		{
+			"name": "TruNews",
+			"domain": "trunews.com"
+		},
+		{
+			"name": "Truth",
+			"domain": "truthsocial.com",
+			"logo": "truthsocial.com.png"
+		},
+		{
+			"name": "ttinglive",
+			"domain": "flextv.co.kr",
+			"logo": "flextv.co.kr.png"
+		},
+		{
+			"name": "TubeTuGraz",
+			"domain": "tugraz.at",
+			"aliases": [
+				"TubeTuGrazSeries"
+			],
+			"logo": "tugraz.at.png"
+		},
+		{
+			"name": "tubitv",
+			"domain": "tubitv.com",
+			"logo": "tubitv.com.png"
+		},
+		{
+			"name": "Tumblr",
+			"domain": "tumblr.com",
+			"logo": "tumblr.com.png"
+		},
+		{
+			"name": "tunein",
+			"domain": "tunein.com",
+			"logo": "tunein.com.png"
+		},
+		{
+			"name": "tv.dfb.de",
+			"domain": "dfb.de",
+			"logo": "dfb.de.png"
+		},
+		{
+			"name": "TV2",
+			"domain": "tv2.no",
+			"aliases": [
+				"TV2Article"
+			],
+			"logo": "tv2.no.png"
+		},
+		{
+			"name": "TV2DK",
+			"domain": "tvsyd.dk",
+			"logo": "tvsyd.dk.png"
+		},
+		{
+			"name": "TV2DKBornholmPlay",
+			"domain": "tv2bornholm.dk",
+			"logo": "tv2bornholm.dk.png"
+		},
+		{
+			"name": "tv2play.hu",
+			"domain": "tv2play.hu",
+			"aliases": [
+				"tv2playseries.hu"
+			],
+			"logo": "tv2play.hu.jpg"
+		},
+		{
+			"name": "TV4",
+			"domain": "tv4.se",
+			"logo": "tv4.se.png"
+		},
+		{
+			"name": "TV5MONDE",
+			"domain": "tv5monde.com",
+			"logo": "tv5monde.com.jpg"
+		},
+		{
+			"name": "tv5unis",
+			"domain": "tv5unis.ca",
+			"logo": "tv5unis.ca.jpg"
+		},
+		{
+			"name": "tv8.it",
+			"domain": "tv8.it",
+			"logo": "tv8.it.png"
+		},
+		{
+			"name": "TVA+",
+			"domain": "tvaplus.ca",
+			"aliases": [
+				"tvaplus"
+			],
+			"logo": "tvaplus.ca.png"
+		},
+		{
+			"name": "TVANouvelles",
+			"domain": "tvanouvelles.ca",
+			"aliases": [
+				"TVANouvellesArticle"
+			],
+			"logo": "tvanouvelles.ca.png"
+		},
+		{
+			"name": "TVC",
+			"domain": "tvc.ru",
+			"aliases": [
+				"TVCArticle"
+			],
+			"logo": "tvc.ru.png"
+		},
+		{
+			"name": "TVI",
+			"domain": "iol.pt",
+			"aliases": [
+				"TVIPlayer"
+			],
+			"logo": "iol.pt.png"
+		},
+		{
+			"name": "tvigle",
+			"domain": "tvigle.ru",
+			"logo": "tvigle.ru.png"
+		},
+		{
+			"name": "TVO",
+			"domain": "tvo.org",
+			"logo": "tvo.org.png"
+		},
+		{
+			"name": "tvopengr",
+			"domain": "ethnos.gr",
+			"logo": "ethnos.gr.png"
+		},
+		{
+			"name": "tvp",
+			"domain": "tvp.pl",
+			"logo": "tvp.pl.png"
+		},
+		{
+			"name": "TVPlayHome",
+			"domain": "tv3.lt",
+			"logo": "tv3.lt.png"
+		},
+		{
+			"name": "tvw",
+			"domain": "tvw.org",
+			"logo": "tvw.org.png"
+		},
+		{
+			"name": "Tweakers",
+			"domain": "tweakers.net",
+			"logo": "tweakers.net.png"
+		},
+		{
+			"name": "TwitCasting",
+			"domain": "twitcasting.tv",
+			"aliases": [
+				"TwitCastingLive",
+				"TwitCastingUser"
+			],
+			"logo": "twitcasting.tv.png"
+		},
+		{
+			"name": "twitter",
+			"domain": "twimg.com"
+		},
+		{
+			"name": "Txxx",
+			"domain": "txxx.com",
+			"logo": "txxx.com.png"
+		},
+		{
+			"name": "udemy",
+			"domain": "udemy.com",
+			"logo": "udemy.com.png"
+		},
+		{
+			"name": "Uliza",
+			"domain": "uliza.jp",
+			"aliases": [
+				"UlizaPlayer"
+			],
+			"logo": "uliza.jp.png"
+		},
+		{
+			"name": "UlizaPortal",
+			"domain": "ulizaportal.jp",
+			"logo": "ulizaportal.jp.png"
+		},
+		{
+			"name": "Unistra",
+			"domain": "unistra.fr",
+			"logo": "unistra.fr.png"
+		},
+		{
+			"name": "UnitedNationsWebTv",
+			"domain": "un.org",
+			"logo": "un.org.png"
+		},
+		{
+			"name": "Universal Music Deutschland",
+			"domain": "universal-music.de",
+			"aliases": [
+				"umg"
+			],
+			"logo": "universal-music.de.png"
+		},
+		{
+			"name": "uol.com.br",
+			"domain": "uol.com.br",
+			"logo": "uol.com.br.png"
+		},
+		{
+			"name": "uplynk",
+			"domain": "uplynk.com",
+			"logo": "uplynk.com.png"
+		},
+		{
+			"name": "URPlay",
+			"domain": "urplay.se",
+			"logo": "urplay.se.png"
+		},
+		{
+			"name": "USANetwork",
+			"domain": "usanetwork.com",
+			"logo": "usanetwork.com.png"
+		},
+		{
+			"name": "USAToday",
+			"domain": "usatoday.com",
+			"logo": "usatoday.com.png"
+		},
+		{
+			"name": "ustream",
+			"domain": "ustream.tv",
+			"logo": "ustream.tv.png"
+		},
+		{
+			"name": "ustudio",
+			"domain": "ustudio.com",
+			"logo": "ustudio.com.png"
+		},
+		{
+			"name": "Vbox7",
+			"domain": "vbox7.com",
+			"logo": "vbox7.com.png"
+		},
+		{
+			"name": "Veo",
+			"domain": "veo.co",
+			"logo": "veo.co.png"
+		},
+		{
+			"name": "Vevo",
+			"domain": "vevo.com",
+			"aliases": [
+				"VevoPlaylist"
+			],
+			"logo": "vevo.com.png"
+		},
+		{
+			"name": "vh1.com",
+			"domain": "vh1.com",
+			"logo": "vh1.com.png"
+		},
+		{
+			"name": "Videa",
+			"domain": "videa.hu",
+			"logo": "videa.hu.png"
+		},
+		{
+			"name": "video.arnes.si",
+			"domain": "arnes.si"
+		},
+		{
+			"name": "VideoKen",
+			"domain": "videoken.com",
+			"aliases": [
+				"VideoKenPlayer"
+			],
+			"logo": "videoken.com.png"
+		},
+		{
+			"name": "VideoPress",
+			"domain": "videopress.com",
+			"logo": "videopress.com.png"
+		},
+		{
+			"name": "Vidflex",
+			"domain": "hockeycanada.ca",
+			"logo": "hockeycanada.ca.png"
+		},
+		{
+			"name": "Vidio",
+			"domain": "vidio.com",
+			"aliases": [
+				"VidioLive",
+				"VidioPremier"
+			],
+			"logo": "vidio.com.png"
+		},
+		{
+			"name": "VidLii",
+			"domain": "vidlii.com",
+			"logo": "vidlii.com.png"
+		},
+		{
+			"name": "Vidly",
+			"domain": "vid.ly",
+			"logo": "vid.ly.png"
+		},
+		{
+			"name": "vids.io",
+			"domain": "vids.io",
+			"logo": "vids.io.png"
+		},
+		{
+			"name": "Vidyard",
+			"domain": "vidyard.com",
+			"logo": "vidyard.com.png"
+		},
+		{
+			"name": "viewlift",
+			"domain": "snagfilms.com"
+		},
+		{
+			"name": "Viidea",
+			"domain": "videolectures.net"
+		},
+		{
+			"name": "vimeo",
+			"domain": "vimeopro.com",
+			"logo": "vimeopro.com.png"
+		},
+		{
+			"name": "ViMP",
+			"domain": "oth-regensburg.de",
+			"logo": "oth-regensburg.de.png"
+		},
+		{
+			"name": "ViMP",
+			"domain": "sachsen.de",
+			"logo": "sachsen.de.png"
+		},
+		{
+			"name": "Viu",
+			"domain": "viu.com",
+			"aliases": [
+				"ViuOTTIndonesia"
+			],
+			"logo": "viu.com.png"
+		},
+		{
+			"name": "VKPlay",
+			"domain": "vkplay.live",
+			"aliases": [
+				"VKPlayLive"
+			],
+			"logo": "vkplay.live.png"
+		},
+		{
+			"name": "Vocaroo",
+			"domain": "vocaroo.com"
+		},
+		{
+			"name": "VODPlatform",
+			"domain": "vod-platform.net"
+		},
+		{
+			"name": "volejtv",
+			"domain": "volej.tv",
+			"logo": "volej.tv.png"
+		},
+		{
+			"name": "VoxMedia",
+			"domain": "theverge.com",
+			"logo": "theverge.com.png"
+		},
+		{
+			"name": "vpro",
+			"domain": "vpro.nl",
+			"logo": "vpro.nl.png"
+		},
+		{
+			"name": "VR SQUARE",
+			"domain": "livr.jp",
+			"aliases": [
+				"vrsquare"
+			],
+			"logo": "livr.jp.jpg"
+		},
+		{
+			"name": "VRT",
+			"domain": "vrt.be",
+			"aliases": [
+				"vrtmax"
+			],
+			"logo": "vrt.be.png"
+		},
+		{
+			"name": "VTM",
+			"domain": "vtm.be",
+			"logo": "vtm.be.png"
+		},
+		{
+			"name": "VTV",
+			"domain": "vtv.vn",
+			"logo": "vtv.vn.png"
+		},
+		{
+			"name": "VTVGo",
+			"domain": "vtvgo.vn",
+			"logo": "vtvgo.vn.png"
+		},
+		{
+			"name": "VTXTV",
+			"domain": "vtxtv.ch",
+			"aliases": [
+				"VTXTVLive",
+				"VTXTVRecordings"
+			],
+			"logo": "vtxtv.ch.png"
+		},
+		{
+			"name": "Vísir",
+			"domain": "visir.is",
+			"aliases": [
+				"Visir"
+			],
+			"logo": "visir.is.png"
+		},
+		{
+			"name": "Wall Street Journal",
+			"domain": "wsj.com",
+			"aliases": [
+				"WSJArticle",
+				"WSJ"
+			],
+			"logo": "wsj.com.png"
+		},
+		{
+			"name": "WalyTV",
+			"domain": "waly.tv",
+			"aliases": [
+				"WalyTVLive",
+				"WalyTVRecordings"
+			],
+			"logo": "waly.tv.png"
+		},
+		{
+			"name": "washingtonpost",
+			"domain": "washingtonpost.com",
+			"logo": "washingtonpost.com.jpg"
+		},
+		{
+			"name": "wat.tv",
+			"domain": "wat.tv"
+		},
+		{
+			"name": "WatchESPN",
+			"domain": "espn.com",
+			"logo": "espn.com.png"
+		},
+		{
+			"name": "WDR",
+			"domain": "wdr.de",
+			"aliases": [
+				"WDRPage"
+			],
+			"logo": "wdr.de.png"
+		},
+		{
+			"name": "WDRElefant",
+			"domain": "wdrmaus.de",
+			"logo": "wdrmaus.de.png"
+		},
+		{
+			"name": "Webcamerapl",
+			"domain": "webcamera.pl",
+			"logo": "webcamera.pl.png"
+		},
+		{
+			"name": "Webcaster",
+			"domain": "webcaster.pro",
+			"aliases": [
+				"WebcasterFeed"
+			],
+			"logo": "webcaster.pro.png"
+		},
+		{
+			"name": "WebOfStories",
+			"domain": "webofstories.com",
+			"aliases": [
+				"WebOfStoriesPlaylist"
+			],
+			"logo": "webofstories.com.png"
+		},
+		{
+			"name": "Weverse",
+			"domain": "weverse.io",
+			"aliases": [
+				"WeverseLive",
+				"WeverseLiveTab",
+				"WeverseMedia",
+				"WeverseMediaTab",
+				"WeverseMoment"
+			],
+			"logo": "weverse.io.png"
+		},
+		{
+			"name": "WeVidi",
+			"domain": "wevidi.net",
+			"logo": "wevidi.net.png"
+		},
+		{
+			"name": "Whyp",
+			"domain": "whyp.it",
+			"logo": "whyp.it.png"
+		},
+		{
+			"name": "wikimedia.org",
+			"domain": "wikimedia.org",
+			"logo": "wikimedia.org.png"
+		},
+		{
+			"name": "Wimbledon",
+			"domain": "wimbledon.com",
+			"logo": "wimbledon.com.png"
+		},
+		{
+			"name": "WimTV",
+			"domain": "wim.tv",
+			"logo": "wim.tv.png"
+		},
+		{
+			"name": "WinSports",
+			"domain": "winsports.co",
+			"aliases": [
+				"WinSportsVideo"
+			],
+			"logo": "winsports.co.png"
+		},
+		{
+			"name": "Wistia",
+			"domain": "wistia.net",
+			"aliases": [
+				"WistiaChannel",
+				"WistiaPlaylist"
+			]
+		},
+		{
+			"name": "wnl",
+			"domain": "omroepwnl.nl"
+		},
+		{
+			"name": "WorldStarHipHop",
+			"domain": "worldstarhiphop.com",
+			"logo": "worldstarhiphop.com.png"
+		},
+		{
+			"name": "wppilot",
+			"domain": "wp.pl"
+		},
+		{
+			"name": "wrestleuniverse",
+			"domain": "wrestle-universe.com",
+			"logo": "wrestle-universe.com.png"
+		},
+		{
+			"name": "WWE",
+			"domain": "wwe.com",
+			"logo": "wwe.com.png"
+		},
+		{
+			"name": "WyborczaPodcast",
+			"domain": "wyborcza.pl",
+			"aliases": [
+				"wyborcza"
+			],
+			"logo": "wyborcza.pl.png"
+		},
+		{
+			"name": "wykop",
+			"domain": "wykop.pl",
+			"logo": "wykop.pl.png"
+		},
+		{
+			"name": "Xbox",
+			"domain": "xboxclips.com",
+			"aliases": [
+				"XboxClips"
+			],
+			"logo": "xboxclips.com.png"
+		},
+		{
+			"name": "XHamster",
+			"domain": "xhamster.com",
+			"aliases": [
+				"XHamsterEmbed",
+				"XHamsterUser"
+			],
+			"logo": "xhamster.com.png"
+		},
+		{
+			"name": "XNXX",
+			"domain": "xnxx.com",
+			"logo": "xnxx.com.jpg"
+		},
+		{
+			"name": "XVideos",
+			"domain": "xvideos.com",
+			"logo": "xvideos.com.png"
+		},
+		{
+			"name": "XXXYMovies",
+			"domain": "xxxymovies.com",
+			"logo": "xxxymovies.com.png"
+		},
+		{
+			"name": "yahoo",
+			"domain": "yahoo.com",
+			"logo": "yahoo.com.png"
+		},
+		{
+			"name": "Yahoo! Japan News",
+			"domain": "yahoo.co.jp",
+			"aliases": [
+				"yahoo"
+			],
+			"logo": "yahoo.co.jp.png"
+		},
+		{
+			"name": "YandexDisk",
+			"domain": "yadi.sk",
+			"logo": "yadi.sk.png"
+		},
+		{
+			"name": "YappyProfile",
+			"domain": "yappy.media",
+			"logo": "yappy.media.png"
+		},
+		{
+			"name": "yfanefa",
+			"domain": "yfanefa.com"
+		},
+		{
+			"name": "YleAreena",
+			"domain": "yle.fi",
+			"logo": "yle.fi.png"
+		},
+		{
+			"name": "YouJizz",
+			"domain": "youjizz.com",
+			"logo": "youjizz.com.png"
+		},
+		{
+			"name": "YouNow",
+			"domain": "younow.com",
+			"aliases": [
+				"YouNowChannel",
+				"YouNowLive",
+				"YouNowMoment"
+			]
+		},
+		{
+			"name": "YouPorn",
+			"domain": "youporn.com",
+			"aliases": [
+				"YouPornCategory",
+				"YouPornChannel",
+				"YouPornCollection",
+				"YouPornStar",
+				"YouPornTag",
+				"YouPornVideos"
+			],
+			"logo": "youporn.com.png"
+		},
+		{
+			"name": "Z-aN",
+			"domain": "zan-live.com",
+			"aliases": [
+				"zan"
+			]
+		},
+		{
+			"name": "Zaiko",
+			"domain": "zaiko.io",
+			"aliases": [
+				"ZaikoETicket"
+			],
+			"logo": "zaiko.io.png"
+		},
+		{
+			"name": "Zapiks",
+			"domain": "zapiks.fr",
+			"logo": "zapiks.fr.png"
+		},
+		{
+			"name": "Zattoo",
+			"domain": "zattoo.com",
+			"aliases": [
+				"ZattooLive",
+				"ZattooMovies",
+				"ZattooRecordings"
+			],
+			"logo": "zattoo.com.png"
+		},
+		{
+			"name": "zdf",
+			"domain": "zdf.de",
+			"logo": "zdf.de.png"
+		},
+		{
+			"name": "ZenPorn",
+			"domain": "zenporn.com",
+			"logo": "zenporn.com.png"
+		},
+		{
+			"name": "ZetlandDKArticle",
+			"domain": "zetland.dk",
+			"logo": "zetland.dk.png"
+		},
+		{
+			"name": "Zhihu",
+			"domain": "zhihu.com",
+			"logo": "zhihu.com.png"
+		},
+		{
+			"name": "zingmp3",
+			"domain": "zing.vn",
+			"logo": "zing.vn.png"
+		},
+		{
+			"name": "zingmp3",
+			"domain": "zingmp3.vn",
+			"logo": "zingmp3.vn.jpg"
+		},
+		{
+			"name": "zoom",
+			"domain": "zoom.us",
+			"logo": "zoom.us.png"
+		},
+		{
+			"name": "Zype",
+			"domain": "zype.com"
+		},
+		{
+			"name": "Первый канал",
+			"domain": "1tv.ru",
+			"aliases": [
+				"1tv"
+			],
+			"logo": "1tv.ru.png"
+		},
+		{
+			"name": "乐视网",
+			"domain": "le.com",
+			"aliases": [
+				"Le",
+				"LePlaylist"
+			]
+		},
+		{
+			"name": "今日头条",
+			"domain": "toutiao.com",
+			"aliases": [
+				"toutiao"
+			],
+			"logo": "toutiao.com.png"
+		},
+		{
+			"name": "喜马拉雅FM",
+			"domain": "ximalaya.com",
+			"aliases": [
+				"ximalaya"
+			],
+			"logo": "ximalaya.com.png"
+		},
+		{
+			"name": "塞壬唱片",
+			"domain": "hypergryph.com",
+			"aliases": [
+				"monstersiren"
+			],
+			"logo": "hypergryph.com.png"
+		},
+		{
+			"name": "央视网",
+			"domain": "cntv.cn",
+			"aliases": [
+				"CCTV"
+			],
+			"logo": "cntv.cn.png"
+		},
+		{
+			"name": "新片场",
+			"domain": "xinpianchang.com",
+			"aliases": [
+				"Xinpianchang"
+			],
+			"logo": "xinpianchang.com.png"
+		},
+		{
+			"name": "日テレ無料TADA!",
+			"domain": "ntv.co.jp",
+			"aliases": [
+				"cu.ntv.co.jp"
+			],
+			"logo": "ntv.co.jp.png"
+		},
+		{
+			"name": "百度视频",
+			"domain": "baidu.com",
+			"aliases": [
+				"BaiduVideo"
+			],
+			"logo": "baidu.com.png"
+		},
+		{
+			"name": "网易云音乐 - MV",
+			"domain": "163.com",
+			"aliases": [
+				"netease"
+			],
+			"logo": "163.com.png"
+		},
+		{
+			"name": "美拍",
+			"domain": "meipai.com",
+			"aliases": [
+				"Meipai"
+			]
+		},
+		{
+			"name": "聯合影音",
+			"domain": "udn.com",
+			"aliases": [
+				"UDNEmbed"
+			],
+			"logo": "udn.com.png"
+		},
+		{
+			"name": "花椒直播",
+			"domain": "huajiao.com",
+			"aliases": [
+				"Huajiao"
+			]
+		},
+		{
+			"name": "華視新聞",
+			"domain": "cts.com.tw",
+			"aliases": [
+				"CtsNews"
+			],
+			"logo": "cts.com.tw.jpg"
+		}
+	]
+}
