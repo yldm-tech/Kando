@@ -1,6 +1,6 @@
 {
   "name": "Kando",
-  "identifier": "com.example.kando",
+  "identifier": "ai.yldm.kando",
   "version": "0.1.0",
   "out": "build",
   "i18n": {
