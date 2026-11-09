@@ -37,6 +37,9 @@ func DefaultPath() string {
 	return filepath.Join(dir, "Kando", "library.json")
 }
 
+// Path is the library.json file this shelf persists.
+func (l Library) Path() string { return l.path }
+
 // Load reads the library at path. A missing file is an empty library. A corrupt file is empty too, and the error says why. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
 	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}}

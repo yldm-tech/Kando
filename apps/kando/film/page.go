@@ -34,7 +34,7 @@ type App interface {
 	Subs() Subs
 	SubList() *ui.ListState
 	ClipList() *ui.ListState
-	// FilmSide is the side panel's tab: "" for 字幕, "clips" for 片段, "info" for 信息.
+	// FilmSide is the side panel's tab: "" for 字幕, "clips" for 片段, "info" for 信息. 样式 is shown through StyleView.
 	FilmSide() string
 	SetFilmSide(string)
 	Seek(at time.Duration)
@@ -76,6 +76,8 @@ type App interface {
 	Pointer(x, y float32, now time.Time)
 	LastMove() time.Time
 	LibraryDir() string
+	LibraryPath() string
+	ClipPoster(start time.Duration) ui.ImageSource
 	// Info is the open film's folder and files, read off the UI thread when it opened.
 	Info() Info
 	UploadView(item films.Film) Upload

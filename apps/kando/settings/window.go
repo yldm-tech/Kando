@@ -76,6 +76,11 @@ type App interface {
 	TranslateContext() *bool
 	TranslatePrompt() *string
 
+	// InterfaceLanguage is the app UI language tag ("en" or "zh-Hans").
+	// It is separate from Language, which is the language subtitles are translated into.
+	InterfaceLanguage() string
+	SetInterfaceLanguage(tag string)
+
 	// Cue is the subtitle look the player draws with; the 字幕外观 page previews it and does not change it.
 	Cue() *subtitle.Look
 	SubMode() string

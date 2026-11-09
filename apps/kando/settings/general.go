@@ -16,7 +16,14 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 	form.Card(c, func() { s.libraryRows(c) })
 	form.Note(c, "切换资料库会停止进行中的任务。从列表移出资料库不会删除里面的文件。", 10)
 	form.Card(c, func() {
-		form.Row(c, "界面语言", "", func() { form.Value(c, "简体中文", 13) })
+		form.Row(c, "界面语言", "", func() {
+			c.Key("interface-language")
+			selected := InterfaceLanguageName(s.InterfaceLanguage())
+			if form.Select(c, &selected, InterfaceLanguageChoices()).Label("界面语言").Changed() {
+				s.SetInterfaceLanguage(InterfaceLanguageTag(selected))
+				s.Save()
+			}
+		})
 		form.Separator(c, true)
 		form.Row(c, "版本", "", func() { form.Value(c, s.version, 13).Selectable() })
 	})
@@ -39,6 +46,26 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 		s.toolRow(c, t, "W", "whisper-cli", "语音识别", tools.Whisper)
 	})
 	form.Note(c, "这些程序来自本机，看懂不负责安装或更新。", 0)
+}
+
+// InterfaceLanguageChoices are the languages for which Kando ships a catalog.
+// They are named in themselves so the choice remains understandable after the app has switched languages.
+func InterfaceLanguageChoices() []string { return []string{"English", "简体中文"} }
+
+// InterfaceLanguageName turns a MyGo language tag into the label shown in the settings pop-up.
+func InterfaceLanguageName(tag string) string {
+	if tag == "en" {
+		return "English"
+	}
+	return "简体中文"
+}
+
+// InterfaceLanguageTag is the inverse of InterfaceLanguageName.
+func InterfaceLanguageTag(name string) string {
+	if name == "English" {
+		return "en"
+	}
+	return "zh-Hans"
 }
 
 // libraryRows choose the library, show where it is, and take it off the list. Without a library they offer to make or open one.

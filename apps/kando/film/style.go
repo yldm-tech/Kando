@@ -2,6 +2,7 @@ package film
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -25,19 +26,37 @@ var styleColors = []struct{ hex, name string }{{"#FFFFFF", "白色"}, {"#FFD60A"
 
 var styleFonts = []string{"默认", "苹方", "冬青黑体"}
 
-// styleView is the subtitle style, in the side panel in place of its tabs, reached from the mode menu's 样式…: the presets, the font, the order of the two lines and their place, then the size, color and weight of each line.
+// styleView is the subtitle configuration shown by the 样式 tab or the mode menu's 样式…: playback mode and delay, then the presets, font, order, position, size, color and weight of each line.
 func (s screen) styleView(c *ui.Context) {
 	look := s.Cue()
 	changed := false
-	ui.Row(c).Gap(6).Padding(12, 12, 8, 12).AlignItems(ui.Center).Children(func() {
-		c.Key("film-style-back")
-		if glyphButton(c, iconChevronSmall, "返回侧栏", 28, 28, 7, 11).Clicked() {
-			s.SetStyleView(false)
-		}
-		ui.Text(c, "字幕样式").FontSize(14).Bold()
-	})
 	ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 		ui.Column(c).WidthPercent(100).Padding(0, 14, 16, 14).Gap(14).Children(func() {
+			ui.Row(c).Height(28).AlignItems(ui.Center).Children(func() {
+				panelHeading(c, "播放")
+				if breeze.Button(c, "恢复默认样式").Height(24).Padding(0, 8).AlignSelf(ui.Center).Clicked() {
+					*look = DefaultLook()
+					changed = true
+				}
+			})
+			panelGroup(c, func() {
+				styleRow(c, "显示字幕", false, func() {
+					mode := styleModeIndex(s.SubMode())
+					before := mode
+					c.Key("film-style-mode")
+					breeze.Segmented(c, &mode, "关闭", "仅原文", "仅译文", "双语").Label("显示字幕")
+					if mode != before {
+						s.SetSubMode([]string{SubOff, SubOriginal, SubTranslation, SubBilingual}[mode])
+					}
+				})
+				styleRow(c, "字幕延迟", true, func() {
+					value := s.Delay().Seconds()
+					c.Key("film-style-delay")
+					if breeze.Stepper(c, &value, -30, 30, 0.1).Label("字幕延迟").Changed() {
+						s.SetDelay(time.Duration(value * float64(time.Second)).Round(100 * time.Millisecond))
+					}
+				})
+			})
 			preset := 0
 			for i, p := range stylePresets {
 				if p.id == look.Preset {
@@ -94,15 +113,23 @@ func (s screen) styleView(c *ui.Context) {
 			})
 			changed = s.faceGroup(c, "译文", &look.Translation, 16, 48) || changed
 			changed = s.faceGroup(c, "原文", &look.Original, 12, 40) || changed
-			c.Key("film-style-reset")
-			if breeze.Button(c, "恢复默认样式").AlignSelf(ui.Center).Clicked() {
-				*look = DefaultLook()
-				changed = true
-			}
 		})
 	})
 	if changed {
 		s.LookChanged()
+	}
+}
+
+func styleModeIndex(mode string) int {
+	switch mode {
+	case SubOriginal:
+		return 1
+	case SubTranslation:
+		return 2
+	case SubBilingual:
+		return 3
+	default:
+		return 0
 	}
 }
 
