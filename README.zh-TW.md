@@ -36,7 +36,7 @@
 
 ### 下載
 
-版本發布後，macOS 和 Linux 的建置版本會附加到 [GitHub Releases](https://github.com/yldm-tech/Kando/releases)；目前還沒有 Windows 版本，在 Windows 上請依下文從原始碼建置。這些建置版本沒有以 Developer ID 或程式碼簽署憑證簽署，因此第一次開啟看懂時，系統會發出警告：
+macOS（Apple 晶片和 Intel）和 Linux（x86-64 和 ARM64）的建置版本在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上；目前還沒有 Windows 版本，在 Windows 上請依下文從原始碼建置。這些建置版本沒有以 Developer ID 或程式碼簽署憑證簽署，因此第一次開啟看懂時，系統會發出警告：
 
 - macOS：在 macOS 15 及更新版本上，先開啟看懂一次，再選擇「系統設定 › 隱私權與安全性 › 強制打開」。在 macOS 14 及更早版本上，在「應用程式」中按住 Control 鍵並按一下 Kando，然後選擇「打開」。也可以在「終端機」中移除隔離標記：`xattr -dr com.apple.quarantine /Applications/Kando.app`。
 - Windows：在 SmartScreen 對話方塊中，選擇「其他資訊 › 仍要執行」。
@@ -55,29 +55,25 @@ make build
 
 ## 系統需求
 
-看懂會執行下列程式，但不會安裝它們。若因 `yt-dlp` 版本過舊而下載失敗，看懂會提供「更新並重試」，依原本的安裝方式更新它並重試。
+看懂會執行 `yt-dlp`、`ffmpeg` 和 `whisper-cli`（whisper.cpp）。在 macOS 和 Linux 上不必自己安裝：看懂開啟時若缺少其中任何一個，會自動下載，入門導覽中會顯示下載進度。已經安裝好的（例如用 Homebrew 安裝的）會直接使用。
 
-| 程式 | 用途 |
-| --- | --- |
-| `yt-dlp` | 下載線上影片。每個工作都需要它，本機檔案也不例外。 |
-| `ffmpeg` | 擷取音訊、產生封面，以及在播放器中解碼畫面。在 macOS 上，聲音透過隨 ffmpeg 一起安裝的 `ffplay` 播放，或改用 `afplay`。 |
-| `whisper-cli`（whisper.cpp） | 語音辨識。 |
-| 一個 whisper.cpp ggml 模型 | 在「設定 › 語音辨識」中下載一個，或把 `KANDO_WHISPER_MODEL` 指向一個模型檔。 |
+| 程式 | 用途 | 看懂下載的版本 |
+| --- | --- | --- |
+| `yt-dlp` | 下載線上影片。每個工作都需要它，本機檔案也不例外。 | [yt-dlp 官方發佈](https://github.com/yt-dlp/yt-dlp/releases)的單一檔案版。 |
+| `ffmpeg` | 擷取音訊、產生封面，以及在播放器中解碼畫面。在 macOS 上，聲音透過它旁邊的 `ffplay` 播放，或改用 `afplay`。 | FFmpeg 9.0.2（macOS 版附 `ffplay`），來自本儲存庫的 [tools 發佈](https://github.com/yldm-tech/Kando/releases/tag/tools-1)。 |
+| `whisper-cli`（whisper.cpp） | 語音辨識。 | whisper.cpp 1.9.5（macOS 版啟用 Metal），來自同一個發佈。 |
+| 一個 whisper.cpp ggml 模型 | 在入門導覽或「設定 › 語音辨識」中下載一個，或把 `KANDO_WHISPER_MODEL` 指向一個模型檔。 | |
 
-在 macOS 上使用 Homebrew：
+tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.github/tools.env` 中固定的原始碼建置，看懂使用每個下載前都會以內建的 SHA-256 驗證。下載的程式放在 `settings.json` 旁的 `tools` 資料夾（macOS 上是 `~/Library/Application Support/Kando/tools`，Linux 上是 `~/.config/Kando/tools`）。看懂會先在這裡找，再找 `PATH` 以及 `/opt/homebrew/bin`、`/usr/local/bin` 和 `/home/linuxbrew/.linuxbrew/bin`，因為從 Finder 或桌面啟動器開啟的應用程式只會拿到精簡的 `PATH`。「設定 › 一般」會顯示使用的是哪個程式，缺少的可以按「下載」或「重試」，按「重新偵測」會再找一次。若因 `yt-dlp` 版本過舊而下載失敗，看懂會提供「更新並重試」，依原本的安裝方式更新它並重試。
 
-```sh
-brew install yt-dlp ffmpeg whisper-cpp
-```
-
-在 Windows 和 Linux 上，請用你的套件管理器安裝相同的程式，並確認它們位於 `PATH` 中。除了 `PATH` 之外，看懂也會在 `/opt/homebrew/bin`、`/usr/local/bin` 和 `/home/linuxbrew/.linuxbrew/bin` 中尋找，因為從 Finder 或桌面啟動器開啟的應用程式只會拿到精簡的 `PATH`。「設定 › 一般」會顯示找到了哪些程式，按「重新偵測」會再找一次。
+在 Windows 上看懂暫時還不會自動下載：請用你的套件管理器安裝相同的程式，並確認它們位於 `PATH` 中。
 
 在 Windows 和 Linux 上，播放器目前只顯示畫面而沒有聲音；音訊播放只在 macOS 上實作。
 
 ## 開始使用
 
 1. 開啟看懂。還沒有任何資料庫時，它會提供「新增資料庫…」和「打開現有資料庫…」兩個選項。新資料庫預設命名為「影視庫」，在 macOS 上位於 `~/Movies`，其他平台位於 `~/Videos`，可以自行更改。
-2. 開啟「設定」。在「一般」中，確認 `ffmpeg`、`yt-dlp` 和 `whisper-cli` 都顯示為「已安裝」。
+2. 入門導覽會自動下載缺少的 `ffmpeg`、`yt-dlp` 和 `whisper-cli`。開啟「設定」（⌘,），「一般」中會顯示它們和各自的版本。
 3. 在「語音辨識」中，按一下某個 whisper 模型旁的「下載」；下載完成後，看懂會選用它。標示「推薦」的是「Large v3 Turbo（壓縮版）」，574 MB。Vimpo 或 hyperframes 已經下載的模型可以直接選用，不必複製。
 4. 在「AI 服務」中設定翻譯：
    - EveryAPI（預設）：執行 `everyapi auth login`，用 [EveryAPI](https://everyapi.ai) CLI 登入一次。看懂會向 CLI 取得金鑰（`everyapi auth credential`），因此會沿用 CLI 的登入狀態、閘道區域與金鑰更新，你不必貼上權杖。預設模型是 `claude-haiku-5-5`；`everyapi models list` 會列出其他模型。你也可以改為把 EveryAPI 金鑰貼到「API Key」中。

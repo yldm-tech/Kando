@@ -36,7 +36,7 @@ Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공
 
 ### 다운로드
 
-버전이 게시되면 macOS, Linux용 빌드가 [GitHub Releases](https://github.com/yldm-tech/Kando/releases)에 첨부됩니다. Windows용 빌드는 아직 없으므로 Windows에서는 아래 설명대로 소스에서 빌드하세요. Developer ID나 코드 서명 인증서로 서명되어 있지 않으므로 Kando를 처음 열 때 시스템이 경고를 표시합니다.
+macOS(Apple 실리콘과 Intel)와 Linux(x86-64와 ARM64)용 빌드는 [GitHub Releases](https://github.com/yldm-tech/Kando/releases)에 있습니다. Windows용 빌드는 아직 없으므로 Windows에서는 아래 설명대로 소스에서 빌드하세요. Developer ID나 코드 서명 인증서로 서명되어 있지 않으므로 Kando를 처음 열 때 시스템이 경고를 표시합니다.
 
 - macOS: macOS 15 이상에서는 Kando를 한 번 연 다음 시스템 설정 › 개인정보 보호 및 보안 › 그래도 열기를 선택합니다. macOS 14 이하에서는 응용 프로그램 폴더에서 Kando를 Control-클릭하고 열기를 선택합니다. 또는 터미널에서 격리 플래그를 제거합니다: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
 - Windows: SmartScreen 대화 상자에서 추가 정보 › 실행을 선택합니다.
@@ -55,29 +55,25 @@ make build
 
 ## 요구 사항
 
-Kando는 다음 프로그램을 실행합니다. 이 프로그램들을 설치하지는 않습니다. `yt-dlp`가 오래되어 다운로드에 실패하면 업데이트 후 다시 시도가 표시되며, 설치한 방식대로 업데이트한 뒤 다시 시도합니다.
+Kando는 `yt-dlp`, `ffmpeg`, `whisper-cli`(whisper.cpp)를 실행합니다. macOS와 Linux에서는 직접 설치할 필요가 없습니다. Kando를 열 때 없는 프로그램이 있으면 자동으로 내려받고, 시작 가이드에 진행 상황이 표시됩니다. 이미 설치한 프로그램(Homebrew로 설치한 것 등)은 그대로 사용합니다.
 
-| 프로그램 | 용도 |
-| --- | --- |
-| `yt-dlp` | 온라인 동영상 다운로드. Kando는 로컬 파일을 포함한 모든 작업에 이 프로그램을 요구합니다. |
-| `ffmpeg` | 오디오 추출, 커버 이미지 추출, 플레이어의 화면 디코딩. macOS에서는 ffmpeg와 함께 설치되는 `ffplay` 또는 `afplay`로 소리를 재생합니다. |
-| `whisper-cli` (whisper.cpp) | 음성 인식. |
-| whisper.cpp ggml 모델 | 설정 › 음성 인식에서 내려받거나, `KANDO_WHISPER_MODEL`로 모델 파일을 지정합니다. |
+| 프로그램 | 용도 | Kando가 내려받는 것 |
+| --- | --- | --- |
+| `yt-dlp` | 온라인 동영상 다운로드. Kando는 로컬 파일을 포함한 모든 작업에 이 프로그램을 요구합니다. | [yt-dlp 공식 릴리스](https://github.com/yt-dlp/yt-dlp/releases)의 단일 파일 빌드. |
+| `ffmpeg` | 오디오 추출, 커버 이미지 추출, 플레이어의 화면 디코딩. macOS에서는 그 옆의 `ffplay` 또는 `afplay`로 소리를 재생합니다. | FFmpeg 9.0.2(macOS용은 `ffplay` 포함). 이 저장소의 [tools 릴리스](https://github.com/yldm-tech/Kando/releases/tag/tools-1)에서. |
+| `whisper-cli` (whisper.cpp) | 음성 인식. | whisper.cpp 1.9.5(macOS용은 Metal 사용). 같은 릴리스에서. |
+| whisper.cpp ggml 모델 | 시작 가이드나 설정 › 음성 인식에서 내려받거나, `KANDO_WHISPER_MODEL`로 모델 파일을 지정합니다. | |
 
-Homebrew를 사용하는 macOS에서:
+tools 릴리스는 Tools 워크플로(`.github/workflows/tools.yml`)가 `.github/tools.env`에 고정된 소스로 빌드하며, Kando는 내려받은 파일을 앱에 들어 있는 SHA-256으로 검증한 뒤에 사용합니다. 내려받은 프로그램은 `settings.json` 옆의 `tools` 폴더(macOS에서는 `~/Library/Application Support/Kando/tools`, Linux에서는 `~/.config/Kando/tools`)에 저장됩니다. Kando는 먼저 이곳을 찾고, 그다음 `PATH`와 `/opt/homebrew/bin`, `/usr/local/bin`, `/home/linuxbrew/.linuxbrew/bin`을 찾습니다. Finder나 데스크톱 런처에서 연 앱은 최소한의 `PATH`만 받기 때문입니다. 설정 › 일반에는 어떤 프로그램을 사용하는지 표시되고, 없는 프로그램은 다운로드나 다시 시도로 받을 수 있으며, 다시 감지를 누르면 다시 찾습니다. `yt-dlp`가 오래되어 다운로드에 실패하면 업데이트 후 다시 시도가 표시되며, 설치한 방식대로 업데이트한 뒤 다시 시도합니다.
 
-```sh
-brew install yt-dlp ffmpeg whisper-cpp
-```
-
-Windows와 Linux에서는 패키지 관리자로 같은 프로그램을 설치하고 `PATH`에 들어 있는지 확인하세요. Finder나 데스크톱 런처에서 연 앱은 최소한의 `PATH`만 받기 때문에, Kando는 `PATH` 외에도 `/opt/homebrew/bin`, `/usr/local/bin`, `/home/linuxbrew/.linuxbrew/bin`을 찾아봅니다. 설정 › 일반에는 어떤 프로그램을 찾았는지 표시되며, 다시 감지를 누르면 다시 찾습니다.
+Windows에서는 아직 자동으로 내려받지 않습니다. 패키지 관리자로 같은 프로그램을 설치하고 `PATH`에 들어 있는지 확인하세요.
 
 Windows와 Linux에서는 현재 플레이어가 소리 없이 화면만 보여 줍니다. 오디오 재생은 macOS에서만 구현되어 있습니다.
 
 ## 시작하기
 
 1. Kando를 엽니다. 아직 라이브러리가 없으면 새로운 라이브러리…와 기존 라이브러리 열기…를 보여 줍니다. 새 라이브러리는 따로 바꾸지 않으면 macOS에서는 `~/Movies`, 그 밖의 플랫폼에서는 `~/Videos`에 영상 라이브러리라는 이름으로 만들어집니다.
-2. 설정(⌘,)을 엽니다. 일반에서 `ffmpeg`, `yt-dlp`, `whisper-cli`가 설치됨으로 표시되는지 확인하고, 인터페이스 언어를 고릅니다.
+2. 시작 가이드가 없는 `ffmpeg`, `yt-dlp`, `whisper-cli`를 자동으로 내려받습니다. 설정(⌘,)을 열면 일반에 각 프로그램과 버전이 표시되고, 인터페이스 언어도 고를 수 있습니다.
 3. 음성 인식에서 whisper 모델 옆의 다운로드를 클릭합니다. 다운로드가 끝나면 Kando가 그 모델을 선택합니다. 추천 표시가 붙은 모델은 Large v3 Turbo (압축 버전, 574 MB)입니다. Vimpo나 hyperframes가 이미 내려받은 모델은 복사하지 않고 선택할 수 있습니다.
 4. AI 서비스에서 번역을 설정합니다.
    - EveryAPI(기본값): [EveryAPI](https://everyapi.ai) CLI로 `everyapi auth login`을 실행해 한 번 로그인합니다. Kando는 CLI에 키를 요청하므로(`everyapi auth credential`) CLI와 같은 로그인, 게이트웨이 리전, 키 갱신을 사용하며, 토큰을 붙여 넣을 필요가 없습니다. 기본 모델은 `claude-haiku-5-5`이며, `everyapi models list`로 다른 모델을 확인할 수 있습니다. 대신 API Key에 EveryAPI 키를 붙여 넣을 수도 있습니다.
