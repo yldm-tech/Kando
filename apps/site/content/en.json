@@ -15,7 +15,7 @@
   "heroLead": "Paste a video link or drop a video file on the window. Kando downloads online videos, transcribes the speech on your own computer, translates every line, and plays the video with the original and the translation on screen together.",
   "heroDownload": "Download",
   "heroSource": "View on GitHub",
-  "heroReleaseNote": "No version has been published yet: builds will appear on GitHub Releases.",
+  "heroReleaseNote": "Builds for macOS and Linux are on GitHub Releases. On Windows:",
   "heroBuildLink": "Build from source",
   "heroPlatforms": "macOS · Windows · Linux",
   "heroAudioNote": "Sound plays on macOS only for now",

@@ -12,13 +12,13 @@ import (
 	"path/filepath"
 )
 
-// Brand gradient of the app icon, from its top left corner to its bottom right one.
+// Background gradient of the app icon, from its top edge to its bottom one.
 var (
-	gradientFrom = color.RGBA{0x4A, 0x7C, 0xF7, 0xFF}
-	gradientTo   = color.RGBA{0x9B, 0x5C, 0xF6, 0xFF}
+	gradientFrom = color.RGBA{0x2A, 0x2E, 0x3B, 0xFF}
+	gradientTo   = color.RGBA{0x0D, 0x0F, 0x15, 0xFF}
 )
 
-// writeIcons makes the PNG icons from the app icon at iconPath: favicon-16.png and favicon-32.png, favicon.ico holding both, and apple-touch-icon.png. The app icon is a rounded square on a transparent margin; the favicons are that square without the margin, and the touch icon fills the square's corners with the gradient too, because iOS rounds the corners itself and would show the transparent ones black.
+// writeIcons makes the PNG icons from the app icon at iconPath: favicon-16.png and favicon-32.png, favicon.ico holding both, and apple-touch-icon.png. The app icon is a rounded square on a transparent margin; the favicons are that square without the margin, and the touch icon fills the square's corners with its background gradient too, because iOS rounds the corners itself and would show the transparent ones black.
 func writeIcons(iconPath, out string) error {
 	f, err := os.Open(iconPath)
 	if err != nil {
@@ -75,14 +75,14 @@ func opaqueSquare(img image.Image) *image.RGBA {
 	return dst
 }
 
-// gradient is a size×size square of the brand gradient, along the diagonal from the top left corner.
+// gradient is a size×size square of the icon's background gradient, from top to bottom.
 func gradient(size int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, size, size))
-	span := float64(2 * (size - 1))
+	span := float64(size - 1)
 	lerp := func(a, b uint8, t float64) uint8 { return uint8(float64(a) + (float64(b)-float64(a))*t + 0.5) }
 	for y := range size {
 		for x := range size {
-			t := float64(x+y) / span
+			t := float64(y) / span
 			img.SetRGBA(x, y, color.RGBA{lerp(gradientFrom.R, gradientTo.R, t), lerp(gradientFrom.G, gradientTo.G, t), lerp(gradientFrom.B, gradientTo.B, t), 0xFF})
 		}
 	}

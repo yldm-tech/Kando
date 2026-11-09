@@ -15,7 +15,7 @@
   "heroLead": "동영상 링크를 붙여 넣거나 동영상 파일을 창에 끌어다 놓으세요. Kando가 온라인 동영상을 내려받고, 사용자의 컴퓨터에서 음성을 전사하고, 모든 대사를 번역한 다음, 원문과 번역을 화면에 함께 띄워 재생합니다.",
   "heroDownload": "다운로드",
   "heroSource": "GitHub에서 보기",
-  "heroReleaseNote": "아직 게시된 버전이 없습니다. 빌드는 GitHub Releases에 올라올 예정입니다.",
+  "heroReleaseNote": "macOS와 Linux용 빌드는 GitHub Releases에 있습니다. Windows:",
   "heroBuildLink": "소스에서 빌드하기",
   "heroPlatforms": "macOS · Windows · Linux",
   "heroAudioNote": "소리는 현재 macOS에서만 재생됩니다",

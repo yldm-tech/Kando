@@ -13,7 +13,7 @@ import (
 )
 
 const libraryIconAttr = "com.kando.libraryIcon"
-const libraryIconVersion = "2"
+const libraryIconVersion = "3"
 
 // Ensure gives a .kando bundle a Finder icon: the system folder with the app mark on its face. A bundle that already has this version is left untouched.
 func Ensure(dir string, png []byte) {
