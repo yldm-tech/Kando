@@ -32,7 +32,13 @@ func (s screen) styleView(c *ui.Context) {
 	changed := false
 	ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 		ui.Column(c).WidthPercent(100).Padding(0, 14, 16, 14).Gap(14).Children(func() {
-			panelHeading(c, "播放")
+			ui.Row(c).Height(28).AlignItems(ui.Center).Children(func() {
+				panelHeading(c, "播放")
+				if breeze.Button(c, "恢复默认样式").Height(24).Padding(0, 8).AlignSelf(ui.Center).Clicked() {
+					*look = DefaultLook()
+					changed = true
+				}
+			})
 			panelGroup(c, func() {
 				styleRow(c, "显示字幕", false, func() {
 					mode := styleModeIndex(s.SubMode())
@@ -107,11 +113,6 @@ func (s screen) styleView(c *ui.Context) {
 			})
 			changed = s.faceGroup(c, "译文", &look.Translation, 16, 48) || changed
 			changed = s.faceGroup(c, "原文", &look.Original, 12, 40) || changed
-			c.Key("film-style-reset")
-			if breeze.Button(c, "恢复默认样式").AlignSelf(ui.Center).Clicked() {
-				*look = DefaultLook()
-				changed = true
-			}
 		})
 	})
 	if changed {
