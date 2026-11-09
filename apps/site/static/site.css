@@ -901,11 +901,6 @@ code {
   line-height: 1.65;
 }
 
-/* コピーしました, the Japanese label after copying, is the widest. */
-:lang(ja) .code pre {
-  padding-right: 124px;
-}
-
 .code code {
   font-size: inherit;
 }
