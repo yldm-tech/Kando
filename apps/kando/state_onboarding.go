@@ -335,3 +335,30 @@ func (a *app) onboardingDownload(id string) {
 	a.onb.lastDownload = id
 	a.downloadSpeechModel(id)
 }
+
+// onboardingTools is the programs Kando runs as the second step shows them: there, downloading, missing with Kando's download of it, or missing where Kando cannot download it.
+func (a *app) onboardingTools() []onboarding.Tool {
+	tools, own := a.pipeline.(media.Tools)
+	rows := []onboarding.Tool{
+		{Name: "yt-dlp", Use: locales.SettingsGeneralUseYTDLP()},
+		{Name: "ffmpeg", Use: locales.SettingsGeneralUseFFmpeg()},
+		{Name: "whisper-cli", Use: locales.SettingsGeneralUseWhisper()},
+	}
+	paths := []string{tools.YTDLP, tools.FFmpeg, tools.Whisper}
+	for i := range rows {
+		name := rows[i].Name
+		progress, running := a.kitsProgress(name)
+		switch {
+		// Another pipeline, as a test's, runs no programs of its own.
+		case !own, paths[i] != "":
+			rows[i].State = onboarding.ToolReady
+		case running:
+			rows[i].State, rows[i].Progress = onboarding.ToolDownloading, progress
+		case a.kitsCanInstall(name):
+			rows[i].State, rows[i].Err = onboarding.ToolMissing, a.kits.errs[name]
+		default:
+			rows[i].State = onboarding.ToolUnavailable
+		}
+	}
+	return rows
+}

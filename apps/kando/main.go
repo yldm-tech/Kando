@@ -44,6 +44,7 @@ type app struct {
 	palette  paletteUI  // state_palette.go
 	onb      onboardUI  // state_onboarding.go
 	sites    sitesUI    // state_sites.go
+	kits     kitsUI     // state_kits.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -63,12 +64,15 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		palette:  newPaletteUI(),
 		onb:      newOnboardUI(),
 		sites:    newSitesUI(),
+		kits:     newKitsUI(),
 	}
 }
 
 func main() {
 	var win *mygo.Window
 	var a *app
+	// The programs Kando downloads for itself go beside its settings, and are looked up before those on PATH.
+	media.OwnToolsDir = filepath.Join(filepath.Dir(shelf.DefaultPath()), "tools")
 	a = newApp(media.ToolsFromEnv(), func(fn func()) {
 		win.Update(func() {
 			fn()

@@ -2036,9 +2036,9 @@
   "@onboardingModelsReady": {
     "description": "Head of the second step's card of speech models when one is in use."
   },
-  "onboardingModelsTitle": "Download a Speech Recognition Model",
+  "onboardingModelsTitle": "Download Components and a Speech Model",
   "@onboardingModelsTitle": {
-    "description": "Title of the guide's second step, where a speech recognition model is downloaded."
+    "description": "Title of the guide's second step, where the programs Kando needs download and a speech recognition model is downloaded."
   },
   "onboardingPillLanguages": "Original audio · {language} → {target}",
   "@onboardingPillLanguages": {
@@ -2147,6 +2147,40 @@
         "example": "Show Getting Started Guide"
       }
     }
+  },
+  "onboardingToolConnecting": "Connecting…",
+  "@onboardingToolConnecting": {
+    "description": "Line under a program in the guide while its download waits for the server."
+  },
+  "onboardingToolProgress": "Downloading {percent}%",
+  "@onboardingToolProgress": {
+    "description": "Line under a program in the guide while it downloads.",
+    "placeholders": {
+      "percent": {
+        "type": "int",
+        "example": "42"
+      }
+    }
+  },
+  "onboardingToolUnavailable": "Install it with your package manager and make sure it is on PATH",
+  "@onboardingToolUnavailable": {
+    "description": "Line under a program in the guide on a system Kando cannot download it for, such as Windows."
+  },
+  "onboardingToolsDownloading": "Downloading the programs Kando needs",
+  "@onboardingToolsDownloading": {
+    "description": "Head of the guide's card of programs while Kando downloads some of them."
+  },
+  "onboardingToolsMissing": "Kando needs these programs to process videos",
+  "@onboardingToolsMissing": {
+    "description": "Head of the guide's card of programs when some are missing and none is downloading."
+  },
+  "onboardingToolsNote": "Kando downloads them by itself. You can go on to the next step meanwhile.",
+  "@onboardingToolsNote": {
+    "description": "Line under the guide's card of programs while some are not there yet."
+  },
+  "onboardingToolsReady": "Components are ready",
+  "@onboardingToolsReady": {
+    "description": "Head of the guide's card of programs once yt-dlp, ffmpeg and whisper-cli are all there."
   },
   "onboardingTranslateInto": "Translate subtitles into",
   "@onboardingTranslateInto": {
@@ -2511,6 +2545,16 @@
   "precheckToolSeparator": ", ",
   "@precheckToolSeparator": {
     "description": "What goes between the names of missing programs in a list, such as yt-dlp and ffmpeg."
+  },
+  "precheckToolsDownloading": "Still downloading the programs that process videos: {tools}. Try again once they're in.",
+  "@precheckToolsDownloading": {
+    "description": "Message bar when programs a job needs are still downloading, with their names joined by precheckToolSeparator.",
+    "placeholders": {
+      "tools": {
+        "type": "String",
+        "example": "yt-dlp、ffmpeg"
+      }
+    }
   },
   "precheckToolsMissing": "The programs that process videos aren't installed yet: {tools}",
   "@precheckToolsMissing": {
@@ -3076,6 +3120,16 @@
   "@readinessCheckingTools": {
     "description": "The sidebar's status line before the programs a job needs have been looked for."
   },
+  "readinessDownloadingTools": "Downloading components: {tools}",
+  "@readinessDownloadingTools": {
+    "description": "The sidebar's status line while Kando downloads programs a job needs, with their names joined by precheckToolSeparator.",
+    "placeholders": {
+      "tools": {
+        "type": "String",
+        "example": "yt-dlp、ffmpeg"
+      }
+    }
+  },
   "readinessMissingTools": "Missing components: {tools}",
   "@readinessMissingTools": {
     "description": "The sidebar's status line when programs a job needs are not installed, with their names joined by precheckToolSeparator.",
@@ -3324,6 +3378,24 @@
   "@settingsGeneralCurrentLibrary": {
     "description": "Row title and pop-up name on the General page: the library Kando has open."
   },
+  "settingsGeneralDownload": "Download",
+  "@settingsGeneralDownload": {
+    "description": "Button on a program's row that downloads it, where the computer does not have it."
+  },
+  "settingsGeneralDownloadFailed": "Download failed: {error}",
+  "@settingsGeneralDownloadFailed": {
+    "description": "Where a program is, after Kando's download of it failed, with what went wrong.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "HTTP 404"
+      }
+    }
+  },
+  "settingsGeneralDownloading": "Downloading…",
+  "@settingsGeneralDownloading": {
+    "description": "Where a program is, while Kando downloads it; also the name of its progress bar."
+  },
   "settingsGeneralForget": "Remove from list",
   "@settingsGeneralForget": {
     "description": "Row title: take the current library off Kando's list of libraries."
@@ -3376,6 +3448,10 @@
   "@settingsGeneralRedetect": {
     "description": "Button looking for ffmpeg, yt-dlp and whisper-cli again."
   },
+  "settingsGeneralRetry": "Retry",
+  "@settingsGeneralRetry": {
+    "description": "Button on a program's row that downloads it again after its download failed."
+  },
   "settingsGeneralShowInFinder": "Show in Finder",
   "@settingsGeneralShowInFinder": {
     "description": "Button showing the library folder in Finder."
@@ -3394,9 +3470,13 @@
       }
     }
   },
-  "settingsGeneralToolsNote": "These programs come from this Mac; Kando doesn't install or update them.",
+  "settingsGeneralToolsNote": "Kando downloads the programs it is missing. Those already installed on this computer are used as they are.",
   "@settingsGeneralToolsNote": {
-    "description": "Footnote under the programs Kando runs."
+    "description": "Footnote under the programs Kando runs: Kando downloads the missing ones itself."
+  },
+  "settingsGeneralToolsNoteManual": "These programs come from this computer; Kando doesn't install or update them.",
+  "@settingsGeneralToolsNoteManual": {
+    "description": "Footnote under the programs Kando runs, on a system where it does not download them (Windows): they are the user's to install."
   },
   "settingsGeneralUseFFmpeg": "Converts audio, grabs covers, decodes frames",
   "@settingsGeneralUseFFmpeg": {
