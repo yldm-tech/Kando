@@ -14,10 +14,8 @@
   --link: #a5b8ff;
   --link-hover: #c9d4ff;
   --blue: #4a7cf7;
-  --violet: #9b5cf6;
-  --grad: linear-gradient(135deg, #4a7cf7 0%, #9b5cf6 100%);
   /* The color Kando's player gives a translated line, which the headline's echo borrows. */
-  --sub: #ffd479;
+  --sub: #ffd166;
   --code-bg: #05060a;
   --code-text: #e3e6ef;
   --header-bg: rgba(8, 9, 13, 0.72);
@@ -118,7 +116,7 @@ a:hover {
 }
 
 ::selection {
-  background: rgba(155, 92, 246, 0.45);
+  background: rgba(74, 124, 247, 0.5);
   color: #ffffff;
 }
 
@@ -348,7 +346,7 @@ code {
   border-color: transparent;
   background: #ffffff;
   color: #0a0b10;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 12px 40px -12px rgba(140, 120, 255, 0.75);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 12px 40px -12px rgba(255, 209, 102, 0.45);
 }
 
 .btn.primary:hover {
@@ -365,7 +363,7 @@ code {
   isolation: isolate;
 }
 
-/* Two lights over the stage, in the logo's blue and violet, and a fine dot grid that fades out under them. */
+/* Two lights over the stage, a screen's cool blue and the subtitle's warm yellow, and a fine dot grid that fades out under them. */
 .hero::before,
 .hero::after {
   content: "";
@@ -377,8 +375,8 @@ code {
 .hero::before {
   inset: -20% -10% 30%;
   background:
-    radial-gradient(40% 45% at 30% 30%, rgba(74, 124, 247, 0.32), transparent 70%),
-    radial-gradient(38% 42% at 72% 26%, rgba(155, 92, 246, 0.28), transparent 70%);
+    radial-gradient(40% 45% at 30% 30%, rgba(74, 124, 247, 0.3), transparent 70%),
+    radial-gradient(34% 40% at 72% 30%, rgba(255, 209, 102, 0.13), transparent 70%);
   filter: blur(20px);
 }
 
@@ -414,8 +412,8 @@ code {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--grad);
-  box-shadow: 0 0 0 3px rgba(123, 108, 247, 0.2);
+  background: var(--sub);
+  box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.2);
 }
 
 .hero h1 {
@@ -535,8 +533,8 @@ code {
   bottom: -4%;
   z-index: -1;
   border-radius: 50%;
-  background: var(--grad);
-  opacity: 0.35;
+  background: radial-gradient(closest-side, #4a7cf7, rgba(74, 124, 247, 0.4) 60%, transparent);
+  opacity: 0.4;
   filter: blur(80px);
 }
 
@@ -747,7 +745,7 @@ code {
   bottom: 10px;
   width: 2px;
   border-radius: 2px;
-  background: linear-gradient(180deg, var(--blue), var(--violet) 75%, var(--sub));
+  background: linear-gradient(180deg, var(--blue), var(--sub));
   opacity: 0.6;
 }
 
@@ -777,7 +775,7 @@ code {
     bottom: auto;
     width: auto;
     height: 2px;
-    background: linear-gradient(90deg, var(--blue), var(--violet) 75%, var(--sub));
+    background: linear-gradient(90deg, var(--blue), var(--sub));
   }
 
   .step {
@@ -810,7 +808,7 @@ code {
   height: 60%;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(74, 124, 247, 0.28), rgba(155, 92, 246, 0.12) 60%, transparent);
+  background: radial-gradient(closest-side, rgba(74, 124, 247, 0.26), rgba(74, 124, 247, 0.08) 60%, transparent);
   filter: blur(40px);
 }
 
@@ -819,7 +817,7 @@ code {
   margin: 0 auto;
   border-color: rgba(255, 255, 255, 0.12);
   background: #000000;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 60px 140px -40px rgba(90, 110, 255, 0.45);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 60px 140px -40px rgba(74, 124, 247, 0.4);
 }
 
 /* ---- features: a bento of tiles ---- */
@@ -856,9 +854,9 @@ code {
     linear-gradient(180deg, var(--surface-2), var(--surface));
 }
 
-.tile.tone-violet {
+.tile.tone-warm {
   background:
-    radial-gradient(90% 80% at 100% 0%, rgba(155, 92, 246, 0.22), transparent 60%),
+    radial-gradient(90% 80% at 100% 0%, rgba(255, 209, 102, 0.13), transparent 60%),
     linear-gradient(180deg, var(--surface-2), var(--surface));
 }
 
@@ -942,7 +940,7 @@ code {
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background:
-    radial-gradient(60% 90% at 100% 100%, rgba(255, 212, 121, 0.08), transparent 60%),
+    radial-gradient(60% 90% at 100% 100%, rgba(255, 209, 102, 0.08), transparent 60%),
     linear-gradient(180deg, var(--surface-2), var(--surface));
   scroll-margin-top: 76px;
 }
@@ -1078,7 +1076,7 @@ code {
   height: 420px;
   transform: translate(-50%, -40%);
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(155, 92, 246, 0.22), transparent);
+  background: radial-gradient(closest-side, rgba(255, 209, 102, 0.12), transparent);
   filter: blur(30px);
 }
 
@@ -1120,7 +1118,7 @@ code {
   border-color: transparent;
   background:
     linear-gradient(180deg, #171a26, #12141c) padding-box,
-    linear-gradient(135deg, rgba(74, 124, 247, 0.7), rgba(155, 92, 246, 0.7) 50%, rgba(255, 212, 121, 0.5)) border-box;
+    linear-gradient(135deg, rgba(74, 124, 247, 0.7), rgba(255, 209, 102, 0.6)) border-box;
 }
 
 @media (min-width: 900px) {
@@ -1299,7 +1297,7 @@ code {
   height: 480px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(74, 124, 247, 0.25), rgba(155, 92, 246, 0.12) 60%, transparent);
+  background: radial-gradient(closest-side, rgba(74, 124, 247, 0.24), rgba(74, 124, 247, 0.06) 60%, transparent);
   filter: blur(30px);
 }
 
