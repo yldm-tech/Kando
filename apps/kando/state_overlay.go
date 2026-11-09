@@ -25,6 +25,7 @@ func (a *app) overlays(c *ui.Context, t, dark *ui.Theme) {
 	}
 	onboarding.Show(c, a)
 	a.feedbackOverlay(c, t)
+	a.sitesOverlay(c, t)
 	a.paletteOverlay(c, dark)
 }
 

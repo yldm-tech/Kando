@@ -34,6 +34,8 @@ const (
 	remedyDiskAccess = "disk-access"
 	// remedyFindBrowsers looks for the browsers again, for a card that found none to borrow a login from.
 	remedyFindBrowsers = "find-browsers"
+	// remedySites opens the 支持的网站 sheet, for a card of a site yt-dlp does not know.
+	remedySites = "sites"
 )
 
 // installedBrowsers looks on disk for the browsers whose logins the cards offer to borrow; it runs off the UI thread. Tests replace it.
@@ -149,7 +151,7 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 	case core.FailDRM:
 		r = films.Remedy{Headline: site + " 受 DRM 保护", Why: "视频是加密的，没法下载。有本地文件的话可以直接拖进来。", Actions: []films.RemedyAction{local(true)}}
 	case core.FailUnsupported:
-		r = films.Remedy{Headline: hostOf(job.Source) + " 暂不支持", Why: "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", Actions: []films.RemedyAction{swap(true), local(false)}}
+		r = films.Remedy{Headline: hostOf(job.Source) + " 暂不支持", Why: "没在页面里找到视频。换个链接，或先下载到本机再拖进来。", Actions: []films.RemedyAction{swap(true), local(false), {ID: remedySites, Label: "查看支持的网站"}}}
 	case core.FailRateLimit:
 		r = films.Remedy{Headline: site + " 暂时限制了下载", Why: "请求太频繁。等几分钟再重试，或借用浏览器里已登录的账号。", Actions: []films.RemedyAction{retry, borrow(false)}}
 		if browser.ID == "" {
@@ -249,6 +251,8 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		a.queueFindBrowsers()
 	case action == remedyLocal:
 		a.pickVideos()
+	case action == remedySites:
+		a.OpenSites()
 	case action == remedyDiskAccess:
 		if err := openExternal(fullDiskAccess); err != nil {
 			a.warn("没能打开系统设置："+err.Error(), "")

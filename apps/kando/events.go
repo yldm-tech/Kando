@@ -48,6 +48,7 @@ func (a *app) areas() []areaHooks {
 		a.feedbackHooks(),
 		a.paletteHooks(),
 		a.onboardingHooks(),
+		a.sitesHooks(),
 	}
 }
 
