@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 // repoRoot is the repository root as seen from this package's directory, where go test runs.
@@ -292,6 +293,76 @@ func TestPageBody(t *testing.T) {
 				t.Errorf("no link to %s", l.ReadmeURL())
 			}
 		})
+	}
+}
+
+// logoStrip is the works-with strip of a built page.
+func logoStrip(t *testing.T, html string) string {
+	t.Helper()
+	i := strings.Index(html, `class="logos"`)
+	if i < 0 {
+		t.Fatal("no logo strip")
+	}
+	strip := html[i:]
+	return strip[:strings.Index(strip, "</ul>")]
+}
+
+// The names of the logo strip are written in the page's script: the Traditional Chinese page shows none of the catalog's Simplified forms, and a page in another language marks a name in Chinese characters as Simplified Chinese, so that a screen reader reads it in Chinese.
+func TestLogoStripNames(t *testing.T) {
+	nameAttr := regexp.MustCompile(`\s(?:title|alt|aria-label)="([^"]*)"`)
+	for _, l := range built.rep.Langs {
+		t.Run(l.Code, func(t *testing.T) {
+			strip := logoStrip(t, readOut(t, pageFile(l)))
+			if l.Code == "zh-TW" {
+				for _, m := range nameAttr.FindAllStringSubmatch(strip, -1) {
+					if strings.ContainsAny(m[1], "哔红视爱国优腾讯鱼") {
+						t.Errorf("Simplified Chinese site name %q on the Traditional Chinese page", m[1])
+					}
+				}
+				if !strings.Contains(strip, `title="嗶哩嗶哩"`) {
+					t.Error("no 嗶哩嗶哩 in the strip")
+				}
+			}
+			for _, tag := range tagRe("li").FindAllString(strip, -1) {
+				name := attr(tag, "title")
+				if name == "" {
+					continue
+				}
+				han := strings.ContainsFunc(name, func(r rune) bool { return unicode.Is(unicode.Han, r) })
+				want := ""
+				if han && !strings.HasPrefix(l.Tag, "zh") {
+					want = "zh-Hans"
+				}
+				if got := attr(tag, "lang"); got != want {
+					t.Errorf("%s: lang %q, want %q", name, got, want)
+				}
+			}
+		})
+	}
+}
+
+// A site-name override for a domain that is not a featured site fails the build, rather than leaving the catalog's name in place unnoticed.
+func TestSiteNamesRejectUnknownDomain(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "sites.zh-TW.json"), []byte(`{"bilibil.com": "嗶哩嗶哩"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tiles := []siteTile{{Name: "哔哩哔哩", Domain: "bilibili.com"}}
+	if _, err := loadSiteNames(dir, languages, tiles); err == nil {
+		t.Error("loadSiteNames accepted a domain that is not a featured site")
+	}
+}
+
+// 404.html is no language's home page, so its switchers mark no link as the current page.
+func TestNotFoundHasNoCurrentPage(t *testing.T) {
+	if html := readOut(t, "404.html"); strings.Contains(html, "aria-current") {
+		t.Error("404.html marks a language's home page as the current page")
+	}
+	for _, l := range built.rep.Langs {
+		html := readOut(t, pageFile(l))
+		if n := strings.Count(html, `data-lang="`+l.Code+`" aria-current="page"`); n != 2 {
+			t.Errorf("%s: %d switcher links marked as the current page, want 2 (header and footer)", l.Code, n)
+		}
 	}
 }
 

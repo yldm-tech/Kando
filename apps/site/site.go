@@ -85,8 +85,10 @@ type shot struct {
 // siteTile is a featured website of the catalog in the works-with strip: its logo, or its initial on a colored plate when it has none, as the app's Supported Websites sheet draws it.
 type siteTile struct {
 	Name, Domain string
-	Logo         string
-	Initial      string
+	// Lang is the language of Name when it is not the page's: a name written in Chinese characters on a page in another language is marked zh-Hans, the script of the catalog, so that a screen reader reads it as Chinese.
+	Lang    string
+	Logo    string
+	Initial string
 	// Plate is the index of the plate color under the initial, a class plate-<n> in site.css.
 	Plate int
 }
@@ -164,6 +166,10 @@ func build(root, out string) (*report, error) {
 	if err != nil {
 		return nil, err
 	}
+	siteNames, err := loadSiteNames(filepath.Join(siteDir, "content"), langs, tiles)
+	if err != nil {
+		return nil, err
+	}
 
 	used := map[string]bool{}
 	tmpl, err := template.New("").Funcs(contentFuncs(nil, used)).ParseGlob(filepath.Join(siteDir, "templates", "*.html"))
@@ -174,7 +180,7 @@ func build(root, out string) (*report, error) {
 		p := page{
 			Lang: l, Langs: langs, Root: l.Code == sourceLang,
 			CSS: static["site.css"], JS: static["site.js"],
-			Shots: shots[l.Code], Sites: tiles, Total: total, More: total - len(tiles),
+			Shots: shots[l.Code], Sites: localTiles(tiles, l, siteNames[l.Code]), Total: total, More: total - len(tiles),
 			Repo: repoURL, Rel: releasesURL, License: licenseURL, EveryAPI: everyAPIURL,
 		}
 		for _, o := range langs {
@@ -433,6 +439,57 @@ func copySites(src, dst string) ([]siteTile, int, error) {
 		return nil, 0, errors.New("sites.json lists no featured site")
 	}
 	return tiles, len(c.Sites), nil
+}
+
+// loadSiteNames reads content/sites.<language>.json, where a language has one: the names of featured sites as that language writes them, by domain, where they differ from the catalog's, such as the Traditional Chinese forms of names the catalog writes in Simplified Chinese. The catalog is the app's and stays as it is. A domain that is not a featured site fails the build, so that a typo does not silently leave the catalog's name in place.
+func loadSiteNames(dir string, langs []language, tiles []siteTile) (map[string]map[string]string, error) {
+	featured := map[string]bool{}
+	for _, tile := range tiles {
+		featured[tile.Domain] = true
+	}
+	names := map[string]map[string]string{}
+	for _, l := range langs {
+		file := "sites." + l.Code + ".json"
+		data, err := os.ReadFile(filepath.Join(dir, file))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		var m map[string]string
+		if err := json.Unmarshal(data, &m); err != nil {
+			return nil, fmt.Errorf("content/%s: %w", file, err)
+		}
+		for domain, name := range m {
+			if !featured[domain] {
+				return nil, fmt.Errorf("content/%s: %s is not a featured site of sites.json", file, domain)
+			}
+			if strings.TrimSpace(name) == "" {
+				return nil, fmt.Errorf("content/%s: the name of %s is empty", file, domain)
+			}
+		}
+		names[l.Code] = m
+	}
+	return names, nil
+}
+
+// localTiles are the tiles as the page in l shows them: with the names l writes differently, and a name in Chinese characters on a page that is not in Chinese marked as Simplified Chinese.
+func localTiles(tiles []siteTile, l language, names map[string]string) []siteTile {
+	out := make([]siteTile, len(tiles))
+	for i, tile := range tiles {
+		if name, ok := names[tile.Domain]; ok {
+			tile.Name = name
+			if tile.Logo == "" {
+				tile.Initial = initial(name)
+			}
+		}
+		if !strings.HasPrefix(l.Tag, "zh") && strings.ContainsFunc(tile.Name, func(r rune) bool { return unicode.Is(unicode.Han, r) }) {
+			tile.Lang = "zh-Hans"
+		}
+		out[i] = tile
+	}
+	return out
 }
 
 // initial is the letter a site without a logo shows, as apps/kando/sites.Initial picks it: the first letter or digit of its name, upper case.
