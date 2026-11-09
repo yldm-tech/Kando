@@ -41,9 +41,10 @@ type playerUI struct {
 	// volume is how loud films play, from 0 to 1, and muted silences them without losing it. Both stay as they are from film to film.
 	volume float64
 	muted  bool
-	// volumeGen counts volume changes, so only the last of a quick run of them starts the sound again (playerVolumeChanged).
-	volumeGen int
-	film      filmUI
+	// volumeGen counts volume changes, so only the last of a quick run of them starts the sound again (playerVolumeChanged); volumeUnsaved is set until the change is kept in the settings.
+	volumeGen     int
+	volumeUnsaved bool
+	film          filmUI
 }
 
 // filmUI is the player's state that belongs to the one film open, which opening another starts afresh (resetFilm).
@@ -179,9 +180,9 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time.
+// playerHooks: the player saves how subtitles look, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.stopPlayback}
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.playerQuitting}
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.

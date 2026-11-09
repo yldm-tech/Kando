@@ -65,6 +65,10 @@ func audioCommand(ffmpeg, path string, at time.Duration, volume float64) (string
 	if ffplay := ffplayPath(ffmpeg); ffplay != "" {
 		return ffplay, args, nil
 	}
+	// afplay cannot start partway into a file, so it plays only from the start: no sound is better than sound from the wrong place, after a seek or a new volume.
+	if at > 0 {
+		return "", nil, exec.ErrNotFound
+	}
 	if _, err := exec.LookPath("afplay"); err != nil {
 		return "", nil, err
 	}

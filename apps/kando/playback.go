@@ -113,7 +113,11 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 				openAt = currentAt
 			}
 		}
-		audio, _ := openPCM(ffmpeg, path, openAt, volume)
+		// A silent film has no sound to play, muted or turned down to 0.
+		var audio *pcmAudio
+		if volume > 0 {
+			audio, _ = openPCM(ffmpeg, path, openAt, volume)
+		}
 		update(func() {
 			if a.player.playGen != gen {
 				frames.Close()
@@ -144,6 +148,17 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 				a.player.playErr = "这个视频播不了"
 				return
 			}
+			// The volume may have changed while the video was opening. The sound has not started yet, so it is made again at the new volume rather than started and then restarted.
+			if now := a.playerVolume(); now != volume {
+				if audio != nil {
+					audio.Close()
+					audio = nil
+				}
+				if now > 0 {
+					audio, _ = openPCM(ffmpeg, path, openAt, now)
+				}
+				volume = now
+			}
 			paused := true
 			if jump {
 				if audio != nil {
@@ -170,8 +185,6 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 			if frames.Duration() > 0 {
 				a.player.length = frames.Duration()
 			}
-			// The volume may have changed while the video was opening.
-			a.player.play.setVolume(a.playerVolume())
 		})
 	}()
 }
@@ -375,13 +388,24 @@ func (p *filmPlay) toggle() {
 }
 
 func (p *filmPlay) restartAudio() {
-	p.restartAudioAt(p.playhead())
+	p.restartAudioAt(p.soundAt(time.Now()))
+}
+
+// soundAt is where the sound is at now: where the picture is, except while the app is in the background or just back from it (backgroundAt), when the picture stands still and the sound has played on.
+func (p *filmPlay) soundAt(now time.Time) time.Duration {
+	if !p.backgroundAt.IsZero() {
+		return p.backgroundResumeAt(now)
+	}
+	return p.playhead()
 }
 
 func (p *filmPlay) restartAudioAt(at time.Duration) {
 	if p.audio != nil {
 		p.audio.Close()
 		p.audio = nil
+	}
+	if p.volume <= 0 {
+		return
 	}
 	audio, err := openPCM(p.ffmpeg, p.path, at, p.volume)
 	if err != nil || audio == nil {
@@ -391,21 +415,19 @@ func (p *filmPlay) restartAudioAt(at time.Duration) {
 	p.audio = audio
 }
 
-// setVolume plays the sound at volume from now on. A playing sound starts again where the picture is, since its process takes the volume only when it starts; a held one is dropped, and toggle starts it again at the new volume.
+// setVolume plays the sound at volume from now on. Its process takes the volume only when it starts, so a playing film's sound starts again where it is (soundAt), and a held one's is dropped for toggle to start at the new volume. At 0 there is no sound to play.
 func (p *filmPlay) setVolume(volume float64) {
 	if p.volume == volume {
 		return
 	}
 	p.volume = volume
-	if p.audio == nil {
-		return
-	}
-	if p.paused || !p.player.Playing() {
+	if p.audio != nil {
 		p.audio.Close()
 		p.audio = nil
-		return
 	}
-	p.restartAudio()
+	if !p.paused && !p.finished && p.player.Playing() {
+		p.restartAudio()
+	}
 }
 
 // frameDecoder is a FrameReader as a ui.VideoDecoder. Closing the player closes the reader.

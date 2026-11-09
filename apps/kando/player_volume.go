@@ -6,11 +6,11 @@ import (
 	"time"
 )
 
-// volumeStep is how much ↑ and ↓ change the volume.
-const volumeStep = 0.1
+// playerVolumeStep is how much ↑ and ↓ change the volume.
+const playerVolumeStep = 0.1
 
-// volumeSettle is how long the volume has to stay put before the sound starts again at it. The sound plays in a process that takes its volume only when it starts, so a key held down or a slider dragged waits until it rests instead of cutting the sound at every step.
-const volumeSettle = 250 * time.Millisecond
+// playerVolumeSettle is how long the volume has to stay put before the sound starts again at it. The sound plays in a process that takes its volume only when it starts, so a key held down or a slider dragged waits until it rests instead of cutting the sound at every step.
+const playerVolumeSettle = 250 * time.Millisecond
 
 // playerVolume is how loud the sound plays now, from 0 to 1: nothing while muted.
 func (a *app) playerVolume() float64 {
@@ -29,7 +29,7 @@ func (a *app) Muted() bool { return a.player.muted }
 func (a *app) SetVolume(volume float64) {
 	a.player.volume = min(max(volume, 0), 1)
 	a.player.muted = false
-	a.flash(volumeText(a.player.volume))
+	a.flash(playerVolumeText(a.player.volume))
 	a.playerVolumeChanged()
 }
 
@@ -40,7 +40,7 @@ func (a *app) ToggleMute() {
 		if a.player.volume == 0 {
 			a.player.volume = 0.5
 		}
-		a.flash(volumeText(a.player.volume))
+		a.flash(playerVolumeText(a.player.volume))
 	} else {
 		a.player.muted = true
 		a.flash("静音")
@@ -48,13 +48,14 @@ func (a *app) ToggleMute() {
 	a.playerVolumeChanged()
 }
 
-// nudgeVolume is ↑ and ↓: the volume a step louder or quieter, in whole steps, from the volume a mute kept, unmuting.
-func (a *app) nudgeVolume(steps int) {
-	a.SetVolume((math.Round(a.player.volume/volumeStep) + float64(steps)) * volumeStep)
+// playerNudgeVolume is ↑ and ↓: the volume a step louder or quieter, in whole steps, from the volume a mute kept, unmuting.
+func (a *app) playerNudgeVolume(steps int) {
+	a.SetVolume((math.Round(a.player.volume/playerVolumeStep) + float64(steps)) * playerVolumeStep)
 }
 
-// playerVolumeChanged starts the sound again at the new volume and keeps it in the settings, once the volume has rested for volumeSettle. Without an update, as before the window exists, it does so at once.
+// playerVolumeChanged starts the sound again at the new volume and keeps it in the settings, once the volume has rested for playerVolumeSettle. Without an update, as before the window exists, it does so at once.
 func (a *app) playerVolumeChanged() {
+	a.player.volumeUnsaved = true
 	a.player.volumeGen++
 	gen := a.player.volumeGen
 	update := a.update
@@ -62,7 +63,7 @@ func (a *app) playerVolumeChanged() {
 		a.playerApplyVolume()
 		return
 	}
-	time.AfterFunc(volumeSettle, func() {
+	time.AfterFunc(playerVolumeSettle, func() {
 		update(func() {
 			if a.player.volumeGen == gen {
 				a.playerApplyVolume()
@@ -75,12 +76,27 @@ func (a *app) playerApplyVolume() {
 	if a.player.play != nil {
 		a.player.play.setVolume(a.playerVolume())
 	}
+	a.playerSaveVolume()
+}
+
+// playerSaveVolume keeps a volume changed since it was last kept, saying so on the picture when it cannot be saved.
+func (a *app) playerSaveVolume() {
+	if !a.player.volumeUnsaved {
+		return
+	}
+	a.player.volumeUnsaved = false
 	if err := a.saveSettings(); err != nil {
 		a.flash("音量设置无法保存")
 	}
 }
 
-// volumeText is what the picture says for volume, as "音量 70%".
-func volumeText(volume float64) string {
+// playerQuitting stops the open video and keeps a volume changed too shortly before quitting for playerVolumeChanged to have kept it.
+func (a *app) playerQuitting() {
+	a.playerSaveVolume()
+	a.stopPlayback()
+}
+
+// playerVolumeText is what the picture says for volume, as "音量 70%".
+func playerVolumeText(volume float64) string {
 	return "音量 " + strconv.Itoa(int(math.Round(volume*100))) + "%"
 }

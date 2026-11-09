@@ -970,3 +970,27 @@ func TestVolumeSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("default volume %v muted %v", d.player.volume, d.player.muted)
 	}
 }
+
+// TestQuittingKeepsTheVolume: a volume changed too shortly before quitting for the change to have settled is still kept in the settings.
+func TestQuittingKeepsTheVolume(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.ToggleMute()
+	a.areasQuitting()
+	if saved := loadSavedSettings(a.settingsPath); !saved.Muted {
+		t.Fatalf("the mute was not kept: %+v", saved.savedPlayer)
+	}
+}
+
+// TestSoundRestartsWhereItPlayedOn: back from the background, before the picture has caught up, the sound restarts where it has played on to, not where the picture stood still.
+func TestSoundRestartsWhereItPlayedOn(t *testing.T) {
+	now := time.Now()
+	p := &filmPlay{backgroundAt: now.Add(-3 * time.Minute), backgroundHead: 10 * time.Second}
+	if got := p.soundAt(now); got != 3*time.Minute+10*time.Second {
+		t.Fatalf("sound at %v, want 3m10s", got)
+	}
+	p.backgroundAt = time.Time{}
+	if got := p.soundAt(now); got != 0 {
+		t.Fatalf("sound at %v with the picture at the start", got)
+	}
+}
