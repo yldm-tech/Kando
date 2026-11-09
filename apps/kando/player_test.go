@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -251,32 +252,113 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 	}
 }
 
+// TestPlaybackResyncsWhenAppReturns checks that coming back to the app opens the picture again only when it stood still behind the window while the sound played on, and never for a film the user paused.
 func TestPlaybackResyncsWhenAppReturns(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
-	p := stillPlay(t, "", 0, true)
+	p := stillPlay(t, "/v/clip.mp4", 3*time.Second, true)
 	a.player.play = p
 
 	a.playerDidResignActive()
-	if p.backgroundAt.IsZero() || p.backgroundHead != 0 || !p.player.Playing() {
+	if p.backgroundAt.IsZero() || p.backgroundHead != 3*time.Second || !p.player.Playing() {
 		t.Fatalf("inactive playback: at %v head %v playing %v", p.backgroundAt, p.backgroundHead, p.player.Playing())
 	}
+	// The window stayed in sight: the picture played on with the sound.
 	p.backgroundAt = time.Now().Add(-2 * time.Second)
-	p.backgroundHead = 3 * time.Second
-	if got := p.backgroundResumeAt(time.Now()); got < 5*time.Second {
-		t.Fatalf("resume head %v, want at least 5s", got)
-	}
+	p.frames.shown = 5 * time.Second
+	a.player.opening = -1
 	a.playerDidBecomeActive()
-	if !p.player.Playing() || p.paused {
-		t.Fatalf("active playback: at %v head %v paused %v playing %v", p.backgroundAt, p.backgroundHead, p.paused, p.player.Playing())
+	if a.player.opening != -1 || a.player.play != p || !p.backgroundAt.IsZero() {
+		t.Fatalf("a picture that kept pace opened again at %v, background at %v", a.player.opening, p.backgroundAt)
 	}
 
-	p.backgroundAt = time.Time{}
-	p.backgroundHead = 0
+	// The window was out of sight: the picture stood at 5s while the sound reached 7s.
+	a.playerDidResignActive()
+	p.backgroundAt = p.backgroundAt.Add(-2 * time.Second)
+	a.playerDidBecomeActive()
+	if a.player.opening < 7*time.Second || a.player.play != p || !p.player.Playing() || p.paused {
+		t.Fatalf("a picture behind its sound opened again at %v, playing %v paused %v", a.player.opening, p.player.Playing(), p.paused)
+	}
+
+	// The sound ended in the background: the picture opens just short of the end.
+	p.backgroundAt, p.backgroundHead = time.Now().Add(-time.Hour), time.Minute
+	if got := p.backgroundSound()(); got != p.duration-100*time.Millisecond {
+		t.Fatalf("sound past the end at %v, want %v", got, p.duration-100*time.Millisecond)
+	}
+
+	p.backgroundAt, p.backgroundHead = time.Time{}, 0
 	p.player.Pause()
 	p.paused = true
 	a.playerDidResignActive()
 	if !p.backgroundAt.IsZero() {
 		t.Fatal("a film paused by the user was marked for background resync")
+	}
+}
+
+// TestPlaybackHandsTheSoundToTheReopenedPicture checks that the picture opened again on coming back plays on with the sound that played in the background, rather than starting the sound again.
+func TestPlaybackHandsTheSoundToTheReopenedPicture(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	p := a.player.play
+	p.toggle()
+	sound := p.audio
+	if !p.Playing() || sound == nil && runtime.GOOS == "darwin" {
+		t.Fatalf("playing %v, sound %v", p.Playing(), sound)
+	}
+	a.playerDidResignActive()
+	// Two seconds out of sight: the picture stood still while the sound played on.
+	p.backgroundAt = p.backgroundAt.Add(-2 * time.Second)
+	a.playerDidBecomeActive()
+	waitUntil(t, updates, func() bool { return a.player.play != p })
+	next := a.player.play
+	if next.audio != sound || p.audio != nil || next.volume != p.volume {
+		t.Fatalf("the sound started again: %p, was %p; volume %v, was %v", next.audio, sound, next.volume, p.volume)
+	}
+	if !next.Playing() || next.paused || next.playhead() < 2*time.Second {
+		t.Fatalf("reopened picture playing %v paused %v at %v", next.Playing(), next.paused, next.playhead())
+	}
+}
+
+// TestPlaybackFollowsTheSoundBehindTheWindow checks that a picture that stands still in the background (the Tester builds no frames, as a window out of sight) is followed by a decoder of its own, whose picture coming back shows at once, where the sound is, with the same sound and without opening the film again.
+func TestPlaybackFollowsTheSoundBehindTheWindow(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	p := a.player.play
+	p.toggle()
+	sound := p.audio
+	a.playerDidResignActive()
+	bg := p.background
+	if bg == nil {
+		t.Fatal("no decoder follows the sound")
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for !bg.opened.Load() {
+		if time.Now().After(deadline) {
+			t.Fatal("the picture standing still was not noticed")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(time.Second)
+	gen := a.player.playGen
+	want := p.backgroundSound()()
+	a.playerDidBecomeActive()
+	// Until the picture decoded in the background takes over, the sound is where it played on to, not where the picture stood still.
+	if got := p.soundAt(time.Now()); got < want || p.playhead() >= want-backgroundDrift {
+		t.Fatalf("just back, sound at %v, picture at %v, want the sound at %v", got, p.playhead(), want)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != p })
+	next := a.player.play
+	if p.returning != nil {
+		t.Fatal("the sound clock of the return outlived it")
+	}
+	if a.player.playGen != gen {
+		t.Fatal("the film opened again instead of taking the picture decoded in the background")
+	}
+	if next.audio != sound || p.audio != nil {
+		t.Fatalf("the sound started again: %p, was %p", next.audio, sound)
+	}
+	if at := next.playhead(); !next.Playing() || at < want-200*time.Millisecond || at > want+300*time.Millisecond {
+		t.Fatalf("picture playing %v at %v, sound at %v", next.Playing(), at, want)
+	}
+	if p.background != nil || next.background != nil {
+		t.Fatal("a decoder still follows the sound after coming back")
 	}
 }
 
