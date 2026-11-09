@@ -36,6 +36,29 @@ func TestAudioCommandPrefersFFplay(t *testing.T) {
 	}
 }
 
+func TestAudioCommandSeeksWithThePicture(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		skipWithoutFFmpeg(t, "%v", err)
+	}
+	name, args, err := audioCommand(ffmpeg, "/tmp/video.mp4", 3*time.Second+250*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(name) != "ffplay" {
+		t.Skipf("%s cannot seek into a file", name)
+	}
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "-ss" {
+			if args[i+1] != "3.250" {
+				t.Fatalf("seek offset %q, args %v", args[i+1], args)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing seek offset in args %v", args)
+}
+
 // TestAudioEndsWithTheApp: the sound plays in a process of its own, and it must not play on once the app's process has ended, however it ended, playing or paused. The app here is a helper process running this test, killed outright, as a crash or a force quit ends it, without closing anything.
 func TestAudioEndsWithTheApp(t *testing.T) {
 	if mode := os.Getenv("KANDO_AUDIO_HELPER"); mode != "" {
