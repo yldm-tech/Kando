@@ -88,6 +88,11 @@ type App interface {
 	OpenSettings(section string)
 	// ToggleFullScreen enters or leaves full screen.
 	ToggleFullScreen()
+	// Volume is how loud films play, from 0 to 1, and Muted whether they are silenced, keeping Volume. SetVolume sets it and unmutes; ToggleMute mutes or unmutes. Both say so on the picture.
+	Volume() float64
+	Muted() bool
+	SetVolume(volume float64)
+	ToggleMute()
 	// FeedbackSubtitles opens the 反馈问题 dialog for this film's subtitles.
 	FeedbackSubtitles()
 }

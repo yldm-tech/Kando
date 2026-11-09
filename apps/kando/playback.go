@@ -22,6 +22,8 @@ type filmPlay struct {
 	path     string
 	duration time.Duration
 	paused   bool
+	// volume is how loud the sound plays, from 0 to 1, muting included (app.playerVolume).
+	volume float64
 	// backgroundAt and backgroundHead remember a playing film's clock while
 	// the app is inactive. The sound keeps playing; on return the picture is
 	// reopened at the sound's expected position.
@@ -79,6 +81,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 	a.player.playGen++
 	gen := a.player.playGen
 	a.player.playPath = path
+	volume := a.playerVolume()
 	update := a.update
 	go func() {
 		openAt := at
@@ -110,7 +113,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 				openAt = currentAt
 			}
 		}
-		audio, _ := openPCM(ffmpeg, path, openAt)
+		audio, _ := openPCM(ffmpeg, path, openAt, volume)
 		update(func() {
 			if a.player.playGen != gen {
 				frames.Close()
@@ -154,7 +157,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 			old := a.player.play
 			a.player.play = &filmPlay{
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
-				duration: frames.Duration(), paused: paused, played: jump,
+				duration: frames.Duration(), paused: paused, played: jump, volume: volume,
 			}
 			if old != nil && old != a.player.play {
 				old.backgroundAt = time.Time{}
@@ -167,6 +170,8 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 			if frames.Duration() > 0 {
 				a.player.length = frames.Duration()
 			}
+			// The volume may have changed while the video was opening.
+			a.player.play.setVolume(a.playerVolume())
 		})
 	}()
 }
@@ -378,12 +383,29 @@ func (p *filmPlay) restartAudioAt(at time.Duration) {
 		p.audio.Close()
 		p.audio = nil
 	}
-	audio, err := openPCM(p.ffmpeg, p.path, at)
+	audio, err := openPCM(p.ffmpeg, p.path, at, p.volume)
 	if err != nil || audio == nil {
 		return
 	}
 	audio.Start()
 	p.audio = audio
+}
+
+// setVolume plays the sound at volume from now on. A playing sound starts again where the picture is, since its process takes the volume only when it starts; a held one is dropped, and toggle starts it again at the new volume.
+func (p *filmPlay) setVolume(volume float64) {
+	if p.volume == volume {
+		return
+	}
+	p.volume = volume
+	if p.audio == nil {
+		return
+	}
+	if p.paused || !p.player.Playing() {
+		p.audio.Close()
+		p.audio = nil
+		return
+	}
+	p.restartAudio()
 }
 
 // frameDecoder is a FrameReader as a ui.VideoDecoder. Closing the player closes the reader.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -877,5 +878,95 @@ func TestQuittingStopsTheOpenFilm(t *testing.T) {
 	}
 	if a.ResumeAt(path) <= 0 {
 		t.Fatalf("where the film stopped was not kept: %v", a.player.positions)
+	}
+}
+
+// TestVolumeKeys checks ↑, ↓ and M on an open film: ↑ and ↓ move the volume a tenth within 0 and 100%, M mutes and gives the volume back, and each says so on the picture. Once the keys rest, the open film plays at the new volume and the settings keep it.
+func TestVolumeKeys(t *testing.T) {
+	a, tt, updates := openClip(t, 2)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	key := func(k ui.Key, volume float64, muted bool, osd string) {
+		t.Helper()
+		tt.Key(0, k)
+		tt.Frame()
+		if math.Abs(a.player.volume-volume) > 1e-9 || a.player.muted != muted || !tt.HasText(osd) {
+			t.Fatalf("after %v: volume %v muted %v, want %v %v; texts %q", k, a.player.volume, a.player.muted, volume, muted, tt.Texts())
+		}
+	}
+	key(ui.KeyUp, 1, false, "音量 100%")
+	key(ui.KeyDown, 0.9, false, "音量 90%")
+	key(ui.KeyDown, 0.8, false, "音量 80%")
+	key(ui.KeyM, 0.8, true, "静音")
+	if !tt.HasText("取消静音") {
+		t.Fatalf("the speaker does not offer to unmute: %q", tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play.volume == 0 })
+	key(ui.KeyM, 0.8, false, "音量 80%")
+	key(ui.KeyM, 0.8, true, "静音")
+	// ↑ while muted unmutes, a step above the volume the mute kept.
+	key(ui.KeyUp, 0.9, false, "音量 90%")
+	waitUntil(t, updates, func() bool { return math.Abs(a.player.play.volume-0.9) < 1e-9 })
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.Volume == nil || math.Abs(*saved.Volume-0.9) > 1e-9 || saved.Muted {
+		t.Fatalf("saved volume %v muted %v", saved.Volume, saved.Muted)
+	}
+	for range 12 {
+		tt.Key(0, ui.KeyDown)
+	}
+	tt.Frame()
+	if a.player.volume != 0 || !tt.HasText("音量 0%") || !tt.HasText("取消静音") {
+		t.Fatalf("volume %v after ↓ to the bottom; texts %q", a.player.volume, tt.Texts())
+	}
+	// M on a volume of 0 makes it heard rather than muting it.
+	key(ui.KeyM, 0.5, false, "音量 50%")
+}
+
+// TestMuteButtonMutes clicks the transport's speaker: it mutes the film and turns into 取消静音, which gives the volume back.
+func TestMuteButtonMutes(t *testing.T) {
+	a, tt, updates := openClip(t, 2)
+	a.player.film.moved = tt.Now()
+	tt.Frame()
+	if err := tt.Click("静音"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if !a.player.muted {
+		t.Fatal("the speaker did not mute the film")
+	}
+	waitUntil(t, updates, func() bool { return a.player.play.volume == 0 })
+	if err := tt.Click("取消静音"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.player.muted || a.player.volume != 1 {
+		t.Fatalf("muted %v volume %v after 取消静音", a.player.muted, a.player.volume)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play.volume == 1 })
+}
+
+// TestVolumeSettingsRoundTrip checks that the volume and mute are kept in the settings, and that a volume out of range is brought back within 0 and 1.
+func TestVolumeSettingsRoundTrip(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.player.volume = 0.3
+	a.player.muted = true
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	b, _, _ := newTestApp(&fakePipeline{})
+	b.restorePlayer(loadSavedSettings(a.settingsPath))
+	if b.player.volume != 0.3 || !b.player.muted || b.playerVolume() != 0 {
+		t.Fatalf("restored volume %v muted %v", b.player.volume, b.player.muted)
+	}
+	loud := 3.0
+	c, _, _ := newTestApp(&fakePipeline{})
+	c.restorePlayer(savedSettings{savedPlayer: savedPlayer{Volume: &loud}})
+	if c.player.volume != 1 || c.player.muted {
+		t.Fatalf("volume %v muted %v from a saved 3", c.player.volume, c.player.muted)
+	}
+	d, _, _ := newTestApp(&fakePipeline{})
+	d.restorePlayer(savedSettings{})
+	if d.player.volume != 1 || d.player.muted {
+		t.Fatalf("default volume %v muted %v", d.player.volume, d.player.muted)
 	}
 }
