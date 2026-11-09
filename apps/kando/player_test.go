@@ -250,6 +250,35 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 	}
 }
 
+func TestPlaybackResyncsWhenAppReturns(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	p := stillPlay(t, "", 0, true)
+	a.player.play = p
+
+	a.playerDidResignActive()
+	if p.backgroundAt.IsZero() || p.backgroundHead != 0 || !p.player.Playing() {
+		t.Fatalf("inactive playback: at %v head %v playing %v", p.backgroundAt, p.backgroundHead, p.player.Playing())
+	}
+	p.backgroundAt = time.Now().Add(-2 * time.Second)
+	p.backgroundHead = 3 * time.Second
+	if got := p.backgroundResumeAt(time.Now()); got < 5*time.Second {
+		t.Fatalf("resume head %v, want at least 5s", got)
+	}
+	a.playerDidBecomeActive()
+	if !p.player.Playing() || p.paused {
+		t.Fatalf("active playback: at %v head %v paused %v playing %v", p.backgroundAt, p.backgroundHead, p.paused, p.player.Playing())
+	}
+
+	p.backgroundAt = time.Time{}
+	p.backgroundHead = 0
+	p.player.Pause()
+	p.paused = true
+	a.playerDidResignActive()
+	if !p.backgroundAt.IsZero() {
+		t.Fatal("a film paused by the user was marked for background resync")
+	}
+}
+
 func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {

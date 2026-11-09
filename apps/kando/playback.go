@@ -22,6 +22,11 @@ type filmPlay struct {
 	path     string
 	duration time.Duration
 	paused   bool
+	// backgroundAt and backgroundHead remember a playing film's clock while
+	// the app is inactive. The sound keeps playing; on return the picture is
+	// reopened at the sound's expected position.
+	backgroundAt   time.Time
+	backgroundHead time.Duration
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool
 	// played is set once this playback has played: opened playing at a point picked for it (a seek, 继续, 从头看) or started with play. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
@@ -38,11 +43,26 @@ func (a *app) ffmpegPath() string {
 
 // startPlayback opens path on the film page. A missing file or a pipeline without ffmpeg leaves the page as a subtitle list.
 func (a *app) startPlayback(path string) {
+	a.startPlaybackWith(path, nil)
+}
+
+// startPlaybackWith opens a new decoder. keep leaves the current player on
+// screen until the replacement is ready, which is used when returning from
+// the background so the UI does not flash the loading state.
+func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 	at := a.player.playFrom
 	jump := a.player.playJump
+	resumeAt := time.Time{}
+	resumeHead := time.Duration(0)
+	if keep != nil {
+		resumeAt = keep.backgroundAt
+		resumeHead = keep.backgroundHead
+	}
 	a.player.playFrom = 0
 	a.player.playJump = false
-	a.stopPlayback()
+	if keep == nil {
+		a.stopPlayback()
+	}
 	// A seek opens the same video again and keeps the film's state; anything else is a film opening.
 	if !jump {
 		a.resetFilm()
@@ -61,17 +81,36 @@ func (a *app) startPlayback(path string) {
 	a.player.playPath = path
 	update := a.update
 	go func() {
-		frames, err := media.OpenFramesAt(ffmpeg, path, at)
+		openAt := at
+		if !resumeAt.IsZero() {
+			openAt = resumeHead + time.Since(resumeAt)
+		}
+		frames, err := media.OpenFramesAt(ffmpeg, path, openAt)
 		if err != nil {
 			update(func() {
 				if a.player.playGen != gen {
+					return
+				}
+				if keep != nil && a.player.play == keep {
+					keep.backgroundAt = time.Time{}
+					keep.backgroundHead = 0
 					return
 				}
 				a.player.playErr = "这个视频播不了"
 			})
 			return
 		}
-		audio, _ := openPCM(ffmpeg, path, at)
+		if !resumeAt.IsZero() {
+			currentAt := resumeHead + time.Since(resumeAt)
+			if currentAt > openAt {
+				if err := skipPlaybackFrames(frames, currentAt-openAt); err != nil {
+					frames.Close()
+					return
+				}
+				openAt = currentAt
+			}
+		}
+		audio, _ := openPCM(ffmpeg, path, openAt)
 		update(func() {
 			if a.player.playGen != gen {
 				frames.Close()
@@ -80,12 +119,24 @@ func (a *app) startPlayback(path string) {
 				}
 				return
 			}
-			dec := &frameDecoder{frames: frames, shown: at}
+			if keep != nil && a.player.play != keep {
+				frames.Close()
+				if audio != nil {
+					audio.Close()
+				}
+				return
+			}
+			dec := &frameDecoder{frames: frames, shown: openAt}
 			player, err := ui.NewVideoPlayer(dec)
 			if err != nil {
 				frames.Close()
 				if audio != nil {
 					audio.Close()
+				}
+				if keep != nil {
+					keep.backgroundAt = time.Time{}
+					keep.backgroundHead = 0
+					return
 				}
 				a.player.playErr = "这个视频播不了"
 				return
@@ -100,9 +151,18 @@ func (a *app) startPlayback(path string) {
 			} else {
 				player.Pause()
 			}
+			old := a.player.play
 			a.player.play = &filmPlay{
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
 				duration: frames.Duration(), paused: paused, played: jump,
+			}
+			if old != nil && old != a.player.play {
+				old.backgroundAt = time.Time{}
+				old.backgroundHead = 0
+				if old.audio != nil {
+					old.audio.Close()
+				}
+				old.player.Close()
 			}
 			if frames.Duration() > 0 {
 				a.player.length = frames.Duration()
@@ -175,6 +235,62 @@ func (a *app) stopPlayback() {
 		play.audio.Close()
 	}
 	play.player.Close()
+}
+
+// playerDidResignActive remembers the playing film's clocks while the app is
+// in the background. VideoPlayer deliberately stops advancing when its
+// surface is hidden, while audio is a separate process that keeps playing.
+func (a *app) playerDidResignActive() {
+	p := a.player.play
+	if p == nil || p.finished || p.paused || !p.player.Playing() {
+		return
+	}
+	p.backgroundAt = time.Now()
+	p.backgroundHead = p.playhead()
+}
+
+// playerDidBecomeActive reopens the picture at the position the sound reached
+// while the window was hidden, avoiding a burst of catch-up frames.
+func (a *app) playerDidBecomeActive() {
+	p := a.player.play
+	if p == nil || p.backgroundAt.IsZero() {
+		return
+	}
+	at := p.backgroundResumeAt(time.Now())
+	path := p.path
+	if at < 0 {
+		at = 0
+	}
+	if p.duration > 0 && at >= p.duration {
+		at = max(0, p.duration-100*time.Millisecond)
+	}
+	if path == "" {
+		return
+	}
+	a.player.playFrom = at
+	a.player.playJump = true
+	a.startPlaybackWith(path, p)
+}
+
+func skipPlaybackFrames(frames *media.FrameReader, d time.Duration) error {
+	for d > 0 {
+		_, dur, err := frames.Next()
+		if err != nil {
+			return err
+		}
+		d -= dur
+	}
+	return nil
+}
+
+func (p *filmPlay) backgroundResumeAt(now time.Time) time.Duration {
+	if p == nil {
+		return 0
+	}
+	if p.backgroundAt.IsZero() || now.Before(p.backgroundAt) {
+		return p.backgroundHead
+	}
+	return p.backgroundHead + now.Sub(p.backgroundAt)
 }
 
 // playhead is how far the picture itself has gotten. It stays on the last frame once the file ends, instead of following the time since play was pressed.
