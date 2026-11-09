@@ -22,9 +22,7 @@ type filmPlay struct {
 	path     string
 	duration time.Duration
 	paused   bool
-	// backgroundAt and backgroundHead remember a playing film's clock while
-	// the app is inactive. The sound keeps playing; on return the picture is
-	// reopened at the sound's expected position.
+	// backgroundAt and backgroundHead are the clock of a film that played as the app went inactive: the playhead then, and when. The sound plays on in the background, while the picture stops as long as the window is out of sight.
 	backgroundAt   time.Time
 	backgroundHead time.Duration
 	// finished is set once the picture reaches the file's end, so the clock stops there.
@@ -43,21 +41,13 @@ func (a *app) ffmpegPath() string {
 
 // startPlayback opens path on the film page. A missing file or a pipeline without ffmpeg leaves the page as a subtitle list.
 func (a *app) startPlayback(path string) {
-	a.startPlaybackWith(path, nil)
+	a.startPlaybackWith(path, nil, nil)
 }
 
-// startPlaybackWith opens a new decoder. keep leaves the current player on
-// screen until the replacement is ready, which is used when returning from
-// the background so the UI does not flash the loading state.
-func (a *app) startPlaybackWith(path string, keep *filmPlay) {
+// startPlaybackWith opens a new decoder. keep, a film whose picture fell behind its sound in the background, stays on screen with its sound playing while the new picture opens where that sound is by then (sound), and the new picture takes that sound over, so the sound never stops or starts again.
+func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.Duration) {
 	at := a.player.playFrom
 	jump := a.player.playJump
-	resumeAt := time.Time{}
-	resumeHead := time.Duration(0)
-	if keep != nil {
-		resumeAt = keep.backgroundAt
-		resumeHead = keep.backgroundHead
-	}
 	a.player.playFrom = 0
 	a.player.playJump = false
 	if keep == nil {
@@ -82,44 +72,36 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 	update := a.update
 	go func() {
 		openAt := at
-		if !resumeAt.IsZero() {
-			openAt = resumeHead + time.Since(resumeAt)
+		if keep != nil {
+			openAt = sound()
 		}
 		frames, err := media.OpenFramesAt(ffmpeg, path, openAt)
 		if err != nil {
 			update(func() {
-				if a.player.playGen != gen {
-					return
-				}
-				if keep != nil && a.player.play == keep {
-					keep.backgroundAt = time.Time{}
-					keep.backgroundHead = 0
+				// A film coming back plays on as it was.
+				if a.player.playGen != gen || keep != nil {
 					return
 				}
 				a.player.playErr = "这个视频播不了"
 			})
 			return
 		}
-		if !resumeAt.IsZero() {
-			currentAt := resumeHead + time.Since(resumeAt)
-			if currentAt > openAt {
-				if err := skipPlaybackFrames(frames, currentAt-openAt); err != nil {
+		var audio *pcmAudio
+		if keep != nil {
+			// The sound played on while ffmpeg opened the picture.
+			if now := sound(); now > openAt {
+				if err := skipPlaybackFrames(frames, now-openAt); err != nil {
 					frames.Close()
 					return
 				}
-				openAt = currentAt
+				openAt = now
 			}
+		} else {
+			audio, _ = openPCM(ffmpeg, path, openAt)
 		}
-		audio, _ := openPCM(ffmpeg, path, openAt)
 		update(func() {
-			if a.player.playGen != gen {
-				frames.Close()
-				if audio != nil {
-					audio.Close()
-				}
-				return
-			}
-			if keep != nil && a.player.play != keep {
+			// A film paused or ended while its picture opened again keeps the picture it has, as its sound no longer runs on.
+			if a.player.playGen != gen || keep != nil && (a.player.play != keep || keep.paused || keep.finished) {
 				frames.Close()
 				if audio != nil {
 					audio.Close()
@@ -133,16 +115,17 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 				if audio != nil {
 					audio.Close()
 				}
-				if keep != nil {
-					keep.backgroundAt = time.Time{}
-					keep.backgroundHead = 0
-					return
+				if keep == nil {
+					a.player.playErr = "这个视频播不了"
 				}
-				a.player.playErr = "这个视频播不了"
 				return
+			}
+			if keep != nil {
+				audio, keep.audio = keep.audio, nil
 			}
 			paused := true
 			if jump {
+				// Start does nothing to the sound a film coming back hands over, which plays already.
 				if audio != nil {
 					audio.Start()
 				}
@@ -151,14 +134,17 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay) {
 			} else {
 				player.Pause()
 			}
-			old := a.player.play
-			a.player.play = &filmPlay{
+			next := &filmPlay{
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
 				duration: frames.Duration(), paused: paused, played: jump,
 			}
-			if old != nil && old != a.player.play {
-				old.backgroundAt = time.Time{}
-				old.backgroundHead = 0
+			if keep != nil && !keep.backgroundAt.IsZero() {
+				// The app went inactive again while the picture opened: the new picture is level with the sound now.
+				next.backgroundAt, next.backgroundHead = time.Now(), next.playhead()
+			}
+			old := a.player.play
+			a.player.play = next
+			if old != nil {
 				if old.audio != nil {
 					old.audio.Close()
 				}
@@ -237,9 +223,10 @@ func (a *app) stopPlayback() {
 	play.player.Close()
 }
 
-// playerDidResignActive remembers the playing film's clocks while the app is
-// in the background. VideoPlayer deliberately stops advancing when its
-// surface is hidden, while audio is a separate process that keeps playing.
+// backgroundDrift is how far the picture may trail the sound when the app comes back before the picture opens again where the sound is. The picture of a window that stayed in sight kept pace with the sound, give or take the frames decoded ahead, and opening it again would only make it jump.
+const backgroundDrift = 200 * time.Millisecond
+
+// playerDidResignActive notes the clock of the playing film as the app goes inactive. Its sound, a process of its own, plays on; VideoPlayer stops the picture only while the window is out of sight.
 func (a *app) playerDidResignActive() {
 	p := a.player.play
 	if p == nil || p.finished || p.paused || !p.player.Playing() {
@@ -249,27 +236,32 @@ func (a *app) playerDidResignActive() {
 	p.backgroundHead = p.playhead()
 }
 
-// playerDidBecomeActive reopens the picture at the position the sound reached
-// while the window was hidden, avoiding a burst of catch-up frames.
+// playerDidBecomeActive opens the picture again where the sound is, when the picture stood still behind the window while the sound played on. A picture that kept pace is left alone.
 func (a *app) playerDidBecomeActive() {
 	p := a.player.play
 	if p == nil || p.backgroundAt.IsZero() {
 		return
 	}
-	at := p.backgroundResumeAt(time.Now())
-	path := p.path
-	if at < 0 {
-		at = 0
-	}
-	if p.duration > 0 && at >= p.duration {
-		at = max(0, p.duration-100*time.Millisecond)
-	}
-	if path == "" {
+	sound := p.backgroundSound()
+	p.backgroundAt, p.backgroundHead = time.Time{}, 0
+	if p.paused || p.finished || p.path == "" || sound()-p.playhead() < backgroundDrift {
 		return
 	}
-	a.player.playFrom = at
+	a.player.playFrom = sound()
 	a.player.playJump = true
-	a.startPlaybackWith(path, p)
+	a.startPlaybackWith(p.path, p, sound)
+}
+
+// backgroundSound is where the sound of p is at any moment since the app went inactive, held short of the film's end.
+func (p *filmPlay) backgroundSound() func() time.Duration {
+	head, since, length := p.backgroundHead, p.backgroundAt, p.duration
+	return func() time.Duration {
+		at := head + max(time.Since(since), 0)
+		if length > 0 && at >= length {
+			at = max(0, length-100*time.Millisecond)
+		}
+		return at
+	}
 }
 
 func skipPlaybackFrames(frames *media.FrameReader, d time.Duration) error {
@@ -281,16 +273,6 @@ func skipPlaybackFrames(frames *media.FrameReader, d time.Duration) error {
 		d -= dur
 	}
 	return nil
-}
-
-func (p *filmPlay) backgroundResumeAt(now time.Time) time.Duration {
-	if p == nil {
-		return 0
-	}
-	if p.backgroundAt.IsZero() || now.Before(p.backgroundAt) {
-		return p.backgroundHead
-	}
-	return p.backgroundHead + now.Sub(p.backgroundAt)
 }
 
 // playhead is how far the picture itself has gotten. It stays on the last frame once the file ends, instead of following the time since play was pressed.
