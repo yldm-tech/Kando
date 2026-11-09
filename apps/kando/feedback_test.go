@@ -229,14 +229,10 @@ func TestFeedbackSendOpensThePrefilledIssue(t *testing.T) {
 	if a.feedback.sending || len(*opened) > 0 {
 		t.Fatal("在 GitHub 中打开 ran without a title")
 	}
-	if err := tt.Click("标题"); err != nil {
-		t.Fatal(err)
-	}
+	clickRow(t, tt, "标题")
 	tt.Type("导出后字幕错位")
 	tt.Frame()
-	if err := tt.Click("描述"); err != nil {
-		t.Fatal(err)
-	}
+	clickRow(t, tt, "描述")
 	tt.Type("字幕晚了一秒")
 	tt.Frame()
 	if err := tt.Click("在 GitHub 中打开"); err != nil {
