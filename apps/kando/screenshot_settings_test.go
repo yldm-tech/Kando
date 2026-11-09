@@ -18,8 +18,14 @@ func TestScreenshotsSettings(t *testing.T) {
 	f := newScreenshotFixture(t)
 	shown, models, turbo := settingsShotFolders(t, f)
 	for _, section := range []string{settings.SectionGeneral, settings.SectionSpeech, settings.SectionAI, settings.SectionTranslate, settings.SectionLook, settings.SectionShortcuts, settings.SectionAccount} {
-		shootSettings(t, f, section, "settings-"+section, shown, models, turbo)
+		shootSettings(t, f, section, "settings-"+section, shown, models, turbo, func(a *app) { shotCLITool(f, a, true) })
 	}
+	// The 命令行与 MCP card at the end of 通用: before the kando command is installed, with 安装; and once a terminal finds it, after 拷贝配置.
+	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-cli", shown, models, turbo, func(a *app) { shotCLITool(f, a, false) })
+	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-cli-installed", shown, models, turbo, func(a *app) {
+		shotCLITool(f, a, true)
+		a.cliTool.copied = cliToolMCPConfig(a.cliTool.status.cliToolCommand())
+	})
 	// The first launch on a computer without ffmpeg and whisper-cli: Kando downloads ffmpeg, and offers 重试 for whisper-cli, whose download failed.
 	shootSettings(t, f, settings.SectionGeneral, "settings-general-downloading", shown, models, turbo, func(a *app) {
 		shotKitsDownloading(t, f, a)
@@ -39,8 +45,31 @@ func shotKitsDownloading(t *testing.T, f *screenshotFixture, a *app) {
 	a.pipeline = tools
 }
 
+// shotCLITool shows Kando.app in /Applications with the kando command in /usr/local/bin when installed, or no kando a terminal finds, as the app's own look would find them. The look the window starts when it opens sees a folder of the fake home with no command, and its answer is dropped, as the scenes' updates are.
+func shotCLITool(f *screenshotFixture, a *app, installed bool) {
+	a.cliTool.env = func() cliToolEnv {
+		return cliToolEnv{exe: filepath.Join(f.home, "Kando"), searched: []string{filepath.Join(f.home, "bin")}}
+	}
+	a.cliTool.known = true
+	a.cliTool.status = cliToolStatus{exe: "/Applications/Kando.app/Contents/MacOS/Kando", installable: true}
+	if installed {
+		a.cliTool.status.command, a.cliTool.status.ours = "/usr/local/bin/kando", true
+	}
+}
+
 // shootSettings renders the settings window open at section, at the prototype's 880 by 640, as name.png: the library shown, the whisper models in models with turbo in use, and EveryAPI as the AI service. setup, when given, changes the app before it is drawn.
 func shootSettings(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, setup ...func(*app)) {
+	t.Helper()
+	shootSettingsAt(t, f, section, name, shown, models, turbo, false, setup...)
+}
+
+// shootSettingsScrolled is shootSettings with the page scrolled to its end.
+func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, setup ...func(*app)) {
+	t.Helper()
+	shootSettingsAt(t, f, section, name, shown, models, turbo, true, setup...)
+}
+
+func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, end bool, setup ...func(*app)) {
 	t.Helper()
 	a := newApp(f.pipeline, func(func()) {})
 	a.prefs.interfaceLanguage = testlocale.Current()
@@ -62,6 +91,10 @@ func shootSettings(t *testing.T, f *screenshotFixture, section, name, shown, mod
 	tt.SetTitleBar(ui.TitleBar{Height: 50, Left: 72})
 	tt.Frame()
 	tt.Frame()
+	if end {
+		tt.Scroll(550, 400, 0, 4000)
+		tt.Frame()
+	}
 	file, err := os.Create(filepath.Join(f.out, name+".png"))
 	if err != nil {
 		t.Fatal(err)

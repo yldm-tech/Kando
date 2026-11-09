@@ -47,6 +47,8 @@
   "featureSitesBody": "Kando は yt-dlp でダウンロードするので、yt-dlp が対応するサイトのリンクならそのまま使えます。対応サイトはロゴ付きで「ヘルプ」›「対応サイト…」に一覧があります。",
   "sitesStripLabel": "Kando がダウンロードできるサイトの一部",
   "sitesMore": "ほか {count} サイト",
+  "featureAgentsTitle": "コマンドラインと AI エージェント",
+  "featureAgentsBody": "Kando のプログラムはコマンドラインとしても使えます。kando add <link> で動画をジョブとして追加でき、Kando が起動していなければ先に起動します。kando mcp は MCP サーバーで、AI エージェントはこれを通じて動画の追加、ジョブの進み具合の確認、字幕の読み取りができます。WebMCP に対応したブラウザーでは、このページがエージェント向けに、Kando がそのサイトに対応しているかを調べるツールと、合ったダウンロードを探すツールも提供します。",
   "featureLanguagesTitle": "5 つの表示言語",
   "featureLanguagesBody": "日本語、英語、簡体字中国語、繁体字中国語、韓国語に対応しています。最初は簡体字中国語で表示されます。「設定」›「一般」で切り替えると、ウィンドウはすぐにその言語に変わります。",
   "featureUploadTitle": "自分のストレージにアップロード（任意）",

@@ -85,9 +85,72 @@ When the translation provider answers with a rate limit or a server error, Kando
 
 ![Settings › AI Service with EveryAPI selected](docs/assets/en/settings-ai.png)
 
+## Command line and MCP
+
+The Kando program is also a command line, `kando`, and an MCP server for AI agents. Run with one of the commands below, it drives the Kando app; run with no command, it opens the window as usual.
+
+To get the `kando` command:
+
+- macOS: move Kando to Applications, then click Install next to Command-Line Tool in Settings › General. It links `kando` to the app in the first of `/usr/local/bin`, `/opt/homebrew/bin` and `~/.local/bin` it can write to, without asking for an administrator password, and never replaces a `kando` of another program. Kando opened from its disk image, or from where macOS translocated it after a download, runs from a path that goes away, so the card asks you to move it first instead of installing a link that would break. Or link it yourself: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`.
+- Linux: the `.deb` and the `PKGBUILD` install the app in `/opt/kando` and add `/usr/bin/kando`, a link to `/opt/kando/kando`. The install script of the `.tar.gz` installs the app in `~/.local/kando.app` and links `~/.local/bin/kando` to it, leaving alone a `kando` there that it did not make; add `~/.local/bin` to `PATH` if your shell does not have it.
+
+| Command | What it does |
+| --- | --- |
+| `kando status` | Shows the open library, the programs and models in use, and whether a job can start, or what is missing. |
+| `kando list [--source S] [query]` | Lists the library's films, newest first, with their ids. `--source` keeps one source (`youtube`, `bilibili`, `local` or another site's name); the query keeps the films whose title contains it. |
+| `kando show <film-id>` | Shows one film: its source, stage, and the paths of its video and subtitles. |
+| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation]` | Prints a film's subtitles, as SubRip (the default), one line per subtitle (`text`) or JSON, both languages or only one. |
+| `kando jobs` | Lists the jobs: the running one, the waiting ones, then the finished ones. |
+| `kando add <link-or-file>... [--wait]` | Queues links and local video files, as Start Processing does, and prints each job's id. Relative paths are taken from the current directory. |
+| `kando cancel <job-id>` | Stops a running job, or takes a waiting one out of the queue. |
+| `kando sites [query] [--limit N]` | Searches the websites Kando downloads from, by name, domain or a video link. |
+| `kando open [film-id]` | Brings Kando to the front, showing a film, or the library without an id. |
+| `kando mcp` | Serves MCP on standard input and output (see below). |
+| `kando version` | Prints the version. |
+| `kando help [command]` | Lists the commands, or shows one command's usage and its flags. |
+
+A command that needs the app connects to it through a socket, `kando.sock` in the folder that holds `settings.json` (`~/Library/Application Support/Kando/kando.sock` on macOS, `~/.config/Kando/kando.sock` on Linux, `%AppData%\Kando\kando.sock` on Windows); `KANDO_SOCKET` sets another path, which a second copy of Kando also needs, with its own `HOME` (see [Configuration](#configuration)). When Kando is not running, the command starts it in the background, prints `Starting Kando…` to standard error, and waits up to 30 seconds for it. Adding videos needs what Start Processing needs, such as an open library, the programs and a whisper model; when something is missing, `kando add` fails with the message the window shows for it.
+
+Every command that talks to the app takes `--json`, which prints the app's answer as JSON instead of text. `kando add` exits with 1 when a source could not be added. With `--wait` it stays until every added job is complete or failed, printing a line whenever one's stage or progress changes, and also exits with 1 when any of them failed; with `--json` the progress goes to standard error and the jobs as they ended to standard output. Exit codes are 0 for success, 1 for a failure and 2 for a command used wrongly.
+
+`kando mcp` is an MCP server on standard input and output. Its tools start Kando the same way when it is not running:
+
+| Tool | What it does |
+| --- | --- |
+| `kando_status` | The app's version, the open library, whether a job can start and what is missing, the programs, the speech and translation models, the target language, and the running and waiting jobs. |
+| `kando_list_films` | The open library's films, newest first, filtered by `source` or by words of the title (`query`). |
+| `kando_get_film` | One film by its id: its stage, target language, and the paths of its video and subtitles. |
+| `kando_get_subtitles` | A finished film's subtitles with timestamps, both languages or one (`which`), as compact text or SRT (`format`), the first `max_cues` lines only when it is set. |
+| `kando_add_videos` | Queues links and local video files; returns the jobs, and why each source that was not added was skipped. |
+| `kando_list_jobs` | The jobs, with their stage, progress, status, error, and once complete the film id and file paths. |
+| `kando_cancel_job` | Stops a running job, or takes a waiting one out of the queue. |
+| `kando_search_sites` | Searches the websites Kando downloads from, by name, domain or a video link (20 results unless `limit` is set). |
+| `kando_open` | Brings the Kando window to the front, showing a film or the library. |
+
+Add it to Claude Code with the path of the program, `kando` once it is on `PATH`:
+
+```sh
+claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
+```
+
+Other MCP clients take the same command in their `mcpServers` setting:
+
+```json
+{
+  "mcpServers": {
+    "kando": {
+      "command": "/Applications/Kando.app/Contents/MacOS/Kando",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+The landing page, [kando.yldm.ai](https://kando.yldm.ai), gives browser agents WebMCP tools in browsers that support WebMCP: `search_supported_sites` checks whether Kando downloads from a website, `get_download` gives the download link for a system, `get_started` returns the setup steps, and `list_features` lists what Kando does.
+
 ## Configuration
 
-Everything below except the Google client id and secret can also be set in the app (the library from the sidebar, the rest in Settings). An environment variable, when set, takes the place of the value saved in the app.
+Everything below except the Google client id and secret and `KANDO_SOCKET` can also be set in the app (the library from the sidebar, the rest in Settings). An environment variable, when set, takes the place of the value saved in the app.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
@@ -97,6 +160,7 @@ Everything below except the Google client id and secret can also be set in the a
 | `KANDO_LLM_API_KEY` | none | Bearer token for the translation provider. It overrides the signed-in EveryAPI account. |
 | `EVERYAPI_API_KEY` | none | EveryAPI key, used when `KANDO_LLM_BASE_URL` is unset and `KANDO_LLM_API_KEY` is empty, instead of the CLI login. |
 | `KANDO_OUTPUT_DIR` | the library opened last | Library folder to open at launch, where new videos and subtitles go. |
+| `KANDO_SOCKET` | `kando.sock` beside `settings.json` | Path of the socket the app listens on and the `kando` command line and `kando mcp` connect to. Set it to the same path for the app and for the commands. Only one copy of Kando runs for a user, and launching another brings the first one forward; a copy started with `KANDO_SOCKET` set is a second copy on purpose, as for development, and needs its own `HOME` too, so that it keeps its own library and settings. See [Command line and MCP](#command-line-and-mcp). |
 | `KANDO_GOOGLE_CLIENT_ID` | none | Google OAuth client id for signing in on Settings › Account & Upload. Without it the sign-in button is disabled. It is never saved to the settings file. |
 | `KANDO_GOOGLE_CLIENT_SECRET` | none | Optional client secret for the same OAuth client. |
 | `KANDO_STORAGE` | `r2` | Where uploads go: `r2`, `s3` (or `aws`), `oss` (or `aliyun`), `cos` (or `tencent`), `compat` (or `s3compat`). Any other value means R2. |

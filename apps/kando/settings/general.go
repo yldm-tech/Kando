@@ -14,7 +14,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// general is the 通用 page: the library, the interface language and version, and the programs Kando runs.
+// general is the 通用 page: the library, the interface language and version, the programs Kando runs, and its command line and MCP server (cli.go).
 func (s screen) general(c *ui.Context, t *ui.Theme) {
 	form.Label(c, locales.SettingsGeneralLibrary(), 6, nil)
 	form.Card(c, func() { s.libraryRows(c) })
@@ -55,6 +55,7 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 		note = locales.SettingsGeneralToolsNoteManual()
 	}
 	form.Note(c, note, 0)
+	s.cli(c, t)
 }
 
 // InterfaceLanguageChoices are the languages for which Kando ships a catalog (locales.Interface).

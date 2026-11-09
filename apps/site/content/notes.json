@@ -47,6 +47,8 @@
   "featureSitesBody": "Help › Supported Websites… is the app's menu path: use the exact wording of the app's interface in your language.",
   "sitesStripLabel": "Accessible name of the row of site logos.",
   "sitesMore": "After the row of logos. {count} is how many more sites the catalog lists, such as 894.",
+  "featureAgentsTitle": "Feature card title for the command line, the MCP server and the page's WebMCP tools. An AI agent is a program driven by an AI model that acts for the user; use the usual term in your language.",
+  "featureAgentsBody": "kando add <link> and kando mcp are commands and stay exactly as they are, including <link>. MCP (Model Context Protocol) and WebMCP are names and stay in Latin letters. Kando's name follows the rest of your file (看懂 in Chinese).",
   "featureLanguagesTitle": "Feature card title: the app's interface comes in five languages.",
   "featureLanguagesBody": "Names the five interface languages in your language. Settings › General is the app's menu path in your language.",
   "featureUploadTitle": "Feature card title: uploading is optional and goes to the reader's own storage.",

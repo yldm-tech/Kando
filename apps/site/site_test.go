@@ -455,7 +455,7 @@ func TestNoExternalHosts(t *testing.T) {
 		}
 	}
 	urlRe := regexp.MustCompile(`(?:https?:)?//[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s"')]*`)
-	for _, file := range []string{"static/site.css", "static/site.js"} {
+	for _, file := range []string{"static/site.css", "static/site.js", "static/webmcp.js"} {
 		for _, ref := range urlRe.FindAllString(readOut(t, file), -1) {
 			if !allowedRef(ref) {
 				t.Errorf("%s refers to %s", file, ref)

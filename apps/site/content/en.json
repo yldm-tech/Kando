@@ -47,6 +47,8 @@
   "featureSitesBody": "Kando downloads through yt-dlp, so a link from any site it supports will do. Help › Supported Websites… lists them all, with their logos.",
   "sitesStripLabel": "Some of the websites Kando downloads from",
   "sitesMore": "and {count} more",
+  "featureAgentsTitle": "Command line and AI agents",
+  "featureAgentsBody": "The Kando program is also a command line: kando add <link> queues a video, opening Kando first if it is not running, and kando mcp is an MCP server through which an AI agent can add videos, follow jobs and read subtitles. In a browser with WebMCP, this page also gives agents tools to check whether Kando supports a website and to find the right download.",
   "featureLanguagesTitle": "Five interface languages",
   "featureLanguagesBody": "English, Simplified Chinese, Traditional Chinese, Japanese and Korean. Kando starts in Simplified Chinese; change it in Settings › General, and the window switches at once.",
   "featureUploadTitle": "Optional upload to your storage",

@@ -47,6 +47,8 @@
   "featureSitesBody": "Kando는 yt-dlp로 내려받으므로 yt-dlp가 지원하는 사이트의 링크라면 무엇이든 됩니다. 전체 목록은 도움말\u00a0›\u00a0지원하는 웹사이트…에서 로고와 함께 볼 수 있습니다.",
   "sitesStripLabel": "Kando가 동영상을 내려받는 웹사이트 일부",
   "sitesMore": "외 {count}개 사이트",
+  "featureAgentsTitle": "명령줄과 AI 에이전트",
+  "featureAgentsBody": "Kando 프로그램은 명령줄로도 쓸 수 있습니다. kando add <link>는 동영상을 작업으로 추가하며, Kando가 실행 중이 아니면 먼저 엽니다. kando mcp는 MCP 서버로, AI 에이전트가 이를 통해 동영상을 추가하고 작업 진행 상황을 확인하고 자막을 읽을 수 있습니다. WebMCP를 지원하는 브라우저에서는 이 페이지가 에이전트에게 Kando가 어떤 웹사이트를 지원하는지 확인하고 알맞은 다운로드를 찾는 도구도 제공합니다.",
   "featureLanguagesTitle": "다섯 가지 인터페이스 언어",
   "featureLanguagesBody": "한국어, 영어, 간체 중국어, 번체 중국어, 일본어를 지원합니다. 처음에는 간체 중국어로 표시되며, 설정\u00a0›\u00a0일반에서 바꾸면 창이 바로 바뀝니다.",
   "featureUploadTitle": "원할 때만 내 스토리지에 업로드",

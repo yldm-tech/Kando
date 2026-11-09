@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"kando/apps/kando/brand"
+	"kando/apps/kando/cli"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 	"kando/packages/media"
@@ -45,6 +46,8 @@ type app struct {
 	onb      onboardUI  // state_onboarding.go
 	sites    sitesUI    // state_sites.go
 	kits     kitsUI     // state_kits.go
+	remote   remoteUI   // state_remote.go
+	cliTool  cliToolUI  // state_cli.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -65,10 +68,20 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		onb:      newOnboardUI(),
 		sites:    newSitesUI(),
 		kits:     newKitsUI(),
+		remote:   newRemoteUI(),
+		cliTool:  newCLIToolUI(),
 	}
 }
 
 func main() {
+	// Started with one of the kando command line's commands (cli), it runs that command against the running app, or serves MCP, and opens no window.
+	if code, ok := cli.Main(os.Args[1:], appVersion); ok {
+		os.Exit(code)
+	}
+	// One copy of Kando runs per user, as two would both write library.json and settings.json: a second launch, as the command line starting the app while it is still starting, or two commands starting it at once, hands over to the first and ends, and the first brings its window forward. A copy started with KANDO_SOCKET is a second copy on purpose, as for development, and takes no lock, as it would only hand over to the first; it needs its own HOME as well, so it keeps its own library and settings.
+	if os.Getenv("KANDO_SOCKET") == "" && !mygo.App.RequestSingleInstanceLock() {
+		return
+	}
 	var win *mygo.Window
 	var a *app
 	// The programs Kando downloads for itself go beside its settings, and are looked up before those on PATH.
@@ -115,6 +128,7 @@ func main() {
 		nodra.Invalidate(a.store, win)
 		a.areasReady()
 	})
+	mygo.App.OnSecondInstance(func([]string, string) { a.remoteRaise() })
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { a.areasQuitting() })
 	mygo.App.OnDidResignActive(func() { a.playerDidResignActive() })
 	mygo.App.OnDidBecomeActive(func() { a.playerDidBecomeActive() })

@@ -36,7 +36,11 @@ func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
 
 func (a *app) Save() error { return a.saveSettings() }
 
-func (a *app) Redetect() { a.redetectTools() }
+// Redetect looks for the programs Kando runs, and for the kando command, again.
+func (a *app) Redetect() {
+	a.redetectTools()
+	a.cliToolCheck()
+}
 
 func (a *app) ToolDownload(program string) settings.ToolFetch {
 	progress, running := a.kitsProgress(program)
@@ -135,6 +139,9 @@ func (a *app) OpenSettings(section string) {
 	a.prefs.open = true
 	a.prefs.section = section
 	a.findSpeechModels()
+	if section == settings.SectionGeneral {
+		a.cliToolCheck()
+	}
 	a.showSettingsWindow()
 }
 
@@ -145,7 +152,13 @@ func (a *app) SettingsSection() string {
 	return a.prefs.section
 }
 
-func (a *app) SetSettingsSection(section string) { a.prefs.section = section }
+// SetSettingsSection shows section; 通用 looks for the kando command again, as a terminal may have installed or removed it since.
+func (a *app) SetSettingsSection(section string) {
+	if section == settings.SectionGeneral && a.SettingsSection() != section {
+		a.cliToolCheck()
+	}
+	a.prefs.section = section
+}
 
 func (a *app) SettingsQuery() *string { return &a.prefs.query }
 
@@ -161,3 +174,27 @@ func (a *app) Shortcuts() []settings.Shortcut {
 	}
 	return out
 }
+
+// CLI is where the kando command stands, from the last look (state_cli.go), with what an MCP client runs.
+func (a *app) CLI() settings.CLI {
+	st := a.cliTool.status
+	command := st.cliToolCommand()
+	return settings.CLI{
+		Known:         a.cliTool.known,
+		Installed:     st.ours,
+		Command:       st.command,
+		Link:          st.link,
+		Exe:           st.exe,
+		Installable:   st.installable,
+		Installing:    a.cliTool.installing,
+		Err:           a.cliTool.err,
+		Temporary:     st.temporary,
+		MCPConfig:     cliToolMCPConfig(command),
+		ClaudeCommand: cliToolClaudeCommand(command),
+		Copied:        a.cliTool.copied,
+	}
+}
+
+func (a *app) InstallCLI() { a.cliToolStartInstall() }
+
+func (a *app) CLICopied(text string) { a.cliTool.copied = text }

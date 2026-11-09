@@ -729,6 +729,7 @@ code {
   }
 
   .feature.wide,
+  .feature.full,
   .feature:last-child {
     grid-column: span 2;
   }
@@ -741,6 +742,11 @@ code {
 
   .feature:last-child {
     grid-column: auto;
+  }
+
+  /* A full card takes a row of its own, which keeps the three columns filled around the wide card. */
+  .feature.full {
+    grid-column: 1 / -1;
   }
 }
 

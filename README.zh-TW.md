@@ -87,11 +87,76 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 
 ![已選擇 EveryAPI 的「設定 › AI 服務」](docs/assets/zh-TW/settings-ai.png)
 
+<a id="command-line-and-mcp"></a>
+
+## 命令列與 MCP
+
+看懂的程式本身也是命令列工具 `kando`，同時也是供 AI 代理使用的 MCP 伺服器。帶著下表中的命令執行時，它會操作看懂應用程式；不帶命令執行時，它照常開啟視窗。
+
+取得 `kando` 命令：
+
+- macOS：先把看懂移到「應用程式」檔案夾，再在「設定 › 一般」中按一下「命令列工具」旁的「安裝」。它會在 `/usr/local/bin`、`/opt/homebrew/bin`、`~/.local/bin` 中第一個可寫入的資料夾裡建立指向看懂的 `kando` 連結，不會要求輸入管理者密碼，也不會取代其他程式的 `kando`。直接從磁碟映像檔開啟，或下載後被 macOS 放到暫存位置（App Translocation）執行時，看懂所在的路徑很快就會失效，這時卡片會提示先移動看懂，而不是安裝一個日後失效的連結。也可以自行建立連結：`sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`。
+- Linux：`.deb` 和 `PKGBUILD` 會把應用程式安裝到 `/opt/kando`，並加入指向 `/opt/kando/kando` 的連結 `/usr/bin/kando`。`.tar.gz` 附帶的安裝指令碼會把應用程式安裝到 `~/.local/kando.app`，並建立指向它的 `~/.local/bin/kando`；那裡已有不是它建立的 `kando` 時則保持原樣。如果 shell 的 `PATH` 中沒有 `~/.local/bin`，請把它加進去。
+
+| 命令 | 作用 |
+| --- | --- |
+| `kando status` | 顯示目前開啟的資料庫、正在使用的程式和模型，以及能否開始工作；不能時說明缺少什麼。 |
+| `kando list [--source S] [query]` | 依從新到舊列出資料庫中的影片及其 ID。`--source` 只保留一個來源（`youtube`、`bilibili`、`local` 或其他網站的名稱）；query 只保留標題中包含它的影片。 |
+| `kando show <film-id>` | 顯示一部影片：來源、所處階段，以及影片檔和字幕的路徑。 |
+| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation]` | 輸出影片的字幕，格式可以是 SubRip（預設）、每則字幕一行的文字（`text`）或 JSON，可以輸出雙語，也可以只輸出其中一種。 |
+| `kando jobs` | 列出工作：先是正在執行的，接著是等待中的，最後是已結束的。 |
+| `kando add <link-or-file>... [--wait]` | 和「開始處理」一樣把連結和本機影片檔加入佇列，並輸出每個工作的 ID。相對路徑以目前目錄為準。 |
+| `kando cancel <job-id>` | 停止正在執行的工作，或把等待中的工作移出佇列。 |
+| `kando sites [query] [--limit N]` | 依名稱、網域或影片連結搜尋看懂支援下載的網站。 |
+| `kando open [film-id]` | 把看懂視窗移到最前面，顯示指定的影片；不帶 ID 時顯示資料庫。 |
+| `kando mcp` | 在標準輸入和標準輸出上提供 MCP 服務（見下文）。 |
+| `kando version` | 輸出版本號碼。 |
+| `kando help [command]` | 列出所有命令，或顯示某個命令的用法和選項。 |
+
+需要應用程式的命令會透過 socket 與它通訊，socket 是 `settings.json` 所在資料夾中的 `kando.sock`（macOS 是 `~/Library/Application Support/Kando/kando.sock`，Linux 是 `~/.config/Kando/kando.sock`，Windows 是 `%AppData%\Kando\kando.sock`）；`KANDO_SOCKET` 可以指定其他路徑，執行第二個看懂時也需要它，而且還要有獨立的 `HOME`（請參閱[組態設定](#configuration)）。看懂沒有在執行時，命令會在背景啟動它，向標準錯誤輸出 `Starting Kando…`，並最多等待 30 秒。加入影片需要的條件和「開始處理」相同，例如已開啟資料庫、程式齊全、已有 whisper 模型；缺少某項時，`kando add` 會失敗，並顯示視窗中對應的訊息。
+
+所有與應用程式通訊的命令都支援 `--json`，以 JSON 而非文字輸出應用程式的回應。有來源未能加入時，`kando add` 會以 1 結束。加上 `--wait` 時，它會一直等到所有新加入的工作完成或失敗，每當某個工作的階段或進度變化時輸出一行；只要有工作失敗，同樣以 1 結束。加上 `--json` 時，進度輸出到標準錯誤，結束時的工作輸出到標準輸出。結束代碼：0 表示成功，1 表示失敗，2 表示命令用法有誤。
+
+`kando mcp` 是在標準輸入和標準輸出上執行的 MCP 伺服器。看懂沒有在執行時，它的工具也會同樣地啟動它：
+
+| 工具 | 作用 |
+| --- | --- |
+| `kando_status` | 應用程式版本、目前開啟的資料庫、能否開始工作以及缺少什麼、各個程式、語音辨識和翻譯模型、目標語言，以及正在執行和等待中的工作。 |
+| `kando_list_films` | 依從新到舊列出目前資料庫的影片，可依 `source` 或標題中的文字（`query`）篩選。 |
+| `kando_get_film` | 依 ID 取得一部影片：所處階段、目標語言，以及影片檔和字幕的路徑。 |
+| `kando_get_subtitles` | 已完成影片的含時間戳記字幕，可以是雙語或其中一種（`which`），格式為精簡文字或 SRT（`format`）；設定 `max_cues` 時只回傳開頭的若干則。 |
+| `kando_add_videos` | 把連結和本機影片檔加入佇列；回傳這些工作，以及每個未能加入的來源被略過的原因。 |
+| `kando_list_jobs` | 列出工作，包括階段、進度、狀態、錯誤，完成後還有影片 ID 和檔案路徑。 |
+| `kando_cancel_job` | 停止正在執行的工作，或把等待中的工作移出佇列。 |
+| `kando_search_sites` | 依名稱、網域或影片連結搜尋看懂支援下載的網站（未設定 `limit` 時回傳 20 個結果）。 |
+| `kando_open` | 把看懂視窗移到最前面，顯示一部影片或資料庫。 |
+
+在 Claude Code 中加入時填寫程式的路徑；`kando` 已在 `PATH` 中時直接寫 `kando` 即可：
+
+```sh
+claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
+```
+
+其他 MCP 用戶端在 `mcpServers` 設定中填寫同樣的命令：
+
+```json
+{
+  "mcpServers": {
+    "kando": {
+      "command": "/Applications/Kando.app/Contents/MacOS/Kando",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+在支援 WebMCP 的瀏覽器中，官網 [kando.yldm.ai](https://kando.yldm.ai) 會為瀏覽器中的代理提供 WebMCP 工具：`search_supported_sites` 查詢看懂是否支援從某個網站下載，`get_download` 提供適合某個系統的下載連結，`get_started` 回傳開始使用的步驟，`list_features` 列出看懂的功能。
+
 <a id="configuration"></a>
 
 ## 組態設定
 
-下列所有項目，除了 Google 用戶端 ID 和用戶端密鑰之外，也都可以在應用程式中設定（資料庫在側邊欄設定，其餘在「設定」中）。環境變數一旦設定，就會取代應用程式中儲存的值。
+下列所有項目，除了 Google 用戶端 ID、用戶端密鑰和 `KANDO_SOCKET` 之外，也都可以在應用程式中設定（資料庫在側邊欄設定，其餘在「設定」中）。環境變數一旦設定，就會取代應用程式中儲存的值。
 
 | 變數 | 預設值 | 說明 |
 | --- | --- | --- |
@@ -101,6 +166,7 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 | `KANDO_LLM_API_KEY` | 無 | 翻譯供應商的 Bearer 權杖。它會覆寫已登入的 EveryAPI 帳號。 |
 | `EVERYAPI_API_KEY` | 無 | EveryAPI 金鑰，在 `KANDO_LLM_BASE_URL` 未設定且 `KANDO_LLM_API_KEY` 為空時使用，取代 CLI 登入。 |
 | `KANDO_OUTPUT_DIR` | 上次開啟的資料庫 | 啟動時要開啟的資料庫資料夾，新的影片和字幕都會放在這裡。 |
+| `KANDO_SOCKET` | `settings.json` 旁的 `kando.sock` | 應用程式監聽、`kando` 命令列和 `kando mcp` 連線的 socket 路徑。應用程式和命令要設定成同一個路徑。同一個使用者只會執行一個看懂，再次啟動只會把已執行的那個帶到前景；設定了 `KANDO_SOCKET` 啟動的是刻意執行的第二個看懂（例如開發時），它還需要獨立的 `HOME`，才能使用自己的資料庫和設定。請參閱[命令列與 MCP](#command-line-and-mcp)。 |
 | `KANDO_GOOGLE_CLIENT_ID` | 無 | 用於在「設定 › 帳號與上傳」登入的 Google OAuth 用戶端 ID。沒有設定時，登入按鈕會停用。它永遠不會儲存到設定檔中。 |
 | `KANDO_GOOGLE_CLIENT_SECRET` | 無 | 選填，同一個 OAuth 用戶端的用戶端密鑰。 |
 | `KANDO_STORAGE` | `r2` | 上傳的目的地：`r2`、`s3`（或 `aws`）、`oss`（或 `aliyun`）、`cos`（或 `tencent`）、`compat`（或 `s3compat`）。其他任何值都視為 R2。 |
