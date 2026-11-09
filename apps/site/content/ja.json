@@ -15,7 +15,7 @@
   "heroLead": "動画のリンクを貼り付けるか、動画ファイルをウィンドウにドロップするだけ。Kando がオンラインの動画をダウンロードし、お使いのコンピューター上で音声を文字起こしして、すべてのセリフを翻訳します。再生中は、原文と訳文が画面に一緒に表示されます。",
   "heroDownload": "ダウンロード",
   "heroSource": "GitHub で見る",
-  "heroReleaseNote": "まだバージョンは公開されていません。ビルドは GitHub Releases に掲載されます。",
+  "heroReleaseNote": "macOS 版と Linux 版は GitHub Releases にあります。Windows では：",
   "heroBuildLink": "ソースからビルド",
   "heroPlatforms": "macOS · Windows · Linux",
   "heroAudioNote": "音声の再生は現在 macOS のみ",

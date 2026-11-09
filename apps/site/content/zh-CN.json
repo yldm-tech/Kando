@@ -15,7 +15,7 @@
   "heroLead": "粘贴视频链接，或者把视频文件拖到窗口上。看懂会下载在线视频，在你自己的电脑上转录语音，再逐句翻译，然后播放视频，屏幕上同时显示原文和译文。",
   "heroDownload": "下载",
   "heroSource": "在 GitHub 上查看",
-  "heroReleaseNote": "目前还没有发布任何版本，安装包发布后会出现在 GitHub Releases 上。",
+  "heroReleaseNote": "macOS 和 Linux 的安装包在 GitHub Releases 上。Windows 请",
   "heroBuildLink": "从源码构建",
   "heroPlatforms": "macOS · Windows · Linux",
   "heroAudioNote": "目前只有 macOS 能播放声音",

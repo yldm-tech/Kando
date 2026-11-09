@@ -15,7 +15,7 @@
   "heroLead": "貼上連結或拖入影片檔，看懂會下載線上影片、在本機轉錄、逐句翻譯，再以雙語字幕播放。",
   "heroDownload": "下載",
   "heroSource": "在 GitHub 上查看",
-  "heroReleaseNote": "目前尚未發布任何版本，之後的建置版本會放在 GitHub Releases。",
+  "heroReleaseNote": "macOS 和 Linux 的建置版本在 GitHub Releases 上。Windows 請",
   "heroBuildLink": "從原始碼建置",
   "heroPlatforms": "macOS · Windows · Linux",
   "heroAudioNote": "目前只有 macOS 能播放聲音",
