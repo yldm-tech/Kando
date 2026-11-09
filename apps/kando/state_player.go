@@ -38,7 +38,13 @@ type playerUI struct {
 	lastMode string
 	// panel shows the side panel over the picture. It stays as it is from film to film.
 	panel bool
-	film  filmUI
+	// volume is how loud films play, from 0 to 1, and muted silences them without losing it. Both stay as they are from film to film.
+	volume float64
+	muted  bool
+	// volumeGen counts volume changes, so only the last of a quick run of them starts the sound again (playerVolumeChanged); volumeUnsaved is set until the change is kept in the settings.
+	volumeGen     int
+	volumeUnsaved bool
+	film          filmUI
 }
 
 // filmUI is the player's state that belongs to the one film open, which opening another starts afresh (resetFilm).
@@ -74,6 +80,7 @@ func newPlayerUI() playerUI {
 		yieldSubs:    true,
 		lastMode:     film.SubBilingual,
 		panel:        true,
+		volume:       1,
 		film:         filmUI{follow: -1},
 	}
 }
@@ -138,15 +145,22 @@ func (a *app) restorePlayer(saved savedSettings) {
 	if saved.YieldSubs != nil {
 		a.player.yieldSubs = *saved.YieldSubs
 	}
+	if saved.Volume != nil {
+		a.player.volume = min(max(*saved.Volume, 0), 1)
+	}
+	a.player.muted = saved.Muted
 }
 
-// savedPlayer is the player's part of settings.json: how subtitles look and which lines show.
+// savedPlayer is the player's part of settings.json: how subtitles look, which lines show and how loud films play.
 type savedPlayer struct {
 	Look         *film.Look `json:"look,omitempty"`
 	SubMode      string     `json:"subMode,omitempty"`
 	SubOrder     string     `json:"subOrder,omitempty"`
 	Untranslated string     `json:"untranslated,omitempty"`
 	YieldSubs    *bool      `json:"yieldSubs,omitempty"`
+	// Volume is how loud films play, from 0 to 1; Muted silences them.
+	Volume *float64 `json:"volume,omitempty"`
+	Muted  bool     `json:"muted,omitempty"`
 }
 
 // clean leaves the player's settings as they were read; restorePlayer replaces a value it does not know with the default.
@@ -154,18 +168,21 @@ func (s *savedPlayer) clean() {}
 
 func (a *app) savePlayer(saved *savedSettings) {
 	yieldSubs := a.player.yieldSubs
+	volume := a.player.volume
 	saved.savedPlayer = savedPlayer{
 		Look:         changedLook(a.player.look),
 		SubMode:      a.player.subMode,
 		SubOrder:     a.player.subOrder,
 		Untranslated: a.player.untranslated,
 		YieldSubs:    &yieldSubs,
+		Volume:       &volume,
+		Muted:        a.player.muted,
 	}
 }
 
-// playerHooks: the player saves how subtitles look, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time.
+// playerHooks: the player saves how subtitles look, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.stopPlayback}
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.playerQuitting}
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.

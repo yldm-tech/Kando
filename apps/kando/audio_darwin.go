@@ -3,6 +3,7 @@
 package main
 
 import (
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,19 +42,22 @@ func guardAudio(pid int) (*exec.Cmd, *os.File, error) {
 	return guard, w, nil
 }
 
-func openPCM(ffmpeg, path string, at time.Duration) (*pcmAudio, error) {
-	name, args, err := audioCommand(ffmpeg, path, at)
+// openPCM prepares the sound of path from at, at volume from 0 (silent) to 1 (as recorded).
+func openPCM(ffmpeg, path string, at time.Duration, volume float64) (*pcmAudio, error) {
+	name, args, err := audioCommand(ffmpeg, path, at, volume)
 	if err != nil {
 		return nil, err
 	}
 	return &pcmAudio{name: name, args: args, exited: make(chan struct{})}, nil
 }
 
-func audioCommand(ffmpeg, path string, at time.Duration) (string, []string, error) {
+func audioCommand(ffmpeg, path string, at time.Duration, volume float64) (string, []string, error) {
 	if path == "" {
 		return "", nil, exec.ErrNotFound
 	}
-	args := []string{"-nodisp", "-autoexit", "-vn", "-loglevel", "error"}
+	volume = min(max(volume, 0), 1)
+	// ffplay takes the volume as a percentage; it cannot change it while it plays without its window, so a new volume starts the sound again.
+	args := []string{"-nodisp", "-autoexit", "-vn", "-loglevel", "error", "-volume", strconv.Itoa(int(math.Round(volume * 100)))}
 	if at > 0 {
 		args = append(args, "-ss", strconv.FormatFloat(at.Seconds(), 'f', 3, 64))
 	}
@@ -61,10 +65,14 @@ func audioCommand(ffmpeg, path string, at time.Duration) (string, []string, erro
 	if ffplay := ffplayPath(ffmpeg); ffplay != "" {
 		return ffplay, args, nil
 	}
+	// afplay cannot start partway into a file, so it plays only from the start: no sound is better than sound from the wrong place, after a seek or a new volume.
+	if at > 0 {
+		return "", nil, exec.ErrNotFound
+	}
 	if _, err := exec.LookPath("afplay"); err != nil {
 		return "", nil, err
 	}
-	return "afplay", []string{path}, nil
+	return "afplay", []string{"-v", strconv.FormatFloat(volume, 'f', 2, 64), path}, nil
 }
 
 func ffplayPath(ffmpeg string) string {

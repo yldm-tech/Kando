@@ -55,6 +55,8 @@ var cheatsheetLayout = []struct {
 		{"后退 / 前进 5 秒", []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}},
 		{"后退 / 前进 30 秒", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyLeft}, {Mods: ui.Cmd, Key: ui.KeyRight}}},
 		{"", []cheatsheet.Combo{{Key: ui.KeyF}}},
+		{"音量加大 / 减小", []cheatsheet.Combo{{Key: ui.KeyUp}, {Key: ui.KeyDown}}},
+		{"", []cheatsheet.Combo{{Key: ui.KeyM}}},
 	}},
 	{"字幕", []cheatsheetLine{
 		{"显示 / 隐藏", []cheatsheet.Combo{{Key: ui.KeyV}}},
