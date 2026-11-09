@@ -36,7 +36,7 @@ Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공
 
 ### 다운로드
 
-버전이 게시되면 macOS, Windows, Linux용 빌드가 [GitHub Releases](https://github.com/yldm-tech/Kando/releases)에 첨부됩니다. Developer ID나 코드 서명 인증서로 서명되어 있지 않으므로 Kando를 처음 열 때 시스템이 경고를 표시합니다.
+버전이 게시되면 macOS, Linux용 빌드가 [GitHub Releases](https://github.com/yldm-tech/Kando/releases)에 첨부됩니다. Windows용 빌드는 아직 없으므로 Windows에서는 아래 설명대로 소스에서 빌드하세요. Developer ID나 코드 서명 인증서로 서명되어 있지 않으므로 Kando를 처음 열 때 시스템이 경고를 표시합니다.
 
 - macOS: macOS 15 이상에서는 Kando를 한 번 연 다음 시스템 설정 › 개인정보 보호 및 보안 › 그래도 열기를 선택합니다. macOS 14 이하에서는 응용 프로그램 폴더에서 Kando를 Control-클릭하고 열기를 선택합니다. 또는 터미널에서 격리 플래그를 제거합니다: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
 - Windows: SmartScreen 대화 상자에서 추가 정보 › 실행을 선택합니다.
@@ -55,7 +55,7 @@ make build
 
 ## 요구 사항
 
-Kando는 다음 프로그램을 실행합니다. 이 프로그램들을 설치하거나 업데이트하지는 않습니다.
+Kando는 다음 프로그램을 실행합니다. 이 프로그램들을 설치하지는 않습니다. `yt-dlp`가 오래되어 다운로드에 실패하면 업데이트 후 다시 시도가 표시되며, 설치한 방식대로 업데이트한 뒤 다시 시도합니다.
 
 | 프로그램 | 용도 |
 | --- | --- |
