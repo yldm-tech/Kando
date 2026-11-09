@@ -5,6 +5,8 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // playerUI is the state of the open film: the picture, the subtitle file and how subtitles look. The settings in it are saved with the app's settings (savedSettings).
@@ -51,8 +53,10 @@ type filmUI struct {
 	scrubbing   bool
 	uploadNote  bool
 	// info is the film's folder as readFilmInfo read it for the video at infoFor.
-	info    film.Info
-	infoFor string
+	info       film.Info
+	infoFor    string
+	clipFrames map[time.Duration]ui.ImageSource
+	clipBusy   map[time.Duration]bool
 	// osd is the message on the picture; osdAt is when it started showing, zero until it first shows.
 	osd   string
 	osdAt time.Time
@@ -161,7 +165,7 @@ func (a *app) savePlayer(saved *savedSettings) {
 
 // playerHooks: the player saves how subtitles look, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, quitting: a.stopPlayback}
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.stopPlayback}
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.

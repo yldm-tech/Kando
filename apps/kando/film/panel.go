@@ -3,6 +3,7 @@ package film
 import (
 	"cmp"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ var panelTabs = []struct{ id, label string }{
 	{"", "字幕"},
 	{"clips", "片段"},
 	{"info", "信息"},
+	{"style", "样式"},
 }
 
 // The side panel's surfaces (prototype template 642-876).
@@ -45,18 +47,18 @@ func (s screen) panel(c *ui.Context, t *ui.Theme, item films.Film, panelSpace fl
 	}
 	glassFace(box, ui.RGBA(28, 28, 32, 0.6), 34, 0.2, 22).Shadow(0, 20, 50, 0, ui.RGBA(0, 0, 0, 0.35))
 	box.Children(func() {
+		ui.Column(c).Padding(14, 14, 10, 14).Children(func() { s.panelTabBar(c) })
 		if s.StyleView() {
 			s.styleView(c)
-			return
-		}
-		ui.Column(c).Padding(14, 14, 10, 14).Children(func() { s.panelTabBar(c) })
-		switch s.FilmSide() {
-		case "clips":
-			s.clipsTab(c, t)
-		case "info":
-			s.infoTab(c, item)
-		default:
-			s.subsTab(c, t, item)
+		} else {
+			switch s.FilmSide() {
+			case "clips":
+				s.clipsTab(c, t)
+			case "info":
+				s.infoTab(c, item)
+			default:
+				s.subsTab(c, t, item)
+			}
 		}
 	})
 }
@@ -70,6 +72,9 @@ func (s screen) panelTabBar(c *ui.Context) {
 		}
 	}
 	c.Key("film-tabs")
+	if s.StyleView() {
+		chosen = len(panelTabs) - 1
+	}
 	tabs := ui.TabsBase(c, &chosen, len(panelTabs))
 	tabs.List.Height(32).Padding(3).Radius(12).Background(ui.RGBA(255, 255, 255, 0.1)).Label("侧栏").Children(func() {
 		for i, tab := range panelTabs {
@@ -84,6 +89,13 @@ func (s screen) panelTabBar(c *ui.Context) {
 			t.Children(func() { ui.Text(c, tab.label).FontSize(12).FontWeight(weight).SingleLine() })
 		}
 	})
+	if chosen == len(panelTabs)-1 {
+		s.SetStyleView(true)
+		return
+	}
+	if s.StyleView() {
+		s.SetStyleView(false)
+	}
 	if panelTabs[chosen].id != s.FilmSide() {
 		s.SetFilmSide(panelTabs[chosen].id)
 	}
@@ -226,7 +238,12 @@ func (s screen) chapterRow(c *ui.Context, index int, ch Chapter) {
 		s.Seek(ch.Start)
 	}
 	row.Children(func() {
-		ui.Box(c).Width(84).AspectRatio(16.0/9).Radius(7).Shrink(0).Background(clipTiles[index%len(clipTiles)]).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, 0.15)).Children(func() {
+		thumb := ui.Box(c).Width(84).AspectRatio(16.0/9).Radius(7).Shrink(0).Clip().Background(clipTiles[index%len(clipTiles)]).InsetShadow(0, 0, 0, 0.5, ui.RGBA(255, 255, 255, 0.15))
+		thumb.Children(func() {
+			if img := s.ClipPoster(ch.Start); img != nil {
+				ui.Image(c, img).Absolute().Top(0).Left(0).WidthPercent(100).HeightPercent(100).Fit(ui.Cover)
+				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Background(ui.RGBA(0, 0, 0, 0.18))
+			}
 			ui.Text(c, cueClock(ch.Start)).FontSize(10).FontWeight(600).FontFeatures("tnum").Absolute().Right(4).Bottom(3)
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
@@ -256,13 +273,36 @@ func (s screen) chapterActive(ch Chapter) bool {
 // infoTab shows where the film is: its folder, the files in it and where it came from.
 func (s screen) infoTab(c *ui.Context, item films.Film) {
 	info := s.Info()
+	folder := info.Folder
+	if folder == "" && item.VideoPath != "" {
+		folder = filepath.Dir(item.VideoPath)
+	}
+	files := info.Files
+	if len(files) == 0 {
+		files = knownInfoFiles(item)
+	}
 	ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
 		ui.Column(c).WidthPercent(100).Padding(0, 14, 16, 14).Gap(12).Children(func() {
-			if info.Folder != "" {
+			panelGroup(c, func() {
+				ui.Column(c).Padding(12).Gap(8).Children(func() {
+					title := item.Name
+					if title == "" {
+						title = item.Title
+					}
+					ui.Text(c, films.Shorten(title, 52)).FontSize(15).FontWeight(650).LineHeight(19.0 / 15).Wrap()
+					ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
+						infoChip(c, infoStage(item))
+						if item.Language != "" {
+							infoChip(c, item.Language)
+						}
+					})
+				})
+			})
+			if folder != "" {
 				panelHeading(c, "影片文件夹")
 				panelGroup(c, func() {
 					ui.Column(c).Padding(10, 12).Gap(8).Children(func() {
-						ui.Text(c, films.DisplayPath(info.Folder)).FontSize(12).LineHeight(17.0 / 12).Font("Menlo").Opacity(0.9).Wrap()
+						ui.Text(c, films.DisplayPath(folder)).FontSize(11).LineHeight(16.0 / 11).Font("Menlo").Opacity(0.9).Wrap().Selectable()
 						c.Key("film-info-reveal")
 						if breeze.Button(c, "在访达中显示").Height(26).AlignSelf(ui.Start).Clicked() {
 							s.Reveal(item.VideoPath)
@@ -270,11 +310,15 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 					})
 				})
 			}
-			if len(info.Files) > 0 {
+			if len(files) > 0 {
 				panelHeading(c, "文件")
 				panelGroup(c, func() {
-					for i, f := range filesInOrder(info.Files) {
-						fileRow(c, f, i > 0)
+					for i, f := range filesInOrder(files) {
+						fileRow(c, f, i > 0, func() {
+							if folder != "" {
+								s.Reveal(filepath.Join(folder, f.Name))
+							}
+						})
 					}
 				})
 			}
@@ -283,19 +327,74 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 				ui.Column(c).Padding(10, 12).Gap(6).Children(func() {
 					source := item.Source
 					if source == "" || strings.HasPrefix(source, "file://") {
-						source = "本地文件"
+						ui.Text(c, "本地文件").FontSize(12).LineHeight(17.0 / 12).Opacity(0.9)
+					} else {
+						ui.Row(c).Gap(6).AlignItems(ui.Start).Children(func() {
+							breeze.Link(c, source, source).FontSize(12).LineHeight(17.0 / 12).Wrap().Grow(1).MinWidth(0)
+							copyInfoButton(c, "复制", source)
+						})
 					}
-					ui.Text(c, source).FontSize(12).LineHeight(17.0 / 12).Opacity(0.9).Wrap()
-					ui.Text(c, "任务记录保存在 ~/Library/Application Support/Kando/library.json").FontSize(12).LineHeight(17.0 / 12).Opacity(0.65).Wrap()
+					ui.Text(c, "任务记录").FontSize(11).Opacity(0.55)
+					recordPath := s.LibraryPath()
+					if recordPath == "" {
+						recordPath = "~/Library/Application Support/Kando/library.json"
+					}
+					ui.Row(c).Gap(6).AlignItems(ui.Start).Children(func() {
+						ui.Text(c, films.DisplayPath(recordPath)).FontSize(11).LineHeight(15.0 / 11).Font("Menlo").Opacity(0.65).Wrap().Grow(1).MinWidth(0).Selectable()
+						if breeze.FlatButton(c, "打开").Height(24).Padding(0, 8).Clicked() {
+							s.Reveal(recordPath)
+						}
+						copyInfoButton(c, "复制", recordPath)
+					})
 				})
 			})
 		})
 	})
 }
 
-// fileRow is a file of the film's folder: a tile with its kind, its name, and what it is with its size.
-func fileRow(c *ui.Context, f File, divided bool) {
-	row := ui.Row(c).Gap(10).MinHeight(44).Padding(6, 12).AlignItems(ui.Center)
+func copyInfoButton(c *ui.Context, label, value string) {
+	if breeze.FlatButton(c, label).Height(24).Padding(0, 8).Shrink(0).Clicked() {
+		c.WriteClipboard(value)
+	}
+}
+
+// knownInfoFiles keeps the information page useful while the background
+// directory scan is still pending, or when a video was opened without a
+// readable folder. It only uses paths already present in the film state.
+func knownInfoFiles(item films.Film) []File {
+	seen := map[string]bool{}
+	var out []File
+	for _, path := range []string{item.VideoPath, item.SubtitlePath} {
+		name := filepath.Base(path)
+		if path == "" || name == "." || name == string(filepath.Separator) || seen[name] {
+			continue
+		}
+		seen[name] = true
+		out = append(out, File{Name: name, Size: -1})
+	}
+	return out
+}
+
+func infoChip(c *ui.Context, text string) {
+	if text == "" {
+		return
+	}
+	ui.Text(c, text).FontSize(10).FontWeight(600).Opacity(0.75).Background(ui.RGBA(255, 255, 255, 0.12)).Radius(8).Padding(2, 7).SingleLine()
+}
+
+func infoStage(item films.Film) string {
+	if item.Stage != "" {
+		return films.StageLabel(item.Stage)
+	}
+	if item.VideoPath != "" {
+		return "本地视频"
+	}
+	return "未处理"
+}
+
+// fileRow is a file of the film's folder: a tile with its kind, its name, its size, and a reveal action.
+func fileRow(c *ui.Context, f File, divided bool, reveal func()) {
+	row := ui.Row(c).Gap(10).MinHeight(50).Padding(7, 12).AlignItems(ui.Center)
 	if divided {
 		row.BorderWidth(1, 0, 0, 0).BorderColor(panelLine)
 	}
@@ -312,6 +411,10 @@ func fileRow(c *ui.Context, f File, divided bool) {
 			}
 			ui.Text(c, about).FontSize(11).Opacity(0.65)
 		})
+		c.Key("film-info-file-" + f.Name)
+		if breeze.FlatButton(c, "显示").Height(24).Padding(0, 8).Shrink(0).Clicked() {
+			reveal()
+		}
 	})
 }
 
@@ -377,6 +480,9 @@ func fileExt(name string) string {
 }
 
 func fileSize(n int64) string {
+	if n < 0 {
+		return "大小未知"
+	}
 	switch {
 	case n >= 1<<30:
 		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))

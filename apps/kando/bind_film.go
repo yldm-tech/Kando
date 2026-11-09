@@ -173,6 +173,10 @@ func (a *app) LastMove() time.Time { return a.player.film.moved }
 
 func (a *app) Info() film.Info { return a.player.film.info }
 
+func (a *app) LibraryPath() string { return a.library.Path() }
+
+func (a *app) ClipPoster(start time.Duration) ui.ImageSource { return a.player.film.clipFrames[start] }
+
 func (a *app) UploadNote() *bool { return &a.player.film.uploadNote }
 
 // ToggleFullScreen enters or leaves full screen. Without a window, as in tests, it does nothing.

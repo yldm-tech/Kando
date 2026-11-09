@@ -15,11 +15,12 @@ import (
 
 // settingsUI is the state of the settings window, a child window of the main one that ⌘,, the sidebar's gear and 看懂 › 设置… open: the translation's language and prompt, the speech models and their download, the AI service and the tools' versions, and the window itself. The model and the AI service in use are the pipeline's (media.Tools); these fields are what the window edits and shows.
 type settingsUI struct {
-	language         string
-	translatePrompt  string
-	translateContext bool
-	modelsDir        string
-	extraModelDirs   []string
+	interfaceLanguage string
+	language          string
+	translatePrompt   string
+	translateContext  bool
+	modelsDir         string
+	extraModelDirs    []string
 	// speechModels maps a whisper catalog model's ID to its file on disk, for the models findSpeechModels found.
 	speechModels    map[string]string
 	downloading     string
@@ -57,7 +58,30 @@ type settingsUI struct {
 }
 
 func newSettingsUI() settingsUI {
-	return settingsUI{language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }}
+	return settingsUI{interfaceLanguage: "zh-Hans", language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }}
+}
+
+// savedInterface is the settings window's interface language. It is kept
+// separate from savedTranslate because the latter is the target language of
+// generated subtitles.
+type savedInterface struct {
+	InterfaceLanguage string `json:"interfaceLanguage,omitempty"`
+}
+
+func (s *savedInterface) clean() {
+	if s.InterfaceLanguage != "en" && s.InterfaceLanguage != "zh-Hans" {
+		s.InterfaceLanguage = "zh-Hans"
+	}
+}
+
+func (a *app) saveInterface(saved *savedSettings) {
+	saved.savedInterface = savedInterface{InterfaceLanguage: a.prefs.interfaceLanguage}
+}
+
+func (a *app) restoreInterface(saved savedSettings) {
+	if saved.InterfaceLanguage != "" {
+		a.prefs.interfaceLanguage = saved.InterfaceLanguage
+	}
 }
 
 // savedTranslate is the translation's part of settings.json.
@@ -97,16 +121,21 @@ func (a *app) restoreTranslate(saved savedSettings) {
 func (a *app) settingsHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
+			a.saveInterface(saved)
 			a.saveSpeech(saved)
 			a.saveLLM(saved)
 			a.saveTranslate(saved)
 		},
 		restore: func(saved savedSettings) {
+			a.restoreInterface(saved)
 			a.restoreSpeech(saved)
 			a.restoreLLM(saved)
 			a.restoreTranslate(saved)
 		},
-		ready:        a.loadToolVersions,
+		ready: func() {
+			a.SetInterfaceLanguage(a.prefs.interfaceLanguage)
+			a.loadToolVersions()
+		},
 		toolsChanged: func(bool) { a.findSpeechModels() },
 		afterUpdate:  a.redrawSettings,
 		afterFrame: func() {

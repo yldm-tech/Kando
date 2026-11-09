@@ -3,6 +3,8 @@ package main
 import (
 	"kando/apps/kando/settings"
 	"kando/packages/media"
+
+	"github.com/egoist/mygo"
 )
 
 // The settings window's reads and writes (settings.App). The 账号与上传 category's are in bind_account.go; the subtitle settings the player shares (Untranslated, YieldSubs and their setters) in bind_film.go.
@@ -13,6 +15,16 @@ func (a *app) Tools() (media.Tools, bool) {
 }
 
 func (a *app) Language() *string { return &a.prefs.language }
+
+func (a *app) InterfaceLanguage() string { return a.prefs.interfaceLanguage }
+
+func (a *app) SetInterfaceLanguage(tag string) {
+	if tag != "en" && tag != "zh-Hans" {
+		tag = "zh-Hans"
+	}
+	a.prefs.interfaceLanguage = tag
+	mygo.App.SetLocale(tag)
+}
 
 func (a *app) TranslateContext() *bool { return &a.prefs.translateContext }
 

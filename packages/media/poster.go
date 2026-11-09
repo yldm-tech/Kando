@@ -60,6 +60,14 @@ func GrabPoster(ctx context.Context, ffmpeg, video, dest string) error {
 	return os.Rename(tmp, dest)
 }
 
+// GrabFrame returns one JPEG frame at at. It is used for lightweight video previews where a permanent poster file is unnecessary.
+func GrabFrame(ctx context.Context, ffmpeg, video string, at time.Duration) ([]byte, error) {
+	if ffmpeg == "" || video == "" {
+		return nil, errors.New("frame source is missing")
+	}
+	return grabPosterFrame(ctx, ffmpeg, video, at)
+}
+
 // PosterTooDark reports whether path is a cover grabbed from a nearly black frame.
 func PosterTooDark(path string) bool {
 	data, err := os.ReadFile(path)

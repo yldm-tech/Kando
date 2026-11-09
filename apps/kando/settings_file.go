@@ -115,6 +115,7 @@ type savedSettings struct {
 	savedSidebar    // state_sidebar.go
 	savedLibrary    // state_library.go
 	savedQueue      // queue.go
+	savedInterface  // state_settings.go
 	savedSpeech     // settings_speech.go
 	savedLLM        // settings_ai.go
 	savedTranslate  // state_settings.go
@@ -131,6 +132,7 @@ func (s *savedSettings) clean() {
 	s.savedSidebar.clean()
 	s.savedLibrary.clean()
 	s.savedQueue.clean()
+	s.savedInterface.clean()
 	s.savedSpeech.clean()
 	s.savedLLM.clean()
 	s.savedTranslate.clean()
