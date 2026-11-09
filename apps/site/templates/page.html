@@ -29,6 +29,8 @@
 <meta name="twitter:image" content="{{.OGImage}}">
 <meta name="twitter:image:alt" content="{{t "metaImageAlt"}}">
 <script src="{{.JS}}"></script>
+<script src="{{.WebMCPJS}}" defer></script>
+<script type="application/json" id="webmcp-data">{{.WebMCP}}</script>
 </head>
 <body>
 {{template "header" .}}
@@ -116,6 +118,11 @@
             <li class="logos-more">{{tf "sitesMore" "count" .More}}</li>
           </ul>
         </li>
+        <li class="feature full">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></svg>
+          <h3>{{t "featureAgentsTitle"}}</h3>
+          <p>{{t "featureAgentsBody"}}</p>
+        </li>
         <li class="feature">
           <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6h9M7.5 4v2M5 6c0 3.5 2.6 6.4 6 7.5M10 6c0 3.5-2.6 6.4-6 7.5"/><path d="m12.5 20 4-9 4 9M14 17h5"/></svg>
           <h3>{{t "featureLanguagesTitle"}}</h3>
@@ -196,9 +203,7 @@
         <article class="card" id="build">
           <h3>{{t "startBuildTitle"}}</h3>
           <p>{{t "startBuildBody"}}</p>
-          {{template "code" (code `git clone https://github.com/yldm-tech/Kando.git
-cd Kando
-make build` (t "copyLabel") (t "copiedLabel"))}}
+          {{template "code" (code .BuildCommands (t "copyLabel") (t "copiedLabel"))}}
           <p class="fine">{{t "startBuildNote"}}</p>
         </article>
       </div>

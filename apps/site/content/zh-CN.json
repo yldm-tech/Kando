@@ -47,6 +47,8 @@
   "featureSitesBody": "看懂通过 yt-dlp 下载视频，只要是它支持的网站，粘贴链接就行。“帮助 › 支持的网站…”列出了全部网站及其标志。",
   "sitesStripLabel": "看懂可以下载视频的部分网站",
   "sitesMore": "以及另外 {count} 个",
+  "featureAgentsTitle": "命令行和 AI 智能体",
+  "featureAgentsBody": "看懂的程序本身也是命令行工具：kando add <link> 把视频加入任务队列，看懂没有运行时会先打开它；kando mcp 是一个 MCP 服务器，AI 智能体可以通过它添加视频、查看任务进度和读取字幕。在支持 WebMCP 的浏览器中，本页面还为智能体提供工具，用来查询看懂是否支持某个网站，以及找到适合的下载。",
   "featureLanguagesTitle": "五种界面语言",
   "featureLanguagesBody": "简体中文、繁体中文、英文、日文和韩文。看懂默认使用简体中文，可以在“设置 › 通用”中切换，窗口会立即换成所选语言。",
   "featureUploadTitle": "可选：上传到你自己的存储",

@@ -113,6 +113,11 @@ type page struct {
 	Rel      string
 	License  string
 	EveryAPI string
+	// WebMCPJS is the script that offers the page's WebMCP tools, and WebMCP the data it reads from the page (webmcp.go).
+	WebMCPJS string
+	WebMCP   agentData
+	// BuildCommands are the commands of the Build from source card.
+	BuildCommands string
 }
 
 // missingText is 404.html's text in one language.
@@ -130,6 +135,8 @@ type report struct {
 	Langs []language
 	// Used are the content keys the templates looked up.
 	Used map[string]bool
+	// AgentUsed are the content keys the WebMCP tools' content files were made from.
+	AgentUsed map[string]bool
 }
 
 // build renders the site from the repository at root into out.
@@ -171,6 +178,12 @@ func build(root, out string) (*report, error) {
 		return nil, err
 	}
 
+	agentUsed := map[string]bool{}
+	agent, err := writeAgentFiles(root, out, langs, content, total, agentUsed)
+	if err != nil {
+		return nil, err
+	}
+
 	used := map[string]bool{}
 	tmpl, err := template.New("").Funcs(contentFuncs(nil, used)).ParseGlob(filepath.Join(siteDir, "templates", "*.html"))
 	if err != nil {
@@ -182,6 +195,7 @@ func build(root, out string) (*report, error) {
 			CSS: static["site.css"], JS: static["site.js"],
 			Shots: shots[l.Code], Sites: localTiles(tiles, l, siteNames[l.Code]), Total: total, More: total - len(tiles),
 			Repo: repoURL, Rel: releasesURL, License: licenseURL, EveryAPI: everyAPIURL,
+			WebMCPJS: static["webmcp.js"], WebMCP: agent[l.Code], BuildCommands: buildCommands,
 		}
 		for _, o := range langs {
 			if o.Code != l.Code {
@@ -212,7 +226,7 @@ func build(root, out string) (*report, error) {
 	if err := os.WriteFile(filepath.Join(out, "CNAME"), []byte(strings.TrimPrefix(siteURL, "https://")+"\n"), 0o644); err != nil {
 		return nil, err
 	}
-	return &report{Langs: langs, Used: used}, nil
+	return &report{Langs: langs, Used: used, AgentUsed: agentUsed}, nil
 }
 
 // placeholder is a value a content string names, such as {count}, filled in when the page is rendered.
