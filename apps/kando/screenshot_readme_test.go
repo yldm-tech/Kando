@@ -1,17 +1,22 @@
 package main
 
 import (
+	"slices"
 	"testing"
 
 	"kando/apps/kando/settings"
+	"kando/packages/core"
 
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsReadme renders the four pictures the READMEs show, in the language of KANDO_SCREENSHOTS_LANG with the fixture's content for its reader (useProtoContent): the library with the status line ready, the player on the first line of How Rivers Shape Landscapes with the side panel's list of lines, and Settings › 通用 and › AI 服务. docs/assets/<lang>/ keeps them as library.png, player.png, settings-general.png and settings-ai.png.
+// TestScreenshotsReadme renders the four pictures the READMEs show, in the language of KANDO_SCREENSHOTS_LANG with the fixture's content for its reader (useProtoContent): the library with the status line ready and no failed job, the player on the first line of How Rivers Shape Landscapes with the side panel's list of lines, and Settings › 通用 and › AI 服务. docs/assets/<lang>/ keeps them as library.png, player.png, settings-general.png and settings-ai.png.
 func TestScreenshotsReadme(t *testing.T) {
 	f := newScreenshotFixture(t)
-	f.shoot(t, "readme-library", func(a *app, tt *ui.Tester, _ chan func()) {
+	// The library is the first picture of the READMEs and the landing page, and the one link previews show, so 处理中 shows the running and queued jobs without the prototype's failed ones, whose red cards would read as a broken app.
+	working := *f
+	working.jobs = slices.DeleteFunc(slices.Clone(f.jobs), func(job core.Job) bool { return job.Stage == core.StageFailed })
+	working.shoot(t, "readme-library", func(a *app, tt *ui.Tester, _ chan func()) {
 		screenshotReady(t, f, a)
 		tt.Frame()
 	})

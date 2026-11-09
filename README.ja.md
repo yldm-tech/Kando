@@ -36,7 +36,7 @@ Kando は、ある言語で話されている動画からその言語を学ぶ�
 
 ### ダウンロード
 
-macOS、Windows、Linux 向けのビルドは、バージョンが公開されしだい [GitHub Releases](https://github.com/yldm-tech/Kando/releases) に添付されます。Developer ID やコード署名証明書で署名されていないため、初めて Kando を開くときにシステムが警告を表示します。
+macOS と Linux 向けのビルドは、バージョンが公開されしだい [GitHub Releases](https://github.com/yldm-tech/Kando/releases) に添付されます。Windows 向けのビルドはまだないため、Windows では下記の手順でソースからビルドしてください。Developer ID やコード署名証明書で署名されていないため、初めて Kando を開くときにシステムが警告を表示します。
 
 - macOS: macOS 15 以降では、一度 Kando を開いてから「システム設定」›「プライバシーとセキュリティ」›「このまま開く」を選びます。macOS 14 以前では、「アプリケーション」フォルダで Kando を Control キーを押しながらクリックし、「開く」を選びます。または、ターミナルで `xattr -dr com.apple.quarantine /Applications/Kando.app` を実行して隔離属性（quarantine）を削除します。
 - Windows: SmartScreen のダイアログで「詳細情報」›「実行」を選びます。
@@ -55,7 +55,7 @@ make build
 
 ## 動作要件
 
-Kando は以下のプログラムを実行しますが、それらのインストールや更新は行いません。
+Kando は以下のプログラムを実行しますが、それらのインストールは行いません。`yt-dlp` が古いためにダウンロードに失敗した場合は「アップデートして再試行」が表示され、インストールしたときと同じ方法で更新して再試行します。
 
 | プログラム | 用途 |
 | --- | --- |
@@ -87,7 +87,7 @@ Windows と Linux では、現在プレーヤーは映像のみを表示し、�
 
 翻訳プロバイダーがレート制限やサーバーエラーを返した場合は、リクエストを送り直します（最初の送信を含めて最大 3 回）。
 
-![「設定」›「一般」: 開いているライブラリ、インターフェース言語、バージョン、Kando が見つけたプログラム](docs/assets/ja/settings-general.png)
+![「設定」›「一般」: 開いているライブラリ、表示言語、バージョン、Kando が見つけたプログラム](docs/assets/ja/settings-general.png)
 
 ![EveryAPI を選択した「設定」›「AI サービス」](docs/assets/ja/settings-ai.png)
 

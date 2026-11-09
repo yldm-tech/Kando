@@ -36,7 +36,7 @@
 
 ### 下载
 
-版本发布后，macOS、Windows 和 Linux 的安装包会附在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上。这些安装包没有用 Developer ID 或代码签名证书签名，因此第一次打开看懂时系统会发出警告：
+版本发布后，macOS 和 Linux 的安装包会附在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上；目前还没有 Windows 安装包，在 Windows 上请按下文从源码构建。这些安装包没有用 Developer ID 或代码签名证书签名，因此第一次打开看懂时系统会发出警告：
 
 - macOS：在 macOS 15 及更高版本上，先打开一次看懂，然后选择“系统设置 › 隐私与安全性 › 仍要打开”。在 macOS 14 及更早版本上，在“应用程序”文件夹中按住 Control 键点按看懂，然后选择“打开”。也可以在终端中移除隔离标记：`xattr -dr com.apple.quarantine /Applications/Kando.app`。
 - Windows：在 SmartScreen 对话框中选择“更多信息 › 仍要运行”。
@@ -55,7 +55,7 @@ make build
 
 ## 运行依赖
 
-看懂会调用以下程序，但不负责安装或更新它们。
+看懂会调用以下程序，但不负责安装它们。如果因为 `yt-dlp` 版本过旧而下载失败，看懂会提供“更新并重试”，按原来的安装方式更新它并重试。
 
 | 程序 | 用途 |
 | --- | --- |

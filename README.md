@@ -34,7 +34,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 
 ### Download
 
-Builds for macOS, Windows and Linux will be attached to [GitHub Releases](https://github.com/yldm-tech/Kando/releases) once a version is published. They are not signed with a Developer ID or code-signing certificate, so the system warns the first time you open Kando:
+Builds for macOS and Linux will be attached to [GitHub Releases](https://github.com/yldm-tech/Kando/releases) once a version is published; there is no Windows build yet, so on Windows build from source as described below. They are not signed with a Developer ID or code-signing certificate, so the system warns the first time you open Kando:
 
 - macOS: on macOS 15 and later, open Kando once, then choose System Settings › Privacy & Security › Open Anyway. On macOS 14 and earlier, Control-click Kando in Applications and choose Open. Or remove the quarantine flag in Terminal: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
 - Windows: in the SmartScreen dialog, choose More info › Run anyway.
@@ -53,7 +53,7 @@ make build
 
 ## Requirements
 
-Kando runs these programs; it does not install or update them.
+Kando runs these programs but does not install them. If a download fails because `yt-dlp` is out of date, Kando offers Update and Retry, which updates it the way it was installed and retries.
 
 | Program | Used for |
 | --- | --- |

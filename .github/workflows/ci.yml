@@ -12,9 +12,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# The repository root is a Go workspace (go.work), not a module, so ./... matches nothing there: the jobs list the three modules.
+# The repository root is a Go workspace (go.work), not a module, so ./... matches nothing there: the jobs list the four modules. apps/site is among them so that a pull request that breaks the landing page's build, such as one that renames a screenshot or a featured site's logo, fails here rather than in the Site workflow after it is merged.
 env:
-  PKGS: ./apps/kando/... ./packages/core/... ./packages/media/...
+  PKGS: ./apps/kando/... ./packages/core/... ./packages/media/... ./apps/site/...
 
 jobs:
   test:
@@ -86,7 +86,7 @@ jobs:
           fi
       - name: go mod tidy
         run: |
-          for module in apps/kando packages/core packages/media; do
+          for module in apps/kando apps/site packages/core packages/media; do
             (cd "$module" && go mod tidy)
           done
           git diff --exit-code -- '*go.mod' '*go.sum'
@@ -145,7 +145,7 @@ jobs:
       - run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
       # govulncheck needs a module, so it runs in each one; the workspace still resolves the modules' replaced packages.
       - run: |
-          for module in apps/kando packages/core packages/media; do
+          for module in apps/kando apps/site packages/core packages/media; do
             echo "::group::$module"
             govulncheck -C "$module" ./...
             echo "::endgroup::"

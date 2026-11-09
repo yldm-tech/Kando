@@ -1,0 +1,67 @@
+name: Site
+
+# Builds the landing page, kando.yldm.ai, with apps/site and deploys it to GitHub Pages. It runs on GitHub-hosted runners: the repository is public, and a self-hosted runner on a public repository lets a fork's workflow run code on our machines.
+#
+# Actions are pinned to commit SHAs with the tag in a trailing comment. A tag is a moving pointer its owner can repoint, and the deploy job runs with write scopes.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/site/**"
+      # The page copies the README screenshots, the featured sites' logos and the app icon into the site, so a change to them changes what is deployed.
+      - "docs/assets/**"
+      - "apps/kando/sites/catalog/**"
+      - "apps/kando/resources/icon.png"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+# Pages deployment authenticates through OIDC, so no token is stored.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A queued deploy supersedes a waiting one rather than racing it, but a deploy in flight is allowed to finish so that the site is never left half-written.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The generator uses the standard library only, so there is nothing to cache.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: apps/site/go.mod
+          cache: false
+
+      - name: Build site
+        run: go run ./apps/site -out apps/site/dist
+
+      - name: Test site
+        run: go test ./apps/site/...
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      # The generator writes CNAME into dist, which binds the custom domain.
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: apps/site/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

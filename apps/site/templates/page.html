@@ -1,0 +1,214 @@
+{{define "page.html" -}}
+<!doctype html>
+<html lang="{{.Lang.Tag}}"{{if .Root}} data-root{{end}}>
+<head>
+{{- template "head-common" .}}
+<title>{{t "metaTitle"}}</title>
+<meta name="description" content="{{t "metaDescription"}}">
+<link rel="canonical" href="{{.Lang.URL}}">
+{{- range .Langs}}
+<link rel="alternate" hreflang="{{.Tag}}" href="{{.URL}}" data-lang="{{.Code}}">
+{{- end}}
+<link rel="alternate" hreflang="x-default" href="{{(index .Langs 0).URL}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kando">
+<meta property="og:title" content="{{t "metaTitle"}}">
+<meta property="og:description" content="{{t "metaDescription"}}">
+<meta property="og:url" content="{{.Lang.URL}}">
+<meta property="og:locale" content="{{.Lang.Locale}}">
+{{- range .Others}}
+<meta property="og:locale:alternate" content="{{.Locale}}">
+{{- end}}
+<meta property="og:image" content="{{.OGImage}}">
+<meta property="og:image:width" content="{{.Shots.library.W}}">
+<meta property="og:image:height" content="{{.Shots.library.H}}">
+<meta property="og:image:alt" content="{{t "metaImageAlt"}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{t "metaTitle"}}">
+<meta name="twitter:description" content="{{t "metaDescription"}}">
+<meta name="twitter:image" content="{{.OGImage}}">
+<meta name="twitter:image:alt" content="{{t "metaImageAlt"}}">
+<script src="{{.JS}}"></script>
+</head>
+<body>
+{{template "header" .}}
+<main id="main">
+  <section class="hero">
+    <div class="wrap hero-in">
+      <p class="eyebrow">{{t "heroEyebrow"}}</p>
+      <h1>{{t "heroTitle"}}</h1>
+      <p class="lead">{{t "heroLead"}}</p>
+      <div class="actions">
+        <a class="btn primary" href="{{.Rel}}">
+          <svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>
+          {{t "heroDownload"}}
+        </a>
+        <a class="btn" href="{{.Repo}}">
+          {{template "github-mark" 18}}
+          {{t "heroSource"}}
+        </a>
+      </div>
+      <p class="note">{{t "heroReleaseNote"}}<a href="#build">{{t "heroBuildLink"}}</a></p>
+      <p class="platforms"><span>{{t "heroPlatforms"}}</span> <span class="audio">{{t "heroAudioNote"}}</span></p>
+    </div>
+    <div class="wrap">
+      <figure class="window hero-shot">
+        <img src="{{.Shots.library.Src}}" width="{{.Shots.library.W}}" height="{{.Shots.library.H}}" alt="{{t "shotLibraryAlt"}}" fetchpriority="high">
+      </figure>
+    </div>
+  </section>
+
+  <section class="section" id="how" aria-labelledby="how-title">
+    <div class="wrap">
+      <header class="section-head">
+        <h2 id="how-title">{{t "howTitle"}}</h2>
+        <p>{{t "howLead"}}</p>
+      </header>
+      <ol class="steps">
+        <li class="step"><span class="n" aria-hidden="true">1</span><div><h3>{{t "stepAddTitle"}}</h3><p>{{t "stepAddBody"}}</p></div></li>
+        <li class="step"><span class="n" aria-hidden="true">2</span><div><h3>{{t "stepDownloadTitle"}}</h3><p>{{t "stepDownloadBody"}}</p></div></li>
+        <li class="step"><span class="n" aria-hidden="true">3</span><div><h3>{{t "stepTranscribeTitle"}}</h3><p>{{t "stepTranscribeBody"}}</p></div></li>
+        <li class="step"><span class="n" aria-hidden="true">4</span><div><h3>{{t "stepTranslateTitle"}}</h3><p>{{t "stepTranslateBody"}}</p></div></li>
+        <li class="step"><span class="n" aria-hidden="true">5</span><div><h3>{{t "stepWatchTitle"}}</h3><p>{{t "stepWatchBody"}}</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section alt" id="features" aria-labelledby="features-title">
+    <div class="wrap">
+      <header class="section-head">
+        <h2 id="features-title">{{t "featuresTitle"}}</h2>
+        <p>{{t "featuresLead"}}</p>
+      </header>
+      <ul class="features">
+        <li class="feature">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20M9 9.5v2M12 8v5M15 9.5v2"/></svg>
+          <h3>{{t "featureOnDeviceTitle"}}</h3>
+          <p>{{t "featureOnDeviceBody"}}</p>
+        </li>
+        <li class="feature">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9h8M8 12h5"/></svg>
+          <h3>{{t "featureModelTitle"}}</h3>
+          <p>{{t "featureModelBody"}}</p>
+          <p class="more"><a href="{{.EveryAPI}}">{{t "featureModelLink"}}</a></p>
+        </li>
+        <li class="feature">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 13h10M9 16h6"/><path d="m10.5 7 3 2-3 2z"/></svg>
+          <h3>{{t "featurePlayerTitle"}}</h3>
+          <p>{{t "featurePlayerBody"}}</p>
+        </li>
+        <li class="feature">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <h3>{{t "featureFoldersTitle"}}</h3>
+          <p>{{t "featureFoldersBody"}}</p>
+        </li>
+        <li class="feature wide">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></svg>
+          <h3>{{tf "featureSitesTitle" "count" .Total}}</h3>
+          <p>{{t "featureSitesBody"}}</p>
+          <ul class="logos" aria-label="{{t "sitesStripLabel"}}">
+            {{- range .Sites}}
+            <li title="{{.Name}}"{{if .Lang}} lang="{{.Lang}}"{{end}}>
+              {{- if .Logo}}<img src="{{.Logo}}" width="24" height="24" alt="{{.Name}}" loading="lazy" decoding="async">
+              {{- else}}<span class="initial plate-{{.Plate}}" role="img" aria-label="{{.Name}}">{{.Initial}}</span>{{end -}}
+            </li>
+            {{- end}}
+            <li class="logos-more">{{tf "sitesMore" "count" .More}}</li>
+          </ul>
+        </li>
+        <li class="feature">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6h9M7.5 4v2M5 6c0 3.5 2.6 6.4 6 7.5M10 6c0 3.5-2.6 6.4-6 7.5"/><path d="m12.5 20 4-9 4 9M14 17h5"/></svg>
+          <h3>{{t "featureLanguagesTitle"}}</h3>
+          <p>{{t "featureLanguagesBody"}}</p>
+        </li>
+        <li class="feature">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10.5a3.75 3.75 0 0 1-.5 7.5"/><path d="M12 12v8m-3-5 3-3 3 3"/></svg>
+          <h3>{{t "featureUploadTitle"}}</h3>
+          <p>{{t "featureUploadBody"}}</p>
+        </li>
+        <li class="feature">
+          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
+          <h3>{{t "featureShortcutsTitle"}}</h3>
+          <p>{{t "featureShortcutsBody"}}</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section cinema" id="player" aria-labelledby="player-title">
+    <div class="wrap">
+      <header class="section-head">
+        <h2 id="player-title">{{t "playerTitle"}}</h2>
+        <p>{{t "playerLead"}}</p>
+      </header>
+      <figure class="window">
+        <img src="{{.Shots.player.Src}}" width="{{.Shots.player.W}}" height="{{.Shots.player.H}}" alt="{{t "shotPlayerAlt"}}" loading="lazy" decoding="async">
+      </figure>
+    </div>
+  </section>
+
+  <section class="section" id="settings" aria-labelledby="settings-title">
+    <div class="wrap">
+      <header class="section-head">
+        <h2 id="settings-title">{{t "settingsTitle"}}</h2>
+        <p>{{t "settingsLead"}}</p>
+      </header>
+      <div class="pair">
+        <figure>
+          {{with index .Shots "settings-general"}}<div class="window"><img src="{{.Src}}" width="{{.W}}" height="{{.H}}" alt="{{t "shotSettingsGeneralAlt"}}" loading="lazy" decoding="async"></div>{{end}}
+          <figcaption>{{t "settingsGeneralCaption"}}</figcaption>
+        </figure>
+        <figure>
+          {{with index .Shots "settings-ai"}}<div class="window"><img src="{{.Src}}" width="{{.W}}" height="{{.H}}" alt="{{t "shotSettingsAIAlt"}}" loading="lazy" decoding="async"></div>{{end}}
+          <figcaption>{{t "settingsAICaption"}}</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="start" aria-labelledby="start-title">
+    <div class="wrap">
+      <header class="section-head">
+        <h2 id="start-title">{{t "startTitle"}}</h2>
+        <p>{{t "startLead"}}</p>
+      </header>
+      <div class="cards">
+        <article class="card" id="download">
+          <span class="n" aria-hidden="true">1</span>
+          <h3>{{t "startDownloadTitle"}}</h3>
+          <p>{{t "startDownloadBody"}}</p>
+          <p class="fine">{{t "startDownloadUnsigned"}}</p>
+          <p><a class="btn primary" href="{{.Rel}}">{{t "startDownloadButton"}}</a></p>
+        </article>
+        <article class="card" id="tools">
+          <span class="n" aria-hidden="true">2</span>
+          <h3>{{t "startToolsTitle"}}</h3>
+          <p>{{t "startToolsBody"}}</p>
+          <dl class="tools">
+            <div><dt><code>yt-dlp</code></dt><dd>{{t "toolYtdlp"}}</dd></div>
+            <div><dt><code>ffmpeg</code></dt><dd>{{t "toolFfmpeg"}}</dd></div>
+            <div><dt><code>whisper-cli</code></dt><dd>{{t "toolWhisper"}}</dd></div>
+          </dl>
+          <p>{{t "startToolsMac"}}</p>
+          {{template "code" (code "brew install yt-dlp ffmpeg whisper-cpp" (t "copyLabel") (t "copiedLabel"))}}
+          <p class="fine">{{t "startToolsOther"}}</p>
+          <p class="fine">{{t "startToolsAudio"}}</p>
+          <p class="fine">{{t "startSetup"}}</p>
+        </article>
+        <article class="card" id="build">
+          <h3>{{t "startBuildTitle"}}</h3>
+          <p>{{t "startBuildBody"}}</p>
+          {{template "code" (code `git clone https://github.com/yldm-tech/Kando.git
+cd Kando
+make build` (t "copyLabel") (t "copiedLabel"))}}
+          <p class="fine">{{t "startBuildNote"}}</p>
+        </article>
+      </div>
+      <p class="readme"><a href="{{.Lang.ReadmeURL}}">{{t "startReadme"}} <span aria-hidden="true">→</span></a></p>
+    </div>
+  </section>
+</main>
+{{template "footer" .}}
+</body>
+</html>
+{{end}}

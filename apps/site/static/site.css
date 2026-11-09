@@ -1,0 +1,1112 @@
+/* Kando's landing page. Every color is set for light and dark explicitly; nothing is left to the browser's defaults. */
+
+:root {
+  --bg: #ffffff;
+  --bg-alt: #f6f7fb;
+  --surface: #ffffff;
+  --text: #15171c;
+  --muted: #555b6c;
+  --faint: #6d7384;
+  --border: #e3e5ed;
+  --link: #3b56db;
+  --link-hover: #2a43c2;
+  --code-bg: #f0f2f7;
+  --code-text: #1d2230;
+  --header-bg: rgba(255, 255, 255, 0.82);
+  --menu-bg: #ffffff;
+  --hover: #eef0f6;
+  --btn-bg: #ffffff;
+  --btn-text: #15171c;
+  --btn-border: #d7dae4;
+  --btn-hover: #f3f4f8;
+  --plate-bg: #ffffff;
+  --plate-ring: rgba(17, 20, 32, 0.1);
+  --shot-shadow: 0 1px 2px rgba(17, 20, 40, 0.06), 0 24px 60px -24px rgba(44, 56, 140, 0.35);
+  --card-shadow: 0 1px 2px rgba(17, 20, 40, 0.04);
+  --glow-a: rgba(74, 124, 247, 0.16);
+  --glow-b: rgba(155, 92, 246, 0.14);
+  --grad: linear-gradient(135deg, #4a7cf7 0%, #9b5cf6 100%);
+  --grad-strong: linear-gradient(135deg, #3a63e0 0%, #7f45dc 100%);
+  --on-grad: #ffffff;
+  --cinema-bg: #08090c;
+  --cinema-text: #f1f2f6;
+  --cinema-muted: #a7acbb;
+  --cinema-border: #23262f;
+  --focus: #3b56db;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Microsoft YaHei", "Yu Gothic", "Malgun Gothic", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0f13;
+    --bg-alt: #13151b;
+    --surface: #181a21;
+    --text: #eceef3;
+    --muted: #a6abba;
+    --faint: #8b91a2;
+    --border: #272a34;
+    --link: #93a7ff;
+    --link-hover: #b4c2ff;
+    --code-bg: #0b0c10;
+    --code-text: #e3e6ef;
+    --header-bg: rgba(14, 15, 19, 0.8);
+    --menu-bg: #1c1e26;
+    --hover: #252833;
+    --btn-bg: #1b1d24;
+    --btn-text: #eceef3;
+    --btn-border: #343846;
+    --btn-hover: #242731;
+    --plate-bg: #ffffff;
+    --plate-ring: rgba(255, 255, 255, 0.06);
+    --shot-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+    --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --glow-a: rgba(74, 124, 247, 0.2);
+    --glow-b: rgba(155, 92, 246, 0.18);
+    --focus: #93a7ff;
+  }
+}
+
+/* Each script gets its own CJK face first, so that shared characters take the glyph shapes its readers expect. */
+:lang(zh-Hans) {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+}
+:lang(zh-Hant) {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "PingFang TC", "Hiragino Sans", "Noto Sans CJK TC", "Microsoft JhengHei", sans-serif;
+}
+:lang(ja) {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Yu Gothic", "Meiryo", sans-serif;
+  /* No line starts with the long-vowel mark ー or small kana, as Japanese typesetting expects. */
+  line-break: strict;
+}
+:lang(ko) {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Noto Sans CJK KR", "Malgun Gothic", sans-serif;
+}
+
+/* font-family inherits as a computed value, so an element with a lang of its own (a language name in the switcher, a line of 404.html) sets it again from its own --font; html is one of them, so this also sets the page's font. */
+[lang] {
+  font-family: var(--font);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:lang(ko) body,
+body:lang(ko) {
+  word-break: keep-all;
+}
+
+:lang(ja) h1,
+:lang(ja) h2,
+:lang(ja) h3,
+:lang(ja) p,
+:lang(ja) dd,
+:lang(ja) figcaption {
+  word-break: auto-phrase;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.skip {
+  position: absolute;
+  left: 12px;
+  top: -48px;
+  z-index: 20;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shot-shadow);
+}
+
+.skip:focus {
+  top: 12px;
+}
+
+.i,
+.fi {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+.mark {
+  fill: currentColor;
+  flex: none;
+}
+
+/* ---- header ---- */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  backdrop-filter: saturate(180%) blur(16px);
+}
+
+.top-in {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 60px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  font-weight: 650;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.brand:hover {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.brand img {
+  border-radius: 7px;
+}
+
+.nav {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.nav a {
+  padding: 6px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nav a:hover {
+  color: var(--text);
+  background: var(--hover);
+  text-decoration: none;
+}
+
+.top-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.lang {
+  position: relative;
+}
+
+.lang summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.lang summary::-webkit-details-marker {
+  display: none;
+}
+
+.lang summary:hover,
+.lang[open] summary {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.lang-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 168px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--menu-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shot-shadow);
+}
+
+.lang-menu a {
+  display: block;
+  padding: 7px 12px;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.lang-menu a:hover {
+  background: var(--hover);
+  text-decoration: none;
+}
+
+.lang-menu a[aria-current] {
+  font-weight: 650;
+  color: var(--link);
+}
+
+.gh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.gh:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+/* ---- buttons ---- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.btn:hover {
+  background: var(--btn-hover);
+  color: var(--btn-text);
+  text-decoration: none;
+}
+
+.btn.primary {
+  border-color: transparent;
+  background: var(--grad-strong);
+  color: var(--on-grad);
+  box-shadow: 0 8px 24px -10px rgba(74, 92, 240, 0.7);
+}
+
+.btn.primary:hover {
+  background: var(--grad-strong);
+  color: var(--on-grad);
+  filter: brightness(1.08);
+}
+
+/* ---- hero ---- */
+
+.hero {
+  position: relative;
+  padding: 88px 0 72px;
+  overflow: hidden;
+  background:
+    radial-gradient(60% 50% at 18% 0%, var(--glow-a), transparent 70%),
+    radial-gradient(50% 45% at 85% 8%, var(--glow-b), transparent 70%),
+    var(--bg);
+}
+
+.hero-in {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hero h1 {
+  max-width: 15em;
+  margin-top: 22px;
+  font-size: clamp(2.2rem, 1.3rem + 3.6vw, 4rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  font-weight: 750;
+}
+
+.hero h1:lang(zh-Hans),
+.hero h1:lang(zh-Hant),
+.hero h1:lang(ja),
+.hero h1:lang(ko) {
+  letter-spacing: 0;
+  line-height: 1.22;
+}
+
+.lead {
+  max-width: 40em;
+  text-wrap: pretty;
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: clamp(1.02rem, 0.95rem + 0.35vw, 1.2rem);
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.note {
+  margin-top: 16px;
+  color: var(--faint);
+  font-size: 14px;
+}
+
+/* The build link sits in running text, so an underline rather than its color alone marks it as a link (WCAG 1.4.1). It stays on one line, and the space before it is set here: a Chinese or Japanese full stop already carries its own. */
+.note a {
+  margin-inline-start: 0.3em;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+:lang(zh) .note a,
+:lang(ja) .note a {
+  margin-inline-start: 0;
+}
+
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  margin-top: 6px;
+  color: var(--faint);
+  font-size: 14px;
+}
+
+.platforms span:first-child {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.platforms .audio {
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+}
+
+.window {
+  margin: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shot-shadow);
+}
+
+.window img {
+  width: 100%;
+}
+
+.hero-shot {
+  max-width: 1080px;
+  margin: 56px auto 0;
+}
+
+/* ---- sections ---- */
+
+.section {
+  padding: 96px 0;
+  scroll-margin-top: 60px;
+}
+
+.section.alt {
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.section-head {
+  max-width: 44em;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+
+.section-head h2 {
+  font-size: clamp(1.7rem, 1.25rem + 1.6vw, 2.5rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 720;
+}
+
+.section-head h2:lang(zh-Hans),
+.section-head h2:lang(zh-Hant),
+.section-head h2:lang(ja),
+.section-head h2:lang(ko) {
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+.section-head p {
+  margin-top: 14px;
+  text-wrap: pretty;
+  color: var(--muted);
+  font-size: 1.06rem;
+}
+
+.n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  /* The darker gradient, as on the primary button: white small text needs 4.5:1, which --grad does not reach. */
+  background: var(--grad-strong);
+  color: var(--on-grad);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ---- how it works ---- */
+
+.steps {
+  position: relative;
+  display: grid;
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  gap: 16px;
+}
+
+.step h3 {
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.step p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+@media (min-width: 960px) {
+  .steps {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 24px;
+  }
+
+  /* A line through the numbers joins the steps, from the center of the first circle to the center of the fifth: a column is (100% - 4 gaps of 24px) / 5 wide and a circle 32px. */
+  .steps::before {
+    content: "";
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: calc((100% - 4 * 24px) / 5 - 16px);
+    height: 2px;
+    background: var(--grad);
+    opacity: 0.35;
+  }
+
+  .step {
+    position: relative;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .step .n {
+    box-shadow: 0 0 0 6px var(--bg);
+  }
+}
+
+/* ---- features ---- */
+
+.features {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.feature {
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.fi {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--grad);
+  stroke: var(--on-grad);
+}
+
+.feature h3 {
+  margin-top: 16px;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.feature p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.feature .more {
+  margin-top: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.logos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.logos li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--plate-bg);
+  box-shadow: inset 0 0 0 1px var(--plate-ring);
+}
+
+.logos img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.logos .initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* The app's plate hues under the initial of a site without a logo (apps/kando/sites.plates), darkened where the app's own color gives the white initial less than 4.5:1. */
+.plate-0 { background: #3b5bdb; }
+.plate-1 { background: #087f5b; }
+.plate-2 { background: #b35f00; }
+.plate-3 { background: #c2255c; }
+.plate-4 { background: #7950f2; }
+.plate-5 { background: #0f7d8c; }
+.plate-6 { background: #d63939; }
+.plate-7 { background: #5c7c2e; }
+
+.logos .logos-more {
+  width: auto;
+  padding: 0 12px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .feature.wide,
+  .feature:last-child {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 960px) {
+  .features {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .feature:last-child {
+    grid-column: auto;
+  }
+}
+
+/* ---- player ---- */
+
+.cinema {
+  background: var(--cinema-bg);
+  color: var(--cinema-text);
+}
+
+.cinema .section-head h2 {
+  color: var(--cinema-text);
+}
+
+.cinema .section-head p {
+  color: var(--cinema-muted);
+}
+
+.cinema .window {
+  max-width: 1080px;
+  margin: 0 auto;
+  border-color: var(--cinema-border);
+  background: #000000;
+  box-shadow: 0 30px 80px -30px rgba(90, 110, 255, 0.35);
+}
+
+/* ---- settings ---- */
+
+.pair {
+  display: grid;
+  gap: 32px;
+}
+
+.pair figure {
+  margin: 0;
+}
+
+.pair figcaption {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+@media (min-width: 800px) {
+  .pair {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---- get started ---- */
+
+.cards {
+  display: grid;
+  gap: 16px;
+}
+
+/* Download needs little room and the commands much, so on wide screens Download runs across the top and the two cards with commands share the row under it. */
+@media (min-width: 900px) {
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .card#download {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "n title button" ". body button" ". fine button";
+    column-gap: 20px;
+    row-gap: 8px;
+    align-items: start;
+  }
+
+  .card#download .n { grid-area: n; }
+  .card#download h3 { grid-area: title; margin-top: 3px; }
+  .card#download > p:nth-of-type(1) { grid-area: body; }
+  .card#download > p:nth-of-type(2) { grid-area: fine; }
+  .card#download > p:nth-of-type(3) { grid-area: button; align-self: center; }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 28px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  scroll-margin-top: 76px;
+}
+
+.card h3 {
+  margin-top: 4px;
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.card p {
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.card .fine,
+.foot .fine {
+  color: var(--faint);
+  font-size: 13.5px;
+}
+
+.card .btn {
+  margin-top: 4px;
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 12px;
+  align-items: baseline;
+  margin: 0;
+  font-size: 14px;
+}
+
+.tools div {
+  display: contents;
+}
+
+.tools dt code {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-size: 13px;
+}
+
+.tools dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* A command wraps rather than scrolls: a sideways scrollbar is hidden on macOS and iOS, so a cut-off line would look like the whole command. The copy button sits in the top right corner, over the room the padding keeps free for it; copying reads the code's text, which the wrapping does not change. */
+.code {
+  position: relative;
+  display: block;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.code pre {
+  margin: 0;
+  padding: 14px 84px 14px 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
+  color: var(--code-text);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.code code {
+  font-size: inherit;
+}
+
+.copy {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  margin: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  font: 500 12.5px/1 var(--font);
+  cursor: pointer;
+}
+
+.copy:hover {
+  background: var(--btn-hover);
+}
+
+.copy.done {
+  color: var(--link);
+}
+
+.readme {
+  margin-top: 32px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* ---- footer ---- */
+
+.foot {
+  padding: 48px 0 56px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.foot-in {
+  display: grid;
+  gap: 28px;
+}
+
+.foot-brand p {
+  margin-top: 10px;
+}
+
+.foot-links,
+.foot-langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-content: flex-start;
+}
+
+.foot-links a,
+.foot-langs a {
+  color: var(--muted);
+}
+
+.foot-links a:hover,
+.foot-langs a:hover {
+  color: var(--text);
+}
+
+.foot-langs a[aria-current] {
+  color: var(--text);
+  font-weight: 650;
+}
+
+@media (min-width: 800px) {
+  .foot-in {
+    grid-template-columns: 2fr 1fr 1.4fr;
+  }
+
+  .foot-links,
+  .foot-langs {
+    flex-direction: column;
+  }
+}
+
+/* ---- 404 ---- */
+
+.missing {
+  padding: 120px 0;
+  text-align: center;
+}
+
+.missing .wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.missing img {
+  border-radius: 16px;
+}
+
+.missing h1 {
+  font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+  letter-spacing: -0.02em;
+}
+
+.missing .lead {
+  margin-top: 0;
+}
+
+/* ---- small screens ---- */
+
+@media (max-width: 820px) {
+  .nav {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .wrap {
+    padding: 0 20px;
+  }
+
+  .hero {
+    padding: 56px 0 48px;
+  }
+
+  .hero-shot {
+    margin-top: 40px;
+  }
+
+  /* On a phone the whole window is too small to read: leave out the sidebar, its left 237 of 1304 pixels, and show the library itself larger. */
+  .hero-shot img {
+    width: 122.2%;
+    max-width: none;
+    margin-left: -22.2%;
+  }
+
+  .window {
+    border-radius: 10px;
+  }
+
+  .section {
+    padding: 72px 0;
+  }
+
+  .section-head {
+    margin-bottom: 36px;
+  }
+
+  .actions .btn {
+    flex: 1 1 100%;
+  }
+
+  .platforms {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .platforms .audio {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .card {
+    padding: 22px;
+  }
+
+  .feature {
+    padding: 20px;
+  }
+
+  .lang .lang-name {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  .btn,
+  .nav a,
+  .gh,
+  .lang summary,
+  .copy {
+    transition: background-color 0.15s ease, color 0.15s ease, filter 0.15s ease;
+  }
+}
+
+.missing-langs {
+  display: grid;
+  gap: 8px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.missing-langs strong {
+  color: var(--text);
+  font-weight: 600;
+  margin-right: 8px;
+}
