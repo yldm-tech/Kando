@@ -45,9 +45,18 @@
     return "";
   }
 
-  // On the root page only, with no language chosen before and no ?lang= in the address, follow the first of the reader's languages that has a page. The pages come from the hreflang alternates above this script, so a language without a page is never a target.
+  // sameOriginReferrer reports whether the reader came to this page from another page of the site.
+  function sameOriginReferrer() {
+    try {
+      return document.referrer !== "" && new URL(document.referrer).origin === window.location.origin;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // On the root page only, with no language chosen before, no ?lang= in the address and no arrival from another page of the site, follow the first of the reader's languages that has a page. A move to / within the site (the switcher, the logo, the 404 page's home link) is never redirected, so that choosing English holds even where storage is unavailable and the choice cannot be remembered. The pages come from the hreflang alternates above this script, so a language without a page is never a target.
   var root = document.documentElement;
-  if (root.hasAttribute("data-root") && !storedLanguage() && !/[?&]lang=/.test(window.location.search)) {
+  if (root.hasAttribute("data-root") && !storedLanguage() && !/[?&]lang=/.test(window.location.search) && !sameOriginReferrer()) {
     var pages = {};
     var links = document.querySelectorAll('link[rel="alternate"][data-lang]');
     for (var i = 0; i < links.length; i++) {
