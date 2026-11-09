@@ -367,7 +367,9 @@ func (p *filmPlay) setVolume(volume float64) {
 type frameDecoder struct {
 	frames *media.FrameReader
 	// held is a frame read ahead of the decoder, which Next gives first: the frame a picture decoded in the background stood on when it was handed over.
-	held  *ui.VideoFrame
+	held *ui.VideoFrame
+	// sound, when set, is the clock of the sound the picture follows from the frame after held on. VideoPlayer counts its time only from when the window shows, which on macOS comes a frame or more after the app is back, and only then starts decoding; held shows until then, and the frame after it is the one the sound is in by then, for what is left of it. Without this the picture stood on held for its whole length once the window showed, then trailed the sound by the time the window took to show.
+	sound func() time.Duration
 	mu    sync.Mutex
 	shown time.Duration
 }
@@ -378,16 +380,38 @@ func (d *frameDecoder) Next() (ui.VideoFrame, error) {
 		d.mu.Lock()
 		d.shown += f.Duration
 		d.mu.Unlock()
-		return *f, nil
+		shows := *f
+		if d.sound != nil {
+			shows.Duration = time.Millisecond
+		}
+		return shows, nil
 	}
 	img, dur, err := d.frames.Next()
 	if err != nil {
 		return ui.VideoFrame{}, err
 	}
 	d.mu.Lock()
-	d.shown += dur
+	start := d.shown
 	d.mu.Unlock()
-	return ui.VideoFrame{Image: img, Duration: dur}, nil
+	shows := dur
+	if d.sound != nil {
+		at := d.sound()
+		d.sound = nil
+		for start+dur <= at {
+			start += dur
+			if img, dur, err = d.frames.Next(); err != nil {
+				d.mu.Lock()
+				d.shown = start
+				d.mu.Unlock()
+				return ui.VideoFrame{}, err
+			}
+		}
+		shows = max(start+dur-max(at, start), time.Millisecond)
+	}
+	d.mu.Lock()
+	d.shown = start + dur
+	d.mu.Unlock()
+	return ui.VideoFrame{Image: img, Duration: shows}, nil
 }
 
 func (d *frameDecoder) position() time.Duration {

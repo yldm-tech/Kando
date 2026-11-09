@@ -362,6 +362,32 @@ func TestPlaybackFollowsTheSoundBehindTheWindow(t *testing.T) {
 	}
 }
 
+// TestHandedOverPictureJoinsTheSound checks that a picture handed over from the background shows its held frame only until the window shows, and then the frame the sound is in by then, for what is left of it, rather than the held frame for its whole length and every frame after it late.
+func TestHandedOverPictureJoinsTheSound(t *testing.T) {
+	a, _, _ := openClip(t, 12)
+	frames, err := media.OpenFramesAt(a.ffmpegPath(), a.player.play.path, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { frames.Close() })
+	img, dur, err := frames.Next()
+	if err != nil || dur != 100*time.Millisecond {
+		t.Fatalf("first frame %v, %v: want the clip's 10 frames a second", dur, err)
+	}
+	sound := 450 * time.Millisecond
+	dec := &frameDecoder{frames: frames, held: &ui.VideoFrame{Image: img, Duration: dur}, sound: func() time.Duration { return sound }}
+	if f, err := dec.Next(); err != nil || f.Duration != time.Millisecond || dec.position() != dur {
+		t.Fatalf("held frame for %v at %v, %v", f.Duration, dec.position(), err)
+	}
+	// The sound at 450ms is in the frame from 400ms to 500ms, 50ms of which are left.
+	if f, err := dec.Next(); err != nil || f.Duration != 50*time.Millisecond || dec.position() != 500*time.Millisecond {
+		t.Fatalf("frame after the held one for %v, up to %v, %v", f.Duration, dec.position(), err)
+	}
+	if f, err := dec.Next(); err != nil || f.Duration != 100*time.Millisecond || dec.position() != 600*time.Millisecond {
+		t.Fatalf("next frame for %v, up to %v, %v", f.Duration, dec.position(), err)
+	}
+}
+
 func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
