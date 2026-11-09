@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // general is the 通用 page: the library, the interface language and version, and the programs Kando runs.
@@ -147,11 +148,28 @@ func libraryLabels(dirs []string) []string {
 	return labels
 }
 
-// toolRow is one of the programs Kando runs: its tile, its name over what it is for and where it was found, and a dot with its version, or 未安装.
+// ToolFetch is Kando's own download of a program: whether it can download it here, how far one under way has come (Progress, from 0 to 1, or -1 before its size is known), and why the last one failed.
+type ToolFetch struct {
+	Available bool
+	Running   bool
+	Progress  float64
+	Err       string
+}
+
+// toolRow is one of the programs Kando runs: its tile, its name over what it is for and where it was found, and a dot with its version. One the computer lacks shows Kando's download of it: 下载 or 重试, or its progress while it runs, or 未安装 where Kando cannot download it.
 func (s screen) toolRow(c *ui.Context, t *ui.Theme, mark, name, use, path string) {
 	where := locales.SettingsGeneralNotInstalled()
+	fetch := ToolFetch{}
 	if path != "" {
 		where = films.DisplayPath(path)
+	} else {
+		fetch = s.ToolDownload(name)
+		switch {
+		case fetch.Running:
+			where = locales.SettingsGeneralDownloading()
+		case fetch.Err != "":
+			where = locales.SettingsGeneralDownloadFailed(fetch.Err)
+		}
 	}
 	ui.Row(c).Shrink(0).MinHeight(48).Padding(6, 14).Gap(12).AlignItems(ui.Center).Role(ui.RoleGroup).Label(name).Children(func() {
 		ui.Row(c).Size(30, 30).Shrink(0).Radius(8).Background(ui.Hex("#F0F1F4")).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
@@ -161,13 +179,26 @@ func (s screen) toolRow(c *ui.Context, t *ui.Theme, mark, name, use, path string
 			ui.Text(c, name).FontSize(13).FontWeight(600).TextColor(form.Text)
 			ui.Text(c, locales.SettingsGeneralToolDetail(use, where)).FontSize(11).TextColor(form.Secondary).Wrap()
 		})
-		dot, status := t.Danger, locales.SettingsGeneralNotInstalled()
-		if path != "" {
-			dot, status = form.OK, locales.SettingsGeneralInstalled()
+		switch {
+		case path != "":
+			status := locales.SettingsGeneralInstalled()
 			if version := s.ToolVersion(path); version != "" {
 				status = version
 			}
+			form.Status(c, form.OK, form.Secondary, status)
+		case fetch.Running:
+			breeze.Progress(c, fetch.Progress).Width(72).Shrink(0).Label(locales.SettingsGeneralDownloading())
+		case fetch.Available:
+			label := locales.SettingsGeneralDownload()
+			if fetch.Err != "" {
+				label = locales.SettingsGeneralRetry()
+			}
+			c.Key("tool-download-" + name)
+			if form.Button(c, label, false).Clicked() {
+				s.DownloadTool(name)
+			}
+		default:
+			form.Status(c, t.Danger, form.Secondary, locales.SettingsGeneralNotInstalled())
 		}
-		form.Status(c, dot, form.Secondary, status)
 	})
 }

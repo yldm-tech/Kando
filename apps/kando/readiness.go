@@ -35,10 +35,15 @@ var (
 	checkingTools  = locales.ReadinessCheckingTools
 )
 
-// readiness is the status line the sidebar shows. A missing library is read from the shelf as it draws; the rest is what checkReadiness last found.
+// readiness is the status line the sidebar shows. A missing library is read from the shelf as it draws, and so are the programs Kando is downloading (state_kits.go); the rest is what checkReadiness last found.
 func (a *app) readiness() sidebar.Readiness {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
 		return sidebar.Readiness{State: sidebar.Missing, Message: noLibrary, Section: settings.SectionGeneral}
+	}
+	if names := a.kitsDownloading(); len(names) > 0 {
+		return sidebar.Readiness{State: sidebar.Checking, Message: func() string {
+			return locales.ReadinessDownloadingTools(strings.Join(names, locales.PrecheckToolSeparator()))
+		}, Section: settings.SectionGeneral}
 	}
 	if !a.side.ready.checked {
 		return sidebar.Readiness{State: sidebar.Checking, Message: checkingTools}

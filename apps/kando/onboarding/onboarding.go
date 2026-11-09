@@ -1,4 +1,4 @@
-// Package onboarding draws the first-run guide: a sheet of three steps over the window that picks the languages, gets a speech model onto this Mac and takes the first link. It draws and hands the clicks back; the settings it changes, the download and the library it opens are the app's.
+// Package onboarding draws the first-run guide: a sheet of three steps over the window that picks the languages, gets the programs Kando runs and a speech model onto this Mac and takes the first link. It draws and hands the clicks back; the settings it changes, the download and the library it opens are the app's.
 package onboarding
 
 import (
@@ -44,6 +44,32 @@ type Model struct {
 	Err string
 }
 
+// ToolState is where a program Kando runs is.
+type ToolState int
+
+const (
+	// ToolMissing is a program that is not there, which Kando can download.
+	ToolMissing ToolState = iota
+	// ToolDownloading is a program Kando is downloading now.
+	ToolDownloading
+	// ToolReady is a program that is there, installed or downloaded.
+	ToolReady
+	// ToolUnavailable is a program that is not there, which Kando cannot download on this system.
+	ToolUnavailable
+)
+
+// Tool is a row of the second step's card of programs: yt-dlp, ffmpeg or whisper-cli.
+type Tool struct {
+	Name string
+	// Use is what the program is for.
+	Use   string
+	State ToolState
+	// Progress is how much of a download has arrived, from 0 to 1, or negative while its size is not known yet.
+	Progress float64
+	// Err is why the last download of this program failed.
+	Err string
+}
+
 // AI is what the second step says about the translation service: a line saying which model translates or what is missing, whether it is ready, and whether something is missing. Neither means it is not known yet, as the EveryAPI sign-in before it was checked.
 type AI struct {
 	Text    string
@@ -63,6 +89,9 @@ type App interface {
 	// OnboardingLearning is the languages of the videos the user watches, as codes ("en", "ja", …); OnboardingToggle adds or removes one.
 	OnboardingLearning() []string
 	OnboardingToggle(code string)
+	// OnboardingTools is the programs Kando runs, which it downloads by itself when they are missing; OnboardingDownloadTool starts one again after its download failed.
+	OnboardingTools() []Tool
+	OnboardingDownloadTool(name string)
 	// OnboardingModels is the speech models the second step offers for the languages chosen.
 	OnboardingModels() []Model
 	// OnboardingDownload starts downloading a model, OnboardingCancelDownload stops the download running, and OnboardingUseModel makes a downloaded model the one in use. OnboardingDownloading reports whether a download runs, as only one runs at a time.

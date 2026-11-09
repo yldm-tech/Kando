@@ -38,6 +38,13 @@ func (a *app) Save() error { return a.saveSettings() }
 
 func (a *app) Redetect() { a.redetectTools() }
 
+func (a *app) ToolDownload(program string) settings.ToolFetch {
+	progress, running := a.kitsProgress(program)
+	return settings.ToolFetch{Available: a.kitsCanInstall(program), Running: running, Progress: progress, Err: a.kits.errs[program]}
+}
+
+func (a *app) DownloadTool(program string) { a.kitsInstall(program) }
+
 func (a *app) ToolVersion(path string) string {
 	if a.prefs.toolVersions == nil {
 		return ""

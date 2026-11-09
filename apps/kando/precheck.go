@@ -45,6 +45,8 @@ func (a *app) precheck(sources []string) (msg, section string) {
 		missing = append(missing, "whisper-cli")
 	}
 	switch {
+	case len(missing) > 0 && len(a.kitsDownloading()) > 0:
+		return locales.PrecheckToolsDownloading(strings.Join(missing, locales.PrecheckToolSeparator())), settings.SectionGeneral
 	case len(missing) > 0:
 		return locales.PrecheckToolsMissing(strings.Join(missing, locales.PrecheckToolSeparator())), settings.SectionGeneral
 	case tools.WhisperModel == "":
