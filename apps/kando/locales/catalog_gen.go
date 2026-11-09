@@ -11846,3 +11846,19 @@ func SourceYouku() string { return In(i18n.Locale()).SourceYouku() }
 func (msgs Messages) SourceYouku() string {
 	return Catalog.Format(msgs.locale, "sourceYouku", nil)
 }
+
+// UpdatesCheck says "Check for Updates…"
+// in the language the app shows.
+//
+// Item of the app menu (and the command palette) that checks for a newer
+// version of Kando and shows the update window.
+func UpdatesCheck() string { return In(i18n.Locale()).UpdatesCheck() }
+
+// UpdatesCheck says "Check for Updates…"
+// in the language of msgs.
+//
+// Item of the app menu (and the command palette) that checks for a newer
+// version of Kando and shows the update window.
+func (msgs Messages) UpdatesCheck() string {
+	return Catalog.Format(msgs.locale, "updatesCheck", nil)
+}

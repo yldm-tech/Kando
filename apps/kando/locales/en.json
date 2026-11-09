@@ -4193,5 +4193,9 @@
   "sourceYouku": "Youku",
   "@sourceYouku": {
     "description": "Name of the Chinese video site Youku (youku.com)."
+  },
+  "updatesCheck": "Check for Updates…",
+  "@updatesCheck": {
+    "description": "Item of the app menu (and the command palette) that checks for a newer version of Kando and shows the update window."
   }
 }
