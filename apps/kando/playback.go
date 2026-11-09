@@ -92,10 +92,10 @@ func (a *app) startPlayback(path string) {
 			}
 			paused := true
 			if jump {
-				player.Play()
 				if audio != nil {
 					audio.Start()
 				}
+				player.Play()
 				paused = false
 			} else {
 				player.Pause()
@@ -229,7 +229,9 @@ func (p *filmPlay) toggle() {
 		p.finished = false
 		p.paused = false
 		p.played = true
-		p.restartAudio()
+		// VideoPlayer.Play rewinds after the last frame. Start its sound from
+		// the same origin instead of the old end position.
+		p.restartAudioAt(0)
 		p.player.Play()
 		return
 	}
@@ -252,11 +254,15 @@ func (p *filmPlay) toggle() {
 }
 
 func (p *filmPlay) restartAudio() {
+	p.restartAudioAt(p.playhead())
+}
+
+func (p *filmPlay) restartAudioAt(at time.Duration) {
 	if p.audio != nil {
 		p.audio.Close()
 		p.audio = nil
 	}
-	audio, err := openPCM(p.ffmpeg, p.path, 0)
+	audio, err := openPCM(p.ffmpeg, p.path, at)
 	if err != nil || audio == nil {
 		return
 	}
