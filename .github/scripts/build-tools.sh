@@ -7,7 +7,7 @@ set -euo pipefail
 target=$1
 out=$(mkdir -p "$2" && cd "$2" && pwd)
 here=$(cd "$(dirname "$0")" && pwd)
-# shellcheck source=../tools.env
+# shellcheck disable=SC1091 # tools.env is plain assignments, read from beside the script.
 . "$here/../tools.env"
 
 work=$(mktemp -d)
@@ -26,7 +26,7 @@ fetch() {
 pack() {
   local dir=$1 name=$2
   tar -C "$dir" -czf "$out/$name" .
-  echo "$name: $(cd "$dir" && ls | tr '\n' ' ')"
+  echo "$name: $(find "$dir" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort | tr '\n' ' ')"
 }
 
 # check_macho stops when a program links a library outside the system, which a user's Mac would not have.
@@ -119,7 +119,8 @@ whisper() {
       fi
       ;;
     linux-amd64)
-      # A backend per processor generation, loaded from beside the program, so that it runs on any x86-64 and uses what the processor has.
+      # A backend per processor generation, loaded from beside the program, so that it runs on any x86-64 and uses what the processor has. $ORIGIN is the linker's, not the shell's.
+      # shellcheck disable=SC2016
       flags+=(-DBUILD_SHARED_LIBS=ON -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON '-DCMAKE_INSTALL_RPATH=$ORIGIN' -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON)
       ;;
     linux-arm64)
