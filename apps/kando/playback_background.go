@@ -165,12 +165,13 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 
 // takeBackgroundPicture shows, in place of p's picture that stood still, the picture decoded in the background: frames, standing on img, which began at at and lasts dur. The new picture takes p's sound over.
 func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameReader, img image.Image, at, dur time.Duration) {
+	sound := p.returning
 	p.returning = nil
 	if a.player.playGen != gen || a.player.play != p || p.paused || p.finished {
 		frames.Close()
 		return
 	}
-	dec := &frameDecoder{frames: frames, shown: at, held: &ui.VideoFrame{Image: img, Duration: dur}}
+	dec := &frameDecoder{frames: frames, shown: at, held: &ui.VideoFrame{Image: img, Duration: dur}, sound: sound}
 	player, err := ui.NewVideoPlayer(dec)
 	if err != nil {
 		frames.Close()
