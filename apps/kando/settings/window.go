@@ -53,6 +53,10 @@ type App interface {
 	// ToolDownload is Kando's own download of program (media.Kit), which a row of 组件 offers while the computer has none; DownloadTool starts it.
 	ToolDownload(program string) ToolFetch
 	DownloadTool(program string)
+	// CLI is where the kando command stands, which the 命令行与 MCP card shows; InstallCLI links it to this app off the UI thread, and CLICopied is told the text the card put on the clipboard.
+	CLI() CLI
+	InstallCLI()
+	CLICopied(text string)
 
 	// InstalledSpeechModel is the file on disk of the whisper catalog model id, "" when it is not downloaded. The app looks the models up when the window opens, when the model in use changes and on 重新检测, never while the page is drawn.
 	InstalledSpeechModel(id string) string

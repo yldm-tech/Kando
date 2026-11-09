@@ -9275,6 +9275,324 @@ func (msgs Messages) SettingsFileUnreadable(error string) string {
 	return Catalog.Format(msgs.locale, "settingsFileUnreadable", map[string]any{"error": error})
 }
 
+// SettingsGeneralCLI says "Command Line & MCP"
+// in the language the app shows.
+//
+// Heading of the General settings card about Kando's command line and its
+// MCP server for AI assistants.
+func SettingsGeneralCLI() string { return In(i18n.Locale()).SettingsGeneralCLI() }
+
+// SettingsGeneralCLI says "Command Line & MCP"
+// in the language of msgs.
+//
+// Heading of the General settings card about Kando's command line and its
+// MCP server for AI assistants.
+func (msgs Messages) SettingsGeneralCLI() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLI", nil)
+}
+
+// SettingsGeneralCLIAddToPath says "Add {dir} to PATH to use kando in a terminal."
+// in the language the app shows.
+//
+// Line under Command-Line Tool where Kando can't install the command itself
+// (Windows): the folder of Kando's executable to add to PATH.
+func SettingsGeneralCLIAddToPath(dir string) string {
+	return In(i18n.Locale()).SettingsGeneralCLIAddToPath(dir)
+}
+
+// SettingsGeneralCLIAddToPath says "Add {dir} to PATH to use kando in a terminal."
+// in the language of msgs.
+//
+// Line under Command-Line Tool where Kando can't install the command itself
+// (Windows): the folder of Kando's executable to add to PATH.
+func (msgs Messages) SettingsGeneralCLIAddToPath(dir string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIAddToPath", map[string]any{"dir": dir})
+}
+
+// SettingsGeneralCLIBlocked says "Kando won't replace the kando of another program at {path}."
+// in the language the app shows.
+//
+// Why installing the kando command failed, after "Couldn't install: ": each
+// folder Kando may install it in already has a kando of another program,
+// which Kando never replaces.
+func SettingsGeneralCLIBlocked(path string) string {
+	return In(i18n.Locale()).SettingsGeneralCLIBlocked(path)
+}
+
+// SettingsGeneralCLIBlocked says "Kando won't replace the kando of another program at {path}."
+// in the language of msgs.
+//
+// Why installing the kando command failed, after "Couldn't install: ": each
+// folder Kando may install it in already has a kando of another program,
+// which Kando never replaces.
+func (msgs Messages) SettingsGeneralCLIBlocked(path string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIBlocked", map[string]any{"path": path})
+}
+
+// SettingsGeneralCLIClaudeCode says "Claude Code"
+// in the language the app shows.
+//
+// Title of the row with the terminal command that adds Kando's MCP server
+// to Claude Code, Anthropic's coding assistant. A product name; keep it as
+// is.
+func SettingsGeneralCLIClaudeCode() string { return In(i18n.Locale()).SettingsGeneralCLIClaudeCode() }
+
+// SettingsGeneralCLIClaudeCode says "Claude Code"
+// in the language of msgs.
+//
+// Title of the row with the terminal command that adds Kando's MCP server
+// to Claude Code, Anthropic's coding assistant. A product name; keep it as
+// is.
+func (msgs Messages) SettingsGeneralCLIClaudeCode() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIClaudeCode", nil)
+}
+
+// SettingsGeneralCLICopied says "Copied"
+// in the language the app shows.
+//
+// What a copy button of the Command Line & MCP card reads after it put its
+// text on the clipboard.
+func SettingsGeneralCLICopied() string { return In(i18n.Locale()).SettingsGeneralCLICopied() }
+
+// SettingsGeneralCLICopied says "Copied"
+// in the language of msgs.
+//
+// What a copy button of the Command Line & MCP card reads after it put its
+// text on the clipboard.
+func (msgs Messages) SettingsGeneralCLICopied() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLICopied", nil)
+}
+
+// SettingsGeneralCLICopyCommand says "Copy Command"
+// in the language the app shows.
+//
+// Button copying the Claude Code command that adds Kando's MCP server.
+func SettingsGeneralCLICopyCommand() string { return In(i18n.Locale()).SettingsGeneralCLICopyCommand() }
+
+// SettingsGeneralCLICopyCommand says "Copy Command"
+// in the language of msgs.
+//
+// Button copying the Claude Code command that adds Kando's MCP server.
+func (msgs Messages) SettingsGeneralCLICopyCommand() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLICopyCommand", nil)
+}
+
+// SettingsGeneralCLICopyConfig says "Copy Config"
+// in the language the app shows.
+//
+// Button copying the JSON configuration an MCP client (Claude Desktop,
+// Cursor) needs to run Kando's MCP server.
+func SettingsGeneralCLICopyConfig() string { return In(i18n.Locale()).SettingsGeneralCLICopyConfig() }
+
+// SettingsGeneralCLICopyConfig says "Copy Config"
+// in the language of msgs.
+//
+// Button copying the JSON configuration an MCP client (Claude Desktop,
+// Cursor) needs to run Kando's MCP server.
+func (msgs Messages) SettingsGeneralCLICopyConfig() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLICopyConfig", nil)
+}
+
+// SettingsGeneralCLIInstall says "Install"
+// in the language the app shows.
+//
+// Button putting the kando command where a terminal finds it.
+func SettingsGeneralCLIInstall() string { return In(i18n.Locale()).SettingsGeneralCLIInstall() }
+
+// SettingsGeneralCLIInstall says "Install"
+// in the language of msgs.
+//
+// Button putting the kando command where a terminal finds it.
+func (msgs Messages) SettingsGeneralCLIInstall() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIInstall", nil)
+}
+
+// SettingsGeneralCLIInstallFailed says "Couldn't install: {error}"
+// in the language the app shows.
+//
+// Message under the Command Line & MCP card when installing the kando
+// command failed, with what went wrong.
+func SettingsGeneralCLIInstallFailed(error string) string {
+	return In(i18n.Locale()).SettingsGeneralCLIInstallFailed(error)
+}
+
+// SettingsGeneralCLIInstallFailed says "Couldn't install: {error}"
+// in the language of msgs.
+//
+// Message under the Command Line & MCP card when installing the kando
+// command failed, with what went wrong.
+func (msgs Messages) SettingsGeneralCLIInstallFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIInstallFailed", map[string]any{"error": error})
+}
+
+// SettingsGeneralCLIInstalledAt says "Type kando in a terminal. The command is at {path}."
+// in the language the app shows.
+//
+// Line under Command-Line Tool once a terminal finds the kando command: how
+// to use it and where it is.
+func SettingsGeneralCLIInstalledAt(path string) string {
+	return In(i18n.Locale()).SettingsGeneralCLIInstalledAt(path)
+}
+
+// SettingsGeneralCLIInstalledAt says "Type kando in a terminal. The command is at {path}."
+// in the language of msgs.
+//
+// Line under Command-Line Tool once a terminal finds the kando command: how
+// to use it and where it is.
+func (msgs Messages) SettingsGeneralCLIInstalledAt(path string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIInstalledAt", map[string]any{"path": path})
+}
+
+// SettingsGeneralCLIMCP says "MCP"
+// in the language the app shows.
+//
+// Title of the row about Kando's MCP server (Model Context Protocol). An
+// acronym; keep it as is.
+func SettingsGeneralCLIMCP() string { return In(i18n.Locale()).SettingsGeneralCLIMCP() }
+
+// SettingsGeneralCLIMCP says "MCP"
+// in the language of msgs.
+//
+// Title of the row about Kando's MCP server (Model Context Protocol). An
+// acronym; keep it as is.
+func (msgs Messages) SettingsGeneralCLIMCP() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIMCP", nil)
+}
+
+// SettingsGeneralCLIMCPHint says "Lets AI assistants such as Claude Desktop and Cursor use Kando. Paste the config into their MCP settings."
+// in the language the app shows.
+//
+// Line under MCP: what the server is for and what to do with Copy Config.
+func SettingsGeneralCLIMCPHint() string { return In(i18n.Locale()).SettingsGeneralCLIMCPHint() }
+
+// SettingsGeneralCLIMCPHint says "Lets AI assistants such as Claude Desktop and Cursor use Kando. Paste the config into their MCP settings."
+// in the language of msgs.
+//
+// Line under MCP: what the server is for and what to do with Copy Config.
+func (msgs Messages) SettingsGeneralCLIMCPHint() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIMCPHint", nil)
+}
+
+// SettingsGeneralCLIMoveFirst says "Kando is running from a disk image or a temporary location. Move Kando to the Applications folder and open it from th…"
+// in the language the app shows.
+//
+// Shown on the Command Line & MCP card, and after "Couldn't install: ",
+// when Kando runs from its disk image or a temporary copy macOS made (App
+// Translocation), whose path stops working: the command and the MCP
+// configuration need Kando moved to the Applications folder first. Use the
+// system's name for the Applications folder.
+func SettingsGeneralCLIMoveFirst() string { return In(i18n.Locale()).SettingsGeneralCLIMoveFirst() }
+
+// SettingsGeneralCLIMoveFirst says "Kando is running from a disk image or a temporary location. Move Kando to the Applications folder and open it from th…"
+// in the language of msgs.
+//
+// Shown on the Command Line & MCP card, and after "Couldn't install: ",
+// when Kando runs from its disk image or a temporary copy macOS made (App
+// Translocation), whose path stops working: the command and the MCP
+// configuration need Kando moved to the Applications folder first. Use the
+// system's name for the Applications folder.
+func (msgs Messages) SettingsGeneralCLIMoveFirst() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIMoveFirst", nil)
+}
+
+// SettingsGeneralCLINotOnPath says "Installed at {path}, but {dir} isn't on the terminal's PATH. Add it to PATH, then open a new terminal window."
+// in the language the app shows.
+//
+// Line under Command-Line Tool when the kando command was installed in a
+// folder a terminal doesn't search: where it is, and the folder to add to
+// PATH.
+func SettingsGeneralCLINotOnPath(path string, dir string) string {
+	return In(i18n.Locale()).SettingsGeneralCLINotOnPath(path, dir)
+}
+
+// SettingsGeneralCLINotOnPath says "Installed at {path}, but {dir} isn't on the terminal's PATH. Add it to PATH, then open a new terminal window."
+// in the language of msgs.
+//
+// Line under Command-Line Tool when the kando command was installed in a
+// folder a terminal doesn't search: where it is, and the folder to add to
+// PATH.
+func (msgs Messages) SettingsGeneralCLINotOnPath(path string, dir string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLINotOnPath", map[string]any{"path": path, "dir": dir})
+}
+
+// SettingsGeneralCLINote says "Both work through Kando itself and open it when it isn't running."
+// in the language the app shows.
+//
+// Footnote under the Command Line & MCP card.
+func SettingsGeneralCLINote() string { return In(i18n.Locale()).SettingsGeneralCLINote() }
+
+// SettingsGeneralCLINote says "Both work through Kando itself and open it when it isn't running."
+// in the language of msgs.
+//
+// Footnote under the Command Line & MCP card.
+func (msgs Messages) SettingsGeneralCLINote() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLINote", nil)
+}
+
+// SettingsGeneralCLIOther says "The kando a terminal runs is {path}, not this Kando."
+// in the language the app shows.
+//
+// Line under Command-Line Tool when the kando a terminal finds is another
+// program or another copy of Kando.
+func SettingsGeneralCLIOther(path string) string {
+	return In(i18n.Locale()).SettingsGeneralCLIOther(path)
+}
+
+// SettingsGeneralCLIOther says "The kando a terminal runs is {path}, not this Kando."
+// in the language of msgs.
+//
+// Line under Command-Line Tool when the kando a terminal finds is another
+// program or another copy of Kando.
+func (msgs Messages) SettingsGeneralCLIOther(path string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIOther", map[string]any{"path": path})
+}
+
+// SettingsGeneralCLIReinstall says "Reinstall"
+// in the language the app shows.
+//
+// Button installing the kando command again, replacing one that runs
+// another copy of Kando or one a terminal doesn't find.
+func SettingsGeneralCLIReinstall() string { return In(i18n.Locale()).SettingsGeneralCLIReinstall() }
+
+// SettingsGeneralCLIReinstall says "Reinstall"
+// in the language of msgs.
+//
+// Button installing the kando command again, replacing one that runs
+// another copy of Kando or one a terminal doesn't find.
+func (msgs Messages) SettingsGeneralCLIReinstall() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIReinstall", nil)
+}
+
+// SettingsGeneralCLITool says "Command-Line Tool"
+// in the language the app shows.
+//
+// Title of the row about the kando terminal command.
+func SettingsGeneralCLITool() string { return In(i18n.Locale()).SettingsGeneralCLITool() }
+
+// SettingsGeneralCLITool says "Command-Line Tool"
+// in the language of msgs.
+//
+// Title of the row about the kando terminal command.
+func (msgs Messages) SettingsGeneralCLITool() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLITool", nil)
+}
+
+// SettingsGeneralCLIToolHint says "Add videos and check jobs and subtitles from a terminal with the kando command."
+// in the language the app shows.
+//
+// Line under Command-Line Tool before it is installed: what the kando
+// command does.
+func SettingsGeneralCLIToolHint() string { return In(i18n.Locale()).SettingsGeneralCLIToolHint() }
+
+// SettingsGeneralCLIToolHint says "Add videos and check jobs and subtitles from a terminal with the kando command."
+// in the language of msgs.
+//
+// Line under Command-Line Tool before it is installed: what the kando
+// command does.
+func (msgs Messages) SettingsGeneralCLIToolHint() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCLIToolHint", nil)
+}
+
 // SettingsGeneralComponents says "Components"
 // in the language the app shows.
 //
@@ -9709,7 +10027,7 @@ func (msgs Messages) SettingsKeywordsAccount() string {
 	return Catalog.Format(msgs.locale, "settingsKeywordsAccount", nil)
 }
 
-// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again"
+// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again command line ter…"
 // in the language the app shows.
 //
 // Search keywords of the General settings section, separated by spaces,
@@ -9717,7 +10035,7 @@ func (msgs Messages) SettingsKeywordsAccount() string {
 // them. Use the words the section's page shows.
 func SettingsKeywordsGeneral() string { return In(i18n.Locale()).SettingsKeywordsGeneral() }
 
-// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again"
+// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again command line ter…"
 // in the language of msgs.
 //
 // Search keywords of the General settings section, separated by spaces,

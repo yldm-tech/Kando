@@ -3370,6 +3370,122 @@
       }
     }
   },
+  "settingsGeneralCLI": "Command Line & MCP",
+  "@settingsGeneralCLI": {
+    "description": "Heading of the General settings card about Kando's command line and its MCP server for AI assistants."
+  },
+  "settingsGeneralCLIAddToPath": "Add {dir} to PATH to use kando in a terminal.",
+  "@settingsGeneralCLIAddToPath": {
+    "description": "Line under Command-Line Tool where Kando can't install the command itself (Windows): the folder of Kando's executable to add to PATH.",
+    "placeholders": {
+      "dir": {
+        "type": "String",
+        "example": "C:\\Program Files\\Kando"
+      }
+    }
+  },
+  "settingsGeneralCLIBlocked": "Kando won't replace the kando of another program at {path}.",
+  "@settingsGeneralCLIBlocked": {
+    "description": "Why installing the kando command failed, after \"Couldn't install: \": each folder Kando may install it in already has a kando of another program, which Kando never replaces.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/usr/local/bin/kando"
+      }
+    }
+  },
+  "settingsGeneralCLIClaudeCode": "Claude Code",
+  "@settingsGeneralCLIClaudeCode": {
+    "description": "Title of the row with the terminal command that adds Kando's MCP server to Claude Code, Anthropic's coding assistant. A product name; keep it as is."
+  },
+  "settingsGeneralCLICopied": "Copied",
+  "@settingsGeneralCLICopied": {
+    "description": "What a copy button of the Command Line & MCP card reads after it put its text on the clipboard."
+  },
+  "settingsGeneralCLICopyCommand": "Copy Command",
+  "@settingsGeneralCLICopyCommand": {
+    "description": "Button copying the Claude Code command that adds Kando's MCP server."
+  },
+  "settingsGeneralCLICopyConfig": "Copy Config",
+  "@settingsGeneralCLICopyConfig": {
+    "description": "Button copying the JSON configuration an MCP client (Claude Desktop, Cursor) needs to run Kando's MCP server."
+  },
+  "settingsGeneralCLIInstall": "Install",
+  "@settingsGeneralCLIInstall": {
+    "description": "Button putting the kando command where a terminal finds it."
+  },
+  "settingsGeneralCLIInstallFailed": "Couldn't install: {error}",
+  "@settingsGeneralCLIInstallFailed": {
+    "description": "Message under the Command Line & MCP card when installing the kando command failed, with what went wrong.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsGeneralCLIInstalledAt": "Type kando in a terminal. The command is at {path}.",
+  "@settingsGeneralCLIInstalledAt": {
+    "description": "Line under Command-Line Tool once a terminal finds the kando command: how to use it and where it is.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/usr/local/bin/kando"
+      }
+    }
+  },
+  "settingsGeneralCLIMCP": "MCP",
+  "@settingsGeneralCLIMCP": {
+    "description": "Title of the row about Kando's MCP server (Model Context Protocol). An acronym; keep it as is."
+  },
+  "settingsGeneralCLIMCPHint": "Lets AI assistants such as Claude Desktop and Cursor use Kando. Paste the config into their MCP settings.",
+  "@settingsGeneralCLIMCPHint": {
+    "description": "Line under MCP: what the server is for and what to do with Copy Config."
+  },
+  "settingsGeneralCLIMoveFirst": "Kando is running from a disk image or a temporary location. Move Kando to the Applications folder and open it from there first.",
+  "@settingsGeneralCLIMoveFirst": {
+    "description": "Shown on the Command Line & MCP card, and after \"Couldn't install: \", when Kando runs from its disk image or a temporary copy macOS made (App Translocation), whose path stops working: the command and the MCP configuration need Kando moved to the Applications folder first. Use the system's name for the Applications folder."
+  },
+  "settingsGeneralCLINotOnPath": "Installed at {path}, but {dir} isn't on the terminal's PATH. Add it to PATH, then open a new terminal window.",
+  "@settingsGeneralCLINotOnPath": {
+    "description": "Line under Command-Line Tool when the kando command was installed in a folder a terminal doesn't search: where it is, and the folder to add to PATH.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "~/.local/bin/kando"
+      },
+      "dir": {
+        "type": "String",
+        "example": "~/.local/bin"
+      }
+    }
+  },
+  "settingsGeneralCLINote": "Both work through Kando itself and open it when it isn't running.",
+  "@settingsGeneralCLINote": {
+    "description": "Footnote under the Command Line & MCP card."
+  },
+  "settingsGeneralCLIOther": "The kando a terminal runs is {path}, not this Kando.",
+  "@settingsGeneralCLIOther": {
+    "description": "Line under Command-Line Tool when the kando a terminal finds is another program or another copy of Kando.",
+    "placeholders": {
+      "path": {
+        "type": "String",
+        "example": "/usr/local/bin/kando"
+      }
+    }
+  },
+  "settingsGeneralCLIReinstall": "Reinstall",
+  "@settingsGeneralCLIReinstall": {
+    "description": "Button installing the kando command again, replacing one that runs another copy of Kando or one a terminal doesn't find."
+  },
+  "settingsGeneralCLITool": "Command-Line Tool",
+  "@settingsGeneralCLITool": {
+    "description": "Title of the row about the kando terminal command."
+  },
+  "settingsGeneralCLIToolHint": "Add videos and check jobs and subtitles from a terminal with the kando command.",
+  "@settingsGeneralCLIToolHint": {
+    "description": "Line under Command-Line Tool before it is installed: what the kando command does."
+  },
   "settingsGeneralComponents": "Components",
   "@settingsGeneralComponents": {
     "description": "Heading of the card listing the programs Kando runs."
@@ -3502,7 +3618,7 @@
   "@settingsKeywordsAccount": {
     "description": "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
   },
-  "settingsKeywordsGeneral": "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again",
+  "settingsKeywordsGeneral": "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config",
   "@settingsKeywordsGeneral": {
     "description": "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
   },

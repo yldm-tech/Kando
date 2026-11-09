@@ -24,6 +24,7 @@ func TestScreenshotsReadme(t *testing.T) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
 	})
 	shown, models, turbo := settingsShotFolders(t, f)
-	shootSettings(t, f, settings.SectionGeneral, "readme-settings-general", shown, models, turbo)
+	// The 命令行与 MCP card at the foot shows the app after it looked for the kando command, as the window shows it a moment after it opens.
+	shootSettings(t, f, settings.SectionGeneral, "readme-settings-general", shown, models, turbo, func(a *app) { shotCLITool(f, a, true) })
 	shootSettings(t, f, settings.SectionAI, "readme-settings-ai", shown, models, turbo)
 }
