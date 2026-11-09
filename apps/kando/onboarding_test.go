@@ -344,6 +344,9 @@ func TestOnboardingRecommendsModels(t *testing.T) {
 	}
 }
 
+// toolsInstalled is a pipeline that has yt-dlp, ffmpeg and whisper-cli, so the guide's second step shows its card of programs as one ready line and the models below it in view: the tests of the model downloads click on them, and with the card's three rows of programs Kando cannot download (no OwnToolsDir in tests) the models start below the step's visible area where its text is taller, as in Linux CI's fonts.
+var toolsInstalled = media.Tools{YTDLP: "/usr/local/bin/yt-dlp", FFmpeg: "/usr/local/bin/ffmpeg", Whisper: "/usr/local/bin/whisper-cli"}
+
 // fakeModelServer serves a whisper model file of size bytes, holding the body back until release is closed when it is not nil.
 func fakeModelServer(t *testing.T, size int, release chan struct{}) *httptest.Server {
 	t.Helper()
@@ -362,6 +365,8 @@ func fakeModelServer(t *testing.T, size int, release chan struct{}) *httptest.Se
 		_, _ = w.Write([]byte(strings.Repeat("x", size-len(half))))
 	}))
 	t.Cleanup(srv.Close)
+	// A test that fails while a download waits on the held-back body leaves the download's goroutine blocked on the test's updates, so the request would never end and Close would wait for it until the test binary times out, hiding the failure: the connections are cut first, which ends the handler.
+	t.Cleanup(srv.CloseClientConnections)
 	old := whisperModelBaseURL
 	whisperModelBaseURL = srv.URL
 	t.Cleanup(func() { whisperModelBaseURL = old })
@@ -372,7 +377,7 @@ func fakeModelServer(t *testing.T, size int, release chan struct{}) *httptest.Se
 func TestOnboardingDownloadsTheModel(t *testing.T) {
 	release := make(chan struct{})
 	fakeModelServer(t, 4096, release)
-	a, tt, updates, _ := newFirstRunApp(t, media.Tools{})
+	a, tt, updates, _ := newFirstRunApp(t, toolsInstalled)
 	click(t, tt, "继续")
 	wantText(t, tt, "下载并继续")
 	click(t, tt, "下载并继续")
@@ -403,7 +408,7 @@ func TestOnboardingDownloadsTheModel(t *testing.T) {
 // TestOnboardingCancelsTheDownload checks 取消 on a model being downloaded: the download stops and leaves nothing behind, and the model can be downloaded again.
 func TestOnboardingCancelsTheDownload(t *testing.T) {
 	fakeModelServer(t, 4096, make(chan struct{}))
-	a, tt, updates, _ := newFirstRunApp(t, media.Tools{})
+	a, tt, updates, _ := newFirstRunApp(t, toolsInstalled)
 	click(t, tt, "继续")
 	a.OnboardingDownload("small")
 	waitUntil(t, updates, func() bool { return a.prefs.downloadWritten > 0 })
