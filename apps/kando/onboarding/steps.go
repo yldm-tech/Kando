@@ -76,8 +76,9 @@ func tile(c *ui.Context, code string, on bool) ui.Element {
 	return b
 }
 
-// modelsStep is the second step: the speech models recommended for the languages chosen, each with its download, and the translation service.
+// modelsStep is the second step: the programs Kando runs, the speech models recommended for the languages chosen, each with its download, and the translation service.
 func modelsStep(c *ui.Context, a App) {
+	toolsCard(c, a.OnboardingTools(), a)
 	models := a.OnboardingModels()
 	busy := a.OnboardingDownloading()
 	card(c, func() {
@@ -110,6 +111,84 @@ func modelsStep(c *ui.Context, a App) {
 			}
 		})
 	})
+}
+
+// toolsCard is the programs Kando runs: a head saying whether they are ready, and a row for each that is not, with its download. Once all are there it is the head alone.
+func toolsCard(c *ui.Context, tools []Tool, a App) {
+	head, ready, downloading := toolsHead(tools)
+	card(c, func() {
+		ui.Row(c).Height(38).Padding(0, 14).Gap(10).AlignItems(ui.Center).Children(func() {
+			ui.Text(c, head).FontSize(12).TextColor(muted).Grow(1)
+			if ready {
+				ui.Image(c, readyMark).Size(16, 16).Shrink(0).Label(head)
+			}
+		})
+		for _, t := range tools {
+			if t.State == ToolReady {
+				continue
+			}
+			ui.Box(c).Height(0.5).Shrink(0).Background(rowRule)
+			toolRow(c, a, t)
+		}
+	})
+	if downloading {
+		note(c, locales.OnboardingToolsNote())
+	}
+}
+
+// toolsHead is the head of the card of programs, whether all of them are there, and whether one is downloading.
+func toolsHead(tools []Tool) (head string, ready, downloading bool) {
+	ready = true
+	for _, t := range tools {
+		ready = ready && t.State == ToolReady
+		downloading = downloading || t.State == ToolDownloading
+	}
+	switch {
+	case ready:
+		return locales.OnboardingToolsReady(), true, false
+	case downloading:
+		return locales.OnboardingToolsDownloading(), false, true
+	}
+	return locales.OnboardingToolsMissing(), false, false
+}
+
+// toolRow is a program that is not there yet: its name over what it is for, its download's progress or why it failed, and a progress bar, 下载 or 重试.
+func toolRow(c *ui.Context, a App, t Tool) {
+	ui.Row(c).MinHeight(42).Padding(5, 14).Gap(10).AlignItems(ui.Center).Label(t.Name).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
+			ui.Text(c, t.Name).FontSize(13).TextColor(ink).SingleLine()
+			sub, color := toolSub(t)
+			ui.Text(c, sub).FontSize(11).TextColor(color).Wrap()
+		})
+		switch t.State {
+		case ToolDownloading:
+			breeze.Progress(c, t.Progress).Width(72).Shrink(0).Label(locales.OnboardingDownloadProgress())
+		case ToolMissing:
+			label := locales.OnboardingDownload()
+			if t.Err != "" {
+				label = locales.OnboardingRetry()
+			}
+			c.Key("onboarding-tool-" + t.Name)
+			if breeze.Button(c, label).Height(24).Shrink(0).Clicked() {
+				a.OnboardingDownloadTool(t.Name)
+			}
+		}
+	})
+}
+
+// toolSub is the line under a program's name and its color: the download's progress in blue while it runs, why it failed in red, how to install it where Kando cannot, otherwise what it is for.
+func toolSub(t Tool) (string, ui.Color) {
+	switch {
+	case t.State == ToolDownloading && t.Progress < 0:
+		return locales.OnboardingToolConnecting(), ui.Hex("#0052B0")
+	case t.State == ToolDownloading:
+		return locales.OnboardingToolProgress(int(t.Progress * 100)), ui.Hex("#0052B0")
+	case t.State == ToolUnavailable:
+		return locales.OnboardingToolUnavailable(), ui.Hex("#B25000")
+	case t.Err != "":
+		return locales.OnboardingModelFailed(t.Err), ui.Hex("#C4291C")
+	}
+	return t.Use, muted
 }
 
 // modelRow is a speech model: its name and size, and what can be done with it: 下载, a progress bar and 取消 while it downloads, 使用 once it is here, and a green check while it is in use.

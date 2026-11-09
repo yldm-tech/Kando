@@ -5821,18 +5821,18 @@ func (msgs Messages) OnboardingModelsReady() string {
 	return Catalog.Format(msgs.locale, "onboardingModelsReady", nil)
 }
 
-// OnboardingModelsTitle says "Download a Speech Recognition Model"
+// OnboardingModelsTitle says "Download Components and a Speech Model"
 // in the language the app shows.
 //
-// Title of the guide's second step, where a speech recognition model is
-// downloaded.
+// Title of the guide's second step, where the programs Kando needs download
+// and a speech recognition model is downloaded.
 func OnboardingModelsTitle() string { return In(i18n.Locale()).OnboardingModelsTitle() }
 
-// OnboardingModelsTitle says "Download a Speech Recognition Model"
+// OnboardingModelsTitle says "Download Components and a Speech Model"
 // in the language of msgs.
 //
-// Title of the guide's second step, where a speech recognition model is
-// downloaded.
+// Title of the guide's second step, where the programs Kando needs download
+// and a speech recognition model is downloaded.
 func (msgs Messages) OnboardingModelsTitle() string {
 	return Catalog.Format(msgs.locale, "onboardingModelsTitle", nil)
 }
@@ -6053,6 +6053,114 @@ func OnboardingTipMenu(menu string, item string) string {
 // its item that open the guide again.
 func (msgs Messages) OnboardingTipMenu(menu string, item string) string {
 	return Catalog.Format(msgs.locale, "onboardingTipMenu", map[string]any{"menu": menu, "item": item})
+}
+
+// OnboardingToolConnecting says "Connecting…"
+// in the language the app shows.
+//
+// Line under a program in the guide while its download waits for the
+// server.
+func OnboardingToolConnecting() string { return In(i18n.Locale()).OnboardingToolConnecting() }
+
+// OnboardingToolConnecting says "Connecting…"
+// in the language of msgs.
+//
+// Line under a program in the guide while its download waits for the
+// server.
+func (msgs Messages) OnboardingToolConnecting() string {
+	return Catalog.Format(msgs.locale, "onboardingToolConnecting", nil)
+}
+
+// OnboardingToolProgress says "Downloading {percent}%"
+// in the language the app shows.
+//
+// Line under a program in the guide while it downloads.
+func OnboardingToolProgress(percent int) string {
+	return In(i18n.Locale()).OnboardingToolProgress(percent)
+}
+
+// OnboardingToolProgress says "Downloading {percent}%"
+// in the language of msgs.
+//
+// Line under a program in the guide while it downloads.
+func (msgs Messages) OnboardingToolProgress(percent int) string {
+	return Catalog.Format(msgs.locale, "onboardingToolProgress", map[string]any{"percent": percent})
+}
+
+// OnboardingToolUnavailable says "Install it with your package manager and make sure it is on PATH"
+// in the language the app shows.
+//
+// Line under a program in the guide on a system Kando cannot download it
+// for, such as Windows.
+func OnboardingToolUnavailable() string { return In(i18n.Locale()).OnboardingToolUnavailable() }
+
+// OnboardingToolUnavailable says "Install it with your package manager and make sure it is on PATH"
+// in the language of msgs.
+//
+// Line under a program in the guide on a system Kando cannot download it
+// for, such as Windows.
+func (msgs Messages) OnboardingToolUnavailable() string {
+	return Catalog.Format(msgs.locale, "onboardingToolUnavailable", nil)
+}
+
+// OnboardingToolsDownloading says "Downloading the programs Kando needs"
+// in the language the app shows.
+//
+// Head of the guide's card of programs while Kando downloads some of them.
+func OnboardingToolsDownloading() string { return In(i18n.Locale()).OnboardingToolsDownloading() }
+
+// OnboardingToolsDownloading says "Downloading the programs Kando needs"
+// in the language of msgs.
+//
+// Head of the guide's card of programs while Kando downloads some of them.
+func (msgs Messages) OnboardingToolsDownloading() string {
+	return Catalog.Format(msgs.locale, "onboardingToolsDownloading", nil)
+}
+
+// OnboardingToolsMissing says "Kando needs these programs to process videos"
+// in the language the app shows.
+//
+// Head of the guide's card of programs when some are missing and none is
+// downloading.
+func OnboardingToolsMissing() string { return In(i18n.Locale()).OnboardingToolsMissing() }
+
+// OnboardingToolsMissing says "Kando needs these programs to process videos"
+// in the language of msgs.
+//
+// Head of the guide's card of programs when some are missing and none is
+// downloading.
+func (msgs Messages) OnboardingToolsMissing() string {
+	return Catalog.Format(msgs.locale, "onboardingToolsMissing", nil)
+}
+
+// OnboardingToolsNote says "Kando downloads them by itself. You can go on to the next step meanwhile."
+// in the language the app shows.
+//
+// Line under the guide's card of programs while some are not there yet.
+func OnboardingToolsNote() string { return In(i18n.Locale()).OnboardingToolsNote() }
+
+// OnboardingToolsNote says "Kando downloads them by itself. You can go on to the next step meanwhile."
+// in the language of msgs.
+//
+// Line under the guide's card of programs while some are not there yet.
+func (msgs Messages) OnboardingToolsNote() string {
+	return Catalog.Format(msgs.locale, "onboardingToolsNote", nil)
+}
+
+// OnboardingToolsReady says "Components are ready"
+// in the language the app shows.
+//
+// Head of the guide's card of programs once yt-dlp, ffmpeg and whisper-cli
+// are all there.
+func OnboardingToolsReady() string { return In(i18n.Locale()).OnboardingToolsReady() }
+
+// OnboardingToolsReady says "Components are ready"
+// in the language of msgs.
+//
+// Head of the guide's card of programs once yt-dlp, ffmpeg and whisper-cli
+// are all there.
+func (msgs Messages) OnboardingToolsReady() string {
+	return Catalog.Format(msgs.locale, "onboardingToolsReady", nil)
 }
 
 // OnboardingTranslateInto says "Translate subtitles into"
@@ -7047,6 +7155,24 @@ func PrecheckToolSeparator() string { return In(i18n.Locale()).PrecheckToolSepar
 // and ffmpeg.
 func (msgs Messages) PrecheckToolSeparator() string {
 	return Catalog.Format(msgs.locale, "precheckToolSeparator", nil)
+}
+
+// PrecheckToolsDownloading says "Still downloading the programs that process videos: {tools}. Try again once they're in."
+// in the language the app shows.
+//
+// Message bar when programs a job needs are still downloading, with their
+// names joined by precheckToolSeparator.
+func PrecheckToolsDownloading(tools string) string {
+	return In(i18n.Locale()).PrecheckToolsDownloading(tools)
+}
+
+// PrecheckToolsDownloading says "Still downloading the programs that process videos: {tools}. Try again once they're in."
+// in the language of msgs.
+//
+// Message bar when programs a job needs are still downloading, with their
+// names joined by precheckToolSeparator.
+func (msgs Messages) PrecheckToolsDownloading(tools string) string {
+	return Catalog.Format(msgs.locale, "precheckToolsDownloading", map[string]any{"tools": tools})
 }
 
 // PrecheckToolsMissing says "The programs that process videos aren't installed yet: {tools}"
@@ -8459,6 +8585,24 @@ func (msgs Messages) ReadinessCheckingTools() string {
 	return Catalog.Format(msgs.locale, "readinessCheckingTools", nil)
 }
 
+// ReadinessDownloadingTools says "Downloading components: {tools}"
+// in the language the app shows.
+//
+// The sidebar's status line while Kando downloads programs a job needs,
+// with their names joined by precheckToolSeparator.
+func ReadinessDownloadingTools(tools string) string {
+	return In(i18n.Locale()).ReadinessDownloadingTools(tools)
+}
+
+// ReadinessDownloadingTools says "Downloading components: {tools}"
+// in the language of msgs.
+//
+// The sidebar's status line while Kando downloads programs a job needs,
+// with their names joined by precheckToolSeparator.
+func (msgs Messages) ReadinessDownloadingTools(tools string) string {
+	return Catalog.Format(msgs.locale, "readinessDownloadingTools", map[string]any{"tools": tools})
+}
+
 // ReadinessMissingTools says "Missing components: {tools}"
 // in the language the app shows.
 //
@@ -9161,6 +9305,56 @@ func (msgs Messages) SettingsGeneralCurrentLibrary() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralCurrentLibrary", nil)
 }
 
+// SettingsGeneralDownload says "Download"
+// in the language the app shows.
+//
+// Button on a program's row that downloads it, where the computer does not
+// have it.
+func SettingsGeneralDownload() string { return In(i18n.Locale()).SettingsGeneralDownload() }
+
+// SettingsGeneralDownload says "Download"
+// in the language of msgs.
+//
+// Button on a program's row that downloads it, where the computer does not
+// have it.
+func (msgs Messages) SettingsGeneralDownload() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralDownload", nil)
+}
+
+// SettingsGeneralDownloadFailed says "Download failed: {error}"
+// in the language the app shows.
+//
+// Where a program is, after Kando's download of it failed, with what went
+// wrong.
+func SettingsGeneralDownloadFailed(error string) string {
+	return In(i18n.Locale()).SettingsGeneralDownloadFailed(error)
+}
+
+// SettingsGeneralDownloadFailed says "Download failed: {error}"
+// in the language of msgs.
+//
+// Where a program is, after Kando's download of it failed, with what went
+// wrong.
+func (msgs Messages) SettingsGeneralDownloadFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralDownloadFailed", map[string]any{"error": error})
+}
+
+// SettingsGeneralDownloading says "Downloading…"
+// in the language the app shows.
+//
+// Where a program is, while Kando downloads it; also the name of its
+// progress bar.
+func SettingsGeneralDownloading() string { return In(i18n.Locale()).SettingsGeneralDownloading() }
+
+// SettingsGeneralDownloading says "Downloading…"
+// in the language of msgs.
+//
+// Where a program is, while Kando downloads it; also the name of its
+// progress bar.
+func (msgs Messages) SettingsGeneralDownloading() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralDownloading", nil)
+}
+
 // SettingsGeneralForget says "Remove from list"
 // in the language the app shows.
 //
@@ -9345,6 +9539,22 @@ func (msgs Messages) SettingsGeneralRedetect() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralRedetect", nil)
 }
 
+// SettingsGeneralRetry says "Retry"
+// in the language the app shows.
+//
+// Button on a program's row that downloads it again after its download
+// failed.
+func SettingsGeneralRetry() string { return In(i18n.Locale()).SettingsGeneralRetry() }
+
+// SettingsGeneralRetry says "Retry"
+// in the language of msgs.
+//
+// Button on a program's row that downloads it again after its download
+// failed.
+func (msgs Messages) SettingsGeneralRetry() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralRetry", nil)
+}
+
 // SettingsGeneralShowInFinder says "Show in Finder"
 // in the language the app shows.
 //
@@ -9377,18 +9587,38 @@ func (msgs Messages) SettingsGeneralToolDetail(use string, where string) string 
 	return Catalog.Format(msgs.locale, "settingsGeneralToolDetail", map[string]any{"use": use, "where": where})
 }
 
-// SettingsGeneralToolsNote says "These programs come from this Mac; Kando doesn't install or update them."
+// SettingsGeneralToolsNote says "Kando downloads the programs it is missing. Those already installed on this computer are used as they are."
 // in the language the app shows.
 //
-// Footnote under the programs Kando runs.
+// Footnote under the programs Kando runs: Kando downloads the missing ones
+// itself.
 func SettingsGeneralToolsNote() string { return In(i18n.Locale()).SettingsGeneralToolsNote() }
 
-// SettingsGeneralToolsNote says "These programs come from this Mac; Kando doesn't install or update them."
+// SettingsGeneralToolsNote says "Kando downloads the programs it is missing. Those already installed on this computer are used as they are."
 // in the language of msgs.
 //
-// Footnote under the programs Kando runs.
+// Footnote under the programs Kando runs: Kando downloads the missing ones
+// itself.
 func (msgs Messages) SettingsGeneralToolsNote() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralToolsNote", nil)
+}
+
+// SettingsGeneralToolsNoteManual says "These programs come from this computer; Kando doesn't install or update them."
+// in the language the app shows.
+//
+// Footnote under the programs Kando runs, on a system where it does not
+// download them (Windows): they are the user's to install.
+func SettingsGeneralToolsNoteManual() string {
+	return In(i18n.Locale()).SettingsGeneralToolsNoteManual()
+}
+
+// SettingsGeneralToolsNoteManual says "These programs come from this computer; Kando doesn't install or update them."
+// in the language of msgs.
+//
+// Footnote under the programs Kando runs, on a system where it does not
+// download them (Windows): they are the user's to install.
+func (msgs Messages) SettingsGeneralToolsNoteManual() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralToolsNoteManual", nil)
 }
 
 // SettingsGeneralUseFFmpeg says "Converts audio, grabs covers, decodes frames"

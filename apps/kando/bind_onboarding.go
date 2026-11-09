@@ -47,6 +47,10 @@ func (a *app) OnboardingToggle(code string) {
 	a.onboardingSave()
 }
 
+func (a *app) OnboardingTools() []onboarding.Tool { return a.onboardingTools() }
+
+func (a *app) OnboardingDownloadTool(name string) { a.kitsInstall(name) }
+
 func (a *app) OnboardingModels() []onboarding.Model { return a.onboardingModels() }
 
 func (a *app) OnboardingDownload(id string) { a.onboardingDownload(id) }

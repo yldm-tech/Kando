@@ -189,7 +189,7 @@ func TestOnboardingSteps(t *testing.T) {
 	wantNoText(t, tt, "上一步")
 	click(t, tt, "继续")
 	wantText(t, tt, "2 / 3")
-	wantText(t, tt, "下载语音识别模型")
+	wantText(t, tt, "下载组件和语音识别模型")
 	click(t, tt, "上一步")
 	wantText(t, tt, "1 / 3")
 	click(t, tt, "Français")
@@ -634,7 +634,7 @@ func TestOnboardingInEnglish(t *testing.T) {
 		wantNoText(t, tt, chinese)
 	}
 	click(t, tt, "Continue")
-	for _, want := range []string{"2 / 3", "Download a Speech Recognition Model", "Translation · AI Service", "Set up", "Settings…", "Back"} {
+	for _, want := range []string{"2 / 3", "Download Components and a Speech Model", "Translation · AI Service", "Set up", "Settings…", "Back"} {
 		wantText(t, tt, want)
 	}
 	click(t, tt, "Continue")

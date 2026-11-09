@@ -118,7 +118,11 @@ func moviesDir() string {
 // Apps opened from Finder or a desktop launcher get a minimal PATH that omits package manager directories.
 var extraToolDirs = []string{"/opt/homebrew/bin", "/usr/local/bin", "/home/linuxbrew/.linuxbrew/bin"}
 
+// lookTool finds the program name: the one Kando downloaded for itself (ownTool), then one on PATH or in a package manager's folder.
 func lookTool(name string) string {
+	if path := ownTool(name); path != "" {
+		return path
+	}
 	if path, err := exec.LookPath(name); err == nil {
 		return path
 	}

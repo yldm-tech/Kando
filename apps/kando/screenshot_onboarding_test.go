@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"kando/packages/media"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -15,4 +17,18 @@ func TestScreenshotsOnboarding(t *testing.T) {
 			a.onb.step = step + 1
 		})
 	}
+	// The second step on a first launch that finds none of the programs: Kando downloads all three.
+	f.shoot(t, "onboarding-2-downloading", func(a *app, tt *ui.Tester, _ chan func()) {
+		shotKitsDownloading(t, f, a)
+		tools := a.pipeline.(media.Tools)
+		tools.YTDLP = ""
+		a.pipeline = tools
+		a.kits.running = map[string]*kitDownload{
+			"yt-dlp":      {written: 29 << 20, total: 36 << 20, cancel: func() {}},
+			"ffmpeg":      {written: 9 << 20, total: 31 << 20, cancel: func() {}},
+			"whisper-cli": {cancel: func() {}},
+		}
+		a.openOnboarding()
+		a.onb.step = 2
+	})
 }

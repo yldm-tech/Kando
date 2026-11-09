@@ -34,7 +34,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 
 ### Download
 
-Builds for macOS and Linux will be attached to [GitHub Releases](https://github.com/yldm-tech/Kando/releases) once a version is published; there is no Windows build yet, so on Windows build from source as described below. They are not signed with a Developer ID or code-signing certificate, so the system warns the first time you open Kando:
+Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases); there is no Windows build yet, so on Windows build from source as described below. They are not signed with a Developer ID or code-signing certificate, so the system warns the first time you open Kando:
 
 - macOS: on macOS 15 and later, open Kando once, then choose System Settings › Privacy & Security › Open Anyway. On macOS 14 and earlier, Control-click Kando in Applications and choose Open. Or remove the quarantine flag in Terminal: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
 - Windows: in the SmartScreen dialog, choose More info › Run anyway.
@@ -53,29 +53,25 @@ make build
 
 ## Requirements
 
-Kando runs these programs but does not install them. If a download fails because `yt-dlp` is out of date, Kando offers Update and Retry, which updates it the way it was installed and retries.
+Kando runs `yt-dlp`, `ffmpeg` and `whisper-cli` (whisper.cpp). On macOS and Linux there is nothing to install: when Kando opens and one of them is missing, it downloads it, and the Getting Started guide shows the progress. Programs you already installed, such as with Homebrew, are used as they are.
 
-| Program | Used for |
-| --- | --- |
-| `yt-dlp` | Downloading online videos. Kando asks for it for every job, local files included. |
-| `ffmpeg` | Extracting the audio, grabbing covers and decoding the picture in the player. On macOS the sound plays through `ffplay` from the same install, or `afplay`. |
-| `whisper-cli` (whisper.cpp) | Speech recognition. |
-| A whisper.cpp ggml model | Download one in Settings › Speech Recognition, or point `KANDO_WHISPER_MODEL` at a model file. |
+| Program | Used for | What Kando downloads |
+| --- | --- | --- |
+| `yt-dlp` | Downloading online videos. Kando asks for it for every job, local files included. | The standalone build from the [yt-dlp release](https://github.com/yt-dlp/yt-dlp/releases). |
+| `ffmpeg` | Extracting the audio, grabbing covers and decoding the picture in the player. On macOS the sound plays through `ffplay` beside it, or `afplay`. | FFmpeg 9.0.2, with `ffplay` on macOS, from this repository's [tools release](https://github.com/yldm-tech/Kando/releases/tag/tools-1). |
+| `whisper-cli` (whisper.cpp) | Speech recognition. | whisper.cpp 1.9.5, with Metal on macOS, from the same release. |
+| A whisper.cpp ggml model | Download one in the Getting Started guide or Settings › Speech Recognition, or point `KANDO_WHISPER_MODEL` at a model file. | |
 
-On macOS with Homebrew:
+The tools release is built by the Tools workflow (`.github/workflows/tools.yml`) from the sources pinned in `.github/tools.env`, and Kando checks each download against a SHA-256 pinned in the app before using it. Downloads go to the `tools` folder beside `settings.json` (`~/Library/Application Support/Kando/tools` on macOS, `~/.config/Kando/tools` on Linux). Kando looks there first, then on `PATH` and in `/opt/homebrew/bin`, `/usr/local/bin` and `/home/linuxbrew/.linuxbrew/bin`, because apps opened from Finder or a desktop launcher get a minimal `PATH`. Settings › General shows which program is used, offers Download or Retry for one that is missing, and Detect Again looks again. If a download fails because `yt-dlp` is out of date, Kando offers Update and Retry, which updates it the way it was installed and retries.
 
-```sh
-brew install yt-dlp ffmpeg whisper-cpp
-```
-
-On Windows and Linux, install the same programs with your package manager and make sure they are on `PATH`. Besides `PATH`, Kando looks in `/opt/homebrew/bin`, `/usr/local/bin` and `/home/linuxbrew/.linuxbrew/bin`, because apps opened from Finder or a desktop launcher get a minimal `PATH`. Settings › General shows which programs were found, and Detect Again looks again.
+On Windows Kando does not download them yet: install the same programs with your package manager and make sure they are on `PATH`.
 
 On Windows and Linux the player currently shows the picture without sound; audio playback is implemented on macOS only.
 
 ## Getting started
 
 1. Open Kando. With no library yet, it offers New Library… (named Film Library in `~/Movies` on macOS or `~/Videos` elsewhere unless you change it) and Open Existing Library….
-2. Open Settings (⌘,). In General, check that `ffmpeg`, `yt-dlp` and `whisper-cli` show as Installed, and pick the interface language.
+2. The Getting Started guide downloads `ffmpeg`, `yt-dlp` and `whisper-cli` if they are missing. Open Settings (⌘,): General shows them with their versions, and has the interface language.
 3. In Speech Recognition, click Download next to a whisper model; Kando selects it when the download finishes. The one marked Recommended is Large v3 Turbo (Compressed), 574 MB. Models that Vimpo or hyperframes already downloaded can be selected without copying.
 4. In AI Service, set up translation:
    - EveryAPI (the default): sign in once with the [EveryAPI](https://everyapi.ai) CLI, `everyapi auth login`. Kando asks the CLI for the key (`everyapi auth credential`), so it uses the same login, gateway region and key refresh as the CLI, and you do not paste a token. The default model is `claude-haiku-5-5`; `everyapi models list` shows the others. You can also paste an EveryAPI key into API Key instead.
