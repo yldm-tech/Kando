@@ -22,6 +22,10 @@ type filmPlay struct {
 	path     string
 	duration time.Duration
 	paused   bool
+	// backgroundPaused is set when the app paused an active film while it was
+	// inactive, so becoming active can resume only that film and not a film
+	// the user had paused themselves.
+	backgroundPaused bool
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool
 	// played is set once this playback has played: opened playing at a point picked for it (a seek, 继续, 从头看) or started with play. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
@@ -175,6 +179,39 @@ func (a *app) stopPlayback() {
 		play.audio.Close()
 	}
 	play.player.Close()
+}
+
+// playerDidResignActive pauses both clocks while the app is in the background.
+// VideoPlayer deliberately stops advancing when its surface is hidden, while
+// audio is a separate process that would otherwise keep running.
+func (a *app) playerDidResignActive() {
+	p := a.player.play
+	if p == nil || p.finished || p.paused || !p.player.Playing() {
+		return
+	}
+	p.backgroundPaused = true
+	p.paused = true
+	p.player.Pause()
+	if p.audio != nil {
+		p.audio.Pause()
+	}
+}
+
+// playerDidBecomeActive resumes only playback that playerDidResignActive
+// paused, keeping the picture and sound on the same position.
+func (a *app) playerDidBecomeActive() {
+	p := a.player.play
+	if p == nil || !p.backgroundPaused {
+		return
+	}
+	p.backgroundPaused = false
+	p.paused = false
+	if p.audio != nil {
+		p.audio.Play()
+	} else {
+		p.restartAudio()
+	}
+	p.player.Play()
 }
 
 // playhead is how far the picture itself has gotten. It stays on the last frame once the file ends, instead of following the time since play was pressed.

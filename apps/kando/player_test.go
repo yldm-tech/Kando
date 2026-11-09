@@ -250,6 +250,29 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 	}
 }
 
+func TestPlaybackPausesWhileAppIsInactive(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	p := stillPlay(t, "", 0, true)
+	a.player.play = p
+
+	a.playerDidResignActive()
+	if !p.backgroundPaused || !p.paused || p.player.Playing() {
+		t.Fatalf("inactive playback: background %v paused %v playing %v", p.backgroundPaused, p.paused, p.player.Playing())
+	}
+	a.playerDidBecomeActive()
+	if p.backgroundPaused || p.paused || !p.player.Playing() {
+		t.Fatalf("active playback: background %v paused %v playing %v", p.backgroundPaused, p.paused, p.player.Playing())
+	}
+
+	p.player.Pause()
+	p.paused = true
+	a.playerDidResignActive()
+	a.playerDidBecomeActive()
+	if p.player.Playing() {
+		t.Fatal("a film paused by the user resumed after activation")
+	}
+}
+
 func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
