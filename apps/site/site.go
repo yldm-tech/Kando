@@ -118,6 +118,28 @@ type page struct {
 	WebMCP   agentData
 	// BuildCommands are the commands of the Build from source card.
 	BuildCommands string
+	// Echo is the headline in another language, set under the page's own headline the way Kando sets a translation under a line of dialogue: Chinese on the English page, English on every other.
+	Echo echo
+}
+
+// echo is a line of another page, with the language it is written in.
+type echo struct {
+	Lang language
+	Text string
+}
+
+// echoLang is the language of the page whose headline the page in l repeats under its own.
+func echoLang(l language, langs []language) language {
+	want := sourceLang
+	if l.Code == sourceLang {
+		want = "zh-CN"
+	}
+	for _, o := range langs {
+		if o.Code == want {
+			return o
+		}
+	}
+	return l
 }
 
 // missingText is 404.html's text in one language.
@@ -201,6 +223,9 @@ func build(root, out string) (*report, error) {
 			if o.Code != l.Code {
 				p.Others = append(p.Others, o)
 			}
+		}
+		if e := echoLang(l, langs); e.Code != l.Code {
+			p.Echo = echo{Lang: e, Text: content[e.Code]["heroTitle"]}
 		}
 		if err := execute(tmpl, "page.html", content[l.Code], used, p, filepath.Join(out, filepath.FromSlash(strings.TrimPrefix(l.Path(), "/")), "index.html")); err != nil {
 			return nil, fmt.Errorf("%s: %w", l.Code, err)

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"image/png"
 	"io/fs"
 	"os"
@@ -534,5 +535,25 @@ func TestBuildRefusesForeignFolder(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, "keep.txt")); err != nil {
 		t.Errorf("keep.txt is gone: %v", err)
+	}
+}
+
+// Under its headline each page sets the headline of another page in that page's language: the Simplified Chinese one on the English page, the English one on every other.
+func TestHeadlineEcho(t *testing.T) {
+	content, err := loadContent(filepath.Join(repoRoot, "apps", "site", "content"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range built.rep.Langs {
+		t.Run(l.Code, func(t *testing.T) {
+			want := echoLang(l, built.rep.Langs)
+			if want.Code == l.Code {
+				t.Fatalf("the %s page echoes itself", l.Code)
+			}
+			line := fmt.Sprintf(`<p class="echo" lang="%s" aria-hidden="true">%s</p>`, want.Tag, template.HTMLEscapeString(content[want.Code]["heroTitle"]))
+			if !strings.Contains(readOut(t, pageFile(l)), line) {
+				t.Errorf("no %s", line)
+			}
+		})
 	}
 }
