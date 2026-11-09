@@ -1,0 +1,116 @@
+name: Tools
+
+# Builds the ffmpeg and whisper-cli that Kando downloads on its first launch (.github/scripts/build-tools.sh, from the sources .github/tools.env pins), one runner per platform, and publishes them as the assets of the prerelease TOOLS_RELEASE. A release that exists is left as it is: Kando pins the SHA-256 of each asset (packages/media/toolkit.go), so changing what is built takes a new TOOLS_RELEASE, and the Check job then fails until the pins name the new assets.
+on:
+  push:
+    paths:
+      - .github/tools.env
+      - .github/scripts/build-tools.sh
+      - .github/workflows/tools.yml
+      - packages/media/toolkit.go
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tools-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: darwin-arm64, os: macos-latest }
+          - { target: darwin-amd64, os: macos-15-intel }
+          # Built on an older Ubuntu, so the programs need no newer glibc than the systems Kando supports.
+          - { target: linux-amd64, os: ubuntu-latest, container: "ubuntu:22.04" }
+          - { target: linux-arm64, os: ubuntu-24.04-arm, container: "ubuntu:22.04" }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the build tools
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            brew install meson ninja nasm
+          else
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential cmake curl ca-certificates xz-utils binutils
+          fi
+      - name: Build
+        run: .github/scripts/build-tools.sh "${{ matrix.target }}" dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tools-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: build
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: tools-*
+          path: dist
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . .github/tools.env
+          if gh release view "$TOOLS_RELEASE" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$TOOLS_RELEASE exists and is left as it is." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          (cd dist && sha256sum *) > "$RUNNER_TEMP/sums.txt"
+          {
+            echo "The ffmpeg and whisper-cli that Kando downloads on its first launch, built by the Tools workflow from the sources pinned in .github/tools.env (ffmpeg $FFMPEG_VERSION, whisper.cpp $WHISPER_VERSION). Each archive carries the licenses of what it holds."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/sums.txt"
+            echo '```'
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "$TOOLS_RELEASE" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false --title "Kando tools ($TOOLS_RELEASE)" --notes-file "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md" >> "$GITHUB_STEP_SUMMARY"
+
+  check:
+    name: Check the pins
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # What Kando downloads is what the release holds: every asset's checksum is pinned in toolkit.go.
+      - name: Compare the release with toolkit.go
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          . .github/tools.env
+          gh release download "$TOOLS_RELEASE" --repo "$GITHUB_REPOSITORY" --dir assets
+          missing=0
+          for file in assets/*; do
+            sum=$(sha256sum "$file" | cut -d' ' -f1)
+            if ! grep -q "$sum" packages/media/toolkit.go; then
+              echo "::error::packages/media/toolkit.go does not pin ${file#assets/} ($sum)"
+              missing=1
+            fi
+          done
+          exit $missing
