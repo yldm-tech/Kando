@@ -35,7 +35,7 @@
         </summary>
         <ul class="lang-menu">
           {{- range .Langs}}
-          <li><a href="{{.Path}}" hreflang="{{.Tag}}" lang="{{.Tag}}" data-lang="{{.Code}}"{{if eq .Code $.Lang.Code}} aria-current="page"{{end}}>{{.Name}}</a></li>
+          <li><a href="{{.Path}}" hreflang="{{.Tag}}" lang="{{.Tag}}" data-lang="{{.Code}}"{{if and (not $.NotFound) (eq .Code $.Lang.Code)}} aria-current="page"{{end}}>{{.Name}}</a></li>
           {{- end}}
         </ul>
       </details>
@@ -67,7 +67,7 @@
     </nav>
     <nav class="foot-langs" aria-label="{{t "languageLabel"}}">
       {{- range .Langs}}
-      <a href="{{.Path}}" hreflang="{{.Tag}}" lang="{{.Tag}}" data-lang="{{.Code}}"{{if eq .Code $.Lang.Code}} aria-current="page"{{end}}>{{.Name}}</a>
+      <a href="{{.Path}}" hreflang="{{.Tag}}" lang="{{.Tag}}" data-lang="{{.Code}}"{{if and (not $.NotFound) (eq .Code $.Lang.Code)}} aria-current="page"{{end}}>{{.Name}}</a>
       {{- end}}
     </nav>
   </div>

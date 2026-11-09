@@ -69,14 +69,24 @@
 }
 
 /* Each script gets its own CJK face first, so that shared characters take the glyph shapes its readers expect. */
+:lang(zh-Hans) {
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+}
 :lang(zh-Hant) {
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "PingFang TC", "Hiragino Sans", "Noto Sans CJK TC", "Microsoft JhengHei", sans-serif;
 }
 :lang(ja) {
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Yu Gothic", "Meiryo", sans-serif;
+  /* No line starts with the long-vowel mark ー or small kana, as Japanese typesetting expects. */
+  line-break: strict;
 }
 :lang(ko) {
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Noto Sans CJK KR", "Malgun Gothic", sans-serif;
+}
+
+/* font-family inherits as a computed value, so an element with a lang of its own (a language name in the switcher, a line of 404.html) sets it again from its own --font; html is one of them, so this also sets the page's font. */
+[lang] {
+  font-family: var(--font);
 }
 
 *,
@@ -108,7 +118,10 @@ body:lang(ko) {
 
 :lang(ja) h1,
 :lang(ja) h2,
-:lang(ja) h3 {
+:lang(ja) h3,
+:lang(ja) p,
+:lang(ja) dd,
+:lang(ja) figcaption {
   word-break: auto-phrase;
 }
 
@@ -439,6 +452,19 @@ code {
   font-size: 14px;
 }
 
+/* The build link sits in running text, so an underline rather than its color alone marks it as a link (WCAG 1.4.1). It stays on one line, and the space before it is set here: a Chinese or Japanese full stop already carries its own. */
+.note a {
+  margin-inline-start: 0.3em;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+:lang(zh) .note a,
+:lang(ja) .note a {
+  margin-inline-start: 0;
+}
+
 .platforms {
   display: flex;
   flex-wrap: wrap;
@@ -526,7 +552,8 @@ code {
   height: 32px;
   flex: none;
   border-radius: 50%;
-  background: var(--grad);
+  /* The darker gradient, as on the primary button: white small text needs 4.5:1, which --grad does not reach. */
+  background: var(--grad-strong);
   color: var(--on-grad);
   font-size: 14px;
   font-weight: 700;
@@ -566,13 +593,13 @@ code {
     gap: 24px;
   }
 
-  /* A line through the numbers joins the steps. */
+  /* A line through the numbers joins the steps, from the center of the first circle to the center of the fifth: a column is (100% - 4 gaps of 24px) / 5 wide and a circle 32px. */
   .steps::before {
     content: "";
     position: absolute;
     top: 16px;
     left: 16px;
-    right: 16px;
+    right: calc((100% - 4 * 24px) / 5 - 16px);
     height: 2px;
     background: var(--grad);
     opacity: 0.35;
@@ -675,14 +702,14 @@ code {
   font-weight: 700;
 }
 
-/* The app's plate colors under the initial of a site without a logo (apps/kando/sites.plates). */
-.plate-0 { background: #4c6ef5; }
-.plate-1 { background: #12b886; }
-.plate-2 { background: #f08c00; }
-.plate-3 { background: #e64980; }
+/* The app's plate hues under the initial of a site without a logo (apps/kando/sites.plates), darkened where the app's own color gives the white initial less than 4.5:1. */
+.plate-0 { background: #3b5bdb; }
+.plate-1 { background: #087f5b; }
+.plate-2 { background: #b35f00; }
+.plate-3 { background: #c2255c; }
 .plate-4 { background: #7950f2; }
-.plate-5 { background: #15aabf; }
-.plate-6 { background: #fa5252; }
+.plate-5 { background: #0f7d8c; }
+.plate-6 { background: #d63939; }
 .plate-7 { background: #5c7c2e; }
 
 .logos .logos-more {
@@ -854,23 +881,29 @@ code {
   color: var(--muted);
 }
 
+/* A command wraps rather than scrolls: a sideways scrollbar is hidden on macOS and iOS, so a cut-off line would look like the whole command. The copy button sits in the top right corner, over the room the padding keeps free for it; copying reads the code's text, which the wrapping does not change. */
 .code {
-  display: flex;
-  align-items: flex-start;
+  position: relative;
+  display: block;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--code-bg);
 }
 
 .code pre {
-  flex: 1 1 auto;
-  min-width: 0;
   margin: 0;
-  padding: 14px 16px;
-  overflow-x: auto;
+  padding: 14px 84px 14px 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: visible;
   color: var(--code-text);
   font-size: 13.5px;
   line-height: 1.65;
+}
+
+/* コピーしました, the Japanese label after copying, is the widest. */
+:lang(ja) .code pre {
+  padding-right: 124px;
 }
 
 .code code {
@@ -878,8 +911,10 @@ code {
 }
 
 .copy {
-  flex: none;
-  margin: 9px 9px 0 0;
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  margin: 0;
   height: 28px;
   padding: 0 10px;
   border-radius: 7px;

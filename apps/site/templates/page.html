@@ -48,7 +48,7 @@
           {{t "heroSource"}}
         </a>
       </div>
-      <p class="note">{{t "heroReleaseNote"}} <a href="#build">{{t "heroBuildLink"}}</a></p>
+      <p class="note">{{t "heroReleaseNote"}}<a href="#build">{{t "heroBuildLink"}}</a></p>
       <p class="platforms"><span>{{t "heroPlatforms"}}</span> <span class="audio">{{t "heroAudioNote"}}</span></p>
     </div>
     <div class="wrap">
@@ -108,7 +108,7 @@
           <p>{{t "featureSitesBody"}}</p>
           <ul class="logos" aria-label="{{t "sitesStripLabel"}}">
             {{- range .Sites}}
-            <li title="{{.Name}}">
+            <li title="{{.Name}}"{{if .Lang}} lang="{{.Lang}}"{{end}}>
               {{- if .Logo}}<img src="{{.Logo}}" width="24" height="24" alt="{{.Name}}" loading="lazy" decoding="async">
               {{- else}}<span class="initial plate-{{.Plate}}" role="img" aria-label="{{.Name}}">{{.Initial}}</span>{{end -}}
             </li>
@@ -195,7 +195,6 @@
           <p class="fine">{{t "startToolsAudio"}}</p>
         </article>
         <article class="card" id="build">
-          <span class="n" aria-hidden="true">3</span>
           <h3>{{t "startBuildTitle"}}</h3>
           <p>{{t "startBuildBody"}}</p>
           {{template "code" (code `git clone https://github.com/yldm-tech/Kando.git
