@@ -5,6 +5,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/sectionid"
 )
 
@@ -19,21 +20,21 @@ const (
 	SectionAccount   = sectionid.Account
 )
 
-// section is one category of the settings window: its title, its tile in the sidebar and the words the search field finds it by besides its title.
+// section is one category of the settings window: its title, its tile in the sidebar and the words the search field finds it by besides its title. The title and the keywords are read in the interface's language each time they are used.
 type section struct {
-	id, title string
-	icon      *ui.SVG
-	keywords  string
+	id              string
+	title, keywords func() string
+	icon            *ui.SVG
 }
 
 var sections = []section{
-	{SectionGeneral, "通用", iconGeneral, "资料库 位置 访达 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测"},
-	{SectionSpeech, "语音识别", iconSpeech, "whisper 模型 下载 识别 HuggingFace Vimpo hyperframes"},
-	{SectionAI, "AI 服务", iconAI, "翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接"},
-	{SectionTranslate, "翻译", iconTranslate, "目标语言 智能翻译 上下文 提示词 恢复默认"},
-	{SectionLook, "字幕外观", iconLook, "字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览"},
-	{SectionShortcuts, "快捷键", iconShortcuts, "键盘 按键 命令"},
-	{SectionAccount, "账号与上传", iconAccount, "Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式"},
+	{SectionGeneral, locales.SettingsSectionGeneral, locales.SettingsKeywordsGeneral, iconGeneral},
+	{SectionSpeech, locales.SettingsSectionSpeech, locales.SettingsKeywordsSpeech, iconSpeech},
+	{SectionAI, locales.SettingsSectionAI, locales.SettingsKeywordsAI, iconAI},
+	{SectionTranslate, locales.SettingsSectionTranslate, locales.SettingsKeywordsTranslate, iconTranslate},
+	{SectionLook, locales.SettingsSectionLook, locales.SettingsKeywordsLook, iconLook},
+	{SectionShortcuts, locales.SettingsSectionShortcuts, locales.SettingsKeywordsShortcuts, iconShortcuts},
+	{SectionAccount, locales.SettingsSectionAccount, locales.SettingsKeywordsAccount, iconAccount},
 }
 
 // Known reports whether id is one of the Section values.
@@ -46,7 +47,7 @@ func Known(id string) bool {
 	return false
 }
 
-// Title is the heading of section id, as the settings window's sidebar lists it, or "" for an id that is not a section. The command palette names the sections it opens by it.
+// Title is the heading of section id in the interface's language, as the settings window's sidebar lists it, or "" for an id that is not a section. The command palette names the sections it opens by it.
 func Title(id string) string { return title(id) }
 
 // IDs are the sections in the order the settings window's sidebar lists them.
@@ -62,7 +63,7 @@ func IDs() []string {
 func title(id string) string {
 	for _, s := range sections {
 		if s.id == id {
-			return s.title
+			return s.title()
 		}
 	}
 	return ""
@@ -74,5 +75,5 @@ func (s section) matches(query string) bool {
 	if q == "" {
 		return true
 	}
-	return strings.Contains(strings.ToLower(s.title+" "+s.keywords), q)
+	return strings.Contains(strings.ToLower(s.title()+" "+s.keywords()), q)
 }

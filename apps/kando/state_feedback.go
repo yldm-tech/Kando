@@ -14,6 +14,8 @@ import (
 	"kando/apps/kando/feedback"
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/films/sitename"
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 	"kando/packages/media"
 )
@@ -24,9 +26,9 @@ type feedbackUI struct {
 	form feedback.Form
 	// copied is the body 拷贝正文 copied last, so the button reads 已拷贝 until the form changes the body.
 	copied string
-	// sending is set while the browser is being asked to open the issue; err says why it could not.
+	// sending is set while the browser is being asked to open the issue; err is why it could not, which FeedbackView words in the interface's language.
 	sending bool
-	err     string
+	err     error
 	// gen counts the dialog's openings, so a browser that answers after the dialog closed and opened again does not close the new one.
 	gen int
 	// release gives back the window's modal flag (holdModal) the dialog holds while it is open; feedbackHooks' afterFrame runs it once the dialog has closed.
@@ -52,17 +54,17 @@ func (a *app) feedbackHooks() areaHooks {
 
 // feedbackKeys are the dialog's rows of the shortcut table, in the 帮助 menu without a key, as the prototype has them: 反馈问题…, and 反馈这部影片的字幕… while a film is open or 反馈字幕质量… otherwise.
 func (a *app) feedbackKeys() []shortcut {
-	subs := "反馈字幕质量…"
+	subs := locales.FeedbackMenuSubs()
 	if a.openKey != "" {
-		subs = "反馈这部影片的字幕…"
+		subs = locales.FeedbackMenuFilmSubs()
 	}
 	return []shortcut{
-		{Group: "帮助", Label: "反馈问题…", Run: func() { a.openFeedback(feedback.KindBug) }},
-		{Group: "帮助", Label: subs, Run: func() { a.openFeedback(feedback.KindSubs) }},
+		{Group: groupHelp, Label: locales.FeedbackMenuReport(), Run: func() { a.openFeedback(feedback.KindBug) }},
+		{Group: groupHelp, Label: subs, Run: func() { a.openFeedback(feedback.KindSubs) }},
 	}
 }
 
-// openFeedback opens the dialog afresh for kind. It attaches the app's and the tools' versions, and the open film's state when a film is open; the subtitle line stays off until the user ticks it, as it goes to a public issue. Feedback on a film's subtitles is titled after the film. A playing film pauses, as the dialog covers it.
+// openFeedback opens the dialog afresh for kind. It attaches the app's and the tools' versions, and the open film's state when a film is open; the subtitle line stays off until the user ticks it, as it goes to a public issue. Feedback on a film's subtitles is titled after the film, in Chinese as the rest of the issue (feedback.Report.Body). A playing film pauses, as the dialog covers it.
 func (a *app) openFeedback(kind feedback.Kind) {
 	form := feedback.Form{Kind: int(kind), Env: true, Tools: true}
 	if item, ok := a.feedbackFilm(); ok {
@@ -76,7 +78,7 @@ func (a *app) openFeedback(kind feedback.Kind) {
 	}
 	a.feedback.open = true
 	a.feedback.form = form
-	a.feedback.copied, a.feedback.err, a.feedback.sending = "", "", false
+	a.feedback.copied, a.feedback.err, a.feedback.sending = "", nil, false
 	a.feedback.gen++
 	if a.feedback.release == nil {
 		a.feedback.release = a.holdModal()
@@ -140,9 +142,9 @@ func feedbackTranslator(base, model string) string {
 	return name
 }
 
-// feedbackFilmLines is the open film's state as the issue lists it: where it comes from, the language it is translated into, how far its job got and why it failed, and how many of its subtitles have a translation. The film's link and folder are left out; feedback.NoLinks and feedback.NoPaths take links and paths out of the errors, as a tool writes them.
+// feedbackFilmLines is the open film's state as the issue lists it, in Chinese as the rest of the issue (feedback.Report.Body): where it comes from, the language it is translated into, how far its job got and why it failed, and how many of its subtitles have a translation. The film's link and folder are left out; feedback.NoLinks and feedback.NoPaths take links and paths out of the errors, as a tool writes them.
 func (a *app) feedbackFilmLines(item films.Film) []string {
-	lines := []string{"来源：" + films.SourceLabel(item)}
+	lines := []string{"来源：" + feedbackSource(item)}
 	if item.Language != "" {
 		lines = append(lines, "字幕语言："+item.Language)
 	}
@@ -158,7 +160,7 @@ func (a *app) feedbackFilmLines(item films.Film) []string {
 	if a.player.subs.key == item.Key && a.player.subs.ready {
 		switch {
 		case a.player.subs.err != "":
-			lines = append(lines, "字幕："+feedback.NoPaths(feedback.NoLinks(a.player.subs.err)))
+			lines = append(lines, "字幕："+feedback.NoPaths(feedback.NoLinks(playerErrTextIn(locales.In(feedbackIssueLanguage), a.player.subs.err))))
 		case len(a.player.subs.cues) > 0:
 			missing := 0
 			for _, cue := range a.player.subs.cues {
@@ -178,6 +180,29 @@ func (a *app) feedbackFilmLines(item films.Film) []string {
 	}
 	return lines
 }
+
+// feedbackSource names where the film comes from as the issue writes it, in Chinese whatever the interface's language: the platform of its link, or 本地文件.
+func feedbackSource(item films.Film) string {
+	link, ok := core.ParseLink(item.Source)
+	if !ok {
+		return "本地文件"
+	}
+	switch link.Platform {
+	case core.PlatformYouTube:
+		return "YouTube"
+	case core.PlatformBilibili:
+		return "哔哩哔哩"
+	case core.PlatformLocal:
+		return "本地文件"
+	}
+	if name := sitename.In(locales.In(feedbackIssueLanguage), link.Site); name != "" {
+		return name
+	}
+	return link.Host
+}
+
+// feedbackIssueLanguage is the language the issue is written in, whatever the interface's: the maintainers read the issues in one language, so their headings and facts read alike.
+const feedbackIssueLanguage = "zh-Hans"
 
 // feedbackStage names a job's stage as the issue writes it.
 func feedbackStage(stage core.Stage) string {

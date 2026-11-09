@@ -41,10 +41,11 @@ func TestEffectiveLeavesOutTheTarget(t *testing.T) {
 
 // TestStepsNameThisComputer checks that the second step names the machine as the platform calls it, so Linux and Windows do not read 这台 Mac.
 func TestStepsNameThisComputer(t *testing.T) {
+	machine := map[bool]string{true: "这台 Mac", false: "这台电脑"}[runtime.GOOS == "darwin"]
 	_, description := heading(2)
 	for _, text := range []string{caption(2), description} {
-		if !strings.Contains(text, thisComputer) {
-			t.Fatalf("%q does not name %q", text, thisComputer)
+		if !strings.Contains(text, machine) {
+			t.Fatalf("%q does not name %q", text, machine)
 		}
 		if runtime.GOOS != "darwin" && strings.Contains(text, "Mac") {
 			t.Fatalf("%q says Mac on %s", text, runtime.GOOS)

@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/sidebar"
@@ -317,7 +319,7 @@ func TestDropQueuesEveryVideo(t *testing.T) {
 		if queued && !tt.HasText(name) {
 			t.Fatalf("no card for %s: %q", name, tt.Texts())
 		}
-		if !queued && !tt.HasText(errBusy.Error()) {
+		if !queued && !tt.HasText(errBusy().Error()) {
 			t.Fatalf("%s was dropped without a word: %q", name, tt.Texts())
 		}
 	}
@@ -339,14 +341,14 @@ func TestDropWithoutVideosSaysWhatCanBeAdded(t *testing.T) {
 	}
 	a.dropFiles([]string{note})
 	tt.Frame()
-	if len(a.library.Jobs) != 0 || !tt.HasText(noticeNoVideo) {
+	if len(a.library.Jobs) != 0 || !tt.HasText(locales.PrecheckNoVideo()) {
 		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
 	}
 	if err := tt.Click("关闭提示"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if tt.HasText(noticeNoVideo) {
+	if tt.HasText(locales.PrecheckNoVideo()) {
 		t.Fatal("the message bar stayed after ×")
 	}
 }
@@ -401,7 +403,7 @@ func TestDropElsewhereShowsTheLibrary(t *testing.T) {
 		if a.page != pageFilms || a.openKey != "" || a.PlaybackOpen() {
 			t.Fatalf("page %q open %q playback %v", a.page, a.openKey, a.PlaybackOpen())
 		}
-		if !tt.HasText(noticeNoVideo) {
+		if !tt.HasText(locales.PrecheckNoVideo()) {
 			t.Fatalf("the message bar is not shown: %q", tt.Texts())
 		}
 	})
@@ -450,7 +452,7 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 				return true
 			}
 		}
-		return tt.HasText(errBusy.Error())
+		return tt.HasText(errBusy().Error())
 	}
 	tt.Frame()
 
@@ -494,7 +496,7 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if job, _ := a.library.Find(left); job.Stage != core.StageQueued && !tt.HasText(errBusy.Error()) {
+	if job, _ := a.library.Find(left); job.Stage != core.StageQueued && !tt.HasText(errBusy().Error()) {
 		t.Fatalf("重试 while a job runs did nothing: %+v %q", job, tt.Texts())
 	}
 }
@@ -671,14 +673,14 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 		msg     string
 		section string
 	}{
-		{name: "empty", sources: []string{"  "}, msg: noticeEmpty},
-		{name: "not a link", sources: []string{"hello"}, msg: noticeNotLink},
-		{name: "no library", sources: link, noLib: true, msg: noticeNoLib},
-		{name: "no yt-dlp", sources: link, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: noticeTools + "：yt-dlp", section: settings.SectionGeneral},
-		{name: "a local file still needs yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: noticeTools + "：yt-dlp", section: settings.SectionGeneral},
-		{name: "no model", sources: link, tools: func(t *media.Tools) { t.WhisperModel = "" }, msg: noticeModel, section: settings.SectionSpeech},
-		{name: "no LLM model", sources: link, tools: func(t *media.Tools) { t.Translator.Model = "" }, msg: noticeLLMModel, section: settings.SectionAI},
-		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }, msg: noticeEveryAPI, section: settings.SectionAI},
+		{name: "empty", sources: []string{"  "}, msg: locales.PrecheckEmpty()},
+		{name: "not a link", sources: []string{"hello"}, msg: locales.PrecheckNotLink()},
+		{name: "no library", sources: link, noLib: true, msg: locales.PrecheckNoLibrary()},
+		{name: "no yt-dlp", sources: link, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: locales.PrecheckToolsMissing("yt-dlp"), section: settings.SectionGeneral},
+		{name: "a local file still needs yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: locales.PrecheckToolsMissing("yt-dlp"), section: settings.SectionGeneral},
+		{name: "no model", sources: link, tools: func(t *media.Tools) { t.WhisperModel = "" }, msg: locales.PrecheckNoSpeechModel(), section: settings.SectionSpeech},
+		{name: "no LLM model", sources: link, tools: func(t *media.Tools) { t.Translator.Model = "" }, msg: locales.PrecheckNoLLMModel(), section: settings.SectionAI},
+		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }, msg: locales.PrecheckNotSignedIn(), section: settings.SectionAI},
 		{name: "ready", sources: link},
 	} {
 		tools := ready
@@ -721,7 +723,7 @@ func TestPrecheckAsksForWhatCheckAsks(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), name+" is not installed") {
 			t.Fatalf("without %s Check = %v", name, err)
 		}
-		if msg != noticeTools+"："+name {
+		if msg != locales.PrecheckToolsMissing(name) {
 			t.Errorf("without %s precheck let a local video through to a Check that fails with %v", name, err)
 		}
 	}
@@ -734,7 +736,7 @@ func TestNoticeOpensTheSettingThatFixesIt(t *testing.T) {
 	a, tt, _ := newTestApp(media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", Translator: media.ChatTranslator{Model: "m", APIKey: "k"}})
 	startJob(t, tt, "https://youtu.be/TRWgBxVAb1M")
 	tt.Frame()
-	if len(a.library.Jobs) != 0 || !tt.HasText(noticeModel) || a.queue.source == "" {
+	if len(a.library.Jobs) != 0 || !tt.HasText(locales.PrecheckNoSpeechModel()) || a.queue.source == "" {
 		t.Fatalf("jobs %d source %q texts %q", len(a.library.Jobs), a.queue.source, tt.Texts())
 	}
 	if err := tt.Click("打开设置"); err != nil {
@@ -747,7 +749,7 @@ func TestFailedCardOpensTheSettingThatFixesIt(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.library.Jobs = []core.Job{{ID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageFailed, Err: errors.New("check: KANDO_WHISPER_MODEL is not set"), LibraryDir: "/videos"}}
 	tt.Frame()
-	if !tt.HasText(noticeModel) || !tt.HasText("1 个需要处理") {
+	if !tt.HasText(locales.PrecheckNoSpeechModel()) || !tt.HasText("1 个需要处理") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	if err := tt.Click("打开设置"); err != nil {
@@ -1108,5 +1110,34 @@ func TestCoverJPEG(t *testing.T) {
 	}
 	if _, err := coverJPEG([]byte("<html>not found</html>")); err == nil {
 		t.Fatal("a page passed for a picture")
+	}
+}
+
+// TestLibraryInEnglish reads the library page in English: the hero of the film finished last and its poster, a waiting and a failed job, the top bar, and the dialog that removes a film.
+func TestLibraryInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _ := libraryWith(t, "Talk")
+	lib := a.snap().LibraryDir
+	a.library.Jobs = append(a.library.Jobs,
+		core.Job{ID: "wait", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Stage: core.StageQueued, LibraryDir: lib},
+		core.Job{ID: "stop", Source: "https://vimeo.com/76979871", Stage: core.StageFailed, Err: context.Canceled, LibraryDir: lib},
+	)
+	tt.Frame()
+	for _, want := range []string{
+		"Recently Finished · Simplified Chinese Bilingual", "Play", "Show in Finder",
+		"Bilingual · CHS", "All Films", "1 film",
+		"Processing", "1 in progress · 1 needs attention", "Queued · Waiting for the jobs ahead", "Canceled", "Retry", "Remove",
+		"Start Processing", "Local Video",
+	} {
+		wantText(t, tt, want)
+	}
+	a.AskRemove(a.films()[0])
+	tt.Frame()
+	wantText(t, tt, "Remove “Talk” from the library?")
+	wantText(t, tt, "The film's folder will be moved to the Trash. You can get its video, cover and subtitles back from there.")
+	for _, chinese := range []string{"最近完成", "处理中", "开始处理", "已取消", "移除"} {
+		if tt.HasText(chinese) {
+			t.Fatalf("the library still reads %q: %q", chinese, tt.Texts())
+		}
 	}
 }

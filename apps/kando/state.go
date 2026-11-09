@@ -4,6 +4,7 @@ import (
 	"maps"
 	"slices"
 
+	"kando/apps/kando/locales"
 	"kando/packages/media"
 
 	"github.com/yldm-tech/nodra"
@@ -23,7 +24,7 @@ type session struct {
 }
 
 func newSessionStore() *nodra.Store[session] {
-	return nodra.NewWithClone(session{LibraryName: "影视库"}, cloneSession)
+	return nodra.NewWithClone(session{LibraryName: locales.LibraryDefaultName()}, cloneSession)
 }
 
 func cloneSession(s session) session {
@@ -36,7 +37,7 @@ func cloneSession(s session) session {
 
 func (a *app) snap() session {
 	if a.store == nil {
-		return session{LibraryName: "影视库"}
+		return session{LibraryName: locales.LibraryDefaultName()}
 	}
 	return a.store.Get()
 }

@@ -5,13 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"kando/apps/kando/cloud"
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 )
 
@@ -20,7 +20,7 @@ func (a *app) SignInGoogle() {
 		return
 	}
 	a.cloud.googleBusy = true
-	a.cloud.googleErr = ""
+	a.cloud.googleErr = nil
 	cfg := cloud.GoogleConfig{
 		ClientID:     os.Getenv("KANDO_GOOGLE_CLIENT_ID"),
 		ClientSecret: os.Getenv("KANDO_GOOGLE_CLIENT_SECRET"),
@@ -37,13 +37,13 @@ func (a *app) SignInGoogle() {
 		a.update(func() {
 			a.cloud.googleBusy = false
 			if err != nil {
-				a.cloud.googleErr = "Google 登录没有完成"
+				a.cloud.googleErr = locales.AccountGoogleFailed
 				return
 			}
 			a.cloud.googleEmail = acc.Email
 			a.cloud.googleRefresh = acc.RefreshToken
 			if saveErr := a.saveSettings(); saveErr != nil {
-				a.cloud.googleErr = "账号无法保存"
+				a.cloud.googleErr = locales.AccountSaveFailed
 			}
 		})
 	}()
@@ -52,10 +52,10 @@ func (a *app) SignInGoogle() {
 func (a *app) SignOutGoogle() {
 	a.cloud.googleEmail = ""
 	a.cloud.googleRefresh = ""
-	a.cloud.googleErr = ""
+	a.cloud.googleErr = nil
 	a.cloud.googleBusy = false
 	if err := a.saveSettings(); err != nil {
-		a.cloud.googleErr = "账号无法保存"
+		a.cloud.googleErr = locales.AccountSaveFailed
 	}
 }
 
@@ -73,28 +73,28 @@ func (a *app) UploadView(item films.Film) film.Upload {
 		return view
 	}
 	if a.cloud.uploadPath != "" {
-		view.Detail = "正在上传另一部影片"
+		view.Detail = locales.AccountUploadingOther()
 		view.Status = film.UploadBlocked
 		return view
 	}
 	if reason := a.uploadBlocked(); reason != "" {
 		view.Detail = reason
 		view.Status = film.UploadBlocked
-		view.Fix = "去设置"
+		view.Fix = locales.AccountFixSettings()
 		if strings.TrimSpace(a.cloud.googleEmail) == "" {
-			view.Fix = "去登录"
+			view.Fix = locales.AccountFixSignIn()
 		}
 		return view
 	}
 	view.Enabled = true
 	done := a.uploadMemo(item.VideoPath)
-	if a.cloud.uploadErrPath == done && a.cloud.uploadErr != "" {
-		view.Detail = a.cloud.uploadErr
+	if a.cloud.uploadErrPath == done && a.cloud.uploadErr != nil {
+		view.Detail = a.cloud.uploadErr()
 		view.Status = film.UploadFailed
 		return view
 	}
 	if key := a.cloud.uploaded[done]; key != "" {
-		view.Detail = "已上传 " + key
+		view.Detail = locales.AccountUploaded(key)
 		view.Status = film.UploadDone
 	}
 	return view
@@ -106,8 +106,8 @@ func (a *app) BeginUpload(item films.Film) {
 	}
 	info, err := os.Stat(item.VideoPath)
 	if err != nil || info.IsDir() {
-		a.cloud.uploadErr = "视频文件不在本地"
-		a.cloud.uploadErrPath = item.VideoPath
+		a.cloud.uploadErr = locales.AccountVideoMissing
+		a.cloud.uploadErrPath = a.uploadMemo(item.VideoPath)
 		return
 	}
 	lib := sidebar.Title(a.snap().LibraryDir)
@@ -128,7 +128,7 @@ func (a *app) BeginUpload(item films.Film) {
 	}
 	a.cloud.uploadPath = item.VideoPath
 	a.cloud.uploadWritten, a.cloud.uploadTotal = 0, 0
-	a.cloud.uploadErr = ""
+	a.cloud.uploadErr = nil
 	a.cloud.uploadErrPath = ""
 	cfg := a.currentStore()
 	videoPath := item.VideoPath
@@ -154,7 +154,7 @@ func (a *app) runUpload(videoPath, videoKey string, cfg cloud.Store, files []clo
 		a.cloud.uploadWritten, a.cloud.uploadTotal = 0, 0
 		done := storeKind(cfg.Kind) + "\n" + videoPath
 		if err != nil {
-			a.cloud.uploadErr = uploadFailure(err, cfg.Secret, cfg.AccessKey)
+			a.cloud.uploadErr = func() string { return uploadFailure(err, cfg.Secret, cfg.AccessKey) }
 			a.cloud.uploadErrPath = done
 			return
 		}
@@ -178,23 +178,28 @@ func (a *app) putFiles(ctx context.Context, cfg cloud.Store, files []cloud.File,
 
 func (a *app) uploadBlocked() string {
 	if strings.TrimSpace(a.cloud.googleEmail) == "" {
-		return "先在「设置 › 账号与上传」里登录 Google"
+		return locales.AccountNeedsSignIn()
 	}
 	cfg := a.currentStore()
 	if storeReady(cfg) {
 		return ""
 	}
-	switch cfg.Kind {
+	return locales.AccountNeedsStore(uploadStoreName(cfg.Kind))
+}
+
+// uploadStoreName names a kind of storage as the upload button and its messages do: the brand of R2, S3, OSS and COS, and S3 兼容 in the interface's language.
+func uploadStoreName(kind string) string {
+	switch kind {
 	case cloud.KindS3:
-		return "先在「设置 › 账号与上传」里填写 S3"
+		return "S3"
 	case cloud.KindOSS:
-		return "先在「设置 › 账号与上传」里填写 OSS"
+		return "OSS"
 	case cloud.KindCOS:
-		return "先在「设置 › 账号与上传」里填写 COS"
+		return "COS"
 	case cloud.KindCompat:
-		return "先在「设置 › 账号与上传」里填写 S3 兼容"
+		return locales.AccountStoreCompat()
 	default:
-		return "先在「设置 › 账号与上传」里填写 R2"
+		return "R2"
 	}
 }
 
@@ -248,18 +253,7 @@ func (a *app) currentStore() cloud.Store {
 func (a *app) storageKind() string { return storageFrom(a.cloud.storage) }
 
 func (a *app) uploadLabel() string {
-	switch a.storageKind() {
-	case cloud.KindS3:
-		return "上传到 S3"
-	case cloud.KindOSS:
-		return "上传到 OSS"
-	case cloud.KindCOS:
-		return "上传到 COS"
-	case cloud.KindCompat:
-		return "上传到 S3 兼容"
-	default:
-		return "上传到 R2"
-	}
+	return locales.AccountUploadTo(uploadStoreName(a.storageKind()))
 }
 
 func (a *app) uploadMemo(path string) string {
@@ -360,17 +354,17 @@ func firstSet(values ...string) string {
 
 func uploadProgress(written, total int64) string {
 	if total <= 0 {
-		return "正在上传"
+		return locales.AccountUploading()
 	}
-	return "正在上传 " + strconv.FormatInt(written*100/total, 10) + "%"
+	return locales.AccountUploadingPercent(int(written * 100 / total))
 }
 
 func uploadFailure(err error, secret, accessKey string) string {
 	msg := err.Error()
 	if (secret != "" && strings.Contains(msg, secret)) || (accessKey != "" && strings.Contains(msg, accessKey)) {
-		return "上传失败"
+		return locales.AccountUploadFailed()
 	}
-	return "上传失败：" + msg
+	return locales.AccountUploadFailedBecause(msg)
 }
 
 func openBrowser(raw string) error {

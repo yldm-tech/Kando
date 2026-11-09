@@ -16,10 +16,14 @@ import (
 type YTDLPInstall struct {
 	// Kind is "homebrew", "pipx", "pip" or "standalone".
 	Kind string
-	// Update is the command that updates it, or nil when Kando cannot; Hint then says how to.
+	// Update is the command that updates it, or nil when Kando cannot; the app then tells the user how from Kind and Dir.
 	Update []string
-	Hint   string
+	// Dir is the folder the yt-dlp is in once its links are followed.
+	Dir string
 }
+
+// ErrCannotUpdate is UpdateYTDLP's error when Kando cannot update the yt-dlp itself (its YTDLPInstall has no Update).
+var ErrCannotUpdate = errors.New("yt-dlp cannot be updated by Kando")
 
 // FindYTDLPInstall tells how the yt-dlp at path was installed: by Homebrew (its file is in a Cellar), by pipx or pip (it is a Python script), or as the standalone build, which updates itself with -U when Kando may write it.
 func FindYTDLPInstall(path string) YTDLPInstall {
@@ -28,26 +32,27 @@ func FindYTDLPInstall(path string) YTDLPInstall {
 		resolved = path
 	}
 	slashed := filepath.ToSlash(resolved)
+	dir := filepath.Dir(resolved)
 	if i := strings.Index(slashed, "/Cellar/yt-dlp/"); i >= 0 {
 		brew := filepath.Join(filepath.FromSlash(slashed[:i]), "bin", "brew")
 		if isExecutable(brew) {
-			return YTDLPInstall{Kind: "homebrew", Update: []string{brew, "upgrade", "yt-dlp"}}
+			return YTDLPInstall{Kind: "homebrew", Update: []string{brew, "upgrade", "yt-dlp"}, Dir: dir}
 		}
-		return YTDLPInstall{Kind: "homebrew", Hint: "在终端里运行 brew upgrade yt-dlp"}
+		return YTDLPInstall{Kind: "homebrew", Dir: dir}
 	}
 	if interpreter := pythonShebang(resolved); interpreter != "" {
 		if strings.Contains(slashed, "/pipx/venvs/") {
 			if pipx := lookTool("pipx"); pipx != "" {
-				return YTDLPInstall{Kind: "pipx", Update: []string{pipx, "upgrade", "yt-dlp"}}
+				return YTDLPInstall{Kind: "pipx", Update: []string{pipx, "upgrade", "yt-dlp"}, Dir: dir}
 			}
-			return YTDLPInstall{Kind: "pipx", Hint: "在终端里运行 pipx upgrade yt-dlp"}
+			return YTDLPInstall{Kind: "pipx", Dir: dir}
 		}
-		return YTDLPInstall{Kind: "pip", Update: []string{interpreter, "-m", "pip", "install", "--upgrade", "yt-dlp"}}
+		return YTDLPInstall{Kind: "pip", Update: []string{interpreter, "-m", "pip", "install", "--upgrade", "yt-dlp"}, Dir: dir}
 	}
 	if writable(resolved) {
-		return YTDLPInstall{Kind: "standalone", Update: []string{resolved, "-U"}}
+		return YTDLPInstall{Kind: "standalone", Update: []string{resolved, "-U"}, Dir: dir}
 	}
-	return YTDLPInstall{Kind: "standalone", Hint: "yt-dlp 在 " + filepath.Dir(resolved) + "，看懂没有权限替换它；用安装它的方式更新，或运行 sudo yt-dlp -U"}
+	return YTDLPInstall{Kind: "standalone", Dir: dir}
 }
 
 // pythonShebang is the interpreter a Python script at path names on its first line, or "" when path is not one.
@@ -107,14 +112,14 @@ func YTDLPVersion(ctx context.Context, path string) (string, error) {
 	return lastLine(out), nil
 }
 
-// UpdateYTDLP updates the yt-dlp at path the way it was installed (FindYTDLPInstall) and returns the version it has afterwards. When Kando cannot update it, the error says how to.
+// UpdateYTDLP updates the yt-dlp at path the way it was installed (FindYTDLPInstall) and returns the version it has afterwards. When Kando cannot update it, the error is ErrCannotUpdate.
 func UpdateYTDLP(ctx context.Context, path string) (string, error) {
 	if path == "" {
 		return "", errors.New("yt-dlp is not installed")
 	}
 	install := FindYTDLPInstall(path)
 	if install.Update == nil {
-		return "", errors.New(install.Hint)
+		return "", fmt.Errorf("%w: %s install in %s", ErrCannotUpdate, install.Kind, install.Dir)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()

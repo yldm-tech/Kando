@@ -3,7 +3,8 @@ package onboarding
 
 import (
 	"runtime"
-	"strconv"
+
+	"kando/apps/kando/locales"
 
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -12,8 +13,8 @@ import (
 // Steps is how many steps the guide has.
 const Steps = 3
 
-// thisComputer is what the guide calls the machine whisper runs on: 这台 Mac on macOS, 这台电脑 elsewhere.
-var thisComputer = map[bool]string{true: "这台 Mac", false: "这台电脑"}[runtime.GOOS == "darwin"]
+// onMac is set on macOS, where the guide calls the machine whisper runs on 这台 Mac; elsewhere it is 这台电脑.
+var onMac = runtime.GOOS == "darwin"
 
 // ModelState is where a speech model is.
 type ModelState int
@@ -116,7 +117,7 @@ func Show(c *ui.Context, a App) {
 			content(c, a, step)
 		})
 	})
-	panel.Padding(0).Gap(0).Radius(16).Clip().Background(sheetFill).Label("欢迎使用看懂").
+	panel.Padding(0).Gap(0).Radius(16).Clip().Background(sheetFill).Label(locales.OnboardingWelcome()).
 		Shadow(0, 24, 70, 0, ui.RGBA(0, 0, 0, 0.35)).Border(0.5, ui.RGBA(0, 0, 0, 0.22))
 	if !open {
 		a.OnboardingSkip()
@@ -127,12 +128,12 @@ func Show(c *ui.Context, a App) {
 func content(c *ui.Context, a App, step int) {
 	ui.Column(c).Grow(1).MinWidth(0).Padding(26, 30, 20, 30).AlignItems(ui.Stretch).TextColor(ink).Children(func() {
 		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, strconv.Itoa(step)+" / "+strconv.Itoa(Steps)).FontSize(12).FontWeight(600).TextColor(gray).FontFeatures("tnum")
+			ui.Text(c, locales.OnboardingStepCounter(step, Steps)).FontSize(12).FontWeight(600).TextColor(gray).FontFeatures("tnum")
 			dots(c, step)
 			ui.Box(c).Grow(1)
-			skip := "跳过"
+			skip := locales.OnboardingSkip()
 			if step == Steps {
-				skip = "先随便看看"
+				skip = locales.OnboardingLookAround()
 			}
 			c.Key("onboarding-skip")
 			if breeze.FlatButton(c, skip).Height(24).FontSize(12).TextColor(gray).Clicked() {
@@ -162,16 +163,19 @@ func content(c *ui.Context, a App, step int) {
 func heading(step int) (title, description string) {
 	switch step {
 	case 1:
-		return "欢迎使用看懂", "粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"
+		return locales.OnboardingWelcome(), locales.OnboardingWelcomeDescription()
 	case 2:
-		return "下载语音识别模型", "语音识别用 whisper.cpp 在" + thisComputer + "上运行。模型下载一次，之后离线也能用。"
+		if onMac {
+			return locales.OnboardingModelsTitle(), locales.OnboardingModelsDescriptionMac()
+		}
+		return locales.OnboardingModelsTitle(), locales.OnboardingModelsDescriptionComputer()
 	}
-	return "粘贴第一个链接", "YouTube、哔哩哔哩，以及 yt-dlp 能下载的网站上的视频都可以。"
+	return locales.OnboardingLinkTitle(), locales.OnboardingLinkDescription()
 }
 
 // dots are the step dots: 4 high, the current one 16 wide and the others 4, blue up to the current one.
 func dots(c *ui.Context, step int) {
-	ui.Row(c).Gap(4).AlignItems(ui.Center).Label("第 " + strconv.Itoa(step) + " 步，共 " + strconv.Itoa(Steps) + " 步").Children(func() {
+	ui.Row(c).Gap(4).AlignItems(ui.Center).Label(locales.OnboardingStepOf(step, Steps)).Children(func() {
 		for i := 1; i <= Steps; i++ {
 			w := float32(4)
 			if i == step {
@@ -191,24 +195,24 @@ func footer(c *ui.Context, a App, step int) {
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(16, 0, 0, 0).Children(func() {
 		ui.Row(c).Grow(1).MinWidth(0).Gap(6).AlignItems(ui.Center).TextColor(gray).Children(func() {
 			ui.Icon(c, lockIcon).Size(11, 11).Shrink(0)
-			ui.Text(c, "识别在本机运行 · 翻译用你设置的 AI 服务").FontSize(11).SingleLine()
+			ui.Text(c, locales.OnboardingPrivacy()).FontSize(11).SingleLine()
 		})
 		if step > 1 {
 			c.Key("onboarding-back")
-			if breeze.Button(c, "上一步").Height(30).PaddingX(14).Clicked() {
+			if breeze.Button(c, locales.OnboardingBack()).Height(30).PaddingX(14).Clicked() {
 				a.OnboardingBack()
 			}
 		}
-		label, disabled := "继续", false
+		label, disabled := locales.OnboardingContinue(), false
 		switch step {
 		case 2:
 			if a.OnboardingDownloadsOnNext() {
-				label = "下载并继续"
+				label = locales.OnboardingDownloadAndContinue()
 			}
 		case Steps:
-			label = "完成"
+			label = locales.OnboardingDone()
 			if *a.OnboardingLink() != "" {
-				label = "加入并开始"
+				label = locales.OnboardingAddAndStart()
 				_, ok := LinkHint(*a.OnboardingLink())
 				disabled = !ok
 			}

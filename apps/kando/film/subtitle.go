@@ -5,10 +5,12 @@ import (
 	"math"
 	"time"
 
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 )
 
-// DefaultLook is the prototype's: outlined, the translation 30 bold white over the original 22 yellow, at the bottom.
+// DefaultLook is the prototype's: outlined, the translation 30 bold white over the original 22 yellow, at the bottom. A face's Family is the value saved in the settings (默认, 苹方 or 冬青黑体), not what the style view shows: fontName names it.
 func DefaultLook() Look {
 	return Look{
 		Preset: "outline", Shadow: true,
@@ -155,14 +157,27 @@ func fontFamily(name string) string {
 	}
 }
 
-// DelayText writes a subtitle delay as the mode menu and the OSD show it, to a tenth of a second: "+0.3 秒", "-0.1 秒", "0.0 秒".
+// fontName is what the style view calls a saved font family in the interface's language; a family it does not know is shown as saved.
+func fontName(family string) string {
+	switch family {
+	case "默认":
+		return locales.FilmFontDefault()
+	case "苹方":
+		return locales.FilmFontPingFang()
+	case "冬青黑体":
+		return locales.FilmFontHiragino()
+	}
+	return family
+}
+
+// DelayText writes a subtitle delay as the mode menu and the OSD show it, to a tenth of a second, in the interface's language: "+0.3 秒", "-0.1 秒", "0.0 秒".
 func DelayText(d time.Duration) string {
 	v := math.Round(d.Seconds()*10) / 10
 	switch {
 	case v > 0:
-		return fmt.Sprintf("+%.1f 秒", v)
+		return locales.FilmSeconds(fmt.Sprintf("+%.1f", v))
 	case v == 0:
-		return "0.0 秒"
+		return locales.FilmSeconds("0.0")
 	}
-	return fmt.Sprintf("%.1f 秒", v)
+	return locales.FilmSeconds(fmt.Sprintf("%.1f", v))
 }

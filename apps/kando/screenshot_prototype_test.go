@@ -1,6 +1,8 @@
 package main
 
 import (
+	"slices"
+	"testing"
 	"time"
 
 	"kando/packages/core"
@@ -137,4 +139,171 @@ var protoCues = []protoCue{
 	cueAt(15, "Sediment drops out and builds a delta, layer by layer.", "泥沙沉积下来，一层层堆积成三角洲。", ""),
 	cueAt(16, "From mountain to sea, the river never stops reshaping the land.", "从高山到大海，河流从未停止重塑大地。", ""),
 	cueAt(17, "Next time you cross a bridge, look at the water below.", "下次过桥时，不妨看看桥下的流水。", ""),
+}
+
+// protoTarget is the language the fixture's jobs translated their subtitles into, as settings.json and library.json keep it.
+var protoTarget = "简体中文"
+
+// protoContent is the fixture's content for a reader of another interface language than the prototype's Chinese, so a screenshot in that language shows a library of its reader: the libraries' names, the titles of the films named in Chinese, and the subtitles translated into the reader's language. English shows them translated into Spanish, as an English video with English subtitles would show nothing bilingual. Translations has the 18 lines of protoCues in order, "" for the one whose translation failed; Machine has the machine's lines where they differ, by cue.
+type protoContent struct {
+	Target       string
+	Libraries    map[string]string
+	Titles       map[string]string
+	Translations []string
+	Machine      map[int]string
+}
+
+var protoContents = map[string]protoContent{
+	"en": {
+		Target:    "Español",
+		Libraries: map[string]string{"main": "My Films", "listening": "Listening Practice"},
+		Titles: map[string]string{
+			"j13": "Japanese Listening in Depth · Lecture 3", "j4": "Meeting Recording 2026-10-28",
+			"j11": "The Geometry of Linear Algebra · P2 Vectors and Bases", "j15": "Daily Japanese Listening · Practice 1",
+			"j12": "Everyday Japanese Conversation, Episode 5",
+		},
+		Translations: []string{
+			"Todo río nace como un hilo de agua en lo alto de las montañas.",
+			"Mientras el agua baja, arrastra arena y piedras.",
+			"Esas partículas actúan como papel de lija sobre el lecho del río.",
+			"A lo largo de miles de años, el cauce se hace cada vez más profundo.",
+			"Así se forman los valles en V de laderas empinadas.",
+			"Más abajo, el terreno se aplana y el río se calma.",
+			"En lugar de excavar hacia abajo, empieza a serpentear de lado a lado.",
+			"Estas amplias curvas se llaman meandros.",
+			"La orilla exterior se erosiona mientras la interior crece.",
+			"A veces un meandro se curva tanto que se corta a sí mismo.",
+			"Lo que queda es un lago en forma de media luna.",
+			"Durante las crecidas, el río se desborda.",
+			"Deja sobre la llanura un limo fino y fértil.",
+			"",
+			"Cerca del mar, la corriente por fin pierde su fuerza.",
+			"Los sedimentos se depositan y forman un delta, capa a capa.",
+			"De la montaña al mar, el río nunca deja de transformar la tierra.",
+			"La próxima vez que cruces un puente, mira el agua que pasa por debajo.",
+		},
+		Machine: map[int]string{8: "La orilla de fuera se erosiona y la de dentro crece.", 13: "Por eso tantas de las primeras granjas surgieron junto a los ríos."},
+	},
+	"zh-Hant": {
+		Target:    "繁体中文",
+		Libraries: map[string]string{"main": "我的影片", "listening": "英語聽力"},
+		Titles: map[string]string{
+			"j13": "日語聽力精講 · 第 3 講", "j4": "會議錄影 2026-10-28",
+			"j11": "線性代數的幾何意義 · P2 向量與基", "j15": "日語聽力每日一練 · 第 1 練",
+			"j12": "日常日語會話 第 5 集",
+		},
+		Translations: []string{
+			"每條河都始於高山上的一股細流。",
+			"水往低處流，沿途挾帶起泥沙和石塊。",
+			"這些顆粒就像砂紙一樣打磨著河床。",
+			"數千年間，河道被切割得越來越深。",
+			"陡峭的 V 形谷就是這樣形成的。",
+			"到了下游，地勢變緩，河流也慢了下來。",
+			"它不再向下切割，而是開始左右擺動。",
+			"這些大幅度的彎道被稱為曲流。",
+			"曲流外側的河岸不斷被侵蝕，內側則不斷淤積。",
+			"有時曲流彎得太遠，會把自己截斷。",
+			"留下來的就是一個新月形的牛軛湖。",
+			"洪水期間，河水會漫過河岸。",
+			"它在平原上留下細緻而肥沃的淤泥。",
+			"",
+			"接近大海時，水流終於失去了力量。",
+			"泥沙沉積下來，一層層堆積成三角洲。",
+			"從高山到大海，河流從未停止重塑大地。",
+			"下次過橋時，不妨看看橋下的流水。",
+		},
+		Machine: map[int]string{8: "外側河岸不斷被侵蝕，內側則不斷淤積。", 13: "這就是為什麼早期農田多沿河分布。"},
+	},
+	"ja": {
+		Target:    "日本語",
+		Libraries: map[string]string{"main": "マイ動画", "listening": "英語リスニング"},
+		Titles: map[string]string{
+			"j13": "中国語リスニング講座 · 第 3 回", "j4": "会議の録画 2026-10-28",
+			"j11": "線形代数の幾何学的な意味 · P2 ベクトルと基底", "j15": "毎日の中国語リスニング · 第 1 回",
+			"j12": "日常の中国語会話 第 5 話",
+		},
+		Translations: []string{
+			"どの川も、山の上の小さな流れから始まります。",
+			"水は坂を下りながら、砂や石を運んでいきます。",
+			"その粒が、紙やすりのように川底を削ります。",
+			"何千年もかけて、川筋はどんどん深くなります。",
+			"こうして険しい V 字谷ができるのです。",
+			"下流では土地が平らになり、流れも緩やかになります。",
+			"下へ削る代わりに、横へと曲がりくねり始めます。",
+			"この大きなカーブを蛇行と呼びます。",
+			"外側の岸は削られ、内側の岸には土砂がたまります。",
+			"蛇行が大きくなりすぎて、自ら流れを断ち切ることもあります。",
+			"そうして残るのが、三日月形の三日月湖です。",
+			"洪水のとき、川の水は岸からあふれ出します。",
+			"そして平野に、細かく肥えた泥を残していきます。",
+			"",
+			"海の近くで、流れはついに勢いを失います。",
+			"土砂が積もり、少しずつ三角州ができていきます。",
+			"山から海まで、川は大地の形を変え続けています。",
+			"今度橋を渡るときは、下を流れる水を見てみてください。",
+		},
+		Machine: map[int]string{8: "外側の岸は浸食され、内側は堆積します。", 13: "だから昔の農地の多くは川沿いに広がったのです。"},
+	},
+	"ko": {
+		Target:    "한국어",
+		Libraries: map[string]string{"main": "내 영상", "listening": "영어 듣기"},
+		Titles: map[string]string{
+			"j13": "중국어 듣기 집중 강의 · 3강", "j4": "회의 녹화 2026-10-28",
+			"j11": "선형대수의 기하학적 의미 · P2 벡터와 기저", "j15": "매일 중국어 듣기 · 1회",
+			"j12": "일상 중국어 회화 5화",
+		},
+		Translations: []string{
+			"모든 강은 높은 산에서 흐르는 가느다란 물줄기에서 시작됩니다.",
+			"물은 아래로 흐르면서 모래와 돌을 실어 나릅니다.",
+			"그 알갱이들이 사포처럼 강바닥을 깎아 냅니다.",
+			"수천 년에 걸쳐 물길은 점점 더 깊어집니다.",
+			"가파른 V자 계곡은 이렇게 만들어집니다.",
+			"하류로 내려가면 땅이 평평해지고 강물도 느려집니다.",
+			"아래로 깎아 내는 대신 옆으로 구불구불 흐르기 시작합니다.",
+			"이렇게 크게 휘어진 물굽이를 곡류라고 합니다.",
+			"바깥쪽 강둑은 깎여 나가고 안쪽 강둑에는 퇴적물이 쌓입니다.",
+			"때로는 곡류가 너무 크게 휘어 스스로 끊어지기도 합니다.",
+			"그렇게 남은 것이 초승달 모양의 우각호입니다.",
+			"홍수 때는 강물이 둑을 넘쳐흐릅니다.",
+			"그리고 평야에 곱고 비옥한 진흙을 남깁니다.",
+			"",
+			"바다 가까이에서 물살은 마침내 힘을 잃습니다.",
+			"퇴적물이 가라앉아 한 층씩 삼각주를 쌓아 올립니다.",
+			"산에서 바다까지, 강은 쉬지 않고 땅의 모습을 바꿉니다.",
+			"다음에 다리를 건널 때는 아래로 흐르는 물을 한번 보세요.",
+		},
+		Machine: map[int]string{8: "바깥쪽 둑은 침식되고 안쪽 둑은 쌓입니다.", 13: "그래서 초기 농경지는 대부분 강을 따라 자리 잡았습니다."},
+	},
+}
+
+// useProtoContent makes the fixture's libraries, films and subtitles those of a reader of lang (protoContents) until t ends. The prototype's Chinese content stays for zh-Hans and for a language without content of its own.
+func useProtoContent(t *testing.T, lang string) {
+	t.Helper()
+	content, ok := protoContents[lang]
+	if !ok {
+		return
+	}
+	if len(content.Translations) != len(protoCues) {
+		t.Fatalf("%s has %d subtitle lines, want %d", lang, len(content.Translations), len(protoCues))
+	}
+	libraries, films, cues, target := protoLibraries, protoFilms, protoCues, protoTarget
+	t.Cleanup(func() { protoLibraries, protoFilms, protoCues, protoTarget = libraries, films, cues, target })
+	protoTarget = content.Target
+	protoLibraries = slices.Clone(libraries)
+	for i := range protoLibraries {
+		if name, ok := content.Libraries[protoLibraries[i].ID]; ok {
+			protoLibraries[i].Name = name
+		}
+	}
+	protoFilms = slices.Clone(films)
+	for i, film := range protoFilms {
+		if title, ok := content.Titles[film.ID]; ok {
+			protoFilms[i].Title = title
+		}
+	}
+	protoCues = slices.Clone(cues)
+	for i := range protoCues {
+		machine := content.Machine[i]
+		protoCues[i] = cueAt(i, protoCues[i].Original, content.Translations[i], machine)
+	}
 }

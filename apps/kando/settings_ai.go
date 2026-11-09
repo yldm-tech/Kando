@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 )
@@ -72,26 +73,27 @@ func (a *app) restoreLLM(saved savedSettings) {
 	a.prefs.llmCredential = credential
 }
 
+// llmPreset is a service the AI 服务 page offers. Name and Blurb are in the interface's language, read when llmPresets is called; Group is one of the settings package's Group values.
 type llmPreset struct {
 	ID, Name, Blurb, BaseURL, Model, Group string
 }
 
 func llmPresets() []llmPreset {
 	return []llmPreset{
-		{ID: "everyapi", Name: "EveryAPI", Blurb: "本机已登录的 EveryAPI", BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Group: "云服务"},
-		{ID: "openai", Name: "OpenAI", Blurb: "OpenAI 官方接口", BaseURL: "https://api.openai.com/v1", Group: "云服务"},
-		{ID: "openrouter", Name: "OpenRouter", Blurb: "一个接口调用多家模型", BaseURL: "https://openrouter.ai/api/v1", Group: "云服务"},
-		{ID: "groq", Name: "Groq", Blurb: "Groq 的 OpenAI 兼容接口", BaseURL: "https://api.groq.com/openai/v1", Group: "云服务"},
-		{ID: "deepseek", Name: "DeepSeek", Blurb: "DeepSeek 的 OpenAI 兼容接口", BaseURL: "https://api.deepseek.com/v1", Group: "云服务"},
-		{ID: "xai", Name: "xAI", Blurb: "Grok 的 OpenAI 兼容接口", BaseURL: "https://api.x.ai/v1", Group: "云服务"},
-		{ID: "mistral", Name: "Mistral", Blurb: "Mistral 的 OpenAI 兼容接口", BaseURL: "https://api.mistral.ai/v1", Group: "云服务"},
-		{ID: "dashscope", Name: "通义千问", Blurb: "阿里云 DashScope 兼容接口", BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", Group: "云服务"},
-		{ID: "moonshot", Name: "Kimi", Blurb: "Moonshot 的 OpenAI 兼容接口", BaseURL: "https://api.moonshot.cn/v1", Group: "云服务"},
-		{ID: "zhipu", Name: "智谱 GLM", Blurb: "智谱的 OpenAI 兼容接口", BaseURL: "https://open.bigmodel.cn/api/paas/v4", Group: "云服务"},
-		{ID: "siliconflow", Name: "硅基流动", Blurb: "硅基流动的 OpenAI 兼容接口", BaseURL: "https://api.siliconflow.cn/v1", Group: "云服务"},
-		{ID: "ollama", Name: "Ollama", Blurb: "本机 Ollama", BaseURL: "http://127.0.0.1:11434/v1", Group: "本机"},
-		{ID: "lmstudio", Name: "LM Studio", Blurb: "本机 LM Studio", BaseURL: "http://127.0.0.1:1234/v1", Group: "本机"},
-		{ID: "custom", Name: "OpenAI 兼容", Blurb: "任何兼容 OpenAI Chat Completions 的接口", Group: "其他"},
+		{ID: "everyapi", Name: "EveryAPI", Blurb: locales.SettingsAIBlurbEveryAPI(), BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Group: settings.GroupCloud},
+		{ID: "openai", Name: "OpenAI", Blurb: locales.SettingsAIBlurbOpenAI(), BaseURL: "https://api.openai.com/v1", Group: settings.GroupCloud},
+		{ID: "openrouter", Name: "OpenRouter", Blurb: locales.SettingsAIBlurbOpenRouter(), BaseURL: "https://openrouter.ai/api/v1", Group: settings.GroupCloud},
+		{ID: "groq", Name: "Groq", Blurb: locales.SettingsAIBlurbGroq(), BaseURL: "https://api.groq.com/openai/v1", Group: settings.GroupCloud},
+		{ID: "deepseek", Name: "DeepSeek", Blurb: locales.SettingsAIBlurbDeepSeek(), BaseURL: "https://api.deepseek.com/v1", Group: settings.GroupCloud},
+		{ID: "xai", Name: "xAI", Blurb: locales.SettingsAIBlurbXAI(), BaseURL: "https://api.x.ai/v1", Group: settings.GroupCloud},
+		{ID: "mistral", Name: "Mistral", Blurb: locales.SettingsAIBlurbMistral(), BaseURL: "https://api.mistral.ai/v1", Group: settings.GroupCloud},
+		{ID: "dashscope", Name: locales.SettingsAINameDashScope(), Blurb: locales.SettingsAIBlurbDashScope(), BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", Group: settings.GroupCloud},
+		{ID: "moonshot", Name: "Kimi", Blurb: locales.SettingsAIBlurbMoonshot(), BaseURL: "https://api.moonshot.cn/v1", Group: settings.GroupCloud},
+		{ID: "zhipu", Name: locales.SettingsAINameZhipu(), Blurb: locales.SettingsAIBlurbZhipu(), BaseURL: "https://open.bigmodel.cn/api/paas/v4", Group: settings.GroupCloud},
+		{ID: "siliconflow", Name: locales.SettingsAINameSiliconFlow(), Blurb: locales.SettingsAIBlurbSiliconFlow(), BaseURL: "https://api.siliconflow.cn/v1", Group: settings.GroupCloud},
+		{ID: "ollama", Name: "Ollama", Blurb: locales.SettingsAIBlurbOllama(), BaseURL: "http://127.0.0.1:11434/v1", Group: settings.GroupLocal},
+		{ID: "lmstudio", Name: "LM Studio", Blurb: locales.SettingsAIBlurbLMStudio(), BaseURL: "http://127.0.0.1:1234/v1", Group: settings.GroupLocal},
+		{ID: "custom", Name: locales.SettingsAINameCustom(), Blurb: locales.SettingsAIBlurbCustom(), Group: settings.GroupOther},
 	}
 }
 
@@ -187,7 +189,7 @@ func (a *app) applyLLM() {
 	a.pipeline = tools
 	a.areasLLMChanged()
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = "翻译服务无法保存：" + err.Error()
+		a.saveErr = locales.SettingsAISaveFailed(err.Error())
 	}
 }
 
@@ -197,7 +199,7 @@ func (a *app) testLLM() {
 		return
 	}
 	a.prefs.testingLLM = true
-	a.prefs.llmTestResult = ""
+	a.prefs.llmTestOK, a.prefs.llmTestErr = false, ""
 	translator := tools.Translator
 	credential := translator.Credential != nil
 	update := a.update
@@ -207,10 +209,9 @@ func (a *app) testLLM() {
 		err := translator.Ping(ctx)
 		update(func() {
 			a.prefs.testingLLM = false
+			a.prefs.llmTestOK = err == nil
 			if err != nil {
-				a.prefs.llmTestResult = err.Error()
-			} else {
-				a.prefs.llmTestResult = "连接成功"
+				a.prefs.llmTestErr = err.Error()
 			}
 			a.areasLLMTested(err, credential)
 		})
@@ -265,7 +266,7 @@ func (a *app) fetchLLMModels(force bool) {
 	a.prefs.llmModelsFor = key
 	a.prefs.llmModelsLoading = true
 	a.prefs.llmModels = nil
-	a.prefs.llmModelsErr = ""
+	a.prefs.llmModelsErr = nil
 	translator, list, update := tools.Translator, a.prefs.listModels, a.update
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -278,7 +279,7 @@ func (a *app) fetchLLMModels(force bool) {
 			a.prefs.llmModelsLoading = false
 			if err != nil {
 				a.prefs.llmModels = nil
-				a.prefs.llmModelsErr = llmModelsError(err)
+				a.prefs.llmModelsErr = err
 				return
 			}
 			a.prefs.llmModels = models
@@ -300,19 +301,19 @@ func (a *app) adoptLLMModel() {
 	a.applyLLM()
 }
 
-// llmModelsError says in plain words why the model list could not be fetched.
+// llmModelsError says in plain words, in the interface's language, why the model list could not be fetched.
 func llmModelsError(err error) string {
 	var status interface{ StatusCode() int }
 	if errors.As(err, &status) {
 		switch status.StatusCode() {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return "服务不接受这个 API Key，取不到模型列表"
+			return locales.SettingsAIModelsUnauthorized()
 		case http.StatusNotFound:
-			return "这个服务不提供模型列表，检查 Base URL"
+			return locales.SettingsAIModelsNotFound()
 		}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return "服务没有按时回复，取不到模型列表"
+		return locales.SettingsAIModelsTimeout()
 	}
-	return "取不到模型列表：" + err.Error()
+	return locales.SettingsAIModelsFailed(err.Error())
 }

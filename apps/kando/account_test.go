@@ -9,7 +9,10 @@ import (
 	"testing"
 
 	"kando/apps/kando/cloud"
+	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 )
 
@@ -118,8 +121,8 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 		t.Fatal("sign-in did not start")
 	}
 	waitUpdate(t, updates)
-	if a.cloud.googleEmail != "a@b.c" || a.cloud.googleBusy || a.cloud.googleErr != "" || a.cloud.googleRefresh != "rt-test" {
-		t.Fatalf("email %q busy %v err %q", a.cloud.googleEmail, a.cloud.googleBusy, a.cloud.googleErr)
+	if a.cloud.googleEmail != "a@b.c" || a.cloud.googleBusy || a.GoogleErr() != "" || a.cloud.googleRefresh != "rt-test" {
+		t.Fatalf("email %q busy %v err %q", a.cloud.googleEmail, a.cloud.googleBusy, a.GoogleErr())
 	}
 	raw, err := os.ReadFile(a.settingsPath)
 	if err != nil {
@@ -339,5 +342,60 @@ func TestUploadBlockedPointsToTheSettingsWindow(t *testing.T) {
 		if got, want := a.uploadBlocked(), "先在「设置 › 账号与上传」里填写 "+name; got != want {
 			t.Errorf("%s: %q, want %q", kind, got, want)
 		}
+	}
+}
+
+// TestAccountPageInEnglish reads the 账号与上传 page and the player's upload texts in English.
+func TestAccountPageInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.cloud.storage = cloud.KindCompat
+	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
+	for _, want := range []string{"Account", "Not Signed In", "Sign in to upload films.", "Sign In with Google", "Object Storage", "S3 Compatible", "The full https address.", "Path Style", "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."} {
+		wantText(t, tt, want)
+	}
+	for _, unwanted := range []string{"对象存储", "未登录", "使用 Google 登录", "S3 兼容"} {
+		if textCount(tt, unwanted) > 0 {
+			t.Fatalf("the page still reads %q", unwanted)
+		}
+	}
+	if got, want := a.uploadBlocked(), "Sign in to Google in Settings › Account & Upload first"; got != want {
+		t.Fatalf("blocked %q, want %q", got, want)
+	}
+	a.cloud.googleEmail = "a@b.c"
+	if got, want := a.uploadBlocked(), "Fill in S3 Compatible in Settings › Account & Upload first"; got != want {
+		t.Fatalf("blocked %q, want %q", got, want)
+	}
+	if got, want := a.uploadLabel(), "Upload to S3 Compatible"; got != want {
+		t.Fatalf("label %q, want %q", got, want)
+	}
+	if got, want := uploadFailure(errors.New("status 403"), "secret-value", "key"), "Upload failed: status 403"; got != want {
+		t.Fatalf("failure %q, want %q", got, want)
+	}
+	if got, want := uploadProgress(1, 4), "Uploading 25%"; got != want {
+		t.Fatalf("progress %q, want %q", got, want)
+	}
+}
+
+// A video that left the disk before 上传 was clicked says so on the button's line, as the store it would have gone to.
+func TestUploadSaysTheVideoIsMissing(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "gone.mp4")
+	a := newApp(&fakePipeline{}, func(fn func()) { fn() })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.storage = cloud.KindS3
+	a.cloud.s3Region, a.cloud.s3Bucket, a.cloud.s3AccessKey, a.cloud.s3Secret = "ap-northeast-1", "aws-clips", "key", "secret-value"
+	a.cloud.uploader = func(context.Context, cloud.Store, []cloud.File, func(int64, int64)) error {
+		t.Fatal("a missing video was uploaded")
+		return nil
+	}
+	item := films.Film{VideoPath: video}
+	a.BeginUpload(item)
+	view := a.UploadView(item)
+	if view.Status != film.UploadFailed || view.Detail != locales.AccountVideoMissing() {
+		t.Fatalf("status %v detail %q", view.Status, view.Detail)
 	}
 }

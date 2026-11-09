@@ -2,6 +2,8 @@
 package palette
 
 import (
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -126,7 +128,7 @@ func Show(c *ui.Context, dark *ui.Theme, open *bool, v View) Event {
 							ui.Text(c, v.Empty).FontSize(13).Opacity(0.55).Padding(8, 10)
 						}
 						if len(v.Lines) > 0 {
-							heading(c, "台词", 6)
+							heading(c, locales.PaletteHeadingLines(), 6)
 						}
 						for i, l := range v.Lines {
 							if line(c, l, i == v.Selected, v.Reveal).Clicked() {
@@ -134,7 +136,7 @@ func Show(c *ui.Context, dark *ui.Theme, open *bool, v View) Event {
 							}
 						}
 						if len(v.Commands) > 0 {
-							heading(c, "命令", 8)
+							heading(c, locales.PaletteHeadingCommands(), 8)
 						}
 						for i, cmd := range v.Commands {
 							at := len(v.Lines) + i
@@ -161,7 +163,7 @@ func field(c *ui.Context, v View, ev *Event) {
 	ui.Row(c).Padding(14, 18).Gap(10).AlignItems(ui.Center).Children(func() {
 		ui.Icon(c, iconSearch).Size(16, 16).Shrink(0).Opacity(0.7)
 		in := ui.TextInputBase(c, v.Query).Grow(1).MinWidth(0).Height(fieldHeight).FontSize(17).TextColor(ink).
-			Placeholder(v.Placeholder).PlaceholderColor(placeholder).Label("命令、台词或问题").AutoFocus()
+			Placeholder(v.Placeholder).PlaceholderColor(placeholder).Label(locales.PaletteFieldLabel()).AutoFocus()
 		if in.Changed() {
 			ev.Typed = true
 		}
@@ -244,7 +246,7 @@ func line(c *ui.Context, l Line, on, reveal bool) ui.Element {
 
 // answer is the 回答 heading and the card under it: the text 14 on lines of 21, the chips that jump to the moments it names, the button that fixes what kept it from answering, and the footnote.
 func answer(c *ui.Context, a Answer, ev *Event) {
-	ui.Text(c, "回答").FontSize(11).Bold().Opacity(0.55).Padding(4, 10)
+	ui.Text(c, locales.PaletteHeadingAnswer()).FontSize(11).Bold().Opacity(0.55).Padding(4, 10)
 	ui.Column(c).Margin(0, 2, 6, 2).Padding(12, 14).Radius(cardRadius).Background(cardFill).Gap(8).AlignItems(ui.Stretch).Children(func() {
 		text := ui.Text(c, a.Text).FontSize(14).LineHeight(21.0 / 14)
 		if a.Busy {
@@ -253,7 +255,7 @@ func answer(c *ui.Context, a Answer, ev *Event) {
 		if len(a.Refs) > 0 {
 			ui.Row(c).Wrap().Gap(6).Children(func() {
 				for i, ref := range a.Refs {
-					chip := ui.ButtonBase(c).Height(chipHeight).Padding(0, 9).Radius(chipHeight / 2).Background(chipFill).TextColor(ink).Label("跳到 " + ref)
+					chip := ui.ButtonBase(c).Height(chipHeight).Padding(0, 9).Radius(chipHeight / 2).Background(chipFill).TextColor(ink).Label(locales.PaletteJumpTo(ref))
 					chip.Children(func() {
 						ui.Text(c, "▶ "+ref).FontSize(12).FontFeatures("tnum")
 					})

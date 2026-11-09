@@ -37,8 +37,8 @@ type Link struct {
 	List string
 	// Host is the host name in lower case without "www." or "m.". It is empty for a local file.
 	Host string
-	// SiteName is the name people know the site by, such as "YouTube", "哔哩哔哩" or "Vimeo"; empty for a site Kando does not know.
-	SiteName string
+	// Site is the site Kando knows the link's host as, by its main domain, such as "youtube.com" for youtu.be or "bilibili.com" for b23.tv; empty for a site Kando does not know and for a local file. The app names the site from it.
+	Site string
 	// Short reports a b23.tv short link, whose video is only known once the link is followed.
 	Short bool
 }
@@ -51,15 +51,15 @@ var (
 	bilibiliUID   = regexp.MustCompile(`^\d+$`)
 )
 
-// siteNames maps a site's domain to its name. Sites whose videos are DRM-protected are listed too, so the warning about them can name the site.
-var siteNames = map[string]string{
-	"youtube.com": "YouTube", "youtu.be": "YouTube", "bilibili.com": "哔哩哔哩", "b23.tv": "哔哩哔哩",
-	"vimeo.com": "Vimeo", "dailymotion.com": "Dailymotion", "ted.com": "TED", "twitch.tv": "Twitch", "archive.org": "Internet Archive", "rumble.com": "Rumble", "cnn.com": "CNN", "bbc.co.uk": "BBC",
-	"x.com": "X", "twitter.com": "X", "tiktok.com": "TikTok", "instagram.com": "Instagram", "facebook.com": "Facebook", "reddit.com": "Reddit",
-	"nicovideo.jp": "ニコニコ動画", "tver.jp": "TVer", "abema.tv": "ABEMA", "nhk.or.jp": "NHK", "tv.naver.com": "네이버 TV",
-	"douyin.com": "抖音", "ixigua.com": "西瓜视频", "weibo.com": "微博", "youku.com": "优酷", "acfun.cn": "AcFun", "huya.com": "虎牙", "douyu.com": "斗鱼",
-	"soundcloud.com": "SoundCloud", "podcasts.apple.com": "Apple 播客", "khanacademy.org": "Khan Academy", "coursera.org": "Coursera", "udemy.com": "Udemy", "patreon.com": "Patreon",
-	"netflix.com": "Netflix", "disneyplus.com": "Disney+", "primevideo.com": "Prime Video", "hulu.com": "Hulu", "max.com": "Max", "iq.com": "爱奇艺", "iqiyi.com": "爱奇艺", "v.qq.com": "腾讯视频", "mgtv.com": "芒果TV", "u-next.jp": "U-NEXT",
+// knownSites maps a domain to the ID of the site it belongs to, the site's main domain. Sites whose videos are DRM-protected are listed too, so the warning about them can name the site.
+var knownSites = map[string]string{
+	"youtube.com": "youtube.com", "youtu.be": "youtube.com", "bilibili.com": "bilibili.com", "b23.tv": "bilibili.com",
+	"vimeo.com": "vimeo.com", "dailymotion.com": "dailymotion.com", "ted.com": "ted.com", "twitch.tv": "twitch.tv", "archive.org": "archive.org", "rumble.com": "rumble.com", "cnn.com": "cnn.com", "bbc.co.uk": "bbc.co.uk",
+	"x.com": "x.com", "twitter.com": "x.com", "tiktok.com": "tiktok.com", "instagram.com": "instagram.com", "facebook.com": "facebook.com", "reddit.com": "reddit.com",
+	"nicovideo.jp": "nicovideo.jp", "tver.jp": "tver.jp", "abema.tv": "abema.tv", "nhk.or.jp": "nhk.or.jp", "tv.naver.com": "tv.naver.com",
+	"douyin.com": "douyin.com", "ixigua.com": "ixigua.com", "weibo.com": "weibo.com", "youku.com": "youku.com", "acfun.cn": "acfun.cn", "huya.com": "huya.com", "douyu.com": "douyu.com",
+	"soundcloud.com": "soundcloud.com", "podcasts.apple.com": "podcasts.apple.com", "khanacademy.org": "khanacademy.org", "coursera.org": "coursera.org", "udemy.com": "udemy.com", "patreon.com": "patreon.com",
+	"netflix.com": "netflix.com", "disneyplus.com": "disneyplus.com", "primevideo.com": "primevideo.com", "hulu.com": "hulu.com", "max.com": "max.com", "iq.com": "iqiyi.com", "iqiyi.com": "iqiyi.com", "v.qq.com": "v.qq.com", "mgtv.com": "mgtv.com", "u-next.jp": "u-next.jp",
 }
 
 // ParseLink reads which platform, video, list or channel a link names. It accepts http and https links, YouTube and bilibili addresses typed without a scheme, and file:// URLs of local videos. It reports false for anything else, including an empty string.
@@ -83,14 +83,14 @@ func ParseLink(raw string) (Link, bool) {
 		if u.Path == "" {
 			return Link{}, false
 		}
-		return Link{URL: raw, Platform: PlatformLocal, Kind: LinkVideo, ID: u.Path, SiteName: "本地文件"}, true
+		return Link{URL: raw, Platform: PlatformLocal, Kind: LinkVideo, ID: u.Path}, true
 	}
 	host := strings.ToLower(u.Hostname())
 	if host == "" {
 		return Link{}, false
 	}
 	host = strings.TrimPrefix(strings.TrimPrefix(host, "www."), "m.")
-	link := Link{URL: raw, Platform: PlatformWeb, Kind: LinkVideo, Host: host, SiteName: siteName(host)}
+	link := Link{URL: raw, Platform: PlatformWeb, Kind: LinkVideo, Host: host, Site: siteOf(host)}
 	switch {
 	case onDomain(host, "youtube.com") || host == "youtu.be":
 		link.Platform = PlatformYouTube
@@ -188,10 +188,10 @@ func onDomain(host, domain string) bool {
 	return host == domain || strings.HasSuffix(host, "."+domain)
 }
 
-func siteName(host string) string {
-	for domain, name := range siteNames {
+func siteOf(host string) string {
+	for domain, site := range knownSites {
 		if onDomain(host, domain) {
-			return name
+			return site
 		}
 	}
 	return ""

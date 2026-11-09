@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"kando/apps/kando/cheatsheet"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/onboarding"
 
 	"github.com/egoist/mygo/ui"
@@ -46,32 +47,37 @@ func (a *app) holdModal() (release func()) {
 // modalOpen reports whether a modal dialog is up over the window (holdModal). The cheat sheet is not one of them: it lets its own ⌘/ through.
 func (a *app) modalOpen() bool { return a.overlay.modal > 0 }
 
-// cheatsheetLayout is the cheat sheet's own arrangement of the shortcut table, the prototype's: its groups in order, and lines that name rows of the table by their keys, joining several under one label, as 后退 / 前进 5 秒 shows ← →. A line shows only once the table has all its keys; an empty label takes the label of its one row. The prototype's lines for shortcuts the app does not have yet are left out until their areas add them.
-var cheatsheetLayout = []struct {
-	title string
+// cheatsheetLayout is the cheat sheet's own arrangement of the shortcut table, the prototype's: its groups in order, and lines that name rows of the table by their keys, joining several under one label, as 后退 / 前进 5 秒 shows ← →. A line shows only once the table has all its keys; an empty label takes the label of its one row. The prototype's lines for shortcuts the app does not have yet are left out until their areas add them. It is built each time the sheet is shown, so its labels are in the interface's language then.
+func cheatsheetLayout() []cheatsheetGroup {
+	return []cheatsheetGroup{
+		{groupPlayback, []cheatsheetLine{
+			{locales.CheatsheetPlayPause(), []cheatsheet.Combo{{Key: ui.KeySpace}}},
+			{locales.CheatsheetSkip5(), []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}},
+			{locales.CheatsheetSkip30(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyLeft}, {Mods: ui.Cmd, Key: ui.KeyRight}}},
+			{"", []cheatsheet.Combo{{Key: ui.KeyF}}},
+			{locales.CheatsheetVolume(), []cheatsheet.Combo{{Key: ui.KeyUp}, {Key: ui.KeyDown}}},
+			{"", []cheatsheet.Combo{{Key: ui.KeyM}}},
+		}},
+		{groupSubtitles, []cheatsheetLine{
+			{locales.CheatsheetSubtitlesShowHide(), []cheatsheet.Combo{{Key: ui.KeyV}}},
+			{locales.CheatsheetSubtitlesMode(), []cheatsheet.Combo{{Key: ui.KeyS}}},
+			{locales.CheatsheetSubtitlesDelay(), []cheatsheet.Combo{{Key: ui.KeyZ}, {Key: ui.KeyX}}},
+			{locales.CheatsheetSidebar(), []cheatsheet.Combo{{Mods: ui.Cmd | ui.Shift, Key: ui.KeyT}}},
+			{locales.CheatsheetSearchLines(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyF}}},
+		}},
+		{groupWindow, []cheatsheetLine{
+			{locales.CheatsheetPalette(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyK}}},
+			{"", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeySlash}}},
+			{locales.CheatsheetSettings(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyComma}}},
+			{"", []cheatsheet.Combo{{Key: ui.KeyEscape}}},
+		}},
+	}
+}
+
+// cheatsheetGroup is a group of cheatsheetLayout: its group ID and its lines.
+type cheatsheetGroup struct {
+	group string
 	lines []cheatsheetLine
-}{
-	{"播放", []cheatsheetLine{
-		{"播放 / 暂停", []cheatsheet.Combo{{Key: ui.KeySpace}}},
-		{"后退 / 前进 5 秒", []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}},
-		{"后退 / 前进 30 秒", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyLeft}, {Mods: ui.Cmd, Key: ui.KeyRight}}},
-		{"", []cheatsheet.Combo{{Key: ui.KeyF}}},
-		{"音量加大 / 减小", []cheatsheet.Combo{{Key: ui.KeyUp}, {Key: ui.KeyDown}}},
-		{"", []cheatsheet.Combo{{Key: ui.KeyM}}},
-	}},
-	{"字幕", []cheatsheetLine{
-		{"显示 / 隐藏", []cheatsheet.Combo{{Key: ui.KeyV}}},
-		{"切换显示方式", []cheatsheet.Combo{{Key: ui.KeyS}}},
-		{"字幕延迟 −/+ 0.1 秒", []cheatsheet.Combo{{Key: ui.KeyZ}, {Key: ui.KeyX}}},
-		{"侧栏", []cheatsheet.Combo{{Mods: ui.Cmd | ui.Shift, Key: ui.KeyT}}},
-		{"搜索台词", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyF}}},
-	}},
-	{"窗口", []cheatsheetLine{
-		{"问这部影片 / 命令", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyK}}},
-		{"", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeySlash}}},
-		{"设置", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyComma}}},
-		{"", []cheatsheet.Combo{{Key: ui.KeyEscape}}},
-	}},
 }
 
 // cheatsheetLine is a line of cheatsheetLayout.
@@ -98,7 +104,7 @@ func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
 	placed := map[cheatsheet.Combo]bool{}
 	at := map[string]int{}
 	var groups []cheatsheet.Group
-	for _, g := range cheatsheetLayout {
+	for _, g := range cheatsheetLayout() {
 		var keys []cheatsheet.Key
 		for _, l := range g.lines {
 			if slices.ContainsFunc(l.combos, func(k cheatsheet.Combo) bool { _, ok := labels[k]; return !ok }) {
@@ -114,23 +120,23 @@ func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
 			}
 		}
 		if len(keys) > 0 {
-			at[g.title] = len(groups)
-			groups = append(groups, cheatsheet.Group{Title: g.title, Keys: keys})
+			at[g.group] = len(groups)
+			groups = append(groups, cheatsheet.Group{Title: groupTitle(g.group), Keys: keys})
 		}
 	}
 	order, byGroup := grouped(rows)
-	for _, title := range order {
-		for _, s := range byGroup[title] {
+	for _, group := range order {
+		for _, s := range byGroup[group] {
 			k := cheatsheet.Combo{Mods: s.Mods, Key: s.Key}
 			if placed[k] {
 				continue
 			}
 			placed[k] = true
-			i, ok := at[title]
+			i, ok := at[group]
 			if !ok {
 				i = len(groups)
-				at[title] = i
-				groups = append(groups, cheatsheet.Group{Title: title})
+				at[group] = i
+				groups = append(groups, cheatsheet.Group{Title: groupTitle(group)})
 			}
 			groups[i].Keys = append(groups[i].Keys, cheatsheet.Key{Label: s.Label, Combos: []cheatsheet.Combo{k}})
 		}
@@ -149,6 +155,6 @@ func (a *app) overlayHooks() areaHooks { return areaHooks{} }
 // overlayKeys are the shortcuts of the overlays.
 func (a *app) overlayKeys() []shortcut {
 	return []shortcut{
-		{Group: "帮助", Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash, Run: a.toggleCheatsheet},
+		{Group: groupHelp, Label: locales.CheatsheetMenuItem(), Mods: ui.Cmd, Key: ui.KeySlash, Run: a.toggleCheatsheet},
 	}
 }

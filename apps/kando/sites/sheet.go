@@ -3,11 +3,11 @@ package sites
 
 import (
 	"hash/fnv"
-	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sites/catalog"
 
 	"github.com/egoist/mygo/ui"
@@ -42,7 +42,7 @@ func Show(c *ui.Context, t *ui.Theme, a App, open *bool) {
 		ui.Column(c).Grow(1).Shrink(1).MinHeight(0).Gap(12).AlignItems(ui.Stretch).Children(func() {
 			header(c, cat)
 			c.Key("sites-search")
-			breeze.SearchField(c, query).Placeholder("搜索网站名、域名，或粘贴视频链接").Label("搜索网站").AutoFocus()
+			breeze.SearchField(c, query).Placeholder(locales.SitesSearchPlaceholder()).Label(locales.SitesSearchLabel()).AutoFocus()
 			if len(found) == 0 {
 				notFound(c, t, *query)
 			} else {
@@ -57,10 +57,10 @@ func Show(c *ui.Context, t *ui.Theme, a App, open *bool) {
 // header is the title and what the list is.
 func header(c *ui.Context, cat catalog.Catalog) {
 	ui.Column(c).Gap(2).Children(func() {
-		breeze.Text(c, "支持的网站", breeze.TextHeading).FontSize(15).Bold().Role(ui.RoleHeading).Level(1)
+		breeze.Text(c, locales.SitesTitle(), breeze.TextHeading).FontSize(15).Bold().Role(ui.RoleHeading).Level(1)
 		for _, line := range []string{
-			"看懂用 yt-dlp 下载视频，下面是它能识别的 " + strconv.Itoa(len(cat.Sites)) + " 个网站。",
-			"需要登录、会员或有 DRM 加密的视频，即使网站在列表里也不一定能下载。",
+			locales.SitesIntro(len(cat.Sites)),
+			locales.SitesCaveat(),
 		} {
 			breeze.Text(c, line, breeze.TextCaption, breeze.TextSecondary).FontSize(12).FixedLineHeight(17).Wrap()
 		}
@@ -74,7 +74,7 @@ func grid(c *ui.Context, t *ui.Theme, a App, found []catalog.Site) {
 	c.Key("sites-grid")
 	ui.GridView(c, state, len(found), tileWidth, tileH, func(i int) {
 		tile(c, t, a, found[i])
-	}).Grow(1).Shrink(1).MinHeight(0).Label("网站列表")
+	}).Grow(1).Shrink(1).MinHeight(0).Label(locales.SitesGridLabel())
 }
 
 // tile is a site: its logo, its name, and its domain under it.
@@ -85,7 +85,7 @@ func tile(c *ui.Context, t *ui.Theme, a App, s catalog.Site) {
 			ui.Text(c, s.Name).FontSize(13).FontWeight(600).SingleLine()
 			ui.Text(c, s.Domain).FontSize(11).TextColor(t.TextMuted).SingleLine()
 		})
-	}).Label(s.Name + "，" + s.Domain)
+	}).Label(locales.SitesTileLabel(s.Name, s.Domain))
 }
 
 // logo is s's logo on a white plate, as favicons are drawn for a light page, or its initial on a plate of a color of its own when it has none.
@@ -130,21 +130,21 @@ func plate(domain string) ui.Color {
 // notFound says the search found no site, and that a site off the list may still work.
 func notFound(c *ui.Context, t *ui.Theme, query string) {
 	ui.Column(c).Grow(1).AlignItems(ui.Center).Justify(ui.Center).Gap(6).Padding(24).Children(func() {
-		breeze.Text(c, "列表里没有「"+strings.TrimSpace(query)+"」", breeze.TextSubtitle).FontSize(14).Bold().TextAlign(ui.Center).Wrap()
-		ui.Text(c, "不在列表里的网站也可以粘贴链接试试：yt-dlp 能从很多网页里找到标准的视频，也能下载直接指向视频文件或 m3u8 的链接。").FontSize(12).FixedLineHeight(18).TextColor(t.TextMuted).TextAlign(ui.Center).MaxWidth(420).Wrap()
+		breeze.Text(c, locales.SitesNotFound(strings.TrimSpace(query)), breeze.TextSubtitle).FontSize(14).Bold().TextAlign(ui.Center).Wrap()
+		ui.Text(c, locales.SitesNotFoundHint()).FontSize(12).FixedLineHeight(18).TextColor(t.TextMuted).TextAlign(ui.Center).MaxWidth(420).Wrap()
 	})
 }
 
 // footer is where the list comes from, how many sites the search found, and 完成.
 func footer(c *ui.Context, cat catalog.Catalog, found int, query string, open *bool) {
 	ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-		note := "列表来自 yt-dlp " + cat.YTDLP
+		note := locales.SitesSource(cat.YTDLP)
 		if strings.TrimSpace(query) != "" {
-			note = "找到 " + strconv.Itoa(found) + " 个 · " + note
+			note = locales.SitesFound(found, note)
 		}
 		breeze.Text(c, note, breeze.TextCaption, breeze.TextSecondary).FontSize(11).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		c.Key("sites-done")
-		if breeze.PrimaryButton(c, "完成").Clicked() {
+		if breeze.PrimaryButton(c, locales.SitesDone()).Clicked() {
 			*open = false
 		}
 	})

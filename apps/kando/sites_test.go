@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sites/catalog"
 	"kando/packages/core"
 
@@ -107,8 +108,23 @@ func TestEmptyLibraryOpensSupportedSites(t *testing.T) {
 func TestSitesItemIsAMenuOnlyRow(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	for _, s := range a.sitesKeys() {
-		if s.Key != 0 || s.Group != "帮助" {
+		if s.Key != 0 || s.Group != groupHelp {
 			t.Fatalf("row %+v", s)
 		}
+	}
+}
+
+// The sheet speaks the interface's language: in English its title, count and button are English.
+func TestSupportedSitesInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.Frame()
+	a.OpenSites()
+	tt.Frame()
+	for _, want := range []string{"Supported Websites", "Done", "List from yt-dlp " + catalog.Load().YTDLP} {
+		wantText(t, tt, want)
+	}
+	if tt.HasText("完成") || tt.HasText("需要登录、会员或有 DRM 加密的视频，即使网站在列表里也不一定能下载。") {
+		t.Fatal("the sheet still reads Chinese")
 	}
 }

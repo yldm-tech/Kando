@@ -7,12 +7,12 @@ import (
 	"kando/apps/kando/cloud"
 )
 
-// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go).
+// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go). googleErr and uploadErr say why the last sign-in or upload failed, as functions so the message reads in the language the page shows when it is drawn; nil when nothing failed.
 type cloudUI struct {
 	googleEmail     string
 	googleRefresh   string
 	googleBusy      bool
-	googleErr       string
+	googleErr       func() string
 	googleLogin     func(context.Context, cloud.GoogleConfig) (cloud.Account, error)
 	storage         string
 	r2Endpoint      string
@@ -40,7 +40,7 @@ type cloudUI struct {
 	uploadPath      string
 	uploadWritten   int64
 	uploadTotal     int64
-	uploadErr       string
+	uploadErr       func() string
 	uploadErrPath   string
 	uploaded        map[string]string
 	uploader        func(context.Context, cloud.Store, []cloud.File, func(written, total int64)) error

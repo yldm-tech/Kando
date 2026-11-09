@@ -4,81 +4,91 @@ import (
 	"path/filepath"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/apps/kando/sidebar"
 
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
 )
 
 // general is the 通用 page: the library, the interface language and version, and the programs Kando runs.
 func (s screen) general(c *ui.Context, t *ui.Theme) {
-	form.Label(c, "资料库", 6, nil)
+	form.Label(c, locales.SettingsGeneralLibrary(), 6, nil)
 	form.Card(c, func() { s.libraryRows(c) })
-	form.Note(c, "切换资料库会停止进行中的任务。从列表移出资料库不会删除里面的文件。", 10)
+	form.Note(c, locales.SettingsGeneralLibraryNote(), 10)
 	form.Card(c, func() {
-		form.Row(c, "界面语言", "", func() {
+		form.Row(c, locales.SettingsGeneralInterfaceLanguage(), "", func() {
 			c.Key("interface-language")
 			selected := InterfaceLanguageName(s.InterfaceLanguage())
-			if form.Select(c, &selected, InterfaceLanguageChoices()).Label("界面语言").Changed() {
+			if form.Select(c, &selected, InterfaceLanguageChoices()).Label(locales.SettingsGeneralInterfaceLanguage()).Changed() {
 				s.SetInterfaceLanguage(InterfaceLanguageTag(selected))
 				s.Save()
 			}
 		})
 		form.Separator(c, true)
-		form.Row(c, "版本", "", func() { form.Value(c, s.version, 13).Selectable() })
+		form.Row(c, locales.SettingsGeneralVersion(), "", func() { form.Value(c, s.version, 13).Selectable() })
 	})
 	tools, known := s.Tools()
 	var redetect func()
 	if known {
 		redetect = func() {
 			c.Key("redetect")
-			if form.Button(c, "重新检测", true).Clicked() {
+			if form.Button(c, locales.SettingsGeneralRedetect(), true).Clicked() {
 				s.Redetect()
 			}
 		}
 	}
-	form.Label(c, "组件", 14, redetect)
+	form.Label(c, locales.SettingsGeneralComponents(), 14, redetect)
 	form.Card(c, func() {
-		s.toolRow(c, t, "FF", "ffmpeg", "音频转换、截取封面、解码画面", tools.FFmpeg)
+		s.toolRow(c, t, "FF", "ffmpeg", locales.SettingsGeneralUseFFmpeg(), tools.FFmpeg)
 		form.Separator(c, false)
-		s.toolRow(c, t, "YT", "yt-dlp", "下载在线视频", tools.YTDLP)
+		s.toolRow(c, t, "YT", "yt-dlp", locales.SettingsGeneralUseYTDLP(), tools.YTDLP)
 		form.Separator(c, false)
-		s.toolRow(c, t, "W", "whisper-cli", "语音识别", tools.Whisper)
+		s.toolRow(c, t, "W", "whisper-cli", locales.SettingsGeneralUseWhisper(), tools.Whisper)
 	})
-	form.Note(c, "这些程序来自本机，看懂不负责安装或更新。", 0)
+	form.Note(c, locales.SettingsGeneralToolsNote(), 0)
 }
 
-// InterfaceLanguageChoices are the languages for which Kando ships a catalog.
+// InterfaceLanguageChoices are the languages for which Kando ships a catalog (locales.Interface).
 // They are named in themselves so the choice remains understandable after the app has switched languages.
-func InterfaceLanguageChoices() []string { return []string{"English", "简体中文"} }
-
-// InterfaceLanguageName turns a MyGo language tag into the label shown in the settings pop-up.
-func InterfaceLanguageName(tag string) string {
-	if tag == "en" {
-		return "English"
+func InterfaceLanguageChoices() []string {
+	names := make([]string, len(locales.Interface))
+	for i, tag := range locales.Interface {
+		names[i] = InterfaceLanguageName(tag)
 	}
-	return "简体中文"
+	return names
+}
+
+// InterfaceLanguageName turns a language tag of locales.Interface into the label shown in the settings pop-up, its name in itself, as 繁體中文 of zh-Hant.
+func InterfaceLanguageName(tag string) string {
+	if !locales.Supported(tag) {
+		tag = locales.Default
+	}
+	return i18n.Autonym(tag)
 }
 
 // InterfaceLanguageTag is the inverse of InterfaceLanguageName.
 func InterfaceLanguageTag(name string) string {
-	if name == "English" {
-		return "en"
+	for _, tag := range locales.Interface {
+		if i18n.Autonym(tag) == name {
+			return tag
+		}
 	}
-	return "zh-Hans"
+	return locales.Default
 }
 
 // libraryRows choose the library, show where it is, and take it off the list. Without a library they offer to make or open one.
 func (s screen) libraryRows(c *ui.Context) {
 	dir := s.LibraryDir()
 	if dir == "" {
-		form.Row(c, "当前资料库", "还没有资料库", func() {
+		form.Row(c, locales.SettingsGeneralCurrentLibrary(), locales.SettingsGeneralNoLibrary(), func() {
 			c.Key("library-new")
-			if form.Button(c, "新建资料库…", false).Clicked() {
+			if form.Button(c, locales.SettingsGeneralNewLibrary(), false).Clicked() {
 				s.BeginNew()
 			}
 			c.Key("library-open")
-			if form.Button(c, "打开资料库…", false).Clicked() {
+			if form.Button(c, locales.SettingsGeneralOpenLibrary(), false).Clicked() {
 				s.PickLibrary()
 			}
 		})
@@ -92,9 +102,9 @@ func (s screen) libraryRows(c *ui.Context) {
 			chosen = labels[i]
 		}
 	}
-	form.Row(c, "当前资料库", "", func() {
+	form.Row(c, locales.SettingsGeneralCurrentLibrary(), "", func() {
 		c.Key("library")
-		if form.Select(c, &chosen, labels).Label("当前资料库").Changed() {
+		if form.Select(c, &chosen, labels).Label(locales.SettingsGeneralCurrentLibrary()).Changed() {
 			for i, label := range labels {
 				if label == chosen && filepath.Clean(dirs[i]) != filepath.Clean(dir) {
 					s.Choose(dirs[i])
@@ -103,18 +113,18 @@ func (s screen) libraryRows(c *ui.Context) {
 		}
 	})
 	form.Separator(c, true)
-	form.Row(c, "位置", "", func() {
+	form.Row(c, locales.SettingsGeneralLocation(), "", func() {
 		form.Value(c, films.DisplayPath(dir), 12).Selectable()
 		c.Key("library-reveal")
-		if form.Button(c, "在访达中显示", false).Clicked() {
+		if form.Button(c, locales.SettingsGeneralShowInFinder(), false).Clicked() {
 			s.Reveal(dir)
 		}
 	})
 	if len(dirs) > 1 {
 		form.Separator(c, true)
-		form.Row(c, "从列表移出", "只从看懂的列表里拿掉，文件留在原处。", func() {
+		form.Row(c, locales.SettingsGeneralForget(), locales.SettingsGeneralForgetHint(), func() {
 			c.Key("library-forget")
-			if form.Button(c, "移出", false).Clicked() {
+			if form.Button(c, locales.SettingsGeneralForgetButton(), false).Clicked() {
 				s.Forget(dir)
 			}
 		})
@@ -139,7 +149,7 @@ func libraryLabels(dirs []string) []string {
 
 // toolRow is one of the programs Kando runs: its tile, its name over what it is for and where it was found, and a dot with its version, or 未安装.
 func (s screen) toolRow(c *ui.Context, t *ui.Theme, mark, name, use, path string) {
-	where := "未安装"
+	where := locales.SettingsGeneralNotInstalled()
 	if path != "" {
 		where = films.DisplayPath(path)
 	}
@@ -149,11 +159,11 @@ func (s screen) toolRow(c *ui.Context, t *ui.Theme, mark, name, use, path string
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
 			ui.Text(c, name).FontSize(13).FontWeight(600).TextColor(form.Text)
-			ui.Text(c, use+" · "+where).FontSize(11).TextColor(form.Secondary).Wrap()
+			ui.Text(c, locales.SettingsGeneralToolDetail(use, where)).FontSize(11).TextColor(form.Secondary).Wrap()
 		})
-		dot, status := t.Danger, "未安装"
+		dot, status := t.Danger, locales.SettingsGeneralNotInstalled()
 		if path != "" {
-			dot, status = form.OK, "已安装"
+			dot, status = form.OK, locales.SettingsGeneralInstalled()
 			if version := s.ToolVersion(path); version != "" {
 				status = version
 			}

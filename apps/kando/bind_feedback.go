@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"kando/apps/kando/feedback"
+	"kando/apps/kando/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -27,29 +28,42 @@ func (a *app) FeedbackView() feedback.View {
 		Issue:   issue,
 		Copied:  a.feedback.copied != "" && a.feedback.copied == issue.Full,
 		Sending: a.feedback.sending,
-		Err:     a.feedback.err,
 	}
-	view.Env = feedback.Attachment{Detail: facts.App + " · " + facts.OS, Enabled: true}
+	if a.feedback.err != nil {
+		view.Err = locales.FeedbackBrowserFailed(a.feedback.err.Error(), feedback.Repo)
+	}
+	view.Env = feedback.Attachment{Detail: locales.FeedbackEnvDetail(appVersion, facts.OS), Enabled: true}
 	tools := make([]string, len(facts.Tools))
 	for i, tool := range facts.Tools {
-		tools[i] = tool.String()
+		tools[i] = feedbackToolLabel(tool)
 	}
 	speech := facts.Speech
 	if speech == "" {
-		speech = "未选模型"
+		speech = locales.FeedbackNoSpeechModel()
 	}
-	view.Tools = feedback.Attachment{Detail: strings.Join(tools, " · ") + "；识别 " + speech + " · 翻译 " + facts.Translate + "（不含 Key）", Enabled: true}
+	view.Tools = feedback.Attachment{Detail: locales.FeedbackToolsDetail(strings.Join(tools, " · "), speech, facts.Translate), Enabled: true}
 	if facts.Film != nil {
-		view.Film = feedback.Attachment{Detail: "来源、处理进度与错误信息，不含文件路径和链接", Enabled: true}
+		view.Film = feedback.Attachment{Detail: locales.FeedbackFilmDetail(), Enabled: true}
 	} else {
-		view.Film = feedback.Attachment{Detail: "当前不在播放页，没有可附带的影片"}
+		view.Film = feedback.Attachment{Detail: locales.FeedbackFilmNone()}
 	}
 	if facts.Excerpt != nil {
-		view.Subs = feedback.Attachment{Detail: "会公开到 GitHub；只附带播放位置的这一句（" + feedback.Clock(facts.Excerpt.At) + "）", Enabled: true}
+		view.Subs = feedback.Attachment{Detail: locales.FeedbackSubsDetail(feedback.Clock(facts.Excerpt.At)), Enabled: true}
 	} else {
-		view.Subs = feedback.Attachment{Detail: "打开一部有字幕的影片后才能附带"}
+		view.Subs = feedback.Attachment{Detail: locales.FeedbackSubsNone()}
 	}
 	return view
+}
+
+// feedbackToolLabel is a tool and its version as the 组件与模型 row shows it, in the interface's language; the issue writes it with feedback.Tool's String, in Chinese.
+func feedbackToolLabel(t feedback.Tool) string {
+	switch {
+	case t.Missing:
+		return locales.FeedbackToolMissing(t.Name)
+	case t.Version == "":
+		return locales.FeedbackToolNoVersion(t.Name)
+	}
+	return t.Name + " " + t.Version
 }
 
 // FeedbackCopied remembers the body 拷贝正文 put on the clipboard, so the button reads 已拷贝 until the body changes.
@@ -61,7 +75,7 @@ func (a *app) SendFeedback() {
 		return
 	}
 	link := a.FeedbackView().Issue.URL
-	a.feedback.sending, a.feedback.err = true, ""
+	a.feedback.sending, a.feedback.err = true, nil
 	gen, update := a.feedback.gen, a.update
 	go func() {
 		err := feedbackOpenURL(link)
@@ -71,7 +85,7 @@ func (a *app) SendFeedback() {
 			}
 			a.feedback.sending = false
 			if err != nil {
-				a.feedback.err = "没能打开浏览器：" + err.Error() + "。可以用「拷贝正文」拷贝内容，到 github.com/" + feedback.Repo + "/issues/new 里粘贴。"
+				a.feedback.err = err
 				return
 			}
 			a.feedback.open = false

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/kando/cheatsheet"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -193,21 +194,21 @@ func TestCheatsheetFollowsThePrototypeLayout(t *testing.T) {
 // TestCheatsheetPlacesOtherAreasRows checks the layout against a fixed table, so rows another area adds land where the prototype's sheet puts them and cannot change this test: the 30-second skips join under 播放, the subtitle keys and ⇧⌘T form 字幕 right after 播放, a row the layout does not name (⌘=) joins its menu's group, and a group the layout does not know follows the layout's groups.
 func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
 	rows := []shortcut{
-		{Group: "播放", Label: "播放/暂停", Key: ui.KeySpace},
-		{Group: "播放", Label: "后退 5 秒", Key: ui.KeyLeft},
-		{Group: "播放", Label: "前进 5 秒", Key: ui.KeyRight},
-		{Group: "播放", Label: "后退 30 秒", Mods: ui.Cmd, Key: ui.KeyLeft},
-		{Group: "播放", Label: "前进 30 秒", Mods: ui.Cmd, Key: ui.KeyRight},
-		{Group: "字幕", Label: "显示/隐藏字幕", Key: ui.KeyV},
-		{Group: "字幕", Label: "切换原文/译文/双语", Key: ui.KeyS},
-		{Group: "字幕", Label: "字幕提前 0.1 秒", Key: ui.KeyZ},
-		{Group: "字幕", Label: "字幕推后 0.1 秒", Key: ui.KeyX},
-		{Group: "字幕", Label: "放大字幕", Mods: ui.Cmd, Key: ui.KeyEqual},
-		{Group: "字幕", Label: "搜索字幕", Mods: ui.Cmd, Key: ui.KeyF},
-		{Group: "显示", Label: "显示/隐藏侧栏", Mods: ui.Cmd | ui.Shift, Key: ui.KeyT},
-		{Group: "显示", Label: "全屏", Key: ui.KeyF},
-		{Group: "窗口", Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash},
-		{Group: "学习", Label: "复习", Key: ui.KeyR},
+		{Group: groupPlayback, Label: "播放/暂停", Key: ui.KeySpace},
+		{Group: groupPlayback, Label: "后退 5 秒", Key: ui.KeyLeft},
+		{Group: groupPlayback, Label: "前进 5 秒", Key: ui.KeyRight},
+		{Group: groupPlayback, Label: "后退 30 秒", Mods: ui.Cmd, Key: ui.KeyLeft},
+		{Group: groupPlayback, Label: "前进 30 秒", Mods: ui.Cmd, Key: ui.KeyRight},
+		{Group: groupSubtitles, Label: "显示/隐藏字幕", Key: ui.KeyV},
+		{Group: groupSubtitles, Label: "切换原文/译文/双语", Key: ui.KeyS},
+		{Group: groupSubtitles, Label: "字幕提前 0.1 秒", Key: ui.KeyZ},
+		{Group: groupSubtitles, Label: "字幕推后 0.1 秒", Key: ui.KeyX},
+		{Group: groupSubtitles, Label: "放大字幕", Mods: ui.Cmd, Key: ui.KeyEqual},
+		{Group: groupSubtitles, Label: "搜索字幕", Mods: ui.Cmd, Key: ui.KeyF},
+		{Group: groupView, Label: "显示/隐藏侧栏", Mods: ui.Cmd | ui.Shift, Key: ui.KeyT},
+		{Group: groupView, Label: "全屏", Key: ui.KeyF},
+		{Group: groupWindow, Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash},
+		{Group: groupStudy, Label: "复习", Key: ui.KeyR},
 	}
 	var got []string
 	for _, g := range cheatsheetGroupsOf(rows) {
@@ -342,5 +343,23 @@ func TestModalDialogsNest(t *testing.T) {
 	sheet()
 	if a.modalOpen() {
 		t.Fatalf("modal still open after every dialog closed: %d", a.overlay.modal)
+	}
+}
+
+// TestCheatsheetInEnglish checks the cheat sheet in English: its title and hint, and the prototype's lines and group titles.
+func TestCheatsheetInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeySlash)
+	tt.Frame()
+	if !a.overlay.cheatsheet {
+		t.Fatal("⌘/ did not open the cheat sheet")
+	}
+	for _, want := range []string{"Keyboard Shortcuts", "Single keys work only while no text field has focus", "Playback", "Play / Pause", "Back / Forward 5 Seconds", "Window", "Ask This Film / Commands", "Settings", "Shortcut Cheat Sheet"} {
+		wantText(t, tt, want)
+	}
+	if tt.HasText("快捷键") || tt.HasText("播放 / 暂停") {
+		t.Fatalf("the cheat sheet still reads Chinese: %q", tt.Texts())
 	}
 }

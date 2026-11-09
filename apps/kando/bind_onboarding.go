@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/onboarding"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -67,21 +68,21 @@ func (a *app) OnboardingDownloadsOnNext() bool { return a.onboardingDownloadsOnN
 func (a *app) OnboardingAI() onboarding.AI {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
-		return onboarding.AI{Text: "已设置", Ready: true}
+		return onboarding.AI{Text: locales.OnboardingAIConfigured(), Ready: true}
 	}
 	model := strings.TrimSpace(tools.Translator.Model)
 	switch {
 	case model == "":
-		return onboarding.AI{Text: noLLMModel, Missing: true}
+		return onboarding.AI{Text: noLLMModel(), Missing: true}
 	case tools.Translator.Credential == nil && tools.Translator.BaseURL == media.EveryAPIBaseURL && tools.Translator.APIKey == "":
-		return onboarding.AI{Text: notSignedIn, Missing: true}
+		return onboarding.AI{Text: notSignedIn(), Missing: true}
 	case tools.Translator.Credential != nil && a.side.ready.signInErr != nil && a.side.ready.signInDone:
-		return onboarding.AI{Text: notSignedIn, Missing: true}
+		return onboarding.AI{Text: notSignedIn(), Missing: true}
 	case tools.Translator.Credential != nil && !a.side.ready.signInDone:
 		// The sidebar checks the sign-in once the tools and a speech model are there, so before that it is not known.
-		return onboarding.AI{Text: "翻译模型：" + model + " · 用本机登录的 EveryAPI，开始处理前会检查登录"}
+		return onboarding.AI{Text: locales.OnboardingAIModelUnchecked(model)}
 	}
-	return onboarding.AI{Text: "翻译模型：" + model, Ready: true}
+	return onboarding.AI{Text: locales.OnboardingAIModel(model), Ready: true}
 }
 
 func (a *app) OnboardingLink() *string { return &a.onb.link }

@@ -10,6 +10,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"kando/apps/kando/locales"
 )
 
 // Repo is the GitHub repository feedback goes to, and NewIssue its new-issue page, which takes the title, body and labels from the query.
@@ -36,7 +38,7 @@ const (
 	KindSubs
 )
 
-// Kinds are the segmented control's labels, by Kind.
+// Kinds are the kinds' names as the issue writes them, by Kind. The issue goes to the maintainers' tracker in one language, Chinese, whatever the interface's language; the segmented control shows kindLabels.
 var Kinds = []string{"问题", "建议", "字幕质量"}
 
 // Name is the kind as the dialog and the issue name it.
@@ -100,7 +102,7 @@ type Excerpt struct {
 	Original, Translation string
 }
 
-// Body is the issue's text in Markdown, before Issue scrubs and fits it.
+// Body is the issue's text in Markdown, before Issue scrubs and fits it. Its headings, the kind and the facts are written in Chinese whatever the interface's language, so the maintainers read every issue on the tracker the same way; only what the user wrote is in their own words.
 func (r Report) Body() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "**类型**：%s\n\n### 描述\n", r.Kind.Name())
@@ -208,9 +210,9 @@ func (is Issue) link(body string) string {
 	return NewIssue + "?" + q.Encode()
 }
 
-// Preview is the issue as the dialog shows it: the title and the label the link fills in, then the body it carries.
+// Preview is the issue as the dialog shows it: the title and the label the link fills in, in the interface's language, then the body it carries, as it is sent.
 func (is Issue) Preview() string {
-	return "标题：" + orValue(is.Title, "（未填写）") + "\n标签：" + is.Label + "\n\n" + is.Body
+	return locales.FeedbackPreviewTitle(orValue(is.Title, locales.FeedbackPreviewUntitled())) + "\n" + locales.FeedbackPreviewLabel(is.Label) + "\n\n" + is.Body
 }
 
 // Scrubber takes out of text what must not reach a public issue: every absolute path becomes <路径>, whole, with the names under it and the spaces in it, the home folder on its own becomes ~, and the secrets it knows and anything shaped like a key or token become ***.

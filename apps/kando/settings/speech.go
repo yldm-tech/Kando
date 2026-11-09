@@ -1,10 +1,10 @@
 package settings
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/packages/media"
 
@@ -25,7 +25,7 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 		}
 	}
 	sel := chosen
-	form.Label(c, "whisper 模型", 6, nil)
+	form.Label(c, locales.SettingsSpeechModels(), 6, nil)
 	form.Card(c, func() {
 		// One radio group, so that Tab stops once in it and the arrows choose among the models on disk.
 		ui.RadioGroup(c, func() {
@@ -36,9 +36,9 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 				c.Key(model.ID)
 				s.modelRow(c, &sel, model, installed[i])
 			}
-		}).Label("whisper 模型").Gap(0).AlignItems(ui.Stretch)
+		}).Label(locales.SettingsSpeechModels()).Gap(0).AlignItems(ui.Stretch)
 	})
-	form.Note(c, "自动识别语言，支持智能断句。越大越准，也越慢、越占空间；不确定就用推荐的。模型从 HuggingFace 下载，取消后不留下半截文件；其他应用已经下好的模型（Vimpo、hyperframes）会直接选用，不用复制。", 0)
+	form.Note(c, locales.SettingsSpeechNote(), 0)
 	if sel != chosen {
 		for i, model := range models {
 			if model.ID == sel {
@@ -53,16 +53,17 @@ func (s screen) speech(c *ui.Context, t *ui.Theme) {
 
 // modelRow is a whisper model as the prototype's engine rows: its radio button, its name with 推荐 after it over what it is good for and its speed, accuracy and size, and what it offers at the end. A model not on disk cannot be chosen, so its radio button is disabled.
 func (s screen) modelRow(c *ui.Context, sel *string, model media.SpeechModel, installed string) {
+	name := SpeechModelName(model.ID)
 	ui.Row(c).Shrink(0).MinHeight(54).Padding(8, 14).Gap(12).AlignItems(ui.Center).Children(func() {
-		breeze.Radio(c, sel, model.ID, "").Label(model.Name).Disabled(installed == "")
+		breeze.Radio(c, sel, model.ID, "").Label(name).Disabled(installed == "")
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, model.Name).FontSize(13).FontWeight(600).TextColor(form.Text)
+				ui.Text(c, name).FontSize(13).FontWeight(600).TextColor(form.Text)
 				if model.Recommended {
-					form.Badge(c, "推荐")
+					form.Badge(c, locales.SettingsSpeechRecommended())
 				}
 			})
-			ui.Text(c, model.Blurb+"\n"+fmt.Sprintf("速度 %s  准确 %s  %s", stars(model.Speed), stars(model.Accuracy), model.SizeLabel)).FontSize(11).FixedLineHeight(15).TextColor(form.Secondary).Wrap()
+			ui.Text(c, SpeechModelBlurb(model.ID)+"\n"+locales.SettingsSpeechModelStats(stars(model.Speed), stars(model.Accuracy), model.SizeLabel)).FontSize(11).FixedLineHeight(15).TextColor(form.Secondary).Wrap()
 		})
 		ui.Row(c).Shrink(0).Gap(8).AlignItems(ui.Center).Children(func() { s.modelAction(c, model, installed) })
 	})
@@ -75,21 +76,63 @@ func (s screen) modelAction(c *ui.Context, model media.SpeechModel, installed st
 		if s.DownloadTotal() > 0 {
 			progress = float64(s.DownloadWritten()) / float64(s.DownloadTotal())
 		}
-		breeze.Progress(c, progress).Width(110).Label(model.Name + " 下载进度")
+		breeze.Progress(c, progress).Width(110).Label(locales.SettingsSpeechDownloadProgress(SpeechModelName(model.ID)))
 		c.Key(model.ID + "-cancel")
-		if form.Button(c, "取消", false).Clicked() {
+		if form.Button(c, locales.SettingsSpeechCancel(), false).Clicked() {
 			s.CancelDownload()
 		}
 		return
 	}
 	if installed != "" {
-		form.Value(c, "已下载", 12)
+		form.Value(c, locales.SettingsSpeechDownloaded(), 12)
 		return
 	}
 	c.Key(model.ID + "-download")
-	if form.Button(c, "下载", false).Disabled(s.Downloading() != "").Clicked() && s.Downloading() == "" {
+	if form.Button(c, locales.SettingsSpeechDownload(), false).Disabled(s.Downloading() != "").Clicked() && s.Downloading() == "" {
 		s.DownloadModel(model.ID)
 	}
+}
+
+// SpeechModelName is how the interface names the whisper catalog model id (media.SpeechModels), as this page and the first-run guide list it.
+func SpeechModelName(id string) string {
+	switch id {
+	case "tiny":
+		return "Tiny"
+	case "base":
+		return "Base"
+	case "small":
+		return "Small"
+	case "medium":
+		return "Medium"
+	case "large-v3-turbo-q5":
+		return locales.SettingsSpeechNameLargeV3TurboQ5()
+	case "large-v3-turbo":
+		return "Large v3 Turbo"
+	case "large-v3":
+		return "Large v3"
+	}
+	return id
+}
+
+// SpeechModelBlurb is what the whisper catalog model id is good for, in the interface's language, or "" for a model it does not know.
+func SpeechModelBlurb(id string) string {
+	switch id {
+	case "tiny":
+		return locales.SettingsSpeechBlurbTiny()
+	case "base":
+		return locales.SettingsSpeechBlurbBase()
+	case "small":
+		return locales.SettingsSpeechBlurbSmall()
+	case "medium":
+		return locales.SettingsSpeechBlurbMedium()
+	case "large-v3-turbo-q5":
+		return locales.SettingsSpeechBlurbLargeV3TurboQ5()
+	case "large-v3-turbo":
+		return locales.SettingsSpeechBlurbLargeV3Turbo()
+	case "large-v3":
+		return locales.SettingsSpeechBlurbLargeV3()
+	}
+	return ""
 }
 
 func stars(n int) string {

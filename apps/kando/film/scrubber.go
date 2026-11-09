@@ -3,6 +3,7 @@ package film
 import (
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 
 	"github.com/egoist/mygo/ui"
@@ -27,7 +28,7 @@ func (s screen) scrubber(c *ui.Context) {
 	if hi <= 0 {
 		hi = 1
 	}
-	bar := ui.SliderBase(c, value, 0, hi).Grow(1).MinWidth(0).Height(22).Label("进度")
+	bar := ui.SliderBase(c, value, 0, hi).Grow(1).MinWidth(0).Height(22).Label(locales.FilmPlaybackPosition())
 	pressed := bar.Pressed()
 	switch {
 	case pressed:

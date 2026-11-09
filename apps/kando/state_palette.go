@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 
 	"github.com/egoist/mygo/ui"
@@ -65,7 +66,9 @@ type paletteAnswer struct {
 	busy    bool
 	needsAI bool
 	failed  bool
-	text    string
+	// text is the model's answer. say, when set, writes what stands in for one instead (the question on its way, why there is none), in the interface's language as the card is shown.
+	text string
+	say  func() string
 	// refs are the moments of the film the answer points at, each the start of a line watched.
 	refs []time.Duration
 	// horizon is how far the film had been watched when it was asked, and model the model that answered.
@@ -94,6 +97,6 @@ func (a *app) paletteHooks() areaHooks {
 // paletteKeys are the palette's shortcuts: ⌘K opens it, and closes it again, anywhere in the window. It is the prototype's 学习 › 问这部影片…, which the menu bar puts before 窗口; over the library, without a film, it finds commands and lines, so its label names both. The cheat sheet lists it under 窗口, as the prototype's sheet does (cheatsheetLayout).
 func (a *app) paletteKeys() []shortcut {
 	return []shortcut{
-		{Group: "学习", Label: "问这部影片 / 命令…", Mods: ui.Cmd, Key: ui.KeyK, Run: a.togglePalette},
+		{Group: groupStudy, Label: locales.PaletteMenuItem(), Mods: ui.Cmd, Key: ui.KeyK, Run: a.togglePalette},
 	}
 }

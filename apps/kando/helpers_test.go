@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"image"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -10,11 +11,19 @@ import (
 	"time"
 
 	"kando/apps/kando/cloud"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
 )
+
+// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go).
+func TestMain(m *testing.M) {
+	testlocale.Pin(locales.Default)
+	os.Exit(m.Run())
+}
 
 // fakePipeline finishes every stage at once unless block is set, in which case Download waits for cancellation.
 type fakePipeline struct {

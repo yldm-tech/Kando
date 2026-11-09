@@ -1,19 +1,21 @@
 package films
 
 import (
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // noLibrary is the page before there is a library: what a library is, 新建资料库… and 打开已有资料库….
 func noLibrary(c *ui.Context, a App) {
-	statusPage(c, libraryArt, "还没有资料库", "资料库是一个 .kando 文件夹，每部影片一个子文件夹，视频、封面和字幕都是普通文件，可以直接在访达里管理。", func() {
+	statusPage(c, libraryArt, locales.FilmsNoLibraryTitle(), locales.FilmsNoLibraryDescription(), func() {
 		c.Key("empty-new")
-		if statusButton(breeze.PrimaryButton(c, "新建资料库…")).Clicked() {
+		if statusButton(breeze.PrimaryButton(c, locales.FilmsNewLibraryEllipsis())).Clicked() {
 			a.BeginNew()
 		}
 		c.Key("empty-open")
-		if statusButton(breeze.Button(c, "打开已有资料库…")).Clicked() {
+		if statusButton(breeze.Button(c, locales.FilmsOpenLibraryEllipsis())).Clicked() {
 			a.PickLibrary()
 		}
 	})
@@ -21,17 +23,17 @@ func noLibrary(c *ui.Context, a App) {
 
 // emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频…, 打开已有资料库… and 支持的网站, which lists the sites a link can come from.
 func emptyLibrary(c *ui.Context, a App) {
-	statusPage(c, startArt, "从一段视频开始", "在上方粘贴 YouTube、哔哩哔哩等视频链接，或把本地视频拖进窗口。看懂会下载视频，识别语音，再生成双语字幕。", func() {
+	statusPage(c, startArt, locales.FilmsEmptyTitle(), locales.FilmsEmptyDescription(), func() {
 		c.Key("empty-pick")
-		if statusButton(breeze.PrimaryButton(c, "选择本地视频…")).Clicked() {
+		if statusButton(breeze.PrimaryButton(c, locales.FilmsPickVideosEllipsis())).Clicked() {
 			a.PickVideos()
 		}
 		c.Key("empty-open")
-		if statusButton(breeze.Button(c, "打开已有资料库…")).Clicked() {
+		if statusButton(breeze.Button(c, locales.FilmsOpenLibraryEllipsis())).Clicked() {
 			a.PickLibrary()
 		}
 		c.Key("empty-sites")
-		if statusButton(breeze.Button(c, "支持的网站…")).Clicked() {
+		if statusButton(breeze.Button(c, locales.FilmsSupportedSites())).Clicked() {
 			a.OpenSites()
 		}
 	})
@@ -40,7 +42,7 @@ func emptyLibrary(c *ui.Context, a App) {
 // emptySource is what a source of the sidebar shows when no film of the library comes from it.
 func emptySource(c *ui.Context, t *ui.Theme) {
 	ui.Column(c).Grow(1).AlignItems(ui.Center).Padding(80, 28).Children(func() {
-		breeze.Text(c, "这个来源下还没有影片。", breeze.TextSecondary)
+		breeze.Text(c, locales.FilmsSourceEmpty(), breeze.TextSecondary)
 	})
 }
 

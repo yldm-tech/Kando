@@ -8,10 +8,13 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/onboarding"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 
+	"github.com/egoist/mygo/i18n"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -40,14 +43,27 @@ func newOnboardUI() onboardUI {
 }
 
 // onboardingTip is the note the library shows once the guide has closed, as the prototype's does. It names the way back that this platform has: the menu bar's 帮助 › 重新查看入门引导 on macOS, F1 (onboardingKeys) where the app has no menu bar of its own.
-func onboardingTip() string {
+func onboardingTip() string { return onboardingTipIn(locales.In(i18n.Locale())) }
+
+// onboardingTipIn is onboardingTip in the language of m.
+func onboardingTipIn(m locales.Messages) string {
 	if appMenuBar {
-		return "随时可以在「帮助 › 重新查看入门引导」回到这里。"
+		return m.OnboardingTipMenu(m.MenuGroupHelp(), m.OnboardingReopen())
 	}
-	return "随时可以按 F1 回到这里。"
+	return m.OnboardingTipKey()
 }
 
-// onboardingLibraryName is the library the guide makes when there is none (D8): 我的影片.kando in the folder where new libraries go, ~/Movies at first.
+// isOnboardingTip reports whether text is the guide's note in any of the interface's languages, so a note shown before the language changed is still known as the guide's once its × closes it.
+func isOnboardingTip(text string) bool {
+	for _, tag := range locales.Interface {
+		if text == onboardingTipIn(locales.In(tag)) {
+			return true
+		}
+	}
+	return false
+}
+
+// onboardingLibraryName is the library the guide makes when there is none (D8): 我的影片.kando in the folder where new libraries go, ~/Movies at first. It is a folder's name on disk, so it stays the same in every language.
 const onboardingLibraryName = "我的影片"
 
 // savedOnboarding is the guide's part of settings.json.
@@ -117,7 +133,7 @@ func (a *app) onboardingKeys() []shortcut {
 		return nil
 	}
 	return []shortcut{
-		{Group: "帮助", Label: "重新查看入门引导", Key: ui.KeyF1, When: func() bool { return a.onb.step == 0 }, Run: a.reopenOnboarding},
+		{Group: groupHelp, Label: locales.OnboardingReopen(), Key: ui.KeyF1, When: func() bool { return a.onb.step == 0 }, Run: a.reopenOnboarding},
 	}
 }
 
@@ -136,7 +152,7 @@ func (a *app) onboardingAfterFrame() {
 	}
 	switch {
 	case !a.onb.tip || a.onb.step > 0 || a.lib.notice.Open:
-	case a.lib.notice.Text == onboardingTip():
+	case isOnboardingTip(a.lib.notice.Text):
 		a.onb.tip = false
 		a.onboardingSave()
 	default:
@@ -202,7 +218,7 @@ func onboardingNewest(dirs []string) string {
 
 func (a *app) onboardingSave() {
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = "设置无法保存：" + err.Error()
+		a.saveErr = locales.OnboardingSaveFailed(err.Error())
 	}
 }
 
@@ -233,7 +249,7 @@ func (a *app) onboardingFinish() {
 	}
 	a.onb.link, a.onb.linkErr = "", ""
 	a.closeOnboarding()
-	a.tell("已加入，开始处理。")
+	a.tell(locales.OnboardingAdded())
 }
 
 // onboardingModelIDs is the speech models the second step offers for the languages chosen: Base, quick and enough for clear English, before Large v3 Turbo (compressed) when only English was chosen; otherwise Large v3 Turbo (compressed), the catalog's recommendation, before the lighter Small. A catalog model in use that is neither is listed after them.
@@ -262,7 +278,7 @@ func (a *app) onboardingModels() []onboarding.Model {
 		if !ok {
 			continue
 		}
-		m := onboarding.Model{ID: id, Name: model.Name, Size: model.SizeLabel, Blurb: model.Blurb}
+		m := onboarding.Model{ID: id, Name: settings.SpeechModelName(id), Size: model.SizeLabel, Blurb: settings.SpeechModelBlurb(id)}
 		path := a.prefs.speechModels[id]
 		switch {
 		case a.prefs.downloading == id:

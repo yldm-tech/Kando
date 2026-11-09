@@ -8,14 +8,17 @@ import (
 	"github.com/egoist/mygo/i18n"
 
 	// MyGo's own strings in the app's languages.
+	_ "github.com/egoist/mygo/locales/ja"
 	_ "github.com/egoist/mygo/locales/zh-Hans"
+	_ "github.com/egoist/mygo/locales/zh-Hant"
 )
 
 //go:embed *.json
 var files embed.FS
 
-// Catalog holds the messages in en, the source language, and zh-Hans. It is
-// registered with package i18n, which makes its languages the app's.
+// Catalog holds the messages in en, the source language, and ja, ko,
+// zh-Hans and zh-Hant. It is registered with package i18n, which makes its
+// languages the app's.
 var Catalog *i18n.Catalog
 
 func init() {
@@ -33,3 +36,11265 @@ type Messages struct{ locale string }
 // "zh-Hant", or of the catalog's language that suits it best, "" for the
 // source language.
 func In(locale string) Messages { return Messages{locale} }
+
+// AccountCOSAccessHint says "Enter the SecretId."
+// in the language the app shows.
+//
+// Hint under the Tencent Cloud COS Access Key field: Tencent calls it
+// SecretId.
+func AccountCOSAccessHint() string { return In(i18n.Locale()).AccountCOSAccessHint() }
+
+// AccountCOSAccessHint says "Enter the SecretId."
+// in the language of msgs.
+//
+// Hint under the Tencent Cloud COS Access Key field: Tencent calls it
+// SecretId.
+func (msgs Messages) AccountCOSAccessHint() string {
+	return Catalog.Format(msgs.locale, "accountCOSAccessHint", nil)
+}
+
+// AccountCOSBucketHint says "Include the APPID, for example video-1250000000."
+// in the language the app shows.
+//
+// Hint under the Tencent Cloud COS Bucket field.
+func AccountCOSBucketHint() string { return In(i18n.Locale()).AccountCOSBucketHint() }
+
+// AccountCOSBucketHint says "Include the APPID, for example video-1250000000."
+// in the language of msgs.
+//
+// Hint under the Tencent Cloud COS Bucket field.
+func (msgs Messages) AccountCOSBucketHint() string {
+	return Catalog.Format(msgs.locale, "accountCOSBucketHint", nil)
+}
+
+// AccountCOSRegionHint says "For example, ap-guangzhou."
+// in the language the app shows.
+//
+// Hint under the Tencent Cloud COS Region field.
+func AccountCOSRegionHint() string { return In(i18n.Locale()).AccountCOSRegionHint() }
+
+// AccountCOSRegionHint says "For example, ap-guangzhou."
+// in the language of msgs.
+//
+// Hint under the Tencent Cloud COS Region field.
+func (msgs Messages) AccountCOSRegionHint() string {
+	return Catalog.Format(msgs.locale, "accountCOSRegionHint", nil)
+}
+
+// AccountCOSSecretHint says "Enter the SecretKey."
+// in the language the app shows.
+//
+// Hint under the Tencent Cloud COS Secret field: Tencent calls it
+// SecretKey.
+func AccountCOSSecretHint() string { return In(i18n.Locale()).AccountCOSSecretHint() }
+
+// AccountCOSSecretHint says "Enter the SecretKey."
+// in the language of msgs.
+//
+// Hint under the Tencent Cloud COS Secret field: Tencent calls it
+// SecretKey.
+func (msgs Messages) AccountCOSSecretHint() string {
+	return Catalog.Format(msgs.locale, "accountCOSSecretHint", nil)
+}
+
+// AccountCompatEndpointHint says "The full https address."
+// in the language the app shows.
+//
+// Hint under the S3-compatible storage's Endpoint field.
+func AccountCompatEndpointHint() string { return In(i18n.Locale()).AccountCompatEndpointHint() }
+
+// AccountCompatEndpointHint says "The full https address."
+// in the language of msgs.
+//
+// Hint under the S3-compatible storage's Endpoint field.
+func (msgs Messages) AccountCompatEndpointHint() string {
+	return Catalog.Format(msgs.locale, "accountCompatEndpointHint", nil)
+}
+
+// AccountCompatRegionHint says "The region name used for signing. For MinIO, usually us-east-1."
+// in the language the app shows.
+//
+// Hint under the S3-compatible storage's Region field.
+func AccountCompatRegionHint() string { return In(i18n.Locale()).AccountCompatRegionHint() }
+
+// AccountCompatRegionHint says "The region name used for signing. For MinIO, usually us-east-1."
+// in the language of msgs.
+//
+// Hint under the S3-compatible storage's Region field.
+func (msgs Messages) AccountCompatRegionHint() string {
+	return Catalog.Format(msgs.locale, "accountCompatRegionHint", nil)
+}
+
+// AccountFixSettings says "Open Settings"
+// in the language the app shows.
+//
+// Button in the player's upload capsule opening Settings › Account &
+// Upload to fill in the storage.
+func AccountFixSettings() string { return In(i18n.Locale()).AccountFixSettings() }
+
+// AccountFixSettings says "Open Settings"
+// in the language of msgs.
+//
+// Button in the player's upload capsule opening Settings › Account &
+// Upload to fill in the storage.
+func (msgs Messages) AccountFixSettings() string {
+	return Catalog.Format(msgs.locale, "accountFixSettings", nil)
+}
+
+// AccountFixSignIn says "Sign In"
+// in the language the app shows.
+//
+// Button in the player's upload capsule opening Settings › Account &
+// Upload to sign in.
+func AccountFixSignIn() string { return In(i18n.Locale()).AccountFixSignIn() }
+
+// AccountFixSignIn says "Sign In"
+// in the language of msgs.
+//
+// Button in the player's upload capsule opening Settings › Account &
+// Upload to sign in.
+func (msgs Messages) AccountFixSignIn() string {
+	return Catalog.Format(msgs.locale, "accountFixSignIn", nil)
+}
+
+// AccountGoogleFailed says "Google sign-in didn't finish"
+// in the language the app shows.
+//
+// Error under the account card when the Google sign-in failed or was
+// cancelled.
+func AccountGoogleFailed() string { return In(i18n.Locale()).AccountGoogleFailed() }
+
+// AccountGoogleFailed says "Google sign-in didn't finish"
+// in the language of msgs.
+//
+// Error under the account card when the Google sign-in failed or was
+// cancelled.
+func (msgs Messages) AccountGoogleFailed() string {
+	return Catalog.Format(msgs.locale, "accountGoogleFailed", nil)
+}
+
+// AccountNeedsSignIn says "Sign in to Google in Settings › Account & Upload first"
+// in the language the app shows.
+//
+// Why the player cannot upload: no Google account is signed in. Names the
+// settings page.
+func AccountNeedsSignIn() string { return In(i18n.Locale()).AccountNeedsSignIn() }
+
+// AccountNeedsSignIn says "Sign in to Google in Settings › Account & Upload first"
+// in the language of msgs.
+//
+// Why the player cannot upload: no Google account is signed in. Names the
+// settings page.
+func (msgs Messages) AccountNeedsSignIn() string {
+	return Catalog.Format(msgs.locale, "accountNeedsSignIn", nil)
+}
+
+// AccountNeedsStore says "Fill in {store} in Settings › Account & Upload first"
+// in the language the app shows.
+//
+// Why the player cannot upload: the chosen storage is not filled in. Names
+// the settings page.
+func AccountNeedsStore(store string) string { return In(i18n.Locale()).AccountNeedsStore(store) }
+
+// AccountNeedsStore says "Fill in {store} in Settings › Account & Upload first"
+// in the language of msgs.
+//
+// Why the player cannot upload: the chosen storage is not filled in. Names
+// the settings page.
+func (msgs Messages) AccountNeedsStore(store string) string {
+	return Catalog.Format(msgs.locale, "accountNeedsStore", map[string]any{"store": store})
+}
+
+// AccountNoClientNote says "Needs the environment variable KANDO_GOOGLE_CLIENT_ID; without it, the sign-in button is unavailable. The Client ID i…"
+// in the language the app shows.
+//
+// Note under the account card when the Google client ID is not set in the
+// environment.
+func AccountNoClientNote() string { return In(i18n.Locale()).AccountNoClientNote() }
+
+// AccountNoClientNote says "Needs the environment variable KANDO_GOOGLE_CLIENT_ID; without it, the sign-in button is unavailable. The Client ID i…"
+// in the language of msgs.
+//
+// Note under the account card when the Google client ID is not set in the
+// environment.
+func (msgs Messages) AccountNoClientNote() string {
+	return Catalog.Format(msgs.locale, "accountNoClientNote", nil)
+}
+
+// AccountOSSRegionHint says "For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."
+// in the language the app shows.
+//
+// Hint under the Alibaba Cloud OSS Region field.
+func AccountOSSRegionHint() string { return In(i18n.Locale()).AccountOSSRegionHint() }
+
+// AccountOSSRegionHint says "For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."
+// in the language of msgs.
+//
+// Hint under the Alibaba Cloud OSS Region field.
+func (msgs Messages) AccountOSSRegionHint() string {
+	return Catalog.Format(msgs.locale, "accountOSSRegionHint", nil)
+}
+
+// AccountPathStyle says "Path Style"
+// in the language the app shows.
+//
+// Switch of the S3-compatible storage: address the bucket in the path
+// instead of the host name.
+func AccountPathStyle() string { return In(i18n.Locale()).AccountPathStyle() }
+
+// AccountPathStyle says "Path Style"
+// in the language of msgs.
+//
+// Switch of the S3-compatible storage: address the bucket in the path
+// instead of the host name.
+func (msgs Messages) AccountPathStyle() string {
+	return Catalog.Format(msgs.locale, "accountPathStyle", nil)
+}
+
+// AccountPathStyleHint says "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."
+// in the language the app shows.
+//
+// Hint under the path style switch: which services need it.
+func AccountPathStyleHint() string { return In(i18n.Locale()).AccountPathStyleHint() }
+
+// AccountPathStyleHint says "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."
+// in the language of msgs.
+//
+// Hint under the path style switch: which services need it.
+func (msgs Messages) AccountPathStyleHint() string {
+	return Catalog.Format(msgs.locale, "accountPathStyleHint", nil)
+}
+
+// AccountR2EndpointHint says "Enter the Account ID, or the full https address."
+// in the language the app shows.
+//
+// Hint under the Cloudflare R2 Endpoint field.
+func AccountR2EndpointHint() string { return In(i18n.Locale()).AccountR2EndpointHint() }
+
+// AccountR2EndpointHint says "Enter the Account ID, or the full https address."
+// in the language of msgs.
+//
+// Hint under the Cloudflare R2 Endpoint field.
+func (msgs Messages) AccountR2EndpointHint() string {
+	return Catalog.Format(msgs.locale, "accountR2EndpointHint", nil)
+}
+
+// AccountS3RegionHint says "For example, ap-northeast-1."
+// in the language the app shows.
+//
+// Hint under the Amazon S3 Region field.
+func AccountS3RegionHint() string { return In(i18n.Locale()).AccountS3RegionHint() }
+
+// AccountS3RegionHint says "For example, ap-northeast-1."
+// in the language of msgs.
+//
+// Hint under the Amazon S3 Region field.
+func (msgs Messages) AccountS3RegionHint() string {
+	return Catalog.Format(msgs.locale, "accountS3RegionHint", nil)
+}
+
+// AccountSaveFailed says "The account couldn't be saved"
+// in the language the app shows.
+//
+// Error under the account card when the settings file could not be written.
+func AccountSaveFailed() string { return In(i18n.Locale()).AccountSaveFailed() }
+
+// AccountSaveFailed says "The account couldn't be saved"
+// in the language of msgs.
+//
+// Error under the account card when the settings file could not be written.
+func (msgs Messages) AccountSaveFailed() string {
+	return Catalog.Format(msgs.locale, "accountSaveFailed", nil)
+}
+
+// AccountSectionAccount says "Account"
+// in the language the app shows.
+//
+// Heading of the Google account card on the Account & Upload settings page.
+func AccountSectionAccount() string { return In(i18n.Locale()).AccountSectionAccount() }
+
+// AccountSectionAccount says "Account"
+// in the language of msgs.
+//
+// Heading of the Google account card on the Account & Upload settings page.
+func (msgs Messages) AccountSectionAccount() string {
+	return Catalog.Format(msgs.locale, "accountSectionAccount", nil)
+}
+
+// AccountSectionStorage says "Object Storage"
+// in the language the app shows.
+//
+// Heading of the object storage card on the Account & Upload settings page.
+func AccountSectionStorage() string { return In(i18n.Locale()).AccountSectionStorage() }
+
+// AccountSectionStorage says "Object Storage"
+// in the language of msgs.
+//
+// Heading of the object storage card on the Account & Upload settings page.
+func (msgs Messages) AccountSectionStorage() string {
+	return Catalog.Format(msgs.locale, "accountSectionStorage", nil)
+}
+
+// AccountSignIn says "Sign In with Google"
+// in the language the app shows.
+//
+// Button signing in with Google in the browser.
+func AccountSignIn() string { return In(i18n.Locale()).AccountSignIn() }
+
+// AccountSignIn says "Sign In with Google"
+// in the language of msgs.
+//
+// Button signing in with Google in the browser.
+func (msgs Messages) AccountSignIn() string {
+	return Catalog.Format(msgs.locale, "accountSignIn", nil)
+}
+
+// AccountSignInNote says "Signing in only marks who uploaded. The refresh token is kept in the settings file on this computer."
+// in the language the app shows.
+//
+// Note under the account card: what signing in is for and where the token
+// is kept.
+func AccountSignInNote() string { return In(i18n.Locale()).AccountSignInNote() }
+
+// AccountSignInNote says "Signing in only marks who uploaded. The refresh token is kept in the settings file on this computer."
+// in the language of msgs.
+//
+// Note under the account card: what signing in is for and where the token
+// is kept.
+func (msgs Messages) AccountSignInNote() string {
+	return Catalog.Format(msgs.locale, "accountSignInNote", nil)
+}
+
+// AccountSignOut says "Sign Out"
+// in the language the app shows.
+//
+// Button signing out of the Google account.
+func AccountSignOut() string { return In(i18n.Locale()).AccountSignOut() }
+
+// AccountSignOut says "Sign Out"
+// in the language of msgs.
+//
+// Button signing out of the Google account.
+func (msgs Messages) AccountSignOut() string {
+	return Catalog.Format(msgs.locale, "accountSignOut", nil)
+}
+
+// AccountSignedInWith says "Signed in with Google"
+// in the language the app shows.
+//
+// The account row's subtitle under the signed-in email.
+func AccountSignedInWith() string { return In(i18n.Locale()).AccountSignedInWith() }
+
+// AccountSignedInWith says "Signed in with Google"
+// in the language of msgs.
+//
+// The account row's subtitle under the signed-in email.
+func (msgs Messages) AccountSignedInWith() string {
+	return Catalog.Format(msgs.locale, "accountSignedInWith", nil)
+}
+
+// AccountSignedOut says "Not Signed In"
+// in the language the app shows.
+//
+// The account row's title while no Google account is signed in.
+func AccountSignedOut() string { return In(i18n.Locale()).AccountSignedOut() }
+
+// AccountSignedOut says "Not Signed In"
+// in the language of msgs.
+//
+// The account row's title while no Google account is signed in.
+func (msgs Messages) AccountSignedOut() string {
+	return Catalog.Format(msgs.locale, "accountSignedOut", nil)
+}
+
+// AccountSignedOutHint says "Sign in to upload films."
+// in the language the app shows.
+//
+// The account row's subtitle while no Google account is signed in.
+func AccountSignedOutHint() string { return In(i18n.Locale()).AccountSignedOutHint() }
+
+// AccountSignedOutHint says "Sign in to upload films."
+// in the language of msgs.
+//
+// The account row's subtitle while no Google account is signed in.
+func (msgs Messages) AccountSignedOutHint() string {
+	return Catalog.Format(msgs.locale, "accountSignedOutHint", nil)
+}
+
+// AccountSigningIn says "Signing In…"
+// in the language the app shows.
+//
+// The sign-in button's title while the browser sign-in runs.
+func AccountSigningIn() string { return In(i18n.Locale()).AccountSigningIn() }
+
+// AccountSigningIn says "Signing In…"
+// in the language of msgs.
+//
+// The sign-in button's title while the browser sign-in runs.
+func (msgs Messages) AccountSigningIn() string {
+	return Catalog.Format(msgs.locale, "accountSigningIn", nil)
+}
+
+// AccountStorageKind says "Type"
+// in the language the app shows.
+//
+// Row and drop-down choosing the kind of object storage.
+func AccountStorageKind() string { return In(i18n.Locale()).AccountStorageKind() }
+
+// AccountStorageKind says "Type"
+// in the language of msgs.
+//
+// Row and drop-down choosing the kind of object storage.
+func (msgs Messages) AccountStorageKind() string {
+	return Catalog.Format(msgs.locale, "accountStorageKind", nil)
+}
+
+// AccountStoreCOS says "Tencent Cloud COS"
+// in the language the app shows.
+//
+// Tencent Cloud's object storage in the storage drop-down.
+func AccountStoreCOS() string { return In(i18n.Locale()).AccountStoreCOS() }
+
+// AccountStoreCOS says "Tencent Cloud COS"
+// in the language of msgs.
+//
+// Tencent Cloud's object storage in the storage drop-down.
+func (msgs Messages) AccountStoreCOS() string {
+	return Catalog.Format(msgs.locale, "accountStoreCOS", nil)
+}
+
+// AccountStoreCompat says "S3 Compatible"
+// in the language the app shows.
+//
+// Any S3-compatible object storage, such as MinIO, in the storage
+// drop-down, on the upload button and in the message asking to fill it in.
+func AccountStoreCompat() string { return In(i18n.Locale()).AccountStoreCompat() }
+
+// AccountStoreCompat says "S3 Compatible"
+// in the language of msgs.
+//
+// Any S3-compatible object storage, such as MinIO, in the storage
+// drop-down, on the upload button and in the message asking to fill it in.
+func (msgs Messages) AccountStoreCompat() string {
+	return Catalog.Format(msgs.locale, "accountStoreCompat", nil)
+}
+
+// AccountStoreOSS says "Alibaba Cloud OSS"
+// in the language the app shows.
+//
+// Alibaba Cloud's object storage in the storage drop-down.
+func AccountStoreOSS() string { return In(i18n.Locale()).AccountStoreOSS() }
+
+// AccountStoreOSS says "Alibaba Cloud OSS"
+// in the language of msgs.
+//
+// Alibaba Cloud's object storage in the storage drop-down.
+func (msgs Messages) AccountStoreOSS() string {
+	return Catalog.Format(msgs.locale, "accountStoreOSS", nil)
+}
+
+// AccountUploadFailed says "Upload failed"
+// in the language the app shows.
+//
+// Upload error whose cause is hidden because it would show a key.
+func AccountUploadFailed() string { return In(i18n.Locale()).AccountUploadFailed() }
+
+// AccountUploadFailed says "Upload failed"
+// in the language of msgs.
+//
+// Upload error whose cause is hidden because it would show a key.
+func (msgs Messages) AccountUploadFailed() string {
+	return Catalog.Format(msgs.locale, "accountUploadFailed", nil)
+}
+
+// AccountUploadFailedBecause says "Upload failed: {error}"
+// in the language the app shows.
+//
+// Upload error with the storage's error message.
+func AccountUploadFailedBecause(error string) string {
+	return In(i18n.Locale()).AccountUploadFailedBecause(error)
+}
+
+// AccountUploadFailedBecause says "Upload failed: {error}"
+// in the language of msgs.
+//
+// Upload error with the storage's error message.
+func (msgs Messages) AccountUploadFailedBecause(error string) string {
+	return Catalog.Format(msgs.locale, "accountUploadFailedBecause", map[string]any{"error": error})
+}
+
+// AccountUploadNote says "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are sa…"
+// in the language the app shows.
+//
+// Note under the object storage card: uploads are by hand, and where the
+// keys are kept.
+func AccountUploadNote() string { return In(i18n.Locale()).AccountUploadNote() }
+
+// AccountUploadNote says "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are sa…"
+// in the language of msgs.
+//
+// Note under the object storage card: uploads are by hand, and where the
+// keys are kept.
+func (msgs Messages) AccountUploadNote() string {
+	return Catalog.Format(msgs.locale, "accountUploadNote", nil)
+}
+
+// AccountUploadTo says "Upload to {store}"
+// in the language the app shows.
+//
+// The player's upload button, naming the storage (R2, S3, OSS, COS or S3
+// Compatible).
+func AccountUploadTo(store string) string { return In(i18n.Locale()).AccountUploadTo(store) }
+
+// AccountUploadTo says "Upload to {store}"
+// in the language of msgs.
+//
+// The player's upload button, naming the storage (R2, S3, OSS, COS or S3
+// Compatible).
+func (msgs Messages) AccountUploadTo(store string) string {
+	return Catalog.Format(msgs.locale, "accountUploadTo", map[string]any{"store": store})
+}
+
+// AccountUploaded says "Uploaded {key}"
+// in the language the app shows.
+//
+// The player's upload capsule once the film was uploaded, with the object's
+// key in the bucket.
+func AccountUploaded(key string) string { return In(i18n.Locale()).AccountUploaded(key) }
+
+// AccountUploaded says "Uploaded {key}"
+// in the language of msgs.
+//
+// The player's upload capsule once the film was uploaded, with the object's
+// key in the bucket.
+func (msgs Messages) AccountUploaded(key string) string {
+	return Catalog.Format(msgs.locale, "accountUploaded", map[string]any{"key": key})
+}
+
+// AccountUploading says "Uploading"
+// in the language the app shows.
+//
+// The player's upload capsule while the upload starts, before its size is
+// known.
+func AccountUploading() string { return In(i18n.Locale()).AccountUploading() }
+
+// AccountUploading says "Uploading"
+// in the language of msgs.
+//
+// The player's upload capsule while the upload starts, before its size is
+// known.
+func (msgs Messages) AccountUploading() string {
+	return Catalog.Format(msgs.locale, "accountUploading", nil)
+}
+
+// AccountUploadingOther says "Uploading another film"
+// in the language the app shows.
+//
+// The player's upload capsule while another film is uploading.
+func AccountUploadingOther() string { return In(i18n.Locale()).AccountUploadingOther() }
+
+// AccountUploadingOther says "Uploading another film"
+// in the language of msgs.
+//
+// The player's upload capsule while another film is uploading.
+func (msgs Messages) AccountUploadingOther() string {
+	return Catalog.Format(msgs.locale, "accountUploadingOther", nil)
+}
+
+// AccountUploadingPercent says "Uploading {percent}%"
+// in the language the app shows.
+//
+// The player's upload capsule while uploading, with how much is done.
+func AccountUploadingPercent(percent int) string {
+	return In(i18n.Locale()).AccountUploadingPercent(percent)
+}
+
+// AccountUploadingPercent says "Uploading {percent}%"
+// in the language of msgs.
+//
+// The player's upload capsule while uploading, with how much is done.
+func (msgs Messages) AccountUploadingPercent(percent int) string {
+	return Catalog.Format(msgs.locale, "accountUploadingPercent", map[string]any{"percent": percent})
+}
+
+// AccountVideoMissing says "The video file isn't on this computer"
+// in the language the app shows.
+//
+// Upload error when the film's video file is not on disk.
+func AccountVideoMissing() string { return In(i18n.Locale()).AccountVideoMissing() }
+
+// AccountVideoMissing says "The video file isn't on this computer"
+// in the language of msgs.
+//
+// Upload error when the film's video file is not on disk.
+func (msgs Messages) AccountVideoMissing() string {
+	return Catalog.Format(msgs.locale, "accountVideoMissing", nil)
+}
+
+// AppSettings says "Settings…"
+// in the language the app shows.
+//
+// App menu item and shortcut row (⌘,) that opens Settings.
+func AppSettings() string { return In(i18n.Locale()).AppSettings() }
+
+// AppSettings says "Settings…"
+// in the language of msgs.
+//
+// App menu item and shortcut row (⌘,) that opens Settings.
+func (msgs Messages) AppSettings() string {
+	return Catalog.Format(msgs.locale, "appSettings", nil)
+}
+
+// CheatsheetClose says "Close"
+// in the language the app shows.
+//
+// Accessible name of the cheat sheet's close button.
+func CheatsheetClose() string { return In(i18n.Locale()).CheatsheetClose() }
+
+// CheatsheetClose says "Close"
+// in the language of msgs.
+//
+// Accessible name of the cheat sheet's close button.
+func (msgs Messages) CheatsheetClose() string {
+	return Catalog.Format(msgs.locale, "cheatsheetClose", nil)
+}
+
+// CheatsheetHint says "Single keys work only while no text field has focus"
+// in the language the app shows.
+//
+// Note next to the cheat sheet's title: shortcuts without a modifier key do
+// nothing while a text field is being typed in.
+func CheatsheetHint() string { return In(i18n.Locale()).CheatsheetHint() }
+
+// CheatsheetHint says "Single keys work only while no text field has focus"
+// in the language of msgs.
+//
+// Note next to the cheat sheet's title: shortcuts without a modifier key do
+// nothing while a text field is being typed in.
+func (msgs Messages) CheatsheetHint() string {
+	return Catalog.Format(msgs.locale, "cheatsheetHint", nil)
+}
+
+// CheatsheetMenuItem says "Shortcut Cheat Sheet"
+// in the language the app shows.
+//
+// Help menu item and shortcut row (⌘/) that opens the list of keyboard
+// shortcuts.
+func CheatsheetMenuItem() string { return In(i18n.Locale()).CheatsheetMenuItem() }
+
+// CheatsheetMenuItem says "Shortcut Cheat Sheet"
+// in the language of msgs.
+//
+// Help menu item and shortcut row (⌘/) that opens the list of keyboard
+// shortcuts.
+func (msgs Messages) CheatsheetMenuItem() string {
+	return Catalog.Format(msgs.locale, "cheatsheetMenuItem", nil)
+}
+
+// CheatsheetPalette says "Ask This Film / Commands"
+// in the language the app shows.
+//
+// Cheat sheet line, under Window, for ⌘K, the command palette that also
+// answers questions about the film.
+func CheatsheetPalette() string { return In(i18n.Locale()).CheatsheetPalette() }
+
+// CheatsheetPalette says "Ask This Film / Commands"
+// in the language of msgs.
+//
+// Cheat sheet line, under Window, for ⌘K, the command palette that also
+// answers questions about the film.
+func (msgs Messages) CheatsheetPalette() string {
+	return Catalog.Format(msgs.locale, "cheatsheetPalette", nil)
+}
+
+// CheatsheetPlayPause says "Play / Pause"
+// in the language the app shows.
+//
+// Cheat sheet line for the Space key in the player.
+func CheatsheetPlayPause() string { return In(i18n.Locale()).CheatsheetPlayPause() }
+
+// CheatsheetPlayPause says "Play / Pause"
+// in the language of msgs.
+//
+// Cheat sheet line for the Space key in the player.
+func (msgs Messages) CheatsheetPlayPause() string {
+	return Catalog.Format(msgs.locale, "cheatsheetPlayPause", nil)
+}
+
+// CheatsheetSearchLines says "Search Lines"
+// in the language the app shows.
+//
+// Cheat sheet line, under Subtitles, for ⌘F, which searches the film's
+// lines.
+func CheatsheetSearchLines() string { return In(i18n.Locale()).CheatsheetSearchLines() }
+
+// CheatsheetSearchLines says "Search Lines"
+// in the language of msgs.
+//
+// Cheat sheet line, under Subtitles, for ⌘F, which searches the film's
+// lines.
+func (msgs Messages) CheatsheetSearchLines() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSearchLines", nil)
+}
+
+// CheatsheetSettings says "Settings"
+// in the language the app shows.
+//
+// Cheat sheet line, under Window, for ⌘, which opens Settings.
+func CheatsheetSettings() string { return In(i18n.Locale()).CheatsheetSettings() }
+
+// CheatsheetSettings says "Settings"
+// in the language of msgs.
+//
+// Cheat sheet line, under Window, for ⌘, which opens Settings.
+func (msgs Messages) CheatsheetSettings() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSettings", nil)
+}
+
+// CheatsheetSidebar says "Sidebar"
+// in the language the app shows.
+//
+// Cheat sheet line, under Subtitles, for the key that shows or hides the
+// player's sidebar of lines.
+func CheatsheetSidebar() string { return In(i18n.Locale()).CheatsheetSidebar() }
+
+// CheatsheetSidebar says "Sidebar"
+// in the language of msgs.
+//
+// Cheat sheet line, under Subtitles, for the key that shows or hides the
+// player's sidebar of lines.
+func (msgs Messages) CheatsheetSidebar() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSidebar", nil)
+}
+
+// CheatsheetSkip30 says "Back / Forward 30 Seconds"
+// in the language the app shows.
+//
+// Cheat sheet line for ⌘← and ⌘→ in the player.
+func CheatsheetSkip30() string { return In(i18n.Locale()).CheatsheetSkip30() }
+
+// CheatsheetSkip30 says "Back / Forward 30 Seconds"
+// in the language of msgs.
+//
+// Cheat sheet line for ⌘← and ⌘→ in the player.
+func (msgs Messages) CheatsheetSkip30() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSkip30", nil)
+}
+
+// CheatsheetSkip5 says "Back / Forward 5 Seconds"
+// in the language the app shows.
+//
+// Cheat sheet line for the ← and → keys in the player.
+func CheatsheetSkip5() string { return In(i18n.Locale()).CheatsheetSkip5() }
+
+// CheatsheetSkip5 says "Back / Forward 5 Seconds"
+// in the language of msgs.
+//
+// Cheat sheet line for the ← and → keys in the player.
+func (msgs Messages) CheatsheetSkip5() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSkip5", nil)
+}
+
+// CheatsheetSubtitlesDelay says "Subtitle Delay −/+ 0.1 s"
+// in the language the app shows.
+//
+// Cheat sheet line, under Subtitles, for the Z and X keys that move the
+// subtitles 0.1 second earlier or later.
+func CheatsheetSubtitlesDelay() string { return In(i18n.Locale()).CheatsheetSubtitlesDelay() }
+
+// CheatsheetSubtitlesDelay says "Subtitle Delay −/+ 0.1 s"
+// in the language of msgs.
+//
+// Cheat sheet line, under Subtitles, for the Z and X keys that move the
+// subtitles 0.1 second earlier or later.
+func (msgs Messages) CheatsheetSubtitlesDelay() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSubtitlesDelay", nil)
+}
+
+// CheatsheetSubtitlesMode says "Switch Display Mode"
+// in the language the app shows.
+//
+// Cheat sheet line, under Subtitles, for the key that cycles bilingual,
+// translation only and original only.
+func CheatsheetSubtitlesMode() string { return In(i18n.Locale()).CheatsheetSubtitlesMode() }
+
+// CheatsheetSubtitlesMode says "Switch Display Mode"
+// in the language of msgs.
+//
+// Cheat sheet line, under Subtitles, for the key that cycles bilingual,
+// translation only and original only.
+func (msgs Messages) CheatsheetSubtitlesMode() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSubtitlesMode", nil)
+}
+
+// CheatsheetSubtitlesShowHide says "Show / Hide"
+// in the language the app shows.
+//
+// Cheat sheet line, under Subtitles, for the key that shows or hides the
+// subtitles.
+func CheatsheetSubtitlesShowHide() string { return In(i18n.Locale()).CheatsheetSubtitlesShowHide() }
+
+// CheatsheetSubtitlesShowHide says "Show / Hide"
+// in the language of msgs.
+//
+// Cheat sheet line, under Subtitles, for the key that shows or hides the
+// subtitles.
+func (msgs Messages) CheatsheetSubtitlesShowHide() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSubtitlesShowHide", nil)
+}
+
+// CheatsheetTitle says "Keyboard Shortcuts"
+// in the language the app shows.
+//
+// Title of the shortcut cheat sheet.
+func CheatsheetTitle() string { return In(i18n.Locale()).CheatsheetTitle() }
+
+// CheatsheetTitle says "Keyboard Shortcuts"
+// in the language of msgs.
+//
+// Title of the shortcut cheat sheet.
+func (msgs Messages) CheatsheetTitle() string {
+	return Catalog.Format(msgs.locale, "cheatsheetTitle", nil)
+}
+
+// CheatsheetVolume says "Volume Up / Down"
+// in the language the app shows.
+//
+// Cheat sheet line for the ↑ and ↓ keys in the player.
+func CheatsheetVolume() string { return In(i18n.Locale()).CheatsheetVolume() }
+
+// CheatsheetVolume says "Volume Up / Down"
+// in the language of msgs.
+//
+// Cheat sheet line for the ↑ and ↓ keys in the player.
+func (msgs Messages) CheatsheetVolume() string {
+	return Catalog.Format(msgs.locale, "cheatsheetVolume", nil)
+}
+
+// CloudSignedIn says "Signed in. You can close this page."
+// in the language the app shows.
+//
+// The browser page Google's sign-in returns to, once the app has the
+// sign-in.
+func CloudSignedIn() string { return In(i18n.Locale()).CloudSignedIn() }
+
+// CloudSignedIn says "Signed in. You can close this page."
+// in the language of msgs.
+//
+// The browser page Google's sign-in returns to, once the app has the
+// sign-in.
+func (msgs Messages) CloudSignedIn() string {
+	return Catalog.Format(msgs.locale, "cloudSignedIn", nil)
+}
+
+// CloudSignedInTitle says "Kando"
+// in the language the app shows.
+//
+// Title of the browser page Google's sign-in returns to, the app's name.
+func CloudSignedInTitle() string { return In(i18n.Locale()).CloudSignedInTitle() }
+
+// CloudSignedInTitle says "Kando"
+// in the language of msgs.
+//
+// Title of the browser page Google's sign-in returns to, the app's name.
+func (msgs Messages) CloudSignedInTitle() string {
+	return Catalog.Format(msgs.locale, "cloudSignedInTitle", nil)
+}
+
+// FeedbackAttachEnv says "App and System Versions"
+// in the language the app shows.
+//
+// Check box attaching the app's and the system's versions.
+func FeedbackAttachEnv() string { return In(i18n.Locale()).FeedbackAttachEnv() }
+
+// FeedbackAttachEnv says "App and System Versions"
+// in the language of msgs.
+//
+// Check box attaching the app's and the system's versions.
+func (msgs Messages) FeedbackAttachEnv() string {
+	return Catalog.Format(msgs.locale, "feedbackAttachEnv", nil)
+}
+
+// FeedbackAttachFilm says "Current Film's Processing Status"
+// in the language the app shows.
+//
+// Check box attaching the state of the film open in the player.
+func FeedbackAttachFilm() string { return In(i18n.Locale()).FeedbackAttachFilm() }
+
+// FeedbackAttachFilm says "Current Film's Processing Status"
+// in the language of msgs.
+//
+// Check box attaching the state of the film open in the player.
+func (msgs Messages) FeedbackAttachFilm() string {
+	return Catalog.Format(msgs.locale, "feedbackAttachFilm", nil)
+}
+
+// FeedbackAttachSubs says "Subtitle Original and Translation"
+// in the language the app shows.
+//
+// Check box attaching the subtitle line at the playhead, its original and
+// its translation.
+func FeedbackAttachSubs() string { return In(i18n.Locale()).FeedbackAttachSubs() }
+
+// FeedbackAttachSubs says "Subtitle Original and Translation"
+// in the language of msgs.
+//
+// Check box attaching the subtitle line at the playhead, its original and
+// its translation.
+func (msgs Messages) FeedbackAttachSubs() string {
+	return Catalog.Format(msgs.locale, "feedbackAttachSubs", nil)
+}
+
+// FeedbackAttachTools says "Components and Models"
+// in the language the app shows.
+//
+// Check box attaching the versions of yt-dlp, ffmpeg and whisper-cli and
+// the models in use.
+func FeedbackAttachTools() string { return In(i18n.Locale()).FeedbackAttachTools() }
+
+// FeedbackAttachTools says "Components and Models"
+// in the language of msgs.
+//
+// Check box attaching the versions of yt-dlp, ffmpeg and whisper-cli and
+// the models in use.
+func (msgs Messages) FeedbackAttachTools() string {
+	return Catalog.Format(msgs.locale, "feedbackAttachTools", nil)
+}
+
+// FeedbackAttachments says "Attached Information"
+// in the language the app shows.
+//
+// Heading over the check boxes choosing what the app attaches to the issue.
+func FeedbackAttachments() string { return In(i18n.Locale()).FeedbackAttachments() }
+
+// FeedbackAttachments says "Attached Information"
+// in the language of msgs.
+//
+// Heading over the check boxes choosing what the app attaches to the issue.
+func (msgs Messages) FeedbackAttachments() string {
+	return Catalog.Format(msgs.locale, "feedbackAttachments", nil)
+}
+
+// FeedbackBrowserFailed says "Couldn't open the browser: {error}. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new."
+// in the language the app shows.
+//
+// Error in the feedback dialog when the browser could not be opened, with
+// the way to file the issue by hand.
+func FeedbackBrowserFailed(error string, repo string) string {
+	return In(i18n.Locale()).FeedbackBrowserFailed(error, repo)
+}
+
+// FeedbackBrowserFailed says "Couldn't open the browser: {error}. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new."
+// in the language of msgs.
+//
+// Error in the feedback dialog when the browser could not be opened, with
+// the way to file the issue by hand.
+func (msgs Messages) FeedbackBrowserFailed(error string, repo string) string {
+	return Catalog.Format(msgs.locale, "feedbackBrowserFailed", map[string]any{"error": error, "repo": repo})
+}
+
+// FeedbackCancel says "Cancel"
+// in the language the app shows.
+//
+// Button closing the feedback dialog.
+func FeedbackCancel() string { return In(i18n.Locale()).FeedbackCancel() }
+
+// FeedbackCancel says "Cancel"
+// in the language of msgs.
+//
+// Button closing the feedback dialog.
+func (msgs Messages) FeedbackCancel() string {
+	return Catalog.Format(msgs.locale, "feedbackCancel", nil)
+}
+
+// FeedbackCopied says "Copied"
+// in the language the app shows.
+//
+// The copy button's title once it copied the body, until the body changes.
+func FeedbackCopied() string { return In(i18n.Locale()).FeedbackCopied() }
+
+// FeedbackCopied says "Copied"
+// in the language of msgs.
+//
+// The copy button's title once it copied the body, until the body changes.
+func (msgs Messages) FeedbackCopied() string {
+	return Catalog.Format(msgs.locale, "feedbackCopied", nil)
+}
+
+// FeedbackCopy says "Copy Text"
+// in the language the app shows.
+//
+// Button copying the issue's whole body to the clipboard.
+func FeedbackCopy() string { return In(i18n.Locale()).FeedbackCopy() }
+
+// FeedbackCopy says "Copy Text"
+// in the language of msgs.
+//
+// Button copying the issue's whole body to the clipboard.
+func (msgs Messages) FeedbackCopy() string {
+	return Catalog.Format(msgs.locale, "feedbackCopy", nil)
+}
+
+// FeedbackDescriptionHint says "What you did, what you expected to see, what you saw"
+// in the language the app shows.
+//
+// Placeholder of the description field when reporting a problem.
+func FeedbackDescriptionHint() string { return In(i18n.Locale()).FeedbackDescriptionHint() }
+
+// FeedbackDescriptionHint says "What you did, what you expected to see, what you saw"
+// in the language of msgs.
+//
+// Placeholder of the description field when reporting a problem.
+func (msgs Messages) FeedbackDescriptionHint() string {
+	return Catalog.Format(msgs.locale, "feedbackDescriptionHint", nil)
+}
+
+// FeedbackDescriptionHintIdea says "What feature you'd like, and when you'd use it"
+// in the language the app shows.
+//
+// Placeholder of the description field when suggesting a feature.
+func FeedbackDescriptionHintIdea() string { return In(i18n.Locale()).FeedbackDescriptionHintIdea() }
+
+// FeedbackDescriptionHintIdea says "What feature you'd like, and when you'd use it"
+// in the language of msgs.
+//
+// Placeholder of the description field when suggesting a feature.
+func (msgs Messages) FeedbackDescriptionHintIdea() string {
+	return Catalog.Format(msgs.locale, "feedbackDescriptionHintIdea", nil)
+}
+
+// FeedbackDescriptionHintSubs says "Which line, what's wrong, and what you think it should be"
+// in the language the app shows.
+//
+// Placeholder of the description field when reporting subtitle quality.
+func FeedbackDescriptionHintSubs() string { return In(i18n.Locale()).FeedbackDescriptionHintSubs() }
+
+// FeedbackDescriptionHintSubs says "Which line, what's wrong, and what you think it should be"
+// in the language of msgs.
+//
+// Placeholder of the description field when reporting subtitle quality.
+func (msgs Messages) FeedbackDescriptionHintSubs() string {
+	return Catalog.Format(msgs.locale, "feedbackDescriptionHintSubs", nil)
+}
+
+// FeedbackEnvDetail says "Kando {version} · {system}"
+// in the language the app shows.
+//
+// Detail under the app and system versions check box.
+func FeedbackEnvDetail(version string, system string) string {
+	return In(i18n.Locale()).FeedbackEnvDetail(version, system)
+}
+
+// FeedbackEnvDetail says "Kando {version} · {system}"
+// in the language of msgs.
+//
+// Detail under the app and system versions check box.
+func (msgs Messages) FeedbackEnvDetail(version string, system string) string {
+	return Catalog.Format(msgs.locale, "feedbackEnvDetail", map[string]any{"version": version, "system": system})
+}
+
+// FeedbackFieldDescription says "Description"
+// in the language the app shows.
+//
+// Label of the feedback dialog's description field.
+func FeedbackFieldDescription() string { return In(i18n.Locale()).FeedbackFieldDescription() }
+
+// FeedbackFieldDescription says "Description"
+// in the language of msgs.
+//
+// Label of the feedback dialog's description field.
+func (msgs Messages) FeedbackFieldDescription() string {
+	return Catalog.Format(msgs.locale, "feedbackFieldDescription", nil)
+}
+
+// FeedbackFieldTitle says "Title"
+// in the language the app shows.
+//
+// Label of the feedback dialog's title field.
+func FeedbackFieldTitle() string { return In(i18n.Locale()).FeedbackFieldTitle() }
+
+// FeedbackFieldTitle says "Title"
+// in the language of msgs.
+//
+// Label of the feedback dialog's title field.
+func (msgs Messages) FeedbackFieldTitle() string {
+	return Catalog.Format(msgs.locale, "feedbackFieldTitle", nil)
+}
+
+// FeedbackFilmDetail says "Source, progress and errors, without file paths or links"
+// in the language the app shows.
+//
+// Detail under the current film check box while a film is open.
+func FeedbackFilmDetail() string { return In(i18n.Locale()).FeedbackFilmDetail() }
+
+// FeedbackFilmDetail says "Source, progress and errors, without file paths or links"
+// in the language of msgs.
+//
+// Detail under the current film check box while a film is open.
+func (msgs Messages) FeedbackFilmDetail() string {
+	return Catalog.Format(msgs.locale, "feedbackFilmDetail", nil)
+}
+
+// FeedbackFilmNone says "Not in the player, so there's no film to attach"
+// in the language the app shows.
+//
+// Detail under the current film check box, which cannot be ticked, while no
+// film is open in the player.
+func FeedbackFilmNone() string { return In(i18n.Locale()).FeedbackFilmNone() }
+
+// FeedbackFilmNone says "Not in the player, so there's no film to attach"
+// in the language of msgs.
+//
+// Detail under the current film check box, which cannot be ticked, while no
+// film is open in the player.
+func (msgs Messages) FeedbackFilmNone() string {
+	return Catalog.Format(msgs.locale, "feedbackFilmNone", nil)
+}
+
+// FeedbackIntro says "Opens GitHub's new issue page in your browser with everything filled in, for you to check and submit. Issues are public."
+// in the language the app shows.
+//
+// Line under the feedback dialog's title: what the dialog does.
+func FeedbackIntro() string { return In(i18n.Locale()).FeedbackIntro() }
+
+// FeedbackIntro says "Opens GitHub's new issue page in your browser with everything filled in, for you to check and submit. Issues are public."
+// in the language of msgs.
+//
+// Line under the feedback dialog's title: what the dialog does.
+func (msgs Messages) FeedbackIntro() string {
+	return Catalog.Format(msgs.locale, "feedbackIntro", nil)
+}
+
+// FeedbackKindBug says "Problem"
+// in the language the app shows.
+//
+// Segment of the feedback dialog: the feedback reports a problem.
+func FeedbackKindBug() string { return In(i18n.Locale()).FeedbackKindBug() }
+
+// FeedbackKindBug says "Problem"
+// in the language of msgs.
+//
+// Segment of the feedback dialog: the feedback reports a problem.
+func (msgs Messages) FeedbackKindBug() string {
+	return Catalog.Format(msgs.locale, "feedbackKindBug", nil)
+}
+
+// FeedbackKindIdea says "Suggestion"
+// in the language the app shows.
+//
+// Segment of the feedback dialog: the feedback suggests a feature.
+func FeedbackKindIdea() string { return In(i18n.Locale()).FeedbackKindIdea() }
+
+// FeedbackKindIdea says "Suggestion"
+// in the language of msgs.
+//
+// Segment of the feedback dialog: the feedback suggests a feature.
+func (msgs Messages) FeedbackKindIdea() string {
+	return Catalog.Format(msgs.locale, "feedbackKindIdea", nil)
+}
+
+// FeedbackKindSubs says "Subtitle Quality"
+// in the language the app shows.
+//
+// Segment of the feedback dialog: the feedback is about the quality of a
+// film's subtitles.
+func FeedbackKindSubs() string { return In(i18n.Locale()).FeedbackKindSubs() }
+
+// FeedbackKindSubs says "Subtitle Quality"
+// in the language of msgs.
+//
+// Segment of the feedback dialog: the feedback is about the quality of a
+// film's subtitles.
+func (msgs Messages) FeedbackKindSubs() string {
+	return Catalog.Format(msgs.locale, "feedbackKindSubs", nil)
+}
+
+// FeedbackKindsLabel says "Feedback type"
+// in the language the app shows.
+//
+// Accessible name of the segmented control choosing what the feedback is
+// about.
+func FeedbackKindsLabel() string { return In(i18n.Locale()).FeedbackKindsLabel() }
+
+// FeedbackKindsLabel says "Feedback type"
+// in the language of msgs.
+//
+// Accessible name of the segmented control choosing what the feedback is
+// about.
+func (msgs Messages) FeedbackKindsLabel() string {
+	return Catalog.Format(msgs.locale, "feedbackKindsLabel", nil)
+}
+
+// FeedbackMenuFilmSubs says "Send Feedback on This Film's Subtitles…"
+// in the language the app shows.
+//
+// Help menu item that opens the feedback dialog on the subtitles of the
+// film open in the player.
+func FeedbackMenuFilmSubs() string { return In(i18n.Locale()).FeedbackMenuFilmSubs() }
+
+// FeedbackMenuFilmSubs says "Send Feedback on This Film's Subtitles…"
+// in the language of msgs.
+//
+// Help menu item that opens the feedback dialog on the subtitles of the
+// film open in the player.
+func (msgs Messages) FeedbackMenuFilmSubs() string {
+	return Catalog.Format(msgs.locale, "feedbackMenuFilmSubs", nil)
+}
+
+// FeedbackMenuReport says "Send Feedback…"
+// in the language the app shows.
+//
+// Help menu item that opens the feedback dialog, which opens a GitHub
+// issue.
+func FeedbackMenuReport() string { return In(i18n.Locale()).FeedbackMenuReport() }
+
+// FeedbackMenuReport says "Send Feedback…"
+// in the language of msgs.
+//
+// Help menu item that opens the feedback dialog, which opens a GitHub
+// issue.
+func (msgs Messages) FeedbackMenuReport() string {
+	return Catalog.Format(msgs.locale, "feedbackMenuReport", nil)
+}
+
+// FeedbackMenuSubs says "Send Subtitle Feedback…"
+// in the language the app shows.
+//
+// Help menu item that opens the feedback dialog on subtitle quality, while
+// no film is open.
+func FeedbackMenuSubs() string { return In(i18n.Locale()).FeedbackMenuSubs() }
+
+// FeedbackMenuSubs says "Send Subtitle Feedback…"
+// in the language of msgs.
+//
+// Help menu item that opens the feedback dialog on subtitle quality, while
+// no film is open.
+func (msgs Messages) FeedbackMenuSubs() string {
+	return Catalog.Format(msgs.locale, "feedbackMenuSubs", nil)
+}
+
+// FeedbackNoSpeechModel says "No model chosen"
+// in the language the app shows.
+//
+// Stands for the speech model in the components detail when none is chosen.
+func FeedbackNoSpeechModel() string { return In(i18n.Locale()).FeedbackNoSpeechModel() }
+
+// FeedbackNoSpeechModel says "No model chosen"
+// in the language of msgs.
+//
+// Stands for the speech model in the components detail when none is chosen.
+func (msgs Messages) FeedbackNoSpeechModel() string {
+	return Catalog.Format(msgs.locale, "feedbackNoSpeechModel", nil)
+}
+
+// FeedbackOpen says "Open in GitHub"
+// in the language the app shows.
+//
+// Button opening the prefilled new-issue page in the browser.
+func FeedbackOpen() string { return In(i18n.Locale()).FeedbackOpen() }
+
+// FeedbackOpen says "Open in GitHub"
+// in the language of msgs.
+//
+// Button opening the prefilled new-issue page in the browser.
+func (msgs Messages) FeedbackOpen() string {
+	return Catalog.Format(msgs.locale, "feedbackOpen", nil)
+}
+
+// FeedbackPreview says "Issue Preview"
+// in the language the app shows.
+//
+// Heading over the preview of the GitHub issue.
+func FeedbackPreview() string { return In(i18n.Locale()).FeedbackPreview() }
+
+// FeedbackPreview says "Issue Preview"
+// in the language of msgs.
+//
+// Heading over the preview of the GitHub issue.
+func (msgs Messages) FeedbackPreview() string {
+	return Catalog.Format(msgs.locale, "feedbackPreview", nil)
+}
+
+// FeedbackPreviewLabel says "Label: {label}"
+// in the language the app shows.
+//
+// Second line of the issue preview: the repository's label the link fills
+// in, such as bug or enhancement.
+func FeedbackPreviewLabel(label string) string { return In(i18n.Locale()).FeedbackPreviewLabel(label) }
+
+// FeedbackPreviewLabel says "Label: {label}"
+// in the language of msgs.
+//
+// Second line of the issue preview: the repository's label the link fills
+// in, such as bug or enhancement.
+func (msgs Messages) FeedbackPreviewLabel(label string) string {
+	return Catalog.Format(msgs.locale, "feedbackPreviewLabel", map[string]any{"label": label})
+}
+
+// FeedbackPreviewTitle says "Title: {title}"
+// in the language the app shows.
+//
+// First line of the issue preview: the title the link fills in.
+func FeedbackPreviewTitle(title string) string { return In(i18n.Locale()).FeedbackPreviewTitle(title) }
+
+// FeedbackPreviewTitle says "Title: {title}"
+// in the language of msgs.
+//
+// First line of the issue preview: the title the link fills in.
+func (msgs Messages) FeedbackPreviewTitle(title string) string {
+	return Catalog.Format(msgs.locale, "feedbackPreviewTitle", map[string]any{"title": title})
+}
+
+// FeedbackPreviewUntitled says "(empty)"
+// in the language the app shows.
+//
+// What the issue preview shows for the title while the title field is
+// empty.
+func FeedbackPreviewUntitled() string { return In(i18n.Locale()).FeedbackPreviewUntitled() }
+
+// FeedbackPreviewUntitled says "(empty)"
+// in the language of msgs.
+//
+// What the issue preview shows for the title while the title field is
+// empty.
+func (msgs Messages) FeedbackPreviewUntitled() string {
+	return Catalog.Format(msgs.locale, "feedbackPreviewUntitled", nil)
+}
+
+// FeedbackSubsDetail says "Goes public on GitHub; only the line at the playhead ({time}) is attached"
+// in the language the app shows.
+//
+// Detail under the subtitle check box: the line goes to a public issue, and
+// when it starts.
+func FeedbackSubsDetail(time_ string) string { return In(i18n.Locale()).FeedbackSubsDetail(time_) }
+
+// FeedbackSubsDetail says "Goes public on GitHub; only the line at the playhead ({time}) is attached"
+// in the language of msgs.
+//
+// Detail under the subtitle check box: the line goes to a public issue, and
+// when it starts.
+func (msgs Messages) FeedbackSubsDetail(time_ string) string {
+	return Catalog.Format(msgs.locale, "feedbackSubsDetail", map[string]any{"time": time_})
+}
+
+// FeedbackSubsNone says "Open a film with subtitles to attach this"
+// in the language the app shows.
+//
+// Detail under the subtitle check box, which cannot be ticked, while no
+// film with subtitles is open.
+func FeedbackSubsNone() string { return In(i18n.Locale()).FeedbackSubsNone() }
+
+// FeedbackSubsNone says "Open a film with subtitles to attach this"
+// in the language of msgs.
+//
+// Detail under the subtitle check box, which cannot be ticked, while no
+// film with subtitles is open.
+func (msgs Messages) FeedbackSubsNone() string {
+	return Catalog.Format(msgs.locale, "feedbackSubsNone", nil)
+}
+
+// FeedbackTitle says "Send Feedback"
+// in the language the app shows.
+//
+// Title of the feedback dialog.
+func FeedbackTitle() string { return In(i18n.Locale()).FeedbackTitle() }
+
+// FeedbackTitle says "Send Feedback"
+// in the language of msgs.
+//
+// Title of the feedback dialog.
+func (msgs Messages) FeedbackTitle() string {
+	return Catalog.Format(msgs.locale, "feedbackTitle", nil)
+}
+
+// FeedbackTitleHint says "Describe the problem in one sentence"
+// in the language the app shows.
+//
+// Placeholder of the title field when reporting a problem or subtitle
+// quality.
+func FeedbackTitleHint() string { return In(i18n.Locale()).FeedbackTitleHint() }
+
+// FeedbackTitleHint says "Describe the problem in one sentence"
+// in the language of msgs.
+//
+// Placeholder of the title field when reporting a problem or subtitle
+// quality.
+func (msgs Messages) FeedbackTitleHint() string {
+	return Catalog.Format(msgs.locale, "feedbackTitleHint", nil)
+}
+
+// FeedbackTitleHintIdea says "Say what you'd like in one sentence"
+// in the language the app shows.
+//
+// Placeholder of the title field when suggesting a feature.
+func FeedbackTitleHintIdea() string { return In(i18n.Locale()).FeedbackTitleHintIdea() }
+
+// FeedbackTitleHintIdea says "Say what you'd like in one sentence"
+// in the language of msgs.
+//
+// Placeholder of the title field when suggesting a feature.
+func (msgs Messages) FeedbackTitleHintIdea() string {
+	return Catalog.Format(msgs.locale, "feedbackTitleHintIdea", nil)
+}
+
+// FeedbackToolMissing says "{name} not installed"
+// in the language the app shows.
+//
+// A tool in the components detail that is not installed.
+func FeedbackToolMissing(name string) string { return In(i18n.Locale()).FeedbackToolMissing(name) }
+
+// FeedbackToolMissing says "{name} not installed"
+// in the language of msgs.
+//
+// A tool in the components detail that is not installed.
+func (msgs Messages) FeedbackToolMissing(name string) string {
+	return Catalog.Format(msgs.locale, "feedbackToolMissing", map[string]any{"name": name})
+}
+
+// FeedbackToolNoVersion says "{name} version unknown"
+// in the language the app shows.
+//
+// A tool in the components detail that did not say its version.
+func FeedbackToolNoVersion(name string) string { return In(i18n.Locale()).FeedbackToolNoVersion(name) }
+
+// FeedbackToolNoVersion says "{name} version unknown"
+// in the language of msgs.
+//
+// A tool in the components detail that did not say its version.
+func (msgs Messages) FeedbackToolNoVersion(name string) string {
+	return Catalog.Format(msgs.locale, "feedbackToolNoVersion", map[string]any{"name": name})
+}
+
+// FeedbackToolsDetail says "{tools}; transcription {speech} · translation {translator} (no keys)"
+// in the language the app shows.
+//
+// Detail under the components and models check box: the tools' versions,
+// the speech model and the translation service, never its key.
+func FeedbackToolsDetail(tools string, speech string, translator string) string {
+	return In(i18n.Locale()).FeedbackToolsDetail(tools, speech, translator)
+}
+
+// FeedbackToolsDetail says "{tools}; transcription {speech} · translation {translator} (no keys)"
+// in the language of msgs.
+//
+// Detail under the components and models check box: the tools' versions,
+// the speech model and the translation service, never its key.
+func (msgs Messages) FeedbackToolsDetail(tools string, speech string, translator string) string {
+	return Catalog.Format(msgs.locale, "feedbackToolsDetail", map[string]any{"tools": tools, "speech": speech, "translator": translator})
+}
+
+// FeedbackTruncated says "The text is too long, so the link leaves out its last {count, plural, one {# character} other {# characters}}. Use …"
+// in the language the app shows.
+//
+// Warning under the issue preview when the body was cut to fit the link's
+// length.
+func FeedbackTruncated(count int) string { return In(i18n.Locale()).FeedbackTruncated(count) }
+
+// FeedbackTruncated says "The text is too long, so the link leaves out its last {count, plural, one {# character} other {# characters}}. Use …"
+// in the language of msgs.
+//
+// Warning under the issue preview when the body was cut to fit the link's
+// length.
+func (msgs Messages) FeedbackTruncated(count int) string {
+	return Catalog.Format(msgs.locale, "feedbackTruncated", map[string]any{"count": count})
+}
+
+// FilmAll says "All"
+// in the language the app shows.
+//
+// Chip over the subtitle list, followed by how many lines it holds.
+func FilmAll() string { return In(i18n.Locale()).FilmAll() }
+
+// FilmAll says "All"
+// in the language of msgs.
+//
+// Chip over the subtitle list, followed by how many lines it holds.
+func (msgs Messages) FilmAll() string {
+	return Catalog.Format(msgs.locale, "filmAll", nil)
+}
+
+// FilmBackToLibrary says "Back to Library"
+// in the language the app shows.
+//
+// The player's back button, and the shortcut row of Escape: closes the film
+// and goes back to the library.
+func FilmBackToLibrary() string { return In(i18n.Locale()).FilmBackToLibrary() }
+
+// FilmBackToLibrary says "Back to Library"
+// in the language of msgs.
+//
+// The player's back button, and the shortcut row of Escape: closes the film
+// and goes back to the library.
+func (msgs Messages) FilmBackToLibrary() string {
+	return Catalog.Format(msgs.locale, "filmBackToLibrary", nil)
+}
+
+// FilmBytes says "{count, plural, one {# byte} other {# bytes}}"
+// in the language the app shows.
+//
+// A file's size under 1 KB.
+func FilmBytes(count int) string { return In(i18n.Locale()).FilmBytes(count) }
+
+// FilmBytes says "{count, plural, one {# byte} other {# bytes}}"
+// in the language of msgs.
+//
+// A file's size under 1 KB.
+func (msgs Messages) FilmBytes(count int) string {
+	return Catalog.Format(msgs.locale, "filmBytes", map[string]any{"count": count})
+}
+
+// FilmCancel says "Cancel"
+// in the language the app shows.
+//
+// Player title bar button: cancels this film's running job.
+func FilmCancel() string { return In(i18n.Locale()).FilmCancel() }
+
+// FilmCancel says "Cancel"
+// in the language of msgs.
+//
+// Player title bar button: cancels this film's running job.
+func (msgs Messages) FilmCancel() string {
+	return Catalog.Format(msgs.locale, "filmCancel", nil)
+}
+
+// FilmClickToJump says "Click a line to jump to it"
+// in the language the app shows.
+//
+// Hint under the subtitle list.
+func FilmClickToJump() string { return In(i18n.Locale()).FilmClickToJump() }
+
+// FilmClickToJump says "Click a line to jump to it"
+// in the language of msgs.
+//
+// Hint under the subtitle list.
+func (msgs Messages) FilmClickToJump() string {
+	return Catalog.Format(msgs.locale, "filmClickToJump", nil)
+}
+
+// FilmClip says "Clip {number}"
+// in the language the app shows.
+//
+// Accessible name of a clip in the Clips tab.
+func FilmClip(number int) string { return In(i18n.Locale()).FilmClip(number) }
+
+// FilmClip says "Clip {number}"
+// in the language of msgs.
+//
+// Accessible name of a clip in the Clips tab.
+func (msgs Messages) FilmClip(number int) string {
+	return Catalog.Format(msgs.locale, "filmClip", map[string]any{"number": number})
+}
+
+// FilmClipSpan says "Clip {number} · {start}–{end}"
+// in the language the app shows.
+//
+// Heading of a clip in the Clips tab: its number and the times it starts
+// and ends.
+func FilmClipSpan(number int, start string, end string) string {
+	return In(i18n.Locale()).FilmClipSpan(number, start, end)
+}
+
+// FilmClipSpan says "Clip {number} · {start}–{end}"
+// in the language of msgs.
+//
+// Heading of a clip in the Clips tab: its number and the times it starts
+// and ends.
+func (msgs Messages) FilmClipSpan(number int, start string, end string) string {
+	return Catalog.Format(msgs.locale, "filmClipSpan", map[string]any{"number": number, "start": start, "end": end})
+}
+
+// FilmClipsNote says "Subtitles are split evenly by time into 4–12 clips of about 30 seconds each."
+// in the language the app shows.
+//
+// Line over the Clips tab's list: how the film is cut.
+func FilmClipsNote() string { return In(i18n.Locale()).FilmClipsNote() }
+
+// FilmClipsNote says "Subtitles are split evenly by time into 4–12 clips of about 30 seconds each."
+// in the language of msgs.
+//
+// Line over the Clips tab's list: how the film is cut.
+func (msgs Messages) FilmClipsNote() string {
+	return Catalog.Format(msgs.locale, "filmClipsNote", nil)
+}
+
+// FilmColorOrange says "Orange"
+// in the language the app shows.
+//
+// A subtitle line's color.
+func FilmColorOrange() string { return In(i18n.Locale()).FilmColorOrange() }
+
+// FilmColorOrange says "Orange"
+// in the language of msgs.
+//
+// A subtitle line's color.
+func (msgs Messages) FilmColorOrange() string {
+	return Catalog.Format(msgs.locale, "filmColorOrange", nil)
+}
+
+// FilmColorWhite says "White"
+// in the language the app shows.
+//
+// A subtitle line's color.
+func FilmColorWhite() string { return In(i18n.Locale()).FilmColorWhite() }
+
+// FilmColorWhite says "White"
+// in the language of msgs.
+//
+// A subtitle line's color.
+func (msgs Messages) FilmColorWhite() string {
+	return Catalog.Format(msgs.locale, "filmColorWhite", nil)
+}
+
+// FilmColorYellow says "Yellow"
+// in the language the app shows.
+//
+// A subtitle line's color.
+func FilmColorYellow() string { return In(i18n.Locale()).FilmColorYellow() }
+
+// FilmColorYellow says "Yellow"
+// in the language of msgs.
+//
+// A subtitle line's color.
+func (msgs Messages) FilmColorYellow() string {
+	return Catalog.Format(msgs.locale, "filmColorYellow", nil)
+}
+
+// FilmCopy says "Copy"
+// in the language the app shows.
+//
+// Button copying a link or path to the clipboard.
+func FilmCopy() string { return In(i18n.Locale()).FilmCopy() }
+
+// FilmCopy says "Copy"
+// in the language of msgs.
+//
+// Button copying a link or path to the clipboard.
+func (msgs Messages) FilmCopy() string {
+	return Catalog.Format(msgs.locale, "filmCopy", nil)
+}
+
+// FilmDelay says "Subtitle Delay"
+// in the language the app shows.
+//
+// Row and stepper that shift the subtitles against the picture.
+func FilmDelay() string { return In(i18n.Locale()).FilmDelay() }
+
+// FilmDelay says "Subtitle Delay"
+// in the language of msgs.
+//
+// Row and stepper that shift the subtitles against the picture.
+func (msgs Messages) FilmDelay() string {
+	return Catalog.Format(msgs.locale, "filmDelay", nil)
+}
+
+// FilmDismiss says "Close Message"
+// in the language the app shows.
+//
+// Close button of the upload notice over the picture.
+func FilmDismiss() string { return In(i18n.Locale()).FilmDismiss() }
+
+// FilmDismiss says "Close Message"
+// in the language of msgs.
+//
+// Close button of the upload notice over the picture.
+func (msgs Messages) FilmDismiss() string {
+	return Catalog.Format(msgs.locale, "filmDismiss", nil)
+}
+
+// FilmFaceBold says "Bold {line}"
+// in the language the app shows.
+//
+// Accessible name of a line's bold toggle.
+func FilmFaceBold(line string) string { return In(i18n.Locale()).FilmFaceBold(line) }
+
+// FilmFaceBold says "Bold {line}"
+// in the language of msgs.
+//
+// Accessible name of a line's bold toggle.
+func (msgs Messages) FilmFaceBold(line string) string {
+	return Catalog.Format(msgs.locale, "filmFaceBold", map[string]any{"line": line})
+}
+
+// FilmFaceColor says "{line}: {color}"
+// in the language the app shows.
+//
+// Accessible name of a line's color swatch.
+func FilmFaceColor(line string, color string) string {
+	return In(i18n.Locale()).FilmFaceColor(line, color)
+}
+
+// FilmFaceColor says "{line}: {color}"
+// in the language of msgs.
+//
+// Accessible name of a line's color swatch.
+func (msgs Messages) FilmFaceColor(line string, color string) string {
+	return Catalog.Format(msgs.locale, "filmFaceColor", map[string]any{"line": line, "color": color})
+}
+
+// FilmFaceSize says "{line} Size"
+// in the language the app shows.
+//
+// Accessible name of a line's size slider.
+func FilmFaceSize(line string) string { return In(i18n.Locale()).FilmFaceSize(line) }
+
+// FilmFaceSize says "{line} Size"
+// in the language of msgs.
+//
+// Accessible name of a line's size slider.
+func (msgs Messages) FilmFaceSize(line string) string {
+	return Catalog.Format(msgs.locale, "filmFaceSize", map[string]any{"line": line})
+}
+
+// FilmFeedbackSubtitles says "Send Feedback on This Film's Subtitles…"
+// in the language the app shows.
+//
+// Item of the player's ⋯ menu that opens the feedback dialog about this
+// film's subtitles.
+func FilmFeedbackSubtitles() string { return In(i18n.Locale()).FilmFeedbackSubtitles() }
+
+// FilmFeedbackSubtitles says "Send Feedback on This Film's Subtitles…"
+// in the language of msgs.
+//
+// Item of the player's ⋯ menu that opens the feedback dialog about this
+// film's subtitles.
+func (msgs Messages) FilmFeedbackSubtitles() string {
+	return Catalog.Format(msgs.locale, "filmFeedbackSubtitles", nil)
+}
+
+// FilmFiles says "Files"
+// in the language the app shows.
+//
+// Heading in the Info tab over the files in the film's folder.
+func FilmFiles() string { return In(i18n.Locale()).FilmFiles() }
+
+// FilmFiles says "Files"
+// in the language of msgs.
+//
+// Heading in the Info tab over the files in the film's folder.
+func (msgs Messages) FilmFiles() string {
+	return Catalog.Format(msgs.locale, "filmFiles", nil)
+}
+
+// FilmFolder says "Film Folder"
+// in the language the app shows.
+//
+// Heading in the Info tab over the film's folder.
+func FilmFolder() string { return In(i18n.Locale()).FilmFolder() }
+
+// FilmFolder says "Film Folder"
+// in the language of msgs.
+//
+// Heading in the Info tab over the film's folder.
+func (msgs Messages) FilmFolder() string {
+	return Catalog.Format(msgs.locale, "filmFolder", nil)
+}
+
+// FilmFontDefault says "Default"
+// in the language the app shows.
+//
+// Subtitle font: the system's default font.
+func FilmFontDefault() string { return In(i18n.Locale()).FilmFontDefault() }
+
+// FilmFontDefault says "Default"
+// in the language of msgs.
+//
+// Subtitle font: the system's default font.
+func (msgs Messages) FilmFontDefault() string {
+	return Catalog.Format(msgs.locale, "filmFontDefault", nil)
+}
+
+// FilmFontHiragino says "Hiragino Sans GB"
+// in the language the app shows.
+//
+// Subtitle font: Hiragino Sans GB.
+func FilmFontHiragino() string { return In(i18n.Locale()).FilmFontHiragino() }
+
+// FilmFontHiragino says "Hiragino Sans GB"
+// in the language of msgs.
+//
+// Subtitle font: Hiragino Sans GB.
+func (msgs Messages) FilmFontHiragino() string {
+	return Catalog.Format(msgs.locale, "filmFontHiragino", nil)
+}
+
+// FilmFontPingFang says "PingFang SC"
+// in the language the app shows.
+//
+// Subtitle font: PingFang SC.
+func FilmFontPingFang() string { return In(i18n.Locale()).FilmFontPingFang() }
+
+// FilmFontPingFang says "PingFang SC"
+// in the language of msgs.
+//
+// Subtitle font: PingFang SC.
+func (msgs Messages) FilmFontPingFang() string {
+	return Catalog.Format(msgs.locale, "filmFontPingFang", nil)
+}
+
+// FilmFullScreen says "Full Screen"
+// in the language the app shows.
+//
+// Full screen button, and its shortcut row.
+func FilmFullScreen() string { return In(i18n.Locale()).FilmFullScreen() }
+
+// FilmFullScreen says "Full Screen"
+// in the language of msgs.
+//
+// Full screen button, and its shortcut row.
+func (msgs Messages) FilmFullScreen() string {
+	return Catalog.Format(msgs.locale, "filmFullScreen", nil)
+}
+
+// FilmHideSidebar says "Hide Sidebar"
+// in the language the app shows.
+//
+// Button at the player's top right that folds the side panel away.
+func FilmHideSidebar() string { return In(i18n.Locale()).FilmHideSidebar() }
+
+// FilmHideSidebar says "Hide Sidebar"
+// in the language of msgs.
+//
+// Button at the player's top right that folds the side panel away.
+func (msgs Messages) FilmHideSidebar() string {
+	return Catalog.Format(msgs.locale, "filmHideSidebar", nil)
+}
+
+// FilmJobRecord says "Job record"
+// in the language the app shows.
+//
+// Label in the Info tab over the path of the library file that records the
+// jobs.
+func FilmJobRecord() string { return In(i18n.Locale()).FilmJobRecord() }
+
+// FilmJobRecord says "Job record"
+// in the language of msgs.
+//
+// Label in the Info tab over the path of the library file that records the
+// jobs.
+func (msgs Messages) FilmJobRecord() string {
+	return Catalog.Format(msgs.locale, "filmJobRecord", nil)
+}
+
+// FilmKeySpace says "Space"
+// in the language the app shows.
+//
+// Name of the space bar, after Play or Pause in their tooltips.
+func FilmKeySpace() string { return In(i18n.Locale()).FilmKeySpace() }
+
+// FilmKeySpace says "Space"
+// in the language of msgs.
+//
+// Name of the space bar, after Play or Pause in their tooltips.
+func (msgs Messages) FilmKeySpace() string {
+	return Catalog.Format(msgs.locale, "filmKeySpace", nil)
+}
+
+// FilmKindBilingual says "Bilingual subtitles"
+// in the language the app shows.
+//
+// What a file in the film's folder is: the bilingual subtitle file.
+func FilmKindBilingual() string { return In(i18n.Locale()).FilmKindBilingual() }
+
+// FilmKindBilingual says "Bilingual subtitles"
+// in the language of msgs.
+//
+// What a file in the film's folder is: the bilingual subtitle file.
+func (msgs Messages) FilmKindBilingual() string {
+	return Catalog.Format(msgs.locale, "filmKindBilingual", nil)
+}
+
+// FilmKindCover says "Cover"
+// in the language the app shows.
+//
+// What a file in the film's folder is: the cover image.
+func FilmKindCover() string { return In(i18n.Locale()).FilmKindCover() }
+
+// FilmKindCover says "Cover"
+// in the language of msgs.
+//
+// What a file in the film's folder is: the cover image.
+func (msgs Messages) FilmKindCover() string {
+	return Catalog.Format(msgs.locale, "filmKindCover", nil)
+}
+
+// FilmKindOriginal says "Original subtitles"
+// in the language the app shows.
+//
+// What a file in the film's folder is: a subtitle file in the original
+// language.
+func FilmKindOriginal() string { return In(i18n.Locale()).FilmKindOriginal() }
+
+// FilmKindOriginal says "Original subtitles"
+// in the language of msgs.
+//
+// What a file in the film's folder is: a subtitle file in the original
+// language.
+func (msgs Messages) FilmKindOriginal() string {
+	return Catalog.Format(msgs.locale, "filmKindOriginal", nil)
+}
+
+// FilmKindVideo says "Video"
+// in the language the app shows.
+//
+// What a file in the film's folder is: the video.
+func FilmKindVideo() string { return In(i18n.Locale()).FilmKindVideo() }
+
+// FilmKindVideo says "Video"
+// in the language of msgs.
+//
+// What a file in the film's folder is: the video.
+func (msgs Messages) FilmKindVideo() string {
+	return Catalog.Format(msgs.locale, "filmKindVideo", nil)
+}
+
+// FilmLineOriginal says "Original"
+// in the language the app shows.
+//
+// Heading of the style view's group for the original line.
+func FilmLineOriginal() string { return In(i18n.Locale()).FilmLineOriginal() }
+
+// FilmLineOriginal says "Original"
+// in the language of msgs.
+//
+// Heading of the style view's group for the original line.
+func (msgs Messages) FilmLineOriginal() string {
+	return Catalog.Format(msgs.locale, "filmLineOriginal", nil)
+}
+
+// FilmLineTranslation says "Translation"
+// in the language the app shows.
+//
+// Heading of the style view's group for the translated line.
+func FilmLineTranslation() string { return In(i18n.Locale()).FilmLineTranslation() }
+
+// FilmLineTranslation says "Translation"
+// in the language of msgs.
+//
+// Heading of the style view's group for the translated line.
+func (msgs Messages) FilmLineTranslation() string {
+	return Catalog.Format(msgs.locale, "filmLineTranslation", nil)
+}
+
+// FilmLoadingSubtitles says "Loading subtitles…"
+// in the language the app shows.
+//
+// Shown in the side panel while the subtitle file is read.
+func FilmLoadingSubtitles() string { return In(i18n.Locale()).FilmLoadingSubtitles() }
+
+// FilmLoadingSubtitles says "Loading subtitles…"
+// in the language of msgs.
+//
+// Shown in the side panel while the subtitle file is read.
+func (msgs Messages) FilmLoadingSubtitles() string {
+	return Catalog.Format(msgs.locale, "filmLoadingSubtitles", nil)
+}
+
+// FilmLocalFile says "Local file"
+// in the language the app shows.
+//
+// The Info tab's source of a film opened from a file on this Mac.
+func FilmLocalFile() string { return In(i18n.Locale()).FilmLocalFile() }
+
+// FilmLocalFile says "Local file"
+// in the language of msgs.
+//
+// The Info tab's source of a film opened from a file on this Mac.
+func (msgs Messages) FilmLocalFile() string {
+	return Catalog.Format(msgs.locale, "filmLocalFile", nil)
+}
+
+// FilmLocalVideo says "Local Video"
+// in the language the app shows.
+//
+// Chip in the Info tab of a local video no job has processed.
+func FilmLocalVideo() string { return In(i18n.Locale()).FilmLocalVideo() }
+
+// FilmLocalVideo says "Local Video"
+// in the language of msgs.
+//
+// Chip in the Info tab of a local video no job has processed.
+func (msgs Messages) FilmLocalVideo() string {
+	return Catalog.Format(msgs.locale, "filmLocalVideo", nil)
+}
+
+// FilmModeBilingual says "Bilingual"
+// in the language the app shows.
+//
+// Subtitle mode: the translation and the original both show.
+func FilmModeBilingual() string { return In(i18n.Locale()).FilmModeBilingual() }
+
+// FilmModeBilingual says "Bilingual"
+// in the language of msgs.
+//
+// Subtitle mode: the translation and the original both show.
+func (msgs Messages) FilmModeBilingual() string {
+	return Catalog.Format(msgs.locale, "filmModeBilingual", nil)
+}
+
+// FilmModeHeading says "Display"
+// in the language the app shows.
+//
+// Heading of the subtitle mode menu, over the modes.
+func FilmModeHeading() string { return In(i18n.Locale()).FilmModeHeading() }
+
+// FilmModeHeading says "Display"
+// in the language of msgs.
+//
+// Heading of the subtitle mode menu, over the modes.
+func (msgs Messages) FilmModeHeading() string {
+	return Catalog.Format(msgs.locale, "filmModeHeading", nil)
+}
+
+// FilmModeOff says "Off"
+// in the language the app shows.
+//
+// Subtitle mode: no subtitles on the picture. On the player's mode button,
+// its menu, the style view and the on-screen message.
+func FilmModeOff() string { return In(i18n.Locale()).FilmModeOff() }
+
+// FilmModeOff says "Off"
+// in the language of msgs.
+//
+// Subtitle mode: no subtitles on the picture. On the player's mode button,
+// its menu, the style view and the on-screen message.
+func (msgs Messages) FilmModeOff() string {
+	return Catalog.Format(msgs.locale, "filmModeOff", nil)
+}
+
+// FilmModeOffNote says "Hides only the subtitles"
+// in the language the app shows.
+//
+// Line under the Off row of the subtitle mode menu: it hides the subtitles
+// on the picture and nothing else.
+func FilmModeOffNote() string { return In(i18n.Locale()).FilmModeOffNote() }
+
+// FilmModeOffNote says "Hides only the subtitles"
+// in the language of msgs.
+//
+// Line under the Off row of the subtitle mode menu: it hides the subtitles
+// on the picture and nothing else.
+func (msgs Messages) FilmModeOffNote() string {
+	return Catalog.Format(msgs.locale, "filmModeOffNote", nil)
+}
+
+// FilmModeOriginal says "Original Only"
+// in the language the app shows.
+//
+// Subtitle mode: only the original line shows.
+func FilmModeOriginal() string { return In(i18n.Locale()).FilmModeOriginal() }
+
+// FilmModeOriginal says "Original Only"
+// in the language of msgs.
+//
+// Subtitle mode: only the original line shows.
+func (msgs Messages) FilmModeOriginal() string {
+	return Catalog.Format(msgs.locale, "filmModeOriginal", nil)
+}
+
+// FilmModeTranslation says "Translation Only"
+// in the language the app shows.
+//
+// Subtitle mode: only the translated line shows.
+func FilmModeTranslation() string { return In(i18n.Locale()).FilmModeTranslation() }
+
+// FilmModeTranslation says "Translation Only"
+// in the language of msgs.
+//
+// Subtitle mode: only the translated line shows.
+func (msgs Messages) FilmModeTranslation() string {
+	return Catalog.Format(msgs.locale, "filmModeTranslation", nil)
+}
+
+// FilmModeTranslationNote says "Shows the original, dimmed, until the translation is ready"
+// in the language the app shows.
+//
+// Line under the Translation Only row of the subtitle mode menu.
+func FilmModeTranslationNote() string { return In(i18n.Locale()).FilmModeTranslationNote() }
+
+// FilmModeTranslationNote says "Shows the original, dimmed, until the translation is ready"
+// in the language of msgs.
+//
+// Line under the Translation Only row of the subtitle mode menu.
+func (msgs Messages) FilmModeTranslationNote() string {
+	return Catalog.Format(msgs.locale, "filmModeTranslationNote", nil)
+}
+
+// FilmMoreActions says "More Actions"
+// in the language the app shows.
+//
+// Accessible name of the player's ⋯ menu button.
+func FilmMoreActions() string { return In(i18n.Locale()).FilmMoreActions() }
+
+// FilmMoreActions says "More Actions"
+// in the language of msgs.
+//
+// Accessible name of the player's ⋯ menu button.
+func (msgs Messages) FilmMoreActions() string {
+	return Catalog.Format(msgs.locale, "filmMoreActions", nil)
+}
+
+// FilmMute says "Mute"
+// in the language the app shows.
+//
+// Speaker button that mutes the film.
+func FilmMute() string { return In(i18n.Locale()).FilmMute() }
+
+// FilmMute says "Mute"
+// in the language of msgs.
+//
+// Speaker button that mutes the film.
+func (msgs Messages) FilmMute() string {
+	return Catalog.Format(msgs.locale, "filmMute", nil)
+}
+
+// FilmNoClipsYet says "No subtitles to split into clips yet."
+// in the language the app shows.
+//
+// Shown in the Clips tab when there are no subtitles to cut the film by.
+func FilmNoClipsYet() string { return In(i18n.Locale()).FilmNoClipsYet() }
+
+// FilmNoClipsYet says "No subtitles to split into clips yet."
+// in the language of msgs.
+//
+// Shown in the Clips tab when there are no subtitles to cut the film by.
+func (msgs Messages) FilmNoClipsYet() string {
+	return Catalog.Format(msgs.locale, "filmNoClipsYet", nil)
+}
+
+// FilmNoMatch says "No matching subtitles."
+// in the language the app shows.
+//
+// Shown when the subtitle search finds nothing.
+func FilmNoMatch() string { return In(i18n.Locale()).FilmNoMatch() }
+
+// FilmNoMatch says "No matching subtitles."
+// in the language of msgs.
+//
+// Shown when the subtitle search finds nothing.
+func (msgs Messages) FilmNoMatch() string {
+	return Catalog.Format(msgs.locale, "filmNoMatch", nil)
+}
+
+// FilmNoSubtitlesYet says "No subtitles yet. They'll appear here once processing finishes."
+// in the language the app shows.
+//
+// Shown in the subtitle list of a film not processed yet.
+func FilmNoSubtitlesYet() string { return In(i18n.Locale()).FilmNoSubtitlesYet() }
+
+// FilmNoSubtitlesYet says "No subtitles yet. They'll appear here once processing finishes."
+// in the language of msgs.
+//
+// Shown in the subtitle list of a film not processed yet.
+func (msgs Messages) FilmNoSubtitlesYet() string {
+	return Catalog.Format(msgs.locale, "filmNoSubtitlesYet", nil)
+}
+
+// FilmOpen says "Open"
+// in the language the app shows.
+//
+// Button showing the library file in Finder.
+func FilmOpen() string { return In(i18n.Locale()).FilmOpen() }
+
+// FilmOpen says "Open"
+// in the language of msgs.
+//
+// Button showing the library file in Finder.
+func (msgs Messages) FilmOpen() string {
+	return Catalog.Format(msgs.locale, "filmOpen", nil)
+}
+
+// FilmOpening says "Opening"
+// in the language the app shows.
+//
+// Name of the disabled play button while the video opens.
+func FilmOpening() string { return In(i18n.Locale()).FilmOpening() }
+
+// FilmOpening says "Opening"
+// in the language of msgs.
+//
+// Name of the disabled play button while the video opens.
+func (msgs Messages) FilmOpening() string {
+	return Catalog.Format(msgs.locale, "filmOpening", nil)
+}
+
+// FilmOpeningVideo says "Opening video…"
+// in the language the app shows.
+//
+// Shown in the middle of the picture while the video opens.
+func FilmOpeningVideo() string { return In(i18n.Locale()).FilmOpeningVideo() }
+
+// FilmOpeningVideo says "Opening video…"
+// in the language of msgs.
+//
+// Shown in the middle of the picture while the video opens.
+func (msgs Messages) FilmOpeningVideo() string {
+	return Catalog.Format(msgs.locale, "filmOpeningVideo", nil)
+}
+
+// FilmOrderOriginalFirst says "Original on Top"
+// in the language the app shows.
+//
+// Bilingual order: the original over the translation.
+func FilmOrderOriginalFirst() string { return In(i18n.Locale()).FilmOrderOriginalFirst() }
+
+// FilmOrderOriginalFirst says "Original on Top"
+// in the language of msgs.
+//
+// Bilingual order: the original over the translation.
+func (msgs Messages) FilmOrderOriginalFirst() string {
+	return Catalog.Format(msgs.locale, "filmOrderOriginalFirst", nil)
+}
+
+// FilmOrderTranslationFirst says "Translation on Top"
+// in the language the app shows.
+//
+// Bilingual order: the translation over the original.
+func FilmOrderTranslationFirst() string { return In(i18n.Locale()).FilmOrderTranslationFirst() }
+
+// FilmOrderTranslationFirst says "Translation on Top"
+// in the language of msgs.
+//
+// Bilingual order: the translation over the original.
+func (msgs Messages) FilmOrderTranslationFirst() string {
+	return Catalog.Format(msgs.locale, "filmOrderTranslationFirst", nil)
+}
+
+// FilmPause says "Pause"
+// in the language the app shows.
+//
+// Pause button.
+func FilmPause() string { return In(i18n.Locale()).FilmPause() }
+
+// FilmPause says "Pause"
+// in the language of msgs.
+//
+// Pause button.
+func (msgs Messages) FilmPause() string {
+	return Catalog.Format(msgs.locale, "filmPause", nil)
+}
+
+// FilmPicture says "Picture"
+// in the language the app shows.
+//
+// Accessible name of the video picture.
+func FilmPicture() string { return In(i18n.Locale()).FilmPicture() }
+
+// FilmPicture says "Picture"
+// in the language of msgs.
+//
+// Accessible name of the video picture.
+func (msgs Messages) FilmPicture() string {
+	return Catalog.Format(msgs.locale, "filmPicture", nil)
+}
+
+// FilmPlay says "Play"
+// in the language the app shows.
+//
+// Play button.
+func FilmPlay() string { return In(i18n.Locale()).FilmPlay() }
+
+// FilmPlay says "Play"
+// in the language of msgs.
+//
+// Play button.
+func (msgs Messages) FilmPlay() string {
+	return Catalog.Format(msgs.locale, "filmPlay", nil)
+}
+
+// FilmPlaybackPosition says "Playback position"
+// in the language the app shows.
+//
+// Accessible name of the scrubber.
+func FilmPlaybackPosition() string { return In(i18n.Locale()).FilmPlaybackPosition() }
+
+// FilmPlaybackPosition says "Playback position"
+// in the language of msgs.
+//
+// Accessible name of the scrubber.
+func (msgs Messages) FilmPlaybackPosition() string {
+	return Catalog.Format(msgs.locale, "filmPlaybackPosition", nil)
+}
+
+// FilmPositionBottom says "Bottom"
+// in the language the app shows.
+//
+// Subtitle position: at the bottom of the picture.
+func FilmPositionBottom() string { return In(i18n.Locale()).FilmPositionBottom() }
+
+// FilmPositionBottom says "Bottom"
+// in the language of msgs.
+//
+// Subtitle position: at the bottom of the picture.
+func (msgs Messages) FilmPositionBottom() string {
+	return Catalog.Format(msgs.locale, "filmPositionBottom", nil)
+}
+
+// FilmPositionHigh says "Higher"
+// in the language the app shows.
+//
+// Subtitle position: about a third of the way up the picture.
+func FilmPositionHigh() string { return In(i18n.Locale()).FilmPositionHigh() }
+
+// FilmPositionHigh says "Higher"
+// in the language of msgs.
+//
+// Subtitle position: about a third of the way up the picture.
+func (msgs Messages) FilmPositionHigh() string {
+	return Catalog.Format(msgs.locale, "filmPositionHigh", nil)
+}
+
+// FilmPresetBox says "Box"
+// in the language the app shows.
+//
+// Subtitle style preset: text on a dark box.
+func FilmPresetBox() string { return In(i18n.Locale()).FilmPresetBox() }
+
+// FilmPresetBox says "Box"
+// in the language of msgs.
+//
+// Subtitle style preset: text on a dark box.
+func (msgs Messages) FilmPresetBox() string {
+	return Catalog.Format(msgs.locale, "filmPresetBox", nil)
+}
+
+// FilmPresetLarge says "Large"
+// in the language the app shows.
+//
+// Subtitle style preset: larger outlined text.
+func FilmPresetLarge() string { return In(i18n.Locale()).FilmPresetLarge() }
+
+// FilmPresetLarge says "Large"
+// in the language of msgs.
+//
+// Subtitle style preset: larger outlined text.
+func (msgs Messages) FilmPresetLarge() string {
+	return Catalog.Format(msgs.locale, "filmPresetLarge", nil)
+}
+
+// FilmPresetOutline says "Outline"
+// in the language the app shows.
+//
+// Subtitle style preset: outlined text.
+func FilmPresetOutline() string { return In(i18n.Locale()).FilmPresetOutline() }
+
+// FilmPresetOutline says "Outline"
+// in the language of msgs.
+//
+// Subtitle style preset: outlined text.
+func (msgs Messages) FilmPresetOutline() string {
+	return Catalog.Format(msgs.locale, "filmPresetOutline", nil)
+}
+
+// FilmPresetSample says "Aa"
+// in the language the app shows.
+//
+// Short sample text drawn on each preset card as the preset draws
+// subtitles; keep it to two or three characters.
+func FilmPresetSample() string { return In(i18n.Locale()).FilmPresetSample() }
+
+// FilmPresetSample says "Aa"
+// in the language of msgs.
+//
+// Short sample text drawn on each preset card as the preset draws
+// subtitles; keep it to two or three characters.
+func (msgs Messages) FilmPresetSample() string {
+	return Catalog.Format(msgs.locale, "filmPresetSample", nil)
+}
+
+// FilmRemove says "Remove"
+// in the language the app shows.
+//
+// Player title bar button: removes this failed film from the library.
+func FilmRemove() string { return In(i18n.Locale()).FilmRemove() }
+
+// FilmRemove says "Remove"
+// in the language of msgs.
+//
+// Player title bar button: removes this failed film from the library.
+func (msgs Messages) FilmRemove() string {
+	return Catalog.Format(msgs.locale, "filmRemove", nil)
+}
+
+// FilmReprocess says "Process Entire Film Again"
+// in the language the app shows.
+//
+// Item of the player's ⋯ menu that processes a finished film again from
+// the start.
+func FilmReprocess() string { return In(i18n.Locale()).FilmReprocess() }
+
+// FilmReprocess says "Process Entire Film Again"
+// in the language of msgs.
+//
+// Item of the player's ⋯ menu that processes a finished film again from
+// the start.
+func (msgs Messages) FilmReprocess() string {
+	return Catalog.Format(msgs.locale, "filmReprocess", nil)
+}
+
+// FilmRetry says "Retry"
+// in the language the app shows.
+//
+// Player title bar button: runs this failed film's job again.
+func FilmRetry() string { return In(i18n.Locale()).FilmRetry() }
+
+// FilmRetry says "Retry"
+// in the language of msgs.
+//
+// Player title bar button: runs this failed film's job again.
+func (msgs Messages) FilmRetry() string {
+	return Catalog.Format(msgs.locale, "filmRetry", nil)
+}
+
+// FilmReveal says "Show"
+// in the language the app shows.
+//
+// Button on a file of the Info tab that shows it in Finder.
+func FilmReveal() string { return In(i18n.Locale()).FilmReveal() }
+
+// FilmReveal says "Show"
+// in the language of msgs.
+//
+// Button on a file of the Info tab that shows it in Finder.
+func (msgs Messages) FilmReveal() string {
+	return Catalog.Format(msgs.locale, "filmReveal", nil)
+}
+
+// FilmSearchLines says "Search Lines"
+// in the language the app shows.
+//
+// Search field over the subtitle list (its placeholder is followed by its
+// shortcut).
+func FilmSearchLines() string { return In(i18n.Locale()).FilmSearchLines() }
+
+// FilmSearchLines says "Search Lines"
+// in the language of msgs.
+//
+// Search field over the subtitle list (its placeholder is followed by its
+// shortcut).
+func (msgs Messages) FilmSearchLines() string {
+	return Catalog.Format(msgs.locale, "filmSearchLines", nil)
+}
+
+// FilmSeconds says "{seconds} s"
+// in the language the app shows.
+//
+// A signed number of seconds, already written with one decimal or a sign,
+// as the subtitle delay and the skip messages show it.
+func FilmSeconds(seconds string) string { return In(i18n.Locale()).FilmSeconds(seconds) }
+
+// FilmSeconds says "{seconds} s"
+// in the language of msgs.
+//
+// A signed number of seconds, already written with one decimal or a sign,
+// as the subtitle delay and the skip messages show it.
+func (msgs Messages) FilmSeconds(seconds string) string {
+	return Catalog.Format(msgs.locale, "filmSeconds", map[string]any{"seconds": seconds})
+}
+
+// FilmShowInFinder says "Show in Finder"
+// in the language the app shows.
+//
+// Button that shows the film's file or folder in Finder.
+func FilmShowInFinder() string { return In(i18n.Locale()).FilmShowInFinder() }
+
+// FilmShowInFinder says "Show in Finder"
+// in the language of msgs.
+//
+// Button that shows the film's file or folder in Finder.
+func (msgs Messages) FilmShowInFinder() string {
+	return Catalog.Format(msgs.locale, "filmShowInFinder", nil)
+}
+
+// FilmShowSidebar says "Show Sidebar"
+// in the language the app shows.
+//
+// Button at the player's top right that brings back the side panel
+// (subtitles, clips, info).
+func FilmShowSidebar() string { return In(i18n.Locale()).FilmShowSidebar() }
+
+// FilmShowSidebar says "Show Sidebar"
+// in the language of msgs.
+//
+// Button at the player's top right that brings back the side panel
+// (subtitles, clips, info).
+func (msgs Messages) FilmShowSidebar() string {
+	return Catalog.Format(msgs.locale, "filmShowSidebar", nil)
+}
+
+// FilmSidebar says "Sidebar"
+// in the language the app shows.
+//
+// The player's side panel: its accessible name, and the transport button
+// that shows or hides it.
+func FilmSidebar() string { return In(i18n.Locale()).FilmSidebar() }
+
+// FilmSidebar says "Sidebar"
+// in the language of msgs.
+//
+// The player's side panel: its accessible name, and the transport button
+// that shows or hides it.
+func (msgs Messages) FilmSidebar() string {
+	return Catalog.Format(msgs.locale, "filmSidebar", nil)
+}
+
+// FilmSizeUnknown says "Size unknown"
+// in the language the app shows.
+//
+// A file's size while it is not known yet.
+func FilmSizeUnknown() string { return In(i18n.Locale()).FilmSizeUnknown() }
+
+// FilmSizeUnknown says "Size unknown"
+// in the language of msgs.
+//
+// A file's size while it is not known yet.
+func (msgs Messages) FilmSizeUnknown() string {
+	return Catalog.Format(msgs.locale, "filmSizeUnknown", nil)
+}
+
+// FilmSkipBack says "Back {seconds, plural, one {# Second} other {# Seconds}}"
+// in the language the app shows.
+//
+// Button and shortcut row moving the picture back.
+func FilmSkipBack(seconds int) string { return In(i18n.Locale()).FilmSkipBack(seconds) }
+
+// FilmSkipBack says "Back {seconds, plural, one {# Second} other {# Seconds}}"
+// in the language of msgs.
+//
+// Button and shortcut row moving the picture back.
+func (msgs Messages) FilmSkipBack(seconds int) string {
+	return Catalog.Format(msgs.locale, "filmSkipBack", map[string]any{"seconds": seconds})
+}
+
+// FilmSkipForward says "Forward {seconds, plural, one {# Second} other {# Seconds}}"
+// in the language the app shows.
+//
+// Button and shortcut row moving the picture forward.
+func FilmSkipForward(seconds int) string { return In(i18n.Locale()).FilmSkipForward(seconds) }
+
+// FilmSkipForward says "Forward {seconds, plural, one {# Second} other {# Seconds}}"
+// in the language of msgs.
+//
+// Button and shortcut row moving the picture forward.
+func (msgs Messages) FilmSkipForward(seconds int) string {
+	return Catalog.Format(msgs.locale, "filmSkipForward", map[string]any{"seconds": seconds})
+}
+
+// FilmSource says "Source"
+// in the language the app shows.
+//
+// Heading in the Info tab over where the film came from.
+func FilmSource() string { return In(i18n.Locale()).FilmSource() }
+
+// FilmSource says "Source"
+// in the language of msgs.
+//
+// Heading in the Info tab over where the film came from.
+func (msgs Messages) FilmSource() string {
+	return Catalog.Format(msgs.locale, "filmSource", nil)
+}
+
+// FilmStartProcessing says "Start Processing"
+// in the language the app shows.
+//
+// Player title bar button: starts the job that downloads, transcribes and
+// translates this film.
+func FilmStartProcessing() string { return In(i18n.Locale()).FilmStartProcessing() }
+
+// FilmStartProcessing says "Start Processing"
+// in the language of msgs.
+//
+// Player title bar button: starts the job that downloads, transcribes and
+// translates this film.
+func (msgs Messages) FilmStartProcessing() string {
+	return Catalog.Format(msgs.locale, "filmStartProcessing", nil)
+}
+
+// FilmStatusTranslated says "{percent}% translated"
+// in the language the app shows.
+//
+// Line under the film's title in the player: how much of its subtitles is
+// translated.
+func FilmStatusTranslated(percent int) string { return In(i18n.Locale()).FilmStatusTranslated(percent) }
+
+// FilmStatusTranslated says "{percent}% translated"
+// in the language of msgs.
+//
+// Line under the film's title in the player: how much of its subtitles is
+// translated.
+func (msgs Messages) FilmStatusTranslated(percent int) string {
+	return Catalog.Format(msgs.locale, "filmStatusTranslated", map[string]any{"percent": percent})
+}
+
+// FilmStyleColor says "Color"
+// in the language the app shows.
+//
+// Style view row setting a line's color and weight.
+func FilmStyleColor() string { return In(i18n.Locale()).FilmStyleColor() }
+
+// FilmStyleColor says "Color"
+// in the language of msgs.
+//
+// Style view row setting a line's color and weight.
+func (msgs Messages) FilmStyleColor() string {
+	return Catalog.Format(msgs.locale, "filmStyleColor", nil)
+}
+
+// FilmStyleFont says "Font"
+// in the language the app shows.
+//
+// Style view row choosing the subtitle font.
+func FilmStyleFont() string { return In(i18n.Locale()).FilmStyleFont() }
+
+// FilmStyleFont says "Font"
+// in the language of msgs.
+//
+// Style view row choosing the subtitle font.
+func (msgs Messages) FilmStyleFont() string {
+	return Catalog.Format(msgs.locale, "filmStyleFont", nil)
+}
+
+// FilmStyleMenuItem says "Style…"
+// in the language the app shows.
+//
+// Last row of the subtitle mode menu: opens the subtitle style in the side
+// panel.
+func FilmStyleMenuItem() string { return In(i18n.Locale()).FilmStyleMenuItem() }
+
+// FilmStyleMenuItem says "Style…"
+// in the language of msgs.
+//
+// Last row of the subtitle mode menu: opens the subtitle style in the side
+// panel.
+func (msgs Messages) FilmStyleMenuItem() string {
+	return Catalog.Format(msgs.locale, "filmStyleMenuItem", nil)
+}
+
+// FilmStyleOrder says "Bilingual Order"
+// in the language the app shows.
+//
+// Style view row choosing which line of a bilingual subtitle goes on top.
+func FilmStyleOrder() string { return In(i18n.Locale()).FilmStyleOrder() }
+
+// FilmStyleOrder says "Bilingual Order"
+// in the language of msgs.
+//
+// Style view row choosing which line of a bilingual subtitle goes on top.
+func (msgs Messages) FilmStyleOrder() string {
+	return Catalog.Format(msgs.locale, "filmStyleOrder", nil)
+}
+
+// FilmStylePlayback says "Playback"
+// in the language the app shows.
+//
+// Heading of the style view's first group: which lines show and the delay.
+func FilmStylePlayback() string { return In(i18n.Locale()).FilmStylePlayback() }
+
+// FilmStylePlayback says "Playback"
+// in the language of msgs.
+//
+// Heading of the style view's first group: which lines show and the delay.
+func (msgs Messages) FilmStylePlayback() string {
+	return Catalog.Format(msgs.locale, "filmStylePlayback", nil)
+}
+
+// FilmStylePosition says "Position"
+// in the language the app shows.
+//
+// Style view row choosing how high the subtitles sit.
+func FilmStylePosition() string { return In(i18n.Locale()).FilmStylePosition() }
+
+// FilmStylePosition says "Position"
+// in the language of msgs.
+//
+// Style view row choosing how high the subtitles sit.
+func (msgs Messages) FilmStylePosition() string {
+	return Catalog.Format(msgs.locale, "filmStylePosition", nil)
+}
+
+// FilmStylePresets says "Presets"
+// in the language the app shows.
+//
+// Accessible name of the style view's row of presets.
+func FilmStylePresets() string { return In(i18n.Locale()).FilmStylePresets() }
+
+// FilmStylePresets says "Presets"
+// in the language of msgs.
+//
+// Accessible name of the style view's row of presets.
+func (msgs Messages) FilmStylePresets() string {
+	return Catalog.Format(msgs.locale, "filmStylePresets", nil)
+}
+
+// FilmStyleReset says "Restore Default Style"
+// in the language the app shows.
+//
+// Button in the style view that puts the subtitle look back to the default.
+func FilmStyleReset() string { return In(i18n.Locale()).FilmStyleReset() }
+
+// FilmStyleReset says "Restore Default Style"
+// in the language of msgs.
+//
+// Button in the style view that puts the subtitle look back to the default.
+func (msgs Messages) FilmStyleReset() string {
+	return Catalog.Format(msgs.locale, "filmStyleReset", nil)
+}
+
+// FilmStyleShow says "Show Subtitles"
+// in the language the app shows.
+//
+// Style view row choosing the subtitle mode.
+func FilmStyleShow() string { return In(i18n.Locale()).FilmStyleShow() }
+
+// FilmStyleShow says "Show Subtitles"
+// in the language of msgs.
+//
+// Style view row choosing the subtitle mode.
+func (msgs Messages) FilmStyleShow() string {
+	return Catalog.Format(msgs.locale, "filmStyleShow", nil)
+}
+
+// FilmStyleSize says "Size"
+// in the language the app shows.
+//
+// Style view row setting a line's font size.
+func FilmStyleSize() string { return In(i18n.Locale()).FilmStyleSize() }
+
+// FilmStyleSize says "Size"
+// in the language of msgs.
+//
+// Style view row setting a line's font size.
+func (msgs Messages) FilmStyleSize() string {
+	return Catalog.Format(msgs.locale, "filmStyleSize", nil)
+}
+
+// FilmSubtitles says "Subtitles"
+// in the language the app shows.
+//
+// The side panel's subtitle tab, and the tooltip of the subtitle mode
+// button (followed by its keys).
+func FilmSubtitles() string { return In(i18n.Locale()).FilmSubtitles() }
+
+// FilmSubtitles says "Subtitles"
+// in the language of msgs.
+//
+// The side panel's subtitle tab, and the tooltip of the subtitle mode
+// button (followed by its keys).
+func (msgs Messages) FilmSubtitles() string {
+	return Catalog.Format(msgs.locale, "filmSubtitles", nil)
+}
+
+// FilmSubtitlesEmpty says "These subtitles are empty."
+// in the language the app shows.
+//
+// Shown in the subtitle list when the subtitle file has no lines.
+func FilmSubtitlesEmpty() string { return In(i18n.Locale()).FilmSubtitlesEmpty() }
+
+// FilmSubtitlesEmpty says "These subtitles are empty."
+// in the language of msgs.
+//
+// Shown in the subtitle list when the subtitle file has no lines.
+func (msgs Messages) FilmSubtitlesEmpty() string {
+	return Catalog.Format(msgs.locale, "filmSubtitlesEmpty", nil)
+}
+
+// FilmSubtitlesMode says "Subtitles: {mode}"
+// in the language the app shows.
+//
+// Accessible name of the player's subtitle mode button, and the on-screen
+// message after the mode changed.
+func FilmSubtitlesMode(mode string) string { return In(i18n.Locale()).FilmSubtitlesMode(mode) }
+
+// FilmSubtitlesMode says "Subtitles: {mode}"
+// in the language of msgs.
+//
+// Accessible name of the player's subtitle mode button, and the on-screen
+// message after the mode changed.
+func (msgs Messages) FilmSubtitlesMode(mode string) string {
+	return Catalog.Format(msgs.locale, "filmSubtitlesMode", map[string]any{"mode": mode})
+}
+
+// FilmTabClips says "Clips"
+// in the language the app shows.
+//
+// Side panel tab listing the film cut into clips of equal time.
+func FilmTabClips() string { return In(i18n.Locale()).FilmTabClips() }
+
+// FilmTabClips says "Clips"
+// in the language of msgs.
+//
+// Side panel tab listing the film cut into clips of equal time.
+func (msgs Messages) FilmTabClips() string {
+	return Catalog.Format(msgs.locale, "filmTabClips", nil)
+}
+
+// FilmTabInfo says "Info"
+// in the language the app shows.
+//
+// Side panel tab with the film's folder, files and source.
+func FilmTabInfo() string { return In(i18n.Locale()).FilmTabInfo() }
+
+// FilmTabInfo says "Info"
+// in the language of msgs.
+//
+// Side panel tab with the film's folder, files and source.
+func (msgs Messages) FilmTabInfo() string {
+	return Catalog.Format(msgs.locale, "filmTabInfo", nil)
+}
+
+// FilmTabStyle says "Style"
+// in the language the app shows.
+//
+// Side panel tab with the subtitle style.
+func FilmTabStyle() string { return In(i18n.Locale()).FilmTabStyle() }
+
+// FilmTabStyle says "Style"
+// in the language of msgs.
+//
+// Side panel tab with the subtitle style.
+func (msgs Messages) FilmTabStyle() string {
+	return Catalog.Format(msgs.locale, "filmTabStyle", nil)
+}
+
+// FilmUnmute says "Unmute"
+// in the language the app shows.
+//
+// Speaker button that unmutes the film.
+func FilmUnmute() string { return In(i18n.Locale()).FilmUnmute() }
+
+// FilmUnmute says "Unmute"
+// in the language of msgs.
+//
+// Speaker button that unmutes the film.
+func (msgs Messages) FilmUnmute() string {
+	return Catalog.Format(msgs.locale, "filmUnmute", nil)
+}
+
+// FilmUnprocessed says "Not Processed"
+// in the language the app shows.
+//
+// Chip in the Info tab of a film no job has processed.
+func FilmUnprocessed() string { return In(i18n.Locale()).FilmUnprocessed() }
+
+// FilmUnprocessed says "Not Processed"
+// in the language of msgs.
+//
+// Chip in the Info tab of a film no job has processed.
+func (msgs Messages) FilmUnprocessed() string {
+	return Catalog.Format(msgs.locale, "filmUnprocessed", nil)
+}
+
+// FilmVolume says "Volume"
+// in the language the app shows.
+//
+// Accessible name of the volume slider.
+func FilmVolume() string { return In(i18n.Locale()).FilmVolume() }
+
+// FilmVolume says "Volume"
+// in the language of msgs.
+//
+// Accessible name of the volume slider.
+func (msgs Messages) FilmVolume() string {
+	return Catalog.Format(msgs.locale, "filmVolume", nil)
+}
+
+// FilmsCancel says "Cancel"
+// in the language the app shows.
+//
+// Button that closes a sheet or dialog without doing anything.
+func FilmsCancel() string { return In(i18n.Locale()).FilmsCancel() }
+
+// FilmsCancel says "Cancel"
+// in the language of msgs.
+//
+// Button that closes a sheet or dialog without doing anything.
+func (msgs Messages) FilmsCancel() string {
+	return Catalog.Format(msgs.locale, "filmsCancel", nil)
+}
+
+// FilmsChange says "Change…"
+// in the language the app shows.
+//
+// Button that opens a folder dialog to choose where the new library goes.
+func FilmsChange() string { return In(i18n.Locale()).FilmsChange() }
+
+// FilmsChange says "Change…"
+// in the language of msgs.
+//
+// Button that opens a folder dialog to choose where the new library goes.
+func (msgs Messages) FilmsChange() string {
+	return Catalog.Format(msgs.locale, "filmsChange", nil)
+}
+
+// FilmsCloseNotice says "Close Message"
+// in the language the app shows.
+//
+// Accessible name of the × on the message bar.
+func FilmsCloseNotice() string { return In(i18n.Locale()).FilmsCloseNotice() }
+
+// FilmsCloseNotice says "Close Message"
+// in the language of msgs.
+//
+// Accessible name of the × on the message bar.
+func (msgs Messages) FilmsCloseNotice() string {
+	return Catalog.Format(msgs.locale, "filmsCloseNotice", nil)
+}
+
+// FilmsCreate says "Create"
+// in the language the app shows.
+//
+// Button that creates the new library.
+func FilmsCreate() string { return In(i18n.Locale()).FilmsCreate() }
+
+// FilmsCreate says "Create"
+// in the language of msgs.
+//
+// Button that creates the new library.
+func (msgs Messages) FilmsCreate() string {
+	return Catalog.Format(msgs.locale, "filmsCreate", nil)
+}
+
+// FilmsDropHint says "Local files skip the download and go straight to subtitles"
+// in the language the app shows.
+//
+// Line under the drop title: what happens to a dropped local video.
+func FilmsDropHint() string { return In(i18n.Locale()).FilmsDropHint() }
+
+// FilmsDropHint says "Local files skip the download and go straight to subtitles"
+// in the language of msgs.
+//
+// Line under the drop title: what happens to a dropped local video.
+func (msgs Messages) FilmsDropHint() string {
+	return Catalog.Format(msgs.locale, "filmsDropHint", nil)
+}
+
+// FilmsDropTitle says "Drop to Add Local Videos"
+// in the language the app shows.
+//
+// Shown over the library while video files are dragged over the window.
+func FilmsDropTitle() string { return In(i18n.Locale()).FilmsDropTitle() }
+
+// FilmsDropTitle says "Drop to Add Local Videos"
+// in the language of msgs.
+//
+// Shown over the library while video files are dragged over the window.
+func (msgs Messages) FilmsDropTitle() string {
+	return Catalog.Format(msgs.locale, "filmsDropTitle", nil)
+}
+
+// FilmsEmptyDescription says "Paste a link from YouTube, Bilibili or another site above, or drag a video file into the window. Kando downloads the …"
+// in the language the app shows.
+//
+// How to add a first film, on the page of an empty library. The link field
+// is above it.
+func FilmsEmptyDescription() string { return In(i18n.Locale()).FilmsEmptyDescription() }
+
+// FilmsEmptyDescription says "Paste a link from YouTube, Bilibili or another site above, or drag a video file into the window. Kando downloads the …"
+// in the language of msgs.
+//
+// How to add a first film, on the page of an empty library. The link field
+// is above it.
+func (msgs Messages) FilmsEmptyDescription() string {
+	return Catalog.Format(msgs.locale, "filmsEmptyDescription", nil)
+}
+
+// FilmsEmptyTitle says "Start with a Video"
+// in the language the app shows.
+//
+// Title of the page of a library that holds no film yet.
+func FilmsEmptyTitle() string { return In(i18n.Locale()).FilmsEmptyTitle() }
+
+// FilmsEmptyTitle says "Start with a Video"
+// in the language of msgs.
+//
+// Title of the page of a library that holds no film yet.
+func (msgs Messages) FilmsEmptyTitle() string {
+	return Catalog.Format(msgs.locale, "filmsEmptyTitle", nil)
+}
+
+// FilmsGridCount says "{count, plural, one {# film} other {# films}}"
+// in the language the app shows.
+//
+// Dimmed note beside the grid's heading: how many films it holds.
+func FilmsGridCount(count int) string { return In(i18n.Locale()).FilmsGridCount(count) }
+
+// FilmsGridCount says "{count, plural, one {# film} other {# films}}"
+// in the language of msgs.
+//
+// Dimmed note beside the grid's heading: how many films it holds.
+func (msgs Messages) FilmsGridCount(count int) string {
+	return Catalog.Format(msgs.locale, "filmsGridCount", map[string]any{"count": count})
+}
+
+// FilmsGridTitle says "Films"
+// in the language the app shows.
+//
+// Heading of the grid of finished films when the sidebar shows one source.
+func FilmsGridTitle() string { return In(i18n.Locale()).FilmsGridTitle() }
+
+// FilmsGridTitle says "Films"
+// in the language of msgs.
+//
+// Heading of the grid of finished films when the sidebar shows one source.
+func (msgs Messages) FilmsGridTitle() string {
+	return Catalog.Format(msgs.locale, "filmsGridTitle", nil)
+}
+
+// FilmsHeroExported says "Exported {file}"
+// in the language the app shows.
+//
+// Part of the line under the large card's title: the subtitle file that was
+// written.
+func FilmsHeroExported(file string) string { return In(i18n.Locale()).FilmsHeroExported(file) }
+
+// FilmsHeroExported says "Exported {file}"
+// in the language of msgs.
+//
+// Part of the line under the large card's title: the subtitle file that was
+// written.
+func (msgs Messages) FilmsHeroExported(file string) string {
+	return Catalog.Format(msgs.locale, "filmsHeroExported", map[string]any{"file": file})
+}
+
+// FilmsHeroFromStart says "Play from Beginning"
+// in the language the app shows.
+//
+// Second button of the large card when the film was stopped partway: play
+// from the beginning.
+func FilmsHeroFromStart() string { return In(i18n.Locale()).FilmsHeroFromStart() }
+
+// FilmsHeroFromStart says "Play from Beginning"
+// in the language of msgs.
+//
+// Second button of the large card when the film was stopped partway: play
+// from the beginning.
+func (msgs Messages) FilmsHeroFromStart() string {
+	return Catalog.Format(msgs.locale, "filmsHeroFromStart", nil)
+}
+
+// FilmsHeroKicker says "Recently Finished"
+// in the language the app shows.
+//
+// Small label over the title of the large card of the film finished last.
+func FilmsHeroKicker() string { return In(i18n.Locale()).FilmsHeroKicker() }
+
+// FilmsHeroKicker says "Recently Finished"
+// in the language of msgs.
+//
+// Small label over the title of the large card of the film finished last.
+func (msgs Messages) FilmsHeroKicker() string {
+	return Catalog.Format(msgs.locale, "filmsHeroKicker", nil)
+}
+
+// FilmsHeroKickerBilingual says "Recently Finished · {language} Bilingual"
+// in the language the app shows.
+//
+// Small label over the title of the large card of the film finished last,
+// with the language its subtitles were translated into.
+func FilmsHeroKickerBilingual(language string) string {
+	return In(i18n.Locale()).FilmsHeroKickerBilingual(language)
+}
+
+// FilmsHeroKickerBilingual says "Recently Finished · {language} Bilingual"
+// in the language of msgs.
+//
+// Small label over the title of the large card of the film finished last,
+// with the language its subtitles were translated into.
+func (msgs Messages) FilmsHeroKickerBilingual(language string) string {
+	return Catalog.Format(msgs.locale, "filmsHeroKickerBilingual", map[string]any{"language": language})
+}
+
+// FilmsHeroResume says "Resume from {time}"
+// in the language the app shows.
+//
+// Main button of the large card when the film was stopped partway: play
+// from where it stopped.
+func FilmsHeroResume(time_ string) string { return In(i18n.Locale()).FilmsHeroResume(time_) }
+
+// FilmsHeroResume says "Resume from {time}"
+// in the language of msgs.
+//
+// Main button of the large card when the film was stopped partway: play
+// from where it stopped.
+func (msgs Messages) FilmsHeroResume(time_ string) string {
+	return Catalog.Format(msgs.locale, "filmsHeroResume", map[string]any{"time": time_})
+}
+
+// FilmsLanguageTagJapanese says "JA"
+// in the language the app shows.
+//
+// Very short tag of Japanese on a poster's subtitle badge.
+func FilmsLanguageTagJapanese() string { return In(i18n.Locale()).FilmsLanguageTagJapanese() }
+
+// FilmsLanguageTagJapanese says "JA"
+// in the language of msgs.
+//
+// Very short tag of Japanese on a poster's subtitle badge.
+func (msgs Messages) FilmsLanguageTagJapanese() string {
+	return Catalog.Format(msgs.locale, "filmsLanguageTagJapanese", nil)
+}
+
+// FilmsLanguageTagKorean says "KO"
+// in the language the app shows.
+//
+// Very short tag of Korean on a poster's subtitle badge.
+func FilmsLanguageTagKorean() string { return In(i18n.Locale()).FilmsLanguageTagKorean() }
+
+// FilmsLanguageTagKorean says "KO"
+// in the language of msgs.
+//
+// Very short tag of Korean on a poster's subtitle badge.
+func (msgs Messages) FilmsLanguageTagKorean() string {
+	return Catalog.Format(msgs.locale, "filmsLanguageTagKorean", nil)
+}
+
+// FilmsLanguageTagSimplifiedChinese says "CHS"
+// in the language the app shows.
+//
+// Very short tag of Simplified Chinese on a poster's subtitle badge.
+func FilmsLanguageTagSimplifiedChinese() string {
+	return In(i18n.Locale()).FilmsLanguageTagSimplifiedChinese()
+}
+
+// FilmsLanguageTagSimplifiedChinese says "CHS"
+// in the language of msgs.
+//
+// Very short tag of Simplified Chinese on a poster's subtitle badge.
+func (msgs Messages) FilmsLanguageTagSimplifiedChinese() string {
+	return Catalog.Format(msgs.locale, "filmsLanguageTagSimplifiedChinese", nil)
+}
+
+// FilmsLanguageTagTraditionalChinese says "CHT"
+// in the language the app shows.
+//
+// Very short tag of Traditional Chinese on a poster's subtitle badge.
+func FilmsLanguageTagTraditionalChinese() string {
+	return In(i18n.Locale()).FilmsLanguageTagTraditionalChinese()
+}
+
+// FilmsLanguageTagTraditionalChinese says "CHT"
+// in the language of msgs.
+//
+// Very short tag of Traditional Chinese on a poster's subtitle badge.
+func (msgs Messages) FilmsLanguageTagTraditionalChinese() string {
+	return Catalog.Format(msgs.locale, "filmsLanguageTagTraditionalChinese", nil)
+}
+
+// FilmsLinkChannel says "{site} · Channel"
+// in the language the app shows.
+//
+// Tag at the end of the link field when the link names a channel.
+func FilmsLinkChannel(site string) string { return In(i18n.Locale()).FilmsLinkChannel(site) }
+
+// FilmsLinkChannel says "{site} · Channel"
+// in the language of msgs.
+//
+// Tag at the end of the link field when the link names a channel.
+func (msgs Messages) FilmsLinkChannel(site string) string {
+	return Catalog.Format(msgs.locale, "filmsLinkChannel", map[string]any{"site": site})
+}
+
+// FilmsLinkLabel says "Video Link"
+// in the language the app shows.
+//
+// Accessible name of the toolbar's link field.
+func FilmsLinkLabel() string { return In(i18n.Locale()).FilmsLinkLabel() }
+
+// FilmsLinkLabel says "Video Link"
+// in the language of msgs.
+//
+// Accessible name of the toolbar's link field.
+func (msgs Messages) FilmsLinkLabel() string {
+	return Catalog.Format(msgs.locale, "filmsLinkLabel", nil)
+}
+
+// FilmsLinkPlaceholder says "Paste a video link from YouTube, Bilibili and more"
+// in the language the app shows.
+//
+// Placeholder of the toolbar's link field.
+func FilmsLinkPlaceholder() string { return In(i18n.Locale()).FilmsLinkPlaceholder() }
+
+// FilmsLinkPlaceholder says "Paste a video link from YouTube, Bilibili and more"
+// in the language of msgs.
+//
+// Placeholder of the toolbar's link field.
+func (msgs Messages) FilmsLinkPlaceholder() string {
+	return Catalog.Format(msgs.locale, "filmsLinkPlaceholder", nil)
+}
+
+// FilmsLinkPlaylist says "{site} · Playlist"
+// in the language the app shows.
+//
+// Tag at the end of the link field when the link names a playlist or
+// collection.
+func FilmsLinkPlaylist(site string) string { return In(i18n.Locale()).FilmsLinkPlaylist(site) }
+
+// FilmsLinkPlaylist says "{site} · Playlist"
+// in the language of msgs.
+//
+// Tag at the end of the link field when the link names a playlist or
+// collection.
+func (msgs Messages) FilmsLinkPlaylist(site string) string {
+	return Catalog.Format(msgs.locale, "filmsLinkPlaylist", map[string]any{"site": site})
+}
+
+// FilmsLocalVideo says "Local Video"
+// in the language the app shows.
+//
+// Toolbar button that opens a file dialog to add video files.
+func FilmsLocalVideo() string { return In(i18n.Locale()).FilmsLocalVideo() }
+
+// FilmsLocalVideo says "Local Video"
+// in the language of msgs.
+//
+// Toolbar button that opens a file dialog to add video files.
+func (msgs Messages) FilmsLocalVideo() string {
+	return Catalog.Format(msgs.locale, "filmsLocalVideo", nil)
+}
+
+// FilmsLocalVideoTooltip says "Add Local Videos (⌘O)"
+// in the language the app shows.
+//
+// Tooltip of the toolbar button that adds video files, with its shortcut.
+func FilmsLocalVideoTooltip() string { return In(i18n.Locale()).FilmsLocalVideoTooltip() }
+
+// FilmsLocalVideoTooltip says "Add Local Videos (⌘O)"
+// in the language of msgs.
+//
+// Tooltip of the toolbar button that adds video files, with its shortcut.
+func (msgs Messages) FilmsLocalVideoTooltip() string {
+	return Catalog.Format(msgs.locale, "filmsLocalVideoTooltip", nil)
+}
+
+// FilmsMoreActions says "More Actions"
+// in the language the app shows.
+//
+// Accessible name of the ⋯ button beside a poster's title.
+func FilmsMoreActions() string { return In(i18n.Locale()).FilmsMoreActions() }
+
+// FilmsMoreActions says "More Actions"
+// in the language of msgs.
+//
+// Accessible name of the ⋯ button beside a poster's title.
+func (msgs Messages) FilmsMoreActions() string {
+	return Catalog.Format(msgs.locale, "filmsMoreActions", nil)
+}
+
+// FilmsNewLibraryEllipsis says "New Library…"
+// in the language the app shows.
+//
+// Button that opens the sheet creating a new library.
+func FilmsNewLibraryEllipsis() string { return In(i18n.Locale()).FilmsNewLibraryEllipsis() }
+
+// FilmsNewLibraryEllipsis says "New Library…"
+// in the language of msgs.
+//
+// Button that opens the sheet creating a new library.
+func (msgs Messages) FilmsNewLibraryEllipsis() string {
+	return Catalog.Format(msgs.locale, "filmsNewLibraryEllipsis", nil)
+}
+
+// FilmsNewLibraryName says "Name"
+// in the language the app shows.
+//
+// Label of the new library's name field.
+func FilmsNewLibraryName() string { return In(i18n.Locale()).FilmsNewLibraryName() }
+
+// FilmsNewLibraryName says "Name"
+// in the language of msgs.
+//
+// Label of the new library's name field.
+func (msgs Messages) FilmsNewLibraryName() string {
+	return Catalog.Format(msgs.locale, "filmsNewLibraryName", nil)
+}
+
+// FilmsNewLibraryNote says "Creates a .kando folder, which Finder shows with the Kando icon."
+// in the language the app shows.
+//
+// Line under the new-library sheet's title.
+func FilmsNewLibraryNote() string { return In(i18n.Locale()).FilmsNewLibraryNote() }
+
+// FilmsNewLibraryNote says "Creates a .kando folder, which Finder shows with the Kando icon."
+// in the language of msgs.
+//
+// Line under the new-library sheet's title.
+func (msgs Messages) FilmsNewLibraryNote() string {
+	return Catalog.Format(msgs.locale, "filmsNewLibraryNote", nil)
+}
+
+// FilmsNewLibraryPlace says "Location"
+// in the language the app shows.
+//
+// Label of the row showing the folder the new library goes in.
+func FilmsNewLibraryPlace() string { return In(i18n.Locale()).FilmsNewLibraryPlace() }
+
+// FilmsNewLibraryPlace says "Location"
+// in the language of msgs.
+//
+// Label of the row showing the folder the new library goes in.
+func (msgs Messages) FilmsNewLibraryPlace() string {
+	return Catalog.Format(msgs.locale, "filmsNewLibraryPlace", nil)
+}
+
+// FilmsNewLibraryTitle says "New Library"
+// in the language the app shows.
+//
+// Title of the sheet that creates a library.
+func FilmsNewLibraryTitle() string { return In(i18n.Locale()).FilmsNewLibraryTitle() }
+
+// FilmsNewLibraryTitle says "New Library"
+// in the language of msgs.
+//
+// Title of the sheet that creates a library.
+func (msgs Messages) FilmsNewLibraryTitle() string {
+	return Catalog.Format(msgs.locale, "filmsNewLibraryTitle", nil)
+}
+
+// FilmsNoLibraryDescription says "A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you …"
+// in the language the app shows.
+//
+// What a library is, on the page before any library exists.
+func FilmsNoLibraryDescription() string { return In(i18n.Locale()).FilmsNoLibraryDescription() }
+
+// FilmsNoLibraryDescription says "A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you …"
+// in the language of msgs.
+//
+// What a library is, on the page before any library exists.
+func (msgs Messages) FilmsNoLibraryDescription() string {
+	return Catalog.Format(msgs.locale, "filmsNoLibraryDescription", nil)
+}
+
+// FilmsNoLibraryTitle says "No Library Yet"
+// in the language the app shows.
+//
+// Title of the library page before any library exists.
+func FilmsNoLibraryTitle() string { return In(i18n.Locale()).FilmsNoLibraryTitle() }
+
+// FilmsNoLibraryTitle says "No Library Yet"
+// in the language of msgs.
+//
+// Title of the library page before any library exists.
+func (msgs Messages) FilmsNoLibraryTitle() string {
+	return Catalog.Format(msgs.locale, "filmsNoLibraryTitle", nil)
+}
+
+// FilmsNoSubtitles says "No subtitles yet"
+// in the language the app shows.
+//
+// Part of the line under a poster: the video has not been processed yet.
+func FilmsNoSubtitles() string { return In(i18n.Locale()).FilmsNoSubtitles() }
+
+// FilmsNoSubtitles says "No subtitles yet"
+// in the language of msgs.
+//
+// Part of the line under a poster: the video has not been processed yet.
+func (msgs Messages) FilmsNoSubtitles() string {
+	return Catalog.Format(msgs.locale, "filmsNoSubtitles", nil)
+}
+
+// FilmsOpenLibraryEllipsis says "Open Existing Library…"
+// in the language the app shows.
+//
+// Button that opens a folder dialog to open a library already on disk.
+func FilmsOpenLibraryEllipsis() string { return In(i18n.Locale()).FilmsOpenLibraryEllipsis() }
+
+// FilmsOpenLibraryEllipsis says "Open Existing Library…"
+// in the language of msgs.
+//
+// Button that opens a folder dialog to open a library already on disk.
+func (msgs Messages) FilmsOpenLibraryEllipsis() string {
+	return Catalog.Format(msgs.locale, "filmsOpenLibraryEllipsis", nil)
+}
+
+// FilmsOpenSettings says "Open Settings"
+// in the language the app shows.
+//
+// Button on a failed job's card or the message bar that opens the settings
+// section that fixes the problem.
+func FilmsOpenSettings() string { return In(i18n.Locale()).FilmsOpenSettings() }
+
+// FilmsOpenSettings says "Open Settings"
+// in the language of msgs.
+//
+// Button on a failed job's card or the message bar that opens the settings
+// section that fixes the problem.
+func (msgs Messages) FilmsOpenSettings() string {
+	return Catalog.Format(msgs.locale, "filmsOpenSettings", nil)
+}
+
+// FilmsPathNotSet says "Not Set"
+// in the language the app shows.
+//
+// Shown in place of a folder path that has not been chosen.
+func FilmsPathNotSet() string { return In(i18n.Locale()).FilmsPathNotSet() }
+
+// FilmsPathNotSet says "Not Set"
+// in the language of msgs.
+//
+// Shown in place of a folder path that has not been chosen.
+func (msgs Messages) FilmsPathNotSet() string {
+	return Catalog.Format(msgs.locale, "filmsPathNotSet", nil)
+}
+
+// FilmsPickVideosEllipsis says "Choose Local Videos…"
+// in the language the app shows.
+//
+// Button on the empty library's page that opens a file dialog to choose
+// videos.
+func FilmsPickVideosEllipsis() string { return In(i18n.Locale()).FilmsPickVideosEllipsis() }
+
+// FilmsPickVideosEllipsis says "Choose Local Videos…"
+// in the language of msgs.
+//
+// Button on the empty library's page that opens a file dialog to choose
+// videos.
+func (msgs Messages) FilmsPickVideosEllipsis() string {
+	return Catalog.Format(msgs.locale, "filmsPickVideosEllipsis", nil)
+}
+
+// FilmsPlay says "Play"
+// in the language the app shows.
+//
+// Menu item and button that play a film.
+func FilmsPlay() string { return In(i18n.Locale()).FilmsPlay() }
+
+// FilmsPlay says "Play"
+// in the language of msgs.
+//
+// Menu item and button that play a film.
+func (msgs Messages) FilmsPlay() string {
+	return Catalog.Format(msgs.locale, "filmsPlay", nil)
+}
+
+// FilmsPosterBilingual says "Bilingual · {language}"
+// in the language the app shows.
+//
+// Small tag over a poster: the film has bilingual subtitles, with the short
+// tag of the translation's language.
+func FilmsPosterBilingual(language string) string {
+	return In(i18n.Locale()).FilmsPosterBilingual(language)
+}
+
+// FilmsPosterBilingual says "Bilingual · {language}"
+// in the language of msgs.
+//
+// Small tag over a poster: the film has bilingual subtitles, with the short
+// tag of the translation's language.
+func (msgs Messages) FilmsPosterBilingual(language string) string {
+	return Catalog.Format(msgs.locale, "filmsPosterBilingual", map[string]any{"language": language})
+}
+
+// FilmsQueueActive says "{count} in progress"
+// in the language the app shows.
+//
+// Dimmed note beside the processing heading: how many jobs are waiting or
+// running.
+func FilmsQueueActive(count int) string { return In(i18n.Locale()).FilmsQueueActive(count) }
+
+// FilmsQueueActive says "{count} in progress"
+// in the language of msgs.
+//
+// Dimmed note beside the processing heading: how many jobs are waiting or
+// running.
+func (msgs Messages) FilmsQueueActive(count int) string {
+	return Catalog.Format(msgs.locale, "filmsQueueActive", map[string]any{"count": count})
+}
+
+// FilmsQueueCancel says "Cancel Processing"
+// in the language the app shows.
+//
+// Accessible name of the × on a waiting or running job's card.
+func FilmsQueueCancel() string { return In(i18n.Locale()).FilmsQueueCancel() }
+
+// FilmsQueueCancel says "Cancel Processing"
+// in the language of msgs.
+//
+// Accessible name of the × on a waiting or running job's card.
+func (msgs Messages) FilmsQueueCancel() string {
+	return Catalog.Format(msgs.locale, "filmsQueueCancel", nil)
+}
+
+// FilmsQueueCanceled says "Canceled"
+// in the language the app shows.
+//
+// What a cancelled job's card says.
+func FilmsQueueCanceled() string { return In(i18n.Locale()).FilmsQueueCanceled() }
+
+// FilmsQueueCanceled says "Canceled"
+// in the language of msgs.
+//
+// What a cancelled job's card says.
+func (msgs Messages) FilmsQueueCanceled() string {
+	return Catalog.Format(msgs.locale, "filmsQueueCanceled", nil)
+}
+
+// FilmsQueueCollapse says "Show Less"
+// in the language the app shows.
+//
+// Button under the processing cards that hides all but the first ones
+// again.
+func FilmsQueueCollapse() string { return In(i18n.Locale()).FilmsQueueCollapse() }
+
+// FilmsQueueCollapse says "Show Less"
+// in the language of msgs.
+//
+// Button under the processing cards that hides all but the first ones
+// again.
+func (msgs Messages) FilmsQueueCollapse() string {
+	return Catalog.Format(msgs.locale, "filmsQueueCollapse", nil)
+}
+
+// FilmsQueueDownloadingFrom says "Downloading · yt-dlp · {site}"
+// in the language the app shows.
+//
+// Line under the title of a job whose download has not reported progress
+// yet: the tool and the site.
+func FilmsQueueDownloadingFrom(site string) string {
+	return In(i18n.Locale()).FilmsQueueDownloadingFrom(site)
+}
+
+// FilmsQueueDownloadingFrom says "Downloading · yt-dlp · {site}"
+// in the language of msgs.
+//
+// Line under the title of a job whose download has not reported progress
+// yet: the tool and the site.
+func (msgs Messages) FilmsQueueDownloadingFrom(site string) string {
+	return Catalog.Format(msgs.locale, "filmsQueueDownloadingFrom", map[string]any{"site": site})
+}
+
+// FilmsQueueExporting says "Exporting · Writing video.srt and video.bilingual.srt"
+// in the language the app shows.
+//
+// Line under the title of a job writing its subtitle files.
+func FilmsQueueExporting() string { return In(i18n.Locale()).FilmsQueueExporting() }
+
+// FilmsQueueExporting says "Exporting · Writing video.srt and video.bilingual.srt"
+// in the language of msgs.
+//
+// Line under the title of a job writing its subtitle files.
+func (msgs Messages) FilmsQueueExporting() string {
+	return Catalog.Format(msgs.locale, "filmsQueueExporting", nil)
+}
+
+// FilmsQueueFailed says "{count, plural, one {# needs attention} other {# need attention}}"
+// in the language the app shows.
+//
+// Dimmed note beside the processing heading: how many jobs failed and wait
+// for the user.
+func FilmsQueueFailed(count int) string { return In(i18n.Locale()).FilmsQueueFailed(count) }
+
+// FilmsQueueFailed says "{count, plural, one {# needs attention} other {# need attention}}"
+// in the language of msgs.
+//
+// Dimmed note beside the processing heading: how many jobs failed and wait
+// for the user.
+func (msgs Messages) FilmsQueueFailed(count int) string {
+	return Catalog.Format(msgs.locale, "filmsQueueFailed", map[string]any{"count": count})
+}
+
+// FilmsQueueNoAnswer says "Translation API didn't answer, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
+// in the language the app shows.
+//
+// Line under the title of a job whose translation request got no usable
+// answer and will be retried.
+func FilmsQueueNoAnswer(seconds int, attempt int, attempts int) string {
+	return In(i18n.Locale()).FilmsQueueNoAnswer(seconds, attempt, attempts)
+}
+
+// FilmsQueueNoAnswer says "Translation API didn't answer, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
+// in the language of msgs.
+//
+// Line under the title of a job whose translation request got no usable
+// answer and will be retried.
+func (msgs Messages) FilmsQueueNoAnswer(seconds int, attempt int, attempts int) string {
+	return Catalog.Format(msgs.locale, "filmsQueueNoAnswer", map[string]any{"seconds": seconds, "attempt": attempt, "attempts": attempts})
+}
+
+// FilmsQueueProgress says "Progress"
+// in the language the app shows.
+//
+// Accessible name of a job's progress bar.
+func FilmsQueueProgress() string { return In(i18n.Locale()).FilmsQueueProgress() }
+
+// FilmsQueueProgress says "Progress"
+// in the language of msgs.
+//
+// Accessible name of a job's progress bar.
+func (msgs Messages) FilmsQueueProgress() string {
+	return Catalog.Format(msgs.locale, "filmsQueueProgress", nil)
+}
+
+// FilmsQueueRateLimited says "Translation API rate-limited, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
+// in the language the app shows.
+//
+// Line under the title of a job whose translation request was rate-limited
+// and will be retried.
+func FilmsQueueRateLimited(seconds int, attempt int, attempts int) string {
+	return In(i18n.Locale()).FilmsQueueRateLimited(seconds, attempt, attempts)
+}
+
+// FilmsQueueRateLimited says "Translation API rate-limited, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
+// in the language of msgs.
+//
+// Line under the title of a job whose translation request was rate-limited
+// and will be retried.
+func (msgs Messages) FilmsQueueRateLimited(seconds int, attempt int, attempts int) string {
+	return Catalog.Format(msgs.locale, "filmsQueueRateLimited", map[string]any{"seconds": seconds, "attempt": attempt, "attempts": attempts})
+}
+
+// FilmsQueueReadingLocal says "Reading · Local file"
+// in the language the app shows.
+//
+// Line under the title of a job reading a local video file.
+func FilmsQueueReadingLocal() string { return In(i18n.Locale()).FilmsQueueReadingLocal() }
+
+// FilmsQueueReadingLocal says "Reading · Local file"
+// in the language of msgs.
+//
+// Line under the title of a job reading a local video file.
+func (msgs Messages) FilmsQueueReadingLocal() string {
+	return Catalog.Format(msgs.locale, "filmsQueueReadingLocal", nil)
+}
+
+// FilmsQueueRemaining says "{time} left"
+// in the language the app shows.
+//
+// Part of a downloading job's line: the time left.
+func FilmsQueueRemaining(time_ string) string { return In(i18n.Locale()).FilmsQueueRemaining(time_) }
+
+// FilmsQueueRemaining says "{time} left"
+// in the language of msgs.
+//
+// Part of a downloading job's line: the time left.
+func (msgs Messages) FilmsQueueRemaining(time_ string) string {
+	return Catalog.Format(msgs.locale, "filmsQueueRemaining", map[string]any{"time": time_})
+}
+
+// FilmsQueueShowAll says "Show All {count}"
+// in the language the app shows.
+//
+// Button under the processing cards that shows the ones hidden.
+func FilmsQueueShowAll(count int) string { return In(i18n.Locale()).FilmsQueueShowAll(count) }
+
+// FilmsQueueShowAll says "Show All {count}"
+// in the language of msgs.
+//
+// Button under the processing cards that shows the ones hidden.
+func (msgs Messages) FilmsQueueShowAll(count int) string {
+	return Catalog.Format(msgs.locale, "filmsQueueShowAll", map[string]any{"count": count})
+}
+
+// FilmsQueueTitle says "Processing"
+// in the language the app shows.
+//
+// Heading of the section of jobs waiting, running or failed.
+func FilmsQueueTitle() string { return In(i18n.Locale()).FilmsQueueTitle() }
+
+// FilmsQueueTitle says "Processing"
+// in the language of msgs.
+//
+// Heading of the section of jobs waiting, running or failed.
+func (msgs Messages) FilmsQueueTitle() string {
+	return Catalog.Format(msgs.locale, "filmsQueueTitle", nil)
+}
+
+// FilmsQueueTranscribing says "Transcribing · whisper on this computer"
+// in the language the app shows.
+//
+// Line under the title of a job transcribing the speech with whisper on
+// this computer.
+func FilmsQueueTranscribing() string { return In(i18n.Locale()).FilmsQueueTranscribing() }
+
+// FilmsQueueTranscribing says "Transcribing · whisper on this computer"
+// in the language of msgs.
+//
+// Line under the title of a job transcribing the speech with whisper on
+// this computer.
+func (msgs Messages) FilmsQueueTranscribing() string {
+	return Catalog.Format(msgs.locale, "filmsQueueTranscribing", nil)
+}
+
+// FilmsQueueTranscribingPercent says "Transcribing · whisper on this computer · {percent}"
+// in the language the app shows.
+//
+// Line under the title of a job transcribing the speech with whisper on
+// this computer, with how far it has gone.
+func FilmsQueueTranscribingPercent(percent string) string {
+	return In(i18n.Locale()).FilmsQueueTranscribingPercent(percent)
+}
+
+// FilmsQueueTranscribingPercent says "Transcribing · whisper on this computer · {percent}"
+// in the language of msgs.
+//
+// Line under the title of a job transcribing the speech with whisper on
+// this computer, with how far it has gone.
+func (msgs Messages) FilmsQueueTranscribingPercent(percent string) string {
+	return Catalog.Format(msgs.locale, "filmsQueueTranscribingPercent", map[string]any{"percent": percent})
+}
+
+// FilmsQueueTranslating says "Translating · AI service"
+// in the language the app shows.
+//
+// Line under the title of a job translating its subtitles before it reports
+// batches.
+func FilmsQueueTranslating() string { return In(i18n.Locale()).FilmsQueueTranslating() }
+
+// FilmsQueueTranslating says "Translating · AI service"
+// in the language of msgs.
+//
+// Line under the title of a job translating its subtitles before it reports
+// batches.
+func (msgs Messages) FilmsQueueTranslating() string {
+	return Catalog.Format(msgs.locale, "filmsQueueTranslating", nil)
+}
+
+// FilmsQueueTranslatingBatch says "Translating · Batch {batch}/{batches} · {size, plural, one {# line} other {# lines}} per batch"
+// in the language the app shows.
+//
+// Line under the title of a job translating its subtitles in batches.
+func FilmsQueueTranslatingBatch(batch int, batches int, size int) string {
+	return In(i18n.Locale()).FilmsQueueTranslatingBatch(batch, batches, size)
+}
+
+// FilmsQueueTranslatingBatch says "Translating · Batch {batch}/{batches} · {size, plural, one {# line} other {# lines}} per batch"
+// in the language of msgs.
+//
+// Line under the title of a job translating its subtitles in batches.
+func (msgs Messages) FilmsQueueTranslatingBatch(batch int, batches int, size int) string {
+	return Catalog.Format(msgs.locale, "filmsQueueTranslatingBatch", map[string]any{"batch": batch, "batches": batches, "size": size})
+}
+
+// FilmsQueueWaiting says "Queued · Waiting for the jobs ahead"
+// in the language the app shows.
+//
+// Line under a queued job's title.
+func FilmsQueueWaiting() string { return In(i18n.Locale()).FilmsQueueWaiting() }
+
+// FilmsQueueWaiting says "Queued · Waiting for the jobs ahead"
+// in the language of msgs.
+//
+// Line under a queued job's title.
+func (msgs Messages) FilmsQueueWaiting() string {
+	return Catalog.Format(msgs.locale, "filmsQueueWaiting", nil)
+}
+
+// FilmsRemove says "Remove"
+// in the language the app shows.
+//
+// Button that removes a failed job's card, and the confirming button of
+// removing a film from the library.
+func FilmsRemove() string { return In(i18n.Locale()).FilmsRemove() }
+
+// FilmsRemove says "Remove"
+// in the language of msgs.
+//
+// Button that removes a failed job's card, and the confirming button of
+// removing a film from the library.
+func (msgs Messages) FilmsRemove() string {
+	return Catalog.Format(msgs.locale, "filmsRemove", nil)
+}
+
+// FilmsRemoveConfirm says "Remove “{name}” from the library?"
+// in the language the app shows.
+//
+// Title of the dialog confirming that a film is removed from the library.
+func FilmsRemoveConfirm(name string) string { return In(i18n.Locale()).FilmsRemoveConfirm(name) }
+
+// FilmsRemoveConfirm says "Remove “{name}” from the library?"
+// in the language of msgs.
+//
+// Title of the dialog confirming that a film is removed from the library.
+func (msgs Messages) FilmsRemoveConfirm(name string) string {
+	return Catalog.Format(msgs.locale, "filmsRemoveConfirm", map[string]any{"name": name})
+}
+
+// FilmsRemoveFiles says "The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay w…"
+// in the language the app shows.
+//
+// What removing a film does when its folder holds other files too.
+func FilmsRemoveFiles() string { return In(i18n.Locale()).FilmsRemoveFiles() }
+
+// FilmsRemoveFiles says "The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay w…"
+// in the language of msgs.
+//
+// What removing a film does when its folder holds other files too.
+func (msgs Messages) FilmsRemoveFiles() string {
+	return Catalog.Format(msgs.locale, "filmsRemoveFiles", nil)
+}
+
+// FilmsRemoveFolder says "The film's folder will be moved to the Trash. You can get its video, cover and subtitles back from there."
+// in the language the app shows.
+//
+// What removing a film does when it has a folder of its own in the library.
+func FilmsRemoveFolder() string { return In(i18n.Locale()).FilmsRemoveFolder() }
+
+// FilmsRemoveFolder says "The film's folder will be moved to the Trash. You can get its video, cover and subtitles back from there."
+// in the language of msgs.
+//
+// What removing a film does when it has a folder of its own in the library.
+func (msgs Messages) FilmsRemoveFolder() string {
+	return Catalog.Format(msgs.locale, "filmsRemoveFolder", nil)
+}
+
+// FilmsRemoveFromLibrary says "Remove from Library…"
+// in the language the app shows.
+//
+// Menu item that asks to remove a film from the library.
+func FilmsRemoveFromLibrary() string { return In(i18n.Locale()).FilmsRemoveFromLibrary() }
+
+// FilmsRemoveFromLibrary says "Remove from Library…"
+// in the language of msgs.
+//
+// Menu item that asks to remove a film from the library.
+func (msgs Messages) FilmsRemoveFromLibrary() string {
+	return Catalog.Format(msgs.locale, "filmsRemoveFromLibrary", nil)
+}
+
+// FilmsRemoveOutside says "The video isn't in the library folder. It stays where it is and no longer appears in the library."
+// in the language the app shows.
+//
+// What removing a film does when its video is outside the library folder.
+func FilmsRemoveOutside() string { return In(i18n.Locale()).FilmsRemoveOutside() }
+
+// FilmsRemoveOutside says "The video isn't in the library folder. It stays where it is and no longer appears in the library."
+// in the language of msgs.
+//
+// What removing a film does when its video is outside the library folder.
+func (msgs Messages) FilmsRemoveOutside() string {
+	return Catalog.Format(msgs.locale, "filmsRemoveOutside", nil)
+}
+
+// FilmsReprocess says "Process Again"
+// in the language the app shows.
+//
+// Menu item that runs a finished film through download, subtitles and
+// translation again.
+func FilmsReprocess() string { return In(i18n.Locale()).FilmsReprocess() }
+
+// FilmsReprocess says "Process Again"
+// in the language of msgs.
+//
+// Menu item that runs a finished film through download, subtitles and
+// translation again.
+func (msgs Messages) FilmsReprocess() string {
+	return Catalog.Format(msgs.locale, "filmsReprocess", nil)
+}
+
+// FilmsRetry says "Retry"
+// in the language the app shows.
+//
+// Button on a failed job's card that runs it again.
+func FilmsRetry() string { return In(i18n.Locale()).FilmsRetry() }
+
+// FilmsRetry says "Retry"
+// in the language of msgs.
+//
+// Button on a failed job's card that runs it again.
+func (msgs Messages) FilmsRetry() string {
+	return Catalog.Format(msgs.locale, "filmsRetry", nil)
+}
+
+// FilmsShowInFinder says "Show in Finder"
+// in the language the app shows.
+//
+// Menu item and button that show the film's video file in Finder.
+func FilmsShowInFinder() string { return In(i18n.Locale()).FilmsShowInFinder() }
+
+// FilmsShowInFinder says "Show in Finder"
+// in the language of msgs.
+//
+// Menu item and button that show the film's video file in Finder.
+func (msgs Messages) FilmsShowInFinder() string {
+	return Catalog.Format(msgs.locale, "filmsShowInFinder", nil)
+}
+
+// FilmsSourceEmpty says "No films from this source yet."
+// in the language the app shows.
+//
+// Shown when no film of the library comes from the source chosen in the
+// sidebar.
+func FilmsSourceEmpty() string { return In(i18n.Locale()).FilmsSourceEmpty() }
+
+// FilmsSourceEmpty says "No films from this source yet."
+// in the language of msgs.
+//
+// Shown when no film of the library comes from the source chosen in the
+// sidebar.
+func (msgs Messages) FilmsSourceEmpty() string {
+	return Catalog.Format(msgs.locale, "filmsSourceEmpty", nil)
+}
+
+// FilmsStageComplete says "Done"
+// in the language the app shows.
+//
+// Stage of a job: finished.
+func FilmsStageComplete() string { return In(i18n.Locale()).FilmsStageComplete() }
+
+// FilmsStageComplete says "Done"
+// in the language of msgs.
+//
+// Stage of a job: finished.
+func (msgs Messages) FilmsStageComplete() string {
+	return Catalog.Format(msgs.locale, "filmsStageComplete", nil)
+}
+
+// FilmsStageDownloading says "Downloading"
+// in the language the app shows.
+//
+// Stage of a job: downloading the video.
+func FilmsStageDownloading() string { return In(i18n.Locale()).FilmsStageDownloading() }
+
+// FilmsStageDownloading says "Downloading"
+// in the language of msgs.
+//
+// Stage of a job: downloading the video.
+func (msgs Messages) FilmsStageDownloading() string {
+	return Catalog.Format(msgs.locale, "filmsStageDownloading", nil)
+}
+
+// FilmsStageExporting says "Exporting"
+// in the language the app shows.
+//
+// Stage of a job: writing the subtitle files.
+func FilmsStageExporting() string { return In(i18n.Locale()).FilmsStageExporting() }
+
+// FilmsStageExporting says "Exporting"
+// in the language of msgs.
+//
+// Stage of a job: writing the subtitle files.
+func (msgs Messages) FilmsStageExporting() string {
+	return Catalog.Format(msgs.locale, "filmsStageExporting", nil)
+}
+
+// FilmsStageFailed says "Failed"
+// in the language the app shows.
+//
+// Stage of a job: failed.
+func FilmsStageFailed() string { return In(i18n.Locale()).FilmsStageFailed() }
+
+// FilmsStageFailed says "Failed"
+// in the language of msgs.
+//
+// Stage of a job: failed.
+func (msgs Messages) FilmsStageFailed() string {
+	return Catalog.Format(msgs.locale, "filmsStageFailed", nil)
+}
+
+// FilmsStageQueued says "Queued"
+// in the language the app shows.
+//
+// Stage of a job: waiting in the queue.
+func FilmsStageQueued() string { return In(i18n.Locale()).FilmsStageQueued() }
+
+// FilmsStageQueued says "Queued"
+// in the language of msgs.
+//
+// Stage of a job: waiting in the queue.
+func (msgs Messages) FilmsStageQueued() string {
+	return Catalog.Format(msgs.locale, "filmsStageQueued", nil)
+}
+
+// FilmsStageTranscribing says "Transcribing"
+// in the language the app shows.
+//
+// Stage of a job: transcribing the speech into subtitles.
+func FilmsStageTranscribing() string { return In(i18n.Locale()).FilmsStageTranscribing() }
+
+// FilmsStageTranscribing says "Transcribing"
+// in the language of msgs.
+//
+// Stage of a job: transcribing the speech into subtitles.
+func (msgs Messages) FilmsStageTranscribing() string {
+	return Catalog.Format(msgs.locale, "filmsStageTranscribing", nil)
+}
+
+// FilmsStageTranslating says "Translating"
+// in the language the app shows.
+//
+// Stage of a job: translating the subtitles.
+func FilmsStageTranslating() string { return In(i18n.Locale()).FilmsStageTranslating() }
+
+// FilmsStageTranslating says "Translating"
+// in the language of msgs.
+//
+// Stage of a job: translating the subtitles.
+func (msgs Messages) FilmsStageTranslating() string {
+	return Catalog.Format(msgs.locale, "filmsStageTranslating", nil)
+}
+
+// FilmsStart says "Start Processing"
+// in the language the app shows.
+//
+// Toolbar button that adds the pasted link to the queue.
+func FilmsStart() string { return In(i18n.Locale()).FilmsStart() }
+
+// FilmsStart says "Start Processing"
+// in the language of msgs.
+//
+// Toolbar button that adds the pasted link to the queue.
+func (msgs Messages) FilmsStart() string {
+	return Catalog.Format(msgs.locale, "filmsStart", nil)
+}
+
+// FilmsSupportedSites says "Supported Websites…"
+// in the language the app shows.
+//
+// Button on the empty library's page that opens the sheet listing the
+// websites Kando downloads from.
+func FilmsSupportedSites() string { return In(i18n.Locale()).FilmsSupportedSites() }
+
+// FilmsSupportedSites says "Supported Websites…"
+// in the language of msgs.
+//
+// Button on the empty library's page that opens the sheet listing the
+// websites Kando downloads from.
+func (msgs Messages) FilmsSupportedSites() string {
+	return Catalog.Format(msgs.locale, "filmsSupportedSites", nil)
+}
+
+// FilmsUntranslated says "{count, plural, one {# line} other {# lines}} failed to translate, the rest are done"
+// in the language the app shows.
+//
+// Part of the line under a finished film: how many subtitle lines the
+// translation failed on.
+func FilmsUntranslated(count int) string { return In(i18n.Locale()).FilmsUntranslated(count) }
+
+// FilmsUntranslated says "{count, plural, one {# line} other {# lines}} failed to translate, the rest are done"
+// in the language of msgs.
+//
+// Part of the line under a finished film: how many subtitle lines the
+// translation failed on.
+func (msgs Messages) FilmsUntranslated(count int) string {
+	return Catalog.Format(msgs.locale, "filmsUntranslated", map[string]any{"count": count})
+}
+
+// LibraryAddedOneStarting says "Added. Processing started."
+// in the language the app shows.
+//
+// Message bar when one video was added to the queue.
+func LibraryAddedOneStarting() string { return In(i18n.Locale()).LibraryAddedOneStarting() }
+
+// LibraryAddedOneStarting says "Added. Processing started."
+// in the language of msgs.
+//
+// Message bar when one video was added to the queue.
+func (msgs Messages) LibraryAddedOneStarting() string {
+	return Catalog.Format(msgs.locale, "libraryAddedOneStarting", nil)
+}
+
+// LibraryAddedSome says "{count, plural, one {Added # video.} other {Added # videos.}} {error}"
+// in the language the app shows.
+//
+// Message bar when some of the links or files were added to the queue and
+// the others could not be; the error says why.
+func LibraryAddedSome(count int, error string) string {
+	return In(i18n.Locale()).LibraryAddedSome(count, error)
+}
+
+// LibraryAddedSome says "{count, plural, one {Added # video.} other {Added # videos.}} {error}"
+// in the language of msgs.
+//
+// Message bar when some of the links or files were added to the queue and
+// the others could not be; the error says why.
+func (msgs Messages) LibraryAddedSome(count int, error string) string {
+	return Catalog.Format(msgs.locale, "libraryAddedSome", map[string]any{"count": count, "error": error})
+}
+
+// LibraryAddedStarting says "Added {count, plural, one {# video} other {# videos}}. Processing started."
+// in the language the app shows.
+//
+// Message bar when several videos were added to the queue.
+func LibraryAddedStarting(count int) string { return In(i18n.Locale()).LibraryAddedStarting(count) }
+
+// LibraryAddedStarting says "Added {count, plural, one {# video} other {# videos}}. Processing started."
+// in the language of msgs.
+//
+// Message bar when several videos were added to the queue.
+func (msgs Messages) LibraryAddedStarting(count int) string {
+	return Catalog.Format(msgs.locale, "libraryAddedStarting", map[string]any{"count": count})
+}
+
+// LibraryDefaultName says "Film Library"
+// in the language the app shows.
+//
+// Name the new-library sheet suggests for a new library; it becomes the
+// folder's name, followed by a number when taken.
+func LibraryDefaultName() string { return In(i18n.Locale()).LibraryDefaultName() }
+
+// LibraryDefaultName says "Film Library"
+// in the language of msgs.
+//
+// Name the new-library sheet suggests for a new library; it becomes the
+// folder's name, followed by a number when taken.
+func (msgs Messages) LibraryDefaultName() string {
+	return Catalog.Format(msgs.locale, "libraryDefaultName", nil)
+}
+
+// LibraryFileMissing says "The file is no longer there."
+// in the language the app shows.
+//
+// Error when the file to show in Finder is no longer there.
+func LibraryFileMissing() string { return In(i18n.Locale()).LibraryFileMissing() }
+
+// LibraryFileMissing says "The file is no longer there."
+// in the language of msgs.
+//
+// Error when the file to show in Finder is no longer there.
+func (msgs Messages) LibraryFileMissing() string {
+	return Catalog.Format(msgs.locale, "libraryFileMissing", nil)
+}
+
+// LibraryFileTaken says "A file with this name already exists in this location."
+// in the language the app shows.
+//
+// Error in the new-library sheet: a file of that name is already in the
+// chosen folder.
+func LibraryFileTaken() string { return In(i18n.Locale()).LibraryFileTaken() }
+
+// LibraryFileTaken says "A file with this name already exists in this location."
+// in the language of msgs.
+//
+// Error in the new-library sheet: a file of that name is already in the
+// chosen folder.
+func (msgs Messages) LibraryFileTaken() string {
+	return Catalog.Format(msgs.locale, "libraryFileTaken", nil)
+}
+
+// LibraryImportButton says "Import"
+// in the language the app shows.
+//
+// Confirming button of the folder dialog that opens a library already on
+// disk.
+func LibraryImportButton() string { return In(i18n.Locale()).LibraryImportButton() }
+
+// LibraryImportButton says "Import"
+// in the language of msgs.
+//
+// Confirming button of the folder dialog that opens a library already on
+// disk.
+func (msgs Messages) LibraryImportButton() string {
+	return Catalog.Format(msgs.locale, "libraryImportButton", nil)
+}
+
+// LibraryImportTitle says "Import Library"
+// in the language the app shows.
+//
+// Title of the folder dialog that opens a library already on disk.
+func LibraryImportTitle() string { return In(i18n.Locale()).LibraryImportTitle() }
+
+// LibraryImportTitle says "Import Library"
+// in the language of msgs.
+//
+// Title of the folder dialog that opens a library already on disk.
+func (msgs Messages) LibraryImportTitle() string {
+	return Catalog.Format(msgs.locale, "libraryImportTitle", nil)
+}
+
+// LibraryMoveOutFailed says "Couldn't move the library to its new folder: {error}"
+// in the language the app shows.
+//
+// Error when Kando could not move its videos out of an older version's
+// library folder into a library of its own.
+func LibraryMoveOutFailed(error string) string { return In(i18n.Locale()).LibraryMoveOutFailed(error) }
+
+// LibraryMoveOutFailed says "Couldn't move the library to its new folder: {error}"
+// in the language of msgs.
+//
+// Error when Kando could not move its videos out of an older version's
+// library folder into a library of its own.
+func (msgs Messages) LibraryMoveOutFailed(error string) string {
+	return Catalog.Format(msgs.locale, "libraryMoveOutFailed", map[string]any{"error": error})
+}
+
+// LibraryNameEmpty says "Enter a name for the library."
+// in the language the app shows.
+//
+// Error in the new-library sheet: the name field is empty.
+func LibraryNameEmpty() string { return In(i18n.Locale()).LibraryNameEmpty() }
+
+// LibraryNameEmpty says "Enter a name for the library."
+// in the language of msgs.
+//
+// Error in the new-library sheet: the name field is empty.
+func (msgs Messages) LibraryNameEmpty() string {
+	return Catalog.Format(msgs.locale, "libraryNameEmpty", nil)
+}
+
+// LibraryNameHasPath says "A library name can't contain a path."
+// in the language the app shows.
+//
+// Error in the new-library sheet: the name holds a slash or is . or ..
+func LibraryNameHasPath() string { return In(i18n.Locale()).LibraryNameHasPath() }
+
+// LibraryNameHasPath says "A library name can't contain a path."
+// in the language of msgs.
+//
+// Error in the new-library sheet: the name holds a slash or is . or ..
+func (msgs Messages) LibraryNameHasPath() string {
+	return Catalog.Format(msgs.locale, "libraryNameHasPath", nil)
+}
+
+// LibraryNameTaken says "A library with this name already exists. Choose another name."
+// in the language the app shows.
+//
+// Error in the new-library sheet: a library of that name is already in the
+// chosen folder.
+func LibraryNameTaken() string { return In(i18n.Locale()).LibraryNameTaken() }
+
+// LibraryNameTaken says "A library with this name already exists. Choose another name."
+// in the language of msgs.
+//
+// Error in the new-library sheet: a library of that name is already in the
+// chosen folder.
+func (msgs Messages) LibraryNameTaken() string {
+	return Catalog.Format(msgs.locale, "libraryNameTaken", nil)
+}
+
+// LibraryOpenVideosMenu says "Open Local Video…"
+// in the language the app shows.
+//
+// File menu item that opens a file dialog to add local videos.
+func LibraryOpenVideosMenu() string { return In(i18n.Locale()).LibraryOpenVideosMenu() }
+
+// LibraryOpenVideosMenu says "Open Local Video…"
+// in the language of msgs.
+//
+// File menu item that opens a file dialog to add local videos.
+func (msgs Messages) LibraryOpenVideosMenu() string {
+	return Catalog.Format(msgs.locale, "libraryOpenVideosMenu", nil)
+}
+
+// LibraryPickVideosButton says "Open"
+// in the language the app shows.
+//
+// Confirming button of the file dialog that chooses videos.
+func LibraryPickVideosButton() string { return In(i18n.Locale()).LibraryPickVideosButton() }
+
+// LibraryPickVideosButton says "Open"
+// in the language of msgs.
+//
+// Confirming button of the file dialog that chooses videos.
+func (msgs Messages) LibraryPickVideosButton() string {
+	return Catalog.Format(msgs.locale, "libraryPickVideosButton", nil)
+}
+
+// LibraryPickVideosTitle says "Choose Videos"
+// in the language the app shows.
+//
+// Title of the file dialog that chooses videos to add.
+func LibraryPickVideosTitle() string { return In(i18n.Locale()).LibraryPickVideosTitle() }
+
+// LibraryPickVideosTitle says "Choose Videos"
+// in the language of msgs.
+//
+// Title of the file dialog that chooses videos to add.
+func (msgs Messages) LibraryPickVideosTitle() string {
+	return Catalog.Format(msgs.locale, "libraryPickVideosTitle", nil)
+}
+
+// LibraryPlaceButton says "Choose"
+// in the language the app shows.
+//
+// Confirming button of the folder dialog that chooses where a new library
+// goes.
+func LibraryPlaceButton() string { return In(i18n.Locale()).LibraryPlaceButton() }
+
+// LibraryPlaceButton says "Choose"
+// in the language of msgs.
+//
+// Confirming button of the folder dialog that chooses where a new library
+// goes.
+func (msgs Messages) LibraryPlaceButton() string {
+	return Catalog.Format(msgs.locale, "libraryPlaceButton", nil)
+}
+
+// LibraryPlaceTitle says "Where to Keep the Library"
+// in the language the app shows.
+//
+// Title of the folder dialog that chooses where a new library goes.
+func LibraryPlaceTitle() string { return In(i18n.Locale()).LibraryPlaceTitle() }
+
+// LibraryPlaceTitle says "Where to Keep the Library"
+// in the language of msgs.
+//
+// Title of the folder dialog that chooses where a new library goes.
+func (msgs Messages) LibraryPlaceTitle() string {
+	return Catalog.Format(msgs.locale, "libraryPlaceTitle", nil)
+}
+
+// LibraryRemoved says "Removed “{name}” from the library"
+// in the language the app shows.
+//
+// Message bar after a film whose video is outside the library was taken off
+// the library.
+func LibraryRemoved(name string) string { return In(i18n.Locale()).LibraryRemoved(name) }
+
+// LibraryRemoved says "Removed “{name}” from the library"
+// in the language of msgs.
+//
+// Message bar after a film whose video is outside the library was taken off
+// the library.
+func (msgs Messages) LibraryRemoved(name string) string {
+	return Catalog.Format(msgs.locale, "libraryRemoved", map[string]any{"name": name})
+}
+
+// LibraryRevealFailed says "Couldn't open the enclosing folder: {error}"
+// in the language the app shows.
+//
+// Error when the folder holding a file could not be opened.
+func LibraryRevealFailed(error string) string { return In(i18n.Locale()).LibraryRevealFailed(error) }
+
+// LibraryRevealFailed says "Couldn't open the enclosing folder: {error}"
+// in the language of msgs.
+//
+// Error when the folder holding a file could not be opened.
+func (msgs Messages) LibraryRevealFailed(error string) string {
+	return Catalog.Format(msgs.locale, "libraryRevealFailed", map[string]any{"error": error})
+}
+
+// LibrarySaveFailed says "Couldn't save the library: {error}"
+// in the language the app shows.
+//
+// Error when the list of libraries could not be saved to the settings file.
+func LibrarySaveFailed(error string) string { return In(i18n.Locale()).LibrarySaveFailed(error) }
+
+// LibrarySaveFailed says "Couldn't save the library: {error}"
+// in the language of msgs.
+//
+// Error when the list of libraries could not be saved to the settings file.
+func (msgs Messages) LibrarySaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "librarySaveFailed", map[string]any{"error": error})
+}
+
+// LibraryShelfReadFailed says "Couldn't read the film list: {error}"
+// in the language the app shows.
+//
+// Error when the list of films and jobs (library.json) could not be read.
+func LibraryShelfReadFailed(error string) string {
+	return In(i18n.Locale()).LibraryShelfReadFailed(error)
+}
+
+// LibraryShelfReadFailed says "Couldn't read the film list: {error}"
+// in the language of msgs.
+//
+// Error when the list of films and jobs (library.json) could not be read.
+func (msgs Messages) LibraryShelfReadFailed(error string) string {
+	return Catalog.Format(msgs.locale, "libraryShelfReadFailed", map[string]any{"error": error})
+}
+
+// LibraryShelfSaveFailed says "Couldn't save the film list: {error}"
+// in the language the app shows.
+//
+// Error when the list of films and jobs (library.json) could not be saved.
+func LibraryShelfSaveFailed(error string) string {
+	return In(i18n.Locale()).LibraryShelfSaveFailed(error)
+}
+
+// LibraryShelfSaveFailed says "Couldn't save the film list: {error}"
+// in the language of msgs.
+//
+// Error when the list of films and jobs (library.json) could not be saved.
+func (msgs Messages) LibraryShelfSaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "libraryShelfSaveFailed", map[string]any{"error": error})
+}
+
+// LibraryTrashFailed says "Couldn't move “{name}” to the Trash: {error}"
+// in the language the app shows.
+//
+// Message bar when a film could not be moved to the Trash.
+func LibraryTrashFailed(name string, error string) string {
+	return In(i18n.Locale()).LibraryTrashFailed(name, error)
+}
+
+// LibraryTrashFailed says "Couldn't move “{name}” to the Trash: {error}"
+// in the language of msgs.
+//
+// Message bar when a film could not be moved to the Trash.
+func (msgs Messages) LibraryTrashFailed(name string, error string) string {
+	return Catalog.Format(msgs.locale, "libraryTrashFailed", map[string]any{"name": name, "error": error})
+}
+
+// LibraryTrashed says "Moved “{name}” to the Trash"
+// in the language the app shows.
+//
+// Message bar after a film was moved to the Trash.
+func LibraryTrashed(name string) string { return In(i18n.Locale()).LibraryTrashed(name) }
+
+// LibraryTrashed says "Moved “{name}” to the Trash"
+// in the language of msgs.
+//
+// Message bar after a film was moved to the Trash.
+func (msgs Messages) LibraryTrashed(name string) string {
+	return Catalog.Format(msgs.locale, "libraryTrashed", map[string]any{"name": name})
+}
+
+// LibraryVideoFilter says "Videos"
+// in the language the app shows.
+//
+// Name of the file type filter of the file dialog that chooses videos.
+func LibraryVideoFilter() string { return In(i18n.Locale()).LibraryVideoFilter() }
+
+// LibraryVideoFilter says "Videos"
+// in the language of msgs.
+//
+// Name of the file type filter of the file dialog that chooses videos.
+func (msgs Messages) LibraryVideoFilter() string {
+	return Catalog.Format(msgs.locale, "libraryVideoFilter", nil)
+}
+
+// LibraryWindowTitle says "Kando"
+// in the language the app shows.
+//
+// Title of the main window: the app's name.
+func LibraryWindowTitle() string { return In(i18n.Locale()).LibraryWindowTitle() }
+
+// LibraryWindowTitle says "Kando"
+// in the language of msgs.
+//
+// Title of the main window: the app's name.
+func (msgs Messages) LibraryWindowTitle() string {
+	return Catalog.Format(msgs.locale, "libraryWindowTitle", nil)
+}
+
+// MenuAbout says "About Kando"
+// in the language the app shows.
+//
+// First item of the app menu, which shows the About window.
+func MenuAbout() string { return In(i18n.Locale()).MenuAbout() }
+
+// MenuAbout says "About Kando"
+// in the language of msgs.
+//
+// First item of the app menu, which shows the About window.
+func (msgs Messages) MenuAbout() string {
+	return Catalog.Format(msgs.locale, "menuAbout", nil)
+}
+
+// MenuBringAllToFront says "Bring All to Front"
+// in the language the app shows.
+//
+// Window menu item that brings all the app's windows to the front, as macOS
+// names it.
+func MenuBringAllToFront() string { return In(i18n.Locale()).MenuBringAllToFront() }
+
+// MenuBringAllToFront says "Bring All to Front"
+// in the language of msgs.
+//
+// Window menu item that brings all the app's windows to the front, as macOS
+// names it.
+func (msgs Messages) MenuBringAllToFront() string {
+	return Catalog.Format(msgs.locale, "menuBringAllToFront", nil)
+}
+
+// MenuCloseWindow says "Close Window"
+// in the language the app shows.
+//
+// File menu item that closes the window, as macOS names it.
+func MenuCloseWindow() string { return In(i18n.Locale()).MenuCloseWindow() }
+
+// MenuCloseWindow says "Close Window"
+// in the language of msgs.
+//
+// File menu item that closes the window, as macOS names it.
+func (msgs Messages) MenuCloseWindow() string {
+	return Catalog.Format(msgs.locale, "menuCloseWindow", nil)
+}
+
+// MenuCopy says "Copy"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuCopy() string { return In(i18n.Locale()).MenuCopy() }
+
+// MenuCopy says "Copy"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuCopy() string {
+	return Catalog.Format(msgs.locale, "menuCopy", nil)
+}
+
+// MenuCut says "Cut"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuCut() string { return In(i18n.Locale()).MenuCut() }
+
+// MenuCut says "Cut"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuCut() string {
+	return Catalog.Format(msgs.locale, "menuCut", nil)
+}
+
+// MenuDelete says "Delete"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuDelete() string { return In(i18n.Locale()).MenuDelete() }
+
+// MenuDelete says "Delete"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuDelete() string {
+	return Catalog.Format(msgs.locale, "menuDelete", nil)
+}
+
+// MenuGroupApp says "Kando"
+// in the language the app shows.
+//
+// The app's menu in the menu bar, named after the app.
+func MenuGroupApp() string { return In(i18n.Locale()).MenuGroupApp() }
+
+// MenuGroupApp says "Kando"
+// in the language of msgs.
+//
+// The app's menu in the menu bar, named after the app.
+func (msgs Messages) MenuGroupApp() string {
+	return Catalog.Format(msgs.locale, "menuGroupApp", nil)
+}
+
+// MenuGroupEdit says "Edit"
+// in the language the app shows.
+//
+// The Edit menu.
+func MenuGroupEdit() string { return In(i18n.Locale()).MenuGroupEdit() }
+
+// MenuGroupEdit says "Edit"
+// in the language of msgs.
+//
+// The Edit menu.
+func (msgs Messages) MenuGroupEdit() string {
+	return Catalog.Format(msgs.locale, "menuGroupEdit", nil)
+}
+
+// MenuGroupFile says "File"
+// in the language the app shows.
+//
+// The File menu.
+func MenuGroupFile() string { return In(i18n.Locale()).MenuGroupFile() }
+
+// MenuGroupFile says "File"
+// in the language of msgs.
+//
+// The File menu.
+func (msgs Messages) MenuGroupFile() string {
+	return Catalog.Format(msgs.locale, "menuGroupFile", nil)
+}
+
+// MenuGroupHelp says "Help"
+// in the language the app shows.
+//
+// The Help menu.
+func MenuGroupHelp() string { return In(i18n.Locale()).MenuGroupHelp() }
+
+// MenuGroupHelp says "Help"
+// in the language of msgs.
+//
+// The Help menu.
+func (msgs Messages) MenuGroupHelp() string {
+	return Catalog.Format(msgs.locale, "menuGroupHelp", nil)
+}
+
+// MenuGroupPlayback says "Playback"
+// in the language the app shows.
+//
+// The menu, and the group of the shortcut tables, of the player's playback
+// commands.
+func MenuGroupPlayback() string { return In(i18n.Locale()).MenuGroupPlayback() }
+
+// MenuGroupPlayback says "Playback"
+// in the language of msgs.
+//
+// The menu, and the group of the shortcut tables, of the player's playback
+// commands.
+func (msgs Messages) MenuGroupPlayback() string {
+	return Catalog.Format(msgs.locale, "menuGroupPlayback", nil)
+}
+
+// MenuGroupStudy says "Study"
+// in the language the app shows.
+//
+// The menu of the study commands: asking about the film, reviewing.
+func MenuGroupStudy() string { return In(i18n.Locale()).MenuGroupStudy() }
+
+// MenuGroupStudy says "Study"
+// in the language of msgs.
+//
+// The menu of the study commands: asking about the film, reviewing.
+func (msgs Messages) MenuGroupStudy() string {
+	return Catalog.Format(msgs.locale, "menuGroupStudy", nil)
+}
+
+// MenuGroupSubtitles says "Subtitles"
+// in the language the app shows.
+//
+// The menu, and the group of the shortcut tables, of the subtitle commands.
+func MenuGroupSubtitles() string { return In(i18n.Locale()).MenuGroupSubtitles() }
+
+// MenuGroupSubtitles says "Subtitles"
+// in the language of msgs.
+//
+// The menu, and the group of the shortcut tables, of the subtitle commands.
+func (msgs Messages) MenuGroupSubtitles() string {
+	return Catalog.Format(msgs.locale, "menuGroupSubtitles", nil)
+}
+
+// MenuGroupView says "View"
+// in the language the app shows.
+//
+// The View menu.
+func MenuGroupView() string { return In(i18n.Locale()).MenuGroupView() }
+
+// MenuGroupView says "View"
+// in the language of msgs.
+//
+// The View menu.
+func (msgs Messages) MenuGroupView() string {
+	return Catalog.Format(msgs.locale, "menuGroupView", nil)
+}
+
+// MenuGroupWindow says "Window"
+// in the language the app shows.
+//
+// The Window menu.
+func MenuGroupWindow() string { return In(i18n.Locale()).MenuGroupWindow() }
+
+// MenuGroupWindow says "Window"
+// in the language of msgs.
+//
+// The Window menu.
+func (msgs Messages) MenuGroupWindow() string {
+	return Catalog.Format(msgs.locale, "menuGroupWindow", nil)
+}
+
+// MenuHide says "Hide Kando"
+// in the language the app shows.
+//
+// App menu item that hides the app, as macOS names it.
+func MenuHide() string { return In(i18n.Locale()).MenuHide() }
+
+// MenuHide says "Hide Kando"
+// in the language of msgs.
+//
+// App menu item that hides the app, as macOS names it.
+func (msgs Messages) MenuHide() string {
+	return Catalog.Format(msgs.locale, "menuHide", nil)
+}
+
+// MenuHideOthers says "Hide Others"
+// in the language the app shows.
+//
+// App menu item that hides the other apps, as macOS names it.
+func MenuHideOthers() string { return In(i18n.Locale()).MenuHideOthers() }
+
+// MenuHideOthers says "Hide Others"
+// in the language of msgs.
+//
+// App menu item that hides the other apps, as macOS names it.
+func (msgs Messages) MenuHideOthers() string {
+	return Catalog.Format(msgs.locale, "menuHideOthers", nil)
+}
+
+// MenuMinimize says "Minimize"
+// in the language the app shows.
+//
+// Window menu item that minimizes the window to the Dock, as macOS names
+// it.
+func MenuMinimize() string { return In(i18n.Locale()).MenuMinimize() }
+
+// MenuMinimize says "Minimize"
+// in the language of msgs.
+//
+// Window menu item that minimizes the window to the Dock, as macOS names
+// it.
+func (msgs Messages) MenuMinimize() string {
+	return Catalog.Format(msgs.locale, "menuMinimize", nil)
+}
+
+// MenuNewLibrary says "New Library…"
+// in the language the app shows.
+//
+// File menu item that creates a new library folder.
+func MenuNewLibrary() string { return In(i18n.Locale()).MenuNewLibrary() }
+
+// MenuNewLibrary says "New Library…"
+// in the language of msgs.
+//
+// File menu item that creates a new library folder.
+func (msgs Messages) MenuNewLibrary() string {
+	return Catalog.Format(msgs.locale, "menuNewLibrary", nil)
+}
+
+// MenuOpenLibrary says "Open Library…"
+// in the language the app shows.
+//
+// File menu item that opens another library folder.
+func MenuOpenLibrary() string { return In(i18n.Locale()).MenuOpenLibrary() }
+
+// MenuOpenLibrary says "Open Library…"
+// in the language of msgs.
+//
+// File menu item that opens another library folder.
+func (msgs Messages) MenuOpenLibrary() string {
+	return Catalog.Format(msgs.locale, "menuOpenLibrary", nil)
+}
+
+// MenuPaste says "Paste"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuPaste() string { return In(i18n.Locale()).MenuPaste() }
+
+// MenuPaste says "Paste"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuPaste() string {
+	return Catalog.Format(msgs.locale, "menuPaste", nil)
+}
+
+// MenuPasteAndMatchStyle says "Paste and Match Style"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuPasteAndMatchStyle() string { return In(i18n.Locale()).MenuPasteAndMatchStyle() }
+
+// MenuPasteAndMatchStyle says "Paste and Match Style"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuPasteAndMatchStyle() string {
+	return Catalog.Format(msgs.locale, "menuPasteAndMatchStyle", nil)
+}
+
+// MenuQuit says "Quit Kando"
+// in the language the app shows.
+//
+// Last item of the app menu, which quits the app.
+func MenuQuit() string { return In(i18n.Locale()).MenuQuit() }
+
+// MenuQuit says "Quit Kando"
+// in the language of msgs.
+//
+// Last item of the app menu, which quits the app.
+func (msgs Messages) MenuQuit() string {
+	return Catalog.Format(msgs.locale, "menuQuit", nil)
+}
+
+// MenuRedo says "Redo"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuRedo() string { return In(i18n.Locale()).MenuRedo() }
+
+// MenuRedo says "Redo"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuRedo() string {
+	return Catalog.Format(msgs.locale, "menuRedo", nil)
+}
+
+// MenuReopenGuide says "Show Getting Started Guide"
+// in the language the app shows.
+//
+// Help menu item that shows the first-run Getting Started guide again.
+func MenuReopenGuide() string { return In(i18n.Locale()).MenuReopenGuide() }
+
+// MenuReopenGuide says "Show Getting Started Guide"
+// in the language of msgs.
+//
+// Help menu item that shows the first-run Getting Started guide again.
+func (msgs Messages) MenuReopenGuide() string {
+	return Catalog.Format(msgs.locale, "menuReopenGuide", nil)
+}
+
+// MenuRevealLibrary says "Show Library in Finder"
+// in the language the app shows.
+//
+// File menu item that shows the open library's folder in Finder.
+func MenuRevealLibrary() string { return In(i18n.Locale()).MenuRevealLibrary() }
+
+// MenuRevealLibrary says "Show Library in Finder"
+// in the language of msgs.
+//
+// File menu item that shows the open library's folder in Finder.
+func (msgs Messages) MenuRevealLibrary() string {
+	return Catalog.Format(msgs.locale, "menuRevealLibrary", nil)
+}
+
+// MenuSelectAll says "Select All"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuSelectAll() string { return In(i18n.Locale()).MenuSelectAll() }
+
+// MenuSelectAll says "Select All"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuSelectAll() string {
+	return Catalog.Format(msgs.locale, "menuSelectAll", nil)
+}
+
+// MenuServices says "Services"
+// in the language the app shows.
+//
+// The app menu's Services submenu, as macOS names it.
+func MenuServices() string { return In(i18n.Locale()).MenuServices() }
+
+// MenuServices says "Services"
+// in the language of msgs.
+//
+// The app menu's Services submenu, as macOS names it.
+func (msgs Messages) MenuServices() string {
+	return Catalog.Format(msgs.locale, "menuServices", nil)
+}
+
+// MenuShowAll says "Show All"
+// in the language the app shows.
+//
+// App menu item that shows every hidden app again, as macOS names it.
+func MenuShowAll() string { return In(i18n.Locale()).MenuShowAll() }
+
+// MenuShowAll says "Show All"
+// in the language of msgs.
+//
+// App menu item that shows every hidden app again, as macOS names it.
+func (msgs Messages) MenuShowAll() string {
+	return Catalog.Format(msgs.locale, "menuShowAll", nil)
+}
+
+// MenuSpeech says "Speech"
+// in the language the app shows.
+//
+// The Edit menu's Speech submenu, as macOS names it.
+func MenuSpeech() string { return In(i18n.Locale()).MenuSpeech() }
+
+// MenuSpeech says "Speech"
+// in the language of msgs.
+//
+// The Edit menu's Speech submenu, as macOS names it.
+func (msgs Messages) MenuSpeech() string {
+	return Catalog.Format(msgs.locale, "menuSpeech", nil)
+}
+
+// MenuStartSpeaking says "Start Speaking"
+// in the language the app shows.
+//
+// Item of the Speech submenu that reads the selection aloud, as macOS names
+// it.
+func MenuStartSpeaking() string { return In(i18n.Locale()).MenuStartSpeaking() }
+
+// MenuStartSpeaking says "Start Speaking"
+// in the language of msgs.
+//
+// Item of the Speech submenu that reads the selection aloud, as macOS names
+// it.
+func (msgs Messages) MenuStartSpeaking() string {
+	return Catalog.Format(msgs.locale, "menuStartSpeaking", nil)
+}
+
+// MenuStopSpeaking says "Stop Speaking"
+// in the language the app shows.
+//
+// Item of the Speech submenu that stops reading aloud, as macOS names it.
+func MenuStopSpeaking() string { return In(i18n.Locale()).MenuStopSpeaking() }
+
+// MenuStopSpeaking says "Stop Speaking"
+// in the language of msgs.
+//
+// Item of the Speech submenu that stops reading aloud, as macOS names it.
+func (msgs Messages) MenuStopSpeaking() string {
+	return Catalog.Format(msgs.locale, "menuStopSpeaking", nil)
+}
+
+// MenuToggleFullScreen says "Toggle Full Screen"
+// in the language the app shows.
+//
+// View menu item that puts the window in full screen or takes it out.
+func MenuToggleFullScreen() string { return In(i18n.Locale()).MenuToggleFullScreen() }
+
+// MenuToggleFullScreen says "Toggle Full Screen"
+// in the language of msgs.
+//
+// View menu item that puts the window in full screen or takes it out.
+func (msgs Messages) MenuToggleFullScreen() string {
+	return Catalog.Format(msgs.locale, "menuToggleFullScreen", nil)
+}
+
+// MenuUndo says "Undo"
+// in the language the app shows.
+//
+// Edit menu item, as macOS names it.
+func MenuUndo() string { return In(i18n.Locale()).MenuUndo() }
+
+// MenuUndo says "Undo"
+// in the language of msgs.
+//
+// Edit menu item, as macOS names it.
+func (msgs Messages) MenuUndo() string {
+	return Catalog.Format(msgs.locale, "menuUndo", nil)
+}
+
+// MenuWindowLibrary says "Library"
+// in the language the app shows.
+//
+// Window menu item (⌘1) that shows the Library page.
+func MenuWindowLibrary() string { return In(i18n.Locale()).MenuWindowLibrary() }
+
+// MenuWindowLibrary says "Library"
+// in the language of msgs.
+//
+// Window menu item (⌘1) that shows the Library page.
+func (msgs Messages) MenuWindowLibrary() string {
+	return Catalog.Format(msgs.locale, "menuWindowLibrary", nil)
+}
+
+// MenuWindowPlayer says "Player"
+// in the language the app shows.
+//
+// Window menu item (⌘2) that goes back to the film last open in the
+// player.
+func MenuWindowPlayer() string { return In(i18n.Locale()).MenuWindowPlayer() }
+
+// MenuWindowPlayer says "Player"
+// in the language of msgs.
+//
+// Window menu item (⌘2) that goes back to the film last open in the
+// player.
+func (msgs Messages) MenuWindowPlayer() string {
+	return Catalog.Format(msgs.locale, "menuWindowPlayer", nil)
+}
+
+// MenuZoom says "Zoom"
+// in the language the app shows.
+//
+// Window menu item that zooms the window, as macOS names it.
+func MenuZoom() string { return In(i18n.Locale()).MenuZoom() }
+
+// MenuZoom says "Zoom"
+// in the language of msgs.
+//
+// Window menu item that zooms the window, as macOS names it.
+func (msgs Messages) MenuZoom() string {
+	return Catalog.Format(msgs.locale, "menuZoom", nil)
+}
+
+// OnboardingAIConfigured says "Set up"
+// in the language the app shows.
+//
+// Second step's line about translation when the app runs another pipeline
+// that has its own translation set up.
+func OnboardingAIConfigured() string { return In(i18n.Locale()).OnboardingAIConfigured() }
+
+// OnboardingAIConfigured says "Set up"
+// in the language of msgs.
+//
+// Second step's line about translation when the app runs another pipeline
+// that has its own translation set up.
+func (msgs Messages) OnboardingAIConfigured() string {
+	return Catalog.Format(msgs.locale, "onboardingAIConfigured", nil)
+}
+
+// OnboardingAIModel says "Translation model: {model}"
+// in the language the app shows.
+//
+// Second step's line about translation: the model that translates.
+func OnboardingAIModel(model string) string { return In(i18n.Locale()).OnboardingAIModel(model) }
+
+// OnboardingAIModel says "Translation model: {model}"
+// in the language of msgs.
+//
+// Second step's line about translation: the model that translates.
+func (msgs Messages) OnboardingAIModel(model string) string {
+	return Catalog.Format(msgs.locale, "onboardingAIModel", map[string]any{"model": model})
+}
+
+// OnboardingAIModelUnchecked says "Translation model: {model} · Uses the EveryAPI sign-in on this computer, checked before processing starts"
+// in the language the app shows.
+//
+// Second step's line about translation before the EveryAPI sign-in was
+// checked: the model, and that the sign-in on this computer is used and
+// checked later.
+func OnboardingAIModelUnchecked(model string) string {
+	return In(i18n.Locale()).OnboardingAIModelUnchecked(model)
+}
+
+// OnboardingAIModelUnchecked says "Translation model: {model} · Uses the EveryAPI sign-in on this computer, checked before processing starts"
+// in the language of msgs.
+//
+// Second step's line about translation before the EveryAPI sign-in was
+// checked: the model, and that the sign-in on this computer is used and
+// checked later.
+func (msgs Messages) OnboardingAIModelUnchecked(model string) string {
+	return Catalog.Format(msgs.locale, "onboardingAIModelUnchecked", map[string]any{"model": model})
+}
+
+// OnboardingAddAndStart says "Add and Start"
+// in the language the app shows.
+//
+// Primary button of the last step with a link: adds it to the queue and
+// closes the guide.
+func OnboardingAddAndStart() string { return In(i18n.Locale()).OnboardingAddAndStart() }
+
+// OnboardingAddAndStart says "Add and Start"
+// in the language of msgs.
+//
+// Primary button of the last step with a link: adds it to the queue and
+// closes the guide.
+func (msgs Messages) OnboardingAddAndStart() string {
+	return Catalog.Format(msgs.locale, "onboardingAddAndStart", nil)
+}
+
+// OnboardingAdded says "Added. Processing started."
+// in the language the app shows.
+//
+// Message after the guide added its link to the queue.
+func OnboardingAdded() string { return In(i18n.Locale()).OnboardingAdded() }
+
+// OnboardingAdded says "Added. Processing started."
+// in the language of msgs.
+//
+// Message after the guide added its link to the queue.
+func (msgs Messages) OnboardingAdded() string {
+	return Catalog.Format(msgs.locale, "onboardingAdded", nil)
+}
+
+// OnboardingBack says "Back"
+// in the language the app shows.
+//
+// Button going back to the guide's previous step.
+func OnboardingBack() string { return In(i18n.Locale()).OnboardingBack() }
+
+// OnboardingBack says "Back"
+// in the language of msgs.
+//
+// Button going back to the guide's previous step.
+func (msgs Messages) OnboardingBack() string {
+	return Catalog.Format(msgs.locale, "onboardingBack", nil)
+}
+
+// OnboardingCancel says "Cancel"
+// in the language the app shows.
+//
+// Button stopping a speech model's download.
+func OnboardingCancel() string { return In(i18n.Locale()).OnboardingCancel() }
+
+// OnboardingCancel says "Cancel"
+// in the language of msgs.
+//
+// Button stopping a speech model's download.
+func (msgs Messages) OnboardingCancel() string {
+	return Catalog.Format(msgs.locale, "onboardingCancel", nil)
+}
+
+// OnboardingCaptionLanguages says "Watch the original, with subtitles in your language"
+// in the language the app shows.
+//
+// Headline over the picture on the guide's left, first step.
+func OnboardingCaptionLanguages() string { return In(i18n.Locale()).OnboardingCaptionLanguages() }
+
+// OnboardingCaptionLanguages says "Watch the original, with subtitles in your language"
+// in the language of msgs.
+//
+// Headline over the picture on the guide's left, first step.
+func (msgs Messages) OnboardingCaptionLanguages() string {
+	return Catalog.Format(msgs.locale, "onboardingCaptionLanguages", nil)
+}
+
+// OnboardingCaptionLink says "Paste a link, get bilingual subtitles automatically"
+// in the language the app shows.
+//
+// Headline over the picture on the guide's left, third step.
+func OnboardingCaptionLink() string { return In(i18n.Locale()).OnboardingCaptionLink() }
+
+// OnboardingCaptionLink says "Paste a link, get bilingual subtitles automatically"
+// in the language of msgs.
+//
+// Headline over the picture on the guide's left, third step.
+func (msgs Messages) OnboardingCaptionLink() string {
+	return Catalog.Format(msgs.locale, "onboardingCaptionLink", nil)
+}
+
+// OnboardingCaptionSpeechComputer says "Speech recognition, right on this computer"
+// in the language the app shows.
+//
+// Headline over the picture on the guide's left, second step, on Linux and
+// Windows.
+func OnboardingCaptionSpeechComputer() string {
+	return In(i18n.Locale()).OnboardingCaptionSpeechComputer()
+}
+
+// OnboardingCaptionSpeechComputer says "Speech recognition, right on this computer"
+// in the language of msgs.
+//
+// Headline over the picture on the guide's left, second step, on Linux and
+// Windows.
+func (msgs Messages) OnboardingCaptionSpeechComputer() string {
+	return Catalog.Format(msgs.locale, "onboardingCaptionSpeechComputer", nil)
+}
+
+// OnboardingCaptionSpeechMac says "Speech recognition, right on this Mac"
+// in the language the app shows.
+//
+// Headline over the picture on the guide's left, second step, on macOS.
+func OnboardingCaptionSpeechMac() string { return In(i18n.Locale()).OnboardingCaptionSpeechMac() }
+
+// OnboardingCaptionSpeechMac says "Speech recognition, right on this Mac"
+// in the language of msgs.
+//
+// Headline over the picture on the guide's left, second step, on macOS.
+func (msgs Messages) OnboardingCaptionSpeechMac() string {
+	return Catalog.Format(msgs.locale, "onboardingCaptionSpeechMac", nil)
+}
+
+// OnboardingContinue says "Continue"
+// in the language the app shows.
+//
+// Primary button going on to the guide's next step.
+func OnboardingContinue() string { return In(i18n.Locale()).OnboardingContinue() }
+
+// OnboardingContinue says "Continue"
+// in the language of msgs.
+//
+// Primary button going on to the guide's next step.
+func (msgs Messages) OnboardingContinue() string {
+	return Catalog.Format(msgs.locale, "onboardingContinue", nil)
+}
+
+// OnboardingDone says "Done"
+// in the language the app shows.
+//
+// Primary button of the last step without a link: closes the guide.
+func OnboardingDone() string { return In(i18n.Locale()).OnboardingDone() }
+
+// OnboardingDone says "Done"
+// in the language of msgs.
+//
+// Primary button of the last step without a link: closes the guide.
+func (msgs Messages) OnboardingDone() string {
+	return Catalog.Format(msgs.locale, "onboardingDone", nil)
+}
+
+// OnboardingDownload says "Download"
+// in the language the app shows.
+//
+// Button downloading a speech model.
+func OnboardingDownload() string { return In(i18n.Locale()).OnboardingDownload() }
+
+// OnboardingDownload says "Download"
+// in the language of msgs.
+//
+// Button downloading a speech model.
+func (msgs Messages) OnboardingDownload() string {
+	return Catalog.Format(msgs.locale, "onboardingDownload", nil)
+}
+
+// OnboardingDownloadAndContinue says "Download and Continue"
+// in the language the app shows.
+//
+// Primary button of the second step when it also starts downloading the
+// recommended speech model.
+func OnboardingDownloadAndContinue() string { return In(i18n.Locale()).OnboardingDownloadAndContinue() }
+
+// OnboardingDownloadAndContinue says "Download and Continue"
+// in the language of msgs.
+//
+// Primary button of the second step when it also starts downloading the
+// recommended speech model.
+func (msgs Messages) OnboardingDownloadAndContinue() string {
+	return Catalog.Format(msgs.locale, "onboardingDownloadAndContinue", nil)
+}
+
+// OnboardingDownloadProgress says "Download progress"
+// in the language the app shows.
+//
+// Accessible name of a speech model's download progress bar.
+func OnboardingDownloadProgress() string { return In(i18n.Locale()).OnboardingDownloadProgress() }
+
+// OnboardingDownloadProgress says "Download progress"
+// in the language of msgs.
+//
+// Accessible name of a speech model's download progress bar.
+func (msgs Messages) OnboardingDownloadProgress() string {
+	return Catalog.Format(msgs.locale, "onboardingDownloadProgress", nil)
+}
+
+// OnboardingDownloadTooltip says "Download {name} ({size})"
+// in the language the app shows.
+//
+// Tooltip of a speech model's download button: the model and the download's
+// size.
+func OnboardingDownloadTooltip(name string, size string) string {
+	return In(i18n.Locale()).OnboardingDownloadTooltip(name, size)
+}
+
+// OnboardingDownloadTooltip says "Download {name} ({size})"
+// in the language of msgs.
+//
+// Tooltip of a speech model's download button: the model and the download's
+// size.
+func (msgs Messages) OnboardingDownloadTooltip(name string, size string) string {
+	return Catalog.Format(msgs.locale, "onboardingDownloadTooltip", map[string]any{"name": name, "size": size})
+}
+
+// OnboardingInUse says "In Use"
+// in the language the app shows.
+//
+// Accessible name of the check mark on the speech model in use.
+func OnboardingInUse() string { return In(i18n.Locale()).OnboardingInUse() }
+
+// OnboardingInUse says "In Use"
+// in the language of msgs.
+//
+// Accessible name of the check mark on the speech model in use.
+func (msgs Messages) OnboardingInUse() string {
+	return Catalog.Format(msgs.locale, "onboardingInUse", nil)
+}
+
+// OnboardingLanguageDe says "German"
+// in the language the app shows.
+//
+// German, under its own name on a language tile of the first step.
+func OnboardingLanguageDe() string { return In(i18n.Locale()).OnboardingLanguageDe() }
+
+// OnboardingLanguageDe says "German"
+// in the language of msgs.
+//
+// German, under its own name on a language tile of the first step.
+func (msgs Messages) OnboardingLanguageDe() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguageDe", nil)
+}
+
+// OnboardingLanguageEn says "English"
+// in the language the app shows.
+//
+// English, under its own name on a language tile of the first step.
+func OnboardingLanguageEn() string { return In(i18n.Locale()).OnboardingLanguageEn() }
+
+// OnboardingLanguageEn says "English"
+// in the language of msgs.
+//
+// English, under its own name on a language tile of the first step.
+func (msgs Messages) OnboardingLanguageEn() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguageEn", nil)
+}
+
+// OnboardingLanguageEs says "Spanish"
+// in the language the app shows.
+//
+// Spanish, under its own name on a language tile of the first step.
+func OnboardingLanguageEs() string { return In(i18n.Locale()).OnboardingLanguageEs() }
+
+// OnboardingLanguageEs says "Spanish"
+// in the language of msgs.
+//
+// Spanish, under its own name on a language tile of the first step.
+func (msgs Messages) OnboardingLanguageEs() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguageEs", nil)
+}
+
+// OnboardingLanguageFr says "French"
+// in the language the app shows.
+//
+// French, under its own name on a language tile of the first step.
+func OnboardingLanguageFr() string { return In(i18n.Locale()).OnboardingLanguageFr() }
+
+// OnboardingLanguageFr says "French"
+// in the language of msgs.
+//
+// French, under its own name on a language tile of the first step.
+func (msgs Messages) OnboardingLanguageFr() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguageFr", nil)
+}
+
+// OnboardingLanguageJa says "Japanese"
+// in the language the app shows.
+//
+// Japanese, under its own name on a language tile of the first step.
+func OnboardingLanguageJa() string { return In(i18n.Locale()).OnboardingLanguageJa() }
+
+// OnboardingLanguageJa says "Japanese"
+// in the language of msgs.
+//
+// Japanese, under its own name on a language tile of the first step.
+func (msgs Messages) OnboardingLanguageJa() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguageJa", nil)
+}
+
+// OnboardingLanguageKo says "Korean"
+// in the language the app shows.
+//
+// Korean, under its own name on a language tile of the first step.
+func OnboardingLanguageKo() string { return In(i18n.Locale()).OnboardingLanguageKo() }
+
+// OnboardingLanguageKo says "Korean"
+// in the language of msgs.
+//
+// Korean, under its own name on a language tile of the first step.
+func (msgs Messages) OnboardingLanguageKo() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguageKo", nil)
+}
+
+// OnboardingLanguageZh says "Mandarin"
+// in the language the app shows.
+//
+// Mandarin Chinese, the spoken language, under its own name (中文) on a
+// language tile of the first step.
+func OnboardingLanguageZh() string { return In(i18n.Locale()).OnboardingLanguageZh() }
+
+// OnboardingLanguageZh says "Mandarin"
+// in the language of msgs.
+//
+// Mandarin Chinese, the spoken language, under its own name (中文) on a
+// language tile of the first step.
+func (msgs Messages) OnboardingLanguageZh() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguageZh", nil)
+}
+
+// OnboardingLanguagesNote says "Languages you don't choose are recognized too: whisper works out which language a video speaks by itself. The languag…"
+// in the language the app shows.
+//
+// Note under the first step's language tiles.
+func OnboardingLanguagesNote() string { return In(i18n.Locale()).OnboardingLanguagesNote() }
+
+// OnboardingLanguagesNote says "Languages you don't choose are recognized too: whisper works out which language a video speaks by itself. The languag…"
+// in the language of msgs.
+//
+// Note under the first step's language tiles.
+func (msgs Messages) OnboardingLanguagesNote() string {
+	return Catalog.Format(msgs.locale, "onboardingLanguagesNote", nil)
+}
+
+// OnboardingLinkChannel says "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language the app shows.
+//
+// Line under the link field for a link to a channel on a named site.
+func OnboardingLinkChannel(site string) string { return In(i18n.Locale()).OnboardingLinkChannel(site) }
+
+// OnboardingLinkChannel says "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language of msgs.
+//
+// Line under the link field for a link to a channel on a named site.
+func (msgs Messages) OnboardingLinkChannel(site string) string {
+	return Catalog.Format(msgs.locale, "onboardingLinkChannel", map[string]any{"site": site})
+}
+
+// OnboardingLinkChannelUnnamed says "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language the app shows.
+//
+// Line under the link field for a link to a channel on a site without a
+// known name.
+func OnboardingLinkChannelUnnamed() string { return In(i18n.Locale()).OnboardingLinkChannelUnnamed() }
+
+// OnboardingLinkChannelUnnamed says "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language of msgs.
+//
+// Line under the link field for a link to a channel on a site without a
+// known name.
+func (msgs Messages) OnboardingLinkChannelUnnamed() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkChannelUnnamed", nil)
+}
+
+// OnboardingLinkDescription says "Any video from YouTube, Bilibili or another site yt-dlp can download from will do."
+// in the language the app shows.
+//
+// Line under the third step's title.
+func OnboardingLinkDescription() string { return In(i18n.Locale()).OnboardingLinkDescription() }
+
+// OnboardingLinkDescription says "Any video from YouTube, Bilibili or another site yt-dlp can download from will do."
+// in the language of msgs.
+//
+// Line under the third step's title.
+func (msgs Messages) OnboardingLinkDescription() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkDescription", nil)
+}
+
+// OnboardingLinkHintEmpty says "Press Enter to start. No link? Skip for now and drag a local video into the window later."
+// in the language the app shows.
+//
+// Line under the third step's link field while it is empty.
+func OnboardingLinkHintEmpty() string { return In(i18n.Locale()).OnboardingLinkHintEmpty() }
+
+// OnboardingLinkHintEmpty says "Press Enter to start. No link? Skip for now and drag a local video into the window later."
+// in the language of msgs.
+//
+// Line under the third step's link field while it is empty.
+func (msgs Messages) OnboardingLinkHintEmpty() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkHintEmpty", nil)
+}
+
+// OnboardingLinkLabel says "Link to the first video"
+// in the language the app shows.
+//
+// Accessible name of the third step's link field.
+func OnboardingLinkLabel() string { return In(i18n.Locale()).OnboardingLinkLabel() }
+
+// OnboardingLinkLabel says "Link to the first video"
+// in the language of msgs.
+//
+// Accessible name of the third step's link field.
+func (msgs Messages) OnboardingLinkLabel() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkLabel", nil)
+}
+
+// OnboardingLinkList says "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language the app shows.
+//
+// Line under the link field for a link to a playlist on a named site that
+// names no single video.
+func OnboardingLinkList(site string) string { return In(i18n.Locale()).OnboardingLinkList(site) }
+
+// OnboardingLinkList says "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language of msgs.
+//
+// Line under the link field for a link to a playlist on a named site that
+// names no single video.
+func (msgs Messages) OnboardingLinkList(site string) string {
+	return Catalog.Format(msgs.locale, "onboardingLinkList", map[string]any{"site": site})
+}
+
+// OnboardingLinkListUnnamed says "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language the app shows.
+//
+// Line under the link field for a link to a playlist on a site without a
+// known name that names no single video.
+func OnboardingLinkListUnnamed() string { return In(i18n.Locale()).OnboardingLinkListUnnamed() }
+
+// OnboardingLinkListUnnamed says "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+// in the language of msgs.
+//
+// Line under the link field for a link to a playlist on a site without a
+// known name that names no single video.
+func (msgs Messages) OnboardingLinkListUnnamed() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkListUnnamed", nil)
+}
+
+// OnboardingLinkNotVideo says "This doesn't look like a video link"
+// in the language the app shows.
+//
+// Line under the third step's link field when the text does not read as a
+// video link.
+func OnboardingLinkNotVideo() string { return In(i18n.Locale()).OnboardingLinkNotVideo() }
+
+// OnboardingLinkNotVideo says "This doesn't look like a video link"
+// in the language of msgs.
+//
+// Line under the third step's link field when the text does not read as a
+// video link.
+func (msgs Messages) OnboardingLinkNotVideo() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkNotVideo", nil)
+}
+
+// OnboardingLinkPlaceholder says "Paste a YouTube or Bilibili link"
+// in the language the app shows.
+//
+// Placeholder of the third step's link field.
+func OnboardingLinkPlaceholder() string { return In(i18n.Locale()).OnboardingLinkPlaceholder() }
+
+// OnboardingLinkPlaceholder says "Paste a YouTube or Bilibili link"
+// in the language of msgs.
+//
+// Placeholder of the third step's link field.
+func (msgs Messages) OnboardingLinkPlaceholder() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkPlaceholder", nil)
+}
+
+// OnboardingLinkPlaylistVideo says "Recognized as a {site} video. Only this one is added, not the whole playlist"
+// in the language the app shows.
+//
+// Line under the link field for a link to a video inside a playlist on a
+// named site.
+func OnboardingLinkPlaylistVideo(site string) string {
+	return In(i18n.Locale()).OnboardingLinkPlaylistVideo(site)
+}
+
+// OnboardingLinkPlaylistVideo says "Recognized as a {site} video. Only this one is added, not the whole playlist"
+// in the language of msgs.
+//
+// Line under the link field for a link to a video inside a playlist on a
+// named site.
+func (msgs Messages) OnboardingLinkPlaylistVideo(site string) string {
+	return Catalog.Format(msgs.locale, "onboardingLinkPlaylistVideo", map[string]any{"site": site})
+}
+
+// OnboardingLinkPlaylistVideoUnnamed says "Recognized as a web video. Only this one is added, not the whole playlist"
+// in the language the app shows.
+//
+// Line under the link field for a link to a video inside a playlist on a
+// site without a known name.
+func OnboardingLinkPlaylistVideoUnnamed() string {
+	return In(i18n.Locale()).OnboardingLinkPlaylistVideoUnnamed()
+}
+
+// OnboardingLinkPlaylistVideoUnnamed says "Recognized as a web video. Only this one is added, not the whole playlist"
+// in the language of msgs.
+//
+// Line under the link field for a link to a video inside a playlist on a
+// site without a known name.
+func (msgs Messages) OnboardingLinkPlaylistVideoUnnamed() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkPlaylistVideoUnnamed", nil)
+}
+
+// OnboardingLinkTitle says "Paste Your First Link"
+// in the language the app shows.
+//
+// Title of the guide's third step, where the first video link is pasted.
+func OnboardingLinkTitle() string { return In(i18n.Locale()).OnboardingLinkTitle() }
+
+// OnboardingLinkTitle says "Paste Your First Link"
+// in the language of msgs.
+//
+// Title of the guide's third step, where the first video link is pasted.
+func (msgs Messages) OnboardingLinkTitle() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkTitle", nil)
+}
+
+// OnboardingLinkVideo says "Recognized as a {site} video"
+// in the language the app shows.
+//
+// Line under the link field for a link to a video on a named site.
+func OnboardingLinkVideo(site string) string { return In(i18n.Locale()).OnboardingLinkVideo(site) }
+
+// OnboardingLinkVideo says "Recognized as a {site} video"
+// in the language of msgs.
+//
+// Line under the link field for a link to a video on a named site.
+func (msgs Messages) OnboardingLinkVideo(site string) string {
+	return Catalog.Format(msgs.locale, "onboardingLinkVideo", map[string]any{"site": site})
+}
+
+// OnboardingLinkWebVideo says "Recognized as a web video"
+// in the language the app shows.
+//
+// Line under the link field for a link to a video on a site without a known
+// name.
+func OnboardingLinkWebVideo() string { return In(i18n.Locale()).OnboardingLinkWebVideo() }
+
+// OnboardingLinkWebVideo says "Recognized as a web video"
+// in the language of msgs.
+//
+// Line under the link field for a link to a video on a site without a known
+// name.
+func (msgs Messages) OnboardingLinkWebVideo() string {
+	return Catalog.Format(msgs.locale, "onboardingLinkWebVideo", nil)
+}
+
+// OnboardingLookAround says "Just Look Around"
+// in the language the app shows.
+//
+// Button at the guide's top right on its last step: close it without adding
+// a link.
+func OnboardingLookAround() string { return In(i18n.Locale()).OnboardingLookAround() }
+
+// OnboardingLookAround says "Just Look Around"
+// in the language of msgs.
+//
+// Button at the guide's top right on its last step: close it without adding
+// a link.
+func (msgs Messages) OnboardingLookAround() string {
+	return Catalog.Format(msgs.locale, "onboardingLookAround", nil)
+}
+
+// OnboardingModelAbout says "About {size} · {blurb}"
+// in the language the app shows.
+//
+// Line under a speech model not downloaded yet: the download's size and
+// what it suits.
+func OnboardingModelAbout(size string, blurb string) string {
+	return In(i18n.Locale()).OnboardingModelAbout(size, blurb)
+}
+
+// OnboardingModelAbout says "About {size} · {blurb}"
+// in the language of msgs.
+//
+// Line under a speech model not downloaded yet: the download's size and
+// what it suits.
+func (msgs Messages) OnboardingModelAbout(size string, blurb string) string {
+	return Catalog.Format(msgs.locale, "onboardingModelAbout", map[string]any{"size": size, "blurb": blurb})
+}
+
+// OnboardingModelConnecting says "Connecting… · {size} total"
+// in the language the app shows.
+//
+// Line under a speech model whose download has started but whose size is
+// not known yet.
+func OnboardingModelConnecting(size string) string {
+	return In(i18n.Locale()).OnboardingModelConnecting(size)
+}
+
+// OnboardingModelConnecting says "Connecting… · {size} total"
+// in the language of msgs.
+//
+// Line under a speech model whose download has started but whose size is
+// not known yet.
+func (msgs Messages) OnboardingModelConnecting(size string) string {
+	return Catalog.Format(msgs.locale, "onboardingModelConnecting", map[string]any{"size": size})
+}
+
+// OnboardingModelDownloaded says "Downloaded · {blurb}"
+// in the language the app shows.
+//
+// Line under a downloaded speech model that is not in use: what it suits.
+func OnboardingModelDownloaded(blurb string) string {
+	return In(i18n.Locale()).OnboardingModelDownloaded(blurb)
+}
+
+// OnboardingModelDownloaded says "Downloaded · {blurb}"
+// in the language of msgs.
+//
+// Line under a downloaded speech model that is not in use: what it suits.
+func (msgs Messages) OnboardingModelDownloaded(blurb string) string {
+	return Catalog.Format(msgs.locale, "onboardingModelDownloaded", map[string]any{"blurb": blurb})
+}
+
+// OnboardingModelFailed says "Download failed: {error}"
+// in the language the app shows.
+//
+// Line under a speech model whose download failed, and why.
+func OnboardingModelFailed(error string) string {
+	return In(i18n.Locale()).OnboardingModelFailed(error)
+}
+
+// OnboardingModelFailed says "Download failed: {error}"
+// in the language of msgs.
+//
+// Line under a speech model whose download failed, and why.
+func (msgs Messages) OnboardingModelFailed(error string) string {
+	return Catalog.Format(msgs.locale, "onboardingModelFailed", map[string]any{"error": error})
+}
+
+// OnboardingModelInUse says "Downloaded · In use"
+// in the language the app shows.
+//
+// Line under the speech model in use.
+func OnboardingModelInUse() string { return In(i18n.Locale()).OnboardingModelInUse() }
+
+// OnboardingModelInUse says "Downloaded · In use"
+// in the language of msgs.
+//
+// Line under the speech model in use.
+func (msgs Messages) OnboardingModelInUse() string {
+	return Catalog.Format(msgs.locale, "onboardingModelInUse", nil)
+}
+
+// OnboardingModelProgress says "Downloading {percent}% · {size} total"
+// in the language the app shows.
+//
+// Line under a speech model while it downloads: the percentage done and the
+// download's size.
+func OnboardingModelProgress(percent int, size string) string {
+	return In(i18n.Locale()).OnboardingModelProgress(percent, size)
+}
+
+// OnboardingModelProgress says "Downloading {percent}% · {size} total"
+// in the language of msgs.
+//
+// Line under a speech model while it downloads: the percentage done and the
+// download's size.
+func (msgs Messages) OnboardingModelProgress(percent int, size string) string {
+	return Catalog.Format(msgs.locale, "onboardingModelProgress", map[string]any{"percent": percent, "size": size})
+}
+
+// OnboardingModelsDescriptionComputer says "Speech recognition runs on this computer with whisper.cpp. Download a model once and it works offline after that."
+// in the language the app shows.
+//
+// Line under the second step's title on Linux and Windows.
+func OnboardingModelsDescriptionComputer() string {
+	return In(i18n.Locale()).OnboardingModelsDescriptionComputer()
+}
+
+// OnboardingModelsDescriptionComputer says "Speech recognition runs on this computer with whisper.cpp. Download a model once and it works offline after that."
+// in the language of msgs.
+//
+// Line under the second step's title on Linux and Windows.
+func (msgs Messages) OnboardingModelsDescriptionComputer() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsDescriptionComputer", nil)
+}
+
+// OnboardingModelsDescriptionMac says "Speech recognition runs on this Mac with whisper.cpp. Download a model once and it works offline after that."
+// in the language the app shows.
+//
+// Line under the second step's title on macOS.
+func OnboardingModelsDescriptionMac() string {
+	return In(i18n.Locale()).OnboardingModelsDescriptionMac()
+}
+
+// OnboardingModelsDescriptionMac says "Speech recognition runs on this Mac with whisper.cpp. Download a model once and it works offline after that."
+// in the language of msgs.
+//
+// Line under the second step's title on macOS.
+func (msgs Messages) OnboardingModelsDescriptionMac() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsDescriptionMac", nil)
+}
+
+// OnboardingModelsDownloading says "Downloading {name}"
+// in the language the app shows.
+//
+// Head of the second step's card of speech models while one downloads.
+func OnboardingModelsDownloading(name string) string {
+	return In(i18n.Locale()).OnboardingModelsDownloading(name)
+}
+
+// OnboardingModelsDownloading says "Downloading {name}"
+// in the language of msgs.
+//
+// Head of the second step's card of speech models while one downloads.
+func (msgs Messages) OnboardingModelsDownloading(name string) string {
+	return Catalog.Format(msgs.locale, "onboardingModelsDownloading", map[string]any{"name": name})
+}
+
+// OnboardingModelsMissing says "No speech recognition model yet; download one to make subtitles"
+// in the language the app shows.
+//
+// Head of the second step's card of speech models when none is on this
+// computer.
+func OnboardingModelsMissing() string { return In(i18n.Locale()).OnboardingModelsMissing() }
+
+// OnboardingModelsMissing says "No speech recognition model yet; download one to make subtitles"
+// in the language of msgs.
+//
+// Head of the second step's card of speech models when none is on this
+// computer.
+func (msgs Messages) OnboardingModelsMissing() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsMissing", nil)
+}
+
+// OnboardingModelsNoteDownloading says "The download continues in the background, so you can go on to the next step."
+// in the language the app shows.
+//
+// Note under the speech models while one downloads.
+func OnboardingModelsNoteDownloading() string {
+	return In(i18n.Locale()).OnboardingModelsNoteDownloading()
+}
+
+// OnboardingModelsNoteDownloading says "The download continues in the background, so you can go on to the next step."
+// in the language of msgs.
+//
+// Note under the speech models while one downloads.
+func (msgs Messages) OnboardingModelsNoteDownloading() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsNoteDownloading", nil)
+}
+
+// OnboardingModelsNoteInUse says "You can switch to another model later in Settings › Speech Recognition."
+// in the language the app shows.
+//
+// Note under the speech models when one is in use.
+func OnboardingModelsNoteInUse() string { return In(i18n.Locale()).OnboardingModelsNoteInUse() }
+
+// OnboardingModelsNoteInUse says "You can switch to another model later in Settings › Speech Recognition."
+// in the language of msgs.
+//
+// Note under the speech models when one is in use.
+func (msgs Messages) OnboardingModelsNoteInUse() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsNoteInUse", nil)
+}
+
+// OnboardingModelsNoteLater says "You can also download one later, anytime, in Settings › Speech Recognition."
+// in the language the app shows.
+//
+// Note under the speech models when none is in use or downloading.
+func OnboardingModelsNoteLater() string { return In(i18n.Locale()).OnboardingModelsNoteLater() }
+
+// OnboardingModelsNoteLater says "You can also download one later, anytime, in Settings › Speech Recognition."
+// in the language of msgs.
+//
+// Note under the speech models when none is in use or downloading.
+func (msgs Messages) OnboardingModelsNoteLater() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsNoteLater", nil)
+}
+
+// OnboardingModelsReady says "Speech recognition is ready"
+// in the language the app shows.
+//
+// Head of the second step's card of speech models when one is in use.
+func OnboardingModelsReady() string { return In(i18n.Locale()).OnboardingModelsReady() }
+
+// OnboardingModelsReady says "Speech recognition is ready"
+// in the language of msgs.
+//
+// Head of the second step's card of speech models when one is in use.
+func (msgs Messages) OnboardingModelsReady() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsReady", nil)
+}
+
+// OnboardingModelsTitle says "Download a Speech Recognition Model"
+// in the language the app shows.
+//
+// Title of the guide's second step, where a speech recognition model is
+// downloaded.
+func OnboardingModelsTitle() string { return In(i18n.Locale()).OnboardingModelsTitle() }
+
+// OnboardingModelsTitle says "Download a Speech Recognition Model"
+// in the language of msgs.
+//
+// Title of the guide's second step, where a speech recognition model is
+// downloaded.
+func (msgs Messages) OnboardingModelsTitle() string {
+	return Catalog.Format(msgs.locale, "onboardingModelsTitle", nil)
+}
+
+// OnboardingPillLanguages says "Original audio · {language} → {target}"
+// in the language the app shows.
+//
+// Pill over the example subtitle on the first step: the language of the
+// original audio, and the language subtitles are translated into.
+func OnboardingPillLanguages(language string, target string) string {
+	return In(i18n.Locale()).OnboardingPillLanguages(language, target)
+}
+
+// OnboardingPillLanguages says "Original audio · {language} → {target}"
+// in the language of msgs.
+//
+// Pill over the example subtitle on the first step: the language of the
+// original audio, and the language subtitles are translated into.
+func (msgs Messages) OnboardingPillLanguages(language string, target string) string {
+	return Catalog.Format(msgs.locale, "onboardingPillLanguages", map[string]any{"language": language, "target": target})
+}
+
+// OnboardingPillLink says "Paste a link → Subtitles ready"
+// in the language the app shows.
+//
+// Pill over the example subtitle on the third step.
+func OnboardingPillLink() string { return In(i18n.Locale()).OnboardingPillLink() }
+
+// OnboardingPillLink says "Paste a link → Subtitles ready"
+// in the language of msgs.
+//
+// Pill over the example subtitle on the third step.
+func (msgs Messages) OnboardingPillLink() string {
+	return Catalog.Format(msgs.locale, "onboardingPillLink", nil)
+}
+
+// OnboardingPillModels says "On-device recognition → AI translation → Bilingual subtitles"
+// in the language the app shows.
+//
+// Pill over the example subtitle on the second step: how subtitles are
+// made.
+func OnboardingPillModels() string { return In(i18n.Locale()).OnboardingPillModels() }
+
+// OnboardingPillModels says "On-device recognition → AI translation → Bilingual subtitles"
+// in the language of msgs.
+//
+// Pill over the example subtitle on the second step: how subtitles are
+// made.
+func (msgs Messages) OnboardingPillModels() string {
+	return Catalog.Format(msgs.locale, "onboardingPillModels", nil)
+}
+
+// OnboardingPrivacy says "Recognition runs on this device · Translation uses the AI service you set up"
+// in the language the app shows.
+//
+// Line at the guide's foot, next to a lock: where recognition and
+// translation run.
+func OnboardingPrivacy() string { return In(i18n.Locale()).OnboardingPrivacy() }
+
+// OnboardingPrivacy says "Recognition runs on this device · Translation uses the AI service you set up"
+// in the language of msgs.
+//
+// Line at the guide's foot, next to a lock: where recognition and
+// translation run.
+func (msgs Messages) OnboardingPrivacy() string {
+	return Catalog.Format(msgs.locale, "onboardingPrivacy", nil)
+}
+
+// OnboardingReopen says "Show Getting Started Guide"
+// in the language the app shows.
+//
+// Help menu item, and shortcut on Linux and Windows (F1), that opens the
+// first-run guide again.
+func OnboardingReopen() string { return In(i18n.Locale()).OnboardingReopen() }
+
+// OnboardingReopen says "Show Getting Started Guide"
+// in the language of msgs.
+//
+// Help menu item, and shortcut on Linux and Windows (F1), that opens the
+// first-run guide again.
+func (msgs Messages) OnboardingReopen() string {
+	return Catalog.Format(msgs.locale, "onboardingReopen", nil)
+}
+
+// OnboardingRetry says "Retry"
+// in the language the app shows.
+//
+// Button downloading a speech model again after its download failed.
+func OnboardingRetry() string { return In(i18n.Locale()).OnboardingRetry() }
+
+// OnboardingRetry says "Retry"
+// in the language of msgs.
+//
+// Button downloading a speech model again after its download failed.
+func (msgs Messages) OnboardingRetry() string {
+	return Catalog.Format(msgs.locale, "onboardingRetry", nil)
+}
+
+// OnboardingSaveFailed says "Couldn't save settings: {error}"
+// in the language the app shows.
+//
+// Error under the sidebar when the guide could not save the settings.
+func OnboardingSaveFailed(error string) string { return In(i18n.Locale()).OnboardingSaveFailed(error) }
+
+// OnboardingSaveFailed says "Couldn't save settings: {error}"
+// in the language of msgs.
+//
+// Error under the sidebar when the guide could not save the settings.
+func (msgs Messages) OnboardingSaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "onboardingSaveFailed", map[string]any{"error": error})
+}
+
+// OnboardingSettings says "Settings…"
+// in the language the app shows.
+//
+// Button opening Settings › AI Service from the second step.
+func OnboardingSettings() string { return In(i18n.Locale()).OnboardingSettings() }
+
+// OnboardingSettings says "Settings…"
+// in the language of msgs.
+//
+// Button opening Settings › AI Service from the second step.
+func (msgs Messages) OnboardingSettings() string {
+	return Catalog.Format(msgs.locale, "onboardingSettings", nil)
+}
+
+// OnboardingSkip says "Skip"
+// in the language the app shows.
+//
+// Button at the guide's top right that closes it before the last step.
+func OnboardingSkip() string { return In(i18n.Locale()).OnboardingSkip() }
+
+// OnboardingSkip says "Skip"
+// in the language of msgs.
+//
+// Button at the guide's top right that closes it before the last step.
+func (msgs Messages) OnboardingSkip() string {
+	return Catalog.Format(msgs.locale, "onboardingSkip", nil)
+}
+
+// OnboardingSpeechModel says "Speech Recognition · {name}"
+// in the language the app shows.
+//
+// Name of a speech model's row on the second step.
+func OnboardingSpeechModel(name string) string { return In(i18n.Locale()).OnboardingSpeechModel(name) }
+
+// OnboardingSpeechModel says "Speech Recognition · {name}"
+// in the language of msgs.
+//
+// Name of a speech model's row on the second step.
+func (msgs Messages) OnboardingSpeechModel(name string) string {
+	return Catalog.Format(msgs.locale, "onboardingSpeechModel", map[string]any{"name": name})
+}
+
+// OnboardingStepCounter says "{step} / {steps}"
+// in the language the app shows.
+//
+// The guide's step counter at its top: the step shown and how many steps
+// there are.
+func OnboardingStepCounter(step int, steps int) string {
+	return In(i18n.Locale()).OnboardingStepCounter(step, steps)
+}
+
+// OnboardingStepCounter says "{step} / {steps}"
+// in the language of msgs.
+//
+// The guide's step counter at its top: the step shown and how many steps
+// there are.
+func (msgs Messages) OnboardingStepCounter(step int, steps int) string {
+	return Catalog.Format(msgs.locale, "onboardingStepCounter", map[string]any{"step": step, "steps": steps})
+}
+
+// OnboardingStepOf says "Step {step} of {steps}"
+// in the language the app shows.
+//
+// Accessible name of the guide's step dots.
+func OnboardingStepOf(step int, steps int) string {
+	return In(i18n.Locale()).OnboardingStepOf(step, steps)
+}
+
+// OnboardingStepOf says "Step {step} of {steps}"
+// in the language of msgs.
+//
+// Accessible name of the guide's step dots.
+func (msgs Messages) OnboardingStepOf(step int, steps int) string {
+	return Catalog.Format(msgs.locale, "onboardingStepOf", map[string]any{"step": step, "steps": steps})
+}
+
+// OnboardingTipKey says "Press F1 anytime to come back here."
+// in the language the app shows.
+//
+// Note the library shows once the guide has closed, on Linux and Windows,
+// where F1 opens the guide again.
+func OnboardingTipKey() string { return In(i18n.Locale()).OnboardingTipKey() }
+
+// OnboardingTipKey says "Press F1 anytime to come back here."
+// in the language of msgs.
+//
+// Note the library shows once the guide has closed, on Linux and Windows,
+// where F1 opens the guide again.
+func (msgs Messages) OnboardingTipKey() string {
+	return Catalog.Format(msgs.locale, "onboardingTipKey", nil)
+}
+
+// OnboardingTipMenu says "You can come back here anytime from {menu} › {item}."
+// in the language the app shows.
+//
+// Note the library shows once the guide has closed, on macOS: the menu and
+// its item that open the guide again.
+func OnboardingTipMenu(menu string, item string) string {
+	return In(i18n.Locale()).OnboardingTipMenu(menu, item)
+}
+
+// OnboardingTipMenu says "You can come back here anytime from {menu} › {item}."
+// in the language of msgs.
+//
+// Note the library shows once the guide has closed, on macOS: the menu and
+// its item that open the guide again.
+func (msgs Messages) OnboardingTipMenu(menu string, item string) string {
+	return Catalog.Format(msgs.locale, "onboardingTipMenu", map[string]any{"menu": menu, "item": item})
+}
+
+// OnboardingTranslateInto says "Translate subtitles into"
+// in the language the app shows.
+//
+// Label of the first step's drop-down choosing the language subtitles are
+// translated into.
+func OnboardingTranslateInto() string { return In(i18n.Locale()).OnboardingTranslateInto() }
+
+// OnboardingTranslateInto says "Translate subtitles into"
+// in the language of msgs.
+//
+// Label of the first step's drop-down choosing the language subtitles are
+// translated into.
+func (msgs Messages) OnboardingTranslateInto() string {
+	return Catalog.Format(msgs.locale, "onboardingTranslateInto", nil)
+}
+
+// OnboardingTranslationService says "Translation · AI Service"
+// in the language the app shows.
+//
+// Name of the second step's row about the translation service.
+func OnboardingTranslationService() string { return In(i18n.Locale()).OnboardingTranslationService() }
+
+// OnboardingTranslationService says "Translation · AI Service"
+// in the language of msgs.
+//
+// Name of the second step's row about the translation service.
+func (msgs Messages) OnboardingTranslationService() string {
+	return Catalog.Format(msgs.locale, "onboardingTranslationService", nil)
+}
+
+// OnboardingUse says "Use"
+// in the language the app shows.
+//
+// Button making a downloaded speech model the one in use.
+func OnboardingUse() string { return In(i18n.Locale()).OnboardingUse() }
+
+// OnboardingUse says "Use"
+// in the language of msgs.
+//
+// Button making a downloaded speech model the one in use.
+func (msgs Messages) OnboardingUse() string {
+	return Catalog.Format(msgs.locale, "onboardingUse", nil)
+}
+
+// OnboardingWatchLanguages says "Languages of the videos you watch · Choose any"
+// in the language the app shows.
+//
+// Heading over the first step's language tiles.
+func OnboardingWatchLanguages() string { return In(i18n.Locale()).OnboardingWatchLanguages() }
+
+// OnboardingWatchLanguages says "Languages of the videos you watch · Choose any"
+// in the language of msgs.
+//
+// Heading over the first step's language tiles.
+func (msgs Messages) OnboardingWatchLanguages() string {
+	return Catalog.Format(msgs.locale, "onboardingWatchLanguages", nil)
+}
+
+// OnboardingWatchLanguagesLabel says "Languages of the videos you watch"
+// in the language the app shows.
+//
+// Accessible name of the group of the first step's language tiles.
+func OnboardingWatchLanguagesLabel() string { return In(i18n.Locale()).OnboardingWatchLanguagesLabel() }
+
+// OnboardingWatchLanguagesLabel says "Languages of the videos you watch"
+// in the language of msgs.
+//
+// Accessible name of the group of the first step's language tiles.
+func (msgs Messages) OnboardingWatchLanguagesLabel() string {
+	return Catalog.Format(msgs.locale, "onboardingWatchLanguagesLabel", nil)
+}
+
+// OnboardingWelcome says "Welcome to Kando"
+// in the language the app shows.
+//
+// Title of the first-run guide's first step, and the accessible name of the
+// guide's sheet.
+func OnboardingWelcome() string { return In(i18n.Locale()).OnboardingWelcome() }
+
+// OnboardingWelcome says "Welcome to Kando"
+// in the language of msgs.
+//
+// Title of the first-run guide's first step, and the accessible name of the
+// guide's sheet.
+func (msgs Messages) OnboardingWelcome() string {
+	return Catalog.Format(msgs.locale, "onboardingWelcome", nil)
+}
+
+// OnboardingWelcomeDescription says "Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."
+// in the language the app shows.
+//
+// Line under the first step's title.
+func OnboardingWelcomeDescription() string { return In(i18n.Locale()).OnboardingWelcomeDescription() }
+
+// OnboardingWelcomeDescription says "Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."
+// in the language of msgs.
+//
+// Line under the first step's title.
+func (msgs Messages) OnboardingWelcomeDescription() string {
+	return Catalog.Format(msgs.locale, "onboardingWelcomeDescription", nil)
+}
+
+// PaletteAnswerNote says "Based only on what has played (up to {at}) · Answered by {model}"
+// in the language the app shows.
+//
+// Footnote under an answer: it rests only on the part of the film played so
+// far, up to a moment, and which model answered.
+func PaletteAnswerNote(at string, model string) string {
+	return In(i18n.Locale()).PaletteAnswerNote(at, model)
+}
+
+// PaletteAnswerNote says "Based only on what has played (up to {at}) · Answered by {model}"
+// in the language of msgs.
+//
+// Footnote under an answer: it rests only on the part of the film played so
+// far, up to a moment, and which model answered.
+func (msgs Messages) PaletteAnswerNote(at string, model string) string {
+	return Catalog.Format(msgs.locale, "paletteAnswerNote", map[string]any{"at": at, "model": model})
+}
+
+// PaletteAskFailed says "No answer came back: {error}"
+// in the language the app shows.
+//
+// Answer card when the AI service returned no answer; error is the
+// service's error message.
+func PaletteAskFailed(error string) string { return In(i18n.Locale()).PaletteAskFailed(error) }
+
+// PaletteAskFailed says "No answer came back: {error}"
+// in the language of msgs.
+//
+// Answer card when the AI service returned no answer; error is the
+// service's error message.
+func (msgs Messages) PaletteAskFailed(error string) string {
+	return Catalog.Format(msgs.locale, "paletteAskFailed", map[string]any{"error": error})
+}
+
+// PaletteAsking says "Asking {model}…"
+// in the language the app shows.
+//
+// Answer card while the question is on its way to the AI model.
+func PaletteAsking(model string) string { return In(i18n.Locale()).PaletteAsking(model) }
+
+// PaletteAsking says "Asking {model}…"
+// in the language of msgs.
+//
+// Answer card while the question is on its way to the AI model.
+func (msgs Messages) PaletteAsking(model string) string {
+	return Catalog.Format(msgs.locale, "paletteAsking", map[string]any{"model": model})
+}
+
+// PaletteFieldLabel says "Commands, lines or questions"
+// in the language the app shows.
+//
+// Accessible name of the command palette's field.
+func PaletteFieldLabel() string { return In(i18n.Locale()).PaletteFieldLabel() }
+
+// PaletteFieldLabel says "Commands, lines or questions"
+// in the language of msgs.
+//
+// Accessible name of the command palette's field.
+func (msgs Messages) PaletteFieldLabel() string {
+	return Catalog.Format(msgs.locale, "paletteFieldLabel", nil)
+}
+
+// PaletteFooter says "Type to search commands and watched lines · ↑↓ to select · Return to run"
+// in the language the app shows.
+//
+// Footer of the command palette over the library: what typing, the arrow
+// keys and Return do.
+func PaletteFooter() string { return In(i18n.Locale()).PaletteFooter() }
+
+// PaletteFooter says "Type to search commands and watched lines · ↑↓ to select · Return to run"
+// in the language of msgs.
+//
+// Footer of the command palette over the library: what typing, the arrow
+// keys and Return do.
+func (msgs Messages) PaletteFooter() string {
+	return Catalog.Format(msgs.locale, "paletteFooter", nil)
+}
+
+// PaletteFooterFilm says "Typing only searches commands and lines · Return asks · ↑↓ to select"
+// in the language the app shows.
+//
+// Footer of the command palette in the player: typing only searches, Return
+// asks the question.
+func PaletteFooterFilm() string { return In(i18n.Locale()).PaletteFooterFilm() }
+
+// PaletteFooterFilm says "Typing only searches commands and lines · Return asks · ↑↓ to select"
+// in the language of msgs.
+//
+// Footer of the command palette in the player: typing only searches, Return
+// asks the question.
+func (msgs Messages) PaletteFooterFilm() string {
+	return Catalog.Format(msgs.locale, "paletteFooterFilm", nil)
+}
+
+// PaletteHeadingAnswer says "Answer"
+// in the language the app shows.
+//
+// Heading of the card with the answer to a question about the film.
+func PaletteHeadingAnswer() string { return In(i18n.Locale()).PaletteHeadingAnswer() }
+
+// PaletteHeadingAnswer says "Answer"
+// in the language of msgs.
+//
+// Heading of the card with the answer to a question about the film.
+func (msgs Messages) PaletteHeadingAnswer() string {
+	return Catalog.Format(msgs.locale, "paletteHeadingAnswer", nil)
+}
+
+// PaletteHeadingCommands says "Commands"
+// in the language the app shows.
+//
+// Heading of the commands the command palette found.
+func PaletteHeadingCommands() string { return In(i18n.Locale()).PaletteHeadingCommands() }
+
+// PaletteHeadingCommands says "Commands"
+// in the language of msgs.
+//
+// Heading of the commands the command palette found.
+func (msgs Messages) PaletteHeadingCommands() string {
+	return Catalog.Format(msgs.locale, "paletteHeadingCommands", nil)
+}
+
+// PaletteHeadingLines says "Lines"
+// in the language the app shows.
+//
+// Heading of the subtitle lines the command palette found.
+func PaletteHeadingLines() string { return In(i18n.Locale()).PaletteHeadingLines() }
+
+// PaletteHeadingLines says "Lines"
+// in the language of msgs.
+//
+// Heading of the subtitle lines the command palette found.
+func (msgs Messages) PaletteHeadingLines() string {
+	return Catalog.Format(msgs.locale, "paletteHeadingLines", nil)
+}
+
+// PaletteJumpTo says "Jump to {time}"
+// in the language the app shows.
+//
+// Accessible name of a chip under an answer that plays the film from the
+// moment the answer rests on.
+func PaletteJumpTo(time_ string) string { return In(i18n.Locale()).PaletteJumpTo(time_) }
+
+// PaletteJumpTo says "Jump to {time}"
+// in the language of msgs.
+//
+// Accessible name of a chip under an answer that plays the film from the
+// moment the answer rests on.
+func (msgs Messages) PaletteJumpTo(time_ string) string {
+	return Catalog.Format(msgs.locale, "paletteJumpTo", map[string]any{"time": time_})
+}
+
+// PaletteLibrarySaveFailed says "Couldn't save the film list: {error}"
+// in the language the app shows.
+//
+// Error shown when library.json could not be written after noting how far a
+// video has played.
+func PaletteLibrarySaveFailed(error string) string {
+	return In(i18n.Locale()).PaletteLibrarySaveFailed(error)
+}
+
+// PaletteLibrarySaveFailed says "Couldn't save the film list: {error}"
+// in the language of msgs.
+//
+// Error shown when library.json could not be written after noting how far a
+// video has played.
+func (msgs Messages) PaletteLibrarySaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "paletteLibrarySaveFailed", map[string]any{"error": error})
+}
+
+// PaletteMenuItem says "Ask This Film / Commands…"
+// in the language the app shows.
+//
+// Study menu item and shortcut row (⌘K) that opens the command palette,
+// which also answers questions about the open film.
+func PaletteMenuItem() string { return In(i18n.Locale()).PaletteMenuItem() }
+
+// PaletteMenuItem says "Ask This Film / Commands…"
+// in the language of msgs.
+//
+// Study menu item and shortcut row (⌘K) that opens the command palette,
+// which also answers questions about the open film.
+func (msgs Messages) PaletteMenuItem() string {
+	return Catalog.Format(msgs.locale, "paletteMenuItem", nil)
+}
+
+// PaletteNoAI says "Answering questions needs an AI service. Choose a model in “AI Service” first."
+// in the language the app shows.
+//
+// Answer card when no AI service is set to answer questions about the film.
+func PaletteNoAI() string { return In(i18n.Locale()).PaletteNoAI() }
+
+// PaletteNoAI says "Answering questions needs an AI service. Choose a model in “AI Service” first."
+// in the language of msgs.
+//
+// Answer card when no AI service is set to answer questions about the film.
+func (msgs Messages) PaletteNoAI() string {
+	return Catalog.Format(msgs.locale, "paletteNoAI", nil)
+}
+
+// PaletteNoAIAction says "Open AI Service Settings"
+// in the language the app shows.
+//
+// Button on the answer card that opens the AI Service section of Settings.
+func PaletteNoAIAction() string { return In(i18n.Locale()).PaletteNoAIAction() }
+
+// PaletteNoAIAction says "Open AI Service Settings"
+// in the language of msgs.
+//
+// Button on the answer card that opens the AI Service section of Settings.
+func (msgs Messages) PaletteNoAIAction() string {
+	return Catalog.Format(msgs.locale, "paletteNoAIAction", nil)
+}
+
+// PaletteNoSubtitles says "This film has no subtitles yet, so it can't be answered."
+// in the language the app shows.
+//
+// Answer card when the open film has no subtitles to answer from.
+func PaletteNoSubtitles() string { return In(i18n.Locale()).PaletteNoSubtitles() }
+
+// PaletteNoSubtitles says "This film has no subtitles yet, so it can't be answered."
+// in the language of msgs.
+//
+// Answer card when the open film has no subtitles to answer from.
+func (msgs Messages) PaletteNoSubtitles() string {
+	return Catalog.Format(msgs.locale, "paletteNoSubtitles", nil)
+}
+
+// PaletteNotWatched says "You haven't started watching this film. Play some of it first, then ask."
+// in the language the app shows.
+//
+// Answer card when nothing of the open film has been played yet, so there
+// is nothing to answer from.
+func PaletteNotWatched() string { return In(i18n.Locale()).PaletteNotWatched() }
+
+// PaletteNotWatched says "You haven't started watching this film. Play some of it first, then ask."
+// in the language of msgs.
+//
+// Answer card when nothing of the open film has been played yet, so there
+// is nothing to answer from.
+func (msgs Messages) PaletteNotWatched() string {
+	return Catalog.Format(msgs.locale, "paletteNotWatched", nil)
+}
+
+// PaletteNothingFound says "No commands or watched lines found."
+// in the language the app shows.
+//
+// Note when the palette's query found nothing over the library.
+func PaletteNothingFound() string { return In(i18n.Locale()).PaletteNothingFound() }
+
+// PaletteNothingFound says "No commands or watched lines found."
+// in the language of msgs.
+//
+// Note when the palette's query found nothing over the library.
+func (msgs Messages) PaletteNothingFound() string {
+	return Catalog.Format(msgs.locale, "paletteNothingFound", nil)
+}
+
+// PaletteNothingFoundAsk says "No commands or watched lines found. Press Return to ask this film."
+// in the language the app shows.
+//
+// Note when the palette's query found nothing in the player, where Return
+// asks the query of the film.
+func PaletteNothingFoundAsk() string { return In(i18n.Locale()).PaletteNothingFoundAsk() }
+
+// PaletteNothingFoundAsk says "No commands or watched lines found. Press Return to ask this film."
+// in the language of msgs.
+//
+// Note when the palette's query found nothing in the player, where Return
+// asks the query of the film.
+func (msgs Messages) PaletteNothingFoundAsk() string {
+	return Catalog.Format(msgs.locale, "paletteNothingFoundAsk", nil)
+}
+
+// PalettePlaceholder says "Commands or watched lines…"
+// in the language the app shows.
+//
+// Placeholder of the command palette's field over the library.
+func PalettePlaceholder() string { return In(i18n.Locale()).PalettePlaceholder() }
+
+// PalettePlaceholder says "Commands or watched lines…"
+// in the language of msgs.
+//
+// Placeholder of the command palette's field over the library.
+func (msgs Messages) PalettePlaceholder() string {
+	return Catalog.Format(msgs.locale, "palettePlaceholder", nil)
+}
+
+// PalettePlaceholderFilm says "Commands, lines, or ask this film…"
+// in the language the app shows.
+//
+// Placeholder of the command palette's field in the player, where a
+// question can be asked about the open film.
+func PalettePlaceholderFilm() string { return In(i18n.Locale()).PalettePlaceholderFilm() }
+
+// PalettePlaceholderFilm says "Commands, lines, or ask this film…"
+// in the language of msgs.
+//
+// Placeholder of the command palette's field in the player, where a
+// question can be asked about the open film.
+func (msgs Messages) PalettePlaceholderFilm() string {
+	return Catalog.Format(msgs.locale, "palettePlaceholderFilm", nil)
+}
+
+// PaletteSettingsSection says "Settings › {section}"
+// in the language the app shows.
+//
+// Command palette command that opens a section of Settings.
+func PaletteSettingsSection(section string) string {
+	return In(i18n.Locale()).PaletteSettingsSection(section)
+}
+
+// PaletteSettingsSection says "Settings › {section}"
+// in the language of msgs.
+//
+// Command palette command that opens a section of Settings.
+func (msgs Messages) PaletteSettingsSection(section string) string {
+	return Catalog.Format(msgs.locale, "paletteSettingsSection", map[string]any{"section": section})
+}
+
+// PaletteSubtitleMode says "Subtitles: {mode}"
+// in the language the app shows.
+//
+// Brief notice over the player after the palette switched the subtitles'
+// display mode.
+func PaletteSubtitleMode(mode string) string { return In(i18n.Locale()).PaletteSubtitleMode(mode) }
+
+// PaletteSubtitleMode says "Subtitles: {mode}"
+// in the language of msgs.
+//
+// Brief notice over the player after the palette switched the subtitles'
+// display mode.
+func (msgs Messages) PaletteSubtitleMode(mode string) string {
+	return Catalog.Format(msgs.locale, "paletteSubtitleMode", map[string]any{"mode": mode})
+}
+
+// PaletteSwitchTo says "Switch to {mode}"
+// in the language the app shows.
+//
+// Command palette command, in the player, that switches the subtitles to
+// another display mode.
+func PaletteSwitchTo(mode string) string { return In(i18n.Locale()).PaletteSwitchTo(mode) }
+
+// PaletteSwitchTo says "Switch to {mode}"
+// in the language of msgs.
+//
+// Command palette command, in the player, that switches the subtitles to
+// another display mode.
+func (msgs Messages) PaletteSwitchTo(mode string) string {
+	return Catalog.Format(msgs.locale, "paletteSwitchTo", map[string]any{"mode": mode})
+}
+
+// PlayerKeyCycleSubtitles says "Cycle Original/Translation/Bilingual"
+// in the language the app shows.
+//
+// Shortcut row and menu item: step through the subtitle modes.
+func PlayerKeyCycleSubtitles() string { return In(i18n.Locale()).PlayerKeyCycleSubtitles() }
+
+// PlayerKeyCycleSubtitles says "Cycle Original/Translation/Bilingual"
+// in the language of msgs.
+//
+// Shortcut row and menu item: step through the subtitle modes.
+func (msgs Messages) PlayerKeyCycleSubtitles() string {
+	return Catalog.Format(msgs.locale, "playerKeyCycleSubtitles", nil)
+}
+
+// PlayerKeyDelayEarlier says "Subtitles 0.1 Second Earlier"
+// in the language the app shows.
+//
+// Shortcut row and menu item: subtitles a tenth of a second earlier.
+func PlayerKeyDelayEarlier() string { return In(i18n.Locale()).PlayerKeyDelayEarlier() }
+
+// PlayerKeyDelayEarlier says "Subtitles 0.1 Second Earlier"
+// in the language of msgs.
+//
+// Shortcut row and menu item: subtitles a tenth of a second earlier.
+func (msgs Messages) PlayerKeyDelayEarlier() string {
+	return Catalog.Format(msgs.locale, "playerKeyDelayEarlier", nil)
+}
+
+// PlayerKeyDelayLater says "Subtitles 0.1 Second Later"
+// in the language the app shows.
+//
+// Shortcut row and menu item: subtitles a tenth of a second later.
+func PlayerKeyDelayLater() string { return In(i18n.Locale()).PlayerKeyDelayLater() }
+
+// PlayerKeyDelayLater says "Subtitles 0.1 Second Later"
+// in the language of msgs.
+//
+// Shortcut row and menu item: subtitles a tenth of a second later.
+func (msgs Messages) PlayerKeyDelayLater() string {
+	return Catalog.Format(msgs.locale, "playerKeyDelayLater", nil)
+}
+
+// PlayerKeyLarger says "Larger Subtitles"
+// in the language the app shows.
+//
+// Shortcut row and menu item: larger subtitles.
+func PlayerKeyLarger() string { return In(i18n.Locale()).PlayerKeyLarger() }
+
+// PlayerKeyLarger says "Larger Subtitles"
+// in the language of msgs.
+//
+// Shortcut row and menu item: larger subtitles.
+func (msgs Messages) PlayerKeyLarger() string {
+	return Catalog.Format(msgs.locale, "playerKeyLarger", nil)
+}
+
+// PlayerKeyMute says "Mute/Unmute"
+// in the language the app shows.
+//
+// Shortcut row and menu item: mute or unmute.
+func PlayerKeyMute() string { return In(i18n.Locale()).PlayerKeyMute() }
+
+// PlayerKeyMute says "Mute/Unmute"
+// in the language of msgs.
+//
+// Shortcut row and menu item: mute or unmute.
+func (msgs Messages) PlayerKeyMute() string {
+	return Catalog.Format(msgs.locale, "playerKeyMute", nil)
+}
+
+// PlayerKeyPlayPause says "Play/Pause"
+// in the language the app shows.
+//
+// Shortcut row and menu item: play or pause.
+func PlayerKeyPlayPause() string { return In(i18n.Locale()).PlayerKeyPlayPause() }
+
+// PlayerKeyPlayPause says "Play/Pause"
+// in the language of msgs.
+//
+// Shortcut row and menu item: play or pause.
+func (msgs Messages) PlayerKeyPlayPause() string {
+	return Catalog.Format(msgs.locale, "playerKeyPlayPause", nil)
+}
+
+// PlayerKeySearch says "Search Subtitles"
+// in the language the app shows.
+//
+// Shortcut row and menu item: search the subtitle list.
+func PlayerKeySearch() string { return In(i18n.Locale()).PlayerKeySearch() }
+
+// PlayerKeySearch says "Search Subtitles"
+// in the language of msgs.
+//
+// Shortcut row and menu item: search the subtitle list.
+func (msgs Messages) PlayerKeySearch() string {
+	return Catalog.Format(msgs.locale, "playerKeySearch", nil)
+}
+
+// PlayerKeySmaller says "Smaller Subtitles"
+// in the language the app shows.
+//
+// Shortcut row and menu item: smaller subtitles.
+func PlayerKeySmaller() string { return In(i18n.Locale()).PlayerKeySmaller() }
+
+// PlayerKeySmaller says "Smaller Subtitles"
+// in the language of msgs.
+//
+// Shortcut row and menu item: smaller subtitles.
+func (msgs Messages) PlayerKeySmaller() string {
+	return Catalog.Format(msgs.locale, "playerKeySmaller", nil)
+}
+
+// PlayerKeyToggleSidebar says "Show/Hide Sidebar"
+// in the language the app shows.
+//
+// Shortcut row and menu item: show or hide the player's side panel.
+func PlayerKeyToggleSidebar() string { return In(i18n.Locale()).PlayerKeyToggleSidebar() }
+
+// PlayerKeyToggleSidebar says "Show/Hide Sidebar"
+// in the language of msgs.
+//
+// Shortcut row and menu item: show or hide the player's side panel.
+func (msgs Messages) PlayerKeyToggleSidebar() string {
+	return Catalog.Format(msgs.locale, "playerKeyToggleSidebar", nil)
+}
+
+// PlayerKeyToggleSubtitles says "Show/Hide Subtitles"
+// in the language the app shows.
+//
+// Shortcut row and menu item: hide the subtitles, or show them again.
+func PlayerKeyToggleSubtitles() string { return In(i18n.Locale()).PlayerKeyToggleSubtitles() }
+
+// PlayerKeyToggleSubtitles says "Show/Hide Subtitles"
+// in the language of msgs.
+//
+// Shortcut row and menu item: hide the subtitles, or show them again.
+func (msgs Messages) PlayerKeyToggleSubtitles() string {
+	return Catalog.Format(msgs.locale, "playerKeyToggleSubtitles", nil)
+}
+
+// PlayerKeyVolumeDown says "Volume Down"
+// in the language the app shows.
+//
+// Shortcut row and menu item: quieter.
+func PlayerKeyVolumeDown() string { return In(i18n.Locale()).PlayerKeyVolumeDown() }
+
+// PlayerKeyVolumeDown says "Volume Down"
+// in the language of msgs.
+//
+// Shortcut row and menu item: quieter.
+func (msgs Messages) PlayerKeyVolumeDown() string {
+	return Catalog.Format(msgs.locale, "playerKeyVolumeDown", nil)
+}
+
+// PlayerKeyVolumeUp says "Volume Up"
+// in the language the app shows.
+//
+// Shortcut row and menu item: louder.
+func PlayerKeyVolumeUp() string { return In(i18n.Locale()).PlayerKeyVolumeUp() }
+
+// PlayerKeyVolumeUp says "Volume Up"
+// in the language of msgs.
+//
+// Shortcut row and menu item: louder.
+func (msgs Messages) PlayerKeyVolumeUp() string {
+	return Catalog.Format(msgs.locale, "playerKeyVolumeUp", nil)
+}
+
+// PlayerOsdDelay says "Subtitles {delay}"
+// in the language the app shows.
+//
+// Message on the picture after the subtitle delay changed.
+func PlayerOsdDelay(delay string) string { return In(i18n.Locale()).PlayerOsdDelay(delay) }
+
+// PlayerOsdDelay says "Subtitles {delay}"
+// in the language of msgs.
+//
+// Message on the picture after the subtitle delay changed.
+func (msgs Messages) PlayerOsdDelay(delay string) string {
+	return Catalog.Format(msgs.locale, "playerOsdDelay", map[string]any{"delay": delay})
+}
+
+// PlayerOsdMuted says "Muted"
+// in the language the app shows.
+//
+// Message on the picture after the film was muted.
+func PlayerOsdMuted() string { return In(i18n.Locale()).PlayerOsdMuted() }
+
+// PlayerOsdMuted says "Muted"
+// in the language of msgs.
+//
+// Message on the picture after the film was muted.
+func (msgs Messages) PlayerOsdMuted() string {
+	return Catalog.Format(msgs.locale, "playerOsdMuted", nil)
+}
+
+// PlayerOsdSubtitleSize says "Subtitle Size {size}"
+// in the language the app shows.
+//
+// Message on the picture after the subtitles were made larger or smaller:
+// the translation's font size.
+func PlayerOsdSubtitleSize(size int) string { return In(i18n.Locale()).PlayerOsdSubtitleSize(size) }
+
+// PlayerOsdSubtitleSize says "Subtitle Size {size}"
+// in the language of msgs.
+//
+// Message on the picture after the subtitles were made larger or smaller:
+// the translation's font size.
+func (msgs Messages) PlayerOsdSubtitleSize(size int) string {
+	return Catalog.Format(msgs.locale, "playerOsdSubtitleSize", map[string]any{"size": size})
+}
+
+// PlayerOsdVolume says "Volume {percent}%"
+// in the language the app shows.
+//
+// Message on the picture after the volume changed.
+func PlayerOsdVolume(percent int) string { return In(i18n.Locale()).PlayerOsdVolume(percent) }
+
+// PlayerOsdVolume says "Volume {percent}%"
+// in the language of msgs.
+//
+// Message on the picture after the volume changed.
+func (msgs Messages) PlayerOsdVolume(percent int) string {
+	return Catalog.Format(msgs.locale, "playerOsdVolume", map[string]any{"percent": percent})
+}
+
+// PlayerSaveSubtitlesFailed says "Couldn't save subtitle settings"
+// in the language the app shows.
+//
+// Message on the picture when the subtitle settings could not be saved.
+func PlayerSaveSubtitlesFailed() string { return In(i18n.Locale()).PlayerSaveSubtitlesFailed() }
+
+// PlayerSaveSubtitlesFailed says "Couldn't save subtitle settings"
+// in the language of msgs.
+//
+// Message on the picture when the subtitle settings could not be saved.
+func (msgs Messages) PlayerSaveSubtitlesFailed() string {
+	return Catalog.Format(msgs.locale, "playerSaveSubtitlesFailed", nil)
+}
+
+// PlayerSaveVolumeFailed says "Couldn't save the volume"
+// in the language the app shows.
+//
+// Message on the picture when the volume could not be saved.
+func PlayerSaveVolumeFailed() string { return In(i18n.Locale()).PlayerSaveVolumeFailed() }
+
+// PlayerSaveVolumeFailed says "Couldn't save the volume"
+// in the language of msgs.
+//
+// Message on the picture when the volume could not be saved.
+func (msgs Messages) PlayerSaveVolumeFailed() string {
+	return Catalog.Format(msgs.locale, "playerSaveVolumeFailed", nil)
+}
+
+// PlayerSubsMissing says "The subtitle file is gone"
+// in the language the app shows.
+//
+// Shown in the subtitle list when the subtitle file has been deleted or
+// moved.
+func PlayerSubsMissing() string { return In(i18n.Locale()).PlayerSubsMissing() }
+
+// PlayerSubsMissing says "The subtitle file is gone"
+// in the language of msgs.
+//
+// Shown in the subtitle list when the subtitle file has been deleted or
+// moved.
+func (msgs Messages) PlayerSubsMissing() string {
+	return Catalog.Format(msgs.locale, "playerSubsMissing", nil)
+}
+
+// PlayerSubsUnreadable says "Couldn't read the subtitles"
+// in the language the app shows.
+//
+// Shown in the subtitle list when the subtitle file cannot be read or
+// parsed.
+func PlayerSubsUnreadable() string { return In(i18n.Locale()).PlayerSubsUnreadable() }
+
+// PlayerSubsUnreadable says "Couldn't read the subtitles"
+// in the language of msgs.
+//
+// Shown in the subtitle list when the subtitle file cannot be read or
+// parsed.
+func (msgs Messages) PlayerSubsUnreadable() string {
+	return Catalog.Format(msgs.locale, "playerSubsUnreadable", nil)
+}
+
+// PlayerUnplayable says "This video can't be played"
+// in the language the app shows.
+//
+// Shown in place of the picture when ffmpeg cannot open the video.
+func PlayerUnplayable() string { return In(i18n.Locale()).PlayerUnplayable() }
+
+// PlayerUnplayable says "This video can't be played"
+// in the language of msgs.
+//
+// Shown in place of the picture when ffmpeg cannot open the video.
+func (msgs Messages) PlayerUnplayable() string {
+	return Catalog.Format(msgs.locale, "playerUnplayable", nil)
+}
+
+// PrecheckEmpty says "Paste a video link first, or choose a local file."
+// in the language the app shows.
+//
+// Message bar when the link field is empty.
+func PrecheckEmpty() string { return In(i18n.Locale()).PrecheckEmpty() }
+
+// PrecheckEmpty says "Paste a video link first, or choose a local file."
+// in the language of msgs.
+//
+// Message bar when the link field is empty.
+func (msgs Messages) PrecheckEmpty() string {
+	return Catalog.Format(msgs.locale, "precheckEmpty", nil)
+}
+
+// PrecheckFailedDownload says "Download failed: {detail}"
+// in the language the app shows.
+//
+// Card of a job whose download failed for an unknown reason, with what
+// yt-dlp said (often English).
+func PrecheckFailedDownload(detail string) string {
+	return In(i18n.Locale()).PrecheckFailedDownload(detail)
+}
+
+// PrecheckFailedDownload says "Download failed: {detail}"
+// in the language of msgs.
+//
+// Card of a job whose download failed for an unknown reason, with what
+// yt-dlp said (often English).
+func (msgs Messages) PrecheckFailedDownload(detail string) string {
+	return Catalog.Format(msgs.locale, "precheckFailedDownload", map[string]any{"detail": detail})
+}
+
+// PrecheckFailedExport says "Exporting subtitles failed: {detail}"
+// in the language the app shows.
+//
+// Card of a job whose subtitle export failed for an unknown reason, with
+// the error (often English).
+func PrecheckFailedExport(detail string) string {
+	return In(i18n.Locale()).PrecheckFailedExport(detail)
+}
+
+// PrecheckFailedExport says "Exporting subtitles failed: {detail}"
+// in the language of msgs.
+//
+// Card of a job whose subtitle export failed for an unknown reason, with
+// the error (often English).
+func (msgs Messages) PrecheckFailedExport(detail string) string {
+	return Catalog.Format(msgs.locale, "precheckFailedExport", map[string]any{"detail": detail})
+}
+
+// PrecheckFailedProcess says "Processing failed: {detail}"
+// in the language the app shows.
+//
+// Card of a failed job whose failure has no known reason, with what the
+// program said (often English).
+func PrecheckFailedProcess(detail string) string {
+	return In(i18n.Locale()).PrecheckFailedProcess(detail)
+}
+
+// PrecheckFailedProcess says "Processing failed: {detail}"
+// in the language of msgs.
+//
+// Card of a failed job whose failure has no known reason, with what the
+// program said (often English).
+func (msgs Messages) PrecheckFailedProcess(detail string) string {
+	return Catalog.Format(msgs.locale, "precheckFailedProcess", map[string]any{"detail": detail})
+}
+
+// PrecheckFailedTranscribe says "Generating subtitles failed: {detail}"
+// in the language the app shows.
+//
+// Card of a job whose transcription failed for an unknown reason, with what
+// whisper-cli said (often English).
+func PrecheckFailedTranscribe(detail string) string {
+	return In(i18n.Locale()).PrecheckFailedTranscribe(detail)
+}
+
+// PrecheckFailedTranscribe says "Generating subtitles failed: {detail}"
+// in the language of msgs.
+//
+// Card of a job whose transcription failed for an unknown reason, with what
+// whisper-cli said (often English).
+func (msgs Messages) PrecheckFailedTranscribe(detail string) string {
+	return Catalog.Format(msgs.locale, "precheckFailedTranscribe", map[string]any{"detail": detail})
+}
+
+// PrecheckFailedTranslate says "Translation failed: {detail}"
+// in the language the app shows.
+//
+// Card of a job whose translation failed for an unknown reason, with what
+// the AI service said (often English).
+func PrecheckFailedTranslate(detail string) string {
+	return In(i18n.Locale()).PrecheckFailedTranslate(detail)
+}
+
+// PrecheckFailedTranslate says "Translation failed: {detail}"
+// in the language of msgs.
+//
+// Card of a job whose translation failed for an unknown reason, with what
+// the AI service said (often English).
+func (msgs Messages) PrecheckFailedTranslate(detail string) string {
+	return Catalog.Format(msgs.locale, "precheckFailedTranslate", map[string]any{"detail": detail})
+}
+
+// PrecheckNoLLMModel says "Choose a model in “AI Service” first"
+// in the language the app shows.
+//
+// Message bar and the sidebar's status line when no translation model is
+// chosen; “AI Service” is the settings page.
+func PrecheckNoLLMModel() string { return In(i18n.Locale()).PrecheckNoLLMModel() }
+
+// PrecheckNoLLMModel says "Choose a model in “AI Service” first"
+// in the language of msgs.
+//
+// Message bar and the sidebar's status line when no translation model is
+// chosen; “AI Service” is the settings page.
+func (msgs Messages) PrecheckNoLLMModel() string {
+	return Catalog.Format(msgs.locale, "precheckNoLLMModel", nil)
+}
+
+// PrecheckNoLibrary says "Create or open a library first"
+// in the language the app shows.
+//
+// Message bar and the sidebar's status line when no library is open.
+func PrecheckNoLibrary() string { return In(i18n.Locale()).PrecheckNoLibrary() }
+
+// PrecheckNoLibrary says "Create or open a library first"
+// in the language of msgs.
+//
+// Message bar and the sidebar's status line when no library is open.
+func (msgs Messages) PrecheckNoLibrary() string {
+	return Catalog.Format(msgs.locale, "precheckNoLibrary", nil)
+}
+
+// PrecheckNoSpeech says "No speech was recognized in the video"
+// in the language the app shows.
+//
+// Card of a failed job when whisper heard no speech.
+func PrecheckNoSpeech() string { return In(i18n.Locale()).PrecheckNoSpeech() }
+
+// PrecheckNoSpeech says "No speech was recognized in the video"
+// in the language of msgs.
+//
+// Card of a failed job when whisper heard no speech.
+func (msgs Messages) PrecheckNoSpeech() string {
+	return Catalog.Format(msgs.locale, "precheckNoSpeech", nil)
+}
+
+// PrecheckNoSpeechModel says "Choose a model in “Speech Recognition” first"
+// in the language the app shows.
+//
+// Message bar and the sidebar's status line when no speech recognition
+// model is chosen; “Speech Recognition” is the settings page.
+func PrecheckNoSpeechModel() string { return In(i18n.Locale()).PrecheckNoSpeechModel() }
+
+// PrecheckNoSpeechModel says "Choose a model in “Speech Recognition” first"
+// in the language of msgs.
+//
+// Message bar and the sidebar's status line when no speech recognition
+// model is chosen; “Speech Recognition” is the settings page.
+func (msgs Messages) PrecheckNoSpeechModel() string {
+	return Catalog.Format(msgs.locale, "precheckNoSpeechModel", nil)
+}
+
+// PrecheckNoTools says "The programs that process videos aren't installed yet"
+// in the language the app shows.
+//
+// Card of a failed job when a program it needs (yt-dlp, ffmpeg,
+// whisper-cli) is not installed.
+func PrecheckNoTools() string { return In(i18n.Locale()).PrecheckNoTools() }
+
+// PrecheckNoTools says "The programs that process videos aren't installed yet"
+// in the language of msgs.
+//
+// Card of a failed job when a program it needs (yt-dlp, ffmpeg,
+// whisper-cli) is not installed.
+func (msgs Messages) PrecheckNoTools() string {
+	return Catalog.Format(msgs.locale, "precheckNoTools", nil)
+}
+
+// PrecheckNoVideo says "Only video files can be added (mp4, mov, mkv, webm and others)."
+// in the language the app shows.
+//
+// Message bar when none of the files dropped or picked is a video.
+func PrecheckNoVideo() string { return In(i18n.Locale()).PrecheckNoVideo() }
+
+// PrecheckNoVideo says "Only video files can be added (mp4, mov, mkv, webm and others)."
+// in the language of msgs.
+//
+// Message bar when none of the files dropped or picked is a video.
+func (msgs Messages) PrecheckNoVideo() string {
+	return Catalog.Format(msgs.locale, "precheckNoVideo", nil)
+}
+
+// PrecheckNotLink says "This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read."
+// in the language the app shows.
+//
+// Message bar when what was pasted is not a link.
+func PrecheckNotLink() string { return In(i18n.Locale()).PrecheckNotLink() }
+
+// PrecheckNotLink says "This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read."
+// in the language of msgs.
+//
+// Message bar when what was pasted is not a link.
+func (msgs Messages) PrecheckNotLink() string {
+	return Catalog.Format(msgs.locale, "precheckNotLink", nil)
+}
+
+// PrecheckNotSignedIn says "Sign in to EveryAPI first, or enter an API Key in “AI Service”"
+// in the language the app shows.
+//
+// Message bar and the sidebar's status line when the AI service has no key
+// and EveryAPI is not signed in.
+func PrecheckNotSignedIn() string { return In(i18n.Locale()).PrecheckNotSignedIn() }
+
+// PrecheckNotSignedIn says "Sign in to EveryAPI first, or enter an API Key in “AI Service”"
+// in the language of msgs.
+//
+// Message bar and the sidebar's status line when the AI service has no key
+// and EveryAPI is not signed in.
+func (msgs Messages) PrecheckNotSignedIn() string {
+	return Catalog.Format(msgs.locale, "precheckNotSignedIn", nil)
+}
+
+// PrecheckToolSeparator says ", "
+// in the language the app shows.
+//
+// What goes between the names of missing programs in a list, such as yt-dlp
+// and ffmpeg.
+func PrecheckToolSeparator() string { return In(i18n.Locale()).PrecheckToolSeparator() }
+
+// PrecheckToolSeparator says ", "
+// in the language of msgs.
+//
+// What goes between the names of missing programs in a list, such as yt-dlp
+// and ffmpeg.
+func (msgs Messages) PrecheckToolSeparator() string {
+	return Catalog.Format(msgs.locale, "precheckToolSeparator", nil)
+}
+
+// PrecheckToolsMissing says "The programs that process videos aren't installed yet: {tools}"
+// in the language the app shows.
+//
+// Message bar when programs a job needs are not installed, with their names
+// joined by precheckToolSeparator.
+func PrecheckToolsMissing(tools string) string { return In(i18n.Locale()).PrecheckToolsMissing(tools) }
+
+// PrecheckToolsMissing says "The programs that process videos aren't installed yet: {tools}"
+// in the language of msgs.
+//
+// Message bar when programs a job needs are not installed, with their names
+// joined by precheckToolSeparator.
+func (msgs Messages) PrecheckToolsMissing(tools string) string {
+	return Catalog.Format(msgs.locale, "precheckToolsMissing", map[string]any{"tools": tools})
+}
+
+// PrecheckTranslateAuth says "The AI service doesn't accept this key. Check it in “AI Service”."
+// in the language the app shows.
+//
+// Card of a job whose translation failed because the AI service refused the
+// key.
+func PrecheckTranslateAuth() string { return In(i18n.Locale()).PrecheckTranslateAuth() }
+
+// PrecheckTranslateAuth says "The AI service doesn't accept this key. Check it in “AI Service”."
+// in the language of msgs.
+//
+// Card of a job whose translation failed because the AI service refused the
+// key.
+func (msgs Messages) PrecheckTranslateAuth() string {
+	return Catalog.Format(msgs.locale, "precheckTranslateAuth", nil)
+}
+
+// PrecheckTranslateBusy says "The AI service stayed busy, even after automatic retries. Retry in a few minutes."
+// in the language the app shows.
+//
+// Card of a job whose translation failed because the AI service kept
+// answering that it is busy.
+func PrecheckTranslateBusy() string { return In(i18n.Locale()).PrecheckTranslateBusy() }
+
+// PrecheckTranslateBusy says "The AI service stayed busy, even after automatic retries. Retry in a few minutes."
+// in the language of msgs.
+//
+// Card of a job whose translation failed because the AI service kept
+// answering that it is busy.
+func (msgs Messages) PrecheckTranslateBusy() string {
+	return Catalog.Format(msgs.locale, "precheckTranslateBusy", nil)
+}
+
+// PrecheckTranslateMalformed says "The AI returned the translation in the wrong format, even after a few retries. Retry, or choose another model in “A…"
+// in the language the app shows.
+//
+// Card of a job whose translation failed because the model's answer was not
+// in the expected format.
+func PrecheckTranslateMalformed() string { return In(i18n.Locale()).PrecheckTranslateMalformed() }
+
+// PrecheckTranslateMalformed says "The AI returned the translation in the wrong format, even after a few retries. Retry, or choose another model in “A…"
+// in the language of msgs.
+//
+// Card of a job whose translation failed because the model's answer was not
+// in the expected format.
+func (msgs Messages) PrecheckTranslateMalformed() string {
+	return Catalog.Format(msgs.locale, "precheckTranslateMalformed", nil)
+}
+
+// PrecheckTranslateNetwork says "Can't connect to the AI service. Check your network, then retry."
+// in the language the app shows.
+//
+// Card of a job whose translation failed because the AI service could not
+// be reached.
+func PrecheckTranslateNetwork() string { return In(i18n.Locale()).PrecheckTranslateNetwork() }
+
+// PrecheckTranslateNetwork says "Can't connect to the AI service. Check your network, then retry."
+// in the language of msgs.
+//
+// Card of a job whose translation failed because the AI service could not
+// be reached.
+func (msgs Messages) PrecheckTranslateNetwork() string {
+	return Catalog.Format(msgs.locale, "precheckTranslateNetwork", nil)
+}
+
+// PrecheckTranslateRejected says "The AI service refused the request. Check the address and model in “AI Service”."
+// in the language the app shows.
+//
+// Card of a job whose translation failed because the AI service rejected
+// the request, as for an unknown model.
+func PrecheckTranslateRejected() string { return In(i18n.Locale()).PrecheckTranslateRejected() }
+
+// PrecheckTranslateRejected says "The AI service refused the request. Check the address and model in “AI Service”."
+// in the language of msgs.
+//
+// Card of a job whose translation failed because the AI service rejected
+// the request, as for an unknown model.
+func (msgs Messages) PrecheckTranslateRejected() string {
+	return Catalog.Format(msgs.locale, "precheckTranslateRejected", nil)
+}
+
+// PrecheckTranslateTimeout says "The AI service didn't respond, even after automatic retries. Retry later."
+// in the language the app shows.
+//
+// Card of a job whose translation failed because the AI service never
+// answered.
+func PrecheckTranslateTimeout() string { return In(i18n.Locale()).PrecheckTranslateTimeout() }
+
+// PrecheckTranslateTimeout says "The AI service didn't respond, even after automatic retries. Retry later."
+// in the language of msgs.
+//
+// Card of a job whose translation failed because the AI service never
+// answered.
+func (msgs Messages) PrecheckTranslateTimeout() string {
+	return Catalog.Format(msgs.locale, "precheckTranslateTimeout", nil)
+}
+
+// QueueBorrowed says "Using {browser}'s sign-in. Downloading now."
+// in the language the app shows.
+//
+// Message bar after the user chose to borrow a browser's sign-in.
+func QueueBorrowed(browser string) string { return In(i18n.Locale()).QueueBorrowed(browser) }
+
+// QueueBorrowed says "Using {browser}'s sign-in. Downloading now."
+// in the language of msgs.
+//
+// Message bar after the user chose to borrow a browser's sign-in.
+func (msgs Messages) QueueBorrowed(browser string) string {
+	return Catalog.Format(msgs.locale, "queueBorrowed", map[string]any{"browser": browser})
+}
+
+// QueueBusy says "A video is already being processed. Add this one when it's done"
+// in the language the app shows.
+//
+// Message bar when a job cannot be retried because another one is being
+// processed.
+func QueueBusy() string { return In(i18n.Locale()).QueueBusy() }
+
+// QueueBusy says "A video is already being processed. Add this one when it's done"
+// in the language of msgs.
+//
+// Message bar when a job cannot be retried because another one is being
+// processed.
+func (msgs Messages) QueueBusy() string {
+	return Catalog.Format(msgs.locale, "queueBusy", nil)
+}
+
+// QueueLocalChosen says "Local video selected"
+// in the language the app shows.
+//
+// Status once a local video was put in the link field.
+func QueueLocalChosen() string { return In(i18n.Locale()).QueueLocalChosen() }
+
+// QueueLocalChosen says "Local video selected"
+// in the language of msgs.
+//
+// Status once a local video was put in the link field.
+func (msgs Messages) QueueLocalChosen() string {
+	return Catalog.Format(msgs.locale, "queueLocalChosen", nil)
+}
+
+// QueueNoBrowserAgain says "Still no browser whose sign-in Kando can use."
+// in the language the app shows.
+//
+// Message bar after Find Browsers Again still found none.
+func QueueNoBrowserAgain() string { return In(i18n.Locale()).QueueNoBrowserAgain() }
+
+// QueueNoBrowserAgain says "Still no browser whose sign-in Kando can use."
+// in the language of msgs.
+//
+// Message bar after Find Browsers Again still found none.
+func (msgs Messages) QueueNoBrowserAgain() string {
+	return Catalog.Format(msgs.locale, "queueNoBrowserAgain", nil)
+}
+
+// QueueNoLanguage says "Enter a target language"
+// in the language the app shows.
+//
+// Why a job cannot start: the subtitle target language is empty in the
+// settings.
+func QueueNoLanguage() string { return In(i18n.Locale()).QueueNoLanguage() }
+
+// QueueNoLanguage says "Enter a target language"
+// in the language of msgs.
+//
+// Why a job cannot start: the subtitle target language is empty in the
+// settings.
+func (msgs Messages) QueueNoLanguage() string {
+	return Catalog.Format(msgs.locale, "queueNoLanguage", nil)
+}
+
+// QueueNoLibrary says "Create or import a library first"
+// in the language the app shows.
+//
+// Why a link cannot be added: no library is open.
+func QueueNoLibrary() string { return In(i18n.Locale()).QueueNoLibrary() }
+
+// QueueNoLibrary says "Create or import a library first"
+// in the language of msgs.
+//
+// Why a link cannot be added: no library is open.
+func (msgs Messages) QueueNoLibrary() string {
+	return Catalog.Format(msgs.locale, "queueNoLibrary", nil)
+}
+
+// QueueNoVideoToImport says "No video to import"
+// in the language the app shows.
+//
+// Status when the file chosen to import is not a video.
+func QueueNoVideoToImport() string { return In(i18n.Locale()).QueueNoVideoToImport() }
+
+// QueueNoVideoToImport says "No video to import"
+// in the language of msgs.
+//
+// Status when the file chosen to import is not a video.
+func (msgs Messages) QueueNoVideoToImport() string {
+	return Catalog.Format(msgs.locale, "queueNoVideoToImport", nil)
+}
+
+// QueueOpenSettingsFailed says "Couldn't open System Settings: {error}"
+// in the language the app shows.
+//
+// Message bar when System Settings could not be opened.
+func QueueOpenSettingsFailed(error string) string {
+	return In(i18n.Locale()).QueueOpenSettingsFailed(error)
+}
+
+// QueueOpenSettingsFailed says "Couldn't open System Settings: {error}"
+// in the language of msgs.
+//
+// Message bar when System Settings could not be opened.
+func (msgs Messages) QueueOpenSettingsFailed(error string) string {
+	return Catalog.Format(msgs.locale, "queueOpenSettingsFailed", map[string]any{"error": error})
+}
+
+// QueueRemedyAge says "Age verification required"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the video is age-restricted.
+func QueueRemedyAge() string { return In(i18n.Locale()).QueueRemedyAge() }
+
+// QueueRemedyAge says "Age verification required"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the video is age-restricted.
+func (msgs Messages) QueueRemedyAge() string {
+	return Catalog.Format(msgs.locale, "queueRemedyAge", nil)
+}
+
+// QueueRemedyAgeNeed says "It needs a signed-in {site} account."
+// in the language the app shows.
+//
+// First sentence of the card of an age-restricted video when no browser's
+// sign-in can be borrowed.
+func QueueRemedyAgeNeed(site string) string { return In(i18n.Locale()).QueueRemedyAgeNeed(site) }
+
+// QueueRemedyAgeNeed says "It needs a signed-in {site} account."
+// in the language of msgs.
+//
+// First sentence of the card of an age-restricted video when no browser's
+// sign-in can be borrowed.
+func (msgs Messages) QueueRemedyAgeNeed(site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyAgeNeed", map[string]any{"site": site})
+}
+
+// QueueRemedyAgeWhy says "Use the {site} account you're signed in to in your browser."
+// in the language the app shows.
+//
+// What to do about an age-restricted video when a browser's sign-in can be
+// borrowed.
+func QueueRemedyAgeWhy(site string) string { return In(i18n.Locale()).QueueRemedyAgeWhy(site) }
+
+// QueueRemedyAgeWhy says "Use the {site} account you're signed in to in your browser."
+// in the language of msgs.
+//
+// What to do about an age-restricted video when a browser's sign-in can be
+// borrowed.
+func (msgs Messages) QueueRemedyAgeWhy(site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyAgeWhy", map[string]any{"site": site})
+}
+
+// QueueRemedyAllowed says "Allowed, Retry"
+// in the language the app shows.
+//
+// Button of the card once the user granted Full Disk Access.
+func QueueRemedyAllowed() string { return In(i18n.Locale()).QueueRemedyAllowed() }
+
+// QueueRemedyAllowed says "Allowed, Retry"
+// in the language of msgs.
+//
+// Button of the card once the user granted Full Disk Access.
+func (msgs Messages) QueueRemedyAllowed() string {
+	return Catalog.Format(msgs.locale, "queueRemedyAllowed", nil)
+}
+
+// QueueRemedyBadLink says "The link is incomplete"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the link was cut short.
+func QueueRemedyBadLink() string { return In(i18n.Locale()).QueueRemedyBadLink() }
+
+// QueueRemedyBadLink says "The link is incomplete"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the link was cut short.
+func (msgs Messages) QueueRemedyBadLink() string {
+	return Catalog.Format(msgs.locale, "queueRemedyBadLink", nil)
+}
+
+// QueueRemedyBadLinkWhy says "Part of the link seems to be missing, so retrying won't download it. Copy the whole link and try again with it."
+// in the language the app shows.
+//
+// What to do about a link that was cut short.
+func QueueRemedyBadLinkWhy() string { return In(i18n.Locale()).QueueRemedyBadLinkWhy() }
+
+// QueueRemedyBadLinkWhy says "Part of the link seems to be missing, so retrying won't download it. Copy the whole link and try again with it."
+// in the language of msgs.
+//
+// What to do about a link that was cut short.
+func (msgs Messages) QueueRemedyBadLinkWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyBadLinkWhy", nil)
+}
+
+// QueueRemedyBilibiliShort says "Bilibili"
+// in the language the app shows.
+//
+// How a sentence names Bilibili after “sign in to”, its short name
+// where there is one.
+func QueueRemedyBilibiliShort() string { return In(i18n.Locale()).QueueRemedyBilibiliShort() }
+
+// QueueRemedyBilibiliShort says "Bilibili"
+// in the language of msgs.
+//
+// How a sentence names Bilibili after “sign in to”, its short name
+// where there is one.
+func (msgs Messages) QueueRemedyBilibiliShort() string {
+	return Catalog.Format(msgs.locale, "queueRemedyBilibiliShort", nil)
+}
+
+// QueueRemedyBorrow says "Use {browser} Sign-In and Retry"
+// in the language the app shows.
+//
+// Button of a failed download's card: download again with the sign-in of a
+// browser.
+func QueueRemedyBorrow(browser string) string { return In(i18n.Locale()).QueueRemedyBorrow(browser) }
+
+// QueueRemedyBorrow says "Use {browser} Sign-In and Retry"
+// in the language of msgs.
+//
+// Button of a failed download's card: download again with the sign-in of a
+// browser.
+func (msgs Messages) QueueRemedyBorrow(browser string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyBorrow", map[string]any{"browser": browser})
+}
+
+// QueueRemedyCheckUpdate says "Check for Updates"
+// in the language the app shows.
+//
+// Button of the card: look for a newer yt-dlp again.
+func QueueRemedyCheckUpdate() string { return In(i18n.Locale()).QueueRemedyCheckUpdate() }
+
+// QueueRemedyCheckUpdate says "Check for Updates"
+// in the language of msgs.
+//
+// Button of the card: look for a newer yt-dlp again.
+func (msgs Messages) QueueRemedyCheckUpdate() string {
+	return Catalog.Format(msgs.locale, "queueRemedyCheckUpdate", nil)
+}
+
+// QueueRemedyCookies says "Can't read {browser}'s sign-in"
+// in the language the app shows.
+//
+// Headline of a failed download's card when yt-dlp could not read the
+// browser's sign-in.
+func QueueRemedyCookies(browser string) string { return In(i18n.Locale()).QueueRemedyCookies(browser) }
+
+// QueueRemedyCookies says "Can't read {browser}'s sign-in"
+// in the language of msgs.
+//
+// Headline of a failed download's card when yt-dlp could not read the
+// browser's sign-in.
+func (msgs Messages) QueueRemedyCookies(browser string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyCookies", map[string]any{"browser": browser})
+}
+
+// QueueRemedyCookiesWhy says "There's no {browser} sign-in data on this computer. Try another browser you're signed in with."
+// in the language the app shows.
+//
+// What to do when the browser has no sign-in data on this computer.
+func QueueRemedyCookiesWhy(browser string) string {
+	return In(i18n.Locale()).QueueRemedyCookiesWhy(browser)
+}
+
+// QueueRemedyCookiesWhy says "There's no {browser} sign-in data on this computer. Try another browser you're signed in with."
+// in the language of msgs.
+//
+// What to do when the browser has no sign-in data on this computer.
+func (msgs Messages) QueueRemedyCookiesWhy(browser string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyCookiesWhy", map[string]any{"browser": browser})
+}
+
+// QueueRemedyDrm says "{site} is DRM-protected"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the site encrypts its videos with
+// DRM.
+func QueueRemedyDrm(site string) string { return In(i18n.Locale()).QueueRemedyDrm(site) }
+
+// QueueRemedyDrm says "{site} is DRM-protected"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the site encrypts its videos with
+// DRM.
+func (msgs Messages) QueueRemedyDrm(site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyDrm", map[string]any{"site": site})
+}
+
+// QueueRemedyDrmWhy says "The video is encrypted and can't be downloaded. If you have a local file, drag it in."
+// in the language the app shows.
+//
+// What to do about a DRM-protected video.
+func QueueRemedyDrmWhy() string { return In(i18n.Locale()).QueueRemedyDrmWhy() }
+
+// QueueRemedyDrmWhy says "The video is encrypted and can't be downloaded. If you have a local file, drag it in."
+// in the language of msgs.
+//
+// What to do about a DRM-protected video.
+func (msgs Messages) QueueRemedyDrmWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyDrmWhy", nil)
+}
+
+// QueueRemedyFindBrowsers says "Find Browsers Again"
+// in the language the app shows.
+//
+// Button of a failed download's card: look for browsers again.
+func QueueRemedyFindBrowsers() string { return In(i18n.Locale()).QueueRemedyFindBrowsers() }
+
+// QueueRemedyFindBrowsers says "Find Browsers Again"
+// in the language of msgs.
+//
+// Button of a failed download's card: look for browsers again.
+func (msgs Messages) QueueRemedyFindBrowsers() string {
+	return Catalog.Format(msgs.locale, "queueRemedyFindBrowsers", nil)
+}
+
+// QueueRemedyHost says "Can't find {host}"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the link's host does not resolve.
+func QueueRemedyHost(host string) string { return In(i18n.Locale()).QueueRemedyHost(host) }
+
+// QueueRemedyHost says "Can't find {host}"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the link's host does not resolve.
+func (msgs Messages) QueueRemedyHost(host string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyHost", map[string]any{"host": host})
+}
+
+// QueueRemedyHostWhy says "If your network is working, the address in the link is probably wrong, or the website has shut down. Use another link…"
+// in the language the app shows.
+//
+// What to do when the link's host does not resolve.
+func QueueRemedyHostWhy() string { return In(i18n.Locale()).QueueRemedyHostWhy() }
+
+// QueueRemedyHostWhy says "If your network is working, the address in the link is probably wrong, or the website has shut down. Use another link…"
+// in the language of msgs.
+//
+// What to do when the link's host does not resolve.
+func (msgs Messages) QueueRemedyHostWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyHostWhy", nil)
+}
+
+// QueueRemedyLocal says "Choose Local File"
+// in the language the app shows.
+//
+// Button of a failed download's card: pick a video file on this computer
+// instead.
+func QueueRemedyLocal() string { return In(i18n.Locale()).QueueRemedyLocal() }
+
+// QueueRemedyLocal says "Choose Local File"
+// in the language of msgs.
+//
+// Button of a failed download's card: pick a video file on this computer
+// instead.
+func (msgs Messages) QueueRemedyLocal() string {
+	return Catalog.Format(msgs.locale, "queueRemedyLocal", nil)
+}
+
+// QueueRemedyLogin says "Sign-in required"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the video needs an account.
+func QueueRemedyLogin() string { return In(i18n.Locale()).QueueRemedyLogin() }
+
+// QueueRemedyLogin says "Sign-in required"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the video needs an account.
+func (msgs Messages) QueueRemedyLogin() string {
+	return Catalog.Format(msgs.locale, "queueRemedyLogin", nil)
+}
+
+// QueueRemedyLoginBorrow says "Use the account you're signed in to in your browser. No password is stored."
+// in the language the app shows.
+//
+// Second sentence of the card of a video that needs an account, when a
+// browser's sign-in can be borrowed.
+func QueueRemedyLoginBorrow() string { return In(i18n.Locale()).QueueRemedyLoginBorrow() }
+
+// QueueRemedyLoginBorrow says "Use the account you're signed in to in your browser. No password is stored."
+// in the language of msgs.
+//
+// Second sentence of the card of a video that needs an account, when a
+// browser's sign-in can be borrowed.
+func (msgs Messages) QueueRemedyLoginBorrow() string {
+	return Catalog.Format(msgs.locale, "queueRemedyLoginBorrow", nil)
+}
+
+// QueueRemedyLoginExpired says "Your {site} sign-in has expired"
+// in the language the app shows.
+//
+// Headline of a failed download's card when the borrowed sign-in to the
+// site has expired.
+func QueueRemedyLoginExpired(site string) string {
+	return In(i18n.Locale()).QueueRemedyLoginExpired(site)
+}
+
+// QueueRemedyLoginExpired says "Your {site} sign-in has expired"
+// in the language of msgs.
+//
+// Headline of a failed download's card when the borrowed sign-in to the
+// site has expired.
+func (msgs Messages) QueueRemedyLoginExpired(site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyLoginExpired", map[string]any{"site": site})
+}
+
+// QueueRemedyLoginExpiredWhy says "Sign in to {site} again in {browser}, then come back and retry."
+// in the language the app shows.
+//
+// What to do when the borrowed sign-in to the site has expired.
+func QueueRemedyLoginExpiredWhy(browser string, site string) string {
+	return In(i18n.Locale()).QueueRemedyLoginExpiredWhy(browser, site)
+}
+
+// QueueRemedyLoginExpiredWhy says "Sign in to {site} again in {browser}, then come back and retry."
+// in the language of msgs.
+//
+// What to do when the borrowed sign-in to the site has expired.
+func (msgs Messages) QueueRemedyLoginExpiredWhy(browser string, site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyLoginExpiredWhy", map[string]any{"browser": browser, "site": site})
+}
+
+// QueueRemedyLoginNeed says "This video on {host} needs an account."
+// in the language the app shows.
+//
+// First sentence of the card of a video that needs an account.
+func QueueRemedyLoginNeed(host string) string { return In(i18n.Locale()).QueueRemedyLoginNeed(host) }
+
+// QueueRemedyLoginNeed says "This video on {host} needs an account."
+// in the language of msgs.
+//
+// First sentence of the card of a video that needs an account.
+func (msgs Messages) QueueRemedyLoginNeed(host string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyLoginNeed", map[string]any{"host": host})
+}
+
+// QueueRemedyMembers says "Video for channel members only"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the video is for the channel's
+// paying members.
+func QueueRemedyMembers() string { return In(i18n.Locale()).QueueRemedyMembers() }
+
+// QueueRemedyMembers says "Video for channel members only"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the video is for the channel's
+// paying members.
+func (msgs Messages) QueueRemedyMembers() string {
+	return Catalog.Format(msgs.locale, "queueRemedyMembers", nil)
+}
+
+// QueueRemedyMembersBorrow says "Use the sign-in of a browser where your membership is active."
+// in the language the app shows.
+//
+// Second sentence of the card of a members-only video, when a browser's
+// sign-in can be borrowed.
+func QueueRemedyMembersBorrow() string { return In(i18n.Locale()).QueueRemedyMembersBorrow() }
+
+// QueueRemedyMembersBorrow says "Use the sign-in of a browser where your membership is active."
+// in the language of msgs.
+//
+// Second sentence of the card of a members-only video, when a browser's
+// sign-in can be borrowed.
+func (msgs Messages) QueueRemedyMembersBorrow() string {
+	return Catalog.Format(msgs.locale, "queueRemedyMembersBorrow", nil)
+}
+
+// QueueRemedyMembersNeed says "It needs a channel membership."
+// in the language the app shows.
+//
+// First sentence of the card of a video for the channel's members.
+func QueueRemedyMembersNeed() string { return In(i18n.Locale()).QueueRemedyMembersNeed() }
+
+// QueueRemedyMembersNeed says "It needs a channel membership."
+// in the language of msgs.
+//
+// First sentence of the card of a video for the channel's members.
+func (msgs Messages) QueueRemedyMembersNeed() string {
+	return Catalog.Format(msgs.locale, "queueRemedyMembersNeed", nil)
+}
+
+// QueueRemedyNetwork says "Can't connect to the network"
+// in the language the app shows.
+//
+// Headline of a failed download's card: no network.
+func QueueRemedyNetwork() string { return In(i18n.Locale()).QueueRemedyNetwork() }
+
+// QueueRemedyNetwork says "Can't connect to the network"
+// in the language of msgs.
+//
+// Headline of a failed download's card: no network.
+func (msgs Messages) QueueRemedyNetwork() string {
+	return Catalog.Format(msgs.locale, "queueRemedyNetwork", nil)
+}
+
+// QueueRemedyNetworkWhy says "Check your network connection, then retry."
+// in the language the app shows.
+//
+// What to do when there is no network.
+func QueueRemedyNetworkWhy() string { return In(i18n.Locale()).QueueRemedyNetworkWhy() }
+
+// QueueRemedyNetworkWhy says "Check your network connection, then retry."
+// in the language of msgs.
+//
+// What to do when there is no network.
+func (msgs Messages) QueueRemedyNetworkWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyNetworkWhy", nil)
+}
+
+// QueueRemedyNoBrowser says "Couldn't find a browser on this computer whose sign-in Kando can use. Sign in with Chrome, Firefox, Edge, Brave or Ch…"
+// in the language the app shows.
+//
+// Sentence of a failed download's card that wants a sign-in when no browser
+// on this computer has one yt-dlp can borrow.
+func QueueRemedyNoBrowser() string { return In(i18n.Locale()).QueueRemedyNoBrowser() }
+
+// QueueRemedyNoBrowser says "Couldn't find a browser on this computer whose sign-in Kando can use. Sign in with Chrome, Firefox, Edge, Brave or Ch…"
+// in the language of msgs.
+//
+// Sentence of a failed download's card that wants a sign-in when no browser
+// on this computer has one yt-dlp can borrow.
+func (msgs Messages) QueueRemedyNoBrowser() string {
+	return Catalog.Format(msgs.locale, "queueRemedyNoBrowser", nil)
+}
+
+// QueueRemedyOpenSystemSettings says "Open System Settings"
+// in the language the app shows.
+//
+// Button of the card that opens the Full Disk Access pane of System
+// Settings.
+func QueueRemedyOpenSystemSettings() string { return In(i18n.Locale()).QueueRemedyOpenSystemSettings() }
+
+// QueueRemedyOpenSystemSettings says "Open System Settings"
+// in the language of msgs.
+//
+// Button of the card that opens the Full Disk Access pane of System
+// Settings.
+func (msgs Messages) QueueRemedyOpenSystemSettings() string {
+	return Catalog.Format(msgs.locale, "queueRemedyOpenSystemSettings", nil)
+}
+
+// QueueRemedyOutdated says "{site} has changed, and the download component needs an update"
+// in the language the app shows.
+//
+// Headline of a failed download's card when the site changed and yt-dlp
+// needs an update.
+func QueueRemedyOutdated(site string) string { return In(i18n.Locale()).QueueRemedyOutdated(site) }
+
+// QueueRemedyOutdated says "{site} has changed, and the download component needs an update"
+// in the language of msgs.
+//
+// Headline of a failed download's card when the site changed and yt-dlp
+// needs an update.
+func (msgs Messages) QueueRemedyOutdated(site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyOutdated", map[string]any{"site": site})
+}
+
+// QueueRemedyOutdatedLatest says "{site} has changed, and the download component hasn't caught up yet"
+// in the language the app shows.
+//
+// Headline of a failed download's card when the site changed and even the
+// newest yt-dlp cannot read it yet.
+func QueueRemedyOutdatedLatest(site string) string {
+	return In(i18n.Locale()).QueueRemedyOutdatedLatest(site)
+}
+
+// QueueRemedyOutdatedLatest says "{site} has changed, and the download component hasn't caught up yet"
+// in the language of msgs.
+//
+// Headline of a failed download's card when the site changed and even the
+// newest yt-dlp cannot read it yet.
+func (msgs Messages) QueueRemedyOutdatedLatest(site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyOutdatedLatest", map[string]any{"site": site})
+}
+
+// QueueRemedyOutdatedLatestWhy says "This computer's yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; retry in a day o…"
+// in the language the app shows.
+//
+// What to do when even the newest yt-dlp cannot read the site yet.
+func QueueRemedyOutdatedLatestWhy(version string) string {
+	return In(i18n.Locale()).QueueRemedyOutdatedLatestWhy(version)
+}
+
+// QueueRemedyOutdatedLatestWhy says "This computer's yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; retry in a day o…"
+// in the language of msgs.
+//
+// What to do when even the newest yt-dlp cannot read the site yet.
+func (msgs Messages) QueueRemedyOutdatedLatestWhy(version string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyOutdatedLatestWhy", map[string]any{"version": version})
+}
+
+// QueueRemedyOutdatedManualWhy says "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Retry once it's updated."
+// in the language the app shows.
+//
+// Under the headline when yt-dlp needs an update Kando cannot do itself;
+// hint is how the user updates it (queueYtdlpHint…).
+func QueueRemedyOutdatedManualWhy(version string, hint string) string {
+	return In(i18n.Locale()).QueueRemedyOutdatedManualWhy(version, hint)
+}
+
+// QueueRemedyOutdatedManualWhy says "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Retry once it's updated."
+// in the language of msgs.
+//
+// Under the headline when yt-dlp needs an update Kando cannot do itself;
+// hint is how the user updates it (queueYtdlpHint…).
+func (msgs Messages) QueueRemedyOutdatedManualWhy(version string, hint string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyOutdatedManualWhy", map[string]any{"version": version, "hint": hint})
+}
+
+// QueueRemedyOutdatedVersionWhy says "This computer's yt-dlp is version {version}. Updating takes a few seconds."
+// in the language the app shows.
+//
+// Under the headline when yt-dlp needs an update.
+func QueueRemedyOutdatedVersionWhy(version string) string {
+	return In(i18n.Locale()).QueueRemedyOutdatedVersionWhy(version)
+}
+
+// QueueRemedyOutdatedVersionWhy says "This computer's yt-dlp is version {version}. Updating takes a few seconds."
+// in the language of msgs.
+//
+// Under the headline when yt-dlp needs an update.
+func (msgs Messages) QueueRemedyOutdatedVersionWhy(version string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyOutdatedVersionWhy", map[string]any{"version": version})
+}
+
+// QueueRemedyOutdatedWhy says "This computer's yt-dlp is too old. Updating takes a few seconds."
+// in the language the app shows.
+//
+// Under the headline when yt-dlp needs an update and its version is not
+// known.
+func QueueRemedyOutdatedWhy() string { return In(i18n.Locale()).QueueRemedyOutdatedWhy() }
+
+// QueueRemedyOutdatedWhy says "This computer's yt-dlp is too old. Updating takes a few seconds."
+// in the language of msgs.
+//
+// Under the headline when yt-dlp needs an update and its version is not
+// known.
+func (msgs Messages) QueueRemedyOutdatedWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyOutdatedWhy", nil)
+}
+
+// QueueRemedyPremium says "Video for Bilibili Premium members only"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the Bilibili video is for Bilibili
+// Premium (大会员) members.
+func QueueRemedyPremium() string { return In(i18n.Locale()).QueueRemedyPremium() }
+
+// QueueRemedyPremium says "Video for Bilibili Premium members only"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the Bilibili video is for Bilibili
+// Premium (大会员) members.
+func (msgs Messages) QueueRemedyPremium() string {
+	return Catalog.Format(msgs.locale, "queueRemedyPremium", nil)
+}
+
+// QueueRemedyPremiumNeed says "It needs Bilibili Premium."
+// in the language the app shows.
+//
+// First sentence of the card of a Bilibili Premium (大会员) video.
+func QueueRemedyPremiumNeed() string { return In(i18n.Locale()).QueueRemedyPremiumNeed() }
+
+// QueueRemedyPremiumNeed says "It needs Bilibili Premium."
+// in the language of msgs.
+//
+// First sentence of the card of a Bilibili Premium (大会员) video.
+func (msgs Messages) QueueRemedyPremiumNeed() string {
+	return Catalog.Format(msgs.locale, "queueRemedyPremiumNeed", nil)
+}
+
+// QueueRemedyPrivate says "The video is private or was deleted"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the video is private or deleted.
+func QueueRemedyPrivate() string { return In(i18n.Locale()).QueueRemedyPrivate() }
+
+// QueueRemedyPrivate says "The video is private or was deleted"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the video is private or deleted.
+func (msgs Messages) QueueRemedyPrivate() string {
+	return Catalog.Format(msgs.locale, "queueRemedyPrivate", nil)
+}
+
+// QueueRemedyPrivateWhy says "It can't be downloaded. If it's available elsewhere, use another link."
+// in the language the app shows.
+//
+// What to do about a private or deleted video.
+func QueueRemedyPrivateWhy() string { return In(i18n.Locale()).QueueRemedyPrivateWhy() }
+
+// QueueRemedyPrivateWhy says "It can't be downloaded. If it's available elsewhere, use another link."
+// in the language of msgs.
+//
+// What to do about a private or deleted video.
+func (msgs Messages) QueueRemedyPrivateWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyPrivateWhy", nil)
+}
+
+// QueueRemedyRateLimit says "{site} is limiting downloads for now"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the site is refusing too many
+// requests.
+func QueueRemedyRateLimit(site string) string { return In(i18n.Locale()).QueueRemedyRateLimit(site) }
+
+// QueueRemedyRateLimit says "{site} is limiting downloads for now"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the site is refusing too many
+// requests.
+func (msgs Messages) QueueRemedyRateLimit(site string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyRateLimit", map[string]any{"site": site})
+}
+
+// QueueRemedyRateLimitWait says "Too many requests. Wait a few minutes and retry."
+// in the language the app shows.
+//
+// What to do when the site is limiting downloads, when no browser's sign-in
+// can be borrowed.
+func QueueRemedyRateLimitWait() string { return In(i18n.Locale()).QueueRemedyRateLimitWait() }
+
+// QueueRemedyRateLimitWait says "Too many requests. Wait a few minutes and retry."
+// in the language of msgs.
+//
+// What to do when the site is limiting downloads, when no browser's sign-in
+// can be borrowed.
+func (msgs Messages) QueueRemedyRateLimitWait() string {
+	return Catalog.Format(msgs.locale, "queueRemedyRateLimitWait", nil)
+}
+
+// QueueRemedyRateLimitWhy says "Too many requests. Wait a few minutes and retry, or use the account you're signed in to in your browser."
+// in the language the app shows.
+//
+// What to do when the site is limiting downloads, when a browser's sign-in
+// can be borrowed.
+func QueueRemedyRateLimitWhy() string { return In(i18n.Locale()).QueueRemedyRateLimitWhy() }
+
+// QueueRemedyRateLimitWhy says "Too many requests. Wait a few minutes and retry, or use the account you're signed in to in your browser."
+// in the language of msgs.
+//
+// What to do when the site is limiting downloads, when a browser's sign-in
+// can be borrowed.
+func (msgs Messages) QueueRemedyRateLimitWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyRateLimitWhy", nil)
+}
+
+// QueueRemedyRegion says "Not available in your region"
+// in the language the app shows.
+//
+// Headline of a failed download's card: the video is blocked in the user's
+// region.
+func QueueRemedyRegion() string { return In(i18n.Locale()).QueueRemedyRegion() }
+
+// QueueRemedyRegion says "Not available in your region"
+// in the language of msgs.
+//
+// Headline of a failed download's card: the video is blocked in the user's
+// region.
+func (msgs Messages) QueueRemedyRegion() string {
+	return Catalog.Format(msgs.locale, "queueRemedyRegion", nil)
+}
+
+// QueueRemedyRegionWhy says "The uploader restricted where it can be watched. If the video is available elsewhere, use another link."
+// in the language the app shows.
+//
+// What to do about a video blocked in the user's region.
+func QueueRemedyRegionWhy() string { return In(i18n.Locale()).QueueRemedyRegionWhy() }
+
+// QueueRemedyRegionWhy says "The uploader restricted where it can be watched. If the video is available elsewhere, use another link."
+// in the language of msgs.
+//
+// What to do about a video blocked in the user's region.
+func (msgs Messages) QueueRemedyRegionWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyRegionWhy", nil)
+}
+
+// QueueRemedyRelogged says "Signed In Again, Retry"
+// in the language the app shows.
+//
+// Button of a failed download's card after the user signed in to the site
+// again in the browser.
+func QueueRemedyRelogged() string { return In(i18n.Locale()).QueueRemedyRelogged() }
+
+// QueueRemedyRelogged says "Signed In Again, Retry"
+// in the language of msgs.
+//
+// Button of a failed download's card after the user signed in to the site
+// again in the browser.
+func (msgs Messages) QueueRemedyRelogged() string {
+	return Catalog.Format(msgs.locale, "queueRemedyRelogged", nil)
+}
+
+// QueueRemedyRetry says "Retry"
+// in the language the app shows.
+//
+// Button of a failed download's card.
+func QueueRemedyRetry() string { return In(i18n.Locale()).QueueRemedyRetry() }
+
+// QueueRemedyRetry says "Retry"
+// in the language of msgs.
+//
+// Button of a failed download's card.
+func (msgs Messages) QueueRemedyRetry() string {
+	return Catalog.Format(msgs.locale, "queueRemedyRetry", nil)
+}
+
+// QueueRemedySafariWhy says "macOS only lets apps with Full Disk Access read Safari's sign-in. Allow Kando in System Settings and come back to ret…"
+// in the language the app shows.
+//
+// What to do when macOS keeps Safari's cookies from Kando: grant Full Disk
+// Access in System Settings. Use Apple's name of that permission.
+func QueueRemedySafariWhy() string { return In(i18n.Locale()).QueueRemedySafariWhy() }
+
+// QueueRemedySafariWhy says "macOS only lets apps with Full Disk Access read Safari's sign-in. Allow Kando in System Settings and come back to ret…"
+// in the language of msgs.
+//
+// What to do when macOS keeps Safari's cookies from Kando: grant Full Disk
+// Access in System Settings. Use Apple's name of that permission.
+func (msgs Messages) QueueRemedySafariWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedySafariWhy", nil)
+}
+
+// QueueRemedySentences says "{first} {second}"
+// in the language the app shows.
+//
+// Two sentences of a failed download's card, one after the other: what the
+// video needs, then how to get it.
+func QueueRemedySentences(first string, second string) string {
+	return In(i18n.Locale()).QueueRemedySentences(first, second)
+}
+
+// QueueRemedySentences says "{first} {second}"
+// in the language of msgs.
+//
+// Two sentences of a failed download's card, one after the other: what the
+// video needs, then how to get it.
+func (msgs Messages) QueueRemedySentences(first string, second string) string {
+	return Catalog.Format(msgs.locale, "queueRemedySentences", map[string]any{"first": first, "second": second})
+}
+
+// QueueRemedySites says "See Supported Websites"
+// in the language the app shows.
+//
+// Button of a failed download's card that opens the sheet of supported
+// websites.
+func QueueRemedySites() string { return In(i18n.Locale()).QueueRemedySites() }
+
+// QueueRemedySites says "See Supported Websites"
+// in the language of msgs.
+//
+// Button of a failed download's card that opens the sheet of supported
+// websites.
+func (msgs Messages) QueueRemedySites() string {
+	return Catalog.Format(msgs.locale, "queueRemedySites", nil)
+}
+
+// QueueRemedySwap says "Use Another Link"
+// in the language the app shows.
+//
+// Button of a failed download's card: remove it and paste a link from
+// elsewhere.
+func QueueRemedySwap() string { return In(i18n.Locale()).QueueRemedySwap() }
+
+// QueueRemedySwap says "Use Another Link"
+// in the language of msgs.
+//
+// Button of a failed download's card: remove it and paste a link from
+// elsewhere.
+func (msgs Messages) QueueRemedySwap() string {
+	return Catalog.Format(msgs.locale, "queueRemedySwap", nil)
+}
+
+// QueueRemedySwitchBrowser says "Use {browser} Instead"
+// in the language the app shows.
+//
+// Button of a failed download's card: borrow the sign-in of another
+// browser.
+func QueueRemedySwitchBrowser(browser string) string {
+	return In(i18n.Locale()).QueueRemedySwitchBrowser(browser)
+}
+
+// QueueRemedySwitchBrowser says "Use {browser} Instead"
+// in the language of msgs.
+//
+// Button of a failed download's card: borrow the sign-in of another
+// browser.
+func (msgs Messages) QueueRemedySwitchBrowser(browser string) string {
+	return Catalog.Format(msgs.locale, "queueRemedySwitchBrowser", map[string]any{"browser": browser})
+}
+
+// QueueRemedyUnsupported says "{host} isn't supported"
+// in the language the app shows.
+//
+// Headline of a failed download's card when yt-dlp does not know the site.
+func QueueRemedyUnsupported(host string) string {
+	return In(i18n.Locale()).QueueRemedyUnsupported(host)
+}
+
+// QueueRemedyUnsupported says "{host} isn't supported"
+// in the language of msgs.
+//
+// Headline of a failed download's card when yt-dlp does not know the site.
+func (msgs Messages) QueueRemedyUnsupported(host string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyUnsupported", map[string]any{"host": host})
+}
+
+// QueueRemedyUnsupportedWhy says "No video was found on the page. Use another link, or download it to this computer first and drag it in."
+// in the language the app shows.
+//
+// What to do when yt-dlp found no video on the page.
+func QueueRemedyUnsupportedWhy() string { return In(i18n.Locale()).QueueRemedyUnsupportedWhy() }
+
+// QueueRemedyUnsupportedWhy says "No video was found on the page. Use another link, or download it to this computer first and drag it in."
+// in the language of msgs.
+//
+// What to do when yt-dlp found no video on the page.
+func (msgs Messages) QueueRemedyUnsupportedWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyUnsupportedWhy", nil)
+}
+
+// QueueRemedyUpdate says "Update and Retry"
+// in the language the app shows.
+//
+// Button of the card: update yt-dlp and download again.
+func QueueRemedyUpdate() string { return In(i18n.Locale()).QueueRemedyUpdate() }
+
+// QueueRemedyUpdate says "Update and Retry"
+// in the language of msgs.
+//
+// Button of the card: update yt-dlp and download again.
+func (msgs Messages) QueueRemedyUpdate() string {
+	return Catalog.Format(msgs.locale, "queueRemedyUpdate", nil)
+}
+
+// QueueRemedyUpdated says "Updated, Retry"
+// in the language the app shows.
+//
+// Button of the card once the user updated yt-dlp themselves.
+func QueueRemedyUpdated() string { return In(i18n.Locale()).QueueRemedyUpdated() }
+
+// QueueRemedyUpdated says "Updated, Retry"
+// in the language of msgs.
+//
+// Button of the card once the user updated yt-dlp themselves.
+func (msgs Messages) QueueRemedyUpdated() string {
+	return Catalog.Format(msgs.locale, "queueRemedyUpdated", nil)
+}
+
+// QueueRemedyUpdating says "Updating the download component…"
+// in the language the app shows.
+//
+// Headline of the card of a download yt-dlp was too old for, while yt-dlp
+// updates.
+func QueueRemedyUpdating() string { return In(i18n.Locale()).QueueRemedyUpdating() }
+
+// QueueRemedyUpdating says "Updating the download component…"
+// in the language of msgs.
+//
+// Headline of the card of a download yt-dlp was too old for, while yt-dlp
+// updates.
+func (msgs Messages) QueueRemedyUpdating() string {
+	return Catalog.Format(msgs.locale, "queueRemedyUpdating", nil)
+}
+
+// QueueRemedyUpdatingAction says "Updating…"
+// in the language the app shows.
+//
+// Disabled button of the card while yt-dlp updates.
+func QueueRemedyUpdatingAction() string { return In(i18n.Locale()).QueueRemedyUpdatingAction() }
+
+// QueueRemedyUpdatingAction says "Updating…"
+// in the language of msgs.
+//
+// Disabled button of the card while yt-dlp updates.
+func (msgs Messages) QueueRemedyUpdatingAction() string {
+	return Catalog.Format(msgs.locale, "queueRemedyUpdatingAction", nil)
+}
+
+// QueueRemedyUpdatingWhy says "The download starts again once it's updated."
+// in the language the app shows.
+//
+// Under the headline while yt-dlp updates.
+func QueueRemedyUpdatingWhy() string { return In(i18n.Locale()).QueueRemedyUpdatingWhy() }
+
+// QueueRemedyUpdatingWhy says "The download starts again once it's updated."
+// in the language of msgs.
+//
+// Under the headline while yt-dlp updates.
+func (msgs Messages) QueueRemedyUpdatingWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyUpdatingWhy", nil)
+}
+
+// QueueSaveFailed says "Couldn't save the film list: {error}"
+// in the language the app shows.
+//
+// Error line when library.json, the list of jobs, cannot be written.
+func QueueSaveFailed(error string) string { return In(i18n.Locale()).QueueSaveFailed(error) }
+
+// QueueSaveFailed says "Couldn't save the film list: {error}"
+// in the language of msgs.
+//
+// Error line when library.json, the list of jobs, cannot be written.
+func (msgs Messages) QueueSaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "queueSaveFailed", map[string]any{"error": error})
+}
+
+// QueueStatusCanceled says "Canceled"
+// in the language the app shows.
+//
+// Status of a job the user cancelled.
+func QueueStatusCanceled() string { return In(i18n.Locale()).QueueStatusCanceled() }
+
+// QueueStatusCanceled says "Canceled"
+// in the language of msgs.
+//
+// Status of a job the user cancelled.
+func (msgs Messages) QueueStatusCanceled() string {
+	return Catalog.Format(msgs.locale, "queueStatusCanceled", nil)
+}
+
+// QueueStatusComplete says "Done: {path}"
+// in the language the app shows.
+//
+// Status of a finished job, with the subtitle file it wrote.
+func QueueStatusComplete(path string) string { return In(i18n.Locale()).QueueStatusComplete(path) }
+
+// QueueStatusComplete says "Done: {path}"
+// in the language of msgs.
+//
+// Status of a finished job, with the subtitle file it wrote.
+func (msgs Messages) QueueStatusComplete(path string) string {
+	return Catalog.Format(msgs.locale, "queueStatusComplete", map[string]any{"path": path})
+}
+
+// QueueStatusDownloading says "Downloading the video…"
+// in the language the app shows.
+//
+// Status of a job downloading its video.
+func QueueStatusDownloading() string { return In(i18n.Locale()).QueueStatusDownloading() }
+
+// QueueStatusDownloading says "Downloading the video…"
+// in the language of msgs.
+//
+// Status of a job downloading its video.
+func (msgs Messages) QueueStatusDownloading() string {
+	return Catalog.Format(msgs.locale, "queueStatusDownloading", nil)
+}
+
+// QueueStatusExporting says "Exporting bilingual subtitles…"
+// in the language the app shows.
+//
+// Status of a job writing its bilingual subtitle file.
+func QueueStatusExporting() string { return In(i18n.Locale()).QueueStatusExporting() }
+
+// QueueStatusExporting says "Exporting bilingual subtitles…"
+// in the language of msgs.
+//
+// Status of a job writing its bilingual subtitle file.
+func (msgs Messages) QueueStatusExporting() string {
+	return Catalog.Format(msgs.locale, "queueStatusExporting", nil)
+}
+
+// QueueStatusFailed says "Failed: {error}"
+// in the language the app shows.
+//
+// Status of a failed job, with the pipeline's error. The error must come
+// last: the card reads it back after the text before it.
+func QueueStatusFailed(error string) string { return In(i18n.Locale()).QueueStatusFailed(error) }
+
+// QueueStatusFailed says "Failed: {error}"
+// in the language of msgs.
+//
+// Status of a failed job, with the pipeline's error. The error must come
+// last: the card reads it back after the text before it.
+func (msgs Messages) QueueStatusFailed(error string) string {
+	return Catalog.Format(msgs.locale, "queueStatusFailed", map[string]any{"error": error})
+}
+
+// QueueStatusLibrarySwitched says "Stopped: another library was opened"
+// in the language the app shows.
+//
+// Status of a job stopped because the user opened another library.
+func QueueStatusLibrarySwitched() string { return In(i18n.Locale()).QueueStatusLibrarySwitched() }
+
+// QueueStatusLibrarySwitched says "Stopped: another library was opened"
+// in the language of msgs.
+//
+// Status of a job stopped because the user opened another library.
+func (msgs Messages) QueueStatusLibrarySwitched() string {
+	return Catalog.Format(msgs.locale, "queueStatusLibrarySwitched", nil)
+}
+
+// QueueStatusQueued says "Added to the queue"
+// in the language the app shows.
+//
+// Status of a job waiting in the queue.
+func QueueStatusQueued() string { return In(i18n.Locale()).QueueStatusQueued() }
+
+// QueueStatusQueued says "Added to the queue"
+// in the language of msgs.
+//
+// Status of a job waiting in the queue.
+func (msgs Messages) QueueStatusQueued() string {
+	return Catalog.Format(msgs.locale, "queueStatusQueued", nil)
+}
+
+// QueueStatusTranscribing says "Generating subtitles on this computer…"
+// in the language the app shows.
+//
+// Status of a job transcribing the speech into subtitles with whisper on
+// this computer.
+func QueueStatusTranscribing() string { return In(i18n.Locale()).QueueStatusTranscribing() }
+
+// QueueStatusTranscribing says "Generating subtitles on this computer…"
+// in the language of msgs.
+//
+// Status of a job transcribing the speech into subtitles with whisper on
+// this computer.
+func (msgs Messages) QueueStatusTranscribing() string {
+	return Catalog.Format(msgs.locale, "queueStatusTranscribing", nil)
+}
+
+// QueueStatusTranslating says "Translating the subtitles…"
+// in the language the app shows.
+//
+// Status of a job translating its subtitles.
+func QueueStatusTranslating() string { return In(i18n.Locale()).QueueStatusTranslating() }
+
+// QueueStatusTranslating says "Translating the subtitles…"
+// in the language of msgs.
+//
+// Status of a job translating its subtitles.
+func (msgs Messages) QueueStatusTranslating() string {
+	return Catalog.Format(msgs.locale, "queueStatusTranslating", nil)
+}
+
+// QueueSwapRemoved says "Removed “{name}”. If the video is available elsewhere, paste its link at the top right."
+// in the language the app shows.
+//
+// Message bar after Use Another Link removed the failed card; the link
+// field is at the top right of the window.
+func QueueSwapRemoved(name string) string { return In(i18n.Locale()).QueueSwapRemoved(name) }
+
+// QueueSwapRemoved says "Removed “{name}”. If the video is available elsewhere, paste its link at the top right."
+// in the language of msgs.
+//
+// Message bar after Use Another Link removed the failed card; the link
+// field is at the top right of the window.
+func (msgs Messages) QueueSwapRemoved(name string) string {
+	return Catalog.Format(msgs.locale, "queueSwapRemoved", map[string]any{"name": name})
+}
+
+// QueueUpdateFailed says "Couldn't update the download component yt-dlp: {error}"
+// in the language the app shows.
+//
+// Message bar when yt-dlp could not be updated, with why or how to update
+// it.
+func QueueUpdateFailed(error string) string { return In(i18n.Locale()).QueueUpdateFailed(error) }
+
+// QueueUpdateFailed says "Couldn't update the download component yt-dlp: {error}"
+// in the language of msgs.
+//
+// Message bar when yt-dlp could not be updated, with why or how to update
+// it.
+func (msgs Messages) QueueUpdateFailed(error string) string {
+	return Catalog.Format(msgs.locale, "queueUpdateFailed", map[string]any{"error": error})
+}
+
+// QueueYtdlpHintBrew says "run brew upgrade yt-dlp in a terminal"
+// in the language the app shows.
+//
+// How to update a yt-dlp installed with Homebrew that Kando cannot update;
+// it follows a colon in a sentence.
+func QueueYtdlpHintBrew() string { return In(i18n.Locale()).QueueYtdlpHintBrew() }
+
+// QueueYtdlpHintBrew says "run brew upgrade yt-dlp in a terminal"
+// in the language of msgs.
+//
+// How to update a yt-dlp installed with Homebrew that Kando cannot update;
+// it follows a colon in a sentence.
+func (msgs Messages) QueueYtdlpHintBrew() string {
+	return Catalog.Format(msgs.locale, "queueYtdlpHintBrew", nil)
+}
+
+// QueueYtdlpHintPipx says "run pipx upgrade yt-dlp in a terminal"
+// in the language the app shows.
+//
+// How to update a yt-dlp installed with pipx that Kando cannot update; it
+// follows a colon in a sentence.
+func QueueYtdlpHintPipx() string { return In(i18n.Locale()).QueueYtdlpHintPipx() }
+
+// QueueYtdlpHintPipx says "run pipx upgrade yt-dlp in a terminal"
+// in the language of msgs.
+//
+// How to update a yt-dlp installed with pipx that Kando cannot update; it
+// follows a colon in a sentence.
+func (msgs Messages) QueueYtdlpHintPipx() string {
+	return Catalog.Format(msgs.locale, "queueYtdlpHintPipx", nil)
+}
+
+// QueueYtdlpHintStandalone says "yt-dlp is in {dir}, where Kando isn't allowed to replace it; update it the way you installed it, or run sudo yt-dlp -U"
+// in the language the app shows.
+//
+// How to update a standalone yt-dlp in a folder Kando may not write; it
+// follows a colon in a sentence.
+func QueueYtdlpHintStandalone(dir string) string {
+	return In(i18n.Locale()).QueueYtdlpHintStandalone(dir)
+}
+
+// QueueYtdlpHintStandalone says "yt-dlp is in {dir}, where Kando isn't allowed to replace it; update it the way you installed it, or run sudo yt-dlp -U"
+// in the language of msgs.
+//
+// How to update a standalone yt-dlp in a folder Kando may not write; it
+// follows a colon in a sentence.
+func (msgs Messages) QueueYtdlpHintStandalone(dir string) string {
+	return Catalog.Format(msgs.locale, "queueYtdlpHintStandalone", map[string]any{"dir": dir})
+}
+
+// QueueYtdlpLatest says "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again…"
+// in the language the app shows.
+//
+// Message bar when an update found yt-dlp already the newest.
+func QueueYtdlpLatest(version string) string { return In(i18n.Locale()).QueueYtdlpLatest(version) }
+
+// QueueYtdlpLatest says "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again…"
+// in the language of msgs.
+//
+// Message bar when an update found yt-dlp already the newest.
+func (msgs Messages) QueueYtdlpLatest(version string) string {
+	return Catalog.Format(msgs.locale, "queueYtdlpLatest", map[string]any{"version": version})
+}
+
+// QueueYtdlpUpdated says "Updated the download component to {version} and restarted {count, plural, one {# download} other {# downloads}}."
+// in the language the app shows.
+//
+// Message bar after yt-dlp was updated and the downloads it was too old for
+// were queued again.
+func QueueYtdlpUpdated(version string, count int) string {
+	return In(i18n.Locale()).QueueYtdlpUpdated(version, count)
+}
+
+// QueueYtdlpUpdated says "Updated the download component to {version} and restarted {count, plural, one {# download} other {# downloads}}."
+// in the language of msgs.
+//
+// Message bar after yt-dlp was updated and the downloads it was too old for
+// were queued again.
+func (msgs Messages) QueueYtdlpUpdated(version string, count int) string {
+	return Catalog.Format(msgs.locale, "queueYtdlpUpdated", map[string]any{"version": version, "count": count})
+}
+
+// ReadinessCheckingSignIn says "Checking the EveryAPI sign-in…"
+// in the language the app shows.
+//
+// The sidebar's status line while Kando asks the everyapi program whether
+// the user is signed in.
+func ReadinessCheckingSignIn() string { return In(i18n.Locale()).ReadinessCheckingSignIn() }
+
+// ReadinessCheckingSignIn says "Checking the EveryAPI sign-in…"
+// in the language of msgs.
+//
+// The sidebar's status line while Kando asks the everyapi program whether
+// the user is signed in.
+func (msgs Messages) ReadinessCheckingSignIn() string {
+	return Catalog.Format(msgs.locale, "readinessCheckingSignIn", nil)
+}
+
+// ReadinessCheckingTools says "Checking components…"
+// in the language the app shows.
+//
+// The sidebar's status line before the programs a job needs have been
+// looked for.
+func ReadinessCheckingTools() string { return In(i18n.Locale()).ReadinessCheckingTools() }
+
+// ReadinessCheckingTools says "Checking components…"
+// in the language of msgs.
+//
+// The sidebar's status line before the programs a job needs have been
+// looked for.
+func (msgs Messages) ReadinessCheckingTools() string {
+	return Catalog.Format(msgs.locale, "readinessCheckingTools", nil)
+}
+
+// ReadinessMissingTools says "Missing components: {tools}"
+// in the language the app shows.
+//
+// The sidebar's status line when programs a job needs are not installed,
+// with their names joined by precheckToolSeparator.
+func ReadinessMissingTools(tools string) string {
+	return In(i18n.Locale()).ReadinessMissingTools(tools)
+}
+
+// ReadinessMissingTools says "Missing components: {tools}"
+// in the language of msgs.
+//
+// The sidebar's status line when programs a job needs are not installed,
+// with their names joined by precheckToolSeparator.
+func (msgs Messages) ReadinessMissingTools(tools string) string {
+	return Catalog.Format(msgs.locale, "readinessMissingTools", map[string]any{"tools": tools})
+}
+
+// ReadinessReady says "Ready to process"
+// in the language the app shows.
+//
+// The sidebar's status line when a job can start.
+func ReadinessReady() string { return In(i18n.Locale()).ReadinessReady() }
+
+// ReadinessReady says "Ready to process"
+// in the language of msgs.
+//
+// The sidebar's status line when a job can start.
+func (msgs Messages) ReadinessReady() string {
+	return Catalog.Format(msgs.locale, "readinessReady", nil)
+}
+
+// SettingsAIBlurbCustom says "Any API compatible with OpenAI Chat Completions"
+// in the language the app shows.
+//
+// What the OpenAI Compatible item is. A phrase.
+func SettingsAIBlurbCustom() string { return In(i18n.Locale()).SettingsAIBlurbCustom() }
+
+// SettingsAIBlurbCustom says "Any API compatible with OpenAI Chat Completions"
+// in the language of msgs.
+//
+// What the OpenAI Compatible item is. A phrase.
+func (msgs Messages) SettingsAIBlurbCustom() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbCustom", nil)
+}
+
+// SettingsAIBlurbDashScope says "Alibaba Cloud DashScope's compatible API"
+// in the language the app shows.
+//
+// What the Qwen service is: Alibaba Cloud DashScope's compatible API. A
+// phrase.
+func SettingsAIBlurbDashScope() string { return In(i18n.Locale()).SettingsAIBlurbDashScope() }
+
+// SettingsAIBlurbDashScope says "Alibaba Cloud DashScope's compatible API"
+// in the language of msgs.
+//
+// What the Qwen service is: Alibaba Cloud DashScope's compatible API. A
+// phrase.
+func (msgs Messages) SettingsAIBlurbDashScope() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbDashScope", nil)
+}
+
+// SettingsAIBlurbDeepSeek says "DeepSeek's OpenAI-compatible API"
+// in the language the app shows.
+//
+// What the DeepSeek service is. A phrase.
+func SettingsAIBlurbDeepSeek() string { return In(i18n.Locale()).SettingsAIBlurbDeepSeek() }
+
+// SettingsAIBlurbDeepSeek says "DeepSeek's OpenAI-compatible API"
+// in the language of msgs.
+//
+// What the DeepSeek service is. A phrase.
+func (msgs Messages) SettingsAIBlurbDeepSeek() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbDeepSeek", nil)
+}
+
+// SettingsAIBlurbEveryAPI says "EveryAPI signed in on this Mac"
+// in the language the app shows.
+//
+// What the EveryAPI service is, at the start of the footnote. A phrase; the
+// footnote ends it with a period.
+func SettingsAIBlurbEveryAPI() string { return In(i18n.Locale()).SettingsAIBlurbEveryAPI() }
+
+// SettingsAIBlurbEveryAPI says "EveryAPI signed in on this Mac"
+// in the language of msgs.
+//
+// What the EveryAPI service is, at the start of the footnote. A phrase; the
+// footnote ends it with a period.
+func (msgs Messages) SettingsAIBlurbEveryAPI() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbEveryAPI", nil)
+}
+
+// SettingsAIBlurbGroq says "Groq's OpenAI-compatible API"
+// in the language the app shows.
+//
+// What the Groq service is. A phrase.
+func SettingsAIBlurbGroq() string { return In(i18n.Locale()).SettingsAIBlurbGroq() }
+
+// SettingsAIBlurbGroq says "Groq's OpenAI-compatible API"
+// in the language of msgs.
+//
+// What the Groq service is. A phrase.
+func (msgs Messages) SettingsAIBlurbGroq() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbGroq", nil)
+}
+
+// SettingsAIBlurbLMStudio says "LM Studio on this Mac"
+// in the language the app shows.
+//
+// What the LM Studio service is: LM Studio running on this Mac. A phrase.
+func SettingsAIBlurbLMStudio() string { return In(i18n.Locale()).SettingsAIBlurbLMStudio() }
+
+// SettingsAIBlurbLMStudio says "LM Studio on this Mac"
+// in the language of msgs.
+//
+// What the LM Studio service is: LM Studio running on this Mac. A phrase.
+func (msgs Messages) SettingsAIBlurbLMStudio() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbLMStudio", nil)
+}
+
+// SettingsAIBlurbMistral says "Mistral's OpenAI-compatible API"
+// in the language the app shows.
+//
+// What the Mistral service is. A phrase.
+func SettingsAIBlurbMistral() string { return In(i18n.Locale()).SettingsAIBlurbMistral() }
+
+// SettingsAIBlurbMistral says "Mistral's OpenAI-compatible API"
+// in the language of msgs.
+//
+// What the Mistral service is. A phrase.
+func (msgs Messages) SettingsAIBlurbMistral() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbMistral", nil)
+}
+
+// SettingsAIBlurbMoonshot says "Moonshot's OpenAI-compatible API"
+// in the language the app shows.
+//
+// What the Kimi service is: Moonshot AI's API. A phrase.
+func SettingsAIBlurbMoonshot() string { return In(i18n.Locale()).SettingsAIBlurbMoonshot() }
+
+// SettingsAIBlurbMoonshot says "Moonshot's OpenAI-compatible API"
+// in the language of msgs.
+//
+// What the Kimi service is: Moonshot AI's API. A phrase.
+func (msgs Messages) SettingsAIBlurbMoonshot() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbMoonshot", nil)
+}
+
+// SettingsAIBlurbOllama says "Ollama on this Mac"
+// in the language the app shows.
+//
+// What the Ollama service is: Ollama running on this Mac. A phrase.
+func SettingsAIBlurbOllama() string { return In(i18n.Locale()).SettingsAIBlurbOllama() }
+
+// SettingsAIBlurbOllama says "Ollama on this Mac"
+// in the language of msgs.
+//
+// What the Ollama service is: Ollama running on this Mac. A phrase.
+func (msgs Messages) SettingsAIBlurbOllama() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbOllama", nil)
+}
+
+// SettingsAIBlurbOpenAI says "OpenAI's official API"
+// in the language the app shows.
+//
+// What the OpenAI service is. A phrase.
+func SettingsAIBlurbOpenAI() string { return In(i18n.Locale()).SettingsAIBlurbOpenAI() }
+
+// SettingsAIBlurbOpenAI says "OpenAI's official API"
+// in the language of msgs.
+//
+// What the OpenAI service is. A phrase.
+func (msgs Messages) SettingsAIBlurbOpenAI() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbOpenAI", nil)
+}
+
+// SettingsAIBlurbOpenRouter says "Models from many providers through one API"
+// in the language the app shows.
+//
+// What the OpenRouter service is. A phrase.
+func SettingsAIBlurbOpenRouter() string { return In(i18n.Locale()).SettingsAIBlurbOpenRouter() }
+
+// SettingsAIBlurbOpenRouter says "Models from many providers through one API"
+// in the language of msgs.
+//
+// What the OpenRouter service is. A phrase.
+func (msgs Messages) SettingsAIBlurbOpenRouter() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbOpenRouter", nil)
+}
+
+// SettingsAIBlurbSiliconFlow says "SiliconFlow's OpenAI-compatible API"
+// in the language the app shows.
+//
+// What the SiliconFlow service is. A phrase.
+func SettingsAIBlurbSiliconFlow() string { return In(i18n.Locale()).SettingsAIBlurbSiliconFlow() }
+
+// SettingsAIBlurbSiliconFlow says "SiliconFlow's OpenAI-compatible API"
+// in the language of msgs.
+//
+// What the SiliconFlow service is. A phrase.
+func (msgs Messages) SettingsAIBlurbSiliconFlow() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbSiliconFlow", nil)
+}
+
+// SettingsAIBlurbXAI says "Grok's OpenAI-compatible API"
+// in the language the app shows.
+//
+// What the xAI service is: the API of xAI's Grok models. A phrase.
+func SettingsAIBlurbXAI() string { return In(i18n.Locale()).SettingsAIBlurbXAI() }
+
+// SettingsAIBlurbXAI says "Grok's OpenAI-compatible API"
+// in the language of msgs.
+//
+// What the xAI service is: the API of xAI's Grok models. A phrase.
+func (msgs Messages) SettingsAIBlurbXAI() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbXAI", nil)
+}
+
+// SettingsAIBlurbZhipu says "Zhipu's OpenAI-compatible API"
+// in the language the app shows.
+//
+// What the Zhipu GLM service is. A phrase.
+func SettingsAIBlurbZhipu() string { return In(i18n.Locale()).SettingsAIBlurbZhipu() }
+
+// SettingsAIBlurbZhipu says "Zhipu's OpenAI-compatible API"
+// in the language of msgs.
+//
+// What the Zhipu GLM service is. A phrase.
+func (msgs Messages) SettingsAIBlurbZhipu() string {
+	return Catalog.Format(msgs.locale, "settingsAIBlurbZhipu", nil)
+}
+
+// SettingsAIChooseService says "Choose service"
+// in the language the app shows.
+//
+// Accessible name of the pop-up choosing the AI service.
+func SettingsAIChooseService() string { return In(i18n.Locale()).SettingsAIChooseService() }
+
+// SettingsAIChooseService says "Choose service"
+// in the language of msgs.
+//
+// Accessible name of the pop-up choosing the AI service.
+func (msgs Messages) SettingsAIChooseService() string {
+	return Catalog.Format(msgs.locale, "settingsAIChooseService", nil)
+}
+
+// SettingsAICompatible says "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
+// in the language the app shows.
+//
+// Last sentence of the AI Service page's footnote.
+func SettingsAICompatible() string { return In(i18n.Locale()).SettingsAICompatible() }
+
+// SettingsAICompatible says "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
+// in the language of msgs.
+//
+// Last sentence of the AI Service page's footnote.
+func (msgs Messages) SettingsAICompatible() string {
+	return Catalog.Format(msgs.locale, "settingsAICompatible", nil)
+}
+
+// SettingsAIConnected says "Connected"
+// in the language the app shows.
+//
+// Connection test status when the service answered.
+func SettingsAIConnected() string { return In(i18n.Locale()).SettingsAIConnected() }
+
+// SettingsAIConnected says "Connected"
+// in the language of msgs.
+//
+// Connection test status when the service answered.
+func (msgs Messages) SettingsAIConnected() string {
+	return Catalog.Format(msgs.locale, "settingsAIConnected", nil)
+}
+
+// SettingsAIKeyEveryAPILogin says "Without an API Key, the everyapi sign-in on this Mac is used."
+// in the language the app shows.
+//
+// First sentence of the footnote when the service is EveryAPI and no API
+// Key is filled in. everyapi is the command-line program.
+func SettingsAIKeyEveryAPILogin() string { return In(i18n.Locale()).SettingsAIKeyEveryAPILogin() }
+
+// SettingsAIKeyEveryAPILogin says "Without an API Key, the everyapi sign-in on this Mac is used."
+// in the language of msgs.
+//
+// First sentence of the footnote when the service is EveryAPI and no API
+// Key is filled in. everyapi is the command-line program.
+func (msgs Messages) SettingsAIKeyEveryAPILogin() string {
+	return Catalog.Format(msgs.locale, "settingsAIKeyEveryAPILogin", nil)
+}
+
+// SettingsAIKeyStoredLocally says "The API Key is kept only in the settings file on this Mac."
+// in the language the app shows.
+//
+// First sentence of the AI Service page's footnote.
+func SettingsAIKeyStoredLocally() string { return In(i18n.Locale()).SettingsAIKeyStoredLocally() }
+
+// SettingsAIKeyStoredLocally says "The API Key is kept only in the settings file on this Mac."
+// in the language of msgs.
+//
+// First sentence of the AI Service page's footnote.
+func (msgs Messages) SettingsAIKeyStoredLocally() string {
+	return Catalog.Format(msgs.locale, "settingsAIKeyStoredLocally", nil)
+}
+
+// SettingsAILoadingModels says "Getting the model list…"
+// in the language the app shows.
+//
+// In the Model row while the service's models are being fetched.
+func SettingsAILoadingModels() string { return In(i18n.Locale()).SettingsAILoadingModels() }
+
+// SettingsAILoadingModels says "Getting the model list…"
+// in the language of msgs.
+//
+// In the Model row while the service's models are being fetched.
+func (msgs Messages) SettingsAILoadingModels() string {
+	return Catalog.Format(msgs.locale, "settingsAILoadingModels", nil)
+}
+
+// SettingsAILocalService says "Local · {name}"
+// in the language the app shows.
+//
+// A service running on this Mac in the service pop-up: the group, then the
+// service's name.
+func SettingsAILocalService(name string) string {
+	return In(i18n.Locale()).SettingsAILocalService(name)
+}
+
+// SettingsAILocalService says "Local · {name}"
+// in the language of msgs.
+//
+// A service running on this Mac in the service pop-up: the group, then the
+// service's name.
+func (msgs Messages) SettingsAILocalService(name string) string {
+	return Catalog.Format(msgs.locale, "settingsAILocalService", map[string]any{"name": name})
+}
+
+// SettingsAIModel says "Model"
+// in the language the app shows.
+//
+// Row title and pop-up name: the model the AI service translates with.
+func SettingsAIModel() string { return In(i18n.Locale()).SettingsAIModel() }
+
+// SettingsAIModel says "Model"
+// in the language of msgs.
+//
+// Row title and pop-up name: the model the AI service translates with.
+func (msgs Messages) SettingsAIModel() string {
+	return Catalog.Format(msgs.locale, "settingsAIModel", nil)
+}
+
+// SettingsAIModelsFailed says "Couldn't fetch the model list: {error}"
+// in the language the app shows.
+//
+// Why the model list could not be fetched, for another error.
+func SettingsAIModelsFailed(error string) string {
+	return In(i18n.Locale()).SettingsAIModelsFailed(error)
+}
+
+// SettingsAIModelsFailed says "Couldn't fetch the model list: {error}"
+// in the language of msgs.
+//
+// Why the model list could not be fetched, for another error.
+func (msgs Messages) SettingsAIModelsFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsFailed", map[string]any{"error": error})
+}
+
+// SettingsAIModelsNotFound says "This service doesn't offer a model list; check the Base URL"
+// in the language the app shows.
+//
+// Why the model list could not be fetched: the endpoint has no model list.
+func SettingsAIModelsNotFound() string { return In(i18n.Locale()).SettingsAIModelsNotFound() }
+
+// SettingsAIModelsNotFound says "This service doesn't offer a model list; check the Base URL"
+// in the language of msgs.
+//
+// Why the model list could not be fetched: the endpoint has no model list.
+func (msgs Messages) SettingsAIModelsNotFound() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsNotFound", nil)
+}
+
+// SettingsAIModelsTimeout says "The service didn't answer in time, so the model list couldn't be fetched"
+// in the language the app shows.
+//
+// Why the model list could not be fetched: the service did not answer in
+// time.
+func SettingsAIModelsTimeout() string { return In(i18n.Locale()).SettingsAIModelsTimeout() }
+
+// SettingsAIModelsTimeout says "The service didn't answer in time, so the model list couldn't be fetched"
+// in the language of msgs.
+//
+// Why the model list could not be fetched: the service did not answer in
+// time.
+func (msgs Messages) SettingsAIModelsTimeout() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsTimeout", nil)
+}
+
+// SettingsAIModelsUnauthorized says "The service doesn't accept this API Key, so the model list couldn't be fetched"
+// in the language the app shows.
+//
+// Why the model list could not be fetched: the service refused the key.
+func SettingsAIModelsUnauthorized() string { return In(i18n.Locale()).SettingsAIModelsUnauthorized() }
+
+// SettingsAIModelsUnauthorized says "The service doesn't accept this API Key, so the model list couldn't be fetched"
+// in the language of msgs.
+//
+// Why the model list could not be fetched: the service refused the key.
+func (msgs Messages) SettingsAIModelsUnauthorized() string {
+	return Catalog.Format(msgs.locale, "settingsAIModelsUnauthorized", nil)
+}
+
+// SettingsAINameCustom says "OpenAI Compatible"
+// in the language the app shows.
+//
+// Service pop-up item for any other OpenAI-compatible endpoint, whose Base
+// URL is typed in.
+func SettingsAINameCustom() string { return In(i18n.Locale()).SettingsAINameCustom() }
+
+// SettingsAINameCustom says "OpenAI Compatible"
+// in the language of msgs.
+//
+// Service pop-up item for any other OpenAI-compatible endpoint, whose Base
+// URL is typed in.
+func (msgs Messages) SettingsAINameCustom() string {
+	return Catalog.Format(msgs.locale, "settingsAINameCustom", nil)
+}
+
+// SettingsAINameDashScope says "Qwen"
+// in the language the app shows.
+//
+// Name of Alibaba Cloud's model service Tongyi Qianwen in the service
+// pop-up; its international name is Qwen.
+func SettingsAINameDashScope() string { return In(i18n.Locale()).SettingsAINameDashScope() }
+
+// SettingsAINameDashScope says "Qwen"
+// in the language of msgs.
+//
+// Name of Alibaba Cloud's model service Tongyi Qianwen in the service
+// pop-up; its international name is Qwen.
+func (msgs Messages) SettingsAINameDashScope() string {
+	return Catalog.Format(msgs.locale, "settingsAINameDashScope", nil)
+}
+
+// SettingsAINameSiliconFlow says "SiliconFlow"
+// in the language the app shows.
+//
+// Name of the model service SiliconFlow in the service pop-up.
+func SettingsAINameSiliconFlow() string { return In(i18n.Locale()).SettingsAINameSiliconFlow() }
+
+// SettingsAINameSiliconFlow says "SiliconFlow"
+// in the language of msgs.
+//
+// Name of the model service SiliconFlow in the service pop-up.
+func (msgs Messages) SettingsAINameSiliconFlow() string {
+	return Catalog.Format(msgs.locale, "settingsAINameSiliconFlow", nil)
+}
+
+// SettingsAINameZhipu says "Zhipu GLM"
+// in the language the app shows.
+//
+// Name of Zhipu AI's GLM models in the service pop-up.
+func SettingsAINameZhipu() string { return In(i18n.Locale()).SettingsAINameZhipu() }
+
+// SettingsAINameZhipu says "Zhipu GLM"
+// in the language of msgs.
+//
+// Name of Zhipu AI's GLM models in the service pop-up.
+func (msgs Messages) SettingsAINameZhipu() string {
+	return Catalog.Format(msgs.locale, "settingsAINameZhipu", nil)
+}
+
+// SettingsAINotConfigured says "Not set up"
+// in the language the app shows.
+//
+// Value of the Translation service row when nothing is set up.
+func SettingsAINotConfigured() string { return In(i18n.Locale()).SettingsAINotConfigured() }
+
+// SettingsAINotConfigured says "Not set up"
+// in the language of msgs.
+//
+// Value of the Translation service row when nothing is set up.
+func (msgs Messages) SettingsAINotConfigured() string {
+	return Catalog.Format(msgs.locale, "settingsAINotConfigured", nil)
+}
+
+// SettingsAINote says "{key} {compatible}"
+// in the language the app shows.
+//
+// The AI Service page's footnote: the sentence about the API Key, then the
+// sentence about compatible services.
+func SettingsAINote(key string, compatible string) string {
+	return In(i18n.Locale()).SettingsAINote(key, compatible)
+}
+
+// SettingsAINote says "{key} {compatible}"
+// in the language of msgs.
+//
+// The AI Service page's footnote: the sentence about the API Key, then the
+// sentence about compatible services.
+func (msgs Messages) SettingsAINote(key string, compatible string) string {
+	return Catalog.Format(msgs.locale, "settingsAINote", map[string]any{"key": key, "compatible": compatible})
+}
+
+// SettingsAINoteWithBlurb says "{blurb}. {key} {compatible}"
+// in the language the app shows.
+//
+// The AI Service page's footnote for a service with a description: the
+// description as a sentence, the sentence about the API Key, then the
+// sentence about compatible services.
+func SettingsAINoteWithBlurb(blurb string, key string, compatible string) string {
+	return In(i18n.Locale()).SettingsAINoteWithBlurb(blurb, key, compatible)
+}
+
+// SettingsAINoteWithBlurb says "{blurb}. {key} {compatible}"
+// in the language of msgs.
+//
+// The AI Service page's footnote for a service with a description: the
+// description as a sentence, the sentence about the API Key, then the
+// sentence about compatible services.
+func (msgs Messages) SettingsAINoteWithBlurb(blurb string, key string, compatible string) string {
+	return Catalog.Format(msgs.locale, "settingsAINoteWithBlurb", map[string]any{"blurb": blurb, "key": key, "compatible": compatible})
+}
+
+// SettingsAIRetry says "Retry"
+// in the language the app shows.
+//
+// Button fetching the service's models again after a failure.
+func SettingsAIRetry() string { return In(i18n.Locale()).SettingsAIRetry() }
+
+// SettingsAIRetry says "Retry"
+// in the language of msgs.
+//
+// Button fetching the service's models again after a failure.
+func (msgs Messages) SettingsAIRetry() string {
+	return Catalog.Format(msgs.locale, "settingsAIRetry", nil)
+}
+
+// SettingsAISaveFailed says "Couldn't save the translation service: {error}"
+// in the language the app shows.
+//
+// Error when the AI service's settings could not be saved to settings.json.
+func SettingsAISaveFailed(error string) string { return In(i18n.Locale()).SettingsAISaveFailed(error) }
+
+// SettingsAISaveFailed says "Couldn't save the translation service: {error}"
+// in the language of msgs.
+//
+// Error when the AI service's settings could not be saved to settings.json.
+func (msgs Messages) SettingsAISaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsAISaveFailed", map[string]any{"error": error})
+}
+
+// SettingsAIService says "Service"
+// in the language the app shows.
+//
+// Row title: the AI service that translates.
+func SettingsAIService() string { return In(i18n.Locale()).SettingsAIService() }
+
+// SettingsAIService says "Service"
+// in the language of msgs.
+//
+// Row title: the AI service that translates.
+func (msgs Messages) SettingsAIService() string {
+	return Catalog.Format(msgs.locale, "settingsAIService", nil)
+}
+
+// SettingsAITest says "Test Connection"
+// in the language the app shows.
+//
+// Button sending a short request to check the AI service answers.
+func SettingsAITest() string { return In(i18n.Locale()).SettingsAITest() }
+
+// SettingsAITest says "Test Connection"
+// in the language of msgs.
+//
+// Button sending a short request to check the AI service answers.
+func (msgs Messages) SettingsAITest() string {
+	return Catalog.Format(msgs.locale, "settingsAITest", nil)
+}
+
+// SettingsAITesting says "Sending a test request…"
+// in the language the app shows.
+//
+// Connection test status while the test request is in flight.
+func SettingsAITesting() string { return In(i18n.Locale()).SettingsAITesting() }
+
+// SettingsAITesting says "Sending a test request…"
+// in the language of msgs.
+//
+// Connection test status while the test request is in flight.
+func (msgs Messages) SettingsAITesting() string {
+	return Catalog.Format(msgs.locale, "settingsAITesting", nil)
+}
+
+// SettingsAITranslationService says "Translation service"
+// in the language the app shows.
+//
+// Row title on the AI Service page when Kando has no tools to translate
+// with.
+func SettingsAITranslationService() string { return In(i18n.Locale()).SettingsAITranslationService() }
+
+// SettingsAITranslationService says "Translation service"
+// in the language of msgs.
+//
+// Row title on the AI Service page when Kando has no tools to translate
+// with.
+func (msgs Messages) SettingsAITranslationService() string {
+	return Catalog.Format(msgs.locale, "settingsAITranslationService", nil)
+}
+
+// SettingsAIUntested says "Not tested"
+// in the language the app shows.
+//
+// Connection test status before any test.
+func SettingsAIUntested() string { return In(i18n.Locale()).SettingsAIUntested() }
+
+// SettingsAIUntested says "Not tested"
+// in the language of msgs.
+//
+// Connection test status before any test.
+func (msgs Messages) SettingsAIUntested() string {
+	return Catalog.Format(msgs.locale, "settingsAIUntested", nil)
+}
+
+// SettingsFileDamaged says "The settings file has content Kando can't read; the original was saved as settings.json.bad"
+// in the language the app shows.
+//
+// Notice at startup when settings.json has content Kando cannot read; the
+// file was copied to settings.json.bad. Keep the file name as it is.
+func SettingsFileDamaged() string { return In(i18n.Locale()).SettingsFileDamaged() }
+
+// SettingsFileDamaged says "The settings file has content Kando can't read; the original was saved as settings.json.bad"
+// in the language of msgs.
+//
+// Notice at startup when settings.json has content Kando cannot read; the
+// file was copied to settings.json.bad. Keep the file name as it is.
+func (msgs Messages) SettingsFileDamaged() string {
+	return Catalog.Format(msgs.locale, "settingsFileDamaged", nil)
+}
+
+// SettingsFileDamagedUnsaved says "The settings file has content Kando can't read, and a copy couldn't be saved: {error}"
+// in the language the app shows.
+//
+// Error at startup when settings.json has content Kando cannot read and the
+// copy beside it could not be written.
+func SettingsFileDamagedUnsaved(error string) string {
+	return In(i18n.Locale()).SettingsFileDamagedUnsaved(error)
+}
+
+// SettingsFileDamagedUnsaved says "The settings file has content Kando can't read, and a copy couldn't be saved: {error}"
+// in the language of msgs.
+//
+// Error at startup when settings.json has content Kando cannot read and the
+// copy beside it could not be written.
+func (msgs Messages) SettingsFileDamagedUnsaved(error string) string {
+	return Catalog.Format(msgs.locale, "settingsFileDamagedUnsaved", map[string]any{"error": error})
+}
+
+// SettingsFileUnreadable says "Couldn't read the settings file: {error}"
+// in the language the app shows.
+//
+// Error at startup when settings.json could not be read.
+func SettingsFileUnreadable(error string) string {
+	return In(i18n.Locale()).SettingsFileUnreadable(error)
+}
+
+// SettingsFileUnreadable says "Couldn't read the settings file: {error}"
+// in the language of msgs.
+//
+// Error at startup when settings.json could not be read.
+func (msgs Messages) SettingsFileUnreadable(error string) string {
+	return Catalog.Format(msgs.locale, "settingsFileUnreadable", map[string]any{"error": error})
+}
+
+// SettingsGeneralComponents says "Components"
+// in the language the app shows.
+//
+// Heading of the card listing the programs Kando runs.
+func SettingsGeneralComponents() string { return In(i18n.Locale()).SettingsGeneralComponents() }
+
+// SettingsGeneralComponents says "Components"
+// in the language of msgs.
+//
+// Heading of the card listing the programs Kando runs.
+func (msgs Messages) SettingsGeneralComponents() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralComponents", nil)
+}
+
+// SettingsGeneralCurrentLibrary says "Current library"
+// in the language the app shows.
+//
+// Row title and pop-up name on the General page: the library Kando has
+// open.
+func SettingsGeneralCurrentLibrary() string { return In(i18n.Locale()).SettingsGeneralCurrentLibrary() }
+
+// SettingsGeneralCurrentLibrary says "Current library"
+// in the language of msgs.
+//
+// Row title and pop-up name on the General page: the library Kando has
+// open.
+func (msgs Messages) SettingsGeneralCurrentLibrary() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralCurrentLibrary", nil)
+}
+
+// SettingsGeneralForget says "Remove from list"
+// in the language the app shows.
+//
+// Row title: take the current library off Kando's list of libraries.
+func SettingsGeneralForget() string { return In(i18n.Locale()).SettingsGeneralForget() }
+
+// SettingsGeneralForget says "Remove from list"
+// in the language of msgs.
+//
+// Row title: take the current library off Kando's list of libraries.
+func (msgs Messages) SettingsGeneralForget() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralForget", nil)
+}
+
+// SettingsGeneralForgetButton says "Remove"
+// in the language the app shows.
+//
+// Button taking the current library off the list.
+func SettingsGeneralForgetButton() string { return In(i18n.Locale()).SettingsGeneralForgetButton() }
+
+// SettingsGeneralForgetButton says "Remove"
+// in the language of msgs.
+//
+// Button taking the current library off the list.
+func (msgs Messages) SettingsGeneralForgetButton() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralForgetButton", nil)
+}
+
+// SettingsGeneralForgetHint says "Takes it off Kando's list only; the files stay where they are."
+// in the language the app shows.
+//
+// Under Remove from list: the files are not deleted.
+func SettingsGeneralForgetHint() string { return In(i18n.Locale()).SettingsGeneralForgetHint() }
+
+// SettingsGeneralForgetHint says "Takes it off Kando's list only; the files stay where they are."
+// in the language of msgs.
+//
+// Under Remove from list: the files are not deleted.
+func (msgs Messages) SettingsGeneralForgetHint() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralForgetHint", nil)
+}
+
+// SettingsGeneralInstalled says "Installed"
+// in the language the app shows.
+//
+// A program Kando runs that was found but did not tell its version.
+func SettingsGeneralInstalled() string { return In(i18n.Locale()).SettingsGeneralInstalled() }
+
+// SettingsGeneralInstalled says "Installed"
+// in the language of msgs.
+//
+// A program Kando runs that was found but did not tell its version.
+func (msgs Messages) SettingsGeneralInstalled() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralInstalled", nil)
+}
+
+// SettingsGeneralInterfaceLanguage says "Interface language"
+// in the language the app shows.
+//
+// Row title and pop-up name: the language of Kando's interface.
+func SettingsGeneralInterfaceLanguage() string {
+	return In(i18n.Locale()).SettingsGeneralInterfaceLanguage()
+}
+
+// SettingsGeneralInterfaceLanguage says "Interface language"
+// in the language of msgs.
+//
+// Row title and pop-up name: the language of Kando's interface.
+func (msgs Messages) SettingsGeneralInterfaceLanguage() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralInterfaceLanguage", nil)
+}
+
+// SettingsGeneralLibrary says "Library"
+// in the language the app shows.
+//
+// Heading of the General page's library card.
+func SettingsGeneralLibrary() string { return In(i18n.Locale()).SettingsGeneralLibrary() }
+
+// SettingsGeneralLibrary says "Library"
+// in the language of msgs.
+//
+// Heading of the General page's library card.
+func (msgs Messages) SettingsGeneralLibrary() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralLibrary", nil)
+}
+
+// SettingsGeneralLibraryNote says "Switching libraries stops the jobs in progress. Removing a library from the list doesn't delete the files in it."
+// in the language the app shows.
+//
+// Footnote under the General page's library card.
+func SettingsGeneralLibraryNote() string { return In(i18n.Locale()).SettingsGeneralLibraryNote() }
+
+// SettingsGeneralLibraryNote says "Switching libraries stops the jobs in progress. Removing a library from the list doesn't delete the files in it."
+// in the language of msgs.
+//
+// Footnote under the General page's library card.
+func (msgs Messages) SettingsGeneralLibraryNote() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralLibraryNote", nil)
+}
+
+// SettingsGeneralLocation says "Location"
+// in the language the app shows.
+//
+// Row title: where the library is on disk.
+func SettingsGeneralLocation() string { return In(i18n.Locale()).SettingsGeneralLocation() }
+
+// SettingsGeneralLocation says "Location"
+// in the language of msgs.
+//
+// Row title: where the library is on disk.
+func (msgs Messages) SettingsGeneralLocation() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralLocation", nil)
+}
+
+// SettingsGeneralNewLibrary says "New Library…"
+// in the language the app shows.
+//
+// Button making a new library.
+func SettingsGeneralNewLibrary() string { return In(i18n.Locale()).SettingsGeneralNewLibrary() }
+
+// SettingsGeneralNewLibrary says "New Library…"
+// in the language of msgs.
+//
+// Button making a new library.
+func (msgs Messages) SettingsGeneralNewLibrary() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralNewLibrary", nil)
+}
+
+// SettingsGeneralNoLibrary says "No library yet"
+// in the language the app shows.
+//
+// Under Current library when there is no library yet.
+func SettingsGeneralNoLibrary() string { return In(i18n.Locale()).SettingsGeneralNoLibrary() }
+
+// SettingsGeneralNoLibrary says "No library yet"
+// in the language of msgs.
+//
+// Under Current library when there is no library yet.
+func (msgs Messages) SettingsGeneralNoLibrary() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralNoLibrary", nil)
+}
+
+// SettingsGeneralNotInstalled says "Not Installed"
+// in the language the app shows.
+//
+// A program Kando runs that was not found.
+func SettingsGeneralNotInstalled() string { return In(i18n.Locale()).SettingsGeneralNotInstalled() }
+
+// SettingsGeneralNotInstalled says "Not Installed"
+// in the language of msgs.
+//
+// A program Kando runs that was not found.
+func (msgs Messages) SettingsGeneralNotInstalled() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralNotInstalled", nil)
+}
+
+// SettingsGeneralOpenLibrary says "Open Library…"
+// in the language the app shows.
+//
+// Button opening an existing library.
+func SettingsGeneralOpenLibrary() string { return In(i18n.Locale()).SettingsGeneralOpenLibrary() }
+
+// SettingsGeneralOpenLibrary says "Open Library…"
+// in the language of msgs.
+//
+// Button opening an existing library.
+func (msgs Messages) SettingsGeneralOpenLibrary() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralOpenLibrary", nil)
+}
+
+// SettingsGeneralRedetect says "Detect Again"
+// in the language the app shows.
+//
+// Button looking for ffmpeg, yt-dlp and whisper-cli again.
+func SettingsGeneralRedetect() string { return In(i18n.Locale()).SettingsGeneralRedetect() }
+
+// SettingsGeneralRedetect says "Detect Again"
+// in the language of msgs.
+//
+// Button looking for ffmpeg, yt-dlp and whisper-cli again.
+func (msgs Messages) SettingsGeneralRedetect() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralRedetect", nil)
+}
+
+// SettingsGeneralShowInFinder says "Show in Finder"
+// in the language the app shows.
+//
+// Button showing the library folder in Finder.
+func SettingsGeneralShowInFinder() string { return In(i18n.Locale()).SettingsGeneralShowInFinder() }
+
+// SettingsGeneralShowInFinder says "Show in Finder"
+// in the language of msgs.
+//
+// Button showing the library folder in Finder.
+func (msgs Messages) SettingsGeneralShowInFinder() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralShowInFinder", nil)
+}
+
+// SettingsGeneralToolDetail says "{use} · {where}"
+// in the language the app shows.
+//
+// Line under a program's name: what it is for, then where it was found or
+// Not Installed.
+func SettingsGeneralToolDetail(use string, where string) string {
+	return In(i18n.Locale()).SettingsGeneralToolDetail(use, where)
+}
+
+// SettingsGeneralToolDetail says "{use} · {where}"
+// in the language of msgs.
+//
+// Line under a program's name: what it is for, then where it was found or
+// Not Installed.
+func (msgs Messages) SettingsGeneralToolDetail(use string, where string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralToolDetail", map[string]any{"use": use, "where": where})
+}
+
+// SettingsGeneralToolsNote says "These programs come from this Mac; Kando doesn't install or update them."
+// in the language the app shows.
+//
+// Footnote under the programs Kando runs.
+func SettingsGeneralToolsNote() string { return In(i18n.Locale()).SettingsGeneralToolsNote() }
+
+// SettingsGeneralToolsNote says "These programs come from this Mac; Kando doesn't install or update them."
+// in the language of msgs.
+//
+// Footnote under the programs Kando runs.
+func (msgs Messages) SettingsGeneralToolsNote() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralToolsNote", nil)
+}
+
+// SettingsGeneralUseFFmpeg says "Converts audio, grabs covers, decodes frames"
+// in the language the app shows.
+//
+// What ffmpeg is for, under its name.
+func SettingsGeneralUseFFmpeg() string { return In(i18n.Locale()).SettingsGeneralUseFFmpeg() }
+
+// SettingsGeneralUseFFmpeg says "Converts audio, grabs covers, decodes frames"
+// in the language of msgs.
+//
+// What ffmpeg is for, under its name.
+func (msgs Messages) SettingsGeneralUseFFmpeg() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralUseFFmpeg", nil)
+}
+
+// SettingsGeneralUseWhisper says "Speech recognition"
+// in the language the app shows.
+//
+// What whisper-cli is for, under its name.
+func SettingsGeneralUseWhisper() string { return In(i18n.Locale()).SettingsGeneralUseWhisper() }
+
+// SettingsGeneralUseWhisper says "Speech recognition"
+// in the language of msgs.
+//
+// What whisper-cli is for, under its name.
+func (msgs Messages) SettingsGeneralUseWhisper() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralUseWhisper", nil)
+}
+
+// SettingsGeneralUseYTDLP says "Downloads online videos"
+// in the language the app shows.
+//
+// What yt-dlp is for, under its name.
+func SettingsGeneralUseYTDLP() string { return In(i18n.Locale()).SettingsGeneralUseYTDLP() }
+
+// SettingsGeneralUseYTDLP says "Downloads online videos"
+// in the language of msgs.
+//
+// What yt-dlp is for, under its name.
+func (msgs Messages) SettingsGeneralUseYTDLP() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralUseYTDLP", nil)
+}
+
+// SettingsGeneralVersion says "Version"
+// in the language the app shows.
+//
+// Row title: Kando's version.
+func SettingsGeneralVersion() string { return In(i18n.Locale()).SettingsGeneralVersion() }
+
+// SettingsGeneralVersion says "Version"
+// in the language of msgs.
+//
+// Row title: Kando's version.
+func (msgs Messages) SettingsGeneralVersion() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralVersion", nil)
+}
+
+// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio…"
+// in the language the app shows.
+//
+// Search keywords of the AI Service settings section, separated by spaces,
+// besides its title: the services it offers and its fields. Not shown.
+func SettingsKeywordsAI() string { return In(i18n.Locale()).SettingsKeywordsAI() }
+
+// SettingsKeywordsAI says "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio…"
+// in the language of msgs.
+//
+// Search keywords of the AI Service settings section, separated by spaces,
+// besides its title: the services it offers and its fields. Not shown.
+func (msgs Messages) SettingsKeywordsAI() string {
+	return Catalog.Format(msgs.locale, "settingsKeywordsAI", nil)
+}
+
+// SettingsKeywordsAccount says "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
+// in the language the app shows.
+//
+// Search keywords of the Account & Upload settings section, separated by
+// spaces, besides its title. Not shown.
+func SettingsKeywordsAccount() string { return In(i18n.Locale()).SettingsKeywordsAccount() }
+
+// SettingsKeywordsAccount says "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
+// in the language of msgs.
+//
+// Search keywords of the Account & Upload settings section, separated by
+// spaces, besides its title. Not shown.
+func (msgs Messages) SettingsKeywordsAccount() string {
+	return Catalog.Format(msgs.locale, "settingsKeywordsAccount", nil)
+}
+
+// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again"
+// in the language the app shows.
+//
+// Search keywords of the General settings section, separated by spaces,
+// besides its title. Not shown; the sidebar's search finds the section by
+// them. Use the words the section's page shows.
+func SettingsKeywordsGeneral() string { return In(i18n.Locale()).SettingsKeywordsGeneral() }
+
+// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again"
+// in the language of msgs.
+//
+// Search keywords of the General settings section, separated by spaces,
+// besides its title. Not shown; the sidebar's search finds the section by
+// them. Use the words the section's page shows.
+func (msgs Messages) SettingsKeywordsGeneral() string {
+	return Catalog.Format(msgs.locale, "settingsKeywordsGeneral", nil)
+}
+
+// SettingsKeywordsLook says "subtitles display bilingual original only translation only order translation original dim blank make room preview"
+// in the language the app shows.
+//
+// Search keywords of the Subtitle Style settings section, separated by
+// spaces, besides its title. Not shown.
+func SettingsKeywordsLook() string { return In(i18n.Locale()).SettingsKeywordsLook() }
+
+// SettingsKeywordsLook says "subtitles display bilingual original only translation only order translation original dim blank make room preview"
+// in the language of msgs.
+//
+// Search keywords of the Subtitle Style settings section, separated by
+// spaces, besides its title. Not shown.
+func (msgs Messages) SettingsKeywordsLook() string {
+	return Catalog.Format(msgs.locale, "settingsKeywordsLook", nil)
+}
+
+// SettingsKeywordsShortcuts says "keyboard keys commands"
+// in the language the app shows.
+//
+// Search keywords of the Keyboard Shortcuts settings section, separated by
+// spaces, besides its title. Not shown.
+func SettingsKeywordsShortcuts() string { return In(i18n.Locale()).SettingsKeywordsShortcuts() }
+
+// SettingsKeywordsShortcuts says "keyboard keys commands"
+// in the language of msgs.
+//
+// Search keywords of the Keyboard Shortcuts settings section, separated by
+// spaces, besides its title. Not shown.
+func (msgs Messages) SettingsKeywordsShortcuts() string {
+	return Catalog.Format(msgs.locale, "settingsKeywordsShortcuts", nil)
+}
+
+// SettingsKeywordsSpeech says "whisper models download recognition transcription HuggingFace Vimpo hyperframes"
+// in the language the app shows.
+//
+// Search keywords of the Speech Recognition settings section, separated by
+// spaces, besides its title. Not shown.
+func SettingsKeywordsSpeech() string { return In(i18n.Locale()).SettingsKeywordsSpeech() }
+
+// SettingsKeywordsSpeech says "whisper models download recognition transcription HuggingFace Vimpo hyperframes"
+// in the language of msgs.
+//
+// Search keywords of the Speech Recognition settings section, separated by
+// spaces, besides its title. Not shown.
+func (msgs Messages) SettingsKeywordsSpeech() string {
+	return Catalog.Format(msgs.locale, "settingsKeywordsSpeech", nil)
+}
+
+// SettingsKeywordsTranslate says "target language smart translation context prompt restore default"
+// in the language the app shows.
+//
+// Search keywords of the Translation settings section, separated by spaces,
+// besides its title. Not shown.
+func SettingsKeywordsTranslate() string { return In(i18n.Locale()).SettingsKeywordsTranslate() }
+
+// SettingsKeywordsTranslate says "target language smart translation context prompt restore default"
+// in the language of msgs.
+//
+// Search keywords of the Translation settings section, separated by spaces,
+// besides its title. Not shown.
+func (msgs Messages) SettingsKeywordsTranslate() string {
+	return Catalog.Format(msgs.locale, "settingsKeywordsTranslate", nil)
+}
+
+// SettingsLanguageEnglish says "English"
+// in the language the app shows.
+//
+// Target language in the pop-up: English.
+func SettingsLanguageEnglish() string { return In(i18n.Locale()).SettingsLanguageEnglish() }
+
+// SettingsLanguageEnglish says "English"
+// in the language of msgs.
+//
+// Target language in the pop-up: English.
+func (msgs Messages) SettingsLanguageEnglish() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageEnglish", nil)
+}
+
+// SettingsLanguageFrench says "French"
+// in the language the app shows.
+//
+// Target language in the pop-up: French.
+func SettingsLanguageFrench() string { return In(i18n.Locale()).SettingsLanguageFrench() }
+
+// SettingsLanguageFrench says "French"
+// in the language of msgs.
+//
+// Target language in the pop-up: French.
+func (msgs Messages) SettingsLanguageFrench() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageFrench", nil)
+}
+
+// SettingsLanguageGerman says "German"
+// in the language the app shows.
+//
+// Target language in the pop-up: German.
+func SettingsLanguageGerman() string { return In(i18n.Locale()).SettingsLanguageGerman() }
+
+// SettingsLanguageGerman says "German"
+// in the language of msgs.
+//
+// Target language in the pop-up: German.
+func (msgs Messages) SettingsLanguageGerman() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageGerman", nil)
+}
+
+// SettingsLanguageJapanese says "Japanese"
+// in the language the app shows.
+//
+// Target language in the pop-up: Japanese.
+func SettingsLanguageJapanese() string { return In(i18n.Locale()).SettingsLanguageJapanese() }
+
+// SettingsLanguageJapanese says "Japanese"
+// in the language of msgs.
+//
+// Target language in the pop-up: Japanese.
+func (msgs Messages) SettingsLanguageJapanese() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageJapanese", nil)
+}
+
+// SettingsLanguageKorean says "Korean"
+// in the language the app shows.
+//
+// Target language in the pop-up: Korean.
+func SettingsLanguageKorean() string { return In(i18n.Locale()).SettingsLanguageKorean() }
+
+// SettingsLanguageKorean says "Korean"
+// in the language of msgs.
+//
+// Target language in the pop-up: Korean.
+func (msgs Messages) SettingsLanguageKorean() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageKorean", nil)
+}
+
+// SettingsLanguageSimplifiedChinese says "Simplified Chinese"
+// in the language the app shows.
+//
+// Target language in the pop-up: Simplified Chinese.
+func SettingsLanguageSimplifiedChinese() string {
+	return In(i18n.Locale()).SettingsLanguageSimplifiedChinese()
+}
+
+// SettingsLanguageSimplifiedChinese says "Simplified Chinese"
+// in the language of msgs.
+//
+// Target language in the pop-up: Simplified Chinese.
+func (msgs Messages) SettingsLanguageSimplifiedChinese() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageSimplifiedChinese", nil)
+}
+
+// SettingsLanguageSpanish says "Spanish"
+// in the language the app shows.
+//
+// Target language in the pop-up: Spanish.
+func SettingsLanguageSpanish() string { return In(i18n.Locale()).SettingsLanguageSpanish() }
+
+// SettingsLanguageSpanish says "Spanish"
+// in the language of msgs.
+//
+// Target language in the pop-up: Spanish.
+func (msgs Messages) SettingsLanguageSpanish() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageSpanish", nil)
+}
+
+// SettingsLanguageTraditionalChinese says "Traditional Chinese"
+// in the language the app shows.
+//
+// Target language in the pop-up: Traditional Chinese.
+func SettingsLanguageTraditionalChinese() string {
+	return In(i18n.Locale()).SettingsLanguageTraditionalChinese()
+}
+
+// SettingsLanguageTraditionalChinese says "Traditional Chinese"
+// in the language of msgs.
+//
+// Target language in the pop-up: Traditional Chinese.
+func (msgs Messages) SettingsLanguageTraditionalChinese() string {
+	return Catalog.Format(msgs.locale, "settingsLanguageTraditionalChinese", nil)
+}
+
+// SettingsLibrarySaveFailed says "Couldn't save the library: {error}"
+// in the language the app shows.
+//
+// Error when the libraries could not be saved to settings.json.
+func SettingsLibrarySaveFailed(error string) string {
+	return In(i18n.Locale()).SettingsLibrarySaveFailed(error)
+}
+
+// SettingsLibrarySaveFailed says "Couldn't save the library: {error}"
+// in the language of msgs.
+//
+// Error when the libraries could not be saved to settings.json.
+func (msgs Messages) SettingsLibrarySaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsLibrarySaveFailed", map[string]any{"error": error})
+}
+
+// SettingsLookMode says "Default display"
+// in the language the app shows.
+//
+// Row title: which subtitle lines the player shows by default.
+func SettingsLookMode() string { return In(i18n.Locale()).SettingsLookMode() }
+
+// SettingsLookMode says "Default display"
+// in the language of msgs.
+//
+// Row title: which subtitle lines the player shows by default.
+func (msgs Messages) SettingsLookMode() string {
+	return Catalog.Format(msgs.locale, "settingsLookMode", nil)
+}
+
+// SettingsLookModeBilingual says "Bilingual"
+// in the language the app shows.
+//
+// Segment: show both lines.
+func SettingsLookModeBilingual() string { return In(i18n.Locale()).SettingsLookModeBilingual() }
+
+// SettingsLookModeBilingual says "Bilingual"
+// in the language of msgs.
+//
+// Segment: show both lines.
+func (msgs Messages) SettingsLookModeBilingual() string {
+	return Catalog.Format(msgs.locale, "settingsLookModeBilingual", nil)
+}
+
+// SettingsLookModeOriginal says "Original Only"
+// in the language the app shows.
+//
+// Segment: show only the original line.
+func SettingsLookModeOriginal() string { return In(i18n.Locale()).SettingsLookModeOriginal() }
+
+// SettingsLookModeOriginal says "Original Only"
+// in the language of msgs.
+//
+// Segment: show only the original line.
+func (msgs Messages) SettingsLookModeOriginal() string {
+	return Catalog.Format(msgs.locale, "settingsLookModeOriginal", nil)
+}
+
+// SettingsLookModeTranslation says "Translation Only"
+// in the language the app shows.
+//
+// Segment: show only the translated line.
+func SettingsLookModeTranslation() string { return In(i18n.Locale()).SettingsLookModeTranslation() }
+
+// SettingsLookModeTranslation says "Translation Only"
+// in the language of msgs.
+//
+// Segment: show only the translated line.
+func (msgs Messages) SettingsLookModeTranslation() string {
+	return Catalog.Format(msgs.locale, "settingsLookModeTranslation", nil)
+}
+
+// SettingsLookNote says "Size, color and font are changed while playing, in “Subtitle Style” in the sidebar. Changes here apply to the pla…"
+// in the language the app shows.
+//
+// Footnote under the subtitle preview. “Subtitle Style” is the panel of
+// the player's sidebar; use its name there.
+func SettingsLookNote() string { return In(i18n.Locale()).SettingsLookNote() }
+
+// SettingsLookNote says "Size, color and font are changed while playing, in “Subtitle Style” in the sidebar. Changes here apply to the pla…"
+// in the language of msgs.
+//
+// Footnote under the subtitle preview. “Subtitle Style” is the panel of
+// the player's sidebar; use its name there.
+func (msgs Messages) SettingsLookNote() string {
+	return Catalog.Format(msgs.locale, "settingsLookNote", nil)
+}
+
+// SettingsLookOrder says "Bilingual order"
+// in the language the app shows.
+//
+// Row title: which line is on top in bilingual subtitles.
+func SettingsLookOrder() string { return In(i18n.Locale()).SettingsLookOrder() }
+
+// SettingsLookOrder says "Bilingual order"
+// in the language of msgs.
+//
+// Row title: which line is on top in bilingual subtitles.
+func (msgs Messages) SettingsLookOrder() string {
+	return Catalog.Format(msgs.locale, "settingsLookOrder", nil)
+}
+
+// SettingsLookOrderOriginalFirst says "Original on Top"
+// in the language the app shows.
+//
+// Segment: the original above the translation.
+func SettingsLookOrderOriginalFirst() string {
+	return In(i18n.Locale()).SettingsLookOrderOriginalFirst()
+}
+
+// SettingsLookOrderOriginalFirst says "Original on Top"
+// in the language of msgs.
+//
+// Segment: the original above the translation.
+func (msgs Messages) SettingsLookOrderOriginalFirst() string {
+	return Catalog.Format(msgs.locale, "settingsLookOrderOriginalFirst", nil)
+}
+
+// SettingsLookOrderTranslationFirst says "Translation on Top"
+// in the language the app shows.
+//
+// Segment: the translation above the original.
+func SettingsLookOrderTranslationFirst() string {
+	return In(i18n.Locale()).SettingsLookOrderTranslationFirst()
+}
+
+// SettingsLookOrderTranslationFirst says "Translation on Top"
+// in the language of msgs.
+//
+// Segment: the translation above the original.
+func (msgs Messages) SettingsLookOrderTranslationFirst() string {
+	return Catalog.Format(msgs.locale, "settingsLookOrderTranslationFirst", nil)
+}
+
+// SettingsLookPreview says "Subtitle preview"
+// in the language the app shows.
+//
+// Accessible name of the subtitle preview.
+func SettingsLookPreview() string { return In(i18n.Locale()).SettingsLookPreview() }
+
+// SettingsLookPreview says "Subtitle preview"
+// in the language of msgs.
+//
+// Accessible name of the subtitle preview.
+func (msgs Messages) SettingsLookPreview() string {
+	return Catalog.Format(msgs.locale, "settingsLookPreview", nil)
+}
+
+// SettingsLookPreviewOff says "Subtitles are off"
+// in the language the app shows.
+//
+// In the subtitle preview when the player's subtitles are off.
+func SettingsLookPreviewOff() string { return In(i18n.Locale()).SettingsLookPreviewOff() }
+
+// SettingsLookPreviewOff says "Subtitles are off"
+// in the language of msgs.
+//
+// In the subtitle preview when the player's subtitles are off.
+func (msgs Messages) SettingsLookPreviewOff() string {
+	return Catalog.Format(msgs.locale, "settingsLookPreviewOff", nil)
+}
+
+// SettingsLookPreviewOriginal says "Chaque rivière commence par un mince filet d'eau en haut des montagnes."
+// in the language the app shows.
+//
+// The original line of the sample subtitle in the preview, in a foreign
+// language as a film's would be: English, except in the English interface,
+// where it is French.
+func SettingsLookPreviewOriginal() string { return In(i18n.Locale()).SettingsLookPreviewOriginal() }
+
+// SettingsLookPreviewOriginal says "Chaque rivière commence par un mince filet d'eau en haut des montagnes."
+// in the language of msgs.
+//
+// The original line of the sample subtitle in the preview, in a foreign
+// language as a film's would be: English, except in the English interface,
+// where it is French.
+func (msgs Messages) SettingsLookPreviewOriginal() string {
+	return Catalog.Format(msgs.locale, "settingsLookPreviewOriginal", nil)
+}
+
+// SettingsLookPreviewTag says "Preview"
+// in the language the app shows.
+//
+// Small tag in the corner of the subtitle preview.
+func SettingsLookPreviewTag() string { return In(i18n.Locale()).SettingsLookPreviewTag() }
+
+// SettingsLookPreviewTag says "Preview"
+// in the language of msgs.
+//
+// Small tag in the corner of the subtitle preview.
+func (msgs Messages) SettingsLookPreviewTag() string {
+	return Catalog.Format(msgs.locale, "settingsLookPreviewTag", nil)
+}
+
+// SettingsLookPreviewTranslation says "Every river begins as a trickle high in the mountains."
+// in the language the app shows.
+//
+// The translated line of the sample subtitle in the preview, in the
+// interface's language. The same sentence as settingsLookPreviewOriginal.
+func SettingsLookPreviewTranslation() string {
+	return In(i18n.Locale()).SettingsLookPreviewTranslation()
+}
+
+// SettingsLookPreviewTranslation says "Every river begins as a trickle high in the mountains."
+// in the language of msgs.
+//
+// The translated line of the sample subtitle in the preview, in the
+// interface's language. The same sentence as settingsLookPreviewOriginal.
+func (msgs Messages) SettingsLookPreviewTranslation() string {
+	return Catalog.Format(msgs.locale, "settingsLookPreviewTranslation", nil)
+}
+
+// SettingsLookUntranslated says "Translation only, before the translation is ready"
+// in the language the app shows.
+//
+// Row title: what Translation Only shows for a line whose translation has
+// not arrived yet.
+func SettingsLookUntranslated() string { return In(i18n.Locale()).SettingsLookUntranslated() }
+
+// SettingsLookUntranslated says "Translation only, before the translation is ready"
+// in the language of msgs.
+//
+// Row title: what Translation Only shows for a line whose translation has
+// not arrived yet.
+func (msgs Messages) SettingsLookUntranslated() string {
+	return Catalog.Format(msgs.locale, "settingsLookUntranslated", nil)
+}
+
+// SettingsLookUntranslatedBlank says "Leave Blank"
+// in the language the app shows.
+//
+// Segment: show nothing until the translation arrives.
+func SettingsLookUntranslatedBlank() string { return In(i18n.Locale()).SettingsLookUntranslatedBlank() }
+
+// SettingsLookUntranslatedBlank says "Leave Blank"
+// in the language of msgs.
+//
+// Segment: show nothing until the translation arrives.
+func (msgs Messages) SettingsLookUntranslatedBlank() string {
+	return Catalog.Format(msgs.locale, "settingsLookUntranslatedBlank", nil)
+}
+
+// SettingsLookUntranslatedDim says "Dim Original"
+// in the language the app shows.
+//
+// Segment: show the original line dimmed until the translation arrives.
+func SettingsLookUntranslatedDim() string { return In(i18n.Locale()).SettingsLookUntranslatedDim() }
+
+// SettingsLookUntranslatedDim says "Dim Original"
+// in the language of msgs.
+//
+// Segment: show the original line dimmed until the translation arrives.
+func (msgs Messages) SettingsLookUntranslatedDim() string {
+	return Catalog.Format(msgs.locale, "settingsLookUntranslatedDim", nil)
+}
+
+// SettingsLookUntranslatedHint says "The translation replaces it as soon as it arrives"
+// in the language the app shows.
+//
+// Under the row about lines not translated yet.
+func SettingsLookUntranslatedHint() string { return In(i18n.Locale()).SettingsLookUntranslatedHint() }
+
+// SettingsLookUntranslatedHint says "The translation replaces it as soon as it arrives"
+// in the language of msgs.
+//
+// Under the row about lines not translated yet.
+func (msgs Messages) SettingsLookUntranslatedHint() string {
+	return Catalog.Format(msgs.locale, "settingsLookUntranslatedHint", nil)
+}
+
+// SettingsLookYield says "Move subtitles up when controls appear"
+// in the language the app shows.
+//
+// Switch row: move the subtitles up while the player's controls show.
+func SettingsLookYield() string { return In(i18n.Locale()).SettingsLookYield() }
+
+// SettingsLookYield says "Move subtitles up when controls appear"
+// in the language of msgs.
+//
+// Switch row: move the subtitles up while the player's controls show.
+func (msgs Messages) SettingsLookYield() string {
+	return Catalog.Format(msgs.locale, "settingsLookYield", nil)
+}
+
+// SettingsLookYieldHint says "Keeps them clear of the control bar"
+// in the language the app shows.
+//
+// Under the switch moving subtitles up.
+func SettingsLookYieldHint() string { return In(i18n.Locale()).SettingsLookYieldHint() }
+
+// SettingsLookYieldHint says "Keeps them clear of the control bar"
+// in the language of msgs.
+//
+// Under the switch moving subtitles up.
+func (msgs Messages) SettingsLookYieldHint() string {
+	return Catalog.Format(msgs.locale, "settingsLookYieldHint", nil)
+}
+
+// SettingsSearchLabel says "Search settings"
+// in the language the app shows.
+//
+// Accessible name of the search field at the top of the settings window's
+// sidebar.
+func SettingsSearchLabel() string { return In(i18n.Locale()).SettingsSearchLabel() }
+
+// SettingsSearchLabel says "Search settings"
+// in the language of msgs.
+//
+// Accessible name of the search field at the top of the settings window's
+// sidebar.
+func (msgs Messages) SettingsSearchLabel() string {
+	return Catalog.Format(msgs.locale, "settingsSearchLabel", nil)
+}
+
+// SettingsSearchNone says "No matching settings"
+// in the language the app shows.
+//
+// Shown in the settings window's sidebar when the search finds no section.
+func SettingsSearchNone() string { return In(i18n.Locale()).SettingsSearchNone() }
+
+// SettingsSearchNone says "No matching settings"
+// in the language of msgs.
+//
+// Shown in the settings window's sidebar when the search finds no section.
+func (msgs Messages) SettingsSearchNone() string {
+	return Catalog.Format(msgs.locale, "settingsSearchNone", nil)
+}
+
+// SettingsSearchPlaceholder says "Search"
+// in the language the app shows.
+//
+// Placeholder of the search field at the top of the settings window's
+// sidebar.
+func SettingsSearchPlaceholder() string { return In(i18n.Locale()).SettingsSearchPlaceholder() }
+
+// SettingsSearchPlaceholder says "Search"
+// in the language of msgs.
+//
+// Placeholder of the search field at the top of the settings window's
+// sidebar.
+func (msgs Messages) SettingsSearchPlaceholder() string {
+	return Catalog.Format(msgs.locale, "settingsSearchPlaceholder", nil)
+}
+
+// SettingsSectionAI says "AI Service"
+// in the language the app shows.
+//
+// Settings section and sidebar item: the AI service that translates
+// subtitles.
+func SettingsSectionAI() string { return In(i18n.Locale()).SettingsSectionAI() }
+
+// SettingsSectionAI says "AI Service"
+// in the language of msgs.
+//
+// Settings section and sidebar item: the AI service that translates
+// subtitles.
+func (msgs Messages) SettingsSectionAI() string {
+	return Catalog.Format(msgs.locale, "settingsSectionAI", nil)
+}
+
+// SettingsSectionAccount says "Account & Upload"
+// in the language the app shows.
+//
+// Settings section and sidebar item: the Google account and the object
+// storage videos are uploaded to.
+func SettingsSectionAccount() string { return In(i18n.Locale()).SettingsSectionAccount() }
+
+// SettingsSectionAccount says "Account & Upload"
+// in the language of msgs.
+//
+// Settings section and sidebar item: the Google account and the object
+// storage videos are uploaded to.
+func (msgs Messages) SettingsSectionAccount() string {
+	return Catalog.Format(msgs.locale, "settingsSectionAccount", nil)
+}
+
+// SettingsSectionGeneral says "General"
+// in the language the app shows.
+//
+// Settings section and sidebar item: the library, the interface language
+// and the programs Kando runs.
+func SettingsSectionGeneral() string { return In(i18n.Locale()).SettingsSectionGeneral() }
+
+// SettingsSectionGeneral says "General"
+// in the language of msgs.
+//
+// Settings section and sidebar item: the library, the interface language
+// and the programs Kando runs.
+func (msgs Messages) SettingsSectionGeneral() string {
+	return Catalog.Format(msgs.locale, "settingsSectionGeneral", nil)
+}
+
+// SettingsSectionLook says "Subtitle Style"
+// in the language the app shows.
+//
+// Settings section and sidebar item: how the player shows subtitles.
+func SettingsSectionLook() string { return In(i18n.Locale()).SettingsSectionLook() }
+
+// SettingsSectionLook says "Subtitle Style"
+// in the language of msgs.
+//
+// Settings section and sidebar item: how the player shows subtitles.
+func (msgs Messages) SettingsSectionLook() string {
+	return Catalog.Format(msgs.locale, "settingsSectionLook", nil)
+}
+
+// SettingsSectionShortcuts says "Keyboard Shortcuts"
+// in the language the app shows.
+//
+// Settings section and sidebar item: the table of keyboard shortcuts.
+func SettingsSectionShortcuts() string { return In(i18n.Locale()).SettingsSectionShortcuts() }
+
+// SettingsSectionShortcuts says "Keyboard Shortcuts"
+// in the language of msgs.
+//
+// Settings section and sidebar item: the table of keyboard shortcuts.
+func (msgs Messages) SettingsSectionShortcuts() string {
+	return Catalog.Format(msgs.locale, "settingsSectionShortcuts", nil)
+}
+
+// SettingsSectionSpeech says "Speech Recognition"
+// in the language the app shows.
+//
+// Settings section and sidebar item: the whisper models that transcribe
+// speech.
+func SettingsSectionSpeech() string { return In(i18n.Locale()).SettingsSectionSpeech() }
+
+// SettingsSectionSpeech says "Speech Recognition"
+// in the language of msgs.
+//
+// Settings section and sidebar item: the whisper models that transcribe
+// speech.
+func (msgs Messages) SettingsSectionSpeech() string {
+	return Catalog.Format(msgs.locale, "settingsSectionSpeech", nil)
+}
+
+// SettingsSectionTranslate says "Translation"
+// in the language the app shows.
+//
+// Settings section and sidebar item: the target language and the
+// translation prompt.
+func SettingsSectionTranslate() string { return In(i18n.Locale()).SettingsSectionTranslate() }
+
+// SettingsSectionTranslate says "Translation"
+// in the language of msgs.
+//
+// Settings section and sidebar item: the target language and the
+// translation prompt.
+func (msgs Messages) SettingsSectionTranslate() string {
+	return Catalog.Format(msgs.locale, "settingsSectionTranslate", nil)
+}
+
+// SettingsShortcutsNone says "No matching shortcuts"
+// in the language the app shows.
+//
+// Shown when the shortcut search finds nothing.
+func SettingsShortcutsNone() string { return In(i18n.Locale()).SettingsShortcutsNone() }
+
+// SettingsShortcutsNone says "No matching shortcuts"
+// in the language of msgs.
+//
+// Shown when the shortcut search finds nothing.
+func (msgs Messages) SettingsShortcutsNone() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsNone", nil)
+}
+
+// SettingsShortcutsNote says "Single-key shortcuts work only when no text field has the focus."
+// in the language the app shows.
+//
+// Note under the shortcut search field.
+func SettingsShortcutsNote() string { return In(i18n.Locale()).SettingsShortcutsNote() }
+
+// SettingsShortcutsNote says "Single-key shortcuts work only when no text field has the focus."
+// in the language of msgs.
+//
+// Note under the shortcut search field.
+func (msgs Messages) SettingsShortcutsNote() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsNote", nil)
+}
+
+// SettingsShortcutsSearch says "Search commands or keys"
+// in the language the app shows.
+//
+// Placeholder and accessible name of the Keyboard Shortcuts page's search
+// field.
+func SettingsShortcutsSearch() string { return In(i18n.Locale()).SettingsShortcutsSearch() }
+
+// SettingsShortcutsSearch says "Search commands or keys"
+// in the language of msgs.
+//
+// Placeholder and accessible name of the Keyboard Shortcuts page's search
+// field.
+func (msgs Messages) SettingsShortcutsSearch() string {
+	return Catalog.Format(msgs.locale, "settingsShortcutsSearch", nil)
+}
+
+// SettingsSpeechBlurbBase says "Clear English talks and podcasts, almost instantly."
+// in the language the app shows.
+//
+// What the whisper model Base is good for.
+func SettingsSpeechBlurbBase() string { return In(i18n.Locale()).SettingsSpeechBlurbBase() }
+
+// SettingsSpeechBlurbBase says "Clear English talks and podcasts, almost instantly."
+// in the language of msgs.
+//
+// What the whisper model Base is good for.
+func (msgs Messages) SettingsSpeechBlurbBase() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechBlurbBase", nil)
+}
+
+// SettingsSpeechBlurbLargeV3 says "The most accurate and the slowest. For noisy places, conversations among several people, or films in less common lang…"
+// in the language the app shows.
+//
+// What the whisper model Large v3 is good for.
+func SettingsSpeechBlurbLargeV3() string { return In(i18n.Locale()).SettingsSpeechBlurbLargeV3() }
+
+// SettingsSpeechBlurbLargeV3 says "The most accurate and the slowest. For noisy places, conversations among several people, or films in less common lang…"
+// in the language of msgs.
+//
+// What the whisper model Large v3 is good for.
+func (msgs Messages) SettingsSpeechBlurbLargeV3() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechBlurbLargeV3", nil)
+}
+
+// SettingsSpeechBlurbLargeV3Turbo says "Almost the same results as the compressed version, at about 3 times the space."
+// in the language the app shows.
+//
+// What the whisper model Large v3 Turbo is good for, next to its compressed
+// version.
+func SettingsSpeechBlurbLargeV3Turbo() string {
+	return In(i18n.Locale()).SettingsSpeechBlurbLargeV3Turbo()
+}
+
+// SettingsSpeechBlurbLargeV3Turbo says "Almost the same results as the compressed version, at about 3 times the space."
+// in the language of msgs.
+//
+// What the whisper model Large v3 Turbo is good for, next to its compressed
+// version.
+func (msgs Messages) SettingsSpeechBlurbLargeV3Turbo() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechBlurbLargeV3Turbo", nil)
+}
+
+// SettingsSpeechBlurbLargeV3TurboQ5 says "The choice for most cases: close to the highest accuracy, small and fast."
+// in the language the app shows.
+//
+// What the recommended whisper model Large v3 Turbo (Compressed) is good
+// for.
+func SettingsSpeechBlurbLargeV3TurboQ5() string {
+	return In(i18n.Locale()).SettingsSpeechBlurbLargeV3TurboQ5()
+}
+
+// SettingsSpeechBlurbLargeV3TurboQ5 says "The choice for most cases: close to the highest accuracy, small and fast."
+// in the language of msgs.
+//
+// What the recommended whisper model Large v3 Turbo (Compressed) is good
+// for.
+func (msgs Messages) SettingsSpeechBlurbLargeV3TurboQ5() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechBlurbLargeV3TurboQ5", nil)
+}
+
+// SettingsSpeechBlurbMedium says "More accurate with strong accents and fast speech, but noticeably slower."
+// in the language the app shows.
+//
+// What the whisper model Medium is good for.
+func SettingsSpeechBlurbMedium() string { return In(i18n.Locale()).SettingsSpeechBlurbMedium() }
+
+// SettingsSpeechBlurbMedium says "More accurate with strong accents and fast speech, but noticeably slower."
+// in the language of msgs.
+//
+// What the whisper model Medium is good for.
+func (msgs Messages) SettingsSpeechBlurbMedium() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechBlurbMedium", nil)
+}
+
+// SettingsSpeechBlurbSmall says "Good enough for everyday videos, and mostly reliable for Chinese and other languages too."
+// in the language the app shows.
+//
+// What the whisper model Small is good for.
+func SettingsSpeechBlurbSmall() string { return In(i18n.Locale()).SettingsSpeechBlurbSmall() }
+
+// SettingsSpeechBlurbSmall says "Good enough for everyday videos, and mostly reliable for Chinese and other languages too."
+// in the language of msgs.
+//
+// What the whisper model Small is good for.
+func (msgs Messages) SettingsSpeechBlurbSmall() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechBlurbSmall", nil)
+}
+
+// SettingsSpeechBlurbTiny says "For a quick try only. It makes many mistakes and suits only clearly spoken English."
+// in the language the app shows.
+//
+// What the whisper model Tiny is good for.
+func SettingsSpeechBlurbTiny() string { return In(i18n.Locale()).SettingsSpeechBlurbTiny() }
+
+// SettingsSpeechBlurbTiny says "For a quick try only. It makes many mistakes and suits only clearly spoken English."
+// in the language of msgs.
+//
+// What the whisper model Tiny is good for.
+func (msgs Messages) SettingsSpeechBlurbTiny() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechBlurbTiny", nil)
+}
+
+// SettingsSpeechCancel says "Cancel"
+// in the language the app shows.
+//
+// Button canceling a whisper model's download.
+func SettingsSpeechCancel() string { return In(i18n.Locale()).SettingsSpeechCancel() }
+
+// SettingsSpeechCancel says "Cancel"
+// in the language of msgs.
+//
+// Button canceling a whisper model's download.
+func (msgs Messages) SettingsSpeechCancel() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechCancel", nil)
+}
+
+// SettingsSpeechDownload says "Download"
+// in the language the app shows.
+//
+// Button downloading a whisper model.
+func SettingsSpeechDownload() string { return In(i18n.Locale()).SettingsSpeechDownload() }
+
+// SettingsSpeechDownload says "Download"
+// in the language of msgs.
+//
+// Button downloading a whisper model.
+func (msgs Messages) SettingsSpeechDownload() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechDownload", nil)
+}
+
+// SettingsSpeechDownloadProgress says "{model} download progress"
+// in the language the app shows.
+//
+// Accessible name of a whisper model's download progress bar.
+func SettingsSpeechDownloadProgress(model string) string {
+	return In(i18n.Locale()).SettingsSpeechDownloadProgress(model)
+}
+
+// SettingsSpeechDownloadProgress says "{model} download progress"
+// in the language of msgs.
+//
+// Accessible name of a whisper model's download progress bar.
+func (msgs Messages) SettingsSpeechDownloadProgress(model string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechDownloadProgress", map[string]any{"model": model})
+}
+
+// SettingsSpeechDownloaded says "Downloaded"
+// in the language the app shows.
+//
+// At the end of a whisper model's row: the model is on disk.
+func SettingsSpeechDownloaded() string { return In(i18n.Locale()).SettingsSpeechDownloaded() }
+
+// SettingsSpeechDownloaded says "Downloaded"
+// in the language of msgs.
+//
+// At the end of a whisper model's row: the model is on disk.
+func (msgs Messages) SettingsSpeechDownloaded() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechDownloaded", nil)
+}
+
+// SettingsSpeechModelStats says "Speed {speed}  Accuracy {accuracy}  {size}"
+// in the language the app shows.
+//
+// Line under a whisper model: its speed and accuracy as five stars each,
+// then its size. Two spaces between the parts.
+func SettingsSpeechModelStats(speed string, accuracy string, size string) string {
+	return In(i18n.Locale()).SettingsSpeechModelStats(speed, accuracy, size)
+}
+
+// SettingsSpeechModelStats says "Speed {speed}  Accuracy {accuracy}  {size}"
+// in the language of msgs.
+//
+// Line under a whisper model: its speed and accuracy as five stars each,
+// then its size. Two spaces between the parts.
+func (msgs Messages) SettingsSpeechModelStats(speed string, accuracy string, size string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechModelStats", map[string]any{"speed": speed, "accuracy": accuracy, "size": size})
+}
+
+// SettingsSpeechModels says "whisper Models"
+// in the language the app shows.
+//
+// Heading of the Speech Recognition page's card, and the name of its radio
+// group. whisper is a program name, kept lowercase.
+func SettingsSpeechModels() string { return In(i18n.Locale()).SettingsSpeechModels() }
+
+// SettingsSpeechModels says "whisper Models"
+// in the language of msgs.
+//
+// Heading of the Speech Recognition page's card, and the name of its radio
+// group. whisper is a program name, kept lowercase.
+func (msgs Messages) SettingsSpeechModels() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechModels", nil)
+}
+
+// SettingsSpeechNameLargeV3TurboQ5 says "Large v3 Turbo (Compressed)"
+// in the language the app shows.
+//
+// Name of the whisper model large-v3-turbo-q5, the quantized (smaller)
+// Large v3 Turbo. Large v3 Turbo is the model's name; translate only the
+// qualifier.
+func SettingsSpeechNameLargeV3TurboQ5() string {
+	return In(i18n.Locale()).SettingsSpeechNameLargeV3TurboQ5()
+}
+
+// SettingsSpeechNameLargeV3TurboQ5 says "Large v3 Turbo (Compressed)"
+// in the language of msgs.
+//
+// Name of the whisper model large-v3-turbo-q5, the quantized (smaller)
+// Large v3 Turbo. Large v3 Turbo is the model's name; translate only the
+// qualifier.
+func (msgs Messages) SettingsSpeechNameLargeV3TurboQ5() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechNameLargeV3TurboQ5", nil)
+}
+
+// SettingsSpeechNoModelsDir says "There is no models folder yet"
+// in the language the app shows.
+//
+// Error on the Speech Recognition page: Kando has no folder to download
+// whisper models into.
+func SettingsSpeechNoModelsDir() string { return In(i18n.Locale()).SettingsSpeechNoModelsDir() }
+
+// SettingsSpeechNoModelsDir says "There is no models folder yet"
+// in the language of msgs.
+//
+// Error on the Speech Recognition page: Kando has no folder to download
+// whisper models into.
+func (msgs Messages) SettingsSpeechNoModelsDir() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechNoModelsDir", nil)
+}
+
+// SettingsSpeechNote says "Detects the language and breaks sentences smartly. Larger models are more accurate but slower and take more space; if…"
+// in the language the app shows.
+//
+// Footnote under the whisper models.
+func SettingsSpeechNote() string { return In(i18n.Locale()).SettingsSpeechNote() }
+
+// SettingsSpeechNote says "Detects the language and breaks sentences smartly. Larger models are more accurate but slower and take more space; if…"
+// in the language of msgs.
+//
+// Footnote under the whisper models.
+func (msgs Messages) SettingsSpeechNote() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechNote", nil)
+}
+
+// SettingsSpeechRecommended says "Recommended"
+// in the language the app shows.
+//
+// Badge after the name of the recommended whisper model.
+func SettingsSpeechRecommended() string { return In(i18n.Locale()).SettingsSpeechRecommended() }
+
+// SettingsSpeechRecommended says "Recommended"
+// in the language of msgs.
+//
+// Badge after the name of the recommended whisper model.
+func (msgs Messages) SettingsSpeechRecommended() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechRecommended", nil)
+}
+
+// SettingsSpeechSaveFailed says "Couldn't save the model: {error}"
+// in the language the app shows.
+//
+// Error when the chosen whisper model could not be saved to settings.json.
+func SettingsSpeechSaveFailed(error string) string {
+	return In(i18n.Locale()).SettingsSpeechSaveFailed(error)
+}
+
+// SettingsSpeechSaveFailed says "Couldn't save the model: {error}"
+// in the language of msgs.
+//
+// Error when the chosen whisper model could not be saved to settings.json.
+func (msgs Messages) SettingsSpeechSaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechSaveFailed", map[string]any{"error": error})
+}
+
+// SettingsTranslateContext says "Smart translation"
+// in the language the app shows.
+//
+// Switch row: translate with the sentences before in view.
+func SettingsTranslateContext() string { return In(i18n.Locale()).SettingsTranslateContext() }
+
+// SettingsTranslateContext says "Smart translation"
+// in the language of msgs.
+//
+// Switch row: translate with the sentences before in view.
+func (msgs Messages) SettingsTranslateContext() string {
+	return Catalog.Format(msgs.locale, "settingsTranslateContext", nil)
+}
+
+// SettingsTranslateContextHint says "Translates with the sentences before in view, and joins the pieces of one sentence in order."
+// in the language the app shows.
+//
+// Under Smart translation.
+func SettingsTranslateContextHint() string { return In(i18n.Locale()).SettingsTranslateContextHint() }
+
+// SettingsTranslateContextHint says "Translates with the sentences before in view, and joins the pieces of one sentence in order."
+// in the language of msgs.
+//
+// Under Smart translation.
+func (msgs Messages) SettingsTranslateContextHint() string {
+	return Catalog.Format(msgs.locale, "settingsTranslateContextHint", nil)
+}
+
+// SettingsTranslatePrompt says "Prompt"
+// in the language the app shows.
+//
+// Heading of the card with the prompt sent to the translation model.
+func SettingsTranslatePrompt() string { return In(i18n.Locale()).SettingsTranslatePrompt() }
+
+// SettingsTranslatePrompt says "Prompt"
+// in the language of msgs.
+//
+// Heading of the card with the prompt sent to the translation model.
+func (msgs Messages) SettingsTranslatePrompt() string {
+	return Catalog.Format(msgs.locale, "settingsTranslatePrompt", nil)
+}
+
+// SettingsTranslatePromptCustom says "Using a custom prompt · Write '{{language}}' for the target language."
+// in the language the app shows.
+//
+// Under the prompt when it was edited. {{language}} is written literally
+// into the prompt and must stay as it is, inside the apostrophes.
+func SettingsTranslatePromptCustom() string { return In(i18n.Locale()).SettingsTranslatePromptCustom() }
+
+// SettingsTranslatePromptCustom says "Using a custom prompt · Write '{{language}}' for the target language."
+// in the language of msgs.
+//
+// Under the prompt when it was edited. {{language}} is written literally
+// into the prompt and must stay as it is, inside the apostrophes.
+func (msgs Messages) SettingsTranslatePromptCustom() string {
+	return Catalog.Format(msgs.locale, "settingsTranslatePromptCustom", nil)
+}
+
+// SettingsTranslatePromptDefault says "Using the default prompt · Write '{{language}}' for the target language."
+// in the language the app shows.
+//
+// Under the prompt when it is the default one. {{language}} is written
+// literally into the prompt and must stay as it is, inside the apostrophes.
+func SettingsTranslatePromptDefault() string {
+	return In(i18n.Locale()).SettingsTranslatePromptDefault()
+}
+
+// SettingsTranslatePromptDefault says "Using the default prompt · Write '{{language}}' for the target language."
+// in the language of msgs.
+//
+// Under the prompt when it is the default one. {{language}} is written
+// literally into the prompt and must stay as it is, inside the apostrophes.
+func (msgs Messages) SettingsTranslatePromptDefault() string {
+	return Catalog.Format(msgs.locale, "settingsTranslatePromptDefault", nil)
+}
+
+// SettingsTranslatePromptLabel says "Translation prompt"
+// in the language the app shows.
+//
+// Accessible name of the text area holding the translation prompt.
+func SettingsTranslatePromptLabel() string { return In(i18n.Locale()).SettingsTranslatePromptLabel() }
+
+// SettingsTranslatePromptLabel says "Translation prompt"
+// in the language of msgs.
+//
+// Accessible name of the text area holding the translation prompt.
+func (msgs Messages) SettingsTranslatePromptLabel() string {
+	return Catalog.Format(msgs.locale, "settingsTranslatePromptLabel", nil)
+}
+
+// SettingsTranslatePromptNote says "You can add style requests, such as a conversational tone or keeping names in English. Kando asks for the number of J…"
+// in the language the app shows.
+//
+// Footnote under the prompt.
+func SettingsTranslatePromptNote() string { return In(i18n.Locale()).SettingsTranslatePromptNote() }
+
+// SettingsTranslatePromptNote says "You can add style requests, such as a conversational tone or keeping names in English. Kando asks for the number of J…"
+// in the language of msgs.
+//
+// Footnote under the prompt.
+func (msgs Messages) SettingsTranslatePromptNote() string {
+	return Catalog.Format(msgs.locale, "settingsTranslatePromptNote", nil)
+}
+
+// SettingsTranslateRestore says "Restore Default"
+// in the language the app shows.
+//
+// Button putting the default prompt back.
+func SettingsTranslateRestore() string { return In(i18n.Locale()).SettingsTranslateRestore() }
+
+// SettingsTranslateRestore says "Restore Default"
+// in the language of msgs.
+//
+// Button putting the default prompt back.
+func (msgs Messages) SettingsTranslateRestore() string {
+	return Catalog.Format(msgs.locale, "settingsTranslateRestore", nil)
+}
+
+// SettingsTranslateTarget says "Default target language"
+// in the language the app shows.
+//
+// Row title and pop-up name: the language new jobs translate subtitles
+// into.
+func SettingsTranslateTarget() string { return In(i18n.Locale()).SettingsTranslateTarget() }
+
+// SettingsTranslateTarget says "Default target language"
+// in the language of msgs.
+//
+// Row title and pop-up name: the language new jobs translate subtitles
+// into.
+func (msgs Messages) SettingsTranslateTarget() string {
+	return Catalog.Format(msgs.locale, "settingsTranslateTarget", nil)
+}
+
+// SettingsTranslateTargetNote says "New jobs translate into this language."
+// in the language the app shows.
+//
+// Footnote under the target language.
+func SettingsTranslateTargetNote() string { return In(i18n.Locale()).SettingsTranslateTargetNote() }
+
+// SettingsTranslateTargetNote says "New jobs translate into this language."
+// in the language of msgs.
+//
+// Footnote under the target language.
+func (msgs Messages) SettingsTranslateTargetNote() string {
+	return Catalog.Format(msgs.locale, "settingsTranslateTargetNote", nil)
+}
+
+// SettingsWindowTitle says "Settings"
+// in the language the app shows.
+//
+// Title of the settings window, as the Window menu and Mission Control name
+// it.
+func SettingsWindowTitle() string { return In(i18n.Locale()).SettingsWindowTitle() }
+
+// SettingsWindowTitle says "Settings"
+// in the language of msgs.
+//
+// Title of the settings window, as the Window menu and Mission Control name
+// it.
+func (msgs Messages) SettingsWindowTitle() string {
+	return Catalog.Format(msgs.locale, "settingsWindowTitle", nil)
+}
+
+// SidebarChooseLibrary says "Choose a Library"
+// in the language the app shows.
+//
+// The library switcher's name line while no library is open.
+func SidebarChooseLibrary() string { return In(i18n.Locale()).SidebarChooseLibrary() }
+
+// SidebarChooseLibrary says "Choose a Library"
+// in the language of msgs.
+//
+// The library switcher's name line while no library is open.
+func (msgs Messages) SidebarChooseLibrary() string {
+	return Catalog.Format(msgs.locale, "sidebarChooseLibrary", nil)
+}
+
+// SidebarLibrary says "Library"
+// in the language the app shows.
+//
+// Caption over the open library's name in the library switcher at the top
+// of the sidebar.
+func SidebarLibrary() string { return In(i18n.Locale()).SidebarLibrary() }
+
+// SidebarLibrary says "Library"
+// in the language of msgs.
+//
+// Caption over the open library's name in the library switcher at the top
+// of the sidebar.
+func (msgs Messages) SidebarLibrary() string {
+	return Catalog.Format(msgs.locale, "sidebarLibrary", nil)
+}
+
+// SidebarLibraryCount says "{name} · {count, number, ::group-off}"
+// in the language the app shows.
+//
+// Item of the library switcher's menu: a library and how many films it
+// holds.
+func SidebarLibraryCount(name string, count int) string {
+	return In(i18n.Locale()).SidebarLibraryCount(name, count)
+}
+
+// SidebarLibraryCount says "{name} · {count, number, ::group-off}"
+// in the language of msgs.
+//
+// Item of the library switcher's menu: a library and how many films it
+// holds.
+func (msgs Messages) SidebarLibraryCount(name string, count int) string {
+	return Catalog.Format(msgs.locale, "sidebarLibraryCount", map[string]any{"name": name, "count": count})
+}
+
+// SidebarMenuForget says "Remove from List"
+// in the language the app shows.
+//
+// Item of the library menu of the settings page's Switch button that takes
+// the open library off the list of known libraries, leaving its files.
+func SidebarMenuForget() string { return In(i18n.Locale()).SidebarMenuForget() }
+
+// SidebarMenuForget says "Remove from List"
+// in the language of msgs.
+//
+// Item of the library menu of the settings page's Switch button that takes
+// the open library off the list of known libraries, leaving its files.
+func (msgs Messages) SidebarMenuForget() string {
+	return Catalog.Format(msgs.locale, "sidebarMenuForget", nil)
+}
+
+// SidebarMenuNewLibrary says "New Library…"
+// in the language the app shows.
+//
+// Item of the library menu of the settings page's Switch button that makes
+// a new library.
+func SidebarMenuNewLibrary() string { return In(i18n.Locale()).SidebarMenuNewLibrary() }
+
+// SidebarMenuNewLibrary says "New Library…"
+// in the language of msgs.
+//
+// Item of the library menu of the settings page's Switch button that makes
+// a new library.
+func (msgs Messages) SidebarMenuNewLibrary() string {
+	return Catalog.Format(msgs.locale, "sidebarMenuNewLibrary", nil)
+}
+
+// SidebarMenuOpenLibrary says "Open Library…"
+// in the language the app shows.
+//
+// Item of the library menu of the settings page's Switch button that opens
+// a library from disk.
+func SidebarMenuOpenLibrary() string { return In(i18n.Locale()).SidebarMenuOpenLibrary() }
+
+// SidebarMenuOpenLibrary says "Open Library…"
+// in the language of msgs.
+//
+// Item of the library menu of the settings page's Switch button that opens
+// a library from disk.
+func (msgs Messages) SidebarMenuOpenLibrary() string {
+	return Catalog.Format(msgs.locale, "sidebarMenuOpenLibrary", nil)
+}
+
+// SidebarMenuShowInFinder says "Show in Finder"
+// in the language the app shows.
+//
+// Item of the library menu of the settings page's Switch button that shows
+// the open library in Finder.
+func SidebarMenuShowInFinder() string { return In(i18n.Locale()).SidebarMenuShowInFinder() }
+
+// SidebarMenuShowInFinder says "Show in Finder"
+// in the language of msgs.
+//
+// Item of the library menu of the settings page's Switch button that shows
+// the open library in Finder.
+func (msgs Messages) SidebarMenuShowInFinder() string {
+	return Catalog.Format(msgs.locale, "sidebarMenuShowInFinder", nil)
+}
+
+// SidebarNewLibrary says "New Library…"
+// in the language the app shows.
+//
+// Item of the library switcher's menu that makes a new library.
+func SidebarNewLibrary() string { return In(i18n.Locale()).SidebarNewLibrary() }
+
+// SidebarNewLibrary says "New Library…"
+// in the language of msgs.
+//
+// Item of the library switcher's menu that makes a new library.
+func (msgs Messages) SidebarNewLibrary() string {
+	return Catalog.Format(msgs.locale, "sidebarNewLibrary", nil)
+}
+
+// SidebarOpenLibrary says "Open Existing Library…"
+// in the language the app shows.
+//
+// Item of the library switcher's menu that opens a library from disk.
+func SidebarOpenLibrary() string { return In(i18n.Locale()).SidebarOpenLibrary() }
+
+// SidebarOpenLibrary says "Open Existing Library…"
+// in the language of msgs.
+//
+// Item of the library switcher's menu that opens a library from disk.
+func (msgs Messages) SidebarOpenLibrary() string {
+	return Catalog.Format(msgs.locale, "sidebarOpenLibrary", nil)
+}
+
+// SidebarRevealLibrary says "Show “{name}” in Finder"
+// in the language the app shows.
+//
+// Item of the library switcher's menu that shows the open library's folder
+// in Finder.
+func SidebarRevealLibrary(name string) string { return In(i18n.Locale()).SidebarRevealLibrary(name) }
+
+// SidebarRevealLibrary says "Show “{name}” in Finder"
+// in the language of msgs.
+//
+// Item of the library switcher's menu that shows the open library's folder
+// in Finder.
+func (msgs Messages) SidebarRevealLibrary(name string) string {
+	return Catalog.Format(msgs.locale, "sidebarRevealLibrary", map[string]any{"name": name})
+}
+
+// SidebarSettings says "Settings"
+// in the language the app shows.
+//
+// Accessible name of the gear on the status card, which opens the settings
+// that fix what is missing.
+func SidebarSettings() string { return In(i18n.Locale()).SidebarSettings() }
+
+// SidebarSettings says "Settings"
+// in the language of msgs.
+//
+// Accessible name of the gear on the status card, which opens the settings
+// that fix what is missing.
+func (msgs Messages) SidebarSettings() string {
+	return Catalog.Format(msgs.locale, "sidebarSettings", nil)
+}
+
+// SidebarSourceAll says "All Films"
+// in the language the app shows.
+//
+// Sidebar item showing every film of the library; also the library page's
+// title then.
+func SidebarSourceAll() string { return In(i18n.Locale()).SidebarSourceAll() }
+
+// SidebarSourceAll says "All Films"
+// in the language of msgs.
+//
+// Sidebar item showing every film of the library; also the library page's
+// title then.
+func (msgs Messages) SidebarSourceAll() string {
+	return Catalog.Format(msgs.locale, "sidebarSourceAll", nil)
+}
+
+// SidebarSourceBilibili says "Bilibili"
+// in the language the app shows.
+//
+// Sidebar item showing the films from Bilibili.
+func SidebarSourceBilibili() string { return In(i18n.Locale()).SidebarSourceBilibili() }
+
+// SidebarSourceBilibili says "Bilibili"
+// in the language of msgs.
+//
+// Sidebar item showing the films from Bilibili.
+func (msgs Messages) SidebarSourceBilibili() string {
+	return Catalog.Format(msgs.locale, "sidebarSourceBilibili", nil)
+}
+
+// SidebarSourceLocal says "Local Files"
+// in the language the app shows.
+//
+// Sidebar item showing the films made from local video files.
+func SidebarSourceLocal() string { return In(i18n.Locale()).SidebarSourceLocal() }
+
+// SidebarSourceLocal says "Local Files"
+// in the language of msgs.
+//
+// Sidebar item showing the films made from local video files.
+func (msgs Messages) SidebarSourceLocal() string {
+	return Catalog.Format(msgs.locale, "sidebarSourceLocal", nil)
+}
+
+// SidebarSourceWeb says "Other Sites"
+// in the language the app shows.
+//
+// Sidebar item showing the films from websites other than YouTube and
+// Bilibili.
+func SidebarSourceWeb() string { return In(i18n.Locale()).SidebarSourceWeb() }
+
+// SidebarSourceWeb says "Other Sites"
+// in the language of msgs.
+//
+// Sidebar item showing the films from websites other than YouTube and
+// Bilibili.
+func (msgs Messages) SidebarSourceWeb() string {
+	return Catalog.Format(msgs.locale, "sidebarSourceWeb", nil)
+}
+
+// SidebarStatus says "Status"
+// in the language the app shows.
+//
+// Accessible name of the status card at the foot of the sidebar.
+func SidebarStatus() string { return In(i18n.Locale()).SidebarStatus() }
+
+// SidebarStatus says "Status"
+// in the language of msgs.
+//
+// Accessible name of the status card at the foot of the sidebar.
+func (msgs Messages) SidebarStatus() string {
+	return Catalog.Format(msgs.locale, "sidebarStatus", nil)
+}
+
+// SidebarSwitcherLabel says "Switch library, current: {name}"
+// in the language the app shows.
+//
+// Accessible name of the library switcher: what it does and the open
+// library.
+func SidebarSwitcherLabel(name string) string { return In(i18n.Locale()).SidebarSwitcherLabel(name) }
+
+// SidebarSwitcherLabel says "Switch library, current: {name}"
+// in the language of msgs.
+//
+// Accessible name of the library switcher: what it does and the open
+// library.
+func (msgs Messages) SidebarSwitcherLabel(name string) string {
+	return Catalog.Format(msgs.locale, "sidebarSwitcherLabel", map[string]any{"name": name})
+}
+
+// SitesCaveat says "Videos that need a sign-in or membership, or that are DRM-encrypted, may not download even from a site on the list."
+// in the language the app shows.
+//
+// Second line under the sheet's title.
+func SitesCaveat() string { return In(i18n.Locale()).SitesCaveat() }
+
+// SitesCaveat says "Videos that need a sign-in or membership, or that are DRM-encrypted, may not download even from a site on the list."
+// in the language of msgs.
+//
+// Second line under the sheet's title.
+func (msgs Messages) SitesCaveat() string {
+	return Catalog.Format(msgs.locale, "sitesCaveat", nil)
+}
+
+// SitesDone says "Done"
+// in the language the app shows.
+//
+// Button closing the sheet.
+func SitesDone() string { return In(i18n.Locale()).SitesDone() }
+
+// SitesDone says "Done"
+// in the language of msgs.
+//
+// Button closing the sheet.
+func (msgs Messages) SitesDone() string {
+	return Catalog.Format(msgs.locale, "sitesDone", nil)
+}
+
+// SitesFound says "{count, plural, one {# found} other {# found}} · {source}"
+// in the language the app shows.
+//
+// Footer while searching: how many sites the search found, then the list's
+// source.
+func SitesFound(count int, source string) string { return In(i18n.Locale()).SitesFound(count, source) }
+
+// SitesFound says "{count, plural, one {# found} other {# found}} · {source}"
+// in the language of msgs.
+//
+// Footer while searching: how many sites the search found, then the list's
+// source.
+func (msgs Messages) SitesFound(count int, source string) string {
+	return Catalog.Format(msgs.locale, "sitesFound", map[string]any{"count": count, "source": source})
+}
+
+// SitesGridLabel says "Websites"
+// in the language the app shows.
+//
+// Accessible name of the grid of websites.
+func SitesGridLabel() string { return In(i18n.Locale()).SitesGridLabel() }
+
+// SitesGridLabel says "Websites"
+// in the language of msgs.
+//
+// Accessible name of the grid of websites.
+func (msgs Messages) SitesGridLabel() string {
+	return Catalog.Format(msgs.locale, "sitesGridLabel", nil)
+}
+
+// SitesIntro says "Kando downloads videos with yt-dlp, which recognizes the {count, plural, one {# website} other {# websites}} below."
+// in the language the app shows.
+//
+// First line under the sheet's title: how many websites yt-dlp recognizes.
+func SitesIntro(count int) string { return In(i18n.Locale()).SitesIntro(count) }
+
+// SitesIntro says "Kando downloads videos with yt-dlp, which recognizes the {count, plural, one {# website} other {# websites}} below."
+// in the language of msgs.
+//
+// First line under the sheet's title: how many websites yt-dlp recognizes.
+func (msgs Messages) SitesIntro(count int) string {
+	return Catalog.Format(msgs.locale, "sitesIntro", map[string]any{"count": count})
+}
+
+// SitesMenuItem says "Supported Websites…"
+// in the language the app shows.
+//
+// Help menu item that opens the sheet listing the websites Kando downloads
+// from.
+func SitesMenuItem() string { return In(i18n.Locale()).SitesMenuItem() }
+
+// SitesMenuItem says "Supported Websites…"
+// in the language of msgs.
+//
+// Help menu item that opens the sheet listing the websites Kando downloads
+// from.
+func (msgs Messages) SitesMenuItem() string {
+	return Catalog.Format(msgs.locale, "sitesMenuItem", nil)
+}
+
+// SitesNotFound says "“{query}” is not on the list"
+// in the language the app shows.
+//
+// Heading when the search finds no website.
+func SitesNotFound(query string) string { return In(i18n.Locale()).SitesNotFound(query) }
+
+// SitesNotFound says "“{query}” is not on the list"
+// in the language of msgs.
+//
+// Heading when the search finds no website.
+func (msgs Messages) SitesNotFound(query string) string {
+	return Catalog.Format(msgs.locale, "sitesNotFound", map[string]any{"query": query})
+}
+
+// SitesNotFoundHint says "You can still try pasting a link from a site that isn't listed: yt-dlp finds standard videos on many web pages, and d…"
+// in the language the app shows.
+//
+// What may still work when the search finds no website.
+func SitesNotFoundHint() string { return In(i18n.Locale()).SitesNotFoundHint() }
+
+// SitesNotFoundHint says "You can still try pasting a link from a site that isn't listed: yt-dlp finds standard videos on many web pages, and d…"
+// in the language of msgs.
+//
+// What may still work when the search finds no website.
+func (msgs Messages) SitesNotFoundHint() string {
+	return Catalog.Format(msgs.locale, "sitesNotFoundHint", nil)
+}
+
+// SitesSearchLabel says "Search websites"
+// in the language the app shows.
+//
+// Accessible name of the sheet's search field.
+func SitesSearchLabel() string { return In(i18n.Locale()).SitesSearchLabel() }
+
+// SitesSearchLabel says "Search websites"
+// in the language of msgs.
+//
+// Accessible name of the sheet's search field.
+func (msgs Messages) SitesSearchLabel() string {
+	return Catalog.Format(msgs.locale, "sitesSearchLabel", nil)
+}
+
+// SitesSearchPlaceholder says "Search by site name or domain, or paste a video link"
+// in the language the app shows.
+//
+// Placeholder of the sheet's search field.
+func SitesSearchPlaceholder() string { return In(i18n.Locale()).SitesSearchPlaceholder() }
+
+// SitesSearchPlaceholder says "Search by site name or domain, or paste a video link"
+// in the language of msgs.
+//
+// Placeholder of the sheet's search field.
+func (msgs Messages) SitesSearchPlaceholder() string {
+	return Catalog.Format(msgs.locale, "sitesSearchPlaceholder", nil)
+}
+
+// SitesSource says "List from yt-dlp {version}"
+// in the language the app shows.
+//
+// Footer: the yt-dlp release the list was taken from.
+func SitesSource(version string) string { return In(i18n.Locale()).SitesSource(version) }
+
+// SitesSource says "List from yt-dlp {version}"
+// in the language of msgs.
+//
+// Footer: the yt-dlp release the list was taken from.
+func (msgs Messages) SitesSource(version string) string {
+	return Catalog.Format(msgs.locale, "sitesSource", map[string]any{"version": version})
+}
+
+// SitesTileLabel says "{name}, {domain}"
+// in the language the app shows.
+//
+// Accessible name of a website's tile: its name and its domain.
+func SitesTileLabel(name string, domain string) string {
+	return In(i18n.Locale()).SitesTileLabel(name, domain)
+}
+
+// SitesTileLabel says "{name}, {domain}"
+// in the language of msgs.
+//
+// Accessible name of a website's tile: its name and its domain.
+func (msgs Messages) SitesTileLabel(name string, domain string) string {
+	return Catalog.Format(msgs.locale, "sitesTileLabel", map[string]any{"name": name, "domain": domain})
+}
+
+// SitesTitle says "Supported Websites"
+// in the language the app shows.
+//
+// Title of the sheet listing the websites Kando downloads from through
+// yt-dlp.
+func SitesTitle() string { return In(i18n.Locale()).SitesTitle() }
+
+// SitesTitle says "Supported Websites"
+// in the language of msgs.
+//
+// Title of the sheet listing the websites Kando downloads from through
+// yt-dlp.
+func (msgs Messages) SitesTitle() string {
+	return Catalog.Format(msgs.locale, "sitesTitle", nil)
+}
+
+// SourceAll says "All Films"
+// in the language the app shows.
+//
+// Sidebar source and library page title: every film of the library.
+func SourceAll() string { return In(i18n.Locale()).SourceAll() }
+
+// SourceAll says "All Films"
+// in the language of msgs.
+//
+// Sidebar source and library page title: every film of the library.
+func (msgs Messages) SourceAll() string {
+	return Catalog.Format(msgs.locale, "sourceAll", nil)
+}
+
+// SourceApplePodcasts says "Apple Podcasts"
+// in the language the app shows.
+//
+// Name of Apple Podcasts (podcasts.apple.com), as Apple names it in each
+// language.
+func SourceApplePodcasts() string { return In(i18n.Locale()).SourceApplePodcasts() }
+
+// SourceApplePodcasts says "Apple Podcasts"
+// in the language of msgs.
+//
+// Name of Apple Podcasts (podcasts.apple.com), as Apple names it in each
+// language.
+func (msgs Messages) SourceApplePodcasts() string {
+	return Catalog.Format(msgs.locale, "sourceApplePodcasts", nil)
+}
+
+// SourceBilibili says "Bilibili"
+// in the language the app shows.
+//
+// Name of the video site bilibili, as a source of films and in a link's
+// tag.
+func SourceBilibili() string { return In(i18n.Locale()).SourceBilibili() }
+
+// SourceBilibili says "Bilibili"
+// in the language of msgs.
+//
+// Name of the video site bilibili, as a source of films and in a link's
+// tag.
+func (msgs Messages) SourceBilibili() string {
+	return Catalog.Format(msgs.locale, "sourceBilibili", nil)
+}
+
+// SourceDouyin says "Douyin"
+// in the language the app shows.
+//
+// Name of the Chinese video site Douyin (douyin.com).
+func SourceDouyin() string { return In(i18n.Locale()).SourceDouyin() }
+
+// SourceDouyin says "Douyin"
+// in the language of msgs.
+//
+// Name of the Chinese video site Douyin (douyin.com).
+func (msgs Messages) SourceDouyin() string {
+	return Catalog.Format(msgs.locale, "sourceDouyin", nil)
+}
+
+// SourceDouyu says "Douyu"
+// in the language the app shows.
+//
+// Name of the Chinese streaming site Douyu (douyu.com).
+func SourceDouyu() string { return In(i18n.Locale()).SourceDouyu() }
+
+// SourceDouyu says "Douyu"
+// in the language of msgs.
+//
+// Name of the Chinese streaming site Douyu (douyu.com).
+func (msgs Messages) SourceDouyu() string {
+	return Catalog.Format(msgs.locale, "sourceDouyu", nil)
+}
+
+// SourceHuya says "Huya"
+// in the language the app shows.
+//
+// Name of the Chinese streaming site Huya (huya.com).
+func SourceHuya() string { return In(i18n.Locale()).SourceHuya() }
+
+// SourceHuya says "Huya"
+// in the language of msgs.
+//
+// Name of the Chinese streaming site Huya (huya.com).
+func (msgs Messages) SourceHuya() string {
+	return Catalog.Format(msgs.locale, "sourceHuya", nil)
+}
+
+// SourceIqiyi says "iQIYI"
+// in the language the app shows.
+//
+// Name of the Chinese video site iQIYI (iqiyi.com, iq.com).
+func SourceIqiyi() string { return In(i18n.Locale()).SourceIqiyi() }
+
+// SourceIqiyi says "iQIYI"
+// in the language of msgs.
+//
+// Name of the Chinese video site iQIYI (iqiyi.com, iq.com).
+func (msgs Messages) SourceIqiyi() string {
+	return Catalog.Format(msgs.locale, "sourceIqiyi", nil)
+}
+
+// SourceLocal says "Local Files"
+// in the language the app shows.
+//
+// Where a film comes from when it is a video file on this computer: library
+// page title and the source under a poster.
+func SourceLocal() string { return In(i18n.Locale()).SourceLocal() }
+
+// SourceLocal says "Local Files"
+// in the language of msgs.
+//
+// Where a film comes from when it is a video file on this computer: library
+// page title and the source under a poster.
+func (msgs Messages) SourceLocal() string {
+	return Catalog.Format(msgs.locale, "sourceLocal", nil)
+}
+
+// SourceMangoTV says "Mango TV"
+// in the language the app shows.
+//
+// Name of the Chinese video site Mango TV (mgtv.com).
+func SourceMangoTV() string { return In(i18n.Locale()).SourceMangoTV() }
+
+// SourceMangoTV says "Mango TV"
+// in the language of msgs.
+//
+// Name of the Chinese video site Mango TV (mgtv.com).
+func (msgs Messages) SourceMangoTV() string {
+	return Catalog.Format(msgs.locale, "sourceMangoTV", nil)
+}
+
+// SourceNaverTV says "Naver TV"
+// in the language the app shows.
+//
+// Name of the Korean video site Naver TV (tv.naver.com).
+func SourceNaverTV() string { return In(i18n.Locale()).SourceNaverTV() }
+
+// SourceNaverTV says "Naver TV"
+// in the language of msgs.
+//
+// Name of the Korean video site Naver TV (tv.naver.com).
+func (msgs Messages) SourceNaverTV() string {
+	return Catalog.Format(msgs.locale, "sourceNaverTV", nil)
+}
+
+// SourceNiconico says "Niconico"
+// in the language the app shows.
+//
+// Name of the Japanese video site niconico (nicovideo.jp).
+func SourceNiconico() string { return In(i18n.Locale()).SourceNiconico() }
+
+// SourceNiconico says "Niconico"
+// in the language of msgs.
+//
+// Name of the Japanese video site niconico (nicovideo.jp).
+func (msgs Messages) SourceNiconico() string {
+	return Catalog.Format(msgs.locale, "sourceNiconico", nil)
+}
+
+// SourceTencentVideo says "Tencent Video"
+// in the language the app shows.
+//
+// Name of the Chinese video site Tencent Video (v.qq.com).
+func SourceTencentVideo() string { return In(i18n.Locale()).SourceTencentVideo() }
+
+// SourceTencentVideo says "Tencent Video"
+// in the language of msgs.
+//
+// Name of the Chinese video site Tencent Video (v.qq.com).
+func (msgs Messages) SourceTencentVideo() string {
+	return Catalog.Format(msgs.locale, "sourceTencentVideo", nil)
+}
+
+// SourceWeb says "Other Sites"
+// in the language the app shows.
+//
+// Library page title for films downloaded from sites other than YouTube and
+// bilibili.
+func SourceWeb() string { return In(i18n.Locale()).SourceWeb() }
+
+// SourceWeb says "Other Sites"
+// in the language of msgs.
+//
+// Library page title for films downloaded from sites other than YouTube and
+// bilibili.
+func (msgs Messages) SourceWeb() string {
+	return Catalog.Format(msgs.locale, "sourceWeb", nil)
+}
+
+// SourceWeibo says "Weibo"
+// in the language the app shows.
+//
+// Name of the Chinese site Weibo (weibo.com).
+func SourceWeibo() string { return In(i18n.Locale()).SourceWeibo() }
+
+// SourceWeibo says "Weibo"
+// in the language of msgs.
+//
+// Name of the Chinese site Weibo (weibo.com).
+func (msgs Messages) SourceWeibo() string {
+	return Catalog.Format(msgs.locale, "sourceWeibo", nil)
+}
+
+// SourceXigua says "Xigua Video"
+// in the language the app shows.
+//
+// Name of the Chinese video site Xigua Video (ixigua.com).
+func SourceXigua() string { return In(i18n.Locale()).SourceXigua() }
+
+// SourceXigua says "Xigua Video"
+// in the language of msgs.
+//
+// Name of the Chinese video site Xigua Video (ixigua.com).
+func (msgs Messages) SourceXigua() string {
+	return Catalog.Format(msgs.locale, "sourceXigua", nil)
+}
+
+// SourceYouku says "Youku"
+// in the language the app shows.
+//
+// Name of the Chinese video site Youku (youku.com).
+func SourceYouku() string { return In(i18n.Locale()).SourceYouku() }
+
+// SourceYouku says "Youku"
+// in the language of msgs.
+//
+// Name of the Chinese video site Youku (youku.com).
+func (msgs Messages) SourceYouku() string {
+	return Catalog.Format(msgs.locale, "sourceYouku", nil)
+}

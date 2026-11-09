@@ -1,8 +1,9 @@
 package sidebar
 
 import (
-	"fmt"
 	"path/filepath"
+
+	"kando/apps/kando/locales"
 
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
@@ -20,13 +21,13 @@ var (
 
 // switcher is the library pill at the top of the sidebar: a folder tile, the caption 资料库 over the open library's name, and up and down arrows. A click opens the system menu of the known libraries.
 func switcher(c *ui.Context, t *ui.Theme, a App) {
-	name := "选择资料库"
+	name := locales.SidebarChooseLibrary()
 	if dir := a.LibraryDir(); dir != "" {
 		name = Title(dir)
 	}
 	ui.Row(c).Padding(0, insetEnd, 10, insetStart).AlignItems(ui.Stretch).Children(func() {
 		// The hairline is a ring inside the edge that takes no room, as the prototype's inset box-shadow.
-		pill := ui.ButtonBase(c).Grow(1).Height(40).Padding(0, 10).Gap(9).Radius(10).InsetShadow(0, 0, 0, 0.5, pillHairline).Label("切换资料库，当前：" + name)
+		pill := ui.ButtonBase(c).Grow(1).Height(40).Padding(0, 10).Gap(9).Radius(10).InsetShadow(0, 0, 0, 0.5, pillHairline).Label(locales.SidebarSwitcherLabel(name))
 		if pill.Pressed() {
 			pill.Background(pillOpenFill)
 		} else {
@@ -41,7 +42,7 @@ func switcher(c *ui.Context, t *ui.Theme, a App) {
 			})
 			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
 				// The prototype's two lines take 15 and 16 points, the browser's normal line heights for these sizes, which puts the caption's top 4.5 points below the pill's.
-				breeze.Text(c, "资料库", breeze.TextCaption, breeze.TextSecondary).FontWeight(700).LetterSpacing(0.2).LineHeight(1.5).SingleLine()
+				breeze.Text(c, locales.SidebarLibrary(), breeze.TextCaption, breeze.TextSecondary).FontWeight(700).LetterSpacing(0.2).LineHeight(1.5).SingleLine()
 				breeze.Text(c, name, breeze.TextHeading).FontWeight(600).LineHeight(16.0 / 13).SingleLine().Ellipsis("…")
 			})
 			ui.Icon(c, iconUpDown).Size(10, 10).TextColor(t.TextMuted).Shrink(0)
@@ -57,9 +58,9 @@ func switcherMenu(m *ui.Menu, a App) {
 		current := open != "" && filepath.Clean(open) == filepath.Clean(dir)
 		label := Title(dir)
 		if current {
-			label = fmt.Sprintf("%s · %d", label, a.FilmCount())
+			label = locales.SidebarLibraryCount(label, a.FilmCount())
 		} else if n, ok := a.LibraryCount(dir); ok {
-			label = fmt.Sprintf("%s · %d", label, n)
+			label = locales.SidebarLibraryCount(label, n)
 		}
 		if m.Item(label).Radio(current).Chosen() {
 			a.Choose(dir)
@@ -68,14 +69,14 @@ func switcherMenu(m *ui.Menu, a App) {
 	if len(libraries) > 0 {
 		m.Separator()
 	}
-	if m.Item("新建资料库…").Chosen() {
+	if m.Item(locales.SidebarNewLibrary()).Chosen() {
 		a.BeginNew()
 	}
-	if m.Item("打开已有资料库…").Chosen() {
+	if m.Item(locales.SidebarOpenLibrary()).Chosen() {
 		a.PickLibrary()
 	}
 	if open != "" {
-		if m.Item("在访达中显示「" + Title(open) + "」").Chosen() {
+		if m.Item(locales.SidebarRevealLibrary(Title(open))).Chosen() {
 			a.Reveal(open)
 		}
 	}

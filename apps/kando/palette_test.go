@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
@@ -355,7 +357,7 @@ func TestPaletteWithoutAIOffersItsSettings(t *testing.T) {
 	paletteType(tt, "这部影片讲了什么")
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
-	if !tt.HasText(paletteNoAI) {
+	if !tt.HasText(locales.PaletteNoAI()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	if err := tt.Click("打开「AI 服务」设置"); err != nil {
@@ -588,7 +590,7 @@ func TestPaletteSaysWhenTheServiceFails(t *testing.T) {
 	waitUntil(t, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
 	tt.Frame()
 	v := a.paletteView()
-	if v.Answer == nil || !strings.HasPrefix(v.Answer.Text, "没有拿到回答：") || v.Answer.Note != "" || v.Answer.Action != paletteNoAIAction {
+	if v.Answer == nil || !strings.HasPrefix(v.Answer.Text, "没有拿到回答：") || v.Answer.Note != "" || v.Answer.Action != locales.PaletteNoAIAction() {
 		t.Fatalf("answer %+v", v.Answer)
 	}
 }
@@ -639,7 +641,7 @@ func TestPaletteTreatsASignedOutCLIAsNoService(t *testing.T) {
 	paletteType(tt, "这部影片讲了什么")
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
-	if !tt.HasText(paletteNoAI) || !tt.HasText(paletteNoAIAction) {
+	if !tt.HasText(locales.PaletteNoAI()) || !tt.HasText(locales.PaletteNoAIAction()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
@@ -649,7 +651,7 @@ func TestPaletteSaysWhenNothingIsFound(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "火山")
-	if !tt.HasText(paletteNothingFound) {
+	if !tt.HasText(locales.PaletteNothingFound()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	tt.Key(0, ui.KeyEscape)
@@ -657,7 +659,38 @@ func TestPaletteSaysWhenNothingIsFound(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "火山")
-	if !tt.HasText(paletteNothingFoundAsk) {
+	if !tt.HasText(locales.PaletteNothingFoundAsk()) {
 		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// TestPaletteInEnglish checks the palette in English: over the library its field, headings, footer and the note for a query that finds nothing; in the player its field and the card that asks for an AI service.
+func TestPaletteInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	paletteOpen(t, a, tt, updates)
+	if got := a.paletteView().Placeholder; got != "Commands or watched lines…" {
+		t.Fatalf("library placeholder %q", got)
+	}
+	for _, want := range []string{"Commands", "Type to search commands and watched lines · ↑↓ to select · Return to run"} {
+		wantText(t, tt, want)
+	}
+	paletteType(tt, "volcano")
+	wantText(t, tt, "No commands or watched lines found.")
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
+	if got := a.paletteView().Placeholder; got != "Commands, lines, or ask this film…" {
+		t.Fatalf("player placeholder %q", got)
+	}
+	paletteType(tt, "what is this film about")
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	for _, want := range []string{"Answer", "Answering questions needs an AI service. Choose a model in “AI Service” first.", "Open AI Service Settings"} {
+		wantText(t, tt, want)
+	}
+	if tt.HasText("回答") || tt.HasText("命令") {
+		t.Fatalf("the palette still reads Chinese: %q", tt.Texts())
 	}
 }

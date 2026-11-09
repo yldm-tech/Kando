@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -31,12 +33,19 @@ type screenshotFixture struct {
 	jobs     []core.Job
 }
 
-// newScreenshotFixture makes the prototype's library in a fake home folder (screenshotHome), or skips t when KANDO_SCREENSHOTS is unset.
+// newScreenshotFixture makes the prototype's library in a fake home folder (screenshotHome), or skips t when KANDO_SCREENSHOTS is unset. The scenes read the interface in KANDO_SCREENSHOTS_LANG, one of locales.Interface, or in locales.Default without it.
 func newScreenshotFixture(t *testing.T) *screenshotFixture {
 	t.Helper()
 	out := os.Getenv("KANDO_SCREENSHOTS")
 	if out == "" {
 		t.Skip("set KANDO_SCREENSHOTS=<dir> to render the screenshots")
+	}
+	if lang := os.Getenv("KANDO_SCREENSHOTS_LANG"); lang != "" {
+		if !locales.Supported(lang) {
+			t.Fatalf("KANDO_SCREENSHOTS_LANG=%s is not one of %q", lang, locales.Interface)
+		}
+		testlocale.Use(t, lang)
+		useProtoContent(t, lang)
 	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
@@ -60,7 +69,7 @@ func newPrototypeLibrary(t *testing.T, home string) *screenshotFixture {
 	lib := libs[protoLibraries[0].ID]
 	jobs := make([]core.Job, 0, len(protoFilms))
 	for _, film := range protoFilms {
-		job := core.Job{ID: film.ID, Language: "简体中文", Stage: film.Stage, LibraryDir: libs[film.Library]}
+		job := core.Job{ID: film.ID, Language: protoTarget, Stage: film.Stage, LibraryDir: libs[film.Library]}
 		if film.Seconds > 0 {
 			job.VideoPath = filepath.Join(job.LibraryDir, film.Title, "video.mp4")
 			writeFakeScene(t, job.VideoPath, film.Seconds, film.Scene)
@@ -162,6 +171,7 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height i
 	updates := make(chan func(), 64)
 	a := newApp(f.pipeline, func(fn func()) { updates <- fn })
 	a.prefs.listModels = offlineModels
+	a.prefs.interfaceLanguage = testlocale.Current()
 	a.edit(func(s *session) {
 		s.LibraryDir = f.lib
 		for _, lib := range protoLibraries {

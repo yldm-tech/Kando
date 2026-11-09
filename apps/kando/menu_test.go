@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 
 	"github.com/egoist/mygo"
@@ -42,7 +43,7 @@ func TestMenuBarListsTheShortcutTable(t *testing.T) {
 	tt.Frame()
 	bar := a.menuBar()
 	for _, s := range a.shortcuts() {
-		it := findMenuItem(t, bar, s.Group, s.Label)
+		it := findMenuItem(t, bar, groupTitle(s.Group), s.Label)
 		if s.Mods&ui.Cmd != 0 {
 			if it.Accelerator == "" || it.Accelerator != accelerator(s.Mods, s.Key) {
 				t.Fatalf("%q has accelerator %q", s.Label, it.Accelerator)
@@ -55,8 +56,12 @@ func TestMenuBarListsTheShortcutTable(t *testing.T) {
 	for _, m := range bar {
 		titles = append(titles, m.Label)
 	}
+	order := make([]string, len(menuOrder))
+	for i, group := range menuOrder {
+		order[i] = groupTitle(group)
+	}
 	for i := 1; i < len(titles); i++ {
-		if slices.Index(menuOrder, titles[i-1]) >= slices.Index(menuOrder, titles[i]) {
+		if slices.Index(order, titles[i-1]) >= slices.Index(order, titles[i]) {
 			t.Fatalf("menus out of order: %q", titles)
 		}
 	}
@@ -69,8 +74,8 @@ func TestMenuBarListsTheShortcutTable(t *testing.T) {
 
 // TestMenuGroupsTheTableInMenuOrder checks that a group the menu bar does not name gets a menu before 窗口.
 func TestMenuGroupsTheTableInMenuOrder(t *testing.T) {
-	order, rows := grouped([]shortcut{{Group: "帮助"}, {Group: "工具"}, {Group: "播放"}, {Group: "工具"}})
-	if at, win := slices.Index(order, "工具"), slices.Index(order, "窗口"); at < 0 || at != win-1 || slices.Index(order, "显示") > at {
+	order, rows := grouped([]shortcut{{Group: groupHelp}, {Group: "工具"}, {Group: groupPlayback}, {Group: "工具"}})
+	if at, win := slices.Index(order, "工具"), slices.Index(order, groupWindow); at < 0 || at != win-1 || slices.Index(order, groupView) > at {
 		t.Fatalf("order %q", order)
 	}
 	if len(rows["工具"]) != 2 {
@@ -335,5 +340,24 @@ func TestCheatsheetCloseButton(t *testing.T) {
 	tt.Frame()
 	if a.overlay.cheatsheet {
 		t.Fatal("× left the cheat sheet open")
+	}
+}
+
+// TestMenuBarInEnglish checks the menu bar in English, in Apple's wording for the standard items.
+func TestMenuBarInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	tt.Frame()
+	bar := a.menuBar()
+	for _, want := range [][2]string{
+		{"Kando", "About Kando"}, {"Kando", "Settings…"}, {"Kando", "Hide Kando"}, {"Kando", "Quit Kando"},
+		{"File", "New Library…"}, {"File", "Open Library…"}, {"File", "Show Library in Finder"}, {"File", "Close Window"},
+		{"Edit", "Undo"}, {"Edit", "Copy"}, {"Edit", "Paste and Match Style"},
+		{"View", "Toggle Full Screen"},
+		{"Study", "Ask This Film / Commands…"},
+		{"Window", "Minimize"}, {"Window", "Library"}, {"Window", "Player"}, {"Window", "Bring All to Front"},
+		{"Help", "Shortcut Cheat Sheet"},
+	} {
+		findMenuItem(t, bar, want[0], want[1])
 	}
 }

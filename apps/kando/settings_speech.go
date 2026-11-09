@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/packages/media"
 )
 
@@ -71,7 +72,7 @@ func (a *app) useSpeechModel(path string) {
 	a.pipeline = tools
 	a.areasToolsChanged(false)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = "模型无法保存：" + err.Error()
+		a.saveErr = locales.SettingsSpeechSaveFailed(err.Error())
 	}
 }
 
@@ -84,7 +85,7 @@ func (a *app) downloadSpeechModel(id string) {
 		return
 	}
 	if a.prefs.modelsDir == "" {
-		a.prefs.downloadErr = "还没有模型目录"
+		a.prefs.downloadErr = locales.SettingsSpeechNoModelsDir()
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())

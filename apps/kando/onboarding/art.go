@@ -1,6 +1,11 @@
 package onboarding
 
-import "github.com/egoist/mygo/ui"
+import (
+	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/locales"
+
+	"github.com/egoist/mygo/ui"
+)
 
 // scene is the prototype's river landscape: its sky from top to bottom, then the sun, the far hills, the near ones and the river, in a 320 by 180 view that the panel covers, cropping its sides.
 var (
@@ -39,20 +44,26 @@ func art(c *ui.Context, a App, step int) {
 func caption(step int) string {
 	switch step {
 	case 1:
-		return "看原片，字幕跟着你的语言走"
+		return locales.OnboardingCaptionLanguages()
 	case 2:
-		return "语音识别，就在" + thisComputer + "上"
+		if onMac {
+			return locales.OnboardingCaptionSpeechMac()
+		}
+		return locales.OnboardingCaptionSpeechComputer()
 	}
-	return "粘贴链接，双语字幕自动生成"
+	return locales.OnboardingCaptionLink()
 }
 
 // pill names what step is about: on the first step the example's languages, original code into target.
 func pill(step int, code, target string) string {
 	switch step {
 	case 1:
-		return "原声 · " + names[code][1] + " → " + target
+		return locales.OnboardingPillLanguages(languageName(code), targetName(target))
 	case 2:
-		return "本机识别 → AI 翻译 → 双语字幕"
+		return locales.OnboardingPillModels()
 	}
-	return "粘贴链接 → 字幕就绪"
+	return locales.OnboardingPillLink()
 }
+
+// targetName is what the pill calls the target language target, a value the settings keep (subtitle.TargetLanguageName).
+func targetName(target string) string { return subtitle.TargetLanguageName(target) }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/packages/core"
 
 	"github.com/egoist/mygo/plugins/glass"
@@ -219,7 +220,7 @@ func (s screen) chromeShown(c *ui.Context, now time.Time) bool {
 // stage is the picture, or what stands for it while it opens or cannot play. A click on it starts or holds the film. The pointer hides over it with the controls. While the side panel shows, the stage is the room left of it, as the subtitles' and the transport's are, so the panel never hides part of the picture, such as a screencast's text.
 func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool, panelSpace float32) {
 	right := panelSpace
-	stage := ui.Box(c).Absolute().Left(0).Top(0).Right(right).Bottom(0).Role(ui.RoleGroup).Label("画面")
+	stage := ui.Box(c).Absolute().Left(0).Top(0).Right(right).Bottom(0).Role(ui.RoleGroup).Label(locales.FilmPicture())
 	if !shown {
 		stage.Cursor(ui.CursorNone)
 	}
@@ -239,7 +240,7 @@ func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool, p
 		case s.PlayErr() != "":
 			stageNote(c, s.PlayErr(), t.Text)
 		case s.PlayPath() != "":
-			stageNote(c, "正在打开视频…", t.TextMuted)
+			stageNote(c, locales.FilmOpeningVideo(), t.TextMuted)
 		case item.VideoPath == "" && item.Detail != "":
 			stageNote(c, item.Detail, t.TextMuted)
 		}
@@ -292,7 +293,7 @@ func (s screen) bigPlay(c *ui.Context, panelSpace float32) {
 	}
 	right := panelSpace
 	ui.Row(c).Absolute().Left(0).Right(right).TopPercent(42).Justify(ui.Center).PassThrough().Children(func() {
-		btn := ui.ButtonBase(c).Size(76, 76).Margin(-38, 0, 0, 0).Radius(38).AlignItems(ui.Center).Justify(ui.Center).Label("播放")
+		btn := ui.ButtonBase(c).Size(76, 76).Margin(-38, 0, 0, 0).Radius(38).AlignItems(ui.Center).Justify(ui.Center).Label(locales.FilmPlay())
 		glassFace(btn, ui.RGBA(255, 255, 255, 0.18), 20, 0.35, 38)
 		if btn.Clicked() {
 			s.togglePlay(c)

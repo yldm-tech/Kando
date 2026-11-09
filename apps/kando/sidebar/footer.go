@@ -1,6 +1,8 @@
 package sidebar
 
 import (
+	"kando/apps/kando/locales"
+
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -19,10 +21,19 @@ const (
 
 // Readiness is the status line at the foot of the sidebar: a dot, a message and the settings section that fixes what is missing.
 type Readiness struct {
-	State   ReadyState
-	Message string
+	State ReadyState
+	// Message says the message in the interface's language each time the sidebar draws it, so it follows the language as it changes; nil says nothing.
+	Message func() string
 	// Section is the settings section the gear opens, one of the settings package's Section values; "" opens 通用.
 	Section string
+}
+
+// Text is r's message in the interface's language, "" without one.
+func (r Readiness) Text() string {
+	if r.Message == nil {
+		return ""
+	}
+	return r.Message()
 }
 
 var (
@@ -44,10 +55,10 @@ func footer(c *ui.Context, t *ui.Theme, a App) {
 		dot = missingDot
 	}
 	// The hairline is a ring outside the edge that takes no room, as the prototype's box-shadow. The message is the prototype's 11 points on 15, a point above the platform's caption, and the gear's button its 26-point square, the gear in the message's color.
-	ui.Row(c).Shrink(0).Margin(8, insetEnd, 8, insetStart).Padding(10, 12).Gap(10).AlignItems(ui.Center).Radius(11).Background(footerFill).Shadow(0, 0, 0, 0.5, footerHairline).Label("状态").Children(func() {
+	ui.Row(c).Shrink(0).Margin(8, insetEnd, 8, insetStart).Padding(10, 12).Gap(10).AlignItems(ui.Center).Radius(11).Background(footerFill).Shadow(0, 0, 0, 0.5, footerHairline).Label(locales.SidebarStatus()).Children(func() {
 		ui.Box(c).Size(8, 8).Shrink(0).Radius(4).Background(dot)
-		breeze.Text(c, r.Message, breeze.TextCaption).FontSize(11).LineHeight(15.0 / 11).TextColor(footerText).Grow(1).MinWidth(0).Wrap()
-		if breeze.FlatIconButton(c, iconGear, "设置").Size(26, 26).TextColor(footerText).Shrink(0).Clicked() {
+		breeze.Text(c, r.Text(), breeze.TextCaption).FontSize(11).LineHeight(15.0 / 11).TextColor(footerText).Grow(1).MinWidth(0).Wrap()
+		if breeze.FlatIconButton(c, iconGear, locales.SidebarSettings()).Size(26, 26).TextColor(footerText).Shrink(0).Clicked() {
 			a.OpenSettings(r.Section)
 		}
 	})

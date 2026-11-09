@@ -3,16 +3,24 @@ package settings
 import (
 	"kando/apps/kando/account"
 	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
 )
 
-// Preset is one translation service the AI page can select.
+// Preset is one translation service the AI page can select: its id, its name and what it is in the interface's language, and its group, one of the Group values.
 type Preset struct {
 	ID, Name, Blurb, Group string
 }
+
+// The groups of the presets: services in the cloud, services running on this Mac, which the drop-down names after their group, and any other endpoint.
+const (
+	GroupCloud = "cloud"
+	GroupLocal = "local"
+	GroupOther = "other"
+)
 
 // Shortcut is one row of the app's shortcut table, as the 快捷键 page lists it.
 type Shortcut struct {
@@ -148,7 +156,7 @@ func (s screen) rail(c *ui.Context, bar ui.TitleBar) {
 		if bar.Left > 0 {
 			top.PaddingStart(float32(bar.Left))
 		}
-		ui.SearchField(c, s.SettingsQuery()).Label("搜索设置").Placeholder("搜索").Height(28).Shrink(0).Radius(8).Border(0, ui.Transparent).Background(ui.RGBA(0, 0, 0, 0.06)).FontSize(13).Padding(0, 9, 0, 8).Margin(0, 0, 8, 0)
+		ui.SearchField(c, s.SettingsQuery()).Label(locales.SettingsSearchLabel()).Placeholder(locales.SettingsSearchPlaceholder()).Height(28).Shrink(0).Radius(8).Border(0, ui.Transparent).Background(ui.RGBA(0, 0, 0, 0.06)).FontSize(13).Padding(0, 9, 0, 8).Margin(0, 0, 8, 0)
 		query := *s.SettingsQuery()
 		sel := s.SettingsSection()
 		found := 0
@@ -162,7 +170,7 @@ func (s screen) rail(c *ui.Context, bar ui.TitleBar) {
 			}
 		}).Background(ui.Transparent).Padding(0).Gap(2).Grow(1)
 		if found == 0 {
-			ui.Text(c, "没有匹配的设置").FontSize(12).TextColor(form.Secondary).Padding(10, 8)
+			ui.Text(c, locales.SettingsSearchNone()).FontSize(12).TextColor(form.Secondary).Padding(10, 8)
 		}
 		if sel != s.SettingsSection() {
 			s.SetSettingsSection(sel)
@@ -175,7 +183,7 @@ func categoryItem(c *ui.Context, sec section, on bool) {
 	look := *c.Theme()
 	look.SurfaceHover, look.SurfacePressed = ui.Transparent, ui.Transparent
 	var item ui.Element
-	ui.Themed(c, &look).Background(ui.Transparent).Children(func() { item = ui.SidebarItem(c, sec.id, nil, sec.title) })
+	ui.Themed(c, &look).Background(ui.Transparent).Children(func() { item = ui.SidebarItem(c, sec.id, nil, sec.title()) })
 	item.MinHeight(30).Padding(0, 8).PaddingStart(8 + 22 + 9).Radius(8).FontSize(13).FontWeight(400)
 	if on {
 		item.Background(chosen).TextColor(ui.Hex("#FFFFFF"))

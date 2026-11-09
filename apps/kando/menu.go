@@ -7,13 +7,14 @@ import (
 	"strings"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
 // menuOrder is the order of the menu bar's menus. A shortcut's Group names the menu it is listed in, so the menu bar, the cheat sheet and wireKeys read the same table. A group not named here gets a menu of its own before 窗口.
-var menuOrder = []string{"看懂", "文件", "编辑", "播放", "字幕", "显示", "学习", "窗口", "帮助"}
+var menuOrder = []string{groupApp, groupFile, groupEdit, groupPlayback, groupSubtitles, groupView, groupStudy, groupWindow, groupHelp}
 
 // rememberFilm keeps the film the window shows, for 窗口 › 播放器 to go back to after the window went to another page. menuHooks.afterFrame calls it every frame, after the pages have opened or closed a film.
 func (a *app) rememberFilm() {
@@ -97,41 +98,41 @@ func (a *app) menuBar() []*mygo.MenuItem {
 	for _, group := range order {
 		var menu *mygo.MenuItem
 		switch group {
-		case "看懂":
-			sub := then([]*mygo.MenuItem{{Label: "关于看懂", Role: mygo.RoleAbout}}, items(group)...)
-			sub = then(sub, &mygo.MenuItem{Label: "服务", Role: mygo.RoleServices})
-			sub = then(sub, &mygo.MenuItem{Label: "隐藏看懂", Role: mygo.RoleHide}, &mygo.MenuItem{Label: "隐藏其他", Role: mygo.RoleHideOthers}, &mygo.MenuItem{Label: "全部显示", Role: mygo.RoleUnhide})
-			sub = then(sub, &mygo.MenuItem{Label: "退出看懂", Role: mygo.RoleQuit})
-			menu = &mygo.MenuItem{Label: group, Submenu: sub}
-		case "文件":
-			reveal := &mygo.MenuItem{Label: "在访达中显示资料库", Disabled: a.holds(false) || a.snap().LibraryDir == "", Click: a.menuClick(false, func() { a.reveal(a.snap().LibraryDir) })}
+		case groupApp:
+			sub := then([]*mygo.MenuItem{{Label: locales.MenuAbout(), Role: mygo.RoleAbout}}, items(group)...)
+			sub = then(sub, &mygo.MenuItem{Label: locales.MenuServices(), Role: mygo.RoleServices})
+			sub = then(sub, &mygo.MenuItem{Label: locales.MenuHide(), Role: mygo.RoleHide}, &mygo.MenuItem{Label: locales.MenuHideOthers(), Role: mygo.RoleHideOthers}, &mygo.MenuItem{Label: locales.MenuShowAll(), Role: mygo.RoleUnhide})
+			sub = then(sub, &mygo.MenuItem{Label: locales.MenuQuit(), Role: mygo.RoleQuit})
+			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: sub}
+		case groupFile:
+			reveal := &mygo.MenuItem{Label: locales.MenuRevealLibrary(), Disabled: a.holds(false) || a.snap().LibraryDir == "", Click: a.menuClick(false, func() { a.reveal(a.snap().LibraryDir) })}
 			// 关闭窗口 keeps ⌘W, which the menu bar mygo installs for an app without its own has in its File menu.
-			menu = &mygo.MenuItem{Label: group, Submenu: then(then(items(group), reveal), &mygo.MenuItem{Label: "关闭窗口", Role: mygo.RoleClose})}
-		case "编辑":
-			sub := []*mygo.MenuItem{{Label: "撤销", Role: mygo.RoleUndo}, {Label: "重做", Role: mygo.RoleRedo}}
+			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(then(items(group), reveal), &mygo.MenuItem{Label: locales.MenuCloseWindow(), Role: mygo.RoleClose})}
+		case groupEdit:
+			sub := []*mygo.MenuItem{{Label: locales.MenuUndo(), Role: mygo.RoleUndo}, {Label: locales.MenuRedo(), Role: mygo.RoleRedo}}
 			// 粘贴并匹配样式 and 语音 keep what the Edit menu of the menu bar mygo installs for an app without its own has.
-			sub = then(sub, &mygo.MenuItem{Label: "剪切", Role: mygo.RoleCut}, &mygo.MenuItem{Label: "拷贝", Role: mygo.RoleCopy}, &mygo.MenuItem{Label: "粘贴", Role: mygo.RolePaste}, &mygo.MenuItem{Label: "粘贴并匹配样式", Role: mygo.RolePasteAndMatchStyle}, &mygo.MenuItem{Label: "删除", Role: mygo.RoleDelete}, &mygo.MenuItem{Label: "全选", Role: mygo.RoleSelectAll})
-			sub = then(sub, &mygo.MenuItem{Label: "语音", Submenu: []*mygo.MenuItem{{Label: "开始讲话", Role: mygo.RoleStartSpeaking}, {Label: "停止讲话", Role: mygo.RoleStopSpeaking}}})
-			menu = &mygo.MenuItem{Label: group, Submenu: then(sub, items(group)...)}
-		case "显示":
+			sub = then(sub, &mygo.MenuItem{Label: locales.MenuCut(), Role: mygo.RoleCut}, &mygo.MenuItem{Label: locales.MenuCopy(), Role: mygo.RoleCopy}, &mygo.MenuItem{Label: locales.MenuPaste(), Role: mygo.RolePaste}, &mygo.MenuItem{Label: locales.MenuPasteAndMatchStyle(), Role: mygo.RolePasteAndMatchStyle}, &mygo.MenuItem{Label: locales.MenuDelete(), Role: mygo.RoleDelete}, &mygo.MenuItem{Label: locales.MenuSelectAll(), Role: mygo.RoleSelectAll})
+			sub = then(sub, &mygo.MenuItem{Label: locales.MenuSpeech(), Submenu: []*mygo.MenuItem{{Label: locales.MenuStartSpeaking(), Role: mygo.RoleStartSpeaking}, {Label: locales.MenuStopSpeaking(), Role: mygo.RoleStopSpeaking}}})
+			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(sub, items(group)...)}
+		case groupView:
 			// 切换全屏幕 keeps ⌃⌘F on every page, as the View menu of the menu bar mygo installs for an app without its own has it. The table's 全屏 is the player's single key F, which works only while a film is open.
-			menu = &mygo.MenuItem{Label: group, Submenu: then(items(group), &mygo.MenuItem{Label: "切换全屏幕", Role: mygo.RoleToggleFullScreen})}
-		case "窗口":
-			sub := then([]*mygo.MenuItem{{Label: "最小化", Role: mygo.RoleMinimize}, {Label: "缩放", Role: mygo.RoleZoom}}, items(group)...)
-			sub = then(sub, &mygo.MenuItem{Label: "前置全部窗口", Role: mygo.RoleFront})
-			menu = &mygo.MenuItem{Label: group, Role: mygo.RoleWindow, Submenu: sub}
-		case "帮助":
+			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(items(group), &mygo.MenuItem{Label: locales.MenuToggleFullScreen(), Role: mygo.RoleToggleFullScreen})}
+		case groupWindow:
+			sub := then([]*mygo.MenuItem{{Label: locales.MenuMinimize(), Role: mygo.RoleMinimize}, {Label: locales.MenuZoom(), Role: mygo.RoleZoom}}, items(group)...)
+			sub = then(sub, &mygo.MenuItem{Label: locales.MenuBringAllToFront(), Role: mygo.RoleFront})
+			menu = &mygo.MenuItem{Label: groupTitle(group), Role: mygo.RoleWindow, Submenu: sub}
+		case groupHelp:
 			// With a menu bar, 重新查看入门引导 is the menu's own item (state_onboarding.go), placed in the prototype's order: 快捷键速查, 重新查看入门引导, then the feedback items after a separator.
 			var guide []*mygo.MenuItem
 			if appMenuBar {
-				guide = append(guide, &mygo.MenuItem{Label: "重新查看入门引导", Disabled: a.holds(false), Click: a.menuClick(false, a.reopenOnboarding)})
+				guide = append(guide, &mygo.MenuItem{Label: locales.MenuReopenGuide(), Disabled: a.holds(false), Click: a.menuClick(false, a.reopenOnboarding)})
 			}
 			if sub := items(group, guide...); len(sub) > 0 {
-				menu = &mygo.MenuItem{Label: group, Role: mygo.RoleHelp, Submenu: sub}
+				menu = &mygo.MenuItem{Label: groupTitle(group), Role: mygo.RoleHelp, Submenu: sub}
 			}
 		default:
 			if sub := items(group); len(sub) > 0 {
-				menu = &mygo.MenuItem{Label: group, Submenu: sub}
+				menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: sub}
 			}
 		}
 		if menu != nil {
@@ -186,7 +187,7 @@ func grouped(rows []shortcut) ([]string, map[string][]shortcut) {
 		}
 		by[s.Group] = append(by[s.Group], s)
 	}
-	at := slices.Index(menuOrder, "窗口")
+	at := slices.Index(menuOrder, groupWindow)
 	return slices.Concat(menuOrder[:at], extra, menuOrder[at:]), by
 }
 

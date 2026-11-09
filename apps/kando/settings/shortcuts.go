@@ -3,6 +3,7 @@ package settings
 import (
 	"strings"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 
 	"github.com/egoist/mygo/ui"
@@ -14,8 +15,8 @@ func (s screen) shortcuts(c *ui.Context, t *ui.Theme) {
 	query := s.ShortcutQuery()
 	ui.Column(c).Gap(8).AlignItems(ui.Stretch).Margin(6, 0, 0, 0).Children(func() {
 		c.Key("shortcut-search")
-		breeze.TextInput(c, query).Label("搜索命令或按键").Placeholder("搜索命令或按键").Height(26).FontSize(12)
-		ui.Text(c, "单个按键只在没有输入框获得焦点时生效。").FontSize(11).FixedLineHeight(15).TextColor(form.Secondary).Wrap().Padding(0, 4)
+		breeze.TextInput(c, query).Label(locales.SettingsShortcutsSearch()).Placeholder(locales.SettingsShortcutsSearch()).Height(26).FontSize(12)
+		ui.Text(c, locales.SettingsShortcutsNote()).FontSize(11).FixedLineHeight(15).TextColor(form.Secondary).Wrap().Padding(0, 4)
 		groups, order := map[string][]Shortcut{}, []string{}
 		for _, row := range s.Shortcuts() {
 			if !shortcutMatches(c, row, *query) {
@@ -27,7 +28,7 @@ func (s screen) shortcuts(c *ui.Context, t *ui.Theme) {
 			groups[row.Group] = append(groups[row.Group], row)
 		}
 		if len(order) == 0 {
-			ui.Text(c, "没有匹配的快捷键").FontSize(12).TextColor(form.Secondary).Padding(0, 12)
+			ui.Text(c, locales.SettingsShortcutsNone()).FontSize(12).TextColor(form.Secondary).Padding(0, 12)
 			return
 		}
 		for _, group := range order {

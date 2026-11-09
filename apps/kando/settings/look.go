@@ -2,41 +2,36 @@ package settings
 
 import (
 	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// The preview's sample cue, one bilingual line as a translated film shows it.
-const (
-	previewTranslation = "每条河都始于高山上的一股细流。"
-	previewOriginal    = "Every river begins as a trickle high in the mountains."
-)
-
 // look is the 字幕外观 page: a preview of the subtitles in the player's look, and how the player shows them. dark is the player's theme, which the preview is drawn in.
 func (s screen) look(c *ui.Context, t, dark *ui.Theme) {
 	s.lookPreview(c, dark)
-	form.Note(c, "字号、颜色和字体在播放时从侧栏的「字幕样式」调整，这里的改动和播放器同步生效。", 6)
+	form.Note(c, locales.SettingsLookNote(), 6)
 	form.Card(c, func() {
 		c.Key("look-mode")
-		choice(c, "默认显示方式", "", s.SubMode, s.SetSubMode, []option{
-			{subtitle.Original, "仅原文"}, {subtitle.Translation, "仅译文"}, {subtitle.Bilingual, "双语"},
+		choice(c, locales.SettingsLookMode(), "", s.SubMode, s.SetSubMode, []option{
+			{subtitle.Original, locales.SettingsLookModeOriginal()}, {subtitle.Translation, locales.SettingsLookModeTranslation()}, {subtitle.Bilingual, locales.SettingsLookModeBilingual()},
 		}, s.Save)
 		form.Separator(c, true)
 		c.Key("look-order")
-		choice(c, "双语顺序", "", s.SubOrder, s.SetSubOrder, []option{
-			{subtitle.TranslationFirst, "译文在上"}, {subtitle.OriginalFirst, "原文在上"},
+		choice(c, locales.SettingsLookOrder(), "", s.SubOrder, s.SetSubOrder, []option{
+			{subtitle.TranslationFirst, locales.SettingsLookOrderTranslationFirst()}, {subtitle.OriginalFirst, locales.SettingsLookOrderOriginalFirst()},
 		}, s.Save)
 		form.Separator(c, true)
 		c.Key("look-untranslated")
-		choice(c, "仅译文时，译文还没好", "译文到达后立即换上", s.Untranslated, s.SetUntranslated, []option{
-			{subtitle.UntranslatedDim, "弱化原文"}, {subtitle.UntranslatedBlank, "留空"},
+		choice(c, locales.SettingsLookUntranslated(), locales.SettingsLookUntranslatedHint(), s.Untranslated, s.SetUntranslated, []option{
+			{subtitle.UntranslatedDim, locales.SettingsLookUntranslatedDim()}, {subtitle.UntranslatedBlank, locales.SettingsLookUntranslatedBlank()},
 		}, s.Save)
 		form.Separator(c, true)
 		c.Key("look-yield")
 		yield := s.YieldSubs()
-		if form.SwitchRow(c, "控件出现时字幕上移让位", "避免被控制条挡住", &yield) {
+		if form.SwitchRow(c, locales.SettingsLookYield(), locales.SettingsLookYieldHint(), &yield) {
 			s.SetYieldSubs(yield)
 			s.Save()
 		}
@@ -73,12 +68,12 @@ var previewScene = icon(`<svg xmlns="http://www.w3.org/2000/svg" width="320" hei
 func (s screen) lookPreview(c *ui.Context, dark *ui.Theme) {
 	look := s.Cue()
 	lines := previewLines(*look, s.SubMode(), s.SubOrder())
-	ui.Themed(c, dark).Shrink(0).AspectRatio(16.0/7.0).Margin(6, 0, 0, 0).Background(ui.Hex("#2B3A3F")).Radius(12).Shadow(0, 0, 0, 0.5, ui.RGBA(0, 0, 0, 0.1)).Clip().Label("字幕预览").Children(func() {
+	ui.Themed(c, dark).Shrink(0).AspectRatio(16.0/7.0).Margin(6, 0, 0, 0).Background(ui.Hex("#2B3A3F")).Radius(12).Shadow(0, 0, 0, 0.5, ui.RGBA(0, 0, 0, 0.1)).Clip().Label(locales.SettingsLookPreview()).Children(func() {
 		ui.Image(c, previewScene).Absolute().Top(0).Start(0).WidthPercent(100).HeightPercent(100).Fit(ui.Cover).PassThrough()
-		ui.Text(c, "预览").Absolute().Top(8).Start(10).FontSize(10).FontWeight(700).TextColor(ui.Hex("#FFFFFF")).Background(ui.RGBA(0, 0, 0, 0.4)).Radius(6).Padding(2, 7).Role(ui.RoleNone)
+		ui.Text(c, locales.SettingsLookPreviewTag()).Absolute().Top(8).Start(10).FontSize(10).FontWeight(700).TextColor(ui.Hex("#FFFFFF")).Background(ui.RGBA(0, 0, 0, 0.4)).Radius(6).Padding(2, 7).Role(ui.RoleNone)
 		ui.Column(c).Absolute().Start(0).End(0).Bottom(look.PreviewInset()).AlignItems(ui.Center).Children(func() {
 			if len(lines) == 0 {
-				ui.Text(c, "字幕已关闭").FontSize(13).TextColor(ui.RGBA(255, 255, 255, 0.7))
+				ui.Text(c, locales.SettingsLookPreviewOff()).FontSize(13).TextColor(ui.RGBA(255, 255, 255, 0.7))
 				return
 			}
 			// The same block the player draws its subtitles in (film's playCue): a dark box behind the lines, or a shadow under each.
@@ -107,10 +102,10 @@ type previewLine struct {
 	face subtitle.Face
 }
 
-// previewLines are the sample cue's lines the display mode shows, the one on top first.
+// previewLines are the sample cue's lines the display mode shows, the one on top first. The sample is one bilingual line as a translated film shows it: the translation in the interface's language, the original in another (English, or French in the English interface).
 func previewLines(look subtitle.Look, mode, order string) []previewLine {
-	translation := previewLine{previewTranslation, look.Translation}
-	original := previewLine{previewOriginal, look.Original}
+	translation := previewLine{locales.SettingsLookPreviewTranslation(), look.Translation}
+	original := previewLine{locales.SettingsLookPreviewOriginal(), look.Original}
 	switch mode {
 	case subtitle.Off:
 		return nil

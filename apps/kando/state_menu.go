@@ -1,6 +1,10 @@
 package main
 
-import "github.com/egoist/mygo/ui"
+import (
+	"kando/apps/kando/locales"
+
+	"github.com/egoist/mygo/ui"
+)
 
 // menuUI is the state of the app's menu bar.
 type menuUI struct {
@@ -33,9 +37,9 @@ func (a *app) menuHooks() areaHooks {
 // menuKeys are the shortcuts of the commands the menu bar brings that no page owns: the library's files and the window's two screens.
 func (a *app) menuKeys() []shortcut {
 	return []shortcut{
-		{Group: "文件", Label: "新建资料库…", Mods: ui.Cmd | ui.Shift, Key: ui.KeyN, Run: a.beginNewLibrary},
-		{Group: "文件", Label: "打开资料库…", Mods: ui.Cmd | ui.Shift, Key: ui.KeyO, Run: a.pickLibrary},
-		{Group: "窗口", Label: "片库", Mods: ui.Cmd, Key: ui.Key1, Checked: func() bool { return a.page == pageFilms && a.openKey == "" }, Run: func() { a.Select(pageFilms) }},
-		{Group: "窗口", Label: "播放器", Mods: ui.Cmd, Key: ui.Key2, When: func() bool { _, ok := a.lastFilm(); return ok }, Checked: func() bool { return a.openKey != "" }, Run: a.reopenFilm},
+		{Group: groupFile, Label: locales.MenuNewLibrary(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyN, Run: a.beginNewLibrary},
+		{Group: groupFile, Label: locales.MenuOpenLibrary(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyO, Run: a.pickLibrary},
+		{Group: groupWindow, Label: locales.MenuWindowLibrary(), Mods: ui.Cmd, Key: ui.Key1, Checked: func() bool { return a.page == pageFilms && a.openKey == "" }, Run: func() { a.Select(pageFilms) }},
+		{Group: groupWindow, Label: locales.MenuWindowPlayer(), Mods: ui.Cmd, Key: ui.Key2, When: func() bool { _, ok := a.lastFilm(); return ok }, Checked: func() bool { return a.openKey != "" }, Run: a.reopenFilm},
 	}
 }

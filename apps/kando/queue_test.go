@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
@@ -1102,5 +1103,69 @@ func TestAStoppedCardSaysItWasStopped(t *testing.T) {
 	}
 	if reason, section := a.FailureHint(film); reason != "已停止：切换了资料库" || section != "" {
 		t.Fatalf("%q %q", reason, section)
+	}
+}
+
+// In English, a failed download's card, its remedies, a failed job's reason and the sidebar's status line read English, with each sentence whole: the site, the browser and the version in their places, and the reason read back from a status line said in English.
+func TestFailedCardsInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	yt, bili := "https://www.youtube.com/watch?v=Rg5Lk2Pz8Wd", "https://www.bilibili.com/video/BV1Hx411c7Pq"
+	a.queue.ytdlp.path, a.queue.ytdlp.version = "/usr/local/bin/yt-dlp", "2024.03.10"
+	a.queue.ytdlp.install = media.YTDLPInstall{Kind: "standalone", Dir: "/usr/local/bin"}
+	withBrowsers(t, a, "safari")
+	for _, tc := range []struct {
+		source, cookies string
+		kind            core.FailKind
+		headline, why   string
+		actions         []string
+	}{
+		{yt, "", core.FailOutdated, "YouTube has changed, and the download component needs an update", "This computer's yt-dlp is version 2024.03.10, and Kando can't update it: yt-dlp is in /usr/local/bin, where Kando isn't allowed to replace it; update it the way you installed it, or run sudo yt-dlp -U. Retry once it's updated.", []string{"Updated, Retry"}},
+		{bili, "safari", core.FailLoginExpired, "", "Sign in to Bilibili again in Safari, then come back and retry.", []string{"Signed In Again, Retry"}},
+		{yt, "", core.FailAge, "Age verification required", "Use the YouTube account you're signed in to in your browser.", []string{"Use Safari Sign-In and Retry"}},
+		{"https://example.com/", "", core.FailUnsupported, "example.com isn't supported", "No video was found on the page. Use another link, or download it to this computer first and drag it in.", []string{"Use Another Link", "Choose Local File", "See Supported Websites"}},
+	} {
+		film := failedJob(t, a, tc.source, tc.kind, tc.cookies)
+		r, ok := a.FailureRemedy(film)
+		if !ok || (tc.headline != "" && r.Headline != tc.headline) || r.Why != tc.why || strings.Join(remedyLabels(r), ",") != strings.Join(tc.actions, ",") {
+			t.Errorf("%s: %+v", tc.kind, r)
+		}
+		a.remove(film.JobID)
+	}
+	withBrowsers(t, a)
+	film := failedJob(t, a, bili, core.FailMembers, "")
+	if r, _ := a.FailureRemedy(film); r.Headline != "Video for Bilibili Premium members only" || r.Why != "It needs Bilibili Premium. Couldn't find a browser on this computer whose sign-in Kando can use. Sign in with Chrome, Firefox, Edge, Brave or Chromium, then look again." || strings.Join(remedyLabels(r), ",") != "Find Browsers Again,Use Another Link" {
+		t.Errorf("members: %+v", r)
+	}
+	a.remove(film.JobID)
+
+	failedJob(t, a, yt, core.FailRegion, "")
+	tt.Frame()
+	for _, want := range []string{"Not available in your region", "The uploader restricted where it can be watched. If the video is available elsewhere, use another link.", "Use Another Link"} {
+		wantText(t, tt, want)
+	}
+	if tt.HasText("你所在的地区不能看") || tt.HasText("换个链接") {
+		t.Fatal("the card still reads Chinese")
+	}
+
+	for err, want := range map[string]string{
+		"download: yt-dlp: exit status 1: ERROR: Something else":               "Download failed: Something else",
+		"translate: translation API returned 401 Unauthorized: invalid key":    "The AI service doesn't accept this key. Check it in “AI Service”.",
+		"transcribe: whisper-cli: signal: killed: whisper_init: out of memory": "Generating subtitles failed: whisper_init: out of memory",
+	} {
+		if reason, _ := a.FailureHint(failedWith(t, a, err)); reason != want {
+			t.Errorf("%q: %q, want %q", err, reason, want)
+		}
+	}
+
+	// The sidebar's status line, found while the app spoke Chinese, says it in the language shown when it is drawn.
+	testlocale.Use(t, "zh-Hans")
+	a.checkReadiness(false)
+	if r := a.readiness(); r.Text() != "已就绪，可以开始处理" {
+		t.Fatalf("status line %q", r.Text())
+	}
+	testlocale.Use(t, "en")
+	if r := a.readiness(); r.Text() != "Ready to process" {
+		t.Fatalf("status line %q", r.Text())
 	}
 }

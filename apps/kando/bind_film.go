@@ -2,11 +2,11 @@ package main
 
 import (
 	"math"
-	"strconv"
 	"time"
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -34,7 +34,7 @@ func (a *app) Play() film.Player {
 
 func (a *app) PlayPath() string { return a.player.playPath }
 
-func (a *app) PlayErr() string { return a.player.playErr }
+func (a *app) PlayErr() string { return playerErrText(a.player.playErr) }
 
 func (a *app) PlayHead() time.Duration {
 	if a.player.play == nil {
@@ -51,7 +51,7 @@ func (a *app) PlayLength() time.Duration {
 }
 
 func (a *app) Subs() film.Subs {
-	return film.Subs{Key: a.player.subs.key, Ready: a.player.subs.ready, Err: a.player.subs.err, Cues: a.player.subs.cues}
+	return film.Subs{Key: a.player.subs.key, Ready: a.player.subs.ready, Err: playerErrText(a.player.subs.err), Cues: a.player.subs.cues}
 }
 
 func (a *app) SubList() *ui.ListState { return &a.player.subs.list }
@@ -71,13 +71,13 @@ func (a *app) Skip(d time.Duration) {
 	a.skip(d)
 	switch d {
 	case -5 * time.Second:
-		a.flash("−5 秒")
+		a.flash(locales.FilmSeconds("−5"))
 	case 5 * time.Second:
-		a.flash("+5 秒")
+		a.flash(locales.FilmSeconds("+5"))
 	case -30 * time.Second:
-		a.flash("−30 秒")
+		a.flash(locales.FilmSeconds("−30"))
 	case 30 * time.Second:
-		a.flash("+30 秒")
+		a.flash(locales.FilmSeconds("+30"))
 	}
 }
 
@@ -115,7 +115,7 @@ func (a *app) Delay() time.Duration { return a.player.film.delay }
 
 func (a *app) SetDelay(d time.Duration) {
 	a.player.film.delay = d
-	a.flash("字幕 " + film.DelayText(d))
+	a.flash(locales.PlayerOsdDelay(film.DelayText(d)))
 }
 
 func (a *app) Panel() bool { return a.player.panel }
@@ -230,7 +230,7 @@ func (a *app) toggleSubtitles() {
 	} else {
 		a.SetSubMode(film.SubOff)
 	}
-	a.flash("字幕：" + film.ModeName(a.player.subMode))
+	a.flash(locales.FilmSubtitlesMode(film.ModeName(a.player.subMode)))
 }
 
 // cycleSubtitles is S: original, translation, bilingual, and round again.
@@ -243,7 +243,7 @@ func (a *app) cycleSubtitles() {
 		next = film.SubBilingual
 	}
 	a.SetSubMode(next)
-	a.flash("字幕：" + film.ModeName(next))
+	a.flash(locales.FilmSubtitlesMode(film.ModeName(next)))
 }
 
 // nudgeDelay is Z and X: the subtitles a tenth of a second earlier or later.
@@ -254,7 +254,7 @@ func (a *app) scaleSubtitles(step float32) {
 	look := &a.player.look
 	look.Translation.Size = min(max(look.Translation.Size+step, 16), 48)
 	look.Original.Size = min(max(look.Original.Size+float32(math.Round(float64(step)*0.75)), 12), 40)
-	a.flash("字幕大小 " + strconv.Itoa(int(look.Translation.Size)))
+	a.flash(locales.PlayerOsdSubtitleSize(int(look.Translation.Size)))
 	a.playerSaveSettings()
 }
 
@@ -269,7 +269,7 @@ func (a *app) searchSubtitles() {
 // playerSaveSettings keeps the subtitle settings, saying so on the picture when they cannot be saved.
 func (a *app) playerSaveSettings() {
 	if err := a.saveSettings(); err != nil {
-		a.flash("字幕设置无法保存")
+		a.flash(locales.PlayerSaveSubtitlesFailed())
 	}
 }
 
@@ -278,23 +278,23 @@ func (a *app) playerKeys() []shortcut {
 	playing := func() bool { return a.openKey != "" && a.player.play != nil }
 	open := func() bool { return a.openKey != "" }
 	return []shortcut{
-		{Group: "播放", Label: "播放/暂停", Key: ui.KeySpace, When: playing, Run: func() { a.player.play.toggle() }},
-		{Group: "播放", Label: "后退 5 秒", Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-5 * time.Second) }},
-		{Group: "播放", Label: "前进 5 秒", Key: ui.KeyRight, When: playing, Run: func() { a.Skip(5 * time.Second) }},
-		{Group: "播放", Label: "后退 30 秒", Mods: ui.Cmd, Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-30 * time.Second) }},
-		{Group: "播放", Label: "前进 30 秒", Mods: ui.Cmd, Key: ui.KeyRight, When: playing, Run: func() { a.Skip(30 * time.Second) }},
-		{Group: "播放", Label: "音量加大", Key: ui.KeyUp, When: open, Run: func() { a.playerNudgeVolume(1) }},
-		{Group: "播放", Label: "音量减小", Key: ui.KeyDown, When: open, Run: func() { a.playerNudgeVolume(-1) }},
-		{Group: "播放", Label: "静音/取消静音", Key: ui.KeyM, When: open, Run: a.ToggleMute},
-		{Group: "字幕", Label: "显示/隐藏字幕", Key: ui.KeyV, When: open, Run: a.toggleSubtitles},
-		{Group: "字幕", Label: "切换原文/译文/双语", Key: ui.KeyS, When: open, Run: a.cycleSubtitles},
-		{Group: "字幕", Label: "字幕提前 0.1 秒", Key: ui.KeyZ, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
-		{Group: "字幕", Label: "字幕推后 0.1 秒", Key: ui.KeyX, When: open, Run: func() { a.nudgeDelay(100 * time.Millisecond) }},
-		{Group: "字幕", Label: "放大字幕", Mods: ui.Cmd, Key: ui.KeyEqual, When: open, Run: func() { a.scaleSubtitles(2) }},
-		{Group: "字幕", Label: "缩小字幕", Mods: ui.Cmd, Key: ui.KeyMinus, When: open, Run: func() { a.scaleSubtitles(-2) }},
-		{Group: "字幕", Label: "搜索字幕", Mods: ui.Cmd, Key: ui.KeyF, When: open, Run: a.searchSubtitles},
-		{Group: "显示", Label: "显示/隐藏侧栏", Mods: ui.Cmd | ui.Shift, Key: ui.KeyT, When: open, Run: a.TogglePanel},
-		{Group: "显示", Label: "全屏", Key: ui.KeyF, When: open, Run: a.ToggleFullScreen},
-		{Group: "显示", Label: "返回资料库", Key: ui.KeyEscape, When: open, Run: a.escapeFilm},
+		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(), Key: ui.KeySpace, When: playing, Run: func() { a.player.play.toggle() }},
+		{Group: groupPlayback, Label: locales.FilmSkipBack(5), Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-5 * time.Second) }},
+		{Group: groupPlayback, Label: locales.FilmSkipForward(5), Key: ui.KeyRight, When: playing, Run: func() { a.Skip(5 * time.Second) }},
+		{Group: groupPlayback, Label: locales.FilmSkipBack(30), Mods: ui.Cmd, Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-30 * time.Second) }},
+		{Group: groupPlayback, Label: locales.FilmSkipForward(30), Mods: ui.Cmd, Key: ui.KeyRight, When: playing, Run: func() { a.Skip(30 * time.Second) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(), Key: ui.KeyUp, When: open, Run: func() { a.playerNudgeVolume(1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(), Key: ui.KeyDown, When: open, Run: func() { a.playerNudgeVolume(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyMute(), Key: ui.KeyM, When: open, Run: a.ToggleMute},
+		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(), Key: ui.KeyV, When: open, Run: a.toggleSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(), Key: ui.KeyS, When: open, Run: a.cycleSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(), Key: ui.KeyZ, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeyDelayLater(), Key: ui.KeyX, When: open, Run: func() { a.nudgeDelay(100 * time.Millisecond) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(), Mods: ui.Cmd, Key: ui.KeyEqual, When: open, Run: func() { a.scaleSubtitles(2) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeySmaller(), Mods: ui.Cmd, Key: ui.KeyMinus, When: open, Run: func() { a.scaleSubtitles(-2) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeySearch(), Mods: ui.Cmd, Key: ui.KeyF, When: open, Run: a.searchSubtitles},
+		{Group: groupView, Label: locales.PlayerKeyToggleSidebar(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyT, When: open, Run: a.TogglePanel},
+		{Group: groupView, Label: locales.FilmFullScreen(), Key: ui.KeyF, When: open, Run: a.ToggleFullScreen},
+		{Group: groupView, Label: locales.FilmBackToLibrary(), Key: ui.KeyEscape, When: open, Run: a.escapeFilm},
 	}
 }

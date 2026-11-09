@@ -1,11 +1,11 @@
 package film
 
 import (
-	"fmt"
 	"math"
 	"strings"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 
@@ -23,7 +23,7 @@ func (s screen) topBar(c *ui.Context, item films.Film, fade float32, shown bool)
 	}
 	bar.Children(func() {
 		c.Key("film-back")
-		back := glyphButton(c, iconChevronLeft, "返回资料库", 34, 34, 10, 16)
+		back := glyphButton(c, iconChevronLeft, locales.FilmBackToLibrary(), 34, 34, 10, 16)
 		glassFace(back, ui.RGBA(255, 255, 255, 0.12), 20, 0.25, 17)
 		if back.Clicked() {
 			s.SetOpenKey("")
@@ -43,9 +43,9 @@ func (s screen) panelButton(c *ui.Context) {
 	if s.Play() == nil && s.PlayPath() == "" {
 		return
 	}
-	label := "展开侧栏"
+	label := locales.FilmShowSidebar()
 	if s.Panel() {
-		label = "收起侧栏"
+		label = locales.FilmHideSidebar()
 	}
 	c.Key("film-top-panel")
 	btn := glyphButton(c, iconPanel, label, 34, 34, 18, 15).Shrink(0).Tooltip(label + " " + breeze.ShortcutText(c, ui.Shift|ui.Cmd, ui.KeyT))
@@ -90,7 +90,7 @@ func (s screen) status(item films.Film) string {
 		parts = append(parts, sidebar.Title(dir))
 	}
 	if subs := s.Subs(); subs.Key == item.Key && subs.Ready && subs.Err == "" && len(subs.Cues) > 0 {
-		parts = append(parts, fmt.Sprintf("字幕 %d%%", translatedPercent(subs.Cues)))
+		parts = append(parts, locales.FilmStatusTranslated(translatedPercent(subs.Cues)))
 	} else if item.Stage != "" {
 		parts = append(parts, films.StageLabel(item.Stage))
 	}
@@ -115,21 +115,21 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 	switch {
 	case running:
 		c.Key("film-cancel")
-		if breeze.Button(c, "取消").Clicked() {
+		if breeze.Button(c, locales.FilmCancel()).Clicked() {
 			s.Cancel(item.JobID)
 		}
 	case item.JobID == "":
 		c.Key("film-start")
-		if breeze.PrimaryButton(c, "开始处理").Clicked() {
+		if breeze.PrimaryButton(c, locales.FilmStartProcessing()).Clicked() {
 			s.StartFilm(item)
 		}
 	case failed:
 		c.Key("film-remove")
-		if breeze.Button(c, "移除").Clicked() {
+		if breeze.Button(c, locales.FilmRemove()).Clicked() {
 			s.Remove(item.JobID)
 		}
 		c.Key("film-retry")
-		if breeze.PrimaryButton(c, "重试").Clicked() {
+		if breeze.PrimaryButton(c, locales.FilmRetry()).Clicked() {
 			s.RetryOpen(item.JobID)
 		}
 	}
@@ -147,7 +147,7 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 	glassFace(capsule, ui.RGBA(255, 255, 255, 0.12), 20, 0.25, 17).Children(func() {
 		if path != "" {
 			c.Key("film-reveal")
-			if glyphButton(c, iconFolder, "在访达中显示", 34, 28, 18, 16).Clicked() {
+			if glyphButton(c, iconFolder, locales.FilmShowInFinder(), 34, 28, 18, 16).Clicked() {
 				s.Reveal(path)
 			}
 		}
@@ -168,11 +168,11 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 		// A finished film can be processed again from the start, as the prototype's ⋯ menu offers; a failed one has 重试 already.
 		if more {
 			c.Key("film-more")
-			glyphButton(c, iconMore, "更多操作", 34, 28, 14, 4).Menu(func(m *ui.Menu) {
-				if m.Item("反馈这部影片的字幕…").Chosen() {
+			glyphButton(c, iconMore, locales.FilmMoreActions(), 34, 28, 14, 4).Menu(func(m *ui.Menu) {
+				if m.Item(locales.FilmFeedbackSubtitles()).Chosen() {
 					s.FeedbackSubtitles()
 				}
-				if m.Item("重新处理整部影片").Chosen() {
+				if m.Item(locales.FilmReprocess()).Chosen() {
 					s.RetryOpen(item.JobID)
 				}
 			})
