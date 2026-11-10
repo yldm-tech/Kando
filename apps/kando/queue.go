@@ -29,6 +29,8 @@ type jobQueue struct {
 	order []string
 	// active is the ID of the running job, or "".
 	active string
+	// ran is the IDs of the jobs the queue has run to the end since launch, whichever library they saved into. jobs.list keeps listing them after they end even when another library is open (remoteQueue), so a client waiting on one sees how it ended rather than losing it.
+	ran map[string]bool
 	// cancel stops the running job; with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
 	cancel context.CancelCauseFunc
 	done   chan struct{}
@@ -406,7 +408,7 @@ func (a *app) pump() {
 	}
 }
 
-// queueCanRun reports whether the queue can start job now that it is its turn: its library is the open one or another the app knows. A job of a library the app has forgotten waits until it is opened again, so nothing is written into a folder the user took off the list. A job saved before jobs named their library runs in whichever library is open.
+// queueCanRun reports whether the queue can start job now that it is its turn: its library is the open one or another the app knows. A job waiting in a library the app has forgotten does not start until that library is opened again, so no new work begins in a folder the user took off the list. A job already running when its library is forgotten goes on into it: forgetting leaves the folder on disk, and a running job is never stopped for a library change. A job saved before jobs named their library runs in whichever library is open.
 func (a *app) queueCanRun(job core.Job) bool {
 	if job.LibraryDir == "" {
 		return strings.TrimSpace(a.snap().LibraryDir) != ""
@@ -496,11 +498,15 @@ func (a *app) queuePipeline(job core.Job) media.Pipeline {
 	return tools
 }
 
-// finished clears the job that just returned from the pipeline, says in the message bar how a job of another library ended (queueEndedElsewhere), and starts the next one.
+// finished clears the job that just returned from the pipeline, remembers that the queue ran it (jobQueue.ran), says in the message bar how a job of another library ended (queueEndedElsewhere), and starts the next one.
 func (a *app) finished(id string) {
 	if a.queue.active == id {
 		a.queue.active, a.queue.cancel, a.queue.done = "", nil, nil
 	}
+	if a.queue.ran == nil {
+		a.queue.ran = map[string]bool{}
+	}
+	a.queue.ran[id] = true
 	a.queueEndedElsewhere(id)
 	a.pump()
 }

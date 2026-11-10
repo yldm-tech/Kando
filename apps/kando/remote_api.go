@@ -377,33 +377,34 @@ func (a *app) remoteFindJob(id string) (core.Job, error) {
 	return job, nil
 }
 
-// remoteQueue is the jobs in the order jobs.list gives them: the running one, the waiting ones as the queue will run them (the queue's order, then those read back as queued that it has not taken in yet, oldest first, as pump takes them), and the rest of the open library's as the shelf keeps them, newest first. The running and waiting ones include those the queue runs for another library (queueElsewhere), as 处理中 shows them. UI thread only.
+// remoteQueue is the jobs in the order jobs.list gives them: the running one, the waiting ones as the queue will run them (the queue's order, then those read back as queued that it has not taken in yet, oldest first, as pump takes them), and the rest of the open library's as the shelf keeps them, newest first. The running and waiting ones include those the queue runs for another library (queueElsewhere), as 处理中 shows them; the finished ones include those the queue ran to the end since launch for another library (jobQueue.ran), so a client polling jobs.list for a job sees how it ended after another library is opened. UI thread only.
 func (a *app) remoteQueue() (running, waiting, finished []core.Job) {
 	root := a.snap().LibraryDir
 	seen := map[string]bool{}
-	take := func(job core.Job, ok, queued bool) bool {
-		if !ok || seen[job.ID] || !(films.InLibrary(root, job) || queued && a.queueElsewhere(job)) {
+	// take reports whether job goes in the list: it is on the open library's shelf, or elsewhere says the list keeps it although it saves into another library, and it is not in the list yet.
+	take := func(job core.Job, elsewhere bool) bool {
+		if seen[job.ID] || !(films.InLibrary(root, job) || elsewhere) {
 			return false
 		}
 		seen[job.ID] = true
 		return true
 	}
-	if job, ok := a.library.Find(a.queue.active); a.queue.active != "" && take(job, ok, true) {
+	if job, ok := a.library.Find(a.queue.active); a.queue.active != "" && ok && take(job, a.queueElsewhere(job)) {
 		running = append(running, job)
 	}
 	for _, id := range a.queue.order {
 		job, ok := a.library.Find(id)
-		if ok && job.Stage == core.StageQueued && take(job, true, true) {
+		if ok && job.Stage == core.StageQueued && take(job, a.queueElsewhere(job)) {
 			waiting = append(waiting, job)
 		}
 	}
 	for i := len(a.library.Jobs) - 1; i >= 0; i-- {
-		if job := a.library.Jobs[i]; job.Stage == core.StageQueued && take(job, true, true) {
+		if job := a.library.Jobs[i]; job.Stage == core.StageQueued && take(job, a.queueElsewhere(job)) {
 			waiting = append(waiting, job)
 		}
 	}
 	for _, job := range a.library.Jobs {
-		if take(job, true, false) {
+		if take(job, a.queue.ran[job.ID]) {
 			finished = append(finished, job)
 		}
 	}

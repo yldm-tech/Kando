@@ -4,9 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"kando/apps/kando/films"
+	"kando/packages/core"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -69,6 +71,8 @@ func TestScreenshotsLibrary(t *testing.T) {
 			s.LibraryDir = empty
 			s.Libraries = append(s.Libraries, empty)
 		})
+		// The fixture's queued jobs belong to other libraries, and with no job running the real app would already be running one of them; the scene leaves them out so it shows the empty library alone (queue-other-library shows those cards).
+		a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool { return job.Stage == core.StageQueued })
 		a.refreshLibrary()
 	})
 	f.shootSize(t, "library-full", 1304, 1400, func(a *app, tt *ui.Tester, _ chan func()) {

@@ -414,6 +414,51 @@ func TestCancelAJobOfAnotherLibrary(t *testing.T) {
 	}
 }
 
+// TestForgettingTheRunningJobsLibraryLetsItFinish forgets the library a job is running for: the job goes on and completes into that folder, the message bar says where it was saved, and the job queued behind it in the forgotten library does not start.
+func TestForgettingTheRunningJobsLibraryLetsItFinish(t *testing.T) {
+	g := newGatePipeline()
+	a, _, updates := newTestApp(g)
+	t.Cleanup(func() {
+		if a.libraryWatch != nil {
+			close(a.libraryWatch)
+			a.libraryWatch = nil
+		}
+	})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	first := filepath.Join(t.TempDir(), "first.kando")
+	second := filepath.Join(t.TempDir(), "second.kando")
+	a.switchLibrary(second)
+	a.switchLibrary(first)
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	if got := nextStarted(t, g, updates); got != "https://example.com/a" {
+		t.Fatalf("started %s", got)
+	}
+	ids := jobIDs(a)
+
+	a.forgetLibrary(first)
+	if dir := a.snap().LibraryDir; filepath.Clean(dir) != filepath.Clean(second) {
+		t.Fatalf("open library %q after forgetting the first, want the second", dir)
+	}
+	if a.RunningJob() != ids["https://example.com/a"] {
+		t.Fatalf("running %q after forgetting its library, want a", a.RunningJob())
+	}
+	g.release <- struct{}{}
+	waitUntil(t, updates, func() bool { return !a.running() })
+	noneStarted(t, g, updates)
+	done := stageOf(t, a, ids["https://example.com/a"])
+	if done.Stage != core.StageComplete || done.LibraryDir != first {
+		t.Fatalf("a %+v", done)
+	}
+	if want := locales.QueueDoneElsewhere(jobName(done), "first"); a.lib.notice.Text != want {
+		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
+	}
+	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageQueued {
+		t.Fatalf("b %+v", job)
+	}
+}
+
 // TestJobsOfAForgottenLibraryWait queues jobs in three libraries: the open one, another the app knows, and one it has forgotten. The queue runs the first two, the other library's after the open one's as they were queued, and shows the other library's in 处理中; the forgotten library's job waits, out of sight, until that library is opened again.
 func TestJobsOfAForgottenLibraryWait(t *testing.T) {
 	g := newGatePipeline()

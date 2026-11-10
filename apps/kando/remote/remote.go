@@ -20,7 +20,7 @@ const (
 	MethodFilm = "films.get"
 	// MethodSubtitles takes IDParams, a Film's ID, and answers []Cue from its subtitles.
 	MethodSubtitles = "subtitles.get"
-	// MethodJobs takes no params and answers []Job, the open library's jobs and those the queue runs for other libraries, as the window's 处理中 shows them: the running one, the waiting ones in order, then the open library's finished ones, newest first.
+	// MethodJobs takes no params and answers []Job, the open library's jobs and those the queue runs for other libraries, as the window's 处理中 shows them: the running one, the waiting ones in order, then the finished ones, newest first: the open library's and those the queue ran to the end for other libraries since the app started.
 	MethodJobs = "jobs.list"
 	// MethodAdd takes AddParams and answers AddResult: a job for each source, queued as 开始处理 queues them.
 	MethodAdd = "jobs.add"

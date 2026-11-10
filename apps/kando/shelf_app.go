@@ -114,7 +114,7 @@ func (a *app) libraryPlace() string {
 	return media.MoviesDir()
 }
 
-// switchLibrary points new downloads at dir and stops a job that is still writing into the previous one.
+// switchLibrary points new downloads at dir; a running job goes on into its own library (queue.go run).
 func (a *app) switchLibrary(dir string) {
 	dir = filepath.Clean(dir)
 	if dir == "." || dir == "" {

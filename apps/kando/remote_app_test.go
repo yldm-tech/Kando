@@ -394,6 +394,36 @@ func TestRemoteListsAndCancelsAJobOfAnotherLibrary(t *testing.T) {
 	waitUntil(t, updates, func() bool { return !a.running() })
 }
 
+// TestRemoteListsAJobThatEndedInAnotherLibrary lets a job finish after another library is opened: jobs.list still gives it, complete, so a client waiting on it (kando add --wait) sees it succeed rather than lose it.
+func TestRemoteListsAJobThatEndedInAnotherLibrary(t *testing.T) {
+	g := newGatePipeline()
+	a, _, updates := newTestApp(g)
+	remoteServe(t, a)
+	first, second := t.TempDir(), t.TempDir()
+	a.edit(func(s *session) {
+		s.LibraryDir = first
+		s.Libraries = []string{first, second}
+	})
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	if got := nextStarted(t, g, updates); got != "https://example.com/a" {
+		t.Fatalf("started %s", got)
+	}
+	id := a.RunningJob()
+	a.edit(func(s *session) { s.LibraryDir = second })
+	g.release <- struct{}{}
+	waitUntil(t, updates, func() bool { return !a.running() })
+
+	jobs, err := remoteCall[[]remote.Job](t, updates, remote.MethodJobs, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 || jobs[0].ID != id || jobs[0].Stage != string(core.StageComplete) {
+		t.Fatalf("jobs %+v", jobs)
+	}
+}
+
 func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
 	a, _, updates := newTestApp(&fakePipeline{})
 	remoteServe(t, a)
