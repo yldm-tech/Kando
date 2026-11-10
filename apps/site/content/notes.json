@@ -7,7 +7,7 @@
   "brandName": "The app's name as its interface shows it in your language (mygo.appName in apps/kando/locales): 看懂 in Chinese, Kando in the other languages. Where it is not Kando, the header shows Kando after it.",
   "homeLabel": "Accessible name of the brand in the header and footer, which links to the top of this page. Must contain the visible words, brandName and Kando (WCAG label in name).",
   "navLabel": "Accessible name of the header's list of section links.",
-  "navFeatures": "Header link to the details section (detailsTitle). Keep it short: the four links share one pill.",
+  "navFeatures": "Header link to the four steps (stepsTitle), where what Kando does starts on the page. Keep it short: the four links share one pill.",
   "navCli": "Header link to the Command line & MCP section. MCP stays as is. Keep it short.",
   "navOpenSource": "Header link to the dark Open source section with the downloads.",
   "navFaq": "Header link to the FAQ.",
