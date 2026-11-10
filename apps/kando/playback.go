@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// filmPlay is the video open on the film page. The picture is decoded by ffmpeg and the sound by ffplay.
+// filmPlay is the video open on the film page. ffmpeg decodes the picture, and the sound (player_audio.go), which mygo/audio plays.
 type filmPlay struct {
 	player   *ui.VideoPlayer
 	frames   *frameDecoder
@@ -109,9 +110,11 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				}
 				openAt = now
 			}
-		} else if volume > 0 {
-			// A silent film has no sound to play, muted or turned down to 0.
-			audio, _ = openPCM(ffmpeg, path, openAt, volume)
+		} else {
+			audio, err = openPCM(ffmpeg, path, openAt, volume)
+			if err != nil {
+				log.Printf("player: no sound for %s: %v", filepath.Base(path), err)
+			}
 		}
 		update(func() {
 			if keep != nil {
@@ -141,16 +144,10 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				// The sound handed over plays at the volume keep had, which setVolume kept up to date while the picture opened.
 				audio, keep.audio = keep.audio, nil
 				volume = keep.volume
-			} else if now := a.playerVolume(); now != volume {
-				// The volume may have changed while the video was opening. The sound has not started yet, so it is made again at the new volume rather than started and then restarted.
-				if audio != nil {
-					audio.Close()
-					audio = nil
-				}
-				if now > 0 {
-					audio, _ = openPCM(ffmpeg, path, openAt, now)
-				}
-				volume = now
+			} else {
+				// The volume may have changed while the video was opening.
+				volume = a.playerVolume()
+				audio.setVolume(volume)
 			}
 			paused := true
 			if jump {
@@ -339,30 +336,19 @@ func (p *filmPlay) restartAudioAt(at time.Duration) {
 		p.audio.Close()
 		p.audio = nil
 	}
-	if p.volume <= 0 {
-		return
-	}
 	audio, err := openPCM(p.ffmpeg, p.path, at, p.volume)
-	if err != nil || audio == nil {
+	if err != nil {
+		log.Printf("player: no sound for %s: %v", filepath.Base(p.path), err)
 		return
 	}
 	audio.Start()
 	p.audio = audio
 }
 
-// setVolume plays the sound at volume from now on. Its process takes the volume only when it starts, so a playing film's sound starts again where it is (soundAt), and a held one's is dropped for toggle to start at the new volume. At 0 there is no sound to play.
+// setVolume plays the sound at volume from now on, as it plays: a muted film's sound plays on unheard, so that unmuting it is heard at once, where the picture is.
 func (p *filmPlay) setVolume(volume float64) {
-	if p.volume == volume {
-		return
-	}
 	p.volume = volume
-	if p.audio != nil {
-		p.audio.Close()
-		p.audio = nil
-	}
-	if !p.paused && !p.finished && p.player.Playing() {
-		p.restartAudio()
-	}
+	p.audio.setVolume(volume)
 }
 
 // frameDecoder is a FrameReader as a ui.VideoDecoder. Closing the player closes the reader.

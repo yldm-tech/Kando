@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -332,7 +332,7 @@ func TestPlaybackHandsTheSoundToTheReopenedPicture(t *testing.T) {
 	p := a.player.play
 	p.toggle()
 	sound := p.audio
-	if !p.Playing() || sound == nil && runtime.GOOS == "darwin" {
+	if !p.Playing() || sound == nil {
 		t.Fatalf("playing %v, sound %v", p.Playing(), sound)
 	}
 	a.playerDidResignActive()
@@ -1080,7 +1080,7 @@ func TestContinuingAFilmKeepsWhereItGotTo(t *testing.T) {
 	}
 }
 
-// TestQuittingStopsTheOpenFilm: when the app quits with a film playing, the film stops, so its sound, which plays in a process of its own, ends with the app, and where it stopped is kept for next time.
+// TestQuittingStopsTheOpenFilm: when the app quits with a film playing, the film stops, so its sound, which ffmpeg decodes in a process of its own, ends with the app, and where it stopped is kept for next time.
 func TestQuittingStopsTheOpenFilm(t *testing.T) {
 	a, tt, _ := openClip(t, 5)
 	path := a.player.play.path
@@ -1103,7 +1103,7 @@ func TestQuittingStopsTheOpenFilm(t *testing.T) {
 	}
 }
 
-// TestVolumeKeys checks ↑, ↓ and M on an open film: ↑ and ↓ move the volume a tenth within 0 and 100%, M mutes and gives the volume back, and each says so on the picture. Once the keys rest, the open film plays at the new volume and the settings keep it.
+// TestVolumeKeys checks ↑, ↓ and M on an open film: ↑ and ↓ move the volume a tenth within 0 and 100%, M mutes and gives the volume back, and each says so on the picture. The open film plays at the new volume at once, and once the keys rest the settings keep it.
 func TestVolumeKeys(t *testing.T) {
 	a, tt, updates := openClip(t, 2)
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
@@ -1127,7 +1127,10 @@ func TestVolumeKeys(t *testing.T) {
 	key(ui.KeyM, 0.8, true, "静音")
 	// ↑ while muted unmutes, a step above the volume the mute kept.
 	key(ui.KeyUp, 0.9, false, "音量 90%")
-	waitUntil(t, updates, func() bool { return math.Abs(a.player.play.volume-0.9) < 1e-9 })
+	if math.Abs(a.player.play.volume-0.9) > 1e-9 {
+		t.Fatalf("the open film plays at %v after ↑, want 0.9 at once", a.player.play.volume)
+	}
+	waitUntil(t, updates, func() bool { return !a.player.volumeUnsaved })
 	saved := loadSavedSettings(a.settingsPath)
 	if saved.Volume == nil || math.Abs(*saved.Volume-0.9) > 1e-9 || saved.Muted {
 		t.Fatalf("saved volume %v muted %v", saved.Volume, saved.Muted)
@@ -1465,5 +1468,181 @@ func TestSubtitleDelayStaysWithAFilmOpenedPlaying(t *testing.T) {
 	a.OpenAt(filmA, 30*time.Second)
 	if d, q := a.Delay(), *a.Search(); d != -200*time.Millisecond || q != "" {
 		t.Fatalf("film A opened from film B with delay %v and search %q", d, q)
+	}
+}
+
+// playerFakeSound is a clip of seconds that the fake ffmpeg, which it returns, plays the sound of (fakeSound).
+func playerFakeSound(t *testing.T, seconds int) (ffmpeg, clip string) {
+	t.Helper()
+	dir := t.TempDir()
+	ffmpeg = fakeTool(t, filepath.Join(dir, "bin"), "ffmpeg")
+	clip = filepath.Join(dir, "clip.mp4")
+	writeFakeClip(t, clip, seconds, "202020", "101010")
+	return ffmpeg, clip
+}
+
+// playerReadSound reads d until it has frames frames, or to its end when frames is negative, in reads of an odd number of frames, so that the pipe hands over frames cut short. It fails t on a read that returns nothing short of the end, which the player takes for the end.
+func playerReadSound(t *testing.T, d *playerAudioDecoder, frames int) []float32 {
+	t.Helper()
+	var got []float32
+	buf := make([]float32, 1001*playerAudioChannels)
+	for frames < 0 || len(got) < frames*playerAudioChannels {
+		n, err := d.Read(buf)
+		got = append(got, buf[:n]...)
+		if err == io.EOF {
+			return got
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n == 0 || n%playerAudioChannels != 0 {
+			t.Fatalf("a read of %d samples", n)
+		}
+	}
+	return got
+}
+
+// playerWantSound fails t unless samples are the fake clip's sound from frame on, the same on both channels.
+func playerWantSound(t *testing.T, samples []float32, frame int64) {
+	t.Helper()
+	for i := 0; i < len(samples); i += playerAudioChannels {
+		want := fakeSoundSample(frame + int64(i/playerAudioChannels))
+		if samples[i] != want || samples[i+1] != want {
+			t.Fatalf("frame %d: %v %v, want the clip's frame %d (%v)", i/playerAudioChannels, samples[i], samples[i+1], frame+int64(i/playerAudioChannels), want)
+		}
+	}
+}
+
+// TestPlayerAudioDecodesTheSoundFrom: the sound of a film opened partway is ffmpeg's 48 kHz stereo floats from there to the end of the clip, every frame in order, and then the end.
+func TestPlayerAudioDecodesTheSoundFrom(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 2)
+	d := &playerAudioDecoder{ffmpeg: ffmpeg, path: clip, from: 1500 * time.Millisecond}
+	if err := d.start(0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	if d.SampleRate() != 48000 || d.Channels() != 2 || d.Len() != -1 {
+		t.Fatalf("rate %d channels %d length %d", d.SampleRate(), d.Channels(), d.Len())
+	}
+	if args := d.proc.cmd.Args; fakeArg(args, "-ss") != "1.500" || fakeArg(args, "-f") != "f32le" || fakeArg(args, "-ac") != "2" || fakeArg(args, "-ar") != "48000" || fakeArg(args, "-i") != clip {
+		t.Fatalf("ffmpeg %v", args)
+	}
+	got := playerReadSound(t, d, -1)
+	if len(got) != 24000*playerAudioChannels {
+		t.Fatalf("%d frames of sound, want the last half second's 24000", len(got)/playerAudioChannels)
+	}
+	playerWantSound(t, got, 72000)
+	if n, err := d.Read(make([]float32, 64)); n != 0 || err != io.EOF {
+		t.Fatalf("after the end: %d %v", n, err)
+	}
+}
+
+// TestPlayerAudioSetPositionStartsFFmpegAgain: moving the sound ends its ffmpeg and starts another where it moved to, counted from where the sound was opened.
+func TestPlayerAudioSetPositionStartsFFmpegAgain(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 4)
+	d := &playerAudioDecoder{ffmpeg: ffmpeg, path: clip, from: time.Second}
+	if err := d.start(0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	playerWantSound(t, playerReadSound(t, d, 4800), 48000)
+	old := d.proc
+	if err := d.SetPosition(24000); err != nil {
+		t.Fatal(err)
+	}
+	if old.cmd.ProcessState == nil {
+		t.Fatal("the ffmpeg before the move was left running")
+	}
+	if d.proc == old || fakeArg(d.proc.cmd.Args, "-ss") != "1.500" {
+		t.Fatalf("ffmpeg after the move %v", d.proc.cmd.Args)
+	}
+	playerWantSound(t, playerReadSound(t, d, 4800), 72000)
+}
+
+// TestPlayerAudioCloseEndsFFmpeg: closing the sound ends its ffmpeg, which waits on the full pipe while the sound is held, and a read after it is the end.
+func TestPlayerAudioCloseEndsFFmpeg(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 30)
+	sound, err := openPCM(ffmpeg, clip, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proc := sound.decoder.proc
+	done := make(chan struct{})
+	go func() {
+		sound.Close()
+		sound.Close()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("closing the sound did not return")
+	}
+	if proc.cmd.ProcessState == nil {
+		t.Fatal("ffmpeg outlived its sound")
+	}
+	if n, err := sound.decoder.Read(make([]float32, 64)); n != 0 || err != io.EOF {
+		t.Fatalf("a read after Close: %d %v", n, err)
+	}
+	if _, err := openPCM("", clip, 0, 1); err == nil {
+		t.Fatal("a sound opened without ffmpeg")
+	}
+}
+
+// TestVolumeChangesTheSoundAsItPlays: the volume keys and the mute change how loud the open film's sound plays at once, on the same sound and the same ffmpeg, rather than starting the sound again; muted, it plays on unheard.
+func TestVolumeChangesTheSoundAsItPlays(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 30)
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	sound, err := openPCM(ffmpeg, clip, 0, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(sound.Close)
+	proc := sound.decoder.proc
+	a.player.play = &filmPlay{audio: sound, ffmpeg: ffmpeg, path: clip, volume: 1, paused: true}
+	t.Cleanup(func() { a.player.play = nil })
+	want := func(volume float64) {
+		t.Helper()
+		p := a.player.play
+		if p.audio != sound || sound.decoder.proc != proc || proc.cmd.ProcessState != nil {
+			t.Fatalf("the sound started again for volume %v", volume)
+		}
+		if math.Abs(p.volume-volume) > 1e-9 || math.Abs(sound.player.Volume()-volume) > 1e-9 {
+			t.Fatalf("film at %v, sound at %v, want %v", p.volume, sound.player.Volume(), volume)
+		}
+	}
+	a.SetVolume(0.3)
+	want(0.3)
+	a.ToggleMute()
+	want(0)
+	a.ToggleMute()
+	want(0.3)
+	a.playerNudgeVolume(-1)
+	want(0.2)
+}
+
+// TestPlayerAudioEndedDoesNotStartAgain: a sound that played to the end of its track stays ended when the film plays on, rather than starting again from where it was opened.
+func TestPlayerAudioEndedDoesNotStartAgain(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 1)
+	sound, err := openPCM(ffmpeg, clip, 500*time.Millisecond, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(sound.Close)
+	sound.Start()
+	deadline := time.Now().Add(5 * time.Second)
+	for !sound.ended.Load() {
+		if time.Now().After(deadline) {
+			t.Fatal("half a second of sound did not end")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	proc := sound.decoder.proc
+	sound.Pause()
+	sound.Play()
+	time.Sleep(200 * time.Millisecond)
+	if sound.player.Playing() || sound.decoder.proc != proc {
+		t.Fatalf("the ended sound played again: playing %v, ffmpeg %v", sound.player.Playing(), sound.decoder.proc != proc)
 	}
 }

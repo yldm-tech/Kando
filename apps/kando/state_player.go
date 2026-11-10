@@ -49,7 +49,7 @@ type playerUI struct {
 	// volume is how loud films play, from 0 to 1, and muted silences them without losing it. Both stay as they are from film to film.
 	volume float64
 	muted  bool
-	// volumeGen counts volume changes, so only the last of a quick run of them starts the sound again (playerVolumeChanged); volumeUnsaved is set until the change is kept in the settings.
+	// volumeGen counts volume changes, so only the last of a quick run of them is written to the settings (playerVolumeChanged); volumeUnsaved is set until the change is kept in the settings.
 	volumeGen     int
 	volumeUnsaved bool
 	// screen is the window the player enters and leaves full screen in: the main window once it exists (playerReady), and nil before, as in tests that set none, when full screen does nothing.

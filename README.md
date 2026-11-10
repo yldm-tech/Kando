@@ -58,15 +58,13 @@ Kando runs `yt-dlp`, `ffmpeg` and `whisper-cli` (whisper.cpp). On macOS and Linu
 | Program | Used for | What Kando downloads |
 | --- | --- | --- |
 | `yt-dlp` | Downloading online videos. Kando asks for it for every job, local files included. | The standalone build from the [yt-dlp release](https://github.com/yt-dlp/yt-dlp/releases). |
-| `ffmpeg` | Extracting the audio, grabbing covers and decoding the picture in the player. On macOS the sound plays through `ffplay` beside it, or `afplay`. | FFmpeg 9.0.2, with `ffplay` on macOS, from this repository's [tools release](https://github.com/yldm-tech/Kando/releases/tag/tools-1). |
+| `ffmpeg` | Extracting the audio, grabbing covers, and decoding the picture and the sound in the player, which plays the sound through the system's audio output on macOS, Linux and Windows. | FFmpeg 9.0.2, with `ffplay` on macOS, from this repository's [tools release](https://github.com/yldm-tech/Kando/releases/tag/tools-1). |
 | `whisper-cli` (whisper.cpp) | Speech recognition. | whisper.cpp 1.9.5, with Metal on macOS, from the same release. |
 | A whisper.cpp ggml model | Download one in the Getting Started guide or Settings › Speech Recognition, or point `KANDO_WHISPER_MODEL` at a model file. | |
 
 The tools release is built by the Tools workflow (`.github/workflows/tools.yml`) from the sources pinned in `.github/tools.env`, and Kando checks each download against a SHA-256 pinned in the app before using it. Downloads go to the `tools` folder beside `settings.json` (`~/Library/Application Support/Kando/tools` on macOS, `~/.config/Kando/tools` on Linux). Kando looks there first, then on `PATH` and in `/opt/homebrew/bin`, `/usr/local/bin` and `/home/linuxbrew/.linuxbrew/bin`, because apps opened from Finder or a desktop launcher get a minimal `PATH`. Settings › General shows which program is used, offers Download or Retry for one that is missing, and Detect Again looks again. If a download fails because `yt-dlp` is out of date, Kando offers Update and Retry, which updates it the way it was installed and retries.
 
 On Windows Kando does not download them yet: install the same programs with your package manager and make sure they are on `PATH`.
-
-On Windows and Linux the player currently shows the picture without sound; audio playback is implemented on macOS only.
 
 ## Getting started
 

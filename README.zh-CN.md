@@ -60,15 +60,13 @@ make build
 | 程序 | 用途 | 看懂下载的版本 |
 | --- | --- | --- |
 | `yt-dlp` | 下载在线视频。每个任务都需要它，本地文件也不例外。 | [yt-dlp 官方发布](https://github.com/yt-dlp/yt-dlp/releases)的单文件版。 |
-| `ffmpeg` | 提取音频、截取封面，以及在播放器中解码画面。在 macOS 上，声音由它旁边的 `ffplay` 或系统自带的 `afplay` 播放。 | FFmpeg 9.0.2（macOS 版带 `ffplay`），来自本仓库的 [tools 发布](https://github.com/yldm-tech/Kando/releases/tag/tools-1)。 |
+| `ffmpeg` | 提取音频、截取封面，以及在播放器中解码画面和声音；播放器在 macOS、Linux 和 Windows 上都通过系统的音频输出播放声音。 | FFmpeg 9.0.2（macOS 版带 `ffplay`），来自本仓库的 [tools 发布](https://github.com/yldm-tech/Kando/releases/tag/tools-1)。 |
 | `whisper-cli`（whisper.cpp） | 语音识别。 | whisper.cpp 1.9.5（macOS 版启用 Metal），来自同一个发布。 |
 | 一个 whisper.cpp ggml 模型 | 在入门引导或“设置 › 语音识别”中下载，或者用 `KANDO_WHISPER_MODEL` 指向一个模型文件。 | |
 
 tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/tools.env` 里固定的源码构建，看懂使用每个下载前都会用内置的 SHA-256 校验。下载的程序放在 `settings.json` 旁边的 `tools` 文件夹里（macOS 上是 `~/Library/Application Support/Kando/tools`，Linux 上是 `~/.config/Kando/tools`）。看懂先在这里找，再找 `PATH` 以及 `/opt/homebrew/bin`、`/usr/local/bin` 和 `/home/linuxbrew/.linuxbrew/bin`，因为从访达或桌面启动器打开的应用只能拿到精简的 `PATH`。“设置 › 通用”会显示用的是哪个程序，缺少的可以点“下载”或“重试”，点击“重新检测”可以重新查找。如果因为 `yt-dlp` 版本过旧而下载失败，看懂会提供“更新并重试”，按原来的安装方式更新它并重试。
 
 在 Windows 上看懂暂时还不会自动下载：请用包管理器安装同样的程序，并确保它们在 `PATH` 中。
-
-在 Windows 和 Linux 上，播放器目前只有画面没有声音；音频播放只在 macOS 上实现。
 
 ## 快速上手
 

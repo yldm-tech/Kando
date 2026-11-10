@@ -213,7 +213,7 @@ func newAgentContent(l language, strs map[string]string, total int, used map[str
 					Title:  t("startToolsTitle"),
 					Text:   []string{t("startToolsBody")},
 					Tools:  []agentTool{{"yt-dlp", t("toolYtdlp")}, {"ffmpeg", t("toolFfmpeg")}, {"whisper-cli", t("toolWhisper")}},
-					Notes:  []string{t("startToolsOther"), t("startToolsAudio"), t("startSetup")},
+					Notes:  []string{t("startToolsOther"), t("startSetup")},
 				},
 				{
 					Title:   t("startBuildTitle"),
