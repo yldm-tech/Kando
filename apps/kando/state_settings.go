@@ -8,6 +8,7 @@ import (
 
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/theme"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo"
@@ -180,7 +181,7 @@ func (a *app) settingsKeys() []shortcut { return nil }
 
 // settingsView is the settings window's content.
 func (a *app) settingsView(c *ui.Context) {
-	t, dark := palette(c)
+	t, dark := theme.Palette(c)
 	settings.Window(c, t, dark, appVersion, a)
 	a.speechModals()
 	a.shareSettings(true)
