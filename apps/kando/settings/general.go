@@ -2,6 +2,7 @@ package settings
 
 import (
 	"path/filepath"
+	"time"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
@@ -14,7 +15,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// general is the 通用 page: the library, the interface language and version, the programs Kando runs, and its command line and MCP server (cli.go).
+// general is the 通用 page: the library, the interface language, the version and its updates, the programs Kando runs, and its command line and MCP server (cli.go).
 func (s screen) general(c *ui.Context, t *ui.Theme) {
 	form.Label(c, locales.SettingsGeneralLibrary(), 6, nil)
 	form.Card(c, func() { s.libraryRows(c) })
@@ -29,7 +30,7 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 			}
 		})
 		form.Separator(c, true)
-		form.Row(c, locales.SettingsGeneralVersion(), "", func() { form.Value(c, s.version, 13).Selectable() })
+		s.updateRows(c)
 	})
 	tools, known := s.Tools()
 	var redetect func()
@@ -56,6 +57,47 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 	}
 	form.Note(c, note, 0)
 	s.cli(c, t)
+}
+
+// updateRows are the version with 检查更新…, under it the newer version the last check found or when that check was, and, where Kando can update itself, whether it checks and installs updates by itself. Where it cannot, as a development build or the Debian package, 检查更新… opens the update window, which says why.
+func (s screen) updateRows(c *ui.Context) {
+	u := s.Updates()
+	note := ""
+	if u.Available != "" {
+		note = locales.SettingsGeneralUpdateAvailable(u.Available)
+	} else if !u.LastCheck.IsZero() {
+		note = locales.SettingsGeneralLastCheck(u.LastCheck)
+	}
+	form.Row(c, locales.SettingsGeneralVersion(), note, func() {
+		form.Value(c, s.version, 13).Selectable()
+		c.Key("check-updates")
+		if form.Button(c, locales.UpdatesCheck(), false).Clicked() {
+			s.CheckForUpdates()
+		}
+	})
+	if !u.Enabled {
+		return
+	}
+	form.Separator(c, true)
+	c.Key("auto-check-updates")
+	if on := u.AutoCheck; form.SwitchRow(c, locales.SettingsGeneralAutoCheck(), "", &on) {
+		s.SetAutoCheckUpdates(on)
+	}
+	// Updates are downloaded only by the checks in the background, so the switch goes with them.
+	if u.AutoCheck {
+		form.Separator(c, true)
+		c.Key("auto-download-updates")
+		if on := u.AutoDownload; form.SwitchRow(c, locales.SettingsGeneralAutoDownload(), locales.SettingsGeneralAutoDownloadHint(), &on) {
+			s.SetAutoDownloadUpdates(on)
+		}
+	}
+}
+
+// Updates is how Kando updates itself, as the 通用 page shows it: Enabled says this copy can (not a development build, nor one a package manager installed), AutoCheck and AutoDownload are the user's choices, Available is the newer version the last check found ("" for none, or one the user skipped) and LastCheck when that check was (zero before the first).
+type Updates struct {
+	Enabled, AutoCheck, AutoDownload bool
+	Available                        string
+	LastCheck                        time.Time
 }
 
 // InterfaceLanguageChoices are the languages for which Kando ships a catalog (locales.Interface).

@@ -57,6 +57,11 @@ type App interface {
 	CLI() CLI
 	InstallCLI()
 	CLICopied(text string)
+	// Updates is how Kando updates itself, as the app last heard from its updater; CheckForUpdates checks at once and shows the update window, and the setters change the user's choices.
+	Updates() Updates
+	CheckForUpdates()
+	SetAutoCheckUpdates(on bool)
+	SetAutoDownloadUpdates(on bool)
 
 	// InstalledSpeechModel is the file on disk of the whisper catalog model id, "" when it is not downloaded. The app looks the models up when the window opens, when the model in use changes and on 重新检测, never while the page is drawn.
 	InstalledSpeechModel(id string) string

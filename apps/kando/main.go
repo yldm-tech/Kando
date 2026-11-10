@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"log"
 	"os"
 	"path/filepath"
@@ -48,6 +49,7 @@ type app struct {
 	kits     kitsUI     // state_kits.go
 	remote   remoteUI   // state_remote.go
 	cliTool  cliToolUI  // state_cli.go
+	updates  updatesUI  // state_updates.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -70,10 +72,12 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		kits:     newKitsUI(),
 		remote:   newRemoteUI(),
 		cliTool:  newCLIToolUI(),
+		updates:  newUpdatesUI(),
 	}
 }
 
 func main() {
+	appVersion = cmp.Or(mygo.App.Version(), appVersion)
 	// Started with one of the kando command line's commands (cli), it runs that command against the running app, or serves MCP, and opens no window.
 	if code, ok := cli.Main(os.Args[1:], appVersion); ok {
 		os.Exit(code)

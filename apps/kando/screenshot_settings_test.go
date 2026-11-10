@@ -26,6 +26,11 @@ func TestScreenshotsSettings(t *testing.T) {
 		shotCLITool(f, a, true)
 		a.cliTool.copied = cliToolMCPConfig(a.cliTool.status.cliToolCommand())
 	})
+	// An installed copy, which updates itself: the last check found 0.5.0, and the switches of the checks and downloads in the background show.
+	shootSettings(t, f, settings.SectionGeneral, "settings-general-updates", shown, models, turbo, func(a *app) {
+		shotCLITool(f, a, true)
+		a.updates.shown = settings.Updates{Enabled: true, AutoCheck: true, Available: "0.5.0"}
+	})
 	// The first launch on a computer without ffmpeg and whisper-cli: Kando downloads ffmpeg, and offers 重试 for whisper-cli, whose download failed.
 	shootSettings(t, f, settings.SectionGeneral, "settings-general-downloading", shown, models, turbo, func(a *app) {
 		shotKitsDownloading(t, f, a)

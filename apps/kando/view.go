@@ -17,11 +17,12 @@ const (
 	pageTranslate = sidebar.PageTranslate
 	pageAccount   = sidebar.PageAccount
 
-	appVersion = "0.1.0"
-
 	sidebarWidth = sidebar.Width
 	pagePadX     = sidebar.PagePadX
 )
+
+// appVersion is the version the app shows and reports: main sets it to the one mygo build gave the app, mygo.json's, which Release bumps. Without one, as in tests and go run, it stays this fixed one, which the tests and screenshots show.
+var appVersion = "0.1.0"
 
 // view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn and contentBand in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, dropFiles in bind_films.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
 func (a *app) view(c *ui.Context) {

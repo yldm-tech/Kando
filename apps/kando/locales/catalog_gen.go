@@ -4,6 +4,7 @@ package locales
 
 import (
 	"embed"
+	"time"
 
 	"github.com/egoist/mygo/i18n"
 
@@ -9275,6 +9276,54 @@ func (msgs Messages) SettingsFileUnreadable(error string) string {
 	return Catalog.Format(msgs.locale, "settingsFileUnreadable", map[string]any{"error": error})
 }
 
+// SettingsGeneralAutoCheck says "Check for updates automatically"
+// in the language the app shows.
+//
+// Switch in Settings › General: Kando checks for a new version after
+// launch and once a day.
+func SettingsGeneralAutoCheck() string { return In(i18n.Locale()).SettingsGeneralAutoCheck() }
+
+// SettingsGeneralAutoCheck says "Check for updates automatically"
+// in the language of msgs.
+//
+// Switch in Settings › General: Kando checks for a new version after
+// launch and once a day.
+func (msgs Messages) SettingsGeneralAutoCheck() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralAutoCheck", nil)
+}
+
+// SettingsGeneralAutoDownload says "Download and install updates automatically"
+// in the language the app shows.
+//
+// Switch in Settings › General, under the automatic check: updates found
+// in the background install without asking.
+func SettingsGeneralAutoDownload() string { return In(i18n.Locale()).SettingsGeneralAutoDownload() }
+
+// SettingsGeneralAutoDownload says "Download and install updates automatically"
+// in the language of msgs.
+//
+// Switch in Settings › General, under the automatic check: updates found
+// in the background install without asking.
+func (msgs Messages) SettingsGeneralAutoDownload() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralAutoDownload", nil)
+}
+
+// SettingsGeneralAutoDownloadHint says "The new version opens the next time you launch Kando."
+// in the language the app shows.
+//
+// Under the automatic download switch in Settings › General.
+func SettingsGeneralAutoDownloadHint() string {
+	return In(i18n.Locale()).SettingsGeneralAutoDownloadHint()
+}
+
+// SettingsGeneralAutoDownloadHint says "The new version opens the next time you launch Kando."
+// in the language of msgs.
+//
+// Under the automatic download switch in Settings › General.
+func (msgs Messages) SettingsGeneralAutoDownloadHint() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralAutoDownloadHint", nil)
+}
+
 // SettingsGeneralCLI says "Command Line & MCP"
 // in the language the app shows.
 //
@@ -9745,6 +9794,24 @@ func (msgs Messages) SettingsGeneralInterfaceLanguage() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralInterfaceLanguage", nil)
 }
 
+// SettingsGeneralLastCheck says "Last checked {when}"
+// in the language the app shows.
+//
+// Under Version in Settings › General: when Kando last checked for
+// updates; {when} is a date and time.
+func SettingsGeneralLastCheck(when time.Time) string {
+	return In(i18n.Locale()).SettingsGeneralLastCheck(when)
+}
+
+// SettingsGeneralLastCheck says "Last checked {when}"
+// in the language of msgs.
+//
+// Under Version in Settings › General: when Kando last checked for
+// updates; {when} is a date and time.
+func (msgs Messages) SettingsGeneralLastCheck(when time.Time) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralLastCheck", map[string]any{"when": when})
+}
+
 // SettingsGeneralLibrary says "Library"
 // in the language the app shows.
 //
@@ -9937,6 +10004,24 @@ func SettingsGeneralToolsNoteManual() string {
 // download them (Windows): they are the user's to install.
 func (msgs Messages) SettingsGeneralToolsNoteManual() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralToolsNoteManual", nil)
+}
+
+// SettingsGeneralUpdateAvailable says "Version {version} is available"
+// in the language the app shows.
+//
+// Under Version in Settings › General when the last check found a newer
+// version; {version} is its number, such as 0.4.0.
+func SettingsGeneralUpdateAvailable(version string) string {
+	return In(i18n.Locale()).SettingsGeneralUpdateAvailable(version)
+}
+
+// SettingsGeneralUpdateAvailable says "Version {version} is available"
+// in the language of msgs.
+//
+// Under Version in Settings › General when the last check found a newer
+// version; {version} is its number, such as 0.4.0.
+func (msgs Messages) SettingsGeneralUpdateAvailable(version string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralUpdateAvailable", map[string]any{"version": version})
 }
 
 // SettingsGeneralUseFFmpeg says "Converts audio, grabs covers, decodes frames"
