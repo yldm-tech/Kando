@@ -293,6 +293,24 @@ func TestPageBody(t *testing.T) {
 			if !strings.Contains(html, `href="`+l.ReadmeURL()+`"`) {
 				t.Errorf("no link to %s", l.ReadmeURL())
 			}
+			// The Download buttons open the newest published release, which stays current when a release comes out after the site was built; the footer lists every release.
+			downloads := 0
+			for _, tag := range tagRe("a").FindAllString(html, -1) {
+				if attr(tag, "class") == "btn primary" {
+					downloads++
+					if href := attr(tag, "href"); href != latestURL {
+						t.Errorf("Download button points to %q, want %q", href, latestURL)
+					}
+				}
+			}
+			if downloads != 2 {
+				t.Errorf("%d Download buttons, want the hero's and the Get started card's", downloads)
+			}
+			foot := html[strings.Index(html, `class="foot-links"`):]
+			foot = foot[:strings.Index(foot, "</nav>")]
+			if !strings.Contains(foot, `href="`+releasesURL+`"`) {
+				t.Errorf("the footer does not link the releases list %s", releasesURL)
+			}
 		})
 	}
 }

@@ -14,6 +14,11 @@ on:
       - "apps/kando/sites/catalog/**"
       - "apps/kando/resources/icon.png"
       - ".github/workflows/site.yml"
+  # The page names the version in apps/kando/mygo.json and links that release's files, so it is rebuilt once Release has published a release. Release pushes its version commit with GITHUB_TOKEN, which starts no workflow, so the push trigger above never sees it; and mygo.json is not one of its paths because the version commit lands while the release is still a draft, whose files 404 for visitors.
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 # Pages deployment authenticates through OIDC, so no token is stored.
@@ -30,6 +35,8 @@ concurrency:
 jobs:
   build:
     name: Build
+    # A Release run that failed may have left its release a draft, so only a successful one rebuilds the site.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

@@ -54,8 +54,17 @@ func TestWebMCPPageData(t *testing.T) {
 				t.Errorf("%d languages, want %d", len(data.Langs), len(built.rep.Langs))
 			}
 			for _, al := range data.Langs {
-				if _, err := os.Stat(outFile(al.Content)); err != nil {
+				raw, err := os.ReadFile(outFile(al.Content))
+				if err != nil {
 					t.Errorf("%s's content file %s is not in the site: %v", al.Code, al.Content, err)
+					continue
+				}
+				// get_started sends people to the newest published release, as the page's Download button does.
+				var c agentContent
+				if err := json.Unmarshal(raw, &c); err != nil {
+					t.Errorf("%s's content file: %v", al.Code, err)
+				} else if len(c.Start.Steps) == 0 || c.Start.Steps[0].Link == nil || c.Start.Steps[0].Link.URL != latestURL {
+					t.Errorf("%s: the download step does not link %s", al.Code, latestURL)
 				}
 			}
 			if _, err := os.Stat(outFile(data.Sites)); err != nil {

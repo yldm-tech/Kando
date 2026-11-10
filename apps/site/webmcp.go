@@ -206,7 +206,7 @@ func newAgentContent(l language, strs map[string]string, total int, used map[str
 					Title:  t("startDownloadTitle"),
 					Text:   []string{t("startDownloadBody")},
 					Notes:  []string{t("startDownloadUnsigned")},
-					Link:   &agentLink{Text: t("startDownloadButton"), URL: releasesURL},
+					Link:   &agentLink{Text: t("startDownloadButton"), URL: latestURL},
 				},
 				{
 					Number: 2,
