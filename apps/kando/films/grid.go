@@ -30,7 +30,7 @@ func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
 
 // doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重新处理 and 从资料库移除.
 func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
-	menu := filmMenu(a, item)
+	menu := filmMenu(a, item, breeze.PlatformOf(c))
 	name := filmName(item)
 	ui.Column(c).WidthPercent(100).MinWidth(0).Gap(9).ContextMenu(menu).Children(func() {
 		thumb := ui.ButtonBase(c).Label(name).WidthPercent(100).AspectRatio(16.0/9).Radius(13).Clip().Background(thumbFill).TransformOrigin(0.5, 0.5).Border(0.5, ui.RGBA(0, 0, 0, 0.1))
@@ -64,13 +64,13 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 	})
 }
 
-// filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero.
-func filmMenu(a App, item Film) func(m *ui.Menu) {
+// filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero. p is the platform of the Context the menu is built in, so its reveal item names the same file manager as the buttons beside it.
+func filmMenu(a App, item Film, p breeze.Platform) func(m *ui.Menu) {
 	return func(m *ui.Menu) {
 		if m.Item(locales.FilmsPlay()).Chosen() {
 			a.Open(item)
 		}
-		if m.Item(locales.FilmsShowInFinder(breeze.Current().String())).Chosen() {
+		if m.Item(locales.FilmsShowInFinder(p.String())).Chosen() {
 			a.Reveal(item.VideoPath)
 		}
 		if m.Item(locales.FilmsReprocess()).Chosen() {

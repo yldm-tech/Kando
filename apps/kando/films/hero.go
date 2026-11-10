@@ -51,7 +51,7 @@ func resumeFrom(a App, item Film) (time.Duration, bool) {
 
 // hero is the large card of the film finished last: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does.
 func hero(c *ui.Context, a App, item Film) {
-	box := ui.ButtonBase(c).Label(filmName(item)).Description(locales.FilmsHeroKicker()).Height(360).Radius(18).Clip().Background(posterColor(item.Key)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.16)).ContextMenu(filmMenu(a, item))
+	box := ui.ButtonBase(c).Label(filmName(item)).Description(locales.FilmsHeroKicker()).Height(360).Radius(18).Clip().Background(posterColor(item.Key)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.16)).ContextMenu(filmMenu(a, item, breeze.PlatformOf(c)))
 	if box.Clicked() {
 		a.Open(item)
 	}
