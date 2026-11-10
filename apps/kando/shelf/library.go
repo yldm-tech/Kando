@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,7 +21,7 @@ const (
 	storedLibrarySwitched = "library-switched"
 )
 
-// Library is the videos this machine has processed, newest first, and where each video stopped playing.
+// Library is the videos this machine has processed, newest first, where each video stopped playing and how its subtitles were moved against it.
 type Library struct {
 	path string
 	Jobs []core.Job
@@ -28,6 +29,8 @@ type Library struct {
 	Positions map[string]time.Duration
 	// Furthest is how far the video at each path has ever played. Unlike its resume position it stays once the video was watched to the end, so what has been seen of a film is known for good.
 	Furthest map[string]time.Duration
+	// Delays is how far the subtitles of the video at each path were moved against its picture (Z and X), so they stay in step when it is opened again. A video whose subtitles were not moved has none.
+	Delays map[string]time.Duration
 	// unread is why Load could not read the file in full. While it is set Save does not write, as the file may hold jobs this library lacks; AllowSave clears it once a copy of the file is kept.
 	unread error
 }
@@ -58,7 +61,7 @@ func (l Library) Path() string { return l.path }
 
 // Load reads the library at path. A missing file is an empty library. A file that is there but cannot be read is empty too, and the error says why. A file that is not a library in full returns a *DamagedError with the file's bytes, and the library keeps what could be read: a value of another type leaves only that field out, as encoding/json goes on with the rest, and a file that is not JSON at all reads as empty. After either error Save returns ErrUnread rather than write over the file, until AllowSave. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Delays: map[string]time.Duration{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -93,6 +96,12 @@ func Load(path string) (Library, error) {
 			lib.Furthest[path] = time.Duration(seconds * float64(time.Second))
 		}
 	}
+	for path, seconds := range stored.Delays {
+		// A delay is earlier or later, so it may be below 0. It is read to the millisecond, as seconds such as 2.3 are not exact in binary and would otherwise read back a nanosecond short.
+		if at := time.Duration(math.Round(seconds*1000)) * time.Millisecond; at != 0 {
+			lib.Delays[path] = at
+		}
+	}
 	if err != nil {
 		lib.unread = err
 		return lib, &DamagedError{Data: data, Err: err}
@@ -122,11 +131,12 @@ func (l *Library) Find(id string) (core.Job, bool) {
 	return core.Job{}, false
 }
 
-// MoveVideos keys the resume positions and furthest points by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
+// MoveVideos keys the resume positions, furthest points and subtitle delays by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
 func (l *Library) MoveVideos(move func(path string) (string, bool)) bool {
 	positions := MoveKeys(l.Positions, move)
 	furthest := MoveKeys(l.Furthest, move)
-	return positions || furthest
+	delays := MoveKeys(l.Delays, move)
+	return positions || furthest || delays
 }
 
 // MoveKeys keys what m holds for each video that moved, by path, under the new path move gives for it. It reports whether any moved.
@@ -173,6 +183,14 @@ func (l Library) Save() error {
 			stored.Furthest[path] = at.Seconds()
 		}
 	}
+	for path, d := range l.Delays {
+		if d != 0 {
+			if stored.Delays == nil {
+				stored.Delays = map[string]float64{}
+			}
+			stored.Delays[path] = d.Seconds()
+		}
+	}
 	data, err := json.MarshalIndent(stored, "", "  ")
 	if err != nil {
 		return err
@@ -185,11 +203,12 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions and Furthest are in seconds.
+// storedLibrary is library.json. Positions, Furthest and Delays are in seconds.
 type storedLibrary struct {
 	Jobs      []storedJob        `json:"jobs"`
 	Positions map[string]float64 `json:"positions,omitempty"`
 	Furthest  map[string]float64 `json:"furthest,omitempty"`
+	Delays    map[string]float64 `json:"delays,omitempty"`
 }
 
 type storedJob struct {

@@ -62,6 +62,8 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 	// A seek opens the same video again and keeps the film's state; anything else is a film opening.
 	if !jump {
 		a.resetFilm()
+		a.player.film.video = path
+		a.player.film.delay = a.player.delays[path]
 		a.readFilmInfo(path)
 	}
 	a.player.opening = at
@@ -217,8 +219,9 @@ func (a *app) seekPlayback(at time.Duration) {
 	a.startPlayback(path)
 }
 
-// stopPlayback ends the open video and, when it played (filmPlay.played), keeps where it stopped. It does nothing when the film page is not playing.
+// stopPlayback ends the open video and, when it played (filmPlay.played), keeps where it stopped. It does nothing when the film page is not playing, but for saving a subtitle delay that changed since the last save.
 func (a *app) stopPlayback() {
+	defer a.playerSaveDelay()
 	if a.player.play == nil && a.player.playPath == "" && a.player.playErr == "" {
 		return
 	}

@@ -28,7 +28,7 @@ type areaHooks struct {
 	llmChanged func()
 	// llmTested runs when the AI service's 测试 has answered: err is nil when it passed, and credential reports that the test asked the EveryAPI CLI for its key, so a pass also means the CLI is signed in.
 	llmTested func(err error, credential bool)
-	// positionsChanged runs after the player remembered or forgot where a video stopped (rememberPosition), so an area that keeps the positions on disk can save them.
+	// positionsChanged runs after the player remembered or forgot where a video stopped (rememberPosition), now and then while it plays (playerKeep), or after a film's subtitle delay changed, so an area that keeps the positions and delays on disk can save them.
 	positionsChanged func()
 	// videosMoved runs after the shelf pointed its jobs at videos that moved on disk: the library folder was renamed in Finder, or the library refresh gathered a video into a folder of its own, paired a renamed one or found a missing one elsewhere. move gives a video's new path for its old one, and reports false for one that did not move; an area that keeps something by video path keys it by the new path. The shelf moves what library.json keeps itself (shelf.Library.MoveVideos) and saves it.
 	videosMoved func(move func(path string) (string, bool))

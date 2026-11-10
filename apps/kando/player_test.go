@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -1274,4 +1275,139 @@ func TestDoubleClickOnThePictureTogglesFullScreen(t *testing.T) {
 	}
 	double(true)
 	double(false)
+}
+
+// onDisk is the library.json at path as the next launch would read it.
+func onDisk(t *testing.T, path string) shelf.Library {
+	t.Helper()
+	lib, err := shelf.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return lib
+}
+
+// TestPlayingFilmIsKeptOnDisk plays a film without closing it and checks that where it got to reaches library.json now and then, so a crash or a force quit does not lose it: not on every frame, but once it has played on for playerKeepEvery, at once when it pauses, and at once where a seek lands. A film held on its first frame is not kept.
+func TestPlayingFilmIsKeptOnDisk(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a := openStill(t, path, "clip", "/v.mp4", 0)
+	play := a.player.play
+	play.duration = 10 * time.Minute
+	play.player.Play()
+	start := time.Date(2026, 11, 10, 20, 0, 0, 0, time.UTC)
+	at := func(head, since time.Duration) {
+		t.Helper()
+		play.frames.shown = head
+		a.playerKeep(start.Add(since))
+	}
+	want := func(head time.Duration, why string) {
+		t.Helper()
+		if got := onDisk(t, path).Positions["/v.mp4"]; got != head {
+			t.Fatalf("%s: library.json keeps %v, want %v", why, got, head)
+		}
+	}
+
+	at(0, 0)
+	at(5*time.Second, 5*time.Second)
+	at(19*time.Second, 19*time.Second)
+	want(0, "before playerKeepEvery")
+	at(20*time.Second, 20*time.Second)
+	want(20*time.Second, "after playerKeepEvery")
+	at(21*time.Second, 21*time.Second)
+	at(39*time.Second, 39*time.Second)
+	want(20*time.Second, "a frame after a save")
+
+	play.toggle()
+	at(40*time.Second, 40*time.Second)
+	want(40*time.Second, "paused")
+	at(40*time.Second, 80*time.Second)
+	want(40*time.Second, "held")
+
+	seeked := &filmPlay{player: play.player, frames: &frameDecoder{shown: 5 * time.Minute}, path: "/v.mp4", duration: 10 * time.Minute, played: true}
+	a.player.play = seeked
+	a.areasAfterFrame()
+	want(5*time.Minute, "a seek")
+
+	poster := &filmPlay{player: play.player, frames: &frameDecoder{shown: 3 * time.Second}, path: "/v.mp4", duration: 10 * time.Minute}
+	a.player.play = poster
+	a.playerKeep(start.Add(2 * time.Minute))
+	a.playerKeep(start.Add(5 * time.Minute))
+	want(5*time.Minute, "a film held on its first frame")
+	a.player.play = seeked
+}
+
+// TestSubtitleDelayStaysWithItsFilm moves the subtitles of one film and checks that they are moved again when it opens again, in this launch and the next, that another film opens with its own in place, and that a run of Z presses is saved once it rests rather than on every press.
+func TestSubtitleDelayStaysWithItsFilm(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.openLibrary(path)
+	filmA := films.Film{Key: "a", VideoPath: "/films/a.mp4"}
+	filmB := films.Film{Key: "b", VideoPath: "/films/b.mp4"}
+
+	a.Open(filmA)
+	start := time.Date(2026, 11, 10, 20, 0, 0, 0, time.UTC)
+	a.nudgeDelay(-100 * time.Millisecond)
+	a.nudgeDelay(-100 * time.Millisecond)
+	a.playerKeep(start)
+	a.nudgeDelay(-100 * time.Millisecond)
+	a.playerKeep(start.Add(500 * time.Millisecond))
+	a.playerKeep(start.Add(1400 * time.Millisecond))
+	if d, ok := onDisk(t, path).Delays[filmA.VideoPath]; ok {
+		t.Fatalf("the delay was saved at %v before it rested", d)
+	}
+	a.playerKeep(start.Add(1500 * time.Millisecond))
+	if d := onDisk(t, path).Delays[filmA.VideoPath]; d != -300*time.Millisecond {
+		t.Fatalf("library.json keeps a delay of %v once it rested, want -0.3s", d)
+	}
+
+	a.SetDelay(-500 * time.Millisecond)
+	a.closeFilm()
+	if d := onDisk(t, path).Delays[filmA.VideoPath]; d != -500*time.Millisecond {
+		t.Fatalf("library.json keeps a delay of %v after the film closed, want -0.5s", d)
+	}
+	a.Open(filmB)
+	if d := a.Delay(); d != 0 {
+		t.Fatalf("film B opens with film A's delay %v", d)
+	}
+	a.Open(filmA)
+	if d := a.Delay(); d != -500*time.Millisecond {
+		t.Fatalf("film A opens again with a delay of %v, want -0.5s", d)
+	}
+
+	again, _, _ := newTestApp(&fakePipeline{})
+	again.openLibrary(path)
+	again.Open(filmA)
+	if d := again.Delay(); d != -500*time.Millisecond {
+		t.Fatalf("after a restart film A opens with a delay of %v, want -0.5s", d)
+	}
+	again.SetDelay(0)
+	again.closeFilm()
+	if d, ok := onDisk(t, path).Delays[filmA.VideoPath]; ok {
+		t.Fatalf("a delay moved back in place is still kept: %v", d)
+	}
+}
+
+// TestSubtitleDelayFollowsAMovedVideo checks that the delay of a video that moved on disk is kept by its new path, with the film open and in library.json.
+func TestSubtitleDelayFollowsAMovedVideo(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.openLibrary(path)
+	a.Open(films.Film{Key: "a", VideoPath: "/old/a.mp4"})
+	a.SetDelay(700 * time.Millisecond)
+	a.playerSaveDelay()
+	moved := func(p string) (string, bool) {
+		if p == "/old/a.mp4" {
+			return "/new/a.mp4", true
+		}
+		return "", false
+	}
+	if !a.moveVideos(moved) {
+		t.Fatal("moving the video changed nothing in library.json")
+	}
+	a.SetDelay(800 * time.Millisecond)
+	a.closeFilm()
+	lib := onDisk(t, path)
+	if len(lib.Delays) != 1 || lib.Delays["/new/a.mp4"] != 800*time.Millisecond {
+		t.Fatalf("library.json delays %v", lib.Delays)
+	}
 }
