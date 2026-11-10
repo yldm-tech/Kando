@@ -1537,9 +1537,9 @@ func TestPlayerAudioDecodesTheSoundFrom(t *testing.T) {
 	}
 }
 
-// TestPlayerAudioSetPositionStartsFFmpegAgain: moving the sound ends its ffmpeg and starts another where it moved to, counted from where the sound was opened.
+// TestPlayerAudioSetPositionStartsFFmpegAgain: moving the sound further than the decoder can reach on the ffmpeg it has, back past what it kept or far on past what it read, ends that ffmpeg and starts another where it moved to, counted from where the sound was opened.
 func TestPlayerAudioSetPositionStartsFFmpegAgain(t *testing.T) {
-	ffmpeg, clip := playerFakeSound(t, 4)
+	ffmpeg, clip := playerFakeSound(t, 12)
 	d := &playerAudioDecoder{ffmpeg: ffmpeg, path: clip, from: time.Second}
 	if err := d.start(0); err != nil {
 		t.Fatal(err)
@@ -1547,16 +1547,172 @@ func TestPlayerAudioSetPositionStartsFFmpegAgain(t *testing.T) {
 	t.Cleanup(func() { d.Close() })
 	playerWantSound(t, playerReadSound(t, d, 4800), 48000)
 	old := d.proc
-	if err := d.SetPosition(24000); err != nil {
+	if err := d.SetPosition(6 * 48000); err != nil {
 		t.Fatal(err)
 	}
 	if old.cmd.ProcessState == nil {
 		t.Fatal("the ffmpeg before the move was left running")
 	}
-	if d.proc == old || fakeArg(d.proc.cmd.Args, "-ss") != "1.500" {
-		t.Fatalf("ffmpeg after the move %v", d.proc.cmd.Args)
+	if d.proc == old || fakeArg(d.proc.cmd.Args, "-ss") != "7.000" {
+		t.Fatalf("ffmpeg after the move on %v", d.proc.cmd.Args)
+	}
+	playerWantSound(t, playerReadSound(t, d, 4800), 7*48000)
+	old = d.proc
+	if err := d.SetPosition(24000); err != nil {
+		t.Fatal(err)
+	}
+	if old.cmd.ProcessState == nil || d.proc == old || fakeArg(d.proc.cmd.Args, "-ss") != "1.500" {
+		t.Fatalf("ffmpeg after the move back %v", d.proc.cmd.Args)
 	}
 	playerWantSound(t, playerReadSound(t, d, 4800), 72000)
+}
+
+// TestPlayerAudioSetPositionNearbyKeepsFFmpeg: moving the sound back into the frames it read lately gives them again and goes on from ffmpeg without a gap, and moving it a few seconds on past what it read drops ffmpeg's output up to there, both on the same ffmpeg, as catching up with the picture does.
+func TestPlayerAudioSetPositionNearbyKeepsFFmpeg(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 6)
+	d := &playerAudioDecoder{ffmpeg: ffmpeg, path: clip, from: time.Second}
+	if err := d.start(0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	playerWantSound(t, playerReadSound(t, d, 9600), 48000)
+	proc := d.proc
+	if err := d.SetPosition(4800); err != nil {
+		t.Fatal(err)
+	}
+	playerWantSound(t, playerReadSound(t, d, 9600), 48000+4800)
+	on := d.keptEnd + 3*48000
+	if err := d.SetPosition(on); err != nil {
+		t.Fatal(err)
+	}
+	playerWantSound(t, playerReadSound(t, d, 4800), 48000+on)
+	if d.proc != proc || proc.cmd.ProcessState != nil {
+		t.Fatalf("ffmpeg started again for a nearby move: %v", d.proc.cmd.Args)
+	}
+	// Past the end of the track, the sound ends there.
+	if err := d.SetPosition(d.keptEnd + 2*48000); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := d.Read(make([]float32, 64)); n != 0 || err != io.EOF {
+		t.Fatalf("a read past the end: %d %v", n, err)
+	}
+}
+
+// TestSoundCatchesUpWithThePicture: once a sound asked to play is heard to move, a sound that trails the time the picture has played since by more than playerSoundLag moves on to where the picture is, once; one that keeps pace is left alone, and one never heard to move is left alone after playerSoundGiveUp.
+func TestSoundCatchesUpWithThePicture(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 30)
+	// Held, the sound stands where it is told it was heard, which the test moves by hand.
+	sound, err := openPCM(ffmpeg, clip, 2*time.Second, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(sound.Close)
+	heard := func() time.Duration {
+		at, ok := sound.heard()
+		if !ok {
+			t.Fatal("the sound ended")
+		}
+		return at
+	}
+	near := func(got, want time.Duration) bool { return (got - want).Abs() < time.Millisecond }
+	if !near(heard(), 2*time.Second) {
+		t.Fatalf("heard at %v, want where it was opened", heard())
+	}
+	p := &filmPlay{audio: sound}
+	now := time.Now()
+
+	p.watchSound(now)
+	p.catchUpSound(now.Add(time.Second))
+	if p.soundSince.IsZero() || !near(heard(), 2*time.Second) {
+		t.Fatalf("a sound not heard to move yet moved to %v, still watched %v", heard(), !p.soundSince.IsZero())
+	}
+	p.soundFrom = 2*time.Second - 950*time.Millisecond
+	p.catchUpSound(now.Add(playerSoundSettle / 2))
+	if p.soundSince.IsZero() {
+		t.Fatal("the sound was checked before it settled")
+	}
+	p.catchUpSound(now.Add(time.Second))
+	if !p.soundSince.IsZero() || !near(heard(), 2*time.Second) {
+		t.Fatalf("a sound 50 ms behind moved to %v", heard())
+	}
+
+	p.watchSound(now)
+	p.soundFrom = 2*time.Second - 600*time.Millisecond
+	p.catchUpSound(now.Add(time.Second))
+	if !p.soundSince.IsZero() || !near(heard(), 2400*time.Millisecond) {
+		t.Fatalf("a sound 400 ms behind is heard at %v, want 2.4s", heard())
+	}
+
+	p.watchSound(now)
+	p.catchUpSound(now.Add(playerSoundGiveUp + time.Second))
+	if !p.soundSince.IsZero() || !near(heard(), 2400*time.Millisecond) {
+		t.Fatalf("a sound never heard to move: watched %v, at %v", !p.soundSince.IsZero(), heard())
+	}
+}
+
+// TestMutedFilmOpensWithItsSound: a film opened muted gets its sound all the same, playing unheard, and a volume changed while it opened reaches that sound rather than opening it again.
+func TestMutedFilmOpensWithItsSound(t *testing.T) {
+	a, tt, updates := playerFakeFilm(t)
+	a.player.volume, a.player.muted = 0.8, true
+	tt.Frame()
+	if err := tt.Click("clip"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	// Changed before the film's update comes, after its sound opened muted.
+	a.SetVolume(0.4)
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	p := a.player.play
+	if p.audio == nil {
+		t.Fatal("a film opened muted has no sound")
+	}
+	proc := p.audio.decoder.proc
+	if proc == nil || proc.cmd.ProcessState != nil {
+		t.Fatal("the sound's ffmpeg is not running")
+	}
+	if math.Abs(p.volume-0.4) > 1e-9 || math.Abs(p.audio.player.Volume()-0.4) > 1e-9 {
+		t.Fatalf("film at %v, sound at %v, want the 0.4 set while it opened", p.volume, p.audio.player.Volume())
+	}
+	a.ToggleMute()
+	if p.audio.decoder.proc != proc || p.audio.player.Volume() != 0 {
+		t.Fatalf("muting: sound at %v, same ffmpeg %v", p.audio.player.Volume(), p.audio.decoder.proc == proc)
+	}
+}
+
+// TestResumingWatchesTheSound: playing a paused film has catchUpSound watch its sound from where it is heard, and pausing it stops that.
+func TestResumingWatchesTheSound(t *testing.T) {
+	a, tt, updates := playerFakeFilm(t)
+	tt.Frame()
+	if err := tt.Click("clip"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	p := a.player.play
+	if !p.soundSince.IsZero() {
+		t.Fatal("a film held on its first frame watches its sound")
+	}
+	p.toggle()
+	if p.soundSince.IsZero() {
+		t.Fatal("playing did not watch the sound")
+	}
+	if at, ok := p.audio.heard(); !ok || p.soundFrom != at {
+		t.Fatalf("watched from %v, heard at %v", p.soundFrom, at)
+	}
+	p.toggle()
+	if !p.soundSince.IsZero() {
+		t.Fatal("a paused film's sound is still watched")
+	}
+}
+
+// playerFakeFilm is an app whose library holds clip, a 30-second film the fake ffmpeg plays the picture and the sound of.
+func playerFakeFilm(t *testing.T) (*app, *ui.Tester, chan func()) {
+	t.Helper()
+	ffmpeg, clip := playerFakeSound(t, 30)
+	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) { s.LibraryDir = filepath.Dir(clip) })
+	a.library.Jobs = []core.Job{{ID: "clip", Source: "file://" + clip, Language: "简体中文", Stage: core.StageComplete, VideoPath: clip}}
+	t.Cleanup(a.stopPlayback)
+	return a, tt, updates
 }
 
 // TestPlayerAudioCloseEndsFFmpeg: closing the sound ends its ffmpeg, which waits on the full pipe while the sound is held, and a read after it is the end.

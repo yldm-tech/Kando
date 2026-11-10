@@ -36,7 +36,19 @@ type filmPlay struct {
 	finished bool
 	// played is set once this playback has played: opened playing at a point picked for it (a seek, 继续, 从头看) or started with play. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
 	played bool
+	// soundSince and soundFrom are when the sound was last asked to play along with the picture, and where it was heard then, for catchUpSound to bring it level with the picture once it is heard to move; soundSince is zero once it did, or when there is nothing to check.
+	soundSince time.Time
+	soundFrom  time.Duration
 }
+
+const (
+	// playerSoundSettle is how long the sound plays before catchUpSound compares it with the picture: long enough for the system's audio output to open again, which it does on the first sound after five seconds of none, and for an ffmpeg just started to decode the first of it.
+	playerSoundSettle = 250 * time.Millisecond
+	// playerSoundGiveUp is how long catchUpSound waits for a sound that is not heard to move, such as one whose output does not open, before it leaves it as it is.
+	playerSoundGiveUp = 3 * time.Second
+	// playerSoundLag is how far the sound may trail the picture before catchUpSound moves it on. The output holds about 40 ms before it is heard, so a sound that keeps pace trails by that much from the start; the 60 ms beyond it are well within what is seen as in sync.
+	playerSoundLag = 100 * time.Millisecond
+)
 
 func (a *app) ffmpegPath() string {
 	tools, ok := a.pipeline.(media.Tools)
@@ -164,6 +176,9 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
 				duration: frames.Duration(), paused: paused, played: jump, volume: volume,
 			}
+			if jump && keep == nil {
+				next.watchSound(time.Now())
+			}
 			a.playReplace(next)
 			if frames.Duration() > 0 {
 				a.player.length = frames.Duration()
@@ -267,12 +282,46 @@ func (p *filmPlay) playhead() time.Duration {
 	return at
 }
 
-// settlePlay stops the sound once the picture has played to the end.
+// settlePlay, once a frame of the picture, brings a sound that just started level with it (catchUpSound), and stops the sound once the picture has played to the end.
 func (p *filmPlay) settlePlay() {
-	if p == nil || p.paused || p.player == nil || p.player.Playing() {
+	if p == nil || p.paused || p.player == nil {
+		return
+	}
+	if p.player.Playing() {
+		p.catchUpSound(time.Now())
 		return
 	}
 	p.finish()
+}
+
+// watchSound notes that the sound was asked at now to play along with the picture, from where it is heard, for catchUpSound to check it once it plays.
+func (p *filmPlay) watchSound(now time.Time) {
+	at, ok := p.audio.heard()
+	if !ok {
+		p.soundSince = time.Time{}
+		return
+	}
+	p.soundSince, p.soundFrom = now, at
+}
+
+// catchUpSound moves the sound on to where the picture is, once it has played for playerSoundSettle since watchSound, if it trails by more than playerSoundLag. The picture plays on the clock from the moment it is asked to, while the sound starts only once the system's audio output has opened again, which it does after five seconds without sound and so after most pauses, and once ffmpeg has decoded the first of it; left alone, each such start would leave the sound further behind. The picture's clock is the time since watchSound, as where the picture shows (playhead) runs a few frames ahead of what it shows.
+func (p *filmPlay) catchUpSound(now time.Time) {
+	if p.soundSince.IsZero() {
+		return
+	}
+	played := now.Sub(p.soundSince)
+	at, ok := p.audio.heard()
+	if !ok || played > playerSoundGiveUp {
+		p.soundSince = time.Time{}
+		return
+	}
+	if played < playerSoundSettle || at <= p.soundFrom {
+		return
+	}
+	p.soundSince = time.Time{}
+	if want := p.soundFrom + played; want-at > playerSoundLag {
+		p.audio.seek(want)
+	}
 }
 
 func (p *filmPlay) finish() {
@@ -300,6 +349,7 @@ func (p *filmPlay) toggle() {
 	}
 	if p.player.Playing() {
 		p.paused = true
+		p.soundSince = time.Time{}
 		p.player.Pause()
 		if p.audio != nil {
 			p.audio.Pause()
@@ -310,6 +360,7 @@ func (p *filmPlay) toggle() {
 	p.played = true
 	if p.audio != nil {
 		p.audio.Play()
+		p.watchSound(time.Now())
 	} else {
 		p.restartAudio()
 	}
@@ -343,6 +394,8 @@ func (p *filmPlay) restartAudioAt(at time.Duration) {
 	}
 	audio.Start()
 	p.audio = audio
+	// The picture plays on at once, while ffmpeg has only just started on the sound.
+	p.watchSound(time.Now())
 }
 
 // setVolume plays the sound at volume from now on, as it plays: a muted film's sound plays on unheard, so that unmuting it is heard at once, where the picture is.

@@ -26,6 +26,10 @@ const (
 	playerAudioChannels = 2
 	// playerAudioFrameBytes is one frame on the pipe: a little-endian float32 for each channel.
 	playerAudioFrameBytes = playerAudioChannels * 4
+	// playerAudioKeptFrames is how much of the sound already read the decoder keeps, two seconds: more than the second the player reads ahead of what is heard, so that moving the sound on by less than that, as catching up with the picture does, gives frames it read already instead of starting ffmpeg again.
+	playerAudioKeptFrames = 2 * playerAudioRate
+	// playerAudioSkipFrames is how far past what it read the decoder moves on by reading ffmpeg's output and dropping it, five seconds, which ffmpeg decodes far faster than it plays; further than that, ffmpeg starts again there.
+	playerAudioSkipFrames = 5 * playerAudioRate
 )
 
 // playerAudioOutputLogged keeps the reason the system's audio output could not open to one line in the log, however many films play unheard.
@@ -85,6 +89,22 @@ func (a *pcmAudio) setVolume(volume float64) {
 	a.player.SetVolume(playerAudioGain(volume))
 }
 
+// heard is where in the film the sound is heard now, which stands still until the system's audio output takes the sound and while ffmpeg has not decoded it yet. ok is false for no sound, or one that played to its end.
+func (a *pcmAudio) heard() (at time.Duration, ok bool) {
+	if a == nil || a.ended.Load() {
+		return 0, false
+	}
+	return a.decoder.from + a.player.Position(), true
+}
+
+// seek moves the sound to at in the film, no earlier than where it was opened.
+func (a *pcmAudio) seek(at time.Duration) {
+	if a == nil || a.ended.Load() {
+		return
+	}
+	a.player.Seek(max(at-a.decoder.from, 0))
+}
+
 // Close stops the sound and ends its ffmpeg. It is safe to call more than once.
 func (a *pcmAudio) Close() {
 	if a == nil {
@@ -107,6 +127,11 @@ type playerAudioDecoder struct {
 	// raw holds the bytes read from the pipe, of which the first partial are a frame the last read cut short. Only Read and SetPosition, on the player's goroutine, use them.
 	raw     []byte
 	partial int
+	// kept is a ring of the last frames read, at most playerAudioKeptFrames of them, frame f's samples at f*playerAudioChannels modulo its length; keptEnd is the frame after the last of them, which ffmpeg writes next, and keptLen how many it holds. replay is the frame Read gives next out of kept, after SetPosition moved back into it, or -1 to read ffmpeg. Like raw, only the player's goroutine uses them, and openPCM before the player exists.
+	kept    []float32
+	keptEnd int64
+	keptLen int64
+	replay  int64
 
 	mu     sync.Mutex
 	proc   *playerAudioProcess
@@ -153,6 +178,7 @@ func (d *playerAudioDecoder) start(frame int64) error {
 		d.proc = nil
 	}
 	d.partial = 0
+	d.keptEnd, d.keptLen, d.replay = frame, 0, -1
 	at := d.from + time.Duration(frame)*time.Second/playerAudioRate
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -183,6 +209,9 @@ func (d *playerAudioDecoder) Read(buf []float32) (int, error) {
 	if want == 0 {
 		return 0, nil
 	}
+	if d.replay >= 0 {
+		return d.readKept(buf[:want/4]), nil
+	}
 	if len(d.raw) < want {
 		raw := make([]byte, want)
 		copy(raw, d.raw[:d.partial])
@@ -197,6 +226,7 @@ func (d *playerAudioDecoder) Read(buf []float32) (int, error) {
 		buf[i/4] = math.Float32frombits(binary.LittleEndian.Uint32(raw[i:]))
 	}
 	d.partial = copy(raw, raw[whole:got])
+	d.keep(buf[:whole/4])
 	if err != nil {
 		// The end of the track, or a pipe closed under the read: either way there is no more sound from here.
 		proc.wait()
@@ -205,9 +235,72 @@ func (d *playerAudioDecoder) Read(buf []float32) (int, error) {
 	return whole / 4, nil
 }
 
-// SetPosition ends ffmpeg and starts it again at frame, counted from from.
+// keep adds samples, whole frames just read from ffmpeg, to kept.
+func (d *playerAudioDecoder) keep(samples []float32) {
+	if len(samples) == 0 {
+		return
+	}
+	if d.kept == nil {
+		d.kept = make([]float32, playerAudioKeptFrames*playerAudioChannels)
+	}
+	size := int64(len(d.kept))
+	first := d.keptEnd * playerAudioChannels
+	for i, s := range samples {
+		d.kept[(first+int64(i))%size] = s
+	}
+	frames := int64(len(samples) / playerAudioChannels)
+	d.keptEnd += frames
+	d.keptLen = min(d.keptLen+frames, playerAudioKeptFrames)
+}
+
+// readKept fills buf, whole frames, out of kept from replay on, up to the frames read from ffmpeg, and returns how many samples it gave; reads go back to ffmpeg once replay reaches them.
+func (d *playerAudioDecoder) readKept(buf []float32) int {
+	frames := min(int64(len(buf)/playerAudioChannels), d.keptEnd-d.replay)
+	size := int64(len(d.kept))
+	first := d.replay * playerAudioChannels
+	n := int(frames * playerAudioChannels)
+	for i := range n {
+		buf[i] = d.kept[(first+int64(i))%size]
+	}
+	if d.replay += frames; d.replay >= d.keptEnd {
+		d.replay = -1
+	}
+	return n
+}
+
+// SetPosition moves the sound to frame, counted from from: back into the frames it kept, or on past what it read by dropping what ffmpeg writes up to there, both without a gap, or else by ending ffmpeg and starting it again there.
 func (d *playerAudioDecoder) SetPosition(frame int64) error {
-	return d.start(max(frame, 0))
+	frame = max(frame, 0)
+	switch {
+	case frame < d.keptEnd && frame >= d.keptEnd-d.keptLen:
+		d.replay = frame
+		return nil
+	case frame >= d.keptEnd && frame-d.keptEnd <= playerAudioSkipFrames:
+		return d.skip(frame - d.keptEnd)
+	}
+	return d.start(frame)
+}
+
+// skip moves the sound on by frames past what it read from ffmpeg, reading ffmpeg's output up to there and dropping it. A track that ends before that ends the sound there, as the next Read reports.
+func (d *playerAudioDecoder) skip(frames int64) error {
+	d.replay = -1
+	if frames == 0 {
+		return nil
+	}
+	d.mu.Lock()
+	proc, closed := d.proc, d.closed
+	d.mu.Unlock()
+	if closed || proc == nil {
+		return os.ErrClosed
+	}
+	// The frame cut short at the end of the last read is the first of those dropped.
+	_, err := io.CopyN(io.Discard, proc.out, frames*playerAudioFrameBytes-int64(d.partial))
+	d.partial = 0
+	d.keptEnd, d.keptLen = d.keptEnd+frames, 0
+	if err != nil {
+		proc.wait()
+	}
+	return nil
 }
 
 // Close ends ffmpeg. It is safe to call more than once, and while Read waits on the pipe.
