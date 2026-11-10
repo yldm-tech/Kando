@@ -93,8 +93,10 @@ func (a *app) contentBand(bar ui.TitleBar) float32 {
 	return bar.Height
 }
 
-// pageOwnsTitleBar reports whether the page in the content column draws its own header bar at its top (breeze.HeaderBar). Such a bar already keeps clear of the window controls, drags the window and is at least as tall as the title bar, so a drag band over it would leave the title bar's room twice. Each page says so itself: the open film in filmOwnsTitleBar (bind_film.go), the library page in libraryOwnsTitleBar (bind_films.go).
-func (a *app) pageOwnsTitleBar() bool { return a.filmOwnsTitleBar() || a.libraryOwnsTitleBar() }
+// pageOwnsTitleBar reports whether the page in the content column draws its own header bar at its top (breeze.HeaderBar). Such a bar already keeps clear of the window controls, drags the window and is at least as tall as the title bar, so a drag band over it would leave the title bar's room twice. Each page says so itself: the open film in filmOwnsTitleBar (bind_film.go), the library page in libraryOwnsTitleBar (bind_films.go), the browser in browseOwnsTitleBar (bind_browse.go).
+func (a *app) pageOwnsTitleBar() bool {
+	return a.filmOwnsTitleBar() || a.libraryOwnsTitleBar() || a.browseOwnsTitleBar()
+}
 
 // trafficLights is where main puts the window's traffic lights: in the empty top row of the sidebar's card (sidebar.Show), 8 points in from the window's corner, that is 16 from the card's edge and centered in its 48-point row. That makes the title bar mygo reports 64 points tall; contentBand keeps the content's drag band at the card row's 48.
 func trafficLights() *mygo.Point { return &mygo.Point{X: 24, Y: 25} }

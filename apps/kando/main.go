@@ -54,6 +54,7 @@ type app struct {
 	updates  updatesUI  // state_updates.go
 	window   windowUI   // state_window.go
 	logs     logsUI     // state_logs.go
+	browse   browseUI   // state_browse.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -79,6 +80,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		updates:  newUpdatesUI(),
 		window:   newWindowUI(),
 		logs:     newLogsUI(),
+		browse:   newBrowseUI(),
 	}
 }
 

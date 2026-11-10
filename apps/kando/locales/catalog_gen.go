@@ -678,6 +678,342 @@ func (msgs Messages) AppSettings() string {
 	return Catalog.Format(msgs.locale, "appSettings", nil)
 }
 
+// BrowseAdded says "Added to the library. Processing started."
+// in the language the app shows.
+//
+// Message bar of the Browse page after Download Video added the page to the
+// library's queue.
+func BrowseAdded() string { return In(i18n.Locale()).BrowseAdded() }
+
+// BrowseAdded says "Added to the library. Processing started."
+// in the language of msgs.
+//
+// Message bar of the Browse page after Download Video added the page to the
+// library's queue.
+func (msgs Messages) BrowseAdded() string {
+	return Catalog.Format(msgs.locale, "browseAdded", nil)
+}
+
+// BrowseAddressLabel says "Address"
+// in the language the app shows.
+//
+// Accessible name of the Browse page's address field.
+func BrowseAddressLabel() string { return In(i18n.Locale()).BrowseAddressLabel() }
+
+// BrowseAddressLabel says "Address"
+// in the language of msgs.
+//
+// Accessible name of the Browse page's address field.
+func (msgs Messages) BrowseAddressLabel() string {
+	return Catalog.Format(msgs.locale, "browseAddressLabel", nil)
+}
+
+// BrowseAddressPlaceholder says "Enter a URL or search"
+// in the language the app shows.
+//
+// Placeholder of the Browse page's address field: a web address or words to
+// search for.
+func BrowseAddressPlaceholder() string { return In(i18n.Locale()).BrowseAddressPlaceholder() }
+
+// BrowseAddressPlaceholder says "Enter a URL or search"
+// in the language of msgs.
+//
+// Placeholder of the Browse page's address field: a web address or words to
+// search for.
+func (msgs Messages) BrowseAddressPlaceholder() string {
+	return Catalog.Format(msgs.locale, "browseAddressPlaceholder", nil)
+}
+
+// BrowseBack says "Back"
+// in the language the app shows.
+//
+// Browse page toolbar button and menu item (⌘[) going back to the
+// previous web page.
+func BrowseBack() string { return In(i18n.Locale()).BrowseBack() }
+
+// BrowseBack says "Back"
+// in the language of msgs.
+//
+// Browse page toolbar button and menu item (⌘[) going back to the
+// previous web page.
+func (msgs Messages) BrowseBack() string {
+	return Catalog.Format(msgs.locale, "browseBack", nil)
+}
+
+// BrowseCancel says "Cancel"
+// in the language the app shows.
+//
+// Button of the Clear Sign-in Data confirmation that keeps the data.
+func BrowseCancel() string { return In(i18n.Locale()).BrowseCancel() }
+
+// BrowseCancel says "Cancel"
+// in the language of msgs.
+//
+// Button of the Clear Sign-in Data confirmation that keeps the data.
+func (msgs Messages) BrowseCancel() string {
+	return Catalog.Format(msgs.locale, "browseCancel", nil)
+}
+
+// BrowseClearConfirm says "Clear"
+// in the language the app shows.
+//
+// Destructive button of the Clear Sign-in Data confirmation.
+func BrowseClearConfirm() string { return In(i18n.Locale()).BrowseClearConfirm() }
+
+// BrowseClearConfirm says "Clear"
+// in the language of msgs.
+//
+// Destructive button of the Clear Sign-in Data confirmation.
+func (msgs Messages) BrowseClearConfirm() string {
+	return Catalog.Format(msgs.locale, "browseClearConfirm", nil)
+}
+
+// BrowseClearData says "Clear Sign-in Data…"
+// in the language the app shows.
+//
+// Button at the foot of the Browse page's empty state, and menu item, that
+// asks to sign out of every site signed in to in Browse.
+func BrowseClearData() string { return In(i18n.Locale()).BrowseClearData() }
+
+// BrowseClearData says "Clear Sign-in Data…"
+// in the language of msgs.
+//
+// Button at the foot of the Browse page's empty state, and menu item, that
+// asks to sign out of every site signed in to in Browse.
+func (msgs Messages) BrowseClearData() string {
+	return Catalog.Format(msgs.locale, "browseClearData", nil)
+}
+
+// BrowseClearFailed says "Couldn't clear sign-in data: {error}"
+// in the language the app shows.
+//
+// Message bar of the Browse page when clearing the pages' cookies and
+// storage failed; error is the system's reason.
+func BrowseClearFailed(error string) string { return In(i18n.Locale()).BrowseClearFailed(error) }
+
+// BrowseClearFailed says "Couldn't clear sign-in data: {error}"
+// in the language of msgs.
+//
+// Message bar of the Browse page when clearing the pages' cookies and
+// storage failed; error is the system's reason.
+func (msgs Messages) BrowseClearFailed(error string) string {
+	return Catalog.Format(msgs.locale, "browseClearFailed", map[string]any{"error": error})
+}
+
+// BrowseClearMessage says "You'll be signed out of every site you signed in to here, and what those pages stored, such as their settings and cac…"
+// in the language the app shows.
+//
+// Message of the Clear Sign-in Data confirmation.
+func BrowseClearMessage() string { return In(i18n.Locale()).BrowseClearMessage() }
+
+// BrowseClearMessage says "You'll be signed out of every site you signed in to here, and what those pages stored, such as their settings and cac…"
+// in the language of msgs.
+//
+// Message of the Clear Sign-in Data confirmation.
+func (msgs Messages) BrowseClearMessage() string {
+	return Catalog.Format(msgs.locale, "browseClearMessage", nil)
+}
+
+// BrowseClearTitle says "Clear sign-in data?"
+// in the language the app shows.
+//
+// Title of the confirmation before clearing the Browse page's cookies and
+// storage.
+func BrowseClearTitle() string { return In(i18n.Locale()).BrowseClearTitle() }
+
+// BrowseClearTitle says "Clear sign-in data?"
+// in the language of msgs.
+//
+// Title of the confirmation before clearing the Browse page's cookies and
+// storage.
+func (msgs Messages) BrowseClearTitle() string {
+	return Catalog.Format(msgs.locale, "browseClearTitle", nil)
+}
+
+// BrowseCleared says "Sign-in data cleared."
+// in the language the app shows.
+//
+// Message bar of the Browse page once its cookies and storage were cleared.
+func BrowseCleared() string { return In(i18n.Locale()).BrowseCleared() }
+
+// BrowseCleared says "Sign-in data cleared."
+// in the language of msgs.
+//
+// Message bar of the Browse page once its cookies and storage were cleared.
+func (msgs Messages) BrowseCleared() string {
+	return Catalog.Format(msgs.locale, "browseCleared", nil)
+}
+
+// BrowseDownload says "Download Video"
+// in the language the app shows.
+//
+// Button at the end of the Browse page's toolbar that adds the page shown
+// to the library's queue.
+func BrowseDownload() string { return In(i18n.Locale()).BrowseDownload() }
+
+// BrowseDownload says "Download Video"
+// in the language of msgs.
+//
+// Button at the end of the Browse page's toolbar that adds the page shown
+// to the library's queue.
+func (msgs Messages) BrowseDownload() string {
+	return Catalog.Format(msgs.locale, "browseDownload", nil)
+}
+
+// BrowseDownloadTooltip says "Add this page's video to the library"
+// in the language the app shows.
+//
+// Tooltip of the Browse page's Download Video button.
+func BrowseDownloadTooltip() string { return In(i18n.Locale()).BrowseDownloadTooltip() }
+
+// BrowseDownloadTooltip says "Add this page's video to the library"
+// in the language of msgs.
+//
+// Tooltip of the Browse page's Download Video button.
+func (msgs Messages) BrowseDownloadTooltip() string {
+	return Catalog.Format(msgs.locale, "browseDownloadTooltip", nil)
+}
+
+// BrowseEmptyDescription says "Enter a URL or search in the address bar above, then click Download Video at the top right. Sites you sign in to here…"
+// in the language the app shows.
+//
+// Description of the Browse page before a web page is open.
+func BrowseEmptyDescription() string { return In(i18n.Locale()).BrowseEmptyDescription() }
+
+// BrowseEmptyDescription says "Enter a URL or search in the address bar above, then click Download Video at the top right. Sites you sign in to here…"
+// in the language of msgs.
+//
+// Description of the Browse page before a web page is open.
+func (msgs Messages) BrowseEmptyDescription() string {
+	return Catalog.Format(msgs.locale, "browseEmptyDescription", nil)
+}
+
+// BrowseEmptyTitle says "Open a page with a video"
+// in the language the app shows.
+//
+// Title of the Browse page before a web page is open.
+func BrowseEmptyTitle() string { return In(i18n.Locale()).BrowseEmptyTitle() }
+
+// BrowseEmptyTitle says "Open a page with a video"
+// in the language of msgs.
+//
+// Title of the Browse page before a web page is open.
+func (msgs Messages) BrowseEmptyTitle() string {
+	return Catalog.Format(msgs.locale, "browseEmptyTitle", nil)
+}
+
+// BrowseForward says "Forward"
+// in the language the app shows.
+//
+// Browse page toolbar button and menu item (⌘]) going forward to the next
+// web page.
+func BrowseForward() string { return In(i18n.Locale()).BrowseForward() }
+
+// BrowseForward says "Forward"
+// in the language of msgs.
+//
+// Browse page toolbar button and menu item (⌘]) going forward to the next
+// web page.
+func (msgs Messages) BrowseForward() string {
+	return Catalog.Format(msgs.locale, "browseForward", nil)
+}
+
+// BrowseHome says "Home"
+// in the language the app shows.
+//
+// Browse page toolbar button that closes the web page and shows the start
+// of the Browse page.
+func BrowseHome() string { return In(i18n.Locale()).BrowseHome() }
+
+// BrowseHome says "Home"
+// in the language of msgs.
+//
+// Browse page toolbar button that closes the web page and shows the start
+// of the Browse page.
+func (msgs Messages) BrowseHome() string {
+	return Catalog.Format(msgs.locale, "browseHome", nil)
+}
+
+// BrowseLoadFailed says "Couldn't open the page: {error}"
+// in the language the app shows.
+//
+// Message bar of the Browse page when a web page failed to load; error is
+// the web engine's reason.
+func BrowseLoadFailed(error string) string { return In(i18n.Locale()).BrowseLoadFailed(error) }
+
+// BrowseLoadFailed says "Couldn't open the page: {error}"
+// in the language of msgs.
+//
+// Message bar of the Browse page when a web page failed to load; error is
+// the web engine's reason.
+func (msgs Messages) BrowseLoadFailed(error string) string {
+	return Catalog.Format(msgs.locale, "browseLoadFailed", map[string]any{"error": error})
+}
+
+// BrowseOpenLocation says "Open Location…"
+// in the language the app shows.
+//
+// Menu item and shortcut row (⌘L) that puts the keyboard in the Browse
+// page's address field.
+func BrowseOpenLocation() string { return In(i18n.Locale()).BrowseOpenLocation() }
+
+// BrowseOpenLocation says "Open Location…"
+// in the language of msgs.
+//
+// Menu item and shortcut row (⌘L) that puts the keyboard in the Browse
+// page's address field.
+func (msgs Messages) BrowseOpenLocation() string {
+	return Catalog.Format(msgs.locale, "browseOpenLocation", nil)
+}
+
+// BrowseOpenSettings says "Open Settings"
+// in the language the app shows.
+//
+// Button in the Browse page's message bar opening the settings that fix
+// what it says.
+func BrowseOpenSettings() string { return In(i18n.Locale()).BrowseOpenSettings() }
+
+// BrowseOpenSettings says "Open Settings"
+// in the language of msgs.
+//
+// Button in the Browse page's message bar opening the settings that fix
+// what it says.
+func (msgs Messages) BrowseOpenSettings() string {
+	return Catalog.Format(msgs.locale, "browseOpenSettings", nil)
+}
+
+// BrowseReload says "Reload Page"
+// in the language the app shows.
+//
+// Browse page toolbar button and menu item (⌘R) loading the web page
+// again.
+func BrowseReload() string { return In(i18n.Locale()).BrowseReload() }
+
+// BrowseReload says "Reload Page"
+// in the language of msgs.
+//
+// Browse page toolbar button and menu item (⌘R) loading the web page
+// again.
+func (msgs Messages) BrowseReload() string {
+	return Catalog.Format(msgs.locale, "browseReload", nil)
+}
+
+// BrowseStop says "Stop Loading"
+// in the language the app shows.
+//
+// Browse page toolbar button, in place of Reload while a web page loads,
+// that stops loading it.
+func BrowseStop() string { return In(i18n.Locale()).BrowseStop() }
+
+// BrowseStop says "Stop Loading"
+// in the language of msgs.
+//
+// Browse page toolbar button, in place of Reload while a web page loads,
+// that stops loading it.
+func (msgs Messages) BrowseStop() string {
+	return Catalog.Format(msgs.locale, "browseStop", nil)
+}
+
 // CheatsheetClose says "Close"
 // in the language the app shows.
 //
@@ -13268,6 +13604,20 @@ func SettingsWindowTitle() string { return In(i18n.Locale()).SettingsWindowTitle
 // it.
 func (msgs Messages) SettingsWindowTitle() string {
 	return Catalog.Format(msgs.locale, "settingsWindowTitle", nil)
+}
+
+// SidebarBrowse says "Browse"
+// in the language the app shows.
+//
+// Sidebar row of the built-in web browser, right after All Films.
+func SidebarBrowse() string { return In(i18n.Locale()).SidebarBrowse() }
+
+// SidebarBrowse says "Browse"
+// in the language of msgs.
+//
+// Sidebar row of the built-in web browser, right after All Films.
+func (msgs Messages) SidebarBrowse() string {
+	return Catalog.Format(msgs.locale, "sidebarBrowse", nil)
 }
 
 // SidebarChooseLibrary says "Choose a Library"

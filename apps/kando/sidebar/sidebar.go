@@ -15,6 +15,7 @@ import (
 const (
 	PageFilms     = ""
 	PageYouTube   = "youtube"
+	PageBrowse    = "browse" // the built-in browser (浏览), a row of the sources' list that is not a source
 	PageGeneral   = "general"
 	PageSpeech    = "speech"
 	PageAI        = "ai"

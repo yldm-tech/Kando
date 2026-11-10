@@ -208,6 +208,106 @@
   "@appSettings": {
     "description": "App menu item and shortcut row (⌘,) that opens Settings."
   },
+  "browseAdded": "Added to the library. Processing started.",
+  "@browseAdded": {
+    "description": "Message bar of the Browse page after Download Video added the page to the library's queue."
+  },
+  "browseAddressLabel": "Address",
+  "@browseAddressLabel": {
+    "description": "Accessible name of the Browse page's address field."
+  },
+  "browseAddressPlaceholder": "Enter a URL or search",
+  "@browseAddressPlaceholder": {
+    "description": "Placeholder of the Browse page's address field: a web address or words to search for."
+  },
+  "browseBack": "Back",
+  "@browseBack": {
+    "description": "Browse page toolbar button and menu item (⌘[) going back to the previous web page."
+  },
+  "browseCancel": "Cancel",
+  "@browseCancel": {
+    "description": "Button of the Clear Sign-in Data confirmation that keeps the data."
+  },
+  "browseClearConfirm": "Clear",
+  "@browseClearConfirm": {
+    "description": "Destructive button of the Clear Sign-in Data confirmation."
+  },
+  "browseClearData": "Clear Sign-in Data…",
+  "@browseClearData": {
+    "description": "Button at the foot of the Browse page's empty state, and menu item, that asks to sign out of every site signed in to in Browse."
+  },
+  "browseClearFailed": "Couldn't clear sign-in data: {error}",
+  "@browseClearFailed": {
+    "description": "Message bar of the Browse page when clearing the pages' cookies and storage failed; error is the system's reason.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "The operation couldn't be completed."
+      }
+    }
+  },
+  "browseClearMessage": "You'll be signed out of every site you signed in to here, and what those pages stored, such as their settings and caches, is removed too.",
+  "@browseClearMessage": {
+    "description": "Message of the Clear Sign-in Data confirmation."
+  },
+  "browseClearTitle": "Clear sign-in data?",
+  "@browseClearTitle": {
+    "description": "Title of the confirmation before clearing the Browse page's cookies and storage."
+  },
+  "browseCleared": "Sign-in data cleared.",
+  "@browseCleared": {
+    "description": "Message bar of the Browse page once its cookies and storage were cleared."
+  },
+  "browseDownload": "Download Video",
+  "@browseDownload": {
+    "description": "Button at the end of the Browse page's toolbar that adds the page shown to the library's queue."
+  },
+  "browseDownloadTooltip": "Add this page's video to the library",
+  "@browseDownloadTooltip": {
+    "description": "Tooltip of the Browse page's Download Video button."
+  },
+  "browseEmptyDescription": "Enter a URL or search in the address bar above, then click Download Video at the top right. Sites you sign in to here stay signed in when you download.",
+  "@browseEmptyDescription": {
+    "description": "Description of the Browse page before a web page is open."
+  },
+  "browseEmptyTitle": "Open a page with a video",
+  "@browseEmptyTitle": {
+    "description": "Title of the Browse page before a web page is open."
+  },
+  "browseForward": "Forward",
+  "@browseForward": {
+    "description": "Browse page toolbar button and menu item (⌘]) going forward to the next web page."
+  },
+  "browseHome": "Home",
+  "@browseHome": {
+    "description": "Browse page toolbar button that closes the web page and shows the start of the Browse page."
+  },
+  "browseLoadFailed": "Couldn't open the page: {error}",
+  "@browseLoadFailed": {
+    "description": "Message bar of the Browse page when a web page failed to load; error is the web engine's reason.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "A server with the specified hostname could not be found."
+      }
+    }
+  },
+  "browseOpenLocation": "Open Location…",
+  "@browseOpenLocation": {
+    "description": "Menu item and shortcut row (⌘L) that puts the keyboard in the Browse page's address field."
+  },
+  "browseOpenSettings": "Open Settings",
+  "@browseOpenSettings": {
+    "description": "Button in the Browse page's message bar opening the settings that fix what it says."
+  },
+  "browseReload": "Reload Page",
+  "@browseReload": {
+    "description": "Browse page toolbar button and menu item (⌘R) loading the web page again."
+  },
+  "browseStop": "Stop Loading",
+  "@browseStop": {
+    "description": "Browse page toolbar button, in place of Reload while a web page loads, that stops loading it."
+  },
   "cheatsheetClose": "Close",
   "@cheatsheetClose": {
     "description": "Accessible name of the cheat sheet's close button."
@@ -4716,6 +4816,10 @@
   "settingsWindowTitle": "Settings",
   "@settingsWindowTitle": {
     "description": "Title of the settings window, as the Window menu and Mission Control name it."
+  },
+  "sidebarBrowse": "Browse",
+  "@sidebarBrowse": {
+    "description": "Sidebar row of the built-in web browser, right after All Films."
   },
   "sidebarChooseLibrary": "Choose a Library",
   "@sidebarChooseLibrary": {
