@@ -3370,6 +3370,18 @@
       }
     }
   },
+  "settingsGeneralAutoCheck": "Check for updates automatically",
+  "@settingsGeneralAutoCheck": {
+    "description": "Switch in Settings › General: Kando checks for a new version after launch and once a day."
+  },
+  "settingsGeneralAutoDownload": "Download and install updates automatically",
+  "@settingsGeneralAutoDownload": {
+    "description": "Switch in Settings › General, under the automatic check: updates found in the background install without asking."
+  },
+  "settingsGeneralAutoDownloadHint": "The new version opens the next time you launch Kando.",
+  "@settingsGeneralAutoDownloadHint": {
+    "description": "Under the automatic download switch in Settings › General."
+  },
   "settingsGeneralCLI": "Command Line & MCP",
   "@settingsGeneralCLI": {
     "description": "Heading of the General settings card about Kando's command line and its MCP server for AI assistants."
@@ -3532,6 +3544,15 @@
   "@settingsGeneralInterfaceLanguage": {
     "description": "Row title and pop-up name: the language of Kando's interface."
   },
+  "settingsGeneralLastCheck": "Last checked {when}",
+  "@settingsGeneralLastCheck": {
+    "description": "Under Version in Settings › General: when Kando last checked for updates; {when} is a date and time.",
+    "placeholders": {
+      "when": {
+        "type": "DateTime"
+      }
+    }
+  },
   "settingsGeneralLibrary": "Library",
   "@settingsGeneralLibrary": {
     "description": "Heading of the General page's library card."
@@ -3594,6 +3615,10 @@
   "@settingsGeneralToolsNoteManual": {
     "description": "Footnote under the programs Kando runs, on a system where it does not download them (Windows): they are the user's to install."
   },
+  "settingsGeneralUpdateAvailable": "Version {version} is available",
+  "@settingsGeneralUpdateAvailable": {
+    "description": "Under Version in Settings › General when the last check found a newer version; {version} is its number, such as 0.4.0."
+  },
   "settingsGeneralUseFFmpeg": "Converts audio, grabs covers, decodes frames",
   "@settingsGeneralUseFFmpeg": {
     "description": "What ffmpeg is for, under its name."
@@ -3618,7 +3643,7 @@
   "@settingsKeywordsAccount": {
     "description": "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
   },
-  "settingsKeywordsGeneral": "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config",
+  "settingsKeywordsGeneral": "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update",
   "@settingsKeywordsGeneral": {
     "description": "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
   },
