@@ -129,20 +129,29 @@ func whisperFraction(line string) (float64, bool) {
 
 // runFollowing runs a tool and hands each line it prints on one stream, stdout or stderr as fromStderr says, to onLine on the calling goroutine as it comes, a carriage return ending a line as a newline does. It returns what the tool printed on each stream, the followed one's last 64 KiB, and, on failure, an error with what stderr says went wrong (toolError).
 func runFollowing(ctx context.Context, fromStderr bool, onLine func(string), name string, args ...string) (stdout, stderr string, err error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	var cmd *exec.Cmd
 	var otherBuf, followed bytes.Buffer
 	var pipe io.ReadCloser
-	if fromStderr {
-		cmd.Stdout = &otherBuf
-		pipe, err = cmd.StderrPipe()
-	} else {
-		cmd.Stderr = &otherBuf
-		pipe, err = cmd.StdoutPipe()
+	var piped error
+	err = retryBusy(ctx, func() error {
+		otherBuf.Reset()
+		cmd = exec.CommandContext(ctx, name, args...)
+		if fromStderr {
+			cmd.Stdout = &otherBuf
+			pipe, piped = cmd.StderrPipe()
+		} else {
+			cmd.Stderr = &otherBuf
+			pipe, piped = cmd.StdoutPipe()
+		}
+		if piped != nil {
+			return piped
+		}
+		return cmd.Start()
+	})
+	if piped != nil {
+		return "", "", piped
 	}
 	if err != nil {
-		return "", "", err
-	}
-	if err := cmd.Start(); err != nil {
 		return "", "", fmt.Errorf("%s: %w", filepath.Base(name), err)
 	}
 	scanner := bufio.NewScanner(io.TeeReader(pipe, &limitedBuffer{buf: &followed, max: 64 << 10}))
