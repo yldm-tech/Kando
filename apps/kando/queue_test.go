@@ -1430,3 +1430,73 @@ func TestQuitWhileAJobRunsAsksFirst(t *testing.T) {
 		t.Fatalf("the confirmed quit was held back: prevented %v, going ahead %v", e.DefaultPrevented(), a.window.quitting)
 	}
 }
+
+// TestQuitConfirmationFollowsTheRunningJob checks that the confirmation names the job running now, the next one once the job it opened for has finished, and closes by itself once no job runs any more, the quit still held back.
+func TestQuitConfirmationFollowsTheRunningJob(t *testing.T) {
+	quits := replaceQuitApp(t)
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	t.Cleanup(a.stop)
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	ids := jobIDs(a)
+	message := func(source string) string {
+		return locales.QueueQuitWhileRunningMessage(jobName(stageOf(t, a, ids[source])))
+	}
+	e := &mygo.QuitEvent{}
+	a.areasBeforeQuit(e)
+	tt.Frame()
+	if !e.DefaultPrevented() || !tt.HasText(message("https://example.com/a")) {
+		t.Fatalf("quit prevented %v; texts %q", e.DefaultPrevented(), tt.Texts())
+	}
+
+	g.release <- struct{}{}
+	nextStarted(t, g, updates)
+	waitUntil(t, updates, func() bool { return a.RunningJob() == ids["https://example.com/b"] })
+	tt.Frame()
+	if !tt.HasText(message("https://example.com/b")) || tt.HasText(message("https://example.com/a")) {
+		t.Fatalf("confirmation after the first job finished; texts %q", tt.Texts())
+	}
+
+	g.release <- struct{}{}
+	waitUntil(t, updates, func() bool { return !a.running() })
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText(locales.QueueQuitWhileRunningTitle()) || a.modalOpen() || *quits != 0 {
+		t.Fatalf("with no job left: shown %v, modal %v, quits %d", tt.HasText(locales.QueueQuitWhileRunningTitle()), a.modalOpen(), *quits)
+	}
+}
+
+// TestQuitOnASignalDoesNotAsk checks that a quit a signal asked for goes ahead while a job runs, whether mygo's own quit from the signal came first and opened the confirmation or not.
+func TestQuitOnASignalDoesNotAsk(t *testing.T) {
+	quits := replaceQuitApp(t)
+	for _, mygoFirst := range []bool{false, true} {
+		g := newGatePipeline()
+		a, tt, updates := newTestApp(g)
+		t.Cleanup(a.stop)
+		if err := a.Enqueue("https://example.com/a"); err != nil {
+			t.Fatal(err)
+		}
+		nextStarted(t, g, updates)
+		*quits = 0
+		if mygoFirst {
+			e := &mygo.QuitEvent{}
+			a.areasBeforeQuit(e)
+			tt.Frame()
+			if !e.DefaultPrevented() {
+				t.Fatal("mygo's quit from the signal went ahead before the signal was seen")
+			}
+		}
+		a.queueQuitOnSignal()
+		if *quits != 1 {
+			t.Fatalf("mygo first %v: the signal asked for %d quits, want 1", mygoFirst, *quits)
+		}
+		e := &mygo.QuitEvent{}
+		a.areasBeforeQuit(e)
+		if e.DefaultPrevented() || !a.window.quitting {
+			t.Fatalf("mygo first %v: the signal's quit was held back: prevented %v, going ahead %v", mygoFirst, e.DefaultPrevented(), a.window.quitting)
+		}
+	}
+}

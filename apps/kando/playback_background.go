@@ -33,7 +33,7 @@ func (a *app) playerDidResignActive() { a.playerSight(func() { a.player.inactive
 // playerDidBecomeActive notes that the app is the active one again (main's OnDidBecomeActive).
 func (a *app) playerDidBecomeActive() { a.playerSight(func() { a.player.inactive = false }) }
 
-// playerWindowHidden notes that the main window was put away by its close button, or shown again (state_window.go).
+// playerWindowHidden notes that the main window was put away by its close button, or shown again (playerHooks.windowShown).
 func (a *app) playerWindowHidden(hidden bool) {
 	a.playerSight(func() { a.player.windowHidden = hidden })
 }

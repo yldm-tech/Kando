@@ -230,3 +230,22 @@ func TestClosingTheWindowElsewhereQuits(t *testing.T) {
 		t.Fatalf("the quit's own close: prevented %v, quits %d", e.DefaultPrevented(), *quits)
 	}
 }
+
+// TestWindowMenuBringsTheWindowBack checks that a row of the Window menu, here 片库, shows the main window its close button put away before it acts on it, and that its put away and back are passed on to the player.
+func TestWindowMenuBringsTheWindowBack(t *testing.T) {
+	setWindowHidesOnClose(t, true)
+	a, tt, updates := newTestApp(&fakePipeline{})
+	tt.Frame()
+	a.windowClosing(&mygo.CloseEvent{})
+	if !a.window.hidden || !a.player.windowHidden {
+		t.Fatalf("close button: hidden %v, player told %v", a.window.hidden, a.player.windowHidden)
+	}
+	findMenuItem(t, a.menuBar(), "窗口", locales.MenuWindowLibrary()).Click(nil, nil)
+	(<-updates)()
+	if a.window.hidden || a.player.windowHidden {
+		t.Fatalf("片库 left the window hidden %v, player told %v", a.window.hidden, a.player.windowHidden)
+	}
+	if a.page != pageFilms || a.openKey != "" {
+		t.Fatalf("片库 showed page %q open %q", a.page, a.openKey)
+	}
+}

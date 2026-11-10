@@ -34,9 +34,8 @@ type jobQueue struct {
 	done   chan struct{}
 	// stopped is set once the app quits (queueQuit): no job starts after it.
 	stopped bool
-	// quitAsk is the confirmation of a quit while a job runs (queue_quit.go), naming quitFilm, the job running when it was asked; quitRelease gives back the window's modal flag it holds. quitConfirmed is set once the user chose to quit anyway, so the quit that follows is not asked again.
+	// quitAsk is the confirmation of a quit while a job runs (queue_quit.go); quitRelease gives back the window's modal flag it holds. quitConfirmed is set once the user chose to quit anyway, or a signal asked the app to quit (queueWatchSignals), so the quit that follows is not asked again.
 	quitAsk       bool
-	quitFilm      string
 	quitRelease   func()
 	quitConfirmed bool
 	// ytdlp is the yt-dlp the jobs download with and the browsers it can borrow logins from (queue_remedy.go).
@@ -59,13 +58,14 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. A quit while a job runs asks first, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
+// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		leavingLibrary: func() { a.queue.stopActive(core.ErrLibrarySwitched) },
 		ready: func() {
 			a.pump()
 			a.queueReadYTDLP()
+			a.queueWatchSignals()
 		},
 		toolsChanged:     func(bool) { a.queueReadYTDLP() },
 		libraryChanged:   a.pump,

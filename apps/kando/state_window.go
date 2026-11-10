@@ -101,12 +101,18 @@ func (a *app) windowShowMain() {
 	mygo.App.Focus()
 }
 
-// windowSight records whether the main window is in sight, and tells the player, whose picture stands still while it is not, and the menu bar, whose 窗口 › 主窗口 is enabled only then; a window out of sight draws no frame to bring the menu bar up to date.
+// windowUnhide brings the main window back when its close button put it away, and leaves it alone otherwise: the rows of the Window menu call it before they act on the window (menu.go).
+func (a *app) windowUnhide() {
+	if a.window.hidden {
+		a.windowShowMain()
+	}
+}
+
+// windowSight records whether the main window is in sight, and tells the areas that react to it (areaHooks.windowShown) when that changed.
 func (a *app) windowSight(shown bool) {
 	if a.window.hidden == !shown {
 		return
 	}
 	a.window.hidden = !shown
-	a.playerWindowHidden(!shown)
-	a.syncMenu()
+	a.areasWindowShown(shown)
 }

@@ -32,10 +32,12 @@ type areaHooks struct {
 	positionsChanged func()
 	// videosMoved runs after the shelf pointed its jobs at videos that moved on disk: the library folder was renamed in Finder, or the library refresh gathered a video into a folder of its own, paired a renamed one or found a missing one elsewhere. move gives a video's new path for its old one, and reports false for one that did not move; an area that keeps something by video path keys it by the new path. The shelf moves what library.json keeps itself (shelf.Library.MoveVideos) and saves it.
 	videosMoved func(move func(path string) (string, bool))
-	// beforeQuit runs when a quit starts (main's mygo.App.OnBeforeQuit), before the windows close: ⌘Q, the menu's Quit, a signal, or on Linux and Windows the main window's close button. An area that must not let the app quit yet, such as the queue while a job runs, prevents e and asks first; it quits again itself once the user agrees.
+	// beforeQuit runs when a quit starts (main's mygo.App.OnBeforeQuit), before the windows close: ⌘Q, the menu's Quit, the updater's relaunch, a signal, or on Linux and Windows the main window's close button. An area that must not let the app quit yet, such as the queue while a job runs, prevents e and asks first; it quits again itself once the user agrees. A quit a signal asked for goes ahead without asking (queueWatchSignals).
 	beforeQuit func(e *mygo.QuitEvent)
 	// quitStarting runs once no area's beforeQuit prevented the quit, right before the windows close, so an area that keeps a window from closing (state_window.go) lets it close.
 	quitStarting func()
+	// windowShown runs when the main window was put away by its close button (shown false) or came back (state_window.go). A window out of sight draws no frame, so an area that brings something up to date after each frame, as the menu bar does, does it here too.
+	windowShown func(shown bool)
 	// quitting runs once when the app quits (main's mygo.App.OnWillQuit), after its windows have closed and before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own, or the queue's running job.
 	quitting func()
 }
@@ -187,6 +189,14 @@ func (a *app) areasBeforeQuit(e *mygo.QuitEvent) {
 	for _, h := range a.areas() {
 		if h.quitStarting != nil {
 			h.quitStarting()
+		}
+	}
+}
+
+func (a *app) areasWindowShown(shown bool) {
+	for _, h := range a.areas() {
+		if h.windowShown != nil {
+			h.windowShown(shown)
 		}
 	}
 }
