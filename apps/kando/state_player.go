@@ -17,7 +17,10 @@ type playerUI struct {
 	playErr  string
 	playGen  int
 	playFrom time.Duration
+	// playJump has the video open playing at playFrom (a seek, 继续, 从头看, a jump to a line, a film coming back) rather than held on its first frame.
 	playJump bool
+	// playSame is set when the playback opens the open film's video again, as a seek, a film coming back and a jump to a line of the open film do, so the film keeps its state; any other playback is a film opening, which starts it afresh.
+	playSame bool
 	// opening is where the video being opened will start, which the transport shows until its picture comes.
 	opening time.Duration
 	// length is the open video's length once known, kept while a seek opens it again.
@@ -35,6 +38,10 @@ type playerUI struct {
 	yieldSubs bool
 	// positions is where each video was when its playback stopped, by video path, so it can resume there.
 	positions map[string]time.Duration
+	// delays is how far the subtitles of each video were moved against its picture, by video path, so a film opens with them where they were left. A video whose subtitles are in place has none.
+	delays map[string]time.Duration
+	// saves is when the player last had the areas keep its resume positions and subtitle delays on disk (playerKeep).
+	saves playerSaves
 	// lastMode is the mode V turns the subtitles back on to.
 	lastMode string
 	// panel shows the side panel over the picture. It stays as it is from film to film.
@@ -62,8 +69,10 @@ type fullScreen interface {
 
 // filmUI is the player's state that belongs to the one film open, which opening another starts afresh (resetFilm).
 type filmUI struct {
-	styleView   bool
-	modeMenu    bool
+	styleView bool
+	modeMenu  bool
+	// video is the path of the film's video, which delay is kept by in playerUI.delays.
+	video       string
 	delay       time.Duration
 	search      string
 	searchFocus bool
@@ -124,7 +133,7 @@ func (a *app) rememberPosition(play *filmPlay) {
 	} else {
 		a.player.positions[play.path] = at
 	}
-	a.areasPositionsChanged()
+	a.playerPositionsChanged()
 }
 
 // resumePositions and setResumePositions are the player's resume positions by video path, for the area that keeps them on disk with the shelf. The map is the player's own; setResumePositions takes positions over as they are.
@@ -134,6 +143,106 @@ func (a *app) setResumePositions(positions map[string]time.Duration) { a.player.
 
 // ResumeAt is where the video at path stopped last time, or 0 when it was not watched or was watched to the end.
 func (a *app) ResumeAt(path string) time.Duration { return a.player.positions[path] }
+
+// subtitleDelays and setSubtitleDelays are how far the subtitles of each video were moved, by video path, for the area that keeps them on disk with the shelf beside the resume positions. The map is the player's own; setSubtitleDelays takes delays over as they are.
+func (a *app) subtitleDelays() map[string]time.Duration { return a.player.delays }
+
+func (a *app) setSubtitleDelays(delays map[string]time.Duration) { a.player.delays = delays }
+
+// How often a playing film is kept on disk (playerKeep): at most every playerKeepEvery, once it has moved more than playerKeepMoved since, and a subtitle delay once it has rested playerDelaySettle, so a run of Z or X presses is saved once.
+const (
+	playerKeepEvery   = 20 * time.Second
+	playerKeepMoved   = 2 * time.Second
+	playerDelaySettle = time.Second
+)
+
+// playerSaves is what playerKeep needs to save the open film now and then rather than on every frame.
+type playerSaves struct {
+	// play is the playback the position was last looked at for; at is when its position was last kept and head where it was then; playing is whether it played at the last frame.
+	play    *filmPlay
+	at      time.Time
+	head    time.Duration
+	playing bool
+	// delayDirty is set while a subtitle delay changed since the last save; delayAt is the first frame since its last change, zero until then.
+	delayDirty bool
+	delayAt    time.Time
+}
+
+// playerAfterFrame loads the frames of the 片段 tab and keeps where the open film is, and how its subtitles were moved, on disk now and then.
+func (a *app) playerAfterFrame() {
+	a.loadClipFrames()
+	a.playerKeep(time.Now())
+}
+
+// playerKeep saves where the open film is while it plays, so a crash, a force quit or a power cut loses little of it rather than all since it opened: at once when a playback opened playing at a point picked for it (a seek, 继续, 从头看) and when it pauses or ends, and in between every playerKeepEvery once it has moved on. A film held on the frame it opened on is not kept until it plays, as stopPlayback does not keep it either. A subtitle delay is saved once it has rested playerDelaySettle. now is the time of the frame.
+func (a *app) playerKeep(now time.Time) {
+	s := &a.player.saves
+	if s.delayDirty {
+		if s.delayAt.IsZero() {
+			s.delayAt = now
+		} else if now.Sub(s.delayAt) >= playerDelaySettle {
+			a.playerPositionsChanged()
+		}
+	}
+	play := a.player.play
+	if play == nil || play.path == "" {
+		s.play, s.playing = nil, false
+		return
+	}
+	playing, head := play.Playing(), play.playhead()
+	keep := func() {
+		a.rememberPosition(play)
+		s.at, s.head = now, head
+	}
+	switch {
+	case s.play != play:
+		s.play, s.at, s.head = play, now, head
+		if play.played {
+			keep()
+		}
+	case !play.played:
+	case s.playing && !playing:
+		keep()
+	case now.Sub(s.at) >= playerKeepEvery && (head-s.head).Abs() > playerKeepMoved:
+		keep()
+	}
+	s.playing = playing
+}
+
+// playerNoteDelay keeps d as how far the subtitles of the open film's video are moved, to be saved once it rests (playerKeep), or as the film closes (playerSaveDelay). Moving them back in place forgets it.
+func (a *app) playerNoteDelay(d time.Duration) {
+	video := a.player.film.video
+	if video == "" {
+		return
+	}
+	if was, ok := a.player.delays[video]; ok && was == d || !ok && d == 0 {
+		return
+	}
+	if d == 0 {
+		delete(a.player.delays, video)
+	} else {
+		if a.player.delays == nil {
+			a.player.delays = map[string]time.Duration{}
+		}
+		a.player.delays[video] = d
+	}
+	a.player.saves.delayDirty = true
+	a.player.saves.delayAt = time.Time{}
+}
+
+// playerSaveDelay saves a subtitle delay that changed since the last save, as its film closes or another opens.
+func (a *app) playerSaveDelay() {
+	if a.player.saves.delayDirty {
+		a.playerPositionsChanged()
+	}
+}
+
+// playerPositionsChanged has the areas that keep the player's resume positions and subtitle delays on disk save them, which saves a delay waiting to be saved too.
+func (a *app) playerPositionsChanged() {
+	a.player.saves.delayDirty = false
+	a.player.saves.delayAt = time.Time{}
+	a.areasPositionsChanged()
+}
 
 // restorePlayer takes the subtitle settings saved last time. A value this version does not know keeps the default; loadSavedSettings reads a saved look over film.DefaultLook, so a field it lacks keeps the default too.
 func (a *app) restorePlayer(saved savedSettings) {
@@ -193,9 +302,16 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, closes the open film once it has left the shelf, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
+// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then after each frame, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting}
+	return areaHooks{
+		save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.playerAfterFrame, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting,
+		videosMoved: func(move func(string) (string, bool)) {
+			if next, ok := move(a.player.film.video); ok {
+				a.player.film.video = next
+			}
+		},
+	}
 }
 
 // playerReady points the player's full screen at the main window, which exists from now on.

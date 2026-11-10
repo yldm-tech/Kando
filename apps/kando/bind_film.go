@@ -113,8 +113,10 @@ func (a *app) SetYieldSubs(on bool) { a.player.yieldSubs = on }
 
 func (a *app) Delay() time.Duration { return a.player.film.delay }
 
+// SetDelay moves the subtitles by d against the picture and keeps it for the film's video, so they are where they were left when it opens again.
 func (a *app) SetDelay(d time.Duration) {
 	a.player.film.delay = d
+	a.playerNoteDelay(d)
 	a.flash(locales.PlayerOsdDelay(film.DelayText(d)))
 }
 

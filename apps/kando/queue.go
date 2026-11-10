@@ -58,7 +58,7 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
+// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		leavingLibrary: func() { a.queue.stopActive(core.ErrLibrarySwitched) },
@@ -67,14 +67,20 @@ func (a *app) queueHooks() areaHooks {
 			a.queueReadYTDLP()
 			a.queueWatchSignals()
 		},
-		toolsChanged:     func(bool) { a.queueReadYTDLP() },
-		libraryChanged:   a.pump,
-		shelfLoaded:      func() { a.setResumePositions(maps.Clone(a.library.Positions)) },
+		toolsChanged:   func(bool) { a.queueReadYTDLP() },
+		libraryChanged: a.pump,
+		shelfLoaded: func() {
+			a.setResumePositions(maps.Clone(a.library.Positions))
+			a.setSubtitleDelays(maps.Clone(a.library.Delays))
+		},
 		positionsChanged: a.savePositions,
-		videosMoved:      func(move func(string) (string, bool)) { shelf.MoveKeys(a.resumePositions(), move) },
-		afterFrame:       a.queueQuitModal,
-		beforeQuit:       a.queueBeforeQuit,
-		quitting:         a.queueQuit,
+		videosMoved: func(move func(string) (string, bool)) {
+			shelf.MoveKeys(a.resumePositions(), move)
+			shelf.MoveKeys(a.subtitleDelays(), move)
+		},
+		afterFrame: a.queueQuitModal,
+		beforeQuit: a.queueBeforeQuit,
+		quitting:   a.queueQuit,
 	}
 }
 
@@ -268,9 +274,10 @@ func (a *app) startFilm(item films.Film) {
 	a.loadSubtitles(a.queue.job.ID, a.queue.job.SubtitlePath)
 }
 
-// savePositions writes the player's resume positions into library.json with the jobs.
+// savePositions writes the player's resume positions and subtitle delays into library.json with the jobs.
 func (a *app) savePositions() {
 	a.library.Positions = maps.Clone(a.resumePositions())
+	a.library.Delays = maps.Clone(a.subtitleDelays())
 	if err := a.library.Save(); err != nil {
 		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
 	}

@@ -84,7 +84,7 @@ func (a *app) playerBackInSight() {
 	}
 	p.returning = sound
 	a.player.playFrom = sound()
-	a.player.playJump = true
+	a.player.playJump, a.player.playSame = true, true
 	a.startPlaybackWith(p.path, p, sound)
 }
 

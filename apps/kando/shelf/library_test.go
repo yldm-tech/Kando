@@ -146,11 +146,44 @@ func TestFurthestRoundTrip(t *testing.T) {
 	}
 }
 
-// TestMoveVideosKeysByTheNewPath checks that when videos moved on disk, their resume positions and furthest points are kept under their new paths, those of videos that did not move stay, and MoveVideos says whether anything moved.
+// TestDelaysRoundTrip checks that how far each video's subtitles were moved is kept under its own key, earlier as well as later, exactly to the tenth of a second the keys move them by, and that a video whose subtitles are back in place is not written.
+func TestDelaysRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib.Delays["/v/a.mp4"] = 2300 * time.Millisecond
+	lib.Delays["/v/b.mp4"] = -700 * time.Millisecond
+	lib.Delays["/v/zero.mp4"] = 0
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"delays"`) || strings.Contains(string(data), "zero.mp4") {
+		t.Fatalf("library.json %s", data)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Delays) != 2 || loaded.Delays["/v/a.mp4"] != 2300*time.Millisecond || loaded.Delays["/v/b.mp4"] != -700*time.Millisecond {
+		t.Fatalf("delays %v", loaded.Delays)
+	}
+	if len(loaded.Positions) != 0 || len(loaded.Furthest) != 0 {
+		t.Fatalf("positions %v furthest %v", loaded.Positions, loaded.Furthest)
+	}
+}
+
+// TestMoveVideosKeysByTheNewPath checks that when videos moved on disk, their resume positions, furthest points and subtitle delays are kept under their new paths, those of videos that did not move stay, and MoveVideos says whether anything moved.
 func TestMoveVideosKeysByTheNewPath(t *testing.T) {
 	lib := Library{
 		Positions: map[string]time.Duration{"/old/a.mp4": 5 * time.Second, "/other/b.mp4": 7 * time.Second},
 		Furthest:  map[string]time.Duration{"/old/a.mp4": 40 * time.Second, "/other/b.mp4": 9 * time.Second},
+		Delays:    map[string]time.Duration{"/old/a.mp4": -300 * time.Millisecond, "/other/b.mp4": time.Second},
 	}
 	move := func(path string) (string, bool) {
 		if rest, ok := strings.CutPrefix(path, "/old/"); ok {
@@ -166,6 +199,9 @@ func TestMoveVideosKeysByTheNewPath(t *testing.T) {
 	}
 	if len(lib.Furthest) != 2 || lib.Furthest["/new/a.mp4"] != 40*time.Second || lib.Furthest["/other/b.mp4"] != 9*time.Second {
 		t.Fatalf("furthest %v", lib.Furthest)
+	}
+	if len(lib.Delays) != 2 || lib.Delays["/new/a.mp4"] != -300*time.Millisecond || lib.Delays["/other/b.mp4"] != time.Second {
+		t.Fatalf("delays %v", lib.Delays)
 	}
 	if lib.MoveVideos(func(string) (string, bool) { return "", false }) {
 		t.Fatal("MoveVideos said something moved when nothing did")
