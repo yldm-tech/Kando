@@ -126,7 +126,7 @@ func UpdateYTDLP(ctx context.Context, path string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	if _, err := run(ctx, install.Update[0], install.Update[1:]...); err != nil {
+	if _, err := runStage(ctx, install.Update[0], install.Update[1:]...); err != nil {
 		return "", fmt.Errorf("%s: %w", strings.Join(install.Update, " "), err)
 	}
 	return YTDLPVersion(ctx, path)

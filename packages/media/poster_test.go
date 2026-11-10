@@ -65,8 +65,13 @@ func TestEmbeddedCover(t *testing.T) {
 	if !bytes.Equal(got, want) {
 		t.Fatalf("cover is %d bytes, the file's own %d", len(got), len(want))
 	}
+	// Most local videos carry no cover art and the library asks for it on each launch, so not finding one is not logged.
+	logged := captureLog(t)
 	if data, err := EmbeddedCover(ctx, ffmpeg, without); err == nil {
 		t.Fatalf("a video without cover art gave %d bytes", len(data))
+	}
+	if logged.Len() != 0 {
+		t.Fatalf("a video without cover art logged %q", logged)
 	}
 }
 

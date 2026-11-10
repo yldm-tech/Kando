@@ -27,16 +27,14 @@ type logFile struct {
 	path  string
 	limit int64
 	echo  io.Writer
-	// f is the open file, and size how much it holds; f is nil once the file is closed, or when it could not be opened again after a rotation.
-	f    *os.File
-	size int64
+	// f is the open file, and size how much it holds. f is nil once the file is closed (closed), or while it cannot be opened again after a rotation or after its folder was removed; Write and Path try again until Close.
+	f      *os.File
+	size   int64
+	closed bool
 }
 
 // openLogFile opens the log at path for appending, making its folder, after moving a file already at its limit aside first.
 func openLogFile(path string, limit int64, echo io.Writer) (*logFile, error) {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return nil, err
-	}
 	w := &logFile{path: path, limit: limit, echo: echo}
 	if err := w.open(); err != nil {
 		return nil, err
@@ -44,8 +42,11 @@ func openLogFile(path string, limit int64, echo io.Writer) (*logFile, error) {
 	return w, nil
 }
 
-// open opens the file at w.path, after rotating a full one, and points the crash output at it.
+// open opens the file at w.path, making its folder again if the user removed it, after rotating a full one, and points the crash output at it.
 func (w *logFile) open() error {
+	if err := os.MkdirAll(filepath.Dir(w.path), 0o755); err != nil {
+		return err
+	}
 	if info, err := os.Stat(w.path); err == nil && info.Size() >= w.limit {
 		w.rotate()
 	}
@@ -94,6 +95,9 @@ func (w *logFile) Write(p []byte) (int, error) {
 	if w.echo != nil {
 		_, _ = w.echo.Write(line)
 	}
+	if w.f == nil && !w.closed {
+		_ = w.open()
+	}
 	if w.f != nil && w.size > 0 && w.size+int64(len(line)) > w.limit {
 		w.release()
 		w.rotate()
@@ -106,11 +110,11 @@ func (w *logFile) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// Path is the log file's path. A file removed from disk since it was opened, as by the user in Finder, is made again first, so there is a file to show.
+// Path is the log file's path. A file or folder removed from disk since it was opened, as by the user in Finder, is made again first, so there is a file to show.
 func (w *logFile) Path() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if _, err := os.Stat(w.path); err != nil && w.f != nil {
+	if _, err := os.Stat(w.path); err != nil && !w.closed {
 		w.release()
 		_ = w.open()
 	}
@@ -122,4 +126,5 @@ func (w *logFile) Close() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.release()
+	w.closed = true
 }

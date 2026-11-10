@@ -54,9 +54,15 @@ func TestLogFileIsMadeInTheLogsFolder(t *testing.T) {
 	if info, err := os.Stat(path); err != nil || info.Mode().Perm()&0o077 != 0 && os.PathSeparator == '/' {
 		t.Fatalf("log file %v, %v: others may read it", info, err)
 	}
+	// At quitting the log stays open, as the areas after it log as they stop.
+	a.logsQuitting()
+	log.Printf("remote: close the control socket: gone")
+	if got := readLog(t, path); !strings.Contains(got, "Kando is quitting") || !strings.Contains(got, "remote: close the control socket: gone") {
+		t.Fatalf("log after quitting:\n%s", got)
+	}
 	a.logsClose()
-	log.Printf("after quitting")
-	if got := readLog(t, path); !strings.Contains(got, "Kando is quitting") || strings.Contains(got, "after quitting") {
+	log.Printf("after closing")
+	if got := readLog(t, path); strings.Contains(got, "after closing") {
 		t.Fatalf("log after closing:\n%s", got)
 	}
 }
@@ -170,6 +176,19 @@ func TestShowLogFileIsAHelpMenuRow(t *testing.T) {
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("the log file was not made again: %v", err)
+	}
+	// The user moved the whole folder to the Trash: showing the file makes the folder and the file again, and the lines after it go there.
+	if err := os.RemoveAll(filepath.Dir(path)); err != nil {
+		t.Fatal(err)
+	}
+	shown = ""
+	rows[0].Run()
+	if _, err := os.Stat(path); err != nil || shown != path {
+		t.Fatalf("showed %q; the log file and its folder were not made again: %v", shown, err)
+	}
+	log.Printf("after the folder went")
+	if got := readLog(t, path); !strings.Contains(got, "after the folder went") {
+		t.Fatalf("log after its folder was made again:\n%s", got)
 	}
 	var found bool
 	for _, menu := range a.menuBar() {

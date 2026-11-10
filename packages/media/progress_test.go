@@ -172,7 +172,7 @@ func TestRunFollowingLogsTheWholeStderrOfAFailedTool(t *testing.T) {
 // The log keeps the last 64 KiB of a tool that printed more, where its error is.
 func TestRunLogsTheEndOfALongStderr(t *testing.T) {
 	logged := captureLog(t)
-	_, err := run(context.Background(), "/bin/sh", "-c", `printf 'START\n' >&2; head -c 200000 /dev/zero | tr '\0' 'x' >&2; printf '\nthe end\n' >&2; exit 2`)
+	_, err := runStage(context.Background(), "/bin/sh", "-c", `printf 'START\n' >&2; head -c 200000 /dev/zero | tr '\0' 'x' >&2; printf '\nthe end\n' >&2; exit 2`)
 	if err == nil {
 		t.Fatal("the tool did not fail")
 	}
@@ -185,6 +185,24 @@ func TestRunLogsTheEndOfALongStderr(t *testing.T) {
 	}
 }
 
+// run is for probes, whose failure is their answer (no cover art, not signed in), so it logs nothing; runStage logs the same failure.
+func TestRunLogsOnlyAStageFailure(t *testing.T) {
+	logged := captureLog(t)
+	script := `printf 'Output file does not contain any stream\n' >&2; exit 1`
+	if _, err := run(context.Background(), "/bin/sh", "-c", script); err == nil {
+		t.Fatal("the probe did not fail")
+	}
+	if logged.Len() != 0 {
+		t.Fatalf("a probe logged %q", logged)
+	}
+	if _, err := runStage(context.Background(), "/bin/sh", "-c", script); err == nil {
+		t.Fatal("the stage did not fail")
+	}
+	if !strings.Contains(logged.String(), "sh failed: exit status 1") || !strings.Contains(logged.String(), "does not contain any stream") {
+		t.Fatalf("a stage logged %q", logged)
+	}
+}
+
 // A tool stopped by its context did not fail, so nothing is logged for it.
 func TestRunDoesNotLogAStoppedTool(t *testing.T) {
 	logged := captureLog(t)
@@ -194,7 +212,7 @@ func TestRunDoesNotLogAStoppedTool(t *testing.T) {
 		if stream {
 			_, _, err = runFollowing(ctx, true, func(string) {}, "/bin/sh", "-c", `echo boom >&2; exec sleep 5`)
 		} else {
-			_, err = run(ctx, "/bin/sh", "-c", `echo boom >&2; exec sleep 5`)
+			_, err = runStage(ctx, "/bin/sh", "-c", `echo boom >&2; exec sleep 5`)
 		}
 		cancel()
 		if !errors.Is(err, context.DeadlineExceeded) {

@@ -28,11 +28,11 @@ var logsDir = func() (string, error) { return mygo.App.Path(mygo.PathLogs) }
 // logsReveal shows a file in Finder or the file manager. Tests replace it.
 var logsReveal = mygo.Shell.ShowItemInFolder
 
-// logsHooks: the log file opens once the window is ready, which is only in main, so a test's app does not write the user's log; its area runs first, so what the other areas log as they get ready reaches the file. It closes when the app quits. Each time the shelf changes, a job that has just failed is logged with the stage it failed in and its whole error; the jobs the shelf was read with are only looked at, as they failed in an earlier run.
+// logsHooks: the log file opens once the window is ready, which is only in main, so a test's app does not write the user's log; its area runs first, so what the other areas log as they get ready reaches the file. At quitting it only says so and stays open: its area also runs first there, and what the other areas log as they stop, such as remote's control socket, must reach the file too; the process's exit closes it, and nothing is buffered. Each time the shelf changes, a job that has just failed is logged with the stage it failed in and its whole error; the jobs the shelf was read with are only looked at, as they failed in an earlier run.
 func (a *app) logsHooks() areaHooks {
 	return areaHooks{
 		ready:        a.logsOpen,
-		quitting:     a.logsClose,
+		quitting:     a.logsQuitting,
 		shelfLoaded:  func() { a.logsJobs(false) },
 		shelfChanged: func() { a.logsJobs(true) },
 	}
@@ -65,12 +65,18 @@ func (a *app) logsOpen() {
 	log.Printf("Kando %s started on %s/%s", appVersion, runtime.GOOS, runtime.GOARCH)
 }
 
-// logsClose closes the log file; the standard logger writes to stderr alone again.
+// logsQuitting notes in the log that the app is quitting, leaving the file open for what the other areas log as they stop.
+func (a *app) logsQuitting() {
+	if a.logs.file != nil {
+		log.Print("Kando is quitting")
+	}
+}
+
+// logsClose closes the log file; the standard logger writes to stderr alone again. A test closes its log with it; the app leaves its own open until the process ends (logsQuitting).
 func (a *app) logsClose() {
 	if a.logs.file == nil {
 		return
 	}
-	log.Print("Kando is quitting")
 	log.SetOutput(os.Stderr)
 	a.logs.file.Close()
 	a.logs.file = nil

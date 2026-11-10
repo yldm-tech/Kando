@@ -348,7 +348,7 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 
 	// whisper.cpp expects 16 kHz mono 16-bit PCM.
 	audio := filepath.Join(dir, "audio.wav")
-	if _, err := run(ctx, t.FFmpeg, "-nostdin", "-loglevel", "error", "-y", "-i", videoPath, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", audio); err != nil {
+	if _, err := runStage(ctx, t.FFmpeg, "-nostdin", "-loglevel", "error", "-y", "-i", videoPath, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", audio); err != nil {
 		return nil, err
 	}
 	transcript := filepath.Join(dir, "transcript")
@@ -428,8 +428,17 @@ func everyAPICredential(cli string) func(context.Context, bool) (Endpoint, error
 	}
 }
 
-// run executes a tool and returns its stdout, folding the end of stderr into the error.
+// run executes a tool and returns its stdout, folding the end of stderr into the error. Its failure is not logged: probes such as EmbeddedCover, a poster frame or the EveryAPI credential fail as their answer (no cover art, not signed in), and logging those would fill the log with failures that are not ones. A job's stage uses runStage.
 func run(ctx context.Context, name string, args ...string) (string, error) {
+	return runTool(ctx, false, name, args...)
+}
+
+// runStage is run for a step whose failure is a real one, as a job's stage or a yt-dlp update: a failed tool's stderr is logged too (logToolFailure).
+func runStage(ctx context.Context, name string, args ...string) (string, error) {
+	return runTool(ctx, true, name, args...)
+}
+
+func runTool(ctx context.Context, logFailure bool, name string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -438,7 +447,9 @@ func run(ctx context.Context, name string, args ...string) (string, error) {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", ctxErr
 		}
-		logToolFailure(name, err, stderr.String())
+		if logFailure {
+			logToolFailure(name, err, stderr.String())
+		}
 		return "", fmt.Errorf("%s: %w: %s", filepath.Base(name), err, toolError(stderr.String()))
 	}
 	return stdout.String(), nil
