@@ -136,7 +136,7 @@ func TestRunReadsALocalVideoInPlace(t *testing.T) {
 	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	job, err := core.NewJob("file://" + video)
+	job, err := core.NewJob(core.FileURL(video))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +147,7 @@ func TestRunReadsALocalVideoInPlace(t *testing.T) {
 		t.Fatalf("stages %v video %q", stages, final.VideoPath)
 	}
 
-	gone, err := core.NewJob("file://" + filepath.Join(t.TempDir(), "gone.mp4"))
+	gone, err := core.NewJob(core.FileURL(filepath.Join(t.TempDir(), "gone.mp4")))
 	if err != nil {
 		t.Fatal(err)
 	}

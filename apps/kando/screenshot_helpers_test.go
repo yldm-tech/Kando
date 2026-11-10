@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"image/png"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,7 +79,7 @@ func newPrototypeLibrary(t *testing.T, home string) *screenshotFixture {
 		case core.PlatformBilibili:
 			job.Source = "https://www.bilibili.com/video/" + film.VideoID
 		case core.PlatformLocal:
-			job.Source = (&url.URL{Scheme: "file", Path: job.VideoPath}).String()
+			job.Source = core.FileURL(job.VideoPath)
 		}
 		if film.Stage == core.StageComplete {
 			job.SubtitlePath = writeProtoSubtitles(t, job.VideoPath)

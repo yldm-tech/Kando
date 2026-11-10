@@ -56,7 +56,7 @@ func feedbackFilmApp(t *testing.T) (*app, *ui.Tester, chan func(), string) {
 	a.prefs.toolVersions = map[string]string{tools.YTDLP: "2026.09.14", tools.FFmpeg: "7.1"}
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: (&url.URL{Scheme: "file", Path: video}).String(), Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt, LibraryDir: dir,
 	}}
 	tt.Frame()

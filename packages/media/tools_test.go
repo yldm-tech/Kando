@@ -257,7 +257,7 @@ func TestToolsDownloadReturnsLocalFileWithoutYTDLP(t *testing.T) {
 	if err := os.WriteFile(video, []byte("video"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	url := "file://" + video
+	url := core.FileURL(video)
 	got, err := (Tools{}).Download(context.Background(), url)
 	if err != nil {
 		t.Fatal(err)
