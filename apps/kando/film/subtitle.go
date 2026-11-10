@@ -27,7 +27,16 @@ type styledLine struct {
 	dim bool
 }
 
-// subtitles draws the playing cue over the picture, centered above the transport. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves.
+// The subtitles' places, from the window's bottom: 44 points, or 30% of the window's height when High. While the controls show they yield to them by 60 points, or 4% of the height when High.
+const (
+	subsBottom     = 44
+	subsYield      = 60
+	subsHigh       = 30
+	subsHighYield  = 4
+	subsDragMargin = 8
+)
+
+// subtitles draws the playing cue over the picture, centered above the transport. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles (Look.Lift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film.
 func (s screen) subtitles(c *ui.Context, chrome bool, panelSpace float32) {
 	if s.Play() == nil || s.Subs().Key != s.OpenKey() || !s.Subs().Ready || s.SubMode() == SubOff {
 		return
@@ -42,24 +51,75 @@ func (s screen) subtitles(c *ui.Context, chrome bool, panelSpace float32) {
 	}
 	look := s.Cue()
 	right := panelSpace
-	width, _ := c.Size()
-	layer := ui.Column(c).Absolute().Left(0).Right(right).Padding(0, (width-right)*0.05).Gap(4).AlignItems(ui.Center).PassThrough()
-	yield := chrome && s.YieldSubs()
-	switch {
-	case look.High && yield:
-		layer.BottomPercent(34)
-	case look.High:
-		layer.BottomPercent(30)
-	case yield:
-		layer.Bottom(104)
-	default:
-		layer.Bottom(44)
+	width, height := c.Size()
+	// Keyed, the lines stay the same element as the round play button before them comes and goes, so the two clicks of a double click on them count together.
+	c.Key("film-subtitles")
+	layer := ui.Column(c).Absolute().Left(0).Right(right).Padding(0, (width-right)*0.05).AlignItems(ui.Center).PassThrough()
+	if look.High {
+		layer.BottomPercent(subsHigh)
+	} else {
+		layer.Bottom(subsBottom)
 	}
 	layer.Children(func() {
-		for _, line := range lines {
-			subtitleLine(c, line, look.Box, look.Shadow)
-		}
+		block := ui.Column(c).MaxWidthPercent(100).Gap(4).AlignItems(ui.Center)
+		s.dragSubtitles(c, block, look, chrome, height)
+		block.Children(func() {
+			for _, line := range lines {
+				subtitleLine(c, line, look.Box, look.Shadow)
+			}
+		})
 	})
+}
+
+// dragSubtitles lets the pointer drag block, the lines of the playing cue, up and down the window, height tall, and keeps where it lets them go in look.Lift. The block's offset from its place is the drag (Lift) and, for lines never dragged, the yield to the controls while they show: both move it as the pointer and the springs of Draggable do, so a drag taking lines that yield goes on from where they show and they stay where it leaves them as the controls fade.
+func (s screen) dragSubtitles(c *ui.Context, block ui.Element, look *Look, chrome bool, height float32) {
+	if height <= 0 {
+		return
+	}
+	lift := look.Lift * height
+	if look.Lift == 0 && chrome && s.YieldSubs() {
+		lift = subsYield
+		if look.High {
+			lift = height * subsHighYield / 100
+		}
+	}
+	offset := ui.Point{Y: -lift}
+	opts := ui.DraggableOptions{Axis: ui.Vertical}
+	// The lines stay in the window: below the top by a margin, and above the bottom by one, from their place as the last frame laid it out.
+	if box := block.LayoutBounds(); box.H > 0 {
+		up, down := box.Y-subsDragMargin, height-subsDragMargin-box.Y-box.H
+		if up+down >= 0 {
+			opts.Bounds = &ui.Rect{Y: -up, H: up + down}
+		}
+	}
+	block.Draggable(&offset, opts)
+	_, _, ended := block.DragEnded()
+	if block.Dragging() || ended {
+		look.Lift = -offset.Y / height
+	}
+	switch {
+	case !chrome:
+		block.Cursor(ui.CursorNone)
+	case block.Dragging():
+		block.Cursor(ui.CursorGrabbing)
+	default:
+		block.Cursor(ui.CursorGrab)
+	}
+	// The lines take the picture's clicks over them: a click starts or holds the film, and the two of a double click cancel out.
+	if block.Clicks()%2 == 1 {
+		s.togglePlay(c)
+	}
+	if block.DoubleClicked() {
+		if look.Lift != 0 {
+			look.Lift = 0
+			ended = true
+		} else {
+			s.ToggleFullScreen()
+		}
+	}
+	if ended {
+		s.LookChanged()
+	}
 }
 
 // subtitleLine draws one line of a cue, on its own box with Box, outlined with Shadow. Element.Shadow is a box's shadow and would not follow the glyphs, so the outline is the line drawn again in black under it (outlineCopies), after the prototype's text-shadow (0 0 3px, 0 1px 2px and 0 0 1px).

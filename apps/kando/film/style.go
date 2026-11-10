@@ -136,8 +136,9 @@ func (s screen) styleView(c *ui.Context) {
 					c.Key("film-style-place")
 					before := place
 					breeze.Segmented(c, &place, locales.FilmPositionHigh(), locales.FilmPositionBottom()).Label(locales.FilmStylePosition())
+					// Picking a place also puts subtitles dragged away from it (Lift) back there.
 					if place != before {
-						look.High = place == 0
+						look.High, look.Lift = place == 0, 0
 						changed = true
 					}
 				})

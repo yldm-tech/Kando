@@ -11,7 +11,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "film", func(a *app, tt *ui.Tester, updates chan func()) {
@@ -51,6 +51,11 @@ func TestScreenshotsPlayer(t *testing.T) {
 	}
 	f.shoot(t, "player-playing", playing(0))
 	f.shoot(t, "player-idle", playing(3*time.Second))
+	// Playing with the subtitles dragged up a sixth of the picture, as off a film's own burned-in lines: they stay where they were let go as the controls fade.
+	f.shoot(t, "player-dragged", func(a *app, tt *ui.Tester, updates chan func()) {
+		a.player.look.Lift = 1.0 / 6
+		playing(3*time.Second)(a, tt, updates)
+	})
 	// Playing with the sound muted by M: the speaker crossed out and the picture saying so.
 	f.shoot(t, "player-muted", func(a *app, tt *ui.Tester, updates chan func()) {
 		playing(0)(a, tt, updates)
