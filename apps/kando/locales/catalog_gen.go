@@ -5050,6 +5050,24 @@ func (msgs Messages) MenuOpenLibrary() string {
 	return Catalog.Format(msgs.locale, "menuOpenLibrary", nil)
 }
 
+// MenuOpenLinkFailed says "Couldn't open {url}: {error}"
+// in the language the app shows.
+//
+// Message bar when a link of the Help menu, such as the website, could not
+// be opened in the browser.
+func MenuOpenLinkFailed(url string, error string) string {
+	return In(i18n.Locale()).MenuOpenLinkFailed(url, error)
+}
+
+// MenuOpenLinkFailed says "Couldn't open {url}: {error}"
+// in the language of msgs.
+//
+// Message bar when a link of the Help menu, such as the website, could not
+// be opened in the browser.
+func (msgs Messages) MenuOpenLinkFailed(url string, error string) string {
+	return Catalog.Format(msgs.locale, "menuOpenLinkFailed", map[string]any{"url": url, "error": error})
+}
+
 // MenuPaste says "Paste"
 // in the language the app shows.
 //
@@ -5104,6 +5122,22 @@ func MenuRedo() string { return In(i18n.Locale()).MenuRedo() }
 // Edit menu item, as macOS names it.
 func (msgs Messages) MenuRedo() string {
 	return Catalog.Format(msgs.locale, "menuRedo", nil)
+}
+
+// MenuReleaseNotes says "Release Notes"
+// in the language the app shows.
+//
+// Help menu item that opens the release page of the running version on
+// GitHub, which says what it changed.
+func MenuReleaseNotes() string { return In(i18n.Locale()).MenuReleaseNotes() }
+
+// MenuReleaseNotes says "Release Notes"
+// in the language of msgs.
+//
+// Help menu item that opens the release page of the running version on
+// GitHub, which says what it changed.
+func (msgs Messages) MenuReleaseNotes() string {
+	return Catalog.Format(msgs.locale, "menuReleaseNotes", nil)
 }
 
 // MenuReopenGuide says "Show Getting Started Guide"
@@ -5224,6 +5258,22 @@ func (msgs Messages) MenuStopSpeaking() string {
 	return Catalog.Format(msgs.locale, "menuStopSpeaking", nil)
 }
 
+// MenuSwitchLibrary says "Switch Library"
+// in the language the app shows.
+//
+// File menu submenu that lists the libraries Kando knows; choosing one
+// opens it.
+func MenuSwitchLibrary() string { return In(i18n.Locale()).MenuSwitchLibrary() }
+
+// MenuSwitchLibrary says "Switch Library"
+// in the language of msgs.
+//
+// File menu submenu that lists the libraries Kando knows; choosing one
+// opens it.
+func (msgs Messages) MenuSwitchLibrary() string {
+	return Catalog.Format(msgs.locale, "menuSwitchLibrary", nil)
+}
+
 // MenuToggleFullScreen says "Toggle Full Screen"
 // in the language the app shows.
 //
@@ -5250,6 +5300,20 @@ func MenuUndo() string { return In(i18n.Locale()).MenuUndo() }
 // Edit menu item, as macOS names it.
 func (msgs Messages) MenuUndo() string {
 	return Catalog.Format(msgs.locale, "menuUndo", nil)
+}
+
+// MenuWebsite says "Kando Website"
+// in the language the app shows.
+//
+// Help menu item that opens Kando's website, kando.yldm.ai, in the browser.
+func MenuWebsite() string { return In(i18n.Locale()).MenuWebsite() }
+
+// MenuWebsite says "Kando Website"
+// in the language of msgs.
+//
+// Help menu item that opens Kando's website, kando.yldm.ai, in the browser.
+func (msgs Messages) MenuWebsite() string {
+	return Catalog.Format(msgs.locale, "menuWebsite", nil)
 }
 
 // MenuWindowLibrary says "Library"

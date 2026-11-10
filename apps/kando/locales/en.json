@@ -1792,6 +1792,20 @@
   "@menuOpenLibrary": {
     "description": "File menu item that opens another library folder."
   },
+  "menuOpenLinkFailed": "Couldn't open {url}: {error}",
+  "@menuOpenLinkFailed": {
+    "description": "Message bar when a link of the Help menu, such as the website, could not be opened in the browser.",
+    "placeholders": {
+      "url": {
+        "type": "String",
+        "example": "https://kando.yldm.ai"
+      },
+      "error": {
+        "type": "String",
+        "example": "exit status 1"
+      }
+    }
+  },
   "menuPaste": "Paste",
   "@menuPaste": {
     "description": "Edit menu item, as macOS names it."
@@ -1807,6 +1821,10 @@
   "menuRedo": "Redo",
   "@menuRedo": {
     "description": "Edit menu item, as macOS names it."
+  },
+  "menuReleaseNotes": "Release Notes",
+  "@menuReleaseNotes": {
+    "description": "Help menu item that opens the release page of the running version on GitHub, which says what it changed."
   },
   "menuReopenGuide": "Show Getting Started Guide",
   "@menuReopenGuide": {
@@ -1846,6 +1864,10 @@
   "@menuStopSpeaking": {
     "description": "Item of the Speech submenu that stops reading aloud, as macOS names it."
   },
+  "menuSwitchLibrary": "Switch Library",
+  "@menuSwitchLibrary": {
+    "description": "File menu submenu that lists the libraries Kando knows; choosing one opens it."
+  },
   "menuToggleFullScreen": "Toggle Full Screen",
   "@menuToggleFullScreen": {
     "description": "View menu item that puts the window in full screen or takes it out."
@@ -1853,6 +1875,10 @@
   "menuUndo": "Undo",
   "@menuUndo": {
     "description": "Edit menu item, as macOS names it."
+  },
+  "menuWebsite": "Kando Website",
+  "@menuWebsite": {
+    "description": "Help menu item that opens Kando's website, kando.yldm.ai, in the browser."
   },
   "menuWindowLibrary": "Library",
   "@menuWindowLibrary": {

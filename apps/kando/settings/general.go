@@ -151,7 +151,7 @@ func (s screen) libraryRows(c *ui.Context) {
 		return
 	}
 	dirs := s.KnownLibraries()
-	labels := libraryLabels(dirs)
+	labels := LibraryLabels(dirs)
 	chosen := ""
 	for i, known := range dirs {
 		if filepath.Clean(known) == filepath.Clean(dir) {
@@ -187,8 +187,8 @@ func (s screen) libraryRows(c *ui.Context) {
 	}
 }
 
-// libraryLabels names each library in the drop-down by its title, or by its path where two share a title.
-func libraryLabels(dirs []string) []string {
+// LibraryLabels names each library by its title, or by its path where two share a title: the drop-down here, and File › 切换资料库 and the Dock menu of the menu bar.
+func LibraryLabels(dirs []string) []string {
 	count := map[string]int{}
 	for _, dir := range dirs {
 		count[sidebar.Title(dir)]++

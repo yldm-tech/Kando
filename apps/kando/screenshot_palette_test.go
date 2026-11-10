@@ -12,7 +12,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsPalette renders the command palette in the prototype's four states over the open film, which has been watched to 1:40 as the prototype's: just opened, a query that finds lines, one that finds commands, and the answer to a question, from an AI service on this machine's loopback that answers as the prototype's; and a query over the library (screenshot_helpers_test.go).
+// TestScreenshotsPalette renders the command palette in the prototype's four states over the open film, which has been watched to 1:40 as the prototype's: just opened, a query that finds lines, one that finds commands, and the answer to a question, from an AI service on this machine's loopback that answers as the prototype's; a query over the library (screenshot_helpers_test.go), and one that finds 帮助 › 更新说明.
 func TestScreenshotsPalette(t *testing.T) {
 	f := newScreenshotFixture(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -53,5 +53,16 @@ func TestScreenshotsPalette(t *testing.T) {
 		screenshotWait(t, tt, updates, "subtitles", func() bool { return !a.palette.reading })
 		tt.Type("河")
 		tt.Frame()
+	})
+	// 帮助 › 更新说明 is a command of the palette too, beside 检查更新….
+	f.shoot(t, "palette-release-notes", func(a *app, tt *ui.Tester, updates chan func()) {
+		tt.Key(ui.Cmd, ui.KeyK)
+		tt.Frame()
+		screenshotWait(t, tt, updates, "subtitles", func() bool { return !a.palette.reading })
+		tt.Type("更新")
+		tt.Frame()
+		if !tt.HasText("更新说明") {
+			t.Fatalf("the palette does not offer 更新说明: %q", tt.Texts())
+		}
 	})
 }

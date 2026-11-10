@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -54,7 +56,7 @@ func (a *app) installMenu() {
 	a.syncMenu()
 }
 
-// syncMenu brings the menu bar up to date with the app's state: which items are enabled, which carry a ✓, and their labels. It installs a new menu only when that differs from the one installed, so a frame that changes none of it leaves the menu bar alone, even while one of its menus is open. menuHooks.afterFrame calls it every frame, after the pages have settled the frame's state.
+// syncMenu brings the menu bar and the Dock menu up to date with the app's state: which items are enabled, which carry a ✓, and their labels. It installs a new menu only when that differs from the one installed, so a frame that changes none of it leaves the menu bar alone, even while one of its menus is open. menuHooks.afterFrame calls it every frame, after the pages have settled the frame's state.
 func (a *app) syncMenu() {
 	if !a.menu.menuBar {
 		return
@@ -66,7 +68,16 @@ func (a *app) syncMenu() {
 	}
 	a.menu.menuSig = sig
 	mygo.App.SetMenu(mygo.NewMenu(items))
+	// The Dock menu lists the libraries as File › 切换资料库 does. It changes only with the menu bar, which holds the same items, so the menu bar's signature covers it.
+	var dock *mygo.Menu
+	if libs := a.menuLibraries(); len(libs) > 0 {
+		dock = mygo.NewMenu(libs)
+	}
+	setDockMenu(dock)
 }
+
+// setDockMenu installs the Dock menu. mygo's waits for the main thread, which a test, running off it without the app's event loop, never reaches, so tests that install the menu bar replace it.
+var setDockMenu = mygo.App.Dock.SetMenu
 
 // menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up as a sheet, none of the rows are (holds).
 func (a *app) menuBar() []*mygo.MenuItem {
@@ -113,8 +124,12 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: sub}
 		case groupFile:
 			reveal := &mygo.MenuItem{Label: locales.MenuRevealLibrary(breeze.Current().String()), Disabled: a.holds(false) || a.snap().LibraryDir == "", Click: a.menuClick(false, func() { a.reveal(a.snap().LibraryDir) })}
+			library := []*mygo.MenuItem{reveal}
+			if libs := a.menuLibraries(); len(libs) > 0 {
+				library = append([]*mygo.MenuItem{{Label: locales.MenuSwitchLibrary(), Submenu: libs}}, library...)
+			}
 			// 关闭窗口 keeps ⌘W, which the menu bar mygo installs for an app without its own has in its File menu.
-			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(then(items(group), reveal), &mygo.MenuItem{Label: locales.MenuCloseWindow(), Role: mygo.RoleClose})}
+			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(then(items(group), library...), &mygo.MenuItem{Label: locales.MenuCloseWindow(), Role: mygo.RoleClose})}
 		case groupEdit:
 			sub := []*mygo.MenuItem{{Label: locales.MenuUndo(), Role: mygo.RoleUndo}, {Label: locales.MenuRedo(), Role: mygo.RoleRedo}}
 			// 粘贴并匹配样式 and 语音 keep what the Edit menu of the menu bar mygo installs for an app without its own has.
@@ -147,6 +162,33 @@ func (a *app) menuBar() []*mygo.MenuItem {
 		}
 	}
 	return bar
+}
+
+// menuLibraries are the items of File › 切换资料库 and of the Dock menu: a radio item for each library the app knows, named as Settings › 通用 names them, with the open one chosen. Choosing one switches to it as the sidebar's switcher does. Each call builds new items, as an item belongs to one menu.
+func (a *app) menuLibraries() []*mygo.MenuItem {
+	dirs := a.knownLibraries()
+	labels := settings.LibraryLabels(dirs)
+	open := filepath.Clean(a.snap().LibraryDir)
+	items := make([]*mygo.MenuItem, len(dirs))
+	for i, dir := range dirs {
+		items[i] = &mygo.MenuItem{
+			Label:    labels[i],
+			Type:     mygo.MenuItemRadio,
+			Checked:  filepath.Clean(dir) == open,
+			Disabled: a.holds(false),
+			Click: func(*mygo.MenuItem, *mygo.Window) {
+				a.update(func() {
+					// mygo moves the radio's choice itself before Click; forgetting the installed menu has the next frame show the open library again, also when the click is held back.
+					a.menu.menuSig = ""
+					if a.holds(false) {
+						return
+					}
+					a.Choose(dir)
+				})
+			},
+		}
+	}
+	return items
 }
 
 // menuItem is the menu bar's item for the shortcut s. own says s is one of the overlays' rows, which the cheat sheet leaves enabled.
