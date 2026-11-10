@@ -97,6 +97,12 @@ type App interface {
 	Removing() (open *bool, item Film, folder bool)
 	// TrashFilm moves a film's folder to the Trash and takes it off the shelf.
 	TrashFilm(item Film)
+	// AskRename opens the dialog that gives a film the title Kando shows for it.
+	AskRename(item Film)
+	// Renaming is whether the rename dialog is open, the title typed into it, and the title the film has without one given in Kando, which an empty field gives it back.
+	Renaming() (open *bool, name *string, original string)
+	// RenameFilm gives the film AskRename asked about the title typed into the dialog, and closes it. It never renames a file.
+	RenameFilm()
 }
 
 // Notice is the message bar under the top bar: why a link or a file was not added, or that it was.
@@ -162,6 +168,7 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	})
 	newLibrary(c, t, a)
 	removeDialog(c, a)
+	renameDialog(c, a)
 }
 
 // shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out; 处理中 shows every job still, so none seems to vanish while a search is on.

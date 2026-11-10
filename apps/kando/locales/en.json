@@ -1502,6 +1502,26 @@
   "@filmsRemoveOutside": {
     "description": "What removing a film does when its video is outside the library folder."
   },
+  "filmsRename": "Rename…",
+  "@filmsRename": {
+    "description": "Menu item that opens the dialog giving a film the title Kando shows for it."
+  },
+  "filmsRenameField": "Title",
+  "@filmsRenameField": {
+    "description": "Label of the field holding the film's new title in the rename dialog."
+  },
+  "filmsRenameNote": "Only the title Kando shows changes; the files on disk keep their names. Leave it empty to show the original title again.",
+  "@filmsRenameNote": {
+    "description": "Note under the title of the rename dialog: renaming never renames files, and an empty title restores the original one."
+  },
+  "filmsRenameSave": "Rename",
+  "@filmsRenameSave": {
+    "description": "Button of the rename dialog that keeps the new title."
+  },
+  "filmsRenameTitle": "Rename Film",
+  "@filmsRenameTitle": {
+    "description": "Title of the dialog that renames a film."
+  },
   "filmsReprocess": "Process Again",
   "@filmsReprocess": {
     "description": "Menu item that runs a finished film through download, subtitles and translation again."

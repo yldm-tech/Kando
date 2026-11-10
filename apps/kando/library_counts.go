@@ -36,7 +36,7 @@ func (a *app) countLibraries() {
 			if err != nil {
 				continue
 			}
-			counts[dir] = len(films.List(dir, jobs, videos, noName, noName))
+			counts[dir] = len(films.List(dir, jobs, videos, nil, noName, noName))
 		}
 		update(func() {
 			if run != a.side.counting {

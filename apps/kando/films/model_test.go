@@ -100,7 +100,7 @@ func TestAVideoWithoutAJobShowsTheSubtitlesBesideIt(t *testing.T) {
 		{Path: root + "/Bare/video.mp4", Name: "Bare.mp4"},
 	}
 	name := func(core.Job) string { return "" }
-	shelf := List(root, nil, videos, name, name)
+	shelf := List(root, nil, videos, nil, name, name)
 	if len(shelf) != 2 || shelf[0].SubtitlePath != videos[0].Subtitles || shelf[1].SubtitlePath != "" {
 		t.Fatalf("shelf = %#v", shelf)
 	}
@@ -261,5 +261,33 @@ func TestMatchesTitleReadsTheWholeName(t *testing.T) {
 	}
 	if got := ByTitle(items, "rivers"); len(got) != 1 || got[0].Key != "a" {
 		t.Fatalf("ByTitle(rivers) = %+v", got)
+	}
+}
+
+// TestListShowsTheTitlesGivenInKando checks that a title given in Kando takes the place of a job's name and of a loose video's, in full and shortened, and that films without one keep their own.
+func TestListShowsTheTitlesGivenInKando(t *testing.T) {
+	jobs := []core.Job{
+		{ID: "a", Source: "https://youtu.be/x", Stage: core.StageComplete, VideoPath: "/lib/A/video.mp4", LibraryDir: "/lib"},
+		{ID: "b", Source: "https://youtu.be/y", Stage: core.StageComplete, VideoPath: "/lib/B/video.mp4", LibraryDir: "/lib"},
+		{ID: "q", Source: "https://youtu.be/z", Stage: core.StageQueued, LibraryDir: "/lib"},
+	}
+	videos := []media.Video{{Path: "/lib/C/video.mp4", Name: "C.mp4"}, {Path: "/lib/D.mp4", Name: "D.mp4"}}
+	names := map[string]string{"/lib/A/video.mp4": "A title given in Kando that is long", "/lib/C/video.mp4": "Loose", "": "never"}
+	nameOf := func(job core.Job) string { return "site " + job.ID }
+	got := map[string]Film{}
+	for _, item := range List("/lib", jobs, videos, names, nameOf, func(core.Job) string { return "" }) {
+		got[item.Key] = item
+	}
+	if a := got["a"]; a.Name != "A title given in Kando that is long" || a.Title != Shorten(a.Name, 22) {
+		t.Fatalf("a = %+v", a)
+	}
+	if got["b"].Name != "site b" || got["q"].Name != "site q" {
+		t.Fatalf("b = %+v, q = %+v", got["b"], got["q"])
+	}
+	if c := got["/lib/C/video.mp4"]; c.Name != "Loose" || c.Title != "Loose" {
+		t.Fatalf("c = %+v", c)
+	}
+	if d := got["/lib/D.mp4"]; d.Name != "D" {
+		t.Fatalf("d = %+v", d)
 	}
 }

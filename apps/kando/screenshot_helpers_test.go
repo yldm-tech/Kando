@@ -297,7 +297,7 @@ func TestScreenshotFixtureMatchesPrototype(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		shelf := films.List(dir, f.jobs, videos, jobName, statusText)
+		shelf := films.List(dir, f.jobs, videos, nil, jobName, statusText)
 		if len(shelf) != lib.Count {
 			t.Errorf("%s has %d films, want %d", lib.Name, len(shelf), lib.Count)
 		}

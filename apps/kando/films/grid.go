@@ -35,7 +35,7 @@ func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
 	})
 }
 
-// doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
+// doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重命名…, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
 func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 	menu := filmMenu(a, item, breeze.PlatformOf(c))
 	name := filmName(item)
@@ -85,6 +85,9 @@ func filmMenu(a App, item Film, p breeze.Platform) func(m *ui.Menu) {
 		}
 		if m.Item(locales.FilmsShowInFinder(p.String())).Chosen() {
 			a.Reveal(item.VideoPath)
+		}
+		if item.VideoPath != "" && m.Item(locales.FilmsRename()).Chosen() {
+			a.AskRename(item)
 		}
 		if m.Item(locales.FilmsReprocess()).Chosen() {
 			a.Reprocess(item)

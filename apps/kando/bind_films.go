@@ -177,7 +177,7 @@ func (a *app) JobFilm(id string) (films.Film, bool) {
 	if !ok {
 		return films.Film{}, false
 	}
-	return films.FromJob(job, jobName(job), statusText(job)), true
+	return films.FromJob(job, a.libraryJobName(job), statusText(job)), true
 }
 
 func (a *app) Notice() *films.Notice { return &a.lib.notice }
@@ -233,8 +233,14 @@ func (a *app) TrashFilm(item films.Film) {
 		a.openKey = ""
 		a.stopPlayback()
 	}
+	// The film leaves the shelf, and the title given to it in Kando with it; remove saves library.json for a job, and a video no job processed saves it here.
+	named := a.library.Rename(item.VideoPath, "")
 	if item.JobID != "" {
 		a.remove(item.JobID)
+	} else if named {
+		if err := a.library.Save(); err != nil {
+			a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
+		}
 	}
 	a.refreshLibrary()
 	if len(files) > 0 {
@@ -280,7 +286,7 @@ func aloneIn(dir, video string) bool {
 
 func (a *app) films() []films.Film {
 	shot := a.snap()
-	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, jobName, statusText)
+	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, statusText)
 }
 
 // QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere).

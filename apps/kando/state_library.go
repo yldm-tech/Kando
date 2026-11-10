@@ -31,8 +31,14 @@ type libraryUI struct {
 	removing     films.Film
 	removeOpen   bool
 	removeFolder bool
-	// removeRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterFrame gives each back once its dialog has closed.
+	// renaming is the film whose 重命名… dialog is open, while renameOpen. renameName is the title typed into it, which starts as the one the film shows, and renameOriginal the title the film has without one given in Kando (library_rename.go).
+	renaming       films.Film
+	renameOpen     bool
+	renameName     string
+	renameOriginal string
+	// removeRelease, renameRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterFrame gives each back once its dialog has closed.
 	removeRelease func()
+	renameRelease func()
 	sheetRelease  func()
 	// durations is how long each video plays, by path, read with the poster. A video that has none here is not known yet.
 	durations map[string]time.Duration
@@ -83,11 +89,15 @@ func (a *app) libraryHooks() areaHooks {
 	}
 }
 
-// libraryModals keeps the window's modal flag held while the library's dialogs are open. AskRemove holds it as the remove confirmation opens, and it is given back here once the confirmation has closed. The new-library sheet is open while the session is making a library, which the shelf and the sidebar start, so the flag is held here from the frame that first draws the sheet until the frame after it closes.
+// libraryModals keeps the window's modal flag held while the library's dialogs are open. AskRemove and AskRename hold it as the remove confirmation and the rename dialog open, and it is given back here once the dialog has closed. The new-library sheet is open while the session is making a library, which the shelf and the sidebar start, so the flag is held here from the frame that first draws the sheet until the frame after it closes.
 func (a *app) libraryModals() {
 	if !a.lib.removeOpen && a.lib.removeRelease != nil {
 		a.lib.removeRelease()
 		a.lib.removeRelease = nil
+	}
+	if !a.lib.renameOpen && a.lib.renameRelease != nil {
+		a.lib.renameRelease()
+		a.lib.renameRelease = nil
 	}
 	making := a.snap().MakingLibrary
 	switch {

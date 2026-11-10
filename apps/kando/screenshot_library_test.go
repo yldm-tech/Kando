@@ -14,7 +14,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. It also renders the grid with a film whose translation left a line untranslated, which offers to translate it. Besides those it renders the grid ordered by title, a query in the sidebar's search field and one that matches no film, the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
+// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. It also renders the grid with a film whose translation left a line untranslated, which offers to translate it. Besides those it renders the grid ordered by title, a query in the sidebar's search field and one that matches no film, the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, the 重命名… dialog and the poster it renamed, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
 func TestScreenshotsLibrary(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// onboarding is the message bar the prototype shows once its onboarding is skipped.
@@ -130,6 +130,27 @@ func TestScreenshotsLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.shootSize(t, "library-remove-files", 1304, 1100, removeAlgebra)
+	// 重命名… on the same poster, with a new title typed in place of the one it shows, and then the poster under that title once Enter keeps it.
+	renameAlgebra := func(a *app, tt *ui.Tester, _ chan func()) {
+		if err := tt.RightClick("Linear Algebra, Lecture 1"); err != nil {
+			t.Fatal(err)
+		}
+		if err := tt.ChooseMenuItem("重命名…"); err != nil {
+			t.Fatalf("%v; menu %q", err, tt.Menu())
+		}
+		tt.Frame()
+		tt.Key(ui.Cmd, ui.KeyA)
+		tt.Type("线性代数 · 第一讲")
+	}
+	f.shootSize(t, "library-rename", 1304, 1100, renameAlgebra)
+	f.shootSize(t, "library-renamed", 1304, 1100, func(a *app, tt *ui.Tester, updates chan func()) {
+		renameAlgebra(a, tt, updates)
+		tt.Key(0, ui.KeyEnter)
+		tt.Frame()
+		if _, ok := tt.Find("线性代数 · 第一讲"); !ok {
+			t.Fatalf("the renamed poster is not on the shelf: %q", tt.Texts())
+		}
+	})
 	// A video dropped over an open film: the window goes back to the library, whose message bar says what became of it.
 	dropped := filepath.Join(f.home, "Downloads", "Ocean Currents.mp4")
 	if err := os.MkdirAll(filepath.Dir(dropped), 0o755); err != nil {

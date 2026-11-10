@@ -4280,6 +4280,80 @@ func (msgs Messages) FilmsRemoveOutside() string {
 	return Catalog.Format(msgs.locale, "filmsRemoveOutside", nil)
 }
 
+// FilmsRename says "Rename…"
+// in the language the app shows.
+//
+// Menu item that opens the dialog giving a film the title Kando shows for
+// it.
+func FilmsRename() string { return In(i18n.Locale()).FilmsRename() }
+
+// FilmsRename says "Rename…"
+// in the language of msgs.
+//
+// Menu item that opens the dialog giving a film the title Kando shows for
+// it.
+func (msgs Messages) FilmsRename() string {
+	return Catalog.Format(msgs.locale, "filmsRename", nil)
+}
+
+// FilmsRenameField says "Title"
+// in the language the app shows.
+//
+// Label of the field holding the film's new title in the rename dialog.
+func FilmsRenameField() string { return In(i18n.Locale()).FilmsRenameField() }
+
+// FilmsRenameField says "Title"
+// in the language of msgs.
+//
+// Label of the field holding the film's new title in the rename dialog.
+func (msgs Messages) FilmsRenameField() string {
+	return Catalog.Format(msgs.locale, "filmsRenameField", nil)
+}
+
+// FilmsRenameNote says "Only the title Kando shows changes; the files on disk keep their names. Leave it empty to show the original title again."
+// in the language the app shows.
+//
+// Note under the title of the rename dialog: renaming never renames files,
+// and an empty title restores the original one.
+func FilmsRenameNote() string { return In(i18n.Locale()).FilmsRenameNote() }
+
+// FilmsRenameNote says "Only the title Kando shows changes; the files on disk keep their names. Leave it empty to show the original title again."
+// in the language of msgs.
+//
+// Note under the title of the rename dialog: renaming never renames files,
+// and an empty title restores the original one.
+func (msgs Messages) FilmsRenameNote() string {
+	return Catalog.Format(msgs.locale, "filmsRenameNote", nil)
+}
+
+// FilmsRenameSave says "Rename"
+// in the language the app shows.
+//
+// Button of the rename dialog that keeps the new title.
+func FilmsRenameSave() string { return In(i18n.Locale()).FilmsRenameSave() }
+
+// FilmsRenameSave says "Rename"
+// in the language of msgs.
+//
+// Button of the rename dialog that keeps the new title.
+func (msgs Messages) FilmsRenameSave() string {
+	return Catalog.Format(msgs.locale, "filmsRenameSave", nil)
+}
+
+// FilmsRenameTitle says "Rename Film"
+// in the language the app shows.
+//
+// Title of the dialog that renames a film.
+func FilmsRenameTitle() string { return In(i18n.Locale()).FilmsRenameTitle() }
+
+// FilmsRenameTitle says "Rename Film"
+// in the language of msgs.
+//
+// Title of the dialog that renames a film.
+func (msgs Messages) FilmsRenameTitle() string {
+	return Catalog.Format(msgs.locale, "filmsRenameTitle", nil)
+}
+
 // FilmsReprocess says "Process Again"
 // in the language the app shows.
 //

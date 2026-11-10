@@ -38,8 +38,8 @@ type Film struct {
 	Library string
 }
 
-// List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them.
-func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
+// List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
+func List(root string, jobs []core.Job, videos []media.Video, names map[string]string, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
 	used := map[string]bool{}
 	out := make([]Film, 0, len(jobs)+len(videos))
 	for i := range jobs {
@@ -50,13 +50,20 @@ func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.J
 		if job.VideoPath != "" {
 			used[job.VideoPath] = true
 		}
-		out = append(out, FromJob(job, nameOf(job), detailOf(job)))
+		name := nameOf(job)
+		if given := names[job.VideoPath]; job.VideoPath != "" && given != "" {
+			name = given
+		}
+		out = append(out, FromJob(job, name, detailOf(job)))
 	}
 	for _, video := range videos {
 		if used[video.Path] || !InDir(root, video.Path) {
 			continue
 		}
 		name := strings.TrimSuffix(video.Name, filepath.Ext(video.Name))
+		if given := names[video.Path]; given != "" {
+			name = given
+		}
 		out = append(out, Film{
 			Key: video.Path, Title: Shorten(name, 22), Name: name, Detail: video.Path, VideoPath: video.Path, SubtitlePath: video.Subtitles,
 		})

@@ -1679,3 +1679,180 @@ func TestLibrarySortHidesWithASingleFilm(t *testing.T) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
+
+// renamedLibrary is libraryWith with library.json kept in a file of the test's, so what renaming saves can be read back.
+func renamedLibrary(t *testing.T, name string) (a *app, tt *ui.Tester, video, libraryPath string) {
+	t.Helper()
+	a, tt, video = libraryWith(t, name)
+	jobs := a.library.Jobs
+	libraryPath = filepath.Join(t.TempDir(), "library.json")
+	a.openLibrary(libraryPath)
+	a.library.Jobs = jobs
+	if err := a.library.Save(); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	return a, tt, video, libraryPath
+}
+
+// renameFilm opens 重命名… from the poster's ⋯, puts title in the field in place of what it holds, and presses Enter.
+func renameFilm(t *testing.T, a *app, tt *ui.Tester, title string) {
+	t.Helper()
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if !tt.HasText("重命名影片") || !a.modalOpen() {
+		t.Fatalf("no rename dialog, or it does not hold the window (modal %v): %q", a.modalOpen(), tt.Texts())
+	}
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Type(title)
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText("重命名影片") || a.modalOpen() {
+		t.Fatalf("the rename dialog stays open after Enter (modal %v): %q", a.modalOpen(), tt.Texts())
+	}
+}
+
+// TestRenameGivesAFilmTheTitleKandoShows checks that 重命名… opens with the title the film shows, that the new title shows on the shelf and in the player and is kept in library.json, that nothing on disk is renamed, and that an empty title gives the film its own name back.
+func TestRenameGivesAFilmTheTitleKandoShows(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if a.lib.renameName != "Talk" || a.lib.renameOriginal != "Talk" {
+		t.Fatalf("the dialog opens with %q (original %q), want the film's title", a.lib.renameName, a.lib.renameOriginal)
+	}
+	if err := tt.Click("取消"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Frame()
+	if len(a.library.Names) != 0 || a.modalOpen() {
+		t.Fatalf("取消 renamed the film (%v) or still holds the window (modal %v)", a.library.Names, a.modalOpen())
+	}
+
+	renameFilm(t, a, tt, "  我的演讲  ")
+	if _, ok := tt.Find("我的演讲"); !ok {
+		t.Fatalf("the shelf does not show the new title: %q", tt.Texts())
+	}
+	if got := a.films()[0]; got.Name != "我的演讲" || got.Title != "我的演讲" {
+		t.Fatalf("film %+v", got)
+	}
+	if job := a.remoteJobOf(a.library.Jobs[0]); job.Title != "我的演讲" {
+		t.Fatalf("the socket names the job %q", job.Title)
+	}
+	lib, err := shelf.Load(libraryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lib.Names[video] != "我的演讲" || len(lib.Names) != 1 {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+	if _, err := os.Stat(video); err != nil {
+		t.Fatalf("renaming touched the video on disk: %v", err)
+	}
+
+	a.Open(a.films()[0])
+	tt.Frame()
+	if !tt.HasText("我的演讲") {
+		t.Fatalf("the player does not show the new title: %q", tt.Texts())
+	}
+	a.openKey = ""
+	a.stopPlayback()
+	tt.Frame()
+
+	renameFilm(t, a, tt, "")
+	if len(a.library.Names) != 0 {
+		t.Fatalf("an empty title kept %v", a.library.Names)
+	}
+	if _, ok := tt.Find("Talk"); !ok {
+		t.Fatalf("an empty title did not give the film its name back: %q", tt.Texts())
+	}
+	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
+		t.Fatalf("library.json still names %v", lib.Names)
+	}
+}
+
+// TestRenameTypingTheOriginalTitleKeepsNone checks that typing the title the film has anyway gives it no title of its own, so it keeps following its site's title.
+func TestRenameTypingTheOriginalTitleKeepsNone(t *testing.T) {
+	a, tt, _, _ := renamedLibrary(t, "Talk")
+	renameFilm(t, a, tt, "Talk")
+	if len(a.library.Names) != 0 {
+		t.Fatalf("names %v", a.library.Names)
+	}
+}
+
+// TestRenameSurvivesReprocessingAndAFinderRename checks that the title given in Kando stays over the title the site gives when the film is processed again, and stays with the film when its folder is renamed in Finder: Finder's name does not replace it.
+func TestRenameSurvivesReprocessingAndAFinderRename(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	renameFilm(t, a, tt, "我的演讲")
+
+	// Processing it again looks the video up, and the site's title comes back on the job.
+	job := a.library.Jobs[0]
+	job.Title = "Rust in 100 Seconds"
+	a.show(job)
+	tt.Frame()
+	if got := a.films()[0].Name; got != "我的演讲" {
+		t.Fatalf("after the site's title came back the film is named %q", got)
+	}
+
+	renamed := filepath.Join(filepath.Dir(filepath.Dir(video)), "Finder name")
+	if err := os.Rename(filepath.Dir(video), renamed); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	moved := filepath.Join(renamed, "video.mp4")
+	if a.library.Jobs[0].VideoPath != moved {
+		t.Fatalf("the job did not follow its folder: %q", a.library.Jobs[0].VideoPath)
+	}
+	if got := a.films(); len(got) != 1 || got[0].Name != "我的演讲" {
+		t.Fatalf("after the folder was renamed in Finder: %+v", got)
+	}
+	lib, err := shelf.Load(libraryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lib.Names) != 1 || lib.Names[moved] != "我的演讲" {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+}
+
+// TestRenameAVideoNoJobProcessed checks that a video found in the library folder can be renamed too, and that moving it to the Trash forgets its title.
+func TestRenameAVideoNoJobProcessed(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	a.library.Jobs = nil
+	if err := a.library.Save(); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	if got := a.films(); len(got) != 1 || got[0].JobID != "" {
+		t.Fatalf("films %+v", got)
+	}
+	renameFilm(t, a, tt, "Loose talk")
+	if got := a.films()[0]; got.Name != "Loose talk" || a.library.Names[video] != "Loose talk" {
+		t.Fatalf("film %+v names %v", got, a.library.Names)
+	}
+	if a.lib.renameOriginal != "Talk" {
+		t.Fatalf("the original title of a loose video is %q", a.lib.renameOriginal)
+	}
+
+	fakeTrash(t)
+	a.TrashFilm(a.films()[0])
+	if len(a.library.Names) != 0 {
+		t.Fatalf("the trashed video keeps its title: %v", a.library.Names)
+	}
+	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
+		t.Fatalf("library.json keeps %v", lib.Names)
+	}
+}

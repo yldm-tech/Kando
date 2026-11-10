@@ -192,7 +192,7 @@ func (a *app) remoteJobs(ctx context.Context) ([]remote.Job, error) {
 		running, waiting, finished := a.remoteQueue()
 		out := []remote.Job{}
 		for _, job := range slices.Concat(running, waiting, finished) {
-			out = append(out, remoteJobOf(job))
+			out = append(out, a.remoteJobOf(job))
 		}
 		return out, nil
 	})
@@ -245,7 +245,7 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 		}
 		for _, id := range ids {
 			if job, ok := a.library.Find(id); ok {
-				res.Jobs = append(res.Jobs, remoteJobOf(job))
+				res.Jobs = append(res.Jobs, a.remoteJobOf(job))
 			}
 		}
 		return res, nil
@@ -282,7 +282,7 @@ func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 			if !ok {
 				return remote.Job{}, remote.Errorf(remote.CodeNotFound, "job %q was removed", id)
 			}
-			return remoteJobOf(job), nil
+			return a.remoteJobOf(job), nil
 		})
 		if err != nil {
 			return remote.Job{}, err
@@ -523,8 +523,8 @@ func remoteFilmFiles(f *remote.Film) {
 }
 
 // remoteJobOf is job as the socket answers it, without its film (remoteJobFiles). UI thread only, as it says the status in the interface's language.
-func remoteJobOf(job core.Job) remote.Job {
-	name := jobName(job)
+func (a *app) remoteJobOf(job core.Job) remote.Job {
+	name := a.libraryJobName(job)
 	status, _ := failureHint(films.FromJob(job, name, statusText(job)))
 	j := remote.Job{
 		ID:        job.ID,
