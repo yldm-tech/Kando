@@ -1130,6 +1130,10 @@
   "@filmsNoSubtitles": {
     "description": "Part of the line under a poster: the video has not been processed yet."
   },
+  "filmsNoticeOpen": "Open",
+  "@filmsNoticeOpen": {
+    "description": "Button in the message bar that says a video is already in the library; it opens that film."
+  },
   "filmsOpenLibraryEllipsis": "Open Existing Library…",
   "@filmsOpenLibraryEllipsis": {
     "description": "Button that opens a folder dialog to open a library already on disk."
@@ -2621,10 +2625,6 @@
   "queueAlreadyInLibrary": "This video is already in the library.",
   "@queueAlreadyInLibrary": {
     "description": "Message bar, and the reason kando add and the MCP server give, when the video added has already been processed in the open library. The bar offers to open it."
-  },
-  "queueAlreadyOpen": "Open",
-  "@queueAlreadyOpen": {
-    "description": "Button in the message bar that says a video is already in the library; it opens that film."
   },
   "queueAlreadyQueued": "This video is already in the queue.",
   "@queueAlreadyQueued": {

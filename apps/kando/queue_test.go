@@ -1234,11 +1234,23 @@ func TestAddingAVideoInTheLibraryOffersToOpenIt(t *testing.T) {
 		t.Fatalf("open %q, notice %+v", a.openKey, a.lib.notice)
 	}
 
-	// A message about something else has no 打开.
+	// Once the film it names is removed, the bar still showing has nothing to open, and no 打开.
 	a.closeFilm()
+	a.libraryEnqueue("https://youtu.be/TRWgBxVAb1M")
+	tt.Frame()
+	if !slices.Contains(tt.Texts(), "打开") {
+		t.Fatalf("no 打开 before the film is removed; texts %q", tt.Texts())
+	}
+	a.remove("done")
+	tt.Frame()
+	if !a.lib.notice.Open || slices.Contains(tt.Texts(), "打开") {
+		t.Fatalf("notice %+v, texts %q", a.lib.notice, tt.Texts())
+	}
+
+	// A message about something else has no 打开.
 	a.warn("别的消息", "")
 	tt.Frame()
-	if tt.HasText("打开") {
+	if slices.Contains(tt.Texts(), "打开") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
@@ -1264,8 +1276,13 @@ func TestAddingAFailedVideoAgainRetriesIt(t *testing.T) {
 		t.Fatalf("failed job %+v", job)
 	}
 
+	// Queued again from another page, such as the YouTube filter whose top bar adds links too, the window stays on that page.
+	a.page = pageYouTube
 	if err := a.Enqueue("file:///Users/me/Movies/../Movies/clip.mp4", "https://vimeo.com/76979871"); err != nil {
 		t.Fatal(err)
+	}
+	if a.page != pageYouTube {
+		t.Fatalf("page %q after adding a cancelled video again, want the YouTube page", a.page)
 	}
 	settle(t, a, tt, updates)
 	if job := stageOf(t, a, "cancelled"); job.Stage != core.StageComplete || len(a.library.Jobs) != 4 {

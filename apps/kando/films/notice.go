@@ -28,10 +28,11 @@ func notice(c *ui.Context, a App) {
 				a.OpenSettings(n.Section)
 			}
 		}
+		// The film named may have been removed since the bar opened; then there is nothing to open and no button.
 		if n.Film != "" {
-			c.Key("notice-film")
-			if breeze.Button(c, locales.QueueAlreadyOpen()).Height(26).Shrink(0).Clicked() {
-				if item, ok := a.JobFilm(n.Film); ok {
+			if item, ok := a.JobFilm(n.Film); ok {
+				c.Key("notice-film")
+				if breeze.Button(c, locales.FilmsNoticeOpen()).Height(26).Shrink(0).Clicked() {
 					n.Open = false
 					a.Open(item)
 				}

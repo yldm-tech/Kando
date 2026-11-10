@@ -304,6 +304,8 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 		{ID: "done", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: done, LibraryDir: dir},
 		{ID: "failed", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: dir},
 	}
+	// Adding from kando add or MCP, a failed video queued again included, leaves the window where the user is.
+	a.page = pageAccount
 
 	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{
 		Sources: []string{"https://example.com/a", "https://www.youtube.com/@veritasium", "https://www.youtube.com/playlist?list=PLx0sYbCqOb8", "https://youtu.be/TRWgBxVAb1M", "https://example.com/a", "https://www.bilibili.com/video/BV1GJ411x7h7/"},
@@ -329,6 +331,9 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 	}
 	if len(a.library.Jobs) != 3 {
 		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	if a.page != pageAccount {
+		t.Fatalf("page %q after a remote add, want the account page", a.page)
 	}
 
 	for _, job := range a.library.Jobs {

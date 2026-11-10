@@ -109,8 +109,10 @@ func (a *app) queueTake(source string) (string, error) {
 	var dup *queueDuplicate
 	if errors.As(err, &dup) && dup.Stage == core.StageFailed {
 		old, _ := a.library.Find(dup.ID)
-		a.retry(old)
-		return old.ID, nil
+		if old, ok := a.queueRetryable(old); ok {
+			a.queueAdd(old)
+			return old.ID, nil
+		}
 	}
 	if err != nil {
 		return "", err
@@ -289,21 +291,30 @@ func (a *app) remove(id string) {
 	}
 }
 
-// retry queues a failed or cancelled job again under the same ID, so the card already on screen follows it.
+// retry queues a failed or cancelled job again under the same ID, so the card already on screen follows it, and shows that card on the library page.
 func (a *app) retry(job core.Job) {
-	if job.ID == a.queue.active || job.Stage == core.StageQueued {
+	job, ok := a.queueRetryable(job)
+	if !ok {
 		return
+	}
+	a.page = pageFilms
+	a.queue.selectedID = job.ID
+	a.queueAdd(job)
+}
+
+// queueRetryable is job ready to be queued again, with the language to use filled in, and whether it can be: not when it is running or already waiting, or when no language is set, which the page's status then says. It changes neither the page nor the selected card, so a video added again from kando add, MCP or the top bar of another page is queued where the user is (queueTake).
+func (a *app) queueRetryable(job core.Job) (core.Job, bool) {
+	if job.ID == a.queue.active || job.Stage == core.StageQueued {
+		return job, false
 	}
 	if strings.TrimSpace(job.Language) == "" {
 		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if job.Language == "" {
 		a.queue.status = locales.QueueNoLanguage()
-		return
+		return job, false
 	}
-	a.page = pageFilms
-	a.queue.selectedID = job.ID
-	a.queueAdd(job)
+	return job, true
 }
 
 func (a *app) newDraft() {

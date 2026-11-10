@@ -3392,6 +3392,22 @@ func (msgs Messages) FilmsNoSubtitles() string {
 	return Catalog.Format(msgs.locale, "filmsNoSubtitles", nil)
 }
 
+// FilmsNoticeOpen says "Open"
+// in the language the app shows.
+//
+// Button in the message bar that says a video is already in the library; it
+// opens that film.
+func FilmsNoticeOpen() string { return In(i18n.Locale()).FilmsNoticeOpen() }
+
+// FilmsNoticeOpen says "Open"
+// in the language of msgs.
+//
+// Button in the message bar that says a video is already in the library; it
+// opens that film.
+func (msgs Messages) FilmsNoticeOpen() string {
+	return Catalog.Format(msgs.locale, "filmsNoticeOpen", nil)
+}
+
 // FilmsOpenLibraryEllipsis says "Open Existing Library…"
 // in the language the app shows.
 //
@@ -7368,22 +7384,6 @@ func QueueAlreadyInLibrary() string { return In(i18n.Locale()).QueueAlreadyInLib
 // offers to open it.
 func (msgs Messages) QueueAlreadyInLibrary() string {
 	return Catalog.Format(msgs.locale, "queueAlreadyInLibrary", nil)
-}
-
-// QueueAlreadyOpen says "Open"
-// in the language the app shows.
-//
-// Button in the message bar that says a video is already in the library; it
-// opens that film.
-func QueueAlreadyOpen() string { return In(i18n.Locale()).QueueAlreadyOpen() }
-
-// QueueAlreadyOpen says "Open"
-// in the language of msgs.
-//
-// Button in the message bar that says a video is already in the library; it
-// opens that film.
-func (msgs Messages) QueueAlreadyOpen() string {
-	return Catalog.Format(msgs.locale, "queueAlreadyOpen", nil)
 }
 
 // QueueAlreadyQueued says "This video is already in the queue."
