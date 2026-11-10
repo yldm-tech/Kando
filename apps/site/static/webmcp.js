@@ -2,7 +2,7 @@
 //
 // It follows the WebMCP draft of the W3C Web Machine Learning Community Group, as of November 2026: document.modelContext.registerTool(tool), where tool is {name, description, inputSchema, execute, annotations} and execute(input) returns a promise of the result. Earlier drafts and builds put the same object on navigator, so that is used when document has none. A result is MCP's tool result, {content: [{type: "text", text}], structuredContent}, with isError set when the input cannot be answered, so that the agent can correct it and call again.
 //
-// The tools answer from files the generator writes into /webmcp/ (apps/site/webmcp.go), named with their addresses in the page's <script id="webmcp-data">, and fetched only when a tool is called, so that a visitor without an agent loads nothing more.
+// The tools answer from files the build writes into /webmcp/ (apps/site/buildtime/webmcp.ts), named with their addresses in the page's <script id="webmcp-data">, and fetched only when a tool is called, so that a visitor without an agent loads nothing more.
 (function () {
   "use strict";
 
