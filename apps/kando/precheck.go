@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/films/sitename"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 )
 
-// precheck says why sources cannot be processed yet, in the prototype's words (locales.Precheck…), and the settings section that fixes it ("" when none does), in the prototype's order: an empty field, something that is not a link, no library, then the tools and settings a job needs. It reads only what the app already holds, so a click can afford it; what it cannot tell without running a program, as an EveryAPI login that has expired, still fails the job, whose card says so.
+// precheck says why sources cannot be processed yet, in the prototype's words (locales.Precheck…), and the settings section that fixes it ("" when none does), in the prototype's order: an empty field, something that is not a link, a channel or a list that names no single video, no library, then the tools and settings a job needs. It reads only what the app already holds, so a click can afford it; what it cannot tell without running a program, as an EveryAPI login that has expired, still fails the job, whose card says so.
 func (a *app) precheck(sources []string) (msg, section string) {
 	if len(sources) == 0 {
 		return locales.PrecheckEmpty(), ""
@@ -22,8 +23,12 @@ func (a *app) precheck(sources []string) (msg, section string) {
 		if source == "" {
 			return locales.PrecheckEmpty(), ""
 		}
-		if _, ok := core.ParseLink(source); !ok {
+		link, ok := core.ParseLink(source)
+		if !ok {
 			return locales.PrecheckNotLink(), ""
+		}
+		if !link.OneVideo() {
+			return precheckWhole(link), ""
 		}
 	}
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
@@ -57,6 +62,20 @@ func (a *app) precheck(sources []string) (msg, section string) {
 		return locales.PrecheckNotSignedIn(), settings.SectionAI
 	}
 	return "", ""
+}
+
+// precheckWhole says that link names a channel or a list rather than one video, which a job would download whole, naming the site when Kando knows it. It asks for the link of one of its videos, as the onboarding's link field does (onboarding.LinkHint, which also refuses a local file and so is not used here).
+func precheckWhole(link core.Link) string {
+	site := sitename.Of(link.Site)
+	switch {
+	case link.Kind == core.LinkChannel && site == "":
+		return locales.PrecheckChannelUnnamed()
+	case link.Kind == core.LinkChannel:
+		return locales.PrecheckChannel(site)
+	case site == "":
+		return locales.PrecheckListUnnamed()
+	}
+	return locales.PrecheckList(site)
 }
 
 // sourceError says in the library's words why core.NewJob, through Enqueue, refused a source.

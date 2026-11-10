@@ -675,6 +675,18 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 	}{
 		{name: "empty", sources: []string{"  "}, msg: locales.PrecheckEmpty()},
 		{name: "not a link", sources: []string{"hello"}, msg: locales.PrecheckNotLink()},
+		// yt-dlp would download every video of a channel or a list that names none of them into the library, under one card.
+		{name: "a YouTube handle", sources: []string{"https://www.youtube.com/@veritasium"}, msg: locales.PrecheckChannel("YouTube")},
+		{name: "a YouTube channel ID", sources: []string{"https://www.youtube.com/channel/UCHnyfMqiRRG1u-2MsSQLbXA"}, msg: locales.PrecheckChannel("YouTube")},
+		{name: "a YouTube channel name", sources: []string{"https://www.youtube.com/c/veritasium/videos"}, msg: locales.PrecheckChannel("YouTube")},
+		{name: "a bilibili channel", sources: []string{"https://space.bilibili.com/946974"}, msg: locales.PrecheckChannel("哔哩哔哩")},
+		{name: "a playlist", sources: []string{"https://www.youtube.com/playlist?list=PLx0sYbCqOb8"}, msg: locales.PrecheckList("YouTube")},
+		{name: "a list without a video", sources: []string{"https://www.youtube.com/watch?list=PLx0sYbCqOb8"}, msg: locales.PrecheckList("YouTube")},
+		{name: "a bilibili collection", sources: []string{"https://space.bilibili.com/946974/channel/collectiondetail?sid=1"}, msg: locales.PrecheckList("哔哩哔哩")},
+		{name: "a channel among videos", sources: []string{"https://youtu.be/TRWgBxVAb1M", "https://www.youtube.com/@veritasium"}, msg: locales.PrecheckChannel("YouTube")},
+		{name: "a video in a list", sources: []string{"https://www.youtube.com/watch?v=TRWgBxVAb1M&list=PLx0sYbCqOb8"}},
+		{name: "a part of a bilibili video", sources: []string{"https://www.bilibili.com/video/BV1GJ411x7h7?p=3"}},
+		{name: "a local file", sources: []string{"file:///Users/me/Movies/clip.mp4"}},
 		{name: "no library", sources: link, noLib: true, msg: locales.PrecheckNoLibrary()},
 		{name: "no yt-dlp", sources: link, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: locales.PrecheckToolsMissing("yt-dlp"), section: settings.SectionGeneral},
 		{name: "a local file still needs yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: locales.PrecheckToolsMissing("yt-dlp"), section: settings.SectionGeneral},

@@ -7,7 +7,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// notice is the message bar under the top bar, as the prototype draws it: amber with a warning triangle for what went wrong, green with a check mark for what worked, 打开设置 when a setting fixes what it says, and × to close it.
+// notice is the message bar under the top bar, as the prototype draws it: amber with a warning triangle for what went wrong, green with a check mark for what worked, 打开设置 when a setting fixes what it says, 打开 when it names a film in the library, and × to close it.
 func notice(c *ui.Context, a App) {
 	n := a.Notice()
 	if !n.Open {
@@ -26,6 +26,15 @@ func notice(c *ui.Context, a App) {
 			c.Key("notice-settings")
 			if breeze.Button(c, locales.FilmsOpenSettings()).Height(26).Shrink(0).Clicked() {
 				a.OpenSettings(n.Section)
+			}
+		}
+		if n.Film != "" {
+			c.Key("notice-film")
+			if breeze.Button(c, locales.QueueAlreadyOpen()).Height(26).Shrink(0).Clicked() {
+				if item, ok := a.JobFilm(n.Film); ok {
+					n.Open = false
+					a.Open(item)
+				}
 			}
 		}
 		c.Key("notice-close")

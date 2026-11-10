@@ -220,6 +220,8 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 	}
 	args := []string{
 		"--no-playlist",
+		// --no-playlist only picks the video of a link that names both a video and its list. A link to a list alone that core.ParseLink does not recognise as one, on any of the sites yt-dlp reads, would still download every video of the list into the library; with this yt-dlp stops after the first, exiting with ytdlpMaxDownloadsExit.
+		"--max-downloads", "1",
 		"-f", "bv*+ba/b",
 		"--merge-output-format", "mp4",
 		"-P", t.OutputDir,
@@ -241,13 +243,19 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}
 	if _, _, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...); err != nil {
-		return "", err
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) || exit.ExitCode() != ytdlpMaxDownloadsExit || reader.path == "" {
+			return "", err
+		}
 	}
 	if reader.path == "" {
 		return "", errors.New("yt-dlp did not report the downloaded file")
 	}
 	return reader.path, nil
 }
+
+// ytdlpMaxDownloadsExit is how yt-dlp exits once it has downloaded as many videos as --max-downloads allows, which it does after the one video every download asks for, and also when that video was already downloaded. The video it names (after_move:filepath) is then there, and the download succeeded.
+const ytdlpMaxDownloadsExit = 101
 
 // libraryDownloads is the hidden folder of the library that holds partial downloads when DownloadTemp is not on the library's volume. The library's readers skip names that start with a dot.
 const libraryDownloads = ".kando-downloads"

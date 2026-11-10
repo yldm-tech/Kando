@@ -2456,6 +2456,20 @@
   "@playerUnplayable": {
     "description": "Shown in place of the picture when ffmpeg cannot open the video."
   },
+  "precheckChannel": "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos.",
+  "@precheckChannel": {
+    "description": "Message bar when the link added is a channel's on a named site: a job downloads one video, and yt-dlp would download the whole channel.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "precheckChannelUnnamed": "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos.",
+  "@precheckChannelUnnamed": {
+    "description": "Message bar when the link added is a channel's on a site without a known name."
+  },
   "precheckEmpty": "Paste a video link first, or choose a local file.",
   "@precheckEmpty": {
     "description": "Message bar when the link field is empty."
@@ -2509,6 +2523,20 @@
         "example": "something nobody has seen"
       }
     }
+  },
+  "precheckList": "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos.",
+  "@precheckList": {
+    "description": "Message bar when the link added is a playlist on a named site that names no single video: yt-dlp would download the whole list.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "YouTube"
+      }
+    }
+  },
+  "precheckListUnnamed": "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos.",
+  "@precheckListUnnamed": {
+    "description": "Message bar when the link added is a playlist on a site without a known name that names no single video."
   },
   "precheckNoLLMModel": "Choose a model in “AI Service” first",
   "@precheckNoLLMModel": {
@@ -2589,6 +2617,18 @@
   "precheckTranslateTimeout": "The AI service didn't respond, even after automatic retries. Retry later.",
   "@precheckTranslateTimeout": {
     "description": "Card of a job whose translation failed because the AI service never answered."
+  },
+  "queueAlreadyInLibrary": "This video is already in the library.",
+  "@queueAlreadyInLibrary": {
+    "description": "Message bar, and the reason kando add and the MCP server give, when the video added has already been processed in the open library. The bar offers to open it."
+  },
+  "queueAlreadyOpen": "Open",
+  "@queueAlreadyOpen": {
+    "description": "Button in the message bar that says a video is already in the library; it opens that film."
+  },
+  "queueAlreadyQueued": "This video is already in the queue.",
+  "@queueAlreadyQueued": {
+    "description": "Message bar, and the reason kando add and the MCP server give, when the video added is already waiting or being processed in the open library."
   },
   "queueBorrowed": "Using {browser}'s sign-in. Downloading now.",
   "@queueBorrowed": {
