@@ -2,6 +2,12 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.8.0 - 2026-11-10
+
+### Features
+
+- Drag subtitles up and down, off a film's burned-in lines
+
 ## 0.7.0 - 2026-11-10
 
 ### Fixes
