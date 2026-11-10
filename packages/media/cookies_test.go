@@ -194,3 +194,34 @@ func argAfter(args, flag string) (string, bool) {
 	}
 	return "", false
 }
+
+// A cookies folder a download left behind goes at the next startup, and nothing else in the folder does.
+func TestSweepCookieDirs(t *testing.T) {
+	dir := t.TempDir()
+	stale := filepath.Join(dir, "cookies-123456")
+	if err := os.MkdirAll(stale, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stale, "cookies.txt"), []byte(cookiesHeader), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, keep := range []string{"downloads", "posters"} {
+		if err := os.MkdirAll(filepath.Join(dir, keep), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "cookies-note"), []byte("a file, not a folder"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	SweepCookieDirs(dir)
+	if _, err := os.Stat(stale); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stale cookies folder still there: %v", err)
+	}
+	for _, keep := range []string{"downloads", "posters", "cookies-note"} {
+		if _, err := os.Stat(filepath.Join(dir, keep)); err != nil {
+			t.Fatalf("%s went: %v", keep, err)
+		}
+	}
+	SweepCookieDirs(filepath.Join(dir, "missing"))
+	SweepCookieDirs("")
+}

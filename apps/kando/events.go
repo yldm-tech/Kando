@@ -50,6 +50,8 @@ func (a *app) areas() []areaHooks {
 		a.logsHooks(),
 		a.sidebarHooks(),
 		a.libraryHooks(),
+		// The browser comes before the queue, as its ready gives the pipeline the pages' cookies (media.Tools.SiteCookies) and the queue's ready starts the first job left waiting, which takes the pipeline as it is then.
+		a.browseHooks(),
 		a.queueHooks(),
 		a.settingsHooks(),
 		a.cloudHooks(),
@@ -64,7 +66,6 @@ func (a *app) areas() []areaHooks {
 		a.remoteHooks(),
 		a.updatesHooks(),
 		a.windowHooks(),
-		a.browseHooks(),
 	}
 }
 

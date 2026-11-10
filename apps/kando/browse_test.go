@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -26,6 +30,8 @@ type fakeBrowsePage struct {
 	backs, forwards  int
 	reloads, stops   int
 	failLoad, failUp error
+	// mutes is each SetAudioMuted the browser asked for, in order.
+	mutes []bool
 }
 
 // open is browseUI.open: it makes no web view, so the page's room stays blank.
@@ -56,6 +62,9 @@ func (p *fakeBrowsePage) CanGoBack() bool    { return p.back }
 func (p *fakeBrowsePage) CanGoForward() bool { return p.forward }
 func (p *fakeBrowsePage) IsLoading() bool    { return p.loading }
 func (p *fakeBrowsePage) UserAgent() string  { return p.ua }
+func (p *fakeBrowsePage) SetAudioMuted(muted bool) {
+	p.mutes = append(p.mutes, muted)
+}
 
 // browseApp is a test app on the browser's page, its web view the fake page and its data cleared by a counter.
 func browseApp(t *testing.T, p media.Pipeline) (*app, *ui.Tester, chan func(), *fakeBrowsePage, *int) {
@@ -387,7 +396,7 @@ func TestBrowseShortcutsOnlyOnItsPage(t *testing.T) {
 	}
 }
 
-// A page goes only to http and https addresses, and a window it opens opens in the same view only when the user asked.
+// A page goes only to http and https addresses.
 func TestBrowseAllowsOnlyTheWeb(t *testing.T) {
 	for raw, want := range map[string]bool{
 		"https://example.com/":      true,
@@ -506,5 +515,120 @@ func TestSidebarBrowseRow(t *testing.T) {
 	tt.Frame()
 	if a.page != pageBrowse || a.browse.page == nil || fake.url != "https://example.com/" || len(fake.opened) != 1 || strings.Contains(strings.Join(tt.Texts(), "\n"), "打开有视频的网页") {
 		t.Fatalf("coming back: page %q, url %q, opened %q", a.page, fake.url, fake.opened)
+	}
+}
+
+// The page's own navigations go only to http and https addresses; anything else is stopped before it starts.
+func TestBrowseWillNavigateStopsAllButTheWeb(t *testing.T) {
+	a, _, updates, _, _ := browseApp(t, &fakePipeline{})
+	for raw, allowed := range map[string]bool{
+		"https://www.bilibili.com/video/BV1": true,
+		"http://example.com/":                true,
+		"file:///etc/passwd":                 false,
+		"kando://open":                       false,
+		"javascript:alert(1)":                false,
+	} {
+		e := &mygo.NavigateEvent{URL: raw, UserInitiated: true}
+		a.browseWillNavigate(e)
+		if e.DefaultPrevented() == allowed {
+			t.Errorf("%s: prevented %v", raw, e.DefaultPrevented())
+		}
+		select {
+		case fn := <-updates:
+			if !allowed {
+				t.Errorf("%s: a stopped navigation reported", raw)
+			}
+			fn()
+			if !a.browse.loading {
+				t.Errorf("%s: not loading after the report", raw)
+			}
+			a.browse.loading = false
+		default:
+			if allowed {
+				t.Errorf("%s: no report of the load", raw)
+			}
+		}
+	}
+}
+
+// A window the page opens is always refused: a link the user clicked loads in the same view, and a pop-up a script opens by itself, or one to an address that is not on the web, does nothing.
+func TestBrowseWindowOpenStaysInTheView(t *testing.T) {
+	a, tt, updates, fake, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, fake, "https://example.com/")
+	for _, req := range []mygo.WindowOpenRequest{
+		{URL: "https://ads.example.net/", UserInitiated: false},
+		{URL: "file:///etc/passwd", UserInitiated: true},
+		{URL: "kando://open", UserInitiated: true},
+		{URL: "https://example.com/watch", UserInitiated: true},
+	} {
+		if got := a.browseWindowOpen(req); got != nil {
+			t.Fatalf("%+v: answered window options %+v", req, got)
+		}
+	}
+	if len(updates) != 1 {
+		t.Fatalf("%d reports, want only the clicked web link's", len(updates))
+	}
+	(<-updates)()
+	tt.Frame()
+	if want := []string{"https://example.com/watch"}; len(fake.opened) != 1 || !slices.Equal(fake.loads, want) {
+		t.Fatalf("opened %q, loads %q, want one web view and loads %q", fake.opened, fake.loads, want)
+	}
+}
+
+// The hidden web view keeps its page, and a video in it would play on: its sound goes off while another page shows and comes back with the browser's page.
+func TestBrowseMutesWhileAnotherPageShows(t *testing.T) {
+	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, fake, "https://www.youtube.com/watch?v=x")
+	if len(fake.mutes) != 0 {
+		t.Fatalf("muted on its own page: %v", fake.mutes)
+	}
+	if err := tt.Click("全部影片"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Frame()
+	if !slices.Equal(fake.mutes, []bool{true}) {
+		t.Fatalf("on the library: mutes %v, want [true]", fake.mutes)
+	}
+	if err := tt.Click("浏览"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !slices.Equal(fake.mutes, []bool{true, false}) {
+		t.Fatalf("back on the browser: mutes %v, want [true false]", fake.mutes)
+	}
+}
+
+// The browser's ready gives the pipeline the pages' cookies and removes the cookies folders of downloads that never finished; it runs before the queue's, which starts the first job left waiting from the last run, so that job downloads with them too.
+func TestBrowseReadyGivesTheQueueTheCookies(t *testing.T) {
+	cache := t.TempDir()
+	stale := filepath.Join(cache, "cookies-998877")
+	if err := os.MkdirAll(stale, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	a, _, _ := newTestApp(media.Tools{CookieDir: cache})
+	a.browseHooks().ready()
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || tools.SiteCookies == nil {
+		t.Fatalf("pipeline %T without SiteCookies", a.pipeline)
+	}
+	if _, err := os.Stat(stale); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("stale cookies folder kept: %v", err)
+	}
+	browseAt, queueAt := -1, -1
+	for i, h := range a.areas() {
+		if h.ready == nil {
+			continue
+		}
+		name := runtime.FuncForPC(reflect.ValueOf(h.ready).Pointer()).Name()
+		switch {
+		case strings.Contains(name, ".browseHooks."):
+			browseAt = i
+		case strings.Contains(name, ".queueHooks."):
+			queueAt = i
+		}
+	}
+	if browseAt < 0 || queueAt < 0 || browseAt > queueAt {
+		t.Fatalf("browse ready at %d, queue ready at %d: the queue's first job would start without the cookies", browseAt, queueAt)
 	}
 }

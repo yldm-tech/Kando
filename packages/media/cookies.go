@@ -23,6 +23,25 @@ type Cookie struct {
 	Value   string
 }
 
+// cookieDirPrefix starts the name of each download's cookies folder in CookieDir.
+const cookieDirPrefix = "cookies-"
+
+// SweepCookieDirs removes from dir the cookies folders of downloads that never finished, as when the app was force-quit, crashed or lost power while yt-dlp ran, so the cookies they hold do not stay on disk. Only folders named as siteCookiesFile names them go; everything else in dir stays. The app calls it at startup, before any download can start, as one running would lose its cookies file. It reports nothing: what it cannot read or remove it leaves, and the next startup tries again.
+func SweepCookieDirs(dir string) {
+	if dir == "" {
+		return
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() && strings.HasPrefix(e.Name(), cookieDirPrefix) {
+			_ = os.RemoveAll(filepath.Join(dir, e.Name()))
+		}
+	}
+}
+
 // cookiesHeader is the first line of a Netscape cookies file, which yt-dlp's --cookies reads.
 const cookiesHeader = "# Netscape HTTP Cookie File\n"
 
@@ -47,10 +66,11 @@ func (t Tools) siteCookiesFile(ctx context.Context, source string) (file, userAg
 	if err := os.MkdirAll(base, 0o700); err != nil {
 		return "", "", done
 	}
-	dir, err := os.MkdirTemp(base, "cookies-")
+	dir, err := os.MkdirTemp(base, cookieDirPrefix+"*")
 	if err != nil {
 		return "", "", done
 	}
+	// yt-dlp saves the cookie jar it ends with back to this file, and with Cookies set that jar also holds every cookie it read from that browser, so the folder must not outlive the run: done removes it after yt-dlp exits, and SweepCookieDirs removes one a run that never ended left behind.
 	done = func() { _ = os.RemoveAll(dir) }
 	file = filepath.Join(dir, "cookies.txt")
 	f, err := os.OpenFile(file, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)

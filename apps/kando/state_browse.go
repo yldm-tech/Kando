@@ -32,6 +32,7 @@ type browsePage interface {
 	CanGoForward() bool
 	IsLoading() bool
 	UserAgent() string
+	SetAudioMuted(muted bool)
 }
 
 // browseUI is the state of the built-in browser (browse/): its web view, once made, what the toolbar shows of its page, the address field, the message bar and the 清除登录信息 confirmation.
@@ -62,6 +63,8 @@ type browseUI struct {
 	clearing  bool
 	// agent keeps the web view's user agent for the downloads, which read it from the pipeline's goroutine.
 	agent *browseAgent
+	// muted is whether the page's sound is off, as it is while another page of the window shows (browseAfterFrame).
+	muted bool
 }
 
 func newBrowseUI() browseUI { return browseUI{agent: &browseAgent{}} }
@@ -87,13 +90,14 @@ func (b *browseAgent) get() string {
 // browseBlank is the page home loads, which shows the start; the page's history keeps the pages before it, so back returns to them.
 const browseBlank = "about:blank"
 
-// browseHooks: once the window exists the browser can make its web view and clear its data, and every download asks the pages' cookies for its site (media.Tools.SiteCookies). After each frame the confirmation gives back the modal flag once it has closed, and a web view asked for is made.
+// browseHooks: once the window exists the browser can make its web view and clear its data, and every download asks the pages' cookies for its site (media.Tools.SiteCookies). Its ready runs before the queue's (areas), which starts the first job left waiting, so that job gets the cookies too; before that it removes the cookies folders of downloads that never finished, as none runs yet. After each frame the confirmation gives back the modal flag once it has closed, a web view asked for is made, and the page's sound is off while another page shows.
 func (a *app) browseHooks() areaHooks {
 	return areaHooks{
 		ready: func() {
 			a.browse.open = a.browseOpenWebView
 			a.browse.clear = mygo.App.ClearBrowsingData
 			if tools, ok := a.pipeline.(media.Tools); ok {
+				media.SweepCookieDirs(tools.CookieDir)
 				tools.SiteCookies = browseCookieSource(mygo.Cookies.List, a.browse.agent)
 				a.pipeline = tools
 			}
@@ -133,7 +137,7 @@ func (a *app) browseLoad(rawURL string) {
 	}
 }
 
-// browseAfterFrame gives back the window's modal flag once the confirmation has closed, closing it first when the window went to another page, which no longer draws it, and makes the web view a load asked for.
+// browseAfterFrame gives back the window's modal flag once the confirmation has closed, closing it first when the window went to another page, which no longer draws it, turns the page's sound off while another page shows and on again once the browser's shows, as the hidden web view keeps its page and a video in it plays on, and makes the web view a load asked for.
 func (a *app) browseAfterFrame() {
 	if a.page != pageBrowse {
 		a.browse.clearOpen = false
@@ -141,6 +145,10 @@ func (a *app) browseAfterFrame() {
 	if !a.browse.clearOpen && a.browse.release != nil {
 		a.browse.release()
 		a.browse.release = nil
+	}
+	if muted := a.page != pageBrowse; a.browse.page != nil && a.browse.muted != muted {
+		a.browse.page.SetAudioMuted(muted)
+		a.browse.muted = muted
 	}
 	if a.browse.pending == "" || a.browse.page != nil || a.browse.open == nil {
 		return
@@ -171,13 +179,7 @@ func (a *app) browseOpenWebView(rawURL string) (browsePage, *mygo.WebView, error
 		return nil, nil, err
 	}
 	page := view.Page()
-	page.OnWillNavigate(func(e *mygo.NavigateEvent) {
-		if !browseAllowed(e.URL) {
-			e.PreventDefault()
-			return
-		}
-		a.update(func() { a.browse.loading = true })
-	})
+	page.OnWillNavigate(a.browseWillNavigate)
 	page.OnDidNavigate(func(string) { a.update(a.browseRefresh) })
 	page.OnPageTitleUpdated(func(*mygo.TitleEvent) { a.update(a.browseRefresh) })
 	page.OnDidFinishLoad(func() { a.update(a.browseRefresh) })
@@ -188,18 +190,30 @@ func (a *app) browseOpenWebView(rawURL string) (browsePage, *mygo.WebView, error
 			a.browseLoadFailed(reason)
 		})
 	})
-	page.SetWindowOpenHandler(func(req mygo.WindowOpenRequest) *mygo.WindowOptions {
-		if req.UserInitiated && browseAllowed(req.URL) {
-			a.update(func() { a.browseLoad(req.URL) })
-		}
-		return nil
-	})
+	page.SetWindowOpenHandler(a.browseWindowOpen)
 	if err := page.LoadURL(rawURL); err != nil {
 		view.Destroy()
 		return nil, nil, err
 	}
 	a.win.Invalidate()
 	return page, view, nil
+}
+
+// browseWillNavigate is the page's OnWillNavigate listener: it lets the page go to http and https addresses and stops it going anywhere else, as a file, the app's own schemes or another app's.
+func (a *app) browseWillNavigate(e *mygo.NavigateEvent) {
+	if !browseAllowed(e.URL) {
+		e.PreventDefault()
+		return
+	}
+	a.update(func() { a.browse.loading = true })
+}
+
+// browseWindowOpen is the page's window open handler: a link or script that opens a window loads its http or https address in the same view when the user clicked it, and does nothing otherwise, as a pop-up a script opens by itself. It always answers nil, which refuses the window, so the page never opens a window of the app.
+func (a *app) browseWindowOpen(req mygo.WindowOpenRequest) *mygo.WindowOptions {
+	if req.UserInitiated && browseAllowed(req.URL) {
+		a.update(func() { a.browseLoad(req.URL) })
+	}
+	return nil
 }
 
 // browseUserAgentSuffix is what the pages' user agent ends with: on macOS Safari's version, as sites serve a WKWebView, whose user agent names no browser, older pages and refuse it their sign-in. WebKitGTK and WebView2 already name their browsers.
