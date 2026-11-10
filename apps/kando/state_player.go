@@ -45,7 +45,16 @@ type playerUI struct {
 	// volumeGen counts volume changes, so only the last of a quick run of them starts the sound again (playerVolumeChanged); volumeUnsaved is set until the change is kept in the settings.
 	volumeGen     int
 	volumeUnsaved bool
-	film          filmUI
+	// screen is the window the player enters and leaves full screen in: the main window once it exists (playerReady), and nil before, as in tests that set none, when full screen does nothing.
+	screen fullScreen
+	film   filmUI
+}
+
+// fullScreen is the part of a window the player uses to enter and leave full screen, as *mygo.Window has it.
+type fullScreen interface {
+	IsFullScreen() bool
+	SetFullScreen(v bool)
+	ToggleFullScreen()
 }
 
 // filmUI is the player's state that belongs to the one film open, which opening another starts afresh (resetFilm).
@@ -181,10 +190,13 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
+// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.playerQuitting}
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.playerQuitting}
 }
+
+// playerReady points the player's full screen at the main window, which exists from now on.
+func (a *app) playerReady() { a.player.screen = a.win }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.
 func (a *app) closeFilmThatLeft() {

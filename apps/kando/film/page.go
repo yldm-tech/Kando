@@ -217,15 +217,20 @@ func (s screen) chromeShown(c *ui.Context, now time.Time) bool {
 	return true
 }
 
-// stage is the picture, or what stands for it while it opens or cannot play. A click on it starts or holds the film. The pointer hides over it with the controls. While the side panel shows, the stage is the room left of it, as the subtitles' and the transport's are, so the panel never hides part of the picture, such as a screencast's text.
+// stage is the picture, or what stands for it while it opens or cannot play. A click on it starts or holds the film, and a double click enters or leaves full screen. The pointer hides over it with the controls. While the side panel shows, the stage is the room left of it, as the subtitles' and the transport's are, so the panel never hides part of the picture, such as a screencast's text.
 func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool, panelSpace float32) {
 	right := panelSpace
 	stage := ui.Box(c).Absolute().Left(0).Top(0).Right(right).Bottom(0).Role(ui.RoleGroup).Label(locales.FilmPicture())
 	if !shown {
 		stage.Cursor(ui.CursorNone)
 	}
-	if s.Play() != nil && stage.Clicked() {
+	// Each click starts or holds the film, so an even count since the last frame, as a double click's two clicks arriving together, leaves it as it was.
+	if s.Play() != nil && stage.Clicks()%2 == 1 {
 		s.togglePlay(c)
+	}
+	// A double click is two clicks as well, whose toggles cancel out, so the film plays on, or stays held, as it enters or leaves full screen.
+	if s.Play() != nil && stage.DoubleClicked() {
+		s.ToggleFullScreen()
 	}
 	stage.Children(func() {
 		switch {
