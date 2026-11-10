@@ -134,7 +134,7 @@ func TestSpeechDownloadResumesAfterADrop(t *testing.T) {
 	a.DownloadModel("tiny")
 	waitUntil(t, updates, func() bool { return a.Downloading() == "" })
 	tt := settingsOpenAt(a, nil, settings.SectionSpeech)
-	wantText(t, tt, "连接断了。重新下载会从断开的地方接着下。")
+	wantText(t, tt, "连接断了。检查网络后再下载一次。")
 	if info, err := os.Stat(filepath.Join(a.prefs.modelsDir, "ggml-tiny.bin.partial")); err != nil || info.Size() != 1000 {
 		t.Fatalf("the dropped download kept %v, err %v", info, err)
 	}
@@ -166,7 +166,7 @@ func TestSpeechDownloadErrorSaysWhy(t *testing.T) {
 		{errSpeechNoModelsDir, "还没有模型目录"},
 		{media.ErrStalled, "下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"},
 		{rejected(503), "服务器返回 HTTP 503，请稍后再试。"},
-		{fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected), "连接断了。重新下载会从断开的地方接着下。"},
+		{fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected), "连接断了。检查网络后再下载一次。"},
 		{errors.New("no space left on device"), "no space left on device"},
 	} {
 		if got := speechDownloadError(tc.err); got != tc.want {

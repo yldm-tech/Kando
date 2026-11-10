@@ -754,7 +754,7 @@
   "settingsSpeechBlurbTiny": "只想快速试一下。错字较多，只适合发音清楚的英语。",
   "settingsSpeechCancel": "取消",
   "settingsSpeechDownload": "下载",
-  "settingsSpeechDownloadDisconnected": "连接断了。重新下载会从断开的地方接着下。",
+  "settingsSpeechDownloadDisconnected": "连接断了。检查网络后再下载一次。",
   "settingsSpeechDownloadFailedStatus": "服务器返回 HTTP {status}，请稍后再试。",
   "settingsSpeechDownloadProgress": "{model} 下载进度",
   "settingsSpeechDownloadStalled": "下载停住了，一直收不到数据。重新下载会从断开的地方接着下。",

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -273,6 +274,35 @@ func TestDownloadSpeechModelRestartsWhenTheFileChanged(t *testing.T) {
 	}
 	wantModel(t, dir, data)
 	if len(requests) != 2 || requests[0] != "bytes=14-" || requests[1] != "" {
+		t.Fatalf("requests %q, want a resume and then the whole file", requests)
+	}
+}
+
+// A 206 that starts somewhere other than where the partial file ends would put its bytes in the wrong place, so the download starts over even though the file is the same.
+func TestDownloadSpeechModelRestartsWhenTheRangeStartsElsewhere(t *testing.T) {
+	data := modelBytes(200 << 10)
+	var requests []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Header.Get("Range"))
+		w.Header().Set("ETag", `"v1"`)
+		if r.Header.Get("Range") != "" {
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes 0-%d/%d", len(data)-1, len(data)))
+			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write(data)
+			return
+		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		_, _ = w.Write(data)
+	}))
+	t.Cleanup(srv.Close)
+	dir := t.TempDir()
+	leavePartial(t, dir, data[:1000], `"v1"`)
+	if _, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil); err != nil {
+		t.Fatal(err)
+	}
+	wantModel(t, dir, data)
+	if len(requests) != 2 || requests[0] != "bytes=1000-" || requests[1] != "" {
 		t.Fatalf("requests %q, want a resume and then the whole file", requests)
 	}
 }

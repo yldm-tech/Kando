@@ -754,7 +754,7 @@
   "settingsSpeechBlurbTiny": "とりあえず試したいとき向け。誤りが多く、発音のはっきりした英語にしか向きません。",
   "settingsSpeechCancel": "キャンセル",
   "settingsSpeechDownload": "ダウンロード",
-  "settingsSpeechDownloadDisconnected": "接続が切れました。もう一度ダウンロードすると、途中から再開します。",
+  "settingsSpeechDownloadDisconnected": "接続が切れました。ネットワークを確認して、もう一度ダウンロードしてください。",
   "settingsSpeechDownloadFailedStatus": "サーバーが HTTP {status} を返しました。しばらくしてからもう一度お試しください。",
   "settingsSpeechDownloadProgress": "{model} のダウンロードの進行状況",
   "settingsSpeechDownloadStalled": "データが届かなくなり、ダウンロードが止まりました。もう一度ダウンロードすると、途中から再開します。",

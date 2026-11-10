@@ -11402,22 +11402,22 @@ func (msgs Messages) SettingsSpeechDownload() string {
 	return Catalog.Format(msgs.locale, "settingsSpeechDownload", nil)
 }
 
-// SettingsSpeechDownloadDisconnected says "The connection dropped. Download again to continue from where it stopped."
+// SettingsSpeechDownloadDisconnected says "The connection dropped. Check your network and download again."
 // in the language the app shows.
 //
-// Error on the Speech Recognition page and in the guide: the connection
-// broke off during a whisper model's download; downloading again resumes
-// it.
+// Error on the Speech Recognition page and in the guide: the connection to
+// the server failed or broke off during a whisper model's download. It may
+// fail before any data arrived, so it does not promise to resume.
 func SettingsSpeechDownloadDisconnected() string {
 	return In(i18n.Locale()).SettingsSpeechDownloadDisconnected()
 }
 
-// SettingsSpeechDownloadDisconnected says "The connection dropped. Download again to continue from where it stopped."
+// SettingsSpeechDownloadDisconnected says "The connection dropped. Check your network and download again."
 // in the language of msgs.
 //
-// Error on the Speech Recognition page and in the guide: the connection
-// broke off during a whisper model's download; downloading again resumes
-// it.
+// Error on the Speech Recognition page and in the guide: the connection to
+// the server failed or broke off during a whisper model's download. It may
+// fail before any data arrived, so it does not promise to resume.
 func (msgs Messages) SettingsSpeechDownloadDisconnected() string {
 	return Catalog.Format(msgs.locale, "settingsSpeechDownloadDisconnected", nil)
 }
