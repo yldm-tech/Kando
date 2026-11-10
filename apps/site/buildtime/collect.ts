@@ -1,6 +1,7 @@
 // collect reads everything the site shows from the repository, checks it, and writes the files the pages link into the public folder: the static scripts, the icons, the screenshots and link preview images, the marks and logos, the WebMCP files, the sitemap, robots.txt, CNAME, the web app manifest and llms.txt; and it makes each page's structured data. Any source that is missing or changed shape fails the build.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { minifySync } from "vite";
 import { languages, pagePath, sourceLang, type LangCode } from "../src/lib/site";
 import { appVersion, loadAppStrings, readModelNames, readModels, readSurface } from "./app";
 import { catalogRows, featuredTiles, loadSiteNames, localTiles, readCatalog } from "./catalog";
@@ -40,10 +41,14 @@ export function collect(root: string, siteDir: string, contentDir: string, pub: 
   mkdirSync(join(pub, "static"), { recursive: true });
 
   const statics: Record<string, string> = {};
+  // The static scripts are not bundled, so they are minified here as Vite minifies the bundles: site.js blocks the first paint, and the smaller it is the sooner the page shows.
   for (const name of ["site.js", "webmcp.js"]) {
-    const data = readFileSync(join(siteDir, "static", name));
-    writeFileSync(join(pub, "static", name), data);
-    statics[name] = hashLink("/static/" + name, data);
+    const min = minifySync(name, readFileSync(join(siteDir, "static", name), "utf8"));
+    if (min.errors.length > 0) {
+      throw new Error(`static/${name}: ${min.errors.map((e) => e.message).join("; ")}`);
+    }
+    writeFileSync(join(pub, "static", name), min.code);
+    statics[name] = hashLink("/static/" + name, min.code);
   }
 
   writeIcons(join(root, "apps/kando/resources/icon.png"), pub);
