@@ -62,31 +62,33 @@ export function OpenSource() {
                 Windows
               </button>
             </div>
-            <div className="dl-panel" {...tabs.panel(0)}>
-              <p>{t("dlMacBody")}</p>
-              <p>
-                <a className="btn primary" href={latestURL}>
-                  <AppleMark size={16} />
-                  {t("dlMacButton")}
-                </a>
-              </p>
-              <p className="fine">{t("dlFirstRun")}</p>
-            </div>
-            <div className="dl-panel" {...tabs.panel(1)}>
-              <p>{t("dlLinuxBody")}</p>
-              <CodeBlock text={installCommand} />
-              <p className="fine">{t("dlLinuxNote")}</p>
-              <p>
-                <a className="btn soft" href={latestURL}>
-                  {t("dlLinuxButton")}
-                </a>
-              </p>
-              <p className="fine">{t("dlFirstRun")}</p>
-            </div>
-            <div className="dl-panel" {...tabs.panel(2)}>
-              <p>{t("dlWinBody")}</p>
-              <CodeBlock text={buildCommands} />
-              <p className="fine">{t("dlWinNote")}</p>
+            <div {...tabs.stack}>
+              <div className="dl-panel" {...tabs.panel(0)}>
+                <p>{t("dlMacBody")}</p>
+                <p>
+                  <a className="btn primary" href={latestURL}>
+                    <AppleMark size={16} />
+                    {t("dlMacButton")}
+                  </a>
+                </p>
+                <p className="fine">{t("dlFirstRun")}</p>
+              </div>
+              <div className="dl-panel" {...tabs.panel(1)}>
+                <p>{t("dlLinuxBody")}</p>
+                <CodeBlock text={installCommand} />
+                <p className="fine">{t("dlLinuxNote")}</p>
+                <p>
+                  <a className="btn soft" href={latestURL}>
+                    {t("dlLinuxButton")}
+                  </a>
+                </p>
+                <p className="fine">{t("dlFirstRun")}</p>
+              </div>
+              <div className="dl-panel" {...tabs.panel(2)}>
+                <p>{t("dlWinBody")}</p>
+                <CodeBlock text={buildCommands} />
+                <p className="fine">{t("dlWinNote")}</p>
+              </div>
             </div>
             <p className="dl-readme">
               <a href={readmeURL(lang)}>

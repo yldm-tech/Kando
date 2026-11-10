@@ -1,7 +1,7 @@
-// SlidingPill is the marker behind the chosen item of a row of tabs or links, which slides to the next one with a spring when the choice changes. It is drawn only once the page runs: before that, and without script, the stylesheet marks the chosen item itself, and the row's data-pill attribute, set with the pill, tells the stylesheet to stop. The row must be positioned, so that the items' offsets are the pill's.
+// SlidingPill is the marker behind the chosen item of a row of tabs or links, which slides to the next one when the choice changes, on the design's curve (.4s, cubic-bezier(.4, 0, .2, 1)). It is drawn only once the page runs: before that, and without script, the stylesheet marks the chosen item itself, and the row's data-pill attribute, set with the pill, tells the stylesheet to stop. The row must be positioned, so that the items' offsets are the pill's.
 import { animate } from "motion";
 import { useLayoutEffect, useRef } from "react";
-import { lessMotion } from "./motion";
+import { lessMotion, slide } from "./motion";
 
 export function SlidingPill({ index, items, className }: { index: number; items: string; className: string }) {
   const pill = useRef<HTMLSpanElement>(null);
@@ -23,7 +23,7 @@ export function SlidingPill({ index, items, className }: { index: number; items:
       if (!moving || !placed.current || lessMotion()) {
         void animate(el, to, { duration: 0 });
       } else {
-        void animate(el, to, { type: "spring", bounce: 0.18, duration: 0.45 });
+        void animate(el, to, { duration: 0.4, ease: slide });
       }
       placed.current = true;
     };

@@ -1,9 +1,12 @@
-// Motion on the page: the sections' reveals as they scroll in, a tab panel's arrival and a question opening and closing. All of it runs after hydration on elements the server rendered complete, so the page reads the same without script; where the reader asked for less motion none of it runs. The hero's entrance is the stylesheet's, so that the first screen never waits for hydration.
+// Motion on the page: the sections' reveals as they scroll in, a question opening and closing, the player's side panel sliding open and shut and its subtitle's lines changing places. A tab panel's arrival is the stylesheet's (k-panel, components/common/tabs.ts). All of it runs after hydration on elements the server rendered complete, so the page reads the same without script; where the reader asked for less motion none of it runs. The hero's entrance is the stylesheet's, so that the first screen never waits for hydration.
 import { animate, inView } from "motion";
 import { useEffect, type RefObject } from "react";
 
 // ease is the design's curve, the stylesheet's --ease.
 export const ease = [0.2, 0.7, 0.2, 1] as const;
+
+// slide is the design's curve for what moves from one place to another, as a tab's pill does: the stylesheet's --ease-slide.
+export const slide = [0.4, 0, 0.2, 1] as const;
 
 // lessMotion is whether the reader asked for less motion.
 export function lessMotion(): boolean {
@@ -49,18 +52,7 @@ export function useReveals(root: RefObject<HTMLElement | null>) {
   }, [root]);
 }
 
-// arrive brings in a tab panel that has just been shown.
-export function arrive(el: HTMLElement | null) {
-  if (!el || lessMotion()) {
-    return;
-  }
-  void animate(el, { opacity: [0, 1], y: [10, 0], filter: ["blur(6px)", "blur(0px)"] }, { duration: 0.4, ease }).then(() => {
-    el.style.removeProperty("filter");
-    el.style.removeProperty("transform");
-  });
-}
-
-// unfold opens a disclosure's answer from nothing to its height; fold closes it, and then calls done, which closes the disclosure itself. The answer's bottom padding goes with its height, so that it folds to nothing.
+// unfold opens a disclosure's answer from nothing to its height, rising into place as the design's k-open does; fold closes it, and then calls done, which closes the disclosure itself. The answer's bottom padding goes with its height, so that it folds to nothing.
 export function unfold(el: HTMLElement | null) {
   if (!el || lessMotion()) {
     return;
@@ -68,7 +60,7 @@ export function unfold(el: HTMLElement | null) {
   const height = el.getBoundingClientRect().height;
   const pad = getComputedStyle(el).paddingBottom;
   el.style.overflow = "hidden";
-  void animate(el, { height: [0, height], paddingBottom: ["0px", pad], opacity: [0, 1] }, { duration: 0.38, ease }).then(() => settle(el));
+  void animate(el, { height: [0, height], paddingBottom: ["0px", pad], opacity: [0, 1], y: [-6, 0] }, { duration: 0.38, ease }).then(() => settle(el));
 }
 
 export function fold(el: HTMLElement | null, done: () => void) {
@@ -85,9 +77,73 @@ export function fold(el: HTMLElement | null, done: () => void) {
   });
 }
 
-// settle gives an answer's size back to the stylesheet.
+// settle gives an element's size back to the stylesheet.
 function settle(el: HTMLElement) {
-  for (const name of ["height", "padding-bottom", "opacity", "overflow"]) {
+  for (const name of ["height", "padding-top", "padding-right", "padding-bottom", "padding-left", "opacity", "overflow", "transform", "flex-basis"]) {
     el.style.removeProperty(name);
   }
+}
+
+// hold keeps el where it is on the screen for ms while what is above it grows or shrinks, by scrolling the page as much as el moved each frame, so that what the reader clicked stays under the pointer.
+export function hold(el: HTMLElement | null, ms: number) {
+  if (!el || lessMotion()) {
+    return;
+  }
+  const top = el.getBoundingClientRect().top;
+  const start = performance.now();
+  const step = () => {
+    const moved = el.getBoundingClientRect().top - top;
+    if (moved !== 0) {
+      window.scrollBy({ top: moved, behavior: "instant" });
+    }
+    if (performance.now() - start < ms) {
+      window.requestAnimationFrame(step);
+    }
+  };
+  window.requestAnimationFrame(step);
+}
+
+// drawer opens or closes the player's side panel. Beside the picture it slides across, its width going to nothing or coming from it while the picture keeps its height (the stylesheet sizes the picture from the player's width); under the picture, on a narrow screen, it folds up or down. Closing leaves the panel at nothing for done to hide it; opening starts from there, on a panel that has just been shown.
+export function drawer(el: HTMLElement | null, open: boolean, done: () => void = () => {}) {
+  if (!el || lessMotion()) {
+    if (el) {
+      settle(el);
+    }
+    done();
+    return;
+  }
+  const main = el.previousElementSibling;
+  const across = main instanceof HTMLElement && main.offsetTop === el.offsetTop;
+  if (open) {
+    settle(el);
+  }
+  // The panel's padding along the way goes with its size, so that it slides to nothing and nothing is left to jump when it is hidden.
+  const style = getComputedStyle(el);
+  const sides = across ? (["paddingLeft", "paddingRight"] as const) : (["paddingTop", "paddingBottom"] as const);
+  const from = (full: string) => (open ? ["0px", full] : [full, "0px"]);
+  const size = across ? el.getBoundingClientRect().width : el.getBoundingClientRect().height;
+  el.style.overflow = "hidden";
+  const to: Record<string, string[] | number[]> = { [across ? "flexBasis" : "height"]: from(size + "px"), opacity: open ? [0, 1] : [1, 0] };
+  for (const side of sides) {
+    to[side] = from(style[side]);
+  }
+  void animate(el, to, { duration: 0.35, ease: slide }).then(() => {
+    if (open) {
+      settle(el);
+    }
+    done();
+  });
+}
+
+// flip moves els from where they were, at the tops given, to where they are now, as when the subtitle's two lines swap places.
+export function flip(els: HTMLElement[], tops: number[]) {
+  if (lessMotion()) {
+    return;
+  }
+  els.forEach((el, i) => {
+    const moved = (tops[i] ?? 0) - el.getBoundingClientRect().top;
+    if (moved !== 0) {
+      void animate(el, { y: [moved, 0] }, { duration: 0.4, ease: slide }).then(() => el.style.removeProperty("transform"));
+    }
+  });
 }

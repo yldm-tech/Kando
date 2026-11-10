@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import { useReducedMotion } from "motion/react";
 import { useWords, type ContentKey } from "../../../i18n/content";
 import { clock, demoLineSeconds, demoLines, demoSeconds } from "../../../lib/site";
+import { drawer, flip } from "../../common/motion";
 import { SlidingPill } from "../../common/SlidingPill";
 import { useTabs } from "../../common/tabs";
 import { BackIcon, BigPlayIcon, FullScreenIcon, LoopIcon, ModeIcon, PanelIcon, PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon, SoundIcon } from "./icons";
@@ -36,19 +37,22 @@ export function Player() {
   const [muted, setMuted] = useState(false);
   const [size, setSize] = useState<Size>("m");
   const [order, setOrder] = useState<Order>("translation");
+  // panel is whether the side panel is wanted, as its buttons show at once; shut is whether it is hidden, which follows panel once the panel has slid shut.
   const [panel, setPanel] = useState(true);
+  const [shut, setShut] = useState(false);
   const [query, setQuery] = useState("");
-  const tabs = useTabs(
-    [
-      ["kp-tab-subs", "kp-subs"],
-      ["kp-tab-clips", "kp-clips"],
-      ["kp-tab-info", "kp-info"],
-      ["kp-tab-style", "kp-style"],
-    ],
-    { hideBeforeHydration: true },
-  );
+  const tabs = useTabs([
+    ["kp-tab-subs", "kp-subs"],
+    ["kp-tab-clips", "kp-clips"],
+    ["kp-tab-info", "kp-info"],
+    ["kp-tab-style", "kp-style"],
+  ]);
 
   const root = useRef<HTMLDivElement>(null);
+  const side = useRef<HTMLElement>(null);
+  const wanted = useRef(true);
+  const opening = useRef(false);
+  const lineTops = useRef<number[] | null>(null);
   const seekFill = useRef<HTMLSpanElement>(null);
   const seekKnob = useRef<HTMLSpanElement>(null);
   const volumeFill = useRef<HTMLSpanElement>(null);
@@ -99,6 +103,46 @@ export function Player() {
     volumeKnob.current?.style.setProperty("left", at);
   }, [level]);
 
+  // The side panel slides shut before it is hidden, and slides open once it is shown again.
+  const togglePanel = () => {
+    const next = !wanted.current;
+    wanted.current = next;
+    setPanel(next);
+    if (!next) {
+      drawer(side.current, false, () => {
+        if (!wanted.current) {
+          setShut(true);
+        }
+      });
+    } else if (shut) {
+      opening.current = true;
+      setShut(false);
+    } else {
+      drawer(side.current, true);
+    }
+  };
+  useLayoutEffect(() => {
+    if (!shut && opening.current) {
+      opening.current = false;
+      drawer(side.current, true);
+    }
+  }, [shut]);
+
+  // The subtitle's two lines change places by moving there rather than jumping.
+  const subtitleLines = () => [...(root.current?.querySelectorAll<HTMLElement>(".kp-subs > span") ?? [])];
+  const reorder = (next: Order) => {
+    if (next !== order) {
+      lineTops.current = subtitleLines().map((el) => el.getBoundingClientRect().top);
+      setOrder(next);
+    }
+  };
+  useLayoutEffect(() => {
+    if (lineTops.current) {
+      flip(subtitleLines(), lineTops.current);
+      lineTops.current = null;
+    }
+  }, [order]);
+
   const seekTo = (seconds: number) => {
     const next = Math.max(0, Math.min(demoSeconds - 0.01, seconds));
     setTime(next);
@@ -135,7 +179,7 @@ export function Player() {
   const hits = cues.map((c) => !q || (c.translation + " " + c.original).toLowerCase().includes(q));
   const playLabel = playing ? app("filmPause") : app("filmPlay");
   const muteLabel = muted ? app("filmUnmute") : app("filmMute");
-  const classes = ["kp", playing ? "" : "paused", muted ? "muted" : "", loop >= 0 ? "looping" : "", panel ? "" : "no-panel"].filter(Boolean).join(" ");
+  const classes = ["kp", playing ? "" : "paused", muted ? "muted" : "", loop >= 0 ? "looping" : "", shut ? "no-panel" : ""].filter(Boolean).join(" ");
 
   return (
     <div className={classes} id="player" ref={root} data-mode={mode} data-size={size} data-order={order}>
@@ -148,14 +192,7 @@ export function Player() {
             <strong lang="en">How Rivers Shape Landscapes</strong>
             <span>{t("demoLibrary") + " · " + app("filmStatusTranslated")}</span>
           </span>
-          <button
-            className="kp-icon"
-            type="button"
-            aria-pressed={panel}
-            aria-label={app("filmSidebar")}
-            title={app("filmSidebar")}
-            onClick={() => setPanel(!panel)}
-          >
+          <button className="kp-icon" type="button" aria-pressed={panel} aria-label={app("filmSidebar")} title={app("filmSidebar")} onClick={togglePanel}>
             <PanelIcon />
           </button>
         </div>
@@ -268,16 +305,16 @@ export function Player() {
             </button>
             <button className="kp-mode" type="button" title={app("filmModeHeading")} onClick={() => setMode((mode + 1) % modeLabels.length)}>
               <ModeIcon />
-              <span>{modeLabels[mode]}</span>
+              {/* Every mode's name is laid out in one place and the current one shown, so that the button is as wide as the longest and the bar does not move as the mode changes. */}
+              <span className="kp-mode-names">
+                {modeLabels.map((label, i) => (
+                  <span key={i} data-off={i === mode ? undefined : ""}>
+                    {label}
+                  </span>
+                ))}
+              </span>
             </button>
-            <button
-              className="kp-icon on"
-              type="button"
-              aria-pressed={panel}
-              aria-label={app("filmSidebar")}
-              title={app("filmSidebar")}
-              onClick={() => setPanel(!panel)}
-            >
+            <button className="kp-icon on" type="button" aria-pressed={panel} aria-label={app("filmSidebar")} title={app("filmSidebar")} onClick={togglePanel}>
               <PanelIcon />
             </button>
             <button
@@ -293,7 +330,7 @@ export function Player() {
           </div>
         </div>
       </div>
-      <aside className="kp-side" aria-label={app("filmSidebar")}>
+      <aside className="kp-side" ref={side} aria-label={app("filmSidebar")}>
         <div className="kp-card">
           <div className="kp-tabs" role="tablist" aria-label={app("filmSidebar")}>
             <SlidingPill index={tabs.selected} items='[role="tab"]' className="rounded-[8px] bg-white/16" />
@@ -303,114 +340,116 @@ export function Player() {
               </button>
             ))}
           </div>
-          <div className="kp-pane kp-lines-pane" {...tabs.panel(0)}>
-            <input
-              className="kp-search"
-              type="search"
-              aria-label={app("filmSearchLines")}
-              placeholder={app("filmSearchLines")}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="kp-lines">
-              {cues.map((c, i) => (
+          <div {...tabs.stack}>
+            <div className="kp-pane kp-lines-pane" {...tabs.panel(0)}>
+              <input
+                className="kp-search"
+                type="search"
+                aria-label={app("filmSearchLines")}
+                placeholder={app("filmSearchLines")}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <div className="kp-lines">
+                {cues.map((c, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={"kp-line" + (i === line ? " on" : "")}
+                    data-line={i + 1}
+                    title={app("filmClickToJump")}
+                    hidden={!hits[i]}
+                    onClick={() => seekTo(i * demoLineSeconds + 0.05)}
+                  >
+                    <span className="kp-at">{clock(i * demoLineSeconds)}</span>
+                    <span className="kp-text">
+                      <span>{c.translation}</span>
+                      <span lang="en">{c.original}</span>
+                    </span>
+                  </button>
+                ))}
+                <p className="kp-none" hidden={hits.some(Boolean)}>
+                  {app("filmNoMatch")}
+                </p>
+              </div>
+            </div>
+            <div className="kp-pane" {...tabs.panel(1)}>
+              <p className="kp-note">{app("filmClipsNote")}</p>
+              {content.clipSpans.map((span, k) => (
                 <button
-                  key={i}
+                  key={k}
                   type="button"
-                  className={"kp-line" + (i === line ? " on" : "")}
-                  data-line={i + 1}
-                  title={app("filmClickToJump")}
-                  hidden={!hits[i]}
-                  onClick={() => seekTo(i * demoLineSeconds + 0.05)}
+                  className={"kp-clip" + (k === Math.floor(line / 2) ? " on" : "")}
+                  data-clip={k + 1}
+                  onClick={() => {
+                    seekTo(k * 2 * demoLineSeconds + 0.05);
+                    setPlaying(true);
+                  }}
                 >
-                  <span className="kp-at">{clock(i * demoLineSeconds)}</span>
+                  <span className="kp-thumb">
+                    <Scene n={k} id={"kp-th" + k} />
+                  </span>
                   <span className="kp-text">
-                    <span>{c.translation}</span>
-                    <span lang="en">{c.original}</span>
+                    <span className="kp-span">{span}</span>
+                    <span>{cues[2 * k]?.translation}</span>
                   </span>
                 </button>
               ))}
-              <p className="kp-none" hidden={hits.some(Boolean)}>
-                {app("filmNoMatch")}
-              </p>
             </div>
-          </div>
-          <div className="kp-pane" {...tabs.panel(1)}>
-            <p className="kp-note">{app("filmClipsNote")}</p>
-            {content.clipSpans.map((span, k) => (
-              <button
-                key={k}
-                type="button"
-                className={"kp-clip" + (k === Math.floor(line / 2) ? " on" : "")}
-                data-clip={k + 1}
-                onClick={() => {
-                  seekTo(k * 2 * demoLineSeconds + 0.05);
-                  setPlaying(true);
-                }}
-              >
-                <span className="kp-thumb">
-                  <Scene n={k} id={"kp-th" + k} />
-                </span>
-                <span className="kp-text">
-                  <span className="kp-span">{span}</span>
-                  <span>{cues[2 * k]?.translation}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="kp-pane" {...tabs.panel(2)}>
-            <dl className="kp-info">
-              <div>
-                <dt>{app("filmSource")}</dt>
-                <dd>YouTube</dd>
+            <div className="kp-pane" {...tabs.panel(2)}>
+              <dl className="kp-info">
+                <div>
+                  <dt>{app("filmSource")}</dt>
+                  <dd>YouTube</dd>
+                </div>
+                <div>
+                  <dt>{app("filmLineOriginal")}</dt>
+                  <dd>English · whisper.cpp</dd>
+                </div>
+                <div>
+                  <dt>{app("filmLineTranslation")}</dt>
+                  <dd>{t("demoTarget") + " · " + t("stepTranslateTool")}</dd>
+                </div>
+                <div>
+                  <dt>{app("filmFiles")}</dt>
+                  <dd>
+                    <code>video.srt · video.bilingual.srt</code>
+                  </dd>
+                </div>
+              </dl>
+            </div>
+            <div className="kp-pane" {...tabs.panel(3)}>
+              <p className="kp-label">{app("filmStyleSize")}</p>
+              <div className="kp-choices kp-three">
+                {(
+                  [
+                    ["s", "playerSizeSmall"],
+                    ["m", "playerSizeMedium"],
+                    ["l", "playerSizeLarge"],
+                  ] as const
+                ).map(([value, key]) => (
+                  <button key={value} type="button" data-size={value} aria-pressed={size === value} onClick={() => setSize(value)}>
+                    {t(key)}
+                  </button>
+                ))}
               </div>
-              <div>
-                <dt>{app("filmLineOriginal")}</dt>
-                <dd>English · whisper.cpp</dd>
+              <p className="kp-label">{app("filmModeHeading")}</p>
+              <div className="kp-choices kp-two">
+                {modeLabels.map((label, i) => (
+                  <button key={i} type="button" data-mode={i} aria-pressed={mode === i} onClick={() => setMode(i)}>
+                    {label}
+                  </button>
+                ))}
               </div>
-              <div>
-                <dt>{app("filmLineTranslation")}</dt>
-                <dd>{t("demoTarget") + " · " + t("stepTranslateTool")}</dd>
-              </div>
-              <div>
-                <dt>{app("filmFiles")}</dt>
-                <dd>
-                  <code>video.srt · video.bilingual.srt</code>
-                </dd>
-              </div>
-            </dl>
-          </div>
-          <div className="kp-pane" {...tabs.panel(3)}>
-            <p className="kp-label">{app("filmStyleSize")}</p>
-            <div className="kp-choices kp-three">
-              {(
-                [
-                  ["s", "playerSizeSmall"],
-                  ["m", "playerSizeMedium"],
-                  ["l", "playerSizeLarge"],
-                ] as const
-              ).map(([value, key]) => (
-                <button key={value} type="button" data-size={value} aria-pressed={size === value} onClick={() => setSize(value)}>
-                  {t(key)}
+              <p className="kp-label">{app("filmStyleOrder")}</p>
+              <div className="kp-choices kp-two">
+                <button type="button" data-order="translation" aria-pressed={order === "translation"} onClick={() => reorder("translation")}>
+                  {app("filmOrderTranslationFirst")}
                 </button>
-              ))}
-            </div>
-            <p className="kp-label">{app("filmModeHeading")}</p>
-            <div className="kp-choices kp-two">
-              {modeLabels.map((label, i) => (
-                <button key={i} type="button" data-mode={i} aria-pressed={mode === i} onClick={() => setMode(i)}>
-                  {label}
+                <button type="button" data-order="original" aria-pressed={order === "original"} onClick={() => reorder("original")}>
+                  {app("filmOrderOriginalFirst")}
                 </button>
-              ))}
-            </div>
-            <p className="kp-label">{app("filmStyleOrder")}</p>
-            <div className="kp-choices kp-two">
-              <button type="button" data-order="translation" aria-pressed={order === "translation"} onClick={() => setOrder("translation")}>
-                {app("filmOrderTranslationFirst")}
-              </button>
-              <button type="button" data-order="original" aria-pressed={order === "original"} onClick={() => setOrder("original")}>
-                {app("filmOrderOriginalFirst")}
-              </button>
+              </div>
             </div>
           </div>
         </div>
