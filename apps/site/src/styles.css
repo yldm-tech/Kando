@@ -553,11 +553,12 @@
     color: transparent;
   }
   .lead {
-    max-width: 600px;
+    max-width: 880px;
     margin: 22px auto 0;
     color: var(--ink-2);
     font-size: clamp(16px, 1.5vw, 19px);
     line-height: 1.75;
+    text-wrap: balance;
   }
   .actions {
     display: flex;
@@ -1335,7 +1336,7 @@
     flex: 1;
     min-width: 0;
     margin: 0;
-    word-break: break-all;
+    overflow-wrap: anywhere;
   }
   .kp-info code {
     font-size: 12px;
@@ -1745,7 +1746,7 @@
     margin: 0;
     font: inherit;
     white-space: pre-wrap;
-    word-break: break-all;
+    overflow-wrap: anywhere;
   }
   .typed .ln {
     display: block;
@@ -2031,7 +2032,7 @@
     font-size: 13px;
     line-height: 1.7;
     white-space: pre-wrap;
-    word-break: break-all;
+    overflow-wrap: anywhere;
   }
   .copy {
     position: absolute;
