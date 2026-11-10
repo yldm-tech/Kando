@@ -426,21 +426,25 @@ func TestRunRedoesWhatIsMissing(t *testing.T) {
 // A video with a partial download beside it never merged, so the retry downloads it again rather than transcribing a silent track.
 func TestRunDownloadsAgainAVideoThatNeverMerged(t *testing.T) {
 	srv, _ := flakyChat(t, http.StatusUnauthorized)
-	tools, ytdlpRuns, _ := resumeTools(t, srv.URL)
+	tools, ytdlpRuns, whisperRuns := resumeTools(t, srv.URL)
 	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
 	_, failed := runRecording(tools, job)
-	if failed.Stage != core.StageFailed || failed.VideoPath == "" {
+	if failed.Stage != core.StageFailed || failed.VideoPath == "" || !failed.Transcribed {
 		t.Fatalf("first run %+v", failed)
 	}
 	if err := os.WriteFile(filepath.Join(filepath.Dir(failed.VideoPath), "video.f251.webm"), []byte("track 251"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	stages, done := runRecording(tools, failed)
-	if len(stages) == 0 || stages[0] != core.StageDownloading || done.Stage != core.StageComplete {
+	if want := []core.Stage{core.StageDownloading, core.StageTranscribing, core.StageTranslating, core.StageExporting, core.StageComplete}; !reflect.DeepEqual(stages, want) || done.Stage != core.StageComplete {
 		t.Fatalf("stages %v, job %+v", stages, done)
 	}
 	if got := runCount(t, ytdlpRuns); got != 3 {
 		t.Fatalf("yt-dlp ran %d times, want the first download and two for the unmerged one", got)
+	}
+	// The transcript beside the video was made from the file the new download replaced.
+	if got := runCount(t, whisperRuns); got != 2 {
+		t.Fatalf("whisper-cli ran %d times, want the re-downloaded video transcribed again", got)
 	}
 }
 
