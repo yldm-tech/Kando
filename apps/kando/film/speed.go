@@ -1,6 +1,7 @@
 package film
 
 import (
+	"math"
 	"strconv"
 
 	"kando/apps/kando/locales"
@@ -29,8 +30,8 @@ func (s screen) speedMenu(c *ui.Context, t *ui.Theme) {
 	if *open {
 		btn.Background(ui.RGBA(255, 255, 255, 0.2))
 	}
-	// As wide as the widest speed, 1.25×, so the scrubber beside it keeps its length whatever the speed.
-	btn.Height(30).MinWidth(50).Justify(ui.Center).Padding(0, 8).Radius(15).Gap(0).TextColor(onGlass).Children(func() {
+	// As wide as the widest speed in the system's font, measured rather than guessed, so the scrubber beside it keeps its length whatever the speed on every platform.
+	btn.Height(30).Width(speedButtonWidth(c)).Justify(ui.Center).Padding(0, 8).Radius(15).Gap(0).TextColor(onGlass).Children(func() {
 		ui.Text(c, rate).FontSize(12).FontFeatures("tnum").SingleLine()
 	})
 	menu := breeze.Popover(c, btn, open, func() {
@@ -43,6 +44,16 @@ func (s screen) speedMenu(c *ui.Context, t *ui.Theme) {
 	})
 	// Placed as the subtitle menu is: its right edge 6 past the button's and its bottom 14 above the button's top.
 	menu.AttachTo(btn, ui.AnchorTopEnd, ui.AnchorBottomEnd).Padding(6).Margin(0, 0, 14, 0).Right(-6)
+}
+
+// speedButtonWidth is the speed button's width: the widest of the speeds' labels as the button draws them, and its padding. It is at least 50, as before anything is measured.
+func speedButtonWidth(c *ui.Context) float32 {
+	widest := float32(0)
+	for _, r := range Rates {
+		w, _ := c.MeasureText(0, ui.Span{Text: RateText(r), Size: 12, Features: "tnum"})
+		widest = max(widest, w)
+	}
+	return max(50, float32(math.Ceil(float64(widest)))+16)
 }
 
 // speedRow is a radio row of the speed menu: a check while the film plays at rate, the speed, and for 1× a note that it is the normal speed.
