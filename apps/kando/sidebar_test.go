@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
@@ -333,11 +334,11 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	if err := tt.Click("切换资料库，当前：甲"); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", "在访达中显示「甲」"}
+	want := []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", locales.SidebarRevealLibrary("甲", platformName())}
 	if got := tt.Menu(); !slices.Equal(got, want) {
 		t.Fatalf("menu %q, want %q", got, want)
 	}
-	if err := tt.ChooseMenuItem("在访达中显示「甲」"); err != nil {
+	if err := tt.ChooseMenuItem(locales.SidebarRevealLibrary("甲", platformName())); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -355,7 +356,7 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	if err := tt.Click("切换资料库，当前：乙"); err != nil {
 		t.Fatal(err)
 	}
-	want = []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", "在访达中显示「乙」"}
+	want = []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", locales.SidebarRevealLibrary("乙", platformName())}
 	if got := tt.Menu(); !slices.Equal(got, want) {
 		t.Fatalf("menu %q, want %q", got, want)
 	}
@@ -640,7 +641,7 @@ func TestSidebarInEnglish(t *testing.T) {
 		t.Fatalf("switcher: %v; texts %q", err, tt.Texts())
 	}
 	menu := tt.Menu()
-	for _, want := range []string{"New Library…", "Open Existing Library…", "Show “" + name + "” in Finder"} {
+	for _, want := range []string{"New Library…", "Open Existing Library…", locales.SidebarRevealLibrary(name, platformName())} {
 		if !slices.Contains(menu, want) {
 			t.Fatalf("menu %q lacks %q", menu, want)
 		}
@@ -651,4 +652,39 @@ func TestSidebarInEnglish(t *testing.T) {
 	b.checkReadiness(true)
 	btt.Frame()
 	wantText(t, btt, "Missing components: yt-dlp, whisper-cli")
+}
+
+// TestSwitcherNamesTheSystemsFileManager checks that the switcher's reveal names the file manager of the system it runs on, and that the settings page's reveal does too.
+func TestSwitcherNamesTheSystemsFileManager(t *testing.T) {
+	for _, tc := range []struct {
+		platform         breeze.Platform
+		switcher, button string
+	}{
+		{breeze.Mac, "在访达中显示「甲」", "在访达中显示"},
+		{breeze.Windows, "在文件资源管理器中显示「甲」", "在文件资源管理器中显示"},
+		{breeze.Linux, "在文件管理器中显示「甲」", "在文件管理器中显示"},
+	} {
+		t.Run(tc.platform.String(), func(t *testing.T) {
+			usePlatform(t, tc.platform)
+			lib := filepath.Join(t.TempDir(), "甲.kando")
+			if err := os.MkdirAll(lib, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			a, tt, _ := newTestApp(&fakePipeline{})
+			a.edit(func(s *session) {
+				s.LibraryDir = lib
+				s.Libraries = []string{lib}
+			})
+			tt.Frame()
+			if err := tt.Click("切换资料库，当前：甲"); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			if menu := tt.Menu(); !slices.Contains(menu, tc.switcher) {
+				t.Fatalf("menu %q lacks %q", menu, tc.switcher)
+			}
+			tt.CloseMenu()
+			st := settingsOpenAt(a, tt, settings.SectionGeneral)
+			wantText(t, st, tc.button)
+		})
+	}
 }

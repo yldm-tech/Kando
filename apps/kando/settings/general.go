@@ -166,7 +166,7 @@ func (s screen) libraryRows(c *ui.Context) {
 	form.Row(c, locales.SettingsGeneralLocation(), "", func() {
 		form.Value(c, films.DisplayPath(dir), 12).Selectable()
 		c.Key("library-reveal")
-		if form.Button(c, locales.SettingsGeneralShowInFinder(), false).Clicked() {
+		if form.Button(c, locales.SettingsGeneralShowInFinder(breeze.PlatformOf(c).String()), false).Clicked() {
 			s.Reveal(dir)
 		}
 	})

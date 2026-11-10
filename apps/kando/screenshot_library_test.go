@@ -11,6 +11,7 @@ import (
 	"kando/packages/core"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
@@ -120,6 +121,18 @@ func TestScreenshotsLibrary(t *testing.T) {
 		dir, _ := f.sidecarLibrary(t)
 		f.showLibrary(t, a, tt, updates, dir)
 	})
+	// Off macOS the library names the system's file manager, here the Linux one: the hero's 在文件管理器中显示, the page before there is a library, and the new-library sheet, which promises no Kando folder icon there.
+	usePlatform(t, breeze.Linux)
+	f.shoot(t, "library-linux", func(a *app, tt *ui.Tester, _ chan func()) {})
+	f.shoot(t, "library-none-linux", func(a *app, tt *ui.Tester, _ chan func()) {
+		a.edit(func(s *session) {
+			s.LibraryDir = ""
+			s.Libraries = nil
+		})
+		a.refreshLibrary()
+	})
+	f.shoot(t, "library-new-linux", func(a *app, tt *ui.Tester, _ chan func()) { a.BeginNew() })
+	breeze.SetPlatform(breeze.Auto)
 	// The hero film with the picture its site gives it, which takes the place of the frame grabbed for it, as a library from an earlier Kando shows once the site is asked. The site's picture is the fixture's generic scene at full size. It runs last: it leaves the site's picture in the film's cover.jpg.
 	f.shoot(t, "library-site-cover", func(a *app, tt *ui.Tester, updates chan func()) {
 		picture, err := os.ReadFile(filepath.Join("testdata", "scenes", "generic-1920.png"))

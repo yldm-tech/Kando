@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // onPicture is the text over a poster or the hero, which are a picture or a dark color in either theme.
@@ -97,7 +98,7 @@ func hero(c *ui.Context, a App, item Film) {
 					if heroButton(c, locales.FilmsHeroFromStart(), false).Clicked() {
 						a.OpenAt(item, 0)
 					}
-				} else if heroButton(c, locales.FilmsShowInFinder(), false).Clicked() {
+				} else if heroButton(c, locales.FilmsShowInFinder(breeze.PlatformOf(c).String()), false).Clicked() {
 					a.Reveal(item.VideoPath)
 				}
 			})

@@ -7,6 +7,7 @@ import (
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11) and playing muted. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
@@ -66,6 +67,15 @@ func TestScreenshotsPlayer(t *testing.T) {
 		tt.Frame()
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
 	})
+	// Off macOS the player names the system's file manager, here the Linux one, and the style view's font menu offers a sans-serif and a serif font, shown open.
+	usePlatform(t, breeze.Linux)
+	f.shoot(t, "player-info-linux", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "信息") }))
+	f.shoot(t, "player-style-fonts-linux", held(func(_ *app, tt *ui.Tester) {
+		screenshotClick(t, tt, "字幕：双语")
+		screenshotClick(t, tt, "样式…")
+		screenshotClick(t, tt, "默认")
+	}))
+	breeze.SetPlatform(breeze.Auto)
 	// Without ffmpeg the film has no picture and no transport.
 	f.shoot(t, "player-no-picture", func(a *app, tt *ui.Tester, updates chan func()) {
 		a.pipeline = media.Tools{}

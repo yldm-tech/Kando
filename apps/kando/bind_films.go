@@ -85,6 +85,11 @@ func (a *app) Start() {
 
 func (a *app) PickVideos() { a.pickVideos() }
 
+func (a *app) PickVideosShortcut() (ui.Modifiers, ui.Key) {
+	k := a.libraryOpenVideos()
+	return k.Mods, k.Key
+}
+
 func (a *app) DropFiles(paths []string) { a.dropFiles(paths) }
 
 func (a *app) Poster(path string) ui.ImageSource { return a.posterOf(path) }
@@ -290,7 +295,10 @@ func (a *app) dropFiles(paths []string) {
 
 // libraryKeys are the library's shortcuts.
 func (a *app) libraryKeys() []shortcut {
-	return []shortcut{
-		{Group: groupFile, Label: locales.LibraryOpenVideosMenu(), Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos},
-	}
+	return []shortcut{a.libraryOpenVideos()}
+}
+
+// libraryOpenVideos is the shortcut that asks for local videos: its row of the File menu, and the shortcut the tooltip of 本地视频 shows (PickVideosShortcut).
+func (a *app) libraryOpenVideos() shortcut {
+	return shortcut{Group: groupFile, Label: locales.LibraryOpenVideosMenu(), Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos}
 }

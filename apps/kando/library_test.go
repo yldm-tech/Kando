@@ -29,6 +29,7 @@ import (
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 func TestLibraryShowsAndRestoresJob(t *testing.T) {
@@ -881,7 +882,7 @@ func TestPostersAreReadByTheShelfNotTheView(t *testing.T) {
 
 func TestHeroOffersToContinue(t *testing.T) {
 	a, tt, video := libraryWith(t, "Talk")
-	if !tt.HasText("“你好。”") || !tt.HasText("Hello.") || !tt.HasText("播放") || !tt.HasText("在访达中显示") {
+	if !tt.HasText("“你好。”") || !tt.HasText("Hello.") || !tt.HasText("播放") || !tt.HasText(locales.FilmsShowInFinder(platformName())) {
 		t.Fatalf("hero %q", tt.Texts())
 	}
 	a.player.positions = map[string]time.Duration{video: 42 * time.Second}
@@ -1187,7 +1188,7 @@ func TestLibraryInEnglish(t *testing.T) {
 	)
 	tt.Frame()
 	for _, want := range []string{
-		"Recently Finished · Simplified Chinese Bilingual", "Play", "Show in Finder",
+		"Recently Finished · Simplified Chinese Bilingual", "Play", locales.FilmsShowInFinder(platformName()),
 		"Bilingual · CHS", "All Films", "1 film",
 		"Processing", "1 in progress · 1 needs attention", "Queued · Waiting for the jobs ahead", "Canceled", "Retry", "Remove",
 		"Start Processing", "Local Video",
@@ -1202,5 +1203,65 @@ func TestLibraryInEnglish(t *testing.T) {
 		if tt.HasText(chinese) {
 			t.Fatalf("the library still reads %q: %q", chinese, tt.Texts())
 		}
+	}
+}
+
+// TestLibraryNamesTheSystemsFileManager checks that the library speaks of the file manager of the system it runs on: the hero's and the card menu's reveal, the shortcut in the tooltip of 本地视频, the page before any library and the new-library sheet, which promises Kando's folder icon only on macOS, where Finder shows it.
+func TestLibraryNamesTheSystemsFileManager(t *testing.T) {
+	for _, tc := range []struct {
+		platform                 breeze.Platform
+		reveal, tooltip, manager string
+		icon                     bool
+	}{
+		{breeze.Mac, "在访达中显示", "添加本地视频（⌘O）", "可以直接在访达里管理。", true},
+		{breeze.Windows, "在文件资源管理器中显示", "添加本地视频（Ctrl+O）", "可以直接在文件资源管理器里管理。", false},
+		{breeze.Linux, "在文件管理器中显示", "添加本地视频（Ctrl+O）", "可以直接在文件管理器里管理。", false},
+	} {
+		t.Run(tc.platform.String(), func(t *testing.T) {
+			usePlatform(t, tc.platform)
+			var revealed []string
+			prev := revealInFolder
+			revealInFolder = func(path string) error {
+				revealed = append(revealed, path)
+				return nil
+			}
+			t.Cleanup(func() { revealInFolder = prev })
+			a, tt, video := libraryWith(t, "Talk")
+			wantText(t, tt, tc.reveal)
+			if err := tt.Click(tc.reveal); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(revealed, []string{video}) {
+				t.Fatalf("revealed %q, want the video %q", revealed, video)
+			}
+			if err := tt.RightClick("Talk"); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			if menu := tt.Menu(); !slices.Contains(menu, tc.reveal) {
+				t.Fatalf("card menu %q lacks %q", menu, tc.reveal)
+			}
+			tt.CloseMenu()
+			r, ok := tt.Find("本地视频")
+			if !ok {
+				t.Fatalf("no 本地视频 in %q", tt.Texts())
+			}
+			tt.Move(r.X+r.W/2, r.Y+r.H/2)
+			tt.Advance(time.Second)
+			tt.Frame()
+			wantText(t, tt, tc.tooltip)
+
+			a.edit(func(s *session) {
+				s.LibraryDir = ""
+				s.LibraryParent = t.TempDir()
+			})
+			tt.Frame()
+			wantText(t, tt, tc.manager)
+			a.edit(func(s *session) { s.MakingLibrary = true })
+			tt.Frame()
+			wantText(t, tt, "会创建一个 .kando 文件夹")
+			if got := tt.HasText("看懂标志"); got != tc.icon {
+				t.Fatalf("the sheet promises the Kando icon: %v, want %v: %q", got, tc.icon, tt.Texts())
+			}
+		})
 	}
 }

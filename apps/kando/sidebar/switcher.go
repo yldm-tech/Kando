@@ -76,7 +76,7 @@ func switcherMenu(m *ui.Menu, a App) {
 		a.PickLibrary()
 	}
 	if open != "" {
-		if m.Item(locales.SidebarRevealLibrary(Title(open))).Chosen() {
+		if m.Item(locales.SidebarRevealLibrary(Title(open), breeze.Current().String())).Chosen() {
 			a.Reveal(open)
 		}
 	}

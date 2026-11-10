@@ -1864,6 +1864,38 @@ func (msgs Messages) FilmFontPingFang() string {
 	return Catalog.Format(msgs.locale, "filmFontPingFang", nil)
 }
 
+// FilmFontSans says "Sans Serif"
+// in the language the app shows.
+//
+// Subtitle font off macOS: the system's sans-serif Chinese font (Microsoft
+// YaHei, Noto Sans CJK).
+func FilmFontSans() string { return In(i18n.Locale()).FilmFontSans() }
+
+// FilmFontSans says "Sans Serif"
+// in the language of msgs.
+//
+// Subtitle font off macOS: the system's sans-serif Chinese font (Microsoft
+// YaHei, Noto Sans CJK).
+func (msgs Messages) FilmFontSans() string {
+	return Catalog.Format(msgs.locale, "filmFontSans", nil)
+}
+
+// FilmFontSerif says "Serif"
+// in the language the app shows.
+//
+// Subtitle font off macOS: the system's serif Chinese font (SimSun, Noto
+// Serif CJK).
+func FilmFontSerif() string { return In(i18n.Locale()).FilmFontSerif() }
+
+// FilmFontSerif says "Serif"
+// in the language of msgs.
+//
+// Subtitle font off macOS: the system's serif Chinese font (SimSun, Noto
+// Serif CJK).
+func (msgs Messages) FilmFontSerif() string {
+	return Catalog.Format(msgs.locale, "filmFontSerif", nil)
+}
+
 // FilmFullScreen says "Full Screen"
 // in the language the app shows.
 //
@@ -2524,18 +2556,22 @@ func (msgs Messages) FilmSeconds(seconds string) string {
 	return Catalog.Format(msgs.locale, "filmSeconds", map[string]any{"seconds": seconds})
 }
 
-// FilmShowInFinder says "Show in Finder"
+// FilmShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language the app shows.
 //
-// Button that shows the film's file or folder in Finder.
-func FilmShowInFinder() string { return In(i18n.Locale()).FilmShowInFinder() }
+// Button that shows the film's file or folder in the system's file manager.
+// {platform} is the system the app runs on: macOS, Windows or another
+// (Linux); each case names that system's file manager.
+func FilmShowInFinder(platform string) string { return In(i18n.Locale()).FilmShowInFinder(platform) }
 
-// FilmShowInFinder says "Show in Finder"
+// FilmShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language of msgs.
 //
-// Button that shows the film's file or folder in Finder.
-func (msgs Messages) FilmShowInFinder() string {
-	return Catalog.Format(msgs.locale, "filmShowInFinder", nil)
+// Button that shows the film's file or folder in the system's file manager.
+// {platform} is the system the app runs on: macOS, Windows or another
+// (Linux); each case names that system's file manager.
+func (msgs Messages) FilmShowInFinder(platform string) string {
+	return Catalog.Format(msgs.locale, "filmShowInFinder", map[string]any{"platform": platform})
 }
 
 // FilmShowSidebar says "Show Sidebar"
@@ -3298,18 +3334,22 @@ func (msgs Messages) FilmsLocalVideo() string {
 	return Catalog.Format(msgs.locale, "filmsLocalVideo", nil)
 }
 
-// FilmsLocalVideoTooltip says "Add Local Videos (⌘O)"
+// FilmsLocalVideoTooltip says "Add Local Videos ({shortcut})"
 // in the language the app shows.
 //
-// Tooltip of the toolbar button that adds video files, with its shortcut.
-func FilmsLocalVideoTooltip() string { return In(i18n.Locale()).FilmsLocalVideoTooltip() }
+// Tooltip of the toolbar button that adds video files, with its shortcut as
+// the system writes it.
+func FilmsLocalVideoTooltip(shortcut string) string {
+	return In(i18n.Locale()).FilmsLocalVideoTooltip(shortcut)
+}
 
-// FilmsLocalVideoTooltip says "Add Local Videos (⌘O)"
+// FilmsLocalVideoTooltip says "Add Local Videos ({shortcut})"
 // in the language of msgs.
 //
-// Tooltip of the toolbar button that adds video files, with its shortcut.
-func (msgs Messages) FilmsLocalVideoTooltip() string {
-	return Catalog.Format(msgs.locale, "filmsLocalVideoTooltip", nil)
+// Tooltip of the toolbar button that adds video files, with its shortcut as
+// the system writes it.
+func (msgs Messages) FilmsLocalVideoTooltip(shortcut string) string {
+	return Catalog.Format(msgs.locale, "filmsLocalVideoTooltip", map[string]any{"shortcut": shortcut})
 }
 
 // FilmsMoreActions says "More Actions"
@@ -3354,18 +3394,24 @@ func (msgs Messages) FilmsNewLibraryName() string {
 	return Catalog.Format(msgs.locale, "filmsNewLibraryName", nil)
 }
 
-// FilmsNewLibraryNote says "Creates a .kando folder, which Finder shows with the Kando icon."
+// FilmsNewLibraryNote says "{platform, select, macOS {Creates a .kando folder, which Finder shows with the Kando icon.} other {Creates a .kando f…"
 // in the language the app shows.
 //
-// Line under the new-library sheet's title.
-func FilmsNewLibraryNote() string { return In(i18n.Locale()).FilmsNewLibraryNote() }
+// Line under the new-library sheet's title. Only macOS shows the folder
+// with Kando's icon, so the other systems' case leaves that out. {platform}
+// is the system the app runs on: macOS, Windows or another (Linux).
+func FilmsNewLibraryNote(platform string) string {
+	return In(i18n.Locale()).FilmsNewLibraryNote(platform)
+}
 
-// FilmsNewLibraryNote says "Creates a .kando folder, which Finder shows with the Kando icon."
+// FilmsNewLibraryNote says "{platform, select, macOS {Creates a .kando folder, which Finder shows with the Kando icon.} other {Creates a .kando f…"
 // in the language of msgs.
 //
-// Line under the new-library sheet's title.
-func (msgs Messages) FilmsNewLibraryNote() string {
-	return Catalog.Format(msgs.locale, "filmsNewLibraryNote", nil)
+// Line under the new-library sheet's title. Only macOS shows the folder
+// with Kando's icon, so the other systems' case leaves that out. {platform}
+// is the system the app runs on: macOS, Windows or another (Linux).
+func (msgs Messages) FilmsNewLibraryNote(platform string) string {
+	return Catalog.Format(msgs.locale, "filmsNewLibraryNote", map[string]any{"platform": platform})
 }
 
 // FilmsNewLibraryPlace says "Location"
@@ -3396,18 +3442,24 @@ func (msgs Messages) FilmsNewLibraryTitle() string {
 	return Catalog.Format(msgs.locale, "filmsNewLibraryTitle", nil)
 }
 
-// FilmsNoLibraryDescription says "A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you …"
+// FilmsNoLibraryDescription says "{platform, select, macOS {A library is a .kando folder with a folder inside for each film. Videos, covers and subtitl…"
 // in the language the app shows.
 //
-// What a library is, on the page before any library exists.
-func FilmsNoLibraryDescription() string { return In(i18n.Locale()).FilmsNoLibraryDescription() }
+// What a library is, on the page before any library exists. {platform} is
+// the system the app runs on: macOS, Windows or another (Linux); each case
+// names that system's file manager.
+func FilmsNoLibraryDescription(platform string) string {
+	return In(i18n.Locale()).FilmsNoLibraryDescription(platform)
+}
 
-// FilmsNoLibraryDescription says "A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you …"
+// FilmsNoLibraryDescription says "{platform, select, macOS {A library is a .kando folder with a folder inside for each film. Videos, covers and subtitl…"
 // in the language of msgs.
 //
-// What a library is, on the page before any library exists.
-func (msgs Messages) FilmsNoLibraryDescription() string {
-	return Catalog.Format(msgs.locale, "filmsNoLibraryDescription", nil)
+// What a library is, on the page before any library exists. {platform} is
+// the system the app runs on: macOS, Windows or another (Linux); each case
+// names that system's file manager.
+func (msgs Messages) FilmsNoLibraryDescription(platform string) string {
+	return Catalog.Format(msgs.locale, "filmsNoLibraryDescription", map[string]any{"platform": platform})
 }
 
 // FilmsNoLibraryTitle says "No Library Yet"
@@ -3974,18 +4026,22 @@ func (msgs Messages) FilmsRetry() string {
 	return Catalog.Format(msgs.locale, "filmsRetry", nil)
 }
 
-// FilmsShowInFinder says "Show in Finder"
+// FilmsShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language the app shows.
 //
-// Menu item and button that show the film's video file in Finder.
-func FilmsShowInFinder() string { return In(i18n.Locale()).FilmsShowInFinder() }
+// Menu item and button that show the film's video file in the system's file
+// manager. {platform} is the system the app runs on: macOS, Windows or
+// another (Linux); each case names that system's file manager.
+func FilmsShowInFinder(platform string) string { return In(i18n.Locale()).FilmsShowInFinder(platform) }
 
-// FilmsShowInFinder says "Show in Finder"
+// FilmsShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language of msgs.
 //
-// Menu item and button that show the film's video file in Finder.
-func (msgs Messages) FilmsShowInFinder() string {
-	return Catalog.Format(msgs.locale, "filmsShowInFinder", nil)
+// Menu item and button that show the film's video file in the system's file
+// manager. {platform} is the system the app runs on: macOS, Windows or
+// another (Linux); each case names that system's file manager.
+func (msgs Messages) FilmsShowInFinder(platform string) string {
+	return Catalog.Format(msgs.locale, "filmsShowInFinder", map[string]any{"platform": platform})
 }
 
 // FilmsSourceEmpty says "No films from this source yet."
@@ -5000,18 +5056,22 @@ func (msgs Messages) MenuReopenGuide() string {
 	return Catalog.Format(msgs.locale, "menuReopenGuide", nil)
 }
 
-// MenuRevealLibrary says "Show Library in Finder"
+// MenuRevealLibrary says "{platform, select, macOS {Show Library in Finder} Windows {Show Library in File Explorer} other {Show Library in File…"
 // in the language the app shows.
 //
-// File menu item that shows the open library's folder in Finder.
-func MenuRevealLibrary() string { return In(i18n.Locale()).MenuRevealLibrary() }
+// File menu item that shows the open library's folder in the system's file
+// manager. {platform} is the system the app runs on: macOS, Windows or
+// another (Linux); each case names that system's file manager.
+func MenuRevealLibrary(platform string) string { return In(i18n.Locale()).MenuRevealLibrary(platform) }
 
-// MenuRevealLibrary says "Show Library in Finder"
+// MenuRevealLibrary says "{platform, select, macOS {Show Library in Finder} Windows {Show Library in File Explorer} other {Show Library in File…"
 // in the language of msgs.
 //
-// File menu item that shows the open library's folder in Finder.
-func (msgs Messages) MenuRevealLibrary() string {
-	return Catalog.Format(msgs.locale, "menuRevealLibrary", nil)
+// File menu item that shows the open library's folder in the system's file
+// manager. {platform} is the system the app runs on: macOS, Windows or
+// another (Linux); each case names that system's file manager.
+func (msgs Messages) MenuRevealLibrary(platform string) string {
+	return Catalog.Format(msgs.locale, "menuRevealLibrary", map[string]any{"platform": platform})
 }
 
 // MenuSelectAll says "Select All"
@@ -10624,18 +10684,24 @@ func (msgs Messages) SettingsGeneralRetry() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralRetry", nil)
 }
 
-// SettingsGeneralShowInFinder says "Show in Finder"
+// SettingsGeneralShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language the app shows.
 //
-// Button showing the library folder in Finder.
-func SettingsGeneralShowInFinder() string { return In(i18n.Locale()).SettingsGeneralShowInFinder() }
+// Button showing the library folder in the system's file manager.
+// {platform} is the system the app runs on: macOS, Windows or another
+// (Linux); each case names that system's file manager.
+func SettingsGeneralShowInFinder(platform string) string {
+	return In(i18n.Locale()).SettingsGeneralShowInFinder(platform)
+}
 
-// SettingsGeneralShowInFinder says "Show in Finder"
+// SettingsGeneralShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language of msgs.
 //
-// Button showing the library folder in Finder.
-func (msgs Messages) SettingsGeneralShowInFinder() string {
-	return Catalog.Format(msgs.locale, "settingsGeneralShowInFinder", nil)
+// Button showing the library folder in the system's file manager.
+// {platform} is the system the app runs on: macOS, Windows or another
+// (Linux); each case names that system's file manager.
+func (msgs Messages) SettingsGeneralShowInFinder(platform string) string {
+	return Catalog.Format(msgs.locale, "settingsGeneralShowInFinder", map[string]any{"platform": platform})
 }
 
 // SettingsGeneralToolDetail says "{use} · {where}"
@@ -10796,7 +10862,7 @@ func (msgs Messages) SettingsKeywordsAccount() string {
 	return Catalog.Format(msgs.locale, "settingsKeywordsAccount", nil)
 }
 
-// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again command line ter…"
+// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli de…"
 // in the language the app shows.
 //
 // Search keywords of the General settings section, separated by spaces,
@@ -10804,7 +10870,7 @@ func (msgs Messages) SettingsKeywordsAccount() string {
 // them. Use the words the section's page shows.
 func SettingsKeywordsGeneral() string { return In(i18n.Locale()).SettingsKeywordsGeneral() }
 
-// SettingsKeywordsGeneral says "library location Finder interface language version components yt-dlp ffmpeg whisper-cli detect again command line ter…"
+// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli de…"
 // in the language of msgs.
 //
 // Search keywords of the General settings section, separated by spaces,
@@ -12084,20 +12150,26 @@ func (msgs Messages) SidebarMenuOpenLibrary() string {
 	return Catalog.Format(msgs.locale, "sidebarMenuOpenLibrary", nil)
 }
 
-// SidebarMenuShowInFinder says "Show in Finder"
+// SidebarMenuShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language the app shows.
 //
 // Item of the library menu of the settings page's Switch button that shows
-// the open library in Finder.
-func SidebarMenuShowInFinder() string { return In(i18n.Locale()).SidebarMenuShowInFinder() }
+// the open library in the system's file manager. {platform} is the system
+// the app runs on: macOS, Windows or another (Linux); each case names that
+// system's file manager.
+func SidebarMenuShowInFinder(platform string) string {
+	return In(i18n.Locale()).SidebarMenuShowInFinder(platform)
+}
 
-// SidebarMenuShowInFinder says "Show in Finder"
+// SidebarMenuShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language of msgs.
 //
 // Item of the library menu of the settings page's Switch button that shows
-// the open library in Finder.
-func (msgs Messages) SidebarMenuShowInFinder() string {
-	return Catalog.Format(msgs.locale, "sidebarMenuShowInFinder", nil)
+// the open library in the system's file manager. {platform} is the system
+// the app runs on: macOS, Windows or another (Linux); each case names that
+// system's file manager.
+func (msgs Messages) SidebarMenuShowInFinder(platform string) string {
+	return Catalog.Format(msgs.locale, "sidebarMenuShowInFinder", map[string]any{"platform": platform})
 }
 
 // SidebarNewLibrary says "New Library…"
@@ -12128,20 +12200,26 @@ func (msgs Messages) SidebarOpenLibrary() string {
 	return Catalog.Format(msgs.locale, "sidebarOpenLibrary", nil)
 }
 
-// SidebarRevealLibrary says "Show “{name}” in Finder"
+// SidebarRevealLibrary says "{platform, select, macOS {Show “{name}” in Finder} Windows {Show “{name}” in File Explorer} other {Show “{n…"
 // in the language the app shows.
 //
 // Item of the library switcher's menu that shows the open library's folder
-// in Finder.
-func SidebarRevealLibrary(name string) string { return In(i18n.Locale()).SidebarRevealLibrary(name) }
+// in the system's file manager. {platform} is the system the app runs on:
+// macOS, Windows or another (Linux); each case names that system's file
+// manager.
+func SidebarRevealLibrary(name string, platform string) string {
+	return In(i18n.Locale()).SidebarRevealLibrary(name, platform)
+}
 
-// SidebarRevealLibrary says "Show “{name}” in Finder"
+// SidebarRevealLibrary says "{platform, select, macOS {Show “{name}” in Finder} Windows {Show “{name}” in File Explorer} other {Show “{n…"
 // in the language of msgs.
 //
 // Item of the library switcher's menu that shows the open library's folder
-// in Finder.
-func (msgs Messages) SidebarRevealLibrary(name string) string {
-	return Catalog.Format(msgs.locale, "sidebarRevealLibrary", map[string]any{"name": name})
+// in the system's file manager. {platform} is the system the app runs on:
+// macOS, Windows or another (Linux); each case names that system's file
+// manager.
+func (msgs Messages) SidebarRevealLibrary(name string, platform string) string {
+	return Catalog.Format(msgs.locale, "sidebarRevealLibrary", map[string]any{"name": name, "platform": platform})
 }
 
 // SidebarSettings says "Settings"

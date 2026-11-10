@@ -11,6 +11,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // menuOrder is the order of the menu bar's menus. A shortcut's Group names the menu it is listed in, so the menu bar, the cheat sheet and wireKeys read the same table. A group not named here gets a menu of its own before 窗口.
@@ -105,7 +106,7 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			sub = then(sub, &mygo.MenuItem{Label: locales.MenuQuit(), Role: mygo.RoleQuit})
 			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: sub}
 		case groupFile:
-			reveal := &mygo.MenuItem{Label: locales.MenuRevealLibrary(), Disabled: a.holds(false) || a.snap().LibraryDir == "", Click: a.menuClick(false, func() { a.reveal(a.snap().LibraryDir) })}
+			reveal := &mygo.MenuItem{Label: locales.MenuRevealLibrary(breeze.Current().String()), Disabled: a.holds(false) || a.snap().LibraryDir == "", Click: a.menuClick(false, func() { a.reveal(a.snap().LibraryDir) })}
 			// 关闭窗口 keeps ⌘W, which the menu bar mygo installs for an app without its own has in its File menu.
 			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(then(items(group), reveal), &mygo.MenuItem{Label: locales.MenuCloseWindow(), Role: mygo.RoleClose})}
 		case groupEdit:

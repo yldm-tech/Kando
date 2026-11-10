@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
@@ -46,7 +47,7 @@ func TestSettingsPages(t *testing.T) {
 	})
 	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	for _, text := range []string{"资料库", "当前资料库", "Kando", "位置", "~/Movies/Kando", "在访达中显示", "界面语言", "简体中文", "版本", appVersion, "组件", "yt-dlp", "ffmpeg", "whisper-cli", "未安装"} {
+	for _, text := range []string{"资料库", "当前资料库", "Kando", "位置", "~/Movies/Kando", locales.SettingsGeneralShowInFinder(platformName()), "界面语言", "简体中文", "版本", appVersion, "组件", "yt-dlp", "ffmpeg", "whisper-cli", "未安装"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}

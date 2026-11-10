@@ -12,12 +12,14 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 func TestOpenFilmShowsBilingualLines(t *testing.T) {
@@ -52,12 +54,12 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	tt.Frame()
 	waitUntil(t, updates, func() bool { return a.player.subs.ready })
 	tt.Frame()
-	for _, text := range []string{"返回", "字幕 100%", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "全部", "在访达中显示"} {
+	for _, text := range []string{"返回", "字幕 100%", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "全部", locales.FilmShowInFinder(platformName())} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("在访达中显示"); err != nil {
+	if err := tt.Click(locales.FilmShowInFinder(platformName())); err != nil {
 		t.Fatal(err)
 	}
 	if revealed != srt {
@@ -525,7 +527,7 @@ func TestPlayerInEnglish(t *testing.T) {
 	tt.Frame()
 	waitUntil(t, updates, func() bool { return a.player.subs.ready && a.player.film.info.Folder != "" })
 	tt.Frame()
-	for _, want := range []string{"100% translated", "All", "Click a line to jump to it", "Search Lines", "Show in Finder", "Back to Library", "Subtitles", "Clips", "Info", "Style"} {
+	for _, want := range []string{"100% translated", "All", "Click a line to jump to it", "Search Lines", locales.FilmShowInFinder(platformName()), "Back to Library", "Subtitles", "Clips", "Info", "Style"} {
 		wantText(t, tt, want)
 	}
 	if err := tt.Click("Info"); err != nil {
@@ -562,19 +564,23 @@ func TestPlayerInEnglish(t *testing.T) {
 	if look := a.player.look; look.Preset != "box" || look.Translation.Family != "默认" {
 		t.Fatalf("look %+v after Box", look)
 	}
-	// The font menu lists the families in English and the look keeps the saved name of the one chosen.
+	// The font menu lists the platform's families in English and the look keeps the saved name of the one chosen: macOS's own fonts on macOS, a sans-serif and a serif font elsewhere.
+	font, saved := "PingFang SC", "苹方"
+	if breeze.Current() != breeze.Mac {
+		font, saved = "Sans Serif", "黑体"
+	}
 	if err := tt.Click("Default"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("PingFang SC"); err != nil {
+	if err := tt.Click(font); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	if look := a.player.look; look.Translation.Family != "苹方" || look.Original.Family != "苹方" {
-		t.Fatalf("look %+v after PingFang SC", look)
+	if look := a.player.look; look.Translation.Family != saved || look.Original.Family != saved {
+		t.Fatalf("look %+v after %s", look, font)
 	}
-	for _, chinese := range []string{"字幕", "简体中文", "在访达中显示", "恢复默认样式", "苹方"} {
+	for _, chinese := range []string{"字幕", "简体中文", locales.In("zh-Hans").FilmShowInFinder(platformName()), "恢复默认样式", saved} {
 		if tt.HasText(chinese) {
 			t.Fatalf("the player still reads %q: %q", chinese, tt.Texts())
 		}
@@ -1800,5 +1806,65 @@ func TestPlayerAudioEndedDoesNotStartAgain(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	if sound.player.Playing() || sound.decoder.proc != proc {
 		t.Fatalf("the ended sound played again: playing %v, ffmpeg %v", sound.player.Playing(), sound.decoder.proc != proc)
+	}
+}
+
+// TestPlayerNamesTheSystemsFileManager checks that the player's reveal names the file manager of the system it runs on, and that the style view's font menu offers that system's fonts: macOS's own there, a sans-serif and a serif font elsewhere, saved by their stored names.
+func TestPlayerNamesTheSystemsFileManager(t *testing.T) {
+	for _, tc := range []struct {
+		platform    breeze.Platform
+		reveal      string
+		fonts       []string
+		pick, saved string
+	}{
+		{breeze.Mac, "在访达中显示", []string{"默认", "苹方", "冬青黑体"}, "冬青黑体", "冬青黑体"},
+		{breeze.Windows, "在文件资源管理器中显示", []string{"默认", "黑体", "宋体"}, "宋体", "宋体"},
+		{breeze.Linux, "在文件管理器中显示", []string{"默认", "黑体", "宋体"}, "宋体", "宋体"},
+	} {
+		t.Run(tc.platform.String(), func(t *testing.T) {
+			usePlatform(t, tc.platform)
+			dir := t.TempDir()
+			video := filepath.Join(dir, "talk.mp4")
+			srt := filepath.Join(dir, "talk.bilingual.srt")
+			for path, body := range map[string]string{video: "v", srt: "1\n00:00:01,000 --> 00:00:02,000\n你好。\nHello.\n\n"} {
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			a, tt, updates := newTestApp(&fakePipeline{})
+			a.edit(func(s *session) { s.LibraryDir = dir })
+			a.library.Jobs = []core.Job{{ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: srt}}
+			tt.Frame()
+			if err := tt.Click("talk"); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			tt.Frame()
+			waitUntil(t, updates, func() bool { return a.player.subs.ready && a.player.film.info.Folder != "" })
+			tt.Frame()
+			wantText(t, tt, tc.reveal)
+			if err := tt.Click("信息"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if n := textCount(tt, tc.reveal); n < 2 {
+				t.Fatalf("%q shows %d times with the Info tab open, want the title bar's and the tab's: %q", tc.reveal, n, tt.Texts())
+			}
+			a.SetStyleView(true)
+			tt.Frame()
+			if err := tt.Click("默认"); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			tt.Frame()
+			for _, font := range tc.fonts {
+				wantText(t, tt, font)
+			}
+			if err := tt.Click(tc.pick); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			tt.Frame()
+			if look := a.player.look; look.Translation.Family != tc.saved || look.Original.Family != tc.saved {
+				t.Fatalf("look %+v after %s", look, tc.pick)
+			}
+		})
 	}
 }

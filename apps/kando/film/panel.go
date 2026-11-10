@@ -314,7 +314,7 @@ func (s screen) infoTab(c *ui.Context, item films.Film) {
 					ui.Column(c).Padding(10, 12).Gap(8).Children(func() {
 						ui.Text(c, films.DisplayPath(folder)).FontSize(11).LineHeight(16.0 / 11).Font("Menlo").Opacity(0.9).Wrap().Selectable()
 						c.Key("film-info-reveal")
-						if breeze.Button(c, locales.FilmShowInFinder()).Height(26).AlignSelf(ui.Start).Clicked() {
+						if breeze.Button(c, locales.FilmShowInFinder(breeze.PlatformOf(c).String())).Height(26).AlignSelf(ui.Start).Clicked() {
 							s.Reveal(item.VideoPath)
 						}
 					})

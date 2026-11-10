@@ -147,7 +147,7 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 	glassFace(capsule, ui.RGBA(255, 255, 255, 0.12), 20, 0.25, 17).Children(func() {
 		if path != "" {
 			c.Key("film-reveal")
-			if glyphButton(c, iconFolder, locales.FilmShowInFinder(), 34, 28, 18, 16).Clicked() {
+			if glyphButton(c, iconFolder, locales.FilmShowInFinder(breeze.PlatformOf(c).String()), 34, 28, 18, 16).Clicked() {
 				s.Reveal(path)
 			}
 		}

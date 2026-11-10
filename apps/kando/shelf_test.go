@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -502,5 +503,35 @@ func TestUnreadableLibraryIsNotSaved(t *testing.T) {
 	}
 	if got, err := os.ReadFile(path); err != nil || !bytes.Equal(got, saved) {
 		t.Fatalf("library.json = %q (%v), want %q", got, err, saved)
+	}
+}
+
+// TestRevealSelectsTheItemInTheFileManager checks that showing a film's video hands the video itself, not its folder, to MyGo's shell, which selects it in the file manager on every system (FileManager1's ShowItems on Linux, where xdg-open of the folder selected nothing), and that a reveal that went says nothing.
+func TestRevealSelectsTheItemInTheFileManager(t *testing.T) {
+	var shown []string
+	prev := showItemInFolder
+	showItemInFolder = func(path string) { shown = append(shown, path) }
+	t.Cleanup(func() { showItemInFolder = prev })
+	video := filepath.Join(t.TempDir(), "我的影片.kando", "Talk", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.saveErr = "an earlier error"
+	a.reveal(video)
+	if !slices.Equal(shown, []string{video}) {
+		t.Fatalf("the shell showed %q, want the video %q", shown, video)
+	}
+	if a.saveErr != "" {
+		t.Fatalf("a reveal that went left the error %q", a.saveErr)
+	}
+	// A video that is gone is not handed to the shell; the sidebar says why.
+	missing := filepath.Join(filepath.Dir(video), "gone.mp4")
+	a.reveal(missing)
+	if len(shown) != 1 || a.saveErr == "" {
+		t.Fatalf("revealing a missing file showed %q with error %q", shown, a.saveErr)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/sidebar"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // grid is the films that are done, as 16:9 posters across the page.
@@ -69,7 +70,7 @@ func filmMenu(a App, item Film) func(m *ui.Menu) {
 		if m.Item(locales.FilmsPlay()).Chosen() {
 			a.Open(item)
 		}
-		if m.Item(locales.FilmsShowInFinder()).Chosen() {
+		if m.Item(locales.FilmsShowInFinder(breeze.Current().String())).Chosen() {
 			a.Reveal(item.VideoPath)
 		}
 		if m.Item(locales.FilmsReprocess()).Chosen() {

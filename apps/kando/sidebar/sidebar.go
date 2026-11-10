@@ -9,6 +9,7 @@ import (
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 const (
@@ -128,7 +129,7 @@ func Menu(m *ui.Menu, a App) {
 		a.PickLibrary()
 	}
 	m.Separator()
-	if m.Item(locales.SidebarMenuShowInFinder()).Disabled(currentDir == "").Chosen() {
+	if m.Item(locales.SidebarMenuShowInFinder(breeze.Current().String())).Disabled(currentDir == "").Chosen() {
 		a.Reveal(currentDir)
 	}
 	if len(a.KnownLibraries()) > 1 {

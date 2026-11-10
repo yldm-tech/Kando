@@ -8,14 +8,15 @@ import (
 	"kando/apps/kando/locales"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// DefaultLook is the prototype's: outlined, the translation 30 bold white over the original 22 yellow, at the bottom. A face's Family is the value saved in the settings (默认, 苹方 or 冬青黑体), not what the style view shows: fontName names it.
+// DefaultLook is the prototype's: outlined, the translation 30 bold white over the original 22 yellow, at the bottom. A face's Family is the value saved in the settings (默认, 苹方, 冬青黑体, 黑体 or 宋体), not what the style view shows: fontName names it.
 func DefaultLook() Look {
 	return Look{
 		Preset: "outline", Shadow: true,
-		Translation: Face{Family: "默认", Size: 30, Color: "#FFFFFF", Bold: true},
-		Original:    Face{Family: "默认", Size: 22, Color: "#FFD60A"},
+		Translation: Face{Family: fontDefault, Size: 30, Color: "#FFFFFF", Bold: true},
+		Original:    Face{Family: fontDefault, Size: 22, Color: "#FFD60A"},
 	}
 }
 
@@ -146,26 +147,49 @@ func (s screen) styledLines(text string) []styledLine {
 	return add(add(nil, translation, s.Cue().Translation), original, s.Cue().Original)
 }
 
+// The font families a face can have, as the settings save them. They are data, not text: fontName names them in the interface's language. 默认 leaves the line in the system's font; 苹方 and 冬青黑体 are macOS's own Chinese fonts, the ones the style view offers there; 黑体 and 宋体 are a sans-serif and a serif Chinese font, the ones it offers on Windows and Linux.
+const (
+	fontDefault  = "默认"
+	fontPingFang = "苹方"
+	fontHiragino = "冬青黑体"
+	fontSans     = "黑体"
+	fontSerif    = "宋体"
+)
+
+// fontFamilies are the fonts that draw each saved family, a list for ui.Element.Font: the family's own font first, then a font of the same kind on each system (macOS, Windows, Linux), so a family saved on one system still draws in its kind on another, and on a Linux without the first a common substitute does.
+var fontFamilies = map[string]string{
+	fontPingFang: "PingFang SC, Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei",
+	fontHiragino: "Hiragino Sans GB, Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei",
+	fontSans:     "Microsoft YaHei, Noto Sans CJK SC, Source Han Sans SC, WenQuanYi Micro Hei, PingFang SC",
+	fontSerif:    "SimSun, Noto Serif CJK SC, Source Han Serif SC, AR PL UMing CN, Songti SC",
+}
+
+// fontFamily is the font list that draws the saved family name, or "" for 默认 and a family it does not know, which keep the system's font.
 func fontFamily(name string) string {
-	switch name {
-	case "苹方":
-		return "PingFang SC"
-	case "冬青黑体":
-		return "Hiragino Sans GB"
-	default:
-		return ""
+	return fontFamilies[name]
+}
+
+// styleFonts are the families the style view offers on platform p, as the settings save them: macOS's own fonts on macOS, as the prototype has them, and elsewhere a sans-serif and a serif font, which look apart on every system that has Chinese fonts.
+func styleFonts(p breeze.Platform) []string {
+	if p == breeze.Mac {
+		return []string{fontDefault, fontPingFang, fontHiragino}
 	}
+	return []string{fontDefault, fontSans, fontSerif}
 }
 
 // fontName is what the style view calls a saved font family in the interface's language; a family it does not know is shown as saved.
 func fontName(family string) string {
 	switch family {
-	case "默认":
+	case fontDefault:
 		return locales.FilmFontDefault()
-	case "苹方":
+	case fontPingFang:
 		return locales.FilmFontPingFang()
-	case "冬青黑体":
+	case fontHiragino:
 		return locales.FilmFontHiragino()
+	case fontSans:
+		return locales.FilmFontSans()
+	case fontSerif:
+		return locales.FilmFontSerif()
 	}
 	return family
 }

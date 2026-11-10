@@ -9,7 +9,7 @@ import (
 
 // noLibrary is the page before there is a library: what a library is, 新建资料库… and 打开已有资料库….
 func noLibrary(c *ui.Context, a App) {
-	statusPage(c, libraryArt, locales.FilmsNoLibraryTitle(), locales.FilmsNoLibraryDescription(), func() {
+	statusPage(c, libraryArt, locales.FilmsNoLibraryTitle(), locales.FilmsNoLibraryDescription(breeze.PlatformOf(c).String()), func() {
 		c.Key("empty-new")
 		if statusButton(breeze.PrimaryButton(c, locales.FilmsNewLibraryEllipsis())).Clicked() {
 			a.BeginNew()

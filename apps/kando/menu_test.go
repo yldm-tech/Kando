@@ -5,11 +5,13 @@ import (
 	"slices"
 	"testing"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // findMenuItem finds the item labeled label in the menu titled menu of the menu bar bar.
@@ -151,7 +153,7 @@ func TestMenuWaitsBehindTheCheatsheet(t *testing.T) {
 	a.toggleCheatsheet()
 	tt.Frame()
 	bar := a.menuBar()
-	if !findMenuItem(t, bar, "看懂", "设置…").Disabled || !findMenuItem(t, bar, "文件", "在访达中显示资料库").Disabled {
+	if !findMenuItem(t, bar, "看懂", "设置…").Disabled || !findMenuItem(t, bar, "文件", locales.MenuRevealLibrary(platformName())).Disabled {
 		t.Fatal("commands enabled behind the cheat sheet")
 	}
 	// An item of a menu built before the sheet opened.
@@ -223,7 +225,7 @@ func TestMenuWaitsBehindAFilePanel(t *testing.T) {
 	release := a.holdModal()
 	tt.Frame()
 	bar := a.menuBar()
-	for _, it := range []struct{ menu, label string }{{"文件", "打开资料库…"}, {"文件", "新建资料库…"}, {"文件", "打开本地视频…"}, {"文件", "在访达中显示资料库"}, {"看懂", "设置…"}, {"窗口", "片库"}, {"帮助", "快捷键速查"}} {
+	for _, it := range []struct{ menu, label string }{{"文件", "打开资料库…"}, {"文件", "新建资料库…"}, {"文件", "打开本地视频…"}, {"文件", locales.MenuRevealLibrary(platformName())}, {"看懂", "设置…"}, {"窗口", "片库"}, {"帮助", "快捷键速查"}} {
 		if !findMenuItem(t, bar, it.menu, it.label).Disabled {
 			t.Fatalf("%s › %s enabled behind a file panel", it.menu, it.label)
 		}
@@ -351,7 +353,7 @@ func TestMenuBarInEnglish(t *testing.T) {
 	bar := a.menuBar()
 	for _, want := range [][2]string{
 		{"Kando", "About Kando"}, {"Kando", "Settings…"}, {"Kando", "Hide Kando"}, {"Kando", "Quit Kando"},
-		{"File", "New Library…"}, {"File", "Open Library…"}, {"File", "Show Library in Finder"}, {"File", "Close Window"},
+		{"File", "New Library…"}, {"File", "Open Library…"}, {"File", locales.MenuRevealLibrary(platformName())}, {"File", "Close Window"},
 		{"Edit", "Undo"}, {"Edit", "Copy"}, {"Edit", "Paste and Match Style"},
 		{"View", "Toggle Full Screen"},
 		{"Study", "Ask This Film / Commands…"},
@@ -359,5 +361,17 @@ func TestMenuBarInEnglish(t *testing.T) {
 		{"Help", "Shortcut Cheat Sheet"},
 	} {
 		findMenuItem(t, bar, want[0], want[1])
+	}
+}
+
+// TestMenuNamesTheSystemsFileManager checks that the File menu's reveal names the file manager of the system it runs on.
+func TestMenuNamesTheSystemsFileManager(t *testing.T) {
+	for p, want := range map[breeze.Platform]string{breeze.Mac: "在访达中显示资料库", breeze.Windows: "在文件资源管理器中显示资料库", breeze.Linux: "在文件管理器中显示资料库"} {
+		t.Run(p.String(), func(t *testing.T) {
+			usePlatform(t, p)
+			a, tt, _ := newTestApp(&fakePipeline{})
+			tt.Frame()
+			findMenuItem(t, a.menuBar(), "文件", want)
+		})
 	}
 }

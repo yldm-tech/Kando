@@ -17,11 +17,13 @@ import (
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go).
+// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). A reveal no test watches shows nothing: the tests run without an app, where MyGo's shell would wait for one, and must not open the file manager of the machine running them.
 func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
+	showItemInFolder = func(string) {}
 	os.Exit(m.Run())
 }
 
@@ -248,4 +250,14 @@ func clickRow(t *testing.T, tt *ui.Tester, label string) {
 	if !tt.Focused(label) {
 		t.Fatalf("clicking the row %q did not focus its field", label)
 	}
+}
+
+// platformName is the platform the tests run on as the messages naming the system's file manager select it (macOS, Windows or Linux), so a test of another area can find 在访达中显示 by the words this system's build shows.
+func platformName() string { return breeze.Current().String() }
+
+// usePlatform draws the window as p's, with p's labels, for the rest of t, and goes back to the system's after it.
+func usePlatform(t *testing.T, p breeze.Platform) {
+	t.Helper()
+	breeze.SetPlatform(p)
+	t.Cleanup(func() { breeze.SetPlatform(breeze.Auto) })
 }

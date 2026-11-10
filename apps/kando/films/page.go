@@ -36,6 +36,8 @@ type App interface {
 	Start()
 	// PickVideos asks for local videos and adds them to the queue.
 	PickVideos()
+	// PickVideosShortcut is the shortcut bound to PickVideos, which the tooltip of 本地视频 writes as the platform does (⌘O on macOS, Ctrl+O elsewhere).
+	PickVideosShortcut() (ui.Modifiers, ui.Key)
 	// DropFiles adds the videos among files dropped on the page to the queue.
 	DropFiles(paths []string)
 	Poster(path string) ui.ImageSource
