@@ -2960,6 +2960,10 @@ func TestCueMenuCopiesTheLine(t *testing.T) {
 	}
 	tt.CloseMenu()
 	copyFrom("Bye.", "拷贝台词", "Bye.")
+	// Copying a line is not a seek: the row's click is for the left button.
+	if a.PlayHead() != 0 {
+		t.Fatalf("copying from the list moved the playhead to %v", a.PlayHead())
+	}
 }
 
 // TestCopyCurrentLineKey checks ⇧⌘C on the open film: it copies the line playing, following the subtitle delay, and says so on the picture; between two lines it leaves the clipboard and the picture alone; and the 字幕 menu's item, which carries the shortcut once the app has its own menu bar, copies the same way.
@@ -2993,6 +2997,18 @@ func TestCopyCurrentLineKey(t *testing.T) {
 	}
 	a.player.film.delay = 0
 
+	// With the subtitles off the picture shows no line, but the line at the playhead is still copied.
+	mode := a.player.subMode
+	a.player.subMode = film.SubOff
+	a.player.opening = 1500 * time.Millisecond
+	tt.SetClipboard("before")
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "你好。\nHello." {
+		t.Fatalf("⇧⌘C with the subtitles off copied %q", tt.Clipboard())
+	}
+	a.player.subMode = mode
+
 	a.player.opening = 4500 * time.Millisecond
 	it := findMenuItem(t, a.menuBar(), "字幕", "拷贝当前台词")
 	if it.Disabled || it.Accelerator != "Super+Shift+c" {
@@ -3013,5 +3029,14 @@ func TestCopyCurrentLineWaitsForTheSubtitles(t *testing.T) {
 	tt.Frame()
 	if tt.Clipboard() != "before" || tt.HasText("已拷贝") {
 		t.Fatalf("copied %q before the subtitles were read; texts %q", tt.Clipboard(), tt.Texts())
+	}
+
+	// Subtitles still read for the film opened before belong to that film, not this one.
+	a.player.subs.ready = true
+	a.player.subs.key = "another film"
+	a.copyCurrentLine()
+	tt.Frame()
+	if tt.Clipboard() != "before" || tt.HasText("已拷贝") {
+		t.Fatalf("copied %q from another film's subtitles; texts %q", tt.Clipboard(), tt.Texts())
 	}
 }

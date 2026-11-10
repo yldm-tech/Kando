@@ -274,7 +274,7 @@ func (a *app) searchSubtitles() {
 	a.player.film.searchFocus = true
 }
 
-// copyCurrentLine is ⇧⌘C: the subtitle line playing now on the clipboard, as the side panel's Copy Line puts it (film.LineText), saying so on the picture. Between two lines, or before the film's subtitles are read, there is nothing to copy and it does nothing. ⌘C stays Edit › Copy's, for the text fields.
+// copyCurrentLine is ⇧⌘C: the subtitle line at the playhead on the clipboard, as the side panel's Copy Line puts it (film.LineText), saying so on the picture. Between two lines, or before the film's subtitles are read, there is nothing to copy and it does nothing. It goes by PlayHead, so while the picture is still opening, or without one (no ffmpeg), it copies the line where the film opens, and it copies with the subtitles turned off (V) as well: hiding the lines from the picture is no reason to keep them off the clipboard. ⌘C stays Edit › Copy's, for the text fields.
 func (a *app) copyCurrentLine() {
 	subs := &a.player.subs
 	if subs.key != a.openKey || !subs.ready {
