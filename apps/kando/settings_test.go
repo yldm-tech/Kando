@@ -405,6 +405,9 @@ func TestSpokenLanguageIsSavedAndRestored(t *testing.T) {
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
+	// The language row is the last on the page; Linux's fonts set the model rows taller, which pushes it below a 640-point window, so the window is made tall enough to hold the whole page and the drop-down's list.
+	tt.SetSize(880, 1600)
+	tt.Frame()
 	wantText(t, tt, "识别语言")
 	if err := tt.Click("自动识别"); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
