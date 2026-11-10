@@ -2888,9 +2888,9 @@
   "@precheckNoTools": {
     "description": "Card of a failed job when a program it needs (yt-dlp, ffmpeg, whisper-cli) is not installed."
   },
-  "precheckNoTranscript": "This film's original subtitles are gone, so only its translation can't be redone. Retry processes the entire film again.",
+  "precheckNoTranscript": "This film's original subtitles are gone, so its translation can't be redone on its own. Process the entire film again instead.",
   "@precheckNoTranscript": {
-    "description": "Why a film being translated again failed: the transcript beside its video was deleted."
+    "description": "Why translating a finished film again failed, the reason in queueRedoFailed: the transcript beside its video was deleted, so only Process Again (which downloads and transcribes the film again) can make new subtitles."
   },
   "precheckNoVideo": "Only video files can be added (mp4, mov, mkv, webm and others).",
   "@precheckNoVideo": {
@@ -2899,6 +2899,10 @@
   "precheckNotLink": "This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read.",
   "@precheckNotLink": {
     "description": "Message bar when what was pasted is not a link."
+  },
+  "precheckSubtitlesChanged": "This film's subtitles were changed since Kando made them, so the lines that failed can't be found. Translate it again to redo every line.",
+  "@precheckSubtitlesChanged": {
+    "description": "Why translating only a film's missing lines failed: its bilingual subtitle file was edited by hand and no longer matches the transcript line for line, so Kando cannot tell which lines are untranslated. Translate Again redoes every line."
   },
   "precheckToolSeparator": ", ",
   "@precheckToolSeparator": {
@@ -3067,6 +3071,20 @@
   "queueQuitWhileRunningTitle": "Quit Kando while a video is being processed?",
   "@queueQuitWhileRunningTitle": {
     "description": "Title of the dialog asking whether to quit while a video is being processed."
+  },
+  "queueRedoFailed": "“{name}” keeps its subtitles: it couldn't be translated again. {reason}",
+  "@queueRedoFailed": {
+    "description": "Message bar when translating a finished film again (Translate Again or Translate Missing Lines) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Learn Rust"
+      },
+      "reason": {
+        "type": "String",
+        "example": "Can't connect to the AI service. Check your network, then retry."
+      }
+    }
   },
   "queueRemedyAge": "Age verification required",
   "@queueRemedyAge": {

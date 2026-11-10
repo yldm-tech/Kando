@@ -174,6 +174,12 @@ func (t Tools) Check() error {
 	} else if _, err := os.Stat(t.WhisperModel); err != nil {
 		errs = append(errs, fmt.Errorf("whisper model: %w", err))
 	}
+	return errors.Join(append(errs, t.CheckTranslate())...)
+}
+
+// CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, without the download and speech tools Check also wants: translating a done film again (core.Job.Redo) runs only Translate and Export (TranslateChecker).
+func (t Tools) CheckTranslate() error {
+	var errs []error
 	if t.Translator.Model == "" {
 		errs = append(errs, errors.New("KANDO_LLM_MODEL is not set"))
 	}

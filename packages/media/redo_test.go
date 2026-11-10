@@ -13,7 +13,7 @@ import (
 	"kando/packages/core"
 )
 
-// redoPipeline is a done film's pipeline as a job translating it again sees it: Download and Transcribe fail the test, since the film is neither downloaded nor transcribed again, Translate prefixes each line it is sent with the language and remembers them, and Export writes the subtitles as Tools does. untranslated, when set, is the text Translate leaves untranslated, reporting it as Tools does.
+// redoPipeline is a done film's pipeline as a job translating it again sees it: Check fails as it does once the speech model is deleted, which a job translating again does not need, so only CheckTranslate may run; Download and Transcribe fail the test, since the film is neither downloaded nor transcribed again, Translate prefixes each line it is sent with the language and remembers them, and Export writes the subtitles as Tools does. untranslated, when set, is the text Translate leaves untranslated, reporting it as Tools does.
 type redoPipeline struct {
 	t            *testing.T
 	sent         []string
@@ -22,7 +22,11 @@ type redoPipeline struct {
 	translateErr error
 }
 
-func (p *redoPipeline) Check() error { return nil }
+func (p *redoPipeline) Check() error {
+	return errors.New("whisper model: stat ggml-small.bin: no such file or directory")
+}
+
+func (p *redoPipeline) CheckTranslate() error { return nil }
 
 func (p *redoPipeline) Download(context.Context, string) (string, error) {
 	p.t.Error("translating again downloaded the video")
@@ -131,7 +135,7 @@ func TestRunTranslatesAFilmAgainFromItsTranscript(t *testing.T) {
 	if want := []string{"日本語:Hello there.\nHello there.", "日本語:How are you?\nHow are you?", "日本語:Goodbye.\nGoodbye."}; !reflect.DeepEqual(bilingualTexts(t, final), want) {
 		t.Fatalf("bilingual %q", bilingualTexts(t, final))
 	}
-	if final.Redo != "" || final.Untranslated != 0 || final.CompletedAt.IsZero() || final.SubtitlePath != job.SubtitlePath {
+	if final.Redo != "" || final.RedoLanguage != "" || final.Language != "日本語" || final.Untranslated != 0 || final.CompletedAt.IsZero() || final.SubtitlePath != job.SubtitlePath {
 		t.Fatalf("final %+v", final)
 	}
 }
@@ -174,25 +178,56 @@ func TestRunCountsTheMissingLinesThatFailAgain(t *testing.T) {
 	}
 }
 
-// A translation that fails leaves the film's subtitles as they were, and the failed job still redoes only its translation when it is retried.
+// A translation that fails leaves the film's subtitles as they were, and the failed job still says what they are: the language, the lines left untranslated and when they were made, with the part it was redoing.
 func TestRunKeepsTheSubtitlesWhenTranslatingAgainFails(t *testing.T) {
 	job := doneFilm(t, "你好。", "", "再见。")
-	job.Redo = core.RedoMissing
+	job.Redo = core.RedoTranslation
+	job.RedoLanguage = "日本語"
+	job.CompletedAt = time.Date(2026, 11, 1, 9, 0, 0, 0, time.UTC)
 	before := bilingualTexts(t, job)
-	final := Run(context.Background(), &redoPipeline{t: t, translateErr: errors.New("translation API returned 401")}, job, "简体中文", func(core.Job) {})
-	if final.Stage != core.StageFailed || final.Redo != core.RedoMissing || !strings.HasPrefix(final.Err.Error(), "translate: ") {
+	final := Run(context.Background(), &redoPipeline{t: t, translateErr: errors.New("translation API returned 401")}, job, "日本語", func(core.Job) {})
+	if final.Stage != core.StageFailed || final.Redo != core.RedoTranslation || !strings.HasPrefix(final.Err.Error(), "translate: ") {
 		t.Fatalf("final %+v", final)
+	}
+	if final.Language != "简体中文" || final.Untranslated != 1 || !final.CompletedAt.Equal(job.CompletedAt) {
+		t.Fatalf("the failed job no longer describes the film's subtitles: %+v", final)
 	}
 	if after := bilingualTexts(t, final); !reflect.DeepEqual(after, before) {
 		t.Fatalf("subtitles %q, were %q", after, before)
 	}
 }
 
-// Subtitles that no longer match the transcript cue for cue, as ones edited by hand, do not say which lines are missing: every line is translated.
-func TestRunTranslatesEveryLineWhenTheSubtitlesDoNotMatch(t *testing.T) {
+// Subtitles that no longer match the transcript cue for cue, as ones edited by hand, do not say which lines are missing: translating only those fails with ErrSubtitlesChanged, sends the translator nothing and leaves the edited file as it is, rather than translating every line over it.
+func TestRunKeepsSubtitlesThatNoLongerMatch(t *testing.T) {
+	for name, edited := range map[string]string{
+		"merged":   "1\n00:00:00,000 --> 00:00:02,000\n你好。\nHello there.\n\n2\n00:00:02,000 --> 00:00:02,999\n再见。\nGoodbye.\n\n",
+		"retimed":  "1\n00:00:00,500 --> 00:00:00,999\n你好。\nHello there.\n\n2\n00:00:01,000 --> 00:00:01,999\nHow are you?\n\n3\n00:00:02,000 --> 00:00:02,999\n再见。\nGoodbye.\n\n",
+		"reworded": "1\n00:00:00,000 --> 00:00:00,999\n你好。\nHi there.\n\n2\n00:00:01,000 --> 00:00:01,999\nHow are you?\n\n3\n00:00:02,000 --> 00:00:02,999\n再见。\nGoodbye.\n\n",
+	} {
+		job := doneFilm(t, "你好。", "", "再见。")
+		job.Redo = core.RedoMissing
+		if err := os.WriteFile(job.SubtitlePath, []byte(edited), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		p := &redoPipeline{t: t}
+		final := Run(context.Background(), p, job, "简体中文", func(core.Job) {})
+		if final.Stage != core.StageFailed || !errors.Is(final.Err, ErrSubtitlesChanged) || final.Redo != core.RedoMissing {
+			t.Fatalf("%s: final %+v", name, final)
+		}
+		if len(p.sent) != 0 {
+			t.Fatalf("%s: sent %q", name, p.sent)
+		}
+		if data, err := os.ReadFile(job.SubtitlePath); err != nil || string(data) != edited {
+			t.Fatalf("%s: the edited subtitles were rewritten: %q, %v", name, data, err)
+		}
+	}
+}
+
+// A film whose bilingual subtitles are gone has no translated line left: translating the missing lines translates every line.
+func TestRunTranslatesEveryLineWhenTheBilingualSubtitlesAreGone(t *testing.T) {
 	job := doneFilm(t, "你好。", "", "再见。")
 	job.Redo = core.RedoMissing
-	if err := os.WriteFile(job.SubtitlePath, []byte("1\n00:00:00,000 --> 00:00:02,000\n你好。\nHello there.\n\n"), 0o644); err != nil {
+	if err := os.Remove(job.SubtitlePath); err != nil {
 		t.Fatal(err)
 	}
 	p := &redoPipeline{t: t}
@@ -204,7 +239,7 @@ func TestRunTranslatesEveryLineWhenTheSubtitlesDoNotMatch(t *testing.T) {
 	}
 }
 
-// A film whose transcript is gone cannot be translated again: the job fails with ErrNoTranscript and no longer redoes only the translation, so its retry processes the film entirely.
+// A film whose transcript is gone cannot be translated again: the job fails with ErrNoTranscript, still saying what it was redoing, so the app can put the film back as it was.
 func TestRunTranslatingAgainWithoutATranscript(t *testing.T) {
 	for _, redo := range []core.Redo{core.RedoTranslation, core.RedoMissing} {
 		job := doneFilm(t, "你好。", "", "再见。")
@@ -213,7 +248,7 @@ func TestRunTranslatingAgainWithoutATranscript(t *testing.T) {
 			t.Fatal(err)
 		}
 		final := Run(context.Background(), &redoPipeline{t: t}, job, "简体中文", func(core.Job) {})
-		if final.Stage != core.StageFailed || !errors.Is(final.Err, ErrNoTranscript) || final.Redo != "" {
+		if final.Stage != core.StageFailed || !errors.Is(final.Err, ErrNoTranscript) || final.Redo != redo {
 			t.Fatalf("%s: final %+v", redo, final)
 		}
 	}

@@ -356,25 +356,43 @@ func (a *app) remove(id string) {
 	a.queueTellSystem()
 }
 
-// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again, and a failed job that was translating a done film again (core.Job.Redo) does that again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew, into the target language the settings name now rather than the one it was translated into. A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
+// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew, into the target language the settings name now rather than the one it was translated into. A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
 func (a *app) retry(job core.Job) {
 	a.queueAgain(a.queueRetryable(job))
 }
 
-// queueRetranslate queues done film job to be translated again from the subtitles it exported, without downloading or transcribing it (core.Job.Redo): with core.RedoTranslation every line, into the target language the settings name now; with core.RedoMissing only the lines it left untranslated, into the language its other lines are in. A job that is not done is left alone.
-func (a *app) queueRetranslate(job core.Job, redo core.Redo) {
+// queueRetranslate queues done film job to be translated again from the subtitles it exported, without downloading or transcribing it (core.Job.Redo): with core.RedoTranslation every line, into the target language the settings name now (core.Job.RedoLanguage); with core.RedoMissing only the lines it left untranslated, into the language its other lines are in. The job keeps saying what the film's subtitles are until it has rewritten them, so one that fails or is stopped puts the film back as it was (queueRedoEnded). A job that is not done is left alone. It returns why it could not queue the job, which is when the settings name no target language.
+func (a *app) queueRetranslate(job core.Job, redo core.Redo) error {
 	if job.Stage != core.StageComplete || job.ID == a.queue.active {
-		return
+		return nil
 	}
-	job.Redo = redo
-	if redo == core.RedoTranslation || strings.TrimSpace(job.Language) == "" {
-		job.Language = strings.TrimSpace(a.prefs.language)
+	job.Redo, job.RedoLanguage = redo, ""
+	language := strings.TrimSpace(job.Language)
+	if redo == core.RedoTranslation || language == "" {
+		language = strings.TrimSpace(a.prefs.language)
 	}
-	if job.Language == "" {
-		a.queueAgain(job, errors.New(locales.QueueNoLanguage()))
-		return
+	if language == "" {
+		return errors.New(locales.QueueNoLanguage())
+	}
+	if redo == core.RedoTranslation {
+		job.RedoLanguage = language
+	} else {
+		job.Language = language
 	}
 	a.queueAgain(job, nil)
+	return nil
+}
+
+// queueRedoEnded is job, which was translating a done film again (core.Job.Redo) and has failed or been stopped, put back as the done film it was: its subtitles are still the ones it had, which the job still describes. The message bar says why the translation failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
+func (a *app) queueRedoEnded(job core.Job) core.Job {
+	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
+		reason, section := failureHint(films.Film{Detail: statusText(job)})
+		a.warn(locales.QueueRedoFailed(jobName(job), reason), section)
+	}
+	job.Stage = core.StageComplete
+	job.Err, job.FailKind, job.Progress = nil, "", core.Progress{}
+	job.Redo, job.RedoLanguage = "", ""
+	return job
 }
 
 // queueAgain queues job, made ready by queueRetryable or queueRetranslate, again under the same ID and goes to the library, where the card already on screen follows it. err is why the job cannot be queued: errInQueue leaves everything as it is, and any other is said on the line under the link field.
@@ -401,7 +419,7 @@ func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 	}
 	if job.Stage == core.StageComplete {
 		job.Transcribed = false
-		job.Redo = ""
+		job.Redo, job.RedoLanguage = "", ""
 		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if strings.TrimSpace(job.Language) == "" {
@@ -440,7 +458,10 @@ func (a *app) queueAdd(job core.Job) {
 	job.Stage = core.StageQueued
 	job.Err = nil
 	job.FailKind = ""
-	job.CompletedAt = time.Time{}
+	// A job translating a done film again keeps the film's completion until it completes again (core.Job.Redo).
+	if job.Redo == "" {
+		job.CompletedAt = time.Time{}
+	}
 	if job.LibraryDir == "" {
 		job.LibraryDir = a.snap().LibraryDir
 	}
@@ -521,6 +542,11 @@ func (a *app) run(job core.Job) {
 		tools.Translator.Context = a.prefs.translateContext
 		a.pipeline = tools
 	}
+	// A job translating every line of a done film again translates into the language it was asked for, which becomes its Language once it is done.
+	language := job.Language
+	if job.Redo == core.RedoTranslation && strings.TrimSpace(job.RedoLanguage) != "" {
+		language = job.RedoLanguage
+	}
 	ctx, cancel := context.WithCancelCause(context.Background())
 	done := make(chan struct{})
 	a.queue.active, a.queue.cancel, a.queue.done = job.ID, cancel, done
@@ -538,7 +564,7 @@ func (a *app) run(job core.Job) {
 		// A report that only moves the progress waits in latest, and at most one update carries it to the UI thread: a tool that reports many times a second does not queue an update for each, and the card shows the newest when the window gets to it. Any other report goes as it comes, after the progress already waiting.
 		var latest atomic.Pointer[core.Job]
 		last := job
-		media.Run(ctx, pipeline, job, job.Language, func(j core.Job) {
+		media.Run(ctx, pipeline, job, language, func(j core.Job) {
 			if quitting() {
 				return
 			}
@@ -638,6 +664,13 @@ func (a *app) show(job core.Job) {
 		return
 	}
 	was, _ := a.library.Find(job.ID)
+	// A job that has just completed again under its subtitle path, as one translating its film again does, has rewritten the file the open film shows.
+	rewritten := job.Stage == core.StageComplete && was.Stage != "" && was.Stage != core.StageComplete
+	// A redo that failed is notified as the failure it was, though the film goes back to the done grid.
+	ended := job
+	if job.Stage == core.StageFailed && job.Redo != "" {
+		job = a.queueRedoEnded(job)
+	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {
 		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
@@ -649,10 +682,13 @@ func (a *app) show(job core.Job) {
 		a.queue.status = statusText(job)
 	}
 	if a.openKey == job.ID {
+		if rewritten && a.player.subs.key == job.ID {
+			a.player.subs.path = ""
+		}
 		a.loadSubtitles(job.ID, job.SubtitlePath)
 	}
 	a.areasShelfChanged()
-	a.queueNotifyEnded(was.Stage, job)
+	a.queueNotifyEnded(was.Stage, ended)
 	a.queueTellSystem()
 }
 

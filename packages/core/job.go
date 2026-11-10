@@ -74,19 +74,21 @@ type Job struct {
 	SubtitlePath string
 	// LibraryDir is the library that owns this job. Empty means it was saved before libraries were separate.
 	LibraryDir string
-	// CompletedAt is when the job reached StageComplete; zero until then.
+	// CompletedAt is when the job reached StageComplete; zero until then. A job translating a done film again (Redo) keeps the film's until it completes again.
 	CompletedAt time.Time
 	Err         error
 	// FailKind is why the download failed, when yt-dlp said why; empty otherwise.
 	FailKind FailKind
-	// Untranslated is how many lines of a completed job's subtitles the translation left untranslated after trying them again; 0 when every line was translated.
+	// Untranslated is how many lines of a completed job's subtitles the translation left untranslated after trying them again; 0 when every line was translated. A job translating a done film again (Redo) keeps the film's count until it completes again.
 	Untranslated int
 	// Transcribed is true once this job's transcription has saved the speech it heard beside VideoPath, so running the job again, as a retry after a failed translation or after the app quit in the middle, reads it back instead of transcribing the video again. Processing a done film again clears it, so its speech is transcribed anew.
 	Transcribed bool
 	// Cookies is the browser whose login the download borrows (yt-dlp's --cookies-from-browser name, such as chrome); empty borrows none.
 	Cookies string
-	// Redo is the part of a done film's processing the job does again instead of every stage: RedoTranslation or RedoMissing. Empty runs every stage. It stays set while the job waits, runs or has failed, so a retry or a restart does the same part again, and is cleared once the job is complete.
+	// Redo is the part of a done film's processing the job does again instead of every stage: RedoTranslation or RedoMissing. Empty runs every stage. It stays set while the job waits, runs or has failed, so a restart does the same part again, and is cleared once the job is complete. Until then Language, Untranslated, CompletedAt and SubtitlePath still describe the film's subtitles on disk, which the job only rewrites as its last step, so a redo that fails or is stopped leaves the film done as it was.
 	Redo Redo
+	// RedoLanguage is the language a RedoTranslation job translates into; it becomes Language once the job completes. Empty for any other job.
+	RedoLanguage string
 }
 
 // Redo is what a job made to translate a done film again translates. Both read the subtitles the film's job exported beside its video and neither downloads nor transcribes it again.

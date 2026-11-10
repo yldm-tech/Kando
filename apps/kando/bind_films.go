@@ -10,6 +10,7 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -135,16 +136,18 @@ func (a *app) TranslateAgain(item films.Film) { a.libraryRetranslate(item, core.
 // TranslateMissing translates only the lines a done film's translation left untranslated, as the card's 补译未译的句子 does. The film page's ⋯ uses it too (film.App).
 func (a *app) TranslateMissing(item films.Film) { a.libraryRetranslate(item, core.RedoMissing) }
 
-// libraryRetranslate queues done film item to be translated again (queueRetranslate) on its card, or an open film's page, and says in the message bar why when it cannot. The hero's line is read again once the film is done.
+// libraryRetranslate queues done film item to be translated again (queueRetranslate) on its card, or an open film's page, and says in the message bar why when it cannot. The film page draws no message bar, so there the settings also open where the target language is chosen. The hero's line is read again once the film is done.
 func (a *app) libraryRetranslate(item films.Film, redo core.Redo) {
 	job, ok := a.library.Find(item.JobID)
 	if !ok {
 		return
 	}
 	delete(a.lib.quotes, item.SubtitlePath)
-	a.queueRetranslate(job, redo)
-	if now, _ := a.library.Find(job.ID); now.Stage == job.Stage && a.queue.status != "" {
-		a.warn(a.queue.status, "")
+	if err := a.queueRetranslate(job, redo); err != nil {
+		a.warn(err.Error(), settings.SectionTranslate)
+		if a.openKey != "" {
+			a.OpenSettings(settings.SectionTranslate)
+		}
 	}
 }
 

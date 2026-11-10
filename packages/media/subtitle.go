@@ -110,7 +110,7 @@ func loadTranscript(videoPath string) ([]core.Segment, error) {
 	return ParseSRT(data)
 }
 
-// readExported reads back what exportSubtitles wrote beside the video at videoPath: the original speech from "<video>.srt" and, when withTranslation, each line's translation from "<video>.bilingual.srt", empty for a line it left untranslated. A transcript that is gone, unreadable or empty is ErrNoTranscript. A bilingual file that is gone, unreadable or does not match the transcript cue for cue, as one edited by hand, leaves every translation empty, so every line is translated again.
+// readExported reads back what exportSubtitles wrote beside the video at videoPath: the original speech from "<video>.srt" and, when withTranslation, each line's translation from "<video>.bilingual.srt", empty for a line it left untranslated. A transcript that is gone, unreadable or empty is ErrNoTranscript. A bilingual file that is gone leaves every translation empty, so every line is translated; one that does not match the transcript cue for cue, as one edited by hand, is ErrSubtitlesChanged, since which lines are missing cannot be told and translating them all would overwrite the edits.
 func readExported(videoPath string, withTranslation bool) (original, translated []core.Segment, err error) {
 	if videoPath == "" {
 		return nil, nil, ErrNoTranscript
@@ -134,18 +134,21 @@ func readExported(videoPath string, withTranslation bool) (original, translated 
 		return original, translated, nil
 	}
 	data, err = os.ReadFile(base + ".bilingual.srt")
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		return original, translated, nil
+	}
+	if err != nil {
+		return nil, nil, err
 	}
 	bilingual, err := ParseSRT(data)
 	if err != nil || len(bilingual) != len(original) {
-		return original, translated, nil
+		return nil, nil, ErrSubtitlesChanged
 	}
 	lines := make([]string, len(original))
 	for i, cue := range bilingual {
 		s := original[i]
 		if cue.Start != s.Start || cue.End != s.End {
-			return original, translated, nil
+			return nil, nil, ErrSubtitlesChanged
 		}
 		// A translated cue is its translation above the original line; an untranslated one is the original alone.
 		if cue.Text == s.Text {
@@ -153,7 +156,7 @@ func readExported(videoPath string, withTranslation bool) (original, translated 
 		}
 		line, ok := strings.CutSuffix(cue.Text, "\n"+s.Text)
 		if !ok {
-			return original, translated, nil
+			return nil, nil, ErrSubtitlesChanged
 		}
 		lines[i] = strings.TrimSpace(line)
 	}

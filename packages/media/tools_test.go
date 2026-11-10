@@ -38,6 +38,22 @@ func TestToolsCheckPassesWhenConfigured(t *testing.T) {
 	}
 }
 
+// Translating a done film again needs only the translator: CheckTranslate passes without the download and speech tools, and still says when the translator has no model.
+func TestToolsCheckTranslateNeedsOnlyTheTranslator(t *testing.T) {
+	if err := (Tools{Translator: ChatTranslator{Model: "m"}}).CheckTranslate(); err != nil {
+		t.Fatal(err)
+	}
+	err := Tools{}.CheckTranslate()
+	if err == nil || !strings.Contains(err.Error(), "KANDO_LLM_MODEL") {
+		t.Fatalf("err %v", err)
+	}
+	for _, tool := range []string{"yt-dlp", "ffmpeg", "whisper"} {
+		if strings.Contains(err.Error(), tool) {
+			t.Errorf("error %q mentions %s", err, tool)
+		}
+	}
+}
+
 func setLLMEnv(t *testing.T, baseURL, apiKey, model, everyAPIKey string) {
 	t.Setenv("KANDO_LLM_BASE_URL", baseURL)
 	t.Setenv("KANDO_LLM_API_KEY", apiKey)

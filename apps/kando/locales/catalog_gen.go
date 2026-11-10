@@ -8090,18 +8090,22 @@ func (msgs Messages) PrecheckNoTools() string {
 	return Catalog.Format(msgs.locale, "precheckNoTools", nil)
 }
 
-// PrecheckNoTranscript says "This film's original subtitles are gone, so only its translation can't be redone. Retry processes the entire film again."
+// PrecheckNoTranscript says "This film's original subtitles are gone, so its translation can't be redone on its own. Process the entire film again…"
 // in the language the app shows.
 //
-// Why a film being translated again failed: the transcript beside its video
-// was deleted.
+// Why translating a finished film again failed, the reason in
+// queueRedoFailed: the transcript beside its video was deleted, so only
+// Process Again (which downloads and transcribes the film again) can make
+// new subtitles.
 func PrecheckNoTranscript() string { return In(i18n.Locale()).PrecheckNoTranscript() }
 
-// PrecheckNoTranscript says "This film's original subtitles are gone, so only its translation can't be redone. Retry processes the entire film again."
+// PrecheckNoTranscript says "This film's original subtitles are gone, so its translation can't be redone on its own. Process the entire film again…"
 // in the language of msgs.
 //
-// Why a film being translated again failed: the transcript beside its video
-// was deleted.
+// Why translating a finished film again failed, the reason in
+// queueRedoFailed: the transcript beside its video was deleted, so only
+// Process Again (which downloads and transcribes the film again) can make
+// new subtitles.
 func (msgs Messages) PrecheckNoTranscript() string {
 	return Catalog.Format(msgs.locale, "precheckNoTranscript", nil)
 }
@@ -8132,6 +8136,26 @@ func PrecheckNotLink() string { return In(i18n.Locale()).PrecheckNotLink() }
 // Message bar when what was pasted is not a link.
 func (msgs Messages) PrecheckNotLink() string {
 	return Catalog.Format(msgs.locale, "precheckNotLink", nil)
+}
+
+// PrecheckSubtitlesChanged says "This film's subtitles were changed since Kando made them, so the lines that failed can't be found. Translate it again…"
+// in the language the app shows.
+//
+// Why translating only a film's missing lines failed: its bilingual
+// subtitle file was edited by hand and no longer matches the transcript
+// line for line, so Kando cannot tell which lines are untranslated.
+// Translate Again redoes every line.
+func PrecheckSubtitlesChanged() string { return In(i18n.Locale()).PrecheckSubtitlesChanged() }
+
+// PrecheckSubtitlesChanged says "This film's subtitles were changed since Kando made them, so the lines that failed can't be found. Translate it again…"
+// in the language of msgs.
+//
+// Why translating only a film's missing lines failed: its bilingual
+// subtitle file was edited by hand and no longer matches the transcript
+// line for line, so Kando cannot tell which lines are untranslated.
+// Translate Again redoes every line.
+func (msgs Messages) PrecheckSubtitlesChanged() string {
+	return Catalog.Format(msgs.locale, "precheckSubtitlesChanged", nil)
 }
 
 // PrecheckToolSeparator says ", "
@@ -8586,6 +8610,28 @@ func QueueQuitWhileRunningTitle() string { return In(i18n.Locale()).QueueQuitWhi
 // processed.
 func (msgs Messages) QueueQuitWhileRunningTitle() string {
 	return Catalog.Format(msgs.locale, "queueQuitWhileRunningTitle", nil)
+}
+
+// QueueRedoFailed says "“{name}” keeps its subtitles: it couldn't be translated again. {reason}"
+// in the language the app shows.
+//
+// Message bar when translating a finished film again (Translate Again or
+// Translate Missing Lines) failed: the film keeps the subtitles it had.
+// reason is a full sentence saying why, such as that the AI service refused
+// the key.
+func QueueRedoFailed(name string, reason string) string {
+	return In(i18n.Locale()).QueueRedoFailed(name, reason)
+}
+
+// QueueRedoFailed says "“{name}” keeps its subtitles: it couldn't be translated again. {reason}"
+// in the language of msgs.
+//
+// Message bar when translating a finished film again (Translate Again or
+// Translate Missing Lines) failed: the film keeps the subtitles it had.
+// reason is a full sentence saying why, such as that the AI service refused
+// the key.
+func (msgs Messages) QueueRedoFailed(name string, reason string) string {
+	return Catalog.Format(msgs.locale, "queueRedoFailed", map[string]any{"name": name, "reason": reason})
 }
 
 // QueueRemedyAge says "Age verification required"
