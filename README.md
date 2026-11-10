@@ -19,6 +19,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 ## Features
 
 - Add a video by pasting a link from YouTube, Bilibili or any other site yt-dlp supports (Help › Supported Websites… lists them, with their logos), or pick a local file (mp4, mov, mkv, webm and other video files) or drag it onto the window. Local files are transcribed where they are, not copied.
+- Browse, in the sidebar, is a built-in browser: open a site, sign in if it needs it, and click Download Video to add the page you are on. Every download, from Browse, the link field, the command line or MCP, carries the sign-in of the sites you signed in to there; Clear Sign-in Data… signs you out of all of them.
 - Jobs run one after another through download, transcription, translation and export. A failed job says why, links to the setting that fixes it, and can be retried or removed.
 - Speech is recognized on your computer with whisper.cpp, which detects the spoken language. Settings › Speech Recognition lists seven whisper models, from Tiny (77.7 MB) to Large v3 (3.1 GB), and downloads the one you choose from Hugging Face.
 - Lines are translated by EveryAPI by default, or by any OpenAI-compatible chat API: Settings › AI Service has presets for OpenAI, OpenRouter, Groq, DeepSeek, xAI, Mistral, Qwen (DashScope), Kimi, Zhipu GLM, SiliconFlow, Ollama and LM Studio, plus a custom endpoint. The target language, a context-aware mode that lets the model read the preceding lines, and the prompt can be changed in Settings › Translation.
