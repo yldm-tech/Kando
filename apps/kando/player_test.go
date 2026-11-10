@@ -1710,7 +1710,7 @@ func playerFakeFilm(t *testing.T) (*app, *ui.Tester, chan func()) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.edit(func(s *session) { s.LibraryDir = filepath.Dir(clip) })
-	a.library.Jobs = []core.Job{{ID: "clip", Source: "file://" + clip, Language: "简体中文", Stage: core.StageComplete, VideoPath: clip}}
+	a.library.Jobs = []core.Job{{ID: "clip", Source: core.FileURL(clip), Language: "简体中文", Stage: core.StageComplete, VideoPath: clip}}
 	t.Cleanup(a.stopPlayback)
 	return a, tt, updates
 }

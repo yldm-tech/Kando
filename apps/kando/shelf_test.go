@@ -403,8 +403,8 @@ func TestDropMissingKeepsALocalVideoWhoseFolderIsGone(t *testing.T) {
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.edit(func(s *session) { s.LibraryDir = here })
 	a.library.Jobs = []core.Job{
-		{ID: "deleted", Source: fileURL(deleted), Stage: core.StageComplete, VideoPath: deleted, LibraryDir: here},
-		{ID: "unmounted", Source: fileURL(unmounted), Stage: core.StageComplete, VideoPath: unmounted, LibraryDir: here},
+		{ID: "deleted", Source: core.FileURL(deleted), Stage: core.StageComplete, VideoPath: deleted, LibraryDir: here},
+		{ID: "unmounted", Source: core.FileURL(unmounted), Stage: core.StageComplete, VideoPath: unmounted, LibraryDir: here},
 	}
 	if !a.dropMissing() {
 		t.Fatal("the deleted video's job was not dropped")

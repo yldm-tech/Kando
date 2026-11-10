@@ -456,7 +456,7 @@ func TestRunResumesALocalVideo(t *testing.T) {
 	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	job, _ := core.NewJob("file://" + video)
+	job, _ := core.NewJob(core.FileURL(video))
 	_, failed := runRecording(tools, job)
 	if failed.Stage != core.StageFailed || !failed.Transcribed || failed.VideoPath != video {
 		t.Fatalf("first run %+v", failed)
