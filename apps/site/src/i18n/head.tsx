@@ -15,7 +15,7 @@ export interface PageHead {
   imageAlt: string;
 }
 
-const langs = languages.filter((l) => l.code in site.shots);
+const langs = languages.filter((l) => l.code in site.og);
 
 // HeadTags are the page's own tags, after the ones every page has.
 export function HeadTags({ page }: { page: PageHead }) {
@@ -34,11 +34,12 @@ export function HeadTags({ page }: { page: PageHead }) {
   }
   const group = page.kind;
   const url = pageURL(page.code, group);
-  const shot = site.shots[page.code]?.library;
-  if (!shot) {
-    throw new Error(`no library screenshot for ${page.code}`);
+  // The link preview image is the language's own (media/og/<code>.png), on its home page and its sites page alike.
+  const og = site.og[page.code];
+  if (!og) {
+    throw new Error(`no link preview image for ${page.code}`);
   }
-  const image = siteURL + shot.src;
+  const image = siteURL + og.src;
   return (
     <>
       <title>{page.title}</title>
@@ -60,8 +61,9 @@ export function HeadTags({ page }: { page: PageHead }) {
           <meta key={l.code} property="og:locale:alternate" content={l.locale} />
         ))}
       <meta property="og:image" content={image} />
-      <meta property="og:image:width" content={String(shot.w)} />
-      <meta property="og:image:height" content={String(shot.h)} />
+      <meta property="og:image:type" content="image/png" />
+      <meta property="og:image:width" content={String(og.w)} />
+      <meta property="og:image:height" content={String(og.h)} />
       <meta property="og:image:alt" content={page.imageAlt} />
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={page.title} />

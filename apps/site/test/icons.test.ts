@@ -1,4 +1,4 @@
-// TestIcons, TestShrink and TestOpaqueSquare: the icons made from the app icon have their sizes, and the resizing averages premultiplied colors as Go's image.RGBA does.
+// TestIcons, TestShrink and TestOpaqueSquare: the icons made from the app icon, the web app manifest's among them, have their sizes, and the resizing averages premultiplied colors as Go's image.RGBA does.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vite-plus/test";
@@ -11,6 +11,8 @@ it("writes the icons in their sizes", () => {
     ["apple-touch-icon.png", 180],
     ["favicon-32.png", 32],
     ["favicon-16.png", 16],
+    ["icon-192.png", 192],
+    ["icon-512.png", 512],
   ] as const) {
     expect(pngSize(join(dist(), file)), file).toEqual({ w: size, h: size });
   }

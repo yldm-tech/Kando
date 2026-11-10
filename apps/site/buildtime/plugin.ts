@@ -136,7 +136,7 @@ export function kandoSite(opts: KandoSiteOptions): Plugin {
   };
 }
 
-// kandoPostBuild runs after TanStack Start has prerendered the pages: it preloads each page's content chunk, gives each page its Content Security Policy and takes the scripts out of 404.html (finishHTML).
+// kandoPostBuild runs after TanStack Start has prerendered the pages: it preloads each page's content chunk, puts in each page's structured data, gives each page its Content Security Policy and takes the scripts out of 404.html (finishHTML).
 export function kandoPostBuild(opts: { outDir: string }): Plugin {
   return {
     name: "kando-site-post-build",
@@ -145,7 +145,11 @@ export function kandoPostBuild(opts: { outDir: string }): Plugin {
     buildApp: {
       order: "post",
       handler() {
-        finishHTML(resolve(process.cwd(), opts.outDir, "client"), contentChunks());
+        const data = (globalThis as { [cacheKey]?: Collected })[cacheKey];
+        if (!data) {
+          throw new Error("kando-site: the data was not collected");
+        }
+        finishHTML(resolve(process.cwd(), opts.outDir, "client"), contentChunks(), data.structured);
         return Promise.resolve();
       },
     },

@@ -1,7 +1,8 @@
 {
   "metaTitle": "Kando: learn a language from videos in that language",
   "metaDescription": "Kando is a free, open-source desktop app that plays videos with bilingual subtitles: it transcribes the speech on your computer and translates every line.",
-  "metaImageAlt": "Kando's library: the film finished last, the jobs in progress and the films of the library",
+  "metaImageAlt": "Kando's icon and headline beside its player, which shows a film with the original line and its translation together",
+  "ogTagline": "Paste a link: Kando transcribes it on your computer and plays it with bilingual subtitles.",
   "skipToContent": "Skip to content",
   "brandName": "Kando",
   "homeLabel": "Kando home",

@@ -59,7 +59,7 @@ export function Header({ page }: { page: "home" | "sites" | "404" }) {
       <header className={"top" + (scrolled ? " scrolled" : "")} ref={top}>
         <div className="wrap top-in">
           <a className="brand" href={pagePath(lang.code)} aria-label={t("homeLabel")}>
-            <Brand />
+            <Brand first />
           </a>
           {page !== "404" && (
             <nav className="nav" aria-label={t("navLabel")}>

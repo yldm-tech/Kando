@@ -1,0 +1,31 @@
+{
+  "og": {
+    "en": "9c681d023f70c19cefa90701b89ed70290494d8b60bdb18e9fcb03afafc2b6ec",
+    "zh-CN": "61a5ddd02a1eb5dfd54beed96122cab2c4cef063578df4c48b3f73e640f2f17f",
+    "zh-TW": "6ca16e742141f93cbdc2df12ea66d2e0fb8d01ce26ff7d8781ad8282e11586d9",
+    "ja": "4522f27ee25a61ce2e9879270addec93a6c580c6721d0ab8b105c899f95c5fe8",
+    "ko": "0f517471cfd7024e274c08ed7926f005bbf5380e628d34f5ed39b5dd568d9608"
+  },
+  "shots": {
+    "en": {
+      "avif": "e0d9b1763f7e3ecdbcc873a7a648df2b93679095b15482849d4cf075b2a54d47",
+      "webp": "7ebb7311430f5a6538ccad2a7f078e953a2403d718b6e9691c37abeee991b0c9"
+    },
+    "zh-CN": {
+      "avif": "31cc6ffcb24c5f2a9aabf73b1447c05dd1859738c0e222813bbf7f4d32c6fab8",
+      "webp": "b85f3c6640146f1030a66808fb4c69b5527693a5e2ad25df9a8485c07b963622"
+    },
+    "zh-TW": {
+      "avif": "6fcd9468d364eea7277210d3d96e7773d6c89ec0bcc862ecb8ba4dc6a79c0824",
+      "webp": "9e1967ecd9694cb8be497ef4b648d9efdb1ec25b748bfee152681453d1299ebd"
+    },
+    "ja": {
+      "avif": "1cda22731e2500a7b888de5df0fabd2450673098086bab50cdf475f7e1433d4f",
+      "webp": "b1e7316f53b55f9f24b53bf3660310f61a58f5ae1277137ce7108e9546b5e94d"
+    },
+    "ko": {
+      "avif": "2a12573dc0425ba261865ac34ed0aa0849dd6a4b9f94a066b9a8d35d66ce3db4",
+      "webp": "5b4167a95184aeff22efafd8af4093d8714ae6b2553650ff3d752428f3c3db82"
+    }
+  }
+}

@@ -96,8 +96,28 @@ function htmlFiles(dir: string): string[] {
     .map((f) => join(dir, f));
 }
 
-// finishHTML gives every page of the built site in dir its policy, strips 404.html's module scripts first, and preloads every other page's content chunk, from chunks by language.
-export function finishHTML(dir: string, chunks: ReadonlyMap<LangCode, string>): void {
+// withStructuredData puts json, a page's JSON-LD, at the end of html's head as a data block, which no policy needs to allow because it never runs.
+export function withStructuredData(html: string, json: string): string {
+  const head = html.indexOf("</head>");
+  if (head < 0) {
+    throw new Error("the page has no </head>");
+  }
+  return html.slice(0, head) + `<script type="application/ld+json">${json}</script>` + html.slice(head);
+}
+
+// pagePathOf is the address path of the page at rel, a path in the built site: zh-CN/sites/index.html is /zh-CN/sites/.
+export function pagePathOf(rel: string): string {
+  return (
+    "/" +
+    rel
+      .split(/[\\/]/)
+      .join("/")
+      .replace(/index\.html$/, "")
+  );
+}
+
+// finishHTML gives every page of the built site in dir its policy, strips 404.html's module scripts first, and preloads every other page's content chunk, from chunks by language, and puts in its structured data, from structured by the page's path.
+export function finishHTML(dir: string, chunks: ReadonlyMap<LangCode, string>, structured: ReadonlyMap<string, string>): void {
   const files = htmlFiles(dir);
   if (files.length === 0) {
     throw new Error(`${dir} holds no pages; the prerender wrote nothing`);
@@ -116,6 +136,11 @@ export function finishHTML(dir: string, chunks: ReadonlyMap<LangCode, string>): 
         throw new Error(`${file}: the client build made no chunk of the ${code} content`);
       }
       html = withPreload(html, chunk);
+      const json = structured.get(pagePathOf(relative(dir, file)));
+      if (!json) {
+        throw new Error(`${file}: no structured data for ${pagePathOf(relative(dir, file))}`);
+      }
+      html = withStructuredData(html, json);
     }
     writeFileSync(file, withPolicy(html));
   }

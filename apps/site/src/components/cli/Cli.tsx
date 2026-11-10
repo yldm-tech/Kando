@@ -102,7 +102,7 @@ export function Cli() {
           </div>
           <div className="term-body mcp" {...tabs.panel(1)}>
             <p className="term-label">
-              <img src={site.claudeCode.src} width="16" height="16" alt="" />
+              <img src={site.claudeCode.src} width="16" height="16" alt="" loading="lazy" decoding="async" />
               {t("mcpCommentAdd")}
             </p>
             <pre>

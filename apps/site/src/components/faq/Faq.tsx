@@ -1,19 +1,9 @@
 // Questions, as native disclosures that read complete without script; with it, one is open at a time, and an answer unfolds and folds away instead of appearing and vanishing.
 import site from "virtual:kando/site";
 import { useRef, type MouseEvent, type SyntheticEvent } from "react";
-import { useWords, type ContentKey } from "../../i18n/content";
-import { issuesURL } from "../../lib/site";
+import { useWords } from "../../i18n/content";
+import { faqPairs, issuesURL } from "../../lib/site";
 import { fold, unfold } from "../common/motion";
-
-const questions: readonly [ContentKey, ContentKey][] = [
-  ["faqPriceQ", "faqPriceA"],
-  ["faqSitesQ", "faqSitesA"],
-  ["faqSpeechQ", "faqSpeechA"],
-  ["faqTranslateQ", "faqTranslateA"],
-  ["faqSystemsQ", "faqSystemsA"],
-  ["faqLoginQ", "faqLoginA"],
-  ["faqExportQ", "faqExportA"],
-];
 
 export function Faq() {
   const { t, tf } = useWords();
@@ -54,7 +44,7 @@ export function Faq() {
           </p>
         </div>
         <div className="faq-list" ref={list}>
-          {questions.map(([q, a], i) => (
+          {faqPairs.map(([q, a], i) => (
             <details key={q} className="qa" open={i === 0 ? true : undefined} onToggle={onToggle}>
               <summary onClick={onSummary}>
                 {t(q)}
