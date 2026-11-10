@@ -79,7 +79,7 @@ export function fold(el: HTMLElement | null, done: () => void) {
 
 // settle gives an element's size back to the stylesheet.
 function settle(el: HTMLElement) {
-  for (const name of ["height", "padding-bottom", "opacity", "overflow", "transform", "flex-basis"]) {
+  for (const name of ["height", "padding-top", "padding-right", "padding-bottom", "padding-left", "opacity", "overflow", "transform", "flex-basis"]) {
     el.style.removeProperty(name);
   }
 }
@@ -117,10 +117,17 @@ export function drawer(el: HTMLElement | null, open: boolean, done: () => void =
   if (open) {
     settle(el);
   }
+  // The panel's padding along the way goes with its size, so that it slides to nothing and nothing is left to jump when it is hidden.
+  const style = getComputedStyle(el);
+  const sides = across ? (["paddingLeft", "paddingRight"] as const) : (["paddingTop", "paddingBottom"] as const);
+  const from = (full: string) => (open ? ["0px", full] : [full, "0px"]);
   const size = across ? el.getBoundingClientRect().width : el.getBoundingClientRect().height;
-  const range = open ? ["0px", size + "px"] : [size + "px", "0px"];
   el.style.overflow = "hidden";
-  void animate(el, { [across ? "flexBasis" : "height"]: range, opacity: open ? [0, 1] : [1, 0] }, { duration: 0.4, ease: slide }).then(() => {
+  const to: Record<string, string[] | number[]> = { [across ? "flexBasis" : "height"]: from(size + "px"), opacity: open ? [0, 1] : [1, 0] };
+  for (const side of sides) {
+    to[side] = from(style[side]);
+  }
+  void animate(el, to, { duration: 0.35, ease: slide }).then(() => {
     if (open) {
       settle(el);
     }
