@@ -1538,6 +1538,28 @@
   "@filmsSourceEmpty": {
     "description": "Shown when no film of the library comes from the source chosen in the sidebar."
   },
+  "filmsSortAdded": "Recently Added",
+  "@filmsSortAdded": {
+    "description": "Sort order of the grid of finished films, and its item in the sort menu: the films added to the library last come first. It is the default order."
+  },
+  "filmsSortButton": "Sort: {order}",
+  "@filmsSortButton": {
+    "description": "Pull-down button beside the heading of the grid of finished films that opens the sort menu, naming the order the grid shows now.",
+    "placeholders": {
+      "order": {
+        "type": "String",
+        "example": "Recently Added"
+      }
+    }
+  },
+  "filmsSortSource": "Source",
+  "@filmsSortSource": {
+    "description": "Sort order of the grid of finished films, and its item in the sort menu: films grouped by where they come from (YouTube, Bilibili, other sites, local files), as the sidebar lists the sources."
+  },
+  "filmsSortTitle": "Title",
+  "@filmsSortTitle": {
+    "description": "Sort order of the grid of finished films, and its item in the sort menu: films in alphabetical order of their titles."
+  },
   "filmsStageComplete": "Done",
   "@filmsStageComplete": {
     "description": "Stage of a job: finished."
@@ -1799,6 +1821,16 @@
       "name": {
         "type": "String",
         "example": "Learn Rust"
+      }
+    }
+  },
+  "librarySortSaveFailed": "Couldn't save the sort order: {error}",
+  "@librarySortSaveFailed": {
+    "description": "Message bar when the order chosen for the grid of finished films could not be written to the settings file.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
       }
     }
   },

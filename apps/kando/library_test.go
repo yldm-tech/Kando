@@ -1513,3 +1513,149 @@ func TestSearchFiltersTheShelfByTitle(t *testing.T) {
 		t.Fatalf("清除搜索 left query %q: %q", a.side.query, tt.Texts())
 	}
 }
+
+// sortLibrary is a library of three finished films, the last added first as the shelf keeps them: Mango from Bilibili, apple from YouTube and Zebra from YouTube. Its settings are written to a folder of the test's.
+func sortLibrary(t *testing.T) (*app, *ui.Tester) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	for _, film := range []struct{ name, source string }{
+		{"Mango", "https://www.bilibili.com/video/BV1GJ411x7h7"},
+		{"apple", "https://youtu.be/TRWgBxVAb1M"},
+		{"Zebra", "https://www.youtube.com/watch?v=k9Yt2LmQ0pX"},
+	} {
+		video := filepath.Join(lib, film.name, "video.mp4")
+		if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		a.library.Jobs = append(a.library.Jobs, core.Job{ID: film.name, Source: film.source, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib})
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	return a, tt
+}
+
+// gridOrder is the names of the films in the done grid, as it shows them: the names after its heading's count, each once, though a card shows its name both on its poster's label and under it.
+func gridOrder(t *testing.T, tt *ui.Tester, names ...string) string {
+	t.Helper()
+	texts := tt.Texts()
+	at := slices.Index(texts, locales.FilmsGridCount(len(names)))
+	if at < 0 {
+		t.Fatalf("no grid heading; texts %q", texts)
+	}
+	var order []string
+	for _, text := range texts[at+1:] {
+		if slices.Contains(names, text) && !slices.Contains(order, text) {
+			order = append(order, text)
+		}
+	}
+	return strings.Join(order, ",")
+}
+
+// TestLibrarySortOrdersTheGrid chooses each order from the button beside the grid's heading: the grid follows it, the hero stays the film finished last, and the order is kept in settings.json for the next launch.
+func TestLibrarySortOrdersTheGrid(t *testing.T) {
+	a, tt := sortLibrary(t)
+	names := []string{"Mango", "apple", "Zebra"}
+	if got := gridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
+		t.Fatalf("recently added %s", got)
+	}
+	choose := func(button, item string) {
+		t.Helper()
+		if err := tt.Click(button); err != nil {
+			t.Fatalf("%v; texts %q", err, tt.Texts())
+		}
+		if got, want := tt.Menu(), []string{"最近添加", "标题", "来源"}; !slices.Equal(got, want) {
+			t.Fatalf("sort menu %q, want %q", got, want)
+		}
+		if err := tt.ChooseMenuItem(item); err != nil {
+			t.Fatalf("%v; menu %q", err, tt.Menu())
+		}
+		tt.Frame()
+	}
+	choose("排序：最近添加", "标题")
+	if got := gridOrder(t, tt, names...); got != "apple,Mango,Zebra" {
+		t.Fatalf("by title %s", got)
+	}
+	if a.LibrarySort() != films.SortTitle || !tt.HasText("排序：标题") {
+		t.Fatalf("sort %q; texts %q", a.LibrarySort(), tt.Texts())
+	}
+	if hero, ok := films.HeroFilm(a.films()); !ok || hero.Name != "Mango" {
+		t.Fatalf("the hero is %+v, not the film finished last", hero)
+	}
+	if saved := loadSavedSettings(a.settingsPath); saved.LibrarySort != films.SortTitle {
+		t.Fatalf("saved sort %q", saved.LibrarySort)
+	}
+
+	choose("排序：标题", "来源")
+	if got := gridOrder(t, tt, names...); got != "apple,Zebra,Mango" {
+		t.Fatalf("by source %s", got)
+	}
+
+	// The next launch shows the grid in the order chosen last.
+	b, btt, _ := newTestApp(&fakePipeline{})
+	b.restoreSettings(loadSavedSettings(a.settingsPath))
+	b.library.Jobs = a.library.Jobs
+	b.refreshLibrary()
+	btt.Frame()
+	if got := gridOrder(t, btt, names...); b.LibrarySort() != films.SortSource || got != "apple,Zebra,Mango" {
+		t.Fatalf("restored sort %q shows %s", b.LibrarySort(), got)
+	}
+
+	choose("排序：来源", "最近添加")
+	if got := gridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
+		t.Fatalf("back to recently added %s", got)
+	}
+	if saved := loadSavedSettings(a.settingsPath); saved.LibrarySort != films.SortAdded {
+		t.Fatalf("saved sort %q", saved.LibrarySort)
+	}
+}
+
+// TestLibrarySortReadsAnUnknownOrderAsRecentlyAdded: an order settings.json holds that Kando does not know, as one another version saved, shows the films as they were added.
+func TestLibrarySortReadsAnUnknownOrderAsRecentlyAdded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(path, []byte(`{"librarySort": "duration"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	saved := loadSavedSettings(path)
+	if saved.LibrarySort != films.SortAdded {
+		t.Fatalf("read %q", saved.LibrarySort)
+	}
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.restoreSettings(savedSettings{savedLibrary: savedLibrary{LibrarySort: "duration"}})
+	if a.LibrarySort() != films.SortAdded {
+		t.Fatalf("restored %q", a.LibrarySort())
+	}
+}
+
+// TestLibrarySortSaysWhenItCannotBeKept: the grid takes the order even when settings.json cannot be written, and the message bar says it will not be kept.
+func TestLibrarySortSaysWhenItCannotBeKept(t *testing.T) {
+	a, tt := sortLibrary(t)
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a.settingsPath = filepath.Join(blocker, "settings.json")
+	if err := tt.Click("排序：最近添加"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("标题"); err != nil {
+		t.Fatalf("%v; menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if a.LibrarySort() != films.SortTitle || !tt.HasText("排序方式无法保存") {
+		t.Fatalf("sort %q; texts %q", a.LibrarySort(), tt.Texts())
+	}
+}
+
+// TestLibrarySortHidesWithASingleFilm: one film has no order to choose, so the grid's heading has no sort button.
+func TestLibrarySortHidesWithASingleFilm(t *testing.T) {
+	_, tt, _ := libraryWith(t, "Talk")
+	if !tt.HasText("1 部") || tt.HasText("排序：最近添加") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}

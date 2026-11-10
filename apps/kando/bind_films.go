@@ -184,6 +184,20 @@ func (a *app) Notice() *films.Notice { return &a.lib.notice }
 
 func (a *app) QueueExpanded() *bool { return &a.lib.queueOpen }
 
+func (a *app) LibrarySort() string { return a.lib.sort }
+
+// SetLibrarySort shows the done grid in order and keeps the order in settings.json for the next launch; the message bar says so when it cannot be kept.
+func (a *app) SetLibrarySort(order string) {
+	order = films.ValidSort(order)
+	if order == a.lib.sort {
+		return
+	}
+	a.lib.sort = order
+	if err := a.saveSettings(); err != nil {
+		a.warn(locales.LibrarySortSaveFailed(err.Error()), "")
+	}
+}
+
 // AskRemove opens the confirmation of 从资料库移除, and reads now, rather than while the dialog is drawn, whether the film's folder or only its files would go to the Trash.
 func (a *app) AskRemove(item films.Film) {
 	a.lib.removing = item

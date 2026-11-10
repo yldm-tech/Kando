@@ -88,6 +88,9 @@ type App interface {
 	Notice() *Notice
 	// QueueExpanded is whether 处理中 shows every card rather than the first QueueShown.
 	QueueExpanded() *bool
+	// LibrarySort is the order the done grid shows its films in, one of Sorts; SetLibrarySort shows them in order from now on and keeps it for the next launch.
+	LibrarySort() string
+	SetLibrarySort(order string)
 	// AskRemove asks to confirm moving a film's folder to the Trash.
 	AskRemove(item Film)
 	// Removing is the film AskRemove asked about, whether its confirmation is open, and whether its whole folder goes to the Trash rather than only its video and subtitles.
@@ -193,7 +196,7 @@ func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 	done = ByTitle(done, query)
 	switch {
 	case len(done) > 0:
-		grid(c, t, a, done, source)
+		grid(c, t, a, Sorted(done, a.LibrarySort()), source)
 	case query != "":
 		noMatch(c, a, query)
 	}

@@ -10,14 +10,21 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// grid is the films that are done, as 16:9 posters across the page.
+// grid is the films that are done, as 16:9 posters across the page, in the order the sort button beside its heading chose (done is in that order already). With a single film there is nothing to order, and the button stays away.
 func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
 	title := locales.FilmsGridTitle()
 	if source == sidebar.SourceAll {
 		title = locales.SourceAll()
 	}
 	ui.Column(c).Margin(26, 0, 0, 0).Gap(14).Children(func() {
-		sectionTitle(c, t, title, locales.FilmsGridCount(len(done)))
+		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				sectionTitle(c, t, title, locales.FilmsGridCount(len(done)))
+			})
+			if len(done) > 1 {
+				sortButton(c, a)
+			}
+		})
 		width, _ := c.Size()
 		ui.Grid(c).Columns(Columns(width)).GapX(CardGapX).GapY(CardGapY).AlignItems(ui.Start).Children(func() {
 			for _, item := range done {

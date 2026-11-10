@@ -44,24 +44,31 @@ type libraryUI struct {
 	opened       []string
 	holdOpened   bool
 	openedPosted bool
+	// sort is the order the done grid shows its films in, one of films.Sorts, kept in settings.json (savedLibrary).
+	sort string
 }
 
 // quote is the first bilingual line of a subtitle file: the translation over the original, as the exported file writes them.
 type quote struct{ translation, original string }
 
 func newLibraryUI() libraryUI {
-	return libraryUI{}
+	return libraryUI{sort: films.SortAdded}
 }
 
-// savedLibrary is the library page's part of settings.json. The libraries themselves are the shelf's (savedShelf).
-type savedLibrary struct{}
+// savedLibrary is the library page's part of settings.json: the order of the done grid. The libraries themselves are the shelf's (savedShelf).
+type savedLibrary struct {
+	LibrarySort string `json:"librarySort,omitempty"`
+}
 
-func (s *savedLibrary) clean() {}
+// clean reads an order Kando does not know, such as one another version saved, as the default.
+func (s *savedLibrary) clean() { s.LibrarySort = films.ValidSort(s.LibrarySort) }
 
-// libraryHooks: the shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each frame the library's dialogs hold or give back the window's modal flag.
+// libraryHooks: the grid's order is saved and restored with the settings. The shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each frame the library's dialogs hold or give back the window's modal flag.
 func (a *app) libraryHooks() areaHooks {
 	return areaHooks{
-		restore: func(savedSettings) {
+		save: func(saved *savedSettings) { saved.savedLibrary = savedLibrary{LibrarySort: a.lib.sort} },
+		restore: func(saved savedSettings) {
+			a.lib.sort = films.ValidSort(saved.LibrarySort)
 			a.lib.holdExtras = true
 			a.lib.holdOpened = true
 		},

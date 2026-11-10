@@ -4376,6 +4376,72 @@ func (msgs Messages) FilmsSourceEmpty() string {
 	return Catalog.Format(msgs.locale, "filmsSourceEmpty", nil)
 }
 
+// FilmsSortAdded says "Recently Added"
+// in the language the app shows.
+//
+// Sort order of the grid of finished films, and its item in the sort menu:
+// the films added to the library last come first. It is the default order.
+func FilmsSortAdded() string { return In(i18n.Locale()).FilmsSortAdded() }
+
+// FilmsSortAdded says "Recently Added"
+// in the language of msgs.
+//
+// Sort order of the grid of finished films, and its item in the sort menu:
+// the films added to the library last come first. It is the default order.
+func (msgs Messages) FilmsSortAdded() string {
+	return Catalog.Format(msgs.locale, "filmsSortAdded", nil)
+}
+
+// FilmsSortButton says "Sort: {order}"
+// in the language the app shows.
+//
+// Pull-down button beside the heading of the grid of finished films that
+// opens the sort menu, naming the order the grid shows now.
+func FilmsSortButton(order string) string { return In(i18n.Locale()).FilmsSortButton(order) }
+
+// FilmsSortButton says "Sort: {order}"
+// in the language of msgs.
+//
+// Pull-down button beside the heading of the grid of finished films that
+// opens the sort menu, naming the order the grid shows now.
+func (msgs Messages) FilmsSortButton(order string) string {
+	return Catalog.Format(msgs.locale, "filmsSortButton", map[string]any{"order": order})
+}
+
+// FilmsSortSource says "Source"
+// in the language the app shows.
+//
+// Sort order of the grid of finished films, and its item in the sort menu:
+// films grouped by where they come from (YouTube, Bilibili, other sites,
+// local files), as the sidebar lists the sources.
+func FilmsSortSource() string { return In(i18n.Locale()).FilmsSortSource() }
+
+// FilmsSortSource says "Source"
+// in the language of msgs.
+//
+// Sort order of the grid of finished films, and its item in the sort menu:
+// films grouped by where they come from (YouTube, Bilibili, other sites,
+// local files), as the sidebar lists the sources.
+func (msgs Messages) FilmsSortSource() string {
+	return Catalog.Format(msgs.locale, "filmsSortSource", nil)
+}
+
+// FilmsSortTitle says "Title"
+// in the language the app shows.
+//
+// Sort order of the grid of finished films, and its item in the sort menu:
+// films in alphabetical order of their titles.
+func FilmsSortTitle() string { return In(i18n.Locale()).FilmsSortTitle() }
+
+// FilmsSortTitle says "Title"
+// in the language of msgs.
+//
+// Sort order of the grid of finished films, and its item in the sort menu:
+// films in alphabetical order of their titles.
+func (msgs Messages) FilmsSortTitle() string {
+	return Catalog.Format(msgs.locale, "filmsSortTitle", nil)
+}
+
 // FilmsStageComplete says "Done"
 // in the language the app shows.
 //
@@ -5034,6 +5100,24 @@ func LibraryTrashed(name string) string { return In(i18n.Locale()).LibraryTrashe
 // Message bar after a film was moved to the Trash.
 func (msgs Messages) LibraryTrashed(name string) string {
 	return Catalog.Format(msgs.locale, "libraryTrashed", map[string]any{"name": name})
+}
+
+// LibrarySortSaveFailed says "Couldn't save the sort order: {error}"
+// in the language the app shows.
+//
+// Message bar when the order chosen for the grid of finished films could
+// not be written to the settings file.
+func LibrarySortSaveFailed(error string) string {
+	return In(i18n.Locale()).LibrarySortSaveFailed(error)
+}
+
+// LibrarySortSaveFailed says "Couldn't save the sort order: {error}"
+// in the language of msgs.
+//
+// Message bar when the order chosen for the grid of finished films could
+// not be written to the settings file.
+func (msgs Messages) LibrarySortSaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "librarySortSaveFailed", map[string]any{"error": error})
 }
 
 // LibraryVideoFilter says "Videos"
