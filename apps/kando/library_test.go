@@ -1514,8 +1514,8 @@ func TestSearchFiltersTheShelfByTitle(t *testing.T) {
 	}
 }
 
-// sortLibrary is a library of three finished films, the last added first as the shelf keeps them: Mango from Bilibili, apple from YouTube and Zebra from YouTube. Its settings are written to a folder of the test's.
-func sortLibrary(t *testing.T) (*app, *ui.Tester) {
+// libraryForSort is a library of three finished films, the last added first as the shelf keeps them: Mango from Bilibili, apple from YouTube and Zebra from YouTube. Its settings are written to a folder of the test's.
+func libraryForSort(t *testing.T) (*app, *ui.Tester) {
 	t.Helper()
 	lib := filepath.Join(t.TempDir(), "我的影片.kando")
 	a, tt, _ := newTestApp(&fakePipeline{})
@@ -1540,28 +1540,45 @@ func sortLibrary(t *testing.T) (*app, *ui.Tester) {
 	return a, tt
 }
 
-// gridOrder is the names of the films in the done grid, as it shows them: the names after its heading's count, each once, though a card shows its name both on its poster's label and under it.
-func gridOrder(t *testing.T, tt *ui.Tester, names ...string) string {
+// libraryGridOrder is the names of the films in the done grid, as it shows them: the names after its heading's count, each once, though a card shows its name both on its poster's label and under it.
+func libraryGridOrder(t *testing.T, tt *ui.Tester, names ...string) string {
+	t.Helper()
+	_, grid := libraryNamesAroundGrid(t, tt, names...)
+	return grid
+}
+
+// libraryHeroOrder is the names of the films drawn above the done grid's heading, each once: with nothing processing, that is only the hero's film.
+func libraryHeroOrder(t *testing.T, tt *ui.Tester, names ...string) string {
+	t.Helper()
+	above, _ := libraryNamesAroundGrid(t, tt, names...)
+	return above
+}
+
+// libraryNamesAroundGrid splits the names of the films the page shows at the done grid's heading: those above it and those in the grid, each list in the order drawn and each name once.
+func libraryNamesAroundGrid(t *testing.T, tt *ui.Tester, names ...string) (above, grid string) {
 	t.Helper()
 	texts := tt.Texts()
 	at := slices.Index(texts, locales.FilmsGridCount(len(names)))
 	if at < 0 {
 		t.Fatalf("no grid heading; texts %q", texts)
 	}
-	var order []string
-	for _, text := range texts[at+1:] {
-		if slices.Contains(names, text) && !slices.Contains(order, text) {
-			order = append(order, text)
+	distinct := func(texts []string) string {
+		var order []string
+		for _, text := range texts {
+			if slices.Contains(names, text) && !slices.Contains(order, text) {
+				order = append(order, text)
+			}
 		}
+		return strings.Join(order, ",")
 	}
-	return strings.Join(order, ",")
+	return distinct(texts[:at]), distinct(texts[at+1:])
 }
 
 // TestLibrarySortOrdersTheGrid chooses each order from the button beside the grid's heading: the grid follows it, the hero stays the film finished last, and the order is kept in settings.json for the next launch.
 func TestLibrarySortOrdersTheGrid(t *testing.T) {
-	a, tt := sortLibrary(t)
+	a, tt := libraryForSort(t)
 	names := []string{"Mango", "apple", "Zebra"}
-	if got := gridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
+	if got := libraryGridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
 		t.Fatalf("recently added %s", got)
 	}
 	choose := func(button, item string) {
@@ -1578,22 +1595,25 @@ func TestLibrarySortOrdersTheGrid(t *testing.T) {
 		tt.Frame()
 	}
 	choose("排序：最近添加", "标题")
-	if got := gridOrder(t, tt, names...); got != "apple,Mango,Zebra" {
+	if got := libraryGridOrder(t, tt, names...); got != "apple,Mango,Zebra" {
 		t.Fatalf("by title %s", got)
 	}
 	if a.LibrarySort() != films.SortTitle || !tt.HasText("排序：标题") {
 		t.Fatalf("sort %q; texts %q", a.LibrarySort(), tt.Texts())
 	}
-	if hero, ok := films.HeroFilm(a.films()); !ok || hero.Name != "Mango" {
-		t.Fatalf("the hero is %+v, not the film finished last", hero)
+	if got := libraryHeroOrder(t, tt, names...); got != "Mango" {
+		t.Fatalf("by title the hero shows %q, not the film finished last", got)
 	}
 	if saved := loadSavedSettings(a.settingsPath); saved.LibrarySort != films.SortTitle {
 		t.Fatalf("saved sort %q", saved.LibrarySort)
 	}
 
 	choose("排序：标题", "来源")
-	if got := gridOrder(t, tt, names...); got != "apple,Zebra,Mango" {
+	if got := libraryGridOrder(t, tt, names...); got != "apple,Zebra,Mango" {
 		t.Fatalf("by source %s", got)
+	}
+	if got := libraryHeroOrder(t, tt, names...); got != "Mango" {
+		t.Fatalf("by source the hero shows %q, not the film finished last", got)
 	}
 
 	// The next launch shows the grid in the order chosen last.
@@ -1602,12 +1622,12 @@ func TestLibrarySortOrdersTheGrid(t *testing.T) {
 	b.library.Jobs = a.library.Jobs
 	b.refreshLibrary()
 	btt.Frame()
-	if got := gridOrder(t, btt, names...); b.LibrarySort() != films.SortSource || got != "apple,Zebra,Mango" {
+	if got := libraryGridOrder(t, btt, names...); b.LibrarySort() != films.SortSource || got != "apple,Zebra,Mango" {
 		t.Fatalf("restored sort %q shows %s", b.LibrarySort(), got)
 	}
 
 	choose("排序：来源", "最近添加")
-	if got := gridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
+	if got := libraryGridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
 		t.Fatalf("back to recently added %s", got)
 	}
 	if saved := loadSavedSettings(a.settingsPath); saved.LibrarySort != films.SortAdded {
@@ -1634,7 +1654,7 @@ func TestLibrarySortReadsAnUnknownOrderAsRecentlyAdded(t *testing.T) {
 
 // TestLibrarySortSaysWhenItCannotBeKept: the grid takes the order even when settings.json cannot be written, and the message bar says it will not be kept.
 func TestLibrarySortSaysWhenItCannotBeKept(t *testing.T) {
-	a, tt := sortLibrary(t)
+	a, tt := libraryForSort(t)
 	blocker := filepath.Join(t.TempDir(), "file")
 	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
 		t.Fatal(err)
