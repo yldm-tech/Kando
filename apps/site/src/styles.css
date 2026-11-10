@@ -103,6 +103,18 @@
     margin: 0;
     color: inherit;
   }
+  /* Korean puts spaces between words, so its lines break at the spaces rather than inside a word; a word too long for its line still breaks. */
+  :lang(ko) {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  /* Chinese, Japanese and Korean headings balance their lines, so that no short tail such as a lone が、 is left on the last one, and Japanese ones break between phrases where the browser can find them (auto-phrase, which other browsers ignore). */
+  :is(h1, h2, h3):is(:lang(zh), :lang(ja), :lang(ko)) {
+    text-wrap: balance;
+  }
+  :is(h1, h2, h3):lang(ja) {
+    word-break: auto-phrase;
+  }
   button {
     font: inherit;
   }
@@ -546,10 +558,27 @@
     max-width: 1120px;
     margin: 64px 0 0;
   }
-  /* The hero's entrance is Motion's (components/common/motion.ts); until it starts the parts it brings in are hidden, and should the page's script never run they show after a few seconds all the same. */
-  .js [data-enter] {
-    opacity: 0;
-    animation: k-show 0.01s linear 4s forwards;
+  /* The hero's entrance plays in the stylesheet from the first paint, as the Go site's did, so that the headline, the Download button and the player never wait for the page's script to load and hydrate: each part rises in a beat after the one before, the player's window last and from further down. Motion takes the reveals further down the page, the tabs and the questions (components/common/motion.ts). */
+  .hero-in > [data-enter] {
+    animation: k-rise 1s var(--ease) both;
+  }
+  .hero-in > [data-enter]:nth-child(1) {
+    animation-duration: 0.9s;
+  }
+  .hero-in > [data-enter]:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .hero-in > [data-enter]:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .hero-in > [data-enter]:nth-child(4) {
+    animation-delay: 0.45s;
+  }
+  .hero-in > [data-enter]:nth-child(5) {
+    animation-delay: 0.55s;
+  }
+  .hero-in > [data-enter="stage"] {
+    animation: k-up 1.4s var(--ease) 0.6s both;
   }
   .stage-glow {
     position: absolute;
@@ -1100,7 +1129,10 @@
     background: rgba(255, 255, 255, 0.08);
     color: #fff;
     font-size: 12px;
-    outline: none;
+  }
+  /* The page's focus ring, drawn on the field's edge, as the side pane has no room around it. */
+  .kp-search:focus-visible {
+    outline-offset: 0;
   }
   .kp-search::placeholder {
     color: rgba(255, 255, 255, 0.45);
@@ -1589,6 +1621,10 @@
   }
   [role="tabpanel"][hidden],
   .term-body.mcp[hidden] {
+    display: none;
+  }
+  /* Before hydration the panels but the first carry data-later (components/common/tabs.ts): with script they are hidden from the first paint, as the tabs will hide them; without it every panel shows. */
+  .js [role="tabpanel"][data-later] {
     display: none;
   }
   .term-body {
@@ -2298,9 +2334,26 @@
       transform: scaleX(1);
     }
   }
-  @keyframes k-show {
+  @keyframes k-rise {
+    from {
+      opacity: 0;
+      transform: translateY(26px);
+      filter: blur(8px);
+    }
     to {
       opacity: 1;
+      transform: none;
+      filter: blur(0);
+    }
+  }
+  @keyframes k-up {
+    from {
+      opacity: 0;
+      transform: translateY(70px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
     }
   }
 
@@ -2313,9 +2366,6 @@
     *::after {
       animation: none !important;
       transition: none !important;
-    }
-    .js [data-enter] {
-      opacity: 1;
     }
     .marquee-track {
       width: auto;

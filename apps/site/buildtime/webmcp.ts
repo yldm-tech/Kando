@@ -127,21 +127,27 @@ export function plainLine(s: string): string {
 // agentKeys are the content keys the WebMCP content files are made from; the tests compare them with the keys the page's Get started and features sections show.
 export const agentKeys = new Set<string>();
 
-// newAgentContent is l's content file, made from the same content strings as the page's download panel (start) and its Library, Command line and details sections (features).
-export function newAgentContent(l: Language, strs: Strings, total: number, surf: Surface): AgentContent {
-  const t = (key: string): string => {
+// AgentModel is a whisper model as the models card names it in a language, with its download size in megabytes.
+export interface AgentModel {
+  name: string;
+  mb: number;
+}
+
+// newAgentContent is l's content file, made from the same content strings as the page's download panel (start) and its Library, Command line and details sections (features), the whisper models' card among the details.
+export function newAgentContent(l: Language, strs: Strings, total: number, surf: Surface, models: readonly AgentModel[]): AgentContent {
+  const t = (key: string, values: Record<string, number> = {}): string => {
     agentKeys.add(key);
     let s = strs[key];
     if (s === undefined) {
       throw new Error(`no content key ${key}`);
     }
-    for (const [name, n] of Object.entries({ count: total, commands: surf.commands, tools: surf.tools.length })) {
+    for (const [name, n] of Object.entries({ count: total, commands: surf.commands, tools: surf.tools.length, ...values })) {
       s = s.replaceAll("{" + name + "}", String(n));
     }
     // The page sets the names between ` in code and breaks some headings in two; the tools return plain text on one line.
     return plainLine(s.replaceAll("`", ""));
   };
-  const join = (...keys: string[]) => keys.map(t).join(" ");
+  const join = (...keys: string[]) => keys.map((key) => t(key)).join(" ");
   const c: AgentContent = {
     lang: l.code,
     name: l.name,
@@ -178,6 +184,12 @@ export function newAgentContent(l: Language, strs: Strings, total: number, surf:
       f.link = { text: t("detailAILink"), url: everyAPIURL };
     }
     c.features.items.push(f);
+    if (key === "detailWhisper") {
+      // The models card sits under the whisper card's row on the page; the tools give its sizes as one line, the size column's heading and each model's name with its megabytes.
+      const nf = new Intl.NumberFormat(l.tag);
+      const sizes = t("modelsAxis") + ": " + models.map((m) => `${m.name} ${nf.format(m.mb)}`).join(", ");
+      c.features.items.push({ title: t("modelsTitle", { count: models.length }), text: t("modelsLead") + " " + sizes });
+    }
   }
   return c;
 }
@@ -198,6 +210,7 @@ export function writeAgentFiles(
   catalog: Catalog,
   version: string,
   surf: Surface,
+  models: ReadonlyMap<LangCode, readonly AgentModel[]>,
 ): { data: Map<LangCode, AgentData>; sites: string } {
   const dir = join(out, agentDir);
   // The catalog's sites without their logos and featured marks, as search_supported_sites matches them: by name, domain and aliases.
@@ -212,7 +225,7 @@ export function writeAgentFiles(
     if (!strs) {
       throw new Error(`no content for ${l.code}`);
     }
-    const link = writeAgentJSON(dir, l.code + ".json", newAgentContent(l, strs, catalog.sites.length, surf));
+    const link = writeAgentJSON(dir, l.code + ".json", newAgentContent(l, strs, catalog.sites.length, surf, models.get(l.code) ?? []));
     return { code: l.code, tag: l.tag, name: l.name, page: pagePath(l.code), content: link };
   });
   const release = releaseDownloads(version);

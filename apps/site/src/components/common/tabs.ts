@@ -17,10 +17,10 @@ export interface Tabs {
     onClick: () => void;
     onKeyDown: (e: KeyboardEvent) => void;
   };
-  panel: (i: number) => { role: "tabpanel"; id: string; "aria-labelledby": string; hidden: boolean };
+  panel: (i: number) => { role: "tabpanel"; id: string; "aria-labelledby": string; hidden: boolean; "data-later"?: "" };
 }
 
-// ids are each tab's id and its panel's. Without script every panel shows, as the page reads complete without it, and the stylesheet lays them out one after another; hideBeforeHydration hides the other panels from the start instead, for the player's side panel, which has room for one.
+// ids are each tab's id and its panel's. Without script every panel shows, as the page reads complete without it, and the stylesheet lays them out one after another. Until the page hydrates the other panels are marked data-later, which the stylesheet hides once the head script has marked the page as running script, so that the section has its final height from the first paint rather than collapsing when React takes over; hideBeforeHydration hides them with the hidden attribute from the start instead, for the player's side panel, which has room for one even without script.
 export function useTabs(ids: readonly (readonly [string, string])[], opts: { hideBeforeHydration?: boolean } = {}): Tabs {
   const [selected, select] = useState(0);
   const hydrated = useHydrated();
@@ -56,6 +56,12 @@ export function useTabs(ids: readonly (readonly [string, string])[], opts: { hid
       onClick: () => select(i),
       onKeyDown: (e) => move(e, i),
     }),
-    panel: (i) => ({ role: "tabpanel", id: ids[i]?.[1] ?? "", "aria-labelledby": ids[i]?.[0] ?? "", hidden: hiding && i !== selected }),
+    panel: (i) => ({
+      role: "tabpanel",
+      id: ids[i]?.[1] ?? "",
+      "aria-labelledby": ids[i]?.[0] ?? "",
+      hidden: hiding && i !== selected,
+      ...(!hiding && i !== selected ? { "data-later": "" as const } : {}),
+    }),
   };
 }

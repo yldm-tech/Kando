@@ -149,7 +149,7 @@
   "sitesColumnName": "Header of the table column with the websites' names.",
   "sitesColumnDomain": "Header of the table column with the websites' domains, such as youtube.com.",
   "sitesNoMatch": "Shown when the search finds no website.",
-  "sitesFound": "How many websites match the search, beside the search box. {count} can be 1, so the wording avoids a plural.",
+  "sitesFound": "How many websites match the search, beside the search box. {count} can be 0 or 1, so the wording avoids a plural; when it is 0 the table says sitesNoMatch.",
   "modelsEyebrow": "Small line above the heading of the whisper models section.",
   "modelsTitle": "Heading of the whisper models section. {count} is the number of models the app offers. Keep whisper in Latin letters, lower case.",
   "modelsLead": "Paragraph under the heading of the whisper models section.",

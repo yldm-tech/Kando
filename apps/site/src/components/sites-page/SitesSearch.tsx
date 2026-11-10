@@ -97,7 +97,7 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
           />
         </span>
         <output htmlFor="sites-query" aria-live="polite" className="text-[13px] text-ink-3 tabular-nums">
-          {found.length === 0 ? t("sitesNoMatch") : tf("sitesFound", { count: found.length })}
+          {tf("sitesFound", { count: found.length })}
         </output>
       </div>
       <TableCard>
@@ -111,7 +111,8 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
             )}
             {items.map((item) => {
               const row = found[item.index];
-              return row ? <SiteRow key={row.original.domain} row={row.original} /> : null;
+              // The header is the table's first row, so the sites are numbered from 2 among all found, wherever the reader has scrolled.
+              return row ? <SiteRow key={row.original.domain} row={row.original} rowIndex={item.index + 2} /> : null;
             })}
             {after > 0 && (
               <tr aria-hidden="true">

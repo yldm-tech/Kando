@@ -101,5 +101,16 @@ export function clock(seconds: number): string {
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 
+// initial is the letter a site without a logo shows, as apps/kando/sites.Initial picks it: the first letter or digit of its name, upper case.
+export function initial(name: string): string {
+  for (const ch of name) {
+    if (/[\p{L}\p{N}]/u.test(ch)) {
+      return ch.toUpperCase();
+    }
+  }
+  const first = name.codePointAt(0);
+  return first === undefined ? "?" : String.fromCodePoint(first);
+}
+
 // plateCount is the number of plate colors under initials: the app's eight (apps/kando/sites.plates), as .plate-0 to .plate-7 in the stylesheet.
 export const plateCount = 8;

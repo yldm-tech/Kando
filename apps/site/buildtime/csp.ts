@@ -1,7 +1,8 @@
 // The last step of the build, on the prerendered HTML. React's hydration needs inline scripts (TanStack Start's dehydrated router state), so the pages cannot do without them as the Go site did; instead each page carries a Content Security Policy that allows scripts from the site itself and those inline scripts by their hashes only, and no style sheets but the site's own. 404.html loses its module scripts: GitHub Pages serves it at any missing address, where the router would match another route than the one it was rendered for, so it stays the static page it was rendered as.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
+import { otherLangCodes, sourceLang, type LangCode } from "../src/lib/site";
 
 // scriptRe finds a script element: its attributes and its text.
 const scriptRe = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
@@ -67,14 +68,36 @@ export function withPolicy(html: string): string {
   return html.slice(0, at) + csp + html.slice(at);
 }
 
+// pageLang is the language of the page at rel, a path in the built site: the language whose folder it is in, or the source language at the root.
+export function pageLang(rel: string): LangCode {
+  const first = rel.split(/[\\/]/)[0];
+  return otherLangCodes.find((c) => c === first) ?? sourceLang;
+}
+
+// withPreload adds a modulepreload of href to html's head, after its other preloads, so that the browser fetches the page's content chunk with the scripts that import it rather than one round trip after them.
+export function withPreload(html: string, href: string): string {
+  const link = `<link rel="modulepreload" href="${href}"/>`;
+  const preloads = [...html.matchAll(/<link\b[^>]*\brel="modulepreload"[^>]*>/gi)];
+  const last = preloads.at(-1);
+  if (last?.index !== undefined) {
+    const at = last.index + last[0].length;
+    return html.slice(0, at) + link + html.slice(at);
+  }
+  const head = html.indexOf("</head>");
+  if (head < 0) {
+    throw new Error("the page has no </head>");
+  }
+  return html.slice(0, head) + link + html.slice(head);
+}
+
 function htmlFiles(dir: string): string[] {
   return readdirSync(dir, { recursive: true, encoding: "utf8" })
     .filter((f) => f.endsWith(".html"))
     .map((f) => join(dir, f));
 }
 
-// finishHTML gives every page of the built site in dir its policy, and strips 404.html's module scripts first.
-export function finishHTML(dir: string): void {
+// finishHTML gives every page of the built site in dir its policy, strips 404.html's module scripts first, and preloads every other page's content chunk, from chunks by language.
+export function finishHTML(dir: string, chunks: ReadonlyMap<LangCode, string>): void {
   const files = htmlFiles(dir);
   if (files.length === 0) {
     throw new Error(`${dir} holds no pages; the prerender wrote nothing`);
@@ -86,6 +109,13 @@ export function finishHTML(dir: string): void {
     }
     if (file === join(dir, "404.html")) {
       html = stripModules(html);
+    } else {
+      const code = pageLang(relative(dir, file));
+      const chunk = chunks.get(code);
+      if (!chunk) {
+        throw new Error(`${file}: the client build made no chunk of the ${code} content`);
+      }
+      html = withPreload(html, chunk);
     }
     writeFileSync(file, withPolicy(html));
   }

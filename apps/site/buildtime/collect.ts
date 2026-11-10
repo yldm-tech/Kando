@@ -20,9 +20,8 @@ export interface Collected {
 // screenshots are the pictures of the app each page shows, as docs/assets/<language>/<name>.png: the library beside the Library section. The hero draws its player itself.
 export const screenshots = ["library"] as const;
 
-// collect builds the data from the repository at root, for the site at siteDir, writing its files into pub, which it empties first.
-export function collect(root: string, siteDir: string, pub: string): Collected {
-  const contentDir = join(siteDir, "content");
+// collect builds the data from the repository at root, for the site at siteDir with its content files in contentDir, writing its files into pub, which it empties first. A language has pages only when it has a content file.
+export function collect(root: string, siteDir: string, contentDir: string, pub: string): Collected {
   const content = loadContent(contentDir);
   const en = content.get("en");
   if (!en) {
@@ -55,7 +54,7 @@ export function collect(root: string, siteDir: string, pub: string): Collected {
   const marks = new Marks(pub);
   const catalog = readCatalog(root);
   const tiles = featuredTiles(root, pub, catalog, marks);
-  const names = loadSiteNames(contentDir, langs, tiles);
+  const names = loadSiteNames(contentDir, langs, catalog.sites);
   const rows = catalogRows(root, pub, catalog);
 
   const version = appVersion(root);
@@ -63,14 +62,15 @@ export function collect(root: string, siteDir: string, pub: string): Collected {
   const models = readModels(root);
   const modelNames = readModelNames(root, models);
 
-  const agent = writeAgentFiles(pub, langs, content, catalog, version, surface);
-
   const modules = new Map<LangCode, ContentModule>();
   for (const l of langs) {
     const strings = content.get(l.code) ?? {};
     const app = loadAppStrings(root, l, modelNames);
     modules.set(l.code, { code: l.code, strings, ...app });
   }
+
+  const agentModels = new Map(langs.map((l) => [l.code, models.map((m) => ({ name: modules.get(l.code)?.modelNames[m.id] ?? m.id, mb: m.mb }))]));
+  const agent = writeAgentFiles(pub, langs, content, catalog, version, surface, agentModels);
 
   const site = siteDataSchema.parse({
     version,

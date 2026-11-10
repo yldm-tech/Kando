@@ -1,7 +1,7 @@
 // The sites page of each language lists the app's whole catalog without script.
 import { join } from "node:path";
 import { expect, it } from "vite-plus/test";
-import { attr, builtLangs, pageFile, readJSON, readOut, repoRoot, section, tags } from "./helpers";
+import { attr, builtLangs, pageFile, readJSON, readOut, repoRoot, section, simplified, tags, text } from "./helpers";
 
 it("server-renders every site of the catalog on each language's sites page", () => {
   const catalog = readJSON<{ sites: { domain: string }[] }>(join(repoRoot, "apps/kando/sites/catalog/sites.json"));
@@ -17,5 +17,17 @@ it("server-renders every site of the catalog on each language's sites page", () 
     }
     const names = tags(body, "th").filter((t) => attr(t, "scope") === "row");
     expect(names.length).toBe(catalog.sites.length);
+    if (l.code === "zh-TW") {
+      // The whole catalog, not only the featured sites of the logo strip, is named in Traditional Chinese (content/sites.zh-TW.json); the initial a site without a logo shows is hidden from the text and checked apart.
+      const shown = [...body.matchAll(/<th[^>]*scope="row"[^>]*>([\s\S]*?)<\/th>/g)].map((m) =>
+        text((m[1] ?? "").replace(/<span[^>]*aria-hidden="true"[^>]*>[^<]*<\/span>/g, "")),
+      );
+      expect(shown.length).toBe(catalog.sites.length);
+      expect(shown.filter((name) => simplified.test(name))).toEqual([]);
+      expect(shown).toContain("樂視網");
+      const initials = [...body.matchAll(/<span class="initial[^"]*" aria-hidden="true">([^<]*)<\/span>/g)].map((m) => m[1] ?? "");
+      expect(initials.length).toBeGreaterThan(0);
+      expect(initials.filter((c) => simplified.test(c))).toEqual([]);
+    }
   }
 });

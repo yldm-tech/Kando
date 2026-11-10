@@ -2,21 +2,18 @@
 import { createContext, Fragment, useContext, type ReactNode } from "react";
 import type { AppKey, ContentModule } from "../../buildtime/schema";
 import type en from "../../content/en.json";
+import loaders from "virtual:kando/content-loaders";
 import { language, type Language, type LangCode } from "../lib/site";
 
 export type ContentKey = keyof typeof en;
 
-const loaders: Record<LangCode, () => Promise<{ default: ContentModule }>> = {
-  en: () => import("virtual:kando/content/en"),
-  "zh-CN": () => import("virtual:kando/content/zh-CN"),
-  "zh-TW": () => import("virtual:kando/content/zh-TW"),
-  ja: () => import("virtual:kando/content/ja"),
-  ko: () => import("virtual:kando/content/ko"),
-};
-
-// loadContent is a language's content, for a route's loader.
+// loadContent is a language's content, for a route's loader. Only the languages with a content file have a loader (buildtime/plugin.ts), and only they have pages.
 export async function loadContent(code: LangCode): Promise<ContentModule> {
-  return (await loaders[code]()).default;
+  const load = loaders[code];
+  if (!load) {
+    throw new Error(`no content for ${code}: content/${code}.json is missing`);
+  }
+  return (await load()).default;
 }
 
 export interface Words {

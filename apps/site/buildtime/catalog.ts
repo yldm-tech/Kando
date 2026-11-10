@@ -1,7 +1,7 @@
 // The app's catalog of websites (apps/kando/sites/catalog/sites.json): its featured sites in the works-with strip, every site on the sites page, and their logos.
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { plateCount, type Language, type LangCode } from "../src/lib/site";
+import { initial, plateCount, type Language, type LangCode } from "../src/lib/site";
 import { issues, readJSON } from "./content";
 import { Marks, siteMarks } from "./marks";
 import { catalogSchema, siteNamesSchema, type CatalogRow, type CatalogSite, type Tile } from "./schema";
@@ -18,17 +18,6 @@ export function readCatalog(root: string): Catalog {
     throw issues(file, res.error);
   }
   return res.data;
-}
-
-// initial is the letter a site without a logo shows, as apps/kando/sites.Initial picks it: the first letter or digit of its name, upper case.
-export function initial(name: string): string {
-  for (const ch of name) {
-    if (/[\p{L}\p{N}]/u.test(ch)) {
-      return ch.toUpperCase();
-    }
-  }
-  const first = name.codePointAt(0);
-  return first === undefined ? "?" : String.fromCodePoint(first);
 }
 
 // fnv1a32 is the 32-bit FNV-1a hash of s's UTF-8 bytes, Go's hash/fnv New32a.
@@ -98,9 +87,9 @@ export function catalogRows(root: string, out: string, catalog: Catalog): Catalo
   });
 }
 
-// loadSiteNames reads content/sites.<code>.json, where a language has one: the names of featured sites as that language writes them, by domain, where they differ from the catalog's, such as the Traditional Chinese forms of names the catalog writes in Simplified Chinese. The catalog is the app's and stays as it is. A domain that is not a featured site fails the build, so that a typo does not silently leave the catalog's name in place.
-export function loadSiteNames(dir: string, langs: readonly Language[], tiles: readonly Tile[]): Map<LangCode, Record<string, string>> {
-  const featured = new Set(tiles.map((t) => t.domain));
+// loadSiteNames reads content/sites.<code>.json, where a language has one: the names of the catalog's sites as that language writes them, by domain, where they differ from the catalog's, such as the Traditional Chinese forms of names the catalog writes in Simplified Chinese. The logo strip shows the featured ones and the sites page all of them. The catalog is the app's and stays as it is. A domain that is not in the catalog fails the build, so that a typo does not silently leave the catalog's name in place.
+export function loadSiteNames(dir: string, langs: readonly Language[], sites: readonly { domain: string }[]): Map<LangCode, Record<string, string>> {
+  const known = new Set(sites.map((s) => s.domain));
   const names = new Map<LangCode, Record<string, string>>();
   for (const l of langs) {
     const file = `sites.${l.code}.json`;
@@ -113,8 +102,8 @@ export function loadSiteNames(dir: string, langs: readonly Language[], tiles: re
       throw issues("content/" + file, res.error);
     }
     for (const domain of Object.keys(res.data)) {
-      if (!featured.has(domain)) {
-        throw new Error(`content/${file}: ${domain} is not a featured site of sites.json`);
+      if (!known.has(domain)) {
+        throw new Error(`content/${file}: ${domain} is not a site of sites.json`);
       }
     }
     names.set(l.code, res.data);

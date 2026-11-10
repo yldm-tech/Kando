@@ -49,7 +49,7 @@ export function SitesHead() {
   const head = "sticky top-[64px] z-10 bg-[#fdfbf8]/95 backdrop-blur-sm text-[13px] font-semibold text-ink-3 " + cellClass;
   return (
     <thead>
-      <tr>
+      <tr aria-rowindex={1}>
         <th scope="col" className={head}>
           {t("sitesColumnName")}
         </th>
@@ -61,9 +61,10 @@ export function SitesHead() {
   );
 }
 
-export function SiteRow({ row }: { row: Row }) {
+// rowIndex is the row's position among all the table's rows, header first, for a table that renders only some of them (aria-rowindex).
+export function SiteRow({ row, rowIndex }: { row: Row; rowIndex?: number }) {
   return (
-    <tr className={(row.featured ? "featured " : "") + "transition-colors duration-200 hover:bg-accent/[0.05]"}>
+    <tr className={(row.featured ? "featured " : "") + "transition-colors duration-200 hover:bg-accent/[0.05]"} aria-rowindex={rowIndex}>
       <th scope="row" lang={row.lang} className={cellClass + " font-medium"}>
         <span className="flex items-center gap-3 [&>.initial]:size-[22px] [&>.initial]:text-xs [&>.initial]:opacity-100 [&>img]:size-[22px]">
           <SiteMark tile={row} />

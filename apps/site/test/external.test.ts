@@ -1,4 +1,4 @@
-// TestNoExternalHosts: the pages load nothing from elsewhere and link nowhere but the repository, EveryAPI and the site's own address: no fonts, scripts, analytics or CDNs. The Go site also had no inline script or style at all; React's hydration needs the router's inline scripts, so here each page carries a Content Security Policy that allows the site's own files and those scripts by their hashes only, and the HTML still has no style attribute, no <style> and no event handler attribute.
+// TestNoExternalHosts: the pages load nothing from elsewhere and link nowhere but the repository, EveryAPI and the site's own address: no fonts, scripts, analytics or CDNs, in the HTML, the site's own scripts and styles, or the bundled libraries. The Go site also had no inline script or style at all; React's hydration needs the router's inline scripts, so here each page carries a Content Security Policy that allows the site's own files and those scripts by their hashes only, and the HTML still has no style attribute, no <style> and no event handler attribute.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
@@ -52,6 +52,43 @@ describe("no external hosts", () => {
       for (const ref of code.match(urlRe) ?? []) {
         // XML and SVG namespaces name a vocabulary; nothing is fetched from them.
         if (!allowedRef(ref) && !shownOnly.has(ref) && !/^http:\/\/www\.(w3|sitemaps)\.org\//.test(ref)) {
+          bad.push(`${file}: ${ref}`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // The bundled scripts are mostly the libraries'. Addresses they name only in error messages and package metadata are listed here by name, so that a library update that starts to name another address, such as a font or decoder fetched from a CDN, fails the test until someone looks at it.
+  const libraryText = new Set([
+    // React's error decoder, in its minified error messages.
+    "https://react.dev/errors/",
+    // @react-three/fiber's package.json, which it bundles for its version, and the links of its error messages.
+    "https://github.com/drcmda",
+    "https://github.com/joshuaellis",
+    "https://github.com/codyjasonbennett",
+    "https://github.com/krispya",
+    "https://github.com/pmndrs/react-three-fiber/issues",
+    "https://github.com/pmndrs/react-three-fiber#readme",
+    "https://github.com/pmndrs/react-three-fiber.git",
+    "https://opencollective.com/react-three-fiber",
+    "https://docs.pmnd.rs/react-three-fiber/api/objects#using-3rd-party-objects-declaratively",
+    // react-use-measure's error message when the browser has no ResizeObserver.
+    "https://github.com/react-spring/react-use-measure/#resize-observer-polyfills",
+  ]);
+
+  it("names only the allowed hosts and the libraries' known texts in the bundled scripts", () => {
+    const chunks = files(join(dist(), "assets"), /\.js$/);
+    expect(chunks.length).toBeGreaterThan(5);
+    const bad: string[] = [];
+    for (const file of chunks) {
+      const code = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const ref of code.match(urlRe) ?? []) {
+        // A regular expression literal's end and its flags, such as /^\/\//i.test(s), look like an address without a scheme.
+        if (/^\/\/[a-z]+\.test\(/.test(ref)) {
+          continue;
+        }
+        if (!allowedRef(ref) && !shownOnly.has(ref) && !libraryText.has(ref) && !/^http:\/\/www\.(w3|sitemaps)\.org\//.test(ref)) {
           bad.push(`${file}: ${ref}`);
         }
       }

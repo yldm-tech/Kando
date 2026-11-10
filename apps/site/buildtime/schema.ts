@@ -41,7 +41,7 @@ export function contentSchema(source: Record<string, string>) {
   });
 }
 
-// siteNamesSchema is content/sites.<code>.json: the names of featured sites as that language writes them, by domain.
+// siteNamesSchema is content/sites.<code>.json: the names of the catalog's sites as that language writes them, by domain.
 export const siteNamesSchema = z.record(z.string().min(1), nonEmpty);
 
 // manifestSchema is the part of apps/kando/mygo.json the site reads: the version the Release workflow tags and publishes.
@@ -175,15 +175,15 @@ export const siteDataSchema = z.object({
   // total is the number of websites in the app's catalog, and ytdlp the yt-dlp version it was made from.
   total: z.number().int().positive(),
   ytdlp: z.string(),
-  tiles: z.record(langCodeSchema, z.array(tileSchema)),
-  // siteNames are the names of featured sites as a language writes them, where they differ from the catalog's (content/sites.<code>.json).
-  siteNames: z.record(langCodeSchema, z.record(z.string(), z.string())),
+  tiles: z.partialRecord(langCodeSchema, z.array(tileSchema)),
+  // siteNames are the names of the catalog's sites as a language writes them, where they differ from the catalog's (content/sites.<code>.json).
+  siteNames: z.partialRecord(langCodeSchema, z.record(z.string(), z.string())),
   aiServices: z.array(brandSchema),
   claudeCode: brandSchema,
-  shots: z.record(langCodeSchema, z.object({ library: shotSchema })),
+  shots: z.partialRecord(langCodeSchema, z.object({ library: shotSchema })),
   // assets are the static scripts and the WebMCP sites file, linked with a hash of their content in the query so that a changed file is fetched again.
   assets: z.object({ siteJS: z.string(), webmcpJS: z.string(), sitesJSON: z.string() }),
-  webmcp: z.record(langCodeSchema, agentDataSchema),
+  webmcp: z.partialRecord(langCodeSchema, agentDataSchema),
   models: z.array(modelSchema).min(1),
   missing: z.array(missingSchema),
 });

@@ -1,5 +1,5 @@
-// Motion on the page: the hero's entrance, the sections' reveals as they scroll in, a tab panel's arrival and a question opening and closing. All of it runs after hydration on elements the server rendered complete, so the page reads the same without script; where the reader asked for less motion none of it runs.
-import { animate, inView, stagger } from "motion";
+// Motion on the page: the sections' reveals as they scroll in, a tab panel's arrival and a question opening and closing. All of it runs after hydration on elements the server rendered complete, so the page reads the same without script; where the reader asked for less motion none of it runs. The hero's entrance is the stylesheet's, so that the first screen never waits for hydration.
+import { animate, inView } from "motion";
 import { useEffect, type RefObject } from "react";
 
 // ease is the design's curve, the stylesheet's --ease.
@@ -8,30 +8,6 @@ export const ease = [0.2, 0.7, 0.2, 1] as const;
 // lessMotion is whether the reader asked for less motion.
 export function lessMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-// useEntrance plays the hero's entrance on the elements under root marked data-enter, one after another in the page's order; the one marked data-enter="stage", the player's window, rises last and from further down. The stylesheet hides them from the moment the head script marks the page as running script, so that they do not show before the entrance starts, and shows them after a few seconds if the page's script never runs.
-export function useEntrance(root: RefObject<HTMLElement | null>) {
-  useEffect(() => {
-    const all = [...(root.current?.querySelectorAll<HTMLElement>("[data-enter]") ?? [])];
-    const stage = all.filter((el) => el.dataset["enter"] === "stage");
-    const text = all.filter((el) => el.dataset["enter"] !== "stage");
-    if (lessMotion()) {
-      for (const el of all) {
-        el.style.opacity = "1";
-      }
-      return;
-    }
-    const controls = [
-      animate(text, { opacity: [0, 1], y: [26, 0], filter: ["blur(8px)", "blur(0px)"] }, { duration: 1, ease, delay: stagger(0.12, { startDelay: 0.05 }) }),
-      animate(stage, { opacity: [0, 1], y: [70, 0], scale: [0.97, 1] }, { duration: 1.4, ease, delay: 0.55 }),
-    ];
-    return () => {
-      for (const c of controls) {
-        c.complete();
-      }
-    };
-  }, [root]);
 }
 
 // useReveals lifts every element marked .rv under root into place as it scrolls into view, once. Elements already on screen when the page hydrates stay as they are, so that nothing the reader sees blinks; those below are hidden first, where the reader cannot see it happen. Siblings that come into view together follow one another by a beat.

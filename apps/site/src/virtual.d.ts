@@ -14,3 +14,8 @@ declare module "virtual:kando/content/*" {
   const content: import("../buildtime/schema").ContentModule;
   export default content;
 }
+
+declare module "virtual:kando/content-loaders" {
+  const loaders: Partial<Record<import("./lib/site").LangCode, () => Promise<{ default: import("../buildtime/schema").ContentModule }>>>;
+  export default loaders;
+}

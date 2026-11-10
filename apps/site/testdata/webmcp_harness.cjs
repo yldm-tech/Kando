@@ -203,11 +203,11 @@ async function main() {
   assert.equal((await call(tools, "get_started", { lang: "fr" })).isError, true);
   r = await call(tools, "list_features", { lang: "ja" });
   const ja = content("ja");
-  for (const key of ["detailsTitle", "detailAITitle", "detailAIBody", "detailAILink", "detailBrowserBody"]) {
+  for (const key of ["detailsTitle", "detailAITitle", "detailAIBody", "detailAILink", "detailBrowserBody", "modelsLead"]) {
     assert.ok(r.text.includes(ja[key]), "list_features does not say " + key + ": " + ja[key]);
   }
   assert.ok(r.text.includes("kando mcp"));
-  assert.equal(r.data.features.items.length, 11);
+  assert.equal(r.data.features.items.length, 12);
   // A language file is fetched once, however often it is asked for.
   await call(tools, "get_started", { lang: "ja" });
   const jaFetches = fetched.filter((url) => url.startsWith("/webmcp/ja.json"));

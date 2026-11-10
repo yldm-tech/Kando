@@ -1,7 +1,7 @@
 // TestWebMCPPageData, TestReleaseDownloads, TestWebMCPSites, TestWebMCPContentCoversPage and TestWebMCPScript: the WebMCP tools' data, in the page and in the files they fetch, and static/webmcp.js answering each tool through testdata/webmcp_harness.cjs.
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import { appVersion, readSurface } from "../buildtime/app";
 import { loadContent } from "../buildtime/content";
@@ -86,12 +86,34 @@ it("writes the app's whole catalog to webmcp/sites.json", () => {
   expect(readOut("webmcp/sites.json")).toContain('"domain":"youtube.com","aliases":["youtu.be"');
 });
 
-// The tools' content files say everything the page's Get started and features sections say, so that get_started and list_features do not fall behind a card added to the page. Each section is a component; the keys it names are compared with the keys newAgentContent reads.
+// rendered are the component files a section's component renders: its own file and every component file it imports, statically or lazily, followed through their imports in turn.
+function rendered(file: string): string[] {
+  const dir = join(siteDir, "src/components");
+  const seen = new Set<string>();
+  const visit = (path: string) => {
+    if (seen.has(path)) {
+      return;
+    }
+    seen.add(path);
+    const src = readFileSync(path, "utf8");
+    for (const m of src.matchAll(/(?:from\s+|import\()\s*"(\.{1,2}\/[^"]+)"/g)) {
+      const base = resolve(dirname(path), m[1] ?? "");
+      const found = [".tsx", ".ts"].map((ext) => base + ext).find((f) => f.startsWith(dir) && existsSync(f));
+      if (found) {
+        visit(found);
+      }
+    }
+  };
+  visit(join(dir, file));
+  return [...seen];
+}
+
+// The tools' content files say everything the page's Get started and features sections say, so that get_started and list_features do not fall behind a card added to the page. Each section is a component; the keys it and the components it renders name are compared with the keys newAgentContent reads.
 it("covers in the WebMCP content files what the page's sections say", () => {
   const content = loadContent(join(siteDir, "content"));
   const en = content.get("en") ?? {};
-  newAgentContent(language("en"), en, 1, readSurface(repoRoot));
-  // Labels of controls, the small lines above headings, a screenshot's description, the comments of the terminal example and the open-source panel's own links, which the tools have no use for.
+  newAgentContent(language("en"), en, 1, readSurface(repoRoot), [{ name: "Tiny", mb: 75 }]);
+  // Labels of controls, the small lines above headings, a screenshot's description, the comments of the terminal example, the open-source panel's own links and the models table's caption, column heading and chart description, which the tools have no use for.
   const skip = new Set([
     "copyLabel",
     "copiedLabel",
@@ -101,6 +123,7 @@ it("covers in the WebMCP content files what the page's sections say", () => {
     "libraryEyebrow",
     "cliEyebrow",
     "detailsEyebrow",
+    "modelsEyebrow",
     "shotLibraryAlt",
     "cliCommentAdd",
     "cliCommentList",
@@ -110,6 +133,9 @@ it("covers in the WebMCP content files what the page's sections say", () => {
     "mcpCommentTools",
     "detailModesMark",
     "detailLanguagesMark",
+    "modelsTableCaption",
+    "modelsColumnModel",
+    "modelsChartLabel",
     "openEyebrow",
     "openGitHub",
     "openReleases",
@@ -117,15 +143,23 @@ it("covers in the WebMCP content files what the page's sections say", () => {
   const sections = { library: "library/Library.tsx", cli: "cli/Cli.tsx", features: "details/Details.tsx", start: "open-source/OpenSource.tsx" };
   const missing: string[] = [];
   for (const [id, file] of Object.entries(sections)) {
-    const src = readFileSync(join(siteDir, "src/components", file), "utf8");
-    for (const m of src.matchAll(/"(\w+)"/g)) {
-      const key = m[1] ?? "";
-      if (key in en && !skip.has(key) && !agentKeys.has(key)) {
-        missing.push(`#${id} shows ${key}, which the WebMCP content files leave out (newAgentContent)`);
+    const files = rendered(file);
+    if (id === "features") {
+      expect(
+        files.some((f) => f.endsWith("models/Models.tsx")),
+        "the features section's files include the models card",
+      ).toBe(true);
+    }
+    for (const path of files) {
+      for (const m of readFileSync(path, "utf8").matchAll(/"(\w+)"/g)) {
+        const key = m[1] ?? "";
+        if (key in en && !skip.has(key) && !agentKeys.has(key)) {
+          missing.push(`#${id} shows ${key} (${relative(siteDir, path)}), which the WebMCP content files leave out (newAgentContent)`);
+        }
       }
     }
   }
-  expect(missing).toEqual([]);
+  expect([...new Set(missing)]).toEqual([]);
 });
 
 describe("webmcp.js", () => {

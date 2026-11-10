@@ -103,3 +103,6 @@ export function section(html: string, marker: string, end: string): string {
 export function isExternal(ref: string): boolean {
   return /^(https?:)?\/\//.test(ref);
 }
+
+// simplified are the Simplified Chinese forms in the catalog's site names that Traditional Chinese writes otherwise, which the Traditional Chinese pages must not show.
+export const simplified = /[哔红视频爱国优腾讯斗鱼乐网头条马场云]/;

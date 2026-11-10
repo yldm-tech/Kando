@@ -21,7 +21,7 @@ export default function setup(project: TestProject): () => void {
   mkdirSync(".generated", { recursive: true });
   const out = mkdtempSync(join(resolve(".generated"), "test-build-"));
   const build = spawnSync("vp", ["build"], {
-    env: { ...process.env, KANDO_SITE_OUT: out },
+    env: { ...process.env, NODE_ENV: "production", KANDO_SITE_OUT: out },
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     timeout: 280_000,

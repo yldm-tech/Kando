@@ -1,19 +1,15 @@
 // The hero: the headline, the Download button, and the demo player in a window.
-import { useRef } from "react";
 import site from "virtual:kando/site";
 import { Headline, useWords } from "../../i18n/content";
 import { latestURL } from "../../lib/site";
 import { AppleMark } from "../common/marks";
-import { useEntrance } from "../common/motion";
 import { Player } from "./player/Player";
 import { River } from "./river/River";
 
 export function Hero() {
   const { t, tf } = useWords();
-  const root = useRef<HTMLElement>(null);
-  useEntrance(root);
   return (
-    <section className="hero" aria-labelledby="hero-title" ref={root}>
+    <section className="hero" aria-labelledby="hero-title">
       <div className="hero-sky" aria-hidden="true">
         <span className="blob blob-a" />
         <span className="blob blob-b" />
