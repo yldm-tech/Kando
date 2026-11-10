@@ -11,7 +11,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, and a video dropped over an open film. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
+// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
 func TestScreenshotsLibrary(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// onboarding is the message bar the prototype shows once its onboarding is skipped.
@@ -110,6 +110,11 @@ func TestScreenshotsLibrary(t *testing.T) {
 	f.shoot(t, "drop-on-film", func(a *app, tt *ui.Tester, updates chan func()) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
 		tt.DropFiles(sidebarWidth+(1304-sidebarWidth)/2, 782/2, dropped)
+	})
+	// A library copied from another Mac without its job records (sidecarLibrary): the video that has its exported subtitles beside it shows them, and only the one without says it has none.
+	f.shoot(t, "library-sidecar-subtitles", func(a *app, tt *ui.Tester, updates chan func()) {
+		dir, _ := f.sidecarLibrary(t)
+		f.showLibrary(t, a, tt, updates, dir)
 	})
 	// The hero film with the picture its site gives it, which takes the place of the frame grabbed for it, as a library from an earlier Kando shows once the site is asked. The site's picture is the fixture's generic scene at full size. It runs last: it leaves the site's picture in the film's cover.jpg.
 	f.shoot(t, "library-site-cover", func(a *app, tt *ui.Tester, updates chan func()) {

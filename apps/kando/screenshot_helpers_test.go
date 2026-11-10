@@ -128,6 +128,37 @@ func writeProtoSubtitles(t *testing.T, video string) string {
 	return base + ".bilingual.srt"
 }
 
+// sidecarLibrary makes ~/Movies/Copied Films.kando, a library copied from another Mac without its job records: Copied Lecture, the newer, has the subtitles the pipeline exported for it beside its video (writeProtoSubtitles), and Raw Recording has none. It returns the library and Copied Lecture's video, whose path is its card's key.
+func (f *screenshotFixture) sidecarLibrary(t *testing.T) (dir, video string) {
+	t.Helper()
+	dir = filepath.Join(f.home, "Movies", "Copied Films.kando")
+	video = filepath.Join(dir, "Copied Lecture", "video.mp4")
+	raw := filepath.Join(dir, "Raw Recording", "video.mp4")
+	writeFakeClip(t, video, 180, "2F4A6B", "C9D6E3")
+	writeProtoSubtitles(t, video)
+	writeFakeClip(t, raw, 95, "5B4632", "E3D2BC")
+	// The shelf lists the newest video first.
+	for path, at := range map[string]time.Time{video: time.Unix(1_700_000_200, 0), raw: time.Unix(1_700_000_100, 0)} {
+		if err := os.Chtimes(path, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir, video
+}
+
+// showLibrary makes dir the open library, as picking it in the sidebar does, and returns once the shelf has read it and its cards' posters show.
+func (f *screenshotFixture) showLibrary(t *testing.T, a *app, tt *ui.Tester, updates chan func(), dir string) {
+	t.Helper()
+	a.edit(func(s *session) {
+		s.LibraryDir = dir
+		s.Libraries = append(s.Libraries, dir)
+	})
+	a.refreshLibrary()
+	tt.Frame()
+	screenshotWait(t, tt, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
+	tt.Frame()
+}
+
 // job is the fixture's job for the prototype's film id.
 func (f *screenshotFixture) job(t *testing.T, id string) core.Job {
 	t.Helper()

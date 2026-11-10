@@ -7,6 +7,7 @@ import (
 
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
+	"kando/packages/media"
 )
 
 func TestQueueOrderRunsOldestFirst(t *testing.T) {
@@ -89,6 +90,40 @@ func TestALocalVideoFollowsTheLibraryItWasStartedIn(t *testing.T) {
 		t.Fatal("a downloaded video outside the library stayed on its shelf")
 	}
 }
+
+// TestAVideoWithoutAJobShowsTheSubtitlesBesideIt checks that a video no job holds takes the bilingual subtitles the library scan found beside it, and that its card says it has no subtitles only when it has none.
+func TestAVideoWithoutAJobShowsTheSubtitlesBesideIt(t *testing.T) {
+	testlocale.Use(t, "en")
+	root := "/Movies/a.kando"
+	videos := []media.Video{
+		{Path: root + "/Copied/video.mp4", Name: "Copied.mp4", Subtitles: root + "/Copied/video.bilingual.srt"},
+		{Path: root + "/Bare/video.mp4", Name: "Bare.mp4"},
+	}
+	name := func(core.Job) string { return "" }
+	shelf := List(root, nil, videos, name, name)
+	if len(shelf) != 2 || shelf[0].SubtitlePath != videos[0].Subtitles || shelf[1].SubtitlePath != "" {
+		t.Fatalf("shelf = %#v", shelf)
+	}
+	a := clockApp{d: 42 * time.Second}
+	if got, want := doneMeta(a, shelf[0]), "Local Files · 0:42"; got != want {
+		t.Errorf("a video with subtitles beside it reads %q, want %q", got, want)
+	}
+	if got, want := doneMeta(a, shelf[1]), "Local Files · 0:42 · No subtitles yet"; got != want {
+		t.Errorf("a video with no subtitles reads %q, want %q", got, want)
+	}
+	done := Film{JobID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, SubtitlePath: "/Movies/a.kando/Talk/video.bilingual.srt"}
+	if got, want := doneMeta(a, done), "YouTube · 0:42"; got != want {
+		t.Errorf("a finished job reads %q, want %q", got, want)
+	}
+}
+
+// clockApp is an App that knows only how long every video is, which is all doneMeta asks of it.
+type clockApp struct {
+	App
+	d time.Duration
+}
+
+func (a clockApp) Duration(string) time.Duration { return a.d }
 
 func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 	yt := "https://www.youtube.com/watch?v=jNQXAC9IVRw"

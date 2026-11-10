@@ -54,6 +54,44 @@ func TestListVideosIncludesAFolderPerVideo(t *testing.T) {
 	}
 }
 
+// TestListVideosFindsTheBilingualSubtitlesBeside checks that a video found in the library carries the bilingual .srt the pipeline names after it, in the library root and in a film's folder, and nothing for a video without one, for another video's subtitles, or for a folder that only has the name.
+func TestListVideosFindsTheBilingualSubtitlesBeside(t *testing.T) {
+	dir := t.TempDir()
+	loose := filepath.Join(dir, "loose.mp4")
+	looseSubs := filepath.Join(dir, "loose.bilingual.srt")
+	item := filepath.Join(dir, "Learn Rust [abc]", "video.mkv")
+	itemSubs := filepath.Join(dir, "Learn Rust [abc]", "video.bilingual.srt")
+	bare := filepath.Join(dir, "Bare", "video.mp4")
+	original := filepath.Join(dir, "Bare", "video.srt")
+	other := filepath.Join(dir, "Bare", "other.bilingual.srt")
+	folder := filepath.Join(dir, "Folder", "video.mp4")
+	for _, path := range []string{loose, looseSubs, item, itemSubs, bare, original, other, folder} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(dir, "Folder", "video.bilingual.srt"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	videos, err := ListVideos(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{loose: looseSubs, item: itemSubs, bare: "", folder: ""}
+	if len(videos) != len(want) {
+		t.Fatalf("videos = %#v", videos)
+	}
+	for _, video := range videos {
+		subs, ok := want[video.Path]
+		if !ok || video.Subtitles != subs {
+			t.Errorf("%s has subtitles %q, want %q", video.Path, video.Subtitles, subs)
+		}
+	}
+}
+
 func TestGatherVideosMovesLooseFilesIntoAFolder(t *testing.T) {
 	dir := t.TempDir()
 	video := filepath.Join(dir, "talk.mp4")

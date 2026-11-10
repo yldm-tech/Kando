@@ -88,9 +88,14 @@ func remoteLibrary(t *testing.T, a *app) (dir string) {
 	interview := filepath.Join(dir, "Interview", "interview.mp4")
 	remoteWriteFile(t, interview, "video")
 	remoteWriteFile(t, filepath.Join(dir, "Interview", "interview.bilingual.srt"), "1\n00:00:00,500 --> 00:00:01,000\n早上好\nGood morning\n\n")
+	// The videos are as the library scan lists them, which finds the interview's bilingual file beside it.
+	videos, err := media.ListVideos(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	a.edit(func(s *session) {
 		s.LibraryDir = dir
-		s.Videos = []media.Video{{Path: interview, Name: "interview.mp4"}}
+		s.Videos = videos
 	})
 	a.library.Jobs = []core.Job{
 		{ID: "clip", Source: "file:///elsewhere/clip.mp4", Language: "简体中文", Stage: core.StageQueued, LibraryDir: dir},
