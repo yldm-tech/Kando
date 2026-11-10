@@ -9,6 +9,19 @@
 @custom-variant narrow (@media (max-width: 980px));
 @custom-variant phone (@media (max-width: 640px));
 
+/* Moving from one of the site's pages to another (a language in the switcher, the sites page and back) is a cross-document view transition where the browser has them and the reader has not asked for less motion: the page that leaves fades and the one that arrives rises into place, while the header, named top, stays where it is and only its words change. Elsewhere the move is a plain page load. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+::view-transition-old(root) {
+  animation: k-page-out 0.2s ease both;
+}
+::view-transition-new(root) {
+  animation: k-page-in 0.45s var(--ease) both;
+}
+
 @theme {
   --color-bg: #fbf8f3;
   --color-paper: #fbf8f3;
@@ -42,6 +55,7 @@
     --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
     --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-slide: cubic-bezier(0.4, 0, 0.2, 1);
     color-scheme: light;
   }
 
@@ -169,6 +183,7 @@
     right: 0;
     top: 0;
     z-index: 50;
+    view-transition-name: top;
     transition:
       background-color 0.35s ease,
       box-shadow 0.35s ease;
@@ -306,6 +321,10 @@
     box-shadow:
       0 0 0 1px rgba(28, 25, 22, 0.08),
       0 16px 40px rgba(28, 25, 22, 0.14);
+  }
+  .lang[open] .lang-menu {
+    transform-origin: top right;
+    animation: k-open 0.25s var(--ease) both;
   }
   .lang-menu a {
     display: block;
@@ -829,17 +848,29 @@
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.8);
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease,
+      visibility 0s linear 0.3s;
   }
   .kp-big svg {
     fill: #fff;
     stroke: none;
   }
-  .kp.paused .kp-big {
-    display: flex;
-    animation: k-pop 0.3s ease both;
+  .kp.paused .kp-big,
+  .kp.looping .kp-looping {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
   }
   .kp-looping {
     position: absolute;
@@ -850,12 +881,15 @@
     border-radius: 13px;
     background: rgba(0, 0, 0, 0.45);
     font-size: 12px;
-    display: none;
-    align-items: center;
-  }
-  .kp.looping .kp-looping {
     display: flex;
-    animation: k-pop 0.3s ease both;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.8);
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease,
+      visibility 0s linear 0.3s;
   }
   .kp-subs {
     position: absolute;
@@ -875,23 +909,39 @@
   .kp[data-order="original"] .kp-subs {
     flex-direction: column-reverse;
   }
+  .kp-subs,
+  .kp-tr,
+  .kp-or {
+    transition:
+      font-size 0.3s var(--ease-slide),
+      opacity 0.3s ease,
+      visibility 0s linear 0s;
+  }
   .kp-tr {
     font-size: calc(var(--kp-tr) * var(--kp-scale));
     font-weight: 700;
     line-height: 1.3;
-    transition: font-size 0.25s ease;
   }
   .kp-or {
     font-size: calc(var(--kp-or) * var(--kp-scale));
     font-weight: 500;
     line-height: 1.3;
     color: #ffd60a;
-    transition: font-size 0.25s ease;
+  }
+  /* A line the subtitle mode leaves out shrinks and fades away, and the other settles in its place, rather than either jumping; it is hidden from assistive technology once gone. */
+  .kp[data-mode="1"] .kp-tr,
+  .kp[data-mode="2"] .kp-or {
+    font-size: 0;
   }
   .kp[data-mode="1"] .kp-tr,
   .kp[data-mode="2"] .kp-or,
   .kp[data-mode="3"] .kp-subs {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      font-size 0.3s var(--ease-slide),
+      opacity 0.3s ease,
+      visibility 0s linear 0.3s;
   }
 
   .kp-controls {
@@ -1066,6 +1116,17 @@
   .kp-mode svg {
     stroke-width: 1.4;
   }
+  .kp-mode-names {
+    display: grid;
+  }
+  .kp-mode-names > span {
+    grid-area: 1 / 1;
+    transition: opacity 0.25s ease;
+  }
+  .kp-mode-names > [data-off] {
+    opacity: 0;
+    visibility: hidden;
+  }
 
   .kp-side {
     flex: 0 0 320px;
@@ -1076,6 +1137,26 @@
   }
   .kp.no-panel .kp-side {
     display: none;
+  }
+  /* Where the side panel sits beside the picture, the picture's height comes from the player's width less the panel's, so that the player keeps its height when the panel slides shut and the picture widens into its room (components/common/motion.ts, drawer); the panel's card keeps its width as it slides, and is cut off at the player's edge. */
+  .kp {
+    container: kp / inline-size;
+  }
+  @media (min-width: 981px) {
+    @container kp (min-width: 880px) {
+      .kp-picture {
+        aspect-ratio: auto;
+        height: calc((100cqw - 320px) * 9 / 16);
+      }
+      .kp-side {
+        display: flex;
+        justify-content: flex-end;
+      }
+      .kp-card {
+        flex: none;
+        width: 308px;
+      }
+    }
   }
   .kp-card {
     height: 100%;
@@ -1112,14 +1193,19 @@
     background: rgba(255, 255, 255, 0.16);
     color: #fff;
   }
+  .kp-card > .tab-stack {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
   .kp-pane {
     display: flex;
     flex-direction: column;
     gap: 8px;
     min-height: 0;
-    flex: 1;
   }
-  .kp-pane[hidden] {
+  /* Without script the side panel shows its first pane only, as it has room for one. */
+  html:not(.js) .kp-pane[data-off] {
     display: none;
   }
   .kp-search {
@@ -1621,13 +1707,26 @@
   .dl .seg button {
     min-width: 84px;
   }
-  [role="tabpanel"][hidden],
-  .term-body.mcp[hidden] {
-    display: none;
+  /* A group's tab panels lie in one grid cell (components/common/tabs.ts): the stack is as tall as the tallest, from the first paint, so that choosing another tab never moves what is below; the panels but the chosen one are invisible there. Once the reader has chosen a tab the panel leaving fades out and the one arriving comes in as the design's k-panel. Without script every panel shows, one after another. */
+  .js .tab-stack {
+    display: grid;
   }
-  /* Before hydration the panels but the first carry data-later (components/common/tabs.ts): with script they are hidden from the first paint, as the tabs will hide them; without it every panel shows. */
-  .js [role="tabpanel"][data-later] {
-    display: none;
+  .js .tab-stack > [role="tabpanel"] {
+    grid-area: 1 / 1;
+    min-width: 0;
+  }
+  .js .tab-stack > [data-off] {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  .js .tab-stack[data-moved] > [data-off] {
+    transition:
+      opacity 0.2s ease,
+      visibility 0s linear 0.2s;
+  }
+  .js .tab-stack[data-moved] > [role="tabpanel"]:not([data-off]) {
+    animation: k-panel 0.45s var(--ease) both;
   }
   .term-body {
     padding: 20px 20px 24px;
@@ -1888,9 +1987,6 @@
     gap: 10px;
     min-height: 188px;
     padding: 18px 18px 20px;
-  }
-  .dl-panel[hidden] {
-    display: none;
   }
   .dl-panel p {
     margin: 0;
@@ -2301,6 +2397,29 @@
     to {
       opacity: 1;
       transform: none;
+    }
+  }
+  @keyframes k-panel {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+      filter: blur(0);
+    }
+  }
+  @keyframes k-page-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes k-page-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
     }
   }
   @keyframes k-open {

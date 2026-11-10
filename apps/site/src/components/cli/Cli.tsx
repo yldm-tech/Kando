@@ -60,67 +60,69 @@ export function Cli() {
               <button {...tabs.tab(1)}>MCP</button>
             </div>
           </div>
-          <div className="term-body" {...tabs.panel(0)}>
-            <pre className="typed">
-              <code>
-                <Lines
-                  lines={[
-                    <span key="c1" className="ln c">
-                      {"# " + t("cliCommentAdd")}
-                    </span>,
-                    <span key="l1" className="ln">
-                      {prompt}
-                      <span className="k">kando</span> <span className="s">add</span> <span className="u">https://www.youtube.com/watch?v=…</span>{" "}
-                      <span className="f">--wait</span>
-                    </span>,
-                    <span key="c2" className="ln c">
-                      {"# " + t("cliCommentList")}
-                    </span>,
-                    <span key="l2" className="ln">
-                      {prompt}
-                      <span className="k">kando</span> <span className="s">list</span> <span className="f">--source</span> youtube
-                    </span>,
-                    <span key="c3" className="ln c">
-                      {"# " + t("cliCommentSubtitles")}
-                    </span>,
-                    <span key="l3" className="ln">
-                      {prompt}
-                      <span className="k">kando</span> <span className="s">subtitles</span> <span className="h">{"<film-id>"}</span>{" "}
-                      <span className="f">--format</span> text <span className="f">--translation</span>
-                    </span>,
-                    <span key="c4" className="ln c">
-                      {"# " + t("cliCommentStatus")}
-                    </span>,
-                    <span key="l4" className="ln">
-                      {prompt}
-                      <span className="k">kando</span> <span className="s">status</span> <span className="f">--json</span>
-                    </span>,
-                  ]}
-                />
-              </code>
-            </pre>
-          </div>
-          <div className="term-body mcp" {...tabs.panel(1)}>
-            <p className="term-label">
-              <img src={site.claudeCode.src} width="16" height="16" alt="" loading="lazy" decoding="async" />
-              {t("mcpCommentAdd")}
-            </p>
-            <pre>
-              <code>
-                {prompt}
-                <span className="k">claude</span> <span className="s">mcp</span> add kando <span className="o">--</span>{" "}
-                <span className="u">/Applications/Kando.app/Contents/MacOS/Kando</span> mcp
-              </code>
-            </pre>
-            <p className="term-label">{t("mcpCommentTools")}</p>
-            <ul className="tool-names">
-              {site.surface.tools.map((name) => (
-                <li key={name}>
-                  <code>{name}</code>
-                </li>
-              ))}
-            </ul>
-            <p className="term-note">{t("mcpOther")}</p>
+          <div {...tabs.stack}>
+            <div className="term-body" {...tabs.panel(0)}>
+              <pre className="typed">
+                <code>
+                  <Lines
+                    lines={[
+                      <span key="c1" className="ln c">
+                        {"# " + t("cliCommentAdd")}
+                      </span>,
+                      <span key="l1" className="ln">
+                        {prompt}
+                        <span className="k">kando</span> <span className="s">add</span> <span className="u">https://www.youtube.com/watch?v=…</span>{" "}
+                        <span className="f">--wait</span>
+                      </span>,
+                      <span key="c2" className="ln c">
+                        {"# " + t("cliCommentList")}
+                      </span>,
+                      <span key="l2" className="ln">
+                        {prompt}
+                        <span className="k">kando</span> <span className="s">list</span> <span className="f">--source</span> youtube
+                      </span>,
+                      <span key="c3" className="ln c">
+                        {"# " + t("cliCommentSubtitles")}
+                      </span>,
+                      <span key="l3" className="ln">
+                        {prompt}
+                        <span className="k">kando</span> <span className="s">subtitles</span> <span className="h">{"<film-id>"}</span>{" "}
+                        <span className="f">--format</span> text <span className="f">--translation</span>
+                      </span>,
+                      <span key="c4" className="ln c">
+                        {"# " + t("cliCommentStatus")}
+                      </span>,
+                      <span key="l4" className="ln">
+                        {prompt}
+                        <span className="k">kando</span> <span className="s">status</span> <span className="f">--json</span>
+                      </span>,
+                    ]}
+                  />
+                </code>
+              </pre>
+            </div>
+            <div className="term-body mcp" {...tabs.panel(1)}>
+              <p className="term-label">
+                <img src={site.claudeCode.src} width="16" height="16" alt="" loading="lazy" decoding="async" />
+                {t("mcpCommentAdd")}
+              </p>
+              <pre>
+                <code>
+                  {prompt}
+                  <span className="k">claude</span> <span className="s">mcp</span> add kando <span className="o">--</span>{" "}
+                  <span className="u">/Applications/Kando.app/Contents/MacOS/Kando</span> mcp
+                </code>
+              </pre>
+              <p className="term-label">{t("mcpCommentTools")}</p>
+              <ul className="tool-names">
+                {site.surface.tools.map((name) => (
+                  <li key={name}>
+                    <code>{name}</code>
+                  </li>
+                ))}
+              </ul>
+              <p className="term-note">{t("mcpOther")}</p>
+            </div>
           </div>
         </div>
       </div>

@@ -3,17 +3,15 @@ import site from "virtual:kando/site";
 import { useRef, type MouseEvent, type SyntheticEvent } from "react";
 import { useWords } from "../../i18n/content";
 import { faqPairs, issuesURL } from "../../lib/site";
-import { fold, unfold } from "../common/motion";
+import { fold, hold, unfold } from "../common/motion";
 
 export function Faq() {
   const { t, tf } = useWords();
   const list = useRef<HTMLDivElement>(null);
-  const onToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
-    const opened = event.currentTarget;
-    if (!opened.open) {
-      return;
-    }
-    unfold(opened.querySelector("p"));
+  // clicked is the question a click has just opened, whose toggle event has then nothing left to do.
+  const clicked = useRef<HTMLDetailsElement | null>(null);
+  // foldOthers folds away every open answer but opened's.
+  const foldOthers = (opened: HTMLDetailsElement) => {
     for (const other of list.current?.querySelectorAll("details.qa") ?? []) {
       if (other !== opened && other instanceof HTMLDetailsElement && other.open) {
         fold(other.querySelector("p"), () => {
@@ -22,14 +20,33 @@ export function Faq() {
       }
     }
   };
-  // A click on an open question's summary folds its answer away first and closes the disclosure after.
+  // A click on a question's summary opens or closes it here rather than by the disclosure's own action, so that the answer starts folded in the frame it is shown instead of flashing at its full height first; the question clicked stays under the pointer while an answer above it folds away.
   const onSummary = (event: MouseEvent<HTMLElement>) => {
-    const details = event.currentTarget.parentElement;
-    if (details instanceof HTMLDetailsElement && details.open) {
-      event.preventDefault();
+    const summary = event.currentTarget;
+    const details = summary.parentElement;
+    if (!(details instanceof HTMLDetailsElement)) {
+      return;
+    }
+    event.preventDefault();
+    if (details.open) {
       fold(details.querySelector("p"), () => {
         details.open = false;
       });
+      return;
+    }
+    clicked.current = details;
+    details.open = true;
+    unfold(details.querySelector("p"));
+    foldOthers(details);
+    hold(summary, 420);
+  };
+  // A question opened otherwise, as the browser's find in page opens one, closes the others too.
+  const onToggle = (event: SyntheticEvent<HTMLDetailsElement>) => {
+    const opened = event.currentTarget;
+    if (opened === clicked.current) {
+      clicked.current = null;
+    } else if (opened.open) {
+      foldOthers(opened);
     }
   };
   return (
