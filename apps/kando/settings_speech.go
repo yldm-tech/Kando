@@ -152,15 +152,33 @@ func (a *app) downloadSpeechModel(id string) {
 	}()
 }
 
+// speechTrashError is why trashSpeechModel left the whisper catalog model id where it was: err, or the model being in use when err is nil. speechDownloadError words it in the language it is shown in.
+type speechTrashError struct {
+	id  string
+	err error
+}
+
+func (e speechTrashError) Error() string {
+	if e.err == nil {
+		return e.id + " is in use"
+	}
+	return e.id + ": " + e.err.Error()
+}
+
 // errSpeechNoModelsDir is downloadSpeechModel's error when Kando has no folder to put the models in.
 var errSpeechNoModelsDir = errors.New("no models folder")
 
 // speechDownloadError says in plain words, in the interface's language, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there.
 func speechDownloadError(err error) string {
 	var status interface{ StatusCode() int }
+	var trash speechTrashError
 	switch {
 	case err == nil:
 		return ""
+	case errors.As(err, &trash) && trash.err == nil:
+		return locales.SettingsSpeechTrashInUse(settings.SpeechModelName(trash.id))
+	case errors.As(err, &trash):
+		return locales.SettingsSpeechTrashFailed(settings.SpeechModelName(trash.id), trash.err.Error())
 	case errors.Is(err, errSpeechNoModelsDir):
 		return locales.SettingsSpeechNoModelsDir()
 	case errors.Is(err, media.ErrStalled):
@@ -215,16 +233,15 @@ func (a *app) trashSpeechModel(id string) {
 	if !a.speechModelOwned(id) || a.prefs.downloading != "" {
 		return
 	}
-	name := settings.SpeechModelName(id)
 	if a.speechModelInUse(path) {
-		a.prefs.downloadErr = locales.SettingsSpeechTrashInUse(name)
+		a.prefs.downloadErr = speechTrashError{id: id}
 		return
 	}
 	if err := trashItem(path); err != nil {
-		a.prefs.downloadErr = locales.SettingsSpeechTrashFailed(name, err.Error())
+		a.prefs.downloadErr = speechTrashError{id: id, err: err}
 		return
 	}
-	a.prefs.downloadErr = ""
+	a.prefs.downloadErr = nil
 	a.findSpeechModels()
 }
 
