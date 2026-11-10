@@ -8,7 +8,8 @@
     "source": "en"
   },
   "linux": {
-    "command": "kando"
+    "command": "kando",
+    "depends": ["libasound2 | libasound2t64"]
   },
   "updates": {
     "publicKey": "Ixbkzk6yM6p8gK3hgwK8IdnorQCJp9vpRlWUbsZs3LQ=",

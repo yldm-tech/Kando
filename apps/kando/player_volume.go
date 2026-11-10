@@ -10,8 +10,8 @@ import (
 // playerVolumeStep is how much ↑ and ↓ change the volume.
 const playerVolumeStep = 0.1
 
-// playerVolumeSettle is how long the volume has to stay put before the sound starts again at it. The sound plays in a process that takes its volume only when it starts, so a key held down or a slider dragged waits until it rests instead of cutting the sound at every step.
-const playerVolumeSettle = 250 * time.Millisecond
+// playerVolumeSaveDelay is how long the volume has to stay put before the settings keep it, so that a key held down or a slider dragged writes settings.json once it rests rather than at every step. The sound follows every step at once.
+const playerVolumeSaveDelay = 250 * time.Millisecond
 
 // playerVolume is how loud the sound plays now, from 0 to 1: nothing while muted.
 func (a *app) playerVolume() float64 {
@@ -54,30 +54,26 @@ func (a *app) playerNudgeVolume(steps int) {
 	a.SetVolume((math.Round(a.player.volume/playerVolumeStep) + float64(steps)) * playerVolumeStep)
 }
 
-// playerVolumeChanged starts the sound again at the new volume and keeps it in the settings, once the volume has rested for playerVolumeSettle. Without an update, as before the window exists, it does so at once.
+// playerVolumeChanged plays the open film's sound at the new volume and keeps it in the settings once the volume has rested for playerVolumeSaveDelay. Without an update, as before the window exists, it keeps it at once.
 func (a *app) playerVolumeChanged() {
+	if a.player.play != nil {
+		a.player.play.setVolume(a.playerVolume())
+	}
 	a.player.volumeUnsaved = true
 	a.player.volumeGen++
 	gen := a.player.volumeGen
 	update := a.update
 	if update == nil {
-		a.playerApplyVolume()
+		a.playerSaveVolume()
 		return
 	}
-	time.AfterFunc(playerVolumeSettle, func() {
+	time.AfterFunc(playerVolumeSaveDelay, func() {
 		update(func() {
 			if a.player.volumeGen == gen {
-				a.playerApplyVolume()
+				a.playerSaveVolume()
 			}
 		})
 	})
-}
-
-func (a *app) playerApplyVolume() {
-	if a.player.play != nil {
-		a.player.play.setVolume(a.playerVolume())
-	}
-	a.playerSaveVolume()
 }
 
 // playerSaveVolume keeps a volume changed since it was last kept, saying so on the picture when it cannot be saved.

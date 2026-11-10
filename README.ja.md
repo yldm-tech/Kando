@@ -60,15 +60,13 @@ Kando は `yt-dlp`、`ffmpeg`、`whisper-cli`（whisper.cpp）を実行します
 | プログラム | 用途 | Kando がダウンロードするもの |
 | --- | --- | --- |
 | `yt-dlp` | オンライン動画のダウンロード。ローカルファイルを含め、すべてのジョブで Kando はこれを必要とします。 | [yt-dlp の公式リリース](https://github.com/yt-dlp/yt-dlp/releases)の単体ファイル版。 |
-| `ffmpeg` | 音声の抽出、カバー画像の取得、プレーヤーでの映像のデコード。macOS では、音声はその隣の `ffplay`、または `afplay` で再生します。 | FFmpeg 9.0.2（macOS 版は `ffplay` 付き）。このリポジトリの [tools リリース](https://github.com/yldm-tech/Kando/releases/tag/tools-1)から。 |
+| `ffmpeg` | 音声の抽出、カバー画像の取得、プレーヤーでの映像と音声のデコード。プレーヤーは macOS、Linux、Windows のいずれでもシステムのオーディオ出力で音声を再生します。 | FFmpeg 9.0.2（macOS 版は `ffplay` 付き）。このリポジトリの [tools リリース](https://github.com/yldm-tech/Kando/releases/tag/tools-1)から。 |
 | `whisper-cli`（whisper.cpp） | 音声認識。 | whisper.cpp 1.9.5（macOS 版は Metal 対応）。同じリリースから。 |
 | whisper.cpp の ggml モデル | はじめにガイドか「設定」›「音声認識」でダウンロードするか、`KANDO_WHISPER_MODEL` でモデルファイルを指定します。 | |
 
 tools リリースは Tools ワークフロー（`.github/workflows/tools.yml`）が `.github/tools.env` で固定したソースからビルドし、Kando はダウンロードしたものをアプリに組み込んだ SHA-256 で検証してから使います。ダウンロードしたプログラムは `settings.json` の隣の `tools` フォルダ（macOS では `~/Library/Application Support/Kando/tools`、Linux では `~/.config/Kando/tools`）に置かれます。Kando はまずここを探し、次に `PATH` と `/opt/homebrew/bin`、`/usr/local/bin`、`/home/linuxbrew/.linuxbrew/bin` を探します。Finder やデスクトップのランチャーから開いたアプリには最小限の `PATH` しか渡されないためです。「設定」›「一般」には使っているプログラムが表示され、足りないものは「ダウンロード」か「再試行」で取得でき、「再検出」で探し直します。`yt-dlp` が古いためにダウンロードに失敗した場合は「アップデートして再試行」が表示され、インストールしたときと同じ方法で更新して再試行します。
 
 Windows ではまだ自動でダウンロードしません。同じプログラムをパッケージマネージャーでインストールし、`PATH` に含まれていることを確認してください。
-
-Windows と Linux では、現在プレーヤーは映像のみを表示し、音声は出ません。音声の再生は macOS でのみ実装されています。
 
 ## 使い方
 

@@ -10,7 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// The sound of a film is a process of its own and plays on while the app is in the background, but VideoPlayer stops the picture while the window is out of sight. This file keeps the two level: while the picture stands still behind the window, a second decoder follows the sound, and coming back hands its picture over at once instead of showing the frame the window was hidden on and then jumping.
+// The sound of a film plays on while the app is in the background, since mygo/audio mixes it on a thread of its own, but VideoPlayer stops the picture while the window is out of sight. This file keeps the two level: while the picture stands still behind the window, a second decoder follows the sound, and coming back hands its picture over at once instead of showing the frame the window was hidden on and then jumping.
 
 // backgroundDrift is how far the picture may trail the sound before it counts as standing still. The picture of a window that stayed in sight keeps pace with the sound, give or take the frames decoded ahead, and opening it again would only make it jump.
 const backgroundDrift = 200 * time.Millisecond

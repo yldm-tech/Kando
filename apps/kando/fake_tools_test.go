@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"image"
 	"image/color"
@@ -265,7 +266,7 @@ func fakeYTDLP(args []string) int {
 	return 0
 }
 
-// fakeFFmpeg answers the calls Kando makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, for the player; and one frame as JPEG, for a poster. The input must be a placeholder from writeFakeClip; any other file is not a video to it.
+// fakeFFmpeg answers the calls Kando makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, and its sound as 48 kHz stereo f32le (fakeSound), for the player; and one frame as JPEG, for a poster. The input must be a placeholder from writeFakeClip; any other file is not a video to it.
 func fakeFFmpeg(args []string) int {
 	if slices.Contains(args, "-version") {
 		fmt.Println(fakeFFmpegVersion)
@@ -279,6 +280,9 @@ func fakeFFmpeg(args []string) int {
 	}
 	width, height := clip.scale(fakeArg(args, "-vf"))
 	switch {
+	case slices.Contains(args, "f32le"):
+		at, _ := strconv.ParseFloat(fakeArg(args, "-ss"), 64)
+		return fakeSound(clip, at)
 	case slices.Contains(args, "rawvideo"):
 		at, _ := strconv.ParseFloat(fakeArg(args, "-ss"), 64)
 		picture, err := clip.picture(width, height)
@@ -308,6 +312,30 @@ func fakeFFmpeg(args []string) int {
 	fmt.Fprintf(os.Stderr, "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '%s':\n  Duration: %02d:%02d:%02d.00, start: 0.000000, bitrate: 98 kb/s\n  Stream #0:0[0x1](und): Video: mpeg4 (Simple Profile) (mp4v / 0x7634706D), yuv420p, %dx%d [SAR 1:1 DAR 16:9], %d fps, %d tbr, %d tbn (default)\nAt least one output file must be specified\n",
 		filepath.Base(input), clip.seconds/3600, clip.seconds/60%60, clip.seconds%60, ownWidth, ownHeight, fakeClipFPS, fakeClipFPS, fakeClipFPS*1000)
 	return 1
+}
+
+// fakeSoundRate is the rate the fake ffmpeg writes sound at, the one the player asks for (-ar).
+const fakeSoundRate = 48000
+
+// fakeSoundSample is the sample the fake ffmpeg writes on both channels for the frame at frame from the clip's start: the frame times 2^-30, exact in a float32 and far too quiet to hear, so a test can tell from a sample where in the clip the sound is.
+func fakeSoundSample(frame int64) float32 { return float32(frame) * (1.0 / (1 << 30)) }
+
+// fakeSound writes the clip's sound from at seconds to its end, as ffmpeg -f f32le -ac 2 -ar 48000 writes it to a pipe. It ends once the reader closes the pipe, as ffmpeg does.
+func fakeSound(clip fakeClip, at float64) int {
+	end := int64(clip.seconds) * fakeSoundRate
+	buf := make([]byte, 0, fakeSoundRate/10*8)
+	for frame := int64(at * fakeSoundRate); frame < end; frame++ {
+		bits := math.Float32bits(fakeSoundSample(frame))
+		buf = binary.LittleEndian.AppendUint32(buf, bits)
+		buf = binary.LittleEndian.AppendUint32(buf, bits)
+		if len(buf) == cap(buf) || frame == end-1 {
+			if _, err := os.Stdout.Write(buf); err != nil {
+				return 1
+			}
+			buf = buf[:0]
+		}
+	}
+	return 0
 }
 
 // fakeArg is the value after flag in args, or "".

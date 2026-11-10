@@ -121,7 +121,7 @@ jobs:
             ~/.cache/go-build
           key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-
-      # go vet compiles the tests too, such as the macOS-only audio_darwin_test.go.
+      # go vet compiles the tests too, such as the Unix-only player_unix_test.go.
       - name: Build and vet
         env:
           GOOS: ${{ matrix.goos }}
