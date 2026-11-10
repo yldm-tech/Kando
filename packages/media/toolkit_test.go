@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type tarEntry struct {
@@ -182,6 +183,30 @@ func TestInstallKitCanceled(t *testing.T) {
 	}
 	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
 		t.Fatalf("a canceled download left %v", entries)
+	}
+}
+
+func TestInstallKitStalls(t *testing.T) {
+	shortStall(t, 150*time.Millisecond)
+	data := make([]byte, 64<<10)
+	srv := stallingServer(t, data, 1000)
+	dir := t.TempDir()
+	_, err := InstallKit(context.Background(), Kit{ID: "yt-dlp", Program: "yt-dlp", URL: srv.URL, SHA256: sha(data)}, dir, nil)
+	if !errors.Is(err, ErrStalled) {
+		t.Fatalf("err = %v, want ErrStalled", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("a stalled download left %v", entries)
+	}
+}
+
+func TestInstallKitStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "busy", http.StatusServiceUnavailable) }))
+	t.Cleanup(srv.Close)
+	_, err := InstallKit(context.Background(), Kit{ID: "yt-dlp", Program: "yt-dlp", URL: srv.URL, SHA256: sha(nil)}, t.TempDir(), nil)
+	var status interface{ StatusCode() int }
+	if !errors.As(err, &status) || status.StatusCode() != http.StatusServiceUnavailable || err.Error() != "download yt-dlp: HTTP 503" {
+		t.Fatalf("err = %v, want HTTP 503", err)
 	}
 }
 

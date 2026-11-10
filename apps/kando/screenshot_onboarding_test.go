@@ -31,4 +31,11 @@ func TestScreenshotsOnboarding(t *testing.T) {
 		a.openOnboarding()
 		a.onb.step = 2
 	})
+	// The second step after the recommended model's download stalled: its row says so in red, and 重试 picks it up where it stopped.
+	f.shoot(t, "onboarding-2-model-stalled", func(a *app, tt *ui.Tester, _ chan func()) {
+		a.openOnboarding()
+		a.onb.step = 2
+		a.onb.lastDownload = "large-v3-turbo-q5"
+		a.prefs.downloadErr = media.ErrStalled
+	})
 }

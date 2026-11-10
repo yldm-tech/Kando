@@ -4084,6 +4084,56 @@ func (msgs Messages) FilmsUntranslated(count int) string {
 	return Catalog.Format(msgs.locale, "filmsUntranslated", map[string]any{"count": count})
 }
 
+// KitsDownloadDisconnected says "the connection dropped"
+// in the language the app shows.
+//
+// Why Kando's download of a program failed, after 'Download failed:': the
+// connection to the server broke off.
+func KitsDownloadDisconnected() string { return In(i18n.Locale()).KitsDownloadDisconnected() }
+
+// KitsDownloadDisconnected says "the connection dropped"
+// in the language of msgs.
+//
+// Why Kando's download of a program failed, after 'Download failed:': the
+// connection to the server broke off.
+func (msgs Messages) KitsDownloadDisconnected() string {
+	return Catalog.Format(msgs.locale, "kitsDownloadDisconnected", nil)
+}
+
+// KitsDownloadFailedStatus says "the server answered HTTP {status}"
+// in the language the app shows.
+//
+// Why Kando's download of a program failed, after 'Download failed:': the
+// server answered with an error status instead of the file.
+func KitsDownloadFailedStatus(status int) string {
+	return In(i18n.Locale()).KitsDownloadFailedStatus(status)
+}
+
+// KitsDownloadFailedStatus says "the server answered HTTP {status}"
+// in the language of msgs.
+//
+// Why Kando's download of a program failed, after 'Download failed:': the
+// server answered with an error status instead of the file.
+func (msgs Messages) KitsDownloadFailedStatus(status int) string {
+	return Catalog.Format(msgs.locale, "kitsDownloadFailedStatus", map[string]any{"status": status})
+}
+
+// KitsDownloadStalled says "the server stopped sending data"
+// in the language the app shows.
+//
+// Why Kando's download of a program failed, after 'Download failed:': no
+// data arrived for a long while.
+func KitsDownloadStalled() string { return In(i18n.Locale()).KitsDownloadStalled() }
+
+// KitsDownloadStalled says "the server stopped sending data"
+// in the language of msgs.
+//
+// Why Kando's download of a program failed, after 'Download failed:': no
+// data arrived for a long while.
+func (msgs Messages) KitsDownloadStalled() string {
+	return Catalog.Format(msgs.locale, "kitsDownloadStalled", nil)
+}
+
 // LibraryAddedOneStarting says "Added. Processing started."
 // in the language the app shows.
 //
@@ -11352,6 +11402,44 @@ func (msgs Messages) SettingsSpeechDownload() string {
 	return Catalog.Format(msgs.locale, "settingsSpeechDownload", nil)
 }
 
+// SettingsSpeechDownloadDisconnected says "The connection dropped. Check your network and download again."
+// in the language the app shows.
+//
+// Error on the Speech Recognition page and in the guide: the connection to
+// the server failed or broke off during a whisper model's download. It may
+// fail before any data arrived, so it does not promise to resume.
+func SettingsSpeechDownloadDisconnected() string {
+	return In(i18n.Locale()).SettingsSpeechDownloadDisconnected()
+}
+
+// SettingsSpeechDownloadDisconnected says "The connection dropped. Check your network and download again."
+// in the language of msgs.
+//
+// Error on the Speech Recognition page and in the guide: the connection to
+// the server failed or broke off during a whisper model's download. It may
+// fail before any data arrived, so it does not promise to resume.
+func (msgs Messages) SettingsSpeechDownloadDisconnected() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechDownloadDisconnected", nil)
+}
+
+// SettingsSpeechDownloadFailedStatus says "The server answered HTTP {status}. Try again later."
+// in the language the app shows.
+//
+// Error on the Speech Recognition page and in the guide: the server
+// answered a whisper model's download with an error status.
+func SettingsSpeechDownloadFailedStatus(status int) string {
+	return In(i18n.Locale()).SettingsSpeechDownloadFailedStatus(status)
+}
+
+// SettingsSpeechDownloadFailedStatus says "The server answered HTTP {status}. Try again later."
+// in the language of msgs.
+//
+// Error on the Speech Recognition page and in the guide: the server
+// answered a whisper model's download with an error status.
+func (msgs Messages) SettingsSpeechDownloadFailedStatus(status int) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechDownloadFailedStatus", map[string]any{"status": status})
+}
+
 // SettingsSpeechDownloadProgress says "{model} download progress"
 // in the language the app shows.
 //
@@ -11366,6 +11454,24 @@ func SettingsSpeechDownloadProgress(model string) string {
 // Accessible name of a whisper model's download progress bar.
 func (msgs Messages) SettingsSpeechDownloadProgress(model string) string {
 	return Catalog.Format(msgs.locale, "settingsSpeechDownloadProgress", map[string]any{"model": model})
+}
+
+// SettingsSpeechDownloadStalled says "The download stopped receiving data. Download again to continue from where it stopped."
+// in the language the app shows.
+//
+// Error on the Speech Recognition page and in the guide: no data arrived
+// for a long while during a whisper model's download; downloading again
+// resumes it.
+func SettingsSpeechDownloadStalled() string { return In(i18n.Locale()).SettingsSpeechDownloadStalled() }
+
+// SettingsSpeechDownloadStalled says "The download stopped receiving data. Download again to continue from where it stopped."
+// in the language of msgs.
+//
+// Error on the Speech Recognition page and in the guide: no data arrived
+// for a long while during a whisper model's download; downloading again
+// resumes it.
+func (msgs Messages) SettingsSpeechDownloadStalled() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechDownloadStalled", nil)
 }
 
 // SettingsSpeechDownloaded says "Downloaded"

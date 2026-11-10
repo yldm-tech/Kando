@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/packages/media"
 )
 
@@ -12,8 +13,8 @@ import (
 type kitsUI struct {
 	// running is the download of each program under way, by program.
 	running map[string]*kitDownload
-	// errs is why the last download of each program failed, by program, until it is started again.
-	errs map[string]string
+	// errs is why the last download of each program failed, by program, until it is started again; kitsError words it in the language it is shown in.
+	errs map[string]error
 	// install downloads a kit; tests replace it.
 	install func(ctx context.Context, kit media.Kit, dir string, progress func(written, total int64)) (string, error)
 }
@@ -25,7 +26,7 @@ type kitDownload struct {
 }
 
 func newKitsUI() kitsUI {
-	return kitsUI{running: map[string]*kitDownload{}, errs: map[string]string{}, install: media.InstallKit}
+	return kitsUI{running: map[string]*kitDownload{}, errs: map[string]error{}, install: media.InstallKit}
 }
 
 func (a *app) kitsHooks() areaHooks {
@@ -86,7 +87,7 @@ func (a *app) kitsInstall(program string) {
 			delete(a.kits.running, program)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
-					a.kits.errs[program] = err.Error()
+					a.kits.errs[program] = err
 				}
 				return
 			}
@@ -123,4 +124,20 @@ func (a *app) kitsDownloading() []string {
 		}
 	}
 	return names
+}
+
+// kitsError says in plain words, in the interface's language, why the download of a program failed, as it reads after "下载失败：", or "" when it did not.
+func kitsError(err error) string {
+	var status interface{ StatusCode() int }
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, media.ErrStalled):
+		return locales.KitsDownloadStalled()
+	case errors.As(err, &status):
+		return locales.KitsDownloadFailedStatus(status.StatusCode())
+	case errors.Is(err, media.ErrDisconnected):
+		return locales.KitsDownloadDisconnected()
+	}
+	return err.Error()
 }

@@ -1410,6 +1410,24 @@
       }
     }
   },
+  "kitsDownloadDisconnected": "the connection dropped",
+  "@kitsDownloadDisconnected": {
+    "description": "Why Kando's download of a program failed, after 'Download failed:': the connection to the server broke off."
+  },
+  "kitsDownloadFailedStatus": "the server answered HTTP {status}",
+  "@kitsDownloadFailedStatus": {
+    "description": "Why Kando's download of a program failed, after 'Download failed:': the server answered with an error status instead of the file.",
+    "placeholders": {
+      "status": {
+        "type": "int",
+        "example": "503"
+      }
+    }
+  },
+  "kitsDownloadStalled": "the server stopped sending data",
+  "@kitsDownloadStalled": {
+    "description": "Why Kando's download of a program failed, after 'Download failed:': no data arrived for a long while."
+  },
   "libraryAddedOneStarting": "Added. Processing started.",
   "@libraryAddedOneStarting": {
     "description": "Message bar when one video was added to the queue."
@@ -4003,6 +4021,20 @@
   "@settingsSpeechDownload": {
     "description": "Button downloading a whisper model."
   },
+  "settingsSpeechDownloadDisconnected": "The connection dropped. Check your network and download again.",
+  "@settingsSpeechDownloadDisconnected": {
+    "description": "Error on the Speech Recognition page and in the guide: the connection to the server failed or broke off during a whisper model's download. It may fail before any data arrived, so it does not promise to resume."
+  },
+  "settingsSpeechDownloadFailedStatus": "The server answered HTTP {status}. Try again later.",
+  "@settingsSpeechDownloadFailedStatus": {
+    "description": "Error on the Speech Recognition page and in the guide: the server answered a whisper model's download with an error status.",
+    "placeholders": {
+      "status": {
+        "type": "int",
+        "example": "503"
+      }
+    }
+  },
   "settingsSpeechDownloadProgress": "{model} download progress",
   "@settingsSpeechDownloadProgress": {
     "description": "Accessible name of a whisper model's download progress bar.",
@@ -4012,6 +4044,10 @@
         "example": "Base"
       }
     }
+  },
+  "settingsSpeechDownloadStalled": "The download stopped receiving data. Download again to continue from where it stopped.",
+  "@settingsSpeechDownloadStalled": {
+    "description": "Error on the Speech Recognition page and in the guide: no data arrived for a long while during a whisper model's download; downloading again resumes it."
   },
   "settingsSpeechDownloaded": "Downloaded",
   "@settingsSpeechDownloaded": {

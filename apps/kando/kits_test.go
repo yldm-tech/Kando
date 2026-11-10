@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/onboarding"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -34,7 +36,7 @@ func fakeKits(t *testing.T, a *app, release <-chan struct{}, fail ...string) str
 		}
 		for _, name := range fail {
 			if name == kit.Program {
-				return "", errors.New("HTTP 503")
+				return "", rejected(503)
 			}
 		}
 		path := filepath.Join(dir, kit.ID, kit.Program)
@@ -100,12 +102,12 @@ func TestKitsRetryFromSettings(t *testing.T) {
 	fakeKits(t, a, release, "ffmpeg")
 	a.kitsInstallMissing()
 	waitUntil(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
-	if a.kits.errs["ffmpeg"] != "HTTP 503" {
-		t.Fatalf("errs = %v", a.kits.errs)
+	if got := kitsError(a.kits.errs["ffmpeg"]); got != "服务器返回 HTTP 503" {
+		t.Fatalf("ffmpeg's error says %q, errs %v", got, a.kits.errs)
 	}
 
 	st := settingsOpenAt(a, nil, settings.SectionGeneral)
-	for _, text := range []string{"下载失败：HTTP 503", "重试"} {
+	for _, text := range []string{"下载失败：服务器返回 HTTP 503", "重试"} {
 		if !st.HasText(text) {
 			t.Fatalf("settings lack %q: %v", text, st.Texts())
 		}
@@ -125,7 +127,7 @@ func TestKitsRetryFromSettings(t *testing.T) {
 		t.Fatal("重试 did not start the download")
 	}
 	waitUntil(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
-	if a.pipeline.(media.Tools).FFmpeg == "" || a.kits.errs["ffmpeg"] != "" {
+	if a.pipeline.(media.Tools).FFmpeg == "" || a.kits.errs["ffmpeg"] != nil {
 		t.Fatalf("ffmpeg = %q, errs %v", a.pipeline.(media.Tools).FFmpeg, a.kits.errs)
 	}
 }
@@ -156,12 +158,12 @@ func TestOnboardingShowsTheDownloads(t *testing.T) {
 func TestOnboardingShowsAFailedDownload(t *testing.T) {
 	a, _, _ := newTestApp(media.Tools{YTDLP: "/usr/local/bin/yt-dlp", FFmpeg: "/usr/local/bin/ffmpeg"})
 	fakeKits(t, a, make(chan struct{}))
-	a.kits.errs["whisper-cli"] = "HTTP 503"
+	a.kits.errs["whisper-cli"] = rejected(503)
 	for _, row := range a.onboardingTools() {
 		want := onboarding.ToolReady
 		if row.Name == "whisper-cli" {
 			want = onboarding.ToolMissing
-			if row.Err != "HTTP 503" {
+			if row.Err != "服务器返回 HTTP 503" {
 				t.Fatalf("whisper-cli's error = %q", row.Err)
 			}
 		}
@@ -173,5 +175,27 @@ func TestOnboardingShowsAFailedDownload(t *testing.T) {
 	media.OwnToolsDir = ""
 	if rows := a.onboardingTools(); rows[2].State != onboarding.ToolUnavailable {
 		t.Fatalf("without a folder of its own, whisper-cli is %v", rows[2].State)
+	}
+}
+
+// TestKitsErrorSaysWhy checks the words for why a program's download failed: a stall, an HTTP status and a dropped connection each in plain words of the interface's language, anything else as it is.
+func TestKitsErrorSaysWhy(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{nil, ""},
+		{media.ErrStalled, "服务器一直没有发来数据"},
+		{rejected(404), "服务器返回 HTTP 404"},
+		{fmt.Errorf("%w: read: connection reset by peer", media.ErrDisconnected), "连接断了"},
+		{errors.New("download ffmpeg: checksum 00, want 11"), "download ffmpeg: checksum 00, want 11"},
+	} {
+		if got := kitsError(tc.err); got != tc.want {
+			t.Errorf("kitsError(%v) = %q, want %q", tc.err, got, tc.want)
+		}
+	}
+	testlocale.Use(t, "en")
+	if got := kitsError(media.ErrStalled); got != "the server stopped sending data" {
+		t.Errorf("in English, a stall is %q", got)
 	}
 }

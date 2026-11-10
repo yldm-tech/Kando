@@ -1,11 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
@@ -98,6 +105,77 @@ func TestSpeechModelSelectionIsSaved(t *testing.T) {
 	}
 	if loadSavedSettings(a.settingsPath).WhisperModel != model {
 		t.Fatalf("saved %#v", loadSavedSettings(a.settingsPath))
+	}
+}
+
+// TestSpeechDownloadResumesAfterADrop checks a speech model's download whose connection drops: the page says so and that downloading again continues, and 下载 then asks the server only for the rest and puts the whole model to use.
+func TestSpeechDownloadResumesAfterADrop(t *testing.T) {
+	data := []byte(strings.Repeat("ggml", 1024))
+	var ranges []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ranges = append(ranges, r.Header.Get("Range"))
+		w.Header().Set("ETag", `"tiny"`)
+		if len(ranges) == 1 {
+			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+			_, _ = w.Write(data[:1000])
+			w.(http.Flusher).Flush()
+			panic(http.ErrAbortHandler)
+		}
+		http.ServeContent(w, r, "ggml-tiny.bin", time.Time{}, bytes.NewReader(data))
+	}))
+	t.Cleanup(srv.Close)
+	saved := whisperModelBaseURL
+	whisperModelBaseURL = srv.URL
+	t.Cleanup(func() { whisperModelBaseURL = saved })
+	a, _, updates := newTestApp(media.Tools{})
+	a.prefs.modelsDir = t.TempDir()
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+
+	a.DownloadModel("tiny")
+	waitUntil(t, updates, func() bool { return a.Downloading() == "" })
+	tt := settingsOpenAt(a, nil, settings.SectionSpeech)
+	wantText(t, tt, "连接断了。检查网络后再下载一次。")
+	if info, err := os.Stat(filepath.Join(a.prefs.modelsDir, "ggml-tiny.bin.partial")); err != nil || info.Size() != 1000 {
+		t.Fatalf("the dropped download kept %v, err %v", info, err)
+	}
+
+	a.DownloadModel("tiny")
+	if a.DownloadErr() != "" {
+		t.Fatalf("downloading again still says %q", a.DownloadErr())
+	}
+	waitUntil(t, updates, func() bool { return a.Downloading() == "" })
+	if len(ranges) != 2 || ranges[1] != "bytes=1000-" {
+		t.Fatalf("requests asked for %q, want the rest from byte 1000", ranges)
+	}
+	model := filepath.Join(a.prefs.modelsDir, "ggml-tiny.bin")
+	if got, err := os.ReadFile(model); err != nil || !bytes.Equal(got, data) {
+		t.Fatalf("model holds %d bytes, err %v", len(got), err)
+	}
+	if a.pipeline.(media.Tools).WhisperModel != model || a.DownloadErr() != "" {
+		t.Fatalf("model in use %q, error %q", a.pipeline.(media.Tools).WhisperModel, a.DownloadErr())
+	}
+}
+
+// TestSpeechDownloadErrorSaysWhy checks the words for why a speech model's download failed, in the interface's language: a stall and a dropped connection say that downloading again continues, an HTTP status names it, and anything else shows as it is.
+func TestSpeechDownloadErrorSaysWhy(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{nil, ""},
+		{errSpeechNoModelsDir, "还没有模型目录"},
+		{media.ErrStalled, "下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"},
+		{rejected(503), "服务器返回 HTTP 503，请稍后再试。"},
+		{fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected), "连接断了。检查网络后再下载一次。"},
+		{errors.New("no space left on device"), "no space left on device"},
+	} {
+		if got := speechDownloadError(tc.err); got != tc.want {
+			t.Errorf("speechDownloadError(%v) = %q, want %q", tc.err, got, tc.want)
+		}
+	}
+	testlocale.Use(t, "en")
+	if got := speechDownloadError(rejected(404)); got != "The server answered HTTP 404. Try again later." {
+		t.Errorf("in English, HTTP 404 is %q", got)
 	}
 }
 

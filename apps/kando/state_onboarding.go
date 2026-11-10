@@ -292,8 +292,8 @@ func (a *app) onboardingModels() []onboarding.Model {
 		case path != "":
 			m.State = onboarding.ModelReady
 		}
-		if a.onb.lastDownload == id && a.prefs.downloading == "" && a.prefs.downloadErr != "" {
-			m.Err = a.prefs.downloadErr
+		if a.onb.lastDownload == id && a.prefs.downloading == "" {
+			m.Err = speechDownloadError(a.prefs.downloadErr)
 		}
 		out = append(out, m)
 	}
@@ -355,7 +355,7 @@ func (a *app) onboardingTools() []onboarding.Tool {
 		case running:
 			rows[i].State, rows[i].Progress = onboarding.ToolDownloading, progress
 		case a.kitsCanInstall(name):
-			rows[i].State, rows[i].Err = onboarding.ToolMissing, a.kits.errs[name]
+			rows[i].State, rows[i].Err = onboarding.ToolMissing, kitsError(a.kits.errs[name])
 		default:
 			rows[i].State = onboarding.ToolUnavailable
 		}
