@@ -640,19 +640,25 @@ func (a *app) retargetLibrary(moved map[string]string) bool {
 	return changed
 }
 
+// dropMissing drops the finished jobs of the open library whose video is gone from disk. library.json holds the jobs of every library, and another library's videos may be on a disk that is not mounted or in a folder moved away for now, so only the open library's jobs are looked at, and none while the library folder itself cannot be found. A video kept outside the library where it was picked is dropped only while its folder is there, as a missing folder is as likely a disk that is not mounted.
 func (a *app) dropMissing() bool {
+	root := a.snap().LibraryDir
+	if root == "" {
+		return false
+	}
+	if _, err := os.Stat(root); err != nil {
+		return false
+	}
 	kept := make([]core.Job, 0, len(a.library.Jobs))
 	changed := false
 	for _, job := range a.library.Jobs {
-		if job.VideoPath != "" && job.Stage.Done() {
-			if _, err := os.Stat(job.VideoPath); err != nil {
-				changed = true
-				if a.openKey == job.ID {
-					a.openKey = ""
-					a.stopPlayback()
-				}
-				continue
+		if job.VideoPath != "" && job.Stage.Done() && films.InLibrary(root, job) && shelfVideoGone(root, job.VideoPath) {
+			changed = true
+			if a.openKey == job.ID {
+				a.openKey = ""
+				a.stopPlayback()
 			}
+			continue
 		}
 		kept = append(kept, job)
 	}
@@ -662,16 +668,34 @@ func (a *app) dropMissing() bool {
 	return changed
 }
 
-// relocateMissing points jobs whose files are gone at the same folder and file names found elsewhere in the library, and what is kept by the videos' paths with them.
+// shelfVideoGone reports whether video is gone from disk for good as far as dropMissing can tell: it does not exist, rather than failing to be read, and when it is outside the library root, its folder is there.
+func shelfVideoGone(root, video string) bool {
+	if _, err := os.Stat(video); !errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	if films.InDir(root, video) {
+		return true
+	}
+	_, err := os.Stat(filepath.Dir(video))
+	return err == nil
+}
+
+// relocateMissing points jobs whose files are gone at the same folder and file names found elsewhere in the library, and what is kept by the videos' paths with them. Only files that were inside the open library are looked for, so a job of another library, whose disk may just not be mounted, is never pointed at a file of the same name here.
 func (a *app) relocateMissing() bool {
+	root := a.snap().LibraryDir
 	changed := false
 	moved := map[string]string{}
 	for i, job := range a.library.Jobs {
-		root := a.snap().LibraryDir
+		if !films.InDir(root, job.VideoPath) {
+			continue
+		}
 		if next, ok := media.Relocate(root, job.VideoPath); ok {
 			moved[job.VideoPath] = next
 			a.library.Jobs[i].VideoPath = next
 			changed = true
+		}
+		if !films.InDir(root, job.SubtitlePath) {
+			continue
 		}
 		if next, ok := media.Relocate(root, job.SubtitlePath); ok {
 			a.library.Jobs[i].SubtitlePath = next
@@ -706,7 +730,7 @@ func (a *app) openLibrary(path string) {
 	lib, err := shelf.Load(path)
 	a.library = lib
 	if err != nil {
-		a.saveErr = locales.LibraryShelfReadFailed(err.Error())
+		a.saveErr = shelfKeepDamaged(&a.library, path, err)
 	}
 	a.areasShelfLoaded()
 	renamed := a.snap().Renamed
@@ -717,6 +741,19 @@ func (a *app) openLibrary(path string) {
 	for _, r := range renamed {
 		a.retargetLibraryPrefix(r.old, r.next)
 	}
+}
+
+// shelfKeepDamaged handles the error Load gave for the library.json at path, before anything can save over it, and returns what the sidebar says. A file that is not a library in full is copied beside itself as library.json.bad, and lib may then save over it; when the copy cannot be written, or the file could not be read at all, lib stays unsaved (shelf.ErrUnread) until Kando starts again, as the file may hold jobs lib lacks.
+func shelfKeepDamaged(lib *shelf.Library, path string, err error) string {
+	var damaged *shelf.DamagedError
+	if !errors.As(err, &damaged) {
+		return locales.LibraryShelfReadFailed(err.Error())
+	}
+	if writeErr := os.WriteFile(path+".bad", damaged.Data, 0o600); writeErr != nil {
+		return locales.LibraryShelfDamagedUnsaved(writeErr.Error())
+	}
+	lib.AllowSave()
+	return locales.LibraryShelfDamaged(damaged.Err.Error())
 }
 
 // revealInFolder shows path in the system file manager. Tests replace it.

@@ -4382,6 +4382,44 @@ func (msgs Messages) LibrarySaveFailed(error string) string {
 	return Catalog.Format(msgs.locale, "librarySaveFailed", map[string]any{"error": error})
 }
 
+// LibraryShelfDamaged says "The film list has content Kando can't read; the original was saved as library.json.bad: {error}"
+// in the language the app shows.
+//
+// Notice at startup when library.json, the list of films and jobs, has
+// content Kando cannot read; the file was copied to library.json.bad and
+// Kando goes on with what it could read. Keep the file name as it is.
+func LibraryShelfDamaged(error string) string { return In(i18n.Locale()).LibraryShelfDamaged(error) }
+
+// LibraryShelfDamaged says "The film list has content Kando can't read; the original was saved as library.json.bad: {error}"
+// in the language of msgs.
+//
+// Notice at startup when library.json, the list of films and jobs, has
+// content Kando cannot read; the file was copied to library.json.bad and
+// Kando goes on with what it could read. Keep the file name as it is.
+func (msgs Messages) LibraryShelfDamaged(error string) string {
+	return Catalog.Format(msgs.locale, "libraryShelfDamaged", map[string]any{"error": error})
+}
+
+// LibraryShelfDamagedUnsaved says "The film list has content Kando can't read, and a copy couldn't be saved, so Kando won't save the list until it resta…"
+// in the language the app shows.
+//
+// Error at startup when library.json has content Kando cannot read and the
+// copy beside it could not be written; Kando then does not write
+// library.json, so nothing in it is lost.
+func LibraryShelfDamagedUnsaved(error string) string {
+	return In(i18n.Locale()).LibraryShelfDamagedUnsaved(error)
+}
+
+// LibraryShelfDamagedUnsaved says "The film list has content Kando can't read, and a copy couldn't be saved, so Kando won't save the list until it resta…"
+// in the language of msgs.
+//
+// Error at startup when library.json has content Kando cannot read and the
+// copy beside it could not be written; Kando then does not write
+// library.json, so nothing in it is lost.
+func (msgs Messages) LibraryShelfDamagedUnsaved(error string) string {
+	return Catalog.Format(msgs.locale, "libraryShelfDamagedUnsaved", map[string]any{"error": error})
+}
+
 // LibraryShelfReadFailed says "Couldn't read the film list: {error}"
 // in the language the app shows.
 //

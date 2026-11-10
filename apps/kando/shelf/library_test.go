@@ -250,3 +250,55 @@ func TestLibraryKeepsHowManyLinesAreUntranslated(t *testing.T) {
 		t.Fatalf("job %+v", job)
 	}
 }
+
+// TestLoadDamagedKeepsTheFileUntilAllowSave checks that a library.json cut short comes back as a *DamagedError holding its bytes, and that Save does not write over it until AllowSave.
+func TestLoadDamagedKeepsTheFileUntilAllowSave(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	damaged := []byte(`{"jobs": [{"id": "a", "stage": "complete"}, {"id": "b`)
+	if err := os.WriteFile(path, damaged, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	lib, err := Load(path)
+	var bad *DamagedError
+	if !errors.As(err, &bad) || string(bad.Data) != string(damaged) {
+		t.Fatalf("Load error = %#v, want a *DamagedError with the file's bytes", err)
+	}
+	if len(lib.Jobs) != 0 {
+		t.Fatalf("jobs of a file that is not JSON = %#v", lib.Jobs)
+	}
+	lib.Upsert(core.Job{ID: "new", Stage: core.StageQueued})
+	if err := lib.Save(); !errors.Is(err, ErrUnread) {
+		t.Fatalf("Save = %v, want ErrUnread", err)
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != string(damaged) {
+		t.Fatalf("library.json = %q (%v)", got, err)
+	}
+	if _, err := os.Stat(path + ".tmp"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Save left %s.tmp: %v", path, err)
+	}
+	lib.AllowSave()
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Load(path)
+	if err != nil || len(again.Jobs) != 1 || again.Jobs[0].ID != "new" {
+		t.Fatalf("after AllowSave: %#v %v", again.Jobs, err)
+	}
+}
+
+// TestLoadDamagedKeepsWhatItCouldRead checks that a value of another type, as another version may write, leaves only that value out: the jobs and furthest points still read.
+func TestLoadDamagedKeepsWhatItCouldRead(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	data := `{"jobs": [{"id": "a", "source": "https://example.com/a", "stage": "complete", "videoPath": "/v/a.mp4"}], "positions": "soon", "furthest": {"/v/a.mp4": 12}}`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	lib, err := Load(path)
+	var bad *DamagedError
+	if !errors.As(err, &bad) {
+		t.Fatalf("Load error = %v, want a *DamagedError", err)
+	}
+	if len(lib.Jobs) != 1 || lib.Jobs[0].VideoPath != "/v/a.mp4" || lib.Furthest["/v/a.mp4"] != 12*time.Second || len(lib.Positions) != 0 {
+		t.Fatalf("jobs %#v furthest %v positions %v", lib.Jobs, lib.Furthest, lib.Positions)
+	}
+}
