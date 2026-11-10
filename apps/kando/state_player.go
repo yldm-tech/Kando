@@ -67,7 +67,9 @@ type playerUI struct {
 	windowAway bool
 	// nowPlaying is what the system shows of the open film, where the media keys and its controls command it (playback_nowplaying.go).
 	nowPlaying playerNowPlaying
-	film       filmUI
+	// rate is how fast films play, one of film.Rates, 1 as recorded. It stays as it is from film to film.
+	rate float64
+	film filmUI
 }
 
 // fullScreen is the part of a window the player uses to enter and leave full screen, as *mygo.Window has it.
@@ -90,6 +92,7 @@ type playerNowPlaying struct {
 type filmUI struct {
 	styleView bool
 	modeMenu  bool
+	speedMenu bool
 	// video is the path of the film's video, which delay is kept by in playerUI.delays.
 	video       string
 	delay       time.Duration
@@ -122,6 +125,7 @@ func newPlayerUI() playerUI {
 		lastMode:     film.SubBilingual,
 		panel:        true,
 		volume:       1,
+		rate:         1,
 		film:         filmUI{follow: -1},
 	}
 }
@@ -192,6 +196,7 @@ func (a *app) playerAfterFrame() {
 	a.loadClipFrames()
 	a.playerKeep(time.Now())
 	a.playerKeepAwake()
+	a.playerApplyRate()
 }
 
 // playerKeep saves where the open film is while it plays, so a crash, a force quit or a power cut loses little of it rather than all since it opened: at once when a playback opened playing at a point picked for it (a seek, 继续, 从头看) and when it pauses or ends, and in between every playerKeepEvery once it has moved on. A film held on the frame it opened on is not kept until it plays, as stopPlayback does not keep it either. A subtitle delay is saved once it has rested playerDelaySettle. now is the time of the frame.
@@ -291,9 +296,12 @@ func (a *app) restorePlayer(saved savedSettings) {
 		a.player.volume = min(max(*saved.Volume, 0), 1)
 	}
 	a.player.muted = saved.Muted
+	if saved.Rate != nil {
+		a.player.rate = playerNearestRate(*saved.Rate)
+	}
 }
 
-// savedPlayer is the player's part of settings.json: how subtitles look, which lines show and how loud films play.
+// savedPlayer is the player's part of settings.json: how subtitles look, which lines show, and how loud and how fast films play.
 type savedPlayer struct {
 	Look         *film.Look `json:"look,omitempty"`
 	SubMode      string     `json:"subMode,omitempty"`
@@ -303,14 +311,22 @@ type savedPlayer struct {
 	// Volume is how loud films play, from 0 to 1; Muted silences them.
 	Volume *float64 `json:"volume,omitempty"`
 	Muted  bool     `json:"muted,omitempty"`
+	// Rate is how fast films play, one of film.Rates.
+	Rate *float64 `json:"rate,omitempty"`
 }
 
-// clean leaves the player's settings as they were read; restorePlayer replaces a value it does not know with the default.
-func (s *savedPlayer) clean() {}
+// clean brings a saved speed to the nearest of film.Rates, and leaves the player's other settings as they were read; restorePlayer replaces a value it does not know with the default.
+func (s *savedPlayer) clean() {
+	if s.Rate != nil {
+		rate := playerNearestRate(*s.Rate)
+		s.Rate = &rate
+	}
+}
 
 func (a *app) savePlayer(saved *savedSettings) {
 	yieldSubs := a.player.yieldSubs
 	volume := a.player.volume
+	rate := a.player.rate
 	saved.savedPlayer = savedPlayer{
 		Look:         changedLook(a.player.look),
 		SubMode:      a.player.subMode,
@@ -319,10 +335,11 @@ func (a *app) savePlayer(saved *savedSettings) {
 		YieldSubs:    &yieldSubs,
 		Volume:       &volume,
 		Muted:        a.player.muted,
+		Rate:         &rate,
 	}
 }
 
-// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then after each frame, keeps the display awake while a film plays once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
+// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then and brings a film back from the background to a speed changed meanwhile after each frame, keeps the display awake while a film plays once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
 	return areaHooks{
 		save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.playerAfterFrame, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting,

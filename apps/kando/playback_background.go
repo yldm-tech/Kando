@@ -132,15 +132,15 @@ func (p *filmPlay) stopBackground() {
 	}
 }
 
-// backgroundSound is where the sound of p is at any moment since the app went inactive.
+// backgroundSound is where the sound of p is at any moment since the app went inactive. The film keeps its speed until it has come back (playerApplyRate), so the clock counts at that speed throughout.
 func (p *filmPlay) backgroundSound() func() time.Duration {
-	head, since, length := p.backgroundHead, p.backgroundAt, p.duration
-	return func() time.Duration { return soundClock(head, since, length, time.Now()) }
+	head, since, length, rate := p.backgroundHead, p.backgroundAt, p.duration, p.speed()
+	return func() time.Duration { return soundClock(head, since, length, rate, time.Now()) }
 }
 
-// soundClock is where a sound that was at head at since is at now, held short of the end of a film length long (0 when not known).
-func soundClock(head time.Duration, since time.Time, length time.Duration, now time.Time) time.Duration {
-	at := head + max(now.Sub(since), 0)
+// soundClock is where a sound that was at head at since and plays at rate is at now, in the film's own time, held short of the end of a film length long (0 when not known).
+func soundClock(head time.Duration, since time.Time, length time.Duration, rate float64, now time.Time) time.Duration {
+	at := head + filmTime(max(now.Sub(since), 0), rate)
 	if length > 0 && at >= length {
 		at = max(0, length-100*time.Millisecond)
 	}
@@ -154,7 +154,7 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 	}
 	bg := &backgroundPicture{quit: make(chan struct{}), take: make(chan struct{})}
 	sound := p.backgroundSound()
-	shown, ffmpeg, path, update, gen := p.frames, p.ffmpeg, p.path, a.update, a.player.playGen
+	shown, ffmpeg, path, update, gen, rate := p.frames, p.ffmpeg, p.path, a.update, a.player.playGen, p.speed()
 	go func() {
 		tick := time.NewTicker(backgroundPoll)
 		for sound()-shown.position() < backgroundDrift {
@@ -212,7 +212,7 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 			}
 			due := time.Hour
 			if !ended {
-				due = at + dur - sound()
+				due = wallTime(at+dur-sound(), rate)
 			}
 			wait.Reset(due)
 			select {
@@ -237,7 +237,7 @@ func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameRea
 		frames.Close()
 		return
 	}
-	dec := &frameDecoder{frames: frames, shown: at, held: &ui.VideoFrame{Image: img, Duration: dur}, sound: sound}
+	dec := &frameDecoder{frames: frames, shown: at, held: &ui.VideoFrame{Image: img, Duration: dur}, sound: sound, rate: p.rate}
 	player, err := ui.NewVideoPlayer(dec)
 	if err != nil {
 		frames.Close()
@@ -248,7 +248,7 @@ func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameRea
 	p.audio = nil
 	a.playReplace(&filmPlay{
 		player: player, frames: dec, audio: audio, ffmpeg: p.ffmpeg, path: p.path,
-		duration: p.duration, played: true, volume: p.volume,
+		duration: p.duration, played: true, volume: p.volume, rate: p.rate,
 	})
 }
 

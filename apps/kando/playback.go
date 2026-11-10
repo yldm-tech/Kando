@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,8 @@ type filmPlay struct {
 	paused   bool
 	// volume is how loud the sound plays, from 0 to 1, muting included (app.playerVolume).
 	volume float64
+	// rate is how fast the film plays, picture and sound, as a multiple of the speed it was recorded at (app.player.rate); 0 counts as 1 (speed). The playhead and every clock of the film count in the film's own time, which moves on rate times as fast as the wall clock.
+	rate float64
 	// backgroundAt and backgroundHead are the clock of a film that played as the app went inactive: the playhead then, and when. The sound plays on in the background, while the picture stops as long as the window is out of sight.
 	backgroundAt   time.Time
 	backgroundHead time.Duration
@@ -103,6 +106,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 	gen := a.player.playGen
 	a.player.playPath = path
 	volume := a.playerVolume()
+	openRate := a.player.rate
 	update := a.update
 	go func() {
 		openAt := at
@@ -136,7 +140,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				openAt = now
 			}
 		} else {
-			audio, err = openPCM(ffmpeg, path, openAt, volume)
+			audio, err = openPCM(ffmpeg, path, openAt, volume, openRate)
 			if err != nil {
 				log.Printf("player: no sound for %s: %v", filepath.Base(path), err)
 			}
@@ -153,7 +157,12 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				}
 				return
 			}
-			dec := &frameDecoder{frames: frames, shown: openAt}
+			// A film coming back plays on at the speed of the sound it hands over; playerApplyRate brings it to a speed changed meanwhile once its picture has caught up.
+			rate := a.player.rate
+			if keep != nil {
+				rate = keep.speed()
+			}
+			dec := &frameDecoder{frames: frames, shown: openAt, rate: rate}
 			player, err := ui.NewVideoPlayer(dec)
 			if err != nil {
 				frames.Close()
@@ -171,6 +180,14 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				audio, keep.audio = keep.audio, nil
 				volume = keep.volume
 			} else {
+				// The speed may have changed while the video was opening. The sound has not started yet, so it is made again at the new one rather than started and then restarted.
+				if rate != openRate && audio != nil {
+					audio.Close()
+					audio, err = openPCM(ffmpeg, path, openAt, a.playerVolume(), rate)
+					if err != nil {
+						log.Printf("player: no sound for %s: %v", filepath.Base(path), err)
+					}
+				}
 				// The volume may have changed while the video was opening.
 				volume = a.playerVolume()
 				audio.setVolume(volume)
@@ -191,7 +208,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 			}
 			next := &filmPlay{
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
-				duration: frames.Duration(), paused: paused, played: jump, volume: volume,
+				duration: frames.Duration(), paused: paused, played: jump, volume: volume, rate: rate,
 			}
 			// A picture opened held (openHeld) has no sound playing to check.
 			if !paused && keep == nil {
@@ -346,7 +363,8 @@ func (p *filmPlay) catchUpSound(now time.Time) {
 		return
 	}
 	p.soundSince = time.Time{}
-	if want := p.soundFrom + played; want-at > playerSoundLag {
+	// The picture's clock runs at the film's speed, as the sound does.
+	if want := p.soundFrom + filmTime(played, p.speed()); want-at > playerSoundLag {
 		p.audio.seek(want)
 	}
 }
@@ -405,7 +423,7 @@ func (p *filmPlay) restartAudio() {
 // soundAt is where the sound is at now: where the picture is, except while the app is in the background (backgroundAt) or just back from it (returning), when the picture may stand still while the sound has played on.
 func (p *filmPlay) soundAt(now time.Time) time.Duration {
 	if !p.backgroundAt.IsZero() {
-		return soundClock(p.backgroundHead, p.backgroundAt, p.duration, now)
+		return soundClock(p.backgroundHead, p.backgroundAt, p.duration, p.speed(), now)
 	}
 	if p.returning != nil {
 		return p.returning()
@@ -418,7 +436,7 @@ func (p *filmPlay) restartAudioAt(at time.Duration) {
 		p.audio.Close()
 		p.audio = nil
 	}
-	audio, err := openPCM(p.ffmpeg, p.path, at, p.volume)
+	audio, err := openPCM(p.ffmpeg, p.path, at, p.volume, p.speed())
 	if err != nil {
 		log.Printf("player: no sound for %s: %v", filepath.Base(p.path), err)
 		return
@@ -435,8 +453,56 @@ func (p *filmPlay) setVolume(volume float64) {
 	p.audio.setVolume(volume)
 }
 
+// speed is how fast the film plays: rate, or 1 for a filmPlay made without one.
+func (p *filmPlay) speed() float64 { return playbackRate(p.rate) }
+
+// setRate plays the film at rate from now on. The picture's frames show for their length over rate from the next one decoded. The sound's process takes its speed only when it starts, so a playing film's sound starts again where it is (soundAt), and a held one's is dropped for toggle to start at the new speed.
+func (p *filmPlay) setRate(rate float64) {
+	if p.speed() == playbackRate(rate) {
+		return
+	}
+	at := p.soundAt(time.Now())
+	p.rate = rate
+	if p.frames != nil {
+		p.frames.setRate(rate)
+	}
+	if p.audio != nil {
+		p.audio.Close()
+		p.audio = nil
+	}
+	if !p.paused && !p.finished && p.player != nil && p.player.Playing() {
+		p.restartAudioAt(at)
+	}
+}
+
+// playbackRate is rate, or 1 for none (0), as for a film or decoder made without one.
+func playbackRate(rate float64) float64 {
+	if rate <= 0 {
+		return 1
+	}
+	return rate
+}
+
+// wallTime is how long d of a film playing at rate takes on the wall clock.
+func wallTime(d time.Duration, rate float64) time.Duration {
+	rate = playbackRate(rate)
+	if rate == 1 {
+		return d
+	}
+	return time.Duration(math.Round(float64(d) / rate))
+}
+
+// filmTime is how much of a film playing at rate plays in d on the wall clock.
+func filmTime(d time.Duration, rate float64) time.Duration {
+	rate = playbackRate(rate)
+	if rate == 1 {
+		return d
+	}
+	return time.Duration(math.Round(float64(d) * rate))
+}
+
 // frameDecoder is a FrameReader as a ui.VideoDecoder. Closing the player closes the reader.
-// shown is the time of the frames decoded so far, including the one the player is about to show.
+// shown is the time of the frames decoded so far, including the one the player is about to show, in the film's own time: a film playing at a rate other than 1 (rate) shows each frame for its length over rate, and shown still counts the frame's length.
 type frameDecoder struct {
 	frames *media.FrameReader
 	// held is a frame read ahead of the decoder, which Next gives first: the frame a picture decoded in the background stood on when it was handed over.
@@ -445,6 +511,15 @@ type frameDecoder struct {
 	sound func() time.Duration
 	mu    sync.Mutex
 	shown time.Duration
+	// rate is how fast the picture plays (filmPlay.rate), which the UI thread may change while the player decodes; 0 counts as 1.
+	rate float64
+}
+
+// setRate shows the frames decoded from now on for their length over rate.
+func (d *frameDecoder) setRate(rate float64) {
+	d.mu.Lock()
+	d.rate = rate
+	d.mu.Unlock()
 }
 
 func (d *frameDecoder) Next() (ui.VideoFrame, error) {
@@ -452,10 +527,13 @@ func (d *frameDecoder) Next() (ui.VideoFrame, error) {
 		d.held = nil
 		d.mu.Lock()
 		d.shown += f.Duration
+		rate := d.rate
 		d.mu.Unlock()
 		shows := *f
 		if d.sound != nil {
 			shows.Duration = time.Millisecond
+		} else {
+			shows.Duration = wallTime(f.Duration, rate)
 		}
 		return shows, nil
 	}
@@ -483,8 +561,9 @@ func (d *frameDecoder) Next() (ui.VideoFrame, error) {
 	}
 	d.mu.Lock()
 	d.shown = start + dur
+	rate := d.rate
 	d.mu.Unlock()
-	return ui.VideoFrame{Image: img, Duration: shows}, nil
+	return ui.VideoFrame{Image: img, Duration: wallTime(shows, rate)}, nil
 }
 
 func (d *frameDecoder) position() time.Duration {

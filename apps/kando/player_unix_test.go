@@ -15,7 +15,7 @@ import (
 // TestAudioEndsWithTheApp: the sound is decoded by an ffmpeg of its own, and it must not run on once the app's process has ended, however it ended, playing or paused. The app here is a helper process running this test, killed outright, as a crash or a force quit ends it, without closing anything; ffmpeg is the real one, as what ends it is how ffmpeg takes the pipe breaking. The sound is silence, played at volume 0.
 func TestAudioEndsWithTheApp(t *testing.T) {
 	if mode := os.Getenv("KANDO_AUDIO_HELPER"); mode != "" {
-		sound, err := openPCM(os.Getenv("KANDO_AUDIO_FFMPEG"), os.Getenv("KANDO_AUDIO_FILE"), 0, 0)
+		sound, err := openPCM(os.Getenv("KANDO_AUDIO_FFMPEG"), os.Getenv("KANDO_AUDIO_FILE"), 0, 0, 1)
 		if err != nil {
 			fmt.Println(-1)
 			return

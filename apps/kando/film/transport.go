@@ -9,7 +9,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the volume, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
+// transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the volume, the speed, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
 func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, panelSpace float32) {
 	if s.Play() == nil && s.PlayPath() == "" {
 		return
@@ -49,6 +49,7 @@ func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, 
 		ui.Text(c, "-"+cueClock(left)).FontSize(12).FontFeatures("tnum").Opacity(0.75).Shrink(0)
 		s.volume(c)
 		ui.Row(c).Gap(2).AlignItems(ui.Center).Shrink(0).Children(func() {
+			s.speedMenu(c, t)
 			s.modeMenu(c, t)
 			c.Key("film-panel")
 			on := s.Panel()

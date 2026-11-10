@@ -248,6 +248,10 @@
   "@cheatsheetSkip5": {
     "description": "Cheat sheet line for the ← and → keys in the player."
   },
+  "cheatsheetSpeed": "Slower / Faster",
+  "@cheatsheetSpeed": {
+    "description": "Cheat sheet line for the ⇧, and ⇧. keys in the player, which play the film slower or faster."
+  },
   "cheatsheetSubtitlesDelay": "Subtitle Delay −/+ 0.1 s",
   "@cheatsheetSubtitlesDelay": {
     "description": "Cheat sheet line, under Subtitles, for the Z and X keys that move the subtitles 0.1 second earlier or later."
@@ -889,6 +893,34 @@
   "filmSource": "Source",
   "@filmSource": {
     "description": "Heading in the Info tab over where the film came from."
+  },
+  "filmSpeed": "Speed",
+  "@filmSpeed": {
+    "description": "Heading of the player's speed menu, and the tooltip of the button that opens it."
+  },
+  "filmSpeedLabel": "Speed: {rate}",
+  "@filmSpeedLabel": {
+    "description": "Accessible name of the player's speed button: the speed the film plays at.",
+    "placeholders": {
+      "rate": {
+        "type": "String",
+        "example": "1.5×"
+      }
+    }
+  },
+  "filmSpeedNormal": "Normal",
+  "@filmSpeedNormal": {
+    "description": "Note beside 1× in the player's speed menu: the film plays as recorded."
+  },
+  "filmSpeedRate": "{rate}×",
+  "@filmSpeedRate": {
+    "description": "A playback speed, as on the player's speed button and in its menu: the speed as a multiple of normal.",
+    "placeholders": {
+      "rate": {
+        "type": "String",
+        "example": "1.5"
+      }
+    }
   },
   "filmStartProcessing": "Start Processing",
   "@filmStartProcessing": {
@@ -2536,6 +2568,10 @@
   "@playerKeyDelayLater": {
     "description": "Shortcut row and menu item: subtitles a tenth of a second later."
   },
+  "playerKeyFaster": "Faster",
+  "@playerKeyFaster": {
+    "description": "Shortcut row and menu item: play the film at the next faster speed."
+  },
   "playerKeyLarger": "Larger Subtitles",
   "@playerKeyLarger": {
     "description": "Shortcut row and menu item: larger subtitles."
@@ -2551,6 +2587,10 @@
   "playerKeySearch": "Search Subtitles",
   "@playerKeySearch": {
     "description": "Shortcut row and menu item: search the subtitle list."
+  },
+  "playerKeySlower": "Slower",
+  "@playerKeySlower": {
+    "description": "Shortcut row and menu item: play the film at the next slower speed."
   },
   "playerKeySmaller": "Smaller Subtitles",
   "@playerKeySmaller": {
@@ -2586,6 +2626,16 @@
   "@playerOsdMuted": {
     "description": "Message on the picture after the film was muted."
   },
+  "playerOsdSpeed": "Speed {rate}",
+  "@playerOsdSpeed": {
+    "description": "Message on the picture after the playback speed changed.",
+    "placeholders": {
+      "rate": {
+        "type": "String",
+        "example": "1.5×"
+      }
+    }
+  },
   "playerOsdSubtitleSize": "Subtitle Size {size}",
   "@playerOsdSubtitleSize": {
     "description": "Message on the picture after the subtitles were made larger or smaller: the translation's font size.",
@@ -2605,6 +2655,10 @@
         "example": "70"
       }
     }
+  },
+  "playerSaveSpeedFailed": "Couldn't save the speed",
+  "@playerSaveSpeedFailed": {
+    "description": "Message on the picture when the playback speed could not be saved in the settings."
   },
   "playerSaveSubtitlesFailed": "Couldn't save subtitle settings",
   "@playerSaveSubtitlesFailed": {

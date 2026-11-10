@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -1745,7 +1746,7 @@ func TestPlayerAudioSetPositionNearbyKeepsFFmpeg(t *testing.T) {
 func TestSoundCatchesUpWithThePicture(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 30)
 	// Held, the sound stands where it is told it was heard, which the test moves by hand.
-	sound, err := openPCM(ffmpeg, clip, 2*time.Second, 0)
+	sound, err := openPCM(ffmpeg, clip, 2*time.Second, 0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1861,7 +1862,7 @@ func playerFakeFilm(t *testing.T) (*app, *ui.Tester, chan func()) {
 // TestPlayerAudioCloseEndsFFmpeg: closing the sound ends its ffmpeg, which waits on the full pipe while the sound is held, and a read after it is the end.
 func TestPlayerAudioCloseEndsFFmpeg(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 30)
-	sound, err := openPCM(ffmpeg, clip, 0, 0)
+	sound, err := openPCM(ffmpeg, clip, 0, 0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1883,7 +1884,7 @@ func TestPlayerAudioCloseEndsFFmpeg(t *testing.T) {
 	if n, err := sound.decoder.Read(make([]float32, 64)); n != 0 || err != io.EOF {
 		t.Fatalf("a read after Close: %d %v", n, err)
 	}
-	if _, err := openPCM("", clip, 0, 1); err == nil {
+	if _, err := openPCM("", clip, 0, 1, 1); err == nil {
 		t.Fatal("a sound opened without ffmpeg")
 	}
 }
@@ -1893,7 +1894,7 @@ func TestVolumeChangesTheSoundAsItPlays(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 30)
 	a, _, _ := newTestApp(&fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
-	sound, err := openPCM(ffmpeg, clip, 0, 1)
+	sound, err := openPCM(ffmpeg, clip, 0, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1924,7 +1925,7 @@ func TestVolumeChangesTheSoundAsItPlays(t *testing.T) {
 // TestPlayerAudioEndedDoesNotStartAgain: a sound that played to the end of its track stays ended when the film plays on, rather than starting again from where it was opened.
 func TestPlayerAudioEndedDoesNotStartAgain(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 1)
-	sound, err := openPCM(ffmpeg, clip, 500*time.Millisecond, 0)
+	sound, err := openPCM(ffmpeg, clip, 500*time.Millisecond, 0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2305,5 +2306,238 @@ func TestPauseKeyWhileASeekOpens(t *testing.T) {
 	a.playerMediaCommand(mygo.MediaPlay, 0)
 	if !held.Playing() {
 		t.Fatal("the play key did not play the held picture")
+	}
+}
+
+// TestFramesShowForTheirLengthOverTheRate: at 2× each frame of the clip's 10 a second shows for 50ms, the held one too, and at 0.5× for 200ms, while the decoder's position counts each frame's own 100ms, so the playhead stays in the film's time whatever the speed.
+func TestFramesShowForTheirLengthOverTheRate(t *testing.T) {
+	a, _, _ := openClip(t, 12)
+	frames, err := media.OpenFramesAt(a.ffmpegPath(), a.player.play.path, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { frames.Close() })
+	img, dur, err := frames.Next()
+	if err != nil || dur != 100*time.Millisecond {
+		t.Fatalf("first frame %v, %v: want the clip's 10 frames a second", dur, err)
+	}
+	dec := &frameDecoder{frames: frames, held: &ui.VideoFrame{Image: img, Duration: dur}, rate: 2}
+	next := func(shows, at time.Duration) {
+		t.Helper()
+		f, err := dec.Next()
+		if err != nil || f.Duration != shows || dec.position() != at {
+			t.Fatalf("frame shows for %v up to %v (%v), want %v up to %v", f.Duration, dec.position(), err, shows, at)
+		}
+	}
+	next(50*time.Millisecond, 100*time.Millisecond)
+	next(50*time.Millisecond, 200*time.Millisecond)
+	dec.setRate(0.5)
+	next(200*time.Millisecond, 300*time.Millisecond)
+	dec.setRate(1)
+	next(100*time.Millisecond, 400*time.Millisecond)
+}
+
+// TestPlayheadMovesInFilmTimeAtTheRate plays the clip for a second of the window's clock at 2× and at 0.5×: the playhead gets two seconds and half a second into the film, give or take the frames decoded ahead.
+func TestPlayheadMovesInFilmTimeAtTheRate(t *testing.T) {
+	for _, rate := range []float64{2, 0.5} {
+		t.Run(fmt.Sprint(rate), func(t *testing.T) {
+			a, tt, _ := openClip(t, 12)
+			a.SetRate(rate)
+			a.player.play.toggle()
+			tt.Frame()
+			for range 20 {
+				tt.Advance(50 * time.Millisecond)
+				tt.Frame()
+				time.Sleep(20 * time.Millisecond)
+			}
+			// Frames the decoder had not sent yet as they came due are taken without the clock moving on.
+			for range 5 {
+				tt.Frame()
+				time.Sleep(20 * time.Millisecond)
+			}
+			want := time.Duration(rate * float64(time.Second))
+			if head := a.player.play.playhead(); head < want-100*time.Millisecond || head > want+400*time.Millisecond {
+				t.Fatalf("after a second at %v×, playhead %v, want about %v", rate, head, want)
+			}
+		})
+	}
+}
+
+// TestSpeedKeysStepThroughTheRates presses ⇧. and ⇧, on an open film: each steps to the next speed of film.Rates, stays at the fastest and the slowest, says so on the picture and on the transport's speed button, and the open film plays at it.
+func TestSpeedKeysStepThroughTheRates(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	a.player.film.moved = tt.Now()
+	key := func(k ui.Key, rate float64, osd string) {
+		t.Helper()
+		tt.Key(ui.Shift, k)
+		tt.Frame()
+		if a.player.rate != rate || a.player.play.speed() != rate || !tt.HasText(osd) || !tt.HasText(film.RateText(rate)) {
+			t.Fatalf("after ⇧%v: rate %v, film at %v, want %v; texts %q", k, a.player.rate, a.player.play.speed(), rate, tt.Texts())
+		}
+	}
+	key(ui.KeyPeriod, 1.25, "速度 1.25×")
+	key(ui.KeyPeriod, 1.5, "速度 1.5×")
+	key(ui.KeyPeriod, 2, "速度 2×")
+	key(ui.KeyPeriod, 2, "速度 2×")
+	key(ui.KeyComma, 1.5, "速度 1.5×")
+	for range 4 {
+		tt.Key(ui.Shift, ui.KeyComma)
+	}
+	key(ui.KeyComma, 0.5, "速度 0.5×")
+}
+
+// TestSpeedMenuSetsTheRate opens the transport's speed menu, which lists every speed with 1× noted as normal and checked, and picks 1.5×: the film plays at it and the menu closes.
+func TestSpeedMenuSetsTheRate(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	a.player.film.moved = tt.Now()
+	tt.Frame()
+	if err := tt.Click("速度：1×"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if !a.player.film.speedMenu || !tt.HasText("播放速度") || !tt.HasText("正常") {
+		t.Fatalf("speed menu open %v; texts %q", a.player.film.speedMenu, tt.Texts())
+	}
+	for _, rate := range film.Rates {
+		if !tt.HasText(film.RateText(rate)) {
+			t.Fatalf("speed menu misses %s: %q", film.RateText(rate), tt.Texts())
+		}
+	}
+	if err := tt.Click("1.5×"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.player.rate != 1.5 || a.player.play.speed() != 1.5 || a.player.film.speedMenu || !tt.HasText("速度：1.5×") {
+		t.Fatalf("rate %v, film at %v, menu open %v; texts %q", a.player.rate, a.player.play.speed(), a.player.film.speedMenu, tt.Texts())
+	}
+}
+
+// TestSpeedSettingsRoundTrip checks that the speed is kept in the settings and that a saved speed that is not one of film.Rates comes back as the nearest of them.
+func TestSpeedSettingsRoundTrip(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.SetRate(1.5)
+	b, _, _ := newTestApp(&fakePipeline{})
+	b.restorePlayer(loadSavedSettings(a.settingsPath))
+	if b.player.rate != 1.5 {
+		t.Fatalf("restored rate %v, want 1.5", b.player.rate)
+	}
+	for _, tc := range []struct {
+		saved string
+		want  float64
+	}{{"3", 2}, {"0.1", 0.5}, {"0.6", 0.5}, {"0.9", 1}, {"1.3", 1.25}, {"-1", 0.5}} {
+		path := filepath.Join(t.TempDir(), "settings.json")
+		if err := os.WriteFile(path, []byte(`{"rate": `+tc.saved+`}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		saved := loadSavedSettings(path)
+		if saved.Rate == nil || *saved.Rate != tc.want {
+			t.Fatalf("saved rate %s read as %v, want %v", tc.saved, saved.Rate, tc.want)
+		}
+		c, _, _ := newTestApp(&fakePipeline{})
+		c.restorePlayer(saved)
+		if c.player.rate != tc.want {
+			t.Fatalf("saved rate %s restored as %v, want %v", tc.saved, c.player.rate, tc.want)
+		}
+	}
+	d, _, _ := newTestApp(&fakePipeline{})
+	d.restorePlayer(savedSettings{})
+	if d.player.rate != 1 {
+		t.Fatalf("default rate %v", d.player.rate)
+	}
+}
+
+// TestSpeedWaitsForThePictureToComeBack: the sound of a film in the background plays on at the speed it started at, so the clock that finds where it is counts at that speed, and a speed changed meanwhile reaches the film only once the app is back and its picture level with the sound.
+func TestSpeedWaitsForThePictureToComeBack(t *testing.T) {
+	now := time.Now()
+	fast := &filmPlay{backgroundAt: now.Add(-3 * time.Minute), backgroundHead: 10 * time.Second, rate: 2}
+	if got := fast.soundAt(now); got != 6*time.Minute+10*time.Second {
+		t.Fatalf("sound at %v after 3 minutes at 2×, want 6m10s", got)
+	}
+
+	a, _, _ := newTestApp(&fakePipeline{})
+	p := stillPlay(t, "/v/clip.mp4", 3*time.Second, true)
+	a.player.play = p
+	a.playerDidResignActive()
+	a.SetRate(2)
+	a.areasAfterFrame()
+	if p.speed() != 1 {
+		t.Fatalf("the film in the background took up %v× before its picture came back", p.speed())
+	}
+	// The window stayed in sight: the picture kept pace and nothing opens again, so the film takes the speed up after the next frame.
+	p.frames.shown = p.backgroundSound()()
+	a.playerDidBecomeActive()
+	a.areasAfterFrame()
+	if p.speed() != 2 || p.frames.rate != 2 {
+		t.Fatalf("back from the background, the film plays at %v× (picture %v×), want 2×", p.speed(), p.frames.rate)
+	}
+}
+
+// TestPlayerAudioArgsKeepThePitchAtTheRate: ffmpeg decodes the sound of a film at another speed through atempo, which keeps the pitch, and at 1 (or none, 0) without a filter.
+func TestPlayerAudioArgsKeepThePitchAtTheRate(t *testing.T) {
+	for _, tc := range []struct {
+		rate float64
+		want string
+	}{{1.5, "atempo=1.5"}, {0.75, "atempo=0.75"}, {2, "atempo=2"}, {0.5, "atempo=0.5"}, {1, ""}, {0, ""}} {
+		args := playerAudioArgs("/tmp/video.mp4", 3*time.Second, tc.rate)
+		if got := fakeArg(args, "-af"); got != tc.want || fakeArg(args, "-ss") != "3.000" || fakeArg(args, "-f") != "f32le" {
+			t.Fatalf("rate %v: -af %q, want %q; args %v", tc.rate, got, tc.want, args)
+		}
+		if tc.want != "" && slices.Index(args, "-af") < slices.Index(args, "-i") {
+			t.Fatalf("rate %v: the filter comes before the input: %v", tc.rate, args)
+		}
+	}
+}
+
+// TestPlayerAudioCountsTheFilmAtTheRate: the frames of a sound playing at 2× count the time they take to play, each second of them two of the film, so a move to a frame starts ffmpeg twice as far into the film, and where the sound is heard is in the film's own time.
+func TestPlayerAudioCountsTheFilmAtTheRate(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 12)
+	d := &playerAudioDecoder{ffmpeg: ffmpeg, path: clip, from: time.Second, rate: 2}
+	if err := d.start(0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	if args := d.proc.cmd.Args; fakeArg(args, "-ss") != "1.000" || fakeArg(args, "-af") != "atempo=2" {
+		t.Fatalf("ffmpeg %v", args)
+	}
+	if err := d.SetPosition(10 * 48000); err != nil {
+		t.Fatal(err)
+	}
+	if args := d.proc.cmd.Args; fakeArg(args, "-ss") != "21.000" || fakeArg(args, "-af") != "atempo=2" {
+		t.Fatalf("ffmpeg after a move 10 s of sound on: %v", args)
+	}
+	if got := d.filmAt(1500 * time.Millisecond); got != 4*time.Second {
+		t.Fatalf("1.5 s of sound from 1 s is at %v of the film, want 4s", got)
+	}
+}
+
+// TestSpeedStartsTheSoundAgainAtIt: a new speed starts a playing film's sound again at it, where the film is; a held film drops the sound it had ready, and play starts it at the new speed.
+func TestSpeedStartsTheSoundAgainAtIt(t *testing.T) {
+	a, tt, updates := playerFakeFilm(t)
+	tt.Frame()
+	if err := tt.Click("clip"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if a.player.play.audio == nil {
+		t.Fatal("the playing film has no sound")
+	}
+	tempo := func() string { return fakeArg(a.player.play.audio.decoder.proc.cmd.Args, "-af") }
+	a.SetRate(1.5)
+	if audio := a.player.play.audio; audio == nil || audio.decoder.rate != 1.5 || tempo() != "atempo=1.5" {
+		t.Fatalf("the playing film's sound did not start again at 1.5×: %+v", audio)
+	}
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	a.SetRate(0.75)
+	if a.player.play.audio != nil {
+		t.Fatal("the held film kept its sound at the old speed")
+	}
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if audio := a.player.play.audio; audio == nil || audio.decoder.rate != 0.75 || tempo() != "atempo=0.75" {
+		t.Fatalf("play did not start the sound at 0.75×: %+v", audio)
 	}
 }

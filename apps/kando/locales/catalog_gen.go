@@ -828,6 +828,22 @@ func (msgs Messages) CheatsheetSkip5() string {
 	return Catalog.Format(msgs.locale, "cheatsheetSkip5", nil)
 }
 
+// CheatsheetSpeed says "Slower / Faster"
+// in the language the app shows.
+//
+// Cheat sheet line for the ⇧, and ⇧. keys in the player, which play the
+// film slower or faster.
+func CheatsheetSpeed() string { return In(i18n.Locale()).CheatsheetSpeed() }
+
+// CheatsheetSpeed says "Slower / Faster"
+// in the language of msgs.
+//
+// Cheat sheet line for the ⇧, and ⇧. keys in the player, which play the
+// film slower or faster.
+func (msgs Messages) CheatsheetSpeed() string {
+	return Catalog.Format(msgs.locale, "cheatsheetSpeed", nil)
+}
+
 // CheatsheetSubtitlesDelay says "Subtitle Delay −/+ 0.1 s"
 // in the language the app shows.
 //
@@ -2660,6 +2676,68 @@ func FilmSource() string { return In(i18n.Locale()).FilmSource() }
 // Heading in the Info tab over where the film came from.
 func (msgs Messages) FilmSource() string {
 	return Catalog.Format(msgs.locale, "filmSource", nil)
+}
+
+// FilmSpeed says "Speed"
+// in the language the app shows.
+//
+// Heading of the player's speed menu, and the tooltip of the button that
+// opens it.
+func FilmSpeed() string { return In(i18n.Locale()).FilmSpeed() }
+
+// FilmSpeed says "Speed"
+// in the language of msgs.
+//
+// Heading of the player's speed menu, and the tooltip of the button that
+// opens it.
+func (msgs Messages) FilmSpeed() string {
+	return Catalog.Format(msgs.locale, "filmSpeed", nil)
+}
+
+// FilmSpeedLabel says "Speed: {rate}"
+// in the language the app shows.
+//
+// Accessible name of the player's speed button: the speed the film plays
+// at.
+func FilmSpeedLabel(rate string) string { return In(i18n.Locale()).FilmSpeedLabel(rate) }
+
+// FilmSpeedLabel says "Speed: {rate}"
+// in the language of msgs.
+//
+// Accessible name of the player's speed button: the speed the film plays
+// at.
+func (msgs Messages) FilmSpeedLabel(rate string) string {
+	return Catalog.Format(msgs.locale, "filmSpeedLabel", map[string]any{"rate": rate})
+}
+
+// FilmSpeedNormal says "Normal"
+// in the language the app shows.
+//
+// Note beside 1× in the player's speed menu: the film plays as recorded.
+func FilmSpeedNormal() string { return In(i18n.Locale()).FilmSpeedNormal() }
+
+// FilmSpeedNormal says "Normal"
+// in the language of msgs.
+//
+// Note beside 1× in the player's speed menu: the film plays as recorded.
+func (msgs Messages) FilmSpeedNormal() string {
+	return Catalog.Format(msgs.locale, "filmSpeedNormal", nil)
+}
+
+// FilmSpeedRate says "{rate}×"
+// in the language the app shows.
+//
+// A playback speed, as on the player's speed button and in its menu: the
+// speed as a multiple of normal.
+func FilmSpeedRate(rate string) string { return In(i18n.Locale()).FilmSpeedRate(rate) }
+
+// FilmSpeedRate says "{rate}×"
+// in the language of msgs.
+//
+// A playback speed, as on the player's speed button and in its menu: the
+// speed as a multiple of normal.
+func (msgs Messages) FilmSpeedRate(rate string) string {
+	return Catalog.Format(msgs.locale, "filmSpeedRate", map[string]any{"rate": rate})
 }
 
 // FilmStartProcessing says "Start Processing"
@@ -7052,6 +7130,20 @@ func (msgs Messages) PlayerKeyDelayLater() string {
 	return Catalog.Format(msgs.locale, "playerKeyDelayLater", nil)
 }
 
+// PlayerKeyFaster says "Faster"
+// in the language the app shows.
+//
+// Shortcut row and menu item: play the film at the next faster speed.
+func PlayerKeyFaster() string { return In(i18n.Locale()).PlayerKeyFaster() }
+
+// PlayerKeyFaster says "Faster"
+// in the language of msgs.
+//
+// Shortcut row and menu item: play the film at the next faster speed.
+func (msgs Messages) PlayerKeyFaster() string {
+	return Catalog.Format(msgs.locale, "playerKeyFaster", nil)
+}
+
 // PlayerKeyLarger says "Larger Subtitles"
 // in the language the app shows.
 //
@@ -7106,6 +7198,20 @@ func PlayerKeySearch() string { return In(i18n.Locale()).PlayerKeySearch() }
 // Shortcut row and menu item: search the subtitle list.
 func (msgs Messages) PlayerKeySearch() string {
 	return Catalog.Format(msgs.locale, "playerKeySearch", nil)
+}
+
+// PlayerKeySlower says "Slower"
+// in the language the app shows.
+//
+// Shortcut row and menu item: play the film at the next slower speed.
+func PlayerKeySlower() string { return In(i18n.Locale()).PlayerKeySlower() }
+
+// PlayerKeySlower says "Slower"
+// in the language of msgs.
+//
+// Shortcut row and menu item: play the film at the next slower speed.
+func (msgs Messages) PlayerKeySlower() string {
+	return Catalog.Format(msgs.locale, "playerKeySlower", nil)
 }
 
 // PlayerKeySmaller says "Smaller Subtitles"
@@ -7206,6 +7312,20 @@ func (msgs Messages) PlayerOsdMuted() string {
 	return Catalog.Format(msgs.locale, "playerOsdMuted", nil)
 }
 
+// PlayerOsdSpeed says "Speed {rate}"
+// in the language the app shows.
+//
+// Message on the picture after the playback speed changed.
+func PlayerOsdSpeed(rate string) string { return In(i18n.Locale()).PlayerOsdSpeed(rate) }
+
+// PlayerOsdSpeed says "Speed {rate}"
+// in the language of msgs.
+//
+// Message on the picture after the playback speed changed.
+func (msgs Messages) PlayerOsdSpeed(rate string) string {
+	return Catalog.Format(msgs.locale, "playerOsdSpeed", map[string]any{"rate": rate})
+}
+
 // PlayerOsdSubtitleSize says "Subtitle Size {size}"
 // in the language the app shows.
 //
@@ -7234,6 +7354,22 @@ func PlayerOsdVolume(percent int) string { return In(i18n.Locale()).PlayerOsdVol
 // Message on the picture after the volume changed.
 func (msgs Messages) PlayerOsdVolume(percent int) string {
 	return Catalog.Format(msgs.locale, "playerOsdVolume", map[string]any{"percent": percent})
+}
+
+// PlayerSaveSpeedFailed says "Couldn't save the speed"
+// in the language the app shows.
+//
+// Message on the picture when the playback speed could not be saved in the
+// settings.
+func PlayerSaveSpeedFailed() string { return In(i18n.Locale()).PlayerSaveSpeedFailed() }
+
+// PlayerSaveSpeedFailed says "Couldn't save the speed"
+// in the language of msgs.
+//
+// Message on the picture when the playback speed could not be saved in the
+// settings.
+func (msgs Messages) PlayerSaveSpeedFailed() string {
+	return Catalog.Format(msgs.locale, "playerSaveSpeedFailed", nil)
 }
 
 // PlayerSaveSubtitlesFailed says "Couldn't save subtitle settings"

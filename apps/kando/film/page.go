@@ -64,6 +64,10 @@ type App interface {
 	SetStyleView(on bool)
 	// ModeMenu is whether the subtitle mode menu is open.
 	ModeMenu() *bool
+	// Rate is how fast films play, one of Rates, 1 as recorded; SetRate plays them at rate and says so on the picture. SpeedMenu is whether the speed menu is open.
+	Rate() float64
+	SetRate(rate float64)
+	SpeedMenu() *bool
 	// Search is the query of the subtitle list; SearchFocus asks the list's search field for the keyboard focus once.
 	Search() *string
 	SearchFocus() *bool
@@ -211,7 +215,7 @@ func (s screen) panelShown() bool {
 
 // chromeShown reports whether the title bar and the transport show: always while the film is held or a menu is open, and while playing until the pointer has rested for idleAfter.
 func (s screen) chromeShown(c *ui.Context, now time.Time) bool {
-	if s.Play() == nil || !s.Play().Playing() || *s.ModeMenu() {
+	if s.Play() == nil || !s.Play().Playing() || *s.ModeMenu() || *s.SpeedMenu() {
 		return true
 	}
 	rest := now.Sub(s.LastMove())

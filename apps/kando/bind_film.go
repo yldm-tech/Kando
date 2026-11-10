@@ -292,6 +292,8 @@ func (a *app) playerKeys() []shortcut {
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(), Key: ui.KeyUp, When: open, Run: func() { a.playerNudgeVolume(1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(), Key: ui.KeyDown, When: open, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(), Key: ui.KeyM, When: open, Run: a.ToggleMute},
+		{Group: groupPlayback, Label: locales.PlayerKeySlower(), Mods: ui.Shift, Key: ui.KeyComma, When: open, Run: func() { a.playerStepRate(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyFaster(), Mods: ui.Shift, Key: ui.KeyPeriod, When: open, Run: func() { a.playerStepRate(1) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(), Key: ui.KeyV, When: open, Run: a.toggleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(), Key: ui.KeyS, When: open, Run: a.cycleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(), Key: ui.KeyZ, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
