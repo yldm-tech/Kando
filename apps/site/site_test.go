@@ -504,7 +504,7 @@ func TestSitemapRobotsCNAME(t *testing.T) {
 
 // The icons made from the app icon have their sizes.
 func TestIcons(t *testing.T) {
-	for file, size := range map[string]int{"apple-touch-icon.png": 180, "favicon-32.png": 32, "favicon-16.png": 16} {
+	for file, size := range map[string]int{"logo.png": logoSize, "apple-touch-icon.png": 180, "favicon-32.png": 32, "favicon-16.png": 16} {
 		f, err := os.Open(filepath.Join(built.out, file))
 		if err != nil {
 			t.Fatal(err)

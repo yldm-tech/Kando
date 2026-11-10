@@ -12,13 +12,16 @@ import (
 	"path/filepath"
 )
 
-// Background gradient of the app icon, from its top edge to its bottom one.
+// Background gradient of the app icon's amber glass, from its top edge to its bottom one, sampled from its rim.
 var (
-	gradientFrom = color.RGBA{0x2A, 0x2E, 0x3B, 0xFF}
-	gradientTo   = color.RGBA{0x0D, 0x0F, 0x15, 0xFF}
+	gradientFrom = color.RGBA{0xF3, 0xB0, 0x5E, 0xFF}
+	gradientTo   = color.RGBA{0xEC, 0x7E, 0x2E, 0xFF}
 )
 
-// writeIcons makes the PNG icons from the app icon at iconPath: favicon-16.png and favicon-32.png, favicon.ico holding both, and apple-touch-icon.png. The app icon is a rounded square on a transparent margin; the favicons are that square without the margin, and the touch icon fills the square's corners with its background gradient too, because iOS rounds the corners itself and would show the transparent ones black.
+// logoSize is the side of logo.png, the mark the pages show beside the name: twice the largest size a page draws it at, the 72 pixels of 404.html.
+const logoSize = 144
+
+// writeIcons makes the PNG icons from the app icon at iconPath: logo.png, favicon-16.png and favicon-32.png, favicon.ico holding both, and apple-touch-icon.png. The app icon is a rounded square on a transparent margin; the logo and the favicons are that square without the margin, and the touch icon fills the square's corners with its background gradient too, because iOS rounds the corners itself and would show the transparent ones black.
 func writeIcons(iconPath, out string) error {
 	f, err := os.Open(iconPath)
 	if err != nil {
@@ -30,6 +33,14 @@ func writeIcons(iconPath, out string) error {
 		return fmt.Errorf("%s: %w", iconPath, err)
 	}
 	square := opaqueSquare(src)
+
+	logo, err := encodePNG(shrink(square, logoSize))
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(out, "logo.png"), logo, 0o644); err != nil {
+		return err
+	}
 
 	var ico []icoImage
 	for _, size := range []int{16, 32} {
