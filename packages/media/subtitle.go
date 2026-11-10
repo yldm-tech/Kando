@@ -49,10 +49,10 @@ func exportSubtitles(ctx context.Context, videoPath string, original, translated
 	if len(original) != len(translated) {
 		return "", fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
 	}
-	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
-	if err := os.WriteFile(base+".srt", []byte(formatSRT(original)), 0o644); err != nil {
+	if err := saveTranscript(videoPath, original); err != nil {
 		return "", err
 	}
+	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
 	// The original is one of the two files written; the context's Trace hears that half the export is done.
 	reportProgress(ctx, core.Fraction(0.5))
 	bilingual := make([]core.Segment, len(original))
@@ -69,6 +69,43 @@ func exportSubtitles(ctx context.Context, videoPath string, original, translated
 	}
 	reportProgress(ctx, core.Fraction(1))
 	return path, nil
+}
+
+// transcriptPath is the file that holds the original speech of the video at videoPath: "<video>.srt", beside it.
+func transcriptPath(videoPath string) string {
+	return strings.TrimSuffix(videoPath, filepath.Ext(videoPath)) + ".srt"
+}
+
+// saveTranscript writes the original speech of the video at videoPath to transcriptPath. It writes a hidden file beside it first and renames that over it, so a job that reads the transcript back to resume never finds one cut off by a crash in the middle of writing it.
+func saveTranscript(videoPath string, segments []core.Segment) error {
+	path := transcriptPath(videoPath)
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
+	if err != nil {
+		return err
+	}
+	_, err = tmp.WriteString(formatSRT(segments))
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o644)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(tmp.Name())
+	}
+	return err
+}
+
+// loadTranscript reads back the original speech saveTranscript wrote for the video at videoPath.
+func loadTranscript(videoPath string) ([]core.Segment, error) {
+	data, err := os.ReadFile(transcriptPath(videoPath))
+	if err != nil {
+		return nil, err
+	}
+	return ParseSRT(data)
 }
 
 func formatSRT(segments []core.Segment) string {

@@ -228,6 +228,8 @@ type storedJob struct {
 	Cookies  string        `json:"cookies,omitempty"`
 	// Untranslated is how many lines a completed job's translation left untranslated (core.Job.Untranslated).
 	Untranslated int `json:"untranslated,omitempty"`
+	// Transcribed is whether the job saved its transcript beside its video (core.Job.Transcribed).
+	Transcribed bool `json:"transcribed,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -236,6 +238,7 @@ func storeJob(job core.Job) storedJob {
 		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
 		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated,
+		Transcribed: job.Transcribed,
 	}
 	switch {
 	case errors.Is(job.Err, context.Canceled):
@@ -254,6 +257,7 @@ func (s storedJob) job() core.Job {
 		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
 		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated,
+		Transcribed: s.Transcribed,
 	}
 	switch s.Error {
 	case "":

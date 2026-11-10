@@ -315,7 +315,7 @@ func (a *app) remove(id string) {
 	}
 }
 
-// retry queues a failed or cancelled job again under the same ID, so the card already on screen follows it, and shows that card on the library page.
+// retry queues a failed or cancelled job again under the same ID, so the card already on screen follows it, and shows that card on the library page. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew.
 func (a *app) retry(job core.Job) {
 	job, ok := a.queueRetryable(job)
 	if !ok {
@@ -330,6 +330,9 @@ func (a *app) retry(job core.Job) {
 func (a *app) queueRetryable(job core.Job) (core.Job, bool) {
 	if job.ID == a.queue.active || job.Stage == core.StageQueued {
 		return job, false
+	}
+	if job.Stage == core.StageComplete {
+		job.Transcribed = false
 	}
 	if strings.TrimSpace(job.Language) == "" {
 		job.Language = strings.TrimSpace(a.prefs.language)

@@ -3,9 +3,11 @@ package media
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -251,5 +253,222 @@ func TestRunCompletesAFilmWithUntranslatedLines(t *testing.T) {
 	again := Run(context.Background(), &fakePipeline{transcribe: []core.Segment{{Text: "a"}}}, job, "简体中文", func(core.Job) {})
 	if again.Untranslated != 0 {
 		t.Fatalf("again %+v", again)
+	}
+}
+
+// resumeTools is Tools with the downloads of splitYTDLP, an ffmpeg that writes an empty audio file, a whisper-cli that hears two lines and counts its runs in the returned file, and the translator at chat.
+func resumeTools(t *testing.T, chat string) (tools Tools, ytdlpRuns, whisperRuns string) {
+	t.Helper()
+	ytdlp, ytdlpRuns := splitYTDLP(t)
+	dir := t.TempDir()
+	whisperRuns = filepath.Join(dir, "whisper-runs")
+	ffmpeg := filepath.Join(dir, "ffmpeg")
+	// The audio file is the last argument.
+	if err := os.WriteFile(ffmpeg, []byte("#!/bin/sh\nfor a in \"$@\"; do out=\"$a\"; done\n: > \"$out\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	whisper := filepath.Join(dir, "whisper-cli")
+	script := `#!/bin/sh
+of=
+while [ $# -gt 0 ]; do
+	case "$1" in -of) shift; of="$1" ;; esac
+	shift
+done
+echo run >> ` + shellQuote(whisperRuns) + `
+printf '%s' '{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello there."},{"offsets":{"from":1500,"to":3250},"text":" Nice to meet you."}]}' > "$of.json"
+`
+	if err := os.WriteFile(whisper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	model := filepath.Join(dir, "ggml-small.bin")
+	if err := os.WriteFile(model, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tools = Tools{
+		OutputDir: t.TempDir(), DownloadTemp: t.TempDir(),
+		YTDLP: ytdlp, FFmpeg: ffmpeg, Whisper: whisper, WhisperModel: model,
+		Translator: ChatTranslator{BaseURL: chat, Model: "m"},
+	}
+	return tools, ytdlpRuns, whisperRuns
+}
+
+func runCount(t *testing.T, path string) int {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return 0
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Count(string(data), "run")
+}
+
+// runRecording runs job as the queue does, with the error of an earlier run forgotten, and returns each stage it entered.
+func runRecording(p Pipeline, job core.Job) ([]core.Stage, core.Job) {
+	job.Stage, job.Err = core.StageQueued, nil
+	var stages []core.Stage
+	final := Run(context.Background(), p, job, "简体中文", func(j core.Job) {
+		if len(stages) == 0 || stages[len(stages)-1] != j.Stage {
+			stages = append(stages, j.Stage)
+		}
+	})
+	return stages, final
+}
+
+var heard = []core.Segment{
+	{End: 1500 * time.Millisecond, Text: "Hello there."},
+	{Start: 1500 * time.Millisecond, End: 3250 * time.Millisecond, Text: "Nice to meet you."},
+}
+
+// A translation that fails, as with a key the API rejects, leaves the transcript beside the video, and the retry goes straight to translating it: the video is not downloaded again and whisper-cli does not run again.
+func TestRunResumesAfterAFailedTranslation(t *testing.T) {
+	srv, _ := flakyChat(t, http.StatusUnauthorized)
+	tools, ytdlpRuns, whisperRuns := resumeTools(t, srv.URL)
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+
+	_, failed := runRecording(tools, job)
+	if failed.Stage != core.StageFailed || !strings.HasPrefix(failed.Err.Error(), "translate:") {
+		t.Fatalf("first run %+v", failed)
+	}
+	if !failed.Transcribed {
+		t.Fatal("the failed job does not say its transcript was saved")
+	}
+	transcript := strings.TrimSuffix(failed.VideoPath, ".mp4") + ".srt"
+	data, err := os.ReadFile(transcript)
+	if err != nil {
+		t.Fatalf("no transcript after the failed translation: %v", err)
+	}
+	if saved, err := ParseSRT(data); err != nil || !reflect.DeepEqual(saved, heard) {
+		t.Fatalf("saved transcript %+v, %v", saved, err)
+	}
+	if entries, _ := os.ReadDir(filepath.Dir(transcript)); len(entries) != 2 {
+		t.Fatalf("the video's folder holds %v", entries)
+	}
+
+	stages, done := runRecording(tools, failed)
+	want := []core.Stage{core.StageTranslating, core.StageExporting, core.StageComplete}
+	if !reflect.DeepEqual(stages, want) {
+		t.Fatalf("retry stages %v, want %v", stages, want)
+	}
+	if done.Err != nil || done.VideoPath != failed.VideoPath || done.SubtitlePath == "" || !done.Transcribed {
+		t.Fatalf("retry %+v", done)
+	}
+	if got := runCount(t, ytdlpRuns); got != 1 {
+		t.Fatalf("yt-dlp ran %d times", got)
+	}
+	if got := runCount(t, whisperRuns); got != 1 {
+		t.Fatalf("whisper-cli ran %d times", got)
+	}
+	bilingual, err := os.ReadFile(done.SubtitlePath)
+	if err != nil || !strings.Contains(string(bilingual), "Nice to meet you.") {
+		t.Fatalf("bilingual %q, %v", bilingual, err)
+	}
+}
+
+// A done film processed again, its Transcribed cleared, keeps the video it downloaded but is transcribed anew.
+func TestRunTranscribesAgainWhenTheJobHasNoTranscript(t *testing.T) {
+	srv, _ := flakyChat(t)
+	tools, ytdlpRuns, whisperRuns := resumeTools(t, srv.URL)
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	_, done := runRecording(tools, job)
+	if done.Stage != core.StageComplete || !done.Transcribed {
+		t.Fatalf("first run %+v", done)
+	}
+
+	done.Transcribed = false
+	stages, again := runRecording(tools, done)
+	want := []core.Stage{core.StageTranscribing, core.StageTranslating, core.StageExporting, core.StageComplete}
+	if !reflect.DeepEqual(stages, want) || again.Stage != core.StageComplete || !again.Transcribed {
+		t.Fatalf("stages %v, job %+v", stages, again)
+	}
+	if got := runCount(t, ytdlpRuns); got != 1 {
+		t.Fatalf("yt-dlp ran %d times", got)
+	}
+	if got := runCount(t, whisperRuns); got != 2 {
+		t.Fatalf("whisper-cli ran %d times", got)
+	}
+}
+
+// A job that says it was transcribed but whose transcript is gone is transcribed again, and one whose video is gone is downloaded again.
+func TestRunRedoesWhatIsMissing(t *testing.T) {
+	srv, _ := flakyChat(t)
+	tools, ytdlpRuns, whisperRuns := resumeTools(t, srv.URL)
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	_, done := runRecording(tools, job)
+	if done.Stage != core.StageComplete {
+		t.Fatalf("first run %+v", done)
+	}
+
+	if err := os.Remove(strings.TrimSuffix(done.VideoPath, ".mp4") + ".srt"); err != nil {
+		t.Fatal(err)
+	}
+	stages, again := runRecording(tools, done)
+	if want := []core.Stage{core.StageTranscribing, core.StageTranslating, core.StageExporting, core.StageComplete}; !reflect.DeepEqual(stages, want) || !again.Transcribed {
+		t.Fatalf("without the transcript: stages %v, job %+v", stages, again)
+	}
+	if runCount(t, ytdlpRuns) != 1 || runCount(t, whisperRuns) != 2 {
+		t.Fatalf("yt-dlp ran %d times, whisper-cli %d", runCount(t, ytdlpRuns), runCount(t, whisperRuns))
+	}
+
+	if err := os.RemoveAll(filepath.Dir(again.VideoPath)); err != nil {
+		t.Fatal(err)
+	}
+	stages, third := runRecording(tools, again)
+	if want := []core.Stage{core.StageDownloading, core.StageTranscribing, core.StageTranslating, core.StageExporting, core.StageComplete}; !reflect.DeepEqual(stages, want) || third.Stage != core.StageComplete {
+		t.Fatalf("without the video: stages %v, job %+v", stages, third)
+	}
+	if runCount(t, ytdlpRuns) != 2 || runCount(t, whisperRuns) != 3 {
+		t.Fatalf("yt-dlp ran %d times, whisper-cli %d", runCount(t, ytdlpRuns), runCount(t, whisperRuns))
+	}
+}
+
+// A video with a partial download beside it never merged, so the retry downloads it again rather than transcribing a silent track.
+func TestRunDownloadsAgainAVideoThatNeverMerged(t *testing.T) {
+	srv, _ := flakyChat(t, http.StatusUnauthorized)
+	tools, ytdlpRuns, _ := resumeTools(t, srv.URL)
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	_, failed := runRecording(tools, job)
+	if failed.Stage != core.StageFailed || failed.VideoPath == "" {
+		t.Fatalf("first run %+v", failed)
+	}
+	if err := os.WriteFile(filepath.Join(filepath.Dir(failed.VideoPath), "video.f251.webm"), []byte("track 251"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stages, done := runRecording(tools, failed)
+	if len(stages) == 0 || stages[0] != core.StageDownloading || done.Stage != core.StageComplete {
+		t.Fatalf("stages %v, job %+v", stages, done)
+	}
+	if got := runCount(t, ytdlpRuns); got != 3 {
+		t.Fatalf("yt-dlp ran %d times, want the first download and two for the unmerged one", got)
+	}
+}
+
+// A local video's job checks its file through Download every time, and reads the transcript saved beside it instead of transcribing it again.
+func TestRunResumesALocalVideo(t *testing.T) {
+	srv, _ := flakyChat(t, http.StatusUnauthorized)
+	tools, _, whisperRuns := resumeTools(t, srv.URL)
+	video := filepath.Join(t.TempDir(), "interview.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	job, _ := core.NewJob("file://" + video)
+	_, failed := runRecording(tools, job)
+	if failed.Stage != core.StageFailed || !failed.Transcribed || failed.VideoPath != video {
+		t.Fatalf("first run %+v", failed)
+	}
+	stages, done := runRecording(tools, failed)
+	if want := []core.Stage{core.StageTranslating, core.StageExporting, core.StageComplete}; !reflect.DeepEqual(stages, want) || done.Stage != core.StageComplete {
+		t.Fatalf("stages %v, job %+v", stages, done)
+	}
+	if got := runCount(t, whisperRuns); got != 1 {
+		t.Fatalf("whisper-cli ran %d times", got)
+	}
+
+	if err := os.Remove(video); err != nil {
+		t.Fatal(err)
+	}
+	if _, gone := runRecording(tools, done); gone.Stage != core.StageFailed || !errors.Is(gone.Err, os.ErrNotExist) {
+		t.Fatalf("missing file %+v", gone)
 	}
 }

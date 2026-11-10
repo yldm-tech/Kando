@@ -338,3 +338,21 @@ func TestLoadDamagedKeepsWhatItCouldRead(t *testing.T) {
 		t.Fatalf("jobs %#v furthest %v positions %v", lib.Jobs, lib.Furthest, lib.Positions)
 	}
 }
+
+// A job the app quit in the middle of translating still knows its transcript was saved, so it resumes from the translation once it runs again.
+func TestLibraryKeepsWhetherTheJobWasTranscribed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "tr", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageTranslating, VideoPath: "/v/tr.mp4", Transcribed: true})
+	lib.Upsert(core.Job{ID: "dl", Source: "https://example.com/dl", Stage: core.StageDownloading})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if job, _ := loaded.Find("tr"); job.Stage != core.StageQueued || !job.Transcribed || job.VideoPath != "/v/tr.mp4" {
+		t.Fatalf("interrupted job %+v", job)
+	}
+	if job, _ := loaded.Find("dl"); job.Transcribed {
+		t.Fatalf("job never transcribed %+v", job)
+	}
+}

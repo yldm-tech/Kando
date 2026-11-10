@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1772,5 +1773,92 @@ func TestQuitOnASignalDoesNotAsk(t *testing.T) {
 		if e.DefaultPrevented() || !a.window.quitting {
 			t.Fatalf("mygo first %v: the signal's quit was held back: prevented %v, going ahead %v", mygoFirst, e.DefaultPrevented(), a.window.quitting)
 		}
+	}
+}
+
+// resumePipeline downloads into its own folder and fails the first translation as an API that rejects the key does, counting each stage it runs.
+type resumePipeline struct {
+	dir                                string
+	downloads, transcribes, translates atomic.Int32
+}
+
+func (p *resumePipeline) Check() error { return nil }
+
+func (p *resumePipeline) Download(context.Context, string) (string, error) {
+	p.downloads.Add(1)
+	video := filepath.Join(p.dir, "Colibri [TRWgBxVAb1M]", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		return "", err
+	}
+	return video, os.WriteFile(video, []byte("video"), 0o644)
+}
+
+func (p *resumePipeline) Transcribe(context.Context, string) ([]core.Segment, error) {
+	p.transcribes.Add(1)
+	return []core.Segment{{End: time.Second, Text: "hello"}}, nil
+}
+
+func (p *resumePipeline) Translate(_ context.Context, segments []core.Segment, _ string) ([]core.Segment, error) {
+	if p.translates.Add(1) == 1 {
+		return nil, errors.New("translation API returned 401 Unauthorized")
+	}
+	return segments, nil
+}
+
+func (p *resumePipeline) Export(_ context.Context, video string, _, _ []core.Segment) (string, error) {
+	return strings.TrimSuffix(video, ".mp4") + ".bilingual.srt", nil
+}
+
+// settleStages applies background updates until no job runs and returns each stage job id showed on the shelf, starting with the one it is in now.
+func settleStages(t *testing.T, a *app, tt *ui.Tester, updates chan func(), id string) []core.Stage {
+	t.Helper()
+	stages := []core.Stage{stageOf(t, a, id).Stage}
+	timeout := time.After(5 * time.Second)
+	for a.running() {
+		select {
+		case fn := <-updates:
+			fn()
+			if stage := stageOf(t, a, id).Stage; stage != stages[len(stages)-1] {
+				stages = append(stages, stage)
+			}
+		case <-timeout:
+			t.Fatalf("job still running, stages %v", stages)
+		}
+	}
+	tt.Frame()
+	return stages
+}
+
+// A job whose translation failed is retried from its translation: the video it downloaded and the speech it transcribed are used again. Processing the done film again transcribes it anew but does not download it again.
+func TestRetryResumesAfterTheStagesItFinished(t *testing.T) {
+	p := &resumePipeline{dir: t.TempDir()}
+	a, tt, updates := newTestApp(p)
+	if err := a.Enqueue("https://www.youtube.com/watch?v=TRWgBxVAb1M"); err != nil {
+		t.Fatal(err)
+	}
+	id := a.library.Jobs[0].ID
+	settleStages(t, a, tt, updates, id)
+	failed := stageOf(t, a, id)
+	if failed.Stage != core.StageFailed || !failed.Transcribed || failed.VideoPath == "" {
+		t.Fatalf("first run %+v", failed)
+	}
+
+	a.Retry(id)
+	stages := settleStages(t, a, tt, updates, id)
+	if want := []core.Stage{core.StageQueued, core.StageTranslating, core.StageExporting, core.StageComplete}; !slices.Equal(stages, want) {
+		t.Fatalf("retry stages %v, want %v", stages, want)
+	}
+	if p.downloads.Load() != 1 || p.transcribes.Load() != 1 {
+		t.Fatalf("downloaded %d times, transcribed %d times", p.downloads.Load(), p.transcribes.Load())
+	}
+
+	done := stageOf(t, a, id)
+	a.Reprocess(films.Film{Key: id, JobID: id, VideoPath: done.VideoPath, SubtitlePath: done.SubtitlePath})
+	stages = settleStages(t, a, tt, updates, id)
+	if want := []core.Stage{core.StageQueued, core.StageTranscribing, core.StageTranslating, core.StageExporting, core.StageComplete}; !slices.Equal(stages, want) {
+		t.Fatalf("reprocess stages %v, want %v", stages, want)
+	}
+	if p.downloads.Load() != 1 || p.transcribes.Load() != 2 {
+		t.Fatalf("downloaded %d times, transcribed %d times", p.downloads.Load(), p.transcribes.Load())
 	}
 }

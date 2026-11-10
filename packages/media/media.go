@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"kando/packages/core"
@@ -24,6 +26,8 @@ type Pipeline interface {
 }
 
 // Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done; Untranslated counts the lines this run's translation left untranslated. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
+//
+// A job run again resumes after the stages an earlier run finished. A link whose video is still at job.VideoPath is not downloaded again, so the retry works offline or after the site took the video down. Once transcribed, the speech is saved beside the video before the translation starts and job.Transcribed set; a job that comes back with it set reads that transcript back instead of calling p.Transcribe, and goes straight to StageTranslating. A job whose Transcribed is false, as a done film processed again, is transcribed anew.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	enter := func(stage core.Stage) {
 		job.Stage = stage
@@ -54,27 +58,47 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		return fail("check", err)
 	}
 
-	if _, local := localVideoPath(job.Source); !local {
-		enter(core.StageDownloading)
-	}
-	video, err := p.Download(ctx, job.Source)
-	if err != nil {
-		job.FailKind = ClassifyDownload(err.Error())
-		// A site that still wants a login while the browser's is borrowed has let that login run out.
-		if job.Cookies != "" && (job.FailKind == core.FailLogin || job.FailKind == core.FailAge) {
-			job.FailKind = core.FailLoginExpired
+	_, local := localVideoPath(job.Source)
+	video := job.VideoPath
+	if local || !downloaded(video) {
+		if !local {
+			enter(core.StageDownloading)
 		}
-		return fail("download", err)
+		var err error
+		video, err = p.Download(ctx, job.Source)
+		if err != nil {
+			job.FailKind = ClassifyDownload(err.Error())
+			// A site that still wants a login while the browser's is borrowed has let that login run out.
+			if job.Cookies != "" && (job.FailKind == core.FailLogin || job.FailKind == core.FailAge) {
+				job.FailKind = core.FailLoginExpired
+			}
+			return fail("download", err)
+		}
+	}
+	// A transcript saved beside another file is not this video's.
+	if video != job.VideoPath {
+		job.Transcribed = false
 	}
 	job.VideoPath = video
 
-	enter(core.StageTranscribing)
-	original, err := p.Transcribe(ctx, video)
-	if err != nil {
-		return fail("transcribe", err)
+	var original []core.Segment
+	if job.Transcribed {
+		// A transcript that is gone or unreadable is made again, as if it had never been saved.
+		original, _ = loadTranscript(video)
 	}
 	if len(original) == 0 {
-		return fail("transcribe", ErrNoSpeech)
+		job.Transcribed = false
+		enter(core.StageTranscribing)
+		var err error
+		original, err = p.Transcribe(ctx, video)
+		if err != nil {
+			return fail("transcribe", err)
+		}
+		if len(original) == 0 {
+			return fail("transcribe", ErrNoSpeech)
+		}
+		// The transcript is kept before the translation starts, so a translation that fails does not cost the minutes of transcribing again. A transcript that cannot be saved only means a retry transcribes again; Export, which writes beside the video too, says why the folder cannot be written.
+		job.Transcribed = saveTranscript(video, original) == nil
 	}
 
 	enter(core.StageTranslating)
@@ -98,4 +122,16 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 
 	enter(core.StageComplete)
 	return job
+}
+
+// downloaded reports whether a link's job already downloaded its video to path in an earlier run: the file is there, holds something, and no partial download lies beside it, which would mean it never merged and Download has to fetch it again.
+func downloaded(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+		return false
+	}
+	return !holdsDownloadLeftovers(filepath.Dir(path))
 }
