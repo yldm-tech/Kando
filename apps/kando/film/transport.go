@@ -9,7 +9,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the volume, the speed, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
+// transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the volume, the speed, the line loop, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
 func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, panelSpace float32) {
 	if s.Play() == nil && s.PlayPath() == "" {
 		return
@@ -50,6 +50,7 @@ func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, 
 		s.volume(c)
 		ui.Row(c).Gap(2).AlignItems(ui.Center).Shrink(0).Children(func() {
 			s.speedMenu(c, t)
+			s.loopToggle(c)
 			s.modeMenu(c, t)
 			c.Key("film-panel")
 			on := s.Panel()
@@ -88,5 +89,20 @@ func (s screen) playButton(c *ui.Context) {
 		if glyphButton(c, iconPlay, locales.FilmPlay(), 36, 36, 20, 20).Tooltip(locales.FilmPlay() + " " + locales.FilmKeySpace()).Clicked() {
 			s.togglePlay(c)
 		}
+	}
+}
+
+// loopToggle plays the line playing over and over, lit while it does. It waits for the film's subtitle lines, which it loops.
+func (s screen) loopToggle(c *ui.Context) {
+	c.Key("film-loop")
+	on := s.LoopLine()
+	subs := s.Subs()
+	b := glyphToggle(c, &on, iconLoopLine, locales.FilmLoopLine(), 34, 30, 18, 18).Tooltip(locales.FilmLoopLine() + " " + breeze.ShortcutText(c, 0, ui.KeyL))
+	if subs.Key != s.OpenKey() || !subs.Ready || len(subs.Cues) == 0 {
+		b.Disabled(true)
+		return
+	}
+	if b.Changed() {
+		s.ToggleLoopLine()
 	}
 }

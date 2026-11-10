@@ -754,6 +754,22 @@ func (msgs Messages) CheatsheetPlayPause() string {
 	return Catalog.Format(msgs.locale, "cheatsheetPlayPause", nil)
 }
 
+// CheatsheetPrevNextLine says "Previous / Next Line"
+// in the language the app shows.
+//
+// Cheat sheet line, under Playback, for the A and D keys that move to the
+// previous or the next subtitle line.
+func CheatsheetPrevNextLine() string { return In(i18n.Locale()).CheatsheetPrevNextLine() }
+
+// CheatsheetPrevNextLine says "Previous / Next Line"
+// in the language of msgs.
+//
+// Cheat sheet line, under Playback, for the A and D keys that move to the
+// previous or the next subtitle line.
+func (msgs Messages) CheatsheetPrevNextLine() string {
+	return Catalog.Format(msgs.locale, "cheatsheetPrevNextLine", nil)
+}
+
 // CheatsheetSearchLines says "Search Lines"
 // in the language the app shows.
 //
@@ -2028,6 +2044,22 @@ func (msgs Messages) FilmKindVideo() string {
 	return Catalog.Format(msgs.locale, "filmKindVideo", nil)
 }
 
+// FilmLineOf says "Line {line} of {total}"
+// in the language the app shows.
+//
+// Message on the picture after moving to a subtitle line: its number,
+// counting from 1, and how many lines the film has.
+func FilmLineOf(line int, total int) string { return In(i18n.Locale()).FilmLineOf(line, total) }
+
+// FilmLineOf says "Line {line} of {total}"
+// in the language of msgs.
+//
+// Message on the picture after moving to a subtitle line: its number,
+// counting from 1, and how many lines the film has.
+func (msgs Messages) FilmLineOf(line int, total int) string {
+	return Catalog.Format(msgs.locale, "filmLineOf", map[string]any{"line": line, "total": total})
+}
+
 // FilmLineOriginal says "Original"
 // in the language the app shows.
 //
@@ -2096,6 +2128,50 @@ func FilmLocalVideo() string { return In(i18n.Locale()).FilmLocalVideo() }
 // Chip in the Info tab of a local video no job has processed.
 func (msgs Messages) FilmLocalVideo() string {
 	return Catalog.Format(msgs.locale, "filmLocalVideo", nil)
+}
+
+// FilmLoopLine says "Loop Line"
+// in the language the app shows.
+//
+// Accessible name and tooltip of the transport's toggle that plays the
+// subtitle line playing over and over (its shortcut follows the tooltip).
+func FilmLoopLine() string { return In(i18n.Locale()).FilmLoopLine() }
+
+// FilmLoopLine says "Loop Line"
+// in the language of msgs.
+//
+// Accessible name and tooltip of the transport's toggle that plays the
+// subtitle line playing over and over (its shortcut follows the tooltip).
+func (msgs Messages) FilmLoopLine() string {
+	return Catalog.Format(msgs.locale, "filmLoopLine", nil)
+}
+
+// FilmLoopOff says "Loop Line: Off"
+// in the language the app shows.
+//
+// Message on the picture after the line loop was turned off.
+func FilmLoopOff() string { return In(i18n.Locale()).FilmLoopOff() }
+
+// FilmLoopOff says "Loop Line: Off"
+// in the language of msgs.
+//
+// Message on the picture after the line loop was turned off.
+func (msgs Messages) FilmLoopOff() string {
+	return Catalog.Format(msgs.locale, "filmLoopOff", nil)
+}
+
+// FilmLoopOn says "Loop Line: On"
+// in the language the app shows.
+//
+// Message on the picture after the line loop was turned on.
+func FilmLoopOn() string { return In(i18n.Locale()).FilmLoopOn() }
+
+// FilmLoopOn says "Loop Line: On"
+// in the language of msgs.
+//
+// Message on the picture after the line loop was turned on.
+func (msgs Messages) FilmLoopOn() string {
+	return Catalog.Format(msgs.locale, "filmLoopOn", nil)
 }
 
 // FilmModeBilingual says "Bilingual"
@@ -2240,6 +2316,54 @@ func FilmNoClipsYet() string { return In(i18n.Locale()).FilmNoClipsYet() }
 // Shown in the Clips tab when there are no subtitles to cut the film by.
 func (msgs Messages) FilmNoClipsYet() string {
 	return Catalog.Format(msgs.locale, "filmNoClipsYet", nil)
+}
+
+// FilmNoEarlierLine says "No Earlier Line"
+// in the language the app shows.
+//
+// Message on the picture when Previous Line is used before the film's first
+// subtitle line.
+func FilmNoEarlierLine() string { return In(i18n.Locale()).FilmNoEarlierLine() }
+
+// FilmNoEarlierLine says "No Earlier Line"
+// in the language of msgs.
+//
+// Message on the picture when Previous Line is used before the film's first
+// subtitle line.
+func (msgs Messages) FilmNoEarlierLine() string {
+	return Catalog.Format(msgs.locale, "filmNoEarlierLine", nil)
+}
+
+// FilmNoLaterLine says "No Later Line"
+// in the language the app shows.
+//
+// Message on the picture when Next Line is used after the film's last
+// subtitle line has started.
+func FilmNoLaterLine() string { return In(i18n.Locale()).FilmNoLaterLine() }
+
+// FilmNoLaterLine says "No Later Line"
+// in the language of msgs.
+//
+// Message on the picture when Next Line is used after the film's last
+// subtitle line has started.
+func (msgs Messages) FilmNoLaterLine() string {
+	return Catalog.Format(msgs.locale, "filmNoLaterLine", nil)
+}
+
+// FilmNoLines says "No Subtitle Lines Yet"
+// in the language the app shows.
+//
+// Message on the picture when a line command (previous, next, replay, loop)
+// is used on a film whose subtitles have no lines or have not loaded.
+func FilmNoLines() string { return In(i18n.Locale()).FilmNoLines() }
+
+// FilmNoLines says "No Subtitle Lines Yet"
+// in the language of msgs.
+//
+// Message on the picture when a line command (previous, next, replay, loop)
+// is used on a film whose subtitles have no lines or have not loaded.
+func (msgs Messages) FilmNoLines() string {
+	return Catalog.Format(msgs.locale, "filmNoLines", nil)
 }
 
 // FilmNoMatch says "No matching subtitles."
@@ -7158,6 +7282,22 @@ func (msgs Messages) PlayerKeyLarger() string {
 	return Catalog.Format(msgs.locale, "playerKeyLarger", nil)
 }
 
+// PlayerKeyLoopLine says "Loop Line"
+// in the language the app shows.
+//
+// Shortcut row and menu item: play the subtitle line playing over and over,
+// or stop doing so.
+func PlayerKeyLoopLine() string { return In(i18n.Locale()).PlayerKeyLoopLine() }
+
+// PlayerKeyLoopLine says "Loop Line"
+// in the language of msgs.
+//
+// Shortcut row and menu item: play the subtitle line playing over and over,
+// or stop doing so.
+func (msgs Messages) PlayerKeyLoopLine() string {
+	return Catalog.Format(msgs.locale, "playerKeyLoopLine", nil)
+}
+
 // PlayerKeyMute says "Mute/Unmute"
 // in the language the app shows.
 //
@@ -7172,6 +7312,22 @@ func (msgs Messages) PlayerKeyMute() string {
 	return Catalog.Format(msgs.locale, "playerKeyMute", nil)
 }
 
+// PlayerKeyNextLine says "Next Line"
+// in the language the app shows.
+//
+// Shortcut row and menu item: play from the start of the next subtitle
+// line.
+func PlayerKeyNextLine() string { return In(i18n.Locale()).PlayerKeyNextLine() }
+
+// PlayerKeyNextLine says "Next Line"
+// in the language of msgs.
+//
+// Shortcut row and menu item: play from the start of the next subtitle
+// line.
+func (msgs Messages) PlayerKeyNextLine() string {
+	return Catalog.Format(msgs.locale, "playerKeyNextLine", nil)
+}
+
 // PlayerKeyPlayPause says "Play/Pause"
 // in the language the app shows.
 //
@@ -7184,6 +7340,40 @@ func PlayerKeyPlayPause() string { return In(i18n.Locale()).PlayerKeyPlayPause()
 // Shortcut row and menu item: play or pause.
 func (msgs Messages) PlayerKeyPlayPause() string {
 	return Catalog.Format(msgs.locale, "playerKeyPlayPause", nil)
+}
+
+// PlayerKeyPrevLine says "Previous Line"
+// in the language the app shows.
+//
+// Shortcut row and menu item: play from the start of the subtitle line
+// before the one playing, or of the one playing when it has played for more
+// than a second.
+func PlayerKeyPrevLine() string { return In(i18n.Locale()).PlayerKeyPrevLine() }
+
+// PlayerKeyPrevLine says "Previous Line"
+// in the language of msgs.
+//
+// Shortcut row and menu item: play from the start of the subtitle line
+// before the one playing, or of the one playing when it has played for more
+// than a second.
+func (msgs Messages) PlayerKeyPrevLine() string {
+	return Catalog.Format(msgs.locale, "playerKeyPrevLine", nil)
+}
+
+// PlayerKeyReplayLine says "Replay Line"
+// in the language the app shows.
+//
+// Shortcut row and menu item: play the subtitle line playing again from its
+// start.
+func PlayerKeyReplayLine() string { return In(i18n.Locale()).PlayerKeyReplayLine() }
+
+// PlayerKeyReplayLine says "Replay Line"
+// in the language of msgs.
+//
+// Shortcut row and menu item: play the subtitle line playing again from its
+// start.
+func (msgs Messages) PlayerKeyReplayLine() string {
+	return Catalog.Format(msgs.locale, "playerKeyReplayLine", nil)
 }
 
 // PlayerKeySearch says "Search Subtitles"

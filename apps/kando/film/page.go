@@ -41,6 +41,12 @@ type App interface {
 	Seek(at time.Duration)
 	// Skip moves the picture by d from where it is and says so on the picture.
 	Skip(d time.Duration)
+	// PrevLine, NextLine and ReplayLine play from the start of the line before, the line after or the line playing; ToggleLoopLine plays the line playing over and over, or stops, and LoopLine reports whether it does. Each says so on the picture.
+	PrevLine()
+	NextLine()
+	ReplayLine()
+	ToggleLoopLine()
+	LoopLine() bool
 	Cue() *Look
 	// LookChanged keeps the look after the style view changed it.
 	LookChanged()
@@ -388,4 +394,23 @@ func cueIndex(cues []core.Segment, at time.Duration) int {
 		}
 	}
 	return found
+}
+
+// CueNear is where at stands among the subtitle lines, by index: cur is the line covering at, as CueAt finds it, or -1 between lines; next is the first line starting after at; prev is the last line starting before cur does, or, between lines, the last one started by at. Each is -1 when there is none. The lines are in the order they start, as cueIndex takes them.
+func CueNear(cues []core.Segment, at time.Duration) (prev, cur, next int) {
+	cur = cueIndex(cues, at)
+	prev, next = -1, -1
+	for i, cue := range cues {
+		if cue.Start > at {
+			next = i
+			break
+		}
+	}
+	for i := len(cues) - 1; i >= 0; i-- {
+		if cur >= 0 && cues[i].Start < cues[cur].Start || cur < 0 && cues[i].Start <= at {
+			prev = i
+			break
+		}
+	}
+	return prev, cur, next
 }

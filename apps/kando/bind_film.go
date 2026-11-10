@@ -62,7 +62,8 @@ func (a *app) FilmSide() string { return a.player.filmSide }
 
 func (a *app) SetFilmSide(id string) { a.player.filmSide = id }
 
-func (a *app) Seek(at time.Duration) { a.seekPlayback(at) }
+// Seek plays from at, where the scrubber or a line of the side panel was clicked; a looped line moves with it (playerSeek).
+func (a *app) Seek(at time.Duration) { a.playerSeek(at) }
 
 func (a *app) Skip(d time.Duration) {
 	if a.player.play == nil {
@@ -197,9 +198,10 @@ func (a *app) filmOwnsTitleBar() bool { return a.filmFillsWindow() }
 // filmPadding is the padding around an open film that fills the window (filmFillsWindow): none, the picture runs to the window's edges.
 func (a *app) filmPadding() (x, y float32) { return 0, 0 }
 
-// closeFilm goes back from the open film to the page it was opened from, as the film's back button does.
+// closeFilm goes back from the open film to the page it was opened from, as the film's back button does, and stops looping its line.
 func (a *app) closeFilm() {
 	a.openKey = ""
+	a.player.film.loop = playerLoop{}
 	a.stopPlayback()
 }
 
@@ -226,7 +228,7 @@ func (a *app) skip(d time.Duration) {
 	if play.duration > 0 && at > play.duration {
 		at = play.duration
 	}
-	a.seekPlayback(at)
+	a.playerSeek(at)
 }
 
 // toggleSubtitles is V: it hides the subtitles, or shows them again in the mode they had.
@@ -289,6 +291,10 @@ func (a *app) playerKeys() []shortcut {
 		{Group: groupPlayback, Label: locales.FilmSkipForward(5), Key: ui.KeyRight, When: playing, Run: func() { a.Skip(5 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipBack(30), Mods: ui.Cmd, Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-30 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipForward(30), Mods: ui.Cmd, Key: ui.KeyRight, When: playing, Run: func() { a.Skip(30 * time.Second) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyPrevLine(), Key: ui.KeyA, When: playing, Run: a.PrevLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyNextLine(), Key: ui.KeyD, When: playing, Run: a.NextLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyReplayLine(), Key: ui.KeyR, When: playing, Run: a.ReplayLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(), Key: ui.KeyL, When: playing, Checked: a.LoopLine, Run: a.ToggleLoopLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(), Key: ui.KeyUp, When: open, Run: func() { a.playerNudgeVolume(1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(), Key: ui.KeyDown, When: open, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(), Key: ui.KeyM, When: open, Run: a.ToggleMute},

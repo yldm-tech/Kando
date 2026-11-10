@@ -208,7 +208,7 @@ func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
 		{Group: groupView, Label: "显示/隐藏侧栏", Mods: ui.Cmd | ui.Shift, Key: ui.KeyT},
 		{Group: groupView, Label: "全屏", Key: ui.KeyF},
 		{Group: groupWindow, Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash},
-		{Group: groupStudy, Label: "复习", Key: ui.KeyR},
+		{Group: groupStudy, Label: "复习", Key: ui.KeyN},
 	}
 	var got []string
 	for _, g := range cheatsheetGroupsOf(rows) {

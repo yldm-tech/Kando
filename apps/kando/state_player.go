@@ -116,6 +116,14 @@ type filmUI struct {
 	// moved is when the pointer last moved over the player, at pointer.
 	moved   time.Time
 	pointer [2]float32
+	// loop is the subtitle line playing over and over (ToggleLoopLine). It belongs to this film only and is not saved.
+	loop playerLoop
+}
+
+// playerLoop is the line the player loops, in the subtitles' time, so the film's subtitle delay (filmUI.delay) moves it with its line: playback goes back to start once it reaches end. An end of 0 is the end of the video, for the last line when it has no end of its own.
+type playerLoop struct {
+	on         bool
+	start, end time.Duration
 }
 
 func newPlayerUI() playerUI {
@@ -194,12 +202,13 @@ type playerSaves struct {
 	delayAt    time.Time
 }
 
-// playerAfterFrame loads the frames of the 片段 tab, keeps where the open film is, and how its subtitles were moved, on disk now and then, and keeps the display awake while a film plays (player_awake.go).
+// playerAfterFrame loads the frames of the 片段 tab, keeps where the open film is, and how its subtitles were moved, on disk now and then, and keeps the display awake while a film plays (player_awake.go), and takes a looped line back to its start (playerKeepLoop).
 func (a *app) playerAfterFrame() {
 	a.loadClipFrames()
 	a.playerKeep(time.Now())
 	a.playerKeepAwake()
 	a.playerApplyRate()
+	a.playerKeepLoop()
 }
 
 // playerKeep saves where the open film is while it plays, so a crash, a force quit or a power cut loses little of it rather than all since it opened: at once when a playback opened playing at a point picked for it (a seek, 继续, 从头看) and when it pauses or ends, and in between every playerKeepEvery once it has moved on. A film held on the frame it opened on is not kept until it plays, as stopPlayback does not keep it either. A subtitle delay is saved once it has rested playerDelaySettle. now is the time of the frame.
@@ -342,7 +351,7 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then and brings a film back from the background to a speed changed meanwhile after each frame, keeps the display awake while a film plays once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
+// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then, brings a film back from the background to a speed changed meanwhile and keeps a looped line looping after each frame, keeps the display awake while a film plays once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
 	return areaHooks{
 		save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.playerAfterFrame, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting,

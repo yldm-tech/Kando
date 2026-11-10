@@ -10,7 +10,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing muted, the speed menu and playing at 1.5×. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing muted, the speed menu, playing at 1.5× and playing with its line looped. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "film", func(a *app, tt *ui.Tester, updates chan func()) {
@@ -69,6 +69,12 @@ func TestScreenshotsPlayer(t *testing.T) {
 		dir, video := f.sidecarLibrary(t)
 		f.showLibrary(t, a, tt, updates, dir)
 		screenshotOpen(t, a, tt, updates, video, protoCues[0].Start)
+	})
+	// Playing with the line looped by L: the transport's loop toggle lit and the picture saying so.
+	f.shoot(t, "player-loop", func(a *app, tt *ui.Tester, updates chan func()) {
+		playing(0)(a, tt, updates)
+		tt.Key(0, ui.KeyL)
+		tt.Frame()
 	})
 	f.shoot(t, "player-youtube", func(a *app, tt *ui.Tester, updates chan func()) {
 		a.page = pageYouTube

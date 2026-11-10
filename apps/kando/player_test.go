@@ -2589,3 +2589,263 @@ func TestSpeedStartsTheSoundAgainAtIt(t *testing.T) {
 		t.Fatalf("play did not start the sound at 0.75×: %+v", audio)
 	}
 }
+
+// TestCueNearFindsTheLinesAround checks the lines before, at and after a moment: on a line, at a line's very start, between lines, before the first and after the last, which has no end and so lasts to the video's.
+func TestCueNearFindsTheLinesAround(t *testing.T) {
+	cues := []core.Segment{
+		{Start: time.Second, End: 3 * time.Second, Text: "一"},
+		{Start: 3 * time.Second, End: 5 * time.Second, Text: "二"},
+		{Start: 7 * time.Second, End: 9 * time.Second, Text: "三"},
+		{Start: 10 * time.Second, Text: "四"},
+	}
+	for _, tc := range []struct {
+		at              time.Duration
+		prev, cur, next int
+	}{
+		{0, -1, -1, 0},
+		{time.Second, -1, 0, 1},
+		{2 * time.Second, -1, 0, 1},
+		{3 * time.Second, 0, 1, 2},
+		{6 * time.Second, 1, -1, 2},
+		{9 * time.Second, 2, -1, 3},
+		{12 * time.Second, 2, 3, -1},
+	} {
+		prev, cur, next := film.CueNear(cues, tc.at)
+		if prev != tc.prev || cur != tc.cur || next != tc.next {
+			t.Errorf("at %v: %d %d %d, want %d %d %d", tc.at, prev, cur, next, tc.prev, tc.cur, tc.next)
+		}
+	}
+	if prev, cur, next := film.CueNear(nil, time.Second); prev != -1 || cur != -1 || next != -1 {
+		t.Fatalf("no lines: %d %d %d", prev, cur, next)
+	}
+}
+
+// lineCues are the lines the line tests play: two back to back, a gap, and a last one without an end.
+var lineCues = []core.Segment{
+	{Start: time.Second, End: 3 * time.Second, Text: "第一句\nOne."},
+	{Start: 3 * time.Second, End: 5 * time.Second, Text: "第二句\nTwo."},
+	{Start: 7 * time.Second, End: 9 * time.Second, Text: "第三句\nThree."},
+	{Start: 10 * time.Second, Text: "第四句\nFour."},
+}
+
+// linesApp is an app with film key open and lineCues as its loaded subtitles, without a picture.
+func linesApp(key string) *app {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.openKey = key
+	a.player.subs = subtitleView{key: key, ready: true, cues: lineCues}
+	return a
+}
+
+// TestLoopLineTakesTheLinePlaying checks which line L loops: the one playing, the one coming between lines, and after the last line that one, whose loop runs to the video's end; a line without an end loops to the next line's start. It goes off again, and with no lines there is nothing to loop.
+func TestLoopLineTakesTheLinePlaying(t *testing.T) {
+	a := linesApp("film")
+	for _, tc := range []struct {
+		at, start, end time.Duration
+	}{
+		{2 * time.Second, time.Second, 3 * time.Second},
+		{6 * time.Second, 7 * time.Second, 9 * time.Second},
+		{0, time.Second, 3 * time.Second},
+		{20 * time.Second, 10 * time.Second, 0},
+	} {
+		a.player.opening = tc.at
+		a.ToggleLoopLine()
+		if loop := a.player.film.loop; !loop.on || loop.start != tc.start || loop.end != tc.end || a.player.film.osd != "单句循环：开" {
+			t.Fatalf("at %v: loop %+v osd %q, want %v to %v", tc.at, loop, a.player.film.osd, tc.start, tc.end)
+		}
+		a.ToggleLoopLine()
+		if a.player.film.loop.on || a.player.film.osd != "单句循环：关" {
+			t.Fatalf("at %v: loop %+v osd %q after L again", tc.at, a.player.film.loop, a.player.film.osd)
+		}
+	}
+	if loop := playerLoopOf([]core.Segment{{Start: time.Second}, {Start: 4 * time.Second, End: 5 * time.Second}}, 0); loop.end != 4*time.Second {
+		t.Fatalf("a line without an end loops to %v, want the next line's start", loop.end)
+	}
+	a.player.subs.cues = nil
+	a.ToggleLoopLine()
+	if a.player.film.loop.on || a.player.film.osd != "还没有字幕" {
+		t.Fatalf("loop %+v osd %q without lines", a.player.film.loop, a.player.film.osd)
+	}
+}
+
+// TestLoopFollowsASeek checks that a seek out of the looped line, by the scrubber, a line of the side panel or a skip, moves the loop to the line it lands on, or the one coming, and stops it after the last line, while a seek within the line keeps it. The subtitle delay is counted: the picture is the delay later than its lines. Closing the film stops looping.
+func TestLoopFollowsASeek(t *testing.T) {
+	a := linesApp("film")
+	a.player.film.delay = 500 * time.Millisecond
+	a.player.film.loop = playerLoopOf(lineCues, 0)
+	a.Seek(3 * time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != time.Second {
+		t.Fatalf("a seek within the line, its lines at 2.5s, moved the loop to %+v", loop)
+	}
+	a.Seek(4 * time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != 3*time.Second || loop.end != 5*time.Second {
+		t.Fatalf("a seek to the second line looped %+v", loop)
+	}
+	a.Seek(6500 * time.Millisecond)
+	if loop := a.player.film.loop; !loop.on || loop.start != 7*time.Second {
+		t.Fatalf("a seek between lines looped %+v, want the line coming", loop)
+	}
+	a.player.film.loop = playerLoopOf(lineCues, 1)
+	a.Seek(30 * time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != 10*time.Second || loop.end != 0 {
+		t.Fatalf("a seek into the last line looped %+v", loop)
+	}
+	a.player.subs.cues = lineCues[:3]
+	a.player.film.loop = playerLoopOf(lineCues, 0)
+	a.Seek(30 * time.Second)
+	if a.player.film.loop.on {
+		t.Fatalf("a seek past the last line kept looping %+v", a.player.film.loop)
+	}
+	a.player.film.loop = playerLoopOf(lineCues, 0)
+	a.closeFilm()
+	if a.player.film.loop.on {
+		t.Fatal("closing the film kept looping")
+	}
+}
+
+// openClipWithLines opens a black clip of the given seconds, as openClip does, with lineCues as its loaded subtitles.
+func openClipWithLines(t *testing.T, seconds int) (*app, *ui.Tester, chan func()) {
+	t.Helper()
+	a, tt, updates := openClip(t, seconds)
+	a.player.subs.cues = lineCues
+	tt.Frame()
+	return a, tt, updates
+}
+
+// TestLineKeysMoveBetweenLines checks A, D and R on lineCues, with the subtitles half a second late: D plays from the next line's start, A from the line before, or from the start of the line playing once more than a second of it has played, R from the start of the line playing, or between lines of the line just heard, each saying which line it is. Before the first line and after the last has started, there is nowhere to go, and the picture says so.
+func TestLineKeysMoveBetweenLines(t *testing.T) {
+	a, tt, updates := openClipWithLines(t, 12)
+	a.player.film.delay = 500 * time.Millisecond
+	key := func(k ui.Key, want time.Duration, osd string) {
+		t.Helper()
+		gen := a.player.playGen
+		tt.Key(0, k)
+		tt.Frame()
+		if a.player.playGen == gen || a.player.opening != want || !tt.HasText(osd) {
+			t.Fatalf("after %v: opening %v (reopened %v), want %v; texts %q", k, a.player.opening, a.player.playGen != gen, want, tt.Texts())
+		}
+		waitUntil(t, updates, func() bool { return a.player.play != nil })
+		a.player.play.Toggle()
+		tt.Frame()
+	}
+	seek := func(at time.Duration) {
+		t.Helper()
+		a.seekPlayback(at)
+		waitUntil(t, updates, func() bool { return a.player.play != nil })
+		a.player.play.Toggle()
+		tt.Frame()
+	}
+	stays := func(k ui.Key, osd string) {
+		t.Helper()
+		gen := a.player.playGen
+		tt.Key(0, k)
+		tt.Frame()
+		if a.player.playGen != gen || !tt.HasText(osd) {
+			t.Fatalf("after %v: reopened %v; texts %q", k, a.player.playGen != gen, tt.Texts())
+		}
+	}
+	key(ui.KeyD, 1500*time.Millisecond, "第 1 / 4 句")
+	key(ui.KeyD, 3500*time.Millisecond, "第 2 / 4 句")
+	key(ui.KeyA, 1500*time.Millisecond, "第 1 / 4 句")
+	key(ui.KeyR, 1500*time.Millisecond, "第 1 / 4 句")
+	seek(5 * time.Second)
+	key(ui.KeyA, 3500*time.Millisecond, "第 2 / 4 句")
+	seek(6500 * time.Millisecond)
+	key(ui.KeyR, 3500*time.Millisecond, "第 2 / 4 句")
+	seek(6500 * time.Millisecond)
+	key(ui.KeyA, 3500*time.Millisecond, "第 2 / 4 句")
+	seek(6500 * time.Millisecond)
+	key(ui.KeyD, 7500*time.Millisecond, "第 3 / 4 句")
+	seek(11 * time.Second)
+	stays(ui.KeyD, "后面没有台词了")
+	seek(0)
+	stays(ui.KeyA, "前面没有台词了")
+}
+
+// TestLoopLineSeeksBackAtItsEnd plays a looped line and checks that the picture goes back to the line's start once it reaches the line's end, and plays on past it once L turns the loop off. The transport's toggle is lit while the line loops.
+func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
+	a, tt, updates := openClipWithLines(t, 6)
+	tt.Key(0, ui.KeyL)
+	tt.Frame()
+	if loop := a.player.film.loop; !loop.on || loop.start != time.Second || loop.end != 3*time.Second || !tt.HasText("单句循环：开") {
+		t.Fatalf("L before the first line looped %+v; texts %q", loop, tt.Texts())
+	}
+	a.player.play.Toggle()
+	gen := a.player.playGen
+	// Generous for a slow machine or the race detector; the line plays in about two seconds.
+	deadline := time.Now().Add(40 * time.Second)
+	for a.player.playGen == gen {
+		if time.Now().After(deadline) {
+			t.Fatalf("the loop did not go back, head %v", a.player.play.playhead())
+		}
+		select {
+		case fn := <-updates:
+			fn()
+		default:
+		}
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		if a.player.play != nil && a.player.play.playhead() > 3500*time.Millisecond {
+			t.Fatalf("the picture played on past the looped line to %v", a.player.play.playhead())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if a.player.opening != time.Second {
+		t.Fatalf("the loop went back to %v, want the line's start", a.player.opening)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	if a.player.play.paused || a.player.play.playhead() > 2*time.Second {
+		t.Fatalf("the looped line plays from %v, paused %v", a.player.play.playhead(), a.player.play.paused)
+	}
+	tt.Key(0, ui.KeyL)
+	tt.Frame()
+	if a.player.film.loop.on || !tt.HasText("单句循环：关") {
+		t.Fatalf("L kept looping %+v; texts %q", a.player.film.loop, tt.Texts())
+	}
+}
+
+// TestLoopToggleLoopsTheLine clicks the transport's 单句循环: it waits for the film's lines, then loops the line and is lit, and a second click stops it.
+func TestLoopToggleLoopsTheLine(t *testing.T) {
+	a, tt, _ := openClip(t, 6)
+	a.player.film.moved = tt.Now()
+	tt.Frame()
+	if err := tt.Click("单句循环"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.player.film.loop.on {
+		t.Fatal("the toggle looped a film without lines")
+	}
+	a.player.subs.cues = lineCues
+	tt.Frame()
+	if err := tt.Click("单句循环"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !a.player.film.loop.on || a.player.film.loop.start != time.Second {
+		t.Fatalf("the toggle looped %+v", a.player.film.loop)
+	}
+	if err := tt.Click("单句循环"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.player.film.loop.on {
+		t.Fatal("a second click kept looping")
+	}
+}
+
+// TestLoopStopsForALineAtTheVideosEnd checks that a looped line the delay has pushed to the video's end stops looping rather than open the video at its end again and again, while one inside the video keeps looping.
+func TestLoopStopsForALineAtTheVideosEnd(t *testing.T) {
+	a := linesApp("film")
+	a.player.play = &filmPlay{duration: 10 * time.Second, paused: true, frames: &frameDecoder{}}
+	a.player.film.loop = playerLoopOf(lineCues, 2)
+	a.playerKeepLoop()
+	if !a.player.film.loop.on {
+		t.Fatal("a line inside the video stopped looping")
+	}
+	a.player.film.delay = 2900 * time.Millisecond
+	a.playerKeepLoop()
+	if a.player.film.loop.on {
+		t.Fatalf("a line starting at %v of a 10s video kept looping", lineCues[2].Start+a.player.film.delay)
+	}
+}

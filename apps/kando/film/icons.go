@@ -32,6 +32,7 @@ var (
 	iconVolume      = icon(svg20 + `<path d="M3 7.5h2.6L9.5 4v12l-3.9-3.5H3z" fill="currentColor" stroke="none"/><path d="M12.6 7.2a3.6 3.6 0 0 1 0 5.6M14.9 4.9a6.8 6.8 0 0 1 0 10.2"/></svg>`)
 	iconVolumeLow   = icon(svg20 + `<path d="M3 7.5h2.6L9.5 4v12l-3.9-3.5H3z" fill="currentColor" stroke="none"/><path d="M12.6 7.2a3.6 3.6 0 0 1 0 5.6"/></svg>`)
 	iconMuted       = icon(svg20 + `<path d="M3 7.5h2.6L9.5 4v12l-3.9-3.5H3z" fill="currentColor" stroke="none"/><path d="M12.5 7.5l5 5M17.5 7.5l-5 5"/></svg>`)
+	iconLoopLine    = icon(svgBox("24", "24") + `<path d="M17 2l4 4-4 4M3 11V9.5A3.5 3.5 0 0 1 6.5 6H21M7 22l-4-4 4-4M21 13v1.5a3.5 3.5 0 0 1-3.5 3.5H3" stroke-width="1.8"/><path d="M11.2 10.4L12.6 9.4V14.6" stroke-width="1.6"/></svg>`)
 	iconFullScreen  = icon(svgBox("16", "16") + `<path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"/></svg>`)
 	iconChevronLeft = icon(svgBox("10", "16") + `<path d="M8 2L2 8l6 6" stroke-width="1.9"/></svg>`)
 	iconFolder      = icon(svgBox("18", "16") + `<path d="M1.8 3.6a1 1 0 0 1 1-1h4l1.6 1.7h6.8a1 1 0 0 1 1 1v7.9a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1z" stroke-width="1.4" stroke-linecap="butt" stroke-linejoin="miter"/></svg>`)
