@@ -1,6 +1,6 @@
 name: Release
 
-# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and commits that to main as chore(release), tags the commit, and creates a draft GitHub release with generated notes. The Package workflow then builds the app for macOS, Windows and Linux from the tag, and the last job checks the macOS and Linux packages (Windows is held back, #6) against the checksums Package took, attests their provenance, uploads them with checksums.txt to the draft and publishes it. Run it by hand from main to force a bump; it releases only a commit main's CI has passed on.
+# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and the version's release notes, from the same commits, into apps/kando/CHANGELOG.md (.github/scripts/changelog.sh), commits both to main as chore(release), tags the commit, and creates a draft GitHub release with those notes, which are also the ones the update manifests carry and the app's update window shows. The Package workflow then builds the app for macOS, Windows and Linux from the tag, and the last job checks the macOS and Linux packages (Windows is held back, #6) against the checksums Package took, attests their provenance, uploads them with checksums.txt to the draft and publishes it. Run it by hand from main to force a bump; it releases only a commit main's CI has passed on.
 #
 # The jobs run in one workflow, one after another, because a tag pushed with the workflow's GITHUB_TOKEN starts no other workflow.
 on:
@@ -75,7 +75,7 @@ jobs:
             echo "::error::apps/kando/mygo.json's identifier is still the placeholder $identifier; set the app's real one before releasing."
             exit 1
           fi
-      # The version goes to main in a commit of its own, which the tag points at, so that the app built from the tagged tree carries it. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
+      # The version goes to main in a commit of its own, which the tag points at, so that the app built from the tagged tree carries it, together with its section of CHANGELOG.md, without which mygo build fails to sign the update. A section written by hand before the release is kept. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
       - name: Commit the version
         id: commit
         if: steps.version.outputs.version != ''
@@ -85,8 +85,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           .github/scripts/set-version.sh "$VERSION"
-          if ! git diff --quiet; then
-            git commit -am "chore(release): $VERSION"
+          .github/scripts/changelog.sh add "$VERSION"
+          # Named, as the changelog is a new file until the first release writes it, and git commit -a leaves new files out.
+          git add -- apps/kando/mygo.json apps/kando/CHANGELOG.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): $VERSION"
           fi
           if git push origin HEAD:refs/heads/main; then
             echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -104,7 +107,7 @@ jobs:
         run: |
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "refs/tags/$VERSION"
-      # The packages are not signed yet (see package.yml), so the notes tell users how to open them; drop this note once the workflow signs them. Windows has no packages until #6 is fixed (see the Publish job).
+      # The release's notes are the version's section of CHANGELOG.md, the notes the app's update window shows. The packages are not signed yet (see package.yml), so a note above them tells users how to open them; drop the note once the workflow signs them. Windows has no packages until #6 is fixed (see the Publish job).
       - name: Draft the release
         if: steps.commit.outputs.sha != ''
         env:
@@ -115,9 +118,11 @@ jobs:
           > [!NOTE]
           > These builds are not signed yet. On macOS, open `Kando.app` once, then choose Open Anyway in System Settings > Privacy & Security, or run `xattr -dr com.apple.quarantine /Applications/Kando.app`. There is no Windows build yet (#6). `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
           EOF
-          # The notes start from the previous version, not from the newest release, which can be a tools-N release of the Tools workflow.
-          previous=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -vxF "$VERSION" | awk 'NR == 1')
-          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$VERSION" --generate-notes ${previous:+--notes-start-tag "$previous"} --notes-file "$RUNNER_TEMP/notes.md"
+          {
+            echo
+            .github/scripts/changelog.sh notes "$VERSION"
+          } >> "$RUNNER_TEMP/notes.md"
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
 
   package:
     name: Package

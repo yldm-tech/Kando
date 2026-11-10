@@ -99,6 +99,9 @@ jobs:
           fi
       - name: shellcheck
         run: shellcheck .github/scripts/*.sh tools/mygo-dev/dev.sh
+      # changelog.sh writes the release notes only when Release runs, where a mistake would stop a release, so its test runs on every change.
+      - name: changelog.sh
+        run: .github/scripts/changelog-test.sh
 
   cross:
     name: Build (${{ matrix.goos }})
