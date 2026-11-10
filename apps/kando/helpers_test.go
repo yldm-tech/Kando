@@ -261,3 +261,28 @@ func usePlatform(t *testing.T, p breeze.Platform) {
 	breeze.SetPlatform(p)
 	t.Cleanup(func() { breeze.SetPlatform(breeze.Auto) })
 }
+
+// fakeAwake stands in for mygo.Power.KeepAwake, which needs a running app: it records each hold taken and how many are still held.
+type fakeAwake struct {
+	holds []awakeHold
+	held  int
+}
+
+// awakeHold is one call of fakeAwake.keepAwake: why it was taken, whether it keeps the display on too, and whether it was given back.
+type awakeHold struct {
+	reason   string
+	display  bool
+	released bool
+}
+
+func (f *fakeAwake) keepAwake(reason string, display bool) func() {
+	f.holds = append(f.holds, awakeHold{reason: reason, display: display})
+	i := len(f.holds) - 1
+	f.held++
+	return func() {
+		if !f.holds[i].released {
+			f.holds[i].released = true
+			f.held--
+		}
+	}
+}

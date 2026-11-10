@@ -1109,6 +1109,70 @@ func TestQuittingStopsTheOpenFilm(t *testing.T) {
 	}
 }
 
+// TestThePlayerKeepsTheDisplayAwakeWhileAFilmPlays: a film held on its first frame takes no hold; playing it keeps the display awake, and pausing it, playing it to its end, going back to the library and quitting each let the display sleep again.
+func TestThePlayerKeepsTheDisplayAwakeWhileAFilmPlays(t *testing.T) {
+	a, tt, updates := openClip(t, 1)
+	awake := &fakeAwake{}
+	a.player.keepAwake = awake.keepAwake
+	tt.Frame()
+	if len(awake.holds) != 0 {
+		t.Fatalf("a film held on its first frame took holds %+v", awake.holds)
+	}
+	play := func(when string) {
+		t.Helper()
+		tt.Key(0, ui.KeySpace)
+		tt.Frame()
+		if !a.player.play.Playing() || awake.held != 1 {
+			t.Fatalf("%s: playing %v, holds %+v, %d held", when, a.player.play.Playing(), awake.holds, awake.held)
+		}
+	}
+	play("pressing Space")
+	if hold := awake.holds[0]; hold.reason != "正在播放视频" || !hold.display {
+		t.Fatalf("the hold is %+v, want the reason 正在播放视频 and the display kept on", hold)
+	}
+	tt.Frame()
+	if len(awake.holds) != 1 {
+		t.Fatalf("another frame of the playing film took another hold: %+v", awake.holds)
+	}
+
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if awake.held != 0 {
+		t.Fatalf("after pausing: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	play("playing again")
+	until := time.Now().Add(4 * time.Second)
+	for a.player.play.Playing() && time.Now().Before(until) {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		time.Sleep(20 * time.Millisecond)
+	}
+	if a.player.play.Playing() || awake.held != 0 {
+		t.Fatalf("after the film's end: playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+
+	play("playing from the start")
+	if err := tt.Click("返回资料库"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.player.play != nil || awake.held != 0 {
+		t.Fatalf("after going back to the library: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	if err := tt.Click("clip"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	play("playing the film opened again")
+	a.areasQuitting()
+	if awake.held != 0 {
+		t.Fatalf("after quitting: holds %+v, %d held", awake.holds, awake.held)
+	}
+}
+
 // TestVolumeKeys checks ↑, ↓ and M on an open film: ↑ and ↓ move the volume a tenth within 0 and 100%, M mutes and gives the volume back, and each says so on the picture. The open film plays at the new volume at once, and once the keys rest the settings keep it.
 func TestVolumeKeys(t *testing.T) {
 	a, tt, updates := openClip(t, 2)

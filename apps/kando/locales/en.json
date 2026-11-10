@@ -2490,6 +2490,10 @@
       }
     }
   },
+  "playerKeepAwake": "Playing a video",
+  "@playerKeepAwake": {
+    "description": "Why Kando keeps the display awake while a film plays; the system lists it with what keeps the computer awake (on macOS, pmset -g assertions)."
+  },
   "playerKeyCycleSubtitles": "Cycle Original/Translation/Bilingual",
   "@playerKeyCycleSubtitles": {
     "description": "Shortcut row and menu item: step through the subtitle modes."
@@ -2811,6 +2815,10 @@
         "example": "Listening"
       }
     }
+  },
+  "queueKeepAwake": "Processing a video",
+  "@queueKeepAwake": {
+    "description": "Why Kando keeps the computer from sleeping while a job downloads, transcribes or translates a video; the system lists it with what keeps the computer awake (on macOS, pmset -g assertions)."
   },
   "queueLocalChosen": "Local video selected",
   "@queueLocalChosen": {

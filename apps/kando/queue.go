@@ -16,6 +16,8 @@ import (
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	"github.com/egoist/mygo"
 )
 
 // jobQueue is the job being made and the jobs being run. The link field and the line under it, and the job the page follows, are the job being made; removed is the jobs removed while they ran. The queue runs the shelf's jobs one at a time, oldest first. The shelf (a.library) is the truth about each job's stage; the queue only keeps the order jobs were asked for and the one running now.
@@ -44,6 +46,9 @@ type jobQueue struct {
 	ytdlp ytdlpState
 	// linkFocus asks the link field above the library for the keyboard focus once, as 换个链接 does.
 	linkFocus bool
+	// keepAwake is mygo.Power.KeepAwake once the window is ready (queueHooks), and nil before and in tests, which must not hold the machine awake; awake gives back the hold it took while a job runs, nil while there is none (queueKeepAwake).
+	keepAwake func(reason string, display bool) (release func())
+	awake     func()
 }
 
 func newJobQueue() jobQueue { return jobQueue{} }
@@ -60,11 +65,13 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (run); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
+// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (run); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved. From the window being ready, the computer does not sleep while a job runs, and the hold ends as the app quits.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		ready: func() {
+			a.queue.keepAwake = mygo.Power.KeepAwake
 			a.pump()
+			a.queueKeepAwake()
 			a.queueReadYTDLP()
 			a.queueWatchSignals()
 		},
@@ -86,7 +93,10 @@ func (a *app) queueHooks() areaHooks {
 		},
 		afterFrame: a.queueQuitModal,
 		beforeQuit: a.queueBeforeQuit,
-		quitting:   a.queueQuit,
+		quitting: func() {
+			a.queueQuit()
+			a.queueLetSleep()
+		},
 	}
 }
 
@@ -464,6 +474,7 @@ func (a *app) run(job core.Job) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	done := make(chan struct{})
 	a.queue.active, a.queue.cancel, a.queue.done = job.ID, cancel, done
+	a.queueKeepAwake()
 	pipeline, update := a.queuePipeline(job), a.update
 	go func() {
 		defer cancel(nil)
@@ -511,7 +522,7 @@ func (a *app) queuePipeline(job core.Job) media.Pipeline {
 	return tools
 }
 
-// finished clears the job that just returned from the pipeline, remembers that the queue ran it (jobQueue.ran), says in the message bar how a job of another library ended (queueEndedElsewhere), and starts the next one.
+// finished clears the job that just returned from the pipeline, remembers that the queue ran it (jobQueue.ran), says in the message bar how a job of another library ended (queueEndedElsewhere), and starts the next one, letting the computer sleep again when there is none.
 func (a *app) finished(id string) {
 	if a.queue.active == id {
 		a.queue.active, a.queue.cancel, a.queue.done = "", nil, nil
@@ -522,6 +533,25 @@ func (a *app) finished(id string) {
 	a.queue.ran[id] = true
 	a.queueEndedElsewhere(id)
 	a.pump()
+	a.queueKeepAwake()
+}
+
+// queueKeepAwake keeps the computer from sleeping while a job runs, so a long download or transcription is not cut off by idle sleep, and lets it sleep again once none does. The display may still turn off. One hold covers jobs that run one after another. It does nothing until queueHooks' ready has set keepAwake, so tests, which never run ready, take no hold on the machine running them.
+func (a *app) queueKeepAwake() {
+	switch {
+	case a.queue.active != "" && a.queue.awake == nil && a.queue.keepAwake != nil:
+		a.queue.awake = a.queue.keepAwake(locales.QueueKeepAwake(), false)
+	case a.queue.active == "":
+		a.queueLetSleep()
+	}
+}
+
+// queueLetSleep gives back the hold that keeps the computer awake, if the queue has one.
+func (a *app) queueLetSleep() {
+	if a.queue.awake != nil {
+		a.queue.awake()
+		a.queue.awake = nil
+	}
 }
 
 // queueEndedElsewhere tells, in the library's message bar, that job id, which saved into a library that is not open, is done or has failed: its card leaves 处理中 then, and only its own library shows it. A job that was cancelled or removed says nothing.

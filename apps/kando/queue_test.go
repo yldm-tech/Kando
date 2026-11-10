@@ -182,6 +182,61 @@ func TestQueueRunsJobsOneAtATimeInOrder(t *testing.T) {
 	}
 }
 
+// TestTheComputerStaysAwakeWhileJobsRun: while jobs run one after another, one hold keeps the computer, not the display, from sleeping, and it is given back once the last has ended. A job cancelled while running gives it back too, and a hold still taken as the app quits is given back then.
+func TestTheComputerStaysAwakeWhileJobsRun(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	awake := &fakeAwake{}
+	a.queue.keepAwake = awake.keepAwake
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	if len(awake.holds) != 1 || awake.held != 1 {
+		t.Fatalf("while a runs: holds %+v, %d held", awake.holds, awake.held)
+	}
+	if hold := awake.holds[0]; hold.reason != "正在处理视频" || hold.display {
+		t.Fatalf("the hold is %+v, want the reason 正在处理视频 and the display free to sleep", hold)
+	}
+	g.release <- struct{}{}
+	nextStarted(t, g, updates)
+	if len(awake.holds) != 1 || awake.held != 1 {
+		t.Fatalf("as b follows a: holds %+v, %d held, want the first hold kept", awake.holds, awake.held)
+	}
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+	if awake.held != 0 {
+		t.Fatalf("after the last job: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	if err := a.Enqueue("https://example.com/c"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	if len(awake.holds) != 2 || awake.held != 1 {
+		t.Fatalf("while c runs: holds %+v, %d held", awake.holds, awake.held)
+	}
+	a.Cancel(a.RunningJob())
+	settle(t, a, tt, updates)
+	if awake.held != 0 {
+		t.Fatalf("after cancelling c: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	if err := a.Enqueue("https://example.com/d"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	if awake.held != 1 {
+		t.Fatalf("while d runs: holds %+v, %d held", awake.holds, awake.held)
+	}
+	a.areasQuitting()
+	if awake.held != 0 {
+		t.Fatalf("after quitting: holds %+v, %d held", awake.holds, awake.held)
+	}
+	a.Cancel(a.RunningJob())
+	settle(t, a, tt, updates)
+}
+
 // TestTypingALinkWhileAJobRunsQueuesIt checks that 开始处理 adds to the queue instead of being refused while another job runs.
 func TestTypingALinkWhileAJobRunsQueuesIt(t *testing.T) {
 	g := newGatePipeline()

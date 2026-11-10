@@ -6914,6 +6914,22 @@ func (msgs Messages) PaletteSwitchTo(mode string) string {
 	return Catalog.Format(msgs.locale, "paletteSwitchTo", map[string]any{"mode": mode})
 }
 
+// PlayerKeepAwake says "Playing a video"
+// in the language the app shows.
+//
+// Why Kando keeps the display awake while a film plays; the system lists it
+// with what keeps the computer awake (on macOS, pmset -g assertions).
+func PlayerKeepAwake() string { return In(i18n.Locale()).PlayerKeepAwake() }
+
+// PlayerKeepAwake says "Playing a video"
+// in the language of msgs.
+//
+// Why Kando keeps the display awake while a film plays; the system lists it
+// with what keeps the computer awake (on macOS, pmset -g assertions).
+func (msgs Messages) PlayerKeepAwake() string {
+	return Catalog.Format(msgs.locale, "playerKeepAwake", nil)
+}
+
 // PlayerKeyCycleSubtitles says "Cycle Original/Translation/Bilingual"
 // in the language the app shows.
 //
@@ -7796,6 +7812,24 @@ func QueueFailedElsewhere(name string, library string) string {
 // has failed; its failed card shows only in its own library.
 func (msgs Messages) QueueFailedElsewhere(name string, library string) string {
 	return Catalog.Format(msgs.locale, "queueFailedElsewhere", map[string]any{"name": name, "library": library})
+}
+
+// QueueKeepAwake says "Processing a video"
+// in the language the app shows.
+//
+// Why Kando keeps the computer from sleeping while a job downloads,
+// transcribes or translates a video; the system lists it with what keeps
+// the computer awake (on macOS, pmset -g assertions).
+func QueueKeepAwake() string { return In(i18n.Locale()).QueueKeepAwake() }
+
+// QueueKeepAwake says "Processing a video"
+// in the language of msgs.
+//
+// Why Kando keeps the computer from sleeping while a job downloads,
+// transcribes or translates a video; the system lists it with what keeps
+// the computer awake (on macOS, pmset -g assertions).
+func (msgs Messages) QueueKeepAwake() string {
+	return Catalog.Format(msgs.locale, "queueKeepAwake", nil)
 }
 
 // QueueLocalChosen says "Local video selected"
