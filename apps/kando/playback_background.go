@@ -39,14 +39,16 @@ func (a *app) playerWindowHidden(hidden bool) {
 	a.playerSight(func() { a.player.windowHidden = hidden })
 }
 
-// playerSight runs change, which marks the app inactive or active or the main window hidden or shown, and follows the sound of the playing film from when the window went out of sight, the app inactive or the window put away, until it is in sight again, both active and shown. A second reason to be out of sight while the first lasts changes nothing, so the sound's clock stays the one taken as the picture first went out of sight.
+// playerSight runs change, which marks the app inactive or active or the main window hidden or shown, and follows the sound of the playing film, and keeps a looped line looping (playerLoopAway), from when the window went out of sight, the app inactive or the window put away, until it is in sight again, both active and shown. A second reason to be out of sight while the first lasts changes nothing, so the sound's clock stays the one taken as the picture first went out of sight.
 func (a *app) playerSight(change func()) {
 	away := a.player.inactive || a.player.windowHidden
 	change()
 	switch now := a.player.inactive || a.player.windowHidden; {
 	case now && !away:
+		a.playerLoopAway()
 		a.playerLeftSight()
 	case !now && away:
+		a.playerLoopBack()
 		a.playerBackInSight()
 	}
 }
@@ -252,7 +254,7 @@ func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameRea
 	})
 }
 
-// playReplace puts next in place of the film playing and closes that one, but for the sound next took over from it, and shows next where the system shows what plays. When next opens playing while the window is out of sight (playerOutOfSight), as after a seek from the system's scrubber or the window going out of sight again while next opened, next follows its sound from here, level with it now.
+// playReplace puts next in place of the film playing and closes that one, but for the sound next took over from it, and shows next where the system shows what plays. When next opens playing while the window is out of sight (playerOutOfSight), as after a seek from the system's scrubber, a looped line going back to its start or the window going out of sight again while next opened, next follows its sound from here, level with it now.
 func (a *app) playReplace(next *filmPlay) {
 	old := a.player.play
 	a.player.play = next

@@ -2636,14 +2636,14 @@ func linesApp(key string) *app {
 	return a
 }
 
-// TestLoopLineTakesTheLinePlaying checks which line L loops: the one playing, the one coming between lines, and after the last line that one, whose loop runs to the video's end; a line without an end loops to the next line's start. It goes off again, and with no lines there is nothing to loop.
+// TestLoopLineTakesTheLinePlaying checks which line L loops: the one playing, between lines the one just heard, as R replays it, before the first line the one coming, and the last line, whose loop runs to the video's end; a line without an end loops to the next line's start. It goes off again, and with no lines there is nothing to loop.
 func TestLoopLineTakesTheLinePlaying(t *testing.T) {
 	a := linesApp("film")
 	for _, tc := range []struct {
 		at, start, end time.Duration
 	}{
 		{2 * time.Second, time.Second, 3 * time.Second},
-		{6 * time.Second, 7 * time.Second, 9 * time.Second},
+		{6 * time.Second, 3 * time.Second, 5 * time.Second},
 		{0, time.Second, 3 * time.Second},
 		{20 * time.Second, 10 * time.Second, 0},
 	} {
@@ -2657,7 +2657,7 @@ func TestLoopLineTakesTheLinePlaying(t *testing.T) {
 			t.Fatalf("at %v: loop %+v osd %q after L again", tc.at, a.player.film.loop, a.player.film.osd)
 		}
 	}
-	if loop := playerLoopOf([]core.Segment{{Start: time.Second}, {Start: 4 * time.Second, End: 5 * time.Second}}, 0); loop.end != 4*time.Second {
+	if loop := playerLoopOf("film", []core.Segment{{Start: time.Second}, {Start: 4 * time.Second, End: 5 * time.Second}}, 0); loop.end != 4*time.Second {
 		t.Fatalf("a line without an end loops to %v, want the next line's start", loop.end)
 	}
 	a.player.subs.cues = nil
@@ -2671,7 +2671,7 @@ func TestLoopLineTakesTheLinePlaying(t *testing.T) {
 func TestLoopFollowsASeek(t *testing.T) {
 	a := linesApp("film")
 	a.player.film.delay = 500 * time.Millisecond
-	a.player.film.loop = playerLoopOf(lineCues, 0)
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
 	a.Seek(3 * time.Second)
 	if loop := a.player.film.loop; !loop.on || loop.start != time.Second {
 		t.Fatalf("a seek within the line, its lines at 2.5s, moved the loop to %+v", loop)
@@ -2684,18 +2684,18 @@ func TestLoopFollowsASeek(t *testing.T) {
 	if loop := a.player.film.loop; !loop.on || loop.start != 7*time.Second {
 		t.Fatalf("a seek between lines looped %+v, want the line coming", loop)
 	}
-	a.player.film.loop = playerLoopOf(lineCues, 1)
+	a.player.film.loop = playerLoopOf("film", lineCues, 1)
 	a.Seek(30 * time.Second)
 	if loop := a.player.film.loop; !loop.on || loop.start != 10*time.Second || loop.end != 0 {
 		t.Fatalf("a seek into the last line looped %+v", loop)
 	}
 	a.player.subs.cues = lineCues[:3]
-	a.player.film.loop = playerLoopOf(lineCues, 0)
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
 	a.Seek(30 * time.Second)
 	if a.player.film.loop.on {
 		t.Fatalf("a seek past the last line kept looping %+v", a.player.film.loop)
 	}
-	a.player.film.loop = playerLoopOf(lineCues, 0)
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
 	a.closeFilm()
 	if a.player.film.loop.on {
 		t.Fatal("closing the film kept looping")
@@ -2838,7 +2838,7 @@ func TestLoopToggleLoopsTheLine(t *testing.T) {
 func TestLoopStopsForALineAtTheVideosEnd(t *testing.T) {
 	a := linesApp("film")
 	a.player.play = &filmPlay{duration: 10 * time.Second, paused: true, frames: &frameDecoder{}}
-	a.player.film.loop = playerLoopOf(lineCues, 2)
+	a.player.film.loop = playerLoopOf("film", lineCues, 2)
 	a.playerKeepLoop()
 	if !a.player.film.loop.on {
 		t.Fatal("a line inside the video stopped looping")
@@ -2847,5 +2847,79 @@ func TestLoopStopsForALineAtTheVideosEnd(t *testing.T) {
 	a.playerKeepLoop()
 	if a.player.film.loop.on {
 		t.Fatalf("a line starting at %v of a 10s video kept looping", lineCues[2].Start+a.player.film.delay)
+	}
+	// The first line, at 1s to 3s, with the subtitles 2.5s early still has half a second in the video; 10s early it ends before the video starts, which would open at 0 again and again.
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.player.film.delay = -2500 * time.Millisecond
+	a.playerKeepLoop()
+	if !a.player.film.loop.on {
+		t.Fatal("a line the delay left half a second of in the video stopped looping")
+	}
+	a.player.film.delay = -10 * time.Second
+	a.playerKeepLoop()
+	if a.player.film.loop.on {
+		t.Fatalf("a line ending at %v before the video kept looping", lineCues[0].End+a.player.film.delay)
+	}
+}
+
+// TestLoopFollowsOpenAt checks the loop when a film is opened playing (OpenAt), which keeps the film's state as a seek does: a line of the open film picked in the command palette moves the loop to it, while another film, or the same one opened again after leaving it, starts without a loop. A loop left from another film counts as none.
+func TestLoopFollowsOpenAt(t *testing.T) {
+	a := linesApp("film")
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.paletteJump(films.Film{Key: "film"}, 7*time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != 7*time.Second || loop.end != 9*time.Second || a.player.opening != 7*time.Second {
+		t.Fatalf("a palette jump to the third line looped %+v, opening at %v", loop, a.player.opening)
+	}
+	a.OpenAt(films.Film{Key: "other"}, 7*time.Second)
+	if a.player.film.loop.on || a.LoopLine() {
+		t.Fatalf("another film opened looping %+v", a.player.film.loop)
+	}
+
+	a = linesApp("film")
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.Select(pageFilms)
+	a.OpenAt(films.Film{Key: "film"}, 0)
+	if a.player.film.loop.on {
+		t.Fatalf("the film opened again from the hero kept looping %+v", a.player.film.loop)
+	}
+
+	a = linesApp("job")
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.player.play = &filmPlay{duration: 10 * time.Second, frames: &frameDecoder{shown: 4 * time.Second}}
+	if a.LoopLine() {
+		t.Fatal("a loop of another film shows as on")
+	}
+	a.playerKeepLoop()
+	if a.player.film.loop.on || a.player.opening != 0 {
+		t.Fatalf("a loop of another film was kept %+v, opening at %v", a.player.film.loop, a.player.opening)
+	}
+}
+
+// TestLoopKeepsLoopingInTheBackground checks the loop while the app is in the background, where the picture may stand still while the sound plays on: a check every backgroundPoll, with no frames built, finds the sound past the line's end and goes back to its start, by the sound's clock rather than the picture's, without writing where the film continues from again. Coming back stops the checks.
+func TestLoopKeepsLoopingInTheBackground(t *testing.T) {
+	a, _, updates := newTestApp(&fakePipeline{})
+	a.openKey = "clip"
+	a.player.subs = subtitleView{key: "clip", ready: true, cues: lineCues}
+	p := stillPlay(t, "/v/clip.mp4", 2*time.Second, true)
+	a.player.play = p
+	a.player.positions = map[string]time.Duration{"/v/clip.mp4": time.Second}
+	a.player.film.loop = playerLoopOf("clip", lineCues, 0)
+	a.playerDidResignActive()
+	if a.player.loopAway == nil || !a.playerOutOfSight() {
+		t.Fatal("no checks keep the loop looping in the background")
+	}
+	// The picture stands at 2s behind the window while the sound reached 3.5s, past the line's end at 3s.
+	p.backgroundAt, p.backgroundHead = time.Now().Add(-1500*time.Millisecond), 2*time.Second
+	gen := a.player.playGen
+	waitUntil(t, updates, func() bool { return a.player.playGen != gen })
+	if a.player.opening != time.Second || !a.player.film.loop.on {
+		t.Fatalf("the loop went back to %v, looping %v; want the line's start", a.player.opening, a.player.film.loop.on)
+	}
+	if got := a.player.positions["/v/clip.mp4"]; got != time.Second {
+		t.Fatalf("the loop's return wrote where the film continues from as %v", got)
+	}
+	a.playerDidBecomeActive()
+	if a.player.loopAway != nil || a.playerOutOfSight() {
+		t.Fatal("the checks outlived the background")
 	}
 }

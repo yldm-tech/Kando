@@ -285,6 +285,8 @@ func (a *app) playerSaveSettings() {
 func (a *app) playerKeys() []shortcut {
 	playing := func() bool { return a.openKey != "" && a.player.play != nil }
 	open := func() bool { return a.openKey != "" }
+	// L also works while the picture opens again, as it does on every pass of a looped line, so turning the loop off is not missed then.
+	opening := func() bool { return a.openKey != "" && (a.player.play != nil || a.player.playPath != "") }
 	return []shortcut{
 		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(), Key: ui.KeySpace, When: playing, Run: func() { a.player.play.toggle() }},
 		{Group: groupPlayback, Label: locales.FilmSkipBack(5), Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-5 * time.Second) }},
@@ -294,7 +296,7 @@ func (a *app) playerKeys() []shortcut {
 		{Group: groupPlayback, Label: locales.PlayerKeyPrevLine(), Key: ui.KeyA, When: playing, Run: a.PrevLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyNextLine(), Key: ui.KeyD, When: playing, Run: a.NextLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyReplayLine(), Key: ui.KeyR, When: playing, Run: a.ReplayLine},
-		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(), Key: ui.KeyL, When: playing, Checked: a.LoopLine, Run: a.ToggleLoopLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(), Key: ui.KeyL, When: opening, Checked: a.LoopLine, Run: a.ToggleLoopLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(), Key: ui.KeyUp, When: open, Run: func() { a.playerNudgeVolume(1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(), Key: ui.KeyDown, When: open, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(), Key: ui.KeyM, When: open, Run: a.ToggleMute},

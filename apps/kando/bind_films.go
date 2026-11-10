@@ -111,8 +111,9 @@ func (a *app) Open(item films.Film) {
 	a.startPlayback(item.VideoPath)
 }
 
-// OpenAt opens a film playing from at, as the hero's 播放, 从 X 继续 and 从头看 do.
+// OpenAt opens a film playing from at, as the hero's 播放, 从 X 继续 and 从头看 do. It keeps the film's state as a seek does, so the player's line loop is told (playerLoopOpening).
 func (a *app) OpenAt(item films.Film, at time.Duration) {
+	a.playerLoopOpening(item.Key, at)
 	a.player.playFrom = at
 	a.player.playJump = true
 	a.Open(item)

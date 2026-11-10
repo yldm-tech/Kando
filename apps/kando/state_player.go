@@ -73,6 +73,8 @@ type playerUI struct {
 	rateGen      int
 	rateSettling bool
 	film         filmUI
+	// loopAway stops the checks that keep a looped line looping while the window is out of sight (playerLoopAway).
+	loopAway chan struct{}
 }
 
 // fullScreen is the part of a window the player uses to enter and leave full screen, as *mygo.Window has it.
@@ -122,7 +124,9 @@ type filmUI struct {
 
 // playerLoop is the line the player loops, in the subtitles' time, so the film's subtitle delay (filmUI.delay) moves it with its line: playback goes back to start once it reaches end. An end of 0 is the end of the video, for the last line when it has no end of its own.
 type playerLoop struct {
-	on         bool
+	on bool
+	// key is the film the loop was made for (app.openKey); a loop of another film is no loop (playerLooping).
+	key        string
 	start, end time.Duration
 }
 
