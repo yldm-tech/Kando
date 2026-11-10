@@ -10,7 +10,7 @@
 {{- end}}
 
 {{define "brand"}}
-<img src="/logo.png" width="28" height="28" alt="">
+<img src="/logo.png" width="34" height="34" alt="">
 <strong>{{t "brandName"}}</strong>{{if ne (t "brandName") "Kando"}}<span>Kando</span>{{end}}
 {{- end}}
 
@@ -59,17 +59,15 @@
       <a class="brand small" href="{{.Lang.Path}}" aria-label="{{t "homeLabel"}}">{{template "brand" .}}</a>
       <a class="foot-license" href="{{.License}}">{{t "footerLicense"}}</a>
     </div>
-    <nav class="foot-links" aria-label="{{t "footerLinksLabel"}}">
-      <a href="{{.Repo}}">{{t "footerGitHub"}}</a>
-      <a href="{{.Rel}}">{{t "footerReleases"}}</a>
-      <a href="{{.Issues}}">{{t "footerIssues"}}</a>
-    </nav>
-  </div>
-  <div class="wrap">
     <nav class="foot-langs" aria-label="{{t "languageLabel"}}">
       {{- range .Langs}}
       <a href="{{.Path}}" hreflang="{{.Tag}}" lang="{{.Tag}}" data-lang="{{.Code}}"{{if and (not $.NotFound) (eq .Code $.Lang.Code)}} aria-current="page"{{end}}>{{.Name}}</a>
       {{- end}}
+    </nav>
+    <nav class="foot-links" aria-label="{{t "footerLinksLabel"}}">
+      <a href="{{.Repo}}">{{t "footerGitHub"}}</a>
+      <a href="{{.Rel}}">{{t "footerReleases"}}</a>
+      <a href="{{.Issues}}">{{t "footerIssues"}}</a>
     </nav>
   </div>
 </footer>

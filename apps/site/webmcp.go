@@ -247,7 +247,7 @@ func newAgentContent(l language, strs map[string]string, total int, surf surface
 			Lead:  t("heroLead"),
 			Items: []agentFeature{
 				{Title: t("libraryTitle"), Text: join("libraryBody", "libraryPoint1", "libraryPoint2", "libraryPoint3")},
-				{Title: t("cliTitle"), Text: join("cliBody", "cliPoint1", "cliPoint2", "cliPoint3")},
+				{Title: t("cliTitle"), Text: join("cliBody", "cliPoint1", "cliPoint2", "cliPoint3", "mcpOther")},
 			},
 		},
 	}

@@ -156,7 +156,7 @@ func TestWebMCPContentCoversPage(t *testing.T) {
 	key := regexp.MustCompile(`\btf? "(\w+)"`)
 	// Labels of controls, the small lines above headings, a screenshot's description and the comments of the terminal example, which the tools have no use for.
 	skip := map[string]bool{"copyLabel": true, "copiedLabel": true, "dlTabsLabel": true, "cliTabsLabel": true, "cliTabCommands": true, "libraryEyebrow": true, "cliEyebrow": true, "detailsEyebrow": true, "shotLibraryAlt": true,
-		"cliCommentAdd": true, "cliCommentList": true, "cliCommentSubtitles": true, "cliCommentStatus": true, "mcpCommentAdd": true, "mcpCommentTools": true}
+		"cliCommentAdd": true, "cliCommentList": true, "cliCommentSubtitles": true, "cliCommentStatus": true, "mcpCommentAdd": true, "mcpCommentTools": true, "detailModesMark": true, "detailLanguagesMark": true}
 	for _, id := range []string{"library", "cli", "features", "start"} {
 		start := strings.Index(tmpl, `id="`+id+`"`)
 		if start < 0 {

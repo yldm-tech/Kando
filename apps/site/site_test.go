@@ -294,7 +294,7 @@ func TestPageBody(t *testing.T) {
 			// The Download buttons (the hero's, the macOS tab's and the closing one) open the newest published release, which stays current when a release comes out after the site was built; the footer lists every release.
 			downloads := 0
 			for _, tag := range tagRe("a").FindAllString(html, -1) {
-				if attr(tag, "class") == "btn primary" {
+				if strings.Contains(" "+attr(tag, "class")+" ", " primary ") {
 					downloads++
 					if href := attr(tag, "href"); href != latestURL {
 						t.Errorf("Download button points to %q, want %q", href, latestURL)

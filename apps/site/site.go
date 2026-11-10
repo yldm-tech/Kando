@@ -49,14 +49,16 @@ type language struct {
 	Name string
 	// Readme is the README file written in this language.
 	Readme string
+	// App is the app's locale of this language, the catalog in apps/kando/locales the hero's player takes its words from.
+	App string
 }
 
 var languages = []language{
-	{Code: "en", Tag: "en", Locale: "en_US", Name: "English", Readme: "README.md"},
-	{Code: "zh-CN", Tag: "zh-Hans", Locale: "zh_CN", Name: "简体中文", Readme: "README.zh-CN.md"},
-	{Code: "zh-TW", Tag: "zh-Hant", Locale: "zh_TW", Name: "繁體中文", Readme: "README.zh-TW.md"},
-	{Code: "ja", Tag: "ja", Locale: "ja_JP", Name: "日本語", Readme: "README.ja.md"},
-	{Code: "ko", Tag: "ko", Locale: "ko_KR", Name: "한국어", Readme: "README.ko.md"},
+	{Code: "en", Tag: "en", Locale: "en_US", Name: "English", Readme: "README.md", App: "en"},
+	{Code: "zh-CN", Tag: "zh-Hans", Locale: "zh_CN", Name: "简体中文", Readme: "README.zh-CN.md", App: "zh-Hans"},
+	{Code: "zh-TW", Tag: "zh-Hant", Locale: "zh_TW", Name: "繁體中文", Readme: "README.zh-TW.md", App: "zh-Hant"},
+	{Code: "ja", Tag: "ja", Locale: "ja_JP", Name: "日本語", Readme: "README.ja.md", App: "ja"},
+	{Code: "ko", Tag: "ko", Locale: "ko_KR", Name: "한국어", Readme: "README.ko.md", App: "ko"},
 }
 
 // sourceLang is the language the other content files are translated from, and the page at the root.
@@ -76,8 +78,64 @@ func (l language) URL() string { return siteURL + l.Path() }
 // ReadmeURL is the README in this language on GitHub.
 func (l language) ReadmeURL() string { return repoURL + "/blob/main/" + l.Readme }
 
-// screenshots are the pictures of the app each page shows, as docs/assets/<language>/<name>.png: the player in the hero and the library beside the Library section.
-var screenshots = []string{"library", "player"}
+// screenshots are the pictures of the app each page shows, as docs/assets/<language>/<name>.png: the library beside the Library section. The hero draws its player itself (player.html).
+var screenshots = []string{"library"}
+
+// demoLines are the English lines of the film the hero's player plays, How Rivers Shape Landscapes, the first lines of the film of the app's screenshots (protoCues in apps/kando/screenshot_prototype_test.go). The content files have their translations as demoCue1 to demoCue8.
+var demoLines = []string{
+	"Every river begins as a trickle high in the mountains.",
+	"As water flows downhill, it picks up sand and stones.",
+	"Those particles act like sandpaper on the riverbed.",
+	"Over thousands of years, the channel cuts deeper.",
+	"That is how steep V-shaped valleys are formed.",
+	"Lower down, the land flattens and the river slows.",
+	"Instead of cutting down, it starts to swing sideways.",
+	"These sweeping curves are called meanders.",
+}
+
+// demoLineSeconds is how long each line of the demo film shows; two lines make a scene and a clip.
+const demoLineSeconds = 10
+
+// demo is the film of the hero's player: its lines, and its clips, a scene of two lines each.
+type demo struct {
+	Lines []demoLine
+	Clips []demoClip
+	// Seconds is the film's length.
+	Seconds int
+	// Length is Seconds as the player writes a time, as -1:20 counts down.
+	Length string
+}
+
+type demoLine struct {
+	// N is the line's number from 1, the number of its demoCue key.
+	N        int
+	At       string
+	Original string
+	// Scene is the picture shown with the line, 0 to 3.
+	Scene int
+}
+
+type demoClip struct {
+	N, Scene   int
+	Start, End string
+	// Line is the number of the clip's first line, whose translation the clip shows.
+	Line int
+}
+
+// clock is seconds as the player writes a time: 1:05.
+func clock(seconds int) string { return fmt.Sprintf("%d:%02d", seconds/60, seconds%60) }
+
+func newDemo() demo {
+	d := demo{Seconds: len(demoLines) * demoLineSeconds}
+	d.Length = clock(d.Seconds)
+	for i, line := range demoLines {
+		d.Lines = append(d.Lines, demoLine{N: i + 1, At: clock(i * demoLineSeconds), Original: line, Scene: i / 2})
+	}
+	for k := 0; k < len(demoLines)/2; k++ {
+		d.Clips = append(d.Clips, demoClip{N: k + 1, Scene: k, Start: clock(2 * k * demoLineSeconds), End: clock(2 * (k + 1) * demoLineSeconds), Line: 2*k + 1})
+	}
+	return d
+}
 
 // surface is what the Command line and MCP section counts and lists, read from the app's source so that the page follows a command or tool added there.
 type surface struct {
@@ -155,6 +213,8 @@ type page struct {
 	Version string
 	// Surface is the commands and tools of the Command line and MCP section.
 	Surface surface
+	// Demo is the film the hero's player plays.
+	Demo demo
 	// AIServices are the marks of the AI card, and ClaudeCode the MCP tab's.
 	AIServices []brand
 	ClaudeCode brand
@@ -249,8 +309,15 @@ func build(root, out string) (*report, error) {
 		return nil, err
 	}
 
+	appStrs := map[string]map[string]string{}
+	for _, l := range langs {
+		if appStrs[l.Code], err = loadAppStrings(filepath.Join(root, "apps", "kando", "locales", l.App+".json")); err != nil {
+			return nil, err
+		}
+	}
+
 	used := map[string]bool{}
-	tmpl, err := template.New("").Funcs(contentFuncs(nil, used)).ParseGlob(filepath.Join(siteDir, "templates", "*.html"))
+	tmpl, err := template.New("").Funcs(contentFuncs(nil, nil, used)).ParseGlob(filepath.Join(siteDir, "templates", "*.html"))
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +327,7 @@ func build(root, out string) (*report, error) {
 			CSS: static["site.css"], JS: static["site.js"],
 			Shots: shots[l.Code], Sites: localTiles(tiles, l, siteNames[l.Code]), Total: total,
 			Repo: repoURL, Rel: releasesURL, Latest: latestURL, License: licenseURL, Issues: issuesURL, EveryAPI: everyAPIURL,
-			Version: version, Surface: surf, AIServices: services, ClaudeCode: claude[0],
+			Version: version, Surface: surf, AIServices: services, ClaudeCode: claude[0], Demo: newDemo(),
 			WebMCPJS: static["webmcp.js"], WebMCP: agent[l.Code], BuildCommands: buildCommands, InstallCommand: installCommand,
 		}
 		for _, o := range langs {
@@ -268,7 +335,7 @@ func build(root, out string) (*report, error) {
 				p.Others = append(p.Others, o)
 			}
 		}
-		if err := execute(tmpl, "page.html", content[l.Code], used, p, filepath.Join(out, filepath.FromSlash(strings.TrimPrefix(l.Path(), "/")), "index.html")); err != nil {
+		if err := execute(tmpl, "page.html", content[l.Code], appStrs[l.Code], used, p, filepath.Join(out, filepath.FromSlash(strings.TrimPrefix(l.Path(), "/")), "index.html")); err != nil {
 			return nil, fmt.Errorf("%s: %w", l.Code, err)
 		}
 	}
@@ -280,7 +347,7 @@ func build(root, out string) (*report, error) {
 	for _, key := range []string{"notFoundTitle", "notFoundBody", "notFoundHome"} {
 		used[key] = true
 	}
-	if err := execute(tmpl, "404.html", content[sourceLang], used, notFound, filepath.Join(out, "404.html")); err != nil {
+	if err := execute(tmpl, "404.html", content[sourceLang], appStrs[sourceLang], used, notFound, filepath.Join(out, "404.html")); err != nil {
 		return nil, fmt.Errorf("404: %w", err)
 	}
 	if err := writeSitemap(filepath.Join(out, "sitemap.xml"), langs); err != nil {
@@ -365,8 +432,41 @@ func placeholders(s string) []string {
 	return found
 }
 
-// contentFuncs are the template functions that look up content strings: t "key", and tf "key" "name" value … that fills in {name}. A key that is not in strs, or a placeholder left unfilled, fails the page.
-func contentFuncs(strs map[string]string, used map[string]bool) template.FuncMap {
+// loadAppStrings reads an app catalog of apps/kando/locales: its strings by key, without the notes of the keys that start with @.
+func loadAppStrings(path string) (map[string]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var catalog map[string]any
+	if err := json.Unmarshal(data, &catalog); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	strs := map[string]string{}
+	for key, v := range catalog {
+		if s, ok := v.(string); ok && !strings.HasPrefix(key, "@") {
+			strs[key] = s
+		}
+	}
+	return strs, nil
+}
+
+// fill puts each value of pairs, name then value, in place of {name} in s, and fails when one is left unfilled.
+func fill(key, s string, pairs []any) (string, error) {
+	if len(pairs)%2 != 0 {
+		return "", fmt.Errorf("%q: odd number of arguments", key)
+	}
+	for i := 0; i < len(pairs); i += 2 {
+		s = strings.ReplaceAll(s, "{"+fmt.Sprint(pairs[i])+"}", fmt.Sprint(pairs[i+1]))
+	}
+	if left := placeholder.FindString(s); left != "" {
+		return "", fmt.Errorf("%q: %s is not filled in", key, left)
+	}
+	return s, nil
+}
+
+// contentFuncs are the template functions that look up content strings: t "key", and tf "key" "name" value … that fills in {name}; and app "key" and appf, the same for a string of the app's own catalog in the page's language (app), so the hero's player says what the app says. A key that is not there, or a placeholder left unfilled, fails the page.
+func contentFuncs(strs, app map[string]string, used map[string]bool) template.FuncMap {
 	lookup := func(key string) (string, error) {
 		s, ok := strs[key]
 		if !ok {
@@ -375,9 +475,25 @@ func contentFuncs(strs map[string]string, used map[string]bool) template.FuncMap
 		used[key] = true
 		return s, nil
 	}
+	appLookup := func(key string) (string, error) {
+		s, ok := app[key]
+		if !ok {
+			return "", fmt.Errorf("no key %q in the app's catalog", key)
+		}
+		return s, nil
+	}
 	return template.FuncMap{
+		"app": appLookup,
+		"appf": func(key string, pairs ...any) (string, error) {
+			s, err := appLookup(key)
+			if err != nil {
+				return "", err
+			}
+			return fill(key, s, pairs)
+		},
 		"rich":     rich,
 		"headline": headline,
+		"scene":    func(n int, id string) sceneRef { return sceneRef{N: n, ID: fmt.Sprintf("%s%d", id, n)} },
 		"code": func(text, copyLabel, copiedLabel string) codeBlock {
 			return codeBlock{Text: text, Copy: copyLabel, Copied: copiedLabel}
 		},
@@ -387,16 +503,7 @@ func contentFuncs(strs map[string]string, used map[string]bool) template.FuncMap
 			if err != nil {
 				return "", err
 			}
-			if len(pairs)%2 != 0 {
-				return "", fmt.Errorf("tf %q: odd number of arguments", key)
-			}
-			for i := 0; i < len(pairs); i += 2 {
-				s = strings.ReplaceAll(s, "{"+fmt.Sprint(pairs[i])+"}", fmt.Sprint(pairs[i+1]))
-			}
-			if left := placeholder.FindString(s); left != "" {
-				return "", fmt.Errorf("tf %q: %s is not filled in", key, left)
-			}
-			return s, nil
+			return fill(key, s, pairs)
 		},
 	}
 }
@@ -425,19 +532,25 @@ func headline(title, mark string) template.HTML {
 	return template.HTML(line(before) + `<em class="mark">` + line(mark) + "</em>" + line(after))
 }
 
+// sceneRef is a scene of the demo film to draw, the "scene" template's argument: which scene, and the id of its gradient.
+type sceneRef struct {
+	N  int
+	ID string
+}
+
 // codeBlock is a command the page shows with a button that copies it, the "code" template.
 type codeBlock struct {
 	Text, Copy, Copied string
 }
 
-// execute renders the template name with strs into the file at path.
-func execute(tmpl *template.Template, name string, strs map[string]string, used map[string]bool, data page, path string) error {
+// execute renders the template name with strs and the app's strings app into the file at path.
+func execute(tmpl *template.Template, name string, strs, app map[string]string, used map[string]bool, data page, path string) error {
 	t, err := tmpl.Clone()
 	if err != nil {
 		return err
 	}
 	var buf bytes.Buffer
-	if err := t.Funcs(contentFuncs(strs, used)).ExecuteTemplate(&buf, name, data); err != nil {
+	if err := t.Funcs(contentFuncs(strs, app, used)).ExecuteTemplate(&buf, name, data); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
