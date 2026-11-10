@@ -72,7 +72,7 @@
   "startToolsTitle": "Kando 열기",
   "startToolsBody": "처음 열 때 Kando는 아래 프로그램 중 없는 것을 자동으로 내려받고, 시작 가이드에 진행 상황을 보여 줍니다. Homebrew 등으로 이미 설치한 프로그램은 그대로 사용합니다. yt-dlp가 오래되어 다운로드에 실패하면 업데이트 후 다시 시도를 제안합니다.",
   "toolYtdlp": "온라인 동영상 다운로드",
-  "toolFfmpeg": "오디오 추출과 화면 디코딩",
+  "toolFfmpeg": "오디오 추출과 화면·소리 디코딩",
   "toolWhisper": "음성 인식(whisper.cpp)",
   "startToolsOther": "Windows에서는 아직 자동으로 내려받지 않습니다. 패키지 관리자로 같은 프로그램을 설치하고 PATH에 들어 있는지 확인하세요.",
   "startSetup": "그런 다음 시작 가이드나 설정 › 음성 인식에서 whisper 모델을 내려받습니다. 번역하려면 EveryAPI CLI로 한 번 로그인하거나(everyapi auth login), 설정 › AI 서비스에서 다른 제공자의 모델과 API Key를 입력하세요(Ollama와 LM Studio는 키가 필요 없습니다).",

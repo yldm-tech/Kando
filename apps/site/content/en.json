@@ -72,7 +72,7 @@
   "startToolsTitle": "Open it",
   "startToolsBody": "The first time Kando opens, it downloads whichever of these programs is missing, and its Getting Started guide shows the progress. Ones you already installed, such as with Homebrew, are used as they are. If a download fails because yt-dlp is out of date, Kando offers Update and Retry.",
   "toolYtdlp": "downloads online videos",
-  "toolFfmpeg": "extracts the audio and decodes the picture",
+  "toolFfmpeg": "extracts the audio and decodes the picture and the sound",
   "toolWhisper": "recognizes speech (whisper.cpp)",
   "startToolsOther": "On Windows Kando does not download them yet: install the same programs with your package manager and make sure they are on PATH.",
   "startSetup": "Then download a whisper model in the guide or in Settings › Speech Recognition. For translation, sign in once with the EveryAPI CLI (everyapi auth login), or enter another provider's model and API key in Settings › AI Service (Ollama and LM Studio need no key).",
