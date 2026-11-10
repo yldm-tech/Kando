@@ -69,7 +69,9 @@ func (a *app) queueReadYTDLP() {
 		}
 		update(func() {
 			a.queue.ytdlp.browsers = browsers
-			if path == "" || a.queue.ytdlp.updating {
+			// A read of a yt-dlp the pipeline no longer downloads with is stale: the tools changed while it ran, as when Kando's own yt-dlp came in and was updated, and that newer state stays.
+			current, _ := a.pipeline.(media.Tools)
+			if path == "" || a.queue.ytdlp.updating || current.YTDLP != path {
 				return
 			}
 			a.queue.ytdlp.path, a.queue.ytdlp.version, a.queue.ytdlp.install = path, version, install
