@@ -3011,7 +3011,7 @@ func TestCopyCurrentLineKey(t *testing.T) {
 
 	a.player.opening = 4500 * time.Millisecond
 	it := findMenuItem(t, a.menuBar(), "字幕", "拷贝当前台词")
-	if it.Disabled || it.Accelerator != "Super+Shift+c" {
+	if it.Disabled || it.Accelerator != accelerator(ui.Cmd|ui.Shift, ui.KeyC) {
 		t.Fatalf("menu item disabled %v accelerator %q", it.Disabled, it.Accelerator)
 	}
 	// The menu bar hands its click to the UI thread, where it can queue behind what opening the film sent there; those run as well until the line is copied.
