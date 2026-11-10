@@ -6,7 +6,6 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -58,10 +57,11 @@ type playerUI struct {
 	// inactive is set while the app is not the active one, and windowHidden while the main window is put away (state_window.go): either keeps the picture out of sight while the sound plays on (playerSight).
 	inactive     bool
 	windowHidden bool
-	// keepAwake is mygo.Power.KeepAwake once the window is ready (playerReady), and nil before and in tests, which must not hold the machine awake; wake gives back the hold it took while the open film plays, nil while there is none (player_awake.go).
-	keepAwake func(reason string, display bool) (release func())
-	wake      func()
-	film      filmUI
+	// keepAwake is mygo.Power.KeepAwake once the window is ready (playerReady), and nil before and in tests, which must not hold the machine awake; wake gives back the hold it took while the open film plays, nil while there is none; windowAway is set while the window is minimized or hidden (player_awake.go).
+	keepAwake  func(reason string, display bool) (release func())
+	wake       func()
+	windowAway bool
+	film       filmUI
 }
 
 // fullScreen is the part of a window the player uses to enter and leave full screen, as *mygo.Window has it.
@@ -319,10 +319,10 @@ func (a *app) playerHooks() areaHooks {
 	}
 }
 
-// playerReady points the player's full screen at the main window, which exists from now on, and gives the player mygo.Power.KeepAwake (player_awake.go).
+// playerReady points the player's full screen at the main window, which exists from now on, and has the player keep the display awake while a film plays in sight (playerAwakeReady).
 func (a *app) playerReady() {
 	a.player.screen = a.win
-	a.player.keepAwake = mygo.Power.KeepAwake
+	a.playerAwakeReady()
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.

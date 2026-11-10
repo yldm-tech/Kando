@@ -1173,6 +1173,78 @@ func TestThePlayerKeepsTheDisplayAwakeWhileAFilmPlays(t *testing.T) {
 	}
 }
 
+// TestTheDisplayHoldFollowsTheWindow: a playing film lets the display sleep while the window is minimized or hidden, as only its sound plays on, and keeps it awake again once the window is back; a seek keeps the one hold while it opens the film again.
+func TestTheDisplayHoldFollowsTheWindow(t *testing.T) {
+	a, tt, updates := openClip(t, 12)
+	awake := &fakeAwake{}
+	a.player.keepAwake = awake.keepAwake
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if !a.player.play.Playing() || awake.held != 1 {
+		t.Fatalf("playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+
+	a.playerWindowAway(true)
+	if awake.held != 0 {
+		t.Fatalf("with the window away: holds %+v, %d held", awake.holds, awake.held)
+	}
+	a.areasAfterFrame()
+	if awake.held != 0 || len(awake.holds) != 1 {
+		t.Fatalf("a frame with the window away took the hold again: %+v", awake.holds)
+	}
+	a.playerWindowAway(false)
+	if awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("with the window back: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	tt.Key(0, ui.KeyRight)
+	if a.player.play != nil {
+		t.Fatal("the seek did not open the film again")
+	}
+	tt.Frame()
+	if awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("while the seek opens the film: holds %+v, %d held", awake.holds, awake.held)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	if !a.player.play.Playing() || awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("after the seek: playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+}
+
+// TestTheDisplaySleepsWhileThePictureStandsStillBehindTheWindow: once the picture of a film playing in the background stands still, as the window is out of sight, the display may sleep while its sound plays on, and coming back keeps it awake again.
+func TestTheDisplaySleepsWhileThePictureStandsStillBehindTheWindow(t *testing.T) {
+	a, tt, updates := openClip(t, 12)
+	awake := &fakeAwake{}
+	a.player.keepAwake = awake.keepAwake
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	p := a.player.play
+	if !p.Playing() || awake.held != 1 {
+		t.Fatalf("playing %v, holds %+v, %d held", p.Playing(), awake.holds, awake.held)
+	}
+	a.playerDidResignActive()
+	if p.background == nil {
+		t.Fatal("no decoder follows the sound")
+	}
+	// The Tester builds no frames meanwhile, as a window out of sight.
+	waitUntil(t, updates, func() bool { return p.unseen })
+	if awake.held != 0 {
+		t.Fatalf("with the picture standing still: holds %+v, %d held", awake.holds, awake.held)
+	}
+	a.areasAfterFrame()
+	if awake.held != 0 || len(awake.holds) != 1 {
+		t.Fatalf("a frame behind the window took the hold again: %+v", awake.holds)
+	}
+
+	a.playerDidBecomeActive()
+	waitUntil(t, updates, func() bool { return a.player.play != p })
+	tt.Frame()
+	if !a.player.play.Playing() || awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("back in sight: playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+}
+
 // TestVolumeKeys checks ↑, ↓ and M on an open film: ↑ and ↓ move the volume a tenth within 0 and 100%, M mutes and gives the volume back, and each says so on the picture. The open film plays at the new volume at once, and once the keys rest the settings keep it.
 func TestVolumeKeys(t *testing.T) {
 	a, tt, updates := openClip(t, 2)

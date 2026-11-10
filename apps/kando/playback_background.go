@@ -68,6 +68,7 @@ func (a *app) playerBackInSight() {
 	if p == nil || p.backgroundAt.IsZero() {
 		return
 	}
+	p.unseen = false
 	sound := p.backgroundSound()
 	bg := p.background
 	p.backgroundAt, p.backgroundHead, p.background = time.Time{}, 0, nil
@@ -134,6 +135,13 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 		}
 		tick.Stop()
 		bg.opened.Store(true)
+		// The window is out of sight and only the sound plays on, which needs no display awake (playerKeepAwake).
+		update(func() {
+			if a.player.play == p && p.background == bg {
+				p.unseen = true
+				a.playerKeepAwake()
+			}
+		})
 		// Without a picture to hand over, the app coming back leaves the picture where it stood, and the sound clock with it.
 		fail := func() {
 			select {
