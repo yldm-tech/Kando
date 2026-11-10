@@ -289,10 +289,10 @@ func TestShortcutsAreUnique(t *testing.T) {
 		if s.Group == "" || s.Label == "" || s.Run == nil {
 			t.Fatalf("incomplete shortcut %+v", s)
 		}
-		if ids[rowID(s)] {
+		if ids[menuRowID(s)] {
 			t.Fatalf("two rows %q in %q", s.Label, s.Group)
 		}
-		ids[rowID(s)] = true
+		ids[menuRowID(s)] = true
 		if s.Key != 0 {
 			k := [2]int{int(s.Mods), int(s.Key)}
 			keyed[k] = append(keyed[k], s)

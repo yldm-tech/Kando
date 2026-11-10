@@ -72,7 +72,7 @@ func (a *app) syncMenu() {
 func (a *app) menuBar() []*mygo.MenuItem {
 	table := a.shortcuts()
 	order, rows := grouped(table)
-	carrier := sharedKeyCarriers(table)
+	carrier := menuSharedKeyCarriers(table)
 	own := map[[2]int]bool{}
 	for _, s := range a.overlayKeys() {
 		own[[2]int{int(s.Mods), int(s.Key)}] = true
@@ -90,7 +90,7 @@ func (a *app) menuBar() []*mygo.MenuItem {
 		for _, s := range rows[group] {
 			k := [2]int{int(s.Mods), int(s.Key)}
 			it := a.menuItem(s, s.Key != 0 && own[k])
-			if id, shared := carrier[k]; shared && id != rowID(s) {
+			if id, shared := carrier[k]; shared && id != menuRowID(s) {
 				it.Accelerator = ""
 			}
 			if s.Key == 0 {
@@ -177,8 +177,8 @@ func (a *app) menuItem(s shortcut, own bool) *mygo.MenuItem {
 	return it
 }
 
-// sharedKeyCarriers picks, for each key more than one row of the table has, the row whose menu item carries it as its accelerator (by rowID): the first whose When holds, or the first of them while none does. Rows share a key only when they take turns, as the library's ⌘F and the player's do (TestShortcutsAreUnique), so the key runs the item it is shown by, and the menu bar never gives two items one accelerator.
-func sharedKeyCarriers(rows []shortcut) map[[2]int]string {
+// menuSharedKeyCarriers picks, for each key more than one row of the table has, the row whose menu item carries it as its accelerator (by menuRowID): the first whose When holds, or the first of them while none does. Rows share a key only when they take turns, as the library's ⌘F and the player's do (TestShortcutsAreUnique), so the key runs the item it is shown by, and the menu bar never gives two items one accelerator.
+func menuSharedKeyCarriers(rows []shortcut) map[[2]int]string {
 	by := map[[2]int][]shortcut{}
 	for _, s := range rows {
 		if s.Key != 0 {
@@ -198,13 +198,13 @@ func sharedKeyCarriers(rows []shortcut) map[[2]int]string {
 				break
 			}
 		}
-		carrier[k] = rowID(pick)
+		carrier[k] = menuRowID(pick)
 	}
 	return carrier
 }
 
-// rowID names a row of the shortcut table by its menu and its label, which no two rows share.
-func rowID(s shortcut) string { return s.Group + "\x00" + s.Label }
+// menuRowID names a row of the shortcut table by its menu and its label, which no two rows share.
+func menuRowID(s shortcut) string { return s.Group + "\x00" + s.Label }
 
 // menuClick runs fn on the UI thread as a background job's report does, so the window draws what it changed. Whatever is open over the window by then holds fn back as a disabled item would have (holds, with own saying fn is one of the overlays'): the click can come from a menu built before it opened.
 func (a *app) menuClick(own bool, fn func()) func(*mygo.MenuItem, *mygo.Window) {

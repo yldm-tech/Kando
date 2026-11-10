@@ -1420,7 +1420,7 @@
   "@filmsSearchClear": {
     "description": "Button under the no-match message that empties the search field and shows every film again."
   },
-  "filmsSearchNoMatch": "No films match “{query}”.",
+  "filmsSearchNoMatch": "No finished films match “{query}”.",
   "@filmsSearchNoMatch": {
     "description": "Shown in place of the film grid when no finished film’s name contains the text typed into the search field.",
     "placeholders": {

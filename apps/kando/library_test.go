@@ -1502,7 +1502,7 @@ func TestSearchFiltersTheShelfByTitle(t *testing.T) {
 
 	a.side.query = "ocean"
 	tt.Frame()
-	if !tt.HasText("没有名称包含「ocean」的影片。") || tt.HasText("Rivers of Europe") || !tt.HasText("Morning Market") {
+	if !tt.HasText("没有名称包含「ocean」的已完成影片。") || tt.HasText("Rivers of Europe") || !tt.HasText("Morning Market") {
 		t.Fatalf("searching ocean shows %q", tt.Texts())
 	}
 	if err := tt.Click("清除搜索"); err != nil {

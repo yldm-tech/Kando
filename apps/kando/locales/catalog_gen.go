@@ -4042,14 +4042,14 @@ func (msgs Messages) FilmsSearchClear() string {
 	return Catalog.Format(msgs.locale, "filmsSearchClear", nil)
 }
 
-// FilmsSearchNoMatch says "No films match “{query}”."
+// FilmsSearchNoMatch says "No finished films match “{query}”."
 // in the language the app shows.
 //
 // Shown in place of the film grid when no finished film’s name contains
 // the text typed into the search field.
 func FilmsSearchNoMatch(query string) string { return In(i18n.Locale()).FilmsSearchNoMatch(query) }
 
-// FilmsSearchNoMatch says "No films match “{query}”."
+// FilmsSearchNoMatch says "No finished films match “{query}”."
 // in the language of msgs.
 //
 // Shown in place of the film grid when no finished film’s name contains

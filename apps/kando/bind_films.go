@@ -293,7 +293,7 @@ func (a *app) dropFiles(paths []string) {
 	a.libraryEnqueue(sources...)
 }
 
-// libraryKeys are the library's shortcuts. ⌘F searches the library's films in the sidebar's search field (sidebarSearch). It shares ⌘F with the player's 搜索字幕: this row holds only while no film is open and that one only while one is, so one of them at most runs it, and the menu bar shows ⌘F by that one (sharedKeyCarriers, menu.go).
+// libraryKeys are the library's shortcuts. ⌘F searches the library's films in the sidebar's search field (sidebarSearch). It shares ⌘F with the player's 搜索字幕: this row holds only while no film is open and that one only while one is, so one of them at most runs it, and the menu bar shows ⌘F by that one (menuSharedKeyCarriers, menu.go).
 func (a *app) libraryKeys() []shortcut {
 	return []shortcut{
 		a.libraryOpenVideos(),

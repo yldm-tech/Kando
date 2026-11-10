@@ -271,7 +271,7 @@
   "filmsReprocess": "重新处理",
   "filmsRetry": "重试",
   "filmsSearchClear": "清除搜索",
-  "filmsSearchNoMatch": "没有名称包含「{query}」的影片。",
+  "filmsSearchNoMatch": "没有名称包含「{query}」的已完成影片。",
   "filmsShowInFinder": "{platform, select, macOS {在访达中显示} Windows {在文件资源管理器中显示} other {在文件管理器中显示}}",
   "filmsSourceEmpty": "这个来源下还没有影片。",
   "filmsStageComplete": "已完成",

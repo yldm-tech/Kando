@@ -271,7 +271,7 @@
   "filmsReprocess": "다시 처리",
   "filmsRetry": "다시 시도",
   "filmsSearchClear": "검색 지우기",
-  "filmsSearchNoMatch": "이름에 “{query}”이(가) 들어간 영상이 없습니다.",
+  "filmsSearchNoMatch": "이름에 “{query}”이(가) 들어간 완료된 영상이 없습니다.",
   "filmsShowInFinder": "{platform, select, macOS {Finder에서 보기} Windows {파일 탐색기에서 보기} other {파일 관리자에서 보기}}",
   "filmsSourceEmpty": "이 출처의 영상이 아직 없습니다.",
   "filmsStageComplete": "완료",

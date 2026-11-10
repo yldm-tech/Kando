@@ -271,7 +271,7 @@
   "filmsReprocess": "再処理",
   "filmsRetry": "再試行",
   "filmsSearchClear": "検索をクリア",
-  "filmsSearchNoMatch": "名前に「{query}」を含む動画はありません。",
+  "filmsSearchNoMatch": "名前に「{query}」を含む完了済みの動画はありません。",
   "filmsShowInFinder": "{platform, select, macOS {Finder で表示} Windows {エクスプローラーで表示} other {ファイルマネージャーで表示}}",
   "filmsSourceEmpty": "このソースの動画はまだありません。",
   "filmsStageComplete": "完了",

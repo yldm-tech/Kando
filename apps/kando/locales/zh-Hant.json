@@ -271,7 +271,7 @@
   "filmsReprocess": "重新處理",
   "filmsRetry": "重試",
   "filmsSearchClear": "清除搜尋",
-  "filmsSearchNoMatch": "沒有名稱包含「{query}」的影片。",
+  "filmsSearchNoMatch": "沒有名稱包含「{query}」的已完成影片。",
   "filmsShowInFinder": "{platform, select, macOS {在 Finder 中顯示} Windows {在檔案總管中顯示} other {在檔案管理員中顯示}}",
   "filmsSourceEmpty": "這個來源下還沒有影片。",
   "filmsStageComplete": "已完成",
