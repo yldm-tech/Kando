@@ -86,7 +86,7 @@ func releaseDownloads(version string) agentRelease {
 		Source:    readmeBuildURL,
 		Downloads: downloads,
 		Install: map[string]string{
-			"dmg":    "Open the disk image and drag Kando to Applications. Releases newer than 0.4.0 are signed with a Developer ID and notarized, so macOS opens them without a warning. 0.4.0 and earlier are not: on macOS 15 and later open it once, then choose System Settings › Privacy & Security › Open Anyway; on macOS 14 and earlier Control-click Kando in Applications and choose Open; or run xattr -dr com.apple.quarantine /Applications/Kando.app in Terminal.",
+			"dmg":    "Open the disk image and drag Kando to Applications. Releases newer than 0.5.1 are signed with a Developer ID and notarized, so macOS opens them without a warning. 0.5.1 and earlier are not: on macOS 15 and later open it once, then choose System Settings › Privacy & Security › Open Anyway; on macOS 14 and earlier Control-click Kando in Applications and choose Open; or run xattr -dr com.apple.quarantine /Applications/Kando.app in Terminal.",
 			"deb":    "On Debian, Ubuntu and their derivatives, run sudo apt install ./<file name> in the folder it was downloaded to.",
 			"tar.gz": "On other distributions, download " + base + "install.sh into the same folder as the archive and run sh install.sh there. It installs Kando into ~/.local for the current user, without root, and adds it to the applications menu; sh install.sh --uninstall removes it.",
 		},

@@ -67,7 +67,7 @@
   "startLead": "Kando는 macOS, Windows, Linux에서 실행됩니다. macOS와 Linux에서는 처음 열 때 필요한 프로그램을 스스로 내려받습니다.",
   "startDownloadTitle": "다운로드",
   "startDownloadBody": "macOS(Apple 실리콘과 Intel)와 Linux(x86-64와 ARM64)용 빌드는 GitHub Releases에 있습니다. Windows용 빌드는 아직 없으므로 Windows에서는 소스에서 빌드하세요.",
-  "startDownloadSigned": "0.4.0 이후 릴리스는 Developer ID로 서명되고 Apple의 공증을 받았으므로 macOS가 경고 없이 Kando를 엽니다.",
+  "startDownloadSigned": "0.5.1 이후 릴리스는 Developer ID로 서명되고 Apple의 공증을 받았으므로 macOS가 경고 없이 Kando를 엽니다.",
   "startDownloadButton": "GitHub Releases 열기",
   "startToolsTitle": "Kando 열기",
   "startToolsBody": "처음 열 때 Kando는 아래 프로그램 중 없는 것을 자동으로 내려받고, 시작 가이드에 진행 상황을 보여 줍니다. Homebrew 등으로 이미 설치한 프로그램은 그대로 사용합니다. yt-dlp가 오래되어 다운로드에 실패하면 업데이트 후 다시 시도를 제안합니다.",

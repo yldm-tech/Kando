@@ -67,7 +67,7 @@
   "startLead": "Kando runs on macOS, Windows and Linux. On macOS and Linux it downloads the programs it needs by itself the first time it opens.",
   "startDownloadTitle": "Download",
   "startDownloadBody": "Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on GitHub Releases. There is no Windows build yet, so on Windows build from source.",
-  "startDownloadSigned": "Releases newer than 0.4.0 are signed with a Developer ID and notarized by Apple, so macOS opens Kando without a warning.",
+  "startDownloadSigned": "Releases newer than 0.5.1 are signed with a Developer ID and notarized by Apple, so macOS opens Kando without a warning.",
   "startDownloadButton": "Open GitHub Releases",
   "startToolsTitle": "Open it",
   "startToolsBody": "The first time Kando opens, it downloads whichever of these programs is missing, and its Getting Started guide shows the progress. Ones you already installed, such as with Homebrew, are used as they are. If a download fails because yt-dlp is out of date, Kando offers Update and Retry.",

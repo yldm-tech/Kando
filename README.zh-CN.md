@@ -52,7 +52,7 @@ macOS（Apple 芯片和 Intel）和 Linux（x86-64 和 ARM64）的安装包在 [
 
 版本中的其他文件不是用来安装的：`checksums.txt` 列出每个文件的 SHA-256，而 `update-*.json` 清单、`.delta` 文件和 `darwin` 压缩包是已安装的看懂自动更新时下载的（参见[更新](#updates)）。
 
-0.4.0 之后发布的 macOS 安装包用 YLDM 的 Developer ID 签名，并经过 Apple 公证，打开看懂时 macOS 不会再发出警告。
+0.5.1 之后发布的 macOS 安装包用 YLDM 的 Developer ID 签名，并经过 Apple 公证，打开看懂时 macOS 不会再发出警告。
 
 <a id="updates"></a>
 

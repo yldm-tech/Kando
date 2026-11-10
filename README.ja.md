@@ -52,7 +52,7 @@ macOS（Apple シリコンと Intel）と Linux（x86-64 と ARM64）向けの�
 
 リリースにあるその他のファイルはインストール用ではありません。`checksums.txt` は各ファイルの SHA-256 の一覧で、`update-*.json` マニフェスト、`.delta` ファイル、`darwin` のアーカイブは、インストール済みの Kando が自動アップデートでダウンロードするものです（[アップデート](#updates)を参照）。
 
-0.4.0 より後のリリースの macOS 用ディスクイメージは YLDM の Developer ID で署名され、Apple の公証を受けているため、macOS は警告なしで Kando を開きます。
+0.5.1 より後のリリースの macOS 用ディスクイメージは YLDM の Developer ID で署名され、Apple の公証を受けているため、macOS は警告なしで Kando を開きます。
 
 <a id="updates"></a>
 

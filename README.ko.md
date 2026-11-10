@@ -52,7 +52,7 @@ macOS(Apple 실리콘과 Intel)와 Linux(x86-64와 ARM64)용 빌드는 [GitHub R
 
 릴리스의 나머지 파일은 설치용이 아닙니다. `checksums.txt`는 모든 파일의 SHA-256 목록이고, `update-*.json` 매니페스트, `.delta` 파일, `darwin` 아카이브는 설치된 Kando가 스스로 업데이트할 때 내려받는 파일입니다([업데이트](#updates) 참고).
 
-0.4.0 이후 릴리스의 macOS 디스크 이미지는 YLDM의 Developer ID로 서명되고 Apple의 공증을 받았으므로 macOS가 경고 없이 Kando를 엽니다.
+0.5.1 이후 릴리스의 macOS 디스크 이미지는 YLDM의 Developer ID로 서명되고 Apple의 공증을 받았으므로 macOS가 경고 없이 Kando를 엽니다.
 
 <a id="updates"></a>
 

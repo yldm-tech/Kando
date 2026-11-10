@@ -48,7 +48,7 @@ Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [
 
 The other files of a release are not for installing: `checksums.txt` lists the SHA-256 of every file, and the `update-*.json` manifests, the `.delta` files and the `darwin` archives are what installed copies of Kando update themselves from (see [Updates](#updates)).
 
-The macOS disk images of releases newer than 0.4.0 are signed with YLDM's Developer ID and notarized by Apple, so macOS opens Kando without a warning.
+The macOS disk images of releases newer than 0.5.1 are signed with YLDM's Developer ID and notarized by Apple, so macOS opens Kando without a warning.
 
 ### Updates
 
