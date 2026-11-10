@@ -1,8 +1,12 @@
 // TestSitemapRobotsCNAME: the sitemap lists each page with all of its alternates and the date it last changed, robots.txt and CNAME point at the site's address, the web app manifest names the app and its icons, and llms.txt and llms-full.txt describe Kando with links to every page, the READMEs and the release.
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vite-plus/test";
 import { pngSize } from "../buildtime/icons";
 import { appVersion } from "../buildtime/app";
+import { lastModified, lastmodPattern } from "../buildtime/seo";
 import { faqPairs, latestURL, pageURL, readmeURL, releasesURL, siteURL, sourceLang, themeColor } from "../src/lib/site";
 import { builtLangs, dist, readJSON, readOut, repoRoot, siteDir } from "./helpers";
 
@@ -22,7 +26,7 @@ it("lists every page in the sitemap with its alternates and when it last changed
   const urls = sitemap.split("<url>").slice(1);
   for (const url of urls) {
     const lastmod = url.match(/<lastmod>([^<]*)<\/lastmod>/)?.[1] ?? "";
-    expect(lastmod, url).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(lastmod, url).toMatch(lastmodPattern);
     expect(Date.parse(lastmod)).toBeLessThanOrEqual(Date.now());
   }
 });
@@ -83,4 +87,25 @@ it("writes llms-full.txt with the English page's text and its questions", () => 
   expect(txt).toContain(latestURL);
   expect(txt).toContain("curl -fsSL");
   expect(txt.length).toBeGreaterThan(readOut("llms.txt").length);
+});
+
+// A commit made just after midnight in Tokyo is still the day before in UTC: the sitemap's time keeps the commit's offset, so it names that instant rather than a date that reads as midnight UTC of the next day, ahead of the moment the site is built.
+it("dates the sitemap with the commit's time and offset", () => {
+  const repo = mkdtempSync(join(tmpdir(), "kando-lastmod-"));
+  try {
+    const git = (...args: string[]) => {
+      const r = spawnSync("git", ["-C", repo, ...args], {
+        encoding: "utf8",
+        env: { ...process.env, GIT_AUTHOR_DATE: "2026-11-11T00:33:26+09:00", GIT_COMMITTER_DATE: "2026-11-11T00:33:26+09:00" },
+      });
+      expect(r.status, r.stderr).toBe(0);
+    };
+    git("init", "-q");
+    git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "c");
+    const lastmod = lastModified(repo);
+    expect(lastmod).toMatch(lastmodPattern);
+    expect(new Date(lastmod).toISOString()).toBe("2026-11-10T15:33:26.000Z");
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
 });

@@ -8,11 +8,13 @@ import { manifestIconSizes } from "./icons";
 // pageGroups are the kinds of page every language has; each lists its pages in every language as alternates of one another.
 export const pageGroups = ["home", "sites"] as const;
 
-// lastModified is the date of the commit the site is built from, as YYYY-MM-DD: the site is built on a push to main that changes what it shows, or after a release, so the commit's date is when its pages last changed. Where git cannot tell, as in a copy without its history, it is today.
+// lastModified is the time of the commit the site is built from, as a W3C datetime with its offset (2026-11-11T00:33:26+09:00): the site is built on a push to main that changes what it shows, or after a release, so the commit's time is when its pages last changed. A date alone would be the day in the committer's time zone, which reads as midnight UTC and can lie ahead of the moment the site is built: a merge at 00:33 in Tokyo is the 10th in UTC. Where git cannot tell, as in a copy without its history, it is now.
+export const lastmodPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/;
+
 export function lastModified(root: string): string {
-  const git = spawnSync("git", ["-C", root, "log", "-1", "--format=%cs"], { encoding: "utf8" });
-  const date = git.status === 0 ? git.stdout.trim() : "";
-  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().slice(0, 10);
+  const git = spawnSync("git", ["-C", root, "log", "-1", "--format=%cI"], { encoding: "utf8" });
+  const time = git.status === 0 ? git.stdout.trim() : "";
+  return lastmodPattern.test(time) ? time : new Date().toISOString().replace(/\.\d+Z$/, "Z");
 }
 
 // sitemap lists every page with its alternates in the other languages and x-default, the English page, and the date it last changed.
