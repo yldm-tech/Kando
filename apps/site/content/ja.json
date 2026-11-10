@@ -153,9 +153,10 @@
   "sitesFound": "一致：{count}",
   "modelsEyebrow": "音声認識",
   "modelsTitle": "{count} つの whisper モデル。どのパソコンにも合うものがあります",
-  "modelsLead": "小さいモデルほど速く文字起こしでき、大きいモデルほどよく聞き取れます。選んだモデルは初めて使うときにダウンロードされます。",
+  "modelsLead": "小さいモデルは速く、大きいモデルは正確です。おすすめのモデルは速さと正確さを兼ね備えています。選んだモデルは初めて使うときにダウンロードされます。",
   "modelsAxis": "サイズ（MB）",
-  "modelsChartLabel": "whisper モデルごとのダウンロードサイズの棒グラフ（MB）",
-  "modelsTableCaption": "whisper モデルとダウンロードサイズ（MB）",
+  "modelsChartLabel": "whisper モデルを速度と精度で配置したバブルチャート。円の面積はモデルのダウンロードサイズを表します。下の表に同じデータがあります",
+  "modelsChartCaption": "右ほど速く、上ほど正確で、円が大きいほどダウンロードサイズも大きくなります。右上が速くて正確です。",
+  "modelsTableCaption": "whisper モデルの速度と精度（5 段階）、ダウンロードサイズ（MB）",
   "modelsColumnModel": "モデル"
 }

@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { IntlMessageFormat } from "intl-messageformat";
-import { clock, demoLineSeconds, demoLines, type Language } from "../src/lib/site";
+import { clock, demoLineSeconds, demoLines, ratingSteps, type Language } from "../src/lib/site";
 import { issues, readJSON } from "./content";
 import { appCatalogSchema, appKeys, appStringsSchema, manifestSchema, modelSchema, type AppKey, type Model } from "./schema";
 
@@ -103,10 +103,36 @@ export interface AppStrings {
   // clipSpans are filmClipSpan for each clip of the demo film.
   clipSpans: string[];
   modelNames: Record<string, string>;
+  // modelWords are the app's words for a model's speed and accuracy, as Settings › Speech Recognition labels them in settingsSpeechModelStats.
+  modelWords: ModelWords;
+  // modelStats are settingsSpeechModelStats for each model, by id, with its speed and accuracy as a rating out of ratingSteps and its size as the app writes it: the line the app shows under the model's name.
+  modelStats: Record<string, string>;
+}
+
+export interface ModelWords {
+  speed: string;
+  accuracy: string;
+}
+
+// statsWords are the labels of settingsSpeechModelStats as formatted: for each of its values, the words between it and the value before it (or the start), which is how every catalog writes it ("Speed {speed}  Accuracy {accuracy}  {size}").
+export function statsWords(file: string, format: (values: Record<string, string>) => string): ModelWords {
+  const marks = { speed: "\u0001", accuracy: "\u0002", size: "\u0003" };
+  const s = format(marks);
+  const word = (mark: string): string => {
+    const at = s.indexOf(mark);
+    const before = s.slice(0, at);
+    const from = Math.max(...Object.values(marks).map((m) => before.lastIndexOf(m) + 1));
+    return before.slice(from).trim();
+  };
+  const words = { speed: word(marks.speed), accuracy: word(marks.accuracy) };
+  if (words.speed === "" || words.accuracy === "") {
+    throw new Error(`${file}: settingsSpeechModelStats names no speed or accuracy before its values: ${JSON.stringify(s)}`);
+  }
+  return words;
 }
 
 // loadAppStrings reads the app catalog of l (apps/kando/locales/<app>.json) and formats the strings the page shows. The app writes its strings in ICU MessageFormat, as filmSkipBack's English plural, so they are formatted as the app formats them rather than by replacing names.
-export function loadAppStrings(root: string, l: Language, modelNames: Map<string, ModelName>): AppStrings {
+export function loadAppStrings(root: string, l: Language, models: readonly Model[], modelNames: Map<string, ModelName>): AppStrings {
   const file = `apps/kando/locales/${l.app}.json`;
   const raw = appCatalogSchema.safeParse(readJSON(join(root, file)));
   if (!raw.success) {
@@ -149,5 +175,9 @@ export function loadAppStrings(root: string, l: Language, modelNames: Map<string
   for (const [id, name] of modelNames) {
     names[id] = "literal" in name ? name.literal : format(name.appKey, {});
   }
-  return { app, clipSpans, modelNames: names };
+  const stats = (m: Model) =>
+    format("settingsSpeechModelStats", { speed: `${m.speed}/${ratingSteps}`, accuracy: `${m.accuracy}/${ratingSteps}`, size: m.sizeLabel });
+  const modelWords = statsWords(file, (values) => format("settingsSpeechModelStats", values));
+  const modelStats = Object.fromEntries(models.map((m) => [m.id, stats(m)]));
+  return { app, clipSpans, modelNames: names, modelWords, modelStats };
 }

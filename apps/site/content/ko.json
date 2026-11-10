@@ -153,9 +153,10 @@
   "sitesFound": "일치: {count}",
   "modelsEyebrow": "음성 인식",
   "modelsTitle": "whisper 모델 {count}종, 어떤 컴퓨터에도 맞는 모델이 있습니다",
-  "modelsLead": "모델이 작을수록 빨리 받아쓰고, 클수록 더 잘 알아듣습니다. 고른 모델은 처음 쓸 때 내려받습니다.",
+  "modelsLead": "작은 모델은 빠르고 큰 모델은 정확하며, 추천 모델은 둘 다 갖췄습니다. 고른 모델은 처음 쓸 때 내려받습니다.",
   "modelsAxis": "크기(MB)",
-  "modelsChartLabel": "whisper 모델별 다운로드 크기 막대그래프(MB)",
-  "modelsTableCaption": "whisper 모델과 다운로드 크기(MB)",
+  "modelsChartLabel": "whisper 모델을 속도와 정확도에 따라 배치한 버블 차트. 원의 면적은 모델의 다운로드 크기를 나타냅니다. 아래 표에 같은 데이터가 있습니다",
+  "modelsChartCaption": "오른쪽일수록 빠르고, 위쪽일수록 정확하며, 원이 클수록 다운로드 크기가 큽니다. 오른쪽 위가 빠르고 정확합니다.",
+  "modelsTableCaption": "whisper 모델의 속도와 정확도(5단계), 다운로드 크기(MB)",
   "modelsColumnModel": "모델"
 }

@@ -128,3 +128,6 @@ export function initial(name: string): string {
 
 // plateCount is the number of plate colors under initials: the app's eight (apps/kando/sites.plates), as .plate-0 to .plate-7 in the stylesheet.
 export const plateCount = 8;
+
+// ratingSteps is the top of the app's scales for a whisper model's speed and accuracy (packages/media/whisper_model.go), which Settings › Speech Recognition draws as that many stars.
+export const ratingSteps = 5;

@@ -153,9 +153,10 @@
   "sitesFound": "符合：{count}",
   "modelsEyebrow": "語音辨識",
   "modelsTitle": "{count} 個 whisper 模型，總有一個適合你的電腦",
-  "modelsLead": "模型越小，轉錄越快；模型越大，聽得越準。選好的模型會在第一次使用時下載。",
+  "modelsLead": "小模型快，大模型準，推薦的那個又快又準。選好的模型會在第一次使用時下載。",
   "modelsAxis": "大小（MB）",
-  "modelsChartLabel": "各個 whisper 模型下載大小的長條圖，單位為 MB",
-  "modelsTableCaption": "whisper 模型及其下載大小，單位為 MB",
+  "modelsChartLabel": "whisper 模型依速度和準確度排列的泡泡圖，泡泡面積代表模型的下載大小，下表列出相同的資料",
+  "modelsChartCaption": "越往右越快，越往上越準，泡泡越大下載越大。右上角又快又準。",
+  "modelsTableCaption": "whisper 模型的速度、準確度（滿分 5）和下載大小，大小單位為 MB",
   "modelsColumnModel": "模型"
 }

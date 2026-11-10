@@ -153,9 +153,10 @@
   "sitesFound": "How many websites match the search, beside the search box. {count} can be 0 or 1, so the wording avoids a plural; when it is 0 the table says sitesNoMatch.",
   "modelsEyebrow": "Small line above the heading of the whisper models section.",
   "modelsTitle": "Heading of the whisper models section. {count} is the number of models the app offers. Keep whisper in Latin letters, lower case.",
-  "modelsLead": "Paragraph under the heading of the whisper models section.",
-  "modelsAxis": "Label of the size axis of the models chart, and the header of the size column of its table. Keep MB.",
-  "modelsChartLabel": "Accessible name of the bar chart of the models' sizes, read by screen readers.",
-  "modelsTableCaption": "Caption of the table of the whisper models and their sizes, which the page shows when the chart cannot be drawn.",
+  "modelsLead": "Paragraph under the heading of the whisper models section: what a small, a large and the recommended model give you, and when the chosen one is downloaded.",
+  "modelsAxis": "Header of the size column of the models table. Keep MB.",
+  "modelsChartLabel": "Accessible name of the bubble chart of the models by speed and accuracy, read by screen readers.",
+  "modelsChartCaption": "Caption under the models chart, which places each model by speed (across) and accuracy (up), with the bubble's area its download size. Says how to read it and that the top right is fast and accurate.",
+  "modelsTableCaption": "Caption of the table of the whisper models with their speed, accuracy (each rated out of 5) and sizes, which carries the same data as the chart.",
   "modelsColumnModel": "Header of the table column with the models' names."
 }

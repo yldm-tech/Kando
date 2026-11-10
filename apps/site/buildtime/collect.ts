@@ -14,7 +14,7 @@ import { jsonForScript } from "../src/lib/json";
 import { structuredData } from "./jsonld";
 import { writeLLMsFiles } from "./llms";
 import { lastModified, pageGroups, writeSEOFiles } from "./seo";
-import { hashLink, newAgentContent, writeAgentFiles } from "./webmcp";
+import { hashLink, newAgentContent, writeAgentFiles, type AgentModel } from "./webmcp";
 
 export interface Collected {
   site: SiteData;
@@ -104,13 +104,21 @@ export function collect(root: string, siteDir: string, contentDir: string, pub: 
   const modelNames = readModelNames(root, models);
 
   const modules = new Map<LangCode, ContentModule>();
+  const agentModels = new Map<LangCode, AgentModel[]>();
   for (const l of langs) {
     const strings = content.get(l.code) ?? {};
-    const app = loadAppStrings(root, l, modelNames);
+    // The page shows the models' ratings itself; the app's line of stats for each is for the WebMCP content files only.
+    const { modelStats, ...app } = loadAppStrings(root, l, models, modelNames);
     modules.set(l.code, { code: l.code, strings, ...app });
+    agentModels.set(
+      l.code,
+      models.map((m) => {
+        const name = app.modelNames[m.id] ?? m.id;
+        return { name: m.recommended ? `${name} (${app.app.settingsSpeechRecommended})` : name, stats: modelStats[m.id] ?? "" };
+      }),
+    );
   }
 
-  const agentModels = new Map(langs.map((l) => [l.code, models.map((m) => ({ name: modules.get(l.code)?.modelNames[m.id] ?? m.id, mb: m.mb }))]));
   const agent = writeAgentFiles(pub, langs, content, catalog, version, surface, agentModels);
 
   const site = siteDataSchema.parse({
