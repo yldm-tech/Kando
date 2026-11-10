@@ -27,6 +27,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 - Libraries are `.kando` folders of ordinary files you can manage in Finder or a file manager. You can keep several and switch between them from the sidebar, which also filters a library by source: YouTube, Bilibili, other sites and local files.
 - Optional upload of a film's video and bilingual subtitles to your own object storage (Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS or any S3-compatible store), from the player, after signing in with Google. See [Configuration](#configuration).
 - Keyboard shortcuts for playback, subtitles and windows, listed in a cheat sheet (⌘/) and in Settings › Keyboard Shortcuts.
+- A log file for bug reports: Help › Show Log File (or the command palette, ⌘K) reveals it. It is `~/Library/Logs/Kando/kando.log` on macOS, and `kando.log` in the `Kando/logs` folder of the user's configuration folder elsewhere; it records why each failed job failed, without the keys Kando holds or the AI service's address, and everything the tool that failed printed. Anything shaped like a key is written as `***`. Past 5 MB a new file starts, and the two before it are kept.
 
 ![The player with bilingual subtitles and the side panel's list of lines](docs/assets/en/player.png)
 

@@ -139,6 +139,25 @@ func TestScrubberHidesHomeOtherPathsAndSecrets(t *testing.T) {
 	}
 }
 
+// NoSecrets hides what Clean hides of credentials, and keeps the paths and links a log on this machine needs.
+func TestNoSecretsKeepsPathsAndLinks(t *testing.T) {
+	s := Scrubber{Home: "/Users/kim", Secrets: []string{"sk-live-abcdef123456", "https://llm.example.internal/v1", "abc"}}
+	cases := map[string]string{
+		"open /Users/kim/Movies/a.mp4 failed":                              "open /Users/kim/Movies/a.mp4 failed",
+		"see https://www.youtube.com/watch?v=abc":                          "see https://www.youtube.com/watch?v=abc",
+		"key sk-live-abcdef123456 rejected":                                "key *** rejected",
+		`Post "https://llm.example.internal/v1/chat/completions": refused`: `Post "***/chat/completions": refused`,
+		"Authorization: Bearer abcdefghijklmnop":                           "Authorization: Bearer ***",
+		"api_key=xyz123456 in query":                                       "api_key=*** in query",
+		"token ghp_abcdefghijklmnopqrstuvwxyz0123 leaked":                  "token *** leaked",
+	}
+	for in, want := range cases {
+		if got := s.NoSecrets(in); got != want {
+			t.Errorf("NoSecrets(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 // TestScrubberHidesWholePaths checks that a path leaves nothing of itself behind: not the names under the home folder, not the parts after a space in a folder or a video's title, and not a path that follows Chinese text or a full-width colon.
 func TestScrubberHidesWholePaths(t *testing.T) {
 	s := Scrubber{Home: "/Users/kim", Paths: []string{"/Volumes/My Disk/影视库，2024.kando"}}

@@ -1708,6 +1708,10 @@
   "@libraryWindowTitle": {
     "description": "Title of the main window: the app's name."
   },
+  "logsShowLogFile": "Show Log File",
+  "@logsShowLogFile": {
+    "description": "Help menu item, and command palette row, that reveals Kando's log file in Finder or the file manager, so a user can attach it to a bug report."
+  },
   "menuAbout": "About Kando",
   "@menuAbout": {
     "description": "First item of the app menu, which shows the About window."

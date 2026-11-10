@@ -2,7 +2,7 @@ package main
 
 import "github.com/egoist/mygo"
 
-// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go, windowHooks in state_window.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
+// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go, windowHooks in state_window.go, logsHooks in state_logs.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
 //
 // Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs while there is no window, and main's update posts to the window, so a hook must not call update, or start background work that reports through it, before ready; main's update would panic on the missing window. An area whose shelfChanged starts such work holds it back until its ready, with a flag of its own that its restore sets (main runs restore before App.Run; tests that call restoreSettings run it too, so what restore registers on the process-wide mygo.App, as the queue's listener for notification clicks, is registered again by each such test).
 type areaHooks struct {
@@ -47,6 +47,7 @@ type areaHooks struct {
 // areas is each area's hooks, in the order they run.
 func (a *app) areas() []areaHooks {
 	return []areaHooks{
+		a.logsHooks(),
 		a.sidebarHooks(),
 		a.libraryHooks(),
 		a.queueHooks(),

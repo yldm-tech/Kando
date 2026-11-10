@@ -4748,6 +4748,22 @@ func (msgs Messages) LibraryWindowTitle() string {
 	return Catalog.Format(msgs.locale, "libraryWindowTitle", nil)
 }
 
+// LogsShowLogFile says "Show Log File"
+// in the language the app shows.
+//
+// Help menu item, and command palette row, that reveals Kando's log file in
+// Finder or the file manager, so a user can attach it to a bug report.
+func LogsShowLogFile() string { return In(i18n.Locale()).LogsShowLogFile() }
+
+// LogsShowLogFile says "Show Log File"
+// in the language of msgs.
+//
+// Help menu item, and command palette row, that reveals Kando's log file in
+// Finder or the file manager, so a user can attach it to a bug report.
+func (msgs Messages) LogsShowLogFile() string {
+	return Catalog.Format(msgs.locale, "logsShowLogFile", nil)
+}
+
 // MenuAbout says "About Kando"
 // in the language the app shows.
 //

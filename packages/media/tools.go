@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -437,9 +438,21 @@ func run(ctx context.Context, name string, args ...string) (string, error) {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", ctxErr
 		}
+		logToolFailure(name, err, stderr.String())
 		return "", fmt.Errorf("%s: %w: %s", filepath.Base(name), err, toolError(stderr.String()))
 	}
 	return stdout.String(), nil
+}
+
+// maxLoggedStderr caps how much of a failed tool's stderr goes to the log: its last 64 KiB, where the error is.
+const maxLoggedStderr = 64 << 10
+
+// logToolFailure writes what a failed tool printed on stderr to the log, up to its last maxLoggedStderr bytes, before toolError shortens it for the job's error. It names the tool by its file name and leaves out its arguments, which hold the user's links and files; a tool stopped by its context is not a failure and is not logged.
+func logToolFailure(name string, err error, stderr string) {
+	if stderr = tail(stderr, maxLoggedStderr); stderr == "" {
+		stderr = "(nothing on stderr)"
+	}
+	log.Printf("%s failed: %v\n%s", filepath.Base(name), err, stderr)
 }
 
 func lastLine(s string) string {

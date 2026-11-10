@@ -51,6 +51,7 @@ type app struct {
 	cliTool  cliToolUI  // state_cli.go
 	updates  updatesUI  // state_updates.go
 	window   windowUI   // state_window.go
+	logs     logsUI     // state_logs.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -75,6 +76,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		cliTool:  newCLIToolUI(),
 		updates:  newUpdatesUI(),
 		window:   newWindowUI(),
+		logs:     newLogsUI(),
 	}
 }
 

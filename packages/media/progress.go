@@ -162,6 +162,7 @@ func runFollowing(ctx context.Context, fromStderr bool, onLine func(string), nam
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return stdout, stderr, ctxErr
 		}
+		logToolFailure(name, waitErr, stderr)
 		return stdout, stderr, fmt.Errorf("%s: %w: %s", filepath.Base(name), waitErr, toolError(stderr))
 	}
 	return stdout, stderr, nil
