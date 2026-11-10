@@ -7,8 +7,9 @@ import { Brand } from "../common/Brand";
 import { GitHubMark } from "../common/marks";
 import { LangLinks } from "./LangLinks";
 
+// sections are the header's links in the page's order, as the design has them: Features leads to the four steps at the top of what Kando does, so the pill moves left to right as the page scrolls down.
 const sections: readonly [string, ContentKey][] = [
-  ["features", "navFeatures"],
+  ["how", "navFeatures"],
   ["cli", "navCli"],
   ["open", "navOpenSource"],
   ["faq", "navFaq"],
@@ -31,10 +32,13 @@ export function Header({ page }: { page: "home" | "sites" | "404" }) {
       if (page !== "home") {
         return;
       }
+      // The section being read is the lowest one whose top has passed 40% of the window: by where the sections are on the page, not the order of the links, so a section placed after another is never shadowed by it.
       let now = "";
+      let lowest = -Infinity;
       for (const [id] of sections) {
-        const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) {
+        const top = document.getElementById(id)?.getBoundingClientRect().top;
+        if (top !== undefined && top < window.innerHeight * 0.4 && top > lowest) {
+          lowest = top;
           now = id;
         }
       }
