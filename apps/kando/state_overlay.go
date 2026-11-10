@@ -28,6 +28,7 @@ func (a *app) overlays(c *ui.Context, t, dark *ui.Theme) {
 	a.feedbackOverlay(c, t)
 	a.sitesOverlay(c, t)
 	a.paletteOverlay(c, dark)
+	a.queueQuitOverlay(c)
 }
 
 func (a *app) toggleCheatsheet() { a.overlay.cheatsheet = !a.overlay.cheatsheet }

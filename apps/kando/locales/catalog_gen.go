@@ -7578,6 +7578,74 @@ func (msgs Messages) QueueOpenSettingsFailed(error string) string {
 	return Catalog.Format(msgs.locale, "queueOpenSettingsFailed", map[string]any{"error": error})
 }
 
+// QueueQuitWhileRunningCancel says "Cancel"
+// in the language the app shows.
+//
+// Default button of the dialog asking whether to quit while a video is
+// being processed: Kando keeps running and the job with it.
+func QueueQuitWhileRunningCancel() string { return In(i18n.Locale()).QueueQuitWhileRunningCancel() }
+
+// QueueQuitWhileRunningCancel says "Cancel"
+// in the language of msgs.
+//
+// Default button of the dialog asking whether to quit while a video is
+// being processed: Kando keeps running and the job with it.
+func (msgs Messages) QueueQuitWhileRunningCancel() string {
+	return Catalog.Format(msgs.locale, "queueQuitWhileRunningCancel", nil)
+}
+
+// QueueQuitWhileRunningMessage says "“{film}” is still being processed. Quitting stops it now; Kando processes it again the next time you open it."
+// in the language the app shows.
+//
+// Message of the dialog asking whether to quit while a video is being
+// processed, shown on ⌘Q, Quit in the menu, or on Linux and Windows
+// closing the main window.
+func QueueQuitWhileRunningMessage(film string) string {
+	return In(i18n.Locale()).QueueQuitWhileRunningMessage(film)
+}
+
+// QueueQuitWhileRunningMessage says "“{film}” is still being processed. Quitting stops it now; Kando processes it again the next time you open it."
+// in the language of msgs.
+//
+// Message of the dialog asking whether to quit while a video is being
+// processed, shown on ⌘Q, Quit in the menu, or on Linux and Windows
+// closing the main window.
+func (msgs Messages) QueueQuitWhileRunningMessage(film string) string {
+	return Catalog.Format(msgs.locale, "queueQuitWhileRunningMessage", map[string]any{"film": film})
+}
+
+// QueueQuitWhileRunningQuit says "Quit"
+// in the language the app shows.
+//
+// Destructive button of the dialog asking whether to quit while a video is
+// being processed: stops the job and quits Kando.
+func QueueQuitWhileRunningQuit() string { return In(i18n.Locale()).QueueQuitWhileRunningQuit() }
+
+// QueueQuitWhileRunningQuit says "Quit"
+// in the language of msgs.
+//
+// Destructive button of the dialog asking whether to quit while a video is
+// being processed: stops the job and quits Kando.
+func (msgs Messages) QueueQuitWhileRunningQuit() string {
+	return Catalog.Format(msgs.locale, "queueQuitWhileRunningQuit", nil)
+}
+
+// QueueQuitWhileRunningTitle says "Quit Kando while a video is being processed?"
+// in the language the app shows.
+//
+// Title of the dialog asking whether to quit while a video is being
+// processed.
+func QueueQuitWhileRunningTitle() string { return In(i18n.Locale()).QueueQuitWhileRunningTitle() }
+
+// QueueQuitWhileRunningTitle says "Quit Kando while a video is being processed?"
+// in the language of msgs.
+//
+// Title of the dialog asking whether to quit while a video is being
+// processed.
+func (msgs Messages) QueueQuitWhileRunningTitle() string {
+	return Catalog.Format(msgs.locale, "queueQuitWhileRunningTitle", nil)
+}
+
 // QueueRemedyAge says "Age verification required"
 // in the language the app shows.
 //
@@ -12118,4 +12186,20 @@ func UpdatesCheck() string { return In(i18n.Locale()).UpdatesCheck() }
 // version of Kando and shows the update window.
 func (msgs Messages) UpdatesCheck() string {
 	return Catalog.Format(msgs.locale, "updatesCheck", nil)
+}
+
+// WindowMenuMain says "Main Window"
+// in the language the app shows.
+//
+// Item of the Window menu (macOS) that shows Kando's main window again
+// after its close button put it away while Kando keeps running.
+func WindowMenuMain() string { return In(i18n.Locale()).WindowMenuMain() }
+
+// WindowMenuMain says "Main Window"
+// in the language of msgs.
+//
+// Item of the Window menu (macOS) that shows Kando's main window again
+// after its close button put it away while Kando keeps running.
+func (msgs Messages) WindowMenuMain() string {
+	return Catalog.Format(msgs.locale, "windowMenuMain", nil)
 }

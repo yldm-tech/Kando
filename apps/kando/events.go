@@ -1,6 +1,8 @@
 package main
 
-// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
+import "github.com/egoist/mygo"
+
+// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go, windowHooks in state_window.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
 //
 // Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs while there is no window, and main's update posts to the window, so a hook must not call update, or start background work that reports through it, before ready; main's update would panic on the missing window. An area whose shelfChanged starts such work holds it back until its ready, with a flag of its own that its restore sets (restore runs only in main, never in tests).
 type areaHooks struct {
@@ -30,7 +32,13 @@ type areaHooks struct {
 	positionsChanged func()
 	// videosMoved runs after the shelf pointed its jobs at videos that moved on disk: the library folder was renamed in Finder, or the library refresh gathered a video into a folder of its own, paired a renamed one or found a missing one elsewhere. move gives a video's new path for its old one, and reports false for one that did not move; an area that keeps something by video path keys it by the new path. The shelf moves what library.json keeps itself (shelf.Library.MoveVideos) and saves it.
 	videosMoved func(move func(path string) (string, bool))
-	// quitting runs once when the app quits (main's mygo.App.OnWillQuit), after its windows have closed and before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own.
+	// beforeQuit runs when a quit starts (main's mygo.App.OnBeforeQuit), before the windows close: ⌘Q, the menu's Quit, the updater's relaunch, a signal, or on Linux and Windows the main window's close button. An area that must not let the app quit yet, such as the queue while a job runs, prevents e and asks first; it quits again itself once the user agrees. A quit a signal asked for goes ahead without asking (queueWatchSignals).
+	beforeQuit func(e *mygo.QuitEvent)
+	// quitStarting runs once no area's beforeQuit prevented the quit, right before the windows close, so an area that keeps a window from closing (state_window.go) lets it close.
+	quitStarting func()
+	// windowShown runs when the main window was put away by its close button (shown false) or came back (state_window.go). A window out of sight draws no frame, so an area that brings something up to date after each frame, as the menu bar does, does it here too.
+	windowShown func(shown bool)
+	// quitting runs once when the app quits (main's mygo.App.OnWillQuit), after its windows have closed and before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own, or the queue's running job.
 	quitting func()
 }
 
@@ -52,6 +60,7 @@ func (a *app) areas() []areaHooks {
 		a.kitsHooks(),
 		a.remoteHooks(),
 		a.updatesHooks(),
+		a.windowHooks(),
 	}
 }
 
@@ -163,6 +172,31 @@ func (a *app) areasVideosMoved(move func(path string) (string, bool)) {
 	for _, h := range a.areas() {
 		if h.videosMoved != nil {
 			h.videosMoved(move)
+		}
+	}
+}
+
+// areasBeforeQuit asks every area whether the app may quit now, and when none prevented e, tells them all the quit goes ahead.
+func (a *app) areasBeforeQuit(e *mygo.QuitEvent) {
+	for _, h := range a.areas() {
+		if h.beforeQuit != nil {
+			h.beforeQuit(e)
+		}
+	}
+	if e.DefaultPrevented() {
+		return
+	}
+	for _, h := range a.areas() {
+		if h.quitStarting != nil {
+			h.quitStarting()
+		}
+	}
+}
+
+func (a *app) areasWindowShown(shown bool) {
+	for _, h := range a.areas() {
+		if h.windowShown != nil {
+			h.windowShown(shown)
 		}
 	}
 }

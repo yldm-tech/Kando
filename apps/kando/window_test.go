@@ -4,10 +4,12 @@ import (
 	"image"
 	"testing"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -142,5 +144,108 @@ func TestTitleBarClearsTheTrafficLights(t *testing.T) {
 	plainTitle, ok := plain.Find("videos")
 	if !ok || plainTitle.Y >= title.Y {
 		t.Fatalf("title y=%v without a title bar, %v with one", plainTitle.Y, title.Y)
+	}
+}
+
+// setWindowHidesOnClose sets windowHidesOnClose for the rest of t, to check each platform's close button.
+func setWindowHidesOnClose(t *testing.T, hides bool) {
+	t.Helper()
+	old := windowHidesOnClose
+	windowHidesOnClose = hides
+	t.Cleanup(func() { windowHidesOnClose = old })
+}
+
+// TestClosingTheWindowOnMacKeepsKandoRunning checks that on macOS the main window's close button puts the window away without quitting, the job running on, that 窗口 › 主窗口 is offered only then and brings it back, and that a quit going ahead closes it.
+func TestClosingTheWindowOnMacKeepsKandoRunning(t *testing.T) {
+	setWindowHidesOnClose(t, true)
+	quits := replaceQuitApp(t)
+	g := newGatePipeline()
+	a, _, updates := newTestApp(g)
+	t.Cleanup(a.stop)
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	row := func() shortcut {
+		t.Helper()
+		for _, s := range a.shortcuts() {
+			if s.Group == groupWindow && s.Label == locales.WindowMenuMain() {
+				return s
+			}
+		}
+		t.Fatal("窗口 › 主窗口 is not in the shortcut table")
+		return shortcut{}
+	}
+	if s := row(); s.Key != 0 || s.When() {
+		t.Fatalf("主窗口 has key %v, enabled %v while the window shows", s.Key, s.When())
+	}
+
+	e := &mygo.CloseEvent{}
+	a.windowClosing(e)
+	if !e.DefaultPrevented() || !a.window.hidden || *quits != 0 || !a.running() {
+		t.Fatalf("close button: prevented %v, hidden %v, quits %d, job running %v", e.DefaultPrevented(), a.window.hidden, *quits, a.running())
+	}
+	if !row().When() {
+		t.Fatal("主窗口 is disabled while the window is put away")
+	}
+	row().Run()
+	if a.window.hidden || row().When() {
+		t.Fatalf("主窗口 left the window hidden %v", a.window.hidden)
+	}
+
+	// ⌘Q asks first; once agreed, the quit closes the window rather than putting it away.
+	a.window.hidden = true
+	e = &mygo.CloseEvent{}
+	q := &mygo.QuitEvent{}
+	a.areasBeforeQuit(q)
+	if !q.DefaultPrevented() || a.window.hidden {
+		t.Fatalf("⌘Q during a job: prevented %v, window hidden %v", q.DefaultPrevented(), a.window.hidden)
+	}
+	a.queue.quitConfirmed = true
+	q = &mygo.QuitEvent{}
+	a.areasBeforeQuit(q)
+	a.windowClosing(e)
+	if q.DefaultPrevented() || e.DefaultPrevented() || a.window.hidden {
+		t.Fatalf("confirmed quit: quit prevented %v, close prevented %v, hidden %v", q.DefaultPrevented(), e.DefaultPrevented(), a.window.hidden)
+	}
+}
+
+// TestClosingTheWindowElsewhereQuits checks that on Linux and Windows the main window's close button quits, through the quit that asks first while a job runs, and lets the window close once that quit goes ahead.
+func TestClosingTheWindowElsewhereQuits(t *testing.T) {
+	setWindowHidesOnClose(t, false)
+	quits := replaceQuitApp(t)
+	a, _, _ := newTestApp(&fakePipeline{})
+	e := &mygo.CloseEvent{}
+	a.windowClosing(e)
+	if !e.DefaultPrevented() || a.window.hidden || *quits != 1 {
+		t.Fatalf("close button: prevented %v, hidden %v, quits %d", e.DefaultPrevented(), a.window.hidden, *quits)
+	}
+	if s := a.windowKeys()[0]; s.When() {
+		t.Fatal("主窗口 is offered where closing the window quits")
+	}
+	a.areasBeforeQuit(&mygo.QuitEvent{})
+	e = &mygo.CloseEvent{}
+	a.windowClosing(e)
+	if e.DefaultPrevented() || *quits != 1 {
+		t.Fatalf("the quit's own close: prevented %v, quits %d", e.DefaultPrevented(), *quits)
+	}
+}
+
+// TestWindowMenuBringsTheWindowBack checks that a row of the Window menu, here 片库, shows the main window its close button put away before it acts on it, and that its put away and back are passed on to the player.
+func TestWindowMenuBringsTheWindowBack(t *testing.T) {
+	setWindowHidesOnClose(t, true)
+	a, tt, updates := newTestApp(&fakePipeline{})
+	tt.Frame()
+	a.windowClosing(&mygo.CloseEvent{})
+	if !a.window.hidden || !a.player.windowHidden {
+		t.Fatalf("close button: hidden %v, player told %v", a.window.hidden, a.player.windowHidden)
+	}
+	findMenuItem(t, a.menuBar(), "窗口", locales.MenuWindowLibrary()).Click(nil, nil)
+	(<-updates)()
+	if a.window.hidden || a.player.windowHidden {
+		t.Fatalf("片库 left the window hidden %v, player told %v", a.window.hidden, a.player.windowHidden)
+	}
+	if a.page != pageFilms || a.openKey != "" {
+		t.Fatalf("片库 showed page %q open %q", a.page, a.openKey)
 	}
 }

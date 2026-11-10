@@ -29,7 +29,7 @@ type filmPlay struct {
 	backgroundHead time.Duration
 	// background decodes the picture level with the sound while the window is out of sight (playback_background.go); nil while the app is active.
 	background *backgroundPicture
-	// returning is where the sound is while the app, just back, puts the picture there: from playerDidBecomeActive until the picture decoded in the background or opened again takes over, or does not come.
+	// returning is where the sound is while the app, just back, puts the picture there: from playerBackInSight until the picture decoded in the background or opened again takes over, or does not come.
 	returning func() time.Duration
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool

@@ -2698,6 +2698,28 @@
       }
     }
   },
+  "queueQuitWhileRunningCancel": "Cancel",
+  "@queueQuitWhileRunningCancel": {
+    "description": "Default button of the dialog asking whether to quit while a video is being processed: Kando keeps running and the job with it."
+  },
+  "queueQuitWhileRunningMessage": "“{film}” is still being processed. Quitting stops it now; Kando processes it again the next time you open it.",
+  "@queueQuitWhileRunningMessage": {
+    "description": "Message of the dialog asking whether to quit while a video is being processed, shown on ⌘Q, Quit in the menu, or on Linux and Windows closing the main window.",
+    "placeholders": {
+      "film": {
+        "type": "String",
+        "example": "Learn Rust"
+      }
+    }
+  },
+  "queueQuitWhileRunningQuit": "Quit",
+  "@queueQuitWhileRunningQuit": {
+    "description": "Destructive button of the dialog asking whether to quit while a video is being processed: stops the job and quits Kando."
+  },
+  "queueQuitWhileRunningTitle": "Quit Kando while a video is being processed?",
+  "@queueQuitWhileRunningTitle": {
+    "description": "Title of the dialog asking whether to quit while a video is being processed."
+  },
   "queueRemedyAge": "Age verification required",
   "@queueRemedyAge": {
     "description": "Headline of a failed download's card: the video is age-restricted."
@@ -4286,5 +4308,9 @@
   "updatesCheck": "Check for Updates…",
   "@updatesCheck": {
     "description": "Item of the app menu (and the command palette) that checks for a newer version of Kando and shows the update window."
+  },
+  "windowMenuMain": "Main Window",
+  "@windowMenuMain": {
+    "description": "Item of the Window menu (macOS) that shows Kando's main window again after its close button put it away while Kando keeps running."
   }
 }

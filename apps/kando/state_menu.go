@@ -23,7 +23,7 @@ type savedMenu struct{}
 
 func (s *savedMenu) clean() {}
 
-// menuHooks: the menu bar is installed once the window exists, and after each frame it remembers the film the window shows and brings itself up to date with what the pages settled in that frame (menu.go).
+// menuHooks: the menu bar is installed once the window exists, and after each frame it remembers the film the window shows and brings itself up to date with what the pages settled in that frame (menu.go). It does so too when the main window is put away or comes back, as a hidden window draws no frame and 窗口 › 主窗口 is enabled only while it is hidden.
 func (a *app) menuHooks() areaHooks {
 	return areaHooks{
 		ready: a.installMenu,
@@ -31,6 +31,7 @@ func (a *app) menuHooks() areaHooks {
 			a.rememberFilm()
 			a.syncMenu()
 		},
+		windowShown: func(bool) { a.syncMenu() },
 	}
 }
 

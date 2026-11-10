@@ -47,7 +47,10 @@ type playerUI struct {
 	volumeUnsaved bool
 	// screen is the window the player enters and leaves full screen in: the main window once it exists (playerReady), and nil before, as in tests that set none, when full screen does nothing.
 	screen fullScreen
-	film   filmUI
+	// inactive is set while the app is not the active one, and windowHidden while the main window is put away (state_window.go): either keeps the picture out of sight while the sound plays on (playerSight).
+	inactive     bool
+	windowHidden bool
+	film         filmUI
 }
 
 // fullScreen is the part of a window the player uses to enter and leave full screen, as *mygo.Window has it.
@@ -190,9 +193,9 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, closes the open film once it has left the shelf, and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
+// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, closes the open film once it has left the shelf, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
-	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, quitting: a.playerQuitting}
+	return areaHooks{save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.loadClipFrames, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting}
 }
 
 // playerReady points the player's full screen at the main window, which exists from now on.

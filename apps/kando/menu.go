@@ -149,6 +149,14 @@ func (a *app) menuItem(s shortcut, own bool) *mygo.MenuItem {
 		it.Accelerator = accelerator(s.Mods, s.Key)
 	}
 	run := s.guarded()
+	if s.Group == groupWindow {
+		// A row of the Window menu acts on the main window, so it brings the window back first when its close button put it away (state_window.go): 片库 and 播放器 would otherwise change a window no one sees, and 播放器 start a film's sound behind it.
+		next := run
+		run = func() {
+			a.windowUnhide()
+			next()
+		}
+	}
 	if s.Checked != nil {
 		it.Type, it.Checked = mygo.MenuItemCheckbox, s.Checked()
 		// mygo flips a checkbox item's ✓ itself before Click; forgetting the installed menu makes the next frame set the ✓ from the app's state again.
