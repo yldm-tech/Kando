@@ -45,7 +45,7 @@ export function SitesStrip() {
       </div>
       <p className="mt-5 mb-0 text-center text-sm">
         <a
-          className="group inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 font-semibold text-accent-ink transition-colors duration-300 hover:bg-accent/[0.08] hover:text-accent-hover"
+          className="group inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 font-semibold text-accent-hover transition-colors duration-300 hover:bg-accent/[0.08] hover:text-accent-pressed"
           href={pagePath(lang.code, "sites")}
         >
           {tf("sitesAll", { count: site.total })}

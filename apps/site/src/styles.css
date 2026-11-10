@@ -14,11 +14,12 @@
   --color-paper: #fbf8f3;
   --color-ink: #1c1916;
   --color-ink-2: #5e5750;
-  --color-ink-3: #8a8178;
+  --color-ink-3: #776e65;
   --color-ink-list: #3c3632;
   --color-accent: #e5651d;
   --color-accent-ink: #d9621a;
   --color-accent-hover: #b84e10;
+  --color-accent-pressed: #9a400c;
   --color-dark: #1c1916;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -31,7 +32,7 @@
     --bg: #fbf8f3;
     --ink: #1c1916;
     --ink-2: #5e5750;
-    --ink-3: #8a8178;
+    --ink-3: #776e65;
     --ink-list: #3c3632;
     --accent: #e5651d;
     --accent-ink: #d9621a;
@@ -1175,7 +1176,7 @@
     padding-top: 2px;
     font-family: var(--mono);
     font-size: 11px;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
   }
   .kp-text {
     flex: 1;
@@ -1319,7 +1320,7 @@
     align-items: center;
     gap: 10px;
     padding: 0 30px;
-    color: #b5aca2;
+    color: #968c81;
     font-size: 26px;
     font-weight: 700;
     letter-spacing: -0.02em;
@@ -1553,6 +1554,7 @@
       0 30px 80px rgba(80, 40, 10, 0.2);
     transform: perspective(1600px) rotateY(-6deg) rotateX(2deg);
   }
+  .win.light picture,
   .win.light img {
     display: block;
     width: 100%;
