@@ -823,6 +823,31 @@ func TestFailedCardOpensTheSettingThatFixesIt(t *testing.T) {
 	}
 }
 
+// A video without a sound track, as a silent screen recording posted on X, fails to transcribe; its card says so in the user's words, not ffmpeg's, also for a job that failed before Kando told this case apart and kept ffmpeg's words in library.json.
+func TestFailedCardSaysTheVideoHasNoSound(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"no audio", fmt.Errorf("transcribe: %w", media.ErrNoAudio)},
+		{"ffmpeg's words", errors.New("transcribe: ffmpeg: exit status 234: [out#0/wav @ 0x77a5028180] Output file does not contain any stream\nError opening output file /tmp/kando-1/audio.wav.\nError opening output files: Invalid argument")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, tt, _ := newTestApp(&fakePipeline{})
+			a.library.Jobs = []core.Job{{ID: "j", Source: "https://x.com/seanaiux/status/2119830876703879366", Stage: core.StageFailed, Err: tc.err, LibraryDir: "/videos"}}
+			tt.Frame()
+			if !tt.HasText(locales.PrecheckNoAudio()) {
+				t.Fatalf("want %q, texts %q", locales.PrecheckNoAudio(), tt.Texts())
+			}
+			for _, text := range tt.Texts() {
+				if strings.Contains(text, "does not contain any stream") {
+					t.Fatalf("the card shows ffmpeg's words: %q", text)
+				}
+			}
+		})
+	}
+}
+
 func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) {

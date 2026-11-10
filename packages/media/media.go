@@ -15,6 +15,9 @@ import (
 
 var ErrNoSpeech = errors.New("no speech found in the video")
 
+// ErrNoAudio is why transcribing failed for a video without a sound track, as many screen recordings posted on X are: there is nothing to hear, so retrying cannot help.
+var ErrNoAudio = errors.New("the video has no sound")
+
 // ErrNoTranscript is why a job translating a done film again failed when the transcript its earlier run exported beside the video is gone or unreadable.
 var ErrNoTranscript = errors.New("the film's transcript is no longer beside its video")
 

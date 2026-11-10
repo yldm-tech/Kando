@@ -319,6 +319,21 @@ func TestTranscribeNamesTheSpokenLanguage(t *testing.T) {
 	}
 }
 
+// A video with no sound track makes ffmpeg write no stream; Transcribe returns ErrNoAudio rather than ffmpeg's words.
+func TestTranscribeSaysTheVideoHasNoSound(t *testing.T) {
+	dir := t.TempDir()
+	ffmpeg := filepath.Join(dir, "ffmpeg")
+	script := "#!/bin/sh\necho '[out#0/wav @ 0x1] Output file does not contain any stream' >&2\necho 'Error opening output files: Invalid argument' >&2\nexit 234\n"
+	if err := os.WriteFile(ffmpeg, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tools := Tools{FFmpeg: ffmpeg, Whisper: filepath.Join(dir, "whisper-cli"), WhisperModel: filepath.Join(dir, "model.bin")}
+	_, err := tools.Transcribe(context.Background(), filepath.Join(dir, "silent.mp4"))
+	if !errors.Is(err, ErrNoAudio) {
+		t.Fatalf("err %v, want ErrNoAudio", err)
+	}
+}
+
 func TestSpeechLanguagesAreKnown(t *testing.T) {
 	for _, code := range SpeechLanguages() {
 		if !KnownSpeechLanguage(code) {

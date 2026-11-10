@@ -109,6 +109,9 @@ func failureHint(item films.Film) (reason, section string) {
 		return locales.PrecheckNoLLMModel(), settings.SectionAI
 	case strings.Contains(detail, media.ErrNoSpeech.Error()):
 		return locales.PrecheckNoSpeech(), ""
+	// A job that failed before media.ErrNoAudio kept ffmpeg's own words in library.json.
+	case strings.Contains(detail, media.ErrNoAudio.Error()), media.NoAudioStream(detail):
+		return locales.PrecheckNoAudio(), ""
 	case strings.Contains(detail, media.ErrNoTranscript.Error()):
 		return locales.PrecheckNoTranscript(), ""
 	case strings.Contains(detail, media.ErrSubtitlesChanged.Error()):

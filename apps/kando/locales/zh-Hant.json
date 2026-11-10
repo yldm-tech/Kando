@@ -563,6 +563,7 @@
   "precheckFailedTranslate": "翻譯失敗：{detail}",
   "precheckList": "這是{site}清單的連結。目前一次加入一個影片，請貼上其中一個影片的連結。",
   "precheckListUnnamed": "這是這個網站清單的連結。目前一次加入一個影片，請貼上其中一個影片的連結。",
+  "precheckNoAudio": "這部影片沒有聲音，沒有可以辨識的台詞",
   "precheckNoLLMModel": "先在「AI 服務」中選一個模型",
   "precheckNoLibrary": "先新增或打開一個資料庫",
   "precheckNoSpeech": "影片中沒有辨識出說話的聲音",

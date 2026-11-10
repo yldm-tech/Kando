@@ -563,6 +563,7 @@
   "precheckFailedTranslate": "翻訳に失敗しました：{detail}",
   "precheckList": "{site} の再生リストのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください。",
   "precheckListUnnamed": "再生リストのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください。",
+  "precheckNoAudio": "この動画には音声がないため、文字起こしできません",
   "precheckNoLLMModel": "先に「AI サービス」でモデルを選択してください",
   "precheckNoLibrary": "先にライブラリを作成するか開いてください",
   "precheckNoSpeech": "動画から話し声を認識できませんでした",
