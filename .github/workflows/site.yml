@@ -26,11 +26,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Pages deployment authenticates through OIDC, so no token is stored.
+# Pages deployment authenticates through OIDC, so no token is stored. The build job runs the site's npm dependencies (vp install, vp build, vp test), so it gets read scopes only and no stored git credentials; only the deploy job, which runs nothing but actions/deploy-pages, can write to Pages and mint an OIDC token.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # A queued deploy supersedes a waiting one rather than racing it, but a deploy in flight is allowed to finish so that the site is never left half-written.
 concurrency:
@@ -44,10 +42,16 @@ jobs:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # configure-pages reads the Pages site's settings; the release check reads the repository's releases.
+    permissions:
+      contents: read
+      pages: read
     outputs:
       published: ${{ steps.release.outputs.published }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # The agent's download data links the files of the version in mygo.json, which 404 while that release is a draft: between Release's version commit and its Publish job, or for good when Publish failed. The site is then left as it is; the Release run that publishes the release starts this workflow again. The endpoint returns published releases only, so a draft answers 404 like a missing release.
       - name: Check the release is published
@@ -105,6 +109,9 @@ jobs:
     if: needs.build.outputs.published == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
