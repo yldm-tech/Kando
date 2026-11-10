@@ -33,6 +33,7 @@ const (
 	// latestURL redirects to the newest published release, so the Download buttons reach the current files even when the site was built before a release came out. Drafts and prereleases are not "latest", so it never lands on a release that 404s for visitors.
 	latestURL   = releasesURL + "/latest"
 	licenseURL  = repoURL + "/blob/main/LICENSE"
+	issuesURL   = repoURL + "/issues"
 	everyAPIURL = "https://everyapi.ai"
 )
 
@@ -75,8 +76,42 @@ func (l language) URL() string { return siteURL + l.Path() }
 // ReadmeURL is the README in this language on GitHub.
 func (l language) ReadmeURL() string { return repoURL + "/blob/main/" + l.Readme }
 
-// screenshots are the pictures of the app each page shows, as docs/assets/<language>/<name>.png.
-var screenshots = []string{"library", "player", "settings-general", "settings-ai"}
+// screenshots are the pictures of the app each page shows, as docs/assets/<language>/<name>.png: the player in the hero and the library beside the Library section.
+var screenshots = []string{"library", "player"}
+
+// surface is what the Command line and MCP section counts and lists, read from the app's source so that the page follows a command or tool added there.
+type surface struct {
+	// Commands is the number of the kando command's commands, apps/kando/cli's command table.
+	Commands int
+	// Tools are the names of the MCP server's tools, in apps/kando/mcpserver's order.
+	Tools []string
+}
+
+var (
+	commandRe = regexp.MustCompile(`(?m)^\s*\{name: "[a-z]+"`)
+	toolRe    = regexp.MustCompile(`(?m)^\s*Name:\s+"(kando_[a-z_]+)"`)
+)
+
+// readSurface reads the commands of apps/kando/cli/cli.go and the tools of apps/kando/mcpserver/tools.go under root.
+func readSurface(root string) (surface, error) {
+	cli, err := os.ReadFile(filepath.Join(root, "apps", "kando", "cli", "cli.go"))
+	if err != nil {
+		return surface{}, err
+	}
+	tools, err := os.ReadFile(filepath.Join(root, "apps", "kando", "mcpserver", "tools.go"))
+	if err != nil {
+		return surface{}, err
+	}
+	var s surface
+	s.Commands = len(commandRe.FindAll(cli, -1))
+	for _, m := range toolRe.FindAllSubmatch(tools, -1) {
+		s.Tools = append(s.Tools, string(m[1]))
+	}
+	if s.Commands == 0 || len(s.Tools) == 0 {
+		return surface{}, fmt.Errorf("found %d commands in apps/kando/cli/cli.go and %d tools in apps/kando/mcpserver/tools.go; the patterns no longer match the code", s.Commands, len(s.Tools))
+	}
+	return s, nil
+}
 
 // shot is a screenshot as the page links it, with its size for the width and height attributes.
 type shot struct {
@@ -84,7 +119,7 @@ type shot struct {
 	W, H int
 }
 
-// siteTile is a featured website of the catalog in the works-with strip: its logo, or its initial on a colored plate when it has none, as the app's Supported Websites sheet draws it.
+// siteTile is a featured website of the catalog in the works-with strip: its name after its mark, which is AI Logo's where it has one (siteMarks), the logo of the app's catalog otherwise, or its initial on a colored plate when the catalog has none either, as the app's Supported Websites sheet draws it.
 type siteTile struct {
 	Name, Domain string
 	// Lang is the language of Name when it is not the page's: a name written in Chinese characters on a page in another language is marked zh-Hans, the script of the catalog, so that a screen reader reads it as Chinese.
@@ -110,39 +145,26 @@ type page struct {
 	Shots    map[string]shot
 	Sites    []siteTile
 	Total    int
-	More     int
 	Repo     string
 	Rel      string
 	Latest   string
 	License  string
+	Issues   string
 	EveryAPI string
+	// Version is the app's version in apps/kando/mygo.json, the release the Download buttons lead to.
+	Version string
+	// Surface is the commands and tools of the Command line and MCP section.
+	Surface surface
+	// AIServices are the marks of the AI card, and ClaudeCode the MCP tab's.
+	AIServices []brand
+	ClaudeCode brand
 	// WebMCPJS is the script that offers the page's WebMCP tools, and WebMCP the data it reads from the page (webmcp.go).
 	WebMCPJS string
 	WebMCP   agentData
-	// BuildCommands are the commands of the Build from source card.
+	// BuildCommands are the commands the Windows tab of the download panel shows.
 	BuildCommands string
-	// Echo is the headline in another language, set under the page's own headline the way Kando sets a translation under a line of dialogue: Chinese on the English page, English on every other.
-	Echo echo
-}
-
-// echo is a line of another page, with the language it is written in.
-type echo struct {
-	Lang language
-	Text string
-}
-
-// echoLang is the language of the page whose headline the page in l repeats under its own.
-func echoLang(l language, langs []language) language {
-	want := sourceLang
-	if l.Code == sourceLang {
-		want = "zh-CN"
-	}
-	for _, o := range langs {
-		if o.Code == want {
-			return o
-		}
-	}
-	return l
+	// InstallCommand is the command the Linux tab shows.
+	InstallCommand string
 }
 
 // missingText is 404.html's text in one language.
@@ -194,7 +216,16 @@ func build(root, out string) (*report, error) {
 			return nil, err
 		}
 	}
-	tiles, total, err := copySites(filepath.Join(root, "apps", "kando", "sites", "catalog"), filepath.Join(out, "sites"))
+	marks := newMarks(out)
+	tiles, total, err := copySites(filepath.Join(root, "apps", "kando", "sites", "catalog"), filepath.Join(out, "sites"), marks)
+	if err != nil {
+		return nil, err
+	}
+	services, err := marks.brands(aiServices...)
+	if err != nil {
+		return nil, err
+	}
+	claude, err := marks.brands(claudeCode)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +234,17 @@ func build(root, out string) (*report, error) {
 		return nil, err
 	}
 
+	version, err := appVersion(filepath.Join(root, "apps", "kando", "mygo.json"))
+	if err != nil {
+		return nil, err
+	}
+	surf, err := readSurface(root)
+	if err != nil {
+		return nil, err
+	}
+
 	agentUsed := map[string]bool{}
-	agent, err := writeAgentFiles(root, out, langs, content, total, agentUsed)
+	agent, err := writeAgentFiles(root, out, langs, content, total, version, surf, agentUsed)
 	if err != nil {
 		return nil, err
 	}
@@ -218,23 +258,21 @@ func build(root, out string) (*report, error) {
 		p := page{
 			Lang: l, Langs: langs, Root: l.Code == sourceLang,
 			CSS: static["site.css"], JS: static["site.js"],
-			Shots: shots[l.Code], Sites: localTiles(tiles, l, siteNames[l.Code]), Total: total, More: total - len(tiles),
-			Repo: repoURL, Rel: releasesURL, Latest: latestURL, License: licenseURL, EveryAPI: everyAPIURL,
-			WebMCPJS: static["webmcp.js"], WebMCP: agent[l.Code], BuildCommands: buildCommands,
+			Shots: shots[l.Code], Sites: localTiles(tiles, l, siteNames[l.Code]), Total: total,
+			Repo: repoURL, Rel: releasesURL, Latest: latestURL, License: licenseURL, Issues: issuesURL, EveryAPI: everyAPIURL,
+			Version: version, Surface: surf, AIServices: services, ClaudeCode: claude[0],
+			WebMCPJS: static["webmcp.js"], WebMCP: agent[l.Code], BuildCommands: buildCommands, InstallCommand: installCommand,
 		}
 		for _, o := range langs {
 			if o.Code != l.Code {
 				p.Others = append(p.Others, o)
 			}
 		}
-		if e := echoLang(l, langs); e.Code != l.Code {
-			p.Echo = echo{Lang: e, Text: content[e.Code]["heroTitle"]}
-		}
 		if err := execute(tmpl, "page.html", content[l.Code], used, p, filepath.Join(out, filepath.FromSlash(strings.TrimPrefix(l.Path(), "/")), "index.html")); err != nil {
 			return nil, fmt.Errorf("%s: %w", l.Code, err)
 		}
 	}
-	notFound := page{NotFound: true, Lang: languages[0], Langs: langs, CSS: static["site.css"], JS: static["site.js"], Shots: shots[sourceLang], Repo: repoURL, Rel: releasesURL, Latest: latestURL, License: licenseURL, EveryAPI: everyAPIURL}
+	notFound := page{NotFound: true, Lang: languages[0], Langs: langs, CSS: static["site.css"], JS: static["site.js"], Shots: shots[sourceLang], Repo: repoURL, Rel: releasesURL, Latest: latestURL, License: licenseURL, Issues: issuesURL, EveryAPI: everyAPIURL, Version: version}
 	for _, l := range langs {
 		strs := content[l.Code]
 		notFound.Missing = append(notFound.Missing, missingText{Lang: l, Title: strs["notFoundTitle"], Body: strs["notFoundBody"], Home: strs["notFoundHome"]})
@@ -289,6 +327,12 @@ func loadContent(dir string) (map[string]map[string]string, error) {
 			if want, got := placeholders(source[key]), placeholders(s); !slices.Equal(want, got) {
 				return nil, fmt.Errorf("content/%s.json: %s has placeholders %v, en.json has %v", code, key, got, want)
 			}
+			if strings.Count(s, "`")%2 != 0 {
+				return nil, fmt.Errorf("content/%s.json: %s has a ` that opens code it never closes", code, key)
+			}
+		}
+		if !strings.Contains(strs["heroTitle"], strs["heroTitleMark"]) {
+			return nil, fmt.Errorf("content/%s.json: heroTitleMark %q is not in heroTitle %q", code, strs["heroTitleMark"], strs["heroTitle"])
 		}
 	}
 	return content, nil
@@ -332,6 +376,8 @@ func contentFuncs(strs map[string]string, used map[string]bool) template.FuncMap
 		return s, nil
 	}
 	return template.FuncMap{
+		"rich":     rich,
+		"headline": headline,
 		"code": func(text, copyLabel, copiedLabel string) codeBlock {
 			return codeBlock{Text: text, Copy: copyLabel, Copied: copiedLabel}
 		},
@@ -353,6 +399,30 @@ func contentFuncs(strs map[string]string, used map[string]bool) template.FuncMap
 			return s, nil
 		},
 	}
+}
+
+// rich is s as HTML, with each pair of ` around a name, a file or a command set in <code>, as Kando's content strings mark them, and each line break a <br>, where a heading breaks in the design.
+func rich(s string) template.HTML {
+	parts := strings.Split(s, "`")
+	var b strings.Builder
+	for i, part := range parts {
+		text := strings.ReplaceAll(template.HTMLEscapeString(part), "\n", "<br>")
+		if i%2 == 1 {
+			b.WriteString("<code>" + text + "</code>")
+		} else {
+			b.WriteString(text)
+		}
+	}
+	return template.HTML(b.String())
+}
+
+// headline is the hero's title as HTML: its first mark set apart, and each line break of the content string a <br>.
+func headline(title, mark string) template.HTML {
+	before, after, _ := strings.Cut(title, mark)
+	line := func(s string) string {
+		return strings.ReplaceAll(template.HTMLEscapeString(s), "\n", "<br>")
+	}
+	return template.HTML(line(before) + `<em class="mark">` + line(mark) + "</em>" + line(after))
 }
 
 // codeBlock is a command the page shows with a button that copies it, the "code" template.
@@ -451,8 +521,8 @@ type catalog struct {
 	} `json:"sites"`
 }
 
-// copySites copies the logos of the catalog's featured sites and returns their tiles and the number of sites in the catalog.
-func copySites(src, dst string) ([]siteTile, int, error) {
+// copySites writes the marks of the catalog's featured sites into the site, AI Logo's (marks) or the catalog's own logos, and returns their tiles and the number of sites in the catalog.
+func copySites(src, dst string, marks *marks) ([]siteTile, int, error) {
 	data, err := os.ReadFile(filepath.Join(src, "sites.json"))
 	if err != nil {
 		return nil, 0, err
@@ -467,13 +537,18 @@ func copySites(src, dst string) ([]siteTile, int, error) {
 			continue
 		}
 		tile := siteTile{Name: s.Name, Domain: s.Domain}
-		if s.Logo == "" {
-			tile.Initial, tile.Plate = initial(s.Name), plate(s.Domain)
-		} else {
+		switch id, ok := siteMarks[s.Domain]; {
+		case ok:
+			if tile.Logo, err = marks.src(id); err != nil {
+				return nil, 0, fmt.Errorf("%s: %w", s.Domain, err)
+			}
+		case s.Logo != "":
 			if err := copyFile(filepath.Join(src, "logos", s.Logo), filepath.Join(dst, s.Logo)); err != nil {
 				return nil, 0, err
 			}
 			tile.Logo = "/sites/" + s.Logo
+		default:
+			tile.Initial, tile.Plate = initial(s.Name), plate(s.Domain)
 		}
 		tiles = append(tiles, tile)
 	}

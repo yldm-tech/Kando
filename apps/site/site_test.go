@@ -285,15 +285,13 @@ func TestPageBody(t *testing.T) {
 			if n := strings.Count(strip, "<li title="); n != featured {
 				t.Errorf("%d sites in the strip, want the catalog's %d featured", n, featured)
 			}
-			for _, n := range []int{len(c.Sites), len(c.Sites) - featured} {
-				if !strings.Contains(html, fmt.Sprint(n)) {
-					t.Errorf("page does not show %d, from the catalog's %d sites", n, len(c.Sites))
-				}
+			if !strings.Contains(html, fmt.Sprint(len(c.Sites))) {
+				t.Errorf("page does not show the catalog's %d sites", len(c.Sites))
 			}
 			if !strings.Contains(html, `href="`+l.ReadmeURL()+`"`) {
 				t.Errorf("no link to %s", l.ReadmeURL())
 			}
-			// The Download buttons open the newest published release, which stays current when a release comes out after the site was built; the footer lists every release.
+			// The Download buttons (the hero's, the macOS tab's and the closing one) open the newest published release, which stays current when a release comes out after the site was built; the footer lists every release.
 			downloads := 0
 			for _, tag := range tagRe("a").FindAllString(html, -1) {
 				if attr(tag, "class") == "btn primary" {
@@ -303,8 +301,8 @@ func TestPageBody(t *testing.T) {
 					}
 				}
 			}
-			if downloads != 2 {
-				t.Errorf("%d Download buttons, want the hero's and the Get started card's", downloads)
+			if downloads < 2 {
+				t.Errorf("%d Download buttons, want the hero's and the download panel's at least", downloads)
 			}
 			if i := strings.Index(html, `class="foot-links"`); i < 0 {
 				t.Errorf("no footer links nav")
@@ -558,22 +556,35 @@ func TestBuildRefusesForeignFolder(t *testing.T) {
 	}
 }
 
-// Under its headline each page sets the headline of another page in that page's language: the Simplified Chinese one on the English page, the English one on every other.
-func TestHeadlineEcho(t *testing.T) {
+// The Command line and MCP section counts the kando command's commands and lists every tool of its MCP server, as the app's source has them.
+func TestSurfaceFollowsTheApp(t *testing.T) {
+	cli, err := os.ReadFile(filepath.Join(repoRoot, "apps", "kando", "cli", "cli.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tools, err := os.ReadFile(filepath.Join(repoRoot, "apps", "kando", "mcpserver", "tools.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands := strings.Count(string(cli), "{name: \"")
+	names := regexp.MustCompile(`Name:\s+"(kando_\w+)"`).FindAllStringSubmatch(string(tools), -1)
+	if commands < 10 || len(names) < 5 {
+		t.Fatalf("found %d commands and %d tools in the app's source; the test no longer reads it", commands, len(names))
+	}
 	content, err := loadContent(filepath.Join(repoRoot, "apps", "site", "content"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, l := range built.rep.Langs {
-		t.Run(l.Code, func(t *testing.T) {
-			want := echoLang(l, built.rep.Langs)
-			if want.Code == l.Code {
-				t.Fatalf("the %s page echoes itself", l.Code)
+		html := readOut(t, pageFile(l))
+		point := strings.ReplaceAll(content[l.Code]["cliPoint1"], "{commands}", fmt.Sprint(commands))
+		if !strings.Contains(html, template.HTMLEscapeString(point)) {
+			t.Errorf("%s: the page does not say %q", l.Code, point)
+		}
+		for _, m := range names {
+			if !strings.Contains(html, "<code>"+m[1]+"</code>") {
+				t.Errorf("%s: the MCP tab does not list %s", l.Code, m[1])
 			}
-			line := fmt.Sprintf(`<p class="echo" lang="%s" aria-hidden="true">%s</p>`, want.Tag, template.HTMLEscapeString(content[want.Code]["heroTitle"]))
-			if !strings.Contains(readOut(t, pageFile(l)), line) {
-				t.Errorf("no %s", line)
-			}
-		})
+		}
 	}
 }

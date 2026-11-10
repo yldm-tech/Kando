@@ -154,9 +154,10 @@ func TestWebMCPContentCoversPage(t *testing.T) {
 	}
 	tmpl := string(data)
 	key := regexp.MustCompile(`\btf? "(\w+)"`)
-	// Labels of controls the tools have no use for.
-	skip := map[string]bool{"copyLabel": true, "copiedLabel": true, "sitesStripLabel": true, "sitesMore": true}
-	for _, id := range []string{"features", "start"} {
+	// Labels of controls, the small lines above headings, a screenshot's description and the comments of the terminal example, which the tools have no use for.
+	skip := map[string]bool{"copyLabel": true, "copiedLabel": true, "dlTabsLabel": true, "cliTabsLabel": true, "cliTabCommands": true, "libraryEyebrow": true, "cliEyebrow": true, "detailsEyebrow": true, "shotLibraryAlt": true,
+		"cliCommentAdd": true, "cliCommentList": true, "cliCommentSubtitles": true, "cliCommentStatus": true, "mcpCommentAdd": true, "mcpCommentTools": true}
+	for _, id := range []string{"library", "cli", "features", "start"} {
 		start := strings.Index(tmpl, `id="`+id+`"`)
 		if start < 0 {
 			t.Fatalf("page.html has no section %s", id)

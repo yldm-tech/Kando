@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 // The page offers WebMCP tools to AI agents in the browser (static/webmcp.js): whether Kando downloads from a website, the download for the visitor's system, and the getting-started steps and features in any of the page's languages. What the tools answer from is written here, as files the script fetches only when an agent calls a tool, so that the page itself grows only by the download table it embeds (agentData).
@@ -15,10 +16,13 @@ import (
 // agentDir is the folder of the built site the tools' files are in.
 const agentDir = "webmcp"
 
-// buildCommands are the commands of the Build from source card, which the page shows and get_started returns.
+// buildCommands build Kando from source, as the download panel's Windows tab shows them and get_started returns them. go tool mygo build is what make build runs, and works where make is not installed, as on Windows.
 const buildCommands = `git clone https://github.com/yldm-tech/Kando.git
 cd Kando
-make build`
+go tool mygo build apps/kando`
+
+// installCommand installs the newest release for the current user with the install.sh mygo build makes, as the Linux tab shows it.
+const installCommand = "curl -fsSL " + latestURL + "/download/install.sh | sh"
 
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.
 const readmeBuildURL = repoURL + "#build-from-source"
@@ -184,72 +188,107 @@ type agentFeature struct {
 	Link  *agentLink `json:"link,omitempty"`
 }
 
-// featureKeys are the feature cards of page.html in its order, by the prefix of their Title and Body keys.
-var featureKeys = []string{"featureOnDevice", "featureModel", "featurePlayer", "featureFolders", "featureSites", "featureAgents", "featureLanguages", "featureUpload", "featureShortcuts"}
+// detailKeys are the cards of the details section of page.html in its order, by the prefix of their Title and Body keys.
+var detailKeys = []string{"detailReplay", "detailModes", "detailSearch", "detailWhisper", "detailAI", "detailBrowser", "detailUpload", "detailShortcuts", "detailLanguages"}
 
-// newAgentContent is l's content file, made from the same content strings as the page's Get started and features sections. used records the keys it read, which the tests compare with the keys those sections of page.html show.
-func newAgentContent(l language, strs map[string]string, total int, used map[string]bool) agentContent {
+// newAgentContent is l's content file, made from the same content strings as the page's download panel (start) and its Library, Command line and details sections (features). used records the keys it read, which the tests compare with the keys those sections of page.html show.
+func newAgentContent(l language, strs map[string]string, total int, surf surface, used map[string]bool) agentContent {
 	t := func(key string) string {
 		used[key] = true
-		return strings.ReplaceAll(strs[key], "{count}", fmt.Sprint(total))
+		s := strs[key]
+		for name, n := range map[string]int{"count": total, "commands": surf.Commands, "tools": len(surf.Tools)} {
+			s = strings.ReplaceAll(s, "{"+name+"}", fmt.Sprint(n))
+		}
+		// The page sets the names between ` in code and breaks some headings in two; the tools return plain text on one line.
+		return plainLine(strings.ReplaceAll(s, "`", ""))
+	}
+	join := func(keys ...string) string {
+		parts := make([]string, len(keys))
+		for i, key := range keys {
+			parts[i] = t(key)
+		}
+		return strings.Join(parts, " ")
 	}
 	c := agentContent{
 		Lang: l.Code,
 		Name: l.Name,
 		Page: l.URL(),
 		Start: agentStart{
-			Title: t("startTitle"),
-			Lead:  t("startLead"),
+			Title: t("openTitle"),
+			Lead:  t("openBody"),
 			Steps: []agentStep{
 				{
 					Number: 1,
-					Title:  t("startDownloadTitle"),
-					Text:   []string{t("startDownloadBody")},
-					Notes:  []string{t("startDownloadSigned")},
-					Link:   &agentLink{Text: t("startDownloadButton"), URL: latestURL},
+					Title:  "macOS",
+					Text:   []string{t("dlMacBody")},
+					Notes:  []string{t("dlFirstRun")},
+					Link:   &agentLink{Text: t("dlMacButton"), URL: latestURL},
 				},
 				{
-					Number: 2,
-					Title:  t("startToolsTitle"),
-					Text:   []string{t("startToolsBody")},
-					Tools:  []agentTool{{"yt-dlp", t("toolYtdlp")}, {"ffmpeg", t("toolFfmpeg")}, {"whisper-cli", t("toolWhisper")}},
-					Notes:  []string{t("startToolsOther"), t("startSetup")},
+					Number:  2,
+					Title:   "Linux",
+					Text:    []string{t("dlLinuxBody")},
+					Command: installCommand,
+					Notes:   []string{t("dlLinuxNote"), t("dlFirstRun")},
+					Link:    &agentLink{Text: t("dlLinuxButton"), URL: latestURL},
 				},
 				{
-					Title:   t("startBuildTitle"),
-					Text:    []string{t("startBuildBody")},
+					Number:  3,
+					Title:   "Windows",
+					Text:    []string{t("dlWinBody")},
 					Command: buildCommands,
-					Notes:   []string{t("startBuildNote")},
+					Notes:   []string{t("dlWinNote")},
 				},
 			},
-			Readme: agentLink{Text: t("startReadme"), URL: l.ReadmeURL()},
+			Readme: agentLink{Text: t("dlReadme"), URL: l.ReadmeURL()},
 		},
-		Features: agentFeatures{Title: t("featuresTitle"), Lead: t("featuresLead")},
+		Features: agentFeatures{
+			Title: t("detailsTitle"),
+			Lead:  t("heroLead"),
+			Items: []agentFeature{
+				{Title: t("libraryTitle"), Text: join("libraryBody", "libraryPoint1", "libraryPoint2", "libraryPoint3")},
+				{Title: t("cliTitle"), Text: join("cliBody", "cliPoint1", "cliPoint2", "cliPoint3")},
+			},
+		},
 	}
-	for _, key := range featureKeys {
+	for _, key := range detailKeys {
 		f := agentFeature{Title: t(key + "Title"), Text: t(key + "Body")}
-		if key == "featureModel" {
-			f.Link = &agentLink{Text: t("featureModelLink"), URL: everyAPIURL}
+		if key == "detailAI" {
+			f.Link = &agentLink{Text: t("detailAILink"), URL: everyAPIURL}
 		}
 		c.Features.Items = append(c.Features.Items, f)
 	}
 	return c
 }
 
+// plainLine is s with its line breaks taken out: nothing after a Chinese character, kana or CJK punctuation mark, as Chinese and Japanese put no space between words, and a space after anything else, Korean among it.
+func plainLine(s string) string {
+	var b strings.Builder
+	var prev rune
+	for _, r := range s {
+		if r == '\n' {
+			unspaced := unicode.In(prev, unicode.Han, unicode.Hiragana, unicode.Katakana) || (prev >= 0x3000 && prev <= 0x303F) || (prev >= 0xFF00 && prev <= 0xFFEF)
+			if !unspaced {
+				b.WriteByte(' ')
+			}
+			continue
+		}
+		b.WriteRune(r)
+		prev = r
+	}
+	return b.String()
+}
+
 // writeAgentFiles writes the tools' files into out's webmcp folder, the sites file and one content file per language, and returns the data each page embeds, by language code.
-func writeAgentFiles(root, out string, langs []language, content map[string]map[string]string, total int, used map[string]bool) (map[string]agentData, error) {
+func writeAgentFiles(root, out string, langs []language, content map[string]map[string]string, total int, version string, surf surface, used map[string]bool) (map[string]agentData, error) {
 	dir := filepath.Join(out, agentDir)
 	sites, err := writeAgentSites(filepath.Join(root, "apps", "kando", "sites", "catalog"), dir)
 	if err != nil {
 		return nil, err
 	}
-	version, err := appVersion(filepath.Join(root, "apps", "kando", "mygo.json"))
-	if err != nil {
-		return nil, err
-	}
 	var all []agentLang
 	for _, l := range langs {
-		link, err := writeAgentJSON(dir, l.Code+".json", newAgentContent(l, content[l.Code], total, used))
+		link, err := writeAgentJSON(dir, l.Code+".json", newAgentContent(l, content[l.Code], total, surf, used))
 		if err != nil {
 			return nil, err
 		}

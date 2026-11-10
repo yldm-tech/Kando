@@ -18,8 +18,8 @@ var (
 	gradientTo   = color.RGBA{0xEC, 0x7E, 0x2E, 0xFF}
 )
 
-// logoSize is the side of logo.png, the mark the pages show beside the name: twice the largest size a page draws it at, the 72 pixels of 404.html.
-const logoSize = 144
+// logoSize is the side of logo.png, the mark the pages show beside the name and above the headline: twice the largest size a page draws it at, the 96 pixels of the hero.
+const logoSize = 192
 
 // writeIcons makes the PNG icons from the app icon at iconPath: logo.png, favicon-16.png and favicon-32.png, favicon.ico holding both, and apple-touch-icon.png. The app icon is a rounded square on a transparent margin; the logo and the favicons are that square without the margin, and the touch icon fills the square's corners with its background gradient too, because iOS rounds the corners itself and would show the transparent ones black.
 func writeIcons(iconPath, out string) error {
