@@ -49,9 +49,11 @@ type jobQueue struct {
 	// keepAwake is mygo.Power.KeepAwake once the window is ready (queueHooks), and nil before and in tests, which must not hold the machine awake; awake gives back the hold it took while a job runs, nil while there is none (queueKeepAwake).
 	keepAwake func(reason string, display bool) (release func())
 	awake     func()
+	// sys is what the queue tells the system outside the window: notifications, and the badge and progress bar on the app's icon (queue_desktop.go).
+	sys queueSystem
 }
 
-func newJobQueue() jobQueue { return jobQueue{} }
+func newJobQueue() jobQueue { return jobQueue{sys: newQueueSystem()} }
 
 // stopActive asks the running job to stop. It ends, and the next one starts, when its pipeline returns.
 func (q *jobQueue) stopActive(cause error) {
@@ -60,16 +62,37 @@ func (q *jobQueue) stopActive(cause error) {
 	}
 }
 
-// savedQueue is the queue's part of settings.json. The jobs themselves are in the shelf's library.json.
-type savedQueue struct{}
+// savedQueue is the queue's part of settings.json. The jobs themselves are in the shelf's library.json. Notify is false when the user turned off the notifications of jobs that end while the app is in the background, and nil while they are on, as they are by default.
+type savedQueue struct {
+	Notify *bool `json:"notify,omitempty"`
+}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (run); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved. From the window being ready, the computer does not sleep while a job runs, and the hold ends as the app quits.
+func (a *app) saveQueue(saved *savedSettings) {
+	saved.savedQueue = savedQueue{}
+	if !a.queue.sys.notify {
+		off := false
+		saved.savedQueue.Notify = &off
+	}
+}
+
+// restoreQueue takes back whether the user wants notifications, and listens for clicks on them before App.Run (queueListenForClicks).
+func (a *app) restoreQueue(saved savedSettings) {
+	if saved.Notify != nil {
+		a.queue.sys.notify = *saved.Notify
+	}
+	a.queueListenForClicks()
+}
+
+// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (run); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The queue starts telling the system about its jobs then too, and removes its notifications whenever the app comes to the front (queue_desktop.go). The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved. From the window being ready, the computer does not sleep while a job runs, and the hold ends as the app quits.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
+		save:    a.saveQueue,
+		restore: a.restoreQueue,
 		ready: func() {
 			a.queue.keepAwake = mygo.Power.KeepAwake
+			a.queueDesktopReady()
 			a.pump()
 			a.queueKeepAwake()
 			a.queueReadYTDLP()
@@ -86,6 +109,7 @@ func (a *app) queueHooks() areaHooks {
 			a.setResumePositions(maps.Clone(a.library.Positions))
 			a.setSubtitleDelays(maps.Clone(a.library.Delays))
 		},
+		becameActive:     a.queueBecameActive,
 		positionsChanged: a.savePositions,
 		videosMoved: func(move func(string) (string, bool)) {
 			shelf.MoveKeys(a.resumePositions(), move)
@@ -327,6 +351,7 @@ func (a *app) remove(id string) {
 	if err := a.library.Save(); err != nil {
 		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
 	}
+	a.queueTellSystem()
 }
 
 // retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew. A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
@@ -429,6 +454,7 @@ func (a *app) pump() {
 	if found {
 		a.run(next)
 	}
+	a.queueTellSystem()
 }
 
 // queueCanRun reports whether the queue can start job now that it is its turn: its library is the open one or another the app knows. A job waiting in a library the app has forgotten does not start until that library is opened again, so no new work begins in a folder the user took off the list. A job already running when its library is forgotten goes on into it: forgetting leaves the folder on disk, and a running job is never stopped for a library change. A job saved before jobs named their library runs in whichever library is open.
@@ -583,6 +609,7 @@ func (a *app) show(job core.Job) {
 	if a.queue.removed[job.ID] {
 		return
 	}
+	was, _ := a.library.Find(job.ID)
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {
 		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
@@ -597,6 +624,8 @@ func (a *app) show(job core.Job) {
 		a.loadSubtitles(job.ID, job.SubtitlePath)
 	}
 	a.areasShelfChanged()
+	a.queueNotifyEnded(was.Stage, job)
+	a.queueTellSystem()
 }
 
 // showProgress puts how far job has gone on its card. Only its progress changed since show last saw it, which library.json does not keep, so the shelf is not saved and the areas are not told its films changed. A job removed meanwhile, or one that has moved on to another stage since, is left alone.
@@ -613,6 +642,7 @@ func (a *app) showProgress(job core.Job) {
 	if a.queue.selectedID == job.ID {
 		a.queue.job = &shown
 	}
+	a.queueTellSystem()
 }
 
 func statusText(job core.Job) string {

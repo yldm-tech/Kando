@@ -38,6 +38,8 @@ type areaHooks struct {
 	quitStarting func()
 	// windowShown runs when the main window was put away by its close button (shown false) or came back (state_window.go). A window out of sight draws no frame, so an area that brings something up to date after each frame, as the menu bar does, does it here too.
 	windowShown func(shown bool)
+	// becameActive runs when the app becomes the active one, the one in front (main's mygo.App.OnDidBecomeActive), as when the user clicks its window or one of its notifications.
+	becameActive func()
 	// quitting runs once when the app quits (main's mygo.App.OnWillQuit), after its windows have closed and before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own, or the queue's running job.
 	quitting func()
 }
@@ -197,6 +199,14 @@ func (a *app) areasWindowShown(shown bool) {
 	for _, h := range a.areas() {
 		if h.windowShown != nil {
 			h.windowShown(shown)
+		}
+	}
+}
+
+func (a *app) areasBecameActive() {
+	for _, h := range a.areas() {
+		if h.becameActive != nil {
+			h.becameActive()
 		}
 	}
 }

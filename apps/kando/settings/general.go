@@ -15,7 +15,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// general is the 通用 page: the library, the interface language, the version and its updates, the programs Kando runs, and its command line and MCP server (cli.go).
+// general is the 通用 page: the library, the interface language, the notifications of finished videos, the version and its updates, the programs Kando runs, and its command line and MCP server (cli.go).
 func (s screen) general(c *ui.Context, t *ui.Theme) {
 	form.Label(c, locales.SettingsGeneralLibrary(), 6, nil)
 	form.Card(c, func() { s.libraryRows(c) })
@@ -29,6 +29,12 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 				s.Save()
 			}
 		})
+		form.Separator(c, true)
+		c.Key("job-notifications")
+		if on := s.JobNotifications(); form.SwitchRow(c, locales.SettingsGeneralNotify(), locales.SettingsGeneralNotifyHint(), &on) {
+			s.SetJobNotifications(on)
+			s.Save()
+		}
 		form.Separator(c, true)
 		s.updateRows(c)
 	})

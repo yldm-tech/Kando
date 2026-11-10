@@ -2840,6 +2840,20 @@
   "@queueNoVideoToImport": {
     "description": "Status when the file chosen to import is not a video."
   },
+  "queueNotifyDone": "The bilingual subtitles are ready.",
+  "@queueNotifyDone": {
+    "description": "Body of the notification posted while Kando is in the background, when a video's job is done. The notification's title is the video's title."
+  },
+  "queueNotifyFailed": "Couldn't make the subtitles. {reason}",
+  "@queueNotifyFailed": {
+    "description": "Body of the notification posted while Kando is in the background, when a video's job failed. The notification's title is the video's title; the reason is what the failed card says, a full sentence of its own.",
+    "placeholders": {
+      "reason": {
+        "type": "String",
+        "example": "The video is private or was deleted"
+      }
+    }
+  },
   "queueOpenSettingsFailed": "Couldn't open System Settings: {error}",
   "@queueOpenSettingsFailed": {
     "description": "Message bar when System Settings could not be opened.",
@@ -3905,6 +3919,14 @@
   "@settingsGeneralNotInstalled": {
     "description": "A program Kando runs that was not found."
   },
+  "settingsGeneralNotify": "Notify when a video is done",
+  "@settingsGeneralNotify": {
+    "description": "Switch in Settings › General: Kando posts a notification when a video's subtitles are ready or could not be made while it is in the background."
+  },
+  "settingsGeneralNotifyHint": "While Kando is in the background, a notification says when a video's subtitles are ready or couldn't be made.",
+  "@settingsGeneralNotifyHint": {
+    "description": "Line under the notification switch in Settings › General."
+  },
   "settingsGeneralOpenLibrary": "Open Library…",
   "@settingsGeneralOpenLibrary": {
     "description": "Button opening an existing library."
@@ -3977,7 +3999,7 @@
   "@settingsKeywordsAccount": {
     "description": "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
   },
-  "settingsKeywordsGeneral": "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update",
+  "settingsKeywordsGeneral": "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify",
   "@settingsKeywordsGeneral": {
     "description": "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
   },

@@ -141,6 +141,7 @@ func main() {
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { a.areasQuitting() })
 	mygo.App.OnDidResignActive(func() { a.playerDidResignActive() })
 	mygo.App.OnDidBecomeActive(func() { a.playerDidBecomeActive() })
+	mygo.App.OnDidBecomeActive(func() { a.areasBecameActive() })
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
 	}

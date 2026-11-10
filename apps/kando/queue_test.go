@@ -1953,3 +1953,254 @@ func TestRetryResumesAfterTheStagesItFinished(t *testing.T) {
 		t.Fatalf("downloaded %d times, transcribed %d times", p.downloads.Load(), p.transcribes.Load())
 	}
 }
+
+// fakeDesktop stands for the system outside the window that the queue tells about its jobs (queueDesktop): it records the notifications, the badges and the progress bars, in the order the queue gave them, and is in front while front is set.
+type fakeDesktop struct {
+	front   bool
+	notes   []fakeNote
+	cleared int
+	badges  []int
+	bars    []mygo.ProgressBar
+}
+
+type fakeNote struct{ id, title, body string }
+
+// useFakeDesktop has the queue of a tell f what it would tell the system.
+func useFakeDesktop(a *app) *fakeDesktop {
+	f := &fakeDesktop{}
+	a.queue.sys.desktop = queueDesktop{
+		active:   func() bool { return f.front },
+		notify:   func(id, title, body string) { f.notes = append(f.notes, fakeNote{id, title, body}) },
+		clear:    func() { f.cleared++ },
+		badge:    func(n int) { f.badges = append(f.badges, n) },
+		progress: func(p mygo.ProgressBar) { f.bars = append(f.bars, p) },
+	}
+	return f
+}
+
+func (f *fakeDesktop) badge() int {
+	if len(f.badges) == 0 {
+		return 0
+	}
+	return f.badges[len(f.badges)-1]
+}
+
+func (f *fakeDesktop) bar() mygo.ProgressBar {
+	if len(f.bars) == 0 {
+		return mygo.ProgressBar{}
+	}
+	return f.bars[len(f.bars)-1]
+}
+
+// failTranscribe fails every job as it transcribes, as whisper-cli does with audio it cannot read.
+type failTranscribe struct{ fakePipeline }
+
+func (failTranscribe) Transcribe(context.Context, string) ([]core.Segment, error) {
+	return nil, errors.New("whisper-cli: exit status 3: failed to read audio")
+}
+
+// TestAJobThatEndsInTheBackgroundNotifiesOnce checks that a job done while another app is in front posts one notification, named after the video, which says its subtitles are ready, and that the job being shown again does not post another.
+func TestAJobThatEndsInTheBackgroundNotifiesOnce(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	f := useFakeDesktop(a)
+	if err := a.Enqueue("https://example.com/v"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	job := a.library.Jobs[0]
+	want := []fakeNote{{job.ID, jobName(job), "双语字幕做好了。"}}
+	if !slices.Equal(f.notes, want) {
+		t.Fatalf("notifications %+v, want %+v", f.notes, want)
+	}
+	a.show(job)
+	if len(f.notes) != 1 {
+		t.Fatalf("showing the done job again notified again: %+v", f.notes)
+	}
+}
+
+// TestAFailedJobNotifiesWhy checks that a job that failed in the background posts a notification saying what its card says went wrong.
+func TestAFailedJobNotifiesWhy(t *testing.T) {
+	a, tt, updates := newTestApp(&failTranscribe{})
+	f := useFakeDesktop(a)
+	if err := a.Enqueue("https://example.com/v"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	job := a.library.Jobs[0]
+	if job.Stage != core.StageFailed {
+		t.Fatalf("job %+v", job)
+	}
+	want := []fakeNote{{job.ID, jobName(job), "字幕没能做好。生成字幕失败：failed to read audio"}}
+	if !slices.Equal(f.notes, want) {
+		t.Fatalf("notifications %+v, want %+v", f.notes, want)
+	}
+	testlocale.Use(t, "en")
+	if got := locales.QueueNotifyFailed(a.queueFailReason(job)); got != "Couldn't make the subtitles. Generating subtitles failed: failed to read audio" {
+		t.Fatalf("in English: %q", got)
+	}
+}
+
+// TestNoNotificationWhenItIsNoNews checks the jobs that end without a notification: while Kando is in front, where the window shows it; with notifications turned off in Settings › 通用; for a job the user stopped; and where the system shows none of the app's notifications.
+func TestNoNotificationWhenItIsNoNews(t *testing.T) {
+	for name, setup := range map[string]func(a *app, f *fakeDesktop){
+		"in front":    func(_ *app, f *fakeDesktop) { f.front = true },
+		"turned off":  func(a *app, _ *fakeDesktop) { a.SetJobNotifications(false) },
+		"unsupported": func(a *app, _ *fakeDesktop) { a.queue.sys.desktop.notify = nil },
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, tt, updates := newTestApp(&fakePipeline{})
+			f := useFakeDesktop(a)
+			setup(a, f)
+			if err := a.Enqueue("https://example.com/v"); err != nil {
+				t.Fatal(err)
+			}
+			settle(t, a, tt, updates)
+			if a.library.Jobs[0].Stage != core.StageComplete || len(f.notes) != 0 {
+				t.Fatalf("job %+v, notifications %+v", a.library.Jobs[0], f.notes)
+			}
+		})
+	}
+	t.Run("stopped", func(t *testing.T) {
+		g := newGatePipeline()
+		a, tt, updates := newTestApp(g)
+		f := useFakeDesktop(a)
+		if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+			t.Fatal(err)
+		}
+		nextStarted(t, g, updates)
+		ids := jobIDs(a)
+		a.Cancel(ids["https://example.com/b"])
+		a.Cancel(ids["https://example.com/a"])
+		settle(t, a, tt, updates)
+		if len(f.notes) != 0 {
+			t.Fatalf("cancelled jobs notified: %+v", f.notes)
+		}
+	})
+}
+
+// TestTheBadgeAndProgressFollowTheQueue checks that the app's icon counts the jobs still to do, the running one and those waiting, and shows how far the running one has gone in its stage, indeterminate before its tool says, and that both go once the queue is empty.
+func TestTheBadgeAndProgressFollowTheQueue(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	f := useFakeDesktop(a)
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b", "https://example.com/c"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	if f.badge() != 3 || f.bar() != (mygo.ProgressBar{State: mygo.ProgressIndeterminate}) {
+		t.Fatalf("while a runs: badge %d, bar %+v", f.badge(), f.bar())
+	}
+	running := stageOf(t, a, a.RunningJob())
+	running.Progress = core.Fraction(0.426)
+	a.showProgress(running)
+	if want := (mygo.ProgressBar{State: mygo.ProgressNormal, Value: 0.43}); f.bar() != want {
+		t.Fatalf("bar %+v, want %+v", f.bar(), want)
+	}
+	told := len(f.bars)
+	running.Progress = core.Fraction(0.429)
+	a.showProgress(running)
+	if len(f.bars) != told {
+		t.Fatalf("a change of less than a percent redrew the bar: %+v", f.bars)
+	}
+
+	a.remove(jobIDs(a)["https://example.com/c"])
+	if f.badge() != 2 {
+		t.Fatalf("after removing a waiting job: badge %d", f.badge())
+	}
+	g.release <- struct{}{}
+	nextStarted(t, g, updates)
+	if f.badge() != 1 {
+		t.Fatalf("while b runs: badge %d", f.badge())
+	}
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+	if f.badge() != 0 || f.bar() != (mygo.ProgressBar{}) {
+		t.Fatalf("after the last job: badge %d, bar %+v", f.badge(), f.bar())
+	}
+	for i := 1; i < len(f.badges); i++ {
+		if f.badges[i] == f.badges[i-1] {
+			t.Fatalf("the badge was told the same count twice in a row: %v", f.badges)
+		}
+	}
+}
+
+// TestComingToTheFrontClearsTheNotifications checks that the queue removes its notifications as the app becomes the active one, and that an app whose queue has no way to the system, as before the window is ready, does nothing then.
+func TestComingToTheFrontClearsTheNotifications(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.areasBecameActive()
+	f := useFakeDesktop(a)
+	a.areasBecameActive()
+	if f.cleared != 1 {
+		t.Fatalf("cleared %d times", f.cleared)
+	}
+}
+
+// TestClickingANotificationShowsTheJob checks that a click on the notification of a done job opens its film, one of a failed job shows the library where its card is, and one of a job no longer on the shelf leaves the page as it is.
+func TestClickingANotificationShowsTheJob(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	if err := a.Enqueue("https://example.com/v"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	doneJob := a.library.Jobs[0]
+	done := doneJob.ID
+	failed := failedWith(t, a, "boom")
+	a.library.Upsert(doneJob)
+
+	a.page = pageYouTube
+	a.queueShowJob(done)
+	if a.page != pageFilms || a.openKey != done {
+		t.Fatalf("a done job shows page %q, film %q", a.page, a.openKey)
+	}
+	a.queueShowJob(failed.JobID)
+	if a.page != pageFilms || a.openKey != "" {
+		t.Fatalf("a failed job shows page %q, film %q", a.page, a.openKey)
+	}
+	a.page = pageYouTube
+	a.queueShowJob("gone")
+	if a.page != pageYouTube {
+		t.Fatalf("a job no longer on the shelf shows page %q", a.page)
+	}
+}
+
+// TestTheNotificationSwitchIsSaved checks the switch in Settings › 通用: it turns the notifications off, settings.json keeps that, and they are on again for an app that never turned them off.
+func TestTheNotificationSwitchIsSaved(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	if !a.JobNotifications() {
+		t.Fatal("notifications are off by default")
+	}
+	st := settingsOpenAt(a, nil, settings.SectionGeneral)
+	for _, text := range []string{"影片处理完时通知", "看懂在后台时，影片的字幕做好了或没能做好，都会发一条通知。"} {
+		if !st.HasText(text) {
+			t.Fatalf("no %q: %q", text, st.Texts())
+		}
+	}
+	if err := st.Click("影片处理完时通知"); err != nil {
+		t.Fatal(err)
+	}
+	if a.JobNotifications() {
+		t.Fatal("the switch left the notifications on")
+	}
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.Notify == nil || *saved.Notify {
+		t.Fatalf("saved %+v", saved.savedQueue)
+	}
+	b, _, _ := newTestApp(&fakePipeline{})
+	b.restoreSettings(saved)
+	if b.JobNotifications() {
+		t.Fatal("restored notifications on")
+	}
+	c, _, _ := newTestApp(&fakePipeline{})
+	c.restoreSettings(savedSettings{})
+	if !c.JobNotifications() {
+		t.Fatal("an app that never turned them off has notifications off")
+	}
+	a.SetJobNotifications(true)
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	if saved := loadSavedSettings(a.settingsPath); saved.Notify != nil {
+		t.Fatalf("notifications on are saved as %v", *saved.Notify)
+	}
+}

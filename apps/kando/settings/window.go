@@ -68,6 +68,9 @@ type App interface {
 	CheckForUpdates()
 	SetAutoCheckUpdates(on bool)
 	SetAutoDownloadUpdates(on bool)
+	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.
+	JobNotifications() bool
+	SetJobNotifications(on bool)
 
 	// InstalledSpeechModel is the file on disk of the whisper catalog model id, "" when it is not downloaded. The app looks the models up when the window opens, when the model in use changes and on 重新检测, never while the page is drawn.
 	InstalledSpeechModel(id string) string

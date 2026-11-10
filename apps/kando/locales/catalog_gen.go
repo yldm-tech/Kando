@@ -7904,6 +7904,40 @@ func (msgs Messages) QueueNoVideoToImport() string {
 	return Catalog.Format(msgs.locale, "queueNoVideoToImport", nil)
 }
 
+// QueueNotifyDone says "The bilingual subtitles are ready."
+// in the language the app shows.
+//
+// Body of the notification posted while Kando is in the background, when a
+// video's job is done. The notification's title is the video's title.
+func QueueNotifyDone() string { return In(i18n.Locale()).QueueNotifyDone() }
+
+// QueueNotifyDone says "The bilingual subtitles are ready."
+// in the language of msgs.
+//
+// Body of the notification posted while Kando is in the background, when a
+// video's job is done. The notification's title is the video's title.
+func (msgs Messages) QueueNotifyDone() string {
+	return Catalog.Format(msgs.locale, "queueNotifyDone", nil)
+}
+
+// QueueNotifyFailed says "Couldn't make the subtitles. {reason}"
+// in the language the app shows.
+//
+// Body of the notification posted while Kando is in the background, when a
+// video's job failed. The notification's title is the video's title; the
+// reason is what the failed card says, a full sentence of its own.
+func QueueNotifyFailed(reason string) string { return In(i18n.Locale()).QueueNotifyFailed(reason) }
+
+// QueueNotifyFailed says "Couldn't make the subtitles. {reason}"
+// in the language of msgs.
+//
+// Body of the notification posted while Kando is in the background, when a
+// video's job failed. The notification's title is the video's title; the
+// reason is what the failed card says, a full sentence of its own.
+func (msgs Messages) QueueNotifyFailed(reason string) string {
+	return Catalog.Format(msgs.locale, "queueNotifyFailed", map[string]any{"reason": reason})
+}
+
 // QueueOpenSettingsFailed says "Couldn't open System Settings: {error}"
 // in the language the app shows.
 //
@@ -10720,6 +10754,36 @@ func SettingsGeneralNotInstalled() string { return In(i18n.Locale()).SettingsGen
 // A program Kando runs that was not found.
 func (msgs Messages) SettingsGeneralNotInstalled() string {
 	return Catalog.Format(msgs.locale, "settingsGeneralNotInstalled", nil)
+}
+
+// SettingsGeneralNotify says "Notify when a video is done"
+// in the language the app shows.
+//
+// Switch in Settings › General: Kando posts a notification when a video's
+// subtitles are ready or could not be made while it is in the background.
+func SettingsGeneralNotify() string { return In(i18n.Locale()).SettingsGeneralNotify() }
+
+// SettingsGeneralNotify says "Notify when a video is done"
+// in the language of msgs.
+//
+// Switch in Settings › General: Kando posts a notification when a video's
+// subtitles are ready or could not be made while it is in the background.
+func (msgs Messages) SettingsGeneralNotify() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralNotify", nil)
+}
+
+// SettingsGeneralNotifyHint says "While Kando is in the background, a notification says when a video's subtitles are ready or couldn't be made."
+// in the language the app shows.
+//
+// Line under the notification switch in Settings › General.
+func SettingsGeneralNotifyHint() string { return In(i18n.Locale()).SettingsGeneralNotifyHint() }
+
+// SettingsGeneralNotifyHint says "While Kando is in the background, a notification says when a video's subtitles are ready or couldn't be made."
+// in the language of msgs.
+//
+// Line under the notification switch in Settings › General.
+func (msgs Messages) SettingsGeneralNotifyHint() string {
+	return Catalog.Format(msgs.locale, "settingsGeneralNotifyHint", nil)
 }
 
 // SettingsGeneralOpenLibrary says "Open Library…"
