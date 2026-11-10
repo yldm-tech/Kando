@@ -14,7 +14,7 @@ on:
       - "apps/kando/sites/catalog/**"
       - "apps/kando/resources/icon.png"
       - ".github/workflows/site.yml"
-  # The page names the version in apps/kando/mygo.json and links that release's files, so it is rebuilt once Release has published a release. Release pushes its version commit with GITHUB_TOKEN, which starts no workflow, so the push trigger above never sees it; and mygo.json is not one of its paths because the version commit lands while the release is still a draft, whose files 404 for visitors.
+  # The page names the version in apps/kando/mygo.json and links that release's files, so it is rebuilt after every Release run on main that succeeds, which includes the runs that find nothing to release. Release pushes its version commit with GITHUB_TOKEN, which starts no workflow, so the push trigger above never sees it; and mygo.json is not one of its paths because the version commit lands while the release is still a draft, whose files 404 for visitors. The build job checks that the release is published whatever started it.
   workflow_run:
     workflows: [Release]
     types: [completed]
@@ -35,35 +35,62 @@ concurrency:
 jobs:
   build:
     name: Build
-    # A Release run that failed may have left its release a draft, so only a successful one rebuilds the site.
+    # A Release run that failed rebuilds nothing; the release check below covers the draft it may have left.
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      published: ${{ steps.release.outputs.published }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # The agent's download data links the files of the version in mygo.json, which 404 while that release is a draft: between Release's version commit and its Publish job, or for good when Publish failed. The site is then left as it is; the Release run that publishes the release starts this workflow again. The endpoint returns published releases only, so a draft answers 404 like a missing release.
+      - name: Check the release is published
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=v$(jq -r .version apps/kando/mygo.json)
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --silent 2>"$RUNNER_TEMP/release.err"; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          elif grep -qF "HTTP 404" "$RUNNER_TEMP/release.err"; then
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            message="$tag, the version in apps/kando/mygo.json, is not a published release yet, so the site is not deployed. The Release run that publishes it deploys the site."
+            echo "::warning::$message"
+            echo "$message" >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat "$RUNNER_TEMP/release.err" >&2
+            exit 1
+          fi
+
       # The generator uses the standard library only, so there is nothing to cache.
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - if: steps.release.outputs.published == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: apps/site/go.mod
           cache: false
 
       - name: Build site
+        if: steps.release.outputs.published == 'true'
         run: go run ./apps/site -out apps/site/dist
 
       - name: Test site
+        if: steps.release.outputs.published == 'true'
         run: go test ./apps/site/...
 
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - if: steps.release.outputs.published == 'true'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       # The generator writes CNAME into dist, which binds the custom domain.
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+      - if: steps.release.outputs.published == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: apps/site/dist
 
   deploy:
     name: Deploy
     needs: build
+    if: needs.build.outputs.published == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:

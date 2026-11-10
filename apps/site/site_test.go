@@ -306,9 +306,11 @@ func TestPageBody(t *testing.T) {
 			if downloads != 2 {
 				t.Errorf("%d Download buttons, want the hero's and the Get started card's", downloads)
 			}
-			foot := html[strings.Index(html, `class="foot-links"`):]
-			foot = foot[:strings.Index(foot, "</nav>")]
-			if !strings.Contains(foot, `href="`+releasesURL+`"`) {
+			if i := strings.Index(html, `class="foot-links"`); i < 0 {
+				t.Errorf("no footer links nav")
+			} else if end := strings.Index(html[i:], "</nav>"); end < 0 {
+				t.Errorf("no footer links nav")
+			} else if !strings.Contains(html[i:i+end], `href="`+releasesURL+`"`) {
 				t.Errorf("the footer does not link the releases list %s", releasesURL)
 			}
 		})
