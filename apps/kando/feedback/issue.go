@@ -1,4 +1,4 @@
-// Package feedback is the 反馈问题 dialog: what kind of feedback it is, a title and a description, what the app may attach, and a preview of the GitHub issue it opens in the browser. This file writes the issue; dialog.go draws the dialog.
+// Package feedback is the 反馈问题 dialog: what kind of feedback it is, a title and a description, what the app may attach, and a preview of the GitHub issue it opens in the browser. This file writes the issue; dialog.go draws the dialog. system.go finds the system's name and version the issue attaches. logfile.go is not the dialog's: it is the log file of the main package's logs area (state_logs.go), kept here because it writes what is shaped like a credential as *** with this package's Scrubber.NoSecrets.
 package feedback
 
 import (

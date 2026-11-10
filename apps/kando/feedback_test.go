@@ -144,7 +144,7 @@ func TestFeedbackMenuWaitsBehindAModal(t *testing.T) {
 
 func TestFeedbackPreviewListsTheRealVersions(t *testing.T) {
 	a, tt, updates, _ := feedbackFilmApp(t)
-	a.feedback.system = feedbackSystemName("darwin", "27.2", "arm64")
+	a.feedback.system = feedback.SystemName("darwin", "27.2", "arm64")
 	chooseHelp(t, a, tt, updates, "反馈问题…")
 	body := a.FeedbackView().Issue.Body
 	for _, want := range []string{"**类型**：问题", "看懂 " + appVersion + " · macOS 27.2 (arm64)", "yt-dlp 2026.09.14", "ffmpeg 7.1", "whisper-cli 未安装", "识别：ggml-base.bin", "翻译：EveryAPI · " + media.EveryAPIModel} {
@@ -465,21 +465,6 @@ func TestFeedbackCuePicksTheLineAtThePlayhead(t *testing.T) {
 	}
 	if _, ok := feedbackCue(nil, 0); ok {
 		t.Error("a line without subtitles")
-	}
-}
-
-func TestFeedbackSystemNames(t *testing.T) {
-	cases := []struct{ goos, version, arch, want string }{
-		{"darwin", "27.2", "arm64", "macOS 27.2 (arm64)"},
-		{"darwin", "", "arm64", "macOS (arm64)"},
-		{"windows", windowsVersion("\r\nMicrosoft Windows [Version 10.0.22631.4317]\r\n"), "amd64", "Windows 10.0.22631.4317 (amd64)"},
-		{"linux", osRelease("NAME=\"Ubuntu\"\nPRETTY_NAME=\"Ubuntu 24.04.1 LTS\"\nID=ubuntu\n"), "amd64", "Ubuntu 24.04.1 LTS (amd64)"},
-		{"linux", "", "arm64", "Linux (arm64)"},
-	}
-	for _, c := range cases {
-		if got := feedbackSystemName(c.goos, c.version, c.arch); got != c.want {
-			t.Errorf("%s %q: %q, want %q", c.goos, c.version, got, c.want)
-		}
 	}
 }
 
