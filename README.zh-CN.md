@@ -129,6 +129,8 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 | `kando jobs` | 列出任务：先是正在运行的，然后是等待中的，最后是已结束的。 |
 | `kando add <link-or-file>... [--wait]` | 像“开始处理”一样把链接和本地视频文件加入队列，并输出每个任务的 ID。相对路径以当前目录为准。 |
 | `kando cancel <job-id>` | 停止正在运行的任务，或把等待中的任务移出队列。 |
+| `kando retry <job-id> [--wait]` | 像“重试”和“重新处理”一样，以同一个 ID 把失败、已取消或已完成的任务重新加入队列，不改变窗口显示的内容。正在运行或等待中的任务会被拒绝。 |
+| `kando remove <job-id>` | 像“移除”一样把任务从资料库中去掉，正在运行的任务会先停止。它的文件留在磁盘上。 |
 | `kando sites [query] [--limit N]` | 按名称、域名或视频链接搜索看懂支持下载的网站。 |
 | `kando open [film-id]` | 把看懂窗口调到最前面，显示指定的影片；不带 ID 时显示资料库。 |
 | `kando mcp` | 在标准输入和标准输出上提供 MCP 服务（见下文）。 |
@@ -137,7 +139,7 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 
 需要应用的命令通过套接字与它通信，套接字是 `settings.json` 所在文件夹中的 `kando.sock`（macOS 上是 `~/Library/Application Support/Kando/kando.sock`，Linux 上是 `~/.config/Kando/kando.sock`，Windows 上是 `%AppData%\Kando\kando.sock`）；`KANDO_SOCKET` 可以指定其他路径，运行第二个看懂时也需要它，并且还要有单独的 `HOME`（参见[配置](#configuration)）。看懂没有运行时，命令会在后台启动它，向标准错误输出 `Starting Kando…`，并最多等待 30 秒。添加视频需要的条件和“开始处理”相同，例如已打开资料库、程序齐全、已有 whisper 模型；缺少某项时，`kando add` 会失败，并给出窗口中对应的提示。
 
-所有与应用通信的命令都支持 `--json`，以 JSON 而不是文本输出应用的应答。有来源未能加入时，`kando add` 以 1 退出。加上 `--wait` 时，它会一直等到所有新加的任务完成或失败，每当某个任务的阶段或进度变化时输出一行；只要有任务失败，同样以 1 退出。加上 `--json` 时，进度输出到标准错误，结束时的任务输出到标准输出。退出码：0 表示成功，1 表示失败，2 表示命令用法有误。
+所有与应用通信的命令都支持 `--json`，以 JSON 而不是文本输出应用的应答。有来源未能加入时，`kando add` 以 1 退出。加上 `--wait` 时，它会一直等到所有新加的任务完成或失败，每当某个任务的阶段或进度变化时输出一行；只要有任务失败，同样以 1 退出。加上 `--json` 时，进度输出到标准错误，结束时的任务输出到标准输出。`kando retry --wait` 以同样的方式等待重新加入队列的任务。退出码：0 表示成功，1 表示失败，2 表示命令用法有误。
 
 `kando mcp` 是在标准输入和标准输出上运行的 MCP 服务器。看懂没有运行时，它的工具也会同样地启动它：
 
@@ -150,6 +152,8 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 | `kando_add_videos` | 把链接和本地视频文件加入队列；返回这些任务，以及每个未能加入的来源被跳过的原因。 |
 | `kando_list_jobs` | 列出任务，包括阶段、进度、状态、错误，完成后还有影片 ID 和文件路径。 |
 | `kando_cancel_job` | 停止正在运行的任务，或把等待中的任务移出队列。 |
+| `kando_retry_job` | 以同一个 ID 把失败、已取消或已完成的任务重新加入队列，并返回这个任务。 |
+| `kando_remove_job` | 把任务从资料库中去掉，正在运行的任务会先停止；它的文件留在磁盘上。 |
 | `kando_search_sites` | 按名称、域名或视频链接搜索看懂支持下载的网站（未设置 `limit` 时返回 20 个结果）。 |
 | `kando_open` | 把看懂窗口调到最前面，显示一部影片或资料库。 |
 

@@ -65,6 +65,18 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return a.remoteCancel(ctx, p.ID)
+	case remote.MethodRetry:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return a.remoteRetry(ctx, p.ID)
+	case remote.MethodRemove:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return nil, a.remoteRemove(ctx, p.ID)
 	case remote.MethodSites:
 		p, err := remote.Params[remote.SitesParams](params)
 		if err != nil {
@@ -289,6 +301,51 @@ func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
+}
+
+// remoteRetry queues job id of the open library again under the same ID, as the queue card's 重试 does for a failed or canceled job and 重新处理 for a done one, but without moving the window: the page and the card the library follows stay as they are. A job still running or waiting is refused; when it cannot start now, as the library's message bar would say after the precheck, or no language is set, it answers not_ready with that message. It answers the job as it is once queued.
+func (a *app) remoteRetry(ctx context.Context, id string) (remote.Job, error) {
+	job, err := remote.OnUI(ctx, a.update, func() (remote.Job, error) {
+		job, err := a.remoteFindJob(id)
+		if err != nil {
+			return remote.Job{}, err
+		}
+		ready, err := a.queueRetryable(job)
+		if errors.Is(err, errInQueue) {
+			return remote.Job{}, remote.Errorf(remote.CodeInvalid, "job %s is still running or waiting in the queue; cancel it first, or wait until it ends", id)
+		}
+		if msg, _ := a.precheck([]string{job.Source}); msg != "" {
+			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", msg)
+		}
+		if err != nil {
+			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", err.Error())
+		}
+		// As 重新处理 does, the hero forgets the first line it read from the subtitles the job will write again.
+		delete(a.lib.quotes, job.SubtitlePath)
+		a.queueAdd(ready)
+		queued, err := a.remoteFindJob(id)
+		if err != nil {
+			return remote.Job{}, err
+		}
+		return remoteJobOf(queued), nil
+	})
+	if err != nil {
+		return remote.Job{}, err
+	}
+	remoteJobFiles(&job)
+	return job, nil
+}
+
+// remoteRemove takes job id off the open library's shelf as the queue card's 移除 does: a running job is stopped, the film open in the player closes when it is this one, and its files stay on disk.
+func (a *app) remoteRemove(ctx context.Context, id string) error {
+	_, err := remote.OnUI(ctx, a.update, func() (struct{}, error) {
+		if _, err := a.remoteFindJob(id); err != nil {
+			return struct{}{}, err
+		}
+		a.remove(id)
+		return struct{}{}, nil
+	})
+	return err
 }
 
 // remoteSites is the websites Kando downloads from that p.Query finds, as the sites sheet lists them, at most p.Limit of them when it is set.

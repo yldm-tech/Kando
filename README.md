@@ -121,6 +121,8 @@ To get the `kando` command:
 | `kando jobs` | Lists the jobs: the running one, the waiting ones, then the finished ones. |
 | `kando add <link-or-file>... [--wait]` | Queues links and local video files, as Start Processing does, and prints each job's id. Relative paths are taken from the current directory. |
 | `kando cancel <job-id>` | Stops a running job, or takes a waiting one out of the queue. |
+| `kando retry <job-id> [--wait]` | Queues a failed, canceled or finished job again under the same id, as Retry and Process Again do, without changing what the window shows. A running or waiting job is refused. |
+| `kando remove <job-id>` | Takes a job off the library, as Remove does, stopping it first when it is running. Its files stay on disk. |
 | `kando sites [query] [--limit N]` | Searches the websites Kando downloads from, by name, domain or a video link. |
 | `kando open [film-id]` | Brings Kando to the front, showing a film, or the library without an id. |
 | `kando mcp` | Serves MCP on standard input and output (see below). |
@@ -129,7 +131,7 @@ To get the `kando` command:
 
 A command that needs the app connects to it through a socket, `kando.sock` in the folder that holds `settings.json` (`~/Library/Application Support/Kando/kando.sock` on macOS, `~/.config/Kando/kando.sock` on Linux, `%AppData%\Kando\kando.sock` on Windows); `KANDO_SOCKET` sets another path, which a second copy of Kando also needs, with its own `HOME` (see [Configuration](#configuration)). When Kando is not running, the command starts it in the background, prints `Starting Kando…` to standard error, and waits up to 30 seconds for it. Adding videos needs what Start Processing needs, such as an open library, the programs and a whisper model; when something is missing, `kando add` fails with the message the window shows for it.
 
-Every command that talks to the app takes `--json`, which prints the app's answer as JSON instead of text. `kando add` exits with 1 when a source could not be added. With `--wait` it stays until every added job is complete or failed, printing a line whenever one's stage or progress changes, and also exits with 1 when any of them failed; with `--json` the progress goes to standard error and the jobs as they ended to standard output. Exit codes are 0 for success, 1 for a failure and 2 for a command used wrongly.
+Every command that talks to the app takes `--json`, which prints the app's answer as JSON instead of text. `kando add` exits with 1 when a source could not be added. With `--wait` it stays until every added job is complete or failed, printing a line whenever one's stage or progress changes, and also exits with 1 when any of them failed; with `--json` the progress goes to standard error and the jobs as they ended to standard output. `kando retry --wait` waits for the job it queued again in the same way. Exit codes are 0 for success, 1 for a failure and 2 for a command used wrongly.
 
 `kando mcp` is an MCP server on standard input and output. Its tools start Kando the same way when it is not running:
 
@@ -142,6 +144,8 @@ Every command that talks to the app takes `--json`, which prints the app's answe
 | `kando_add_videos` | Queues links and local video files; returns the jobs, and why each source that was not added was skipped. |
 | `kando_list_jobs` | The jobs, with their stage, progress, status, error, and once complete the film id and file paths. |
 | `kando_cancel_job` | Stops a running job, or takes a waiting one out of the queue. |
+| `kando_retry_job` | Queues a failed, canceled or finished job again under the same id; returns the job. |
+| `kando_remove_job` | Takes a job off the library, stopping it first when it is running; its files stay on disk. |
 | `kando_search_sites` | Searches the websites Kando downloads from, by name, domain or a video link (20 results unless `limit` is set). |
 | `kando_open` | Brings the Kando window to the front, showing a film or the library. |
 

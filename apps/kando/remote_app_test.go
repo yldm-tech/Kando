@@ -459,6 +459,153 @@ func TestRemoteSourceTakesFileURLsToTheirFile(t *testing.T) {
 	}
 }
 
+// TestRemoteRetriesAJobWithoutMovingTheWindow checks that jobs.retry queues a failed, canceled or done job again under its own ID, as 重试 and 重新处理 do, while the window stays on the page and card it showed, and that it refuses a job that is still running or waiting.
+func TestRemoteRetriesAJobWithoutMovingTheWindow(t *testing.T) {
+	a, _, updates := newTestApp(&fakePipeline{block: true})
+	remoteServe(t, a)
+	dir := t.TempDir()
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{
+		{ID: "bad", Source: "https://example.com/bad", Stage: core.StageFailed, Err: errors.New("download: boom"), FailKind: "network", LibraryDir: dir},
+		{ID: "stopped", Source: "https://example.com/stopped", Language: "日本語", Stage: core.StageFailed, Err: context.Canceled, LibraryDir: dir},
+		{ID: "done", Source: "https://example.com/done", Language: "简体中文", Stage: core.StageComplete, SubtitlePath: filepath.Join(dir, "done.bilingual.srt"), LibraryDir: dir, CompletedAt: time.Now()},
+	}
+	a.page = pageYouTube
+	a.queue.selectedID = "picked"
+
+	got, err := remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "bad"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != "bad" || got.Stage != "queued" || got.Error != "" || got.Canceled || got.Language != "简体中文" {
+		t.Fatalf("retried failed job %+v", got)
+	}
+	if a.page != pageYouTube || a.queue.selectedID != "picked" {
+		t.Fatalf("jobs.retry moved the window to page %q, card %q", a.page, a.queue.selectedID)
+	}
+	if a.queue.active != "bad" || len(a.library.Jobs) != 3 {
+		t.Fatalf("running %q, jobs %+v", a.queue.active, a.library.Jobs)
+	}
+	if job, _ := a.library.Find("bad"); job.FailKind != "" || job.Language != "简体中文" {
+		t.Fatalf("bad on the shelf %+v", job)
+	}
+
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "bad"})
+	remoteWantCode(t, err, remote.CodeInvalid)
+
+	got, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "stopped"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != "stopped" || got.Stage != "queued" || got.Canceled || got.Language != "日本語" {
+		t.Fatalf("retried canceled job %+v", got)
+	}
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "stopped"})
+	remoteWantCode(t, err, remote.CodeInvalid)
+
+	got, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "done"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID != "done" || got.Stage != "queued" {
+		t.Fatalf("reprocessed done job %+v", got)
+	}
+	jobs, err := remoteCall[[]remote.Job](t, updates, remote.MethodJobs, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 3 || jobs[0].ID != "bad" || jobs[1].ID != "stopped" || jobs[2].ID != "done" {
+		t.Fatalf("jobs after retrying %+v", jobs)
+	}
+
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "nope"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+	if a.page != pageYouTube || a.queue.selectedID != "picked" {
+		t.Fatalf("jobs.retry moved the window to page %q, card %q", a.page, a.queue.selectedID)
+	}
+
+	a.queue.stopActive(context.Canceled)
+	waitUntil(t, updates, func() bool { return a.queue.active != "bad" })
+	a.queue.stopActive(context.Canceled)
+	waitUntil(t, updates, func() bool { return a.queue.active != "stopped" })
+	a.queue.stopActive(context.Canceled)
+	waitUntil(t, updates, func() bool { return !a.running() })
+}
+
+// TestRemoteRetrySaysWhatIsMissing checks that jobs.retry answers not_ready with the message bar's words when the job cannot start now, and leaves the job as it was.
+func TestRemoteRetrySaysWhatIsMissing(t *testing.T) {
+	failed := core.Job{ID: "bad", Source: "https://example.com/bad", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: "/videos"}
+
+	a, _, updates := newTestApp(media.Tools{})
+	remoteServe(t, a)
+	a.library.Jobs = []core.Job{failed}
+	want, _ := a.precheck([]string{failed.Source})
+	if want == "" {
+		t.Fatal("precheck passed without any program")
+	}
+	_, err := remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "bad"})
+	var e *remote.Error
+	if !errors.As(err, &e) || e.Code != remote.CodeNotReady || e.Message != want {
+		t.Fatalf("retry without the programs: %v, want not_ready %q", err, want)
+	}
+	if job, _ := a.library.Find("bad"); job.Stage != core.StageFailed || a.running() {
+		t.Fatalf("job after a refused retry %+v, running %v", job, a.running())
+	}
+
+	// With every program in place, a job that names no language still needs one from the settings.
+	a.pipeline = &fakePipeline{}
+	a.prefs.language = ""
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "bad"})
+	if !errors.As(err, &e) || e.Code != remote.CodeNotReady || e.Message != locales.QueueNoLanguage() {
+		t.Fatalf("retry without a language: %v", err)
+	}
+	if job, _ := a.library.Find("bad"); job.Stage != core.StageFailed || a.running() || a.queue.status != "" {
+		t.Fatalf("job after a refused retry %+v, running %v, status %q", job, a.running(), a.queue.status)
+	}
+
+	a.edit(func(s *session) { s.LibraryDir = "" })
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "bad"})
+	remoteWantCode(t, err, remote.CodeNotReady)
+}
+
+// TestRemoteRemovesAJob checks that jobs.remove takes a job off the shelf as 移除 does: a running one stops first, and the files a done one made stay on disk.
+func TestRemoteRemovesAJob(t *testing.T) {
+	a, _, updates := newTestApp(&fakePipeline{block: true})
+	remoteServe(t, a)
+	dir := t.TempDir()
+	video := filepath.Join(dir, "Done", "done.mp4")
+	remoteWriteFile(t, video, "video")
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{{ID: "done", Source: "https://example.com/done", Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: dir}}
+	a.queueAdd(core.Job{ID: "run", Source: "https://example.com/run", Language: "简体中文", LibraryDir: dir})
+	if a.queue.active != "run" {
+		t.Fatalf("running %q", a.queue.active)
+	}
+
+	if _, err := remoteCall[any](t, updates, remote.MethodRemove, remote.IDParams{ID: "run"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := a.library.Find("run"); ok {
+		t.Fatalf("the removed running job is still on the shelf: %+v", a.library.Jobs)
+	}
+	waitUntil(t, updates, func() bool { return !a.running() })
+	if _, ok := a.library.Find("run"); ok {
+		t.Fatal("the stopped job came back to the shelf")
+	}
+
+	if _, err := remoteCall[any](t, updates, remote.MethodRemove, remote.IDParams{ID: "done"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.library.Jobs) != 0 {
+		t.Fatalf("jobs after removing %+v", a.library.Jobs)
+	}
+	if _, err := os.Stat(video); err != nil {
+		t.Fatalf("jobs.remove deleted the video: %v", err)
+	}
+	_, err := remoteCall[any](t, updates, remote.MethodRemove, remote.IDParams{ID: "done"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+}
+
 func TestRemoteSearchesSites(t *testing.T) {
 	a, _, updates := newTestApp(&fakePipeline{})
 	remoteServe(t, a)

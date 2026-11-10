@@ -26,6 +26,10 @@ const (
 	MethodAdd = "jobs.add"
 	// MethodCancel takes IDParams, a Job's ID, and answers the Job as it is after canceling: a running job stops, a waiting one leaves the queue.
 	MethodCancel = "jobs.cancel"
+	// MethodRetry takes IDParams, a Job's ID, and answers the Job as it is once queued again under the same ID, as the window's 重试 and 重新处理 queue it: a failed, canceled or complete job runs through the pipeline again. A job still running or waiting is refused.
+	MethodRetry = "jobs.retry"
+	// MethodRemove takes IDParams, a Job's ID, takes the job off the open library's shelf as the window's 移除 does, stopping it first when it is running, and answers nothing (null). Its files stay on disk.
+	MethodRemove = "jobs.remove"
 	// MethodSites takes SitesParams and answers []Site, the websites Kando downloads from that the query finds.
 	MethodSites = "sites.search"
 	// MethodShow takes IDParams, a Film's ID or "" for the library, brings the window to the front showing it, and answers nothing (null).

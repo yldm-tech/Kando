@@ -318,6 +318,37 @@ func TestRetryWaitsBehindTheQueue(t *testing.T) {
 	}
 }
 
+// TestRetryGoesToTheLibrary checks that 重试 in the window, unlike the control socket's jobs.retry, shows the library with the retried job's card followed, and that a job without a language when the settings name none says so on the line under the link field and stays where it is.
+func TestRetryGoesToTheLibrary(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	a.library.Jobs = []core.Job{
+		{ID: "old", Source: "https://example.com/old", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: "/videos"},
+		{ID: "bare", Source: "https://example.com/bare", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: "/videos"},
+	}
+	a.page = pageYouTube
+	a.Retry("old")
+	if a.page != pageFilms || a.queue.selectedID != "old" || a.queue.job == nil || a.queue.job.ID != "old" {
+		t.Fatalf("Retry showed page %q, card %q", a.page, a.queue.selectedID)
+	}
+	if job := stageOf(t, a, "old"); job.Stage != core.StageQueued || job.Language != "简体中文" {
+		t.Fatalf("old after Retry %+v", job)
+	}
+	nextStarted(t, g, updates)
+
+	a.page = pageYouTube
+	a.prefs.language = ""
+	a.retry(stageOf(t, a, "bare"))
+	if a.page != pageYouTube || a.queue.status != locales.QueueNoLanguage() {
+		t.Fatalf("retry without a language: page %q, status %q", a.page, a.queue.status)
+	}
+	if job := stageOf(t, a, "bare"); job.Stage != core.StageFailed {
+		t.Fatalf("bare after a refused retry %+v", job)
+	}
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+}
+
 // TestSwitchLibraryKeepsTheRunningJob opens another library while a job runs: the job goes on, its card stays in 处理中 saying which library it saves into, and once it is done the message bar says where it went. The jobs queued in the first library run after it, before the one queued in the second, and each job stays in the library it was queued in.
 func TestSwitchLibraryKeepsTheRunningJob(t *testing.T) {
 	g := newGatePipeline()

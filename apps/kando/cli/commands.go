@@ -321,6 +321,64 @@ func runCancel(e *env, args []string) error {
 	return writeJobs(e.stdout, []remote.Job{job})
 }
 
+func runRetry(e *env, args []string) error {
+	fs := e.flags()
+	wait := fs.Bool("wait", false, "wait until the job is complete or failed, printing its progress")
+	positional, err := e.parse(fs, args)
+	if err != nil {
+		return err
+	}
+	switch len(positional) {
+	case 0:
+		return usagef("needs a job id")
+	case 1:
+	default:
+		return usagef("takes one id, got %d arguments", len(positional))
+	}
+	if !*wait {
+		var job remote.Job
+		if done, err := e.answer(remote.MethodRetry, remote.IDParams{ID: positional[0]}, &job); done || err != nil {
+			return err
+		}
+		return writeJobs(e.stdout, []remote.Job{job})
+	}
+	var job remote.Job
+	if err := e.call(remote.MethodRetry, remote.IDParams{ID: positional[0]}, &job); err != nil {
+		return err
+	}
+	// As add --wait does: with --json, standard output is kept for the one JSON answer, the job as it ended, and the progress goes to standard error.
+	progress := e.stdout
+	if e.json {
+		progress = e.stderr
+	}
+	final, err := e.waitJobs([]remote.Job{job}, progress)
+	if err != nil {
+		return err
+	}
+	if e.json {
+		raw, err := json.Marshal(final[0])
+		if err != nil {
+			return err
+		}
+		if err := writeJSON(e.stdout, raw); err != nil {
+			return err
+		}
+	}
+	if final[0].Stage != string(core.StageComplete) {
+		return errReported
+	}
+	return nil
+}
+
+func runRemove(e *env, args []string) error {
+	id, err := e.oneID(args, "a job id")
+	if err != nil {
+		return err
+	}
+	_, err = e.answer(remote.MethodRemove, remote.IDParams{ID: id}, nil)
+	return err
+}
+
 func runSites(e *env, args []string) error {
 	fs := e.flags()
 	limit := fs.Int("limit", 0, "at most this many sites, 0 for all")

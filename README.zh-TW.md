@@ -129,6 +129,8 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 | `kando jobs` | 列出工作：先是正在執行的，接著是等待中的，最後是已結束的。 |
 | `kando add <link-or-file>... [--wait]` | 和「開始處理」一樣把連結和本機影片檔加入佇列，並輸出每個工作的 ID。相對路徑以目前目錄為準。 |
 | `kando cancel <job-id>` | 停止正在執行的工作，或把等待中的工作移出佇列。 |
+| `kando retry <job-id> [--wait]` | 和「重試」與「重新處理」一樣，以同一個 ID 把失敗、已取消或已完成的工作重新加入佇列，不改變視窗顯示的內容。正在執行或等待中的工作會被拒絕。 |
+| `kando remove <job-id>` | 和「移除」一樣把工作從資料庫中拿掉，正在執行的工作會先停止。它的檔案留在磁碟上。 |
 | `kando sites [query] [--limit N]` | 依名稱、網域或影片連結搜尋看懂支援下載的網站。 |
 | `kando open [film-id]` | 把看懂視窗移到最前面，顯示指定的影片；不帶 ID 時顯示資料庫。 |
 | `kando mcp` | 在標準輸入和標準輸出上提供 MCP 服務（見下文）。 |
@@ -137,7 +139,7 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 
 需要應用程式的命令會透過 socket 與它通訊，socket 是 `settings.json` 所在資料夾中的 `kando.sock`（macOS 是 `~/Library/Application Support/Kando/kando.sock`，Linux 是 `~/.config/Kando/kando.sock`，Windows 是 `%AppData%\Kando\kando.sock`）；`KANDO_SOCKET` 可以指定其他路徑，執行第二個看懂時也需要它，而且還要有獨立的 `HOME`（請參閱[組態設定](#configuration)）。看懂沒有在執行時，命令會在背景啟動它，向標準錯誤輸出 `Starting Kando…`，並最多等待 30 秒。加入影片需要的條件和「開始處理」相同，例如已開啟資料庫、程式齊全、已有 whisper 模型；缺少某項時，`kando add` 會失敗，並顯示視窗中對應的訊息。
 
-所有與應用程式通訊的命令都支援 `--json`，以 JSON 而非文字輸出應用程式的回應。有來源未能加入時，`kando add` 會以 1 結束。加上 `--wait` 時，它會一直等到所有新加入的工作完成或失敗，每當某個工作的階段或進度變化時輸出一行；只要有工作失敗，同樣以 1 結束。加上 `--json` 時，進度輸出到標準錯誤，結束時的工作輸出到標準輸出。結束代碼：0 表示成功，1 表示失敗，2 表示命令用法有誤。
+所有與應用程式通訊的命令都支援 `--json`，以 JSON 而非文字輸出應用程式的回應。有來源未能加入時，`kando add` 會以 1 結束。加上 `--wait` 時，它會一直等到所有新加入的工作完成或失敗，每當某個工作的階段或進度變化時輸出一行；只要有工作失敗，同樣以 1 結束。加上 `--json` 時，進度輸出到標準錯誤，結束時的工作輸出到標準輸出。`kando retry --wait` 以同樣的方式等待重新加入佇列的工作。結束代碼：0 表示成功，1 表示失敗，2 表示命令用法有誤。
 
 `kando mcp` 是在標準輸入和標準輸出上執行的 MCP 伺服器。看懂沒有在執行時，它的工具也會同樣地啟動它：
 
@@ -150,6 +152,8 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 | `kando_add_videos` | 把連結和本機影片檔加入佇列；回傳這些工作，以及每個未能加入的來源被略過的原因。 |
 | `kando_list_jobs` | 列出工作，包括階段、進度、狀態、錯誤，完成後還有影片 ID 和檔案路徑。 |
 | `kando_cancel_job` | 停止正在執行的工作，或把等待中的工作移出佇列。 |
+| `kando_retry_job` | 以同一個 ID 把失敗、已取消或已完成的工作重新加入佇列，並回傳這個工作。 |
+| `kando_remove_job` | 把工作從資料庫中拿掉，正在執行的工作會先停止；它的檔案留在磁碟上。 |
 | `kando_search_sites` | 依名稱、網域或影片連結搜尋看懂支援下載的網站（未設定 `limit` 時回傳 20 個結果）。 |
 | `kando_open` | 把看懂視窗移到最前面，顯示一部影片或資料庫。 |
 

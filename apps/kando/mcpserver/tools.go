@@ -39,6 +39,10 @@ type jobInput struct {
 	ID string `json:"id" jsonschema:"The job's id, as kando_list_jobs or kando_add_videos reports it."`
 }
 
+type removeJobOutput struct {
+	Removed string `json:"removed" jsonschema:"The id of the job that was removed."`
+}
+
 type searchSitesInput struct {
 	Query string `json:"query" jsonschema:"A website's name, its domain, or a link to a video on it."`
 	Limit int    `json:"limit,omitempty" jsonschema:"The most sites to return. Leave it out for 20."`
@@ -169,6 +173,30 @@ func addTools(server *mcp.Server, a *app) {
 			return nil, remote.Job{}, err
 		}
 		return nil, job, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "kando_retry_job",
+		Description: "Queue a Kando job again by its id, under the same id: a failed or canceled job, or a complete one to process its video again from the start, which writes its subtitles again. Returns the job as it is once queued; follow it with kando_list_jobs as after kando_add_videos. A job still running or waiting is refused. When the job cannot start now, as with no library open or a program missing, the call fails with a not_ready message that says what to fix. Call it only when the user asked to retry or reprocess the job.",
+		Annotations: &mcp.ToolAnnotations{Title: "Retry a Kando job", ReadOnlyHint: false, DestructiveHint: boolPtr(true), IdempotentHint: false, OpenWorldHint: boolPtr(true)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in jobInput) (*mcp.CallToolResult, remote.Job, error) {
+		var job remote.Job
+		if err := a.call(ctx, remote.MethodRetry, remote.IDParams{ID: in.ID}, &job); err != nil {
+			return nil, remote.Job{}, err
+		}
+		return nil, job, nil
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "kando_remove_job",
+		Description: "Remove a Kando job by its id from the open library's job list, as the app's Remove button does: a running job stops first, discarding the work it was doing. The video and subtitle files it already made stay on disk. Call it only when the user asked to remove the job.",
+		Annotations: &mcp.ToolAnnotations{Title: "Remove a Kando job", ReadOnlyHint: false, DestructiveHint: boolPtr(true), IdempotentHint: true, OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, in jobInput) (*mcp.CallToolResult, removeJobOutput, error) {
+		if err := a.call(ctx, remote.MethodRemove, remote.IDParams{ID: in.ID}, nil); err != nil {
+			return nil, removeJobOutput{}, err
+		}
+		text := fmt.Sprintf("Job %s was removed.", in.ID)
+		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: text}}}, removeJobOutput{Removed: in.ID}, nil
 	})
 
 	mcp.AddTool(server, &mcp.Tool{

@@ -132,9 +132,13 @@ func (a *app) queueTake(source string) (string, error) {
 	var dup *queueDuplicate
 	if errors.As(err, &dup) && dup.Stage == core.StageFailed {
 		old, _ := a.library.Find(dup.ID)
-		if old, ok := a.queueRetryable(old); ok {
-			a.queueAdd(old)
-			return old.ID, nil
+		ready, rerr := a.queueRetryable(old)
+		if rerr == nil {
+			a.queueAdd(ready)
+			return ready.ID, nil
+		}
+		if !errors.Is(rerr, errInQueue) {
+			a.queue.status = rerr.Error()
 		}
 	}
 	if err != nil {
@@ -315,10 +319,14 @@ func (a *app) remove(id string) {
 	}
 }
 
-// retry queues a failed or cancelled job again under the same ID, so the card already on screen follows it, and shows that card on the library page. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew.
+// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew. A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
 func (a *app) retry(job core.Job) {
-	job, ok := a.queueRetryable(job)
-	if !ok {
+	job, err := a.queueRetryable(job)
+	if errors.Is(err, errInQueue) {
+		return
+	}
+	if err != nil {
+		a.queue.status = err.Error()
 		return
 	}
 	a.page = pageFilms
@@ -326,10 +334,13 @@ func (a *app) retry(job core.Job) {
 	a.queueAdd(job)
 }
 
-// queueRetryable is job ready to be queued again, with the language to use filled in, and whether it can be: not when it is running or already waiting, or when no language is set, which the page's status then says. It changes neither the page nor the selected card, so a video added again from kando add, MCP or the top bar of another page is queued where the user is (queueTake).
-func (a *app) queueRetryable(job core.Job) (core.Job, bool) {
+// errInQueue is queueRetryable's answer for a job that is running or waiting already.
+var errInQueue = errors.New("the job is already running or waiting in the queue")
+
+// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
+func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 	if job.ID == a.queue.active || job.Stage == core.StageQueued {
-		return job, false
+		return core.Job{}, errInQueue
 	}
 	if job.Stage == core.StageComplete {
 		job.Transcribed = false
@@ -338,10 +349,9 @@ func (a *app) queueRetryable(job core.Job) (core.Job, bool) {
 		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if job.Language == "" {
-		a.queue.status = locales.QueueNoLanguage()
-		return job, false
+		return core.Job{}, errors.New(locales.QueueNoLanguage())
 	}
-	return job, true
+	return job, nil
 }
 
 func (a *app) newDraft() {
