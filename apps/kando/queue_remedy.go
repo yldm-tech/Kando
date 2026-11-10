@@ -200,8 +200,8 @@ func (a *app) outdatedRemedy(site string) films.Remedy {
 			return r
 		}
 		r.Why = locales.QueueRemedyOutdatedDownloadWhy(y.version, hint)
-		if err := a.kits.errs["yt-dlp"]; err != "" {
-			r.Why = locales.QueueRemedyDownloadYtdlpFailed(err)
+		if err := a.kits.errs["yt-dlp"]; err != nil {
+			r.Why = locales.QueueRemedyDownloadYtdlpFailed(kitsError(err))
 		}
 		r.Actions = []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: locales.QueueRemedyDownloadYtdlp(), Primary: true}, {ID: remedyRetry, Label: locales.QueueRemedyUpdated()}}
 		return r
