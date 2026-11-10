@@ -1772,29 +1772,37 @@
   .typed .ln:nth-child(8) {
     animation-delay: 4.9s;
   }
-  .term .c {
+  .term .c,
+  .code .c {
     color: rgba(251, 248, 243, 0.42);
     font-style: italic;
   }
-  .term .p {
+  .term .p,
+  .code .p {
     color: #f7b06a;
   }
-  .term .k {
+  .term .k,
+  .code .k {
     color: #7dd3fc;
   }
-  .term .s {
+  .term .s,
+  .code .s {
     color: #86efac;
   }
-  .term .f {
+  .term .f,
+  .code .f {
     color: #fdba74;
   }
-  .term .u {
+  .term .u,
+  .code .u {
     color: #c4b5fd;
   }
-  .term .h {
+  .term .h,
+  .code .h {
     color: #f9a8d4;
   }
-  .term .o {
+  .term .o,
+  .code .o {
     color: #94a3b8;
   }
   .term-body.mcp {
