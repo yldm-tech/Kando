@@ -60,3 +60,33 @@ func TestParseLinkAcceptsJobSources(t *testing.T) {
 		}
 	}
 }
+
+func TestLinkOneVideo(t *testing.T) {
+	cases := map[string]bool{
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts":                                         true,
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts&list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG": true,
+		"https://youtu.be/TRWgBxVAb1M?list=PLx0sYbCqOb8":                                      true,
+		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8":                                  false,
+		"https://www.youtube.com/watch?list=PLx0sYbCqOb8":                                     false,
+		"https://www.youtube.com/@veritasium":                                                 false,
+		"https://www.youtube.com/@veritasium/videos":                                          false,
+		"https://www.youtube.com/channel/UCHnyfMqiRRG1u-2MsSQLbXA":                            false,
+		"https://www.youtube.com/c/veritasium":                                                false,
+		"https://www.youtube.com/user/1veritasium":                                            false,
+		"https://www.bilibili.com/video/BV1GJ411x7h7?p=3":                                     true,
+		"https://space.bilibili.com/946974":                                                   false,
+		"https://space.bilibili.com/946974/channel/collectiondetail?sid=1":                    false,
+		"https://www.bilibili.com/list/watchlater":                                            false,
+		"https://vimeo.com/76979871":                                                          true,
+		"file:///Users/me/Movies/clip.mp4":                                                    true,
+	}
+	for raw, want := range cases {
+		link, ok := ParseLink(raw)
+		if !ok {
+			t.Fatalf("ParseLink(%q) reported false", raw)
+		}
+		if got := link.OneVideo(); got != want {
+			t.Errorf("ParseLink(%q).OneVideo() = %v, want %v (%+v)", raw, got, want, link)
+		}
+	}
+}

@@ -136,9 +136,9 @@ func LinkHint(raw string) (hint string, ok bool) {
 		return locales.OnboardingLinkChannelUnnamed(), false
 	case link.Kind == core.LinkChannel:
 		return locales.OnboardingLinkChannel(site), false
-	case link.Kind == core.LinkPlaylist && link.ID == "" && site == "":
+	case !link.OneVideo() && site == "":
 		return locales.OnboardingLinkListUnnamed(), false
-	case link.Kind == core.LinkPlaylist && link.ID == "":
+	case !link.OneVideo():
 		return locales.OnboardingLinkList(site), false
 	case link.Kind == core.LinkPlaylist && site == "":
 		return locales.OnboardingLinkPlaylistVideoUnnamed(), true

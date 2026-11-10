@@ -43,6 +43,18 @@ type Link struct {
 	Short bool
 }
 
+// OneVideo reports whether the link names one video a job can download: false for a channel, and for a list that names none of its videos, which yt-dlp would download whole even with --no-playlist. A list link that also names a video, such as YouTube's watch?v=…&list=…, is that video.
+func (l Link) OneVideo() bool {
+	switch l.Kind {
+	case LinkChannel:
+		return false
+	case LinkPlaylist:
+		// A collection on a bilibili channel's page keeps the channel's number in ID, which is not a video.
+		return l.ID != "" && l.Host != "space.bilibili.com"
+	}
+	return true
+}
+
 var (
 	bareVideoHost = regexp.MustCompile(`(?i)^(www\.|m\.)?(youtube\.com|youtu\.be|bilibili\.com|b23\.tv)`)
 	youTubeID     = regexp.MustCompile(`^[\w-]{6,}$`)

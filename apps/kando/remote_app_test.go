@@ -292,6 +292,59 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	waitUntil(t, updates, func() bool { return !a.running() })
 }
 
+// TestRemoteAddSkipsListsAndVideosAlreadyThere checks that kando add and the MCP server's add skip, each with why, a channel or a list that names no single video, a video already waiting or done in the library, and the same video given twice, while a video whose job failed is queued again on its card and answered like a new one.
+func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
+	a, _, updates := newTestApp(&fakePipeline{block: true})
+	remoteServe(t, a)
+	dir := t.TempDir()
+	done := filepath.Join(dir, "Old", "video.mp4")
+	remoteWriteFile(t, done, "video")
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{
+		{ID: "done", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: done, LibraryDir: dir},
+		{ID: "failed", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: dir},
+	}
+	// Adding from kando add or MCP, a failed video queued again included, leaves the window where the user is.
+	a.page = pageAccount
+
+	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{
+		Sources: []string{"https://example.com/a", "https://www.youtube.com/@veritasium", "https://www.youtube.com/playlist?list=PLx0sYbCqOb8", "https://youtu.be/TRWgBxVAb1M", "https://example.com/a", "https://www.bilibili.com/video/BV1GJ411x7h7/"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(added.Jobs) != 2 || added.Jobs[0].Source != "https://example.com/a" || added.Jobs[1].ID != "failed" || added.Jobs[1].Stage != "queued" {
+		t.Fatalf("added %+v", added.Jobs)
+	}
+	var reasons []string
+	for _, s := range added.Skipped {
+		reasons = append(reasons, s.Source+": "+s.Reason)
+	}
+	want := []string{
+		"https://www.youtube.com/@veritasium: " + locales.PrecheckChannel("YouTube"),
+		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8: " + locales.PrecheckList("YouTube"),
+		"https://youtu.be/TRWgBxVAb1M: " + locales.QueueAlreadyInLibrary(),
+		"https://example.com/a: " + locales.QueueAlreadyQueued(),
+	}
+	if !slices.Equal(reasons, want) {
+		t.Fatalf("skipped %q\nwant %q", reasons, want)
+	}
+	if len(a.library.Jobs) != 3 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	if a.page != pageAccount {
+		t.Fatalf("page %q after a remote add, want the account page", a.page)
+	}
+
+	for _, job := range a.library.Jobs {
+		if job.ID != a.queue.active {
+			a.Cancel(job.ID)
+		}
+	}
+	a.queue.stopActive(context.Canceled)
+	waitUntil(t, updates, func() bool { return !a.running() })
+}
+
 func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
 	a, _, updates := newTestApp(&fakePipeline{})
 	remoteServe(t, a)

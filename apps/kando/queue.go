@@ -73,23 +73,109 @@ func (a *app) queueKeys() []shortcut { return nil }
 // errBusy was Enqueue's answer while a job ran, before jobs waited in a queue. Enqueue no longer returns it; it stays so code written against the one-job contract still builds. It is made when it is said, in the language shown then.
 func errBusy() error { return errors.New(locales.QueueBusy()) }
 
-// Enqueue adds a job for each source, a link or a local video's file:// URL, to the open library in the language the settings name. The jobs run one after another, after those already waiting. A source that cannot be added is skipped and the others are still added; the error is why the first one was not.
+// Enqueue adds a job for each source, a link or a local video's file:// URL, to the open library in the language the settings name. The jobs run one after another, after those already waiting. A source that cannot be added is skipped and the others are still added; the error is why the first one was not. A video the library already has a job for is not added twice (queueTake), and a source naming the same video as one before it is left out.
 func (a *app) Enqueue(sources ...string) error {
+	_, err := a.queueEnqueue(sources)
+	return err
+}
+
+// queueEnqueue is Enqueue, which also says how many of sources it queued: new jobs, and failed or cancelled jobs of the same videos queued again on their cards.
+func (a *app) queueEnqueue(sources []string) (added int, err error) {
 	if len(sources) == 0 {
-		return core.ErrEmptySource
+		return 0, core.ErrEmptySource
 	}
+	seen := map[string]bool{}
 	var first error
 	for _, source := range sources {
-		job, err := a.newJob(source)
-		if err != nil {
+		key := queueSourceKey(source)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		if _, err := a.queueTake(source); err != nil {
 			if first == nil {
 				first = err
 			}
 			continue
 		}
-		a.queueAdd(job)
+		added++
 	}
-	return first
+	return added, first
+}
+
+// queueTake queues the job for source and returns its ID: a new job, or, when the open library already has a failed or cancelled job for the same video, that job again on its card (retry), so the shelf keeps one card for it. A video already waiting, running or done is not queued again; the error is then a *queueDuplicate naming its job.
+func (a *app) queueTake(source string) (string, error) {
+	job, err := a.newJob(source)
+	var dup *queueDuplicate
+	if errors.As(err, &dup) && dup.Stage == core.StageFailed {
+		old, _ := a.library.Find(dup.ID)
+		if old, ok := a.queueRetryable(old); ok {
+			a.queueAdd(old)
+			return old.ID, nil
+		}
+	}
+	if err != nil {
+		return "", err
+	}
+	a.queueAdd(job)
+	return job.ID, nil
+}
+
+// queueDuplicate is why newJob makes no job for a source whose video the open library already has a job for: ID is that job, and Stage its stage, StageQueued for one that is running but has not returned from its pipeline yet. Its message is made when it is read, in the language shown then.
+type queueDuplicate struct {
+	ID    string
+	Stage core.Stage
+}
+
+func (e *queueDuplicate) Error() string {
+	if e.Stage == core.StageComplete {
+		return locales.QueueAlreadyInLibrary()
+	}
+	return locales.QueueAlreadyQueued()
+}
+
+// queueFindSource is the job of the open library for the same video as source (queueSourceKey). A job waiting, running or done comes before a failed or cancelled one, so a video already processed is not queued again because an earlier try of it failed.
+func (a *app) queueFindSource(source string) (core.Job, bool) {
+	root := a.snap().LibraryDir
+	key := queueSourceKey(source)
+	var failed core.Job
+	found := false
+	for _, job := range a.library.Jobs {
+		if !films.InLibrary(root, job) || queueSourceKey(job.Source) != key {
+			continue
+		}
+		if job.Stage != core.StageFailed {
+			return job, true
+		}
+		if !found {
+			failed, found = job, true
+		}
+	}
+	return failed, found
+}
+
+// queueSourceKey is what two sources of the same video have in common: the platform and the video's ID that core.ParseLink reads, with the part of a bilibili video in several parts, so youtu.be/x and youtube.com/watch?v=x&t=9 are one video; the cleaned path of a local file; and the link itself for a site whose videos ParseLink does not name, or the source as it is when it is not a link.
+func queueSourceKey(source string) string {
+	source = strings.TrimSpace(source)
+	link, ok := core.ParseLink(source)
+	switch {
+	case !ok:
+		return source
+	case link.Platform == core.PlatformLocal:
+		return string(link.Platform) + ":" + filepath.Clean(link.ID)
+	case link.ID == "":
+		return link.URL
+	}
+	key := string(link.Platform) + ":" + link.ID
+	if link.Platform == core.PlatformBilibili {
+		// A video without p= is its first part.
+		if u, err := url.Parse(link.URL); err == nil {
+			if part := u.Query().Get("p"); part != "" && part != "1" {
+				key += "?p=" + part
+			}
+		}
+	}
+	return key
 }
 
 // Cancel stops job id if it is running, or takes it out of the queue if it is waiting. Its card stays, marked 已取消. A finished or unknown job is left alone.
@@ -111,7 +197,7 @@ func (a *app) Cancel(id string) {
 // RunningJob is the ID of the job being processed now, or "" when none is. A job waiting in the queue is not running.
 func (a *app) RunningJob() string { return a.queue.active }
 
-// newJob makes the job for source in the open library and the target language, or returns why it cannot.
+// newJob makes the job for source in the open library and the target language, or returns why it cannot. When the library already has a job for the same video (queueFindSource), it makes none and returns a *queueDuplicate naming that job.
 func (a *app) newJob(source string) (core.Job, error) {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
 		return core.Job{}, errors.New(locales.QueueNoLibrary())
@@ -123,6 +209,14 @@ func (a *app) newJob(source string) (core.Job, error) {
 	language := strings.TrimSpace(a.prefs.language)
 	if language == "" {
 		return core.Job{}, errors.New(locales.QueueNoLanguage())
+	}
+	if old, ok := a.queueFindSource(job.Source); ok {
+		stage := old.Stage
+		// A running job that was stopped is marked failed before its pipeline returns; until then it cannot be retried and is still in the queue.
+		if old.ID == a.queue.active && stage == core.StageFailed {
+			stage = core.StageQueued
+		}
+		return core.Job{}, &queueDuplicate{ID: old.ID, Stage: stage}
 	}
 	job.Language = language
 	return job, nil
@@ -197,21 +291,30 @@ func (a *app) remove(id string) {
 	}
 }
 
-// retry queues a failed or cancelled job again under the same ID, so the card already on screen follows it.
+// retry queues a failed or cancelled job again under the same ID, so the card already on screen follows it, and shows that card on the library page.
 func (a *app) retry(job core.Job) {
-	if job.ID == a.queue.active || job.Stage == core.StageQueued {
+	job, ok := a.queueRetryable(job)
+	if !ok {
 		return
+	}
+	a.page = pageFilms
+	a.queue.selectedID = job.ID
+	a.queueAdd(job)
+}
+
+// queueRetryable is job ready to be queued again, with the language to use filled in, and whether it can be: not when it is running or already waiting, or when no language is set, which the page's status then says. It changes neither the page nor the selected card, so a video added again from kando add, MCP or the top bar of another page is queued where the user is (queueTake).
+func (a *app) queueRetryable(job core.Job) (core.Job, bool) {
+	if job.ID == a.queue.active || job.Stage == core.StageQueued {
+		return job, false
 	}
 	if strings.TrimSpace(job.Language) == "" {
 		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if job.Language == "" {
 		a.queue.status = locales.QueueNoLanguage()
-		return
+		return job, false
 	}
-	a.page = pageFilms
-	a.queue.selectedID = job.ID
-	a.queueAdd(job)
+	return job, true
 }
 
 func (a *app) newDraft() {
@@ -223,14 +326,17 @@ func (a *app) newDraft() {
 
 // start queues the source typed on the library page. Its card is the one the page's status follows.
 func (a *app) start() {
-	job, err := a.newJob(a.queue.source)
+	id, err := a.queueTake(a.queue.source)
 	if err != nil {
 		a.queue.job = nil
 		a.queue.status = err.Error()
 		return
 	}
-	a.queue.selectedID = job.ID
-	a.queueAdd(job)
+	a.queue.selectedID = id
+	if job, ok := a.library.Find(id); ok {
+		a.queue.job = &job
+		a.queue.status = statusText(job)
+	}
 }
 
 // queueAdd puts job on the shelf as queued, behind the jobs already waiting, and starts it if nothing is running.

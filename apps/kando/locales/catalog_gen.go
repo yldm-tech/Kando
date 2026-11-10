@@ -3392,6 +3392,22 @@ func (msgs Messages) FilmsNoSubtitles() string {
 	return Catalog.Format(msgs.locale, "filmsNoSubtitles", nil)
 }
 
+// FilmsNoticeOpen says "Open"
+// in the language the app shows.
+//
+// Button in the message bar that says a video is already in the library; it
+// opens that film.
+func FilmsNoticeOpen() string { return In(i18n.Locale()).FilmsNoticeOpen() }
+
+// FilmsNoticeOpen says "Open"
+// in the language of msgs.
+//
+// Button in the message bar that says a video is already in the library; it
+// opens that film.
+func (msgs Messages) FilmsNoticeOpen() string {
+	return Catalog.Format(msgs.locale, "filmsNoticeOpen", nil)
+}
+
 // FilmsOpenLibraryEllipsis says "Open Existing Library…"
 // in the language the app shows.
 //
@@ -6918,6 +6934,38 @@ func (msgs Messages) PlayerUnplayable() string {
 	return Catalog.Format(msgs.locale, "playerUnplayable", nil)
 }
 
+// PrecheckChannel says "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language the app shows.
+//
+// Message bar when the link added is a channel's on a named site: a job
+// downloads one video, and yt-dlp would download the whole channel.
+func PrecheckChannel(site string) string { return In(i18n.Locale()).PrecheckChannel(site) }
+
+// PrecheckChannel says "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language of msgs.
+//
+// Message bar when the link added is a channel's on a named site: a job
+// downloads one video, and yt-dlp would download the whole channel.
+func (msgs Messages) PrecheckChannel(site string) string {
+	return Catalog.Format(msgs.locale, "precheckChannel", map[string]any{"site": site})
+}
+
+// PrecheckChannelUnnamed says "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language the app shows.
+//
+// Message bar when the link added is a channel's on a site without a known
+// name.
+func PrecheckChannelUnnamed() string { return In(i18n.Locale()).PrecheckChannelUnnamed() }
+
+// PrecheckChannelUnnamed says "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language of msgs.
+//
+// Message bar when the link added is a channel's on a site without a known
+// name.
+func (msgs Messages) PrecheckChannelUnnamed() string {
+	return Catalog.Format(msgs.locale, "precheckChannelUnnamed", nil)
+}
+
 // PrecheckEmpty says "Paste a video link first, or choose a local file."
 // in the language the app shows.
 //
@@ -7020,6 +7068,38 @@ func PrecheckFailedTranslate(detail string) string {
 // the AI service said (often English).
 func (msgs Messages) PrecheckFailedTranslate(detail string) string {
 	return Catalog.Format(msgs.locale, "precheckFailedTranslate", map[string]any{"detail": detail})
+}
+
+// PrecheckList says "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language the app shows.
+//
+// Message bar when the link added is a playlist on a named site that names
+// no single video: yt-dlp would download the whole list.
+func PrecheckList(site string) string { return In(i18n.Locale()).PrecheckList(site) }
+
+// PrecheckList says "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language of msgs.
+//
+// Message bar when the link added is a playlist on a named site that names
+// no single video: yt-dlp would download the whole list.
+func (msgs Messages) PrecheckList(site string) string {
+	return Catalog.Format(msgs.locale, "precheckList", map[string]any{"site": site})
+}
+
+// PrecheckListUnnamed says "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language the app shows.
+//
+// Message bar when the link added is a playlist on a site without a known
+// name that names no single video.
+func PrecheckListUnnamed() string { return In(i18n.Locale()).PrecheckListUnnamed() }
+
+// PrecheckListUnnamed says "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+// in the language of msgs.
+//
+// Message bar when the link added is a playlist on a site without a known
+// name that names no single video.
+func (msgs Messages) PrecheckListUnnamed() string {
+	return Catalog.Format(msgs.locale, "precheckListUnnamed", nil)
 }
 
 // PrecheckNoLLMModel says "Choose a model in “AI Service” first"
@@ -7286,6 +7366,40 @@ func PrecheckTranslateTimeout() string { return In(i18n.Locale()).PrecheckTransl
 // answered.
 func (msgs Messages) PrecheckTranslateTimeout() string {
 	return Catalog.Format(msgs.locale, "precheckTranslateTimeout", nil)
+}
+
+// QueueAlreadyInLibrary says "This video is already in the library."
+// in the language the app shows.
+//
+// Message bar, and the reason kando add and the MCP server give, when the
+// video added has already been processed in the open library. The bar
+// offers to open it.
+func QueueAlreadyInLibrary() string { return In(i18n.Locale()).QueueAlreadyInLibrary() }
+
+// QueueAlreadyInLibrary says "This video is already in the library."
+// in the language of msgs.
+//
+// Message bar, and the reason kando add and the MCP server give, when the
+// video added has already been processed in the open library. The bar
+// offers to open it.
+func (msgs Messages) QueueAlreadyInLibrary() string {
+	return Catalog.Format(msgs.locale, "queueAlreadyInLibrary", nil)
+}
+
+// QueueAlreadyQueued says "This video is already in the queue."
+// in the language the app shows.
+//
+// Message bar, and the reason kando add and the MCP server give, when the
+// video added is already waiting or being processed in the open library.
+func QueueAlreadyQueued() string { return In(i18n.Locale()).QueueAlreadyQueued() }
+
+// QueueAlreadyQueued says "This video is already in the queue."
+// in the language of msgs.
+//
+// Message bar, and the reason kando add and the MCP server give, when the
+// video added is already waiting or being processed in the open library.
+func (msgs Messages) QueueAlreadyQueued() string {
+	return Catalog.Format(msgs.locale, "queueAlreadyQueued", nil)
 }
 
 // QueueBorrowed says "Using {browser}'s sign-in. Downloading now."

@@ -260,6 +260,35 @@ func TestDownloadFollowsTheRealOutput(t *testing.T) {
 	}
 }
 
+// Every download asks yt-dlp for one video at most, so a link to a whole list on a site Kando does not know lists of downloads its first video instead of every one into the library. yt-dlp exits with 101 once it has downloaded that video, as it does with a real download (checked against yt-dlp 2026.08.19), which is a download that worked.
+func TestDownloadStopsAfterOneVideo(t *testing.T) {
+	tool, args := argsYTDLP(t)
+	tools := Tools{YTDLP: tool, OutputDir: t.TempDir()}
+	tools.Download(context.Background(), "https://vimeo.com/showcase/1234")
+	if data, _ := os.ReadFile(args); !strings.Contains(string(data), "--max-downloads\n1\n") {
+		t.Fatalf("args %s", data)
+	}
+
+	tools.YTDLP = fakeYTDLP(t, "testdata/ytdlp/download-youtube.stdout", "", ytdlpMaxDownloadsExit)
+	path, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "/library/Me at the zoo [jNQXAC9IVRw]/video.mp4" {
+		t.Fatalf("path %q", path)
+	}
+
+	// Without the video's path, or with another failure, the exit is an error as before.
+	tools.YTDLP = fakeYTDLP(t, "", "", ytdlpMaxDownloadsExit)
+	if _, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw"); err == nil {
+		t.Fatal("exit 101 without a downloaded video reported success")
+	}
+	tools.YTDLP = fakeYTDLP(t, "testdata/ytdlp/download-youtube.stdout", "", 1)
+	if _, err := tools.Download(context.Background(), "https://www.youtube.com/watch?v=jNQXAC9IVRw"); err == nil {
+		t.Fatal("exit 1 reported success")
+	}
+}
+
 func TestDownloadNamesAFailedYouTubeVideoFromOEmbed(t *testing.T) {
 	var asked string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

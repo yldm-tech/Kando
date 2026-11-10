@@ -93,7 +93,9 @@ type Notice struct {
 	Text string
 	// Section is the settings section 打开设置 opens; empty shows no button.
 	Section string
-	Open    bool
+	// Film is the job ID of the film the bar's 打开 opens, such as the film a link just added is already in the library as; empty shows no button.
+	Film string
+	Open bool
 }
 
 // The library's content, as the prototype lays it out: inset PagePadX from the content column's sides, starting contentTop down, under the top bar that it scrolls beneath, with pagePadBottom under its last part.

@@ -1169,3 +1169,126 @@ func TestFailedCardsInEnglish(t *testing.T) {
 		t.Fatalf("status line %q", r.Text())
 	}
 }
+
+// TestAddingAVideoTwiceQueuesItOnce adds a video already waiting in the queue again, by another link to it: no second card is made, which would download into the same folder, and the message bar says it is already queued. The same video twice among the links added at once makes one card too.
+func TestAddingAVideoTwiceQueuesItOnce(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() {
+		for _, job := range a.library.Jobs {
+			if job.ID != a.queue.active {
+				a.Cancel(job.ID)
+			}
+		}
+		a.stop()
+		waitUntil(t, updates, func() bool { return !a.running() })
+	})
+	if err := a.Enqueue("https://www.youtube.com/watch?v=TRWgBxVAb1M", "https://example.com/v"); err != nil {
+		t.Fatal(err)
+	}
+	ids := jobIDs(a)
+	for _, again := range []string{"https://youtu.be/TRWgBxVAb1M?t=9", "https://www.youtube.com/watch?v=TRWgBxVAb1M&list=PLx0sYbCqOb8", " https://example.com/v "} {
+		err := a.Enqueue(again)
+		var dup *queueDuplicate
+		if !errors.As(err, &dup) || err.Error() != "这个视频已在处理队列中。" || len(a.library.Jobs) != 2 {
+			t.Fatalf("adding %q again: err %v, jobs %+v", again, err, a.library.Jobs)
+		}
+		if want := ids[strings.TrimSpace(again)]; want != "" && dup.ID != want {
+			t.Fatalf("adding %q names job %s, want %s", again, dup.ID, want)
+		}
+	}
+
+	startJob(t, tt, "https://www.youtube.com/shorts/TRWgBxVAb1M")
+	tt.Frame()
+	if len(a.library.Jobs) != 2 || !tt.HasText("这个视频已在处理队列中。") || a.queue.source == "" {
+		t.Fatalf("jobs %d, source %q, texts %q", len(a.library.Jobs), a.queue.source, tt.Texts())
+	}
+
+	if err := a.Enqueue("https://www.bilibili.com/video/BV1GJ411x7h7", "https://www.bilibili.com/video/BV1GJ411x7h7?p=1", "https://b23.tv/xYz12Ab", "https://b23.tv/xYz12Ab"); err != nil {
+		t.Fatalf("the same video twice among links added at once: %v", err)
+	}
+	if len(a.library.Jobs) != 4 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	// Another part of a video in several parts is another video.
+	if err := a.Enqueue("https://www.bilibili.com/video/BV1GJ411x7h7?p=2"); err != nil || len(a.library.Jobs) != 5 {
+		t.Fatalf("part 2: err %v, jobs %d", err, len(a.library.Jobs))
+	}
+}
+
+// TestAddingAVideoInTheLibraryOffersToOpenIt adds a link to a video the library has already processed: nothing is queued, and the message bar says the video is there with 打开, which opens its film.
+func TestAddingAVideoInTheLibraryOffersToOpenIt(t *testing.T) {
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.library.Jobs = []core.Job{{
+		ID: "done", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Title: "Colibri", Language: "简体中文", Stage: core.StageComplete,
+		VideoPath: "/videos/Colibri [TRWgBxVAb1M]/video.mp4", SubtitlePath: "/videos/Colibri [TRWgBxVAb1M]/video.bilingual.srt", LibraryDir: "/videos", CompletedAt: time.Now(),
+	}}
+	startJob(t, tt, "https://youtu.be/TRWgBxVAb1M")
+	tt.Frame()
+	if len(a.library.Jobs) != 1 || a.lib.notice.Film != "done" || !tt.HasText("这个视频已在资料库中。") {
+		t.Fatalf("jobs %+v, notice %+v, texts %q", a.library.Jobs, a.lib.notice, tt.Texts())
+	}
+	if err := tt.Click("打开"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	if a.openKey != "done" || a.lib.notice.Open {
+		t.Fatalf("open %q, notice %+v", a.openKey, a.lib.notice)
+	}
+
+	// Once the film it names is removed, the bar still showing has nothing to open, and no 打开.
+	a.closeFilm()
+	a.libraryEnqueue("https://youtu.be/TRWgBxVAb1M")
+	tt.Frame()
+	if !slices.Contains(tt.Texts(), "打开") {
+		t.Fatalf("no 打开 before the film is removed; texts %q", tt.Texts())
+	}
+	a.remove("done")
+	tt.Frame()
+	if !a.lib.notice.Open || slices.Contains(tt.Texts(), "打开") {
+		t.Fatalf("notice %+v, texts %q", a.lib.notice, tt.Texts())
+	}
+
+	// A message about something else has no 打开.
+	a.warn("别的消息", "")
+	tt.Frame()
+	if slices.Contains(tt.Texts(), "打开") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// TestAddingAFailedVideoAgainRetriesIt adds a link whose earlier job failed, or was cancelled: that job runs again on its card, rather than a second card being made beside it. A job of the same video in another library is not this library's, and the video is added as a new job.
+func TestAddingAFailedVideoAgainRetriesIt(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.library.Jobs = []core.Job{
+		{ID: "failed", Source: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: "/videos"},
+		{ID: "cancelled", Source: "file:///Users/me/Movies/clip.mp4", Language: "简体中文", Stage: core.StageFailed, Err: context.Canceled, LibraryDir: "/videos"},
+		{ID: "elsewhere", Source: "https://vimeo.com/76979871", Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: "/other"},
+	}
+	startJob(t, tt, "https://youtu.be/TRWgBxVAb1M")
+	tt.Frame()
+	if len(a.library.Jobs) != 3 || !tt.HasText("已加入，开始处理。") {
+		t.Fatalf("jobs %+v, texts %q", a.library.Jobs, tt.Texts())
+	}
+	if job := stageOf(t, a, "failed"); job.Stage == core.StageFailed || job.Err != nil {
+		t.Fatalf("failed job after adding it again %+v", job)
+	}
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, "failed"); job.Stage != core.StageComplete {
+		t.Fatalf("failed job %+v", job)
+	}
+
+	// Queued again from another page, such as the YouTube filter whose top bar adds links too, the window stays on that page.
+	a.page = pageYouTube
+	if err := a.Enqueue("file:///Users/me/Movies/../Movies/clip.mp4", "https://vimeo.com/76979871"); err != nil {
+		t.Fatal(err)
+	}
+	if a.page != pageYouTube {
+		t.Fatalf("page %q after adding a cancelled video again, want the YouTube page", a.page)
+	}
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, "cancelled"); job.Stage != core.StageComplete || len(a.library.Jobs) != 4 {
+		t.Fatalf("cancelled job %+v, jobs %+v", job, a.library.Jobs)
+	}
+	if job := stageOf(t, a, "elsewhere"); job.Stage != core.StageFailed {
+		t.Fatalf("the other library's job ran: %+v", job)
+	}
+}

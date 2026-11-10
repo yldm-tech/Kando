@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo"
@@ -238,18 +240,20 @@ func (a *app) films() []films.Film {
 	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, jobName, statusText)
 }
 
-// libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added.
+// libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added, a failed job of the same video queued again included. A video the library already holds is not added; the bar says so and offers to open it.
 func (a *app) libraryEnqueue(sources ...string) bool {
 	if msg, section := a.precheck(sources); msg != "" {
 		a.warn(msg, section)
 		return false
 	}
-	before := len(a.library.Jobs)
-	err := a.Enqueue(sources...)
-	added := len(a.library.Jobs) - before
+	added, err := a.queueEnqueue(sources)
+	var dup *queueDuplicate
 	switch {
 	case err != nil && added > 0:
 		a.warn(locales.LibraryAddedSome(added, sourceError(err)), "")
+	case errors.As(err, &dup) && dup.Stage == core.StageComplete:
+		a.warn(sourceError(err), "")
+		a.lib.notice.Film = dup.ID
 	case err != nil:
 		a.warn(sourceError(err), "")
 	case added > 1:

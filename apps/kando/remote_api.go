@@ -226,14 +226,14 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 			return remote.AddResult{}, remote.Errorf(remote.CodeNotReady, "%s", msg)
 		}
 		var ids []string
+		// A video the library already has waiting, running or done is skipped with why, as is a source naming the same video as one before it; a failed or cancelled job of the video is queued again and answered like a new one (queueTake).
 		for _, c := range candidates {
-			job, err := a.newJob(c.source)
+			id, err := a.queueTake(c.source)
 			if err != nil {
 				res.Skipped = append(res.Skipped, remote.AddFailed{Source: c.given, Reason: sourceError(err)})
 				continue
 			}
-			a.queueAdd(job)
-			ids = append(ids, job.ID)
+			ids = append(ids, id)
 		}
 		for _, id := range ids {
 			if job, ok := a.library.Find(id); ok {
@@ -521,8 +521,13 @@ func remoteSource(given, dir string) (source, reason string) {
 	}
 	path, local := remoteLocalPath(s, dir)
 	if !local {
-		if _, ok := core.ParseLink(s); !ok {
+		link, ok := core.ParseLink(s)
+		if !ok {
 			return "", locales.PrecheckNotLink()
+		}
+		// A channel or a list is skipped on its own here, rather than refusing the whole request in precheck, as a link that is not one is.
+		if !link.OneVideo() {
+			return "", precheckWhole(link)
 		}
 		return s, ""
 	}
