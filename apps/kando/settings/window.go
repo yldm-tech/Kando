@@ -81,6 +81,14 @@ type App interface {
 	DownloadErr() string
 	CancelDownload()
 	DownloadModel(id string)
+	// OwnsSpeechModel reports whether the file of the whisper catalog model id is one Kando downloaded into its own models folder, which it may move to the Trash; a model another app keeps is that app's. AskTrashSpeechModel opens the confirmation of moving it to the Trash, TrashingSpeechModel is that confirmation's open flag and the model it asks about, and TrashSpeechModel moves the file, refusing the model in use, another app's and any while a download runs.
+	OwnsSpeechModel(id string) bool
+	AskTrashSpeechModel(id string)
+	TrashingSpeechModel() (open *bool, id string)
+	TrashSpeechModel(id string)
+	// SpeechLanguage is the language spoken in the videos as whisper's code, one of media.SpeechLanguages, or "" for whisper to detect it; SetSpeechLanguage changes and saves it.
+	SpeechLanguage() string
+	SetSpeechLanguage(code string)
 
 	CurrentPreset() (Preset, bool)
 	Presets() []Preset

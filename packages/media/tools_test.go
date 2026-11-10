@@ -239,6 +239,83 @@ func TestToolsTranscribeRejectsEmptyVideoPath(t *testing.T) {
 	}
 }
 
+// transcribeTools writes an ffmpeg that does nothing and a whisper-cli that saves its arguments to a file, one a line, and writes a transcript of one line where -of asks, as the real one does with -oj.
+func transcribeTools(t *testing.T) (tools Tools, args string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake tools are shell scripts")
+	}
+	dir := t.TempDir()
+	args = filepath.Join(dir, "args")
+	ffmpeg, whisper := filepath.Join(dir, "ffmpeg"), filepath.Join(dir, "whisper-cli")
+	if err := os.WriteFile(ffmpeg, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := `#!/bin/sh
+out=
+for a in "$@"; do echo "$a"; done > ` + shellQuote(args) + `
+while [ $# -gt 0 ]; do
+	case "$1" in
+	-of) shift; out="$1" ;;
+	esac
+	shift
+done
+printf '{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello"}]}' > "$out.json"
+`
+	if err := os.WriteFile(whisper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return Tools{FFmpeg: ffmpeg, Whisper: whisper, WhisperModel: filepath.Join(dir, "ggml-base.bin")}, args
+}
+
+// whisperLanguage is the value of -l in the arguments file transcribeTools' whisper-cli wrote.
+func whisperLanguage(t *testing.T, args string) string {
+	t.Helper()
+	data, err := os.ReadFile(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	for i, line := range lines {
+		if line == "-l" && i+1 < len(lines) {
+			return lines[i+1]
+		}
+	}
+	t.Fatalf("no -l in %q", lines)
+	return ""
+}
+
+func TestTranscribeNamesTheSpokenLanguage(t *testing.T) {
+	tools, args := transcribeTools(t)
+	video := filepath.Join(t.TempDir(), "talk.mp4")
+	for _, tc := range []struct{ language, want string }{{"", "auto"}, {"ja", "ja"}, {" zh ", "zh"}} {
+		tools.SpeechLanguage = tc.language
+		segments, err := tools.Transcribe(context.Background(), video)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(segments) != 1 || segments[0].Text != "Hello" {
+			t.Fatalf("segments %+v", segments)
+		}
+		if got := whisperLanguage(t, args); got != tc.want {
+			t.Fatalf("language %q: -l %q, want %q", tc.language, got, tc.want)
+		}
+	}
+}
+
+func TestSpeechLanguagesAreKnown(t *testing.T) {
+	for _, code := range SpeechLanguages() {
+		if !KnownSpeechLanguage(code) {
+			t.Fatalf("%q is not known", code)
+		}
+	}
+	for _, code := range []string{"", "auto", "xx", "EN"} {
+		if KnownSpeechLanguage(code) {
+			t.Fatalf("%q is known", code)
+		}
+	}
+}
+
 func TestWhisperThreadCountUsesAvailableCPU(t *testing.T) {
 	want := runtime.NumCPU()
 	if want < 1 {

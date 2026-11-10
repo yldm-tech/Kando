@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -46,6 +47,16 @@ func SpeechModelByID(id string) (SpeechModel, bool) {
 		}
 	}
 	return SpeechModel{}, false
+}
+
+// SpeechLanguages are the languages the speech settings let the user name as the one spoken in the videos, as whisper.cpp's -l codes, in the order the settings list them: the languages Kando's first-run guide offers.
+func SpeechLanguages() []string {
+	return []string{"en", "zh", "ja", "ko", "fr", "es", "de"}
+}
+
+// KnownSpeechLanguage reports whether code is one of SpeechLanguages.
+func KnownSpeechLanguage(code string) bool {
+	return slices.Contains(SpeechLanguages(), code)
 }
 
 // ResolveSpeechModel returns the local file for a catalog model. configured wins when its name matches, then the first existing file in dirs.

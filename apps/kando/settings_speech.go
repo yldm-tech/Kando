@@ -10,25 +10,35 @@ import (
 	"time"
 
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings"
 	"kando/packages/media"
 )
 
-// Settings › 语音识别 and 通用: the whisper model, its download, and the tools' versions.
+// Settings › 语音识别 and 通用: the whisper model, its download and its file, the language spoken in the videos, and the tools' versions.
 
-// savedSpeech is the speech model's part of settings.json.
+// savedSpeech is the speech model's part of settings.json: the model's file, and the language spoken in the videos as whisper's code, empty for whisper to detect it.
 type savedSpeech struct {
-	WhisperModel string `json:"whisperModel,omitempty"`
+	WhisperModel   string `json:"whisperModel,omitempty"`
+	SpeechLanguage string `json:"speechLanguage,omitempty"`
 }
 
-func (s *savedSpeech) clean() { s.WhisperModel = strings.TrimSpace(s.WhisperModel) }
+// clean trims the model's path and the language, and drops a language whisper is not offered for (media.SpeechLanguages), which leaves whisper to detect it.
+func (s *savedSpeech) clean() {
+	s.WhisperModel = strings.TrimSpace(s.WhisperModel)
+	s.SpeechLanguage = strings.TrimSpace(s.SpeechLanguage)
+	if !media.KnownSpeechLanguage(s.SpeechLanguage) {
+		s.SpeechLanguage = ""
+	}
+}
 
 func (a *app) saveSpeech(saved *savedSettings) {
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
+		saved.SpeechLanguage = tools.SpeechLanguage
 	}
 }
 
-// restoreSpeech uses the model saved last time unless KANDO_WHISPER_MODEL names one or the saved file is gone.
+// restoreSpeech uses the model saved last time unless KANDO_WHISPER_MODEL names one or the saved file is gone, and the language saved last time.
 func (a *app) restoreSpeech(saved savedSettings) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
@@ -37,8 +47,22 @@ func (a *app) restoreSpeech(saved savedSettings) {
 	if os.Getenv("KANDO_WHISPER_MODEL") == "" && saved.WhisperModel != "" {
 		if info, err := os.Stat(saved.WhisperModel); err == nil && !info.IsDir() && info.Size() > 0 {
 			tools.WhisperModel = saved.WhisperModel
-			a.pipeline = tools
 		}
+	}
+	tools.SpeechLanguage = saved.SpeechLanguage
+	a.pipeline = tools
+}
+
+// useSpeechLanguage tells whisper the language spoken in the videos from the next transcription on: code is one of media.SpeechLanguages, or "" for whisper to detect it. Any other code is ignored.
+func (a *app) useSpeechLanguage(code string) {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || (code != "" && !media.KnownSpeechLanguage(code)) || tools.SpeechLanguage == code {
+		return
+	}
+	tools.SpeechLanguage = code
+	a.pipeline = tools
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = locales.SettingsSpeechLanguageSaveFailed(err.Error())
 	}
 }
 
@@ -147,6 +171,57 @@ func speechDownloadError(err error) string {
 		return locales.SettingsSpeechDownloadDisconnected()
 	}
 	return err.Error()
+}
+
+// speechModelOwned reports whether the file of the whisper catalog model id is one Kando downloaded: a file right in its models folder, where downloadSpeechModel puts them. A model in another app's folder (defaultExtraModelDirs) or one KANDO_WHISPER_MODEL names elsewhere is not Kando's to move to the Trash.
+func (a *app) speechModelOwned(id string) bool {
+	path := a.prefs.speechModels[id]
+	return path != "" && a.prefs.modelsDir != "" && filepath.Dir(filepath.Clean(path)) == filepath.Clean(a.prefs.modelsDir)
+}
+
+// speechModelInUse reports whether path is the model transcriptions use.
+func (a *app) speechModelInUse(path string) bool {
+	tools, ok := a.pipeline.(media.Tools)
+	return ok && tools.WhisperModel != "" && filepath.Clean(tools.WhisperModel) == filepath.Clean(path)
+}
+
+// askTrashSpeechModel opens the confirmation of moving the model id to the Trash, holding the window's modal flag until it closes (speechModals). A model Kando did not download is not asked about.
+func (a *app) askTrashSpeechModel(id string) {
+	if !a.speechModelOwned(id) {
+		return
+	}
+	a.prefs.trashModel = id
+	a.prefs.trashOpen = true
+	if a.prefs.trashRelease == nil {
+		a.prefs.trashRelease = a.holdModal()
+	}
+}
+
+// speechModals gives back the modal flag the trash confirmation held once it has closed. The settings window calls it after each of its frames, and as it closes.
+func (a *app) speechModals() {
+	if !a.prefs.trashOpen && a.prefs.trashRelease != nil {
+		a.prefs.trashRelease()
+		a.prefs.trashRelease = nil
+	}
+}
+
+// trashSpeechModel moves the file of the whisper catalog model id to the Trash, as the confirmation asks, and looks the models up again, so another copy, such as one another app keeps, shows in its place. It leaves alone a model Kando did not download and any while a download runs, and refuses the model in use, saying so under the models.
+func (a *app) trashSpeechModel(id string) {
+	path := a.prefs.speechModels[id]
+	if !a.speechModelOwned(id) || a.prefs.downloading != "" {
+		return
+	}
+	name := settings.SpeechModelName(id)
+	if a.speechModelInUse(path) {
+		a.prefs.downloadErr = locales.SettingsSpeechTrashInUse(name)
+		return
+	}
+	if err := trashItem(path); err != nil {
+		a.prefs.downloadErr = locales.SettingsSpeechTrashFailed(name, err.Error())
+		return
+	}
+	a.prefs.downloadErr = ""
+	a.findSpeechModels()
 }
 
 func (a *app) cancelDownload() {

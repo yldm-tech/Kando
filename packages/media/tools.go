@@ -36,7 +36,9 @@ type Tools struct {
 	EveryAPI string
 	// WhisperModel is the path of a ggml model file for whisper.cpp.
 	WhisperModel string
-	Translator   ChatTranslator
+	// SpeechLanguage is the language spoken in the videos, as whisper.cpp's -l names it (one of SpeechLanguages); empty lets whisper detect it.
+	SpeechLanguage string
+	Translator     ChatTranslator
 	// Cookies is the browser whose login Download borrows, as yt-dlp's --cookies-from-browser names it (chrome, safari, firefox, edge, brave); empty borrows none.
 	Cookies string
 	// OEmbed is YouTube's oEmbed endpoint, which names a video yt-dlp could not look up, as one that is age-restricted or blocked where this machine is; empty asks nothing.
@@ -358,7 +360,11 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 			reportProgress(ctx, core.Fraction(f))
 		}
 	}
-	if _, _, err := runFollowing(ctx, true, follow, t.Whisper, "-m", t.WhisperModel, "-t", strconv.Itoa(whisperThreadCount()), "-l", "auto", "-np", "-pp", "-oj", "-of", transcript, "-f", audio); err != nil {
+	language := strings.TrimSpace(t.SpeechLanguage)
+	if language == "" {
+		language = "auto"
+	}
+	if _, _, err := runFollowing(ctx, true, follow, t.Whisper, "-m", t.WhisperModel, "-t", strconv.Itoa(whisperThreadCount()), "-l", language, "-np", "-pp", "-oj", "-of", transcript, "-f", audio); err != nil {
 		return nil, err
 	}
 	data, err := os.ReadFile(transcript + ".json")

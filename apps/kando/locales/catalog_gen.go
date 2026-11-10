@@ -12002,6 +12002,140 @@ func (msgs Messages) SettingsSpeechDownloaded() string {
 	return Catalog.Format(msgs.locale, "settingsSpeechDownloaded", nil)
 }
 
+// SettingsSpeechLanguageDe says "German"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: German.
+func SettingsSpeechLanguageDe() string { return In(i18n.Locale()).SettingsSpeechLanguageDe() }
+
+// SettingsSpeechLanguageDe says "German"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: German.
+func (msgs Messages) SettingsSpeechLanguageDe() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageDe", nil)
+}
+
+// SettingsSpeechLanguageEn says "English"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: English.
+func SettingsSpeechLanguageEn() string { return In(i18n.Locale()).SettingsSpeechLanguageEn() }
+
+// SettingsSpeechLanguageEn says "English"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: English.
+func (msgs Messages) SettingsSpeechLanguageEn() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageEn", nil)
+}
+
+// SettingsSpeechLanguageEs says "Spanish"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: Spanish.
+func SettingsSpeechLanguageEs() string { return In(i18n.Locale()).SettingsSpeechLanguageEs() }
+
+// SettingsSpeechLanguageEs says "Spanish"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: Spanish.
+func (msgs Messages) SettingsSpeechLanguageEs() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageEs", nil)
+}
+
+// SettingsSpeechLanguageFr says "French"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: French.
+func SettingsSpeechLanguageFr() string { return In(i18n.Locale()).SettingsSpeechLanguageFr() }
+
+// SettingsSpeechLanguageFr says "French"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: French.
+func (msgs Messages) SettingsSpeechLanguageFr() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageFr", nil)
+}
+
+// SettingsSpeechLanguageJa says "Japanese"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: Japanese.
+func SettingsSpeechLanguageJa() string { return In(i18n.Locale()).SettingsSpeechLanguageJa() }
+
+// SettingsSpeechLanguageJa says "Japanese"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: Japanese.
+func (msgs Messages) SettingsSpeechLanguageJa() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageJa", nil)
+}
+
+// SettingsSpeechLanguageKo says "Korean"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: Korean.
+func SettingsSpeechLanguageKo() string { return In(i18n.Locale()).SettingsSpeechLanguageKo() }
+
+// SettingsSpeechLanguageKo says "Korean"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: Korean.
+func (msgs Messages) SettingsSpeechLanguageKo() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageKo", nil)
+}
+
+// SettingsSpeechLanguageSaveFailed says "Couldn't save the spoken language: {error}"
+// in the language the app shows.
+//
+// Error when the chosen spoken language could not be saved to
+// settings.json.
+func SettingsSpeechLanguageSaveFailed(error string) string {
+	return In(i18n.Locale()).SettingsSpeechLanguageSaveFailed(error)
+}
+
+// SettingsSpeechLanguageSaveFailed says "Couldn't save the spoken language: {error}"
+// in the language of msgs.
+//
+// Error when the chosen spoken language could not be saved to
+// settings.json.
+func (msgs Messages) SettingsSpeechLanguageSaveFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageSaveFailed", map[string]any{"error": error})
+}
+
+// SettingsSpeechLanguageZh says "Chinese"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: Chinese.
+func SettingsSpeechLanguageZh() string { return In(i18n.Locale()).SettingsSpeechLanguageZh() }
+
+// SettingsSpeechLanguageZh says "Chinese"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: Chinese.
+func (msgs Messages) SettingsSpeechLanguageZh() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechLanguageZh", nil)
+}
+
+// SettingsSpeechModelActions says "More for {model}"
+// in the language the app shows.
+//
+// Accessible name and tooltip of the ⋯ button after a downloaded whisper
+// model, which opens a menu of what can be done with its file.
+func SettingsSpeechModelActions(model string) string {
+	return In(i18n.Locale()).SettingsSpeechModelActions(model)
+}
+
+// SettingsSpeechModelActions says "More for {model}"
+// in the language of msgs.
+//
+// Accessible name and tooltip of the ⋯ button after a downloaded whisper
+// model, which opens a menu of what can be done with its file.
+func (msgs Messages) SettingsSpeechModelActions(model string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechModelActions", map[string]any{"model": model})
+}
+
 // SettingsSpeechModelStats says "Speed {speed}  Accuracy {accuracy}  {size}"
 // in the language the app shows.
 //
@@ -12072,13 +12206,13 @@ func (msgs Messages) SettingsSpeechNoModelsDir() string {
 	return Catalog.Format(msgs.locale, "settingsSpeechNoModelsDir", nil)
 }
 
-// SettingsSpeechNote says "Detects the language and breaks sentences smartly. Larger models are more accurate but slower and take more space; if…"
+// SettingsSpeechNote says "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommen…"
 // in the language the app shows.
 //
 // Footnote under the whisper models.
 func SettingsSpeechNote() string { return In(i18n.Locale()).SettingsSpeechNote() }
 
-// SettingsSpeechNote says "Detects the language and breaks sentences smartly. Larger models are more accurate but slower and take more space; if…"
+// SettingsSpeechNote says "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommen…"
 // in the language of msgs.
 //
 // Footnote under the whisper models.
@@ -12100,6 +12234,20 @@ func (msgs Messages) SettingsSpeechRecommended() string {
 	return Catalog.Format(msgs.locale, "settingsSpeechRecommended", nil)
 }
 
+// SettingsSpeechReveal says "Show in Finder"
+// in the language the app shows.
+//
+// Menu item of a downloaded whisper model that shows its file in Finder.
+func SettingsSpeechReveal() string { return In(i18n.Locale()).SettingsSpeechReveal() }
+
+// SettingsSpeechReveal says "Show in Finder"
+// in the language of msgs.
+//
+// Menu item of a downloaded whisper model that shows its file in Finder.
+func (msgs Messages) SettingsSpeechReveal() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechReveal", nil)
+}
+
 // SettingsSpeechSaveFailed says "Couldn't save the model: {error}"
 // in the language the app shows.
 //
@@ -12114,6 +12262,158 @@ func SettingsSpeechSaveFailed(error string) string {
 // Error when the chosen whisper model could not be saved to settings.json.
 func (msgs Messages) SettingsSpeechSaveFailed(error string) string {
 	return Catalog.Format(msgs.locale, "settingsSpeechSaveFailed", map[string]any{"error": error})
+}
+
+// SettingsSpeechSpokenAuto says "Detect Automatically"
+// in the language the app shows.
+//
+// Choice of the Spoken Language drop-down: whisper detects the language
+// spoken in each video. The default.
+func SettingsSpeechSpokenAuto() string { return In(i18n.Locale()).SettingsSpeechSpokenAuto() }
+
+// SettingsSpeechSpokenAuto says "Detect Automatically"
+// in the language of msgs.
+//
+// Choice of the Spoken Language drop-down: whisper detects the language
+// spoken in each video. The default.
+func (msgs Messages) SettingsSpeechSpokenAuto() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechSpokenAuto", nil)
+}
+
+// SettingsSpeechSpokenLanguage says "Spoken Language"
+// in the language the app shows.
+//
+// Title of the Speech Recognition page's row choosing the language spoken
+// in the videos, and the name of its drop-down.
+func SettingsSpeechSpokenLanguage() string { return In(i18n.Locale()).SettingsSpeechSpokenLanguage() }
+
+// SettingsSpeechSpokenLanguage says "Spoken Language"
+// in the language of msgs.
+//
+// Title of the Speech Recognition page's row choosing the language spoken
+// in the videos, and the name of its drop-down.
+func (msgs Messages) SettingsSpeechSpokenLanguage() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechSpokenLanguage", nil)
+}
+
+// SettingsSpeechSpokenNote says "The language spoken in the videos. Automatic detection listens to the first 30 seconds, so it can guess wrong when a …"
+// in the language the app shows.
+//
+// Footnote under the Spoken Language row.
+func SettingsSpeechSpokenNote() string { return In(i18n.Locale()).SettingsSpeechSpokenNote() }
+
+// SettingsSpeechSpokenNote says "The language spoken in the videos. Automatic detection listens to the first 30 seconds, so it can guess wrong when a …"
+// in the language of msgs.
+//
+// Footnote under the Spoken Language row.
+func (msgs Messages) SettingsSpeechSpokenNote() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechSpokenNote", nil)
+}
+
+// SettingsSpeechTrash says "Move to Trash…"
+// in the language the app shows.
+//
+// Menu item of a whisper model Kando downloaded that asks to move its file
+// to the Trash.
+func SettingsSpeechTrash() string { return In(i18n.Locale()).SettingsSpeechTrash() }
+
+// SettingsSpeechTrash says "Move to Trash…"
+// in the language of msgs.
+//
+// Menu item of a whisper model Kando downloaded that asks to move its file
+// to the Trash.
+func (msgs Messages) SettingsSpeechTrash() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechTrash", nil)
+}
+
+// SettingsSpeechTrashButton says "Move"
+// in the language the app shows.
+//
+// Destructive button of the alert confirming that a downloaded whisper
+// model goes to the Trash, beside Cancel. Keep it short: the alert is 260
+// points wide with both buttons on one row.
+func SettingsSpeechTrashButton() string { return In(i18n.Locale()).SettingsSpeechTrashButton() }
+
+// SettingsSpeechTrashButton says "Move"
+// in the language of msgs.
+//
+// Destructive button of the alert confirming that a downloaded whisper
+// model goes to the Trash, beside Cancel. Keep it short: the alert is 260
+// points wide with both buttons on one row.
+func (msgs Messages) SettingsSpeechTrashButton() string {
+	return Catalog.Format(msgs.locale, "settingsSpeechTrashButton", nil)
+}
+
+// SettingsSpeechTrashConfirm says "Move “{model}” to the Trash?"
+// in the language the app shows.
+//
+// Title of the alert confirming that a downloaded whisper model goes to the
+// Trash.
+func SettingsSpeechTrashConfirm(model string) string {
+	return In(i18n.Locale()).SettingsSpeechTrashConfirm(model)
+}
+
+// SettingsSpeechTrashConfirm says "Move “{model}” to the Trash?"
+// in the language of msgs.
+//
+// Title of the alert confirming that a downloaded whisper model goes to the
+// Trash.
+func (msgs Messages) SettingsSpeechTrashConfirm(model string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechTrashConfirm", map[string]any{"model": model})
+}
+
+// SettingsSpeechTrashFailed says "Couldn't move “{model}” to the Trash: {error}"
+// in the language the app shows.
+//
+// Error on the Speech Recognition page when a whisper model's file could
+// not be moved to the Trash.
+func SettingsSpeechTrashFailed(model string, error string) string {
+	return In(i18n.Locale()).SettingsSpeechTrashFailed(model, error)
+}
+
+// SettingsSpeechTrashFailed says "Couldn't move “{model}” to the Trash: {error}"
+// in the language of msgs.
+//
+// Error on the Speech Recognition page when a whisper model's file could
+// not be moved to the Trash.
+func (msgs Messages) SettingsSpeechTrashFailed(model string, error string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechTrashFailed", map[string]any{"model": model, "error": error})
+}
+
+// SettingsSpeechTrashInUse says "“{model}” is in use. Choose another model before moving it to the Trash."
+// in the language the app shows.
+//
+// Error on the Speech Recognition page when the whisper model in use was to
+// be moved to the Trash.
+func SettingsSpeechTrashInUse(model string) string {
+	return In(i18n.Locale()).SettingsSpeechTrashInUse(model)
+}
+
+// SettingsSpeechTrashInUse says "“{model}” is in use. Choose another model before moving it to the Trash."
+// in the language of msgs.
+//
+// Error on the Speech Recognition page when the whisper model in use was to
+// be moved to the Trash.
+func (msgs Messages) SettingsSpeechTrashInUse(model string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechTrashInUse", map[string]any{"model": model})
+}
+
+// SettingsSpeechTrashMessage says "This frees {size}. You can get the model back from the Trash, or download it again here."
+// in the language the app shows.
+//
+// Message of the alert confirming that a downloaded whisper model goes to
+// the Trash.
+func SettingsSpeechTrashMessage(size string) string {
+	return In(i18n.Locale()).SettingsSpeechTrashMessage(size)
+}
+
+// SettingsSpeechTrashMessage says "This frees {size}. You can get the model back from the Trash, or download it again here."
+// in the language of msgs.
+//
+// Message of the alert confirming that a downloaded whisper model goes to
+// the Trash.
+func (msgs Messages) SettingsSpeechTrashMessage(size string) string {
+	return Catalog.Format(msgs.locale, "settingsSpeechTrashMessage", map[string]any{"size": size})
 }
 
 // SettingsTranslateContext says "Smart translation"

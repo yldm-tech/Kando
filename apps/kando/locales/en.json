@@ -4287,6 +4287,54 @@
   "@settingsSpeechDownloaded": {
     "description": "At the end of a whisper model's row: the model is on disk."
   },
+  "settingsSpeechLanguageDe": "German",
+  "@settingsSpeechLanguageDe": {
+    "description": "Choice of the Spoken Language drop-down: German."
+  },
+  "settingsSpeechLanguageEn": "English",
+  "@settingsSpeechLanguageEn": {
+    "description": "Choice of the Spoken Language drop-down: English."
+  },
+  "settingsSpeechLanguageEs": "Spanish",
+  "@settingsSpeechLanguageEs": {
+    "description": "Choice of the Spoken Language drop-down: Spanish."
+  },
+  "settingsSpeechLanguageFr": "French",
+  "@settingsSpeechLanguageFr": {
+    "description": "Choice of the Spoken Language drop-down: French."
+  },
+  "settingsSpeechLanguageJa": "Japanese",
+  "@settingsSpeechLanguageJa": {
+    "description": "Choice of the Spoken Language drop-down: Japanese."
+  },
+  "settingsSpeechLanguageKo": "Korean",
+  "@settingsSpeechLanguageKo": {
+    "description": "Choice of the Spoken Language drop-down: Korean."
+  },
+  "settingsSpeechLanguageSaveFailed": "Couldn't save the spoken language: {error}",
+  "@settingsSpeechLanguageSaveFailed": {
+    "description": "Error when the chosen spoken language could not be saved to settings.json.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsSpeechLanguageZh": "Chinese",
+  "@settingsSpeechLanguageZh": {
+    "description": "Choice of the Spoken Language drop-down: Chinese."
+  },
+  "settingsSpeechModelActions": "More for {model}",
+  "@settingsSpeechModelActions": {
+    "description": "Accessible name and tooltip of the ⋯ button after a downloaded whisper model, which opens a menu of what can be done with its file.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "Base"
+      }
+    }
+  },
   "settingsSpeechModelStats": "Speed {speed}  Accuracy {accuracy}  {size}",
   "@settingsSpeechModelStats": {
     "description": "Line under a whisper model: its speed and accuracy as five stars each, then its size. Two spaces between the parts.",
@@ -4317,13 +4365,17 @@
   "@settingsSpeechNoModelsDir": {
     "description": "Error on the Speech Recognition page: Kando has no folder to download whisper models into."
   },
-  "settingsSpeechNote": "Detects the language and breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying.",
+  "settingsSpeechNote": "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying.",
   "@settingsSpeechNote": {
     "description": "Footnote under the whisper models."
   },
   "settingsSpeechRecommended": "Recommended",
   "@settingsSpeechRecommended": {
     "description": "Badge after the name of the recommended whisper model."
+  },
+  "settingsSpeechReveal": "Show in Finder",
+  "@settingsSpeechReveal": {
+    "description": "Menu item of a downloaded whisper model that shows its file in Finder."
   },
   "settingsSpeechSaveFailed": "Couldn't save the model: {error}",
   "@settingsSpeechSaveFailed": {
@@ -4332,6 +4384,70 @@
       "error": {
         "type": "String",
         "example": "permission denied"
+      }
+    }
+  },
+  "settingsSpeechSpokenAuto": "Detect Automatically",
+  "@settingsSpeechSpokenAuto": {
+    "description": "Choice of the Spoken Language drop-down: whisper detects the language spoken in each video. The default."
+  },
+  "settingsSpeechSpokenLanguage": "Spoken Language",
+  "@settingsSpeechSpokenLanguage": {
+    "description": "Title of the Speech Recognition page's row choosing the language spoken in the videos, and the name of its drop-down."
+  },
+  "settingsSpeechSpokenNote": "The language spoken in the videos. Automatic detection listens to the first 30 seconds, so it can guess wrong when a video opens with music or with another language; choose the language then.",
+  "@settingsSpeechSpokenNote": {
+    "description": "Footnote under the Spoken Language row."
+  },
+  "settingsSpeechTrash": "Move to Trash…",
+  "@settingsSpeechTrash": {
+    "description": "Menu item of a whisper model Kando downloaded that asks to move its file to the Trash."
+  },
+  "settingsSpeechTrashButton": "Move",
+  "@settingsSpeechTrashButton": {
+    "description": "Destructive button of the alert confirming that a downloaded whisper model goes to the Trash, beside Cancel. Keep it short: the alert is 260 points wide with both buttons on one row."
+  },
+  "settingsSpeechTrashConfirm": "Move “{model}” to the Trash?",
+  "@settingsSpeechTrashConfirm": {
+    "description": "Title of the alert confirming that a downloaded whisper model goes to the Trash.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "Large v3"
+      }
+    }
+  },
+  "settingsSpeechTrashFailed": "Couldn't move “{model}” to the Trash: {error}",
+  "@settingsSpeechTrashFailed": {
+    "description": "Error on the Speech Recognition page when a whisper model's file could not be moved to the Trash.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "Large v3"
+      },
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "settingsSpeechTrashInUse": "“{model}” is in use. Choose another model before moving it to the Trash.",
+  "@settingsSpeechTrashInUse": {
+    "description": "Error on the Speech Recognition page when the whisper model in use was to be moved to the Trash.",
+    "placeholders": {
+      "model": {
+        "type": "String",
+        "example": "Large v3"
+      }
+    }
+  },
+  "settingsSpeechTrashMessage": "This frees {size}. You can get the model back from the Trash, or download it again here.",
+  "@settingsSpeechTrashMessage": {
+    "description": "Message of the alert confirming that a downloaded whisper model goes to the Trash.",
+    "placeholders": {
+      "size": {
+        "type": "String",
+        "example": "3.1 GB"
       }
     }
   },

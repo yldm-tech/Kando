@@ -42,6 +42,16 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
 		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
 	})
+	// The end of 语音识别, with Japanese named as the language spoken in the videos.
+	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-language", shown, models, turbo, func(a *app) {
+		tools := a.pipeline.(media.Tools)
+		tools.SpeechLanguage = "ja"
+		a.pipeline = tools
+	})
+	// The confirmation of moving Base, which Kando downloaded and which is not in use, to the Trash, as ⋯ › 移到废纸篓… opens it.
+	shootSettings(t, f, settings.SectionSpeech, "settings-speech-trash", shown, models, turbo, func(a *app) {
+		a.prefs.trashModel, a.prefs.trashOpen = "base", true
+	})
 	// The first launch on a computer without ffmpeg and whisper-cli: Kando downloads ffmpeg, and offers 重试 for whisper-cli, whose download stalled.
 	shootSettings(t, f, settings.SectionGeneral, "settings-general-downloading", shown, models, turbo, func(a *app) {
 		shotKitsDownloading(t, f, a)
