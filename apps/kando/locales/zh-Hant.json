@@ -507,6 +507,10 @@
   "queueNoLibrary": "先建立或匯入一個資料庫",
   "queueNoVideoToImport": "沒有可匯入的影片",
   "queueOpenSettingsFailed": "無法打開系統設定：{error}",
+  "queueQuitWhileRunningCancel": "取消",
+  "queueQuitWhileRunningMessage": "「{film}」仍在處理中。現在結束會中斷處理，下次打開看懂時會重新處理。",
+  "queueQuitWhileRunningQuit": "結束",
+  "queueQuitWhileRunningTitle": "要在處理影片時結束看懂嗎？",
   "queueRemedyAge": "需要年齡驗證",
   "queueRemedyAgeNeed": "需要使用已登入的 {site} 帳號。",
   "queueRemedyAgeWhy": "借用瀏覽器中已登入的 {site} 帳號即可。",
@@ -804,5 +808,6 @@
   "sourceWeibo": "微博",
   "sourceXigua": "西瓜視頻",
   "sourceYouku": "優酷",
-  "updatesCheck": "檢查更新…"
+  "updatesCheck": "檢查更新…",
+  "windowMenuMain": "主視窗"
 }

@@ -507,6 +507,10 @@
   "queueNoLibrary": "먼저 라이브러리를 만들거나 가져오십시오",
   "queueNoVideoToImport": "가져올 수 있는 동영상이 없습니다",
   "queueOpenSettingsFailed": "시스템 설정을 열 수 없습니다: {error}",
+  "queueQuitWhileRunningCancel": "취소",
+  "queueQuitWhileRunningMessage": "‘{film}’을(를) 아직 처리하는 중입니다. 지금 종료하면 처리가 중단되며, 다음에 Kando를 열 때 다시 처리합니다.",
+  "queueQuitWhileRunningQuit": "종료",
+  "queueQuitWhileRunningTitle": "동영상을 처리하는 중에 Kando를 종료하시겠습니까?",
   "queueRemedyAge": "연령 확인이 필요합니다",
   "queueRemedyAgeNeed": "로그인된 {site} 계정이 필요합니다.",
   "queueRemedyAgeWhy": "브라우저에 로그인된 {site} 계정을 사용하면 됩니다.",
@@ -804,5 +808,6 @@
   "sourceWeibo": "웨이보",
   "sourceXigua": "Xigua Video",
   "sourceYouku": "Youku",
-  "updatesCheck": "업데이트 확인…"
+  "updatesCheck": "업데이트 확인…",
+  "windowMenuMain": "메인 윈도우"
 }

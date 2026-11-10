@@ -27,8 +27,31 @@ type backgroundPicture struct {
 	opened atomic.Bool
 }
 
-// playerDidResignActive notes the clock of the playing film as the app goes inactive and starts following its sound.
-func (a *app) playerDidResignActive() {
+// playerDidResignActive notes that the app went inactive (main's OnDidResignActive).
+func (a *app) playerDidResignActive() { a.playerSight(func() { a.player.inactive = true }) }
+
+// playerDidBecomeActive notes that the app is the active one again (main's OnDidBecomeActive).
+func (a *app) playerDidBecomeActive() { a.playerSight(func() { a.player.inactive = false }) }
+
+// playerWindowHidden notes that the main window was put away by its close button, or shown again (state_window.go).
+func (a *app) playerWindowHidden(hidden bool) {
+	a.playerSight(func() { a.player.windowHidden = hidden })
+}
+
+// playerSight runs change, which marks the app inactive or active or the main window hidden or shown, and follows the sound of the playing film from when the window went out of sight, the app inactive or the window put away, until it is in sight again, both active and shown. A second reason to be out of sight while the first lasts changes nothing, so the sound's clock stays the one taken as the picture first went out of sight.
+func (a *app) playerSight(change func()) {
+	away := a.player.inactive || a.player.windowHidden
+	change()
+	switch now := a.player.inactive || a.player.windowHidden; {
+	case now && !away:
+		a.playerLeftSight()
+	case !now && away:
+		a.playerBackInSight()
+	}
+}
+
+// playerLeftSight notes the clock of the playing film as the window goes out of sight and starts following its sound.
+func (a *app) playerLeftSight() {
 	p := a.player.play
 	if p == nil || p.finished || p.paused || !p.player.Playing() {
 		return
@@ -39,8 +62,8 @@ func (a *app) playerDidResignActive() {
 	p.background = a.followSound(p)
 }
 
-// playerDidBecomeActive puts the picture where the sound is, when it stood still behind the window while the sound played on: the picture decoded in the background when there is one, or else the picture opened again from there. A picture that kept pace is left alone.
-func (a *app) playerDidBecomeActive() {
+// playerBackInSight puts the picture where the sound is, when it stood still behind the window while the sound played on: the picture decoded in the background when there is one, or else the picture opened again from there. A picture that kept pace is left alone.
+func (a *app) playerBackInSight() {
 	p := a.player.play
 	if p == nil || p.backgroundAt.IsZero() {
 		return

@@ -507,6 +507,10 @@
   "queueNoLibrary": "先创建或导入一个资料库",
   "queueNoVideoToImport": "没有可导入的视频",
   "queueOpenSettingsFailed": "没能打开系统设置：{error}",
+  "queueQuitWhileRunningCancel": "取消",
+  "queueQuitWhileRunningMessage": "「{film}」还在处理中。现在退出会中断处理，下次打开看懂时会重新处理。",
+  "queueQuitWhileRunningQuit": "退出",
+  "queueQuitWhileRunningTitle": "要在处理视频时退出看懂吗？",
   "queueRemedyAge": "需要年龄验证",
   "queueRemedyAgeNeed": "要用已登录的 {site} 账号。",
   "queueRemedyAgeWhy": "借用浏览器里已登录的 {site} 账号即可。",
@@ -804,5 +808,6 @@
   "sourceWeibo": "微博",
   "sourceXigua": "西瓜视频",
   "sourceYouku": "优酷",
-  "updatesCheck": "检查更新…"
+  "updatesCheck": "检查更新…",
+  "windowMenuMain": "主窗口"
 }

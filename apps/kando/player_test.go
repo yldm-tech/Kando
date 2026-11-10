@@ -295,6 +295,36 @@ func TestPlaybackResyncsWhenAppReturns(t *testing.T) {
 	}
 }
 
+// TestPlaybackFollowsTheSoundWhileTheWindowIsPutAway checks that the main window put away by its close button takes the picture out of sight as the app going inactive does, and that the sound's clock is the one taken when the picture first went out of sight, however the app and the window come and go meanwhile, until both are back.
+func TestPlaybackFollowsTheSoundWhileTheWindowIsPutAway(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	p := stillPlay(t, "/v/clip.mp4", 3*time.Second, true)
+	a.player.play = p
+
+	a.playerWindowHidden(true)
+	if p.backgroundAt.IsZero() || p.backgroundHead != 3*time.Second {
+		t.Fatalf("window put away: at %v head %v", p.backgroundAt, p.backgroundHead)
+	}
+	at := p.backgroundAt.Add(-2 * time.Second)
+	p.backgroundAt = at
+	// The app goes inactive and comes back while the window stays away: the picture stays out of sight, on the same clock.
+	a.playerDidResignActive()
+	a.playerDidBecomeActive()
+	if p.backgroundAt != at || p.backgroundHead != 3*time.Second {
+		t.Fatalf("the clock moved while the window stayed away: at %v head %v", p.backgroundAt, p.backgroundHead)
+	}
+	a.playerDidResignActive()
+	a.playerWindowHidden(false)
+	if p.backgroundAt != at {
+		t.Fatal("the window came back while the app is inactive and the picture was put back in sight")
+	}
+	a.player.opening = -1
+	a.playerDidBecomeActive()
+	if !p.backgroundAt.IsZero() || a.player.opening < 5*time.Second {
+		t.Fatalf("back in sight: background at %v, picture opened again at %v", p.backgroundAt, a.player.opening)
+	}
+}
+
 // TestPlaybackHandsTheSoundToTheReopenedPicture checks that the picture opened again on coming back plays on with the sound that played in the background, rather than starting the sound again.
 func TestPlaybackHandsTheSoundToTheReopenedPicture(t *testing.T) {
 	a, _, updates := openClip(t, 12)

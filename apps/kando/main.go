@@ -50,6 +50,7 @@ type app struct {
 	remote   remoteUI   // state_remote.go
 	cliTool  cliToolUI  // state_cli.go
 	updates  updatesUI  // state_updates.go
+	window   windowUI   // state_window.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -73,6 +74,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		remote:   newRemoteUI(),
 		cliTool:  newCLIToolUI(),
 		updates:  newUpdatesUI(),
+		window:   newWindowUI(),
 	}
 }
 
@@ -134,6 +136,7 @@ func main() {
 		a.areasReady()
 	})
 	mygo.App.OnSecondInstance(func([]string, string) { a.remoteRaise() })
+	mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) { a.areasBeforeQuit(e) })
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { a.areasQuitting() })
 	mygo.App.OnDidResignActive(func() { a.playerDidResignActive() })
 	mygo.App.OnDidBecomeActive(func() { a.playerDidBecomeActive() })

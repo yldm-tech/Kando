@@ -29,8 +29,16 @@ type jobQueue struct {
 	order []string
 	// active is the ID of the running job, or "".
 	active string
-	// cancel stops the running job; its cause becomes the job's error when it is core.ErrLibrarySwitched.
+	// cancel stops the running job; its cause becomes the job's error when it is core.ErrLibrarySwitched, and with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
 	cancel context.CancelCauseFunc
+	done   chan struct{}
+	// stopped is set once the app quits (queueQuit): no job starts after it.
+	stopped bool
+	// quitAsk is the confirmation of a quit while a job runs (queue_quit.go), naming quitFilm, the job running when it was asked; quitRelease gives back the window's modal flag it holds. quitConfirmed is set once the user chose to quit anyway, so the quit that follows is not asked again.
+	quitAsk       bool
+	quitFilm      string
+	quitRelease   func()
+	quitConfirmed bool
 	// ytdlp is the yt-dlp the jobs download with and the browsers it can borrow logins from (queue_remedy.go).
 	ytdlp ytdlpState
 	// linkFocus asks the link field above the library for the keyboard focus once, as 换个链接 does.
@@ -51,7 +59,7 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
+// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. A quit while a job runs asks first, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change. The player's resume positions are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		leavingLibrary: func() { a.queue.stopActive(core.ErrLibrarySwitched) },
@@ -64,6 +72,9 @@ func (a *app) queueHooks() areaHooks {
 		shelfLoaded:      func() { a.setResumePositions(maps.Clone(a.library.Positions)) },
 		positionsChanged: a.savePositions,
 		videosMoved:      func(move func(string) (string, bool)) { shelf.MoveKeys(a.resumePositions(), move) },
+		afterFrame:       a.queueQuitModal,
+		beforeQuit:       a.queueBeforeQuit,
+		quitting:         a.queueQuit,
 	}
 }
 
@@ -355,7 +366,7 @@ func (a *app) queueAdd(job core.Job) {
 
 // pump starts the oldest queued job of the open library when no job is running. Jobs queued in another library wait until it is open again, because the pipeline writes into the open one. A queued job on the shelf that the queue has not seen, such as one read back as queued after a restart, joins the end of the queue, oldest first.
 func (a *app) pump() {
-	if a.queue.active != "" {
+	if a.queue.active != "" || a.queue.stopped {
 		return
 	}
 	for i := len(a.library.Jobs) - 1; i >= 0; i-- {
@@ -411,7 +422,8 @@ func (a *app) run(job core.Job) {
 		a.pipeline = tools
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())
-	a.queue.active, a.queue.cancel = job.ID, cancel
+	done := make(chan struct{})
+	a.queue.active, a.queue.cancel, a.queue.done = job.ID, cancel, done
 	pipeline, update := a.pipeline, a.update
 	if tools, ok := pipeline.(media.Tools); ok {
 		tools.Cookies = job.Cookies
@@ -419,10 +431,16 @@ func (a *app) run(job core.Job) {
 	}
 	go func() {
 		defer cancel(nil)
+		defer close(done)
+		// A job stopped because the app quits reports nothing more: its card would say 已取消 and keep it from running again at the next launch, and the next job must not start.
+		quitting := func() bool { return errors.Is(context.Cause(ctx), errQuitting) }
 		// A report that only moves the progress waits in latest, and at most one update carries it to the UI thread: a tool that reports many times a second does not queue an update for each, and the card shows the newest when the window gets to it. Any other report goes as it comes, after the progress already waiting.
 		var latest atomic.Pointer[core.Job]
 		last := job
 		media.Run(ctx, pipeline, job, job.Language, func(j core.Job) {
+			if quitting() {
+				return
+			}
 			if j.Stage == core.StageFailed && errors.Is(context.Cause(ctx), core.ErrLibrarySwitched) {
 				j.Err = core.ErrLibrarySwitched
 			}
@@ -440,6 +458,9 @@ func (a *app) run(job core.Job) {
 				})
 			}
 		})
+		if quitting() {
+			return
+		}
 		update(func() { a.finished(job.ID) })
 	}()
 }
@@ -447,7 +468,7 @@ func (a *app) run(job core.Job) {
 // finished clears the job that just returned from the pipeline and starts the next one.
 func (a *app) finished(id string) {
 	if a.queue.active == id {
-		a.queue.active, a.queue.cancel = "", nil
+		a.queue.active, a.queue.cancel, a.queue.done = "", nil, nil
 	}
 	a.pump()
 }

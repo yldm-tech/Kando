@@ -16,11 +16,15 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 )
 
 // gatePipeline holds every job in Download until the test lets it through, so a test sees which job runs and in what order. started receives each source as its Download begins.
@@ -1290,5 +1294,139 @@ func TestAddingAFailedVideoAgainRetriesIt(t *testing.T) {
 	}
 	if job := stageOf(t, a, "elsewhere"); job.Stage != core.StageFailed {
 		t.Fatalf("the other library's job ran: %+v", job)
+	}
+}
+
+// TestQuitStopsTheRunningJob checks that quitting stops the running job and waits for its pipeline to return, without marking it 已取消 or starting the next one, so the next launch runs it again from library.json.
+func TestQuitStopsTheRunningJob(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	g := newGatePipeline()
+	a, _, updates := newTestApp(g)
+	a.openLibrary(path)
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	id := jobIDs(a)["https://example.com/a"]
+	waitUntil(t, updates, func() bool { return stageOf(t, a, id).Stage == core.StageDownloading })
+	done := a.queue.done
+
+	start := time.Now()
+	a.areasQuitting()
+	if waited := time.Since(start); waited >= queueQuitWait {
+		t.Fatalf("quitting waited %v for a job that stops at once", waited)
+	}
+	select {
+	case <-done:
+	default:
+		t.Fatal("quitting returned before the job's pipeline did")
+	}
+	noneStarted(t, g, updates)
+	if len(updates) > 0 {
+		t.Fatalf("the stopped job still reported %d updates", len(updates))
+	}
+	if job := stageOf(t, a, id); job.Stage != core.StageDownloading || job.Err != nil {
+		t.Fatalf("job stopped by quitting ended %+v", job)
+	}
+	a.pump()
+	noneStarted(t, g, updates)
+
+	reloaded, err := shelf.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, job := range reloaded.Jobs {
+		if job.Stage != core.StageQueued || job.Err != nil {
+			t.Fatalf("next launch reads %+v, want it queued again", job)
+		}
+	}
+}
+
+// TestQuitWaitsOnlySoLongForTheJob checks that a job whose pipeline does not return when asked to stop holds the quit back no longer than queueQuitWait.
+func TestQuitWaitsOnlySoLongForTheJob(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	stuck := make(chan struct{})
+	t.Cleanup(func() { close(stuck) })
+	stopped := false
+	a.queue.active, a.queue.done = "stuck", stuck
+	a.queue.cancel = func(cause error) { stopped = errors.Is(cause, errQuitting) }
+	start := time.Now()
+	a.areasQuitting()
+	if waited := time.Since(start); !stopped || waited < queueQuitWait || waited > queueQuitWait+time.Second {
+		t.Fatalf("stopped %v, waited %v, want %v", stopped, waited, queueQuitWait)
+	}
+}
+
+// replaceQuitApp counts the quits the app asks for instead of quitting, for the rest of t.
+func replaceQuitApp(t *testing.T) *int {
+	t.Helper()
+	quits := 0
+	old := quitApp
+	quitApp = func() { quits++ }
+	t.Cleanup(func() { quitApp = old })
+	return &quits
+}
+
+// TestQuitWhileAJobRunsAsksFirst checks that ⌘Q goes ahead at once while no job runs, and while one runs is held back by a confirmation, which keeps the app running on 取消 or Escape and quits on 退出 without asking again.
+func TestQuitWhileAJobRunsAsksFirst(t *testing.T) {
+	quits := replaceQuitApp(t)
+
+	idle, _, _ := newTestApp(&fakePipeline{})
+	e := &mygo.QuitEvent{}
+	idle.areasBeforeQuit(e)
+	if e.DefaultPrevented() || idle.queue.quitAsk || !idle.window.quitting {
+		t.Fatalf("idle quit prevented %v, asked %v, going ahead %v", e.DefaultPrevented(), idle.queue.quitAsk, idle.window.quitting)
+	}
+
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	t.Cleanup(a.stop)
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	a.window.hidden = true
+	tt.Frame()
+	title := locales.QueueQuitWhileRunningTitle()
+	message := locales.QueueQuitWhileRunningMessage(jobName(stageOf(t, a, a.RunningJob())))
+
+	ask := func() {
+		t.Helper()
+		e := &mygo.QuitEvent{}
+		a.areasBeforeQuit(e)
+		tt.Frame()
+		if !e.DefaultPrevented() || a.window.quitting {
+			t.Fatalf("quit during a job: prevented %v, going ahead %v", e.DefaultPrevented(), a.window.quitting)
+		}
+		if !tt.HasText(title) || !tt.HasText(message) || !a.modalOpen() || a.window.hidden {
+			t.Fatalf("confirmation shows %v, modal %v, window hidden %v; texts %q", tt.HasText(title), a.modalOpen(), a.window.hidden, tt.Texts())
+		}
+	}
+	ask()
+	// A second ⌘Q while the confirmation is up neither stacks another nor quits.
+	ask()
+	if a.overlay.modal != 1 || *quits != 0 {
+		t.Fatalf("modal %d, quits %d after asking twice", a.overlay.modal, *quits)
+	}
+
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText(title) || a.modalOpen() || *quits != 0 || !a.running() {
+		t.Fatalf("after Escape: shown %v, modal %v, quits %d, running %v", tt.HasText(title), a.modalOpen(), *quits, a.running())
+	}
+
+	ask()
+	if err := tt.Click(locales.QueueQuitWhileRunningQuit()); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if *quits != 1 || a.modalOpen() {
+		t.Fatalf("after 退出: quits %d, modal %v", *quits, a.modalOpen())
+	}
+	e = &mygo.QuitEvent{}
+	a.areasBeforeQuit(e)
+	if e.DefaultPrevented() || !a.window.quitting {
+		t.Fatalf("the confirmed quit was held back: prevented %v, going ahead %v", e.DefaultPrevented(), a.window.quitting)
 	}
 }

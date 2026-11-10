@@ -47,7 +47,10 @@ type playerUI struct {
 	volumeUnsaved bool
 	// screen is the window the player enters and leaves full screen in: the main window once it exists (playerReady), and nil before, as in tests that set none, when full screen does nothing.
 	screen fullScreen
-	film   filmUI
+	// inactive is set while the app is not the active one, and windowHidden while the main window is put away (state_window.go): either keeps the picture out of sight while the sound plays on (playerSight).
+	inactive     bool
+	windowHidden bool
+	film         filmUI
 }
 
 // fullScreen is the part of a window the player uses to enter and leave full screen, as *mygo.Window has it.
