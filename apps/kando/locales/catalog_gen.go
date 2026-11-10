@@ -7038,6 +7038,48 @@ func (msgs Messages) PrecheckEmpty() string {
 	return Catalog.Format(msgs.locale, "precheckEmpty", nil)
 }
 
+// PrecheckEveryAPIMissing says "Translation needs the everyapi command-line program, or an API Key in “AI Service”"
+// in the language the app shows.
+//
+// Message bar, the sidebar's status line, the first-run guide and the
+// command palette when the AI service is EveryAPI with no API Key and the
+// everyapi command-line program, whose sign-in it would use, is not on this
+// computer. everyapi is the program's name and stays as it is.
+func PrecheckEveryAPIMissing() string { return In(i18n.Locale()).PrecheckEveryAPIMissing() }
+
+// PrecheckEveryAPIMissing says "Translation needs the everyapi command-line program, or an API Key in “AI Service”"
+// in the language of msgs.
+//
+// Message bar, the sidebar's status line, the first-run guide and the
+// command palette when the AI service is EveryAPI with no API Key and the
+// everyapi command-line program, whose sign-in it would use, is not on this
+// computer. everyapi is the program's name and stays as it is.
+func (msgs Messages) PrecheckEveryAPIMissing() string {
+	return Catalog.Format(msgs.locale, "precheckEveryAPIMissing", nil)
+}
+
+// PrecheckEveryAPISignedOut says "Run everyapi auth login in Terminal, or enter an API Key in “AI Service”"
+// in the language the app shows.
+//
+// Message bar, the sidebar's status line, the first-run guide and the
+// command palette when the AI service is EveryAPI with no API Key and
+// nobody is signed in to the everyapi command-line program. everyapi auth
+// login is the command to type and stays as it is; Terminal is the app it
+// is typed in.
+func PrecheckEveryAPISignedOut() string { return In(i18n.Locale()).PrecheckEveryAPISignedOut() }
+
+// PrecheckEveryAPISignedOut says "Run everyapi auth login in Terminal, or enter an API Key in “AI Service”"
+// in the language of msgs.
+//
+// Message bar, the sidebar's status line, the first-run guide and the
+// command palette when the AI service is EveryAPI with no API Key and
+// nobody is signed in to the everyapi command-line program. everyapi auth
+// login is the command to type and stays as it is; Terminal is the app it
+// is typed in.
+func (msgs Messages) PrecheckEveryAPISignedOut() string {
+	return Catalog.Format(msgs.locale, "precheckEveryAPISignedOut", nil)
+}
+
 // PrecheckFailedDownload says "Download failed: {detail}"
 // in the language the app shows.
 //
@@ -7262,22 +7304,6 @@ func PrecheckNotLink() string { return In(i18n.Locale()).PrecheckNotLink() }
 // Message bar when what was pasted is not a link.
 func (msgs Messages) PrecheckNotLink() string {
 	return Catalog.Format(msgs.locale, "precheckNotLink", nil)
-}
-
-// PrecheckNotSignedIn says "Sign in to EveryAPI first, or enter an API Key in “AI Service”"
-// in the language the app shows.
-//
-// Message bar and the sidebar's status line when the AI service has no key
-// and EveryAPI is not signed in.
-func PrecheckNotSignedIn() string { return In(i18n.Locale()).PrecheckNotSignedIn() }
-
-// PrecheckNotSignedIn says "Sign in to EveryAPI first, or enter an API Key in “AI Service”"
-// in the language of msgs.
-//
-// Message bar and the sidebar's status line when the AI service has no key
-// and EveryAPI is not signed in.
-func (msgs Messages) PrecheckNotSignedIn() string {
-	return Catalog.Format(msgs.locale, "precheckNotSignedIn", nil)
 }
 
 // PrecheckToolSeparator says ", "
@@ -9118,14 +9144,100 @@ func (msgs Messages) SettingsAIConnected() string {
 	return Catalog.Format(msgs.locale, "settingsAIConnected", nil)
 }
 
-// SettingsAIKeyEveryAPILogin says "Without an API Key, the everyapi sign-in on this Mac is used."
+// SettingsAIEveryAPICLI says "everyapi command line"
+// in the language the app shows.
+//
+// Title of the AI Service row about the everyapi command-line program,
+// shown when the service is EveryAPI with no API Key and the program is
+// missing or signed out. everyapi is the program's name.
+func SettingsAIEveryAPICLI() string { return In(i18n.Locale()).SettingsAIEveryAPICLI() }
+
+// SettingsAIEveryAPICLI says "everyapi command line"
+// in the language of msgs.
+//
+// Title of the AI Service row about the everyapi command-line program,
+// shown when the service is EveryAPI with no API Key and the program is
+// missing or signed out. everyapi is the program's name.
+func (msgs Messages) SettingsAIEveryAPICLI() string {
+	return Catalog.Format(msgs.locale, "settingsAIEveryAPICLI", nil)
+}
+
+// SettingsAIEveryAPIMissing says "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."
+// in the language the app shows.
+//
+// Under the everyapi command line row when the program is not on this
+// computer. Detect Again is the button beside it (settingsAIRedetect).
+func SettingsAIEveryAPIMissing() string { return In(i18n.Locale()).SettingsAIEveryAPIMissing() }
+
+// SettingsAIEveryAPIMissing says "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."
+// in the language of msgs.
+//
+// Under the everyapi command line row when the program is not on this
+// computer. Detect Again is the button beside it (settingsAIRedetect).
+func (msgs Messages) SettingsAIEveryAPIMissing() string {
+	return Catalog.Format(msgs.locale, "settingsAIEveryAPIMissing", nil)
+}
+
+// SettingsAIEveryAPIOpenFailed says "Couldn't open everyapi.ai: {error}"
+// in the language the app shows.
+//
+// Under the everyapi command line row when Get EveryAPI could not open the
+// website in the browser.
+func SettingsAIEveryAPIOpenFailed(error string) string {
+	return In(i18n.Locale()).SettingsAIEveryAPIOpenFailed(error)
+}
+
+// SettingsAIEveryAPIOpenFailed says "Couldn't open everyapi.ai: {error}"
+// in the language of msgs.
+//
+// Under the everyapi command line row when Get EveryAPI could not open the
+// website in the browser.
+func (msgs Messages) SettingsAIEveryAPIOpenFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsAIEveryAPIOpenFailed", map[string]any{"error": error})
+}
+
+// SettingsAIEveryAPISignedOut says "Not signed in. Run everyapi auth login in Terminal, then choose Detect Again."
+// in the language the app shows.
+//
+// Under the everyapi command line row when nobody is signed in to the
+// program. everyapi auth login is the command to type and stays as it is;
+// Detect Again is the button beside it (settingsAIRedetect).
+func SettingsAIEveryAPISignedOut() string { return In(i18n.Locale()).SettingsAIEveryAPISignedOut() }
+
+// SettingsAIEveryAPISignedOut says "Not signed in. Run everyapi auth login in Terminal, then choose Detect Again."
+// in the language of msgs.
+//
+// Under the everyapi command line row when nobody is signed in to the
+// program. everyapi auth login is the command to type and stays as it is;
+// Detect Again is the button beside it (settingsAIRedetect).
+func (msgs Messages) SettingsAIEveryAPISignedOut() string {
+	return Catalog.Format(msgs.locale, "settingsAIEveryAPISignedOut", nil)
+}
+
+// SettingsAIGetEveryAPI says "Get EveryAPI"
+// in the language the app shows.
+//
+// Button on the everyapi command line row that opens everyapi.ai in the
+// browser, where the program is downloaded.
+func SettingsAIGetEveryAPI() string { return In(i18n.Locale()).SettingsAIGetEveryAPI() }
+
+// SettingsAIGetEveryAPI says "Get EveryAPI"
+// in the language of msgs.
+//
+// Button on the everyapi command line row that opens everyapi.ai in the
+// browser, where the program is downloaded.
+func (msgs Messages) SettingsAIGetEveryAPI() string {
+	return Catalog.Format(msgs.locale, "settingsAIGetEveryAPI", nil)
+}
+
+// SettingsAIKeyEveryAPILogin says "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."
 // in the language the app shows.
 //
 // First sentence of the footnote when the service is EveryAPI and no API
 // Key is filled in. everyapi is the command-line program.
 func SettingsAIKeyEveryAPILogin() string { return In(i18n.Locale()).SettingsAIKeyEveryAPILogin() }
 
-// SettingsAIKeyEveryAPILogin says "Without an API Key, the everyapi sign-in on this Mac is used."
+// SettingsAIKeyEveryAPILogin says "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."
 // in the language of msgs.
 //
 // First sentence of the footnote when the service is EveryAPI and no API
@@ -9364,6 +9476,22 @@ func SettingsAINoteWithBlurb(blurb string, key string, compatible string) string
 // sentence about compatible services.
 func (msgs Messages) SettingsAINoteWithBlurb(blurb string, key string, compatible string) string {
 	return Catalog.Format(msgs.locale, "settingsAINoteWithBlurb", map[string]any{"blurb": blurb, "key": key, "compatible": compatible})
+}
+
+// SettingsAIRedetect says "Detect Again"
+// in the language the app shows.
+//
+// Button on the everyapi command line row looking for the program again and
+// asking it again whether someone is signed in.
+func SettingsAIRedetect() string { return In(i18n.Locale()).SettingsAIRedetect() }
+
+// SettingsAIRedetect says "Detect Again"
+// in the language of msgs.
+//
+// Button on the everyapi command line row looking for the program again and
+// asking it again whether someone is signed in.
+func (msgs Messages) SettingsAIRedetect() string {
+	return Catalog.Format(msgs.locale, "settingsAIRedetect", nil)
 }
 
 // SettingsAIRetry says "Retry"

@@ -131,6 +131,10 @@ func (a *app) LLMModelsErr() string {
 
 func (a *app) RetryLLMModels() { a.fetchLLMModels(true) }
 
+func (a *app) EveryAPI() settings.EveryAPI { return a.everyAPIStatus() }
+
+func (a *app) GetEveryAPI() { a.getEveryAPI() }
+
 // OpenSettings shows the settings window at section, one of the settings package's Section values; "" or a section it does not know opens 通用. The window opens beside the main one, which keeps its page and its open film. It records the request in the settings' own state (prefs.open, prefs.section), which is what other areas and their tests read.
 func (a *app) OpenSettings(section string) {
 	if !settings.Known(section) {

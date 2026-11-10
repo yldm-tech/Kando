@@ -144,6 +144,38 @@ func fakeVersionOnly(args []string, flag, version string) int {
 	return 1
 }
 
+// fakeEveryAPIKey is the relay key the fake everyapi hands out, signed in.
+const fakeEveryAPIKey = "sk-fake-everyapi"
+
+// writeFakeEveryAPI writes a fake everyapi command-line program in dir and returns its path. It answers `everyapi auth credential` as the real program does: signed in, with EveryAPI's endpoint and fakeEveryAPIKey, or with the error it gives when nobody is signed in. Unlike the other fakes it is a shell script, not this test binary: a test runs it right after it appears, beside the other tools' version checks, and macOS kills a burst of new copies of the test binary started at once.
+func writeFakeEveryAPI(t *testing.T, dir string, signedIn bool) string {
+	t.Helper()
+	answer := `printf '%s\n' '{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"` + fakeEveryAPIKey + `"}'
+  exit 0`
+	if !signedIn {
+		answer = `echo 'EVERYAPI_CREDENTIAL_ERROR:not_logged_in: not logged in' >&2
+  exit 1`
+	}
+	return writeFakeScript(t, dir, "everyapi", `if [ "$1" = auth ] && [ "$2" = credential ]; then
+  `+answer+`
+fi
+echo 'fake everyapi: only auth credential is supported' >&2
+exit 1`)
+}
+
+// writeFakeScript writes an executable shell script named name in dir, running body, and returns its path.
+func writeFakeScript(t *testing.T, dir, name, body string) string {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 // fakeYTDLPFolder is the folder the fake yt-dlp downloads its one video into, as the real one names "Me at the zoo" with Kando's output template.
 const fakeYTDLPFolder = "Me at the zoo [jNQXAC9IVRw]"
 

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -351,7 +350,7 @@ func TestPaletteAsksTheConfiguredAI(t *testing.T) {
 
 // TestPaletteWithoutAIOffersItsSettings checks that, with no AI service set, a question gets the prompt to set one, whose button opens Settings › AI 服务.
 func TestPaletteWithoutAIOffersItsSettings(t *testing.T) {
-	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}})
+	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "这部影片讲了什么")
@@ -628,20 +627,32 @@ func TestPaletteTypingDropsTheQuestion(t *testing.T) {
 	}
 }
 
-// TestPaletteTreatsASignedOutCLIAsNoService checks that when the sidebar's check found the EveryAPI CLI signed out, a question gets the prompt to set an AI service instead of a request bound to fail.
+// TestPaletteTreatsASignedOutCLIAsNoService checks that when the sidebar's check found the EveryAPI CLI signed out, a question gets what to do about it and the button to the AI service's settings instead of a request bound to fail.
 func TestPaletteTreatsASignedOutCLIAsNoService(t *testing.T) {
-	signedOut := errors.New("EveryAPI is not signed in")
 	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Credential: func(context.Context, bool) (media.Endpoint, error) {
-		return media.Endpoint{}, signedOut
+		return media.Endpoint{}, media.ErrEveryAPISignedOut
 	}}}
 	a, tt, updates := paletteLibrary(t, tools)
-	a.side.ready.signInDone, a.side.ready.signInErr = true, signedOut
+	a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "这部影片讲了什么")
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
-	if !tt.HasText(locales.PaletteNoAI()) || !tt.HasText(locales.PaletteNoAIAction()) {
+	if !tt.HasText(everyAPISignedOut()) || !tt.HasText(locales.PaletteNoAIAction()) {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// TestPaletteSaysTheEveryAPICLIIsMissing checks that EveryAPI without a key on a computer without the everyapi program gets the words the sidebar uses for it, not the prompt to choose a model.
+func TestPaletteSaysTheEveryAPICLIIsMissing(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}})
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, "这部影片讲了什么")
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if !tt.HasText(everyAPIMissing()) || !tt.HasText(locales.PaletteNoAIAction()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }

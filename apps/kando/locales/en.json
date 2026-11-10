@@ -2502,6 +2502,14 @@
   "@precheckEmpty": {
     "description": "Message bar when the link field is empty."
   },
+  "precheckEveryAPIMissing": "Translation needs the everyapi command-line program, or an API Key in “AI Service”",
+  "@precheckEveryAPIMissing": {
+    "description": "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and the everyapi command-line program, whose sign-in it would use, is not on this computer. everyapi is the program's name and stays as it is."
+  },
+  "precheckEveryAPISignedOut": "Run everyapi auth login in Terminal, or enter an API Key in “AI Service”",
+  "@precheckEveryAPISignedOut": {
+    "description": "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and nobody is signed in to the everyapi command-line program. everyapi auth login is the command to type and stays as it is; Terminal is the app it is typed in."
+  },
   "precheckFailedDownload": "Download failed: {detail}",
   "@precheckFailedDownload": {
     "description": "Card of a job whose download failed for an unknown reason, with what yt-dlp said (often English).",
@@ -2593,10 +2601,6 @@
   "precheckNotLink": "This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read.",
   "@precheckNotLink": {
     "description": "Message bar when what was pasted is not a link."
-  },
-  "precheckNotSignedIn": "Sign in to EveryAPI first, or enter an API Key in “AI Service”",
-  "@precheckNotSignedIn": {
-    "description": "Message bar and the sidebar's status line when the AI service has no key and EveryAPI is not signed in."
   },
   "precheckToolSeparator": ", ",
   "@precheckToolSeparator": {
@@ -3298,7 +3302,33 @@
   "@settingsAIConnected": {
     "description": "Connection test status when the service answered."
   },
-  "settingsAIKeyEveryAPILogin": "Without an API Key, the everyapi sign-in on this Mac is used.",
+  "settingsAIEveryAPICLI": "everyapi command line",
+  "@settingsAIEveryAPICLI": {
+    "description": "Title of the AI Service row about the everyapi command-line program, shown when the service is EveryAPI with no API Key and the program is missing or signed out. everyapi is the program's name."
+  },
+  "settingsAIEveryAPIMissing": "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again.",
+  "@settingsAIEveryAPIMissing": {
+    "description": "Under the everyapi command line row when the program is not on this computer. Detect Again is the button beside it (settingsAIRedetect)."
+  },
+  "settingsAIEveryAPIOpenFailed": "Couldn't open everyapi.ai: {error}",
+  "@settingsAIEveryAPIOpenFailed": {
+    "description": "Under the everyapi command line row when Get EveryAPI could not open the website in the browser.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "exit status 1"
+      }
+    }
+  },
+  "settingsAIEveryAPISignedOut": "Not signed in. Run everyapi auth login in Terminal, then choose Detect Again.",
+  "@settingsAIEveryAPISignedOut": {
+    "description": "Under the everyapi command line row when nobody is signed in to the program. everyapi auth login is the command to type and stays as it is; Detect Again is the button beside it (settingsAIRedetect)."
+  },
+  "settingsAIGetEveryAPI": "Get EveryAPI",
+  "@settingsAIGetEveryAPI": {
+    "description": "Button on the everyapi command line row that opens everyapi.ai in the browser, where the program is downloaded."
+  },
+  "settingsAIKeyEveryAPILogin": "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac.",
   "@settingsAIKeyEveryAPILogin": {
     "description": "First sentence of the footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program."
   },
@@ -3397,6 +3427,10 @@
         "example": "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
       }
     }
+  },
+  "settingsAIRedetect": "Detect Again",
+  "@settingsAIRedetect": {
+    "description": "Button on the everyapi command line row looking for the program again and asking it again whether someone is signed in."
   },
   "settingsAIRetry": "Retry",
   "@settingsAIRetry": {

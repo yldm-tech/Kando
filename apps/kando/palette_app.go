@@ -498,23 +498,23 @@ func (a *app) paletteDropAnswer() {
 	}
 }
 
-// paletteTranslator is the AI service set in 「AI 服务」, when one is set that can answer: a model at an endpoint, with a key, or through the EveryAPI CLI unless the sidebar's check found it signed out.
-func (a *app) paletteTranslator() (media.ChatTranslator, bool) {
+// paletteTranslator is the AI service set in 「AI 服务」, when one is set that can answer: a model at an endpoint, with a key, or through the EveryAPI CLI unless the sidebar's check found it signed out. When it cannot, why says so in the words the sidebar's status line uses for the same reason, and is nil when it can.
+func (a *app) paletteTranslator() (t media.ChatTranslator, why func() string) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
-		return media.ChatTranslator{}, false
+		return media.ChatTranslator{}, locales.PaletteNoAI
 	}
-	t := tools.Translator
+	t = tools.Translator
 	if strings.TrimSpace(t.Model) == "" || strings.TrimSpace(t.BaseURL) == "" {
-		return t, false
+		return t, locales.PaletteNoAI
 	}
-	if t.Credential == nil && t.BaseURL == media.EveryAPIBaseURL && t.APIKey == "" {
-		return t, false
+	if everyAPICLIMissing(t) {
+		return t, everyAPIMissing
 	}
 	if t.Credential != nil && a.side.ready.signInDone && a.side.ready.signInErr != nil {
-		return t, false
+		return t, everyAPISignInFailed(a.side.ready.signInErr)
 	}
-	return t, true
+	return t, nil
 }
 
 // paletteAsk asks the AI service the query about the open film, sending its lines up to the furthest point played and nothing after them.
@@ -525,9 +525,9 @@ func (a *app) paletteAsk() {
 	}
 	question := strings.TrimSpace(a.palette.query)
 	a.paletteDropAnswer()
-	t, ok := a.paletteTranslator()
-	if !ok {
-		a.palette.answer = &paletteAnswer{needsAI: true, say: locales.PaletteNoAI}
+	t, why := a.paletteTranslator()
+	if why != nil {
+		a.palette.answer = &paletteAnswer{needsAI: true, say: why}
 		return
 	}
 	f, ok := a.palette.files[item.SubtitlePath]

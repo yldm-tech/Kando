@@ -33,7 +33,8 @@ type settingsUI struct {
 	llmBase         string
 	llmModel        string
 	llmKey          string
-	llmCredential   func(context.Context, bool) (media.Endpoint, error)
+	// everyAPIOpenErr says why 获取 EveryAPI could not open EveryAPI's website, "" when it did or was not pressed.
+	everyAPIOpenErr string
 	// testingLLM is set while the connection test runs; llmTestOK is set when the last one passed and llmTestErr says why it failed. The page words the pass in the language it is shown in (LLMResult).
 	testingLLM bool
 	llmTestOK  bool

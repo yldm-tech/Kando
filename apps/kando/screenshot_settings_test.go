@@ -31,6 +31,16 @@ func TestScreenshotsSettings(t *testing.T) {
 		shotCLITool(f, a, true)
 		a.updates.shown = settings.Updates{Enabled: true, AutoCheck: true, Available: "0.5.0"}
 	})
+	// EveryAPI without a key on a computer without the everyapi program: the row under API Key offers 获取 EveryAPI and 重新检测.
+	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-missing", shown, models, turbo, func(a *app) {
+		tools := a.pipeline.(media.Tools)
+		tools.EveryAPI = ""
+		a.syncLLM(tools.UseEveryAPICLI())
+	})
+	// The everyapi program is there but nobody signed in to it, as the sidebar's check found: the row says what to run in Terminal.
+	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
+		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
+	})
 	// The first launch on a computer without ffmpeg and whisper-cli: Kando downloads ffmpeg, and offers 重试 for whisper-cli, whose download failed.
 	shootSettings(t, f, settings.SectionGeneral, "settings-general-downloading", shown, models, turbo, func(a *app) {
 		shotKitsDownloading(t, f, a)
@@ -62,7 +72,7 @@ func shotCLITool(f *screenshotFixture, a *app, installed bool) {
 	}
 }
 
-// shootSettings renders the settings window open at section, at the prototype's 880 by 640, as name.png: the library shown, the whisper models in models with turbo in use, and EveryAPI as the AI service. setup, when given, changes the app before it is drawn.
+// shootSettings renders the settings window open at section, at the prototype's 880 by 640, as name.png: the library shown, the whisper models in models with turbo in use, and EveryAPI as the AI service, without a key, through the everyapi program in ~/bin (writeFakeEveryAPI). setup, when given, changes the app before it is drawn.
 func shootSettings(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, setup ...func(*app)) {
 	t.Helper()
 	shootSettingsAt(t, f, section, name, shown, models, turbo, false, setup...)
@@ -86,7 +96,8 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 	if tools, ok := f.pipeline.(media.Tools); ok {
 		tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
 		tools.WhisperModel = turbo
-		a.syncLLM(tools)
+		tools.EveryAPI = writeFakeEveryAPI(t, filepath.Join(f.home, "bin"), true)
+		a.syncLLM(tools.UseEveryAPICLI())
 	}
 	for _, fn := range setup {
 		fn(a)

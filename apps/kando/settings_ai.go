@@ -65,12 +65,7 @@ func (a *app) restoreLLM(saved savedSettings) {
 			tools.Translator.APIKey = ""
 		}
 	}
-	credential := tools.Translator.Credential
-	if tools.Translator.BaseURL != media.EveryAPIBaseURL || tools.Translator.APIKey != "" {
-		tools.Translator.Credential = nil
-	}
-	a.syncLLM(tools)
-	a.prefs.llmCredential = credential
+	a.syncLLM(tools.UseEveryAPICLI())
 }
 
 // llmPreset is a service the AI 服务 page offers. Name and Blurb are in the interface's language, read when llmPresets is called; Group is one of the settings package's Group values.
@@ -137,7 +132,6 @@ func (a *app) syncLLM(tools media.Tools) {
 	a.prefs.llmBase = tools.Translator.BaseURL
 	a.prefs.llmModel = tools.Translator.Model
 	a.prefs.llmKey = tools.Translator.APIKey
-	a.prefs.llmCredential = tools.Translator.Credential
 	a.prefs.llmProvider = llmProviderID(tools.Translator.BaseURL)
 }
 
@@ -171,7 +165,7 @@ func (a *app) applyLLM() {
 		key = ""
 		a.prefs.llmKey = ""
 	}
-	// Without a key EveryAPI uses EVERYAPI_API_KEY, as at startup (media.ToolsFromEnv), and otherwise the signed-in everyapi CLI.
+	// Without a key EveryAPI uses EVERYAPI_API_KEY, as at startup (media.ToolsFromEnv), and otherwise the signed-in everyapi CLI, as the tools last found it (重新检测 looks again).
 	if base == media.EveryAPIBaseURL && key == "" {
 		key = os.Getenv("EVERYAPI_API_KEY")
 		a.prefs.llmKey = key
@@ -182,15 +176,53 @@ func (a *app) applyLLM() {
 	tools.Translator.BaseURL = base
 	tools.Translator.Model = strings.TrimSpace(a.prefs.llmModel)
 	tools.Translator.APIKey = key
-	tools.Translator.Credential = nil
-	if base == media.EveryAPIBaseURL && key == "" {
-		tools.Translator.Credential = a.prefs.llmCredential
-	}
-	a.pipeline = tools
+	a.pipeline = tools.UseEveryAPICLI()
 	a.areasLLMChanged()
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = locales.SettingsAISaveFailed(err.Error())
 	}
+}
+
+// everyAPISite is EveryAPI's website, where the everyapi command-line program is downloaded. Kando does not download it.
+const everyAPISite = "https://everyapi.ai"
+
+// everyAPIOpenURL opens a page in the user's browser. Tests replace it.
+var everyAPIOpenURL = openBrowser
+
+// everyAPIStatus is what the AI 服务 page says about the everyapi command-line program: nothing unless the service is EveryAPI without an API Key; then whether the program was found, and, once the sidebar's check asked it, whether someone is signed in to it.
+func (a *app) everyAPIStatus() settings.EveryAPI {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || tools.Translator.BaseURL != media.EveryAPIBaseURL || tools.Translator.APIKey != "" {
+		return settings.EveryAPI{}
+	}
+	status := settings.EveryAPI{OpenErr: a.prefs.everyAPIOpenErr}
+	switch {
+	case tools.Translator.Credential == nil:
+		status.Missing = true
+	case a.side.ready.asking:
+		status.Checking = true
+	case a.side.ready.signInDone && a.side.ready.signInErr != nil:
+		if errors.Is(a.side.ready.signInErr, media.ErrEveryAPIMissing) {
+			status.Missing = true
+		} else {
+			status.SignedOut = true
+		}
+	}
+	return status
+}
+
+// getEveryAPI opens EveryAPI's website in the browser off the UI thread, and keeps why it could not for the page to say.
+func (a *app) getEveryAPI() {
+	a.prefs.everyAPIOpenErr = ""
+	update := a.update
+	go func() {
+		err := everyAPIOpenURL(everyAPISite)
+		update(func() {
+			if err != nil {
+				a.prefs.everyAPIOpenErr = err.Error()
+			}
+		})
+	}()
 }
 
 func (a *app) testLLM() {

@@ -726,7 +726,7 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 		{name: "a local file still needs yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: locales.PrecheckToolsMissing("yt-dlp"), section: settings.SectionGeneral},
 		{name: "no model", sources: link, tools: func(t *media.Tools) { t.WhisperModel = "" }, msg: locales.PrecheckNoSpeechModel(), section: settings.SectionSpeech},
 		{name: "no LLM model", sources: link, tools: func(t *media.Tools) { t.Translator.Model = "" }, msg: locales.PrecheckNoLLMModel(), section: settings.SectionAI},
-		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }, msg: locales.PrecheckNotSignedIn(), section: settings.SectionAI},
+		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }, msg: locales.PrecheckEveryAPIMissing(), section: settings.SectionAI},
 		{name: "ready", sources: link},
 	} {
 		tools := ready
