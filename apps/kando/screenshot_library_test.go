@@ -14,7 +14,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders a query in the sidebar's search field and one that matches no film, the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
+// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. It also renders the grid with a film whose translation left a line untranslated, which offers to translate it. Besides those it renders a query in the sidebar's search field and one that matches no film, the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
 func TestScreenshotsLibrary(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// onboarding is the message bar the prototype shows once its onboarding is skipped.
@@ -57,6 +57,15 @@ func TestScreenshotsLibrary(t *testing.T) {
 		scrollTo(tt, "8 部", 315)
 		// ⋯ opens the system's menu, which the tester lists (tt.Menu) rather than draws; the picture shows the button pressed open.
 		screenshotClick(t, tt, "更多操作")
+	})
+	// Linear Algebra, Lecture 1 as its translation left a line untranslated: the note under its title and the button that translates that line.
+	f.shoot(t, "library-translate-missing", func(a *app, tt *ui.Tester, _ chan func()) {
+		onboarding(a)
+		job := f.job(t, "j3")
+		job.Untranslated = 1
+		a.library.Upsert(job)
+		tt.Frame()
+		scrollTo(tt, "8 部", 315)
 	})
 	f.shoot(t, "library-url-typed", func(a *app, tt *ui.Tester, _ chan func()) {
 		onboarding(a)

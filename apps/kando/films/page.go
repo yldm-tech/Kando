@@ -52,8 +52,11 @@ type App interface {
 	// OpenAt opens a film and starts its picture at at.
 	OpenAt(item Film, at time.Duration)
 	Reveal(path string)
-	// Reprocess makes the subtitles of a done film again.
+	// Reprocess makes the subtitles of a done film again, from its download, in the target language set now.
 	Reprocess(item Film)
+	// TranslateAgain translates every line of a done film's subtitles again, in the target language set now, without downloading or transcribing it; TranslateMissing translates only the lines its translation left untranslated (Film.Untranslated).
+	TranslateAgain(item Film)
+	TranslateMissing(item Film)
 	// Remove drops a job's card; its video, if any, stays in the library.
 	Remove(id string)
 	Retry(id string)

@@ -85,7 +85,19 @@ type Job struct {
 	Transcribed bool
 	// Cookies is the browser whose login the download borrows (yt-dlp's --cookies-from-browser name, such as chrome); empty borrows none.
 	Cookies string
+	// Redo is the part of a done film's processing the job does again instead of every stage: RedoTranslation or RedoMissing. Empty runs every stage. It stays set while the job waits, runs or has failed, so a retry or a restart does the same part again, and is cleared once the job is complete.
+	Redo Redo
 }
+
+// Redo is what a job made to translate a done film again translates. Both read the subtitles the film's job exported beside its video and neither downloads nor transcribes it again.
+type Redo string
+
+const (
+	// RedoTranslation translates every line of the film's transcript again.
+	RedoTranslation Redo = "translation"
+	// RedoMissing translates only the lines the film's subtitles left untranslated and keeps the others as they are.
+	RedoMissing Redo = "missing"
+)
 
 func NewJob(source string) (Job, error) {
 	source = strings.TrimSpace(source)

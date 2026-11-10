@@ -26,6 +26,9 @@ type App interface {
 	StartFilm(item films.Film)
 	Remove(id string)
 	RetryOpen(id string)
+	// TranslateAgain and TranslateMissing translate a done film again without downloading or transcribing it, as films.App's do: every line, or only those its translation left untranslated. The film stays open and follows its job.
+	TranslateAgain(item films.Film)
+	TranslateMissing(item films.Film)
 	Play() Player
 	PlayPath() string
 	PlayErr() string

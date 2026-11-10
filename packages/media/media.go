@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"kando/packages/core"
 )
 
 var ErrNoSpeech = errors.New("no speech found in the video")
+
+// ErrNoTranscript is why a job translating a done film again failed when the transcript its earlier run exported beside the video is gone or unreadable.
+var ErrNoTranscript = errors.New("the film's transcript is no longer beside its video")
 
 // Pipeline is the cross-platform boundary for media processing. Implementations keep OS-specific details out of the core package.
 type Pipeline interface {
@@ -28,6 +33,8 @@ type Pipeline interface {
 // Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done; Untranslated counts the lines this run's translation left untranslated. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
 //
 // A job run again resumes after the stages an earlier run finished. A link whose video is still at job.VideoPath is not downloaded again, so the retry works offline or after the site took the video down. Once transcribed, the speech is saved beside the video before the translation starts and job.Transcribed set; a job that comes back with it set reads that transcript back instead of calling p.Transcribe, and goes straight to StageTranslating. A job whose Transcribed is false, as a done film processed again, or whose video had to be downloaded again, is transcribed anew.
+//
+// A job whose Redo is set translates a done film again from the subtitles its earlier run exported beside job.VideoPath (exportSubtitles): it neither downloads nor transcribes, so it goes from StageQueued straight to StageTranslating. RedoTranslation translates every line of the transcript again; RedoMissing sends p.Translate only the lines the bilingual subtitles left untranslated and keeps the rest. A film whose transcript is gone fails with ErrNoTranscript and its Redo cleared, so a retry processes it entirely. Redo is cleared once the job is complete.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
 	enter := func(stage core.Stage) {
 		job.Stage = stage
@@ -58,71 +65,90 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		return fail("check", err)
 	}
 
-	_, local := localVideoPath(job.Source)
-	video := job.VideoPath
-	if local || !downloaded(video) {
-		if !local {
-			enter(core.StageDownloading)
-		}
-		var err error
-		video, err = p.Download(ctx, job.Source)
-		if err != nil {
-			job.FailKind = ClassifyDownload(err.Error())
-			// A site that still wants a login while the browser's is borrowed has let that login run out.
-			if job.Cookies != "" && (job.FailKind == core.FailLogin || job.FailKind == core.FailAge) {
-				job.FailKind = core.FailLoginExpired
+	var original, earlier []core.Segment
+	if job.Redo == "" {
+		_, local := localVideoPath(job.Source)
+		video := job.VideoPath
+		if local || !downloaded(video) {
+			if !local {
+				enter(core.StageDownloading)
 			}
-			return fail("download", err)
+			var err error
+			video, err = p.Download(ctx, job.Source)
+			if err != nil {
+				job.FailKind = ClassifyDownload(err.Error())
+				// A site that still wants a login while the browser's is borrowed has let that login run out.
+				if job.Cookies != "" && (job.FailKind == core.FailLogin || job.FailKind == core.FailAge) {
+					job.FailKind = core.FailLoginExpired
+				}
+				return fail("download", err)
+			}
+			// A link downloaded again lands on the same path as before, so the transcript beside it may have been made from the file this download replaced, such as a silent track that never merged.
+			if !local {
+				job.Transcribed = false
+			}
 		}
-		// A link downloaded again lands on the same path as before, so the transcript beside it may have been made from the file this download replaced, such as a silent track that never merged.
-		if !local {
+		// A transcript saved beside another file is not this video's.
+		if video != job.VideoPath {
 			job.Transcribed = false
 		}
-	}
-	// A transcript saved beside another file is not this video's.
-	if video != job.VideoPath {
-		job.Transcribed = false
-	}
-	job.VideoPath = video
+		job.VideoPath = video
 
-	var original []core.Segment
-	if job.Transcribed {
-		// A transcript that is gone or unreadable is made again, as if it had never been saved.
-		original, _ = loadTranscript(video)
-	}
-	if len(original) == 0 {
-		job.Transcribed = false
-		enter(core.StageTranscribing)
-		var err error
-		original, err = p.Transcribe(ctx, video)
-		if err != nil {
-			return fail("transcribe", err)
+		if job.Transcribed {
+			// A transcript that is gone or unreadable is made again, as if it had never been saved.
+			original, _ = loadTranscript(video)
 		}
 		if len(original) == 0 {
-			return fail("transcribe", ErrNoSpeech)
+			job.Transcribed = false
+			enter(core.StageTranscribing)
+			var err error
+			original, err = p.Transcribe(ctx, video)
+			if err != nil {
+				return fail("transcribe", err)
+			}
+			if len(original) == 0 {
+				return fail("transcribe", ErrNoSpeech)
+			}
+			// The transcript is kept before the translation starts, so a translation that fails does not cost the minutes of transcribing again. A transcript that cannot be saved only means a retry transcribes again; Export, which writes beside the video too, says why the folder cannot be written.
+			job.Transcribed = saveTranscript(video, original) == nil
 		}
-		// The transcript is kept before the translation starts, so a translation that fails does not cost the minutes of transcribing again. A transcript that cannot be saved only means a retry transcribes again; Export, which writes beside the video too, says why the folder cannot be written.
-		job.Transcribed = saveTranscript(video, original) == nil
+	} else {
+		var err error
+		original, earlier, err = readExported(job.VideoPath, job.Redo == core.RedoMissing)
+		if err != nil {
+			// Without its transcript the film has nothing to translate again: a retry processes it entirely.
+			if errors.Is(err, ErrNoTranscript) {
+				job.Redo = ""
+			}
+			return fail("translate", err)
+		}
 	}
 
 	enter(core.StageTranslating)
-	translated, err := p.Translate(ctx, original, language)
-	// Lines the translation could not do after trying them again stay untranslated; the rest of the film is not lost for them.
-	var partial *UntranslatedError
-	if errors.As(err, &partial) && len(translated) == len(original) {
-		job.Untranslated, err = partial.Lines, nil
+	var translated []core.Segment
+	var err error
+	if job.Redo == core.RedoMissing {
+		translated, job.Untranslated, err = translateMissing(ctx, p, original, earlier, language)
+	} else {
+		translated, err = p.Translate(ctx, original, language)
+		// Lines the translation could not do after trying them again stay untranslated; the rest of the film is not lost for them.
+		var partial *UntranslatedError
+		if errors.As(err, &partial) && len(translated) == len(original) {
+			job.Untranslated, err = partial.Lines, nil
+		}
 	}
 	if err != nil {
 		return fail("translate", err)
 	}
 
 	enter(core.StageExporting)
-	subtitles, err := p.Export(ctx, video, original, translated)
+	subtitles, err := p.Export(ctx, job.VideoPath, original, translated)
 	if err != nil {
 		return fail("export", err)
 	}
 	job.SubtitlePath = subtitles
 	job.CompletedAt = time.Now()
+	job.Redo = ""
 
 	enter(core.StageComplete)
 	return job
@@ -138,4 +164,36 @@ func downloaded(path string) bool {
 		return false
 	}
 	return !holdsDownloadLeftovers(filepath.Dir(path))
+}
+
+// translateMissing translates the lines of original whose translation in earlier is empty and keeps the others, returning every line's translation and how many are still untranslated. Only the missing lines go to p.Translate, so a film whose translation failed for a few batches does not pay for the rest again.
+func translateMissing(ctx context.Context, p Pipeline, original, earlier []core.Segment, language string) ([]core.Segment, int, error) {
+	out := slices.Clone(earlier)
+	var missing []core.Segment
+	var at []int
+	for i, s := range earlier {
+		if strings.TrimSpace(s.Text) == "" {
+			missing = append(missing, original[i])
+			at = append(at, i)
+		}
+	}
+	if len(missing) == 0 {
+		return out, 0, nil
+	}
+	got, err := p.Translate(ctx, missing, language)
+	left := 0
+	var partial *UntranslatedError
+	if errors.As(err, &partial) && len(got) == len(missing) {
+		left, err = partial.Lines, nil
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	if len(got) != len(missing) {
+		return nil, 0, fmt.Errorf("%d translated lines for %d untranslated lines", len(got), len(missing))
+	}
+	for k, i := range at {
+		out[i].Text = got[k].Text
+	}
+	return out, left, nil
 }

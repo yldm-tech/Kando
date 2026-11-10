@@ -230,6 +230,8 @@ type storedJob struct {
 	Untranslated int `json:"untranslated,omitempty"`
 	// Transcribed is whether the job saved its transcript beside its video (core.Job.Transcribed).
 	Transcribed bool `json:"transcribed,omitempty"`
+	// Redo is the part of a done film's processing a job translating it again does (core.Job.Redo).
+	Redo core.Redo `json:"redo,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -239,6 +241,7 @@ func storeJob(job core.Job) storedJob {
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
 		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated,
 		Transcribed: job.Transcribed,
+		Redo: job.Redo,
 	}
 	switch {
 	case errors.Is(job.Err, context.Canceled):
@@ -258,6 +261,7 @@ func (s storedJob) job() core.Job {
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
 		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated,
 		Transcribed: s.Transcribed,
+		Redo: s.Redo,
 	}
 	switch s.Error {
 	case "":

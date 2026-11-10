@@ -356,9 +356,29 @@ func (a *app) remove(id string) {
 	a.queueTellSystem()
 }
 
-// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew. A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
+// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again, and a failed job that was translating a done film again (core.Job.Redo) does that again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew, into the target language the settings name now rather than the one it was translated into. A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
 func (a *app) retry(job core.Job) {
-	job, err := a.queueRetryable(job)
+	a.queueAgain(a.queueRetryable(job))
+}
+
+// queueRetranslate queues done film job to be translated again from the subtitles it exported, without downloading or transcribing it (core.Job.Redo): with core.RedoTranslation every line, into the target language the settings name now; with core.RedoMissing only the lines it left untranslated, into the language its other lines are in. A job that is not done is left alone.
+func (a *app) queueRetranslate(job core.Job, redo core.Redo) {
+	if job.Stage != core.StageComplete || job.ID == a.queue.active {
+		return
+	}
+	job.Redo = redo
+	if redo == core.RedoTranslation || strings.TrimSpace(job.Language) == "" {
+		job.Language = strings.TrimSpace(a.prefs.language)
+	}
+	if job.Language == "" {
+		a.queueAgain(job, errors.New(locales.QueueNoLanguage()))
+		return
+	}
+	a.queueAgain(job, nil)
+}
+
+// queueAgain queues job, made ready by queueRetryable or queueRetranslate, again under the same ID and goes to the library, where the card already on screen follows it. err is why the job cannot be queued: errInQueue leaves everything as it is, and any other is said on the line under the link field.
+func (a *app) queueAgain(job core.Job, err error) {
 	if errors.Is(err, errInQueue) {
 		return
 	}
@@ -374,13 +394,15 @@ func (a *app) retry(job core.Job) {
 // errInQueue is queueRetryable's answer for a job that is running or waiting already.
 var errInQueue = errors.New("the job is already running or waiting in the queue")
 
-// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
+// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. A done film is made ready to be processed again entirely, into the language the settings name now. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
 func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 	if job.ID == a.queue.active || job.Stage == core.StageQueued {
 		return core.Job{}, errInQueue
 	}
 	if job.Stage == core.StageComplete {
 		job.Transcribed = false
+		job.Redo = ""
+		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if strings.TrimSpace(job.Language) == "" {
 		job.Language = strings.TrimSpace(a.prefs.language)

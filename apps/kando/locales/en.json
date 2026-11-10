@@ -1060,6 +1060,14 @@
   "@filmTabStyle": {
     "description": "Side panel tab with the subtitle style."
   },
+  "filmTranslateAgain": "Translate Again",
+  "@filmTranslateAgain": {
+    "description": "Item of the player's ⋯ menu that translates a finished film's subtitles again into the target language set now, without downloading or transcribing it again."
+  },
+  "filmTranslateMissing": "Translate Missing Lines",
+  "@filmTranslateMissing": {
+    "description": "Item of the player's ⋯ menu, shown when some lines failed to translate: translates only those lines."
+  },
   "filmUnmute": "Unmute",
   "@filmUnmute": {
     "description": "Speaker button that unmutes the film."
@@ -1565,6 +1573,14 @@
   "filmsSupportedSites": "Supported Websites…",
   "@filmsSupportedSites": {
     "description": "Button on the empty library's page that opens the sheet listing the websites Kando downloads from."
+  },
+  "filmsTranslateAgain": "Translate Again",
+  "@filmsTranslateAgain": {
+    "description": "Menu item of a finished film that translates its subtitles again into the target language set now, without downloading or transcribing it again."
+  },
+  "filmsTranslateMissing": "Translate Missing Lines",
+  "@filmsTranslateMissing": {
+    "description": "Button under a finished film whose translation failed for some lines, and the same item in its menu: translates only those lines."
   },
   "filmsUntranslated": "{count, plural, one {# line} other {# lines}} failed to translate, the rest are done",
   "@filmsUntranslated": {
@@ -2871,6 +2887,10 @@
   "precheckNoTools": "The programs that process videos aren't installed yet",
   "@precheckNoTools": {
     "description": "Card of a failed job when a program it needs (yt-dlp, ffmpeg, whisper-cli) is not installed."
+  },
+  "precheckNoTranscript": "This film's original subtitles are gone, so only its translation can't be redone. Retry processes the entire film again.",
+  "@precheckNoTranscript": {
+    "description": "Why a film being translated again failed: the transcript beside its video was deleted."
   },
   "precheckNoVideo": "Only video files can be added (mp4, mov, mkv, webm and others).",
   "@precheckNoVideo": {
@@ -4619,7 +4639,7 @@
   "@settingsTranslateTarget": {
     "description": "Row title and pop-up name: the language new jobs translate subtitles into."
   },
-  "settingsTranslateTargetNote": "New jobs translate into this language.",
+  "settingsTranslateTargetNote": "New jobs, and films processed or translated again, translate into this language.",
   "@settingsTranslateTargetNote": {
     "description": "Footnote under the target language."
   },

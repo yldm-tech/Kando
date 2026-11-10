@@ -1429,6 +1429,7 @@ func TestAFailedCardSaysWhyInChinese(t *testing.T) {
 		{"transcribe: whisper-cli: exit status 3: failed to read audio", "生成字幕失败：failed to read audio", ""},
 		{"transcribe: whisper-cli: signal: killed: whisper_init: out of memory", "生成字幕失败：whisper_init: out of memory", ""},
 		{"export: open /v/a.srt: permission denied", "导出字幕失败：open /v/a.srt: permission denied", ""},
+		{"translate: " + media.ErrNoTranscript.Error(), "这部影片的原文字幕不见了，没法只重新翻译。点重试会重新处理整部影片。", ""},
 		{"boom", "处理失败：boom", ""},
 	} {
 		film := failedWith(t, a, tc.err)
@@ -2235,5 +2236,219 @@ func TestTheNotificationSwitchIsSaved(t *testing.T) {
 	}
 	if saved := loadSavedSettings(a.settingsPath); saved.Notify != nil {
 		t.Fatalf("notifications on are saved as %v", *saved.Notify)
+	}
+}
+
+// retranslatePipeline is the pipeline of a done film as the actions that translate it again see it: it counts the downloads and transcriptions, remembers each line Translate is sent and the language, translates a line as the language and the line, and exports to the film's bilingual subtitles.
+type retranslatePipeline struct {
+	downloads, transcriptions int
+	sent                      []string
+	language                  string
+	translateErr              error
+}
+
+func (p *retranslatePipeline) Check() error { return nil }
+
+func (p *retranslatePipeline) Download(_ context.Context, source string) (string, error) {
+	p.downloads++
+	path, _ := strings.CutPrefix(source, "file://")
+	return path, nil
+}
+
+func (p *retranslatePipeline) Transcribe(context.Context, string) ([]core.Segment, error) {
+	p.transcriptions++
+	return []core.Segment{{End: time.Second, Text: "Hello."}}, nil
+}
+
+func (p *retranslatePipeline) Translate(_ context.Context, segments []core.Segment, language string) ([]core.Segment, error) {
+	p.language = language
+	if p.translateErr != nil {
+		return nil, p.translateErr
+	}
+	out := make([]core.Segment, len(segments))
+	for i, s := range segments {
+		p.sent = append(p.sent, s.Text)
+		out[i] = s
+		out[i].Text = language + ":" + s.Text
+	}
+	return out, nil
+}
+
+func (p *retranslatePipeline) Export(_ context.Context, video string, _, _ []core.Segment) (string, error) {
+	return strings.TrimSuffix(video, ".mp4") + ".bilingual.srt", nil
+}
+
+// retranslateLibrary is a library holding one done film, Talk, whose job translated it into 简体中文 and exported its three lines, the second of which it left untranslated; the settings now name 日本語 as the target language.
+func retranslateLibrary(t *testing.T, p *retranslatePipeline) (*app, *ui.Tester, chan func()) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
+	video := filepath.Join(lib, "Talk", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	base := strings.TrimSuffix(video, ".mp4")
+	for path, body := range map[string]string{
+		video:                   "v",
+		base + ".srt":           "1\n00:00:01,000 --> 00:00:02,000\nHello.\n\n2\n00:00:02,000 --> 00:00:03,000\nHow are you?\n\n3\n00:00:03,000 --> 00:00:04,000\nBye.\n\n",
+		base + ".bilingual.srt": "1\n00:00:01,000 --> 00:00:02,000\n你好。\nHello.\n\n2\n00:00:02,000 --> 00:00:03,000\nHow are you?\n\n3\n00:00:03,000 --> 00:00:04,000\n再见。\nBye.\n\n",
+	} {
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, tt, updates := newTestApp(p)
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	a.prefs.language = "日本語"
+	a.library.Jobs = []core.Job{{
+		ID: "talk", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Language: "简体中文", Stage: core.StageComplete,
+		VideoPath: video, SubtitlePath: base + ".bilingual.srt", LibraryDir: lib, Untranslated: 1, CompletedAt: time.Now(),
+	}}
+	a.refreshLibrary()
+	tt.Frame()
+	return a, tt, updates
+}
+
+// chooseFilmMenu chooses label in the ⋯ menu of the film on screen.
+func chooseFilmMenu(t *testing.T, tt *ui.Tester, label string) {
+	t.Helper()
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if err := tt.ChooseMenuItem(label); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+}
+
+// The card of a film whose translation failed for some lines offers to translate them: only those lines go to the translator, in the language the film's other lines are in rather than the one set now, and the film is neither downloaded nor transcribed again.
+func TestTranslateMissingLinesSendsOnlyThoseLines(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "1 句翻译失败，其余已完成") {
+		t.Fatalf("the card does not say a line failed: %q", tt.Texts())
+	}
+	if err := tt.Click("补译未译的句子"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	settle(t, a, tt, updates)
+	if !slices.Equal(p.sent, []string{"How are you?"}) || p.language != "简体中文" {
+		t.Fatalf("sent %q in %q", p.sent, p.language)
+	}
+	if p.downloads != 0 || p.transcriptions != 0 {
+		t.Fatalf("%d downloads, %d transcriptions", p.downloads, p.transcriptions)
+	}
+	job := stageOf(t, a, "talk")
+	if job.Stage != core.StageComplete || job.Untranslated != 0 || job.Redo != "" || job.Language != "简体中文" {
+		t.Fatalf("job %+v", job)
+	}
+	if tt.HasText("补译未译的句子") {
+		t.Fatalf("the button stayed once every line was translated: %q", tt.Texts())
+	}
+}
+
+// A film whose every line was translated has no button to translate missing lines, nor the menu item.
+func TestNoMissingLinesNoButton(t *testing.T) {
+	a, tt, _ := retranslateLibrary(t, &retranslatePipeline{})
+	job := stageOf(t, a, "talk")
+	job.Untranslated = 0
+	a.library.Upsert(job)
+	tt.Frame()
+	if tt.HasText("补译未译的句子") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if menu := tt.Menu(); slices.Contains(menu, "补译未译的句子") || !slices.Contains(menu, "重新翻译") {
+		t.Fatalf("menu %q", menu)
+	}
+}
+
+// 重新翻译 translates every line of a done film again into the target language set now, without downloading or transcribing it.
+func TestTranslateAgainUsesTheLanguageSetNow(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	chooseFilmMenu(t, tt, "重新翻译")
+	settle(t, a, tt, updates)
+	if !slices.Equal(p.sent, []string{"Hello.", "How are you?", "Bye."}) || p.language != "日本語" {
+		t.Fatalf("sent %q in %q", p.sent, p.language)
+	}
+	if p.downloads != 0 || p.transcriptions != 0 {
+		t.Fatalf("%d downloads, %d transcriptions", p.downloads, p.transcriptions)
+	}
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Language != "日本語" || job.Redo != "" {
+		t.Fatalf("job %+v", job)
+	}
+}
+
+// 重新处理 processes the entire film again but for its download, which is still beside the job (media.Run), into the target language set now rather than the one it was translated into.
+func TestProcessAgainUsesTheLanguageSetNow(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	chooseFilmMenu(t, tt, "重新处理")
+	settle(t, a, tt, updates)
+	if p.downloads != 0 || p.transcriptions != 1 || p.language != "日本語" {
+		t.Fatalf("%d downloads, %d transcriptions, language %q", p.downloads, p.transcriptions, p.language)
+	}
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Language != "日本語" {
+		t.Fatalf("job %+v", job)
+	}
+}
+
+// With no target language set, 重新翻译 queues nothing and the message bar says why.
+func TestTranslateAgainWithoutALanguage(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, _ := retranslateLibrary(t, p)
+	a.prefs.language = ""
+	chooseFilmMenu(t, tt, "重新翻译")
+	tt.Frame()
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Redo != "" || a.running() {
+		t.Fatalf("job %+v running %v", job, a.running())
+	}
+	if a.lib.notice.Text != locales.QueueNoLanguage() {
+		t.Fatalf("notice %+v", a.lib.notice)
+	}
+}
+
+// A translation of the missing lines that fails leaves a failed card whose 重试 translates those lines again, still without downloading or transcribing the film.
+func TestRetryingAFailedRetranslationTranslatesAgain(t *testing.T) {
+	p := &retranslatePipeline{translateErr: errors.New("translation API returned 503 Service Unavailable")}
+	a, tt, updates := retranslateLibrary(t, p)
+	if err := tt.Click("补译未译的句子"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageFailed || job.Redo != core.RedoMissing {
+		t.Fatalf("job %+v", job)
+	}
+	p.translateErr = nil
+	a.Retry("talk")
+	settle(t, a, tt, updates)
+	if !slices.Equal(p.sent, []string{"How are you?"}) || p.downloads != 0 || p.transcriptions != 0 {
+		t.Fatalf("sent %q, %d downloads, %d transcriptions", p.sent, p.downloads, p.transcriptions)
+	}
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Untranslated != 0 {
+		t.Fatalf("job %+v", job)
+	}
+}
+
+// The film page's ⋯ translates the open film again and the film stays open, following its job.
+func TestFilmPageTranslatesAgain(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	film, _ := a.JobFilm("talk")
+	a.Open(film)
+	tt.Frame()
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if menu := tt.Menu(); !slices.Contains(menu, "重新翻译") || !slices.Contains(menu, "补译未译的句子") {
+		t.Fatalf("menu %q", menu)
+	}
+	if err := tt.ChooseMenuItem("重新翻译"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	if a.openKey != "talk" || p.language != "日本語" || len(p.sent) != 3 || p.downloads != 0 {
+		t.Fatalf("open %q, sent %q in %q, %d downloads", a.openKey, p.sent, p.language, p.downloads)
 	}
 }

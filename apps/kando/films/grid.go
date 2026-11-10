@@ -28,7 +28,7 @@ func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
 	})
 }
 
-// doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重新处理 and 从资料库移除.
+// doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
 func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 	menu := filmMenu(a, item, breeze.PlatformOf(c))
 	name := filmName(item)
@@ -57,6 +57,12 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 				ui.Text(c, name).FontSize(13).FontWeight(600).FixedLineHeight(17).SingleLine()
 				ui.Text(c, doneMeta(a, item)).FontSize(12).TextColor(t.TextMuted).Wrap().MaxLines(2)
+				if item.JobID != "" && item.Untranslated > 0 {
+					c.Key("film-translate-missing")
+					if breeze.Button(c, locales.FilmsTranslateMissing()).Height(24).AlignSelf(ui.Start).Margin(5, 0, 0, 0).Clicked() {
+						a.TranslateMissing(item)
+					}
+				}
 			})
 			c.Key("film-more")
 			moreButton(c).Menu(menu)
@@ -75,6 +81,14 @@ func filmMenu(a App, item Film, p breeze.Platform) func(m *ui.Menu) {
 		}
 		if m.Item(locales.FilmsReprocess()).Chosen() {
 			a.Reprocess(item)
+		}
+		if item.JobID != "" {
+			if m.Item(locales.FilmsTranslateAgain()).Chosen() {
+				a.TranslateAgain(item)
+			}
+			if item.Untranslated > 0 && m.Item(locales.FilmsTranslateMissing()).Chosen() {
+				a.TranslateMissing(item)
+			}
 		}
 		m.Separator()
 		if m.Item(locales.FilmsRemoveFromLibrary()).Chosen() {

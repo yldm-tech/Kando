@@ -3,7 +3,9 @@ package media
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -106,6 +108,59 @@ func loadTranscript(videoPath string) ([]core.Segment, error) {
 		return nil, err
 	}
 	return ParseSRT(data)
+}
+
+// readExported reads back what exportSubtitles wrote beside the video at videoPath: the original speech from "<video>.srt" and, when withTranslation, each line's translation from "<video>.bilingual.srt", empty for a line it left untranslated. A transcript that is gone, unreadable or empty is ErrNoTranscript. A bilingual file that is gone, unreadable or does not match the transcript cue for cue, as one edited by hand, leaves every translation empty, so every line is translated again.
+func readExported(videoPath string, withTranslation bool) (original, translated []core.Segment, err error) {
+	if videoPath == "" {
+		return nil, nil, ErrNoTranscript
+	}
+	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
+	data, err := os.ReadFile(base + ".srt")
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, ErrNoTranscript
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if original, err = ParseSRT(data); err != nil || len(original) == 0 {
+		return nil, nil, ErrNoTranscript
+	}
+	translated = make([]core.Segment, len(original))
+	for i, s := range original {
+		translated[i] = core.Segment{Start: s.Start, End: s.End}
+	}
+	if !withTranslation {
+		return original, translated, nil
+	}
+	data, err = os.ReadFile(base + ".bilingual.srt")
+	if err != nil {
+		return original, translated, nil
+	}
+	bilingual, err := ParseSRT(data)
+	if err != nil || len(bilingual) != len(original) {
+		return original, translated, nil
+	}
+	lines := make([]string, len(original))
+	for i, cue := range bilingual {
+		s := original[i]
+		if cue.Start != s.Start || cue.End != s.End {
+			return original, translated, nil
+		}
+		// A translated cue is its translation above the original line; an untranslated one is the original alone.
+		if cue.Text == s.Text {
+			continue
+		}
+		line, ok := strings.CutSuffix(cue.Text, "\n"+s.Text)
+		if !ok {
+			return original, translated, nil
+		}
+		lines[i] = strings.TrimSpace(line)
+	}
+	for i := range translated {
+		translated[i].Text = lines[i]
+	}
+	return original, translated, nil
 }
 
 func formatSRT(segments []core.Segment) string {

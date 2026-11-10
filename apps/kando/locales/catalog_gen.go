@@ -3174,6 +3174,40 @@ func (msgs Messages) FilmTabStyle() string {
 	return Catalog.Format(msgs.locale, "filmTabStyle", nil)
 }
 
+// FilmTranslateAgain says "Translate Again"
+// in the language the app shows.
+//
+// Item of the player's ⋯ menu that translates a finished film's subtitles
+// again into the target language set now, without downloading or
+// transcribing it again.
+func FilmTranslateAgain() string { return In(i18n.Locale()).FilmTranslateAgain() }
+
+// FilmTranslateAgain says "Translate Again"
+// in the language of msgs.
+//
+// Item of the player's ⋯ menu that translates a finished film's subtitles
+// again into the target language set now, without downloading or
+// transcribing it again.
+func (msgs Messages) FilmTranslateAgain() string {
+	return Catalog.Format(msgs.locale, "filmTranslateAgain", nil)
+}
+
+// FilmTranslateMissing says "Translate Missing Lines"
+// in the language the app shows.
+//
+// Item of the player's ⋯ menu, shown when some lines failed to translate:
+// translates only those lines.
+func FilmTranslateMissing() string { return In(i18n.Locale()).FilmTranslateMissing() }
+
+// FilmTranslateMissing says "Translate Missing Lines"
+// in the language of msgs.
+//
+// Item of the player's ⋯ menu, shown when some lines failed to translate:
+// translates only those lines.
+func (msgs Messages) FilmTranslateMissing() string {
+	return Catalog.Format(msgs.locale, "filmTranslateMissing", nil)
+}
+
 // FilmUnmute says "Unmute"
 // in the language the app shows.
 //
@@ -4468,6 +4502,38 @@ func FilmsSupportedSites() string { return In(i18n.Locale()).FilmsSupportedSites
 // websites Kando downloads from.
 func (msgs Messages) FilmsSupportedSites() string {
 	return Catalog.Format(msgs.locale, "filmsSupportedSites", nil)
+}
+
+// FilmsTranslateAgain says "Translate Again"
+// in the language the app shows.
+//
+// Menu item of a finished film that translates its subtitles again into the
+// target language set now, without downloading or transcribing it again.
+func FilmsTranslateAgain() string { return In(i18n.Locale()).FilmsTranslateAgain() }
+
+// FilmsTranslateAgain says "Translate Again"
+// in the language of msgs.
+//
+// Menu item of a finished film that translates its subtitles again into the
+// target language set now, without downloading or transcribing it again.
+func (msgs Messages) FilmsTranslateAgain() string {
+	return Catalog.Format(msgs.locale, "filmsTranslateAgain", nil)
+}
+
+// FilmsTranslateMissing says "Translate Missing Lines"
+// in the language the app shows.
+//
+// Button under a finished film whose translation failed for some lines, and
+// the same item in its menu: translates only those lines.
+func FilmsTranslateMissing() string { return In(i18n.Locale()).FilmsTranslateMissing() }
+
+// FilmsTranslateMissing says "Translate Missing Lines"
+// in the language of msgs.
+//
+// Button under a finished film whose translation failed for some lines, and
+// the same item in its menu: translates only those lines.
+func (msgs Messages) FilmsTranslateMissing() string {
+	return Catalog.Format(msgs.locale, "filmsTranslateMissing", nil)
 }
 
 // FilmsUntranslated says "{count, plural, one {# line} other {# lines}} failed to translate, the rest are done"
@@ -8022,6 +8088,22 @@ func PrecheckNoTools() string { return In(i18n.Locale()).PrecheckNoTools() }
 // whisper-cli) is not installed.
 func (msgs Messages) PrecheckNoTools() string {
 	return Catalog.Format(msgs.locale, "precheckNoTools", nil)
+}
+
+// PrecheckNoTranscript says "This film's original subtitles are gone, so only its translation can't be redone. Retry processes the entire film again."
+// in the language the app shows.
+//
+// Why a film being translated again failed: the transcript beside its video
+// was deleted.
+func PrecheckNoTranscript() string { return In(i18n.Locale()).PrecheckNoTranscript() }
+
+// PrecheckNoTranscript says "This film's original subtitles are gone, so only its translation can't be redone. Retry processes the entire film again."
+// in the language of msgs.
+//
+// Why a film being translated again failed: the transcript beside its video
+// was deleted.
+func (msgs Messages) PrecheckNoTranscript() string {
+	return Catalog.Format(msgs.locale, "precheckNoTranscript", nil)
 }
 
 // PrecheckNoVideo says "Only video files can be added (mp4, mov, mkv, webm and others)."
@@ -12954,13 +13036,13 @@ func (msgs Messages) SettingsTranslateTarget() string {
 	return Catalog.Format(msgs.locale, "settingsTranslateTarget", nil)
 }
 
-// SettingsTranslateTargetNote says "New jobs translate into this language."
+// SettingsTranslateTargetNote says "New jobs, and films processed or translated again, translate into this language."
 // in the language the app shows.
 //
 // Footnote under the target language.
 func SettingsTranslateTargetNote() string { return In(i18n.Locale()).SettingsTranslateTargetNote() }
 
-// SettingsTranslateTargetNote says "New jobs translate into this language."
+// SettingsTranslateTargetNote says "New jobs, and films processed or translated again, translate into this language."
 // in the language of msgs.
 //
 // Footnote under the target language.

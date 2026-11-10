@@ -119,7 +119,7 @@ func (a *app) OpenAt(item films.Film, at time.Duration) {
 	a.Open(item)
 }
 
-// Reprocess runs a done film through the pipeline again: a job again from its source, a video no job has processed from its file.
+// Reprocess runs a done film through the pipeline again, into the target language set now: a job again from its source, a video no job has processed from its file.
 func (a *app) Reprocess(item films.Film) {
 	delete(a.lib.quotes, item.SubtitlePath)
 	if item.JobID != "" {
@@ -127,6 +127,25 @@ func (a *app) Reprocess(item films.Film) {
 		return
 	}
 	a.libraryEnqueue(core.FileURL(item.VideoPath))
+}
+
+// TranslateAgain translates a done film's transcript again into the target language set now, without downloading or transcribing it. The film page's ⋯ uses it too (film.App).
+func (a *app) TranslateAgain(item films.Film) { a.libraryRetranslate(item, core.RedoTranslation) }
+
+// TranslateMissing translates only the lines a done film's translation left untranslated, as the card's 补译未译的句子 does. The film page's ⋯ uses it too (film.App).
+func (a *app) TranslateMissing(item films.Film) { a.libraryRetranslate(item, core.RedoMissing) }
+
+// libraryRetranslate queues done film item to be translated again (queueRetranslate) on its card, or an open film's page, and says in the message bar why when it cannot. The hero's line is read again once the film is done.
+func (a *app) libraryRetranslate(item films.Film, redo core.Redo) {
+	job, ok := a.library.Find(item.JobID)
+	if !ok {
+		return
+	}
+	delete(a.lib.quotes, item.SubtitlePath)
+	a.queueRetranslate(job, redo)
+	if now, _ := a.library.Find(job.ID); now.Stage == job.Stage && a.queue.status != "" {
+		a.warn(a.queue.status, "")
+	}
 }
 
 func (a *app) Remove(id string) { a.remove(id) }

@@ -356,3 +356,17 @@ func TestLibraryKeepsWhetherTheJobWasTranscribed(t *testing.T) {
 		t.Fatalf("job never transcribed %+v", job)
 	}
 }
+
+// A job translating a done film again keeps which part it redoes across a restart, so the job read back as queued translates again rather than downloading and transcribing the film anew.
+func TestLibraryKeepsWhatAJobRedoes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageTranslating, Redo: core.RedoMissing})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if job := loaded.Jobs[0]; job.Redo != core.RedoMissing || job.Stage != core.StageQueued {
+		t.Fatalf("job %+v", job)
+	}
+}
