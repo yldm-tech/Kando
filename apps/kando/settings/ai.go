@@ -42,6 +42,10 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 				s.ApplyLLM()
 			}
 		})
+		if cli := s.EveryAPI(); cli.Missing || cli.Checking || cli.SignedOut || cli.Failed != "" {
+			form.Separator(c, true)
+			s.everyAPIRow(c, cli)
+		}
 		form.Separator(c, true)
 		form.Row(c, locales.SettingsAIModel(), "", func() { s.modelSelect(c, t) })
 		ui.Row(c).Shrink(0).MinHeight(40).Padding(6, 14).Gap(10).AlignItems(ui.Center).Children(func() {
@@ -61,6 +65,33 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 		note = locales.SettingsAINoteWithBlurb(preset.Blurb, key, locales.SettingsAICompatible())
 	}
 	form.Note(c, note, 0)
+}
+
+// everyAPIRow says what the everyapi command-line program, whose sign-in EveryAPI uses without an API Key, still needs: to be installed, with 获取 EveryAPI to open the website it is downloaded from, or to be signed in to in Terminal, or what it said when asking it failed otherwise; 重新检测 looks for it and asks it again afterwards. While Kando asks it whether someone is signed in, the row says so and 重新检测 waits.
+func (s screen) everyAPIRow(c *ui.Context, cli EveryAPI) {
+	note := locales.ReadinessCheckingSignIn()
+	switch {
+	case cli.Missing && cli.OpenErr != "":
+		note = locales.SettingsAIEveryAPIOpenFailed(cli.OpenErr)
+	case cli.Missing:
+		note = locales.SettingsAIEveryAPIMissing()
+	case cli.SignedOut:
+		note = locales.SettingsAIEveryAPISignedOut()
+	case cli.Failed != "":
+		note = locales.SettingsAIEveryAPIFailed(cli.Failed)
+	}
+	form.Row(c, locales.SettingsAIEveryAPICLI(), note, func() {
+		if cli.Missing {
+			c.Key("everyapi-get")
+			if form.Button(c, locales.SettingsAIGetEveryAPI(), false).Clicked() {
+				s.GetEveryAPI()
+			}
+		}
+		c.Key("everyapi-redetect")
+		if form.Button(c, locales.SettingsAIRedetect(), false).Disabled(cli.Checking).Clicked() && !cli.Checking {
+			s.Redetect()
+		}
+	})
 }
 
 // providerSelect chooses the service among the presets. The drop-down shows their names, the ones on this Mac after their group, as 本机 · Ollama; the setting keeps the id. Grouped drop-downs (mygo-breeze-ui B10) are not planned, so the group stays in the name.

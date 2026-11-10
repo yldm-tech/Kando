@@ -33,7 +33,9 @@ type settingsUI struct {
 	llmBase         string
 	llmModel        string
 	llmKey          string
-	llmCredential   func(context.Context, bool) (media.Endpoint, error)
+	// everyAPIOpenErr says why 获取 EveryAPI could not open EveryAPI's website, "" when it did, was not pressed, or the tools were detected again since. everyAPIOpenGen counts the presses, so only the last one's answer is kept.
+	everyAPIOpenErr string
+	everyAPIOpenGen int
 	// testingLLM is set while the connection test runs; llmTestOK is set when the last one passed and llmTestErr says why it failed. The page words the pass in the language it is shown in (LLMResult).
 	testingLLM bool
 	llmTestOK  bool
@@ -139,8 +141,13 @@ func (a *app) settingsHooks() areaHooks {
 			a.SetInterfaceLanguage(a.prefs.interfaceLanguage)
 			a.loadToolVersions()
 		},
-		toolsChanged: func(bool) { a.findSpeechModels() },
-		afterUpdate:  a.redrawSettings,
+		toolsChanged: func(redetected bool) {
+			a.findSpeechModels()
+			if redetected {
+				a.everyAPIForgetOpen()
+			}
+		},
+		afterUpdate: a.redrawSettings,
 		afterFrame: func() {
 			a.followSettingsPage()
 			a.shareSettings(false)

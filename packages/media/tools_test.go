@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -99,12 +100,88 @@ func TestToolsFromEnvTranslator(t *testing.T) {
 
 func TestToolsCheckRequiresEveryAPIKey(t *testing.T) {
 	tools := Tools{Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: EveryAPIModel}}
-	if err := tools.Check(); err == nil || !strings.Contains(err.Error(), "everyapi auth login") {
-		t.Fatalf("err = %v", err)
+	if err := tools.Check(); !errors.Is(err, ErrEveryAPIMissing) {
+		t.Fatalf("err = %v, want %v", err, ErrEveryAPIMissing)
 	}
 	tools.Translator = ChatTranslator{BaseURL: "http://localhost:11434/v1", Model: "qwen3"}
-	if err := tools.Check(); err != nil && strings.Contains(err.Error(), "everyapi auth login") {
-		t.Fatalf("custom provider asked for an EveryAPI login: %v", err)
+	if err := tools.Check(); errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
+		t.Fatalf("custom provider asked for the everyapi program: %v", err)
+	}
+}
+
+// noPackageManagerDirs keeps lookTool to PATH for the test, so an everyapi that Homebrew installed on the machine running it does not count.
+func noPackageManagerDirs(t *testing.T) {
+	t.Helper()
+	saved := extraToolDirs
+	extraToolDirs = nil
+	t.Cleanup(func() { extraToolDirs = saved })
+}
+
+const signedInEveryAPI = `#!/bin/sh
+if [ "$1" = auth ] && [ "$2" = credential ]; then
+  printf '%s\n' '{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"from-login"}'
+  exit 0
+fi
+exit 1
+`
+
+// TestRelookFindsTheEveryAPICLIInstalledLater checks that without the everyapi program Check says it is missing rather than signed out, and that once it is installed Relook signs the translator in through it without Kando starting again.
+func TestRelookFindsTheEveryAPICLIInstalledLater(t *testing.T) {
+	noPackageManagerDirs(t)
+	dir := t.TempDir()
+	t.Setenv("PATH", dir)
+	setLLMEnv(t, "", "", "", "")
+	tools := ToolsFromEnv()
+	if tools.EveryAPI != "" || tools.Translator.Credential != nil {
+		t.Fatalf("found an everyapi in an empty PATH: %q", tools.EveryAPI)
+	}
+	if err := tools.Check(); !errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
+		t.Fatalf("Check = %v, want %v", err, ErrEveryAPIMissing)
+	}
+
+	cli := filepath.Join(dir, "everyapi")
+	if err := os.WriteFile(cli, []byte(signedInEveryAPI), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tools = tools.Relook()
+	if tools.EveryAPI != cli || tools.Translator.Credential == nil {
+		t.Fatalf("Relook: everyapi %q, credential %v", tools.EveryAPI, tools.Translator.Credential != nil)
+	}
+	got, err := tools.Translator.Credential(context.Background(), false)
+	if err != nil || got.APIKey != "from-login" {
+		t.Fatalf("credential = %#v, %v", got, err)
+	}
+
+	// Once it is uninstalled again, Relook takes the sign-in away.
+	if err := os.Remove(cli); err != nil {
+		t.Fatal(err)
+	}
+	if tools = tools.Relook(); tools.EveryAPI != "" || tools.Translator.Credential != nil {
+		t.Fatalf("Relook kept a removed everyapi: %q", tools.EveryAPI)
+	}
+}
+
+// TestUseEveryAPICLIOnlyWithoutAKey checks that the everyapi sign-in stands in for EveryAPI's key only: a key, or another service, takes it away.
+func TestUseEveryAPICLIOnlyWithoutAKey(t *testing.T) {
+	tools := Tools{EveryAPI: "/bin/everyapi", Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: EveryAPIModel}}
+	if tools.UseEveryAPICLI().Translator.Credential == nil {
+		t.Fatal("EveryAPI without a key did not sign in through everyapi")
+	}
+	tools.Translator.APIKey = "k"
+	if tools.UseEveryAPICLI().Translator.Credential != nil {
+		t.Fatal("EveryAPI with a key still signs in through everyapi")
+	}
+	tools.Translator = ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt"}
+	if tools.UseEveryAPICLI().Translator.Credential != nil {
+		t.Fatal("another service signs in through everyapi")
+	}
+}
+
+// TestEveryAPICredentialGoneSaysMissing checks that an everyapi removed after Kando found it is reported as missing, not as signed out.
+func TestEveryAPICredentialGoneSaysMissing(t *testing.T) {
+	_, err := everyAPICredential(filepath.Join(t.TempDir(), "everyapi"))(context.Background(), false)
+	if !errors.Is(err, ErrEveryAPIMissing) {
+		t.Fatalf("err = %v, want %v", err, ErrEveryAPIMissing)
 	}
 }
 
@@ -151,8 +228,8 @@ exit 1
 	setLLMEnv(t, "", "", "", "")
 	tools := ToolsFromEnv()
 	_, err := tools.Translator.Credential(context.Background(), false)
-	if err == nil || !strings.Contains(err.Error(), "everyapi auth login") {
-		t.Fatalf("err = %v", err)
+	if !errors.Is(err, ErrEveryAPISignedOut) || !strings.Contains(err.Error(), "everyapi auth login") {
+		t.Fatalf("err = %v, want %v", err, ErrEveryAPISignedOut)
 	}
 }
 

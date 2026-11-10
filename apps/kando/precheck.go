@@ -58,8 +58,8 @@ func (a *app) precheck(sources []string) (msg, section string) {
 		return locales.PrecheckNoSpeechModel(), settings.SectionSpeech
 	case tools.Translator.Model == "":
 		return locales.PrecheckNoLLMModel(), settings.SectionAI
-	case tools.Translator.Credential == nil && tools.Translator.BaseURL == media.EveryAPIBaseURL && tools.Translator.APIKey == "":
-		return locales.PrecheckNotSignedIn(), settings.SectionAI
+	case everyAPICLIMissing(tools.Translator):
+		return everyAPIMissing(), settings.SectionAI
 	}
 	return "", ""
 }
@@ -100,8 +100,11 @@ func failureHint(item films.Film) (reason, section string) {
 		return locales.PrecheckNoSpeechModel(), settings.SectionSpeech
 	case strings.Contains(detail, "is not installed"):
 		return locales.PrecheckNoTools(), settings.SectionGeneral
-	case strings.Contains(detail, "EveryAPI is not signed in"):
-		return locales.PrecheckNotSignedIn(), settings.SectionAI
+	case strings.Contains(detail, media.ErrEveryAPIMissing.Error()):
+		return everyAPIMissing(), settings.SectionAI
+	// Before media.ErrEveryAPIMissing, Kando said this, followed by "or set EVERYAPI_API_KEY", also when the everyapi program was missing; such a failed job kept in library.json reads as signed out.
+	case strings.Contains(detail, media.ErrEveryAPISignedOut.Error()):
+		return everyAPISignedOut(), settings.SectionAI
 	case strings.Contains(detail, "KANDO_LLM_MODEL"):
 		return locales.PrecheckNoLLMModel(), settings.SectionAI
 	case strings.Contains(detail, media.ErrNoSpeech.Error()):

@@ -22,6 +22,12 @@ const (
 	GroupOther = "other"
 )
 
+// EveryAPI is the state of the everyapi command-line program when the AI service is EveryAPI without an API Key, the zero value otherwise or when nothing is wrong with it. Missing is set when the program is not on this computer, Checking while Kando asks it whether someone is signed in, SignedOut when nobody is. Failed says what went wrong when asking it failed for another reason, as a timeout or a crash. OpenErr says why its website could not be opened.
+type EveryAPI struct {
+	Missing, Checking, SignedOut bool
+	Failed, OpenErr              string
+}
+
 // Shortcut is one row of the app's shortcut table, as the 快捷键 page lists it.
 type Shortcut struct {
 	Group, Label string
@@ -91,6 +97,9 @@ type App interface {
 	LoadingLLMModels() bool
 	LLMModelsErr() string
 	RetryLLMModels()
+	// EveryAPI is what the AI page says about the everyapi command-line program, whose sign-in EveryAPI uses without an API Key; GetEveryAPI opens EveryAPI's website, where the program is downloaded, and Redetect looks for it again.
+	EveryAPI() EveryAPI
+	GetEveryAPI()
 
 	Language() *string
 	TranslateContext() *bool

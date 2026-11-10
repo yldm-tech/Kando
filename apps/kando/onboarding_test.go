@@ -436,24 +436,27 @@ func TestOnboardingSettingsPartIsItsOwn(t *testing.T) {
 	}
 }
 
-// TestOnboardingAIStatus checks what the second step says about translation: a model to choose, the EveryAPI sign-in or a key when one is missing, nothing claimed before the sign-in was checked, and the model once it is ready.
+// TestOnboardingAIStatus checks what the second step says about translation: a model to choose, the everyapi program, its sign-in or a key when one is missing, nothing claimed before the sign-in was checked, and the model once it is ready.
 func TestOnboardingAIStatus(t *testing.T) {
 	signIn := func(context.Context, bool) (media.Endpoint, error) { return media.Endpoint{}, nil }
 	for _, tc := range []struct {
 		name       string
 		translator media.ChatTranslator
 		checked    bool
+		signInErr  error
 		want       onboarding.AI
 	}{
-		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}, false, onboarding.AI{Text: noLLMModel(), Missing: true}},
-		{"everyapi without key", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, onboarding.AI{Text: notSignedIn(), Missing: true}},
-		{"sign-in not checked", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, false, onboarding.AI{Text: "翻译模型：m · 用本机登录的 EveryAPI，开始处理前会检查登录"}},
-		{"signed in", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, onboarding.AI{Text: "翻译模型：m", Ready: true}},
-		{"key", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt", APIKey: "k"}, false, onboarding.AI{Text: "翻译模型：gpt", Ready: true}},
+		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}, false, nil, onboarding.AI{Text: noLLMModel(), Missing: true}},
+		{"everyapi without key or program", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, nil, onboarding.AI{Text: everyAPIMissing(), Missing: true}},
+		{"signed out", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPISignedOut, onboarding.AI{Text: everyAPISignedOut(), Missing: true}},
+		{"program gone since found", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPIMissing, onboarding.AI{Text: everyAPIMissing(), Missing: true}},
+		{"sign-in not checked", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, false, nil, onboarding.AI{Text: "翻译模型：m · 用本机登录的 EveryAPI，开始处理前会检查登录"}},
+		{"signed in", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, nil, onboarding.AI{Text: "翻译模型：m", Ready: true}},
+		{"key", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt", APIKey: "k"}, false, nil, onboarding.AI{Text: "翻译模型：gpt", Ready: true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a, _, _ := newTestApp(media.Tools{Translator: tc.translator})
-			a.side.ready.signInDone = tc.checked
+			a.side.ready.signInDone, a.side.ready.signInErr = tc.checked, tc.signInErr
 			if got := a.OnboardingAI(); got != tc.want {
 				t.Fatalf("OnboardingAI = %+v, want %+v", got, tc.want)
 			}

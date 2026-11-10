@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -30,6 +31,8 @@ type Tools struct {
 	YTDLP   string
 	FFmpeg  string
 	Whisper string
+	// EveryAPI is the path of the everyapi command-line program, whose sign-in EveryAPI translates with when it has no API key (UseEveryAPICLI); empty means not found. Kando does not download it.
+	EveryAPI string
 	// WhisperModel is the path of a ggml model file for whisper.cpp.
 	WhisperModel string
 	Translator   ChatTranslator
@@ -43,6 +46,12 @@ type Tools struct {
 const (
 	EveryAPIBaseURL = "https://api.everyapi.ai/v1"
 	EveryAPIModel   = "claude-haiku-5-5"
+)
+
+// The two reasons EveryAPI without an API key cannot translate, which the app words differently: the everyapi command-line program it signs in through is not on this computer, or it is but nobody signed in to it. Check and the sign-in (UseEveryAPICLI) return them as they are, so errors.Is tells them apart and a failed job's text contains their words.
+var (
+	ErrEveryAPIMissing   = errors.New("the everyapi command-line program was not found; install it from https://everyapi.ai or set EVERYAPI_API_KEY")
+	ErrEveryAPISignedOut = errors.New("EveryAPI is not signed in; run `everyapi auth login`")
 )
 
 // ToolsFromEnv configures Tools from KANDO_* environment variables and the executables it can find.
@@ -62,11 +71,6 @@ func ToolsFromEnv() Tools {
 		if translator.APIKey == "" {
 			translator.APIKey = os.Getenv("EVERYAPI_API_KEY")
 		}
-		if translator.APIKey == "" {
-			if cli := lookTool("everyapi"); cli != "" {
-				translator.Credential = everyAPICredential(cli)
-			}
-		}
 		if translator.Model == "" {
 			translator.Model = EveryAPIModel
 		}
@@ -75,16 +79,27 @@ func ToolsFromEnv() Tools {
 	if cache, err := os.UserCacheDir(); err == nil {
 		downloadTemp = filepath.Join(cache, "Kando", "downloads")
 	}
-	return Tools{
+	tools := Tools{
 		OutputDir:    outputDir,
 		DownloadTemp: downloadTemp,
 		YTDLP:        lookTool("yt-dlp"),
 		FFmpeg:       lookTool("ffmpeg"),
 		Whisper:      lookTool("whisper-cli"),
+		EveryAPI:     lookTool("everyapi"),
 		WhisperModel: os.Getenv("KANDO_WHISPER_MODEL"),
 		Translator:   translator,
 		OEmbed:       YouTubeOEmbed,
 	}
+	return tools.UseEveryAPICLI()
+}
+
+// UseEveryAPICLI makes the translator sign in through the everyapi command-line program when it is EveryAPI without an API key and the program was found (EveryAPI), and takes that sign-in away otherwise, as when a key was entered or another service chosen. Whoever changes the translator's endpoint or key calls it again.
+func (t Tools) UseEveryAPICLI() Tools {
+	t.Translator.Credential = nil
+	if t.Translator.BaseURL == EveryAPIBaseURL && t.Translator.APIKey == "" && t.EveryAPI != "" {
+		t.Translator.Credential = everyAPICredential(t.EveryAPI)
+	}
+	return t
 }
 
 // LibraryExt is Kando's own library bundle suffix.
@@ -135,12 +150,13 @@ func lookTool(name string) string {
 	return ""
 }
 
-// Relook finds yt-dlp, ffmpeg and whisper-cli again. The output directory and the translator stay as they are.
+// Relook finds yt-dlp, ffmpeg, whisper-cli and the everyapi command-line program again, and signs the translator in through everyapi as UseEveryAPICLI does, so a program installed since Kando started is used without restarting it. The output directory and the translator's endpoint, model and key stay as they are.
 func (t Tools) Relook() Tools {
 	t.YTDLP = lookTool("yt-dlp")
 	t.FFmpeg = lookTool("ffmpeg")
 	t.Whisper = lookTool("whisper-cli")
-	return t
+	t.EveryAPI = lookTool("everyapi")
+	return t.UseEveryAPICLI()
 }
 
 func (t Tools) Check() error {
@@ -166,7 +182,7 @@ func (t Tools) Check() error {
 			errs = append(errs, err)
 		}
 	} else if t.Translator.BaseURL == EveryAPIBaseURL && t.Translator.APIKey == "" {
-		errs = append(errs, errors.New("EveryAPI is not signed in; run `everyapi auth login` or set EVERYAPI_API_KEY"))
+		errs = append(errs, ErrEveryAPIMissing)
 	}
 	return errors.Join(errs...)
 }
@@ -376,7 +392,7 @@ func (t Tools) Export(ctx context.Context, videoPath string, original, translate
 // everyAPICredentialVersion is the output version of `everyapi auth credential` this package understands; the CLI bumps it only for incompatible changes.
 const everyAPICredentialVersion = 1
 
-// everyAPICredential reads the signed-in EveryAPI CLI's relay key through `everyapi auth credential`, which refreshes OAuth keys under its own lock and resolves the gateway region. renew invalidates a key the gateway rejected.
+// everyAPICredential reads the signed-in EveryAPI CLI's relay key through `everyapi auth credential`, which refreshes OAuth keys under its own lock and resolves the gateway region. renew invalidates a key the gateway rejected. It returns ErrEveryAPISignedOut when nobody is signed in to the CLI, and ErrEveryAPIMissing when the program has gone since it was found.
 func everyAPICredential(cli string) func(context.Context, bool) (Endpoint, error) {
 	return func(ctx context.Context, renew bool) (Endpoint, error) {
 		args := []string{"auth", "credential", "--format=json"}
@@ -385,8 +401,11 @@ func everyAPICredential(cli string) func(context.Context, bool) (Endpoint, error
 		}
 		out, err := run(ctx, cli, args...)
 		if err != nil {
-			if strings.Contains(err.Error(), "EVERYAPI_CREDENTIAL_ERROR:not_logged_in") {
-				return Endpoint{}, errors.New("EveryAPI is not signed in; run `everyapi auth login`")
+			switch {
+			case strings.Contains(err.Error(), "EVERYAPI_CREDENTIAL_ERROR:not_logged_in"):
+				return Endpoint{}, ErrEveryAPISignedOut
+			case errors.Is(err, fs.ErrNotExist):
+				return Endpoint{}, ErrEveryAPIMissing
 			}
 			return Endpoint{}, fmt.Errorf("EveryAPI credential: %w", err)
 		}

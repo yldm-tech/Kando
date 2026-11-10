@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"time"
@@ -26,13 +27,15 @@ type readiness struct {
 
 // The status line's messages, said in the interface's language each time the sidebar draws them. Where they say what the library's message bar says, they are its words (locales.Precheck…).
 var (
-	readyMessage   = locales.ReadinessReady
-	noLibrary      = locales.PrecheckNoLibrary
-	noSpeechModel  = locales.PrecheckNoSpeechModel
-	noLLMModel     = locales.PrecheckNoLLMModel
-	notSignedIn    = locales.PrecheckNotSignedIn
-	checkingSignIn = locales.ReadinessCheckingSignIn
-	checkingTools  = locales.ReadinessCheckingTools
+	readyMessage      = locales.ReadinessReady
+	noLibrary         = locales.PrecheckNoLibrary
+	noSpeechModel     = locales.PrecheckNoSpeechModel
+	noLLMModel        = locales.PrecheckNoLLMModel
+	everyAPIMissing   = locales.PrecheckEveryAPIMissing
+	everyAPISignedOut = locales.PrecheckEveryAPISignedOut
+	everyAPIFailed    = locales.PrecheckEveryAPIFailed
+	checkingSignIn    = locales.ReadinessCheckingSignIn
+	checkingTools     = locales.ReadinessCheckingTools
 )
 
 // readiness is the status line the sidebar shows. A missing library is read from the shelf as it draws, and so are the programs Kando is downloading (state_kits.go); the rest is what checkReadiness last found.
@@ -137,15 +140,31 @@ func toolsMissing(tools media.Tools) (sidebar.Readiness, bool) {
 	if strings.TrimSpace(tools.Translator.Model) == "" {
 		return missing(noLLMModel, settings.SectionAI)
 	}
-	if tools.Translator.Credential == nil && tools.Translator.BaseURL == media.EveryAPIBaseURL && tools.Translator.APIKey == "" {
-		return missing(notSignedIn, settings.SectionAI)
+	if everyAPICLIMissing(tools.Translator) {
+		return missing(everyAPIMissing, settings.SectionAI)
 	}
 	return sidebar.Readiness{}, false
 }
 
 func signInStatus(err error) sidebar.Readiness {
 	if err != nil {
-		return sidebar.Readiness{State: sidebar.Missing, Message: notSignedIn, Section: settings.SectionAI}
+		return sidebar.Readiness{State: sidebar.Missing, Message: everyAPISignInFailed(err), Section: settings.SectionAI}
 	}
 	return sidebar.Readiness{State: sidebar.Ready, Message: readyMessage}
+}
+
+// everyAPICLIMissing reports whether t is EveryAPI without an API Key and the everyapi command-line program it would sign in through was not found, which leaves it without a Credential (media.Tools.UseEveryAPICLI).
+func everyAPICLIMissing(t media.ChatTranslator) bool {
+	return t.Credential == nil && t.BaseURL == media.EveryAPIBaseURL && t.APIKey == ""
+}
+
+// everyAPISignInFailed is what to do about an everyapi sign-in that failed: install the program when it has gone since it was found, sign in to it when nobody is, and otherwise read on the AI 服务 page what it said, as when it timed out or crashed.
+func everyAPISignInFailed(err error) func() string {
+	switch {
+	case errors.Is(err, media.ErrEveryAPIMissing):
+		return everyAPIMissing
+	case errors.Is(err, media.ErrEveryAPISignedOut):
+		return everyAPISignedOut
+	}
+	return everyAPIFailed
 }

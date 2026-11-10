@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -406,8 +405,8 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 	found := media.Tools{YTDLP: "/bin/yt-dlp", FFmpeg: "/bin/ffmpeg", Whisper: "/bin/whisper-cli"}
 	withModel := found
 	withModel.WhisperModel = model
-	signedOut := withModel
-	signedOut.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
+	noCLI := withModel
+	noCLI.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
 	keyed := withModel
 	keyed.Translator = media.ChatTranslator{BaseURL: "https://api.example.com/v1", Model: "gpt", APIKey: "k"}
 	gone := found
@@ -422,7 +421,7 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 		{"no model", found, noSpeechModel(), settings.SectionSpeech},
 		{"model gone", gone, noSpeechModel(), settings.SectionSpeech},
 		{"no translation model", withModel, noLLMModel(), settings.SectionAI},
-		{"signed out", signedOut, notSignedIn(), settings.SectionAI},
+		{"no everyapi program", noCLI, everyAPIMissing(), settings.SectionAI},
 		{"ready", keyed, readyMessage(), settings.SectionGeneral},
 		{"another pipeline", &fakePipeline{}, readyMessage(), settings.SectionGeneral},
 	}
@@ -477,15 +476,15 @@ func TestStatusLineWaitsForTheEveryAPISignIn(t *testing.T) {
 	if !tt.HasText(checkingSignIn()) {
 		t.Fatalf("missing %q in %q", checkingSignIn(), tt.Texts())
 	}
-	answers <- errors.New("not signed in")
+	answers <- media.ErrEveryAPISignedOut
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(notSignedIn()) {
-		t.Fatalf("missing %q in %q", notSignedIn(), tt.Texts())
+	if !tt.HasText(everyAPISignedOut()) {
+		t.Fatalf("missing %q in %q", everyAPISignedOut(), tt.Texts())
 	}
 	// Choosing the speech model again keeps the answer instead of asking the CLI again.
 	check(false)
-	if !tt.HasText(notSignedIn()) || len(updates) != 0 {
+	if !tt.HasText(everyAPISignedOut()) || len(updates) != 0 {
 		t.Fatalf("asked again: texts %q, %d updates", tt.Texts(), len(updates))
 	}
 	// 重新检测 asks again.
@@ -501,7 +500,7 @@ func TestStatusLineWaitsForTheEveryAPISignIn(t *testing.T) {
 	if !tt.HasText(readyMessage()) {
 		t.Fatalf("missing %q in %q", readyMessage(), tt.Texts())
 	}
-	answers <- errors.New("not signed in")
+	answers <- media.ErrEveryAPISignedOut
 	waitUpdate(t, updates)
 	tt.Frame()
 	if !tt.HasText(readyMessage()) {
@@ -522,7 +521,7 @@ func TestStatusLineWaitsForTheEveryAPISignIn(t *testing.T) {
 	if !tt.HasText(readyMessage()) {
 		t.Fatalf("missing %q in %q", readyMessage(), tt.Texts())
 	}
-	answers <- errors.New("not signed in")
+	answers <- media.ErrEveryAPISignedOut
 	waitUpdate(t, updates)
 	tt.Frame()
 	if !tt.HasText(readyMessage()) {
@@ -554,10 +553,10 @@ func TestStatusLineAsksForTheSignInOnce(t *testing.T) {
 	if a.side.ready.gen != asked {
 		t.Fatalf("started %d more sign-in checks while one was running", a.side.ready.gen-asked)
 	}
-	answers <- errors.New("not signed in")
+	answers <- media.ErrEveryAPISignedOut
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(notSignedIn()) {
+	if !tt.HasText(everyAPISignedOut()) {
 		t.Fatalf("the running check's answer was dropped: %q", tt.Texts())
 	}
 }
@@ -578,7 +577,7 @@ func TestLLMTestAnswersTheSignIn(t *testing.T) {
 	tools := media.Tools{YTDLP: "/bin/yt-dlp", FFmpeg: "/bin/ffmpeg", Whisper: "/bin/whisper-cli", WhisperModel: model}
 	tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Client: srv.Client(), Credential: func(context.Context, bool) (media.Endpoint, error) {
 		if !signedIn {
-			return media.Endpoint{}, errors.New("EveryAPI is not signed in")
+			return media.Endpoint{}, media.ErrEveryAPISignedOut
 		}
 		return media.Endpoint{BaseURL: srv.URL + "/v1", APIKey: "relay"}, nil
 	}}
@@ -586,8 +585,8 @@ func TestLLMTestAnswersTheSignIn(t *testing.T) {
 	a.checkReadiness(true)
 	waitUpdate(t, updates)
 	tt.Frame()
-	if !tt.HasText(notSignedIn()) {
-		t.Fatalf("missing %q in %q", notSignedIn(), tt.Texts())
+	if !tt.HasText(everyAPISignedOut()) {
+		t.Fatalf("missing %q in %q", everyAPISignedOut(), tt.Texts())
 	}
 
 	// The user signs in to the CLI and presses 测试.

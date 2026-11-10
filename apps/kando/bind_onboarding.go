@@ -78,10 +78,10 @@ func (a *app) OnboardingAI() onboarding.AI {
 	switch {
 	case model == "":
 		return onboarding.AI{Text: noLLMModel(), Missing: true}
-	case tools.Translator.Credential == nil && tools.Translator.BaseURL == media.EveryAPIBaseURL && tools.Translator.APIKey == "":
-		return onboarding.AI{Text: notSignedIn(), Missing: true}
+	case everyAPICLIMissing(tools.Translator):
+		return onboarding.AI{Text: everyAPIMissing(), Missing: true}
 	case tools.Translator.Credential != nil && a.side.ready.signInErr != nil && a.side.ready.signInDone:
-		return onboarding.AI{Text: notSignedIn(), Missing: true}
+		return onboarding.AI{Text: everyAPISignInFailed(a.side.ready.signInErr)(), Missing: true}
 	case tools.Translator.Credential != nil && !a.side.ready.signInDone:
 		// The sidebar checks the sign-in once the tools and a speech model are there, so before that it is not known.
 		return onboarding.AI{Text: locales.OnboardingAIModelUnchecked(model)}
