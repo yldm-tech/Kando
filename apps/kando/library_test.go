@@ -1369,7 +1369,7 @@ func TestOpenedFileThatIsNotAVideoWarns(t *testing.T) {
 	}
 }
 
-// TestOpenedVideoAlreadyQueuedIsNotAddedAgain opens a video that is already being processed, by the same path and by another one, as macOS hands a video named on the command line to the app twice: it is not queued again. Once its job has stopped, opening it again adds it again.
+// TestOpenedVideoAlreadyQueuedIsNotAddedAgain opens a video and a symbolic link to it in one batch, which queues it once, then opens it again while it is being processed, by the same path and by other ones, as macOS hands a video named on the command line to the app twice: it is not queued again. Once its job has stopped, opening it again adds it again.
 func TestOpenedVideoAlreadyQueuedIsNotAddedAgain(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{block: true})
 	t.Cleanup(func() { libraryStopJobs(a, updates) })
@@ -1379,9 +1379,10 @@ func TestOpenedVideoAlreadyQueuedIsNotAddedAgain(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.libraryOpenFile(video)
+	a.libraryOpenFile(link)
 	(<-updates)()
 	if len(a.library.Jobs) != 1 || a.RunningJob() == "" {
-		t.Fatalf("jobs %#v running %q", a.library.Jobs, a.RunningJob())
+		t.Fatalf("opening a video and a link to it together: jobs %#v running %q; want one job", a.library.Jobs, a.RunningJob())
 	}
 	for _, again := range []string{video, filepath.Join(filepath.Dir(video), ".", "talk.mp4"), link} {
 		a.Select(pageYouTube)

@@ -31,13 +31,28 @@ func (a *app) libraryPostOpened() {
 	a.update(a.libraryAddOpened)
 }
 
-// libraryAddOpened adds the files waiting in opened to the queue and brings the window forward, on the library, whose message bar and queue show what became of them. A video that already has a job waiting or at work in the open library is left out rather than queued again: macOS hands the app a video named on the command line twice, once as AppKit opens the launch's arguments and once as MyGo reads them, and a video opened again while its subtitles are still being made would only be made twice. UI thread only.
+// libraryAddOpened adds the files waiting in opened to the queue and brings the window forward, on the library, whose message bar and queue show what became of them. A video that already has a job waiting or at work in the open library is left out rather than queued again: macOS hands the app a video named on the command line twice, once as AppKit opens the launch's arguments and once as MyGo reads them, and a video opened again while its subtitles are still being made would only be made twice. A file opened twice in one batch by two names, as a video and a symbolic link to it, is added once. After the main window was closed while the app runs on, as with the settings window still open, the files are dropped rather than queued: MyGo does not open a closed window again, so nothing would show the work, as remoteShow refuses for the same reason. UI thread only.
 func (a *app) libraryAddOpened() {
 	a.lib.openedPosted = false
+	if a.win != nil && a.win.IsDestroyed() {
+		a.lib.opened = nil
+		return
+	}
 	if len(a.lib.opened) == 0 {
 		return
 	}
-	paths := slices.DeleteFunc(a.lib.opened, a.libraryInQueue)
+	var seen []os.FileInfo
+	paths := slices.DeleteFunc(a.lib.opened, func(path string) bool {
+		info, err := os.Stat(path)
+		if err != nil {
+			return a.libraryInQueue(path, nil)
+		}
+		if slices.ContainsFunc(seen, func(s os.FileInfo) bool { return os.SameFile(s, info) }) {
+			return true
+		}
+		seen = append(seen, info)
+		return a.libraryInQueue(path, info)
+	})
 	a.lib.opened = nil
 	switch {
 	case len(paths) > 0:
@@ -48,10 +63,9 @@ func (a *app) libraryAddOpened() {
 	a.remoteRaise()
 }
 
-// libraryInQueue reports whether the video at path has a job in the open library that is waiting or at work: one whose source is the file's URL, or names the same file by another path, as through a symbolic link.
-func (a *app) libraryInQueue(path string) bool {
+// libraryInQueue reports whether the video at path, whose os.Stat is info (nil when it could not be read), has a job in the open library that is waiting or at work: one whose source is the file's URL, or names the same file by another path, as through a symbolic link.
+func (a *app) libraryInQueue(path string, info os.FileInfo) bool {
 	dir := a.snap().LibraryDir
-	info, statErr := os.Stat(path)
 	for _, job := range a.library.Jobs {
 		if job.Stage.Done() || !inQueueLibrary(job, dir) {
 			continue
@@ -63,7 +77,7 @@ func (a *app) libraryInQueue(path string) bool {
 		if filepath.Clean(u.Path) == path {
 			return true
 		}
-		if statErr != nil {
+		if info == nil {
 			continue
 		}
 		if other, err := os.Stat(u.Path); err == nil && os.SameFile(info, other) {
