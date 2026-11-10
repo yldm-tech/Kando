@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -121,7 +120,7 @@ func (a *app) Reprocess(item films.Film) {
 		a.Retry(item.JobID)
 		return
 	}
-	a.libraryEnqueue(fileURL(item.VideoPath))
+	a.libraryEnqueue(core.FileURL(item.VideoPath))
 }
 
 func (a *app) Remove(id string) { a.remove(id) }
@@ -279,7 +278,7 @@ func (a *app) dropFiles(paths []string) {
 	var sources []string
 	for _, path := range paths {
 		if media.IsVideoFile(path) {
-			sources = append(sources, fileURL(path))
+			sources = append(sources, core.FileURL(path))
 		}
 	}
 	if len(sources) == 0 {
@@ -287,11 +286,6 @@ func (a *app) dropFiles(paths []string) {
 		return
 	}
 	a.libraryEnqueue(sources...)
-}
-
-// fileURL is the source of a job that processes the video at path where it is.
-func fileURL(path string) string {
-	return (&url.URL{Scheme: "file", Path: path}).String()
 }
 
 // libraryKeys are the library's shortcuts.

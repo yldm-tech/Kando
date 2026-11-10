@@ -33,7 +33,7 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	uploadedFiles := make(chan []cloud.File, 2)

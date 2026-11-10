@@ -201,7 +201,7 @@ func TestLibraryRenamedWhileClosedKeepsItsFilms(t *testing.T) {
 	})
 	before.rememberLibrary(old)
 	before.library.Jobs = []core.Job{
-		{ID: "clip", Source: "file://" + outside, Stage: core.StageComplete, VideoPath: outside, SubtitlePath: outsideSub, LibraryDir: old},
+		{ID: "clip", Source: core.FileURL(outside), Stage: core.StageComplete, VideoPath: outside, SubtitlePath: outsideSub, LibraryDir: old},
 		{ID: "talk", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, VideoPath: inside, LibraryDir: old},
 	}
 	before.library.Positions = map[string]time.Duration{outside: 5 * time.Second, inside: 7 * time.Second}

@@ -67,7 +67,7 @@ func paletteLibrary(t *testing.T, p media.Pipeline) (*app, *ui.Tester, chan func
 		if err := os.WriteFile(srt, []byte(paletteSRT), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		a.library.Jobs = append(a.library.Jobs, core.Job{ID: name, Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: srt, LibraryDir: dir})
+		a.library.Jobs = append(a.library.Jobs, core.Job{ID: name, Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: srt, LibraryDir: dir})
 	}
 	a.palette.furthest = map[string]time.Duration{filepath.Join(dir, "rivers", "video.mp4"): 31 * time.Second}
 	tt.Frame()

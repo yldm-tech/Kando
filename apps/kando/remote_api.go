@@ -539,17 +539,21 @@ func remoteSource(given, dir string) (source, reason string) {
 	if info.IsDir() || !media.IsVideoFile(path) {
 		return "", locales.PrecheckNoVideo()
 	}
-	return fileURL(path), ""
+	return core.FileURL(path), ""
 }
 
 // remoteLocalPath reports whether s names a local file rather than a link, and its absolute path: a file:// URL, a path that starts at the root, the home folder (~/) or the current folder (./, ../), or anything else that is a video's file name or names a file in dir. path is "" for a relative path without dir.
 func remoteLocalPath(s, dir string) (path string, local bool) {
 	if strings.HasPrefix(strings.ToLower(s), "file:") {
 		u, err := url.Parse(s)
-		if err != nil || u.Path == "" {
+		if err != nil {
 			return "", false
 		}
-		return filepath.Clean(u.Path), true
+		path, local := core.FilePath(u)
+		if !local {
+			return "", false
+		}
+		return filepath.Clean(path), true
 	}
 	if rest, ok := strings.CutPrefix(s, "~"+string(filepath.Separator)); ok {
 		if home, err := os.UserHomeDir(); err == nil {

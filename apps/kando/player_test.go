@@ -34,7 +34,7 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	var revealed string
@@ -89,7 +89,7 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "clip", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	t.Cleanup(a.stopPlayback)
@@ -161,7 +161,7 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+		ID: "clip", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
@@ -211,7 +211,7 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+		ID: "clip", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
@@ -438,7 +438,7 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+		ID: "clip", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
@@ -515,7 +515,7 @@ func TestPlayerInEnglish(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	tt.Frame()
@@ -595,7 +595,7 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	tt.Frame()

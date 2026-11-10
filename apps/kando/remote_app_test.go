@@ -241,7 +241,7 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(added.Jobs) != 3 || added.Jobs[0].Source != "https://example.com/a" || added.Jobs[1].Source != fileURL(filepath.Join(from, "clip.mp4")) || added.Jobs[2].Source != "https://example.com/b" {
+	if len(added.Jobs) != 3 || added.Jobs[0].Source != "https://example.com/a" || added.Jobs[1].Source != core.FileURL(filepath.Join(from, "clip.mp4")) || added.Jobs[2].Source != "https://example.com/b" {
 		t.Fatalf("added %+v", added.Jobs)
 	}
 	for _, job := range added.Jobs {
@@ -439,6 +439,24 @@ func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
 	}
 	_, err = remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{})
 	remoteWantCode(t, err, remote.CodeInvalid)
+}
+
+// TestRemoteSourceTakesFileURLsToTheirFile checks that a file:// URL a client gives, as the app makes them (core.FileURL), names the file on this machine and is added as the same source, and that one naming another machine is not taken for a local file.
+func TestRemoteSourceTakesFileURLsToTheirFile(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "会议 01.mp4")
+	remoteWriteFile(t, video, "video")
+	if path, local := remoteLocalPath(core.FileURL(video), ""); !local || path != video {
+		t.Fatalf("remoteLocalPath(%q) = %q, %v, want %q", core.FileURL(video), path, local, video)
+	}
+	if source, reason := remoteSource(core.FileURL(video), ""); source != core.FileURL(video) || reason != "" {
+		t.Fatalf("remoteSource = %q, %q", source, reason)
+	}
+	if path, local := remoteLocalPath("file://other-machine/clip.mp4", ""); local || path != "" {
+		t.Fatalf("remoteLocalPath(remote host) = %q, %v", path, local)
+	}
+	if source, reason := remoteSource("file://other-machine/clip.mp4", ""); source != "" || reason != locales.PrecheckNotLink() {
+		t.Fatalf("remoteSource(remote host) = %q, %q", source, reason)
+	}
 }
 
 func TestRemoteSearchesSites(t *testing.T) {

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -273,7 +272,7 @@ func TestToolsDownloadUnescapesLocalFileURL(t *testing.T) {
 	if err := os.WriteFile(video, []byte("video"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got, err := (Tools{}).Download(context.Background(), (&url.URL{Scheme: "file", Path: video}).String())
+	got, err := (Tools{}).Download(context.Background(), core.FileURL(video))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -126,7 +126,7 @@ func TestDropQueuesLocalVideo(t *testing.T) {
 		t.Fatal("the library did not take the dropped file")
 	}
 	tt.Frame()
-	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "file://"+src || !tt.HasText("已加入，开始处理。") {
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != core.FileURL(src) || !tt.HasText("已加入，开始处理。") {
 		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
 	}
 }
@@ -349,7 +349,7 @@ func TestDropQueuesEveryVideo(t *testing.T) {
 		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 		queued := false
 		for _, job := range a.library.Jobs {
-			queued = queued || job.Source == "file://"+path
+			queued = queued || job.Source == core.FileURL(path)
 		}
 		if queued && !tt.HasText(name) {
 			t.Fatalf("no card for %s: %q", name, tt.Texts())
@@ -595,7 +595,7 @@ func TestRemovingKeepsAVideoOutsideTheLibrary(t *testing.T) {
 	trashed := fakeTrash(t)
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = lib })
-	a.library.Jobs = []core.Job{{ID: "local", Source: fileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib}}
+	a.library.Jobs = []core.Job{{ID: "local", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib}}
 	tt.Frame()
 	if _, ok := tt.Find("interview"); !ok {
 		t.Fatalf("a local video processed in this library is not on its shelf: %q", tt.Texts())
@@ -752,7 +752,7 @@ func TestPrecheckAsksForWhatCheckAsks(t *testing.T) {
 		t.Fatal(err)
 	}
 	ready := media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", WhisperModel: model, Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", APIKey: "k"}}
-	local := []string{fileURL("/videos/v.mp4")}
+	local := []string{core.FileURL("/videos/v.mp4")}
 	for _, name := range []string{"yt-dlp", "ffmpeg", "whisper-cli"} {
 		tools := ready
 		switch name {
@@ -907,7 +907,7 @@ func TestEmptySourceSaysSo(t *testing.T) {
 }
 
 func TestLocalJobNameUsesTheFileName(t *testing.T) {
-	if got := jobName(core.Job{Source: fileURL("/Users/me/Downloads/Interview 2.mp4")}); got != "Interview 2" {
+	if got := jobName(core.Job{Source: core.FileURL("/Users/me/Downloads/Interview 2.mp4")}); got != "Interview 2" {
 		t.Fatalf("name = %q", got)
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"maps"
-	"net/url"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -260,7 +259,7 @@ func (a *app) chooseLocal(path string) bool {
 		a.queue.status = locales.QueueNoVideoToImport()
 		return false
 	}
-	a.queue.source = (&url.URL{Scheme: "file", Path: path}).String()
+	a.queue.source = core.FileURL(path)
 	a.queue.status = locales.QueueLocalChosen()
 	return true
 }

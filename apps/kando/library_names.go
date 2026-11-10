@@ -23,10 +23,13 @@ func jobName(job core.Job) string {
 		return displayVideoName(job.VideoPath)
 	}
 	parsed, err := url.Parse(job.Source)
-	if err == nil && parsed.Scheme == "file" && parsed.Path != "" {
-		return displayVideoName(parsed.Path)
+	if err != nil {
+		return job.Source
 	}
-	if err != nil || parsed.Host == "" {
+	if path, local := core.FilePath(parsed); local {
+		return displayVideoName(path)
+	}
+	if parsed.Host == "" {
 		return job.Source
 	}
 	host := strings.TrimPrefix(parsed.Hostname(), "www.")

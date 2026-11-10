@@ -222,7 +222,7 @@ func TestOpenSettingsGoesToTheSection(t *testing.T) {
 	}
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.Jobs = []core.Job{{ID: "talk", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video}}
+	a.library.Jobs = []core.Job{{ID: "talk", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video}}
 	a.openKey = "talk"
 	tt.Frame()
 	a.OpenSettings(settings.SectionTranslate)

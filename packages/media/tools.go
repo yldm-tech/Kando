@@ -329,10 +329,10 @@ func removeUnmerged(video string) error {
 // localVideoPath reports the disk path of a file:// video the user picked. Other URLs are downloaded.
 func localVideoPath(source string) (string, bool) {
 	parsed, err := url.Parse(source)
-	if err != nil || parsed.Scheme != "file" || parsed.Path == "" || (parsed.Host != "" && parsed.Host != "localhost") {
+	if err != nil {
 		return "", false
 	}
-	return parsed.Path, true
+	return core.FilePath(parsed)
 }
 
 func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment, error) {
