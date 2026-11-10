@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # changelog-test.sh
 #
-# Checks changelog.sh on a repository of its own, made in a temporary folder: the section add writes from the commits since the previous version tag, that it puts the newest section first and keeps one already there, the line it writes for a version with nothing to list, and that notes prints a section the way mygo build reads it.
+# Checks changelog.sh on a repository of its own, made in a temporary folder: the section add writes from the commits since the previous version tag (pull requests by their titles, scopes that are not the app left out, reverts settled), that it puts a section above those of older versions and keeps one already there, the line it writes for a version with nothing to list, and that notes prints a section the way mygo build reads it.
 set -euo pipefail
 
 script=$(cd "$(dirname "$0")" && pwd)/changelog.sh
@@ -34,7 +34,29 @@ expect() {
   fi
 }
 
+# merge <branch> <message...> merges the branch into the current one in a merge commit with the date commit gives, and the message's paragraphs, as GitHub writes a pull request's merge with its title in the body.
+merge() {
+  local branch=$1 args=() m
+  shift
+  for m in "$@"; do
+    args+=(-m "$m")
+  done
+  GIT_AUTHOR_DATE=2026-01-02T00:00:00Z GIT_COMMITTER_DATE=2026-01-02T00:00:00Z git merge -q --no-ff "${args[@]}" "$branch"
+}
+
+# branch <name> <subject...> makes a branch off the current commit with a commit for each subject, and goes back.
+branch() {
+  local name=$1 subject
+  shift
+  git checkout -q -b "$name"
+  for subject in "$@"; do
+    commit "$subject"
+  done
+  git checkout -q -
+}
+
 commit "feat: first"
+commit "feat(films): add a filter"
 git tag -a v0.1.0 -m v0.1.0
 commit "fix(player): stop on the last frame"
 commit "docs: explain the queue"
@@ -44,12 +66,18 @@ commit "perf: draw fewer frames"
 commit "feat(shelf)!: move the library"
 commit "fix: keep the cue" "BREAKING CHANGE: cues are stored apart"
 commit "revert: feat(films): add a sort menu"
+commit "revert: feat(films): add a filter"
 commit "not a conventional commit"
 commit "fix: stop on the last frame"
-git checkout -q -b side
-commit "fix: from a merged branch"
-git checkout -q -
-GIT_COMMITTER_DATE=2026-01-02T00:00:00Z git merge -q --no-ff -m "Merge branch side" side
+commit "feat(site): redesign the landing page"
+commit "fix(deps): bump a library"
+commit "fix(dev): keep the window across reloads"
+branch side "fix: from a merged branch"
+merge side "Merge branch side"
+branch volume "feat(player): add volume control" "fix(player): address review findings" "feat(media)!: drop the old cache"
+merge volume "Merge pull request #2 from example/volume" "feat(player): add volume control and shortcuts"
+branch icon "feat(site): rework the page" "feat(brand): replace the app icon"
+merge icon "Merge pull request #3 from example/icon" "feat(site): rework the page and the app icon"
 
 "$script" add v0.2.0
 want=$(
@@ -64,15 +92,17 @@ What changed in each version of Kando, newest first. The app shows the section o
 
 - Move the library
 - Keep the cue
+- Drop the old cache
 
 ### Features
 
-- Add a sort menu
+- Add volume control and shortcuts
+- Replace the app icon
 
 ### Fixes
 
 - Stop on the last frame
-- Revert "add a sort menu"
+- Revert "add a filter"
 - From a merged branch
 
 ### Performance
@@ -87,6 +117,16 @@ commit "chore: tidy"
 "$script" add v0.2.1
 expect "newest first" "## 0.2.1 - 2026-01-02 ## 0.2.0 - 2026-01-02" "$(grep '^## ' apps/kando/CHANGELOG.md | paste -sd ' ' -)"
 expect "nothing to list" "No changes to the app worth listing: this version only carries maintenance." "$("$script" notes v0.2.1)"
+
+# A section written ahead for a later version stays above the one add writes.
+awk '/^## / && !done { print "## 0.4.0"; print ""; print "Written ahead."; print ""; done = 1 } { print }' apps/kando/CHANGELOG.md >changelog.tmp
+mv changelog.tmp apps/kando/CHANGELOG.md
+commit "fix: keep the order"
+"$script" add v0.2.2
+expect "older versions below" "## 0.4.0 ## 0.2.2 - 2026-01-02 ## 0.2.1 - 2026-01-02 ## 0.2.0 - 2026-01-02" "$(grep '^## ' apps/kando/CHANGELOG.md | paste -sd ' ' -)"
+expect "section between" "### Fixes
+
+- Keep the order" "$("$script" notes v0.2.2)"
 
 before=$(cat apps/kando/CHANGELOG.md)
 "$script" add v0.2.0 2>/dev/null

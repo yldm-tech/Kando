@@ -10,7 +10,7 @@ ci	5319e7	Workflows and CI (ci)
 chore	ededed	Maintenance (chore, build, style, revert)
 dependencies	0366d6	Dependency updates
 conflicts	e99695	Conflicts with its base branch
-skip-changelog	ffffff	Left out of the release notes
+skip-changelog	ffffff	Left out of GitHub's generated release notes
 area: app	bfdadc	The app shell and state in apps/kando
 area: ui	bfdadc	The screens: sidebar, films, film, settings, account and cheatsheet
 area: cloud	bfdadc	Google sign-in and uploads (apps/kando/cloud)

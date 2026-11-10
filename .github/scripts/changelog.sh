@@ -4,7 +4,7 @@
 #
 # Kando's release notes live in apps/kando/CHANGELOG.md, beside mygo.json, a "## X.Y.Z - date" section per version, newest first. mygo build puts the section of the version it builds into the update manifests it signs (updates.changelog in MyGo's docs/updates.md), which the app's update window shows, and fails when the file has no section for that version. The Release workflow writes the section with add when it bumps the version, and makes the same section the GitHub release's notes with notes.
 #
-# add writes the section of a version from the Conventional Commits from the version tag before the commit (HEAD by default) to the commit, the range next-version.sh reads: breaking changes (a type ending in "!" or a "BREAKING CHANGE:" footer), features (feat), fixes (fix and revert) and performance (perf), each under a heading of its own, as their subjects without the type. Merge commits are skipped, as the commits they bring are listed themselves, and so are the types that release nothing (docs, test, ci, chore, refactor, style, build). A version with nothing to list gets a line that says so, as mygo build fails on an empty section. A version that has a section already keeps it, so notes written by hand before the release are the ones that ship.
+# add writes the section of a version from the Conventional Commits from the version tag before the commit (HEAD by default) to the commit, the range next-version.sh reads: breaking changes (a type ending in "!" or a "BREAKING CHANGE:" footer), features (feat), fixes (fix and revert) and performance (perf), each under a heading of its own, as their subjects without the type. A pull request's merge commit stands for the pull request with its title, so the commits that made it, review fixes among them, are not listed one by one (see entries). The types that release nothing (docs, test, ci, chore, refactor, style, build) are left out, and so are the scopes that are not the app (site, deps, dev), so a release of nothing else gets a line that says so, as mygo build fails on an empty section. A change and a revert of it in the same range are both left out. A version that has a section already keeps it, so notes written by hand before the release are the ones that ship, and the way to leave a change out of them; write one only for the version next-version.sh gives the commits, as it is kept as it is when that version comes. The new section goes above the sections of older versions.
 #
 # notes prints the section of a version without its heading, as mygo build reads it.
 set -euo pipefail
@@ -54,39 +54,85 @@ section() {
   ' "$file"
 }
 
-# entries <range> prints a "<group>\t<line>" for each commit of the range worth listing, oldest first.
+# Scopes of changes that are not the app's, left out of its notes: the landing page, dependency bumps and the mygo dev loop.
+skip_scopes=" site deps dev "
+
+# classify <subject> <body> prints the "<group>\t<text>" line of a Conventional Commit subject worth listing, and fails for one that is not: another type, a skipped scope or no Conventional Commit at all. The group is breaking, feat, fix, perf or revert, and the text is the subject without its type; a revert's is the subject it reverts, without that one's type.
+classify() {
+  local type_re='^([a-z]+)(\(([^)]*)\))?(!?): (.+)$'
+  local type scope breaking text group
+  if [[ ! $1 =~ $type_re ]]; then
+    return 1
+  fi
+  type=${BASH_REMATCH[1]}
+  scope=${BASH_REMATCH[3]}
+  breaking=${BASH_REMATCH[4]}
+  text=${BASH_REMATCH[5]}
+  if [ "$breaking" = "!" ] || grep -qE '^BREAKING[ -]CHANGE:' <<<"$2"; then
+    group=breaking
+  else
+    if [ -n "$scope" ] && [[ $skip_scopes == *" $scope "* ]]; then
+      return 1
+    fi
+    case $type in
+      feat) group=feat ;;
+      fix) group=fix ;;
+      revert) group=revert ;;
+      perf) group=perf ;;
+      *) return 1 ;;
+    esac
+  fi
+  if [ "$type" = revert ] && [[ $text =~ $type_re ]]; then
+    text=${BASH_REMATCH[5]}
+  fi
+  printf '%s\t%s\n' "$group" "$text"
+}
+
+# entries <range> prints a "<group>\t<text>" line for each change of the range worth listing, oldest first. It walks main's own history (the first parents): a commit made on main is listed by its subject, and a pull request's merge commit by the pull request's title, the first line of its message's body, which describes the change as a whole rather than the commits that made it, review fixes among them. A merge whose title is not worth listing, such as one about the landing page that also changed the app's icon, or one without a title, as git merge writes, lists the commits it brings instead, and one whose title is listed still lists the breaking changes it brings under a title that does not say so.
 entries() {
-  local type_re='^([a-z]+)(\([^)]*\))?(!?): (.+)$'
-  local commit subject body type breaking text group
+  local commit subject body title rest line c
   while read -r commit; do
-    subject=$(git log -1 --format=%s "$commit")
-    body=$(git log -1 --format=%b "$commit")
-    if [[ ! $subject =~ $type_re ]]; then
+    if [ -z "$(git rev-parse -q --verify "$commit^2" 2>/dev/null)" ]; then
+      classify "$(git log -1 --format=%s "$commit")" "$(git log -1 --format=%b "$commit")" || true
       continue
     fi
-    type=${BASH_REMATCH[1]}
-    breaking=${BASH_REMATCH[3]}
-    text=${BASH_REMATCH[4]}
-    if [ "$breaking" = "!" ] || grep -qE '^BREAKING[ -]CHANGE:' <<<"$body"; then
-      group=breaking
-    else
-      case $type in
-        feat) group=feat ;;
-        fix | revert) group=fix ;;
-        perf) group=perf ;;
-        *) continue ;;
-      esac
-    fi
-    # A revert's subject is the subject of the commit it reverts, listed without that one's type, as a "Revert" line.
-    if [ "$type" = revert ]; then
-      if [[ $text =~ $type_re ]]; then
-        text=${BASH_REMATCH[4]}
+    body=$(git log -1 --format=%b "$commit")
+    title=$(awk 'NF { print; exit }' <<<"$body")
+    rest=$(awk 'NF && !t { t = 1; next } t' <<<"$body")
+    if [ -n "$title" ] && line=$(classify "$title" "$rest"); then
+      echo "$line"
+      if [ "${line%%$'\t'*}" = breaking ]; then
+        continue
       fi
-      text="Revert \"$text\""
+      while read -r c; do
+        subject=$(git log -1 --format=%s "$c")
+        line=$(classify "$subject" "$(git log -1 --format=%b "$c")") || continue
+        if [ "${line%%$'\t'*}" = breaking ]; then
+          echo "$line"
+        fi
+      done < <(git rev-list --no-merges --reverse "$commit^1..$commit")
+      continue
     fi
-    # The subject starts with a capital, as a line of notes does; tr keeps to ASCII, which Conventional Commit subjects start with.
-    printf '%s\t%s%s\n' "$group" "$(printf %s "${text:0:1}" | tr '[:lower:]' '[:upper:]')" "${text:1}"
-  done < <(git rev-list --no-merges --reverse "$1")
+    while read -r c; do
+      classify "$(git log -1 --format=%s "$c")" "$(git log -1 --format=%b "$c")" || true
+    done < <(git rev-list --no-merges --reverse "$commit^1..$commit")
+  done < <(git rev-list --first-parent --reverse "$1")
+}
+
+# settle prints the entries with the reverts settled: a change that a revert in the same range undoes is not listed, nor is that revert, as neither ships; a revert of a change from an earlier version is a fix, written as Revert "<text>". A change made again after its revert is listed once. Each text then starts with a capital, as a line of notes does (toupper keeps to ASCII, which Conventional Commit subjects start with).
+settle() {
+  awk -F '\t' '
+    { g[NR] = $1; t[NR] = $2; if ($1 == "revert") r[$2]++; else n[$2]++ }
+    END {
+      for (i = 1; i <= NR; i++) {
+        if (g[i] == "revert") {
+          if (r[t[i]] > n[t[i]]) print "fix\tRevert \"" t[i] "\""
+        } else if (n[t[i]] > r[t[i]]) {
+          print g[i] "\t" toupper(substr(t[i], 1, 1)) substr(t[i], 2)
+        }
+      }
+    }
+  '
 }
 
 # write <version> <commit> prints the section of the version, heading included.
@@ -99,7 +145,7 @@ write() {
   if [ -n "$previous" ]; then
     range="$previous..$sha"
   fi
-  list=$(entries "$range")
+  list=$(entries "$range" | settle)
 
   echo "## $version - $(git log -1 --format=%cs "$sha")"
   echo
@@ -115,7 +161,7 @@ write() {
       fix) title="Fixes" ;;
       perf) title="Performance" ;;
     esac
-    # A subject that two commits share, such as a change made again after a revert of it, is listed once.
+    # A text that two changes share is listed once.
     local lines
     lines=$(awk -F '\t' -v g="$group" '$1 == g && !seen[$2]++ { print "- " $2 }' <<<"$list")
     if [ -z "$lines" ]; then
@@ -131,7 +177,7 @@ write() {
   done
 }
 
-# add <version> <commit> puts the version's section above the newest one, or under the file's introduction when it has none.
+# add <version> <commit> puts the version's section above the first section of an older version, or at the end of the file when it has none, which leaves sections of newer versions, and headings that are no version, such as "## Unreleased", above it.
 add() {
   local version=$1 commit=$2 notes
   if notes=$(section "$version"); then
@@ -146,9 +192,20 @@ add() {
     printf '# Changelog\n\nWhat changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.\n' >"$file"
   fi
   write "$version" "$commit" >"$new"
-  awk -v new="$new" '
+  awk -v new="$new" -v want="$version" '
     function put() { while ((getline line < new) > 0) print line; print ""; done = 1 }
-    !done && /^## / { put() }
+    # older(a, b) tells whether version a comes before version b.
+    function older(a, b,   x, y, i) {
+      split(a, x, "."); split(b, y, ".")
+      for (i = 1; i <= 3; i++) if (x[i] + 0 != y[i] + 0) return x[i] + 0 < y[i] + 0
+      return 0
+    }
+    !done && /^## / {
+      v = $2
+      if (v ~ /^\[/) { v = substr(v, 2); sub(/\].*/, "", v) }
+      sub(/^v/, "", v)
+      if (v ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ && older(v, want)) put()
+    }
     { print }
     END {
       if (!done) {
