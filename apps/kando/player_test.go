@@ -1404,6 +1404,82 @@ func TestEscapeLeavesFullScreenFirst(t *testing.T) {
 	}
 }
 
+// TestSubtitlesDragOffBurnedInLines drags the lines on the picture up, as off a film's own burned-in subtitles, and checks that they stay where the pointer lets them go, as a share of the picture's height kept in the settings, and no longer yield to the controls; that a click on them still starts or holds the film; and that a double click puts them back, after which a double click on them enters full screen, as on the picture.
+func TestSubtitlesDragOffBurnedInLines(t *testing.T) {
+	a, tt, updates := openClipWithLines(t, 12)
+	screen := &fakeScreen{}
+	a.player.screen = screen
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.seekPlayback(2 * time.Second)
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	if a.player.play.Playing() {
+		a.player.play.Toggle()
+	}
+	line := func() ui.Rect {
+		t.Helper()
+		tt.Advance(time.Second)
+		tt.Frame()
+		r, ok := tt.Find("第一句")
+		if !ok {
+			t.Fatalf("no line on the picture: %q", tt.Texts())
+		}
+		return r
+	}
+	place := line()
+	x, y := place.X+place.W/2, place.Y+place.H/2
+	tt.Press(x, y)
+	tt.Frame()
+	for _, dy := range []float32{20, 60, 100} {
+		tt.Move(x, y-dy)
+		tt.Frame()
+	}
+	tt.Release(x, y-100)
+	tt.Frame()
+	dragged := line()
+	if d := place.Y - dragged.Y; d < 99 || d > 101 {
+		t.Fatalf("the lines moved up %v points, want the 100 the pointer did", d)
+	}
+	// The held film shows its controls, so the lines yielded 60 points to them before the drag took them, in newTestApp's window 720 points tall.
+	if want := float32(160) / 720; math.Abs(float64(a.player.look.Lift-want)) > 0.002 || a.player.play.Playing() || screen.full {
+		t.Fatalf("lift %v, want %v; playing %v full screen %v", a.player.look.Lift, want, a.player.play.Playing(), screen.full)
+	}
+	saved, _, _, err := readSavedSettings(a.settingsPath)
+	if err != nil || saved.Look == nil || saved.Look.Lift != a.player.look.Lift {
+		t.Fatalf("settings keep %+v (%v), want lift %v", saved.Look, err, a.player.look.Lift)
+	}
+	a.player.yieldSubs = false
+	if r := line(); r.Y != dragged.Y {
+		t.Fatalf("dragged lines moved to %v as the yield went off, want them kept at %v", r.Y, dragged.Y)
+	}
+	a.player.yieldSubs = true
+
+	tt.ClickAt(x, y-100)
+	tt.Frame()
+	if !a.player.play.Playing() {
+		t.Fatal("a click on the lines did not start the film")
+	}
+	a.player.play.Toggle()
+	double := func() {
+		t.Helper()
+		tt.Advance(time.Second)
+		r := line()
+		tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+		tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
+		tt.Frame()
+	}
+	double()
+	if r := line(); a.player.look.Lift != 0 || math.Abs(float64(r.Y-place.Y)) > 0.5 || screen.full || a.player.play.Playing() {
+		t.Fatalf("a double click left lift %v at %v (want %v); full screen %v playing %v", a.player.look.Lift, r.Y, place.Y, screen.full, a.player.play.Playing())
+	}
+	if saved, _, _, _ := readSavedSettings(a.settingsPath); saved.Look != nil && saved.Look.Lift != 0 {
+		t.Fatalf("settings keep lift %v after the double click", saved.Look.Lift)
+	}
+	double()
+	if !screen.full {
+		t.Fatal("a double click on lines in their place did not enter full screen")
+	}
+}
+
 // TestDoubleClickOnThePictureTogglesFullScreen checks that a double click on the picture enters full screen and the next one leaves it, while the film plays on: the double click's two clicks start and hold it, which cancel out.
 func TestDoubleClickOnThePictureTogglesFullScreen(t *testing.T) {
 	a, tt, _ := openClip(t, 10)
