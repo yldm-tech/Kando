@@ -2124,7 +2124,7 @@ func TestTheBadgeAndProgressFollowTheQueue(t *testing.T) {
 	}
 }
 
-// TestTheIconCountsTheOpenLibraryAndReachesALateDesktop checks that a job waiting in another library is left out of the badge, as it runs only once that library is open again, and that what the queue worked out before it could reach the system, as before the window is ready, is told as soon as it can.
+// TestTheIconCountsTheOpenLibraryAndReachesALateDesktop checks that a job waiting in a library the app does not know is left out of the badge, as pump runs it only once that library is opened again (queueCanRun), and that what the queue worked out before it could reach the system, as before the window is ready, is told as soon as it can.
 func TestTheIconCountsTheOpenLibraryAndReachesALateDesktop(t *testing.T) {
 	g := newGatePipeline()
 	a, tt, updates := newTestApp(g)
@@ -2153,7 +2153,7 @@ func TestTheIconCountsTheOpenLibraryAndReachesALateDesktop(t *testing.T) {
 	g.release <- struct{}{}
 	settle(t, a, tt, updates)
 	if f.badge() != 0 || f.bar() != (mygo.ProgressBar{}) {
-		t.Fatalf("with only another library's job waiting: badge %d, bar %+v", f.badge(), f.bar())
+		t.Fatalf("with only a forgotten library's job waiting: badge %d, bar %+v", f.badge(), f.bar())
 	}
 }
 
