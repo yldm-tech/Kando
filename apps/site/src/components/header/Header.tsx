@@ -1,0 +1,97 @@
+// The header: the brand, the section links in a pill that marks the section being read, the language menu and the GitHub link.
+import { useEffect, useRef, useState } from "react";
+import { useWords, type ContentKey } from "../../i18n/content";
+import { pagePath, repoURL } from "../../lib/site";
+import { Brand } from "../common/Brand";
+import { GitHubMark } from "../common/marks";
+import { LangLinks } from "./LangLinks";
+
+const sections: readonly [string, ContentKey][] = [
+  ["features", "navFeatures"],
+  ["cli", "navCli"],
+  ["open", "navOpenSource"],
+  ["faq", "navFaq"],
+];
+
+// Header is the page's header; on a page that is not a language's home page (sites, 404) the section links lead to the home page's sections, or are left out where the page has no language (404).
+export function Header({ page }: { page: "home" | "sites" | "404" }) {
+  const { t, lang } = useWords();
+  const top = useRef<HTMLElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  const [current, setCurrent] = useState("");
+  const base = page === "home" ? "" : pagePath(lang.code);
+
+  // The header turns solid once the page scrolls, and its pill marks the section being read.
+  useEffect(() => {
+    if (page !== "home") {
+      return;
+    }
+    let pending = false;
+    const update = () => {
+      pending = false;
+      setScrolled(window.scrollY > 12);
+      let now = "";
+      for (const [id] of sections) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) {
+          now = id;
+        }
+      }
+      setCurrent(now);
+    };
+    const onScroll = () => {
+      if (!pending) {
+        pending = true;
+        window.requestAnimationFrame(update);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    update();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [page]);
+
+  return (
+    <>
+      <a className="skip" href="#main">
+        {t("skipToContent")}
+      </a>
+      <header className={"top" + (scrolled ? " scrolled" : "")} ref={top}>
+        <div className="wrap top-in">
+          <a className="brand" href={pagePath(lang.code)} aria-label={t("homeLabel")}>
+            <Brand />
+          </a>
+          {page !== "404" && (
+            <nav className="nav" aria-label={t("navLabel")}>
+              {sections.map(([id, key]) => (
+                <a key={id} href={base + "#" + id} className={current === id ? "on" : undefined}>
+                  {t(key)}
+                </a>
+              ))}
+            </nav>
+          )}
+          <div className="top-end">
+            <details className="lang">
+              <summary aria-label={t("languageLabel") + ": " + lang.name}>
+                <svg className="i" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18" />
+                </svg>
+                <span className="lang-name">{lang.name}</span>
+                <svg className="i chev" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </summary>
+              <ul className="lang-menu">
+                <LangLinks page={page} item />
+              </ul>
+            </details>
+            <a className="gh" href={repoURL} aria-label={t("githubLabel")}>
+              <GitHubMark size={16} />
+              <span>GitHub</span>
+            </a>
+          </div>
+        </div>
+      </header>
+    </>
+  );
+}
