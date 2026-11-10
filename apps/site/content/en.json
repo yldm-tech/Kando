@@ -153,9 +153,10 @@
   "sitesFound": "Matches: {count}",
   "modelsEyebrow": "Speech recognition",
   "modelsTitle": "{count} whisper models, one for every computer",
-  "modelsLead": "A smaller model transcribes faster, a larger one hears more. Kando downloads the one you choose the first time it's used.",
+  "modelsLead": "Small models are fast, large ones are accurate, and the recommended one gives you both. Kando downloads the one you choose the first time it's used.",
   "modelsAxis": "Size (MB)",
-  "modelsChartLabel": "Bar chart of the download size of each whisper model, in megabytes",
-  "modelsTableCaption": "The whisper models and their download sizes in megabytes",
+  "modelsChartLabel": "Bubble chart of the whisper models by speed and accuracy, with each bubble's area showing the model's download size. The table lists the same.",
+  "modelsChartCaption": "Further right is faster, higher up is more accurate, and a bigger bubble is a bigger download. The top right is fast and accurate.",
+  "modelsTableCaption": "The whisper models with their speed and accuracy out of 5 and their download sizes in megabytes",
   "modelsColumnModel": "Model"
 }

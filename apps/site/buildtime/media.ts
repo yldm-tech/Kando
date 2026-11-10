@@ -152,12 +152,13 @@ export interface MediaLang {
 // mediaLangs reads the inputs of every language with a content file, as the build reads them.
 export function mediaLangs(root: string, siteDir: string, contentDir: string): MediaLang[] {
   const content = loadContent(contentDir);
-  const modelNames = readModelNames(root, readModels(root));
+  const models = readModels(root);
+  const modelNames = readModelNames(root, models);
   return languages
     .filter((l) => content.has(l.code))
     .map((l) => {
       const strings = content.get(l.code) ?? {};
-      const { app } = loadAppStrings(root, l, modelNames);
+      const { app } = loadAppStrings(root, l, models, modelNames);
       return {
         lang: l,
         strings,

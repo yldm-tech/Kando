@@ -1,6 +1,6 @@
 // The shapes of what the build reads from the repository and of the data it hands the pages. Each file read is parsed with one of these zod schemas, so that a source that changes shape fails the build instead of rendering a page with a hole.
 import { z } from "zod";
-import { langCodes } from "../src/lib/site";
+import { langCodes, ratingSteps } from "../src/lib/site";
 
 // ---- what the build reads ----
 
@@ -142,8 +142,9 @@ export type Brand = z.infer<typeof brandSchema>;
 // modelSchema is a whisper model of the app's catalog (packages/media/whisper_model.go), as the models section charts it.
 export const modelSchema = z.object({
   id: z.string(),
-  speed: z.number().int(),
-  accuracy: z.number().int(),
+  // speed and accuracy are the app's ratings, from 1 to ratingSteps, which the chart places the model by and the table draws as dots.
+  speed: z.number().int().min(1).max(ratingSteps),
+  accuracy: z.number().int().min(1).max(ratingSteps),
   // sizeLabel is the size as the app writes it, such as "1.53 GB"; mb is the same size in decimal megabytes.
   sizeLabel: z.string(),
   mb: z.number().positive(),
@@ -199,9 +200,10 @@ export const contentModuleSchema = z.object({
   code: langCodeSchema,
   strings: z.record(z.string(), z.string()),
   app: z.record(z.string(), z.string()),
-  // clipSpans are filmClipSpan for each clip of the demo film; modelNames the whisper models' names, by id.
+  // clipSpans are filmClipSpan for each clip of the demo film; modelNames the whisper models' names, by id; modelWords the app's words for a model's speed and accuracy.
   clipSpans: z.array(z.string()),
   modelNames: z.record(z.string(), z.string()),
+  modelWords: z.object({ speed: nonEmpty, accuracy: nonEmpty }),
 });
 export type ContentModule = z.infer<typeof contentModuleSchema>;
 

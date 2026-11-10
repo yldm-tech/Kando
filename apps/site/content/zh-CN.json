@@ -153,9 +153,10 @@
   "sitesFound": "匹配：{count}",
   "modelsEyebrow": "语音识别",
   "modelsTitle": "{count} 个 whisper 模型，总有一个适合你的电脑",
-  "modelsLead": "模型越小，转录越快；模型越大，听得越准。选中的模型会在第一次使用时下载。",
+  "modelsLead": "小模型快，大模型准，推荐的那个又快又准。选中的模型会在第一次使用时下载。",
   "modelsAxis": "大小（MB）",
-  "modelsChartLabel": "各个 whisper 模型下载大小的条形图，单位为 MB",
-  "modelsTableCaption": "whisper 模型及其下载大小，单位为 MB",
+  "modelsChartLabel": "whisper 模型按速度和准确度排布的气泡图，气泡面积表示模型的下载大小，下表列出同样的数据",
+  "modelsChartCaption": "越往右越快，越往上越准，气泡越大下载越大。右上角又快又准。",
+  "modelsTableCaption": "whisper 模型的速度、准确度（满分 5）和下载大小，大小单位为 MB",
   "modelsColumnModel": "模型"
 }

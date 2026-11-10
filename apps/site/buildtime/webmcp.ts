@@ -127,10 +127,10 @@ export function plainLine(s: string): string {
 // agentKeys are the content keys the WebMCP content files are made from; the tests compare them with the keys the page's Get started and features sections show.
 export const agentKeys = new Set<string>();
 
-// AgentModel is a whisper model as the models card names it in a language, with its download size in megabytes.
+// AgentModel is a whisper model as the models card names it in a language, the recommended one marked with the app's word for it, and its stats as the app's Settings › Speech Recognition writes them under its name: speed and accuracy out of 5 and the download size.
 export interface AgentModel {
   name: string;
-  mb: number;
+  stats: string;
 }
 
 // newAgentContent is l's content file, made from the same content strings as the page's download panel (start) and its Library, Command line and details sections (features), the whisper models' card among the details.
@@ -185,10 +185,9 @@ export function newAgentContent(l: Language, strs: Strings, total: number, surf:
     }
     c.features.items.push(f);
     if (key === "detailWhisper") {
-      // The models card sits under the whisper card's row on the page; the tools give its sizes as one line, the size column's heading and each model's name with its megabytes.
-      const nf = new Intl.NumberFormat(l.tag);
-      const sizes = t("modelsAxis") + ": " + models.map((m) => `${m.name} ${nf.format(m.mb)}`).join(", ");
-      c.features.items.push({ title: t("modelsTitle", { count: models.length }), text: t("modelsLead") + " " + sizes });
+      // The models card sits under the whisper card's row on the page; the tools give what its chart and table show as one line, each model's name with its speed, accuracy and size in the app's words.
+      const stats = models.map((m) => `${m.name}: ${m.stats.replace(/\s+/g, " ")}`).join("; ");
+      c.features.items.push({ title: t("modelsTitle", { count: models.length }), text: t("modelsLead") + " " + stats });
     }
   }
   return c;

@@ -112,8 +112,8 @@ function rendered(file: string): string[] {
 it("covers in the WebMCP content files what the page's sections say", () => {
   const content = loadContent(join(siteDir, "content"));
   const en = content.get("en") ?? {};
-  newAgentContent(language("en"), en, 1, readSurface(repoRoot), [{ name: "Tiny", mb: 75 }]);
-  // Labels of controls, the small lines above headings, a screenshot's description, the comments of the terminal example, the open-source panel's own links and the models table's caption, column heading and chart description, which the tools have no use for.
+  newAgentContent(language("en"), en, 1, readSurface(repoRoot), [{ name: "Tiny", stats: "Speed 5/5  Accuracy 2/5  77.7 MB" }]);
+  // Labels of controls, the small lines above headings, a screenshot's description, the comments of the terminal example, the open-source panel's own links and the models table's caption and column headings and the chart's description and caption, which the tools have no use for: the models item gives each model's speed, accuracy and size in the app's words instead.
   const skip = new Set([
     "copyLabel",
     "copiedLabel",
@@ -135,7 +135,9 @@ it("covers in the WebMCP content files what the page's sections say", () => {
     "detailLanguagesMark",
     "modelsTableCaption",
     "modelsColumnModel",
+    "modelsAxis",
     "modelsChartLabel",
+    "modelsChartCaption",
     "openEyebrow",
     "openGitHub",
     "openReleases",
