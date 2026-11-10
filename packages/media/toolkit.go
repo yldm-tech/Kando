@@ -146,20 +146,15 @@ func InstallKit(ctx context.Context, kit Kit, dir string, progress func(written,
 	return filepath.Join(final, kit.Program), nil
 }
 
-// fetchChecked writes what kit.URL serves to dest and fails unless its SHA-256 is kit.SHA256.
+// fetchChecked writes what kit.URL serves to dest and fails unless its SHA-256 is kit.SHA256. A server that stops sending fails it with ErrStalled (downloadGet); a kit is small enough to download again whole, so nothing is resumed.
 func fetchChecked(ctx context.Context, kit Kit, dest string, progress func(written, total int64)) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, kit.URL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("User-Agent", "Kando")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := downloadGet(ctx, kit.URL, nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download %s: HTTP %d", kit.ID, resp.StatusCode)
+		return &downloadStatusError{name: kit.ID, code: resp.StatusCode}
 	}
 	out, err := os.Create(dest)
 	if err != nil {
@@ -171,26 +166,8 @@ func fetchChecked(ctx context.Context, kit Kit, dest string, progress func(writt
 		total = kit.Size
 	}
 	sum := sha256.New()
-	buf := make([]byte, 256*1024)
-	var written int64
-	for {
-		n, readErr := resp.Body.Read(buf)
-		if n > 0 {
-			if _, err := out.Write(buf[:n]); err != nil {
-				return err
-			}
-			sum.Write(buf[:n])
-			written += int64(n)
-			if progress != nil {
-				progress(written, total)
-			}
-		}
-		if readErr == io.EOF {
-			break
-		}
-		if readErr != nil {
-			return readErr
-		}
+	if _, err := copyProgress(io.MultiWriter(out, sum), resp.Body, 0, total, progress); err != nil {
+		return err
 	}
 	if err := out.Close(); err != nil {
 		return err

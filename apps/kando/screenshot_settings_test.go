@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -41,11 +42,15 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
 		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
 	})
-	// The first launch on a computer without ffmpeg and whisper-cli: Kando downloads ffmpeg, and offers 重试 for whisper-cli, whose download failed.
+	// The first launch on a computer without ffmpeg and whisper-cli: Kando downloads ffmpeg, and offers 重试 for whisper-cli, whose download stalled.
 	shootSettings(t, f, settings.SectionGeneral, "settings-general-downloading", shown, models, turbo, func(a *app) {
 		shotKitsDownloading(t, f, a)
 		a.kits.running = map[string]*kitDownload{"ffmpeg": {written: 13 << 20, total: 31 << 20, cancel: func() {}}}
-		a.kits.errs = map[string]string{"whisper-cli": "HTTP 503"}
+		a.kits.errs = map[string]error{"whisper-cli": media.ErrStalled}
+	})
+	// A speech model's download that lost its connection: the page says so, and that downloading again picks up where it stopped.
+	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-download-failed", shown, models, turbo, func(a *app) {
+		a.prefs.downloadErr = fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected)
 	})
 }
 

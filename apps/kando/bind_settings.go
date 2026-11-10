@@ -44,7 +44,7 @@ func (a *app) Redetect() {
 
 func (a *app) ToolDownload(program string) settings.ToolFetch {
 	progress, running := a.kitsProgress(program)
-	return settings.ToolFetch{Available: a.kitsCanInstall(program), Running: running, Progress: progress, Err: a.kits.errs[program]}
+	return settings.ToolFetch{Available: a.kitsCanInstall(program), Running: running, Progress: progress, Err: kitsError(a.kits.errs[program])}
 }
 
 func (a *app) DownloadTool(program string) { a.kitsInstall(program) }
@@ -66,7 +66,7 @@ func (a *app) DownloadWritten() int64 { return a.prefs.downloadWritten }
 
 func (a *app) DownloadTotal() int64 { return a.prefs.downloadTotal }
 
-func (a *app) DownloadErr() string { return a.prefs.downloadErr }
+func (a *app) DownloadErr() string { return speechDownloadError(a.prefs.downloadErr) }
 
 func (a *app) CancelDownload() { a.cancelDownload() }
 

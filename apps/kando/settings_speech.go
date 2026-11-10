@@ -85,14 +85,14 @@ func (a *app) downloadSpeechModel(id string) {
 		return
 	}
 	if a.prefs.modelsDir == "" {
-		a.prefs.downloadErr = locales.SettingsSpeechNoModelsDir()
+		a.prefs.downloadErr = errSpeechNoModelsDir
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.prefs.downloading = id
 	a.prefs.downloadWritten = 0
 	a.prefs.downloadTotal = 0
-	a.prefs.downloadErr = ""
+	a.prefs.downloadErr = nil
 	a.prefs.downloadCancel = cancel
 	dir := a.prefs.modelsDir
 	update := a.update
@@ -119,13 +119,34 @@ func (a *app) downloadSpeechModel(id string) {
 			a.prefs.downloadCancel = nil
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
-					a.prefs.downloadErr = err.Error()
+					a.prefs.downloadErr = err
 				}
 				return
 			}
 			a.useSpeechModel(path)
 		})
 	}()
+}
+
+// errSpeechNoModelsDir is downloadSpeechModel's error when Kando has no folder to put the models in.
+var errSpeechNoModelsDir = errors.New("no models folder")
+
+// speechDownloadError says in plain words, in the interface's language, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there.
+func speechDownloadError(err error) string {
+	var status interface{ StatusCode() int }
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, errSpeechNoModelsDir):
+		return locales.SettingsSpeechNoModelsDir()
+	case errors.Is(err, media.ErrStalled):
+		return locales.SettingsSpeechDownloadStalled()
+	case errors.As(err, &status):
+		return locales.SettingsSpeechDownloadFailedStatus(status.StatusCode())
+	case errors.Is(err, media.ErrDisconnected):
+		return locales.SettingsSpeechDownloadDisconnected()
+	}
+	return err.Error()
 }
 
 func (a *app) cancelDownload() {

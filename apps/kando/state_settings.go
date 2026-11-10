@@ -27,7 +27,7 @@ type settingsUI struct {
 	downloading     string
 	downloadWritten int64
 	downloadTotal   int64
-	downloadErr     string
+	downloadErr     error
 	downloadCancel  context.CancelFunc
 	llmProvider     string
 	llmBase         string
