@@ -1,7 +1,8 @@
 {
   "metaTitle": "The page's <title> and the title of link previews. Keep \"Kando\" in Latin letters.",
   "metaDescription": "Meta description for search results and link previews. Search results cut it off after about 155 characters in English or about 80 in Chinese, Japanese or Korean, so keep to about 150 to 160 characters in English and 80 to 90 in CJK, in one or two sentences, and say early that Kando plays videos with bilingual subtitles.",
-  "metaImageAlt": "Description of the preview image (the library screenshot) for link previews.",
+  "metaImageAlt": "Description of the link preview image (media/og/<code>.png) for link previews: the app icon and the headline beside the player, which shows the demo film with the original line and its translation.",
+  "ogTagline": "Short line under the headline on the link preview image (1200×630), the picture shown when the page is shared. One sentence of about 70 to 95 characters in English, 25 to 45 in CJK, so that it fits in three lines. After changing it, make the images again with vp run media in apps/site.",
   "skipToContent": "Link for keyboard and screen reader users that jumps past the header to the page's content; visible only when focused.",
   "brandName": "The app's name as its interface shows it in your language (mygo.appName in apps/kando/locales): 看懂 in Chinese, Kando in the other languages. Where it is not Kando, the header shows Kando after it.",
   "homeLabel": "Accessible name of the brand in the header and footer, which links to the top of this page. Must contain the visible words, brandName and Kando (WCAG label in name).",

@@ -1,4 +1,4 @@
-// The icons made from the app icon (apps/kando/resources/icon.png): logo.png, favicon-16.png and favicon-32.png, favicon.ico holding both, and apple-touch-icon.png. The app icon is a rounded square on a transparent margin; the logo and the favicons are that square without the margin, and the touch icon fills the square's corners with its background gradient too, because iOS rounds the corners itself and would show the transparent ones black.
+// The icons made from the app icon (apps/kando/resources/icon.png): logo.png, favicon-16.png and favicon-32.png, favicon.ico holding both, apple-touch-icon.png, and icon-192.png and icon-512.png, the web app manifest's (site.webmanifest). The app icon is a rounded square on a transparent margin; the logo and the favicons are that square without the margin, and the touch icon fills the square's corners with its background gradient too, because iOS rounds the corners itself and would show the transparent ones black.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PNG } from "pngjs";
@@ -16,6 +16,9 @@ const gradientTo = [0xec, 0x7e, 0x2e] as const;
 
 // logoSize is the side of logo.png, the mark the pages show beside the name and above the headline: twice the largest size a page draws it at, the 96 pixels of the hero.
 export const logoSize = 192;
+
+// manifestIconSizes are the sides of the web app manifest's icons, the two sizes browsers ask a manifest for.
+export const manifestIconSizes = [192, 512] as const;
 
 export function newRGBA(w: number, h: number): RGBA {
   return { w, h, pix: new Uint8Array(w * h * 4) };
@@ -177,6 +180,9 @@ export function writeIcons(iconPath: string, out: string): void {
     return { size, png };
   });
   writeFileSync(join(out, "favicon.ico"), encodeICO(ico));
+  for (const size of manifestIconSizes) {
+    writeFileSync(join(out, `icon-${size}.png`), encodePNG(shrink(square, size)));
+  }
   const filled = gradient(square.w);
   over(filled, square);
   writeFileSync(join(out, "apple-touch-icon.png"), encodePNG(shrink(filled, 180)));

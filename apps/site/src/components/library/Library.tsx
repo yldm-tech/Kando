@@ -2,6 +2,9 @@
 import site from "virtual:kando/site";
 import { Rich, useWords } from "../../i18n/content";
 
+// shotSizes is the screenshot's width in the layout (.split-in): beside the text from 912 pixels, where the two fit on a line, up to 614 pixels at the widest wrap, and the width of the page below its padding when it wraps under the text.
+const shotSizes = "(min-width: 1176px) 614px, (min-width: 912px) 52vw, calc(100vw - 40px)";
+
 export function Library() {
   const { t, lang } = useWords();
   const shot = site.shots[lang.code]?.library;
@@ -24,7 +27,14 @@ export function Library() {
         </div>
         <figure className="split-media rv">
           <div className="win light">
-            {shot && <img src={shot.src} width={shot.w} height={shot.h} alt={t("shotLibraryAlt")} loading="lazy" decoding="async" />}
+            {shot && (
+              <picture>
+                {shot.sources.map((s) => (
+                  <source key={s.type} type={s.type} srcSet={s.srcset} sizes={shotSizes} />
+                ))}
+                <img src={shot.src} width={shot.w} height={shot.h} alt={t("shotLibraryAlt")} loading="lazy" decoding="async" />
+              </picture>
+            )}
           </div>
         </figure>
       </div>

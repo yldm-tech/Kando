@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import type { ContentModule } from "../../buildtime/schema";
 import { HeadTags, type PageHead } from "../i18n/head";
 import { WordsProvider } from "../i18n/content";
-import { language } from "../lib/site";
+import { language, themeColor } from "../lib/site";
 import "../styles.css";
 
 // PageData is what every page's loader returns: the page's head and its language's words.
@@ -33,10 +33,11 @@ function RootDocument({ children }: { children: ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light" />
-        <meta name="theme-color" content="#fbf8f3" />
+        <meta name="theme-color" content={themeColor} />
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
         <link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
         <HeadContent />
         <HeadTags page={page.head} />
       </head>

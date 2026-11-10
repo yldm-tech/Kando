@@ -1,0 +1,161 @@
+<!doctype html>
+<!-- The link preview image of a language (media/og/<code>.png), as scripts/media.ts renders it at 1200×630: the app icon, the headline with its mark and a short line on the page's warm paper, beside a still of the hero's player. The script fills in the {{name}} fields; the fonts are the system's, as on the page. -->
+<html lang="{{lang}}">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+      }
+      :lang(zh-Hant) {
+        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "PingFang TC", "Noto Sans CJK TC", "Microsoft JhengHei", sans-serif;
+      }
+      :lang(ja) {
+        --sans:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "Yu Gothic UI", "Meiryo",
+          sans-serif;
+      }
+      :lang(ko) {
+        --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Apple SD Gothic Neo", "Noto Sans CJK KR", "Malgun Gothic", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        background: #fbf8f3;
+        color: #1c1916;
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+      .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(70px);
+      }
+      .blob-a {
+        left: -120px;
+        top: -160px;
+        width: 560px;
+        height: 460px;
+        background: rgba(255, 196, 140, 0.55);
+      }
+      .blob-b {
+        right: -80px;
+        top: -120px;
+        width: 620px;
+        height: 420px;
+        background: rgba(255, 214, 165, 0.6);
+      }
+      .blob-c {
+        right: 120px;
+        bottom: -220px;
+        width: 560px;
+        height: 380px;
+        background: rgba(244, 154, 80, 0.35);
+      }
+      .text {
+        position: absolute;
+        left: 72px;
+        top: 64px;
+        width: 500px;
+        height: 502px;
+        display: flex;
+        flex-direction: column;
+      }
+      .icon {
+        width: 96px;
+        height: 96px;
+        margin-left: -8px;
+        filter: drop-shadow(0 14px 22px rgba(226, 110, 30, 0.28));
+      }
+      h1 {
+        margin: 26px 0 0;
+        font-size: 62px;
+        line-height: 1.08;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+      }
+      :lang(zh-Hans) h1,
+      :lang(zh-Hant) h1,
+      :lang(ja) h1,
+      :lang(ko) h1 {
+        letter-spacing: -0.01em;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      .mark {
+        font-style: normal;
+        background: linear-gradient(100deg, #f29a3d 10%, #e8661c 60%, #d9541a);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      p {
+        margin: 22px 0 0;
+        font-size: 25px;
+        line-height: 1.45;
+        color: #5e5750;
+      }
+      .site {
+        margin-top: auto;
+        font-size: 21px;
+        font-weight: 600;
+        color: #776e65;
+        letter-spacing: -0.01em;
+      }
+      .stage {
+        position: absolute;
+        left: 612px;
+        top: 92px;
+        width: 760px;
+      }
+      .glow {
+        position: absolute;
+        inset: 40px 30px -30px 30px;
+        border-radius: 40px;
+        background: rgba(235, 120, 40, 0.35);
+        filter: blur(50px);
+      }
+      .still {
+        position: relative;
+        display: block;
+        width: 100%;
+        border-radius: 16px;
+        box-shadow:
+          0 0 0 1px rgba(28, 25, 22, 0.12),
+          0 30px 60px rgba(60, 30, 10, 0.28);
+      }
+    </style>
+  </head>
+  <body>
+    <span class="blob blob-a"></span>
+    <span class="blob blob-b"></span>
+    <span class="blob blob-c"></span>
+    <div class="text">
+      <img class="icon" src="{{icon}}" alt="" />
+      <h1>{{title}}</h1>
+      <p>{{tagline}}</p>
+      <div class="site">kando.yldm.ai</div>
+    </div>
+    <div class="stage">
+      <div class="glow"></div>
+      <img class="still" src="{{still}}" alt="" />
+    </div>
+    <script>
+      // The headline takes the room the short line and the address leave it: its size steps down until the column fits, and in Chinese, Japanese and Korean, whose headlines break where the content string does, until each of its lines fits on one.
+      const text = document.querySelector(".text");
+      const h1 = document.querySelector("h1");
+      for (let size = 62; size > 36 && (text.scrollHeight > text.clientHeight || h1.scrollWidth > h1.clientWidth); size -= 2) {
+        h1.style.fontSize = size + "px";
+      }
+    </script>
+  </body>
+</html>

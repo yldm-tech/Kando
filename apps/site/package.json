@@ -6,7 +6,8 @@
     "dev": "vp dev",
     "build": "vp build",
     "check": "vp check",
-    "test": "vp test run"
+    "test": "vp test run",
+    "media": "vpx scripts/media.ts"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

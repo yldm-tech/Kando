@@ -1,7 +1,8 @@
 {
   "metaTitle": "Kando：ネイティブの動画で外国語を学ぶ",
   "metaDescription": "Kando は無料のオープンソースのデスクトップアプリ。動画の音声をあなたのパソコンで文字起こしして一文ずつ翻訳し、原文と訳文を一緒に表示して再生します。",
-  "metaImageAlt": "Kando のライブラリ：最近完了した動画、処理中のジョブ、ライブラリの動画",
+  "metaImageAlt": "Kando のアイコンと見出し、その横に原文と訳文を一緒に表示して動画を再生するプレーヤー",
+  "ogTagline": "リンクを貼るだけ。Kando があなたのパソコンで文字起こしして、2 か国語の字幕で再生します。",
   "skipToContent": "本文へ移動",
   "brandName": "Kando",
   "homeLabel": "Kando ホーム",

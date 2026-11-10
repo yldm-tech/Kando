@@ -119,6 +119,9 @@ export const langCodeSchema = z.enum(langCodes);
 export const shotSchema = z.object({ src: z.string(), w: z.number().int().positive(), h: z.number().int().positive() });
 export type Shot = z.infer<typeof shotSchema>;
 
+// pictureSchema is a screenshot offered in smaller formats before its PNG: a <source> of each, by MIME type, with the widths it comes in.
+export const pictureSchema = shotSchema.extend({ sources: z.array(z.object({ type: z.string(), srcset: z.string() })).min(1) });
+
 // tileSchema is a featured website of the catalog in the works-with strip: its name after its mark, which is AI Logo's where it has one (siteMarks), the logo of the app's catalog otherwise, or its initial on a colored plate when the catalog has none either, as the app's Supported Websites sheet draws it.
 export const tileSchema = z.object({
   name: z.string(),
@@ -180,7 +183,9 @@ export const siteDataSchema = z.object({
   siteNames: z.partialRecord(langCodeSchema, z.record(z.string(), z.string())),
   aiServices: z.array(brandSchema),
   claudeCode: brandSchema,
-  shots: z.partialRecord(langCodeSchema, z.object({ library: shotSchema })),
+  shots: z.partialRecord(langCodeSchema, z.object({ library: pictureSchema })),
+  // og is each language's link preview image (media/og/<code>.png).
+  og: z.partialRecord(langCodeSchema, shotSchema),
   // assets are the static scripts and the WebMCP sites file, linked with a hash of their content in the query so that a changed file is fetched again.
   assets: z.object({ siteJS: z.string(), webmcpJS: z.string(), sitesJSON: z.string() }),
   webmcp: z.partialRecord(langCodeSchema, agentDataSchema),

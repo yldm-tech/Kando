@@ -15,6 +15,11 @@ function allowedRef(ref: string): boolean {
 // shownOnly are addresses the page shows as text and never loads or links: the clone command of the Windows tab and the link of the command-line example.
 const shownOnly = new Set([repoURL + ".git", "https://www.youtube.com/watch?v=…"]);
 
+// vocabulary reports whether ref names a vocabulary rather than a resource: an XML or SVG namespace, or schema.org, the context of the pages' JSON-LD.
+function vocabulary(ref: string): boolean {
+  return /^http:\/\/www\.(w3|sitemaps)\.org\//.test(ref) || ref === "https://schema.org";
+}
+
 const urlRe = /(?:https?:)?\/\/[A-Za-z0-9.-]+\.[A-Za-z]{2,}[^\s"'`)<>\\]*/g;
 
 function files(dir: string, ext: RegExp): string[] {
@@ -50,8 +55,8 @@ describe("no external hosts", () => {
       // Comments, such as Tailwind's license line, name no address the page uses.
       const code = readFileSync(file, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
       for (const ref of code.match(urlRe) ?? []) {
-        // XML and SVG namespaces name a vocabulary; nothing is fetched from them.
-        if (!allowedRef(ref) && !shownOnly.has(ref) && !/^http:\/\/www\.(w3|sitemaps)\.org\//.test(ref)) {
+        // XML and SVG namespaces and the JSON-LD context name a vocabulary; nothing is fetched from them.
+        if (!allowedRef(ref) && !shownOnly.has(ref) && !vocabulary(ref)) {
           bad.push(`${file}: ${ref}`);
         }
       }
@@ -88,7 +93,7 @@ describe("no external hosts", () => {
         if (/^\/\/[a-z]+\.test\(/.test(ref)) {
           continue;
         }
-        if (!allowedRef(ref) && !shownOnly.has(ref) && !libraryText.has(ref) && !/^http:\/\/www\.(w3|sitemaps)\.org\//.test(ref)) {
+        if (!allowedRef(ref) && !shownOnly.has(ref) && !libraryText.has(ref) && !vocabulary(ref)) {
           bad.push(`${file}: ${ref}`);
         }
       }

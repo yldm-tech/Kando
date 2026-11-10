@@ -3,6 +3,9 @@
 // siteURL is where the site is served, the address of canonical links, Open Graph tags and the sitemap. CNAME binds the GitHub Pages site to it.
 export const siteURL = "https://kando.yldm.ai";
 
+// themeColor is the page's paper, the browser's color around it and the web app manifest's theme and background.
+export const themeColor = "#fbf8f3";
+
 export const repoURL = "https://github.com/yldm-tech/Kando";
 export const releasesURL = repoURL + "/releases";
 // latestURL redirects to the newest published release, so the Download buttons reach the current files even when the site was built before a release came out. Drafts and prereleases are not "latest", so it never lands on a release that 404s for visitors.
@@ -76,6 +79,17 @@ export function pageURL(code: LangCode, page: "home" | "sites" = "home"): string
 export function readmeURL(l: Language): string {
   return repoURL + "/blob/main/" + l.readme;
 }
+
+// faqPairs are the questions of the FAQ section in its order, each a question's content key and its answer's; the home pages' structured data (buildtime/jsonld.ts) lists the same.
+export const faqPairs = [
+  ["faqPriceQ", "faqPriceA"],
+  ["faqSitesQ", "faqSitesA"],
+  ["faqSpeechQ", "faqSpeechA"],
+  ["faqTranslateQ", "faqTranslateA"],
+  ["faqSystemsQ", "faqSystemsA"],
+  ["faqLoginQ", "faqLoginA"],
+  ["faqExportQ", "faqExportA"],
+] as const;
 
 // demoLines are the English lines of the film the hero's player plays, How Rivers Shape Landscapes, the first lines of the film of the app's screenshots (protoCues in apps/kando/screenshot_prototype_test.go). The content files have their translations as demoCue1 to demoCue8.
 export const demoLines = [

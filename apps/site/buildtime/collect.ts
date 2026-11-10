@@ -1,20 +1,26 @@
-// collect reads everything the site shows from the repository, checks it, and writes the files the pages link into the public folder: the static scripts, the icons, the screenshots, the marks and logos, the WebMCP files, the sitemap, robots.txt and CNAME. Any source that is missing or changed shape fails the build.
-import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { languages, type LangCode } from "../src/lib/site";
+// collect reads everything the site shows from the repository, checks it, and writes the files the pages link into the public folder: the static scripts, the icons, the screenshots and link preview images, the marks and logos, the WebMCP files, the sitemap, robots.txt, CNAME, the web app manifest and llms.txt; and it makes each page's structured data. Any source that is missing or changed shape fails the build.
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { languages, pagePath, sourceLang, type LangCode } from "../src/lib/site";
 import { appVersion, loadAppStrings, readModelNames, readModels, readSurface } from "./app";
 import { catalogRows, featuredTiles, loadSiteNames, localTiles, readCatalog } from "./catalog";
 import { loadContent, loadNotes } from "./content";
 import { pngSize, writeIcons } from "./icons";
 import { aiServices, claudeCode, Marks } from "./marks";
+import { mediaCommand, mediaDir, ogFile, ogSize, shotFile, shotFormats, shotWidths } from "./media";
 import { siteDataSchema, type CatalogRow, type ContentModule, type SiteData } from "./schema";
-import { writeSEOFiles } from "./seo";
-import { hashLink, writeAgentFiles } from "./webmcp";
+import { jsonForScript } from "../src/lib/json";
+import { structuredData } from "./jsonld";
+import { writeLLMsFiles } from "./llms";
+import { lastModified, pageGroups, writeSEOFiles } from "./seo";
+import { hashLink, newAgentContent, writeAgentFiles } from "./webmcp";
 
 export interface Collected {
   site: SiteData;
   content: Map<LangCode, ContentModule>;
   catalog: CatalogRow[];
+  // structured is each page's JSON-LD (buildtime/jsonld.ts), by the page's path.
+  structured: Map<string, string>;
 }
 
 // screenshots are the pictures of the app each page shows, as docs/assets/<language>/<name>.png: the library beside the Library section. The hero draws its player itself.
@@ -42,13 +48,43 @@ export function collect(root: string, siteDir: string, contentDir: string, pub: 
 
   writeIcons(join(root, "apps/kando/resources/icon.png"), pub);
 
+  // The images scripts/media.ts makes (buildtime/media.ts) are copied from media/, linked with a hash of their content so that a new one is fetched again. A missing one fails the build, except in the build the script makes for itself before it has made them.
+  const pending = process.env["KANDO_SITE_MEDIA_PENDING"] === "1";
+  const copyMedia = (rel: string, to: string): string => {
+    const src = join(siteDir, mediaDir, rel);
+    if (!existsSync(src)) {
+      if (pending) {
+        return "/" + to;
+      }
+      throw new Error(`${mediaDir}/${rel} is missing; run ${mediaCommand} in apps/site`);
+    }
+    const data = readFileSync(src);
+    mkdirSync(dirname(join(pub, to)), { recursive: true });
+    writeFileSync(join(pub, to), data);
+    return hashLink("/" + to, data);
+  };
+
   const shots = {} as SiteData["shots"];
+  const og = {} as SiteData["og"];
   for (const l of langs) {
     const src = join(root, "docs/assets", l.code, "library.png");
     const size = pngSize(src);
     mkdirSync(join(pub, "shots", l.code), { recursive: true });
     copyFileSync(src, join(pub, "shots", l.code, "library.png"));
-    shots[l.code] = { library: { src: `/shots/${l.code}/library.png`, ...size } };
+    const sources = shotFormats.map((format) => ({
+      type: "image/" + format,
+      srcset: shotWidths.map((w) => `${copyMedia(shotFile(l.code, w, format), shotFile(l.code, w, format))} ${w}w`).join(", "),
+    }));
+    shots[l.code] = { library: { src: `/shots/${l.code}/library.png`, ...size, sources } };
+
+    const card = ogFile(l.code);
+    if (existsSync(join(siteDir, mediaDir, card))) {
+      const got = pngSize(join(siteDir, mediaDir, card));
+      if (got.w !== ogSize.w || got.h !== ogSize.h) {
+        throw new Error(`${mediaDir}/${card} is ${got.w}×${got.h}, not ${ogSize.w}×${ogSize.h}; run ${mediaCommand} in apps/site`);
+      }
+    }
+    og[l.code] = { src: copyMedia(card, card), w: ogSize.w, h: ogSize.h };
   }
 
   const marks = new Marks(pub);
@@ -82,6 +118,7 @@ export function collect(root: string, siteDir: string, contentDir: string, pub: 
     aiServices: marks.brands(aiServices),
     claudeCode: marks.brands([claudeCode])[0],
     shots,
+    og,
     assets: { siteJS: statics["site.js"], webmcpJS: statics["webmcp.js"], sitesJSON: agent.sites },
     webmcp: Object.fromEntries(agent.data),
     models,
@@ -91,6 +128,30 @@ export function collect(root: string, siteDir: string, contentDir: string, pub: 
     }),
   });
 
-  writeSEOFiles(pub, langs);
-  return { site, content: modules, catalog: rows };
+  writeSEOFiles(pub, langs, { lastmod: lastModified(root), description: en["metaDescription"] ?? "" });
+  const enLang = langs[0];
+  if (enLang?.code !== sourceLang) {
+    throw new Error("the source language has no pages");
+  }
+  writeLLMsFiles(pub, {
+    langs,
+    content,
+    version,
+    total: catalog.sites.length,
+    agent: newAgentContent(enLang, en, catalog.sites.length, surface, agentModels.get(sourceLang) ?? []),
+  });
+
+  // The structured data of each page, by its path, which the post-build step puts into the page (buildtime/csp.ts).
+  const structured = new Map<string, string>();
+  for (const l of langs) {
+    const shot = shots[l.code]?.library;
+    if (!shot) {
+      throw new Error(`no library screenshot for ${l.code}`);
+    }
+    for (const kind of pageGroups) {
+      const graph = structuredData({ code: l.code, kind, strings: content.get(l.code) ?? {}, version, total: catalog.sites.length, shot });
+      structured.set(pagePath(l.code, kind), jsonForScript(graph));
+    }
+  }
+  return { site, content: modules, catalog: rows, structured };
 }
