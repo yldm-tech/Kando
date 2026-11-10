@@ -1056,7 +1056,7 @@ func TestOutdatedWithASystemYTDLPOffersKandosOwn(t *testing.T) {
 	close(release)
 	waitUntil(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
 	r, _ = a.FailureRemedy(film)
-	if r.Why != "没能下载 yt-dlp：HTTP 503。再试一次，或更新本机的 yt-dlp 后重试。" || strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" {
+	if r.Why != "没能下载 yt-dlp：服务器返回 HTTP 503。再试一次，或更新本机的 yt-dlp 后重试。" || strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" {
 		t.Fatalf("after the download failed: %+v", r)
 	}
 	if job := stageOf(t, a, film.JobID); job.Stage != core.StageFailed || job.FailKind != core.FailOutdated {
