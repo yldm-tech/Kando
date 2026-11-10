@@ -13,10 +13,10 @@ import (
 	"github.com/egoist/mygo"
 )
 
-// logsUI is the state of the app's log file (logs_file.go): the file the standard logger writes to, and the stage each job of the open shelf was in when the log last looked at it, so a job that fails is logged once.
+// logsUI is the state of the app's log file (feedback/logfile.go): the file the standard logger writes to, and the stage each job of the open shelf was in when the log last looked at it, so a job that fails is logged once.
 type logsUI struct {
 	// file is the log file once the window is ready; nil before, in tests that do not open one, and when the logs folder could not be written.
-	file   *logFile
+	file   *feedback.LogFile
 	stages map[string]core.Stage
 }
 
@@ -55,7 +55,7 @@ func (a *app) logsOpen() {
 		log.Printf("logs: no folder for the log file: %v", err)
 		return
 	}
-	file, err := openLogFile(filepath.Join(dir, logName), logLimit, os.Stderr)
+	file, err := feedback.OpenLogFile(filepath.Join(dir, feedback.LogName), feedback.LogLimit, os.Stderr)
 	if err != nil {
 		log.Printf("logs: cannot open the log file: %v", err)
 		return

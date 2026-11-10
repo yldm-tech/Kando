@@ -1,4 +1,4 @@
-package main
+package feedback
 
 import (
 	"io"
@@ -8,21 +8,19 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"kando/apps/kando/feedback"
 )
 
 const (
-	// logName is the log file's name in the logs folder (logsDir).
-	logName = "kando.log"
-	// logLimit is how big the log file grows before a new one starts.
-	logLimit = 5 << 20
+	// LogName is the log file's name in the logs folder (logsDir in the main package's state_logs.go).
+	LogName = "kando.log"
+	// LogLimit is how big the log file grows before a new one starts.
+	LogLimit = 5 << 20
 	// logKeep is how many full log files are kept beside the one being written, as kando.1.log and kando.2.log, the newer first.
 	logKeep = 2
 )
 
-// logFile is the app's log file. The standard logger writes through it once the window is ready (logsOpen): each line goes to echo, stderr in the app, as before, and to the file, with whatever is shaped like a key or token written as *** (feedback.Scrubber.NoSecrets). Once the file would grow past limit, it is moved aside and a new one starts (rotate). A crash's panic and stacks go to the file as well (debug.SetCrashOutput), as an app opened from Finder or the Dock has no terminal to show its stderr. Its methods are safe to call from any goroutine.
-type logFile struct {
+// LogFile is the app's log file. The standard logger writes through it once the window is ready (the app's logsOpen, state_logs.go): each line goes to echo, stderr in the app, as before, and to the file, with whatever is shaped like a key or token written as *** (Scrubber.NoSecrets). Once the file would grow past limit, it is moved aside and a new one starts (rotate). A crash's panic and stacks go to the file as well (debug.SetCrashOutput), as an app opened from Finder or the Dock has no terminal to show its stderr. Its methods are safe to call from any goroutine.
+type LogFile struct {
 	mu    sync.Mutex
 	path  string
 	limit int64
@@ -33,9 +31,9 @@ type logFile struct {
 	closed bool
 }
 
-// openLogFile opens the log at path for appending, making its folder, after moving a file already at its limit aside first.
-func openLogFile(path string, limit int64, echo io.Writer) (*logFile, error) {
-	w := &logFile{path: path, limit: limit, echo: echo}
+// OpenLogFile opens the log at path for appending, making its folder, after moving a file already at its limit aside first.
+func OpenLogFile(path string, limit int64, echo io.Writer) (*LogFile, error) {
+	w := &LogFile{path: path, limit: limit, echo: echo}
 	if err := w.open(); err != nil {
 		return nil, err
 	}
@@ -43,7 +41,7 @@ func openLogFile(path string, limit int64, echo io.Writer) (*logFile, error) {
 }
 
 // open opens the file at w.path, making its folder again if the user removed it, after rotating a full one, and points the crash output at it.
-func (w *logFile) open() error {
+func (w *LogFile) open() error {
 	if err := os.MkdirAll(filepath.Dir(w.path), 0o755); err != nil {
 		return err
 	}
@@ -65,7 +63,7 @@ func (w *logFile) open() error {
 }
 
 // release closes the file and stops the crash output going to it, which holds a handle of its own; Windows does not move a file that is still open.
-func (w *logFile) release() {
+func (w *LogFile) release() {
 	if w.f == nil {
 		return
 	}
@@ -75,7 +73,7 @@ func (w *logFile) release() {
 }
 
 // rotate moves each kept file one place older, dropping the oldest, and the log file to kando.1.log. The file must not be open.
-func (w *logFile) rotate() {
+func (w *LogFile) rotate() {
 	for n := logKeep; n > 1; n-- {
 		_ = os.Rename(w.older(n-1), w.older(n))
 	}
@@ -83,13 +81,13 @@ func (w *logFile) rotate() {
 }
 
 // older is the path of the nth file before the one being written: kando.1.log for 1.
-func (w *logFile) older(n int) string {
+func (w *LogFile) older(n int) string {
 	return strings.TrimSuffix(w.path, ".log") + "." + strconv.Itoa(n) + ".log"
 }
 
 // Write writes one entry of the logger, scrubbed, to echo and to the file, starting a new file first when the entry would take this one past its limit. It reports p written whatever happens to the file, as the logger has nowhere to say it failed.
-func (w *logFile) Write(p []byte) (int, error) {
-	line := []byte(feedback.Scrubber{}.NoSecrets(string(p)))
+func (w *LogFile) Write(p []byte) (int, error) {
+	line := []byte(Scrubber{}.NoSecrets(string(p)))
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.echo != nil {
@@ -111,7 +109,7 @@ func (w *logFile) Write(p []byte) (int, error) {
 }
 
 // Path is the log file's path. A file or folder removed from disk since it was opened, as by the user in Finder, is made again first, so there is a file to show.
-func (w *logFile) Path() string {
+func (w *LogFile) Path() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if _, err := os.Stat(w.path); err != nil && !w.closed {
@@ -122,7 +120,7 @@ func (w *logFile) Path() string {
 }
 
 // Close closes the file. Entries written after it go to echo alone.
-func (w *logFile) Close() {
+func (w *LogFile) Close() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.release()
