@@ -180,6 +180,40 @@ func TestFilmsStayInsideTheOpenLibrary(t *testing.T) {
 	}
 }
 
+// TestAVideoWithoutAJobShowsItsBilingualSubtitles checks that a video copied into the library with the bilingual .srt the pipeline exported for it, but no job record, plays with those subtitles and its card does not say it has none, as the CLI already reads them.
+func TestAVideoWithoutAJobShowsItsBilingualSubtitles(t *testing.T) {
+	dir := t.TempDir()
+	for name, data := range map[string]string{
+		"interview.mp4":           "video",
+		"interview.bilingual.srt": "1\n00:00:00,500 --> 00:00:01,000\n早上好\nGood morning\n\n",
+		"silent.mp4":              "video",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.refreshLibrary()
+	tt.Frame()
+	subs := map[string]string{}
+	for _, item := range a.films() {
+		subs[item.Name] = item.SubtitlePath
+	}
+	if want := filepath.Join(dir, "interview", "video.bilingual.srt"); subs["interview"] != want || subs["silent"] != "" || len(subs) != 2 {
+		t.Fatalf("subtitles %q, want interview's %q", subs, want)
+	}
+	saying := 0
+	for _, text := range tt.Texts() {
+		if strings.Contains(text, locales.FilmsNoSubtitles()) {
+			saying++
+		}
+	}
+	if saying != 1 {
+		t.Fatalf("%d cards say %q, want only silent's; texts %q", saying, locales.FilmsNoSubtitles(), tt.Texts())
+	}
+}
+
 func TestRefreshDropsAVideoRemovedFromTheLibrary(t *testing.T) {
 	dir := t.TempDir()
 	folder := filepath.Join(dir, "talk")

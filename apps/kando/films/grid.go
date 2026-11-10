@@ -102,13 +102,13 @@ func moreButton(c *ui.Context) ui.Element {
 	return b
 }
 
-// doneMeta is the line under a poster's title: where the film comes from, how long it is, and how many lines its translation left untranslated.
+// doneMeta is the line under a poster's title: where the film comes from, how long it is, that it has no subtitles yet, and how many lines its translation left untranslated.
 func doneMeta(a App, item Film) string {
 	parts := []string{SourceLabel(item)}
 	if d := a.Duration(item.VideoPath); d > 0 {
 		parts = append(parts, Clock(d))
 	}
-	if item.JobID == "" {
+	if item.SubtitlePath == "" {
 		parts = append(parts, locales.FilmsNoSubtitles())
 	}
 	if note := untranslatedNote(item); note != "" {

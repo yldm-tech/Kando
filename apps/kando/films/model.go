@@ -36,6 +36,7 @@ type Film struct {
 	Stopped bool
 }
 
+// List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them.
 func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
 	used := map[string]bool{}
 	out := make([]Film, 0, len(jobs)+len(videos))
@@ -55,7 +56,7 @@ func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.J
 		}
 		name := strings.TrimSuffix(video.Name, filepath.Ext(video.Name))
 		out = append(out, Film{
-			Key: video.Path, Title: Shorten(name, 22), Name: name, Detail: video.Path, VideoPath: video.Path,
+			Key: video.Path, Title: Shorten(name, 22), Name: name, Detail: video.Path, VideoPath: video.Path, SubtitlePath: video.Subtitles,
 		})
 	}
 	return out

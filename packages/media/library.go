@@ -14,6 +14,8 @@ type Video struct {
 	Path    string
 	Name    string
 	ModTime int64
+	// Subtitles is the bilingual .srt beside the video, named as the pipeline exports it (<video>.bilingual.srt), or "" when its folder holds none. A video no job has processed shows these, as one copied in from another library or kept after its job records were lost.
+	Subtitles string
 }
 
 func ListVideos(directory string) ([]Video, error) {
@@ -25,6 +27,7 @@ func ListVideos(directory string) ([]Video, error) {
 		return nil, err
 	}
 
+	files := fileNames(entries)
 	videos := make([]Video, 0, len(entries))
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), ".") {
@@ -45,7 +48,7 @@ func ListVideos(directory string) ([]Video, error) {
 		if err != nil {
 			return nil, err
 		}
-		videos = append(videos, Video{Path: filepath.Join(directory, entry.Name()), Name: entry.Name(), ModTime: info.ModTime().UnixNano()})
+		videos = append(videos, Video{Path: filepath.Join(directory, entry.Name()), Name: entry.Name(), ModTime: info.ModTime().UnixNano(), Subtitles: bilingualBeside(directory, entry.Name(), files)})
 	}
 	sort.SliceStable(videos, func(i, j int) bool {
 		if videos[i].ModTime == videos[j].ModTime {
@@ -140,6 +143,7 @@ func videosIn(dir string) ([]Video, error) {
 	if err != nil {
 		return nil, err
 	}
+	files := fileNames(entries)
 	videos := make([]Video, 0, 1)
 	for _, entry := range entries {
 		if entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || !isVideoFile(entry.Name()) || downloadLeftover(entry.Name()) {
@@ -149,9 +153,29 @@ func videosIn(dir string) ([]Video, error) {
 		if err != nil {
 			return nil, err
 		}
-		videos = append(videos, Video{Path: filepath.Join(dir, entry.Name()), Name: displayName(dir, entry.Name()), ModTime: info.ModTime().UnixNano()})
+		videos = append(videos, Video{Path: filepath.Join(dir, entry.Name()), Name: displayName(dir, entry.Name()), ModTime: info.ModTime().UnixNano(), Subtitles: bilingualBeside(dir, entry.Name(), files)})
 	}
 	return videos, nil
+}
+
+// fileNames is the names of the files, not folders, among entries, so the videos listed from them can find their subtitles without another look at the disk.
+func fileNames(entries []os.DirEntry) map[string]bool {
+	names := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			names[entry.Name()] = true
+		}
+	}
+	return names
+}
+
+// bilingualBeside is the path of video's bilingual subtitles in dir, <video>.bilingual.srt as exportSubtitles names them, when files, the names of the files in dir, holds it; "" otherwise.
+func bilingualBeside(dir, video string, files map[string]bool) string {
+	name := strings.TrimSuffix(video, filepath.Ext(video)) + ".bilingual.srt"
+	if !files[name] {
+		return ""
+	}
+	return filepath.Join(dir, name)
 }
 
 // GatherVideos moves a loose video and its subtitles into "<name>/video.<ext>", and renames a video already inside a folder to video.<ext>. The returned map is the old path to the new path. A folder that already contains video.<ext> is left alone, including its other subtitle names, and so is one that holds what a download leaves while it runs (downloadLeftover): its single finished track is not a video to rename.

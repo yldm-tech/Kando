@@ -270,13 +270,13 @@ func (a *app) feedbackScrubber() feedback.Scrubber {
 	return s
 }
 
-// feedbackPaths are the files and folders the app knows: the libraries, the folder downloads go to, the tools and the speech model, and every job's video and subtitles and the folders they are in. Their names can have spaces and punctuation a path written in text is not taken to go on over, as a video's title does. The home folder and the folders above it are left out, as the home folder on its own is written as ~.
+// feedbackPaths are the files and folders the app knows: the libraries, the folder downloads go to, the tools and the speech model, every scanned video, the subtitles found beside it and its folder, and every job's video and subtitles and the folders they are in. Their names can have spaces and punctuation a path written in text is not taken to go on over, as a video's title does. The home folder and the folders above it are left out, as the home folder on its own is written as ~.
 func (a *app) feedbackPaths(home string) []string {
 	snap := a.snap()
 	tools, _ := a.pipeline.(media.Tools)
 	paths := append([]string{snap.LibraryDir, tools.OutputDir, tools.YTDLP, tools.FFmpeg, tools.Whisper, tools.WhisperModel}, snap.Libraries...)
 	for _, video := range snap.Videos {
-		paths = append(paths, video.Path, filepath.Dir(video.Path))
+		paths = append(paths, video.Path, filepath.Dir(video.Path), video.Subtitles)
 	}
 	for _, job := range a.library.Jobs {
 		paths = append(paths, job.LibraryDir, job.VideoPath, job.SubtitlePath)

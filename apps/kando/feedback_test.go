@@ -392,6 +392,23 @@ func TestFeedbackHidesTheFilmsPaths(t *testing.T) {
 	}
 }
 
+// TestFeedbackHidesTheSubtitlesBesideAVideoWithoutAJob checks that the bilingual .srt the scan found beside a video no job has processed is among the paths an issue hides, as a job's subtitles are.
+func TestFeedbackHidesTheSubtitlesBesideAVideoWithoutAJob(t *testing.T) {
+	dir := t.TempDir()
+	for name, data := range map[string]string{"interview.mp4": "video", "interview.bilingual.srt": "1\n00:00:00,500 --> 00:00:01,000\n早上好\nGood morning\n\n"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.refreshLibrary()
+	want := filepath.Join(dir, "interview", "video.bilingual.srt")
+	if paths := a.feedbackPaths(t.TempDir()); !slices.Contains(paths, want) {
+		t.Fatalf("feedback paths %q miss %q", paths, want)
+	}
+}
+
 // TestFeedbackItemsAreMenuOnlyRows checks that the 反馈 items are rows of the shortcut table without a key: the 帮助 menu lists them after a separator and without an accelerator, and neither the cheat sheet nor the 快捷键 page lists them, as they have no key to show.
 func TestFeedbackItemsAreMenuOnlyRows(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})

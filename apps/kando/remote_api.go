@@ -455,17 +455,13 @@ func remoteFilmOf(item films.Film) remote.Film {
 	return f
 }
 
-// remoteFilmFiles fills in what f's files on disk tell: the original subtitles beside its video, and, for a video no job has processed, a bilingual .srt beside it named as the pipeline names its own.
+// remoteFilmFiles fills in what f's files on disk tell: the original subtitles beside its video. Its bilingual subtitles are the film's own (remoteFilmOf), which for a video no job has processed are the ones the library scan found beside it (media.Video.Subtitles), so the window and the socket show the same.
 func remoteFilmFiles(f *remote.Film) {
 	if f.VideoPath == "" {
 		return
 	}
-	base := strings.TrimSuffix(f.VideoPath, filepath.Ext(f.VideoPath))
-	if original := base + ".srt"; fileExists(original) {
+	if original := strings.TrimSuffix(f.VideoPath, filepath.Ext(f.VideoPath)) + ".srt"; fileExists(original) {
 		f.OriginalSubtitles = original
-	}
-	if bilingual := base + ".bilingual.srt"; f.Subtitles == "" && f.JobID == "" && fileExists(bilingual) {
-		f.Subtitles = bilingual
 	}
 }
 
