@@ -73,6 +73,8 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 	jump, same := a.player.playJump, a.player.playSame
 	a.player.playFrom = 0
 	a.player.playJump, a.player.playSame = false, false
+	a.player.openHeld = jump && a.player.playHold
+	a.player.playHold = false
 	if keep == nil {
 		a.dropPlayback()
 	}
@@ -173,8 +175,11 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				volume = a.playerVolume()
 				audio.setVolume(volume)
 			}
+			// A seek plays from where it opens, unless it was to hold there (openHeld).
+			held := a.player.openHeld
+			a.player.openHeld = false
 			paused := true
-			if jump {
+			if jump && !held {
 				// Start does nothing to the sound a film coming back hands over, which plays already.
 				if audio != nil {
 					audio.Start()
@@ -188,7 +193,8 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
 				duration: frames.Duration(), paused: paused, played: jump, volume: volume,
 			}
-			if jump && keep == nil {
+			// A picture opened held (openHeld) has no sound playing to check.
+			if !paused && keep == nil {
 				next.watchSound(time.Now())
 			}
 			a.playReplace(next)

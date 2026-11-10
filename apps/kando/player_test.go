@@ -2191,3 +2191,119 @@ func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
 		t.Fatalf("a media key with no film open did %+v", rec.events[before:])
 	}
 }
+
+// showClipNowPlaying connects a recorder in place of mygo.NowPlaying and shows the clip open in a there, as opening it would have.
+func showClipNowPlaying(a *app) *nowPlayingRecorder {
+	rec := &nowPlayingRecorder{}
+	a.playerNowPlayingConnect(rec)
+	p := a.player.play
+	a.player.play = nil
+	a.playReplace(p)
+	return rec
+}
+
+// TestMediaKeysBehindTheWindowKeepPictureAndSoundLevel checks that pausing with a media key while the app is in the background, where the picture stood still while the sound played on, tells the system where the sound stopped and opens the picture there, held; that play from there follows the sound again; and that coming back after more time out of sight puts the picture where the sound got to.
+func TestMediaKeysBehindTheWindowKeepPictureAndSoundLevel(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	rec := showClipNowPlaying(a)
+	p := a.player.play
+	p.toggle()
+	a.playerDidResignActive()
+	// Two seconds out of sight: the picture stood still while the sound played on.
+	p.backgroundAt = p.backgroundAt.Add(-2 * time.Second)
+	a.playerMediaCommand(mygo.MediaPause, 0)
+	if p.Playing() || !p.paused || !p.backgroundAt.IsZero() || p.background != nil {
+		t.Fatalf("paused in the background: playing %v paused %v, sound clock at %v, follower %v", p.Playing(), p.paused, p.backgroundAt, p.background != nil)
+	}
+	stopped := rec.last(t)
+	if stopped.kind != "playback" || stopped.state != mygo.PlaybackPaused || stopped.at < 2*time.Second {
+		t.Fatalf("the pause told the system %+v, with the sound past 2s", stopped)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	held := a.player.play
+	if held == p || held.Playing() || !held.paused || !held.played {
+		t.Fatalf("the picture opened again playing %v paused %v played %v", held.Playing(), held.paused, held.played)
+	}
+	// The playhead of a held picture counts the frame it holds.
+	if at := held.playhead(); at < stopped.at-100*time.Millisecond || at > stopped.at+200*time.Millisecond {
+		t.Fatalf("the picture opened again at %v, the sound stopped at %v", at, stopped.at)
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || rec.count("clear") != 0 {
+		t.Fatalf("opening the picture again told the system %+v", rec.events)
+	}
+
+	a.playerMediaCommand(mygo.MediaPlay, 0)
+	if !held.Playing() || held.backgroundAt.IsZero() || held.background == nil {
+		t.Fatalf("played in the background: playing %v, sound clock at %v, follower %v", held.Playing(), held.backgroundAt, held.background != nil)
+	}
+	if d := held.backgroundHead - held.playhead(); d < -100*time.Millisecond || d > 100*time.Millisecond {
+		t.Fatalf("the sound clock starts at %v, the picture at %v", held.backgroundHead, held.playhead())
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+		t.Fatalf("playing told the system %+v", e)
+	}
+
+	// Two more seconds out of sight, then back.
+	held.backgroundAt = held.backgroundAt.Add(-2 * time.Second)
+	want := held.soundAt(time.Now())
+	a.playerDidBecomeActive()
+	if a.player.inactive || a.player.opening < want || a.player.opening > want+500*time.Millisecond {
+		t.Fatalf("back, the picture opens at %v with the sound at %v", a.player.opening, want)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != held })
+	if next := a.player.play; !next.Playing() || next.playhead() < want {
+		t.Fatalf("back, the picture plays %v at %v, the sound at %v", next.Playing(), next.playhead(), want)
+	}
+}
+
+// TestSeekBehindTheWindowFollowsTheSound checks that a seek from the system's scrubber while the app is in the background follows the sound from where it opens, so coming back puts the picture where the sound got to rather than where the seek opened it.
+func TestSeekBehindTheWindowFollowsTheSound(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	showClipNowPlaying(a)
+	a.player.play.toggle()
+	a.playerDidResignActive()
+	a.playerMediaCommand(mygo.MediaSeek, 6*time.Second)
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	next := a.player.play
+	if !next.Playing() || next.backgroundAt.IsZero() || next.backgroundHead < 6*time.Second || next.background == nil {
+		t.Fatalf("seeked in the background: playing %v, sound clock at %v from %v, follower %v", next.Playing(), next.backgroundAt, next.backgroundHead, next.background != nil)
+	}
+	// Two seconds out of sight, then back.
+	next.backgroundAt = next.backgroundAt.Add(-2 * time.Second)
+	a.playerDidBecomeActive()
+	if a.player.opening < 8*time.Second {
+		t.Fatalf("back, the picture opens at %v, the sound past 8s", a.player.opening)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != next })
+	if back := a.player.play; !back.Playing() || back.playhead() < 8*time.Second {
+		t.Fatalf("back, the picture plays %v at %v", back.Playing(), back.playhead())
+	}
+}
+
+// TestPauseKeyWhileASeekOpens checks that a pause key pressed while a seek opens the picture again, when there is no picture to pause yet, is not lost: the system learns at once that the film is paused there, and the picture opens held.
+func TestPauseKeyWhileASeekOpens(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	rec := showClipNowPlaying(a)
+	a.player.play.toggle()
+	a.playerMediaCommand(mygo.MediaSeek, 4*time.Second)
+	if a.player.play != nil {
+		t.Fatal("the seek kept the old picture")
+	}
+	a.playerMediaCommand(mygo.MediaPause, 0)
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || e.at != 4*time.Second {
+		t.Fatalf("the pause while opening told the system %+v", e)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	held := a.player.play
+	// The playhead of a held picture counts the frame it holds.
+	if at := held.playhead(); held.Playing() || !held.paused || at < 4*time.Second || at > 4*time.Second+200*time.Millisecond {
+		t.Fatalf("the seek opened playing %v paused %v at %v", held.Playing(), held.paused, held.playhead())
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+		t.Fatalf("the held picture told the system %+v", e)
+	}
+	a.playerMediaCommand(mygo.MediaPlay, 0)
+	if !held.Playing() {
+		t.Fatal("the play key did not play the held picture")
+	}
+}

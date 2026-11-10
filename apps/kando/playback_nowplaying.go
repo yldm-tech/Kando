@@ -22,15 +22,6 @@ type nowPlayingCenter interface {
 // nowPlayingCommands are the commands the system's controls offer for a film: play, pause and the scrubber. A film has no next or previous track, and stopping is closing it in the window.
 const nowPlayingCommands = mygo.MediaPlay | mygo.MediaPause | mygo.MediaSeek
 
-// playerNowPlaying is what the system shows of the open film.
-type playerNowPlaying struct {
-	// center is nil until the window is ready (playerHooks' ready), and in tests that connect none, so nothing is shown before then.
-	center nowPlayingCenter
-	// path is the video the system shows, "" while it shows none; title is its name there.
-	path  string
-	title string
-}
-
 // playerNowPlayingConnect has the player show the open film through center, and play, pause and move it as the media keys and the system's controls ask. The commands come on the main thread and run as a menu command does, through update, so the window draws what they changed.
 func (a *app) playerNowPlayingConnect(center nowPlayingCenter) {
 	a.player.nowPlaying.center = center
@@ -39,21 +30,50 @@ func (a *app) playerNowPlayingConnect(center nowPlayingCenter) {
 	})
 }
 
-// playerMediaCommand plays, pauses or moves the open film as a media key or the system's controls asked. A command that would leave it as it is, as play while it plays, tells the system again how it is instead. Without a picture there is nothing to command.
+// playerMediaCommand plays, pauses or moves the open film as a media key or the system's controls asked. A command that would leave it as it is, as play while it plays, tells the system again how it is instead. While the window is out of sight, where only these commands reach the film, play and pause keep its picture level with its sound (playerToggleBehind). Without a picture there is nothing to command, but for the film shown while a seek opens its picture again (playerMediaReopening).
 func (a *app) playerMediaCommand(cmd mygo.MediaCommand, at time.Duration) {
 	p := a.player.play
 	if p == nil {
+		a.playerMediaReopening(cmd, at)
 		return
 	}
 	playing := p.playbackState() == mygo.PlaybackPlaying
 	switch {
 	case cmd == mygo.MediaPlay && !playing, cmd == mygo.MediaPause && playing:
-		p.toggle()
+		if a.playerOutOfSight() {
+			a.playerToggleBehind(p)
+		} else {
+			p.toggle()
+		}
 	case cmd == mygo.MediaSeek:
 		a.Seek(at)
 	default:
 		p.reportPlayback()
 	}
+}
+
+// playerMediaReopening answers a media command that comes while the film shown opens again at another point, as after a seek, when there is no picture to command yet: pause has the picture open held and play has it open playing, and the system learns so at once, so the key is not lost; the scrubber seeks again.
+func (a *app) playerMediaReopening(cmd mygo.MediaCommand, at time.Duration) {
+	np := &a.player.nowPlaying
+	if np.center == nil || a.player.playPath == "" || a.player.playPath != np.path {
+		return
+	}
+	switch cmd {
+	case mygo.MediaPause:
+		a.player.openHeld = true
+	case mygo.MediaPlay:
+		a.player.openHeld = false
+	case mygo.MediaSeek:
+		a.Seek(at)
+		return
+	default:
+		return
+	}
+	state := mygo.PlaybackPlaying
+	if a.player.openHeld {
+		state = mygo.PlaybackPaused
+	}
+	np.center.SetPlayback(state, a.player.opening)
 }
 
 // playerNowPlayingShow shows p, the picture that just opened, where the system shows what plays, and has p report its play and pause from now on. The same film opened again, by a seek or as it came back from the background, only says where it is; another film shows with its name and length, and its poster once read.
@@ -78,7 +98,7 @@ func (a *app) playerNowPlayingInfo(p *filmPlay, artwork []byte) mygo.NowPlayingI
 		Title:    a.player.nowPlaying.title,
 		Artwork:  artwork,
 		Duration: p.duration,
-		Position: p.playhead(),
+		Position: p.soundAt(time.Now()),
 		State:    p.playbackState(),
 		Commands: nowPlayingCommands,
 	}
@@ -149,8 +169,8 @@ func (p *filmPlay) playbackState() mygo.PlaybackState {
 	return mygo.PlaybackPaused
 }
 
-// reportPlayback tells the system whether p plays and where it is, so the play/pause key sends the command that changes that.
-func (p *filmPlay) reportPlayback() { p.reportPlaybackAt(p.playhead()) }
+// reportPlayback tells the system whether p plays and where it is, so the play/pause key sends the command that changes that. Where it is is where its sound is (soundAt), which in the background has played on past the picture standing still behind the window.
+func (p *filmPlay) reportPlayback() { p.reportPlaybackAt(p.soundAt(time.Now())) }
 
 // reportPlaybackAt is reportPlayback with p at at, for a moment its playhead does not know yet, as play after the end, which starts over from 0.
 func (p *filmPlay) reportPlaybackAt(at time.Duration) {

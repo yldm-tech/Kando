@@ -22,6 +22,9 @@ type playerUI struct {
 	playJump bool
 	// playSame is set when the playback opens the open film's video again, as a seek, a film coming back and a jump to a line of the open film do, so the film keeps its state; any other playback is a film opening, which starts it afresh.
 	playSame bool
+	// playHold has the seek startPlaybackWith opens next hold its picture where it opens rather than play, as a film paused in the background opens again where its sound stopped (playerToggleBehind). openHeld is that for the video opening now; a pause key pressed while it opens sets it too (playerMediaReopening).
+	playHold bool
+	openHeld bool
 	// opening is where the video being opened will start, which the transport shows until its picture comes.
 	opening time.Duration
 	// length is the open video's length once known, kept while a seek opens it again.
@@ -72,6 +75,15 @@ type fullScreen interface {
 	IsFullScreen() bool
 	SetFullScreen(v bool)
 	ToggleFullScreen()
+}
+
+// playerNowPlaying is what the system shows of the open film.
+type playerNowPlaying struct {
+	// center is nil until the window is ready (playerHooks' ready), and in tests that connect none, so nothing is shown before then.
+	center nowPlayingCenter
+	// path is the video the system shows, "" while it shows none; title is its name there.
+	path  string
+	title string
 }
 
 // filmUI is the player's state that belongs to the one film open, which opening another starts afresh (resetFilm).
