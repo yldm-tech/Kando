@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
@@ -27,7 +28,22 @@ type Library struct {
 	Positions map[string]time.Duration
 	// Furthest is how far the video at each path has ever played. Unlike its resume position it stays once the video was watched to the end, so what has been seen of a film is known for good.
 	Furthest map[string]time.Duration
+	// unread is why Load could not read the file in full. While it is set Save does not write, as the file may hold jobs this library lacks; AllowSave clears it once a copy of the file is kept.
+	unread error
 }
+
+// ErrUnread is what Save returns for a library whose file Load could not read in full, until AllowSave.
+var ErrUnread = errors.New("library.json could not be read, so it is not written over")
+
+// DamagedError is a library.json that is there but is not a library Load can read in full, such as one cut short. Data is the file as it was read, for the caller to keep a copy of.
+type DamagedError struct {
+	Data []byte
+	Err  error
+}
+
+func (e *DamagedError) Error() string { return e.Err.Error() }
+
+func (e *DamagedError) Unwrap() error { return e.Err }
 
 func DefaultPath() string {
 	dir, err := os.UserConfigDir()
@@ -40,7 +56,7 @@ func DefaultPath() string {
 // Path is the library.json file this shelf persists.
 func (l Library) Path() string { return l.path }
 
-// Load reads the library at path. A missing file is an empty library. A corrupt file is empty too, and the error says why. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
+// Load reads the library at path. A missing file is an empty library. A file that is there but cannot be read is empty too, and the error says why. A file that is not a library in full returns a *DamagedError with the file's bytes, and the library keeps what could be read: a value of another type leaves only that field out, as encoding/json goes on with the rest, and a file that is not JSON at all reads as empty. After either error Save returns ErrUnread rather than write over the file, until AllowSave. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
 	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}}
 	data, err := os.ReadFile(path)
@@ -48,6 +64,7 @@ func Load(path string) (Library, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return lib, nil
 		}
+		lib.unread = err
 		return lib, err
 	}
 	var stored storedLibrary
@@ -57,7 +74,10 @@ func Load(path string) (Library, error) {
 		err = json.Unmarshal(data, &stored)
 	}
 	if err != nil {
-		return lib, err
+		var typeErr *json.UnmarshalTypeError
+		if !errors.As(err, &typeErr) {
+			stored = storedLibrary{}
+		}
 	}
 	lib.Jobs = make([]core.Job, len(stored.Jobs))
 	for i, s := range stored.Jobs {
@@ -73,8 +93,15 @@ func Load(path string) (Library, error) {
 			lib.Furthest[path] = time.Duration(seconds * float64(time.Second))
 		}
 	}
+	if err != nil {
+		lib.unread = err
+		return lib, &DamagedError{Data: data, Err: err}
+	}
 	return lib, nil
 }
+
+// AllowSave lets Save write over a file Load could not read in full, once the caller has kept a copy of it.
+func (l *Library) AllowSave() { l.unread = nil }
 
 func (l *Library) Upsert(job core.Job) {
 	for i := range l.Jobs {
@@ -115,10 +142,13 @@ func MoveKeys(m map[string]time.Duration, move func(path string) (string, bool))
 	return len(moved) > 0
 }
 
-// Save writes the library atomically. An empty path keeps the library in memory, which tests use.
+// Save writes the library atomically. An empty path keeps the library in memory, which tests use. A library whose file Load could not read in full is not written, and Save says so with ErrUnread.
 func (l Library) Save() error {
 	if l.path == "" {
 		return nil
+	}
+	if l.unread != nil {
+		return fmt.Errorf("%w: %v", ErrUnread, l.unread)
 	}
 	if err := os.MkdirAll(filepath.Dir(l.path), 0o700); err != nil {
 		return err

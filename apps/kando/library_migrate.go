@@ -23,7 +23,7 @@ func (a *app) migrateLibrary() {
 			}
 		}
 		if err != nil {
-			a.saveErr = locales.LibraryMoveOutFailed(err.Error())
+			a.saveErr = shelfSaveErr(err, locales.LibraryMoveOutFailed)
 		} else {
 			libs := dropLibrary(a.snap().Libraries, media.VimpoLibraryDir())
 			libs = addLibrary(libs, bundle)

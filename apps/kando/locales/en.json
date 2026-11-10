@@ -1530,6 +1530,30 @@
       }
     }
   },
+  "libraryShelfDamaged": "The film list has content Kando can't read; the original was saved as library.json.bad: {error}",
+  "@libraryShelfDamaged": {
+    "description": "Notice at startup when library.json, the list of films and jobs, has content Kando cannot read; the file was copied to library.json.bad and Kando goes on with what it could read. Keep the file name as it is.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "unexpected end of JSON input"
+      }
+    }
+  },
+  "libraryShelfDamagedUnsaved": "The film list has content Kando can't read, and a copy couldn't be saved, so Kando won't save the list until it restarts: {error}",
+  "@libraryShelfDamagedUnsaved": {
+    "description": "Error at startup when library.json has content Kando cannot read and the copy beside it could not be written; Kando then does not write library.json, so nothing in it is lost.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
+      }
+    }
+  },
+  "libraryShelfNotSaved": "Kando couldn't read the film list in full, so it won't save the list until it restarts.",
+  "@libraryShelfNotSaved": {
+    "description": "Error when Kando was about to save library.json, the list of films and jobs, but does not, because at startup the file could not be read in full and no copy of it could be kept; writing it would lose what Kando could not read."
+  },
   "libraryShelfReadFailed": "Couldn't read the film list: {error}",
   "@libraryShelfReadFailed": {
     "description": "Error when the list of films and jobs (library.json) could not be read.",
