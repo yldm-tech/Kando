@@ -1319,7 +1319,7 @@ func TestOpenedFilesWaitForTheWindow(t *testing.T) {
 		t.Fatalf("jobs %#v still waiting %q", a.library.Jobs, a.lib.opened)
 	}
 	for _, path := range paths {
-		if !libraryHasJobFor(a.library.Jobs, fileURL(path)) {
+		if !libraryHasJobFor(a.library.Jobs, core.FileURL(path)) {
 			t.Fatalf("no job for %s: %#v", path, a.library.Jobs)
 		}
 	}
@@ -1369,7 +1369,7 @@ func TestOpenedFileThatIsNotAVideoWarns(t *testing.T) {
 	}
 }
 
-// TestOpenedVideoAlreadyQueuedIsNotAddedAgain opens a video and a symbolic link to it in one batch, which queues it once, then opens it again while it is being processed, by the same path and by other ones, as macOS hands a video named on the command line to the app twice: it is not queued again. Once its job has stopped, opening it again adds it again.
+// TestOpenedVideoAlreadyQueuedIsNotAddedAgain opens a video and a symbolic link to it in one batch, which queues it once, then opens it again while it is being processed, by the same path and by other ones, as macOS hands a video named on the command line to the app twice: it is not queued again. Once its job has stopped, opening it again queues it again, on the card it has (queueTake retries a stopped job rather than adding a second one).
 func TestOpenedVideoAlreadyQueuedIsNotAddedAgain(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{block: true})
 	t.Cleanup(func() { libraryStopJobs(a, updates) })
@@ -1399,8 +1399,8 @@ func TestOpenedVideoAlreadyQueuedIsNotAddedAgain(t *testing.T) {
 	libraryStopJobs(a, updates)
 	a.libraryOpenFile(video)
 	(<-updates)()
-	if len(a.library.Jobs) != 2 {
-		t.Fatalf("a video whose job stopped was not added again: %#v", a.library.Jobs)
+	if len(a.library.Jobs) != 1 || a.RunningJob() != a.library.Jobs[0].ID {
+		t.Fatalf("a video whose job stopped was not queued again on its card: jobs %#v running %q", a.library.Jobs, a.RunningJob())
 	}
 }
 

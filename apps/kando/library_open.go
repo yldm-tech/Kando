@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+
+	"kando/apps/kando/films"
+	"kando/packages/core"
 )
 
 // Files the system opens with Kando: a video chosen with Finder's Open With or dropped on the Dock icon (the fileAssociations of mygo.json), or named on the command line, as in `kando ~/Movies/clip.mp4`, which cli.OpensWindow lets through to the window. On Windows and Linux a second launch with a file hands it to the running copy through the single-instance lock. MyGo reports each file to main's mygo.App.OnOpenFile on the main thread, which calls libraryOpenFile.
@@ -67,20 +70,24 @@ func (a *app) libraryAddOpened() {
 func (a *app) libraryInQueue(path string, info os.FileInfo) bool {
 	dir := a.snap().LibraryDir
 	for _, job := range a.library.Jobs {
-		if job.Stage.Done() || !inQueueLibrary(job, dir) {
+		if job.Stage.Done() || !films.InLibrary(dir, job) {
 			continue
 		}
 		u, err := url.Parse(job.Source)
-		if err != nil || u.Scheme != "file" || u.Path == "" {
+		if err != nil {
 			continue
 		}
-		if filepath.Clean(u.Path) == path {
+		source, local := core.FilePath(u)
+		if !local {
+			continue
+		}
+		if filepath.Clean(source) == path {
 			return true
 		}
 		if info == nil {
 			continue
 		}
-		if other, err := os.Stat(u.Path); err == nil && os.SameFile(info, other) {
+		if other, err := os.Stat(source); err == nil && os.SameFile(info, other) {
 			return true
 		}
 	}
