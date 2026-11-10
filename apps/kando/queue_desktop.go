@@ -13,7 +13,7 @@ import (
 	"github.com/egoist/mygo"
 )
 
-// What the queue tells the system outside the window: a notification when a job it ran is done or failed while the app is in the background, which opens the film, or shows its card, when it is clicked; the number of jobs still to do as the badge on the app's icon; and how far the running job has gone in its stage as the app's progress bar (on the Dock icon on macOS, the taskbar button on Windows, where the desktop shows one on Linux).
+// What the queue tells the system outside the window: a notification when a job it ran is done or failed while the app is in the background, which opens the film, or shows its card, when it is clicked; the number of jobs still to do as the badge on the app's Dock icon, on macOS only (MyGo's SetBadgeCount sets the Dock badge, which does nothing on other platforms); and how far the running job has gone in its stage as the app's progress bar (on the Dock icon on macOS, the taskbar button on Windows, where the desktop shows one on Linux). So Windows and Linux show the progress bar and no count.
 
 // queueDesktop is how the queue reaches the system. Every field is nil until main's window is ready (queueHooks' ready sets them, queueSystemDesktop), and in tests that do not set them, so the queue then tells the system nothing.
 type queueDesktop struct {
@@ -22,7 +22,7 @@ type queueDesktop struct {
 	// notify posts a notification with id, title and body, and returns without waiting for the system. clear removes the app's notifications. Both are nil where the system shows none of the app's, as on macOS for an app that is not packaged.
 	notify func(id, title, body string)
 	clear  func()
-	// badge shows n on the app's icon, and removes the badge for 0. progress shows the progress bar, or removes it for the zero ProgressBar.
+	// badge shows n on the app's Dock icon (macOS only), and removes the badge for 0. progress shows the progress bar, or removes it for the zero ProgressBar.
 	badge    func(n int)
 	progress func(p mygo.ProgressBar)
 }
@@ -59,13 +59,16 @@ func queueShowNotification(id, title, body string) {
 }
 
 // queueDesktopReady starts telling the system about the queue once main's window exists. A click on a notification of this run or of an earlier one opens what it is about (queueNotificationClicked); its listener is registered by restore, before App.Run, so the click that launched the app is heard too.
-func (a *app) queueDesktopReady() {
-	a.queue.sys.desktop = queueSystemDesktop(a.win)
+func (a *app) queueDesktopReady() { a.queueUseDesktop(queueSystemDesktop(a.win)) }
+
+// queueUseDesktop has the queue reach the system through d from now on, and tells it at once what the icon should show: what the queue worked out before had nowhere to go.
+func (a *app) queueUseDesktop(d queueDesktop) {
+	a.queue.sys.desktop = d
 	a.queue.sys.told = false
 	a.queueTellSystem()
 }
 
-// queueListenForClicks registers the queue's listener for clicks on its notifications. restore calls it, which in main runs before App.Run.
+// queueListenForClicks registers the queue's listener for clicks on its notifications. restore calls it, which in main runs once, before App.Run. The listener is added to the process-wide mygo.App and is never removed, so each call adds another: a second call in main would open a clicked job twice, and each test that calls restoreSettings leaves one behind that never fires.
 func (a *app) queueListenForClicks() {
 	mygo.App.OnNotificationClick(a.queueNotificationClicked)
 }

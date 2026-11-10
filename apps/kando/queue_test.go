@@ -2124,6 +2124,39 @@ func TestTheBadgeAndProgressFollowTheQueue(t *testing.T) {
 	}
 }
 
+// TestTheIconCountsTheOpenLibraryAndReachesALateDesktop checks that a job waiting in another library is left out of the badge, as it runs only once that library is open again, and that what the queue worked out before it could reach the system, as before the window is ready, is told as soon as it can.
+func TestTheIconCountsTheOpenLibraryAndReachesALateDesktop(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	f := useFakeDesktop(a)
+	d := a.queue.sys.desktop
+	a.queue.sys.desktop = queueDesktop{}
+	a.library.Upsert(core.Job{ID: "elsewhere", Source: "https://example.com/elsewhere", Stage: core.StageQueued, LibraryDir: "/libraries/other"})
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	if len(f.badges) != 0 || len(f.bars) != 0 {
+		t.Fatalf("told the system before it could reach it: badges %v, bars %+v", f.badges, f.bars)
+	}
+
+	a.queueUseDesktop(d)
+	if len(f.badges) != 1 || f.badge() != 2 {
+		t.Fatalf("badges %v, want [2]: the running job and the one waiting in the open library", f.badges)
+	}
+	if len(f.bars) != 1 || f.bar() != (mygo.ProgressBar{State: mygo.ProgressIndeterminate}) {
+		t.Fatalf("bars %+v, want one indeterminate bar", f.bars)
+	}
+
+	g.release <- struct{}{}
+	nextStarted(t, g, updates)
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+	if f.badge() != 0 || f.bar() != (mygo.ProgressBar{}) {
+		t.Fatalf("with only another library's job waiting: badge %d, bar %+v", f.badge(), f.bar())
+	}
+}
+
 // TestComingToTheFrontClearsTheNotifications checks that the queue removes its notifications as the app becomes the active one, and that an app whose queue has no way to the system, as before the window is ready, does nothing then.
 func TestComingToTheFrontClearsTheNotifications(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
