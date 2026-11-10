@@ -2497,10 +2497,13 @@
     box-shadow: inset 0 -1px 0 rgba(28, 25, 22, 0.06);
   }
   .sites-table tbody th {
-    display: flex;
-    align-items: center;
-    gap: 10px;
     font-weight: 500;
+  }
+  .sites-table tbody th > img,
+  .sites-table tbody th > .initial {
+    display: inline-flex;
+    margin-right: 10px;
+    vertical-align: middle;
   }
   .sites-table td {
     color: var(--ink-2);
