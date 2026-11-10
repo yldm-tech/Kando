@@ -2820,6 +2820,32 @@
       }
     }
   },
+  "queueRemedyDownloadYtdlp": "Download yt-dlp and Retry",
+  "@queueRemedyDownloadYtdlp": {
+    "description": "Button of the card of a download yt-dlp was too old for, when Kando cannot update the yt-dlp on this computer: download Kando's own yt-dlp and download again with it."
+  },
+  "queueRemedyDownloadYtdlpFailed": "Couldn't download yt-dlp: {error}. Try again, or update the yt-dlp on this computer and retry.",
+  "@queueRemedyDownloadYtdlpFailed": {
+    "description": "Under the headline of the card of a download yt-dlp was too old for, when downloading Kando's own yt-dlp failed.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "HTTP 503"
+      }
+    }
+  },
+  "queueRemedyDownloadingYtdlp": "Downloading yt-dlp…",
+  "@queueRemedyDownloadingYtdlp": {
+    "description": "Headline of the card of a download yt-dlp was too old for, while Kando downloads its own yt-dlp."
+  },
+  "queueRemedyDownloadingYtdlpAction": "Downloading…",
+  "@queueRemedyDownloadingYtdlpAction": {
+    "description": "Disabled button of the card while Kando downloads its own yt-dlp."
+  },
+  "queueRemedyDownloadingYtdlpWhy": "The download starts again once Kando has its own yt-dlp.",
+  "@queueRemedyDownloadingYtdlpWhy": {
+    "description": "Under the headline of the card while Kando downloads its own yt-dlp."
+  },
   "queueRemedyDrm": "{site} is DRM-protected",
   "@queueRemedyDrm": {
     "description": "Headline of a failed download's card: the site encrypts its videos with DRM.",
@@ -2933,6 +2959,20 @@
       "site": {
         "type": "String",
         "example": "YouTube"
+      }
+    }
+  },
+  "queueRemedyOutdatedDownloadWhy": "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Or let Kando download its own.",
+  "@queueRemedyOutdatedDownloadWhy": {
+    "description": "Under the headline when yt-dlp needs an update Kando cannot do itself and Kando can download its own yt-dlp instead; hint is how the user updates the installed one (queueYtdlpHint…).",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2024.03.10"
+      },
+      "hint": {
+        "type": "String",
+        "example": "yt-dlp came with your system's packages; update it with your package manager"
       }
     }
   },
@@ -3182,6 +3222,20 @@
       }
     }
   },
+  "queueYtdlpDownloaded": "Downloaded Kando's own yt-dlp {version} and restarted {count, plural, one {# download} other {# downloads}}.",
+  "@queueYtdlpDownloaded": {
+    "description": "Message bar after Kando downloaded its own yt-dlp for a card and queued again the downloads the old one was too old for.",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "2026.10.26"
+      },
+      "count": {
+        "type": "int",
+        "example": "2"
+      }
+    }
+  },
   "queueYtdlpHintBrew": "run brew upgrade yt-dlp in a terminal",
   "@queueYtdlpHintBrew": {
     "description": "How to update a yt-dlp installed with Homebrew that Kando cannot update; it follows a colon in a sentence."
@@ -3199,6 +3253,10 @@
         "example": "/usr/local/bin"
       }
     }
+  },
+  "queueYtdlpHintSystem": "yt-dlp came with your system's packages; update it with your package manager",
+  "@queueYtdlpHintSystem": {
+    "description": "How to update a yt-dlp a Linux distribution's packages installed, which Kando cannot update; it follows a colon in a sentence."
   },
   "queueYtdlpLatest": "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again in a day or two.",
   "@queueYtdlpLatest": {

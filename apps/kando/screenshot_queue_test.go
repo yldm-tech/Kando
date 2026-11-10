@@ -1,17 +1,20 @@
 package main
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/packages/core"
+	"kando/packages/media"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
-// TestScreenshotsQueue renders the queue (screenshot_helpers_test.go): three links added at once while the pipeline holds the first in its download, so the queue shows one card downloading and the others waiting; and the confirmation ⌘Q opens over it while that job runs. Besides that it renders what the message bar says when the link added in the top bar is one the library already has waiting, one it has already processed, with 打开, and a channel's.
+// TestScreenshotsQueue renders the queue (screenshot_helpers_test.go): three links added at once while the pipeline holds the first in its download, so the queue shows one card downloading and the others waiting; and the confirmation ⌘Q opens over it while that job runs. Besides that it renders what the message bar says when the link added in the top bar is one the library already has waiting, one it has already processed, with 打开, and a channel's. It also renders the card of a download yt-dlp was too old for (Street Food Night Tour, j5) when the yt-dlp is one the system's packages installed, which Kando cannot update: without a yt-dlp Kando can download for itself, with one, and while that one downloads.
 func TestScreenshotsQueue(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// add types link into the top bar and clicks 开始处理. The fixture's tools have no speech model, which precheck asks for before a job is added, so the scene's pipeline is one precheck does not look into.
@@ -42,6 +45,20 @@ func TestScreenshotsQueue(t *testing.T) {
 		screenshotQueueDownloading(t, a, updates)
 		a.areasBeforeQuit(&mygo.QuitEvent{})
 	})
+	f.shoot(t, "queue-outdated-system", func(a *app, tt *ui.Tester, _ chan func()) {
+		queueShotOutdated(t, f, a, tt, false)
+	})
+	f.shoot(t, "queue-outdated-system-kit", func(a *app, tt *ui.Tester, _ chan func()) {
+		queueShotOutdated(t, f, a, tt, true)
+	})
+	f.shoot(t, "queue-outdated-system-kit-downloading", func(a *app, tt *ui.Tester, _ chan func()) {
+		queueShotOutdated(t, f, a, tt, true)
+		if kit, ok := media.KitFor("yt-dlp"); ok {
+			a.queue.ytdlp.kitRetry = true
+			a.kits.running["yt-dlp"] = &kitDownload{written: kit.Size / 3, total: kit.Size, cancel: func() {}}
+		}
+		tt.Frame()
+	})
 }
 
 // screenshotQueueDownloading adds three links at once while the pipeline holds the first in its download, and returns once that one is downloading.
@@ -57,6 +74,33 @@ func screenshotQueueDownloading(t *testing.T, a *app, updates chan func()) {
 			fn()
 		case <-deadline:
 			t.Fatalf("no job started downloading: %+v", a.library.Jobs)
+		}
+	}
+}
+
+// queueShotOutdated makes j5's download one yt-dlp was too old for, with the yt-dlp a Linux distribution's packages put in /usr/bin, and scrolls 处理中 under the top bar. kit gives Kando a folder of its own in the fixture's home, so that it offers to download its own yt-dlp where there is one for the platform.
+func queueShotOutdated(t *testing.T, f *screenshotFixture, a *app, tt *ui.Tester, kit bool) {
+	t.Helper()
+	if kit {
+		saved := media.OwnToolsDir
+		media.OwnToolsDir = filepath.Join(f.home, "Library", "Application Support", "Kando", "tools")
+		t.Cleanup(func() { media.OwnToolsDir = saved })
+	}
+	job := f.job(t, "j5")
+	job.FailKind = core.FailOutdated
+	a.library.Upsert(job)
+	a.queue.ytdlp.path, a.queue.ytdlp.version = "/usr/bin/yt-dlp", "2024.03.10"
+	a.queue.ytdlp.install = media.YTDLPInstall{Kind: "system", Dir: "/usr/bin"}
+	tt.Frame()
+	for range 4 {
+		r, ok := tt.Find(locales.FilmsQueueTitle())
+		if !ok {
+			t.Fatalf("no queue to scroll to; texts %q", tt.Texts())
+		}
+		if d := r.Y - 66; d*d >= 0.25 {
+			tt.Move(760, 500)
+			tt.Scroll(760, 500, 0, d)
+			tt.Frame()
 		}
 	}
 }

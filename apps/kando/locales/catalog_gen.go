@@ -7912,6 +7912,90 @@ func (msgs Messages) QueueRemedyCookiesWhy(browser string) string {
 	return Catalog.Format(msgs.locale, "queueRemedyCookiesWhy", map[string]any{"browser": browser})
 }
 
+// QueueRemedyDownloadYtdlp says "Download yt-dlp and Retry"
+// in the language the app shows.
+//
+// Button of the card of a download yt-dlp was too old for, when Kando
+// cannot update the yt-dlp on this computer: download Kando's own yt-dlp
+// and download again with it.
+func QueueRemedyDownloadYtdlp() string { return In(i18n.Locale()).QueueRemedyDownloadYtdlp() }
+
+// QueueRemedyDownloadYtdlp says "Download yt-dlp and Retry"
+// in the language of msgs.
+//
+// Button of the card of a download yt-dlp was too old for, when Kando
+// cannot update the yt-dlp on this computer: download Kando's own yt-dlp
+// and download again with it.
+func (msgs Messages) QueueRemedyDownloadYtdlp() string {
+	return Catalog.Format(msgs.locale, "queueRemedyDownloadYtdlp", nil)
+}
+
+// QueueRemedyDownloadYtdlpFailed says "Couldn't download yt-dlp: {error}. Try again, or update the yt-dlp on this computer and retry."
+// in the language the app shows.
+//
+// Under the headline of the card of a download yt-dlp was too old for, when
+// downloading Kando's own yt-dlp failed.
+func QueueRemedyDownloadYtdlpFailed(error string) string {
+	return In(i18n.Locale()).QueueRemedyDownloadYtdlpFailed(error)
+}
+
+// QueueRemedyDownloadYtdlpFailed says "Couldn't download yt-dlp: {error}. Try again, or update the yt-dlp on this computer and retry."
+// in the language of msgs.
+//
+// Under the headline of the card of a download yt-dlp was too old for, when
+// downloading Kando's own yt-dlp failed.
+func (msgs Messages) QueueRemedyDownloadYtdlpFailed(error string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyDownloadYtdlpFailed", map[string]any{"error": error})
+}
+
+// QueueRemedyDownloadingYtdlp says "Downloading yt-dlp…"
+// in the language the app shows.
+//
+// Headline of the card of a download yt-dlp was too old for, while Kando
+// downloads its own yt-dlp.
+func QueueRemedyDownloadingYtdlp() string { return In(i18n.Locale()).QueueRemedyDownloadingYtdlp() }
+
+// QueueRemedyDownloadingYtdlp says "Downloading yt-dlp…"
+// in the language of msgs.
+//
+// Headline of the card of a download yt-dlp was too old for, while Kando
+// downloads its own yt-dlp.
+func (msgs Messages) QueueRemedyDownloadingYtdlp() string {
+	return Catalog.Format(msgs.locale, "queueRemedyDownloadingYtdlp", nil)
+}
+
+// QueueRemedyDownloadingYtdlpAction says "Downloading…"
+// in the language the app shows.
+//
+// Disabled button of the card while Kando downloads its own yt-dlp.
+func QueueRemedyDownloadingYtdlpAction() string {
+	return In(i18n.Locale()).QueueRemedyDownloadingYtdlpAction()
+}
+
+// QueueRemedyDownloadingYtdlpAction says "Downloading…"
+// in the language of msgs.
+//
+// Disabled button of the card while Kando downloads its own yt-dlp.
+func (msgs Messages) QueueRemedyDownloadingYtdlpAction() string {
+	return Catalog.Format(msgs.locale, "queueRemedyDownloadingYtdlpAction", nil)
+}
+
+// QueueRemedyDownloadingYtdlpWhy says "The download starts again once Kando has its own yt-dlp."
+// in the language the app shows.
+//
+// Under the headline of the card while Kando downloads its own yt-dlp.
+func QueueRemedyDownloadingYtdlpWhy() string {
+	return In(i18n.Locale()).QueueRemedyDownloadingYtdlpWhy()
+}
+
+// QueueRemedyDownloadingYtdlpWhy says "The download starts again once Kando has its own yt-dlp."
+// in the language of msgs.
+//
+// Under the headline of the card while Kando downloads its own yt-dlp.
+func (msgs Messages) QueueRemedyDownloadingYtdlpWhy() string {
+	return Catalog.Format(msgs.locale, "queueRemedyDownloadingYtdlpWhy", nil)
+}
+
 // QueueRemedyDrm says "{site} is DRM-protected"
 // in the language the app shows.
 //
@@ -8198,6 +8282,26 @@ func QueueRemedyOutdated(site string) string { return In(i18n.Locale()).QueueRem
 // needs an update.
 func (msgs Messages) QueueRemedyOutdated(site string) string {
 	return Catalog.Format(msgs.locale, "queueRemedyOutdated", map[string]any{"site": site})
+}
+
+// QueueRemedyOutdatedDownloadWhy says "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Or let Kando download its own."
+// in the language the app shows.
+//
+// Under the headline when yt-dlp needs an update Kando cannot do itself and
+// Kando can download its own yt-dlp instead; hint is how the user updates
+// the installed one (queueYtdlpHint…).
+func QueueRemedyOutdatedDownloadWhy(version string, hint string) string {
+	return In(i18n.Locale()).QueueRemedyOutdatedDownloadWhy(version, hint)
+}
+
+// QueueRemedyOutdatedDownloadWhy says "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Or let Kando download its own."
+// in the language of msgs.
+//
+// Under the headline when yt-dlp needs an update Kando cannot do itself and
+// Kando can download its own yt-dlp instead; hint is how the user updates
+// the installed one (queueYtdlpHint…).
+func (msgs Messages) QueueRemedyOutdatedDownloadWhy(version string, hint string) string {
+	return Catalog.Format(msgs.locale, "queueRemedyOutdatedDownloadWhy", map[string]any{"version": version, "hint": hint})
 }
 
 // QueueRemedyOutdatedLatest says "{site} has changed, and the download component hasn't caught up yet"
@@ -8812,6 +8916,24 @@ func (msgs Messages) QueueUpdateFailed(error string) string {
 	return Catalog.Format(msgs.locale, "queueUpdateFailed", map[string]any{"error": error})
 }
 
+// QueueYtdlpDownloaded says "Downloaded Kando's own yt-dlp {version} and restarted {count, plural, one {# download} other {# downloads}}."
+// in the language the app shows.
+//
+// Message bar after Kando downloaded its own yt-dlp for a card and queued
+// again the downloads the old one was too old for.
+func QueueYtdlpDownloaded(version string, count int) string {
+	return In(i18n.Locale()).QueueYtdlpDownloaded(version, count)
+}
+
+// QueueYtdlpDownloaded says "Downloaded Kando's own yt-dlp {version} and restarted {count, plural, one {# download} other {# downloads}}."
+// in the language of msgs.
+//
+// Message bar after Kando downloaded its own yt-dlp for a card and queued
+// again the downloads the old one was too old for.
+func (msgs Messages) QueueYtdlpDownloaded(version string, count int) string {
+	return Catalog.Format(msgs.locale, "queueYtdlpDownloaded", map[string]any{"version": version, "count": count})
+}
+
 // QueueYtdlpHintBrew says "run brew upgrade yt-dlp in a terminal"
 // in the language the app shows.
 //
@@ -8860,6 +8982,22 @@ func QueueYtdlpHintStandalone(dir string) string {
 // follows a colon in a sentence.
 func (msgs Messages) QueueYtdlpHintStandalone(dir string) string {
 	return Catalog.Format(msgs.locale, "queueYtdlpHintStandalone", map[string]any{"dir": dir})
+}
+
+// QueueYtdlpHintSystem says "yt-dlp came with your system's packages; update it with your package manager"
+// in the language the app shows.
+//
+// How to update a yt-dlp a Linux distribution's packages installed, which
+// Kando cannot update; it follows a colon in a sentence.
+func QueueYtdlpHintSystem() string { return In(i18n.Locale()).QueueYtdlpHintSystem() }
+
+// QueueYtdlpHintSystem says "yt-dlp came with your system's packages; update it with your package manager"
+// in the language of msgs.
+//
+// How to update a yt-dlp a Linux distribution's packages installed, which
+// Kando cannot update; it follows a colon in a sentence.
+func (msgs Messages) QueueYtdlpHintSystem() string {
+	return Catalog.Format(msgs.locale, "queueYtdlpHintSystem", nil)
 }
 
 // QueueYtdlpLatest says "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again…"

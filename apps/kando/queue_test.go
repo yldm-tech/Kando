@@ -1018,6 +1018,111 @@ func TestUpdateThatFindsTheNewestRunsNothingAgain(t *testing.T) {
 	}
 }
 
+// systemYTDLP makes the yt-dlp at path, version 2024.03.10, the one the queue knows, installed as media.FindYTDLPInstall finds the one a Linux distribution's packages put in /usr/bin: a Python script Kando may not write, which it cannot update.
+func systemYTDLP(a *app, path string) {
+	a.queue.ytdlp.path, a.queue.ytdlp.version = path, "2024.03.10"
+	a.queue.ytdlp.install = media.YTDLPInstall{Kind: "system", Dir: filepath.Dir(path)}
+}
+
+// A yt-dlp the system's packages installed is not upgraded with pip: its card says to update it with the package manager, and where Kando can download a yt-dlp of its own it offers that first, says while it downloads, and says why when the download failed, offering it again.
+func TestOutdatedWithASystemYTDLPOffersKandosOwn(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	systemYTDLP(a, "/usr/bin/yt-dlp")
+	film := failedJob(t, a, "https://www.youtube.com/watch?v=Rg5Lk2Pz8Wd", core.FailOutdated, "")
+	r, _ := a.FailureRemedy(film)
+	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 是随系统软件包安装的，用系统的包管理器更新它。更新后再重试。" || strings.Join(remedyLabels(r), ",") != "已更新，重试" {
+		t.Fatalf("without a yt-dlp to download: %+v", r)
+	}
+
+	release := make(chan struct{})
+	fakeKits(t, a, release, "yt-dlp")
+	r, _ = a.FailureRemedy(film)
+	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 是随系统软件包安装的，用系统的包管理器更新它。也可以让看懂下载自己的一份。" ||
+		strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" || r.Actions[0].ID != remedyDownloadYTDLP || !r.Actions[0].Primary || r.Actions[1].ID != remedyRetry {
+		t.Fatalf("with a yt-dlp to download: %+v", r)
+	}
+	tt.Frame()
+	if err := tt.Click("下载 yt-dlp 并重试"); err != nil {
+		t.Fatal(err)
+	}
+	if got := a.kitsDownloading(); len(got) != 1 || got[0] != "yt-dlp" {
+		t.Fatalf("downloading %v", got)
+	}
+	r, _ = a.FailureRemedy(film)
+	if r.Headline != "正在下载 yt-dlp…" || r.Why != "看懂自己的 yt-dlp 下载好后，会自动重新下载。" || !r.Working || len(r.Actions) != 1 || !r.Actions[0].Disabled {
+		t.Fatalf("while downloading: %+v", r)
+	}
+
+	close(release)
+	waitUntil(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
+	r, _ = a.FailureRemedy(film)
+	if r.Why != "没能下载 yt-dlp：HTTP 503。再试一次，或更新本机的 yt-dlp 后重试。" || strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" {
+		t.Fatalf("after the download failed: %+v", r)
+	}
+	if job := stageOf(t, a, film.JobID); job.Stage != core.StageFailed || job.FailKind != core.FailOutdated {
+		t.Fatalf("the download ran again without a yt-dlp: %+v", job)
+	}
+}
+
+// Once the yt-dlp 下载 yt-dlp 并重试 asked for is in, the tools are looked up again and find it, and every download yt-dlp was too old for runs again with it.
+func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
+	kit, ok := media.KitFor("yt-dlp")
+	if !ok {
+		t.Skip("Kando downloads no yt-dlp on this platform")
+	}
+	a, tt, updates := newTestApp(toolsForRemedies(t, recordingYTDLP(t, filepath.Join(t.TempDir(), "system-args"), "")))
+	// The tools are looked up again with ffmpeg and whisper-cli first on PATH; Kando's own yt-dlp comes before any on PATH.
+	bin := t.TempDir()
+	for _, name := range []string{"ffmpeg", "whisper-cli"} {
+		if err := os.Symlink("/bin/false", filepath.Join(bin, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	own := t.TempDir()
+	saved := media.OwnToolsDir
+	media.OwnToolsDir = own
+	t.Cleanup(func() { media.OwnToolsDir = saved })
+	args := filepath.Join(t.TempDir(), "args")
+	downloaded := recordingYTDLP(t, args, "")
+	a.kits.install = func(ctx context.Context, kit media.Kit, dir string, progress func(written, total int64)) (string, error) {
+		data, err := os.ReadFile(downloaded)
+		if err != nil {
+			return "", err
+		}
+		path := filepath.Join(dir, kit.ID, kit.Program)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return "", err
+		}
+		return path, os.WriteFile(path, data, 0o755)
+	}
+
+	source := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	if err := a.Enqueue(source); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	id := a.library.Jobs[0].ID
+	if job := stageOf(t, a, id); job.Stage != core.StageFailed || job.FailKind != core.FailOutdated {
+		t.Fatalf("job %+v", job)
+	}
+	systemYTDLP(a, a.pipeline.(media.Tools).YTDLP)
+	film, _ := a.JobFilm(id)
+	a.RunRemedy(film, remedyDownloadYTDLP)
+	waitUntil(t, updates, func() bool { return !a.queue.ytdlp.kitRetry })
+	if want := filepath.Join(own, kit.ID, "yt-dlp"); a.pipeline.(media.Tools).YTDLP != want {
+		t.Fatalf("the pipeline downloads with %q, want %q", a.pipeline.(media.Tools).YTDLP, want)
+	}
+	if want := "已下载看懂自己的 yt-dlp " + kit.Version + "，已重新开始下载 1 个视频。"; a.lib.notice.Text != want {
+		t.Fatalf("notice %q, want %q", a.lib.notice.Text, want)
+	}
+	settle(t, a, tt, updates)
+	data, _ := os.ReadFile(args)
+	if strings.Count(string(data), source) != 1 {
+		t.Fatalf("Kando's yt-dlp ran with\n%s", data)
+	}
+}
+
 func TestOpenSystemSettingsForSafarisLogin(t *testing.T) {
 	var opened string
 	old := openExternal

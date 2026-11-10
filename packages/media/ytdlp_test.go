@@ -51,6 +51,24 @@ func TestFindYTDLPInstallTellsHowItWasInstalled(t *testing.T) {
 	if got := FindYTDLPInstall(standalone); got.Kind != "standalone" || strings.Join(got.Update, " ") != standalone+" -U" {
 		t.Fatalf("standalone: %+v", got)
 	}
+	// A Python script Kando may not write, as the one a Linux distribution's packages put in /usr/bin, is the system's to update: pip would leave it as it is.
+	system := filepath.Join(root, "usr", "bin", "yt-dlp")
+	writeExec(t, system, "#!/usr/bin/python3\nimport yt_dlp\n")
+	if err := os.Chmod(system, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Dir(system), 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(filepath.Dir(system), 0o755) })
+	if os.Geteuid() != 0 {
+		if got := FindYTDLPInstall(system); got.Kind != "system" || got.Update != nil || got.Dir != filepath.Dir(system) {
+			t.Fatalf("system: %+v", got)
+		}
+		if _, err := UpdateYTDLP(context.Background(), system); !errors.Is(err, ErrCannotUpdate) {
+			t.Fatalf("system update: %v", err)
+		}
+	}
 	// One Kando may not replace says how instead.
 	if err := os.Chmod(standalone, 0o555); err != nil {
 		t.Fatal(err)

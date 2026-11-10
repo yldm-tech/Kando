@@ -14,7 +14,7 @@ import (
 
 // YTDLPInstall is how the yt-dlp at a path was installed, which decides how it is updated.
 type YTDLPInstall struct {
-	// Kind is "homebrew", "pipx", "pip" or "standalone".
+	// Kind is "homebrew", "pipx", "pip", "system" or "standalone". "system" is a Python script Kando may not write outside Homebrew and pipx, as the yt-dlp a Linux distribution's packages put in /usr/bin: pip cannot upgrade it in place (it is missing there, refuses an externally managed Python, or installs a copy for the user that leaves the one Kando runs as it was), so only the package manager updates it.
 	Kind string
 	// Update is the command that updates it, or nil when Kando cannot; the app then tells the user how from Kind and Dir.
 	Update []string
@@ -25,7 +25,7 @@ type YTDLPInstall struct {
 // ErrCannotUpdate is UpdateYTDLP's error when Kando cannot update the yt-dlp itself (its YTDLPInstall has no Update).
 var ErrCannotUpdate = errors.New("yt-dlp cannot be updated by Kando")
 
-// FindYTDLPInstall tells how the yt-dlp at path was installed: by Homebrew (its file is in a Cellar), by pipx or pip (it is a Python script), or as the standalone build, which updates itself with -U when Kando may write it.
+// FindYTDLPInstall tells how the yt-dlp at path was installed: by Homebrew (its file is in a Cellar), by pipx (a Python script in a pipx venv), by pip (a Python script Kando may write) or by the system's package manager (one it may not), or as the standalone build, which updates itself with -U when Kando may write it.
 func FindYTDLPInstall(path string) YTDLPInstall {
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
@@ -47,7 +47,10 @@ func FindYTDLPInstall(path string) YTDLPInstall {
 			}
 			return YTDLPInstall{Kind: "pipx", Dir: dir}
 		}
-		return YTDLPInstall{Kind: "pip", Update: []string{interpreter, "-m", "pip", "install", "--upgrade", "yt-dlp"}, Dir: dir}
+		if writable(resolved) {
+			return YTDLPInstall{Kind: "pip", Update: []string{interpreter, "-m", "pip", "install", "--upgrade", "yt-dlp"}, Dir: dir}
+		}
+		return YTDLPInstall{Kind: "system", Dir: dir}
 	}
 	if writable(resolved) {
 		return YTDLPInstall{Kind: "standalone", Update: []string{resolved, "-U"}, Dir: dir}
