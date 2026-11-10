@@ -101,8 +101,9 @@ const (
 	RedoMissing Redo = "missing"
 )
 
+// NewJob is a queued job for source: an http or https link, a web address typed without a scheme, which the job keeps with https:// before it (WithScheme), or a local video's file:// URL.
 func NewJob(source string) (Job, error) {
-	source = strings.TrimSpace(source)
+	source = WithScheme(strings.TrimSpace(source))
 	if source == "" {
 		return Job{}, ErrEmptySource
 	}

@@ -12,6 +12,7 @@ import (
 
 	"kando/apps/kando/browse"
 	"kando/apps/kando/locales"
+	"kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo"
@@ -264,7 +265,7 @@ func browseTarget(text, language string) string {
 	if u, err := url.Parse(text); err == nil && (strings.EqualFold(u.Scheme, "http") || strings.EqualFold(u.Scheme, "https")) && u.Host != "" {
 		return text
 	}
-	if browseLooksLikeHost(text) {
+	if core.LooksLikeHost(text) {
 		return "https://" + text
 	}
 	search := "https://www.google.com/search?q="
@@ -272,61 +273,6 @@ func browseTarget(text, language string) string {
 		search = "https://www.bing.com/search?q="
 	}
 	return search + url.QueryEscape(text)
-}
-
-// browseLooksLikeHost reports whether text, without a scheme, starts with a host a browser would open rather than search for: localhost, an IP address, or a name of dot-separated labels whose last is a top-level domain of letters, with a port and a path after it or not.
-func browseLooksLikeHost(text string) bool {
-	if strings.ContainsAny(text, " \t\r\n") || strings.Contains(text, "://") {
-		return false
-	}
-	host := text
-	if i := strings.IndexAny(host, "/?#"); i >= 0 {
-		host = host[:i]
-	}
-	if strings.Contains(host, "@") {
-		return false
-	}
-	if h, port, err := net.SplitHostPort(host); err == nil {
-		if _, err := strconv.ParseUint(port, 10, 16); err != nil {
-			return false
-		}
-		host = h
-	}
-	host = strings.TrimSuffix(strings.Trim(host, "[]"), ".")
-	if strings.EqualFold(host, "localhost") || net.ParseIP(host) != nil {
-		return true
-	}
-	labels := strings.Split(host, ".")
-	if len(labels) < 2 {
-		return false
-	}
-	for _, label := range labels {
-		if label == "" || strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
-			return false
-		}
-		for _, r := range label {
-			if r != '-' && !browseIsLetter(r) && (r < '0' || r > '9') {
-				return false
-			}
-		}
-	}
-	tld := labels[len(labels)-1]
-	if strings.HasPrefix(strings.ToLower(tld), "xn--") {
-		return true
-	}
-	letters := 0
-	for _, r := range tld {
-		if !browseIsLetter(r) {
-			return false
-		}
-		letters++
-	}
-	return letters >= 2
-}
-
-// browseIsLetter reports whether r is a letter a host name may hold: ASCII, or any letter of an internationalized domain name.
-func browseIsLetter(r rune) bool {
-	return r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r > 0x7F && r != 0xFFFD
 }
 
 // browseAllowed reports whether a page may go to rawURL: only http and https addresses, not files, the app's own schemes or other apps'.

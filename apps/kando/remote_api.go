@@ -618,7 +618,14 @@ func remoteLocalPath(s, dir string) (path string, local bool) {
 	if filepath.IsAbs(s) {
 		return filepath.Clean(s), true
 	}
-	if _, ok := core.ParseLink(s); ok || strings.Contains(s, "://") {
+	// A name that is a file in dir is that file, and a video's bare file name, as lecture.mov, is a file too, though notes.txt and lecture.mov read as hosts to ParseLink, which takes an address typed without https://.
+	if dir != "" && !strings.Contains(s, "://") {
+		if info, err := os.Stat(filepath.Join(dir, s)); err == nil && !info.IsDir() {
+			return filepath.Join(dir, s), true
+		}
+	}
+	bareVideo := media.IsVideoFile(s) && !strings.ContainsAny(s, `/\`)
+	if _, ok := core.ParseLink(s); !bareVideo && ok || strings.Contains(s, "://") {
 		return "", false
 	}
 	relative := strings.HasPrefix(s, "."+string(filepath.Separator)) || strings.HasPrefix(s, ".."+string(filepath.Separator)) || media.IsVideoFile(s)

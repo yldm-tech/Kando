@@ -57,11 +57,10 @@ func (l Link) OneVideo() bool {
 }
 
 var (
-	bareVideoHost = regexp.MustCompile(`(?i)^(www\.|m\.)?(youtube\.com|youtu\.be|bilibili\.com|b23\.tv)`)
-	youTubeID     = regexp.MustCompile(`^[\w-]{6,}$`)
-	bilibiliBV    = regexp.MustCompile(`BV[0-9A-Za-z]{10}`)
-	bilibiliAV    = regexp.MustCompile(`(?i)\bav\d+`)
-	bilibiliUID   = regexp.MustCompile(`^\d+$`)
+	youTubeID   = regexp.MustCompile(`^[\w-]{6,}$`)
+	bilibiliBV  = regexp.MustCompile(`BV[0-9A-Za-z]{10}`)
+	bilibiliAV  = regexp.MustCompile(`(?i)\bav\d+`)
+	bilibiliUID = regexp.MustCompile(`^\d+$`)
 )
 
 // knownSites maps a domain to the ID of the site it belongs to, the site's main domain. Sites whose videos are DRM-protected are listed too, so the warning about them can name the site.
@@ -75,7 +74,7 @@ var knownSites = map[string]string{
 	"netflix.com": "netflix.com", "disneyplus.com": "disneyplus.com", "primevideo.com": "primevideo.com", "hulu.com": "hulu.com", "max.com": "max.com", "iq.com": "iqiyi.com", "iqiyi.com": "iqiyi.com", "v.qq.com": "v.qq.com", "mgtv.com": "mgtv.com", "u-next.jp": "u-next.jp",
 }
 
-// ParseLink reads which platform, video, list or channel a link names. It accepts http and https links, YouTube and bilibili addresses typed without a scheme, and file:// URLs of local videos. It reports false for anything else, including an empty string.
+// ParseLink reads which platform, video, list or channel a link names. It accepts http and https links, web addresses typed without a scheme (LooksLikeHost), read as https, and file:// URLs of local videos. It reports false for anything else, including an empty string.
 func ParseLink(raw string) (Link, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -83,7 +82,7 @@ func ParseLink(raw string) (Link, bool) {
 	}
 	lower := strings.ToLower(raw)
 	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") && !strings.HasPrefix(lower, "file:") {
-		if !bareVideoHost.MatchString(raw) {
+		if !LooksLikeHost(raw) {
 			return Link{}, false
 		}
 		raw = "https://" + raw

@@ -31,6 +31,10 @@ func TestParseLink(t *testing.T) {
 		{"https://vimeo.com/76979871", Link{URL: "https://vimeo.com/76979871", Platform: PlatformWeb, Kind: LinkVideo, Host: "vimeo.com", Site: "vimeo.com"}},
 		{"https://www.ted.com/talks/some_talk", Link{URL: "https://www.ted.com/talks/some_talk", Platform: PlatformWeb, Kind: LinkVideo, Host: "ted.com", Site: "ted.com"}},
 		{"https://example.com/v", Link{URL: "https://example.com/v", Platform: PlatformWeb, Kind: LinkVideo, Host: "example.com"}},
+		// Any web address typed without a scheme is read as https, not only YouTube's and bilibili's.
+		{"example.com/v", Link{URL: "https://example.com/v", Platform: PlatformWeb, Kind: LinkVideo, Host: "example.com"}},
+		{"vimeo.com/76979871", Link{URL: "https://vimeo.com/76979871", Platform: PlatformWeb, Kind: LinkVideo, Host: "vimeo.com", Site: "vimeo.com"}},
+		{"www.ted.com/talks/some_talk", Link{URL: "https://www.ted.com/talks/some_talk", Platform: PlatformWeb, Kind: LinkVideo, Host: "ted.com", Site: "ted.com"}},
 		{"file:///Users/me/Movies/clip.mp4", Link{URL: "file:///Users/me/Movies/clip.mp4", Platform: PlatformLocal, Kind: LinkVideo, ID: filepath.FromSlash("/Users/me/Movies/clip.mp4")}},
 		{"  https://youtu.be/TRWgBxVAb1M  ", Link{URL: "https://youtu.be/TRWgBxVAb1M", Platform: PlatformYouTube, Kind: LinkVideo, ID: "TRWgBxVAb1M", Host: "youtu.be", Site: "youtube.com"}},
 	}
@@ -47,9 +51,28 @@ func TestParseLink(t *testing.T) {
 }
 
 func TestParseLinkRejects(t *testing.T) {
-	for _, raw := range []string{"", "   ", "not a link", "example.com/v", "ftp://example.com/v", "file://", "file://other-machine/clip.mp4", "https://", "mailto:a@b.c"} {
+	for _, raw := range []string{"", "   ", "not a link", "example", "a b.com", "ftp://example.com/v", "file://", "file://other-machine/clip.mp4", "https://", "mailto:a@b.c"} {
 		if got, ok := ParseLink(raw); ok {
 			t.Errorf("ParseLink(%q) = %+v, want false", raw, got)
+		}
+	}
+}
+
+// WithScheme puts https:// before a web address typed without one and leaves anything else alone.
+func TestWithScheme(t *testing.T) {
+	for raw, want := range map[string]string{
+		"vimeo.com/76979871":         "https://vimeo.com/76979871",
+		"youtu.be/TRWgBxVAb1M":       "https://youtu.be/TRWgBxVAb1M",
+		"localhost:8080/clip":        "https://localhost:8080/clip",
+		"https://vimeo.com/76979871": "https://vimeo.com/76979871",
+		"http://example.com/v":       "http://example.com/v",
+		"file:///tmp/a.mp4":          "file:///tmp/a.mp4",
+		"not a link":                 "not a link",
+		"example":                    "example",
+		"":                           "",
+	} {
+		if got := WithScheme(raw); got != want {
+			t.Errorf("WithScheme(%q) = %q, want %q", raw, got, want)
 		}
 	}
 }

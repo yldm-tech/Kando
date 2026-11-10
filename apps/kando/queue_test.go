@@ -703,6 +703,20 @@ func TestEnqueueSaysWhyASourceIsRefused(t *testing.T) {
 	}
 }
 
+// TestALinkTypedWithoutTheSchemeIsQueued checks that an address typed or pasted without https://, as vimeo.com/76979871, is queued with https:// before it, as a browser would open it, rather than refused as not a link.
+func TestALinkTypedWithoutTheSchemeIsQueued(t *testing.T) {
+	for _, typed := range []string{"vimeo.com/76979871", "www.youtube.com/watch?v=Rv3Hn7Qm2Ts"} {
+		t.Run(typed, func(t *testing.T) {
+			a, tt, updates := newTestApp(&fakePipeline{})
+			startJob(t, tt, typed)
+			if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://"+typed || !tt.HasText("已加入，开始处理。") {
+				t.Fatalf("jobs %+v, texts %q", a.library.Jobs, tt.Texts())
+			}
+			settle(t, a, tt, updates)
+		})
+	}
+}
+
 func TestViewRunsJobToCompletion(t *testing.T) {
 	p := &fakePipeline{}
 	a, tt, updates := newTestApp(p)

@@ -35,6 +35,17 @@ func TestStageDone(t *testing.T) {
 	}
 }
 
+// A web address typed without a scheme makes a job whose source has https:// before it, the address yt-dlp is given and the library keeps.
+func TestNewJobAddsTheScheme(t *testing.T) {
+	job, err := NewJob("  vimeo.com/76979871 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Source != "https://vimeo.com/76979871" {
+		t.Errorf("source %q, want https://vimeo.com/76979871", job.Source)
+	}
+}
+
 func TestNewJobRejectsInvalidSource(t *testing.T) {
 	if _, err := NewJob("not-a-url"); err == nil {
 		t.Fatal("expected invalid URL to be rejected")
