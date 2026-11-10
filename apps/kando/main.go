@@ -31,6 +31,8 @@ type app struct {
 	library       shelf.Library
 	pipeline      media.Pipeline
 	win           *mygo.Window
+	// services is the window's clipboard and redraws, which view keeps every frame for the commands that run outside a build, as the menu bar's and the shortcut table's: ⇧⌘C copies the playing subtitle line with it (bind_film.go).
+	services ui.Services
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 

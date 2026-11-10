@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -10,7 +11,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing muted, the speed menu, playing at 1.5× and playing with its line looped. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "film", func(a *app, tt *ui.Tester, updates chan func()) {
@@ -90,6 +91,25 @@ func TestScreenshotsPlayer(t *testing.T) {
 		screenshotClick(t, tt, "默认")
 	}))
 	breeze.SetPlatform(breeze.Auto)
+	// A right click on the second line of the subtitle list opens its menu, 拷贝台词, 拷贝原文 and 拷贝译文; the menu is the system's, which the tester lists (tt.Menu) rather than draws, so the picture shows the line under the pointer.
+	f.shoot(t, "player-line-menu", held(func(_ *app, tt *ui.Tester) {
+		if err := tt.RightClick(protoCues[1].Translation); err != nil {
+			t.Fatalf("%v; texts %q", err, tt.Texts())
+		}
+		tt.Frame()
+		if got, want := tt.Menu(), []string{"拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(got, want) {
+			t.Fatalf("the line's menu is %q, want %q", got, want)
+		}
+	}))
+	// ⇧⌘C on the first line: the picture says the line was copied.
+	f.shoot(t, "player-line-copied", func(a *app, tt *ui.Tester, updates chan func()) {
+		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+		tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+		tt.Frame()
+		if !tt.HasText("已拷贝") {
+			t.Fatalf("⇧⌘C did not say it copied: %q", tt.Texts())
+		}
+	})
 	// Without ffmpeg the film has no picture and no transport.
 	f.shoot(t, "player-no-picture", func(a *app, tt *ui.Tester, updates chan func()) {
 		a.pipeline = media.Tools{}

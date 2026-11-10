@@ -1738,6 +1738,54 @@ func (msgs Messages) FilmCopy() string {
 	return Catalog.Format(msgs.locale, "filmCopy", nil)
 }
 
+// FilmCopyLine says "Copy Line"
+// in the language the app shows.
+//
+// Item of a subtitle line's context menu in the side panel: copies the
+// line, the translation over the original as the list shows them.
+func FilmCopyLine() string { return In(i18n.Locale()).FilmCopyLine() }
+
+// FilmCopyLine says "Copy Line"
+// in the language of msgs.
+//
+// Item of a subtitle line's context menu in the side panel: copies the
+// line, the translation over the original as the list shows them.
+func (msgs Messages) FilmCopyLine() string {
+	return Catalog.Format(msgs.locale, "filmCopyLine", nil)
+}
+
+// FilmCopyOriginal says "Copy Original"
+// in the language the app shows.
+//
+// Item of a subtitle line's context menu in the side panel: copies only the
+// original line.
+func FilmCopyOriginal() string { return In(i18n.Locale()).FilmCopyOriginal() }
+
+// FilmCopyOriginal says "Copy Original"
+// in the language of msgs.
+//
+// Item of a subtitle line's context menu in the side panel: copies only the
+// original line.
+func (msgs Messages) FilmCopyOriginal() string {
+	return Catalog.Format(msgs.locale, "filmCopyOriginal", nil)
+}
+
+// FilmCopyTranslation says "Copy Translation"
+// in the language the app shows.
+//
+// Item of a subtitle line's context menu in the side panel: copies only the
+// translated line.
+func FilmCopyTranslation() string { return In(i18n.Locale()).FilmCopyTranslation() }
+
+// FilmCopyTranslation says "Copy Translation"
+// in the language of msgs.
+//
+// Item of a subtitle line's context menu in the side panel: copies only the
+// translated line.
+func (msgs Messages) FilmCopyTranslation() string {
+	return Catalog.Format(msgs.locale, "filmCopyTranslation", nil)
+}
+
 // FilmDelay says "Subtitle Delay"
 // in the language the app shows.
 //
@@ -7212,6 +7260,22 @@ func (msgs Messages) PlayerKeepAwake() string {
 	return Catalog.Format(msgs.locale, "playerKeepAwake", nil)
 }
 
+// PlayerKeyCopyLine says "Copy Current Line"
+// in the language the app shows.
+//
+// Shortcut row and menu item: copy the subtitle line playing now, the
+// translation over the original.
+func PlayerKeyCopyLine() string { return In(i18n.Locale()).PlayerKeyCopyLine() }
+
+// PlayerKeyCopyLine says "Copy Current Line"
+// in the language of msgs.
+//
+// Shortcut row and menu item: copy the subtitle line playing now, the
+// translation over the original.
+func (msgs Messages) PlayerKeyCopyLine() string {
+	return Catalog.Format(msgs.locale, "playerKeyCopyLine", nil)
+}
+
 // PlayerKeyCycleSubtitles says "Cycle Original/Translation/Bilingual"
 // in the language the app shows.
 //
@@ -7472,6 +7536,20 @@ func PlayerKeyVolumeUp() string { return In(i18n.Locale()).PlayerKeyVolumeUp() }
 // Shortcut row and menu item: louder.
 func (msgs Messages) PlayerKeyVolumeUp() string {
 	return Catalog.Format(msgs.locale, "playerKeyVolumeUp", nil)
+}
+
+// PlayerOsdCopied says "Copied"
+// in the language the app shows.
+//
+// Message on the picture after the playing subtitle line was copied.
+func PlayerOsdCopied() string { return In(i18n.Locale()).PlayerOsdCopied() }
+
+// PlayerOsdCopied says "Copied"
+// in the language of msgs.
+//
+// Message on the picture after the playing subtitle line was copied.
+func (msgs Messages) PlayerOsdCopied() string {
+	return Catalog.Format(msgs.locale, "playerOsdCopied", nil)
 }
 
 // PlayerOsdDelay says "Subtitles {delay}"

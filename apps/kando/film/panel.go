@@ -184,13 +184,13 @@ func (s screen) cueList(c *ui.Context, cues []core.Segment) {
 	}).Grow(1)
 }
 
-// cueRow is one cue of the list: its start, the translation and the original under it. A click plays from its start.
+// cueRow is one cue of the list: its start, the translation and the original under it. A click plays from its start, and a right click copies it (cueMenu).
 func (s screen) cueRow(c *ui.Context, cue core.Segment, current bool) {
 	translation, original := splitCue(cue.Text)
 	if translation == "" {
 		translation, original = original, ""
 	}
-	row := ui.ButtonBase(c).Row().Gap(10).Padding(8, 10).Radius(10).AlignItems(ui.Start).Label(cueClock(cue.Start) + " " + translation)
+	row := ui.ButtonBase(c).Row().Gap(10).Padding(8, 10).Radius(10).AlignItems(ui.Start).Label(cueClock(cue.Start) + " " + translation).ContextMenu(cueMenu(c, cue))
 	if current {
 		row.Background(panelCurrent)
 	} else if row.Hovered() {
@@ -211,6 +211,25 @@ func (s screen) cueRow(c *ui.Context, cue core.Segment, current bool) {
 			}
 		})
 	})
+}
+
+// cueMenu is what a right click on a cue of the list offers: copying the cue as the list shows it, and, for a cue that has a translation, its original or its translation alone.
+func cueMenu(c *ui.Context, cue core.Segment) func(m *ui.Menu) {
+	return func(m *ui.Menu) {
+		if m.Item(locales.FilmCopyLine()).Chosen() {
+			c.WriteClipboard(LineText(cue.Text))
+		}
+		translation, original := splitCue(cue.Text)
+		if translation == "" || original == "" {
+			return
+		}
+		if m.Item(locales.FilmCopyOriginal()).Chosen() {
+			c.WriteClipboard(original)
+		}
+		if m.Item(locales.FilmCopyTranslation()).Chosen() {
+			c.WriteClipboard(translation)
+		}
+	}
 }
 
 // clipsTab is the film cut into 片段 of equal time; a click plays from one, and the playing one is lit.

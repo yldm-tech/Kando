@@ -588,6 +588,18 @@
   "@filmCopy": {
     "description": "Button copying a link or path to the clipboard."
   },
+  "filmCopyLine": "Copy Line",
+  "@filmCopyLine": {
+    "description": "Item of a subtitle line's context menu in the side panel: copies the line, the translation over the original as the list shows them."
+  },
+  "filmCopyOriginal": "Copy Original",
+  "@filmCopyOriginal": {
+    "description": "Item of a subtitle line's context menu in the side panel: copies only the original line."
+  },
+  "filmCopyTranslation": "Copy Translation",
+  "@filmCopyTranslation": {
+    "description": "Item of a subtitle line's context menu in the side panel: copies only the translated line."
+  },
   "filmDelay": "Subtitle Delay",
   "@filmDelay": {
     "description": "Row and stepper that shift the subtitles against the picture."
@@ -2598,6 +2610,10 @@
   "@playerKeepAwake": {
     "description": "Why Kando keeps the display awake while a film plays; the system lists it with what keeps the computer awake (on macOS, pmset -g assertions)."
   },
+  "playerKeyCopyLine": "Copy Current Line",
+  "@playerKeyCopyLine": {
+    "description": "Shortcut row and menu item: copy the subtitle line playing now, the translation over the original."
+  },
   "playerKeyCycleSubtitles": "Cycle Original/Translation/Bilingual",
   "@playerKeyCycleSubtitles": {
     "description": "Shortcut row and menu item: step through the subtitle modes."
@@ -2669,6 +2685,10 @@
   "playerKeyVolumeUp": "Volume Up",
   "@playerKeyVolumeUp": {
     "description": "Shortcut row and menu item: louder."
+  },
+  "playerOsdCopied": "Copied",
+  "@playerOsdCopied": {
+    "description": "Message on the picture after the playing subtitle line was copied."
   },
   "playerOsdDelay": "Subtitles {delay}",
   "@playerOsdDelay": {

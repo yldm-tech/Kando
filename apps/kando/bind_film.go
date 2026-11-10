@@ -274,6 +274,20 @@ func (a *app) searchSubtitles() {
 	a.player.film.searchFocus = true
 }
 
+// copyCurrentLine is ⇧⌘C: the subtitle line playing now on the clipboard, as the side panel's Copy Line puts it (film.LineText), saying so on the picture. Between two lines, or before the film's subtitles are read, there is nothing to copy and it does nothing. ⌘C stays Edit › Copy's, for the text fields.
+func (a *app) copyCurrentLine() {
+	subs := &a.player.subs
+	if subs.key != a.openKey || !subs.ready {
+		return
+	}
+	cue, ok := film.CueAt(subs.cues, a.PlayHead()-a.Delay())
+	if !ok {
+		return
+	}
+	a.services.WriteClipboard(film.LineText(cue.Text))
+	a.flash(locales.PlayerOsdCopied())
+}
+
 // playerSaveSettings keeps the subtitle settings, saying so on the picture when they cannot be saved.
 func (a *app) playerSaveSettings() {
 	if err := a.saveSettings(); err != nil {
@@ -309,6 +323,7 @@ func (a *app) playerKeys() []shortcut {
 		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(), Mods: ui.Cmd, Key: ui.KeyEqual, When: open, Run: func() { a.scaleSubtitles(2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySmaller(), Mods: ui.Cmd, Key: ui.KeyMinus, When: open, Run: func() { a.scaleSubtitles(-2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySearch(), Mods: ui.Cmd, Key: ui.KeyF, When: open, Run: a.searchSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyCopyLine(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyC, When: open, Run: a.copyCurrentLine},
 		{Group: groupView, Label: locales.PlayerKeyToggleSidebar(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyT, When: open, Run: a.TogglePanel},
 		{Group: groupView, Label: locales.FilmFullScreen(), Key: ui.KeyF, When: open, Run: a.ToggleFullScreen},
 		{Group: groupView, Label: locales.FilmBackToLibrary(), Key: ui.KeyEscape, When: open, Run: a.escapeFilm},

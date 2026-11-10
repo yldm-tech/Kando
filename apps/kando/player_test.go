@@ -2923,3 +2923,95 @@ func TestLoopKeepsLoopingInTheBackground(t *testing.T) {
 		t.Fatal("the checks outlived the background")
 	}
 }
+
+// TestCueMenuCopiesTheLine right-clicks lines of the side panel's subtitle list: a bilingual line offers its two lines together, its original and its translation, each put on the clipboard as chosen, and a line without a translation offers only itself.
+func TestCueMenuCopiesTheLine(t *testing.T) {
+	a, tt, updates, _ := feedbackFilmApp(t)
+	openTalk(t, a, tt, updates, 0)
+	copyFrom := func(line, item, want string) {
+		t.Helper()
+		tt.SetClipboard("before")
+		if err := tt.RightClick(line); err != nil {
+			t.Fatalf("%v texts %q", err, tt.Texts())
+		}
+		if err := tt.ChooseMenuItem(item); err != nil {
+			t.Fatalf("%v menu %q", err, tt.Menu())
+		}
+		tt.Frame()
+		if tt.Clipboard() != want {
+			t.Fatalf("%s › %s copied %q, want %q", line, item, tt.Clipboard(), want)
+		}
+	}
+	if err := tt.RightClick("你好。"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if got, want := tt.Menu(), []string{"拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(got, want) {
+		t.Fatalf("the bilingual line's menu is %q, want %q", got, want)
+	}
+	tt.CloseMenu()
+	copyFrom("你好。", "拷贝台词", "你好。\nHello.")
+	copyFrom("你好。", "拷贝原文", "Hello.")
+	copyFrom("你好。", "拷贝译文", "你好。")
+	if err := tt.RightClick("Bye."); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if got, want := tt.Menu(), []string{"拷贝台词"}; !slices.Equal(got, want) {
+		t.Fatalf("the untranslated line's menu is %q, want %q", got, want)
+	}
+	tt.CloseMenu()
+	copyFrom("Bye.", "拷贝台词", "Bye.")
+}
+
+// TestCopyCurrentLineKey checks ⇧⌘C on the open film: it copies the line playing, following the subtitle delay, and says so on the picture; between two lines it leaves the clipboard and the picture alone; and the 字幕 menu's item, which carries the shortcut once the app has its own menu bar, copies the same way.
+func TestCopyCurrentLineKey(t *testing.T) {
+	a, tt, updates, _ := feedbackFilmApp(t)
+	openTalk(t, a, tt, updates, 1500*time.Millisecond)
+	tt.SetClipboard("before")
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "你好。\nHello." || !tt.HasText("已拷贝") {
+		t.Fatalf("⇧⌘C on the first line copied %q; texts %q", tt.Clipboard(), tt.Texts())
+	}
+	tt.Advance(1500 * time.Millisecond)
+	tt.Frame()
+
+	// 3 seconds in is after the first line ends (2.5s) and before the second starts (4s).
+	a.player.opening = 3 * time.Second
+	tt.SetClipboard("before")
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "before" || tt.HasText("已拷贝") {
+		t.Fatalf("⇧⌘C between two lines copied %q; texts %q", tt.Clipboard(), tt.Texts())
+	}
+
+	// With the subtitles 2 seconds late, 3 seconds in shows the line that starts at 1 second.
+	a.player.film.delay = 2 * time.Second
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "你好。\nHello." {
+		t.Fatalf("⇧⌘C with the delay copied %q", tt.Clipboard())
+	}
+	a.player.film.delay = 0
+
+	a.player.opening = 4500 * time.Millisecond
+	it := findMenuItem(t, a.menuBar(), "字幕", "拷贝当前台词")
+	if it.Disabled || it.Accelerator != "Super+Shift+c" {
+		t.Fatalf("menu item disabled %v accelerator %q", it.Disabled, it.Accelerator)
+	}
+	// The menu bar hands its click to the UI thread, where it can queue behind what opening the film sent there; those run as well until the line is copied.
+	it.Click(it, nil)
+	waitUntil(t, updates, func() bool { return tt.Clipboard() == "Bye." })
+}
+
+// TestCopyCurrentLineWaitsForTheSubtitles: before the film's subtitles are read, ⇧⌘C has no line to copy.
+func TestCopyCurrentLineWaitsForTheSubtitles(t *testing.T) {
+	a, tt, updates, _ := feedbackFilmApp(t)
+	openTalk(t, a, tt, updates, 1500*time.Millisecond)
+	a.player.subs.ready = false
+	tt.SetClipboard("before")
+	a.copyCurrentLine()
+	tt.Frame()
+	if tt.Clipboard() != "before" || tt.HasText("已拷贝") {
+		t.Fatalf("copied %q before the subtitles were read; texts %q", tt.Clipboard(), tt.Texts())
+	}
+}

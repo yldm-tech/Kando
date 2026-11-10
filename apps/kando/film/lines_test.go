@@ -84,3 +84,18 @@ func TestDelayText(t *testing.T) {
 		}
 	}
 }
+
+// TestLineText checks what Copy Line puts on the clipboard: a bilingual cue's translation over its original, as the subtitle list shows them, and the one line of a cue without a translation, without the spaces around it.
+func TestLineText(t *testing.T) {
+	for _, tc := range []struct{ cue, want string }{
+		{"你好。\nHello.", "你好。\nHello."},
+		{"  你好。 \n Hello.  \n", "你好。\nHello."},
+		{"Bye.", "Bye."},
+		{" Bye.\n", "Bye."},
+		{"", ""},
+	} {
+		if got := LineText(tc.cue); got != tc.want {
+			t.Errorf("LineText(%q) = %q, want %q", tc.cue, got, tc.want)
+		}
+	}
+}

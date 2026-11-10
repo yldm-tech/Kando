@@ -342,6 +342,18 @@ func title(item films.Film) string {
 // SplitCue is a bilingual cue's two lines: the translation over the original, or the original alone in a cue that has no translation.
 func SplitCue(text string) (translation, original string) { return splitCue(text) }
 
+// LineText is a cue as Copy Line puts it on the clipboard: its lines as the subtitle list shows them, the translation over the original, or the one line of a cue that has no translation.
+func LineText(text string) string {
+	translation, original := splitCue(text)
+	if translation == "" {
+		return original
+	}
+	if original == "" {
+		return translation
+	}
+	return translation + "\n" + original
+}
+
 func splitCue(text string) (translation, original string) {
 	text = strings.TrimSpace(text)
 	parts := strings.SplitN(text, "\n", 2)
