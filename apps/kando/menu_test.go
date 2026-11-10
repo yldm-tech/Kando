@@ -264,7 +264,6 @@ func TestMenuWaitsBehindAFilePanel(t *testing.T) {
 // TestSyncMenuInstallsOnlyChanges checks that the installed menu bar is replaced when what it shows changes, and left alone by frames that change none of it.
 func TestSyncMenuInstallsOnlyChanges(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
-	fakeDock(t)
 	a.menu.menuBar = true
 	tt.Frame()
 	first := mygo.App.Menu()
@@ -442,7 +441,6 @@ func libraryChoices(t *testing.T, items []*mygo.MenuItem) []string {
 // TestMenuSwitchesTheLibrary checks 文件 › 切换资料库: it lists the known libraries with the open one chosen, choosing another opens it on the library page, and the next frame installs the menu again with the new one chosen, as mygo moved the radio's choice itself.
 func TestMenuSwitchesTheLibrary(t *testing.T) {
 	a, tt, updates, _, second := twoLibraries(t)
-	fakeDock(t)
 	a.menu.menuBar = true
 	a.Select(pageYouTube)
 	tt.Frame()
@@ -468,7 +466,6 @@ func TestMenuSwitchesTheLibrary(t *testing.T) {
 // TestMenuSwitchLibraryWaitsBehindAFilePanel checks that the library items wait behind a file panel, and that a click from a menu built before it came up leaves the open library as it was but still has the menu installed again, as mygo moved the radio's choice.
 func TestMenuSwitchLibraryWaitsBehindAFilePanel(t *testing.T) {
 	a, tt, updates, first, _ := twoLibraries(t)
-	fakeDock(t)
 	a.menu.menuBar = true
 	tt.Frame()
 	early := findMenuItem(t, a.menuBar(), "文件", "切换资料库").Submenu[1]
@@ -594,5 +591,14 @@ func TestHelpMenuOpensTheLinks(t *testing.T) {
 	choose(t, findMenuItem(t, a.menuBar(), "帮助", "看懂官网"), updates)
 	if want := "没能打开 https://kando.yldm.ai：exit status 1"; a.lib.notice.Text != want || a.lib.notice.Kind != "warning" {
 		t.Fatalf("notice %+v, want warning %q", a.lib.notice, want)
+	}
+	if a.player.film.osd != "" {
+		t.Fatalf("on the library page the failure was also put on the picture: %q", a.player.film.osd)
+	}
+	// The message bar shows only on the library page, so while a film is open the failure is said on the picture too.
+	a.openKey = "j"
+	a.menuOpenLink(menuReleaseNotesURL())
+	if want := "没能打开 https://github.com/yldm-tech/Kando/releases/tag/v1.2.3：exit status 1"; a.player.film.osd != want {
+		t.Fatalf("with a film open the picture says %q, want %q", a.player.film.osd, want)
 	}
 }

@@ -56,9 +56,13 @@ const menuReleasesURL = "https://github.com/yldm-tech/Kando/releases/tag/"
 // menuReleaseNotesURL is the release of the version running now, whose notes say what it changed.
 func menuReleaseNotesURL() string { return menuReleasesURL + "v" + appVersion }
 
-// menuOpenLink opens url in the user's browser through openExternal, and says in the library's message bar when the system could not.
+// menuOpenLink opens url in the user's browser through openExternal, and says in the library's message bar when the system could not, and on the picture too while a film is open, as the message bar shows only on the library page.
 func (a *app) menuOpenLink(url string) {
 	if err := openExternal(url); err != nil {
-		a.warn(locales.MenuOpenLinkFailed(url, err.Error()), "")
+		msg := locales.MenuOpenLinkFailed(url, err.Error())
+		a.warn(msg, "")
+		if a.openKey != "" {
+			a.flash(msg)
+		}
 	}
 }

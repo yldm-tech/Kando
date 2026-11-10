@@ -9,7 +9,6 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
-	"kando/apps/kando/settings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -76,7 +75,7 @@ func (a *app) syncMenu() {
 	setDockMenu(dock)
 }
 
-// setDockMenu installs the Dock menu. mygo's waits for the main thread, which a test, running off it without the app's event loop, never reaches, so tests that install the menu bar replace it.
+// setDockMenu installs the Dock menu. mygo's waits for the main thread, which a test, running off it without the app's event loop, never reaches, so TestMain (helpers_test.go) replaces it with one that does nothing, and fakeDock records what a test sets.
 var setDockMenu = mygo.App.Dock.SetMenu
 
 // menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up as a sheet, none of the rows are (holds).
@@ -144,7 +143,7 @@ func (a *app) menuBar() []*mygo.MenuItem {
 			sub = then(sub, &mygo.MenuItem{Label: locales.MenuBringAllToFront(), Role: mygo.RoleFront})
 			menu = &mygo.MenuItem{Label: groupTitle(group), Role: mygo.RoleWindow, Submenu: sub}
 		case groupHelp:
-			// With a menu bar, 重新查看入门引导 is the menu's own item (state_onboarding.go), placed in the prototype's order: 快捷键速查, 重新查看入门引导, then the feedback items after a separator.
+			// With a menu bar, 重新查看入门引导 is the menu's own item (state_onboarding.go), placed in the prototype's order: 快捷键速查, 重新查看入门引导, then after a separator the plain rows, the website and release-notes links (state_menu.go) and then the feedback items.
 			var guide []*mygo.MenuItem
 			if appMenuBar {
 				guide = append(guide, &mygo.MenuItem{Label: locales.MenuReopenGuide(), Disabled: a.holds(false), Click: a.menuClick(false, a.reopenOnboarding)})
@@ -167,7 +166,7 @@ func (a *app) menuBar() []*mygo.MenuItem {
 // menuLibraries are the items of File › 切换资料库 and of the Dock menu: a radio item for each library the app knows, named as Settings › 通用 names them, with the open one chosen. Choosing one switches to it as the sidebar's switcher does. Each call builds new items, as an item belongs to one menu.
 func (a *app) menuLibraries() []*mygo.MenuItem {
 	dirs := a.knownLibraries()
-	labels := settings.LibraryLabels(dirs)
+	labels := films.LibraryLabels(dirs)
 	open := filepath.Clean(a.snap().LibraryDir)
 	items := make([]*mygo.MenuItem, len(dirs))
 	for i, dir := range dirs {

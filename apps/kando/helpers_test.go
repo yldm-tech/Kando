@@ -16,6 +16,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -24,6 +25,8 @@ import (
 func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
 	showItemInFolder = func(string) {}
+	// mygo's Dock menu waits for the main thread, which tests never reach (menu.go's setDockMenu), so a test that turns the menu bar on would hang; fakeDock records the menus where a test checks them.
+	setDockMenu = func(*mygo.Menu) {}
 	os.Exit(m.Run())
 }
 

@@ -7,7 +7,6 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
-	"kando/apps/kando/sidebar"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/i18n"
@@ -151,7 +150,7 @@ func (s screen) libraryRows(c *ui.Context) {
 		return
 	}
 	dirs := s.KnownLibraries()
-	labels := LibraryLabels(dirs)
+	labels := films.LibraryLabels(dirs)
 	chosen := ""
 	for i, known := range dirs {
 		if filepath.Clean(known) == filepath.Clean(dir) {
@@ -185,22 +184,6 @@ func (s screen) libraryRows(c *ui.Context) {
 			}
 		})
 	}
-}
-
-// LibraryLabels names each library by its title, or by its path where two share a title: the drop-down here, and File › 切换资料库 and the Dock menu of the menu bar.
-func LibraryLabels(dirs []string) []string {
-	count := map[string]int{}
-	for _, dir := range dirs {
-		count[sidebar.Title(dir)]++
-	}
-	labels := make([]string, len(dirs))
-	for i, dir := range dirs {
-		labels[i] = sidebar.Title(dir)
-		if count[labels[i]] > 1 {
-			labels[i] = films.DisplayPath(dir)
-		}
-	}
-	return labels
 }
 
 // ToolFetch is Kando's own download of a program: whether it can download it here, how far one under way has come (Progress, from 0 to 1, or -1 before its size is known), and why the last one failed.

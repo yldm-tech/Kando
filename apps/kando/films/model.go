@@ -188,6 +188,22 @@ func DisplayPath(path string) string {
 	return path
 }
 
+// LibraryLabels names each library by its title, or by its path where two share a title: the library drop-down of Settings › 通用, and File › 切换资料库 and the Dock menu of the menu bar.
+func LibraryLabels(dirs []string) []string {
+	count := map[string]int{}
+	for _, dir := range dirs {
+		count[sidebar.Title(dir)]++
+	}
+	labels := make([]string, len(dirs))
+	for i, dir := range dirs {
+		labels[i] = sidebar.Title(dir)
+		if count[labels[i]] > 1 {
+			labels[i] = DisplayPath(dir)
+		}
+	}
+	return labels
+}
+
 func Shorten(s string, n int) string {
 	r := []rune(s)
 	if len(r) <= n {

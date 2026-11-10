@@ -271,7 +271,6 @@ func TestSettingsShortcutOpensSettings(t *testing.T) {
 // TestMenuBarTakesCommandShortcuts checks that once the app has its own menu bar, ⌘ shortcuts are left to the menu's accelerators and single keys still work.
 func TestMenuBarTakesCommandShortcuts(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
-	fakeDock(t)
 	a.menu.menuBar = true
 	tt.Frame()
 	tt.Key(ui.Cmd, ui.KeyComma)
