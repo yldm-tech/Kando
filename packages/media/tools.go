@@ -473,11 +473,16 @@ func runStage(ctx context.Context, name string, args ...string) (string, error) 
 }
 
 func runTool(ctx context.Context, logFailure bool, name string, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	err := retryBusy(ctx, func() error {
+		stdout.Reset()
+		stderr.Reset()
+		cmd := exec.CommandContext(ctx, name, args...)
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+		return cmd.Run()
+	})
+	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", ctxErr
 		}
