@@ -1290,6 +1290,28 @@ func TestUpdateThatFindsTheNewestRunsNothingAgain(t *testing.T) {
 	}
 }
 
+// A read of the yt-dlp the pipeline used to download with can land after the pipeline moved on to another, as when Kando's own yt-dlp came in and was updated while it ran: it is stale, and what the queue knows of the newer yt-dlp stays.
+func TestAStaleYTDLPReadKeepsTheNewerOne(t *testing.T) {
+	old := recordingYTDLP(t, filepath.Join(t.TempDir(), "old-args"), "")
+	a, _, updates := newTestApp(toolsForRemedies(t, old))
+	a.queueReadYTDLP()
+	var read func()
+	select {
+	case read = <-updates:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the read never finished")
+	}
+	newer := filepath.Join(t.TempDir(), "yt-dlp")
+	tools := a.pipeline.(media.Tools)
+	tools.YTDLP = newer
+	a.pipeline = tools
+	a.queue.ytdlp.path, a.queue.ytdlp.version = newer, "2026.11.03"
+	read()
+	if y := a.queue.ytdlp; y.path != newer || y.version != "2026.11.03" {
+		t.Fatalf("the stale read of %s overwrote the newer yt-dlp: %+v", old, y)
+	}
+}
+
 // systemYTDLP makes the yt-dlp at path, version 2024.03.10, the one the queue knows, installed as media.FindYTDLPInstall finds the one a Linux distribution's packages put in /usr/bin: a Python script Kando may not write, which it cannot update.
 func systemYTDLP(a *app, path string) {
 	a.queue.ytdlp.path, a.queue.ytdlp.version = path, "2024.03.10"
