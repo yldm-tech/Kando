@@ -43,6 +43,10 @@ type Tools struct {
 	Cookies string
 	// OEmbed is YouTube's oEmbed endpoint, which names a video yt-dlp could not look up, as one that is age-restricted or blocked where this machine is; empty asks nothing.
 	OEmbed string
+	// SiteCookies gives the cookies the app's own web pages hold for source's site, and the user agent of the page that got them ("" when unknown), so that a site the user signed in to there downloads as that user. Download passes them to yt-dlp in a cookies file of its own (--cookies) beside the browser it borrows (Cookies). nil, an error or no cookies download without them.
+	SiteCookies func(ctx context.Context, source string) (cookies []Cookie, userAgent string, err error)
+	// CookieDir is where the cookies file of a download is written, in a folder of its own that goes once yt-dlp exits; empty uses the system's temp folder.
+	CookieDir string
 }
 
 // EveryAPI is the default translation provider; setting KANDO_LLM_BASE_URL switches to any other OpenAI-compatible provider.
@@ -78,9 +82,10 @@ func ToolsFromEnv() Tools {
 			translator.Model = EveryAPIModel
 		}
 	}
-	downloadTemp := ""
+	downloadTemp, cookieDir := "", ""
 	if cache, err := os.UserCacheDir(); err == nil {
 		downloadTemp = filepath.Join(cache, "Kando", "downloads")
+		cookieDir = filepath.Join(cache, "Kando")
 	}
 	tools := Tools{
 		OutputDir:    outputDir,
@@ -92,6 +97,7 @@ func ToolsFromEnv() Tools {
 		WhisperModel: os.Getenv("KANDO_WHISPER_MODEL"),
 		Translator:   translator,
 		OEmbed:       YouTubeOEmbed,
+		CookieDir:    cookieDir,
 	}
 	return tools.UseEveryAPICLI()
 }
@@ -266,6 +272,14 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 	}
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
+	}
+	// The cookies of the app's own pages go in a file made for this run, which yt-dlp also writes back to as it exits; runFollowing returns only once it has, on every path, so the folder goes after it.
+	if file, userAgent, done := t.siteCookiesFile(ctx, source); file != "" {
+		defer done()
+		args = append(args, "--cookies", file)
+		if userAgent != "" {
+			args = append(args, "--user-agent", userAgent)
+		}
 	}
 	if _, _, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...); err != nil {
 		var exit *exec.ExitError
