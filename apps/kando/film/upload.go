@@ -11,13 +11,14 @@ import (
 
 // The upload capsule's dots (prototype template 583-595).
 var uploadDots = map[string]ui.Color{
-	UploadBusy:    ui.Hex("#64D2FF"),
-	UploadDone:    ui.Hex("#30D158"),
-	UploadFailed:  ui.Hex("#FFD60A"),
-	UploadBlocked: ui.Hex("#FFD60A"),
+	UploadBusy:     ui.Hex("#64D2FF"),
+	UploadDone:     ui.Hex("#30D158"),
+	UploadFailed:   ui.Hex("#FFD60A"),
+	UploadCanceled: ui.Hex("#8E8E93"),
+	UploadBlocked:  ui.Hex("#FFD60A"),
 }
 
-// uploadCapsule says how the film's upload goes, under the title bar: while it runs with a bar of its progress, then whether it worked, or, when the upload button found nowhere to upload, why and a button to 账号 to fix it. It shows while an upload of this film runs, and after the upload button was clicked until closed.
+// uploadCapsule says how the film's upload goes, under the title bar: while it runs with a bar of its progress and a button that cancels it, then whether it worked or was canceled, or, when the upload button found nowhere to upload, why and a button to 账号 to fix it. It shows while an upload of this film runs, and after the upload button was clicked until closed; the close button only hides it and leaves an upload running.
 func (s screen) uploadCapsule(c *ui.Context, item films.Film, panelSpace float32) {
 	view := s.UploadView(item)
 	note := s.UploadNote()
@@ -37,6 +38,10 @@ func (s screen) uploadCapsule(c *ui.Context, item films.Film, panelSpace float32
 			ui.Text(c, view.Detail).Shrink(1).Wrap()
 			if view.Status == UploadBusy {
 				breeze.Progress(c, view.Progress).Width(120).Height(4).Shrink(0)
+				c.Key("film-upload-cancel")
+				if breeze.Button(c, locales.FilmUploadCancel()).Shrink(0).Clicked() {
+					s.CancelUpload()
+				}
 			}
 			if view.Fix != "" {
 				c.Key("film-upload-fix")

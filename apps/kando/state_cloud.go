@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"maps"
 	"strings"
 
 	"kando/apps/kando/cloud"
 )
 
-// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go). googleErr and uploadErr say why the last sign-in or upload failed, as functions so the message reads in the language the page shows when it is drawn; nil when nothing failed.
+// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go). googleErr and uploadErr say why the last sign-in or upload failed, or that it was canceled (uploadCanceled), as functions so the message reads in the language the page shows when it is drawn; nil when nothing failed. uploadCancel stops the upload running now (CancelUpload), nil when none runs. uploaded holds the object key of each film uploaded, by uploadMemo (the storage's kind and the video's path), and is saved in settings.json so a film still reads as uploaded after a restart.
 type cloudUI struct {
 	googleEmail     string
 	googleRefresh   string
@@ -42,13 +43,15 @@ type cloudUI struct {
 	uploadTotal     int64
 	uploadErr       func() string
 	uploadErrPath   string
+	uploadCanceled  bool
+	uploadCancel    context.CancelFunc
 	uploaded        map[string]string
 	uploader        func(context.Context, cloud.Store, []cloud.File, func(written, total int64)) error
 }
 
 func newCloudUI() cloudUI { return cloudUI{} }
 
-// savedCloud is the account's part of settings.json: the Google account and each kind of storage.
+// savedCloud is the account's part of settings.json: the Google account, each kind of storage, and the films uploaded.
 type savedCloud struct {
 	GoogleEmail     string `json:"googleEmail,omitempty"`
 	GoogleRefresh   string `json:"googleRefresh,omitempty"`
@@ -75,6 +78,9 @@ type savedCloud struct {
 	CompatAccessKey string `json:"s3CompatAccessKey,omitempty"`
 	CompatSecret    string `json:"s3CompatSecret,omitempty"`
 	CompatPathStyle bool   `json:"s3CompatPathStyle,omitempty"`
+
+	// Uploaded is the object key of each film uploaded, by the storage's kind and the video's path (cloudUI.uploaded).
+	Uploaded map[string]string `json:"uploaded,omitempty"`
 }
 
 func (s *savedCloud) clean() {
@@ -102,6 +108,14 @@ func (s *savedCloud) clean() {
 	s.CompatBucket = strings.TrimSpace(s.CompatBucket)
 	s.CompatAccessKey = strings.TrimSpace(s.CompatAccessKey)
 	s.CompatSecret = strings.TrimSpace(s.CompatSecret)
+	for memo, key := range s.Uploaded {
+		if strings.TrimSpace(memo) == "" || strings.TrimSpace(key) == "" {
+			delete(s.Uploaded, memo)
+		}
+	}
+	if len(s.Uploaded) == 0 {
+		s.Uploaded = nil
+	}
 }
 
 func (a *app) saveCloud(saved *savedSettings) {
@@ -131,6 +145,7 @@ func (a *app) saveCloud(saved *savedSettings) {
 		CompatAccessKey: a.cloud.compatAccessKey,
 		CompatSecret:    a.cloud.compatSecret,
 		CompatPathStyle: a.cloud.compatPath,
+		Uploaded:        maps.Clone(a.cloud.uploaded),
 	}
 }
 
@@ -146,10 +161,13 @@ func (c cloudUI) cloudSecrets() []string {
 	}
 }
 
-// cloudHooks: the account saves the Google account and the storage; the environment's KANDO_* settings win over the saved ones (applyCloudEnv).
+// cloudHooks: the account saves the Google account, the storage and the films uploaded; the environment's KANDO_* settings win over the saved ones (applyCloudEnv).
 func (a *app) cloudHooks() areaHooks {
 	return areaHooks{
-		save:    a.saveCloud,
-		restore: func(saved savedSettings) { applyCloudEnv(a, saved) },
+		save: a.saveCloud,
+		restore: func(saved savedSettings) {
+			applyCloudEnv(a, saved)
+			a.cloud.uploaded = maps.Clone(saved.Uploaded)
+		},
 	}
 }

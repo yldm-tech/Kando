@@ -14,6 +14,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
+	"kando/packages/core"
 )
 
 func TestCloudSettingsRoundTrip(t *testing.T) {
@@ -397,5 +398,125 @@ func TestUploadSaysTheVideoIsMissing(t *testing.T) {
 	view := a.UploadView(item)
 	if view.Status != film.UploadFailed || view.Detail != locales.AccountVideoMissing() {
 		t.Fatalf("status %v detail %q", view.Status, view.Detail)
+	}
+}
+
+// TestCancelUploadFreesTheSlot clicks the upload capsule's Cancel button while an upload runs. The upload ends as canceled, not as failed, is not recorded as uploaded, and leaves the slot free, so another film uploads at once.
+func TestCancelUploadFreesTheSlot(t *testing.T) {
+	dir := t.TempDir()
+	videoDir := filepath.Join(dir, "talk")
+	if err := os.Mkdir(videoDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(videoDir, "talk.mp4")
+	other := filepath.Join(dir, "other.mp4")
+	for _, path := range []string{video, other} {
+		if err := os.WriteFile(path, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{{ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
+	started := make(chan struct{}, 1)
+	a.cloud.uploader = func(ctx context.Context, _ cloud.Store, _ []cloud.File, progress func(int64, int64)) error {
+		progress(1, 4)
+		started <- struct{}{}
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	tt.Frame()
+	if err := tt.Click("talk"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	waitUntil(t, updates, func() bool { return a.player.subs.ready })
+	tt.Frame()
+	item, _ := films.Find(a.films(), a.openKey)
+	if err := tt.Click(a.UploadView(item).Label); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	<-started
+	waitUntil(t, updates, func() bool { return a.cloud.uploadWritten == 1 })
+	tt.Frame()
+	otherFilm := films.Film{VideoPath: other}
+	if view := a.UploadView(item); view.Status != film.UploadBusy || !tt.HasText(view.Detail) {
+		t.Fatalf("upload %+v texts %q", view, tt.Texts())
+	}
+	if view := a.UploadView(otherFilm); view.Status != film.UploadBlocked || view.Enabled {
+		t.Fatalf("another film could upload while one runs: %+v", view)
+	}
+	if err := tt.Click(locales.FilmUploadCancel()); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	tt.Frame()
+	view := a.UploadView(item)
+	_, cancelShown := tt.Find(locales.FilmUploadCancel())
+	if view.Status != film.UploadCanceled || view.Detail != locales.AccountUploadCanceled() || !tt.HasText(view.Detail) || cancelShown {
+		t.Fatalf("upload %+v texts %q", view, tt.Texts())
+	}
+	if a.cloud.uploadCancel != nil || a.cloud.uploadWritten != 0 || a.cloud.uploadTotal != 0 || len(a.cloud.uploaded) != 0 {
+		t.Fatalf("canceled upload left cancel %v progress %d/%d uploaded %v", a.cloud.uploadCancel != nil, a.cloud.uploadWritten, a.cloud.uploadTotal, a.cloud.uploaded)
+	}
+	// The slot is free: another film uploads, and its result replaces the canceled note.
+	a.cloud.uploader = func(context.Context, cloud.Store, []cloud.File, func(int64, int64)) error { return nil }
+	if view := a.UploadView(otherFilm); !view.Enabled {
+		t.Fatalf("slot still taken: %+v", view)
+	}
+	a.BeginUpload(otherFilm)
+	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	if view := a.UploadView(otherFilm); view.Status != film.UploadDone {
+		t.Fatalf("other film %+v", view)
+	}
+	if view := a.UploadView(item); view.Status != "" {
+		t.Fatalf("canceled note outlived the next upload: %+v", view)
+	}
+}
+
+// TestUploadedFilmsSurviveARestart uploads a film and starts another app on the same settings.json: the film still reads as uploaded, with its key. Entries without a path or a key are dropped when the file is read.
+func TestUploadedFilmsSurviveARestart(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.settingsPath = settingsPath
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
+	a.cloud.uploader = func(context.Context, cloud.Store, []cloud.File, func(int64, int64)) error { return nil }
+	item := films.Film{VideoPath: video}
+	a.BeginUpload(item)
+	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	want := a.UploadView(item)
+	if want.Status != film.UploadDone {
+		t.Fatalf("upload %+v", want)
+	}
+
+	b := newApp(&fakePipeline{}, func(fn func()) { fn() })
+	b.settingsPath = settingsPath
+	b.restoreSettings(b.loadSettings())
+	b.edit(func(s *session) { s.LibraryDir = dir })
+	if got := b.UploadView(item); got.Status != film.UploadDone || got.Detail != want.Detail {
+		t.Fatalf("after a restart %+v, want %+v", got, want)
+	}
+
+	raw, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = []byte(strings.Replace(string(raw), `"uploaded": {`, `"uploaded": {"r2\n/gone.mp4": " ", "": "a@b.c/key", `, 1))
+	if err := os.WriteFile(settingsPath, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded := loadSavedSettings(settingsPath)
+	if len(loaded.Uploaded) != 1 || loaded.Uploaded[cloud.KindR2+"\n"+video] == "" {
+		t.Fatalf("uploaded %q", loaded.Uploaded)
 	}
 }

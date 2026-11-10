@@ -83,6 +83,8 @@ type App interface {
 	Info() Info
 	UploadView(item films.Film) Upload
 	BeginUpload(item films.Film)
+	// CancelUpload stops the upload running now.
+	CancelUpload()
 	// UploadNote is whether the upload capsule shows, after the upload button was clicked and until it is closed.
 	UploadNote() *bool
 	// OpenSettings shows the settings at section, one of the settings package's Section values.
@@ -104,7 +106,7 @@ type Upload struct {
 	Enabled bool
 	Label   string
 	Detail  string
-	// Status is UploadBusy, UploadDone, UploadFailed, UploadBlocked, or "" with nothing to report.
+	// Status is UploadBusy, UploadDone, UploadFailed, UploadCanceled, UploadBlocked, or "" with nothing to report.
 	Status string
 	// Progress is how much of a busy upload is sent, from 0 to 1.
 	Progress float64
@@ -114,10 +116,11 @@ type Upload struct {
 
 // Upload statuses, which the upload capsule shows with a dot of its own color.
 const (
-	UploadBusy    = "busy"
-	UploadDone    = "done"
-	UploadFailed  = "failed"
-	UploadBlocked = "blocked"
+	UploadBusy     = "busy"
+	UploadDone     = "done"
+	UploadFailed   = "failed"
+	UploadCanceled = "canceled"
+	UploadBlocked  = "blocked"
 )
 
 // Player is the picture currently open.

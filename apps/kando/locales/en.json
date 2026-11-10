@@ -130,6 +130,10 @@
   "@accountStoreOSS": {
     "description": "Alibaba Cloud's object storage in the storage drop-down."
   },
+  "accountUploadCanceled": "Upload canceled",
+  "@accountUploadCanceled": {
+    "description": "The player's upload capsule after the upload was canceled with its Cancel button."
+  },
   "accountUploadFailed": "Upload failed",
   "@accountUploadFailed": {
     "description": "Upload error whose cause is hidden because it would show a key."
@@ -155,6 +159,16 @@
       "store": {
         "type": "String",
         "example": "R2"
+      }
+    }
+  },
+  "accountUploadUnsaved": "The film was uploaded, but couldn't be marked as uploaded: {error}",
+  "@accountUploadUnsaved": {
+    "description": "Error in the sidebar when a film was uploaded but settings.json, which remembers uploaded films across restarts, could not be written.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "permission denied"
       }
     }
   },
@@ -953,6 +967,10 @@
   "filmUnprocessed": "Not Processed",
   "@filmUnprocessed": {
     "description": "Chip in the Info tab of a film no job has processed."
+  },
+  "filmUploadCancel": "Cancel",
+  "@filmUploadCancel": {
+    "description": "Button in the player's upload capsule that stops the upload running now."
   },
   "filmVolume": "Volume",
   "@filmVolume": {

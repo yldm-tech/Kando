@@ -494,6 +494,22 @@ func (msgs Messages) AccountStoreOSS() string {
 	return Catalog.Format(msgs.locale, "accountStoreOSS", nil)
 }
 
+// AccountUploadCanceled says "Upload canceled"
+// in the language the app shows.
+//
+// The player's upload capsule after the upload was canceled with its Cancel
+// button.
+func AccountUploadCanceled() string { return In(i18n.Locale()).AccountUploadCanceled() }
+
+// AccountUploadCanceled says "Upload canceled"
+// in the language of msgs.
+//
+// The player's upload capsule after the upload was canceled with its Cancel
+// button.
+func (msgs Messages) AccountUploadCanceled() string {
+	return Catalog.Format(msgs.locale, "accountUploadCanceled", nil)
+}
+
 // AccountUploadFailed says "Upload failed"
 // in the language the app shows.
 //
@@ -554,6 +570,22 @@ func AccountUploadTo(store string) string { return In(i18n.Locale()).AccountUplo
 // Compatible).
 func (msgs Messages) AccountUploadTo(store string) string {
 	return Catalog.Format(msgs.locale, "accountUploadTo", map[string]any{"store": store})
+}
+
+// AccountUploadUnsaved says "The film was uploaded, but couldn't be marked as uploaded: {error}"
+// in the language the app shows.
+//
+// Error in the sidebar when a film was uploaded but settings.json, which
+// remembers uploaded films across restarts, could not be written.
+func AccountUploadUnsaved(error string) string { return In(i18n.Locale()).AccountUploadUnsaved(error) }
+
+// AccountUploadUnsaved says "The film was uploaded, but couldn't be marked as uploaded: {error}"
+// in the language of msgs.
+//
+// Error in the sidebar when a film was uploaded but settings.json, which
+// remembers uploaded films across restarts, could not be written.
+func (msgs Messages) AccountUploadUnsaved(error string) string {
+	return Catalog.Format(msgs.locale, "accountUploadUnsaved", map[string]any{"error": error})
 }
 
 // AccountUploaded says "Uploaded {key}"
@@ -2882,6 +2914,20 @@ func FilmUnprocessed() string { return In(i18n.Locale()).FilmUnprocessed() }
 // Chip in the Info tab of a film no job has processed.
 func (msgs Messages) FilmUnprocessed() string {
 	return Catalog.Format(msgs.locale, "filmUnprocessed", nil)
+}
+
+// FilmUploadCancel says "Cancel"
+// in the language the app shows.
+//
+// Button in the player's upload capsule that stops the upload running now.
+func FilmUploadCancel() string { return In(i18n.Locale()).FilmUploadCancel() }
+
+// FilmUploadCancel says "Cancel"
+// in the language of msgs.
+//
+// Button in the player's upload capsule that stops the upload running now.
+func (msgs Messages) FilmUploadCancel() string {
+	return Catalog.Format(msgs.locale, "filmUploadCancel", nil)
 }
 
 // FilmVolume says "Volume"
