@@ -146,7 +146,7 @@ jobs:
           for target in ${PLATFORM//,/ }; do
             dir="$RUNNER_TEMP/packages/${target/\//-}"
             codesign --verify --deep --strict --verbose=2 "$dir/Kando.app"
-            codesign -dv "$dir/Kando.app" 2>&1 | grep -F "Authority=$MACOS_SIGNING_IDENTITY"
+            codesign -dvv "$dir/Kando.app" 2>&1 | grep -F "Authority=$MACOS_SIGNING_IDENTITY"
             for dmg in "$dir"/*.dmg; do
               xcrun stapler validate "$dmg"
               spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
