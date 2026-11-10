@@ -217,10 +217,11 @@ func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameRea
 	})
 }
 
-// playReplace puts next in place of the film playing and closes that one, but for the sound next took over from it. When the app went inactive again while next opened, next follows its sound from here, level with it now.
+// playReplace puts next in place of the film playing and closes that one, but for the sound next took over from it, and shows next where the system shows what plays. When the app went inactive again while next opened, next follows its sound from here, level with it now.
 func (a *app) playReplace(next *filmPlay) {
 	old := a.player.play
 	a.player.play = next
+	a.playerNowPlayingShow(next)
 	if old == nil {
 		return
 	}

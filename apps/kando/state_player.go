@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -61,6 +62,8 @@ type playerUI struct {
 	keepAwake  func(reason string, display bool) (release func())
 	wake       func()
 	windowAway bool
+	// nowPlaying is what the system shows of the open film, where the media keys and its controls command it (playback_nowplaying.go).
+	nowPlaying playerNowPlaying
 	film       filmUI
 }
 
@@ -307,7 +310,7 @@ func (a *app) savePlayer(saved *savedSettings) {
 	}
 }
 
-// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then after each frame, keeps the display awake while a film plays once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
+// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then after each frame, keeps the display awake while a film plays once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
 	return areaHooks{
 		save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.playerAfterFrame, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting,
@@ -319,10 +322,11 @@ func (a *app) playerHooks() areaHooks {
 	}
 }
 
-// playerReady points the player's full screen at the main window, which exists from now on, and has the player keep the display awake while a film plays in sight (playerAwakeReady).
+// playerReady points the player's full screen at the main window, which exists from now on, has the player keep the display awake while a film plays in sight (playerAwakeReady), and shows the open film where the system shows what plays (playerNowPlayingConnect).
 func (a *app) playerReady() {
 	a.player.screen = a.win
 	a.playerAwakeReady()
+	a.playerNowPlayingConnect(mygo.NowPlaying)
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.

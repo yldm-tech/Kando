@@ -18,6 +18,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -2002,5 +2003,191 @@ func TestPlayerNamesTheSystemsFileManager(t *testing.T) {
 				t.Fatalf("look %+v after %s", look, tc.pick)
 			}
 		})
+	}
+}
+
+// nowPlayingRecorder stands in for mygo.NowPlaying: it keeps what the player shows the system, in order, and sends commands as the media keys and the system's controls would.
+type nowPlayingRecorder struct {
+	events  []nowPlayingEvent
+	command func(mygo.MediaCommand, time.Duration)
+}
+
+// nowPlayingEvent is one call the player made: "set" with info, "playback" with state and at, or "clear".
+type nowPlayingEvent struct {
+	kind  string
+	info  mygo.NowPlayingInfo
+	state mygo.PlaybackState
+	at    time.Duration
+}
+
+func (r *nowPlayingRecorder) Set(info mygo.NowPlayingInfo) {
+	r.events = append(r.events, nowPlayingEvent{kind: "set", info: info, state: info.State, at: info.Position})
+}
+
+func (r *nowPlayingRecorder) SetPlayback(state mygo.PlaybackState, at time.Duration) {
+	r.events = append(r.events, nowPlayingEvent{kind: "playback", state: state, at: at})
+}
+
+func (r *nowPlayingRecorder) Clear() { r.events = append(r.events, nowPlayingEvent{kind: "clear"}) }
+
+func (r *nowPlayingRecorder) OnCommand(fn func(mygo.MediaCommand, time.Duration)) func() {
+	r.command = fn
+	return func() { r.command = nil }
+}
+
+func (r *nowPlayingRecorder) last(t *testing.T) nowPlayingEvent {
+	t.Helper()
+	if len(r.events) == 0 {
+		t.Fatal("the player told the system nothing")
+	}
+	return r.events[len(r.events)-1]
+}
+
+func (r *nowPlayingRecorder) count(kind string) int {
+	n := 0
+	for _, e := range r.events {
+		if e.kind == kind {
+			n++
+		}
+	}
+	return n
+}
+
+// TestNowPlayingFollowsTheOpenFilm checks that opening a film shows it where the system shows what plays, with its library name and length, held; that Space, the media keys and the system's scrubber play, pause and move it and the system learns each; that a seek keeps the film shown while its picture opens again; and that closing the film takes it off.
+func TestNowPlayingFollowsTheOpenFilm(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
+	}
+	dir := t.TempDir()
+	video := filepath.Join(dir, "clip.mp4")
+	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d=5:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
+	}
+	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	rec := &nowPlayingRecorder{}
+	a.playerNowPlayingConnect(rec)
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{{ID: "clip", Title: "Spring Clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
+	t.Cleanup(a.stopPlayback)
+	tt.Frame()
+	if err := tt.Click("Spring Clip"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	shown := rec.last(t)
+	if shown.kind != "set" || shown.info.Title != "Spring Clip" || shown.info.Duration <= 4*time.Second || shown.info.State != mygo.PlaybackPaused || shown.info.Position >= time.Second || shown.info.Commands != mygo.MediaPlay|mygo.MediaPause|mygo.MediaSeek {
+		t.Fatalf("opening showed %+v", shown)
+	}
+
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+		t.Fatalf("Space told the system %+v", e)
+	}
+
+	press := func(cmd mygo.MediaCommand, at time.Duration) {
+		t.Helper()
+		if rec.command == nil {
+			t.Fatal("the player listens to no media key")
+		}
+		before := len(rec.events)
+		rec.command(cmd, at)
+		waitUntil(t, updates, func() bool { return len(rec.events) > before })
+		tt.Frame()
+	}
+	press(mygo.MediaPause, time.Second)
+	if a.player.play.Playing() {
+		t.Fatal("the pause key did not pause the film")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+		t.Fatalf("pausing told the system %+v", e)
+	}
+	press(mygo.MediaPause, time.Second)
+	if a.player.play.Playing() {
+		t.Fatal("a second pause played the film")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+		t.Fatalf("a second pause told the system %+v", e)
+	}
+	press(mygo.MediaPlay, time.Second)
+	if !a.player.play.Playing() {
+		t.Fatal("the play key did not play the film")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+		t.Fatalf("playing told the system %+v", e)
+	}
+
+	sets := rec.count("set")
+	press(mygo.MediaSeek, 3*time.Second)
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at != 3*time.Second {
+		t.Fatalf("the scrubber told the system %+v", e)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	if a.player.play.playhead() < 3*time.Second || !a.player.play.Playing() {
+		t.Fatalf("the seek opened at %s playing %v", a.player.play.playhead(), a.player.play.Playing())
+	}
+	if rec.count("clear") != 0 || rec.count("set") != sets {
+		t.Fatalf("the seek took the film off or showed it again: %+v", rec.events)
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at < 3*time.Second {
+		t.Fatalf("the reopened picture told the system %+v", e)
+	}
+
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.player.play != nil || rec.last(t).kind != "clear" {
+		t.Fatalf("closing the film left the system %+v", rec.last(t))
+	}
+}
+
+// TestNowPlayingShowsThePosterAndTheEnd checks, without ffmpeg, that a film shows with its poster once read, that its end shows paused at its length so the play key starts it over, that a media key with no film open does nothing, and that another video opening takes the film off.
+func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
+	a := openStill(t, filepath.Join(t.TempDir(), "library.json"), "clip", "/v/clip.mp4", 3*time.Second)
+	a.player.play.player.Play()
+	updates := make(chan func(), 4)
+	a.update = func(fn func()) { updates <- fn }
+	a.lib.posterDir = t.TempDir()
+	poster := []byte("poster of the clip")
+	if err := os.WriteFile(posterDest(a.lib.posterDir, "/v/clip.mp4"), poster, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec := &nowPlayingRecorder{}
+	a.playerNowPlayingConnect(rec)
+	p := a.player.play
+	a.player.play = nil
+	a.playReplace(p)
+	shown := rec.last(t)
+	if shown.kind != "set" || shown.info.Title != "clip" || shown.info.Artwork != nil || shown.info.State != mygo.PlaybackPlaying || shown.info.Position != 3*time.Second || shown.info.Duration != 10*time.Second {
+		t.Fatalf("opening showed %+v", shown)
+	}
+	waitUntil(t, updates, func() bool { return rec.count("set") == 2 })
+	if e := rec.last(t); string(e.info.Artwork) != string(poster) || e.info.Title != "clip" || e.info.State != mygo.PlaybackPlaying {
+		t.Fatalf("the poster showed as %+v", e)
+	}
+
+	p.finish()
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || e.at != 10*time.Second {
+		t.Fatalf("the end told the system %+v", e)
+	}
+	a.playerMediaCommand(mygo.MediaPlay, 10*time.Second)
+	if p.finished || !p.Playing() {
+		t.Fatal("the play key did not start the film over")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at != 0 {
+		t.Fatalf("starting over told the system %+v", e)
+	}
+
+	a.startPlayback("/v/other.mp4")
+	if e := rec.last(t); e.kind != "clear" {
+		t.Fatalf("another video opening left the system %+v", e)
+	}
+	before := len(rec.events)
+	a.playerMediaCommand(mygo.MediaPause, 0)
+	a.playerMediaCommand(mygo.MediaSeek, time.Second)
+	if len(rec.events) != before || a.player.play != nil {
+		t.Fatalf("a media key with no film open did %+v", rec.events[before:])
 	}
 }

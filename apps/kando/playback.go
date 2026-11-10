@@ -41,6 +41,8 @@ type filmPlay struct {
 	// soundSince and soundFrom are when the sound was last asked to play along with the picture, and where it was heard then, for catchUpSound to bring it level with the picture once it is heard to move; soundSince is zero once it did, or when there is nothing to check.
 	soundSince time.Time
 	soundFrom  time.Duration
+	// nowPlaying is where toggle and finish tell the system whether the film plays (playback_nowplaying.go), or nil while the system is not shown the film.
+	nowPlaying nowPlayingCenter
 }
 
 const (
@@ -72,7 +74,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 	a.player.playFrom = 0
 	a.player.playJump, a.player.playSame = false, false
 	if keep == nil {
-		a.stopPlayback()
+		a.dropPlayback()
 	}
 	// A seek opens the same video again and keeps the film's state; anything else is a film opening, the hero's 播放, 继续 and 从头看 and the palette's jump into another film included.
 	if !same {
@@ -83,10 +85,16 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 	}
 	a.player.opening = at
 	ffmpeg := a.ffmpegPath()
-	if path == "" || ffmpeg == "" {
-		return
+	opens := path != "" && ffmpeg != ""
+	if opens {
+		if _, err := os.Stat(path); err != nil {
+			opens = false
+		}
 	}
-	if _, err := os.Stat(path); err != nil {
+	if keep == nil {
+		a.playerNowPlayingOpening(path, jump && opens)
+	}
+	if !opens {
 		return
 	}
 	a.player.playGen++
@@ -110,6 +118,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 					return
 				}
 				a.player.playErr = playerErrUnplayable
+				a.playerNowPlayingClear()
 			})
 			return
 		}
@@ -151,6 +160,7 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 				}
 				if keep == nil {
 					a.player.playErr = playerErrUnplayable
+					a.playerNowPlayingClear()
 				}
 				return
 			}
@@ -231,10 +241,19 @@ func (a *app) seekPlayback(at time.Duration) {
 	a.player.playFrom = at
 	a.player.playJump, a.player.playSame = true, true
 	a.startPlayback(path)
+	if a.player.playPath == path {
+		a.playerNowPlayingSeeking(path, at)
+	}
 }
 
-// stopPlayback ends the open video and, when it played (filmPlay.played), keeps where it stopped. It does nothing when the film page is not playing, but for saving a subtitle delay that changed since the last save.
+// stopPlayback ends the open video and, when it played (filmPlay.played), keeps where it stopped, and takes it off where the system shows what plays. It does nothing when the film page is not playing, but for saving a subtitle delay that changed since the last save.
 func (a *app) stopPlayback() {
+	a.dropPlayback()
+	a.playerNowPlayingClear()
+}
+
+// dropPlayback is stopPlayback but for what the system shows, which a video opening in its place (startPlaybackWith) keeps through a seek.
+func (a *app) dropPlayback() {
 	defer a.playerSaveDelay()
 	if a.player.play == nil && a.player.playPath == "" && a.player.playErr == "" {
 		return
@@ -336,6 +355,7 @@ func (p *filmPlay) finish() {
 		p.audio.Close()
 		p.audio = nil
 	}
+	p.reportPlayback()
 }
 
 func (p *filmPlay) toggle() {
@@ -347,6 +367,7 @@ func (p *filmPlay) toggle() {
 		// the same origin instead of the old end position.
 		p.restartAudioAt(0)
 		p.player.Play()
+		p.reportPlaybackAt(0)
 		return
 	}
 	if p.player.Playing() {
@@ -356,6 +377,7 @@ func (p *filmPlay) toggle() {
 		if p.audio != nil {
 			p.audio.Pause()
 		}
+		p.reportPlayback()
 		return
 	}
 	p.paused = false
@@ -367,6 +389,7 @@ func (p *filmPlay) toggle() {
 		p.restartAudio()
 	}
 	p.player.Play()
+	p.reportPlayback()
 }
 
 func (p *filmPlay) restartAudio() {
