@@ -1185,3 +1185,63 @@ func TestSoundRestartsWhereItPlayedOn(t *testing.T) {
 		t.Fatalf("sound at %v with the picture at the start", got)
 	}
 }
+
+// fakeScreen stands in for the main window's full screen, which tests have no window for.
+type fakeScreen struct{ full bool }
+
+func (s *fakeScreen) IsFullScreen() bool   { return s.full }
+func (s *fakeScreen) SetFullScreen(v bool) { s.full = v }
+func (s *fakeScreen) ToggleFullScreen()    { s.full = !s.full }
+
+// TestEscapeLeavesFullScreenFirst checks that Esc on a film in full screen leaves full screen and keeps the film open, and that the next Esc goes back to the library.
+func TestEscapeLeavesFullScreenFirst(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	screen := &fakeScreen{}
+	a.player.screen = screen
+	tt.Key(0, ui.KeyF)
+	tt.Frame()
+	if !screen.full {
+		t.Fatal("F did not enter full screen")
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if screen.full || a.openKey == "" {
+		t.Fatalf("first Escape: full screen %v open %q", screen.full, a.openKey)
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if screen.full || a.openKey != "" {
+		t.Fatalf("second Escape: full screen %v open %q", screen.full, a.openKey)
+	}
+}
+
+// TestDoubleClickOnThePictureTogglesFullScreen checks that a double click on the picture enters full screen and the next one leaves it, while the film plays on: the double click's two clicks start and hold it, which cancel out.
+func TestDoubleClickOnThePictureTogglesFullScreen(t *testing.T) {
+	a, tt, _ := openClip(t, 10)
+	screen := &fakeScreen{}
+	a.player.screen = screen
+	picture, ok := tt.Find("画面")
+	if !ok {
+		t.Fatalf("no picture: %q", tt.Texts())
+	}
+	// Left of the big play button in the middle, below the title bar and above the subtitles and the transport.
+	x, y := picture.X+picture.W/4, picture.Y+picture.H*2/5
+	tt.Advance(time.Second)
+	tt.ClickAt(x, y)
+	tt.Frame()
+	if !a.player.play.player.Playing() || screen.full {
+		t.Fatalf("a click: playing %v full screen %v", a.player.play.player.Playing(), screen.full)
+	}
+	double := func(want bool) {
+		t.Helper()
+		tt.Advance(time.Second)
+		tt.ClickAt(x, y)
+		tt.ClickAt(x, y)
+		tt.Frame()
+		if screen.full != want || !a.player.play.player.Playing() {
+			t.Fatalf("double click: full screen %v, want %v; playing %v", screen.full, want, a.player.play.player.Playing())
+		}
+	}
+	double(true)
+	double(false)
+}

@@ -179,10 +179,10 @@ func (a *app) ClipPoster(start time.Duration) ui.ImageSource { return a.player.f
 
 func (a *app) UploadNote() *bool { return &a.player.film.uploadNote }
 
-// ToggleFullScreen enters or leaves full screen. Without a window, as in tests, it does nothing.
+// ToggleFullScreen enters or leaves full screen. Without a window, as in tests that set none, it does nothing.
 func (a *app) ToggleFullScreen() {
-	if a.win != nil {
-		a.win.ToggleFullScreen()
+	if a.player.screen != nil {
+		a.player.screen.ToggleFullScreen()
 	}
 }
 
@@ -201,10 +201,14 @@ func (a *app) closeFilm() {
 	a.stopPlayback()
 }
 
-// escapeFilm closes what is open over the film, the style view, and else the film.
+// escapeFilm closes what is open over the film, the style view, then leaves full screen, and else closes the film. The window does not leave full screen on Esc by itself, so without this Esc in full screen would close the film and leave the library filling the screen.
 func (a *app) escapeFilm() {
 	if a.player.film.styleView {
 		a.player.film.styleView = false
+		return
+	}
+	if a.player.screen != nil && a.player.screen.IsFullScreen() {
+		a.player.screen.SetFullScreen(false)
 		return
 	}
 	a.closeFilm()
