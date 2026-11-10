@@ -503,12 +503,17 @@ func TestRemoteRetriesAJobWithoutMovingTheWindow(t *testing.T) {
 	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "stopped"})
 	remoteWantCode(t, err, remote.CodeInvalid)
 
+	doneSubs := filepath.Join(dir, "done.bilingual.srt")
+	a.lib.quotes = map[string]quote{doneSubs: {translation: "旧的一句", original: "old line"}}
 	got, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "done"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.ID != "done" || got.Stage != "queued" {
 		t.Fatalf("reprocessed done job %+v", got)
+	}
+	if _, ok := a.lib.quotes[doneSubs]; ok {
+		t.Fatal("the hero still has the line it read from the subtitles the reprocessed job writes again")
 	}
 	jobs, err := remoteCall[[]remote.Job](t, updates, remote.MethodJobs, nil)
 	if err != nil {
@@ -593,11 +598,20 @@ func TestRemoteRemovesAJob(t *testing.T) {
 		t.Fatal("the stopped job came back to the shelf")
 	}
 
+	a.openKey = "done"
+	a.queue.selectedID = "done"
+	a.queue.source = "https://example.com/typing"
 	if _, err := remoteCall[any](t, updates, remote.MethodRemove, remote.IDParams{ID: "done"}); err != nil {
 		t.Fatal(err)
 	}
 	if len(a.library.Jobs) != 0 {
 		t.Fatalf("jobs after removing %+v", a.library.Jobs)
+	}
+	if a.openKey != "" {
+		t.Fatalf("the removed film is still open: %q", a.openKey)
+	}
+	if a.queue.selectedID != "" || a.queue.source != "https://example.com/typing" {
+		t.Fatalf("after removing the followed card, card %q, link field %q; want no card and the link the user typed", a.queue.selectedID, a.queue.source)
 	}
 	if _, err := os.Stat(video); err != nil {
 		t.Fatalf("jobs.remove deleted the video: %v", err)

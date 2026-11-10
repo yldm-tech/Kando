@@ -529,20 +529,29 @@ func TestLostAddAnswer(t *testing.T) {
 			if err != nil {
 				return
 			}
+			// jobs.list and jobs.remove are answered from their second request on, and the connection stays open after an answer. Every other request, and the first of those two, gets no answer and the connection closes, as when the app quits after reading it.
 			go func() {
 				defer conn.Close()
-				line, err := bufio.NewReader(conn).ReadBytes('\n')
-				if err != nil {
-					return
-				}
-				var req remote.Request
-				json.Unmarshal(line, &req)
-				mu.Lock()
-				got[req.Method]++
-				n := got[req.Method]
-				mu.Unlock()
-				if req.Method == remote.MethodJobs && n > 1 {
-					json.NewEncoder(conn).Encode(remote.Response{ID: req.ID, Result: json.RawMessage(`[]`)})
+				r := bufio.NewReader(conn)
+				for {
+					line, err := r.ReadBytes('\n')
+					if err != nil {
+						return
+					}
+					var req remote.Request
+					json.Unmarshal(line, &req)
+					mu.Lock()
+					got[req.Method]++
+					n := got[req.Method]
+					mu.Unlock()
+					switch {
+					case req.Method == remote.MethodJobs && n > 1:
+						json.NewEncoder(conn).Encode(remote.Response{ID: req.ID, Result: json.RawMessage(`[]`)})
+					case req.Method == remote.MethodRemove && n > 1:
+						json.NewEncoder(conn).Encode(remote.Response{ID: req.ID, Error: remote.Errorf(remote.CodeNotFound, "no job %q in the open library", "j0")})
+					default:
+						return
+					}
 				}
 			}()
 		}
@@ -561,10 +570,14 @@ func TestLostAddAnswer(t *testing.T) {
 	if out := structured[listJobsOutput](t, res); len(out.Jobs) != 0 {
 		t.Errorf("jobs = %+v", out)
 	}
+	res = call(t, cs, "kando_remove_job", map[string]any{"id": "j0"})
+	if res.IsError || structured[removeJobOutput](t, res).Removed != "j0" {
+		t.Errorf("remove with a lost answer = %v %q, want it removed, as the first request did", res.IsError, text(t, res))
+	}
 	mu.Lock()
 	defer mu.Unlock()
-	if got[remote.MethodAdd] != 1 || got[remote.MethodRetry] != 1 || got[remote.MethodJobs] != 2 {
-		t.Errorf("requests = %v, want the add and the retry once and the jobs twice", got)
+	if got[remote.MethodAdd] != 1 || got[remote.MethodRetry] != 1 || got[remote.MethodRemove] != 2 || got[remote.MethodJobs] != 2 {
+		t.Errorf("requests = %v, want the add and the retry once and the remove and the jobs twice", got)
 	}
 }
 

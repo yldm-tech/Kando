@@ -67,18 +67,25 @@ func (a *app) drop(client *remote.Client) {
 	}
 }
 
-// call asks the app for method with params and decodes its answer into out. An error the app answered comes back as the *remote.Error it is, which the tool reports to the agent as its result. Any other error from an open connection means it broke, as when the app quit after it was dialed: the connection is dropped and the request is sent once more on a new one, which starts the app again. Adding videos and retrying a job are only sent again when the old connection refused the request outright, as the app may otherwise have queued them before its answer was lost; the error then says so, so the agent looks at the jobs before asking again.
+// call asks the app for method with params and decodes its answer into out. An error the app answered comes back as the *remote.Error it is, which the tool reports to the agent as its result. Any other error from an open connection means it broke, as when the app quit after it was dialed: the connection is dropped and the request is sent once more on a new one, which starts the app again. Adding videos and retrying a job are only sent again when the old connection refused the request outright, as the app may otherwise have queued them before its answer was lost; the error then says so, so the agent looks at the jobs before asking again. A removal sent again that finds no job counts as done, as the first one may have removed it.
 func (a *app) call(ctx context.Context, method string, params, out any) error {
+	// mayHaveRun is set once a request was written and its answer lost, so the app may have done it already.
+	mayHaveRun := false
 	for retried := false; ; retried = true {
 		client, err := a.connect(ctx)
 		if err != nil {
 			return err
 		}
 		err = client.Call(ctx, method, params, out)
+		// A remove sent again after a lost answer finds no job when the first one removed it, which is what was asked.
+		if mayHaveRun && method == remote.MethodRemove && remote.IsCode(err, remote.CodeNotFound) {
+			return nil
+		}
 		if err == nil || isAppError(err) {
 			return err
 		}
 		a.drop(client)
+		mayHaveRun = mayHaveRun || !unsent(err)
 		if method == remote.MethodAdd && !unsent(err) {
 			return fmt.Errorf("the connection to Kando broke before it answered (%v); it may have queued some of the videos, so check kando_list_jobs before adding them again", err)
 		}

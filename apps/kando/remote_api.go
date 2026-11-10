@@ -336,13 +336,15 @@ func (a *app) remoteRetry(ctx context.Context, id string) (remote.Job, error) {
 	return job, nil
 }
 
-// remoteRemove takes job id off the open library's shelf as the queue card's 移除 does: a running job is stopped, the film open in the player closes when it is this one, and its files stay on disk.
+// remoteRemove takes job id off the open library's shelf as the queue card's 移除 does: a running job is stopped, the film open in the player closes when it is this one, and its files stay on disk. When it is the card the library follows, the library stops following it, but the link field keeps what the user may be typing there.
 func (a *app) remoteRemove(ctx context.Context, id string) error {
 	_, err := remote.OnUI(ctx, a.update, func() (struct{}, error) {
 		if _, err := a.remoteFindJob(id); err != nil {
 			return struct{}{}, err
 		}
+		source := a.queue.source
 		a.remove(id)
+		a.queue.source = source
 		return struct{}{}, nil
 	})
 	return err
