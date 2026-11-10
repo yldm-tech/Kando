@@ -229,12 +229,17 @@ func TestTheComputerStaysAwakeWhileJobsRun(t *testing.T) {
 	if awake.held != 1 {
 		t.Fatalf("while d runs: holds %+v, %d held", awake.holds, awake.held)
 	}
+	done := a.queue.done
 	a.areasQuitting()
 	if awake.held != 0 {
 		t.Fatalf("after quitting: holds %+v, %d held", awake.holds, awake.held)
 	}
-	a.Cancel(a.RunningJob())
-	settle(t, a, tt, updates)
+	// Quitting stops d, which then reports nothing, so it is never marked done and settle would wait for it in vain: its pipeline returning is the end.
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("quitting left d's pipeline running")
+	}
 }
 
 // TestTypingALinkWhileAJobRunsQueuesIt checks that 开始处理 adds to the queue instead of being refused while another job runs.
