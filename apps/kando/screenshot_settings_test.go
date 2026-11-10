@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"kando/apps/kando/clitool"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -25,7 +26,7 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-cli", shown, models, turbo, func(a *app) { shotCLITool(f, a, false) })
 	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-cli-installed", shown, models, turbo, func(a *app) {
 		shotCLITool(f, a, true)
-		a.cliTool.copied = cliToolMCPConfig(a.cliTool.status.cliToolCommand())
+		a.cliTool.copied = clitool.MCPConfig(a.cliTool.status.MCPCommand())
 	})
 	// An installed copy, which updates itself: the last check found 0.5.0, and the switches of the checks and downloads in the background show.
 	shootSettings(t, f, settings.SectionGeneral, "settings-general-updates", shown, models, turbo, func(a *app) {
@@ -77,13 +78,13 @@ func shotKitsDownloading(t *testing.T, f *screenshotFixture, a *app) {
 
 // shotCLITool shows Kando.app in /Applications with the kando command in /usr/local/bin when installed, or no kando a terminal finds, as the app's own look would find them. The look the window starts when it opens sees a folder of the fake home with no command, and its answer is dropped, as the scenes' updates are.
 func shotCLITool(f *screenshotFixture, a *app, installed bool) {
-	a.cliTool.env = func() cliToolEnv {
-		return cliToolEnv{exe: filepath.Join(f.home, "Kando"), searched: []string{filepath.Join(f.home, "bin")}}
+	a.cliTool.env = func() clitool.Env {
+		return clitool.Env{Exe: filepath.Join(f.home, "Kando"), Searched: []string{filepath.Join(f.home, "bin")}}
 	}
 	a.cliTool.known = true
-	a.cliTool.status = cliToolStatus{exe: "/Applications/Kando.app/Contents/MacOS/Kando", installable: true}
+	a.cliTool.status = clitool.Status{Exe: "/Applications/Kando.app/Contents/MacOS/Kando", Installable: true}
 	if installed {
-		a.cliTool.status.command, a.cliTool.status.ours = "/usr/local/bin/kando", true
+		a.cliTool.status.Command, a.cliTool.status.Ours = "/usr/local/bin/kando", true
 	}
 }
 
