@@ -1333,7 +1333,18 @@ func TestPlayingFilmIsKeptOnDisk(t *testing.T) {
 	a.playerKeep(start.Add(2 * time.Minute))
 	a.playerKeep(start.Add(5 * time.Minute))
 	want(5*time.Minute, "a film held on its first frame")
-	a.player.play = seeked
+
+	ending := &filmPlay{player: play.player, frames: &frameDecoder{shown: 9 * time.Minute}, path: "/v.mp4", duration: 10 * time.Minute, played: true}
+	ending.player.Play()
+	a.player.play = ending
+	a.playerKeep(start.Add(6 * time.Minute))
+	want(9*time.Minute, "a seek into the last minute")
+	ending.player.Pause()
+	ending.finish()
+	a.playerKeep(start.Add(7 * time.Minute))
+	if got, ok := onDisk(t, path).Positions["/v.mp4"]; ok {
+		t.Fatalf("a film played to its end is kept at %v, want it to start over", got)
+	}
 }
 
 // TestSubtitleDelayStaysWithItsFilm moves the subtitles of one film and checks that they are moved again when it opens again, in this launch and the next, that another film opens with its own in place, and that a run of Z presses is saved once it rests rather than on every press.
@@ -1409,5 +1420,50 @@ func TestSubtitleDelayFollowsAMovedVideo(t *testing.T) {
 	lib := onDisk(t, path)
 	if len(lib.Delays) != 1 || lib.Delays["/new/a.mp4"] != 800*time.Millisecond {
 		t.Fatalf("library.json delays %v", lib.Delays)
+	}
+}
+
+// TestSubtitleDelayStaysWithAFilmOpenedPlaying opens films playing, as the hero's 播放, 从 X 继续 and 从头看 and the palette's jump into another film do (OpenAt), and checks that each opens with its own subtitle delay and keeps a change by its own video, while a jump to a line of the open film keeps the film as it is, as a seek does.
+func TestSubtitleDelayStaysWithAFilmOpenedPlaying(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.openLibrary(path)
+	filmA := films.Film{Key: "a", VideoPath: "/films/a.mp4"}
+	filmB := films.Film{Key: "b", VideoPath: "/films/b.mp4"}
+
+	a.Open(filmB)
+	a.SetDelay(700 * time.Millisecond)
+	a.closeFilm()
+	for _, at := range []time.Duration{0, 30 * time.Second} {
+		a.OpenAt(filmA, at)
+		if d := a.Delay(); d != 0 {
+			t.Fatalf("film A opened at %v with film B's delay %v", at, d)
+		}
+		if a.player.film.video != filmA.VideoPath {
+			t.Fatalf("film A opened at %v keeps its delay by %q", at, a.player.film.video)
+		}
+		a.closeFilm()
+	}
+
+	a.OpenAt(filmA, 0)
+	a.SetDelay(-200 * time.Millisecond)
+	a.closeFilm()
+	lib := onDisk(t, path)
+	if lib.Delays[filmA.VideoPath] != -200*time.Millisecond || lib.Delays[filmB.VideoPath] != 700*time.Millisecond {
+		t.Fatalf("library.json delays %v, want A -0.2s and B 0.7s", lib.Delays)
+	}
+
+	a.OpenAt(filmB, 30*time.Second)
+	if d := a.Delay(); d != 700*time.Millisecond {
+		t.Fatalf("film B opened playing with a delay of %v, want 0.7s", d)
+	}
+	*a.Search() = "hello"
+	a.OpenAt(filmB, 40*time.Second)
+	if d, q := a.Delay(), *a.Search(); d != 700*time.Millisecond || q != "hello" {
+		t.Fatalf("a jump within film B left delay %v and search %q", d, q)
+	}
+	a.OpenAt(filmA, 30*time.Second)
+	if d, q := a.Delay(), *a.Search(); d != -200*time.Millisecond || q != "" {
+		t.Fatalf("film A opened from film B with delay %v and search %q", d, q)
 	}
 }

@@ -17,7 +17,10 @@ type playerUI struct {
 	playErr  string
 	playGen  int
 	playFrom time.Duration
+	// playJump has the video open playing at playFrom (a seek, 继续, 从头看, a jump to a line, a film coming back) rather than held on its first frame.
 	playJump bool
+	// playSame is set when the playback opens the open film's video again, as a seek, a film coming back and a jump to a line of the open film do, so the film keeps its state; any other playback is a film opening, which starts it afresh.
+	playSame bool
 	// opening is where the video being opened will start, which the transport shows until its picture comes.
 	opening time.Duration
 	// length is the open video's length once known, kept while a seek opens it again.

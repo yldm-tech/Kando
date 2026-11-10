@@ -53,14 +53,14 @@ func (a *app) startPlayback(path string) {
 // startPlaybackWith opens a new decoder. keep, a film whose picture fell behind its sound in the background, stays on screen with its sound playing while the new picture opens where that sound is by then (sound), and the new picture takes that sound over, so the sound never stops or starts again.
 func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.Duration) {
 	at := a.player.playFrom
-	jump := a.player.playJump
+	jump, same := a.player.playJump, a.player.playSame
 	a.player.playFrom = 0
-	a.player.playJump = false
+	a.player.playJump, a.player.playSame = false, false
 	if keep == nil {
 		a.stopPlayback()
 	}
-	// A seek opens the same video again and keeps the film's state; anything else is a film opening.
-	if !jump {
+	// A seek opens the same video again and keeps the film's state; anything else is a film opening, the hero's 播放, 继续 and 从头看 and the palette's jump into another film included.
+	if !same {
 		a.resetFilm()
 		a.player.film.video = path
 		a.player.film.delay = a.player.delays[path]
@@ -215,7 +215,7 @@ func (a *app) seekPlayback(at time.Duration) {
 		return
 	}
 	a.player.playFrom = at
-	a.player.playJump = true
+	a.player.playJump, a.player.playSame = true, true
 	a.startPlayback(path)
 }
 
