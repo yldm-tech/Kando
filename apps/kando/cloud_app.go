@@ -68,6 +68,7 @@ func (a *app) UploadView(item films.Film) film.Upload {
 	if a.cloud.uploadPath == item.VideoPath {
 		view.Detail = uploadProgress(a.cloud.uploadWritten, a.cloud.uploadTotal)
 		view.Status = film.UploadBusy
+		view.Canceling = a.cloud.uploadCancel == nil
 		if a.cloud.uploadTotal > 0 {
 			view.Progress = float64(a.cloud.uploadWritten) / float64(a.cloud.uploadTotal)
 		}
@@ -162,6 +163,8 @@ func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPat
 			a.cloud.uploadWritten, a.cloud.uploadTotal = written, total
 		})
 	})
+	// Whether CancelUpload stopped it is decided here, before the deferred cancel runs: a.update may run its function after runUpload returns (win.Update only posts it), when ctx is canceled for every upload.
+	canceled := err != nil && (errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled))
 	a.update(func() {
 		if a.cloud.uploadPath != videoPath {
 			return
@@ -170,7 +173,7 @@ func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPat
 		a.cloud.uploadWritten, a.cloud.uploadTotal = 0, 0
 		a.cloud.uploadCancel = nil
 		done := storeKind(cfg.Kind) + "\n" + videoPath
-		if err != nil && (errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled)) {
+		if canceled {
 			a.cloud.uploadErr = locales.AccountUploadCanceled
 			a.cloud.uploadErrPath = done
 			a.cloud.uploadCanceled = true

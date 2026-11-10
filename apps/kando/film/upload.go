@@ -39,7 +39,7 @@ func (s screen) uploadCapsule(c *ui.Context, item films.Film, panelSpace float32
 			if view.Status == UploadBusy {
 				breeze.Progress(c, view.Progress).Width(120).Height(4).Shrink(0)
 				c.Key("film-upload-cancel")
-				if breeze.Button(c, locales.FilmUploadCancel()).Shrink(0).Clicked() {
+				if breeze.Button(c, locales.FilmUploadCancel()).Shrink(0).Disabled(view.Canceling).Clicked() && !view.Canceling {
 					s.CancelUpload()
 				}
 			}

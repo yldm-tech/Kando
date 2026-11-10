@@ -421,10 +421,12 @@ func TestCancelUploadFreesTheSlot(t *testing.T) {
 	a.cloud.googleEmail = "a@b.c"
 	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
 	started := make(chan struct{}, 1)
+	release := make(chan struct{})
 	a.cloud.uploader = func(ctx context.Context, _ cloud.Store, _ []cloud.File, progress func(int64, int64)) error {
 		progress(1, 4)
 		started <- struct{}{}
 		<-ctx.Done()
+		<-release
 		return ctx.Err()
 	}
 	tt.Frame()
@@ -451,6 +453,12 @@ func TestCancelUploadFreesTheSlot(t *testing.T) {
 	if err := tt.Click(locales.FilmUploadCancel()); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
+	tt.Frame()
+	// Until the storage's client gives up, the upload still runs and its cancel button is off.
+	if view := a.UploadView(item); view.Status != film.UploadBusy || !view.Canceling {
+		t.Fatalf("upload asked to stop %+v", view)
+	}
+	close(release)
 	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
 	tt.Frame()
 	view := a.UploadView(item)
@@ -473,6 +481,35 @@ func TestCancelUploadFreesTheSlot(t *testing.T) {
 	}
 	if view := a.UploadView(item); view.Status != "" {
 		t.Fatalf("canceled note outlived the next upload: %+v", view)
+	}
+}
+
+// TestUploadFailureIsNotACancel fails an upload with the storage's error while the window runs its updates later, as win.Update does: the capsule says why it failed, not that it was canceled, though the upload's context is released before the update runs.
+func TestUploadFailureIsNotACancel(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.cloud.googleEmail = "a@b.c"
+	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
+	failure := errors.New("status 403")
+	contexts := make(chan context.Context, 1)
+	a.cloud.uploader = func(ctx context.Context, _ cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+		contexts <- ctx
+		return failure
+	}
+	item := films.Film{VideoPath: video}
+	a.BeginUpload(item)
+	// The upload's context is released when runUpload returns, which happens before the window runs the update it posted.
+	<-(<-contexts).Done()
+	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	view := a.UploadView(item)
+	if want := uploadFailure(failure, "secret-value", "key"); view.Status != film.UploadFailed || view.Detail != want {
+		t.Fatalf("upload %+v, want failed with %q", view, want)
 	}
 }
 

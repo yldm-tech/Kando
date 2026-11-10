@@ -110,6 +110,8 @@ type Upload struct {
 	Status string
 	// Progress is how much of a busy upload is sent, from 0 to 1.
 	Progress float64
+	// Canceling is whether a busy upload was asked to stop and waits for the storage's client to give up, when its cancel button is off.
+	Canceling bool
 	// Fix is the label of the button that opens 账号 to clear a blocked upload, as 去登录; "" when none helps.
 	Fix string
 }
