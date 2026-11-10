@@ -2,6 +2,14 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.5.1 - 2026-11-10
+
+### Fixes
+
+- Reject channel and list links, and do not queue the same video twice
+- Use an existing .bilingual.srt beside a video that has no job record
+- Esc leaves full screen first, and double-clicking the picture toggles full screen
+
 ## 0.5.0 - 2026-11-10
 
 ### Features
