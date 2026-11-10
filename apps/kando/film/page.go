@@ -224,7 +224,8 @@ func (s screen) stage(c *ui.Context, t *ui.Theme, item films.Film, shown bool, p
 	if !shown {
 		stage.Cursor(ui.CursorNone)
 	}
-	if s.Play() != nil && stage.Clicked() {
+	// Each click starts or holds the film, so an even count since the last frame, as a double click's two clicks arriving together, leaves it as it was.
+	if s.Play() != nil && stage.Clicks()%2 == 1 {
 		s.togglePlay(c)
 	}
 	// A double click is two clicks as well, whose toggles cancel out, so the film plays on, or stays held, as it enters or leaves full screen.
