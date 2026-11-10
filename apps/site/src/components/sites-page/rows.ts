@@ -4,6 +4,8 @@ import type { Language } from "../../lib/site";
 // Row is a website as the page in a language lists it: with the name that language writes, and a name in Chinese characters on a page not in Chinese marked as Simplified Chinese, the catalog's script.
 export interface Row extends CatalogRow {
   lang?: string;
+  // aliases are yt-dlp's names for the site, which a search matches too; the page has them once it has fetched webmcp/sites.json.
+  aliases?: string[];
 }
 
 const hanRe = /\p{Script=Han}/u;

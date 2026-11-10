@@ -1,4 +1,4 @@
-// The last step of the build, on the prerendered HTML. React's hydration needs inline scripts (TanStack Start's dehydrated router state), so the pages cannot do without them as the Go site did; instead each page carries a Content Security Policy that allows scripts from the site itself and those inline scripts by their hashes only, and no styles but the site's stylesheet. 404.html loses its module scripts: GitHub Pages serves it at any missing address, where the router would match another route than the one it was rendered for, so it stays the static page it was rendered as.
+// The last step of the build, on the prerendered HTML. React's hydration needs inline scripts (TanStack Start's dehydrated router state), so the pages cannot do without them as the Go site did; instead each page carries a Content Security Policy that allows scripts from the site itself and those inline scripts by their hashes only, and no style sheets but the site's own. 404.html loses its module scripts: GitHub Pages serves it at any missing address, where the router would match another route than the one it was rendered for, so it stays the static page it was rendered as.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -30,6 +30,8 @@ export function policy(scripts: readonly string[]): string {
     "default-src 'self'",
     ["script-src 'self'", ...hashes].join(" "),
     "style-src 'self'",
+    // TanStack Charts writes its SVG with a style attribute when the models chart is drawn. A style attribute cannot run script, and img-src and font-src keep it from loading anything from elsewhere; the prerendered HTML itself has none (test/external.test.ts).
+    "style-src-attr 'unsafe-inline'",
     "img-src 'self'",
     "connect-src 'self'",
     "font-src 'self'",

@@ -42,6 +42,8 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
     staleTime: Infinity,
   });
   const known = aliases.data;
+  // The rows with their aliases once they arrive, so that the table filters again with them.
+  const data = useMemo(() => (known ? rows.map((r) => ({ ...r, aliases: known.get(r.domain) ?? [] })) : [...rows]), [rows, known]);
   const columns = useMemo<ColumnDef<typeof features, Row>[]>(
     () => [
       { id: "name", accessorKey: "name", header: () => t("sitesColumnName") },
@@ -49,7 +51,6 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
     ],
     [t],
   );
-  const data = useMemo(() => [...rows], [rows]);
   const table = useTable({
     features,
     columns,
@@ -57,7 +58,7 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
     state: { globalFilter: query },
     // One column takes part, and its filter matches the whole site as the app does, so that every word of a query may be in a different field.
     getColumnCanGlobalFilter: (column) => column.id === "name",
-    globalFilterFn: (row, _columnId, value: string) => siteMatches({ ...row.original, aliases: known?.get(row.original.domain) ?? [] }, value),
+    globalFilterFn: (row, _columnId, value: string) => siteMatches(row.original, value),
   });
   const found = table.getRowModel().rows;
 
@@ -74,7 +75,7 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
 
   return (
     <>
-      <form className="sites-search" role="search" onSubmit={(e) => e.preventDefault()}>
+      <div className="sites-search" role="search">
         <label htmlFor="sites-query">{t("sitesSearchLabel")}</label>
         <input
           id="sites-query"
@@ -89,7 +90,7 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
         <output htmlFor="sites-query" aria-live="polite">
           {found.length === 0 ? t("sitesNoMatch") : tf("sitesFound", { count: found.length })}
         </output>
-      </form>
+      </div>
       <table className="sites-table" aria-labelledby="sites-title" aria-rowcount={found.length + 1}>
         <SitesHead />
         <tbody ref={body}>
