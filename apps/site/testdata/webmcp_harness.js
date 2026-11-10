@@ -190,23 +190,24 @@ async function main() {
   const own = content(pageData.lang);
   r = await call(tools, "get_started", {});
   assert.equal(r.data.lang, pageData.lang);
-  for (const key of ["startTitle", "startDownloadTitle", "startDownloadBody", "startToolsBody", "toolWhisper", "startSetup", "startBuildNote", "startReadme"]) {
+  for (const key of ["openTitle", "dlMacBody", "dlMacButton", "dlFirstRun", "dlLinuxNote", "dlWinBody", "dlWinNote", "dlReadme"]) {
     assert.ok(r.text.includes(own[key]), "get_started does not say " + key + ": " + own[key]);
   }
-  assert.ok(r.text.includes("    git clone https://github.com/yldm-tech/Kando.git\n    cd Kando\n    make build"), "get_started does not give the build commands");
+  assert.ok(r.text.includes("    git clone https://github.com/yldm-tech/Kando.git\n    cd Kando\n    go tool mygo build apps/kando"), "get_started does not give the build commands");
+  assert.ok(r.text.includes("install.sh | sh"), "get_started does not give the Linux install command");
   r = await call(tools, "get_started", { lang: "zh-Hant" });
   assert.equal(r.data.lang, "zh-TW");
-  assert.ok(r.text.startsWith(content("zh-TW").startTitle), r.text.slice(0, 40));
+  assert.ok(r.text.startsWith(content("zh-TW").openTitle), r.text.slice(0, 40));
   r = await call(tools, "get_started", { lang: "KO" });
   assert.equal(r.data.lang, "ko");
   assert.equal((await call(tools, "get_started", { lang: "fr" })).isError, true);
   r = await call(tools, "list_features", { lang: "ja" });
   const ja = content("ja");
-  for (const key of ["featuresTitle", "featureAgentsTitle", "featureAgentsBody", "featureModelLink"]) {
+  for (const key of ["detailsTitle", "detailAITitle", "detailAIBody", "detailAILink", "detailBrowserBody"]) {
     assert.ok(r.text.includes(ja[key]), "list_features does not say " + key + ": " + ja[key]);
   }
   assert.ok(r.text.includes("kando mcp"));
-  assert.equal(r.data.features.items.length, 9);
+  assert.equal(r.data.features.items.length, 11);
   // A language file is fetched once, however often it is asked for.
   await call(tools, "get_started", { lang: "ja" });
   const jaFetches = fetched.filter((url) => url.startsWith("/webmcp/ja.json"));

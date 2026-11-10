@@ -35,205 +35,266 @@
 <body>
 {{template "header" .}}
 <main id="main">
-  <section class="hero">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="glow glow-a" aria-hidden="true"></div>
+    <div class="glow glow-b" aria-hidden="true"></div>
     <div class="wrap hero-in">
-      <p class="eyebrow"><span class="dot" aria-hidden="true"></span>{{t "heroEyebrow"}}</p>
-      <h1>{{t "heroTitle"}}</h1>
-      {{- with .Echo.Text}}
-      <p class="echo" lang="{{$.Echo.Lang.Tag}}" aria-hidden="true">{{.}}</p>
-      {{- end}}
+      <img class="hero-icon" src="/logo.png" width="96" height="96" alt="">
+      <h1 id="hero-title">{{headline (t "heroTitle") (t "heroTitleMark")}}</h1>
       <p class="lead">{{t "heroLead"}}</p>
       <div class="actions">
-        <a class="btn primary" href="{{.Latest}}">
-          <svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>
-          {{t "heroDownload"}}
-        </a>
-        <a class="btn ghost" href="{{.Repo}}">
-          {{template "github-mark" 18}}
-          {{t "heroSource"}}
-        </a>
+        <a class="btn primary" href="{{.Latest}}">{{template "apple-mark" 18}}{{t "heroDownload"}}</a>
+        <a class="btn ghost" href="#start" data-os="linux">{{t "heroOtherSystems"}}</a>
       </div>
-      <p class="note">{{t "heroReleaseNote"}}<a href="#build">{{t "heroBuildLink"}}</a></p>
-      <p class="platforms"><span>{{t "heroPlatforms"}}</span></p>
+      <p class="meta">{{tf "heroMeta" "version" .Version}}</p>
     </div>
     <div class="wrap stage">
-      <figure class="window hero-shot">
-        <img src="{{.Shots.library.Src}}" width="{{.Shots.library.W}}" height="{{.Shots.library.H}}" alt="{{t "shotLibraryAlt"}}" fetchpriority="high">
+      <figure class="player">
+        <div class="win dark">
+          <div class="win-bar" aria-hidden="true"><span class="lights"><i></i><i></i><i></i></span></div>
+          <img src="{{.Shots.player.Src}}" width="{{.Shots.player.W}}" height="{{.Shots.player.H}}" alt="{{t "shotPlayerAlt"}}" fetchpriority="high">
+        </div>
+        <div class="badge badge-start" aria-hidden="true">
+          <span>{{t "heroBadgeTranscribe"}}</span>
+          <strong>whisper.cpp</strong>
+        </div>
+        <div class="badge badge-end" aria-hidden="true">
+          <span class="tick"><svg viewBox="0 0 24 24" width="14" height="14"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+          <span class="badge-text"><span>{{t "heroBadgeExport"}}</span><code>video.bilingual.srt</code></span>
+        </div>
       </figure>
     </div>
   </section>
 
   <section class="sites" aria-labelledby="sites-title">
-    <div class="wrap sites-in">
-      <div class="sites-text">
-        <h2 id="sites-title">{{tf "featureSitesTitle" "count" .Total}}</h2>
-        <p>{{t "featureSitesBody"}}</p>
+    <p class="sites-lead" id="sites-title">{{tf "sitesLead" "count" .Total}}</p>
+    <div class="marquee">
+      <div class="marquee-track">
+        <ul class="logos" aria-label="{{t "sitesStripLabel"}}">
+          {{- range .Sites}}
+          <li title="{{.Name}}"{{if .Lang}} lang="{{.Lang}}"{{end}}>{{template "site-mark" .}}<span>{{.Name}}</span></li>
+          {{- end}}
+        </ul>
+        <ul class="logos" aria-hidden="true">
+          {{- range .Sites}}
+          <li{{if .Lang}} lang="{{.Lang}}"{{end}}>{{template "site-mark" .}}<span>{{.Name}}</span></li>
+          {{- end}}
+        </ul>
       </div>
-      <ul class="logos" aria-label="{{t "sitesStripLabel"}}">
-        {{- range .Sites}}
-        <li title="{{.Name}}"{{if .Lang}} lang="{{.Lang}}"{{end}}>
-          {{- if .Logo}}<img src="{{.Logo}}" width="24" height="24" alt="{{.Name}}" loading="lazy" decoding="async">
-          {{- else}}<span class="initial plate-{{.Plate}}" role="img" aria-label="{{.Name}}">{{.Initial}}</span>{{end -}}
-        </li>
-        {{- end}}
-        <li class="logos-more">{{tf "sitesMore" "count" .More}}</li>
-      </ul>
     </div>
   </section>
 
   <section class="section" id="how" aria-labelledby="how-title">
     <div class="wrap">
-      <header class="section-head">
-        <h2 id="how-title">{{t "howTitle"}}</h2>
-        <p>{{t "howLead"}}</p>
+      <header class="head">
+        <p class="eyebrow">{{t "stepsEyebrow"}}</p>
+        <h2 id="how-title">{{t "stepsTitle"}}</h2>
       </header>
       <ol class="steps">
-        <li class="step"><span class="n" aria-hidden="true">01</span><h3>{{t "stepAddTitle"}}</h3><p>{{t "stepAddBody"}}</p></li>
-        <li class="step"><span class="n" aria-hidden="true">02</span><h3>{{t "stepDownloadTitle"}}</h3><p>{{t "stepDownloadBody"}}</p></li>
-        <li class="step"><span class="n" aria-hidden="true">03</span><h3>{{t "stepTranscribeTitle"}}</h3><p>{{t "stepTranscribeBody"}}</p></li>
-        <li class="step"><span class="n" aria-hidden="true">04</span><h3>{{t "stepTranslateTitle"}}</h3><p>{{t "stepTranslateBody"}}</p></li>
-        <li class="step"><span class="n" aria-hidden="true">05</span><h3>{{t "stepWatchTitle"}}</h3><p>{{t "stepWatchBody"}}</p></li>
+        <li class="card step"><p class="step-top"><span class="n" aria-hidden="true">1</span><code>yt-dlp</code></p><h3>{{t "stepDownloadTitle"}}</h3><p>{{t "stepDownloadBody"}}</p><span class="bar" aria-hidden="true"><i></i></span></li>
+        <li class="card step"><p class="step-top"><span class="n" aria-hidden="true">2</span><code>whisper.cpp</code></p><h3>{{t "stepTranscribeTitle"}}</h3><p>{{t "stepTranscribeBody"}}</p><span class="bar" aria-hidden="true"><i></i></span></li>
+        <li class="card step"><p class="step-top"><span class="n" aria-hidden="true">3</span><span class="tool">{{t "stepTranslateTool"}}</span></p><h3>{{t "stepTranslateTitle"}}</h3><p>{{t "stepTranslateBody"}}</p><span class="bar" aria-hidden="true"><i></i></span></li>
+        <li class="card step"><p class="step-top"><span class="n" aria-hidden="true">4</span><code>.srt</code></p><h3>{{t "stepExportTitle"}}</h3><p>{{t "stepExportBody"}}</p><span class="bar" aria-hidden="true"><i></i></span></li>
       </ol>
     </div>
   </section>
 
-  <section class="section cinema" id="player" aria-labelledby="player-title">
-    <div class="wrap">
-      <header class="section-head">
-        <h2 id="player-title">{{t "playerTitle"}}</h2>
-        <p>{{t "playerLead"}}</p>
-      </header>
-      <figure class="window screen">
-        <img src="{{.Shots.player.Src}}" width="{{.Shots.player.W}}" height="{{.Shots.player.H}}" alt="{{t "shotPlayerAlt"}}" loading="lazy" decoding="async">
+  <section class="section split" id="library" aria-labelledby="library-title">
+    <div class="wrap split-in">
+      <div class="split-text">
+        <p class="eyebrow">{{t "libraryEyebrow"}}</p>
+        <h2 id="library-title">{{rich (t "libraryTitle")}}</h2>
+        <p class="body">{{rich (t "libraryBody")}}</p>
+        <ul class="points">
+          <li>{{t "libraryPoint1"}}</li>
+          <li>{{t "libraryPoint2"}}</li>
+          <li>{{t "libraryPoint3"}}</li>
+        </ul>
+      </div>
+      <figure class="split-media">
+        <div class="win light">
+          <img src="{{.Shots.library.Src}}" width="{{.Shots.library.W}}" height="{{.Shots.library.H}}" alt="{{t "shotLibraryAlt"}}" loading="lazy" decoding="async">
+        </div>
       </figure>
+    </div>
+  </section>
+
+  <section class="section split" id="cli" aria-labelledby="cli-title">
+    <div class="wrap split-in">
+      <div class="split-text">
+        <p class="eyebrow">{{t "cliEyebrow"}}</p>
+        <h2 id="cli-title">{{rich (t "cliTitle")}}</h2>
+        <p class="body">{{rich (t "cliBody")}}</p>
+        <ul class="points">
+          <li>{{rich (tf "cliPoint1" "commands" .Surface.Commands)}}</li>
+          <li>{{rich (tf "cliPoint2" "tools" (len .Surface.Tools))}}</li>
+          <li>{{t "cliPoint3"}}</li>
+        </ul>
+      </div>
+      <div class="term" data-tabs>
+        <div class="term-bar">
+          <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+          <div class="seg" role="tablist" aria-label="{{t "cliTabsLabel"}}">
+            <button type="button" role="tab" id="tab-cli" aria-controls="panel-cli" aria-selected="true">{{t "cliTabCommands"}}</button>
+            <button type="button" role="tab" id="tab-mcp" aria-controls="panel-mcp" aria-selected="false">MCP</button>
+          </div>
+        </div>
+        <div class="term-body" role="tabpanel" id="panel-cli" aria-labelledby="tab-cli">
+<pre><code><span class="c"># {{t "cliCommentAdd"}}</span>
+<span class="p">$</span> <span class="k">kando</span> <span class="s">add</span> <span class="u">https://www.youtube.com/watch?v=…</span> <span class="f">--wait</span>
+<span class="c"># {{t "cliCommentList"}}</span>
+<span class="p">$</span> <span class="k">kando</span> <span class="s">list</span> <span class="f">--source</span> youtube
+<span class="c"># {{t "cliCommentSubtitles"}}</span>
+<span class="p">$</span> <span class="k">kando</span> <span class="s">subtitles</span> <span class="h">&lt;film-id&gt;</span> <span class="f">--format</span> text <span class="f">--translation</span>
+<span class="c"># {{t "cliCommentStatus"}}</span>
+<span class="p">$</span> <span class="k">kando</span> <span class="s">status</span> <span class="f">--json</span></code></pre>
+        </div>
+        <div class="term-body" role="tabpanel" id="panel-mcp" aria-labelledby="tab-mcp">
+          <p class="term-brand"><img src="{{.ClaudeCode.Src}}" width="18" height="18" alt="">{{.ClaudeCode.Name}}</p>
+<pre><code><span class="c"># {{t "mcpCommentAdd"}}</span>
+<span class="p">$</span> <span class="k">claude</span> <span class="s">mcp</span> add kando <span class="o">--</span> <span class="k">kando</span> <span class="s">mcp</span>
+<span class="c"># {{t "mcpCommentTools"}}</span></code></pre>
+          <ul class="tool-names">
+            {{- range .Surface.Tools}}
+            <li><code>{{.}}</code></li>
+            {{- end}}
+          </ul>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="section" id="features" aria-labelledby="features-title">
     <div class="wrap">
-      <header class="section-head">
-        <h2 id="features-title">{{t "featuresTitle"}}</h2>
-        <p>{{t "featuresLead"}}</p>
+      <header class="head">
+        <p class="eyebrow">{{t "detailsEyebrow"}}</p>
+        <h2 id="features-title">{{t "detailsTitle"}}</h2>
       </header>
-      <ul class="bento">
-        <li class="tile big tone-blue">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M2 20h20M9 9.5v2M12 8v5M15 9.5v2"/></svg>
-          <h3>{{t "featureOnDeviceTitle"}}</h3>
-          <p>{{t "featureOnDeviceBody"}}</p>
+      <ul class="details">
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/><path d="m10.5 9 4 3-4 3z"/></svg></span>
+          <h3>{{t "detailReplayTitle"}}</h3><p>{{t "detailReplayBody"}}</p>
         </li>
-        <li class="tile big tone-warm">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9h8M8 12h5"/></svg>
-          <h3>{{t "featureModelTitle"}}</h3>
-          <p>{{t "featureModelBody"}}</p>
-          <p class="more"><a href="{{.EveryAPI}}">{{t "featureModelLink"}} <span aria-hidden="true">→</span></a></p>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M7 11h10M8.5 14.5h7"/></svg></span>
+          <h3>{{t "detailModesTitle"}}</h3><p>{{t "detailModesBody"}}</p>
         </li>
-        <li class="tile">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 13h10M9 16h6"/><path d="m10.5 7 3 2-3 2z"/></svg>
-          <h3>{{t "featurePlayerTitle"}}</h3>
-          <p>{{t "featurePlayerBody"}}</p>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg></span>
+          <h3>{{t "detailSearchTitle"}}</h3><p>{{t "detailSearchBody"}}</p>
         </li>
-        <li class="tile">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-          <h3>{{t "featureFoldersTitle"}}</h3>
-          <p>{{t "featureFoldersBody"}}</p>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg></span>
+          <h3>{{t "detailWhisperTitle"}}</h3><p>{{t "detailWhisperBody"}}</p>
         </li>
-        <li class="tile">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6h9M7.5 4v2M5 6c0 3.5 2.6 6.4 6 7.5M10 6c0 3.5-2.6 6.4-6 7.5"/><path d="m12.5 20 4-9 4 9M14 17h5"/></svg>
-          <h3>{{t "featureLanguagesTitle"}}</h3>
-          <p>{{t "featureLanguagesBody"}}</p>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 3.5 13.9 9l5.6 1.9-5.6 1.9L12 18.5l-1.9-5.7L4.5 11l5.6-2z"/><path d="M19 3v3M17.5 4.5h3"/></svg></span>
+          <h3>{{t "detailAITitle"}}</h3><p>{{t "detailAIBody"}}</p>
+          <ul class="brands">
+            {{- range .AIServices}}
+            <li><img src="{{.Src}}" width="20" height="20" alt="{{.Name}}" title="{{.Name}}" loading="lazy" decoding="async"></li>
+            {{- end}}
+          </ul>
+          <p class="more"><a href="{{.EveryAPI}}">{{t "detailAILink"}} <span aria-hidden="true">→</span></a></p>
         </li>
-        <li class="tile wide">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10.5a3.75 3.75 0 0 1-.5 7.5"/><path d="M12 12v8m-3-5 3-3 3 3"/></svg>
-          <h3>{{t "featureUploadTitle"}}</h3>
-          <p>{{t "featureUploadBody"}}</p>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></span>
+          <h3>{{t "detailBrowserTitle"}}</h3><p>{{t "detailBrowserBody"}}</p>
         </li>
-        <li class="tile">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
-          <h3>{{t "featureShortcutsTitle"}}</h3>
-          <p>{{t "featureShortcutsBody"}}</p>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10.5a3.75 3.75 0 0 1-.5 7.5"/><path d="M12 12v8m-3-5 3-3 3 3"/></svg></span>
+          <h3>{{t "detailUploadTitle"}}</h3><p>{{t "detailUploadBody"}}</p>
+        </li>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M8 14h8"/></svg></span>
+          <h3>{{t "detailShortcutsTitle"}}</h3><p>{{t "detailShortcutsBody"}}</p>
+        </li>
+        <li class="card detail">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 6h9M7.5 4v2M5 6c0 3.5 2.6 6.4 6 7.5M10 6c0 3.5-2.6 6.4-6 7.5"/><path d="m12.5 20 4-9 4 9M14 17h5"/></svg></span>
+          <h3>{{t "detailLanguagesTitle"}}</h3><p>{{t "detailLanguagesBody"}}</p>
         </li>
       </ul>
+    </div>
+  </section>
 
-      <div class="agents" id="agents">
-        <div class="agents-text">
-          <svg class="fi" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></svg>
-          <h3>{{t "featureAgentsTitle"}}</h3>
-          <p>{{t "featureAgentsBody"}}</p>
+  <section class="section" id="open" aria-labelledby="open-title">
+    <div class="wrap">
+      <div class="dark-panel">
+        <div class="glow glow-c" aria-hidden="true"></div>
+        <div class="open-text">
+          <p class="eyebrow">{{t "openEyebrow"}}</p>
+          <h2 id="open-title">{{t "openTitle"}}</h2>
+          <p class="body">{{t "openBody"}}</p>
+          <div class="actions">
+            <a class="btn white" href="{{.Repo}}">{{template "github-mark" 16}}{{t "openGitHub"}}</a>
+            <a class="btn outline" href="{{.Rel}}">{{t "openReleases"}}</a>
+          </div>
         </div>
-        <div class="term" aria-hidden="true">
-          <div class="term-bar"><span class="lights"><i></i><i></i><i></i></span><span class="term-title">kando</span></div>
-<pre class="term-body"><span class="p">$</span> kando add https://youtu.be/… --wait
-<span class="p">$</span> kando list
-<span class="p">$</span> kando subtitles &lt;id&gt; --format text
-<span class="p">$</span> kando mcp
-
-<span class="c">{
-  "mcpServers": {
-    "kando": { "command": "kando", "args": ["mcp"] }
-  }
-}</span></pre>
+        <div class="dl" id="start" data-tabs>
+          <div class="seg" role="tablist" aria-label="{{t "dlTabsLabel"}}">
+            <button type="button" role="tab" id="tab-mac" aria-controls="panel-mac" aria-selected="true" data-os="mac">macOS</button>
+            <button type="button" role="tab" id="tab-linux" aria-controls="panel-linux" aria-selected="false" data-os="linux">Linux</button>
+            <button type="button" role="tab" id="tab-win" aria-controls="panel-win" aria-selected="false" data-os="win">Windows</button>
+          </div>
+          <div class="dl-panel" role="tabpanel" id="panel-mac" aria-labelledby="tab-mac">
+            <p>{{t "dlMacBody"}}</p>
+            <p><a class="btn primary" href="{{.Latest}}">{{template "apple-mark" 16}}{{t "dlMacButton"}}</a></p>
+            <p class="fine">{{t "dlFirstRun"}}</p>
+          </div>
+          <div class="dl-panel" role="tabpanel" id="panel-linux" aria-labelledby="tab-linux">
+            <p>{{t "dlLinuxBody"}}</p>
+            {{template "code" (code .InstallCommand (t "copyLabel") (t "copiedLabel"))}}
+            <p class="fine">{{t "dlLinuxNote"}}</p>
+            <p><a class="btn soft" href="{{.Latest}}">{{t "dlLinuxButton"}}</a></p>
+            <p class="fine">{{t "dlFirstRun"}}</p>
+          </div>
+          <div class="dl-panel" role="tabpanel" id="panel-win" aria-labelledby="tab-win">
+            <p>{{t "dlWinBody"}}</p>
+            {{template "code" (code .BuildCommands (t "copyLabel") (t "copiedLabel"))}}
+            <p class="fine">{{t "dlWinNote"}}</p>
+          </div>
+          <p class="dl-readme"><a href="{{.Lang.ReadmeURL}}">{{t "dlReadme"}} <span aria-hidden="true">→</span></a></p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="section alt" id="settings" aria-labelledby="settings-title">
-    <div class="wrap">
-      <header class="section-head">
-        <h2 id="settings-title">{{t "settingsTitle"}}</h2>
-        <p>{{t "settingsLead"}}</p>
-      </header>
-      <div class="pair">
-        <figure>
-          {{with index .Shots "settings-general"}}<div class="window"><img src="{{.Src}}" width="{{.W}}" height="{{.H}}" alt="{{t "shotSettingsGeneralAlt"}}" loading="lazy" decoding="async"></div>{{end}}
-          <figcaption>{{t "settingsGeneralCaption"}}</figcaption>
-        </figure>
-        <figure>
-          {{with index .Shots "settings-ai"}}<div class="window"><img src="{{.Src}}" width="{{.W}}" height="{{.H}}" alt="{{t "shotSettingsAIAlt"}}" loading="lazy" decoding="async"></div>{{end}}
-          <figcaption>{{t "settingsAICaption"}}</figcaption>
-        </figure>
+  <section class="section" id="faq" aria-labelledby="faq-title">
+    <div class="wrap faq-in">
+      <div class="faq-head">
+        <p class="eyebrow">{{t "faqEyebrow"}}</p>
+        <h2 id="faq-title">{{t "faqTitle"}}</h2>
+        <p>{{t "faqLead"}} <a href="{{.Issues}}">{{t "faqAsk"}}</a></p>
+      </div>
+      <div class="faq-list">
+        <details class="qa" open><summary>{{t "faqPriceQ"}}<span class="plus" aria-hidden="true"></span></summary><p>{{t "faqPriceA"}}</p></details>
+        <details class="qa"><summary>{{t "faqSitesQ"}}<span class="plus" aria-hidden="true"></span></summary><p>{{tf "faqSitesA" "count" .Total}}</p></details>
+        <details class="qa"><summary>{{t "faqSpeechQ"}}<span class="plus" aria-hidden="true"></span></summary><p>{{t "faqSpeechA"}}</p></details>
+        <details class="qa"><summary>{{t "faqTranslateQ"}}<span class="plus" aria-hidden="true"></span></summary><p>{{t "faqTranslateA"}}</p></details>
+        <details class="qa"><summary>{{t "faqSystemsQ"}}<span class="plus" aria-hidden="true"></span></summary><p>{{t "faqSystemsA"}}</p></details>
+        <details class="qa"><summary>{{t "faqLoginQ"}}<span class="plus" aria-hidden="true"></span></summary><p>{{t "faqLoginA"}}</p></details>
+        <details class="qa"><summary>{{t "faqExportQ"}}<span class="plus" aria-hidden="true"></span></summary><p>{{t "faqExportA"}}</p></details>
       </div>
     </div>
   </section>
 
-  <section class="section start" id="start" aria-labelledby="start-title">
-    <div class="wrap">
-      <header class="section-head">
-        <h2 id="start-title">{{t "startTitle"}}</h2>
-        <p>{{t "startLead"}}</p>
-      </header>
-      <div class="cards">
-        <article class="card cta" id="download">
-          <span class="n" aria-hidden="true">01</span>
-          <h3>{{t "startDownloadTitle"}}</h3>
-          <p>{{t "startDownloadBody"}}</p>
-          <p class="fine">{{t "startDownloadSigned"}}</p>
-          <p class="cta-btn"><a class="btn primary" href="{{.Latest}}">{{t "startDownloadButton"}}</a></p>
-        </article>
-        <article class="card" id="tools">
-          <span class="n" aria-hidden="true">02</span>
-          <h3>{{t "startToolsTitle"}}</h3>
-          <p>{{t "startToolsBody"}}</p>
-          <dl class="tools">
-            <div><dt><code>yt-dlp</code></dt><dd>{{t "toolYtdlp"}}</dd></div>
-            <div><dt><code>ffmpeg</code></dt><dd>{{t "toolFfmpeg"}}</dd></div>
-            <div><dt><code>whisper-cli</code></dt><dd>{{t "toolWhisper"}}</dd></div>
-          </dl>
-          <p class="fine">{{t "startSetup"}}</p>
-          <p class="fine">{{t "startToolsOther"}}</p>
-        </article>
-        <article class="card" id="build">
-          <h3>{{t "startBuildTitle"}}</h3>
-          <p>{{t "startBuildBody"}}</p>
-          {{template "code" (code .BuildCommands (t "copyLabel") (t "copiedLabel"))}}
-          <p class="fine">{{t "startBuildNote"}}</p>
-        </article>
-      </div>
-      <p class="readme"><a href="{{.Lang.ReadmeURL}}">{{t "startReadme"}} <span aria-hidden="true">→</span></a></p>
+  <section class="cta" aria-labelledby="cta-title">
+    <div class="glow glow-d" aria-hidden="true"></div>
+    <div class="wrap cta-in">
+      <img class="cta-icon" src="/logo.png" width="72" height="72" alt="">
+      <h2 id="cta-title">{{t "ctaTitle"}}</h2>
+      <p class="lead">{{t "ctaLead"}}</p>
+      <p><a class="btn primary" href="{{.Latest}}">{{template "apple-mark" 18}}{{t "heroDownload"}}</a></p>
+      <p class="fine">{{t "ctaNote"}} <a href="#start" data-os="linux">{{t "ctaOther"}}</a></p>
     </div>
   </section>
 </main>
 {{template "footer" .}}
 </body>
 </html>
+{{end}}
+
+{{define "site-mark"}}
+{{- if .Logo}}<img src="{{.Logo}}" width="22" height="22" alt="" loading="lazy" decoding="async">
+{{- else}}<span class="initial plate-{{.Plate}}" aria-hidden="true">{{.Initial}}</span>{{end -}}
 {{end}}
