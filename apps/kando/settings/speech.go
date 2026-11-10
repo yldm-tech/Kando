@@ -155,7 +155,7 @@ func (s screen) modelAction(c *ui.Context, model media.SpeechModel, installed st
 	}
 }
 
-// modelMenu is what can be done with a downloaded model's file, from ⋯ after 已下载: show it in Finder, wherever it is, and move it to the Trash when Kando downloaded it, unless it is the model in use or a download is running.
+// modelMenu is what can be done with a downloaded model's file, from ⋯ after 已下载: show it in Finder, wherever it is, and move it to the Trash when Kando downloaded it, unless it is a model in use (the one chosen, or the one a running job started with) or a download is running.
 func (s screen) modelMenu(model media.SpeechModel, installed string) func(m *ui.Menu) {
 	return func(m *ui.Menu) {
 		if m.Item(locales.SettingsSpeechReveal()).Chosen() {
@@ -164,10 +164,8 @@ func (s screen) modelMenu(model media.SpeechModel, installed string) func(m *ui.
 		if !s.OwnsSpeechModel(model.ID) {
 			return
 		}
-		tools, _ := s.Tools()
-		inUse := filepath.Clean(installed) == filepath.Clean(tools.WhisperModel)
 		m.Separator()
-		if m.Item(locales.SettingsSpeechTrash()).Disabled(inUse || s.Downloading() != "").Chosen() {
+		if m.Item(locales.SettingsSpeechTrash()).Disabled(s.SpeechModelInUse(installed) || s.Downloading() != "").Chosen() {
 			s.AskTrashSpeechModel(model.ID)
 		}
 	}

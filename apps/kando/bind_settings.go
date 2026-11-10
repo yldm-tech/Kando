@@ -74,6 +74,8 @@ func (a *app) DownloadModel(id string) { a.downloadSpeechModel(id) }
 
 func (a *app) OwnsSpeechModel(id string) bool { return a.speechModelOwned(id) }
 
+func (a *app) SpeechModelInUse(path string) bool { return a.speechModelInUse(path) }
+
 func (a *app) AskTrashSpeechModel(id string) { a.askTrashSpeechModel(id) }
 
 func (a *app) TrashingSpeechModel() (*bool, string) { return &a.prefs.trashOpen, a.prefs.trashModel }

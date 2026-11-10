@@ -53,7 +53,7 @@ func (a *app) restoreSpeech(saved savedSettings) {
 	a.pipeline = tools
 }
 
-// useSpeechLanguage tells whisper the language spoken in the videos from the next transcription on: code is one of media.SpeechLanguages, or "" for whisper to detect it. Any other code is ignored.
+// useSpeechLanguage tells whisper the language spoken in the videos from the next job on (a job already running keeps the language it started with): code is one of media.SpeechLanguages, or "" for whisper to detect it. Any other code is ignored.
 func (a *app) useSpeechLanguage(code string) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok || (code != "" && !media.KnownSpeechLanguage(code)) || tools.SpeechLanguage == code {
@@ -179,10 +179,11 @@ func (a *app) speechModelOwned(id string) bool {
 	return path != "" && a.prefs.modelsDir != "" && filepath.Dir(filepath.Clean(path)) == filepath.Clean(a.prefs.modelsDir)
 }
 
-// speechModelInUse reports whether path is the model transcriptions use.
+// speechModelInUse reports whether path is a model transcriptions use: the one chosen for the next job, or the one the running job took when it started (jobQueue.whisperModel), which it still needs until it returns.
 func (a *app) speechModelInUse(path string) bool {
+	same := func(model string) bool { return model != "" && filepath.Clean(model) == filepath.Clean(path) }
 	tools, ok := a.pipeline.(media.Tools)
-	return ok && tools.WhisperModel != "" && filepath.Clean(tools.WhisperModel) == filepath.Clean(path)
+	return (ok && same(tools.WhisperModel)) || (a.queue.active != "" && same(a.queue.whisperModel))
 }
 
 // askTrashSpeechModel opens the confirmation of moving the model id to the Trash, holding the window's modal flag until it closes (speechModals). A model Kando did not download is not asked about.
@@ -197,8 +198,11 @@ func (a *app) askTrashSpeechModel(id string) {
 	}
 }
 
-// speechModals gives back the modal flag the trash confirmation held once it has closed. The settings window calls it after each of its frames, and as it closes.
+// speechModals gives back the modal flag the trash confirmation held once it has closed. The settings window calls it after each of its frames, and as it closes. The confirmation is drawn by the 语音识别 page, so it also closes when the window shows another section, as the main window can ask for (OpenSettings) while it is open; otherwise the flag would stay held with no confirmation on screen, and the menu bar would drop every command.
 func (a *app) speechModals() {
+	if a.prefs.trashOpen && (!a.prefs.open || a.SettingsSection() != settings.SectionSpeech) {
+		a.prefs.trashOpen = false
+	}
 	if !a.prefs.trashOpen && a.prefs.trashRelease != nil {
 		a.prefs.trashRelease()
 		a.prefs.trashRelease = nil

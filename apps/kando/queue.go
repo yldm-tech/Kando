@@ -31,6 +31,8 @@ type jobQueue struct {
 	order []string
 	// active is the ID of the running job, or "".
 	active string
+	// whisperModel is the whisper model file the running job took from the pipeline when it started, "" while none runs. The 语音识别 page counts it as in use, so it is not moved to the Trash under the job.
+	whisperModel string
 	// ran is the IDs of the jobs the queue has run to the end since launch, whichever library they saved into. jobs.list keeps listing them after they end even when another library is open (remoteQueue), so a client waiting on one sees how it ended rather than losing it.
 	ran map[string]bool
 	// cancel stops the running job; with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
@@ -502,6 +504,10 @@ func (a *app) run(job core.Job) {
 	a.queue.active, a.queue.cancel, a.queue.done = job.ID, cancel, done
 	a.queueKeepAwake()
 	pipeline, update := a.queuePipeline(job), a.update
+	a.queue.whisperModel = ""
+	if tools, ok := pipeline.(media.Tools); ok {
+		a.queue.whisperModel = tools.WhisperModel
+	}
 	go func() {
 		defer cancel(nil)
 		defer close(done)
@@ -551,7 +557,7 @@ func (a *app) queuePipeline(job core.Job) media.Pipeline {
 // finished clears the job that just returned from the pipeline, remembers that the queue ran it (jobQueue.ran), says in the message bar how a job of another library ended (queueEndedElsewhere), and starts the next one, letting the computer sleep again when there is none.
 func (a *app) finished(id string) {
 	if a.queue.active == id {
-		a.queue.active, a.queue.cancel, a.queue.done = "", nil, nil
+		a.queue.active, a.queue.cancel, a.queue.done, a.queue.whisperModel = "", nil, nil, ""
 	}
 	if a.queue.ran == nil {
 		a.queue.ran = map[string]bool{}

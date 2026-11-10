@@ -590,6 +590,27 @@ func TestTrashSpeechModel(t *testing.T) {
 	}
 	a.prefs.downloading = ""
 
+	// A job that started with Large v3 still needs it after Small was chosen: run() gave the job its own copy of the pipeline, so the file stays until the job returns.
+	a.queue.active, a.queue.whisperModel = "running-job", large
+	tt.Frame()
+	if err := tt.Click("Large v3 的更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("移到废纸篓…"); err == nil {
+		t.Fatal("the running job's model can be moved to the Trash")
+	}
+	tt.CloseMenu()
+	a.TrashSpeechModel("large-v3")
+	tt.Frame()
+	if len(*trashed) != 1 || !fileExists(large) {
+		t.Fatalf("the running job's model went to the Trash: %v", *trashed)
+	}
+	wantText(t, tt, "「Large v3」正在使用。先选用别的模型，再把它移到废纸篓。")
+	a.finished("running-job")
+	if a.queue.whisperModel != "" || a.speechModelInUse(large) {
+		t.Fatalf("the finished job still holds %q", a.queue.whisperModel)
+	}
+
 	// A file the Trash refuses stays listed, and the page says why.
 	prevTrash := trashItem
 	trashItem = func(string) error { return errors.New("permission denied") }
@@ -599,5 +620,32 @@ func TestTrashSpeechModel(t *testing.T) {
 	wantText(t, tt, "没能把「Large v3」移到废纸篓：permission denied")
 	if a.InstalledSpeechModel("large-v3") != large {
 		t.Fatalf("large-v3 %q", a.InstalledSpeechModel("large-v3"))
+	}
+}
+
+// TestTrashConfirmationClosesWithItsPage: the main window can move the settings window to another section while the trash confirmation is open. The confirmation is the 语音识别 page's, so it closes, and the menu bar is not left waiting on a modal flag nothing shows.
+func TestTrashConfirmationClosesWithItsPage(t *testing.T) {
+	own := t.TempDir()
+	files := speechModelFiles(t, own, "ggml-base.bin", "ggml-small.bin")
+	a, tt, _ := newTestApp(media.Tools{WhisperModel: files[1]})
+	a.prefs.modelsDir = own
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	trashed := fakeTrash(t)
+	tt.Frame()
+	stt := settingsOpenAt(a, tt, settings.SectionSpeech)
+	a.AskTrashSpeechModel("base")
+	stt.Frame()
+	if !a.modalOpen() || !stt.HasText("要把「Base」移到废纸篓吗？") {
+		t.Fatalf("no confirmation (modal %v): %q", a.modalOpen(), stt.Texts())
+	}
+	a.OpenSettings(settings.SectionAI)
+	stt.Frame()
+	if open, _ := a.TrashingSpeechModel(); *open || a.modalOpen() {
+		t.Fatalf("after another section: confirmation open %v, modal %v", *open, a.modalOpen())
+	}
+	a.OpenSettings(settings.SectionSpeech)
+	stt.Frame()
+	if stt.HasText("要把「Base」移到废纸篓吗？") || len(*trashed) != 0 || !fileExists(files[0]) {
+		t.Fatalf("the confirmation came back or the model moved: trashed %v", *trashed)
 	}
 }

@@ -811,7 +811,7 @@
   "settingsSpeechTrash": "ゴミ箱に入れる…",
   "settingsSpeechTrashButton": "移動",
   "settingsSpeechTrashConfirm": "「{model}」をゴミ箱に入れますか？",
-  "settingsSpeechTrashFailed": "「{model}」をゴミ箱に入れられませんでした: {error}",
+  "settingsSpeechTrashFailed": "「{model}」をゴミ箱に入れられませんでした：{error}",
   "settingsSpeechTrashInUse": "「{model}」は使用中です。ほかのモデルを選んでからゴミ箱に入れてください。",
   "settingsSpeechTrashMessage": "{size} が空きます。モデルはゴミ箱から戻すことも、ここでもう一度ダウンロードすることもできます。",
   "settingsTranslateContext": "スマート翻訳",
