@@ -1,7 +1,7 @@
 {
   "name": "Kando",
   "identifier": "ai.yldm.kando",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "out": "build",
   "fileAssociations": [
     { "ext": ["mp4", "m4v"], "name": "MPEG-4 Video", "mimeType": "video/mp4", "role": "Viewer" },
