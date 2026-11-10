@@ -3020,6 +3020,10 @@
   "@precheckListUnnamed": {
     "description": "Message bar when the link added is a playlist on a site without a known name that names no single video."
   },
+  "precheckNoAudio": "The video has no sound, so there is no speech to transcribe",
+  "@precheckNoAudio": {
+    "description": "Card of a failed job whose video has no sound track, as a silent screen recording: there is nothing to transcribe, and retrying cannot help."
+  },
   "precheckNoLLMModel": "Choose a model in “AI Service” first",
   "@precheckNoLLMModel": {
     "description": "Message bar and the sidebar's status line when no translation model is chosen; “AI Service” is the settings page."

@@ -371,6 +371,9 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 	// whisper.cpp expects 16 kHz mono 16-bit PCM.
 	audio := filepath.Join(dir, "audio.wav")
 	if _, err := runStage(ctx, t.FFmpeg, "-nostdin", "-loglevel", "error", "-y", "-i", videoPath, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", audio); err != nil {
+		if NoAudioStream(err.Error()) {
+			return nil, ErrNoAudio
+		}
 		return nil, err
 	}
 	transcript := filepath.Join(dir, "transcript")
@@ -392,6 +395,11 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 		return nil, err
 	}
 	return parseWhisperJSON(data)
+}
+
+// NoAudioStream reports whether ffmpeg's error says the input had no sound to extract: with -vn and nothing but a picture left, it has no stream to write ("Output file does not contain any stream", "Output file #0 does not contain any stream" before ffmpeg 7).
+func NoAudioStream(ffmpegError string) bool {
+	return strings.Contains(ffmpegError, "does not contain any stream")
 }
 
 // whisperThreadCount uses the available CPU without letting a large machine

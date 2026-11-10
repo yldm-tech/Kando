@@ -8508,6 +8508,22 @@ func (msgs Messages) PrecheckListUnnamed() string {
 	return Catalog.Format(msgs.locale, "precheckListUnnamed", nil)
 }
 
+// PrecheckNoAudio says "The video has no sound, so there is no speech to transcribe"
+// in the language the app shows.
+//
+// Card of a failed job whose video has no sound track, as a silent screen
+// recording: there is nothing to transcribe, and retrying cannot help.
+func PrecheckNoAudio() string { return In(i18n.Locale()).PrecheckNoAudio() }
+
+// PrecheckNoAudio says "The video has no sound, so there is no speech to transcribe"
+// in the language of msgs.
+//
+// Card of a failed job whose video has no sound track, as a silent screen
+// recording: there is nothing to transcribe, and retrying cannot help.
+func (msgs Messages) PrecheckNoAudio() string {
+	return Catalog.Format(msgs.locale, "precheckNoAudio", nil)
+}
+
 // PrecheckNoLLMModel says "Choose a model in “AI Service” first"
 // in the language the app shows.
 //

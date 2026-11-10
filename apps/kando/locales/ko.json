@@ -563,6 +563,7 @@
   "precheckFailedTranslate": "번역 실패: {detail}",
   "precheckList": "{site} 재생목록 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요.",
   "precheckListUnnamed": "재생목록 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요.",
+  "precheckNoAudio": "이 동영상에는 소리가 없어 받아쓸 대사가 없습니다",
   "precheckNoLLMModel": "먼저 ‘AI 서비스’에서 모델을 선택하십시오",
   "precheckNoLibrary": "먼저 라이브러리를 만들거나 여십시오",
   "precheckNoSpeech": "동영상에서 말소리를 인식하지 못했습니다",

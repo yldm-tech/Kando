@@ -563,6 +563,7 @@
   "precheckFailedTranslate": "翻译失败：{detail}",
   "precheckList": "这是{site}列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接。",
   "precheckListUnnamed": "这是这个网站列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接。",
+  "precheckNoAudio": "这个视频没有声音，没有可以识别的台词",
   "precheckNoLLMModel": "先在「AI 服务」里选一个模型",
   "precheckNoLibrary": "先新建或打开一个资料库",
   "precheckNoSpeech": "视频里没有识别出说话的声音",
