@@ -2,6 +2,21 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.6.0 - 2026-11-10
+
+### Features
+
+- Play sound on macOS, Linux and Windows through mygo/audio
+- Add a built-in browser whose sign-ins carry into downloads
+
+### Fixes
+
+- Keep job records when another library is offline or library.json is damaged
+- Stop the running job on quit, confirm quitting mid-job, keep Kando running when the main window closes on macOS
+- Save the resume position while playing and remember subtitle delay per film
+- Explain the everyapi CLI EveryAPI needs, and find it again without restarting
+- Resume whisper model downloads and detect stalled downloads
+
 ## 0.5.1 - 2026-11-10
 
 ### Fixes
