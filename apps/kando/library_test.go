@@ -1739,6 +1739,20 @@ func TestRenameGivesAFilmTheTitleKandoShows(t *testing.T) {
 	if len(a.library.Names) != 0 || a.modalOpen() {
 		t.Fatalf("取消 renamed the film (%v) or still holds the window (modal %v)", a.library.Names, a.modalOpen())
 	}
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	tt.Type("Escaped")
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText("重命名影片") || len(a.library.Names) != 0 || a.modalOpen() {
+		t.Fatalf("Escape renamed the film (%v), or left the dialog open or holding the window (modal %v): %q", a.library.Names, a.modalOpen(), tt.Texts())
+	}
 
 	renameFilm(t, a, tt, "  我的演讲  ")
 	if _, ok := tt.Find("我的演讲"); !ok {
@@ -1823,6 +1837,133 @@ func TestRenameSurvivesReprocessingAndAFinderRename(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(lib.Names) != 1 || lib.Names[moved] != "我的演讲" {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+}
+
+// TestRenameFollowsAReprocessToANewFolder checks that processing a renamed film again into another folder carries its title to the new video, on the shelf and in library.json.
+func TestRenameFollowsAReprocessToANewFolder(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	renameFilm(t, a, tt, "我的演讲")
+
+	next := filepath.Join(filepath.Dir(filepath.Dir(video)), "Rust in 100 Seconds [TRWgBxVAb1M]", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(next), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(next, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	job := a.library.Jobs[0]
+	job.Title = "Rust in 100 Seconds"
+	job.VideoPath = next
+	a.show(job)
+	tt.Frame()
+	if got := a.films(); len(got) == 0 || got[0].VideoPath != next || got[0].Name != "我的演讲" {
+		t.Fatalf("after processing again into a new folder: %+v", got)
+	}
+	lib, err := shelf.Load(libraryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lib.Names) != 1 || lib.Names[next] != "我的演讲" {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+}
+
+// TestRenameKeepsTheVideoTheWatcherMoved checks that a title typed while the library watcher moves the film's video is kept for where the video is now.
+func TestRenameKeepsTheVideoTheWatcherMoved(t *testing.T) {
+	a, tt, video, _ := renamedLibrary(t, "Talk")
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	renamed := filepath.Join(filepath.Dir(filepath.Dir(video)), "Finder name")
+	if err := os.Rename(filepath.Dir(video), renamed); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Type("我的演讲")
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	moved := filepath.Join(renamed, "video.mp4")
+	if len(a.library.Names) != 1 || a.library.Names[moved] != "我的演讲" {
+		t.Fatalf("names %v, want the title kept for %q", a.library.Names, moved)
+	}
+}
+
+// TestRenameDropsTheTitleOfAVideoDeletedInFinder checks that deleting a renamed film's folder in Finder forgets its title, for a downloaded film and for a video no job processed, so a video that turns up there later does not take it.
+func TestRenameDropsTheTitleOfAVideoDeletedInFinder(t *testing.T) {
+	for _, loose := range []bool{false, true} {
+		a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+		if loose {
+			a.library.Jobs = nil
+			if err := a.library.Save(); err != nil {
+				t.Fatal(err)
+			}
+			a.refreshLibrary()
+			tt.Frame()
+		}
+		renameFilm(t, a, tt, "我的演讲")
+		if err := os.RemoveAll(filepath.Dir(video)); err != nil {
+			t.Fatal(err)
+		}
+		a.refreshLibrary()
+		tt.Frame()
+		if len(a.library.Names) != 0 || len(a.library.Jobs) != 0 {
+			t.Fatalf("loose %v: names %v jobs %d after the folder was deleted", loose, a.library.Names, len(a.library.Jobs))
+		}
+		if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
+			t.Fatalf("loose %v: library.json keeps %v", loose, lib.Names)
+		}
+	}
+}
+
+// TestRenameFollowsAFinderRenameOfAVideoNoJobProcessed checks that the title given to a video no job processed stays with it when its folder is renamed in Finder, also beside another video the shelf already listed.
+func TestRenameFollowsAFinderRenameOfAVideoNoJobProcessed(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	other := filepath.Join(filepath.Dir(filepath.Dir(video)), "Other", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(other), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(other, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.library.Jobs = nil
+	if err := a.library.Save(); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	a.AskRename(films.Film{VideoPath: video, Name: "Talk"})
+	a.lib.renameName = "Loose talk"
+	a.RenameFilm()
+	tt.Frame()
+	if a.library.Names[video] != "Loose talk" {
+		t.Fatalf("names %v", a.library.Names)
+	}
+
+	renamed := filepath.Join(filepath.Dir(filepath.Dir(video)), "Finder name")
+	if err := os.Rename(filepath.Dir(video), renamed); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	moved := filepath.Join(renamed, "video.mp4")
+	if len(a.library.Names) != 1 || a.library.Names[moved] != "Loose talk" {
+		t.Fatalf("the title did not follow the renamed folder: %v", a.library.Names)
+	}
+	var names []string
+	for _, film := range a.films() {
+		names = append(names, film.Name)
+	}
+	if !slices.Contains(names, "Loose talk") || slices.Contains(names, "Finder name") {
+		t.Fatalf("films %q", names)
+	}
+	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 1 || lib.Names[moved] != "Loose talk" {
 		t.Fatalf("library.json names %v", lib.Names)
 	}
 }

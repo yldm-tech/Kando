@@ -34,6 +34,10 @@ func (a *app) Renaming() (*bool, *string, string) {
 func (a *app) RenameFilm() {
 	a.lib.renameOpen = false
 	item := a.lib.renaming
+	// The library watcher can move a job's video while the dialog is open, so its path is looked up again.
+	if job, ok := a.library.Find(item.JobID); item.JobID != "" && ok && job.VideoPath != "" {
+		item.VideoPath = job.VideoPath
+	}
 	name := strings.TrimSpace(a.lib.renameName)
 	if name == a.lib.renameOriginal {
 		name = ""

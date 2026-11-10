@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -603,16 +605,33 @@ func (a *app) refreshLibrary() {
 func (a *app) retargetRenamed() bool {
 	root := a.snap().LibraryDir
 	var missing, live []string
+	seen := map[string]bool{}
+	add := func(path string) {
+		if path == "" || seen[path] || !films.InDir(root, path) {
+			return
+		}
+		seen[path] = true
+		if _, err := os.Stat(path); err != nil {
+			missing = append(missing, path)
+		} else {
+			live = append(live, path)
+		}
+	}
 	for _, job := range a.library.Jobs {
-		for _, path := range []string{job.VideoPath, job.SubtitlePath} {
-			if path == "" || !films.InDir(root, path) {
-				continue
-			}
-			if _, err := os.Stat(path); err != nil {
-				missing = append(missing, path)
-			} else {
-				live = append(live, path)
-			}
+		add(job.VideoPath)
+		add(job.SubtitlePath)
+	}
+	// A video no job processed keeps the title given in Kando by its path alone, so its folder renamed in Finder is paired the same way a job's is.
+	for _, path := range slices.Sorted(maps.Keys(a.library.Names)) {
+		add(path)
+	}
+	// A video the shelf listed before that is still there is not where a renamed one went, so only the videos that turned up since are paired.
+	for _, video := range a.snap().Videos {
+		if seen[video.Path] || !films.InDir(root, video.Path) {
+			continue
+		}
+		if _, err := os.Stat(video.Path); err == nil {
+			live = append(live, video.Path)
 		}
 	}
 	return a.retargetLibrary(media.RetargetRenamed(root, missing, live))
@@ -664,6 +683,20 @@ func (a *app) dropMissing() bool {
 	}
 	if changed {
 		a.library.Jobs = kept
+	}
+	// A title given in Kando to a video whose file is gone, and that no job still kept points at, is dropped too: the dropped jobs' and those of videos no job processed that were not paired with a renamed folder, so a video that turns up there later does not take it.
+	owned := map[string]bool{}
+	for _, job := range kept {
+		owned[job.VideoPath] = true
+	}
+	for path := range a.library.Names {
+		if owned[path] || !films.InDir(root, path) {
+			continue
+		}
+		if _, err := os.Stat(path); err != nil {
+			delete(a.library.Names, path)
+			changed = true
+		}
 	}
 	return changed
 }

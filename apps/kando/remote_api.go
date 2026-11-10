@@ -323,7 +323,7 @@ func (a *app) remoteRetry(ctx context.Context, id string) (remote.Job, error) {
 		if err != nil {
 			return remote.Job{}, err
 		}
-		return remoteJobOf(queued), nil
+		return a.remoteJobOf(queued), nil
 	})
 	if err != nil {
 		return remote.Job{}, err
