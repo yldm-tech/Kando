@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
@@ -34,10 +34,29 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 
 ### Download
 
-Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases); there is no Windows build yet, so on Windows build from source as described below. They are not signed with a Developer ID or code-signing certificate, so the system warns the first time you open Kando:
+Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases); there is no Windows build yet, so on Windows build from source as described below. Pick the file for your system, where `<version>` is the release's version, such as `0.5.0`:
 
-- macOS: on macOS 15 and later, open Kando once, then choose System Settings › Privacy & Security › Open Anyway. On macOS 14 and earlier, Control-click Kando in Applications and choose Open. Or remove the quarantine flag in Terminal: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
-- Windows: in the SmartScreen dialog, choose More info › Run anyway.
+- macOS: `kando-<version>-arm64.dmg` for Apple silicon, `kando-<version>-amd64.dmg` for Intel. Open the disk image and drag Kando to Applications.
+- Debian, Ubuntu and their derivatives: `kando_<version>_amd64.deb` for x86-64, `kando_<version>_arm64.deb` for ARM64. Install it with `sudo apt install ./kando_<version>_<arch>.deb` in the folder you downloaded it to.
+- Other Linux distributions: run the release's install script, which downloads the package for you:
+
+  ```sh
+  curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
+  ```
+
+  It downloads the latest `kando-<version>-linux-<arch>.tar.gz` for your machine, checks its signature, and installs Kando for your user alone, without root: the app in `~/.local/kando.app`, the `kando` command in `~/.local/bin`, and an entry in the applications menu. Checking the signature needs OpenSSL 3.0 or later (Debian 12, Ubuntu 22.04, Fedora 36 and later); with an older OpenSSL the script downloads nothing and says so. In that case, download the `.tar.gz` for your machine and `install.sh` from the release into one folder and run `sh install.sh` there, which installs that archive without checking its signature. Running the script again installs the newer version over the old one, and `sh install.sh --uninstall` removes Kando and keeps its settings and libraries.
+
+The other files of a release are not for installing: `checksums.txt` lists the SHA-256 of every file, and the `update-*.json` manifests, the `.delta` files and the `darwin` archives are what installed copies of Kando update themselves from (see [Updates](#updates)).
+
+The builds are not signed with a Developer ID, so macOS warns the first time you open Kando. On macOS 15 and later, open Kando once, then choose System Settings › Privacy & Security › Open Anyway. On macOS 14 and earlier, Control-click Kando in Applications and choose Open. Or remove the quarantine flag in Terminal: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
+
+### Updates
+
+Kando updates itself from the signed releases on GitHub. It checks in the background 10 seconds after it opens and then once a day; when a new version is out, a window shows its release notes and offers Install Update, Remind Me Later and Skip This Version. Install Update downloads the new version, checks its signature and offers to relaunch Kando into it; otherwise it opens the next time you launch Kando. A version you skipped is not offered again by the background checks, but the next one is.
+
+To check now, choose Kando › Check for Updates… in the menu bar on macOS, or Check for Updates… in the command palette (Ctrl+K) on Linux and Windows, which have no menu bar; Settings › General also has a Check for Updates… button next to Version, under which it shows the newer version the last check found or when Kando last checked. The switches Check for updates automatically and Download and install updates automatically are in Settings › General too: with the second on, the background checks install a new version without asking, and it opens the next time you launch Kando.
+
+A copy of Kando that cannot replace its own files does not update itself. That is the case of the `.deb` and the `PKGBUILD`, which install Kando in `/opt/kando`, a folder the package manager owns: there is no apt repository for Kando, so to update, download the new `.deb` from the release and install it the same way, or move to the install script above, whose copy in `~/.local/kando.app` updates itself. In such a copy Settings › General shows no switches, and Check for Updates… opens a window that says why it cannot update. Windows has no published updates yet.
 
 ### Build from source
 
@@ -90,7 +109,8 @@ The Kando program is also a command line, `kando`, and an MCP server for AI agen
 To get the `kando` command:
 
 - macOS: move Kando to Applications, then click Install next to Command-Line Tool in Settings › General. It links `kando` to the app in the first of `/usr/local/bin`, `/opt/homebrew/bin` and `~/.local/bin` it can write to, without asking for an administrator password, and never replaces a `kando` of another program. Kando opened from its disk image, or from where macOS translocated it after a download, runs from a path that goes away, so the card asks you to move it first instead of installing a link that would break. Or link it yourself: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`.
-- Linux: the `.deb` and the `PKGBUILD` install the app in `/opt/kando` and add `/usr/bin/kando`, a link to `/opt/kando/kando`. The install script of the `.tar.gz` installs the app in `~/.local/kando.app` and links `~/.local/bin/kando` to it, leaving alone a `kando` there that it did not make; add `~/.local/bin` to `PATH` if your shell does not have it.
+- Linux: the `.deb` and the `PKGBUILD` install the app in `/opt/kando` and add `/usr/bin/kando`, a link to `/opt/kando/kando`. The install script (see [Download](#download)) installs the app in `~/.local/kando.app` and links `~/.local/bin/kando` to it, leaving alone a `kando` there that it did not make; add `~/.local/bin` to `PATH` if your shell does not have it.
+- Windows: Kando cannot install the command, as making a link on Windows needs administrator rights or developer mode. Under Command-Line Tool, Settings › General names the folder that holds `Kando.exe`; add that folder to `PATH`, and `kando` in a terminal runs it, as Windows ignores the case of file names.
 
 | Command | What it does |
 | --- | --- |
@@ -188,6 +208,7 @@ Kando keeps its own files in the user config directory, `~/Library/Application S
 - `library.json`: the jobs, finished and in progress, and where each video stopped playing.
 - `settings.json`: the settings, including the API key, the object storage keys and the Google refresh token, in plain text. The file is readable only by your user.
 - `window-state.json`: window sizes and positions.
+- `updater.json`: your update choices (the two switches of Settings › General, a version you skipped) and when Kando last checked for updates.
 - `models/`: whisper models downloaded in Settings › Speech Recognition.
 
 Cover images of videos that are not named `video.*` are cached in `~/Library/Caches/Kando/posters` on macOS, `%LocalAppData%\Kando\posters` on Windows and `~/.cache/Kando/posters` on Linux.
@@ -234,7 +255,7 @@ Repository layout:
 
 ## CI and releases
 
-The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, and publishes a GitHub release with their checksums.
+The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, signs the updates that installed copies of Kando download, and publishes a GitHub release with the macOS and Linux packages and their checksums. The Windows installers are built but not published yet.
 
 ## License
 
