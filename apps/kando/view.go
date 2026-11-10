@@ -4,6 +4,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/theme"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -27,7 +28,7 @@ var appVersion = "0.1.0"
 
 // view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn and contentBand in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, dropFiles in bind_films.go, browseColumn in bind_browse.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
 func (a *app) view(c *ui.Context) {
-	t, dark := palette(c)
+	t, dark := theme.Palette(c)
 	a.services = c.Services()
 	a.wireKeys(c)
 	items := a.films()
