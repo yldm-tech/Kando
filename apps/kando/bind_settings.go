@@ -72,6 +72,23 @@ func (a *app) CancelDownload() { a.cancelDownload() }
 
 func (a *app) DownloadModel(id string) { a.downloadSpeechModel(id) }
 
+func (a *app) OwnsSpeechModel(id string) bool { return a.speechModelOwned(id) }
+
+func (a *app) SpeechModelInUse(path string) bool { return a.speechModelInUse(path) }
+
+func (a *app) AskTrashSpeechModel(id string) { a.askTrashSpeechModel(id) }
+
+func (a *app) TrashingSpeechModel() (*bool, string) { return &a.prefs.trashOpen, a.prefs.trashModel }
+
+func (a *app) TrashSpeechModel(id string) { a.trashSpeechModel(id) }
+
+func (a *app) SpeechLanguage() string {
+	tools, _ := a.pipeline.(media.Tools)
+	return tools.SpeechLanguage
+}
+
+func (a *app) SetSpeechLanguage(code string) { a.useSpeechLanguage(code) }
+
 // CurrentPreset and Presets read the presets' names and blurbs in the interface's language each time the page draws them.
 func (a *app) CurrentPreset() (settings.Preset, bool) {
 	preset, ok := llmPresetByID(a.prefs.llmProvider)

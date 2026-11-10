@@ -2,6 +2,7 @@ package core
 
 import (
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -31,7 +32,7 @@ type Link struct {
 	URL      string
 	Platform Platform
 	Kind     LinkKind
-	// ID is the video's ID (a YouTube video ID, a BV or av number, the code of a b23.tv short link), a channel's handle or number for a channel, and the file's path for a local file. It is empty for other sites and when the link does not name one.
+	// ID is the video's ID (a YouTube video ID, a BV or av number, the code of a b23.tv short link), a channel's handle or number for a channel, and the file's path on this machine for a local file (FilePath). It is empty for other sites and when the link does not name one.
 	ID string
 	// List is a YouTube playlist ID (the list= parameter); empty otherwise.
 	List string
@@ -92,10 +93,11 @@ func ParseLink(raw string) (Link, bool) {
 		return Link{}, false
 	}
 	if strings.EqualFold(u.Scheme, "file") {
-		if u.Path == "" {
+		path, ok := FilePath(u)
+		if !ok {
 			return Link{}, false
 		}
-		return Link{URL: raw, Platform: PlatformLocal, Kind: LinkVideo, ID: u.Path}, true
+		return Link{URL: raw, Platform: PlatformLocal, Kind: LinkVideo, ID: path}, true
 	}
 	host := strings.ToLower(u.Hostname())
 	if host == "" {
@@ -112,6 +114,32 @@ func ParseLink(raw string) (Link, bool) {
 		bilibiliLink(&link, u)
 	}
 	return link, true
+}
+
+// FileURL is the file:// URL of the file at path, an absolute path on this machine, as a local video's job source: file:///Users/me/clip.mp4 for /Users/me/clip.mp4, and file:///C:/Users/me/clip.mp4 for C:\Users\me\clip.mp4 on Windows. Characters a URL cannot hold, such as spaces, are escaped. FilePath reads it back.
+func FileURL(path string) string {
+	p := filepath.ToSlash(path)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return (&url.URL{Scheme: "file", Path: p}).String()
+}
+
+// FilePath is the path on this machine of the file a file:// URL names, the inverse of FileURL. On Windows the slash before a drive letter is dropped and the slashes become backslashes, so file:///C:/Users/me/clip.mp4 is C:\Users\me\clip.mp4. It reports false for a URL of another scheme, one without a path, and one whose host names another machine (anything but empty or localhost).
+func FilePath(u *url.URL) (string, bool) {
+	if u == nil || !strings.EqualFold(u.Scheme, "file") || u.Path == "" {
+		return "", false
+	}
+	if u.Host != "" && !strings.EqualFold(u.Host, "localhost") {
+		return "", false
+	}
+	p := u.Path
+	if rest, ok := strings.CutPrefix(p, "/"); ok {
+		if volume := filepath.VolumeName(rest); len(volume) == 2 && volume[1] == ':' {
+			p = rest
+		}
+	}
+	return filepath.FromSlash(p), true
 }
 
 func youTubeLink(link *Link, u *url.URL) {

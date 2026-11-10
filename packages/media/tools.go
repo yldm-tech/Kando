@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -35,11 +36,17 @@ type Tools struct {
 	EveryAPI string
 	// WhisperModel is the path of a ggml model file for whisper.cpp.
 	WhisperModel string
-	Translator   ChatTranslator
+	// SpeechLanguage is the language spoken in the videos, as whisper.cpp's -l names it (one of SpeechLanguages); empty lets whisper detect it.
+	SpeechLanguage string
+	Translator     ChatTranslator
 	// Cookies is the browser whose login Download borrows, as yt-dlp's --cookies-from-browser names it (chrome, safari, firefox, edge, brave); empty borrows none.
 	Cookies string
 	// OEmbed is YouTube's oEmbed endpoint, which names a video yt-dlp could not look up, as one that is age-restricted or blocked where this machine is; empty asks nothing.
 	OEmbed string
+	// SiteCookies gives the cookies the app's own web pages hold for source's site, and the user agent of the page that got them ("" when unknown), so that a site the user signed in to there downloads as that user. Download passes them to yt-dlp in a cookies file of its own (--cookies) beside the browser it borrows (Cookies). nil, an error or no cookies download without them.
+	SiteCookies func(ctx context.Context, source string) (cookies []Cookie, userAgent string, err error)
+	// CookieDir is where the cookies file of a download is written, in a folder of its own that goes once yt-dlp exits; empty uses the system's temp folder.
+	CookieDir string
 }
 
 // EveryAPI is the default translation provider; setting KANDO_LLM_BASE_URL switches to any other OpenAI-compatible provider.
@@ -75,9 +82,10 @@ func ToolsFromEnv() Tools {
 			translator.Model = EveryAPIModel
 		}
 	}
-	downloadTemp := ""
+	downloadTemp, cookieDir := "", ""
 	if cache, err := os.UserCacheDir(); err == nil {
 		downloadTemp = filepath.Join(cache, "Kando", "downloads")
+		cookieDir = filepath.Join(cache, "Kando")
 	}
 	tools := Tools{
 		OutputDir:    outputDir,
@@ -89,6 +97,7 @@ func ToolsFromEnv() Tools {
 		WhisperModel: os.Getenv("KANDO_WHISPER_MODEL"),
 		Translator:   translator,
 		OEmbed:       YouTubeOEmbed,
+		CookieDir:    cookieDir,
 	}
 	return tools.UseEveryAPICLI()
 }
@@ -171,6 +180,12 @@ func (t Tools) Check() error {
 	} else if _, err := os.Stat(t.WhisperModel); err != nil {
 		errs = append(errs, fmt.Errorf("whisper model: %w", err))
 	}
+	return errors.Join(append(errs, t.CheckTranslate())...)
+}
+
+// CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, without the download and speech tools Check also wants: translating a done film again (core.Job.Redo) runs only Translate and Export (TranslateChecker).
+func (t Tools) CheckTranslate() error {
+	var errs []error
 	if t.Translator.Model == "" {
 		errs = append(errs, errors.New("KANDO_LLM_MODEL is not set"))
 	}
@@ -258,6 +273,14 @@ func (t Tools) ytdlpDownload(ctx context.Context, source, temp string, named *bo
 	if t.Cookies != "" {
 		args = append(args, "--cookies-from-browser", t.Cookies)
 	}
+	// The cookies of the app's own pages go in a file made for this run, which yt-dlp also writes back to as it exits; runFollowing returns only once it has, on every path, so the folder goes after it.
+	if file, userAgent, done := t.siteCookiesFile(ctx, source); file != "" {
+		defer done()
+		args = append(args, "--cookies", file)
+		if userAgent != "" {
+			args = append(args, "--user-agent", userAgent)
+		}
+	}
 	if _, _, err := runFollowing(ctx, false, reader.line, t.YTDLP, append(args, "--", source)...); err != nil {
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) || exit.ExitCode() != ytdlpMaxDownloadsExit || reader.path == "" {
@@ -329,10 +352,10 @@ func removeUnmerged(video string) error {
 // localVideoPath reports the disk path of a file:// video the user picked. Other URLs are downloaded.
 func localVideoPath(source string) (string, bool) {
 	parsed, err := url.Parse(source)
-	if err != nil || parsed.Scheme != "file" || parsed.Path == "" || (parsed.Host != "" && parsed.Host != "localhost") {
+	if err != nil {
 		return "", false
 	}
-	return parsed.Path, true
+	return core.FilePath(parsed)
 }
 
 func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment, error) {
@@ -347,7 +370,7 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 
 	// whisper.cpp expects 16 kHz mono 16-bit PCM.
 	audio := filepath.Join(dir, "audio.wav")
-	if _, err := run(ctx, t.FFmpeg, "-nostdin", "-loglevel", "error", "-y", "-i", videoPath, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", audio); err != nil {
+	if _, err := runStage(ctx, t.FFmpeg, "-nostdin", "-loglevel", "error", "-y", "-i", videoPath, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", audio); err != nil {
 		return nil, err
 	}
 	transcript := filepath.Join(dir, "transcript")
@@ -357,7 +380,11 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 			reportProgress(ctx, core.Fraction(f))
 		}
 	}
-	if _, _, err := runFollowing(ctx, true, follow, t.Whisper, "-m", t.WhisperModel, "-t", strconv.Itoa(whisperThreadCount()), "-l", "auto", "-np", "-pp", "-oj", "-of", transcript, "-f", audio); err != nil {
+	language := strings.TrimSpace(t.SpeechLanguage)
+	if language == "" {
+		language = "auto"
+	}
+	if _, _, err := runFollowing(ctx, true, follow, t.Whisper, "-m", t.WhisperModel, "-t", strconv.Itoa(whisperThreadCount()), "-l", language, "-np", "-pp", "-oj", "-of", transcript, "-f", audio); err != nil {
 		return nil, err
 	}
 	data, err := os.ReadFile(transcript + ".json")
@@ -427,8 +454,17 @@ func everyAPICredential(cli string) func(context.Context, bool) (Endpoint, error
 	}
 }
 
-// run executes a tool and returns its stdout, folding the end of stderr into the error.
+// run executes a tool and returns its stdout, folding the end of stderr into the error. Its failure is not logged: probes such as EmbeddedCover, a poster frame or the EveryAPI credential fail as their answer (no cover art, not signed in), and logging those would fill the log with failures that are not ones. A job's stage uses runStage.
 func run(ctx context.Context, name string, args ...string) (string, error) {
+	return runTool(ctx, false, name, args...)
+}
+
+// runStage is run for a step whose failure is a real one, as a job's stage or a yt-dlp update: a failed tool's stderr is logged too (logToolFailure).
+func runStage(ctx context.Context, name string, args ...string) (string, error) {
+	return runTool(ctx, true, name, args...)
+}
+
+func runTool(ctx context.Context, logFailure bool, name string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -437,9 +473,23 @@ func run(ctx context.Context, name string, args ...string) (string, error) {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return "", ctxErr
 		}
+		if logFailure {
+			logToolFailure(name, err, stderr.String())
+		}
 		return "", fmt.Errorf("%s: %w: %s", filepath.Base(name), err, toolError(stderr.String()))
 	}
 	return stdout.String(), nil
+}
+
+// maxLoggedStderr caps how much of a failed tool's stderr goes to the log: its last 64 KiB, where the error is.
+const maxLoggedStderr = 64 << 10
+
+// logToolFailure writes what a failed tool printed on stderr to the log, up to its last maxLoggedStderr bytes, before toolError shortens it for the job's error. It names the tool by its file name and leaves out its arguments, which hold the user's links and files; a tool stopped by its context is not a failure and is not logged.
+func logToolFailure(name string, err error, stderr string) {
+	if stderr = tail(stderr, maxLoggedStderr); stderr == "" {
+		stderr = "(nothing on stderr)"
+	}
+	log.Printf("%s failed: %v\n%s", filepath.Base(name), err, stderr)
 }
 
 func lastLine(s string) string {

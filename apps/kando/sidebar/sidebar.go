@@ -9,11 +9,13 @@ import (
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 const (
 	PageFilms     = ""
 	PageYouTube   = "youtube"
+	PageBrowse    = "browse" // the built-in browser (浏览), a row of the sources' list that is not a source
 	PageGeneral   = "general"
 	PageSpeech    = "speech"
 	PageAI        = "ai"
@@ -58,6 +60,9 @@ type App interface {
 	SetSourceFilter(source string)
 	// SourceCount is how many films of the open library come from source.
 	SourceCount(source string) int
+	// Query is what the search field holds: the library page shows the done films whose names hold it. QueryFocus asks the field for the keyboard focus once, as ⌘F does; the field sets it back to false when it has taken the focus, or when it is not shown.
+	Query() *string
+	QueryFocus() *bool
 	// OpenSettings shows the settings at section, one of the settings package's Section values; "" opens 通用.
 	OpenSettings(section string)
 	// Readiness is what the status line at the foot of the sidebar says.
@@ -84,7 +89,7 @@ var (
 	gutterFill = ui.Hex("#F0F2F6")
 )
 
-// Show draws the sidebar: a column Width wide holding the card with the library switcher, the sources and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
+// Show draws the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
 func Show(c *ui.Context, t *ui.Theme, a App) {
 	col := ui.Column(c).Width(Width).Shrink(0).AlignItems(ui.Stretch).Padding(cardMargin, 0, cardMargin, cardMargin)
 	// With the window's material on, the gutter around the card shows it; without it, the gutter is painted.
@@ -102,6 +107,7 @@ func Show(c *ui.Context, t *ui.Theme, a App) {
 			}
 			ui.Row(c).Height(top).Shrink(0).DragWindow()
 			switcher(c, t, a)
+			search(c, a)
 			sources(c, a)
 			if a.SaveErr() != "" {
 				ui.Text(c, a.SaveErr()).TextColor(t.Danger).Wrap().Padding(8, 16, 0, 16)
@@ -128,7 +134,7 @@ func Menu(m *ui.Menu, a App) {
 		a.PickLibrary()
 	}
 	m.Separator()
-	if m.Item(locales.SidebarMenuShowInFinder()).Disabled(currentDir == "").Chosen() {
+	if m.Item(locales.SidebarMenuShowInFinder(breeze.Current().String())).Disabled(currentDir == "").Chosen() {
 		a.Reveal(currentDir)
 	}
 	if len(a.KnownLibraries()) > 1 {

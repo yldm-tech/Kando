@@ -55,8 +55,9 @@ func topBar(c *ui.Context, t *ui.Theme, a App, source string) {
 // localButton is 本地视频 as the prototype groups it: the platform's toolbar button, 28 points high, in a white pill at least 104 wide, wider for a longer label, that lifts it off what scrolls under the bar.
 func localButton(c *ui.Context, a App) {
 	ui.Row(c).MinWidth(104).Shrink(0).Height(34).Padding(0, 3).Radius(17).AlignItems(ui.Center).Background(ui.RGBA(255, 255, 255, 0.75)).Border(0.5, ui.RGBA(0, 0, 0, 0.12)).Shadow(0, 2, 8, 0, ui.RGBA(0, 0, 0, 0.06)).Children(func() {
+		mods, key := a.PickVideosShortcut()
 		c.Key("films-local")
-		if breeze.IconLabelButton(c, addVideoIcon, locales.FilmsLocalVideo()).Tooltip(locales.FilmsLocalVideoTooltip()).Height(28).Radius(14).Grow(1).Padding(0, 12, 0, 10).Clicked() {
+		if breeze.IconLabelButton(c, addVideoIcon, locales.FilmsLocalVideo()).Tooltip(locales.FilmsLocalVideoTooltip(breeze.ShortcutText(c, mods, key))).Height(28).Radius(14).Grow(1).Padding(0, 12, 0, 10).Clicked() {
 			a.PickVideos()
 		}
 	})

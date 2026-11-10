@@ -126,10 +126,11 @@ var (
 		{ID: "j3", Source: "https://b23.tv/y", Title: "Cats", Stage: "failed", Error: "network down"},
 		{ID: "j4", Source: "https://youtu.be/z", Stage: "failed", Canceled: true},
 	}
-	cannedSites = []remote.Site{{Name: "YouTube", Domain: "youtube.com"}, {Name: "Bilibili", Domain: "bilibili.com"}}
+	cannedRetried = remote.Job{ID: "j3", Source: "https://b23.tv/y", Title: "Cats", Stage: "queued"}
+	cannedSites   = []remote.Site{{Name: "YouTube", Domain: "youtube.com"}, {Name: "Bilibili", Domain: "bilibili.com"}}
 )
 
-// cannedApp answers every method with the canned results, and not_found for ids other than f1 and j1.
+// cannedApp answers every method with the canned results, and not_found for ids other than f1, j1 and, for retry and remove, j3.
 func cannedApp(method string, params json.RawMessage) (any, error) {
 	switch method {
 	case remote.MethodStatus:
@@ -165,6 +166,18 @@ func cannedApp(method string, params json.RawMessage) (any, error) {
 			return nil, remote.Errorf(remote.CodeNotFound, "No job %s.", p.ID)
 		}
 		return remote.Job{ID: "j1", Source: "https://youtu.be/x", Title: "Rivers of Japan", Stage: "failed", Canceled: true}, nil
+	case remote.MethodRetry, remote.MethodRemove:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		if p.ID != "j3" {
+			return nil, remote.Errorf(remote.CodeNotFound, "No job %s.", p.ID)
+		}
+		if method == remote.MethodRemove {
+			return nil, nil
+		}
+		return cannedRetried, nil
 	case remote.MethodSites:
 		return cannedSites, nil
 	case remote.MethodAdd:
@@ -225,7 +238,7 @@ func TestOpensWindow(t *testing.T) {
 		{"-v"},
 		{"--bogus"},
 		{"status"},
-		{"help", "-h", "--help", "version", "--version", "list", "show", "subtitles", "jobs", "add", "cancel", "sites", "open", "mcp"},
+		{"help", "-h", "--help", "version", "--version", "list", "show", "subtitles", "jobs", "add", "cancel", "retry", "remove", "sites", "open", "mcp"},
 	} {
 		for _, name := range args {
 			if OpensWindow([]string{name}) {
@@ -338,6 +351,8 @@ func TestHelpListsFlags(t *testing.T) {
 		{"status", []string{"--json"}},
 		{"list", []string{"--source string", "--json"}},
 		{"add", []string{"--wait", "--json"}},
+		{"retry", []string{"--wait", "--json"}},
+		{"remove", []string{"--json"}},
 		{"sites", []string{"--limit int", "--json"}},
 	} {
 		_, stdout, _ := run("help", tt.command)
@@ -431,6 +446,11 @@ func TestTextOutput(t *testing.T) {
 			want: "j1  canceled  Rivers of Japan\n",
 		},
 		{
+			args: []string{"retry", "j3"},
+			want: "j3  queued  Cats\n",
+		},
+		{args: []string{"remove", "j3"}, want: ""},
+		{
 			args: []string{"sites", "you"},
 			want: "YouTube   youtube.com\nBilibili  bilibili.com\n",
 		},
@@ -487,6 +507,8 @@ func TestJSONOutput(t *testing.T) {
 		{[]string{"subtitles", "f1", "--format=json"}, cannedCues},
 		{[]string{"jobs", "--json"}, cannedJobs},
 		{[]string{"cancel", "--json", "j1"}, remote.Job{ID: "j1", Source: "https://youtu.be/x", Title: "Rivers of Japan", Stage: "failed", Canceled: true}},
+		{[]string{"retry", "j3", "--json"}, cannedRetried},
+		{[]string{"remove", "--json", "j3"}, nil},
 		{[]string{"sites", "--json"}, cannedSites},
 		{[]string{"add", "https://youtu.be/new", "--json"}, remote.AddResult{Jobs: []remote.Job{{ID: "j9", Source: "https://youtu.be/new", Stage: "queued"}}}},
 		{[]string{"open", "--json"}, nil},
@@ -572,6 +594,8 @@ func TestParamsSent(t *testing.T) {
 		{[]string{"show", "f1"}, remote.MethodFilm, "f1"},
 		{[]string{"subtitles", "f1"}, remote.MethodSubtitles, "f1"},
 		{[]string{"cancel", "j1"}, remote.MethodCancel, "j1"},
+		{[]string{"retry", "j3"}, remote.MethodRetry, "j3"},
+		{[]string{"remove", "j3"}, remote.MethodRemove, "j3"},
 		{[]string{"open", "f1"}, remote.MethodShow, "f1"},
 		{[]string{"open"}, remote.MethodShow, ""},
 	} {
@@ -602,6 +626,13 @@ func TestUsageErrors(t *testing.T) {
 		{"add"},
 		{"add", "--wait"},
 		{"cancel"},
+		{"retry"},
+		{"retry", "j3", "j4"},
+		{"retry", "--wait"},
+		{"retry", "j3", "--bogus"},
+		{"remove"},
+		{"remove", "j3", "j4"},
+		{"remove", "j3", "--wait"},
 		{"sites", "--limit", "-1"},
 		{"sites", "--limit", "many"},
 		{"open", "f1", "f2"},
@@ -637,6 +668,9 @@ func TestRemoteErrors(t *testing.T) {
 		{[]string{"show", "nope"}, "kando show: No film nope.\n"},
 		{[]string{"subtitles", "nope", "--json"}, "kando subtitles: No film nope.\n"},
 		{[]string{"cancel", "j7"}, "kando cancel: No job j7.\n"},
+		{[]string{"retry", "j7"}, "kando retry: No job j7.\n"},
+		{[]string{"retry", "j7", "--wait"}, "kando retry: No job j7.\n"},
+		{[]string{"remove", "j7"}, "kando remove: No job j7.\n"},
 		{[]string{"add", "https://youtu.be/x"}, "kando add: Choose a folder for the library first.\n"},
 		{[]string{"status"}, "kando status: disk on fire\n"},
 	} {
@@ -792,6 +826,48 @@ func TestAddWaitInterrupted(t *testing.T) {
 	if code != 1 || !strings.Contains(stderr, "kando add: interrupted") {
 		t.Errorf("interrupted add --wait = %d, %q", code, stderr)
 	}
+}
+
+// retryWaitApp queues job j3 again and answers jobs.list from steps, one step a call, repeating the last.
+func retryWaitApp(steps [][]remote.Job) func(string, json.RawMessage) (any, error) {
+	var mu sync.Mutex
+	n := 0
+	return func(method string, params json.RawMessage) (any, error) {
+		switch method {
+		case remote.MethodRetry:
+			return cannedRetried, nil
+		case remote.MethodJobs:
+			mu.Lock()
+			defer mu.Unlock()
+			step := steps[min(n, len(steps)-1)]
+			n++
+			return step, nil
+		}
+		return nil, remote.Errorf(remote.CodeUnknownMethod, "%s", method)
+	}
+}
+
+func TestRetryWait(t *testing.T) {
+	fastPoll(t)
+	startFake(t, retryWaitApp([][]remote.Job{
+		{{ID: "j3", Source: "https://b23.tv/y", Title: "Cats", Stage: "downloading", Progress: 0.2}},
+		{{ID: "j3", Source: "https://b23.tv/y", Title: "Cats", Stage: "complete", Progress: 1, Subtitles: "/lib/cats.bilingual.srt"}},
+	}))
+	code, stdout, stderr := run("retry", "j3", "--wait")
+	want := "j3  downloading 20%  Cats\n" +
+		"j3  complete  Cats\n"
+	if code != 0 || stdout != want || stderr != "" {
+		t.Errorf("retry --wait = %d\nstdout:\n%s\nwant:\n%s\nstderr: %q", code, stdout, want, stderr)
+	}
+
+	startFake(t, retryWaitApp([][]remote.Job{
+		{{ID: "j3", Source: "https://b23.tv/y", Title: "Cats", Stage: "failed", Error: "network down"}},
+	}))
+	code, stdout, stderr = run("retry", "--wait", "--json", "j3")
+	if code != 1 || stderr != "j3  failed  Cats  network down\n" {
+		t.Errorf("retry --wait --json = %d, stderr %q, want 1 and the progress", code, stderr)
+	}
+	assertSameJSON(t, []string{"retry --wait --json"}, stdout, remote.Job{ID: "j3", Source: "https://b23.tv/y", Title: "Cats", Stage: "failed", Error: "network down"})
 }
 
 func TestStartsTheApp(t *testing.T) {

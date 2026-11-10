@@ -31,6 +31,8 @@ type app struct {
 	library       shelf.Library
 	pipeline      media.Pipeline
 	win           *mygo.Window
+	// services is the window's clipboard and redraws, which view keeps every frame for the commands that run outside a build, as the menu bar's and the shortcut table's: ⇧⌘C copies the playing subtitle line with it (bind_film.go).
+	services ui.Services
 	// update runs fn on the UI thread and redraws; background jobs report through it.
 	update func(fn func())
 
@@ -51,6 +53,8 @@ type app struct {
 	cliTool  cliToolUI  // state_cli.go
 	updates  updatesUI  // state_updates.go
 	window   windowUI   // state_window.go
+	logs     logsUI     // state_logs.go
+	browse   browseUI   // state_browse.go
 }
 
 func newApp(pipeline media.Pipeline, update func(fn func())) *app {
@@ -75,6 +79,8 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		cliTool:  newCLIToolUI(),
 		updates:  newUpdatesUI(),
 		window:   newWindowUI(),
+		logs:     newLogsUI(),
+		browse:   newBrowseUI(),
 	}
 }
 
@@ -137,9 +143,11 @@ func main() {
 	})
 	mygo.App.OnSecondInstance(func([]string, string) { a.remoteRaise() })
 	mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) { a.areasBeforeQuit(e) })
+	mygo.App.OnOpenFile(a.libraryOpenFile)
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { a.areasQuitting() })
 	mygo.App.OnDidResignActive(func() { a.playerDidResignActive() })
 	mygo.App.OnDidBecomeActive(func() { a.playerDidBecomeActive() })
+	mygo.App.OnDidBecomeActive(func() { a.areasBecameActive() })
 	if err := mygo.App.Run(); err != nil {
 		log.Fatal(err)
 	}

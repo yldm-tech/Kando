@@ -1,4 +1,4 @@
-# How GitHub groups a release's generated notes: by the labels the Labels workflow gives pull requests from their titles.
+# How GitHub groups a release's generated notes: by the labels the Labels workflow gives pull requests from their titles. It applies only to the notes GitHub's Generate release notes button writes: the Release workflow's notes, which the app's update window shows too, are the version's section of apps/kando/CHANGELOG.md (.github/scripts/changelog.sh), which no label changes; to leave a change out of them, write the section by hand before the release.
 changelog:
   exclude:
     labels: [skip-changelog]

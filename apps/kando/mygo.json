@@ -3,6 +3,14 @@
   "identifier": "ai.yldm.kando",
   "version": "0.5.1",
   "out": "build",
+  "fileAssociations": [
+    { "ext": ["mp4", "m4v"], "name": "MPEG-4 Video", "mimeType": "video/mp4", "role": "Viewer" },
+    { "ext": ["mov"], "name": "QuickTime Movie", "mimeType": "video/quicktime", "role": "Viewer" },
+    { "ext": ["mkv"], "name": "Matroska Video", "mimeType": "video/x-matroska", "role": "Viewer" },
+    { "ext": ["webm"], "name": "WebM Video", "mimeType": "video/webm", "role": "Viewer" },
+    { "ext": ["avi"], "name": "AVI Video", "mimeType": "video/x-msvideo", "role": "Viewer" },
+    { "ext": ["flv"], "name": "Flash Video", "mimeType": "video/x-flv", "role": "Viewer" }
+  ],
   "i18n": {
     "dir": "locales",
     "source": "en"

@@ -68,6 +68,9 @@ type App interface {
 	CheckForUpdates()
 	SetAutoCheckUpdates(on bool)
 	SetAutoDownloadUpdates(on bool)
+	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.
+	JobNotifications() bool
+	SetJobNotifications(on bool)
 
 	// InstalledSpeechModel is the file on disk of the whisper catalog model id, "" when it is not downloaded. The app looks the models up when the window opens, when the model in use changes and on 重新检测, never while the page is drawn.
 	InstalledSpeechModel(id string) string
@@ -78,6 +81,16 @@ type App interface {
 	DownloadErr() string
 	CancelDownload()
 	DownloadModel(id string)
+	// OwnsSpeechModel reports whether the file of the whisper catalog model id is one Kando downloaded into its own models folder, which it may move to the Trash; a model another app keeps is that app's. AskTrashSpeechModel opens the confirmation of moving it to the Trash, TrashingSpeechModel is that confirmation's open flag and the model it asks about, and TrashSpeechModel moves the file, refusing the model in use, another app's and any while a download runs.
+	OwnsSpeechModel(id string) bool
+	// SpeechModelInUse reports whether the model file path is one transcriptions use: the one chosen, or the one a running job started with. It cannot be moved to the Trash.
+	SpeechModelInUse(path string) bool
+	AskTrashSpeechModel(id string)
+	TrashingSpeechModel() (open *bool, id string)
+	TrashSpeechModel(id string)
+	// SpeechLanguage is the language spoken in the videos as whisper's code, one of media.SpeechLanguages, or "" for whisper to detect it; SetSpeechLanguage changes and saves it.
+	SpeechLanguage() string
+	SetSpeechLanguage(code string)
 
 	CurrentPreset() (Preset, bool)
 	Presets() []Preset

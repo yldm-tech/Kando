@@ -14,6 +14,14 @@ func jobTitle(job core.Job) string {
 	return shorten(jobName(job), 22)
 }
 
+// libraryJobName is the name the shelf shows for job: the title the user gave its video in Kando (shelf.Library.Names), or else jobName. films.List gives the shelf's films the same.
+func (a *app) libraryJobName(job core.Job) string {
+	if name := a.library.Names[job.VideoPath]; job.VideoPath != "" && name != "" {
+		return name
+	}
+	return jobName(job)
+}
+
 // jobName is the video's title as its site gives it, once the download has looked it up; otherwise the name of its file or folder, or what its link says.
 func jobName(job core.Job) string {
 	if title := strings.TrimSpace(job.Title); title != "" {
@@ -23,10 +31,13 @@ func jobName(job core.Job) string {
 		return displayVideoName(job.VideoPath)
 	}
 	parsed, err := url.Parse(job.Source)
-	if err == nil && parsed.Scheme == "file" && parsed.Path != "" {
-		return displayVideoName(parsed.Path)
+	if err != nil {
+		return job.Source
 	}
-	if err != nil || parsed.Host == "" {
+	if path, local := core.FilePath(parsed); local {
+		return displayVideoName(path)
+	}
+	if parsed.Host == "" {
 		return job.Source
 	}
 	host := strings.TrimPrefix(parsed.Hostname(), "www.")

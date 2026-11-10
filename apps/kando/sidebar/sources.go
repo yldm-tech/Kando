@@ -9,11 +9,14 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// sources is the flat list of the library's sources, each with how many films of the open library come from it: 全部影片, YouTube, 哔哩哔哩, 其他网站 while it holds a film or is the one shown, and 本地文件. Choosing one, with a click or the arrow keys, shows the library page filtered by it. Off the library page, as on a settings page, none is chosen. An open film fills the window and hides the sidebar, so a click on the source already chosen has nothing to close.
+// sources is the flat list of the library's sources, each with how many films of the open library come from it: 全部影片, YouTube, 哔哩哔哩, 其他网站 while it holds a film or is the one shown, and 本地文件. Choosing one, with a click or the arrow keys, shows the library page filtered by it. 浏览, the built-in browser, sits right after 全部影片 without a count, and choosing it shows its page (PageBrowse). Off those pages, as on a settings page, none is chosen. An open film fills the window and hides the sidebar, so a click on the source already chosen has nothing to close.
 func sources(c *ui.Context, a App) {
 	current := ""
-	if a.Page() == PageFilms {
+	switch a.Page() {
+	case PageFilms:
 		current = a.SourceFilter()
+	case PageBrowse:
+		current = PageBrowse
 	}
 	sel := current
 	mac := breeze.PlatformOf(c) == breeze.Mac
@@ -33,9 +36,19 @@ func sources(c *ui.Context, a App) {
 			row.Children(func() {
 				breeze.SidebarItemDetail(c, strconv.Itoa(n)).FontSize(12)
 			})
+			if source == SourceAll {
+				browse := breeze.SidebarItem(c, PageBrowse, iconBrowse, locales.SidebarBrowse()).Margin(0, 0, 2, 0)
+				if mac {
+					browse.PaddingStart(11).PaddingEnd(10)
+				}
+			}
 		}
 	}).Background(ui.Transparent).Padding(0, insetEnd, 0, insetStart).Grow(1)
-	if sel != current {
+	switch {
+	case sel == current:
+	case sel == PageBrowse:
+		a.Select(PageBrowse)
+	default:
 		a.SetSourceFilter(sel)
 	}
 }

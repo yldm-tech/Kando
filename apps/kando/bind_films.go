@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,6 +10,7 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -86,6 +86,11 @@ func (a *app) Start() {
 
 func (a *app) PickVideos() { a.pickVideos() }
 
+func (a *app) PickVideosShortcut() (ui.Modifiers, ui.Key) {
+	k := a.libraryOpenVideos()
+	return k.Mods, k.Key
+}
+
 func (a *app) DropFiles(paths []string) { a.dropFiles(paths) }
 
 func (a *app) Poster(path string) ui.ImageSource { return a.posterOf(path) }
@@ -107,21 +112,43 @@ func (a *app) Open(item films.Film) {
 	a.startPlayback(item.VideoPath)
 }
 
-// OpenAt opens a film playing from at, as the hero's 播放, 从 X 继续 and 从头看 do.
+// OpenAt opens a film playing from at, as the hero's 播放, 从 X 继续 and 从头看 do. It keeps the film's state as a seek does, so the player's line loop is told (playerLoopOpening).
 func (a *app) OpenAt(item films.Film, at time.Duration) {
+	a.playerLoopOpening(item.Key, at)
 	a.player.playFrom = at
 	a.player.playJump = true
 	a.Open(item)
 }
 
-// Reprocess runs a done film through the pipeline again: a job again from its source, a video no job has processed from its file.
+// Reprocess runs a done film through the pipeline again, into the target language set now: a job again from its source, a video no job has processed from its file.
 func (a *app) Reprocess(item films.Film) {
 	delete(a.lib.quotes, item.SubtitlePath)
 	if item.JobID != "" {
 		a.Retry(item.JobID)
 		return
 	}
-	a.libraryEnqueue(fileURL(item.VideoPath))
+	a.libraryEnqueue(core.FileURL(item.VideoPath))
+}
+
+// TranslateAgain translates a done film's transcript again into the target language set now, without downloading or transcribing it. The film page's ⋯ uses it too (film.App).
+func (a *app) TranslateAgain(item films.Film) { a.libraryRetranslate(item, core.RedoTranslation) }
+
+// TranslateMissing translates only the lines a done film's translation left untranslated, as the card's 补译未译的句子 does. The film page's ⋯ uses it too (film.App).
+func (a *app) TranslateMissing(item films.Film) { a.libraryRetranslate(item, core.RedoMissing) }
+
+// libraryRetranslate queues done film item to be translated again (queueRetranslate) on its card, or an open film's page, and says in the message bar why when it cannot. The film page draws no message bar, so there the settings also open where the target language is chosen. The hero's line is read again once the film is done.
+func (a *app) libraryRetranslate(item films.Film, redo core.Redo) {
+	job, ok := a.library.Find(item.JobID)
+	if !ok {
+		return
+	}
+	delete(a.lib.quotes, item.SubtitlePath)
+	if err := a.queueRetranslate(job, redo); err != nil {
+		a.warn(err.Error(), settings.SectionTranslate)
+		if a.openKey != "" {
+			a.OpenSettings(settings.SectionTranslate)
+		}
+	}
 }
 
 func (a *app) Remove(id string) { a.remove(id) }
@@ -150,12 +177,26 @@ func (a *app) JobFilm(id string) (films.Film, bool) {
 	if !ok {
 		return films.Film{}, false
 	}
-	return films.FromJob(job, jobName(job), statusText(job)), true
+	return films.FromJob(job, a.libraryJobName(job), statusText(job)), true
 }
 
 func (a *app) Notice() *films.Notice { return &a.lib.notice }
 
 func (a *app) QueueExpanded() *bool { return &a.lib.queueOpen }
+
+func (a *app) LibrarySort() string { return a.lib.sort }
+
+// SetLibrarySort shows the done grid in order and keeps the order in settings.json for the next launch; the message bar says so when it cannot be kept.
+func (a *app) SetLibrarySort(order string) {
+	order = films.ValidSort(order)
+	if order == a.lib.sort {
+		return
+	}
+	a.lib.sort = order
+	if err := a.saveSettings(); err != nil {
+		a.warn(locales.LibrarySortSaveFailed(err.Error()), "")
+	}
+}
 
 // AskRemove opens the confirmation of 从资料库移除, and reads now, rather than while the dialog is drawn, whether the film's folder or only its files would go to the Trash.
 func (a *app) AskRemove(item films.Film) {
@@ -192,8 +233,14 @@ func (a *app) TrashFilm(item films.Film) {
 		a.openKey = ""
 		a.stopPlayback()
 	}
+	// The film leaves the shelf, and the title given to it in Kando with it; remove saves library.json for a job, and a video no job processed saves it here.
+	named := a.library.Rename(item.VideoPath, "")
 	if item.JobID != "" {
 		a.remove(item.JobID)
+	} else if named {
+		if err := a.library.Save(); err != nil {
+			a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
+		}
 	}
 	a.refreshLibrary()
 	if len(files) > 0 {
@@ -239,7 +286,12 @@ func aloneIn(dir, video string) bool {
 
 func (a *app) films() []films.Film {
 	shot := a.snap()
-	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, jobName, statusText)
+	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, statusText)
+}
+
+// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere).
+func (a *app) QueueFilms() []films.Film {
+	return films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, statusText)
 }
 
 // libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added, a failed job of the same video queued again included. A video the library already holds is not added; the bar says so and offers to open it.
@@ -274,7 +326,7 @@ func (a *app) dropFiles(paths []string) {
 	var sources []string
 	for _, path := range paths {
 		if media.IsVideoFile(path) {
-			sources = append(sources, fileURL(path))
+			sources = append(sources, core.FileURL(path))
 		}
 	}
 	if len(sources) == 0 {
@@ -284,14 +336,15 @@ func (a *app) dropFiles(paths []string) {
 	a.libraryEnqueue(sources...)
 }
 
-// fileURL is the source of a job that processes the video at path where it is.
-func fileURL(path string) string {
-	return (&url.URL{Scheme: "file", Path: path}).String()
-}
-
-// libraryKeys are the library's shortcuts.
+// libraryKeys are the library's shortcuts. ⌘F searches the library's films in the sidebar's search field (sidebarSearch). It shares ⌘F with the player's 搜索字幕: this row holds only while no film is open and that one only while one is, so one of them at most runs it, and the menu bar shows ⌘F by that one (menuSharedKeyCarriers, menu.go).
 func (a *app) libraryKeys() []shortcut {
 	return []shortcut{
-		{Group: groupFile, Label: locales.LibraryOpenVideosMenu(), Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos},
+		a.libraryOpenVideos(),
+		{Group: groupEdit, Label: locales.LibrarySearchMenu(), Mods: ui.Cmd, Key: ui.KeyF, When: a.sidebarSearchable, Run: a.sidebarSearch},
 	}
+}
+
+// libraryOpenVideos is the shortcut that asks for local videos: its row of the File menu, and the shortcut the tooltip of 本地视频 shows (PickVideosShortcut).
+func (a *app) libraryOpenVideos() shortcut {
+	return shortcut{Group: groupFile, Label: locales.LibraryOpenVideosMenu(), Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos}
 }

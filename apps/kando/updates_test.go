@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,5 +114,51 @@ func TestSettingsUpdateSwitches(t *testing.T) {
 	tt.Frame()
 	if want := locales.SettingsGeneralLastCheck(f.state.LastCheck); !tt.HasText(want) || tt.HasText("有新版本 0.5.0") {
 		t.Fatalf("no %q after the check: %q", want, tt.Texts())
+	}
+}
+
+// TestChangelogHasTheVersion checks that CHANGELOG.md has notes for the version in mygo.json, found the way mygo build finds them (update.ReleaseNotes in MyGo): the lines under the first "## " heading whose first word is the version, with or without a v and in brackets or not, up to the next "## " heading. A release build signs the update manifests with those notes, which the update window shows, and fails when they are missing, so a version bumped without them fails here rather than in the Release workflow. The Release workflow writes them with .github/scripts/changelog.sh.
+func TestChangelogHasTheVersion(t *testing.T) {
+	data, err := os.ReadFile("mygo.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	changelog, err := os.ReadFile("CHANGELOG.md")
+	if err != nil {
+		t.Fatalf("mygo build takes the update's release notes from CHANGELOG.md: %v", err)
+	}
+	var notes []string
+	in, found := false, false
+	for _, line := range strings.Split(strings.ReplaceAll(string(changelog), "\r\n", "\n"), "\n") {
+		if rest, ok := strings.CutPrefix(line, "## "); ok {
+			if in {
+				break
+			}
+			fields := strings.Fields(rest)
+			if len(fields) > 0 {
+				v := fields[0]
+				if inner, ok := strings.CutPrefix(v, "["); ok {
+					v, _, _ = strings.Cut(inner, "]")
+				}
+				in = strings.TrimPrefix(v, "v") == config.Version
+				found = found || in
+			}
+			continue
+		}
+		if in {
+			notes = append(notes, line)
+		}
+	}
+	if !found {
+		t.Fatalf("CHANGELOG.md has no \"## %s\" section for mygo.json's version, which mygo build fails on", config.Version)
+	}
+	if strings.TrimSpace(strings.Join(notes, "\n")) == "" {
+		t.Fatalf("CHANGELOG.md's section for %s is empty, which mygo build fails on", config.Version)
 	}
 }

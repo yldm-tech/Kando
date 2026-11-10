@@ -30,6 +30,8 @@ const siteURL = "https://kando.yldm.ai"
 const (
 	repoURL     = "https://github.com/yldm-tech/Kando"
 	releasesURL = repoURL + "/releases"
+	// latestURL redirects to the newest published release, so the Download buttons reach the current files even when the site was built before a release came out. Drafts and prereleases are not "latest", so it never lands on a release that 404s for visitors.
+	latestURL   = releasesURL + "/latest"
 	licenseURL  = repoURL + "/blob/main/LICENSE"
 	everyAPIURL = "https://everyapi.ai"
 )
@@ -111,6 +113,7 @@ type page struct {
 	More     int
 	Repo     string
 	Rel      string
+	Latest   string
 	License  string
 	EveryAPI string
 	// WebMCPJS is the script that offers the page's WebMCP tools, and WebMCP the data it reads from the page (webmcp.go).
@@ -216,7 +219,7 @@ func build(root, out string) (*report, error) {
 			Lang: l, Langs: langs, Root: l.Code == sourceLang,
 			CSS: static["site.css"], JS: static["site.js"],
 			Shots: shots[l.Code], Sites: localTiles(tiles, l, siteNames[l.Code]), Total: total, More: total - len(tiles),
-			Repo: repoURL, Rel: releasesURL, License: licenseURL, EveryAPI: everyAPIURL,
+			Repo: repoURL, Rel: releasesURL, Latest: latestURL, License: licenseURL, EveryAPI: everyAPIURL,
 			WebMCPJS: static["webmcp.js"], WebMCP: agent[l.Code], BuildCommands: buildCommands,
 		}
 		for _, o := range langs {
@@ -231,7 +234,7 @@ func build(root, out string) (*report, error) {
 			return nil, fmt.Errorf("%s: %w", l.Code, err)
 		}
 	}
-	notFound := page{NotFound: true, Lang: languages[0], Langs: langs, CSS: static["site.css"], JS: static["site.js"], Shots: shots[sourceLang], Repo: repoURL, Rel: releasesURL, License: licenseURL, EveryAPI: everyAPIURL}
+	notFound := page{NotFound: true, Lang: languages[0], Langs: langs, CSS: static["site.css"], JS: static["site.js"], Shots: shots[sourceLang], Repo: repoURL, Rel: releasesURL, Latest: latestURL, License: licenseURL, EveryAPI: everyAPIURL}
 	for _, l := range langs {
 		strs := content[l.Code]
 		notFound.Missing = append(notFound.Missing, missingText{Lang: l, Title: strs["notFoundTitle"], Body: strs["notFoundBody"], Home: strs["notFoundHome"]})

@@ -109,6 +109,10 @@ func failureHint(item films.Film) (reason, section string) {
 		return locales.PrecheckNoLLMModel(), settings.SectionAI
 	case strings.Contains(detail, media.ErrNoSpeech.Error()):
 		return locales.PrecheckNoSpeech(), ""
+	case strings.Contains(detail, media.ErrNoTranscript.Error()):
+		return locales.PrecheckNoTranscript(), ""
+	case strings.Contains(detail, media.ErrSubtitlesChanged.Error()):
+		return locales.PrecheckSubtitlesChanged(), ""
 	}
 	// media.Run names the stage that failed before its error.
 	stage, rest, ok := strings.Cut(detail, ": ")

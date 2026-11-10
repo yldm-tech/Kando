@@ -7,16 +7,24 @@ import (
 	"kando/apps/kando/sidebar"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// grid is the films that are done, as 16:9 posters across the page.
+// grid is the films that are done, as 16:9 posters across the page, in the order the sort button beside its heading chose (done is in that order already). With a single film there is nothing to order, and the button stays away.
 func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
 	title := locales.FilmsGridTitle()
 	if source == sidebar.SourceAll {
 		title = locales.SourceAll()
 	}
 	ui.Column(c).Margin(26, 0, 0, 0).Gap(14).Children(func() {
-		sectionTitle(c, t, title, locales.FilmsGridCount(len(done)))
+		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
+			ui.Column(c).Grow(1).MinWidth(0).Children(func() {
+				sectionTitle(c, t, title, locales.FilmsGridCount(len(done)))
+			})
+			if len(done) > 1 {
+				sortButton(c, a)
+			}
+		})
 		width, _ := c.Size()
 		ui.Grid(c).Columns(Columns(width)).GapX(CardGapX).GapY(CardGapY).AlignItems(ui.Start).Children(func() {
 			for _, item := range done {
@@ -27,9 +35,9 @@ func grid(c *ui.Context, t *ui.Theme, a App, done []Film, source string) {
 	})
 }
 
-// doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重新处理 and 从资料库移除.
+// doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重命名…, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
 func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
-	menu := filmMenu(a, item)
+	menu := filmMenu(a, item, breeze.PlatformOf(c))
 	name := filmName(item)
 	ui.Column(c).WidthPercent(100).MinWidth(0).Gap(9).ContextMenu(menu).Children(func() {
 		thumb := ui.ButtonBase(c).Label(name).WidthPercent(100).AspectRatio(16.0/9).Radius(13).Clip().Background(thumbFill).TransformOrigin(0.5, 0.5).Border(0.5, ui.RGBA(0, 0, 0, 0.1))
@@ -56,6 +64,12 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(2).Children(func() {
 				ui.Text(c, name).FontSize(13).FontWeight(600).FixedLineHeight(17).SingleLine()
 				ui.Text(c, doneMeta(a, item)).FontSize(12).TextColor(t.TextMuted).Wrap().MaxLines(2)
+				if item.JobID != "" && item.Untranslated > 0 {
+					c.Key("film-translate-missing")
+					if breeze.Button(c, locales.FilmsTranslateMissing()).Height(24).AlignSelf(ui.Start).Margin(5, 0, 0, 0).Clicked() {
+						a.TranslateMissing(item)
+					}
+				}
 			})
 			c.Key("film-more")
 			moreButton(c).Menu(menu)
@@ -63,17 +77,28 @@ func doneCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 	})
 }
 
-// filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero.
-func filmMenu(a App, item Film) func(m *ui.Menu) {
+// filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero. p is the platform of the Context the menu is built in, so its reveal item names the same file manager as the buttons beside it.
+func filmMenu(a App, item Film, p breeze.Platform) func(m *ui.Menu) {
 	return func(m *ui.Menu) {
 		if m.Item(locales.FilmsPlay()).Chosen() {
 			a.Open(item)
 		}
-		if m.Item(locales.FilmsShowInFinder()).Chosen() {
+		if m.Item(locales.FilmsShowInFinder(p.String())).Chosen() {
 			a.Reveal(item.VideoPath)
+		}
+		if item.VideoPath != "" && m.Item(locales.FilmsRename()).Chosen() {
+			a.AskRename(item)
 		}
 		if m.Item(locales.FilmsReprocess()).Chosen() {
 			a.Reprocess(item)
+		}
+		if item.JobID != "" {
+			if m.Item(locales.FilmsTranslateAgain()).Chosen() {
+				a.TranslateAgain(item)
+			}
+			if item.Untranslated > 0 && m.Item(locales.FilmsTranslateMissing()).Chosen() {
+				a.TranslateMissing(item)
+			}
 		}
 		m.Separator()
 		if m.Item(locales.FilmsRemoveFromLibrary()).Chosen() {

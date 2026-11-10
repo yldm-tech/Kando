@@ -50,9 +50,6 @@ func colorName(hex string) string {
 	return locales.FilmColorWhite()
 }
 
-// styleFonts are the font families a line can take, as the settings save them; fontName is what the style view shows for each.
-var styleFonts = []string{"默认", "苹方", "冬青黑体"}
-
 // styleView is the subtitle configuration shown by the 样式 tab or the mode menu's 样式…: playback mode and delay, then the presets, font, order, position, size, color and weight of each line.
 func (s screen) styleView(c *ui.Context) {
 	look := s.Cue()
@@ -104,16 +101,17 @@ func (s screen) styleView(c *ui.Context) {
 			panelGroup(c, func() {
 				styleRow(c, locales.FilmStyleFont(), false, func() {
 					c.Key("film-style-font")
-					// The menu lists the families by their names in the interface's language and the look keeps the saved value of the one chosen.
-					names := make([]string, len(styleFonts))
-					for i, family := range styleFonts {
+					// The menu lists the families the platform offers (styleFonts) by their names in the interface's language and the look keeps the saved value of the one chosen.
+					fonts := styleFonts(breeze.PlatformOf(c))
+					names := make([]string, len(fonts))
+					for i, family := range fonts {
 						names[i] = fontName(family)
 					}
 					shown := fontName(look.Translation.Family)
 					chosen := shown
 					breeze.Select(c, &chosen, names).Label(locales.FilmStyleFont())
 					if i := slices.Index(names, chosen); chosen != shown && i >= 0 {
-						look.Translation.Family, look.Original.Family = styleFonts[i], styleFonts[i]
+						look.Translation.Family, look.Original.Family = fonts[i], fonts[i]
 						changed = true
 					}
 				})

@@ -7,6 +7,7 @@ import (
 
 	"kando/packages/media"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -38,17 +39,22 @@ func (a *app) playerWindowHidden(hidden bool) {
 	a.playerSight(func() { a.player.windowHidden = hidden })
 }
 
-// playerSight runs change, which marks the app inactive or active or the main window hidden or shown, and follows the sound of the playing film from when the window went out of sight, the app inactive or the window put away, until it is in sight again, both active and shown. A second reason to be out of sight while the first lasts changes nothing, so the sound's clock stays the one taken as the picture first went out of sight.
+// playerSight runs change, which marks the app inactive or active or the main window hidden or shown, and follows the sound of the playing film, and keeps a looped line looping (playerLoopAway), from when the window went out of sight, the app inactive or the window put away, until it is in sight again, both active and shown. A second reason to be out of sight while the first lasts changes nothing, so the sound's clock stays the one taken as the picture first went out of sight.
 func (a *app) playerSight(change func()) {
 	away := a.player.inactive || a.player.windowHidden
 	change()
 	switch now := a.player.inactive || a.player.windowHidden; {
 	case now && !away:
+		a.playerLoopAway()
 		a.playerLeftSight()
 	case !now && away:
+		a.playerLoopBack()
 		a.playerBackInSight()
 	}
 }
+
+// playerOutOfSight is whether the window is out of sight, the app inactive or the main window put away, so the picture stands still behind it while the sound plays on.
+func (a *app) playerOutOfSight() bool { return a.player.inactive || a.player.windowHidden }
 
 // playerLeftSight notes the clock of the playing film as the window goes out of sight and starts following its sound.
 func (a *app) playerLeftSight() {
@@ -56,10 +62,41 @@ func (a *app) playerLeftSight() {
 	if p == nil || p.finished || p.paused || !p.player.Playing() {
 		return
 	}
+	a.playerFollowSound(p, p.playhead())
+}
+
+// playerFollowSound starts the clock of p's sound, at head now, and the decoder that follows that sound while the window is out of sight.
+func (a *app) playerFollowSound(p *filmPlay, head time.Duration) {
 	p.stopBackground()
 	p.backgroundAt = time.Now()
-	p.backgroundHead = p.playhead()
+	p.backgroundHead = head
 	p.background = a.followSound(p)
+}
+
+// playerToggleBehind plays or pauses p while the window is out of sight (playerOutOfSight), where only a media key reaches it. The picture stands still behind the window there while the sound plays on, so a pause stops the sound's clock and, when the picture stood still, opens the picture again where the sound stopped, held, so that coming back or playing on finds the two level; play starts the sound's clock again from there and follows it.
+func (a *app) playerToggleBehind(p *filmPlay) {
+	if p.playbackState() == mygo.PlaybackPlaying {
+		at := p.soundAt(time.Now())
+		p.toggle()
+		p.stopBackground()
+		p.backgroundAt, p.backgroundHead = time.Time{}, 0
+		if p.path != "" && at-p.playhead() >= backgroundDrift {
+			a.player.playFrom = at
+			a.player.playJump, a.player.playSame = true, true
+			a.player.playHold = true
+			a.startPlayback(p.path)
+		}
+		return
+	}
+	// Play after the end starts over from the start, where the picture is not yet.
+	head := p.playhead()
+	if p.finished {
+		head = 0
+	}
+	p.toggle()
+	if p.Playing() {
+		a.playerFollowSound(p, head)
+	}
 }
 
 // playerBackInSight puts the picture where the sound is, when it stood still behind the window while the sound played on: the picture decoded in the background when there is one, or else the picture opened again from there. A picture that kept pace is left alone.
@@ -68,6 +105,7 @@ func (a *app) playerBackInSight() {
 	if p == nil || p.backgroundAt.IsZero() {
 		return
 	}
+	p.unseen = false
 	sound := p.backgroundSound()
 	bg := p.background
 	p.backgroundAt, p.backgroundHead, p.background = time.Time{}, 0, nil
@@ -96,15 +134,15 @@ func (p *filmPlay) stopBackground() {
 	}
 }
 
-// backgroundSound is where the sound of p is at any moment since the app went inactive.
+// backgroundSound is where the sound of p is at any moment since the app went inactive. The film keeps its speed until it has come back (playerApplyRate), so the clock counts at that speed throughout.
 func (p *filmPlay) backgroundSound() func() time.Duration {
-	head, since, length := p.backgroundHead, p.backgroundAt, p.duration
-	return func() time.Duration { return soundClock(head, since, length, time.Now()) }
+	head, since, length, rate := p.backgroundHead, p.backgroundAt, p.duration, p.speed()
+	return func() time.Duration { return soundClock(head, since, length, rate, time.Now()) }
 }
 
-// soundClock is where a sound that was at head at since is at now, held short of the end of a film length long (0 when not known).
-func soundClock(head time.Duration, since time.Time, length time.Duration, now time.Time) time.Duration {
-	at := head + max(now.Sub(since), 0)
+// soundClock is where a sound that was at head at since and plays at rate is at now, in the film's own time, held short of the end of a film length long (0 when not known).
+func soundClock(head time.Duration, since time.Time, length time.Duration, rate float64, now time.Time) time.Duration {
+	at := head + playerFilmTime(max(now.Sub(since), 0), rate)
 	if length > 0 && at >= length {
 		at = max(0, length-100*time.Millisecond)
 	}
@@ -118,7 +156,7 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 	}
 	bg := &backgroundPicture{quit: make(chan struct{}), take: make(chan struct{})}
 	sound := p.backgroundSound()
-	shown, ffmpeg, path, update, gen := p.frames, p.ffmpeg, p.path, a.update, a.player.playGen
+	shown, ffmpeg, path, update, gen, rate := p.frames, p.ffmpeg, p.path, a.update, a.player.playGen, p.speed()
 	go func() {
 		tick := time.NewTicker(backgroundPoll)
 		for sound()-shown.position() < backgroundDrift {
@@ -134,6 +172,13 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 		}
 		tick.Stop()
 		bg.opened.Store(true)
+		// The window is out of sight and only the sound plays on, which needs no display awake (playerKeepAwake).
+		update(func() {
+			if a.player.play == p && p.background == bg {
+				p.unseen = true
+				a.playerKeepAwake()
+			}
+		})
 		// Without a picture to hand over, the app coming back leaves the picture where it stood, and the sound clock with it.
 		fail := func() {
 			select {
@@ -169,7 +214,7 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 			}
 			due := time.Hour
 			if !ended {
-				due = at + dur - sound()
+				due = playerWallTime(at+dur-sound(), rate)
 			}
 			wait.Reset(due)
 			select {
@@ -194,7 +239,7 @@ func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameRea
 		frames.Close()
 		return
 	}
-	dec := &frameDecoder{frames: frames, shown: at, held: &ui.VideoFrame{Image: img, Duration: dur}, sound: sound}
+	dec := &frameDecoder{frames: frames, shown: at, held: &ui.VideoFrame{Image: img, Duration: dur}, sound: sound, rate: p.rate}
 	player, err := ui.NewVideoPlayer(dec)
 	if err != nil {
 		frames.Close()
@@ -205,20 +250,20 @@ func (a *app) takeBackgroundPicture(p *filmPlay, gen int, frames *media.FrameRea
 	p.audio = nil
 	a.playReplace(&filmPlay{
 		player: player, frames: dec, audio: audio, ffmpeg: p.ffmpeg, path: p.path,
-		duration: p.duration, played: true, volume: p.volume,
+		duration: p.duration, played: true, volume: p.volume, rate: p.rate,
 	})
 }
 
-// playReplace puts next in place of the film playing and closes that one, but for the sound next took over from it. When the app went inactive again while next opened, next follows its sound from here, level with it now.
+// playReplace puts next in place of the film playing and closes that one, but for the sound next took over from it, and shows next where the system shows what plays. When next opens playing while the window is out of sight (playerOutOfSight), as after a seek from the system's scrubber, a looped line going back to its start or the window going out of sight again while next opened, next follows its sound from here, level with it now.
 func (a *app) playReplace(next *filmPlay) {
 	old := a.player.play
 	a.player.play = next
+	if a.playerOutOfSight() && next.Playing() {
+		a.playerFollowSound(next, next.playhead())
+	}
+	a.playerNowPlayingShow(next)
 	if old == nil {
 		return
-	}
-	if !old.backgroundAt.IsZero() && next.Playing() {
-		next.backgroundAt, next.backgroundHead = time.Now(), next.playhead()
-		next.background = a.followSound(next)
 	}
 	old.stopBackground()
 	if old.audio != nil {

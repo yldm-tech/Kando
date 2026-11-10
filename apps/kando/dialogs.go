@@ -8,6 +8,9 @@ import (
 
 // The system file dialogs. They run off the UI thread and report back through update. Each holds the window's modal flag (holdModal) until it reports.
 
+// libraryVideoExtensions are the extensions, without the dot, of the videos 本地视频 lets the user pick: those media.IsVideoFile takes. The fileAssociations of mygo.json, which make Kando one of the apps that open these files, list the same ones (library_test.go checks).
+var libraryVideoExtensions = []string{"mp4", "m4v", "mov", "mkv", "webm", "avi", "flv"}
+
 func (a *app) pickVideos() {
 	win := a.win
 	update := a.update
@@ -18,7 +21,7 @@ func (a *app) pickVideos() {
 			Title:       locales.LibraryPickVideosTitle(),
 			ButtonLabel: locales.LibraryPickVideosButton(),
 			Multiple:    true,
-			Filters:     []mygo.FileFilter{{Name: locales.LibraryVideoFilter(), Extensions: []string{"mp4", "m4v", "mov", "mkv", "webm", "avi", "flv"}}},
+			Filters:     []mygo.FileFilter{{Name: locales.LibraryVideoFilter(), Extensions: libraryVideoExtensions}},
 		})
 		update(func() {
 			release()

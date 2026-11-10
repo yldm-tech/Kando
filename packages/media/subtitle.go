@@ -3,7 +3,9 @@ package media
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -49,10 +51,10 @@ func exportSubtitles(ctx context.Context, videoPath string, original, translated
 	if len(original) != len(translated) {
 		return "", fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
 	}
-	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
-	if err := os.WriteFile(base+".srt", []byte(formatSRT(original)), 0o644); err != nil {
+	if err := saveTranscript(videoPath, original); err != nil {
 		return "", err
 	}
+	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
 	// The original is one of the two files written; the context's Trace hears that half the export is done.
 	reportProgress(ctx, core.Fraction(0.5))
 	bilingual := make([]core.Segment, len(original))
@@ -69,6 +71,99 @@ func exportSubtitles(ctx context.Context, videoPath string, original, translated
 	}
 	reportProgress(ctx, core.Fraction(1))
 	return path, nil
+}
+
+// transcriptPath is the file that holds the original speech of the video at videoPath: "<video>.srt", beside it.
+func transcriptPath(videoPath string) string {
+	return strings.TrimSuffix(videoPath, filepath.Ext(videoPath)) + ".srt"
+}
+
+// saveTranscript writes the original speech of the video at videoPath to transcriptPath. It writes a hidden file beside it first and renames that over it, so a job that reads the transcript back to resume never finds one cut off by a crash in the middle of writing it.
+func saveTranscript(videoPath string, segments []core.Segment) error {
+	path := transcriptPath(videoPath)
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
+	if err != nil {
+		return err
+	}
+	_, err = tmp.WriteString(formatSRT(segments))
+	if closeErr := tmp.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Chmod(tmp.Name(), 0o644)
+	}
+	if err == nil {
+		err = os.Rename(tmp.Name(), path)
+	}
+	if err != nil {
+		_ = os.Remove(tmp.Name())
+	}
+	return err
+}
+
+// loadTranscript reads back the original speech saveTranscript wrote for the video at videoPath.
+func loadTranscript(videoPath string) ([]core.Segment, error) {
+	data, err := os.ReadFile(transcriptPath(videoPath))
+	if err != nil {
+		return nil, err
+	}
+	return ParseSRT(data)
+}
+
+// readExported reads back what exportSubtitles wrote beside the video at videoPath: the original speech from "<video>.srt" and, when withTranslation, each line's translation from "<video>.bilingual.srt", empty for a line it left untranslated. A transcript that is gone, unreadable or empty is ErrNoTranscript. A bilingual file that is gone leaves every translation empty, so every line is translated; one that does not match the transcript cue for cue, as one edited by hand, is ErrSubtitlesChanged, since which lines are missing cannot be told and translating them all would overwrite the edits.
+func readExported(videoPath string, withTranslation bool) (original, translated []core.Segment, err error) {
+	if videoPath == "" {
+		return nil, nil, ErrNoTranscript
+	}
+	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
+	data, err := os.ReadFile(base + ".srt")
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil, ErrNoTranscript
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if original, err = ParseSRT(data); err != nil || len(original) == 0 {
+		return nil, nil, ErrNoTranscript
+	}
+	translated = make([]core.Segment, len(original))
+	for i, s := range original {
+		translated[i] = core.Segment{Start: s.Start, End: s.End}
+	}
+	if !withTranslation {
+		return original, translated, nil
+	}
+	data, err = os.ReadFile(base + ".bilingual.srt")
+	if errors.Is(err, fs.ErrNotExist) {
+		return original, translated, nil
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	bilingual, err := ParseSRT(data)
+	if err != nil || len(bilingual) != len(original) {
+		return nil, nil, ErrSubtitlesChanged
+	}
+	lines := make([]string, len(original))
+	for i, cue := range bilingual {
+		s := original[i]
+		if cue.Start != s.Start || cue.End != s.End {
+			return nil, nil, ErrSubtitlesChanged
+		}
+		// A translated cue is its translation above the original line; an untranslated one is the original alone.
+		if cue.Text == s.Text {
+			continue
+		}
+		line, ok := strings.CutSuffix(cue.Text, "\n"+s.Text)
+		if !ok {
+			return nil, nil, ErrSubtitlesChanged
+		}
+		lines[i] = strings.TrimSpace(line)
+	}
+	for i := range translated {
+		translated[i].Text = lines[i]
+	}
+	return original, translated, nil
 }
 
 func formatSRT(segments []core.Segment) string {

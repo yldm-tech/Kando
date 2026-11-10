@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 [English](README.md) · 简体中文 · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
@@ -19,14 +19,16 @@
 ## 功能
 
 - 添加视频：粘贴 YouTube、哔哩哔哩或 yt-dlp 支持的其他任何网站的链接（“帮助 › 支持的网站…”列出了全部网站及其标志），或者选择本地文件（mp4、mov、mkv、webm 等视频文件），也可以直接拖到窗口上。本地文件在原位置转录，不会被复制。
+- 侧栏的“浏览”是内置浏览器：打开网站，需要时先登录，然后点“下载视频”把当前网页加入资料库。之后每次下载，无论来自“浏览”、链接栏、命令行还是 MCP，都会带上在这里登录过的网站的登录状态；“清除登录信息…”会退出全部这些网站。
 - 任务按顺序逐个处理，依次经过下载、转录、翻译和导出。失败的任务会显示原因，并给出对应设置项的入口，可以重试或移除。
 - 语音识别由 whisper.cpp 在你的电脑上完成，它会检测说话的语言。“设置 › 语音识别”列出七个 whisper 模型，从 Tiny（77.7 MB）到 Large v3（3.1 GB），你选中的模型会从 Hugging Face 下载。
 - 台词默认由 EveryAPI 翻译，也可以使用任何 OpenAI 兼容的聊天 API：“设置 › AI 服务”提供 OpenAI、OpenRouter、Groq、DeepSeek、xAI、Mistral、通义千问（DashScope）、Kimi、智谱 GLM、硅基流动、Ollama 和 LM Studio 的预设，还可以自定义接口地址。目标语言、“智能翻译”（让模型参考前面几句台词）和提示词，都可以在“设置 › 翻译”中修改。
 - 每个处理完成的视频旁边会生成两个 SubRip 字幕文件：`<video>.srt` 是原文字幕，`<video>.bilingual.srt` 中每句译文位于对应原文上方（下载的视频则是 `video.srt` 和 `video.bilingual.srt`）。
-- 播放器可以把字幕显示为双语、仅原文、仅译文或关闭，字幕延迟可按 0.1 秒步进调整，样式也可以修改。侧边面板列出全部台词并支持搜索（单击某句即可跳转），把视频切分成 4 到 12 个约 30 秒的片段，并显示影片的文件和来源。每部影片都会从你上次停下的位置继续播放。
+- 播放器可以把字幕显示为双语、仅原文、仅译文或关闭，字幕延迟可按 0.1 秒步进调整，样式也可以修改。可以跳到上一句、下一句，重听本句，或单句循环直到听懂为止。侧边面板列出全部台词并支持搜索（单击某句即可跳转），把视频切分成 4 到 12 个约 30 秒的片段，并显示影片的文件和来源。每部影片都会从你上次停下的位置继续播放。
 - 资料库是 `.kando` 文件夹，里面都是普通文件，可以在访达或文件管理器中管理。可以同时保留多个资料库，并在侧栏中切换；侧栏还能按来源筛选当前资料库中的影片：YouTube、哔哩哔哩、其他网站和本地文件。
 - 可选：登录 Google 后，在播放器中把影片的视频和双语字幕上传到你自己的对象存储（Cloudflare R2、Amazon S3、阿里云 OSS、腾讯云 COS 或任何 S3 兼容存储）。参见[配置](#configuration)。
 - 播放、字幕和窗口都有键盘快捷键，可以在“快捷键速查”（⌘/）和“设置 › 快捷键”中查看。
+- 反馈问题时可以附上日志文件：“帮助 › 显示日志文件”（或命令面板 ⌘K）会在访达中显示它。macOS 上是 `~/Library/Logs/Kando/kando.log`，其他系统在用户配置目录的 `Kando/logs` 文件夹里。日志记下每个失败任务的原因（不含看懂保存的密钥和 AI 服务的地址）和出错工具输出的最后 64 KB，形似密钥的内容都写成 `***`。文件超过 5 MB 时另起一份，保留之前的两份。
 
 ![带双语字幕的播放器，以及侧边面板中的台词列表](docs/assets/zh-CN/player.png)
 
@@ -34,12 +36,35 @@
 
 ## 安装
 
+<a id="download"></a>
+
 ### 下载
 
-macOS（Apple 芯片和 Intel）和 Linux（x86-64 和 ARM64）的安装包在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上；目前还没有 Windows 安装包，在 Windows 上请按下文从源码构建。这些安装包没有用 Developer ID 或代码签名证书签名，因此第一次打开看懂时系统会发出警告：
+macOS（Apple 芯片和 Intel）和 Linux（x86-64 和 ARM64）的安装包在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上；目前还没有 Windows 安装包，在 Windows 上请按下文从源码构建。按你的系统选择文件，其中 `<version>` 是该版本的版本号，例如 `0.5.0`：
 
-- macOS：在 macOS 15 及更高版本上，先打开一次看懂，然后选择“系统设置 › 隐私与安全性 › 仍要打开”。在 macOS 14 及更早版本上，在“应用程序”文件夹中按住 Control 键点按看懂，然后选择“打开”。也可以在终端中移除隔离标记：`xattr -dr com.apple.quarantine /Applications/Kando.app`。
-- Windows：在 SmartScreen 对话框中选择“更多信息 › 仍要运行”。
+- macOS：Apple 芯片的 Mac 选 `kando-<version>-arm64.dmg`，Intel 的 Mac 选 `kando-<version>-amd64.dmg`。打开磁盘映像，把看懂拖到“应用程序”文件夹。
+- Debian、Ubuntu 及其衍生发行版：x86-64 选 `kando_<version>_amd64.deb`，ARM64 选 `kando_<version>_arm64.deb`。在下载所在的文件夹中用 `sudo apt install ./kando_<version>_<arch>.deb` 安装。
+- 其他 Linux 发行版：运行该版本附带的安装脚本，不需要自己下载安装包：
+
+  ```sh
+  curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
+  ```
+
+  它会为你的机器下载最新的 `kando-<version>-linux-<arch>.tar.gz`，校验它的签名，然后只为当前用户安装看懂，不需要 root：应用装在 `~/.local/kando.app`，`kando` 命令放在 `~/.local/bin`，并在应用程序菜单中添加一项。校验签名需要 OpenSSL 3.0 或更高版本（Debian 12、Ubuntu 22.04、Fedora 36 及更高版本）；OpenSSL 版本更旧时，脚本什么也不下载，并会说明原因。这时请从同一个版本中把适合你机器的 `.tar.gz` 和 `install.sh` 下载到同一个文件夹，不要改文件名，在那里运行 `sh install.sh`；也可以运行 `sh install.sh <安装包>`，传入 `.tar.gz` 的路径。两种方式都会安装这个安装包，但不校验签名。再次运行脚本会用新版本覆盖旧版本；`sh install.sh --uninstall` 会移除看懂，并保留它的设置和资料库。
+
+版本中的其他文件不是用来安装的：`checksums.txt` 列出每个文件的 SHA-256，而 `update-*.json` 清单、`.delta` 文件和 `darwin` 压缩包是已安装的看懂自动更新时下载的（参见[更新](#updates)）。
+
+0.5.1 之后发布的 macOS 安装包用 YLDM 的 Developer ID 签名，并经过 Apple 公证，打开看懂时 macOS 不会再发出警告。
+
+<a id="updates"></a>
+
+### 更新
+
+看懂会从 GitHub 上已签名的版本自动更新。它在打开 10 秒后在后台检查一次，之后每天检查一次；有新版本时，会弹出窗口显示更新说明，并提供“安装更新”“稍后提醒我”和“跳过这个版本”。“安装更新”会下载新版本、校验签名，然后提示重新启动看懂进入新版本；不重新启动的话，下次打开看懂时就是新版本。跳过的版本不会再由后台检查提示，但之后的新版本仍会提示。
+
+要立即检查，在 macOS 上选择菜单栏中的“看懂 › 检查更新…”；Linux 和 Windows 没有菜单栏，请在命令面板（Ctrl+K）中选择“检查更新…”。“设置 › 通用”中“版本”旁边也有“检查更新…”按钮，下方会显示上次检查发现的新版本，或上次检查的时间。“自动检查更新”和“自动下载并安装更新”两个开关也在“设置 › 通用”中。只有打开前者时才会显示后者，因为只有后台检查会下载更新；打开后者后，后台检查发现新版本会直接安装，不再询问，下次打开看懂时生效。
+
+无法替换自身文件的看懂不会自动更新。`.deb` 和 `PKGBUILD` 就是这种情况：它们把看懂安装在由包管理器管理的 `/opt/kando` 中，而看懂没有 apt 软件源，所以更新时请从新版本下载 `.deb` 并按同样方式安装，或者改用上面的安装脚本，它安装在 `~/.local/kando.app` 的看懂可以自动更新。这样安装的看懂在“设置 › 通用”中不显示这两个开关，“检查更新…”会打开一个窗口说明无法更新的原因。Windows 目前还没有发布更新。
 
 ### 从源码构建
 
@@ -94,7 +119,8 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 获取 `kando` 命令：
 
 - macOS：先把看懂移到“应用程序”文件夹，再在“设置 › 通用”中点击“命令行工具”旁的“安装”。它会在 `/usr/local/bin`、`/opt/homebrew/bin`、`~/.local/bin` 中第一个可写入的文件夹里创建指向看懂的 `kando` 链接，不会要求输入管理员密码，也不会替换其他程序的 `kando`。直接从磁盘映像打开，或下载后被 macOS 放到临时位置（App Translocation）运行时，看懂所在的路径很快就会失效，这时卡片会提示先移动看懂，而不是安装一个日后失效的链接。也可以自己创建链接：`sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`。
-- Linux：`.deb` 和 `PKGBUILD` 把应用安装到 `/opt/kando`，并添加指向 `/opt/kando/kando` 的链接 `/usr/bin/kando`。`.tar.gz` 附带的安装脚本把应用安装到 `~/.local/kando.app`，并创建指向它的 `~/.local/bin/kando`；那里已有不是它创建的 `kando` 时则保留原样。如果 shell 的 `PATH` 里没有 `~/.local/bin`，请把它加进去。
+- Linux：`.deb` 和 `PKGBUILD` 把应用安装到 `/opt/kando`，并添加指向 `/opt/kando/kando` 的链接 `/usr/bin/kando`。安装脚本（参见[下载](#download)）把应用安装到 `~/.local/kando.app`，并创建指向它的 `~/.local/bin/kando`；那里已有不是它创建的 `kando` 时则保留原样。如果 shell 的 `PATH` 里没有 `~/.local/bin`，请把它加进去。
+- Windows：看懂无法安装这个命令，因为在 Windows 上创建链接需要管理员权限或开发者模式。“设置 › 通用”的“命令行工具”下会显示 `Kando.exe` 所在的文件夹；把这个文件夹加入 `PATH` 后，在终端中输入 `kando` 就会运行它，因为 Windows 的文件名不区分大小写。
 
 | 命令 | 作用 |
 | --- | --- |
@@ -105,6 +131,8 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 | `kando jobs` | 列出任务：先是正在运行的，然后是等待中的，最后是已结束的。 |
 | `kando add <link-or-file>... [--wait]` | 像“开始处理”一样把链接和本地视频文件加入队列，并输出每个任务的 ID。相对路径以当前目录为准。 |
 | `kando cancel <job-id>` | 停止正在运行的任务，或把等待中的任务移出队列。 |
+| `kando retry <job-id> [--wait]` | 像“重试”和“重新处理”一样，以同一个 ID 把失败、已取消或已完成的任务重新加入队列，不改变窗口显示的内容。正在运行或等待中的任务会被拒绝。 |
+| `kando remove <job-id>` | 像“移除”一样把任务从资料库中去掉，正在运行的任务会先停止。它的文件留在磁盘上。 |
 | `kando sites [query] [--limit N]` | 按名称、域名或视频链接搜索看懂支持下载的网站。 |
 | `kando open [film-id]` | 把看懂窗口调到最前面，显示指定的影片；不带 ID 时显示资料库。 |
 | `kando mcp` | 在标准输入和标准输出上提供 MCP 服务（见下文）。 |
@@ -113,7 +141,7 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 
 需要应用的命令通过套接字与它通信，套接字是 `settings.json` 所在文件夹中的 `kando.sock`（macOS 上是 `~/Library/Application Support/Kando/kando.sock`，Linux 上是 `~/.config/Kando/kando.sock`，Windows 上是 `%AppData%\Kando\kando.sock`）；`KANDO_SOCKET` 可以指定其他路径，运行第二个看懂时也需要它，并且还要有单独的 `HOME`（参见[配置](#configuration)）。看懂没有运行时，命令会在后台启动它，向标准错误输出 `Starting Kando…`，并最多等待 30 秒。添加视频需要的条件和“开始处理”相同，例如已打开资料库、程序齐全、已有 whisper 模型；缺少某项时，`kando add` 会失败，并给出窗口中对应的提示。
 
-所有与应用通信的命令都支持 `--json`，以 JSON 而不是文本输出应用的应答。有来源未能加入时，`kando add` 以 1 退出。加上 `--wait` 时，它会一直等到所有新加的任务完成或失败，每当某个任务的阶段或进度变化时输出一行；只要有任务失败，同样以 1 退出。加上 `--json` 时，进度输出到标准错误，结束时的任务输出到标准输出。退出码：0 表示成功，1 表示失败，2 表示命令用法有误。
+所有与应用通信的命令都支持 `--json`，以 JSON 而不是文本输出应用的应答。有来源未能加入时，`kando add` 以 1 退出。加上 `--wait` 时，它会一直等到所有新加的任务完成或失败，每当某个任务的阶段或进度变化时输出一行；只要有任务失败，同样以 1 退出。加上 `--json` 时，进度输出到标准错误，结束时的任务输出到标准输出。`kando retry --wait` 以同样的方式等待重新加入队列的任务。退出码：0 表示成功，1 表示失败，2 表示命令用法有误。
 
 `kando mcp` 是在标准输入和标准输出上运行的 MCP 服务器。看懂没有运行时，它的工具也会同样地启动它：
 
@@ -126,6 +154,8 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 | `kando_add_videos` | 把链接和本地视频文件加入队列；返回这些任务，以及每个未能加入的来源被跳过的原因。 |
 | `kando_list_jobs` | 列出任务，包括阶段、进度、状态、错误，完成后还有影片 ID 和文件路径。 |
 | `kando_cancel_job` | 停止正在运行的任务，或把等待中的任务移出队列。 |
+| `kando_retry_job` | 以同一个 ID 把失败、已取消或已完成的任务重新加入队列，并返回这个任务。 |
+| `kando_remove_job` | 把任务从资料库中去掉，正在运行的任务会先停止；它的文件留在磁盘上。 |
 | `kando_search_sites` | 按名称、域名或视频链接搜索看懂支持下载的网站（未设置 `limit` 时返回 20 个结果）。 |
 | `kando_open` | 把看懂窗口调到最前面，显示一部影片或资料库。 |
 
@@ -194,6 +224,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 - `library.json`：所有任务（已完成的和进行中的），以及每个视频上次播放到的位置。
 - `settings.json`：设置，包括 API 密钥、对象存储密钥和 Google 刷新令牌，均以明文保存。该文件仅当前用户可读。
 - `window-state.json`：窗口大小和位置。
+- `updater.json`：你对更新的选择（“设置 › 通用”中的两个开关、跳过的版本）以及看懂上次检查更新的时间。
 - `models/`：在“设置 › 语音识别”中下载的 whisper 模型。
 
 文件名不是 `video.*` 的视频，其封面图缓存在 `~/Library/Caches/Kando/posters`（macOS）、`%LocalAppData%\Kando\posters`（Windows）和 `~/.cache/Kando/posters`（Linux）中。
@@ -240,7 +271,7 @@ KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
 
 ## CI 与发布
 
-[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) 工作流会对拉取请求和 `main` 分支进行构建和测试。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) 工作流在 `main` 分支的 CI 通过后运行，也可以手动触发：它根据上一个标签以来的 约定式提交（Conventional Commits）确定下一个版本号，以 `chore(release)` 提交到 `main`，打上标签，在不使用 Developer ID 或代码签名证书的情况下构建 macOS、Windows 和 Linux 的安装包，并连同校验和一起发布到 GitHub Releases。
+[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) 工作流会对拉取请求和 `main` 分支进行构建和测试。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) 工作流在 `main` 分支的 CI 通过后运行，也可以手动触发：它根据上一个标签以来的 约定式提交（Conventional Commits）确定下一个版本号，以 `chore(release)` 提交到 `main`，打上标签，在不使用 Developer ID 或代码签名证书的情况下构建 macOS、Windows 和 Linux 的安装包，为已安装的看懂要下载的更新签名，并把 macOS 和 Linux 的安装包连同校验和一起发布到 GitHub Releases。Windows 安装程序已经构建，但还没有发布。
 
 ## 许可证
 

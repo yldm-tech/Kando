@@ -26,6 +26,9 @@ type App interface {
 	StartFilm(item films.Film)
 	Remove(id string)
 	RetryOpen(id string)
+	// TranslateAgain and TranslateMissing translate a done film again without downloading or transcribing it, as films.App's do: every line, or only those its translation left untranslated. The film stays open and follows its job.
+	TranslateAgain(item films.Film)
+	TranslateMissing(item films.Film)
 	Play() Player
 	PlayPath() string
 	PlayErr() string
@@ -41,6 +44,12 @@ type App interface {
 	Seek(at time.Duration)
 	// Skip moves the picture by d from where it is and says so on the picture.
 	Skip(d time.Duration)
+	// PrevLine, NextLine and ReplayLine play from the start of the line before, the line after or the line playing; ToggleLoopLine plays the line playing over and over, or stops, and LoopLine reports whether it does. Each says so on the picture.
+	PrevLine()
+	NextLine()
+	ReplayLine()
+	ToggleLoopLine()
+	LoopLine() bool
 	Cue() *Look
 	// LookChanged keeps the look after the style view changed it.
 	LookChanged()
@@ -64,6 +73,10 @@ type App interface {
 	SetStyleView(on bool)
 	// ModeMenu is whether the subtitle mode menu is open.
 	ModeMenu() *bool
+	// Rate is how fast films play, one of Rates, 1 as recorded; SetRate plays them at rate and says so on the picture. SpeedMenu is whether the speed menu is open.
+	Rate() float64
+	SetRate(rate float64)
+	SpeedMenu() *bool
 	// Search is the query of the subtitle list; SearchFocus asks the list's search field for the keyboard focus once.
 	Search() *string
 	SearchFocus() *bool
@@ -83,6 +96,8 @@ type App interface {
 	Info() Info
 	UploadView(item films.Film) Upload
 	BeginUpload(item films.Film)
+	// CancelUpload stops the upload running now.
+	CancelUpload()
 	// UploadNote is whether the upload capsule shows, after the upload button was clicked and until it is closed.
 	UploadNote() *bool
 	// OpenSettings shows the settings at section, one of the settings package's Section values.
@@ -104,20 +119,23 @@ type Upload struct {
 	Enabled bool
 	Label   string
 	Detail  string
-	// Status is UploadBusy, UploadDone, UploadFailed, UploadBlocked, or "" with nothing to report.
+	// Status is UploadBusy, UploadDone, UploadFailed, UploadCanceled, UploadBlocked, or "" with nothing to report.
 	Status string
 	// Progress is how much of a busy upload is sent, from 0 to 1.
 	Progress float64
+	// Canceling is whether a busy upload was asked to stop and waits for the storage's client to give up, when its cancel button is off.
+	Canceling bool
 	// Fix is the label of the button that opens 账号 to clear a blocked upload, as 去登录; "" when none helps.
 	Fix string
 }
 
 // Upload statuses, which the upload capsule shows with a dot of its own color.
 const (
-	UploadBusy    = "busy"
-	UploadDone    = "done"
-	UploadFailed  = "failed"
-	UploadBlocked = "blocked"
+	UploadBusy     = "busy"
+	UploadDone     = "done"
+	UploadFailed   = "failed"
+	UploadCanceled = "canceled"
+	UploadBlocked  = "blocked"
 )
 
 // Player is the picture currently open.
@@ -206,7 +224,7 @@ func (s screen) panelShown() bool {
 
 // chromeShown reports whether the title bar and the transport show: always while the film is held or a menu is open, and while playing until the pointer has rested for idleAfter.
 func (s screen) chromeShown(c *ui.Context, now time.Time) bool {
-	if s.Play() == nil || !s.Play().Playing() || *s.ModeMenu() {
+	if s.Play() == nil || !s.Play().Playing() || *s.ModeMenu() || *s.SpeedMenu() {
 		return true
 	}
 	rest := now.Sub(s.LastMove())
@@ -327,6 +345,18 @@ func title(item films.Film) string {
 // SplitCue is a bilingual cue's two lines: the translation over the original, or the original alone in a cue that has no translation.
 func SplitCue(text string) (translation, original string) { return splitCue(text) }
 
+// LineText is a cue as Copy Line puts it on the clipboard: its lines as the subtitle list shows them, the translation over the original, or the one line of a cue that has no translation.
+func LineText(text string) string {
+	translation, original := splitCue(text)
+	if translation == "" {
+		return original
+	}
+	if original == "" {
+		return translation
+	}
+	return translation + "\n" + original
+}
+
 func splitCue(text string) (translation, original string) {
 	text = strings.TrimSpace(text)
 	parts := strings.SplitN(text, "\n", 2)
@@ -379,4 +409,23 @@ func cueIndex(cues []core.Segment, at time.Duration) int {
 		}
 	}
 	return found
+}
+
+// CueNear is where at stands among the subtitle lines, by index: cur is the line covering at, as CueAt finds it, or -1 between lines; next is the first line starting after at; prev is the last line starting before cur does, or, between lines, the last one started by at. Each is -1 when there is none. The lines are in the order they start, as cueIndex takes them.
+func CueNear(cues []core.Segment, at time.Duration) (prev, cur, next int) {
+	cur = cueIndex(cues, at)
+	prev, next = -1, -1
+	for i, cue := range cues {
+		if cue.Start > at {
+			next = i
+			break
+		}
+	}
+	for i := len(cues) - 1; i >= 0; i-- {
+		if cur >= 0 && cues[i].Start < cues[cur].Start || cur < 0 && cues[i].Start <= at {
+			prev = i
+			break
+		}
+	}
+	return prev, cur, next
 }

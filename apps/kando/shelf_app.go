@@ -3,10 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,6 +16,8 @@ import (
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	"github.com/egoist/mygo"
 )
 
 // The shelf: which library folders the app knows, which one is open, and following them when they are renamed in Finder. The shelf's state is the nodra session in state.go.
@@ -114,7 +116,7 @@ func (a *app) libraryPlace() string {
 	return media.MoviesDir()
 }
 
-// switchLibrary points new downloads at dir and stops a job that is still writing into the previous one.
+// switchLibrary points new downloads at dir; a running job goes on into its own library (queue.go run).
 func (a *app) switchLibrary(dir string) {
 	dir = filepath.Clean(dir)
 	if dir == "." || dir == "" {
@@ -603,16 +605,33 @@ func (a *app) refreshLibrary() {
 func (a *app) retargetRenamed() bool {
 	root := a.snap().LibraryDir
 	var missing, live []string
+	seen := map[string]bool{}
+	add := func(path string) {
+		if path == "" || seen[path] || !films.InDir(root, path) {
+			return
+		}
+		seen[path] = true
+		if _, err := os.Stat(path); err != nil {
+			missing = append(missing, path)
+		} else {
+			live = append(live, path)
+		}
+	}
 	for _, job := range a.library.Jobs {
-		for _, path := range []string{job.VideoPath, job.SubtitlePath} {
-			if path == "" || !films.InDir(root, path) {
-				continue
-			}
-			if _, err := os.Stat(path); err != nil {
-				missing = append(missing, path)
-			} else {
-				live = append(live, path)
-			}
+		add(job.VideoPath)
+		add(job.SubtitlePath)
+	}
+	// A video no job processed keeps the title given in Kando by its path alone, so its folder renamed in Finder is paired the same way a job's is.
+	for _, path := range slices.Sorted(maps.Keys(a.library.Names)) {
+		add(path)
+	}
+	// A video the shelf listed before that is still there is not where a renamed one went, so only the videos that turned up since are paired.
+	for _, video := range a.snap().Videos {
+		if seen[video.Path] || !films.InDir(root, video.Path) {
+			continue
+		}
+		if _, err := os.Stat(video.Path); err == nil {
+			live = append(live, video.Path)
 		}
 	}
 	return a.retargetLibrary(media.RetargetRenamed(root, missing, live))
@@ -664,6 +683,20 @@ func (a *app) dropMissing() bool {
 	}
 	if changed {
 		a.library.Jobs = kept
+	}
+	// A title given in Kando to a video whose file is gone, and that no job still kept points at, is dropped too: the dropped jobs' and those of videos no job processed that were not paired with a renamed folder, so a video that turns up there later does not take it.
+	owned := map[string]bool{}
+	for _, job := range kept {
+		owned[job.VideoPath] = true
+	}
+	for path := range a.library.Names {
+		if owned[path] || !films.InDir(root, path) {
+			continue
+		}
+		if _, err := os.Stat(path); err != nil {
+			delete(a.library.Names, path)
+			changed = true
+		}
 	}
 	return changed
 }
@@ -767,15 +800,13 @@ func shelfSaveErr(err error, failed func(error string) string) string {
 // revealInFolder shows path in the system file manager. Tests replace it.
 var revealInFolder = revealPath
 
+// showItemInFolder is MyGo's reveal: Finder selecting the item on macOS, File Explorer selecting it on Windows, and on Linux the file manager's org.freedesktop.FileManager1 ShowItems, which selects it too, falling back to opening its folder when no file manager answers. Tests replace it.
+var showItemInFolder = mygo.Shell.ShowItemInFolder
+
+// revealPath shows path selected in the system file manager. MyGo reports no failure (each system's reveal either shows the item or falls back on its own), so it returns nil; reveal has already checked that path is there.
 func revealPath(path string) error {
-	switch runtime.GOOS {
-	case "darwin":
-		return exec.Command("open", "-R", path).Start()
-	case "windows":
-		return exec.Command("explorer", "/select,", path).Start()
-	default:
-		return exec.Command("xdg-open", filepath.Dir(path)).Start()
-	}
+	showItemInFolder(path)
+	return nil
 }
 
 func (a *app) reveal(path string) {

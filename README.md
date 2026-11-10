@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
@@ -19,14 +19,16 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 ## Features
 
 - Add a video by pasting a link from YouTube, Bilibili or any other site yt-dlp supports (Help › Supported Websites… lists them, with their logos), or pick a local file (mp4, mov, mkv, webm and other video files) or drag it onto the window. Local files are transcribed where they are, not copied.
+- Browse, in the sidebar, is a built-in browser: open a site, sign in if it needs it, and click Download Video to add the page you are on. Every download, from Browse, the link field, the command line or MCP, carries the sign-in of the sites you signed in to there; Clear Sign-in Data… signs you out of all of them.
 - Jobs run one after another through download, transcription, translation and export. A failed job says why, links to the setting that fixes it, and can be retried or removed.
 - Speech is recognized on your computer with whisper.cpp, which detects the spoken language. Settings › Speech Recognition lists seven whisper models, from Tiny (77.7 MB) to Large v3 (3.1 GB), and downloads the one you choose from Hugging Face.
 - Lines are translated by EveryAPI by default, or by any OpenAI-compatible chat API: Settings › AI Service has presets for OpenAI, OpenRouter, Groq, DeepSeek, xAI, Mistral, Qwen (DashScope), Kimi, Zhipu GLM, SiliconFlow, Ollama and LM Studio, plus a custom endpoint. The target language, a context-aware mode that lets the model read the preceding lines, and the prompt can be changed in Settings › Translation.
 - Each finished video gets two SubRip files next to it: `<video>.srt` with the original lines and `<video>.bilingual.srt` with each translation above its original line (`video.srt` and `video.bilingual.srt` for a downloaded video).
-- The player shows the subtitles as bilingual, original only, translation only or off, with a delay you can adjust in 0.1-second steps and a style you can change. Its side panel lists every line with search (click a line to jump to it), splits the video into 4 to 12 clips of about 30 seconds, and shows the film's files and source. Each film resumes where you stopped watching.
+- The player shows the subtitles as bilingual, original only, translation only or off, with a delay you can adjust in 0.1-second steps and a style you can change. You can move to the previous or next line, hear a line again, or loop one line until you have caught it. Its side panel lists every line with search (click a line to jump to it), splits the video into 4 to 12 clips of about 30 seconds, and shows the film's files and source. Each film resumes where you stopped watching.
 - Libraries are `.kando` folders of ordinary files you can manage in Finder or a file manager. You can keep several and switch between them from the sidebar, which also filters a library by source: YouTube, Bilibili, other sites and local files.
 - Optional upload of a film's video and bilingual subtitles to your own object storage (Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS or any S3-compatible store), from the player, after signing in with Google. See [Configuration](#configuration).
 - Keyboard shortcuts for playback, subtitles and windows, listed in a cheat sheet (⌘/) and in Settings › Keyboard Shortcuts.
+- A log file for bug reports: Help › Show Log File (or the command palette, ⌘K) reveals it. It is `~/Library/Logs/Kando/kando.log` on macOS, and `kando.log` in the `Kando/logs` folder of the user's configuration folder elsewhere; it records why each failed job failed, without the keys Kando holds or the AI service's address, and the end of what the tool that failed printed (its last 64 KB). Anything shaped like a key is written as `***`. Past 5 MB a new file starts, and the two before it are kept.
 
 ![The player with bilingual subtitles and the side panel's list of lines](docs/assets/en/player.png)
 
@@ -34,10 +36,29 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 
 ### Download
 
-Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases); there is no Windows build yet, so on Windows build from source as described below. They are not signed with a Developer ID or code-signing certificate, so the system warns the first time you open Kando:
+Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases); there is no Windows build yet, so on Windows build from source as described below. Pick the file for your system, where `<version>` is the release's version, such as `0.5.0`:
 
-- macOS: on macOS 15 and later, open Kando once, then choose System Settings › Privacy & Security › Open Anyway. On macOS 14 and earlier, Control-click Kando in Applications and choose Open. Or remove the quarantine flag in Terminal: `xattr -dr com.apple.quarantine /Applications/Kando.app`.
-- Windows: in the SmartScreen dialog, choose More info › Run anyway.
+- macOS: `kando-<version>-arm64.dmg` for Apple silicon, `kando-<version>-amd64.dmg` for Intel. Open the disk image and drag Kando to Applications.
+- Debian, Ubuntu and their derivatives: `kando_<version>_amd64.deb` for x86-64, `kando_<version>_arm64.deb` for ARM64. Install it with `sudo apt install ./kando_<version>_<arch>.deb` in the folder you downloaded it to.
+- Other Linux distributions: run the release's install script, which downloads the package for you:
+
+  ```sh
+  curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
+  ```
+
+  It downloads the latest `kando-<version>-linux-<arch>.tar.gz` for your machine, checks its signature, and installs Kando for your user alone, without root: the app in `~/.local/kando.app`, the `kando` command in `~/.local/bin`, and an entry in the applications menu. Checking the signature needs OpenSSL 3.0 or later (Debian 12, Ubuntu 22.04, Fedora 36 and later); with an older OpenSSL the script downloads nothing and says so. In that case, download the `.tar.gz` for your machine and `install.sh` from the same release into one folder, keeping their file names, and run `sh install.sh` there, or run `sh install.sh <archive>` with the path of the `.tar.gz`; either way the script installs that archive without checking its signature. Running the script again installs the newer version over the old one, and `sh install.sh --uninstall` removes Kando and keeps its settings and libraries.
+
+The other files of a release are not for installing: `checksums.txt` lists the SHA-256 of every file, and the `update-*.json` manifests, the `.delta` files and the `darwin` archives are what installed copies of Kando update themselves from (see [Updates](#updates)).
+
+The macOS disk images of releases newer than 0.5.1 are signed with YLDM's Developer ID and notarized by Apple, so macOS opens Kando without a warning.
+
+### Updates
+
+Kando updates itself from the signed releases on GitHub. It checks in the background 10 seconds after it opens and then once a day; when a new version is out, a window shows its release notes and offers Install Update, Remind Me Later and Skip This Version. Install Update downloads the new version, checks its signature and offers to relaunch Kando into it; otherwise it opens the next time you launch Kando. A version you skipped is not offered again by the background checks, but the next one is.
+
+To check now, choose Kando › Check for Updates… in the menu bar on macOS, or Check for Updates… in the command palette (Ctrl+K) on Linux and Windows, which have no menu bar; Settings › General also has a Check for Updates… button next to Version, under which it shows the newer version the last check found or when Kando last checked. The switches Check for updates automatically and Download and install updates automatically are in Settings › General too. The second shows only while the first is on, as only the background checks download updates; with it on, they install a new version without asking, and it opens the next time you launch Kando.
+
+A copy of Kando that cannot replace its own files does not update itself. That is the case of the `.deb` and the `PKGBUILD`, which install Kando in `/opt/kando`, a folder the package manager owns: there is no apt repository for Kando, so to update, download the new `.deb` from the release and install it the same way, or move to the install script above, whose copy in `~/.local/kando.app` updates itself. In such a copy Settings › General shows no switches, and Check for Updates… opens a window that says why it cannot update. Windows has no published updates yet.
 
 ### Build from source
 
@@ -90,7 +111,8 @@ The Kando program is also a command line, `kando`, and an MCP server for AI agen
 To get the `kando` command:
 
 - macOS: move Kando to Applications, then click Install next to Command-Line Tool in Settings › General. It links `kando` to the app in the first of `/usr/local/bin`, `/opt/homebrew/bin` and `~/.local/bin` it can write to, without asking for an administrator password, and never replaces a `kando` of another program. Kando opened from its disk image, or from where macOS translocated it after a download, runs from a path that goes away, so the card asks you to move it first instead of installing a link that would break. Or link it yourself: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`.
-- Linux: the `.deb` and the `PKGBUILD` install the app in `/opt/kando` and add `/usr/bin/kando`, a link to `/opt/kando/kando`. The install script of the `.tar.gz` installs the app in `~/.local/kando.app` and links `~/.local/bin/kando` to it, leaving alone a `kando` there that it did not make; add `~/.local/bin` to `PATH` if your shell does not have it.
+- Linux: the `.deb` and the `PKGBUILD` install the app in `/opt/kando` and add `/usr/bin/kando`, a link to `/opt/kando/kando`. The install script (see [Download](#download)) installs the app in `~/.local/kando.app` and links `~/.local/bin/kando` to it, leaving alone a `kando` there that it did not make; add `~/.local/bin` to `PATH` if your shell does not have it.
+- Windows: Kando cannot install the command, as making a link on Windows needs administrator rights or developer mode. Under Command-Line Tool, Settings › General names the folder that holds `Kando.exe`; add that folder to `PATH`, and `kando` in a terminal runs it, as Windows ignores the case of file names.
 
 | Command | What it does |
 | --- | --- |
@@ -101,6 +123,8 @@ To get the `kando` command:
 | `kando jobs` | Lists the jobs: the running one, the waiting ones, then the finished ones. |
 | `kando add <link-or-file>... [--wait]` | Queues links and local video files, as Start Processing does, and prints each job's id. Relative paths are taken from the current directory. |
 | `kando cancel <job-id>` | Stops a running job, or takes a waiting one out of the queue. |
+| `kando retry <job-id> [--wait]` | Queues a failed, canceled or finished job again under the same id, as Retry and Process Again do, without changing what the window shows. A running or waiting job is refused. |
+| `kando remove <job-id>` | Takes a job off the library, as Remove does, stopping it first when it is running. Its files stay on disk. |
 | `kando sites [query] [--limit N]` | Searches the websites Kando downloads from, by name, domain or a video link. |
 | `kando open [film-id]` | Brings Kando to the front, showing a film, or the library without an id. |
 | `kando mcp` | Serves MCP on standard input and output (see below). |
@@ -109,7 +133,7 @@ To get the `kando` command:
 
 A command that needs the app connects to it through a socket, `kando.sock` in the folder that holds `settings.json` (`~/Library/Application Support/Kando/kando.sock` on macOS, `~/.config/Kando/kando.sock` on Linux, `%AppData%\Kando\kando.sock` on Windows); `KANDO_SOCKET` sets another path, which a second copy of Kando also needs, with its own `HOME` (see [Configuration](#configuration)). When Kando is not running, the command starts it in the background, prints `Starting Kando…` to standard error, and waits up to 30 seconds for it. Adding videos needs what Start Processing needs, such as an open library, the programs and a whisper model; when something is missing, `kando add` fails with the message the window shows for it.
 
-Every command that talks to the app takes `--json`, which prints the app's answer as JSON instead of text. `kando add` exits with 1 when a source could not be added. With `--wait` it stays until every added job is complete or failed, printing a line whenever one's stage or progress changes, and also exits with 1 when any of them failed; with `--json` the progress goes to standard error and the jobs as they ended to standard output. Exit codes are 0 for success, 1 for a failure and 2 for a command used wrongly.
+Every command that talks to the app takes `--json`, which prints the app's answer as JSON instead of text. `kando add` exits with 1 when a source could not be added. With `--wait` it stays until every added job is complete or failed, printing a line whenever one's stage or progress changes, and also exits with 1 when any of them failed; with `--json` the progress goes to standard error and the jobs as they ended to standard output. `kando retry --wait` waits for the job it queued again in the same way. Exit codes are 0 for success, 1 for a failure and 2 for a command used wrongly.
 
 `kando mcp` is an MCP server on standard input and output. Its tools start Kando the same way when it is not running:
 
@@ -122,6 +146,8 @@ Every command that talks to the app takes `--json`, which prints the app's answe
 | `kando_add_videos` | Queues links and local video files; returns the jobs, and why each source that was not added was skipped. |
 | `kando_list_jobs` | The jobs, with their stage, progress, status, error, and once complete the film id and file paths. |
 | `kando_cancel_job` | Stops a running job, or takes a waiting one out of the queue. |
+| `kando_retry_job` | Queues a failed, canceled or finished job again under the same id; returns the job. |
+| `kando_remove_job` | Takes a job off the library, stopping it first when it is running; its files stay on disk. |
 | `kando_search_sites` | Searches the websites Kando downloads from, by name, domain or a video link (20 results unless `limit` is set). |
 | `kando_open` | Brings the Kando window to the front, showing a film or the library. |
 
@@ -188,6 +214,7 @@ Kando keeps its own files in the user config directory, `~/Library/Application S
 - `library.json`: the jobs, finished and in progress, and where each video stopped playing.
 - `settings.json`: the settings, including the API key, the object storage keys and the Google refresh token, in plain text. The file is readable only by your user.
 - `window-state.json`: window sizes and positions.
+- `updater.json`: your update choices (the two switches of Settings › General, a version you skipped) and when Kando last checked for updates.
 - `models/`: whisper models downloaded in Settings › Speech Recognition.
 
 Cover images of videos that are not named `video.*` are cached in `~/Library/Caches/Kando/posters` on macOS, `%LocalAppData%\Kando\posters` on Windows and `~/.cache/Kando/posters` on Linux.
@@ -234,7 +261,7 @@ Repository layout:
 
 ## CI and releases
 
-The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, and publishes a GitHub release with their checksums.
+The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, signs the updates that installed copies of Kando download, and publishes a GitHub release with the macOS and Linux packages and their checksums. The Windows installers are built but not published yet.
 
 ## License
 

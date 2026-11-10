@@ -10,6 +10,7 @@ import (
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // onPicture is the text over a poster or the hero, which are a picture or a dark color in either theme.
@@ -50,7 +51,7 @@ func resumeFrom(a App, item Film) (time.Duration, bool) {
 
 // hero is the large card of the film finished last: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does.
 func hero(c *ui.Context, a App, item Film) {
-	box := ui.ButtonBase(c).Label(filmName(item)).Description(locales.FilmsHeroKicker()).Height(360).Radius(18).Clip().Background(posterColor(item.Key)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.16)).ContextMenu(filmMenu(a, item))
+	box := ui.ButtonBase(c).Label(filmName(item)).Description(locales.FilmsHeroKicker()).Height(360).Radius(18).Clip().Background(posterColor(item.Key)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.16)).ContextMenu(filmMenu(a, item, breeze.PlatformOf(c)))
 	if box.Clicked() {
 		a.Open(item)
 	}
@@ -97,7 +98,7 @@ func hero(c *ui.Context, a App, item Film) {
 					if heroButton(c, locales.FilmsHeroFromStart(), false).Clicked() {
 						a.OpenAt(item, 0)
 					}
-				} else if heroButton(c, locales.FilmsShowInFinder(), false).Clicked() {
+				} else if heroButton(c, locales.FilmsShowInFinder(breeze.PlatformOf(c).String()), false).Clicked() {
 					a.Reveal(item.VideoPath)
 				}
 			})

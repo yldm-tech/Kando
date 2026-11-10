@@ -33,7 +33,8 @@ func switcher(c *ui.Context, t *ui.Theme, a App) {
 		} else {
 			pill.Background(pillFill)
 		}
-		pill.Menu(func(m *ui.Menu) { switcherMenu(m, a) })
+		p := breeze.PlatformOf(c)
+		pill.Menu(func(m *ui.Menu) { switcherMenu(m, a, p) })
 		pill.Children(func() {
 			tile := ui.Box(c).Size(24, 24).Shrink(0).Radius(6).AlignItems(ui.Center).Justify(ui.Center)
 			tile.LinearGradient(ui.LinearGradient{From: tileFrom, To: tileTo, Angle: 135})
@@ -51,7 +52,7 @@ func switcher(c *ui.Context, t *ui.Theme, a App) {
 }
 
 // switcherMenu lists the known libraries, the open one checked, each with how many films it holds; then 新建资料库…, 打开已有资料库… and 在访达中显示 the open library. The system menu has no column for the counts, so each joins its library's name.
-func switcherMenu(m *ui.Menu, a App) {
+func switcherMenu(m *ui.Menu, a App, p breeze.Platform) {
 	open := a.LibraryDir()
 	libraries := a.KnownLibraries()
 	for _, dir := range libraries {
@@ -76,7 +77,7 @@ func switcherMenu(m *ui.Menu, a App) {
 		a.PickLibrary()
 	}
 	if open != "" {
-		if m.Item(locales.SidebarRevealLibrary(Title(open))).Chosen() {
+		if m.Item(locales.SidebarRevealLibrary(Title(open), p.String())).Chosen() {
 			a.Reveal(open)
 		}
 	}

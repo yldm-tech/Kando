@@ -34,10 +34,12 @@ type Film struct {
 	Untranslated int
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
+	// Library is the name of the library the job saves into when that is not the open one, as for a job that kept running after another library was opened; empty for the open library's films.
+	Library string
 }
 
-// List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them.
-func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
+// List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
+func List(root string, jobs []core.Job, videos []media.Video, names map[string]string, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
 	used := map[string]bool{}
 	out := make([]Film, 0, len(jobs)+len(videos))
 	for i := range jobs {
@@ -48,16 +50,41 @@ func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.J
 		if job.VideoPath != "" {
 			used[job.VideoPath] = true
 		}
-		out = append(out, FromJob(job, nameOf(job), detailOf(job)))
+		name := nameOf(job)
+		if given := names[job.VideoPath]; job.VideoPath != "" && given != "" {
+			name = given
+		}
+		out = append(out, FromJob(job, name, detailOf(job)))
 	}
 	for _, video := range videos {
 		if used[video.Path] || !InDir(root, video.Path) {
 			continue
 		}
 		name := strings.TrimSuffix(video.Name, filepath.Ext(video.Name))
+		if given := names[video.Path]; given != "" {
+			name = given
+		}
 		out = append(out, Film{
 			Key: video.Path, Title: Shorten(name, 22), Name: name, Detail: video.Path, VideoPath: video.Path, SubtitlePath: video.Subtitles,
 		})
+	}
+	return out
+}
+
+// Queue is the films of 处理中 in the shelf's order, newest first: the open library's jobs that are waiting, running, failed or were cancelled (InQueue), and the jobs elsewhere reports the queue runs, or will run, for another library, each with Library naming that library.
+func Queue(root string, jobs []core.Job, elsewhere func(core.Job) bool, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
+	var out []Film
+	for _, job := range jobs {
+		switch {
+		case InLibrary(root, job):
+			if item := FromJob(job, nameOf(job), detailOf(job)); InQueue(item) {
+				out = append(out, item)
+			}
+		case elsewhere(job):
+			item := FromJob(job, nameOf(job), detailOf(job))
+			item.Library = LibraryName(job.LibraryDir)
+			out = append(out, item)
+		}
 	}
 	return out
 }
@@ -121,6 +148,26 @@ func BySource(items []Film, source string) []Film {
 	return out
 }
 
+// MatchesTitle reports whether the film's name, the whole one the page shows, holds query, ignoring case and the spaces around query. An empty query matches every film. The library's search field filters the done grid with it, and leaves 处理中 whole; `kando list [query]` filters every film with it, queued or done, so the two agree on which done films match.
+func MatchesTitle(item Film, query string) bool {
+	query = strings.ToLower(strings.TrimSpace(query))
+	return query == "" || strings.Contains(strings.ToLower(filmName(item)), query)
+}
+
+// ByTitle keeps the films whose names hold query (MatchesTitle); an empty query keeps them all.
+func ByTitle(items []Film, query string) []Film {
+	if strings.TrimSpace(query) == "" {
+		return items
+	}
+	var out []Film
+	for _, item := range items {
+		if MatchesTitle(item, query) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
 func Find(items []Film, key string) (Film, bool) {
 	for _, item := range items {
 		if item.Key == key {
@@ -146,6 +193,22 @@ func DisplayPath(path string) string {
 		return "~" + string(filepath.Separator) + path[len(prefix):]
 	}
 	return path
+}
+
+// LibraryLabels names each library by its title, or by its path where two share a title: the library drop-down of Settings › 通用, and File › 切换资料库 and the Dock menu of the menu bar.
+func LibraryLabels(dirs []string) []string {
+	count := map[string]int{}
+	for _, dir := range dirs {
+		count[sidebar.Title(dir)]++
+	}
+	labels := make([]string, len(dirs))
+	for i, dir := range dirs {
+		labels[i] = sidebar.Title(dir)
+		if count[labels[i]] > 1 {
+			labels[i] = DisplayPath(dir)
+		}
+	}
+	return labels
 }
 
 func Shorten(s string, n int) string {

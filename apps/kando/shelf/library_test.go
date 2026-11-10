@@ -338,3 +338,112 @@ func TestLoadDamagedKeepsWhatItCouldRead(t *testing.T) {
 		t.Fatalf("jobs %#v furthest %v positions %v", lib.Jobs, lib.Furthest, lib.Positions)
 	}
 }
+
+// A job the app quit in the middle of translating still knows its transcript was saved, so it resumes from the translation once it runs again.
+func TestLibraryKeepsWhetherTheJobWasTranscribed(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "tr", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageTranslating, VideoPath: "/v/tr.mp4", Transcribed: true})
+	lib.Upsert(core.Job{ID: "dl", Source: "https://example.com/dl", Stage: core.StageDownloading})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if job, _ := loaded.Find("tr"); job.Stage != core.StageQueued || !job.Transcribed || job.VideoPath != "/v/tr.mp4" {
+		t.Fatalf("interrupted job %+v", job)
+	}
+	if job, _ := loaded.Find("dl"); job.Transcribed {
+		t.Fatalf("job never transcribed %+v", job)
+	}
+}
+
+// A job translating a done film again keeps which part it redoes, and into what language, across a restart, so the job read back as queued translates again rather than downloading and transcribing the film anew.
+func TestLibraryKeepsWhatAJobRedoes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageTranslating, Redo: core.RedoTranslation, RedoLanguage: "日本語"})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if job := loaded.Jobs[0]; job.Redo != core.RedoTranslation || job.RedoLanguage != "日本語" || job.Stage != core.StageQueued {
+		t.Fatalf("job %+v", job)
+	}
+}
+
+// TestRenameKeepsTheTitleGivenInKando checks that a title the user gives a video is kept trimmed, read back from library.json, dropped by an empty one, and that Rename says whether anything changed.
+func TestRenameKeepsTheTitleGivenInKando(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lib.Rename("/v/a.mp4", "  Linear Algebra 1  ") || !lib.Rename("/v/b.mp4", "Talk") {
+		t.Fatal("Rename said nothing changed")
+	}
+	if lib.Rename("/v/a.mp4", "Linear Algebra 1") {
+		t.Fatal("Rename to the same title said it changed")
+	}
+	if lib.Rename("", "Nothing") || lib.Rename("/v/c.mp4", "   ") {
+		t.Fatal("Rename of no video, or to nothing for a video with no title, said it changed")
+	}
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Names) != 2 || loaded.Names["/v/a.mp4"] != "Linear Algebra 1" || loaded.Names["/v/b.mp4"] != "Talk" {
+		t.Fatalf("names %v", loaded.Names)
+	}
+	if !loaded.Rename("/v/b.mp4", "") || len(loaded.Names) != 1 {
+		t.Fatalf("an empty title kept %v", loaded.Names)
+	}
+	if err := loaded.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "/v/b.mp4") {
+		t.Fatalf("library.json still names the video whose title was dropped:\n%s", data)
+	}
+
+	var empty Library
+	if !empty.Rename("/v/a.mp4", "Talk") || empty.Names["/v/a.mp4"] != "Talk" {
+		t.Fatalf("a library with no titles yet kept %v", empty.Names)
+	}
+}
+
+// TestMoveVideosMovesTheTitles checks that a title given in Kando follows its video when the video moves on disk, as a folder renamed in Finder moves it.
+func TestMoveVideosMovesTheTitles(t *testing.T) {
+	lib := Library{Names: map[string]string{"/old/a/video.mp4": "My talk", "/other/b.mp4": "B"}}
+	moved := lib.MoveVideos(func(path string) (string, bool) {
+		if path == "/old/a/video.mp4" {
+			return "/old/renamed/video.mp4", true
+		}
+		return "", false
+	})
+	if !moved {
+		t.Fatal("MoveVideos said nothing moved")
+	}
+	if len(lib.Names) != 2 || lib.Names["/old/renamed/video.mp4"] != "My talk" || lib.Names["/other/b.mp4"] != "B" {
+		t.Fatalf("names %v", lib.Names)
+	}
+}
+
+// TestUpsertCarriesTheTitleToTheNewVideo checks that when processing a job again leaves its video at another path, the title given to it in Kando goes with it, and that a job whose video stays where it was keeps its title.
+func TestUpsertCarriesTheTitleToTheNewVideo(t *testing.T) {
+	lib := Library{Names: map[string]string{"/lib/My folder/video.mp4": "My talk"}}
+	lib.Jobs = []core.Job{{ID: "a", Stage: core.StageComplete, VideoPath: "/lib/My folder/video.mp4"}}
+	lib.Upsert(core.Job{ID: "a", Stage: core.StageDownloading, VideoPath: "/lib/My folder/video.mp4", Title: "Site title"})
+	if lib.Names["/lib/My folder/video.mp4"] != "My talk" {
+		t.Fatalf("names %v", lib.Names)
+	}
+	lib.Upsert(core.Job{ID: "a", Stage: core.StageTranscribing, VideoPath: "/lib/Site title [x]/video.mp4", Title: "Site title"})
+	if len(lib.Names) != 1 || lib.Names["/lib/Site title [x]/video.mp4"] != "My talk" {
+		t.Fatalf("names %v", lib.Names)
+	}
+}

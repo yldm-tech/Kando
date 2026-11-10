@@ -9,7 +9,7 @@ import (
 
 // noLibrary is the page before there is a library: what a library is, 新建资料库… and 打开已有资料库….
 func noLibrary(c *ui.Context, a App) {
-	statusPage(c, libraryArt, locales.FilmsNoLibraryTitle(), locales.FilmsNoLibraryDescription(), func() {
+	statusPage(c, libraryArt, locales.FilmsNoLibraryTitle(), locales.FilmsNoLibraryDescription(breeze.PlatformOf(c).String()), func() {
 		c.Key("empty-new")
 		if statusButton(breeze.PrimaryButton(c, locales.FilmsNewLibraryEllipsis())).Clicked() {
 			a.BeginNew()
@@ -43,6 +43,17 @@ func emptyLibrary(c *ui.Context, a App) {
 func emptySource(c *ui.Context, t *ui.Theme) {
 	ui.Column(c).Grow(1).AlignItems(ui.Center).Padding(80, 28).Children(func() {
 		breeze.Text(c, locales.FilmsSourceEmpty(), breeze.TextSecondary)
+	})
+}
+
+// noMatch is what the grid shows when no done film's name holds the search field's query, with 清除搜索, which empties the field and brings the whole shelf back.
+func noMatch(c *ui.Context, a App, query string) {
+	ui.Column(c).Grow(1).AlignItems(ui.Center).Gap(14).Padding(80, 28).Children(func() {
+		breeze.Text(c, locales.FilmsSearchNoMatch(query), breeze.TextSecondary).TextAlign(ui.Center).Wrap()
+		c.Key("films-search-clear")
+		if statusButton(breeze.Button(c, locales.FilmsSearchClear())).Clicked() {
+			*a.Query() = ""
+		}
 	})
 }
 

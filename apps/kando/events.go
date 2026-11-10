@@ -2,9 +2,9 @@ package main
 
 import "github.com/egoist/mygo"
 
-// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go, windowHooks in state_window.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
+// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go, windowHooks in state_window.go, logsHooks in state_logs.go, browseHooks in state_browse.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
 //
-// Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs while there is no window, and main's update posts to the window, so a hook must not call update, or start background work that reports through it, before ready; main's update would panic on the missing window. An area whose shelfChanged starts such work holds it back until its ready, with a flag of its own that its restore sets (restore runs only in main, never in tests).
+// Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs while there is no window, and main's update posts to the window, so a hook must not call update, or start background work that reports through it, before ready; main's update would panic on the missing window. An area whose shelfChanged starts such work holds it back until its ready, with a flag of its own that its restore sets (main runs restore before App.Run; tests that call restoreSettings run it too, so what restore registers on the process-wide mygo.App, as the queue's listener for notification clicks, is registered again by each such test).
 type areaHooks struct {
 	// save writes the area's part of settings.json, its own struct embedded in savedSettings. restore takes it back at startup (restoreSettings), after the shelf and before the window exists.
 	save    func(saved *savedSettings)
@@ -38,6 +38,8 @@ type areaHooks struct {
 	quitStarting func()
 	// windowShown runs when the main window was put away by its close button (shown false) or came back (state_window.go). A window out of sight draws no frame, so an area that brings something up to date after each frame, as the menu bar does, does it here too.
 	windowShown func(shown bool)
+	// becameActive runs when the app becomes the active one, the one in front (main's mygo.App.OnDidBecomeActive), as when the user clicks its window or one of its notifications.
+	becameActive func()
 	// quitting runs once when the app quits (main's mygo.App.OnWillQuit), after its windows have closed and before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own, or the queue's running job.
 	quitting func()
 }
@@ -45,8 +47,11 @@ type areaHooks struct {
 // areas is each area's hooks, in the order they run.
 func (a *app) areas() []areaHooks {
 	return []areaHooks{
+		a.logsHooks(),
 		a.sidebarHooks(),
 		a.libraryHooks(),
+		// The browser comes before the queue, as its ready gives the pipeline the pages' cookies (media.Tools.SiteCookies) and the queue's ready starts the first job left waiting, which takes the pipeline as it is then.
+		a.browseHooks(),
 		a.queueHooks(),
 		a.settingsHooks(),
 		a.cloudHooks(),
@@ -197,6 +202,14 @@ func (a *app) areasWindowShown(shown bool) {
 	for _, h := range a.areas() {
 		if h.windowShown != nil {
 			h.windowShown(shown)
+		}
+	}
+}
+
+func (a *app) areasBecameActive() {
+	for _, h := range a.areas() {
+		if h.becameActive != nil {
+			h.becameActive()
 		}
 	}
 }

@@ -16,12 +16,17 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go).
+// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). A reveal no test watches shows nothing: the tests run without an app, where MyGo's shell would wait for one, and must not open the file manager of the machine running them.
 func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
+	showItemInFolder = func(string) {}
+	// mygo's Dock menu waits for the main thread, which tests never reach (menu.go's setDockMenu), so a test that turns the menu bar on would hang; fakeDock records the menus where a test checks them.
+	setDockMenu = func(*mygo.Menu) {}
 	os.Exit(m.Run())
 }
 
@@ -247,5 +252,40 @@ func clickRow(t *testing.T, tt *ui.Tester, label string) {
 	tt.Frame()
 	if !tt.Focused(label) {
 		t.Fatalf("clicking the row %q did not focus its field", label)
+	}
+}
+
+// platformName is the platform the tests run on as the messages naming the system's file manager select it (macOS, Windows or Linux), so a test of another area can find 在访达中显示 by the words this system's build shows.
+func platformName() string { return breeze.Current().String() }
+
+// usePlatform draws the window as p's, with p's labels, for the rest of t, and goes back to the system's after it.
+func usePlatform(t *testing.T, p breeze.Platform) {
+	t.Helper()
+	breeze.SetPlatform(p)
+	t.Cleanup(func() { breeze.SetPlatform(breeze.Auto) })
+}
+
+// fakeAwake stands in for mygo.Power.KeepAwake, which needs a running app: it records each hold taken and how many are still held.
+type fakeAwake struct {
+	holds []awakeHold
+	held  int
+}
+
+// awakeHold is one call of fakeAwake.keepAwake: why it was taken, whether it keeps the display on too, and whether it was given back.
+type awakeHold struct {
+	reason   string
+	display  bool
+	released bool
+}
+
+func (f *fakeAwake) keepAwake(reason string, display bool) func() {
+	f.holds = append(f.holds, awakeHold{reason: reason, display: display})
+	i := len(f.holds) - 1
+	f.held++
+	return func() {
+		if !f.holds[i].released {
+			f.holds[i].released = true
+			f.held--
+		}
 	}
 }

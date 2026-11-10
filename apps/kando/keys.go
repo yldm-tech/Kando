@@ -62,9 +62,9 @@ func groupTitle(group string) string {
 	return group
 }
 
-// shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go, the feedback dialog's in state_feedback.go, the first-run guide's in state_onboarding.go, 检查更新… in updates.go and the main window's in state_window.go.
+// shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go, the feedback dialog's in state_feedback.go, the first-run guide's in state_onboarding.go, 显示日志文件 in state_logs.go, 检查更新… in updates.go, the main window's in state_window.go and the browser's in state_browse.go.
 func (a *app) shortcuts() []shortcut {
-	return slices.Concat(a.appKeys(), a.sidebarKeys(), a.libraryKeys(), a.queueKeys(), a.playerKeys(), a.settingsKeys(), a.overlayKeys(), a.menuKeys(), a.feedbackKeys(), a.paletteKeys(), a.onboardingKeys(), a.sitesKeys(), a.updatesKeys(), a.windowKeys())
+	return slices.Concat(a.appKeys(), a.sidebarKeys(), a.libraryKeys(), a.queueKeys(), a.playerKeys(), a.settingsKeys(), a.overlayKeys(), a.menuKeys(), a.feedbackKeys(), a.paletteKeys(), a.onboardingKeys(), a.sitesKeys(), a.logsKeys(), a.updatesKeys(), a.windowKeys(), a.browseKeys())
 }
 
 // appKeys are the shortcuts that work anywhere in the window.

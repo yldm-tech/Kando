@@ -7,17 +7,21 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 func TestOpenFilmShowsBilingualLines(t *testing.T) {
@@ -34,7 +38,7 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	var revealed string
@@ -52,12 +56,12 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	tt.Frame()
 	waitUntil(t, updates, func() bool { return a.player.subs.ready })
 	tt.Frame()
-	for _, text := range []string{"返回", "字幕 100%", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "全部", "在访达中显示"} {
+	for _, text := range []string{"返回", "字幕 100%", "你好。", "Hello.", "再见。", "0:01", "1:02:03", "全部", locales.FilmShowInFinder(platformName())} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("在访达中显示"); err != nil {
+	if err := tt.Click(locales.FilmShowInFinder(platformName())); err != nil {
 		t.Fatal(err)
 	}
 	if revealed != srt {
@@ -89,7 +93,7 @@ func TestOpenFilmPlaysTheVideo(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "clip", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	t.Cleanup(a.stopPlayback)
@@ -161,7 +165,7 @@ func TestPlaybackAdvancesThePicture(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+		ID: "clip", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
@@ -211,7 +215,7 @@ func TestPlaybackStopsAtTheEnd(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+		ID: "clip", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
@@ -438,7 +442,7 @@ func TestSeekJumpsIntoTheLaterPicture(t *testing.T) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "clip", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video,
+		ID: "clip", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video,
 	}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
@@ -515,7 +519,7 @@ func TestPlayerInEnglish(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	tt.Frame()
@@ -525,7 +529,7 @@ func TestPlayerInEnglish(t *testing.T) {
 	tt.Frame()
 	waitUntil(t, updates, func() bool { return a.player.subs.ready && a.player.film.info.Folder != "" })
 	tt.Frame()
-	for _, want := range []string{"100% translated", "All", "Click a line to jump to it", "Search Lines", "Show in Finder", "Back to Library", "Subtitles", "Clips", "Info", "Style"} {
+	for _, want := range []string{"100% translated", "All", "Click a line to jump to it", "Search Lines", locales.FilmShowInFinder(platformName()), "Back to Library", "Subtitles", "Clips", "Info", "Style"} {
 		wantText(t, tt, want)
 	}
 	if err := tt.Click("Info"); err != nil {
@@ -562,19 +566,23 @@ func TestPlayerInEnglish(t *testing.T) {
 	if look := a.player.look; look.Preset != "box" || look.Translation.Family != "默认" {
 		t.Fatalf("look %+v after Box", look)
 	}
-	// The font menu lists the families in English and the look keeps the saved name of the one chosen.
+	// The font menu lists the platform's families in English and the look keeps the saved name of the one chosen: macOS's own fonts on macOS, a sans-serif and a serif font elsewhere.
+	font, saved := "PingFang SC", "苹方"
+	if breeze.Current() != breeze.Mac {
+		font, saved = "Sans Serif", "黑体"
+	}
 	if err := tt.Click("Default"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("PingFang SC"); err != nil {
+	if err := tt.Click(font); err != nil {
 		t.Fatalf("%v texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	if look := a.player.look; look.Translation.Family != "苹方" || look.Original.Family != "苹方" {
-		t.Fatalf("look %+v after PingFang SC", look)
+	if look := a.player.look; look.Translation.Family != saved || look.Original.Family != saved {
+		t.Fatalf("look %+v after %s", look, font)
 	}
-	for _, chinese := range []string{"字幕", "简体中文", "在访达中显示", "恢复默认样式", "苹方"} {
+	for _, chinese := range []string{"字幕", "简体中文", locales.In("zh-Hans").FilmShowInFinder(platformName()), "恢复默认样式", saved} {
 		if tt.HasText(chinese) {
 			t.Fatalf("the player still reads %q: %q", chinese, tt.Texts())
 		}
@@ -595,7 +603,7 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt,
 	}}
 	tt.Frame()
@@ -1103,6 +1111,142 @@ func TestQuittingStopsTheOpenFilm(t *testing.T) {
 	}
 }
 
+// TestThePlayerKeepsTheDisplayAwakeWhileAFilmPlays: a film held on its first frame takes no hold; playing it keeps the display awake, and pausing it, playing it to its end, going back to the library and quitting each let the display sleep again.
+func TestThePlayerKeepsTheDisplayAwakeWhileAFilmPlays(t *testing.T) {
+	a, tt, updates := openClip(t, 1)
+	awake := &fakeAwake{}
+	a.player.keepAwake = awake.keepAwake
+	tt.Frame()
+	if len(awake.holds) != 0 {
+		t.Fatalf("a film held on its first frame took holds %+v", awake.holds)
+	}
+	play := func(when string) {
+		t.Helper()
+		tt.Key(0, ui.KeySpace)
+		tt.Frame()
+		if !a.player.play.Playing() || awake.held != 1 {
+			t.Fatalf("%s: playing %v, holds %+v, %d held", when, a.player.play.Playing(), awake.holds, awake.held)
+		}
+	}
+	play("pressing Space")
+	if hold := awake.holds[0]; hold.reason != "正在播放视频" || !hold.display {
+		t.Fatalf("the hold is %+v, want the reason 正在播放视频 and the display kept on", hold)
+	}
+	tt.Frame()
+	if len(awake.holds) != 1 {
+		t.Fatalf("another frame of the playing film took another hold: %+v", awake.holds)
+	}
+
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if awake.held != 0 {
+		t.Fatalf("after pausing: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	play("playing again")
+	until := time.Now().Add(4 * time.Second)
+	for a.player.play.Playing() && time.Now().Before(until) {
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		time.Sleep(20 * time.Millisecond)
+	}
+	if a.player.play.Playing() || awake.held != 0 {
+		t.Fatalf("after the film's end: playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+
+	play("playing from the start")
+	if err := tt.Click("返回资料库"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.player.play != nil || awake.held != 0 {
+		t.Fatalf("after going back to the library: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	if err := tt.Click("clip"); err != nil {
+		t.Fatal(err)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	play("playing the film opened again")
+	a.areasQuitting()
+	if awake.held != 0 {
+		t.Fatalf("after quitting: holds %+v, %d held", awake.holds, awake.held)
+	}
+}
+
+// TestTheDisplayHoldFollowsTheWindow: a playing film lets the display sleep while the window is minimized or hidden, as only its sound plays on, and keeps it awake again once the window is back; a seek keeps the one hold while it opens the film again.
+func TestTheDisplayHoldFollowsTheWindow(t *testing.T) {
+	a, tt, updates := openClip(t, 12)
+	awake := &fakeAwake{}
+	a.player.keepAwake = awake.keepAwake
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if !a.player.play.Playing() || awake.held != 1 {
+		t.Fatalf("playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+
+	a.playerWindowAway(true)
+	if awake.held != 0 {
+		t.Fatalf("with the window away: holds %+v, %d held", awake.holds, awake.held)
+	}
+	a.areasAfterFrame()
+	if awake.held != 0 || len(awake.holds) != 1 {
+		t.Fatalf("a frame with the window away took the hold again: %+v", awake.holds)
+	}
+	a.playerWindowAway(false)
+	if awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("with the window back: holds %+v, %d held", awake.holds, awake.held)
+	}
+
+	tt.Key(0, ui.KeyRight)
+	if a.player.play != nil {
+		t.Fatal("the seek did not open the film again")
+	}
+	tt.Frame()
+	if awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("while the seek opens the film: holds %+v, %d held", awake.holds, awake.held)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	if !a.player.play.Playing() || awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("after the seek: playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+}
+
+// TestTheDisplaySleepsWhileThePictureStandsStillBehindTheWindow: once the picture of a film playing in the background stands still, as the window is out of sight, the display may sleep while its sound plays on, and coming back keeps it awake again.
+func TestTheDisplaySleepsWhileThePictureStandsStillBehindTheWindow(t *testing.T) {
+	a, tt, updates := openClip(t, 12)
+	awake := &fakeAwake{}
+	a.player.keepAwake = awake.keepAwake
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	p := a.player.play
+	if !p.Playing() || awake.held != 1 {
+		t.Fatalf("playing %v, holds %+v, %d held", p.Playing(), awake.holds, awake.held)
+	}
+	a.playerDidResignActive()
+	if p.background == nil {
+		t.Fatal("no decoder follows the sound")
+	}
+	// The Tester builds no frames meanwhile, as a window out of sight.
+	waitUntil(t, updates, func() bool { return p.unseen })
+	if awake.held != 0 {
+		t.Fatalf("with the picture standing still: holds %+v, %d held", awake.holds, awake.held)
+	}
+	a.areasAfterFrame()
+	if awake.held != 0 || len(awake.holds) != 1 {
+		t.Fatalf("a frame behind the window took the hold again: %+v", awake.holds)
+	}
+
+	a.playerDidBecomeActive()
+	waitUntil(t, updates, func() bool { return a.player.play != p })
+	tt.Frame()
+	if !a.player.play.Playing() || awake.held != 1 || len(awake.holds) != 2 {
+		t.Fatalf("back in sight: playing %v, holds %+v, %d held", a.player.play.Playing(), awake.holds, awake.held)
+	}
+}
+
 // TestVolumeKeys checks ↑, ↓ and M on an open film: ↑ and ↓ move the volume a tenth within 0 and 100%, M mutes and gives the volume back, and each says so on the picture. The open film plays at the new volume at once, and once the keys rest the settings keep it.
 func TestVolumeKeys(t *testing.T) {
 	a, tt, updates := openClip(t, 2)
@@ -1204,6 +1348,17 @@ func TestQuittingKeepsTheVolume(t *testing.T) {
 	a.areasQuitting()
 	if saved := loadSavedSettings(a.settingsPath); !saved.Muted {
 		t.Fatalf("the mute was not kept: %+v", saved.savedPlayer)
+	}
+}
+
+// TestQuittingKeepsTheSpeed: a speed changed too shortly before quitting for the change to have settled is still kept in the settings.
+func TestQuittingKeepsTheSpeed(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.SetRate(0.75)
+	a.areasQuitting()
+	if saved := loadSavedSettings(a.settingsPath); saved.Rate == nil || *saved.Rate != 0.75 {
+		t.Fatalf("the speed was not kept: %v", saved.Rate)
 	}
 }
 
@@ -1602,7 +1757,7 @@ func TestPlayerAudioSetPositionNearbyKeepsFFmpeg(t *testing.T) {
 func TestSoundCatchesUpWithThePicture(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 30)
 	// Held, the sound stands where it is told it was heard, which the test moves by hand.
-	sound, err := openPCM(ffmpeg, clip, 2*time.Second, 0)
+	sound, err := openPCM(ffmpeg, clip, 2*time.Second, 0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1710,7 +1865,7 @@ func playerFakeFilm(t *testing.T) (*app, *ui.Tester, chan func()) {
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.edit(func(s *session) { s.LibraryDir = filepath.Dir(clip) })
-	a.library.Jobs = []core.Job{{ID: "clip", Source: "file://" + clip, Language: "简体中文", Stage: core.StageComplete, VideoPath: clip}}
+	a.library.Jobs = []core.Job{{ID: "clip", Source: core.FileURL(clip), Language: "简体中文", Stage: core.StageComplete, VideoPath: clip}}
 	t.Cleanup(a.stopPlayback)
 	return a, tt, updates
 }
@@ -1718,7 +1873,7 @@ func playerFakeFilm(t *testing.T) (*app, *ui.Tester, chan func()) {
 // TestPlayerAudioCloseEndsFFmpeg: closing the sound ends its ffmpeg, which waits on the full pipe while the sound is held, and a read after it is the end.
 func TestPlayerAudioCloseEndsFFmpeg(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 30)
-	sound, err := openPCM(ffmpeg, clip, 0, 0)
+	sound, err := openPCM(ffmpeg, clip, 0, 0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1740,7 +1895,7 @@ func TestPlayerAudioCloseEndsFFmpeg(t *testing.T) {
 	if n, err := sound.decoder.Read(make([]float32, 64)); n != 0 || err != io.EOF {
 		t.Fatalf("a read after Close: %d %v", n, err)
 	}
-	if _, err := openPCM("", clip, 0, 1); err == nil {
+	if _, err := openPCM("", clip, 0, 1, 1); err == nil {
 		t.Fatal("a sound opened without ffmpeg")
 	}
 }
@@ -1750,7 +1905,7 @@ func TestVolumeChangesTheSoundAsItPlays(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 30)
 	a, _, _ := newTestApp(&fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
-	sound, err := openPCM(ffmpeg, clip, 0, 1)
+	sound, err := openPCM(ffmpeg, clip, 0, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1781,7 +1936,7 @@ func TestVolumeChangesTheSoundAsItPlays(t *testing.T) {
 // TestPlayerAudioEndedDoesNotStartAgain: a sound that played to the end of its track stays ended when the film plays on, rather than starting again from where it was opened.
 func TestPlayerAudioEndedDoesNotStartAgain(t *testing.T) {
 	ffmpeg, clip := playerFakeSound(t, 1)
-	sound, err := openPCM(ffmpeg, clip, 500*time.Millisecond, 0)
+	sound, err := openPCM(ffmpeg, clip, 500*time.Millisecond, 0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1800,5 +1955,1088 @@ func TestPlayerAudioEndedDoesNotStartAgain(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	if sound.player.Playing() || sound.decoder.proc != proc {
 		t.Fatalf("the ended sound played again: playing %v, ffmpeg %v", sound.player.Playing(), sound.decoder.proc != proc)
+	}
+}
+
+// TestPlayerNamesTheSystemsFileManager checks that the player's reveal names the file manager of the system it runs on, and that the style view's font menu offers that system's fonts: macOS's own there, a sans-serif and a serif font elsewhere, saved by their stored names.
+func TestPlayerNamesTheSystemsFileManager(t *testing.T) {
+	for _, tc := range []struct {
+		platform    breeze.Platform
+		reveal      string
+		fonts       []string
+		pick, saved string
+	}{
+		{breeze.Mac, "在访达中显示", []string{"默认", "苹方", "冬青黑体"}, "冬青黑体", "冬青黑体"},
+		{breeze.Windows, "在文件资源管理器中显示", []string{"默认", "黑体", "宋体"}, "宋体", "宋体"},
+		{breeze.Linux, "在文件管理器中显示", []string{"默认", "黑体", "宋体"}, "宋体", "宋体"},
+	} {
+		t.Run(tc.platform.String(), func(t *testing.T) {
+			usePlatform(t, tc.platform)
+			dir := t.TempDir()
+			video := filepath.Join(dir, "talk.mp4")
+			srt := filepath.Join(dir, "talk.bilingual.srt")
+			for path, body := range map[string]string{video: "v", srt: "1\n00:00:01,000 --> 00:00:02,000\n你好。\nHello.\n\n"} {
+				if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			a, tt, updates := newTestApp(&fakePipeline{})
+			a.edit(func(s *session) { s.LibraryDir = dir })
+			a.library.Jobs = []core.Job{{ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: srt}}
+			tt.Frame()
+			if err := tt.Click("talk"); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			tt.Frame()
+			waitUntil(t, updates, func() bool { return a.player.subs.ready && a.player.film.info.Folder != "" })
+			tt.Frame()
+			wantText(t, tt, tc.reveal)
+			if err := tt.Click("信息"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Frame()
+			if n := textCount(tt, tc.reveal); n < 2 {
+				t.Fatalf("%q shows %d times with the Info tab open, want the title bar's and the tab's: %q", tc.reveal, n, tt.Texts())
+			}
+			a.SetStyleView(true)
+			tt.Frame()
+			if err := tt.Click("默认"); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			tt.Frame()
+			for _, font := range tc.fonts {
+				wantText(t, tt, font)
+			}
+			if err := tt.Click(tc.pick); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			tt.Frame()
+			if look := a.player.look; look.Translation.Family != tc.saved || look.Original.Family != tc.saved {
+				t.Fatalf("look %+v after %s", look, tc.pick)
+			}
+		})
+	}
+}
+
+// nowPlayingRecorder stands in for mygo.NowPlaying: it keeps what the player shows the system, in order, and sends commands as the media keys and the system's controls would.
+type nowPlayingRecorder struct {
+	events  []nowPlayingEvent
+	command func(mygo.MediaCommand, time.Duration)
+}
+
+// nowPlayingEvent is one call the player made: "set" with info, "playback" with state and at, or "clear".
+type nowPlayingEvent struct {
+	kind  string
+	info  mygo.NowPlayingInfo
+	state mygo.PlaybackState
+	at    time.Duration
+}
+
+func (r *nowPlayingRecorder) Set(info mygo.NowPlayingInfo) {
+	r.events = append(r.events, nowPlayingEvent{kind: "set", info: info, state: info.State, at: info.Position})
+}
+
+func (r *nowPlayingRecorder) SetPlayback(state mygo.PlaybackState, at time.Duration) {
+	r.events = append(r.events, nowPlayingEvent{kind: "playback", state: state, at: at})
+}
+
+func (r *nowPlayingRecorder) Clear() { r.events = append(r.events, nowPlayingEvent{kind: "clear"}) }
+
+func (r *nowPlayingRecorder) OnCommand(fn func(mygo.MediaCommand, time.Duration)) func() {
+	r.command = fn
+	return func() { r.command = nil }
+}
+
+func (r *nowPlayingRecorder) last(t *testing.T) nowPlayingEvent {
+	t.Helper()
+	if len(r.events) == 0 {
+		t.Fatal("the player told the system nothing")
+	}
+	return r.events[len(r.events)-1]
+}
+
+func (r *nowPlayingRecorder) count(kind string) int {
+	n := 0
+	for _, e := range r.events {
+		if e.kind == kind {
+			n++
+		}
+	}
+	return n
+}
+
+// TestNowPlayingFollowsTheOpenFilm checks that opening a film shows it where the system shows what plays, with its library name and length, held; that Space, the media keys and the system's scrubber play, pause and move it and the system learns each; that a seek keeps the film shown while its picture opens again; and that closing the film takes it off.
+func TestNowPlayingFollowsTheOpenFilm(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg is not installed")
+	}
+	dir := t.TempDir()
+	video := filepath.Join(dir, "clip.mp4")
+	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d=5:r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
+		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
+	}
+	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	rec := &nowPlayingRecorder{}
+	a.playerNowPlayingConnect(rec)
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.library.Jobs = []core.Job{{ID: "clip", Title: "Spring Clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
+	t.Cleanup(a.stopPlayback)
+	tt.Frame()
+	if err := tt.Click("Spring Clip"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	shown := rec.last(t)
+	if shown.kind != "set" || shown.info.Title != "Spring Clip" || shown.info.Duration <= 4*time.Second || shown.info.State != mygo.PlaybackPaused || shown.info.Position >= time.Second || shown.info.Commands != mygo.MediaPlay|mygo.MediaPause|mygo.MediaSeek {
+		t.Fatalf("opening showed %+v", shown)
+	}
+
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+		t.Fatalf("Space told the system %+v", e)
+	}
+
+	press := func(cmd mygo.MediaCommand, at time.Duration) {
+		t.Helper()
+		if rec.command == nil {
+			t.Fatal("the player listens to no media key")
+		}
+		before := len(rec.events)
+		rec.command(cmd, at)
+		waitUntil(t, updates, func() bool { return len(rec.events) > before })
+		tt.Frame()
+	}
+	press(mygo.MediaPause, time.Second)
+	if a.player.play.Playing() {
+		t.Fatal("the pause key did not pause the film")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+		t.Fatalf("pausing told the system %+v", e)
+	}
+	press(mygo.MediaPause, time.Second)
+	if a.player.play.Playing() {
+		t.Fatal("a second pause played the film")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+		t.Fatalf("a second pause told the system %+v", e)
+	}
+	press(mygo.MediaPlay, time.Second)
+	if !a.player.play.Playing() {
+		t.Fatal("the play key did not play the film")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+		t.Fatalf("playing told the system %+v", e)
+	}
+
+	sets := rec.count("set")
+	press(mygo.MediaSeek, 3*time.Second)
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at != 3*time.Second {
+		t.Fatalf("the scrubber told the system %+v", e)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	if a.player.play.playhead() < 3*time.Second || !a.player.play.Playing() {
+		t.Fatalf("the seek opened at %s playing %v", a.player.play.playhead(), a.player.play.Playing())
+	}
+	if rec.count("clear") != 0 || rec.count("set") != sets {
+		t.Fatalf("the seek took the film off or showed it again: %+v", rec.events)
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at < 3*time.Second {
+		t.Fatalf("the reopened picture told the system %+v", e)
+	}
+
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.player.play != nil || rec.last(t).kind != "clear" {
+		t.Fatalf("closing the film left the system %+v", rec.last(t))
+	}
+}
+
+// TestNowPlayingShowsThePosterAndTheEnd checks, without ffmpeg, that a film shows with its poster once read, that its end shows paused at its length so the play key starts it over, that a media key with no film open does nothing, and that another video opening takes the film off.
+func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
+	a := openStill(t, filepath.Join(t.TempDir(), "library.json"), "clip", "/v/clip.mp4", 3*time.Second)
+	a.player.play.player.Play()
+	updates := make(chan func(), 4)
+	a.update = func(fn func()) { updates <- fn }
+	a.lib.posterDir = t.TempDir()
+	poster := []byte("poster of the clip")
+	if err := os.WriteFile(posterDest(a.lib.posterDir, "/v/clip.mp4"), poster, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec := &nowPlayingRecorder{}
+	a.playerNowPlayingConnect(rec)
+	p := a.player.play
+	a.player.play = nil
+	a.playReplace(p)
+	shown := rec.last(t)
+	if shown.kind != "set" || shown.info.Title != "clip" || shown.info.Artwork != nil || shown.info.State != mygo.PlaybackPlaying || shown.info.Position != 3*time.Second || shown.info.Duration != 10*time.Second {
+		t.Fatalf("opening showed %+v", shown)
+	}
+	waitUntil(t, updates, func() bool { return rec.count("set") == 2 })
+	if e := rec.last(t); string(e.info.Artwork) != string(poster) || e.info.Title != "clip" || e.info.State != mygo.PlaybackPlaying {
+		t.Fatalf("the poster showed as %+v", e)
+	}
+
+	p.finish()
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || e.at != 10*time.Second {
+		t.Fatalf("the end told the system %+v", e)
+	}
+	a.playerMediaCommand(mygo.MediaPlay, 10*time.Second)
+	if p.finished || !p.Playing() {
+		t.Fatal("the play key did not start the film over")
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at != 0 {
+		t.Fatalf("starting over told the system %+v", e)
+	}
+
+	a.startPlayback("/v/other.mp4")
+	if e := rec.last(t); e.kind != "clear" {
+		t.Fatalf("another video opening left the system %+v", e)
+	}
+	before := len(rec.events)
+	a.playerMediaCommand(mygo.MediaPause, 0)
+	a.playerMediaCommand(mygo.MediaSeek, time.Second)
+	if len(rec.events) != before || a.player.play != nil {
+		t.Fatalf("a media key with no film open did %+v", rec.events[before:])
+	}
+}
+
+// showClipNowPlaying connects a recorder in place of mygo.NowPlaying and shows the clip open in a there, as opening it would have.
+func showClipNowPlaying(a *app) *nowPlayingRecorder {
+	rec := &nowPlayingRecorder{}
+	a.playerNowPlayingConnect(rec)
+	p := a.player.play
+	a.player.play = nil
+	a.playReplace(p)
+	return rec
+}
+
+// TestMediaKeysBehindTheWindowKeepPictureAndSoundLevel checks that pausing with a media key while the app is in the background, where the picture stood still while the sound played on, tells the system where the sound stopped and opens the picture there, held; that play from there follows the sound again; and that coming back after more time out of sight puts the picture where the sound got to.
+func TestMediaKeysBehindTheWindowKeepPictureAndSoundLevel(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	rec := showClipNowPlaying(a)
+	p := a.player.play
+	p.toggle()
+	a.playerDidResignActive()
+	// Two seconds out of sight: the picture stood still while the sound played on.
+	p.backgroundAt = p.backgroundAt.Add(-2 * time.Second)
+	a.playerMediaCommand(mygo.MediaPause, 0)
+	if p.Playing() || !p.paused || !p.backgroundAt.IsZero() || p.background != nil {
+		t.Fatalf("paused in the background: playing %v paused %v, sound clock at %v, follower %v", p.Playing(), p.paused, p.backgroundAt, p.background != nil)
+	}
+	stopped := rec.last(t)
+	if stopped.kind != "playback" || stopped.state != mygo.PlaybackPaused || stopped.at < 2*time.Second {
+		t.Fatalf("the pause told the system %+v, with the sound past 2s", stopped)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	held := a.player.play
+	if held == p || held.Playing() || !held.paused || !held.played {
+		t.Fatalf("the picture opened again playing %v paused %v played %v", held.Playing(), held.paused, held.played)
+	}
+	// The playhead of a held picture counts the frame it holds.
+	if at := held.playhead(); at < stopped.at-100*time.Millisecond || at > stopped.at+200*time.Millisecond {
+		t.Fatalf("the picture opened again at %v, the sound stopped at %v", at, stopped.at)
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || rec.count("clear") != 0 {
+		t.Fatalf("opening the picture again told the system %+v", rec.events)
+	}
+
+	a.playerMediaCommand(mygo.MediaPlay, 0)
+	if !held.Playing() || held.backgroundAt.IsZero() || held.background == nil {
+		t.Fatalf("played in the background: playing %v, sound clock at %v, follower %v", held.Playing(), held.backgroundAt, held.background != nil)
+	}
+	if d := held.backgroundHead - held.playhead(); d < -100*time.Millisecond || d > 100*time.Millisecond {
+		t.Fatalf("the sound clock starts at %v, the picture at %v", held.backgroundHead, held.playhead())
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+		t.Fatalf("playing told the system %+v", e)
+	}
+
+	// Two more seconds out of sight, then back.
+	held.backgroundAt = held.backgroundAt.Add(-2 * time.Second)
+	want := held.soundAt(time.Now())
+	a.playerDidBecomeActive()
+	if a.player.inactive || a.player.opening < want || a.player.opening > want+500*time.Millisecond {
+		t.Fatalf("back, the picture opens at %v with the sound at %v", a.player.opening, want)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != held })
+	if next := a.player.play; !next.Playing() || next.playhead() < want {
+		t.Fatalf("back, the picture plays %v at %v, the sound at %v", next.Playing(), next.playhead(), want)
+	}
+}
+
+// TestSeekBehindTheWindowFollowsTheSound checks that a seek from the system's scrubber while the app is in the background follows the sound from where it opens, so coming back puts the picture where the sound got to rather than where the seek opened it.
+func TestSeekBehindTheWindowFollowsTheSound(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	showClipNowPlaying(a)
+	a.player.play.toggle()
+	a.playerDidResignActive()
+	a.playerMediaCommand(mygo.MediaSeek, 6*time.Second)
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	next := a.player.play
+	if !next.Playing() || next.backgroundAt.IsZero() || next.backgroundHead < 6*time.Second || next.background == nil {
+		t.Fatalf("seeked in the background: playing %v, sound clock at %v from %v, follower %v", next.Playing(), next.backgroundAt, next.backgroundHead, next.background != nil)
+	}
+	// Two seconds out of sight, then back.
+	next.backgroundAt = next.backgroundAt.Add(-2 * time.Second)
+	a.playerDidBecomeActive()
+	if a.player.opening < 8*time.Second {
+		t.Fatalf("back, the picture opens at %v, the sound past 8s", a.player.opening)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != next })
+	if back := a.player.play; !back.Playing() || back.playhead() < 8*time.Second {
+		t.Fatalf("back, the picture plays %v at %v", back.Playing(), back.playhead())
+	}
+}
+
+// TestPauseKeyWhileASeekOpens checks that a pause key pressed while a seek opens the picture again, when there is no picture to pause yet, is not lost: the system learns at once that the film is paused there, and the picture opens held.
+func TestPauseKeyWhileASeekOpens(t *testing.T) {
+	a, _, updates := openClip(t, 12)
+	rec := showClipNowPlaying(a)
+	a.player.play.toggle()
+	a.playerMediaCommand(mygo.MediaSeek, 4*time.Second)
+	if a.player.play != nil {
+		t.Fatal("the seek kept the old picture")
+	}
+	a.playerMediaCommand(mygo.MediaPause, 0)
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || e.at != 4*time.Second {
+		t.Fatalf("the pause while opening told the system %+v", e)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	held := a.player.play
+	// The playhead of a held picture counts the frame it holds.
+	if at := held.playhead(); held.Playing() || !held.paused || at < 4*time.Second || at > 4*time.Second+200*time.Millisecond {
+		t.Fatalf("the seek opened playing %v paused %v at %v", held.Playing(), held.paused, held.playhead())
+	}
+	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+		t.Fatalf("the held picture told the system %+v", e)
+	}
+	a.playerMediaCommand(mygo.MediaPlay, 0)
+	if !held.Playing() {
+		t.Fatal("the play key did not play the held picture")
+	}
+}
+
+// TestFramesShowForTheirLengthOverTheRate: at 2× each frame of the clip's 10 a second shows for 50ms, the held one too, and at 0.5× for 200ms, while the decoder's position counts each frame's own 100ms, so the playhead stays in the film's time whatever the speed.
+func TestFramesShowForTheirLengthOverTheRate(t *testing.T) {
+	a, _, _ := openClip(t, 12)
+	frames, err := media.OpenFramesAt(a.ffmpegPath(), a.player.play.path, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { frames.Close() })
+	img, dur, err := frames.Next()
+	if err != nil || dur != 100*time.Millisecond {
+		t.Fatalf("first frame %v, %v: want the clip's 10 frames a second", dur, err)
+	}
+	dec := &frameDecoder{frames: frames, held: &ui.VideoFrame{Image: img, Duration: dur}, rate: 2}
+	next := func(shows, at time.Duration) {
+		t.Helper()
+		f, err := dec.Next()
+		if err != nil || f.Duration != shows || dec.position() != at {
+			t.Fatalf("frame shows for %v up to %v (%v), want %v up to %v", f.Duration, dec.position(), err, shows, at)
+		}
+	}
+	next(50*time.Millisecond, 100*time.Millisecond)
+	next(50*time.Millisecond, 200*time.Millisecond)
+	dec.setRate(0.5)
+	next(200*time.Millisecond, 300*time.Millisecond)
+	dec.setRate(1)
+	next(100*time.Millisecond, 400*time.Millisecond)
+}
+
+// TestPlayheadMovesInFilmTimeAtTheRate plays the clip for a second of the window's clock at 2× and at 0.5×: the playhead gets two seconds and half a second into the film, give or take the frames decoded ahead.
+func TestPlayheadMovesInFilmTimeAtTheRate(t *testing.T) {
+	for _, rate := range []float64{2, 0.5} {
+		t.Run(fmt.Sprint(rate), func(t *testing.T) {
+			a, tt, updates := openClip(t, 12)
+			a.SetRate(rate)
+			waitUntil(t, updates, func() bool { return a.player.play.speed() == rate })
+			a.player.play.toggle()
+			tt.Frame()
+			for range 20 {
+				tt.Advance(50 * time.Millisecond)
+				tt.Frame()
+				time.Sleep(20 * time.Millisecond)
+			}
+			// Frames the decoder had not sent yet as they came due are taken without the clock moving on.
+			for range 5 {
+				tt.Frame()
+				time.Sleep(20 * time.Millisecond)
+			}
+			want := time.Duration(rate * float64(time.Second))
+			if head := a.player.play.playhead(); head < want-100*time.Millisecond || head > want+400*time.Millisecond {
+				t.Fatalf("after a second at %v×, playhead %v, want about %v", rate, head, want)
+			}
+		})
+	}
+}
+
+// TestSpeedKeysStepThroughTheRates presses ⇧. and ⇧, on an open film: each steps to the next speed of film.Rates, stays at the fastest and the slowest, and says so on the picture and on the transport's speed button at once. A quick run of steps reaches the open film only once the keys rest, at the last of them, and the settings keep it.
+func TestSpeedKeysStepThroughTheRates(t *testing.T) {
+	a, tt, updates := openClip(t, 2)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.player.film.moved = tt.Now()
+	key := func(k ui.Key, rate float64, osd string) {
+		t.Helper()
+		tt.Key(ui.Shift, k)
+		tt.Frame()
+		if a.player.rate != rate || !tt.HasText(osd) || !tt.HasText(film.RateText(rate)) {
+			t.Fatalf("after ⇧%v: rate %v, want %v; texts %q", k, a.player.rate, rate, tt.Texts())
+		}
+	}
+	key(ui.KeyPeriod, 1.25, "速度 1.25×")
+	key(ui.KeyPeriod, 1.5, "速度 1.5×")
+	key(ui.KeyPeriod, 2, "速度 2×")
+	if a.player.play.speed() != 1 {
+		t.Fatalf("the film took up %v× before the keys rested", a.player.play.speed())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 2 })
+	if saved := loadSavedSettings(a.settingsPath); saved.Rate == nil || *saved.Rate != 2 {
+		t.Fatalf("saved rate %v, want 2", saved.Rate)
+	}
+	key(ui.KeyPeriod, 2, "速度 2×")
+	key(ui.KeyComma, 1.5, "速度 1.5×")
+	for range 4 {
+		tt.Key(ui.Shift, ui.KeyComma)
+	}
+	key(ui.KeyComma, 0.5, "速度 0.5×")
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 0.5 })
+}
+
+// TestSpeedButtonKeepsItsWidth: the transport's speed button is as wide at every speed, so the scrubber beside it does not jump as the speed changes.
+func TestSpeedButtonKeepsItsWidth(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	var width float32
+	for _, rate := range film.Rates {
+		a.SetRate(rate)
+		a.player.film.moved = tt.Now()
+		tt.Frame()
+		label := "速度：" + film.RateText(rate)
+		r, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("no %s button; texts %q", label, tt.Texts())
+		}
+		if width == 0 {
+			width = r.W
+		} else if r.W != width {
+			t.Fatalf("the speed button is %v wide at %v×, %v at %v×", r.W, rate, width, film.Rates[0])
+		}
+	}
+}
+
+// TestSpeedMenuSetsTheRate opens the transport's speed menu, which lists every speed with 1× noted as normal and checked, and picks 1.5×: the film plays at it and the menu closes.
+func TestSpeedMenuSetsTheRate(t *testing.T) {
+	a, tt, updates := openClip(t, 2)
+	a.player.film.moved = tt.Now()
+	tt.Frame()
+	if err := tt.Click("速度：1×"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if !a.player.film.speedMenu || !tt.HasText("播放速度") || !tt.HasText("正常") {
+		t.Fatalf("speed menu open %v; texts %q", a.player.film.speedMenu, tt.Texts())
+	}
+	for _, rate := range film.Rates {
+		if !tt.HasText(film.RateText(rate)) {
+			t.Fatalf("speed menu misses %s: %q", film.RateText(rate), tt.Texts())
+		}
+	}
+	if err := tt.Click("1.5×"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.player.rate != 1.5 || a.player.film.speedMenu || !tt.HasText("速度：1.5×") {
+		t.Fatalf("rate %v, menu open %v; texts %q", a.player.rate, a.player.film.speedMenu, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 1.5 })
+}
+
+// TestSpeedSettingsRoundTrip checks that the speed is kept in the settings, that a saved speed that is not one of film.Rates comes back as the nearest of them, and that one that is not a speed, 0 or below, comes back as 1.
+func TestSpeedSettingsRoundTrip(t *testing.T) {
+	a, _, updates := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.SetRate(1.5)
+	waitUntil(t, updates, func() bool { return !a.player.rateSettling })
+	b, _, _ := newTestApp(&fakePipeline{})
+	b.restorePlayer(loadSavedSettings(a.settingsPath))
+	if b.player.rate != 1.5 {
+		t.Fatalf("restored rate %v, want 1.5", b.player.rate)
+	}
+	for _, tc := range []struct {
+		saved string
+		want  float64
+	}{{"3", 2}, {"0.1", 0.5}, {"0.6", 0.5}, {"0.9", 1}, {"1.3", 1.25}, {"0", 1}, {"-1", 1}} {
+		path := filepath.Join(t.TempDir(), "settings.json")
+		if err := os.WriteFile(path, []byte(`{"rate": `+tc.saved+`}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		saved := loadSavedSettings(path)
+		if saved.Rate == nil || *saved.Rate != tc.want {
+			t.Fatalf("saved rate %s read as %v, want %v", tc.saved, saved.Rate, tc.want)
+		}
+		c, _, _ := newTestApp(&fakePipeline{})
+		c.restorePlayer(saved)
+		if c.player.rate != tc.want {
+			t.Fatalf("saved rate %s restored as %v, want %v", tc.saved, c.player.rate, tc.want)
+		}
+	}
+	d, _, _ := newTestApp(&fakePipeline{})
+	d.restorePlayer(savedSettings{})
+	if d.player.rate != 1 {
+		t.Fatalf("default rate %v", d.player.rate)
+	}
+}
+
+// TestSpeedWaitsForThePictureToComeBack: the sound of a film in the background plays on at the speed it started at, so the clock that finds where it is counts at that speed, and a speed changed meanwhile reaches the film only once the app is back and its picture level with the sound.
+func TestSpeedWaitsForThePictureToComeBack(t *testing.T) {
+	now := time.Now()
+	fast := &filmPlay{backgroundAt: now.Add(-3 * time.Minute), backgroundHead: 10 * time.Second, rate: 2}
+	if got := fast.soundAt(now); got != 6*time.Minute+10*time.Second {
+		t.Fatalf("sound at %v after 3 minutes at 2×, want 6m10s", got)
+	}
+
+	a, _, updates := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	p := stillPlay(t, "/v/clip.mp4", 3*time.Second, true)
+	a.player.play = p
+	a.playerDidResignActive()
+	a.SetRate(2)
+	waitUntil(t, updates, func() bool { return !a.player.rateSettling })
+	a.areasAfterFrame()
+	if p.speed() != 1 {
+		t.Fatalf("the film in the background took up %v× before its picture came back", p.speed())
+	}
+	// The window stayed in sight: the picture kept pace and nothing opens again, so the film takes the speed up after the next frame.
+	p.frames.shown = p.backgroundSound()()
+	a.playerDidBecomeActive()
+	a.areasAfterFrame()
+	if p.speed() != 2 || p.frames.rate != 2 {
+		t.Fatalf("back from the background, the film plays at %v× (picture %v×), want 2×", p.speed(), p.frames.rate)
+	}
+}
+
+// TestPlayerAudioArgsKeepThePitchAtTheRate: ffmpeg decodes the sound of a film at another speed through atempo, which keeps the pitch, and at 1 (or none, 0) without a filter.
+func TestPlayerAudioArgsKeepThePitchAtTheRate(t *testing.T) {
+	for _, tc := range []struct {
+		rate float64
+		want string
+	}{{1.5, "atempo=1.5"}, {0.75, "atempo=0.75"}, {2, "atempo=2"}, {0.5, "atempo=0.5"}, {1, ""}, {0, ""}} {
+		args := playerAudioArgs("/tmp/video.mp4", 3*time.Second, tc.rate)
+		if got := fakeArg(args, "-af"); got != tc.want || fakeArg(args, "-ss") != "3.000" || fakeArg(args, "-f") != "f32le" {
+			t.Fatalf("rate %v: -af %q, want %q; args %v", tc.rate, got, tc.want, args)
+		}
+		if tc.want != "" && slices.Index(args, "-af") < slices.Index(args, "-i") {
+			t.Fatalf("rate %v: the filter comes before the input: %v", tc.rate, args)
+		}
+	}
+}
+
+// TestPlayerAudioCountsTheFilmAtTheRate: the frames of a sound playing at 2× count the time they take to play, each second of them two of the film, so a move to a frame starts ffmpeg twice as far into the film, and where the sound is heard is in the film's own time.
+func TestPlayerAudioCountsTheFilmAtTheRate(t *testing.T) {
+	ffmpeg, clip := playerFakeSound(t, 12)
+	d := &playerAudioDecoder{ffmpeg: ffmpeg, path: clip, from: time.Second, rate: 2}
+	if err := d.start(0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	if args := d.proc.cmd.Args; fakeArg(args, "-ss") != "1.000" || fakeArg(args, "-af") != "atempo=2" {
+		t.Fatalf("ffmpeg %v", args)
+	}
+	if err := d.SetPosition(10 * 48000); err != nil {
+		t.Fatal(err)
+	}
+	if args := d.proc.cmd.Args; fakeArg(args, "-ss") != "21.000" || fakeArg(args, "-af") != "atempo=2" {
+		t.Fatalf("ffmpeg after a move 10 s of sound on: %v", args)
+	}
+	if got := d.filmAt(1500 * time.Millisecond); got != 4*time.Second {
+		t.Fatalf("1.5 s of sound from 1 s is at %v of the film, want 4s", got)
+	}
+}
+
+// TestSpeedStartsTheSoundAgainAtIt: a new speed starts a playing film's sound again at it, where the film is; a held film drops the sound it had ready, and play starts it at the new speed.
+func TestSpeedStartsTheSoundAgainAtIt(t *testing.T) {
+	a, tt, updates := playerFakeFilm(t)
+	tt.Frame()
+	if err := tt.Click("clip"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if a.player.play.audio == nil {
+		t.Fatal("the playing film has no sound")
+	}
+	tempo := func() string { return fakeArg(a.player.play.audio.decoder.proc.cmd.Args, "-af") }
+	a.SetRate(1.5)
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 1.5 })
+	if audio := a.player.play.audio; audio == nil || audio.decoder.rate != 1.5 || tempo() != "atempo=1.5" {
+		t.Fatalf("the playing film's sound did not start again at 1.5×: %+v", audio)
+	}
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	a.SetRate(0.75)
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 0.75 })
+	if a.player.play.audio != nil {
+		t.Fatal("the held film kept its sound at the old speed")
+	}
+	tt.Key(0, ui.KeySpace)
+	tt.Frame()
+	if audio := a.player.play.audio; audio == nil || audio.decoder.rate != 0.75 || tempo() != "atempo=0.75" {
+		t.Fatalf("play did not start the sound at 0.75×: %+v", audio)
+	}
+}
+
+// TestCueNearFindsTheLinesAround checks the lines before, at and after a moment: on a line, at a line's very start, between lines, before the first and after the last, which has no end and so lasts to the video's.
+func TestCueNearFindsTheLinesAround(t *testing.T) {
+	cues := []core.Segment{
+		{Start: time.Second, End: 3 * time.Second, Text: "一"},
+		{Start: 3 * time.Second, End: 5 * time.Second, Text: "二"},
+		{Start: 7 * time.Second, End: 9 * time.Second, Text: "三"},
+		{Start: 10 * time.Second, Text: "四"},
+	}
+	for _, tc := range []struct {
+		at              time.Duration
+		prev, cur, next int
+	}{
+		{0, -1, -1, 0},
+		{time.Second, -1, 0, 1},
+		{2 * time.Second, -1, 0, 1},
+		{3 * time.Second, 0, 1, 2},
+		{6 * time.Second, 1, -1, 2},
+		{9 * time.Second, 2, -1, 3},
+		{12 * time.Second, 2, 3, -1},
+	} {
+		prev, cur, next := film.CueNear(cues, tc.at)
+		if prev != tc.prev || cur != tc.cur || next != tc.next {
+			t.Errorf("at %v: %d %d %d, want %d %d %d", tc.at, prev, cur, next, tc.prev, tc.cur, tc.next)
+		}
+	}
+	if prev, cur, next := film.CueNear(nil, time.Second); prev != -1 || cur != -1 || next != -1 {
+		t.Fatalf("no lines: %d %d %d", prev, cur, next)
+	}
+}
+
+// lineCues are the lines the line tests play: two back to back, a gap, and a last one without an end.
+var lineCues = []core.Segment{
+	{Start: time.Second, End: 3 * time.Second, Text: "第一句\nOne."},
+	{Start: 3 * time.Second, End: 5 * time.Second, Text: "第二句\nTwo."},
+	{Start: 7 * time.Second, End: 9 * time.Second, Text: "第三句\nThree."},
+	{Start: 10 * time.Second, Text: "第四句\nFour."},
+}
+
+// linesApp is an app with film key open and lineCues as its loaded subtitles, without a picture.
+func linesApp(key string) *app {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.openKey = key
+	a.player.subs = subtitleView{key: key, ready: true, cues: lineCues}
+	return a
+}
+
+// TestLoopLineTakesTheLinePlaying checks which line L loops: the one playing, between lines the one just heard, as R replays it, before the first line the one coming, and the last line, whose loop runs to the video's end; a line without an end loops to the next line's start. It goes off again, and with no lines there is nothing to loop.
+func TestLoopLineTakesTheLinePlaying(t *testing.T) {
+	a := linesApp("film")
+	for _, tc := range []struct {
+		at, start, end time.Duration
+	}{
+		{2 * time.Second, time.Second, 3 * time.Second},
+		{6 * time.Second, 3 * time.Second, 5 * time.Second},
+		{0, time.Second, 3 * time.Second},
+		{20 * time.Second, 10 * time.Second, 0},
+	} {
+		a.player.opening = tc.at
+		a.ToggleLoopLine()
+		if loop := a.player.film.loop; !loop.on || loop.start != tc.start || loop.end != tc.end || a.player.film.osd != "单句循环：开" {
+			t.Fatalf("at %v: loop %+v osd %q, want %v to %v", tc.at, loop, a.player.film.osd, tc.start, tc.end)
+		}
+		a.ToggleLoopLine()
+		if a.player.film.loop.on || a.player.film.osd != "单句循环：关" {
+			t.Fatalf("at %v: loop %+v osd %q after L again", tc.at, a.player.film.loop, a.player.film.osd)
+		}
+	}
+	if loop := playerLoopOf("film", []core.Segment{{Start: time.Second}, {Start: 4 * time.Second, End: 5 * time.Second}}, 0); loop.end != 4*time.Second {
+		t.Fatalf("a line without an end loops to %v, want the next line's start", loop.end)
+	}
+	a.player.subs.cues = nil
+	a.ToggleLoopLine()
+	if a.player.film.loop.on || a.player.film.osd != "还没有字幕" {
+		t.Fatalf("loop %+v osd %q without lines", a.player.film.loop, a.player.film.osd)
+	}
+}
+
+// TestLoopFollowsASeek checks that a seek out of the looped line, by the scrubber, a line of the side panel or a skip, moves the loop to the line it lands on, or the one coming, and stops it after the last line, while a seek within the line keeps it. The subtitle delay is counted: the picture is the delay later than its lines. Closing the film stops looping.
+func TestLoopFollowsASeek(t *testing.T) {
+	a := linesApp("film")
+	a.player.film.delay = 500 * time.Millisecond
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.Seek(3 * time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != time.Second {
+		t.Fatalf("a seek within the line, its lines at 2.5s, moved the loop to %+v", loop)
+	}
+	a.Seek(4 * time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != 3*time.Second || loop.end != 5*time.Second {
+		t.Fatalf("a seek to the second line looped %+v", loop)
+	}
+	a.Seek(6500 * time.Millisecond)
+	if loop := a.player.film.loop; !loop.on || loop.start != 7*time.Second {
+		t.Fatalf("a seek between lines looped %+v, want the line coming", loop)
+	}
+	a.player.film.loop = playerLoopOf("film", lineCues, 1)
+	a.Seek(30 * time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != 10*time.Second || loop.end != 0 {
+		t.Fatalf("a seek into the last line looped %+v", loop)
+	}
+	a.player.subs.cues = lineCues[:3]
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.Seek(30 * time.Second)
+	if a.player.film.loop.on {
+		t.Fatalf("a seek past the last line kept looping %+v", a.player.film.loop)
+	}
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.closeFilm()
+	if a.player.film.loop.on {
+		t.Fatal("closing the film kept looping")
+	}
+}
+
+// openClipWithLines opens a black clip of the given seconds, as openClip does, with lineCues as its loaded subtitles.
+func openClipWithLines(t *testing.T, seconds int) (*app, *ui.Tester, chan func()) {
+	t.Helper()
+	a, tt, updates := openClip(t, seconds)
+	a.player.subs.cues = lineCues
+	tt.Frame()
+	return a, tt, updates
+}
+
+// TestLineKeysMoveBetweenLines checks A, D and R on lineCues, with the subtitles half a second late: D plays from the next line's start, A from the line before, or from the start of the line playing once more than a second of it has played, R from the start of the line playing, or between lines of the line just heard, each saying which line it is. Before the first line and after the last has started, there is nowhere to go, and the picture says so.
+func TestLineKeysMoveBetweenLines(t *testing.T) {
+	a, tt, updates := openClipWithLines(t, 12)
+	a.player.film.delay = 500 * time.Millisecond
+	key := func(k ui.Key, want time.Duration, osd string) {
+		t.Helper()
+		gen := a.player.playGen
+		tt.Key(0, k)
+		tt.Frame()
+		if a.player.playGen == gen || a.player.opening != want || !tt.HasText(osd) {
+			t.Fatalf("after %v: opening %v (reopened %v), want %v; texts %q", k, a.player.opening, a.player.playGen != gen, want, tt.Texts())
+		}
+		waitUntil(t, updates, func() bool { return a.player.play != nil })
+		a.player.play.Toggle()
+		tt.Frame()
+	}
+	seek := func(at time.Duration) {
+		t.Helper()
+		a.seekPlayback(at)
+		waitUntil(t, updates, func() bool { return a.player.play != nil })
+		a.player.play.Toggle()
+		tt.Frame()
+	}
+	stays := func(k ui.Key, osd string) {
+		t.Helper()
+		gen := a.player.playGen
+		tt.Key(0, k)
+		tt.Frame()
+		if a.player.playGen != gen || !tt.HasText(osd) {
+			t.Fatalf("after %v: reopened %v; texts %q", k, a.player.playGen != gen, tt.Texts())
+		}
+	}
+	key(ui.KeyD, 1500*time.Millisecond, "第 1 / 4 句")
+	key(ui.KeyD, 3500*time.Millisecond, "第 2 / 4 句")
+	key(ui.KeyA, 1500*time.Millisecond, "第 1 / 4 句")
+	key(ui.KeyR, 1500*time.Millisecond, "第 1 / 4 句")
+	seek(5 * time.Second)
+	key(ui.KeyA, 3500*time.Millisecond, "第 2 / 4 句")
+	seek(6500 * time.Millisecond)
+	key(ui.KeyR, 3500*time.Millisecond, "第 2 / 4 句")
+	seek(6500 * time.Millisecond)
+	key(ui.KeyA, 3500*time.Millisecond, "第 2 / 4 句")
+	seek(6500 * time.Millisecond)
+	key(ui.KeyD, 7500*time.Millisecond, "第 3 / 4 句")
+	seek(11 * time.Second)
+	stays(ui.KeyD, "后面没有台词了")
+	seek(0)
+	stays(ui.KeyA, "前面没有台词了")
+}
+
+// TestLoopLineSeeksBackAtItsEnd plays a looped line and checks that the picture goes back to the line's start once it reaches the line's end, and plays on past it once L turns the loop off. The transport's toggle is lit while the line loops.
+func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
+	a, tt, updates := openClipWithLines(t, 6)
+	tt.Key(0, ui.KeyL)
+	tt.Frame()
+	if loop := a.player.film.loop; !loop.on || loop.start != time.Second || loop.end != 3*time.Second || !tt.HasText("单句循环：开") {
+		t.Fatalf("L before the first line looped %+v; texts %q", loop, tt.Texts())
+	}
+	a.player.play.Toggle()
+	gen := a.player.playGen
+	// Generous for a slow machine or the race detector; the line plays in about two seconds.
+	deadline := time.Now().Add(40 * time.Second)
+	for a.player.playGen == gen {
+		if time.Now().After(deadline) {
+			t.Fatalf("the loop did not go back, head %v", a.player.play.playhead())
+		}
+		select {
+		case fn := <-updates:
+			fn()
+		default:
+		}
+		tt.Advance(100 * time.Millisecond)
+		tt.Frame()
+		if a.player.play != nil && a.player.play.playhead() > 3500*time.Millisecond {
+			t.Fatalf("the picture played on past the looped line to %v", a.player.play.playhead())
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if a.player.opening != time.Second {
+		t.Fatalf("the loop went back to %v, want the line's start", a.player.opening)
+	}
+	waitUntil(t, updates, func() bool { return a.player.play != nil })
+	tt.Frame()
+	if a.player.play.paused || a.player.play.playhead() > 2*time.Second {
+		t.Fatalf("the looped line plays from %v, paused %v", a.player.play.playhead(), a.player.play.paused)
+	}
+	tt.Key(0, ui.KeyL)
+	tt.Frame()
+	if a.player.film.loop.on || !tt.HasText("单句循环：关") {
+		t.Fatalf("L kept looping %+v; texts %q", a.player.film.loop, tt.Texts())
+	}
+}
+
+// TestLoopToggleLoopsTheLine clicks the transport's 单句循环: it waits for the film's lines, then loops the line and is lit, and a second click stops it.
+func TestLoopToggleLoopsTheLine(t *testing.T) {
+	a, tt, _ := openClip(t, 6)
+	a.player.film.moved = tt.Now()
+	tt.Frame()
+	if err := tt.Click("单句循环"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if a.player.film.loop.on {
+		t.Fatal("the toggle looped a film without lines")
+	}
+	a.player.subs.cues = lineCues
+	tt.Frame()
+	if err := tt.Click("单句循环"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !a.player.film.loop.on || a.player.film.loop.start != time.Second {
+		t.Fatalf("the toggle looped %+v", a.player.film.loop)
+	}
+	if err := tt.Click("单句循环"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.player.film.loop.on {
+		t.Fatal("a second click kept looping")
+	}
+}
+
+// TestLoopStopsForALineAtTheVideosEnd checks that a looped line the delay has pushed to the video's end stops looping rather than open the video at its end again and again, while one inside the video keeps looping.
+func TestLoopStopsForALineAtTheVideosEnd(t *testing.T) {
+	a := linesApp("film")
+	a.player.play = &filmPlay{duration: 10 * time.Second, paused: true, frames: &frameDecoder{}}
+	a.player.film.loop = playerLoopOf("film", lineCues, 2)
+	a.playerKeepLoop()
+	if !a.player.film.loop.on {
+		t.Fatal("a line inside the video stopped looping")
+	}
+	a.player.film.delay = 2900 * time.Millisecond
+	a.playerKeepLoop()
+	if a.player.film.loop.on {
+		t.Fatalf("a line starting at %v of a 10s video kept looping", lineCues[2].Start+a.player.film.delay)
+	}
+	// The first line, at 1s to 3s, with the subtitles 2.5s early still has half a second in the video; 10s early it ends before the video starts, which would open at 0 again and again.
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.player.film.delay = -2500 * time.Millisecond
+	a.playerKeepLoop()
+	if !a.player.film.loop.on {
+		t.Fatal("a line the delay left half a second of in the video stopped looping")
+	}
+	a.player.film.delay = -10 * time.Second
+	a.playerKeepLoop()
+	if a.player.film.loop.on {
+		t.Fatalf("a line ending at %v before the video kept looping", lineCues[0].End+a.player.film.delay)
+	}
+}
+
+// TestLoopFollowsOpenAt checks the loop when a film is opened playing (OpenAt), which keeps the film's state as a seek does: a line of the open film picked in the command palette moves the loop to it, while another film, or the same one opened again after leaving it, starts without a loop. A loop left from another film counts as none.
+func TestLoopFollowsOpenAt(t *testing.T) {
+	a := linesApp("film")
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.paletteJump(films.Film{Key: "film"}, 7*time.Second)
+	if loop := a.player.film.loop; !loop.on || loop.start != 7*time.Second || loop.end != 9*time.Second || a.player.opening != 7*time.Second {
+		t.Fatalf("a palette jump to the third line looped %+v, opening at %v", loop, a.player.opening)
+	}
+	a.OpenAt(films.Film{Key: "other"}, 7*time.Second)
+	if a.player.film.loop.on || a.LoopLine() {
+		t.Fatalf("another film opened looping %+v", a.player.film.loop)
+	}
+
+	a = linesApp("film")
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.Select(pageFilms)
+	a.OpenAt(films.Film{Key: "film"}, 0)
+	if a.player.film.loop.on {
+		t.Fatalf("the film opened again from the hero kept looping %+v", a.player.film.loop)
+	}
+
+	a = linesApp("job")
+	a.player.film.loop = playerLoopOf("film", lineCues, 0)
+	a.player.play = &filmPlay{duration: 10 * time.Second, frames: &frameDecoder{shown: 4 * time.Second}}
+	if a.LoopLine() {
+		t.Fatal("a loop of another film shows as on")
+	}
+	a.playerKeepLoop()
+	if a.player.film.loop.on || a.player.opening != 0 {
+		t.Fatalf("a loop of another film was kept %+v, opening at %v", a.player.film.loop, a.player.opening)
+	}
+}
+
+// TestLoopKeepsLoopingInTheBackground checks the loop while the app is in the background, where the picture may stand still while the sound plays on: a check every backgroundPoll, with no frames built, finds the sound past the line's end and goes back to its start, by the sound's clock rather than the picture's, without writing where the film continues from again. Coming back stops the checks.
+func TestLoopKeepsLoopingInTheBackground(t *testing.T) {
+	a, _, updates := newTestApp(&fakePipeline{})
+	a.openKey = "clip"
+	a.player.subs = subtitleView{key: "clip", ready: true, cues: lineCues}
+	p := stillPlay(t, "/v/clip.mp4", 2*time.Second, true)
+	a.player.play = p
+	a.player.positions = map[string]time.Duration{"/v/clip.mp4": time.Second}
+	a.player.film.loop = playerLoopOf("clip", lineCues, 0)
+	a.playerDidResignActive()
+	if a.player.loopAway == nil || !a.playerOutOfSight() {
+		t.Fatal("no checks keep the loop looping in the background")
+	}
+	// The picture stands at 2s behind the window while the sound reached 3.5s, past the line's end at 3s.
+	p.backgroundAt, p.backgroundHead = time.Now().Add(-1500*time.Millisecond), 2*time.Second
+	gen := a.player.playGen
+	waitUntil(t, updates, func() bool { return a.player.playGen != gen })
+	if a.player.opening != time.Second || !a.player.film.loop.on {
+		t.Fatalf("the loop went back to %v, looping %v; want the line's start", a.player.opening, a.player.film.loop.on)
+	}
+	if got := a.player.positions["/v/clip.mp4"]; got != time.Second {
+		t.Fatalf("the loop's return wrote where the film continues from as %v", got)
+	}
+	a.playerDidBecomeActive()
+	if a.player.loopAway != nil || a.playerOutOfSight() {
+		t.Fatal("the checks outlived the background")
+	}
+}
+
+// TestCueMenuCopiesTheLine right-clicks lines of the side panel's subtitle list: a bilingual line offers its two lines together, its original and its translation, each put on the clipboard as chosen, and a line without a translation offers only itself.
+func TestCueMenuCopiesTheLine(t *testing.T) {
+	a, tt, updates, _ := feedbackFilmApp(t)
+	openTalk(t, a, tt, updates, 0)
+	copyFrom := func(line, item, want string) {
+		t.Helper()
+		tt.SetClipboard("before")
+		if err := tt.RightClick(line); err != nil {
+			t.Fatalf("%v texts %q", err, tt.Texts())
+		}
+		if err := tt.ChooseMenuItem(item); err != nil {
+			t.Fatalf("%v menu %q", err, tt.Menu())
+		}
+		tt.Frame()
+		if tt.Clipboard() != want {
+			t.Fatalf("%s › %s copied %q, want %q", line, item, tt.Clipboard(), want)
+		}
+	}
+	if err := tt.RightClick("你好。"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if got, want := tt.Menu(), []string{"拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(got, want) {
+		t.Fatalf("the bilingual line's menu is %q, want %q", got, want)
+	}
+	tt.CloseMenu()
+	copyFrom("你好。", "拷贝台词", "你好。\nHello.")
+	copyFrom("你好。", "拷贝原文", "Hello.")
+	copyFrom("你好。", "拷贝译文", "你好。")
+	if err := tt.RightClick("Bye."); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if got, want := tt.Menu(), []string{"拷贝台词"}; !slices.Equal(got, want) {
+		t.Fatalf("the untranslated line's menu is %q, want %q", got, want)
+	}
+	tt.CloseMenu()
+	copyFrom("Bye.", "拷贝台词", "Bye.")
+	// Copying a line is not a seek: the row's click is for the left button.
+	if a.PlayHead() != 0 {
+		t.Fatalf("copying from the list moved the playhead to %v", a.PlayHead())
+	}
+}
+
+// TestCopyCurrentLineKey checks ⇧⌘C on the open film: it copies the line playing, following the subtitle delay, and says so on the picture; between two lines it leaves the clipboard and the picture alone; and the 字幕 menu's item, which carries the shortcut once the app has its own menu bar, copies the same way.
+func TestCopyCurrentLineKey(t *testing.T) {
+	a, tt, updates, _ := feedbackFilmApp(t)
+	openTalk(t, a, tt, updates, 1500*time.Millisecond)
+	tt.SetClipboard("before")
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "你好。\nHello." || !tt.HasText("已拷贝") {
+		t.Fatalf("⇧⌘C on the first line copied %q; texts %q", tt.Clipboard(), tt.Texts())
+	}
+	tt.Advance(1500 * time.Millisecond)
+	tt.Frame()
+
+	// 3 seconds in is after the first line ends (2.5s) and before the second starts (4s).
+	a.player.opening = 3 * time.Second
+	tt.SetClipboard("before")
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "before" || tt.HasText("已拷贝") {
+		t.Fatalf("⇧⌘C between two lines copied %q; texts %q", tt.Clipboard(), tt.Texts())
+	}
+
+	// With the subtitles 2 seconds late, 3 seconds in shows the line that starts at 1 second.
+	a.player.film.delay = 2 * time.Second
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "你好。\nHello." {
+		t.Fatalf("⇧⌘C with the delay copied %q", tt.Clipboard())
+	}
+	a.player.film.delay = 0
+
+	// With the subtitles off the picture shows no line, but the line at the playhead is still copied.
+	mode := a.player.subMode
+	a.player.subMode = film.SubOff
+	a.player.opening = 1500 * time.Millisecond
+	tt.SetClipboard("before")
+	tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
+	tt.Frame()
+	if tt.Clipboard() != "你好。\nHello." {
+		t.Fatalf("⇧⌘C with the subtitles off copied %q", tt.Clipboard())
+	}
+	a.player.subMode = mode
+
+	a.player.opening = 4500 * time.Millisecond
+	it := findMenuItem(t, a.menuBar(), "字幕", "拷贝当前台词")
+	if it.Disabled || it.Accelerator != accelerator(ui.Cmd|ui.Shift, ui.KeyC) {
+		t.Fatalf("menu item disabled %v accelerator %q", it.Disabled, it.Accelerator)
+	}
+	// The menu bar hands its click to the UI thread, where it can queue behind what opening the film sent there; those run as well until the line is copied.
+	it.Click(it, nil)
+	waitUntil(t, updates, func() bool { return tt.Clipboard() == "Bye." })
+}
+
+// TestCopyCurrentLineWaitsForTheSubtitles: before the film's subtitles are read, ⇧⌘C has no line to copy.
+func TestCopyCurrentLineWaitsForTheSubtitles(t *testing.T) {
+	a, tt, updates, _ := feedbackFilmApp(t)
+	openTalk(t, a, tt, updates, 1500*time.Millisecond)
+	a.player.subs.ready = false
+	tt.SetClipboard("before")
+	a.copyCurrentLine()
+	tt.Frame()
+	if tt.Clipboard() != "before" || tt.HasText("已拷贝") {
+		t.Fatalf("copied %q before the subtitles were read; texts %q", tt.Clipboard(), tt.Texts())
+	}
+
+	// Subtitles still read for the film opened before belong to that film, not this one.
+	a.player.subs.ready = true
+	a.player.subs.key = "another film"
+	a.copyCurrentLine()
+	tt.Frame()
+	if tt.Clipboard() != "before" || tt.HasText("已拷贝") {
+		t.Fatalf("copied %q from another film's subtitles; texts %q", tt.Clipboard(), tt.Texts())
 	}
 }

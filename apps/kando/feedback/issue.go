@@ -251,14 +251,30 @@ func NoLinks(text string) string { return links.ReplaceAllString(text, "<链接>
 
 // Clean scrubs text.
 func (s Scrubber) Clean(text string) string {
+	text = s.knownSecrets(text)
+	text = s.knownPaths(text)
+	text = s.homeAsTilde(text)
+	text = scrubPaths(text, false)
+	return noTokens(text)
+}
+
+// NoSecrets writes the secrets s knows and anything shaped like a key or token as ***, and leaves the paths and links in text as they are, for the app's log file, which stays on this machine.
+func (s Scrubber) NoSecrets(text string) string {
+	return noTokens(s.knownSecrets(text))
+}
+
+// knownSecrets writes each of Secrets as ***. One shorter than six characters is left alone, as it would hide parts of ordinary words.
+func (s Scrubber) knownSecrets(text string) string {
 	for _, secret := range s.Secrets {
 		if len(secret) >= 6 {
 			text = strings.ReplaceAll(text, secret, "***")
 		}
 	}
-	text = s.knownPaths(text)
-	text = s.homeAsTilde(text)
-	text = scrubPaths(text, false)
+	return text
+}
+
+// noTokens writes whatever is shaped like a credential as ***.
+func noTokens(text string) string {
 	for _, t := range tokens {
 		text = t.re.ReplaceAllString(text, t.with)
 	}

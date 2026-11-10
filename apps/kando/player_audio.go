@@ -44,12 +44,12 @@ type pcmAudio struct {
 	once  sync.Once
 }
 
-// openPCM starts decoding the sound of path from at, to play at volume from 0 (silent) to 1 (as recorded). It holds the sound until Start; ffmpeg decodes ahead meanwhile, so the sound starts with the picture.
-func openPCM(ffmpeg, path string, at time.Duration, volume float64) (*pcmAudio, error) {
+// openPCM starts decoding the sound of path from at, to play at volume from 0 (silent) to 1 (as recorded) and at rate times the speed it was recorded at with its pitch kept (0 counts as 1). It holds the sound until Start; ffmpeg decodes ahead meanwhile, so the sound starts with the picture.
+func openPCM(ffmpeg, path string, at time.Duration, volume, rate float64) (*pcmAudio, error) {
 	if ffmpeg == "" || path == "" {
 		return nil, errors.New("no ffmpeg or no video to play the sound of")
 	}
-	dec := &playerAudioDecoder{ffmpeg: ffmpeg, path: path, from: max(at, 0)}
+	dec := &playerAudioDecoder{ffmpeg: ffmpeg, path: path, from: max(at, 0), rate: rate}
 	if err := dec.start(0); err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (a *pcmAudio) heard() (at time.Duration, ok bool) {
 	if a == nil || a.ended.Load() {
 		return 0, false
 	}
-	return a.decoder.from + a.player.Position(), true
+	return a.decoder.filmAt(a.player.Position()), true
 }
 
 // seek moves the sound to at in the film, no earlier than where it was opened.
@@ -102,7 +102,7 @@ func (a *pcmAudio) seek(at time.Duration) {
 	if a == nil || a.ended.Load() {
 		return
 	}
-	a.player.Seek(max(at-a.decoder.from, 0))
+	a.player.Seek(playerWallTime(max(at-a.decoder.from, 0), a.decoder.rate))
 }
 
 // Close stops the sound and ends its ffmpeg. It is safe to call more than once.
@@ -120,10 +120,12 @@ func (a *pcmAudio) Close() {
 	})
 }
 
-// playerAudioDecoder is the sound of a film as an audio.Decoder: what ffmpeg decodes of path from from on. Its frames count from from, the start of the player's own sound. The player reads it on a goroutine of its own, while Close may come from the UI thread.
+// playerAudioDecoder is the sound of a film as an audio.Decoder: what ffmpeg decodes of path from from on, played at rate. Its frames count from from, the start of the player's own sound, and in the time they take to play, so at a rate other than 1 a frame is rate times as much of the film (filmAt). The player reads it on a goroutine of its own, while Close may come from the UI thread.
 type playerAudioDecoder struct {
 	ffmpeg, path string
 	from         time.Duration
+	// rate is how fast the sound plays, as a multiple of the speed it was recorded at; 0 counts as 1. It stays as it is for the decoder's life: a new speed opens a new sound (filmPlay.setRate).
+	rate float64
 	// raw holds the bytes read from the pipe, of which the first partial are a frame the last read cut short. Only Read and SetPosition, on the player's goroutine, use them.
 	raw     []byte
 	partial int
@@ -152,15 +154,23 @@ func (d *playerAudioDecoder) Channels() int { return playerAudioChannels }
 // Len is not known: the sound ends where ffmpeg stops writing.
 func (d *playerAudioDecoder) Len() int64 { return -1 }
 
-// playerAudioArgs are ffmpeg's arguments to write the film's first sound track from at on as 48 kHz stereo f32le. The seek comes before the input, as the picture's does (media.OpenFramesAt), so the two start at the same point.
-func playerAudioArgs(path string, at time.Duration) []string {
+// filmAt is where in the film the sound is once it played for played from from, played being time on the wall clock at rate.
+func (d *playerAudioDecoder) filmAt(played time.Duration) time.Duration {
+	return d.from + playerFilmTime(played, d.rate)
+}
+
+// playerAudioArgs are ffmpeg's arguments to write the film's first sound track from at on as 48 kHz stereo f32le, at rate times the speed it was recorded at. The seek comes before the input, as the picture's does (media.OpenFramesAt), so the two start at the same point.
+func playerAudioArgs(path string, at time.Duration, rate float64) []string {
 	args := []string{"-nostdin", "-loglevel", "error"}
 	if at > 0 {
 		args = append(args, "-ss", strconv.FormatFloat(at.Seconds(), 'f', 3, 64))
 	}
+	args = append(args, "-i", path, "-map", "0:a:0", "-vn")
+	// atempo plays the sound faster or slower without raising or lowering its pitch; a single one takes 0.5 to 2, which spans film.Rates.
+	if rate = playerRate(rate); rate != 1 {
+		args = append(args, "-af", "atempo="+strconv.FormatFloat(rate, 'f', -1, 64))
+	}
 	return append(args,
-		"-i", path,
-		"-map", "0:a:0", "-vn",
 		"-f", "f32le", "-ac", strconv.Itoa(playerAudioChannels), "-ar", strconv.Itoa(playerAudioRate),
 		"pipe:1",
 	)
@@ -179,12 +189,12 @@ func (d *playerAudioDecoder) start(frame int64) error {
 	}
 	d.partial = 0
 	d.keptEnd, d.keptLen, d.replay = frame, 0, -1
-	at := d.from + time.Duration(frame)*time.Second/playerAudioRate
+	at := d.filmAt(time.Duration(frame) * time.Second / playerAudioRate)
 	r, w, err := os.Pipe()
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command(d.ffmpeg, playerAudioArgs(d.path, at)...)
+	cmd := exec.Command(d.ffmpeg, playerAudioArgs(d.path, at, d.rate)...)
 	cmd.Stdout = w
 	err = cmd.Start()
 	// ffmpeg has its own copy of the write end; with this one closed, ffmpeg ending ends the pipe, and the app ending breaks it.

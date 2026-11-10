@@ -55,7 +55,7 @@ func openStill(t *testing.T, path, id, video string, at time.Duration) *app {
 	t.Helper()
 	a, _, _ := newTestApp(&fakePipeline{})
 	a.openLibrary(path)
-	a.library.Jobs = []core.Job{{ID: id, Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
+	a.library.Jobs = []core.Job{{ID: id, Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
 	player, err := ui.NewVideoPlayer(stillFrames{})
 	if err != nil {
 		t.Fatal(err)
@@ -103,7 +103,7 @@ func TestResumePositionFollowsARenamedLibrary(t *testing.T) {
 	a, _, _ := newTestApp(&fakePipeline{})
 	a.openLibrary(path)
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.Jobs = []core.Job{{ID: "talk", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video, LibraryDir: dir}}
+	a.library.Jobs = []core.Job{{ID: "talk", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video, LibraryDir: dir}}
 	a.setResumePositions(map[string]time.Duration{video: 3 * time.Second})
 	a.savePositions()
 	next := filepath.Join(parent, "看过.kando")

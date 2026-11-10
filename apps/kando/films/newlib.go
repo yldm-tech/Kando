@@ -19,7 +19,7 @@ func newLibrary(c *ui.Context, t *ui.Theme, a App) {
 				ui.Image(c, libraryArt).Size(52, 44).Shrink(0)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 					breeze.Text(c, locales.FilmsNewLibraryTitle(), breeze.TextHeading).FontSize(15).Role(ui.RoleHeading).Level(1)
-					breeze.Text(c, locales.FilmsNewLibraryNote(), breeze.TextCaption, breeze.TextSecondary).FontSize(12).Wrap()
+					breeze.Text(c, locales.FilmsNewLibraryNote(breeze.PlatformOf(c).String()), breeze.TextCaption, breeze.TextSecondary).FontSize(12).Wrap()
 				})
 			})
 			var bindErr error

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"image/png"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,7 +79,7 @@ func newPrototypeLibrary(t *testing.T, home string) *screenshotFixture {
 		case core.PlatformBilibili:
 			job.Source = "https://www.bilibili.com/video/" + film.VideoID
 		case core.PlatformLocal:
-			job.Source = (&url.URL{Scheme: "file", Path: job.VideoPath}).String()
+			job.Source = core.FileURL(job.VideoPath)
 		}
 		if film.Stage == core.StageComplete {
 			job.SubtitlePath = writeProtoSubtitles(t, job.VideoPath)
@@ -298,7 +297,7 @@ func TestScreenshotFixtureMatchesPrototype(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		shelf := films.List(dir, f.jobs, videos, jobName, statusText)
+		shelf := films.List(dir, f.jobs, videos, nil, jobName, statusText)
 		if len(shelf) != lib.Count {
 			t.Errorf("%s has %d films, want %d", lib.Name, len(shelf), lib.Count)
 		}

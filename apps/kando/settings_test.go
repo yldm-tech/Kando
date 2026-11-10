@@ -9,15 +9,19 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	"github.com/egoist/mygo/ui"
 )
 
 func TestShortVersion(t *testing.T) {
@@ -46,7 +50,7 @@ func TestSettingsPages(t *testing.T) {
 	})
 	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	for _, text := range []string{"资料库", "当前资料库", "Kando", "位置", "~/Movies/Kando", "在访达中显示", "界面语言", "简体中文", "版本", appVersion, "组件", "yt-dlp", "ffmpeg", "whisper-cli", "未安装"} {
+	for _, text := range []string{"资料库", "当前资料库", "Kando", "位置", "~/Movies/Kando", locales.SettingsGeneralShowInFinder(platformName()), "界面语言", "简体中文", "版本", appVersion, "组件", "yt-dlp", "ffmpeg", "whisper-cli", "未安装"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
@@ -222,7 +226,7 @@ func TestOpenSettingsGoesToTheSection(t *testing.T) {
 	}
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.Jobs = []core.Job{{ID: "talk", Source: "file://" + video, Stage: core.StageComplete, VideoPath: video}}
+	a.library.Jobs = []core.Job{{ID: "talk", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video}}
 	a.openKey = "talk"
 	tt.Frame()
 	a.OpenSettings(settings.SectionTranslate)
@@ -392,5 +396,259 @@ func TestSettingsInEnglish(t *testing.T) {
 		if tt.HasText(chinese) {
 			t.Fatalf("the settings still read %q: %q", chinese, tt.Texts())
 		}
+	}
+}
+
+// TestSpokenLanguageIsSavedAndRestored chooses the language spoken in the videos on the 语音识别 page: the pipeline's tools hear it from then on, settings.json keeps whisper's code, and the next start takes it back. 自动识别 saves nothing.
+func TestSpokenLanguageIsSavedAndRestored(t *testing.T) {
+	a, tt, _ := newTestApp(media.Tools{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
+	// The language row is the last on the page; Linux's fonts set the model rows taller, which pushes it below a 640-point window, so the window is made tall enough to hold the whole page and the drop-down's list.
+	tt.SetSize(880, 1600)
+	tt.Frame()
+	wantText(t, tt, "识别语言")
+	if err := tt.Click("自动识别"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	for _, name := range []string{"英语", "中文", "日语", "韩语", "法语", "西班牙语", "德语"} {
+		wantText(t, tt, name)
+	}
+	if err := tt.Click("日语"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tools := a.pipeline.(media.Tools); tools.SpeechLanguage != "ja" {
+		t.Fatalf("language %q", tools.SpeechLanguage)
+	}
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.SpeechLanguage != "ja" {
+		t.Fatalf("saved %#v", saved.savedSpeech)
+	}
+	wantText(t, tt, "日语")
+
+	next, _, _ := newTestApp(media.Tools{})
+	next.restoreSpeech(saved)
+	if tools := next.pipeline.(media.Tools); tools.SpeechLanguage != "ja" {
+		t.Fatalf("restored %q", tools.SpeechLanguage)
+	}
+
+	if err := tt.Click("日语"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("自动识别"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tools := a.pipeline.(media.Tools); tools.SpeechLanguage != "" {
+		t.Fatalf("language %q after 自动识别", tools.SpeechLanguage)
+	}
+	data, err := os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "speechLanguage") {
+		t.Fatalf("自动识别 was saved: %s", data)
+	}
+
+	a.SetSpeechLanguage("xx")
+	if tools := a.pipeline.(media.Tools); tools.SpeechLanguage != "" {
+		t.Fatalf("an unknown language was taken: %q", tools.SpeechLanguage)
+	}
+}
+
+// TestSavedSpeechLanguageIsCleaned trims the saved language and drops one whisper is not offered for, which leaves whisper to detect it.
+func TestSavedSpeechLanguageIsCleaned(t *testing.T) {
+	for _, tc := range []struct{ saved, want string }{{" ko ", "ko"}, {"auto", ""}, {"klingon", ""}, {"", ""}} {
+		s := savedSpeech{SpeechLanguage: tc.saved}
+		s.clean()
+		if s.SpeechLanguage != tc.want {
+			t.Fatalf("%q cleaned to %q, want %q", tc.saved, s.SpeechLanguage, tc.want)
+		}
+	}
+}
+
+// speechModelFiles writes the whisper catalog files names into dir and returns their paths.
+func speechModelFiles(t *testing.T, dir string, names ...string) []string {
+	t.Helper()
+	paths := make([]string, len(names))
+	for i, name := range names {
+		paths[i] = filepath.Join(dir, name)
+		if err := os.WriteFile(paths[i], []byte("ggml"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return paths
+}
+
+// TestTrashSpeechModel moves a model Kando downloaded to the Trash from ⋯ after 已下载, once the confirmation says so, and looks the models up again. Enter keeps the model. The model in use, a model another app keeps and any model while a download runs stay where they are.
+func TestTrashSpeechModel(t *testing.T) {
+	own, other := t.TempDir(), t.TempDir()
+	files := speechModelFiles(t, own, "ggml-base.bin", "ggml-small.bin", "ggml-large-v3.bin")
+	base, small, large := files[0], files[1], files[2]
+	tiny := speechModelFiles(t, other, "ggml-tiny.bin")[0]
+	a, tt, _ := newTestApp(media.Tools{WhisperModel: small})
+	a.prefs.modelsDir = own
+	a.prefs.extraModelDirs = []string{other}
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	trashed := fakeTrash(t)
+	tt.Frame()
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
+
+	if err := tt.Click("Base 的更多操作"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if got := tt.Menu(); !slices.Equal(got, []string{"在访达中显示", "-", "移到废纸篓…"}) {
+		t.Fatalf("menu %q", got)
+	}
+	if err := tt.ChooseMenuItem("移到废纸篓…"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !tt.HasText("要把「Base」移到废纸篓吗？") || !tt.HasText("可以腾出 148 MB。之后可以从废纸篓找回，也可以在这里重新下载。") || !a.modalOpen() {
+		t.Fatalf("no confirmation, or it does not hold the window (modal %v): %q", a.modalOpen(), tt.Texts())
+	}
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if len(*trashed) != 0 || a.modalOpen() || tt.HasText("要把「Base」移到废纸篓吗？") {
+		t.Fatalf("Enter trashed the model or kept the window held: trashed %v modal %v", *trashed, a.modalOpen())
+	}
+
+	if err := tt.Click("Base 的更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("移到废纸篓…"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("移到废纸篓"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	tt.Frame()
+	if !slices.Equal(*trashed, []string{base}) || a.InstalledSpeechModel("base") != "" || a.modalOpen() {
+		t.Fatalf("trashed %v, base %q, modal %v", *trashed, a.InstalledSpeechModel("base"), a.modalOpen())
+	}
+	if tt.HasText("Base 的更多操作") {
+		t.Fatal("the trashed model still offers its file")
+	}
+
+	// The model in use: its trash item is disabled, and the app refuses it all the same.
+	if err := tt.Click("Small 的更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("移到废纸篓…"); err == nil {
+		t.Fatal("the model in use can be moved to the Trash")
+	}
+	tt.CloseMenu()
+	a.TrashSpeechModel("small")
+	tt.Frame()
+	if len(*trashed) != 1 || !fileExists(small) {
+		t.Fatalf("the model in use went to the Trash: %v", *trashed)
+	}
+	wantText(t, tt, "「Small」正在使用。先选用别的模型，再把它移到废纸篓。")
+
+	// Another app's model: it can be shown in Finder, not moved to the Trash.
+	var revealed string
+	prev := revealInFolder
+	revealInFolder = func(path string) error {
+		revealed = path
+		return nil
+	}
+	t.Cleanup(func() { revealInFolder = prev })
+	if err := tt.Click("Tiny 的更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if got := tt.Menu(); !slices.Equal(got, []string{"在访达中显示"}) {
+		t.Fatalf("menu of another app's model %q", got)
+	}
+	if err := tt.ChooseMenuItem("在访达中显示"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if revealed != tiny {
+		t.Fatalf("revealed %q", revealed)
+	}
+	a.AskTrashSpeechModel("tiny")
+	a.TrashSpeechModel("tiny")
+	if open, _ := a.TrashingSpeechModel(); *open || len(*trashed) != 1 || !fileExists(tiny) {
+		t.Fatalf("another app's model: asked %v, trashed %v", *open, *trashed)
+	}
+
+	// While a download runs nothing goes to the Trash.
+	a.prefs.downloading = "medium"
+	tt.Frame()
+	if err := tt.Click("Large v3 的更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("移到废纸篓…"); err == nil {
+		t.Fatal("a model can be moved to the Trash while a download runs")
+	}
+	tt.CloseMenu()
+	a.TrashSpeechModel("large-v3")
+	if len(*trashed) != 1 || !fileExists(large) {
+		t.Fatalf("trashed while downloading: %v", *trashed)
+	}
+	a.prefs.downloading = ""
+
+	// A job that started with Large v3 still needs it after Small was chosen: run() gave the job its own copy of the pipeline, so the file stays until the job returns.
+	a.queue.active, a.queue.whisperModel = "running-job", large
+	tt.Frame()
+	if err := tt.Click("Large v3 的更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("移到废纸篓…"); err == nil {
+		t.Fatal("the running job's model can be moved to the Trash")
+	}
+	tt.CloseMenu()
+	a.TrashSpeechModel("large-v3")
+	tt.Frame()
+	if len(*trashed) != 1 || !fileExists(large) {
+		t.Fatalf("the running job's model went to the Trash: %v", *trashed)
+	}
+	wantText(t, tt, "「Large v3」正在使用。先选用别的模型，再把它移到废纸篓。")
+	a.finished("running-job")
+	if a.queue.whisperModel != "" || a.speechModelInUse(large) {
+		t.Fatalf("the finished job still holds %q", a.queue.whisperModel)
+	}
+
+	// A file the Trash refuses stays listed, and the page says why.
+	prevTrash := trashItem
+	trashItem = func(string) error { return errors.New("permission denied") }
+	t.Cleanup(func() { trashItem = prevTrash })
+	a.TrashSpeechModel("large-v3")
+	tt.Frame()
+	wantText(t, tt, "没能把「Large v3」移到废纸篓：permission denied")
+	if a.InstalledSpeechModel("large-v3") != large {
+		t.Fatalf("large-v3 %q", a.InstalledSpeechModel("large-v3"))
+	}
+}
+
+// TestTrashConfirmationClosesWithItsPage: the main window can move the settings window to another section while the trash confirmation is open. The confirmation is the 语音识别 page's, so it closes, and the menu bar is not left waiting on a modal flag nothing shows.
+func TestTrashConfirmationClosesWithItsPage(t *testing.T) {
+	own := t.TempDir()
+	files := speechModelFiles(t, own, "ggml-base.bin", "ggml-small.bin")
+	a, tt, _ := newTestApp(media.Tools{WhisperModel: files[1]})
+	a.prefs.modelsDir = own
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	trashed := fakeTrash(t)
+	tt.Frame()
+	stt := settingsOpenAt(a, tt, settings.SectionSpeech)
+	a.AskTrashSpeechModel("base")
+	stt.Frame()
+	if !a.modalOpen() || !stt.HasText("要把「Base」移到废纸篓吗？") {
+		t.Fatalf("no confirmation (modal %v): %q", a.modalOpen(), stt.Texts())
+	}
+	a.OpenSettings(settings.SectionAI)
+	stt.Frame()
+	if open, _ := a.TrashingSpeechModel(); *open || a.modalOpen() {
+		t.Fatalf("after another section: confirmation open %v, modal %v", *open, a.modalOpen())
+	}
+	a.OpenSettings(settings.SectionSpeech)
+	stt.Frame()
+	if stt.HasText("要把「Base」移到废纸篓吗？") || len(*trashed) != 0 || !fileExists(files[0]) {
+		t.Fatalf("the confirmation came back or the model moved: trashed %v", *trashed)
 	}
 }

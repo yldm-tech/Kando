@@ -250,24 +250,33 @@ func feedbackCue(cues []core.Segment, at time.Duration) (core.Segment, bool) {
 func (a *app) feedbackScrubber() feedback.Scrubber {
 	home, _ := os.UserHomeDir()
 	s := feedback.Scrubber{Home: home, Paths: a.feedbackPaths(home)}
+	// A preset's public address names the service, which the issue says anyway; only an address of the user's own is a secret.
+	for _, secret := range a.feedbackSecrets() {
+		if !feedbackPublicEndpoint(secret) {
+			s.Secrets = append(s.Secrets, secret)
+		}
+	}
+	return s
+}
+
+// feedbackSecrets are the credentials the app holds, trimmed, without the empty ones: the AI service's key and address, the account's and the storage's (cloudSecrets), and the values of the KANDO_ and EVERYAPI_ environment variables. The issue and the log file (state_logs.go) leave them out.
+func (a *app) feedbackSecrets() []string {
 	tools, _ := a.pipeline.(media.Tools)
-	s.Secrets = append(s.Secrets, a.prefs.llmKey, a.prefs.llmBase, tools.Translator.APIKey, tools.Translator.BaseURL)
-	s.Secrets = append(s.Secrets, a.cloud.cloudSecrets()...)
+	secrets := []string{a.prefs.llmKey, a.prefs.llmBase, tools.Translator.APIKey, tools.Translator.BaseURL}
+	secrets = append(secrets, a.cloud.cloudSecrets()...)
 	for _, kv := range os.Environ() {
 		name, value, _ := strings.Cut(kv, "=")
 		if strings.HasPrefix(name, "KANDO_") || strings.HasPrefix(name, "EVERYAPI_") {
-			s.Secrets = append(s.Secrets, value)
+			secrets = append(secrets, value)
 		}
 	}
-	// A preset's public address names the service, which the issue says anyway; only an address of the user's own is a secret.
-	kept := s.Secrets[:0]
-	for _, secret := range s.Secrets {
-		if secret = strings.TrimSpace(secret); secret != "" && !feedbackPublicEndpoint(secret) {
+	kept := secrets[:0]
+	for _, secret := range secrets {
+		if secret = strings.TrimSpace(secret); secret != "" {
 			kept = append(kept, secret)
 		}
 	}
-	s.Secrets = kept
-	return s
+	return kept
 }
 
 // feedbackPaths are the files and folders the app knows: the libraries, the folder downloads go to, the tools and the speech model, every scanned video, the subtitles found beside it and its folder, and every job's video and subtitles and the folders they are in. Their names can have spaces and punctuation a path written in text is not taken to go on over, as a video's title does. The home folder and the folders above it are left out, as the home folder on its own is written as ~.

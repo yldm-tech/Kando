@@ -41,7 +41,7 @@ func openClip(t *testing.T, seconds int) (*app, *ui.Tester, chan func()) {
 	}
 	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.Jobs = []core.Job{{ID: "clip", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
+	a.library.Jobs = []core.Job{{ID: "clip", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
 	t.Cleanup(a.stopPlayback)
 	tt.Frame()
 	if err := tt.Click("clip"); err != nil {
@@ -208,7 +208,7 @@ func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
 		{Group: groupView, Label: "显示/隐藏侧栏", Mods: ui.Cmd | ui.Shift, Key: ui.KeyT},
 		{Group: groupView, Label: "全屏", Key: ui.KeyF},
 		{Group: groupWindow, Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash},
-		{Group: groupStudy, Label: "复习", Key: ui.KeyR},
+		{Group: groupStudy, Label: "复习", Key: ui.KeyN},
 	}
 	var got []string
 	for _, g := range cheatsheetGroupsOf(rows) {
@@ -280,21 +280,49 @@ func TestMenuBarTakesCommandShortcuts(t *testing.T) {
 	}
 }
 
+// TestShortcutsAreUnique checks that no two rows of the table have one label in one menu, and that rows share a key only when they take turns: each has a When, and in none of the window's states (a library page with films, a film open over it) do two of them hold at once, so the key runs one row at most, as the library's ⌘F and the player's do.
 func TestShortcutsAreUnique(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
-	seen := map[[2]int]string{}
+	a, _, _ := libraryWith(t, "Talk")
+	ids := map[string]bool{}
+	keyed := map[[2]int][]shortcut{}
 	for _, s := range a.shortcuts() {
 		if s.Group == "" || s.Label == "" || s.Run == nil {
 			t.Fatalf("incomplete shortcut %+v", s)
 		}
-		if s.Key == 0 {
+		if ids[menuRowID(s)] {
+			t.Fatalf("two rows %q in %q", s.Label, s.Group)
+		}
+		ids[menuRowID(s)] = true
+		if s.Key != 0 {
+			k := [2]int{int(s.Mods), int(s.Key)}
+			keyed[k] = append(keyed[k], s)
+		}
+	}
+	states := map[string]func(){
+		"library": func() { a.openKey = "" },
+		"film":    func() { a.openKey = "film" },
+	}
+	for _, same := range keyed {
+		if len(same) < 2 {
 			continue
 		}
-		k := [2]int{int(s.Mods), int(s.Key)}
-		if other, ok := seen[k]; ok {
-			t.Fatalf("%q and %q share a key", other, s.Label)
+		for _, s := range same {
+			if s.When == nil {
+				t.Fatalf("%q shares its key with %q but always holds", s.Label, same[0].Label)
+			}
 		}
-		seen[k] = s.Label
+		for state, enter := range states {
+			enter()
+			var holding []string
+			for _, s := range same {
+				if s.When() {
+					holding = append(holding, s.Label)
+				}
+			}
+			if len(holding) > 1 {
+				t.Fatalf("%q share a key and all hold on the %s page", holding, state)
+			}
+		}
 	}
 }
 
@@ -309,7 +337,7 @@ func TestDroppedVideoIsQueued(t *testing.T) {
 		}
 	}
 	a.dropFiles([]string{note, video})
-	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "file://"+video {
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != core.FileURL(video) {
 		t.Fatalf("jobs %#v", a.library.Jobs)
 	}
 }

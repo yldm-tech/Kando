@@ -75,15 +75,23 @@ func TestSidebarArrowKeysChangeTheSource(t *testing.T) {
 	if a.page != pageFilms || a.side.filter != sidebar.SourceAll {
 		t.Fatalf("page %q source %q after clicking the chosen item", a.page, a.side.filter)
 	}
+	// 浏览 sits between 全部影片 and YouTube.
 	tt.Key(0, ui.KeyDown)
 	tt.Frame()
-	if a.side.filter != sidebar.SourceYouTube {
-		t.Fatalf("source %q after Down, want %q", a.side.filter, sidebar.SourceYouTube)
+	if a.page != pageBrowse {
+		t.Fatalf("page %q after Down, want the browser", a.page)
+	}
+	tt.Key(0, ui.KeyDown)
+	tt.Frame()
+	if a.page != pageFilms || a.side.filter != sidebar.SourceYouTube {
+		t.Fatalf("page %q source %q after Down, want %q", a.page, a.side.filter, sidebar.SourceYouTube)
 	}
 	tt.Key(0, ui.KeyUp)
 	tt.Frame()
-	if a.side.filter != sidebar.SourceAll {
-		t.Fatalf("source %q after Up, want %q", a.side.filter, sidebar.SourceAll)
+	tt.Key(0, ui.KeyUp)
+	tt.Frame()
+	if a.page != pageFilms || a.side.filter != sidebar.SourceAll {
+		t.Fatalf("page %q source %q after Up, want %q", a.page, a.side.filter, sidebar.SourceAll)
 	}
 }
 

@@ -1,6 +1,7 @@
 package films
 
 import (
+	"strings"
 	"time"
 
 	"kando/apps/kando/sidebar"
@@ -36,6 +37,8 @@ type App interface {
 	Start()
 	// PickVideos asks for local videos and adds them to the queue.
 	PickVideos()
+	// PickVideosShortcut is the shortcut bound to PickVideos, which the tooltip of 本地视频 writes as the platform does (⌘O on macOS, Ctrl+O elsewhere).
+	PickVideosShortcut() (ui.Modifiers, ui.Key)
 	// DropFiles adds the videos among files dropped on the page to the queue.
 	DropFiles(paths []string)
 	Poster(path string) ui.ImageSource
@@ -49,8 +52,11 @@ type App interface {
 	// OpenAt opens a film and starts its picture at at.
 	OpenAt(item Film, at time.Duration)
 	Reveal(path string)
-	// Reprocess makes the subtitles of a done film again.
+	// Reprocess makes the subtitles of a done film again, from its download, in the target language set now.
 	Reprocess(item Film)
+	// TranslateAgain translates every line of a done film's subtitles again, in the target language set now, without downloading or transcribing it; TranslateMissing translates only the lines its translation left untranslated (Film.Untranslated).
+	TranslateAgain(item Film)
+	TranslateMissing(item Film)
 	// Remove drops a job's card; its video, if any, stays in the library.
 	Remove(id string)
 	Retry(id string)
@@ -61,6 +67,8 @@ type App interface {
 	RunRemedy(item Film, action string)
 	// LinkFocus asks the link field for the keyboard focus once, as 换个链接 does; the field sets it back to false when it has taken the focus.
 	LinkFocus() *bool
+	// Query is the text typed into the sidebar's search field: the done films whose names hold it are the ones the page shows (ByTitle). 清除搜索 empties it.
+	Query() *string
 	JobFilm(id string) (Film, bool)
 	// SourceFilter is the sidebar source the page shows, sidebar.SourceAll or another sidebar.Source value.
 	SourceFilter() string
@@ -70,6 +78,8 @@ type App interface {
 	Cancel(id string)
 	// RunningJob is the ID of the job being processed now, or "" when none is. A job waiting in the queue is not running; its Film.Stage is core.StageQueued.
 	RunningJob() string
+	// QueueFilms is the films of 处理中 in the shelf's order, newest first (Queue): the open library's that are waiting, running, failed or were cancelled, and those the queue runs or will run for another library, with Film.Library naming it.
+	QueueFilms() []Film
 	// OpenSettings shows the settings at section, one of the settings package's Section values.
 	OpenSettings(section string)
 	// ResumeAt is where the video at path stopped playing last time, or 0.
@@ -78,12 +88,21 @@ type App interface {
 	Notice() *Notice
 	// QueueExpanded is whether 处理中 shows every card rather than the first QueueShown.
 	QueueExpanded() *bool
+	// LibrarySort is the order the done grid shows its films in, one of Sorts; SetLibrarySort shows them in order from now on and keeps it for the next launch.
+	LibrarySort() string
+	SetLibrarySort(order string)
 	// AskRemove asks to confirm moving a film's folder to the Trash.
 	AskRemove(item Film)
 	// Removing is the film AskRemove asked about, whether its confirmation is open, and whether its whole folder goes to the Trash rather than only its video and subtitles.
 	Removing() (open *bool, item Film, folder bool)
 	// TrashFilm moves a film's folder to the Trash and takes it off the shelf.
 	TrashFilm(item Film)
+	// AskRename opens the dialog that gives a film the title Kando shows for it.
+	AskRename(item Film)
+	// Renaming is whether the rename dialog is open, the title typed into it, and the title the film has without one given in Kando, which an empty field gives it back.
+	Renaming() (open *bool, name *string, original string)
+	// RenameFilm gives the film AskRename asked about the title typed into the dialog, and closes it. It never renames a file.
+	RenameFilm()
 }
 
 // Notice is the message bar under the top bar: why a link or a file was not added, or that it was.
@@ -149,28 +168,31 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	})
 	newLibrary(c, t, a)
 	removeDialog(c, a)
+	renameDialog(c, a)
 }
 
-// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none.
+// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out; 处理中 shows every job still, so none seems to vanish while a search is on.
 func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
-	shown := BySource(items, source)
+	queue := BySource(a.QueueFilms(), source)
 	if len(items) == 0 {
+		if len(queue) > 0 {
+			queueSection(c, t, a, QueueOrder(queue))
+		}
 		emptyLibrary(c, a)
 		return
 	}
-	if len(shown) == 0 {
-		emptySource(c, t)
-		return
-	}
-	var queue, done []Film
-	for _, item := range shown {
-		if InQueue(item) {
-			queue = append(queue, item)
-		} else {
+	var done []Film
+	for _, item := range BySource(items, source) {
+		if !InQueue(item) {
 			done = append(done, item)
 		}
 	}
-	if source == sidebar.SourceAll {
+	if len(queue) == 0 && len(done) == 0 {
+		emptySource(c, t)
+		return
+	}
+	query := strings.TrimSpace(*a.Query())
+	if query == "" && source == sidebar.SourceAll {
 		if item, ok := HeroFilm(done); ok {
 			hero(c, a, item)
 		}
@@ -178,7 +200,11 @@ func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 	if len(queue) > 0 {
 		queueSection(c, t, a, QueueOrder(queue))
 	}
-	if len(done) > 0 {
-		grid(c, t, a, done, source)
+	done = ByTitle(done, query)
+	switch {
+	case len(done) > 0:
+		grid(c, t, a, Sorted(done, a.LibrarySort()), source)
+	case query != "":
+		noMatch(c, a, query)
 	}
 }

@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · 日本語 · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
@@ -19,14 +19,16 @@ Kando は、ある言語で話されている動画からその言語を学ぶ�
 ## 機能
 
 - YouTube、Bilibili、そのほか yt-dlp が対応するサイトのリンクを貼り付けて動画を追加できます（対応サイトはロゴ付きで「ヘルプ」›「対応サイト…」に一覧があります）。ローカルファイル（mp4、mov、mkv、webm などの動画ファイル）を選ぶか、ウィンドウにドラッグすることもできます。ローカルファイルはコピーせず、その場所のまま文字起こしします。
+- サイドバーの「ブラウザ」は内蔵ブラウザです。サイトを開き、必要ならログインして「動画をダウンロード」をクリックすると、表示中のページをライブラリに追加できます。以後のダウンロードは、「ブラウザ」、リンク欄、コマンドライン、MCP のどこからでも、ここでログインしたサイトのログイン状態を引き継ぎます。「ログイン情報を消去…」でそれらすべてからログアウトします。
 - ジョブはダウンロード、文字起こし、翻訳、書き出しの順に 1 件ずつ実行されます。失敗したジョブには理由と、それを解決する設定へのリンクが表示され、再試行や削除ができます。
 - 音声認識は whisper.cpp でお使いのコンピューター上で行い、話されている言語は whisper.cpp が判別します。「設定」›「音声認識」には Tiny（77.7 MB）から Large v3（3.1 GB）まで 7 種類の whisper モデルが並び、選んだものを Hugging Face からダウンロードします。
 - 翻訳はデフォルトで EveryAPI を使いますが、OpenAI 互換のチャット API ならどれでも使えます。「設定」›「AI サービス」には OpenAI、OpenRouter、Groq、DeepSeek、xAI、Mistral、Qwen（DashScope）、Kimi、Zhipu GLM、SiliconFlow、Ollama、LM Studio のプリセットと、カスタムエンドポイントがあります。翻訳先の言語、モデルに直前のセリフも読ませる文脈考慮モード、プロンプトは「設定」›「翻訳」で変更できます。
 - 処理が完了した動画ごとに、動画と同じ場所に SubRip ファイルが 2 つ作られます。原文のセリフを収めた `<video>.srt` と、各セリフの訳を原文の上に置いた `<video>.bilingual.srt` です（ダウンロードした動画では `video.srt` と `video.bilingual.srt`）。
-- プレーヤーでは字幕を二言語、原文のみ、訳文のみ、オフから選べます。字幕の遅延は 0.1 秒刻みで調整でき、スタイルも変更できます。サイドパネルでは、すべてのセリフを一覧・検索でき（セリフをクリックするとその位置へジャンプします）、動画を約 30 秒ずつ 4〜12 個のクリップに分けて表示し、その動画のファイルと入手元も確認できます。どの動画も、前回視聴を止めた位置から再開されます。
+- プレーヤーでは字幕を二言語、原文のみ、訳文のみ、オフから選べます。字幕の遅延は 0.1 秒刻みで調整でき、スタイルも変更できます。前後のセリフへの移動、今のセリフの聞き直し、聞き取れるまでの 1 セリフのリピートもできます。サイドパネルでは、すべてのセリフを一覧・検索でき（セリフをクリックするとその位置へジャンプします）、動画を約 30 秒ずつ 4〜12 個のクリップに分けて表示し、その動画のファイルと入手元も確認できます。どの動画も、前回視聴を止めた位置から再開されます。
 - ライブラリは通常のファイルが入った `.kando` フォルダで、Finder やファイルマネージャーで管理できます。複数のライブラリを持ってサイドバーから切り替えられ、サイドバーではライブラリを入手元（YouTube、Bilibili、その他のサイト、ローカルファイル）で絞り込むこともできます。
 - 任意で、Google でサインインしたあと、プレーヤーから動画とその二言語字幕を自分のオブジェクトストレージ（Cloudflare R2、Amazon S3、Alibaba Cloud OSS、Tencent Cloud COS、または任意の S3 互換ストレージ）にアップロードできます。[設定項目](#configuration) を参照してください。
 - 再生、字幕、ウィンドウ操作のキーボードショートカットがあり、チートシート（⌘/）と「設定」›「キーボードショートカット」に一覧があります。
+- 不具合の報告に添えられるログファイルがあります。「ヘルプ」›「ログファイルを表示」（またはコマンドパレット ⌘K）で表示できます。macOS では `~/Library/Logs/Kando/kando.log`、ほかの OS ではユーザー設定フォルダ内の `Kando/logs` フォルダにある `kando.log` です。失敗した各ジョブの理由（Kando が保存しているキーと AI サービスのアドレスは除く）と、失敗したツールの出力の最後の 64 KB を記録します。キーのように見える文字列はすべて `***` と書かれます。5 MB を超えると新しいファイルになり、その前の 2 つが残ります。
 
 ![二言語字幕を表示したプレーヤーと、サイドパネルのセリフ一覧](docs/assets/ja/player.png)
 
@@ -34,12 +36,35 @@ Kando は、ある言語で話されている動画からその言語を学ぶ�
 
 ## インストール
 
+<a id="download"></a>
+
 ### ダウンロード
 
-macOS（Apple シリコンと Intel）と Linux（x86-64 と ARM64）向けのビルドは [GitHub Releases](https://github.com/yldm-tech/Kando/releases) にあります。Windows 向けのビルドはまだないため、Windows では下記の手順でソースからビルドしてください。Developer ID やコード署名証明書で署名されていないため、初めて Kando を開くときにシステムが警告を表示します。
+macOS（Apple シリコンと Intel）と Linux（x86-64 と ARM64）向けのビルドは [GitHub Releases](https://github.com/yldm-tech/Kando/releases) にあります。Windows 向けのビルドはまだないため、Windows では下記の手順でソースからビルドしてください。お使いのシステムに合わせてファイルを選びます。`<version>` はリリースのバージョン（`0.5.0` など）です。
 
-- macOS: macOS 15 以降では、一度 Kando を開いてから「システム設定」›「プライバシーとセキュリティ」›「このまま開く」を選びます。macOS 14 以前では、「アプリケーション」フォルダで Kando を Control キーを押しながらクリックし、「開く」を選びます。または、ターミナルで `xattr -dr com.apple.quarantine /Applications/Kando.app` を実行して隔離属性（quarantine）を削除します。
-- Windows: SmartScreen のダイアログで「詳細情報」›「実行」を選びます。
+- macOS: Apple シリコンの Mac では `kando-<version>-arm64.dmg`、Intel の Mac では `kando-<version>-amd64.dmg`。ディスクイメージを開き、Kando を「アプリケーション」フォルダにドラッグします。
+- Debian、Ubuntu とその派生ディストリビューション: x86-64 では `kando_<version>_amd64.deb`、ARM64 では `kando_<version>_arm64.deb`。ダウンロードしたフォルダで `sudo apt install ./kando_<version>_<arch>.deb` を実行してインストールします。
+- その他の Linux ディストリビューション: リリースのインストールスクリプトを実行します。パッケージを自分でダウンロードする必要はありません。
+
+  ```sh
+  curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
+  ```
+
+  お使いのマシン向けの最新の `kando-<version>-linux-<arch>.tar.gz` をダウンロードして署名を検証し、root なしで現在のユーザーだけに Kando をインストールします。アプリは `~/.local/kando.app` に、`kando` コマンドは `~/.local/bin` に置かれ、アプリケーションメニューにも項目が追加されます。署名の検証には OpenSSL 3.0 以降（Debian 12、Ubuntu 22.04、Fedora 36 以降）が必要です。それより古い OpenSSL ではスクリプトは何もダウンロードせず、その旨を表示します。その場合は、マシンに合った `.tar.gz` と `install.sh` を同じリリースから同じフォルダに、ファイル名を変えずにダウンロードし、そこで `sh install.sh` を実行してください。`.tar.gz` のパスを渡して `sh install.sh <アーカイブ>` と実行することもできます。どちらの場合も、そのアーカイブを署名の検証なしでインストールします。スクリプトをもう一度実行すると新しいバージョンで上書きインストールし、`sh install.sh --uninstall` は設定とライブラリを残して Kando を削除します。
+
+リリースにあるその他のファイルはインストール用ではありません。`checksums.txt` は各ファイルの SHA-256 の一覧で、`update-*.json` マニフェスト、`.delta` ファイル、`darwin` のアーカイブは、インストール済みの Kando が自動アップデートでダウンロードするものです（[アップデート](#updates)を参照）。
+
+0.5.1 より後のリリースの macOS 用ディスクイメージは YLDM の Developer ID で署名され、Apple の公証を受けているため、macOS は警告なしで Kando を開きます。
+
+<a id="updates"></a>
+
+### アップデート
+
+Kando は GitHub にある署名済みのリリースから自分自身をアップデートします。起動から 10 秒後にバックグラウンドで確認し、その後は 1 日に 1 回確認します。新しいバージョンがあると、そのリリースノートを表示するウィンドウが開き、「アップデートをインストール」「後で通知」「このバージョンをスキップ」を選べます。「アップデートをインストール」は新しいバージョンをダウンロードして署名を検証し、Kando を再起動して新しいバージョンに切り替えるか尋ねます。再起動しなければ、次に Kando を起動したときに新しいバージョンになります。スキップしたバージョンはバックグラウンドの確認では再び表示されませんが、その次のバージョンは表示されます。
+
+すぐに確認するには、macOS ではメニューバーの「Kando」›「アップデートを確認…」を選びます。メニューバーのない Linux と Windows では、コマンドパレット（Ctrl+K）で「アップデートを確認…」を選びます。「設定」›「一般」の「バージョン」の横にも「アップデートを確認…」ボタンがあり、その下に前回の確認で見つかった新しいバージョンか、前回確認した日時が表示されます。「アップデートを自動的に確認」と「アップデートを自動的にダウンロードしてインストール」のスイッチも「設定」›「一般」にあります。アップデートをダウンロードするのはバックグラウンドの確認だけなので、後者は前者がオンのときだけ表示されます。後者をオンにすると、バックグラウンドの確認で見つかった新しいバージョンを確認なしでインストールし、次に Kando を起動したときに切り替わります。
+
+自分のファイルを置き換えられない Kando は自動アップデートしません。`.deb` と `PKGBUILD` がこれにあたります。どちらもパッケージマネージャーが管理する `/opt/kando` に Kando をインストールし、Kando には apt リポジトリがないため、アップデートするには新しい `.deb` をリリースからダウンロードして同じ方法でインストールするか、上のインストールスクリプトに切り替えてください。スクリプトが `~/.local/kando.app` にインストールした Kando は自動アップデートします。このようにインストールした Kando では「設定」›「一般」にスイッチが表示されず、「アップデートを確認…」はアップデートできない理由を示すウィンドウを開きます。Windows 向けのアップデートはまだ公開されていません。
 
 ### ソースからビルド
 
@@ -94,7 +119,8 @@ Kando のプログラムは、コマンドライン `kando` と、AI エージ�
 `kando` コマンドを使えるようにするには:
 
 - macOS: Kando を「アプリケーション」フォルダに移動してから、「設定」›「一般」で「コマンドラインツール」の横にある「インストール」をクリックします。`/usr/local/bin`、`/opt/homebrew/bin`、`~/.local/bin` のうち最初に書き込めるフォルダに、Kando を指す `kando` のリンクを作ります。管理者パスワードは求めず、ほかのプログラムの `kando` を置き換えることもありません。ディスクイメージから直接開いたときや、ダウンロード後に macOS が一時的な場所に移して実行しているとき（App Translocation）は、Kando のパスがすぐに使えなくなるため、カードはリンクを作らずに先に Kando を移動するよう案内します。自分でリンクを作ることもできます: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`。
-- Linux: `.deb` と `PKGBUILD` はアプリを `/opt/kando` にインストールし、`/opt/kando/kando` を指すリンク `/usr/bin/kando` を追加します。`.tar.gz` に付いているインストールスクリプトはアプリを `~/.local/kando.app` にインストールし、それを指す `~/.local/bin/kando` を作ります。そこに自分で作ったものではない `kando` があれば、そのまま残します。シェルの `PATH` に `~/.local/bin` がなければ追加してください。
+- Linux: `.deb` と `PKGBUILD` はアプリを `/opt/kando` にインストールし、`/opt/kando/kando` を指すリンク `/usr/bin/kando` を追加します。インストールスクリプト（[ダウンロード](#download)を参照）はアプリを `~/.local/kando.app` にインストールし、それを指す `~/.local/bin/kando` を作ります。そこに自分で作ったものではない `kando` があれば、そのまま残します。シェルの `PATH` に `~/.local/bin` がなければ追加してください。
+- Windows: Windows でリンクを作るには管理者権限か開発者モードが必要なため、Kando はコマンドをインストールできません。「設定」›「一般」の「コマンドラインツール」に `Kando.exe` があるフォルダが表示されるので、そのフォルダを `PATH` に追加してください。Windows はファイル名の大文字と小文字を区別しないため、ターミナルで `kando` と入力すると Kando が実行されます。
 
 | コマンド | 内容 |
 | --- | --- |
@@ -105,6 +131,8 @@ Kando のプログラムは、コマンドライン `kando` と、AI エージ�
 | `kando jobs` | ジョブを一覧表示します: 実行中のもの、待機中のもの、終わったものの順です。 |
 | `kando add <link-or-file>... [--wait]` | 「処理を開始」と同じようにリンクやローカルの動画ファイルをキューに追加し、各ジョブの ID を出力します。相対パスは現在のディレクトリから解釈されます。 |
 | `kando cancel <job-id>` | 実行中のジョブを止めるか、待機中のジョブをキューから外します。 |
+| `kando retry <job-id> [--wait]` | 「再試行」や「再処理」と同じように、失敗した、キャンセルされた、または完了したジョブを同じ ID のままもう一度キューに追加します。ウインドウの表示は変えません。実行中や待機中のジョブは受け付けません。 |
+| `kando remove <job-id>` | 「取り除く」と同じようにジョブをライブラリから取り除きます。実行中のジョブは先に止めます。ファイルはディスクに残ります。 |
 | `kando sites [query] [--limit N]` | Kando がダウンロードできるサイトを、名前、ドメイン、または動画のリンクで検索します。 |
 | `kando open [film-id]` | Kando を最前面に出し、指定した動画を表示します。ID を省くとライブラリを表示します。 |
 | `kando mcp` | 標準入出力で MCP サーバーとして動きます（後述）。 |
@@ -113,7 +141,7 @@ Kando のプログラムは、コマンドライン `kando` と、AI エージ�
 
 アプリを必要とするコマンドは、`settings.json` と同じフォルダにあるソケット `kando.sock`（macOS では `~/Library/Application Support/Kando/kando.sock`、Linux では `~/.config/Kando/kando.sock`、Windows では `%AppData%\Kando\kando.sock`）を通じてアプリとやり取りします。`KANDO_SOCKET` で別のパスを指定できます。2 つ目の Kando を動かすときもこれが必要で、さらに専用の `HOME` も要ります（[設定項目](#configuration)を参照）。Kando が起動していないときは、コマンドがバックグラウンドで起動し、標準エラー出力に `Starting Kando…` と表示して最大 30 秒待ちます。動画の追加には「処理を開始」と同じもの（開いているライブラリ、プログラム、whisper モデルなど）が必要で、足りないものがあると `kando add` はウィンドウに表示されるのと同じメッセージで失敗します。
 
-アプリとやり取りするコマンドはすべて `--json` を受け付け、アプリの応答をテキストではなく JSON で出力します。追加できなかったソースがあると、`kando add` は終了コード 1 で終わります。`--wait` を付けると、追加したジョブがすべて完了または失敗するまで待ち、ジョブのステージや進捗が変わるたびに 1 行出力し、失敗したジョブが 1 つでもあれば同じく終了コード 1 で終わります。`--json` を付けると、進捗は標準エラー出力に、終了時のジョブは標準出力に出力されます。終了コードは、成功が 0、失敗が 1、コマンドの使い方の誤りが 2 です。
+アプリとやり取りするコマンドはすべて `--json` を受け付け、アプリの応答をテキストではなく JSON で出力します。追加できなかったソースがあると、`kando add` は終了コード 1 で終わります。`--wait` を付けると、追加したジョブがすべて完了または失敗するまで待ち、ジョブのステージや進捗が変わるたびに 1 行出力し、失敗したジョブが 1 つでもあれば同じく終了コード 1 で終わります。`--json` を付けると、進捗は標準エラー出力に、終了時のジョブは標準出力に出力されます。`kando retry --wait` も、もう一度キューに追加したジョブを同じように待ちます。終了コードは、成功が 0、失敗が 1、コマンドの使い方の誤りが 2 です。
 
 `kando mcp` は標準入出力で動く MCP サーバーです。Kando が起動していないときは、ツールが同じように Kando を起動します。
 
@@ -126,6 +154,8 @@ Kando のプログラムは、コマンドライン `kando` と、AI エージ�
 | `kando_add_videos` | リンクやローカルの動画ファイルをキューに追加し、ジョブと、追加できなかったソースごとにスキップした理由を返します。 |
 | `kando_list_jobs` | ジョブのステージ、進捗、ステータス、エラー、完了後は動画の ID とファイルのパス。 |
 | `kando_cancel_job` | 実行中のジョブを止めるか、待機中のジョブをキューから外します。 |
+| `kando_retry_job` | 失敗した、キャンセルされた、または完了したジョブを同じ ID のままもう一度キューに追加し、そのジョブを返します。 |
+| `kando_remove_job` | ジョブをライブラリから取り除きます。実行中のジョブは先に止めます。ファイルはディスクに残ります。 |
 | `kando_search_sites` | Kando がダウンロードできるサイトを、名前、ドメイン、または動画のリンクで検索します（`limit` を指定しなければ 20 件）。 |
 | `kando_open` | Kando のウィンドウを最前面に出し、動画またはライブラリを表示します。 |
 
@@ -194,6 +224,7 @@ Kando は自身のファイルをユーザー設定ディレクトリに保存�
 - `library.json`: 完了済みと処理中のジョブ、および各動画の再生を止めた位置。
 - `settings.json`: 設定。API キー、オブジェクトストレージのキー、Google のリフレッシュトークンも平文で含まれます。このファイルは現在のユーザーアカウントだけが読み取れます。
 - `window-state.json`: ウィンドウのサイズと位置。
+- `updater.json`: アップデートについての選択（「設定」›「一般」の 2 つのスイッチ、スキップしたバージョン）と、Kando が前回アップデートを確認した日時。
 - `models/`: 「設定」›「音声認識」でダウンロードした whisper モデル。
 
 `video.*` という名前ではない動画のカバー画像は、macOS では `~/Library/Caches/Kando/posters`、Windows では `%LocalAppData%\Kando\posters`、Linux では `~/.cache/Kando/posters` にキャッシュされます。
@@ -240,7 +271,7 @@ KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
 
 ## CI とリリース
 
-[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) ワークフローは、プルリクエストと `main` をビルドしてテストします。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) ワークフローは、`main` で CI が成功したあと、または手動で実行されます。前回のタグ以降の Conventional Commits から次のバージョンを決め、`chore(release)` として `main` にコミットしてタグを付け、Developer ID やコード署名証明書なしで macOS、Windows、Linux 向けのパッケージをビルドし、チェックサムを添えて GitHub のリリースを公開します。
+[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) ワークフローは、プルリクエストと `main` をビルドしてテストします。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) ワークフローは、`main` で CI が成功したあと、または手動で実行されます。前回のタグ以降の Conventional Commits から次のバージョンを決め、`chore(release)` として `main` にコミットしてタグを付け、Developer ID やコード署名証明書なしで macOS、Windows、Linux 向けのパッケージをビルドし、インストール済みの Kando がダウンロードするアップデートに署名して、macOS と Linux 向けのパッケージにチェックサムを添えて GitHub のリリースを公開します。Windows 向けのインストーラーはビルドされていますが、まだ公開していません。
 
 ## ライセンス
 

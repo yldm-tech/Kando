@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -29,6 +30,7 @@ import (
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 func TestLibraryShowsAndRestoresJob(t *testing.T) {
@@ -126,7 +128,7 @@ func TestDropQueuesLocalVideo(t *testing.T) {
 		t.Fatal("the library did not take the dropped file")
 	}
 	tt.Frame()
-	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "file://"+src || !tt.HasText("已加入，开始处理。") {
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != core.FileURL(src) || !tt.HasText("已加入，开始处理。") {
 		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
 	}
 }
@@ -349,7 +351,7 @@ func TestDropQueuesEveryVideo(t *testing.T) {
 		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 		queued := false
 		for _, job := range a.library.Jobs {
-			queued = queued || job.Source == "file://"+path
+			queued = queued || job.Source == core.FileURL(path)
 		}
 		if queued && !tt.HasText(name) {
 			t.Fatalf("no card for %s: %q", name, tt.Texts())
@@ -595,7 +597,7 @@ func TestRemovingKeepsAVideoOutsideTheLibrary(t *testing.T) {
 	trashed := fakeTrash(t)
 	a, tt, _ := newTestApp(&fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = lib })
-	a.library.Jobs = []core.Job{{ID: "local", Source: fileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib}}
+	a.library.Jobs = []core.Job{{ID: "local", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib}}
 	tt.Frame()
 	if _, ok := tt.Find("interview"); !ok {
 		t.Fatalf("a local video processed in this library is not on its shelf: %q", tt.Texts())
@@ -752,7 +754,7 @@ func TestPrecheckAsksForWhatCheckAsks(t *testing.T) {
 		t.Fatal(err)
 	}
 	ready := media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", WhisperModel: model, Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", APIKey: "k"}}
-	local := []string{fileURL("/videos/v.mp4")}
+	local := []string{core.FileURL("/videos/v.mp4")}
 	for _, name := range []string{"yt-dlp", "ffmpeg", "whisper-cli"} {
 		tools := ready
 		switch name {
@@ -881,7 +883,7 @@ func TestPostersAreReadByTheShelfNotTheView(t *testing.T) {
 
 func TestHeroOffersToContinue(t *testing.T) {
 	a, tt, video := libraryWith(t, "Talk")
-	if !tt.HasText("“你好。”") || !tt.HasText("Hello.") || !tt.HasText("播放") || !tt.HasText("在访达中显示") {
+	if !tt.HasText("“你好。”") || !tt.HasText("Hello.") || !tt.HasText("播放") || !tt.HasText(locales.FilmsShowInFinder(platformName())) {
 		t.Fatalf("hero %q", tt.Texts())
 	}
 	a.player.positions = map[string]time.Duration{video: 42 * time.Second}
@@ -907,7 +909,7 @@ func TestEmptySourceSaysSo(t *testing.T) {
 }
 
 func TestLocalJobNameUsesTheFileName(t *testing.T) {
-	if got := jobName(core.Job{Source: fileURL("/Users/me/Downloads/Interview 2.mp4")}); got != "Interview 2" {
+	if got := jobName(core.Job{Source: core.FileURL("/Users/me/Downloads/Interview 2.mp4")}); got != "Interview 2" {
 		t.Fatalf("name = %q", got)
 	}
 }
@@ -1187,7 +1189,7 @@ func TestLibraryInEnglish(t *testing.T) {
 	)
 	tt.Frame()
 	for _, want := range []string{
-		"Recently Finished · Simplified Chinese Bilingual", "Play", "Show in Finder",
+		"Recently Finished · Simplified Chinese Bilingual", "Play", locales.FilmsShowInFinder(platformName()),
 		"Bilingual · CHS", "All Films", "1 film",
 		"Processing", "1 in progress · 1 needs attention", "Queued · Waiting for the jobs ahead", "Canceled", "Retry", "Remove",
 		"Start Processing", "Local Video",
@@ -1202,5 +1204,796 @@ func TestLibraryInEnglish(t *testing.T) {
 		if tt.HasText(chinese) {
 			t.Fatalf("the library still reads %q: %q", chinese, tt.Texts())
 		}
+	}
+}
+
+// TestLibraryNamesTheSystemsFileManager checks that the library speaks of the file manager of the system it runs on: the hero's and the card menu's reveal, the shortcut in the tooltip of 本地视频, the page before any library and the new-library sheet, which promises Kando's folder icon only on macOS, where Finder shows it.
+func TestLibraryNamesTheSystemsFileManager(t *testing.T) {
+	for _, tc := range []struct {
+		platform                 breeze.Platform
+		reveal, tooltip, manager string
+		icon                     bool
+	}{
+		{breeze.Mac, "在访达中显示", "添加本地视频（⌘O）", "可以直接在访达里管理。", true},
+		{breeze.Windows, "在文件资源管理器中显示", "添加本地视频（Ctrl+O）", "可以直接在文件资源管理器里管理。", false},
+		{breeze.Linux, "在文件管理器中显示", "添加本地视频（Ctrl+O）", "可以直接在文件管理器里管理。", false},
+	} {
+		t.Run(tc.platform.String(), func(t *testing.T) {
+			usePlatform(t, tc.platform)
+			var revealed []string
+			prev := revealInFolder
+			revealInFolder = func(path string) error {
+				revealed = append(revealed, path)
+				return nil
+			}
+			t.Cleanup(func() { revealInFolder = prev })
+			a, tt, video := libraryWith(t, "Talk")
+			wantText(t, tt, tc.reveal)
+			if err := tt.Click(tc.reveal); err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(revealed, []string{video}) {
+				t.Fatalf("revealed %q, want the video %q", revealed, video)
+			}
+			if err := tt.RightClick("Talk"); err != nil {
+				t.Fatalf("%v texts %q", err, tt.Texts())
+			}
+			if menu := tt.Menu(); !slices.Contains(menu, tc.reveal) {
+				t.Fatalf("card menu %q lacks %q", menu, tc.reveal)
+			}
+			tt.CloseMenu()
+			r, ok := tt.Find("本地视频")
+			if !ok {
+				t.Fatalf("no 本地视频 in %q", tt.Texts())
+			}
+			tt.Move(r.X+r.W/2, r.Y+r.H/2)
+			tt.Advance(time.Second)
+			tt.Frame()
+			wantText(t, tt, tc.tooltip)
+
+			a.edit(func(s *session) {
+				s.LibraryDir = ""
+				s.LibraryParent = t.TempDir()
+			})
+			tt.Frame()
+			wantText(t, tt, tc.manager)
+			a.edit(func(s *session) { s.MakingLibrary = true })
+			tt.Frame()
+			wantText(t, tt, "会创建一个 .kando 文件夹")
+			if got := tt.HasText("看懂标志"); got != tc.icon {
+				t.Fatalf("the sheet promises the Kando icon: %v, want %v: %q", got, tc.icon, tt.Texts())
+			}
+		})
+	}
+}
+
+// libraryStopJobs takes every waiting job out of the queue and cancels the running one, applying updates until it has stopped, so a test whose pipeline blocks leaves nothing running.
+func libraryStopJobs(a *app, updates chan func()) {
+	for _, job := range slices.Clone(a.library.Jobs) {
+		if job.ID != a.RunningJob() {
+			a.Cancel(job.ID)
+		}
+	}
+	if id := a.RunningJob(); id != "" {
+		a.Cancel(id)
+		for a.RunningJob() != "" {
+			(<-updates)()
+		}
+	}
+}
+
+// libraryOpenedVideos writes a file for each name in a folder of its own and returns their paths.
+func libraryOpenedVideos(t *testing.T, names ...string) []string {
+	t.Helper()
+	dir := t.TempDir()
+	paths := make([]string, len(names))
+	for i, name := range names {
+		paths[i] = filepath.Join(dir, name)
+		if err := os.WriteFile(paths[i], []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return paths
+}
+
+// TestOpenedFilesWaitForTheWindow opens videos as Finder does when it launches Kando with them: they arrive before the window exists, when nothing may report through update, and are added to the queue together once it does.
+func TestOpenedFilesWaitForTheWindow(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() { libraryStopJobs(a, updates) })
+	paths := libraryOpenedVideos(t, "talk.mp4", "interview.mov")
+	hooks := a.libraryHooks()
+	hooks.restore(savedSettings{})
+	a.libraryOpenFile(paths[0])
+	a.libraryOpenFile(paths[0])
+	a.libraryOpenFile(paths[1])
+	if len(a.library.Jobs) != 0 || len(updates) != 0 {
+		t.Fatalf("before the window: jobs %#v, %d updates posted", a.library.Jobs, len(updates))
+	}
+	hooks.ready()
+	if len(updates) != 1 || len(a.library.Jobs) != 0 {
+		t.Fatalf("once the window exists: %d updates posted, jobs %#v; want one report adding both after every area's ready", len(updates), a.library.Jobs)
+	}
+	(<-updates)()
+	tt.Frame()
+	if len(a.library.Jobs) != 2 || len(a.lib.opened) != 0 {
+		t.Fatalf("jobs %#v still waiting %q", a.library.Jobs, a.lib.opened)
+	}
+	for _, path := range paths {
+		if !libraryHasJobFor(a.library.Jobs, core.FileURL(path)) {
+			t.Fatalf("no job for %s: %#v", path, a.library.Jobs)
+		}
+	}
+	if !tt.HasText(locales.LibraryAddedStarting(2)) {
+		t.Fatalf("the message bar does not say both were added: %q", tt.Texts())
+	}
+}
+
+func libraryHasJobFor(jobs []core.Job, source string) bool {
+	return slices.ContainsFunc(jobs, func(job core.Job) bool { return job.Source == source })
+}
+
+// TestOpenedFilesArriveTogether opens two videos once the window exists, as dropping them on the Dock icon does: MyGo reports them one by one, and they reach the queue in one report through update, on the library, with one message for both.
+func TestOpenedFilesArriveTogether(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() { libraryStopJobs(a, updates) })
+	paths := libraryOpenedVideos(t, "talk.mp4", "interview.mkv")
+	a.Select(pageYouTube)
+	a.libraryOpenFile(paths[0])
+	a.libraryOpenFile(paths[1])
+	if len(updates) != 1 || len(a.library.Jobs) != 0 {
+		t.Fatalf("%d updates posted, jobs %#v; want one report adding both", len(updates), a.library.Jobs)
+	}
+	(<-updates)()
+	tt.Frame()
+	if a.page != pageFilms || len(a.library.Jobs) != 2 {
+		t.Fatalf("page %q jobs %#v", a.page, a.library.Jobs)
+	}
+	if !tt.HasText(locales.LibraryAddedStarting(2)) {
+		t.Fatalf("the message bar does not say both were added: %q", tt.Texts())
+	}
+	a.libraryOpenFile(paths[1] + ".srt")
+	if len(updates) != 1 {
+		t.Fatalf("%d updates posted after the first report ran; want one", len(updates))
+	}
+}
+
+// TestOpenedFileThatIsNotAVideoWarns opens a file that is not a video, as Open With can when the user picks Kando for any file: nothing is queued and the message bar says what can be added, as a drop on the window does.
+func TestOpenedFileThatIsNotAVideoWarns(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	note := libraryOpenedVideos(t, "notes.txt")[0]
+	a.libraryOpenFile(note)
+	(<-updates)()
+	tt.Frame()
+	if len(a.library.Jobs) != 0 || !tt.HasText(locales.PrecheckNoVideo()) {
+		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
+	}
+}
+
+// TestOpenedVideoAlreadyQueuedIsNotAddedAgain opens a video and a symbolic link to it in one batch, which queues it once, then opens it again while it is being processed, by the same path and by other ones, as macOS hands a video named on the command line to the app twice: it is not queued again. Once its job has stopped, opening it again queues it again, on the card it has (queueTake retries a stopped job rather than adding a second one).
+func TestOpenedVideoAlreadyQueuedIsNotAddedAgain(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() { libraryStopJobs(a, updates) })
+	video := libraryOpenedVideos(t, "talk.mp4")[0]
+	link := filepath.Join(t.TempDir(), "link.mp4")
+	if err := os.Symlink(video, link); err != nil {
+		t.Fatal(err)
+	}
+	a.libraryOpenFile(video)
+	a.libraryOpenFile(link)
+	(<-updates)()
+	if len(a.library.Jobs) != 1 || a.RunningJob() == "" {
+		t.Fatalf("opening a video and a link to it together: jobs %#v running %q; want one job", a.library.Jobs, a.RunningJob())
+	}
+	for _, again := range []string{video, filepath.Join(filepath.Dir(video), ".", "talk.mp4"), link} {
+		a.Select(pageYouTube)
+		a.libraryOpenFile(again)
+		(<-updates)()
+		tt.Frame()
+		if len(a.library.Jobs) != 1 {
+			t.Fatalf("opening %s again queued it again: %#v", again, a.library.Jobs)
+		}
+		if a.page != pageFilms {
+			t.Fatalf("opening %s again left the window on %q", again, a.page)
+		}
+	}
+	libraryStopJobs(a, updates)
+	a.libraryOpenFile(video)
+	(<-updates)()
+	if len(a.library.Jobs) != 1 || a.RunningJob() != a.library.Jobs[0].ID {
+		t.Fatalf("a video whose job stopped was not queued again on its card: jobs %#v running %q", a.library.Jobs, a.RunningJob())
+	}
+}
+
+// TestFileAssociationsAreTheVideos checks mygo.json's fileAssociations, which put Kando in Finder's Open With and let videos be dropped on its Dock icon: they list each video extension 本地视频 offers once, every one a video the library takes, and Kando only views them.
+func TestFileAssociationsAreTheVideos(t *testing.T) {
+	data, err := os.ReadFile("mygo.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		FileAssociations []struct {
+			Ext      []string `json:"ext"`
+			Name     string   `json:"name"`
+			MimeType string   `json:"mimeType"`
+			Role     string   `json:"role"`
+		} `json:"fileAssociations"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	var exts []string
+	for _, fa := range config.FileAssociations {
+		if fa.Name == "" || !strings.HasPrefix(fa.MimeType, "video/") || fa.Role != "Viewer" {
+			t.Errorf("association %+v: want a name, a video MIME type and the Viewer role", fa)
+		}
+		for _, ext := range fa.Ext {
+			if !media.IsVideoFile("clip." + ext) {
+				t.Errorf("%q is associated but the library does not take it", ext)
+			}
+			if slices.Contains(exts, ext) {
+				t.Errorf("%q is associated twice", ext)
+			}
+			exts = append(exts, ext)
+		}
+	}
+	slices.Sort(exts)
+	want := slices.Sorted(slices.Values(libraryVideoExtensions))
+	if !slices.Equal(exts, want) {
+		t.Fatalf("associated %q, want the extensions 本地视频 offers %q", exts, want)
+	}
+}
+
+// librarySearchWith makes a library of two done films, Rivers of Europe and Linear Algebra, and a failed job, Morning Market, and an app showing it.
+func librarySearchWith(t *testing.T) (*app, *ui.Tester) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	for i, name := range []string{"Rivers of Europe", "Linear Algebra"} {
+		video := filepath.Join(lib, name, "video.mp4")
+		if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		a.library.Jobs = append(a.library.Jobs, core.Job{ID: "done" + string(rune('a'+i)), Source: "https://youtu.be/clip" + string(rune('a'+i)), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib})
+	}
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "failed", Title: "Morning Market", Source: "https://youtu.be/market", Stage: core.StageFailed, Err: errors.New("network down"), LibraryDir: lib})
+	a.refreshLibrary()
+	tt.Frame()
+	return a, tt
+}
+
+// TestSearchFiltersTheShelfByTitle checks that the sidebar's search field narrows the grid to the done films whose names hold the query, whatever its case, leaves the hero out while it does and keeps 处理中 whole; that a query no name holds says so, with 清除搜索 bringing every film back; and that it filters as `kando list [query]` does.
+func TestSearchFiltersTheShelfByTitle(t *testing.T) {
+	a, tt := librarySearchWith(t)
+	if !tt.HasText("最近完成") || !tt.HasText("Rivers of Europe") || !tt.HasText("Linear Algebra") {
+		t.Fatalf("library before the search: %q", tt.Texts())
+	}
+	if err := tt.Click("搜索影片"); err != nil {
+		t.Fatalf("%v: %q", err, tt.Texts())
+	}
+	tt.Type("RIVERS")
+	tt.Frame()
+	if a.side.query != "RIVERS" {
+		t.Fatalf("query %q", a.side.query)
+	}
+	if !tt.HasText("Rivers of Europe") || tt.HasText("Linear Algebra") || tt.HasText("最近完成") {
+		t.Fatalf("searching RIVERS shows %q", tt.Texts())
+	}
+	if !tt.HasText("Morning Market") || !tt.HasText("1 部") {
+		t.Fatalf("searching RIVERS left 处理中 or the count out: %q", tt.Texts())
+	}
+	listed := films.ByTitle(a.films(), a.side.query)
+	if len(listed) != 1 || listed[0].Name != "Rivers of Europe" {
+		t.Fatalf("films.ByTitle(RIVERS) = %+v", listed)
+	}
+	// The sidebar's sources go on counting the whole library, and a source narrows the search further.
+	if n := sidebarCount(t, tt, "YouTube"); n != "3" {
+		t.Fatalf("YouTube counts %q while searching", n)
+	}
+	a.SetSourceFilter(sidebar.SourceLocal)
+	tt.Frame()
+	if !tt.HasText("这个来源下还没有影片。") || a.side.query != "RIVERS" {
+		t.Fatalf("本地文件 while searching: query %q, %q", a.side.query, tt.Texts())
+	}
+	a.SetSourceFilter(sidebar.SourceAll)
+
+	a.side.query = "ocean"
+	tt.Frame()
+	if !tt.HasText("没有名称包含「ocean」的已完成影片。") || tt.HasText("Rivers of Europe") || !tt.HasText("Morning Market") {
+		t.Fatalf("searching ocean shows %q", tt.Texts())
+	}
+	if err := tt.Click("清除搜索"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.side.query != "" || !tt.HasText("最近完成") || !tt.HasText("Linear Algebra") || tt.HasText("清除搜索") {
+		t.Fatalf("清除搜索 left query %q: %q", a.side.query, tt.Texts())
+	}
+}
+
+// libraryForSort is a library of three finished films, the last added first as the shelf keeps them: Mango from Bilibili, apple from YouTube and Zebra from YouTube. Its settings are written to a folder of the test's.
+func libraryForSort(t *testing.T) (*app, *ui.Tester) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	for _, film := range []struct{ name, source string }{
+		{"Mango", "https://www.bilibili.com/video/BV1GJ411x7h7"},
+		{"apple", "https://youtu.be/TRWgBxVAb1M"},
+		{"Zebra", "https://www.youtube.com/watch?v=k9Yt2LmQ0pX"},
+	} {
+		video := filepath.Join(lib, film.name, "video.mp4")
+		if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		a.library.Jobs = append(a.library.Jobs, core.Job{ID: film.name, Source: film.source, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib})
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	return a, tt
+}
+
+// libraryGridOrder is the names of the films in the done grid, as it shows them: the names after its heading's count, each once, though a card shows its name both on its poster's label and under it.
+func libraryGridOrder(t *testing.T, tt *ui.Tester, names ...string) string {
+	t.Helper()
+	_, grid := libraryNamesAroundGrid(t, tt, names...)
+	return grid
+}
+
+// libraryHeroOrder is the names of the films drawn above the done grid's heading, each once: with nothing processing, that is only the hero's film.
+func libraryHeroOrder(t *testing.T, tt *ui.Tester, names ...string) string {
+	t.Helper()
+	above, _ := libraryNamesAroundGrid(t, tt, names...)
+	return above
+}
+
+// libraryNamesAroundGrid splits the names of the films the page shows at the done grid's heading: those above it and those in the grid, each list in the order drawn and each name once.
+func libraryNamesAroundGrid(t *testing.T, tt *ui.Tester, names ...string) (above, grid string) {
+	t.Helper()
+	texts := tt.Texts()
+	at := slices.Index(texts, locales.FilmsGridCount(len(names)))
+	if at < 0 {
+		t.Fatalf("no grid heading; texts %q", texts)
+	}
+	distinct := func(texts []string) string {
+		var order []string
+		for _, text := range texts {
+			if slices.Contains(names, text) && !slices.Contains(order, text) {
+				order = append(order, text)
+			}
+		}
+		return strings.Join(order, ",")
+	}
+	return distinct(texts[:at]), distinct(texts[at+1:])
+}
+
+// TestLibrarySortOrdersTheGrid chooses each order from the button beside the grid's heading: the grid follows it, the hero stays the film finished last, and the order is kept in settings.json for the next launch.
+func TestLibrarySortOrdersTheGrid(t *testing.T) {
+	a, tt := libraryForSort(t)
+	names := []string{"Mango", "apple", "Zebra"}
+	if got := libraryGridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
+		t.Fatalf("recently added %s", got)
+	}
+	choose := func(button, item string) {
+		t.Helper()
+		if err := tt.Click(button); err != nil {
+			t.Fatalf("%v; texts %q", err, tt.Texts())
+		}
+		if got, want := tt.Menu(), []string{"最近添加", "标题", "来源"}; !slices.Equal(got, want) {
+			t.Fatalf("sort menu %q, want %q", got, want)
+		}
+		if err := tt.ChooseMenuItem(item); err != nil {
+			t.Fatalf("%v; menu %q", err, tt.Menu())
+		}
+		tt.Frame()
+	}
+	choose("排序：最近添加", "标题")
+	if got := libraryGridOrder(t, tt, names...); got != "apple,Mango,Zebra" {
+		t.Fatalf("by title %s", got)
+	}
+	if a.LibrarySort() != films.SortTitle || !tt.HasText("排序：标题") {
+		t.Fatalf("sort %q; texts %q", a.LibrarySort(), tt.Texts())
+	}
+	if got := libraryHeroOrder(t, tt, names...); got != "Mango" {
+		t.Fatalf("by title the hero shows %q, not the film finished last", got)
+	}
+	if saved := loadSavedSettings(a.settingsPath); saved.LibrarySort != films.SortTitle {
+		t.Fatalf("saved sort %q", saved.LibrarySort)
+	}
+
+	choose("排序：标题", "来源")
+	if got := libraryGridOrder(t, tt, names...); got != "apple,Zebra,Mango" {
+		t.Fatalf("by source %s", got)
+	}
+	if got := libraryHeroOrder(t, tt, names...); got != "Mango" {
+		t.Fatalf("by source the hero shows %q, not the film finished last", got)
+	}
+
+	// The next launch shows the grid in the order chosen last.
+	b, btt, _ := newTestApp(&fakePipeline{})
+	b.restoreSettings(loadSavedSettings(a.settingsPath))
+	b.library.Jobs = a.library.Jobs
+	b.refreshLibrary()
+	btt.Frame()
+	if got := libraryGridOrder(t, btt, names...); b.LibrarySort() != films.SortSource || got != "apple,Zebra,Mango" {
+		t.Fatalf("restored sort %q shows %s", b.LibrarySort(), got)
+	}
+
+	choose("排序：来源", "最近添加")
+	if got := libraryGridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
+		t.Fatalf("back to recently added %s", got)
+	}
+	if saved := loadSavedSettings(a.settingsPath); saved.LibrarySort != films.SortAdded {
+		t.Fatalf("saved sort %q", saved.LibrarySort)
+	}
+}
+
+// TestLibrarySortReadsAnUnknownOrderAsRecentlyAdded: an order settings.json holds that Kando does not know, as one another version saved, shows the films as they were added.
+func TestLibrarySortReadsAnUnknownOrderAsRecentlyAdded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(path, []byte(`{"librarySort": "duration"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	saved := loadSavedSettings(path)
+	if saved.LibrarySort != films.SortAdded {
+		t.Fatalf("read %q", saved.LibrarySort)
+	}
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.restoreSettings(savedSettings{savedLibrary: savedLibrary{LibrarySort: "duration"}})
+	if a.LibrarySort() != films.SortAdded {
+		t.Fatalf("restored %q", a.LibrarySort())
+	}
+}
+
+// TestLibrarySortSaysWhenItCannotBeKept: the grid takes the order even when settings.json cannot be written, and the message bar says it will not be kept.
+func TestLibrarySortSaysWhenItCannotBeKept(t *testing.T) {
+	a, tt := libraryForSort(t)
+	blocker := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a.settingsPath = filepath.Join(blocker, "settings.json")
+	if err := tt.Click("排序：最近添加"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("标题"); err != nil {
+		t.Fatalf("%v; menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if a.LibrarySort() != films.SortTitle || !tt.HasText("排序方式无法保存") {
+		t.Fatalf("sort %q; texts %q", a.LibrarySort(), tt.Texts())
+	}
+}
+
+// TestLibrarySortHidesWithASingleFilm: one film has no order to choose, so the grid's heading has no sort button.
+func TestLibrarySortHidesWithASingleFilm(t *testing.T) {
+	_, tt, _ := libraryWith(t, "Talk")
+	if !tt.HasText("1 部") || tt.HasText("排序：最近添加") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// renamedLibrary is libraryWith with library.json kept in a file of the test's, so what renaming saves can be read back.
+func renamedLibrary(t *testing.T, name string) (a *app, tt *ui.Tester, video, libraryPath string) {
+	t.Helper()
+	a, tt, video = libraryWith(t, name)
+	jobs := a.library.Jobs
+	libraryPath = filepath.Join(t.TempDir(), "library.json")
+	a.openLibrary(libraryPath)
+	a.library.Jobs = jobs
+	if err := a.library.Save(); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	return a, tt, video, libraryPath
+}
+
+// renameFilm opens 重命名… from the poster's ⋯, puts title in the field in place of what it holds, and presses Enter.
+func renameFilm(t *testing.T, a *app, tt *ui.Tester, title string) {
+	t.Helper()
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatalf("%v texts %q", err, tt.Texts())
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if !tt.HasText("重命名影片") || !a.modalOpen() {
+		t.Fatalf("no rename dialog, or it does not hold the window (modal %v): %q", a.modalOpen(), tt.Texts())
+	}
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Type(title)
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText("重命名影片") || a.modalOpen() {
+		t.Fatalf("the rename dialog stays open after Enter (modal %v): %q", a.modalOpen(), tt.Texts())
+	}
+}
+
+// TestRenameGivesAFilmTheTitleKandoShows checks that 重命名… opens with the title the film shows, that the new title shows on the shelf and in the player and is kept in library.json, that nothing on disk is renamed, and that an empty title gives the film its own name back.
+func TestRenameGivesAFilmTheTitleKandoShows(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	if a.lib.renameName != "Talk" || a.lib.renameOriginal != "Talk" {
+		t.Fatalf("the dialog opens with %q (original %q), want the film's title", a.lib.renameName, a.lib.renameOriginal)
+	}
+	if err := tt.Click("取消"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	tt.Frame()
+	if len(a.library.Names) != 0 || a.modalOpen() {
+		t.Fatalf("取消 renamed the film (%v) or still holds the window (modal %v)", a.library.Names, a.modalOpen())
+	}
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	tt.Type("Escaped")
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	tt.Frame()
+	if tt.HasText("重命名影片") || len(a.library.Names) != 0 || a.modalOpen() {
+		t.Fatalf("Escape renamed the film (%v), or left the dialog open or holding the window (modal %v): %q", a.library.Names, a.modalOpen(), tt.Texts())
+	}
+
+	renameFilm(t, a, tt, "  我的演讲  ")
+	if _, ok := tt.Find("我的演讲"); !ok {
+		t.Fatalf("the shelf does not show the new title: %q", tt.Texts())
+	}
+	if got := a.films()[0]; got.Name != "我的演讲" || got.Title != "我的演讲" {
+		t.Fatalf("film %+v", got)
+	}
+	if job := a.remoteJobOf(a.library.Jobs[0]); job.Title != "我的演讲" {
+		t.Fatalf("the socket names the job %q", job.Title)
+	}
+	lib, err := shelf.Load(libraryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lib.Names[video] != "我的演讲" || len(lib.Names) != 1 {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+	if _, err := os.Stat(video); err != nil {
+		t.Fatalf("renaming touched the video on disk: %v", err)
+	}
+
+	a.Open(a.films()[0])
+	tt.Frame()
+	if !tt.HasText("我的演讲") {
+		t.Fatalf("the player does not show the new title: %q", tt.Texts())
+	}
+	a.openKey = ""
+	a.stopPlayback()
+	tt.Frame()
+
+	renameFilm(t, a, tt, "")
+	if len(a.library.Names) != 0 {
+		t.Fatalf("an empty title kept %v", a.library.Names)
+	}
+	if _, ok := tt.Find("Talk"); !ok {
+		t.Fatalf("an empty title did not give the film its name back: %q", tt.Texts())
+	}
+	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
+		t.Fatalf("library.json still names %v", lib.Names)
+	}
+}
+
+// TestRenameTypingTheOriginalTitleKeepsNone checks that typing the title the film has anyway gives it no title of its own, so it keeps following its site's title.
+func TestRenameTypingTheOriginalTitleKeepsNone(t *testing.T) {
+	a, tt, _, _ := renamedLibrary(t, "Talk")
+	renameFilm(t, a, tt, "Talk")
+	if len(a.library.Names) != 0 {
+		t.Fatalf("names %v", a.library.Names)
+	}
+}
+
+// TestRenameSurvivesReprocessingAndAFinderRename checks that the title given in Kando stays over the title the site gives when the film is processed again, and stays with the film when its folder is renamed in Finder: Finder's name does not replace it.
+func TestRenameSurvivesReprocessingAndAFinderRename(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	renameFilm(t, a, tt, "我的演讲")
+
+	// Processing it again looks the video up, and the site's title comes back on the job.
+	job := a.library.Jobs[0]
+	job.Title = "Rust in 100 Seconds"
+	a.show(job)
+	tt.Frame()
+	if got := a.films()[0].Name; got != "我的演讲" {
+		t.Fatalf("after the site's title came back the film is named %q", got)
+	}
+
+	renamed := filepath.Join(filepath.Dir(filepath.Dir(video)), "Finder name")
+	if err := os.Rename(filepath.Dir(video), renamed); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	moved := filepath.Join(renamed, "video.mp4")
+	if a.library.Jobs[0].VideoPath != moved {
+		t.Fatalf("the job did not follow its folder: %q", a.library.Jobs[0].VideoPath)
+	}
+	if got := a.films(); len(got) != 1 || got[0].Name != "我的演讲" {
+		t.Fatalf("after the folder was renamed in Finder: %+v", got)
+	}
+	lib, err := shelf.Load(libraryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lib.Names) != 1 || lib.Names[moved] != "我的演讲" {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+}
+
+// TestRenameFollowsAReprocessToANewFolder checks that processing a renamed film again into another folder carries its title to the new video, on the shelf and in library.json.
+func TestRenameFollowsAReprocessToANewFolder(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	renameFilm(t, a, tt, "我的演讲")
+
+	next := filepath.Join(filepath.Dir(filepath.Dir(video)), "Rust in 100 Seconds [TRWgBxVAb1M]", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(next), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(next, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	job := a.library.Jobs[0]
+	job.Title = "Rust in 100 Seconds"
+	job.VideoPath = next
+	a.show(job)
+	tt.Frame()
+	if got := a.films(); len(got) == 0 || got[0].VideoPath != next || got[0].Name != "我的演讲" {
+		t.Fatalf("after processing again into a new folder: %+v", got)
+	}
+	lib, err := shelf.Load(libraryPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lib.Names) != 1 || lib.Names[next] != "我的演讲" {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+}
+
+// TestRenameKeepsTheVideoTheWatcherMoved checks that a title typed while the library watcher moves the film's video is kept for where the video is now.
+func TestRenameKeepsTheVideoTheWatcherMoved(t *testing.T) {
+	a, tt, video, _ := renamedLibrary(t, "Talk")
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	if err := tt.ChooseMenuItem("重命名…"); err != nil {
+		t.Fatalf("%v menu %q", err, tt.Menu())
+	}
+	tt.Frame()
+	renamed := filepath.Join(filepath.Dir(filepath.Dir(video)), "Finder name")
+	if err := os.Rename(filepath.Dir(video), renamed); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Type("我的演讲")
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	moved := filepath.Join(renamed, "video.mp4")
+	if len(a.library.Names) != 1 || a.library.Names[moved] != "我的演讲" {
+		t.Fatalf("names %v, want the title kept for %q", a.library.Names, moved)
+	}
+}
+
+// TestRenameDropsTheTitleOfAVideoDeletedInFinder checks that deleting a renamed film's folder in Finder forgets its title, for a downloaded film and for a video no job processed, so a video that turns up there later does not take it.
+func TestRenameDropsTheTitleOfAVideoDeletedInFinder(t *testing.T) {
+	for _, loose := range []bool{false, true} {
+		a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+		if loose {
+			a.library.Jobs = nil
+			if err := a.library.Save(); err != nil {
+				t.Fatal(err)
+			}
+			a.refreshLibrary()
+			tt.Frame()
+		}
+		renameFilm(t, a, tt, "我的演讲")
+		if err := os.RemoveAll(filepath.Dir(video)); err != nil {
+			t.Fatal(err)
+		}
+		a.refreshLibrary()
+		tt.Frame()
+		if len(a.library.Names) != 0 || len(a.library.Jobs) != 0 {
+			t.Fatalf("loose %v: names %v jobs %d after the folder was deleted", loose, a.library.Names, len(a.library.Jobs))
+		}
+		if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
+			t.Fatalf("loose %v: library.json keeps %v", loose, lib.Names)
+		}
+	}
+}
+
+// TestRenameFollowsAFinderRenameOfAVideoNoJobProcessed checks that the title given to a video no job processed stays with it when its folder is renamed in Finder, also beside another video the shelf already listed.
+func TestRenameFollowsAFinderRenameOfAVideoNoJobProcessed(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	other := filepath.Join(filepath.Dir(filepath.Dir(video)), "Other", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(other), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(other, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a.library.Jobs = nil
+	if err := a.library.Save(); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	a.AskRename(films.Film{VideoPath: video, Name: "Talk"})
+	a.lib.renameName = "Loose talk"
+	a.RenameFilm()
+	tt.Frame()
+	if a.library.Names[video] != "Loose talk" {
+		t.Fatalf("names %v", a.library.Names)
+	}
+
+	renamed := filepath.Join(filepath.Dir(filepath.Dir(video)), "Finder name")
+	if err := os.Rename(filepath.Dir(video), renamed); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	moved := filepath.Join(renamed, "video.mp4")
+	if len(a.library.Names) != 1 || a.library.Names[moved] != "Loose talk" {
+		t.Fatalf("the title did not follow the renamed folder: %v", a.library.Names)
+	}
+	var names []string
+	for _, film := range a.films() {
+		names = append(names, film.Name)
+	}
+	if !slices.Contains(names, "Loose talk") || slices.Contains(names, "Finder name") {
+		t.Fatalf("films %q", names)
+	}
+	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 1 || lib.Names[moved] != "Loose talk" {
+		t.Fatalf("library.json names %v", lib.Names)
+	}
+}
+
+// TestRenameAVideoNoJobProcessed checks that a video found in the library folder can be renamed too, and that moving it to the Trash forgets its title.
+func TestRenameAVideoNoJobProcessed(t *testing.T) {
+	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
+	a.library.Jobs = nil
+	if err := a.library.Save(); err != nil {
+		t.Fatal(err)
+	}
+	a.refreshLibrary()
+	tt.Frame()
+	if got := a.films(); len(got) != 1 || got[0].JobID != "" {
+		t.Fatalf("films %+v", got)
+	}
+	renameFilm(t, a, tt, "Loose talk")
+	if got := a.films()[0]; got.Name != "Loose talk" || a.library.Names[video] != "Loose talk" {
+		t.Fatalf("film %+v names %v", got, a.library.Names)
+	}
+	if a.lib.renameOriginal != "Talk" {
+		t.Fatalf("the original title of a loose video is %q", a.lib.renameOriginal)
+	}
+
+	fakeTrash(t)
+	a.TrashFilm(a.films()[0])
+	if len(a.library.Names) != 0 {
+		t.Fatalf("the trashed video keeps its title: %v", a.library.Names)
+	}
+	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
+		t.Fatalf("library.json keeps %v", lib.Names)
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
-	"kando/apps/kando/sidebar"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/i18n"
@@ -15,7 +14,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// general is the 通用 page: the library, the interface language, the version and its updates, the programs Kando runs, and its command line and MCP server (cli.go).
+// general is the 通用 page: the library, the interface language, the notifications of finished videos, the version and its updates, the programs Kando runs, and its command line and MCP server (cli.go).
 func (s screen) general(c *ui.Context, t *ui.Theme) {
 	form.Label(c, locales.SettingsGeneralLibrary(), 6, nil)
 	form.Card(c, func() { s.libraryRows(c) })
@@ -29,6 +28,12 @@ func (s screen) general(c *ui.Context, t *ui.Theme) {
 				s.Save()
 			}
 		})
+		form.Separator(c, true)
+		c.Key("job-notifications")
+		if on := s.JobNotifications(); form.SwitchRow(c, locales.SettingsGeneralNotify(), locales.SettingsGeneralNotifyHint(), &on) {
+			s.SetJobNotifications(on)
+			s.Save()
+		}
 		form.Separator(c, true)
 		s.updateRows(c)
 	})
@@ -145,7 +150,7 @@ func (s screen) libraryRows(c *ui.Context) {
 		return
 	}
 	dirs := s.KnownLibraries()
-	labels := libraryLabels(dirs)
+	labels := films.LibraryLabels(dirs)
 	chosen := ""
 	for i, known := range dirs {
 		if filepath.Clean(known) == filepath.Clean(dir) {
@@ -166,7 +171,7 @@ func (s screen) libraryRows(c *ui.Context) {
 	form.Row(c, locales.SettingsGeneralLocation(), "", func() {
 		form.Value(c, films.DisplayPath(dir), 12).Selectable()
 		c.Key("library-reveal")
-		if form.Button(c, locales.SettingsGeneralShowInFinder(), false).Clicked() {
+		if form.Button(c, locales.SettingsGeneralShowInFinder(breeze.PlatformOf(c).String()), false).Clicked() {
 			s.Reveal(dir)
 		}
 	})
@@ -179,22 +184,6 @@ func (s screen) libraryRows(c *ui.Context) {
 			}
 		})
 	}
-}
-
-// libraryLabels names each library in the drop-down by its title, or by its path where two share a title.
-func libraryLabels(dirs []string) []string {
-	count := map[string]int{}
-	for _, dir := range dirs {
-		count[sidebar.Title(dir)]++
-	}
-	labels := make([]string, len(dirs))
-	for i, dir := range dirs {
-		labels[i] = sidebar.Title(dir)
-		if count[labels[i]] > 1 {
-			labels[i] = films.DisplayPath(dir)
-		}
-	}
-	return labels
 }
 
 // ToolFetch is Kando's own download of a program: whether it can download it here, how far one under way has come (Progress, from 0 to 1, or -1 before its size is known), and why the last one failed.

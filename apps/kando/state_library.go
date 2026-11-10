@@ -31,8 +31,14 @@ type libraryUI struct {
 	removing     films.Film
 	removeOpen   bool
 	removeFolder bool
-	// removeRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterFrame gives each back once its dialog has closed.
+	// renaming is the film whose 重命名… dialog is open, while renameOpen. renameName is the title typed into it, which starts as the one the film shows, and renameOriginal the title the film has without one given in Kando (library_rename.go).
+	renaming       films.Film
+	renameOpen     bool
+	renameName     string
+	renameOriginal string
+	// removeRelease, renameRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterFrame gives each back once its dialog has closed.
 	removeRelease func()
+	renameRelease func()
 	sheetRelease  func()
 	// durations is how long each video plays, by path, read with the poster. A video that has none here is not known yet.
 	durations map[string]time.Duration
@@ -40,38 +46,58 @@ type libraryUI struct {
 	quotes map[string]quote
 	// holdExtras keeps loadExtras from starting before the window exists: the background reads it starts report through the window. libraryHooks' restore sets it, as startup begins, and its ready clears it and loads the extras.
 	holdExtras bool
+	// opened are the files the system asked Kando to open (libraryOpenFile, main's mygo.App.OnOpenFile), waiting to be added to the queue: videos chosen with Finder's Open With, dropped on the Dock icon or named on the command line. holdOpened keeps them waiting until the window exists, as holdExtras does: libraryHooks' restore sets it and its ready clears it and posts them. openedPosted is set while a report through update is on its way to add them, so the files of one open arrive in the queue together.
+	opened       []string
+	holdOpened   bool
+	openedPosted bool
+	// sort is the order the done grid shows its films in, one of films.Sorts, kept in settings.json (savedLibrary).
+	sort string
 }
 
 // quote is the first bilingual line of a subtitle file: the translation over the original, as the exported file writes them.
 type quote struct{ translation, original string }
 
 func newLibraryUI() libraryUI {
-	return libraryUI{}
+	return libraryUI{sort: films.SortAdded}
 }
 
-// savedLibrary is the library page's part of settings.json. The libraries themselves are the shelf's (savedShelf).
-type savedLibrary struct{}
+// savedLibrary is the library page's part of settings.json: the order of the done grid. The libraries themselves are the shelf's (savedShelf).
+type savedLibrary struct {
+	LibrarySort string `json:"librarySort,omitempty"`
+}
 
-func (s *savedLibrary) clean() {}
+// clean reads an order Kando does not know, such as one another version saved, as the default.
+func (s *savedLibrary) clean() { s.LibrarySort = films.ValidSort(s.LibrarySort) }
 
-// libraryHooks: the shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. After each frame the library's dialogs hold or give back the window's modal flag.
+// libraryHooks: the grid's order is saved and restored with the settings. The shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each frame the library's dialogs hold or give back the window's modal flag.
 func (a *app) libraryHooks() areaHooks {
 	return areaHooks{
-		restore: func(savedSettings) { a.lib.holdExtras = true },
+		save: func(saved *savedSettings) { saved.savedLibrary = savedLibrary{LibrarySort: a.lib.sort} },
+		restore: func(saved savedSettings) {
+			a.lib.sort = films.ValidSort(saved.LibrarySort)
+			a.lib.holdExtras = true
+			a.lib.holdOpened = true
+		},
 		ready: func() {
 			a.lib.holdExtras = false
 			a.loadExtras()
+			a.lib.holdOpened = false
+			a.libraryPostOpened()
 		},
 		afterFrame:   a.libraryModals,
 		shelfChanged: a.loadExtras,
 	}
 }
 
-// libraryModals keeps the window's modal flag held while the library's dialogs are open. AskRemove holds it as the remove confirmation opens, and it is given back here once the confirmation has closed. The new-library sheet is open while the session is making a library, which the shelf and the sidebar start, so the flag is held here from the frame that first draws the sheet until the frame after it closes.
+// libraryModals keeps the window's modal flag held while the library's dialogs are open. AskRemove and AskRename hold it as the remove confirmation and the rename dialog open, and it is given back here once the dialog has closed. The new-library sheet is open while the session is making a library, which the shelf and the sidebar start, so the flag is held here from the frame that first draws the sheet until the frame after it closes.
 func (a *app) libraryModals() {
 	if !a.lib.removeOpen && a.lib.removeRelease != nil {
 		a.lib.removeRelease()
 		a.lib.removeRelease = nil
+	}
+	if !a.lib.renameOpen && a.lib.renameRelease != nil {
+		a.lib.renameRelease()
+		a.lib.renameRelease = nil
 	}
 	making := a.snap().MakingLibrary
 	switch {
@@ -102,6 +128,13 @@ func (a *app) loadExtras() {
 	for _, item := range items {
 		a.ensurePoster(item)
 		if films.InQueue(item) {
+			a.ensureThumbnail(item)
+		}
+	}
+	// 处理中 also shows the jobs the queue runs for other libraries.
+	for _, item := range a.QueueFilms() {
+		if item.Library != "" {
+			a.ensurePoster(item)
 			a.ensureThumbnail(item)
 		}
 	}

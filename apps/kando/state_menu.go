@@ -35,12 +35,34 @@ func (a *app) menuHooks() areaHooks {
 	}
 }
 
-// menuKeys are the shortcuts of the commands the menu bar brings that no page owns: the library's files and the window's two screens.
+// menuKeys are the shortcuts of the commands the menu bar brings that no page owns: the library's files, the window's two screens, and the links of 帮助 to the website and to the running version's release notes, which have no key and so are items of the menu bar and the palette only.
 func (a *app) menuKeys() []shortcut {
 	return []shortcut{
 		{Group: groupFile, Label: locales.MenuNewLibrary(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyN, Run: a.beginNewLibrary},
 		{Group: groupFile, Label: locales.MenuOpenLibrary(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyO, Run: a.pickLibrary},
 		{Group: groupWindow, Label: locales.MenuWindowLibrary(), Mods: ui.Cmd, Key: ui.Key1, Checked: func() bool { return a.page == pageFilms && a.openKey == "" }, Run: func() { a.Select(pageFilms) }},
 		{Group: groupWindow, Label: locales.MenuWindowPlayer(), Mods: ui.Cmd, Key: ui.Key2, When: func() bool { _, ok := a.lastFilm(); return ok }, Checked: func() bool { return a.openKey != "" }, Run: a.reopenFilm},
+		{Group: groupHelp, Label: locales.MenuWebsite(), Run: func() { a.menuOpenLink(menuWebsiteURL) }},
+		{Group: groupHelp, Label: locales.MenuReleaseNotes(), Run: func() { a.menuOpenLink(menuReleaseNotesURL()) }},
+	}
+}
+
+// menuWebsiteURL is Kando's website, the landing page apps/site renders.
+const menuWebsiteURL = "https://kando.yldm.ai"
+
+// menuReleasesURL is where the Release workflow publishes each version, under its tag vX.Y.Z.
+const menuReleasesURL = "https://github.com/yldm-tech/Kando/releases/tag/"
+
+// menuReleaseNotesURL is the release of the version running now, whose notes say what it changed.
+func menuReleaseNotesURL() string { return menuReleasesURL + "v" + appVersion }
+
+// menuOpenLink opens url in the user's browser through openExternal, and says in the library's message bar when the system could not, and on the picture too while a film is open, as the message bar shows only on the library page.
+func (a *app) menuOpenLink(url string) {
+	if err := openExternal(url); err != nil {
+		msg := locales.MenuOpenLinkFailed(url, err.Error())
+		a.warn(msg, "")
+		if a.openKey != "" {
+			a.flash(msg)
+		}
 	}
 }

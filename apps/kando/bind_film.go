@@ -62,7 +62,8 @@ func (a *app) FilmSide() string { return a.player.filmSide }
 
 func (a *app) SetFilmSide(id string) { a.player.filmSide = id }
 
-func (a *app) Seek(at time.Duration) { a.seekPlayback(at) }
+// Seek plays from at, where the scrubber or a line of the side panel was clicked; a looped line moves with it (playerSeek).
+func (a *app) Seek(at time.Duration) { a.playerSeek(at) }
 
 func (a *app) Skip(d time.Duration) {
 	if a.player.play == nil {
@@ -197,9 +198,10 @@ func (a *app) filmOwnsTitleBar() bool { return a.filmFillsWindow() }
 // filmPadding is the padding around an open film that fills the window (filmFillsWindow): none, the picture runs to the window's edges.
 func (a *app) filmPadding() (x, y float32) { return 0, 0 }
 
-// closeFilm goes back from the open film to the page it was opened from, as the film's back button does.
+// closeFilm goes back from the open film to the page it was opened from, as the film's back button does, and stops looping its line.
 func (a *app) closeFilm() {
 	a.openKey = ""
+	a.player.film.loop = playerLoop{}
 	a.stopPlayback()
 }
 
@@ -226,7 +228,7 @@ func (a *app) skip(d time.Duration) {
 	if play.duration > 0 && at > play.duration {
 		at = play.duration
 	}
-	a.seekPlayback(at)
+	a.playerSeek(at)
 }
 
 // toggleSubtitles is V: it hides the subtitles, or shows them again in the mode they had.
@@ -272,6 +274,20 @@ func (a *app) searchSubtitles() {
 	a.player.film.searchFocus = true
 }
 
+// copyCurrentLine is ⇧⌘C: the subtitle line at the playhead on the clipboard, as the side panel's Copy Line puts it (film.LineText), saying so on the picture. Between two lines, or before the film's subtitles are read, there is nothing to copy and it does nothing. It goes by PlayHead, so while the picture is still opening, or without one (no ffmpeg), it copies the line where the film opens, and it copies with the subtitles turned off (V) as well: hiding the lines from the picture is no reason to keep them off the clipboard. ⌘C stays Edit › Copy's, for the text fields.
+func (a *app) copyCurrentLine() {
+	subs := &a.player.subs
+	if subs.key != a.openKey || !subs.ready {
+		return
+	}
+	cue, ok := film.CueAt(subs.cues, a.PlayHead()-a.Delay())
+	if !ok {
+		return
+	}
+	a.services.WriteClipboard(film.LineText(cue.Text))
+	a.flash(locales.PlayerOsdCopied())
+}
+
 // playerSaveSettings keeps the subtitle settings, saying so on the picture when they cannot be saved.
 func (a *app) playerSaveSettings() {
 	if err := a.saveSettings(); err != nil {
@@ -283,15 +299,23 @@ func (a *app) playerSaveSettings() {
 func (a *app) playerKeys() []shortcut {
 	playing := func() bool { return a.openKey != "" && a.player.play != nil }
 	open := func() bool { return a.openKey != "" }
+	// L also works while the picture opens again, as it does on every pass of a looped line, so turning the loop off is not missed then.
+	opening := func() bool { return a.openKey != "" && (a.player.play != nil || a.player.playPath != "") }
 	return []shortcut{
 		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(), Key: ui.KeySpace, When: playing, Run: func() { a.player.play.toggle() }},
 		{Group: groupPlayback, Label: locales.FilmSkipBack(5), Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-5 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipForward(5), Key: ui.KeyRight, When: playing, Run: func() { a.Skip(5 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipBack(30), Mods: ui.Cmd, Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-30 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipForward(30), Mods: ui.Cmd, Key: ui.KeyRight, When: playing, Run: func() { a.Skip(30 * time.Second) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyPrevLine(), Key: ui.KeyA, When: playing, Run: a.PrevLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyNextLine(), Key: ui.KeyD, When: playing, Run: a.NextLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyReplayLine(), Key: ui.KeyR, When: playing, Run: a.ReplayLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(), Key: ui.KeyL, When: opening, Checked: a.LoopLine, Run: a.ToggleLoopLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(), Key: ui.KeyUp, When: open, Run: func() { a.playerNudgeVolume(1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(), Key: ui.KeyDown, When: open, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(), Key: ui.KeyM, When: open, Run: a.ToggleMute},
+		{Group: groupPlayback, Label: locales.PlayerKeySlower(), Mods: ui.Shift, Key: ui.KeyComma, When: open, Run: func() { a.playerStepRate(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyFaster(), Mods: ui.Shift, Key: ui.KeyPeriod, When: open, Run: func() { a.playerStepRate(1) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(), Key: ui.KeyV, When: open, Run: a.toggleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(), Key: ui.KeyS, When: open, Run: a.cycleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(), Key: ui.KeyZ, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
@@ -299,6 +323,7 @@ func (a *app) playerKeys() []shortcut {
 		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(), Mods: ui.Cmd, Key: ui.KeyEqual, When: open, Run: func() { a.scaleSubtitles(2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySmaller(), Mods: ui.Cmd, Key: ui.KeyMinus, When: open, Run: func() { a.scaleSubtitles(-2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySearch(), Mods: ui.Cmd, Key: ui.KeyF, When: open, Run: a.searchSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyCopyLine(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyC, When: open, Run: a.copyCurrentLine},
 		{Group: groupView, Label: locales.PlayerKeyToggleSidebar(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyT, When: open, Run: a.TogglePanel},
 		{Group: groupView, Label: locales.FilmFullScreen(), Key: ui.KeyF, When: open, Run: a.ToggleFullScreen},
 		{Group: groupView, Label: locales.FilmBackToLibrary(), Key: ui.KeyEscape, When: open, Run: a.escapeFilm},

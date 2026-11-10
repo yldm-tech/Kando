@@ -55,9 +55,13 @@ func cheatsheetLayout() []cheatsheetGroup {
 			{locales.CheatsheetPlayPause(), []cheatsheet.Combo{{Key: ui.KeySpace}}},
 			{locales.CheatsheetSkip5(), []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}},
 			{locales.CheatsheetSkip30(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyLeft}, {Mods: ui.Cmd, Key: ui.KeyRight}}},
+			{locales.CheatsheetPrevNextLine(), []cheatsheet.Combo{{Key: ui.KeyA}, {Key: ui.KeyD}}},
+			{"", []cheatsheet.Combo{{Key: ui.KeyR}}},
+			{"", []cheatsheet.Combo{{Key: ui.KeyL}}},
 			{"", []cheatsheet.Combo{{Key: ui.KeyF}}},
 			{locales.CheatsheetVolume(), []cheatsheet.Combo{{Key: ui.KeyUp}, {Key: ui.KeyDown}}},
 			{"", []cheatsheet.Combo{{Key: ui.KeyM}}},
+			{locales.CheatsheetSpeed(), []cheatsheet.Combo{{Mods: ui.Shift, Key: ui.KeyComma}, {Mods: ui.Shift, Key: ui.KeyPeriod}}},
 		}},
 		{groupSubtitles, []cheatsheetLine{
 			{locales.CheatsheetSubtitlesShowHide(), []cheatsheet.Combo{{Key: ui.KeyV}}},

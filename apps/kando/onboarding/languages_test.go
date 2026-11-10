@@ -5,7 +5,16 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"kando/packages/media"
 )
+
+// TestSpeechLanguagesAreTheTiles keeps the languages the speech settings offer as the one spoken in the videos (media.SpeechLanguages) the same as the ones this guide offers, so a language added here can be told to whisper and is not dropped from settings.json.
+func TestSpeechLanguagesAreTheTiles(t *testing.T) {
+	if got, want := slices.Sorted(slices.Values(media.SpeechLanguages())), slices.Sorted(slices.Values(tileCodes)); !slices.Equal(got, want) {
+		t.Fatalf("speech languages %q, the guide's languages %q", got, want)
+	}
+}
 
 func TestLinkHint(t *testing.T) {
 	for _, tc := range []struct {

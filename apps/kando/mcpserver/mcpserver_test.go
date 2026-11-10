@@ -97,6 +97,18 @@ func (f *fakeApp) handle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return remote.Job{ID: p.ID, Source: "https://youtu.be/y", Stage: "failed", Canceled: true}, nil
+	case remote.MethodRetry, remote.MethodRemove:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		if p.ID != "j0" {
+			return nil, remote.Errorf(remote.CodeNotFound, "no job %s", p.ID)
+		}
+		if method == remote.MethodRemove {
+			return nil, nil
+		}
+		return remote.Job{ID: p.ID, Source: "https://youtu.be/x", Stage: "queued"}, nil
 	case remote.MethodSites:
 		return []remote.Site{{Name: "Vimeo", Domain: "vimeo.com"}}, nil
 	case remote.MethodShow:
@@ -221,6 +233,8 @@ func TestListTools(t *testing.T) {
 		"kando_add_videos":    {openWorld: true},
 		"kando_list_jobs":     {readOnly: true, idempotent: true},
 		"kando_cancel_job":    {destructive: true, idempotent: true},
+		"kando_retry_job":     {destructive: true, openWorld: true},
+		"kando_remove_job":    {destructive: true, idempotent: true},
 		"kando_search_sites":  {readOnly: true, idempotent: true},
 		"kando_open":          {idempotent: true},
 	}
@@ -334,7 +348,29 @@ func TestChangingTools(t *testing.T) {
 		t.Errorf("canceled job = %+v", job)
 	}
 
-	res := call(t, cs, "kando_open", map[string]any{"id": "f1"})
+	retried := structured[remote.Job](t, call(t, cs, "kando_retry_job", map[string]any{"id": "j0"}))
+	if retried.ID != "j0" || retried.Stage != "queued" {
+		t.Errorf("retried job = %+v", retried)
+	}
+	if got := string(f.lastParams(remote.MethodRetry)); got != `{"id":"j0"}` {
+		t.Errorf("retry params = %s", got)
+	}
+	if res := call(t, cs, "kando_retry_job", map[string]any{"id": "j7"}); !res.IsError || !strings.Contains(text(t, res), "no job j7") {
+		t.Errorf("retry of an unknown job = %v %q", res.IsError, text(t, res))
+	}
+
+	res := call(t, cs, "kando_remove_job", map[string]any{"id": "j0"})
+	if removed := structured[removeJobOutput](t, res); removed.Removed != "j0" || !strings.Contains(text(t, res), "Job j0 was removed") {
+		t.Errorf("remove = %+v, %q", removed, text(t, res))
+	}
+	if got := string(f.lastParams(remote.MethodRemove)); got != `{"id":"j0"}` {
+		t.Errorf("remove params = %s", got)
+	}
+	if res := call(t, cs, "kando_remove_job", map[string]any{"id": "j7"}); !res.IsError || !strings.Contains(text(t, res), "no job j7") {
+		t.Errorf("remove of an unknown job = %v %q", res.IsError, text(t, res))
+	}
+
+	res = call(t, cs, "kando_open", map[string]any{"id": "f1"})
 	if shown := structured[openOutput](t, res); shown.Shown != "f1" || !strings.Contains(text(t, res), "film f1") {
 		t.Errorf("open = %+v, %q", shown, text(t, res))
 	}
@@ -477,7 +513,7 @@ func TestRedial(t *testing.T) {
 	}
 }
 
-// TestLostAddAnswer is an app that reads a request to add videos and quits before it answers: the request is not sent again, as the videos may be queued, and the error says to look at the jobs. A read-only request lost the same way is sent again.
+// TestLostAddAnswer is an app that reads a request to add videos, or to retry a job, and quits before it answers: the request is not sent again, as the videos or the job may be queued, and the error says to look at the jobs. A read-only request lost the same way is sent again.
 func TestLostAddAnswer(t *testing.T) {
 	path := shortSocket(t)
 	listener, err := net.Listen("unix", path)
@@ -493,20 +529,29 @@ func TestLostAddAnswer(t *testing.T) {
 			if err != nil {
 				return
 			}
+			// jobs.list and jobs.remove are answered from their second request on, and the connection stays open after an answer. Every other request, and the first of those two, gets no answer and the connection closes, as when the app quits after reading it.
 			go func() {
 				defer conn.Close()
-				line, err := bufio.NewReader(conn).ReadBytes('\n')
-				if err != nil {
-					return
-				}
-				var req remote.Request
-				json.Unmarshal(line, &req)
-				mu.Lock()
-				got[req.Method]++
-				n := got[req.Method]
-				mu.Unlock()
-				if req.Method == remote.MethodJobs && n > 1 {
-					json.NewEncoder(conn).Encode(remote.Response{ID: req.ID, Result: json.RawMessage(`[]`)})
+				r := bufio.NewReader(conn)
+				for {
+					line, err := r.ReadBytes('\n')
+					if err != nil {
+						return
+					}
+					var req remote.Request
+					json.Unmarshal(line, &req)
+					mu.Lock()
+					got[req.Method]++
+					n := got[req.Method]
+					mu.Unlock()
+					switch {
+					case req.Method == remote.MethodJobs && n > 1:
+						json.NewEncoder(conn).Encode(remote.Response{ID: req.ID, Result: json.RawMessage(`[]`)})
+					case req.Method == remote.MethodRemove && n > 1:
+						json.NewEncoder(conn).Encode(remote.Response{ID: req.ID, Error: remote.Errorf(remote.CodeNotFound, "no job %q in the open library", "j0")})
+					default:
+						return
+					}
 				}
 			}()
 		}
@@ -517,14 +562,22 @@ func TestLostAddAnswer(t *testing.T) {
 	if !res.IsError || !strings.Contains(text(t, res), "check kando_list_jobs before adding them again") {
 		t.Errorf("add with a lost answer = %v %q", res.IsError, text(t, res))
 	}
+	res = call(t, cs, "kando_retry_job", map[string]any{"id": "j0"})
+	if !res.IsError || !strings.Contains(text(t, res), "check kando_list_jobs before retrying it again") {
+		t.Errorf("retry with a lost answer = %v %q", res.IsError, text(t, res))
+	}
 	res = call(t, cs, "kando_list_jobs", nil)
 	if out := structured[listJobsOutput](t, res); len(out.Jobs) != 0 {
 		t.Errorf("jobs = %+v", out)
 	}
+	res = call(t, cs, "kando_remove_job", map[string]any{"id": "j0"})
+	if res.IsError || structured[removeJobOutput](t, res).Removed != "j0" {
+		t.Errorf("remove with a lost answer = %v %q, want it removed, as the first request did", res.IsError, text(t, res))
+	}
 	mu.Lock()
 	defer mu.Unlock()
-	if got[remote.MethodAdd] != 1 || got[remote.MethodJobs] != 2 {
-		t.Errorf("requests = %v, want the add once and the jobs twice", got)
+	if got[remote.MethodAdd] != 1 || got[remote.MethodRetry] != 1 || got[remote.MethodRemove] != 2 || got[remote.MethodJobs] != 2 {
+		t.Errorf("requests = %v, want the add and the retry once and the remove and the jobs twice", got)
 	}
 }
 

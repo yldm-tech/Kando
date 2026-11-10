@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"runtime"
@@ -67,6 +68,7 @@ func (a *app) UploadView(item films.Film) film.Upload {
 	if a.cloud.uploadPath == item.VideoPath {
 		view.Detail = uploadProgress(a.cloud.uploadWritten, a.cloud.uploadTotal)
 		view.Status = film.UploadBusy
+		view.Canceling = a.cloud.uploadCancel == nil
 		if a.cloud.uploadTotal > 0 {
 			view.Progress = float64(a.cloud.uploadWritten) / float64(a.cloud.uploadTotal)
 		}
@@ -91,6 +93,9 @@ func (a *app) UploadView(item films.Film) film.Upload {
 	if a.cloud.uploadErrPath == done && a.cloud.uploadErr != nil {
 		view.Detail = a.cloud.uploadErr()
 		view.Status = film.UploadFailed
+		if a.cloud.uploadCanceled {
+			view.Status = film.UploadCanceled
+		}
 		return view
 	}
 	if key := a.cloud.uploaded[done]; key != "" {
@@ -104,6 +109,7 @@ func (a *app) BeginUpload(item films.Film) {
 	if strings.TrimSpace(item.VideoPath) == "" || a.cloud.uploadPath != "" || a.uploadBlocked() != "" {
 		return
 	}
+	a.cloud.uploadCanceled = false
 	info, err := os.Stat(item.VideoPath)
 	if err != nil || info.IsDir() {
 		a.cloud.uploadErr = locales.AccountVideoMissing
@@ -132,11 +138,22 @@ func (a *app) BeginUpload(item films.Film) {
 	a.cloud.uploadErrPath = ""
 	cfg := a.currentStore()
 	videoPath := item.VideoPath
-	go a.runUpload(videoPath, videoKey, cfg, files)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	a.cloud.uploadCancel = cancel
+	go a.runUpload(ctx, cancel, videoPath, videoKey, cfg, files)
 }
 
-func (a *app) runUpload(videoPath, videoKey string, cfg cloud.Store, files []cloud.File) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+// CancelUpload stops the upload running now. The upload ends as soon as the storage's client gives up, and runUpload then frees the slot for another film and says the upload was canceled.
+func (a *app) CancelUpload() {
+	if a.cloud.uploadCancel == nil {
+		return
+	}
+	a.cloud.uploadCancel()
+	a.cloud.uploadCancel = nil
+}
+
+// runUpload sends files with ctx, which BeginUpload made and cancel releases, and records how it ended: the object key of a film uploaded, saved in settings.json, or why it failed, or that it was canceled.
+func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPath, videoKey string, cfg cloud.Store, files []cloud.File) {
 	defer cancel()
 	err := a.putFiles(ctx, cfg, files, func(written, total int64) {
 		a.update(func() {
@@ -146,13 +163,22 @@ func (a *app) runUpload(videoPath, videoKey string, cfg cloud.Store, files []clo
 			a.cloud.uploadWritten, a.cloud.uploadTotal = written, total
 		})
 	})
+	// Whether CancelUpload stopped it is decided here, before the deferred cancel runs: a.update may run its function after runUpload returns (win.Update only posts it), when ctx is canceled for every upload.
+	canceled := err != nil && (errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled))
 	a.update(func() {
 		if a.cloud.uploadPath != videoPath {
 			return
 		}
 		a.cloud.uploadPath = ""
 		a.cloud.uploadWritten, a.cloud.uploadTotal = 0, 0
+		a.cloud.uploadCancel = nil
 		done := storeKind(cfg.Kind) + "\n" + videoPath
+		if canceled {
+			a.cloud.uploadErr = locales.AccountUploadCanceled
+			a.cloud.uploadErrPath = done
+			a.cloud.uploadCanceled = true
+			return
+		}
 		if err != nil {
 			a.cloud.uploadErr = func() string { return uploadFailure(err, cfg.Secret, cfg.AccessKey) }
 			a.cloud.uploadErrPath = done
@@ -162,6 +188,9 @@ func (a *app) runUpload(videoPath, videoKey string, cfg cloud.Store, files []clo
 			a.cloud.uploaded = map[string]string{}
 		}
 		a.cloud.uploaded[done] = videoKey
+		if saveErr := a.saveSettings(); saveErr != nil {
+			a.saveErr = locales.AccountUploadUnsaved(saveErr.Error())
+		}
 	})
 }
 

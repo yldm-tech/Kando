@@ -56,7 +56,7 @@ func feedbackFilmApp(t *testing.T) (*app, *ui.Tester, chan func(), string) {
 	a.prefs.toolVersions = map[string]string{tools.YTDLP: "2026.09.14", tools.FFmpeg: "7.1"}
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
-		ID: "job1", Source: (&url.URL{Scheme: "file", Path: video}).String(), Language: "简体中文", Stage: core.StageComplete,
+		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
 		VideoPath: video, SubtitlePath: srt, LibraryDir: dir,
 	}}
 	tt.Frame()
@@ -438,7 +438,7 @@ func TestFeedbackItemsAreMenuOnlyRows(t *testing.T) {
 			}
 			got = append(got, it.Label)
 		}
-		if !slices.Equal(got, []string{"快捷键速查", "重新查看入门引导", "-", "反馈问题…", "反馈字幕质量…", "支持的网站…"}) {
+		if !slices.Equal(got, []string{"快捷键速查", "重新查看入门引导", "-", "看懂官网", "更新说明", "反馈问题…", "反馈字幕质量…", "支持的网站…", "显示日志文件"}) {
 			t.Fatalf("帮助 menu %q", got)
 		}
 	}

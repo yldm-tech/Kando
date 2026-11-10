@@ -65,6 +65,18 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return a.remoteCancel(ctx, p.ID)
+	case remote.MethodRetry:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return a.remoteRetry(ctx, p.ID)
+	case remote.MethodRemove:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return nil, a.remoteRemove(ctx, p.ID)
 	case remote.MethodSites:
 		p, err := remote.Params[remote.SitesParams](params)
 		if err != nil {
@@ -81,7 +93,7 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 	return nil, remote.Errorf(remote.CodeUnknownMethod, "unknown method %q", method)
 }
 
-// remoteStatus is what the app is and whether a job can start: the sidebar's status line, the tools the pipeline runs, and the open library's queue.
+// remoteStatus is what the app is and whether a job can start: the sidebar's status line, the tools the pipeline runs, and the queue as the open library's 处理中 shows it (remoteQueue).
 func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 	return remote.OnUI(ctx, a.update, func() (remote.Status, error) {
 		ready := a.readiness()
@@ -115,12 +127,8 @@ func (a *app) remoteFilms(ctx context.Context, p remote.FilmsParams) ([]remote.F
 			return nil, err
 		}
 		out := []remote.Film{}
-		query := strings.ToLower(strings.TrimSpace(p.Query))
 		for _, item := range all {
-			if !remoteFromSource(item, p.Source) {
-				continue
-			}
-			if query != "" && !strings.Contains(strings.ToLower(remoteFilmTitle(item)), query) {
+			if !remoteFromSource(item, p.Source) || !films.MatchesTitle(item, p.Query) {
 				continue
 			}
 			out = append(out, remoteFilmOf(item))
@@ -175,7 +183,7 @@ func (a *app) remoteSubtitles(ctx context.Context, id string) ([]remote.Cue, err
 	return remoteCues(original, bilingual), nil
 }
 
-// remoteJobs is the open library's jobs: the running one, the waiting ones in the order they will run, then the finished ones, newest first.
+// remoteJobs is the open library's jobs and those the queue runs for other libraries: the running one, the waiting ones in the order they will run, then the open library's finished ones, newest first (remoteQueue).
 func (a *app) remoteJobs(ctx context.Context) ([]remote.Job, error) {
 	jobs, err := remote.OnUI(ctx, a.update, func() ([]remote.Job, error) {
 		if strings.TrimSpace(a.snap().LibraryDir) == "" {
@@ -184,7 +192,7 @@ func (a *app) remoteJobs(ctx context.Context) ([]remote.Job, error) {
 		running, waiting, finished := a.remoteQueue()
 		out := []remote.Job{}
 		for _, job := range slices.Concat(running, waiting, finished) {
-			out = append(out, remoteJobOf(job))
+			out = append(out, a.remoteJobOf(job))
 		}
 		return out, nil
 	})
@@ -237,7 +245,7 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 		}
 		for _, id := range ids {
 			if job, ok := a.library.Find(id); ok {
-				res.Jobs = append(res.Jobs, remoteJobOf(job))
+				res.Jobs = append(res.Jobs, a.remoteJobOf(job))
 			}
 		}
 		return res, nil
@@ -251,7 +259,7 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 	return added, nil
 }
 
-// remoteCancel cancels job id of the open library as the queue card's 取消 does, and answers it once it has stopped: a waiting job leaves the queue at once, and the running one when its pipeline returns.
+// remoteCancel cancels job id of the open library, or one the queue runs for another library, as the queue card's 取消 does, and answers it once it has stopped: a waiting job leaves the queue at once, and the running one when its pipeline returns.
 func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 	job, err := remote.OnUI(ctx, a.update, func() (core.Job, error) {
 		job, err := a.remoteFindJob(id)
@@ -269,11 +277,12 @@ func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 			if a.queue.active == id {
 				return remote.Job{}, nil
 			}
-			job, err := a.remoteFindJob(id)
-			if err != nil {
-				return remote.Job{}, err
+			// A job of another library leaves 处理中 once it has stopped, so it is looked up on the shelf rather than with remoteFindJob.
+			job, ok := a.library.Find(id)
+			if !ok {
+				return remote.Job{}, remote.Errorf(remote.CodeNotFound, "job %q was removed", id)
 			}
-			return remoteJobOf(job), nil
+			return a.remoteJobOf(job), nil
 		})
 		if err != nil {
 			return remote.Job{}, err
@@ -288,6 +297,53 @@ func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
+}
+
+// remoteRetry queues job id of the open library again under the same ID, as the queue card's 重试 does for a failed or canceled job and 重新处理 for a done one, but without moving the window: the page and the card the library follows stay as they are. A job still running or waiting is refused; when it cannot start now, as the library's message bar would say after the precheck, or no language is set, it answers not_ready with that message. It answers the job as it is once queued.
+func (a *app) remoteRetry(ctx context.Context, id string) (remote.Job, error) {
+	job, err := remote.OnUI(ctx, a.update, func() (remote.Job, error) {
+		job, err := a.remoteFindJob(id)
+		if err != nil {
+			return remote.Job{}, err
+		}
+		ready, err := a.queueRetryable(job)
+		if errors.Is(err, errInQueue) {
+			return remote.Job{}, remote.Errorf(remote.CodeInvalid, "job %s is still running or waiting in the queue; cancel it first, or wait until it ends", id)
+		}
+		if msg, _ := a.precheck([]string{job.Source}); msg != "" {
+			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", msg)
+		}
+		if err != nil {
+			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", err.Error())
+		}
+		// As 重新处理 does, the hero forgets the first line it read from the subtitles the job will write again.
+		delete(a.lib.quotes, job.SubtitlePath)
+		a.queueAdd(ready)
+		queued, err := a.remoteFindJob(id)
+		if err != nil {
+			return remote.Job{}, err
+		}
+		return a.remoteJobOf(queued), nil
+	})
+	if err != nil {
+		return remote.Job{}, err
+	}
+	remoteJobFiles(&job)
+	return job, nil
+}
+
+// remoteRemove takes job id off the open library's shelf as the queue card's 移除 does: a running job is stopped, the film open in the player closes when it is this one, and its files stay on disk. When it is the card the library follows, the library stops following it, but the link field keeps what the user may be typing there.
+func (a *app) remoteRemove(ctx context.Context, id string) error {
+	_, err := remote.OnUI(ctx, a.update, func() (struct{}, error) {
+		if _, err := a.remoteFindJob(id); err != nil {
+			return struct{}{}, err
+		}
+		source := a.queue.source
+		a.remove(id)
+		a.queue.source = source
+		return struct{}{}, nil
+	})
+	return err
 }
 
 // remoteSites is the websites Kando downloads from that p.Query finds, as the sites sheet lists them, at most p.Limit of them when it is set.
@@ -363,46 +419,47 @@ func (a *app) remoteFind(id string) (films.Film, error) {
 	return item, nil
 }
 
-// remoteFindJob is job id when it is on the open library's shelf. UI thread only.
+// remoteFindJob is job id when it is on the open library's shelf, or one the queue runs or will run for another library (queueElsewhere), as 处理中 shows it. UI thread only.
 func (a *app) remoteFindJob(id string) (core.Job, error) {
 	root := a.snap().LibraryDir
 	if strings.TrimSpace(root) == "" {
 		return core.Job{}, remote.Errorf(remote.CodeNotReady, "%s", locales.PrecheckNoLibrary())
 	}
 	job, ok := a.library.Find(id)
-	if id == "" || !ok || !films.InLibrary(root, job) {
+	if id == "" || !ok || (!films.InLibrary(root, job) && !a.queueElsewhere(job)) {
 		return core.Job{}, remote.Errorf(remote.CodeNotFound, "no job %q in the open library", id)
 	}
 	return job, nil
 }
 
-// remoteQueue is the open library's jobs in the order jobs.list gives them: the running one, the waiting ones as the queue will run them (the queue's order, then those read back as queued that it has not taken in yet, oldest first, as pump takes them), and the rest as the shelf keeps them, newest first. UI thread only.
+// remoteQueue is the jobs in the order jobs.list gives them: the running one, the waiting ones as the queue will run them (the queue's order, then those read back as queued that it has not taken in yet, oldest first, as pump takes them), and the rest of the open library's as the shelf keeps them, newest first. The running and waiting ones include those the queue runs for another library (queueElsewhere), as 处理中 shows them; the finished ones include those the queue ran to the end since launch for another library (jobQueue.ran), so a client polling jobs.list for a job sees how it ended after another library is opened. UI thread only.
 func (a *app) remoteQueue() (running, waiting, finished []core.Job) {
 	root := a.snap().LibraryDir
 	seen := map[string]bool{}
-	take := func(job core.Job, ok bool) bool {
-		if !ok || seen[job.ID] || !films.InLibrary(root, job) {
+	// take reports whether job goes in the list: it is on the open library's shelf, or elsewhere says the list keeps it although it saves into another library, and it is not in the list yet.
+	take := func(job core.Job, elsewhere bool) bool {
+		if seen[job.ID] || !(films.InLibrary(root, job) || elsewhere) {
 			return false
 		}
 		seen[job.ID] = true
 		return true
 	}
-	if job, ok := a.library.Find(a.queue.active); a.queue.active != "" && take(job, ok) {
+	if job, ok := a.library.Find(a.queue.active); a.queue.active != "" && ok && take(job, a.queueElsewhere(job)) {
 		running = append(running, job)
 	}
 	for _, id := range a.queue.order {
 		job, ok := a.library.Find(id)
-		if ok && job.Stage == core.StageQueued && take(job, true) {
+		if ok && job.Stage == core.StageQueued && take(job, a.queueElsewhere(job)) {
 			waiting = append(waiting, job)
 		}
 	}
 	for i := len(a.library.Jobs) - 1; i >= 0; i-- {
-		if job := a.library.Jobs[i]; job.Stage == core.StageQueued && take(job, true) {
+		if job := a.library.Jobs[i]; job.Stage == core.StageQueued && take(job, a.queueElsewhere(job)) {
 			waiting = append(waiting, job)
 		}
 	}
 	for _, job := range a.library.Jobs {
-		if take(job, true) {
+		if take(job, a.queue.ran[job.ID]) {
 			finished = append(finished, job)
 		}
 	}
@@ -466,8 +523,8 @@ func remoteFilmFiles(f *remote.Film) {
 }
 
 // remoteJobOf is job as the socket answers it, without its film (remoteJobFiles). UI thread only, as it says the status in the interface's language.
-func remoteJobOf(job core.Job) remote.Job {
-	name := jobName(job)
+func (a *app) remoteJobOf(job core.Job) remote.Job {
+	name := a.libraryJobName(job)
 	status, _ := failureHint(films.FromJob(job, name, statusText(job)))
 	j := remote.Job{
 		ID:        job.ID,
@@ -537,17 +594,21 @@ func remoteSource(given, dir string) (source, reason string) {
 	if info.IsDir() || !media.IsVideoFile(path) {
 		return "", locales.PrecheckNoVideo()
 	}
-	return fileURL(path), ""
+	return core.FileURL(path), ""
 }
 
 // remoteLocalPath reports whether s names a local file rather than a link, and its absolute path: a file:// URL, a path that starts at the root, the home folder (~/) or the current folder (./, ../), or anything else that is a video's file name or names a file in dir. path is "" for a relative path without dir.
 func remoteLocalPath(s, dir string) (path string, local bool) {
 	if strings.HasPrefix(strings.ToLower(s), "file:") {
 		u, err := url.Parse(s)
-		if err != nil || u.Path == "" {
+		if err != nil {
 			return "", false
 		}
-		return filepath.Clean(u.Path), true
+		path, local := core.FilePath(u)
+		if !local {
+			return "", false
+		}
+		return filepath.Clean(path), true
 	}
 	if rest, ok := strings.CutPrefix(s, "~"+string(filepath.Separator)); ok {
 		if home, err := os.UserHomeDir(); err == nil {

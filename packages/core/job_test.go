@@ -51,6 +51,17 @@ func TestNewJobAcceptsLocalFileURL(t *testing.T) {
 	}
 }
 
+func TestNewJobAcceptsWindowsFileURL(t *testing.T) {
+	const source = "file:///C:/Users/a%20b/clip.mp4"
+	job, err := NewJob(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Source != source || job.Stage != StageQueued {
+		t.Fatalf("unexpected job: %#v", job)
+	}
+}
+
 func TestFractionClamps(t *testing.T) {
 	for in, want := range map[float64]float64{-0.5: 0, 0: 0, 0.42: 0.42, 1: 1, 3: 1} {
 		p := Fraction(in)

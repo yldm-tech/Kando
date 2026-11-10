@@ -147,7 +147,7 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 	glassFace(capsule, ui.RGBA(255, 255, 255, 0.12), 20, 0.25, 17).Children(func() {
 		if path != "" {
 			c.Key("film-reveal")
-			if glyphButton(c, iconFolder, locales.FilmShowInFinder(), 34, 28, 18, 16).Clicked() {
+			if glyphButton(c, iconFolder, locales.FilmShowInFinder(breeze.PlatformOf(c).String()), 34, 28, 18, 16).Clicked() {
 				s.Reveal(path)
 			}
 		}
@@ -165,7 +165,7 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 				}
 			}
 		}
-		// A finished film can be processed again from the start, as the prototype's ⋯ menu offers; a failed one has 重试 already.
+		// A finished film can be processed again from the start, as the prototype's ⋯ menu offers, or only translated again, every line or those that failed; a failed one has 重试 already.
 		if more {
 			c.Key("film-more")
 			glyphButton(c, iconMore, locales.FilmMoreActions(), 34, 28, 14, 4).Menu(func(m *ui.Menu) {
@@ -174,6 +174,12 @@ func (s screen) actions(c *ui.Context, item films.Film) {
 				}
 				if m.Item(locales.FilmReprocess()).Chosen() {
 					s.RetryOpen(item.JobID)
+				}
+				if m.Item(locales.FilmTranslateAgain()).Chosen() {
+					s.TranslateAgain(item)
+				}
+				if item.Untranslated > 0 && m.Item(locales.FilmTranslateMissing()).Chosen() {
+					s.TranslateMissing(item)
 				}
 			})
 		}

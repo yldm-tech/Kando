@@ -2,8 +2,14 @@ name: Package
 
 # Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's packages, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>. A release build also signs the app's update for each target with the MYGO_UPDATER_PRIVATE_KEY secret and keeps the update files with the packages: the archive of the app as installed, the deltas from earlier versions and the manifest update-<target>.json, from which installed apps update themselves (updates in apps/kando/mygo.json, MyGo's docs/updates.md). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the packages to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
 #
-# The packages are not signed for other machines: the macOS app is signed ad hoc, which Gatekeeper blocks until the user allows it, and the Windows installers carry no signature, for which SmartScreen warns. Signing them needs a Developer ID certificate and notary credentials, and a code signing certificate, as repository secrets (see MyGo's docs/github-actions.md).
+# A release build signs the macOS app and its disk images with YLDM's Developer ID certificate (the MACOS_CERTIFICATE secret, a base64 PKCS#12, and MACOS_CERTIFICATE_PASSWORD) and notarizes the disk images with an App Store Connect API key (APPSTORE_API_KEY_P8, base64, APPSTORE_API_KEY_ID and APPSTORE_API_ISSUER_ID), so Gatekeeper opens them without a warning. The identity and the notary profile go into the build's copy of mygo.json only, so builds on other machines and CI's builds stay signed ad hoc and need no secrets. Run it by hand (Actions › Package › Run workflow) to sign and notarize a branch without releasing: the packages become the run's artifacts. The Windows installers carry no signature yet, for which SmartScreen warns; that needs a code signing certificate (see MyGo's docs/github-actions.md).
 on:
+  workflow_dispatch:
+    inputs:
+      sign:
+        description: Sign and notarize the macOS packages, as a release does
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       tag:
@@ -14,12 +20,32 @@ on:
       MYGO_UPDATER_PRIVATE_KEY:
         description: The secret key that signs the app's updates (mygo keygen); a release build fails without it, as installed apps could not update to the release
         required: false
+      MACOS_CERTIFICATE:
+        description: The Developer ID Application certificate and its private key, as a base64 PKCS#12; a release build fails without it
+        required: false
+      MACOS_CERTIFICATE_PASSWORD:
+        description: The password of MACOS_CERTIFICATE
+        required: false
+      APPSTORE_API_KEY_P8:
+        description: The App Store Connect API key that notarizes the disk images, as a base64 .p8
+        required: false
+      APPSTORE_API_KEY_ID:
+        description: The ID of APPSTORE_API_KEY_P8
+        required: false
+      APPSTORE_API_ISSUER_ID:
+        description: The issuer ID of the App Store Connect team of APPSTORE_API_KEY_P8
+        required: false
+
+env:
+  # The identity in MACOS_CERTIFICATE, by the name codesign finds it by.
+  MACOS_SIGNING_IDENTITY: "Developer ID Application: YLDM Co., Ltd. (LXCL4Z68GU)"
 
 jobs:
   build:
     name: Package (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # Notarizing the two disk images can take Apple's service a while.
+    timeout-minutes: ${{ matrix.name == 'macOS' && 60 || 30 }}
     # mygo build runs MyGo's code and the tools it calls, so the job holds a read-only token and keeps no git credentials; Release uploads the packages from a job of its own.
     permissions:
       contents: read
@@ -58,9 +84,46 @@ jobs:
       - name: Install NSIS, for the Windows installers
         if: matrix.name == 'Windows'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
-      # Only a release build gets the key: CI's builds make no updates, which would only be thrown away.
+      # A release build, or a run by hand that asks for it, signs and notarizes on macOS. The certificate goes into a keychain of the job's own, with the notary credentials, which notarytool checks with Apple as it stores them; the files written from the secrets are deleted at once.
+      - name: Import the signing certificate and the notary key
+        id: signing
+        if: matrix.name == 'macOS' && (inputs.tag != '' || inputs.sign)
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+          APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+          APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+        run: |
+          for name in MACOS_CERTIFICATE MACOS_CERTIFICATE_PASSWORD APPSTORE_API_KEY_P8 APPSTORE_API_KEY_ID APPSTORE_API_ISSUER_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::The $name secret is not set, so the macOS packages cannot be signed and notarized."
+              exit 1
+            fi
+          done
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -base64 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          # shellcheck disable=SC2046 # one argument per keychain path
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | xargs)
+          if ! security find-identity -v -p codesigning "$keychain" | grep -qF "\"$MACOS_SIGNING_IDENTITY\""; then
+            echo "::error::MACOS_CERTIFICATE does not hold $MACOS_SIGNING_IDENTITY."
+            exit 1
+          fi
+          printf '%s' "$APPSTORE_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary-key.p8"
+          xcrun notarytool store-credentials kando-notary --keychain "$keychain" --key "$RUNNER_TEMP/notary-key.p8" --key-id "$APPSTORE_API_KEY_ID" --issuer "$APPSTORE_API_ISSUER_ID" >/dev/null
+          rm "$RUNNER_TEMP/notary-key.p8"
+          echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
+      # Only a release build gets the key: CI's builds make no updates, which would only be thrown away. A signed build names the identity and the notary profile in the job's copy of mygo.json, which is never committed.
       - name: Build
         env:
+          KEYCHAIN: ${{ steps.signing.outputs.keychain }}
           PLATFORM: ${{ matrix.platform }}
           TAG: ${{ inputs.tag }}
           MYGO_UPDATER_PRIVATE_KEY: ${{ inputs.tag != '' && secrets.MYGO_UPDATER_PRIVATE_KEY || '' }}
@@ -69,7 +132,26 @@ jobs:
             echo "::error::The MYGO_UPDATER_PRIVATE_KEY secret is not set, so the release would carry no update that installed apps could install."
             exit 1
           fi
+          if [ -n "$KEYCHAIN" ]; then
+            jq --arg identity "$MACOS_SIGNING_IDENTITY" --arg keychain "$KEYCHAIN" '.macos.signingIdentity = $identity | .macos.notarize = {keychainProfile: "kando-notary", keychain: $keychain}' apps/kando/mygo.json > "$RUNNER_TEMP/mygo.json"
+            mv "$RUNNER_TEMP/mygo.json" apps/kando/mygo.json
+          fi
           go tool mygo build -platform "$PLATFORM" -o "$RUNNER_TEMP/packages" apps/kando
+      # Gatekeeper's own check of what users download: the app is signed with the Developer ID and the hardened runtime, and each disk image carries its notarization ticket.
+      - name: Check the signatures
+        if: steps.signing.outcome == 'success'
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          for target in ${PLATFORM//,/ }; do
+            dir="$RUNNER_TEMP/packages/${target/\//-}"
+            codesign --verify --deep --strict --verbose=2 "$dir/Kando.app"
+            codesign -dvv "$dir/Kando.app" 2>&1 | grep -F "Authority=$MACOS_SIGNING_IDENTITY"
+            for dmg in "$dir"/*.dmg; do
+              xcrun stapler validate "$dmg"
+              spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
+            done
+          done
       # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures. A release build adds each target's update files: exactly one manifest, the archive it names (on Linux the archive above) and the deltas, of which there are none when no earlier release has a manifest. They are copied into one folder, as a release holds its files side by side, with their SHA-256 taken here from the files mygo build made.
       - name: Collect the packages
         env:
@@ -134,3 +216,8 @@ jobs:
           path: ${{ runner.temp }}/out/
           retention-days: 7
           if-no-files-found: error
+      - name: Remove the signing keychain
+        if: always() && steps.signing.outputs.keychain != ''
+        env:
+          KEYCHAIN: ${{ steps.signing.outputs.keychain }}
+        run: security delete-keychain "$KEYCHAIN"

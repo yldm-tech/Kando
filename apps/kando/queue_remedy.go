@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"strings"
 
 	"kando/apps/kando/films"
@@ -15,7 +16,7 @@ import (
 
 // What a failed download's card offers, by why it failed (core.FailKind), in the prototype's words: the remedies a card can run, and the yt-dlp update 更新并重试 runs.
 
-// ytdlpState is what the queue knows of the yt-dlp it downloads with: its version and how it was installed, and the browsers whose logins it can borrow, read off the UI thread when the window is ready and when the tools change, so a card only reads them; whether 更新并重试 is updating it now; and latest, the version an update found to be the newest there is.
+// ytdlpState is what the queue knows of the yt-dlp it downloads with: its version and how it was installed, and the browsers whose logins it can borrow, read off the UI thread when the window is ready and when the tools change, so a card only reads them; whether 更新并重试 is updating it now; latest, the version an update found to be the newest there is; and kitRetry, set by 下载 yt-dlp 并重试 until the yt-dlp Kando downloads for itself is in, when it is updated with -U, as the release it is pinned to may be too old for the site as well, and the downloads yt-dlp was too old for run again with it.
 type ytdlpState struct {
 	path     string
 	version  string
@@ -23,6 +24,7 @@ type ytdlpState struct {
 	browsers []media.Browser
 	updating bool
 	latest   string
+	kitRetry bool
 }
 
 // The remedies' action IDs (films.RemedyAction.ID). A borrowed login is remedyBorrow followed by the browser's --cookies-from-browser name.
@@ -37,6 +39,8 @@ const (
 	remedyFindBrowsers = "find-browsers"
 	// remedySites opens the 支持的网站 sheet, for a card of a site yt-dlp does not know.
 	remedySites = "sites"
+	// remedyDownloadYTDLP downloads Kando's own yt-dlp (media.Kit) in place of one Kando cannot update, and then runs the download again with it.
+	remedyDownloadYTDLP = "download-ytdlp"
 )
 
 // installedBrowsers looks on disk for the browsers whose logins the cards offer to borrow; it runs off the UI thread. Tests replace it.
@@ -169,9 +173,13 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 	return r, true
 }
 
-// outdatedRemedy is the card of a site yt-dlp no longer understands: the version it has, and 更新并重试, or how to update it when Kando cannot.
+// outdatedRemedy is the card of a site yt-dlp no longer understands: the version it has, and 更新并重试, or how to update it when Kando cannot, with 下载 yt-dlp 并重试 first when Kando can download its own yt-dlp here.
 func (a *app) outdatedRemedy(site string) films.Remedy {
 	y := a.queue.ytdlp
+	if _, downloading := a.kitsProgress("yt-dlp"); downloading && y.kitRetry {
+		return films.Remedy{Headline: locales.QueueRemedyDownloadingYtdlp(), Why: locales.QueueRemedyDownloadingYtdlpWhy(), Working: true,
+			Actions: []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: locales.QueueRemedyDownloadingYtdlpAction(), Primary: true, Disabled: true}}}
+	}
 	if y.updating {
 		return films.Remedy{Headline: locales.QueueRemedyUpdating(), Why: locales.QueueRemedyUpdatingWhy(), Working: true,
 			Actions: []films.RemedyAction{{ID: remedyUpdate, Label: locales.QueueRemedyUpdatingAction(), Primary: true, Disabled: true}}}
@@ -185,8 +193,17 @@ func (a *app) outdatedRemedy(site string) films.Remedy {
 		r.Why = locales.QueueRemedyOutdatedVersionWhy(y.version)
 	}
 	if y.path != "" && y.install.Update == nil {
-		r.Why = locales.QueueRemedyOutdatedManualWhy(y.version, queueYTDLPHint(y.install))
-		r.Actions = []films.RemedyAction{{ID: remedyRetry, Label: locales.QueueRemedyUpdated(), Primary: true}}
+		hint := queueYTDLPHint(y.install)
+		if !a.kitsCanInstall("yt-dlp") {
+			r.Why = locales.QueueRemedyOutdatedManualWhy(y.version, hint)
+			r.Actions = []films.RemedyAction{{ID: remedyRetry, Label: locales.QueueRemedyUpdated(), Primary: true}}
+			return r
+		}
+		r.Why = locales.QueueRemedyOutdatedDownloadWhy(y.version, hint)
+		if err := a.kits.errs["yt-dlp"]; err != nil {
+			r.Why = locales.QueueRemedyDownloadYtdlpFailed(kitsError(err))
+		}
+		r.Actions = []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: locales.QueueRemedyDownloadYtdlp(), Primary: true}, {ID: remedyRetry, Label: locales.QueueRemedyUpdated()}}
 		return r
 	}
 	r.Actions = []films.RemedyAction{{ID: remedyUpdate, Label: locales.QueueRemedyUpdate(), Primary: true}}
@@ -200,6 +217,8 @@ func queueYTDLPHint(install media.YTDLPInstall) string {
 		return locales.QueueYtdlpHintBrew()
 	case "pipx":
 		return locales.QueueYtdlpHintPipx()
+	case "system":
+		return locales.QueueYtdlpHintSystem(install.Dir)
 	}
 	return locales.QueueYtdlpHintStandalone(install.Dir)
 }
@@ -247,6 +266,9 @@ func (a *app) RunRemedy(item films.Film, action string) {
 	switch {
 	case action == remedyUpdate:
 		a.queueUpdateYTDLP()
+	case action == remedyDownloadYTDLP:
+		a.queue.ytdlp.kitRetry = true
+		a.kitsInstall("yt-dlp")
 	case action == remedyRetry:
 		a.Retry(job.ID)
 	case strings.HasPrefix(action, remedyBorrow):
@@ -286,10 +308,10 @@ func (a *app) queueUpdateYTDLP() {
 	path, update := tools.YTDLP, a.update
 	go func() {
 		version, err := media.UpdateYTDLP(context.Background(), path)
-		// A yt-dlp Kando cannot update is named by how it was installed, from which the message bar says how to update it.
-		var install media.YTDLPInstall
-		if errors.Is(err, media.ErrCannotUpdate) {
-			install = media.FindYTDLPInstall(path)
+		// How it was installed is read again whatever came of it: a yt-dlp Kando cannot update is named by it, from which the message bar says how to update it, and after 下载 yt-dlp 并重试 the pipeline downloads with Kando's own yt-dlp, which queueReadYTDLP did not record while this ran. A failed update leaves the version it has.
+		install := media.FindYTDLPInstall(path)
+		if err != nil && !errors.Is(err, media.ErrCannotUpdate) {
+			version, _ = media.YTDLPVersion(context.Background(), path)
 		}
 		update(func() {
 			a.queue.ytdlp.updating = false
@@ -297,12 +319,12 @@ func (a *app) queueUpdateYTDLP() {
 				a.warn(locales.QueueUpdateFailed(queueYTDLPHint(install)), "")
 				return
 			}
+			before := a.queue.ytdlp.version
+			a.queue.ytdlp.path, a.queue.ytdlp.version, a.queue.ytdlp.install = path, version, install
 			if err != nil {
 				a.warn(locales.QueueUpdateFailed(err.Error()), "")
 				return
 			}
-			before := a.queue.ytdlp.version
-			a.queue.ytdlp.path, a.queue.ytdlp.version = path, version
 			// The newest yt-dlp there is fails the same way until the site's fix is out: nothing runs again, and the cards say so.
 			if version == before {
 				a.queue.ytdlp.latest = version
@@ -310,18 +332,40 @@ func (a *app) queueUpdateYTDLP() {
 				return
 			}
 			a.queue.ytdlp.latest = ""
-			var outdated []core.Job
-			for _, job := range a.library.Jobs {
-				if job.Stage == core.StageFailed && job.FailKind == core.FailOutdated && films.InLibrary(a.snap().LibraryDir, job) {
-					outdated = append(outdated, job)
-				}
-			}
-			for i := len(outdated) - 1; i >= 0; i-- {
-				a.queueRetry(outdated[i])
-			}
-			a.tell(locales.QueueYtdlpUpdated(version, len(outdated)))
+			a.tell(locales.QueueYtdlpUpdated(version, a.queueRetryOutdated()))
 		})
 	}()
+}
+
+// queueRetryOutdated queues again, oldest first, every download of the open library that failed because yt-dlp was too old, and returns how many.
+func (a *app) queueRetryOutdated() int {
+	var outdated []core.Job
+	for _, job := range a.library.Jobs {
+		if job.Stage == core.StageFailed && job.FailKind == core.FailOutdated && films.InLibrary(a.snap().LibraryDir, job) {
+			outdated = append(outdated, job)
+		}
+	}
+	for i := len(outdated) - 1; i >= 0; i-- {
+		a.queueRetry(outdated[i])
+	}
+	return len(outdated)
+}
+
+// queueRetryWithKit runs, when the tools were looked up again, 更新并重试 on the yt-dlp 下载 yt-dlp 并重试 asked Kando to download for itself, once it is in and the pipeline downloads with it. The kit is the release this Kando was built with, which may be older than the site needs and than the yt-dlp it replaces, so it is updated with -U first (it is a standalone build Kando may write), and the downloads yt-dlp was too old for run again only when that gave a version other than the one they failed with. A download that failed leaves kitRetry set, so the card offers it again and the retry waits for the next one that lands.
+func (a *app) queueRetryWithKit() {
+	if !a.queue.ytdlp.kitRetry {
+		return
+	}
+	if _, downloading := a.kitsProgress("yt-dlp"); downloading {
+		return
+	}
+	kit, ok := media.KitFor("yt-dlp")
+	tools, isTools := a.pipeline.(media.Tools)
+	if !ok || !isTools || media.OwnToolsDir == "" || tools.YTDLP != filepath.Join(media.OwnToolsDir, kit.ID, kit.Program) {
+		return
+	}
+	a.queue.ytdlp.kitRetry = false
+	a.queueUpdateYTDLP()
 }
 
 // queueSwapLink is 换个链接, as the prototype's swapLink: the card goes, the link field above is emptied and takes the focus, and the message bar says to paste the link from elsewhere there. The link pasted starts a job of its own, so nothing of the old one, such as the login it borrowed for its site, carries over.

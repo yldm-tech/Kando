@@ -44,7 +44,7 @@
       {{- end}}
       <p class="lead">{{t "heroLead"}}</p>
       <div class="actions">
-        <a class="btn primary" href="{{.Rel}}">
+        <a class="btn primary" href="{{.Latest}}">
           <svg class="i" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></svg>
           {{t "heroDownload"}}
         </a>
@@ -207,8 +207,8 @@
           <span class="n" aria-hidden="true">01</span>
           <h3>{{t "startDownloadTitle"}}</h3>
           <p>{{t "startDownloadBody"}}</p>
-          <p class="fine">{{t "startDownloadUnsigned"}}</p>
-          <p class="cta-btn"><a class="btn primary" href="{{.Rel}}">{{t "startDownloadButton"}}</a></p>
+          <p class="fine">{{t "startDownloadSigned"}}</p>
+          <p class="cta-btn"><a class="btn primary" href="{{.Latest}}">{{t "startDownloadButton"}}</a></p>
         </article>
         <article class="card" id="tools">
           <span class="n" aria-hidden="true">02</span>
