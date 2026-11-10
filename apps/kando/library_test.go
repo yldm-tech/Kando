@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -1263,5 +1264,180 @@ func TestLibraryNamesTheSystemsFileManager(t *testing.T) {
 				t.Fatalf("the sheet promises the Kando icon: %v, want %v: %q", got, tc.icon, tt.Texts())
 			}
 		})
+	}
+}
+
+// libraryStopJobs takes every waiting job out of the queue and cancels the running one, applying updates until it has stopped, so a test whose pipeline blocks leaves nothing running.
+func libraryStopJobs(a *app, updates chan func()) {
+	for _, job := range slices.Clone(a.library.Jobs) {
+		if job.ID != a.RunningJob() {
+			a.Cancel(job.ID)
+		}
+	}
+	if id := a.RunningJob(); id != "" {
+		a.Cancel(id)
+		for a.RunningJob() != "" {
+			(<-updates)()
+		}
+	}
+}
+
+// libraryOpenedVideos writes a file for each name in a folder of its own and returns their paths.
+func libraryOpenedVideos(t *testing.T, names ...string) []string {
+	t.Helper()
+	dir := t.TempDir()
+	paths := make([]string, len(names))
+	for i, name := range names {
+		paths[i] = filepath.Join(dir, name)
+		if err := os.WriteFile(paths[i], []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return paths
+}
+
+// TestOpenedFilesWaitForTheWindow opens videos as Finder does when it launches Kando with them: they arrive before the window exists, when nothing may report through update, and are added to the queue together once it does.
+func TestOpenedFilesWaitForTheWindow(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() { libraryStopJobs(a, updates) })
+	paths := libraryOpenedVideos(t, "talk.mp4", "interview.mov")
+	hooks := a.libraryHooks()
+	hooks.restore(savedSettings{})
+	a.libraryOpenFile(paths[0])
+	a.libraryOpenFile(paths[0])
+	a.libraryOpenFile(paths[1])
+	if len(a.library.Jobs) != 0 || len(updates) != 0 {
+		t.Fatalf("before the window: jobs %#v, %d updates posted", a.library.Jobs, len(updates))
+	}
+	hooks.ready()
+	if len(updates) != 1 || len(a.library.Jobs) != 0 {
+		t.Fatalf("once the window exists: %d updates posted, jobs %#v; want one report adding both after every area's ready", len(updates), a.library.Jobs)
+	}
+	(<-updates)()
+	tt.Frame()
+	if len(a.library.Jobs) != 2 || len(a.lib.opened) != 0 {
+		t.Fatalf("jobs %#v still waiting %q", a.library.Jobs, a.lib.opened)
+	}
+	for _, path := range paths {
+		if !libraryHasJobFor(a.library.Jobs, fileURL(path)) {
+			t.Fatalf("no job for %s: %#v", path, a.library.Jobs)
+		}
+	}
+	if !tt.HasText(locales.LibraryAddedStarting(2)) {
+		t.Fatalf("the message bar does not say both were added: %q", tt.Texts())
+	}
+}
+
+func libraryHasJobFor(jobs []core.Job, source string) bool {
+	return slices.ContainsFunc(jobs, func(job core.Job) bool { return job.Source == source })
+}
+
+// TestOpenedFilesArriveTogether opens two videos once the window exists, as dropping them on the Dock icon does: MyGo reports them one by one, and they reach the queue in one report through update, on the library, with one message for both.
+func TestOpenedFilesArriveTogether(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() { libraryStopJobs(a, updates) })
+	paths := libraryOpenedVideos(t, "talk.mp4", "interview.mkv")
+	a.Select(pageYouTube)
+	a.libraryOpenFile(paths[0])
+	a.libraryOpenFile(paths[1])
+	if len(updates) != 1 || len(a.library.Jobs) != 0 {
+		t.Fatalf("%d updates posted, jobs %#v; want one report adding both", len(updates), a.library.Jobs)
+	}
+	(<-updates)()
+	tt.Frame()
+	if a.page != pageFilms || len(a.library.Jobs) != 2 {
+		t.Fatalf("page %q jobs %#v", a.page, a.library.Jobs)
+	}
+	if !tt.HasText(locales.LibraryAddedStarting(2)) {
+		t.Fatalf("the message bar does not say both were added: %q", tt.Texts())
+	}
+	a.libraryOpenFile(paths[1] + ".srt")
+	if len(updates) != 1 {
+		t.Fatalf("%d updates posted after the first report ran; want one", len(updates))
+	}
+}
+
+// TestOpenedFileThatIsNotAVideoWarns opens a file that is not a video, as Open With can when the user picks Kando for any file: nothing is queued and the message bar says what can be added, as a drop on the window does.
+func TestOpenedFileThatIsNotAVideoWarns(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{})
+	note := libraryOpenedVideos(t, "notes.txt")[0]
+	a.libraryOpenFile(note)
+	(<-updates)()
+	tt.Frame()
+	if len(a.library.Jobs) != 0 || !tt.HasText(locales.PrecheckNoVideo()) {
+		t.Fatalf("jobs %#v texts %q", a.library.Jobs, tt.Texts())
+	}
+}
+
+// TestOpenedVideoAlreadyQueuedIsNotAddedAgain opens a video that is already being processed, by the same path and by another one, as macOS hands a video named on the command line to the app twice: it is not queued again. Once its job has stopped, opening it again adds it again.
+func TestOpenedVideoAlreadyQueuedIsNotAddedAgain(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() { libraryStopJobs(a, updates) })
+	video := libraryOpenedVideos(t, "talk.mp4")[0]
+	link := filepath.Join(t.TempDir(), "link.mp4")
+	if err := os.Symlink(video, link); err != nil {
+		t.Fatal(err)
+	}
+	a.libraryOpenFile(video)
+	(<-updates)()
+	if len(a.library.Jobs) != 1 || a.RunningJob() == "" {
+		t.Fatalf("jobs %#v running %q", a.library.Jobs, a.RunningJob())
+	}
+	for _, again := range []string{video, filepath.Join(filepath.Dir(video), ".", "talk.mp4"), link} {
+		a.Select(pageYouTube)
+		a.libraryOpenFile(again)
+		(<-updates)()
+		tt.Frame()
+		if len(a.library.Jobs) != 1 {
+			t.Fatalf("opening %s again queued it again: %#v", again, a.library.Jobs)
+		}
+		if a.page != pageFilms {
+			t.Fatalf("opening %s again left the window on %q", again, a.page)
+		}
+	}
+	libraryStopJobs(a, updates)
+	a.libraryOpenFile(video)
+	(<-updates)()
+	if len(a.library.Jobs) != 2 {
+		t.Fatalf("a video whose job stopped was not added again: %#v", a.library.Jobs)
+	}
+}
+
+// TestFileAssociationsAreTheVideos checks mygo.json's fileAssociations, which put Kando in Finder's Open With and let videos be dropped on its Dock icon: they list each video extension 本地视频 offers once, every one a video the library takes, and Kando only views them.
+func TestFileAssociationsAreTheVideos(t *testing.T) {
+	data, err := os.ReadFile("mygo.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config struct {
+		FileAssociations []struct {
+			Ext      []string `json:"ext"`
+			Name     string   `json:"name"`
+			MimeType string   `json:"mimeType"`
+			Role     string   `json:"role"`
+		} `json:"fileAssociations"`
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	var exts []string
+	for _, fa := range config.FileAssociations {
+		if fa.Name == "" || !strings.HasPrefix(fa.MimeType, "video/") || fa.Role != "Viewer" {
+			t.Errorf("association %+v: want a name, a video MIME type and the Viewer role", fa)
+		}
+		for _, ext := range fa.Ext {
+			if !media.IsVideoFile("clip." + ext) {
+				t.Errorf("%q is associated but the library does not take it", ext)
+			}
+			if slices.Contains(exts, ext) {
+				t.Errorf("%q is associated twice", ext)
+			}
+			exts = append(exts, ext)
+		}
+	}
+	slices.Sort(exts)
+	want := slices.Sorted(slices.Values(libraryVideoExtensions))
+	if !slices.Equal(exts, want) {
+		t.Fatalf("associated %q, want the extensions 本地视频 offers %q", exts, want)
 	}
 }

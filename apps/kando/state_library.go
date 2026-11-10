@@ -40,6 +40,10 @@ type libraryUI struct {
 	quotes map[string]quote
 	// holdExtras keeps loadExtras from starting before the window exists: the background reads it starts report through the window. libraryHooks' restore sets it, as startup begins, and its ready clears it and loads the extras.
 	holdExtras bool
+	// opened are the files the system asked Kando to open (libraryOpenFile, main's mygo.App.OnOpenFile), waiting to be added to the queue: videos chosen with Finder's Open With, dropped on the Dock icon or named on the command line. holdOpened keeps them waiting until the window exists, as holdExtras does: libraryHooks' restore sets it and its ready clears it and posts them. openedPosted is set while a report through update is on its way to add them, so the files of one open arrive in the queue together.
+	opened       []string
+	holdOpened   bool
+	openedPosted bool
 }
 
 // quote is the first bilingual line of a subtitle file: the translation over the original, as the exported file writes them.
@@ -54,13 +58,18 @@ type savedLibrary struct{}
 
 func (s *savedLibrary) clean() {}
 
-// libraryHooks: the shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. After each frame the library's dialogs hold or give back the window's modal flag.
+// libraryHooks: the shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each frame the library's dialogs hold or give back the window's modal flag.
 func (a *app) libraryHooks() areaHooks {
 	return areaHooks{
-		restore: func(savedSettings) { a.lib.holdExtras = true },
+		restore: func(savedSettings) {
+			a.lib.holdExtras = true
+			a.lib.holdOpened = true
+		},
 		ready: func() {
 			a.lib.holdExtras = false
 			a.loadExtras()
+			a.lib.holdOpened = false
+			a.libraryPostOpened()
 		},
 		afterFrame:   a.libraryModals,
 		shelfChanged: a.loadExtras,

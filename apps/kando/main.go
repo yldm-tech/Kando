@@ -137,6 +137,7 @@ func main() {
 	})
 	mygo.App.OnSecondInstance(func([]string, string) { a.remoteRaise() })
 	mygo.App.OnBeforeQuit(func(e *mygo.QuitEvent) { a.areasBeforeQuit(e) })
+	mygo.App.OnOpenFile(a.libraryOpenFile)
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) { a.areasQuitting() })
 	mygo.App.OnDidResignActive(func() { a.playerDidResignActive() })
 	mygo.App.OnDidBecomeActive(func() { a.playerDidBecomeActive() })
