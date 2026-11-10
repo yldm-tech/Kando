@@ -52,7 +52,7 @@ macOS（Apple シリコンと Intel）と Linux（x86-64 と ARM64）向けの�
 
 リリースにあるその他のファイルはインストール用ではありません。`checksums.txt` は各ファイルの SHA-256 の一覧で、`update-*.json` マニフェスト、`.delta` ファイル、`darwin` のアーカイブは、インストール済みの Kando が自動アップデートでダウンロードするものです（[アップデート](#updates)を参照）。
 
-ビルドは Developer ID で署名されていないため、初めて Kando を開くときに macOS が警告を表示します。macOS 15 以降では、一度 Kando を開いてから「システム設定」›「プライバシーとセキュリティ」›「このまま開く」を選びます。macOS 14 以前では、「アプリケーション」フォルダで Kando を Control キーを押しながらクリックし、「開く」を選びます。または、ターミナルで `xattr -dr com.apple.quarantine /Applications/Kando.app` を実行して隔離属性（quarantine）を削除します。
+0.4.0 より後のリリースの macOS 用ディスクイメージは YLDM の Developer ID で署名され、Apple の公証を受けているため、macOS は警告なしで Kando を開きます。
 
 <a id="updates"></a>
 

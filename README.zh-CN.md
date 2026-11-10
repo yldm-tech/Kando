@@ -52,7 +52,7 @@ macOS（Apple 芯片和 Intel）和 Linux（x86-64 和 ARM64）的安装包在 [
 
 版本中的其他文件不是用来安装的：`checksums.txt` 列出每个文件的 SHA-256，而 `update-*.json` 清单、`.delta` 文件和 `darwin` 压缩包是已安装的看懂自动更新时下载的（参见[更新](#updates)）。
 
-这些安装包没有用 Developer ID 签名，因此第一次打开看懂时 macOS 会发出警告。在 macOS 15 及更高版本上，先打开一次看懂，然后选择“系统设置 › 隐私与安全性 › 仍要打开”。在 macOS 14 及更早版本上，在“应用程序”文件夹中按住 Control 键点按看懂，然后选择“打开”。也可以在终端中移除隔离标记：`xattr -dr com.apple.quarantine /Applications/Kando.app`。
+0.4.0 之后发布的 macOS 安装包用 YLDM 的 Developer ID 签名，并经过 Apple 公证，打开看懂时 macOS 不会再发出警告。
 
 <a id="updates"></a>
 

@@ -52,7 +52,7 @@ macOS（Apple 晶片和 Intel）和 Linux（x86-64 和 ARM64）的建置版本�
 
 版本中的其他檔案不是用來安裝的：`checksums.txt` 列出每個檔案的 SHA-256，而 `update-*.json` 清單、`.delta` 檔案和 `darwin` 封存檔是已安裝的看懂自動更新時下載的（請參閱[更新](#updates)）。
 
-這些建置版本沒有以 Developer ID 簽署，因此第一次開啟看懂時，macOS 會發出警告。在 macOS 15 及更新版本上，先開啟看懂一次，再選擇「系統設定 › 隱私權與安全性 › 強制打開」。在 macOS 14 及更早版本上，在「應用程式」中按住 Control 鍵並按一下 Kando，然後選擇「打開」。也可以在「終端機」中移除隔離標記：`xattr -dr com.apple.quarantine /Applications/Kando.app`。
+0.4.0 之後發布的 macOS 安裝檔以 YLDM 的 Developer ID 簽署，並經過 Apple 公證，開啟看懂時 macOS 不會再發出警告。
 
 <a id="updates"></a>
 

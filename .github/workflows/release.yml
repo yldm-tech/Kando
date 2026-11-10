@@ -107,7 +107,7 @@ jobs:
         run: |
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "refs/tags/$VERSION"
-      # The release's notes are the version's section of CHANGELOG.md, the notes the app's update window shows. The packages are not signed yet (see package.yml), so a note above them tells users how to open them; drop the note once the workflow signs them. Windows has no packages until #6 is fixed (see the Publish job).
+      # The release's notes are the version's section of CHANGELOG.md, the notes the app's update window shows. The macOS packages are signed and notarized (see package.yml); Windows has no packages until #6 is fixed (see the Publish job).
       - name: Draft the release
         if: steps.commit.outputs.sha != ''
         env:
@@ -116,7 +116,7 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
           > [!NOTE]
-          > These builds are not signed yet. On macOS, open `Kando.app` once, then choose Open Anyway in System Settings > Privacy & Security, or run `xattr -dr com.apple.quarantine /Applications/Kando.app`. There is no Windows build yet (#6). `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
+          > The macOS disk images are signed with a Developer ID and notarized by Apple. There is no Windows build yet (#6). `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
           EOF
           {
             echo
@@ -135,6 +135,11 @@ jobs:
       tag: ${{ needs.version.outputs.tag }}
     secrets:
       MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+      APPSTORE_API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+      APPSTORE_API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
 
   publish:
     name: Publish

@@ -67,7 +67,7 @@
   "startLead": "看懂支援 macOS、Windows 和 Linux。在 macOS 和 Linux 上，第一次開啟時它會自己下載需要的程式。",
   "startDownloadTitle": "下載",
   "startDownloadBody": "macOS（Apple 晶片和 Intel）和 Linux（x86-64 和 ARM64）的建置版本在 GitHub Releases 上。目前還沒有 Windows 版本，在 Windows 上請從原始碼建置。",
-  "startDownloadUnsigned": "這些建置版本沒有以 Developer ID 或程式碼簽署憑證簽署，因此第一次開啟看懂時，系統會發出警告。README 說明了如何照樣開啟。",
+  "startDownloadSigned": "0.4.0 之後的版本以 Developer ID 簽署並經過 Apple 公證，macOS 開啟看懂時不會發出警告。",
   "startDownloadButton": "前往 GitHub Releases",
   "startToolsTitle": "開啟看懂",
   "startToolsBody": "第一次開啟時，看懂會自動下載下列程式中缺少的，入門導覽中會顯示下載進度。已經安裝好的（例如用 Homebrew 安裝的）會直接使用。若因 yt-dlp 版本過舊而下載失敗，看懂會提供「更新並重試」。",
