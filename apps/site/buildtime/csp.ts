@@ -31,8 +31,6 @@ export function policy(scripts: readonly string[]): string {
     "default-src 'self'",
     ["script-src 'self'", ...hashes].join(" "),
     "style-src 'self'",
-    // TanStack Charts writes its SVG with a style attribute when the models chart is drawn. A style attribute cannot run script, and img-src and font-src keep it from loading anything from elsewhere; the prerendered HTML itself has none (test/external.test.ts).
-    "style-src-attr 'unsafe-inline'",
     "img-src 'self'",
     "connect-src 'self'",
     "font-src 'self'",
