@@ -102,7 +102,7 @@ func (a *pcmAudio) seek(at time.Duration) {
 	if a == nil || a.ended.Load() {
 		return
 	}
-	a.player.Seek(wallTime(max(at-a.decoder.from, 0), a.decoder.rate))
+	a.player.Seek(playerWallTime(max(at-a.decoder.from, 0), a.decoder.rate))
 }
 
 // Close stops the sound and ends its ffmpeg. It is safe to call more than once.
@@ -156,7 +156,7 @@ func (d *playerAudioDecoder) Len() int64 { return -1 }
 
 // filmAt is where in the film the sound is once it played for played from from, played being time on the wall clock at rate.
 func (d *playerAudioDecoder) filmAt(played time.Duration) time.Duration {
-	return d.from + filmTime(played, d.rate)
+	return d.from + playerFilmTime(played, d.rate)
 }
 
 // playerAudioArgs are ffmpeg's arguments to write the film's first sound track from at on as 48 kHz stereo f32le, at rate times the speed it was recorded at. The seek comes before the input, as the picture's does (media.OpenFramesAt), so the two start at the same point.
@@ -167,7 +167,7 @@ func playerAudioArgs(path string, at time.Duration, rate float64) []string {
 	}
 	args = append(args, "-i", path, "-map", "0:a:0", "-vn")
 	// atempo plays the sound faster or slower without raising or lowering its pitch; a single one takes 0.5 to 2, which spans film.Rates.
-	if rate = playbackRate(rate); rate != 1 {
+	if rate = playerRate(rate); rate != 1 {
 		args = append(args, "-af", "atempo="+strconv.FormatFloat(rate, 'f', -1, 64))
 	}
 	return append(args,

@@ -69,7 +69,10 @@ type playerUI struct {
 	nowPlaying playerNowPlaying
 	// rate is how fast films play, one of film.Rates, 1 as recorded. It stays as it is from film to film.
 	rate float64
-	film filmUI
+	// rateGen counts speed changes, so only the last of a quick run of them reaches the open film and the settings (playerRateChanged); rateSettling is set until it has.
+	rateGen      int
+	rateSettling bool
+	film         filmUI
 }
 
 // fullScreen is the part of a window the player uses to enter and leave full screen, as *mygo.Window has it.

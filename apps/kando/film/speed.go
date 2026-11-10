@@ -29,7 +29,8 @@ func (s screen) speedMenu(c *ui.Context, t *ui.Theme) {
 	if *open {
 		btn.Background(ui.RGBA(255, 255, 255, 0.2))
 	}
-	btn.Height(30).Padding(0, 8).Radius(15).Gap(0).TextColor(onGlass).Children(func() {
+	// As wide as the widest speed, 1.25×, so the scrubber beside it keeps its length whatever the speed.
+	btn.Height(30).MinWidth(50).Justify(ui.Center).Padding(0, 8).Radius(15).Gap(0).TextColor(onGlass).Children(func() {
 		ui.Text(c, rate).FontSize(12).FontFeatures("tnum").SingleLine()
 	})
 	menu := breeze.Popover(c, btn, open, func() {

@@ -140,7 +140,7 @@ func (p *filmPlay) backgroundSound() func() time.Duration {
 
 // soundClock is where a sound that was at head at since and plays at rate is at now, in the film's own time, held short of the end of a film length long (0 when not known).
 func soundClock(head time.Duration, since time.Time, length time.Duration, rate float64, now time.Time) time.Duration {
-	at := head + filmTime(max(now.Sub(since), 0), rate)
+	at := head + playerFilmTime(max(now.Sub(since), 0), rate)
 	if length > 0 && at >= length {
 		at = max(0, length-100*time.Millisecond)
 	}
@@ -212,7 +212,7 @@ func (a *app) followSound(p *filmPlay) *backgroundPicture {
 			}
 			due := time.Hour
 			if !ended {
-				due = wallTime(at+dur-sound(), rate)
+				due = playerWallTime(at+dur-sound(), rate)
 			}
 			wait.Reset(due)
 			select {

@@ -1351,6 +1351,17 @@ func TestQuittingKeepsTheVolume(t *testing.T) {
 	}
 }
 
+// TestQuittingKeepsTheSpeed: a speed changed too shortly before quitting for the change to have settled is still kept in the settings.
+func TestQuittingKeepsTheSpeed(t *testing.T) {
+	a, _, _ := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.SetRate(0.75)
+	a.areasQuitting()
+	if saved := loadSavedSettings(a.settingsPath); saved.Rate == nil || *saved.Rate != 0.75 {
+		t.Fatalf("the speed was not kept: %v", saved.Rate)
+	}
+}
+
 // TestSoundRestartsWhereItPlayedOn: back from the background, before the picture has caught up, the sound restarts where it has played on to, not where the picture stood still.
 func TestSoundRestartsWhereItPlayedOn(t *testing.T) {
 	now := time.Now()
@@ -2341,8 +2352,9 @@ func TestFramesShowForTheirLengthOverTheRate(t *testing.T) {
 func TestPlayheadMovesInFilmTimeAtTheRate(t *testing.T) {
 	for _, rate := range []float64{2, 0.5} {
 		t.Run(fmt.Sprint(rate), func(t *testing.T) {
-			a, tt, _ := openClip(t, 12)
+			a, tt, updates := openClip(t, 12)
 			a.SetRate(rate)
+			waitUntil(t, updates, func() bool { return a.player.play.speed() == rate })
 			a.player.play.toggle()
 			tt.Frame()
 			for range 20 {
@@ -2363,32 +2375,62 @@ func TestPlayheadMovesInFilmTimeAtTheRate(t *testing.T) {
 	}
 }
 
-// TestSpeedKeysStepThroughTheRates presses ⇧. and ⇧, on an open film: each steps to the next speed of film.Rates, stays at the fastest and the slowest, says so on the picture and on the transport's speed button, and the open film plays at it.
+// TestSpeedKeysStepThroughTheRates presses ⇧. and ⇧, on an open film: each steps to the next speed of film.Rates, stays at the fastest and the slowest, and says so on the picture and on the transport's speed button at once. A quick run of steps reaches the open film only once the keys rest, at the last of them, and the settings keep it.
 func TestSpeedKeysStepThroughTheRates(t *testing.T) {
-	a, tt, _ := openClip(t, 2)
+	a, tt, updates := openClip(t, 2)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.player.film.moved = tt.Now()
 	key := func(k ui.Key, rate float64, osd string) {
 		t.Helper()
 		tt.Key(ui.Shift, k)
 		tt.Frame()
-		if a.player.rate != rate || a.player.play.speed() != rate || !tt.HasText(osd) || !tt.HasText(film.RateText(rate)) {
-			t.Fatalf("after ⇧%v: rate %v, film at %v, want %v; texts %q", k, a.player.rate, a.player.play.speed(), rate, tt.Texts())
+		if a.player.rate != rate || !tt.HasText(osd) || !tt.HasText(film.RateText(rate)) {
+			t.Fatalf("after ⇧%v: rate %v, want %v; texts %q", k, a.player.rate, rate, tt.Texts())
 		}
 	}
 	key(ui.KeyPeriod, 1.25, "速度 1.25×")
 	key(ui.KeyPeriod, 1.5, "速度 1.5×")
 	key(ui.KeyPeriod, 2, "速度 2×")
+	if a.player.play.speed() != 1 {
+		t.Fatalf("the film took up %v× before the keys rested", a.player.play.speed())
+	}
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 2 })
+	if saved := loadSavedSettings(a.settingsPath); saved.Rate == nil || *saved.Rate != 2 {
+		t.Fatalf("saved rate %v, want 2", saved.Rate)
+	}
 	key(ui.KeyPeriod, 2, "速度 2×")
 	key(ui.KeyComma, 1.5, "速度 1.5×")
 	for range 4 {
 		tt.Key(ui.Shift, ui.KeyComma)
 	}
 	key(ui.KeyComma, 0.5, "速度 0.5×")
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 0.5 })
+}
+
+// TestSpeedButtonKeepsItsWidth: the transport's speed button is as wide at every speed, so the scrubber beside it does not jump as the speed changes.
+func TestSpeedButtonKeepsItsWidth(t *testing.T) {
+	a, tt, _ := openClip(t, 2)
+	var width float32
+	for _, rate := range film.Rates {
+		a.SetRate(rate)
+		a.player.film.moved = tt.Now()
+		tt.Frame()
+		label := "速度：" + film.RateText(rate)
+		r, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("no %s button; texts %q", label, tt.Texts())
+		}
+		if width == 0 {
+			width = r.W
+		} else if r.W != width {
+			t.Fatalf("the speed button is %v wide at %v×, %v at %v×", r.W, rate, width, film.Rates[0])
+		}
+	}
 }
 
 // TestSpeedMenuSetsTheRate opens the transport's speed menu, which lists every speed with 1× noted as normal and checked, and picks 1.5×: the film plays at it and the menu closes.
 func TestSpeedMenuSetsTheRate(t *testing.T) {
-	a, tt, _ := openClip(t, 2)
+	a, tt, updates := openClip(t, 2)
 	a.player.film.moved = tt.Now()
 	tt.Frame()
 	if err := tt.Click("速度：1×"); err != nil {
@@ -2407,16 +2449,18 @@ func TestSpeedMenuSetsTheRate(t *testing.T) {
 		t.Fatalf("%v; texts %q", err, tt.Texts())
 	}
 	tt.Frame()
-	if a.player.rate != 1.5 || a.player.play.speed() != 1.5 || a.player.film.speedMenu || !tt.HasText("速度：1.5×") {
-		t.Fatalf("rate %v, film at %v, menu open %v; texts %q", a.player.rate, a.player.play.speed(), a.player.film.speedMenu, tt.Texts())
+	if a.player.rate != 1.5 || a.player.film.speedMenu || !tt.HasText("速度：1.5×") {
+		t.Fatalf("rate %v, menu open %v; texts %q", a.player.rate, a.player.film.speedMenu, tt.Texts())
 	}
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 1.5 })
 }
 
-// TestSpeedSettingsRoundTrip checks that the speed is kept in the settings and that a saved speed that is not one of film.Rates comes back as the nearest of them.
+// TestSpeedSettingsRoundTrip checks that the speed is kept in the settings, that a saved speed that is not one of film.Rates comes back as the nearest of them, and that one that is not a speed, 0 or below, comes back as 1.
 func TestSpeedSettingsRoundTrip(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(&fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.SetRate(1.5)
+	waitUntil(t, updates, func() bool { return !a.player.rateSettling })
 	b, _, _ := newTestApp(&fakePipeline{})
 	b.restorePlayer(loadSavedSettings(a.settingsPath))
 	if b.player.rate != 1.5 {
@@ -2425,7 +2469,7 @@ func TestSpeedSettingsRoundTrip(t *testing.T) {
 	for _, tc := range []struct {
 		saved string
 		want  float64
-	}{{"3", 2}, {"0.1", 0.5}, {"0.6", 0.5}, {"0.9", 1}, {"1.3", 1.25}, {"-1", 0.5}} {
+	}{{"3", 2}, {"0.1", 0.5}, {"0.6", 0.5}, {"0.9", 1}, {"1.3", 1.25}, {"0", 1}, {"-1", 1}} {
 		path := filepath.Join(t.TempDir(), "settings.json")
 		if err := os.WriteFile(path, []byte(`{"rate": `+tc.saved+`}`), 0o600); err != nil {
 			t.Fatal(err)
@@ -2455,11 +2499,13 @@ func TestSpeedWaitsForThePictureToComeBack(t *testing.T) {
 		t.Fatalf("sound at %v after 3 minutes at 2×, want 6m10s", got)
 	}
 
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(&fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	p := stillPlay(t, "/v/clip.mp4", 3*time.Second, true)
 	a.player.play = p
 	a.playerDidResignActive()
 	a.SetRate(2)
+	waitUntil(t, updates, func() bool { return !a.player.rateSettling })
 	a.areasAfterFrame()
 	if p.speed() != 1 {
 		t.Fatalf("the film in the background took up %v× before its picture came back", p.speed())
@@ -2526,12 +2572,14 @@ func TestSpeedStartsTheSoundAgainAtIt(t *testing.T) {
 	}
 	tempo := func() string { return fakeArg(a.player.play.audio.decoder.proc.cmd.Args, "-af") }
 	a.SetRate(1.5)
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 1.5 })
 	if audio := a.player.play.audio; audio == nil || audio.decoder.rate != 1.5 || tempo() != "atempo=1.5" {
 		t.Fatalf("the playing film's sound did not start again at 1.5×: %+v", audio)
 	}
 	tt.Key(0, ui.KeySpace)
 	tt.Frame()
 	a.SetRate(0.75)
+	waitUntil(t, updates, func() bool { return a.player.play.speed() == 0.75 })
 	if a.player.play.audio != nil {
 		t.Fatal("the held film kept its sound at the old speed")
 	}

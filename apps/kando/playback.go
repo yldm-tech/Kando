@@ -364,7 +364,7 @@ func (p *filmPlay) catchUpSound(now time.Time) {
 	}
 	p.soundSince = time.Time{}
 	// The picture's clock runs at the film's speed, as the sound does.
-	if want := p.soundFrom + filmTime(played, p.speed()); want-at > playerSoundLag {
+	if want := p.soundFrom + playerFilmTime(played, p.speed()); want-at > playerSoundLag {
 		p.audio.seek(want)
 	}
 }
@@ -454,11 +454,11 @@ func (p *filmPlay) setVolume(volume float64) {
 }
 
 // speed is how fast the film plays: rate, or 1 for a filmPlay made without one.
-func (p *filmPlay) speed() float64 { return playbackRate(p.rate) }
+func (p *filmPlay) speed() float64 { return playerRate(p.rate) }
 
 // setRate plays the film at rate from now on. The picture's frames show for their length over rate from the next one decoded. The sound's process takes its speed only when it starts, so a playing film's sound starts again where it is (soundAt), and a held one's is dropped for toggle to start at the new speed.
 func (p *filmPlay) setRate(rate float64) {
-	if p.speed() == playbackRate(rate) {
+	if p.speed() == playerRate(rate) {
 		return
 	}
 	at := p.soundAt(time.Now())
@@ -475,26 +475,26 @@ func (p *filmPlay) setRate(rate float64) {
 	}
 }
 
-// playbackRate is rate, or 1 for none (0), as for a film or decoder made without one.
-func playbackRate(rate float64) float64 {
+// playerRate is rate, or 1 for none (0), as for a film or decoder made without one.
+func playerRate(rate float64) float64 {
 	if rate <= 0 {
 		return 1
 	}
 	return rate
 }
 
-// wallTime is how long d of a film playing at rate takes on the wall clock.
-func wallTime(d time.Duration, rate float64) time.Duration {
-	rate = playbackRate(rate)
+// playerWallTime is how long d of a film playing at rate takes on the wall clock.
+func playerWallTime(d time.Duration, rate float64) time.Duration {
+	rate = playerRate(rate)
 	if rate == 1 {
 		return d
 	}
 	return time.Duration(math.Round(float64(d) / rate))
 }
 
-// filmTime is how much of a film playing at rate plays in d on the wall clock.
-func filmTime(d time.Duration, rate float64) time.Duration {
-	rate = playbackRate(rate)
+// playerFilmTime is how much of a film playing at rate plays in d on the wall clock.
+func playerFilmTime(d time.Duration, rate float64) time.Duration {
+	rate = playerRate(rate)
 	if rate == 1 {
 		return d
 	}
@@ -533,7 +533,7 @@ func (d *frameDecoder) Next() (ui.VideoFrame, error) {
 		if d.sound != nil {
 			shows.Duration = time.Millisecond
 		} else {
-			shows.Duration = wallTime(f.Duration, rate)
+			shows.Duration = playerWallTime(f.Duration, rate)
 		}
 		return shows, nil
 	}
@@ -563,7 +563,7 @@ func (d *frameDecoder) Next() (ui.VideoFrame, error) {
 	d.shown = start + dur
 	rate := d.rate
 	d.mu.Unlock()
-	return ui.VideoFrame{Image: img, Duration: wallTime(shows, rate)}, nil
+	return ui.VideoFrame{Image: img, Duration: playerWallTime(shows, rate)}, nil
 }
 
 func (d *frameDecoder) position() time.Duration {

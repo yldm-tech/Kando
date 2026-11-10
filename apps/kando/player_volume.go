@@ -87,9 +87,10 @@ func (a *app) playerSaveVolume() {
 	}
 }
 
-// playerQuitting stops the open video, lets the display sleep again and keeps a volume changed too shortly before quitting for playerVolumeChanged to have kept it.
+// playerQuitting stops the open video, lets the display sleep again and keeps a volume or a speed changed too shortly before quitting for playerVolumeChanged or playerRateChanged to have kept it.
 func (a *app) playerQuitting() {
 	a.playerSaveVolume()
+	a.playerSaveRate()
 	a.stopPlayback()
 	a.playerLetSleep()
 }
