@@ -26,7 +26,10 @@ func (a *app) SetRate(rate float64) {
 	a.playerRateChanged()
 }
 
-// playerRateChanged has the open film play at the new speed and keeps it in the settings, once the speed has rested for playerVolumeSettle, as a new volume waits: the sound plays in a process that takes its speed only when it starts, so a key held down waits until it rests instead of starting the sound again at every step. Picture and sound change together, so the two stay level meanwhile. Without an update, as before the window exists, it does so at once.
+// playerRateSettle is how long the speed has to stay put before the sound starts again at it.
+const playerRateSettle = 250 * time.Millisecond
+
+// playerRateChanged has the open film play at the new speed and keeps it in the settings, once the speed has rested for playerRateSettle: the sound plays in a process that takes its speed only when it starts, so a key held down waits until it rests instead of starting the sound again at every step. Picture and sound change together, so the two stay level meanwhile. Without an update, as before the window exists, it does so at once.
 func (a *app) playerRateChanged() {
 	a.player.rateGen++
 	gen := a.player.rateGen
@@ -36,7 +39,7 @@ func (a *app) playerRateChanged() {
 		return
 	}
 	a.player.rateSettling = true
-	time.AfterFunc(playerVolumeSettle, func() {
+	time.AfterFunc(playerRateSettle, func() {
 		update(func() {
 			if a.player.rateGen == gen {
 				a.playerRateSettled()
