@@ -15,6 +15,8 @@ const ignore = ["dist/**", ".generated/**", "src/routeTree.gen.ts", "static/**",
 export default defineConfig({
   publicDir,
   build: { outDir, emptyOutDir: true, assetsInlineLimit: 0 },
+  // The prerender fetches the pages from a preview server in the same process. On "localhost" that server listens on ::1 alone, and Node tries ::1 for only 250 ms before falling back to 127.0.0.1; a page whose render holds the event loop longer makes the attempt time out though it connected, the fallback is refused, and the build fails. An address with one family is tried once, with no such timeout.
+  preview: { host: "127.0.0.1" },
   fmt: { ignorePatterns: ignore, printWidth: 160 },
   lint: { ignorePatterns: ignore, options: { typeAware: true, typeCheck: true } },
   test: {
