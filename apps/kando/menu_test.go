@@ -39,13 +39,20 @@ func choose(t *testing.T, it *mygo.MenuItem, updates chan func()) {
 	waitUpdate(t, updates)
 }
 
-// TestMenuBarListsTheShortcutTable checks that every row of the shortcut table is an item of the menu its group names, and that every ⌘ row carries its shortcut as an accelerator, since wireKeys leaves those to the menu bar once it is installed. Single keys carry none, so a focused text field keeps them.
+// TestMenuBarListsTheShortcutTable checks that every row of the shortcut table is an item of the menu its group names, and that every ⌘ row carries its shortcut as an accelerator, since wireKeys leaves those to the menu bar once it is installed, but for a row whose key another row carries now (sharedKeyCarriers). Single keys carry none, so a focused text field keeps them.
 func TestMenuBarListsTheShortcutTable(t *testing.T) {
 	a, tt, _ := newTestApp(&fakePipeline{})
 	tt.Frame()
 	bar := a.menuBar()
+	carrier := sharedKeyCarriers(a.shortcuts())
 	for _, s := range a.shortcuts() {
 		it := findMenuItem(t, bar, groupTitle(s.Group), s.Label)
+		if id, shared := carrier[[2]int{int(s.Mods), int(s.Key)}]; shared && id != rowID(s) {
+			if it.Accelerator != "" {
+				t.Fatalf("%q has accelerator %q, which %q carries", s.Label, it.Accelerator, id)
+			}
+			continue
+		}
 		if s.Mods&ui.Cmd != 0 {
 			if it.Accelerator == "" || it.Accelerator != accelerator(s.Mods, s.Key) {
 				t.Fatalf("%q has accelerator %q", s.Label, it.Accelerator)

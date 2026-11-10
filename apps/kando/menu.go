@@ -70,7 +70,9 @@ func (a *app) syncMenu() {
 
 // menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up as a sheet, none of the rows are (holds).
 func (a *app) menuBar() []*mygo.MenuItem {
-	order, rows := grouped(a.shortcuts())
+	table := a.shortcuts()
+	order, rows := grouped(table)
+	carrier := sharedKeyCarriers(table)
 	own := map[[2]int]bool{}
 	for _, s := range a.overlayKeys() {
 		own[[2]int{int(s.Mods), int(s.Key)}] = true
@@ -86,7 +88,11 @@ func (a *app) menuBar() []*mygo.MenuItem {
 	items := func(group string, extra ...*mygo.MenuItem) []*mygo.MenuItem {
 		var keyed, plain []*mygo.MenuItem
 		for _, s := range rows[group] {
-			it := a.menuItem(s, s.Key != 0 && own[[2]int{int(s.Mods), int(s.Key)}])
+			k := [2]int{int(s.Mods), int(s.Key)}
+			it := a.menuItem(s, s.Key != 0 && own[k])
+			if id, shared := carrier[k]; shared && id != rowID(s) {
+				it.Accelerator = ""
+			}
 			if s.Key == 0 {
 				plain = append(plain, it)
 			} else {
@@ -170,6 +176,35 @@ func (a *app) menuItem(s shortcut, own bool) *mygo.MenuItem {
 	it.Click = a.menuClick(own, run)
 	return it
 }
+
+// sharedKeyCarriers picks, for each key more than one row of the table has, the row whose menu item carries it as its accelerator (by rowID): the first whose When holds, or the first of them while none does. Rows share a key only when they take turns, as the library's ⌘F and the player's do (TestShortcutsAreUnique), so the key runs the item it is shown by, and the menu bar never gives two items one accelerator.
+func sharedKeyCarriers(rows []shortcut) map[[2]int]string {
+	by := map[[2]int][]shortcut{}
+	for _, s := range rows {
+		if s.Key != 0 {
+			k := [2]int{int(s.Mods), int(s.Key)}
+			by[k] = append(by[k], s)
+		}
+	}
+	carrier := map[[2]int]string{}
+	for k, same := range by {
+		if len(same) < 2 {
+			continue
+		}
+		pick := same[0]
+		for _, s := range same {
+			if s.When != nil && s.When() {
+				pick = s
+				break
+			}
+		}
+		carrier[k] = rowID(pick)
+	}
+	return carrier
+}
+
+// rowID names a row of the shortcut table by its menu and its label, which no two rows share.
+func rowID(s shortcut) string { return s.Group + "\x00" + s.Label }
 
 // menuClick runs fn on the UI thread as a background job's report does, so the window draws what it changed. Whatever is open over the window by then holds fn back as a disabled item would have (holds, with own saying fn is one of the overlays'): the click can come from a menu built before it opened.
 func (a *app) menuClick(own bool, fn func()) func(*mygo.MenuItem, *mygo.Window) {

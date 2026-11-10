@@ -1442,3 +1442,74 @@ func TestFileAssociationsAreTheVideos(t *testing.T) {
 		t.Fatalf("associated %q, want the extensions 本地视频 offers %q", exts, want)
 	}
 }
+
+// librarySearchWith makes a library of two done films, Rivers of Europe and Linear Algebra, and a failed job, Morning Market, and an app showing it.
+func librarySearchWith(t *testing.T) (*app, *ui.Tester) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
+	a, tt, _ := newTestApp(&fakePipeline{})
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	for i, name := range []string{"Rivers of Europe", "Linear Algebra"} {
+		video := filepath.Join(lib, name, "video.mp4")
+		if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		a.library.Jobs = append(a.library.Jobs, core.Job{ID: "done" + string(rune('a'+i)), Source: "https://youtu.be/clip" + string(rune('a'+i)), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib})
+	}
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "failed", Title: "Morning Market", Source: "https://youtu.be/market", Stage: core.StageFailed, Err: errors.New("network down"), LibraryDir: lib})
+	a.refreshLibrary()
+	tt.Frame()
+	return a, tt
+}
+
+// TestSearchFiltersTheShelfByTitle checks that the sidebar's search field narrows the grid to the done films whose names hold the query, whatever its case, leaves the hero out while it does and keeps 处理中 whole; that a query no name holds says so, with 清除搜索 bringing every film back; and that it filters as `kando list [query]` does.
+func TestSearchFiltersTheShelfByTitle(t *testing.T) {
+	a, tt := librarySearchWith(t)
+	if !tt.HasText("最近完成") || !tt.HasText("Rivers of Europe") || !tt.HasText("Linear Algebra") {
+		t.Fatalf("library before the search: %q", tt.Texts())
+	}
+	if err := tt.Click("搜索影片"); err != nil {
+		t.Fatalf("%v: %q", err, tt.Texts())
+	}
+	tt.Type("RIVERS")
+	tt.Frame()
+	if a.side.query != "RIVERS" {
+		t.Fatalf("query %q", a.side.query)
+	}
+	if !tt.HasText("Rivers of Europe") || tt.HasText("Linear Algebra") || tt.HasText("最近完成") {
+		t.Fatalf("searching RIVERS shows %q", tt.Texts())
+	}
+	if !tt.HasText("Morning Market") || !tt.HasText("1 部") {
+		t.Fatalf("searching RIVERS left 处理中 or the count out: %q", tt.Texts())
+	}
+	listed := films.ByTitle(a.films(), a.side.query)
+	if len(listed) != 1 || listed[0].Name != "Rivers of Europe" {
+		t.Fatalf("films.ByTitle(RIVERS) = %+v", listed)
+	}
+	// The sidebar's sources go on counting the whole library, and a source narrows the search further.
+	if n := sidebarCount(t, tt, "YouTube"); n != "3" {
+		t.Fatalf("YouTube counts %q while searching", n)
+	}
+	a.SetSourceFilter(sidebar.SourceLocal)
+	tt.Frame()
+	if !tt.HasText("这个来源下还没有影片。") || a.side.query != "RIVERS" {
+		t.Fatalf("本地文件 while searching: query %q, %q", a.side.query, tt.Texts())
+	}
+	a.SetSourceFilter(sidebar.SourceAll)
+
+	a.side.query = "ocean"
+	tt.Frame()
+	if !tt.HasText("没有名称包含「ocean」的影片。") || tt.HasText("Rivers of Europe") || !tt.HasText("Morning Market") {
+		t.Fatalf("searching ocean shows %q", tt.Texts())
+	}
+	if err := tt.Click("清除搜索"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.side.query != "" || !tt.HasText("最近完成") || !tt.HasText("Linear Algebra") || tt.HasText("清除搜索") {
+		t.Fatalf("清除搜索 left query %q: %q", a.side.query, tt.Texts())
+	}
+}

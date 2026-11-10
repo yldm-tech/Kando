@@ -688,3 +688,91 @@ func TestSwitcherNamesTheSystemsFileManager(t *testing.T) {
 		})
 	}
 }
+
+// TestFindFocusesTheSidebarSearch checks that ⌘F on the library page puts the keyboard in the sidebar's search field, and that Escape there empties it.
+func TestFindFocusesTheSidebarSearch(t *testing.T) {
+	a, tt := librarySearchWith(t)
+	tt.Key(ui.Cmd, ui.KeyF)
+	tt.Frame()
+	tt.Frame()
+	if !tt.Focused("搜索影片") || a.side.queryFocus {
+		t.Fatalf("⌘F: focused %v, request left %v", tt.Focused("搜索影片"), a.side.queryFocus)
+	}
+	tt.Type("algebra")
+	tt.Frame()
+	if a.side.query != "algebra" || tt.HasText("Rivers of Europe") {
+		t.Fatalf("query %q: %q", a.side.query, tt.Texts())
+	}
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if a.side.query != "" || !tt.HasText("Rivers of Europe") {
+		t.Fatalf("Escape left query %q: %q", a.side.query, tt.Texts())
+	}
+}
+
+// TestSearchIsForItsLibrary checks that the search is not saved, that opening another library empties it, and that a library with no film shows no search field and leaves ⌘F to nothing.
+func TestSearchIsForItsLibrary(t *testing.T) {
+	a, tt := librarySearchWith(t)
+	t.Cleanup(func() {
+		if a.libraryWatch != nil {
+			close(a.libraryWatch)
+			a.libraryWatch = nil
+		}
+	})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.side.query = "rivers"
+	tt.Frame()
+	if err := a.saveSettings(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "rivers") {
+		t.Fatalf("settings.json keeps the search: %s", data)
+	}
+	other := filepath.Join(t.TempDir(), "其他.kando")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	a.switchLibrary(other)
+	tt.Frame()
+	if a.side.query != "" {
+		t.Fatalf("another library kept the search %q", a.side.query)
+	}
+	if _, ok := tt.Find("搜索影片"); ok || a.sidebarSearchable() {
+		t.Fatalf("an empty library shows the search field: %q", tt.Texts())
+	}
+	// A request for the focus while there is no field is dropped, so the field does not take the focus once it shows.
+	a.side.queryFocus = true
+	tt.Frame()
+	if a.side.queryFocus {
+		t.Fatal("the request for the search field's focus outlived a frame without the field")
+	}
+}
+
+// TestFindKeepsSearchingSubtitlesInAFilm checks that ⌘F over an open film is still the player's 搜索字幕, not the library's search, and that the menu bar gives ⌘F to the one item it runs: 编辑 › 搜索影片 on the library page and 字幕 › 搜索字幕 over a film.
+func TestFindKeepsSearchingSubtitlesInAFilm(t *testing.T) {
+	a, tt := librarySearchWith(t)
+	find := accelerator(ui.Cmd, ui.KeyF)
+	bar := a.menuBar()
+	library, subtitles := findMenuItem(t, bar, "编辑", "搜索影片"), findMenuItem(t, bar, "字幕", "搜索字幕")
+	if library.Disabled || library.Accelerator != find || !subtitles.Disabled || subtitles.Accelerator != "" {
+		t.Fatalf("on the library page: 搜索影片 %+v, 搜索字幕 %+v", library, subtitles)
+	}
+
+	a.openKey = "donea"
+	a.player.filmSide = "info"
+	tt.Frame()
+	tt.Key(ui.Cmd, ui.KeyF)
+	tt.Frame()
+	if a.side.queryFocus || a.player.filmSide != "" || !a.player.panel {
+		t.Fatalf("⌘F over a film: library focus %v, side %q, panel %v", a.side.queryFocus, a.player.filmSide, a.player.panel)
+	}
+	bar = a.menuBar()
+	library, subtitles = findMenuItem(t, bar, "编辑", "搜索影片"), findMenuItem(t, bar, "字幕", "搜索字幕")
+	if !library.Disabled || library.Accelerator != "" || subtitles.Disabled || subtitles.Accelerator != find {
+		t.Fatalf("over a film: 搜索影片 %+v, 搜索字幕 %+v", library, subtitles)
+	}
+}

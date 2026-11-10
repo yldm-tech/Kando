@@ -1,6 +1,7 @@
 package films
 
 import (
+	"strings"
 	"time"
 
 	"kando/apps/kando/sidebar"
@@ -63,6 +64,8 @@ type App interface {
 	RunRemedy(item Film, action string)
 	// LinkFocus asks the link field for the keyboard focus once, as 换个链接 does; the field sets it back to false when it has taken the focus.
 	LinkFocus() *bool
+	// Query is the text typed into the sidebar's search field: the done films whose names hold it are the ones the page shows (ByTitle). 清除搜索 empties it.
+	Query() *string
 	JobFilm(id string) (Film, bool)
 	// SourceFilter is the sidebar source the page shows, sidebar.SourceAll or another sidebar.Source value.
 	SourceFilter() string
@@ -155,7 +158,7 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	removeDialog(c, a)
 }
 
-// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do.
+// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out; 处理中 shows every job still, so none seems to vanish while a search is on.
 func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 	queue := BySource(a.QueueFilms(), source)
 	if len(items) == 0 {
@@ -175,7 +178,8 @@ func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 		emptySource(c, t)
 		return
 	}
-	if source == sidebar.SourceAll {
+	query := strings.TrimSpace(*a.Query())
+	if query == "" && source == sidebar.SourceAll {
 		if item, ok := HeroFilm(done); ok {
 			hero(c, a, item)
 		}
@@ -183,7 +187,11 @@ func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 	if len(queue) > 0 {
 		queueSection(c, t, a, QueueOrder(queue))
 	}
-	if len(done) > 0 {
+	done = ByTitle(done, query)
+	switch {
+	case len(done) > 0:
 		grid(c, t, a, done, source)
+	case query != "":
+		noMatch(c, a, query)
 	}
 }

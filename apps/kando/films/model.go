@@ -141,6 +141,26 @@ func BySource(items []Film, source string) []Film {
 	return out
 }
 
+// MatchesTitle reports whether the film's name, the whole one the page shows, holds query, ignoring case and the spaces around query. An empty query matches every film. The library's search field and `kando list [query]` both filter with it, so the window and the command line find the same films.
+func MatchesTitle(item Film, query string) bool {
+	query = strings.ToLower(strings.TrimSpace(query))
+	return query == "" || strings.Contains(strings.ToLower(filmName(item)), query)
+}
+
+// ByTitle keeps the films whose names hold query (MatchesTitle); an empty query keeps them all.
+func ByTitle(items []Film, query string) []Film {
+	if strings.TrimSpace(query) == "" {
+		return items
+	}
+	var out []Film
+	for _, item := range items {
+		if MatchesTitle(item, query) {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
 func Find(items []Film, key string) (Film, bool) {
 	for _, item := range items {
 		if item.Key == key {

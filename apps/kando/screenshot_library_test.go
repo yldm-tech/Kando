@@ -14,7 +14,7 @@ import (
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
-// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
+// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library. Besides those it renders a query in the sidebar's search field and one that matches no film, the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
 func TestScreenshotsLibrary(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// onboarding is the message bar the prototype shows once its onboarding is skipped.
@@ -62,6 +62,16 @@ func TestScreenshotsLibrary(t *testing.T) {
 		onboarding(a)
 		screenshotClick(t, tt, "视频链接")
 		tt.Type("https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
+	})
+	// A query in the sidebar's search field: the hero steps aside, 处理中 stays whole, and the grid keeps the films whose names hold the query; the page is tall enough to show the grid under 处理中.
+	f.shootSize(t, "library-search", 1304, 1100, func(a *app, tt *ui.Tester, _ chan func()) {
+		screenshotClick(t, tt, "搜索影片")
+		tt.Type("rivers")
+	})
+	// A query no film's name holds: the grid says so and offers 清除搜索.
+	f.shootSize(t, "library-search-none", 1304, 1100, func(a *app, tt *ui.Tester, _ chan func()) {
+		screenshotClick(t, tt, "搜索影片")
+		tt.Type("quantum")
 	})
 	f.shoot(t, "library-empty", func(a *app, tt *ui.Tester, _ chan func()) {
 		empty := filepath.Join(f.home, "Movies", "未命名资料库.kando")

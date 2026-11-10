@@ -235,3 +235,31 @@ func TestLabelsInEnglish(t *testing.T) {
 		}
 	}
 }
+
+// TestMatchesTitleReadsTheWholeName checks that the search matches the film's whole name, not its shortened title, whatever the case and the spaces around the query, and that an empty query keeps every film.
+func TestMatchesTitleReadsTheWholeName(t *testing.T) {
+	rivers := Film{Key: "a", Title: Shorten("How Rivers Shape Landscapes", 22), Name: "How Rivers Shape Landscapes"}
+	found := Film{Key: "b", Title: "会议录屏 2026-10-28"}
+	for _, tc := range []struct {
+		item  Film
+		query string
+		want  bool
+	}{
+		{rivers, "landscapes", true},
+		{rivers, "  RIVERS shape ", true},
+		{rivers, "ocean", false},
+		{found, "会议", true},
+		{found, "", true},
+	} {
+		if got := MatchesTitle(tc.item, tc.query); got != tc.want {
+			t.Errorf("MatchesTitle(%q, %q) = %v, want %v", filmName(tc.item), tc.query, got, tc.want)
+		}
+	}
+	items := []Film{rivers, found}
+	if got := ByTitle(items, " "); len(got) != 2 {
+		t.Fatalf("ByTitle with a blank query kept %d films", len(got))
+	}
+	if got := ByTitle(items, "rivers"); len(got) != 1 || got[0].Key != "a" {
+		t.Fatalf("ByTitle(rivers) = %+v", got)
+	}
+}

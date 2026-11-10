@@ -4026,6 +4026,38 @@ func (msgs Messages) FilmsRetry() string {
 	return Catalog.Format(msgs.locale, "filmsRetry", nil)
 }
 
+// FilmsSearchClear says "Clear Search"
+// in the language the app shows.
+//
+// Button under the no-match message that empties the search field and shows
+// every film again.
+func FilmsSearchClear() string { return In(i18n.Locale()).FilmsSearchClear() }
+
+// FilmsSearchClear says "Clear Search"
+// in the language of msgs.
+//
+// Button under the no-match message that empties the search field and shows
+// every film again.
+func (msgs Messages) FilmsSearchClear() string {
+	return Catalog.Format(msgs.locale, "filmsSearchClear", nil)
+}
+
+// FilmsSearchNoMatch says "No films match “{query}”."
+// in the language the app shows.
+//
+// Shown in place of the film grid when no finished film’s name contains
+// the text typed into the search field.
+func FilmsSearchNoMatch(query string) string { return In(i18n.Locale()).FilmsSearchNoMatch(query) }
+
+// FilmsSearchNoMatch says "No films match “{query}”."
+// in the language of msgs.
+//
+// Shown in place of the film grid when no finished film’s name contains
+// the text typed into the search field.
+func (msgs Messages) FilmsSearchNoMatch(query string) string {
+	return Catalog.Format(msgs.locale, "filmsSearchNoMatch", map[string]any{"query": query})
+}
+
 // FilmsShowInFinder says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language the app shows.
 //
@@ -4550,6 +4582,22 @@ func LibrarySaveFailed(error string) string { return In(i18n.Locale()).LibrarySa
 // Error when the list of libraries could not be saved to the settings file.
 func (msgs Messages) LibrarySaveFailed(error string) string {
 	return Catalog.Format(msgs.locale, "librarySaveFailed", map[string]any{"error": error})
+}
+
+// LibrarySearchMenu says "Search Films"
+// in the language the app shows.
+//
+// Edit menu item and shortcut (⌘F while the library page shows) that puts
+// the keyboard in the sidebar’s search field.
+func LibrarySearchMenu() string { return In(i18n.Locale()).LibrarySearchMenu() }
+
+// LibrarySearchMenu says "Search Films"
+// in the language of msgs.
+//
+// Edit menu item and shortcut (⌘F while the library page shows) that puts
+// the keyboard in the sidebar’s search field.
+func (msgs Messages) LibrarySearchMenu() string {
+	return Catalog.Format(msgs.locale, "librarySearchMenu", nil)
 }
 
 // LibraryShelfDamaged says "The film list has content Kando can't read; the original was saved as library.json.bad: {error}"
@@ -12220,6 +12268,40 @@ func SidebarRevealLibrary(name string, platform string) string {
 // manager.
 func (msgs Messages) SidebarRevealLibrary(name string, platform string) string {
 	return Catalog.Format(msgs.locale, "sidebarRevealLibrary", map[string]any{"name": name, "platform": platform})
+}
+
+// SidebarSearchLabel says "Search Films"
+// in the language the app shows.
+//
+// Accessible name of the sidebar’s search field, which filters the
+// library’s finished films by name.
+func SidebarSearchLabel() string { return In(i18n.Locale()).SidebarSearchLabel() }
+
+// SidebarSearchLabel says "Search Films"
+// in the language of msgs.
+//
+// Accessible name of the sidebar’s search field, which filters the
+// library’s finished films by name.
+func (msgs Messages) SidebarSearchLabel() string {
+	return Catalog.Format(msgs.locale, "sidebarSearchLabel", nil)
+}
+
+// SidebarSearchPlaceholder says "Search films"
+// in the language the app shows.
+//
+// Placeholder of the search field under the library switcher in the
+// sidebar, which filters the finished films by name; the app adds the
+// shortcut after it.
+func SidebarSearchPlaceholder() string { return In(i18n.Locale()).SidebarSearchPlaceholder() }
+
+// SidebarSearchPlaceholder says "Search films"
+// in the language of msgs.
+//
+// Placeholder of the search field under the library switcher in the
+// sidebar, which filters the finished films by name; the app adds the
+// shortcut after it.
+func (msgs Messages) SidebarSearchPlaceholder() string {
+	return Catalog.Format(msgs.locale, "sidebarSearchPlaceholder", nil)
 }
 
 // SidebarSettings says "Settings"

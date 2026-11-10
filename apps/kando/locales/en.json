@@ -1416,6 +1416,20 @@
   "@filmsRetry": {
     "description": "Button on a failed job's card that runs it again."
   },
+  "filmsSearchClear": "Clear Search",
+  "@filmsSearchClear": {
+    "description": "Button under the no-match message that empties the search field and shows every film again."
+  },
+  "filmsSearchNoMatch": "No films match “{query}”.",
+  "@filmsSearchNoMatch": {
+    "description": "Shown in place of the film grid when no finished film’s name contains the text typed into the search field.",
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "example": "rivers"
+      }
+    }
+  },
   "filmsShowInFinder": "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}",
   "@filmsShowInFinder": {
     "description": "Menu item and button that show the film's video file in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager.",
@@ -1613,6 +1627,10 @@
         "example": "permission denied"
       }
     }
+  },
+  "librarySearchMenu": "Search Films",
+  "@librarySearchMenu": {
+    "description": "Edit menu item and shortcut (⌘F while the library page shows) that puts the keyboard in the sidebar’s search field."
   },
   "libraryShelfDamaged": "The film list has content Kando can't read; the original was saved as library.json.bad: {error}",
   "@libraryShelfDamaged": {
@@ -4366,6 +4384,14 @@
         "example": "macOS"
       }
     }
+  },
+  "sidebarSearchLabel": "Search Films",
+  "@sidebarSearchLabel": {
+    "description": "Accessible name of the sidebar’s search field, which filters the library’s finished films by name."
+  },
+  "sidebarSearchPlaceholder": "Search films",
+  "@sidebarSearchPlaceholder": {
+    "description": "Placeholder of the search field under the library switcher in the sidebar, which filters the finished films by name; the app adds the shortcut after it."
   },
   "sidebarSettings": "Settings",
   "@sidebarSettings": {

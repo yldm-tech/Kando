@@ -46,6 +46,17 @@ func emptySource(c *ui.Context, t *ui.Theme) {
 	})
 }
 
+// noMatch is what the grid shows when no done film's name holds the search field's query, with 清除搜索, which empties the field and brings the whole shelf back.
+func noMatch(c *ui.Context, a App, query string) {
+	ui.Column(c).Grow(1).AlignItems(ui.Center).Gap(14).Padding(80, 28).Children(func() {
+		breeze.Text(c, locales.FilmsSearchNoMatch(query), breeze.TextSecondary).TextAlign(ui.Center).Wrap()
+		c.Key("films-search-clear")
+		if statusButton(breeze.Button(c, locales.FilmsSearchClear())).Clicked() {
+			*a.Query() = ""
+		}
+	})
+}
+
 // statusPage is an empty page as the prototype draws it: the colored illustration, the title at 20 points, the description centered in gray, and the actions in a row, in a column 420 wide, 90 points under the message bar.
 func statusPage(c *ui.Context, art *ui.SVG, title, description string, actions func()) {
 	t := c.Theme()

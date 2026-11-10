@@ -55,6 +55,10 @@ func (a *app) SetSourceFilter(source string) {
 
 func (a *app) SourceCount(source string) int { return len(films.BySource(a.films(), source)) }
 
+func (a *app) Query() *string { return &a.side.query }
+
+func (a *app) QueryFocus() *bool { return &a.side.queryFocus }
+
 // LibraryCount is the count countLibraries last read for the library at dir.
 func (a *app) LibraryCount(dir string) (int, bool) {
 	n, ok := a.side.libraryCounts[filepath.Clean(dir)]
@@ -63,9 +67,10 @@ func (a *app) LibraryCount(dir string) (int, bool) {
 
 func (a *app) Readiness() sidebar.Readiness { return a.readiness() }
 
-// sidebarLibraryChanged runs after the open library changed (libraryChanged in sidebarHooks): the sidebar shows all of the new library's films, and the switcher's counts are read again, the library just left among them.
+// sidebarLibraryChanged runs after the open library changed (libraryChanged in sidebarHooks): the sidebar shows all of the new library's films, with no search, and the switcher's counts are read again, the library just left among them.
 func (a *app) sidebarLibraryChanged() {
 	a.side.filter = sidebar.SourceAll
+	a.side.query = ""
 	a.countLibraries()
 }
 

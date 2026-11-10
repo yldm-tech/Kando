@@ -6,6 +6,9 @@ import "kando/apps/kando/sidebar"
 type sidebarUI struct {
 	// filter is the source the sidebar shows: sidebar.SourceAll or one of the platforms of core.ParseLink.
 	filter string
+	// query is what the search field under the switcher holds: the library page shows the done films whose names hold it (films.ByTitle). It is not saved, and another library starts without it, as with filter. queryFocus asks the field for the keyboard focus once, as ⌘F does (sidebarSearch).
+	query      string
+	queryFocus bool
 	// ready is what the status line last learned about whether a job can start (readiness.go).
 	ready readiness
 	// libraryCounts is how many films each known library that is not open holds, by its cleaned path, read off the UI thread for the library switcher's menu (countLibraries).
@@ -44,3 +47,9 @@ func (a *app) sidebarHooks() areaHooks {
 
 // sidebarKeys are the sidebar's shortcuts.
 func (a *app) sidebarKeys() []shortcut { return nil }
+
+// sidebarSearchable reports whether ⌘F goes to the sidebar's search field now: no film is open, as the player takes ⌘F while one is, and the open library has films to search, as sidebar.Show draws the field only then.
+func (a *app) sidebarSearchable() bool { return a.openKey == "" && a.FilmCount() > 0 }
+
+// sidebarSearch is ⌘F on the library page (libraryKeys): the keyboard in the sidebar's search field.
+func (a *app) sidebarSearch() { a.side.queryFocus = true }

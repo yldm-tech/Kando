@@ -127,12 +127,8 @@ func (a *app) remoteFilms(ctx context.Context, p remote.FilmsParams) ([]remote.F
 			return nil, err
 		}
 		out := []remote.Film{}
-		query := strings.ToLower(strings.TrimSpace(p.Query))
 		for _, item := range all {
-			if !remoteFromSource(item, p.Source) {
-				continue
-			}
-			if query != "" && !strings.Contains(strings.ToLower(remoteFilmTitle(item)), query) {
+			if !remoteFromSource(item, p.Source) || !films.MatchesTitle(item, p.Query) {
 				continue
 			}
 			out = append(out, remoteFilmOf(item))
