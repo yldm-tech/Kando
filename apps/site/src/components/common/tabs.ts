@@ -1,9 +1,11 @@
 // useTabs makes a group of tabs: the tab list's buttons and their panels, one shown at a time, with the arrow keys moving between the tabs as a tab list's keys do.
 import { useHydrated } from "@tanstack/react-router";
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { arrive } from "./motion";
 
 export interface Tabs {
   selected: number;
+  hydrated: boolean;
   select: (i: number) => void;
   tab: (i: number) => {
     type: "button";
@@ -23,6 +25,14 @@ export function useTabs(ids: readonly (readonly [string, string])[], opts: { hid
   const [selected, select] = useState(0);
   const hydrated = useHydrated();
   const hiding = hydrated || opts.hideBeforeHydration === true;
+  // A panel the reader switches to arrives with a short rise; the first one is simply there.
+  const shown = useRef(selected);
+  useEffect(() => {
+    if (shown.current !== selected) {
+      shown.current = selected;
+      arrive(document.getElementById(ids[selected]?.[1] ?? ""));
+    }
+  }, [selected, ids]);
   const move = (e: KeyboardEvent, i: number) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") {
       return;
@@ -34,6 +44,7 @@ export function useTabs(ids: readonly (readonly [string, string])[], opts: { hid
   };
   return {
     selected,
+    hydrated,
     select,
     tab: (i) => ({
       type: "button",

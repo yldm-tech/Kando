@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import { useReducedMotion } from "motion/react";
 import { useWords, type ContentKey } from "../../../i18n/content";
 import { clock, demoLineSeconds, demoLines, demoSeconds } from "../../../lib/site";
+import { SlidingPill } from "../../common/SlidingPill";
 import { useTabs } from "../../common/tabs";
 import { BackIcon, BigPlayIcon, FullScreenIcon, LoopIcon, ModeIcon, PanelIcon, PauseIcon, PlayIcon, SkipBackIcon, SkipForwardIcon, SoundIcon } from "./icons";
 import { Scene } from "./scenes";
@@ -295,6 +296,7 @@ export function Player() {
       <aside className="kp-side" aria-label={app("filmSidebar")}>
         <div className="kp-card">
           <div className="kp-tabs" role="tablist" aria-label={app("filmSidebar")}>
+            <SlidingPill index={tabs.selected} items='[role="tab"]' className="rounded-[8px] bg-white/16" />
             {(["filmSubtitles", "filmTabClips", "filmTabInfo", "filmTabStyle"] as const).map((key, i) => (
               <button key={key} {...tabs.tab(i)}>
                 {app(key)}

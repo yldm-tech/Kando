@@ -7,7 +7,7 @@ import { useMemo, useRef, useState } from "react";
 import { z } from "zod/mini";
 import { useWords } from "../../i18n/content";
 import { siteMatches } from "../../lib/match";
-import { SiteRow, SitesHead } from "./SitesPage";
+import { SiteRow, SitesHead, TableCard, tableClass } from "./SitesPage";
 import type { Row } from "./rows";
 
 // sitesFileSchema is webmcp/sites.json, as buildtime/webmcp.ts writes it.
@@ -75,41 +75,53 @@ export function SitesSearch({ rows }: { rows: readonly Row[] }) {
 
   return (
     <>
-      <div className="sites-search" role="search">
-        <label htmlFor="sites-query">{t("sitesSearchLabel")}</label>
-        <input
-          id="sites-query"
-          type="search"
-          value={query}
-          placeholder={t("sitesSearchPlaceholder")}
-          autoComplete="off"
-          spellCheck={false}
-          onFocus={() => setWanted(true)}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <output htmlFor="sites-query" aria-live="polite">
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2.5" role="search">
+        <label htmlFor="sites-query" className="sr">
+          {t("sitesSearchLabel")}
+        </label>
+        <span className="relative flex min-w-0 flex-[1_1_320px] items-center">
+          <svg className="pointer-events-none absolute left-4 size-[18px] fill-none stroke-ink-3 stroke-2" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" strokeLinecap="round" />
+          </svg>
+          <input
+            id="sites-query"
+            type="search"
+            className="h-12 w-full rounded-full border-0 bg-white pr-5 pl-11 text-[15px] text-ink shadow-[0_0_0_1px_rgba(28,25,22,0.1),0_8px_24px_rgba(80,40,10,0.06)] transition-shadow duration-300 outline-none placeholder:text-ink-3 focus:shadow-[0_0_0_2px_var(--color-accent),0_8px_24px_rgba(229,101,29,0.14)]"
+            value={query}
+            placeholder={t("sitesSearchPlaceholder")}
+            autoComplete="off"
+            spellCheck={false}
+            onFocus={() => setWanted(true)}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </span>
+        <output htmlFor="sites-query" aria-live="polite" className="text-[13px] text-ink-3 tabular-nums">
           {found.length === 0 ? t("sitesNoMatch") : tf("sitesFound", { count: found.length })}
         </output>
       </div>
-      <table className="sites-table" aria-labelledby="sites-title" aria-rowcount={found.length + 1}>
-        <SitesHead />
-        <tbody ref={body}>
-          {before > 0 && (
-            <tr className="spacer" aria-hidden="true">
-              <td colSpan={2} style={{ height: before }} />
-            </tr>
-          )}
-          {items.map((item) => {
-            const row = found[item.index];
-            return row ? <SiteRow key={row.original.domain} row={row.original} /> : null;
-          })}
-          {after > 0 && (
-            <tr className="spacer" aria-hidden="true">
-              <td colSpan={2} style={{ height: after }} />
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <TableCard>
+        <table className={tableClass} aria-labelledby="sites-title" aria-rowcount={found.length + 1}>
+          <SitesHead />
+          <tbody ref={body}>
+            {before > 0 && (
+              <tr aria-hidden="true">
+                <td colSpan={2} className="p-0" style={{ height: before }} />
+              </tr>
+            )}
+            {items.map((item) => {
+              const row = found[item.index];
+              return row ? <SiteRow key={row.original.domain} row={row.original} /> : null;
+            })}
+            {after > 0 && (
+              <tr aria-hidden="true">
+                <td colSpan={2} className="p-0" style={{ height: after }} />
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {found.length === 0 && <p className="m-0 px-4 py-10 text-center text-[15px] text-ink-3">{t("sitesNoMatch")}</p>}
+      </TableCard>
     </>
   );
 }

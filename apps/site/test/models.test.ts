@@ -17,7 +17,7 @@ it("reads the seven whisper models with their sizes", () => {
 it("lists every model on each page", () => {
   const models = readModels(repoRoot);
   for (const l of builtLangs()) {
-    const table = section(readOut(pageFile(l)), 'class="models-table"', "</table>");
+    const table = section(readOut(pageFile(l)), 'class="models-table', "</table>");
     const rows = tags(table, "tr").filter((t) => t.attrs.has("data-mb"));
     expect(
       rows.map((t) => Number(attr(t, "data-mb"))),

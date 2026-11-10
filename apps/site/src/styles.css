@@ -504,9 +504,7 @@
     width: 128px;
     height: 128px;
     filter: drop-shadow(0 24px 40px rgba(238, 122, 35, 0.35));
-    animation:
-      k-rise 0.9s var(--ease) both,
-      k-float 7s ease-in-out 1s infinite;
+    animation: k-float 7s ease-in-out 1s infinite;
   }
   .hero h1 {
     margin-top: 30px;
@@ -514,7 +512,6 @@
     line-height: 1.1;
     font-weight: 800;
     letter-spacing: -0.035em;
-    animation: k-rise 1s var(--ease) 0.15s both;
   }
   em.mark {
     font-style: normal;
@@ -529,7 +526,6 @@
     color: var(--ink-2);
     font-size: clamp(16px, 1.5vw, 19px);
     line-height: 1.75;
-    animation: k-rise 1s var(--ease) 0.3s both;
   }
   .actions {
     display: flex;
@@ -538,14 +534,10 @@
     gap: 12px;
     margin-top: 34px;
   }
-  .rise-3 {
-    animation: k-rise 1s var(--ease) 0.45s both;
-  }
   .meta {
     margin: 14px 0 0;
     color: var(--ink-3);
     font-size: 13px;
-    animation: k-rise 1s var(--ease) 0.55s both;
   }
 
   .stage {
@@ -553,7 +545,11 @@
     width: 100%;
     max-width: 1120px;
     margin: 64px 0 0;
-    animation: k-up 1.4s var(--ease) 0.6s both;
+  }
+  /* The hero's entrance is Motion's (components/common/motion.ts); until it starts the parts it brings in are hidden, and should the page's script never run they show after a few seconds all the same. */
+  .js [data-enter] {
+    opacity: 0;
+    animation: k-show 0.01s linear 4s forwards;
   }
   .stage-glow {
     position: absolute;
@@ -1092,7 +1088,6 @@
     gap: 8px;
     min-height: 0;
     flex: 1;
-    animation: k-panel 0.3s ease both;
   }
   .kp-pane[hidden] {
     display: none;
@@ -1602,7 +1597,6 @@
     font-family: var(--mono);
     font-size: 13px;
     line-height: 1.75;
-    animation: k-panel 0.45s var(--ease) both;
   }
   .term-body + .term-body {
     box-shadow: inset 0 1px 0 rgba(251, 248, 243, 0.08);
@@ -1856,7 +1850,6 @@
     gap: 10px;
     min-height: 188px;
     padding: 18px 18px 20px;
-    animation: k-panel 0.45s var(--ease) both;
   }
   .dl-panel[hidden] {
     display: none;
@@ -2002,6 +1995,27 @@
     font-size: 15px;
     line-height: 1.75;
     animation: k-open 0.35s var(--ease) both;
+  }
+  .js .qa p {
+    animation: none;
+  }
+
+  /* ---- sliding pills (components/common/SlidingPill.tsx) ---- */
+
+  .seg,
+  .kp-tabs {
+    position: relative;
+  }
+  [data-pill] > [role="tab"],
+  .nav[data-pill] > a {
+    position: relative;
+    z-index: 1;
+  }
+  .seg[data-pill] button[aria-selected="true"],
+  .kp-tabs[data-pill] button[aria-selected="true"],
+  .nav[data-pill] a.on {
+    background: transparent;
+    box-shadow: none;
   }
 
   /* ---- closing ---- */
@@ -2180,28 +2194,6 @@
       transform: translate(-110px, -30px) scale(0.92);
     }
   }
-  @keyframes k-rise {
-    from {
-      opacity: 0;
-      transform: translateY(26px);
-      filter: blur(8px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-      filter: blur(0);
-    }
-  }
-  @keyframes k-up {
-    from {
-      opacity: 0;
-      transform: translateY(70px) scale(0.97);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
   @keyframes k-float {
     0%,
     100% {
@@ -2273,18 +2265,6 @@
       transform: none;
     }
   }
-  @keyframes k-panel {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-      filter: blur(6px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-      filter: blur(0);
-    }
-  }
   @keyframes k-open {
     from {
       opacity: 0;
@@ -2318,21 +2298,9 @@
       transform: scaleX(1);
     }
   }
-  @keyframes k-rv {
-    from {
-      opacity: 0;
-      transform: translateY(60px);
-    }
+  @keyframes k-show {
     to {
       opacity: 1;
-      transform: none;
-    }
-  }
-  @supports (animation-timeline: view()) {
-    .rv {
-      animation: k-rv linear both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 85%;
     }
   }
 
@@ -2345,6 +2313,9 @@
     *::after {
       animation: none !important;
       transition: none !important;
+    }
+    .js [data-enter] {
+      opacity: 1;
     }
     .marquee-track {
       width: auto;
@@ -2414,104 +2385,5 @@
     .kp {
       --kp-scale: 0.6;
     }
-  }
-
-  /* ---- models ---- */
-
-  .models-table {
-    width: 100%;
-    max-width: 640px;
-    margin: 40px auto 0;
-    border-collapse: collapse;
-    font-size: 15px;
-  }
-  .models-table caption {
-    margin-bottom: 12px;
-    color: var(--ink-3);
-    font-size: 13px;
-    text-align: left;
-  }
-  .models-table th,
-  .models-table td {
-    padding: 10px 12px;
-    text-align: left;
-    box-shadow: inset 0 -1px 0 rgba(28, 25, 22, 0.08);
-  }
-  .models-table td {
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-  }
-  .models-table thead th:last-child {
-    text-align: right;
-  }
-  .badge-soft {
-    margin-left: 8px;
-    padding: 2px 8px;
-    border-radius: 999px;
-    background: rgba(229, 101, 29, 0.12);
-    color: var(--accent-ink);
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  /* ---- sites ---- */
-
-  .sites-all {
-    margin: 18px 0 0;
-    text-align: center;
-    font-size: 14px;
-  }
-  .sites-page {
-    padding: 140px 0 100px;
-  }
-  .sites-search {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 14px;
-    margin: 32px 0 20px;
-  }
-  .sites-search input {
-    flex: 1 1 280px;
-    height: 40px;
-    padding: 0 14px;
-    border: 1px solid rgba(28, 25, 22, 0.14);
-    border-radius: 12px;
-    background: #fff;
-    font: inherit;
-  }
-  .sites-search output {
-    color: var(--ink-3);
-    font-size: 13px;
-  }
-  .sites-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 15px;
-  }
-  .sites-table th,
-  .sites-table td {
-    height: 44px;
-    padding: 0 12px;
-    text-align: left;
-    box-shadow: inset 0 -1px 0 rgba(28, 25, 22, 0.06);
-  }
-  .sites-table tbody th {
-    font-weight: 500;
-  }
-  .sites-table tbody th > img,
-  .sites-table tbody th > .initial {
-    display: inline-flex;
-    margin-right: 10px;
-    vertical-align: middle;
-  }
-  .sites-table td {
-    color: var(--ink-2);
-    font-family: var(--mono);
-    font-size: 13px;
-  }
-  .sites-table .spacer td {
-    padding: 0;
-    box-shadow: none;
   }
 }

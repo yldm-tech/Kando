@@ -1,8 +1,9 @@
-// Questions, as native disclosures that read complete without script; with it, one is open at a time.
+// Questions, as native disclosures that read complete without script; with it, one is open at a time, and an answer unfolds and folds away instead of appearing and vanishing.
 import site from "virtual:kando/site";
-import { useRef, type SyntheticEvent } from "react";
+import { useRef, type MouseEvent, type SyntheticEvent } from "react";
 import { useWords, type ContentKey } from "../../i18n/content";
 import { issuesURL } from "../../lib/site";
+import { fold, unfold } from "../common/motion";
 
 const questions: readonly [ContentKey, ContentKey][] = [
   ["faqPriceQ", "faqPriceA"],
@@ -22,10 +23,23 @@ export function Faq() {
     if (!opened.open) {
       return;
     }
+    unfold(opened.querySelector("p"));
     for (const other of list.current?.querySelectorAll("details.qa") ?? []) {
-      if (other !== opened && other instanceof HTMLDetailsElement) {
-        other.open = false;
+      if (other !== opened && other instanceof HTMLDetailsElement && other.open) {
+        fold(other.querySelector("p"), () => {
+          other.open = false;
+        });
       }
+    }
+  };
+  // A click on an open question's summary folds its answer away first and closes the disclosure after.
+  const onSummary = (event: MouseEvent<HTMLElement>) => {
+    const details = event.currentTarget.parentElement;
+    if (details instanceof HTMLDetailsElement && details.open) {
+      event.preventDefault();
+      fold(details.querySelector("p"), () => {
+        details.open = false;
+      });
     }
   };
   return (
@@ -42,7 +56,7 @@ export function Faq() {
         <div className="faq-list" ref={list}>
           {questions.map(([q, a], i) => (
             <details key={q} className="qa" open={i === 0 ? true : undefined} onToggle={onToggle}>
-              <summary>
+              <summary onClick={onSummary}>
                 {t(q)}
                 <span className="plus" aria-hidden="true" />
               </summary>

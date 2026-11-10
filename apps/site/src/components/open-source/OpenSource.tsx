@@ -4,6 +4,7 @@ import { useWords } from "../../i18n/content";
 import { buildCommands, installCommand, latestURL, readmeURL, releasesURL, repoURL } from "../../lib/site";
 import { CodeBlock } from "../common/CodeBlock";
 import { AppleMark, GitHubMark } from "../common/marks";
+import { SlidingPill } from "../common/SlidingPill";
 import { useTabs } from "../common/tabs";
 
 // systems are the download panel's tabs, by the name a link to the panel gives in its data-os.
@@ -50,6 +51,7 @@ export function OpenSource() {
           </div>
           <div className="dl" id="start">
             <div className="seg" role="tablist" aria-label={t("dlTabsLabel")}>
+              <SlidingPill index={tabs.selected} items='[role="tab"]' className="rounded-[9px] bg-paper shadow-[0_2px_8px_rgba(0,0,0,0.3)]" />
               <button {...tabs.tab(0)} data-os="mac">
                 macOS
               </button>

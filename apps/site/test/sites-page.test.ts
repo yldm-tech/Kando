@@ -7,7 +7,7 @@ it("server-renders every site of the catalog on each language's sites page", () 
   const catalog = readJSON<{ sites: { domain: string }[] }>(join(repoRoot, "apps/kando/sites/catalog/sites.json"));
   for (const l of builtLangs()) {
     const html = readOut(pageFile(l, "sites"));
-    const body = section(html, 'class="sites-table"', "</table>");
+    const body = section(html, 'class="sites-table', "</table>");
     const rows = tags(body, "tr").length - 1;
     expect(rows, l.code).toBe(catalog.sites.length);
     expect(html).toContain(String(catalog.sites.length));

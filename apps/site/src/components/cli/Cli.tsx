@@ -2,6 +2,7 @@
 import { Fragment, type ReactNode } from "react";
 import site from "virtual:kando/site";
 import { Rich, useWords } from "../../i18n/content";
+import { SlidingPill } from "../common/SlidingPill";
 import { useTabs } from "../common/tabs";
 
 // Lines are the lines of a <pre>, joined by line breaks, as the terminal shows them.
@@ -54,6 +55,7 @@ export function Cli() {
               <i />
             </span>
             <div className="seg" role="tablist" aria-label={t("cliTabsLabel")}>
+              <SlidingPill index={tabs.selected} items='[role="tab"]' className="rounded-[9px] bg-paper shadow-[0_2px_8px_rgba(0,0,0,0.3)]" />
               <button {...tabs.tab(0)}>{t("cliTabCommands")}</button>
               <button {...tabs.tab(1)}>MCP</button>
             </div>

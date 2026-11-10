@@ -1,4 +1,5 @@
 // The header: the brand, the section links in a pill that marks the section being read, the language menu and the GitHub link.
+import { SlidingPill } from "../common/SlidingPill";
 import { useEffect, useRef, useState } from "react";
 import { useWords, type ContentKey } from "../../i18n/content";
 import { pagePath, repoURL } from "../../lib/site";
@@ -21,15 +22,15 @@ export function Header({ page }: { page: "home" | "sites" | "404" }) {
   const [current, setCurrent] = useState("");
   const base = page === "home" ? "" : pagePath(lang.code);
 
-  // The header turns solid once the page scrolls, and its pill marks the section being read.
+  // The header turns solid once the page scrolls, and on the home page its pill marks the section being read.
   useEffect(() => {
-    if (page !== "home") {
-      return;
-    }
     let pending = false;
     const update = () => {
       pending = false;
       setScrolled(window.scrollY > 12);
+      if (page !== "home") {
+        return;
+      }
       let now = "";
       for (const [id] of sections) {
         const el = document.getElementById(id);
@@ -62,6 +63,11 @@ export function Header({ page }: { page: "home" | "sites" | "404" }) {
           </a>
           {page !== "404" && (
             <nav className="nav" aria-label={t("navLabel")}>
+              <SlidingPill
+                index={sections.findIndex(([id]) => id === current)}
+                items="a"
+                className="rounded-[16px] bg-white shadow-[0_1px_2px_rgba(28,25,22,0.08),0_4px_12px_rgba(28,25,22,0.08)]"
+              />
               {sections.map(([id, key]) => (
                 <a key={id} href={base + "#" + id} className={current === id ? "on" : undefined}>
                   {t(key)}

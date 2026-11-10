@@ -1,18 +1,24 @@
 // The hero: the headline, the Download button, and the demo player in a window.
+import { useRef } from "react";
 import site from "virtual:kando/site";
 import { Headline, useWords } from "../../i18n/content";
 import { latestURL } from "../../lib/site";
 import { AppleMark } from "../common/marks";
+import { useEntrance } from "../common/motion";
 import { Player } from "./player/Player";
+import { River } from "./river/River";
 
 export function Hero() {
   const { t, tf } = useWords();
+  const root = useRef<HTMLElement>(null);
+  useEntrance(root);
   return (
-    <section className="hero" aria-labelledby="hero-title">
+    <section className="hero" aria-labelledby="hero-title" ref={root}>
       <div className="hero-sky" aria-hidden="true">
         <span className="blob blob-a" />
         <span className="blob blob-b" />
         <span className="blob blob-c" />
+        <River />
         <svg className="grain">
           <filter id="kp-grain">
             <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves={2} stitchTiles="stitch" />
@@ -22,12 +28,16 @@ export function Hero() {
         </svg>
       </div>
       <div className="wrap hero-in">
-        <img className="hero-icon" src="/logo.png" width="128" height="128" alt="" />
-        <h1 id="hero-title">
+        <div data-enter="">
+          <img className="hero-icon" src="/logo.png" width="128" height="128" alt="" />
+        </div>
+        <h1 id="hero-title" data-enter="">
           <Headline title={t("heroTitle")} mark={t("heroTitleMark")} />
         </h1>
-        <p className="lead">{t("heroLead")}</p>
-        <div className="actions rise-3">
+        <p className="lead" data-enter="">
+          {t("heroLead")}
+        </p>
+        <div className="actions" data-enter="">
           <a className="btn primary big" href={latestURL}>
             <AppleMark size={18} />
             {t("heroDownload")}
@@ -37,8 +47,10 @@ export function Hero() {
             {t("heroOtherSystems")}
           </a>
         </div>
-        <p className="meta">{tf("heroMeta", { version: site.version })}</p>
-        <figure className="stage">
+        <p className="meta" data-enter="">
+          {tf("heroMeta", { version: site.version })}
+        </p>
+        <figure className="stage" data-enter="stage">
           <div className="stage-glow" aria-hidden="true" />
           <div className="win dark">
             <div className="win-bar" aria-hidden="true">
