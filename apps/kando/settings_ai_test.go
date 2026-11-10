@@ -8,9 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 
+	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -307,5 +309,72 @@ func TestGetEveryAPIOpensItsWebsite(t *testing.T) {
 	page.Frame()
 	if want := locales.SettingsAIEveryAPIOpenFailed("no browser"); !page.HasText(want) {
 		t.Fatalf("missing %q in %q", want, page.Texts())
+	}
+
+	// 重新检测 looks for the program again, so the row says what it needs now rather than why the website could not be opened before. The tools are not looked up here, as redetectTools would, because Relook also looks in Homebrew's folders, where this computer may have a real everyapi.
+	a.areasToolsChanged(true)
+	page.Frame()
+	if a.prefs.everyAPIOpenErr != "" || !page.HasText(locales.SettingsAIEveryAPIMissing()) {
+		t.Fatalf("after 重新检测: error %q, texts %q", a.prefs.everyAPIOpenErr, page.Texts())
+	}
+}
+
+// TestGetEveryAPIKeepsOnlyTheLastPress checks that a press of 获取 EveryAPI whose browser answers late, with an error, after a later press opened the website, does not put its error on the page.
+func TestGetEveryAPIKeepsOnlyTheLastPress(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	var mu sync.Mutex
+	calls := 0
+	saved := everyAPIOpenURL
+	everyAPIOpenURL = func(string) error {
+		mu.Lock()
+		calls++
+		first := calls == 1
+		mu.Unlock()
+		if !first {
+			return nil
+		}
+		close(entered)
+		<-release
+		return errors.New("slow browser")
+	}
+	t.Cleanup(func() { everyAPIOpenURL = saved })
+	a, tt, updates, _ := everyAPIApp(t)
+	page := settingsOpenAt(a, tt, settings.SectionAI)
+	if err := page.Click(locales.SettingsAIGetEveryAPI()); err != nil {
+		t.Fatal(err)
+	}
+	<-entered
+	if err := page.Click(locales.SettingsAIGetEveryAPI()); err != nil {
+		t.Fatal(err)
+	}
+	waitUpdate(t, updates)
+	close(release)
+	waitUpdate(t, updates)
+	page.Frame()
+	if a.prefs.everyAPIOpenErr != "" || page.HasText(locales.SettingsAIEveryAPIOpenFailed("slow browser")) {
+		t.Fatalf("the earlier press's error stayed: %q, texts %q", a.prefs.everyAPIOpenErr, page.Texts())
+	}
+}
+
+// TestEveryAPICLIThatFailsOtherwiseSaysWhat checks that an everyapi that fails for a reason other than nobody being signed in, as a crash, is not reported as signed out: the sidebar points to Settings › AI 服务, which says what the program said.
+func TestEveryAPICLIThatFailsOtherwiseSaysWhat(t *testing.T) {
+	a, tt, updates, bin := everyAPIApp(t)
+	writeFakeScript(t, bin, "everyapi", "echo 'everyapi: config file is corrupt' >&2\nexit 2")
+	a.redetectTools()
+	waitUntil(t, updates, func() bool { return a.side.ready.signInDone })
+	tt.Frame()
+	err := a.side.ready.signInErr
+	if err == nil || errors.Is(err, media.ErrEveryAPISignedOut) || errors.Is(err, media.ErrEveryAPIMissing) {
+		t.Fatalf("sign-in error %v, want another failure", err)
+	}
+	if !tt.HasText(everyAPIFailed()) || tt.HasText(everyAPISignedOut()) {
+		t.Fatalf("sidebar: want %q, texts %q", everyAPIFailed(), tt.Texts())
+	}
+	page := settingsOpenAt(a, tt, settings.SectionAI)
+	if want := locales.SettingsAIEveryAPIFailed(films.Shorten(err.Error(), 160)); !page.HasText(want) || page.HasText(locales.SettingsAIEveryAPISignedOut()) || page.HasText(locales.SettingsAIGetEveryAPI()) {
+		t.Fatalf("AI page: want %q, texts %q", want, page.Texts())
+	}
+	if !strings.Contains(err.Error(), "config file is corrupt") {
+		t.Fatalf("sign-in error %v does not say what the program said", err)
 	}
 }

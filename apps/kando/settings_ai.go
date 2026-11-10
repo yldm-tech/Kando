@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
@@ -202,10 +203,13 @@ func (a *app) everyAPIStatus() settings.EveryAPI {
 	case a.side.ready.asking:
 		status.Checking = true
 	case a.side.ready.signInDone && a.side.ready.signInErr != nil:
-		if errors.Is(a.side.ready.signInErr, media.ErrEveryAPIMissing) {
+		switch err := a.side.ready.signInErr; {
+		case errors.Is(err, media.ErrEveryAPIMissing):
 			status.Missing = true
-		} else {
+		case errors.Is(err, media.ErrEveryAPISignedOut):
 			status.SignedOut = true
+		default:
+			status.Failed = films.Shorten(err.Error(), 160)
 		}
 	}
 	return status
@@ -213,16 +217,23 @@ func (a *app) everyAPIStatus() settings.EveryAPI {
 
 // getEveryAPI opens EveryAPI's website in the browser off the UI thread, and keeps why it could not for the page to say.
 func (a *app) getEveryAPI() {
-	a.prefs.everyAPIOpenErr = ""
+	a.everyAPIForgetOpen()
+	gen := a.prefs.everyAPIOpenGen
 	update := a.update
 	go func() {
 		err := everyAPIOpenURL(everyAPISite)
 		update(func() {
-			if err != nil {
+			if err != nil && gen == a.prefs.everyAPIOpenGen {
 				a.prefs.everyAPIOpenErr = err.Error()
 			}
 		})
 	}()
+}
+
+// everyAPIForgetOpen drops why 获取 EveryAPI last could not open the website, and the answer of any press still waiting, when it is pressed again or the tools are detected again, so the row says what the program needs now.
+func (a *app) everyAPIForgetOpen() {
+	a.prefs.everyAPIOpenGen++
+	a.prefs.everyAPIOpenErr = ""
 }
 
 func (a *app) testLLM() {

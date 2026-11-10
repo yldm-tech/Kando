@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -792,16 +793,32 @@ func TestNoticeOpensTheSettingThatFixesIt(t *testing.T) {
 }
 
 func TestFailedCardOpensTheSettingThatFixesIt(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
-	a.library.Jobs = []core.Job{{ID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageFailed, Err: errors.New("check: KANDO_WHISPER_MODEL is not set"), LibraryDir: "/videos"}}
-	tt.Frame()
-	if !tt.HasText(locales.PrecheckNoSpeechModel()) || !tt.HasText("1 个需要处理") {
-		t.Fatalf("texts %q", tt.Texts())
+	for _, tc := range []struct {
+		name    string
+		err     error
+		reason  func() string
+		section string
+	}{
+		{"speech model", errors.New("check: KANDO_WHISPER_MODEL is not set"), locales.PrecheckNoSpeechModel, settings.SectionSpeech},
+		{"everyapi missing at check", fmt.Errorf("check: %w", media.ErrEveryAPIMissing), everyAPIMissing, settings.SectionAI},
+		{"everyapi gone before translate", fmt.Errorf("translate: %w", media.ErrEveryAPIMissing), everyAPIMissing, settings.SectionAI},
+		{"everyapi signed out", fmt.Errorf("translate: %w", media.ErrEveryAPISignedOut), everyAPISignedOut, settings.SectionAI},
+		// What Kando said before it told a missing everyapi from a signed-out one, as a failed job in library.json still says it.
+		{"everyapi legacy text", errors.New("translate: EveryAPI is not signed in; run `everyapi auth login` or set EVERYAPI_API_KEY"), everyAPISignedOut, settings.SectionAI},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a, tt, _ := newTestApp(&fakePipeline{})
+			a.library.Jobs = []core.Job{{ID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageFailed, Err: tc.err, LibraryDir: "/videos"}}
+			tt.Frame()
+			if !tt.HasText(tc.reason()) || !tt.HasText("1 个需要处理") {
+				t.Fatalf("want %q, texts %q", tc.reason(), tt.Texts())
+			}
+			if err := tt.Click("打开设置"); err != nil {
+				t.Fatal(err)
+			}
+			wantSettings(t, a, tc.section)
+		})
 	}
-	if err := tt.Click("打开设置"); err != nil {
-		t.Fatal(err)
-	}
-	wantSettings(t, a, settings.SectionSpeech)
 }
 
 func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {

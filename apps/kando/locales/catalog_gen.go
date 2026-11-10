@@ -7038,6 +7038,30 @@ func (msgs Messages) PrecheckEmpty() string {
 	return Catalog.Format(msgs.locale, "precheckEmpty", nil)
 }
 
+// PrecheckEveryAPIFailed says "Couldn't get the sign-in from the everyapi command-line program; see “AI Service”"
+// in the language the app shows.
+//
+// Message bar, the sidebar's status line, the first-run guide and the
+// command palette when the AI service is EveryAPI with no API Key and
+// asking the everyapi command-line program for its sign-in failed for a
+// reason other than it being missing or signed out (it timed out, crashed
+// or answered in a form Kando does not understand). The AI Service page
+// says why. everyapi is the program's name and stays as it is.
+func PrecheckEveryAPIFailed() string { return In(i18n.Locale()).PrecheckEveryAPIFailed() }
+
+// PrecheckEveryAPIFailed says "Couldn't get the sign-in from the everyapi command-line program; see “AI Service”"
+// in the language of msgs.
+//
+// Message bar, the sidebar's status line, the first-run guide and the
+// command palette when the AI service is EveryAPI with no API Key and
+// asking the everyapi command-line program for its sign-in failed for a
+// reason other than it being missing or signed out (it timed out, crashed
+// or answered in a form Kando does not understand). The AI Service page
+// says why. everyapi is the program's name and stays as it is.
+func (msgs Messages) PrecheckEveryAPIFailed() string {
+	return Catalog.Format(msgs.locale, "precheckEveryAPIFailed", nil)
+}
+
 // PrecheckEveryAPIMissing says "Translation needs the everyapi command-line program, or an API Key in “AI Service”"
 // in the language the app shows.
 //
@@ -8946,14 +8970,14 @@ func (msgs Messages) SettingsAIBlurbDeepSeek() string {
 	return Catalog.Format(msgs.locale, "settingsAIBlurbDeepSeek", nil)
 }
 
-// SettingsAIBlurbEveryAPI says "EveryAPI signed in on this Mac"
+// SettingsAIBlurbEveryAPI says "EveryAPI's OpenAI-compatible API"
 // in the language the app shows.
 //
 // What the EveryAPI service is, at the start of the footnote. A phrase; the
 // footnote ends it with a period.
 func SettingsAIBlurbEveryAPI() string { return In(i18n.Locale()).SettingsAIBlurbEveryAPI() }
 
-// SettingsAIBlurbEveryAPI says "EveryAPI signed in on this Mac"
+// SettingsAIBlurbEveryAPI says "EveryAPI's OpenAI-compatible API"
 // in the language of msgs.
 //
 // What the EveryAPI service is, at the start of the footnote. A phrase; the
@@ -9160,6 +9184,26 @@ func SettingsAIEveryAPICLI() string { return In(i18n.Locale()).SettingsAIEveryAP
 // missing or signed out. everyapi is the program's name.
 func (msgs Messages) SettingsAIEveryAPICLI() string {
 	return Catalog.Format(msgs.locale, "settingsAIEveryAPICLI", nil)
+}
+
+// SettingsAIEveryAPIFailed says "Couldn't get the sign-in from it: {error}. Choose Detect Again to try again."
+// in the language the app shows.
+//
+// Under the everyapi command line row when asking the program for its
+// sign-in failed for a reason other than it being missing or signed out.
+// Detect Again is the button beside it (settingsAIRedetect).
+func SettingsAIEveryAPIFailed(error string) string {
+	return In(i18n.Locale()).SettingsAIEveryAPIFailed(error)
+}
+
+// SettingsAIEveryAPIFailed says "Couldn't get the sign-in from it: {error}. Choose Detect Again to try again."
+// in the language of msgs.
+//
+// Under the everyapi command line row when asking the program for its
+// sign-in failed for a reason other than it being missing or signed out.
+// Detect Again is the button beside it (settingsAIRedetect).
+func (msgs Messages) SettingsAIEveryAPIFailed(error string) string {
+	return Catalog.Format(msgs.locale, "settingsAIEveryAPIFailed", map[string]any{"error": error})
 }
 
 // SettingsAIEveryAPIMissing says "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."

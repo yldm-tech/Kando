@@ -42,7 +42,7 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 				s.ApplyLLM()
 			}
 		})
-		if cli := s.EveryAPI(); cli.Missing || cli.Checking || cli.SignedOut {
+		if cli := s.EveryAPI(); cli.Missing || cli.Checking || cli.SignedOut || cli.Failed != "" {
 			form.Separator(c, true)
 			s.everyAPIRow(c, cli)
 		}
@@ -67,7 +67,7 @@ func (s screen) ai(c *ui.Context, t *ui.Theme) {
 	form.Note(c, note, 0)
 }
 
-// everyAPIRow says what the everyapi command-line program, whose sign-in EveryAPI uses without an API Key, still needs: to be installed, with 获取 EveryAPI to open the website it is downloaded from, or to be signed in to in Terminal; 重新检测 looks for it and asks it again afterwards. While Kando asks it whether someone is signed in, the row says so and 重新检测 waits.
+// everyAPIRow says what the everyapi command-line program, whose sign-in EveryAPI uses without an API Key, still needs: to be installed, with 获取 EveryAPI to open the website it is downloaded from, or to be signed in to in Terminal, or what it said when asking it failed otherwise; 重新检测 looks for it and asks it again afterwards. While Kando asks it whether someone is signed in, the row says so and 重新检测 waits.
 func (s screen) everyAPIRow(c *ui.Context, cli EveryAPI) {
 	note := locales.ReadinessCheckingSignIn()
 	switch {
@@ -77,6 +77,8 @@ func (s screen) everyAPIRow(c *ui.Context, cli EveryAPI) {
 		note = locales.SettingsAIEveryAPIMissing()
 	case cli.SignedOut:
 		note = locales.SettingsAIEveryAPISignedOut()
+	case cli.Failed != "":
+		note = locales.SettingsAIEveryAPIFailed(cli.Failed)
 	}
 	form.Row(c, locales.SettingsAIEveryAPICLI(), note, func() {
 		if cli.Missing {

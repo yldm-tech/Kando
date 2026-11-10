@@ -2502,6 +2502,10 @@
   "@precheckEmpty": {
     "description": "Message bar when the link field is empty."
   },
+  "precheckEveryAPIFailed": "Couldn't get the sign-in from the everyapi command-line program; see “AI Service”",
+  "@precheckEveryAPIFailed": {
+    "description": "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and asking the everyapi command-line program for its sign-in failed for a reason other than it being missing or signed out (it timed out, crashed or answered in a form Kando does not understand). The AI Service page says why. everyapi is the program's name and stays as it is."
+  },
   "precheckEveryAPIMissing": "Translation needs the everyapi command-line program, or an API Key in “AI Service”",
   "@precheckEveryAPIMissing": {
     "description": "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and the everyapi command-line program, whose sign-in it would use, is not on this computer. everyapi is the program's name and stays as it is."
@@ -3246,7 +3250,7 @@
   "@settingsAIBlurbDeepSeek": {
     "description": "What the DeepSeek service is. A phrase."
   },
-  "settingsAIBlurbEveryAPI": "EveryAPI signed in on this Mac",
+  "settingsAIBlurbEveryAPI": "EveryAPI's OpenAI-compatible API",
   "@settingsAIBlurbEveryAPI": {
     "description": "What the EveryAPI service is, at the start of the footnote. A phrase; the footnote ends it with a period."
   },
@@ -3305,6 +3309,16 @@
   "settingsAIEveryAPICLI": "everyapi command line",
   "@settingsAIEveryAPICLI": {
     "description": "Title of the AI Service row about the everyapi command-line program, shown when the service is EveryAPI with no API Key and the program is missing or signed out. everyapi is the program's name."
+  },
+  "settingsAIEveryAPIFailed": "Couldn't get the sign-in from it: {error}. Choose Detect Again to try again.",
+  "@settingsAIEveryAPIFailed": {
+    "description": "Under the everyapi command line row when asking the program for its sign-in failed for a reason other than it being missing or signed out. Detect Again is the button beside it (settingsAIRedetect).",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "EveryAPI credential: everyapi: exit status 2"
+      }
+    }
   },
   "settingsAIEveryAPIMissing": "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again.",
   "@settingsAIEveryAPIMissing": {

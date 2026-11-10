@@ -108,7 +108,7 @@ func TestAISettingsSelectsAProvider(t *testing.T) {
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionAI)
-	for _, text := range []string{"EveryAPI", "本机已登录的 EveryAPI", "Base URL", "API Key", "模型", "测试连接", "尚未测试"} {
+	for _, text := range []string{"EveryAPI", "EveryAPI 的 OpenAI 兼容接口", "Base URL", "API Key", "模型", "测试连接", "尚未测试"} {
 		if !tt.HasText(text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
@@ -259,7 +259,7 @@ func TestSettingsInEnglish(t *testing.T) {
 	a.syncLLM(tools)
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt := newSettingsTester(a, settings.SectionAI)
-	for _, text := range []string{"General", "Speech Recognition", "AI Service", "Translation", "Subtitle Style", "Keyboard Shortcuts", "Account & Upload", "Service", "Model", "Test Connection", "Not tested", "EveryAPI signed in on this Mac. Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac. Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."} {
+	for _, text := range []string{"General", "Speech Recognition", "AI Service", "Translation", "Subtitle Style", "Keyboard Shortcuts", "Account & Upload", "Service", "Model", "Test Connection", "Not tested", "EveryAPI's OpenAI-compatible API. Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac. Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."} {
 		wantText(t, tt, text)
 	}
 	if settings.Title(settings.SectionLook) != "Subtitle Style" {

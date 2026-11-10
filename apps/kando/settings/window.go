@@ -22,10 +22,10 @@ const (
 	GroupOther = "other"
 )
 
-// EveryAPI is the state of the everyapi command-line program when the AI service is EveryAPI without an API Key, the zero value otherwise or when nothing is wrong with it. Missing is set when the program is not on this computer, Checking while Kando asks it whether someone is signed in, SignedOut when nobody is. OpenErr says why its website could not be opened.
+// EveryAPI is the state of the everyapi command-line program when the AI service is EveryAPI without an API Key, the zero value otherwise or when nothing is wrong with it. Missing is set when the program is not on this computer, Checking while Kando asks it whether someone is signed in, SignedOut when nobody is. Failed says what went wrong when asking it failed for another reason, as a timeout or a crash. OpenErr says why its website could not be opened.
 type EveryAPI struct {
 	Missing, Checking, SignedOut bool
-	OpenErr                      string
+	Failed, OpenErr              string
 }
 
 // Shortcut is one row of the app's shortcut table, as the 快捷键 page lists it.

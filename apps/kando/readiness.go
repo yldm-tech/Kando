@@ -33,6 +33,7 @@ var (
 	noLLMModel        = locales.PrecheckNoLLMModel
 	everyAPIMissing   = locales.PrecheckEveryAPIMissing
 	everyAPISignedOut = locales.PrecheckEveryAPISignedOut
+	everyAPIFailed    = locales.PrecheckEveryAPIFailed
 	checkingSignIn    = locales.ReadinessCheckingSignIn
 	checkingTools     = locales.ReadinessCheckingTools
 )
@@ -157,10 +158,13 @@ func everyAPICLIMissing(t media.ChatTranslator) bool {
 	return t.Credential == nil && t.BaseURL == media.EveryAPIBaseURL && t.APIKey == ""
 }
 
-// everyAPISignInFailed is what to do about an everyapi sign-in that failed: install the program when it has gone since it was found, and otherwise sign in to it.
+// everyAPISignInFailed is what to do about an everyapi sign-in that failed: install the program when it has gone since it was found, sign in to it when nobody is, and otherwise read on the AI 服务 page what it said, as when it timed out or crashed.
 func everyAPISignInFailed(err error) func() string {
-	if errors.Is(err, media.ErrEveryAPIMissing) {
+	switch {
+	case errors.Is(err, media.ErrEveryAPIMissing):
 		return everyAPIMissing
+	case errors.Is(err, media.ErrEveryAPISignedOut):
+		return everyAPISignedOut
 	}
-	return everyAPISignedOut
+	return everyAPIFailed
 }
