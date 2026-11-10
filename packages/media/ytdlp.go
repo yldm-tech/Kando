@@ -14,7 +14,7 @@ import (
 
 // YTDLPInstall is how the yt-dlp at a path was installed, which decides how it is updated.
 type YTDLPInstall struct {
-	// Kind is "homebrew", "pipx", "pip", "system" or "standalone". "system" is a Python script Kando may not write outside Homebrew and pipx, as the yt-dlp a Linux distribution's packages put in /usr/bin: pip cannot upgrade it in place (it is missing there, refuses an externally managed Python, or installs a copy for the user that leaves the one Kando runs as it was), so only the package manager updates it.
+	// Kind is "homebrew", "pipx", "pip", "system" or "standalone". "system" is a Python script Kando may not write outside Homebrew and pipx, as the yt-dlp a Linux distribution's packages put in /usr/bin or one sudo pip installed: pip run by Kando cannot upgrade it in place (it is missing there, refuses an externally managed Python, or installs a copy for the user that leaves the one Kando runs as it was), so it is updated the way it was installed, with the package manager or as root.
 	Kind string
 	// Update is the command that updates it, or nil when Kando cannot; the app then tells the user how from Kind and Dir.
 	Update []string

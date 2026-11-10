@@ -8916,24 +8916,6 @@ func (msgs Messages) QueueUpdateFailed(error string) string {
 	return Catalog.Format(msgs.locale, "queueUpdateFailed", map[string]any{"error": error})
 }
 
-// QueueYtdlpDownloaded says "Downloaded Kando's own yt-dlp {version} and restarted {count, plural, one {# download} other {# downloads}}."
-// in the language the app shows.
-//
-// Message bar after Kando downloaded its own yt-dlp for a card and queued
-// again the downloads the old one was too old for.
-func QueueYtdlpDownloaded(version string, count int) string {
-	return In(i18n.Locale()).QueueYtdlpDownloaded(version, count)
-}
-
-// QueueYtdlpDownloaded says "Downloaded Kando's own yt-dlp {version} and restarted {count, plural, one {# download} other {# downloads}}."
-// in the language of msgs.
-//
-// Message bar after Kando downloaded its own yt-dlp for a card and queued
-// again the downloads the old one was too old for.
-func (msgs Messages) QueueYtdlpDownloaded(version string, count int) string {
-	return Catalog.Format(msgs.locale, "queueYtdlpDownloaded", map[string]any{"version": version, "count": count})
-}
-
 // QueueYtdlpHintBrew says "run brew upgrade yt-dlp in a terminal"
 // in the language the app shows.
 //
@@ -8984,20 +8966,22 @@ func (msgs Messages) QueueYtdlpHintStandalone(dir string) string {
 	return Catalog.Format(msgs.locale, "queueYtdlpHintStandalone", map[string]any{"dir": dir})
 }
 
-// QueueYtdlpHintSystem says "yt-dlp came with your system's packages; update it with your package manager"
+// QueueYtdlpHintSystem says "yt-dlp is in {dir}, where Kando isn't allowed to change it; update it the way it was installed, such as with your pac…"
 // in the language the app shows.
 //
-// How to update a yt-dlp a Linux distribution's packages installed, which
-// Kando cannot update; it follows a colon in a sentence.
-func QueueYtdlpHintSystem() string { return In(i18n.Locale()).QueueYtdlpHintSystem() }
+// How to update a Python yt-dlp outside Homebrew and pipx that Kando may
+// not write, such as one a Linux distribution's packages or sudo pip put in
+// a system folder; it follows a colon in a sentence.
+func QueueYtdlpHintSystem(dir string) string { return In(i18n.Locale()).QueueYtdlpHintSystem(dir) }
 
-// QueueYtdlpHintSystem says "yt-dlp came with your system's packages; update it with your package manager"
+// QueueYtdlpHintSystem says "yt-dlp is in {dir}, where Kando isn't allowed to change it; update it the way it was installed, such as with your pac…"
 // in the language of msgs.
 //
-// How to update a yt-dlp a Linux distribution's packages installed, which
-// Kando cannot update; it follows a colon in a sentence.
-func (msgs Messages) QueueYtdlpHintSystem() string {
-	return Catalog.Format(msgs.locale, "queueYtdlpHintSystem", nil)
+// How to update a Python yt-dlp outside Homebrew and pipx that Kando may
+// not write, such as one a Linux distribution's packages or sudo pip put in
+// a system folder; it follows a colon in a sentence.
+func (msgs Messages) QueueYtdlpHintSystem(dir string) string {
+	return Catalog.Format(msgs.locale, "queueYtdlpHintSystem", map[string]any{"dir": dir})
 }
 
 // QueueYtdlpLatest says "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again…"

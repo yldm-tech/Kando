@@ -794,7 +794,7 @@ func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
 	}
 }
 
-// recordingYTDLP writes a yt-dlp that saves its arguments, one a line, to args and fails as one too old for the site does, printing the real stderr of yt-dlp 2024.03.10 on YouTube. Its -U updates it to updatesTo, or leaves it at 2024.03.10 as the newest there is when updatesTo is "".
+// recordingYTDLP writes a yt-dlp that saves its arguments, one a line, to args and fails as one too old for the site does, printing the real stderr of yt-dlp 2024.03.10 on YouTube. Its -U, also written to args, updates it to updatesTo, or leaves it at 2024.03.10 as the newest there is when updatesTo is "".
 func recordingYTDLP(t *testing.T, args, updatesTo string) string {
 	t.Helper()
 	stderr, err := filepath.Abs(filepath.Join("..", "..", "packages", "media", "testdata", "ytdlp", "errors", "outdated-youtube.stderr"))
@@ -807,7 +807,7 @@ func recordingYTDLP(t *testing.T, args, updatesTo string) string {
 		update = "echo " + updatesTo + " > \"$0.version\"; echo 'Updated yt-dlp to stable@" + updatesTo + "'"
 	}
 	script := "#!/bin/sh\nv=$(cat \"$0.version\" 2>/dev/null || echo 2024.03.10)\n" +
-		"case \"$1\" in --version) echo \"$v\"; exit 0;; -U) " + update + "; exit 0;; esac\n" +
+		"case \"$1\" in --version) echo \"$v\"; exit 0;; -U) echo -U >> '" + args + "'; " + update + "; exit 0;; esac\n" +
 		"for a in \"$@\"; do echo \"$a\"; done >> '" + args + "'\ncat '" + stderr + "' >&2\nexit 1\n"
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -1030,14 +1030,14 @@ func TestOutdatedWithASystemYTDLPOffersKandosOwn(t *testing.T) {
 	systemYTDLP(a, "/usr/bin/yt-dlp")
 	film := failedJob(t, a, "https://www.youtube.com/watch?v=Rg5Lk2Pz8Wd", core.FailOutdated, "")
 	r, _ := a.FailureRemedy(film)
-	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 是随系统软件包安装的，用系统的包管理器更新它。更新后再重试。" || strings.Join(remedyLabels(r), ",") != "已更新，重试" {
+	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 在 /usr/bin，看懂没有权限改动它；用安装它的方式更新，例如系统的包管理器或 sudo pip。更新后再重试。" || strings.Join(remedyLabels(r), ",") != "已更新，重试" {
 		t.Fatalf("without a yt-dlp to download: %+v", r)
 	}
 
 	release := make(chan struct{})
 	fakeKits(t, a, release, "yt-dlp")
 	r, _ = a.FailureRemedy(film)
-	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 是随系统软件包安装的，用系统的包管理器更新它。也可以让看懂下载自己的一份。" ||
+	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 在 /usr/bin，看懂没有权限改动它；用安装它的方式更新，例如系统的包管理器或 sudo pip。也可以让看懂下载自己的一份。" ||
 		strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" || r.Actions[0].ID != remedyDownloadYTDLP || !r.Actions[0].Primary || r.Actions[1].ID != remedyRetry {
 		t.Fatalf("with a yt-dlp to download: %+v", r)
 	}
@@ -1064,7 +1064,7 @@ func TestOutdatedWithASystemYTDLPOffersKandosOwn(t *testing.T) {
 	}
 }
 
-// Once the yt-dlp 下载 yt-dlp 并重试 asked for is in, the tools are looked up again and find it, and every download yt-dlp was too old for runs again with it.
+// Once the yt-dlp 下载 yt-dlp 并重试 asked for is in, the tools are looked up again and find it. The kit is the release Kando was built with, here as old as the yt-dlp that failed, so it is updated with -U before every download yt-dlp was too old for runs again with it.
 func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 	kit, ok := media.KitFor("yt-dlp")
 	if !ok {
@@ -1084,7 +1084,7 @@ func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 	media.OwnToolsDir = own
 	t.Cleanup(func() { media.OwnToolsDir = saved })
 	args := filepath.Join(t.TempDir(), "args")
-	downloaded := recordingYTDLP(t, args, "")
+	downloaded := recordingYTDLP(t, args, "2026.11.03")
 	a.kits.install = func(ctx context.Context, kit media.Kit, dir string, progress func(written, total int64)) (string, error) {
 		data, err := os.ReadFile(downloaded)
 		if err != nil {
@@ -1109,16 +1109,20 @@ func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 	systemYTDLP(a, a.pipeline.(media.Tools).YTDLP)
 	film, _ := a.JobFilm(id)
 	a.RunRemedy(film, remedyDownloadYTDLP)
-	waitUntil(t, updates, func() bool { return !a.queue.ytdlp.kitRetry })
-	if want := filepath.Join(own, kit.ID, "yt-dlp"); a.pipeline.(media.Tools).YTDLP != want {
+	waitUntil(t, updates, func() bool { return !a.queue.ytdlp.kitRetry && !a.queue.ytdlp.updating })
+	want := filepath.Join(own, kit.ID, "yt-dlp")
+	if a.pipeline.(media.Tools).YTDLP != want {
 		t.Fatalf("the pipeline downloads with %q, want %q", a.pipeline.(media.Tools).YTDLP, want)
 	}
-	if want := "已下载看懂自己的 yt-dlp " + kit.Version + "，已重新开始下载 1 个视频。"; a.lib.notice.Text != want {
+	if y := a.queue.ytdlp; y.path != want || y.version != "2026.11.03" || y.install.Kind != "standalone" || y.install.Update == nil {
+		t.Fatalf("the queue knows yt-dlp as %+v", y)
+	}
+	if want := "下载组件已更新到 2026.11.03，已重新开始下载 1 个视频。"; a.lib.notice.Text != want {
 		t.Fatalf("notice %q, want %q", a.lib.notice.Text, want)
 	}
 	settle(t, a, tt, updates)
 	data, _ := os.ReadFile(args)
-	if strings.Count(string(data), source) != 1 {
+	if got := strings.Split(strings.TrimSpace(string(data)), "\n"); len(got) < 2 || got[0] != "-U" || strings.Count(string(data), source) != 1 || strings.Count(string(data), "-U") != 1 {
 		t.Fatalf("Kando's yt-dlp ran with\n%s", data)
 	}
 }

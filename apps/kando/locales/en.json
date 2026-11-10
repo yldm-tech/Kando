@@ -3222,20 +3222,6 @@
       }
     }
   },
-  "queueYtdlpDownloaded": "Downloaded Kando's own yt-dlp {version} and restarted {count, plural, one {# download} other {# downloads}}.",
-  "@queueYtdlpDownloaded": {
-    "description": "Message bar after Kando downloaded its own yt-dlp for a card and queued again the downloads the old one was too old for.",
-    "placeholders": {
-      "version": {
-        "type": "String",
-        "example": "2026.10.26"
-      },
-      "count": {
-        "type": "int",
-        "example": "2"
-      }
-    }
-  },
   "queueYtdlpHintBrew": "run brew upgrade yt-dlp in a terminal",
   "@queueYtdlpHintBrew": {
     "description": "How to update a yt-dlp installed with Homebrew that Kando cannot update; it follows a colon in a sentence."
@@ -3254,9 +3240,15 @@
       }
     }
   },
-  "queueYtdlpHintSystem": "yt-dlp came with your system's packages; update it with your package manager",
+  "queueYtdlpHintSystem": "yt-dlp is in {dir}, where Kando isn't allowed to change it; update it the way it was installed, such as with your package manager or sudo pip",
   "@queueYtdlpHintSystem": {
-    "description": "How to update a yt-dlp a Linux distribution's packages installed, which Kando cannot update; it follows a colon in a sentence."
+    "description": "How to update a Python yt-dlp outside Homebrew and pipx that Kando may not write, such as one a Linux distribution's packages or sudo pip put in a system folder; it follows a colon in a sentence.",
+    "placeholders": {
+      "dir": {
+        "type": "String",
+        "example": "/usr/bin"
+      }
+    }
   },
   "queueYtdlpLatest": "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again in a day or two.",
   "@queueYtdlpLatest": {
