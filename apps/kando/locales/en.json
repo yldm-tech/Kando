@@ -1550,6 +1550,10 @@
       }
     }
   },
+  "libraryShelfNotSaved": "Kando couldn't read the film list in full, so it won't save the list until it restarts.",
+  "@libraryShelfNotSaved": {
+    "description": "Error when Kando was about to save library.json, the list of films and jobs, but does not, because at startup the file could not be read in full and no copy of it could be kept; writing it would lose what Kando could not read."
+  },
   "libraryShelfReadFailed": "Couldn't read the film list: {error}",
   "@libraryShelfReadFailed": {
     "description": "Error when the list of films and jobs (library.json) could not be read.",

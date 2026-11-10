@@ -128,7 +128,7 @@ func (a *app) paletteSaveFurthest() {
 		a.library.Furthest[path] = at
 	}
 	if err := a.library.Save(); err != nil {
-		a.saveErr = locales.PaletteLibrarySaveFailed(err.Error())
+		a.saveErr = shelfSaveErr(err, locales.PaletteLibrarySaveFailed)
 	}
 }
 

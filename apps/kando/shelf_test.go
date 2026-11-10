@@ -351,6 +351,35 @@ func TestRefreshDoesNotTakeAnotherLibrarysJobForAFilmOfTheSameName(t *testing.T)
 	}
 }
 
+// TestRelocateMissingFollowsAFilmOfTheOpenLibrary checks that a finished job of the open library whose folder is gone is pointed at the film of the same folder and file name at the top of the library, with its subtitle and resume position, and is then not dropped as missing.
+func TestRelocateMissingFollowsAFilmOfTheOpenLibrary(t *testing.T) {
+	here := filepath.Join(t.TempDir(), "我的影片.kando")
+	old := filepath.Join(here, "gone", "talk", "video.mp4")
+	oldSub := filepath.Join(here, "gone", "talk", "video.bilingual.srt")
+	video := filepath.Join(here, "talk", "video.mp4")
+	sub := filepath.Join(here, "talk", "video.bilingual.srt")
+	shelfWriteVideos(t, video, sub)
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.edit(func(s *session) {
+		s.LibraryDir = here
+		s.Libraries = []string{here}
+	})
+	a.library.Jobs = []core.Job{{ID: "talk", Source: "https://youtu.be/talk", Stage: core.StageComplete, VideoPath: old, SubtitlePath: oldSub, LibraryDir: here}}
+	a.library.Positions = map[string]time.Duration{old: 42 * time.Second}
+	if !a.relocateMissing() {
+		t.Fatal("relocateMissing reported no change")
+	}
+	if job := a.library.Jobs[0]; job.VideoPath != video || job.SubtitlePath != sub {
+		t.Fatalf("job = %+v", job)
+	}
+	if at, ok := a.library.Positions[video]; !ok || at != 42*time.Second {
+		t.Fatalf("positions = %v", a.library.Positions)
+	}
+	if a.dropMissing() || len(a.library.Jobs) != 1 {
+		t.Fatalf("jobs after dropMissing = %+v", a.library.Jobs)
+	}
+}
+
 // TestDropMissingKeepsEverythingWhileTheLibraryIsGone checks that while the open library's own folder cannot be found, as when its disk was unplugged after the refresh started, no job is dropped.
 func TestDropMissingKeepsEverythingWhileTheLibraryIsGone(t *testing.T) {
 	here := filepath.Join(t.TempDir(), "我的影片.kando")
@@ -438,8 +467,8 @@ func TestDamagedLibraryThatCannotBeKeptIsNotSaved(t *testing.T) {
 		t.Fatalf("saveErr = %q, want %q", a.saveErr, want)
 	}
 	a.show(core.Job{ID: "new", Source: "https://youtu.be/new", Stage: core.StageQueued})
-	if !strings.Contains(a.saveErr, shelf.ErrUnread.Error()) {
-		t.Fatalf("saveErr after a save = %q", a.saveErr)
+	if want := locales.LibraryShelfNotSaved(); a.saveErr != want {
+		t.Fatalf("saveErr after a save = %q, want %q", a.saveErr, want)
 	}
 	if got, err := os.ReadFile(path); err != nil || !bytes.Equal(got, damaged) {
 		t.Fatalf("library.json after a save = %q (%v), want %q", got, err, damaged)

@@ -298,6 +298,7 @@
   "librarySaveFailed": "資料庫無法儲存：{error}",
   "libraryShelfDamaged": "影片庫有讀不懂的內容，原檔案已另存為 library.json.bad：{error}",
   "libraryShelfDamagedUnsaved": "影片庫有讀不懂的內容，也無法另存，所以重新啟動前看懂不會儲存影片庫：{error}",
+  "libraryShelfNotSaved": "影片庫沒有完整讀取，所以重新啟動前看懂不會儲存影片庫。",
   "libraryShelfReadFailed": "無法讀取影片庫：{error}",
   "libraryShelfSaveFailed": "無法儲存影片庫：{error}",
   "libraryTrashFailed": "無法將「{name}」移到垃圾桶：{error}",

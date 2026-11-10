@@ -298,6 +298,7 @@
   "librarySaveFailed": "라이브러리를 저장할 수 없습니다: {error}",
   "libraryShelfDamaged": "동영상 목록에 읽을 수 없는 내용이 있어 원래 파일을 library.json.bad로 저장했습니다: {error}",
   "libraryShelfDamagedUnsaved": "동영상 목록에 읽을 수 없는 내용이 있고 따로 저장할 수도 없어, 다시 시작할 때까지 목록을 저장하지 않습니다: {error}",
+  "libraryShelfNotSaved": "동영상 목록을 끝까지 읽지 못해 다시 시작할 때까지 목록을 저장하지 않습니다.",
   "libraryShelfReadFailed": "동영상 목록을 읽을 수 없습니다: {error}",
   "libraryShelfSaveFailed": "동영상 목록을 저장할 수 없습니다: {error}",
   "libraryTrashFailed": "‘{name}’을(를) 휴지통으로 옮기지 못했습니다: {error}",

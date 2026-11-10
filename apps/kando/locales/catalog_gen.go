@@ -4420,6 +4420,26 @@ func (msgs Messages) LibraryShelfDamagedUnsaved(error string) string {
 	return Catalog.Format(msgs.locale, "libraryShelfDamagedUnsaved", map[string]any{"error": error})
 }
 
+// LibraryShelfNotSaved says "Kando couldn't read the film list in full, so it won't save the list until it restarts."
+// in the language the app shows.
+//
+// Error when Kando was about to save library.json, the list of films and
+// jobs, but does not, because at startup the file could not be read in full
+// and no copy of it could be kept; writing it would lose what Kando could
+// not read.
+func LibraryShelfNotSaved() string { return In(i18n.Locale()).LibraryShelfNotSaved() }
+
+// LibraryShelfNotSaved says "Kando couldn't read the film list in full, so it won't save the list until it restarts."
+// in the language of msgs.
+//
+// Error when Kando was about to save library.json, the list of films and
+// jobs, but does not, because at startup the file could not be read in full
+// and no copy of it could be kept; writing it would lose what Kando could
+// not read.
+func (msgs Messages) LibraryShelfNotSaved() string {
+	return Catalog.Format(msgs.locale, "libraryShelfNotSaved", nil)
+}
+
 // LibraryShelfReadFailed says "Couldn't read the film list: {error}"
 // in the language the app shows.
 //

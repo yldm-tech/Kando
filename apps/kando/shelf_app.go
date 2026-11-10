@@ -241,7 +241,7 @@ func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
 	}
 	if changed {
 		if err := a.library.Save(); err != nil {
-			a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
+			a.saveErr = shelfSaveErr(err, locales.LibraryShelfSaveFailed)
 		}
 	}
 }
@@ -588,7 +588,7 @@ func (a *app) refreshLibrary() {
 	}
 	if a.retargetLibrary(moved) || a.relocateMissing() || a.retargetRenamed() || a.dropMissing() {
 		if err := a.library.Save(); err != nil {
-			a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
+			a.saveErr = shelfSaveErr(err, locales.LibraryShelfSaveFailed)
 		}
 	}
 	videos, err := media.ListVideos(dir)
@@ -754,6 +754,14 @@ func shelfKeepDamaged(lib *shelf.Library, path string, err error) string {
 	}
 	lib.AllowSave()
 	return locales.LibraryShelfDamaged(damaged.Err.Error())
+}
+
+// shelfSaveErr is what the sidebar says when saving library.json returned err: failed wraps the error's text, except for a library that does not save because its file could not be read in full (shelf.ErrUnread), which gets its own notice, as that error's text is not translated.
+func shelfSaveErr(err error, failed func(error string) string) string {
+	if errors.Is(err, shelf.ErrUnread) {
+		return locales.LibraryShelfNotSaved()
+	}
+	return failed(err.Error())
 }
 
 // revealInFolder shows path in the system file manager. Tests replace it.

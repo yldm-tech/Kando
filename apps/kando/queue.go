@@ -261,7 +261,7 @@ func (a *app) startFilm(item films.Film) {
 func (a *app) savePositions() {
 	a.library.Positions = maps.Clone(a.resumePositions())
 	if err := a.library.Save(); err != nil {
-		a.saveErr = locales.QueueSaveFailed(err.Error())
+		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
 	}
 }
 
@@ -287,7 +287,7 @@ func (a *app) remove(id string) {
 		a.newDraft()
 	}
 	if err := a.library.Save(); err != nil {
-		a.saveErr = locales.QueueSaveFailed(err.Error())
+		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
 	}
 }
 
@@ -468,7 +468,7 @@ func (a *app) show(job core.Job) {
 	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {
-		a.saveErr = locales.QueueSaveFailed(err.Error())
+		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
 	} else {
 		a.saveErr = ""
 	}
