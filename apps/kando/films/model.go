@@ -34,6 +34,8 @@ type Film struct {
 	Untranslated int
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
+	// Library is the name of the library the job saves into when that is not the open one, as for a job that kept running after another library was opened; empty for the open library's films.
+	Library string
 }
 
 // List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them.
@@ -58,6 +60,24 @@ func List(root string, jobs []core.Job, videos []media.Video, nameOf func(core.J
 		out = append(out, Film{
 			Key: video.Path, Title: Shorten(name, 22), Name: name, Detail: video.Path, VideoPath: video.Path, SubtitlePath: video.Subtitles,
 		})
+	}
+	return out
+}
+
+// Queue is the films of 处理中 in the shelf's order, newest first: the open library's jobs that are waiting, running, failed or were cancelled (InQueue), and the jobs elsewhere reports the queue runs, or will run, for another library, each with Library naming that library.
+func Queue(root string, jobs []core.Job, elsewhere func(core.Job) bool, nameOf func(core.Job) string, detailOf func(core.Job) string) []Film {
+	var out []Film
+	for _, job := range jobs {
+		switch {
+		case InLibrary(root, job):
+			if item := FromJob(job, nameOf(job), detailOf(job)); InQueue(item) {
+				out = append(out, item)
+			}
+		case elsewhere(job):
+			item := FromJob(job, nameOf(job), detailOf(job))
+			item.Library = LibraryName(job.LibraryDir)
+			out = append(out, item)
+		}
 	}
 	return out
 }

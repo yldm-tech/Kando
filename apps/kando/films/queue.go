@@ -68,6 +68,9 @@ func queueCard(c *ui.Context, t *ui.Theme, a App, item Film) {
 		text.Padding(0, 18, 0, 0)
 		text.Children(func() {
 			ui.Text(c, filmName(item)).FontSize(13).FontWeight(600).SingleLine()
+			if item.Library != "" {
+				ui.Text(c, locales.FilmsQueueSavingTo(item.Library)).FontSize(11).TextColor(t.TextMuted).SingleLine().Ellipsis("…")
+			}
 			if failed {
 				failedDetail(c, t, a, item)
 				return

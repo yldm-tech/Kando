@@ -104,3 +104,27 @@ func queueShotOutdated(t *testing.T, f *screenshotFixture, a *app, tt *ui.Tester
 		}
 	}
 }
+
+// TestScreenshotsQueueOtherLibrary renders 英语听力 opened while a link added to 我的影片 downloads: the job goes on, and 英语听力's 处理中 shows it, and the film waiting in 我的影片 after it, each saying the library it saves into, above 英语听力's own film.
+func TestScreenshotsQueueOtherLibrary(t *testing.T) {
+	f := newScreenshotFixture(t)
+	f.shoot(t, "queue-other-library", func(a *app, tt *ui.Tester, updates chan func()) {
+		a.pipeline = &fakePipeline{block: true}
+		t.Cleanup(a.stop)
+		_ = a.Enqueue("https://www.youtube.com/watch?v=aqz-KE-bpKQ")
+		screenshotWait(t, tt, updates, "the download", func() bool {
+			return slices.ContainsFunc(a.library.Jobs, func(j core.Job) bool { return j.Stage == core.StageDownloading })
+		})
+		// The running job keeps the pipeline it started with; the library opened next reads its posters with the fake ffmpeg.
+		a.pipeline = f.pipeline
+		t.Cleanup(func() {
+			if a.libraryWatch != nil {
+				close(a.libraryWatch)
+				a.libraryWatch = nil
+			}
+		})
+		a.switchLibrary(f.libs["listening"])
+		tt.Frame()
+		screenshotWait(t, tt, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
+	})
+}

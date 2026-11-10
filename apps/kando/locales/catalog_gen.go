@@ -3686,6 +3686,24 @@ func (msgs Messages) FilmsQueueRemaining(time_ string) string {
 	return Catalog.Format(msgs.locale, "filmsQueueRemaining", map[string]any{"time": time_})
 }
 
+// FilmsQueueSavingTo says "Saving to “{library}”"
+// in the language the app shows.
+//
+// Line under the title of a processing card whose job saves into another
+// library than the open one, as one that kept running after another library
+// was opened.
+func FilmsQueueSavingTo(library string) string { return In(i18n.Locale()).FilmsQueueSavingTo(library) }
+
+// FilmsQueueSavingTo says "Saving to “{library}”"
+// in the language of msgs.
+//
+// Line under the title of a processing card whose job saves into another
+// library than the open one, as one that kept running after another library
+// was opened.
+func (msgs Messages) FilmsQueueSavingTo(library string) string {
+	return Catalog.Format(msgs.locale, "filmsQueueSavingTo", map[string]any{"library": library})
+}
+
 // FilmsQueueShowAll says "Show All {count}"
 // in the language the app shows.
 //
@@ -7588,6 +7606,42 @@ func QueueBusy() string { return In(i18n.Locale()).QueueBusy() }
 // processed.
 func (msgs Messages) QueueBusy() string {
 	return Catalog.Format(msgs.locale, "queueBusy", nil)
+}
+
+// QueueDoneElsewhere says "“{name}” is done and saved to “{library}”"
+// in the language the app shows.
+//
+// Message bar when a job that saves into another library than the open one
+// has finished; its card leaves Processing then.
+func QueueDoneElsewhere(name string, library string) string {
+	return In(i18n.Locale()).QueueDoneElsewhere(name, library)
+}
+
+// QueueDoneElsewhere says "“{name}” is done and saved to “{library}”"
+// in the language of msgs.
+//
+// Message bar when a job that saves into another library than the open one
+// has finished; its card leaves Processing then.
+func (msgs Messages) QueueDoneElsewhere(name string, library string) string {
+	return Catalog.Format(msgs.locale, "queueDoneElsewhere", map[string]any{"name": name, "library": library})
+}
+
+// QueueFailedElsewhere says "Couldn't process “{name}” for “{library}”. Open that library to see why"
+// in the language the app shows.
+//
+// Message bar when a job that saves into another library than the open one
+// has failed; its failed card shows only in its own library.
+func QueueFailedElsewhere(name string, library string) string {
+	return In(i18n.Locale()).QueueFailedElsewhere(name, library)
+}
+
+// QueueFailedElsewhere says "Couldn't process “{name}” for “{library}”. Open that library to see why"
+// in the language of msgs.
+//
+// Message bar when a job that saves into another library than the open one
+// has failed; its failed card shows only in its own library.
+func (msgs Messages) QueueFailedElsewhere(name string, library string) string {
+	return Catalog.Format(msgs.locale, "queueFailedElsewhere", map[string]any{"name": name, "library": library})
 }
 
 // QueueLocalChosen says "Local video selected"

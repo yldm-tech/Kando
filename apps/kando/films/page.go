@@ -70,6 +70,8 @@ type App interface {
 	Cancel(id string)
 	// RunningJob is the ID of the job being processed now, or "" when none is. A job waiting in the queue is not running; its Film.Stage is core.StageQueued.
 	RunningJob() string
+	// QueueFilms is the films of 处理中 in the shelf's order, newest first (Queue): the open library's that are waiting, running, failed or were cancelled, and those the queue runs or will run for another library, with Film.Library naming it.
+	QueueFilms() []Film
 	// OpenSettings shows the settings at section, one of the settings package's Section values.
 	OpenSettings(section string)
 	// ResumeAt is where the video at path stopped playing last time, or 0.
@@ -151,24 +153,25 @@ func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Con
 	removeDialog(c, a)
 }
 
-// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none.
+// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do.
 func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
-	shown := BySource(items, source)
+	queue := BySource(a.QueueFilms(), source)
 	if len(items) == 0 {
+		if len(queue) > 0 {
+			queueSection(c, t, a, QueueOrder(queue))
+		}
 		emptyLibrary(c, a)
 		return
 	}
-	if len(shown) == 0 {
-		emptySource(c, t)
-		return
-	}
-	var queue, done []Film
-	for _, item := range shown {
-		if InQueue(item) {
-			queue = append(queue, item)
-		} else {
+	var done []Film
+	for _, item := range BySource(items, source) {
+		if !InQueue(item) {
 			done = append(done, item)
 		}
+	}
+	if len(queue) == 0 && len(done) == 0 {
+		emptySource(c, t)
+		return
 	}
 	if source == sidebar.SourceAll {
 		if item, ok := HeroFilm(done); ok {

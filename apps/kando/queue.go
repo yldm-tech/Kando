@@ -29,7 +29,7 @@ type jobQueue struct {
 	order []string
 	// active is the ID of the running job, or "".
 	active string
-	// cancel stops the running job; its cause becomes the job's error when it is core.ErrLibrarySwitched, and with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
+	// cancel stops the running job; with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
 	cancel context.CancelCauseFunc
 	done   chan struct{}
 	// stopped is set once the app quits (queueQuit): no job starts after it.
@@ -58,10 +58,9 @@ type savedQueue struct{}
 
 func (s *savedQueue) clean() {}
 
-// queueHooks: a job still writing into the library being left is stopped and marked as stopped by the switch, and jobs queued in the library opened start once it has ended. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
+// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (run); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
-		leavingLibrary: func() { a.queue.stopActive(core.ErrLibrarySwitched) },
 		ready: func() {
 			a.pump()
 			a.queueReadYTDLP()
@@ -376,7 +375,7 @@ func (a *app) queueAdd(job core.Job) {
 	a.pump()
 }
 
-// pump starts the oldest queued job of the open library when no job is running. Jobs queued in another library wait until it is open again, because the pipeline writes into the open one. A queued job on the shelf that the queue has not seen, such as one read back as queued after a restart, joins the end of the queue, oldest first.
+// pump starts the oldest queued job when no job is running. Each job saves into its own library (run), so a job queued in a library that is not open runs too, as long as that library is one the app still knows (queueCanRun). A queued job on the shelf that the queue has not seen, such as one read back as queued after a restart, joins the end of the queue, oldest first.
 func (a *app) pump() {
 	if a.queue.active != "" || a.queue.stopped {
 		return
@@ -387,7 +386,6 @@ func (a *app) pump() {
 			a.queue.order = append(a.queue.order, job.ID)
 		}
 	}
-	dir := a.snap().LibraryDir
 	var next core.Job
 	found := false
 	kept := make([]string, 0, len(a.queue.order))
@@ -396,7 +394,7 @@ func (a *app) pump() {
 		if !ok || job.Stage != core.StageQueued {
 			continue
 		}
-		if !found && dir != "" && inQueueLibrary(job, dir) {
+		if !found && a.queueCanRun(job) {
 			next, found = job, true
 			continue
 		}
@@ -408,12 +406,27 @@ func (a *app) pump() {
 	}
 }
 
-// inQueueLibrary reports whether job was queued in the library at dir. A job saved before jobs named their library runs in whichever library is open.
-func inQueueLibrary(job core.Job, dir string) bool {
-	return job.LibraryDir == "" || filepath.Clean(job.LibraryDir) == filepath.Clean(dir)
+// queueCanRun reports whether the queue can start job now that it is its turn: its library is the open one or another the app knows. A job of a library the app has forgotten waits until it is opened again, so nothing is written into a folder the user took off the list. A job saved before jobs named their library runs in whichever library is open.
+func (a *app) queueCanRun(job core.Job) bool {
+	if job.LibraryDir == "" {
+		return strings.TrimSpace(a.snap().LibraryDir) != ""
+	}
+	dir := filepath.Clean(job.LibraryDir)
+	return slices.ContainsFunc(a.knownLibraries(), func(known string) bool { return filepath.Clean(known) == dir })
 }
 
-// run starts job in the background. It keeps job.ID, so a retry updates the card already on screen. When the pipeline returns, the next queued job starts.
+// queueElsewhere reports whether job is one the queue runs, or will run, for a library that is not the open one: the running job, wherever it saves, or a job waiting for its turn that pump can start (queueCanRun). The open library's page shows these in 处理中 beside its own, so a job keeps its card after another library is opened.
+func (a *app) queueElsewhere(job core.Job) bool {
+	if a.queue.removed[job.ID] || films.InLibrary(a.snap().LibraryDir, job) {
+		return false
+	}
+	if job.ID == a.queue.active {
+		return true
+	}
+	return job.Stage == core.StageQueued && a.queueCanRun(job)
+}
+
+// run starts job in the background. It keeps job.ID, so a retry updates the card already on screen. The job saves into its own library, job.LibraryDir, whichever library is open meanwhile: opening another one does not stop it. When the pipeline returns, the next queued job starts.
 func (a *app) run(job core.Job) {
 	if job.LibraryDir == "" {
 		job.LibraryDir = a.snap().LibraryDir
@@ -436,11 +449,7 @@ func (a *app) run(job core.Job) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	done := make(chan struct{})
 	a.queue.active, a.queue.cancel, a.queue.done = job.ID, cancel, done
-	pipeline, update := a.pipeline, a.update
-	if tools, ok := pipeline.(media.Tools); ok {
-		tools.Cookies = job.Cookies
-		pipeline = tools
-	}
+	pipeline, update := a.queuePipeline(job), a.update
 	go func() {
 		defer cancel(nil)
 		defer close(done)
@@ -452,9 +461,6 @@ func (a *app) run(job core.Job) {
 		media.Run(ctx, pipeline, job, job.Language, func(j core.Job) {
 			if quitting() {
 				return
-			}
-			if j.Stage == core.StageFailed && errors.Is(context.Cause(ctx), core.ErrLibrarySwitched) {
-				j.Err = core.ErrLibrarySwitched
 			}
 			onlyProgress := j.Stage == last.Stage && j.Title == last.Title && j.Thumbnail == last.Thumbnail && j.VideoPath == last.VideoPath && j.Err == nil
 			last = j
@@ -477,12 +483,41 @@ func (a *app) run(job core.Job) {
 	}()
 }
 
-// finished clears the job that just returned from the pipeline and starts the next one.
+// queuePipeline is the pipeline job runs with: the app's, borrowing the browser login the job names and saving into the job's own library rather than the one open, so a job goes on into its library after another is opened.
+func (a *app) queuePipeline(job core.Job) media.Pipeline {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok {
+		return a.pipeline
+	}
+	tools.Cookies = job.Cookies
+	if job.LibraryDir != "" {
+		tools.OutputDir = job.LibraryDir
+	}
+	return tools
+}
+
+// finished clears the job that just returned from the pipeline, says in the message bar how a job of another library ended (queueEndedElsewhere), and starts the next one.
 func (a *app) finished(id string) {
 	if a.queue.active == id {
 		a.queue.active, a.queue.cancel, a.queue.done = "", nil, nil
 	}
+	a.queueEndedElsewhere(id)
 	a.pump()
+}
+
+// queueEndedElsewhere tells, in the library's message bar, that job id, which saved into a library that is not open, is done or has failed: its card leaves 处理中 then, and only its own library shows it. A job that was cancelled or removed says nothing.
+func (a *app) queueEndedElsewhere(id string) {
+	job, ok := a.library.Find(id)
+	if !ok || a.queue.removed[id] || job.LibraryDir == "" || films.InLibrary(a.snap().LibraryDir, job) {
+		return
+	}
+	library := films.LibraryName(job.LibraryDir)
+	switch {
+	case job.Stage == core.StageComplete:
+		a.tell(locales.QueueDoneElsewhere(jobName(job), library))
+	case job.Stage == core.StageFailed && !errors.Is(job.Err, context.Canceled):
+		a.warn(locales.QueueFailedElsewhere(jobName(job), library), "")
+	}
 }
 
 // stop cancels the running job. The queue goes on with the next one.

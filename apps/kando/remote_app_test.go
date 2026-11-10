@@ -350,6 +350,50 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 	waitUntil(t, updates, func() bool { return !a.running() })
 }
 
+// TestRemoteListsAndCancelsAJobOfAnotherLibrary opens another library while a job runs and another waits in the first one: the status and the job list name them as the window's 处理中 shows them, the first library's finished job stays out of the list, and the running one can be cancelled.
+func TestRemoteListsAndCancelsAJobOfAnotherLibrary(t *testing.T) {
+	a, _, updates := newTestApp(&fakePipeline{block: true})
+	remoteServe(t, a)
+	first, second := t.TempDir(), t.TempDir()
+	a.edit(func(s *session) {
+		s.LibraryDir = first
+		s.Libraries = []string{first, second}
+	})
+	done := filepath.Join(first, "Old", "old.mp4")
+	remoteWriteFile(t, done, "video")
+	a.library.Jobs = []core.Job{{ID: "old", Source: "https://example.com/old", Stage: core.StageComplete, VideoPath: done, LibraryDir: first}}
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	ids := jobIDs(a)
+	running, waiting := ids["https://example.com/a"], ids["https://example.com/b"]
+	a.edit(func(s *session) { s.LibraryDir = second })
+
+	status, err := remoteCall[remote.Status](t, updates, remote.MethodStatus, nil)
+	if err != nil || status.Running != running || status.Queued != 1 {
+		t.Fatalf("status %+v, %v", status, err)
+	}
+	jobs, err := remoteCall[[]remote.Job](t, updates, remote.MethodJobs, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 2 || jobs[0].ID != running || jobs[1].ID != waiting {
+		t.Fatalf("jobs %+v", jobs)
+	}
+	canceled, err := remoteCall[remote.Job](t, updates, remote.MethodCancel, remote.IDParams{ID: running})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if canceled.ID != running || canceled.Stage != "failed" || !canceled.Canceled {
+		t.Fatalf("canceled %+v", canceled)
+	}
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodCancel, remote.IDParams{ID: "old"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+
+	a.queue.stopActive(context.Canceled)
+	waitUntil(t, updates, func() bool { return !a.running() })
+}
+
 func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
 	a, _, updates := newTestApp(&fakePipeline{})
 	remoteServe(t, a)

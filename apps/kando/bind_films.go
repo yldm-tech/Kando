@@ -242,6 +242,11 @@ func (a *app) films() []films.Film {
 	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, jobName, statusText)
 }
 
+// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere).
+func (a *app) QueueFilms() []films.Film {
+	return films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, statusText)
+}
+
 // libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added, a failed job of the same video queued again included. A video the library already holds is not added; the bar says so and offers to open it.
 func (a *app) libraryEnqueue(sources ...string) bool {
 	if msg, section := a.precheck(sources); msg != "" {

@@ -125,6 +125,28 @@ type clockApp struct {
 
 func (a clockApp) Duration(string) time.Duration { return a.d }
 
+// The queue holds the open library's jobs that are not finished and the other libraries' jobs the queue runs, each of those naming its library, in the shelf's order.
+func TestQueueHoldsTheJobsOfOtherLibrariesTheQueueRuns(t *testing.T) {
+	open, other := "/Movies/a.kando", "/Movies/b.kando"
+	jobs := []core.Job{
+		{ID: "waiting-other", Stage: core.StageQueued, LibraryDir: other},
+		{ID: "waiting", Stage: core.StageQueued, LibraryDir: open},
+		{ID: "done", Stage: core.StageComplete, VideoPath: open + "/done/video.mp4", LibraryDir: open},
+		{ID: "done-other", Stage: core.StageComplete, VideoPath: other + "/done/video.mp4", LibraryDir: other},
+		{ID: "running-other", Stage: core.StageTranscribing, VideoPath: other + "/talk/video.mp4", LibraryDir: other},
+		{ID: "failed", Stage: core.StageFailed, LibraryDir: open},
+	}
+	runs := func(job core.Job) bool { return job.ID == "running-other" || job.ID == "waiting-other" }
+	name := func(job core.Job) string { return job.ID }
+	var got []string
+	for _, item := range Queue(open, jobs, runs, name, name) {
+		got = append(got, item.JobID+"@"+item.Library)
+	}
+	if strings.Join(got, ",") != "waiting-other@b,waiting@,running-other@b,failed@" {
+		t.Fatalf("queue %q", got)
+	}
+}
+
 func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 	yt := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
 	download := core.Fraction(0.42)

@@ -11,7 +11,7 @@ import (
 
 var ErrEmptySource = errors.New("video source is empty")
 
-// ErrLibrarySwitched is the error of a job that was stopped because another library was opened while it ran.
+// ErrLibrarySwitched is the error of a job that was stopped because another library was opened while it ran. Kando no longer stops a job then; the error stays so library.json rows written by versions that did read back as the same error.
 var ErrLibrarySwitched = errors.New("stopped because another library was opened")
 
 type Stage string

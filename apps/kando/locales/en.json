@@ -1264,6 +1264,16 @@
       }
     }
   },
+  "filmsQueueSavingTo": "Saving to “{library}”",
+  "@filmsQueueSavingTo": {
+    "description": "Line under the title of a processing card whose job saves into another library than the open one, as one that kept running after another library was opened.",
+    "placeholders": {
+      "library": {
+        "type": "String",
+        "example": "Listening"
+      }
+    }
+  },
   "filmsQueueShowAll": "Show All {count}",
   "@filmsQueueShowAll": {
     "description": "Button under the processing cards that shows the ones hidden.",
@@ -2693,6 +2703,34 @@
   "queueBusy": "A video is already being processed. Add this one when it's done",
   "@queueBusy": {
     "description": "Message bar when a job cannot be retried because another one is being processed."
+  },
+  "queueDoneElsewhere": "“{name}” is done and saved to “{library}”",
+  "@queueDoneElsewhere": {
+    "description": "Message bar when a job that saves into another library than the open one has finished; its card leaves Processing then.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Learn Rust"
+      },
+      "library": {
+        "type": "String",
+        "example": "Listening"
+      }
+    }
+  },
+  "queueFailedElsewhere": "Couldn't process “{name}” for “{library}”. Open that library to see why",
+  "@queueFailedElsewhere": {
+    "description": "Message bar when a job that saves into another library than the open one has failed; its failed card shows only in its own library.",
+    "placeholders": {
+      "name": {
+        "type": "String",
+        "example": "Learn Rust"
+      },
+      "library": {
+        "type": "String",
+        "example": "Listening"
+      }
+    }
   },
   "queueLocalChosen": "Local video selected",
   "@queueLocalChosen": {

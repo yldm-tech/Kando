@@ -20,7 +20,7 @@ const (
 	MethodFilm = "films.get"
 	// MethodSubtitles takes IDParams, a Film's ID, and answers []Cue from its subtitles.
 	MethodSubtitles = "subtitles.get"
-	// MethodJobs takes no params and answers []Job, the open library's jobs: the running one, the waiting ones in order, then the finished ones, newest first.
+	// MethodJobs takes no params and answers []Job, the open library's jobs and those the queue runs for other libraries, as the window's 处理中 shows them: the running one, the waiting ones in order, then the open library's finished ones, newest first.
 	MethodJobs = "jobs.list"
 	// MethodAdd takes AddParams and answers AddResult: a job for each source, queued as 开始处理 queues them.
 	MethodAdd = "jobs.add"
@@ -146,7 +146,7 @@ type Film struct {
 	OriginalSubtitles string `json:"original_subtitles,omitempty"`
 }
 
-// Job is a job of the open library's queue.
+// Job is a job of the open library, or one the queue runs or will run for another library.
 type Job struct {
 	ID     string `json:"id"`
 	Source string `json:"source"`

@@ -32,7 +32,7 @@ type addVideosInput struct {
 }
 
 type listJobsOutput struct {
-	Jobs []remote.Job `json:"jobs" jsonschema:"The open library's jobs: the running one, the waiting ones in order, then the finished ones, newest first."`
+	Jobs []remote.Job `json:"jobs" jsonschema:"The open library's jobs and those the queue runs for other libraries: the running one, the waiting ones in order, then the open library's finished ones, newest first."`
 }
 
 type jobInput struct {

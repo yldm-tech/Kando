@@ -317,8 +317,8 @@ func TestRetryWaitsBehindTheQueue(t *testing.T) {
 	}
 }
 
-// TestSwitchLibraryStopsTheRunningJob checks that opening another library stops the running job as 已停止：切换了资料库. Jobs queued in the first library wait for it and run when it is open again.
-func TestSwitchLibraryStopsTheRunningJob(t *testing.T) {
+// TestSwitchLibraryKeepsTheRunningJob opens another library while a job runs: the job goes on, its card stays in 处理中 saying which library it saves into, and once it is done the message bar says where it went. The jobs queued in the first library run after it, before the one queued in the second, and each job stays in the library it was queued in.
+func TestSwitchLibraryKeepsTheRunningJob(t *testing.T) {
 	g := newGatePipeline()
 	a, tt, updates := newTestApp(g)
 	t.Cleanup(func() {
@@ -334,39 +334,141 @@ func TestSwitchLibraryStopsTheRunningJob(t *testing.T) {
 	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
 		t.Fatal(err)
 	}
-	nextStarted(t, g, updates)
+	if got := nextStarted(t, g, updates); got != "https://example.com/a" {
+		t.Fatalf("started %s", got)
+	}
 	ids := jobIDs(a)
 
 	a.switchLibrary(second)
-	waitUntil(t, updates, func() bool { return !a.running() })
-	tt.Frame()
-	stopped := stageOf(t, a, ids["https://example.com/a"])
-	if stopped.Stage != core.StageFailed || !errors.Is(stopped.Err, core.ErrLibrarySwitched) || statusText(stopped) != "已停止：切换了资料库" {
-		t.Fatalf("a after the switch %+v", stopped)
-	}
 	noneStarted(t, g, updates)
-	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageQueued {
-		t.Fatalf("b in the first library %+v", job)
+	if a.RunningJob() != ids["https://example.com/a"] {
+		t.Fatalf("running %q after the switch, want a", a.RunningJob())
 	}
-
+	if job := stageOf(t, a, ids["https://example.com/a"]); job.Stage != core.StageDownloading || job.Err != nil || job.LibraryDir != first {
+		t.Fatalf("a after the switch %+v", job)
+	}
 	if err := a.Enqueue("https://example.com/c"); err != nil {
 		t.Fatal(err)
 	}
+	tt.Frame()
+	if !tt.HasText("处理中") || textCount(tt, "存入「first」") != 2 {
+		t.Fatalf("the second library's queue does not show the first library's jobs: %q", tt.Texts())
+	}
+
+	g.release <- struct{}{}
+	if got := nextStarted(t, g, updates); got != "https://example.com/b" {
+		t.Fatalf("after a, %s started; want b, queued before c", got)
+	}
+	done := stageOf(t, a, ids["https://example.com/a"])
+	if done.Stage != core.StageComplete || done.LibraryDir != first {
+		t.Fatalf("a %+v", done)
+	}
+	if want := locales.QueueDoneElsewhere(jobName(done), "first"); a.lib.notice.Text != want || a.lib.notice.Kind != "success" {
+		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
+	}
+	g.release <- struct{}{}
 	if got := nextStarted(t, g, updates); got != "https://example.com/c" {
-		t.Fatalf("in the second library %s started", got)
+		t.Fatalf("after b, %s started", got)
+	}
+	g.release <- struct{}{}
+	waitUntil(t, updates, func() bool { return !a.running() })
+	tt.Frame()
+	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageComplete || job.LibraryDir != first {
+		t.Fatalf("b %+v", job)
+	}
+	if job := stageOf(t, a, jobIDs(a)["https://example.com/c"]); job.Stage != core.StageComplete || job.LibraryDir != second {
+		t.Fatalf("c %+v", job)
+	}
+	if tt.HasText("存入「first」") {
+		t.Fatalf("a finished job of the first library stayed in the second's queue: %q", tt.Texts())
+	}
+}
+
+// TestCancelAJobOfAnotherLibrary cancels, from the open library's 处理中, the job still running for the library left: it stops as 已取消, its card leaves the open library's queue, and the message bar says nothing of a failure.
+func TestCancelAJobOfAnotherLibrary(t *testing.T) {
+	a, tt, updates := newTestApp(&fakePipeline{block: true})
+	t.Cleanup(func() {
+		if a.libraryWatch != nil {
+			close(a.libraryWatch)
+			a.libraryWatch = nil
+		}
+	})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	first := filepath.Join(t.TempDir(), "first.kando")
+	a.switchLibrary(first)
+	if err := a.Enqueue("https://example.com/a"); err != nil {
+		t.Fatal(err)
+	}
+	id := a.RunningJob()
+	a.switchLibrary(filepath.Join(t.TempDir(), "second.kando"))
+	tt.Frame()
+	if err := tt.Click("取消处理"); err != nil {
+		t.Fatalf("%v; texts %q", err, tt.Texts())
+	}
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, id); job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || job.LibraryDir != first {
+		t.Fatalf("a %+v", job)
+	}
+	if a.lib.notice.Open || tt.HasText("存入「first」") {
+		t.Fatalf("notice %+v texts %q", a.lib.notice, tt.Texts())
+	}
+}
+
+// TestJobsOfAForgottenLibraryWait queues jobs in three libraries: the open one, another the app knows, and one it has forgotten. The queue runs the first two, the other library's after the open one's as they were queued, and shows the other library's in 处理中; the forgotten library's job waits, out of sight, until that library is opened again.
+func TestJobsOfAForgottenLibraryWait(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(g)
+	a.edit(func(s *session) { s.Libraries = []string{"/videos", "/other.kando"} })
+	a.library.Jobs = []core.Job{
+		{ID: "gone", Source: "https://example.com/gone", Language: "简体中文", Stage: core.StageQueued, LibraryDir: "/gone.kando"},
+		{ID: "other", Source: "https://example.com/other", Language: "简体中文", Stage: core.StageQueued, LibraryDir: "/other.kando"},
+		{ID: "open", Source: "https://example.com/open", Language: "简体中文", Stage: core.StageQueued, LibraryDir: "/videos"},
+	}
+	queued := func() []string {
+		var keys []string
+		for _, item := range a.QueueFilms() {
+			keys = append(keys, item.JobID+"@"+item.Library)
+		}
+		return keys
+	}
+	if got := strings.Join(queued(), ","); got != "other@other,open@" {
+		t.Fatalf("处理中 %s", got)
+	}
+	a.pump()
+	if got := nextStarted(t, g, updates); got != "https://example.com/open" {
+		t.Fatalf("started %s", got)
+	}
+	g.release <- struct{}{}
+	if got := nextStarted(t, g, updates); got != "https://example.com/other" {
+		t.Fatalf("started %s", got)
+	}
+	tt.Frame()
+	if !tt.HasText("存入「other」") {
+		t.Fatalf("texts %q", tt.Texts())
 	}
 	g.release <- struct{}{}
 	waitUntil(t, updates, func() bool { return !a.running() })
 	noneStarted(t, g, updates)
-
-	a.switchLibrary(first)
-	if got := nextStarted(t, g, updates); got != "https://example.com/b" {
-		t.Fatalf("back in the first library %s started", got)
+	if job := stageOf(t, a, "gone"); job.Stage != core.StageQueued {
+		t.Fatalf("gone %+v", job)
 	}
-	g.release <- struct{}{}
-	waitUntil(t, updates, func() bool { return !a.running() })
-	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageComplete || job.LibraryDir != first {
-		t.Fatalf("b %+v", job)
+	if got := strings.Join(queued(), ","); got != "" {
+		t.Fatalf("处理中 %s", got)
+	}
+}
+
+// TestAJobSavesIntoItsOwnLibrary checks the pipeline a job runs with: it saves into the job's library, not the one open, and borrows the login the job names, while the app's pipeline stays as it was. A job saved before jobs named their library saves into the open one.
+func TestAJobSavesIntoItsOwnLibrary(t *testing.T) {
+	a, _, _ := newTestApp(media.Tools{OutputDir: "/videos"})
+	got, ok := a.queuePipeline(core.Job{LibraryDir: "/other.kando", Cookies: "chrome"}).(media.Tools)
+	if !ok || got.OutputDir != "/other.kando" || got.Cookies != "chrome" {
+		t.Fatalf("pipeline %+v", got)
+	}
+	if tools := a.pipeline.(media.Tools); tools.OutputDir != "/videos" || tools.Cookies != "" {
+		t.Fatalf("the app's pipeline changed: %+v", tools)
+	}
+	if got := a.queuePipeline(core.Job{}).(media.Tools); got.OutputDir != "/videos" {
+		t.Fatalf("pipeline of an old job %+v", got)
 	}
 }
 
@@ -543,13 +645,21 @@ func TestRetryKeepsTheSameCard(t *testing.T) {
 	}
 }
 
-func TestSwitchLibraryStopsTheJobAndRemembersTheDirectory(t *testing.T) {
+// TestSwitchLibraryRemembersTheDirectoryAndKeepsTheJob switches to a new library while a job runs: the library is made and saved in settings.json, and the job goes on.
+func TestSwitchLibraryRemembersTheDirectoryAndKeepsTheJob(t *testing.T) {
 	p := &fakePipeline{block: true}
 	a, tt, updates := newTestApp(p)
+	t.Cleanup(func() {
+		if a.libraryWatch != nil {
+			close(a.libraryWatch)
+			a.libraryWatch = nil
+		}
+	})
 	startJob(t, tt, "https://example.com/video")
 	if !a.running() {
 		t.Fatal("job did not start")
 	}
+	id := a.RunningJob()
 	dir := filepath.Join(t.TempDir(), "library")
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.switchLibrary(dir)
@@ -563,10 +673,20 @@ func TestSwitchLibraryStopsTheJobAndRemembersTheDirectory(t *testing.T) {
 	if saved.LibraryDir != dir || len(saved.Libraries) != 1 || saved.Libraries[0] != dir {
 		t.Fatalf("saved %#v", saved)
 	}
-	settle(t, a, tt, updates)
-	if a.running() {
-		t.Fatal("switching the library left the job running")
+	drain := time.After(150 * time.Millisecond)
+	for waiting := true; waiting; {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-drain:
+			waiting = false
+		}
 	}
+	if a.RunningJob() != id {
+		t.Fatalf("running %q after the switch, want %q", a.RunningJob(), id)
+	}
+	a.Cancel(id)
+	settle(t, a, tt, updates)
 }
 
 // TestFilmPageCancelsTheFilmItShows opens a film still waiting in the queue and presses its 取消: that film leaves the queue as 已取消, and the job running meanwhile goes on.

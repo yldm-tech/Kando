@@ -105,6 +105,13 @@ func (a *app) loadExtras() {
 			a.ensureThumbnail(item)
 		}
 	}
+	// 处理中 also shows the jobs the queue runs for other libraries.
+	for _, item := range a.QueueFilms() {
+		if item.Library != "" {
+			a.ensurePoster(item)
+			a.ensureThumbnail(item)
+		}
+	}
 	if hero, ok := films.HeroFilm(items); ok {
 		a.loadQuote(hero.SubtitlePath)
 	}
