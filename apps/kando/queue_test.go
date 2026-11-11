@@ -176,8 +176,9 @@ func TestQueueRunsJobsOneAtATimeInOrder(t *testing.T) {
 		if job.Stage != core.StageComplete || job.SubtitlePath != "/videos/"+name+".bilingual.srt" || job.CompletedAt.IsZero() {
 			t.Fatalf("%s ended %+v", name, job)
 		}
-		if !job.CompletedAt.After(finished) {
-			t.Fatalf("%s finished at %v, not after the job before it at %v", name, job.CompletedAt, finished)
+		// Two jobs can finish at the same time.Now() on Windows, whose clock is coarser than the time between them.
+		if job.CompletedAt.Before(finished) {
+			t.Fatalf("%s finished at %v, before the job before it at %v", name, job.CompletedAt, finished)
 		}
 		finished = job.CompletedAt
 	}
@@ -900,20 +901,13 @@ func (ytdlpPipeline) Export(_ context.Context, video string, _, _ []core.Segment
 // gatedYTDLP writes a yt-dlp that names the video, says a quarter of the download is done (half of the first of two formats) and waits until gate exists before it finishes.
 func gatedYTDLP(t *testing.T, thumbnail, gate string) string {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "yt-dlp")
-	script := `#!/bin/sh
-echo 'kando-info {"id": "jNQXAC9IVRw", "title": "Me at the zoo", "thumbnail": "` + thumbnail + `", "duration": 19}'
+	return writeFakeScript(t, t.TempDir(), "yt-dlp", `echo 'kando-info {"id": "jNQXAC9IVRw", "title": "Me at the zoo", "thumbnail": "`+thumbnail+`", "duration": 19}'
 echo 'kando-formats ["395", "251"]'
 echo 'kando-progress downloading 111890 223780 NA 1048576 3 NA NA 395'
 i=0
-while [ ! -e '` + gate + `' ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i+1)); done
+while [ ! -e '`+gate+`' ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i+1)); done
 echo 'kando-progress finished 252182 252182 NA NA NA NA NA 251'
-echo '/videos/zoo.mp4'
-`
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return path
+echo '/videos/zoo.mp4'`)
 }
 
 func TestTheCardFollowsTheDownload(t *testing.T) {
@@ -1073,18 +1067,13 @@ func recordingYTDLP(t *testing.T, args, updatesTo string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(t.TempDir(), "yt-dlp")
 	update := "echo \"Latest version: stable@$v\"; echo \"yt-dlp is up to date (stable@$v)\""
 	if updatesTo != "" {
 		update = "echo " + updatesTo + " > \"$0.version\"; echo 'Updated yt-dlp to stable@" + updatesTo + "'"
 	}
-	script := "#!/bin/sh\nv=$(cat \"$0.version\" 2>/dev/null || echo 2024.03.10)\n" +
-		"case \"$1\" in --version) echo \"$v\"; exit 0;; -U) echo -U >> '" + args + "'; " + update + "; exit 0;; esac\n" +
-		"for a in \"$@\"; do echo \"$a\"; done >> '" + args + "'\ncat '" + stderr + "' >&2\nexit 1\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return path
+	return writeFakeScript(t, t.TempDir(), "yt-dlp", "v=$(cat \"$0.version\" 2>/dev/null || echo 2024.03.10)\n"+
+		"case \"$1\" in --version) echo \"$v\"; exit 0;; -U) echo -U >> '"+args+"'; "+update+"; exit 0;; esac\n"+
+		"for a in \"$@\"; do echo \"$a\"; done >> '"+args+"'\ncat '"+stderr+"' >&2\nexit 1")
 }
 
 // toolsForRemedies is media.Tools that passes Check with tools that are never reached, as a job fails at its download.
@@ -1322,16 +1311,18 @@ func systemYTDLP(a *app, path string) {
 func TestOutdatedWithASystemYTDLPOffersKandosOwn(t *testing.T) {
 	a, tt, updates := newTestApp(&fakePipeline{})
 	systemYTDLP(a, "/usr/bin/yt-dlp")
+	// The card names the folder as the system writes it: \usr\bin on Windows.
+	dir := filepath.Dir("/usr/bin/yt-dlp")
 	film := failedJob(t, a, "https://www.youtube.com/watch?v=Rg5Lk2Pz8Wd", core.FailOutdated, "")
 	r, _ := a.FailureRemedy(film)
-	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 在 /usr/bin，看懂没有权限改动它；用安装它的方式更新，例如系统的包管理器或 sudo pip。更新后再重试。" || strings.Join(remedyLabels(r), ",") != "已更新，重试" {
+	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 在 "+dir+"，看懂没有权限改动它；用安装它的方式更新，例如系统的包管理器或 sudo pip。更新后再重试。" || strings.Join(remedyLabels(r), ",") != "已更新，重试" {
 		t.Fatalf("without a yt-dlp to download: %+v", r)
 	}
 
 	release := make(chan struct{})
 	fakeKits(t, a, release, "yt-dlp")
 	r, _ = a.FailureRemedy(film)
-	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 在 /usr/bin，看懂没有权限改动它；用安装它的方式更新，例如系统的包管理器或 sudo pip。也可以让看懂下载自己的一份。" ||
+	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，看懂没法替它更新：yt-dlp 在 "+dir+"，看懂没有权限改动它；用安装它的方式更新，例如系统的包管理器或 sudo pip。也可以让看懂下载自己的一份。" ||
 		strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" || r.Actions[0].ID != remedyDownloadYTDLP || !r.Actions[0].Primary || r.Actions[1].ID != remedyRetry {
 		t.Fatalf("with a yt-dlp to download: %+v", r)
 	}

@@ -27,7 +27,9 @@ func TestMain(m *testing.M) {
 	showItemInFolder = func(string) {}
 	// mygo's Dock menu waits for the main thread, which tests never reach (menu.go's setDockMenu), so a test that turns the menu bar on would hang; fakeDock records the menus where a test checks them.
 	setDockMenu = func(*mygo.Menu) {}
-	os.Exit(m.Run())
+	code := m.Run()
+	fakeToolsCleanup()
+	os.Exit(code)
 }
 
 // fakePipeline finishes every stage at once unless block is set, in which case Download waits for cancellation.
