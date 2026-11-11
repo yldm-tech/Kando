@@ -215,16 +215,14 @@
       return Promise.resolve(errorResult("platform must be macos, linux or windows, not " + JSON.stringify(platform) + "."));
     }
     if (arch !== undefined && !/^(arm64|amd64)$/.test(arch)) {
-      return Promise.resolve(errorResult("arch must be arm64 (Apple silicon, ARM64 Linux) or amd64 (Intel Macs, x86-64 Linux), not " + JSON.stringify(arch) + "."));
+      return Promise.resolve(errorResult("arch must be arm64 (Apple silicon, ARM64 Windows and Linux) or amd64 (Intel Macs, x86-64 Windows and Linux), not " + JSON.stringify(arch) + "."));
     }
     return detectSystem().then(function (detected) {
       var system = { platform: platform || detected.platform, arch: arch || (platform && platform !== detected.platform ? "" : detected.arch) };
       var data = { version: release.version, release: release.page, checksums: release.checksums, platform: system.platform, arch: system.arch, detected: platform && arch ? null : detected, downloads: [], buildFromSource: release.source };
       var name = platformNames[system.platform] || "an unknown system";
-      if (system.platform !== "macos" && system.platform !== "linux") {
-        var why = system.platform === "windows" ? "There is no Windows build of Kando yet." : "Kando is a desktop app for macOS, Linux and Windows; there is no build for " + name + ".";
-        var guide = system.platform === "windows" ? " On Windows, build it from source with Go and git: " + release.source + " (the page's Get started section has the same steps; get_started returns them)." : " Ask for a desktop system with the platform and arch inputs.";
-        return textResult(why + guide + " Packages for macOS and Linux of version " + release.version + " are at " + release.page + ".", data);
+      if (system.platform !== "macos" && system.platform !== "linux" && system.platform !== "windows") {
+        return textResult("Kando is a desktop app for macOS, Linux and Windows; there is no build for " + name + ". Ask for a desktop system with the platform and arch inputs. Packages for macOS, Windows and Linux of version " + release.version + " are at " + release.page + ".", data);
       }
       data.downloads = release.downloads.filter(function (d) {
         return d.platform === system.platform && (!system.arch || d.arch === system.arch);
@@ -240,12 +238,12 @@
       });
       var head = "Kando " + release.version + " for " + name + (system.arch ? " on " + archName(system.platform, system.arch) : "") + ".";
       if (!system.arch) {
-        head += system.platform === "macos" ? " The browser does not say which processor this Mac has. Use arm64 on a Mac with Apple silicon (M1 or later) and amd64 on an Intel Mac; About This Mac shows which." : " The browser does not say which processor this computer has. Use amd64 on x86-64 and arm64 on ARM64; uname -m prints x86_64 or aarch64.";
+        head += system.platform === "macos" ? " The browser does not say which processor this Mac has. Use arm64 on a Mac with Apple silicon (M1 or later) and amd64 on an Intel Mac; About This Mac shows which." : system.platform === "windows" ? " The browser does not say which processor this PC has. Use amd64 on an x86-64 PC and arm64 on a Windows on Arm PC; Settings › System › About shows which under System type." : " The browser does not say which processor this computer has. Use amd64 on x86-64 and arm64 on ARM64; uname -m prints x86_64 or aarch64.";
       }
       if (system.platform === "linux") {
         head += " Use the .deb on Debian, Ubuntu and their derivatives, and the .tar.gz anywhere else.";
       }
-      var foot = "SHA-256 checksums: " + release.checksums + ". Release page: " + release.page + ". On first launch Kando downloads yt-dlp, ffmpeg and whisper-cli when they are missing.";
+      var foot = "SHA-256 checksums: " + release.checksums + ". Release page: " + release.page + "." + (system.platform === "windows" ? "" : " On first launch Kando downloads yt-dlp, ffmpeg and whisper-cli when they are missing.");
       return textResult(head + "\n" + lines.join("\n") + "\n" + foot, data);
     });
   }
@@ -355,7 +353,7 @@
     {
       name: "get_download",
       title: "Find the Kando download for a system",
-      description: "Gives the download link of the latest Kando release for a computer, with how to install it. By default it is for the visitor's own system as the browser reports it; give platform, and arch, to ask for another. Kando publishes disk images for macOS (Apple silicon and Intel) and Debian packages and archives for Linux (x86-64 and ARM64). Windows has no build yet: the answer then explains how to build from source.",
+      description: "Gives the download link of the latest Kando release for a computer, with how to install it. By default it is for the visitor's own system as the browser reports it; give platform, and arch, to ask for another. Kando publishes disk images for macOS (Apple silicon and Intel), installers for Windows (x86-64 and ARM64), and Debian packages and archives for Linux (x86-64 and ARM64).",
       inputSchema: {
         type: "object",
         properties: {
@@ -369,7 +367,7 @@
     {
       name: "get_started",
       title: "Get started with Kando",
-      description: "Returns the steps of this page's Get started section: downloading Kando, what it sets up the first time it opens, choosing a whisper model and a translation service, and building it from source. Use it to explain to someone how to install and set up Kando, in their language.",
+      description: "Returns the steps of this page's Get started section: downloading Kando, what it sets up the first time it opens, and choosing a whisper model and a translation service. Use it to explain to someone how to install and set up Kando, in their language.",
       inputSchema: { type: "object", properties: { lang: langInput } },
       annotations: { readOnlyHint: true },
       execute: getStarted

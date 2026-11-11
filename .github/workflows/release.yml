@@ -1,6 +1,6 @@
 name: Release
 
-# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and the version's release notes, from the same commits, into apps/kando/CHANGELOG.md (.github/scripts/changelog.sh), commits both to main as chore(release), tags the commit, and creates a draft GitHub release with those notes, which are also the ones the update manifests carry and the app's update window shows. The Package workflow then builds the app for macOS, Windows and Linux from the tag, and the last job checks the macOS and Linux packages (Windows is held back, #6) against the checksums Package took, attests their provenance, uploads them with checksums.txt to the draft and publishes it. Run it by hand from main to force a bump; it releases only a commit main's CI has passed on.
+# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and the version's release notes, from the same commits, into apps/kando/CHANGELOG.md (.github/scripts/changelog.sh), commits both to main as chore(release), tags the commit, and creates a draft GitHub release with those notes, which are also the ones the update manifests carry and the app's update window shows. The Package workflow then builds the app for macOS, Windows and Linux from the tag, and the last job checks the packages of every platform against the checksums Package took, attests their provenance, uploads them with checksums.txt to the draft and publishes it. Run it by hand from main to force a bump; it releases only a commit main's CI has passed on.
 #
 # The jobs run in one workflow, one after another, because a tag pushed with the workflow's GITHUB_TOKEN starts no other workflow.
 on:
@@ -107,7 +107,7 @@ jobs:
         run: |
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "refs/tags/$VERSION"
-      # The release's notes are the version's section of CHANGELOG.md, the notes the app's update window shows. The macOS packages are signed and notarized (see package.yml); Windows has no packages until #6 is fixed (see the Publish job).
+      # The release's notes are the version's section of CHANGELOG.md, the notes the app's update window shows. The macOS packages are signed and notarized (see package.yml); the Windows installers are not signed yet, which the notes say.
       - name: Draft the release
         if: steps.commit.outputs.sha != ''
         env:
@@ -116,7 +116,7 @@ jobs:
         run: |
           cat > "$RUNNER_TEMP/notes.md" <<'EOF'
           > [!NOTE]
-          > The macOS disk images are signed with a Developer ID and notarized by Apple. There is no Windows build yet (#6). `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
+          > The macOS disk images are signed with a Developer ID and notarized by Apple. The Windows installers are not signed yet, so SmartScreen warns before the first run: choose More info, then Run anyway. On Windows, Kando does not download yt-dlp, ffmpeg and whisper-cli yet; install them with a package manager and put them on your PATH. `checksums.txt` lists the SHA-256 of every file, and `gh attestation verify <file> --repo ${{ github.repository }}` checks that a file was built by this repository's Release workflow.
           EOF
           {
             echo
@@ -152,15 +152,22 @@ jobs:
       contents: write
       id-token: write
     steps:
-      # Windows is held back: its tests fail on bugs of the app's own, local videos among them (#6). Download kando-Windows here too once they pass.
+      # One artifact per platform, kando-macOS, kando-Windows and kando-Linux, merged into one folder, as a release holds its files side by side.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: kando-macOS
+          pattern: kando-*
+          merge-multiple: true
           path: dist
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: kando-Linux
-          path: dist
+      # A platform whose artifact went missing would publish a release without it, so each one's checksums must be there.
+      - name: Check every platform is there
+        working-directory: dist
+        run: |
+          for name in macOS Windows Linux; do
+            if [ ! -f "checksums-$name.txt" ]; then
+              echo "::error::The kando-$name artifact is missing."
+              exit 1
+            fi
+          done
       # The Package jobs took the checksums from the files mygo build made, so this catches a package changed on its way here.
       - name: Check the checksums
         working-directory: dist

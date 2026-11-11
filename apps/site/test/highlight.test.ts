@@ -31,7 +31,8 @@ it("shows the download panel's commands coloured, each line after a prompt", () 
   for (const l of builtLangs()) {
     const html = readOut(pageFile(l));
     const blocks = [...html.matchAll(/<div class="code"><pre><code>([\s\S]*?)<\/code><\/pre>/g)].map((m) => m[1] ?? "");
-    expect(blocks.length, l.code).toBeGreaterThanOrEqual(2);
+    // Only the Linux tab has a command; macOS and Windows have a download button.
+    expect(blocks.length, l.code).toBe(1);
     for (const block of blocks) {
       expect(block, l.code).toMatch(/<span class="k">/);
       const text = decode(block.replace(/<!-- -->/g, "").replace(/<[^>]+>/g, ""));

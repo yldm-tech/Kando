@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 [English](README.md) · 简体中文 · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
@@ -40,9 +40,10 @@
 
 ### 下载
 
-macOS（Apple 芯片和 Intel）和 Linux（x86-64 和 ARM64）的安装包在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上；目前还没有 Windows 安装包，在 Windows 上请按下文从源码构建。按你的系统选择文件，其中 `<version>` 是该版本的版本号，例如 `0.5.0`：
+macOS（Apple 芯片和 Intel）、Windows（x86-64 和 ARM64）和 Linux（x86-64 和 ARM64）的安装包在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上。按你的系统选择文件，其中 `<version>` 是该版本的版本号，例如 `0.5.0`：
 
 - macOS：Apple 芯片的 Mac 选 `kando-<version>-arm64.dmg`，Intel 的 Mac 选 `kando-<version>-amd64.dmg`。打开磁盘映像，把看懂拖到“应用程序”文件夹。
+- Windows：大多数电脑选 `kando-setup-<version>-amd64.exe`，ARM 处理器的 Windows 电脑选 `kando-setup-<version>-arm64.exe`，下载后运行安装程序。安装程序暂时没有签名，SmartScreen 可能会在运行前弹出警告：点“更多信息”，再点“仍要运行”。
 - Debian、Ubuntu 及其衍生发行版：x86-64 选 `kando_<version>_amd64.deb`，ARM64 选 `kando_<version>_arm64.deb`。在下载所在的文件夹中用 `sudo apt install ./kando_<version>_<arch>.deb` 安装。
 - 其他 Linux 发行版：运行该版本附带的安装脚本，不需要自己下载安装包：
 
@@ -52,7 +53,7 @@ macOS（Apple 芯片和 Intel）和 Linux（x86-64 和 ARM64）的安装包在 [
 
   它会为你的机器下载最新的 `kando-<version>-linux-<arch>.tar.gz`，校验它的签名，然后只为当前用户安装看懂，不需要 root：应用装在 `~/.local/kando.app`，`kando` 命令放在 `~/.local/bin`，并在应用程序菜单中添加一项。校验签名需要 OpenSSL 3.0 或更高版本（Debian 12、Ubuntu 22.04、Fedora 36 及更高版本）；OpenSSL 版本更旧时，脚本什么也不下载，并会说明原因。这时请从同一个版本中把适合你机器的 `.tar.gz` 和 `install.sh` 下载到同一个文件夹，不要改文件名，在那里运行 `sh install.sh`；也可以运行 `sh install.sh <安装包>`，传入 `.tar.gz` 的路径。两种方式都会安装这个安装包，但不校验签名。再次运行脚本会用新版本覆盖旧版本；`sh install.sh --uninstall` 会移除看懂，并保留它的设置和资料库。
 
-版本中的其他文件不是用来安装的：`checksums.txt` 列出每个文件的 SHA-256，而 `update-*.json` 清单、`.delta` 文件和 `darwin` 压缩包是已安装的看懂自动更新时下载的（参见[更新](#updates)）。
+版本中的其他文件不是用来安装的：`checksums.txt` 列出每个文件的 SHA-256，而 `update-*.json` 清单、`.delta` 文件和 `darwin`、`windows` 压缩包是已安装的看懂自动更新时下载的（参见[更新](#updates)）。
 
 0.5.1 之后发布的 macOS 安装包用 YLDM 的 Developer ID 签名，并经过 Apple 公证，打开看懂时 macOS 不会再发出警告。
 
@@ -64,7 +65,7 @@ macOS（Apple 芯片和 Intel）和 Linux（x86-64 和 ARM64）的安装包在 [
 
 要立即检查，在 macOS 上选择菜单栏中的“看懂 › 检查更新…”；Linux 和 Windows 没有菜单栏，请在命令面板（Ctrl+K）中选择“检查更新…”。“设置 › 通用”中“版本”旁边也有“检查更新…”按钮，下方会显示上次检查发现的新版本，或上次检查的时间。“自动检查更新”和“自动下载并安装更新”两个开关也在“设置 › 通用”中。只有打开前者时才会显示后者，因为只有后台检查会下载更新；打开后者后，后台检查发现新版本会直接安装，不再询问，下次打开看懂时生效。
 
-无法替换自身文件的看懂不会自动更新。`.deb` 和 `PKGBUILD` 就是这种情况：它们把看懂安装在由包管理器管理的 `/opt/kando` 中，而看懂没有 apt 软件源，所以更新时请从新版本下载 `.deb` 并按同样方式安装，或者改用上面的安装脚本，它安装在 `~/.local/kando.app` 的看懂可以自动更新。这样安装的看懂在“设置 › 通用”中不显示这两个开关，“检查更新…”会打开一个窗口说明无法更新的原因。Windows 目前还没有发布更新。
+无法替换自身文件的看懂不会自动更新。`.deb` 和 `PKGBUILD` 就是这种情况：它们把看懂安装在由包管理器管理的 `/opt/kando` 中，而看懂没有 apt 软件源，所以更新时请从新版本下载 `.deb` 并按同样方式安装，或者改用上面的安装脚本，它安装在 `~/.local/kando.app` 的看懂可以自动更新。这样安装的看懂在“设置 › 通用”中不显示这两个开关，“检查更新…”会打开一个窗口说明无法更新的原因。
 
 ### 从源码构建
 
@@ -271,7 +272,7 @@ KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
 
 ## CI 与发布
 
-[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) 工作流会对拉取请求和 `main` 分支进行构建和测试。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) 工作流在 `main` 分支的 CI 通过后运行，也可以手动触发：它根据上一个标签以来的 约定式提交（Conventional Commits）确定下一个版本号，以 `chore(release)` 提交到 `main`，打上标签，在不使用 Developer ID 或代码签名证书的情况下构建 macOS、Windows 和 Linux 的安装包，为已安装的看懂要下载的更新签名，并把 macOS 和 Linux 的安装包连同校验和一起发布到 GitHub Releases。Windows 安装程序已经构建，但还没有发布。
+[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) 工作流会对拉取请求和 `main` 分支进行构建和测试。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) 工作流在 `main` 分支的 CI 通过后运行，也可以手动触发：它根据上一个标签以来的 约定式提交（Conventional Commits）确定下一个版本号，以 `chore(release)` 提交到 `main`，打上标签，在不使用 Developer ID 或代码签名证书的情况下构建 macOS、Windows 和 Linux 的安装包，为已安装的看懂要下载的更新签名，并把安装包连同校验和一起发布到 GitHub Releases。
 
 ## 许可证
 
