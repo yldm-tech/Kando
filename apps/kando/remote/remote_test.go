@@ -276,6 +276,34 @@ func TestCallAfterCloseFailsWithErrBroken(t *testing.T) {
 	}
 }
 
+// TestClosedSeesTheAppQuit is a connection whose app quit after answering, which Closed reports before a request is written on it, on Windows too, whose socket would take the request and lose it.
+func TestClosedSeesTheAppQuit(t *testing.T) {
+	path := shortSocket(t)
+	t.Setenv("KANDO_SOCKET", path)
+	s := serveEcho(t, path)
+	c, err := Dial(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if err := c.Call(context.Background(), MethodFilm, IDParams{ID: "f1"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if c.Closed() {
+		t.Fatal("an open connection counts as closed")
+	}
+	if err := c.Call(context.Background(), MethodFilm, IDParams{ID: "f1"}, nil); err != nil {
+		t.Fatalf("a call after Closed: %v", err)
+	}
+	s.Close()
+	if !c.Closed() {
+		t.Fatal("a connection the app closed counts as open")
+	}
+	if err := c.Call(context.Background(), MethodFilm, IDParams{ID: "f1"}, nil); !errors.Is(err, ErrBroken) {
+		t.Fatalf("err = %v, want ErrBroken", err)
+	}
+}
+
 func TestOnUISkipsFnWhenCtxEndedFirst(t *testing.T) {
 	posted := make(chan func(), 1)
 	ctx, cancel := context.WithCancel(context.Background())
