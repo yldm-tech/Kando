@@ -209,10 +209,12 @@ func untarGz(src, dir string) error {
 		if name == "." {
 			continue
 		}
-		if path.IsAbs(name) || name == ".." || strings.HasPrefix(name, "../") {
+		// filepath.IsLocal judges the name as this system reads paths. On Windows a backslash is a separator too, so ..\evil, which a check of slashes alone let through and filepath.Join put beside dir, is refused, as are names with a drive letter or a reserved device name such as NUL.
+		local := filepath.FromSlash(name)
+		if !filepath.IsLocal(local) {
 			return fmt.Errorf("%w: %s", errUnsafeEntry, h.Name)
 		}
-		target := filepath.Join(dir, filepath.FromSlash(name))
+		target := filepath.Join(dir, local)
 		switch h.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, 0o755); err != nil {
