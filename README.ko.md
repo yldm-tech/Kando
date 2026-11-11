@@ -69,7 +69,7 @@ Kando는 GitHub에 있는 서명된 릴리스로 스스로 업데이트합니다
 
 ### 소스에서 빌드
 
-Go 1.27.3 이상에서:
+Go 1.27.4 이상에서:
 
 ```sh
 git clone https://github.com/yldm-tech/Kando.git
@@ -243,7 +243,7 @@ Kando의 이전 이름은 LingoCut이었으며, 이전 이름으로 된 폴더, 
 
 ## 개발
 
-Go 1.27.3 이상이 필요합니다.
+Go 1.27.4 이상이 필요합니다.
 
 ```sh
 make test   # go test for packages/core, packages/media and apps/kando

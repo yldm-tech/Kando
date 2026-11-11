@@ -1,6 +1,6 @@
 module kando/packages/media
 
-go 1.27.3
+go 1.27.4
 
 require kando/packages/core v0.0.0
 

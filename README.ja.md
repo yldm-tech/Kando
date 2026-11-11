@@ -69,7 +69,7 @@ Kando は GitHub にある署名済みのリリースから自分自身をアッ
 
 ### ソースからビルド
 
-Go 1.27.3 以降を用意して、次を実行します。
+Go 1.27.4 以降を用意して、次を実行します。
 
 ```sh
 git clone https://github.com/yldm-tech/Kando.git
@@ -243,7 +243,7 @@ Kando は以前 LingoCut という名前でしたが、旧名のファイルや�
 
 ## 開発
 
-Go 1.27.3 以降が必要です。
+Go 1.27.4 以降が必要です。
 
 ```sh
 make test   # go test for packages/core, packages/media and apps/kando

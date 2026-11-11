@@ -63,7 +63,7 @@ A copy of Kando that cannot replace its own files does not update itself. That i
 
 ### Build from source
 
-With Go 1.27.3 or later:
+With Go 1.27.4 or later:
 
 ```sh
 git clone https://github.com/yldm-tech/Kando.git
@@ -233,7 +233,7 @@ Kando was called LingoCut, and nothing reads the old names. To keep your librari
 
 ## Development
 
-Requires Go 1.27.3 or later.
+Requires Go 1.27.4 or later.
 
 ```sh
 make test   # go test for packages/core, packages/media and apps/kando
