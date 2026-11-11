@@ -1,7 +1,8 @@
 // Open source: the dark panel with the repository and the downloads for each system, a tab each.
+import site from "virtual:kando/site";
 import { useEffect } from "react";
 import { useWords } from "../../i18n/content";
-import { installCommand, latestURL, readmeURL, releasesURL, repoURL } from "../../lib/site";
+import { debPackage, installCommand, macDisk, readmeURL, releaseFileURL, releasesURL, repoURL, windowsSetup } from "../../lib/site";
 import { CodeBlock } from "../common/CodeBlock";
 import { AppleMark, GitHubMark } from "../common/marks";
 import { SlidingPill } from "../common/SlidingPill";
@@ -12,6 +13,8 @@ const systems = ["mac", "linux", "win"] as const;
 
 export function OpenSource() {
   const { t, lang } = useWords();
+  // Each tab's buttons download its system's packages of this release, one per architecture.
+  const file = (name: (version: string, arch: string) => string, arch: string) => releaseFileURL(site.version, name(site.version, arch));
   const tabs = useTabs([
     ["tab-mac", "panel-mac"],
     ["tab-linux", "panel-linux"],
@@ -65,10 +68,13 @@ export function OpenSource() {
             <div {...tabs.stack}>
               <div className="dl-panel" {...tabs.panel(0)}>
                 <p>{t("dlMacBody")}</p>
-                <p>
-                  <a className="btn primary" href={latestURL}>
+                <p className="flex flex-wrap items-center gap-2.5">
+                  <a className="btn primary" href={file(macDisk, "arm64")}>
                     <AppleMark size={16} />
                     {t("dlMacButton")}
+                  </a>
+                  <a className="btn soft" href={file(macDisk, "amd64")}>
+                    {t("dlMacIntel")}
                   </a>
                 </p>
                 <p className="fine">{t("dlFirstRun")}</p>
@@ -77,18 +83,24 @@ export function OpenSource() {
                 <p>{t("dlLinuxBody")}</p>
                 <CodeBlock text={installCommand} />
                 <p className="fine">{t("dlLinuxNote")}</p>
-                <p>
-                  <a className="btn soft" href={latestURL}>
+                <p className="flex flex-wrap items-center gap-2.5">
+                  <a className="btn soft" href={file(debPackage, "amd64")}>
                     {t("dlLinuxButton")}
+                  </a>
+                  <a className="btn soft" href={file(debPackage, "arm64")}>
+                    {t("dlLinuxArm")}
                   </a>
                 </p>
                 <p className="fine">{t("dlFirstRun")}</p>
               </div>
               <div className="dl-panel" {...tabs.panel(2)}>
                 <p>{t("dlWinBody")}</p>
-                <p>
-                  <a className="btn primary" href={latestURL}>
+                <p className="flex flex-wrap items-center gap-2.5">
+                  <a className="btn primary" href={file(windowsSetup, "amd64")}>
                     {t("dlWinButton")}
+                  </a>
+                  <a className="btn soft" href={file(windowsSetup, "arm64")}>
+                    {t("dlWinArm")}
                   </a>
                 </p>
                 <p className="fine">{t("dlWinNote")}</p>

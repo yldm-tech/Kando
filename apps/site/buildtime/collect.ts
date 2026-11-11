@@ -151,7 +151,7 @@ export function collect(root: string, siteDir: string, contentDir: string, pub: 
     content,
     version,
     total: catalog.sites.length,
-    agent: newAgentContent(enLang, en, catalog.sites.length, surface, agentModels.get(sourceLang) ?? []),
+    agent: newAgentContent(enLang, en, version, catalog.sites.length, surface, agentModels.get(sourceLang) ?? []),
   });
 
   // The structured data of each page, by its path, which the post-build step puts into the page (buildtime/csp.ts).
