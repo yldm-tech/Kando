@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -123,10 +124,16 @@ func TestWhisperFractionReadsTheRealProgressLines(t *testing.T) {
 	}
 }
 
+// fakeProgram writes a program that does what fake says, for the tests of running one, and returns its path.
+func fakeProgram(t *testing.T, fake fakeTool) string {
+	t.Helper()
+	return writeFakeTool(t, t.TempDir(), "tool", fake)
+}
+
 func TestRunFollowingHandsOverLinesAsTheyCome(t *testing.T) {
 	// A carriage return ends a line as a newline does, as whisper-cli and ffmpeg redraw one line.
 	var lines []string
-	stdout, stderr, err := runFollowing(context.Background(), true, func(l string) { lines = append(lines, l) }, "/bin/sh", "-c", `printf 'out\n'; printf 'a\rb\nc' >&2`)
+	stdout, stderr, err := runFollowing(context.Background(), true, func(l string) { lines = append(lines, l) }, fakeProgram(t, fakeTool{Stdout: "out\n", Stderr: "a\rb\nc"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,7 +143,7 @@ func TestRunFollowingHandsOverLinesAsTheyCome(t *testing.T) {
 }
 
 func TestRunFollowingKeepsTheErrorLines(t *testing.T) {
-	_, _, err := runFollowing(context.Background(), false, func(string) {}, "/bin/sh", "-c", `printf 'WARNING: slow\nERROR: [youtube] x: Private video\n' >&2; exit 1`)
+	_, _, err := runFollowing(context.Background(), false, func(string) {}, fakeProgram(t, fakeTool{Stderr: "WARNING: slow\nERROR: [youtube] x: Private video\n", Exit: 1}))
 	if err == nil || !strings.Contains(err.Error(), "ERROR: [youtube] x: Private video") || strings.Contains(err.Error(), "WARNING") {
 		t.Fatalf("err = %v", err)
 	}
@@ -158,11 +165,16 @@ func captureLog(t *testing.T) *bytes.Buffer {
 // A failed tool's error keeps only the end of its stderr, so the log gets the whole of it: the warnings before the error say what led to it.
 func TestRunFollowingLogsTheWholeStderrOfAFailedTool(t *testing.T) {
 	logged := captureLog(t)
-	_, _, err := runFollowing(context.Background(), false, func(string) {}, "/bin/sh", "-c", `printf 'WARNING: first of many\n' >&2; i=0; while [ $i -lt 100 ]; do printf 'noise line %d\n' $i >&2; i=$((i+1)); done; printf 'ERROR: [youtube] x: Private video\n' >&2; exit 1`)
+	stderr := "WARNING: first of many\n"
+	for i := range 100 {
+		stderr += fmt.Sprintf("noise line %d\n", i)
+	}
+	tool := fakeProgram(t, fakeTool{Stderr: stderr + "ERROR: [youtube] x: Private video\n", Exit: 1})
+	_, _, err := runFollowing(context.Background(), false, func(string) {}, tool)
 	if err == nil || strings.Contains(err.Error(), "WARNING: first of many") {
 		t.Fatalf("err = %v", err)
 	}
-	for _, want := range []string{"sh failed: exit status 1", "WARNING: first of many", "noise line 50", "ERROR: [youtube] x: Private video"} {
+	for _, want := range []string{filepath.Base(tool) + " failed: exit status 1", "WARNING: first of many", "noise line 50", "ERROR: [youtube] x: Private video"} {
 		if !strings.Contains(logged.String(), want) {
 			t.Fatalf("log lacks %q:\n%s", want, logged)
 		}
@@ -172,12 +184,13 @@ func TestRunFollowingLogsTheWholeStderrOfAFailedTool(t *testing.T) {
 // The log keeps the last 64 KiB of a tool that printed more, where its error is.
 func TestRunLogsTheEndOfALongStderr(t *testing.T) {
 	logged := captureLog(t)
-	_, err := runStage(context.Background(), "/bin/sh", "-c", `printf 'START\n' >&2; head -c 200000 /dev/zero | tr '\0' 'x' >&2; printf '\nthe end\n' >&2; exit 2`)
+	tool := fakeProgram(t, fakeTool{Stderr: "START\n" + strings.Repeat("x", 200000) + "\nthe end\n", Exit: 2})
+	_, err := runStage(context.Background(), tool)
 	if err == nil {
 		t.Fatal("the tool did not fail")
 	}
 	got := logged.String()
-	if !strings.Contains(got, "sh failed: exit status 2") || !strings.Contains(got, "the end") || strings.Contains(got, "START") {
+	if !strings.Contains(got, filepath.Base(tool)+" failed: exit status 2") || !strings.Contains(got, "the end") || strings.Contains(got, "START") {
 		t.Fatalf("log of %d bytes: %.200q", len(got), got)
 	}
 	if len(got) > maxLoggedStderr+200 {
@@ -188,17 +201,17 @@ func TestRunLogsTheEndOfALongStderr(t *testing.T) {
 // run is for probes, whose failure is their answer (no cover art, not signed in), so it logs nothing; runStage logs the same failure.
 func TestRunLogsOnlyAStageFailure(t *testing.T) {
 	logged := captureLog(t)
-	script := `printf 'Output file does not contain any stream\n' >&2; exit 1`
-	if _, err := run(context.Background(), "/bin/sh", "-c", script); err == nil {
+	tool := fakeProgram(t, fakeTool{Stderr: "Output file does not contain any stream\n", Exit: 1})
+	if _, err := run(context.Background(), tool); err == nil {
 		t.Fatal("the probe did not fail")
 	}
 	if logged.Len() != 0 {
 		t.Fatalf("a probe logged %q", logged)
 	}
-	if _, err := runStage(context.Background(), "/bin/sh", "-c", script); err == nil {
+	if _, err := runStage(context.Background(), tool); err == nil {
 		t.Fatal("the stage did not fail")
 	}
-	if !strings.Contains(logged.String(), "sh failed: exit status 1") || !strings.Contains(logged.String(), "does not contain any stream") {
+	if !strings.Contains(logged.String(), filepath.Base(tool)+" failed: exit status 1") || !strings.Contains(logged.String(), "does not contain any stream") {
 		t.Fatalf("a stage logged %q", logged)
 	}
 }
@@ -206,13 +219,14 @@ func TestRunLogsOnlyAStageFailure(t *testing.T) {
 // A tool stopped by its context did not fail, so nothing is logged for it.
 func TestRunDoesNotLogAStoppedTool(t *testing.T) {
 	logged := captureLog(t)
+	tool := fakeProgram(t, fakeTool{Stderr: "boom\n", Wait: true})
 	for _, stream := range []bool{false, true} {
 		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 		var err error
 		if stream {
-			_, _, err = runFollowing(ctx, true, func(string) {}, "/bin/sh", "-c", `echo boom >&2; exec sleep 5`)
+			_, _, err = runFollowing(ctx, true, func(string) {}, tool)
 		} else {
-			_, err = runStage(ctx, "/bin/sh", "-c", `echo boom >&2; exec sleep 5`)
+			_, err = runStage(ctx, tool)
 		}
 		cancel()
 		if !errors.Is(err, context.DeadlineExceeded) {

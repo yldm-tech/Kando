@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -28,22 +28,12 @@ func TestNetscapeCookiesFormat(t *testing.T) {
 	}
 }
 
-// cookiesYTDLP writes a yt-dlp that saves its arguments one a line to args and, when it is given --cookies, a copy of that file to jar and its ls -ln line to mode. Then it prints stdout and exits with code, or with wait set, waits to be stopped.
+// cookiesYTDLP writes a yt-dlp that saves its arguments one a line to args and, when it is given --cookies, a copy of that file to jar and its permission bits in octal to mode. Then it prints the file stdout and exits with code, or with wait set, waits to be stopped.
 func cookiesYTDLP(t *testing.T, stdout string, code int, wait bool) (tool, args, jar, mode string) {
 	t.Helper()
 	dir := t.TempDir()
-	tool, args, jar, mode = filepath.Join(dir, "yt-dlp"), filepath.Join(dir, "args"), filepath.Join(dir, "jar"), filepath.Join(dir, "mode")
-	script := "#!/bin/sh\n" +
-		"for a in \"$@\"; do echo \"$a\"; done > " + shellQuote(args) + "\n" +
-		"prev=\nfor a in \"$@\"; do if [ \"$prev\" = --cookies ]; then ls -ln \"$a\" > " + shellQuote(mode) + "; cp \"$a\" " + shellQuote(jar+".tmp") + " && mv " + shellQuote(jar+".tmp") + " " + shellQuote(jar) + "; fi; prev=$a; done\n"
-	if wait {
-		script += "exec sleep 30\n"
-	} else {
-		script += "cat " + shellQuote(stdout) + "\nexit " + strconv.Itoa(code) + "\n"
-	}
-	if err := os.WriteFile(tool, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	args, jar, mode = filepath.Join(dir, "args"), filepath.Join(dir, "jar"), filepath.Join(dir, "mode")
+	tool = writeFakeTool(t, dir, "yt-dlp", fakeTool{Args: args, Jar: jar, Mode: mode, StdoutFile: stdout, Exit: code, Wait: wait})
 	return tool, args, jar, mode
 }
 
@@ -113,8 +103,8 @@ func TestDownloadPassesTheSitesCookies(t *testing.T) {
 			if want := "# Netscape HTTP Cookie File\n#HttpOnly_.bilibili.com\tTRUE\t/\tTRUE\t0\tSESSDATA\tsecret-session\n"; string(contents) != want {
 				t.Fatalf("cookies file:\n%s", contents)
 			}
-			perm, _ := os.ReadFile(mode)
-			if !strings.HasPrefix(string(perm), "-rw-------") {
+			// Windows has no permission bits for a file (Go reports 0666, or 0444 for a read-only one); the cookies there are kept to the user by the access control of the user's own folder they are in.
+			if perm, _ := os.ReadFile(mode); runtime.GOOS != "windows" && string(perm) != "600" {
 				t.Fatalf("cookies file mode %q", perm)
 			}
 			assertNoCookieFolders(t, cookieDir)
