@@ -10,6 +10,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -36,7 +37,10 @@ const (
 )
 
 func init() {
-	switch filepath.Base(os.Args[0]) {
+	if code, ok := fakeScriptShim(); ok {
+		os.Exit(code)
+	}
+	switch fakeToolName(os.Args[0]) {
 	case "ffmpeg":
 		os.Exit(fakeFFmpeg(os.Args[1:]))
 	case "yt-dlp":
@@ -46,7 +50,16 @@ func init() {
 	}
 }
 
-// fakeTool links name in dir to this test binary and returns the link, for media.Tools.
+// fakeToolName is the tool a fake was started as: the file name it was run by, without the .exe Windows runs a program by.
+func fakeToolName(arg0 string) string {
+	name := filepath.Base(arg0)
+	if ext := filepath.Ext(name); strings.EqualFold(ext, ".exe") {
+		name = strings.TrimSuffix(name, ext)
+	}
+	return name
+}
+
+// fakeTool links name in dir to this test binary and returns the link, for media.Tools. On Windows the link is name.exe, as Windows runs a file as a program only by that name, and it is a hard link, or a copy where dir is on another volume than the test binary, as Windows makes symbolic links only in developer mode.
 func fakeTool(t *testing.T, dir, name string) string {
 	t.Helper()
 	exe, err := os.Executable()
@@ -57,7 +70,21 @@ func fakeTool(t *testing.T, dir, name string) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, name)
-	if err := os.Symlink(exe, path); err != nil {
+	if runtime.GOOS != "windows" {
+		if err := os.Symlink(exe, path); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	path += ".exe"
+	if err := os.Link(exe, path); err == nil {
+		return path
+	}
+	data, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -148,7 +175,7 @@ func fakeVersionOnly(args []string, flag, version string) int {
 // fakeEveryAPIKey is the relay key the fake everyapi hands out, signed in.
 const fakeEveryAPIKey = "sk-fake-everyapi"
 
-// writeFakeEveryAPI writes a fake everyapi command-line program in dir and returns its path. It answers `everyapi auth credential` as the real program does: signed in, with EveryAPI's endpoint and fakeEveryAPIKey, or with the error it gives when nobody is signed in. Unlike the other fakes it is a shell script, not this test binary: a test runs it right after it appears, beside the other tools' version checks, and macOS kills a burst of new copies of the test binary started at once.
+// writeFakeEveryAPI writes a fake everyapi command-line program in dir and returns its path. It answers `everyapi auth credential` as the real program does: signed in, with EveryAPI's endpoint and fakeEveryAPIKey, or with the error it gives when nobody is signed in. Unlike the other fakes it is a shell script (writeFakeScript), not this test binary: a test runs it right after it appears, beside the other tools' version checks, and macOS kills a burst of new copies of the test binary started at once.
 func writeFakeEveryAPI(t *testing.T, dir string, signedIn bool) string {
 	t.Helper()
 	answer := `printf '%s\n' '{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"` + fakeEveryAPIKey + `"}'
@@ -164,15 +191,24 @@ echo 'fake everyapi: only auth credential is supported' >&2
 exit 1`)
 }
 
-// writeFakeScript writes an executable shell script named name in dir, running body, and returns its path.
+// writeFakeScript writes an executable shell script named name in dir, running body, and returns the program to run it by: the script itself, or on Windows, which runs no script by its #! line, name.exe beside it, a link to this test binary that runs the script with Git for Windows' sh (fakeScriptShim).
 func writeFakeScript(t *testing.T, dir, name, body string) string {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, name)
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+	shell := "/bin/sh"
+	if runtime.GOOS == "windows" {
+		if shell = fakeShell; shell == "" {
+			t.Fatal("no sh to run the fake tools' shell scripts with; install Git for Windows")
+		}
+	}
+	if err := os.WriteFile(path, []byte("#!"+shell+"\n"+body+"\n"), 0o755); err != nil {
 		t.Fatal(err)
+	}
+	if runtime.GOOS == "windows" {
+		return fakeTool(t, dir, name)
 	}
 	return path
 }

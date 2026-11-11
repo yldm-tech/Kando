@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -105,29 +106,44 @@ func TestShowLogFileIsAHelpMenuRow(t *testing.T) {
 	was := logsReveal
 	logsReveal = func(p string) { shown = p }
 	t.Cleanup(func() { logsReveal = was })
-	// The user removed the file in Finder; it is made again, so there is a file to show.
-	if err := os.Remove(path); err != nil {
-		t.Fatal(err)
-	}
-	rows[0].Run()
-	if shown != path {
-		t.Fatalf("showed %q, want %q", shown, path)
-	}
-	if _, err := os.Stat(path); err != nil {
-		t.Fatalf("the log file was not made again: %v", err)
-	}
-	// The user moved the whole folder to the Trash: showing the file makes the folder and the file again, and the lines after it go there.
-	if err := os.RemoveAll(filepath.Dir(path)); err != nil {
-		t.Fatal(err)
-	}
-	shown = ""
-	rows[0].Run()
-	if _, err := os.Stat(path); err != nil || shown != path {
-		t.Fatalf("showed %q; the log file and its folder were not made again: %v", shown, err)
-	}
-	log.Printf("after the folder went")
-	if got := readLog(t, path); !strings.Contains(got, "after the folder went") {
-		t.Fatalf("log after its folder was made again:\n%s", got)
+	if runtime.GOOS == "windows" {
+		// Windows removes no file a program holds open, so the user cannot remove the log while Kando runs: it is shown where it is, and the lines after go on into it.
+		if err := os.Remove(path); err == nil {
+			t.Fatal("the open log file was removed")
+		}
+		rows[0].Run()
+		if shown != path {
+			t.Fatalf("showed %q, want %q", shown, path)
+		}
+		log.Printf("after showing it")
+		if got := readLog(t, path); !strings.Contains(got, "after showing it") {
+			t.Fatalf("log after showing it:\n%s", got)
+		}
+	} else {
+		// The user removed the file in Finder; it is made again, so there is a file to show.
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+		rows[0].Run()
+		if shown != path {
+			t.Fatalf("showed %q, want %q", shown, path)
+		}
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("the log file was not made again: %v", err)
+		}
+		// The user moved the whole folder to the Trash: showing the file makes the folder and the file again, and the lines after it go there.
+		if err := os.RemoveAll(filepath.Dir(path)); err != nil {
+			t.Fatal(err)
+		}
+		shown = ""
+		rows[0].Run()
+		if _, err := os.Stat(path); err != nil || shown != path {
+			t.Fatalf("showed %q; the log file and its folder were not made again: %v", shown, err)
+		}
+		log.Printf("after the folder went")
+		if got := readLog(t, path); !strings.Contains(got, "after the folder went") {
+			t.Fatalf("log after its folder was made again:\n%s", got)
+		}
 	}
 	var found bool
 	for _, menu := range a.menuBar() {
@@ -155,11 +171,9 @@ func (p *logsFailPipeline) Download(ctx context.Context, source string) (string,
 
 // A job that fails is logged once, with the stage it failed in and its whole error, and the whole of what yt-dlp printed, which the job's error shortens; the jobs that had failed before the shelf was read are not.
 func TestFailedJobIsLogged(t *testing.T) {
-	ytdlp := filepath.Join(t.TempDir(), "yt-dlp")
-	script := "#!/bin/sh\necho 'WARNING: first warning of many' >&2\ni=0\nwhile [ $i -lt 60 ]; do echo \"WARNING: [youtube] retrying fragment $i\" >&2; i=$((i+1)); done\necho 'ERROR: [youtube] x: Private video' >&2\nexit 1\n"
-	if err := os.WriteFile(ytdlp, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	ytdlp := writeFakeScript(t, t.TempDir(), "yt-dlp", "echo 'WARNING: first warning of many' >&2\ni=0\nwhile [ $i -lt 60 ]; do echo \"WARNING: [youtube] retrying fragment $i\" >&2; i=$((i+1)); done\necho 'ERROR: [youtube] x: Private video' >&2\nexit 1")
+	// The log and the job's error name yt-dlp by its file name, yt-dlp.exe on Windows.
+	name := filepath.Base(ytdlp)
 	a, tt, updates := newTestApp(&logsFailPipeline{tools: media.Tools{YTDLP: ytdlp, OutputDir: t.TempDir()}})
 	shelfPath := filepath.Join(t.TempDir(), "library.json")
 	a.openLibrary(shelfPath)
@@ -184,7 +198,7 @@ func TestFailedJobIsLogged(t *testing.T) {
 	}
 	a.areasShelfChanged()
 	got := readLog(t, path)
-	for _, want := range []string{"yt-dlp failed: exit status 1", "WARNING: first warning of many", "retrying fragment 30", "job " + id + " failed while downloading: download: yt-dlp: exit status 1: ERROR: [youtube] x: Private video"} {
+	for _, want := range []string{name + " failed: exit status 1", "WARNING: first warning of many", "retrying fragment 30", "job " + id + " failed while downloading: download: " + name + ": exit status 1: ERROR: [youtube] x: Private video"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("log lacks %q:\n%s", want, got)
 		}
