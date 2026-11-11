@@ -61,8 +61,10 @@ func TestRenameMovesTheInodeWithTheLibrary(t *testing.T) {
 	if _, ok := a.snap().Inodes[old]; ok {
 		t.Fatal("old path kept its inode")
 	}
+	// Only macOS and Linux keep a folder's identity (media.DirID); elsewhere, as on Windows, it is always the zero one, so the rename moves the path and no identity is kept or saved.
+	_, _, identities := media.MakeDirID(7, 99).Parts()
 	dev, ino, ok := a.inode(next).Parts()
-	if !ok || dev != 7 || ino != 99 {
+	if identities && (!ok || dev != 7 || ino != 99) || !identities && ok {
 		t.Fatalf("inode = %d %d ok=%v", dev, ino, ok)
 	}
 	if a.snap().LibraryDir != next {
@@ -75,8 +77,8 @@ func TestRenameMovesTheInodeWithTheLibrary(t *testing.T) {
 	if saved.LibraryDir != next {
 		t.Fatalf("saved library = %q", saved.LibraryDir)
 	}
-	got := saved.LibraryInodes[next]
-	if got.Dev != 7 || got.Ino != 99 {
+	got, has := saved.LibraryInodes[next]
+	if identities && (got.Dev != 7 || got.Ino != 99) || !identities && has {
 		t.Fatalf("saved inode = %+v", got)
 	}
 	if _, ok := saved.LibraryInodes[old]; ok {
@@ -431,7 +433,12 @@ func TestDamagedLibraryIsKeptAsBad(t *testing.T) {
 	if err != nil || !bytes.Equal(bad, damaged) {
 		t.Fatalf("library.json.bad = %q (%v), want %q", bad, err, damaged)
 	}
-	if info, err := os.Stat(path + ".bad"); err != nil || info.Mode().Perm() != 0o600 {
+	want := os.FileMode(0o600)
+	if runtime.GOOS == "windows" {
+		// Windows has no permission bits: Go reports 0666 for any file that is not read-only; who may read the file is up to its ACL, which a mode does not show.
+		want = 0o666
+	}
+	if info, err := os.Stat(path + ".bad"); err != nil || info.Mode().Perm() != want {
 		t.Fatalf("library.json.bad: %v %v", info, err)
 	}
 	a.library.Upsert(core.Job{ID: "new", Source: "https://youtu.be/new", Stage: core.StageQueued})
