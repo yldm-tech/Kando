@@ -7,10 +7,12 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 func TestVibrancyShowsThroughTheSidebarOnly(t *testing.T) {
@@ -57,7 +59,14 @@ func TestPrimaryButtonUsesTheAccent(t *testing.T) {
 	scale := float32(img.Bounds().Dx()) / 1100
 	// The label is padded inside the button; a point just before it is the button's face.
 	px := img.RGBAAt(int((r.X-4)*scale), int((r.Y+r.H/2)*scale))
-	want := ui.Hex("#0A66D8")
+	// The face is Kando's blue as the platform fills an accent button, which theme.Palette gives the window: #0A66D8 itself on macOS, and on Windows the shade of it that WinUI's AccentFillColorDefault takes.
+	var light *ui.Theme
+	probe := ui.NewTester(func(c *ui.Context) { light, _ = theme.Palette(c) }, 10, 10)
+	probe.Frame()
+	want := light.Accent
+	if breeze.Current() == breeze.Mac && want != ui.Hex("#0A66D8") {
+		t.Fatalf("accent on macOS = %v, want Kando's #0A66D8", want)
+	}
 	for _, ch := range [][2]uint8{{px.R, want.R}, {px.G, want.G}, {px.B, want.B}} {
 		if d := int(ch[0]) - int(ch[1]); d < -3 || d > 3 {
 			t.Fatalf("button face = %v, want about %v", px, want)
