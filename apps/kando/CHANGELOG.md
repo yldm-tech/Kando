@@ -2,6 +2,12 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.12.0 - 2026-11-11
+
+### Fixes
+
+- Keep a tool kit's archive entries inside its folder on Windows too
+
 ## 0.11.2 - 2026-11-11
 
 ### Fixes
