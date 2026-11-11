@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -151,11 +152,19 @@ func TestInstallKitRejectsWrongChecksum(t *testing.T) {
 }
 
 func TestInstallKitRejectsUnsafeArchives(t *testing.T) {
-	for name, entry := range map[string]tarEntry{
+	cases := map[string]tarEntry{
 		"parent":   {name: "../evil", mode: 0o755, body: "x"},
 		"absolute": {name: "/tmp/evil", mode: 0o755, body: "x"},
 		"symlink":  {name: "ffmpeg", kind: tar.TypeSymlink, body: "/bin/sh"},
-	} {
+	}
+	// Windows reads a backslash as a separator too and a drive letter as another volume; elsewhere these are ordinary file names.
+	if runtime.GOOS == "windows" {
+		cases["backslash parent"] = tarEntry{name: `..\evil`, mode: 0o755, body: "x"}
+		cases["nested backslash parent"] = tarEntry{name: `bin\..\..\evil`, mode: 0o755, body: "x"}
+		cases["drive"] = tarEntry{name: `C:\evil`, mode: 0o755, body: "x"}
+		cases["drive relative"] = tarEntry{name: "C:evil", mode: 0o755, body: "x"}
+	}
+	for name, entry := range cases {
 		t.Run(name, func(t *testing.T) {
 			data := tarGz(t, entry)
 			_, err := InstallKit(context.Background(), Kit{ID: "ffmpeg", Program: "ffmpeg", URL: serve(t, data), SHA256: sha(data), Archive: true}, t.TempDir(), nil)
