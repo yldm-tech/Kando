@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,6 +18,22 @@ func writeExec(t *testing.T, path, content string) {
 	}
 	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A standalone yt-dlp that is running, as during a download or while Kando reads its version, can still be updated. Linux refuses to open a running program's file for writing (ETXTBSY) and Windows refuses it with a sharing violation, which says nothing about whether Kando may replace it, and made 更新并重试 and 下载 yt-dlp 并重试 say that Kando could not update yt-dlp.
+func TestFindYTDLPInstallUpdatesARunningStandalone(t *testing.T) {
+	path := writeFakeTool(t, t.TempDir(), "yt-dlp", fakeTool{Wait: true, Standalone: true})
+	cmd := exec.Command(path)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+	if install := FindYTDLPInstall(path); install.Kind != "standalone" || install.Update == nil {
+		t.Fatalf("a running standalone yt-dlp: %+v", install)
 	}
 }
 
