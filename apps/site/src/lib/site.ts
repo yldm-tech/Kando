@@ -16,9 +16,6 @@ export const everyAPIURL = "https://everyapi.ai";
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.
 export const readmeBuildURL = repoURL + "#build-from-source";
 
-// buildCommands build Kando from source, as the download panel's Windows tab shows them and get_started returns them. go tool mygo build is what make build runs, and works where make is not installed, as on Windows.
-export const buildCommands = "git clone https://github.com/yldm-tech/Kando.git\ncd Kando\ngo tool mygo build apps/kando";
-
 // installCommand installs the newest release for the current user with the install.sh mygo build makes, as the Linux tab shows it.
 export const installCommand = "curl -fsSL " + latestURL + "/download/install.sh | sh";
 

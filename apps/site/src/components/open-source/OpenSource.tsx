@@ -1,7 +1,7 @@
 // Open source: the dark panel with the repository and the downloads for each system, a tab each.
 import { useEffect } from "react";
 import { useWords } from "../../i18n/content";
-import { buildCommands, installCommand, latestURL, readmeURL, releasesURL, repoURL } from "../../lib/site";
+import { installCommand, latestURL, readmeURL, releasesURL, repoURL } from "../../lib/site";
 import { CodeBlock } from "../common/CodeBlock";
 import { AppleMark, GitHubMark } from "../common/marks";
 import { SlidingPill } from "../common/SlidingPill";
@@ -86,7 +86,11 @@ export function OpenSource() {
               </div>
               <div className="dl-panel" {...tabs.panel(2)}>
                 <p>{t("dlWinBody")}</p>
-                <CodeBlock text={buildCommands} />
+                <p>
+                  <a className="btn primary" href={latestURL}>
+                    {t("dlWinButton")}
+                  </a>
+                </p>
                 <p className="fine">{t("dlWinNote")}</p>
               </div>
             </div>

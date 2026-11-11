@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
@@ -36,9 +36,10 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 
 ### Download
 
-Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases); there is no Windows build yet, so on Windows build from source as described below. Pick the file for your system, where `<version>` is the release's version, such as `0.5.0`:
+Builds for macOS (Apple silicon and Intel), Windows (x86-64 and ARM64) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases). Pick the file for your system, where `<version>` is the release's version, such as `0.5.0`:
 
 - macOS: `kando-<version>-arm64.dmg` for Apple silicon, `kando-<version>-amd64.dmg` for Intel. Open the disk image and drag Kando to Applications.
+- Windows: `kando-setup-<version>-amd64.exe` for most PCs, `kando-setup-<version>-arm64.exe` for a Windows on Arm PC. Run the installer. It is not signed yet, so SmartScreen may warn before it runs: choose More info, then Run anyway.
 - Debian, Ubuntu and their derivatives: `kando_<version>_amd64.deb` for x86-64, `kando_<version>_arm64.deb` for ARM64. Install it with `sudo apt install ./kando_<version>_<arch>.deb` in the folder you downloaded it to.
 - Other Linux distributions: run the release's install script, which downloads the package for you:
 
@@ -48,7 +49,7 @@ Builds for macOS (Apple silicon and Intel) and Linux (x86-64 and ARM64) are on [
 
   It downloads the latest `kando-<version>-linux-<arch>.tar.gz` for your machine, checks its signature, and installs Kando for your user alone, without root: the app in `~/.local/kando.app`, the `kando` command in `~/.local/bin`, and an entry in the applications menu. Checking the signature needs OpenSSL 3.0 or later (Debian 12, Ubuntu 22.04, Fedora 36 and later); with an older OpenSSL the script downloads nothing and says so. In that case, download the `.tar.gz` for your machine and `install.sh` from the same release into one folder, keeping their file names, and run `sh install.sh` there, or run `sh install.sh <archive>` with the path of the `.tar.gz`; either way the script installs that archive without checking its signature. Running the script again installs the newer version over the old one, and `sh install.sh --uninstall` removes Kando and keeps its settings and libraries.
 
-The other files of a release are not for installing: `checksums.txt` lists the SHA-256 of every file, and the `update-*.json` manifests, the `.delta` files and the `darwin` archives are what installed copies of Kando update themselves from (see [Updates](#updates)).
+The other files of a release are not for installing: `checksums.txt` lists the SHA-256 of every file, and the `update-*.json` manifests, the `.delta` files and the `darwin` and `windows` archives are what installed copies of Kando update themselves from (see [Updates](#updates)).
 
 The macOS disk images of releases newer than 0.5.1 are signed with YLDM's Developer ID and notarized by Apple, so macOS opens Kando without a warning.
 
@@ -58,7 +59,7 @@ Kando updates itself from the signed releases on GitHub. It checks in the backgr
 
 To check now, choose Kando › Check for Updates… in the menu bar on macOS, or Check for Updates… in the command palette (Ctrl+K) on Linux and Windows, which have no menu bar; Settings › General also has a Check for Updates… button next to Version, under which it shows the newer version the last check found or when Kando last checked. The switches Check for updates automatically and Download and install updates automatically are in Settings › General too. The second shows only while the first is on, as only the background checks download updates; with it on, they install a new version without asking, and it opens the next time you launch Kando.
 
-A copy of Kando that cannot replace its own files does not update itself. That is the case of the `.deb` and the `PKGBUILD`, which install Kando in `/opt/kando`, a folder the package manager owns: there is no apt repository for Kando, so to update, download the new `.deb` from the release and install it the same way, or move to the install script above, whose copy in `~/.local/kando.app` updates itself. In such a copy Settings › General shows no switches, and Check for Updates… opens a window that says why it cannot update. Windows has no published updates yet.
+A copy of Kando that cannot replace its own files does not update itself. That is the case of the `.deb` and the `PKGBUILD`, which install Kando in `/opt/kando`, a folder the package manager owns: there is no apt repository for Kando, so to update, download the new `.deb` from the release and install it the same way, or move to the install script above, whose copy in `~/.local/kando.app` updates itself. In such a copy Settings › General shows no switches, and Check for Updates… opens a window that says why it cannot update.
 
 ### Build from source
 
@@ -261,7 +262,7 @@ Repository layout:
 
 ## CI and releases
 
-The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, signs the updates that installed copies of Kando download, and publishes a GitHub release with the macOS and Linux packages and their checksums. The Windows installers are built but not published yet.
+The [CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) workflow builds and tests pull requests and `main`. The [Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) workflow runs after CI passes on `main`, or by hand: it picks the next version from the Conventional Commits since the last tag, commits it to `main` as `chore(release)`, tags it, builds packages for macOS, Windows and Linux without a Developer ID or code-signing certificate, signs the updates that installed copies of Kando download, and publishes a GitHub release with the packages and their checksums.
 
 ## License
 

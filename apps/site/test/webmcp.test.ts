@@ -65,6 +65,8 @@ it("offers the files the Release workflow publishes", () => {
     "linux/amd64 kando-0.1.0-linux-amd64.tar.gz",
     "linux/arm64 kando_0.1.0_arm64.deb",
     "linux/arm64 kando-0.1.0-linux-arm64.tar.gz",
+    "windows/amd64 kando-setup-0.1.0-amd64.exe",
+    "windows/arm64 kando-setup-0.1.0-arm64.exe",
   ]);
   expect(rel.install["tar.gz"]).toContain(`${releasesURL}/download/v0.1.0/install.sh`);
 });

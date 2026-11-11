@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · 繁體中文 · [한국어](README.ko.md)
@@ -40,9 +40,10 @@
 
 ### 下載
 
-macOS（Apple 晶片和 Intel）和 Linux（x86-64 和 ARM64）的建置版本在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上；目前還沒有 Windows 版本，在 Windows 上請依下文從原始碼建置。請依你的系統選擇檔案，其中 `<version>` 是該版本的版本號，例如 `0.5.0`：
+macOS（Apple 晶片和 Intel）、Windows（x86-64 和 ARM64）和 Linux（x86-64 和 ARM64）的建置版本在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上。請依你的系統選擇檔案，其中 `<version>` 是該版本的版本號，例如 `0.5.0`：
 
 - macOS：Apple 晶片的 Mac 選 `kando-<version>-arm64.dmg`，Intel 的 Mac 選 `kando-<version>-amd64.dmg`。開啟磁碟映像檔，把看懂拖到「應用程式」檔案夾。
+- Windows：大多數電腦選 `kando-setup-<version>-amd64.exe`，ARM 處理器的 Windows 電腦選 `kando-setup-<version>-arm64.exe`，下載後執行安裝程式。安裝程式暫時沒有簽署，SmartScreen 可能會在執行前跳出警告：按「其他資訊」，再按「仍要執行」。
 - Debian、Ubuntu 及其衍生發行版：x86-64 選 `kando_<version>_amd64.deb`，ARM64 選 `kando_<version>_arm64.deb`。在下載所在的資料夾中以 `sudo apt install ./kando_<version>_<arch>.deb` 安裝。
 - 其他 Linux 發行版：執行該版本附帶的安裝指令碼，不需要自己下載套件：
 
@@ -52,7 +53,7 @@ macOS（Apple 晶片和 Intel）和 Linux（x86-64 和 ARM64）的建置版本�
 
   它會為你的電腦下載最新的 `kando-<version>-linux-<arch>.tar.gz`，檢查它的簽章，然後只為目前的使用者安裝看懂，不需要 root：應用程式裝在 `~/.local/kando.app`，`kando` 命令放在 `~/.local/bin`，並在應用程式選單中加入一項。檢查簽章需要 OpenSSL 3.0 或更新版本（Debian 12、Ubuntu 22.04、Fedora 36 及更新版本）；OpenSSL 版本較舊時，指令碼什麼也不下載，並會說明原因。這時請從同一個版本把適合你電腦的 `.tar.gz` 和 `install.sh` 下載到同一個資料夾，不要更改檔名，在那裡執行 `sh install.sh`；也可以執行 `sh install.sh <封存檔>`，傳入 `.tar.gz` 的路徑。兩種方式都會安裝這個封存檔，但不檢查簽章。再次執行指令碼會以新版本覆蓋舊版本；`sh install.sh --uninstall` 會移除看懂，並保留它的設定和資料庫。
 
-版本中的其他檔案不是用來安裝的：`checksums.txt` 列出每個檔案的 SHA-256，而 `update-*.json` 清單、`.delta` 檔案和 `darwin` 封存檔是已安裝的看懂自動更新時下載的（請參閱[更新](#updates)）。
+版本中的其他檔案不是用來安裝的：`checksums.txt` 列出每個檔案的 SHA-256，而 `update-*.json` 清單、`.delta` 檔案和 `darwin`、`windows` 封存檔是已安裝的看懂自動更新時下載的（請參閱[更新](#updates)）。
 
 0.5.1 之後發布的 macOS 安裝檔以 YLDM 的 Developer ID 簽署，並經過 Apple 公證，開啟看懂時 macOS 不會再發出警告。
 
@@ -64,7 +65,7 @@ macOS（Apple 晶片和 Intel）和 Linux（x86-64 和 ARM64）的建置版本�
 
 要立即檢查，在 macOS 上選擇選單列中的「看懂 › 檢查更新…」；Linux 和 Windows 沒有選單列，請在命令面板（Ctrl+K）中選擇「檢查更新…」。「設定 › 一般」中「版本」旁邊也有「檢查更新…」按鈕，下方會顯示上次檢查找到的新版本，或上次檢查的時間。「自動檢查更新」和「自動下載並安裝更新」兩個開關也在「設定 › 一般」中。只有開啟前者時才會顯示後者，因為只有背景檢查會下載更新；開啟後者後，背景檢查找到新版本會直接安裝，不再詢問，下次開啟看懂時生效。
 
-無法取代自身檔案的看懂不會自動更新。`.deb` 和 `PKGBUILD` 就是這種情況：它們把看懂安裝在由套件管理器管理的 `/opt/kando` 中，而看懂沒有 apt 套件庫，所以更新時請從新版本下載 `.deb` 並以相同方式安裝，或改用上面的安裝指令碼，它安裝在 `~/.local/kando.app` 的看懂可以自動更新。這樣安裝的看懂在「設定 › 一般」中不會顯示這兩個開關，「檢查更新…」會開啟一個視窗說明無法更新的原因。Windows 目前還沒有發布更新。
+無法取代自身檔案的看懂不會自動更新。`.deb` 和 `PKGBUILD` 就是這種情況：它們把看懂安裝在由套件管理器管理的 `/opt/kando` 中，而看懂沒有 apt 套件庫，所以更新時請從新版本下載 `.deb` 並以相同方式安裝，或改用上面的安裝指令碼，它安裝在 `~/.local/kando.app` 的看懂可以自動更新。這樣安裝的看懂在「設定 › 一般」中不會顯示這兩個開關，「檢查更新…」會開啟一個視窗說明無法更新的原因。
 
 ### 從原始碼建置
 
@@ -271,7 +272,7 @@ KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
 
 ## CI 與版本發布
 
-[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) 工作流程會建置並測試 Pull Request 和 `main`。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) 工作流程會在 `main` 的 CI 通過後執行，也可以手動執行：它依照上一個標籤之後的 Conventional Commits 決定下一個版本號，以 `chore(release)` 提交到 `main` 並加上標籤，在不使用 Developer ID 或程式碼簽署憑證的情況下建置 macOS、Windows 和 Linux 的套件，為已安裝的看懂要下載的更新簽署，再把 macOS 和 Linux 的套件附上檢查碼發布 GitHub Release。Windows 安裝程式已經建置，但還沒有發布。
+[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) 工作流程會建置並測試 Pull Request 和 `main`。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) 工作流程會在 `main` 的 CI 通過後執行，也可以手動執行：它依照上一個標籤之後的 Conventional Commits 決定下一個版本號，以 `chore(release)` 提交到 `main` 並加上標籤，在不使用 Developer ID 或程式碼簽署憑證的情況下建置 macOS、Windows 和 Linux 的套件，為已安裝的看懂要下載的更新簽署，再把套件附上檢查碼發布 GitHub Release。
 
 ## 授權
 
