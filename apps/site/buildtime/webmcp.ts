@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  buildCommands,
   everyAPIURL,
   installCommand,
   latestURL,
@@ -28,7 +27,7 @@ export function hashLink(path: string, data: string | Uint8Array): string {
   return path + "?v=" + createHash("sha256").update(data).digest("hex").slice(0, 10);
 }
 
-// releaseDownloads are the packages the Release workflow publishes for version, under the names mygo build gives them (.github/workflows/package.yml): a disk image for each Mac, and for each Linux architecture a Debian package and an archive that the release's install.sh installs. Windows installers are built but not published, so Windows has none.
+// releaseDownloads are the packages the Release workflow publishes for version, under the names mygo build gives them (.github/workflows/package.yml): a disk image for each Mac, an installer for each Windows architecture, and for each Linux architecture a Debian package and an archive that the release's install.sh installs.
 export function releaseDownloads(version: string): AgentRelease {
   const tag = "v" + version;
   const base = releasesURL + "/download/" + tag + "/";
@@ -43,6 +42,10 @@ export function releaseDownloads(version: string): AgentRelease {
     name = `kando-${version}-linux-${arch}.tar.gz`;
     downloads.push({ platform: "linux", arch, kind: "tar.gz", name, url: base + name });
   }
+  for (const arch of ["amd64", "arm64"]) {
+    const name = `kando-setup-${version}-${arch}.exe`;
+    downloads.push({ platform: "windows", arch, kind: "exe", name, url: base + name });
+  }
   return {
     version,
     page: releasesURL + "/tag/" + tag,
@@ -56,6 +59,7 @@ export function releaseDownloads(version: string): AgentRelease {
         "On other distributions, download " +
         base +
         "install.sh into the same folder as the archive and run sh install.sh there. It installs Kando into ~/.local for the current user, without root, and adds it to the applications menu; sh install.sh --uninstall removes it.",
+      exe: "Run the installer. It is not signed yet, so SmartScreen may warn before it runs: choose More info, then Run anyway. On Windows Kando does not download yt-dlp, ffmpeg and whisper-cli yet: install them with a package manager and put them on PATH.",
     },
   };
 }
@@ -165,7 +169,7 @@ export function newAgentContent(l: Language, strs: Strings, total: number, surf:
           notes: [t("dlLinuxNote"), t("dlFirstRun")],
           link: { text: t("dlLinuxButton"), url: latestURL },
         },
-        { number: 3, title: "Windows", text: [t("dlWinBody")], command: buildCommands, notes: [t("dlWinNote")] },
+        { number: 3, title: "Windows", text: [t("dlWinBody")], notes: [t("dlWinNote")], link: { text: t("dlWinButton"), url: latestURL } },
       ],
       readme: { text: t("dlReadme"), url: readmeURL(l) },
     },

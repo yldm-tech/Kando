@@ -175,14 +175,17 @@ async function main() {
   assert.equal(names(r), `kando_${v}_amd64.deb kando-${v}-linux-amd64.tar.gz`);
   r = await call(tools, "get_download", { platform: "linux" });
   assert.equal(r.data.downloads.length, 4, "linux without an arch on a Mac lists " + names(r));
-  // Windows has no build: the answer is building from source, and it is not an error.
+  // An x86-64 Windows' User-Agent says Win64; x64: its installer, with SmartScreen's warning and the tools to install by hand.
   const windows = await load({ userAgent: windowsUA });
   r = await call(windows.tools, "get_download", {});
   assert.equal(r.isError, false);
   assert.equal(r.data.platform, "windows");
-  assert.equal(r.data.downloads.length, 0);
-  assert.match(r.text, /no Windows build/);
-  assert.ok(r.text.includes(release.source), "the Windows answer does not link " + release.source);
+  assert.equal(names(r), `kando-setup-${v}-amd64.exe`);
+  assert.match(r.text, /Run anyway/);
+  assert.match(r.text, /package manager/);
+  assert.doesNotMatch(r.text, /On first launch Kando downloads/);
+  r = await call(tools, "get_download", { platform: "windows" });
+  assert.equal(names(r), `kando-setup-${v}-amd64.exe kando-setup-${v}-arm64.exe`);
   assert.equal((await call(tools, "get_download", { platform: "freebsd" })).isError, true);
   assert.equal((await call(tools, "get_download", { arch: "x86" })).isError, true);
 
@@ -190,10 +193,9 @@ async function main() {
   const own = content(pageData.lang);
   r = await call(tools, "get_started", {});
   assert.equal(r.data.lang, pageData.lang);
-  for (const key of ["openTitle", "dlMacBody", "dlMacButton", "dlFirstRun", "dlLinuxNote", "dlWinBody", "dlWinNote", "dlReadme"]) {
+  for (const key of ["openTitle", "dlMacBody", "dlMacButton", "dlFirstRun", "dlLinuxNote", "dlWinBody", "dlWinButton", "dlWinNote", "dlReadme"]) {
     assert.ok(r.text.includes(own[key]), "get_started does not say " + key + ": " + own[key]);
   }
-  assert.ok(r.text.includes("    git clone https://github.com/yldm-tech/Kando.git\n    cd Kando\n    go tool mygo build apps/kando"), "get_started does not give the build commands");
   assert.ok(r.text.includes("install.sh | sh"), "get_started does not give the Linux install command");
   r = await call(tools, "get_started", { lang: "zh-Hant" });
   assert.equal(r.data.lang, "zh-TW");

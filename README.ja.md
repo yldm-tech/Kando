@@ -5,7 +5,7 @@
 [![Latest release](https://img.shields.io/github/v/release/yldm-tech/Kando?include_prereleases&sort=semver)](https://github.com/yldm-tech/Kando/releases)
 [![License](https://img.shields.io/github/license/yldm-tech/Kando)](LICENSE)
 [![Go](https://img.shields.io/github/go-mod/go-version/yldm-tech/Kando?filename=apps%2Fkando%2Fgo.mod)](go.work)
-[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows%20%28from%20source%29-lightgrey)](#install)
+[![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
 [![GitHub stars](https://img.shields.io/github/stars/yldm-tech/Kando)](https://github.com/yldm-tech/Kando/stargazers)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · 日本語 · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
@@ -40,9 +40,10 @@ Kando は、ある言語で話されている動画からその言語を学ぶ�
 
 ### ダウンロード
 
-macOS（Apple シリコンと Intel）と Linux（x86-64 と ARM64）向けのビルドは [GitHub Releases](https://github.com/yldm-tech/Kando/releases) にあります。Windows 向けのビルドはまだないため、Windows では下記の手順でソースからビルドしてください。お使いのシステムに合わせてファイルを選びます。`<version>` はリリースのバージョン（`0.5.0` など）です。
+macOS（Apple シリコンと Intel）、Windows（x86-64 と ARM64）、Linux（x86-64 と ARM64）向けのビルドは [GitHub Releases](https://github.com/yldm-tech/Kando/releases) にあります。お使いのシステムに合わせてファイルを選びます。`<version>` はリリースのバージョン（`0.5.0` など）です。
 
 - macOS: Apple シリコンの Mac では `kando-<version>-arm64.dmg`、Intel の Mac では `kando-<version>-amd64.dmg`。ディスクイメージを開き、Kando を「アプリケーション」フォルダにドラッグします。
+- Windows: ほとんどの PC では `kando-setup-<version>-amd64.exe`、Arm 版 Windows の PC では `kando-setup-<version>-arm64.exe`。インストーラーを実行します。まだ署名していないため、実行前に SmartScreen の警告が出ることがあります。「詳細情報」から「実行」を選んでください。
 - Debian、Ubuntu とその派生ディストリビューション: x86-64 では `kando_<version>_amd64.deb`、ARM64 では `kando_<version>_arm64.deb`。ダウンロードしたフォルダで `sudo apt install ./kando_<version>_<arch>.deb` を実行してインストールします。
 - その他の Linux ディストリビューション: リリースのインストールスクリプトを実行します。パッケージを自分でダウンロードする必要はありません。
 
@@ -52,7 +53,7 @@ macOS（Apple シリコンと Intel）と Linux（x86-64 と ARM64）向けの�
 
   お使いのマシン向けの最新の `kando-<version>-linux-<arch>.tar.gz` をダウンロードして署名を検証し、root なしで現在のユーザーだけに Kando をインストールします。アプリは `~/.local/kando.app` に、`kando` コマンドは `~/.local/bin` に置かれ、アプリケーションメニューにも項目が追加されます。署名の検証には OpenSSL 3.0 以降（Debian 12、Ubuntu 22.04、Fedora 36 以降）が必要です。それより古い OpenSSL ではスクリプトは何もダウンロードせず、その旨を表示します。その場合は、マシンに合った `.tar.gz` と `install.sh` を同じリリースから同じフォルダに、ファイル名を変えずにダウンロードし、そこで `sh install.sh` を実行してください。`.tar.gz` のパスを渡して `sh install.sh <アーカイブ>` と実行することもできます。どちらの場合も、そのアーカイブを署名の検証なしでインストールします。スクリプトをもう一度実行すると新しいバージョンで上書きインストールし、`sh install.sh --uninstall` は設定とライブラリを残して Kando を削除します。
 
-リリースにあるその他のファイルはインストール用ではありません。`checksums.txt` は各ファイルの SHA-256 の一覧で、`update-*.json` マニフェスト、`.delta` ファイル、`darwin` のアーカイブは、インストール済みの Kando が自動アップデートでダウンロードするものです（[アップデート](#updates)を参照）。
+リリースにあるその他のファイルはインストール用ではありません。`checksums.txt` は各ファイルの SHA-256 の一覧で、`update-*.json` マニフェスト、`.delta` ファイル、`darwin` と `windows` のアーカイブは、インストール済みの Kando が自動アップデートでダウンロードするものです（[アップデート](#updates)を参照）。
 
 0.5.1 より後のリリースの macOS 用ディスクイメージは YLDM の Developer ID で署名され、Apple の公証を受けているため、macOS は警告なしで Kando を開きます。
 
@@ -64,7 +65,7 @@ Kando は GitHub にある署名済みのリリースから自分自身をアッ
 
 すぐに確認するには、macOS ではメニューバーの「Kando」›「アップデートを確認…」を選びます。メニューバーのない Linux と Windows では、コマンドパレット（Ctrl+K）で「アップデートを確認…」を選びます。「設定」›「一般」の「バージョン」の横にも「アップデートを確認…」ボタンがあり、その下に前回の確認で見つかった新しいバージョンか、前回確認した日時が表示されます。「アップデートを自動的に確認」と「アップデートを自動的にダウンロードしてインストール」のスイッチも「設定」›「一般」にあります。アップデートをダウンロードするのはバックグラウンドの確認だけなので、後者は前者がオンのときだけ表示されます。後者をオンにすると、バックグラウンドの確認で見つかった新しいバージョンを確認なしでインストールし、次に Kando を起動したときに切り替わります。
 
-自分のファイルを置き換えられない Kando は自動アップデートしません。`.deb` と `PKGBUILD` がこれにあたります。どちらもパッケージマネージャーが管理する `/opt/kando` に Kando をインストールし、Kando には apt リポジトリがないため、アップデートするには新しい `.deb` をリリースからダウンロードして同じ方法でインストールするか、上のインストールスクリプトに切り替えてください。スクリプトが `~/.local/kando.app` にインストールした Kando は自動アップデートします。このようにインストールした Kando では「設定」›「一般」にスイッチが表示されず、「アップデートを確認…」はアップデートできない理由を示すウィンドウを開きます。Windows 向けのアップデートはまだ公開されていません。
+自分のファイルを置き換えられない Kando は自動アップデートしません。`.deb` と `PKGBUILD` がこれにあたります。どちらもパッケージマネージャーが管理する `/opt/kando` に Kando をインストールし、Kando には apt リポジトリがないため、アップデートするには新しい `.deb` をリリースからダウンロードして同じ方法でインストールするか、上のインストールスクリプトに切り替えてください。スクリプトが `~/.local/kando.app` にインストールした Kando は自動アップデートします。このようにインストールした Kando では「設定」›「一般」にスイッチが表示されず、「アップデートを確認…」はアップデートできない理由を示すウィンドウを開きます。
 
 ### ソースからビルド
 
@@ -271,7 +272,7 @@ KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
 
 ## CI とリリース
 
-[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) ワークフローは、プルリクエストと `main` をビルドしてテストします。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) ワークフローは、`main` で CI が成功したあと、または手動で実行されます。前回のタグ以降の Conventional Commits から次のバージョンを決め、`chore(release)` として `main` にコミットしてタグを付け、Developer ID やコード署名証明書なしで macOS、Windows、Linux 向けのパッケージをビルドし、インストール済みの Kando がダウンロードするアップデートに署名して、macOS と Linux 向けのパッケージにチェックサムを添えて GitHub のリリースを公開します。Windows 向けのインストーラーはビルドされていますが、まだ公開していません。
+[CI](https://github.com/yldm-tech/Kando/actions/workflows/ci.yml) ワークフローは、プルリクエストと `main` をビルドしてテストします。[Release](https://github.com/yldm-tech/Kando/actions/workflows/release.yml) ワークフローは、`main` で CI が成功したあと、または手動で実行されます。前回のタグ以降の Conventional Commits から次のバージョンを決め、`chore(release)` として `main` にコミットしてタグを付け、Developer ID やコード署名証明書なしで macOS、Windows、Linux 向けのパッケージをビルドし、インストール済みの Kando がダウンロードするアップデートに署名して、パッケージにチェックサムを添えて GitHub のリリースを公開します。
 
 ## ライセンス
 
