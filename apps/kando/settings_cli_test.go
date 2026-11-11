@@ -3,10 +3,12 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"kando/apps/kando/clitool"
+	"kando/apps/kando/films"
 	"kando/apps/kando/settings"
 )
 
@@ -64,6 +66,14 @@ func cliToolDiskImage(t *testing.T, readOnly bool) {
 	t.Cleanup(func() { clitool.ReadOnly = saved })
 }
 
+// cliToolUnixOnly skips a test of 安装 on Windows, which has no folders to install the command in (clitool.EnvHere): there the card asks to add the app's folder to PATH, which TestSettingsGeneralOnWindowsAsksToAddTheFolderToPath covers.
+func cliToolUnixOnly(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows has no 安装; TestSettingsGeneralOnWindowsAsksToAddTheFolderToPath covers its card")
+	}
+}
+
 func TestSettingsGeneralAsksToMoveATemporaryApp(t *testing.T) {
 	cliToolDiskImage(t, true)
 	root := cliToolRoot(t)
@@ -95,6 +105,7 @@ func TestSettingsGeneralAsksToMoveATemporaryApp(t *testing.T) {
 }
 
 func TestSettingsGeneralInstallsTheCommandAndCopiesTheMCPConfig(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
@@ -143,6 +154,7 @@ func TestSettingsGeneralInstallsTheCommandAndCopiesTheMCPConfig(t *testing.T) {
 }
 
 func TestSettingsGeneralSaysWhenTheCommandIsNotOnPath(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	own := filepath.Join(root, "own", "bin")
@@ -170,6 +182,7 @@ func TestSettingsGeneralSaysWhenTheCommandIsNotOnPath(t *testing.T) {
 }
 
 func TestSettingsGeneralShowsWhyInstallFailed(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
@@ -192,5 +205,74 @@ func TestSettingsGeneralShowsWhyInstallFailed(t *testing.T) {
 	tt.Frame()
 	if !tt.HasText("没能安装：" + filepath.Join(bin, "kando") + " 是别的程序的 kando，看懂不会替换它。") {
 		t.Fatalf("no reason shown: %q", tt.Texts())
+	}
+}
+
+func TestSettingsGeneralOnWindowsAsksToAddTheFolderToPath(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("only Windows has no folders to install the command in")
+	}
+	t.Setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+	root := cliToolRoot(t)
+	exe := filepath.Join(root, "app", "Kando.exe")
+	if err := os.MkdirAll(filepath.Dir(exe), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(exe, []byte("MZ"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
+	searched := []string{bin}
+	a, tt, updates := newTestApp(&fakePipeline{})
+	a.cliTool.env = func() clitool.Env { return clitool.Env{Exe: exe, Searched: searched} }
+	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
+	tt.SetSize(880, 1600)
+	waitUntil(t, updates, func() bool { return a.cliTool.known })
+	tt.Frame()
+	command := `claude mcp add kando -- "` + exe + `" mcp`
+	for _, text := range []string{"把 " + films.DisplayPath(filepath.Dir(exe)) + " 加进 PATH，就能在终端里使用 kando。", "未安装", command} {
+		if !tt.HasText(text) {
+			t.Fatalf("missing %q in %q", text, tt.Texts())
+		}
+	}
+	for _, text := range tt.Texts() {
+		if text == "安装" || text == "重新安装" {
+			t.Fatalf("the card offers to install: %q", tt.Texts())
+		}
+	}
+	if err := tt.Click("拷贝配置"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.Clipboard() != clitool.MCPConfig(exe) {
+		t.Fatalf("clipboard = %s", tt.Clipboard())
+	}
+	if err := tt.Click("拷贝命令"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if tt.Clipboard() != command {
+		t.Fatalf("clipboard = %s", tt.Clipboard())
+	}
+
+	// Another program's kando.cmd on PATH, as npm makes, is named.
+	other := filepath.Join(bin, "kando.cmd")
+	if err := os.WriteFile(other, []byte("@echo off\r\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	a.cliToolCheck()
+	waitUntil(t, updates, func() bool { return a.CLI().Command != "" })
+	tt.Frame()
+	if !tt.HasText("终端里的 kando 是 " + films.DisplayPath(other) + "，不是这个看懂。") {
+		t.Fatalf("the other kando is not named: %q", tt.Texts())
+	}
+
+	// With the app's folder on PATH ahead of it, Kando.exe is the command.
+	searched = []string{filepath.Dir(exe), bin}
+	a.cliToolCheck()
+	waitUntil(t, updates, func() bool { return a.CLI().Installed })
+	tt.Frame()
+	if !tt.HasText("已安装") || !tt.HasText("在终端里输入 kando 即可使用，命令在 "+films.DisplayPath(filepath.Join(filepath.Dir(exe), "kando.exe"))+"。") {
+		t.Fatalf("with the app's folder on PATH: %q", tt.Texts())
 	}
 }
