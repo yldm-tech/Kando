@@ -84,19 +84,8 @@ func TestFindYTDLPInstallTellsHowItWasInstalled(t *testing.T) {
 }
 
 func TestUpdateYTDLPRunsTheUpdateAndReadsTheNewVersion(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the fake yt-dlp is a shell script")
-	}
-	dir := t.TempDir()
-	tool := filepath.Join(dir, "yt-dlp")
-	// A standalone yt-dlp that, given -U, replaces its version as the real one replaces itself.
-	writeExec(t, tool, `#!/bin/sh
-v=$(cat "$0.version" 2>/dev/null || echo 2024.03.10)
-case "$1" in
---version) echo "$v";;
--U) echo "Current version: stable@$v"; echo "Updating to stable@2026.11.03 ..."; echo 2026.11.03 > "$0.version"; echo "Updated yt-dlp to stable@2026.11.03";;
-esac
-`)
+	// A standalone yt-dlp that, given -U, replaces its version as the real one replaces itself. It is a file of its own, as FindYTDLPInstall updates the program a link leads to.
+	tool := writeFakeTool(t, t.TempDir(), "yt-dlp", fakeTool{Act: "update", Standalone: true})
 	if v, err := YTDLPVersion(context.Background(), tool); err != nil || v != "2024.03.10" {
 		t.Fatalf("version %q, %v", v, err)
 	}

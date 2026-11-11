@@ -262,24 +262,8 @@ func resumeTools(t *testing.T, chat string) (tools Tools, ytdlpRuns, whisperRuns
 	ytdlp, ytdlpRuns := splitYTDLP(t)
 	dir := t.TempDir()
 	whisperRuns = filepath.Join(dir, "whisper-runs")
-	ffmpeg := filepath.Join(dir, "ffmpeg")
-	// The audio file is the last argument.
-	if err := os.WriteFile(ffmpeg, []byte("#!/bin/sh\nfor a in \"$@\"; do out=\"$a\"; done\n: > \"$out\"\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	whisper := filepath.Join(dir, "whisper-cli")
-	script := `#!/bin/sh
-of=
-while [ $# -gt 0 ]; do
-	case "$1" in -of) shift; of="$1" ;; esac
-	shift
-done
-echo run >> ` + shellQuote(whisperRuns) + `
-printf '%s' '{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello there."},{"offsets":{"from":1500,"to":3250},"text":" Nice to meet you."}]}' > "$of.json"
-`
-	if err := os.WriteFile(whisper, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	ffmpeg := writeFakeTool(t, dir, "ffmpeg", fakeTool{Act: "extract-audio"})
+	whisper := writeFakeTool(t, dir, "whisper-cli", fakeTool{Runs: whisperRuns, Act: "transcribe", Transcript: `{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello there."},{"offsets":{"from":1500,"to":3250},"text":" Nice to meet you."}]}`})
 	model := filepath.Join(dir, "ggml-small.bin")
 	if err := os.WriteFile(model, nil, 0o644); err != nil {
 		t.Fatal(err)
