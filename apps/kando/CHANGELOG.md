@@ -2,6 +2,15 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.11.2 - 2026-11-11
+
+### Fixes
+
+- Make the kando command, MCP redial and socket tests work on Windows
+- Show the whole guide on Windows and fix Unix-only test assumptions
+- Follow a renamed library on Windows
+- Update a yt-dlp that is running
+
 ## 0.11.1 - 2026-11-11
 
 No changes to the app worth listing: this version only carries maintenance.
