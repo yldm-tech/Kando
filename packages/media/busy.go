@@ -3,9 +3,21 @@ package media
 import (
 	"context"
 	"errors"
+	"runtime"
 	"syscall"
 	"time"
 )
+
+// errSharingViolation is Windows' ERROR_SHARING_VIOLATION, with which it refuses to open a file another process holds, such as a program that is running.
+const errSharingViolation = syscall.Errno(32)
+
+// fileInUse reports whether err refused to open a file because a process is using it, not because Kando may not write it: Linux's ETXTBSY for a program that is running, Windows' sharing violation. Both systems check the file's permissions first, so a file that is only in use is one Kando may write.
+func fileInUse(err error) bool {
+	if runtime.GOOS == "windows" {
+		return errors.Is(err, errSharingViolation)
+	}
+	return errors.Is(err, syscall.ETXTBSY)
+}
 
 // busyRetries is how many more times starting a tool is tried when the system says its file is busy.
 const busyRetries = 5
