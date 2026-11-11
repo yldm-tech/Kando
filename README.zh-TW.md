@@ -69,7 +69,7 @@ macOS（Apple 晶片和 Intel）、Windows（x86-64 和 ARM64）和 Linux（x86-
 
 ### 從原始碼建置
 
-需要 Go 1.27.3 或更新版本：
+需要 Go 1.27.4 或更新版本：
 
 ```sh
 git clone https://github.com/yldm-tech/Kando.git
@@ -243,7 +243,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 
 ## 開發
 
-需要 Go 1.27.3 或更新版本。
+需要 Go 1.27.4 或更新版本。
 
 ```sh
 make test   # go test for packages/core, packages/media and apps/kando
