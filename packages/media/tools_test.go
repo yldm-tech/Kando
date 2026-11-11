@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -132,13 +131,8 @@ func noPackageManagerDirs(t *testing.T) {
 	t.Cleanup(func() { extraToolDirs = saved })
 }
 
-const signedInEveryAPI = `#!/bin/sh
-if [ "$1" = auth ] && [ "$2" = credential ]; then
-  printf '%s\n' '{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"from-login"}'
-  exit 0
-fi
-exit 1
-`
+// signedInEveryAPI is an everyapi someone signed in to: `everyapi auth credential` prints the relay key.
+var signedInEveryAPI = fakeTool{Want: []string{"auth", "credential"}, Stdout: `{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"from-login"}` + "\n"}
 
 // TestRelookFindsTheEveryAPICLIInstalledLater checks that without the everyapi program Check says it is missing rather than signed out, and that once it is installed Relook signs the translator in through it without Kando starting again.
 func TestRelookFindsTheEveryAPICLIInstalledLater(t *testing.T) {
@@ -154,10 +148,7 @@ func TestRelookFindsTheEveryAPICLIInstalledLater(t *testing.T) {
 		t.Fatalf("Check = %v, want %v", err, ErrEveryAPIMissing)
 	}
 
-	cli := filepath.Join(dir, "everyapi")
-	if err := os.WriteFile(cli, []byte(signedInEveryAPI), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	cli := writeFakeTool(t, dir, "everyapi", signedInEveryAPI)
 	tools = tools.Relook()
 	if tools.EveryAPI != cli || tools.Translator.Credential == nil {
 		t.Fatalf("Relook: everyapi %q, credential %v", tools.EveryAPI, tools.Translator.Credential != nil)
@@ -194,30 +185,26 @@ func TestUseEveryAPICLIOnlyWithoutAKey(t *testing.T) {
 
 // TestEveryAPICredentialGoneSaysMissing checks that an everyapi removed after Kando found it is reported as missing, not as signed out.
 func TestEveryAPICredentialGoneSaysMissing(t *testing.T) {
-	_, err := everyAPICredential(filepath.Join(t.TempDir(), "everyapi"))(context.Background(), false)
+	cli := writeFakeTool(t, t.TempDir(), "everyapi", signedInEveryAPI)
+	if err := os.Remove(cli); err != nil {
+		t.Fatal(err)
+	}
+	_, err := everyAPICredential(cli)(context.Background(), false)
 	if !errors.Is(err, ErrEveryAPIMissing) {
 		t.Fatalf("err = %v, want %v", err, ErrEveryAPIMissing)
 	}
 }
 
-func writeFakeEveryAPI(t *testing.T, script string) {
+// writeFakeEveryAPI puts a fake everyapi that does what fake says alone on PATH.
+func writeFakeEveryAPI(t *testing.T, fake fakeTool) {
 	t.Helper()
 	dir := t.TempDir()
-	path := filepath.Join(dir, "everyapi")
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeFakeTool(t, dir, "everyapi", fake)
 	t.Setenv("PATH", dir)
 }
 
 func TestToolsFromEnvUsesSignedInCLI(t *testing.T) {
-	writeFakeEveryAPI(t, `#!/bin/sh
-if [ "$1" = auth ] && [ "$2" = credential ]; then
-  printf '%s\n' '{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"from-login"}'
-  exit 0
-fi
-exit 1
-`)
+	writeFakeEveryAPI(t, signedInEveryAPI)
 	setLLMEnv(t, "", "", "", "")
 	tools := ToolsFromEnv()
 	if tools.Translator.APIKey != "" || tools.Translator.Credential == nil {
@@ -236,10 +223,7 @@ exit 1
 }
 
 func TestToolsFromEnvReportsSignedOutCLI(t *testing.T) {
-	writeFakeEveryAPI(t, `#!/bin/sh
-echo 'EVERYAPI_CREDENTIAL_ERROR:not_logged_in: not logged in' >&2
-exit 1
-`)
+	writeFakeEveryAPI(t, fakeTool{Stderr: "EVERYAPI_CREDENTIAL_ERROR:not_logged_in: not logged in\n", Exit: 1})
 	setLLMEnv(t, "", "", "", "")
 	tools := ToolsFromEnv()
 	_, err := tools.Translator.Credential(context.Background(), false)
@@ -258,29 +242,10 @@ func TestToolsTranscribeRejectsEmptyVideoPath(t *testing.T) {
 // transcribeTools writes an ffmpeg that does nothing and a whisper-cli that saves its arguments to a file, one a line, and writes a transcript of one line where -of asks, as the real one does with -oj.
 func transcribeTools(t *testing.T) (tools Tools, args string) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the fake tools are shell scripts")
-	}
 	dir := t.TempDir()
 	args = filepath.Join(dir, "args")
-	ffmpeg, whisper := filepath.Join(dir, "ffmpeg"), filepath.Join(dir, "whisper-cli")
-	if err := os.WriteFile(ffmpeg, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	script := `#!/bin/sh
-out=
-for a in "$@"; do echo "$a"; done > ` + shellQuote(args) + `
-while [ $# -gt 0 ]; do
-	case "$1" in
-	-of) shift; out="$1" ;;
-	esac
-	shift
-done
-printf '{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello"}]}' > "$out.json"
-`
-	if err := os.WriteFile(whisper, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	ffmpeg := writeFakeTool(t, dir, "ffmpeg", fakeTool{})
+	whisper := writeFakeTool(t, dir, "whisper-cli", fakeTool{Args: args, Act: "transcribe", Transcript: `{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello"}]}`})
 	return Tools{FFmpeg: ffmpeg, Whisper: whisper, WhisperModel: filepath.Join(dir, "ggml-base.bin")}, args
 }
 
@@ -322,11 +287,7 @@ func TestTranscribeNamesTheSpokenLanguage(t *testing.T) {
 // A video with no sound track makes ffmpeg write no stream; Transcribe returns ErrNoAudio rather than ffmpeg's words.
 func TestTranscribeSaysTheVideoHasNoSound(t *testing.T) {
 	dir := t.TempDir()
-	ffmpeg := filepath.Join(dir, "ffmpeg")
-	script := "#!/bin/sh\necho '[out#0/wav @ 0x1] Output file does not contain any stream' >&2\necho 'Error opening output files: Invalid argument' >&2\nexit 234\n"
-	if err := os.WriteFile(ffmpeg, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	ffmpeg := writeFakeTool(t, dir, "ffmpeg", fakeTool{Stderr: "[out#0/wav @ 0x1] Output file does not contain any stream\nError opening output files: Invalid argument\n", Exit: 234})
 	tools := Tools{FFmpeg: ffmpeg, Whisper: filepath.Join(dir, "whisper-cli"), WhisperModel: filepath.Join(dir, "model.bin")}
 	_, err := tools.Transcribe(context.Background(), filepath.Join(dir, "silent.mp4"))
 	if !errors.Is(err, ErrNoAudio) {
@@ -407,27 +368,10 @@ func TestLastLineAndTail(t *testing.T) {
 	}
 }
 
-// fakeYTDLP writes a yt-dlp that prints the captured stdout and stderr of a real run, then exits with code.
+// fakeYTDLP writes a yt-dlp that prints the captured stdout and stderr of a real run, from the files stdout and stderr ("" for nothing), then exits with code.
 func fakeYTDLP(t *testing.T, stdout, stderr string, code int) string {
 	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "yt-dlp")
-	script := "#!/bin/sh\ncat " + shellQuote(stdout) + "\ncat " + shellQuote(stderr) + " >&2\nexit " + strconv.Itoa(code) + "\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
-func shellQuote(path string) string {
-	if path == "" {
-		return "/dev/null"
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		panic(err)
-	}
-	return "'" + strings.ReplaceAll(abs, "'", `'\''`) + "'"
+	return writeFakeTool(t, t.TempDir(), "yt-dlp", fakeTool{StdoutFile: stdout, StderrFile: stderr, Exit: code})
 }
 
 func TestDownloadFollowsTheRealOutput(t *testing.T) {
@@ -507,11 +451,8 @@ func TestDownloadDoesNotAskOEmbedForOtherSites(t *testing.T) {
 func argsYTDLP(t *testing.T) (tool, args string) {
 	t.Helper()
 	dir := t.TempDir()
-	tool, args = filepath.Join(dir, "yt-dlp"), filepath.Join(dir, "args")
-	if err := os.WriteFile(tool, []byte("#!/bin/sh\nfor a in \"$@\"; do echo \"$a\"; done > "+shellQuote(args)+"\nexit 1\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return tool, args
+	args = filepath.Join(dir, "args")
+	return writeFakeTool(t, dir, "yt-dlp", fakeTool{Args: args, Exit: 1}), args
 }
 
 func TestDownloadBorrowsTheBrowsersLogin(t *testing.T) {
@@ -610,37 +551,12 @@ func TestDownloadKeepsPartialFilesOnTheLibrarysVolume(t *testing.T) {
 	}
 }
 
-// splitYTDLP writes a yt-dlp that downloads a split-format video as the real one does: the video and sound tracks go to the temp path (-P temp:) or, without one, next to the video, and are merged into <home>/Me at the zoo [jNQXAC9IVRw]/video.mp4. When that file is already there it is reported as downloaded and left as it is. Each run appends a line to the returned file.
+// splitYTDLP writes a yt-dlp that downloads a split-format video as the real one does (fakeDownload). Each run appends a line to the returned file.
 func splitYTDLP(t *testing.T) (tool, runs string) {
 	t.Helper()
 	dir := t.TempDir()
-	tool, runs = filepath.Join(dir, "yt-dlp"), filepath.Join(dir, "runs")
-	script := `#!/bin/sh
-home=; temp=
-while [ $# -gt 0 ]; do
-	case "$1" in
-	-P) shift; case "$1" in temp:*) temp="${1#temp:}" ;; *) home="$1" ;; esac ;;
-	--) break ;;
-	esac
-	shift
-done
-echo run >> ` + shellQuote(runs) + `
-folder="Me at the zoo [jNQXAC9IVRw]"
-final="$home/$folder/video.mp4"
-if [ -e "$final" ]; then echo "$final"; exit 0; fi
-work="${temp:-$home}/$folder"
-mkdir -p "$work" "$home/$folder" || exit 1
-printf 'track 395' > "$work/video.f395.mp4"
-printf 'track 251' > "$work/video.f251.webm"
-cat "$work/video.f395.mp4" "$work/video.f251.webm" > "$work/video.temp.mp4" || exit 1
-rm "$work/video.f395.mp4" "$work/video.f251.webm"
-mv "$work/video.temp.mp4" "$final" || exit 1
-echo "$final"
-`
-	if err := os.WriteFile(tool, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return tool, runs
+	runs = filepath.Join(dir, "runs")
+	return writeFakeTool(t, dir, "yt-dlp", fakeTool{Runs: runs, Act: "download"}), runs
 }
 
 func TestDownloadLeavesNoTemporaryFolderBehind(t *testing.T) {
