@@ -87,11 +87,13 @@ func isExecutable(path string) bool {
 
 // writable reports whether the file at path, and the folder it is in, may be written: yt-dlp -U writes the new build beside the old one and renames it over.
 func writable(path string) bool {
+	// A yt-dlp that is running, during a download or while its version is read, cannot be opened for writing on Linux and Windows, which says nothing about whether Kando may replace it.
 	f, err := os.OpenFile(path, os.O_WRONLY, 0)
-	if err != nil {
+	if err == nil {
+		f.Close()
+	} else if !fileInUse(err) {
 		return false
 	}
-	f.Close()
 	probe, err := os.CreateTemp(filepath.Dir(path), ".kando-write-*")
 	if err != nil {
 		return false
