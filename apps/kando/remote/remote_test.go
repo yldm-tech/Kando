@@ -103,8 +103,13 @@ func TestListenReplacesStaleSocketButNotLiveOne(t *testing.T) {
 	stale.(*net.UnixListener).SetUnlinkOnClose(false)
 	stale.Close()
 	s := serveEcho(t, path)
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("socket mode %v, %v", info, err)
+	info, err := os.Lstat(path)
+	if err != nil || info.Mode().Type() != os.ModeSocket {
+		t.Fatalf("socket %v, %v", info, err)
+	}
+	// Windows has no permission bits, which Go reports as 0666: there the socket's folder's access list keeps it the user's (privateFolder).
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Fatalf("socket mode %v", info.Mode())
 	}
 	if _, err := Listen(path, nil); !errors.Is(err, ErrInUse) {
 		t.Fatalf("second Listen err = %v, want ErrInUse", err)
@@ -266,6 +271,34 @@ func TestCallAfterCloseFailsWithErrBroken(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.Close()
+	if err := c.Call(context.Background(), MethodFilm, IDParams{ID: "f1"}, nil); !errors.Is(err, ErrBroken) {
+		t.Fatalf("err = %v, want ErrBroken", err)
+	}
+}
+
+// TestClosedSeesTheAppQuit is a connection whose app quit after answering, which Closed reports before a request is written on it, on Windows too, whose socket would take the request and lose it.
+func TestClosedSeesTheAppQuit(t *testing.T) {
+	path := shortSocket(t)
+	t.Setenv("KANDO_SOCKET", path)
+	s := serveEcho(t, path)
+	c, err := Dial(context.Background(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if err := c.Call(context.Background(), MethodFilm, IDParams{ID: "f1"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if c.Closed() {
+		t.Fatal("an open connection counts as closed")
+	}
+	if err := c.Call(context.Background(), MethodFilm, IDParams{ID: "f1"}, nil); err != nil {
+		t.Fatalf("a call after Closed: %v", err)
+	}
+	s.Close()
+	if !c.Closed() {
+		t.Fatal("a connection the app closed counts as open")
+	}
 	if err := c.Call(context.Background(), MethodFilm, IDParams{ID: "f1"}, nil); !errors.Is(err, ErrBroken) {
 		t.Fatalf("err = %v, want ErrBroken", err)
 	}

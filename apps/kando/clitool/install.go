@@ -38,7 +38,7 @@ type Status struct {
 	Ours    bool
 	// Link is a kando in one of the install folders that runs Exe, "" for none. With Ours false it is a command a terminal does not find, as one installed in a ~/.local/bin that is not on PATH.
 	Link string
-	// Installable reports whether this system has folders to install the command in; Windows has none, as making a link there needs administrator rights or developer mode.
+	// Installable reports whether this system has folders to install the command in; Windows has none, as making a link there needs administrator rights or developer mode, so there the card asks to add the folder of Kando.exe, which is the command, to PATH.
 	Installable bool
 	// Temporary reports whether Exe is in a place that goes away (cliToolTemporary), where no command or MCP configuration should point.
 	Temporary bool
@@ -122,8 +122,7 @@ func Look(env Env) Status {
 	}
 	st.Temporary = cliToolTemporary(st.Exe)
 	for _, dir := range env.Searched {
-		path := filepath.Join(dir, cliToolFile())
-		if info, err := os.Stat(path); err == nil && !info.IsDir() && (runtime.GOOS == "windows" || info.Mode()&0o111 != 0) {
+		if path := cliToolFind(dir); path != "" {
 			st.Command = path
 			st.Ours = cliToolRuns(path, st.Exe)
 			break
@@ -138,12 +137,36 @@ func Look(env Env) Status {
 	return st
 }
 
-// cliToolFile is the command's file name on this system: kando, or kando.exe on Windows, where it is Kando.exe itself in a folder on PATH, as the file system ignores case.
-func cliToolFile() string {
-	if runtime.GOOS == "windows" {
-		return cliToolName + ".exe"
+// cliToolFind is the kando a terminal runs from dir, "" for none: an executable file named kando, or on Windows, where Kando.exe itself in a folder on PATH is the command, as the file system ignores case, the first file named kando with an extension of PATHEXT, in its order, as cmd.exe and PowerShell try them, so another program's kando.cmd, as npm makes, counts as much as an exe.
+func cliToolFind(dir string) string {
+	if runtime.GOOS != "windows" {
+		path := filepath.Join(dir, cliToolName)
+		if info, err := os.Stat(path); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+			return path
+		}
+		return ""
 	}
-	return cliToolName
+	for _, ext := range cliToolPathExt() {
+		path := filepath.Join(dir, cliToolName+ext)
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path
+		}
+	}
+	return ""
+}
+
+// cliToolPathExt is the extensions Windows runs a command by, lowercase, from PATHEXT, or those it has by default when PATHEXT is not set.
+func cliToolPathExt() []string {
+	var exts []string
+	for _, ext := range strings.Split(os.Getenv("PATHEXT"), ";") {
+		if ext = strings.ToLower(strings.TrimSpace(ext)); strings.HasPrefix(ext, ".") {
+			exts = append(exts, ext)
+		}
+	}
+	if len(exts) == 0 {
+		return []string{".com", ".exe", ".bat", ".cmd"}
+	}
+	return exts
 }
 
 // cliToolRuns reports whether path, following its links, is the executable exe. A Linux package that installs its own kando, a link or a copy, counts as the same file.
@@ -273,8 +296,11 @@ func ClaudeCommand(command string) string {
 	return "claude mcp add " + cliToolName + " -- " + cliToolShellQuote(command) + " mcp"
 }
 
-// cliToolShellQuote quotes s for a POSIX shell when it has characters the shell would split or expand.
+// cliToolShellQuote quotes s for the shell a user pastes the command into. On Unix that is a POSIX shell, and s is single-quoted when it has characters the shell would split or expand. On Windows it may be PowerShell, cmd.exe or Git Bash, and s is always double-quoted: cmd.exe does not take single quotes, Git Bash reads an unquoted backslash as an escape, and all three take a double-quoted path as it is, which a Windows path, holding no double quote, can always be, save for a $ or % that the folder Kando installs in, under %LOCALAPPDATA%\Programs, does not have.
 func cliToolShellQuote(s string) string {
+	if runtime.GOOS == "windows" {
+		return `"` + s + `"`
+	}
 	if s != "" && strings.IndexFunc(s, func(r rune) bool {
 		return !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("/._-+:@%,=", r))
 	}) < 0 {

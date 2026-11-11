@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -56,7 +57,16 @@ func wantLink(t *testing.T, link, target string) {
 	}
 }
 
+// cliToolUnixOnly skips a test of the links Install makes in a folder on PATH, and of Look finding them, on Windows, which has no folders to install in (EnvHere): there Kando.exe in a folder on PATH is the command, which TestCLIToolLookOnWindows covers.
+func cliToolUnixOnly(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows installs no kando link; TestCLIToolLookOnWindows covers its command")
+	}
+}
+
 func TestCLIToolInstallLinksIntoTheFirstWritableFolder(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	missing := filepath.Join(root, "opt", "homebrew", "bin")
@@ -92,6 +102,7 @@ func TestCLIToolInstallLinksIntoTheFirstWritableFolder(t *testing.T) {
 }
 
 func TestCLIToolInstallRefusesAnotherProgram(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
@@ -125,6 +136,7 @@ func cliToolFakeFile(t *testing.T, path string) {
 }
 
 func TestCLIToolInstallRefusesAPackageManagersKandoLink(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	// Links named kando to files named kando that belong to other programs: npm's into its global node_modules, Homebrew's into its Cellar, each relative to the link as they make them, and one of them dangling.
@@ -155,6 +167,7 @@ func TestCLIToolInstallRefusesAPackageManagersKandoLink(t *testing.T) {
 }
 
 func TestCLIToolInstallReplacesAnotherKando(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	own := filepath.Join(root, "home", ".local", "bin")
@@ -226,6 +239,7 @@ func TestCLIToolRefusesATemporaryApp(t *testing.T) {
 }
 
 func TestCLIToolInstallReplacesAStaleKandoLink(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
@@ -248,6 +262,7 @@ func TestCLIToolInstallReplacesAStaleKandoLink(t *testing.T) {
 }
 
 func TestCLIToolLookFindsWhatATerminalRuns(t *testing.T) {
+	cliToolUnixOnly(t)
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	// The app runs through a link of its own, as Kando.app's executable seen through /Applications on a moved volume.
@@ -308,13 +323,62 @@ func TestCLIToolSnippets(t *testing.T) {
 	if len(config.MCPServers) != 1 || server.Command != "/usr/local/bin/kando" || strings.Join(server.Args, " ") != "mcp" {
 		t.Fatalf("config = %+v", config)
 	}
-	for path, want := range map[string]string{
+	cases := map[string]string{
 		"/usr/local/bin/kando":                            "claude mcp add kando -- /usr/local/bin/kando mcp",
 		"/Volumes/My Apps/Kando.app/Contents/MacOS/Kando": "claude mcp add kando -- '/Volumes/My Apps/Kando.app/Contents/MacOS/Kando' mcp",
 		"/tmp/it's/kando":                                 `claude mcp add kando -- '/tmp/it'\''s/kando' mcp`,
-	} {
+	}
+	if runtime.GOOS == "windows" {
+		// The command is pasted into PowerShell, cmd.exe or Git Bash: all three take a double-quoted path, and cmd.exe no single-quoted one.
+		cases = map[string]string{
+			`C:\Users\me\AppData\Local\Programs\Kando\Kando.exe`: `claude mcp add kando -- "C:\Users\me\AppData\Local\Programs\Kando\Kando.exe" mcp`,
+			`C:\Users\Jo Smith\it's\Kando.exe`:                   `claude mcp add kando -- "C:\Users\Jo Smith\it's\Kando.exe" mcp`,
+		}
+	}
+	for path, want := range cases {
 		if got := ClaudeCommand(path); got != want {
 			t.Fatalf("command for %s = %s, want %s", path, got, want)
 		}
+	}
+}
+
+func TestCLIToolLookOnWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows finds commands by PATHEXT; Unix's are the links TestCLIToolLookFindsWhatATerminalRuns covers")
+	}
+	if env := EnvHere(); len(env.InstallTo) != 0 || Look(env).Installable {
+		t.Fatalf("Windows offers folders to install in: %+v", env)
+	}
+	t.Setenv("PATHEXT", ".COM;.EXE;.BAT;.CMD")
+	root := cliToolRoot(t)
+	exe := filepath.Join(root, "app", "Kando.exe")
+	cliToolFakeFile(t, exe)
+	first := cliToolMkdir(t, filepath.Join(root, "first"), 0o755)
+	env := Env{Exe: exe, Searched: []string{first}}
+	if _, err := Install(env, exe); err == nil {
+		t.Fatal("Install made a command on Windows")
+	}
+
+	st := Look(env)
+	if st.Exe != exe || st.Command != "" || st.Ours || st.Link != "" || st.Installable || st.MCPCommand() != exe {
+		t.Fatalf("with no kando: %+v", st)
+	}
+
+	// The app's own folder on PATH makes Kando.exe the kando command, as Windows ignores case.
+	env.Searched = append(env.Searched, filepath.Dir(exe))
+	st = Look(env)
+	if !st.Ours || st.Command != filepath.Join(filepath.Dir(exe), "kando.exe") || st.MCPCommand() != st.Command {
+		t.Fatalf("with the app's folder on PATH: %+v", st)
+	}
+
+	// A kando without an extension is not a command there, but another program's kando.cmd earlier on PATH, as npm makes, wins.
+	cliToolFakeFile(t, filepath.Join(first, "kando"))
+	if st := Look(env); !st.Ours {
+		t.Fatalf("a kando without an extension hides this app's: %+v", st)
+	}
+	cliToolFakeFile(t, filepath.Join(first, "kando.cmd"))
+	st = Look(env)
+	if st.Ours || st.Command != filepath.Join(first, "kando.cmd") || st.MCPCommand() != exe {
+		t.Fatalf("with another kando first on PATH: %+v", st)
 	}
 }
