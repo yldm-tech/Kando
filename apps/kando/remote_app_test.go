@@ -249,11 +249,13 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 			t.Fatalf("added job %+v", job)
 		}
 	}
+	// A missing file is skipped with what the system says of it: "no such file or directory" on Unix, "The system cannot find the file specified." on Windows.
+	_, missing := os.Stat(filepath.Join(from, "missing.mp4"))
 	reasons := map[string]string{}
 	for _, s := range added.Skipped {
 		reasons[s.Source] = s.Reason
 	}
-	if len(added.Skipped) != 4 || reasons[" "] != locales.PrecheckEmpty() || reasons["not a link"] != locales.PrecheckNotLink() || reasons["notes.txt"] != locales.PrecheckNoVideo() || !strings.Contains(reasons["missing.mp4"], "no such file") {
+	if len(added.Skipped) != 4 || reasons[" "] != locales.PrecheckEmpty() || reasons["not a link"] != locales.PrecheckNotLink() || reasons["notes.txt"] != locales.PrecheckNoVideo() || missing == nil || reasons["missing.mp4"] != missing.Error() {
 		t.Fatalf("skipped %+v", added.Skipped)
 	}
 	first, clip, last := added.Jobs[0].ID, added.Jobs[1].ID, added.Jobs[2].ID
