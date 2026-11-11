@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"testing"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -35,6 +37,45 @@ func findFakeShell() string {
 		}
 	}
 	return ""
+}
+
+// fakeScriptCopy is a copy of this test binary, made once, that the fake scripts' .exe files are links to (writeFakeScript), and the folder it is in. Kando opens a yt-dlp for writing to see whether it may update it (media.FindYTDLPInstall), and Windows lets no one write the file of a running program, which a link to this test binary is.
+var fakeScriptCopy = sync.OnceValues(func() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(exe)
+	if err != nil {
+		return "", err
+	}
+	dir, err := os.MkdirTemp("", "kando-fake-scripts-")
+	if err != nil {
+		return "", err
+	}
+	fakeScriptDir = dir
+	path := filepath.Join(dir, "fake-script.exe")
+	return path, os.WriteFile(path, data, 0o755)
+})
+
+// fakeScriptDir is the folder of fakeScriptCopy once it is made.
+var fakeScriptDir string
+
+// fakeScriptProgram is the program a fake script's .exe links to (fakeScriptCopy).
+func fakeScriptProgram(t *testing.T) string {
+	t.Helper()
+	path, err := fakeScriptCopy()
+	if err != nil {
+		t.Fatalf("copy the test binary for the fake scripts: %v", err)
+	}
+	return path
+}
+
+// fakeToolsCleanup removes the copy of the test binary the fake scripts ran, once the tests are done.
+func fakeToolsCleanup() {
+	if fakeScriptDir != "" {
+		_ = os.RemoveAll(fakeScriptDir)
+	}
 }
 
 // fakeScriptShim runs the shell script a fake tool's .exe stands for, when this test binary was started as one (writeFakeScript): the file of the same name without .exe whose first line names the sh. It reports false when there is no such script, and otherwise the script's exit code. The script runs with its sh's folder first on PATH, so it finds the commands it runs whatever PATH the test gave Kando. This process and the script are in a job that ends with it, so a fake Kando stops, as one whose download is cancelled, takes the script and whatever it started with it, rather than leaving them holding the test's files and Kando's end of the pipes.

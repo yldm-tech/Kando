@@ -59,7 +59,7 @@ func fakeToolName(arg0 string) string {
 	return name
 }
 
-// fakeTool links name in dir to this test binary and returns the link, for media.Tools. On Windows the link is name.exe, as Windows runs a file as a program only by that name, and it is a hard link, or a copy where dir is on another volume than the test binary, as Windows makes symbolic links only in developer mode.
+// fakeTool links name in dir to this test binary and returns the link, for media.Tools. On Windows it is name.exe (fakeExe).
 func fakeTool(t *testing.T, dir, name string) string {
 	t.Helper()
 	exe, err := os.Executable()
@@ -70,12 +70,18 @@ func fakeTool(t *testing.T, dir, name string) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, name)
-	if runtime.GOOS != "windows" {
-		if err := os.Symlink(exe, path); err != nil {
-			t.Fatal(err)
-		}
-		return path
+	if runtime.GOOS == "windows" {
+		return fakeExe(t, exe, path)
 	}
+	if err := os.Symlink(exe, path); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// fakeExe links path.exe to the program exe and returns it, for Windows, which runs a file as a program only by that name: a hard link, as Windows makes symbolic links only in developer mode, or a copy where path is on another volume than exe.
+func fakeExe(t *testing.T, exe, path string) string {
+	t.Helper()
 	path += ".exe"
 	if err := os.Link(exe, path); err == nil {
 		return path
@@ -191,7 +197,7 @@ echo 'fake everyapi: only auth credential is supported' >&2
 exit 1`)
 }
 
-// writeFakeScript writes an executable shell script named name in dir, running body, and returns the program to run it by: the script itself, or on Windows, which runs no script by its #! line, name.exe beside it, a link to this test binary that runs the script with Git for Windows' sh (fakeScriptShim).
+// writeFakeScript writes an executable shell script named name in dir, running body, and returns the program to run it by: the script itself, or on Windows, which runs no script by its #! line, name.exe beside it, a link to a copy of this test binary that runs the script with Git for Windows' sh (fakeScriptShim, fakeScriptProgram).
 func writeFakeScript(t *testing.T, dir, name, body string) string {
 	t.Helper()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -208,7 +214,7 @@ func writeFakeScript(t *testing.T, dir, name, body string) string {
 		t.Fatal(err)
 	}
 	if runtime.GOOS == "windows" {
-		return fakeTool(t, dir, name)
+		return fakeExe(t, fakeScriptProgram(t), path)
 	}
 	return path
 }
