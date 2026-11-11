@@ -140,13 +140,15 @@ func Show(c *ui.Context, a App) {
 		return
 	}
 	open := true
+	w, _ := c.Size()
 	panel := breeze.Sheet(c, &open, func() {
 		ui.Row(c).Width(sheetWidth).Height(sheetHeight).AlignItems(ui.Stretch).Children(func() {
 			art(c, a, step)
 			content(c, a, step)
 		})
 	})
-	panel.Padding(0).Gap(0).Radius(16).Clip().Background(sheetFill).Label(locales.OnboardingWelcome()).
+	// The guide is the prototype's own 820-wide sheet on every platform, so it lifts the 548 DIPs Windows's ContentDialog caps a dialog at (breeze's fluentDialog) back to the window's bound that Sheet sets; under that cap the clipped panel cut off the right side, 跳过 and 继续 with it, and a new Windows user could only leave the guide with Escape.
+	panel.MaxWidth(w-40).Padding(0).Gap(0).Radius(16).Clip().Background(sheetFill).Label(locales.OnboardingWelcome()).
 		Shadow(0, 24, 70, 0, ui.RGBA(0, 0, 0, 0.35)).Border(0.5, ui.RGBA(0, 0, 0, 0.22))
 	if !open {
 		a.OnboardingSkip()
