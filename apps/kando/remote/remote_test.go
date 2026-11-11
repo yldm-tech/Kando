@@ -103,8 +103,13 @@ func TestListenReplacesStaleSocketButNotLiveOne(t *testing.T) {
 	stale.(*net.UnixListener).SetUnlinkOnClose(false)
 	stale.Close()
 	s := serveEcho(t, path)
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0o600 {
-		t.Fatalf("socket mode %v, %v", info, err)
+	info, err := os.Lstat(path)
+	if err != nil || info.Mode().Type() != os.ModeSocket {
+		t.Fatalf("socket %v, %v", info, err)
+	}
+	// Windows has no permission bits, which Go reports as 0666: there the socket's folder's access list keeps it the user's (privateFolder).
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Fatalf("socket mode %v", info.Mode())
 	}
 	if _, err := Listen(path, nil); !errors.Is(err, ErrInUse) {
 		t.Fatalf("second Listen err = %v, want ErrInUse", err)
