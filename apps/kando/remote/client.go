@@ -132,6 +132,29 @@ func (c *Client) exchange(ctx context.Context, line []byte) (Response, error) {
 	return resp, nil
 }
 
+// closedProbe is how long Closed waits for a read: long enough for one the system already knows the outcome of, as the end of a connection whose app quit, to return.
+const closedProbe = 10 * time.Millisecond
+
+// Closed reports whether the connection is over: closed by Close or an earlier call, or by the app since its last answer, as when it quit. It reads for a moment, as between calls the app sends nothing, so a read that does not time out means the connection is over or out of step, and it closes it then, as Call does. A Unix socket refuses a request written after the app closed it, so Call tells such a request was never sent (its write fails); a Windows socket takes it and loses it, failing only the read of its answer, so a caller that must not send a request twice, as one adding videos, asks Closed first and dials again.
+func (c *Client) Closed() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.broken != nil {
+		return true
+	}
+	_ = c.conn.SetReadDeadline(time.Now().Add(closedProbe))
+	_, err := c.reader.Peek(1)
+	_ = c.conn.SetReadDeadline(time.Time{})
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		return false
+	}
+	if err == nil {
+		err = errors.New("the app sent a line no call asked for")
+	}
+	c.closeWith(err)
+	return true
+}
+
 // closeWith closes the connection after err, which later calls report. The caller holds mu.
 func (c *Client) closeWith(err error) {
 	c.broken = err

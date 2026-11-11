@@ -76,6 +76,13 @@ func (a *app) call(ctx context.Context, method string, params, out any) error {
 		if err != nil {
 			return err
 		}
+		// A request that must not be sent twice is not written on a connection the app has closed since its last answer, as when it quit and started again: a Unix socket refuses it, but a Windows one takes it and loses it, which would leave the agent told the videos may have been queued. Such a connection is dialed again first.
+		if (method == remote.MethodAdd || method == remote.MethodRetry) && client.Closed() {
+			a.drop(client)
+			if client, err = a.connect(ctx); err != nil {
+				return err
+			}
+		}
 		err = client.Call(ctx, method, params, out)
 		// A remove sent again after a lost answer finds no job when the first one removed it, which is what was asked.
 		if mayHaveRun && method == remote.MethodRemove && remote.IsCode(err, remote.CodeNotFound) {
