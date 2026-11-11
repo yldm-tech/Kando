@@ -30,7 +30,7 @@ func newFirstRunApp(t *testing.T, p media.Pipeline) (*app, *ui.Tester, chan func
 // newFirstRunAppAt is newFirstRunApp with home, which may already hold folders, such as libraries from before.
 func newFirstRunAppAt(t *testing.T, p media.Pipeline, home string) (*app, *ui.Tester, chan func(), string) {
 	t.Helper()
-	t.Setenv("HOME", home)
+	onboardingHome(t, home)
 	t.Setenv("KANDO_OUTPUT_DIR", "")
 	a, tt, updates := newTestApp(p)
 	a.edit(func(s *session) { s.LibraryDir = "" })
@@ -53,6 +53,13 @@ func relaunch(t *testing.T, a *app) (*app, *ui.Tester) {
 	b.onboardingReady()
 	btt.Frame()
 	return b, btt
+}
+
+// onboardingHome makes home the user's home folder until t ends, so media.MoviesDir and the libraries the guide finds or makes are in it: HOME, and USERPROFILE, which os.UserHomeDir reads on Windows.
+func onboardingHome(t *testing.T, home string) {
+	t.Helper()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 }
 
 func readSettingsFile(t *testing.T, path string) map[string]any {
@@ -163,7 +170,7 @@ func TestOnboardingSkipCreatesTheLibrary(t *testing.T) {
 // TestOnboardingOpensAnExistingLibrary checks that a 我的影片.kando already in ~/Movies, from a run whose settings are gone, is opened as it is rather than refused as a name that is taken.
 func TestOnboardingOpensAnExistingLibrary(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	onboardingHome(t, home)
 	dir := filepath.Join(media.MoviesDir(), "我的影片"+media.LibraryExt)
 	if err := os.MkdirAll(filepath.Join(dir, "talk"), 0o755); err != nil {
 		t.Fatal(err)
@@ -500,7 +507,7 @@ func TestOnboardingLeavesADamagedSettingsFileAlone(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			home := t.TempDir()
-			t.Setenv("HOME", home)
+			onboardingHome(t, home)
 			t.Setenv("KANDO_OUTPUT_DIR", "")
 			old := filepath.Join(media.MoviesDir(), "影视库"+media.LibraryExt)
 			if err := os.MkdirAll(old, 0o755); err != nil {
@@ -546,7 +553,7 @@ func TestOnboardingLeavesADamagedSettingsFileAlone(t *testing.T) {
 // TestOnboardingFindsTheLibrariesAlreadyThere checks a first run, without settings, on a Mac whose ~/Movies already holds .kando libraries, as after settings were lost: the guide lists them all and opens the one changed last instead of making an empty 我的影片.kando.
 func TestOnboardingFindsTheLibrariesAlreadyThere(t *testing.T) {
 	home := t.TempDir()
-	t.Setenv("HOME", home)
+	onboardingHome(t, home)
 	older := filepath.Join(media.MoviesDir(), "影视库"+media.LibraryExt)
 	newer := filepath.Join(media.MoviesDir(), "英语"+media.LibraryExt)
 	for i, dir := range []string{older, newer} {

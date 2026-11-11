@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -52,8 +53,13 @@ func TestCloudSettingsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
-		t.Fatalf("mode %o", info.Mode().Perm())
+	want := os.FileMode(0o600)
+	if runtime.GOOS == "windows" {
+		// Windows has no permission bits: Go reports 0666 for any file that is not read-only; who may read the file is up to its ACL, which a mode does not show.
+		want = 0o666
+	}
+	if info.Mode().Perm() != want {
+		t.Fatalf("mode %o, want %o", info.Mode().Perm(), want)
 	}
 	loaded := loadSavedSettings(a.settingsPath)
 	if loaded.GoogleEmail != "a@b.c" || loaded.R2Bucket != "clips" || loaded.R2Endpoint != "acct" {
