@@ -28,8 +28,8 @@ jobs:
           # ffmpeg: the rows that install ffmpeg set KANDO_REQUIRE_FFMPEG, which fails the tests that need it rather than letting them skip.
           - { name: Linux, os: ubuntu-latest, ffmpeg: "1" }
           - { name: macOS, os: macos-latest, ffmpeg: "1" }
-          # Windows runs only the packages that pass there. The others fail on bugs of the app's own, such as local videos, whose file:// sources are built from Windows paths that core.NewJob rejects, and on tests that assume Unix file modes and paths (#6); Release holds the Windows installers back until they pass. Run all three modules here once #6 is fixed.
-          - { name: Windows, os: windows-latest, pkgs: "./packages/core/... ./apps/kando/cloud/... ./apps/kando/film/... ./apps/kando/films/... ./apps/kando/settings/..." }
+          # Windows runs all three modules, as Release publishes the Windows installers.
+          - { name: Windows, os: windows-latest }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
