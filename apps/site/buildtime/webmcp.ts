@@ -5,12 +5,16 @@ import { join } from "node:path";
 import {
   everyAPIURL,
   installCommand,
-  latestURL,
+  debPackage,
+  linuxArchive,
+  macDisk,
   pageURL,
   pagePath,
   readmeBuildURL,
   readmeURL,
+  releaseFileURL,
   releasesURL,
+  windowsSetup,
   type Language,
   type LangCode,
 } from "../src/lib/site";
@@ -30,21 +34,19 @@ export function hashLink(path: string, data: string | Uint8Array): string {
 // releaseDownloads are the packages the Release workflow publishes for version, under the names mygo build gives them (.github/workflows/package.yml): a disk image for each Mac, an installer for each Windows architecture, and for each Linux architecture a Debian package and an archive that the release's install.sh installs.
 export function releaseDownloads(version: string): AgentRelease {
   const tag = "v" + version;
-  const base = releasesURL + "/download/" + tag + "/";
+  const base = releaseFileURL(version, "");
   const downloads: AgentRelease["downloads"] = [];
+  const add = (platform: string, arch: string, kind: string, name: string) =>
+    downloads.push({ platform, arch, kind, name, url: releaseFileURL(version, name) });
   for (const arch of ["arm64", "amd64"]) {
-    const name = `kando-${version}-${arch}.dmg`;
-    downloads.push({ platform: "macos", arch, kind: "dmg", name, url: base + name });
+    add("macos", arch, "dmg", macDisk(version, arch));
   }
   for (const arch of ["amd64", "arm64"]) {
-    let name = `kando_${version}_${arch}.deb`;
-    downloads.push({ platform: "linux", arch, kind: "deb", name, url: base + name });
-    name = `kando-${version}-linux-${arch}.tar.gz`;
-    downloads.push({ platform: "linux", arch, kind: "tar.gz", name, url: base + name });
+    add("linux", arch, "deb", debPackage(version, arch));
+    add("linux", arch, "tar.gz", linuxArchive(version, arch));
   }
   for (const arch of ["amd64", "arm64"]) {
-    const name = `kando-setup-${version}-${arch}.exe`;
-    downloads.push({ platform: "windows", arch, kind: "exe", name, url: base + name });
+    add("windows", arch, "exe", windowsSetup(version, arch));
   }
   return {
     version,
@@ -137,8 +139,8 @@ export interface AgentModel {
   stats: string;
 }
 
-// newAgentContent is l's content file, made from the same content strings as the page's download panel (start) and its Library, Command line and details sections (features), the whisper models' card among the details.
-export function newAgentContent(l: Language, strs: Strings, total: number, surf: Surface, models: readonly AgentModel[]): AgentContent {
+// newAgentContent is l's content file for release version, made from the same content strings as the page's download panel (start) and its Library, Command line and details sections (features), the whisper models' card among the details.
+export function newAgentContent(l: Language, strs: Strings, version: string, total: number, surf: Surface, models: readonly AgentModel[]): AgentContent {
   const t = (key: string, values: Record<string, number> = {}): string => {
     agentKeys.add(key);
     let s = strs[key];
@@ -160,16 +162,28 @@ export function newAgentContent(l: Language, strs: Strings, total: number, surf:
       title: t("openTitle"),
       lead: t("openBody"),
       steps: [
-        { number: 1, title: "macOS", text: [t("dlMacBody")], notes: [t("dlFirstRun")], link: { text: t("dlMacButton"), url: latestURL } },
+        {
+          number: 1,
+          title: "macOS",
+          text: [t("dlMacBody")],
+          notes: [t("dlFirstRun")],
+          link: { text: t("dlMacButton"), url: releaseFileURL(version, macDisk(version, "arm64")) },
+        },
         {
           number: 2,
           title: "Linux",
           text: [t("dlLinuxBody")],
           command: installCommand,
           notes: [t("dlLinuxNote"), t("dlFirstRun")],
-          link: { text: t("dlLinuxButton"), url: latestURL },
+          link: { text: t("dlLinuxButton"), url: releaseFileURL(version, debPackage(version, "amd64")) },
         },
-        { number: 3, title: "Windows", text: [t("dlWinBody")], notes: [t("dlWinNote")], link: { text: t("dlWinButton"), url: latestURL } },
+        {
+          number: 3,
+          title: "Windows",
+          text: [t("dlWinBody")],
+          notes: [t("dlWinNote")],
+          link: { text: t("dlWinButton"), url: releaseFileURL(version, windowsSetup(version, "amd64")) },
+        },
       ],
       readme: { text: t("dlReadme"), url: readmeURL(l) },
     },
@@ -228,7 +242,7 @@ export function writeAgentFiles(
     if (!strs) {
       throw new Error(`no content for ${l.code}`);
     }
-    const link = writeAgentJSON(dir, l.code + ".json", newAgentContent(l, strs, catalog.sites.length, surf, models.get(l.code) ?? []));
+    const link = writeAgentJSON(dir, l.code + ".json", newAgentContent(l, strs, version, catalog.sites.length, surf, models.get(l.code) ?? []));
     return { code: l.code, tag: l.tag, name: l.name, page: pagePath(l.code), content: link };
   });
   const release = releaseDownloads(version);

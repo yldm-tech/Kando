@@ -8,13 +8,24 @@ export const themeColor = "#fbf8f3";
 
 export const repoURL = "https://github.com/yldm-tech/Kando";
 export const releasesURL = repoURL + "/releases";
-// latestURL redirects to the newest published release, so the Download buttons reach the current files even when the site was built before a release came out. Drafts and prereleases are not "latest", so it never lands on a release that 404s for visitors.
+// latestURL redirects to the newest published release, for what has to stay current after a release comes out: the Linux install command and the structured data's download link. Drafts and prereleases are not "latest", so it never lands on a release that 404s for visitors.
 export const latestURL = releasesURL + "/latest";
 export const licenseURL = repoURL + "/blob/main/LICENSE";
 export const issuesURL = repoURL + "/issues";
 export const everyAPIURL = "https://everyapi.ai";
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.
 export const readmeBuildURL = repoURL + "#build-from-source";
+
+// The names mygo build gives a release's packages (.github/workflows/package.yml), by version and architecture (arm64 or amd64).
+export const macDisk = (version: string, arch: string) => `kando-${version}-${arch}.dmg`;
+export const windowsSetup = (version: string, arch: string) => `kando-setup-${version}-${arch}.exe`;
+export const debPackage = (version: string, arch: string) => `kando_${version}_${arch}.deb`;
+export const linuxArchive = (version: string, arch: string) => `kando-${version}-linux-${arch}.tar.gz`;
+
+// releaseFileURL downloads the file name of release version. The site is deployed only once its version is published (.github/workflows/site.yml), so the Download buttons fetch the file straight away rather than opening the release's page.
+export function releaseFileURL(version: string, name: string): string {
+  return `${releasesURL}/download/v${version}/${name}`;
+}
 
 // installCommand installs the newest release for the current user with the install.sh mygo build makes, as the Linux tab shows it.
 export const installCommand = "curl -fsSL " + latestURL + "/download/install.sh | sh";

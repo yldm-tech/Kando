@@ -1,6 +1,7 @@
-// The closing call to download.
+// The closing call to download: the disk image for a Mac with Apple silicon, as the hero's button.
+import site from "virtual:kando/site";
 import { useWords } from "../../i18n/content";
-import { latestURL } from "../../lib/site";
+import { macDisk, releaseFileURL } from "../../lib/site";
 import { AppleMark } from "../common/marks";
 
 export function Cta() {
@@ -16,7 +17,7 @@ export function Cta() {
         <h2 id="cta-title">{t("ctaTitle")}</h2>
         <p className="lead">{t("ctaLead")}</p>
         <p>
-          <a className="btn primary huge" href={latestURL}>
+          <a className="btn primary huge" href={releaseFileURL(site.version, macDisk(site.version, "arm64"))}>
             <AppleMark size={18} />
             {t("heroDownload")}
             <span className="shine" aria-hidden="true" />

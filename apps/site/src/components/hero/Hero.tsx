@@ -1,7 +1,7 @@
-// The hero: the headline, the Download button, and the demo player in a window.
+// The hero: the headline, the Download button, which downloads the disk image for a Mac with Apple silicon (the download panel has the Intel one), and the demo player in a window.
 import site from "virtual:kando/site";
 import { Headline, useWords } from "../../i18n/content";
-import { latestURL } from "../../lib/site";
+import { macDisk, releaseFileURL } from "../../lib/site";
 import { AppleMark } from "../common/marks";
 import { Player } from "./player/Player";
 import { River } from "./river/River";
@@ -34,7 +34,7 @@ export function Hero() {
           {t("heroLead")}
         </p>
         <div className="actions" data-enter="">
-          <a className="btn primary big" href={latestURL}>
+          <a className="btn primary big" href={releaseFileURL(site.version, macDisk(site.version, "arm64"))}>
             <AppleMark size={18} />
             {t("heroDownload")}
             <span className="shine" aria-hidden="true" />

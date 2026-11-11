@@ -7,7 +7,7 @@ import { appVersion, readSurface } from "../buildtime/app";
 import { loadContent } from "../buildtime/content";
 import { agentKeys, newAgentContent, releaseDownloads, type AgentContent } from "../buildtime/webmcp";
 import type { AgentData } from "../buildtime/schema";
-import { language, latestURL, releasesURL } from "../src/lib/site";
+import { language, releasesURL } from "../src/lib/site";
 import { attr, builtLangs, dist, pageFile, readJSON, readOut, repoRoot, siteDir, tags } from "./helpers";
 
 const block = /<script type="application\/json" id="webmcp-data">([^<]*)<\/script>/;
@@ -36,8 +36,8 @@ describe("page data", () => {
       expect(data.langs.length).toBe(builtLangs().length);
       for (const al of data.langs) {
         const c = JSON.parse(readFileSync(outFile(al.content), "utf8")) as AgentContent;
-        // get_started sends people to the newest published release, as the page's Download button does.
-        expect(c.start.steps[0]?.link?.url, al.code).toBe(latestURL);
+        // get_started's links download this release's files, as the page's buttons do: the macOS one the disk image for Apple silicon.
+        expect(c.start.steps[0]?.link?.url, al.code).toBe(`${releasesURL}/download/v${version}/kando-${version}-arm64.dmg`);
       }
       expect(existsSync(outFile(data.sites))).toBe(true);
       const rel = data.release;
@@ -114,7 +114,7 @@ function rendered(file: string): string[] {
 it("covers in the WebMCP content files what the page's sections say", () => {
   const content = loadContent(join(siteDir, "content"));
   const en = content.get("en") ?? {};
-  newAgentContent(language("en"), en, 1, readSurface(repoRoot), [{ name: "Tiny", stats: "Speed 5/5  Accuracy 2/5  77.7 MB" }]);
+  newAgentContent(language("en"), en, "0.1.0", 1, readSurface(repoRoot), [{ name: "Tiny", stats: "Speed 5/5  Accuracy 2/5  77.7 MB" }]);
   // Labels of controls, the small lines above headings, a screenshot's description, the comments of the terminal example, the open-source panel's own links and the models table's caption and column headings and the chart's description and caption, which the tools have no use for: the models item gives each model's speed, accuracy and size in the app's words instead.
   const skip = new Set([
     "copyLabel",
@@ -143,6 +143,10 @@ it("covers in the WebMCP content files what the page's sections say", () => {
     "openEyebrow",
     "openGitHub",
     "openReleases",
+    // The buttons for each tab's second architecture; get_started links each system's main file, and get_download gives every file by architecture.
+    "dlMacIntel",
+    "dlLinuxArm",
+    "dlWinArm",
   ]);
   const sections = { library: "library/Library.tsx", cli: "cli/Cli.tsx", features: "details/Details.tsx", start: "open-source/OpenSource.tsx" };
   const missing: string[] = [];
