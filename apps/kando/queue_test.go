@@ -1897,6 +1897,60 @@ func TestQuitOnASignalDoesNotAsk(t *testing.T) {
 	}
 }
 
+// TestSessionEndDoesNotAsk checks that a logout, restart or shutdown on macOS and Windows (mygo's QuitEvent.SessionEnding) goes ahead while a job runs without showing the main window or opening the confirmation, lets the window close without the close button's own handling, and stops the job as the app quits; also when a ⌘Q had already opened the confirmation.
+func TestSessionEndDoesNotAsk(t *testing.T) {
+	quits := replaceQuitApp(t)
+	for _, hides := range []bool{true, false} {
+		for _, asked := range []bool{false, true} {
+			setWindowHidesOnClose(t, hides)
+			g := newGatePipeline()
+			a, tt, updates := newTestApp(g)
+			t.Cleanup(a.stop)
+			if err := a.Enqueue("https://example.com/a"); err != nil {
+				t.Fatal(err)
+			}
+			nextStarted(t, g, updates)
+			*quits = 0
+			if asked {
+				a.areasBeforeQuit(&mygo.QuitEvent{})
+				tt.Frame()
+				if !a.queue.quitAsk {
+					t.Fatalf("hides %v: ⌘Q during a job did not ask", hides)
+				}
+			}
+			a.window.hidden = !asked
+			modal := a.overlay.modal
+
+			e := &mygo.QuitEvent{SessionEnding: true}
+			a.areasBeforeQuit(e)
+			tt.Frame()
+			if e.DefaultPrevented() || !a.window.quitting {
+				t.Fatalf("hides %v, asked %v: the session's end was held back: prevented %v, going ahead %v", hides, asked, e.DefaultPrevented(), a.window.quitting)
+			}
+			if !asked && (a.queue.quitAsk || a.modalOpen() || !a.window.hidden || tt.HasText(locales.QueueQuitWhileRunningTitle())) {
+				t.Fatalf("hides %v: the session's end asked %v, modal %v, window hidden %v", hides, a.queue.quitAsk, a.modalOpen(), a.window.hidden)
+			}
+			if a.overlay.modal != modal {
+				t.Fatalf("hides %v, asked %v: modal %d after the session's end, %d before", hides, asked, a.overlay.modal, modal)
+			}
+
+			ce := &mygo.CloseEvent{}
+			a.windowClosing(ce)
+			if ce.DefaultPrevented() || *quits != 0 || a.window.hidden != !asked {
+				t.Fatalf("hides %v, asked %v: closing at the session's end prevented %v, quits %d, window hidden %v", hides, asked, ce.DefaultPrevented(), *quits, a.window.hidden)
+			}
+
+			done := a.queue.done
+			a.areasQuitting()
+			select {
+			case <-done:
+			default:
+				t.Fatalf("hides %v, asked %v: the session's end left the job running", hides, asked)
+			}
+		}
+	}
+}
+
 // resumePipeline downloads into its own folder and fails the first translation as an API that rejects the key does, counting each stage it runs.
 type resumePipeline struct {
 	dir                                string

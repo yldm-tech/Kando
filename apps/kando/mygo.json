@@ -17,7 +17,8 @@
   },
   "linux": {
     "command": "kando",
-    "depends": ["libasound2 | libasound2t64"]
+    "depends": ["libasound2 | libasound2t64"],
+    "formats": ["deb", "pkgbuild"]
   },
   "updates": {
     "publicKey": "Ixbkzk6yM6p8gK3hgwK8IdnorQCJp9vpRlWUbsZs3LQ=",

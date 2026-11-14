@@ -20,8 +20,12 @@ var errQuitting = errors.New("kando is quitting")
 // queueQuitWait is how long a quit waits for the running job to return once asked to stop, so its programs are not left running behind the app. It stays short of the three seconds mygo gives the event loop to stop once the windows have closed.
 const queueQuitWait = 2 * time.Second
 
-// queueBeforeQuit holds a quit back while a job runs and asks first (quit.Confirm). Choosing 退出 there quits again, and that quit goes ahead. The updater's relaunch into an installed update comes here as a quit too, and mygo's QuitEvent does not say it was one, so 退出 then quits without starting the app again; the update is still installed and the next launch runs it.
+// queueBeforeQuit holds a quit back while a job runs and asks first (quit.Confirm). Choosing 退出 there quits again, and that quit goes ahead. The updater's relaunch into an installed update comes here as a quit too, and mygo's QuitEvent does not say it was one, so 退出 then quits without starting the app again; the update is still installed and the next launch runs it. A logout, restart or shutdown on macOS and Windows comes here with e.SessionEnding set: the OS has decided, mygo ignores a prevented quit then and wants the listeners done without dialogs, so it goes ahead without asking, as a signal's quit does, and the running job is stopped as the app quits (queueQuit).
 func (a *app) queueBeforeQuit(e *mygo.QuitEvent) {
+	if e.SessionEnding {
+		a.queue.quitConfirmed = true
+		return
+	}
 	if a.queue.active == "" || a.queue.quitConfirmed {
 		return
 	}
