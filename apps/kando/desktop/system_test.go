@@ -27,9 +27,12 @@ func TestCommandsTakeThePathAsItIs(t *testing.T) {
 // TestShowItemsNamesTheItemByItsURI checks the FileManager1 call: the item as a file: URI with its special characters escaped, written as GVariant text whose quotes and backslashes are escaped too.
 func TestShowItemsNamesTheItemByItsURI(t *testing.T) {
 	got := showItemsCommand("/usr/bin/gdbus", "/home/me/Videos/It's a\\clip.mp4").Args
-	want := []string{"/usr/bin/gdbus", "call", "--session", "--dest", "org.freedesktop.FileManager1", "--object-path", "/org/freedesktop/FileManager1", "--method", "org.freedesktop.FileManager1.ShowItems", `['file:///home/me/Videos/It\'s%20a%5Cclip.mp4']`, "''"}
+	want := []string{"/usr/bin/gdbus", "call", "--session", "--dest", "org.freedesktop.FileManager1", "--object-path", "/org/freedesktop/FileManager1", "--method", "org.freedesktop.FileManager1.ShowItems", `['file:///home/me/Videos/It%27s%20a%5Cclip.mp4']`, "''"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("gdbus runs\n%q\nwant\n%q", got, want)
+	}
+	if got, want := gvariantString(`it's a\b`), `'it\'s a\\b'`; got != want {
+		t.Fatalf("GVariant text %s, want %s", got, want)
 	}
 }
 

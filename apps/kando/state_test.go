@@ -14,7 +14,7 @@ import (
 )
 
 func TestPlayerSettingsRoundTrip(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.player.look.Translation.Size = 30
 	a.player.look.Original.Color = "#FFD60A"
@@ -27,7 +27,7 @@ func TestPlayerSettingsRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	saved := loadSavedSettings(a.settingsPath)
-	b, _, _ := newTestApp(&fakePipeline{})
+	b, _, _ := newTestApp(t, &fakePipeline{})
 	b.restorePlayer(saved)
 	b.onb.done = saved.Onboarded != nil && *saved.Onboarded
 	if b.player.look != a.player.look || b.player.subMode != film.SubOriginal || b.player.subOrder != film.SubOriginalFirst || b.player.untranslated != film.UntranslatedBlank || b.player.yieldSubs || !b.onb.done {
@@ -45,7 +45,7 @@ func TestPlayerSettingsDefaults(t *testing.T) {
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.restorePlayer(loadSavedSettings(path))
 	def := newPlayerUI()
 	if a.player.look != def.look || a.player.subMode != def.subMode || a.player.subOrder != def.subOrder || a.player.untranslated != def.untranslated || a.player.yieldSubs != def.yieldSubs {
@@ -55,7 +55,7 @@ func TestPlayerSettingsDefaults(t *testing.T) {
 
 // TestDefaultLookIsNotSaved checks that a look the user has not changed is left out of the settings, so a later DefaultLook reaches them, and that subtitles made larger with ⌘+ and back with ⌘− count as unchanged.
 func TestDefaultLookIsNotSaved(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.scaleSubtitles(2)
 	a.scaleSubtitles(-2)
@@ -85,7 +85,7 @@ func TestSavedLookKeepsNewDefaults(t *testing.T) {
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.restorePlayer(loadSavedSettings(path))
 	want := film.DefaultLook()
 	want.Preset = "large"
@@ -96,7 +96,7 @@ func TestSavedLookKeepsNewDefaults(t *testing.T) {
 }
 
 func TestResumeAtRemembersWhereTheVideoStopped(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.rememberPosition(&filmPlay{path: "/v.mp4", duration: 10 * time.Second, frames: &frameDecoder{shown: 3 * time.Second}})
 	if at := a.ResumeAt("/v.mp4"); at != 3*time.Second {
 		t.Fatalf("ResumeAt = %v", at)
@@ -108,7 +108,7 @@ func TestResumeAtRemembersWhereTheVideoStopped(t *testing.T) {
 }
 
 func TestSourcesFilterTheLibrary(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.library.Jobs = []core.Job{
 		{ID: "yt", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: "/videos/yt-clip/video.mp4"},
 		{ID: "bili", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Stage: core.StageComplete, VideoPath: "/videos/bili-clip/video.mp4"},
@@ -126,11 +126,11 @@ func TestSourcesFilterTheLibrary(t *testing.T) {
 	}
 	a.openKey = "yt"
 	a.SetSourceFilter(sidebar.SourceLocal)
-	tt.Frame()
+	refresh(tt, a)
 	if a.openKey != "" || a.page != pageFilms {
 		t.Fatalf("open %q page %q", a.openKey, a.page)
 	}
-	if !tt.HasText("file-clip") || !tt.HasText("loose-clip") || tt.HasText("bili-clip") || tt.HasText("yt-clip") || tt.HasText("web-clip") {
+	if !hasText(tt, "file-clip") || !hasText(tt, "loose-clip") || hasText(tt, "bili-clip") || hasText(tt, "yt-clip") || hasText(tt, "web-clip") {
 		t.Fatalf("local films not shown alone: %q", tt.Texts())
 	}
 }

@@ -15,7 +15,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // skipWithoutFFmpeg skips a test that needs ffmpeg when ffmpeg is missing or cannot make its clip. CI sets KANDO_REQUIRE_FFMPEG where it installs ffmpeg, and there the test fails instead, so that it cannot pass by skipping.
@@ -28,7 +28,7 @@ func skipWithoutFFmpeg(t *testing.T, format string, args ...any) {
 }
 
 // openClip opens a black clip of the given seconds from the library and waits until its picture is loaded.
-func openClip(t *testing.T, seconds int) (*app, *ui.Tester, chan func()) {
+func openClip(t *testing.T, seconds int) (*app, *nsgotest.App, chan func()) {
 	t.Helper()
 	ffmpeg, err := exec.LookPath("ffmpeg")
 	if err != nil {
@@ -39,91 +39,78 @@ func openClip(t *testing.T, seconds int) (*app, *ui.Tester, chan func()) {
 	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d="+strconv.Itoa(seconds)+":r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
 		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
 	}
-	a, tt, updates := newTestApp(media.Tools{FFmpeg: ffmpeg})
+	a, tt, updates := newTestApp(t, media.Tools{FFmpeg: ffmpeg})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{ID: "clip", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
 	t.Cleanup(a.stopPlayback)
-	tt.Frame()
-	if err := tt.Click("clip"); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
-	waitUntil(t, updates, func() bool { return a.player.play != nil })
-	tt.Frame()
+	refresh(tt, a)
+	tt.Press("clip")
+	waitUntil(t, tt, a, updates, func() bool { return a.Play() != nil })
 	return a, tt, updates
 }
 
 func TestSpaceTogglesTheOpenFilm(t *testing.T) {
 	a, tt, _ := openClip(t, 1)
-	if a.player.play.player.Playing() {
+	if a.Play().Playing() {
 		t.Fatal("the film started before Space")
 	}
-	tt.Key(0, ui.KeySpace)
-	tt.Frame()
-	if !a.player.play.player.Playing() {
+	tt.Key("space")
+	if !a.Play().Playing() {
 		t.Fatal("Space did not start the film")
 	}
-	tt.Key(0, ui.KeySpace)
-	tt.Frame()
-	if a.player.play.player.Playing() {
+	tt.Key("space")
+	if a.Play().Playing() {
 		t.Fatal("Space did not hold the film")
 	}
 }
 
 func TestArrowKeysSkipWithinTheFilm(t *testing.T) {
 	a, tt, updates := openClip(t, 12)
-	tt.Key(0, ui.KeyRight)
-	tt.Frame()
-	waitUntil(t, updates, func() bool { return a.player.play != nil })
-	tt.Frame()
-	if head := a.player.play.playhead(); head < 5*time.Second || head > 7*time.Second {
+	tt.Key("right")
+	waitUntil(t, tt, a, updates, func() bool { return a.Play() != nil })
+	if head := a.PlayHead(); head < 5*time.Second || head > 7*time.Second {
 		t.Fatalf("head %v after →, want about 5s", head)
 	}
-	tt.Key(0, ui.KeyLeft)
-	tt.Frame()
-	waitUntil(t, updates, func() bool { return a.player.play != nil })
-	if head := a.player.play.playhead(); head > 2*time.Second {
+	tt.Key("left")
+	waitUntil(t, tt, a, updates, func() bool { return a.Play() != nil })
+	if head := a.PlayHead(); head > 2*time.Second {
 		t.Fatalf("head %v after ←, want about the start", head)
 	}
 }
 
 func TestEscapeClosesTheFilm(t *testing.T) {
 	a, tt, _ := openClip(t, 1)
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
-	if a.openKey != "" || a.player.play != nil {
-		t.Fatalf("open %q play %v after Escape", a.openKey, a.player.play != nil)
+	tt.Key("escape")
+	if a.openKey != "" || a.Play() != nil {
+		t.Fatalf("open %q play %v after Escape", a.openKey, a.Play() != nil)
 	}
-	if !tt.HasText("开始处理") {
+	if !hasText(tt, testlocale.Messages().FilmsStart()) {
 		t.Fatalf("library not shown: %q", tt.Texts())
 	}
 }
 
 func TestPlayerKeysWaitForAFilm(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
-	tt.Frame()
-	tt.Key(0, ui.KeyEscape)
-	tt.Key(0, ui.KeySpace)
-	tt.Frame()
-	if a.page != pageFilms || a.openKey != "" || a.player.play != nil {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	tt.Key("escape")
+	tt.Key("space")
+	if a.page != pageFilms || a.openKey != "" || a.Play() != nil {
 		t.Fatalf("page %q open %q", a.page, a.openKey)
 	}
 }
 
 func TestCheatsheetListsTheShortcutTable(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeySlash)
-	tt.Frame()
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	tt.Key("mod+/")
 	if !a.overlay.cheatsheet {
 		t.Fatal("⌘/ did not open the cheat sheet")
 	}
 	listed := map[cheatsheet.Combo]bool{}
-	for _, g := range a.cheatsheetGroups() {
-		if !tt.HasText(g.Title) {
+	for _, g := range a.cheatsheetGroups(a.cx) {
+		if !hasText(tt, g.Title) {
 			t.Fatalf("cheat sheet misses the group %q: %q", g.Title, tt.Texts())
 		}
 		for _, k := range g.Keys {
-			if !tt.HasText(k.Label) {
+			if !hasText(tt, k.Label) {
 				t.Fatalf("cheat sheet misses %q under %q: %q", k.Label, g.Title, tt.Texts())
 			}
 			for _, c := range k.Combos {
@@ -131,31 +118,29 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 			}
 		}
 	}
-	for _, s := range a.shortcuts() {
-		if s.Key != 0 && !listed[cheatsheet.Combo{Mods: s.Mods, Key: s.Key}] {
+	for _, s := range a.shortcuts(a.cx) {
+		if s.Key != "" && !listed[cheatsheet.Combo{Key: s.Key}] {
 			t.Fatalf("cheat sheet misses the keys of %q", s.Label)
 		}
 	}
-	tt.Key(ui.Cmd, ui.KeySlash)
-	tt.Frame()
-	if _, shown := tt.Find("快捷键"); a.overlay.cheatsheet || shown {
+	title := whole(testlocale.Messages().CheatsheetTitle())
+	tt.Key("mod+/")
+	if shown := tt.Exists(title); a.overlay.cheatsheet || shown {
 		t.Fatalf("a second ⌘/ left the cheat sheet open: %q", tt.Texts())
 	}
-	tt.Key(ui.Cmd, ui.KeySlash)
-	tt.Frame()
+	tt.Key("mod+/")
 	if !a.overlay.cheatsheet {
 		t.Fatal("⌘/ did not open the cheat sheet again")
 	}
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
-	if _, shown := tt.Find("快捷键"); a.overlay.cheatsheet || shown {
+	tt.Key("escape")
+	if shown := tt.Exists(title); a.overlay.cheatsheet || shown {
 		t.Fatalf("Escape left the cheat sheet open: %q", tt.Texts())
 	}
 }
 
 // TestCheatsheetFollowsThePrototypeLayout checks that the cheat sheet groups the table as the prototype's sheet does, not as the menu bar: 播放 first with ← and → joined on one line and 全屏 under it, then 窗口 with ⌘/, ⌘, and Esc, and the rows the prototype's sheet does not place after them, under their menus' groups, ⌘1 and ⌘2 under 窗口 and 文件's in a group of its own.
 func TestCheatsheetFollowsThePrototypeLayout(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	// Other areas add rows to these groups and groups of their own, so this checks that these lines keep their groups and order, not that the sheet has nothing else.
 	want := []struct {
 		title  string
@@ -165,7 +150,7 @@ func TestCheatsheetFollowsThePrototypeLayout(t *testing.T) {
 		{"窗口", []string{"快捷键速查", "设置", "返回资料库", "片库", "播放器"}},
 		{"文件", []string{"打开本地视频…", "新建资料库…", "打开资料库…"}},
 	}
-	groups := a.cheatsheetGroups()
+	groups := a.cheatsheetGroups(a.cx)
 	at := -1
 	for _, w := range want {
 		i := slices.IndexFunc(groups, func(g cheatsheet.Group) bool { return g.Title == w.title })
@@ -186,32 +171,33 @@ func TestCheatsheetFollowsThePrototypeLayout(t *testing.T) {
 			rest = rest[j+1:]
 		}
 	}
-	if k := a.cheatsheetGroups()[0].Keys[1]; !slices.Equal(k.Combos, []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}) {
+	if k := a.cheatsheetGroups(a.cx)[0].Keys[1]; !slices.Equal(k.Combos, []cheatsheet.Combo{{Key: "left"}, {Key: "right"}}) {
 		t.Fatalf("后退 / 前进 5 秒 runs %v, want ← and →", k.Combos)
 	}
 }
 
 // TestCheatsheetPlacesOtherAreasRows checks the layout against a fixed table, so rows another area adds land where the prototype's sheet puts them and cannot change this test: the 30-second skips join under 播放, the subtitle keys and ⇧⌘T form 字幕 right after 播放, a row the layout does not name (⌘=) joins its menu's group, and a group the layout does not know follows the layout's groups.
 func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	rows := []shortcut{
-		{Group: groupPlayback, Label: "播放/暂停", Key: ui.KeySpace},
-		{Group: groupPlayback, Label: "后退 5 秒", Key: ui.KeyLeft},
-		{Group: groupPlayback, Label: "前进 5 秒", Key: ui.KeyRight},
-		{Group: groupPlayback, Label: "后退 30 秒", Mods: ui.Cmd, Key: ui.KeyLeft},
-		{Group: groupPlayback, Label: "前进 30 秒", Mods: ui.Cmd, Key: ui.KeyRight},
-		{Group: groupSubtitles, Label: "显示/隐藏字幕", Key: ui.KeyV},
-		{Group: groupSubtitles, Label: "切换原文/译文/双语", Key: ui.KeyS},
-		{Group: groupSubtitles, Label: "字幕提前 0.1 秒", Key: ui.KeyZ},
-		{Group: groupSubtitles, Label: "字幕推后 0.1 秒", Key: ui.KeyX},
-		{Group: groupSubtitles, Label: "放大字幕", Mods: ui.Cmd, Key: ui.KeyEqual},
-		{Group: groupSubtitles, Label: "搜索字幕", Mods: ui.Cmd, Key: ui.KeyF},
-		{Group: groupView, Label: "显示/隐藏侧栏", Mods: ui.Cmd | ui.Shift, Key: ui.KeyT},
-		{Group: groupView, Label: "全屏", Key: ui.KeyF},
-		{Group: groupWindow, Label: "快捷键速查", Mods: ui.Cmd, Key: ui.KeySlash},
-		{Group: groupStudy, Label: "复习", Key: ui.KeyN},
+		{Group: groupPlayback, Label: "播放/暂停", Key: "space"},
+		{Group: groupPlayback, Label: "后退 5 秒", Key: "left"},
+		{Group: groupPlayback, Label: "前进 5 秒", Key: "right"},
+		{Group: groupPlayback, Label: "后退 30 秒", Key: "mod+left"},
+		{Group: groupPlayback, Label: "前进 30 秒", Key: "mod+right"},
+		{Group: groupSubtitles, Label: "显示/隐藏字幕", Key: "v"},
+		{Group: groupSubtitles, Label: "切换原文/译文/双语", Key: "s"},
+		{Group: groupSubtitles, Label: "字幕提前 0.1 秒", Key: "z"},
+		{Group: groupSubtitles, Label: "字幕推后 0.1 秒", Key: "x"},
+		{Group: groupSubtitles, Label: "放大字幕", Key: "mod+="},
+		{Group: groupSubtitles, Label: "搜索字幕", Key: "mod+f"},
+		{Group: groupView, Label: "显示/隐藏侧栏", Key: "mod+shift+t"},
+		{Group: groupView, Label: "全屏", Key: "f"},
+		{Group: groupWindow, Label: "快捷键速查", Key: "mod+/"},
+		{Group: groupStudy, Label: "复习", Key: "n"},
 	}
 	var got []string
-	for _, g := range cheatsheetGroupsOf(rows) {
+	for _, g := range cheatsheetGroupsOf(a.cx, rows) {
 		line := g.Title + ":"
 		for _, k := range g.Keys {
 			line += " " + k.Label
@@ -229,39 +215,36 @@ func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
 	}
 }
 
-// TestCheatsheetIsDark checks that the cheat sheet is drawn in the player's dark theme over the light window, as dark glass: its tint, rgb(28, 28, 32) at 86%, over the blurred white window under the sheet's scrim, black at 25%, gives about rgb(51, 51, 54).
+// TestCheatsheetIsDark checks that the cheat sheet is drawn in the player's dark theme over the light window, as dark glass: light words over its tint, rgb(28, 28, 32) at 86%.
 func TestCheatsheetIsDark(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.overlay.cheatsheet = true
-	tt.Frame()
-	r, ok := tt.Find("快捷键")
-	if !ok {
-		t.Fatalf("no cheat sheet: %q", tt.Texts())
+	refresh(tt, a)
+	title := tt.Find(whole(testlocale.Messages().CheatsheetTitle()))
+	// TODO(nsgo#119): check the glass's color over the blurred window under the sheet's scrim, about rgb(51, 51, 54), as the pixels of MyGo's Tester.Image did, once nsgotest gives a test the bytes of its screenshot https://github.com/nsgo-dev/nsgo/issues/119
+	if r, g, b, _ := title.TextStyle.Color.Components(); r < 0.9 || g < 0.9 || b < 0.9 {
+		t.Fatalf("the cheat sheet's title is %#x, want the dark theme's light words", uint32(title.TextStyle.Color))
 	}
-	img := tt.Image()
-	scale := float32(img.Bounds().Dx()) / 1100
-	px := img.RGBAAt(int((r.X-6)*scale), int((r.Y+r.H/2)*scale))
-	if px.R < 41 || px.R > 61 || px.G < 41 || px.G > 61 || px.B < 44 || px.B > 64 {
-		t.Fatalf("cheat sheet behind its title = %v, want the dark glass, about rgb(51, 51, 54)", px)
+	if r, g, b, alpha := backgroundUnder(title).Components(); r > 0.2 || g > 0.2 || b > 0.2 || alpha < 0.8 {
+		t.Fatalf("cheat sheet behind its title = %#x, want the dark glass", uint32(backgroundUnder(title)))
 	}
 }
 
 // TestCheatsheetWritesEscapeAsEsc checks that 返回资料库's keycap reads Esc, as the prototype writes it, and not macOS's menu glyph ⎋, which on a keycap reads like an undo arrow.
 func TestCheatsheetWritesEscapeAsEsc(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.overlay.cheatsheet = true
-	tt.Frame()
-	if !tt.HasText("返回资料库") || !tt.HasText("Esc") || tt.HasText("⎋") {
+	refresh(tt, a)
+	if !hasText(tt, "返回资料库") || !hasText(tt, "Esc") || hasText(tt, "⎋") {
 		t.Fatalf("cheat sheet does not write Escape as Esc: %q", tt.Texts())
 	}
 }
 
 func TestSettingsShortcutOpensSettings(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.prefs.section = settings.SectionAccount
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeyComma)
-	tt.Frame()
+	refresh(tt, a)
+	tt.Key("mod+,")
 	wantSettings(t, a, settings.SectionGeneral)
 	if a.page != pageFilms {
 		t.Fatalf("⌘, left the library for page %q", a.page)
@@ -270,11 +253,10 @@ func TestSettingsShortcutOpensSettings(t *testing.T) {
 
 // TestMenuBarTakesCommandShortcuts checks that once the app has its own menu bar, ⌘ shortcuts are left to the menu's accelerators and single keys still work.
 func TestMenuBarTakesCommandShortcuts(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.menu.menuBar = true
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeyComma)
-	tt.Frame()
+	refresh(tt, a)
+	tt.Key("mod+,")
 	if a.prefs.open {
 		t.Fatalf("⌘, ran beside the menu bar: settings open at %q", a.prefs.section)
 	}
@@ -284,8 +266,8 @@ func TestMenuBarTakesCommandShortcuts(t *testing.T) {
 func TestShortcutsAreUnique(t *testing.T) {
 	a, _, _ := libraryWith(t, "Talk")
 	ids := map[string]bool{}
-	keyed := map[[2]int][]shortcut{}
-	for _, s := range a.shortcuts() {
+	keyed := map[string][]shortcut{}
+	for _, s := range a.shortcuts(a.cx) {
 		if s.Group == "" || s.Label == "" || s.Run == nil {
 			t.Fatalf("incomplete shortcut %+v", s)
 		}
@@ -293,9 +275,8 @@ func TestShortcutsAreUnique(t *testing.T) {
 			t.Fatalf("two rows %q in %q", s.Label, s.Group)
 		}
 		ids[menuRowID(s)] = true
-		if s.Key != 0 {
-			k := [2]int{int(s.Mods), int(s.Key)}
-			keyed[k] = append(keyed[k], s)
+		if s.Key != "" {
+			keyed[s.Key] = append(keyed[s.Key], s)
 		}
 	}
 	states := map[string]func(){
@@ -327,7 +308,7 @@ func TestShortcutsAreUnique(t *testing.T) {
 }
 
 func TestDroppedVideoIsQueued(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	dir := t.TempDir()
 	note := filepath.Join(dir, "a.txt")
 	video := filepath.Join(dir, "b.mp4")
@@ -344,20 +325,19 @@ func TestDroppedVideoIsQueued(t *testing.T) {
 
 // TestPlayerKeysAfterTheFilmLeaves checks that a player key pressed in the frame the open film drops out of the library does nothing. wireKeys registers the key before the page closes the film in the same build, so the key must check again when it runs.
 func TestPlayerKeysAfterTheFilmLeaves(t *testing.T) {
-	for _, key := range []ui.Key{ui.KeySpace, ui.KeyLeft, ui.KeyRight} {
+	for _, key := range []string{"space", "left", "right"} {
 		a, tt, _ := openClip(t, 2)
 		a.library.Jobs = nil
-		tt.Key(0, key)
-		tt.Frame()
-		if a.openKey != "" || a.player.play != nil {
-			t.Fatalf("key %v: open %q play %v after the film left", key, a.openKey, a.player.play != nil)
+		tt.Key(key)
+		if a.openKey != "" || a.Play() != nil {
+			t.Fatalf("key %s: open %q play %v after the film left", key, a.openKey, a.Play() != nil)
 		}
 	}
 }
 
 // TestModalDialogsNest checks the window's modal flag: it stays up while any dialog holds it, as a file panel opened from a sheet does, and a release that runs twice counts once.
 func TestModalDialogsNest(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	if a.modalOpen() {
 		t.Fatal("modal open on a new window")
 	}
@@ -377,17 +357,15 @@ func TestModalDialogsNest(t *testing.T) {
 // TestCheatsheetInEnglish checks the cheat sheet in English: its title and hint, and the prototype's lines and group titles.
 func TestCheatsheetInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
-	a, tt, _ := newTestApp(&fakePipeline{})
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeySlash)
-	tt.Frame()
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	tt.Key("mod+/")
 	if !a.overlay.cheatsheet {
 		t.Fatal("⌘/ did not open the cheat sheet")
 	}
 	for _, want := range []string{"Keyboard Shortcuts", "Single keys work only while no text field has focus", "Playback", "Play / Pause", "Back / Forward 5 Seconds", "Window", "Ask This Film / Commands", "Settings", "Shortcut Cheat Sheet"} {
 		wantText(t, tt, want)
 	}
-	if tt.HasText("快捷键") || tt.HasText("播放 / 暂停") {
+	if hasText(tt, "快捷键") || hasText(tt, "播放 / 暂停") {
 		t.Fatalf("the cheat sheet still reads Chinese: %q", tt.Texts())
 	}
 }

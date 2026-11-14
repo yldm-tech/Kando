@@ -4,9 +4,9 @@ import (
 	"slices"
 
 	"kando/apps/kando/cheatsheet"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
-	"github.com/egoist/mygo/ui"
 	"github.com/nsgo-dev/nsgo/core"
 )
 
@@ -34,6 +34,26 @@ func (a *app) overlays(cx *core.Scope) core.Node {
 
 func (a *app) toggleCheatsheet() { a.overlay.cheatsheet = !a.overlay.cheatsheet }
 
+// cheatsheetOverlay is the shortcut cheat sheet over the window while it is open (overlayUI.cheatsheet), in the player's dark theme: ⌘/ opens and closes it (overlayKeys), and Escape, its close button or a click outside it close it. Its groups follow the shortcut table and the language, and the sheet is built again only when they change (cheatsheetGroupsEqual), not after every change of the app's state.
+func (a *app) cheatsheetOverlay(cx *core.Scope) core.Node {
+	return core.Show{
+		When: live.Func(a, func() bool { return a.overlay.cheatsheet }),
+		Then: func(cx *core.Scope) core.Node {
+			groups := core.NewMemoFunc(cx, live.Func(a, func() []cheatsheet.Group { return a.cheatsheetGroups(cx) }), cheatsheetGroupsEqual)
+			return cheatsheet.View{Groups: groups.Get, OnClose: live.Do(a, func() { a.overlay.cheatsheet = false })}
+		},
+	}
+}
+
+// cheatsheetGroupsEqual reports whether the cheat sheet would list x and y alike.
+func cheatsheetGroupsEqual(x, y []cheatsheet.Group) bool {
+	return slices.EqualFunc(x, y, func(g, h cheatsheet.Group) bool {
+		return g.Title == h.Title && slices.EqualFunc(g.Keys, h.Keys, func(k, l cheatsheet.Key) bool {
+			return k.Label == l.Label && slices.Equal(k.Combos, l.Combos)
+		})
+	})
+}
+
 // holdModal marks a modal dialog as up over the window until release runs. A dialog calls it as it opens and runs release as it closes: a file panel or a system alert in its answer's callback, an area's own dialog in its OnOpenChange or wherever it clears its open flag. Dialogs nest, as a file panel opened from a sheet does, and release counts only once however often it runs.
 func (a *app) holdModal() (release func()) {
 	a.overlay.modal++
@@ -49,33 +69,40 @@ func (a *app) holdModal() (release func()) {
 // modalOpen reports whether a modal dialog is up over the window (holdModal). The cheat sheet is not one of them: it lets its own ⌘/ through.
 func (a *app) modalOpen() bool { return a.overlay.modal > 0 }
 
-// cheatsheetLayout is the cheat sheet's own arrangement of the shortcut table, the prototype's: its groups in order, and lines that name rows of the table by their keys, joining several under one label, as 后退 / 前进 5 秒 shows ← →. A line shows only once the table has all its keys; an empty label takes the label of its one row. The prototype's lines for shortcuts the app does not have yet are left out until their areas add them. It is built each time the sheet is shown, so its labels are in the interface's language then.
-func cheatsheetLayout() []cheatsheetGroup {
+// cheatsheetLayout is the cheat sheet's own arrangement of the shortcut table, the prototype's: its groups in order, and lines that name rows of the table by their keys, in NSGo's form as the rows have them (shortcut.Key), joining several under one label, as 后退 / 前进 5 秒 shows ← →. A line shows only once the table has all its keys; an empty label takes the label of its one row. The prototype's lines for shortcuts the app does not have yet are left out until their areas add them. Its labels are in the language the app shows under cx, which the sheet's binding follows.
+func cheatsheetLayout(cx *core.Scope) []cheatsheetGroup {
+	keys := func(keys ...string) []cheatsheet.Combo {
+		combos := make([]cheatsheet.Combo, len(keys))
+		for i, k := range keys {
+			combos[i] = cheatsheet.Combo{Key: k}
+		}
+		return combos
+	}
 	return []cheatsheetGroup{
 		{groupPlayback, []cheatsheetLine{
-			{locales.CheatsheetPlayPause(), []cheatsheet.Combo{{Key: ui.KeySpace}}},
-			{locales.CheatsheetSkip5(), []cheatsheet.Combo{{Key: ui.KeyLeft}, {Key: ui.KeyRight}}},
-			{locales.CheatsheetSkip30(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyLeft}, {Mods: ui.Cmd, Key: ui.KeyRight}}},
-			{locales.CheatsheetPrevNextLine(), []cheatsheet.Combo{{Key: ui.KeyA}, {Key: ui.KeyD}}},
-			{"", []cheatsheet.Combo{{Key: ui.KeyR}}},
-			{"", []cheatsheet.Combo{{Key: ui.KeyL}}},
-			{"", []cheatsheet.Combo{{Key: ui.KeyF}}},
-			{locales.CheatsheetVolume(), []cheatsheet.Combo{{Key: ui.KeyUp}, {Key: ui.KeyDown}}},
-			{"", []cheatsheet.Combo{{Key: ui.KeyM}}},
-			{locales.CheatsheetSpeed(), []cheatsheet.Combo{{Mods: ui.Shift, Key: ui.KeyComma}, {Mods: ui.Shift, Key: ui.KeyPeriod}}},
+			{locales.CheatsheetPlayPause(cx), keys("space")},
+			{locales.CheatsheetSkip5(cx), keys("left", "right")},
+			{locales.CheatsheetSkip30(cx), keys("mod+left", "mod+right")},
+			{locales.CheatsheetPrevNextLine(cx), keys("a", "d")},
+			{"", keys("r")},
+			{"", keys("l")},
+			{"", keys("f")},
+			{locales.CheatsheetVolume(cx), keys("up", "down")},
+			{"", keys("m")},
+			{locales.CheatsheetSpeed(cx), keys("shift+,", "shift+.")},
 		}},
 		{groupSubtitles, []cheatsheetLine{
-			{locales.CheatsheetSubtitlesShowHide(), []cheatsheet.Combo{{Key: ui.KeyV}}},
-			{locales.CheatsheetSubtitlesMode(), []cheatsheet.Combo{{Key: ui.KeyS}}},
-			{locales.CheatsheetSubtitlesDelay(), []cheatsheet.Combo{{Key: ui.KeyZ}, {Key: ui.KeyX}}},
-			{locales.CheatsheetSidebar(), []cheatsheet.Combo{{Mods: ui.Cmd | ui.Shift, Key: ui.KeyT}}},
-			{locales.CheatsheetSearchLines(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyF}}},
+			{locales.CheatsheetSubtitlesShowHide(cx), keys("v")},
+			{locales.CheatsheetSubtitlesMode(cx), keys("s")},
+			{locales.CheatsheetSubtitlesDelay(cx), keys("z", "x")},
+			{locales.CheatsheetSidebar(cx), keys("mod+shift+t")},
+			{locales.CheatsheetSearchLines(cx), keys("mod+f")},
 		}},
 		{groupWindow, []cheatsheetLine{
-			{locales.CheatsheetPalette(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyK}}},
-			{"", []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeySlash}}},
-			{locales.CheatsheetSettings(), []cheatsheet.Combo{{Mods: ui.Cmd, Key: ui.KeyComma}}},
-			{"", []cheatsheet.Combo{{Key: ui.KeyEscape}}},
+			{locales.CheatsheetPalette(cx), keys("mod+k")},
+			{"", keys("mod+/")},
+			{locales.CheatsheetSettings(cx), keys("mod+,")},
+			{"", keys("escape")},
 		}},
 	}
 }
@@ -92,17 +119,17 @@ type cheatsheetLine struct {
 	combos []cheatsheet.Combo
 }
 
-// cheatsheetGroups is the shortcut table's rows with a key as the cheat sheet lists them: the groups and lines of cheatsheetLayout, then every row the layout does not place, under its menu's group (grouped, menu.go), in a group of the layout of that name or in a group of its own after them. So the sheet lists the whole table, and a row an area adds shows on it before the layout names it.
-func (a *app) cheatsheetGroups() []cheatsheet.Group {
-	rows := slices.DeleteFunc(a.shortcuts(), func(s shortcut) bool { return s.Key == 0 })
-	return cheatsheetGroupsOf(rows)
+// cheatsheetGroups is the shortcut table's rows with a key as the cheat sheet lists them, in the language the app shows under cx: the groups and lines of cheatsheetLayout, then every row the layout does not place, under its menu's group (grouped, menu.go), in a group of the layout of that name or in a group of its own after them. So the sheet lists the whole table, and a row an area adds shows on it before the layout names it.
+func (a *app) cheatsheetGroups(cx *core.Scope) []cheatsheet.Group {
+	rows := slices.DeleteFunc(a.shortcuts(cx), func(s shortcut) bool { return s.Key == "" })
+	return cheatsheetGroupsOf(cx, rows)
 }
 
 // cheatsheetGroupsOf arranges rows of the shortcut table as cheatsheetGroups describes.
-func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
+func cheatsheetGroupsOf(cx *core.Scope, rows []shortcut) []cheatsheet.Group {
 	labels := map[cheatsheet.Combo]string{}
 	for _, s := range rows {
-		k := cheatsheet.Combo{Mods: s.Mods, Key: s.Key}
+		k := cheatsheet.Combo{Key: s.Key}
 		if _, ok := labels[k]; !ok {
 			labels[k] = s.Label
 		}
@@ -110,7 +137,7 @@ func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
 	placed := map[cheatsheet.Combo]bool{}
 	at := map[string]int{}
 	var groups []cheatsheet.Group
-	for _, g := range cheatsheetLayout() {
+	for _, g := range cheatsheetLayout(cx) {
 		var keys []cheatsheet.Key
 		for _, l := range g.lines {
 			if slices.ContainsFunc(l.combos, func(k cheatsheet.Combo) bool { _, ok := labels[k]; return !ok }) {
@@ -127,13 +154,13 @@ func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
 		}
 		if len(keys) > 0 {
 			at[g.group] = len(groups)
-			groups = append(groups, cheatsheet.Group{Title: groupTitle(g.group), Keys: keys})
+			groups = append(groups, cheatsheet.Group{Title: groupTitle(cx, g.group), Keys: keys})
 		}
 	}
 	order, byGroup := grouped(rows)
 	for _, group := range order {
 		for _, s := range byGroup[group] {
-			k := cheatsheet.Combo{Mods: s.Mods, Key: s.Key}
+			k := cheatsheet.Combo{Key: s.Key}
 			if placed[k] {
 				continue
 			}
@@ -142,7 +169,7 @@ func cheatsheetGroupsOf(rows []shortcut) []cheatsheet.Group {
 			if !ok {
 				i = len(groups)
 				at[group] = i
-				groups = append(groups, cheatsheet.Group{Title: groupTitle(group)})
+				groups = append(groups, cheatsheet.Group{Title: groupTitle(cx, group)})
 			}
 			groups[i].Keys = append(groups[i].Keys, cheatsheet.Key{Label: s.Label, Combos: []cheatsheet.Combo{k}})
 		}

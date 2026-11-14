@@ -8,7 +8,7 @@ import (
 	"kando/apps/kando/remote"
 )
 
-// remoteUI is the app's end of the control socket (package remote), where the kando command line and its MCP server drive the running app. server is nil until the window is ready, and stays nil when another Kando already serves the socket or it could not be opened. ctx ends when the app quits, so a request still waiting for the UI thread gives up instead of holding the quit back until its timeout.
+// remoteUI is the app's end of the control socket (package remote), where the kando command line and its MCP server drive the running app. server is nil until the window is ready, and stays nil when another Kando already serves the socket or it could not be opened. ctx ends when the app quits, so a request still waiting for the UI thread, the engine's goroutine, gives up instead of holding the quit back until its timeout.
 type remoteUI struct {
 	server *remote.Server
 	ctx    context.Context
@@ -20,7 +20,7 @@ func newRemoteUI() remoteUI {
 	return remoteUI{ctx: ctx, cancel: cancel}
 }
 
-// remoteHooks: the socket opens once the window is ready, as its answers run on the UI thread through update, which posts to the window; it closes when the app quits. An app that cannot open it, as a second copy of Kando while the first one serves it, runs on without it and says why in the log.
+// remoteHooks: the socket opens once the window is ready, as its answers run on the engine's goroutine through update (remote.OnUI), which the window's bindings then follow; it closes when the app quits. An app that cannot open it, as a second copy of Kando while the first one serves it, runs on without it and says why in the log.
 func (a *app) remoteHooks() areaHooks {
 	return areaHooks{
 		ready: func() {
@@ -44,7 +44,7 @@ func (a *app) remoteListen() error {
 	return nil
 }
 
-// remoteClose ends the requests still waiting for the UI thread, then closes the socket and its connections. It runs on the UI thread, which those requests wait for, so it ends them first: Close waits for every answer to be written.
+// remoteClose ends the requests still waiting for the UI thread, then closes the socket and its connections. It runs once the engine has stopped (areaHooks.quitting), so nothing will run what those requests wait for, and it ends them first: Close waits for every answer to be written.
 func (a *app) remoteClose() {
 	if a.remote.cancel != nil {
 		a.remote.cancel()

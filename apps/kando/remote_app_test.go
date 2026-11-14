@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/remote"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -105,19 +106,19 @@ func remoteLibrary(t *testing.T, a *app) (dir string) {
 }
 
 func TestRemoteStatusSaysWhatTheAppIs(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	a.checkReadiness(false)
 	got, err := remoteCall[remote.Status](t, updates, remote.MethodStatus, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Version != appVersion || got.LibraryDir != "/videos" || !got.Ready || got.Readiness != locales.ReadinessReady() || got.Language != "简体中文" || got.Running != "" || got.Queued != 0 {
+	if got.Version != appVersion || got.LibraryDir != "/videos" || !got.Ready || got.Readiness != testlocale.Messages().ReadinessReady() || got.Language != "简体中文" || got.Running != "" || got.Queued != 0 {
 		t.Fatalf("status %+v", got)
 	}
 
 	tools := media.Tools{YTDLP: "/bin/yt-dlp", FFmpeg: "/bin/ffmpeg", WhisperModel: "/models/ggml-base.bin", Translator: media.ChatTranslator{Model: "gpt-x"}}
-	b, _, updates := newTestApp(tools)
+	b, _, updates := newTestApp(t, tools)
 	remoteServe(t, b)
 	b.checkReadiness(false)
 	got, err = remoteCall[remote.Status](t, updates, remote.MethodStatus, nil)
@@ -133,7 +134,7 @@ func TestRemoteStatusSaysWhatTheAppIs(t *testing.T) {
 }
 
 func TestRemoteListsAndFindsTheLibrarysFilms(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	dir := remoteLibrary(t, a)
 	interview := filepath.Join(dir, "Interview", "interview.mp4")
@@ -157,7 +158,7 @@ func TestRemoteListsAndFindsTheLibrarysFilms(t *testing.T) {
 	if found.Title != "interview" || found.Source != "local" || found.Link != "" || found.Stage != "" || found.Progress != -1 || found.JobID != "" || found.Status != "" || found.Subtitles != filepath.Join(dir, "Interview", "interview.bilingual.srt") || found.OriginalSubtitles != "" {
 		t.Fatalf("found film %+v", found)
 	}
-	if clip := all[0]; clip.Source != "local" || clip.Link != "" || clip.Stage != "queued" || clip.Progress != 0 || clip.Status != locales.QueueStatusQueued() {
+	if clip := all[0]; clip.Source != "local" || clip.Link != "" || clip.Stage != "queued" || clip.Progress != 0 || clip.Status != testlocale.Messages().QueueStatusQueued() {
 		t.Fatalf("queued film %+v", clip)
 	}
 
@@ -195,7 +196,7 @@ func TestRemoteListsAndFindsTheLibrarysFilms(t *testing.T) {
 }
 
 func TestRemoteReadsAFilmsSubtitles(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	dir := remoteLibrary(t, a)
 
@@ -223,7 +224,7 @@ func TestRemoteReadsAFilmsSubtitles(t *testing.T) {
 }
 
 func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{block: true})
+	a, _, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	done := filepath.Join(dir, "Old", "old.mp4")
@@ -255,7 +256,7 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	for _, s := range added.Skipped {
 		reasons[s.Source] = s.Reason
 	}
-	if len(added.Skipped) != 4 || reasons[" "] != locales.PrecheckEmpty() || reasons["not a link"] != locales.PrecheckNotLink() || reasons["notes.txt"] != locales.PrecheckNoVideo() || missing == nil || reasons["missing.mp4"] != missing.Error() {
+	if len(added.Skipped) != 4 || reasons[" "] != testlocale.Messages().PrecheckEmpty() || reasons["not a link"] != testlocale.Messages().PrecheckNotLink() || reasons["notes.txt"] != testlocale.Messages().PrecheckNoVideo() || missing == nil || reasons["missing.mp4"] != missing.Error() {
 		t.Fatalf("skipped %+v", added.Skipped)
 	}
 	first, clip, last := added.Jobs[0].ID, added.Jobs[1].ID, added.Jobs[2].ID
@@ -267,7 +268,7 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	if len(jobs) != 4 || jobs[0].ID != first || jobs[1].ID != clip || jobs[2].ID != last || jobs[3].ID != "old" {
 		t.Fatalf("jobs %+v", jobs)
 	}
-	if jobs[0].Stage != "downloading" || jobs[1].Stage != "queued" || jobs[1].Status != locales.QueueStatusQueued() || jobs[3].FilmID != "old" || jobs[0].FilmID != "" {
+	if jobs[0].Stage != "downloading" || jobs[1].Stage != "queued" || jobs[1].Status != testlocale.Messages().QueueStatusQueued() || jobs[3].FilmID != "old" || jobs[0].FilmID != "" {
 		t.Fatalf("jobs %+v", jobs)
 	}
 	status, err := remoteCall[remote.Status](t, updates, remote.MethodStatus, nil)
@@ -301,7 +302,7 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 
 // TestRemoteAddSkipsListsAndVideosAlreadyThere checks that kando add and the MCP server's add skip, each with why, a channel or a list that names no single video, a video already waiting or done in the library, and the same video given twice, while a video whose job failed is queued again on its card and answered like a new one.
 func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{block: true})
+	a, _, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	done := filepath.Join(dir, "Old", "video.mp4")
@@ -328,10 +329,10 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 		reasons = append(reasons, s.Source+": "+s.Reason)
 	}
 	want := []string{
-		"https://www.youtube.com/@veritasium: " + locales.PrecheckChannel("YouTube"),
-		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8: " + locales.PrecheckList("YouTube"),
-		"https://youtu.be/TRWgBxVAb1M: " + locales.QueueAlreadyInLibrary(),
-		"https://example.com/a: " + locales.QueueAlreadyQueued(),
+		"https://www.youtube.com/@veritasium: " + testlocale.Messages().PrecheckChannel("YouTube"),
+		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8: " + testlocale.Messages().PrecheckList("YouTube"),
+		"https://youtu.be/TRWgBxVAb1M: " + testlocale.Messages().QueueAlreadyInLibrary(),
+		"https://example.com/a: " + testlocale.Messages().QueueAlreadyQueued(),
 	}
 	if !slices.Equal(reasons, want) {
 		t.Fatalf("skipped %q\nwant %q", reasons, want)
@@ -354,7 +355,7 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 
 // TestRemoteListsAndCancelsAJobOfAnotherLibrary opens another library while a job runs and another waits in the first one: the status and the job list name them as the window's 处理中 shows them, the first library's finished job stays out of the list, and the running one can be cancelled.
 func TestRemoteListsAndCancelsAJobOfAnotherLibrary(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{block: true})
+	a, _, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	first, second := t.TempDir(), t.TempDir()
 	a.edit(func(s *session) {
@@ -399,7 +400,7 @@ func TestRemoteListsAndCancelsAJobOfAnotherLibrary(t *testing.T) {
 // TestRemoteListsAJobThatEndedInAnotherLibrary lets a job finish after another library is opened: jobs.list still gives it, complete, so a client waiting on it (kando add --wait) sees it succeed rather than lose it.
 func TestRemoteListsAJobThatEndedInAnotherLibrary(t *testing.T) {
 	g := newGatePipeline()
-	a, _, updates := newTestApp(g)
+	a, _, updates := newTestApp(t, g)
 	remoteServe(t, a)
 	first, second := t.TempDir(), t.TempDir()
 	a.edit(func(s *session) {
@@ -427,13 +428,13 @@ func TestRemoteListsAJobThatEndedInAnotherLibrary(t *testing.T) {
 }
 
 func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	a.edit(func(s *session) { s.LibraryDir = "" })
 	_, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{"https://example.com/a"}})
 	remoteWantCode(t, err, remote.CodeNotReady)
 	var e *remote.Error
-	if !errors.As(err, &e) || e.Message != locales.PrecheckNoLibrary() {
+	if !errors.As(err, &e) || e.Message != testlocale.Messages().PrecheckNoLibrary() {
 		t.Fatalf("error %v", err)
 	}
 	if len(a.library.Jobs) != 0 {
@@ -443,6 +444,21 @@ func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
 	remoteWantCode(t, err, remote.CodeInvalid)
 }
 
+// TestRemoteAddSaysWhyInTheInterfaceLanguage checks that the reasons jobs.add gives for the sources it skips are in the language the window shows, which the app may have been switched to, not the one the tests read.
+func TestRemoteAddSaysWhyInTheInterfaceLanguage(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	a.prefs.interfaceLanguage = "en"
+	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{" ", "not a link"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	en := locales.In("en")
+	if len(added.Skipped) != 2 || added.Skipped[0].Reason != en.PrecheckEmpty() || added.Skipped[1].Reason != en.PrecheckNotLink() || len(added.Jobs) != 0 {
+		t.Fatalf("added %+v", added)
+	}
+}
+
 // TestRemoteSourceTakesFileURLsToTheirFile checks that a file:// URL a client gives, as the app makes them (core.FileURL), names the file on this machine and is added as the same source, and that one naming another machine is not taken for a local file.
 func TestRemoteSourceTakesFileURLsToTheirFile(t *testing.T) {
 	video := filepath.Join(t.TempDir(), "会议 01.mp4")
@@ -450,20 +466,20 @@ func TestRemoteSourceTakesFileURLsToTheirFile(t *testing.T) {
 	if path, local := remoteLocalPath(core.FileURL(video), ""); !local || path != video {
 		t.Fatalf("remoteLocalPath(%q) = %q, %v, want %q", core.FileURL(video), path, local, video)
 	}
-	if source, reason := remoteSource(core.FileURL(video), ""); source != core.FileURL(video) || reason != "" {
-		t.Fatalf("remoteSource = %q, %q", source, reason)
+	if source, reason := remoteSource(core.FileURL(video), ""); source != core.FileURL(video) || reason != nil {
+		t.Fatalf("remoteSource = %q, %q", source, reason(locales.In("en")))
 	}
 	if path, local := remoteLocalPath("file://other-machine/clip.mp4", ""); local || path != "" {
 		t.Fatalf("remoteLocalPath(remote host) = %q, %v", path, local)
 	}
-	if source, reason := remoteSource("file://other-machine/clip.mp4", ""); source != "" || reason != locales.PrecheckNotLink() {
-		t.Fatalf("remoteSource(remote host) = %q, %q", source, reason)
+	if source, reason := remoteSource("file://other-machine/clip.mp4", ""); source != "" || reason == nil || reason(testlocale.Messages()) != testlocale.Messages().PrecheckNotLink() {
+		t.Fatalf("remoteSource(remote host) = %q, %v", source, reason != nil)
 	}
 }
 
 // TestRemoteRetriesAJobWithoutMovingTheWindow checks that jobs.retry queues a failed, canceled or done job again under its own ID, as 重试 and 重新处理 do, while the window stays on the page and card it showed, and that it refuses a job that is still running or waiting.
 func TestRemoteRetriesAJobWithoutMovingTheWindow(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{block: true})
+	a, _, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	a.edit(func(s *session) { s.LibraryDir = dir })
@@ -543,7 +559,7 @@ func TestRemoteRetriesAJobWithoutMovingTheWindow(t *testing.T) {
 func TestRemoteRetrySaysWhatIsMissing(t *testing.T) {
 	failed := core.Job{ID: "bad", Source: "https://example.com/bad", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: "/videos"}
 
-	a, _, updates := newTestApp(media.Tools{})
+	a, _, updates := newTestApp(t, media.Tools{})
 	remoteServe(t, a)
 	a.library.Jobs = []core.Job{failed}
 	want, _ := a.precheck([]string{failed.Source})
@@ -563,7 +579,7 @@ func TestRemoteRetrySaysWhatIsMissing(t *testing.T) {
 	a.pipeline = &fakePipeline{}
 	a.prefs.language = ""
 	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "bad"})
-	if !errors.As(err, &e) || e.Code != remote.CodeNotReady || e.Message != locales.QueueNoLanguage() {
+	if !errors.As(err, &e) || e.Code != remote.CodeNotReady || e.Message != testlocale.Messages().QueueNoLanguage() {
 		t.Fatalf("retry without a language: %v", err)
 	}
 	if job, _ := a.library.Find("bad"); job.Stage != core.StageFailed || a.running() || a.queue.status != "" {
@@ -577,7 +593,7 @@ func TestRemoteRetrySaysWhatIsMissing(t *testing.T) {
 
 // TestRemoteRemovesAJob checks that jobs.remove takes a job off the shelf as 移除 does: a running one stops first, and the files a done one made stay on disk.
 func TestRemoteRemovesAJob(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{block: true})
+	a, _, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Done", "done.mp4")
@@ -623,7 +639,7 @@ func TestRemoteRemovesAJob(t *testing.T) {
 }
 
 func TestRemoteSearchesSites(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	got, err := remoteCall[[]remote.Site](t, updates, remote.MethodSites, remote.SitesParams{Query: "https://youtu.be/abc", Limit: 1})
 	if err != nil {
@@ -639,7 +655,7 @@ func TestRemoteSearchesSites(t *testing.T) {
 }
 
 func TestRemoteShowOpensTheFilm(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	remoteLibrary(t, a)
 	a.page = pageYouTube
@@ -667,7 +683,7 @@ func TestRemoteShowOpensTheFilm(t *testing.T) {
 }
 
 func TestRemoteAnswersAnUnknownMethod(t *testing.T) {
-	a, _, updates := newTestApp(&fakePipeline{})
+	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	_, err := remoteCall[any](t, updates, "films.burn", nil)
 	remoteWantCode(t, err, remote.CodeUnknownMethod)
@@ -676,9 +692,9 @@ func TestRemoteAnswersAnUnknownMethod(t *testing.T) {
 }
 
 func TestRemoteSocketRefusesASecondApp(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
-	b, _, _ := newTestApp(&fakePipeline{})
+	b, _, _ := newTestApp(t, &fakePipeline{})
 	if err := b.remoteListen(); !errors.Is(err, remote.ErrInUse) {
 		t.Fatalf("second listen: %v", err)
 	}
