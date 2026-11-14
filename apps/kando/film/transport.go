@@ -3,106 +3,131 @@ package film
 import (
 	"time"
 
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
+// transportGlass is the glass of the capsule along the bottom of the picture.
+var transportGlass = glassSpec{fill: core.RGBA(0x1E1E22, 0.5), blur: 28, ring: 0.22, radius: 24}
+
 // transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the volume, the speed, the line loop, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
-func (s screen) transport(c *ui.Context, t *ui.Theme, fade float32, shown bool, panelSpace float32) {
-	if s.Play() == nil && s.PlayPath() == "" {
-		return
-	}
-	right := float32(20)
-	if panelSpace > 0 {
-		right = panelSpace + 16
-	}
-	bar := ui.Row(c).Absolute().Left(20).Right(right).Bottom(18).Gap(10).Padding(8, 10, 8, 12).Radius(24).AlignItems(ui.Center).TextColor(onGlass).Opacity(fade)
-	glassFace(bar, ui.RGBA(30, 30, 34, 0.5), 28, 0.22, 24).Shadow(0, 10, 30, 0, ui.RGBA(0, 0, 0, 0.3))
-	if !shown {
-		bar.PassThrough()
-	}
-	bar.Children(func() {
-		ui.Row(c).Gap(2).AlignItems(ui.Center).Shrink(0).Children(func() {
-			c.Key("film-back5")
-			if skipButton(c, iconBack5, locales.FilmSkipBack(5)).Tooltip(locales.FilmSkipBack(5) + " " + breeze.ShortcutText(c, 0, ui.KeyLeft)).Clicked() {
-				s.Skip(-5 * time.Second)
+func (s *screen) transport() core.Node {
+	a := s.a
+	return core.Show{When: live.Func(a, func() bool { return a.PlayPath() != "" }), Then: func(cx *core.Scope) core.Node {
+		clock := func(d func() time.Duration, prefix string, faint bool) core.Node {
+			st := core.Style{FontSize: 12, LineHeight: 16, FontVariant: core.FontTabularNums, Color: onGlass, MinWidth: core.Pt(32), FlexShrink: 0}
+			if faint {
+				st.Opacity = core.Alpha(0.75)
 			}
-			s.playButton(c)
-			c.Key("film-forward5")
-			if skipButton(c, iconForward5, locales.FilmSkipForward(5)).Tooltip(locales.FilmSkipForward(5) + " " + breeze.ShortcutText(c, 0, ui.KeyRight)).Clicked() {
-				s.Skip(5 * time.Second)
-			}
-		})
-		head, length := s.PlayHead(), s.PlayLength()
-		// While the scrubber is held, the time shows where it would seek.
-		if value, held := s.Scrub(); *held {
-			head = seconds(*value)
+			return core.Text{ContentFunc: func() string { return prefix + cueClock(d()) }, MaxLines: 1, Style: st}
 		}
-		ui.Text(c, cueClock(head)).FontSize(12).FontFeatures("tnum").MinWidth(32).Shrink(0)
-		s.scrubber(c)
-		left := length - head
-		if left < 0 {
-			left = 0
+		left := func() time.Duration {
+			a.Track()
+			return max(a.PlayLength()-s.shownHead(), 0)
 		}
-		ui.Text(c, "-"+cueClock(left)).FontSize(12).FontFeatures("tnum").Opacity(0.75).Shrink(0)
-		s.volume(c)
-		ui.Row(c).Gap(2).AlignItems(ui.Center).Shrink(0).Children(func() {
-			s.speedMenu(c, t)
-			s.loopToggle(c)
-			s.modeMenu(c, t)
-			c.Key("film-panel")
-			on := s.Panel()
-			if glyphToggle(c, &on, iconPanel, locales.FilmSidebar(), 34, 30, 18, 15).Tooltip(locales.FilmSidebar() + " " + breeze.ShortcutText(c, ui.Shift|ui.Cmd, ui.KeyT)).Changed() {
-				s.TogglePanel()
-			}
-			c.Key("film-full")
-			if glyphButton(c, iconFullScreen, locales.FilmFullScreen(), 34, 30, 16, 16).Tooltip(locales.FilmFullScreen() + " F").Clicked() {
-				s.ToggleFullScreen()
-			}
-		})
-	})
+		back := func() string { return locales.FilmSkipBack(cx, 5) }
+		forward := func() string { return locales.FilmSkipForward(cx, 5) }
+		fullLabel := func() string { return locales.FilmFullScreen(cx) }
+		panelLabel := func() string { return locales.FilmSidebar(cx) }
+		return core.View{
+			TestID: "film-transport",
+			Style: transportGlass.style().Merge(core.Style{Position: core.Absolute, Left: core.Pt(20), Bottom: core.Pt(18), Direction: core.Row, Gap: 10,
+				Padding: core.Edges{Top: 8, Right: 10, Bottom: 8, Left: 12}, AlignItems: core.AlignCenter}).
+				Merge(core.Style{Shadows: append(transportGlass.style().Shadows, core.BoxShadow{Offset: core.Point{Y: 10}, Blur: 30, Color: core.RGBA(0x000000, 0.3)})}),
+			StyleFunc: func() core.Style {
+				st := s.faded()
+				st.Right = core.Pt(20)
+				if s.room() {
+					st.Right = core.Pt(panelRoom + 16)
+				}
+				st.Transition.Properties |= core.TransitionLayout
+				st.Transition.Duration = panelMotion
+				return st
+			},
+			Children: []core.Node{
+				row(2,
+					skipButton(cx, iconBack5, back, withKey(cx, back, "left"), "film-back5", live.Do(a, func() { a.Skip(-5 * time.Second) })),
+					s.playButton(cx),
+					skipButton(cx, iconForward5, forward, withKey(cx, forward, "right"), "film-forward5", live.Do(a, func() { a.Skip(5 * time.Second) })),
+				),
+				clock(s.shownHead, "", false),
+				s.scrubber(cx),
+				clock(left, "-", true),
+				s.volume(cx),
+				row(2,
+					s.speedMenu(cx),
+					s.loopToggle(cx),
+					s.modeMenu(cx),
+					glyphToggle(cx, svg(iconPanel), panelLabel, withKey(cx, panelLabel, "mod+shift+t"), 34, 30, 18, 15, "film-panel", live.Func(a, a.Panel), live.Do(a, a.TogglePanel)),
+					glyphButton(cx, svg(iconFullScreen), fullLabel, func() string { return fullLabel() + " " + cx.KeyLabel("f") }, 34, 30, 16, 16, "film-full", live.Do(a, a.ToggleFullScreen)),
+				),
+			},
+		}
+	}}
+}
+
+// row lays children out in a row gap apart, at their own size.
+func row(gap core.Points, children ...core.Node) core.Node {
+	return core.View{Style: core.Style{Direction: core.Row, Gap: gap, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: children}
 }
 
 // skipButton is a 5-second skip: the prototype's round arrow with a 5 inside it, in a 32-point button.
-func skipButton(c *ui.Context, icon *ui.SVG, label string) ui.Element {
-	b := glyphButton(c, icon, label, 32, 32, 20, 20)
-	b.Children(func() {
-		// The prototype's 5 sits on the arrow's middle, its baseline 13.2 down the 20-point glyph.
-		ui.Text(c, "5").FontSize(6.5).Bold().LineHeight(1).TextAlign(ui.Center).Absolute().Left(0).Right(0).Top(14.2).Role(ui.RoleNone).PassThrough()
-	})
+func skipButton(cx *core.Scope, icon *core.SVG, label, tooltip func() string, id string, press func()) core.Node {
+	b := glyphButton(cx, svg(icon), label, tooltip, 32, 32, 20, 20, id, press)
+	// The prototype's 5 sits on the arrow's middle, its baseline 13.2 down the 20-point glyph.
+	b.Children = append(b.Children, core.Text{Content: "5", Role: core.RoleNone, PointerEvents: core.PointerEventsNone,
+		Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Top: core.Pt(14.2), FontSize: 6.5, LineHeight: 6.5, FontWeight: core.FontWeightBold, TextAlign: core.TextAlignCenter, Color: onGlass}})
 	return b
 }
 
 // playButton starts or holds the film. While the video opens it waits, named for that, so that 播放 shows only once there is a picture to play.
-func (s screen) playButton(c *ui.Context) {
-	c.Key("film-play")
-	switch {
-	case s.Play() == nil:
-		glyphButton(c, iconPlay, locales.FilmOpening(), 36, 36, 20, 20).Disabled(true)
-	case s.Play().Playing():
-		if glyphButton(c, iconPause, locales.FilmPause(), 36, 36, 20, 20).Tooltip(locales.FilmPause() + " " + locales.FilmKeySpace()).Clicked() {
-			s.togglePlay(c)
+func (s *screen) playButton(cx *core.Scope) core.Node {
+	a := s.a
+	state := live.Memo(cx, a, func() int {
+		switch p := a.Play(); {
+		case p == nil:
+			return 0
+		case p.Playing():
+			return 2
 		}
-	default:
-		if glyphButton(c, iconPlay, locales.FilmPlay(), 36, 36, 20, 20).Tooltip(locales.FilmPlay() + " " + locales.FilmKeySpace()).Clicked() {
-			s.togglePlay(c)
+		return 1
+	})
+	label := func() string {
+		switch state() {
+		case 0:
+			return locales.FilmOpening(cx)
+		case 2:
+			return locales.FilmPause(cx)
 		}
+		return locales.FilmPlay(cx)
 	}
+	icon := func() *core.SVG {
+		if state() == 2 {
+			return iconPause
+		}
+		return iconPlay
+	}
+	tooltip := func() string {
+		if state() == 0 {
+			return label()
+		}
+		return label() + " " + locales.FilmKeySpace(cx)
+	}
+	b := glyphButton(cx, icon, label, tooltip, 36, 36, 20, 20, "film-play", live.Do(a, s.togglePlay))
+	b.Disabled = func() bool { return state() == 0 }
+	return b
 }
 
 // loopToggle plays the line playing over and over, lit while it does. It waits for the film's subtitle lines, which it loops.
-func (s screen) loopToggle(c *ui.Context) {
-	c.Key("film-loop")
-	on := s.LoopLine()
-	subs := s.Subs()
-	b := glyphToggle(c, &on, iconLoopLine, locales.FilmLoopLine(), 34, 30, 18, 18).Tooltip(locales.FilmLoopLine() + " " + breeze.ShortcutText(c, 0, ui.KeyL))
-	if subs.Key != s.OpenKey() || !subs.Ready || len(subs.Cues) == 0 {
-		b.Disabled(true)
-		return
-	}
-	if b.Changed() {
-		s.ToggleLoopLine()
-	}
+func (s *screen) loopToggle(cx *core.Scope) core.Node {
+	a := s.a
+	label := func() string { return locales.FilmLoopLine(cx) }
+	b := glyphToggle(cx, svg(iconLoopLine), label, withKey(cx, label, "l"), 34, 30, 18, 18, "film-loop", live.Func(a, a.LoopLine), live.Do(a, a.ToggleLoopLine))
+	b.Disabled = live.Func(a, func() bool {
+		subs := a.Subs()
+		return subs.Key != a.OpenKey() || !subs.Ready || len(subs.Cues) == 0
+	})
+	return b
 }
