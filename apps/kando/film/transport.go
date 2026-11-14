@@ -60,7 +60,7 @@ func (s *screen) transport() core.Node {
 					s.speedMenu(cx),
 					s.loopToggle(cx),
 					s.modeMenu(cx),
-					glyphToggle(cx, svg(iconPanel), panelLabel, withKey(cx, panelLabel, "mod+shift+t"), 34, 30, 18, 15, "film-panel", live.Func(a, a.Panel), live.Do(a, a.TogglePanel)),
+					glyphToggle(cx, svg(iconPanel), panelLabel, withKey(cx, panelLabel, "mod+shift+t"), 34, 30, 18, 15, "film-panel-toggle", live.Func(a, a.Panel), live.Do(a, a.TogglePanel)),
 					glyphButton(cx, svg(iconFullScreen), fullLabel, func() string { return fullLabel() + " " + cx.KeyLabel("f") }, 34, 30, 16, 16, "film-full", live.Do(a, a.ToggleFullScreen)),
 				),
 			},

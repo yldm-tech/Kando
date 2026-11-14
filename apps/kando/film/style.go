@@ -96,9 +96,11 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			opts[i] = ui.Option[string]{Value: family, Label: fontName(cx, family)}
 		}
 		return ui.Select[string]{TestID: "film-style-font", Label: locales.FilmStyleFont(cx), Options: opts,
-			Value:       func() string { return look().Translation.Family },
-			OnChange:    func(family string) { edit(func(l *Look) { l.Translation.Family, l.Original.Family = family, family })() },
-			Style:       core.Style{Width: core.Pt(150)}}
+			Value: func() string { return look().Translation.Family },
+			OnChange: func(family string) {
+				edit(func(l *Look) { l.Translation.Family, l.Original.Family = family, family })()
+			},
+			Style: core.Style{Width: core.Pt(150)}}
 	})
 	presets := make([]core.Node, len(stylePresets))
 	for i, p := range stylePresets {

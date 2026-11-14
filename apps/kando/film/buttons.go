@@ -68,9 +68,9 @@ func glyphToggle(cx *core.Scope, icon func() *core.SVG, label, tooltip func() st
 // glassButton is a round button on the player's glass, holding child.
 func glassButton(cx *core.Scope, g glassSpec, size core.Style, label func() string, id string, press func(), child core.Node) base.Button {
 	return base.Button{TestID: id, LabelFunc: label, Tooltip: tip(cx, label),
-		Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOff},
-		OnPress: func(core.PressEvent) { press() },
-		Style:   g.style().Merge(size).Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0, FocusVisible: ui.FocusRing(cx, -2)}),
+		Desktop:  core.DesktopViewProps{WindowDrag: core.WindowDragOff},
+		OnPress:  func(core.PressEvent) { press() },
+		Style:    g.style().Merge(size).Merge(core.Style{AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0, FocusVisible: ui.FocusRing(cx, -2)}),
 		Children: []core.Node{child}}
 }
 

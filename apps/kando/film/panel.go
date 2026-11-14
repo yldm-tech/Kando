@@ -134,7 +134,7 @@ func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 	}
 	// TODO(nsgo): give base.Tabs' Label a LabelFunc twin, so the tab list's accessible name follows the interface language as it changes; it is read once here
 	return base.Tabs{TestID: "film-tabs", Label: locales.FilmSidebar(cx),
-		Style: ns.Style{Direction: ns.Row, Height: ns.Pt(32), Padding: ns.All(3), CornerRadius: 12, Background: ns.RGBA(0xFFFFFF, 0.1)},
+		Style:    ns.Style{Direction: ns.Row, Height: ns.Pt(32), Padding: ns.All(3), CornerRadius: 12, Background: ns.RGBA(0xFFFFFF, 0.1)},
 		Children: tabs}
 }
 

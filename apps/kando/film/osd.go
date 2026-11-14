@@ -16,7 +16,7 @@ func (s *screen) osd() core.Node {
 	return core.Show{When: func() bool { return text() != "" }, Then: func(*core.Scope) core.Node {
 		// TODO(nsgo): give the pill core.RoleStatus, as MyGo's RoleStatus had assistive technology read it as a status; NSGo has no status role, so it is a polite live region here
 		return core.View{TestID: "film-osd", PointerEvents: core.PointerEventsNone, LiveRegion: core.LiveRegionPolite,
-			Style: osdGlass.style().Merge(core.Style{Position: core.Absolute, Left: core.Pt(20), Top: core.Pt(66), Direction: core.Row, Padding: core.Symmetric(6, 12)}),
+			Style:    osdGlass.style().Merge(core.Style{Position: core.Absolute, Left: core.Pt(20), Top: core.Pt(66), Direction: core.Row, Padding: core.Symmetric(6, 12)}),
 			Children: []core.Node{core.Text{ContentFunc: text, Style: core.Style{FontSize: 13, LineHeight: 18, FontWeight: core.FontWeightSemibold, Color: onGlass}}}}
 	}}
 }

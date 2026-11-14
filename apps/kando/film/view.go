@@ -94,8 +94,8 @@ func (v View) Render(cx *core.Scope) core.Node {
 	s.shown = core.NewMemo(cx, func() bool { return !playing() || menus() || s.held.Get() || s.active.Get() }).Get
 	s.room = live.Memo(cx, a, func() bool { return panelShown(a) })
 	return core.View{
-		TestID: "film",
-		Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch, Background: core.RGB(0x000000), Overflow: core.Hidden},
+		TestID:      "film",
+		Style:       core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch, Background: core.RGB(0x000000), Overflow: core.Hidden},
 		OnLayout:    func(b core.Bounds) { s.size.Set(b.Size) },
 		OnMouseMove: func(core.MouseEvent) { moved() },
 		Children: []core.Node{
@@ -257,13 +257,16 @@ func (s *screen) video(cx *core.Scope, natural *core.Signal[core.Size]) core.Nod
 	}
 	return core.Video{
 		TestID: "film-video", Ref: a.VideoRef(),
-		Style:          fillStyle,
-		SourceFunc:     live.Func(a, func() string { return a.Video().Source }),
-		PausedFunc:     live.Func(a, func() bool { return a.Video().Paused }),
-		MutedFunc:      live.Func(a, func() bool { return a.Video().Muted }),
-		VolumeFunc:     live.Func(a, func() float32 { return a.Video().Volume }),
-		RateFunc:       live.Func(a, func() float32 { return a.Video().Rate }),
-		ResizeModeFunc: func() core.ResizeMode { n, sz := natural.Get(), s.size.Get(); return PictureFit(sz.Width-s.roomRight(), sz.Height, n.Width, n.Height) },
+		Style:      fillStyle,
+		SourceFunc: live.Func(a, func() string { return a.Video().Source }),
+		PausedFunc: live.Func(a, func() bool { return a.Video().Paused }),
+		MutedFunc:  live.Func(a, func() bool { return a.Video().Muted }),
+		VolumeFunc: live.Func(a, func() float32 { return a.Video().Volume }),
+		RateFunc:   live.Func(a, func() float32 { return a.Video().Rate }),
+		ResizeModeFunc: func() core.ResizeMode {
+			n, sz := natural.Get(), s.size.Get()
+			return PictureFit(sz.Width-s.roomRight(), sz.Height, n.Width, n.Height)
+		},
 		OnLoad: live.On(a, func(info core.VideoInfo) {
 			natural.Set(info.Size)
 			a.VideoLoaded(info)

@@ -301,18 +301,21 @@ func styleFonts(os core.OS) []string {
 }
 
 // fontName is what the style view calls a saved font family in the language the interface shows under cx; a family it does not know is shown as saved.
-func fontName(cx *core.Scope, family string) string {
+func fontName(cx *core.Scope, family string) string { return fontNameIn(locales.For(cx), family) }
+
+// fontNameIn is fontName in the language of m.
+func fontNameIn(m locales.Messages, family string) string {
 	switch family {
 	case fontDefault:
-		return locales.FilmFontDefault(cx)
+		return m.FilmFontDefault()
 	case fontPingFang:
-		return locales.FilmFontPingFang(cx)
+		return m.FilmFontPingFang()
 	case fontHiragino:
-		return locales.FilmFontHiragino(cx)
+		return m.FilmFontHiragino()
 	case fontSans:
-		return locales.FilmFontSans(cx)
+		return m.FilmFontSans()
 	case fontSerif:
-		return locales.FilmFontSerif(cx)
+		return m.FilmFontSerif()
 	}
 	return family
 }
