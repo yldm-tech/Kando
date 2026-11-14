@@ -91,15 +91,19 @@ func (a *app) queueQuitOverlay(*core.Scope) core.Node {
 	}
 }
 
-// queueQuitModal closes the confirmation once no job runs any more, as there is nothing left to ask about, and gives back the window's modal flag once it has closed. It runs after every change of the app's state (areaHooks.afterChange).
-func (a *app) queueQuitModal() {
-	if a.queue.active == "" {
+// queueQuitModal closes the confirmation once no job runs any more, as there is nothing left to ask about, and gives back the window's modal flag once it has closed, and reports whether it did either. It runs after every change of the app's state (areaHooks.afterChange).
+func (a *app) queueQuitModal() bool {
+	changed := false
+	if a.queue.active == "" && a.queue.quitAsk {
 		a.queue.quitAsk = false
+		changed = true
 	}
 	if !a.queue.quitAsk && a.queue.quitRelease != nil {
 		a.queue.quitRelease()
 		a.queue.quitRelease = nil
+		changed = true
 	}
+	return changed
 }
 
 // queueQuit stops the running job as the app quits and waits for its pipeline to return, at most queueQuitWait, so yt-dlp, ffmpeg or whisper-cli are not left running. No job starts after it.

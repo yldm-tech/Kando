@@ -273,38 +273,40 @@ func llmModelsKey(t media.ChatTranslator) string {
 	return strings.TrimSpace(t.BaseURL) + "\n" + t.APIKey + "\n" + login
 }
 
-// loadLLMModels fetches the AI service's model list while Settings › AI 服务 shows, once per service, Base URL and key, and again on retry. It waits for typing in the Base URL or the key to pause.
-func (a *app) loadLLMModels() {
+// loadLLMModels fetches the AI service's model list while Settings › AI 服务 shows, once per service, Base URL and key, and again on retry. It waits for typing in the Base URL or the key to pause. It reports whether it changed the settings' state, as when it started a fetch.
+func (a *app) loadLLMModels() bool {
 	if !a.prefs.open || a.SettingsSection() != settings.SectionAI {
-		return
+		return false
 	}
-	a.fetchLLMModels(false)
+	return a.fetchLLMModels(false)
 }
 
-func (a *app) fetchLLMModels(force bool) {
+// fetchLLMModels starts fetching the model list, or waits for typing to pause first, and reports whether it changed the settings' state so.
+func (a *app) fetchLLMModels(force bool) bool {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok || a.prefs.listModels == nil || strings.TrimSpace(tools.Translator.BaseURL) == "" {
-		return
+		return false
 	}
 	key := llmModelsKey(tools.Translator)
 	if !force && key == a.prefs.llmModelsFor {
-		return
+		return false
 	}
 	if a.prefs.llmModelsLoading && key == a.prefs.llmModelsFor {
-		return
+		return false
 	}
 	if wait := llmTypingPause - time.Since(a.prefs.llmEdited); wait > 0 {
-		if !a.prefs.llmWaiting {
-			a.prefs.llmWaiting = true
-			update := a.update
-			time.AfterFunc(wait, func() {
-				update(func() {
-					a.prefs.llmWaiting = false
-					a.loadLLMModels()
-				})
-			})
+		if a.prefs.llmWaiting {
+			return false
 		}
-		return
+		a.prefs.llmWaiting = true
+		update := a.update
+		time.AfterFunc(wait, func() {
+			update(func() {
+				a.prefs.llmWaiting = false
+				a.loadLLMModels()
+			})
+		})
+		return true
 	}
 	a.prefs.llmModelsFor = key
 	a.prefs.llmModelsLoading = true
@@ -329,6 +331,7 @@ func (a *app) fetchLLMModels(force bool) {
 			a.adoptLLMModel()
 		})
 	}()
+	return true
 }
 
 // adoptLLMModel picks a model when none is chosen yet: the service's own default when it offers it, else the first it lists. A model already chosen is kept even when the list lacks it; the drop-down shows it on top.

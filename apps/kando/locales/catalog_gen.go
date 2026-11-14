@@ -439,7 +439,7 @@ var Parameters = map[string][]string{
 	"LibraryTrashFailed":                 {"name", "error_"},
 	"LibraryTrashed":                     {"name"},
 	"LibrarySortSaveFailed":              {"error_"},
-	"MenuOpenLinkFailed":                 {"url", "error_"},
+	"MenuOpenLinkFailed":                 {"url"},
 	"MenuRevealLibrary":                  {"platform"},
 	"OnboardingAIModel":                  {"model"},
 	"OnboardingAIModelUnchecked":         {"model"},
@@ -640,7 +640,7 @@ type Translation struct {
 	LibraryTrashFailed                 func(name string, error_ string) string
 	LibraryTrashed                     func(name string) string
 	LibrarySortSaveFailed              func(error_ string) string
-	MenuOpenLinkFailed                 func(url string, error_ string) string
+	MenuOpenLinkFailed                 func(url string) string
 	MenuRevealLibrary                  func(platform string) string
 	OnboardingAIModel                  func(model string) string
 	OnboardingAIModelUnchecked         func(model string) string
@@ -15887,34 +15887,32 @@ func MenuOpenLibrary(cx *core.Scope) string { return For(cx).MenuOpenLibrary() }
 // MenuOpenLibrary is the package's MenuOpenLibrary in the language of msgs.
 func (msgs Messages) MenuOpenLibrary() string { return msgs.text(textMenuOpenLibrary) }
 
-// MenuOpenLinkFailed says "Couldn't open {url}: {error}"
+// MenuOpenLinkFailed says "Couldn't open {url}: no app opened it."
 // in the language the app shows under cx.
 //
-// Message bar when a link of the Help menu, such as the website, could not be opened in the browser.
-func MenuOpenLinkFailed(cx *core.Scope, url string, error_ string) string {
-	return For(cx).MenuOpenLinkFailed(url, error_)
-}
+// Message bar when a link of the Help menu, such as the website, could not be opened in the browser because the system had no app for it.
+func MenuOpenLinkFailed(cx *core.Scope, url string) string { return For(cx).MenuOpenLinkFailed(url) }
 
 // MenuOpenLinkFailed is the package's MenuOpenLinkFailed in the language of msgs.
-func (msgs Messages) MenuOpenLinkFailed(url string, error_ string) string {
+func (msgs Messages) MenuOpenLinkFailed(url string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MenuOpenLinkFailed(url, error_))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.MenuOpenLinkFailed(url))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].MenuOpenLinkFailed; f != nil {
-			return f(url, error_)
+			return f(url)
 		}
 		switch lang {
 		case "", "en":
-			return "Couldn't open " + msgs.arg(url) + ": " + msgs.arg(error_)
+			return "Couldn't open " + msgs.arg(url) + ": no app opened it."
 		case "ja":
-			return url + " を開けませんでした：" + error_
+			return url + " を開けませんでした：開けるアプリがありません。"
 		case "ko":
-			return url + "을(를) 열 수 없습니다: " + error_
+			return url + "을(를) 열 수 없습니다: 열 수 있는 앱이 없습니다."
 		case "zh-Hans":
-			return "没能打开 " + url + "：" + error_
+			return "没能打开 " + url + "：没有应用能打开它。"
 		case "zh-Hant":
-			return "無法打開 " + url + "：" + error_
+			return "無法打開 " + url + "：沒有應用程式能打開它。"
 		}
 	}
 }

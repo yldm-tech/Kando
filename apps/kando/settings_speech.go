@@ -216,15 +216,19 @@ func (a *app) askTrashSpeechModel(id string) {
 	}
 }
 
-// speechModals gives back the modal flag the trash confirmation held once it has closed. The settings window calls it after each of its frames, and as it closes. The confirmation is drawn by the 语音识别 page, so it also closes when the window shows another section, as the main window can ask for (OpenSettings) while it is open; otherwise the flag would stay held with no confirmation on screen, and the menu bar would drop every command.
-func (a *app) speechModals() {
+// speechModals gives back the modal flag the trash confirmation held once it has closed, and reports whether it closed the confirmation or gave the flag back. It runs after every change (settingsHooks' afterChange), and as the settings close. The confirmation is drawn by the 语音识别 page, so it also closes when the window shows another section, as the main window can ask for (OpenSettings) while it is open; otherwise the flag would stay held with no confirmation on screen, and the menu bar would drop every command.
+func (a *app) speechModals() bool {
+	changed := false
 	if a.prefs.trashOpen && (!a.prefs.open || a.SettingsSection() != settings.SectionSpeech) {
 		a.prefs.trashOpen = false
+		changed = true
 	}
 	if !a.prefs.trashOpen && a.prefs.trashRelease != nil {
 		a.prefs.trashRelease()
 		a.prefs.trashRelease = nil
+		changed = true
 	}
+	return changed
 }
 
 // trashSpeechModel moves the file of the whisper catalog model id to the Trash, as the confirmation asks, and looks the models up again, so another copy, such as one another app keeps, shows in its place. It leaves alone a model Kando did not download and any while a download runs, and refuses the model in use, saying so under the models.

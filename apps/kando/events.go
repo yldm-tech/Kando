@@ -17,8 +17,8 @@ type areaHooks struct {
 	ready func()
 	// afterUpdate runs after each report of background work has run on the engine's goroutine (app.update). Only the app's own update (appUpdate) runs it; a test's update does not.
 	afterUpdate func()
-	// afterChange runs once the main view is built and again after every change of the app's state (live.State.Changed), once the bindings have followed it: where MyGo's areas brought something up to date after each frame, as giving back the modal flag of a dialog that closed. It may change the state, and says so with Changed only when it did, as it runs again after that.
-	afterChange func()
+	// afterChange runs once the main view is built and again after every change of the app's state (live.State.Changed), once the bindings have followed it: where MyGo's areas brought something up to date after each frame, as closing a dialog whose reason went away. It is no clock: it runs only after a change, never on its own while a film plays, so work that follows time uses core.Video's OnProgress or the app scope's AfterFunc instead. It may change what a binding or the menu bar reads, and then returns true, and only then: areasFollow lets everything follow and runs every afterChange again, so one that always returned true would never let the app settle. It runs under the main view's scope (areasFollow), so what it creates stays until the window goes; it creates no Effect, which would pile up with each run. A modal flag (holdModal) is given back by the handler that closes its dialog, not here, so the menu bar follows at once.
+	afterChange func() (changed bool)
 	// leavingLibrary runs before applyLibrary opens another library; libraryChanged runs when applyLibrary returns, on every path.
 	leavingLibrary func()
 	libraryChanged func()
@@ -105,19 +105,28 @@ func (a *app) areasAfterUpdate() {
 	}
 }
 
-func (a *app) areasAfterChange() {
+// areasAfterChange runs every area's afterChange and reports whether any changed the state.
+func (a *app) areasAfterChange() bool {
+	changed := false
 	for _, h := range a.areas() {
-		if h.afterChange != nil {
-			h.afterChange()
+		if h.afterChange != nil && h.afterChange() {
+			changed = true
 		}
 	}
+	return changed
 }
 
-// areasFollow runs the areas' afterChange once now and again after every change of the app's state, from cx, the main view's scope: an effect, which runs after the bindings, reading the revision and nothing else.
+// areasFollow runs the areas' afterChange once now and again after every change of the app's state, from cx, the main view's scope, and then brings the menu bar up to date (menuFollow): one effect, which runs after the bindings, so the menu bar is always built after the hooks, from the state they left. When a hook changed something, the effect says so and runs again before the menu bar is built. The hooks run under cx (core.Scope.Run), not under the effect, whose next run would dispose of what they created.
 func (a *app) areasFollow(cx *core.Scope) {
 	cx.Effect(func() {
 		a.Track()
-		cx.Untrack(a.areasAfterChange)
+		changed := false
+		cx.Run(func() { changed = a.areasAfterChange() })
+		if changed {
+			a.Changed()
+			return
+		}
+		a.menuFollow()
 	})
 }
 
@@ -263,7 +272,7 @@ func (a *app) requestQuit() {
 
 // quitHeard runs as the app quits however it does (core.Scope.OnQuit). A quit requestQuit let through has told the areas already; any other, as the Dock's Quit, the system's at a logout or the updater's relaunch, tells them now with SessionEnding set, as the app is ending and cannot ask.
 func (a *app) quitHeard(context.Context) {
-	// TODO(nsgo#86): hold back the Dock's Quit, the app menu's and the system's so a running job can ask first, as MyGo's OnBeforeQuit let the queue do; NSGo's OnQuit cannot keep the app running, so only ⌘Q and the menu bar's Quit, which are the app's own items, ask https://github.com/nsgo-dev/nsgo/issues/86
+	// TODO(nsgo#86): hold back the Dock's Quit, a logout, restart or shutdown and the updater's relaunch so a running job can ask first, as MyGo's OnBeforeQuit let the queue do; NSGo's OnQuit cannot keep the app running, so only ⌘Q and the app menu's Quit, which are the app's own items, ask https://github.com/nsgo-dev/nsgo/issues/86
 	if a.window.quitting {
 		return
 	}

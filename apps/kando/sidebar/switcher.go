@@ -38,8 +38,7 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 	})
 	// open is set while the menu shows, which keeps the pill pressed.
 	open := core.NewSignal(cx, false)
-	// place is the row around the pill, which base.Button takes no Ref for: the menu opens under the pill, at its leading edge, wherever it was pressed from, a key included.
-	// TODO(nsgo): give base.Button (and ui.Button) a Ref, so a menu anchors at the button itself rather than at a view around it
+	// place is the row around the pill, which base.Button takes no Ref for, so the row's frame gives the pill's: the menu opens under the pill, at its leading edge, wherever it was pressed from, a key included.
 	place := &core.Ref{}
 	press := func(core.PressEvent) {
 		at := core.Point{}

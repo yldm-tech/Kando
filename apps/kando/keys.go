@@ -22,7 +22,9 @@ type shortcut struct {
 	When func() bool
 	// Checked reports whether the menu bar shows a ✓ by the row, as by the screen the window shows now; nil means the row is a plain command.
 	Checked func() bool
-	Run     func()
+	// Repeat says the key runs the row again while it is held, as MyGo's shortcuts all did: the rows that step a value (seeking, the volume, the speed, the subtitle delay, the previous or next line) set it; a row that toggles something (Space, F, M) or opens something leaves it false, so holding the key does not flip it back and forth.
+	Repeat bool
+	Run    func()
 }
 
 // hasCommand reports whether key is held with ⌘, Ctrl on Windows and Linux: a row the menu bar carries as its item's shortcut.
@@ -81,7 +83,7 @@ func (a *app) appKeys(cx *core.Scope) []shortcut {
 	}
 }
 
-// wireKeys binds the table in the main window, under cx, the view's scope. A key binds only while its row's When holds, so a key no row takes now, such as Space with no film open, reaches the focused control as before; NSGo consumes the keys it binds. The bindings are made again only when the keys whose When holds change (active), not after every change of the app's state, and When is checked again when a key runs, as a row's state can change between the two. Once the app has its own menu bar, ⌘ shortcuts are the menu's (installMenu) and are not bound here, so a key does not run twice. Arrow keys fire again while held, as seeking and the volume step on; other keys fire once per press.
+// wireKeys binds the table in the main window, under cx, the view's scope. A key binds only while its row's When holds, so a key no row takes now, such as Space with no film open, reaches the focused control as before; NSGo consumes the keys it binds. The bindings are made again only when the keys whose When holds change (active), not after every change of the app's state, and When is checked again when a key runs, as a row's state can change between the two. Once the app has its own menu bar, ⌘ shortcuts are the menu's (installMenu) and are not bound here, so a key does not run twice. A key fires again while held when its row says so (shortcut.Repeat). Under NSGo's default (core.KeyAuto) a key named by more than one character, as escape, enter, space or an arrow, does not fire while a text field has the focus, and a key bound here is taken from the focused control: Space then runs the table's row, not a focused button.
 func (a *app) wireKeys(cx *core.Scope) core.Node {
 	active := live.Memo(cx, a, func() string {
 		var keys []string
@@ -101,7 +103,7 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 				continue
 			}
 			bound[s.Key] = true
-			cx.OnKeyWith(s.Key, core.KeyOptions{Repeat: arrowKey(s.Key)}, live.Do(a, a.keyRun(cx, s.Key)))
+			cx.OnKeyWith(s.Key, core.KeyOptions{Repeat: s.Repeat}, live.Do(a, a.keyRun(cx, s.Key)))
 		}
 		return nil
 	})
@@ -125,16 +127,6 @@ func (a *app) keyRun(cx *core.Scope, key string) func() {
 			}
 		}
 	}
-}
-
-// arrowKey reports whether key is an arrow, held or not with modifiers.
-func arrowKey(key string) bool {
-	parts := strings.Split(key, "+")
-	switch parts[len(parts)-1] {
-	case "left", "right", "up", "down":
-		return true
-	}
-	return false
 }
 
 // guarded is Run behind a fresh check of When.

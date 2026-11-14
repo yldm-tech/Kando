@@ -193,9 +193,25 @@ func TestSidebarListsTheSourcesWithCounts(t *testing.T) {
 		t.Fatalf("其他网站 is out of order in %q", texts)
 	}
 	// No settings rows: the settings open from the gear.
+	for _, page := range []string{pageGeneral, pageSpeech, pageAI, pageTranslate, pageAccount} {
+		if tt.Exists("id:source-" + page) {
+			t.Fatalf("settings row %q still in the sidebar", page)
+		}
+	}
+	var rows []string
+	var walk func(v *nsgotest.View)
+	walk = func(v *nsgotest.View) {
+		if v.Text != "" {
+			rows = append(rows, v.Text)
+		}
+		for _, c := range v.Children {
+			walk(c)
+		}
+	}
+	walk(tt.Find("id:sidebar-sources"))
 	for _, label := range []string{"通用", "语音识别", "AI 服务", "翻译", "账号"} {
-		if tt.Exists("id:source-" + label) {
-			t.Fatalf("settings row %q still in the sidebar", label)
+		if slices.Contains(rows, label) {
+			t.Fatalf("settings row %q still in the sidebar's list: %q", label, rows)
 		}
 	}
 }

@@ -166,7 +166,8 @@ func (a *app) watchLifecycle(app *core.Scope) {
 		}
 		was := active
 		active = now
-		core.Untracked(app, func() bool {
+		// The player and the areas hear about it under the app's scope (core.Scope.Run), not under the effect, whose next run would dispose of what they made.
+		app.Run(func() {
 			switch {
 			case now == core.LifecycleActive:
 				a.playerDidBecomeActive()
@@ -174,8 +175,7 @@ func (a *app) watchLifecycle(app *core.Scope) {
 			case was == core.LifecycleActive:
 				a.playerDidResignActive()
 			}
-			a.Changed()
-			return true
 		})
+		a.Changed()
 	})
 }

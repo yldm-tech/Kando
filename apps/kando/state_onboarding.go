@@ -116,7 +116,7 @@ func (a *app) onboardingHooks() areaHooks {
 			}
 		},
 		ready:       a.onboardingReady,
-		afterChange: a.onboardingAfterFrame,
+		afterChange: a.onboardingAfterChange,
 	}
 }
 
@@ -141,23 +141,29 @@ func noticeTip() films.Notice {
 	return films.Notice{Kind: "warning", Text: onboardingTip(), Open: true}
 }
 
-// onboardingAfterFrame holds the window's modal flag while the guide is open and gives it back once it has closed. While the guide's note is still to be read, it takes the message bar whenever nothing else is shown there, as after 已加入，开始处理。 is closed, and it is forgotten once its own × has closed it.
-func (a *app) onboardingAfterFrame() {
+// onboardingAfterChange holds the window's modal flag while the guide is open and gives it back once it has closed. While the guide's note is still to be read, it takes the message bar whenever nothing else is shown there, as after 已加入，开始处理。 is closed, and it is forgotten once its own × has closed it. It reports whether it changed any of that, which the menu bar and the message bar read.
+func (a *app) onboardingAfterChange() bool {
+	changed := false
 	switch {
 	case a.onb.step > 0 && a.onb.release == nil:
 		a.onb.release = a.holdModal()
+		changed = true
 	case a.onb.step == 0 && a.onb.release != nil:
 		a.onb.release()
 		a.onb.release = nil
+		changed = true
 	}
 	switch {
 	case !a.onb.tip || a.onb.step > 0 || a.lib.notice.Open:
 	case isOnboardingTip(a.lib.notice.Text):
 		a.onb.tip = false
 		a.onboardingSave()
+		changed = true
 	default:
 		a.lib.notice = noticeTip()
+		changed = true
 	}
+	return changed
 }
 
 // openOnboarding shows the guide from its first step with an empty link field, and looks up which speech models are on disk for its second step.

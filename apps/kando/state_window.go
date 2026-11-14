@@ -105,12 +105,14 @@ func (a *app) windowWatch() {
 	a.window.main = w
 	// TODO(nsgo#109): hear the main window's close button on Windows and Linux, so a running job asks before the app quits (queueBeforeQuit) as it does on macOS; NSGo's backends there close the window without asking OnClosing https://github.com/nsgo-dev/nsgo/issues/109
 	w.OnClosing(a.cx, live.On(a, a.windowClosing))
+	// The areas hear about it under the app's scope (core.Scope.Run), not under the effect, whose next run would dispose of what they made; the bindings and the menu bar that read whether the window is hidden follow when that changed.
 	a.cx.Effect(func() {
 		shown := w.Visible()
-		core.Untracked(a.cx, func() bool {
-			a.windowSight(shown || w == nil)
-			return true
-		})
+		changed := false
+		a.cx.Run(func() { changed = a.windowSight(shown || w == nil) })
+		if changed {
+			a.Changed()
+		}
 	})
 }
 
@@ -152,11 +154,12 @@ func (a *app) windowUnhide() {
 	}
 }
 
-// windowSight records whether the main window is in sight, and tells the areas that react to it (areaHooks.windowShown) when that changed.
-func (a *app) windowSight(shown bool) {
+// windowSight records whether the main window is in sight, and tells the areas that react to it (areaHooks.windowShown) when that changed, which it reports. Its callers in handlers are followed by Changed already (package live); windowWatch says so itself.
+func (a *app) windowSight(shown bool) bool {
 	if a.window.hidden == !shown {
-		return
+		return false
 	}
 	a.window.hidden = !shown
 	a.areasWindowShown(shown)
+	return true
 }

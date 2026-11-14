@@ -71,7 +71,9 @@ func (f footer) Render(cx *core.Scope) core.Node {
 	gear := ui.IconButton{Icon: svg(iconGear), LabelFunc: func() string { return locales.SidebarSettings(cx) }, Size: 26, Tint: ui.Fixed(footerText), TestID: "sidebar-settings",
 		OnPress: live.Do(a, func() { a.OpenSettings(a.Readiness().Section) })}
 	// The hairline is a ring outside the edge that takes no room, as the prototype's box-shadow.
+	// A group named 状态, as MyGo's labeled row was: assistive technology reads the name before the dot's and the message's.
 	return core.View{
+		Role:      core.RoleGroup,
 		LabelFunc: func() string { return locales.SidebarStatus(cx) },
 		Style: core.Style{Direction: core.Row, FlexShrink: 0, Margin: core.Edges{Top: 8, Right: insetEnd, Bottom: 8, Left: insetStart}, Padding: core.Symmetric(10, 12), Gap: 10,
 			AlignItems: core.AlignCenter, CornerRadius: 11, Background: footerFill, Shadows: []core.BoxShadow{{Spread: 0.5, Color: footerHairline}}},

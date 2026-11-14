@@ -19,11 +19,13 @@ import (
 // menuOrder is the order of the menu bar's menus. A shortcut's Group names the menu it is listed in, so the menu bar, the cheat sheet and wireKeys read the same table. A group not named here gets a menu of its own before 窗口.
 var menuOrder = []string{groupApp, groupFile, groupEdit, groupPlayback, groupSubtitles, groupView, groupStudy, groupWindow, groupHelp}
 
-// rememberFilm keeps the film the window shows, for 窗口 › 播放器 to go back to after the window went to another page. menuHooks.afterChange calls it after every change, once the pages have opened or closed a film.
-func (a *app) rememberFilm() {
-	if a.openKey != "" {
-		a.menu.lastFilm = a.openKey
+// rememberFilm keeps the film the window shows, for 窗口 › 播放器 to go back to after the window went to another page, and reports whether that changed the film kept. menuHooks.afterChange calls it after every change, once the pages have opened or closed a film, before the menu bar is built (areasFollow).
+func (a *app) rememberFilm() bool {
+	if a.openKey == "" || a.menu.lastFilm == a.openKey {
+		return false
 	}
+	a.menu.lastFilm = a.openKey
+	return true
 }
 
 // lastFilm is the film the window showed last, while it is still on the open library's shelf.
@@ -47,37 +49,42 @@ func (a *app) reopenFilm() {
 // appMenuBar says the app gets a menu bar of its own (installMenu): on macOS, where the menu bar belongs to the app. Commands that are items of the menu bar alone, such as 帮助 › 重新查看入门引导, need another way in where it is false. Tests set it to check the other platforms.
 var appMenuBar = runtime.GOOS == "darwin"
 
-// installMenu gives the app its own menu bar on macOS, where the menu bar belongs to the app, under app, the app's scope; run calls it once the main window is open. From then on the menu's shortcuts run the ⌘ rows and wireKeys leaves them alone. Linux and Windows put an app's menu bar inside each window, which would push the window's own title bar down, so there the window keeps binding every shortcut itself. The menu follows the app's state and its language: an effect builds it after every change, and syncMenu installs it when it shows something else.
+// installMenu gives the app its own menu bar on macOS, where the menu bar belongs to the app, under app, the app's scope; run calls it once the main window is open. From then on the menu's shortcuts run the ⌘ rows and wireKeys leaves them alone. Linux and Windows put an app's menu bar inside each window, which would push the window's own title bar down, so there the window keeps binding every shortcut itself. The menu follows the app's state and its language: areasFollow builds it again after every change, once the areas' afterChange have run (menuFollow), and syncMenu installs it when it shows something else.
 func (a *app) installMenu(app *core.Scope) {
 	if !appMenuBar {
 		return
 	}
 	a.menu.menuBar = true
-	// holder owns the installed menu's handlers, outside the effect, whose next run would otherwise take the menu away with them.
-	holder := app.Child()
-	app.Effect(func() {
-		a.Track()
-		items := a.menuBar(app)
-		app.Untrack(func() { a.syncMenu(holder, items) })
-	})
+	a.menu.cx = app
+	// holder owns the installed menus' handlers. It is the app scope's own child, whichever owner runs now, as Child adopts the scope into the owner running, not into its receiver.
+	app.Run(func() { a.menu.holder = app.Child() })
+	a.menuFollow()
 }
 
-// syncMenu installs items as the menu bar when they differ from the menu installed, so a change that alters none of it leaves the menu bar alone, even while one of its menus is open. Each menu is installed under a scope of its own in holder, and the one before goes once the new one is in: the items' handlers run under that scope, and the menu bar goes back to the platform's default when it goes. Both hops are posts, as code an effect runs owns what it makes.
-func (a *app) syncMenu(holder *core.Scope, items []nsdesktop.MenuItem) {
+// menuFollow builds the menu bar from the app's state now and installs it when it shows something else (syncMenu). It does nothing until installMenu ran. areasFollow calls it after the areas' afterChange, from its effect, which so follows the language and whatever else the menu reads.
+func (a *app) menuFollow() {
+	if a.menu.holder == nil {
+		return
+	}
+	items := a.menuBar(a.menu.cx)
+	a.menu.cx.Untrack(func() { a.syncMenu(items) })
+}
+
+// syncMenu installs items as the menu bar when they differ from the menu installed, so a change that alters none of it leaves the menu bar alone, even while one of its menus is open. Each menu is installed under a scope of its own in the holder installMenu made, and the one before goes once the new one is in: the items' handlers run under that scope, and the menu bar goes back to the platform's default when it goes. It runs under those scopes (core.Scope.Run), not under the effect that calls it, whose next run would take the menu away.
+func (a *app) syncMenu(items []nsdesktop.MenuItem) {
 	sig := menuSignature(items)
 	if sig == a.menu.menuSig {
 		return
 	}
 	a.menu.menuSig = sig
-	holder.Post(func() {
+	holder := a.menu.holder
+	holder.Run(func() {
 		next := holder.Child()
-		next.Post(func() {
-			nsdesktop.SetApplicationMenu(next, items)
-			if a.menu.installed != nil {
-				a.menu.installed.Dispose()
-			}
-			a.menu.installed = next
-		})
+		next.Run(func() { nsdesktop.SetApplicationMenu(next, items) })
+		if a.menu.installed != nil {
+			a.menu.installed.Dispose()
+		}
+		a.menu.installed = next
 	})
 	// TODO(nsgo): give the Dock icon a menu of the libraries, as File › 切换资料库 lists them (menuLibraries) and MyGo's App.Dock.SetMenu did; NSGo has no Dock or taskbar menu
 }

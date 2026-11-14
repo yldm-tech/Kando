@@ -1327,11 +1327,10 @@ menuOpenLibrary:
   message: "Open Library…"
   description: "File menu item that opens another library folder."
 menuOpenLinkFailed:
-  message: "Couldn't open {url}: {error}"
-  description: "Message bar when a link of the Help menu, such as the website, could not be opened in the browser."
+  message: "Couldn't open {url}: no app opened it."
+  description: "Message bar when a link of the Help menu, such as the website, could not be opened in the browser because the system had no app for it."
   placeholders:
     url: { type: "String", example: "https://kando.yldm.ai" }
-    error: { type: "String", example: "exit status 1" }
 menuPaste:
   message: "Paste"
   description: "Edit menu item, as macOS names it."

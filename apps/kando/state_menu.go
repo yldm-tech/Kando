@@ -1,8 +1,6 @@
 package main
 
 import (
-	"errors"
-
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -14,6 +12,9 @@ import (
 type menuUI struct {
 	// menuBar is set once the app installs its own menu bar. From then on the menu's shortcuts run the ⌘ rows and wireKeys leaves them alone, so a shortcut does not run twice.
 	menuBar bool
+	// cx is the app's scope the menu bar is built under, and holder the scope installMenu made in it for the menus syncMenu installs; both nil until installMenu ran.
+	cx     *core.Scope
+	holder *core.Scope
 	// menuSig describes the menu bar installed last (menuSignature), so syncMenu installs a new one only when it would show something else; installed is the scope its handlers run under, which goes when the next one is in.
 	menuSig   string
 	installed *core.Scope
@@ -28,7 +29,7 @@ type savedMenu struct{}
 
 func (s *savedMenu) clean() {}
 
-// menuHooks: after every change the menu bar remembers the film the window shows (menu.go); the menu bar itself follows the app's state on its own (installMenu), from run.
+// menuHooks: after every change the menu bar remembers the film the window shows (menu.go); areasFollow then builds the menu bar itself again (menuFollow), once installMenu ran from run.
 func (a *app) menuHooks() areaHooks {
 	return areaHooks{afterChange: a.rememberFilm}
 }
@@ -54,9 +55,6 @@ const menuReleasesURL = "https://github.com/yldm-tech/Kando/releases/tag/"
 // menuReleaseNotesURL is the release of the version running now, whose notes say what it changed.
 func menuReleaseNotesURL() string { return menuReleasesURL + "v" + appVersion }
 
-// errLinkNotOpened is why a link of the Help menu did not open: the system had no app for it.
-var errLinkNotOpened = errors.New("no app opened it")
-
 // menuOpenLink opens url in the user's browser, and says in the library's message bar when the system could not, and on the picture too while a film is open, as the message bar shows only on the library page. The answer comes back on the engine's goroutine, so it tells the revision itself.
 func (a *app) menuOpenLink(url string) {
 	if a.cx == nil {
@@ -66,7 +64,7 @@ func (a *app) menuOpenLink(url string) {
 		if opened {
 			return
 		}
-		msg := a.messages().MenuOpenLinkFailed(url, errLinkNotOpened.Error())
+		msg := a.messages().MenuOpenLinkFailed(url)
 		a.warn(msg, "")
 		if a.openKey != "" {
 			a.flash(msg)

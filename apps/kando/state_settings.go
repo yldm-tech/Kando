@@ -154,25 +154,26 @@ func (a *app) settingsHooks() areaHooks {
 				a.everyAPIForgetOpen()
 			}
 		},
-		afterChange: func() {
-			a.followSettingsPage()
-			a.speechModals()
-			a.loadLLMModels()
+		afterChange: func() bool {
+			page := a.followSettingsPage()
+			modals := a.speechModals()
+			models := a.loadLLMModels()
+			return page || modals || models
 		},
 	}
 }
 
-// followSettingsPage opens the settings window at the settings page chosen in the main window's sidebar, whose 设置 rows stay until the sidebar drops them (P1-1), and puts the main window back on 全部影片, which no longer draws the settings.
-func (a *app) followSettingsPage() {
+// followSettingsPage opens the settings window at the settings page chosen in the main window's sidebar, whose 设置 rows stay until the sidebar drops them (P1-1), and puts the main window back on 全部影片, which no longer draws the settings. It reports whether it did.
+func (a *app) followSettingsPage() bool {
 	switch a.page {
 	case pageGeneral, pageSpeech, pageAI, pageTranslate, pageAccount:
 	default:
-		return
+		return false
 	}
 	section := a.page
 	a.Select(pageFilms)
 	a.OpenSettings(section)
-	a.Changed()
+	return true
 }
 
 // settingsKeys are the settings' shortcuts.
