@@ -1,9 +1,11 @@
-// Package browse draws the built-in browser (浏览): a toolbar with back, forward, reload, home, the address field and 下载视频, the message bar under it, and the web page, or the page's start before a web page is open. The web view, its page and what they do belong to the app (state_browse.go); this package only draws them and hands the clicks back.
+// Package browse draws the built-in browser (浏览): a toolbar with back, forward, reload, home, the address field and 下载视频, the message bar under it, and the web page, or the page's start before a web page is open. The page's address, its state and what the buttons do belong to the app (state_browse.go); this package draws them, shows the page in NSGo's web view and hands the clicks and the page's reports back.
 package browse
 
 import (
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
+	"kando/apps/kando/live"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // State is what the toolbar and the page show of the browser.
@@ -14,8 +16,9 @@ type State struct {
 	Loading      bool
 	CanGoBack    bool
 	CanGoForward bool
-	// Clearing is set while the pages' sign-ins are being cleared.
-	Clearing bool
+	// Clearable is set when the pages' sign-ins can be cleared at all (清除登录信息…), and Clearing while they are being cleared.
+	Clearable bool
+	Clearing  bool
 }
 
 // Notice is the message bar under the toolbar: Kind is "warning" or "success", Section the settings section that fixes what it says ("" when none does), and Open whether it shows.
@@ -26,16 +29,26 @@ type Notice struct {
 	Open    bool
 }
 
-// App is the browser's state the page reads, and where its clicks go.
+// App is the browser's state the page reads, and where its clicks and the web page's reports go. The page reads it inside its bindings through live.Func and calls its actions through live.Do and live.On, so what they change shows at once (package live).
 type App interface {
+	live.State
 	BrowseState() State
-	// BrowseWebView is the web view showing the page, nil until it is made.
-	BrowseWebView() *mygo.WebView
+	// BrowseSource is the address the web view loads, "" until a web page is first asked for: the web view is made then, and loads its page again only when the source changes.
+	BrowseSource() string
+	// BrowseWeb is the web view's Ref, which the app drives the page through: back, forward, reload, stop and the scripts it runs in the page.
+	BrowseWeb() *core.Ref
+	// BrowseUserAgent is the pages' user agent, "" for the platform's own; BrowseScript runs in each page before the page's own scripts.
+	BrowseUserAgent() string
+	BrowseScript() string
+	// BrowseNavigated hears the page's address and history as it starts loading, finishes and navigates, BrowseFailed a page that failed to load or a navigation the web view refused, and BrowseMessage what a page posted to window.nsgo.
+	BrowseNavigated(nav core.WebNavigation)
+	BrowseFailed(err error)
+	BrowseMessage(data string)
 	// BrowseAddress is the address field's text.
 	BrowseAddress() *string
 	// BrowseAddressFocus asks for the keyboard in the address field; the page gives it and clears the request.
 	BrowseAddressFocus() *bool
-	// BrowseAddressFocused reports, each frame, whether the address field has the keyboard.
+	// BrowseAddressFocused hears whether the address field has the keyboard, as it takes and loses it.
 	BrowseAddressFocused(focused bool)
 	// BrowseGo opens what the address field holds: a web address, or a search for it.
 	BrowseGo()
@@ -48,29 +61,37 @@ type App interface {
 	// BrowseDownload adds the page shown to the library's queue.
 	BrowseDownload()
 	BrowseNotice() *Notice
-	// BrowseClearOpen is the 清除登录信息 confirmation's open flag; BrowseAskClear opens it and BrowseClear clears once it is confirmed.
-	BrowseClearOpen() *bool
+	// BrowseClearOpen reports whether the 清除登录信息 confirmation is open; BrowseAskClear opens it, BrowseClear clears once it is confirmed and BrowseCancelClear closes it without clearing.
+	BrowseClearOpen() bool
 	BrowseAskClear()
 	BrowseClear()
+	BrowseCancelClear()
 	// OpenSettings shows the settings at section, as the message bar's 打开设置 asks.
 	OpenSettings(section string)
 }
 
-// Show draws the browser across the content column: the toolbar along its top, the message bar, then the web page, or the start before a page is open, and the confirmation of 清除登录信息 over them.
-func Show(c *ui.Context, t *ui.Theme, a App) {
-	s := a.BrowseState()
-	ui.Column(c).Grow(1).MinWidth(0).MinHeight(0).AlignItems(ui.Stretch).Background(t.Background).Children(func() {
-		toolbar(c, t, a, s)
-		notice(c, a)
-		switch view := a.BrowseWebView(); {
-		case !s.Page:
-			start(c, a, s)
-		case view != nil:
-			ui.WebView(c, view).Grow(1).MinHeight(0)
-		default:
-			// The web view is made after this frame (state_browse.go); the page's room stays blank until then.
-			ui.Column(c).Grow(1).MinHeight(0)
-		}
-	})
-	clearDialog(c, a)
+// View is the browser across the content column: the toolbar along its top, the message bar, then the web page, or the start before a page is open, and the confirmation of 清除登录信息 over them.
+type View struct {
+	App App
+}
+
+// Render implements core.Node.
+func (v View) Render(cx *core.Scope) core.Node {
+	a := v.App
+	colors := ui.ColorsOf(cx)
+	state := live.Memo(cx, a, a.BrowseState)
+	// The web view is made once a page is first asked for and stays while the browser does, hidden behind the start after home, so back finds the pages before it.
+	body := core.View{
+		Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		Children: []core.Node{
+			core.Show{When: live.Func(a, func() bool { return a.BrowseSource() != "" }), Then: func(*core.Scope) core.Node { return page{a} }},
+			core.Show{When: func() bool { return !state().Page }, Then: func(*core.Scope) core.Node { return start{a} }},
+		},
+	}
+	return core.View{
+		TestID:    "browse",
+		Style:     core.Style{FlexGrow: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		StyleFunc: ui.Filled(colors.Background),
+		Children:  []core.Node{toolbar{a}, notice{a}, body, clearDialog{a}},
+	}
 }

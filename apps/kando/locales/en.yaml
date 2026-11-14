@@ -200,6 +200,9 @@ browseLoadFailed:
   description: "Message bar of the Browse page when a web page failed to load; error is the web engine's reason."
   placeholders:
     error: { type: "String", example: "A server with the specified hostname could not be found." }
+browseNoticeClose:
+  message: "Close Message"
+  description: "Accessible name of the close button at the end of the Browse page's message bar."
 browseOpenLocation:
   message: "Open Location…"
   description: "Menu item and shortcut row (⌘L) that puts the keyboard in the Browse page's address field."
@@ -3184,6 +3187,9 @@ sitesNotFound:
 sitesNotFoundHint:
   message: "You can still try pasting a link from a site that isn't listed: yt-dlp finds standard videos on many web pages, and downloads links that point straight to a video file or an m3u8 playlist."
   description: "What may still work when the search finds no website."
+sitesSearchClear:
+  message: "Clear Search"
+  description: "Accessible name of the button at the end of the Supported Websites sheet's search field that empties it."
 sitesSearchLabel:
   message: "Search websites"
   description: "Accessible name of the sheet's search field."
