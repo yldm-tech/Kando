@@ -1,4 +1,4 @@
-// Package nowplaying is what Kando tells the system of the film it plays, where the system shows what plays: Now Playing in Control Center and the menu bar on macOS, the media controls of Windows and the MPRIS clients of Linux, and the commands the media keys and those controls send back. The player speaks only these types; System is the one place that knows MyGo's Now Playing API.
+// Package nowplaying is what Kando tells the system of the film it plays, where the system shows what plays: Now Playing in Control Center and the menu bar on macOS, the media controls of Windows and the MPRIS clients of Linux, and the commands the media keys and those controls send back. The player speaks only these types. System is where they reach the system under NSGo, which has no Now Playing API yet (system.go); SystemMyGo passes them to MyGo's while the player still runs on MyGo (system_mygo.go).
 package nowplaying
 
 import "time"

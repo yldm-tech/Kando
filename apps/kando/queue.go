@@ -92,7 +92,7 @@ func (a *app) queueHooks() areaHooks {
 		save:    a.saveQueue,
 		restore: a.restoreQueue,
 		ready: func() {
-			a.queue.keepAwake = desktop.KeepAwake
+			a.queue.keepAwake = desktop.KeepAwakeMyGo
 			a.queueDesktopReady()
 			a.pump()
 			a.queueKeepAwake()

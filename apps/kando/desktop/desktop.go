@@ -1,18 +1,42 @@
-// Package desktop opens URLs, reveals and trashes files, and keeps the computer awake for Kando, through MyGo's Shell and Power. Notifications, the Dock badge and the progress bar are not here: they stay with the queue in queue_desktop.go.
+// Package desktop opens URLs, reveals and trashes files, and keeps the computer awake for Kando. Notifications, the Dock badge and the progress bar are not here: they stay with the queue in queue_desktop.go. Each function takes the scope of the component or handler that calls it and runs on the engine's goroutine, as NSGo's services do; the functions ending in MyGo (mygo.go) do the same for the root package while it still runs on MyGo.
 package desktop
 
-import "github.com/egoist/mygo"
+import (
+	"errors"
+	"fmt"
+	"path/filepath"
 
-// OpenURL opens url with the system's default app for it: a web page in the browser, or a pane of System Settings for an x-apple.systempreferences: URL.
-func OpenURL(url string) error { return mygo.Shell.OpenExternal(url) }
+	"github.com/nsgo-dev/nsgo/core"
+)
 
-// Reveal shows path selected in the file manager: Finder selecting the item on macOS, File Explorer selecting it on Windows, and on Linux the file manager's org.freedesktop.FileManager1 ShowItems, which selects it too, falling back to opening its folder when no file manager answers. It reports no failure, as each system's reveal either shows the item or falls back on its own.
-func Reveal(path string) { mygo.Shell.ShowItemInFolder(path) }
+// OpenURL opens url with the system's default app for it: a web page in the browser, or a pane of System Settings for an x-apple.systempreferences: URL. done, when not nil, learns whether it opened: false for a URL NSGo refuses to open (core.CheckURL) and for one no app handles.
+func OpenURL(cx *core.Scope, url string, done func(opened bool)) { cx.OpenURL(url, done) }
 
-// Trash moves a file or a folder to the Trash, the Recycle Bin on Windows. It fails, and leaves the item where it is, when the item cannot go there and would be deleted for good instead, as on a network share on Windows.
-func Trash(path string) error { return mygo.Shell.TrashItem(path) }
+// errFolderNotOpened is Reveal's error when the system opened no file manager for the folder.
+var errFolderNotOpened = errors.New("no app opened the folder")
 
-// KeepAwake keeps the computer from sleeping, and with display set the display from turning off too, until release is called; calling release again does nothing. The reason shows where the system lists what keeps it awake. It needs the running app, so tests must not call it.
-func KeepAwake(reason string, display bool) (release func()) {
-	return mygo.Power.KeepAwake(reason, display)
+// Reveal shows path in the file manager by opening the folder that holds it. done, when not nil, learns why that failed, or nil once the folder is open.
+func Reveal(cx *core.Scope, path string, done func(err error)) {
+	// TODO(nsgo#117): select path in Finder, File Explorer or the FileManager1 file manager rather than only opening its folder https://github.com/nsgo-dev/nsgo/issues/117
+	cx.OpenFile(core.SharedFile{Path: filepath.Dir(path)}, func(opened bool, err error) {
+		if done == nil {
+			return
+		}
+		if err == nil && !opened {
+			err = errFolderNotOpened
+		}
+		done(err)
+	})
+}
+
+// Trash would move a file or a folder to the Trash, the Recycle Bin on Windows. NSGo cannot do that yet, so it fails with an error wrapping errors.ErrUnsupported and leaves the item where it is: it never deletes for good.
+func Trash(cx *core.Scope, path string) error {
+	// TODO(nsgo#117): move path to the Trash or the Recycle Bin, failing and leaving it where it is when it would be deleted for good, as on a network share on Windows https://github.com/nsgo-dev/nsgo/issues/117
+	return fmt.Errorf("moving %s to the Trash: %w", filepath.Base(path), errors.ErrUnsupported)
+}
+
+// KeepAwake would keep the computer from sleeping, and with display set the display from turning off too, until release is called; calling release again does nothing. The reason is what the system would list as keeping it awake. NSGo cannot hold the computer awake yet, so the computer may sleep while a job runs or a film plays.
+func KeepAwake(cx *core.Scope, reason string, display bool) (release func()) {
+	// TODO(nsgo#115): hold a power assertion for reason (the display too when display is set) until release, as IOPMAssertion, SetThreadExecutionState and the login1 or ScreenSaver inhibitors do https://github.com/nsgo-dev/nsgo/issues/115
+	return func() {}
 }

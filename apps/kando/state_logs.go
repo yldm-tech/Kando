@@ -27,7 +27,7 @@ func newLogsUI() logsUI { return logsUI{} }
 var logsDir = func() (string, error) { return mygo.App.Path(mygo.PathLogs) }
 
 // logsReveal shows a file in Finder or the file manager. Tests replace it.
-var logsReveal = desktop.Reveal
+var logsReveal = desktop.RevealMyGo
 
 // logsHooks: the log file opens once the window is ready, which is only in main, so a test's app does not write the user's log; its area runs first, so what the other areas log as they get ready reaches the file. At quitting it only says so and stays open: its area also runs first there, and what the other areas log as they stop, such as remote's control socket, must reach the file too; the process's exit closes it, and nothing is buffered. Each time the shelf changes, a job that has just failed is logged with the stage it failed in and its whole error; the jobs the shelf was read with are only looked at, as they failed in an earlier run.
 func (a *app) logsHooks() areaHooks {

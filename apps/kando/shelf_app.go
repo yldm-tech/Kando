@@ -799,10 +799,10 @@ func shelfSaveErr(err error, failed func(error string) string) string {
 // revealInFolder shows path in the system file manager. Tests replace it.
 var revealInFolder = revealPath
 
-// showItemInFolder shows path selected in the file manager (desktop.Reveal). Tests replace it.
-var showItemInFolder = desktop.Reveal
+// showItemInFolder shows path selected in the file manager (desktop.RevealMyGo). Tests replace it.
+var showItemInFolder = desktop.RevealMyGo
 
-// revealPath shows path selected in the system file manager. desktop.Reveal reports no failure (each system's reveal either shows the item or falls back on its own), so it returns nil; reveal has already checked that path is there.
+// revealPath shows path selected in the system file manager. desktop.RevealMyGo reports no failure (each system's reveal either shows the item or falls back on its own), so it returns nil; reveal has already checked that path is there.
 func revealPath(path string) error {
 	showItemInFolder(path)
 	return nil

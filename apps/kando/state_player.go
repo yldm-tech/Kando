@@ -371,7 +371,7 @@ func (a *app) playerHooks() areaHooks {
 func (a *app) playerReady() {
 	a.player.screen = a.win
 	a.playerAwakeReady()
-	a.playerNowPlayingConnect(nowplaying.System())
+	a.playerNowPlayingConnect(nowplaying.SystemMyGo())
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.

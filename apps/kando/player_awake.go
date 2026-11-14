@@ -5,9 +5,9 @@ import (
 	"kando/apps/kando/locales"
 )
 
-// playerAwakeReady gives the player desktop.KeepAwake and has it let the display sleep while the window is minimized or hidden, where only the film's sound plays on, and keep it awake again once the window is back. playerReady runs it once the main window exists.
+// playerAwakeReady gives the player desktop.KeepAwakeMyGo and has it let the display sleep while the window is minimized or hidden, where only the film's sound plays on, and keep it awake again once the window is back. playerReady runs it once the main window exists.
 func (a *app) playerAwakeReady() {
-	a.player.keepAwake = desktop.KeepAwake
+	a.player.keepAwake = desktop.KeepAwakeMyGo
 	a.win.OnMinimize(func() { a.playerWindowAway(true) })
 	a.win.OnRestore(func() { a.playerWindowAway(false) })
 	a.win.OnHide(func() { a.playerWindowAway(true) })
