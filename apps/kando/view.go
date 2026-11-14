@@ -104,7 +104,7 @@ func (a *app) mainColumn(cx *core.Scope) core.Node {
 			}
 		}),
 		Children: []core.Node{core.Show{
-			When: live.Memo(cx, a, func() bool { return a.page == pageBrowse }),
+			When: live.Func(a, func() bool { return a.page == pageBrowse }),
 			Then: a.browseColumn,
 			Else: a.libraryColumn,
 		}},
