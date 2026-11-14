@@ -33,6 +33,8 @@ type GoogleConfig struct {
 	TokenURL     string
 	UserInfoURL  string
 	Open         func(string) error
+	// Language is the interface's language, a tag of locales.Interface: the page the browser lands on once Google signed the user in says so in it. It is read on the server's goroutine, so it is a tag rather than a scope.
+	Language string
 }
 
 // Account is what we keep after a login. The access token is not stored.
@@ -118,7 +120,8 @@ func Login(ctx context.Context, cfg GoogleConfig) (Account, error) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = io.WriteString(w, "<!doctype html><meta charset=utf-8><title>"+html.EscapeString(locales.CloudSignedInTitle())+"</title><p>"+html.EscapeString(locales.CloudSignedIn())+"</p>")
+		msgs := locales.In(cfg.Language)
+		_, _ = io.WriteString(w, "<!doctype html><meta charset=utf-8><title>"+html.EscapeString(msgs.CloudSignedInTitle())+"</title><p>"+html.EscapeString(msgs.CloudSignedIn())+"</p>")
 		select {
 		case ch <- result{code: code}:
 		default:
