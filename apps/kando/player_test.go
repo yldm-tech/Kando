@@ -15,11 +15,11 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/nowplaying"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
@@ -2094,31 +2094,31 @@ func TestPlayerNamesTheSystemsFileManager(t *testing.T) {
 	}
 }
 
-// nowPlayingRecorder stands in for mygo.NowPlaying: it keeps what the player shows the system, in order, and sends commands as the media keys and the system's controls would.
+// nowPlayingRecorder stands in for the system's center (nowplaying.System): it keeps what the player shows the system, in order, and sends commands as the media keys and the system's controls would.
 type nowPlayingRecorder struct {
 	events  []nowPlayingEvent
-	command func(mygo.MediaCommand, time.Duration)
+	command func(nowplaying.Command, time.Duration)
 }
 
 // nowPlayingEvent is one call the player made: "set" with info, "playback" with state and at, or "clear".
 type nowPlayingEvent struct {
 	kind  string
-	info  mygo.NowPlayingInfo
-	state mygo.PlaybackState
+	info  nowplaying.Info
+	state nowplaying.State
 	at    time.Duration
 }
 
-func (r *nowPlayingRecorder) Set(info mygo.NowPlayingInfo) {
+func (r *nowPlayingRecorder) Set(info nowplaying.Info) {
 	r.events = append(r.events, nowPlayingEvent{kind: "set", info: info, state: info.State, at: info.Position})
 }
 
-func (r *nowPlayingRecorder) SetPlayback(state mygo.PlaybackState, at time.Duration) {
+func (r *nowPlayingRecorder) SetPlayback(state nowplaying.State, at time.Duration) {
 	r.events = append(r.events, nowPlayingEvent{kind: "playback", state: state, at: at})
 }
 
 func (r *nowPlayingRecorder) Clear() { r.events = append(r.events, nowPlayingEvent{kind: "clear"}) }
 
-func (r *nowPlayingRecorder) OnCommand(fn func(mygo.MediaCommand, time.Duration)) func() {
+func (r *nowPlayingRecorder) OnCommand(fn func(nowplaying.Command, time.Duration)) func() {
 	r.command = fn
 	return func() { r.command = nil }
 }
@@ -2165,17 +2165,17 @@ func TestNowPlayingFollowsTheOpenFilm(t *testing.T) {
 	waitUntil(t, updates, func() bool { return a.player.play != nil })
 	tt.Frame()
 	shown := rec.last(t)
-	if shown.kind != "set" || shown.info.Title != "Spring Clip" || shown.info.Duration <= 4*time.Second || shown.info.State != mygo.PlaybackPaused || shown.info.Position >= time.Second || shown.info.Commands != mygo.MediaPlay|mygo.MediaPause|mygo.MediaSeek {
+	if shown.kind != "set" || shown.info.Title != "Spring Clip" || shown.info.Duration <= 4*time.Second || shown.info.State != nowplaying.Paused || shown.info.Position >= time.Second || shown.info.Commands != nowplaying.Play|nowplaying.Pause|nowplaying.Seek {
 		t.Fatalf("opening showed %+v", shown)
 	}
 
 	tt.Key(0, ui.KeySpace)
 	tt.Frame()
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Playing {
 		t.Fatalf("Space told the system %+v", e)
 	}
 
-	press := func(cmd mygo.MediaCommand, at time.Duration) {
+	press := func(cmd nowplaying.Command, at time.Duration) {
 		t.Helper()
 		if rec.command == nil {
 			t.Fatal("the player listens to no media key")
@@ -2185,31 +2185,31 @@ func TestNowPlayingFollowsTheOpenFilm(t *testing.T) {
 		waitUntil(t, updates, func() bool { return len(rec.events) > before })
 		tt.Frame()
 	}
-	press(mygo.MediaPause, time.Second)
+	press(nowplaying.Pause, time.Second)
 	if a.player.play.Playing() {
 		t.Fatal("the pause key did not pause the film")
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Paused {
 		t.Fatalf("pausing told the system %+v", e)
 	}
-	press(mygo.MediaPause, time.Second)
+	press(nowplaying.Pause, time.Second)
 	if a.player.play.Playing() {
 		t.Fatal("a second pause played the film")
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Paused {
 		t.Fatalf("a second pause told the system %+v", e)
 	}
-	press(mygo.MediaPlay, time.Second)
+	press(nowplaying.Play, time.Second)
 	if !a.player.play.Playing() {
 		t.Fatal("the play key did not play the film")
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Playing {
 		t.Fatalf("playing told the system %+v", e)
 	}
 
 	sets := rec.count("set")
-	press(mygo.MediaSeek, 3*time.Second)
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at != 3*time.Second {
+	press(nowplaying.Seek, 3*time.Second)
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Playing || e.at != 3*time.Second {
 		t.Fatalf("the scrubber told the system %+v", e)
 	}
 	waitUntil(t, updates, func() bool { return a.player.play != nil })
@@ -2220,7 +2220,7 @@ func TestNowPlayingFollowsTheOpenFilm(t *testing.T) {
 	if rec.count("clear") != 0 || rec.count("set") != sets {
 		t.Fatalf("the seek took the film off or showed it again: %+v", rec.events)
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at < 3*time.Second {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Playing || e.at < 3*time.Second {
 		t.Fatalf("the reopened picture told the system %+v", e)
 	}
 
@@ -2248,23 +2248,23 @@ func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
 	a.player.play = nil
 	a.playReplace(p)
 	shown := rec.last(t)
-	if shown.kind != "set" || shown.info.Title != "clip" || shown.info.Artwork != nil || shown.info.State != mygo.PlaybackPlaying || shown.info.Position != 3*time.Second || shown.info.Duration != 10*time.Second {
+	if shown.kind != "set" || shown.info.Title != "clip" || shown.info.Artwork != nil || shown.info.State != nowplaying.Playing || shown.info.Position != 3*time.Second || shown.info.Duration != 10*time.Second {
 		t.Fatalf("opening showed %+v", shown)
 	}
 	waitUntil(t, updates, func() bool { return rec.count("set") == 2 })
-	if e := rec.last(t); string(e.info.Artwork) != string(poster) || e.info.Title != "clip" || e.info.State != mygo.PlaybackPlaying {
+	if e := rec.last(t); string(e.info.Artwork) != string(poster) || e.info.Title != "clip" || e.info.State != nowplaying.Playing {
 		t.Fatalf("the poster showed as %+v", e)
 	}
 
 	p.finish()
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || e.at != 10*time.Second {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Paused || e.at != 10*time.Second {
 		t.Fatalf("the end told the system %+v", e)
 	}
-	a.playerMediaCommand(mygo.MediaPlay, 10*time.Second)
+	a.playerMediaCommand(nowplaying.Play, 10*time.Second)
 	if p.finished || !p.Playing() {
 		t.Fatal("the play key did not start the film over")
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying || e.at != 0 {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Playing || e.at != 0 {
 		t.Fatalf("starting over told the system %+v", e)
 	}
 
@@ -2273,14 +2273,14 @@ func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
 		t.Fatalf("another video opening left the system %+v", e)
 	}
 	before := len(rec.events)
-	a.playerMediaCommand(mygo.MediaPause, 0)
-	a.playerMediaCommand(mygo.MediaSeek, time.Second)
+	a.playerMediaCommand(nowplaying.Pause, 0)
+	a.playerMediaCommand(nowplaying.Seek, time.Second)
 	if len(rec.events) != before || a.player.play != nil {
 		t.Fatalf("a media key with no film open did %+v", rec.events[before:])
 	}
 }
 
-// showClipNowPlaying connects a recorder in place of mygo.NowPlaying and shows the clip open in a there, as opening it would have.
+// showClipNowPlaying connects a recorder in place of the system's center and shows the clip open in a there, as opening it would have.
 func showClipNowPlaying(a *app) *nowPlayingRecorder {
 	rec := &nowPlayingRecorder{}
 	a.playerNowPlayingConnect(rec)
@@ -2299,12 +2299,12 @@ func TestMediaKeysBehindTheWindowKeepPictureAndSoundLevel(t *testing.T) {
 	a.playerDidResignActive()
 	// Two seconds out of sight: the picture stood still while the sound played on.
 	p.backgroundAt = p.backgroundAt.Add(-2 * time.Second)
-	a.playerMediaCommand(mygo.MediaPause, 0)
+	a.playerMediaCommand(nowplaying.Pause, 0)
 	if p.Playing() || !p.paused || !p.backgroundAt.IsZero() || p.background != nil {
 		t.Fatalf("paused in the background: playing %v paused %v, sound clock at %v, follower %v", p.Playing(), p.paused, p.backgroundAt, p.background != nil)
 	}
 	stopped := rec.last(t)
-	if stopped.kind != "playback" || stopped.state != mygo.PlaybackPaused || stopped.at < 2*time.Second {
+	if stopped.kind != "playback" || stopped.state != nowplaying.Paused || stopped.at < 2*time.Second {
 		t.Fatalf("the pause told the system %+v, with the sound past 2s", stopped)
 	}
 	waitUntil(t, updates, func() bool { return a.player.play != nil })
@@ -2316,18 +2316,18 @@ func TestMediaKeysBehindTheWindowKeepPictureAndSoundLevel(t *testing.T) {
 	if at := held.playhead(); at < stopped.at-100*time.Millisecond || at > stopped.at+200*time.Millisecond {
 		t.Fatalf("the picture opened again at %v, the sound stopped at %v", at, stopped.at)
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || rec.count("clear") != 0 {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Paused || rec.count("clear") != 0 {
 		t.Fatalf("opening the picture again told the system %+v", rec.events)
 	}
 
-	a.playerMediaCommand(mygo.MediaPlay, 0)
+	a.playerMediaCommand(nowplaying.Play, 0)
 	if !held.Playing() || held.backgroundAt.IsZero() || held.background == nil {
 		t.Fatalf("played in the background: playing %v, sound clock at %v, follower %v", held.Playing(), held.backgroundAt, held.background != nil)
 	}
 	if d := held.backgroundHead - held.playhead(); d < -100*time.Millisecond || d > 100*time.Millisecond {
 		t.Fatalf("the sound clock starts at %v, the picture at %v", held.backgroundHead, held.playhead())
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPlaying {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Playing {
 		t.Fatalf("playing told the system %+v", e)
 	}
 
@@ -2350,7 +2350,7 @@ func TestSeekBehindTheWindowFollowsTheSound(t *testing.T) {
 	showClipNowPlaying(a)
 	a.player.play.toggle()
 	a.playerDidResignActive()
-	a.playerMediaCommand(mygo.MediaSeek, 6*time.Second)
+	a.playerMediaCommand(nowplaying.Seek, 6*time.Second)
 	waitUntil(t, updates, func() bool { return a.player.play != nil })
 	next := a.player.play
 	if !next.Playing() || next.backgroundAt.IsZero() || next.backgroundHead < 6*time.Second || next.background == nil {
@@ -2373,12 +2373,12 @@ func TestPauseKeyWhileASeekOpens(t *testing.T) {
 	a, _, updates := openClip(t, 12)
 	rec := showClipNowPlaying(a)
 	a.player.play.toggle()
-	a.playerMediaCommand(mygo.MediaSeek, 4*time.Second)
+	a.playerMediaCommand(nowplaying.Seek, 4*time.Second)
 	if a.player.play != nil {
 		t.Fatal("the seek kept the old picture")
 	}
-	a.playerMediaCommand(mygo.MediaPause, 0)
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused || e.at != 4*time.Second {
+	a.playerMediaCommand(nowplaying.Pause, 0)
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Paused || e.at != 4*time.Second {
 		t.Fatalf("the pause while opening told the system %+v", e)
 	}
 	waitUntil(t, updates, func() bool { return a.player.play != nil })
@@ -2387,10 +2387,10 @@ func TestPauseKeyWhileASeekOpens(t *testing.T) {
 	if at := held.playhead(); held.Playing() || !held.paused || at < 4*time.Second || at > 4*time.Second+200*time.Millisecond {
 		t.Fatalf("the seek opened playing %v paused %v at %v", held.Playing(), held.paused, held.playhead())
 	}
-	if e := rec.last(t); e.kind != "playback" || e.state != mygo.PlaybackPaused {
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Paused {
 		t.Fatalf("the held picture told the system %+v", e)
 	}
-	a.playerMediaCommand(mygo.MediaPlay, 0)
+	a.playerMediaCommand(nowplaying.Play, 0)
 	if !held.Playing() {
 		t.Fatal("the play key did not play the held picture")
 	}

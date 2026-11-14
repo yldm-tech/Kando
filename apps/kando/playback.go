@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/nowplaying"
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
@@ -45,7 +46,7 @@ type filmPlay struct {
 	soundSince time.Time
 	soundFrom  time.Duration
 	// nowPlaying is where toggle and finish tell the system whether the film plays (playback_nowplaying.go), or nil while the system is not shown the film.
-	nowPlaying nowPlayingCenter
+	nowPlaying nowplaying.Center
 }
 
 const (

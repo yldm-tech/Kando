@@ -5,9 +5,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"kando/apps/kando/nowplaying"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -75,7 +75,7 @@ func (a *app) playerFollowSound(p *filmPlay, head time.Duration) {
 
 // playerToggleBehind plays or pauses p while the window is out of sight (playerOutOfSight), where only a media key reaches it. The picture stands still behind the window there while the sound plays on, so a pause stops the sound's clock and, when the picture stood still, opens the picture again where the sound stopped, held, so that coming back or playing on finds the two level; play starts the sound's clock again from there and follows it.
 func (a *app) playerToggleBehind(p *filmPlay) {
-	if p.playbackState() == mygo.PlaybackPlaying {
+	if p.playbackState() == nowplaying.Playing {
 		at := p.soundAt(time.Now())
 		p.toggle()
 		p.stopBackground()

@@ -5,8 +5,8 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/nowplaying"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -87,7 +87,7 @@ type fullScreen interface {
 // playerNowPlaying is what the system shows of the open film.
 type playerNowPlaying struct {
 	// center is nil until the window is ready (playerHooks' ready), and in tests that connect none, so nothing is shown before then.
-	center nowPlayingCenter
+	center nowplaying.Center
 	// path is the video the system shows, "" while it shows none; title is its name there.
 	path  string
 	title string
@@ -371,7 +371,7 @@ func (a *app) playerHooks() areaHooks {
 func (a *app) playerReady() {
 	a.player.screen = a.win
 	a.playerAwakeReady()
-	a.playerNowPlayingConnect(mygo.NowPlaying)
+	a.playerNowPlayingConnect(nowplaying.System())
 }
 
 // closeFilmThatLeft closes the open film once neither the shelf's films nor its jobs have it any more, as when its folder was deleted, so its playback stops and its position is kept here rather than while the library page is being drawn.
