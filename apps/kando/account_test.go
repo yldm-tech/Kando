@@ -581,3 +581,21 @@ func cloudUntil(t *testing.T, updates <-chan func(), done func() bool) {
 		cloudNext(t, updates)
 	}
 }
+
+// An upload tells the app of its progress only as the whole percent it shows changes, as every update runs the app's bindings and hooks again; the storage's client reports every 256 KB.
+func TestUploadProgressOnlyAsThePercentChanges(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	a.cloud.uploader = func(_ context.Context, _ cloud.Store, _ []cloud.File, progress func(int64, int64)) error {
+		for written := int64(0); written <= 2000; written += 10 {
+			progress(written, 100000)
+		}
+		return nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	before := len(updates)
+	a.runUpload(ctx, cancel, "/v.mp4", "v.mp4", cloud.Store{}, nil)
+	// 0%, 1%, 2% and the finish
+	if n := len(updates) - before; n != 4 {
+		t.Fatalf("the upload posted %d updates, want 4", n)
+	}
+}

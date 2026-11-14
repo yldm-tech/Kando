@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"kando/apps/kando/cloud"
@@ -158,7 +159,21 @@ func (a *app) CancelUpload() {
 // runUpload sends files with ctx, which BeginUpload made and cancel releases, and records how it ended: the object key of a film uploaded, saved in settings.json, or why it failed, or that it was canceled.
 func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPath, videoKey string, cfg cloud.Store, files []cloud.File) {
 	defer cancel()
+	// Progress comes every 256 KB; only a change of the whole percent the upload shows (uploadProgress) goes to the engine's goroutine, as every update runs the app's bindings and hooks again. The finish posts its own update below.
+	var mu sync.Mutex
+	shown := -1
 	err := a.putFiles(ctx, cfg, files, func(written, total int64) {
+		percent := 0
+		if total > 0 {
+			percent = int(written * 100 / total)
+		}
+		mu.Lock()
+		same := percent == shown
+		shown = percent
+		mu.Unlock()
+		if same {
+			return
+		}
 		a.update(func() {
 			if a.cloud.uploadPath != videoPath {
 				return
