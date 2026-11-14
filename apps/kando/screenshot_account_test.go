@@ -6,15 +6,15 @@ import (
 
 	"kando/apps/kando/cloud"
 	"kando/apps/kando/films"
-	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // TestScreenshotsAccount renders the player's upload capsule of the prototype's film, How Rivers Shape Landscapes (j1), with an R2 bucket set and signed in: while the upload runs, 40% done, with its Cancel button (upload-busy), and after Cancel was clicked (upload-canceled). The upload is the fake uploader, which reports its progress and then waits for the upload to be canceled.
 func TestScreenshotsAccount(t *testing.T) {
 	f := newScreenshotFixture(t)
-	uploading := func(a *app, tt *ui.Tester, updates chan func()) {
+	uploading := func(a *app, tt *nsgotest.App, updates chan func()) {
 		a.cloud.googleEmail = "reader@example.com"
 		a.cloud.r2Endpoint = "account"
 		a.cloud.r2Bucket = "films"
@@ -34,12 +34,12 @@ func TestScreenshotsAccount(t *testing.T) {
 		screenshotOpen(t, a, tt, updates, "j1", 0)
 		item, _ := films.Find(a.films(), "j1")
 		screenshotClick(t, tt, a.UploadView(item).Label)
-		screenshotWait(t, tt, updates, "upload progress", func() bool { return a.cloud.uploadWritten == 40 })
+		screenshotWait(t, tt, a, updates, "upload progress", func() bool { return a.cloud.uploadWritten == 40 })
 	}
 	f.shoot(t, "upload-busy", uploading)
-	f.shoot(t, "upload-canceled", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "upload-canceled", func(a *app, tt *nsgotest.App, updates chan func()) {
 		uploading(a, tt, updates)
-		screenshotClick(t, tt, locales.FilmUploadCancel())
-		screenshotWait(t, tt, updates, "upload canceled", func() bool { return a.cloud.uploadPath == "" })
+		screenshotClick(t, tt, testlocale.Messages().FilmUploadCancel())
+		screenshotWait(t, tt, a, updates, "upload canceled", func() bool { return a.cloud.uploadPath == "" })
 	})
 }

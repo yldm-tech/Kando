@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The settings window's 账号与上传 category's reads and writes (account.App). Signing in and out with Google lives in cloud_app.go.
+// The settings window's 账号与上传 category's reads and writes (account.App). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself; what is said is in the interface's language, which every binding follows as it changes. Signing in and out with Google lives in cloud_app.go.
 
 func (a *app) GoogleEmail() string { return a.cloud.googleEmail }
 
@@ -15,7 +15,7 @@ func (a *app) GoogleErr() string {
 	if a.cloud.googleErr == nil {
 		return ""
 	}
-	return a.cloud.googleErr()
+	return a.cloud.googleErr(a.messages())
 }
 
 func (a *app) GoogleConfigured() bool {
