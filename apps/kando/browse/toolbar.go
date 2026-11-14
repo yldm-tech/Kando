@@ -51,7 +51,9 @@ func (t toolbar) Render(cx *core.Scope) core.Node {
 			nav("browse-forward", iconForward, locales.BrowseForward, func(s State) bool { return s.CanGoForward }, a.BrowseForward),
 			core.Show{
 				When: func() bool { return state().Loading },
-				Then: func(*core.Scope) core.Node { return nav("browse-stop", iconStop, locales.BrowseStop, always, a.BrowseStop) },
+				Then: func(*core.Scope) core.Node {
+					return nav("browse-stop", iconStop, locales.BrowseStop, always, a.BrowseStop)
+				},
 				Else: func(*core.Scope) core.Node {
 					return nav("browse-reload", iconReload, locales.BrowseReload, func(s State) bool { return s.Page }, a.BrowseReload)
 				},

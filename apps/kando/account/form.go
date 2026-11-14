@@ -25,7 +25,7 @@ func label(text func() string, top core.Points) core.Node {
 		AccessibilityLevel: func() int { return 2 },
 		LabelFunc:          text,
 		Style:              core.Style{FlexShrink: 0, Padding: core.Edges{Top: top, Right: 12, Left: 12}},
-		Children: []core.Node{core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 16, FontWeight: ui.Bold, Color: formSecondary}}},
+		Children:           []core.Node{core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 16, FontWeight: ui.Bold, Color: formSecondary}}},
 	}
 }
 
