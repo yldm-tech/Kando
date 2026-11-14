@@ -4,66 +4,59 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sites/catalog"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
-// sitesUI is the state of the 支持的网站 sheet (sites/): whether it is open, the search, where the grid is scrolled, and the logos decoded so far.
+// sitesUI is the state of the 支持的网站 sheet (sites/): whether it is open, the search, and the logos read so far. The grid starts at its top each time, as the sheet is built anew as it opens.
 type sitesUI struct {
 	open  bool
 	query string
-	grid  ui.GridState
-	// logos holds each logo decoded once its tile showed, by domain; nil marks a logo that would not decode, so the tile shows the initial without decoding it again.
-	logos map[string]ui.ImageSource
-	// release gives back the window's modal flag (holdModal) the sheet holds while it is open; sitesHooks' afterChange runs it once the sheet has closed.
+	// logos holds each logo's bytes once its tile showed, by domain, so a tile hands its image the same bytes each time; nil marks a site without one, which shows its initial.
+	logos map[string][]byte
+	// release gives back the window's modal flag (holdModal) the sheet holds while it is open; closing the sheet runs it (sitesClose).
 	release func()
 }
 
 func newSitesUI() sitesUI { return sitesUI{} }
 
-// sitesHooks: the sheet gives back the window's modal flag once it has closed.
-func (a *app) sitesHooks() areaHooks {
-	return areaHooks{afterChange: a.sitesModal}
-}
+// sitesHooks: the sheet has nothing to do at the moments the areas share; it gives back the window's modal flag as it closes (sitesClose).
+func (a *app) sitesHooks() areaHooks { return areaHooks{} }
 
 // sitesKeys are the sheet's rows of the shortcut table: 支持的网站… in the 帮助 menu, without a key.
-func (a *app) sitesKeys() []shortcut {
+func (a *app) sitesKeys(cx *core.Scope) []shortcut {
 	return []shortcut{
-		{Group: groupHelp, Label: locales.SitesMenuItem(), Run: a.OpenSites},
+		{Group: groupHelp, Label: locales.SitesMenuItem(cx), Run: a.OpenSites},
 	}
 }
 
-// OpenSites opens the sheet with the search cleared and the grid at its top.
+// OpenSites opens the sheet with the search cleared.
 func (a *app) OpenSites() {
 	if a.sites.open {
 		return
 	}
 	a.sites.open = true
 	a.sites.query = ""
-	a.sites.grid = ui.GridState{}
 	a.sites.release = a.holdModal()
 }
 
-func (a *app) sitesModal() {
-	if !a.sites.open && a.sites.release != nil {
+// sitesClose closes the sheet, as 完成, Escape and closing it do, and gives back the window's modal flag.
+func (a *app) sitesClose() {
+	a.sites.open = false
+	if a.sites.release != nil {
 		a.sites.release()
 		a.sites.release = nil
 	}
 }
 
-// sitesLogo decodes s's embedded logo the first time its tile shows, and keeps it.
-func (a *app) sitesLogo(s catalog.Site) ui.ImageSource {
-	if img, ok := a.sites.logos[s.Domain]; ok {
-		return img
+// sitesLogo reads s's embedded logo the first time its tile shows, and keeps it.
+func (a *app) sitesLogo(s catalog.Site) []byte {
+	if data, ok := a.sites.logos[s.Domain]; ok {
+		return data
 	}
-	var img ui.ImageSource
-	if data := catalog.Logo(s); data != nil {
-		if decoded, err := ui.DecodeImage(data); err == nil {
-			img = decoded
-		}
-	}
+	data := catalog.Logo(s)
 	if a.sites.logos == nil {
-		a.sites.logos = map[string]ui.ImageSource{}
+		a.sites.logos = map[string][]byte{}
 	}
-	a.sites.logos[s.Domain] = img
-	return img
+	a.sites.logos[s.Domain] = data
+	return data
 }
