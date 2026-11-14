@@ -3122,6 +3122,9 @@ sidebarRevealLibrary:
   placeholders:
     name: { type: "String", example: "My Films" }
     platform: { type: "String", example: "macOS" }
+sidebarSearchClear:
+  message: "Clear Search"
+  description: "Accessible name of the button at the end of the sidebar’s search field that empties it."
 sidebarSearchLabel:
   message: "Search Films"
   description: "Accessible name of the sidebar’s search field, which filters the library’s finished films by name."

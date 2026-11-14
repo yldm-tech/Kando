@@ -1,27 +1,74 @@
 package sidebar
 
 import (
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
+// searchFill is the field's gray on the card, which has no border.
+var searchFill = core.RGBA(0x000000, 0.06)
+
 // search is the field under the library switcher that narrows the library page to the done films whose names hold what is typed, as `kando list [query]` does, beside the sources it narrows with. It shows while the open library has films. ⌘F puts the keyboard in it (QueryFocus), and its clear button or Escape empties it. Its look is the settings window's search field in its rail: 28 points high, its corners 8, gray on the card without a border.
-func search(c *ui.Context, a App) {
-	focus := a.QueryFocus()
-	if a.FilmCount() == 0 {
-		// Without the field a request for its focus has nothing to go to; it is dropped, so the field does not take the focus when it shows later.
+type search struct{ a App }
+
+// Render implements core.Node.
+func (s search) Render(cx *core.Scope) core.Node {
+	a := s.a
+	field := &core.Ref{}
+	// A request for the focus goes to the field once it shows; without the field it has nothing to go to and is dropped, so the field does not take the focus when it shows later.
+	cx.Effect(func() {
+		a.Track()
+		focus := a.QueryFocus()
+		if !*focus {
+			return
+		}
 		*focus = false
-		return
-	}
-	ui.Row(c).Padding(0, insetEnd, 10, insetStart).AlignItems(ui.Stretch).Children(func() {
-		c.Key("sidebar-search")
-		field := breeze.SearchField(c, a.Query()).Placeholder(locales.SidebarSearchPlaceholder() + "  " + breeze.ShortcutText(c, ui.Cmd, ui.KeyF)).Label(locales.SidebarSearchLabel())
-		field.Grow(1).MinWidth(0).Height(28).Radius(8).Border(0, ui.Transparent).Background(ui.RGBA(0, 0, 0, 0.06)).FontSize(13)
-		if *focus {
+		if a.FilmCount() > 0 {
 			field.Focus()
-			*focus = false
 		}
 	})
+	return core.Show{
+		When: live.Memo(cx, a, func() bool { return a.FilmCount() > 0 }),
+		Then: func(cx *core.Scope) core.Node { return searchField(cx, a, field) },
+	}
+}
+
+// searchField is the field itself, built while the library has films.
+func searchField(cx *core.Scope, a App, field *core.Ref) core.Node {
+	colors := ui.ColorsOf(cx)
+	query := live.Func(a, func() string { return *a.Query() })
+	clear := live.Do(a, func() { *a.Query() = "" })
+	// Escape empties the field while it has the keyboard focus.
+	focused := core.NewSignal(cx, false)
+	escape := core.Show{When: focused.Get, Then: func(cx *core.Scope) core.Node {
+		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, clear)
+		return nil
+	}}
+	input := base.Input{
+		Ref: field, TestID: "sidebar-search",
+		Label:           locales.SidebarSearchLabel(cx),
+		Value:           query,
+		PlaceholderFunc: func() string { return locales.SidebarSearchPlaceholder(cx) + "  " + cx.KeyLabel("mod+f") },
+		OnChange:        live.On(a, func(text string) { *a.Query() = text }),
+		OnFocus:         func() { focused.Set(true) },
+		OnBlur:          func() { focused.Set(false) },
+		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, Background: searchFill, FontSize: 13,
+			Padding: core.Edges{Left: 10, Right: 28}},
+		StyleFunc: func() core.Style {
+			return core.Style{Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
+		},
+	}
+	clearButton := core.Show{When: func() bool { return query() != "" }, Then: func(cx *core.Scope) core.Node {
+		return core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(4), Right: core.Pt(4)}, Children: []core.Node{
+			ui.IconButton{Icon: lucide.X, LabelFunc: func() string { return locales.SidebarSearchClear(cx) }, Size: 20, OnPress: clear, TestID: "sidebar-search-clear"},
+		}}
+	}}
+	return core.View{Style: rowStyle, Children: []core.Node{
+		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}, Children: []core.Node{input, clearButton, escape}},
+	}}
 }

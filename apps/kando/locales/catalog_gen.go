@@ -1484,6 +1484,7 @@ const (
 	textSidebarMenuOpenLibrary
 	textSidebarNewLibrary
 	textSidebarOpenLibrary
+	textSidebarSearchClear
 	textSidebarSearchLabel
 	textSidebarSearchPlaceholder
 	textSidebarSettings
@@ -2240,6 +2241,7 @@ var keyOfText = [numTexts]string{
 	"sidebarMenuOpenLibrary",
 	"sidebarNewLibrary",
 	"sidebarOpenLibrary",
+	"sidebarSearchClear",
 	"sidebarSearchLabel",
 	"sidebarSearchPlaceholder",
 	"sidebarSettings",
@@ -2994,6 +2996,7 @@ var textsEn = i18n.NewTexts(""+
 	"Open Library…"+
 	"New Library…"+
 	"Open Existing Library…"+
+	"Clear Search"+
 	"Search Films"+
 	"Search films"+
 	"Settings"+
@@ -3745,6 +3748,7 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		14,
 		24,
+		12,
 		12,
 		12,
 		8,
@@ -4499,6 +4503,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリを開く…"+
 	"新規ライブラリ…"+
 	"既存のライブラリを開く…"+
+	"検索をクリア"+
 	"動画を検索"+
 	"動画を検索"+
 	"設定"+
@@ -5250,6 +5255,7 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		24,
 		36,
+		18,
 		15,
 		15,
 		6,
@@ -6004,6 +6010,7 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 열기…"+
 	"새로운 라이브러리…"+
 	"기존 라이브러리 열기…"+
+	"검색 지우기"+
 	"영상 검색"+
 	"영상 검색"+
 	"설정"+
@@ -6755,6 +6762,7 @@ var textsKo = i18n.NewTexts(""+
 		25,
 		28,
 		32,
+		16,
 		13,
 		13,
 		6,
@@ -7509,6 +7517,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"打开资料库..."+
 	"新建资料库…"+
 	"打开已有资料库…"+
+	"清除搜索"+
 	"搜索影片"+
 	"搜索影片"+
 	"设置"+
@@ -8260,6 +8269,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		18,
 		24,
+		12,
 		12,
 		12,
 		6,
@@ -9014,6 +9024,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"開啟資料庫…"+
 	"新增資料庫…"+
 	"打開現有資料庫…"+
+	"清除搜尋"+
 	"搜尋影片"+
 	"搜尋影片"+
 	"設定"+
@@ -9765,6 +9776,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		18,
 		24,
+		12,
 		12,
 		12,
 		6,
@@ -23692,6 +23704,15 @@ func (msgs Messages) SidebarRevealLibrary(name string, platform string) string {
 		}
 	}
 }
+
+// SidebarSearchClear says "Clear Search"
+// in the language the app shows under cx.
+//
+// Accessible name of the button at the end of the sidebar’s search field that empties it.
+func SidebarSearchClear(cx *core.Scope) string { return For(cx).SidebarSearchClear() }
+
+// SidebarSearchClear is the package's SidebarSearchClear in the language of msgs.
+func (msgs Messages) SidebarSearchClear() string { return msgs.text(textSidebarSearchClear) }
 
 // SidebarSearchLabel says "Search Films"
 // in the language the app shows under cx.

@@ -901,6 +901,7 @@ sidebarMenuShowInFinder: "{platform, select, macOS {Finder で表示} Windows {�
 sidebarNewLibrary: "新規ライブラリ…"
 sidebarOpenLibrary: "既存のライブラリを開く…"
 sidebarRevealLibrary: "{platform, select, macOS {「{name}」を Finder で表示} Windows {「{name}」をエクスプローラーで表示} other {「{name}」をファイルマネージャーで表示}}"
+sidebarSearchClear: "検索をクリア"
 sidebarSearchLabel: "動画を検索"
 sidebarSearchPlaceholder: "動画を検索"
 sidebarSettings: "設定"

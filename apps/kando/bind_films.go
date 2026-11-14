@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"kando/apps/kando/desktop"
+	"kando/apps/kando/desktop/mygodesktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
@@ -214,7 +214,7 @@ func (a *app) Removing() (*bool, films.Film, bool) {
 }
 
 // trashItem moves a file or a folder to the Trash. Tests replace it.
-var trashItem = desktop.TrashMyGo
+var trashItem = mygodesktop.Trash
 
 // TrashFilm takes a film off the shelf, as 从资料库移除 confirms. A film inside the library goes to the Trash with its folder, or with only its subtitles when that folder holds other videos or folders too. A local video kept outside the library stays where it is and only leaves the shelf.
 func (a *app) TrashFilm(item films.Film) {

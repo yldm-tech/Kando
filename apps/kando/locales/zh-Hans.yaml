@@ -901,6 +901,7 @@ sidebarMenuShowInFinder: "{platform, select, macOS {在访达中显示} Windows 
 sidebarNewLibrary: "新建资料库…"
 sidebarOpenLibrary: "打开已有资料库…"
 sidebarRevealLibrary: "{platform, select, macOS {在访达中显示「{name}」} Windows {在文件资源管理器中显示「{name}」} other {在文件管理器中显示「{name}」}}"
+sidebarSearchClear: "清除搜索"
 sidebarSearchLabel: "搜索影片"
 sidebarSearchPlaceholder: "搜索影片"
 sidebarSettings: "设置"

@@ -1,4 +1,4 @@
-// Package desktop opens URLs, reveals and trashes files, and keeps the computer awake for Kando. Notifications, the Dock badge and the progress bar are not here: they stay with the queue in queue_desktop.go. Each function takes the scope of the component or handler that calls it and runs on the engine's goroutine, as NSGo's services do; the functions ending in MyGo (mygo.go) do the same for the root package while it still runs on MyGo.
+// Package desktop opens URLs, reveals and trashes files, and keeps the computer awake for Kando. Notifications, the Dock badge and the progress bar are not here: they stay with the queue in queue_desktop.go. Each function takes the scope of the component or handler that calls it and runs on the engine's goroutine, as NSGo's services do; the root package, while it still runs on MyGo, uses the same functions of desktop/mygodesktop.
 package desktop
 
 import (
@@ -39,4 +39,17 @@ func Trash(cx *core.Scope, path string) error {
 func KeepAwake(cx *core.Scope, reason string, display bool) (release func()) {
 	// TODO(nsgo#115): hold a power assertion for reason (the display too when display is set) until release, as IOPMAssertion, SetThreadExecutionState and the login1 or ScreenSaver inhibitors do https://github.com/nsgo-dev/nsgo/issues/115
 	return func() {}
+}
+
+// Platform names the desktop the app runs on as the catalogs' select messages take it, to name the system's file manager: "macOS", "Windows" or "Linux", and "other" elsewhere. A binding that reads it follows the environment.
+func Platform(cx *core.Scope) string {
+	switch cx.Env().OS() {
+	case core.OSMacOS:
+		return "macOS"
+	case core.OSWindows:
+		return "Windows"
+	case core.OSLinux:
+		return "Linux"
+	}
+	return "other"
 }

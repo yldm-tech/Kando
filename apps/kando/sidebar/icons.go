@@ -4,15 +4,12 @@ package sidebar
 //
 // ISC License. Copyright (c) 2026 Lucide Icons and Contributors. Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies. THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import "github.com/egoist/mygo/ui"
+import "github.com/nsgo-dev/nsgo/core"
 
-func icon(src string) *ui.SVG {
-	parsed, err := ui.ParseSVG([]byte(src))
-	if err != nil {
-		panic(err)
-	}
-	return parsed
-}
+func icon(src string) *core.SVG { return core.MustParseSVG([]byte(src)) }
+
+// svg is icon as the accessor NSGo's components take (ui.Icon, ui.SidebarItem.Icon, ui.IconButton.Icon).
+func svg(icon *core.SVG) func() *core.SVG { return func() *core.SVG { return icon } }
 
 // The prototype's glyphs, and 浏览's compass in their style, Safari's sign for browsing, as YouTube's row already shows the globe. The sources' are drawn on an 18-point grid; a source list gives its icons 16 points, so their view boxes keep the middle 16 of it, where the glyphs lie, and they show at the prototype's size and stroke.
 var (

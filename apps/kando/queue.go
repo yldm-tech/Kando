@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"kando/apps/kando/desktop"
+	"kando/apps/kando/desktop/mygodesktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
@@ -92,7 +92,7 @@ func (a *app) queueHooks() areaHooks {
 		save:    a.saveQueue,
 		restore: a.restoreQueue,
 		ready: func() {
-			a.queue.keepAwake = desktop.KeepAwakeMyGo
+			a.queue.keepAwake = mygodesktop.KeepAwake
 			a.queueDesktopReady()
 			a.pump()
 			a.queueKeepAwake()

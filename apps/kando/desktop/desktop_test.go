@@ -110,3 +110,15 @@ func TestKeepAwakeReleases(t *testing.T) {
 	app.Press("text:Hold")
 	app.Settle()
 }
+
+// TestPlatform checks the names the catalogs' select messages take for each desktop.
+func TestPlatform(t *testing.T) {
+	for os, want := range map[core.OS]string{core.OSMacOS: "macOS", core.OSWindows: "Windows", core.OSLinux: "Linux", core.OSIOS: "other"} {
+		app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "platform", ContentFunc: func() string { return Platform(cx) }}
+		}, nsgotest.Environment(core.Environment{OS: os}))
+		if got := app.Find("id:platform").Text; got != want {
+			t.Errorf("Platform on %v is %q, want %q", os, got, want)
+		}
+	}
+}

@@ -901,6 +901,7 @@ sidebarMenuShowInFinder: "{platform, select, macOS {Finder에서 보기} Windows
 sidebarNewLibrary: "새로운 라이브러리…"
 sidebarOpenLibrary: "기존 라이브러리 열기…"
 sidebarRevealLibrary: "{platform, select, macOS {Finder에서 ‘{name}’ 보기} Windows {파일 탐색기에서 ‘{name}’ 보기} other {파일 관리자에서 ‘{name}’ 보기}}"
+sidebarSearchClear: "검색 지우기"
 sidebarSearchLabel: "영상 검색"
 sidebarSearchPlaceholder: "영상 검색"
 sidebarSettings: "설정"

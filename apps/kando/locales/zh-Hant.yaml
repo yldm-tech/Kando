@@ -901,6 +901,7 @@ sidebarMenuShowInFinder: "{platform, select, macOS {在 Finder 中顯示} Window
 sidebarNewLibrary: "新增資料庫…"
 sidebarOpenLibrary: "打開現有資料庫…"
 sidebarRevealLibrary: "{platform, select, macOS {在 Finder 中顯示「{name}」} Windows {在檔案總管中顯示「{name}」} other {在檔案管理員中顯示「{name}」}}"
+sidebarSearchClear: "清除搜尋"
 sidebarSearchLabel: "搜尋影片"
 sidebarSearchPlaceholder: "搜尋影片"
 sidebarSettings: "設定"

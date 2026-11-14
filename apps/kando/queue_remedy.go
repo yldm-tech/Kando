@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"kando/apps/kando/desktop"
+	"kando/apps/kando/desktop/mygodesktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
@@ -46,7 +46,7 @@ const (
 var installedBrowsers = media.InstalledBrowsers
 
 // openExternal opens a URL with the system, as the Full Disk Access pane of System Settings. Tests replace it.
-var openExternal = desktop.OpenURLMyGo
+var openExternal = mygodesktop.OpenURL
 
 // fullDiskAccess is the pane of System Settings that lets an app read Safari's cookies.
 const fullDiskAccess = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
