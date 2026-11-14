@@ -1,0 +1,35 @@
+# Kando's app for the nsgo tool (go tool nsgo, the version go.mod pins), translated from mygo.json, which mygo build reads until the app runs on NSGo. Release bumps the version in both (.github/scripts/set-version.sh).
+name: Kando
+id: ai.yldm.kando
+version: 0.12.1
+icon:
+  png: resources/icon.png
+i18n: { dir: locales, source: en }
+
+build:
+  output: build
+  targets: [macos_arm64, macos_x64, windows_x64, windows_arm64, linux_x64, linux_arm64]
+  # Build with GOFLAGS=-tags=nodra_nomygo, so that nodra leaves its MyGo helpers (nodra's api_mygo.go), and MyGo with them, out of the app. nsgo build adds no tags of its own for an app without TSX, so GOFLAGS reaches go build; nsgo dev and nsgo test -target add theirs (nsgodev, nsgotest), which replace GOFLAGS' tags, so their builds link MyGo's root package, whose init only locks the main thread and registers its own tables.
+  # TODO(nsgo): let nsgo.yaml or GOFLAGS add build tags to every build nsgo makes, dev and test -target included, rather than replacing them with the tool's own
+
+# Kando views videos, so it ranks as an alternative app for the system's types of them rather than declaring types of its own.
+file_types:
+  - { name: MPEG-4 Video, extensions: [mp4], id: public.mpeg-4, role: viewer, conforms: [public.movie] }
+  - { name: MPEG-4 Video, extensions: [m4v], id: com.apple.m4v-video, role: viewer, conforms: [public.movie] }
+  - { name: QuickTime Movie, extensions: [mov], id: com.apple.quicktime-movie, role: viewer, conforms: [public.movie] }
+  - { name: Matroska Video, extensions: [mkv], id: org.matroska.mkv, role: viewer, conforms: [public.movie] }
+  - { name: WebM Video, extensions: [webm], id: org.webmproject.webm, role: viewer, conforms: [public.movie] }
+  - { name: AVI Video, extensions: [avi], id: public.avi, role: viewer, conforms: [public.movie] }
+  - { name: Flash Video, extensions: [flv], id: com.adobe.flash.video, role: viewer, conforms: [public.movie] }
+# TODO(nsgo#31): register these types on Windows (the NSIS installer's Open With entries) and Linux (the desktop entry's MimeType of video/mp4, video/quicktime, video/x-matroska, video/webm, video/x-msvideo and video/x-flv, with %F), as mygo.json's fileAssociations do https://github.com/nsgo-dev/nsgo/issues/31
+
+release: { github: yldm-tech/Kando }
+
+# The same Ed25519 key as mygo.json's updates.publicKey: NSGO_UPDATES_KEY is the first 32 bytes, the seed, of MYGO_UPDATER_PRIVATE_KEY's 64.
+updates:
+  key: Ixbkzk6yM6p8gK3hgwK8IdnorQCJp9vpRlWUbsZs3LQ=
+# TODO(nsgo#32): put CHANGELOG.md's section of the version into the appcast's release notes, which mygo build signs into the update manifests and Kando's update window shows https://github.com/nsgo-dev/nsgo/issues/32
+
+# TODO(nsgo): let nsgo.yaml add to the Debian package's Depends, which nsgo writes as libgtk-4-1 alone, so that Kando's videos play through GtkMediaFile: libgtk-4-media-gstreamer and GStreamer's good, bad and libav plugins
+
+# Signing stays out of this file, as it does out of mygo.json: a signed build passes nsgo build -sign with the Developer ID identity and notarizes with NSGO_NOTARY_KEY, NSGO_NOTARY_KEY_ID and NSGO_NOTARY_ISSUER, an App Store Connect API key, so builds elsewhere are signed ad hoc and need no secrets.
