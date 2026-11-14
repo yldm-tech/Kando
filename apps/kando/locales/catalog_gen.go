@@ -376,7 +376,7 @@ var Parameters = map[string][]string{
 	"AccountUploadingPercent":            {"percent"},
 	"BrowseClearFailed":                  {"error_"},
 	"BrowseLoadFailed":                   {"error_"},
-	"FeedbackBrowserFailed":              {"error_", "repo"},
+	"FeedbackBrowserFailed":              {"repo"},
 	"FeedbackEnvDetail":                  {"version", "system"},
 	"FeedbackPreviewLabel":               {"label"},
 	"FeedbackPreviewTitle":               {"title"},
@@ -577,7 +577,7 @@ type Translation struct {
 	AccountUploadingPercent            func(percent int) string
 	BrowseClearFailed                  func(error_ string) string
 	BrowseLoadFailed                   func(error_ string) string
-	FeedbackBrowserFailed              func(error_ string, repo string) string
+	FeedbackBrowserFailed              func(repo string) string
 	FeedbackEnvDetail                  func(version string, system string) string
 	FeedbackPreviewLabel               func(label string) string
 	FeedbackPreviewTitle               func(title string) string
@@ -11459,34 +11459,34 @@ func FeedbackAttachments(cx *core.Scope) string { return For(cx).FeedbackAttachm
 // FeedbackAttachments is the package's FeedbackAttachments in the language of msgs.
 func (msgs Messages) FeedbackAttachments() string { return msgs.text(textFeedbackAttachments) }
 
-// FeedbackBrowserFailed says "Couldn't open the browser: {error}. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new."
+// FeedbackBrowserFailed says "Couldn't open the browser: no app opened the link. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new."
 // in the language the app shows under cx.
 //
-// Error in the feedback dialog when the browser could not be opened, with the way to file the issue by hand.
-func FeedbackBrowserFailed(cx *core.Scope, error_ string, repo string) string {
-	return For(cx).FeedbackBrowserFailed(error_, repo)
+// Error in the feedback dialog when no app opened the issue's link, with the way to file the issue by hand. The system does not say why, so the sentence says it whole.
+func FeedbackBrowserFailed(cx *core.Scope, repo string) string {
+	return For(cx).FeedbackBrowserFailed(repo)
 }
 
 // FeedbackBrowserFailed is the package's FeedbackBrowserFailed in the language of msgs.
-func (msgs Messages) FeedbackBrowserFailed(error_ string, repo string) string {
+func (msgs Messages) FeedbackBrowserFailed(repo string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FeedbackBrowserFailed(error_, repo))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FeedbackBrowserFailed(repo))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].FeedbackBrowserFailed; f != nil {
-			return f(error_, repo)
+			return f(repo)
 		}
 		switch lang {
 		case "", "en":
-			return "Couldn't open the browser: " + msgs.arg(error_) + ". Use “Copy Text” to copy the issue and paste it at github.com/" + msgs.arg(repo) + "/issues/new."
+			return "Couldn't open the browser: no app opened the link. Use “Copy Text” to copy the issue and paste it at github.com/" + msgs.arg(repo) + "/issues/new."
 		case "ja":
-			return "ブラウザを開けませんでした：" + error_ + "。「本文をコピー」で内容をコピーし、github.com/" + repo + "/issues/new に貼り付けてください。"
+			return "ブラウザを開けませんでした：リンクを開けるアプリがありません。「本文をコピー」で内容をコピーし、github.com/" + repo + "/issues/new に貼り付けてください。"
 		case "ko":
-			return "브라우저를 열지 못했습니다: " + error_ + ". ‘본문 복사’로 내용을 복사한 다음 github.com/" + repo + "/issues/new에 붙여 넣으십시오."
+			return "브라우저를 열지 못했습니다: 링크를 열 수 있는 앱이 없습니다. ‘본문 복사’로 내용을 복사한 다음 github.com/" + repo + "/issues/new에 붙여 넣으십시오."
 		case "zh-Hans":
-			return "没能打开浏览器：" + error_ + "。可以用「拷贝正文」拷贝内容，到 github.com/" + repo + "/issues/new 里粘贴。"
+			return "没能打开浏览器：没有应用能打开这个链接。可以用「拷贝正文」拷贝内容，到 github.com/" + repo + "/issues/new 里粘贴。"
 		case "zh-Hant":
-			return "無法打開瀏覽器：" + error_ + "。可以用「拷貝內文」拷貝內容，到 github.com/" + repo + "/issues/new 中貼上。"
+			return "無法打開瀏覽器：沒有應用程式能打開這個連結。可以用「拷貝內文」拷貝內容，到 github.com/" + repo + "/issues/new 中貼上。"
 		}
 	}
 }

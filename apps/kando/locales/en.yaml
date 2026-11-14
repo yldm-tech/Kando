@@ -285,10 +285,9 @@ feedbackAttachments:
   message: "Attached Information"
   description: "Heading over the check boxes choosing what the app attaches to the issue."
 feedbackBrowserFailed:
-  message: "Couldn't open the browser: {error}. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new."
-  description: "Error in the feedback dialog when the browser could not be opened, with the way to file the issue by hand."
+  message: "Couldn't open the browser: no app opened the link. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new."
+  description: "Error in the feedback dialog when no app opened the issue's link, with the way to file the issue by hand. The system does not say why, so the sentence says it whole."
   placeholders:
-    error: { type: "String", example: "exec: \"open\": executable file not found" }
     repo: { type: "String", example: "yldm-tech/Kando" }
 feedbackCancel:
   message: "Cancel"
