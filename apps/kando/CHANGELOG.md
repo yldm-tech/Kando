@@ -2,6 +2,12 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.12.1 - 2026-11-14
+
+### Fixes
+
+- Build on MyGo v0.9.0 and nodra v1.5.0, and quit without asking at logout or shutdown (#114)
+
 ## 0.12.0 - 2026-11-11
 
 ### Fixes
