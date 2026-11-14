@@ -161,7 +161,7 @@ func (a *app) browseColumnGone() {
 		a.browse.source = browseBlank
 	}
 	a.browse.loading, a.browse.canBack, a.browse.canForward = false, false, false
-	a.browse.muted = false
+	a.browse.focused, a.browse.muted = false, false
 }
 
 // browseUserAgent is the pages' user agent: on macOS WKWebView's own, which names no browser, with Safari's version after it, as sites serve such a user agent older pages and refuse it their sign-in. WebKitGTK and WebView2 already name their browsers and keep their own ("").

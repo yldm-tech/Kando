@@ -299,9 +299,7 @@ func TestAccountPageShowsCOSFields(t *testing.T) {
 	a.cloud.storage = cloud.KindCOS
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"腾讯云 COS", "ap-guangzhou", "1250000000", "SecretId"} {
-		if !hasText(tt, text) {
-			t.Fatalf("missing %q in %q", text, tt.Texts())
-		}
+		wantText(t, tt, text)
 	}
 }
 
@@ -311,11 +309,9 @@ func TestAccountPageShowsOSSFields(t *testing.T) {
 	a.cloud.storage = cloud.KindOSS
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"阿里云 OSS", "Region", "cn-hangzhou", "Bucket", "Access Key", "Secret"} {
-		if !hasText(tt, text) {
-			t.Fatalf("missing %q in %q", text, tt.Texts())
-		}
+		wantText(t, tt, text)
 	}
-	if hasText(tt, "Account ID") || hasText(tt, "ap-northeast-1") {
+	if textCount(tt, "Account ID") > 0 || textCount(tt, "ap-northeast-1") > 0 {
 		t.Fatal("another provider's hint is showing on the OSS form")
 	}
 }
@@ -326,11 +322,9 @@ func TestAccountPageShowsS3Fields(t *testing.T) {
 	a.cloud.storage = cloud.KindS3
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"Amazon S3", "Region", "例如 ap-northeast-1", "Bucket", "Access Key", "Secret"} {
-		if !hasText(tt, text) {
-			t.Fatalf("missing %q in %q", text, tt.Texts())
-		}
+		wantText(t, tt, text)
 	}
-	if hasText(tt, "Account ID") {
+	if textCount(tt, "Account ID") > 0 {
 		t.Fatal("the R2 endpoint hint is showing on the S3 form")
 	}
 }
