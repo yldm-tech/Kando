@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -14,12 +15,25 @@ func TestCommandsTakeThePathAsItIs(t *testing.T) {
 		want []string
 	}{
 		{"open -R", openRevealCommand(path).Args, []string{"/usr/bin/open", "-R", path}},
-		{"trash", macTrashCommand(path).Args, []string{"/usr/bin/trash", path}},
-		{"Finder", finderTrashCommand(path).Args, []string{"/usr/bin/osascript", "-e", "on run argv", "-e", "set target to POSIX file (item 1 of argv) as alias", "-e", `tell application "Finder" to delete target`, "-e", "end run", path}},
+		{"NSFileManager", fileManagerTrashCommand(path).Args, []string{"/usr/bin/osascript", "-l", "JavaScript", "-e", trashScript, path}},
 		{"gio trash", gioTrashCommand("/usr/bin/gio", path).Args, []string{"/usr/bin/gio", "trash", path}},
 	} {
 		if !slices.Equal(c.args, c.want) {
 			t.Errorf("%s runs %q, want %q", c.name, c.args, c.want)
+		}
+	}
+}
+
+// TestTrashScriptSendsNoAppleEvent checks that the script trashing an item on macOS calls NSFileManager in osascript's own process, never Finder through an Apple Event, which a hardened app may not send without the user's permission, and that it reads the path from its arguments.
+func TestTrashScriptSendsNoAppleEvent(t *testing.T) {
+	for _, want := range []string{"function run(argv)", "trashItemAtURLResultingItemURLError", "fileURLWithPath(argv[0])", "throw new Error"} {
+		if !strings.Contains(trashScript, want) {
+			t.Errorf("the trash script lacks %q:\n%s", want, trashScript)
+		}
+	}
+	for _, banned := range []string{"Application(", "Finder", "tell application"} {
+		if strings.Contains(trashScript, banned) {
+			t.Errorf("the trash script talks to another app (%q):\n%s", banned, trashScript)
 		}
 	}
 }

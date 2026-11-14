@@ -1,11 +1,12 @@
-// Package desktop opens URLs, reveals and trashes files, and keeps the computer awake for Kando. Notifications, the Dock badge and the progress bar are not here: they stay with the queue in queue_desktop.go. Each function takes the scope of the component or handler that calls it and runs on the engine's goroutine, as NSGo's services do. Where NSGo has no service yet, Reveal and Trash run the system's own tools (system.go): Finder, File Explorer or the FileManager1 file manager, and the Trash, the Recycle Bin or gio.
+// Package desktop opens URLs, reveals and trashes files, and keeps the computer awake for Kando. Notifications, the Dock badge and the progress bar are not here: they stay with the queue in queue_desktop.go. Each function takes the scope of the component or handler that calls it and runs on the engine's goroutine, as NSGo's services do. Where NSGo has no service yet, Reveal and Trash run the system's own tools (system.go): Finder, File Explorer or the FileManager1 file manager, and NSFileManager, the Recycle Bin's IFileOperation or gio for the Trash.
 package desktop
 
 import (
 	"errors"
-	"fmt"
+	"log"
 	"net/url"
 	"path/filepath"
+	"sync/atomic"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -18,6 +19,10 @@ var errFolderNotOpened = errors.New("no app opened the folder")
 
 // Reveal shows path selected in the file manager: Finder on macOS, File Explorer on Windows, and on Linux the file manager that answers org.freedesktop.FileManager1's ShowItems. Where that cannot be done, as on Linux without such a file manager, it opens the folder that holds path instead. done, when not nil, learns why neither worked, or nil once the file manager shows the item or its folder; it runs on the engine's goroutine, unless cx is gone by then.
 func Reveal(cx *core.Scope, path string, done func(err error)) {
+	if headless.Load() {
+		openFolder(cx, path, done)
+		return
+	}
 	// TODO(nsgo#117): reveal through NSGo's own service once it has one, rather than the system's tools (revealItem) https://github.com/nsgo-dev/nsgo/issues/117
 	go func() {
 		err := revealItem(path)
@@ -28,6 +33,7 @@ func Reveal(cx *core.Scope, path string, done func(err error)) {
 				}
 				return
 			}
+			log.Printf("desktop: the file manager did not show %s, opening its folder: %v", filepath.Base(path), err)
 			openFolder(cx, path, done)
 		})
 	}()
@@ -46,14 +52,31 @@ func openFolder(cx *core.Scope, path string, done func(err error)) {
 	})
 }
 
-// Trash moves a file or a folder to the Trash, the Recycle Bin on Windows, and waits until it is there. It fails, and leaves the item where it is, when the item cannot go there: on macOS and Linux when its volume has no Trash, and on Windows, where an item the Recycle Bin cannot take would be deleted for good, when the user declines the system's warning that says so. Elsewhere, and on Linux without gio, it fails with an error wrapping errors.ErrUnsupported.
+// ErrNotTrashed is Trash's error when the item could not go to the Trash and is left where it is: its volume has no Trash, it is not there, the system refused, or on Windows the Recycle Bin cannot take it and it would be deleted for good. What the system said is in the log, not in the error, so a caller says it in a sentence of its own.
+var ErrNotTrashed = errors.New("the item was not moved to the Trash")
+
+// Trash moves a file or a folder to the Trash, the Recycle Bin on Windows, and waits until it is there. It fails with ErrNotTrashed, and leaves the item where it is, when the item cannot go there; it never deletes an item for good, as Windows would one the Recycle Bin cannot take. Where there is no Trash to move it to, on Linux without gio, on another system, and after Headless, it fails with errors.ErrUnsupported. The error is one of the two, and what the system said is logged.
 func Trash(cx *core.Scope, path string) error {
-	// TODO(nsgo#117): trash through NSGo's own service once it has one, rather than the system's tools (trashItem) https://github.com/nsgo-dev/nsgo/issues/117
-	if err := trashItem(path); err != nil {
-		return fmt.Errorf("moving %s to the Trash: %w", filepath.Base(path), err)
+	if headless.Load() {
+		return errors.ErrUnsupported
 	}
-	return nil
+	// TODO(nsgo#117): trash through NSGo's own service once it has one, rather than the system's tools (trashItem) https://github.com/nsgo-dev/nsgo/issues/117
+	err := trashItem(path)
+	if err == nil {
+		return nil
+	}
+	log.Printf("desktop: moving %s to the Trash: %v", filepath.Base(path), err)
+	if errors.Is(err, errors.ErrUnsupported) {
+		return errors.ErrUnsupported
+	}
+	return ErrNotTrashed
 }
+
+// headless is set by Headless.
+var headless atomic.Bool
+
+// Headless keeps Reveal and Trash off the system's tools for the rest of the process, for tests, whose app runs headless on the machine of whoever runs them: Reveal opens the item's folder through the scope, which nsgotest records rather than opens, and Trash fails with errors.ErrUnsupported and leaves the item where it is.
+func Headless() { headless.Store(true) }
 
 // KeepAwake would keep the computer from sleeping, and with display set the display from turning off too, until release is called; calling release again does nothing. The reason is what the system would list as keeping it awake. NSGo cannot hold the computer awake yet, so the computer may sleep while a job runs or a film plays.
 func KeepAwake(cx *core.Scope, reason string, display bool) (release func()) {

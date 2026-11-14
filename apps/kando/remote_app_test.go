@@ -467,7 +467,11 @@ func TestRemoteSourceTakesFileURLsToTheirFile(t *testing.T) {
 		t.Fatalf("remoteLocalPath(%q) = %q, %v, want %q", core.FileURL(video), path, local, video)
 	}
 	if source, reason := remoteSource(core.FileURL(video), ""); source != core.FileURL(video) || reason != nil {
-		t.Fatalf("remoteSource = %q, %q", source, reason(locales.In("en")))
+		said := ""
+		if reason != nil {
+			said = reason(locales.In("en"))
+		}
+		t.Fatalf("remoteSource = %q, skipped %v %q", source, reason != nil, said)
 	}
 	if path, local := remoteLocalPath("file://other-machine/clip.mp4", ""); local || path != "" {
 		t.Fatalf("remoteLocalPath(remote host) = %q, %v", path, local)

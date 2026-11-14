@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// Reveal and Trash run the system's own tools where NSGo has no service for them yet (nsgo#117): each platform's revealItem and trashItem, in system_<os>.go, build the command lines here and run them through runCommand. A path reaches a tool as an argument of its own, never through a shell, and absolute, so it never reads as one of the tool's options.
+// Reveal and Trash run the system's own tools where NSGo has no service for them yet (nsgo#117): each platform's revealItem and trashItem, in system_<os>.go, build the command lines here and run them through runCommand; Windows trashes in the process, through IFileOperation (trash_windows.go). A path reaches a tool as an argument of its own, never through a shell, and absolute, so it never reads as one of the tool's options.
 
 // runCommand runs cmd and waits for it, failing with what it wrote to its standard error when it exits with an error. Tests replace it to see the command lines without starting anything.
 var runCommand = func(cmd *exec.Cmd) error {
@@ -36,22 +36,18 @@ func openRevealCommand(path string) *exec.Cmd {
 	return exec.Command("/usr/bin/open", "-R", path)
 }
 
-// macTrash is the trash command macOS has had since macOS 14, which moves its files to the Trash as Finder does and fails for a file on a volume without one.
-const macTrash = "/usr/bin/trash"
+// trashScript moves the item its argument names to the Trash with NSFileManager's trashItemAtURL, as Finder does, failing with what NSFileManager says when it cannot, as for an item on a volume without a Trash. It is JavaScript for Automation run by osascript, whose bridge to Objective-C calls NSFileManager in osascript's own process: it sends no Apple Event, to Finder or anyone, so it needs no permission to control another app, and it runs on every macOS Kando does, unlike the trash command, which came with macOS 15.
+const trashScript = `function run(argv) {
+	ObjC.import("Foundation");
+	const error = $();
+	if (!$.NSFileManager.defaultManager.trashItemAtURLResultingItemURLError($.NSURL.fileURLWithPath(argv[0]), null, error)) {
+		throw new Error(ObjC.unwrap(error.localizedDescription));
+	}
+}`
 
-// macTrashCommand moves path to the Trash with macTrash.
-func macTrashCommand(path string) *exec.Cmd {
-	return exec.Command(macTrash, path)
-}
-
-// finderTrashCommand has Finder move path to the Trash, for a macOS older than macTrash. The path is the script's argument, not part of its text, so nothing in it needs escaping; a path that is not there fails as it is made an alias.
-func finderTrashCommand(path string) *exec.Cmd {
-	return exec.Command("/usr/bin/osascript",
-		"-e", "on run argv",
-		"-e", "set target to POSIX file (item 1 of argv) as alias",
-		"-e", `tell application "Finder" to delete target`,
-		"-e", "end run",
-		path)
+// fileManagerTrashCommand moves path to the Trash with trashScript. The path is the script's argument, not part of its text, so nothing in it needs escaping.
+func fileManagerTrashCommand(path string) *exec.Cmd {
+	return exec.Command("/usr/bin/osascript", "-l", "JavaScript", "-e", trashScript, path)
 }
 
 // showItemsCommand has the file manager that answers org.freedesktop.FileManager1 show path selected, through gdbus, which the gio tools of GLib bring along. Its arguments are GVariant text: the array of the item's file: URI, and an empty startup ID.

@@ -181,6 +181,7 @@ func setWindowHidesOnClose(t *testing.T, hides bool) {
 
 // closeCanceled reports whether the close button's c was canceled, which keeps the window open. NSGo's WindowClosing only records it, for the window that asked, so the test reads what it recorded.
 func closeCanceled(c *ns.WindowClosing) bool {
+	// TODO(nsgo): read WindowClosing's Canceled() (or close the window through nsgotest) instead of its unexported canceled field, which NSGo can rename under this test
 	return reflect.ValueOf(c).Elem().FieldByName("canceled").Bool()
 }
 

@@ -426,8 +426,27 @@ func TestMenuSwitchLibraryWaitsBehindAFilePanel(t *testing.T) {
 	if a.snap().LibraryDir != first {
 		t.Fatalf("乙 opened behind a file panel: library %q", a.snap().LibraryDir)
 	}
-	if got, want := libraryChoices(t, findMenuItem(t, a.menuBar(a.cx), "文件", "切换资料库").Items), []string{"甲*-", "乙-"}; !slices.Equal(got, want) {
-		t.Fatalf("after the held-back click 切换资料库 lists %q, want %q", got, want)
+	// What the system shows is the menu installed, not the one menuBar would build now: it keeps the open library's ✓ and both held back.
+	var installed []string
+	for _, m := range tt.Menu {
+		for _, it := range m.Items {
+			if m.Label != "文件" || it.Label != "切换资料库" {
+				continue
+			}
+			for _, lib := range it.Items {
+				label := lib.Label
+				if lib.Checked {
+					label += "*"
+				}
+				if lib.Disabled {
+					label += "-"
+				}
+				installed = append(installed, label)
+			}
+		}
+	}
+	if want := []string{"甲*-", "乙-"}; !slices.Equal(installed, want) {
+		t.Fatalf("after the held-back click the installed 切换资料库 lists %q, want %q", installed, want)
 	}
 }
 

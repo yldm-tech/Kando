@@ -164,3 +164,34 @@ func TestDroppedPaths(t *testing.T) {
 		t.Fatalf("DroppedPaths = %q, want %q", got, want)
 	}
 }
+
+// TestHeadlessRunsNoTool checks that after Headless, Reveal opens the item's folder through the scope, which nsgotest records, and Trash fails as unsupported, neither running a tool nor touching the item.
+func TestHeadlessRunsNoTool(t *testing.T) {
+	ran := fakeTools(t, nil)
+	Headless()
+	t.Cleanup(func() { headless.Store(false) })
+	dir := t.TempDir()
+	film := filepath.Join(dir, "Spring Clip.mp4")
+	if err := os.WriteFile(film, []byte("film"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var revealed []error
+	var trashed error
+	app := start(t, map[string]func(*core.Scope){
+		"Reveal": func(cx *core.Scope) { Reveal(cx, film, func(err error) { revealed = append(revealed, err) }) },
+		"Trash":  func(cx *core.Scope) { trashed = Trash(cx, film) },
+	})
+	app.Press("text:Reveal")
+	app.WaitUntil(5*time.Second, func() bool { return len(revealed) == 1 })
+	app.Press("text:Trash")
+	app.Settle()
+	if revealed[0] != nil || len(app.OpenedFiles) != 1 || app.OpenedFiles[0].Path != dir {
+		t.Fatalf("reveal heard %v, opened %+v, want the folder %s", revealed, app.OpenedFiles, dir)
+	}
+	if trashed != errors.ErrUnsupported || len(*ran) != 0 {
+		t.Fatalf("Trash answered %v, ran %v", trashed, *ran)
+	}
+	if _, err := os.Stat(film); err != nil {
+		t.Fatalf("the item is gone: %v", err)
+	}
+}
