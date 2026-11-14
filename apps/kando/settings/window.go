@@ -1,13 +1,20 @@
 package settings
 
 import (
-	"kando/apps/kando/account"
+	"strings"
+
 	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/i18n"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // Preset is one translation service the AI page can select: its id, its name and what it is in the interface's language, and its group, one of the Group values.
@@ -28,16 +35,14 @@ type EveryAPI struct {
 	Failed, OpenErr              string
 }
 
-// Shortcut is one row of the app's shortcut table, as the 快捷键 page lists it.
+// Shortcut is one row of the app's shortcut table, as the 快捷键 page lists it: its group's title, what it does and its key in NSGo's form ("mod+,"), which the page writes as the platform does (core.Scope.KeyLabel).
 type Shortcut struct {
-	Group, Label string
-	Mods         ui.Modifiers
-	Key          ui.Key
+	Group, Label, Key string
 }
 
-// App is the settings the window reads and the edits it reports. The 账号与上传 page is the account package's.
+// App is the settings the window reads and the edits it reports. The 账号与上传 page is the account package's, which the window shows as Window.Account. The window reads the getters in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of the actions needs to call Changed itself.
 type App interface {
-	account.App
+	live.State
 
 	// SettingsSection is the Section value the window shows.
 	SettingsSection() string
@@ -45,9 +50,14 @@ type App interface {
 	// SettingsQuery is the text of the window's search field.
 	SettingsQuery() *string
 	SaveErr() string
+	// Save writes the settings to settings.json.
+	Save() error
 
 	LibraryDir() string
 	KnownLibraries() []string
+	// LibraryLabels names each of dirs as the library drop-down lists them, and DisplayPath writes a path as the page shows it, ~ for the home folder.
+	LibraryLabels(dirs []string) []string
+	DisplayPath(path string) string
 	Choose(dir string)
 	BeginNew()
 	PickLibrary()
@@ -63,11 +73,8 @@ type App interface {
 	CLI() CLI
 	InstallCLI()
 	CLICopied(text string)
-	// Updates is how Kando updates itself, as the app last heard from its updater; CheckForUpdates checks at once and shows the update window, and the setters change the user's choices.
-	Updates() Updates
+	// CheckForUpdates checks for a newer version of Kando at once and shows what it finds.
 	CheckForUpdates()
-	SetAutoCheckUpdates(on bool)
-	SetAutoDownloadUpdates(on bool)
 	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.
 	JobNotifications() bool
 	SetJobNotifications(on bool)
@@ -103,6 +110,8 @@ type App interface {
 	ApplyLLM()
 	TestingLLM() bool
 	TestLLM()
+	// LLMConnected reports whether the last connection test passed; LLMResult is why it failed, "" before any test and after one that passed.
+	LLMConnected() bool
 	LLMResult() string
 	SelectLLM(id string)
 	// LLMModels are the models the AI service offers, fetched while its page shows; LoadingLLMModels reports a fetch in flight, LLMModelsErr why the last one failed, and RetryLLMModels fetches again.
@@ -118,7 +127,7 @@ type App interface {
 	TranslateContext() *bool
 	TranslatePrompt() *string
 
-	// InterfaceLanguage is the app UI language tag ("en" or "zh-Hans").
+	// InterfaceLanguage is the app UI language tag, one of locales.Interface.
 	// It is separate from Language, which is the language subtitles are translated into.
 	InterfaceLanguage() string
 	SetInterfaceLanguage(tag string)
@@ -134,119 +143,194 @@ type App interface {
 	YieldSubs() bool
 	SetYieldSubs(on bool)
 
-	Shortcuts() []Shortcut
+	// Shortcuts is the app's shortcut table, its words in the language the app shows under cx.
+	Shortcuts(cx *core.Scope) []Shortcut
 	// ShortcutQuery is the text of the 快捷键 page's search field.
 	ShortcutQuery() *string
 }
 
+// screen is what every page reads: the app, and the version 通用 shows.
 type screen struct {
-	App
+	a       App
 	version string
 }
 
-// The rail's look, as the prototype's settings sidebar: 220 points wide with its line along the end, a translucent gray over the window's, and the chosen category in Kando's blue.
-const railWidth float32 = 220
+// The rail's look, as the prototype's settings sidebar: 220 points wide with its line along the end, a translucent gray over the window's, and the search field's gray.
+const railWidth core.Points = 220
 
 var (
-	railFill = ui.RGBA(236, 236, 240, 0.92)
-	railLine = ui.RGBA(0, 0, 0, 0.1)
-	chosen   = ui.Hex("#0A66D8")
+	railFill   = core.RGBA(0xECECF0, 0.92)
+	railLine   = core.RGBA(0x000000, 0.1)
+	searchFill = core.RGBA(0x000000, 0.06)
 )
 
-// Window draws the settings window: the categories with a search field on the left, the chosen one's page on the right under its title. t is the window's theme and dark the player's, which the 字幕外观 preview is drawn in.
-func Window(c *ui.Context, t, dark *ui.Theme, version string, a App) {
-	s := screen{App: a, version: version}
-	bar := c.TitleBar()
-	ui.Row(c).Fill().AlignItems(ui.Stretch).Background(form.Window).Children(func() {
-		s.rail(c, bar)
-		ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch).Children(func() {
-			header(c, title(s.SettingsSection()))
-			ui.Scroll(c).Grow(1).Children(func() {
-				ui.Column(c).WidthPercent(100).Padding(14, 28, 28, 28).Gap(6).AlignItems(ui.Stretch).Children(func() {
-					s.page(c, t, dark)
-					if s.SaveErr() != "" {
-						ui.Text(c, s.SaveErr()).FontSize(11).TextColor(t.Danger).Wrap().Padding(0, 12)
-					}
-				})
-			})
-		})
+// Window is the settings window's content: the categories with a search field on the left, the chosen one's page on the right under its title. Account is the 账号与上传 page, the account package's. It fills the window it is in, the settings window of its own or the dialog over the main window where the platform opens none.
+type Window struct {
+	App     App
+	Version string
+	Account core.Node
+}
+
+// Render implements core.Node.
+func (w Window) Render(cx *core.Scope) core.Node {
+	s := screen{a: w.App, version: w.Version}
+	// The words the window's pieces take as plain strings, the accessibility labels and the buttons' among them, are read as it is built, so it is built again when the interface's language changes, which happens from the language drop-down, whose focus goes then anyway.
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		_ = i18n.Language(cx)
+		return core.Func(func(cx *core.Scope) core.Node { return s.layout(cx, w.Account) })
 	})
+}
+
+// layout is the window in the language the app shows now.
+func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
+	a := s.a
+	section := core.NewMemo(cx, live.Func(a, a.SettingsSection))
+	// The page is built again when the category changes; within it, what changes with the app's state follows it in bindings, so a field being typed in keeps the focus.
+	page := core.Dynamic(func(cx *core.Scope) core.Node {
+		id := section.Get()
+		return core.Func(func(cx *core.Scope) core.Node { return s.page(cx, id, account) })
+	})
+	saveErr := core.Show{When: live.Func(a, func() bool { return a.SaveErr() != "" }), Then: func(cx *core.Scope) core.Node {
+		colors := ui.ColorsOf(cx)
+		return core.Text{ContentFunc: live.Func(a, a.SaveErr), Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
+	}}
+	content := core.View{Style: core.Style{Width: core.Pct(100), Padding: core.Edges{Top: 14, Right: 28, Bottom: 28, Left: 28}, Gap: 6, AlignItems: core.AlignStretch},
+		Children: []core.Node{page, saveErr}}
+	pane := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), AlignItems: core.AlignStretch}, Children: []core.Node{
+		header{a: a, section: section.Get},
+		core.Scroll{TestID: "settings-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{content}},
+	}}
+	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, AlignItems: core.AlignStretch, Background: form.Window},
+		Children: []core.Node{rail{a: a}, pane}}
 }
 
 // header is the page's title bar: 50 points high with a line under it, the title 15-point bold where the page's content starts. It moves the window, as the title bar it stands in for does.
-func header(c *ui.Context, text string) {
-	ui.Column(c).Shrink(0).AlignItems(ui.Stretch).Children(func() {
-		ui.Row(c).Height(50).Padding(0, 28).AlignItems(ui.Center).DragWindow().Children(func() {
-			ui.Text(c, text).FontSize(15).FixedLineHeight(18).FontWeight(700).TextColor(form.Text).SingleLine().Role(ui.RoleHeading)
-		})
-		ui.Box(c).Height(1).Shrink(0).Background(form.Line)
-	})
+type header struct {
+	a       App
+	section func() string
+}
+
+// Render implements core.Node.
+func (h header) Render(cx *core.Scope) core.Node {
+	title := core.Text{TestID: "settings-title", Role: core.RoleHeader, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
+		ContentFunc: func() string { return Title(cx, h.section()) },
+		Style:       core.Style{FontSize: 15, LineHeight: 18, FontWeight: ui.Bold, Color: form.Text}}
+	bar := core.View{Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn},
+		Style: core.Style{Direction: core.Row, Height: core.Pt(50), Padding: core.Symmetric(0, 28), AlignItems: core.AlignCenter}, Children: []core.Node{title}}
+	line := core.View{Style: core.Style{Height: core.Pt(1), FlexShrink: 0, Background: form.Line}}
+	return core.View{Style: core.Style{FlexShrink: 0, AlignItems: core.AlignStretch}, Children: []core.Node{bar, line}}
 }
 
 // rail is the window's sidebar: room for the traffic lights, the search field, and the categories it finds.
-func (s screen) rail(c *ui.Context, bar ui.TitleBar) {
-	ui.Column(c).Width(railWidth).Shrink(0).AlignItems(ui.Stretch).Padding(0, 10, 12, 10).Gap(2).Background(railFill).BorderEndWidth(1).BorderColor(railLine).Children(func() {
-		top := ui.Row(c).Height(max(float32(bar.Height), 50)).Shrink(0).DragWindow()
-		if bar.Left > 0 {
-			top.PaddingStart(float32(bar.Left))
-		}
-		ui.SearchField(c, s.SettingsQuery()).Label(locales.SettingsSearchLabel()).Placeholder(locales.SettingsSearchPlaceholder()).Height(28).Shrink(0).Radius(8).Border(0, ui.Transparent).Background(ui.RGBA(0, 0, 0, 0.06)).FontSize(13).Padding(0, 9, 0, 8).Margin(0, 0, 8, 0)
-		query := *s.SettingsQuery()
-		sel := s.SettingsSection()
-		found := 0
-		ui.Sidebar(c, &sel, func() {
-			for _, sec := range sections {
-				if !sec.matches(query) {
-					continue
-				}
-				found++
-				categoryItem(c, sec, sec.id == sel)
+type rail struct{ a App }
+
+// Render implements core.Node.
+func (r rail) Render(cx *core.Scope) core.Node {
+	a := r.a
+	// found is the sections the search finds, as their ids joined, so the list is built again only when that changes, not after every change of the app's state.
+	found := core.NewMemo(cx, live.Func(a, func() string {
+		var ids []string
+		for _, sec := range sections {
+			if sec.matches(cx, *a.SettingsQuery()) {
+				ids = append(ids, sec.id)
 			}
-		}).Background(ui.Transparent).Padding(0).Gap(2).Grow(1)
-		if found == 0 {
-			ui.Text(c, locales.SettingsSearchNone()).FontSize(12).TextColor(form.Secondary).Padding(10, 8)
 		}
-		if sel != s.SettingsSection() {
-			s.SetSettingsSection(sel)
-		}
-	})
-}
-
-// categoryItem is a category of the rail: its colored tile and its title, 30 points high, filled in blue with a white title while chosen, as the prototype's settings sidebar draws it whether or not it has the focus.
-func categoryItem(c *ui.Context, sec section, on bool) {
-	look := *c.Theme()
-	look.SurfaceHover, look.SurfacePressed = ui.Transparent, ui.Transparent
-	var item ui.Element
-	ui.Themed(c, &look).Background(ui.Transparent).Children(func() { item = ui.SidebarItem(c, sec.id, nil, sec.title()) })
-	item.MinHeight(30).Padding(0, 8).PaddingStart(8 + 22 + 9).Radius(8).FontSize(13).FontWeight(400)
-	if on {
-		item.Background(chosen).TextColor(ui.Hex("#FFFFFF"))
-	} else {
-		item.Background(ui.Transparent).TextColor(form.Text)
+		return strings.Join(ids, ",")
+	}))
+	list := ui.Sidebar{
+		TestID: "settings-sections",
+		SectionsFunc: func() []ui.SidebarSection {
+			ids := found.Get()
+			var items []ui.SidebarItem
+			for _, sec := range sections {
+				if strings.Contains(","+ids+",", ","+sec.id+",") {
+					items = append(items, ui.SidebarItem{ID: sec.id, Text: sec.title(cx), Content: categoryContent(cx, sec), TestID: "settings-section-" + sec.id})
+				}
+			}
+			return []ui.SidebarSection{{Items: items}}
+		},
+		Selected: live.Func(a, a.SettingsSection),
+		OnSelect: live.On(a, func(id string) {
+			if id != a.SettingsSection() {
+				a.SetSettingsSection(id)
+			}
+		}),
 	}
-	item.Children(func() {
-		ui.Column(c).Absolute().Top(0).Bottom(0).Start(8).Justify(ui.Center).PassThrough().Role(ui.RoleNone).Children(func() {
-			ui.Image(c, sec.icon).Size(22, 22).PassThrough()
-		})
-	})
+	none := core.Show{When: func() bool { return found.Get() == "" }, Then: func(cx *core.Scope) core.Node {
+		return core.Text{Content: locales.SettingsSearchNone(cx), Style: core.Style{FontSize: 12, Color: form.Secondary, Padding: core.Symmetric(10, 8)}}
+	}}
+	// The traffic lights sit in the band at the top, which moves the window; past them, where the title bar says they end.
+	top := core.View{Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, StyleFunc: func() core.Style {
+		bar := nsdesktop.TitleBar(cx)
+		return core.Style{Height: core.Pt(max(bar.Top, 50)), FlexShrink: 0}
+	}}
+	return core.View{TestID: "settings-rail",
+		Style: core.Style{Width: core.Pt(railWidth), FlexShrink: 0, AlignItems: core.AlignStretch, Padding: core.Edges{Right: 10, Bottom: 12, Left: 10}, Gap: 2,
+			Background: railFill, Borders: core.Edges{Right: 1}, BorderColors: core.EdgeColors{Right: railLine}},
+		Children: []core.Node{top, search{a: a}, none, core.View{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{list}}}}
 }
 
-// page draws the chosen category.
-func (s screen) page(c *ui.Context, t, dark *ui.Theme) {
-	switch s.SettingsSection() {
+// categoryContent is a category of the rail: its colored tile and its title, as the prototype's settings sidebar draws it. ui.Sidebar marks the chosen one.
+func categoryContent(cx *core.Scope, sec section) core.Node {
+	colors := ui.ColorsOf(cx)
+	tile := core.SVGView{SVG: sec.icon, Style: core.Style{Width: core.Pt(22), Height: core.Pt(22), FlexShrink: 0}}
+	label := ui.Text(sec.title(cx), 13, ui.Regular, colors.Text)
+	label.MaxLines, label.Style.FlexGrow, label.Style.FlexShrink = 1, 1, 1
+	return core.Group([]core.Node{tile, label})
+}
+
+// search is the rail's search field, which narrows the categories to those whose title or keywords hold what is typed: 28 points high, its corners 8, gray without a border, a magnifying glass before the text. Escape empties it while it holds something.
+type search struct{ a App }
+
+// Render implements core.Node.
+func (s search) Render(cx *core.Scope) core.Node {
+	a := s.a
+	colors := ui.ColorsOf(cx)
+	query := live.Func(a, func() string { return *a.SettingsQuery() })
+	clear := live.Do(a, func() { *a.SettingsQuery() = "" })
+	focused := core.NewSignal(cx, false)
+	escape := core.Show{When: func() bool { return focused.Get() && query() != "" }, Then: func(cx *core.Scope) core.Node {
+		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, clear)
+		return nil
+	}}
+	// TODO(nsgo): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was
+	input := base.Input{TestID: "settings-search",
+		Label:       locales.SettingsSearchLabel(cx),
+		Placeholder: locales.SettingsSearchPlaceholder(cx),
+		Value:       query,
+		OnChange:    live.On(a, func(text string) { *a.SettingsQuery() = text }),
+		OnFocus:     func() { focused.Set(true) },
+		OnBlur:      func() { focused.Set(false) },
+		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, Background: searchFill, FontSize: 13,
+			Padding: core.Edges{Left: 28, Right: 8}},
+		StyleFunc: func() core.Style {
+			return core.Style{Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
+		},
+	}
+	glass := core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(7), Left: core.Pt(9)},
+		Children: []core.Node{ui.Icon(lucide.Search, 14, colors.Muted)}}
+	return core.View{Style: core.Style{FlexShrink: 0, Margin: core.Edges{Bottom: 8}}, Children: []core.Node{input, glass, escape}}
+}
+
+// page builds the category id: the account package's page for 账号与上传, which the window is given, and its own pages for the others.
+func (s screen) page(cx *core.Scope, id string, account core.Node) core.Node {
+	switch id {
 	case SectionSpeech:
-		s.speech(c, t)
+		return speech{s}
 	case SectionAI:
-		s.ai(c, t)
+		return ai{s}
 	case SectionTranslate:
-		s.translate(c, t)
+		return translate{s}
 	case SectionLook:
-		s.look(c, t, dark)
+		return look{s}
 	case SectionShortcuts:
-		s.shortcuts(c, t)
+		return shortcuts{s}
 	case SectionAccount:
-		account.Show(c, t, s.App)
+		if account != nil {
+			return account
+		}
+		return core.Group(nil)
 	default:
-		s.general(c, t)
+		return general{s}
 	}
 }

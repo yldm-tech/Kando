@@ -3,14 +3,16 @@ package settings
 import (
 	"testing"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/media"
 )
 
 // TestSpokenLanguagesHaveNames checks that the spoken-language drop-down names every language whisper can be told to hear, rather than showing its code.
 func TestSpokenLanguagesHaveNames(t *testing.T) {
-	seen := map[string]string{spokenLanguageName(""): ""}
+	m := testlocale.Messages()
+	seen := map[string]string{spokenLanguageName(m, ""): ""}
 	for _, code := range media.SpeechLanguages() {
-		name := spokenLanguageName(code)
+		name := spokenLanguageName(m, code)
 		if name == code || name == "" {
 			t.Fatalf("%q has no name", code)
 		}

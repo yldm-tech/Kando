@@ -2,177 +2,266 @@ package settings
 
 import (
 	"path/filepath"
-	"slices"
 	"strings"
 
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // speech is the 语音识别 page: the whisper models, one of which recognizes speech, their downloads and what can be done with the files on disk, and the language spoken in the videos.
-func (s screen) speech(c *ui.Context, t *ui.Theme) {
-	tools, _ := s.Tools()
-	models := media.SpeechModels()
-	installed := make([]string, len(models))
-	chosen := ""
-	for i, model := range models {
-		installed[i] = s.InstalledSpeechModel(model.ID)
-		if installed[i] != "" && filepath.Clean(installed[i]) == filepath.Clean(tools.WhisperModel) {
-			chosen = model.ID
+type speech struct{ s screen }
+
+// Render implements core.Node.
+func (p speech) Render(cx *core.Scope) core.Node {
+	a := p.s.a
+	colors := ui.ColorsOf(cx)
+	var rows []core.Node
+	for i, model := range media.SpeechModels() {
+		if i > 0 {
+			rows = append(rows, form.Separator(false))
+		}
+		rows = append(rows, modelRow{a: a, model: model})
+	}
+	// One radio group, so that Tab stops once in it and the arrows choose among the models on disk.
+	group := ui.RadioGroup{Label: locales.SettingsSpeechModels(cx), Children: rows, Style: core.Style{Gap: 0, AlignItems: core.AlignStretch}}
+	failed := core.Show{When: live.Func(a, func() bool { return a.DownloadErr() != "" }), Then: func(cx *core.Scope) core.Node {
+		return core.Text{ContentFunc: live.Func(a, a.DownloadErr), Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
+	}}
+	return form.Page(
+		form.Label(locales.SettingsSpeechModels(cx), 6),
+		form.Card(group),
+		form.Note(static(locales.SettingsSpeechNote(cx)), 0),
+		failed,
+		spokenLanguage(cx, a),
+		form.Note(static(locales.SettingsSpeechSpokenNote(cx)), 0),
+		trashDialog{a: a},
+	)
+}
+
+// chosenSpeechModel is the whisper catalog model in use, "" when the one in use is none of them or not on disk.
+func chosenSpeechModel(a App) string {
+	tools, _ := a.Tools()
+	for _, model := range media.SpeechModels() {
+		if installed := a.InstalledSpeechModel(model.ID); installed != "" && filepath.Clean(installed) == filepath.Clean(tools.WhisperModel) {
+			return model.ID
 		}
 	}
-	sel := chosen
-	form.Label(c, locales.SettingsSpeechModels(), 6, nil)
-	form.Card(c, func() {
-		// One radio group, so that Tab stops once in it and the arrows choose among the models on disk.
-		ui.RadioGroup(c, func() {
-			for i, model := range models {
-				if i > 0 {
-					form.Separator(c, false)
-				}
-				c.Key(model.ID)
-				s.modelRow(c, &sel, model, installed[i])
-			}
-		}).Label(locales.SettingsSpeechModels()).Gap(0).AlignItems(ui.Stretch)
-	})
-	form.Note(c, locales.SettingsSpeechNote(), 0)
-	if sel != chosen {
-		for i, model := range models {
-			if model.ID == sel {
-				s.UseSpeechModel(installed[i])
-			}
-		}
-	}
-	if s.DownloadErr() != "" {
-		ui.Text(c, s.DownloadErr()).FontSize(11).TextColor(t.Danger).Wrap().Padding(0, 12)
-	}
-	s.spokenLanguage(c)
-	s.trashDialog(c)
+	return ""
 }
 
 // spokenLanguage is the card naming the language spoken in the videos: 自动识别, which lets whisper detect it from each video's first 30 seconds, or one of the languages whisper is told to hear. The drop-down shows the languages' names; what is saved is whisper's code.
-func (s screen) spokenLanguage(c *ui.Context) {
-	form.Card(c, func() {
-		form.Row(c, locales.SettingsSpeechSpokenLanguage(), "", func() {
-			c.Key("speech-language")
-			codes := append([]string{""}, media.SpeechLanguages()...)
-			labels := make([]string, len(codes))
-			for i, code := range codes {
-				labels[i] = spokenLanguageName(code)
-			}
-			chosen := spokenLanguageName(s.SpeechLanguage())
-			if form.Select(c, &chosen, labels).Label(locales.SettingsSpeechSpokenLanguage()).Changed() {
-				if i := slices.Index(labels, chosen); i >= 0 {
-					s.SetSpeechLanguage(codes[i])
-				}
-			}
-		})
-	}).Margin(10, 0, 0, 0)
-	form.Note(c, locales.SettingsSpeechSpokenNote(), 0)
+func spokenLanguage(cx *core.Scope, a App) core.Node {
+	codes := append([]string{""}, media.SpeechLanguages()...)
+	options := make([]ui.Option[string], len(codes))
+	for i, code := range codes {
+		options[i] = ui.Option[string]{Value: code, Label: spokenLanguageName(locales.For(cx), code)}
+	}
+	choose := ui.Select[string]{Options: options, Label: locales.SettingsSpeechSpokenLanguage(cx), TestID: "settings-speech-language",
+		Value: live.Func(a, a.SpeechLanguage), OnChange: live.On(a, a.SetSpeechLanguage), Style: core.Style{Width: core.Pt(160)}}
+	card := form.Card(form.Row{Title: locales.SettingsSpeechSpokenLanguage(cx), NoGroup: true, Trailing: []core.Node{choose}})
+	card.Style.Margin = core.Edges{Top: 10}
+	return card
 }
 
-// spokenLanguageName is how the spoken-language drop-down names whisper's language code, 自动识别 for "", in the interface's language.
-func spokenLanguageName(code string) string {
+// spokenLanguageName is how the spoken-language drop-down names whisper's language code, 自动识别 for "", in the language of m.
+func spokenLanguageName(m locales.Messages, code string) string {
 	switch code {
 	case "":
-		return locales.SettingsSpeechSpokenAuto()
+		return m.SettingsSpeechSpokenAuto()
 	case "en":
-		return locales.SettingsSpeechLanguageEn()
+		return m.SettingsSpeechLanguageEn()
 	case "zh":
-		return locales.SettingsSpeechLanguageZh()
+		return m.SettingsSpeechLanguageZh()
 	case "ja":
-		return locales.SettingsSpeechLanguageJa()
+		return m.SettingsSpeechLanguageJa()
 	case "ko":
-		return locales.SettingsSpeechLanguageKo()
+		return m.SettingsSpeechLanguageKo()
 	case "fr":
-		return locales.SettingsSpeechLanguageFr()
+		return m.SettingsSpeechLanguageFr()
 	case "es":
-		return locales.SettingsSpeechLanguageEs()
+		return m.SettingsSpeechLanguageEs()
 	case "de":
-		return locales.SettingsSpeechLanguageDe()
+		return m.SettingsSpeechLanguageDe()
 	}
 	return code
 }
 
-// trashDialog confirms moving a downloaded model to the Trash, saying how much room it frees. 取消 is the default, so Enter keeps the model.
-func (s screen) trashDialog(c *ui.Context) {
-	open, id := s.TrashingSpeechModel()
-	if !*open {
-		return
-	}
-	model, _ := media.SpeechModelByID(id)
-	name := SpeechModelName(id)
-	if breeze.DestructiveAlertDialog(c, open, locales.SettingsSpeechTrashConfirm(name), locales.SettingsSpeechTrashMessage(model.SizeLabel), 0, locales.SettingsSpeechTrashButton(), locales.SettingsSpeechCancel()) == 0 {
-		s.TrashSpeechModel(id)
-	}
+// trashDialog confirms moving a downloaded model to the Trash, saying how much room it frees. 取消 is the default, so Enter keeps the model; Escape keeps it too.
+type trashDialog struct{ a App }
+
+// Render implements core.Node.
+func (d trashDialog) Render(cx *core.Scope) core.Node {
+	a := d.a
+	colors := ui.ColorsOf(cx)
+	model := core.NewMemo(cx, live.Func(a, func() string { _, id := a.TrashingSpeechModel(); return id }))
+	cancel := live.Do(a, func() {
+		open, _ := a.TrashingSpeechModel()
+		*open = false
+	})
+	return core.Show{When: live.Func(a, func() bool { open, _ := a.TrashingSpeechModel(); return *open }), Then: func(cx *core.Scope) core.Node {
+		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways}, cancel)
+		// The dialog's words are set as it is built, so it is built again for another model.
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			id := model.Get()
+			info, _ := media.SpeechModelByID(id)
+			// TODO(nsgo): give ui.Dialog TitleFunc and DescriptionFunc twins so the words follow the model asked about without building the dialog again, then drop this Dynamic
+			return ui.Dialog{
+				TestID:                 "settings-trash-confirm",
+				Role:                   core.RoleAlertDialog,
+				NoCloseOnBackdropPress: true,
+				Open:                   func() bool { return true },
+				Title:                  locales.SettingsSpeechTrashConfirm(cx, SpeechModelName(cx, id)),
+				Description:            locales.SettingsSpeechTrashMessage(cx, info.SizeLabel),
+				OnOpenChange: func(open bool, _ base.Reason) {
+					if !open {
+						cancel()
+					}
+				},
+				Footer: []core.Node{
+					ui.Button{Text: locales.SettingsSpeechCancel(cx), Variant: ui.ButtonSecondary, TestID: "settings-trash-cancel", OnPress: cancel},
+					ui.Button{Text: locales.SettingsSpeechTrashButton(cx), Color: colors.Danger, TestID: "settings-trash-ok", OnPress: live.Do(a, func() {
+						open, _ := a.TrashingSpeechModel()
+						*open = false
+						a.TrashSpeechModel(id)
+					})},
+				},
+			}
+		})
+	}}
 }
 
 // modelRow is a whisper model as the prototype's engine rows: its radio button, its name with 推荐 after it over what it is good for and its speed, accuracy and size, and what it offers at the end. A model not on disk cannot be chosen, so its radio button is disabled.
-func (s screen) modelRow(c *ui.Context, sel *string, model media.SpeechModel, installed string) {
-	name := SpeechModelName(model.ID)
-	ui.Row(c).Shrink(0).MinHeight(54).Padding(8, 14).Gap(12).AlignItems(ui.Center).Children(func() {
-		breeze.Radio(c, sel, model.ID, "").Label(name).Disabled(installed == "")
-		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, name).FontSize(13).FontWeight(600).TextColor(form.Text)
-				if model.Recommended {
-					form.Badge(c, locales.SettingsSpeechRecommended())
+type modelRow struct {
+	a     App
+	model media.SpeechModel
+}
+
+// Render implements core.Node.
+func (r modelRow) Render(cx *core.Scope) core.Node {
+	a, model := r.a, r.model
+	name := SpeechModelName(cx, model.ID)
+	radio := ui.Radio{Label: name, TestID: "settings-model-" + model.ID,
+		Checked:  live.Func(a, func() bool { return chosenSpeechModel(a) == model.ID }),
+		Disabled: live.Func(a, func() bool { return a.InstalledSpeechModel(model.ID) == "" }),
+		OnChange: live.On(a, func(on bool) {
+			if path := a.InstalledSpeechModel(model.ID); on && path != "" {
+				a.UseSpeechModel(path)
+			}
+		})}
+	title := []core.Node{core.Text{Content: name, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: form.Text}}}
+	if model.Recommended {
+		title = append(title, form.Badge(locales.SettingsSpeechRecommended(cx)))
+	}
+	about := SpeechModelBlurb(cx, model.ID) + "\n" + locales.SettingsSpeechModelStats(cx, stars(model.Speed), stars(model.Accuracy), model.SizeLabel)
+	texts := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
+		core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter}, Children: title},
+		core.Text{Content: about, Style: core.Style{FontSize: 11, LineHeight: 15, Color: form.Secondary}},
+	}}
+	end := core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{modelAction{a: a, model: model}}}
+	return core.View{TestID: "settings-model-row-" + model.ID,
+		Style:    core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(54), Padding: core.Symmetric(8, 14), Gap: 12, AlignItems: core.AlignCenter},
+		Children: []core.Node{radio, texts, end}}
+}
+
+// modelState is what a model offers at the end of its row.
+type modelState uint8
+
+const (
+	modelDownload modelState = iota
+	modelDownloading
+	modelInstalled
+)
+
+// modelAction is what a model offers at the end of its row: its download's progress with a way to cancel it, 已下载 with ⋯ for its file (modelMenu), or 下载.
+type modelAction struct {
+	a     App
+	model media.SpeechModel
+}
+
+// Render implements core.Node.
+func (m modelAction) Render(cx *core.Scope) core.Node {
+	a, model := m.a, m.model
+	state := core.NewMemo(cx, live.Func(a, func() modelState {
+		switch {
+		case a.Downloading() == model.ID:
+			return modelDownloading
+		case a.InstalledSpeechModel(model.ID) != "":
+			return modelInstalled
+		}
+		return modelDownload
+	}))
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		name := SpeechModelName(cx, model.ID)
+		switch state.Get() {
+		case modelDownloading:
+			total := live.Func(a, a.DownloadTotal)
+			progress := ui.Progress{Label: locales.SettingsSpeechDownloadProgress(cx, name), TestID: "settings-model-progress-" + model.ID, Style: core.Style{Width: core.Pt(110)},
+				Indeterminate: func() bool { return total() <= 0 },
+				Value: live.Func(a, func() float32 {
+					if a.DownloadTotal() <= 0 {
+						return 0
+					}
+					return float32(a.DownloadWritten()) / float32(a.DownloadTotal()) * 100
+				})}
+			return core.Group([]core.Node{progress, form.Button{Text: locales.SettingsSpeechCancel(cx), OnPress: live.Do(a, a.CancelDownload), TestID: "settings-model-cancel-" + model.ID}})
+		case modelInstalled:
+			return core.Group([]core.Node{form.Value(static(locales.SettingsSpeechDownloaded(cx)), 12), modelMore{a: a, model: model}})
+		}
+		return form.Button{Text: locales.SettingsSpeechDownload(cx), TestID: "settings-model-download-" + model.ID,
+			Disabled: live.Func(a, func() bool { return a.Downloading() != "" }),
+			OnPress: live.Do(a, func() {
+				if a.Downloading() == "" {
+					a.DownloadModel(model.ID)
 				}
-			})
-			ui.Text(c, SpeechModelBlurb(model.ID)+"\n"+locales.SettingsSpeechModelStats(stars(model.Speed), stars(model.Accuracy), model.SizeLabel)).FontSize(11).FixedLineHeight(15).TextColor(form.Secondary).Wrap()
-		})
-		ui.Row(c).Shrink(0).Gap(8).AlignItems(ui.Center).Children(func() { s.modelAction(c, model, installed) })
+			})}
 	})
 }
 
-// modelAction is what a model offers at the end of its row: its download's progress with a way to cancel it, 已下载 with ⋯ for its file (modelMenu), or 下载.
-func (s screen) modelAction(c *ui.Context, model media.SpeechModel, installed string) {
-	if s.Downloading() == model.ID {
-		progress := float64(-1)
-		if s.DownloadTotal() > 0 {
-			progress = float64(s.DownloadWritten()) / float64(s.DownloadTotal())
-		}
-		breeze.Progress(c, progress).Width(110).Label(locales.SettingsSpeechDownloadProgress(SpeechModelName(model.ID)))
-		c.Key(model.ID + "-cancel")
-		if form.Button(c, locales.SettingsSpeechCancel(), false).Clicked() {
-			s.CancelDownload()
-		}
-		return
-	}
-	if installed != "" {
-		form.Value(c, locales.SettingsSpeechDownloaded(), 12)
-		c.Key(model.ID + "-more")
-		breeze.FlatIconButton(c, iconMore, locales.SettingsSpeechModelActions(SpeechModelName(model.ID))).Menu(s.modelMenu(model, installed))
-		return
-	}
-	c.Key(model.ID + "-download")
-	if form.Button(c, locales.SettingsSpeechDownload(), false).Disabled(s.Downloading() != "").Clicked() && s.Downloading() == "" {
-		s.DownloadModel(model.ID)
-	}
+// modelMore is the ⋯ after 已下载, which opens the system's menu of what can be done with the model's file (modelMenu) under it.
+type modelMore struct {
+	a     App
+	model media.SpeechModel
 }
 
-// modelMenu is what can be done with a downloaded model's file, from ⋯ after 已下载: show it in Finder, wherever it is, and move it to the Trash when Kando downloaded it, unless it is a model in use (the one chosen, or the one a running job started with) or a download is running.
-func (s screen) modelMenu(model media.SpeechModel, installed string) func(m *ui.Menu) {
-	return func(m *ui.Menu) {
-		if m.Item(locales.SettingsSpeechReveal()).Chosen() {
-			s.Reveal(installed)
+// Render implements core.Node.
+func (m modelMore) Render(cx *core.Scope) core.Node {
+	// place is the button's frame, which ui.IconButton takes no Ref for: the menu opens under the button, at its leading edge, however it was pressed.
+	place := &core.Ref{}
+	press := func() {
+		at := core.Point{}
+		if b, ok := place.Bounds(); ok {
+			at = core.Point{X: b.Origin.X, Y: b.Origin.Y + b.Size.Height + 4}
 		}
-		if !s.OwnsSpeechModel(model.ID) {
-			return
-		}
-		m.Separator()
-		if m.Item(locales.SettingsSpeechTrash()).Disabled(s.SpeechModelInUse(installed) || s.Downloading() != "").Chosen() {
-			s.AskTrashSpeechModel(model.ID)
-		}
+		nsdesktop.PopupMenu(cx, modelMenu(cx, m.a, m.model), at, nil)
 	}
+	button := ui.IconButton{Icon: svg(iconMore), Label: locales.SettingsSpeechModelActions(cx, SpeechModelName(cx, m.model.ID)), Size: 24, OnPress: press, TestID: "settings-model-more-" + m.model.ID}
+	return core.View{Ref: place, Style: core.Style{FlexShrink: 0}, Children: []core.Node{button}}
 }
 
-// SpeechModelName is how the interface names the whisper catalog model id (media.SpeechModels), as this page and the first-run guide list it.
-func SpeechModelName(id string) string {
+// modelMenu is what can be done with a downloaded model's file, from ⋯ after 已下载: show it in Finder, wherever it is, and move it to the Trash when Kando downloaded it, unless it is a model in use (the one chosen, or the one a running job started with) or a download is running. It is built as the menu opens, so it says what is true then.
+func modelMenu(cx *core.Scope, a App, model media.SpeechModel) []nsdesktop.MenuItem {
+	installed := a.InstalledSpeechModel(model.ID)
+	items := []nsdesktop.MenuItem{{Label: locales.SettingsSpeechReveal(cx), OnSelect: live.Do(a, func() { a.Reveal(installed) })}}
+	if !a.OwnsSpeechModel(model.ID) {
+		return items
+	}
+	return append(items, nsdesktop.MenuItem{Separator: true}, nsdesktop.MenuItem{Label: locales.SettingsSpeechTrash(cx),
+		Disabled: a.SpeechModelInUse(installed) || a.Downloading() != "",
+		OnSelect: live.Do(a, func() { a.AskTrashSpeechModel(model.ID) })})
+}
+
+// SpeechModelName is how the interface names the whisper catalog model id (media.SpeechModels) in the language the app shows under cx, as this page and the first-run guide list it.
+func SpeechModelName(cx *core.Scope, id string) string { return SpeechModelNameIn(locales.For(cx), id) }
+
+// SpeechModelNameIn is SpeechModelName in the language of m, for words said outside a scope, as an error kept in the app's state.
+func SpeechModelNameIn(m locales.Messages, id string) string {
 	switch id {
 	case "tiny":
 		return "Tiny"
@@ -183,7 +272,7 @@ func SpeechModelName(id string) string {
 	case "medium":
 		return "Medium"
 	case "large-v3-turbo-q5":
-		return locales.SettingsSpeechNameLargeV3TurboQ5()
+		return m.SettingsSpeechNameLargeV3TurboQ5()
 	case "large-v3-turbo":
 		return "Large v3 Turbo"
 	case "large-v3":
@@ -192,23 +281,26 @@ func SpeechModelName(id string) string {
 	return id
 }
 
-// SpeechModelBlurb is what the whisper catalog model id is good for, in the interface's language, or "" for a model it does not know.
-func SpeechModelBlurb(id string) string {
+// SpeechModelBlurb is what the whisper catalog model id is good for, in the language the app shows under cx, or "" for a model it does not know.
+func SpeechModelBlurb(cx *core.Scope, id string) string { return SpeechModelBlurbIn(locales.For(cx), id) }
+
+// SpeechModelBlurbIn is SpeechModelBlurb in the language of m.
+func SpeechModelBlurbIn(m locales.Messages, id string) string {
 	switch id {
 	case "tiny":
-		return locales.SettingsSpeechBlurbTiny()
+		return m.SettingsSpeechBlurbTiny()
 	case "base":
-		return locales.SettingsSpeechBlurbBase()
+		return m.SettingsSpeechBlurbBase()
 	case "small":
-		return locales.SettingsSpeechBlurbSmall()
+		return m.SettingsSpeechBlurbSmall()
 	case "medium":
-		return locales.SettingsSpeechBlurbMedium()
+		return m.SettingsSpeechBlurbMedium()
 	case "large-v3-turbo-q5":
-		return locales.SettingsSpeechBlurbLargeV3TurboQ5()
+		return m.SettingsSpeechBlurbLargeV3TurboQ5()
 	case "large-v3-turbo":
-		return locales.SettingsSpeechBlurbLargeV3Turbo()
+		return m.SettingsSpeechBlurbLargeV3Turbo()
 	case "large-v3":
-		return locales.SettingsSpeechBlurbLargeV3()
+		return m.SettingsSpeechBlurbLargeV3()
 	}
 	return ""
 }

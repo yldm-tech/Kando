@@ -1,66 +1,82 @@
 package settings
 
 import (
-	"slices"
 	"strings"
 
 	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // translate is the 翻译 page: the language subtitles are translated into, whether each batch takes the sentences before it, and the prompt. The prototype's page starts 6 points lower than one that opens with a section label.
-func (s screen) translate(c *ui.Context, t *ui.Theme) {
-	form.Card(c, func() {
-		form.Row(c, locales.SettingsTranslateTarget(), "", func() {
-			c.Key("translate-language")
-			values := LanguageChoices(*s.Language())
-			labels := make([]string, len(values))
-			for i, value := range values {
-				labels[i] = LanguageName(value)
-			}
-			chosen := LanguageName(*s.Language())
-			if form.Select(c, &chosen, labels).Label(locales.SettingsTranslateTarget()).Changed() {
-				if i := slices.Index(labels, chosen); i >= 0 {
-					*s.Language() = values[i]
-				}
-				s.Save()
-			}
-		})
-		form.Separator(c, true)
-		c.Key("translate-context")
-		if form.SwitchRow(c, locales.SettingsTranslateContext(), locales.SettingsTranslateContextHint(), s.TranslateContext()) {
-			s.Save()
+type translate struct{ s screen }
+
+// Render implements core.Node.
+func (p translate) Render(cx *core.Scope) core.Node {
+	a := p.s.a
+	// choices is the target languages offered, joined, so the drop-down is built again only when a language typed into an older version leaves the list.
+	choices := core.NewMemo(cx, live.Func(a, func() string { return strings.Join(LanguageChoices(*a.Language()), "\n") }))
+	target := core.Dynamic(func(cx *core.Scope) core.Node {
+		values := strings.Split(choices.Get(), "\n")
+		options := make([]ui.Option[string], len(values))
+		for i, value := range values {
+			options[i] = ui.Option[string]{Value: value, Label: LanguageName(cx, value)}
 		}
-	}).Margin(6, 0, 0, 0)
-	form.Note(c, locales.SettingsTranslateTargetNote(), 0)
-	usingDefault := strings.TrimSpace(*s.TranslatePrompt()) == strings.TrimSpace(media.DefaultSubtitlePrompt)
-	form.Label(c, locales.SettingsTranslatePrompt(), 12, nil)
-	form.Card(c, func() {
-		ui.Column(c).Padding(10, 14, 12, 14).Gap(8).AlignItems(ui.Stretch).Children(func() {
-			c.Key("translate-prompt")
-			if breeze.TextArea(c, s.TranslatePrompt()).Height(106).Font("monospace").FontSize(12).Label(locales.SettingsTranslatePromptLabel()).Changed() {
-				s.Save()
-			}
-			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				label := locales.SettingsTranslatePromptCustom()
-				if usingDefault {
-					label = locales.SettingsTranslatePromptDefault()
-				}
-				ui.Text(c, label).FontSize(11).TextColor(form.Secondary).Grow(1).Wrap()
-				c.Key("translate-reset")
-				if form.Button(c, locales.SettingsTranslateRestore(), true).Disabled(usingDefault).Clicked() && !usingDefault {
-					*s.TranslatePrompt() = media.DefaultSubtitlePrompt
-					s.Save()
-				}
-			})
-		})
+		return ui.Select[string]{Options: options, Label: locales.SettingsTranslateTarget(cx), TestID: "settings-translate-language",
+			Value: live.Func(a, func() string { return *a.Language() }),
+			OnChange: live.On(a, func(value string) {
+				*a.Language() = value
+				a.Save()
+			}),
+			Style: core.Style{Width: core.Pt(160)}}
 	})
-	form.Note(c, locales.SettingsTranslatePromptNote(), 0)
+	context := form.SwitchRow{Title: locales.SettingsTranslateContext(cx), Subtitle: locales.SettingsTranslateContextHint(cx), TestID: "settings-translate-context",
+		On: live.Func(a, func() bool { return *a.TranslateContext() }),
+		OnChange: live.On(a, func(on bool) {
+			*a.TranslateContext() = on
+			a.Save()
+		})}
+	card := form.Card(form.Row{Title: locales.SettingsTranslateTarget(cx), NoGroup: true, Trailing: []core.Node{target}}, form.Separator(true), context)
+	card.Style.Margin = core.Edges{Top: 6}
+	usingDefault := live.Func(a, func() bool {
+		return strings.TrimSpace(*a.TranslatePrompt()) == strings.TrimSpace(media.DefaultSubtitlePrompt)
+	})
+	prompt := ui.Input{TestID: "settings-translate-prompt", Multiline: true, Label: locales.SettingsTranslatePromptLabel(cx),
+		Value: live.Func(a, func() string { return *a.TranslatePrompt() }),
+		OnChange: live.On(a, func(text string) {
+			*a.TranslatePrompt() = text
+			a.Save()
+		}),
+		Style: core.Style{Height: core.Pt(106), FontFamily: "monospace"}}
+	state := core.Text{Style: core.Style{FontSize: 11, Color: form.Secondary, FlexGrow: 1, FlexShrink: 1},
+		ContentFunc: func() string {
+			if usingDefault() {
+				return locales.SettingsTranslatePromptDefault(cx)
+			}
+			return locales.SettingsTranslatePromptCustom(cx)
+		}}
+	restore := form.Button{Text: locales.SettingsTranslateRestore(cx), TestID: "settings-translate-reset", Disabled: usingDefault, OnPress: live.Do(a, func() {
+		if strings.TrimSpace(*a.TranslatePrompt()) != strings.TrimSpace(media.DefaultSubtitlePrompt) {
+			*a.TranslatePrompt() = media.DefaultSubtitlePrompt
+			a.Save()
+		}
+	})}
+	editor := core.View{Style: core.Style{Padding: core.Edges{Top: 10, Right: 14, Bottom: 12, Left: 14}, Gap: 8, AlignItems: core.AlignStretch}, Children: []core.Node{
+		prompt,
+		core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{state, restore}},
+	}}
+	return form.Page(
+		card,
+		form.Note(static(locales.SettingsTranslateTargetNote(cx)), 0),
+		form.Label(locales.SettingsTranslatePrompt(cx), 12),
+		form.Card(editor),
+		form.Note(static(locales.SettingsTranslatePromptNote(cx)), 0),
+	)
 }
 
 // LanguageChoices is the target languages the settings offer, with current added when it is not one of them, as a language typed into an older version is kept. These are the values the settings, the jobs and the translation prompt keep, as 简体中文; LanguageName is what the interface shows for each.
@@ -77,5 +93,5 @@ func LanguageChoices(current string) []string {
 	return append([]string{current}, choices...)
 }
 
-// LanguageName is how the interface names the target language value, one of LanguageChoices (subtitle.TargetLanguageName).
-func LanguageName(value string) string { return subtitle.TargetLanguageName(value) }
+// LanguageName is how the interface names the target language value, one of LanguageChoices, in the language the app shows under cx (subtitle.TargetLanguageName).
+func LanguageName(cx *core.Scope, value string) string { return subtitle.TargetLanguageName(cx, value) }
