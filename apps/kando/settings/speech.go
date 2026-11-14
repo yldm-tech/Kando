@@ -282,7 +282,9 @@ func SpeechModelNameIn(m locales.Messages, id string) string {
 }
 
 // SpeechModelBlurb is what the whisper catalog model id is good for, in the language the app shows under cx, or "" for a model it does not know.
-func SpeechModelBlurb(cx *core.Scope, id string) string { return SpeechModelBlurbIn(locales.For(cx), id) }
+func SpeechModelBlurb(cx *core.Scope, id string) string {
+	return SpeechModelBlurbIn(locales.For(cx), id)
+}
 
 // SpeechModelBlurbIn is SpeechModelBlurb in the language of m.
 func SpeechModelBlurbIn(m locales.Messages, id string) string {

@@ -82,13 +82,13 @@ func newFakeApp() *fakeApp {
 
 func (f *fakeApp) call(s string) { f.calls = append(f.calls, s) }
 
-func (f *fakeApp) SettingsSection() string             { return f.section }
-func (f *fakeApp) SetSettingsSection(s string)         { f.call("section " + s); f.section = s }
-func (f *fakeApp) SettingsQuery() *string              { return &f.query }
-func (f *fakeApp) SaveErr() string                     { return f.saveErr }
-func (f *fakeApp) Save() error                         { f.call("save"); return nil }
-func (f *fakeApp) LibraryDir() string                  { return f.dir }
-func (f *fakeApp) KnownLibraries() []string            { return f.libraries }
+func (f *fakeApp) SettingsSection() string     { return f.section }
+func (f *fakeApp) SetSettingsSection(s string) { f.call("section " + s); f.section = s }
+func (f *fakeApp) SettingsQuery() *string      { return &f.query }
+func (f *fakeApp) SaveErr() string             { return f.saveErr }
+func (f *fakeApp) Save() error                 { f.call("save"); return nil }
+func (f *fakeApp) LibraryDir() string          { return f.dir }
+func (f *fakeApp) KnownLibraries() []string    { return f.libraries }
 func (f *fakeApp) LibraryLabels(dirs []string) []string {
 	out := make([]string, len(dirs))
 	for i, dir := range dirs {
@@ -96,73 +96,77 @@ func (f *fakeApp) LibraryLabels(dirs []string) []string {
 	}
 	return out
 }
-func (f *fakeApp) DisplayPath(path string) string          { return path }
-func (f *fakeApp) Choose(dir string)                       { f.call("choose " + dir); f.dir = dir }
-func (f *fakeApp) BeginNew()                               { f.call("new") }
-func (f *fakeApp) PickLibrary()                            { f.call("pick") }
-func (f *fakeApp) Reveal(path string)                      { f.call("reveal " + path) }
-func (f *fakeApp) Forget(dir string)                       { f.call("forget " + dir) }
-func (f *fakeApp) Tools() (media.Tools, bool)              { return f.tools, f.known }
-func (f *fakeApp) Redetect()                               { f.call("redetect") }
-func (f *fakeApp) ToolVersion(path string) string          { return f.versions[path] }
-func (f *fakeApp) ToolDownload(program string) ToolFetch   { return f.fetch[program] }
-func (f *fakeApp) DownloadTool(program string)             { f.call("download " + program) }
-func (f *fakeApp) CLI() CLI                                { return f.cli }
-func (f *fakeApp) InstallCLI()                             { f.call("install cli") }
-func (f *fakeApp) CLICopied(text string)                   { f.cli.Copied = text }
-func (f *fakeApp) CheckForUpdates()                        { f.call("check updates") }
-func (f *fakeApp) JobNotifications() bool                  { return f.notify }
-func (f *fakeApp) SetJobNotifications(on bool)             { f.notify = on }
-func (f *fakeApp) InstalledSpeechModel(id string) string   { return f.models[id] }
-func (f *fakeApp) UseSpeechModel(path string)              { f.call("use " + path); f.tools.WhisperModel = path }
-func (f *fakeApp) Downloading() string                     { return f.downloading }
-func (f *fakeApp) DownloadWritten() int64                  { return f.written }
-func (f *fakeApp) DownloadTotal() int64                    { return f.total }
-func (f *fakeApp) DownloadErr() string                     { return f.downloadErr }
-func (f *fakeApp) CancelDownload()                         { f.call("cancel download") }
-func (f *fakeApp) DownloadModel(id string)                 { f.call("download model " + id) }
-func (f *fakeApp) OwnsSpeechModel(id string) bool          { return f.owned[id] }
-func (f *fakeApp) SpeechModelInUse(path string) bool       { return path == f.tools.WhisperModel }
-func (f *fakeApp) AskTrashSpeechModel(id string)           { f.trashOpen, f.trashID = true, id }
-func (f *fakeApp) TrashingSpeechModel() (*bool, string)    { return &f.trashOpen, f.trashID }
-func (f *fakeApp) TrashSpeechModel(id string)              { f.call("trash " + id) }
-func (f *fakeApp) SpeechLanguage() string                  { return f.spoken }
-func (f *fakeApp) SetSpeechLanguage(code string)           { f.spoken = code }
-func (f *fakeApp) CurrentPreset() (Preset, bool)           { return Preset{ID: f.provider, Name: f.provider}, true }
-func (f *fakeApp) Presets() []Preset                       { return []Preset{{ID: "everyapi", Name: "EveryAPI", Group: GroupCloud}, {ID: "ollama", Name: "Ollama", Group: GroupLocal}} }
-func (f *fakeApp) LLMProvider() string                     { return f.provider }
-func (f *fakeApp) SetLLMProvider(id string)                { f.provider = id }
-func (f *fakeApp) ProviderID(string) string                { return "custom" }
-func (f *fakeApp) LLMBase() *string                        { return &f.base }
-func (f *fakeApp) LLMKey() *string                         { return &f.key }
-func (f *fakeApp) LLMModel() *string                       { return &f.model }
-func (f *fakeApp) ApplyLLM()                               { f.call("apply") }
-func (f *fakeApp) TestingLLM() bool                        { return f.testing }
-func (f *fakeApp) TestLLM()                                { f.call("test") }
-func (f *fakeApp) LLMConnected() bool                      { return f.connected }
-func (f *fakeApp) LLMResult() string                       { return f.result }
-func (f *fakeApp) SelectLLM(id string)                     { f.call("select " + id); f.provider = id }
-func (f *fakeApp) LLMModels() []string                     { return f.llmModels }
-func (f *fakeApp) LoadingLLMModels() bool                  { return f.loadingModels }
-func (f *fakeApp) LLMModelsErr() string                    { return f.modelsErr }
-func (f *fakeApp) RetryLLMModels()                         { f.call("retry models") }
-func (f *fakeApp) EveryAPI() EveryAPI                      { return f.everyAPI }
-func (f *fakeApp) GetEveryAPI()                            { f.call("get everyapi") }
-func (f *fakeApp) Language() *string                       { return &f.language }
-func (f *fakeApp) TranslateContext() *bool                 { return &f.context }
-func (f *fakeApp) TranslatePrompt() *string                { return &f.prompt }
-func (f *fakeApp) InterfaceLanguage() string               { return f.interfaceLang }
-func (f *fakeApp) SetInterfaceLanguage(tag string)         { f.call("language " + tag); f.interfaceLang = tag }
-func (f *fakeApp) Cue() *subtitle.Look                     { return &f.cue }
-func (f *fakeApp) SubMode() string                         { return f.subMode }
-func (f *fakeApp) SetSubMode(mode string)                  { f.subMode = mode }
-func (f *fakeApp) SubOrder() string                        { return f.subOrder }
-func (f *fakeApp) SetSubOrder(order string)                { f.subOrder = order }
-func (f *fakeApp) Untranslated() string                    { return f.untranslated }
-func (f *fakeApp) SetUntranslated(mode string)             { f.untranslated = mode }
-func (f *fakeApp) YieldSubs() bool                         { return f.yield }
-func (f *fakeApp) SetYieldSubs(on bool)                    { f.yield = on }
-func (f *fakeApp) ShortcutQuery() *string                  { return &f.shortcutQuery }
+func (f *fakeApp) DisplayPath(path string) string        { return path }
+func (f *fakeApp) Choose(dir string)                     { f.call("choose " + dir); f.dir = dir }
+func (f *fakeApp) BeginNew()                             { f.call("new") }
+func (f *fakeApp) PickLibrary()                          { f.call("pick") }
+func (f *fakeApp) Reveal(path string)                    { f.call("reveal " + path) }
+func (f *fakeApp) Forget(dir string)                     { f.call("forget " + dir) }
+func (f *fakeApp) Tools() (media.Tools, bool)            { return f.tools, f.known }
+func (f *fakeApp) Redetect()                             { f.call("redetect") }
+func (f *fakeApp) ToolVersion(path string) string        { return f.versions[path] }
+func (f *fakeApp) ToolDownload(program string) ToolFetch { return f.fetch[program] }
+func (f *fakeApp) DownloadTool(program string)           { f.call("download " + program) }
+func (f *fakeApp) CLI() CLI                              { return f.cli }
+func (f *fakeApp) InstallCLI()                           { f.call("install cli") }
+func (f *fakeApp) CLICopied(text string)                 { f.cli.Copied = text }
+func (f *fakeApp) CheckForUpdates()                      { f.call("check updates") }
+func (f *fakeApp) JobNotifications() bool                { return f.notify }
+func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
+func (f *fakeApp) InstalledSpeechModel(id string) string { return f.models[id] }
+func (f *fakeApp) UseSpeechModel(path string)            { f.call("use " + path); f.tools.WhisperModel = path }
+func (f *fakeApp) Downloading() string                   { return f.downloading }
+func (f *fakeApp) DownloadWritten() int64                { return f.written }
+func (f *fakeApp) DownloadTotal() int64                  { return f.total }
+func (f *fakeApp) DownloadErr() string                   { return f.downloadErr }
+func (f *fakeApp) CancelDownload()                       { f.call("cancel download") }
+func (f *fakeApp) DownloadModel(id string)               { f.call("download model " + id) }
+func (f *fakeApp) OwnsSpeechModel(id string) bool        { return f.owned[id] }
+func (f *fakeApp) SpeechModelInUse(path string) bool     { return path == f.tools.WhisperModel }
+func (f *fakeApp) AskTrashSpeechModel(id string)         { f.trashOpen, f.trashID = true, id }
+func (f *fakeApp) TrashingSpeechModel() (*bool, string)  { return &f.trashOpen, f.trashID }
+func (f *fakeApp) TrashSpeechModel(id string)            { f.call("trash " + id) }
+func (f *fakeApp) SpeechLanguage() string                { return f.spoken }
+func (f *fakeApp) SetSpeechLanguage(code string)         { f.spoken = code }
+func (f *fakeApp) CurrentPreset() (Preset, bool) {
+	return Preset{ID: f.provider, Name: f.provider}, true
+}
+func (f *fakeApp) Presets() []Preset {
+	return []Preset{{ID: "everyapi", Name: "EveryAPI", Group: GroupCloud}, {ID: "ollama", Name: "Ollama", Group: GroupLocal}}
+}
+func (f *fakeApp) LLMProvider() string             { return f.provider }
+func (f *fakeApp) SetLLMProvider(id string)        { f.provider = id }
+func (f *fakeApp) ProviderID(string) string        { return "custom" }
+func (f *fakeApp) LLMBase() *string                { return &f.base }
+func (f *fakeApp) LLMKey() *string                 { return &f.key }
+func (f *fakeApp) LLMModel() *string               { return &f.model }
+func (f *fakeApp) ApplyLLM()                       { f.call("apply") }
+func (f *fakeApp) TestingLLM() bool                { return f.testing }
+func (f *fakeApp) TestLLM()                        { f.call("test") }
+func (f *fakeApp) LLMConnected() bool              { return f.connected }
+func (f *fakeApp) LLMResult() string               { return f.result }
+func (f *fakeApp) SelectLLM(id string)             { f.call("select " + id); f.provider = id }
+func (f *fakeApp) LLMModels() []string             { return f.llmModels }
+func (f *fakeApp) LoadingLLMModels() bool          { return f.loadingModels }
+func (f *fakeApp) LLMModelsErr() string            { return f.modelsErr }
+func (f *fakeApp) RetryLLMModels()                 { f.call("retry models") }
+func (f *fakeApp) EveryAPI() EveryAPI              { return f.everyAPI }
+func (f *fakeApp) GetEveryAPI()                    { f.call("get everyapi") }
+func (f *fakeApp) Language() *string               { return &f.language }
+func (f *fakeApp) TranslateContext() *bool         { return &f.context }
+func (f *fakeApp) TranslatePrompt() *string        { return &f.prompt }
+func (f *fakeApp) InterfaceLanguage() string       { return f.interfaceLang }
+func (f *fakeApp) SetInterfaceLanguage(tag string) { f.call("language " + tag); f.interfaceLang = tag }
+func (f *fakeApp) Cue() *subtitle.Look             { return &f.cue }
+func (f *fakeApp) SubMode() string                 { return f.subMode }
+func (f *fakeApp) SetSubMode(mode string)          { f.subMode = mode }
+func (f *fakeApp) SubOrder() string                { return f.subOrder }
+func (f *fakeApp) SetSubOrder(order string)        { f.subOrder = order }
+func (f *fakeApp) Untranslated() string            { return f.untranslated }
+func (f *fakeApp) SetUntranslated(mode string)     { f.untranslated = mode }
+func (f *fakeApp) YieldSubs() bool                 { return f.yield }
+func (f *fakeApp) SetYieldSubs(on bool)            { f.yield = on }
+func (f *fakeApp) ShortcutQuery() *string          { return &f.shortcutQuery }
 func (f *fakeApp) Shortcuts(cx *core.Scope) []Shortcut {
 	return []Shortcut{{Group: "看懂", Label: "设置…", Key: "mod+,"}, {Group: "显示", Label: "全屏", Key: "f"}}
 }
