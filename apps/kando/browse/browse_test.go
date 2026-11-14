@@ -163,6 +163,9 @@ func TestToolbarDrivesTheApp(t *testing.T) {
 	if app.Enabled("id:browse-forward") {
 		t.Fatal("forward is on without a page to go forward to")
 	}
+	if pill := app.Find("id:browse-download"); pill.Frame.Size.Height != 34 || pill.Style.CornerRadius != 17 || pill.Props.Label != testlocale.Messages().BrowseDownload() {
+		t.Fatalf("下载视频 is %v with corners of %v, named %q", pill.Frame.Size, pill.Style.CornerRadius, pill.Props.Label)
+	}
 	app.Press("id:browse-back")
 	app.Press("id:browse-reload")
 	app.Press("id:browse-home")
@@ -277,6 +280,9 @@ func TestBrowserFollowsTheLanguage(t *testing.T) {
 		if !app.Exists(whole(want)) {
 			t.Errorf("no %q in %q", want, app.Texts())
 		}
+	}
+	if label := app.Find("id:browse-download").Props.Label; label != "Download Video" {
+		t.Errorf("下载视频 is named %q in English", label)
 	}
 }
 

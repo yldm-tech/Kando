@@ -61,15 +61,10 @@ func (t toolbar) Render(cx *core.Scope) core.Node {
 			nav("browse-home", iconHome, locales.BrowseHome, func(s State) bool { return s.Page }, a.BrowseHome),
 		},
 	}
-	// The library's toolbar pills are as high as the large button; the platform draws their faces.
 	download := ui.Tooltip{
 		TextFunc: func() string { return locales.BrowseDownloadTooltip(cx) },
 		Style:    core.Style{FlexShrink: 0},
-		// The button's words are set as it is built, so it is built again for another language.
-		Trigger: core.Dynamic(func(cx *core.Scope) core.Node {
-			return ui.Button{Text: locales.BrowseDownload(cx), Size: ui.SizeLarge, TestID: "browse-download",
-				Disabled: func() bool { return !state().Page }, OnPress: live.Do(a, a.BrowseDownload)}
-		}),
+		Trigger:  downloadPill{a: a, state: state},
 	}
 	bar.Children = []core.Node{buttons, address{a}, download}
 	return bar
@@ -127,5 +122,34 @@ func (f address) Render(cx *core.Scope) core.Node {
 			core.View{Style: core.Style{FlexShrink: 0}, Children: []core.Node{ui.Icon(svg(iconGlobe), 15, colors.Muted)}},
 			input,
 		},
+	}
+}
+
+// downloadPill is 下载视频, a pill as high as the library's toolbar pills (34 points) filled with the accent, as MyGo's primary button was there. ui.Button keeps to its sizes, so the pill is drawn on base.Button with ui.Button's primary colors.
+type downloadPill struct {
+	a     App
+	state func() State
+}
+
+// Render implements core.Node.
+func (d downloadPill) Render(cx *core.Scope) core.Node {
+	a, state := d.a, d.state
+	return base.Button{
+		TestID:    "browse-download",
+		LabelFunc: func() string { return locales.BrowseDownload(cx) },
+		Disabled:  func() bool { return !state().Page },
+		OnPress:   live.On(a, func(core.PressEvent) { a.BrowseDownload() }),
+		Style: core.Style{Height: core.Pt(34), CornerRadius: 17, BorderCurve: core.BorderCurveContinuous, Padding: core.Symmetric(0, 18),
+			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},
+		StyleFunc: func() core.Style {
+			p := cx.Palette()
+			return core.Style{Background: p.Accent, Hover: &core.Style{Background: p.AccentHover}, Active: &core.Style{Background: p.AccentPressed}, FocusVisible: ui.FocusRing(cx, 2)}
+		},
+		Children: []core.Node{core.Text{
+			ContentFunc: func() string { return locales.BrowseDownload(cx) },
+			MaxLines:    1,
+			Style:       core.Style{FontSize: 14, LineHeight: 20},
+			StyleFunc:   func() core.Style { return core.Style{Color: cx.Palette().AccentText} },
+		}},
 	}
 }
