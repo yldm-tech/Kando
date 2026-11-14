@@ -11,22 +11,20 @@ import (
 	"time"
 
 	"kando/apps/kando/brand"
-	"kando/apps/kando/desktop/mygodesktop"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // The shelf: which library folders the app knows, which one is open, and following them when they are renamed in Finder. The shelf's state is the nodra session in state.go.
 
 func (a *app) pickLibrary() {
-	current := a.snap().LibraryDir
-	if current == "" {
-		current = a.libraryPlace()
-	}
-	a.pickFolder(locales.LibraryImportTitle(), locales.LibraryImportButton(), current, func(dir string) {
+	a.pickFolder(func(dir string) {
 		a.switchLibrary(dir)
 		a.edit(func(s *session) { s.MakingLibrary = false })
 		a.page = pageFilms
@@ -34,14 +32,14 @@ func (a *app) pickLibrary() {
 }
 
 func (a *app) pickLibraryParent() {
-	a.pickFolder(locales.LibraryPlaceTitle(), locales.LibraryPlaceButton(), a.libraryPlace(), func(dir string) {
+	a.pickFolder(func(dir string) {
 		a.edit(func(s *session) { s.LibraryParent = dir })
 	})
 }
 
 // createLibrary makes a .kando bundle and switches to it. A folder that is already there is opened as it is.
 func (a *app) createLibrary() {
-	file, err := libraryFileName(a.snap().LibraryName)
+	file, err := libraryFileName(a.messages(), a.snap().LibraryName)
 	if err != nil {
 		a.saveErr = err.Error()
 		return
@@ -49,9 +47,9 @@ func (a *app) createLibrary() {
 	dir := filepath.Join(a.libraryPlace(), file)
 	if info, statErr := os.Stat(dir); statErr == nil {
 		if info.IsDir() {
-			a.saveErr = locales.LibraryNameTaken()
+			a.saveErr = a.messages().LibraryNameTaken()
 		} else {
-			a.saveErr = locales.LibraryFileTaken()
+			a.saveErr = a.messages().LibraryFileTaken()
 		}
 		return
 	} else if !os.IsNotExist(statErr) {
@@ -67,15 +65,16 @@ func (a *app) createLibrary() {
 	a.page = pageFilms
 }
 
-func libraryFileName(name string) (string, error) {
+// libraryFileName is the folder name of a library called name, or why there can be none, in the language of m.
+func libraryFileName(m locales.Messages, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	name = strings.TrimSuffix(name, media.LibraryExt)
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return "", errors.New(locales.LibraryNameEmpty())
+		return "", errors.New(m.LibraryNameEmpty())
 	}
 	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
-		return "", errors.New(locales.LibraryNameHasPath())
+		return "", errors.New(m.LibraryNameHasPath())
 	}
 	return name + media.LibraryExt, nil
 }
@@ -95,7 +94,7 @@ func (a *app) beginNewLibrary() {
 
 func (a *app) freeLibraryName() string {
 	parent := a.libraryPlace()
-	base := locales.LibraryDefaultName()
+	base := a.messages().LibraryDefaultName()
 	if _, err := os.Stat(filepath.Join(parent, base+media.LibraryExt)); os.IsNotExist(err) {
 		return base
 	}
@@ -115,7 +114,7 @@ func (a *app) libraryPlace() string {
 	return media.MoviesDir()
 }
 
-// switchLibrary points new downloads at dir; a running job goes on into its own library (queue.go run).
+// switchLibrary points new downloads at dir; a running job goes on into its own library (queueRun).
 func (a *app) switchLibrary(dir string) {
 	dir = filepath.Clean(dir)
 	if dir == "." || dir == "" {
@@ -126,13 +125,13 @@ func (a *app) switchLibrary(dir string) {
 	a.edit(func(st *session) { st.Libraries = libs })
 	if filepath.Clean(s.LibraryDir) == dir {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = locales.LibrarySaveFailed(err.Error())
+			a.saveErr = a.messages().LibrarySaveFailed(err.Error())
 		}
 		return
 	}
 	a.applyLibrary(dir)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.LibrarySaveFailed(err.Error())
+		a.saveErr = a.messages().LibrarySaveFailed(err.Error())
 		return
 	}
 	a.saveErr = ""
@@ -154,7 +153,7 @@ func (a *app) forgetLibrary(dir string) {
 	})
 	if filepath.Clean(s.LibraryDir) != dir {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = locales.LibrarySaveFailed(err.Error())
+			a.saveErr = a.messages().LibrarySaveFailed(err.Error())
 		}
 		return
 	}
@@ -164,7 +163,7 @@ func (a *app) forgetLibrary(dir string) {
 	}
 	a.applyLibrary(next)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.LibrarySaveFailed(err.Error())
+		a.saveErr = a.messages().LibrarySaveFailed(err.Error())
 		return
 	}
 	a.saveErr = ""
@@ -219,7 +218,7 @@ func (a *app) adoptRenamedLibrary(next string) {
 	}
 	a.renameLibraryPath(prev, next)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.LibrarySaveFailed(err.Error())
+		a.saveErr = a.messages().LibrarySaveFailed(err.Error())
 	}
 }
 
@@ -242,7 +241,7 @@ func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
 	}
 	if changed {
 		if err := a.library.Save(); err != nil {
-			a.saveErr = shelfSaveErr(err, locales.LibraryShelfSaveFailed)
+			a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
 		}
 	}
 }
@@ -436,7 +435,7 @@ func (a *app) syncRenamedLibraries() bool {
 	}
 	if changed {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = locales.LibrarySaveFailed(err.Error())
+			a.saveErr = a.messages().LibrarySaveFailed(err.Error())
 		}
 	}
 	return changed
@@ -475,6 +474,10 @@ func (a *app) restartLibraryWatch() {
 			case <-stop:
 				return
 			case <-ticker.C:
+				// The check runs here, off the engine's goroutine, on a snapshot of the shelf, which nodra's store hands any goroutine: a report goes to the engine only when a known library has gone from where it was, so the window is not told about a change every second while nothing moved.
+				if !shelfLibraryGone(a.store.Get()) {
+					continue
+				}
 				update(func() {
 					if a.libraryWatch != stop {
 						return
@@ -486,6 +489,23 @@ func (a *app) restartLibraryWatch() {
 			}
 		}
 	}()
+}
+
+// shelfLibraryGone reports whether syncRenamedLibraries has anything to do for the shelf s: a library it knows is no longer at its path, as when it was renamed in Finder, or one is there under an identity the shelf has not remembered. Any goroutine may call it.
+func shelfLibraryGone(s session) bool {
+	known := s.Libraries
+	if s.LibraryDir != "" {
+		known = addLibrary(slices.Clone(known), s.LibraryDir)
+	}
+	for _, dir := range known {
+		if _, err := os.Stat(dir); err != nil {
+			return true
+		}
+		if id := media.IdentifyDir(dir); dirIDSet(id) && s.Inodes[filepath.Clean(dir)] != id {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *app) knownLibraries() []string {
@@ -589,7 +609,7 @@ func (a *app) refreshLibrary() {
 	}
 	if a.retargetLibrary(moved) || a.relocateMissing() || a.retargetRenamed() || a.dropMissing() {
 		if err := a.library.Save(); err != nil {
-			a.saveErr = shelfSaveErr(err, locales.LibraryShelfSaveFailed)
+			a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
 		}
 	}
 	videos, err := media.ListVideos(dir)
@@ -762,7 +782,7 @@ func (a *app) openLibrary(path string) {
 	lib, err := shelf.Load(path)
 	a.library = lib
 	if err != nil {
-		a.saveErr = shelfKeepDamaged(&a.library, path, err)
+		a.saveErr = shelfKeepDamaged(a.messages(), &a.library, path, err)
 	}
 	a.areasShelfLoaded()
 	renamed := a.snap().Renamed
@@ -776,49 +796,57 @@ func (a *app) openLibrary(path string) {
 }
 
 // shelfKeepDamaged handles the error Load gave for the library.json at path, before anything can save over it, and returns what the sidebar says. A file that is not a library in full is copied beside itself as library.json.bad, and lib may then save over it; when the copy cannot be written, or the file could not be read at all, lib stays unsaved (shelf.ErrUnread) until Kando starts again, as the file may hold jobs lib lacks.
-func shelfKeepDamaged(lib *shelf.Library, path string, err error) string {
+func shelfKeepDamaged(m locales.Messages, lib *shelf.Library, path string, err error) string {
 	var damaged *shelf.DamagedError
 	if !errors.As(err, &damaged) {
-		return locales.LibraryShelfReadFailed(err.Error())
+		return m.LibraryShelfReadFailed(err.Error())
 	}
 	if writeErr := os.WriteFile(path+".bad", damaged.Data, 0o600); writeErr != nil {
-		return locales.LibraryShelfDamagedUnsaved(writeErr.Error())
+		return m.LibraryShelfDamagedUnsaved(writeErr.Error())
 	}
 	lib.AllowSave()
-	return locales.LibraryShelfDamaged(damaged.Err.Error())
+	return m.LibraryShelfDamaged(damaged.Err.Error())
 }
 
-// shelfSaveErr is what the sidebar says when saving library.json returned err: failed wraps the error's text, except for a library that does not save because its file could not be read in full (shelf.ErrUnread), which gets its own notice, as that error's text is not translated.
-func shelfSaveErr(err error, failed func(error string) string) string {
+// shelfSaveErr is what the sidebar says when saving library.json returned err, in the interface's language: failed wraps the error's text, such as a.messages().LibraryShelfSaveFailed, except for a library that does not save because its file could not be read in full (shelf.ErrUnread), which gets its own notice, as that error's text is not translated.
+func (a *app) shelfSaveErr(err error, failed func(error string) string) string {
 	if errors.Is(err, shelf.ErrUnread) {
-		return locales.LibraryShelfNotSaved()
+		return a.messages().LibraryShelfNotSaved()
 	}
 	return failed(err.Error())
 }
 
-// revealInFolder shows path in the system file manager. Tests replace it.
+// revealInFolder shows path in the system file manager, under the scope cx, and tells done why it could not, or nil. Tests replace it.
 var revealInFolder = revealPath
 
-// showItemInFolder shows path selected in the file manager (mygodesktop.Reveal). Tests replace it.
-var showItemInFolder = mygodesktop.Reveal
+// showItemInFolder shows path in the file manager (desktop.Reveal) and tells done why it could not. Tests replace it; the tests' TestMain makes it show nothing and answer at once.
+var showItemInFolder = desktop.Reveal
 
-// revealPath shows path selected in the system file manager. mygodesktop.Reveal reports no failure (each system's reveal either shows the item or falls back on its own), so it returns nil; reveal has already checked that path is there.
-func revealPath(path string) error {
-	showItemInFolder(path)
-	return nil
+// revealPath shows path in the system file manager through showItemInFolder. Without a scope, as in a test that starts no app, it shows nothing and answers at once.
+func revealPath(cx *ns.Scope, path string, done func(error)) {
+	if cx == nil {
+		done(nil)
+		return
+	}
+	// The answer belongs to the app, not to the menu or the button that asked, which may be gone by then (core.Scope.Run).
+	cx.Run(func() { showItemInFolder(cx, path, done) })
 }
 
+// reveal shows path in the file manager, and says in the sidebar why it could not. The file manager's answer comes later, on the engine's goroutine.
 func (a *app) reveal(path string) {
 	if path == "" {
 		return
 	}
 	if _, err := os.Stat(path); err != nil {
-		a.saveErr = locales.LibraryFileMissing()
-		return
-	}
-	if err := revealInFolder(path); err != nil {
-		a.saveErr = locales.LibraryRevealFailed(err.Error())
+		a.saveErr = a.messages().LibraryFileMissing()
 		return
 	}
 	a.saveErr = ""
+	revealInFolder(a.cx, path, func(err error) {
+		// desktop.Reveal says no more than that no app opened the folder, in English, so the sidebar says it in a sentence of its own.
+		if err != nil {
+			a.saveErr = a.messages().LibraryRevealNotOpened()
+		}
+		a.Changed()
+	})
 }

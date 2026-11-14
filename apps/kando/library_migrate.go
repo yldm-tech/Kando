@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"kando/apps/kando/locales"
 	"kando/packages/media"
 )
 
@@ -23,7 +22,7 @@ func (a *app) migrateLibrary() {
 			}
 		}
 		if err != nil {
-			a.saveErr = shelfSaveErr(err, locales.LibraryMoveOutFailed)
+			a.saveErr = a.shelfSaveErr(err, a.messages().LibraryMoveOutFailed)
 		} else {
 			libs := dropLibrary(a.snap().Libraries, media.VimpoLibraryDir())
 			libs = addLibrary(libs, bundle)
@@ -34,7 +33,7 @@ func (a *app) migrateLibrary() {
 			tools.OutputDir = bundle
 			a.pipeline = tools
 			if saveErr := a.saveSettings(); saveErr != nil {
-				a.saveErr = locales.LibrarySaveFailed(saveErr.Error())
+				a.saveErr = a.messages().LibrarySaveFailed(saveErr.Error())
 			}
 		}
 	}

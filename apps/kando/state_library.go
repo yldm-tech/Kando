@@ -9,18 +9,18 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // libraryUI is the state of the library page that is not the shelf itself (the shelf is the nodra session in state.go).
 type libraryUI struct {
 	// posters are the cards' frames by video path, posterMiss the videos that have none and posterBusy those being grabbed; posterDir is where frames of videos outside a folder of their own are kept (library_posters.go).
 	posterDir  string
-	posters    map[string]ui.ImageSource
+	posters    map[string]ns.ImageSource
 	posterMiss map[string]bool
 	posterBusy map[string]bool
 	// thumbs are the pictures the videos' sites give them, by address, for the processing cards; thumbMiss the addresses that gave none and thumbBusy those being fetched. They are kept in posterDir too.
-	thumbs    map[string]ui.ImageSource
+	thumbs    map[string]ns.ImageSource
 	thumbMiss map[string]bool
 	thumbBusy map[string]bool
 	// notice is the message bar under the top bar.
@@ -36,7 +36,7 @@ type libraryUI struct {
 	renameOpen     bool
 	renameName     string
 	renameOriginal string
-	// removeRelease, renameRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterChange gives each back once its dialog has closed.
+	// removeRelease, renameRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog and the new-library sheet hold while they are open; nil while they are closed. The handlers that close the confirmation and the rename dialog give theirs back (libraryCloseRemove, libraryCloseRename); libraryHooks' afterChange gives back the sheet's, and any a dialog closed some other way left behind.
 	removeRelease func()
 	renameRelease func()
 	sheetRelease  func()
@@ -46,7 +46,7 @@ type libraryUI struct {
 	quotes map[string]quote
 	// holdExtras keeps loadExtras from starting before the window exists: the background reads it starts report through the window. libraryHooks' restore sets it, as startup begins, and its ready clears it and loads the extras.
 	holdExtras bool
-	// opened are the files the system asked Kando to open (libraryOpenFile, main's mygo.App.OnOpenFile), waiting to be added to the queue: videos chosen with Finder's Open With, dropped on the Dock icon or named on the command line. holdOpened keeps them waiting until the window exists, as holdExtras does: libraryHooks' restore sets it and its ready clears it and posts them. openedPosted is set while a report through update is on its way to add them, so the files of one open arrive in the queue together.
+	// opened are the files the system asked Kando to open (libraryOpenFile, run's desktop.OnOpenFiles), waiting to be added to the queue: videos chosen with Finder's Open With, dropped on the Dock icon or named on the command line. holdOpened keeps them waiting until the window exists, as holdExtras does: libraryHooks' restore sets it and its ready clears it and posts them. openedPosted is set while a report through update is on its way to add them, so the files of one open arrive in the queue together.
 	opened       []string
 	holdOpened   bool
 	openedPosted bool
@@ -69,7 +69,7 @@ type savedLibrary struct {
 // clean reads an order Kando does not know, such as one another version saved, as the default.
 func (s *savedLibrary) clean() { s.LibrarySort = films.ValidSort(s.LibrarySort) }
 
-// libraryHooks: the grid's order is saved and restored with the settings. The shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each frame the library's dialogs hold or give back the window's modal flag.
+// libraryHooks: the grid's order is saved and restored with the settings. The shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each change the library lets go of an open film it no longer has, and its dialogs hold or give back the window's modal flag.
 func (a *app) libraryHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) { saved.savedLibrary = savedLibrary{LibrarySort: a.lib.sort} },
@@ -84,29 +84,42 @@ func (a *app) libraryHooks() areaHooks {
 			a.lib.holdOpened = false
 			a.libraryPostOpened()
 		},
-		afterChange:  a.libraryModals,
+		afterChange:  a.libraryAfterChange,
 		shelfChanged: a.loadExtras,
 	}
 }
 
-// libraryModals keeps the window's modal flag held while the library's dialogs are open. AskRemove and AskRename hold it as the remove confirmation and the rename dialog open, and it is given back here once the dialog has closed. The new-library sheet is open while the session is making a library, which the shelf and the sidebar start, so the flag is held here from the frame that first draws the sheet until the frame after it closes.
-func (a *app) libraryModals() {
+// libraryAfterChange follows what the library page did in MyGo each frame (libraryFollowOpen, libraryModals), and reports whether it changed anything.
+func (a *app) libraryAfterChange() bool {
+	open := a.libraryFollowOpen()
+	modals := a.libraryModals()
+	return open || modals
+}
+
+// libraryModals keeps the window's modal flag held while the library's dialogs are open, and reports whether it held or gave it back. AskRemove and AskRename hold it as the remove confirmation and the rename dialog open, and the handlers that close them give it back; one a dialog closed some other way left behind is given back here. The new-library sheet is open while the session is making a library, which the shelf, the sidebar and the settings start, and which several of them end, so its flag is held here as the sheet opens and given back as it closes.
+func (a *app) libraryModals() bool {
+	changed := false
 	if !a.lib.removeOpen && a.lib.removeRelease != nil {
 		a.lib.removeRelease()
 		a.lib.removeRelease = nil
+		changed = true
 	}
 	if !a.lib.renameOpen && a.lib.renameRelease != nil {
 		a.lib.renameRelease()
 		a.lib.renameRelease = nil
+		changed = true
 	}
 	making := a.snap().MakingLibrary
 	switch {
 	case making && a.lib.sheetRelease == nil:
 		a.lib.sheetRelease = a.holdModal()
+		changed = true
 	case !making && a.lib.sheetRelease != nil:
 		a.lib.sheetRelease()
 		a.lib.sheetRelease = nil
+		changed = true
 	}
+	return changed
 }
 
 // warn shows a warning in the library's message bar; section, when not empty, is the settings section that fixes it.

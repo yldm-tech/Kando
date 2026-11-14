@@ -18,46 +18,46 @@ import (
 func TestScreenshotsQueue(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// add types link into the top bar and clicks 开始处理. The fixture's tools have no speech model, which precheck asks for before a job is added, so the scene's pipeline is one precheck does not look into.
-	add := func(a *app, tt *ui.Tester, link string) {
+	add := func(a *app, tt *nsgotest.App, link string) {
 		t.Helper()
 		a.pipeline = &fakePipeline{block: true}
 		screenshotClick(t, tt, "视频链接")
-		tt.Type(link)
+		typeFocused(t, tt, link)
 		screenshotClick(t, tt, "开始处理")
-		tt.Frame()
+		refresh(tt, a)
 		if len(a.library.Jobs) != len(f.jobs) {
 			t.Fatalf("%s was queued: %+v", link, a.library.Jobs)
 		}
 	}
-	f.shoot(t, "queue-already-queued", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "queue-already-queued", func(a *app, tt *nsgotest.App, _ chan func()) {
 		add(a, tt, "https://youtu.be/"+protoFilmByID("j6").VideoID)
 	})
-	f.shoot(t, "queue-already-in-library", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "queue-already-in-library", func(a *app, tt *nsgotest.App, _ chan func()) {
 		add(a, tt, "https://youtu.be/"+protoFilmByID("j1").VideoID)
 	})
-	f.shoot(t, "queue-channel-link", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "queue-channel-link", func(a *app, tt *nsgotest.App, _ chan func()) {
 		add(a, tt, "https://www.youtube.com/@veritasium")
 	})
-	f.shoot(t, "queue", func(a *app, _ *ui.Tester, updates chan func()) {
+	f.shoot(t, "queue", func(a *app, _ *nsgotest.App, updates chan func()) {
 		screenshotQueueDownloading(t, a, updates)
 	})
-	f.shoot(t, "queue-quit", func(a *app, _ *ui.Tester, updates chan func()) {
+	f.shoot(t, "queue-quit", func(a *app, _ *nsgotest.App, updates chan func()) {
 		screenshotQueueDownloading(t, a, updates)
-		a.areasBeforeQuit(&mygo.QuitEvent{})
+		a.areasBeforeQuit(&quitEvent{})
 	})
-	f.shoot(t, "queue-outdated-system", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "queue-outdated-system", func(a *app, tt *nsgotest.App, _ chan func()) {
 		queueShotOutdated(t, f, a, tt, false)
 	})
-	f.shoot(t, "queue-outdated-system-kit", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "queue-outdated-system-kit", func(a *app, tt *nsgotest.App, _ chan func()) {
 		queueShotOutdated(t, f, a, tt, true)
 	})
-	f.shoot(t, "queue-outdated-system-kit-downloading", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "queue-outdated-system-kit-downloading", func(a *app, tt *nsgotest.App, _ chan func()) {
 		queueShotOutdated(t, f, a, tt, true)
 		if kit, ok := media.KitFor("yt-dlp"); ok {
 			a.queue.ytdlp.kitRetry = true
 			a.kits.running["yt-dlp"] = &kitDownload{written: kit.Size / 3, total: kit.Size, cancel: func() {}}
 		}
-		tt.Frame()
+		refresh(tt, a)
 	})
 }
 
@@ -79,7 +79,7 @@ func screenshotQueueDownloading(t *testing.T, a *app, updates chan func()) {
 }
 
 // queueShotOutdated makes j5's download one yt-dlp was too old for, with the yt-dlp a Linux distribution's packages put in /usr/bin, and scrolls 处理中 under the top bar. kit gives Kando a folder of its own in the fixture's home, so that it offers to download its own yt-dlp where there is one for the platform.
-func queueShotOutdated(t *testing.T, f *screenshotFixture, a *app, tt *ui.Tester, kit bool) {
+func queueShotOutdated(t *testing.T, f *screenshotFixture, a *app, tt *nsgotest.App, kit bool) {
 	t.Helper()
 	if kit {
 		saved := media.OwnToolsDir
@@ -91,16 +91,16 @@ func queueShotOutdated(t *testing.T, f *screenshotFixture, a *app, tt *ui.Tester
 	a.library.Upsert(job)
 	a.queue.ytdlp.path, a.queue.ytdlp.version = "/usr/bin/yt-dlp", "2024.03.10"
 	a.queue.ytdlp.install = media.YTDLPInstall{Kind: "system", Dir: "/usr/bin"}
-	tt.Frame()
+	refresh(tt, a)
 	for range 4 {
-		r, ok := tt.Find(locales.FilmsQueueTitle())
+		r, ok := tt.Find(testlocale.Messages().FilmsQueueTitle())
 		if !ok {
 			t.Fatalf("no queue to scroll to; texts %q", tt.Texts())
 		}
 		if d := r.Y - 66; d*d >= 0.25 {
 			tt.Move(760, 500)
 			tt.Scroll(760, 500, 0, d)
-			tt.Frame()
+			refresh(tt, a)
 		}
 	}
 }
@@ -108,7 +108,7 @@ func queueShotOutdated(t *testing.T, f *screenshotFixture, a *app, tt *ui.Tester
 // TestScreenshotsQueueOtherLibrary renders 英语听力 opened while a link added to 我的影片 downloads: the job goes on, and 英语听力's 处理中 shows it, and the film waiting in 我的影片 after it, each saying the library it saves into, above 英语听力's own film.
 func TestScreenshotsQueueOtherLibrary(t *testing.T) {
 	f := newScreenshotFixture(t)
-	f.shoot(t, "queue-other-library", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "queue-other-library", func(a *app, tt *nsgotest.App, updates chan func()) {
 		a.pipeline = &fakePipeline{block: true}
 		t.Cleanup(a.stop)
 		_ = a.Enqueue("https://www.youtube.com/watch?v=aqz-KE-bpKQ")
@@ -124,7 +124,7 @@ func TestScreenshotsQueueOtherLibrary(t *testing.T) {
 			}
 		})
 		a.switchLibrary(f.libs["listening"])
-		tt.Frame()
+		refresh(tt, a)
 		screenshotWait(t, tt, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
 	})
 }

@@ -20,14 +20,15 @@ import (
 	"kando/apps/kando/films"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // The library cards' posters: each video's own cover, the picture its site gives it or the cover art its file carries, and one frame grabbed from the video only when it has neither.
 
-func (a *app) posterOf(video string) ui.ImageSource {
+// posterOf is the cover of video as the cards show it, the zero ImageSource until one was found.
+func (a *app) posterOf(video string) ns.ImageSource {
 	if video == "" {
-		return nil
+		return ns.ImageSource{}
 	}
 	return a.lib.posters[video]
 }
@@ -35,7 +36,7 @@ func (a *app) posterOf(video string) ui.ImageSource {
 // ensurePoster finds a film's cover the first time the shelf has it (findCover), and reads how long the video plays. A miss is remembered so the video is not tried again. loadExtras calls it; the page only shows what it found.
 func (a *app) ensurePoster(item films.Film) {
 	video := item.VideoPath
-	if video == "" || a.update == nil || a.lib.posters[video] != nil || a.lib.posterMiss[video] || a.lib.posterBusy[video] {
+	if video == "" || a.update == nil || libraryHasImage(a.lib.posters[video]) || a.lib.posterMiss[video] || a.lib.posterBusy[video] {
 		return
 	}
 	dest := posterDest(a.lib.posterDir, video)
@@ -66,10 +67,10 @@ func (a *app) ensurePoster(item films.Film) {
 		if cover.ffmpeg != "" {
 			length = media.VideoDuration(cover.ffmpeg, video)
 		}
-		var img ui.ImageSource
+		// The cover is kept as the JPEG findCover returns, which the cards show as it is, once it reads as a picture.
 		data, err := findCover(context.Background(), cover)
 		if err == nil {
-			img, err = ui.DecodeImage(data)
+			_, _, err = image.DecodeConfig(bytes.NewReader(data))
 		}
 		update(func() {
 			delete(a.lib.posterBusy, video)
@@ -79,14 +80,14 @@ func (a *app) ensurePoster(item films.Film) {
 				}
 				a.lib.durations[video] = length
 			}
-			if err != nil || img == nil {
+			if err != nil || len(data) == 0 {
 				a.markPosterMiss(video)
 				return
 			}
 			if a.lib.posters == nil {
-				a.lib.posters = map[string]ui.ImageSource{}
+				a.lib.posters = map[string]ns.ImageSource{}
 			}
-			a.lib.posters[video] = img
+			a.lib.posters[video] = ns.ImageSource{Data: data}
 		})
 	}()
 }
@@ -207,17 +208,21 @@ func fileExists(path string) bool {
 
 // The processing cards' thumbnails: the picture a video's site gives it, shown until the video is downloaded and has a poster of its own, and on a card whose download failed.
 
-func (a *app) thumbnailOf(item films.Film) ui.ImageSource {
+// thumbnailOf is the picture a film's site gives it, the zero ImageSource until it was fetched.
+func (a *app) thumbnailOf(item films.Film) ns.ImageSource {
 	if item.Thumbnail == "" {
-		return nil
+		return ns.ImageSource{}
 	}
 	return a.lib.thumbs[item.Thumbnail]
 }
 
+// libraryHasImage reports whether source names a picture.
+func libraryHasImage(source ns.ImageSource) bool { return source.URI != "" || len(source.Data) > 0 }
+
 // ensureThumbnail reads the picture at a film's thumbnail address from the posters folder, where it is kept by its address, or fetches it there first, off the UI thread. A miss is remembered so it is not tried again while the app runs. loadExtras calls it; the page only shows what it found.
 func (a *app) ensureThumbnail(item films.Film) {
 	address := item.Thumbnail
-	if address == "" || a.update == nil || a.lib.posterDir == "" || a.lib.thumbs[address] != nil || a.lib.thumbMiss[address] || a.lib.thumbBusy[address] {
+	if address == "" || a.update == nil || a.lib.posterDir == "" || libraryHasImage(a.lib.thumbs[address]) || a.lib.thumbMiss[address] || a.lib.thumbBusy[address] {
 		return
 	}
 	if a.lib.thumbBusy == nil {
@@ -231,16 +236,17 @@ func (a *app) ensureThumbnail(item films.Film) {
 		if !fileExists(dest) {
 			err = fetchSiteThumbnail(context.Background(), address, dest)
 		}
-		var img ui.ImageSource
+		// The picture is kept as a JPEG, whatever the site served (coverJPEG), which also tells a picture from a page the site answered with instead.
+		var img []byte
 		if err == nil {
 			var data []byte
 			if data, err = os.ReadFile(dest); err == nil {
-				img, err = ui.DecodeImage(data)
+				img, err = coverJPEG(data)
 			}
 		}
 		update(func() {
 			delete(a.lib.thumbBusy, address)
-			if err != nil || img == nil {
+			if err != nil || len(img) == 0 {
 				if a.lib.thumbMiss == nil {
 					a.lib.thumbMiss = map[string]bool{}
 				}
@@ -248,9 +254,9 @@ func (a *app) ensureThumbnail(item films.Film) {
 				return
 			}
 			if a.lib.thumbs == nil {
-				a.lib.thumbs = map[string]ui.ImageSource{}
+				a.lib.thumbs = map[string]ns.ImageSource{}
 			}
-			a.lib.thumbs[address] = img
+			a.lib.thumbs[address] = ns.ImageSource{Data: img}
 		})
 	}()
 }

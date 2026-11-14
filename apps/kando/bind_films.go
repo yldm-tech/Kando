@@ -8,18 +8,68 @@ import (
 	"strings"
 	"time"
 
-	"kando/apps/kando/desktop/mygodesktop"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/yldm-tech/nodra"
 )
 
-// The library page's reads and clicks (films.App).
+// The library page's reads and clicks (films.App). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
+
+// libraryColumn is the library in the content column (view.go's mainColumn): the film open over it, as the player shows it (filmColumn, bind_film.go), or else the library page. A film is open while openKey names one the shelf or the queue still has (libraryOpenFilm); libraryFollowOpen lets go of one that went.
+func (a *app) libraryColumn(cx *ns.Scope) ns.Node {
+	open := live.Func(a, func() bool {
+		_, ok := a.libraryOpenFilm()
+		return ok
+	})
+	film := live.Func(a, func() films.Film {
+		item, _ := a.libraryOpenFilm()
+		return item
+	})
+	return ns.Show{
+		When: open,
+		Then: func(cx *ns.Scope) ns.Node { return a.filmColumn(cx, film) },
+		Else: func(*ns.Scope) ns.Node { return films.View{App: a} },
+	}
+}
+
+// libraryOpenFilm is the film openKey names: one of the open library's, or a job's the queue runs for another library, false when openKey names none.
+func (a *app) libraryOpenFilm() (films.Film, bool) {
+	if a.openKey == "" {
+		return films.Film{}, false
+	}
+	if item, ok := films.Find(a.films(), a.openKey); ok {
+		return item, true
+	}
+	return a.JobFilm(a.openKey)
+}
+
+// libraryFollowOpen lets go of an open film the library no longer has, as one removed or one of a library switched away from, which takes the window back to the library; and stops the player when no film is open, as when a page closed it. It runs after every change (libraryHooks' afterChange) and reports whether it changed anything. The browser keeps the player as it is: it closes the film itself.
+func (a *app) libraryFollowOpen() bool {
+	if a.page == pageBrowse {
+		return false
+	}
+	if a.openKey != "" {
+		if _, ok := a.libraryOpenFilm(); ok {
+			return false
+		}
+		a.openKey = ""
+	}
+	if a.PlaybackOpen() {
+		a.StopPlayback()
+		return true
+	}
+	return false
+}
+
+// Films is the open library's films (films.App).
+func (a *app) Films() []films.Film { return a.films() }
 
 func (a *app) MakingLibrary() bool { return a.snap().MakingLibrary }
 
@@ -27,7 +77,7 @@ func (a *app) OpenKey() string { return a.openKey }
 
 func (a *app) SetOpenKey(key string) { a.openKey = key }
 
-// libraryOwnsTitleBar reports whether the library page draws its own header bar at the top of the content column, keeping clear of the window controls and dragging the window, so the content has no drag band over it (contentBand). It does whenever it shows, on 全部影片 or YouTube with no film open over it: its top bar is a breeze.HeaderBar (films/topbar.go), as tall as the title bar at least, across the whole content column, so mainColumn leaves the page's padding to the page.
+// libraryOwnsTitleBar reports whether the library page draws its own header bar at the top of the content column, keeping clear of the window controls and dragging the window, so the content has no drag band over it (contentBand). It does whenever it shows, on 全部影片 or YouTube with no film open over it: its top bar (films/topbar.go) is as tall as the title bar at least, across the whole content column, so mainColumn leaves the page's padding to the page.
 func (a *app) libraryOwnsTitleBar() bool {
 	return (a.page == pageFilms || a.page == pageYouTube) && a.openKey == ""
 }
@@ -56,6 +106,8 @@ func (a *app) PickLibraryParent() { a.pickLibraryParent() }
 
 func (a *app) CreateLibrary() { a.createLibrary() }
 
+func (a *app) NewLibraryName() string { return a.snap().LibraryName }
+
 func (a *app) BindName(edit func(*string) bool) error {
 	name, err := nodra.BindField(a.store, func(s session) string { return s.LibraryName }, func(s *session, value string) error {
 		s.LibraryName = value
@@ -70,7 +122,7 @@ func (a *app) BindName(edit func(*string) bool) error {
 
 // NewLibraryPath is the folder createLibrary would make for the name and place the new-library sheet holds.
 func (a *app) NewLibraryPath() (string, error) {
-	file, err := libraryFileName(a.snap().LibraryName)
+	file, err := libraryFileName(a.messages(), a.snap().LibraryName)
 	if err != nil {
 		return "", err
 	}
@@ -86,16 +138,13 @@ func (a *app) Start() {
 
 func (a *app) PickVideos() { a.pickVideos() }
 
-func (a *app) PickVideosShortcut() (ui.Modifiers, ui.Key) {
-	k := a.libraryOpenVideos()
-	return k.Mods, k.Key
-}
+func (a *app) PickVideosShortcut() string { return libraryOpenVideosKey }
 
 func (a *app) DropFiles(paths []string) { a.dropFiles(paths) }
 
-func (a *app) Poster(path string) ui.ImageSource { return a.posterOf(path) }
+func (a *app) Poster(path string) ns.ImageSource { return a.posterOf(path) }
 
-func (a *app) Thumbnail(item films.Film) ui.ImageSource { return a.thumbnailOf(item) }
+func (a *app) Thumbnail(item films.Film) ns.ImageSource { return a.thumbnailOf(item) }
 
 func (a *app) Duration(path string) time.Duration { return a.lib.durations[path] }
 
@@ -164,20 +213,20 @@ func (a *app) Retry(id string) {
 		return
 	}
 	if a.RunningJob() != "" {
-		a.warn(errBusy().Error(), "")
+		a.warn(errBusy(a.messages()).Error(), "")
 	} else if a.queue.status != "" {
 		a.warn(a.queue.status, "")
 	}
 }
 
-func (a *app) FailureHint(item films.Film) (reason, section string) { return failureHint(item) }
+func (a *app) FailureHint(item films.Film) (reason, section string) { return failureHint(a.messages(), item) }
 
 func (a *app) JobFilm(id string) (films.Film, bool) {
 	job, ok := a.library.Find(id)
 	if !ok {
 		return films.Film{}, false
 	}
-	return films.FromJob(job, a.libraryJobName(job), statusText(job)), true
+	return films.FromJob(job, a.libraryJobName(job), statusText(a.messages(), job)), true
 }
 
 func (a *app) Notice() *films.Notice { return &a.lib.notice }
@@ -194,11 +243,11 @@ func (a *app) SetLibrarySort(order string) {
 	}
 	a.lib.sort = order
 	if err := a.saveSettings(); err != nil {
-		a.warn(locales.LibrarySortSaveFailed(err.Error()), "")
+		a.warn(a.messages().LibrarySortSaveFailed(err.Error()), "")
 	}
 }
 
-// AskRemove opens the confirmation of 从资料库移除, and reads now, rather than while the dialog is drawn, whether the film's folder or only its files would go to the Trash.
+// AskRemove opens the confirmation of 从资料库移除, and reads now, rather than while the dialog is drawn, whether the film's folder or only its files would go to the Trash. The confirmation holds the window's modal flag until it closes (libraryCloseRemove).
 func (a *app) AskRemove(item films.Film) {
 	a.lib.removing = item
 	files := filmFiles(a.snap().LibraryDir, item)
@@ -213,19 +262,38 @@ func (a *app) Removing() (*bool, films.Film, bool) {
 	return &a.lib.removeOpen, a.lib.removing, a.lib.removeFolder
 }
 
-// trashItem moves a file or a folder to the Trash. Tests replace it.
-var trashItem = mygodesktop.Trash
+// CloseRemove closes the confirmation of 从资料库移除 and moves nothing, as 取消, Enter and Escape do.
+func (a *app) CloseRemove() { a.libraryCloseRemove() }
+
+// libraryCloseRemove closes the confirmation of 从资料库移除 and gives back the window's modal flag it held, so the menu bar's commands run again at once.
+func (a *app) libraryCloseRemove() {
+	a.lib.removeOpen = false
+	if a.lib.removeRelease != nil {
+		a.lib.removeRelease()
+		a.lib.removeRelease = nil
+	}
+}
+
+// trashItem moves a file or a folder to the Trash, under the scope cx. Tests replace it.
+var trashItem = desktop.Trash
 
 // TrashFilm takes a film off the shelf, as 从资料库移除 confirms. A film inside the library goes to the Trash with its folder, or with only its subtitles when that folder holds other videos or folders too. A local video kept outside the library stays where it is and only leaves the shelf.
 func (a *app) TrashFilm(item films.Film) {
+	a.libraryCloseRemove()
+	m := a.messages()
 	name := item.Name
 	if name == "" {
 		name = item.Title
 	}
 	files := filmFiles(a.snap().LibraryDir, item)
 	for _, path := range files {
-		if err := trashItem(path); err != nil {
-			a.warn(locales.LibraryTrashFailed(name, err.Error()), "")
+		if err := trashItem(a.cx, path); err != nil {
+			// desktop.Trash cannot use the Trash yet and says so in English (errors.ErrUnsupported), so the bar says it in a sentence of its own.
+			if errors.Is(err, errors.ErrUnsupported) {
+				a.warn(m.LibraryTrashUnsupported(name), "")
+			} else {
+				a.warn(m.LibraryTrashFailed(name, err.Error()), "")
+			}
 			return
 		}
 	}
@@ -239,14 +307,14 @@ func (a *app) TrashFilm(item films.Film) {
 		a.remove(item.JobID)
 	} else if named {
 		if err := a.library.Save(); err != nil {
-			a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
+			a.saveErr = m.LibraryShelfSaveFailed(err.Error())
 		}
 	}
 	a.refreshLibrary()
 	if len(files) > 0 {
-		a.tell(locales.LibraryTrashed(name))
+		a.tell(m.LibraryTrashed(name))
 	} else {
-		a.tell(locales.LibraryRemoved(name))
+		a.tell(m.LibraryRemoved(name))
 	}
 }
 
@@ -286,12 +354,15 @@ func aloneIn(dir, video string) bool {
 
 func (a *app) films() []films.Film {
 	shot := a.snap()
-	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, statusText)
+	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf)
 }
+
+// statusOf is what a job's card says of where it is, in the interface's language (statusText), as films.List and films.Queue take it.
+func (a *app) statusOf(job core.Job) string { return statusText(a.messages(), job) }
 
 // QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere).
 func (a *app) QueueFilms() []films.Film {
-	return films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, statusText)
+	return films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, a.statusOf)
 }
 
 // libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added, a failed job of the same video queued again included. A video the library already holds is not added; the bar says so and offers to open it.
@@ -302,18 +373,19 @@ func (a *app) libraryEnqueue(sources ...string) bool {
 	}
 	added, err := a.queueEnqueue(sources)
 	var dup *queueDuplicate
+	m := a.messages()
 	switch {
 	case err != nil && added > 0:
-		a.warn(locales.LibraryAddedSome(added, sourceError(err)), "")
+		a.warn(m.LibraryAddedSome(added, sourceError(err)), "")
 	case errors.As(err, &dup) && dup.Stage == core.StageComplete:
 		a.warn(sourceError(err), "")
 		a.lib.notice.Film = dup.ID
 	case err != nil:
 		a.warn(sourceError(err), "")
 	case added > 1:
-		a.tell(locales.LibraryAddedStarting(added))
+		a.tell(m.LibraryAddedStarting(added))
 	default:
-		a.tell(locales.LibraryAddedOneStarting())
+		a.tell(m.LibraryAddedOneStarting())
 	}
 	return added > 0
 }
@@ -330,21 +402,24 @@ func (a *app) dropFiles(paths []string) {
 		}
 	}
 	if len(sources) == 0 {
-		a.warn(locales.PrecheckNoVideo(), "")
+		a.warn(a.messages().PrecheckNoVideo(), "")
 		return
 	}
 	a.libraryEnqueue(sources...)
 }
 
 // libraryKeys are the library's shortcuts. ⌘F searches the library's films in the sidebar's search field (sidebarSearch). It shares ⌘F with the player's 搜索字幕: this row holds only while no film is open and that one only while one is, so one of them at most runs it, and the menu bar shows ⌘F by that one (menuSharedKeyCarriers, menu.go).
-func (a *app) libraryKeys() []shortcut {
+func (a *app) libraryKeys(cx *ns.Scope) []shortcut {
 	return []shortcut{
-		a.libraryOpenVideos(),
-		{Group: groupEdit, Label: locales.LibrarySearchMenu(), Mods: ui.Cmd, Key: ui.KeyF, When: a.sidebarSearchable, Run: a.sidebarSearch},
+		a.libraryOpenVideos(cx),
+		{Group: groupEdit, Label: locales.LibrarySearchMenu(cx), Key: "mod+f", When: a.sidebarSearchable, Run: a.sidebarSearch},
 	}
 }
 
+// libraryOpenVideosKey is the key that asks for local videos, ⌘O, which the tooltip of 本地视频 shows (PickVideosShortcut).
+const libraryOpenVideosKey = "mod+o"
+
 // libraryOpenVideos is the shortcut that asks for local videos: its row of the File menu, and the shortcut the tooltip of 本地视频 shows (PickVideosShortcut).
-func (a *app) libraryOpenVideos() shortcut {
-	return shortcut{Group: groupFile, Label: locales.LibraryOpenVideosMenu(), Mods: ui.Cmd, Key: ui.KeyO, Run: a.pickVideos}
+func (a *app) libraryOpenVideos(cx *ns.Scope) shortcut {
+	return shortcut{Group: groupFile, Label: locales.LibraryOpenVideosMenu(cx), Key: libraryOpenVideosKey, Run: a.pickVideos}
 }

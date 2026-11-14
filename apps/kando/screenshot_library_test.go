@@ -22,7 +22,7 @@ func TestScreenshotsLibrary(t *testing.T) {
 		*a.Notice() = films.Notice{Kind: "warning", Text: "随时可以在「帮助 › 重新查看入门引导」回到这里。", Open: true}
 	}
 	// scrollTo scrolls the shelf until the top of the text label is at y in the window, as the prototype's scrolled states have their section headers.
-	scrollTo := func(tt *ui.Tester, label string, y float32) {
+	scrollTo := func(tt *nsgotest.App, label string, y float32) {
 		t.Helper()
 		for range 4 {
 			r, ok := tt.Find(label)
@@ -32,64 +32,64 @@ func TestScreenshotsLibrary(t *testing.T) {
 			if d := r.Y - y; d*d >= 0.25 {
 				tt.Move(760, 500)
 				tt.Scroll(760, 500, 0, d)
-				tt.Frame()
+				refresh(tt, a)
 			}
 		}
 	}
 
-	f.shoot(t, "library", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library", func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
 	})
 	// The prototype's scrollTop 442 puts 处理中 at 64, under the top bar; 520 puts 全部影片 (the grid's) at 307 + 2, its text's top.
-	f.shoot(t, "library-scrolled-queue", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-scrolled-queue", func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
-		tt.Frame()
+		refresh(tt, a)
 		scrollTo(tt, "处理中", 66)
 	})
-	f.shoot(t, "library-scrolled-grid", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-scrolled-grid", func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
-		tt.Frame()
+		refresh(tt, a)
 		scrollTo(tt, "8 部", 315)
 	})
-	f.shoot(t, "library-card-menu", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-card-menu", func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
-		tt.Frame()
+		refresh(tt, a)
 		scrollTo(tt, "8 部", 315)
 		// ⋯ opens the system's menu, which the tester lists (tt.Menu) rather than draws; the picture shows the button pressed open.
 		screenshotClick(t, tt, "更多操作")
 	})
 	// Linear Algebra, Lecture 1 as its translation left a line untranslated: the note under its title and the button that translates that line.
-	f.shoot(t, "library-translate-missing", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-translate-missing", func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
 		job := f.job(t, "j3")
 		job.Untranslated = 1
 		a.library.Upsert(job)
-		tt.Frame()
+		refresh(tt, a)
 		scrollTo(tt, "8 部", 315)
 	})
 	// The grid ordered by title, chosen from the sort button beside its heading (whose menu is the system's, which the tester lists rather than draws): Latin names first, then Chinese ones by pinyin.
-	f.shoot(t, "library-sorted-title", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-sorted-title", func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
 		a.SetLibrarySort(films.SortTitle)
-		tt.Frame()
+		refresh(tt, a)
 		scrollTo(tt, "8 部", 315)
 	})
-	f.shoot(t, "library-url-typed", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-url-typed", func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
 		screenshotClick(t, tt, "视频链接")
-		tt.Type("https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
+		typeFocused(t, tt, "https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
 	})
 	// A query in the sidebar's search field: the hero steps aside, 处理中 stays whole, and the grid keeps the films whose names hold the query; the page is tall enough to show the grid under 处理中.
-	f.shootSize(t, "library-search", 1304, 1100, func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shootSize(t, "library-search", 1304, 1100, func(a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotClick(t, tt, "搜索影片")
-		tt.Type("rivers")
+		typeFocused(t, tt, "rivers")
 	})
 	// A query no film's name holds: the grid says so and offers 清除搜索.
-	f.shootSize(t, "library-search-none", 1304, 1100, func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shootSize(t, "library-search-none", 1304, 1100, func(a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotClick(t, tt, "搜索影片")
-		tt.Type("quantum")
+		typeFocused(t, tt, "quantum")
 	})
-	f.shoot(t, "library-empty", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-empty", func(a *app, tt *nsgotest.App, _ chan func()) {
 		empty := filepath.Join(f.home, "Movies", "未命名资料库.kando")
 		if err := os.MkdirAll(empty, 0o755); err != nil {
 			t.Fatal(err)
@@ -102,21 +102,21 @@ func TestScreenshotsLibrary(t *testing.T) {
 		a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool { return job.Stage == core.StageQueued })
 		a.refreshLibrary()
 	})
-	f.shootSize(t, "library-full", 1304, 1400, func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shootSize(t, "library-full", 1304, 1400, func(a *app, tt *nsgotest.App, _ chan func()) {
 		onboarding(a)
 	})
-	f.shoot(t, "library-none", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-none", func(a *app, tt *nsgotest.App, _ chan func()) {
 		a.edit(func(s *session) {
 			s.LibraryDir = ""
 			s.Libraries = nil
 		})
 		a.refreshLibrary()
 	})
-	f.shoot(t, "library-new", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-new", func(a *app, tt *nsgotest.App, _ chan func()) {
 		// The sidebar's library menu and the empty page both open it; the scene does not depend on the sidebar's labels.
 		a.BeginNew()
 	})
-	removeAlgebra := func(a *app, tt *ui.Tester, _ chan func()) {
+	removeAlgebra := func(a *app, tt *nsgotest.App, _ chan func()) {
 		if err := tt.RightClick("Linear Algebra, Lecture 1"); err != nil {
 			t.Fatal(err)
 		}
@@ -131,22 +131,22 @@ func TestScreenshotsLibrary(t *testing.T) {
 	}
 	f.shootSize(t, "library-remove-files", 1304, 1100, removeAlgebra)
 	// 重命名… on the same poster, with a new title typed in place of the one it shows, and then the poster under that title once Enter keeps it.
-	renameAlgebra := func(a *app, tt *ui.Tester, _ chan func()) {
+	renameAlgebra := func(a *app, tt *nsgotest.App, _ chan func()) {
 		if err := tt.RightClick("Linear Algebra, Lecture 1"); err != nil {
 			t.Fatal(err)
 		}
 		if err := tt.ChooseMenuItem("重命名…"); err != nil {
 			t.Fatalf("%v; menu %q", err, tt.Menu())
 		}
-		tt.Frame()
+		refresh(tt, a)
 		tt.Key(ui.Cmd, ui.KeyA)
-		tt.Type("线性代数 · 第一讲")
+		typeFocused(t, tt, "线性代数 · 第一讲")
 	}
 	f.shootSize(t, "library-rename", 1304, 1100, renameAlgebra)
-	f.shootSize(t, "library-renamed", 1304, 1100, func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shootSize(t, "library-renamed", 1304, 1100, func(a *app, tt *nsgotest.App, updates chan func()) {
 		renameAlgebra(a, tt, updates)
 		tt.Key(0, ui.KeyEnter)
-		tt.Frame()
+		refresh(tt, a)
 		if _, ok := tt.Find("线性代数 · 第一讲"); !ok {
 			t.Fatalf("the renamed poster is not on the shelf: %q", tt.Texts())
 		}
@@ -159,29 +159,29 @@ func TestScreenshotsLibrary(t *testing.T) {
 	if err := os.WriteFile(dropped, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	f.shoot(t, "drop-on-film", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "drop-on-film", func(a *app, tt *nsgotest.App, updates chan func()) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
 		tt.DropFiles(sidebarWidth+(1304-sidebarWidth)/2, 782/2, dropped)
 	})
 	// A library copied from another Mac without its job records (sidecarLibrary): the video that has its exported subtitles beside it shows them, and only the one without says it has none.
-	f.shoot(t, "library-sidecar-subtitles", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "library-sidecar-subtitles", func(a *app, tt *nsgotest.App, updates chan func()) {
 		dir, _ := f.sidecarLibrary(t)
 		f.showLibrary(t, a, tt, updates, dir)
 	})
 	// Off macOS the library names the system's file manager, here the Linux one: the hero's 在文件管理器中显示, the page before there is a library, and the new-library sheet, which promises no Kando folder icon there.
 	usePlatform(t, breeze.Linux)
-	f.shoot(t, "library-linux", func(a *app, tt *ui.Tester, _ chan func()) {})
-	f.shoot(t, "library-none-linux", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-linux", func(a *app, tt *nsgotest.App, _ chan func()) {})
+	f.shoot(t, "library-none-linux", func(a *app, tt *nsgotest.App, _ chan func()) {
 		a.edit(func(s *session) {
 			s.LibraryDir = ""
 			s.Libraries = nil
 		})
 		a.refreshLibrary()
 	})
-	f.shoot(t, "library-new-linux", func(a *app, tt *ui.Tester, _ chan func()) { a.BeginNew() })
+	f.shoot(t, "library-new-linux", func(a *app, tt *nsgotest.App, _ chan func()) { a.BeginNew() })
 	breeze.SetPlatform(breeze.Auto)
 	// The hero film with the picture its site gives it, which takes the place of the frame grabbed for it, as a library from an earlier Kando shows once the site is asked. The site's picture is the fixture's generic scene at full size. It runs last: it leaves the site's picture in the film's cover.jpg.
-	f.shoot(t, "library-site-cover", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "library-site-cover", func(a *app, tt *nsgotest.App, updates chan func()) {
 		picture, err := os.ReadFile(filepath.Join("testdata", "scenes", "generic-1920.png"))
 		if err != nil {
 			t.Fatal(err)
@@ -202,6 +202,6 @@ func TestScreenshotsLibrary(t *testing.T) {
 		delete(a.lib.posters, job.VideoPath)
 		a.loadExtras()
 		screenshotWait(t, tt, updates, "the site's cover", func() bool { return len(a.lib.posterBusy) == 0 })
-		tt.Frame()
+		refresh(tt, a)
 	})
 }

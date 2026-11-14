@@ -4,12 +4,11 @@ import (
 	"strings"
 
 	"kando/apps/kando/films"
-	"kando/apps/kando/locales"
 )
 
 // 重命名… gives a film the title Kando shows for it on the shelf, in the player and over the socket. The title is kept in library.json by the video's path (shelf.Library.Names) and follows the video when it moves, so a folder renamed in Finder keeps it; files on disk are never renamed, and processing the film again keeps it over the title its site gives.
 
-// AskRename opens the rename dialog for a film, with the title it shows now in the field.
+// AskRename opens the rename dialog for a film, with the title it shows now in the field. The dialog holds the window's modal flag until it closes (libraryCloseRename).
 func (a *app) AskRename(item films.Film) {
 	if item.VideoPath == "" {
 		return
@@ -30,9 +29,21 @@ func (a *app) Renaming() (*bool, *string, string) {
 	return &a.lib.renameOpen, &a.lib.renameName, a.lib.renameOriginal
 }
 
+// CloseRename closes the rename dialog and keeps the title as it was, as 取消 and Escape do.
+func (a *app) CloseRename() { a.libraryCloseRename() }
+
+// libraryCloseRename closes the rename dialog and gives back the window's modal flag it held, so the menu bar's commands run again at once.
+func (a *app) libraryCloseRename() {
+	a.lib.renameOpen = false
+	if a.lib.renameRelease != nil {
+		a.lib.renameRelease()
+		a.lib.renameRelease = nil
+	}
+}
+
 // RenameFilm keeps the title typed into the rename dialog for its film and closes the dialog. An empty title, or the title the film has without one given in Kando, drops the one given before.
 func (a *app) RenameFilm() {
-	a.lib.renameOpen = false
+	a.libraryCloseRename()
 	item := a.lib.renaming
 	// The library watcher can move a job's video while the dialog is open, so its path is looked up again.
 	if job, ok := a.library.Find(item.JobID); item.JobID != "" && ok && job.VideoPath != "" {
@@ -46,7 +57,7 @@ func (a *app) RenameFilm() {
 		return
 	}
 	if err := a.library.Save(); err != nil {
-		a.saveErr = locales.LibraryShelfSaveFailed(err.Error())
+		a.saveErr = a.messages().LibraryShelfSaveFailed(err.Error())
 	}
 }
 
