@@ -62,25 +62,21 @@ type Rev struct {
 // Attach makes the revision a signal of cx's graph, cx being the app's own scope or its main view's, and runs the reports Post held while there was no graph. It runs once, on the graph's goroutine; a second call does nothing.
 func (r *Rev) Attach(cx *core.Scope) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.cx != nil {
-		r.mu.Unlock()
 		return
 	}
 	r.cx = cx
 	// No equal function: every Set notifies, as the value itself never changes.
 	r.sig = core.NewSignalFunc(cx, struct{}{}, nil)
-	pending := r.pending
-	r.pending = nil
-	r.mu.Unlock()
-	for _, fn := range pending {
-		cx.Post(func() {
-			fn()
-			r.Changed()
-		})
+	// The held reports are queued before the lock goes, so a report another goroutine posts meanwhile, which sees the graph and queues itself, runs after them, in the order the reports came. Posting only queues: neither the engine's nor nsgotest's Post blocks.
+	for _, fn := range r.pending {
+		r.post(cx, fn)
 	}
+	r.pending = nil
 }
 
-// Track subscribes the running binding to the revision.
+// Track subscribes the running binding to the revision. Track and Changed run only on the graph's goroutine: the graph has no lock, and a goroutine that calls them races with it, so a background goroutine goes through Post.
 func (r *Rev) Track() {
 	if r.sig != nil {
 		r.sig.Get()
@@ -104,6 +100,11 @@ func (r *Rev) Post(fn func()) {
 		return
 	}
 	r.mu.Unlock()
+	r.post(cx, fn)
+}
+
+// post queues fn, then Changed, on cx's graph.
+func (r *Rev) post(cx *core.Scope, fn func()) {
 	cx.Post(func() {
 		fn()
 		r.Changed()

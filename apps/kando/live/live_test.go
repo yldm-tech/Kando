@@ -84,3 +84,24 @@ func TestMemoFollowsTheValueOnly(t *testing.T) {
 		t.Fatalf("even %q, want false", got)
 	}
 }
+
+func TestReportsKeepTheirOrderAcrossAttach(t *testing.T) {
+	const n = 2000
+	c := &counter{}
+	var got []int
+	started := make(chan struct{})
+	go func() {
+		close(started)
+		for i := range n {
+			c.Post(func() { got = append(got, i) })
+		}
+	}()
+	<-started
+	app := nsgotest.Start(t, c.view)
+	app.WaitUntil(10*time.Second, func() bool { return len(got) == n })
+	for i, v := range got {
+		if v != i {
+			t.Fatalf("report %d ran in place %d: the reports held before Attach and the ones posted while it ran came out of order", v, i)
+		}
+	}
+}
