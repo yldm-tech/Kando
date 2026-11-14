@@ -117,7 +117,7 @@ func panelShown(a App) bool {
 	return a.Panel() || a.PlayPath() == ""
 }
 
-// room is how far from the player's right edge the picture's parts end: the panel's room while it shows, else none.
+// roomRight is how far from the player's right edge the picture's parts end: the panel's room while it shows, else none.
 func (s *screen) roomRight() core.Points {
 	if s.room() {
 		return panelRoom

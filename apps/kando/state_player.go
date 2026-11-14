@@ -222,7 +222,7 @@ type playerSaves struct {
 
 // playerAfterChange keeps where the open film is on disk when it paused, ended or was moved (playerKeep), and keeps the display awake while a film plays (player_awake.go). The positions it saves are what the library's 继续 reads, so it reports when it saved one.
 func (a *app) playerAfterChange() bool {
-	changed := a.playerKeep(time.Now())
+	changed := a.playerKeep(a.playerNow())
 	a.playerKeepAwake()
 	return changed
 }

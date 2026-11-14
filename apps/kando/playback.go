@@ -219,11 +219,12 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 	a.playerStopRemux()
 	ctx, stop := context.WithCancel(context.Background())
 	a.player.remuxStop = stop
-	gen, update, src := a.player.playGen, a.update, p.path
+	update, src := a.update, p.path
 	go func() {
 		err := film.Remux(ctx, ffmpeg, src, dest, step)
 		update(func() {
-			if a.player.playGen != gen || a.player.play != p {
+			// A seek meanwhile keeps the film; another film, or none, has stopped the copy.
+			if a.player.play != p || p.remux != step {
 				return
 			}
 			a.player.remuxStop = nil
