@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -390,14 +391,14 @@ func TestPaletteIsInTheMenuAndTheCheatsheet(t *testing.T) {
 	t.Fatal("no 窗口 group")
 }
 
-// TestPaletteNotesHowFarTheOpenVideoPlayed checks that a video playing on from its start moves the furthest point played with it, as its picture moves, and that the player's saving of its resume positions writes that point into library.json beside them.
+// TestPaletteNotesHowFarTheOpenVideoPlayed checks that a video playing on from its start moves the furthest point played with it, as the player reports its progress, and that the player's saving of its resume positions writes that point into library.json beside them.
 func TestPaletteNotesHowFarTheOpenVideoPlayed(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
 	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.openLibrary(path)
-	play := new(filmPlay)
+	play := palettePlayback{play: new(filmPlay), gen: 1}
 	for _, at := range []time.Duration{0, 2 * time.Second, 4 * time.Second, 6 * time.Second} {
-		a.paletteNoteAt(play, "/v/clip.mp4", at, true)
+		a.paletteProgress(play, "/v/clip.mp4", at, true)
 	}
 	if got := a.palette.furthest["/v/clip.mp4"]; got != 6*time.Second {
 		t.Fatalf("noted %v", got)
@@ -412,7 +413,7 @@ func TestPaletteNotesHowFarTheOpenVideoPlayed(t *testing.T) {
 	}
 }
 
-// TestPaletteDoesNotCountASeekAsWatched checks that only playing on from what was watched moves the furthest point played: not a picture that moved while paused, not a seek past it, paused or playing, nor playing on from there, and that playing on from a seek back into what was watched moves it again. A seek opens the video again as another playback (seekPlayback). The palette then finds no line the seek passed, and library.json keeps the point watched.
+// TestPaletteDoesNotCountASeekAsWatched checks that only playing on from what was watched moves the furthest point played: not a picture that moved while paused, not a seek past it, paused or playing, nor playing on from there, and that playing on from a seek back into what was watched moves it again. A seek starts another playback (seekPlayback moves app.player.playGen on), in the same filmPlay or a new one. The palette then finds no line the seek passed, and library.json keeps the point watched.
 func TestPaletteDoesNotCountASeekAsWatched(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpenFilm(t, a, tt, updates, "rivers")
@@ -420,18 +421,20 @@ func TestPaletteDoesNotCountASeekAsWatched(t *testing.T) {
 	video := item.VideoPath
 	watched := 31 * time.Second
 	// pictures notes the picture of playback play at each of at in turn, playing or paused, and checks that the furthest point played stayed watched.
-	pictures := func(play *filmPlay, playing bool, at ...time.Duration) {
+	pictures := func(play palettePlayback, playing bool, at ...time.Duration) {
 		t.Helper()
 		for _, to := range at {
-			a.paletteNoteAt(play, video, to, playing)
+			a.paletteProgress(play, video, to, playing)
 		}
 		if got := a.palette.furthest[video]; got != watched {
 			t.Fatalf("furthest %v, want %v", got, watched)
 		}
 	}
-	pictures(new(filmPlay), false, 20*time.Second, 75*time.Second)
-	pictures(new(filmPlay), false, 75*time.Second, 76*time.Second)
-	pictures(new(filmPlay), true, 72*time.Second, 73*time.Second, 74*time.Second, 90*time.Second)
+	play := new(filmPlay)
+	pictures(palettePlayback{play: play, gen: 1}, false, 20*time.Second, 75*time.Second)
+	pictures(palettePlayback{play: play, gen: 2}, false, 75*time.Second, 76*time.Second)
+	pictures(palettePlayback{play: play, gen: 3}, true, 72*time.Second, 73*time.Second, 74*time.Second, 90*time.Second)
+	pictures(palettePlayback{play: new(filmPlay), gen: 4}, true, 72*time.Second, 73*time.Second)
 	if h := a.paletteHorizon(item); h != watched {
 		t.Fatalf("horizon %v with the picture at 1:30", h)
 	}
@@ -441,13 +444,55 @@ func TestPaletteDoesNotCountASeekAsWatched(t *testing.T) {
 		t.Fatalf("a line the seek passed was found: %+v", v.Lines)
 	}
 	tt.Key("escape")
-	back := new(filmPlay)
+	back := palettePlayback{play: play, gen: 5}
 	pictures(back, true, 25*time.Second, 28*time.Second, 31*time.Second)
 	watched = 33 * time.Second
 	pictures(back, true, 33*time.Second)
 	a.areasPositionsChanged()
 	if a.library.Furthest[video] != 33*time.Second {
 		t.Fatalf("library.json keeps %v", a.library.Furthest[video])
+	}
+}
+
+// TestPaletteFollowsThePlayingFilmOnlyAtNewLines checks that the player's progress reports make the app follow them only when the open palette lists another line: when the furthest point played passes the start of a line the query finds, not at every report, and never while the palette is closed or its query empty.
+func TestPaletteFollowsThePlayingFilmOnlyAtNewLines(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	item, _ := a.paletteFilm("rivers")
+	video := item.VideoPath
+	play := palettePlayback{play: a.player.play, gen: a.player.playGen}
+	// progress reports the picture at each of at in turn, playing, and returns the reports that changed what the palette lists.
+	progress := func(at ...time.Duration) []time.Duration {
+		var changed []time.Duration
+		for _, to := range at {
+			if a.paletteProgress(play, video, to, true) {
+				changed = append(changed, to)
+			}
+		}
+		return changed
+	}
+	if got := progress(31*time.Second, 40*time.Second); got != nil {
+		t.Fatalf("the closed palette was followed at %v", got)
+	}
+	paletteOpen(t, a, tt, updates)
+	if got := progress(50 * time.Second); got != nil {
+		t.Fatalf("the palette without a query was followed at %v", got)
+	}
+	paletteType(tt, "meanders")
+	if v := a.PaletteView(a.cx); len(v.Lines) != 0 {
+		t.Fatalf("a line not watched yet was found: %+v", v.Lines)
+	}
+	var at []time.Duration
+	for s := 51; s <= 80; s++ {
+		at = append(at, time.Duration(s)*time.Second)
+	}
+	// The line about meanders starts at 1:10.4, so it counts as seen from 1:09.9 on: the report at 1:10 lists it, and none of the others changes anything.
+	if got := progress(at...); !slices.Equal(got, []time.Duration{70 * time.Second}) {
+		t.Fatalf("followed at %v, want only at 1:10", got)
+	}
+	tt.Settle()
+	if v := a.PaletteView(a.cx); len(v.Lines) != 1 {
+		t.Fatalf("the line just watched is not found: %+v", v.Lines)
 	}
 }
 

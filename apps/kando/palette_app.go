@@ -75,24 +75,36 @@ func (a *app) paletteClose() {
 	}
 }
 
-// paletteAfterChange notes how far the open video has played, and reports whether that changed the lines the open palette finds. It runs after every change of the app's state (areaHooks.afterChange), which a playing film makes as its subtitle line changes; the player also hands its progress to paletteNotePlayed as the picture moves.
-func (a *app) paletteAfterChange() bool {
-	return a.paletteNotePlayed(a.player.play) && a.palette.open
-}
-
-// paletteNotePlayed moves the furthest point played of the open video with its picture, as paletteNoteAt says, and reports whether it moved.
-func (a *app) paletteNotePlayed(play *filmPlay) bool {
+// palettePlaying notes how far the open video has played each time the player reports its progress (areaHooks.playing), about four times a second while it plays, and reports whether the open palette now lists other lines (paletteProgress). It reads the playhead the report just set, so the furthest point follows the picture as MyGo's per-frame note did.
+func (a *app) palettePlaying() bool {
+	play := a.player.play
 	if play == nil || play.path == "" {
-		a.palette.watching = nil
+		a.palette.watching = palettePlayback{}
 		return false
 	}
-	return a.paletteNoteAt(play, play.path, play.playhead(), play.Playing())
+	return a.paletteProgress(palettePlayback{play: play, gen: a.player.playGen}, play.path, play.playhead(), play.Playing())
 }
 
-// paletteNoteAt moves the furthest point played of the video at path, open in the player as play with its picture at at, but only while it plays on from what was watched already: from where it was noted before, in the same playback, and from no further than the furthest point played. A seek opens the video again as another playback (seekPlayback), so where it lands is not taken as played, nor is a picture that moved while paused; and playing on from a seek past the furthest point does not count either, so a seek to the end does not give the film away. The prototype likewise moves seen only in its playback tick. It reports whether the furthest point moved.
-func (a *app) paletteNoteAt(play *filmPlay, path string, at time.Duration, playing bool) bool {
-	prev, same := a.palette.watchedAt, a.palette.watching == play
-	a.palette.watching, a.palette.watchedAt = play, at
+// paletteProgress notes that the video at path, open in the player as playback seen, is at at, playing or paused, as paletteNoteAt says, and reports whether that changed the lines the open palette lists: only when the furthest point passed the start of a line the query finds in that film, so a film playing under the open palette does not make the app follow its every progress report, nor does one playing with the palette closed.
+func (a *app) paletteProgress(seen palettePlayback, path string, at time.Duration, playing bool) bool {
+	from := a.palette.furthest[path]
+	if !a.paletteNoteAt(seen, path, at, playing) || !a.palette.open {
+		return false
+	}
+	to := a.palette.furthest[path]
+	query := strings.ToLower(strings.TrimSpace(a.palette.query))
+	for _, hit := range a.paletteHits(query) {
+		if hit.film.VideoPath == path && hit.cue.start > from+paletteSlack && hit.cue.start <= to+paletteSlack {
+			return true
+		}
+	}
+	return false
+}
+
+// paletteNoteAt moves the furthest point played of the video at path, open in the player as playback seen with its picture at at, but only while it plays on from what was watched already: from where it was noted before, in the same playback, and from no further than the furthest point played. A seek starts another playback (seekPlayback moves app.player.playGen on), so where it lands is not taken as played, nor is a picture that moved while paused; and playing on from a seek past the furthest point does not count either, so a seek to the end does not give the film away. The prototype likewise moves seen only in its playback tick. It reports whether the furthest point moved.
+func (a *app) paletteNoteAt(seen palettePlayback, path string, at time.Duration, playing bool) bool {
+	prev, same := a.palette.watchedAt, seen != palettePlayback{} && a.palette.watching == seen
+	a.palette.watching, a.palette.watchedAt = seen, at
 	if !same || !playing || prev > a.palette.furthest[path]+paletteSlack {
 		return false
 	}
@@ -138,7 +150,7 @@ func (a *app) paletteOpenFilm() (films.Film, bool) {
 	return a.paletteFilm(a.openKey)
 }
 
-// paletteHorizon is how far the film has been seen: the furthest point its video played to from its start. A picture a seek moved further, which paletteNotePlayed does not count, does not move it, so the palette neither lists nor sends a line the seek passed.
+// paletteHorizon is how far the film has been seen: the furthest point its video played to from its start. A picture a seek moved further, which paletteNoteAt does not count, does not move it, so the palette neither lists nor sends a line the seek passed.
 func (a *app) paletteHorizon(item films.Film) time.Duration {
 	return a.palette.furthest[item.VideoPath]
 }

@@ -272,6 +272,30 @@ func TestFeedbackCopyPutsTheWholeBodyOnTheClipboard(t *testing.T) {
 	}
 }
 
+// TestFeedbackHoldsTheWindowsKeysOverAFilm checks that, with the dialog open over a film, Space on a focused control of the dialog presses that control and does not play or hold the film behind it, as MyGo's dialogs held the window's shortcuts while they showed.
+func TestFeedbackHoldsTheWindowsKeysOverAFilm(t *testing.T) {
+	a, tt, updates, _ := feedbackFilmApp(t)
+	openTalk(t, a, tt, updates, 0)
+	chooseHelp(t, a, tt, "反馈问题…")
+	for range 40 {
+		if tt.Find("id:feedback-copy").Focused {
+			break
+		}
+		tt.Key("tab")
+	}
+	if !tt.Find("id:feedback-copy").Focused {
+		t.Fatal("Tab never reached 拷贝正文")
+	}
+	paused := a.player.play.paused
+	tt.Key("space")
+	if a.player.play.paused != paused {
+		t.Fatal("Space under the dialog played or held the film behind it")
+	}
+	if tt.Clipboard != a.FeedbackView(a.cx).Issue.Full {
+		t.Fatalf("Space did not press the focused 拷贝正文: clipboard %q", tt.Clipboard)
+	}
+}
+
 func TestFeedbackScrubsCredentialsAndTheHomeFolder(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

@@ -76,6 +76,9 @@ func TestDialogShowsTheFormAndThePreview(t *testing.T) {
 	if got, want := app.Find("id:feedback-preview").Text, a.view.Issue.Preview(msgs); got != want {
 		t.Fatalf("preview %q, want %q", got, want)
 	}
+	if h := app.Find("id:feedback-heading"); h.Props.Role != core.RoleHeader || h.Props.Level != 1 || h.Props.Label != msgs.FeedbackTitle() {
+		t.Fatalf("title read as role %v level %d %q, want a heading of level 1", h.Props.Role, h.Props.Level, h.Props.Label)
+	}
 	if !app.Find("id:feedback-title").Focused {
 		t.Fatal("the title field does not have the keyboard as the dialog opens")
 	}

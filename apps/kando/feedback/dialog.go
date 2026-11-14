@@ -130,18 +130,23 @@ func (c content) Render(cx *core.Scope) core.Node {
 // header is the GitHub tile, the title and what will happen.
 func header(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
-	// TODO(nsgo): give core.Text an AccessibilityLevel (core.View has one) so the title is read as a heading of level 1, as MyGo's Level(1) made it; it is read as a heading of no level
 	return core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignStart}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pt(tileSize), Height: core.Pt(tileSize), FlexShrink: 0, CornerRadius: tileRadius, Background: tile,
 			JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter},
 			Children: []core.Node{core.Icon{SVG: iconGitHub, Style: core.Style{Width: core.Pt(20), Height: core.Pt(20)}}}},
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
-			core.Text{ContentFunc: func() string { return locales.FeedbackTitle(cx) }, Role: core.RoleHeader,
-				Style: core.Style{FontSize: 15, FontWeight: ui.Bold}, StyleFunc: ui.Colored(colors.Text)},
+			// The title is the dialog's heading of level 1, as MyGo's Level(1) made it; core.Text carries no level, so a view around it is the heading and the text inside it is read through it.
+			core.View{TestID: "feedback-heading", Role: core.RoleHeader, AccessibilityLevel: headingLevel, LabelFunc: func() string { return locales.FeedbackTitle(cx) }, Children: []core.Node{
+				core.Text{ContentFunc: func() string { return locales.FeedbackTitle(cx) }, Role: core.RoleNone,
+					Style: core.Style{FontSize: 15, FontWeight: ui.Bold}, StyleFunc: ui.Colored(colors.Text)},
+			}},
 			core.Text{ContentFunc: func() string { return locales.FeedbackIntro(cx) }, Style: core.Style{FontSize: 12, LineHeight: 17}, StyleFunc: ui.Colored(colors.Muted)},
 		}},
 	}}
 }
+
+// headingLevel is the title's level among the dialog's headings.
+func headingLevel() int { return 1 }
 
 // titled builds a control whose title NSGo's ui controls take once, again whenever title changes, which only another language or another state of the control does: the control holds no text being typed, so building it again loses nothing but the keyboard focus on it.
 func titled(cx *core.Scope, title func() string, build func(title string) core.Node) core.Node {

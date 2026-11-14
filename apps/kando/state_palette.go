@@ -19,11 +19,11 @@ type paletteUI struct {
 	// sel is the highlighted row, counting the lines first and the commands after them. moved is set once ↑ or ↓ moved it since the query last changed: until then Return with a query asks the open film rather than running the row, as the prototype's footer says. The palette brings the highlighted row into view itself as ↑ and ↓ move it.
 	sel   int
 	moved bool
-	// furthest is how far each video has been played on from its start, by path (paletteNotePlayed), kept in library.json with the shelf (shelf.Library.Furthest). The palette finds and sends only lines up to it, so it gives nothing away of what has not been watched. dirty is set while it holds more than library.json does.
+	// furthest is how far each video has been played on from its start, by path (palettePlaying), kept in library.json with the shelf (shelf.Library.Furthest). The palette finds and sends only lines up to it, so it gives nothing away of what has not been watched. dirty is set while it holds more than library.json does.
 	furthest map[string]time.Duration
 	dirty    bool
-	// watching is the playback paletteNoteAt saw last, and watchedAt where its picture was then.
-	watching  *filmPlay
+	// watching is the playback paletteNoteAt saw at the player's last progress report, and watchedAt where its picture was then.
+	watching  palettePlayback
 	watchedAt time.Duration
 	// files are the library's subtitle files the palette has read, by path; reading is set while a read started by paletteRead runs.
 	files   map[string]paletteFile
@@ -38,6 +38,12 @@ type paletteUI struct {
 	cancel context.CancelFunc
 	// release gives back the window's modal flag the palette holds while it is open, so the menu bar's commands wait behind it as behind any modal dialog; nil while it is closed.
 	release func()
+}
+
+// palettePlayback is a playback of the open video as the palette tells them apart: the player's playback and its generation (app.player.playGen), which opening the video and every seek move on, so where a seek lands is never taken as played. The zero value is none.
+type palettePlayback struct {
+	play *filmPlay
+	gen  int
 }
 
 // paletteFile is a subtitle file as the palette read it: its cues, and the size and time it had, so it is read again only once it changed.
@@ -78,12 +84,12 @@ type paletteAnswer struct {
 
 func newPaletteUI() paletteUI { return paletteUI{} }
 
-// paletteHooks: the palette reads how far each video was played with the shelf and saves it with the player's resume positions and keys it by the new paths of videos that moved, and notes after each change of the app's state how far the open video has played. When the shelf's films change while it is open, it reads their subtitle files again.
+// paletteHooks: the palette reads how far each video was played with the shelf and saves it with the player's resume positions and keys it by the new paths of videos that moved, and notes how far the open video has played as the player reports its progress. When the shelf's films change while it is open, it reads their subtitle files again.
 func (a *app) paletteHooks() areaHooks {
 	return areaHooks{
 		shelfLoaded:      func() { a.palette.furthest = maps.Clone(a.library.Furthest) },
 		positionsChanged: a.paletteSaveFurthest,
-		afterChange:      a.paletteAfterChange,
+		playing:          a.palettePlaying,
 		videosMoved:      func(move func(string) (string, bool)) { shelf.MoveKeys(a.palette.furthest, move) },
 		shelfChanged: func() {
 			if a.palette.open {

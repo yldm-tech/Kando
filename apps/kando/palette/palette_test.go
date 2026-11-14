@@ -189,19 +189,36 @@ func TestPaletteRevealsTheHighlight(t *testing.T) {
 		a.view.Commands = append(a.view.Commands, Command{Label: fmt.Sprintf("命令 %d", i)})
 	}
 	app := start(t, a, 480)
-	for range 39 {
+	scroll := app.Find("命令 0").Parent
+	for scroll != nil && scroll.Kind != nsgotest.KindScroll {
+		scroll = scroll.Parent
+	}
+	if scroll == nil {
+		t.Fatalf("no scroll view around the rows\n%s", app.Dump())
+	}
+	app.Key("down")
+	if scroll.Offset.Y != 0 {
+		t.Fatalf("the list scrolled to %v for a row that showed already", scroll.Offset.Y)
+	}
+	for range 38 {
 		app.Key("down")
 	}
 	if a.view.Selected != 39 {
 		t.Fatalf("selected %d", a.view.Selected)
 	}
-	row := app.Find("命令 39")
-	scroll := row.Parent
-	for scroll != nil && scroll.Kind != nsgotest.KindScroll {
-		scroll = scroll.Parent
-	}
-	if scroll == nil || scroll.Offset.Y <= 0 {
+	if scroll.Offset.Y <= 0 {
 		t.Fatalf("the list did not scroll to the last row\n%s", app.Dump())
+	}
+	for range 39 {
+		app.Key("up")
+	}
+	// The first row shows whole again, at the top of the list: the heading over it may stay above, as the least scroll that shows the row leaves it.
+	top := core.Points(0)
+	for v := app.Find("命令 0"); v != nil && v != scroll; v = v.Parent {
+		top += v.Frame.Origin.Y
+	}
+	if a.view.Selected != 0 || scroll.Offset.Y > top || scroll.Offset.Y < top-20 {
+		t.Fatalf("selected %d, the list at %v with the first row at %v, want that row at the top", a.view.Selected, scroll.Offset.Y, top)
 	}
 }
 

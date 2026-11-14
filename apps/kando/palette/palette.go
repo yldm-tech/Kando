@@ -166,7 +166,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 	lines := core.NewMemoFunc(cx, func() []Line { return view.Get().Lines }, slices.Equal[[]Line])
 	commands := core.NewMemoFunc(cx, func() []Command { return view.Get().Commands }, slices.Equal[[]Command])
 	sel := core.NewMemo(cx, func() int { return view.Get().Selected })
-	list := &rows{lines: map[int]*core.Ref{}, commands: map[int]*core.Ref{}, scroll: &core.Ref{}, content: &core.Ref{}}
+	list := &rows{lines: map[int]*core.Ref{}, commands: map[int]*core.Ref{}}
 
 	// The keys work wherever the keyboard focus is in the palette, before the window's own, which would act on the film behind it: ↑ and ↓ move the highlight and bring it into view, Escape closes the palette, and ⌘K, which opened it, closes it again.
 	move := func(by int) {
@@ -178,7 +178,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 	cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, func() { send(func(ev *Event) { ev.Close = true }) })
 	cx.OnKeyWith("mod+k", core.KeyOptions{When: core.KeyAlways}, func() { send(func(ev *Event) { ev.Toggle = true }) })
 
-	results := core.View{Ref: list.content, Style: core.Style{Padding: core.All(8), Gap: 2, AlignItems: core.AlignStretch}, Children: []core.Node{
+	results := core.View{Style: core.Style{Padding: core.All(8), Gap: 2, AlignItems: core.AlignStretch}, Children: []core.Node{
 		answer{view: view, send: send},
 		core.Show{When: func() bool { return view.Get().Empty != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{ContentFunc: func() string { return view.Get().Empty }, Style: core.Style{FontSize: 13, Opacity: core.Alpha(0.55), Padding: core.Symmetric(8, 10)}}
@@ -217,7 +217,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 		Children: []core.Node{
 			field(cx, a, view, send),
 			core.View{Style: core.Style{Height: core.Pt(0.5), Background: hairline}},
-			core.Scroll{Ref: list.scroll, Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{results}},
+			core.Scroll{Style: core.Style{FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{results}},
 			core.View{Style: core.Style{Height: core.Pt(0.5), Background: hairline}},
 			core.Text{ContentFunc: func() string { return view.Get().Footer }, Style: core.Style{FontSize: 11, Opacity: core.Alpha(0.6), Padding: core.Symmetric(9, 18)}},
 		},
@@ -378,10 +378,9 @@ func (c answer) Render(cx *core.Scope) core.Node {
 	}}
 }
 
-// rows are the refs of the result rows the palette shows, by their place in the lines and in the commands, the scroll view they are in and its content, so ↑ and ↓ can bring the highlighted row into view.
+// rows are the refs of the result rows the palette shows, by their place in the lines and in the commands, so ↑ and ↓ can bring the highlighted row into view.
 type rows struct {
 	lines, commands map[int]*core.Ref
-	scroll, content *core.Ref
 }
 
 // ref is the ref of row i of group, which it holds while the row is built under cx.
@@ -396,30 +395,15 @@ func (r *rows) ref(cx *core.Scope, group map[int]*core.Ref, i int) *core.Ref {
 	return ref
 }
 
-// reveal scrolls the list so row sel, counted as View.Selected counts the rows over lines lines, shows whole once the highlight has moved there.
+// reveal scrolls the list the least that shows row sel whole, counted as View.Selected counts the rows over lines lines, once the highlight has moved there, as MyGo's ScrollIntoView did.
 func (r *rows) reveal(sel, lines int) {
 	group, i := r.lines, sel
 	if sel >= lines {
 		group, i = r.commands, sel-lines
 	}
-	row, ok := group[i]
-	if !ok {
-		return
+	if row, ok := group[i]; ok {
+		row.Reveal(core.RevealOptions{Vertical: core.ScrollAlignNearest})
 	}
-	row.Measure(func(_, at core.Bounds, ok bool) {
-		port, shown := r.scroll.Bounds()
-		content, placed := r.content.Bounds()
-		if !ok || !shown || !placed {
-			return
-		}
-		offset := port.Origin.Y - content.Origin.Y
-		switch top, bottom := at.Origin.Y, at.Origin.Y+at.Size.Height; {
-		case top < port.Origin.Y:
-			r.scroll.ScrollTo(core.Point{Y: offset - (port.Origin.Y - top)}, false)
-		case bottom > port.Origin.Y+port.Size.Height:
-			r.scroll.ScrollTo(core.Point{Y: offset + bottom - (port.Origin.Y + port.Size.Height)}, false)
-		}
-	})
 }
 
 // count is the indices of n rows.
