@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"kando/apps/kando/locales/testlocale"
 )
 
 func sampleReport() Report {
@@ -209,7 +211,7 @@ func TestIssueScrubsEverythingItSends(t *testing.T) {
 	r.Subs = true
 	r.Facts.Excerpt = &Excerpt{Original: "my key sk-live-abcdef123456"}
 	issue := r.Issue(Scrubber{Home: "/Users/kim", Secrets: []string{"sk-live-abcdef123456"}})
-	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview()} {
+	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(testlocale.Messages())} {
 		if strings.Contains(s, "/Users/kim") || strings.Contains(s, "sk-live") || strings.Contains(s, "/private/var") {
 			t.Fatalf("leaked: %q", s)
 		}
@@ -221,13 +223,13 @@ func TestIssueScrubsEverythingItSends(t *testing.T) {
 
 func TestPreviewShowsTitleLabelAndBody(t *testing.T) {
 	issue := sampleReport().Issue(Scrubber{})
-	p := issue.Preview()
+	p := issue.Preview(testlocale.Messages())
 	if !strings.HasPrefix(p, "标题：导出后字幕错位\n标签：bug\n\n") || !strings.HasSuffix(p, issue.Body) {
 		t.Fatalf("preview %q", p)
 	}
 	empty := Report{Kind: KindBug}.Issue(Scrubber{})
-	if !strings.HasPrefix(empty.Preview(), "标题：（未填写）") {
-		t.Fatalf("empty preview %q", empty.Preview())
+	if !strings.HasPrefix(empty.Preview(testlocale.Messages()), "标题：（未填写）") {
+		t.Fatalf("empty preview %q", empty.Preview(testlocale.Messages()))
 	}
 }
 
