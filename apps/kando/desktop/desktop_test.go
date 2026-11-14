@@ -4,8 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -55,8 +60,50 @@ func TestOpenURL(t *testing.T) {
 	}
 }
 
-// TestRevealOpensTheFolder checks that Reveal opens the folder holding the item, and says so when no app opened it or the item's folder is gone.
-func TestRevealOpensTheFolder(t *testing.T) {
+// fakeTools stands in for the system's tools until t ends: runCommand records each command and answers fail, and lookPath finds every tool in /fake/bin, an absolute path where it is. No test starts Finder, File Explorer, a file manager or a Trash.
+func fakeTools(t *testing.T, fail error) *[]*exec.Cmd {
+	t.Helper()
+	var ran []*exec.Cmd
+	var mu sync.Mutex
+	prevRun, prevLook := runCommand, lookPath
+	runCommand = func(cmd *exec.Cmd) error {
+		mu.Lock()
+		defer mu.Unlock()
+		ran = append(ran, cmd)
+		return fail
+	}
+	lookPath = func(name string) (string, error) {
+		if filepath.IsAbs(name) {
+			return name, nil
+		}
+		return filepath.Join("/fake/bin", name), nil
+	}
+	t.Cleanup(func() { runCommand, lookPath = prevRun, prevLook })
+	return &ran
+}
+
+// TestRevealSelectsTheItem checks that Reveal has the file manager select the item, and opens no folder once it has.
+func TestRevealSelectsTheItem(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" && runtime.GOOS != "windows" {
+		t.Skip("no file manager selects an item here")
+	}
+	ran := fakeTools(t, nil)
+	film := filepath.Join(t.TempDir(), "Spring Clip.mp4")
+	var errs []error
+	app := start(t, map[string]func(*core.Scope){"Film": func(cx *core.Scope) { Reveal(cx, film, func(err error) { errs = append(errs, err) }) }})
+	app.Press("text:Film")
+	app.WaitUntil(5*time.Second, func() bool { return len(errs) == 1 })
+	if errs[0] != nil || len(*ran) != 1 || len(app.OpenedFiles) != 0 {
+		t.Fatalf("done heard %v, ran %v, opened %+v", errs, *ran, app.OpenedFiles)
+	}
+	if cmd := (*ran)[0]; !strings.Contains(strings.Join(cmd.Args, " ")+" "+commandLine(cmd), film) {
+		t.Fatalf("the file manager was not given %s: %q", film, cmd.Args)
+	}
+}
+
+// TestRevealFallsBackToTheFolder checks that Reveal opens the folder holding the item when the file manager cannot select it, and says so when no app opened the folder or the item's folder is gone.
+func TestRevealFallsBackToTheFolder(t *testing.T) {
+	fakeTools(t, errors.New("no file manager answered"))
 	dir := t.TempDir()
 	film := filepath.Join(dir, "Spring Clip.mp4")
 	if err := os.WriteFile(film, []byte("film"), 0o644); err != nil {
@@ -69,36 +116,22 @@ func TestRevealOpensTheFolder(t *testing.T) {
 		"Missing": func(cx *core.Scope) { Reveal(cx, filepath.Join(dir, "gone", "clip.mp4"), done) },
 	})
 	app.Press("text:Film")
-	app.Settle()
+	app.WaitUntil(5*time.Second, func() bool { return len(errs) == 1 })
 	if len(app.OpenedFiles) != 1 || app.OpenedFiles[0].Path != dir {
 		t.Fatalf("opened %+v, want the folder %s", app.OpenedFiles, dir)
 	}
 	app.OpenFile = func(core.SharedFile) bool { return false }
 	app.Press("text:Film")
+	app.WaitUntil(5*time.Second, func() bool { return len(errs) == 2 })
 	app.Press("text:Missing")
-	app.Settle()
-	if len(errs) != 3 || errs[0] != nil || !errors.Is(errs[1], errFolderNotOpened) || errs[2] == nil {
+	app.WaitUntil(5*time.Second, func() bool { return len(errs) == 3 })
+	if errs[0] != nil || !errors.Is(errs[1], errFolderNotOpened) || errs[2] == nil {
 		t.Fatalf("done heard %v", errs)
 	}
 }
 
-// TestTrashLeavesTheItem checks that Trash, which NSGo cannot do yet, fails as unsupported and leaves the item where it is.
-func TestTrashLeavesTheItem(t *testing.T) {
-	film := filepath.Join(t.TempDir(), "Spring Clip.mp4")
-	if err := os.WriteFile(film, []byte("film"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var err error
-	app := start(t, map[string]func(*core.Scope){"Trash": func(cx *core.Scope) { err = Trash(cx, film) }})
-	app.Press("text:Trash")
-	app.Settle()
-	if !errors.Is(err, errors.ErrUnsupported) {
-		t.Fatalf("Trash answered %v", err)
-	}
-	if _, statErr := os.Stat(film); statErr != nil {
-		t.Fatalf("the item is gone: %v", statErr)
-	}
-}
+// commandLine is the command line cmd runs as written whole, on Windows, where it can be (explorerSelectCommand); "" elsewhere.
+func commandLine(cmd *exec.Cmd) string { return sysCommandLine(cmd) }
 
 // TestKeepAwakeReleases checks that the hold KeepAwake gives can be given back, twice too.
 func TestKeepAwakeReleases(t *testing.T) {

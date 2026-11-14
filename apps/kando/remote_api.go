@@ -20,11 +20,9 @@ import (
 	"kando/apps/kando/sites/catalog"
 	"kando/packages/core"
 	"kando/packages/media"
-
-	"github.com/egoist/mygo"
 )
 
-// The control socket's methods (package remote), as the app answers them. remoteHandle runs on the goroutine of the request's connection: it reads and changes the app's state only inside remote.OnUI, which runs on the UI thread, and reads files, as subtitles, outside it.
+// The control socket's methods (package remote), as the app answers them. remoteHandle runs on the goroutine of the request's connection: it reads and changes the app's state only inside remote.OnUI, which runs it on the engine's goroutine through the app's update (the UI thread, as this file calls it), and reads files, as subtitles, outside it. What it says in the interface's language it says there too, as the language is the app's state (app.messages).
 
 // remoteHandle answers one request of the control socket.
 func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
@@ -102,7 +100,7 @@ func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 			Version:    appVersion,
 			LibraryDir: a.snap().LibraryDir,
 			Ready:      ready.State == sidebar.Ready,
-			Readiness:  ready.Text(),
+			Readiness:  ready.Text(a.cx),
 			Tools:      map[string]string{"yt-dlp": "", "ffmpeg": "", "whisper-cli": ""},
 			Language:   a.prefs.language,
 			Queued:     len(waiting),
@@ -187,7 +185,7 @@ func (a *app) remoteSubtitles(ctx context.Context, id string) ([]remote.Cue, err
 func (a *app) remoteJobs(ctx context.Context) ([]remote.Job, error) {
 	jobs, err := remote.OnUI(ctx, a.update, func() ([]remote.Job, error) {
 		if strings.TrimSpace(a.snap().LibraryDir) == "" {
-			return nil, remote.Errorf(remote.CodeNotReady, "%s", locales.PrecheckNoLibrary())
+			return nil, remote.Errorf(remote.CodeNotReady, "%s", a.messages().PrecheckNoLibrary())
 		}
 		running, waiting, finished := a.remoteQueue()
 		out := []remote.Job{}
@@ -211,21 +209,29 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 		return remote.AddResult{}, remote.Errorf(remote.CodeInvalid, "no sources")
 	}
 	type candidate struct{ given, source string }
+	type skip struct {
+		given  string
+		reason func(locales.Messages) string
+	}
 	var candidates []candidate
-	result := remote.AddResult{Jobs: []remote.Job{}}
+	var skipped []skip
 	for _, given := range p.Sources {
 		source, reason := remoteSource(given, p.Dir)
-		if reason != "" {
-			result.Skipped = append(result.Skipped, remote.AddFailed{Source: given, Reason: reason})
+		if reason != nil {
+			skipped = append(skipped, skip{given, reason})
 			continue
 		}
 		candidates = append(candidates, candidate{given, source})
 	}
-	if len(candidates) == 0 {
-		return result, nil
-	}
+	// The sources were looked at here, off the UI thread, as that reads the disk; why one is skipped is said on the UI thread, in the interface's language.
 	added, err := remote.OnUI(ctx, a.update, func() (remote.AddResult, error) {
-		res := remote.AddResult{Jobs: []remote.Job{}, Skipped: slices.Clone(result.Skipped)}
+		res := remote.AddResult{Jobs: []remote.Job{}}
+		for _, s := range skipped {
+			res.Skipped = append(res.Skipped, remote.AddFailed{Source: s.given, Reason: s.reason(a.messages())})
+		}
+		if len(candidates) == 0 {
+			return res, nil
+		}
 		sources := make([]string, len(candidates))
 		for i, c := range candidates {
 			sources[i] = c.source
@@ -359,10 +365,10 @@ func remoteSites(p remote.SitesParams) []remote.Site {
 	return out
 }
 
-// remoteShow brings the window to the front on the library, or on the film with key id: a done film opens as a click on its poster opens it, and one still in the queue shows the library, where its card is. After the main window was closed while the app runs on, as with the settings window still open, there is nothing to bring forward, as MyGo does not open a closed window again, so it answers not_ready and changes nothing.
+// remoteShow brings the window to the front on the library, or on the film with key id: a done film opens as a click on its poster opens it, and one still in the queue shows the library, where its card is. A main window its close button put away comes back (remoteRaise). Once the main window is closed for good while the app runs on, there is nothing to bring forward, as NSGo does not open a closed window again, so it answers not_ready and changes nothing.
 func (a *app) remoteShow(ctx context.Context, id string) error {
 	_, err := remote.OnUI(ctx, a.update, func() (struct{}, error) {
-		if a.win != nil && a.win.IsDestroyed() {
+		if w := a.window.main; w != nil && w.Closed() {
 			return struct{}{}, remote.Errorf(remote.CodeNotReady, "the Kando window was closed; quit Kando and open it again to show it")
 		}
 		if id == "" {
@@ -386,22 +392,19 @@ func (a *app) remoteShow(ctx context.Context, id string) error {
 	return err
 }
 
-// remoteRaise brings the main window to the front, restored when it was minimized, as app.show does and as a second launch of the app does (main's OnSecondInstance). It does nothing before the window is made or after it was closed. UI thread only.
+// remoteRaise brings the main window to the front and activates the app, restored when it was minimized and shown again when its close button put it away (windowShowMain), as a click on the Dock icon and a second launch of the app do (run's OnReopen). It does nothing before the window is made or after it was closed. UI thread only.
 func (a *app) remoteRaise() {
-	if a.win == nil || a.win.IsDestroyed() {
+	// TODO(nsgo#31): bring the window forward on Windows and Linux too, where NSGo gives the app no core.Window to focus (a.window.main is nil there), as MyGo's Window.Show and App.Focus did https://github.com/nsgo-dev/nsgo/issues/31
+	if a.window.main == nil || a.window.main.Closed() {
 		return
 	}
-	if a.win.IsMinimized() {
-		a.win.Restore()
-	}
-	a.win.Show()
-	mygo.App.Focus()
+	a.windowShowMain()
 }
 
 // remoteLibraryFilms is the open library's films, or not_ready when no library is open. UI thread only.
 func (a *app) remoteLibraryFilms() ([]films.Film, error) {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
-		return nil, remote.Errorf(remote.CodeNotReady, "%s", locales.PrecheckNoLibrary())
+		return nil, remote.Errorf(remote.CodeNotReady, "%s", a.messages().PrecheckNoLibrary())
 	}
 	return a.films(), nil
 }
@@ -423,7 +426,7 @@ func (a *app) remoteFind(id string) (films.Film, error) {
 func (a *app) remoteFindJob(id string) (core.Job, error) {
 	root := a.snap().LibraryDir
 	if strings.TrimSpace(root) == "" {
-		return core.Job{}, remote.Errorf(remote.CodeNotReady, "%s", locales.PrecheckNoLibrary())
+		return core.Job{}, remote.Errorf(remote.CodeNotReady, "%s", a.messages().PrecheckNoLibrary())
 	}
 	job, ok := a.library.Find(id)
 	if id == "" || !ok || (!films.InLibrary(root, job) && !a.queueElsewhere(job)) {
@@ -566,35 +569,40 @@ func remoteProgress(stage core.Stage, p core.Progress, hasJob bool) float64 {
 	return -1
 }
 
-// remoteSource is the job source for what the client gave: a link as it is, or a local video as the file:// URL dropping it on the window makes, with a relative path taken from dir. reason says why it cannot be added, in the library's words where it has them; it is "" for a source to add.
-func remoteSource(given, dir string) (source, reason string) {
+// remoteSource is the job source for what the client gave: a link as it is, or a local video as the file:// URL dropping it on the window makes, with a relative path taken from dir. It runs off the UI thread, as it reads the disk, so reason says why the source cannot be added in the words of the messages it is given, which the UI thread gives it in the interface's language (app.messages): the library's words where it has them. reason is nil for a source to add.
+func remoteSource(given, dir string) (source string, reason func(locales.Messages) string) {
 	s := strings.TrimSpace(given)
 	if s == "" {
-		return "", locales.PrecheckEmpty()
+		return "", locales.Messages.PrecheckEmpty
 	}
 	path, local := remoteLocalPath(s, dir)
 	if !local {
 		link, ok := core.ParseLink(s)
 		if !ok {
-			return "", locales.PrecheckNotLink()
+			return "", locales.Messages.PrecheckNotLink
 		}
 		// A channel or a list is skipped on its own here, rather than refusing the whole request in precheck, as a link that is not one is.
 		if !link.OneVideo() {
-			return "", precheckWhole(link)
+			return "", func(locales.Messages) string { return precheckWhole(link) }
 		}
-		return s, ""
+		return s, nil
 	}
 	if path == "" {
-		return "", fmt.Sprintf("%q is a relative path, and the request names no directory to take it from", s)
+		return "", remoteReason(fmt.Sprintf("%q is a relative path, and the request names no directory to take it from", s))
 	}
 	info, err := os.Stat(path)
 	if err != nil {
-		return "", err.Error()
+		return "", remoteReason(err.Error())
 	}
 	if info.IsDir() || !media.IsVideoFile(path) {
-		return "", locales.PrecheckNoVideo()
+		return "", locales.Messages.PrecheckNoVideo
 	}
-	return core.FileURL(path), ""
+	return core.FileURL(path), nil
+}
+
+// remoteReason is a reason of remoteSource that the app has no words of its own for, as the system's error for a file that cannot be read, which it says as it is.
+func remoteReason(reason string) func(locales.Messages) string {
+	return func(locales.Messages) string { return reason }
 }
 
 // remoteLocalPath reports whether s names a local file rather than a link, and its absolute path: a file:// URL, a path that starts at the root, the home folder (~/) or the current folder (./, ../), or anything else that is a video's file name or names a file in dir. path is "" for a relative path without dir.
