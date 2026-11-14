@@ -224,7 +224,7 @@ func TestRemoteReadsAFilmsSubtitles(t *testing.T) {
 }
 
 func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
-	a, _, updates := newTestApp(t, &fakePipeline{block: true})
+	a, tt, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	done := filepath.Join(dir, "Old", "old.mp4")
@@ -297,12 +297,12 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	remoteWantCode(t, err, remote.CodeNotFound)
 
 	a.queue.stopActive(context.Canceled)
-	waitUntil(t, updates, func() bool { return !a.running() })
+	waitUntil(t, tt, a, updates, func() bool { return !a.running() })
 }
 
 // TestRemoteAddSkipsListsAndVideosAlreadyThere checks that kando add and the MCP server's add skip, each with why, a channel or a list that names no single video, a video already waiting or done in the library, and the same video given twice, while a video whose job failed is queued again on its card and answered like a new one.
 func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
-	a, _, updates := newTestApp(t, &fakePipeline{block: true})
+	a, tt, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	done := filepath.Join(dir, "Old", "video.mp4")
@@ -350,12 +350,12 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 		}
 	}
 	a.queue.stopActive(context.Canceled)
-	waitUntil(t, updates, func() bool { return !a.running() })
+	waitUntil(t, tt, a, updates, func() bool { return !a.running() })
 }
 
 // TestRemoteListsAndCancelsAJobOfAnotherLibrary opens another library while a job runs and another waits in the first one: the status and the job list name them as the window's 处理中 shows them, the first library's finished job stays out of the list, and the running one can be cancelled.
 func TestRemoteListsAndCancelsAJobOfAnotherLibrary(t *testing.T) {
-	a, _, updates := newTestApp(t, &fakePipeline{block: true})
+	a, tt, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	first, second := t.TempDir(), t.TempDir()
 	a.edit(func(s *session) {
@@ -394,13 +394,13 @@ func TestRemoteListsAndCancelsAJobOfAnotherLibrary(t *testing.T) {
 	remoteWantCode(t, err, remote.CodeNotFound)
 
 	a.queue.stopActive(context.Canceled)
-	waitUntil(t, updates, func() bool { return !a.running() })
+	waitUntil(t, tt, a, updates, func() bool { return !a.running() })
 }
 
 // TestRemoteListsAJobThatEndedInAnotherLibrary lets a job finish after another library is opened: jobs.list still gives it, complete, so a client waiting on it (kando add --wait) sees it succeed rather than lose it.
 func TestRemoteListsAJobThatEndedInAnotherLibrary(t *testing.T) {
 	g := newGatePipeline()
-	a, _, updates := newTestApp(t, g)
+	a, tt, updates := newTestApp(t, g)
 	remoteServe(t, a)
 	first, second := t.TempDir(), t.TempDir()
 	a.edit(func(s *session) {
@@ -416,7 +416,7 @@ func TestRemoteListsAJobThatEndedInAnotherLibrary(t *testing.T) {
 	id := a.RunningJob()
 	a.edit(func(s *session) { s.LibraryDir = second })
 	g.release <- struct{}{}
-	waitUntil(t, updates, func() bool { return !a.running() })
+	waitUntil(t, tt, a, updates, func() bool { return !a.running() })
 
 	jobs, err := remoteCall[[]remote.Job](t, updates, remote.MethodJobs, nil)
 	if err != nil {
@@ -479,7 +479,7 @@ func TestRemoteSourceTakesFileURLsToTheirFile(t *testing.T) {
 
 // TestRemoteRetriesAJobWithoutMovingTheWindow checks that jobs.retry queues a failed, canceled or done job again under its own ID, as 重试 and 重新处理 do, while the window stays on the page and card it showed, and that it refuses a job that is still running or waiting.
 func TestRemoteRetriesAJobWithoutMovingTheWindow(t *testing.T) {
-	a, _, updates := newTestApp(t, &fakePipeline{block: true})
+	a, tt, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	a.edit(func(s *session) { s.LibraryDir = dir })
@@ -548,11 +548,11 @@ func TestRemoteRetriesAJobWithoutMovingTheWindow(t *testing.T) {
 	}
 
 	a.queue.stopActive(context.Canceled)
-	waitUntil(t, updates, func() bool { return a.queue.active != "bad" })
+	waitUntil(t, tt, a, updates, func() bool { return a.queue.active != "bad" })
 	a.queue.stopActive(context.Canceled)
-	waitUntil(t, updates, func() bool { return a.queue.active != "stopped" })
+	waitUntil(t, tt, a, updates, func() bool { return a.queue.active != "stopped" })
 	a.queue.stopActive(context.Canceled)
-	waitUntil(t, updates, func() bool { return !a.running() })
+	waitUntil(t, tt, a, updates, func() bool { return !a.running() })
 }
 
 // TestRemoteRetrySaysWhatIsMissing checks that jobs.retry answers not_ready with the message bar's words when the job cannot start now, and leaves the job as it was.
@@ -593,7 +593,7 @@ func TestRemoteRetrySaysWhatIsMissing(t *testing.T) {
 
 // TestRemoteRemovesAJob checks that jobs.remove takes a job off the shelf as 移除 does: a running one stops first, and the files a done one made stay on disk.
 func TestRemoteRemovesAJob(t *testing.T) {
-	a, _, updates := newTestApp(t, &fakePipeline{block: true})
+	a, tt, updates := newTestApp(t, &fakePipeline{block: true})
 	remoteServe(t, a)
 	dir := t.TempDir()
 	video := filepath.Join(dir, "Done", "done.mp4")
@@ -611,7 +611,7 @@ func TestRemoteRemovesAJob(t *testing.T) {
 	if _, ok := a.library.Find("run"); ok {
 		t.Fatalf("the removed running job is still on the shelf: %+v", a.library.Jobs)
 	}
-	waitUntil(t, updates, func() bool { return !a.running() })
+	waitUntil(t, tt, a, updates, func() bool { return !a.running() })
 	if _, ok := a.library.Find("run"); ok {
 		t.Fatal("the stopped job came back to the shelf")
 	}

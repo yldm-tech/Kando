@@ -446,13 +446,12 @@ func TestMenuSwitchLibraryNamesTwinsByPath(t *testing.T) {
 	}
 }
 
-// TODO(nsgo): check again that the Dock menu lists the libraries, switches them and follows a switch made elsewhere, and that it is removed without a library, as TestDockMenuListsTheLibraries did, once NSGo has a Dock menu (menu.go's syncMenu)
-
 // TestMenuWithoutLibraries checks that with no library known, 文件 has no 切换资料库.
 func TestMenuWithoutLibraries(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir, s.Libraries = "", nil })
 	refresh(tt, a)
+	// TODO(nsgo): check again that the Dock menu lists the libraries, switches them and follows a switch made elsewhere, and that it goes without a library, as TestDockMenuListsTheLibraries did, once NSGo has a Dock menu (menu.go's syncMenu)
 	for _, m := range a.menuBar(a.cx) {
 		for _, it := range m.Items {
 			if it.Label == "切换资料库" {
