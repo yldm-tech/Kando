@@ -101,11 +101,8 @@ func (d trashDialog) Render(cx *core.Scope) core.Node {
 	a := d.a
 	colors := ui.ColorsOf(cx)
 	model := core.NewMemo(cx, live.Func(a, func() string { _, id := a.TrashingSpeechModel(); return id }))
-	cancel := live.Do(a, func() {
-		open, _ := a.TrashingSpeechModel()
-		*open = false
-	})
-	return core.Show{When: live.Func(a, func() bool { open, _ := a.TrashingSpeechModel(); return *open }), Then: func(cx *core.Scope) core.Node {
+	cancel := live.Do(a, a.CloseTrashSpeechModel)
+	return core.Show{When: live.Func(a, func() bool { open, _ := a.TrashingSpeechModel(); return open }), Then: func(cx *core.Scope) core.Node {
 		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways}, cancel)
 		// The dialog's words are set as it is built, so it is built again for another model.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
@@ -127,8 +124,7 @@ func (d trashDialog) Render(cx *core.Scope) core.Node {
 				Footer: []core.Node{
 					ui.Button{Text: locales.SettingsSpeechCancel(cx), Variant: ui.ButtonSecondary, TestID: "settings-trash-cancel", OnPress: cancel},
 					ui.Button{Text: locales.SettingsSpeechTrashButton(cx), Color: colors.Danger, TestID: "settings-trash-ok", OnPress: live.Do(a, func() {
-						open, _ := a.TrashingSpeechModel()
-						*open = false
+						a.CloseTrashSpeechModel()
 						a.TrashSpeechModel(id)
 					})},
 				},

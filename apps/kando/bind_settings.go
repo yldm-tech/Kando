@@ -46,7 +46,7 @@ func (a *app) Redetect() {
 
 func (a *app) ToolDownload(program string) settings.ToolFetch {
 	progress, running := a.kitsProgress(program)
-	return settings.ToolFetch{Available: a.kitsCanInstall(program), Running: running, Progress: progress, Err: kitsError(a.messages(), a.kits.errs[program])}
+	return settings.ToolFetch{Available: a.kitsCanInstall(program), Running: running, Progress: progress, Err: settings.KitsError(a.messages(), a.kits.errs[program])}
 }
 
 func (a *app) DownloadTool(program string) { a.kitsInstall(program) }
@@ -68,7 +68,9 @@ func (a *app) DownloadWritten() int64 { return a.prefs.downloadWritten }
 
 func (a *app) DownloadTotal() int64 { return a.prefs.downloadTotal }
 
-func (a *app) DownloadErr() string { return speechDownloadError(a.messages(), a.prefs.downloadErr) }
+func (a *app) DownloadErr() string {
+	return settings.SpeechDownloadError(a.messages(), a.prefs.downloadErr)
+}
 
 func (a *app) CancelDownload() { a.cancelDownload() }
 
@@ -80,7 +82,9 @@ func (a *app) SpeechModelInUse(path string) bool { return a.speechModelInUse(pat
 
 func (a *app) AskTrashSpeechModel(id string) { a.askTrashSpeechModel(id) }
 
-func (a *app) TrashingSpeechModel() (*bool, string) { return &a.prefs.trashOpen, a.prefs.trashModel }
+func (a *app) TrashingSpeechModel() (bool, string) { return a.prefs.trashOpen, a.prefs.trashModel }
+
+func (a *app) CloseTrashSpeechModel() { a.closeTrashSpeechModel() }
 
 func (a *app) TrashSpeechModel(id string) { a.trashSpeechModel(id) }
 
@@ -93,27 +97,16 @@ func (a *app) SetSpeechLanguage(code string) { a.useSpeechLanguage(code) }
 
 // CurrentPreset and Presets read the presets' names and blurbs in the interface's language each time the page draws them.
 func (a *app) CurrentPreset() (settings.Preset, bool) {
-	preset, ok := llmPresetByID(a.messages(), a.prefs.llmProvider)
-	if !ok {
-		return settings.Preset{}, false
-	}
-	return settings.Preset{ID: preset.ID, Name: preset.Name, Blurb: preset.Blurb, Group: preset.Group}, true
+	return settings.PresetByID(a.messages(), a.prefs.llmProvider)
 }
 
-func (a *app) Presets() []settings.Preset {
-	src := llmPresets(a.messages())
-	out := make([]settings.Preset, len(src))
-	for i, preset := range src {
-		out[i] = settings.Preset{ID: preset.ID, Name: preset.Name, Blurb: preset.Blurb, Group: preset.Group}
-	}
-	return out
-}
+func (a *app) Presets() []settings.Preset { return settings.Presets(a.messages()) }
 
 func (a *app) LLMProvider() string { return a.prefs.llmProvider }
 
 func (a *app) SetLLMProvider(id string) { a.prefs.llmProvider = id }
 
-func (a *app) ProviderID(base string) string { return llmProviderID(base) }
+func (a *app) ProviderID(base string) string { return settings.ProviderID(base) }
 
 func (a *app) LLMBase() *string { return &a.prefs.llmBase }
 
@@ -130,10 +123,10 @@ func (a *app) TestLLM() { a.testLLM() }
 // LLMConnected reports whether the last connection test passed, which the page words in the language it is shown in.
 func (a *app) LLMConnected() bool { return a.prefs.llmTestOK }
 
-// LLMResult is why the last connection test failed: "" before any, and after one that passed.
+// LLMResult is the last connection test's outcome: "" before any, 连接成功 in the interface language after one that passed, otherwise why it failed. The page reads LLMConnected and words the pass in the language it is shown in.
 func (a *app) LLMResult() string {
 	if a.prefs.llmTestOK {
-		return ""
+		return a.messages().SettingsAIConnected()
 	}
 	return a.prefs.llmTestErr
 }
@@ -148,7 +141,7 @@ func (a *app) LLMModelsErr() string {
 	if a.prefs.llmModelsErr == nil {
 		return ""
 	}
-	return llmModelsError(a.messages(), a.prefs.llmModelsErr)
+	return settings.LLMModelsError(a.messages(), a.prefs.llmModelsErr)
 }
 
 func (a *app) RetryLLMModels() { a.fetchLLMModels(true) }

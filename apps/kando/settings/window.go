@@ -17,18 +17,6 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Preset is one translation service the AI page can select: its id, its name and what it is in the interface's language, and its group, one of the Group values.
-type Preset struct {
-	ID, Name, Blurb, Group string
-}
-
-// The groups of the presets: services in the cloud, services running on this Mac, which the drop-down names after their group, and any other endpoint.
-const (
-	GroupCloud = "cloud"
-	GroupLocal = "local"
-	GroupOther = "other"
-)
-
 // EveryAPI is the state of the everyapi command-line program when the AI service is EveryAPI without an API Key, the zero value otherwise or when nothing is wrong with it. Missing is set when the program is not on this computer, Checking while Kando asks it whether someone is signed in, SignedOut when nobody is. Failed says what went wrong when asking it failed for another reason, as a timeout or a crash. OpenErr says why its website could not be opened.
 type EveryAPI struct {
 	Missing, Checking, SignedOut bool
@@ -88,12 +76,13 @@ type App interface {
 	DownloadErr() string
 	CancelDownload()
 	DownloadModel(id string)
-	// OwnsSpeechModel reports whether the file of the whisper catalog model id is one Kando downloaded into its own models folder, which it may move to the Trash; a model another app keeps is that app's. AskTrashSpeechModel opens the confirmation of moving it to the Trash, TrashingSpeechModel is that confirmation's open flag and the model it asks about, and TrashSpeechModel moves the file, refusing the model in use, another app's and any while a download runs.
+	// OwnsSpeechModel reports whether the file of the whisper catalog model id is one Kando downloaded into its own models folder, which it may move to the Trash; a model another app keeps is that app's. AskTrashSpeechModel opens the confirmation of moving it to the Trash, TrashingSpeechModel reports whether that confirmation is open and the model it asks about, CloseTrashSpeechModel closes it, giving back what it held, and TrashSpeechModel moves the file, refusing the model in use, another app's and any while a download runs.
 	OwnsSpeechModel(id string) bool
 	// SpeechModelInUse reports whether the model file path is one transcriptions use: the one chosen, or the one a running job started with. It cannot be moved to the Trash.
 	SpeechModelInUse(path string) bool
 	AskTrashSpeechModel(id string)
-	TrashingSpeechModel() (open *bool, id string)
+	TrashingSpeechModel() (open bool, id string)
+	CloseTrashSpeechModel()
 	TrashSpeechModel(id string)
 	// SpeechLanguage is the language spoken in the videos as whisper's code, one of media.SpeechLanguages, or "" for whisper to detect it; SetSpeechLanguage changes and saves it.
 	SpeechLanguage() string
@@ -110,7 +99,7 @@ type App interface {
 	ApplyLLM()
 	TestingLLM() bool
 	TestLLM()
-	// LLMConnected reports whether the last connection test passed; LLMResult is why it failed, "" before any test and after one that passed.
+	// LLMConnected reports whether the last connection test passed; LLMResult is "" before any test, 连接成功 after one that passed, and otherwise why it failed. The page words a pass itself, in the language it is shown in, so it reads LLMResult only when LLMConnected is false.
 	LLMConnected() bool
 	LLMResult() string
 	SelectLLM(id string)
@@ -279,7 +268,7 @@ func categoryContent(cx *core.Scope, sec section) core.Node {
 	return core.Group([]core.Node{tile, label})
 }
 
-// search is the rail's search field, which narrows the categories to those whose title or keywords hold what is typed: 28 points high, its corners 8, gray without a border, a magnifying glass before the text. Escape empties it while it holds something.
+// search is the rail's search field, which narrows the categories to those whose title or keywords hold what is typed: 28 points high, its corners 8, gray without a border, a magnifying glass before the text and a clear button after it while it holds something. The button or Escape empties it.
 type search struct{ a App }
 
 // Render implements core.Node.
@@ -287,14 +276,19 @@ func (s search) Render(cx *core.Scope) core.Node {
 	a := s.a
 	colors := ui.ColorsOf(cx)
 	query := live.Func(a, func() string { return *a.SettingsQuery() })
-	clear := live.Do(a, func() { *a.SettingsQuery() = "" })
+	field := &core.Ref{}
+	// Emptying the field, by its clear button or Escape, also takes the keyboard out of it, as MyGo's SearchField did.
+	clear := live.Do(a, func() {
+		*a.SettingsQuery() = ""
+		field.Blur()
+	})
 	focused := core.NewSignal(cx, false)
 	escape := core.Show{When: func() bool { return focused.Get() && query() != "" }, Then: func(cx *core.Scope) core.Node {
 		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, clear)
 		return nil
 	}}
 	// TODO(nsgo): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was
-	input := base.Input{TestID: "settings-search",
+	input := base.Input{Ref: field, TestID: "settings-search",
 		Label:       locales.SettingsSearchLabel(cx),
 		Placeholder: locales.SettingsSearchPlaceholder(cx),
 		Value:       query,
@@ -302,14 +296,19 @@ func (s search) Render(cx *core.Scope) core.Node {
 		OnFocus:     func() { focused.Set(true) },
 		OnBlur:      func() { focused.Set(false) },
 		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, Background: searchFill, FontSize: 13,
-			Padding: core.Edges{Left: 28, Right: 8}},
+			Padding: core.Edges{Left: 28, Right: 28}},
 		StyleFunc: func() core.Style {
 			return core.Style{Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
 		},
 	}
+	clearButton := core.Show{When: func() bool { return query() != "" }, Then: func(cx *core.Scope) core.Node {
+		return core.View{Style: core.Style{Position: core.Absolute, Top: core.Pt(4), Right: core.Pt(4)}, Children: []core.Node{
+			ui.IconButton{Icon: lucide.X, LabelFunc: func() string { return locales.SettingsSearchClear(cx) }, Size: 20, OnPress: clear, TestID: "settings-search-clear"},
+		}}
+	}}
 	glass := core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(7), Left: core.Pt(9)},
 		Children: []core.Node{ui.Icon(lucide.Search, 14, colors.Muted)}}
-	return core.View{Style: core.Style{FlexShrink: 0, Margin: core.Edges{Bottom: 8}}, Children: []core.Node{input, glass, escape}}
+	return core.View{Style: core.Style{FlexShrink: 0, Margin: core.Edges{Bottom: 8}}, Children: []core.Node{input, glass, clearButton, escape}}
 }
 
 // page builds the category id: the account package's page for 账号与上传, which the window is given, and its own pages for the others.

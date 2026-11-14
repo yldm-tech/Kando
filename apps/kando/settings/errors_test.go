@@ -1,0 +1,91 @@
+package settings
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+	"testing"
+
+	"kando/apps/kando/locales/testlocale"
+	"kando/packages/media"
+)
+
+// rejected is an API answer with an HTTP status, as media's errors carry one.
+type rejected int
+
+func (r rejected) Error() string   { return "rejected " + strconv.Itoa(int(r)) }
+func (r rejected) StatusCode() int { return int(r) }
+
+// TestKitsErrorSaysWhy checks the words for why a program's download failed: a stall, an HTTP status and a dropped connection each in plain words of the interface's language, anything else as it is.
+func TestKitsErrorSaysWhy(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{nil, ""},
+		{media.ErrStalled, "服务器一直没有发来数据"},
+		{rejected(404), "服务器返回 HTTP 404"},
+		{fmt.Errorf("%w: read: connection reset by peer", media.ErrDisconnected), "连接断了"},
+		{errors.New("download ffmpeg: checksum 00, want 11"), "download ffmpeg: checksum 00, want 11"},
+	} {
+		if got := KitsError(testlocale.Messages(), tc.err); got != tc.want {
+			t.Errorf("KitsError(%v) = %q, want %q", tc.err, got, tc.want)
+		}
+	}
+	testlocale.Use(t, "en")
+	if got := KitsError(testlocale.Messages(), media.ErrStalled); got != "the server stopped sending data" {
+		t.Errorf("in English, a stall is %q", got)
+	}
+}
+
+// TestSpeechDownloadErrorSaysWhy checks the words for why a speech model's download failed, in the interface's language: a stall and a dropped connection say that downloading again continues, an HTTP status names it, and anything else shows as it is.
+func TestSpeechDownloadErrorSaysWhy(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{nil, ""},
+		{ErrNoModelsDir, "还没有模型目录"},
+		{media.ErrStalled, "下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"},
+		{rejected(503), "服务器返回 HTTP 503，请稍后再试。"},
+		{fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected), "连接断了。检查网络后再下载一次。"},
+		{errors.New("no space left on device"), "no space left on device"},
+	} {
+		if got := SpeechDownloadError(testlocale.Messages(), tc.err); got != tc.want {
+			t.Errorf("SpeechDownloadError(%v) = %q, want %q", tc.err, got, tc.want)
+		}
+	}
+	testlocale.Use(t, "en")
+	if got := SpeechDownloadError(testlocale.Messages(), rejected(404)); got != "The server answered HTTP 404. Try again later." {
+		t.Errorf("in English, HTTP 404 is %q", got)
+	}
+}
+
+// TestSpeechDownloadErrorSaysWhyTheTrashRefused checks the words for a model the Trash did not take: the one in use, and one the system refused, with the system's reason.
+func TestSpeechDownloadErrorSaysWhyTheTrashRefused(t *testing.T) {
+	msgs := testlocale.Messages()
+	if got, want := SpeechDownloadError(msgs, TrashError{ID: "large-v3"}), msgs.SettingsSpeechTrashInUse("Large v3"); got != want {
+		t.Errorf("in use: %q, want %q", got, want)
+	}
+	if got, want := SpeechDownloadError(msgs, TrashError{ID: "large-v3", Err: errors.New("permission denied")}), msgs.SettingsSpeechTrashFailed("Large v3", "permission denied"); got != want {
+		t.Errorf("refused: %q, want %q", got, want)
+	}
+}
+
+// TestProviderIDFindsThePreset checks that an endpoint finds its preset whatever its trailing slash and spaces, and that any other is custom.
+func TestProviderIDFindsThePreset(t *testing.T) {
+	for base, want := range map[string]string{
+		media.EveryAPIBaseURL:          "everyapi",
+		" https://api.openai.com/v1/ ": "openai",
+		"http://127.0.0.1:11434/v1":    "ollama",
+		"https://llm.example.com/v1":   "custom",
+		"":                             "custom",
+	} {
+		if got := ProviderID(base); got != want {
+			t.Errorf("ProviderID(%q) = %q, want %q", base, got, want)
+		}
+	}
+	if !SameHost("https://api.openai.com/v1", "HTTPS://API.OPENAI.COM/other") || SameHost("https://api.openai.com/v1", "http://api.openai.com/v1") {
+		t.Error("SameHost compares the scheme and host alone")
+	}
+}

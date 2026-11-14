@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -145,29 +144,6 @@ func TestSpeechDownloadResumesAfterADrop(t *testing.T) {
 	}
 	if a.pipeline.(media.Tools).WhisperModel != model || a.DownloadErr() != "" {
 		t.Fatalf("model in use %q, error %q", a.pipeline.(media.Tools).WhisperModel, a.DownloadErr())
-	}
-}
-
-// TestSpeechDownloadErrorSaysWhy checks the words for why a speech model's download failed, in the interface's language: a stall and a dropped connection say that downloading again continues, an HTTP status names it, and anything else shows as it is.
-func TestSpeechDownloadErrorSaysWhy(t *testing.T) {
-	for _, tc := range []struct {
-		err  error
-		want string
-	}{
-		{nil, ""},
-		{errSpeechNoModelsDir, "还没有模型目录"},
-		{media.ErrStalled, "下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"},
-		{rejected(503), "服务器返回 HTTP 503，请稍后再试。"},
-		{fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected), "连接断了。检查网络后再下载一次。"},
-		{errors.New("no space left on device"), "no space left on device"},
-	} {
-		if got := speechDownloadError(testlocale.Messages(), tc.err); got != tc.want {
-			t.Errorf("speechDownloadError(%v) = %q, want %q", tc.err, got, tc.want)
-		}
-	}
-	testlocale.Use(t, "en")
-	if got := speechDownloadError(testlocale.Messages(), rejected(404)); got != "The server answered HTTP 404. Try again later." {
-		t.Errorf("in English, HTTP 404 is %q", got)
 	}
 }
 
@@ -495,8 +471,8 @@ func TestTrashSpeechModel(t *testing.T) {
 	}
 	a.AskTrashSpeechModel("tiny")
 	a.TrashSpeechModel("tiny")
-	if open, _ := a.TrashingSpeechModel(); *open || len(*trashed) != 1 || !fileExists(tiny) {
-		t.Fatalf("another app's model: asked %v, trashed %v", *open, *trashed)
+	if open, _ := a.TrashingSpeechModel(); open || len(*trashed) != 1 || !fileExists(tiny) {
+		t.Fatalf("another app's model: asked %v, trashed %v", open, *trashed)
 	}
 
 	// While a download runs nothing goes to the Trash.
@@ -560,8 +536,8 @@ func TestTrashConfirmationClosesWithItsPage(t *testing.T) {
 	}
 	a.OpenSettings(settings.SectionAI)
 	refresh(tt, a)
-	if open, _ := a.TrashingSpeechModel(); *open || a.modalOpen() {
-		t.Fatalf("after another section: confirmation open %v, modal %v", *open, a.modalOpen())
+	if open, _ := a.TrashingSpeechModel(); open || a.modalOpen() {
+		t.Fatalf("after another section: confirmation open %v, modal %v", open, a.modalOpen())
 	}
 	a.OpenSettings(settings.SectionSpeech)
 	refresh(tt, a)

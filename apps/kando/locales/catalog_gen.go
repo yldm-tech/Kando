@@ -1422,6 +1422,7 @@ const (
 	textSettingsLookUntranslatedHint
 	textSettingsLookYield
 	textSettingsLookYieldHint
+	textSettingsSearchClear
 	textSettingsSearchLabel
 	textSettingsSearchNone
 	textSettingsSearchPlaceholder
@@ -2179,6 +2180,7 @@ var keyOfText = [numTexts]string{
 	"settingsLookUntranslatedHint",
 	"settingsLookYield",
 	"settingsLookYieldHint",
+	"settingsSearchClear",
 	"settingsSearchLabel",
 	"settingsSearchNone",
 	"settingsSearchPlaceholder",
@@ -2934,6 +2936,7 @@ var textsEn = i18n.NewTexts(""+
 	"The translation replaces it as soon as it arrives"+
 	"Move subtitles up when controls appear"+
 	"Keeps them clear of the control bar"+
+	"Clear Search"+
 	"Search settings"+
 	"No matching settings"+
 	"Search"+
@@ -3686,6 +3689,7 @@ var textsEn = i18n.NewTexts(""+
 		49,
 		38,
 		35,
+		12,
 		15,
 		20,
 		6,
@@ -4441,6 +4445,7 @@ var textsJa = i18n.NewTexts(""+
 	"訳文が届きしだい差し替えます"+
 	"コントロール表示時に字幕を上に移動"+
 	"コントロールバーに隠れないようにします"+
+	"検索をクリア"+
 	"設定を検索"+
 	"一致する設定はありません"+
 	"検索"+
@@ -5193,6 +5198,7 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		51,
 		57,
+		18,
 		15,
 		36,
 		6,
@@ -5948,6 +5954,7 @@ var textsKo = i18n.NewTexts(""+
 	"번역이 도착하면 바로 바꿉니다"+
 	"컨트롤이 나타나면 자막을 위로 이동"+
 	"컨트롤 막대에 가려지지 않게 합니다"+
+	"검색 지우기"+
 	"설정 검색"+
 	"일치하는 설정이 없습니다"+
 	"검색"+
@@ -6700,6 +6707,7 @@ var textsKo = i18n.NewTexts(""+
 		42,
 		49,
 		49,
+		16,
 		13,
 		35,
 		6,
@@ -7455,6 +7463,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"译文到达后立即换上"+
 	"控件出现时字幕上移让位"+
 	"避免被控制条挡住"+
+	"清除搜索"+
 	"搜索设置"+
 	"没有匹配的设置"+
 	"搜索"+
@@ -8207,6 +8216,7 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		33,
 		24,
+		12,
 		12,
 		21,
 		6,
@@ -8962,6 +8972,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"譯文到達後立即換上"+
 	"控制項出現時字幕上移讓位"+
 	"避免被控制列擋住"+
+	"清除搜尋"+
 	"搜尋設定"+
 	"沒有符合的設定"+
 	"搜尋"+
@@ -9714,6 +9725,7 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		36,
 		24,
+		12,
 		12,
 		21,
 		6,
@@ -22522,6 +22534,15 @@ func SettingsLookYieldHint(cx *core.Scope) string { return For(cx).SettingsLookY
 
 // SettingsLookYieldHint is the package's SettingsLookYieldHint in the language of msgs.
 func (msgs Messages) SettingsLookYieldHint() string { return msgs.text(textSettingsLookYieldHint) }
+
+// SettingsSearchClear says "Clear Search"
+// in the language the app shows under cx.
+//
+// Accessible name of the button at the end of the settings window's search field that empties it.
+func SettingsSearchClear(cx *core.Scope) string { return For(cx).SettingsSearchClear() }
+
+// SettingsSearchClear is the package's SettingsSearchClear in the language of msgs.
+func (msgs Messages) SettingsSearchClear() string { return msgs.text(textSettingsSearchClear) }
 
 // SettingsSearchLabel says "Search settings"
 // in the language the app shows under cx.

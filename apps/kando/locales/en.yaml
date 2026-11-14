@@ -2865,6 +2865,9 @@ settingsLookYield:
 settingsLookYieldHint:
   message: "Keeps them clear of the control bar"
   description: "Under the switch moving subtitles up."
+settingsSearchClear:
+  message: "Clear Search"
+  description: "Accessible name of the button at the end of the settings window's search field that empties it."
 settingsSearchLabel:
   message: "Search settings"
   description: "Accessible name of the search field at the top of the settings window's sidebar."

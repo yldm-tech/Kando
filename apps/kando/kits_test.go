@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,7 +100,7 @@ func TestKitsRetryFromSettings(t *testing.T) {
 	fakeKits(t, a, release, "ffmpeg")
 	a.kitsInstallMissing()
 	waitUntil(t, tt, a, updates, func() bool { return len(a.kitsDownloading()) == 0 })
-	if got := kitsError(testlocale.Messages(), a.kits.errs["ffmpeg"]); got != "服务器返回 HTTP 503" {
+	if got := settings.KitsError(testlocale.Messages(), a.kits.errs["ffmpeg"]); got != "服务器返回 HTTP 503" {
 		t.Fatalf("ffmpeg's error says %q, errs %v", got, a.kits.errs)
 	}
 
@@ -171,27 +169,5 @@ func TestOnboardingShowsAFailedDownload(t *testing.T) {
 	media.OwnToolsDir = ""
 	if rows := a.onboardingTools(); rows[2].State != onboarding.ToolUnavailable {
 		t.Fatalf("without a folder of its own, whisper-cli is %v", rows[2].State)
-	}
-}
-
-// TestKitsErrorSaysWhy checks the words for why a program's download failed: a stall, an HTTP status and a dropped connection each in plain words of the interface's language, anything else as it is.
-func TestKitsErrorSaysWhy(t *testing.T) {
-	for _, tc := range []struct {
-		err  error
-		want string
-	}{
-		{nil, ""},
-		{media.ErrStalled, "服务器一直没有发来数据"},
-		{rejected(404), "服务器返回 HTTP 404"},
-		{fmt.Errorf("%w: read: connection reset by peer", media.ErrDisconnected), "连接断了"},
-		{errors.New("download ffmpeg: checksum 00, want 11"), "download ffmpeg: checksum 00, want 11"},
-	} {
-		if got := kitsError(testlocale.Messages(), tc.err); got != tc.want {
-			t.Errorf("kitsError(%v) = %q, want %q", tc.err, got, tc.want)
-		}
-	}
-	testlocale.Use(t, "en")
-	if got := kitsError(testlocale.Messages(), media.ErrStalled); got != "the server stopped sending data" {
-		t.Errorf("in English, a stall is %q", got)
 	}
 }

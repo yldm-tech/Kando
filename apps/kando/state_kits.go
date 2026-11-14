@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"kando/apps/kando/locales"
 	"kando/packages/media"
 )
 
@@ -13,7 +12,7 @@ import (
 type kitsUI struct {
 	// running is the download of each program under way, by program.
 	running map[string]*kitDownload
-	// errs is why the last download of each program failed, by program, until it is started again; kitsError words it in the language it is shown in.
+	// errs is why the last download of each program failed, by program, until it is started again; settings.KitsError words it in the language it is shown in.
 	errs map[string]error
 	// install downloads a kit; tests replace it.
 	install func(ctx context.Context, kit media.Kit, dir string, progress func(written, total int64)) (string, error)
@@ -124,20 +123,4 @@ func (a *app) kitsDownloading() []string {
 		}
 	}
 	return names
-}
-
-// kitsError says in plain words, in the language of m, why the download of a program failed, as it reads after "下载失败：", or "" when it did not.
-func kitsError(m locales.Messages, err error) string {
-	var status interface{ StatusCode() int }
-	switch {
-	case err == nil:
-		return ""
-	case errors.Is(err, media.ErrStalled):
-		return m.KitsDownloadStalled()
-	case errors.As(err, &status):
-		return m.KitsDownloadFailedStatus(status.StatusCode())
-	case errors.Is(err, media.ErrDisconnected):
-		return m.KitsDownloadDisconnected()
-	}
-	return err.Error()
 }

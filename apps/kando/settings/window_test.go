@@ -124,7 +124,8 @@ func (f *fakeApp) DownloadModel(id string)               { f.call("download mode
 func (f *fakeApp) OwnsSpeechModel(id string) bool        { return f.owned[id] }
 func (f *fakeApp) SpeechModelInUse(path string) bool     { return path == f.tools.WhisperModel }
 func (f *fakeApp) AskTrashSpeechModel(id string)         { f.trashOpen, f.trashID = true, id }
-func (f *fakeApp) TrashingSpeechModel() (*bool, string)  { return &f.trashOpen, f.trashID }
+func (f *fakeApp) TrashingSpeechModel() (bool, string)   { return f.trashOpen, f.trashID }
+func (f *fakeApp) CloseTrashSpeechModel()                { f.trashOpen = false }
 func (f *fakeApp) TrashSpeechModel(id string)            { f.call("trash " + id) }
 func (f *fakeApp) SpeechLanguage() string                { return f.spoken }
 func (f *fakeApp) SetSpeechLanguage(code string)         { f.spoken = code }
@@ -231,6 +232,14 @@ func TestSearchNarrowsTheSections(t *testing.T) {
 	app.Key("escape")
 	if a.query != "" || app.Exists(whole(msgs.SettingsSearchNone())) {
 		t.Fatalf("Escape left %q", a.query)
+	}
+	if app.Exists("id:settings-search-clear") {
+		t.Fatal("the empty field shows its clear button")
+	}
+	app.Type("id:settings-search", "bucket")
+	app.Press("id:settings-search-clear")
+	if a.query != "" || !app.Exists("id:settings-section-"+SectionLook) || app.Exists("id:settings-search-clear") {
+		t.Fatalf("the clear button left %q", a.query)
 	}
 }
 
