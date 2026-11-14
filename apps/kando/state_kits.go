@@ -126,18 +126,18 @@ func (a *app) kitsDownloading() []string {
 	return names
 }
 
-// kitsError says in plain words, in the interface's language, why the download of a program failed, as it reads after "下载失败：", or "" when it did not.
-func kitsError(err error) string {
+// kitsError says in plain words, in the language of m, why the download of a program failed, as it reads after "下载失败：", or "" when it did not.
+func kitsError(m locales.Messages, err error) string {
 	var status interface{ StatusCode() int }
 	switch {
 	case err == nil:
 		return ""
 	case errors.Is(err, media.ErrStalled):
-		return locales.KitsDownloadStalled()
+		return m.KitsDownloadStalled()
 	case errors.As(err, &status):
-		return locales.KitsDownloadFailedStatus(status.StatusCode())
+		return m.KitsDownloadFailedStatus(status.StatusCode())
 	case errors.Is(err, media.ErrDisconnected):
-		return locales.KitsDownloadDisconnected()
+		return m.KitsDownloadDisconnected()
 	}
 	return err.Error()
 }

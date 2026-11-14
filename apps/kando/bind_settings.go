@@ -2,12 +2,15 @@ package main
 
 import (
 	"kando/apps/kando/clitool"
+	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
+
+	"github.com/nsgo-dev/nsgo/core"
 )
 
-// The settings window's reads and writes (settings.App). The 账号与上传 category's are in bind_account.go; the subtitle settings the player shares (Untranslated, YieldSubs and their setters) in bind_film.go.
+// The settings window's reads and writes (settings.App). The 账号与上传 category's are in bind_account.go; the subtitle settings the player shares (Untranslated, YieldSubs and their setters) in bind_film.go. The window reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself. The words they say are in the interface's language (app.messages), which the window shows too.
 
 func (a *app) Tools() (media.Tools, bool) {
 	tools, ok := a.pipeline.(media.Tools)
@@ -43,7 +46,7 @@ func (a *app) Redetect() {
 
 func (a *app) ToolDownload(program string) settings.ToolFetch {
 	progress, running := a.kitsProgress(program)
-	return settings.ToolFetch{Available: a.kitsCanInstall(program), Running: running, Progress: progress, Err: kitsError(a.kits.errs[program])}
+	return settings.ToolFetch{Available: a.kitsCanInstall(program), Running: running, Progress: progress, Err: kitsError(a.messages(), a.kits.errs[program])}
 }
 
 func (a *app) DownloadTool(program string) { a.kitsInstall(program) }
@@ -65,7 +68,7 @@ func (a *app) DownloadWritten() int64 { return a.prefs.downloadWritten }
 
 func (a *app) DownloadTotal() int64 { return a.prefs.downloadTotal }
 
-func (a *app) DownloadErr() string { return speechDownloadError(a.prefs.downloadErr) }
+func (a *app) DownloadErr() string { return speechDownloadError(a.messages(), a.prefs.downloadErr) }
 
 func (a *app) CancelDownload() { a.cancelDownload() }
 
@@ -90,7 +93,7 @@ func (a *app) SetSpeechLanguage(code string) { a.useSpeechLanguage(code) }
 
 // CurrentPreset and Presets read the presets' names and blurbs in the interface's language each time the page draws them.
 func (a *app) CurrentPreset() (settings.Preset, bool) {
-	preset, ok := llmPresetByID(a.prefs.llmProvider)
+	preset, ok := llmPresetByID(a.messages(), a.prefs.llmProvider)
 	if !ok {
 		return settings.Preset{}, false
 	}
@@ -98,7 +101,7 @@ func (a *app) CurrentPreset() (settings.Preset, bool) {
 }
 
 func (a *app) Presets() []settings.Preset {
-	src := llmPresets()
+	src := llmPresets(a.messages())
 	out := make([]settings.Preset, len(src))
 	for i, preset := range src {
 		out[i] = settings.Preset{ID: preset.ID, Name: preset.Name, Blurb: preset.Blurb, Group: preset.Group}
@@ -124,10 +127,13 @@ func (a *app) TestingLLM() bool { return a.prefs.testingLLM }
 
 func (a *app) TestLLM() { a.testLLM() }
 
-// LLMResult is the last connection test's outcome as the page shows it: "" before any, the error when it failed, or locales.SettingsAIConnected when it passed.
+// LLMConnected reports whether the last connection test passed, which the page words in the language it is shown in.
+func (a *app) LLMConnected() bool { return a.prefs.llmTestOK }
+
+// LLMResult is why the last connection test failed: "" before any, and after one that passed.
 func (a *app) LLMResult() string {
 	if a.prefs.llmTestOK {
-		return locales.SettingsAIConnected()
+		return ""
 	}
 	return a.prefs.llmTestErr
 }
@@ -142,7 +148,7 @@ func (a *app) LLMModelsErr() string {
 	if a.prefs.llmModelsErr == nil {
 		return ""
 	}
-	return llmModelsError(a.prefs.llmModelsErr)
+	return llmModelsError(a.messages(), a.prefs.llmModelsErr)
 }
 
 func (a *app) RetryLLMModels() { a.fetchLLMModels(true) }
@@ -184,16 +190,22 @@ func (a *app) SettingsQuery() *string { return &a.prefs.query }
 
 func (a *app) ShortcutQuery() *string { return &a.prefs.shortcutQuery }
 
-// Shortcuts is the app's shortcut table as the 快捷键 page lists it: the rows with a key.
-func (a *app) Shortcuts() []settings.Shortcut {
+// Shortcuts is the app's shortcut table as the 快捷键 page lists it, its words in the language the app shows under cx: the rows with a key.
+func (a *app) Shortcuts(cx *core.Scope) []settings.Shortcut {
 	var out []settings.Shortcut
-	for _, s := range a.shortcuts() {
-		if s.Key != 0 {
-			out = append(out, settings.Shortcut{Group: groupTitle(s.Group), Label: s.Label, Mods: s.Mods, Key: s.Key})
+	for _, s := range a.shortcuts(cx) {
+		if s.Key != "" {
+			out = append(out, settings.Shortcut{Group: groupTitle(cx, s.Group), Label: s.Label, Key: s.Key})
 		}
 	}
 	return out
 }
+
+// LibraryLabels names each of dirs as Settings › 通用's library drop-down lists them (films.LibraryLabels).
+func (a *app) LibraryLabels(dirs []string) []string { return films.LibraryLabels(a.messages(), dirs) }
+
+// DisplayPath writes path as the settings show it, ~ for the home folder (films.DisplayPath).
+func (a *app) DisplayPath(path string) string { return films.DisplayPath(a.messages(), path) }
 
 // CLI is where the kando command stands, from the last look (state_cli.go), with what an MCP client runs.
 func (a *app) CLI() settings.CLI {

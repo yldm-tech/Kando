@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/account"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/theme"
@@ -186,7 +187,12 @@ func (a *app) settingsView(cx *core.Scope) core.Node {
 	nsdesktop.SetTitleBar(cx, nsdesktop.TitleBarHidden, 50)
 	nsdesktop.SetWindowControls(cx, nsdesktop.WindowControls{TrafficLights: core.Point{X: 18, Y: 18}})
 	cx.Effect(func() { nsdesktop.SetTitle(cx, locales.SettingsWindowTitle(cx)) })
-	return settings.Window{App: a, Version: appVersion}
+	return a.settingsWindow()
+}
+
+// settingsWindow is the settings, with the 账号与上传 page of package account, in the settings window or over the main window.
+func (a *app) settingsWindow() core.Node {
+	return settings.Window{App: a, Version: appVersion, Account: account.View{App: a}}
 }
 
 // showSettingsWindow brings the settings window to the front, opening it the first time. It opens from a post under the app's scope, which owns it, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.
@@ -249,7 +255,7 @@ func (a *app) settingsOverlay(*core.Scope) core.Node {
 		},
 		Bare:     true,
 		Style:    core.Style{Width: core.Pt(880), Height: core.Pt(640), MaxWidth: core.Pct(100), MaxHeight: core.Pct(100)},
-		Children: []core.Node{settings.Window{App: a, Version: appVersion}},
+		Children: []core.Node{a.settingsWindow()},
 		TestID:   "settings-in-window",
 	}
 }

@@ -69,32 +69,34 @@ func (a *app) restoreLLM(saved savedSettings) {
 	a.syncLLM(tools.UseEveryAPICLI())
 }
 
-// llmPreset is a service the AI 服务 page offers. Name and Blurb are in the interface's language, read when llmPresets is called; Group is one of the settings package's Group values.
+// llmPreset is a service the AI 服务 page offers. Name and Blurb are in the language of the messages llmPresets is given; Group is one of the settings package's Group values.
 type llmPreset struct {
 	ID, Name, Blurb, BaseURL, Model, Group string
 }
 
-func llmPresets() []llmPreset {
+// llmPresets are the services the AI 服务 page offers, their names and blurbs in the language of m.
+func llmPresets(m locales.Messages) []llmPreset {
 	return []llmPreset{
-		{ID: "everyapi", Name: "EveryAPI", Blurb: locales.SettingsAIBlurbEveryAPI(), BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Group: settings.GroupCloud},
-		{ID: "openai", Name: "OpenAI", Blurb: locales.SettingsAIBlurbOpenAI(), BaseURL: "https://api.openai.com/v1", Group: settings.GroupCloud},
-		{ID: "openrouter", Name: "OpenRouter", Blurb: locales.SettingsAIBlurbOpenRouter(), BaseURL: "https://openrouter.ai/api/v1", Group: settings.GroupCloud},
-		{ID: "groq", Name: "Groq", Blurb: locales.SettingsAIBlurbGroq(), BaseURL: "https://api.groq.com/openai/v1", Group: settings.GroupCloud},
-		{ID: "deepseek", Name: "DeepSeek", Blurb: locales.SettingsAIBlurbDeepSeek(), BaseURL: "https://api.deepseek.com/v1", Group: settings.GroupCloud},
-		{ID: "xai", Name: "xAI", Blurb: locales.SettingsAIBlurbXAI(), BaseURL: "https://api.x.ai/v1", Group: settings.GroupCloud},
-		{ID: "mistral", Name: "Mistral", Blurb: locales.SettingsAIBlurbMistral(), BaseURL: "https://api.mistral.ai/v1", Group: settings.GroupCloud},
-		{ID: "dashscope", Name: locales.SettingsAINameDashScope(), Blurb: locales.SettingsAIBlurbDashScope(), BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", Group: settings.GroupCloud},
-		{ID: "moonshot", Name: "Kimi", Blurb: locales.SettingsAIBlurbMoonshot(), BaseURL: "https://api.moonshot.cn/v1", Group: settings.GroupCloud},
-		{ID: "zhipu", Name: locales.SettingsAINameZhipu(), Blurb: locales.SettingsAIBlurbZhipu(), BaseURL: "https://open.bigmodel.cn/api/paas/v4", Group: settings.GroupCloud},
-		{ID: "siliconflow", Name: locales.SettingsAINameSiliconFlow(), Blurb: locales.SettingsAIBlurbSiliconFlow(), BaseURL: "https://api.siliconflow.cn/v1", Group: settings.GroupCloud},
-		{ID: "ollama", Name: "Ollama", Blurb: locales.SettingsAIBlurbOllama(), BaseURL: "http://127.0.0.1:11434/v1", Group: settings.GroupLocal},
-		{ID: "lmstudio", Name: "LM Studio", Blurb: locales.SettingsAIBlurbLMStudio(), BaseURL: "http://127.0.0.1:1234/v1", Group: settings.GroupLocal},
-		{ID: "custom", Name: locales.SettingsAINameCustom(), Blurb: locales.SettingsAIBlurbCustom(), Group: settings.GroupOther},
+		{ID: "everyapi", Name: "EveryAPI", Blurb: m.SettingsAIBlurbEveryAPI(), BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Group: settings.GroupCloud},
+		{ID: "openai", Name: "OpenAI", Blurb: m.SettingsAIBlurbOpenAI(), BaseURL: "https://api.openai.com/v1", Group: settings.GroupCloud},
+		{ID: "openrouter", Name: "OpenRouter", Blurb: m.SettingsAIBlurbOpenRouter(), BaseURL: "https://openrouter.ai/api/v1", Group: settings.GroupCloud},
+		{ID: "groq", Name: "Groq", Blurb: m.SettingsAIBlurbGroq(), BaseURL: "https://api.groq.com/openai/v1", Group: settings.GroupCloud},
+		{ID: "deepseek", Name: "DeepSeek", Blurb: m.SettingsAIBlurbDeepSeek(), BaseURL: "https://api.deepseek.com/v1", Group: settings.GroupCloud},
+		{ID: "xai", Name: "xAI", Blurb: m.SettingsAIBlurbXAI(), BaseURL: "https://api.x.ai/v1", Group: settings.GroupCloud},
+		{ID: "mistral", Name: "Mistral", Blurb: m.SettingsAIBlurbMistral(), BaseURL: "https://api.mistral.ai/v1", Group: settings.GroupCloud},
+		{ID: "dashscope", Name: m.SettingsAINameDashScope(), Blurb: m.SettingsAIBlurbDashScope(), BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", Group: settings.GroupCloud},
+		{ID: "moonshot", Name: "Kimi", Blurb: m.SettingsAIBlurbMoonshot(), BaseURL: "https://api.moonshot.cn/v1", Group: settings.GroupCloud},
+		{ID: "zhipu", Name: m.SettingsAINameZhipu(), Blurb: m.SettingsAIBlurbZhipu(), BaseURL: "https://open.bigmodel.cn/api/paas/v4", Group: settings.GroupCloud},
+		{ID: "siliconflow", Name: m.SettingsAINameSiliconFlow(), Blurb: m.SettingsAIBlurbSiliconFlow(), BaseURL: "https://api.siliconflow.cn/v1", Group: settings.GroupCloud},
+		{ID: "ollama", Name: "Ollama", Blurb: m.SettingsAIBlurbOllama(), BaseURL: "http://127.0.0.1:11434/v1", Group: settings.GroupLocal},
+		{ID: "lmstudio", Name: "LM Studio", Blurb: m.SettingsAIBlurbLMStudio(), BaseURL: "http://127.0.0.1:1234/v1", Group: settings.GroupLocal},
+		{ID: "custom", Name: m.SettingsAINameCustom(), Blurb: m.SettingsAIBlurbCustom(), Group: settings.GroupOther},
 	}
 }
 
-func llmPresetByID(id string) (llmPreset, bool) {
-	for _, preset := range llmPresets() {
+// llmPresetByID is the preset id, its name and blurb in the language of m.
+func llmPresetByID(m locales.Messages, id string) (llmPreset, bool) {
+	for _, preset := range llmPresets(m) {
 		if preset.ID == id {
 			return preset, true
 		}
@@ -102,9 +104,10 @@ func llmPresetByID(id string) (llmPreset, bool) {
 	return llmPreset{}, false
 }
 
+// llmProviderID is the preset whose endpoint base is, "custom" for an endpoint none of them has. Only the presets' endpoints are read, so their names are left in the catalogs' source language.
 func llmProviderID(base string) string {
 	base = strings.TrimRight(strings.TrimSpace(base), "/")
-	for _, preset := range llmPresets() {
+	for _, preset := range llmPresets(locales.In(locales.Source)) {
 		if preset.ID == "custom" || preset.BaseURL == "" {
 			continue
 		}
@@ -140,7 +143,7 @@ func (a *app) selectLLM(id string) {
 	if a.prefs.llmProvider == id {
 		return
 	}
-	preset, ok := llmPresetByID(id)
+	preset, ok := llmPresetByID(a.messages(), id)
 	if !ok {
 		return
 	}
@@ -180,7 +183,7 @@ func (a *app) applyLLM() {
 	a.pipeline = tools.UseEveryAPICLI()
 	a.areasLLMChanged()
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.SettingsAISaveFailed(err.Error())
+		a.saveErr = a.messages().SettingsAISaveFailed(err.Error())
 	}
 }
 
@@ -340,26 +343,26 @@ func (a *app) adoptLLMModel() {
 		return
 	}
 	model := a.prefs.llmModels[0]
-	if preset, ok := llmPresetByID(a.prefs.llmProvider); ok && slices.Contains(a.prefs.llmModels, preset.Model) {
+	if preset, ok := llmPresetByID(a.messages(), a.prefs.llmProvider); ok && slices.Contains(a.prefs.llmModels, preset.Model) {
 		model = preset.Model
 	}
 	a.prefs.llmModel = model
 	a.applyLLM()
 }
 
-// llmModelsError says in plain words, in the interface's language, why the model list could not be fetched.
-func llmModelsError(err error) string {
+// llmModelsError says in plain words, in the language of m, why the model list could not be fetched.
+func llmModelsError(m locales.Messages, err error) string {
 	var status interface{ StatusCode() int }
 	if errors.As(err, &status) {
 		switch status.StatusCode() {
 		case http.StatusUnauthorized, http.StatusForbidden:
-			return locales.SettingsAIModelsUnauthorized()
+			return m.SettingsAIModelsUnauthorized()
 		case http.StatusNotFound:
-			return locales.SettingsAIModelsNotFound()
+			return m.SettingsAIModelsNotFound()
 		}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return locales.SettingsAIModelsTimeout()
+		return m.SettingsAIModelsTimeout()
 	}
-	return locales.SettingsAIModelsFailed(err.Error())
+	return m.SettingsAIModelsFailed(err.Error())
 }

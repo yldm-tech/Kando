@@ -57,7 +57,7 @@ func (a *app) cliToolStartInstall() {
 		update(func() {
 			a.cliTool.installing = false
 			if err != nil {
-				a.cliTool.err = cliToolErrorText(err)
+				a.cliTool.err = cliToolErrorText(a.messages(), err)
 			}
 			if gen == a.cliTool.gen {
 				a.cliTool.status, a.cliTool.known = status, true
@@ -66,18 +66,18 @@ func (a *app) cliToolStartInstall() {
 	}()
 }
 
-// cliToolErrorText is why an install failed in the app's language, for the ones clitool.Install refuses itself; any other error, as the system's permission denied, is shown as it is. It reads the locale, so it runs on the UI thread.
-func cliToolErrorText(err error) string {
+// cliToolErrorText is why an install failed in the language of m, for the ones clitool.Install refuses itself; any other error, as the system's permission denied, is shown as it is.
+func cliToolErrorText(m locales.Messages, err error) string {
 	var blocked *clitool.BlockedError
 	switch {
 	case errors.Is(err, clitool.ErrTemporary):
-		return locales.SettingsGeneralCLIMoveFirst()
+		return m.SettingsGeneralCLIMoveFirst()
 	case errors.As(err, &blocked):
 		paths := make([]string, len(blocked.Paths))
 		for i, path := range blocked.Paths {
-			paths[i] = films.DisplayPath(path)
+			paths[i] = films.DisplayPath(m, path)
 		}
-		return locales.SettingsGeneralCLIBlocked(strings.Join(paths, ", "))
+		return m.SettingsGeneralCLIBlocked(strings.Join(paths, ", "))
 	}
 	return err.Error()
 }

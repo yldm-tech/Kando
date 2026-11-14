@@ -62,7 +62,7 @@ func (a *app) useSpeechLanguage(code string) {
 	tools.SpeechLanguage = code
 	a.pipeline = tools
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.SettingsSpeechLanguageSaveFailed(err.Error())
+		a.saveErr = a.messages().SettingsSpeechLanguageSaveFailed(err.Error())
 	}
 }
 
@@ -96,7 +96,7 @@ func (a *app) useSpeechModel(path string) {
 	a.pipeline = tools
 	a.areasToolsChanged(false)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.SettingsSpeechSaveFailed(err.Error())
+		a.saveErr = a.messages().SettingsSpeechSaveFailed(err.Error())
 	}
 }
 
@@ -168,25 +168,25 @@ func (e speechTrashError) Error() string {
 // errSpeechNoModelsDir is downloadSpeechModel's error when Kando has no folder to put the models in.
 var errSpeechNoModelsDir = errors.New("no models folder")
 
-// speechDownloadError says in plain words, in the interface's language, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there.
-func speechDownloadError(err error) string {
+// speechDownloadError says in plain words, in the language of m, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there.
+func speechDownloadError(m locales.Messages, err error) string {
 	var status interface{ StatusCode() int }
 	var trash speechTrashError
 	switch {
 	case err == nil:
 		return ""
 	case errors.As(err, &trash) && trash.err == nil:
-		return locales.SettingsSpeechTrashInUse(settings.SpeechModelName(trash.id))
+		return m.SettingsSpeechTrashInUse(settings.SpeechModelNameIn(m, trash.id))
 	case errors.As(err, &trash):
-		return locales.SettingsSpeechTrashFailed(settings.SpeechModelName(trash.id), trash.err.Error())
+		return m.SettingsSpeechTrashFailed(settings.SpeechModelNameIn(m, trash.id), trash.err.Error())
 	case errors.Is(err, errSpeechNoModelsDir):
-		return locales.SettingsSpeechNoModelsDir()
+		return m.SettingsSpeechNoModelsDir()
 	case errors.Is(err, media.ErrStalled):
-		return locales.SettingsSpeechDownloadStalled()
+		return m.SettingsSpeechDownloadStalled()
 	case errors.As(err, &status):
-		return locales.SettingsSpeechDownloadFailedStatus(status.StatusCode())
+		return m.SettingsSpeechDownloadFailedStatus(status.StatusCode())
 	case errors.Is(err, media.ErrDisconnected):
-		return locales.SettingsSpeechDownloadDisconnected()
+		return m.SettingsSpeechDownloadDisconnected()
 	}
 	return err.Error()
 }
