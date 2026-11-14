@@ -130,6 +130,7 @@ func (c content) Render(cx *core.Scope) core.Node {
 // header is the GitHub tile, the title and what will happen.
 func header(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	// TODO(nsgo): give core.Text an AccessibilityLevel (core.View has one) so the title is read as a heading of level 1, as MyGo's Level(1) made it; it is read as a heading of no level
 	return core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignStart}, Children: []core.Node{
 		core.View{Style: core.Style{Width: core.Pt(tileSize), Height: core.Pt(tileSize), FlexShrink: 0, CornerRadius: tileRadius, Background: tile,
 			JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter},

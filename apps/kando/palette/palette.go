@@ -365,6 +365,7 @@ func (c answer) Render(cx *core.Scope) core.Node {
 					}},
 					core.Show{When: func() bool { return action.Get() != "" }, Then: func(*core.Scope) core.Node {
 						// ui.Button takes its title once, so the button is built again when the title changes, which only another language does.
+						// TODO(nsgo): give ui.Button a TextFunc twin so its title follows the language without building the button again, then drop this Dynamic
 						return core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{core.Dynamic(func(*core.Scope) core.Node {
 							return ui.Button{Text: action.Get(), TestID: "palette-action", OnPress: func() { c.send(func(ev *Event) { ev.Action = true }) }}
 						})}}

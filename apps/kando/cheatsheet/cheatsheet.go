@@ -70,7 +70,6 @@ type Sheet struct {
 // Render implements core.Node.
 func (s Sheet) Render(cx *core.Scope) core.Node {
 	theme.Dark(cx)
-	groups := core.NewMemoFunc(cx, s.Groups, equalGroups)
 	closeSheet := func() {
 		if s.OnClose != nil {
 			s.OnClose()
@@ -93,7 +92,7 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 			return core.Style{Width: core.Pt(sheetFits(window.Width)), MaxHeight: core.Pt(max(0, window.Height-2*sheetTop)), CornerRadius: sheetRadius,
 				BackdropFilters: []core.Filter{core.Blur(36)}, Shadows: []core.BoxShadow{{Offset: core.Point{Y: 30}, Blur: 80, Color: shadow}}}
 		},
-		Children: []core.Node{panel{groups: groups.Get, close: closeSheet}},
+		Children: []core.Node{panel{groups: s.Groups, close: closeSheet}},
 	}
 }
 
@@ -113,6 +112,8 @@ type panel struct {
 
 // Render implements core.Node.
 func (p panel) Render(cx *core.Scope) core.Node {
+	// The groups are read while the sheet is open only, and laid out again only when they change.
+	groups := core.NewMemoFunc(cx, p.groups, equalGroups)
 	cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, p.close)
 	// The header: the title 17 bold, the hint 12 at 60%, the close button.
 	header := core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, Margin: core.Edges{Bottom: headerGap}}, Children: []core.Node{
@@ -133,7 +134,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 		// The groups hold no control, so building them again when they change loses nothing.
 		Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
 			var nodes core.Group
-			for _, g := range p.groups() {
+			for _, g := range groups.Get() {
 				nodes = append(nodes, group(cx, g))
 			}
 			return nodes
