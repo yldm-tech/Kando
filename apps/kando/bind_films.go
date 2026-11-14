@@ -219,7 +219,9 @@ func (a *app) Retry(id string) {
 	}
 }
 
-func (a *app) FailureHint(item films.Film) (reason, section string) { return failureHint(a.messages(), item) }
+func (a *app) FailureHint(item films.Film) (reason, section string) {
+	return failureHint(a.messages(), item)
+}
 
 func (a *app) JobFilm(id string) (films.Film, bool) {
 	job, ok := a.library.Find(id)

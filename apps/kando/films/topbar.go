@@ -61,7 +61,7 @@ func (b topBar) Render(cx *ns.Scope) ns.Node {
 		Role:      ns.RoleToolbar,
 		LabelFunc: title,
 		Desktop:   ns.DesktopViewProps{WindowDrag: ns.WindowDragOn},
-		Style: ns.Style{Position: ns.Absolute, Top: ns.Pt(0), Left: ns.Pt(0), Right: ns.Pt(0), Direction: ns.Row, AlignItems: ns.AlignStart, JustifyContent: ns.JustifySpaceBetween,
+		Style: ns.Style{Position: ns.Absolute, Top: ns.Pt(0), Left: ns.Pt(0), Right: ns.Pt(0), Direction: ns.Row, AlignItems: ns.AlignStretch, JustifyContent: ns.JustifySpaceBetween,
 			Gap: 16, Gradients: []ns.Gradient{barFade}},
 		StyleFunc: func() ns.Style {
 			bar := nsdesktop.TitleBar(cx)

@@ -11,11 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 func TestMissingLibraryFollowsTheRenamedBundle(t *testing.T) {
@@ -98,7 +100,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	refresh(tt, a)
 	for _, text := range []string{"还没有资料库", "新建资料库…", "打开已有资料库…"} {
-		if !hasText(tt, text) {
+		if !shows(tt, text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
@@ -106,12 +108,13 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	a.edit(func(s *session) { s.LibraryName = "第一库" })
 	refresh(tt, a)
 	for _, text := range []string{"新建资料库", "名称", "位置", "更改…", "取消", "创建"} {
-		if !hasText(tt, text) {
+		if !shows(tt, text) {
 			t.Fatalf("missing %q in the sheet %q", text, tt.Texts())
 		}
 	}
 	tt.Press("创建")
-	refresh(tt, a)
+	// The sheet goes once its motion has ended.
+	tt.Advance(time.Second)
 	first := filepath.Join(parent, "第一库.kando")
 	if a.snap().LibraryDir != first {
 		t.Fatalf("library = %q", a.snap().LibraryDir)
@@ -119,32 +122,32 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if _, err := os.Stat(first); err != nil {
 		t.Fatal(err)
 	}
-	if hasText(tt, "还没有资料库") || hasText(tt, "新建资料库") {
+	if shows(tt, "还没有资料库") || shows(tt, "新建资料库") {
 		t.Fatalf("the empty page or the sheet stayed after the library was created: %q", tt.Texts())
 	}
-	chooseFromSwitcher(t, tt, "新建资料库…")
+	chooseFromSwitcher(t, tt, a, "新建资料库…")
 	a.edit(func(s *session) { s.LibraryName = "第二库" })
 	refresh(tt, a)
-	if !hasText(tt, "新建资料库") || !hasText(tt, "创建") {
+	if !shows(tt, "新建资料库") || !shows(tt, "创建") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	tt.Press("创建")
-	refresh(tt, a)
+	tt.Advance(time.Second)
 	second := filepath.Join(parent, "第二库.kando")
 	if a.snap().LibraryDir != second || len(a.snap().Libraries) != 2 {
 		t.Fatalf("library %q list %v", a.snap().LibraryDir, a.snap().Libraries)
 	}
-	chooseFromSwitcher(t, tt, "第一库")
+	chooseFromSwitcher(t, tt, a, "第一库")
 	refresh(tt, a)
 	if a.snap().LibraryDir != first {
 		t.Fatalf("switched library = %q", a.snap().LibraryDir)
 	}
 	general := settingsOpenAt(a, tt, settings.SectionGeneral)
-	if !hasText(general, "第一库") || !hasText(general, "只从看懂的列表里拿掉") {
+	if !shows(general, "第一库") || !shows(general, "只从看懂的列表里拿掉") {
 		t.Fatalf("texts %q", general.Texts())
 	}
 	general.Press("移出")
-	general.Frame()
+	refresh(general, a)
 	if a.snap().LibraryDir != second {
 		t.Fatalf("after forget, library = %q", a.snap().LibraryDir)
 	}
@@ -505,11 +508,15 @@ func TestUnreadableLibraryIsNotSaved(t *testing.T) {
 	}
 }
 
-// TestRevealSelectsTheItemInTheFileManager checks that showing a film's video hands the video itself, not its folder, to MyGo's shell, which selects it in the file manager on every system (FileManager1's ShowItems on Linux, where xdg-open of the folder selected nothing), and that a reveal that went says nothing.
+// TestRevealSelectsTheItemInTheFileManager checks that showing a film's video hands the video itself, not its folder, to the system's reveal (desktop.Reveal), which is to select it in the file manager on every system (FileManager1's ShowItems on Linux, where xdg-open of the folder selected nothing), that a reveal that went says nothing, and that one no app answered says so in the interface's words.
 func TestRevealSelectsTheItemInTheFileManager(t *testing.T) {
 	var shown []string
+	var answer error
 	prev := showItemInFolder
-	showItemInFolder = func(path string) { shown = append(shown, path) }
+	showItemInFolder = func(_ *ns.Scope, path string, done func(error)) {
+		shown = append(shown, path)
+		done(answer)
+	}
 	t.Cleanup(func() { showItemInFolder = prev })
 	video := filepath.Join(t.TempDir(), "我的影片.kando", "Talk", "video.mp4")
 	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
@@ -532,5 +539,11 @@ func TestRevealSelectsTheItemInTheFileManager(t *testing.T) {
 	a.reveal(missing)
 	if len(shown) != 1 || a.saveErr == "" {
 		t.Fatalf("revealing a missing file showed %q with error %q", shown, a.saveErr)
+	}
+	// A folder no app opened is said in a sentence of the catalog's, not in the English of the error.
+	answer = errors.New("no app opened the folder")
+	a.reveal(video)
+	if want := testlocale.Messages().LibraryRevealNotOpened(); a.saveErr != want {
+		t.Fatalf("a reveal no app answered says %q, want %q", a.saveErr, want)
 	}
 }

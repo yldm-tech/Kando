@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -18,15 +19,14 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
-	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // gatePipeline holds every job in Download until the test lets it through, so a test sees which job runs and in what order. started receives each source as its Download begins.
@@ -145,7 +145,7 @@ func TestQueueRunsJobsOneAtATimeInOrder(t *testing.T) {
 	}
 	ids := jobIDs(a)
 	for _, name := range []string{"a", "b", "c"} {
-		if !hasText(tt, "example.com/" + name) {
+		if !shows(tt, "example.com/"+name) {
 			t.Fatalf("no card for %s: %q", name, tt.Texts())
 		}
 	}
@@ -282,7 +282,7 @@ func TestCancelTakesAWaitingJobOutOfTheQueue(t *testing.T) {
 		t.Fatal("cancelling a waiting job stopped the running one")
 	}
 	refresh(tt, a)
-	if !hasText(tt, "已取消") {
+	if !shows(tt, "已取消") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	g.release <- struct{}{}
@@ -308,7 +308,7 @@ func TestCancelTheRunningJobStartsTheNext(t *testing.T) {
 	if got := nextStarted(t, g, updates); got != "https://example.com/b" {
 		t.Fatalf("after cancelling a, %s started", got)
 	}
-	if job := stageOf(t, a, ids["https://example.com/a"]); job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || statusText(job) != "已取消" {
+	if job := stageOf(t, a, ids["https://example.com/a"]); job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || statusText(testlocale.Messages(), job) != "已取消" {
 		t.Fatalf("a after Cancel %+v", job)
 	}
 	g.release <- struct{}{}
@@ -332,7 +332,7 @@ func TestCancelLeavesOtherJobsAlone(t *testing.T) {
 		t.Fatalf("old %+v", job)
 	}
 	a.Cancel(a.queue.active)
-	waitUntil(t, updates, func() bool { return !a.running() })
+	untilState(t, updates, func() bool { return !a.running() })
 }
 
 func TestRemovingTheRunningJobStartsTheNext(t *testing.T) {
@@ -445,7 +445,7 @@ func TestSwitchLibraryKeepsTheRunningJob(t *testing.T) {
 		t.Fatal(err)
 	}
 	refresh(tt, a)
-	if !hasText(tt, "处理中") || textCount(tt, "存入「first」") != 2 {
+	if !shows(tt, "处理中") || textCount(tt, "存入「first」") != 2 {
 		t.Fatalf("the second library's queue does not show the first library's jobs: %q", tt.Texts())
 	}
 
@@ -465,7 +465,7 @@ func TestSwitchLibraryKeepsTheRunningJob(t *testing.T) {
 		t.Fatalf("after b, %s started", got)
 	}
 	g.release <- struct{}{}
-	waitUntil(t, updates, func() bool { return !a.running() })
+	untilState(t, updates, func() bool { return !a.running() })
 	refresh(tt, a)
 	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageComplete || job.LibraryDir != first {
 		t.Fatalf("b %+v", job)
@@ -473,7 +473,7 @@ func TestSwitchLibraryKeepsTheRunningJob(t *testing.T) {
 	if job := stageOf(t, a, jobIDs(a)["https://example.com/c"]); job.Stage != core.StageComplete || job.LibraryDir != second {
 		t.Fatalf("c %+v", job)
 	}
-	if hasText(tt, "存入「first」") {
+	if shows(tt, "存入「first」") {
 		t.Fatalf("a finished job of the first library stayed in the second's queue: %q", tt.Texts())
 	}
 }
@@ -501,7 +501,7 @@ func TestCancelAJobOfAnotherLibrary(t *testing.T) {
 	if job := stageOf(t, a, id); job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || job.LibraryDir != first {
 		t.Fatalf("a %+v", job)
 	}
-	if a.lib.notice.Open || hasText(tt, "存入「first」") {
+	if a.lib.notice.Open || shows(tt, "存入「first」") {
 		t.Fatalf("notice %+v texts %q", a.lib.notice, tt.Texts())
 	}
 }
@@ -537,7 +537,7 @@ func TestForgettingTheRunningJobsLibraryLetsItFinish(t *testing.T) {
 		t.Fatalf("running %q after forgetting its library, want a", a.RunningJob())
 	}
 	g.release <- struct{}{}
-	waitUntil(t, updates, func() bool { return !a.running() })
+	untilState(t, updates, func() bool { return !a.running() })
 	noneStarted(t, g, updates)
 	done := stageOf(t, a, ids["https://example.com/a"])
 	if done.Stage != core.StageComplete || done.LibraryDir != first {
@@ -580,11 +580,11 @@ func TestJobsOfAForgottenLibraryWait(t *testing.T) {
 		t.Fatalf("started %s", got)
 	}
 	refresh(tt, a)
-	if !hasText(tt, "存入「other」") {
+	if !shows(tt, "存入「other」") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	g.release <- struct{}{}
-	waitUntil(t, updates, func() bool { return !a.running() })
+	untilState(t, updates, func() bool { return !a.running() })
 	noneStarted(t, g, updates)
 	if job := stageOf(t, a, "gone"); job.Stage != core.StageQueued {
 		t.Fatalf("gone %+v", job)
@@ -708,7 +708,7 @@ func TestALinkTypedWithoutTheSchemeIsQueued(t *testing.T) {
 		t.Run(typed, func(t *testing.T) {
 			a, tt, updates := newTestApp(t, &fakePipeline{})
 			startJob(t, tt, typed)
-			if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://"+typed || !hasText(tt, "已加入，开始处理。") {
+			if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://"+typed || !shows(tt, "已加入，开始处理。") {
 				t.Fatalf("jobs %+v, texts %q", a.library.Jobs, tt.Texts())
 			}
 			settle(t, a, tt, updates)
@@ -720,18 +720,18 @@ func TestViewRunsJobToCompletion(t *testing.T) {
 	p := &fakePipeline{}
 	a, tt, updates := newTestApp(t, p)
 	startJob(t, tt, "https://example.com/video")
-	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://example.com/video" || !hasText(tt, "已加入，开始处理。") {
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://example.com/video" || !shows(tt, "已加入，开始处理。") {
 		t.Fatalf("texts %q after starting", tt.Texts())
 	}
 
 	settle(t, a, tt, updates)
-	if !hasText(tt, "最近完成") || !hasText(tt, "talk") || hasText(tt, "处理中") {
+	if !shows(tt, "最近完成") || !shows(tt, "talk") || shows(tt, "处理中") {
 		t.Fatalf("texts %q after the job", tt.Texts())
 	}
 	if p.language != "简体中文" {
 		t.Fatalf("translated into %q", p.language)
 	}
-	if !hasText(tt, "开始处理") {
+	if !shows(tt, "开始处理") {
 		t.Fatal("start button did not come back")
 	}
 }
@@ -743,7 +743,7 @@ func TestViewCancelsRunningJob(t *testing.T) {
 	tt.Press("取消处理")
 
 	settle(t, a, tt, updates)
-	if !hasText(tt, "已取消") || !hasText(tt, "开始处理") {
+	if !shows(tt, "已取消") || !shows(tt, "开始处理") {
 		t.Fatalf("texts %q after cancelling", tt.Texts())
 	}
 }
@@ -761,7 +761,7 @@ func TestFilmCancelStopsItsOwnJob(t *testing.T) {
 	a.openKey = id
 	refresh(tt, a)
 	tt.Press("取消")
-	waitUntil(t, updates, func() bool { return !a.running() })
+	untilState(t, updates, func() bool { return !a.running() })
 	job, ok := a.library.Find(id)
 	if !ok || job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || a.RunningJob() != "" {
 		t.Fatalf("job %+v, RunningJob %q", job, a.RunningJob())
@@ -785,7 +785,7 @@ func TestRetryKeepsTheSameCard(t *testing.T) {
 	if len(a.library.Jobs) != 1 || a.library.Jobs[0].ID != "same" || a.library.Jobs[0].Stage != core.StageComplete {
 		t.Fatalf("after retry: %#v", a.library.Jobs)
 	}
-	if hasText(tt, "失败") {
+	if shows(tt, "失败") {
 		t.Fatalf("failed card stayed: %q", tt.Texts())
 	}
 }
@@ -913,7 +913,7 @@ func TestTheCardFollowsTheDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := a.library.Jobs[0].ID
-	waitUntil(t, updates, func() bool { return stageOf(t, a, id).Progress.Known })
+	untilState(t, updates, func() bool { return stageOf(t, a, id).Progress.Known })
 	job := stageOf(t, a, id)
 	if job.Title != "Me at the zoo" || job.Progress.Fraction != 0.25 {
 		t.Fatalf("job %+v", job)
@@ -933,7 +933,7 @@ func TestTheCardFollowsTheDownload(t *testing.T) {
 		t.Fatalf("saved %+v", s)
 	}
 	film, _ := a.JobFilm(id)
-	waitUntil(t, updates, func() bool { return a.Thumbnail(film) != nil })
+	untilState(t, updates, func() bool { return libraryHasImage(a.Thumbnail(film)) })
 
 	if err := os.WriteFile(gate, nil, 0o644); err != nil {
 		t.Fatal(err)
@@ -1088,7 +1088,7 @@ func TestUpdateAndRetryUpdatesYTDLPAndRunsTheFailedDownloadsAgain(t *testing.T) 
 		t.Fatalf("job %+v", job)
 	}
 	a.queueReadYTDLP()
-	waitUntil(t, updates, func() bool { return a.queue.ytdlp.version != "" })
+	untilState(t, updates, func() bool { return a.queue.ytdlp.version != "" })
 	film, _ := a.JobFilm(id)
 	r, _ := a.FailureRemedy(film)
 	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，更新几秒就好。" || r.Actions[0].ID != remedyUpdate {
@@ -1098,7 +1098,7 @@ func TestUpdateAndRetryUpdatesYTDLPAndRunsTheFailedDownloadsAgain(t *testing.T) 
 	if r, _ := a.FailureRemedy(film); r.Headline != "正在更新下载组件…" || !r.Actions[0].Disabled {
 		t.Fatalf("while updating %+v", r)
 	}
-	waitUntil(t, updates, func() bool { return !a.queue.ytdlp.updating })
+	untilState(t, updates, func() bool { return !a.queue.ytdlp.updating })
 	if a.queue.ytdlp.version != "2026.11.03" || a.lib.notice.Text != "下载组件已更新到 2026.11.03，已重新开始下载 1 个视频。" {
 		t.Fatalf("version %q, notice %q", a.queue.ytdlp.version, a.lib.notice.Text)
 	}
@@ -1172,7 +1172,7 @@ func TestFailedCardsDoNotLookForBrowsers(t *testing.T) {
 	withBrowsers(t, a, "firefox")
 	a.queue.ytdlp.browsers = nil
 	a.queueReadYTDLP()
-	waitUntil(t, updates, func() bool { return len(a.queue.ytdlp.browsers) == 1 })
+	untilState(t, updates, func() bool { return len(a.queue.ytdlp.browsers) == 1 })
 	installedBrowsers = func() []media.Browser {
 		t.Error("a frame looked for the browsers")
 		return nil
@@ -1221,14 +1221,14 @@ func TestNoBrowserToBorrowFrom(t *testing.T) {
 	// Looking again finds nothing yet, and says so; once a browser has a login folder, the card offers it.
 	film := failedJob(t, a, yt, core.FailAge, "")
 	a.RunRemedy(film, remedyFindBrowsers)
-	waitUpdate(t, updates)
+	applyNext(t, updates)
 	if a.lib.notice.Text != "还是没找到能借用登录的浏览器。" {
 		t.Fatalf("notice %q", a.lib.notice.Text)
 	}
 	withBrowsers(t, a, "chromium")
 	a.queue.ytdlp.browsers = nil
 	a.RunRemedy(film, remedyFindBrowsers)
-	waitUpdate(t, updates)
+	applyNext(t, updates)
 	refresh(tt, a)
 	if textCount(tt, "借用 Chromium 登录并重试") == 0 {
 		t.Fatal("the card does not offer Chromium")
@@ -1245,10 +1245,10 @@ func TestUpdateThatFindsTheNewestRunsNothingAgain(t *testing.T) {
 	settle(t, a, tt, updates)
 	id := a.library.Jobs[0].ID
 	a.queueReadYTDLP()
-	waitUntil(t, updates, func() bool { return a.queue.ytdlp.version != "" })
+	untilState(t, updates, func() bool { return a.queue.ytdlp.version != "" })
 	film, _ := a.JobFilm(id)
 	a.RunRemedy(film, remedyUpdate)
-	waitUntil(t, updates, func() bool { return !a.queue.ytdlp.updating })
+	untilState(t, updates, func() bool { return !a.queue.ytdlp.updating })
 	if a.lib.notice.Text != "下载组件 yt-dlp 已是最新的 2024.03.10 版，网站的修复还没发布，过一两天再试。" {
 		t.Fatalf("notice %q", a.lib.notice.Text)
 	}
@@ -1323,7 +1323,7 @@ func TestOutdatedWithASystemYTDLPOffersKandosOwn(t *testing.T) {
 	}
 
 	close(release)
-	waitUntil(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
+	untilState(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
 	r, _ = a.FailureRemedy(film)
 	if r.Why != "没能下载 yt-dlp：服务器返回 HTTP 503。再试一次，或更新本机的 yt-dlp 后重试。" || strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" {
 		t.Fatalf("after the download failed: %+v", r)
@@ -1378,7 +1378,7 @@ func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 	systemYTDLP(a, a.pipeline.(media.Tools).YTDLP)
 	film, _ := a.JobFilm(id)
 	a.RunRemedy(film, remedyDownloadYTDLP)
-	waitUntil(t, updates, func() bool { return !a.queue.ytdlp.kitRetry && !a.queue.ytdlp.updating })
+	untilState(t, updates, func() bool { return !a.queue.ytdlp.kitRetry && !a.queue.ytdlp.updating })
 	want := filepath.Join(own, kit.ID, "yt-dlp")
 	if a.pipeline.(media.Tools).YTDLP != want {
 		t.Fatalf("the pipeline downloads with %q, want %q", a.pipeline.(media.Tools).YTDLP, want)
@@ -1399,7 +1399,10 @@ func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 func TestOpenSystemSettingsForSafarisLogin(t *testing.T) {
 	var opened string
 	old := openExternal
-	openExternal = func(url string) error { opened = url; return nil }
+	openExternal = func(_ *ns.Scope, url string, done func(bool)) {
+		opened = url
+		done(true)
+	}
 	t.Cleanup(func() { openExternal = old })
 	a, _, _ := newTestApp(t, &fakePipeline{})
 	film := failedJob(t, a, "https://www.youtube.com/watch?v=Tq92D6wQ1mg", core.FailCookies, "safari")
@@ -1454,7 +1457,7 @@ func TestAFailedCardSaysWhyInChinese(t *testing.T) {
 	failedWith(t, a, "translate: translation API returned 401 Unauthorized: invalid key")
 	refresh(tt, a)
 	for _, want := range []string{"AI 服务不接受这个 Key，去「AI 服务」里检查一下。", "打开设置", "重试"} {
-		if !hasText(tt, want) {
+		if !shows(tt, want) {
 			t.Fatalf("the card does not say %q: %q", want, tt.Texts())
 		}
 	}
@@ -1526,7 +1529,7 @@ func TestFailedCardsInEnglish(t *testing.T) {
 	for _, want := range []string{"Not available in your region", "The uploader restricted where it can be watched. If the video is available elsewhere, use another link.", "Use Another Link"} {
 		wantText(t, tt, want)
 	}
-	if hasText(tt, "你所在的地区不能看") || hasText(tt, "换个链接") {
+	if shows(tt, "你所在的地区不能看") || shows(tt, "换个链接") {
 		t.Fatal("the card still reads Chinese")
 	}
 
@@ -1541,14 +1544,16 @@ func TestFailedCardsInEnglish(t *testing.T) {
 	}
 
 	// The sidebar's status line, found while the app spoke Chinese, says it in the language shown when it is drawn.
-	testlocale.Use(t, "zh-Hans")
+	a.SetInterfaceLanguage("zh-Hans")
 	a.checkReadiness(false)
-	if r := a.readiness(); r.Text() != "已就绪，可以开始处理" {
-		t.Fatalf("status line %q", r.Text())
+	refresh(tt, a)
+	if r := a.readiness(); r.Text(a.cx) != "已就绪，可以开始处理" {
+		t.Fatalf("status line %q", r.Text(a.cx))
 	}
-	testlocale.Use(t, "en")
-	if r := a.readiness(); r.Text() != "Ready to process" {
-		t.Fatalf("status line %q", r.Text())
+	a.SetInterfaceLanguage("en")
+	refresh(tt, a)
+	if r := a.readiness(); r.Text(a.cx) != "Ready to process" {
+		t.Fatalf("status line %q", r.Text(a.cx))
 	}
 }
 
@@ -1562,7 +1567,7 @@ func TestAddingAVideoTwiceQueuesItOnce(t *testing.T) {
 			}
 		}
 		a.stop()
-		waitUntil(t, updates, func() bool { return !a.running() })
+		untilState(t, updates, func() bool { return !a.running() })
 	})
 	if err := a.Enqueue("https://www.youtube.com/watch?v=TRWgBxVAb1M", "https://example.com/v"); err != nil {
 		t.Fatal(err)
@@ -1581,7 +1586,7 @@ func TestAddingAVideoTwiceQueuesItOnce(t *testing.T) {
 
 	startJob(t, tt, "https://www.youtube.com/shorts/TRWgBxVAb1M")
 	refresh(tt, a)
-	if len(a.library.Jobs) != 2 || !hasText(tt, "这个视频已在处理队列中。") || a.queue.source == "" {
+	if len(a.library.Jobs) != 2 || !shows(tt, "这个视频已在处理队列中。") || a.queue.source == "" {
 		t.Fatalf("jobs %d, source %q, texts %q", len(a.library.Jobs), a.queue.source, tt.Texts())
 	}
 
@@ -1606,7 +1611,7 @@ func TestAddingAVideoInTheLibraryOffersToOpenIt(t *testing.T) {
 	}}
 	startJob(t, tt, "https://youtu.be/TRWgBxVAb1M")
 	refresh(tt, a)
-	if len(a.library.Jobs) != 1 || a.lib.notice.Film != "done" || !hasText(tt, "这个视频已在资料库中。") {
+	if len(a.library.Jobs) != 1 || a.lib.notice.Film != "done" || !shows(tt, "这个视频已在资料库中。") {
 		t.Fatalf("jobs %+v, notice %+v, texts %q", a.library.Jobs, a.lib.notice, tt.Texts())
 	}
 	tt.Press("打开")
@@ -1645,7 +1650,7 @@ func TestAddingAFailedVideoAgainRetriesIt(t *testing.T) {
 	}
 	startJob(t, tt, "https://youtu.be/TRWgBxVAb1M")
 	refresh(tt, a)
-	if len(a.library.Jobs) != 3 || !hasText(tt, "已加入，开始处理。") {
+	if len(a.library.Jobs) != 3 || !shows(tt, "已加入，开始处理。") {
 		t.Fatalf("jobs %+v, texts %q", a.library.Jobs, tt.Texts())
 	}
 	if job := stageOf(t, a, "failed"); job.Stage == core.StageFailed || job.Err != nil {
@@ -1684,7 +1689,7 @@ func TestQuitStopsTheRunningJob(t *testing.T) {
 	}
 	nextStarted(t, g, updates)
 	id := jobIDs(a)["https://example.com/a"]
-	waitUntil(t, updates, func() bool { return stageOf(t, a, id).Stage == core.StageDownloading })
+	untilState(t, updates, func() bool { return stageOf(t, a, id).Stage == core.StageDownloading })
 	done := a.queue.done
 
 	start := time.Now()
@@ -1733,20 +1738,13 @@ func TestQuitWaitsOnlySoLongForTheJob(t *testing.T) {
 	}
 }
 
-// replaceQuitApp counts the quits the app asks for instead of quitting, for the rest of t.
-func replaceQuitApp(t *testing.T) *int {
-	t.Helper()
-	quits := 0
-	old := quitApp
-	quitApp = func() { quits++ }
-	t.Cleanup(func() { quitApp = old })
-	return &quits
+// closingCanceled reports whether the close of a window c stood for was held back (core.WindowClosing.Cancel), which NSGo tells only the platform.
+func closingCanceled(c *ns.WindowClosing) bool {
+	return reflect.ValueOf(c).Elem().FieldByName("canceled").Bool()
 }
 
 // TestQuitWhileAJobRunsAsksFirst checks that ⌘Q goes ahead at once while no job runs, and while one runs is held back by a confirmation, which keeps the app running on 取消 or Escape and quits on 退出 without asking again.
 func TestQuitWhileAJobRunsAsksFirst(t *testing.T) {
-	quits := replaceQuitApp(t)
-
 	idle, _, _ := newTestApp(t, &fakePipeline{})
 	e := &quitEvent{}
 	idle.areasBeforeQuit(e)
@@ -1774,29 +1772,28 @@ func TestQuitWhileAJobRunsAsksFirst(t *testing.T) {
 		if !e.DefaultPrevented() || a.window.quitting {
 			t.Fatalf("quit during a job: prevented %v, going ahead %v", e.DefaultPrevented(), a.window.quitting)
 		}
-		if !hasText(tt, title) || !hasText(tt, message) || !a.modalOpen() || a.window.hidden {
-			t.Fatalf("confirmation shows %v, modal %v, window hidden %v; texts %q", hasText(tt, title), a.modalOpen(), a.window.hidden, tt.Texts())
+		if !shows(tt, title) || !shows(tt, message) || !a.modalOpen() || a.window.hidden {
+			t.Fatalf("confirmation shows %v, modal %v, window hidden %v; texts %q", shows(tt, title), a.modalOpen(), a.window.hidden, tt.Texts())
 		}
 	}
 	ask()
 	// A second ⌘Q while the confirmation is up neither stacks another nor quits.
 	ask()
-	if a.overlay.modal != 1 || *quits != 0 {
-		t.Fatalf("modal %d, quits %d after asking twice", a.overlay.modal, *quits)
+	if a.overlay.modal != 1 || tt.Quits != 0 {
+		t.Fatalf("modal %d, quits %d after asking twice", a.overlay.modal, tt.Quits)
 	}
 
-	tt.Key(0, ui.KeyEscape)
+	tt.Key("escape")
 	refresh(tt, a)
-	refresh(tt, a)
-	if hasText(tt, title) || a.modalOpen() || *quits != 0 || !a.running() {
-		t.Fatalf("after Escape: shown %v, modal %v, quits %d, running %v", hasText(tt, title), a.modalOpen(), *quits, a.running())
+	if shows(tt, title) || a.modalOpen() || tt.Quits != 0 || !a.running() {
+		t.Fatalf("after Escape: shown %v, modal %v, quits %d, running %v", shows(tt, title), a.modalOpen(), tt.Quits, a.running())
 	}
 
 	ask()
 	tt.Press(testlocale.Messages().QueueQuitWhileRunningQuit())
 	refresh(tt, a)
-	if *quits != 1 || a.modalOpen() {
-		t.Fatalf("after 退出: quits %d, modal %v", *quits, a.modalOpen())
+	if tt.Quits != 1 || a.modalOpen() {
+		t.Fatalf("after 退出: quits %d, modal %v", tt.Quits, a.modalOpen())
 	}
 	e = &quitEvent{}
 	a.areasBeforeQuit(e)
@@ -1807,7 +1804,6 @@ func TestQuitWhileAJobRunsAsksFirst(t *testing.T) {
 
 // TestQuitConfirmationFollowsTheRunningJob checks that the confirmation names the job running now, the next one once the job it opened for has finished, and closes by itself once no job runs any more, the quit still held back.
 func TestQuitConfirmationFollowsTheRunningJob(t *testing.T) {
-	quits := replaceQuitApp(t)
 	g := newGatePipeline()
 	a, tt, updates := newTestApp(t, g)
 	t.Cleanup(a.stop)
@@ -1822,31 +1818,30 @@ func TestQuitConfirmationFollowsTheRunningJob(t *testing.T) {
 	e := &quitEvent{}
 	a.areasBeforeQuit(e)
 	refresh(tt, a)
-	if !e.DefaultPrevented() || !hasText(tt, message("https://example.com/a")) {
+	if !e.DefaultPrevented() || !shows(tt, message("https://example.com/a")) {
 		t.Fatalf("quit prevented %v; texts %q", e.DefaultPrevented(), tt.Texts())
 	}
 
 	g.release <- struct{}{}
 	nextStarted(t, g, updates)
-	waitUntil(t, updates, func() bool { return a.RunningJob() == ids["https://example.com/b"] })
+	untilState(t, updates, func() bool { return a.RunningJob() == ids["https://example.com/b"] })
 	refresh(tt, a)
-	if !hasText(tt, message("https://example.com/b")) || hasText(tt, message("https://example.com/a")) {
+	if !shows(tt, message("https://example.com/b")) || shows(tt, message("https://example.com/a")) {
 		t.Fatalf("confirmation after the first job finished; texts %q", tt.Texts())
 	}
 
 	g.release <- struct{}{}
-	waitUntil(t, updates, func() bool { return !a.running() })
+	untilState(t, updates, func() bool { return !a.running() })
 	refresh(tt, a)
 	refresh(tt, a)
-	if hasText(tt, testlocale.Messages().QueueQuitWhileRunningTitle()) || a.modalOpen() || *quits != 0 {
-		t.Fatalf("with no job left: shown %v, modal %v, quits %d", hasText(tt, testlocale.Messages().QueueQuitWhileRunningTitle()), a.modalOpen(), *quits)
+	if shows(tt, testlocale.Messages().QueueQuitWhileRunningTitle()) || a.modalOpen() || tt.Quits != 0 {
+		t.Fatalf("with no job left: shown %v, modal %v, quits %d", shows(tt, testlocale.Messages().QueueQuitWhileRunningTitle()), a.modalOpen(), tt.Quits)
 	}
 }
 
-// TestQuitOnASignalDoesNotAsk checks that a quit a signal asked for goes ahead while a job runs, whether mygo's own quit from the signal came first and opened the confirmation or not.
+// TestQuitOnASignalDoesNotAsk checks that a quit a signal asked for goes ahead while a job runs, whether a quit the app heard first, as the platform's from the same signal, opened the confirmation or not.
 func TestQuitOnASignalDoesNotAsk(t *testing.T) {
-	quits := replaceQuitApp(t)
-	for _, mygoFirst := range []bool{false, true} {
+	for _, heardFirst := range []bool{false, true} {
 		g := newGatePipeline()
 		a, tt, updates := newTestApp(t, g)
 		t.Cleanup(a.stop)
@@ -1854,30 +1849,28 @@ func TestQuitOnASignalDoesNotAsk(t *testing.T) {
 			t.Fatal(err)
 		}
 		nextStarted(t, g, updates)
-		*quits = 0
-		if mygoFirst {
+		if heardFirst {
 			e := &quitEvent{}
 			a.areasBeforeQuit(e)
 			refresh(tt, a)
 			if !e.DefaultPrevented() {
-				t.Fatal("mygo's quit from the signal went ahead before the signal was seen")
+				t.Fatal("the quit the app heard from the signal went ahead before the signal was seen")
 			}
 		}
 		a.queueQuitOnSignal()
-		if *quits != 1 {
-			t.Fatalf("mygo first %v: the signal asked for %d quits, want 1", mygoFirst, *quits)
+		if tt.Quits != 1 {
+			t.Fatalf("heard first %v: the signal asked for %d quits, want 1", heardFirst, tt.Quits)
 		}
 		e := &quitEvent{}
 		a.areasBeforeQuit(e)
 		if e.DefaultPrevented() || !a.window.quitting {
-			t.Fatalf("mygo first %v: the signal's quit was held back: prevented %v, going ahead %v", mygoFirst, e.DefaultPrevented(), a.window.quitting)
+			t.Fatalf("heard first %v: the signal's quit was held back: prevented %v, going ahead %v", heardFirst, e.DefaultPrevented(), a.window.quitting)
 		}
 	}
 }
 
-// TestSessionEndDoesNotAsk checks that a logout, restart or shutdown on macOS and Windows (mygo's QuitEvent.SessionEnding) goes ahead while a job runs without showing the main window or opening the confirmation, lets the window close without the close button's own handling, and stops the job as the app quits; also when a ⌘Q had already opened the confirmation.
+// TestSessionEndDoesNotAsk checks that a logout, restart or shutdown on macOS and Windows (quitEvent.SessionEnding, quitHeard) goes ahead while a job runs without showing the main window or opening the confirmation, lets the window close without the close button's own handling, and stops the job as the app quits; also when a ⌘Q had already opened the confirmation.
 func TestSessionEndDoesNotAsk(t *testing.T) {
-	quits := replaceQuitApp(t)
 	for _, hides := range []bool{true, false} {
 		for _, asked := range []bool{false, true} {
 			setWindowHidesOnClose(t, hides)
@@ -1888,7 +1881,6 @@ func TestSessionEndDoesNotAsk(t *testing.T) {
 				t.Fatal(err)
 			}
 			nextStarted(t, g, updates)
-			*quits = 0
 			if asked {
 				a.areasBeforeQuit(&quitEvent{})
 				refresh(tt, a)
@@ -1899,23 +1891,23 @@ func TestSessionEndDoesNotAsk(t *testing.T) {
 			a.window.hidden = !asked
 			modal := a.overlay.modal
 
-			e := &mygo.QuitEvent{SessionEnding: true}
+			e := &quitEvent{SessionEnding: true}
 			a.areasBeforeQuit(e)
 			refresh(tt, a)
 			if e.DefaultPrevented() || !a.window.quitting {
 				t.Fatalf("hides %v, asked %v: the session's end was held back: prevented %v, going ahead %v", hides, asked, e.DefaultPrevented(), a.window.quitting)
 			}
-			if !asked && (a.queue.quitAsk || a.modalOpen() || !a.window.hidden || hasText(tt, testlocale.Messages().QueueQuitWhileRunningTitle())) {
+			if !asked && (a.queue.quitAsk || a.modalOpen() || !a.window.hidden || shows(tt, testlocale.Messages().QueueQuitWhileRunningTitle())) {
 				t.Fatalf("hides %v: the session's end asked %v, modal %v, window hidden %v", hides, a.queue.quitAsk, a.modalOpen(), a.window.hidden)
 			}
 			if a.overlay.modal != modal {
 				t.Fatalf("hides %v, asked %v: modal %d after the session's end, %d before", hides, asked, a.overlay.modal, modal)
 			}
 
-			ce := &mygo.CloseEvent{}
+			ce := &ns.WindowClosing{}
 			a.windowClosing(ce)
-			if ce.DefaultPrevented() || *quits != 0 || a.window.hidden != !asked {
-				t.Fatalf("hides %v, asked %v: closing at the session's end prevented %v, quits %d, window hidden %v", hides, asked, ce.DefaultPrevented(), *quits, a.window.hidden)
+			if closingCanceled(ce) || tt.Quits != 0 || a.window.hidden != !asked {
+				t.Fatalf("hides %v, asked %v: closing at the session's end prevented %v, quits %d, window hidden %v", hides, asked, closingCanceled(ce), tt.Quits, a.window.hidden)
 			}
 
 			done := a.queue.done
@@ -2022,7 +2014,7 @@ type fakeDesktop struct {
 	notes   []fakeNote
 	cleared int
 	badges  []int
-	bars    []mygo.ProgressBar
+	bars    []queueBar
 }
 
 type fakeNote struct{ id, title, body string }
@@ -2035,7 +2027,7 @@ func useFakeDesktop(a *app) *fakeDesktop {
 		notify:   func(id, title, body string) { f.notes = append(f.notes, fakeNote{id, title, body}) },
 		clear:    func() { f.cleared++ },
 		badge:    func(n int) { f.badges = append(f.badges, n) },
-		progress: func(p mygo.ProgressBar) { f.bars = append(f.bars, p) },
+		progress: func(p queueBar) { f.bars = append(f.bars, p) },
 	}
 	return f
 }
@@ -2047,9 +2039,9 @@ func (f *fakeDesktop) badge() int {
 	return f.badges[len(f.badges)-1]
 }
 
-func (f *fakeDesktop) bar() mygo.ProgressBar {
+func (f *fakeDesktop) bar() queueBar {
 	if len(f.bars) == 0 {
-		return mygo.ProgressBar{}
+		return queueBar{}
 	}
 	return f.bars[len(f.bars)-1]
 }
@@ -2149,13 +2141,13 @@ func TestTheBadgeAndProgressFollowTheQueue(t *testing.T) {
 		t.Fatal(err)
 	}
 	nextStarted(t, g, updates)
-	if f.badge() != 3 || f.bar() != (mygo.ProgressBar{State: mygo.ProgressIndeterminate}) {
+	if f.badge() != 3 || f.bar() != (queueBar{Shown: true, Indeterminate: true}) {
 		t.Fatalf("while a runs: badge %d, bar %+v", f.badge(), f.bar())
 	}
 	running := stageOf(t, a, a.RunningJob())
 	running.Progress = core.Fraction(0.426)
 	a.showProgress(running)
-	if want := (mygo.ProgressBar{State: mygo.ProgressNormal, Value: 0.43}); f.bar() != want {
+	if want := (queueBar{Shown: true, Value: 0.43}); f.bar() != want {
 		t.Fatalf("bar %+v, want %+v", f.bar(), want)
 	}
 	told := len(f.bars)
@@ -2176,7 +2168,7 @@ func TestTheBadgeAndProgressFollowTheQueue(t *testing.T) {
 	}
 	g.release <- struct{}{}
 	settle(t, a, tt, updates)
-	if f.badge() != 0 || f.bar() != (mygo.ProgressBar{}) {
+	if f.badge() != 0 || f.bar() != (queueBar{}) {
 		t.Fatalf("after the last job: badge %d, bar %+v", f.badge(), f.bar())
 	}
 	for i := 1; i < len(f.badges); i++ {
@@ -2206,7 +2198,7 @@ func TestTheIconCountsTheOpenLibraryAndReachesALateDesktop(t *testing.T) {
 	if len(f.badges) != 1 || f.badge() != 2 {
 		t.Fatalf("badges %v, want [2]: the running job and the one waiting in the open library", f.badges)
 	}
-	if len(f.bars) != 1 || f.bar() != (mygo.ProgressBar{State: mygo.ProgressIndeterminate}) {
+	if len(f.bars) != 1 || f.bar() != (queueBar{Shown: true, Indeterminate: true}) {
 		t.Fatalf("bars %+v, want one indeterminate bar", f.bars)
 	}
 
@@ -2214,7 +2206,7 @@ func TestTheIconCountsTheOpenLibraryAndReachesALateDesktop(t *testing.T) {
 	nextStarted(t, g, updates)
 	g.release <- struct{}{}
 	settle(t, a, tt, updates)
-	if f.badge() != 0 || f.bar() != (mygo.ProgressBar{}) {
+	if f.badge() != 0 || f.bar() != (queueBar{}) {
 		t.Fatalf("with only a forgotten library's job waiting: badge %d, bar %+v", f.badge(), f.bar())
 	}
 }
@@ -2267,7 +2259,7 @@ func TestTheNotificationSwitchIsSaved(t *testing.T) {
 	}
 	st := settingsOpenAt(a, nil, settings.SectionGeneral)
 	for _, text := range []string{"影片处理完时通知", "看懂在后台时，影片的字幕做好了或没能做好，都会发一条通知。"} {
-		if !hasText(st, text) {
+		if !shows(st, text) {
 			t.Fatalf("no %q: %q", text, st.Texts())
 		}
 	}
@@ -2402,9 +2394,7 @@ func retranslateLibraryAt(t *testing.T, p *retranslatePipeline, lib, video strin
 func chooseFilmMenu(t *testing.T, tt *nsgotest.App, label string) {
 	t.Helper()
 	tt.Press("更多操作")
-	if err := tt.ChooseMenuItem(label); err != nil {
-		t.Fatalf("%v menu %q", err, tt.Menu())
-	}
+	tt.ChoosePopup(label)
 }
 
 // The card of a film whose translation failed for some lines offers to translate them: only those lines go to the translator, in the language the film's other lines are in rather than the one set now, and the film is neither downloaded nor transcribed again.
@@ -2426,7 +2416,7 @@ func TestTranslateMissingLinesSendsOnlyThoseLines(t *testing.T) {
 	if job.Stage != core.StageComplete || job.Untranslated != 0 || job.Redo != "" || job.Language != "简体中文" {
 		t.Fatalf("job %+v", job)
 	}
-	if hasText(tt, "补译未译的句子") {
+	if shows(tt, "补译未译的句子") {
 		t.Fatalf("the button stayed once every line was translated: %q", tt.Texts())
 	}
 }
@@ -2438,11 +2428,11 @@ func TestNoMissingLinesNoButton(t *testing.T) {
 	job.Untranslated = 0
 	a.library.Upsert(job)
 	refresh(tt, a)
-	if hasText(tt, "补译未译的句子") {
+	if shows(tt, "补译未译的句子") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	tt.Press("更多操作")
-	if menu := tt.Menu(); slices.Contains(menu, "补译未译的句子") || !slices.Contains(menu, "重新翻译") {
+	if menu := popupLabels(tt); slices.Contains(menu, "补译未译的句子") || !slices.Contains(menu, "重新翻译") {
 		t.Fatalf("menu %q", menu)
 	}
 }
@@ -2498,9 +2488,7 @@ func TestTranslateAgainWithoutALanguage(t *testing.T) {
 	a.Open(film)
 	refresh(tt, a)
 	tt.Press("更多操作")
-	if err := tt.ChooseMenuItem("重新翻译"); err != nil {
-		t.Fatal(err)
-	}
+	tt.ChoosePopup("重新翻译")
 	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || a.running() {
 		t.Fatalf("job %+v", job)
 	}
@@ -2521,7 +2509,7 @@ func TestAFailedRetranslationKeepsTheFilmDone(t *testing.T) {
 	if want := testlocale.Messages().QueueRedoFailed("Talk", testlocale.Messages().PrecheckTranslateAuth()); a.lib.notice.Text != want || a.lib.notice.Section != settings.SectionAI {
 		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
 	}
-	if !hasText(tt, "补译未译的句子") || !hasText(tt, "1 句翻译失败，其余已完成") {
+	if !shows(tt, "补译未译的句子") || !shows(tt, "1 句翻译失败，其余已完成") {
 		t.Fatalf("the film is no longer a done card: %q", tt.Texts())
 	}
 	p.translateErr = nil
@@ -2555,7 +2543,7 @@ func TestCancellingATranslationAgainKeepsTheFilmDone(t *testing.T) {
 		if a.lib.notice.Open {
 			t.Fatalf("%s: notice %+v", when, a.lib.notice)
 		}
-		if !hasText(tt, "补译未译的句子") {
+		if !shows(tt, "补译未译的句子") {
 			t.Fatalf("%s: the film is no longer a done card: %q", when, tt.Texts())
 		}
 	}
@@ -2580,13 +2568,13 @@ func TestAnOpenFilmShowsItsNewTranslation(t *testing.T) {
 	a, tt, updates := retranslateLibraryAt(t, p, filepath.Join(root, "我的影片.kando"), filepath.Join(root, "Downloads", "Talk", "video.mp4"))
 	film, _ := a.JobFilm("talk")
 	a.Open(film)
-	waitUntil(t, updates, func() bool { return a.player.subs.ready })
+	untilState(t, updates, func() bool { return a.player.subs.ready })
 	if cues := a.player.subs.cues; len(cues) != 3 || cues[0].Text != "你好。\nHello." {
 		t.Fatalf("cues %q", cues)
 	}
 	a.TranslateAgain(film)
 	settle(t, a, tt, updates)
-	waitUntil(t, updates, func() bool {
+	untilState(t, updates, func() bool {
 		cues := a.player.subs.cues
 		return a.player.subs.ready && len(cues) == 3 && cues[0].Text == "日本語:Hello.\nHello."
 	})
@@ -2600,14 +2588,26 @@ func TestFilmPageTranslatesAgain(t *testing.T) {
 	a.Open(film)
 	refresh(tt, a)
 	tt.Press("更多操作")
-	if menu := tt.Menu(); !slices.Contains(menu, "重新翻译") || !slices.Contains(menu, "补译未译的句子") {
+	if menu := popupLabels(tt); !slices.Contains(menu, "重新翻译") || !slices.Contains(menu, "补译未译的句子") {
 		t.Fatalf("menu %q", menu)
 	}
-	if err := tt.ChooseMenuItem("重新翻译"); err != nil {
-		t.Fatal(err)
-	}
+	tt.ChoosePopup("重新翻译")
 	settle(t, a, tt, updates)
 	if a.openKey != "talk" || p.language != "日本語" || len(p.sent) != 3 || p.downloads != 0 {
 		t.Fatalf("open %q, sent %q in %q, %d downloads", a.openKey, p.sent, p.language, p.downloads)
+	}
+}
+
+// untilState runs the background updates, as the engine would, until done reports true, for a test that reads the app's state rather than the window.
+func untilState(t *testing.T, updates <-chan func(), done func() bool) {
+	t.Helper()
+	timeout := time.After(5 * time.Second)
+	for !done() {
+		select {
+		case fn := <-updates:
+			fn()
+		case <-timeout:
+			t.Fatal("timed out waiting for a background update")
+		}
 	}
 }

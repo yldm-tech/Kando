@@ -453,3 +453,19 @@ func pageX(v *nsgotest.View) ns.Points {
 	}
 	return x
 }
+
+// TestTopBarCentersItsControls checks the prototype's toolbar: 65 points high with 10 above its controls and 18 below them, so they are centered 28.5 points down.
+func TestTopBarCentersItsControls(t *testing.T) {
+	app := start(t, newFakeApp())
+	bar, start := app.Find("id:films-top-bar"), app.Find("id:films-start")
+	if bar.Frame.Size.Height != 65 {
+		t.Fatalf("the bar is %v high", bar.Frame.Size.Height)
+	}
+	y := start.Frame.Origin.Y
+	for v := start.Parent; v != nil; v = v.Parent {
+		y += v.Frame.Origin.Y - v.Offset.Y
+	}
+	if center := y + start.Frame.Size.Height/2; center < 28 || center > 29 {
+		t.Fatalf("开始处理 is centered %v points down, want 28.5", center)
+	}
+}

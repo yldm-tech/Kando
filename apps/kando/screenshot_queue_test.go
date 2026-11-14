@@ -6,12 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // TestScreenshotsQueue renders the queue (screenshot_helpers_test.go): three links added at once while the pipeline holds the first in its download, so the queue shows one card downloading and the others waiting; and the confirmation ⌘Q opens over it while that job runs. Besides that it renders what the message bar says when the link added in the top bar is one the library already has waiting, one it has already processed, with 打开, and a channel's. It also renders the card of a download yt-dlp was too old for (Street Food Night Tour, j5) when the yt-dlp is one the system's packages installed, which Kando cannot update: without a yt-dlp Kando can download for itself, with one, and while that one downloads.
@@ -21,7 +20,7 @@ func TestScreenshotsQueue(t *testing.T) {
 	add := func(a *app, tt *nsgotest.App, link string) {
 		t.Helper()
 		a.pipeline = &fakePipeline{block: true}
-		screenshotClick(t, tt, "视频链接")
+		tt.Focus("视频链接")
 		typeFocused(t, tt, link)
 		screenshotClick(t, tt, "开始处理")
 		refresh(tt, a)
@@ -92,16 +91,13 @@ func queueShotOutdated(t *testing.T, f *screenshotFixture, a *app, tt *nsgotest.
 	a.queue.ytdlp.path, a.queue.ytdlp.version = "/usr/bin/yt-dlp", "2024.03.10"
 	a.queue.ytdlp.install = media.YTDLPInstall{Kind: "system", Dir: "/usr/bin"}
 	refresh(tt, a)
-	for range 4 {
-		r, ok := tt.Find(testlocale.Messages().FilmsQueueTitle())
-		if !ok {
-			t.Fatalf("no queue to scroll to; texts %q", tt.Texts())
-		}
-		if d := r.Y - 66; d*d >= 0.25 {
-			tt.Move(760, 500)
-			tt.Scroll(760, 500, 0, d)
-			refresh(tt, a)
-		}
+	title := whole(testlocale.Messages().FilmsQueueTitle())
+	if !tt.Exists(title) {
+		t.Fatalf("no queue to scroll to; texts %q", tt.Texts())
+	}
+	if d := pageFrame(tt.Find(title)).Origin.Y - 66; d*d >= 0.25 {
+		tt.Scroll(title, d)
+		refresh(tt, a)
 	}
 }
 
@@ -112,7 +108,7 @@ func TestScreenshotsQueueOtherLibrary(t *testing.T) {
 		a.pipeline = &fakePipeline{block: true}
 		t.Cleanup(a.stop)
 		_ = a.Enqueue("https://www.youtube.com/watch?v=aqz-KE-bpKQ")
-		screenshotWait(t, tt, updates, "the download", func() bool {
+		screenshotWait(t, tt, a, updates, "the download", func() bool {
 			return slices.ContainsFunc(a.library.Jobs, func(j core.Job) bool { return j.Stage == core.StageDownloading })
 		})
 		// The running job keeps the pipeline it started with; the library opened next reads its posters with the fake ffmpeg.
@@ -125,6 +121,6 @@ func TestScreenshotsQueueOtherLibrary(t *testing.T) {
 		})
 		a.switchLibrary(f.libs["listening"])
 		refresh(tt, a)
-		screenshotWait(t, tt, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
+		screenshotWait(t, tt, a, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
 	})
 }
