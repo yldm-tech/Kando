@@ -5,15 +5,13 @@ import (
 	"testing"
 
 	"kando/apps/kando/locales"
-
-	"github.com/egoist/mygo/i18n"
 )
 
-// TestAppRegistersTheBundleLanguages checks that main imports the locales catalog, so MyGo's own texts speak the same languages the bundle declares to AppKit (the catalogs', locales.Interface) instead of staying English while the About panel and the open panel follow the system.
+// TestAppRegistersTheBundleLanguages checks that the catalogs the app is built with are the languages of its interface (locales.Interface), which nsgo build declares to the platform, so NSGo's own texts, the About panel and the open panel speak the languages the interface does instead of staying English.
 func TestAppRegistersTheBundleLanguages(t *testing.T) {
 	want := slices.Clone(locales.Interface)
 	slices.Sort(want[1:])
-	if got := i18n.Languages(); !slices.Equal(got, want) {
+	if got := locales.Catalog.Languages(); !slices.Equal(got, want) {
 		t.Fatalf("languages = %q, want %q", got, want)
 	}
 }

@@ -13,6 +13,8 @@ import (
 	"kando/apps/kando/feedback"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // logsAt points the logs folder at a new folder under a temporary home, opens a's log file there as main does once the window is ready, and closes it when t ends. It returns the log file's path.
@@ -44,7 +46,7 @@ func readLog(t *testing.T, path string) string {
 }
 
 func TestLogFileIsMadeInTheLogsFolder(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	path := logsAt(t, a)
 	log.Printf("remote: no control socket: refused")
 	got := readLog(t, path)
@@ -71,7 +73,7 @@ func TestLogFileIsMadeInTheLogsFolder(t *testing.T) {
 
 // A folder the log cannot be written in leaves the app without a log file, and without the menu's row that would show it.
 func TestNoLogFileWhereTheFolderCannotBeMade(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	blocker := filepath.Join(t.TempDir(), "file")
 	if err := os.WriteFile(blocker, nil, 0o644); err != nil {
 		t.Fatal(err)
@@ -84,15 +86,15 @@ func TestNoLogFileWhereTheFolderCannotBeMade(t *testing.T) {
 		a.logsClose()
 		t.Fatal("a log file opened under a file")
 	}
-	if rows := a.logsKeys(); rows[0].When() {
+	if rows := a.logsKeys(a.cx); rows[0].When() {
 		t.Fatal("显示日志文件 is enabled without a log file")
 	}
 }
 
 func TestShowLogFileIsAHelpMenuRow(t *testing.T) {
-	a, _, _ := newTestApp(&fakePipeline{})
-	rows := a.logsKeys()
-	if len(rows) != 1 || rows[0].Key != 0 || rows[0].Mods != 0 || rows[0].Group != groupHelp || rows[0].Label != "显示日志文件" {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	rows := a.logsKeys(a.cx)
+	if len(rows) != 1 || rows[0].Key != "" || rows[0].Group != groupHelp || rows[0].Label != "显示日志文件" {
 		t.Fatalf("rows %+v", rows)
 	}
 	if rows[0].When() {
@@ -104,7 +106,7 @@ func TestShowLogFileIsAHelpMenuRow(t *testing.T) {
 	}
 	var shown string
 	was := logsReveal
-	logsReveal = func(p string) { shown = p }
+	logsReveal = func(_ *ns.Scope, p string) { shown = p }
 	t.Cleanup(func() { logsReveal = was })
 	if runtime.GOOS == "windows" {
 		// Windows removes no file a program holds open, so the user cannot remove the log while Kando runs: it is shown where it is, and the lines after go on into it.
@@ -146,11 +148,11 @@ func TestShowLogFileIsAHelpMenuRow(t *testing.T) {
 		}
 	}
 	var found bool
-	for _, menu := range a.menuBar() {
+	for _, menu := range a.menuBar(a.cx) {
 		if menu.Label != "帮助" {
 			continue
 		}
-		for _, item := range menu.Submenu {
+		for _, item := range menu.Items {
 			found = found || item.Label == "显示日志文件" && !item.Disabled
 		}
 	}
@@ -174,7 +176,7 @@ func TestFailedJobIsLogged(t *testing.T) {
 	ytdlp := writeFakeScript(t, t.TempDir(), "yt-dlp", "echo 'WARNING: first warning of many' >&2\ni=0\nwhile [ $i -lt 60 ]; do echo \"WARNING: [youtube] retrying fragment $i\" >&2; i=$((i+1)); done\necho 'ERROR: [youtube] x: Private video' >&2\nexit 1")
 	// The log and the job's error name yt-dlp by its file name, yt-dlp.exe on Windows.
 	name := filepath.Base(ytdlp)
-	a, tt, updates := newTestApp(&logsFailPipeline{tools: media.Tools{YTDLP: ytdlp, OutputDir: t.TempDir()}})
+	a, tt, updates := newTestApp(t, &logsFailPipeline{tools: media.Tools{YTDLP: ytdlp, OutputDir: t.TempDir()}})
 	shelfPath := filepath.Join(t.TempDir(), "library.json")
 	a.openLibrary(shelfPath)
 	a.library.Upsert(core.Job{ID: "old", Source: "https://example.com/old", Stage: core.StageFailed, Err: errors.New("download: an old failure")})
@@ -217,7 +219,7 @@ func (logsTranslateFails) Translate(context.Context, []core.Segment, string) ([]
 
 // The log keeps neither the AI service's address nor its key, nor any other credential the app holds.
 func TestFailedJobLogHasNoSecrets(t *testing.T) {
-	a, tt, updates := newTestApp(&logsTranslateFails{})
+	a, tt, updates := newTestApp(t, &logsTranslateFails{})
 	a.prefs.llmBase = "https://llm.private.example/v1"
 	a.prefs.llmKey = "sk-kando-secret-0123456789"
 	a.cloud.r2Secret = "r2-secret-value-xyz"

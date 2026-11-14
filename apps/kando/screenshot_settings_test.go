@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +11,8 @@ import (
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // TestScreenshotsSettings renders the settings window, one shot per category, at the prototype's 880 by 640 with the traffic lights in their 50-point band (screenshot_helpers_test.go). The window has a view of its own, so it is drawn here rather than through the fixture's shoot, which draws the main window.
@@ -27,11 +27,6 @@ func TestScreenshotsSettings(t *testing.T) {
 	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-cli-installed", shown, models, turbo, func(a *app) {
 		shotCLITool(f, a, true)
 		a.cliTool.copied = clitool.MCPConfig(a.cliTool.status.MCPCommand())
-	})
-	// An installed copy, which updates itself: the last check found 0.5.0, and the switches of the checks and downloads in the background show.
-	shootSettings(t, f, settings.SectionGeneral, "settings-general-updates", shown, models, turbo, func(a *app) {
-		shotCLITool(f, a, true)
-		a.updates.shown = settings.Updates{Enabled: true, AutoCheck: true, Available: "0.5.0"}
 	})
 	// EveryAPI without a key on a computer without the everyapi program: the row under API Key offers 获取 EveryAPI and 重新检测.
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-missing", shown, models, turbo, func(a *app) {
@@ -102,39 +97,42 @@ func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, sh
 
 func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, end bool, setup ...func(*app)) {
 	t.Helper()
-	a := newApp(f.pipeline, func(func()) {})
-	a.prefs.interfaceLanguage = testlocale.Current()
-	a.edit(func(s *session) {
-		s.LibraryDir = shown
-		s.Libraries = []string{shown}
+	t.Run(name, func(t *testing.T) {
+		a := newApp(f.pipeline, func(func()) {})
+		a.prefs.listModels = offlineModels
+		a.prefs.interfaceLanguage = testlocale.Current()
+		a.edit(func(s *session) {
+			s.LibraryDir = shown
+			s.Libraries = []string{shown}
+		})
+		a.prefs.modelsDir = models
+		if tools, ok := f.pipeline.(media.Tools); ok {
+			tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
+			tools.WhisperModel = turbo
+			tools.EveryAPI = writeFakeEveryAPI(t, filepath.Join(f.home, "bin"), true)
+			a.syncLLM(tools.UseEveryAPICLI())
+		}
+		for _, fn := range setup {
+			fn(a)
+		}
+		a.OpenSettings(section)
+		env := testEnvironment()
+		env.TitleBar = ns.Edges{Top: 50, Left: 72}
+		// The settings window's own view, as openSettingsWindow opens it, on the test's graph.
+		tt := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
+			a.attach(cx)
+			return a.settingsView(cx)
+		}, nsgotest.Size(880, 640), nsgotest.Environment(env))
+		if end {
+			tt.Scroll("id:settings-page", 4000)
+		}
+		refresh(tt, a)
+		if nsgotest.Target() == "" {
+			// TODO(nsgo#119): write name.png into f.out headless as MyGo's Tester.Image did, once nsgotest renders pixels or hands a test the bytes of its Screenshot; until then the scenes run their steps, and the pictures come from `nsgo test -target`, under .nsgo/test/screenshots/<target> https://github.com/nsgo-dev/nsgo/issues/119
+			return
+		}
+		tt.Screenshot(name)
 	})
-	a.prefs.modelsDir = models
-	if tools, ok := f.pipeline.(media.Tools); ok {
-		tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
-		tools.WhisperModel = turbo
-		tools.EveryAPI = writeFakeEveryAPI(t, filepath.Join(f.home, "bin"), true)
-		a.syncLLM(tools.UseEveryAPICLI())
-	}
-	for _, fn := range setup {
-		fn(a)
-	}
-	a.OpenSettings(section)
-	tt := ui.NewTester(a.settingsView, 880, 640)
-	tt.SetTitleBar(ui.TitleBar{Height: 50, Left: 72})
-	tt.Frame()
-	tt.Frame()
-	if end {
-		tt.Scroll(550, 400, 0, 4000)
-		tt.Frame()
-	}
-	file, err := os.Create(filepath.Join(f.out, name+".png"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	if err := png.Encode(file, tt.Image()); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // settingsShotFolders makes what the settings window shows in the fixture's fake home, and returns the library it names, the folder of whisper models and the model in use.
