@@ -16,7 +16,7 @@ func TestHelpMenuOpensSupportedSites(t *testing.T) {
 	if !a.sites.open {
 		t.Fatal("the sheet did not open")
 	}
-	for _, want := range []string{msgs.SitesTitle(), "YouTube", "youtube.com", msgs.SitesDone()} {
+	for _, want := range []string{msgs.SitesTitle(), "YouTube", "youtube.com", "哔哩哔哩", msgs.SitesDone()} {
 		wantText(t, tt, want)
 	}
 	if !a.modalOpen() {
