@@ -5,120 +5,129 @@ import (
 	"testing"
 	"time"
 
-	"kando/packages/media"
-
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film without a picture, as without ffmpeg, with the side panel off, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
-	f.shoot(t, "film", func(a *app, tt *ui.Tester, updates chan func()) {
-		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
+	// open opens film id at at and has the system's player report it loaded, held there.
+	open := func(a *app, tt *nsgotest.App, updates chan func(), id string, at time.Duration) {
+		screenshotOpen(t, a, tt, updates, id, at)
+		// TODO(nsgo#107): show the film's own picture, its frames decoded by the fake ffmpeg as MyGo's player showed them; the system's player plays no fake clip headless, so the stage shows the film's poster behind the report of a load https://github.com/nsgo-dev/nsgo/issues/107
+		screenshotLoad(tt, a)
+	}
+	f.shoot(t, "film", func(a *app, tt *nsgotest.App, updates chan func()) {
+		open(a, tt, updates, "j1", protoCues[0].Start)
 	})
-	held := func(steps func(a *app, tt *ui.Tester)) func(a *app, tt *ui.Tester, updates chan func()) {
-		return func(a *app, tt *ui.Tester, updates chan func()) {
-			screenshotOpen(t, a, tt, updates, "j1", 0)
+	held := func(steps func(a *app, tt *nsgotest.App)) func(a *app, tt *nsgotest.App, updates chan func()) {
+		return func(a *app, tt *nsgotest.App, updates chan func()) {
+			open(a, tt, updates, "j1", 0)
 			if steps != nil {
 				steps(a, tt)
 			}
 		}
 	}
 	f.shoot(t, "player-opened", held(nil))
-	f.shoot(t, "player-clips", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "片段") }))
-	f.shoot(t, "player-info", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "信息") }))
-	f.shoot(t, "player-menu", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "字幕：双语") }))
-	f.shoot(t, "player-style", held(func(_ *app, tt *ui.Tester) {
-		screenshotClick(t, tt, "字幕：双语")
-		screenshotClick(t, tt, "样式…")
+	f.shoot(t, "player-clips", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-clips") }))
+	f.shoot(t, "player-info", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-info") }))
+	f.shoot(t, "player-menu", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-mode") }))
+	f.shoot(t, "player-style", held(func(_ *app, tt *nsgotest.App) {
+		tt.Press("id:film-mode")
+		tt.Press("id:film-style")
 	}))
-	// Playing 3 seconds in, on the first line: with the pointer just moved the controls show, and once it has rested for idleAfter they fade, the subtitles moving down into their room.
-	playing := func(rest time.Duration) func(a *app, tt *ui.Tester, updates chan func()) {
-		return func(a *app, tt *ui.Tester, updates chan func()) {
-			screenshotOpen(t, a, tt, updates, "j1", 3*time.Second)
-			a.player.play.Toggle()
-			tt.Frame()
-			a.player.film.moved = tt.Now()
+	// Playing 3 seconds in, on the first line: with the pointer just moved the controls show, and once it has rested for the player's idle time they fade, the subtitles moving down into their room.
+	playing := func(rest time.Duration) func(a *app, tt *nsgotest.App, updates chan func()) {
+		return func(a *app, tt *nsgotest.App, updates chan func()) {
+			open(a, tt, updates, "j1", 3*time.Second)
+			tt.Key("space")
+			tt.HoverAt("id:film", ns.Point{X: 400, Y: 300})
+			tt.Progress("id:film-video", 3*time.Second, a.PlayLength())
+			refresh(tt, a)
 			tt.Advance(rest)
-			tt.Frame()
 			// Let the fade end.
-			for range 10 {
-				tt.Advance(50 * time.Millisecond)
-				tt.Frame()
-			}
+			tt.Advance(500 * time.Millisecond)
 		}
 	}
 	f.shoot(t, "player-playing", playing(0))
 	f.shoot(t, "player-idle", playing(3*time.Second))
 	// Playing with the subtitles dragged up a sixth of the picture, as off a film's own burned-in lines: they stay where they were let go as the controls fade.
-	f.shoot(t, "player-dragged", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "player-dragged", func(a *app, tt *nsgotest.App, updates chan func()) {
 		a.player.look.Lift = 1.0 / 6
 		playing(3*time.Second)(a, tt, updates)
 	})
 	// Playing with the sound muted by M: the speaker crossed out and the picture saying so.
-	f.shoot(t, "player-muted", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "player-muted", func(a *app, tt *nsgotest.App, updates chan func()) {
 		playing(0)(a, tt, updates)
-		tt.Key(0, ui.KeyM)
-		tt.Frame()
+		tt.Key("m")
 	})
-	f.shoot(t, "player-speed-menu", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "速度：1×") }))
+	f.shoot(t, "player-speed-menu", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-speed") }))
 	// Playing at 1.5×, two presses of ⇧. up from 1×: the speed button and the picture say so.
-	f.shoot(t, "player-speed", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "player-speed", func(a *app, tt *nsgotest.App, updates chan func()) {
 		playing(0)(a, tt, updates)
-		tt.Key(ui.Shift, ui.KeyPeriod)
-		tt.Key(ui.Shift, ui.KeyPeriod)
-		tt.Frame()
+		tt.Key("shift+.")
+		tt.Key("shift+.")
 	})
 	// A video no job has processed, from a library copied without its job records (sidecarLibrary), plays with the subtitles exported beside it.
-	f.shoot(t, "player-sidecar-subtitles", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "player-sidecar-subtitles", func(a *app, tt *nsgotest.App, updates chan func()) {
 		dir, video := f.sidecarLibrary(t)
 		f.showLibrary(t, a, tt, updates, dir)
-		screenshotOpen(t, a, tt, updates, video, protoCues[0].Start)
+		open(a, tt, updates, video, protoCues[0].Start)
 	})
 	// Playing with the line looped by L: the transport's loop toggle lit and the picture saying so.
-	f.shoot(t, "player-loop", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "player-loop", func(a *app, tt *nsgotest.App, updates chan func()) {
 		playing(0)(a, tt, updates)
-		tt.Key(0, ui.KeyL)
-		tt.Frame()
+		tt.Key("l")
 	})
-	f.shoot(t, "player-youtube", func(a *app, tt *ui.Tester, updates chan func()) {
-		a.page = pageYouTube
-		tt.Frame()
-		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
+	f.shoot(t, "player-youtube", func(a *app, tt *nsgotest.App, updates chan func()) {
+		apply(tt, a, func() { a.page = pageYouTube })
+		open(a, tt, updates, "j1", protoCues[1].Start)
 	})
-	// Off macOS the player names the system's file manager, here the Linux one, and the style view's font menu offers a sans-serif and a serif font, shown open.
-	usePlatform(t, breeze.Linux)
-	f.shoot(t, "player-info-linux", held(func(_ *app, tt *ui.Tester) { screenshotClick(t, tt, "信息") }))
-	f.shoot(t, "player-style-fonts-linux", held(func(_ *app, tt *ui.Tester) {
-		screenshotClick(t, tt, "字幕：双语")
-		screenshotClick(t, tt, "样式…")
-		screenshotClick(t, tt, "默认")
-	}))
-	breeze.SetPlatform(breeze.Auto)
-	// A right click on the second line of the subtitle list opens its menu, 拷贝台词, 拷贝原文 and 拷贝译文; the menu is the system's, which the tester lists (tt.Menu) rather than draws, so the picture shows the line under the pointer.
-	f.shoot(t, "player-line-menu", held(func(_ *app, tt *ui.Tester) {
-		if err := tt.RightClick(protoCues[1].Translation); err != nil {
-			t.Fatalf("%v; texts %q", err, tt.Texts())
+	// A right click on the second line of the subtitle list opens its menu, 拷贝台词, 拷贝原文 and 拷贝译文; the menu is the system's, which the tester lists (tt.PopupMenu) rather than draws, so the picture shows the line under the pointer.
+	f.shoot(t, "player-line-menu", held(func(_ *app, tt *nsgotest.App) {
+		tt.RightClick(whole(protoCues[1].Translation))
+		var got []string
+		for _, it := range tt.PopupMenu {
+			got = append(got, it.Label)
 		}
-		tt.Frame()
-		if got, want := tt.Menu(), []string{"拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(got, want) {
+		if want := []string{"拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(got, want) {
 			t.Fatalf("the line's menu is %q, want %q", got, want)
 		}
 	}))
 	// ⇧⌘C on the first line: the picture says the line was copied.
-	f.shoot(t, "player-line-copied", func(a *app, tt *ui.Tester, updates chan func()) {
-		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
-		tt.Key(ui.Cmd|ui.Shift, ui.KeyC)
-		tt.Frame()
-		if !tt.HasText("已拷贝") {
+	f.shoot(t, "player-line-copied", func(a *app, tt *nsgotest.App, updates chan func()) {
+		open(a, tt, updates, "j1", protoCues[0].Start)
+		tt.Key("mod+shift+c")
+		if !hasText(tt, "已拷贝") {
 			t.Fatalf("⇧⌘C did not say it copied: %q", tt.Texts())
 		}
 	})
-	// Without ffmpeg the film has no picture and no transport.
-	f.shoot(t, "player-no-picture", func(a *app, tt *ui.Tester, updates chan func()) {
-		a.pipeline = media.Tools{}
+	// A video the system's player cannot play, which the app cannot copy for it either: the stage says so, and the side panel lists the film's lines.
+	f.shoot(t, "player-no-picture", func(a *app, tt *nsgotest.App, updates chan func()) {
 		a.player.panel = false
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
+		apply(tt, a, func() { a.player.playErr = playerErrUnplayable })
 	})
+	// Off macOS the player names the system's file manager, here the Linux one, and the style view's font menu offers a sans-serif and a serif font, shown open.
+	usePlatform(t, ns.OSLinux)
+	f.shoot(t, "player-info-linux", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-info") }))
+	f.shoot(t, "player-style-fonts-linux", held(func(_ *app, tt *nsgotest.App) {
+		tt.Press("id:film-mode")
+		tt.Press("id:film-style")
+		tt.Press("id:film-style-font")
+	}))
+}
+
+// screenshotLoad has the system's player report the open film loaded, as a platform's does once it has opened the video, so the scene shows the film's transport as it plays.
+func screenshotLoad(tt *nsgotest.App, a *app) {
+	if a.player.play == nil || !tt.Exists("id:film-video") {
+		return
+	}
+	length := a.PlayLength()
+	if length <= 0 {
+		length = 5 * time.Minute
+	}
+	tt.Play("id:film-video", ns.VideoInfo{Duration: length, Size: ns.Size{Width: 1920, Height: 1080}})
+	refresh(tt, a)
 }

@@ -259,8 +259,12 @@ func (a *app) closeFilm() {
 	a.stopPlayback()
 }
 
-// escapeFilm closes what is open over the film, the style view, then leaves full screen, and else closes the film. The window does not leave full screen on Esc by itself, so without this Esc in full screen would close the film and leave the library filling the screen.
+// escapeFilm closes what is open over the film, the transport's menus, then the style view, then leaves full screen, and else closes the film. The window does not leave full screen on Esc by itself, so without this Esc in full screen would close the film and leave the library filling the screen.
 func (a *app) escapeFilm() {
+	if f := &a.player.film; f.modeMenu || f.speedMenu {
+		f.modeMenu, f.speedMenu = false, false
+		return
+	}
 	if a.player.film.styleView {
 		a.player.film.styleView = false
 		return

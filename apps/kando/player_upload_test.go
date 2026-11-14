@@ -30,7 +30,7 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	if err := os.WriteFile(srt, []byte("1\n00:00:01,000 --> 00:00:02,000\n你好。\nHello.\n\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{
 		ID: "job1", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete,
@@ -49,59 +49,44 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 		uploadedFiles <- append([]cloud.File(nil), files...)
 		return nil
 	}
-	tt.Frame()
-	if err := tt.Click("talk"); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
-	tt.Frame()
-	waitUntil(t, updates, func() bool { return a.player.subs.ready })
-	tt.Frame()
-	item, _ := films.Find(a.films(), a.openKey)
+	refresh(tt, a)
+	item, _ := films.Find(a.films(), "job1")
+	openFilm(t, a, tt, updates, item)
 	view := a.UploadView(item)
-	if !tt.HasText(view.Label) || view.Status != film.UploadBlocked || view.Fix != "去登录" || view.Enabled || view.Detail == "" || a.player.film.uploadNote {
-		t.Fatalf("upload %+v note %v texts %q", view, a.player.film.uploadNote, tt.Texts())
+	if got := tt.Find("id:film-upload").Props.Label; got != view.Label || view.Status != film.UploadBlocked || view.Fix != "去登录" || view.Enabled || view.Detail == "" || a.player.film.uploadNote {
+		t.Fatalf("upload %+v, button %q, note %v", view, got, a.player.film.uploadNote)
 	}
 	// The button stays clickable without an account, and opens a note on what is missing, with the way to fix it, instead of uploading.
-	if err := tt.Click(view.Label); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
-	tt.Frame()
-	if !a.player.film.uploadNote || !tt.HasText(view.Detail) || !tt.HasText(view.Fix) || a.cloud.uploadPath != "" {
+	tt.Press("id:film-upload")
+	if !a.player.film.uploadNote || !hasText(tt, view.Detail) || tt.Find("id:film-upload-fix").Props.Label != view.Fix || a.cloud.uploadPath != "" {
 		t.Fatalf("note %v upload %q texts %q", a.player.film.uploadNote, a.cloud.uploadPath, tt.Texts())
 	}
-	if err := tt.Click("关闭提示"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if a.player.film.uploadNote || tt.HasText(view.Fix) {
+	tt.Press("id:film-upload-close")
+	if a.player.film.uploadNote || tt.Exists("id:film-upload-capsule") {
 		t.Fatalf("note stayed: %q", tt.Texts())
 	}
-	a.cloud.googleEmail = "a@b.c"
-	a.cloud.r2Endpoint = "acct"
-	a.cloud.r2Bucket = "clips"
-	a.cloud.r2AccessKey = "key"
-	a.cloud.r2Secret = "secret-value"
-	tt.Frame()
+	apply(tt, a, func() {
+		a.cloud.googleEmail = "a@b.c"
+		a.cloud.r2Endpoint = "acct"
+		a.cloud.r2Bucket = "clips"
+		a.cloud.r2AccessKey = "key"
+		a.cloud.r2Secret = "secret-value"
+	})
 	view = a.UploadView(item)
 	if !view.Enabled || view.Status != "" || view.Fix != "" {
 		t.Fatalf("upload %+v", view)
 	}
-	if err := tt.Click(view.Label); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
+	tt.Press("id:film-upload")
 	got := takeUpload(t, uploadedFiles)
-	waitUntil(t, updates, func() bool { return a.cloud.uploaded[cloud.KindR2+"\n"+video] != "" })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.cloud.uploaded[cloud.KindR2+"\n"+video] != "" })
 	want := cloud.ObjectKey("a@b.c", sidebar.Title(dir), video)
 	if bucket != "clips" || len(got) != 2 || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
 		t.Fatalf("bucket %q keys %#v", bucket, keysOf(got))
 	}
 	view = a.UploadView(item)
-	if view.Status != film.UploadDone || !strings.Contains(view.Detail, want) || !tt.HasText(view.Detail) {
+	if view.Status != film.UploadDone || !strings.Contains(view.Detail, want) || !hasText(tt, view.Detail) {
 		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
-	if err := tt.Click(view.Label); err != nil {
-		t.Fatal(err)
-	}
+	tt.Press("id:film-upload")
 	takeUpload(t, uploadedFiles)
 }
