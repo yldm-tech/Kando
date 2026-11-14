@@ -5,27 +5,19 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/desktop"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
 
-	"github.com/egoist/mygo/plugins/glass"
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/base"
+	ns "github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // onPicture is the text over a poster or the hero, which are a picture or a dark color in either theme.
-var onPicture = ui.Hex("#FFFFFF")
-
-// frosted is the prototype's backdrop-filter glass: what is under the element blurred by blur DIPs, under tint.
-type frosted struct {
-	blur float32
-	tint ui.Color
-}
-
-func (f frosted) PaintMaterial(p *ui.Painter, box ui.Rect, radii [4]float32) {
-	glass.Blur{Radius: f.blur}.PaintMaterial(p, box, radii)
-	p.Fill(box, f.tint, radii[0])
-}
+var onPicture = ns.RGB(0xFFFFFF)
 
 // HeroFilm is the film the hero shows: the newest one a job finished. items is newest first, as the shelf lists them.
 func HeroFilm(items []Film) (Film, bool) {
@@ -49,110 +41,154 @@ func resumeFrom(a App, item Film) (time.Duration, bool) {
 	return at, true
 }
 
+// heroShade is the dark gradient over the hero's poster, from its left, under the text.
+var heroShade = ns.Gradient{Kind: ns.GradientLinear, Angle: 90, Stops: []ns.ColorStop{
+	{Color: ns.RGBA(0x000000, 0.62), At: ns.Pct(0)},
+	{Color: ns.RGBA(0x000000, 0.35), At: ns.Pct(42)},
+	{Color: ns.RGBA(0x000000, 0), At: ns.Pct(70)},
+}}
+
 // hero is the large card of the film finished last: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does.
-func hero(c *ui.Context, a App, item Film) {
-	box := ui.ButtonBase(c).Label(filmName(item)).Description(locales.FilmsHeroKicker()).Height(360).Radius(18).Clip().Background(posterColor(item.Key)).Shadow(0, 12, 32, 0, ui.RGBA(0, 0, 0, 0.16)).ContextMenu(filmMenu(a, item, breeze.PlatformOf(c)))
-	if box.Clicked() {
-		a.Open(item)
-	}
-	box.Children(func() {
-		if img := a.Poster(item.VideoPath); img != nil {
-			ui.Image(c, img).Absolute().Top(0).Left(0).WidthPercent(100).HeightPercent(100).Fit(ui.Cover)
-		}
-		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).PassThrough().LinearGradient(ui.LinearGradient{Angle: 90, Stops: []ui.GradientStop{
-			{Color: ui.RGBA(0, 0, 0, 0.62), At: 0},
-			{Color: ui.RGBA(0, 0, 0, 0.35), At: 0.42},
-			{Color: ui.RGBA(0, 0, 0, 0), At: 0.7},
-		}})
-		// Its lines are as high as the prototype's, which the browser gives the fonts, so the text block rises from the bottom as far as it does there.
-		ui.Column(c).Absolute().Left(36).Right(36).Bottom(34).MaxWidth(520).Gap(10).Children(func() {
-			kicker := locales.FilmsHeroKicker()
-			if item.Language != "" {
-				kicker = locales.FilmsHeroKickerBilingual(LanguageName(item.Language))
-			}
-			ui.Text(c, kicker).FontSize(11).FixedLineHeight(16).Bold().LetterSpacing(1.2).TextColor(onPicture.Alpha(0.85))
-			ui.Text(c, filmName(item)).FontSize(34).Bold().FixedLineHeight(40).LetterSpacing(-0.4).TextColor(onPicture).MaxLines(2)
-			ui.Text(c, heroMeta(a, item)).FontSize(13).FixedLineHeight(16).TextColor(onPicture.Alpha(0.85))
-			if translation, original := a.Quote(item); translation != "" || original != "" {
-				ui.Column(c).AlignSelf(ui.Start).Gap(2).Padding(10, 14).Radius(12).Material(frosted{14, ui.RGBA(0, 0, 0, 0.28)}).Border(0.5, onPicture.Alpha(0.18)).Children(func() {
-					if translation != "" {
-						ui.Text(c, "“"+translation+"”").FontSize(15).FixedLineHeight(21).FontWeight(600).TextColor(onPicture).MaxLines(2)
-					}
-					if original != "" {
-						ui.Text(c, original).FontSize(12).FixedLineHeight(15).TextColor(onPicture).MaxLines(2)
-					}
-				})
-			}
-			ui.Row(c).Gap(10).Margin(6, 0, 0, 0).Wrap().Children(func() {
-				at, resume := resumeFrom(a, item)
-				c.Key("hero-play")
-				label := locales.FilmsPlay()
-				if resume {
-					label = locales.FilmsHeroResume(Clock(at))
-				}
-				if heroButton(c, label, true).Clicked() {
-					a.OpenAt(item, at)
-				}
-				c.Key("hero-alt")
-				if resume {
-					if heroButton(c, locales.FilmsHeroFromStart(), false).Clicked() {
-						a.OpenAt(item, 0)
-					}
-				} else if heroButton(c, locales.FilmsShowInFinder(breeze.PlatformOf(c).String()), false).Clicked() {
-					a.Reveal(item.VideoPath)
-				}
-			})
-		})
-	})
+type hero struct {
+	a    App
+	item func() Film
 }
 
-// heroMeta is the line under the hero's title: where the film comes from, how long it is, the subtitle file it has and how many of its lines are untranslated.
-func heroMeta(a App, item Film) string {
-	parts := []string{SourceLabel(item)}
+// heroQuote is the hero's bilingual line: the translation over the original, both empty until the subtitles have been read.
+type heroQuote struct{ translation, original string }
+
+// Render implements core.Node.
+func (h hero) Render(cx *ns.Scope) ns.Node {
+	a, item := h.a, h.item
+	quote := live.Memo(cx, a, func() heroQuote {
+		translation, original := a.Quote(item())
+		return heroQuote{translation, original}
+	})
+	kicker := func() string {
+		if language := item().Language; language != "" {
+			return locales.FilmsHeroKickerBilingual(cx, LanguageName(locales.For(cx), language))
+		}
+		return locales.FilmsHeroKicker(cx)
+	}
+	quoteBox := ns.Show{When: func() bool { q := quote(); return q.translation != "" || q.original != "" }, Then: func(*ns.Scope) ns.Node {
+		return ns.View{Style: ns.Style{AlignSelf: ns.AlignStart, Gap: 2, Padding: ns.Symmetric(10, 14), CornerRadius: 12, BorderWidth: 0.5, BorderColor: onPicture.Faded(0.18)}.Merge(frosted(14, ns.RGBA(0x000000, 0.28))),
+			Children: []ns.Node{
+				ns.Show{When: func() bool { return quote().translation != "" }, Then: func(*ns.Scope) ns.Node {
+					return ns.Text{ContentFunc: func() string { return "“" + quote().translation + "”" }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail,
+						Style: ns.Style{FontSize: 15, LineHeight: 21, FontWeight: ui.Semibold, Color: onPicture}}
+				}},
+				ns.Show{When: func() bool { return quote().original != "" }, Then: func(*ns.Scope) ns.Node {
+					return ns.Text{ContentFunc: func() string { return quote().original }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail,
+						Style: ns.Style{FontSize: 12, LineHeight: 15, Color: onPicture}}
+				}},
+			}}
+	}}
+	resume := live.Memo(cx, a, func() time.Duration {
+		at, _ := resumeFrom(a, item())
+		return at
+	})
+	play := heroButton{main: true, testID: "hero-play",
+		label: func() string {
+			if at := resume(); at > 0 {
+				return locales.FilmsHeroResume(cx, Clock(at))
+			}
+			return locales.FilmsPlay(cx)
+		},
+		press: live.Do(a, func() { a.OpenAt(item(), resume()) })}
+	// The second button starts the film over while it can resume, and else shows it in the file manager.
+	alt := heroButton{testID: "hero-alt",
+		label: func() string {
+			if resume() > 0 {
+				return locales.FilmsHeroFromStart(cx)
+			}
+			return locales.FilmsShowInFinder(cx, desktop.Platform(cx))
+		},
+		press: live.Do(a, func() {
+			if resume() > 0 {
+				a.OpenAt(item(), 0)
+				return
+			}
+			a.Reveal(item().VideoPath)
+		})}
+	// Its lines are as high as the prototype's, which the browser gives the fonts, so the text block rises from the bottom as far as it does there.
+	text := ns.View{PointerEvents: ns.PointerEventsBoxNone, Style: ns.Style{Position: ns.Absolute, Left: ns.Pt(36), Right: ns.Pt(36), Bottom: ns.Pt(34), MaxWidth: ns.Pt(520), Gap: 10}, Children: []ns.Node{
+		ns.Text{ContentFunc: kicker, Style: ns.Style{FontSize: 11, LineHeight: 16, FontWeight: ui.Bold, LetterSpacing: 1.2, Color: onPicture.Faded(0.85)}},
+		heading(2, ns.Text{ContentFunc: func() string { return filmName(item()) }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail,
+			Style: ns.Style{FontSize: 34, FontWeight: ui.Bold, LineHeight: 40, LetterSpacing: -0.4, Color: onPicture}}),
+		ns.Text{ContentFunc: live.Func(a, func() string { return heroMeta(locales.For(cx), a, item()) }), Style: ns.Style{FontSize: 13, LineHeight: 16, Color: onPicture.Faded(0.85)}},
+		quoteBox,
+		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 10, Wrap: ns.Wrap, Margin: ns.Edges{Top: 6}}, Children: []ns.Node{play, alt}},
+	}}
+	// TODO(nsgo): give base.Button a HintFunc twin, so the hero's hint follows the interface language as it changes; it is read once, as the hero is built
+	box := base.Button{
+		TestID:    "films-hero",
+		LabelFunc: func() string { return filmName(item()) },
+		Hint:      locales.FilmsHeroKicker(cx),
+		OnPress:   live.On(a, func(ns.PressEvent) { a.Open(item()) }),
+		Style: ns.Style{Height: ns.Pt(360), CornerRadius: 18, Overflow: ns.Hidden, Cursor: ns.CursorDefault,
+			Shadows: []ns.BoxShadow{{Offset: ns.Point{Y: 12}, Blur: 32, Color: ns.RGBA(0x000000, 0.16)}}},
+		StyleFunc: func() ns.Style { return ns.Style{Background: posterColor(item().Key)} },
+		Children: []ns.Node{
+			cover(live.Func(a, func() ns.ImageSource { return a.Poster(item().VideoPath) })),
+			ns.View{PointerEvents: ns.PointerEventsNone, Style: overlay.Merge(ns.Style{Gradients: []ns.Gradient{heroShade}})},
+			text,
+		},
+	}
+	return ns.View{
+		OnContextMenu: func(e ns.ContextMenuEvent) { nsdesktop.PopupMenu(cx, filmMenu(cx, a, item()), e.PagePosition, nil) },
+		Children:      []ns.Node{box},
+	}
+}
+
+// heroMeta is the line under the hero's title, in the language of m: where the film comes from, how long it is, the subtitle file it has and how many of its lines are untranslated.
+func heroMeta(m locales.Messages, a App, item Film) string {
+	parts := []string{SourceLabel(m, item)}
 	if d := a.Duration(item.VideoPath); d > 0 {
 		parts = append(parts, Clock(d))
 	}
 	if item.SubtitlePath != "" {
-		parts = append(parts, locales.FilmsHeroExported(filepath.Base(item.SubtitlePath)))
+		parts = append(parts, m.FilmsHeroExported(filepath.Base(item.SubtitlePath)))
 	}
-	if note := untranslatedNote(item); note != "" {
+	if note := untranslatedNote(m, item); note != "" {
 		parts = append(parts, note)
 	}
 	return strings.Join(parts, " · ")
 }
 
-// heroButton is one of the hero's pill buttons: white with a play glyph for the main one, frosted for the other.
-func heroButton(c *ui.Context, label string, main bool) ui.Element {
-	b := ui.ButtonBase(c).Label(label).Height(34).Radius(17).Gap(8).Shrink(0)
-	fill, ink := onPicture.Alpha(0.2), onPicture
-	if main {
-		fill, ink = onPicture, ui.Hex("#111114")
-		b.Padding(0, 18, 0, 14)
+// The hero's main button is white with dark ink; the other is frosted, its rim a light hairline.
+var (
+	heroMainInk = ns.RGB(0x111114)
+	heroShadow  = ns.RGB(0x000000)
+)
+
+// heroButton is one of the hero's pill buttons, 34 points high: white with a play glyph for the main one, frosted for the other, a shade darker under the pointer and pressed.
+type heroButton struct {
+	main   bool
+	testID string
+	label  func() string
+	press  func()
+}
+
+// Render implements core.Node.
+func (b heroButton) Render(*ns.Scope) ns.Node {
+	fill, ink := onPicture.Faded(0.2), onPicture
+	weight := ui.Medium
+	shape := ns.Style{Direction: ns.Row, Height: ns.Pt(34), CornerRadius: 17, Gap: 8, FlexShrink: 0, AlignItems: ns.AlignCenter, Cursor: ns.CursorDefault}
+	var children []ns.Node
+	if b.main {
+		fill, ink, weight = onPicture, heroMainInk, ui.Semibold
+		shape.Padding = ns.Edges{Left: 14, Right: 18}
+		children = append(children, ns.Icon{SVG: playIcon, Style: ns.Style{Width: ns.Pt(12), Height: ns.Pt(13), Color: ink}})
 	} else {
-		b.Padding(0, 16).Border(0.5, onPicture.Alpha(0.35))
+		shape.Padding = ns.Symmetric(0, 16)
+		shape.BorderWidth, shape.BorderColor = 0.5, onPicture.Faded(0.35)
+		shape = shape.Merge(frosted(16, ns.Color(0)))
 	}
-	switch {
-	case b.Pressed():
-		fill = fill.Mix(ui.Hex("#000000"), 0.12)
-	case b.Hovered():
-		fill = fill.Mix(ui.Hex("#000000"), 0.05)
-	}
-	if main {
-		b.Background(fill)
-	} else {
-		b.Material(frosted{16, fill})
-	}
-	b.Children(func() {
-		if main {
-			ui.Icon(c, playIcon).Size(12, 13).TextColor(ink)
-		}
-		weight := 500
-		if main {
-			weight = 600
-		}
-		ui.Text(c, label).FontSize(14).FontWeight(weight).TextColor(ink)
-	})
-	return b
+	children = append(children, ns.Text{ContentFunc: b.label, MaxLines: 1, Style: ns.Style{FontSize: 14, FontWeight: weight, Color: ink}})
+	shape.Background = fill
+	shape.Hover = &ns.Style{Background: ui.Mix(fill, heroShadow, 0.05)}
+	shape.Active = &ns.Style{Background: ui.Mix(fill, heroShadow, 0.12)}
+	return base.Button{TestID: b.testID, LabelFunc: b.label, OnPress: func(ns.PressEvent) { b.press() }, Style: shape, Children: children}
 }
 
 // filmName is the film's full name, or its short title when it has none.

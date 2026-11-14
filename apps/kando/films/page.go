@@ -1,26 +1,29 @@
 package films
 
 import (
+	"slices"
 	"strings"
 	"time"
 
+	"kando/apps/kando/desktop"
+	"kando/apps/kando/live"
 	"kando/apps/kando/sidebar"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/i18n"
 )
 
 // App is the shelf the films page reads and the clicks it reports.
 type App interface {
+	live.State
 	LibraryDir() string
 	MakingLibrary() bool
 	SaveErr() string
 	Page() string
-	OpenKey() string
-	SetOpenKey(string)
+	// Films is the open library's films, the shelf's order (List): the jobs that belong on it, then the videos found in its folder.
+	Films() []Film
 	// Source is the link being typed into the top bar.
 	Source() *string
-	PlaybackOpen() bool
-	StopPlayback()
 	PickLibrary()
 	// OpenSites opens the 支持的网站 sheet.
 	OpenSites()
@@ -30,6 +33,8 @@ type App interface {
 	LibraryPlace() string
 	PickLibraryParent()
 	CreateLibrary()
+	// NewLibraryName is the name typed into the new-library sheet; BindName edits it, and reports why it cannot.
+	NewLibraryName() string
 	BindName(edit func(*string) bool) error
 	// NewLibraryPath is where the new-library sheet would create the library, or why it cannot.
 	NewLibraryPath() (string, error)
@@ -37,13 +42,14 @@ type App interface {
 	Start()
 	// PickVideos asks for local videos and adds them to the queue.
 	PickVideos()
-	// PickVideosShortcut is the shortcut bound to PickVideos, which the tooltip of 本地视频 writes as the platform does (⌘O on macOS, Ctrl+O elsewhere).
-	PickVideosShortcut() (ui.Modifiers, ui.Key)
+	// PickVideosShortcut is the shortcut bound to PickVideos, in NSGo's form ("mod+o"), which the tooltip of 本地视频 writes as the platform does (⌘O on macOS, Ctrl+O elsewhere).
+	PickVideosShortcut() string
 	// DropFiles adds the videos among files dropped on the page to the queue.
 	DropFiles(paths []string)
-	Poster(path string) ui.ImageSource
-	// Thumbnail is the picture the film's site gives it, once it has been fetched, or nil.
-	Thumbnail(item Film) ui.ImageSource
+	// Poster is the cover of the video at path, the zero ImageSource until there is one.
+	Poster(path string) core.ImageSource
+	// Thumbnail is the picture the film's site gives it, once it has been fetched, or the zero ImageSource.
+	Thumbnail(item Film) core.ImageSource
 	// Duration is how long the video at path plays, 0 until it is known.
 	Duration(path string) time.Duration
 	// Quote is the first bilingual line of a film's subtitles, for the hero: the translation and the original. Both are empty until the subtitles have been read.
@@ -93,21 +99,23 @@ type App interface {
 	SetLibrarySort(order string)
 	// AskRemove asks to confirm moving a film's folder to the Trash.
 	AskRemove(item Film)
-	// Removing is the film AskRemove asked about, whether its confirmation is open, and whether its whole folder goes to the Trash rather than only its video and subtitles.
+	// Removing is the film AskRemove asked about, whether its confirmation is open, and whether its whole folder goes to the Trash rather than only its video and subtitles. CloseRemove closes the confirmation without moving anything.
 	Removing() (open *bool, item Film, folder bool)
+	CloseRemove()
 	// TrashFilm moves a film's folder to the Trash and takes it off the shelf.
 	TrashFilm(item Film)
 	// AskRename opens the dialog that gives a film the title Kando shows for it.
 	AskRename(item Film)
-	// Renaming is whether the rename dialog is open, the title typed into it, and the title the film has without one given in Kando, which an empty field gives it back.
+	// Renaming is whether the rename dialog is open, the title typed into it, and the title the film has without one given in Kando, which an empty field gives it back. CloseRename closes it and keeps the title as it was.
 	Renaming() (open *bool, name *string, original string)
+	CloseRename()
 	// RenameFilm gives the film AskRename asked about the title typed into the dialog, and closes it. It never renames a file.
 	RenameFilm()
 }
 
 // Notice is the message bar under the top bar: why a link or a file was not added, or that it was.
 type Notice struct {
-	// Kind is "warning" or "success", as breeze.InfoBar takes it.
+	// Kind is "warning" or "success".
 	Kind string
 	Text string
 	// Section is the settings section 打开设置 opens; empty shows no button.
@@ -119,67 +127,87 @@ type Notice struct {
 
 // The library's content, as the prototype lays it out: inset PagePadX from the content column's sides, starting contentTop down, under the top bar that it scrolls beneath, with pagePadBottom under its last part.
 const (
-	PagePadX      float32 = 24
-	contentTop    float32 = 64
-	pagePadBottom float32 = 32
+	PagePadX      core.Points = 24
+	contentTop    core.Points = 64
+	pagePadBottom core.Points = 32
 )
 
-// Show draws the library page, or the open film over it. showFilm draws the open film; the page stays here so the shelf does not import the player.
-func Show(c *ui.Context, t *ui.Theme, a App, items []Film, showFilm func(*ui.Context, *ui.Theme, Film)) {
-	if key := a.OpenKey(); key != "" {
-		if item, ok := Find(items, key); ok {
-			showFilm(c, t, item)
-			return
-		}
-		if item, ok := a.JobFilm(key); ok {
-			showFilm(c, t, item)
-			return
-		}
-		a.SetOpenKey("")
+// View is the library page: the message bar, the shelf, the top bar over them and the dialogs of the library. The film open over it is the main package's (libraryColumn), so the shelf does not import the player.
+type View struct{ App App }
+
+// Render implements core.Node.
+func (v View) Render(cx *core.Scope) core.Node {
+	a := v.App
+	// dragging is set while files are dragged over the page, which shows the drop zone over it.
+	dragging := core.NewSignal(cx, false)
+	source := live.Memo(cx, a, func() string { return pageSource(a) })
+	// The page is one scroll view from the content column's top, as the prototype's is: the top bar lies over it, and what is under the bar scrolls beneath it and fades into it.
+	content := core.Scroll{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
+		core.View{Style: core.Style{Width: core.Pct(100), Padding: core.Edges{Top: contentTop, Right: PagePadX, Bottom: pagePadBottom, Left: PagePadX}}, Children: []core.Node{
+			notice{a},
+			core.Show{
+				When: live.Func(a, func() bool { return a.LibraryDir() == "" }),
+				Then: func(*core.Scope) core.Node { return noLibrary{a} },
+				Else: func(*core.Scope) core.Node { return shelf{a: a, source: source} },
+			},
+		}},
+	}}
+	return core.View{
+		TestID: "films-page",
+		Style:  core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		// The page takes the files dropped on it, as the innermost view that takes drops; the main column takes those dropped elsewhere in the window.
+		OnFileDragEnter: func() { dragging.Set(true) },
+		OnFileDragLeave: func() { dragging.Set(false) },
+		OnFileDrop: live.On(a, func(uris []string) {
+			dragging.Set(false)
+			if paths := desktop.DroppedPaths(uris); len(paths) > 0 {
+				a.DropFiles(paths)
+			}
+		}),
+		Children: []core.Node{
+			content,
+			topBar{a: a, source: source},
+			core.Show{When: dragging.Get, Then: func(*core.Scope) core.Node { return dropZone{} }},
+			newLibrary{a},
+			removeDialog{a},
+			renameDialog{a},
+		},
 	}
-	if a.OpenKey() == "" && a.PlaybackOpen() {
-		a.StopPlayback()
-	}
-	source := a.SourceFilter()
-	if a.Page() == sidebar.PageYouTube {
-		source = sidebar.SourceYouTube
-	}
-	page := ui.Column(c).Grow(1).MinHeight(0).AlignItems(ui.Stretch)
-	if files := page.DroppedFiles(); len(files) > 0 {
-		a.DropFiles(files)
-	}
-	dragging := page.FileDragOver()
-	page.Children(func() {
-		// The page is one scroll view from the content column's top, as the prototype's is: the top bar lies over it, and what is under the bar scrolls beneath it and fades into it.
-		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
-			ui.Column(c).WidthPercent(100).Padding(contentTop, PagePadX, pagePadBottom, PagePadX).Children(func() {
-				notice(c, a)
-				if a.LibraryDir() == "" {
-					noLibrary(c, a)
-				} else {
-					shelf(c, t, a, items, source)
-				}
-			})
-		})
-		topBar(c, t, a, source)
-		if dragging {
-			dropZone(c, t)
-		}
-	})
-	newLibrary(c, t, a)
-	removeDialog(c, a)
-	renameDialog(c, a)
 }
 
-// shelf is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out; 处理中 shows every job still, so none seems to vanish while a search is on.
-func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
-	queue := BySource(a.QueueFilms(), source)
+// pageSource is the sidebar source the page shows: YouTube's page shows YouTube's films, the library page the source the sidebar chose.
+func pageSource(a App) string {
+	if a.Page() == sidebar.PageYouTube {
+		return sidebar.SourceYouTube
+	}
+	return a.SourceFilter()
+}
+
+// shelfModel is what the shelf shows under the message bar, worked out from the app at once so its parts follow one state: the films of 处理中 in QueueOrder, the hero's film, the done grid's films in its order, and which of the empty pages shows.
+type shelfModel struct {
+	queue []Film
+	hero  Film
+	// heroShown is whether the hero shows, hero being its film.
+	heroShown bool
+	done      []Film
+	// empty is the page of a library that holds no film yet; emptySource that of a source no film comes from; query the search no done film matched, "" when it matched one or there is none.
+	empty, emptySource bool
+	noMatch            string
+}
+
+func (m shelfModel) equal(o shelfModel) bool {
+	return slices.Equal(m.queue, o.queue) && m.hero == o.hero && m.heroShown == o.heroShown && slices.Equal(m.done, o.done) &&
+		m.empty == o.empty && m.emptySource == o.emptySource && m.noMatch == o.noMatch
+}
+
+// newShelfModel is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out; 处理中 shows every job still, so none seems to vanish while a search is on. tag is the interface's language, which orders the grid by title.
+func newShelfModel(a App, source, tag string) shelfModel {
+	items := a.Films()
+	var m shelfModel
+	m.queue = QueueOrder(BySource(a.QueueFilms(), source))
 	if len(items) == 0 {
-		if len(queue) > 0 {
-			queueSection(c, t, a, QueueOrder(queue))
-		}
-		emptyLibrary(c, a)
-		return
+		m.empty = true
+		return m
 	}
 	var done []Film
 	for _, item := range BySource(items, source) {
@@ -187,24 +215,46 @@ func shelf(c *ui.Context, t *ui.Theme, a App, items []Film, source string) {
 			done = append(done, item)
 		}
 	}
-	if len(queue) == 0 && len(done) == 0 {
-		emptySource(c, t)
-		return
+	if len(m.queue) == 0 && len(done) == 0 {
+		m.emptySource = true
+		return m
 	}
 	query := strings.TrimSpace(*a.Query())
 	if query == "" && source == sidebar.SourceAll {
-		if item, ok := HeroFilm(done); ok {
-			hero(c, a, item)
-		}
-	}
-	if len(queue) > 0 {
-		queueSection(c, t, a, QueueOrder(queue))
+		m.hero, m.heroShown = HeroFilm(done)
 	}
 	done = ByTitle(done, query)
-	switch {
-	case len(done) > 0:
-		grid(c, t, a, Sorted(done, a.LibrarySort()), source)
-	case query != "":
-		noMatch(c, a, query)
+	m.done = Sorted(done, a.LibrarySort(), tag)
+	if len(done) == 0 && query != "" {
+		m.noMatch = query
+	}
+	return m
+}
+
+// shelf is the part of the page under the message bar while a library is open.
+type shelf struct {
+	a      App
+	source func() string
+}
+
+// Render implements core.Node.
+func (s shelf) Render(cx *core.Scope) core.Node {
+	a := s.a
+	model := core.NewMemoFunc(cx, live.Func(a, func() shelfModel { return newShelfModel(a, s.source(), i18n.Language(cx)) }), shelfModel.equal).Get
+	return core.Group{
+		core.Show{When: func() bool { return model().heroShown }, Then: func(*core.Scope) core.Node {
+			return hero{a: a, item: func() Film { return model().hero }}
+		}},
+		core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
+			return queueSection{a: a, queue: func() []Film { return model().queue }}
+		}},
+		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
+		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},
+		core.Show{When: func() bool { return len(model().done) > 0 }, Then: func(*core.Scope) core.Node {
+			return grid{a: a, source: s.source, done: func() []Film { return model().done }}
+		}},
+		core.Show{When: func() bool { return model().noMatch != "" }, Then: func(*core.Scope) core.Node {
+			return noMatch{a: a, query: func() string { return model().noMatch }}
+		}},
 	}
 }

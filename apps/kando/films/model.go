@@ -10,14 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/films/sitename"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // Film is one card on the shelf or the film open on the player page.
@@ -177,9 +176,9 @@ func Find(items []Film, key string) (Film, bool) {
 	return Film{}, false
 }
 
-func DisplayPath(path string) string {
+func DisplayPath(m locales.Messages, path string) string {
 	if path == "" {
-		return locales.FilmsPathNotSet()
+		return m.FilmsPathNotSet()
 	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
@@ -196,7 +195,7 @@ func DisplayPath(path string) string {
 }
 
 // LibraryLabels names each library by its title, or by its path where two share a title: the library drop-down of Settings › 通用, and File › 切换资料库 and the Dock menu of the menu bar.
-func LibraryLabels(dirs []string) []string {
+func LibraryLabels(m locales.Messages, dirs []string) []string {
 	count := map[string]int{}
 	for _, dir := range dirs {
 		count[sidebar.Title(dir)]++
@@ -205,7 +204,7 @@ func LibraryLabels(dirs []string) []string {
 	for i, dir := range dirs {
 		labels[i] = sidebar.Title(dir)
 		if count[labels[i]] > 1 {
-			labels[i] = DisplayPath(dir)
+			labels[i] = DisplayPath(m, dir)
 		}
 	}
 	return labels
@@ -219,22 +218,22 @@ func Shorten(s string, n int) string {
 	return string(r[:n-1]) + "…"
 }
 
-func StageLabel(stage core.Stage) string {
+func StageLabel(m locales.Messages, stage core.Stage) string {
 	switch stage {
 	case core.StageQueued:
-		return locales.FilmsStageQueued()
+		return m.FilmsStageQueued()
 	case core.StageDownloading:
-		return locales.FilmsStageDownloading()
+		return m.FilmsStageDownloading()
 	case core.StageTranscribing:
-		return locales.FilmsStageTranscribing()
+		return m.FilmsStageTranscribing()
 	case core.StageTranslating:
-		return locales.FilmsStageTranslating()
+		return m.FilmsStageTranslating()
 	case core.StageExporting:
-		return locales.FilmsStageExporting()
+		return m.FilmsStageExporting()
 	case core.StageComplete:
-		return locales.FilmsStageComplete()
+		return m.FilmsStageComplete()
 	case core.StageFailed:
-		return locales.FilmsStageFailed()
+		return m.FilmsStageFailed()
 	default:
 		return string(stage)
 	}
@@ -242,26 +241,26 @@ func StageLabel(stage core.Stage) string {
 
 // The done grid and the processing queue are grids of cards that keep a minimum width and fill the row, as the prototype's CSS grids (auto-fill, minmax) do.
 const (
-	CardMinWidth  float32 = 230
-	CardGapX      float32 = 20
-	CardGapY      float32 = 26
-	QueueMinWidth float32 = 320
-	QueueGap      float32 = 12
+	CardMinWidth  ns.Points = 230
+	CardGapX      ns.Points = 20
+	CardGapY      ns.Points = 26
+	QueueMinWidth ns.Points = 320
+	QueueGap      ns.Points = 12
 	// QueueShown is how many processing cards show before 显示全部.
 	QueueShown = 6
 )
 
 // Columns is how many posters fit across the window: the sidebar and page padding stay fixed, and each poster keeps its minimum width.
-func Columns(windowWidth float32) int {
+func Columns(windowWidth ns.Points) int {
 	return columnsIn(ContentWidth(windowWidth), CardMinWidth, CardGapX)
 }
 
 // QueueColumns is how many processing cards fit across the window.
-func QueueColumns(windowWidth float32) int {
+func QueueColumns(windowWidth ns.Points) int {
 	return columnsIn(ContentWidth(windowWidth), QueueMinWidth, QueueGap)
 }
 
-func columnsIn(content, min, gap float32) int {
+func columnsIn(content, min, gap ns.Points) int {
 	n := int((content + gap) / (min + gap))
 	if n < 1 {
 		return 1
@@ -270,7 +269,7 @@ func columnsIn(content, min, gap float32) int {
 }
 
 // ContentWidth is the main column inside the page padding.
-func ContentWidth(windowWidth float32) float32 {
+func ContentWidth(windowWidth ns.Points) ns.Points {
 	w := windowWidth - sidebar.Width - PagePadX*2
 	if w < 1 {
 		return 1
@@ -311,7 +310,7 @@ func QueueOrder(items []Film) []Film {
 }
 
 // QueueSummary is the line beside 处理中, such as "1 个进行中 · 2 个需要处理".
-func QueueSummary(items []Film) string {
+func QueueSummary(m locales.Messages, items []Film) string {
 	active, failed := 0, 0
 	for _, item := range items {
 		if item.Stage == core.StageFailed {
@@ -322,10 +321,10 @@ func QueueSummary(items []Film) string {
 	}
 	var parts []string
 	if active > 0 {
-		parts = append(parts, locales.FilmsQueueActive(active))
+		parts = append(parts, m.FilmsQueueActive(active))
 	}
 	if failed > 0 {
-		parts = append(parts, locales.FilmsQueueFailed(failed))
+		parts = append(parts, m.FilmsQueueFailed(failed))
 	}
 	return strings.Join(parts, " · ")
 }
@@ -361,43 +360,43 @@ func StepFills(item Film) []float64 {
 }
 
 // SourceLabel names where a film comes from: YouTube, 哔哩哔哩, the site's name, or 本地文件.
-func SourceLabel(item Film) string {
+func SourceLabel(m locales.Messages, item Film) string {
 	link, ok := core.ParseLink(item.Source)
 	if !ok {
-		return locales.SourceLocal()
+		return m.SourceLocal()
 	}
-	return PlatformLabel(link)
+	return PlatformLabel(m, link)
 }
 
 // PlatformLabel names the platform of a link as the library shows it.
-func PlatformLabel(link core.Link) string {
+func PlatformLabel(m locales.Messages, link core.Link) string {
 	switch link.Platform {
 	case core.PlatformYouTube:
 		return "YouTube"
 	case core.PlatformBilibili:
-		return locales.SourceBilibili()
+		return m.SourceBilibili()
 	case core.PlatformLocal:
-		return locales.SourceLocal()
+		return m.SourceLocal()
 	}
-	if name := sitename.Of(link.Site); name != "" {
+	if name := sitename.In(m, link.Site); name != "" {
 		return name
 	}
 	return link.Host
 }
 
 // LanguageShort is a short tag for a subtitle language, such as 简中 for 简体中文, for the badge on a poster. language is the target language a job keeps, as settings.json and library.json store it.
-func LanguageShort(language string) string {
+func LanguageShort(m locales.Messages, language string) string {
 	switch language {
 	case "简体中文":
-		return locales.FilmsLanguageTagSimplifiedChinese()
+		return m.FilmsLanguageTagSimplifiedChinese()
 	case "繁体中文":
-		return locales.FilmsLanguageTagTraditionalChinese()
+		return m.FilmsLanguageTagTraditionalChinese()
 	case "English":
 		return "EN"
 	case "日本語":
-		return locales.FilmsLanguageTagJapanese()
+		return m.FilmsLanguageTagJapanese()
 	case "한국어":
-		return locales.FilmsLanguageTagKorean()
+		return m.FilmsLanguageTagKorean()
 	case "Español":
 		return "ES"
 	case "Français":
@@ -408,8 +407,28 @@ func LanguageShort(language string) string {
 	return language
 }
 
-// LanguageName names a subtitle language in the interface's language (subtitle.TargetLanguageName). language is the target language a job keeps, as settings.json and library.json store it.
-func LanguageName(language string) string { return subtitle.TargetLanguageName(language) }
+// LanguageName names a subtitle language in the language of m, as the settings and the player name it (subtitle.TargetLanguageName): Simplified Chinese and Japanese in English. language is the target language a job keeps, as settings.json and library.json store it; one typed into an older version is shown as it is.
+func LanguageName(m locales.Messages, language string) string {
+	switch language {
+	case "简体中文":
+		return m.SettingsLanguageSimplifiedChinese()
+	case "繁体中文":
+		return m.SettingsLanguageTraditionalChinese()
+	case "English":
+		return m.SettingsLanguageEnglish()
+	case "日本語":
+		return m.SettingsLanguageJapanese()
+	case "한국어":
+		return m.SettingsLanguageKorean()
+	case "Español":
+		return m.SettingsLanguageSpanish()
+	case "Français":
+		return m.SettingsLanguageFrench()
+	case "Deutsch":
+		return m.SettingsLanguageGerman()
+	}
+	return language
+}
 
 // Clock writes a duration as a player shows it: 3:05, or 1:02:03 past an hour.
 func Clock(d time.Duration) string {
@@ -423,8 +442,8 @@ func Clock(d time.Duration) string {
 	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
-func posterColor(key string) ui.Color {
-	colors := []ui.Color{ui.Hex("#3a2c1e"), ui.Hex("#243044"), ui.Hex("#1e3330"), ui.Hex("#3a2430")}
+func posterColor(key string) ns.Color {
+	colors := []ns.Color{ns.RGB(0x3a2c1e), ns.RGB(0x243044), ns.RGB(0x1e3330), ns.RGB(0x3a2430)}
 	n := 0
 	for _, r := range key {
 		n += int(r)
