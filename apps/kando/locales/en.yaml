@@ -1,0 +1,3255 @@
+appName:
+  message: "Kando"
+  description: "The app's name in this language, which its packages show: the menu bar, the Dock, Finder and the Start menu."
+accountCOSAccessHint:
+  message: "Enter the SecretId."
+  description: "Hint under the Tencent Cloud COS Access Key field: Tencent calls it SecretId."
+accountCOSBucketHint:
+  message: "Include the APPID, for example video-1250000000."
+  description: "Hint under the Tencent Cloud COS Bucket field."
+accountCOSRegionHint:
+  message: "For example, ap-guangzhou."
+  description: "Hint under the Tencent Cloud COS Region field."
+accountCOSSecretHint:
+  message: "Enter the SecretKey."
+  description: "Hint under the Tencent Cloud COS Secret field: Tencent calls it SecretKey."
+accountCompatEndpointHint:
+  message: "The full https address."
+  description: "Hint under the S3-compatible storage's Endpoint field."
+accountCompatRegionHint:
+  message: "The region name used for signing. For MinIO, usually us-east-1."
+  description: "Hint under the S3-compatible storage's Region field."
+accountFixSettings:
+  message: "Open Settings"
+  description: "Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage."
+accountFixSignIn:
+  message: "Sign In"
+  description: "Button in the player's upload capsule opening Settings › Account & Upload to sign in."
+accountGoogleFailed:
+  message: "Google sign-in didn't finish"
+  description: "Error under the account card when the Google sign-in failed or was cancelled."
+accountNeedsSignIn:
+  message: "Sign in to Google in Settings › Account & Upload first"
+  description: "Why the player cannot upload: no Google account is signed in. Names the settings page."
+accountNeedsStore:
+  message: "Fill in {store} in Settings › Account & Upload first"
+  description: "Why the player cannot upload: the chosen storage is not filled in. Names the settings page."
+  placeholders:
+    store: { type: "String", example: "R2" }
+accountNoClientNote:
+  message: "Needs the environment variable KANDO_GOOGLE_CLIENT_ID; without it, the sign-in button is unavailable. The Client ID is not written to the settings file."
+  description: "Note under the account card when the Google client ID is not set in the environment."
+accountOSSRegionHint:
+  message: "For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."
+  description: "Hint under the Alibaba Cloud OSS Region field."
+accountPathStyle:
+  message: "Path Style"
+  description: "Switch of the S3-compatible storage: address the bucket in the path instead of the host name."
+accountPathStyleHint:
+  message: "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."
+  description: "Hint under the path style switch: which services need it."
+accountR2EndpointHint:
+  message: "Enter the Account ID, or the full https address."
+  description: "Hint under the Cloudflare R2 Endpoint field."
+accountS3RegionHint:
+  message: "For example, ap-northeast-1."
+  description: "Hint under the Amazon S3 Region field."
+accountSaveFailed:
+  message: "The account couldn't be saved"
+  description: "Error under the account card when the settings file could not be written."
+accountSectionAccount:
+  message: "Account"
+  description: "Heading of the Google account card on the Account & Upload settings page."
+accountSectionStorage:
+  message: "Object Storage"
+  description: "Heading of the object storage card on the Account & Upload settings page."
+accountSignIn:
+  message: "Sign In with Google"
+  description: "Button signing in with Google in the browser."
+accountSignInNote:
+  message: "Signing in only marks who uploaded. The refresh token is kept in the settings file on this computer."
+  description: "Note under the account card: what signing in is for and where the token is kept."
+accountSignOut:
+  message: "Sign Out"
+  description: "Button signing out of the Google account."
+accountSignedInWith:
+  message: "Signed in with Google"
+  description: "The account row's subtitle under the signed-in email."
+accountSignedOut:
+  message: "Not Signed In"
+  description: "The account row's title while no Google account is signed in."
+accountSignedOutHint:
+  message: "Sign in to upload films."
+  description: "The account row's subtitle while no Google account is signed in."
+accountSigningIn:
+  message: "Signing In…"
+  description: "The sign-in button's title while the browser sign-in runs."
+accountStorageKind:
+  message: "Type"
+  description: "Row and drop-down choosing the kind of object storage."
+accountStoreCOS:
+  message: "Tencent Cloud COS"
+  description: "Tencent Cloud's object storage in the storage drop-down."
+accountStoreCompat:
+  message: "S3 Compatible"
+  description: "Any S3-compatible object storage, such as MinIO, in the storage drop-down, on the upload button and in the message asking to fill it in."
+accountStoreOSS:
+  message: "Alibaba Cloud OSS"
+  description: "Alibaba Cloud's object storage in the storage drop-down."
+accountUploadCanceled:
+  message: "Upload canceled"
+  description: "The player's upload capsule after the upload was canceled with its Cancel button."
+accountUploadFailed:
+  message: "Upload failed"
+  description: "Upload error whose cause is hidden because it would show a key."
+accountUploadFailedBecause:
+  message: "Upload failed: {error}"
+  description: "Upload error with the storage's error message."
+  placeholders:
+    error: { type: "String", example: "status 403" }
+accountUploadNote:
+  message: "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer."
+  description: "Note under the object storage card: uploads are by hand, and where the keys are kept."
+accountUploadTo:
+  message: "Upload to {store}"
+  description: "The player's upload button, naming the storage (R2, S3, OSS, COS or S3 Compatible)."
+  placeholders:
+    store: { type: "String", example: "R2" }
+accountUploadUnsaved:
+  message: "The film was uploaded, but couldn't be marked as uploaded: {error}"
+  description: "Error in the sidebar when a film was uploaded but settings.json, which remembers uploaded films across restarts, could not be written."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+accountUploaded:
+  message: "Uploaded {key}"
+  description: "The player's upload capsule once the film was uploaded, with the object's key in the bucket."
+  placeholders:
+    key: { type: "String", example: "a@b.c/Movies/Learn Rust/video.mp4" }
+accountUploading:
+  message: "Uploading"
+  description: "The player's upload capsule while the upload starts, before its size is known."
+accountUploadingOther:
+  message: "Uploading another film"
+  description: "The player's upload capsule while another film is uploading."
+accountUploadingPercent:
+  message: "Uploading {percent}%"
+  description: "The player's upload capsule while uploading, with how much is done."
+  placeholders:
+    percent: { type: "int", example: "42" }
+accountVideoMissing:
+  message: "The video file isn't on this computer"
+  description: "Upload error when the film's video file is not on disk."
+appSettings:
+  message: "Settings…"
+  description: "App menu item and shortcut row (⌘,) that opens Settings."
+browseAdded:
+  message: "Added to the library. Processing started."
+  description: "Message bar of the Browse page after Download Video added the page to the library's queue."
+browseAddressLabel:
+  message: "Address"
+  description: "Accessible name of the Browse page's address field."
+browseAddressPlaceholder:
+  message: "Enter a URL or search"
+  description: "Placeholder of the Browse page's address field: a web address or words to search for."
+browseBack:
+  message: "Back"
+  description: "Browse page toolbar button and menu item (⌘[) going back to the previous web page."
+browseCancel:
+  message: "Cancel"
+  description: "Button of the Clear Sign-in Data confirmation that keeps the data."
+browseClearConfirm:
+  message: "Clear"
+  description: "Destructive button of the Clear Sign-in Data confirmation."
+browseClearData:
+  message: "Clear Sign-in Data…"
+  description: "Button at the foot of the Browse page's empty state, and menu item, that asks to sign out of every site signed in to in Browse."
+browseClearFailed:
+  message: "Couldn't clear sign-in data: {error}"
+  description: "Message bar of the Browse page when clearing the pages' cookies and storage failed; error is the system's reason."
+  placeholders:
+    error: { type: "String", example: "The operation couldn't be completed." }
+browseClearMessage:
+  message: "You'll be signed out of every site you signed in to here, and what those pages stored, such as their settings and caches, is removed too."
+  description: "Message of the Clear Sign-in Data confirmation."
+browseClearTitle:
+  message: "Clear sign-in data?"
+  description: "Title of the confirmation before clearing the Browse page's cookies and storage."
+browseCleared:
+  message: "Sign-in data cleared."
+  description: "Message bar of the Browse page once its cookies and storage were cleared."
+browseDownload:
+  message: "Download Video"
+  description: "Button at the end of the Browse page's toolbar that adds the page shown to the library's queue."
+browseDownloadTooltip:
+  message: "Add this page's video to the library"
+  description: "Tooltip of the Browse page's Download Video button."
+browseEmptyDescription:
+  message: "Enter a URL or search in the address bar above, then click Download Video at the top right. Sites you sign in to here stay signed in when you download."
+  description: "Description of the Browse page before a web page is open."
+browseEmptyTitle:
+  message: "Open a page with a video"
+  description: "Title of the Browse page before a web page is open."
+browseForward:
+  message: "Forward"
+  description: "Browse page toolbar button and menu item (⌘]) going forward to the next web page."
+browseHome:
+  message: "Home"
+  description: "Browse page toolbar button that closes the web page and shows the start of the Browse page."
+browseLoadFailed:
+  message: "Couldn't open the page: {error}"
+  description: "Message bar of the Browse page when a web page failed to load; error is the web engine's reason."
+  placeholders:
+    error: { type: "String", example: "A server with the specified hostname could not be found." }
+browseOpenLocation:
+  message: "Open Location…"
+  description: "Menu item and shortcut row (⌘L) that puts the keyboard in the Browse page's address field."
+browseOpenSettings:
+  message: "Open Settings"
+  description: "Button in the Browse page's message bar opening the settings that fix what it says."
+browseReload:
+  message: "Reload Page"
+  description: "Browse page toolbar button and menu item (⌘R) loading the web page again."
+browseStop:
+  message: "Stop Loading"
+  description: "Browse page toolbar button, in place of Reload while a web page loads, that stops loading it."
+cheatsheetClose:
+  message: "Close"
+  description: "Accessible name of the cheat sheet's close button."
+cheatsheetHint:
+  message: "Single keys work only while no text field has focus"
+  description: "Note next to the cheat sheet's title: shortcuts without a modifier key do nothing while a text field is being typed in."
+cheatsheetMenuItem:
+  message: "Shortcut Cheat Sheet"
+  description: "Help menu item and shortcut row (⌘/) that opens the list of keyboard shortcuts."
+cheatsheetPalette:
+  message: "Ask This Film / Commands"
+  description: "Cheat sheet line, under Window, for ⌘K, the command palette that also answers questions about the film."
+cheatsheetPlayPause:
+  message: "Play / Pause"
+  description: "Cheat sheet line for the Space key in the player."
+cheatsheetPrevNextLine:
+  message: "Previous / Next Line"
+  description: "Cheat sheet line, under Playback, for the A and D keys that move to the previous or the next subtitle line."
+cheatsheetSearchLines:
+  message: "Search Lines"
+  description: "Cheat sheet line, under Subtitles, for ⌘F, which searches the film's lines."
+cheatsheetSettings:
+  message: "Settings"
+  description: "Cheat sheet line, under Window, for ⌘, which opens Settings."
+cheatsheetSidebar:
+  message: "Sidebar"
+  description: "Cheat sheet line, under Subtitles, for the key that shows or hides the player's sidebar of lines."
+cheatsheetSkip30:
+  message: "Back / Forward 30 Seconds"
+  description: "Cheat sheet line for ⌘← and ⌘→ in the player."
+cheatsheetSkip5:
+  message: "Back / Forward 5 Seconds"
+  description: "Cheat sheet line for the ← and → keys in the player."
+cheatsheetSpeed:
+  message: "Slower / Faster"
+  description: "Cheat sheet line for the ⇧, and ⇧. keys in the player, which play the film slower or faster."
+cheatsheetSubtitlesDelay:
+  message: "Subtitle Delay −/+ 0.1 s"
+  description: "Cheat sheet line, under Subtitles, for the Z and X keys that move the subtitles 0.1 second earlier or later."
+cheatsheetSubtitlesMode:
+  message: "Switch Display Mode"
+  description: "Cheat sheet line, under Subtitles, for the key that cycles bilingual, translation only and original only."
+cheatsheetSubtitlesShowHide:
+  message: "Show / Hide"
+  description: "Cheat sheet line, under Subtitles, for the key that shows or hides the subtitles."
+cheatsheetTitle:
+  message: "Keyboard Shortcuts"
+  description: "Title of the shortcut cheat sheet."
+cheatsheetVolume:
+  message: "Volume Up / Down"
+  description: "Cheat sheet line for the ↑ and ↓ keys in the player."
+cloudSignedIn:
+  message: "Signed in. You can close this page."
+  description: "The browser page Google's sign-in returns to, once the app has the sign-in."
+cloudSignedInTitle:
+  message: "Kando"
+  description: "Title of the browser page Google's sign-in returns to, the app's name."
+feedbackAttachEnv:
+  message: "App and System Versions"
+  description: "Check box attaching the app's and the system's versions."
+feedbackAttachFilm:
+  message: "Current Film's Processing Status"
+  description: "Check box attaching the state of the film open in the player."
+feedbackAttachSubs:
+  message: "Subtitle Original and Translation"
+  description: "Check box attaching the subtitle line at the playhead, its original and its translation."
+feedbackAttachTools:
+  message: "Components and Models"
+  description: "Check box attaching the versions of yt-dlp, ffmpeg and whisper-cli and the models in use."
+feedbackAttachments:
+  message: "Attached Information"
+  description: "Heading over the check boxes choosing what the app attaches to the issue."
+feedbackBrowserFailed:
+  message: "Couldn't open the browser: {error}. Use “Copy Text” to copy the issue and paste it at github.com/{repo}/issues/new."
+  description: "Error in the feedback dialog when the browser could not be opened, with the way to file the issue by hand."
+  placeholders:
+    error: { type: "String", example: "exec: \"open\": executable file not found" }
+    repo: { type: "String", example: "yldm-tech/Kando" }
+feedbackCancel:
+  message: "Cancel"
+  description: "Button closing the feedback dialog."
+feedbackCopied:
+  message: "Copied"
+  description: "The copy button's title once it copied the body, until the body changes."
+feedbackCopy:
+  message: "Copy Text"
+  description: "Button copying the issue's whole body to the clipboard."
+feedbackDescriptionHint:
+  message: "What you did, what you expected to see, what you saw"
+  description: "Placeholder of the description field when reporting a problem."
+feedbackDescriptionHintIdea:
+  message: "What feature you'd like, and when you'd use it"
+  description: "Placeholder of the description field when suggesting a feature."
+feedbackDescriptionHintSubs:
+  message: "Which line, what's wrong, and what you think it should be"
+  description: "Placeholder of the description field when reporting subtitle quality."
+feedbackEnvDetail:
+  message: "Kando {version} · {system}"
+  description: "Detail under the app and system versions check box."
+  placeholders:
+    version: { type: "String", example: "0.1.0" }
+    system: { type: "String", example: "macOS 27.2 (arm64)" }
+feedbackFieldDescription:
+  message: "Description"
+  description: "Label of the feedback dialog's description field."
+feedbackFieldTitle:
+  message: "Title"
+  description: "Label of the feedback dialog's title field."
+feedbackFilmDetail:
+  message: "Source, progress and errors, without file paths or links"
+  description: "Detail under the current film check box while a film is open."
+feedbackFilmNone:
+  message: "Not in the player, so there's no film to attach"
+  description: "Detail under the current film check box, which cannot be ticked, while no film is open in the player."
+feedbackIntro:
+  message: "Opens GitHub's new issue page in your browser with everything filled in, for you to check and submit. Issues are public."
+  description: "Line under the feedback dialog's title: what the dialog does."
+feedbackKindBug:
+  message: "Problem"
+  description: "Segment of the feedback dialog: the feedback reports a problem."
+feedbackKindIdea:
+  message: "Suggestion"
+  description: "Segment of the feedback dialog: the feedback suggests a feature."
+feedbackKindSubs:
+  message: "Subtitle Quality"
+  description: "Segment of the feedback dialog: the feedback is about the quality of a film's subtitles."
+feedbackKindsLabel:
+  message: "Feedback type"
+  description: "Accessible name of the segmented control choosing what the feedback is about."
+feedbackMenuFilmSubs:
+  message: "Send Feedback on This Film's Subtitles…"
+  description: "Help menu item that opens the feedback dialog on the subtitles of the film open in the player."
+feedbackMenuReport:
+  message: "Send Feedback…"
+  description: "Help menu item that opens the feedback dialog, which opens a GitHub issue."
+feedbackMenuSubs:
+  message: "Send Subtitle Feedback…"
+  description: "Help menu item that opens the feedback dialog on subtitle quality, while no film is open."
+feedbackNoSpeechModel:
+  message: "No model chosen"
+  description: "Stands for the speech model in the components detail when none is chosen."
+feedbackOpen:
+  message: "Open in GitHub"
+  description: "Button opening the prefilled new-issue page in the browser."
+feedbackPreview:
+  message: "Issue Preview"
+  description: "Heading over the preview of the GitHub issue."
+feedbackPreviewLabel:
+  message: "Label: {label}"
+  description: "Second line of the issue preview: the repository's label the link fills in, such as bug or enhancement."
+  placeholders:
+    label: { type: "String", example: "bug" }
+feedbackPreviewTitle:
+  message: "Title: {title}"
+  description: "First line of the issue preview: the title the link fills in."
+  placeholders:
+    title: { type: "String", example: "Subtitles are a second late" }
+feedbackPreviewUntitled:
+  message: "(empty)"
+  description: "What the issue preview shows for the title while the title field is empty."
+feedbackSubsDetail:
+  message: "Goes public on GitHub; only the line at the playhead ({time}) is attached"
+  description: "Detail under the subtitle check box: the line goes to a public issue, and when it starts."
+  placeholders:
+    time: { type: "String", example: "0:12.5" }
+feedbackSubsNone:
+  message: "Open a film with subtitles to attach this"
+  description: "Detail under the subtitle check box, which cannot be ticked, while no film with subtitles is open."
+feedbackTitle:
+  message: "Send Feedback"
+  description: "Title of the feedback dialog."
+feedbackTitleHint:
+  message: "Describe the problem in one sentence"
+  description: "Placeholder of the title field when reporting a problem or subtitle quality."
+feedbackTitleHintIdea:
+  message: "Say what you'd like in one sentence"
+  description: "Placeholder of the title field when suggesting a feature."
+feedbackToolMissing:
+  message: "{name} not installed"
+  description: "A tool in the components detail that is not installed."
+  placeholders:
+    name: { type: "String", example: "whisper-cli" }
+feedbackToolNoVersion:
+  message: "{name} version unknown"
+  description: "A tool in the components detail that did not say its version."
+  placeholders:
+    name: { type: "String", example: "ffmpeg" }
+feedbackToolsDetail:
+  message: "{tools}; transcription {speech} · translation {translator} (no keys)"
+  description: "Detail under the components and models check box: the tools' versions, the speech model and the translation service, never its key."
+  placeholders:
+    tools: { type: "String", example: "yt-dlp 2026.09.14 · ffmpeg 7.1 · whisper-cli not installed" }
+    speech: { type: "String", example: "ggml-base.bin" }
+    translator: { type: "String", example: "EveryAPI · claude-haiku-5-5" }
+feedbackTruncated:
+  message: "The text is too long, so the link leaves out its last {count, plural, one {# character} other {# characters}}. Use “Copy Text” to copy all of it and paste it over the text on the GitHub page."
+  description: "Warning under the issue preview when the body was cut to fit the link's length."
+  placeholders:
+    count: { type: "int", example: "120" }
+filmAll:
+  message: "All"
+  description: "Chip over the subtitle list, followed by how many lines it holds."
+filmBackToLibrary:
+  message: "Back to Library"
+  description: "The player's back button, and the shortcut row of Escape: closes the film and goes back to the library."
+filmBytes:
+  message: "{count, plural, one {# byte} other {# bytes}}"
+  description: "A file's size under 1 KB."
+  placeholders:
+    count: { type: "int", example: "512" }
+filmCancel:
+  message: "Cancel"
+  description: "Player title bar button: cancels this film's running job."
+filmClickToJump:
+  message: "Click a line to jump to it"
+  description: "Hint under the subtitle list."
+filmClip:
+  message: "Clip {number}"
+  description: "Accessible name of a clip in the Clips tab."
+  placeholders:
+    number: { type: "int", example: "3" }
+filmClipSpan:
+  message: "Clip {number} · {start}–{end}"
+  description: "Heading of a clip in the Clips tab: its number and the times it starts and ends."
+  placeholders:
+    number: { type: "int", example: "3" }
+    start: { type: "String", example: "1:00" }
+    end: { type: "String", example: "1:30" }
+filmClipsNote:
+  message: "Subtitles are split evenly by time into 4–12 clips of about 30 seconds each."
+  description: "Line over the Clips tab's list: how the film is cut."
+filmColorOrange:
+  message: "Orange"
+  description: "A subtitle line's color."
+filmColorWhite:
+  message: "White"
+  description: "A subtitle line's color."
+filmColorYellow:
+  message: "Yellow"
+  description: "A subtitle line's color."
+filmCopy:
+  message: "Copy"
+  description: "Button copying a link or path to the clipboard."
+filmCopyLine:
+  message: "Copy Line"
+  description: "Item of a subtitle line's context menu in the side panel: copies the line, the translation over the original as the list shows them."
+filmCopyOriginal:
+  message: "Copy Original"
+  description: "Item of a subtitle line's context menu in the side panel: copies only the original line."
+filmCopyTranslation:
+  message: "Copy Translation"
+  description: "Item of a subtitle line's context menu in the side panel: copies only the translated line."
+filmDelay:
+  message: "Subtitle Delay"
+  description: "Row and stepper that shift the subtitles against the picture."
+filmDismiss:
+  message: "Close Message"
+  description: "Close button of the upload notice over the picture."
+filmFaceBold:
+  message: "Bold {line}"
+  description: "Accessible name of a line's bold toggle."
+  placeholders:
+    line: { type: "String", example: "Translation" }
+filmFaceColor:
+  message: "{line}: {color}"
+  description: "Accessible name of a line's color swatch."
+  placeholders:
+    line: { type: "String", example: "Translation" }
+    color: { type: "String", example: "White" }
+filmFaceSize:
+  message: "{line} Size"
+  description: "Accessible name of a line's size slider."
+  placeholders:
+    line: { type: "String", example: "Translation" }
+filmFeedbackSubtitles:
+  message: "Send Feedback on This Film's Subtitles…"
+  description: "Item of the player's ⋯ menu that opens the feedback dialog about this film's subtitles."
+filmFiles:
+  message: "Files"
+  description: "Heading in the Info tab over the files in the film's folder."
+filmFolder:
+  message: "Film Folder"
+  description: "Heading in the Info tab over the film's folder."
+filmFontDefault:
+  message: "Default"
+  description: "Subtitle font: the system's default font."
+filmFontHiragino:
+  message: "Hiragino Sans GB"
+  description: "Subtitle font: Hiragino Sans GB."
+filmFontPingFang:
+  message: "PingFang SC"
+  description: "Subtitle font: PingFang SC."
+filmFontSans:
+  message: "Sans Serif"
+  description: "Subtitle font off macOS: the system's sans-serif Chinese font (Microsoft YaHei, Noto Sans CJK)."
+filmFontSerif:
+  message: "Serif"
+  description: "Subtitle font off macOS: the system's serif Chinese font (SimSun, Noto Serif CJK)."
+filmFullScreen:
+  message: "Full Screen"
+  description: "Full screen button, and its shortcut row."
+filmHideSidebar:
+  message: "Hide Sidebar"
+  description: "Button at the player's top right that folds the side panel away."
+filmJobRecord:
+  message: "Job record"
+  description: "Label in the Info tab over the path of the library file that records the jobs."
+filmKeySpace:
+  message: "Space"
+  description: "Name of the space bar, after Play or Pause in their tooltips."
+filmKindBilingual:
+  message: "Bilingual subtitles"
+  description: "What a file in the film's folder is: the bilingual subtitle file."
+filmKindCover:
+  message: "Cover"
+  description: "What a file in the film's folder is: the cover image."
+filmKindOriginal:
+  message: "Original subtitles"
+  description: "What a file in the film's folder is: a subtitle file in the original language."
+filmKindVideo:
+  message: "Video"
+  description: "What a file in the film's folder is: the video."
+filmLineOf:
+  message: "Line {line} of {total}"
+  description: "Message on the picture after moving to a subtitle line: its number, counting from 1, and how many lines the film has."
+  placeholders:
+    line: { type: "int", example: "12" }
+    total: { type: "int", example: "340" }
+filmLineOriginal:
+  message: "Original"
+  description: "Heading of the style view's group for the original line."
+filmLineTranslation:
+  message: "Translation"
+  description: "Heading of the style view's group for the translated line."
+filmLoadingSubtitles:
+  message: "Loading subtitles…"
+  description: "Shown in the side panel while the subtitle file is read."
+filmLocalFile:
+  message: "Local file"
+  description: "The Info tab's source of a film opened from a file on this Mac."
+filmLocalVideo:
+  message: "Local Video"
+  description: "Chip in the Info tab of a local video no job has processed."
+filmLoopLine:
+  message: "Loop Line"
+  description: "Accessible name and tooltip of the transport's toggle that plays the subtitle line playing over and over (its shortcut follows the tooltip)."
+filmLoopOff:
+  message: "Loop Line: Off"
+  description: "Message on the picture after the line loop was turned off."
+filmLoopOn:
+  message: "Loop Line: On"
+  description: "Message on the picture after the line loop was turned on."
+filmModeBilingual:
+  message: "Bilingual"
+  description: "Subtitle mode: the translation and the original both show."
+filmModeHeading:
+  message: "Display"
+  description: "Heading of the subtitle mode menu, over the modes."
+filmModeOff:
+  message: "Off"
+  description: "Subtitle mode: no subtitles on the picture. On the player's mode button, its menu, the style view and the on-screen message."
+filmModeOffNote:
+  message: "Hides only the subtitles"
+  description: "Line under the Off row of the subtitle mode menu: it hides the subtitles on the picture and nothing else."
+filmModeOriginal:
+  message: "Original Only"
+  description: "Subtitle mode: only the original line shows."
+filmModeTranslation:
+  message: "Translation Only"
+  description: "Subtitle mode: only the translated line shows."
+filmModeTranslationNote:
+  message: "Shows the original, dimmed, until the translation is ready"
+  description: "Line under the Translation Only row of the subtitle mode menu."
+filmMoreActions:
+  message: "More Actions"
+  description: "Accessible name of the player's ⋯ menu button."
+filmMute:
+  message: "Mute"
+  description: "Speaker button that mutes the film."
+filmNoClipsYet:
+  message: "No subtitles to split into clips yet."
+  description: "Shown in the Clips tab when there are no subtitles to cut the film by."
+filmNoEarlierLine:
+  message: "No Earlier Line"
+  description: "Message on the picture when Previous Line is used before the film's first subtitle line."
+filmNoLaterLine:
+  message: "No Later Line"
+  description: "Message on the picture when Next Line is used after the film's last subtitle line has started."
+filmNoLines:
+  message: "No Subtitle Lines Yet"
+  description: "Message on the picture when a line command (previous, next, replay, loop) is used on a film whose subtitles have no lines or have not loaded."
+filmNoMatch:
+  message: "No matching subtitles."
+  description: "Shown when the subtitle search finds nothing."
+filmNoSubtitlesYet:
+  message: "No subtitles yet. They'll appear here once processing finishes."
+  description: "Shown in the subtitle list of a film not processed yet."
+filmOpen:
+  message: "Open"
+  description: "Button showing the library file in Finder."
+filmOpening:
+  message: "Opening"
+  description: "Name of the disabled play button while the video opens."
+filmOpeningVideo:
+  message: "Opening video…"
+  description: "Shown in the middle of the picture while the video opens."
+filmOrderOriginalFirst:
+  message: "Original on Top"
+  description: "Bilingual order: the original over the translation."
+filmOrderTranslationFirst:
+  message: "Translation on Top"
+  description: "Bilingual order: the translation over the original."
+filmPause:
+  message: "Pause"
+  description: "Pause button."
+filmPicture:
+  message: "Picture"
+  description: "Accessible name of the video picture."
+filmPlay:
+  message: "Play"
+  description: "Play button."
+filmPlaybackPosition:
+  message: "Playback position"
+  description: "Accessible name of the scrubber."
+filmPositionBottom:
+  message: "Bottom"
+  description: "Subtitle position: at the bottom of the picture."
+filmPositionHigh:
+  message: "Higher"
+  description: "Subtitle position: about a third of the way up the picture."
+filmPresetBox:
+  message: "Box"
+  description: "Subtitle style preset: text on a dark box."
+filmPresetLarge:
+  message: "Large"
+  description: "Subtitle style preset: larger outlined text."
+filmPresetOutline:
+  message: "Outline"
+  description: "Subtitle style preset: outlined text."
+filmPresetSample:
+  message: "Aa"
+  description: "Short sample text drawn on each preset card as the preset draws subtitles; keep it to two or three characters."
+filmRemove:
+  message: "Remove"
+  description: "Player title bar button: removes this failed film from the library."
+filmReprocess:
+  message: "Process Entire Film Again"
+  description: "Item of the player's ⋯ menu that processes a finished film again from the start."
+filmRetry:
+  message: "Retry"
+  description: "Player title bar button: runs this failed film's job again."
+filmReveal:
+  message: "Show"
+  description: "Button on a file of the Info tab that shows it in Finder."
+filmSearchLines:
+  message: "Search Lines"
+  description: "Search field over the subtitle list (its placeholder is followed by its shortcut)."
+filmSeconds:
+  message: "{seconds} s"
+  description: "A signed number of seconds, already written with one decimal or a sign, as the subtitle delay and the skip messages show it."
+  placeholders:
+    seconds: { type: "String", example: "+0.3" }
+filmShowInFinder:
+  message: "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
+  description: "Button that shows the film's file or folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+filmShowSidebar:
+  message: "Show Sidebar"
+  description: "Button at the player's top right that brings back the side panel (subtitles, clips, info)."
+filmSidebar:
+  message: "Sidebar"
+  description: "The player's side panel: its accessible name, and the transport button that shows or hides it."
+filmSizeUnknown:
+  message: "Size unknown"
+  description: "A file's size while it is not known yet."
+filmSkipBack:
+  message: "Back {seconds, plural, one {# Second} other {# Seconds}}"
+  description: "Button and shortcut row moving the picture back."
+  placeholders:
+    seconds: { type: "int", example: "5" }
+filmSkipForward:
+  message: "Forward {seconds, plural, one {# Second} other {# Seconds}}"
+  description: "Button and shortcut row moving the picture forward."
+  placeholders:
+    seconds: { type: "int", example: "5" }
+filmSource:
+  message: "Source"
+  description: "Heading in the Info tab over where the film came from."
+filmSpeed:
+  message: "Speed"
+  description: "Heading of the player's speed menu, and the tooltip of the button that opens it."
+filmSpeedLabel:
+  message: "Speed: {rate}"
+  description: "Accessible name of the player's speed button: the speed the film plays at."
+  placeholders:
+    rate: { type: "String", example: "1.5×" }
+filmSpeedNormal:
+  message: "Normal"
+  description: "Note beside 1× in the player's speed menu: the film plays as recorded."
+filmSpeedRate:
+  message: "{rate}×"
+  description: "A playback speed, as on the player's speed button and in its menu: the speed as a multiple of normal."
+  placeholders:
+    rate: { type: "String", example: "1.5" }
+filmStartProcessing:
+  message: "Start Processing"
+  description: "Player title bar button: starts the job that downloads, transcribes and translates this film."
+filmStatusTranslated:
+  message: "{percent}% translated"
+  description: "Line under the film's title in the player: how much of its subtitles is translated."
+  placeholders:
+    percent: { type: "int", example: "94" }
+filmStyleColor:
+  message: "Color"
+  description: "Style view row setting a line's color and weight."
+filmStyleFont:
+  message: "Font"
+  description: "Style view row choosing the subtitle font."
+filmStyleMenuItem:
+  message: "Style…"
+  description: "Last row of the subtitle mode menu: opens the subtitle style in the side panel."
+filmStyleOrder:
+  message: "Bilingual Order"
+  description: "Style view row choosing which line of a bilingual subtitle goes on top."
+filmStylePlayback:
+  message: "Playback"
+  description: "Heading of the style view's first group: which lines show and the delay."
+filmStylePosition:
+  message: "Position"
+  description: "Style view row choosing how high the subtitles sit."
+filmStylePresets:
+  message: "Presets"
+  description: "Accessible name of the style view's row of presets."
+filmStyleReset:
+  message: "Restore Default Style"
+  description: "Button in the style view that puts the subtitle look back to the default."
+filmStyleShow:
+  message: "Show Subtitles"
+  description: "Style view row choosing the subtitle mode."
+filmStyleSize:
+  message: "Size"
+  description: "Style view row setting a line's font size."
+filmSubtitles:
+  message: "Subtitles"
+  description: "The side panel's subtitle tab, and the tooltip of the subtitle mode button (followed by its keys)."
+filmSubtitlesEmpty:
+  message: "These subtitles are empty."
+  description: "Shown in the subtitle list when the subtitle file has no lines."
+filmSubtitlesMode:
+  message: "Subtitles: {mode}"
+  description: "Accessible name of the player's subtitle mode button, and the on-screen message after the mode changed."
+  placeholders:
+    mode: { type: "String", example: "Bilingual" }
+filmTabClips:
+  message: "Clips"
+  description: "Side panel tab listing the film cut into clips of equal time."
+filmTabInfo:
+  message: "Info"
+  description: "Side panel tab with the film's folder, files and source."
+filmTabStyle:
+  message: "Style"
+  description: "Side panel tab with the subtitle style."
+filmTranslateAgain:
+  message: "Translate Again"
+  description: "Item of the player's ⋯ menu that translates a finished film's subtitles again into the target language set now, without downloading or transcribing it again."
+filmTranslateMissing:
+  message: "Translate Missing Lines"
+  description: "Item of the player's ⋯ menu, shown when some lines failed to translate: translates only those lines."
+filmUnmute:
+  message: "Unmute"
+  description: "Speaker button that unmutes the film."
+filmUnprocessed:
+  message: "Not Processed"
+  description: "Chip in the Info tab of a film no job has processed."
+filmUploadCancel:
+  message: "Cancel"
+  description: "Button in the player's upload capsule that stops the upload running now."
+filmVolume:
+  message: "Volume"
+  description: "Accessible name of the volume slider."
+filmsCancel:
+  message: "Cancel"
+  description: "Button that closes a sheet or dialog without doing anything."
+filmsChange:
+  message: "Change…"
+  description: "Button that opens a folder dialog to choose where the new library goes."
+filmsCloseNotice:
+  message: "Close Message"
+  description: "Accessible name of the × on the message bar."
+filmsCreate:
+  message: "Create"
+  description: "Button that creates the new library."
+filmsDropHint:
+  message: "Local files skip the download and go straight to subtitles"
+  description: "Line under the drop title: what happens to a dropped local video."
+filmsDropTitle:
+  message: "Drop to Add Local Videos"
+  description: "Shown over the library while video files are dragged over the window."
+filmsEmptyDescription:
+  message: "Paste a link from YouTube, Bilibili or another site above, or drag a video file into the window. Kando downloads the video, recognizes the speech and makes bilingual subtitles."
+  description: "How to add a first film, on the page of an empty library. The link field is above it."
+filmsEmptyTitle:
+  message: "Start with a Video"
+  description: "Title of the page of a library that holds no film yet."
+filmsGridCount:
+  message: "{count, plural, one {# film} other {# films}}"
+  description: "Dimmed note beside the grid's heading: how many films it holds."
+  placeholders:
+    count: { type: "int", example: "12" }
+filmsGridTitle:
+  message: "Films"
+  description: "Heading of the grid of finished films when the sidebar shows one source."
+filmsHeroExported:
+  message: "Exported {file}"
+  description: "Part of the line under the large card's title: the subtitle file that was written."
+  placeholders:
+    file: { type: "String", example: "video.bilingual.srt" }
+filmsHeroFromStart:
+  message: "Play from Beginning"
+  description: "Second button of the large card when the film was stopped partway: play from the beginning."
+filmsHeroKicker:
+  message: "Recently Finished"
+  description: "Small label over the title of the large card of the film finished last."
+filmsHeroKickerBilingual:
+  message: "Recently Finished · {language} Bilingual"
+  description: "Small label over the title of the large card of the film finished last, with the language its subtitles were translated into."
+  placeholders:
+    language: { type: "String", example: "Simplified Chinese" }
+filmsHeroResume:
+  message: "Resume from {time}"
+  description: "Main button of the large card when the film was stopped partway: play from where it stopped."
+  placeholders:
+    time: { type: "String", example: "12:05" }
+filmsLanguageTagJapanese:
+  message: "JA"
+  description: "Very short tag of Japanese on a poster's subtitle badge."
+filmsLanguageTagKorean:
+  message: "KO"
+  description: "Very short tag of Korean on a poster's subtitle badge."
+filmsLanguageTagSimplifiedChinese:
+  message: "CHS"
+  description: "Very short tag of Simplified Chinese on a poster's subtitle badge."
+filmsLanguageTagTraditionalChinese:
+  message: "CHT"
+  description: "Very short tag of Traditional Chinese on a poster's subtitle badge."
+filmsLinkChannel:
+  message: "{site} · Channel"
+  description: "Tag at the end of the link field when the link names a channel."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+filmsLinkLabel:
+  message: "Video Link"
+  description: "Accessible name of the toolbar's link field."
+filmsLinkPlaceholder:
+  message: "Paste a video link from YouTube, Bilibili and more"
+  description: "Placeholder of the toolbar's link field."
+filmsLinkPlaylist:
+  message: "{site} · Playlist"
+  description: "Tag at the end of the link field when the link names a playlist or collection."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+filmsLocalVideo:
+  message: "Local Video"
+  description: "Toolbar button that opens a file dialog to add video files."
+filmsLocalVideoTooltip:
+  message: "Add Local Videos ({shortcut})"
+  description: "Tooltip of the toolbar button that adds video files, with its shortcut as the system writes it."
+  placeholders:
+    shortcut: { type: "String", example: "⌘O" }
+filmsMoreActions:
+  message: "More Actions"
+  description: "Accessible name of the ⋯ button beside a poster's title."
+filmsNewLibraryEllipsis:
+  message: "New Library…"
+  description: "Button that opens the sheet creating a new library."
+filmsNewLibraryName:
+  message: "Name"
+  description: "Label of the new library's name field."
+filmsNewLibraryNote:
+  message: "{platform, select, macOS {Creates a .kando folder, which Finder shows with the Kando icon.} other {Creates a .kando folder.}}"
+  description: "Line under the new-library sheet's title. Only macOS shows the folder with Kando's icon, so the other systems' case leaves that out. {platform} is the system the app runs on: macOS, Windows or another (Linux)."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+filmsNewLibraryPlace:
+  message: "Location"
+  description: "Label of the row showing the folder the new library goes in."
+filmsNewLibraryTitle:
+  message: "New Library"
+  description: "Title of the sheet that creates a library."
+filmsNoLibraryDescription:
+  message: "{platform, select, macOS {A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you can manage right in Finder.} Windows {A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you can manage right in File Explorer.} other {A library is a .kando folder with a folder inside for each film. Videos, covers and subtitles are ordinary files you can manage right in your file manager.}}"
+  description: "What a library is, on the page before any library exists. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+filmsNoLibraryTitle:
+  message: "No Library Yet"
+  description: "Title of the library page before any library exists."
+filmsNoSubtitles:
+  message: "No subtitles yet"
+  description: "Part of the line under a poster: the video has not been processed yet."
+filmsNoticeOpen:
+  message: "Open"
+  description: "Button in the message bar that says a video is already in the library; it opens that film."
+filmsOpenLibraryEllipsis:
+  message: "Open Existing Library…"
+  description: "Button that opens a folder dialog to open a library already on disk."
+filmsOpenSettings:
+  message: "Open Settings"
+  description: "Button on a failed job's card or the message bar that opens the settings section that fixes the problem."
+filmsPathNotSet:
+  message: "Not Set"
+  description: "Shown in place of a folder path that has not been chosen."
+filmsPickVideosEllipsis:
+  message: "Choose Local Videos…"
+  description: "Button on the empty library's page that opens a file dialog to choose videos."
+filmsPlay:
+  message: "Play"
+  description: "Menu item and button that play a film."
+filmsPosterBilingual:
+  message: "Bilingual · {language}"
+  description: "Small tag over a poster: the film has bilingual subtitles, with the short tag of the translation's language."
+  placeholders:
+    language: { type: "String", example: "EN" }
+filmsQueueActive:
+  message: "{count} in progress"
+  description: "Dimmed note beside the processing heading: how many jobs are waiting or running."
+  placeholders:
+    count: { type: "int", example: "1" }
+filmsQueueCancel:
+  message: "Cancel Processing"
+  description: "Accessible name of the × on a waiting or running job's card."
+filmsQueueCanceled:
+  message: "Canceled"
+  description: "What a cancelled job's card says."
+filmsQueueCollapse:
+  message: "Show Less"
+  description: "Button under the processing cards that hides all but the first ones again."
+filmsQueueDownloadingFrom:
+  message: "Downloading · yt-dlp · {site}"
+  description: "Line under the title of a job whose download has not reported progress yet: the tool and the site."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+filmsQueueExporting:
+  message: "Exporting · Writing video.srt and video.bilingual.srt"
+  description: "Line under the title of a job writing its subtitle files."
+filmsQueueFailed:
+  message: "{count, plural, one {# needs attention} other {# need attention}}"
+  description: "Dimmed note beside the processing heading: how many jobs failed and wait for the user."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsQueueNoAnswer:
+  message: "Translation API didn't answer, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
+  description: "Line under the title of a job whose translation request got no usable answer and will be retried."
+  placeholders:
+    seconds: { type: "int", example: "8" }
+    attempt: { type: "int", example: "1" }
+    attempts: { type: "int", example: "2" }
+filmsQueueProgress:
+  message: "Progress"
+  description: "Accessible name of a job's progress bar."
+filmsQueueRateLimited:
+  message: "Translation API rate-limited, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
+  description: "Line under the title of a job whose translation request was rate-limited and will be retried."
+  placeholders:
+    seconds: { type: "int", example: "8" }
+    attempt: { type: "int", example: "1" }
+    attempts: { type: "int", example: "2" }
+filmsQueueReadingLocal:
+  message: "Reading · Local file"
+  description: "Line under the title of a job reading a local video file."
+filmsQueueRemaining:
+  message: "{time} left"
+  description: "Part of a downloading job's line: the time left."
+  placeholders:
+    time: { type: "String", example: "0:12" }
+filmsQueueSavingTo:
+  message: "Saving to “{library}”"
+  description: "Line under the title of a processing card whose job saves into another library than the open one, as one that kept running after another library was opened."
+  placeholders:
+    library: { type: "String", example: "Listening" }
+filmsQueueShowAll:
+  message: "Show All {count}"
+  description: "Button under the processing cards that shows the ones hidden."
+  placeholders:
+    count: { type: "int", example: "9" }
+filmsQueueTitle:
+  message: "Processing"
+  description: "Heading of the section of jobs waiting, running or failed."
+filmsQueueTranscribing:
+  message: "Transcribing · whisper on this computer"
+  description: "Line under the title of a job transcribing the speech with whisper on this computer."
+filmsQueueTranscribingPercent:
+  message: "Transcribing · whisper on this computer · {percent}"
+  description: "Line under the title of a job transcribing the speech with whisper on this computer, with how far it has gone."
+  placeholders:
+    percent: { type: "String", example: "23%" }
+filmsQueueTranslating:
+  message: "Translating · AI service"
+  description: "Line under the title of a job translating its subtitles before it reports batches."
+filmsQueueTranslatingBatch:
+  message: "Translating · Batch {batch}/{batches} · {size, plural, one {# line} other {# lines}} per batch"
+  description: "Line under the title of a job translating its subtitles in batches."
+  placeholders:
+    batch: { type: "int", example: "2" }
+    batches: { type: "int", example: "5" }
+    size: { type: "int", example: "40" }
+filmsQueueWaiting:
+  message: "Queued · Waiting for the jobs ahead"
+  description: "Line under a queued job's title."
+filmsRemove:
+  message: "Remove"
+  description: "Button that removes a failed job's card, and the confirming button of removing a film from the library."
+filmsRemoveConfirm:
+  message: "Remove “{name}” from the library?"
+  description: "Title of the dialog confirming that a film is removed from the library."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+filmsRemoveFiles:
+  message: "The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay where they are."
+  description: "What removing a film does when its folder holds other files too."
+filmsRemoveFolder:
+  message: "The film's folder will be moved to the Trash. You can get its video, cover and subtitles back from there."
+  description: "What removing a film does when it has a folder of its own in the library."
+filmsRemoveFromLibrary:
+  message: "Remove from Library…"
+  description: "Menu item that asks to remove a film from the library."
+filmsRemoveOutside:
+  message: "The video isn't in the library folder. It stays where it is and no longer appears in the library."
+  description: "What removing a film does when its video is outside the library folder."
+filmsRename:
+  message: "Rename…"
+  description: "Menu item that opens the dialog giving a film the title Kando shows for it."
+filmsRenameField:
+  message: "Title"
+  description: "Label of the field holding the film's new title in the rename dialog."
+filmsRenameNote:
+  message: "Only the title Kando shows changes; the files on disk keep their names. Leave it empty to show the original title again."
+  description: "Note under the title of the rename dialog: renaming never renames files, and an empty title restores the original one."
+filmsRenameSave:
+  message: "Rename"
+  description: "Button of the rename dialog that keeps the new title."
+filmsRenameTitle:
+  message: "Rename Film"
+  description: "Title of the dialog that renames a film."
+filmsReprocess:
+  message: "Process Again"
+  description: "Menu item that runs a finished film through download, subtitles and translation again."
+filmsRetry:
+  message: "Retry"
+  description: "Button on a failed job's card that runs it again."
+filmsSearchClear:
+  message: "Clear Search"
+  description: "Button under the no-match message that empties the search field and shows every film again."
+filmsSearchNoMatch:
+  message: "No finished films match “{query}”."
+  description: "Shown in place of the film grid when no finished film’s name contains the text typed into the search field."
+  placeholders:
+    query: { type: "String", example: "rivers" }
+filmsShowInFinder:
+  message: "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
+  description: "Menu item and button that show the film's video file in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+filmsSourceEmpty:
+  message: "No films from this source yet."
+  description: "Shown when no film of the library comes from the source chosen in the sidebar."
+filmsSortAdded:
+  message: "Recently Added"
+  description: "Sort order of the grid of finished films, and its item in the sort menu: the films added to the library last come first. It is the default order."
+filmsSortButton:
+  message: "Sort: {order}"
+  description: "Pull-down button beside the heading of the grid of finished films that opens the sort menu, naming the order the grid shows now."
+  placeholders:
+    order: { type: "String", example: "Recently Added" }
+filmsSortSource:
+  message: "Source"
+  description: "Sort order of the grid of finished films, and its item in the sort menu: films grouped by where they come from (YouTube, Bilibili, other sites, local files), as the sidebar lists the sources."
+filmsSortTitle:
+  message: "Title"
+  description: "Sort order of the grid of finished films, and its item in the sort menu: films in alphabetical order of their titles."
+filmsStageComplete:
+  message: "Done"
+  description: "Stage of a job: finished."
+filmsStageDownloading:
+  message: "Downloading"
+  description: "Stage of a job: downloading the video."
+filmsStageExporting:
+  message: "Exporting"
+  description: "Stage of a job: writing the subtitle files."
+filmsStageFailed:
+  message: "Failed"
+  description: "Stage of a job: failed."
+filmsStageQueued:
+  message: "Queued"
+  description: "Stage of a job: waiting in the queue."
+filmsStageTranscribing:
+  message: "Transcribing"
+  description: "Stage of a job: transcribing the speech into subtitles."
+filmsStageTranslating:
+  message: "Translating"
+  description: "Stage of a job: translating the subtitles."
+filmsStart:
+  message: "Start Processing"
+  description: "Toolbar button that adds the pasted link to the queue."
+filmsSupportedSites:
+  message: "Supported Websites…"
+  description: "Button on the empty library's page that opens the sheet listing the websites Kando downloads from."
+filmsTranslateAgain:
+  message: "Translate Again"
+  description: "Menu item of a finished film that translates its subtitles again into the target language set now, without downloading or transcribing it again."
+filmsTranslateMissing:
+  message: "Translate Missing Lines"
+  description: "Button under a finished film whose translation failed for some lines, and the same item in its menu: translates only those lines."
+filmsUntranslated:
+  message: "{count, plural, one {# line} other {# lines}} failed to translate, the rest are done"
+  description: "Part of the line under a finished film: how many subtitle lines the translation failed on."
+  placeholders:
+    count: { type: "int", example: "3" }
+kitsDownloadDisconnected:
+  message: "the connection dropped"
+  description: "Why Kando's download of a program failed, after 'Download failed:': the connection to the server broke off."
+kitsDownloadFailedStatus:
+  message: "the server answered HTTP {status}"
+  description: "Why Kando's download of a program failed, after 'Download failed:': the server answered with an error status instead of the file."
+  placeholders:
+    status: { type: "int", example: "503" }
+kitsDownloadStalled:
+  message: "the server stopped sending data"
+  description: "Why Kando's download of a program failed, after 'Download failed:': no data arrived for a long while."
+libraryAddedOneStarting:
+  message: "Added. Processing started."
+  description: "Message bar when one video was added to the queue."
+libraryAddedSome:
+  message: "{count, plural, one {Added # video.} other {Added # videos.}} {error}"
+  description: "Message bar when some of the links or files were added to the queue and the others could not be; the error says why."
+  placeholders:
+    count: { type: "int", example: "2" }
+    error: { type: "String", example: "One link isn't a video." }
+libraryAddedStarting:
+  message: "Added {count, plural, one {# video} other {# videos}}. Processing started."
+  description: "Message bar when several videos were added to the queue."
+  placeholders:
+    count: { type: "int", example: "3" }
+libraryDefaultName:
+  message: "Film Library"
+  description: "Name the new-library sheet suggests for a new library; it becomes the folder's name, followed by a number when taken."
+libraryFileMissing:
+  message: "The file is no longer there."
+  description: "Error when the file to show in Finder is no longer there."
+libraryFileTaken:
+  message: "A file with this name already exists in this location."
+  description: "Error in the new-library sheet: a file of that name is already in the chosen folder."
+libraryImportButton:
+  message: "Import"
+  description: "Confirming button of the folder dialog that opens a library already on disk."
+libraryImportTitle:
+  message: "Import Library"
+  description: "Title of the folder dialog that opens a library already on disk."
+libraryMoveOutFailed:
+  message: "Couldn't move the library to its new folder: {error}"
+  description: "Error when Kando could not move its videos out of an older version's library folder into a library of its own."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+libraryNameEmpty:
+  message: "Enter a name for the library."
+  description: "Error in the new-library sheet: the name field is empty."
+libraryNameHasPath:
+  message: "A library name can't contain a path."
+  description: "Error in the new-library sheet: the name holds a slash or is . or .."
+libraryNameTaken:
+  message: "A library with this name already exists. Choose another name."
+  description: "Error in the new-library sheet: a library of that name is already in the chosen folder."
+libraryOpenVideosMenu:
+  message: "Open Local Video…"
+  description: "File menu item that opens a file dialog to add local videos."
+libraryPickVideosButton:
+  message: "Open"
+  description: "Confirming button of the file dialog that chooses videos."
+libraryPickVideosTitle:
+  message: "Choose Videos"
+  description: "Title of the file dialog that chooses videos to add."
+libraryPlaceButton:
+  message: "Choose"
+  description: "Confirming button of the folder dialog that chooses where a new library goes."
+libraryPlaceTitle:
+  message: "Where to Keep the Library"
+  description: "Title of the folder dialog that chooses where a new library goes."
+libraryRemoved:
+  message: "Removed “{name}” from the library"
+  description: "Message bar after a film whose video is outside the library was taken off the library."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+libraryRevealFailed:
+  message: "Couldn't open the enclosing folder: {error}"
+  description: "Error when the folder holding a file could not be opened."
+  placeholders:
+    error: { type: "String", example: "exit status 1" }
+librarySaveFailed:
+  message: "Couldn't save the library: {error}"
+  description: "Error when the list of libraries could not be saved to the settings file."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+librarySearchMenu:
+  message: "Search Films"
+  description: "Edit menu item and shortcut (⌘F while the library page shows) that puts the keyboard in the sidebar’s search field."
+libraryShelfDamaged:
+  message: "The film list has content Kando can't read; the original was saved as library.json.bad: {error}"
+  description: "Notice at startup when library.json, the list of films and jobs, has content Kando cannot read; the file was copied to library.json.bad and Kando goes on with what it could read. Keep the file name as it is."
+  placeholders:
+    error: { type: "String", example: "unexpected end of JSON input" }
+libraryShelfDamagedUnsaved:
+  message: "The film list has content Kando can't read, and a copy couldn't be saved, so Kando won't save the list until it restarts: {error}"
+  description: "Error at startup when library.json has content Kando cannot read and the copy beside it could not be written; Kando then does not write library.json, so nothing in it is lost."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+libraryShelfNotSaved:
+  message: "Kando couldn't read the film list in full, so it won't save the list until it restarts."
+  description: "Error when Kando was about to save library.json, the list of films and jobs, but does not, because at startup the file could not be read in full and no copy of it could be kept; writing it would lose what Kando could not read."
+libraryShelfReadFailed:
+  message: "Couldn't read the film list: {error}"
+  description: "Error when the list of films and jobs (library.json) could not be read."
+  placeholders:
+    error: { type: "String", example: "unexpected end of JSON input" }
+libraryShelfSaveFailed:
+  message: "Couldn't save the film list: {error}"
+  description: "Error when the list of films and jobs (library.json) could not be saved."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+libraryTrashFailed:
+  message: "Couldn't move “{name}” to the Trash: {error}"
+  description: "Message bar when a film could not be moved to the Trash."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    error: { type: "String", example: "permission denied" }
+libraryTrashed:
+  message: "Moved “{name}” to the Trash"
+  description: "Message bar after a film was moved to the Trash."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+librarySortSaveFailed:
+  message: "Couldn't save the sort order: {error}"
+  description: "Message bar when the order chosen for the grid of finished films could not be written to the settings file."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+libraryVideoFilter:
+  message: "Videos"
+  description: "Name of the file type filter of the file dialog that chooses videos."
+libraryWindowTitle:
+  message: "Kando"
+  description: "Title of the main window: the app's name."
+logsShowLogFile:
+  message: "Show Log File"
+  description: "Help menu item, and command palette row, that reveals Kando's log file in Finder or the file manager, so a user can attach it to a bug report."
+menuAbout:
+  message: "About Kando"
+  description: "First item of the app menu, which shows the About window."
+menuBringAllToFront:
+  message: "Bring All to Front"
+  description: "Window menu item that brings all the app's windows to the front, as macOS names it."
+menuCloseWindow:
+  message: "Close Window"
+  description: "File menu item that closes the window, as macOS names it."
+menuCopy:
+  message: "Copy"
+  description: "Edit menu item, as macOS names it."
+menuCut:
+  message: "Cut"
+  description: "Edit menu item, as macOS names it."
+menuDelete:
+  message: "Delete"
+  description: "Edit menu item, as macOS names it."
+menuGroupApp:
+  message: "Kando"
+  description: "The app's menu in the menu bar, named after the app."
+menuGroupEdit:
+  message: "Edit"
+  description: "The Edit menu."
+menuGroupFile:
+  message: "File"
+  description: "The File menu."
+menuGroupHelp:
+  message: "Help"
+  description: "The Help menu."
+menuGroupPlayback:
+  message: "Playback"
+  description: "The menu, and the group of the shortcut tables, of the player's playback commands."
+menuGroupStudy:
+  message: "Study"
+  description: "The menu of the study commands: asking about the film, reviewing."
+menuGroupSubtitles:
+  message: "Subtitles"
+  description: "The menu, and the group of the shortcut tables, of the subtitle commands."
+menuGroupView:
+  message: "View"
+  description: "The View menu."
+menuGroupWindow:
+  message: "Window"
+  description: "The Window menu."
+menuHide:
+  message: "Hide Kando"
+  description: "App menu item that hides the app, as macOS names it."
+menuHideOthers:
+  message: "Hide Others"
+  description: "App menu item that hides the other apps, as macOS names it."
+menuMinimize:
+  message: "Minimize"
+  description: "Window menu item that minimizes the window to the Dock, as macOS names it."
+menuNewLibrary:
+  message: "New Library…"
+  description: "File menu item that creates a new library folder."
+menuOpenLibrary:
+  message: "Open Library…"
+  description: "File menu item that opens another library folder."
+menuOpenLinkFailed:
+  message: "Couldn't open {url}: {error}"
+  description: "Message bar when a link of the Help menu, such as the website, could not be opened in the browser."
+  placeholders:
+    url: { type: "String", example: "https://kando.yldm.ai" }
+    error: { type: "String", example: "exit status 1" }
+menuPaste:
+  message: "Paste"
+  description: "Edit menu item, as macOS names it."
+menuPasteAndMatchStyle:
+  message: "Paste and Match Style"
+  description: "Edit menu item, as macOS names it."
+menuQuit:
+  message: "Quit Kando"
+  description: "Last item of the app menu, which quits the app."
+menuRedo:
+  message: "Redo"
+  description: "Edit menu item, as macOS names it."
+menuReleaseNotes:
+  message: "Release Notes"
+  description: "Help menu item that opens the release page of the running version on GitHub, which says what it changed."
+menuReopenGuide:
+  message: "Show Getting Started Guide"
+  description: "Help menu item that shows the first-run Getting Started guide again."
+menuRevealLibrary:
+  message: "{platform, select, macOS {Show Library in Finder} Windows {Show Library in File Explorer} other {Show Library in File Manager}}"
+  description: "File menu item that shows the open library's folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+menuSelectAll:
+  message: "Select All"
+  description: "Edit menu item, as macOS names it."
+menuServices:
+  message: "Services"
+  description: "The app menu's Services submenu, as macOS names it."
+menuShowAll:
+  message: "Show All"
+  description: "App menu item that shows every hidden app again, as macOS names it."
+menuSpeech:
+  message: "Speech"
+  description: "The Edit menu's Speech submenu, as macOS names it."
+menuStartSpeaking:
+  message: "Start Speaking"
+  description: "Item of the Speech submenu that reads the selection aloud, as macOS names it."
+menuStopSpeaking:
+  message: "Stop Speaking"
+  description: "Item of the Speech submenu that stops reading aloud, as macOS names it."
+menuSwitchLibrary:
+  message: "Switch Library"
+  description: "File menu submenu that lists the libraries Kando knows; choosing one opens it."
+menuToggleFullScreen:
+  message: "Toggle Full Screen"
+  description: "View menu item that puts the window in full screen or takes it out."
+menuUndo:
+  message: "Undo"
+  description: "Edit menu item, as macOS names it."
+menuWebsite:
+  message: "Kando Website"
+  description: "Help menu item that opens Kando's website, kando.yldm.ai, in the browser."
+menuWindowLibrary:
+  message: "Library"
+  description: "Window menu item (⌘1) that shows the Library page."
+menuWindowPlayer:
+  message: "Player"
+  description: "Window menu item (⌘2) that goes back to the film last open in the player."
+menuZoom:
+  message: "Zoom"
+  description: "Window menu item that zooms the window, as macOS names it."
+onboardingAIConfigured:
+  message: "Set up"
+  description: "Second step's line about translation when the app runs another pipeline that has its own translation set up."
+onboardingAIModel:
+  message: "Translation model: {model}"
+  description: "Second step's line about translation: the model that translates."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+onboardingAIModelUnchecked:
+  message: "Translation model: {model} · Uses the EveryAPI sign-in on this computer, checked before processing starts"
+  description: "Second step's line about translation before the EveryAPI sign-in was checked: the model, and that the sign-in on this computer is used and checked later."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+onboardingAddAndStart:
+  message: "Add and Start"
+  description: "Primary button of the last step with a link: adds it to the queue and closes the guide."
+onboardingAdded:
+  message: "Added. Processing started."
+  description: "Message after the guide added its link to the queue."
+onboardingBack:
+  message: "Back"
+  description: "Button going back to the guide's previous step."
+onboardingCancel:
+  message: "Cancel"
+  description: "Button stopping a speech model's download."
+onboardingCaptionLanguages:
+  message: "Watch the original, with subtitles in your language"
+  description: "Headline over the picture on the guide's left, first step."
+onboardingCaptionLink:
+  message: "Paste a link, get bilingual subtitles automatically"
+  description: "Headline over the picture on the guide's left, third step."
+onboardingCaptionSpeechComputer:
+  message: "Speech recognition, right on this computer"
+  description: "Headline over the picture on the guide's left, second step, on Linux and Windows."
+onboardingCaptionSpeechMac:
+  message: "Speech recognition, right on this Mac"
+  description: "Headline over the picture on the guide's left, second step, on macOS."
+onboardingContinue:
+  message: "Continue"
+  description: "Primary button going on to the guide's next step."
+onboardingDone:
+  message: "Done"
+  description: "Primary button of the last step without a link: closes the guide."
+onboardingDownload:
+  message: "Download"
+  description: "Button downloading a speech model."
+onboardingDownloadAndContinue:
+  message: "Download and Continue"
+  description: "Primary button of the second step when it also starts downloading the recommended speech model."
+onboardingDownloadProgress:
+  message: "Download progress"
+  description: "Accessible name of a speech model's download progress bar."
+onboardingDownloadTooltip:
+  message: "Download {name} ({size})"
+  description: "Tooltip of a speech model's download button: the model and the download's size."
+  placeholders:
+    name: { type: "String", example: "Large v3 Turbo" }
+    size: { type: "String", example: "574 MB" }
+onboardingInUse:
+  message: "In Use"
+  description: "Accessible name of the check mark on the speech model in use."
+onboardingLanguageDe:
+  message: "German"
+  description: "German, under its own name on a language tile of the first step."
+onboardingLanguageEn:
+  message: "English"
+  description: "English, under its own name on a language tile of the first step."
+onboardingLanguageEs:
+  message: "Spanish"
+  description: "Spanish, under its own name on a language tile of the first step."
+onboardingLanguageFr:
+  message: "French"
+  description: "French, under its own name on a language tile of the first step."
+onboardingLanguageJa:
+  message: "Japanese"
+  description: "Japanese, under its own name on a language tile of the first step."
+onboardingLanguageKo:
+  message: "Korean"
+  description: "Korean, under its own name on a language tile of the first step."
+onboardingLanguageZh:
+  message: "Mandarin"
+  description: "Mandarin Chinese, the spoken language, under its own name (中文) on a language tile of the first step."
+onboardingLanguagesNote:
+  message: "Languages you don't choose are recognized too: whisper works out which language a video speaks by itself. The languages you choose decide which model the next step recommends."
+  description: "Note under the first step's language tiles."
+onboardingLinkChannel:
+  message: "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos"
+  description: "Line under the link field for a link to a channel on a named site."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+onboardingLinkChannelUnnamed:
+  message: "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos"
+  description: "Line under the link field for a link to a channel on a site without a known name."
+onboardingLinkDescription:
+  message: "Any video from YouTube, Bilibili or another site yt-dlp can download from will do."
+  description: "Line under the third step's title."
+onboardingLinkHintEmpty:
+  message: "Press Enter to start. No link? Skip for now and drag a local video into the window later."
+  description: "Line under the third step's link field while it is empty."
+onboardingLinkLabel:
+  message: "Link to the first video"
+  description: "Accessible name of the third step's link field."
+onboardingLinkList:
+  message: "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+  description: "Line under the link field for a link to a playlist on a named site that names no single video."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+onboardingLinkListUnnamed:
+  message: "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+  description: "Line under the link field for a link to a playlist on a site without a known name that names no single video."
+onboardingLinkNotVideo:
+  message: "This doesn't look like a video link"
+  description: "Line under the third step's link field when the text does not read as a video link."
+onboardingLinkPlaceholder:
+  message: "Paste a YouTube or Bilibili link"
+  description: "Placeholder of the third step's link field."
+onboardingLinkPlaylistVideo:
+  message: "Recognized as a {site} video. Only this one is added, not the whole playlist"
+  description: "Line under the link field for a link to a video inside a playlist on a named site."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+onboardingLinkPlaylistVideoUnnamed:
+  message: "Recognized as a web video. Only this one is added, not the whole playlist"
+  description: "Line under the link field for a link to a video inside a playlist on a site without a known name."
+onboardingLinkTitle:
+  message: "Paste Your First Link"
+  description: "Title of the guide's third step, where the first video link is pasted."
+onboardingLinkVideo:
+  message: "Recognized as a {site} video"
+  description: "Line under the link field for a link to a video on a named site."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+onboardingLinkWebVideo:
+  message: "Recognized as a web video"
+  description: "Line under the link field for a link to a video on a site without a known name."
+onboardingLookAround:
+  message: "Just Look Around"
+  description: "Button at the guide's top right on its last step: close it without adding a link."
+onboardingModelAbout:
+  message: "About {size} · {blurb}"
+  description: "Line under a speech model not downloaded yet: the download's size and what it suits."
+  placeholders:
+    size: { type: "String", example: "574 MB" }
+    blurb: { type: "String", example: "Most accurate, for most videos" }
+onboardingModelConnecting:
+  message: "Connecting… · {size} total"
+  description: "Line under a speech model whose download has started but whose size is not known yet."
+  placeholders:
+    size: { type: "String", example: "574 MB" }
+onboardingModelDownloaded:
+  message: "Downloaded · {blurb}"
+  description: "Line under a downloaded speech model that is not in use: what it suits."
+  placeholders:
+    blurb: { type: "String", example: "Most accurate, for most videos" }
+onboardingModelFailed:
+  message: "Download failed: {error}"
+  description: "Line under a speech model whose download failed, and why."
+  placeholders:
+    error: { type: "String", example: "connection reset" }
+onboardingModelInUse:
+  message: "Downloaded · In use"
+  description: "Line under the speech model in use."
+onboardingModelProgress:
+  message: "Downloading {percent}% · {size} total"
+  description: "Line under a speech model while it downloads: the percentage done and the download's size."
+  placeholders:
+    percent: { type: "int", example: "42" }
+    size: { type: "String", example: "574 MB" }
+onboardingModelsDescriptionComputer:
+  message: "Speech recognition runs on this computer with whisper.cpp. Download a model once and it works offline after that."
+  description: "Line under the second step's title on Linux and Windows."
+onboardingModelsDescriptionMac:
+  message: "Speech recognition runs on this Mac with whisper.cpp. Download a model once and it works offline after that."
+  description: "Line under the second step's title on macOS."
+onboardingModelsDownloading:
+  message: "Downloading {name}"
+  description: "Head of the second step's card of speech models while one downloads."
+  placeholders:
+    name: { type: "String", example: "Large v3 Turbo" }
+onboardingModelsMissing:
+  message: "No speech recognition model yet; download one to make subtitles"
+  description: "Head of the second step's card of speech models when none is on this computer."
+onboardingModelsNoteDownloading:
+  message: "The download continues in the background, so you can go on to the next step."
+  description: "Note under the speech models while one downloads."
+onboardingModelsNoteInUse:
+  message: "You can switch to another model later in Settings › Speech Recognition."
+  description: "Note under the speech models when one is in use."
+onboardingModelsNoteLater:
+  message: "You can also download one later, anytime, in Settings › Speech Recognition."
+  description: "Note under the speech models when none is in use or downloading."
+onboardingModelsReady:
+  message: "Speech recognition is ready"
+  description: "Head of the second step's card of speech models when one is in use."
+onboardingModelsTitle:
+  message: "Download Components and a Speech Model"
+  description: "Title of the guide's second step, where the programs Kando needs download and a speech recognition model is downloaded."
+onboardingPillLanguages:
+  message: "Original audio · {language} → {target}"
+  description: "Pill over the example subtitle on the first step: the language of the original audio, and the language subtitles are translated into."
+  placeholders:
+    language: { type: "String", example: "English" }
+    target: { type: "String", example: "Simplified Chinese" }
+onboardingPillLink:
+  message: "Paste a link → Subtitles ready"
+  description: "Pill over the example subtitle on the third step."
+onboardingPillModels:
+  message: "On-device recognition → AI translation → Bilingual subtitles"
+  description: "Pill over the example subtitle on the second step: how subtitles are made."
+onboardingPrivacy:
+  message: "Recognition runs on this device · Translation uses the AI service you set up"
+  description: "Line at the guide's foot, next to a lock: where recognition and translation run."
+onboardingReopen:
+  message: "Show Getting Started Guide"
+  description: "Help menu item, and shortcut on Linux and Windows (F1), that opens the first-run guide again."
+onboardingRetry:
+  message: "Retry"
+  description: "Button downloading a speech model again after its download failed."
+onboardingSaveFailed:
+  message: "Couldn't save settings: {error}"
+  description: "Error under the sidebar when the guide could not save the settings."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+onboardingSettings:
+  message: "Settings…"
+  description: "Button opening Settings › AI Service from the second step."
+onboardingSkip:
+  message: "Skip"
+  description: "Button at the guide's top right that closes it before the last step."
+onboardingSpeechModel:
+  message: "Speech Recognition · {name}"
+  description: "Name of a speech model's row on the second step."
+  placeholders:
+    name: { type: "String", example: "Large v3 Turbo" }
+onboardingStepCounter:
+  message: "{step} / {steps}"
+  description: "The guide's step counter at its top: the step shown and how many steps there are."
+  placeholders:
+    step: { type: "int", example: "1" }
+    steps: { type: "int", example: "3" }
+onboardingStepOf:
+  message: "Step {step} of {steps}"
+  description: "Accessible name of the guide's step dots."
+  placeholders:
+    step: { type: "int", example: "1" }
+    steps: { type: "int", example: "3" }
+onboardingTipKey:
+  message: "Press F1 anytime to come back here."
+  description: "Note the library shows once the guide has closed, on Linux and Windows, where F1 opens the guide again."
+onboardingTipMenu:
+  message: "You can come back here anytime from {menu} › {item}."
+  description: "Note the library shows once the guide has closed, on macOS: the menu and its item that open the guide again."
+  placeholders:
+    menu: { type: "String", example: "Help" }
+    item: { type: "String", example: "Show Getting Started Guide" }
+onboardingToolConnecting:
+  message: "Connecting…"
+  description: "Line under a program in the guide while its download waits for the server."
+onboardingToolProgress:
+  message: "Downloading {percent}%"
+  description: "Line under a program in the guide while it downloads."
+  placeholders:
+    percent: { type: "int", example: "42" }
+onboardingToolUnavailable:
+  message: "Install it with your package manager and make sure it is on PATH"
+  description: "Line under a program in the guide on a system Kando cannot download it for, such as Windows."
+onboardingToolsDownloading:
+  message: "Downloading the programs Kando needs"
+  description: "Head of the guide's card of programs while Kando downloads some of them."
+onboardingToolsMissing:
+  message: "Kando needs these programs to process videos"
+  description: "Head of the guide's card of programs when some are missing and none is downloading."
+onboardingToolsNote:
+  message: "Kando downloads them by itself. You can go on to the next step meanwhile."
+  description: "Line under the guide's card of programs while some are not there yet."
+onboardingToolsReady:
+  message: "Components are ready"
+  description: "Head of the guide's card of programs once yt-dlp, ffmpeg and whisper-cli are all there."
+onboardingTranslateInto:
+  message: "Translate subtitles into"
+  description: "Label of the first step's drop-down choosing the language subtitles are translated into."
+onboardingTranslationService:
+  message: "Translation · AI Service"
+  description: "Name of the second step's row about the translation service."
+onboardingUse:
+  message: "Use"
+  description: "Button making a downloaded speech model the one in use."
+onboardingWatchLanguages:
+  message: "Languages of the videos you watch · Choose any"
+  description: "Heading over the first step's language tiles."
+onboardingWatchLanguagesLabel:
+  message: "Languages of the videos you watch"
+  description: "Accessible name of the group of the first step's language tiles."
+onboardingWelcome:
+  message: "Welcome to Kando"
+  description: "Title of the first-run guide's first step, and the accessible name of the guide's sheet."
+onboardingWelcomeDescription:
+  message: "Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."
+  description: "Line under the first step's title."
+paletteAnswerNote:
+  message: "Based only on what has played (up to {at}) · Answered by {model}"
+  description: "Footnote under an answer: it rests only on the part of the film played so far, up to a moment, and which model answered."
+  placeholders:
+    at: { type: "String", example: "12:31" }
+    model: { type: "String", example: "gpt-4o-mini" }
+paletteAskFailed:
+  message: "No answer came back: {error}"
+  description: "Answer card when the AI service returned no answer; error is the service's error message."
+  placeholders:
+    error: { type: "String", example: "401 Unauthorized" }
+paletteAsking:
+  message: "Asking {model}…"
+  description: "Answer card while the question is on its way to the AI model."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+paletteFieldLabel:
+  message: "Commands, lines or questions"
+  description: "Accessible name of the command palette's field."
+paletteFooter:
+  message: "Type to search commands and watched lines · ↑↓ to select · Return to run"
+  description: "Footer of the command palette over the library: what typing, the arrow keys and Return do."
+paletteFooterFilm:
+  message: "Typing only searches commands and lines · Return asks · ↑↓ to select"
+  description: "Footer of the command palette in the player: typing only searches, Return asks the question."
+paletteHeadingAnswer:
+  message: "Answer"
+  description: "Heading of the card with the answer to a question about the film."
+paletteHeadingCommands:
+  message: "Commands"
+  description: "Heading of the commands the command palette found."
+paletteHeadingLines:
+  message: "Lines"
+  description: "Heading of the subtitle lines the command palette found."
+paletteJumpTo:
+  message: "Jump to {time}"
+  description: "Accessible name of a chip under an answer that plays the film from the moment the answer rests on."
+  placeholders:
+    time: { type: "String", example: "0:30" }
+paletteLibrarySaveFailed:
+  message: "Couldn't save the film list: {error}"
+  description: "Error shown when library.json could not be written after noting how far a video has played."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+paletteMenuItem:
+  message: "Ask This Film / Commands…"
+  description: "Study menu item and shortcut row (⌘K) that opens the command palette, which also answers questions about the open film."
+paletteNoAI:
+  message: "Answering questions needs an AI service. Choose a model in “AI Service” first."
+  description: "Answer card when no AI service is set to answer questions about the film."
+paletteNoAIAction:
+  message: "Open AI Service Settings"
+  description: "Button on the answer card that opens the AI Service section of Settings."
+paletteNoSubtitles:
+  message: "This film has no subtitles yet, so it can't be answered."
+  description: "Answer card when the open film has no subtitles to answer from."
+paletteNotWatched:
+  message: "You haven't started watching this film. Play some of it first, then ask."
+  description: "Answer card when nothing of the open film has been played yet, so there is nothing to answer from."
+paletteNothingFound:
+  message: "No commands or watched lines found."
+  description: "Note when the palette's query found nothing over the library."
+paletteNothingFoundAsk:
+  message: "No commands or watched lines found. Press Return to ask this film."
+  description: "Note when the palette's query found nothing in the player, where Return asks the query of the film."
+palettePlaceholder:
+  message: "Commands or watched lines…"
+  description: "Placeholder of the command palette's field over the library."
+palettePlaceholderFilm:
+  message: "Commands, lines, or ask this film…"
+  description: "Placeholder of the command palette's field in the player, where a question can be asked about the open film."
+paletteSettingsSection:
+  message: "Settings › {section}"
+  description: "Command palette command that opens a section of Settings."
+  placeholders:
+    section: { type: "String", example: "AI Service" }
+paletteSubtitleMode:
+  message: "Subtitles: {mode}"
+  description: "Brief notice over the player after the palette switched the subtitles' display mode."
+  placeholders:
+    mode: { type: "String", example: "Bilingual" }
+paletteSwitchTo:
+  message: "Switch to {mode}"
+  description: "Command palette command, in the player, that switches the subtitles to another display mode."
+  placeholders:
+    mode: { type: "String", example: "Translation Only" }
+playerKeepAwake:
+  message: "Playing a video"
+  description: "Why Kando keeps the display awake while a film plays; the system lists it with what keeps the computer awake (on macOS, pmset -g assertions)."
+playerKeyCopyLine:
+  message: "Copy Current Line"
+  description: "Shortcut row and menu item: copy the subtitle line playing now, the translation over the original."
+playerKeyCycleSubtitles:
+  message: "Cycle Original/Translation/Bilingual"
+  description: "Shortcut row and menu item: step through the subtitle modes."
+playerKeyDelayEarlier:
+  message: "Subtitles 0.1 Second Earlier"
+  description: "Shortcut row and menu item: subtitles a tenth of a second earlier."
+playerKeyDelayLater:
+  message: "Subtitles 0.1 Second Later"
+  description: "Shortcut row and menu item: subtitles a tenth of a second later."
+playerKeyFaster:
+  message: "Faster"
+  description: "Shortcut row and menu item: play the film at the next faster speed."
+playerKeyLarger:
+  message: "Larger Subtitles"
+  description: "Shortcut row and menu item: larger subtitles."
+playerKeyLoopLine:
+  message: "Loop Line"
+  description: "Shortcut row and menu item: play the subtitle line playing over and over, or stop doing so."
+playerKeyMute:
+  message: "Mute/Unmute"
+  description: "Shortcut row and menu item: mute or unmute."
+playerKeyNextLine:
+  message: "Next Line"
+  description: "Shortcut row and menu item: play from the start of the next subtitle line."
+playerKeyPlayPause:
+  message: "Play/Pause"
+  description: "Shortcut row and menu item: play or pause."
+playerKeyPrevLine:
+  message: "Previous Line"
+  description: "Shortcut row and menu item: play from the start of the subtitle line before the one playing, or of the one playing when it has played for more than a second."
+playerKeyReplayLine:
+  message: "Replay Line"
+  description: "Shortcut row and menu item: play the subtitle line playing again from its start."
+playerKeySearch:
+  message: "Search Subtitles"
+  description: "Shortcut row and menu item: search the subtitle list."
+playerKeySlower:
+  message: "Slower"
+  description: "Shortcut row and menu item: play the film at the next slower speed."
+playerKeySmaller:
+  message: "Smaller Subtitles"
+  description: "Shortcut row and menu item: smaller subtitles."
+playerKeyToggleSidebar:
+  message: "Show/Hide Sidebar"
+  description: "Shortcut row and menu item: show or hide the player's side panel."
+playerKeyToggleSubtitles:
+  message: "Show/Hide Subtitles"
+  description: "Shortcut row and menu item: hide the subtitles, or show them again."
+playerKeyVolumeDown:
+  message: "Volume Down"
+  description: "Shortcut row and menu item: quieter."
+playerKeyVolumeUp:
+  message: "Volume Up"
+  description: "Shortcut row and menu item: louder."
+playerOsdCopied:
+  message: "Copied"
+  description: "Message on the picture after the playing subtitle line was copied."
+playerOsdDelay:
+  message: "Subtitles {delay}"
+  description: "Message on the picture after the subtitle delay changed."
+  placeholders:
+    delay: { type: "String", example: "+0.3 s" }
+playerOsdMuted:
+  message: "Muted"
+  description: "Message on the picture after the film was muted."
+playerOsdSpeed:
+  message: "Speed {rate}"
+  description: "Message on the picture after the playback speed changed."
+  placeholders:
+    rate: { type: "String", example: "1.5×" }
+playerOsdSubtitleSize:
+  message: "Subtitle Size {size}"
+  description: "Message on the picture after the subtitles were made larger or smaller: the translation's font size."
+  placeholders:
+    size: { type: "int", example: "32" }
+playerOsdVolume:
+  message: "Volume {percent}%"
+  description: "Message on the picture after the volume changed."
+  placeholders:
+    percent: { type: "int", example: "70" }
+playerSaveSpeedFailed:
+  message: "Couldn't save the speed"
+  description: "Message on the picture when the playback speed could not be saved in the settings."
+playerSaveSubtitlesFailed:
+  message: "Couldn't save subtitle settings"
+  description: "Message on the picture when the subtitle settings could not be saved."
+playerSaveVolumeFailed:
+  message: "Couldn't save the volume"
+  description: "Message on the picture when the volume could not be saved."
+playerSubsMissing:
+  message: "The subtitle file is gone"
+  description: "Shown in the subtitle list when the subtitle file has been deleted or moved."
+playerSubsUnreadable:
+  message: "Couldn't read the subtitles"
+  description: "Shown in the subtitle list when the subtitle file cannot be read or parsed."
+playerUnplayable:
+  message: "This video can't be played"
+  description: "Shown in place of the picture when ffmpeg cannot open the video."
+precheckChannel:
+  message: "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos."
+  description: "Message bar when the link added is a channel's on a named site: a job downloads one video, and yt-dlp would download the whole channel."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+precheckChannelUnnamed:
+  message: "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos."
+  description: "Message bar when the link added is a channel's on a site without a known name."
+precheckEmpty:
+  message: "Paste a video link first, or choose a local file."
+  description: "Message bar when the link field is empty."
+precheckEveryAPIFailed:
+  message: "Couldn't get the sign-in from the everyapi command-line program; see “AI Service”"
+  description: "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and asking the everyapi command-line program for its sign-in failed for a reason other than it being missing or signed out (it timed out, crashed or answered in a form Kando does not understand). The AI Service page says why. everyapi is the program's name and stays as it is."
+precheckEveryAPIMissing:
+  message: "Translation needs the everyapi command-line program, or an API Key in “AI Service”"
+  description: "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and the everyapi command-line program, whose sign-in it would use, is not on this computer. everyapi is the program's name and stays as it is."
+precheckEveryAPISignedOut:
+  message: "Run everyapi auth login in Terminal, or enter an API Key in “AI Service”"
+  description: "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and nobody is signed in to the everyapi command-line program. everyapi auth login is the command to type and stays as it is; Terminal is the app it is typed in."
+precheckFailedDownload:
+  message: "Download failed: {detail}"
+  description: "Card of a job whose download failed for an unknown reason, with what yt-dlp said (often English)."
+  placeholders:
+    detail: { type: "String", example: "Something nobody has seen" }
+precheckFailedExport:
+  message: "Exporting subtitles failed: {detail}"
+  description: "Card of a job whose subtitle export failed for an unknown reason, with the error (often English)."
+  placeholders:
+    detail: { type: "String", example: "open /v/a.srt: permission denied" }
+precheckFailedProcess:
+  message: "Processing failed: {detail}"
+  description: "Card of a failed job whose failure has no known reason, with what the program said (often English)."
+  placeholders:
+    detail: { type: "String", example: "boom" }
+precheckFailedTranscribe:
+  message: "Generating subtitles failed: {detail}"
+  description: "Card of a job whose transcription failed for an unknown reason, with what whisper-cli said (often English)."
+  placeholders:
+    detail: { type: "String", example: "failed to read audio" }
+precheckFailedTranslate:
+  message: "Translation failed: {detail}"
+  description: "Card of a job whose translation failed for an unknown reason, with what the AI service said (often English)."
+  placeholders:
+    detail: { type: "String", example: "something nobody has seen" }
+precheckList:
+  message: "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+  description: "Message bar when the link added is a playlist on a named site that names no single video: yt-dlp would download the whole list."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+precheckListUnnamed:
+  message: "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+  description: "Message bar when the link added is a playlist on a site without a known name that names no single video."
+precheckNoAudio:
+  message: "The video has no sound, so there is no speech to transcribe"
+  description: "Card of a failed job whose video has no sound track, as a silent screen recording: there is nothing to transcribe, and retrying cannot help."
+precheckNoLLMModel:
+  message: "Choose a model in “AI Service” first"
+  description: "Message bar and the sidebar's status line when no translation model is chosen; “AI Service” is the settings page."
+precheckNoLibrary:
+  message: "Create or open a library first"
+  description: "Message bar and the sidebar's status line when no library is open."
+precheckNoSpeech:
+  message: "No speech was recognized in the video"
+  description: "Card of a failed job when whisper heard no speech."
+precheckNoSpeechModel:
+  message: "Choose a model in “Speech Recognition” first"
+  description: "Message bar and the sidebar's status line when no speech recognition model is chosen; “Speech Recognition” is the settings page."
+precheckNoTools:
+  message: "The programs that process videos aren't installed yet"
+  description: "Card of a failed job when a program it needs (yt-dlp, ffmpeg, whisper-cli) is not installed."
+precheckNoTranscript:
+  message: "This film's original subtitles are gone, so its translation can't be redone on its own. Process the entire film again instead."
+  description: "Why translating a finished film again failed, the reason in queueRedoFailed: the transcript beside its video was deleted, so only Process Again (which downloads and transcribes the film again) can make new subtitles."
+precheckNoVideo:
+  message: "Only video files can be added (mp4, mov, mkv, webm and others)."
+  description: "Message bar when none of the files dropped or picked is a video."
+precheckNotLink:
+  message: "This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read."
+  description: "Message bar when what was pasted is not a link."
+precheckSubtitlesChanged:
+  message: "This film's subtitles were changed since Kando made them, so the lines that failed can't be found. Translate it again to redo every line."
+  description: "Why translating only a film's missing lines failed: its bilingual subtitle file was edited by hand and no longer matches the transcript line for line, so Kando cannot tell which lines are untranslated. Translate Again redoes every line."
+precheckToolSeparator:
+  message: ", "
+  description: "What goes between the names of missing programs in a list, such as yt-dlp and ffmpeg."
+precheckToolsDownloading:
+  message: "Still downloading the programs that process videos: {tools}. Try again once they're in."
+  description: "Message bar when programs a job needs are still downloading, with their names joined by precheckToolSeparator."
+  placeholders:
+    tools: { type: "String", example: "yt-dlp、ffmpeg" }
+precheckToolsMissing:
+  message: "The programs that process videos aren't installed yet: {tools}"
+  description: "Message bar when programs a job needs are not installed, with their names joined by precheckToolSeparator."
+  placeholders:
+    tools: { type: "String", example: "yt-dlp、ffmpeg" }
+precheckTranslateAuth:
+  message: "The AI service doesn't accept this key. Check it in “AI Service”."
+  description: "Card of a job whose translation failed because the AI service refused the key."
+precheckTranslateBusy:
+  message: "The AI service stayed busy, even after automatic retries. Retry in a few minutes."
+  description: "Card of a job whose translation failed because the AI service kept answering that it is busy."
+precheckTranslateMalformed:
+  message: "The AI returned the translation in the wrong format, even after a few retries. Retry, or choose another model in “AI Service”."
+  description: "Card of a job whose translation failed because the model's answer was not in the expected format."
+precheckTranslateNetwork:
+  message: "Can't connect to the AI service. Check your network, then retry."
+  description: "Card of a job whose translation failed because the AI service could not be reached."
+precheckTranslateRejected:
+  message: "The AI service refused the request. Check the address and model in “AI Service”."
+  description: "Card of a job whose translation failed because the AI service rejected the request, as for an unknown model."
+precheckTranslateTimeout:
+  message: "The AI service didn't respond, even after automatic retries. Retry later."
+  description: "Card of a job whose translation failed because the AI service never answered."
+queueAlreadyInLibrary:
+  message: "This video is already in the library."
+  description: "Message bar, and the reason kando add and the MCP server give, when the video added has already been processed in the open library. The bar offers to open it."
+queueAlreadyQueued:
+  message: "This video is already in the queue."
+  description: "Message bar, and the reason kando add and the MCP server give, when the video added is already waiting or being processed in the open library."
+queueBorrowed:
+  message: "Using {browser}'s sign-in. Downloading now."
+  description: "Message bar after the user chose to borrow a browser's sign-in."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+queueBusy:
+  message: "A video is already being processed. Add this one when it's done"
+  description: "Message bar when a job cannot be retried because another one is being processed."
+queueDoneElsewhere:
+  message: "“{name}” is done and saved to “{library}”"
+  description: "Message bar when a job that saves into another library than the open one has finished; its card leaves Processing then."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    library: { type: "String", example: "Listening" }
+queueFailedElsewhere:
+  message: "Couldn't process “{name}” for “{library}”. Open that library to see why"
+  description: "Message bar when a job that saves into another library than the open one has failed; its failed card shows only in its own library."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    library: { type: "String", example: "Listening" }
+queueKeepAwake:
+  message: "Processing a video"
+  description: "Why Kando keeps the computer from sleeping while a job downloads, transcribes or translates a video; the system lists it with what keeps the computer awake (on macOS, pmset -g assertions)."
+queueLocalChosen:
+  message: "Local video selected"
+  description: "Status once a local video was put in the link field."
+queueNoBrowserAgain:
+  message: "Still no browser whose sign-in Kando can use."
+  description: "Message bar after Find Browsers Again still found none."
+queueNoLanguage:
+  message: "Enter a target language"
+  description: "Why a job cannot start: the subtitle target language is empty in the settings."
+queueNoLibrary:
+  message: "Create or import a library first"
+  description: "Why a link cannot be added: no library is open."
+queueNoVideoToImport:
+  message: "No video to import"
+  description: "Status when the file chosen to import is not a video."
+queueNotifyDone:
+  message: "The bilingual subtitles are ready."
+  description: "Body of the notification posted while Kando is in the background, when a video's job is done. The notification's title is the video's title."
+queueNotifyFailed:
+  message: "Couldn't make the subtitles. {reason}"
+  description: "Body of the notification posted while Kando is in the background, when a video's job failed. The notification's title is the video's title; the reason is what the failed card says, a full sentence of its own."
+  placeholders:
+    reason: { type: "String", example: "The video is private or was deleted" }
+queueOpenSettingsFailed:
+  message: "Couldn't open System Settings: {error}"
+  description: "Message bar when System Settings could not be opened."
+  placeholders:
+    error: { type: "String", example: "exit status 1" }
+queueQuitWhileRunningCancel:
+  message: "Cancel"
+  description: "Default button of the dialog asking whether to quit while a video is being processed: Kando keeps running and the job with it."
+queueQuitWhileRunningMessage:
+  message: "“{film}” is still being processed. Quitting stops it now; Kando processes it again the next time you open it."
+  description: "Message of the dialog asking whether to quit while a video is being processed, shown on ⌘Q, Quit in the menu, or on Linux and Windows closing the main window."
+  placeholders:
+    film: { type: "String", example: "Learn Rust" }
+queueQuitWhileRunningQuit:
+  message: "Quit"
+  description: "Destructive button of the dialog asking whether to quit while a video is being processed: stops the job and quits Kando."
+queueQuitWhileRunningTitle:
+  message: "Quit Kando while a video is being processed?"
+  description: "Title of the dialog asking whether to quit while a video is being processed."
+queueRedoFailed:
+  message: "“{name}” keeps its subtitles: it couldn't be translated again. {reason}"
+  description: "Message bar when translating a finished film again (Translate Again or Translate Missing Lines) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    reason: { type: "String", example: "Can't connect to the AI service. Check your network, then retry." }
+queueRemedyAge:
+  message: "Age verification required"
+  description: "Headline of a failed download's card: the video is age-restricted."
+queueRemedyAgeNeed:
+  message: "It needs a signed-in {site} account."
+  description: "First sentence of the card of an age-restricted video when no browser's sign-in can be borrowed."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+queueRemedyAgeWhy:
+  message: "Use the {site} account you're signed in to in your browser."
+  description: "What to do about an age-restricted video when a browser's sign-in can be borrowed."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+queueRemedyAllowed:
+  message: "Allowed, Retry"
+  description: "Button of the card once the user granted Full Disk Access."
+queueRemedyBadLink:
+  message: "The link is incomplete"
+  description: "Headline of a failed download's card: the link was cut short."
+queueRemedyBadLinkWhy:
+  message: "Part of the link seems to be missing, so retrying won't download it. Copy the whole link and try again with it."
+  description: "What to do about a link that was cut short."
+queueRemedyBilibiliShort:
+  message: "Bilibili"
+  description: "How a sentence names Bilibili after “sign in to”, its short name where there is one."
+queueRemedyBorrow:
+  message: "Use {browser} Sign-In and Retry"
+  description: "Button of a failed download's card: download again with the sign-in of a browser."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+queueRemedyCheckUpdate:
+  message: "Check for Updates"
+  description: "Button of the card: look for a newer yt-dlp again."
+queueRemedyCookies:
+  message: "Can't read {browser}'s sign-in"
+  description: "Headline of a failed download's card when yt-dlp could not read the browser's sign-in."
+  placeholders:
+    browser: { type: "String", example: "Safari" }
+queueRemedyCookiesWhy:
+  message: "There's no {browser} sign-in data on this computer. Try another browser you're signed in with."
+  description: "What to do when the browser has no sign-in data on this computer."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+queueRemedyDownloadYtdlp:
+  message: "Download yt-dlp and Retry"
+  description: "Button of the card of a download yt-dlp was too old for, when Kando cannot update the yt-dlp on this computer: download Kando's own yt-dlp and download again with it."
+queueRemedyDownloadYtdlpFailed:
+  message: "Couldn't download yt-dlp: {error}. Try again, or update the yt-dlp on this computer and retry."
+  description: "Under the headline of the card of a download yt-dlp was too old for, when downloading Kando's own yt-dlp failed."
+  placeholders:
+    error: { type: "String", example: "HTTP 503" }
+queueRemedyDownloadingYtdlp:
+  message: "Downloading yt-dlp…"
+  description: "Headline of the card of a download yt-dlp was too old for, while Kando downloads its own yt-dlp."
+queueRemedyDownloadingYtdlpAction:
+  message: "Downloading…"
+  description: "Disabled button of the card while Kando downloads its own yt-dlp."
+queueRemedyDownloadingYtdlpWhy:
+  message: "The download starts again once Kando has its own yt-dlp."
+  description: "Under the headline of the card while Kando downloads its own yt-dlp."
+queueRemedyDrm:
+  message: "{site} is DRM-protected"
+  description: "Headline of a failed download's card: the site encrypts its videos with DRM."
+  placeholders:
+    site: { type: "String", example: "Netflix" }
+queueRemedyDrmWhy:
+  message: "The video is encrypted and can't be downloaded. If you have a local file, drag it in."
+  description: "What to do about a DRM-protected video."
+queueRemedyFindBrowsers:
+  message: "Find Browsers Again"
+  description: "Button of a failed download's card: look for browsers again."
+queueRemedyHost:
+  message: "Can't find {host}"
+  description: "Headline of a failed download's card: the link's host does not resolve."
+  placeholders:
+    host: { type: "String", example: "example.invalid" }
+queueRemedyHostWhy:
+  message: "If your network is working, the address in the link is probably wrong, or the website has shut down. Use another link, or check your network and retry."
+  description: "What to do when the link's host does not resolve."
+queueRemedyLocal:
+  message: "Choose Local File"
+  description: "Button of a failed download's card: pick a video file on this computer instead."
+queueRemedyLogin:
+  message: "Sign-in required"
+  description: "Headline of a failed download's card: the video needs an account."
+queueRemedyLoginBorrow:
+  message: "Use the account you're signed in to in your browser. No password is stored."
+  description: "Second sentence of the card of a video that needs an account, when a browser's sign-in can be borrowed."
+queueRemedyLoginExpired:
+  message: "Your {site} sign-in has expired"
+  description: "Headline of a failed download's card when the borrowed sign-in to the site has expired."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+queueRemedyLoginExpiredWhy:
+  message: "Sign in to {site} again in {browser}, then come back and retry."
+  description: "What to do when the borrowed sign-in to the site has expired."
+  placeholders:
+    browser: { type: "String", example: "Safari" }
+    site: { type: "String", example: "YouTube" }
+queueRemedyLoginNeed:
+  message: "This video on {host} needs an account."
+  description: "First sentence of the card of a video that needs an account."
+  placeholders:
+    host: { type: "String", example: "instagram.com" }
+queueRemedyMembers:
+  message: "Video for channel members only"
+  description: "Headline of a failed download's card: the video is for the channel's paying members."
+queueRemedyMembersBorrow:
+  message: "Use the sign-in of a browser where your membership is active."
+  description: "Second sentence of the card of a members-only video, when a browser's sign-in can be borrowed."
+queueRemedyMembersNeed:
+  message: "It needs a channel membership."
+  description: "First sentence of the card of a video for the channel's members."
+queueRemedyNetwork:
+  message: "Can't connect to the network"
+  description: "Headline of a failed download's card: no network."
+queueRemedyNetworkWhy:
+  message: "Check your network connection, then retry."
+  description: "What to do when there is no network."
+queueRemedyNoBrowser:
+  message: "Couldn't find a browser on this computer whose sign-in Kando can use. Sign in with Chrome, Firefox, Edge, Brave or Chromium, then look again."
+  description: "Sentence of a failed download's card that wants a sign-in when no browser on this computer has one yt-dlp can borrow."
+queueRemedyOpenSystemSettings:
+  message: "Open System Settings"
+  description: "Button of the card that opens the Full Disk Access pane of System Settings."
+queueRemedyOutdated:
+  message: "{site} has changed, and the download component needs an update"
+  description: "Headline of a failed download's card when the site changed and yt-dlp needs an update."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+queueRemedyOutdatedDownloadWhy:
+  message: "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Or let Kando download its own."
+  description: "Under the headline when yt-dlp needs an update Kando cannot do itself and Kando can download its own yt-dlp instead; hint is how the user updates the installed one (queueYtdlpHint…)."
+  placeholders:
+    version: { type: "String", example: "2024.03.10" }
+    hint: { type: "String", example: "yt-dlp came with your system's packages; update it with your package manager" }
+queueRemedyOutdatedLatest:
+  message: "{site} has changed, and the download component hasn't caught up yet"
+  description: "Headline of a failed download's card when the site changed and even the newest yt-dlp cannot read it yet."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+queueRemedyOutdatedLatestWhy:
+  message: "This computer's yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; retry in a day or two."
+  description: "What to do when even the newest yt-dlp cannot read the site yet."
+  placeholders:
+    version: { type: "String", example: "2026.08.19" }
+queueRemedyOutdatedManualWhy:
+  message: "This computer's yt-dlp is version {version}, and Kando can't update it: {hint}. Retry once it's updated."
+  description: "Under the headline when yt-dlp needs an update Kando cannot do itself; hint is how the user updates it (queueYtdlpHint…)."
+  placeholders:
+    version: { type: "String", example: "2024.03.10" }
+    hint: { type: "String", example: "run brew upgrade yt-dlp in a terminal" }
+queueRemedyOutdatedVersionWhy:
+  message: "This computer's yt-dlp is version {version}. Updating takes a few seconds."
+  description: "Under the headline when yt-dlp needs an update."
+  placeholders:
+    version: { type: "String", example: "2024.03.10" }
+queueRemedyOutdatedWhy:
+  message: "This computer's yt-dlp is too old. Updating takes a few seconds."
+  description: "Under the headline when yt-dlp needs an update and its version is not known."
+queueRemedyPremium:
+  message: "Video for Bilibili Premium members only"
+  description: "Headline of a failed download's card: the Bilibili video is for Bilibili Premium (大会员) members."
+queueRemedyPremiumNeed:
+  message: "It needs Bilibili Premium."
+  description: "First sentence of the card of a Bilibili Premium (大会员) video."
+queueRemedyPrivate:
+  message: "The video is private or was deleted"
+  description: "Headline of a failed download's card: the video is private or deleted."
+queueRemedyPrivateWhy:
+  message: "It can't be downloaded. If it's available elsewhere, use another link."
+  description: "What to do about a private or deleted video."
+queueRemedyRateLimit:
+  message: "{site} is limiting downloads for now"
+  description: "Headline of a failed download's card: the site is refusing too many requests."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+queueRemedyRateLimitWait:
+  message: "Too many requests. Wait a few minutes and retry."
+  description: "What to do when the site is limiting downloads, when no browser's sign-in can be borrowed."
+queueRemedyRateLimitWhy:
+  message: "Too many requests. Wait a few minutes and retry, or use the account you're signed in to in your browser."
+  description: "What to do when the site is limiting downloads, when a browser's sign-in can be borrowed."
+queueRemedyRegion:
+  message: "Not available in your region"
+  description: "Headline of a failed download's card: the video is blocked in the user's region."
+queueRemedyRegionWhy:
+  message: "The uploader restricted where it can be watched. If the video is available elsewhere, use another link."
+  description: "What to do about a video blocked in the user's region."
+queueRemedyRelogged:
+  message: "Signed In Again, Retry"
+  description: "Button of a failed download's card after the user signed in to the site again in the browser."
+queueRemedyRetry:
+  message: "Retry"
+  description: "Button of a failed download's card."
+queueRemedySafariWhy:
+  message: "macOS only lets apps with Full Disk Access read Safari's sign-in. Allow Kando in System Settings and come back to retry, or use another browser."
+  description: "What to do when macOS keeps Safari's cookies from Kando: grant Full Disk Access in System Settings. Use Apple's name of that permission."
+queueRemedySentences:
+  message: "{first} {second}"
+  description: "Two sentences of a failed download's card, one after the other: what the video needs, then how to get it."
+  placeholders:
+    first: { type: "String", example: "It needs a channel membership." }
+    second: { type: "String", example: "Use the sign-in of a browser where your membership is active." }
+queueRemedySites:
+  message: "See Supported Websites"
+  description: "Button of a failed download's card that opens the sheet of supported websites."
+queueRemedySwap:
+  message: "Use Another Link"
+  description: "Button of a failed download's card: remove it and paste a link from elsewhere."
+queueRemedySwitchBrowser:
+  message: "Use {browser} Instead"
+  description: "Button of a failed download's card: borrow the sign-in of another browser."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+queueRemedyUnsupported:
+  message: "{host} isn't supported"
+  description: "Headline of a failed download's card when yt-dlp does not know the site."
+  placeholders:
+    host: { type: "String", example: "missav.ai" }
+queueRemedyUnsupportedWhy:
+  message: "No video was found on the page. Use another link, or download it to this computer first and drag it in."
+  description: "What to do when yt-dlp found no video on the page."
+queueRemedyUpdate:
+  message: "Update and Retry"
+  description: "Button of the card: update yt-dlp and download again."
+queueRemedyUpdated:
+  message: "Updated, Retry"
+  description: "Button of the card once the user updated yt-dlp themselves."
+queueRemedyUpdating:
+  message: "Updating the download component…"
+  description: "Headline of the card of a download yt-dlp was too old for, while yt-dlp updates."
+queueRemedyUpdatingAction:
+  message: "Updating…"
+  description: "Disabled button of the card while yt-dlp updates."
+queueRemedyUpdatingWhy:
+  message: "The download starts again once it's updated."
+  description: "Under the headline while yt-dlp updates."
+queueSaveFailed:
+  message: "Couldn't save the film list: {error}"
+  description: "Error line when library.json, the list of jobs, cannot be written."
+  placeholders:
+    error: { type: "String", example: "open library.json: permission denied" }
+queueStatusCanceled:
+  message: "Canceled"
+  description: "Status of a job the user cancelled."
+queueStatusComplete:
+  message: "Done: {path}"
+  description: "Status of a finished job, with the subtitle file it wrote."
+  placeholders:
+    path: { type: "String", example: "/Users/me/Kando/Talk/video.bilingual.srt" }
+queueStatusDownloading:
+  message: "Downloading the video…"
+  description: "Status of a job downloading its video."
+queueStatusExporting:
+  message: "Exporting bilingual subtitles…"
+  description: "Status of a job writing its bilingual subtitle file."
+queueStatusFailed:
+  message: "Failed: {error}"
+  description: "Status of a failed job, with the pipeline's error. The error must come last: the card reads it back after the text before it."
+  placeholders:
+    error: { type: "String", example: "download: yt-dlp: exit status 1" }
+queueStatusLibrarySwitched:
+  message: "Stopped: another library was opened"
+  description: "Status of a job stopped because the user opened another library."
+queueStatusQueued:
+  message: "Added to the queue"
+  description: "Status of a job waiting in the queue."
+queueStatusTranscribing:
+  message: "Generating subtitles on this computer…"
+  description: "Status of a job transcribing the speech into subtitles with whisper on this computer."
+queueStatusTranslating:
+  message: "Translating the subtitles…"
+  description: "Status of a job translating its subtitles."
+queueSwapRemoved:
+  message: "Removed “{name}”. If the video is available elsewhere, paste its link at the top right."
+  description: "Message bar after Use Another Link removed the failed card; the link field is at the top right of the window."
+  placeholders:
+    name: { type: "String", example: "Coastal Erosion Documentary" }
+queueUpdateFailed:
+  message: "Couldn't update the download component yt-dlp: {error}"
+  description: "Message bar when yt-dlp could not be updated, with why or how to update it."
+  placeholders:
+    error: { type: "String", example: "exit status 1" }
+queueYtdlpHintBrew:
+  message: "run brew upgrade yt-dlp in a terminal"
+  description: "How to update a yt-dlp installed with Homebrew that Kando cannot update; it follows a colon in a sentence."
+queueYtdlpHintPipx:
+  message: "run pipx upgrade yt-dlp in a terminal"
+  description: "How to update a yt-dlp installed with pipx that Kando cannot update; it follows a colon in a sentence."
+queueYtdlpHintStandalone:
+  message: "yt-dlp is in {dir}, where Kando isn't allowed to replace it; update it the way you installed it, or run sudo yt-dlp -U"
+  description: "How to update a standalone yt-dlp in a folder Kando may not write; it follows a colon in a sentence."
+  placeholders:
+    dir: { type: "String", example: "/usr/local/bin" }
+queueYtdlpHintSystem:
+  message: "yt-dlp is in {dir}, where Kando isn't allowed to change it; update it the way it was installed, such as with your package manager or sudo pip"
+  description: "How to update a Python yt-dlp outside Homebrew and pipx that Kando may not write, such as one a Linux distribution's packages or sudo pip put in a system folder; it follows a colon in a sentence."
+  placeholders:
+    dir: { type: "String", example: "/usr/bin" }
+queueYtdlpLatest:
+  message: "The download component yt-dlp is already the newest, version {version}. The fix for the site isn't out yet; try again in a day or two."
+  description: "Message bar when an update found yt-dlp already the newest."
+  placeholders:
+    version: { type: "String", example: "2026.08.19" }
+queueYtdlpUpdated:
+  message: "Updated the download component to {version} and restarted {count, plural, one {# download} other {# downloads}}."
+  description: "Message bar after yt-dlp was updated and the downloads it was too old for were queued again."
+  placeholders:
+    version: { type: "String", example: "2026.11.03" }
+    count: { type: "int", example: "2" }
+readinessCheckingSignIn:
+  message: "Checking the EveryAPI sign-in…"
+  description: "The sidebar's status line while Kando asks the everyapi program whether the user is signed in."
+readinessCheckingTools:
+  message: "Checking components…"
+  description: "The sidebar's status line before the programs a job needs have been looked for."
+readinessDownloadingTools:
+  message: "Downloading components: {tools}"
+  description: "The sidebar's status line while Kando downloads programs a job needs, with their names joined by precheckToolSeparator."
+  placeholders:
+    tools: { type: "String", example: "yt-dlp、ffmpeg" }
+readinessMissingTools:
+  message: "Missing components: {tools}"
+  description: "The sidebar's status line when programs a job needs are not installed, with their names joined by precheckToolSeparator."
+  placeholders:
+    tools: { type: "String", example: "yt-dlp、ffmpeg" }
+readinessReady:
+  message: "Ready to process"
+  description: "The sidebar's status line when a job can start."
+settingsAIBlurbCustom:
+  message: "Any API compatible with OpenAI Chat Completions"
+  description: "What the OpenAI Compatible item is. A phrase."
+settingsAIBlurbDashScope:
+  message: "Alibaba Cloud DashScope's compatible API"
+  description: "What the Qwen service is: Alibaba Cloud DashScope's compatible API. A phrase."
+settingsAIBlurbDeepSeek:
+  message: "DeepSeek's OpenAI-compatible API"
+  description: "What the DeepSeek service is. A phrase."
+settingsAIBlurbEveryAPI:
+  message: "EveryAPI's OpenAI-compatible API"
+  description: "What the EveryAPI service is, at the start of the footnote. A phrase; the footnote ends it with a period."
+settingsAIBlurbGroq:
+  message: "Groq's OpenAI-compatible API"
+  description: "What the Groq service is. A phrase."
+settingsAIBlurbLMStudio:
+  message: "LM Studio on this Mac"
+  description: "What the LM Studio service is: LM Studio running on this Mac. A phrase."
+settingsAIBlurbMistral:
+  message: "Mistral's OpenAI-compatible API"
+  description: "What the Mistral service is. A phrase."
+settingsAIBlurbMoonshot:
+  message: "Moonshot's OpenAI-compatible API"
+  description: "What the Kimi service is: Moonshot AI's API. A phrase."
+settingsAIBlurbOllama:
+  message: "Ollama on this Mac"
+  description: "What the Ollama service is: Ollama running on this Mac. A phrase."
+settingsAIBlurbOpenAI:
+  message: "OpenAI's official API"
+  description: "What the OpenAI service is. A phrase."
+settingsAIBlurbOpenRouter:
+  message: "Models from many providers through one API"
+  description: "What the OpenRouter service is. A phrase."
+settingsAIBlurbSiliconFlow:
+  message: "SiliconFlow's OpenAI-compatible API"
+  description: "What the SiliconFlow service is. A phrase."
+settingsAIBlurbXAI:
+  message: "Grok's OpenAI-compatible API"
+  description: "What the xAI service is: the API of xAI's Grok models. A phrase."
+settingsAIBlurbZhipu:
+  message: "Zhipu's OpenAI-compatible API"
+  description: "What the Zhipu GLM service is. A phrase."
+settingsAIChooseService:
+  message: "Choose service"
+  description: "Accessible name of the pop-up choosing the AI service."
+settingsAICompatible:
+  message: "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
+  description: "Last sentence of the AI Service page's footnote."
+settingsAIConnected:
+  message: "Connected"
+  description: "Connection test status when the service answered."
+settingsAIEveryAPICLI:
+  message: "everyapi command line"
+  description: "Title of the AI Service row about the everyapi command-line program, shown when the service is EveryAPI with no API Key and the program is missing or signed out. everyapi is the program's name."
+settingsAIEveryAPIFailed:
+  message: "Couldn't get the sign-in from it: {error}. Choose Detect Again to try again."
+  description: "Under the everyapi command line row when asking the program for its sign-in failed for a reason other than it being missing or signed out. Detect Again is the button beside it (settingsAIRedetect)."
+  placeholders:
+    error: { type: "String", example: "EveryAPI credential: everyapi: exit status 2" }
+settingsAIEveryAPIMissing:
+  message: "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."
+  description: "Under the everyapi command line row when the program is not on this computer. Detect Again is the button beside it (settingsAIRedetect)."
+settingsAIEveryAPIOpenFailed:
+  message: "Couldn't open everyapi.ai: {error}"
+  description: "Under the everyapi command line row when Get EveryAPI could not open the website in the browser."
+  placeholders:
+    error: { type: "String", example: "exit status 1" }
+settingsAIEveryAPISignedOut:
+  message: "Not signed in. Run everyapi auth login in Terminal, then choose Detect Again."
+  description: "Under the everyapi command line row when nobody is signed in to the program. everyapi auth login is the command to type and stays as it is; Detect Again is the button beside it (settingsAIRedetect)."
+settingsAIGetEveryAPI:
+  message: "Get EveryAPI"
+  description: "Button on the everyapi command line row that opens everyapi.ai in the browser, where the program is downloaded."
+settingsAIKeyEveryAPILogin:
+  message: "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."
+  description: "First sentence of the footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program."
+settingsAIKeyStoredLocally:
+  message: "The API Key is kept only in the settings file on this Mac."
+  description: "First sentence of the AI Service page's footnote."
+settingsAILoadingModels:
+  message: "Getting the model list…"
+  description: "In the Model row while the service's models are being fetched."
+settingsAILocalService:
+  message: "Local · {name}"
+  description: "A service running on this Mac in the service pop-up: the group, then the service's name."
+  placeholders:
+    name: { type: "String", example: "Ollama" }
+settingsAIModel:
+  message: "Model"
+  description: "Row title and pop-up name: the model the AI service translates with."
+settingsAIModelsFailed:
+  message: "Couldn't fetch the model list: {error}"
+  description: "Why the model list could not be fetched, for another error."
+  placeholders:
+    error: { type: "String", example: "connection refused" }
+settingsAIModelsNotFound:
+  message: "This service doesn't offer a model list; check the Base URL"
+  description: "Why the model list could not be fetched: the endpoint has no model list."
+settingsAIModelsTimeout:
+  message: "The service didn't answer in time, so the model list couldn't be fetched"
+  description: "Why the model list could not be fetched: the service did not answer in time."
+settingsAIModelsUnauthorized:
+  message: "The service doesn't accept this API Key, so the model list couldn't be fetched"
+  description: "Why the model list could not be fetched: the service refused the key."
+settingsAINameCustom:
+  message: "OpenAI Compatible"
+  description: "Service pop-up item for any other OpenAI-compatible endpoint, whose Base URL is typed in."
+settingsAINameDashScope:
+  message: "Qwen"
+  description: "Name of Alibaba Cloud's model service Tongyi Qianwen in the service pop-up; its international name is Qwen."
+settingsAINameSiliconFlow:
+  message: "SiliconFlow"
+  description: "Name of the model service SiliconFlow in the service pop-up."
+settingsAINameZhipu:
+  message: "Zhipu GLM"
+  description: "Name of Zhipu AI's GLM models in the service pop-up."
+settingsAINotConfigured:
+  message: "Not set up"
+  description: "Value of the Translation service row when nothing is set up."
+settingsAINote:
+  message: "{key} {compatible}"
+  description: "The AI Service page's footnote: the sentence about the API Key, then the sentence about compatible services."
+  placeholders:
+    key: { type: "String", example: "The API Key is kept only in the settings file on this Mac." }
+    compatible: { type: "String", example: "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request." }
+settingsAINoteWithBlurb:
+  message: "{blurb}. {key} {compatible}"
+  description: "The AI Service page's footnote for a service with a description: the description as a sentence, the sentence about the API Key, then the sentence about compatible services."
+  placeholders:
+    blurb: { type: "String", example: "OpenAI's official API" }
+    key: { type: "String", example: "The API Key is kept only in the settings file on this Mac." }
+    compatible: { type: "String", example: "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request." }
+settingsAIRedetect:
+  message: "Detect Again"
+  description: "Button on the everyapi command line row looking for the program again and asking it again whether someone is signed in."
+settingsAIRetry:
+  message: "Retry"
+  description: "Button fetching the service's models again after a failure."
+settingsAISaveFailed:
+  message: "Couldn't save the translation service: {error}"
+  description: "Error when the AI service's settings could not be saved to settings.json."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsAIService:
+  message: "Service"
+  description: "Row title: the AI service that translates."
+settingsAITest:
+  message: "Test Connection"
+  description: "Button sending a short request to check the AI service answers."
+settingsAITesting:
+  message: "Sending a test request…"
+  description: "Connection test status while the test request is in flight."
+settingsAITranslationService:
+  message: "Translation service"
+  description: "Row title on the AI Service page when Kando has no tools to translate with."
+settingsAIUntested:
+  message: "Not tested"
+  description: "Connection test status before any test."
+settingsFileDamaged:
+  message: "The settings file has content Kando can't read; the original was saved as settings.json.bad"
+  description: "Notice at startup when settings.json has content Kando cannot read; the file was copied to settings.json.bad. Keep the file name as it is."
+settingsFileDamagedUnsaved:
+  message: "The settings file has content Kando can't read, and a copy couldn't be saved: {error}"
+  description: "Error at startup when settings.json has content Kando cannot read and the copy beside it could not be written."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsFileUnreadable:
+  message: "Couldn't read the settings file: {error}"
+  description: "Error at startup when settings.json could not be read."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsGeneralAutoCheck:
+  message: "Check for updates automatically"
+  description: "Switch in Settings › General: Kando checks for a new version after launch and once a day."
+settingsGeneralAutoDownload:
+  message: "Download and install updates automatically"
+  description: "Switch in Settings › General, under the automatic check: updates found in the background install without asking."
+settingsGeneralAutoDownloadHint:
+  message: "The new version opens the next time you launch Kando."
+  description: "Under the automatic download switch in Settings › General."
+settingsGeneralCLI:
+  message: "Command Line & MCP"
+  description: "Heading of the General settings card about Kando's command line and its MCP server for AI assistants."
+settingsGeneralCLIAddToPath:
+  message: "Add {dir} to PATH to use kando in a terminal."
+  description: "Line under Command-Line Tool where Kando can't install the command itself (Windows): the folder of Kando's executable to add to PATH."
+  placeholders:
+    dir: { type: "String", example: "C:\\Program Files\\Kando" }
+settingsGeneralCLIBlocked:
+  message: "Kando won't replace the kando of another program at {path}."
+  description: "Why installing the kando command failed, after \"Couldn't install: \": each folder Kando may install it in already has a kando of another program, which Kando never replaces."
+  placeholders:
+    path: { type: "String", example: "/usr/local/bin/kando" }
+settingsGeneralCLIClaudeCode:
+  message: "Claude Code"
+  description: "Title of the row with the terminal command that adds Kando's MCP server to Claude Code, Anthropic's coding assistant. A product name; keep it as is."
+settingsGeneralCLICopied:
+  message: "Copied"
+  description: "What a copy button of the Command Line & MCP card reads after it put its text on the clipboard."
+settingsGeneralCLICopyCommand:
+  message: "Copy Command"
+  description: "Button copying the Claude Code command that adds Kando's MCP server."
+settingsGeneralCLICopyConfig:
+  message: "Copy Config"
+  description: "Button copying the JSON configuration an MCP client (Claude Desktop, Cursor) needs to run Kando's MCP server."
+settingsGeneralCLIInstall:
+  message: "Install"
+  description: "Button putting the kando command where a terminal finds it."
+settingsGeneralCLIInstallFailed:
+  message: "Couldn't install: {error}"
+  description: "Message under the Command Line & MCP card when installing the kando command failed, with what went wrong."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsGeneralCLIInstalledAt:
+  message: "Type kando in a terminal. The command is at {path}."
+  description: "Line under Command-Line Tool once a terminal finds the kando command: how to use it and where it is."
+  placeholders:
+    path: { type: "String", example: "/usr/local/bin/kando" }
+settingsGeneralCLIMCP:
+  message: "MCP"
+  description: "Title of the row about Kando's MCP server (Model Context Protocol). An acronym; keep it as is."
+settingsGeneralCLIMCPHint:
+  message: "Lets AI assistants such as Claude Desktop and Cursor use Kando. Paste the config into their MCP settings."
+  description: "Line under MCP: what the server is for and what to do with Copy Config."
+settingsGeneralCLIMoveFirst:
+  message: "Kando is running from a disk image or a temporary location. Move Kando to the Applications folder and open it from there first."
+  description: "Shown on the Command Line & MCP card, and after \"Couldn't install: \", when Kando runs from its disk image or a temporary copy macOS made (App Translocation), whose path stops working: the command and the MCP configuration need Kando moved to the Applications folder first. Use the system's name for the Applications folder."
+settingsGeneralCLINotOnPath:
+  message: "Installed at {path}, but {dir} isn't on the terminal's PATH. Add it to PATH, then open a new terminal window."
+  description: "Line under Command-Line Tool when the kando command was installed in a folder a terminal doesn't search: where it is, and the folder to add to PATH."
+  placeholders:
+    path: { type: "String", example: "~/.local/bin/kando" }
+    dir: { type: "String", example: "~/.local/bin" }
+settingsGeneralCLINote:
+  message: "Both work through Kando itself and open it when it isn't running."
+  description: "Footnote under the Command Line & MCP card."
+settingsGeneralCLIOther:
+  message: "The kando a terminal runs is {path}, not this Kando."
+  description: "Line under Command-Line Tool when the kando a terminal finds is another program or another copy of Kando."
+  placeholders:
+    path: { type: "String", example: "/usr/local/bin/kando" }
+settingsGeneralCLIReinstall:
+  message: "Reinstall"
+  description: "Button installing the kando command again, replacing one that runs another copy of Kando or one a terminal doesn't find."
+settingsGeneralCLITool:
+  message: "Command-Line Tool"
+  description: "Title of the row about the kando terminal command."
+settingsGeneralCLIToolHint:
+  message: "Add videos and check jobs and subtitles from a terminal with the kando command."
+  description: "Line under Command-Line Tool before it is installed: what the kando command does."
+settingsGeneralComponents:
+  message: "Components"
+  description: "Heading of the card listing the programs Kando runs."
+settingsGeneralCurrentLibrary:
+  message: "Current library"
+  description: "Row title and pop-up name on the General page: the library Kando has open."
+settingsGeneralDownload:
+  message: "Download"
+  description: "Button on a program's row that downloads it, where the computer does not have it."
+settingsGeneralDownloadFailed:
+  message: "Download failed: {error}"
+  description: "Where a program is, after Kando's download of it failed, with what went wrong."
+  placeholders:
+    error: { type: "String", example: "HTTP 404" }
+settingsGeneralDownloading:
+  message: "Downloading…"
+  description: "Where a program is, while Kando downloads it; also the name of its progress bar."
+settingsGeneralForget:
+  message: "Remove from list"
+  description: "Row title: take the current library off Kando's list of libraries."
+settingsGeneralForgetButton:
+  message: "Remove"
+  description: "Button taking the current library off the list."
+settingsGeneralForgetHint:
+  message: "Takes it off Kando's list only; the files stay where they are."
+  description: "Under Remove from list: the files are not deleted."
+settingsGeneralInstalled:
+  message: "Installed"
+  description: "A program Kando runs that was found but did not tell its version."
+settingsGeneralInterfaceLanguage:
+  message: "Interface language"
+  description: "Row title and pop-up name: the language of Kando's interface."
+settingsGeneralLastCheck:
+  message: "Last checked {when}"
+  description: "Under Version in Settings › General: when Kando last checked for updates; {when} is a date and time."
+  placeholders:
+    when: { type: "DateTime" }
+settingsGeneralLibrary:
+  message: "Library"
+  description: "Heading of the General page's library card."
+settingsGeneralLibraryNote:
+  message: "Switching libraries stops the jobs in progress. Removing a library from the list doesn't delete the files in it."
+  description: "Footnote under the General page's library card."
+settingsGeneralLocation:
+  message: "Location"
+  description: "Row title: where the library is on disk."
+settingsGeneralNewLibrary:
+  message: "New Library…"
+  description: "Button making a new library."
+settingsGeneralNoLibrary:
+  message: "No library yet"
+  description: "Under Current library when there is no library yet."
+settingsGeneralNotInstalled:
+  message: "Not Installed"
+  description: "A program Kando runs that was not found."
+settingsGeneralNotify:
+  message: "Notify when a video is done"
+  description: "Switch in Settings › General: Kando posts a notification when a video's subtitles are ready or could not be made while it is in the background."
+settingsGeneralNotifyHint:
+  message: "While Kando is in the background, a notification says when a video's subtitles are ready or couldn't be made."
+  description: "Line under the notification switch in Settings › General."
+settingsGeneralOpenLibrary:
+  message: "Open Library…"
+  description: "Button opening an existing library."
+settingsGeneralRedetect:
+  message: "Detect Again"
+  description: "Button looking for ffmpeg, yt-dlp and whisper-cli again."
+settingsGeneralRetry:
+  message: "Retry"
+  description: "Button on a program's row that downloads it again after its download failed."
+settingsGeneralShowInFinder:
+  message: "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
+  description: "Button showing the library folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+settingsGeneralToolDetail:
+  message: "{use} · {where}"
+  description: "Line under a program's name: what it is for, then where it was found or Not Installed."
+  placeholders:
+    use: { type: "String", example: "Downloads online videos" }
+    where: { type: "String", example: "/opt/homebrew/bin/yt-dlp" }
+settingsGeneralToolsNote:
+  message: "Kando downloads the programs it is missing. Those already installed on this computer are used as they are."
+  description: "Footnote under the programs Kando runs: Kando downloads the missing ones itself."
+settingsGeneralToolsNoteManual:
+  message: "These programs come from this computer; Kando doesn't install or update them."
+  description: "Footnote under the programs Kando runs, on a system where it does not download them (Windows): they are the user's to install."
+settingsGeneralUpdateAvailable:
+  message: "Version {version} is available"
+  description: "Under Version in Settings › General when the last check found a newer version; {version} is its number, such as 0.4.0."
+settingsGeneralUseFFmpeg:
+  message: "Converts audio, grabs covers, decodes frames"
+  description: "What ffmpeg is for, under its name."
+settingsGeneralUseWhisper:
+  message: "Speech recognition"
+  description: "What whisper-cli is for, under its name."
+settingsGeneralUseYTDLP:
+  message: "Downloads online videos"
+  description: "What yt-dlp is for, under its name."
+settingsGeneralVersion:
+  message: "Version"
+  description: "Row title: Kando's version."
+settingsKeywordsAI:
+  message: "translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection"
+  description: "Search keywords of the AI Service settings section, separated by spaces, besides its title: the services it offers and its fields. Not shown."
+settingsKeywordsAccount:
+  message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
+  description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
+settingsKeywordsGeneral:
+  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify"
+  description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
+settingsKeywordsLook:
+  message: "subtitles display bilingual original only translation only order translation original dim blank make room preview"
+  description: "Search keywords of the Subtitle Style settings section, separated by spaces, besides its title. Not shown."
+settingsKeywordsShortcuts:
+  message: "keyboard keys commands"
+  description: "Search keywords of the Keyboard Shortcuts settings section, separated by spaces, besides its title. Not shown."
+settingsKeywordsSpeech:
+  message: "whisper models download recognition transcription HuggingFace Vimpo hyperframes"
+  description: "Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown."
+settingsKeywordsTranslate:
+  message: "target language smart translation context prompt restore default"
+  description: "Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown."
+settingsLanguageEnglish:
+  message: "English"
+  description: "Target language in the pop-up: English."
+settingsLanguageFrench:
+  message: "French"
+  description: "Target language in the pop-up: French."
+settingsLanguageGerman:
+  message: "German"
+  description: "Target language in the pop-up: German."
+settingsLanguageJapanese:
+  message: "Japanese"
+  description: "Target language in the pop-up: Japanese."
+settingsLanguageKorean:
+  message: "Korean"
+  description: "Target language in the pop-up: Korean."
+settingsLanguageSimplifiedChinese:
+  message: "Simplified Chinese"
+  description: "Target language in the pop-up: Simplified Chinese."
+settingsLanguageSpanish:
+  message: "Spanish"
+  description: "Target language in the pop-up: Spanish."
+settingsLanguageTraditionalChinese:
+  message: "Traditional Chinese"
+  description: "Target language in the pop-up: Traditional Chinese."
+settingsLibrarySaveFailed:
+  message: "Couldn't save the library: {error}"
+  description: "Error when the libraries could not be saved to settings.json."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsLookMode:
+  message: "Default display"
+  description: "Row title: which subtitle lines the player shows by default."
+settingsLookModeBilingual:
+  message: "Bilingual"
+  description: "Segment: show both lines."
+settingsLookModeOriginal:
+  message: "Original Only"
+  description: "Segment: show only the original line."
+settingsLookModeTranslation:
+  message: "Translation Only"
+  description: "Segment: show only the translated line."
+settingsLookNote:
+  message: "Size, color and font are changed while playing, in “Subtitle Style” in the sidebar. Changes here apply to the player at the same time."
+  description: "Footnote under the subtitle preview. “Subtitle Style” is the panel of the player's sidebar; use its name there."
+settingsLookOrder:
+  message: "Bilingual order"
+  description: "Row title: which line is on top in bilingual subtitles."
+settingsLookOrderOriginalFirst:
+  message: "Original on Top"
+  description: "Segment: the original above the translation."
+settingsLookOrderTranslationFirst:
+  message: "Translation on Top"
+  description: "Segment: the translation above the original."
+settingsLookPreview:
+  message: "Subtitle preview"
+  description: "Accessible name of the subtitle preview."
+settingsLookPreviewOff:
+  message: "Subtitles are off"
+  description: "In the subtitle preview when the player's subtitles are off."
+settingsLookPreviewOriginal:
+  message: "Chaque rivière commence par un mince filet d'eau en haut des montagnes."
+  description: "The original line of the sample subtitle in the preview, in a foreign language as a film's would be: English, except in the English interface, where it is French."
+settingsLookPreviewTag:
+  message: "Preview"
+  description: "Small tag in the corner of the subtitle preview."
+settingsLookPreviewTranslation:
+  message: "Every river begins as a trickle high in the mountains."
+  description: "The translated line of the sample subtitle in the preview, in the interface's language. The same sentence as settingsLookPreviewOriginal."
+settingsLookUntranslated:
+  message: "Translation only, before the translation is ready"
+  description: "Row title: what Translation Only shows for a line whose translation has not arrived yet."
+settingsLookUntranslatedBlank:
+  message: "Leave Blank"
+  description: "Segment: show nothing until the translation arrives."
+settingsLookUntranslatedDim:
+  message: "Dim Original"
+  description: "Segment: show the original line dimmed until the translation arrives."
+settingsLookUntranslatedHint:
+  message: "The translation replaces it as soon as it arrives"
+  description: "Under the row about lines not translated yet."
+settingsLookYield:
+  message: "Move subtitles up when controls appear"
+  description: "Switch row: move the subtitles up while the player's controls show."
+settingsLookYieldHint:
+  message: "Keeps them clear of the control bar"
+  description: "Under the switch moving subtitles up."
+settingsSearchLabel:
+  message: "Search settings"
+  description: "Accessible name of the search field at the top of the settings window's sidebar."
+settingsSearchNone:
+  message: "No matching settings"
+  description: "Shown in the settings window's sidebar when the search finds no section."
+settingsSearchPlaceholder:
+  message: "Search"
+  description: "Placeholder of the search field at the top of the settings window's sidebar."
+settingsSectionAI:
+  message: "AI Service"
+  description: "Settings section and sidebar item: the AI service that translates subtitles."
+settingsSectionAccount:
+  message: "Account & Upload"
+  description: "Settings section and sidebar item: the Google account and the object storage videos are uploaded to."
+settingsSectionGeneral:
+  message: "General"
+  description: "Settings section and sidebar item: the library, the interface language and the programs Kando runs."
+settingsSectionLook:
+  message: "Subtitle Style"
+  description: "Settings section and sidebar item: how the player shows subtitles."
+settingsSectionShortcuts:
+  message: "Keyboard Shortcuts"
+  description: "Settings section and sidebar item: the table of keyboard shortcuts."
+settingsSectionSpeech:
+  message: "Speech Recognition"
+  description: "Settings section and sidebar item: the whisper models that transcribe speech."
+settingsSectionTranslate:
+  message: "Translation"
+  description: "Settings section and sidebar item: the target language and the translation prompt."
+settingsShortcutsNone:
+  message: "No matching shortcuts"
+  description: "Shown when the shortcut search finds nothing."
+settingsShortcutsNote:
+  message: "Single-key shortcuts work only when no text field has the focus."
+  description: "Note under the shortcut search field."
+settingsShortcutsSearch:
+  message: "Search commands or keys"
+  description: "Placeholder and accessible name of the Keyboard Shortcuts page's search field."
+settingsSpeechBlurbBase:
+  message: "Clear English talks and podcasts, almost instantly."
+  description: "What the whisper model Base is good for."
+settingsSpeechBlurbLargeV3:
+  message: "The most accurate and the slowest. For noisy places, conversations among several people, or films in less common languages."
+  description: "What the whisper model Large v3 is good for."
+settingsSpeechBlurbLargeV3Turbo:
+  message: "Almost the same results as the compressed version, at about 3 times the space."
+  description: "What the whisper model Large v3 Turbo is good for, next to its compressed version."
+settingsSpeechBlurbLargeV3TurboQ5:
+  message: "The choice for most cases: close to the highest accuracy, small and fast."
+  description: "What the recommended whisper model Large v3 Turbo (Compressed) is good for."
+settingsSpeechBlurbMedium:
+  message: "More accurate with strong accents and fast speech, but noticeably slower."
+  description: "What the whisper model Medium is good for."
+settingsSpeechBlurbSmall:
+  message: "Good enough for everyday videos, and mostly reliable for Chinese and other languages too."
+  description: "What the whisper model Small is good for."
+settingsSpeechBlurbTiny:
+  message: "For a quick try only. It makes many mistakes and suits only clearly spoken English."
+  description: "What the whisper model Tiny is good for."
+settingsSpeechCancel:
+  message: "Cancel"
+  description: "Button canceling a whisper model's download."
+settingsSpeechDownload:
+  message: "Download"
+  description: "Button downloading a whisper model."
+settingsSpeechDownloadDisconnected:
+  message: "The connection dropped. Check your network and download again."
+  description: "Error on the Speech Recognition page and in the guide: the connection to the server failed or broke off during a whisper model's download. It may fail before any data arrived, so it does not promise to resume."
+settingsSpeechDownloadFailedStatus:
+  message: "The server answered HTTP {status}. Try again later."
+  description: "Error on the Speech Recognition page and in the guide: the server answered a whisper model's download with an error status."
+  placeholders:
+    status: { type: "int", example: "503" }
+settingsSpeechDownloadProgress:
+  message: "{model} download progress"
+  description: "Accessible name of a whisper model's download progress bar."
+  placeholders:
+    model: { type: "String", example: "Base" }
+settingsSpeechDownloadStalled:
+  message: "The download stopped receiving data. Download again to continue from where it stopped."
+  description: "Error on the Speech Recognition page and in the guide: no data arrived for a long while during a whisper model's download; downloading again resumes it."
+settingsSpeechDownloaded:
+  message: "Downloaded"
+  description: "At the end of a whisper model's row: the model is on disk."
+settingsSpeechLanguageDe:
+  message: "German"
+  description: "Choice of the Spoken Language drop-down: German."
+settingsSpeechLanguageEn:
+  message: "English"
+  description: "Choice of the Spoken Language drop-down: English."
+settingsSpeechLanguageEs:
+  message: "Spanish"
+  description: "Choice of the Spoken Language drop-down: Spanish."
+settingsSpeechLanguageFr:
+  message: "French"
+  description: "Choice of the Spoken Language drop-down: French."
+settingsSpeechLanguageJa:
+  message: "Japanese"
+  description: "Choice of the Spoken Language drop-down: Japanese."
+settingsSpeechLanguageKo:
+  message: "Korean"
+  description: "Choice of the Spoken Language drop-down: Korean."
+settingsSpeechLanguageSaveFailed:
+  message: "Couldn't save the spoken language: {error}"
+  description: "Error when the chosen spoken language could not be saved to settings.json."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsSpeechLanguageZh:
+  message: "Chinese"
+  description: "Choice of the Spoken Language drop-down: Chinese."
+settingsSpeechModelActions:
+  message: "More for {model}"
+  description: "Accessible name and tooltip of the ⋯ button after a downloaded whisper model, which opens a menu of what can be done with its file."
+  placeholders:
+    model: { type: "String", example: "Base" }
+settingsSpeechModelStats:
+  message: "Speed {speed}  Accuracy {accuracy}  {size}"
+  description: "Line under a whisper model: its speed and accuracy as five stars each, then its size. Two spaces between the parts."
+  placeholders:
+    speed: { type: "String", example: "★★★★☆" }
+    accuracy: { type: "String", example: "★★★★★" }
+    size: { type: "String", example: "574 MB" }
+settingsSpeechModels:
+  message: "whisper Models"
+  description: "Heading of the Speech Recognition page's card, and the name of its radio group. whisper is a program name, kept lowercase."
+settingsSpeechNameLargeV3TurboQ5:
+  message: "Large v3 Turbo (Compressed)"
+  description: "Name of the whisper model large-v3-turbo-q5, the quantized (smaller) Large v3 Turbo. Large v3 Turbo is the model's name; translate only the qualifier."
+settingsSpeechNoModelsDir:
+  message: "There is no models folder yet"
+  description: "Error on the Speech Recognition page: Kando has no folder to download whisper models into."
+settingsSpeechNote:
+  message: "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying."
+  description: "Footnote under the whisper models."
+settingsSpeechRecommended:
+  message: "Recommended"
+  description: "Badge after the name of the recommended whisper model."
+settingsSpeechReveal:
+  message: "Show in Finder"
+  description: "Menu item of a downloaded whisper model that shows its file in Finder."
+settingsSpeechSaveFailed:
+  message: "Couldn't save the model: {error}"
+  description: "Error when the chosen whisper model could not be saved to settings.json."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsSpeechSpokenAuto:
+  message: "Detect Automatically"
+  description: "Choice of the Spoken Language drop-down: whisper detects the language spoken in each video. The default."
+settingsSpeechSpokenLanguage:
+  message: "Spoken Language"
+  description: "Title of the Speech Recognition page's row choosing the language spoken in the videos, and the name of its drop-down."
+settingsSpeechSpokenNote:
+  message: "The language spoken in the videos. Automatic detection listens to the first 30 seconds, so it can guess wrong when a video opens with music or with another language; choose the language then."
+  description: "Footnote under the Spoken Language row."
+settingsSpeechTrash:
+  message: "Move to Trash…"
+  description: "Menu item of a whisper model Kando downloaded that asks to move its file to the Trash."
+settingsSpeechTrashButton:
+  message: "Move"
+  description: "Destructive button of the alert confirming that a downloaded whisper model goes to the Trash, beside Cancel. Keep it short: the alert is 260 points wide with both buttons on one row."
+settingsSpeechTrashConfirm:
+  message: "Move “{model}” to the Trash?"
+  description: "Title of the alert confirming that a downloaded whisper model goes to the Trash."
+  placeholders:
+    model: { type: "String", example: "Large v3" }
+settingsSpeechTrashFailed:
+  message: "Couldn't move “{model}” to the Trash: {error}"
+  description: "Error on the Speech Recognition page when a whisper model's file could not be moved to the Trash."
+  placeholders:
+    model: { type: "String", example: "Large v3" }
+    error: { type: "String", example: "permission denied" }
+settingsSpeechTrashInUse:
+  message: "“{model}” is in use. Choose another model before moving it to the Trash."
+  description: "Error on the Speech Recognition page when the whisper model in use was to be moved to the Trash."
+  placeholders:
+    model: { type: "String", example: "Large v3" }
+settingsSpeechTrashMessage:
+  message: "This frees {size}. You can get the model back from the Trash, or download it again here."
+  description: "Message of the alert confirming that a downloaded whisper model goes to the Trash."
+  placeholders:
+    size: { type: "String", example: "3.1 GB" }
+settingsTranslateContext:
+  message: "Smart translation"
+  description: "Switch row: translate with the sentences before in view."
+settingsTranslateContextHint:
+  message: "Translates with the sentences before in view, and joins the pieces of one sentence in order."
+  description: "Under Smart translation."
+settingsTranslatePrompt:
+  message: "Prompt"
+  description: "Heading of the card with the prompt sent to the translation model."
+settingsTranslatePromptCustom:
+  message: "Using a custom prompt · Write '{{language}}' for the target language."
+  description: "Under the prompt when it was edited. {{language}} is written literally into the prompt and must stay as it is, inside the apostrophes."
+settingsTranslatePromptDefault:
+  message: "Using the default prompt · Write '{{language}}' for the target language."
+  description: "Under the prompt when it is the default one. {{language}} is written literally into the prompt and must stay as it is, inside the apostrophes."
+settingsTranslatePromptLabel:
+  message: "Translation prompt"
+  description: "Accessible name of the text area holding the translation prompt."
+settingsTranslatePromptNote:
+  message: "You can add style requests, such as a conversational tone or keeping names in English. Kando asks for the number of JSON lines itself, so there's no need to write it here."
+  description: "Footnote under the prompt."
+settingsTranslateRestore:
+  message: "Restore Default"
+  description: "Button putting the default prompt back."
+settingsTranslateTarget:
+  message: "Default target language"
+  description: "Row title and pop-up name: the language new jobs translate subtitles into."
+settingsTranslateTargetNote:
+  message: "New jobs, and films processed or translated again, translate into this language."
+  description: "Footnote under the target language."
+settingsWindowTitle:
+  message: "Settings"
+  description: "Title of the settings window, as the Window menu and Mission Control name it."
+sidebarBrowse:
+  message: "Browse"
+  description: "Sidebar row of the built-in web browser, right after All Films."
+sidebarChooseLibrary:
+  message: "Choose a Library"
+  description: "The library switcher's name line while no library is open."
+sidebarLibrary:
+  message: "Library"
+  description: "Caption over the open library's name in the library switcher at the top of the sidebar."
+sidebarLibraryCount:
+  message: "{name} · {count, number, ::group-off}"
+  description: "Item of the library switcher's menu: a library and how many films it holds."
+  placeholders:
+    name: { type: "String", example: "My Films" }
+    count: { type: "int", example: "12" }
+sidebarMenuForget:
+  message: "Remove from List"
+  description: "Item of the library menu of the settings page's Switch button that takes the open library off the list of known libraries, leaving its files."
+sidebarMenuNewLibrary:
+  message: "New Library…"
+  description: "Item of the library menu of the settings page's Switch button that makes a new library."
+sidebarMenuOpenLibrary:
+  message: "Open Library…"
+  description: "Item of the library menu of the settings page's Switch button that opens a library from disk."
+sidebarMenuShowInFinder:
+  message: "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
+  description: "Item of the library menu of the settings page's Switch button that shows the open library in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+sidebarNewLibrary:
+  message: "New Library…"
+  description: "Item of the library switcher's menu that makes a new library."
+sidebarOpenLibrary:
+  message: "Open Existing Library…"
+  description: "Item of the library switcher's menu that opens a library from disk."
+sidebarRevealLibrary:
+  message: "{platform, select, macOS {Show “{name}” in Finder} Windows {Show “{name}” in File Explorer} other {Show “{name}” in File Manager}}"
+  description: "Item of the library switcher's menu that shows the open library's folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
+  placeholders:
+    name: { type: "String", example: "My Films" }
+    platform: { type: "String", example: "macOS" }
+sidebarSearchLabel:
+  message: "Search Films"
+  description: "Accessible name of the sidebar’s search field, which filters the library’s finished films by name."
+sidebarSearchPlaceholder:
+  message: "Search films"
+  description: "Placeholder of the search field under the library switcher in the sidebar, which filters the finished films by name; the app adds the shortcut after it."
+sidebarSettings:
+  message: "Settings"
+  description: "Accessible name of the gear on the status card, which opens the settings that fix what is missing."
+sidebarSourceAll:
+  message: "All Films"
+  description: "Sidebar item showing every film of the library; also the library page's title then."
+sidebarSourceBilibili:
+  message: "Bilibili"
+  description: "Sidebar item showing the films from Bilibili."
+sidebarSourceLocal:
+  message: "Local Files"
+  description: "Sidebar item showing the films made from local video files."
+sidebarSourceWeb:
+  message: "Other Sites"
+  description: "Sidebar item showing the films from websites other than YouTube and Bilibili."
+sidebarStatus:
+  message: "Status"
+  description: "Accessible name of the status card at the foot of the sidebar."
+sidebarSwitcherLabel:
+  message: "Switch library, current: {name}"
+  description: "Accessible name of the library switcher: what it does and the open library."
+  placeholders:
+    name: { type: "String", example: "My Films" }
+sitesCaveat:
+  message: "Videos that need a sign-in or membership, or that are DRM-encrypted, may not download even from a site on the list."
+  description: "Second line under the sheet's title."
+sitesDone:
+  message: "Done"
+  description: "Button closing the sheet."
+sitesFound:
+  message: "{count, plural, one {# found} other {# found}} · {source}"
+  description: "Footer while searching: how many sites the search found, then the list's source."
+  placeholders:
+    count: { type: "int", example: "2" }
+    source: { type: "String", example: "List from yt-dlp 2026.08.19" }
+sitesGridLabel:
+  message: "Websites"
+  description: "Accessible name of the grid of websites."
+sitesIntro:
+  message: "Kando downloads videos with yt-dlp, which recognizes the {count, plural, one {# website} other {# websites}} below."
+  description: "First line under the sheet's title: how many websites yt-dlp recognizes."
+  placeholders:
+    count: { type: "int", example: "929" }
+sitesMenuItem:
+  message: "Supported Websites…"
+  description: "Help menu item that opens the sheet listing the websites Kando downloads from."
+sitesNotFound:
+  message: "“{query}” is not on the list"
+  description: "Heading when the search finds no website."
+  placeholders:
+    query: { type: "String", example: "missav.ai" }
+sitesNotFoundHint:
+  message: "You can still try pasting a link from a site that isn't listed: yt-dlp finds standard videos on many web pages, and downloads links that point straight to a video file or an m3u8 playlist."
+  description: "What may still work when the search finds no website."
+sitesSearchLabel:
+  message: "Search websites"
+  description: "Accessible name of the sheet's search field."
+sitesSearchPlaceholder:
+  message: "Search by site name or domain, or paste a video link"
+  description: "Placeholder of the sheet's search field."
+sitesSource:
+  message: "List from yt-dlp {version}"
+  description: "Footer: the yt-dlp release the list was taken from."
+  placeholders:
+    version: { type: "String", example: "2026.08.19" }
+sitesTileLabel:
+  message: "{name}, {domain}"
+  description: "Accessible name of a website's tile: its name and its domain."
+  placeholders:
+    name: { type: "String", example: "YouTube" }
+    domain: { type: "String", example: "youtube.com" }
+sitesTitle:
+  message: "Supported Websites"
+  description: "Title of the sheet listing the websites Kando downloads from through yt-dlp."
+sourceAll:
+  message: "All Films"
+  description: "Sidebar source and library page title: every film of the library."
+sourceApplePodcasts:
+  message: "Apple Podcasts"
+  description: "Name of Apple Podcasts (podcasts.apple.com), as Apple names it in each language."
+sourceBilibili:
+  message: "Bilibili"
+  description: "Name of the video site bilibili, as a source of films and in a link's tag."
+sourceDouyin:
+  message: "Douyin"
+  description: "Name of the Chinese video site Douyin (douyin.com)."
+sourceDouyu:
+  message: "Douyu"
+  description: "Name of the Chinese streaming site Douyu (douyu.com)."
+sourceHuya:
+  message: "Huya"
+  description: "Name of the Chinese streaming site Huya (huya.com)."
+sourceIqiyi:
+  message: "iQIYI"
+  description: "Name of the Chinese video site iQIYI (iqiyi.com, iq.com)."
+sourceLocal:
+  message: "Local Files"
+  description: "Where a film comes from when it is a video file on this computer: library page title and the source under a poster."
+sourceMangoTV:
+  message: "Mango TV"
+  description: "Name of the Chinese video site Mango TV (mgtv.com)."
+sourceNaverTV:
+  message: "Naver TV"
+  description: "Name of the Korean video site Naver TV (tv.naver.com)."
+sourceNiconico:
+  message: "Niconico"
+  description: "Name of the Japanese video site niconico (nicovideo.jp)."
+sourceTencentVideo:
+  message: "Tencent Video"
+  description: "Name of the Chinese video site Tencent Video (v.qq.com)."
+sourceWeb:
+  message: "Other Sites"
+  description: "Library page title for films downloaded from sites other than YouTube and bilibili."
+sourceWeibo:
+  message: "Weibo"
+  description: "Name of the Chinese site Weibo (weibo.com)."
+sourceXigua:
+  message: "Xigua Video"
+  description: "Name of the Chinese video site Xigua Video (ixigua.com)."
+sourceYouku:
+  message: "Youku"
+  description: "Name of the Chinese video site Youku (youku.com)."
+updatesCheck:
+  message: "Check for Updates…"
+  description: "Item of the app menu (and the command palette) that checks for a newer version of Kando and shows the update window."
+windowMenuMain:
+  message: "Main Window"
+  description: "Item of the Window menu (macOS) that shows Kando's main window again after its close button put it away while Kando keeps running."
