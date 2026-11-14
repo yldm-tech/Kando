@@ -9,21 +9,20 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
 // paletteUI is the state of the command palette that ⌘K opens (palette_app.go draws it with package palette).
 type paletteUI struct {
 	open  bool
 	query string
-	// sel is the highlighted row, counting the lines first and the commands after them. moved is set once ↑ or ↓ moved it since the query last changed: until then Return with a query asks the open film rather than running the row, as the prototype's footer says. reveal scrolls the highlighted row into view in the next frame.
-	sel    int
-	moved  bool
-	reveal bool
+	// sel is the highlighted row, counting the lines first and the commands after them. moved is set once ↑ or ↓ moved it since the query last changed: until then Return with a query asks the open film rather than running the row, as the prototype's footer says. The palette brings the highlighted row into view itself as ↑ and ↓ move it.
+	sel   int
+	moved bool
 	// furthest is how far each video has been played on from its start, by path (paletteNotePlayed), kept in library.json with the shelf (shelf.Library.Furthest). The palette finds and sends only lines up to it, so it gives nothing away of what has not been watched. dirty is set while it holds more than library.json does.
 	furthest map[string]time.Duration
 	dirty    bool
-	// watching is the playback paletteNotePlayed saw in the frame before, and watchedAt where its picture was then.
+	// watching is the playback paletteNoteAt saw last, and watchedAt where its picture was then.
 	watching  *filmPlay
 	watchedAt time.Duration
 	// files are the library's subtitle files the palette has read, by path; reading is set while a read started by paletteRead runs.
@@ -66,9 +65,9 @@ type paletteAnswer struct {
 	busy    bool
 	needsAI bool
 	failed  bool
-	// text is the model's answer. say, when set, writes what stands in for one instead (the question on its way, why there is none), in the interface's language as the card is shown.
+	// text is the model's answer. say, when set, writes what stands in for one instead (the question on its way, why there is none), in the language the app shows under the card's scope.
 	text string
-	say  func() string
+	say  func(cx *core.Scope) string
 	// refs are the moments of the film the answer points at, each the start of a line watched.
 	refs []time.Duration
 	// horizon is how far the film had been watched when it was asked, and model the model that answered.
@@ -79,12 +78,12 @@ type paletteAnswer struct {
 
 func newPaletteUI() paletteUI { return paletteUI{} }
 
-// paletteHooks: the palette reads how far each video was played with the shelf and saves it with the player's resume positions and keys it by the new paths of videos that moved, notes after each frame how far the open video has played, and holds the window's modal flag while it is open. When the shelf's films change while it is open, it reads their subtitle files again.
+// paletteHooks: the palette reads how far each video was played with the shelf and saves it with the player's resume positions and keys it by the new paths of videos that moved, and notes after each change of the app's state how far the open video has played. When the shelf's films change while it is open, it reads their subtitle files again.
 func (a *app) paletteHooks() areaHooks {
 	return areaHooks{
 		shelfLoaded:      func() { a.palette.furthest = maps.Clone(a.library.Furthest) },
 		positionsChanged: a.paletteSaveFurthest,
-		afterChange:      a.paletteAfterFrame,
+		afterChange:      a.paletteAfterChange,
 		videosMoved:      func(move func(string) (string, bool)) { shelf.MoveKeys(a.palette.furthest, move) },
 		shelfChanged: func() {
 			if a.palette.open {
@@ -95,8 +94,11 @@ func (a *app) paletteHooks() areaHooks {
 }
 
 // paletteKeys are the palette's shortcuts: ⌘K opens it, and closes it again, anywhere in the window. It is the prototype's 学习 › 问这部影片…, which the menu bar puts before 窗口; over the library, without a film, it finds commands and lines, so its label names both. The cheat sheet lists it under 窗口, as the prototype's sheet does (cheatsheetLayout).
-func (a *app) paletteKeys() []shortcut {
+func (a *app) paletteKeys(cx *core.Scope) []shortcut {
 	return []shortcut{
-		{Group: groupStudy, Label: locales.PaletteMenuItem(), Mods: ui.Cmd, Key: ui.KeyK, Run: a.togglePalette},
+		{Group: groupStudy, Label: locales.PaletteMenuItem(cx), Key: paletteKey, Run: a.togglePalette},
 	}
 }
+
+// paletteKey is ⌘K, which opens the palette and closes it again; the palette leaves its own row out of the commands it lists.
+const paletteKey = "mod+k"
