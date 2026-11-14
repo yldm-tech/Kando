@@ -45,7 +45,7 @@ var feedbackOpenURL = openBrowser
 // feedbackHooks: the dialog learns the system's version once the window exists, and gives back the window's modal flag once it has closed.
 func (a *app) feedbackHooks() areaHooks {
 	return areaHooks{
-		ready:      a.feedbackDetectSystem,
+		ready:       a.feedbackDetectSystem,
 		afterChange: a.feedbackModal,
 	}
 }

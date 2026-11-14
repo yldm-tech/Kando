@@ -99,7 +99,9 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 		}
 		return append(append(head, separator), more...)
 	}
-	role := func(label string, r nsdesktop.MenuRole) nsdesktop.MenuItem { return nsdesktop.MenuItem{Label: label, Role: r} }
+	role := func(label string, r nsdesktop.MenuRole) nsdesktop.MenuItem {
+		return nsdesktop.MenuItem{Label: label, Role: r}
+	}
 	// items are the group's rows, the ones with a key first and the menu's own commands without one after a separator. extra are items of the menu alone that go with the rows that have a key, before that separator.
 	items := func(group string, extra ...nsdesktop.MenuItem) []nsdesktop.MenuItem {
 		var keyed, plain []nsdesktop.MenuItem

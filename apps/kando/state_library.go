@@ -84,7 +84,7 @@ func (a *app) libraryHooks() areaHooks {
 			a.lib.holdOpened = false
 			a.libraryPostOpened()
 		},
-		afterChange:   a.libraryModals,
+		afterChange:  a.libraryModals,
 		shelfChanged: a.loadExtras,
 	}
 }

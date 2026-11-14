@@ -115,7 +115,7 @@ func (a *app) onboardingHooks() areaHooks {
 				a.openOnboarding()
 			}
 		},
-		ready:      a.onboardingReady,
+		ready:       a.onboardingReady,
 		afterChange: a.onboardingAfterFrame,
 	}
 }

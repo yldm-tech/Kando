@@ -117,7 +117,7 @@ func (a *app) queueHooks() areaHooks {
 			shelf.MoveKeys(a.subtitleDelays(), move)
 		},
 		afterChange: a.queueQuitModal,
-		beforeQuit: a.queueBeforeQuit,
+		beforeQuit:  a.queueBeforeQuit,
 		quitting: func() {
 			a.queueQuit()
 			a.queueLetSleep()

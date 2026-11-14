@@ -66,7 +66,7 @@ func (a *app) menuOpenLink(url string) {
 		if opened {
 			return
 		}
-		msg := locales.MenuOpenLinkFailed(a.cx, url, errLinkNotOpened.Error())
+		msg := a.messages().MenuOpenLinkFailed(url, errLinkNotOpened.Error())
 		a.warn(msg, "")
 		if a.openKey != "" {
 			a.flash(msg)
