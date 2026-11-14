@@ -120,12 +120,15 @@ func TestGoogleRow(t *testing.T) {
 		t.Fatalf("no failure in %q", app.Texts())
 	}
 	change(app, a, func() { a.email, a.failed = "a@b.c", "" })
-	if !app.Exists(whole("a@b.c")) || !app.Exists(whole(msgs.AccountSignedInWith())) || app.Find("id:google-row").Props.Label != "a@b.c" {
-		t.Fatalf("texts %q", app.Texts())
+	if row := app.Find("id:google-row"); !app.Exists(whole("a@b.c")) || !app.Exists(whole(msgs.AccountSignedInWith())) || row.Props.Label != "a@b.c" || row.Props.Description != msgs.AccountSignedInWith() {
+		t.Fatalf("row %+v, texts %q", row.Props, app.Texts())
 	}
 	app.Press(whole(msgs.AccountSignOut()))
 	if want := []string{"sign in", "sign out"}; len(a.calls) != 2 || a.calls[0] != want[0] || a.calls[1] != want[1] || !app.Exists(whole(msgs.AccountSignIn())) {
 		t.Fatalf("calls %q, texts %q", a.calls, app.Texts())
+	}
+	if row := app.Find("id:google-row"); row.Props.Description != msgs.AccountSignedOutHint() {
+		t.Fatalf("signed out, the row is described as %q", row.Props.Description)
 	}
 }
 
@@ -148,6 +151,14 @@ func TestStorageFields(t *testing.T) {
 	}
 	if !app.Find("id:r2-secret").Input.Masked {
 		t.Fatal("the secret shows on screen")
+	}
+	for id, want := range map[string]core.Points{"r2-bucket": 12, "r2-secret": 13} {
+		if v := app.Find("id:" + id); v.Frame.Size.Width != 300 || v.Frame.Size.Height != 26 || v.Input.Style.Font.Size != want {
+			t.Errorf("%s is %v with %v-point type, want 300×26 with %v", id, v.Frame.Size, v.Input.Style.Font.Size, want)
+		}
+	}
+	if family := app.Find("id:r2-bucket").Input.Style.Font.Family; family == "" {
+		t.Error("the bucket is not in a monospaced face")
 	}
 	app.Press("id:storage-kind")
 	app.Press("id:storage-kind-3")

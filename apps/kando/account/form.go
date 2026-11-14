@@ -1,6 +1,7 @@
 package account
 
 import (
+	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 )
@@ -78,3 +79,29 @@ func note(text func() string, bottom core.Points) core.Node {
 
 // none is a row's subtitle when it has none.
 func none() string { return "" }
+
+// field is a text field of a row, in the prototype's column of fields: 300 points wide and 26 high, in Face's type, with ui.Input's rim, darker under the pointer and the accent while it has the keyboard. ui.Input keeps to its own 28 points and 13-point type, so the field is drawn on base.Input.
+type field struct {
+	Input base.Input
+	Face  core.Style
+}
+
+// Render implements core.Node.
+func (f field) Render(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	in := f.Input
+	focused := core.NewSignal(cx, false)
+	in.OnFocus = func() { focused.Set(true) }
+	in.OnBlur = func() { focused.Set(false) }
+	in.Style = core.Style{Width: core.Pt(300), Height: core.Pt(26), Padding: core.Symmetric(0, 10), BorderWidth: 1, CornerRadius: ui.RadiusControl}.Merge(f.Face)
+	in.StyleFunc = func() core.Style {
+		s := core.Style{Color: colors.Text(), Background: colors.Field(), BorderColor: colors.FieldBorder(),
+			PlaceholderColor: colors.Faint(), SelectionColor: cx.Palette().Selection, CaretColor: colors.Accent(),
+			Hover: &core.Style{BorderColor: ui.Mix(colors.FieldBorder(), colors.Text(), 0.25)}}
+		if focused.Get() {
+			s.BorderColor, s.Hover = colors.Accent(), nil
+		}
+		return s
+	}
+	return in
+}

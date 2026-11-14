@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
+	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 )
@@ -179,34 +180,27 @@ func (f storageFields) Render(cx *core.Scope) core.Node {
 	})
 }
 
-// fieldStyle gives a text field in a row the prototype's room: 300 points, the width of the column the fields line up in.
-var fieldStyle = core.Style{Width: core.Pt(300)}
-
 // textRow edits one of the storage's fields in the prototype's column of fields, in a monospaced face, saving each edit. Its label is the field's name in the storage's own words, which no language translates.
 func textRow(a App, test, title string, hint func() string, value *string) core.Node {
-	style := fieldStyle
-	style.FontFamily = ui.Mono
-	field := ui.Input{
+	input := field{Input: base.Input{
 		TestID:   test,
 		Label:    title,
 		Value:    live.Func(a, func() string { return *value }),
 		OnChange: live.On(a, func(text string) { *value = text; _ = a.Save() }),
-		Style:    style,
-	}
-	return core.Group{separator(), row(func() string { return title }, hint, field)}
+	}, Face: core.Style{FontFamily: ui.Mono, FontSize: 12}}
+	return core.Group{separator(), row(func() string { return title }, hint, input)}
 }
 
 // secretRow edits a storage key's secret in a password field, which keeps it hidden on screen, saving each edit.
 func secretRow(a App, test string, hint func() string, value *string) core.Node {
-	field := ui.Input{
+	input := field{Input: base.Input{
 		TestID:   test,
 		Label:    "Secret",
 		Masked:   true,
 		Value:    live.Func(a, func() string { return *value }),
 		OnChange: live.On(a, func(text string) { *value = text; _ = a.Save() }),
-		Style:    fieldStyle,
-	}
-	return core.Group{separator(), row(func() string { return "Secret" }, hint, field)}
+	}, Face: core.Style{FontSize: 13}}
+	return core.Group{separator(), row(func() string { return "Secret" }, hint, input)}
 }
 
 // pathStyleRow is the S3-compatible storage's switch of path-style addresses: the title over the subtitle, padded 8 points above and below and 12 before the switch. The switch is named by the title, and a press on the title or the subtitle turns it too, as on a label of a check box.
@@ -260,40 +254,39 @@ func (r googleRow) Render(cx *core.Scope) core.Node {
 	})
 	busy := live.Memo(cx, a, a.GoogleBusy)
 	configured := live.Func(a, a.GoogleConfigured)
-	button := core.Show{
-		When: signedIn,
-		// The buttons' words are set as they are built, so they are built again for another language, and 登录 for 正在登录.
-		Then: func(*core.Scope) core.Node {
-			return core.Dynamic(func(cx *core.Scope) core.Node {
-				return ui.Button{Text: locales.AccountSignOut(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "google-sign-out", OnPress: live.Do(a, a.SignOutGoogle)}
-			})
-		},
-		Else: func(*core.Scope) core.Node {
-			return core.Dynamic(func(cx *core.Scope) core.Node {
-				text := locales.AccountSignIn(cx)
-				if busy() {
-					text = locales.AccountSigningIn(cx)
-				}
-				return ui.Button{Text: text, Size: ui.SizeSmall, TestID: "google-sign-in",
-					Disabled: func() bool { return busy() || !configured() }, OnPress: live.Do(a, a.SignInGoogle)}
-			})
-		},
+	// The buttons' words are set as they are built, so they are built again for another language, and 登录 for 正在登录.
+	signOut := core.Dynamic(func(cx *core.Scope) core.Node {
+		return ui.Button{Text: locales.AccountSignOut(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "google-sign-out", OnPress: live.Do(a, a.SignOutGoogle)}
+	})
+	signIn := core.Dynamic(func(cx *core.Scope) core.Node {
+		text := locales.AccountSignIn(cx)
+		if busy() {
+			text = locales.AccountSigningIn(cx)
+		}
+		return ui.Button{Text: text, TestID: "google-sign-in",
+			Disabled: func() bool { return busy() || !configured() }, OnPress: live.Do(a, a.SignInGoogle)}
+	})
+	// The row is built again as the account signs in or out, which its description, read as it is built, follows; the button is the only part of it that takes the keyboard, and goes with the account anyway.
+	build := func(button core.Node) func(*core.Scope) core.Node {
+		return func(*core.Scope) core.Node {
+			// TODO(nsgo): give core.View an AccessibilityDescriptionFunc twin, so the row's description follows the interface language as it changes, as LabelFunc does its name; it is read as the row is built
+			return core.View{
+				TestID:                   "google-row",
+				Role:                     core.RoleGroup,
+				LabelFunc:                title,
+				AccessibilityDescription: core.Untracked(cx, subtitle),
+				Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(62), Padding: core.Symmetric(10, 14), Gap: 12,
+					AlignItems: core.AlignCenter},
+				Children: []core.Node{
+					core.View{Style: core.Style{Width: core.Pt(40), Height: core.Pt(40), CornerRadius: 20, FlexShrink: 0, Background: formIdle}},
+					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
+						core.Text{ContentFunc: title, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: formText}},
+						core.Text{ContentFunc: subtitle, Style: core.Style{FontSize: 11, Color: formSecondary}},
+					}},
+					button,
+				},
+			}
+		}
 	}
-	// TODO(nsgo): give core.View an AccessibilityDescriptionFunc twin, so the row's description follows the account and the interface language as they change, as LabelFunc does its name; it is read as the row is built
-	return core.View{
-		TestID:                   "google-row",
-		Role:                     core.RoleGroup,
-		LabelFunc:                title,
-		AccessibilityDescription: core.Untracked(cx, subtitle),
-		Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(62), Padding: core.Symmetric(10, 14), Gap: 12,
-			AlignItems: core.AlignCenter},
-		Children: []core.Node{
-			core.View{Style: core.Style{Width: core.Pt(40), Height: core.Pt(40), CornerRadius: 20, FlexShrink: 0, Background: formIdle}},
-			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
-				core.Text{ContentFunc: title, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: formText}},
-				core.Text{ContentFunc: subtitle, Style: core.Style{FontSize: 11, Color: formSecondary}},
-			}},
-			button,
-		},
-	}
+	return core.Show{When: signedIn, Then: build(signOut), Else: build(signIn)}
 }
