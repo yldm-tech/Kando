@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +15,8 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // The screenshot tests render the main scenes to PNG files in the directory named by KANDO_SCREENSHOTS, so a visual change can be compared before and after, and with the prototype. They are skipped when the variable is unset. Each area renders its own scenes in its own screenshot_<area>_test.go (TestScreenshots<Area>), from the library this file makes; `go test -run TestScreenshots` renders them all. The window is light, as main sets it, and the size of the prototype's window (1304×782) unless a scene asks for another.
@@ -146,16 +146,15 @@ func (f *screenshotFixture) sidecarLibrary(t *testing.T) (dir, video string) {
 }
 
 // showLibrary makes dir the open library, as picking it in the sidebar does, and returns once the shelf has read it and its cards' posters show.
-func (f *screenshotFixture) showLibrary(t *testing.T, a *app, tt *ui.Tester, updates chan func(), dir string) {
+func (f *screenshotFixture) showLibrary(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), dir string) {
 	t.Helper()
 	a.edit(func(s *session) {
 		s.LibraryDir = dir
 		s.Libraries = append(s.Libraries, dir)
 	})
 	a.refreshLibrary()
-	tt.Frame()
-	screenshotWait(t, tt, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
-	tt.Frame()
+	refresh(tt, a)
+	screenshotWait(t, tt, a, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
 }
 
 // job is the fixture's job for the prototype's film id.
@@ -190,54 +189,52 @@ func screenshotHome(t *testing.T) string {
 }
 
 // shoot opens the window on 我的影片 at the prototype's size, 1304×782, runs steps and saves what it shows as name.png.
-func (f *screenshotFixture) shoot(t *testing.T, name string, steps func(a *app, tt *ui.Tester, updates chan func())) {
+func (f *screenshotFixture) shoot(t *testing.T, name string, steps func(a *app, tt *nsgotest.App, updates chan func())) {
 	t.Helper()
 	f.shootSize(t, name, 1304, 782, steps)
 }
 
-// shootSize is shoot at width×height. Before steps run, the cards' posters have been grabbed and the window shows them, and the player remembers where the prototype stopped each film (protoFilm.Watched).
-func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height int, steps func(a *app, tt *ui.Tester, updates chan func())) {
+// shootSize is shoot at width×height, under a hidden title bar 28 points high whose traffic lights take 80 at its left. Before steps run, the cards' posters have been grabbed and the window shows them, and the player remembers where the prototype stopped each film (protoFilm.Watched). Each scene runs as a subtest, so `nsgo test -target` runs it in a process of its own within its time limit.
+func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height ns.Points, steps func(a *app, tt *nsgotest.App, updates chan func())) {
 	t.Helper()
-	updates := make(chan func(), 64)
-	a := newApp(f.pipeline, func(fn func()) { updates <- fn })
-	a.prefs.listModels = offlineModels
-	a.prefs.interfaceLanguage = testlocale.Current()
-	a.edit(func(s *session) {
-		s.LibraryDir = f.lib
-		for _, lib := range protoLibraries {
-			s.Libraries = append(s.Libraries, f.libs[lib.ID])
+	t.Run(name, func(t *testing.T) {
+		updates := make(chan func(), 64)
+		a := newApp(f.pipeline, func(fn func()) { updates <- fn })
+		a.prefs.listModels = offlineModels
+		a.prefs.interfaceLanguage = testlocale.Current()
+		a.edit(func(s *session) {
+			s.LibraryDir = f.lib
+			for _, lib := range protoLibraries {
+				s.Libraries = append(s.Libraries, f.libs[lib.ID])
+			}
+			s.LibraryParent = filepath.Dir(f.lib)
+		})
+		a.library.Jobs = append([]core.Job(nil), f.jobs...)
+		watched := map[string]time.Duration{}
+		for _, film := range protoFilms {
+			if film.Watched > 0 {
+				watched[f.job(t, film.ID).VideoPath] = film.Watched
+			}
 		}
-		s.LibraryParent = filepath.Dir(f.lib)
+		a.setResumePositions(watched)
+		a.refreshLibrary()
+		t.Cleanup(a.stopPlayback)
+		env := testEnvironment()
+		env.TitleBar = ns.Edges{Top: 28, Left: 80}
+		tt := nsgotest.Start(t, a.testView, nsgotest.Size(width, height), nsgotest.Environment(env))
+		screenshotWait(t, tt, a, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
+		steps(a, tt, updates)
+		refresh(tt, a)
+		if nsgotest.Target() == "" {
+			// TODO(nsgo#119): write name.png into f.out headless as MyGo's Tester.Image did, once nsgotest renders pixels or hands a test the bytes of its Screenshot; until then the scenes run their steps and checks, and the pictures come from `nsgo test -target`, under .nsgo/test/screenshots/<target> https://github.com/nsgo-dev/nsgo/issues/119
+			return
+		}
+		tt.Screenshot(name)
 	})
-	a.library.Jobs = append([]core.Job(nil), f.jobs...)
-	watched := map[string]time.Duration{}
-	for _, film := range protoFilms {
-		if film.Watched > 0 {
-			watched[f.job(t, film.ID).VideoPath] = film.Watched
-		}
-	}
-	a.setResumePositions(watched)
-	a.refreshLibrary()
-	t.Cleanup(a.stopPlayback)
-	tt := ui.NewTester(a.view, width, height)
-	tt.SetTitleBar(ui.TitleBar{Height: 28, Left: 80})
-	tt.Frame()
-	screenshotWait(t, tt, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
-	tt.Frame()
-	steps(a, tt, updates)
-	tt.Frame()
-	file, err := os.Create(filepath.Join(f.out, name+".png"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	if err := png.Encode(file, tt.Image()); err != nil {
-		t.Fatal(err)
-	}
 }
 
-// screenshotWait runs the window's updates and draws a frame after each until done reports true, or fails t after ten seconds, naming what it waited for.
-func screenshotWait(t *testing.T, tt *ui.Tester, updates chan func(), what string, done func() bool) {
+// screenshotWait applies the background updates until done holds, failing t after ten seconds with what shows.
+func screenshotWait(t *testing.T, tt *nsgotest.App, a *app, updates chan func(), what string, done func() bool) {
 	t.Helper()
 	deadline := time.After(10 * time.Second)
 	for !done() {
@@ -247,12 +244,13 @@ func screenshotWait(t *testing.T, tt *ui.Tester, updates chan func(), what strin
 		case <-deadline:
 			t.Fatalf("%s did not load; texts %q", what, tt.Texts())
 		}
-		tt.Frame()
+		refresh(tt, a)
 	}
+	refresh(tt, a)
 }
 
 // screenshotOpen opens the prototype's film id on the player, held at at, and returns once its subtitles and, when it has a video, its picture have loaded and the first frame shows. Cue i of protoCues shows from protoCues[i].Start.
-func screenshotOpen(t *testing.T, a *app, tt *ui.Tester, updates chan func(), id string, at time.Duration) {
+func screenshotOpen(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), id string, at time.Duration) {
 	t.Helper()
 	item, ok := films.Find(a.films(), id)
 	if !ok {
@@ -260,9 +258,9 @@ func screenshotOpen(t *testing.T, a *app, tt *ui.Tester, updates chan func(), id
 	}
 	a.player.playFrom = at
 	a.Open(item)
-	tt.Frame()
+	refresh(tt, a)
 	picture := a.ffmpegPath() != "" && item.VideoPath != ""
-	screenshotWait(t, tt, updates, "film "+id, func() bool {
+	screenshotWait(t, tt, a, updates, "film "+id, func() bool {
 		return a.player.subs.ready && (!picture || a.player.play != nil || a.player.playErr != "")
 	})
 	if a.player.playErr != "" {
@@ -274,18 +272,15 @@ func screenshotOpen(t *testing.T, a *app, tt *ui.Tester, updates chan func(), id
 	// The picture's first frame comes from the decoder in the background.
 	for range 20 {
 		tt.Advance(50 * time.Millisecond)
-		tt.Frame()
+		refresh(tt, a)
 		time.Sleep(20 * time.Millisecond)
 	}
 }
 
-// screenshotClick clicks the control labeled label and draws the next frame.
-func screenshotClick(t *testing.T, tt *ui.Tester, label string) {
+// screenshotClick presses the control labeled label, which settles.
+func screenshotClick(t *testing.T, tt *nsgotest.App, label string) {
 	t.Helper()
-	if err := tt.Click(label); err != nil {
-		t.Fatalf("%v; texts %q", err, tt.Texts())
-	}
-	tt.Frame()
+	tt.Press(label)
 }
 
 // TestScreenshotFixtureMatchesPrototype checks, without rendering anything, that the fixture's library shows what the prototype counts: 14 films in 我的影片 by the sidebar's sources, 1 in 英语听力, every film that has its video under the prototype's title, and every finished one with the prototype's 18 subtitles at their times.

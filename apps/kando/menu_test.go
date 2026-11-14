@@ -15,17 +15,19 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
 // findMenuItem finds the item labeled label in the menu titled menu of the menu bar bar.
-func findMenuItem(t *testing.T, bar []*mygo.MenuItem, menu, label string) *mygo.MenuItem {
+func findMenuItem(t *testing.T, bar []nsdesktop.MenuItem, menu, label string) nsdesktop.MenuItem {
 	t.Helper()
 	for _, m := range bar {
 		if m.Label != menu {
 			continue
 		}
-		for _, it := range m.Submenu {
+		for _, it := range m.Items {
 			if it.Label == label {
 				return it
 			}
@@ -33,14 +35,13 @@ func findMenuItem(t *testing.T, bar []*mygo.MenuItem, menu, label string) *mygo.
 		t.Fatalf("menu %q has no %q", menu, label)
 	}
 	t.Fatalf("no menu %q", menu)
-	return nil
+	return nsdesktop.MenuItem{}
 }
 
-// choose clicks it as the menu bar would and runs what the click hands to the UI thread.
-func choose(t *testing.T, it *mygo.MenuItem, updates chan func()) {
-	t.Helper()
-	it.Click(it, nil)
-	waitUpdate(t, updates)
+// choose chooses it as the menu bar does, on the engine's goroutine, which is the test's, and refreshes.
+func choose(tt *nsgotest.App, a *app, it nsdesktop.MenuItem) {
+	it.OnSelect()
+	refresh(tt, a)
 }
 
 // TestMenuBarListsTheShortcutTable checks that every row of the shortcut table is an item of the menu its group names, and that every ⌘ row carries its shortcut as an accelerator, since wireKeys leaves those to the menu bar once it is installed, but for a row whose key another row carries now (menuSharedKeyCarriers). Single keys carry none, so a focused text field keeps them.

@@ -30,6 +30,7 @@ import (
 	"kando/packages/media"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
 )
 
@@ -1469,10 +1470,10 @@ func TestFileAssociationsAreTheVideos(t *testing.T) {
 }
 
 // librarySearchWith makes a library of two done films, Rivers of Europe and Linear Algebra, and a failed job, Morning Market, and an app showing it.
-func librarySearchWith(t *testing.T) (*app, *ui.Tester) {
+func librarySearchWith(t *testing.T) (*app, *nsgotest.App) {
 	t.Helper()
 	lib := filepath.Join(t.TempDir(), "我的影片.kando")
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = lib })
 	for i, name := range []string{"Rivers of Europe", "Linear Algebra"} {
 		video := filepath.Join(lib, name, "video.mp4")
@@ -1486,7 +1487,7 @@ func librarySearchWith(t *testing.T) (*app, *ui.Tester) {
 	}
 	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "failed", Title: "Morning Market", Source: "https://youtu.be/market", Stage: core.StageFailed, Err: errors.New("network down"), LibraryDir: lib})
 	a.refreshLibrary()
-	tt.Frame()
+	refresh(tt, a)
 	return a, tt
 }
 

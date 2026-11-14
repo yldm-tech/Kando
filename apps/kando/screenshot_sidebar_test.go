@@ -5,51 +5,48 @@ import (
 	"path/filepath"
 	"testing"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sidebar"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // TestScreenshotsSidebar renders the sidebar in the prototype's library states, at the size of its window (spec/library/<state>.window.png), with the status line ready as the prototype's is (screenshot_helpers_test.go):
 //   - library-prototype-size: 我的影片 with 全部影片 chosen (library_default)
 //   - sidebar-switcher-open: the library switcher pressed, its menu open (library_switcher_open); the menu is the system's, which the picture does not show
 //   - sidebar-empty: a new empty library, every count 0 (library_empty)
-//   - sidebar-focused: 全部影片 chosen with a click, so the sidebar holds the focus and macOS draws the row in the accent color, its count near white
+//   - sidebar-focused: 全部影片 chosen with a click, so the sidebar holds the focus and rings the chosen row
 func TestScreenshotsSidebar(t *testing.T) {
 	f := newScreenshotFixture(t)
-	f.shoot(t, "library-prototype-size", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "library-prototype-size", func(a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 	})
-	f.shoot(t, "sidebar-switcher-open", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "sidebar-switcher-open", func(a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
-		tt.Frame()
-		pill, ok := tt.Find("切换资料库，当前：我的影片")
-		if !ok {
-			t.Fatalf("no library switcher in %q", tt.Texts())
+		refresh(tt, a)
+		if got := tt.Find("id:sidebar-switcher").Props.Label; got != testlocale.Messages().SidebarSwitcherLabel("我的影片") {
+			t.Fatalf("switcher labelled %q", got)
 		}
-		tt.Press(pill.X+pill.W/2, pill.Y+pill.H/2)
-		tt.Frame()
-		if len(tt.Menu()) == 0 {
+		tt.Press("id:sidebar-switcher")
+		if len(tt.PopupMenu) == 0 {
 			t.Fatal("the switcher's menu did not open")
 		}
 	})
-	f.shoot(t, "sidebar-focused", func(a *app, tt *ui.Tester, _ chan func()) {
+	f.shoot(t, "sidebar-focused", func(a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
-		tt.Frame()
-		if err := tt.Click(sidebar.SourceLabel(sidebar.SourceAll)); err != nil {
-			t.Fatal(err)
-		}
-		tt.Move(1200, 700)
+		refresh(tt, a)
+		tt.Press("id:source-" + sidebar.SourceAll)
+		tt.HoverOut()
 	})
-	f.shoot(t, "sidebar-empty", func(a *app, tt *ui.Tester, updates chan func()) {
+	f.shoot(t, "sidebar-empty", func(a *app, tt *nsgotest.App, updates chan func()) {
 		screenshotReady(t, f, a)
 		dir := filepath.Join(f.home, "Movies", "未命名资料库.kando")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatal(err)
 		}
 		a.Choose(dir)
-		screenshotWait(t, tt, updates, "the switcher's counts", func() bool {
+		screenshotWait(t, tt, a, updates, "the switcher's counts", func() bool {
 			_, ok := a.LibraryCount(f.lib)
 			return ok
 		})
@@ -70,7 +67,8 @@ func screenshotReady(t *testing.T, f *screenshotFixture, a *app) {
 	tools.Translator.APIKey = "sk-screenshot"
 	a.pipeline = tools
 	a.checkReadiness(true)
-	if r := a.readiness(); r.Text() != readyMessage() {
-		t.Fatalf("status line %q, want %q", r.Text(), readyMessage())
+	msgs := testlocale.Messages()
+	if r := a.readiness(); r.State != sidebar.Ready {
+		t.Fatalf("status line %v, want %q", r.State, msgs.ReadinessReady())
 	}
 }

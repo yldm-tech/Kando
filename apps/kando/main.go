@@ -133,9 +133,7 @@ func main() {
 
 // run is the app's function: it runs once, in the app's own scope, once the engine has started. It gives the revision its graph, which runs the reports held until now, follows the nodra store, listens to the app's lifecycle, opens the main window and installs the menu bar, then tells the areas the window exists.
 func (a *app) run(app *core.Scope) {
-	a.cx = app
-	a.rev.Attach(app)
-	app.Cleanup(nodra.InvalidateTarget(a.store, &a.rev))
+	a.attach(app)
 	// A click on the Dock icon and a second launch reopen the app: the main window comes back, from wherever it was put away.
 	desktop.OnReopen(app, live.Do(a, a.remoteRaise))
 	desktop.OnOpenFiles(app, live.On(a, func(paths []string) {
@@ -149,6 +147,13 @@ func (a *app) run(app *core.Scope) {
 	a.installMenu(app)
 	a.areasReady()
 	a.Changed()
+}
+
+// attach makes app the app's scope: the revision becomes a signal of its graph, which runs the reports held until now, and follows the nodra store from then on. run calls it first, and the tests' testView.
+func (a *app) attach(app *core.Scope) {
+	a.cx = app
+	a.rev.Attach(app)
+	app.Cleanup(nodra.InvalidateTarget(a.store, &a.rev))
 }
 
 // watchLifecycle tells the player and the areas when the app becomes the active one, in front, and when it stops being it.

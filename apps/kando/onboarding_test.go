@@ -83,20 +83,6 @@ func click(t *testing.T, tt *ui.Tester, label string) {
 	tt.Frame()
 }
 
-func wantText(t *testing.T, tt *ui.Tester, text string) {
-	t.Helper()
-	if textCount(tt, text) == 0 {
-		t.Fatalf("missing %q in %q", text, tt.Texts())
-	}
-}
-
-func wantNoText(t *testing.T, tt *ui.Tester, text string) {
-	t.Helper()
-	if textCount(tt, text) != 0 {
-		t.Fatalf("unexpected %q in %q", text, tt.Texts())
-	}
-}
-
 // TestOnboardingShowsOnFirstLaunch checks that the guide opens on its first step when settings.json says nothing, instead of the page that asks for a library.
 func TestOnboardingShowsOnFirstLaunch(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})

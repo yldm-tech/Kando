@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,20 +17,65 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). A reveal no test watches shows nothing: the tests run without an app, where MyGo's shell would wait for one, and must not open the file manager of the machine running them.
+// The tests start the app as a user meets it, with nsgotest: newTestApp mounts the main view headless (nsgotest.Start), and the steps press, type and read what shows by selectors, as nsgotest names them: a bare string is a test ID, else an accessibility label, else a whole text; "text:" a substring and `text:"…"` a whole text; "role:button 保存" a role and its name; "id:" a test ID alone. A test that changes the app's state itself, as MyGo's tests set a field and drew a frame, calls refresh, which tells the revision and settles, in place of tt.Frame(). Headless, the graph runs on the test's goroutine, so a test reads and writes the app's state directly between steps.
+//
+// MyGo's Tester and nsgotest, step by step:
+//   - tt.Frame() after changing the state: refresh(tt, a); after a step: nothing, every step settles
+//   - tt.Click(label): tt.Press(label), which fails the test when nothing or more than one view matches, or the view is disabled
+//   - tt.HasText(s): hasText(tt, s), a whole text; tt.Exists("text:" + s) for a substring
+//   - tt.Find(text) for its frame: pageFrame(tt.Find(selector)), in the window's points
+//   - tt.Type(s) into the focused field: typeFocused(t, tt, s); into a named field: tt.Type(selector, s)
+//   - tt.Key(mods, key): tt.Key("mod+shift+n"), in NSGo's form, "mod" being ⌘ on the Mac the tests run as
+//   - tt.Focused(label): tt.Find(label).Focused
+//   - tt.Menu() and tt.ChooseMenuItem: tt.PopupMenu (the items desktop.PopupMenu shows) and tt.ChoosePopup(label...); the menu bar's are tt.Menu and tt.ChooseMenu(menu, item)
+//   - tt.SetTitleBar(bar): newTestApp's ns.Environment carries TitleBar; useTitleBar(tt, bar) reports another
+//   - tt.Move(x, y) away: tt.HoverOut(); tt.Advance(d): tt.Advance(d) on the test's clock
+//   - tt.DropFiles(paths...): tt.DropFiles(selector, fileURLs(paths...)...)
+//   - tt.Image() and the PNG screenshots: none headless, and on a platform nsgotest's Screenshot gives no bytes (nsgo#119, screenshotFixture.shoot)
+
+// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). A reveal no test watches shows nothing, so a test never opens the file manager of the machine running it.
 func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
 	showItemInFolder = func(string) {}
-	// mygo's Dock menu waits for the main thread, which tests never reach (menu.go's setDockMenu), so a test that turns the menu bar on would hang; fakeDock records the menus where a test checks them.
-	setDockMenu = func(*mygo.Menu) {}
+	if nsgotest.Target() != "" {
+		// TODO(nsgo): remove the fake tools' folder once the tests have run on a platform too, as headless runs do here; nsgotest.Main gives the main thread to the platform and exits without returning, so nothing runs after the tests there
+		nsgotest.Main(m)
+		return
+	}
 	code := m.Run()
 	fakeToolsCleanup()
 	os.Exit(code)
+}
+
+// testOS is the system the tests' app runs on, a Mac unless usePlatform says another for a test.
+var testOS = ns.OSMacOS
+
+// usePlatform runs the apps t starts after it on os, with the words and the look of that system, and goes back to the Mac after t. Call it before newTestApp.
+func usePlatform(t *testing.T, os ns.OS) {
+	t.Helper()
+	prev := testOS
+	testOS = os
+	t.Cleanup(func() { testOS = prev })
+}
+
+// platformName is the name the catalogs' select messages take for the system the tests' app runs on (desktop.Platform), so a test of another area can find 在访达中显示 by the words that system's build shows.
+func platformName() string {
+	switch testOS {
+	case ns.OSWindows:
+		return "Windows"
+	case ns.OSLinux:
+		return "Linux"
+	}
+	return "macOS"
+}
+
+// testEnvironment is the environment the tests' app starts in: a desktop of testOS, in testlocale's language, with the Mac's keyboard on a Mac.
+func testEnvironment() ns.Environment {
+	return testlocale.Environment(ns.Environment{OS: testOS, Idiom: ns.IdiomDesktop, AppleKeyboard: testOS == ns.OSMacOS, PixelRatio: 2})
 }
 
 // fakePipeline finishes every stage at once unless block is set, in which case Download waits for cancellation.
@@ -61,16 +107,81 @@ func (f *fakePipeline) Export(context.Context, string, []core.Segment, []core.Se
 	return "/videos/talk.bilingual.srt", nil
 }
 
-// newTestApp queues background updates so the test applies them on its own goroutine, as the window's UI thread would.
-func newTestApp(p media.Pipeline) (*app, *ui.Tester, chan func()) {
+// newTestApp starts the app's main window headless, 1100 by 720 as main opens it, on testOS in testlocale's language, with the library at /videos. Background updates are queued, so the test applies them on its own goroutine with settle, waitUntil or waitUpdate, as the engine would; each applies them and refreshes.
+func newTestApp(t *testing.T, p media.Pipeline, opts ...nsgotest.Option) (*app, *nsgotest.App, chan func()) {
+	t.Helper()
 	updates := make(chan func(), 16)
 	a := newApp(p, func(fn func()) { updates <- fn })
 	a.prefs.listModels = offlineModels
+	a.prefs.interfaceLanguage = testlocale.Current()
 	a.edit(func(s *session) { s.LibraryDir = "/videos" })
-	return a, ui.NewTester(a.view, 1100, 720), updates
+	opts = append([]nsgotest.Option{nsgotest.Size(1100, 720), nsgotest.Environment(testEnvironment())}, opts...)
+	return a, nsgotest.Start(t, a.testView, opts...), updates
 }
 
-func settle(t *testing.T, a *app, tt *ui.Tester, updates chan func()) {
+// testView is the app as run starts it, for nsgotest: the revision on the test's graph, the test's root as the app's scope, and the main view. The areas' ready does not run, as in MyGo's tests, so the menu bar is not installed and wireKeys binds the ⌘ rows too: a test of the menu bar calls a.installMenu(a.cx) and reads tt.Menu, and a test that needs another ready calls what it needs.
+func (a *app) testView(cx *ns.Scope) ns.Node {
+	a.attach(cx)
+	return a.view(cx)
+}
+
+// refresh tells the revision that the test changed the app's state and settles, as MyGo's Tester.Frame drew the state the test had set.
+func refresh(tt *nsgotest.App, a *app) {
+	a.Changed()
+	tt.Settle()
+}
+
+// apply runs a background update on the test's goroutine, as the engine runs one, and refreshes.
+func apply(tt *nsgotest.App, a *app, fn func()) {
+	fn()
+	refresh(tt, a)
+}
+
+// hasText reports whether a text shows that is s as a whole.
+func hasText(tt *nsgotest.App, s string) bool { return tt.Exists(whole(s)) }
+
+// whole is the selector of a text that is s as a whole.
+func whole(s string) string { return `text:"` + s + `"` }
+
+// pageFrame is v's frame in the window's points, as its ancestors and their scroll offsets place it.
+func pageFrame(v *nsgotest.View) ns.Bounds {
+	b := v.Frame
+	for p := v.Parent; p != nil; p = p.Parent {
+		b.Origin.X += p.Frame.Origin.X - p.Offset.X
+		b.Origin.Y += p.Frame.Origin.Y - p.Offset.Y
+	}
+	return b
+}
+
+// typeFocused types s into the text field that has the keyboard focus, as a user types without moving it, and fails t when none has it.
+func typeFocused(t *testing.T, tt *nsgotest.App, s string) {
+	t.Helper()
+	for _, v := range tt.Query("role:textbox") {
+		if v.Focused {
+			tt.Type("view:"+strconv.FormatUint(uint64(v.ID), 10), s)
+			return
+		}
+	}
+	t.Fatalf("no text field has the focus\n%s", tt.Dump())
+}
+
+// fileURLs are paths as a drop from the file manager carries them.
+func fileURLs(paths ...string) []string {
+	out := make([]string, len(paths))
+	for i, p := range paths {
+		out[i] = "file://" + filepath.ToSlash(p)
+	}
+	return out
+}
+
+// useTitleBar reports bar as the window's hidden title bar, as the platform does once the traffic lights moved, and settles.
+func useTitleBar(tt *nsgotest.App, bar ns.Edges) {
+	env := testEnvironment()
+	env.TitleBar = bar
+	tt.SetEnvironment(env)
+}
+
+func settle(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 	t.Helper()
 	timeout := time.After(5 * time.Second)
 	for a.running() {
@@ -81,23 +192,18 @@ func settle(t *testing.T, a *app, tt *ui.Tester, updates chan func()) {
 			t.Fatalf("job still running, status %q", a.queue.status)
 		}
 	}
-	tt.Frame()
+	refresh(tt, a)
 }
 
-func startJob(t *testing.T, tt *ui.Tester, source string) {
+func startJob(t *testing.T, tt *nsgotest.App, source string) {
 	t.Helper()
-	if err := tt.Click("视频链接"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Type(source)
-	if err := tt.Click("开始处理"); err != nil {
-		t.Fatal(err)
-	}
+	tt.Type(testlocale.Messages().FilmsLinkLabel(), source)
+	tt.Press(whole(testlocale.Messages().FilmsStart()))
 }
 
-func filmRows(t *testing.T, tt *ui.Tester) int {
+func filmRows(t *testing.T, tt *nsgotest.App) int {
 	t.Helper()
-	tops := []float32{filmTop(t, tt, "one"), filmTop(t, tt, "two"), filmTop(t, tt, "three")}
+	tops := []ns.Points{filmTop(t, tt, "one"), filmTop(t, tt, "two"), filmTop(t, tt, "three")}
 	slices.Sort(tops)
 	rows := 1
 	for i := 1; i < len(tops); i++ {
@@ -108,16 +214,12 @@ func filmRows(t *testing.T, tt *ui.Tester) int {
 	return rows
 }
 
-func filmTop(t *testing.T, tt *ui.Tester, title string) float32 {
+func filmTop(t *testing.T, tt *nsgotest.App, title string) ns.Points {
 	t.Helper()
-	r, ok := tt.Find(title)
-	if !ok {
-		t.Fatalf("missing %q in %q", title, tt.Texts())
-	}
-	return r.Y
+	return pageFrame(tt.Find(whole(title))).Origin.Y
 }
 
-func abs32(v float32) float32 {
+func abs32[T ~float32](v T) T {
 	if v < 0 {
 		return -v
 	}
@@ -134,7 +236,21 @@ func containsPath(paths []string, want string) bool {
 	return false
 }
 
-func textCount(tt *ui.Tester, s string) int {
+func wantText(t *testing.T, tt *nsgotest.App, text string) {
+	t.Helper()
+	if textCount(tt, text) == 0 {
+		t.Fatalf("missing %q in %q", text, tt.Texts())
+	}
+}
+
+func wantNoText(t *testing.T, tt *nsgotest.App, text string) {
+	t.Helper()
+	if textCount(tt, text) != 0 {
+		t.Fatalf("unexpected %q in %q", text, tt.Texts())
+	}
+}
+
+func textCount(tt *nsgotest.App, s string) int {
 	n := 0
 	for _, text := range tt.Texts() {
 		if strings.Contains(text, s) {
@@ -177,30 +293,34 @@ func keysOf(files []cloud.File) []string {
 	return out
 }
 
-func waitUntil(t *testing.T, updates <-chan func(), done func() bool) {
+// waitUntil applies the background updates until done holds, then refreshes once.
+func waitUntil(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func(), done func() bool) {
 	t.Helper()
 	timeout := time.After(5 * time.Second)
 	for !done() {
 		select {
 		case fn := <-updates:
 			fn()
+			a.Changed()
 		case <-timeout:
 			t.Fatal("timed out waiting for a background update")
 		}
 	}
+	refresh(tt, a)
 }
 
-func waitUpdate(t *testing.T, updates <-chan func()) {
+// waitUpdate applies the next background update and refreshes.
+func waitUpdate(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func()) {
 	t.Helper()
 	select {
 	case fn := <-updates:
-		fn()
+		apply(tt, a, fn)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for a background update")
 	}
 }
 
-// wantSettings fails t unless the settings are open at section, one of the settings package's Section values. Tests outside the settings area check the settings' own state this way, never a.page, because the settings become a window of their own.
+// wantSettings fails t unless the settings are open at section, one of the settings package's Section values. Tests outside the settings area check the settings' own state this way, never a.page, because the settings are a window of their own.
 func wantSettings(t *testing.T, a *app, section string) {
 	t.Helper()
 	if !a.prefs.open || a.prefs.section != section {
@@ -208,29 +328,23 @@ func wantSettings(t *testing.T, a *app, section string) {
 	}
 }
 
-// titleBarShifts draws the window twice, without a title bar and under bar, after setup has run on each app, and returns how far down each text sits under bar, and the window drawn under it.
-func titleBarShifts(t *testing.T, bar ui.TitleBar, setup func(*app), texts ...string) ([]float32, *ui.Tester) {
+// titleBarShifts starts the window twice, without a title bar and under bar, after setup has run on each app, and returns how far down each text sits under bar, and the window shown under it.
+func titleBarShifts(t *testing.T, bar ns.Edges, setup func(*app), texts ...string) ([]ns.Points, *nsgotest.App) {
 	t.Helper()
-	plain, plainTT, _ := newTestApp(&fakePipeline{})
-	barred, barredTT, _ := newTestApp(&fakePipeline{})
-	barredTT.SetTitleBar(bar)
+	plain, plainTT, _ := newTestApp(t, &fakePipeline{})
+	barred, barredTT, _ := newTestApp(t, &fakePipeline{})
+	useTitleBar(barredTT, bar)
 	if setup != nil {
 		setup(plain)
 		setup(barred)
 	}
-	plainTT.Frame()
-	barredTT.Frame()
-	shifts := make([]float32, len(texts))
+	refresh(plainTT, plain)
+	refresh(barredTT, barred)
+	shifts := make([]ns.Points, len(texts))
 	for i, text := range texts {
-		before, ok := plainTT.Find(text)
-		if !ok {
-			t.Fatalf("missing %q in %q", text, plainTT.Texts())
-		}
-		after, ok := barredTT.Find(text)
-		if !ok {
-			t.Fatalf("missing %q in %q", text, barredTT.Texts())
-		}
-		shifts[i] = after.Y - before.Y
+		before := pageFrame(plainTT.Find(whole(text)))
+		after := pageFrame(barredTT.Find(whole(text)))
+		shifts[i] = after.Origin.Y - before.Origin.Y
 	}
 	return shifts, barredTT
 }
@@ -243,28 +357,13 @@ func offlineModels(_ context.Context, t media.ChatTranslator) ([]string, error) 
 	return []string{t.Model}, nil
 }
 
-// clickRow clicks the middle of the form row labeled label (breeze.ContentRow), where its field is, and fails t unless the field took the focus. The row and its field share the label, and MyGo's Tester.Click targets only the element a label names first, the row, which does not hand a click on to its field.
-func clickRow(t *testing.T, tt *ui.Tester, label string) {
+// clickRow puts the keyboard in the field of the form row labeled label, as a click on the row does, and fails t unless the field took the focus.
+func clickRow(t *testing.T, tt *nsgotest.App, label string) {
 	t.Helper()
-	r, ok := tt.Find(label)
-	if !ok {
-		t.Fatalf("no row %q in %q", label, tt.Texts())
+	tt.Focus(label)
+	if !tt.Find(label).Focused {
+		t.Fatalf("the field of the row %q did not take the focus", label)
 	}
-	tt.ClickAt(r.X+r.W/2, r.Y+r.H/2)
-	tt.Frame()
-	if !tt.Focused(label) {
-		t.Fatalf("clicking the row %q did not focus its field", label)
-	}
-}
-
-// platformName is the platform the tests run on as the messages naming the system's file manager select it (macOS, Windows or Linux), so a test of another area can find 在访达中显示 by the words this system's build shows.
-func platformName() string { return breeze.Current().String() }
-
-// usePlatform draws the window as p's, with p's labels, for the rest of t, and goes back to the system's after it.
-func usePlatform(t *testing.T, p breeze.Platform) {
-	t.Helper()
-	breeze.SetPlatform(p)
-	t.Cleanup(func() { breeze.SetPlatform(breeze.Auto) })
 }
 
 // fakeAwake stands in for desktop.KeepAwake, which needs a running app: it records each hold taken and how many are still held.
