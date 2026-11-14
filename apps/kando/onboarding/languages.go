@@ -7,6 +7,8 @@ import (
 	"kando/apps/kando/films/sitename"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // tileCodes are the languages the first step offers as tiles, in the prototype's order. The one subtitles are translated into is left out, and six are shown.
@@ -23,23 +25,23 @@ var autonyms = map[string]string{
 	"zh": "中文",
 }
 
-// languageName is the name of the language code in the interface's language, as the tiles show it under its own name.
-func languageName(code string) string {
+// languageName is the name of the language code in the interface's language under cx, as the tiles show it under its own name.
+func languageName(cx *ns.Scope, code string) string {
 	switch code {
 	case "en":
-		return locales.OnboardingLanguageEn()
+		return locales.OnboardingLanguageEn(cx)
 	case "ja":
-		return locales.OnboardingLanguageJa()
+		return locales.OnboardingLanguageJa(cx)
 	case "ko":
-		return locales.OnboardingLanguageKo()
+		return locales.OnboardingLanguageKo(cx)
 	case "fr":
-		return locales.OnboardingLanguageFr()
+		return locales.OnboardingLanguageFr(cx)
 	case "es":
-		return locales.OnboardingLanguageEs()
+		return locales.OnboardingLanguageEs(cx)
 	case "de":
-		return locales.OnboardingLanguageDe()
+		return locales.OnboardingLanguageDe(cx)
 	case "zh":
-		return locales.OnboardingLanguageZh()
+		return locales.OnboardingLanguageZh(cx)
 	}
 	return code
 }
@@ -121,32 +123,41 @@ func demo(learning []string, target string) (code, original, translation string)
 	return code, demoLines[code], translation
 }
 
-// LinkHint is what the line under the third step's field says about raw: nothing for an empty field, what the link points at when ParseLink reads it, or why it cannot be added. ok is false for a link that cannot be added: one that does not read as a link to a video on the web, and a channel or a list that names no single video, because a job downloads one video (yt-dlp runs with --no-playlist).
-func LinkHint(raw string) (hint string, ok bool) {
+// LinkHint is what the line under the third step's field says about raw, in the interface's language under cx: nothing for an empty field, what the link points at when ParseLink reads it, or why it cannot be added. ok is false for a link that cannot be added: one that does not read as a link to a video on the web, and a channel or a list that names no single video, because a job downloads one video (yt-dlp runs with --no-playlist).
+func LinkHint(cx *ns.Scope, raw string) (hint string, ok bool) { return linkHint(locales.For(cx), raw) }
+
+// Addable is LinkHint's ok alone, for the app's handler of the third step's button, which needs no words.
+func Addable(raw string) bool {
+	_, ok := linkHint(locales.In(locales.Source), raw)
+	return ok
+}
+
+// linkHint is LinkHint in the language of m.
+func linkHint(m locales.Messages, raw string) (hint string, ok bool) {
 	if strings.TrimSpace(raw) == "" {
 		return "", true
 	}
 	link, parsed := core.ParseLink(raw)
 	if !parsed || link.Platform == core.PlatformLocal {
-		return locales.OnboardingLinkNotVideo(), false
+		return m.OnboardingLinkNotVideo(), false
 	}
-	site := sitename.Of(link.Site)
+	site := sitename.In(m, link.Site)
 	switch {
 	case link.Kind == core.LinkChannel && site == "":
-		return locales.OnboardingLinkChannelUnnamed(), false
+		return m.OnboardingLinkChannelUnnamed(), false
 	case link.Kind == core.LinkChannel:
-		return locales.OnboardingLinkChannel(site), false
+		return m.OnboardingLinkChannel(site), false
 	case !link.OneVideo() && site == "":
-		return locales.OnboardingLinkListUnnamed(), false
+		return m.OnboardingLinkListUnnamed(), false
 	case !link.OneVideo():
-		return locales.OnboardingLinkList(site), false
+		return m.OnboardingLinkList(site), false
 	case link.Kind == core.LinkPlaylist && site == "":
-		return locales.OnboardingLinkPlaylistVideoUnnamed(), true
+		return m.OnboardingLinkPlaylistVideoUnnamed(), true
 	case link.Kind == core.LinkPlaylist:
-		return locales.OnboardingLinkPlaylistVideo(site), true
+		return m.OnboardingLinkPlaylistVideo(site), true
 	}
 	if site == "" {
-		return locales.OnboardingLinkWebVideo(), true
+		return m.OnboardingLinkWebVideo(), true
 	}
-	return locales.OnboardingLinkVideo(site), true
+	return m.OnboardingLinkVideo(site), true
 }

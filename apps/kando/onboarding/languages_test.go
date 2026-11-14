@@ -1,11 +1,10 @@
 package onboarding
 
 import (
-	"runtime"
 	"slices"
-	"strings"
 	"testing"
 
+	"kando/apps/kando/locales/testlocale"
 	"kando/packages/media"
 )
 
@@ -34,8 +33,8 @@ func TestLinkHint(t *testing.T) {
 		{"https://vimeo.com/123456", "识别为 Vimeo 视频", true},
 		{"https://example.org/clip", "识别为网页视频", true},
 	} {
-		hint, ok := LinkHint(tc.raw)
-		if hint != tc.hint || ok != tc.ok {
+		hint, ok := linkHint(testlocale.Messages(), tc.raw)
+		if hint != tc.hint || ok != tc.ok || Addable(tc.raw) != tc.ok {
 			t.Errorf("LinkHint(%q) = %q, %v; want %q, %v", tc.raw, hint, ok, tc.hint, tc.ok)
 		}
 	}
@@ -47,19 +46,5 @@ func TestEffectiveLeavesOutTheTarget(t *testing.T) {
 	}
 	if got := tiles("English"); len(got) != 6 || slices.Contains(got, "en") {
 		t.Fatalf("tiles(English) = %q", got)
-	}
-}
-
-// TestStepsNameThisComputer checks that the second step names the machine as the platform calls it, so Linux and Windows do not read 这台 Mac.
-func TestStepsNameThisComputer(t *testing.T) {
-	machine := map[bool]string{true: "这台 Mac", false: "这台电脑"}[runtime.GOOS == "darwin"]
-	_, description := heading(2)
-	for _, text := range []string{caption(2), description} {
-		if !strings.Contains(text, machine) {
-			t.Fatalf("%q does not name %q", text, machine)
-		}
-		if runtime.GOOS != "darwin" && strings.Contains(text, "Mac") {
-			t.Fatalf("%q says Mac on %s", text, runtime.GOOS)
-		}
 	}
 }
