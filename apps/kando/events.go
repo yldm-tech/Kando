@@ -1,20 +1,24 @@
 package main
 
-import "github.com/egoist/mygo"
+import (
+	"context"
+
+	"github.com/nsgo-dev/nsgo/core"
+)
 
 // areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go, windowHooks in state_window.go, logsHooks in state_logs.go, browseHooks in state_browse.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
 //
-// Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs while there is no window, and main's update posts to the window, so a hook must not call update, or start background work that reports through it, before ready; main's update would panic on the missing window. An area whose shelfChanged starts such work holds it back until its ready, with a flag of its own that its restore sets (main runs restore before App.Run; tests that call restoreSettings run it too, so what restore registers on the process-wide mygo.App, as the queue's listener for notification clicks, is registered again by each such test).
+// Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs before nsgo.Run starts the engine: a report through update waits for it (live.Rev.Post), but nothing may use the app's scope (app.cx) or a window, which do not exist yet. An area whose shelfChanged starts work that needs them holds it back until its ready, with a flag of its own that its restore sets. ready runs in run, the app's function, on the engine's goroutine, once the main window is open.
 type areaHooks struct {
 	// save writes the area's part of settings.json, its own struct embedded in savedSettings. restore takes it back at startup (restoreSettings), after the shelf and before the window exists.
 	save    func(saved *savedSettings)
 	restore func(saved savedSettings)
-	// ready runs once the main window exists, so background work that reports through update can start. It runs once, in main only.
+	// ready runs once the main window exists, on the engine's goroutine, with the app's scope in app.cx. It runs once, from run.
 	ready func()
-	// afterUpdate runs after each report of background work has run on the UI thread (app.update). Only main's update runs it; a test's update does not.
+	// afterUpdate runs after each report of background work has run on the engine's goroutine (app.update). Only the app's own update (appUpdate) runs it; a test's update does not.
 	afterUpdate func()
-	// afterFrame runs at the end of each frame of the main window, after the overlays are drawn.
-	afterFrame func()
+	// afterChange runs once the main view is built and again after every change of the app's state (live.State.Changed), once the bindings have followed it: where MyGo's areas brought something up to date after each frame, as giving back the modal flag of a dialog that closed. It may change the state, and says so with Changed only when it did, as it runs again after that.
+	afterChange func()
 	// leavingLibrary runs before applyLibrary opens another library; libraryChanged runs when applyLibrary returns, on every path.
 	leavingLibrary func()
 	libraryChanged func()
@@ -32,15 +36,15 @@ type areaHooks struct {
 	positionsChanged func()
 	// videosMoved runs after the shelf pointed its jobs at videos that moved on disk: the library folder was renamed in Finder, or the library refresh gathered a video into a folder of its own, paired a renamed one or found a missing one elsewhere. move gives a video's new path for its old one, and reports false for one that did not move; an area that keeps something by video path keys it by the new path. The shelf moves what library.json keeps itself (shelf.Library.MoveVideos) and saves it.
 	videosMoved func(move func(path string) (string, bool))
-	// beforeQuit runs when a quit starts (main's mygo.App.OnBeforeQuit), before the windows close: ⌘Q, the menu's Quit, the updater's relaunch, a signal, on Linux and Windows the main window's close button, or on macOS and Windows a logout, restart or shutdown (e.SessionEnding). An area that must not let the app quit yet, such as the queue while a job runs, prevents e and asks first; it quits again itself once the user agrees. A quit a signal asked for goes ahead without asking (queueWatchSignals), and so does one the OS ends the session with, which cannot be prevented and must not open a dialog.
-	beforeQuit func(e *mygo.QuitEvent)
+	// beforeQuit runs when a quit starts (requestQuit), before the windows close: ⌘Q and the menu's Quit, a signal, and on Linux and Windows the main window's close button once NSGo reports it. An area that must not let the app quit yet, such as the queue while a job runs, prevents e and asks first; it quits again itself once the user agrees. A quit a signal asked for goes ahead without asking (queueWatchSignals). A quit the app cannot hold back, the Dock's Quit, a logout, restart or shutdown or the updater's relaunch, comes with e.SessionEnding set (quitHeard), as the app is ending already; a dialog then would never be answered.
+	beforeQuit func(e *quitEvent)
 	// quitStarting runs once no area's beforeQuit prevented the quit, right before the windows close, so an area that keeps a window from closing (state_window.go) lets it close.
 	quitStarting func()
-	// windowShown runs when the main window was put away by its close button (shown false) or came back (state_window.go). A window out of sight draws no frame, so an area that brings something up to date after each frame, as the menu bar does, does it here too.
+	// windowShown runs when the main window was put away by its close button (shown false) or came back (state_window.go), as the player lets the display sleep while only its sound plays on.
 	windowShown func(shown bool)
-	// becameActive runs when the app becomes the active one, the one in front (main's mygo.App.OnDidBecomeActive), as when the user clicks its window or one of its notifications.
+	// becameActive runs when the app becomes the active one, the one in front (watchLifecycle), as when the user clicks its window or one of its notifications.
 	becameActive func()
-	// quitting runs once when the app quits (main's mygo.App.OnWillQuit), after its windows have closed and before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own, or the queue's running job.
+	// quitting runs once when the app quits, after its windows have closed and the engine has stopped (main, once nsgo.Run returns), before the process ends, so an area can stop what would outlive it, such as a player's sound in a process of its own, or the queue's running job. The app's scope is gone by then: it uses none of it.
 	quitting func()
 }
 
@@ -101,12 +105,20 @@ func (a *app) areasAfterUpdate() {
 	}
 }
 
-func (a *app) areasAfterFrame() {
+func (a *app) areasAfterChange() {
 	for _, h := range a.areas() {
-		if h.afterFrame != nil {
-			h.afterFrame()
+		if h.afterChange != nil {
+			h.afterChange()
 		}
 	}
+}
+
+// areasFollow runs the areas' afterChange once now and again after every change of the app's state, from cx, the main view's scope: an effect, which runs after the bindings, reading the revision and nothing else.
+func (a *app) areasFollow(cx *core.Scope) {
+	cx.Effect(func() {
+		a.Track()
+		cx.Untrack(a.areasAfterChange)
+	})
 }
 
 func (a *app) areasLeavingLibrary() {
@@ -182,7 +194,7 @@ func (a *app) areasVideosMoved(move func(path string) (string, bool)) {
 }
 
 // areasBeforeQuit asks every area whether the app may quit now, and when none prevented e, tells them all the quit goes ahead.
-func (a *app) areasBeforeQuit(e *mygo.QuitEvent) {
+func (a *app) areasBeforeQuit(e *quitEvent) {
 	for _, h := range a.areas() {
 		if h.beforeQuit != nil {
 			h.beforeQuit(e)
@@ -220,4 +232,40 @@ func (a *app) areasQuitting() {
 			h.quitting()
 		}
 	}
+}
+
+// quitEvent is a quit starting, which beforeQuit may hold back.
+type quitEvent struct {
+	// SessionEnding is a quit the app cannot hold back and must not ask about (quitHeard).
+	SessionEnding bool
+	prevented     bool
+}
+
+// PreventDefault holds the quit back; the area that did quits again itself once it may.
+func (e *quitEvent) PreventDefault() {
+	if !e.SessionEnding {
+		e.prevented = true
+	}
+}
+
+// DefaultPrevented reports whether an area held the quit back.
+func (e *quitEvent) DefaultPrevented() bool { return e.prevented }
+
+// requestQuit quits as ⌘Q does: the areas may hold the quit back and ask first (beforeQuit), and when none does, the app quits. Without the app's scope, as in a test that starts no app, nothing quits.
+func (a *app) requestQuit() {
+	e := &quitEvent{}
+	a.areasBeforeQuit(e)
+	if e.DefaultPrevented() || a.cx == nil {
+		return
+	}
+	a.cx.Quit()
+}
+
+// quitHeard runs as the app quits however it does (core.Scope.OnQuit). A quit requestQuit let through has told the areas already; any other, as the Dock's Quit, the system's at a logout or the updater's relaunch, tells them now with SessionEnding set, as the app is ending and cannot ask.
+func (a *app) quitHeard(context.Context) {
+	// TODO(nsgo#86): hold back the Dock's Quit, the app menu's and the system's so a running job can ask first, as MyGo's OnBeforeQuit let the queue do; NSGo's OnQuit cannot keep the app running, so only ⌘Q and the menu bar's Quit, which are the app's own items, ask https://github.com/nsgo-dev/nsgo/issues/86
+	if a.window.quitting {
+		return
+	}
+	a.areasBeforeQuit(&quitEvent{SessionEnding: true})
 }

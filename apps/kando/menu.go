@@ -7,18 +7,19 @@ import (
 	"slices"
 	"strings"
 
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // menuOrder is the order of the menu bar's menus. A shortcut's Group names the menu it is listed in, so the menu bar, the cheat sheet and wireKeys read the same table. A group not named here gets a menu of its own before 窗口.
 var menuOrder = []string{groupApp, groupFile, groupEdit, groupPlayback, groupSubtitles, groupView, groupStudy, groupWindow, groupHelp}
 
-// rememberFilm keeps the film the window shows, for 窗口 › 播放器 to go back to after the window went to another page. menuHooks.afterFrame calls it every frame, after the pages have opened or closed a film.
+// rememberFilm keeps the film the window shows, for 窗口 › 播放器 to go back to after the window went to another page. menuHooks.afterChange calls it after every change, once the pages have opened or closed a film.
 func (a *app) rememberFilm() {
 	if a.openKey != "" {
 		a.menu.lastFilm = a.openKey
@@ -46,64 +47,68 @@ func (a *app) reopenFilm() {
 // appMenuBar says the app gets a menu bar of its own (installMenu): on macOS, where the menu bar belongs to the app. Commands that are items of the menu bar alone, such as 帮助 › 重新查看入门引导, need another way in where it is false. Tests set it to check the other platforms.
 var appMenuBar = runtime.GOOS == "darwin"
 
-// installMenu gives the app its own menu bar on macOS, where the menu bar belongs to the app. menuHooks.ready calls it once the window exists. From then on the menu's accelerators run the ⌘ shortcuts and wireKeys leaves them alone. Linux and Windows put an app's menu bar inside each window, which would push the window's own title bar down, so there the window keeps running every shortcut itself.
-func (a *app) installMenu() {
+// installMenu gives the app its own menu bar on macOS, where the menu bar belongs to the app, under app, the app's scope; run calls it once the main window is open. From then on the menu's shortcuts run the ⌘ rows and wireKeys leaves them alone. Linux and Windows put an app's menu bar inside each window, which would push the window's own title bar down, so there the window keeps binding every shortcut itself. The menu follows the app's state and its language: an effect builds it after every change, and syncMenu installs it when it shows something else.
+func (a *app) installMenu(app *core.Scope) {
 	if !appMenuBar {
 		return
 	}
 	a.menu.menuBar = true
-	a.syncMenu()
+	// holder owns the installed menu's handlers, outside the effect, whose next run would otherwise take the menu away with them.
+	holder := app.Child()
+	app.Effect(func() {
+		a.Track()
+		items := a.menuBar(app)
+		app.Untrack(func() { a.syncMenu(holder, items) })
+	})
 }
 
-// syncMenu brings the menu bar and the Dock menu up to date with the app's state: which items are enabled, which carry a ✓, and their labels. It installs a new menu only when that differs from the one installed, so a frame that changes none of it leaves the menu bar alone, even while one of its menus is open. menuHooks.afterFrame calls it every frame, after the pages have settled the frame's state.
-func (a *app) syncMenu() {
-	if !a.menu.menuBar {
-		return
-	}
-	items := a.menuBar()
+// syncMenu installs items as the menu bar when they differ from the menu installed, so a change that alters none of it leaves the menu bar alone, even while one of its menus is open. Each menu is installed under a scope of its own in holder, and the one before goes once the new one is in: the items' handlers run under that scope, and the menu bar goes back to the platform's default when it goes. Both hops are posts, as code an effect runs owns what it makes.
+func (a *app) syncMenu(holder *core.Scope, items []nsdesktop.MenuItem) {
 	sig := menuSignature(items)
 	if sig == a.menu.menuSig {
 		return
 	}
 	a.menu.menuSig = sig
-	mygo.App.SetMenu(mygo.NewMenu(items))
-	// The Dock menu lists the libraries as File › 切换资料库 does. It changes only with the menu bar, which holds the same items, so the menu bar's signature covers it.
-	var dock *mygo.Menu
-	if libs := a.menuLibraries(); len(libs) > 0 {
-		dock = mygo.NewMenu(libs)
-	}
-	setDockMenu(dock)
+	holder.Post(func() {
+		next := holder.Child()
+		next.Post(func() {
+			nsdesktop.SetApplicationMenu(next, items)
+			if a.menu.installed != nil {
+				a.menu.installed.Dispose()
+			}
+			a.menu.installed = next
+		})
+	})
+	// TODO(nsgo): give the Dock icon a menu of the libraries, as File › 切换资料库 lists them (menuLibraries) and MyGo's App.Dock.SetMenu did; NSGo has no Dock or taskbar menu
 }
 
-// setDockMenu installs the Dock menu. mygo's waits for the main thread, which a test, running off it without the app's event loop, never reaches, so TestMain (helpers_test.go) replaces it with one that does nothing, and fakeDock records what a test sets.
-var setDockMenu = mygo.App.Dock.SetMenu
-
-// menuBar builds the menu bar from the shortcut table and the app's state now. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its shortcut as the item's accelerator, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up as a sheet, none of the rows are (holds).
-func (a *app) menuBar() []*mygo.MenuItem {
-	table := a.shortcuts()
+// menuBar builds the menu bar from the shortcut table and the app's state now, its words in the language the app shows under cx. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its key as the item's shortcut, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up, none of the rows are (holds).
+func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
+	table := a.shortcuts(cx)
 	order, rows := grouped(table)
 	carrier := menuSharedKeyCarriers(table)
-	own := map[[2]int]bool{}
-	for _, s := range a.overlayKeys() {
-		own[[2]int{int(s.Mods), int(s.Key)}] = true
+	own := map[string]bool{}
+	for _, s := range a.overlayKeys(cx) {
+		own[s.Key] = true
 	}
+	separator := nsdesktop.MenuItem{Separator: true}
 	// then adds a separator before more, when there is something on both sides of it.
-	then := func(head []*mygo.MenuItem, more ...*mygo.MenuItem) []*mygo.MenuItem {
+	then := func(head []nsdesktop.MenuItem, more ...nsdesktop.MenuItem) []nsdesktop.MenuItem {
 		if len(head) == 0 || len(more) == 0 {
 			return append(head, more...)
 		}
-		return append(append(head, mygo.Separator()), more...)
+		return append(append(head, separator), more...)
 	}
+	role := func(label string, r nsdesktop.MenuRole) nsdesktop.MenuItem { return nsdesktop.MenuItem{Label: label, Role: r} }
 	// items are the group's rows, the ones with a key first and the menu's own commands without one after a separator. extra are items of the menu alone that go with the rows that have a key, before that separator.
-	items := func(group string, extra ...*mygo.MenuItem) []*mygo.MenuItem {
-		var keyed, plain []*mygo.MenuItem
+	items := func(group string, extra ...nsdesktop.MenuItem) []nsdesktop.MenuItem {
+		var keyed, plain []nsdesktop.MenuItem
 		for _, s := range rows[group] {
-			k := [2]int{int(s.Mods), int(s.Key)}
-			it := a.menuItem(s, s.Key != 0 && own[k])
-			if id, shared := carrier[k]; shared && id != menuRowID(s) {
-				it.Accelerator = ""
+			it := a.menuItem(s, s.Key != "" && own[s.Key])
+			if id, shared := carrier[s.Key]; shared && id != menuRowID(s) {
+				it.Shortcut = ""
 			}
-			if s.Key == 0 {
+			if s.Key == "" {
 				plain = append(plain, it)
 			} else {
 				keyed = append(keyed, it)
@@ -111,90 +116,81 @@ func (a *app) menuBar() []*mygo.MenuItem {
 		}
 		return then(append(keyed, extra...), plain...)
 	}
-	var bar []*mygo.MenuItem
+	var bar []nsdesktop.MenuItem
 	for _, group := range order {
-		var menu *mygo.MenuItem
+		var sub []nsdesktop.MenuItem
 		switch group {
 		case groupApp:
-			sub := then([]*mygo.MenuItem{{Label: locales.MenuAbout(), Role: mygo.RoleAbout}}, items(group)...)
-			sub = then(sub, &mygo.MenuItem{Label: locales.MenuServices(), Role: mygo.RoleServices})
-			sub = then(sub, &mygo.MenuItem{Label: locales.MenuHide(), Role: mygo.RoleHide}, &mygo.MenuItem{Label: locales.MenuHideOthers(), Role: mygo.RoleHideOthers}, &mygo.MenuItem{Label: locales.MenuShowAll(), Role: mygo.RoleUnhide})
-			sub = then(sub, &mygo.MenuItem{Label: locales.MenuQuit(), Role: mygo.RoleQuit})
-			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: sub}
+			sub = then([]nsdesktop.MenuItem{role(locales.MenuAbout(cx), nsdesktop.MenuAbout)}, items(group)...)
+			// TODO(nsgo#118): put the system's Services submenu here, as MyGo's RoleServices did; NSGo has no Services role https://github.com/nsgo-dev/nsgo/issues/118
+			sub = then(sub, role(locales.MenuHide(cx), nsdesktop.MenuHide), role(locales.MenuHideOthers(cx), nsdesktop.MenuHideOthers), role(locales.MenuShowAll(cx), nsdesktop.MenuShowAll))
+			// Quit is the app's own item, not MenuQuit's, so a running job can ask first (requestQuit).
+			sub = then(sub, nsdesktop.MenuItem{Label: locales.MenuQuit(cx), Shortcut: "mod+q", OnSelect: live.Do(a, a.requestQuit)})
 		case groupFile:
-			reveal := &mygo.MenuItem{Label: locales.MenuRevealLibrary(breeze.Current().String()), Disabled: a.holds(false) || a.snap().LibraryDir == "", Click: a.menuClick(false, func() { a.reveal(a.snap().LibraryDir) })}
-			library := []*mygo.MenuItem{reveal}
+			reveal := nsdesktop.MenuItem{Label: locales.MenuRevealLibrary(cx, desktop.Platform(cx)), Disabled: a.holds(false) || a.snap().LibraryDir == "", OnSelect: a.menuSelect(false, func() { a.reveal(a.snap().LibraryDir) })}
+			library := []nsdesktop.MenuItem{reveal}
 			if libs := a.menuLibraries(); len(libs) > 0 {
-				library = append([]*mygo.MenuItem{{Label: locales.MenuSwitchLibrary(), Submenu: libs}}, library...)
+				library = append([]nsdesktop.MenuItem{{Label: locales.MenuSwitchLibrary(cx), Items: libs}}, library...)
 			}
-			// 关闭窗口 keeps ⌘W, which the menu bar mygo installs for an app without its own has in its File menu.
-			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(then(items(group), library...), &mygo.MenuItem{Label: locales.MenuCloseWindow(), Role: mygo.RoleClose})}
+			// 关闭窗口 keeps ⌘W, which the default menu bar has in its File menu.
+			sub = then(then(items(group), library...), role(locales.MenuCloseWindow(cx), nsdesktop.MenuClose))
 		case groupEdit:
-			sub := []*mygo.MenuItem{{Label: locales.MenuUndo(), Role: mygo.RoleUndo}, {Label: locales.MenuRedo(), Role: mygo.RoleRedo}}
-			// 粘贴并匹配样式 and 语音 keep what the Edit menu of the menu bar mygo installs for an app without its own has.
-			sub = then(sub, &mygo.MenuItem{Label: locales.MenuCut(), Role: mygo.RoleCut}, &mygo.MenuItem{Label: locales.MenuCopy(), Role: mygo.RoleCopy}, &mygo.MenuItem{Label: locales.MenuPaste(), Role: mygo.RolePaste}, &mygo.MenuItem{Label: locales.MenuPasteAndMatchStyle(), Role: mygo.RolePasteAndMatchStyle}, &mygo.MenuItem{Label: locales.MenuDelete(), Role: mygo.RoleDelete}, &mygo.MenuItem{Label: locales.MenuSelectAll(), Role: mygo.RoleSelectAll})
-			sub = then(sub, &mygo.MenuItem{Label: locales.MenuSpeech(), Submenu: []*mygo.MenuItem{{Label: locales.MenuStartSpeaking(), Role: mygo.RoleStartSpeaking}, {Label: locales.MenuStopSpeaking(), Role: mygo.RoleStopSpeaking}}})
-			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(sub, items(group)...)}
+			sub = []nsdesktop.MenuItem{role(locales.MenuUndo(cx), nsdesktop.MenuUndo), role(locales.MenuRedo(cx), nsdesktop.MenuRedo)}
+			// TODO(nsgo#118): add 粘贴并匹配样式, 删除 and the 语音 submenu's 开始朗读 and 停止朗读, as MyGo's RolePasteAndMatchStyle, RoleDelete, RoleStartSpeaking and RoleStopSpeaking gave the Edit menu; NSGo has no such roles https://github.com/nsgo-dev/nsgo/issues/118
+			sub = then(sub, role(locales.MenuCut(cx), nsdesktop.MenuCut), role(locales.MenuCopy(cx), nsdesktop.MenuCopy), role(locales.MenuPaste(cx), nsdesktop.MenuPaste), role(locales.MenuSelectAll(cx), nsdesktop.MenuSelectAll))
+			sub = then(sub, items(group)...)
 		case groupView:
-			// 切换全屏幕 keeps ⌃⌘F on every page, as the View menu of the menu bar mygo installs for an app without its own has it. The table's 全屏 is the player's single key F, which works only while a film is open.
-			menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: then(items(group), &mygo.MenuItem{Label: locales.MenuToggleFullScreen(), Role: mygo.RoleToggleFullScreen})}
+			// 切换全屏幕 keeps ⌃⌘F on every page, as the default menu bar's View menu has it. The table's 全屏 is the player's single key F, which works only while a film is open.
+			sub = then(items(group), role(locales.MenuToggleFullScreen(cx), nsdesktop.MenuToggleFullScreen))
 		case groupWindow:
-			sub := then([]*mygo.MenuItem{{Label: locales.MenuMinimize(), Role: mygo.RoleMinimize}, {Label: locales.MenuZoom(), Role: mygo.RoleZoom}}, items(group)...)
-			sub = then(sub, &mygo.MenuItem{Label: locales.MenuBringAllToFront(), Role: mygo.RoleFront})
-			menu = &mygo.MenuItem{Label: groupTitle(group), Role: mygo.RoleWindow, Submenu: sub}
+			sub = then([]nsdesktop.MenuItem{role(locales.MenuMinimize(cx), nsdesktop.MenuMinimize), role(locales.MenuZoom(cx), nsdesktop.MenuZoom)}, items(group)...)
+			// TODO(nsgo#118): end the Window menu with 前置全部窗口 and make it the system's Window menu, which lists the open windows, as MyGo's RoleFront and RoleWindow did https://github.com/nsgo-dev/nsgo/issues/118
 		case groupHelp:
 			// With a menu bar, 重新查看入门引导 is the menu's own item (state_onboarding.go), placed in the prototype's order: 快捷键速查, 重新查看入门引导, then after a separator the plain rows, the website and release-notes links (state_menu.go) and then the feedback items.
-			var guide []*mygo.MenuItem
+			// TODO(nsgo#118): make it the system's Help menu, with its search field, as MyGo's RoleHelp did https://github.com/nsgo-dev/nsgo/issues/118
+			var guide []nsdesktop.MenuItem
 			if appMenuBar {
-				guide = append(guide, &mygo.MenuItem{Label: locales.MenuReopenGuide(), Disabled: a.holds(false), Click: a.menuClick(false, a.reopenOnboarding)})
+				guide = append(guide, nsdesktop.MenuItem{Label: locales.MenuReopenGuide(cx), Disabled: a.holds(false), OnSelect: a.menuSelect(false, a.reopenOnboarding)})
 			}
-			if sub := items(group, guide...); len(sub) > 0 {
-				menu = &mygo.MenuItem{Label: groupTitle(group), Role: mygo.RoleHelp, Submenu: sub}
-			}
+			sub = items(group, guide...)
 		default:
-			if sub := items(group); len(sub) > 0 {
-				menu = &mygo.MenuItem{Label: groupTitle(group), Submenu: sub}
-			}
+			sub = items(group)
 		}
-		if menu != nil {
-			bar = append(bar, menu)
+		if len(sub) > 0 {
+			bar = append(bar, nsdesktop.MenuItem{Label: groupTitle(cx, group), Items: sub})
 		}
 	}
 	return bar
 }
 
-// menuLibraries are the items of File › 切换资料库 and of the Dock menu: a radio item for each library the app knows, named as Settings › 通用 names them, with the open one chosen. Choosing one switches to it as the sidebar's switcher does. Each call builds new items, as an item belongs to one menu.
-func (a *app) menuLibraries() []*mygo.MenuItem {
+// menuLibraries are the items of File › 切换资料库: an item for each library the app knows, named as Settings › 通用 names them, with the open one checked. Choosing one switches to it as the sidebar's switcher does.
+func (a *app) menuLibraries() []nsdesktop.MenuItem {
 	dirs := a.knownLibraries()
 	labels := films.LibraryLabels(dirs)
 	open := filepath.Clean(a.snap().LibraryDir)
-	items := make([]*mygo.MenuItem, len(dirs))
+	items := make([]nsdesktop.MenuItem, len(dirs))
 	for i, dir := range dirs {
-		items[i] = &mygo.MenuItem{
-			Label:    labels[i],
-			Type:     mygo.MenuItemRadio,
-			Checked:  filepath.Clean(dir) == open,
-			Disabled: a.holds(false),
-			Click: func(*mygo.MenuItem, *mygo.Window) {
-				a.update(func() {
-					// mygo moves the radio's choice itself before Click; forgetting the installed menu has the next frame show the open library again, also when the click is held back.
-					a.menu.menuSig = ""
-					if a.holds(false) {
-						return
-					}
-					a.Choose(dir)
-				})
-			},
+		// TODO(nsgo#118): make the libraries radio items, one of which is chosen, as MyGo's MenuItemRadio drew them; NSGo's menu items are only checkable https://github.com/nsgo-dev/nsgo/issues/118
+		items[i] = nsdesktop.MenuItem{
+			Label:     labels[i],
+			Checkable: true,
+			Checked:   filepath.Clean(dir) == open,
+			Disabled:  a.holds(false),
+			OnSelect: a.menuSelect(false, func() {
+				// The menu may flip the ✓ itself; forgetting the installed menu sets it from the app's state again.
+				a.menu.menuSig = ""
+				a.Choose(dir)
+			}),
 		}
 	}
 	return items
 }
 
 // menuItem is the menu bar's item for the shortcut s. own says s is one of the overlays' rows, which the cheat sheet leaves enabled.
-func (a *app) menuItem(s shortcut, own bool) *mygo.MenuItem {
-	it := &mygo.MenuItem{Label: s.Label, Disabled: a.holds(own) || (s.When != nil && !s.When())}
-	if s.Mods&ui.Cmd != 0 {
-		it.Accelerator = accelerator(s.Mods, s.Key)
+func (a *app) menuItem(s shortcut, own bool) nsdesktop.MenuItem {
+	it := nsdesktop.MenuItem{Label: s.Label, Disabled: a.holds(own) || (s.When != nil && !s.When()), When: core.MenuAuto}
+	if hasCommand(s.Key) {
+		it.Shortcut = s.Key
 	}
 	run := s.guarded()
 	if s.Group == groupWindow {
@@ -206,28 +202,27 @@ func (a *app) menuItem(s shortcut, own bool) *mygo.MenuItem {
 		}
 	}
 	if s.Checked != nil {
-		it.Type, it.Checked = mygo.MenuItemCheckbox, s.Checked()
-		// mygo flips a checkbox item's ✓ itself before Click; forgetting the installed menu makes the next frame set the ✓ from the app's state again.
+		it.Checkable, it.Checked = true, s.Checked()
+		// The menu may flip a checkable item's ✓ itself; forgetting the installed menu sets the ✓ from the app's state again.
 		next := run
 		run = func() {
 			a.menu.menuSig = ""
 			next()
 		}
 	}
-	it.Click = a.menuClick(own, run)
+	it.OnSelect = a.menuSelect(own, run)
 	return it
 }
 
-// menuSharedKeyCarriers picks, for each key more than one row of the table has, the row whose menu item carries it as its accelerator (by menuRowID): the first whose When holds, or the first of them while none does. Rows share a key only when they take turns, as the library's ⌘F and the player's do (TestShortcutsAreUnique), so the key runs the item it is shown by, and the menu bar never gives two items one accelerator.
-func menuSharedKeyCarriers(rows []shortcut) map[[2]int]string {
-	by := map[[2]int][]shortcut{}
+// menuSharedKeyCarriers picks, for each key more than one row of the table has, the row whose menu item carries it as its shortcut (by menuRowID): the first whose When holds, or the first of them while none does. Rows share a key only when they take turns, as the library's ⌘F and the player's do (TestShortcutsAreUnique), so the key runs the item it is shown by, and the menu bar never gives two items one shortcut.
+func menuSharedKeyCarriers(rows []shortcut) map[string]string {
+	by := map[string][]shortcut{}
 	for _, s := range rows {
-		if s.Key != 0 {
-			k := [2]int{int(s.Mods), int(s.Key)}
-			by[k] = append(by[k], s)
+		if s.Key != "" {
+			by[s.Key] = append(by[s.Key], s)
 		}
 	}
-	carrier := map[[2]int]string{}
+	carrier := map[string]string{}
 	for k, same := range by {
 		if len(same) < 2 {
 			continue
@@ -247,19 +242,17 @@ func menuSharedKeyCarriers(rows []shortcut) map[[2]int]string {
 // menuRowID names a row of the shortcut table by its menu and its label, which no two rows share.
 func menuRowID(s shortcut) string { return s.Group + "\x00" + s.Label }
 
-// menuClick runs fn on the UI thread as a background job's report does, so the window draws what it changed. Whatever is open over the window by then holds fn back as a disabled item would have (holds, with own saying fn is one of the overlays'): the click can come from a menu built before it opened.
-func (a *app) menuClick(own bool, fn func()) func(*mygo.MenuItem, *mygo.Window) {
-	return func(*mygo.MenuItem, *mygo.Window) {
-		a.update(func() {
-			if a.holds(own) {
-				return
-			}
-			fn()
-		})
-	}
+// menuSelect is an item's OnSelect: fn, unless whatever is open over the window by then holds it back as a disabled item would have (holds, with own saying fn is one of the overlays'), as the click can come from a menu built before it opened. Either way the revision follows (package live).
+func (a *app) menuSelect(own bool, fn func()) func() {
+	return live.Do(a, func() {
+		if a.holds(own) {
+			return
+		}
+		fn()
+	})
 }
 
-// holds reports whether something open over the window holds back a menu bar command. own says the command is one of the overlays' rows: the cheat sheet holds back every command but those, so its own ⌘/ closes it, and a modal dialog (holdModal), such as a file panel up as a sheet, holds back all of them.
+// holds reports whether something open over the window holds back a menu bar command. own says the command is one of the overlays' rows: the cheat sheet holds back every command but those, so its own ⌘/ closes it, and a modal dialog (holdModal), such as a file panel, holds back all of them.
 func (a *app) holds(own bool) bool { return a.modalOpen() || (a.overlay.cheatsheet && !own) }
 
 // grouped returns the table's rows by group, and the groups in the menu bar's order: menuOrder, with the groups it does not name before 窗口 in the order the table first lists them.
@@ -277,98 +270,16 @@ func grouped(rows []shortcut) ([]string, map[string][]shortcut) {
 }
 
 // menuSignature writes down everything about items the menu bar shows, to tell whether a new menu would show anything else.
-func menuSignature(items []*mygo.MenuItem) string {
+func menuSignature(items []nsdesktop.MenuItem) string {
 	var b strings.Builder
-	var walk func([]*mygo.MenuItem)
-	walk = func(items []*mygo.MenuItem) {
+	var walk func([]nsdesktop.MenuItem)
+	walk = func(items []nsdesktop.MenuItem) {
 		for _, it := range items {
-			fmt.Fprintf(&b, "%s|%s|%s|%s|%t|%t|%t[", it.Type, it.Role, it.Label, it.Accelerator, it.Disabled, it.Hidden, it.Checked)
-			walk(it.Submenu)
+			fmt.Fprintf(&b, "%d|%s|%s|%t|%t|%t|%t[", it.Role, it.Label, it.Shortcut, it.Separator, it.Disabled, it.Checkable, it.Checked)
+			walk(it.Items)
 			b.WriteString("]")
 		}
 	}
 	walk(items)
 	return b.String()
-}
-
-// accelerator writes mods and key as mygo's menus take a shortcut, as in "Super+Shift+N", or "" for a key menus cannot show.
-func accelerator(mods ui.Modifiers, key ui.Key) string {
-	name := acceleratorKey(key)
-	if name == "" {
-		return ""
-	}
-	var b strings.Builder
-	for _, m := range []struct {
-		mod  ui.Modifiers
-		name string
-	}{{ui.Super, "Super"}, {ui.Ctrl, "Ctrl"}, {ui.Alt, "Alt"}, {ui.Shift, "Shift"}} {
-		if mods&m.mod != 0 {
-			b.WriteString(m.name + "+")
-		}
-	}
-	return b.String() + name
-}
-
-func acceleratorKey(key ui.Key) string {
-	switch {
-	case key >= ui.KeyA && key <= ui.KeyZ:
-		return string(rune('a' + key - ui.KeyA))
-	case key >= ui.Key0 && key <= ui.Key9:
-		return string(rune('0' + key - ui.Key0))
-	case key >= ui.KeyF1 && key <= ui.KeyF12:
-		return fmt.Sprintf("F%d", int(key-ui.KeyF1)+1)
-	}
-	switch key {
-	case ui.KeyEnter:
-		return "Enter"
-	case ui.KeyEscape:
-		return "Escape"
-	case ui.KeyBackspace:
-		return "Backspace"
-	case ui.KeyTab:
-		return "Tab"
-	case ui.KeySpace:
-		return "Space"
-	case ui.KeyDelete:
-		return "Delete"
-	case ui.KeyHome:
-		return "Home"
-	case ui.KeyEnd:
-		return "End"
-	case ui.KeyPageUp:
-		return "PageUp"
-	case ui.KeyPageDown:
-		return "PageDown"
-	case ui.KeyLeft:
-		return "Left"
-	case ui.KeyRight:
-		return "Right"
-	case ui.KeyUp:
-		return "Up"
-	case ui.KeyDown:
-		return "Down"
-	case ui.KeyMinus:
-		return "-"
-	case ui.KeyEqual:
-		return "="
-	case ui.KeyComma:
-		return ","
-	case ui.KeyPeriod:
-		return "."
-	case ui.KeySlash:
-		return "/"
-	case ui.KeySemicolon:
-		return ";"
-	case ui.KeyQuote:
-		return "'"
-	case ui.KeyBracketLeft:
-		return "["
-	case ui.KeyBracketRight:
-		return "]"
-	case ui.KeyBackslash:
-		return "\\"
-	case ui.KeyBackquote:
-		return "`"
-	}
-	return ""
 }

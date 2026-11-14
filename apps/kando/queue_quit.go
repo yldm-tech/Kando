@@ -8,20 +8,20 @@ import (
 	"syscall"
 	"time"
 
+	"kando/apps/kando/live"
 	"kando/apps/kando/quit"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
 // errQuitting is the cause the running job is stopped with when the app quits. It is never shown: a job stopped with it reports nothing more, and library.json keeps the stage it had reached, which the next launch reads back as queued (shelf.Load).
 var errQuitting = errors.New("kando is quitting")
 
-// queueQuitWait is how long a quit waits for the running job to return once asked to stop, so its programs are not left running behind the app. It stays short of the three seconds mygo gives the event loop to stop once the windows have closed.
+// queueQuitWait is how long a quit waits for the running job to return once asked to stop, so its programs are not left running behind the app. main waits for it once nsgo.Run has returned (areasQuitting), so it holds up no thread the system watches.
 const queueQuitWait = 2 * time.Second
 
-// queueBeforeQuit holds a quit back while a job runs and asks first (quit.Confirm). Choosing 退出 there quits again, and that quit goes ahead. The updater's relaunch into an installed update comes here as a quit too, and mygo's QuitEvent does not say it was one, so 退出 then quits without starting the app again; the update is still installed and the next launch runs it. A logout, restart or shutdown on macOS and Windows comes here with e.SessionEnding set: the OS has decided, mygo ignores a prevented quit then and wants the listeners done without dialogs, so it goes ahead without asking, as a signal's quit does, and the running job is stopped as the app quits (queueQuit).
-func (a *app) queueBeforeQuit(e *mygo.QuitEvent) {
+// queueBeforeQuit holds a quit back while a job runs and asks first (quit.Confirm). Choosing 退出 there quits again, and that quit goes ahead. A quit the app cannot hold back comes here with e.SessionEnding set (quitHeard): the Dock's Quit, a logout, restart or shutdown, or the updater's relaunch. It goes ahead without asking, as a signal's quit does, and the running job is stopped as the app quits (queueQuit).
+func (a *app) queueBeforeQuit(e *quitEvent) {
 	if e.SessionEnding {
 		a.queue.quitConfirmed = true
 		return
@@ -43,13 +43,9 @@ func (a *app) queueAskQuit() {
 	if a.queue.quitRelease == nil {
 		a.queue.quitRelease = a.holdModal()
 	}
-	// The quit comes from the menu, the Dock or a signal, not from the window's own frame, so the window is asked for one to draw the confirmation in.
-	if a.win != nil {
-		a.win.Invalidate()
-	}
 }
 
-// queueWatchSignals lets SIGINT and SIGTERM quit without asking. mygo turns them into a quit (its quitOnSignals), but no one is at the window to answer one: kill, a logout or shutdown on Linux, a service manager, or mygo dev rebuilding. A signal marks the quit confirmed and quits again (queueQuitOnSignal), so whichever of mygo's quit and this one runs first, the app quits and the running job is stopped. A signal mygo left ignored, as for a shell's background job, stays ignored, and on Windows mygo quits on no signal. It runs once, from ready.
+// queueWatchSignals lets SIGINT and SIGTERM quit without asking, as no one is at the window to answer: kill, a logout or shutdown on Linux, a service manager, or nsgo dev rebuilding. A signal marks the quit confirmed and quits (queueQuitOnSignal) on the engine's goroutine, and the running job is stopped. A signal left ignored, as for a shell's background job, stays ignored, and Windows sends none. It runs once, from ready.
 func (a *app) queueWatchSignals() {
 	if runtime.GOOS == "windows" {
 		return
@@ -68,29 +64,34 @@ func (a *app) queueWatchSignals() {
 	go func() {
 		<-ch
 		signal.Stop(ch)
-		mygo.RunOnMain(a.queueQuitOnSignal)
+		a.update(a.queueQuitOnSignal)
 	}()
 }
 
-// queueQuitOnSignal quits without asking, as a signal asked for it. It runs on the UI thread.
+// queueQuitOnSignal quits without asking, as a signal asked for it. It runs on the engine's goroutine.
 func (a *app) queueQuitOnSignal() {
 	a.queue.quitConfirmed = true
-	quitApp()
+	a.requestQuit()
 }
 
-// queueQuitOverlay draws the confirmation over the window while it is open (state_overlay.go). It names the job running now, which is the next one when the job it was opened for finished meanwhile.
-func (a *app) queueQuitOverlay(c *ui.Context) {
-	if !a.queue.quitAsk {
-		return
-	}
-	job, _ := a.library.Find(a.queue.active)
-	if quit.Confirm(c, &a.queue.quitAsk, jobName(job)) {
-		a.queue.quitConfirmed = true
-		quitApp()
+// queueQuitOverlay is the confirmation over the window while it is open (state_overlay.go). It names the job running now, which is the next one when the job it was opened for finished meanwhile.
+func (a *app) queueQuitOverlay(*core.Scope) core.Node {
+	return quit.Confirm{
+		Open: live.Func(a, func() bool { return a.queue.quitAsk }),
+		Film: live.Func(a, func() string {
+			job, _ := a.library.Find(a.queue.active)
+			return jobName(job)
+		}),
+		OnQuit: live.Do(a, func() {
+			a.queue.quitAsk = false
+			a.queue.quitConfirmed = true
+			a.requestQuit()
+		}),
+		OnCancel: live.Do(a, func() { a.queue.quitAsk = false }),
 	}
 }
 
-// queueQuitModal closes the confirmation once no job runs any more, as there is nothing left to ask about, and gives back the window's modal flag once it has closed.
+// queueQuitModal closes the confirmation once no job runs any more, as there is nothing left to ask about, and gives back the window's modal flag once it has closed. It runs after every change of the app's state (areaHooks.afterChange).
 func (a *app) queueQuitModal() {
 	if a.queue.active == "" {
 		a.queue.quitAsk = false

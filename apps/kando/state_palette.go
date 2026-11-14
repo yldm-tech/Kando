@@ -84,7 +84,7 @@ func (a *app) paletteHooks() areaHooks {
 	return areaHooks{
 		shelfLoaded:      func() { a.palette.furthest = maps.Clone(a.library.Furthest) },
 		positionsChanged: a.paletteSaveFurthest,
-		afterFrame:       a.paletteAfterFrame,
+		afterChange:       a.paletteAfterFrame,
 		videosMoved:      func(move func(string) (string, bool)) { shelf.MoveKeys(a.palette.furthest, move) },
 		shelfChanged: func() {
 			if a.palette.open {

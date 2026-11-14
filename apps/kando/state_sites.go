@@ -14,7 +14,7 @@ type sitesUI struct {
 	grid  ui.GridState
 	// logos holds each logo decoded once its tile showed, by domain; nil marks a logo that would not decode, so the tile shows the initial without decoding it again.
 	logos map[string]ui.ImageSource
-	// release gives back the window's modal flag (holdModal) the sheet holds while it is open; sitesHooks' afterFrame runs it once the sheet has closed.
+	// release gives back the window's modal flag (holdModal) the sheet holds while it is open; sitesHooks' afterChange runs it once the sheet has closed.
 	release func()
 }
 
@@ -22,7 +22,7 @@ func newSitesUI() sitesUI { return sitesUI{} }
 
 // sitesHooks: the sheet gives back the window's modal flag once it has closed.
 func (a *app) sitesHooks() areaHooks {
-	return areaHooks{afterFrame: a.sitesModal}
+	return areaHooks{afterChange: a.sitesModal}
 }
 
 // sitesKeys are the sheet's rows of the shortcut table: 支持的网站… in the 帮助 menu, without a key.

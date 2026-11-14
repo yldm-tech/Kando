@@ -358,7 +358,7 @@ func (a *app) savePlayer(saved *savedSettings) {
 // playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is and how its subtitles were moved on disk now and then, brings a film back from the background to a speed changed meanwhile and keeps a looped line looping after each frame, keeps the display awake while a film plays once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, follows the sound while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so its sound does not play on and where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
 	return areaHooks{
-		save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterFrame: a.playerAfterFrame, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting,
+		save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterChange: a.playerAfterFrame, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting,
 		videosMoved: func(move func(string) (string, bool)) {
 			if next, ok := move(a.player.film.video); ok {
 				a.player.film.video = next

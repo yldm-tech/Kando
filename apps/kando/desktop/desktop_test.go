@@ -122,3 +122,12 @@ func TestPlatform(t *testing.T) {
 		}
 	}
 }
+
+// TestDroppedPaths checks that the file: URLs of a drop become paths, spaces and other escapes undone, and that anything else is left out.
+func TestDroppedPaths(t *testing.T) {
+	got := DroppedPaths([]string{"file:///Users/me/Movies/My%20Talk.mp4", "https://example.com/v.mp4", "file:///tmp/%E5%BD%B1%E7%89%87.mkv", "::"})
+	want := []string{filepath.FromSlash("/Users/me/Movies/My Talk.mp4"), filepath.FromSlash("/tmp/影片.mkv")}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("DroppedPaths = %q, want %q", got, want)
+	}
+}

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 	"time"
 
@@ -11,11 +10,15 @@ import (
 	"kando/apps/kando/theme"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
+	"kando/apps/kando/live"
+
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// settingsUI is the state of the settings window, a child window of the main one that ⌘,, the sidebar's gear and 看懂 › 设置… open: the translation's language and prompt, the speech models and their download, the AI service and the tools' versions, and the window itself. The model and the AI service in use are the pipeline's (media.Tools); these fields are what the window edits and shows.
+// settingsUI is the state of the settings window, a window of its own that ⌘,, the sidebar's gear and 看懂 › 设置… open (over the main window where the platform opens none): the translation's language and prompt, the speech models and their download, the AI service and the tools' versions, and the window itself. The model and the AI service in use are the pipeline's (media.Tools); these fields are what the window edits and shows.
 type settingsUI struct {
 	interfaceLanguage string
 	language          string
@@ -60,11 +63,10 @@ type settingsUI struct {
 	section string
 	// query is the text of the window's search field, shortcutQuery that of the 快捷键 page.
 	query, shortcutQuery string
-	// win is the open window, nil while it is closed; opening is set while its creation waits for the main thread.
-	win     *mygo.Window
-	opening bool
-	// mainDrawn and windowDrawn are the settings, as saveSettings writes them, that the main window and the settings window last drew. A window that draws settings the other has not drawn yet asks the other for a frame.
-	mainDrawn, windowDrawn string
+	// win is the open settings window, nil while it is closed; opening is set while its opening waits for the post that opens it (showSettingsWindow). inWindow is set while the settings show over the main window, where the platform opened no window for them (settingsOverlay).
+	win      *core.Window
+	opening  bool
+	inWindow bool
 }
 
 func newSettingsUI() settingsUI {
@@ -127,7 +129,7 @@ func (a *app) restoreTranslate(saved savedSettings) {
 	}
 }
 
-// settingsHooks: the settings window saves the speech model, the AI service and the translation, asks the tools for their versions once the main window exists, looks for the whisper models on disk again when the tools change, redraws after each background report (downloads, tool versions, the connection test), opens for a settings page chosen in the main sidebar, and keeps the two windows drawing the same settings.
+// settingsHooks: the settings window saves the speech model, the AI service and the translation, shows the interface in its saved language and asks the tools for their versions once the main window exists, looks for the whisper models on disk again when the tools change, and after every change opens for a settings page chosen in the main sidebar, gives back the trash confirmation's modal flag once it closed and fetches the AI service's models when its settings changed.
 func (a *app) settingsHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
@@ -152,10 +154,9 @@ func (a *app) settingsHooks() areaHooks {
 				a.everyAPIForgetOpen()
 			}
 		},
-		afterUpdate: a.redrawSettings,
-		afterFrame: func() {
+		afterChange: func() {
 			a.followSettingsPage()
-			a.shareSettings(false)
+			a.speechModals()
 			a.loadLLMModels()
 		},
 	}
@@ -171,97 +172,83 @@ func (a *app) followSettingsPage() {
 	section := a.page
 	a.Select(pageFilms)
 	a.OpenSettings(section)
-	if a.win != nil {
-		a.win.Invalidate()
-	}
+	a.Changed()
 }
 
 // settingsKeys are the settings' shortcuts.
-func (a *app) settingsKeys() []shortcut { return nil }
+func (a *app) settingsKeys(*core.Scope) []shortcut { return nil }
 
-// settingsView is the settings window's content.
-func (a *app) settingsView(c *ui.Context) {
-	t, dark := theme.Palette(c)
-	settings.Window(c, t, dark, appVersion, a)
-	a.speechModals()
-	a.shareSettings(true)
+// settingsView is the settings window's content, built once under the window's scope cx. Both windows read the same state through the revision (package live), so what one changes shows in the other at once.
+func (a *app) settingsView(cx *core.Scope) core.Node {
+	theme.Apply(cx)
+	// The traffic lights sit in a band 50 high, as the prototype's settings rail has them. No material: the prototype's settings draw their rail and pages in plain colors, without a backdrop blur.
+	nsdesktop.SetTitleBar(cx, nsdesktop.TitleBarHidden, 50)
+	nsdesktop.SetWindowControls(cx, nsdesktop.WindowControls{TrafficLights: core.Point{X: 18, Y: 18}})
+	cx.Effect(func() { nsdesktop.SetTitle(cx, locales.SettingsWindowTitle(cx)) })
+	return settings.Window{App: a, Version: appVersion}
 }
 
-// showSettingsWindow brings the settings window to the front, creating it the first time. The window is made on the main thread after the frame that asked for it, not while a view is being built. Without a main window, as in tests, there is nothing to open.
+// showSettingsWindow brings the settings window to the front, opening it the first time. It opens from a post under the app's scope, which owns it, rather than under the handler that asked, whose part of the window may go first, as the sidebar's gear goes when a film fills the window. Where the platform opens no windows of the app's, the settings show over the main window instead (settingsOverlay). Without the app's scope, as in tests that start no app, there is nothing to open.
 func (a *app) showSettingsWindow() {
-	if a.win == nil || a.prefs.opening {
+	if a.cx == nil || a.prefs.opening {
+		return
+	}
+	if w := a.prefs.win; w != nil && !w.Closed() {
+		w.Focus()
 		return
 	}
 	a.prefs.opening = true
-	a.win.Update(func() {
+	a.cx.Post(func() {
 		a.prefs.opening = false
 		a.openSettingsWindow()
+		a.Changed()
 	})
 }
 
+// openSettingsWindow opens the settings window, a window of the app's own on macOS, or the settings over the main window where none opens.
 func (a *app) openSettingsWindow() {
-	if w := a.prefs.win; w != nil && !w.IsDestroyed() {
-		w.Show()
-		w.Invalidate()
+	// TODO(nsgo#108): open the settings as a child window of the main one, which moves, minimizes and comes forward with it, as MyGo's WindowOptions.Parent did https://github.com/nsgo-dev/nsgo/issues/108
+	w := nsdesktop.OpenWindow(a.cx, nsdesktop.WindowOptions{
+		Title:       locales.SettingsWindowTitle(a.cx),
+		Width:       880,
+		Height:      640,
+		Key:         "settings",
+		Constraints: core.WindowConstraints{MinWidth: 720, MinHeight: 480, NoMaximize: true},
+	}, a.settingsView)
+	if w == nil {
+		// TODO(nsgo#31): open the settings in a window of their own on Windows and Linux, as on macOS, instead of over the main window https://github.com/nsgo-dev/nsgo/issues/31
+		a.prefs.inWindow = true
 		return
 	}
-	w := mygo.NewWindow(mygo.WindowOptions{
-		Title:             locales.SettingsWindowTitle(),
-		Width:             880,
-		Height:            640,
-		MinWidth:          720,
-		MinHeight:         480,
-		StateKey:          "settings",
-		Parent:            a.win,
-		DisableMaximize:   true,
-		DisableFullScreen: true,
-		TitleBarStyle:     mygo.TitleBarHidden,
-		// The traffic lights sit in a band 50 high, as the prototype's settings rail has them.
-		// No material: the prototype's settings draw their rail and pages in plain colors, without a backdrop blur.
-		TrafficLightPosition: &mygo.Point{X: 18, Y: 18},
-		Content:              ui.View(a.settingsView),
-	})
 	a.prefs.win = w
-	w.OnClosed(func() {
-		if a.prefs.win == w {
-			a.prefs.win = nil
-			a.prefs.open = false
-			a.prefs.trashOpen = false
-			a.speechModals()
-			a.prefs.mainDrawn, a.prefs.windowDrawn = "", ""
-		}
-	})
+	w.OnClosing(a.cx, live.On(a, func(c *core.WindowClosing) { a.settingsClosed(w) }))
 }
 
-// redrawSettings asks the open settings window for a frame.
-func (a *app) redrawSettings() {
-	if a.prefs.win != nil {
-		a.prefs.win.Invalidate()
-	}
-}
-
-// shareSettings keeps the two windows showing the same settings. Each calls it at the end of its frame, inSettings telling which one drew; when this frame drew settings the other window has not, such as a library chosen in the main window's sidebar or a subtitle mode chosen in the settings window, the other one gets a frame. Changes from background jobs reach both through the app's update.
-func (a *app) shareSettings(inSettings bool) {
-	if a.prefs.win == nil || a.win == nil {
+// settingsClosed forgets the settings window w as it closes, and the settings the user asked for with it.
+func (a *app) settingsClosed(w *core.Window) {
+	if a.prefs.win != w {
 		return
 	}
-	data, _ := json.Marshal(a.settingsFile())
-	if !a.prefs.drew(inSettings, string(data)) {
-		return
-	}
-	if inSettings {
-		a.win.Invalidate()
-	} else {
-		a.prefs.win.Invalidate()
-	}
+	a.prefs.win = nil
+	a.prefs.open = false
+	a.prefs.trashOpen = false
+	a.speechModals()
 }
 
-// drew records settings, as one window drew them, and reports whether the other window has not drawn them yet.
-func (s *settingsUI) drew(inSettings bool, settings string) bool {
-	if inSettings {
-		s.windowDrawn = settings
-		return settings != s.mainDrawn
+// settingsOverlay shows the settings over the main window while they are open where the platform opened no window for them (openSettingsWindow): a dialog as large as the settings window, which Escape and a press beside it close.
+func (a *app) settingsOverlay(*core.Scope) core.Node {
+	return ui.Dialog{
+		Open: live.Func(a, func() bool { return a.prefs.open && a.prefs.inWindow }),
+		OnOpenChange: func(open bool, _ base.Reason) {
+			if !open {
+				a.prefs.open, a.prefs.inWindow, a.prefs.trashOpen = false, false, false
+				a.speechModals()
+				a.Changed()
+			}
+		},
+		Bare:     true,
+		Style:    core.Style{Width: core.Pt(880), Height: core.Pt(640), MaxWidth: core.Pct(100), MaxHeight: core.Pct(100)},
+		Children: []core.Node{settings.Window{App: a, Version: appVersion}},
+		TestID:   "settings-in-window",
 	}
-	s.mainDrawn = settings
-	return settings != s.windowDrawn
 }

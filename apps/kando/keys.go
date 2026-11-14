@@ -2,26 +2,33 @@ package main
 
 import (
 	"slices"
+	"strings"
 
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
-// shortcut is one row of the app's shortcut table. The cheat sheet and Settings › 快捷键 list the same rows wireKeys runs.
+// shortcut is one row of the app's shortcut table. The cheat sheet and Settings › 快捷键 list the same rows wireKeys binds.
 type shortcut struct {
 	// Group is the menu the row is listed under, one of the group IDs below; groupTitle is what it is called.
 	Group string
 	Label string
-	Mods  ui.Modifiers
-	// Key is the row's key. A row without one (0) is a command of the menu bar only: wireKeys does not register it, and neither the cheat sheet nor Settings › 快捷键 lists it, as there is no key to show.
-	Key ui.Key
+	// Key is the row's key in NSGo's form (core.Scope.OnKey): modifiers and a key joined by "+", "mod" being ⌘ on macOS and Ctrl elsewhere, as MyGo's ui.Cmd was, and the key a letter, a digit, a punctuation mark or a name: "mod+shift+n", "mod+,", "shift+.", "space", "left", "escape", "f5". cx.KeyLabel writes it as the platform shows it (⌘⇧N, Ctrl+Shift+N). A row without one ("") is a command of the menu bar only: wireKeys does not bind it, and neither the cheat sheet nor Settings › 快捷键 lists it, as there is no key to show.
+	Key string
 	// When reports whether the shortcut applies now; nil means always.
 	When func() bool
 	// Checked reports whether the menu bar shows a ✓ by the row, as by the screen the window shows now; nil means the row is a plain command.
 	Checked func() bool
 	Run     func()
+}
+
+// hasCommand reports whether key is held with ⌘, Ctrl on Windows and Linux: a row the menu bar carries as its item's shortcut.
+func hasCommand(key string) bool {
+	parts := strings.Split(key, "+")
+	return slices.Contains(parts[:len(parts)-1], "mod")
 }
 
 // The groups of the shortcut table, by ID: the menus of the menu bar (menuOrder), and the headings of the cheat sheet and of Settings › 快捷键. groupTitle names them in the interface's language.
@@ -37,56 +44,97 @@ const (
 	groupHelp      = "help"
 )
 
-// groupTitle is what the group of a shortcut is called in the interface's language; a group it does not know is called by its ID.
-func groupTitle(group string) string {
+// groupTitle is what the group of a shortcut is called in the language the app shows under cx; a group it does not know is called by its ID.
+func groupTitle(cx *core.Scope, group string) string {
 	switch group {
 	case groupApp:
-		return locales.MenuGroupApp()
+		return locales.MenuGroupApp(cx)
 	case groupFile:
-		return locales.MenuGroupFile()
+		return locales.MenuGroupFile(cx)
 	case groupEdit:
-		return locales.MenuGroupEdit()
+		return locales.MenuGroupEdit(cx)
 	case groupPlayback:
-		return locales.MenuGroupPlayback()
+		return locales.MenuGroupPlayback(cx)
 	case groupSubtitles:
-		return locales.MenuGroupSubtitles()
+		return locales.MenuGroupSubtitles(cx)
 	case groupView:
-		return locales.MenuGroupView()
+		return locales.MenuGroupView(cx)
 	case groupStudy:
-		return locales.MenuGroupStudy()
+		return locales.MenuGroupStudy(cx)
 	case groupWindow:
-		return locales.MenuGroupWindow()
+		return locales.MenuGroupWindow(cx)
 	case groupHelp:
-		return locales.MenuGroupHelp()
+		return locales.MenuGroupHelp(cx)
 	}
 	return group
 }
 
-// shortcuts is the whole table, in the order the cheat sheet lists it. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go, the feedback dialog's in state_feedback.go, the first-run guide's in state_onboarding.go, 显示日志文件 in state_logs.go, 检查更新… in updates.go, the main window's in state_window.go and the browser's in state_browse.go.
-func (a *app) shortcuts() []shortcut {
-	return slices.Concat(a.appKeys(), a.sidebarKeys(), a.libraryKeys(), a.queueKeys(), a.playerKeys(), a.settingsKeys(), a.overlayKeys(), a.menuKeys(), a.feedbackKeys(), a.paletteKeys(), a.onboardingKeys(), a.sitesKeys(), a.logsKeys(), a.updatesKeys(), a.windowKeys(), a.browseKeys())
+// shortcuts is the whole table, in the order the cheat sheet lists it, its labels in the language the app shows under cx. Each area keeps its rows next to its own code: the app's here, the sidebar's in state_sidebar.go, the library's in bind_films.go, the queue's in queue.go, the player's in bind_film.go, the settings' in state_settings.go, the overlays' in state_overlay.go, the menu bar's in state_menu.go, the feedback dialog's in state_feedback.go, the first-run guide's in state_onboarding.go, 显示日志文件 in state_logs.go, 检查更新… in updates.go, the main window's in state_window.go and the browser's in state_browse.go.
+func (a *app) shortcuts(cx *core.Scope) []shortcut {
+	return slices.Concat(a.appKeys(cx), a.sidebarKeys(cx), a.libraryKeys(cx), a.queueKeys(cx), a.playerKeys(cx), a.settingsKeys(cx), a.overlayKeys(cx), a.menuKeys(cx), a.feedbackKeys(cx), a.paletteKeys(cx), a.onboardingKeys(cx), a.sitesKeys(cx), a.logsKeys(cx), a.updatesKeys(cx), a.windowKeys(cx), a.browseKeys(cx))
 }
 
 // appKeys are the shortcuts that work anywhere in the window.
-func (a *app) appKeys() []shortcut {
+func (a *app) appKeys(cx *core.Scope) []shortcut {
 	return []shortcut{
-		{Group: groupApp, Label: locales.AppSettings(), Mods: ui.Cmd, Key: ui.KeyComma, Run: func() { a.OpenSettings(settings.SectionGeneral) }},
+		{Group: groupApp, Label: locales.AppSettings(cx), Key: "mod+,", Run: func() { a.OpenSettings(settings.SectionGeneral) }},
 	}
 }
 
-// wireKeys registers the table with the window once per frame. A shortcut whose When is false is left out of this frame. Single keys go through OnShortcut, so a focused text field or button that takes the key keeps it. Once the app has its own menu bar, ⌘ shortcuts are the menu's accelerators and are not registered here.
-//
-// OnShortcut runs a handler only after the whole view has been built, and the pages can change the state When reads during that build (the library page closes a film that left the library and stops its playback), so When is checked again when the key runs.
-func (a *app) wireKeys(c *ui.Context) {
-	for _, s := range a.shortcuts() {
-		if s.Run == nil || s.Key == 0 || (s.When != nil && !s.When()) {
-			continue
+// wireKeys binds the table in the main window, under cx, the view's scope. A key binds only while its row's When holds, so a key no row takes now, such as Space with no film open, reaches the focused control as before; NSGo consumes the keys it binds. The bindings are made again only when the keys whose When holds change (active), not after every change of the app's state, and When is checked again when a key runs, as a row's state can change between the two. Once the app has its own menu bar, ⌘ shortcuts are the menu's (installMenu) and are not bound here, so a key does not run twice. Arrow keys fire again while held, as seeking and the volume step on; other keys fire once per press.
+func (a *app) wireKeys(cx *core.Scope) core.Node {
+	active := live.Memo(cx, a, func() string {
+		var keys []string
+		for _, s := range a.shortcuts(cx) {
+			if a.binds(s) {
+				keys = append(keys, s.Key)
+			}
 		}
-		if a.menu.menuBar && s.Mods&ui.Cmd != 0 {
-			continue
+		return strings.Join(keys, "\x00")
+	})
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		active()
+		rows := core.Untracked(cx, func() []shortcut { return a.shortcuts(cx) })
+		bound := map[string]bool{}
+		for _, s := range rows {
+			if bound[s.Key] || !core.Untracked(cx, func() bool { return a.binds(s) }) {
+				continue
+			}
+			bound[s.Key] = true
+			cx.OnKeyWith(s.Key, core.KeyOptions{Repeat: arrowKey(s.Key)}, live.Do(a, a.keyRun(cx, s.Key)))
 		}
-		c.OnShortcut(s.Mods, s.Key, s.guarded())
+		return nil
+	})
+}
+
+// binds reports whether wireKeys binds s now.
+func (a *app) binds(s shortcut) bool {
+	if s.Run == nil || s.Key == "" || (s.When != nil && !s.When()) {
+		return false
 	}
+	return !(a.menu.menuBar && hasCommand(s.Key))
+}
+
+// keyRun is what key does when it is pressed: the first row of the table with that key whose When holds then. Rows share a key only when they take turns (TestShortcutsAreUnique), as the library's ⌘F and the player's do.
+func (a *app) keyRun(cx *core.Scope, key string) func() {
+	return func() {
+		for _, s := range a.shortcuts(cx) {
+			if s.Key == key && s.Run != nil && (s.When == nil || s.When()) {
+				s.Run()
+				return
+			}
+		}
+	}
+}
+
+// arrowKey reports whether key is an arrow, held or not with modifiers.
+func arrowKey(key string) bool {
+	parts := strings.Split(key, "+")
+	switch parts[len(parts)-1] {
+	case "left", "right", "up", "down":
+		return true
+	}
+	return false
 }
 
 // guarded is Run behind a fresh check of When.

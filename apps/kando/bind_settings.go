@@ -25,9 +25,9 @@ func (a *app) SetInterfaceLanguage(tag string) {
 		tag = locales.Default
 	}
 	a.prefs.interfaceLanguage = tag
-	mygo.App.SetLocale(tag)
-	if w := a.prefs.win; w != nil && !w.IsDestroyed() {
-		w.SetTitle(locales.SettingsWindowTitle())
+	// Every message read in a binding follows the app's locale, the windows' titles among them (their effects in view and settingsView). Before the app runs, run's ready sets it.
+	if a.cx != nil {
+		a.cx.SetLocale(tag)
 	}
 }
 

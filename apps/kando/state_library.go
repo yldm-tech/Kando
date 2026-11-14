@@ -36,7 +36,7 @@ type libraryUI struct {
 	renameOpen     bool
 	renameName     string
 	renameOriginal string
-	// removeRelease, renameRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterFrame gives each back once its dialog has closed.
+	// removeRelease, renameRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog and the new-library sheet hold while they are open; nil while they are closed. libraryHooks' afterChange gives each back once its dialog has closed.
 	removeRelease func()
 	renameRelease func()
 	sheetRelease  func()
@@ -84,7 +84,7 @@ func (a *app) libraryHooks() areaHooks {
 			a.lib.holdOpened = false
 			a.libraryPostOpened()
 		},
-		afterFrame:   a.libraryModals,
+		afterChange:   a.libraryModals,
 		shelfChanged: a.loadExtras,
 	}
 }

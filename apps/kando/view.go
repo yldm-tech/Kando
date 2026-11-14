@@ -1,12 +1,15 @@
 package main
 
 import (
-	"kando/apps/kando/film"
-	"kando/apps/kando/films"
+	"kando/apps/kando/desktop"
+	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/theme"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 const (
@@ -23,68 +26,87 @@ const (
 	pagePadX     = sidebar.PagePadX
 )
 
-// appVersion is the version the app shows and reports: main sets it to the one mygo build gave the app, mygo.json's, which Release bumps. Without one, as in tests and go run, it stays this fixed one, which the tests and screenshots show.
+// appVersion is the version the app shows and reports: main sets it to the one nsgo build gave the app, nsgo.yaml's, which Release bumps. Without one, as in tests and go run, it stays this fixed one, which the tests and screenshots show.
 var appVersion = "0.1.0"
 
-// view connects the window's parts: the theme, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn and contentBand in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, dropFiles in bind_films.go, browseColumn in bind_browse.go, the shortcut table in keys.go, overlays in state_overlay.go. What an area does once the frame is built is its areaHooks.afterFrame (events.go).
-func (a *app) view(c *ui.Context) {
-	t, dark := theme.Palette(c)
-	a.services = c.Services()
-	a.wireKeys(c)
-	items := a.films()
-	// With the window's material on, the sidebar shows it and the content stays opaque.
-	vibrancy := c.Vibrancy()
-	if vibrancy {
-		c.Root().Background(ui.Transparent)
-	}
-	// The traffic lights sit at the top left. The band under the title bar is the drag region, above both the sidebar and the content.
-	bar := c.TitleBar()
-	showSidebar := a.sidebarShown()
-	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
-		if showSidebar {
-			a.sidebarColumn(c, t, bar)
-		}
-		content := ui.Column(c).Grow(1).MinWidth(0).AlignItems(ui.Stretch)
-		if vibrancy {
-			content.Background(t.Background)
-		}
-		content.Children(func() {
-			if band := a.contentBand(bar); band > 0 {
-				left := bar.Left
-				if showSidebar {
-					left = 0
-				}
-				ui.Row(c).Height(band).Padding(0, bar.Right, 0, left).DragWindow()
+// view is the main window's content, built once: the theme, the title bar, the shortcut table, the sidebar, the page and the overlays above them. Each part keeps its own decisions in its own file: sidebarShown, sidebarColumn, contentBand and trafficLights in bind_sidebar.go, filmFillsWindow, filmOwnsTitleBar and filmPadding in bind_film.go, libraryColumn and dropFiles in bind_films.go, browseColumn in bind_browse.go, the shortcut table in keys.go, the window's frame and close button in state_window.go, overlays in state_overlay.go. What changes later reaches the parts through their bindings (package live), so nothing here is built again.
+func (a *app) view(cx *core.Scope) core.Node {
+	theme.Apply(cx)
+	// The title bar is the app's own: the traffic lights sit in the sidebar card's top row, and the band under the title bar drags the window.
+	nsdesktop.SetTitleBar(cx, nsdesktop.TitleBarHidden, 0)
+	nsdesktop.SetWindowControls(cx, trafficLights())
+	// The window's title follows the interface's language as Settings › 通用 changes it.
+	cx.Effect(func() { nsdesktop.SetTitle(cx, locales.LibraryWindowTitle(cx)) })
+	a.windowFollow(cx)
+	a.areasFollow(cx)
+	colors := ui.ColorsOf(cx)
+	showSidebar := live.Memo(cx, a, a.sidebarShown)
+	band := core.View{
+		Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn},
+		StyleFunc: live.Func(a, func() core.Style {
+			bar := nsdesktop.TitleBar(cx)
+			left := bar.Left
+			if showSidebar() {
+				left = 0
 			}
-			a.mainColumn(c, t, dark, items)
-		})
-	})
-	a.overlays(c, t, dark)
-	a.areasAfterFrame()
+			return core.Style{Height: core.Pt(a.contentBand(bar.Top)), Padding: core.Edges{Right: bar.Right, Left: left}, FlexShrink: 0}
+		}),
+	}
+	// With the window's material on, the sidebar shows it and the content stays opaque.
+	content := core.View{
+		Style:     core.Style{FlexGrow: 1, MinWidth: core.Pt(0), AlignItems: core.AlignStretch},
+		StyleFunc: ui.Filled(colors.Background),
+		Children:  []core.Node{band, a.mainColumn(cx)},
+	}
+	return core.View{
+		Style: core.Style{Direction: core.Row, FlexGrow: 1, AlignItems: core.AlignStretch},
+		StyleFunc: func() core.Style {
+			if nsdesktop.ShowsMaterial(cx) {
+				return core.Style{}
+			}
+			return core.Style{Background: colors.Background()}
+		},
+		Children: []core.Node{
+			core.Show{When: showSidebar, Then: func(*core.Scope) core.Node { return a.sidebarColumn() }},
+			content,
+			a.wireKeys(cx),
+			a.overlays(cx),
+		},
+	}
 }
 
-func (a *app) mainColumn(c *ui.Context, t, dark *ui.Theme, items []films.Film) {
-	padX, padY := pagePadX, float32(28)
-	if a.filmFillsWindow() {
-		padX, padY = a.filmPadding()
-	} else if a.libraryOwnsTitleBar() || a.page == pageBrowse {
-		// The library page's header bar spans the column from its top, and the page pads what is under it itself (films.Show); the browser's toolbar and page run to the column's edges (browseColumn).
-		padX, padY = 0, 0
+// mainColumn is the page beside the sidebar: the built-in browser, or the library with the film open in it, padded as the page wants, and the drop target for videos dragged in from the file manager, which it lights while they are over it.
+func (a *app) mainColumn(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	dragOver := core.NewSignal(cx, false)
+	return core.View{
+		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Gap: 20},
+		StyleFunc: live.Func(a, func() core.Style {
+			padX, padY := pagePadX, core.Points(28)
+			if a.filmFillsWindow() {
+				padX, padY = a.filmPadding()
+			} else if a.libraryOwnsTitleBar() || a.page == pageBrowse {
+				// The library page's header bar spans the column from its top, and the page pads what is under it itself (films.View); the browser's toolbar and page run to the column's edges (browseColumn).
+				padX, padY = 0, 0
+			}
+			s := core.Style{Padding: core.Symmetric(padY, padX)}
+			if dragOver.Get() {
+				s.Background = colors.Hover()
+			}
+			return s
+		}),
+		OnFileDragEnter: func() { dragOver.Set(true) },
+		OnFileDragLeave: func() { dragOver.Set(false) },
+		OnFileDrop: live.On(a, func(uris []string) {
+			dragOver.Set(false)
+			if paths := desktop.DroppedPaths(uris); len(paths) > 0 {
+				a.dropFiles(paths)
+			}
+		}),
+		Children: []core.Node{core.Show{
+			When: live.Memo(cx, a, func() bool { return a.page == pageBrowse }),
+			Then: a.browseColumn,
+			Else: a.libraryColumn,
+		}},
 	}
-	body := ui.Column(c).Grow(1).MinWidth(0).Padding(padY, padX).Gap(20)
-	if files := body.DroppedFiles(); len(files) > 0 {
-		a.dropFiles(files)
-	}
-	if body.FileDragOver() {
-		body.Background(t.Surface)
-	}
-	body.Children(func() {
-		if a.page == pageBrowse {
-			a.browseColumn(c, t)
-			return
-		}
-		films.Show(c, t, a, items, func(c *ui.Context, _ *ui.Theme, item films.Film) {
-			film.Show(c, dark, a, item)
-		})
-	})
 }

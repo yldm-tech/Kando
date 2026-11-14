@@ -1,6 +1,10 @@
 package main
 
-import "kando/apps/kando/sidebar"
+import (
+	"kando/apps/kando/sidebar"
+
+	"github.com/nsgo-dev/nsgo/core"
+)
 
 // sidebarUI is the state of the sidebar.
 type sidebarUI struct {
@@ -46,9 +50,9 @@ func (a *app) sidebarHooks() areaHooks {
 }
 
 // sidebarKeys are the sidebar's shortcuts.
-func (a *app) sidebarKeys() []shortcut { return nil }
+func (a *app) sidebarKeys(*core.Scope) []shortcut { return nil }
 
-// sidebarSearchable reports whether ⌘F goes to the sidebar's search field now: no film is open, as the player takes ⌘F while one is, and the open library has films to search, as sidebar.Show draws the field only then.
+// sidebarSearchable reports whether ⌘F goes to the sidebar's search field now: no film is open, as the player takes ⌘F while one is, and the open library has films to search, as sidebar.View shows the field only then.
 func (a *app) sidebarSearchable() bool { return a.openKey == "" && a.FilmCount() > 0 }
 
 // sidebarSearch is ⌘F on the library page (libraryKeys): the keyboard in the sidebar's search field.

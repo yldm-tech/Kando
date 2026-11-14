@@ -29,7 +29,7 @@ type feedbackUI struct {
 	err     error
 	// gen counts the dialog's openings, so a browser that answers after the dialog closed and opened again does not close the new one.
 	gen int
-	// release gives back the window's modal flag (holdModal) the dialog holds while it is open; feedbackHooks' afterFrame runs it once the dialog has closed.
+	// release gives back the window's modal flag (holdModal) the dialog holds while it is open; feedbackHooks' afterChange runs it once the dialog has closed.
 	release func()
 	// system is the system's name, version and architecture, as feedbackDetectSystem found it once the window existed.
 	system string
@@ -46,7 +46,7 @@ var feedbackOpenURL = openBrowser
 func (a *app) feedbackHooks() areaHooks {
 	return areaHooks{
 		ready:      a.feedbackDetectSystem,
-		afterFrame: a.feedbackModal,
+		afterChange: a.feedbackModal,
 	}
 }
 

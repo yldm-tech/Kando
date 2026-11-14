@@ -11,6 +11,8 @@ import (
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // readiness is what the sidebar's status line last learned about whether a job can start. Everything but the EveryAPI sign-in is read on the UI thread when it changes; the sign-in asks the everyapi CLI, which can take up to 15 seconds, so it runs off the UI thread and its answer is kept until the tools are detected again or 测试 in 「AI 服务」 reaches the model through the CLI's key.
@@ -25,7 +27,7 @@ type readiness struct {
 	asking     bool
 }
 
-// The status line's messages, said in the interface's language each time the sidebar draws them. Where they say what the library's message bar says, they are its words (locales.Precheck…).
+// The status line's messages, said in the language the app shows under the sidebar's scope each time its binding reads them (sidebar.Readiness.Message). Where they say what the library's message bar says, they are its words (locales.Precheck…).
 var (
 	readyMessage      = locales.ReadinessReady
 	noLibrary         = locales.PrecheckNoLibrary
@@ -44,8 +46,8 @@ func (a *app) readiness() sidebar.Readiness {
 		return sidebar.Readiness{State: sidebar.Missing, Message: noLibrary, Section: settings.SectionGeneral}
 	}
 	if names := a.kitsDownloading(); len(names) > 0 {
-		return sidebar.Readiness{State: sidebar.Checking, Message: func() string {
-			return locales.ReadinessDownloadingTools(strings.Join(names, locales.PrecheckToolSeparator()))
+		return sidebar.Readiness{State: sidebar.Checking, Message: func(cx *ns.Scope) string {
+			return locales.ReadinessDownloadingTools(cx, strings.Join(names, locales.PrecheckToolSeparator(cx)))
 		}, Section: settings.SectionGeneral}
 	}
 	if !a.side.ready.checked {
@@ -62,7 +64,7 @@ func (a *app) checkReadiness(signIn bool) {
 		// Another pipeline, as a test's, has only its own check.
 		if err := a.pipeline.Check(); err != nil {
 			msg := err.Error()
-			a.side.ready.status = sidebar.Readiness{State: sidebar.Missing, Message: func() string { return msg }, Section: settings.SectionGeneral}
+			a.side.ready.status = sidebar.Readiness{State: sidebar.Missing, Message: func(*ns.Scope) string { return msg }, Section: settings.SectionGeneral}
 			return
 		}
 		a.side.ready.status = sidebar.Readiness{State: sidebar.Ready, Message: readyMessage}
@@ -123,12 +125,12 @@ func toolsMissing(tools media.Tools) (sidebar.Readiness, bool) {
 			absent = append(absent, tool.name)
 		}
 	}
-	missing := func(message func() string, section string) (sidebar.Readiness, bool) {
+	missing := func(message func(*ns.Scope) string, section string) (sidebar.Readiness, bool) {
 		return sidebar.Readiness{State: sidebar.Missing, Message: message, Section: section}, true
 	}
 	if len(absent) > 0 {
-		return missing(func() string {
-			return locales.ReadinessMissingTools(strings.Join(absent, locales.PrecheckToolSeparator()))
+		return missing(func(cx *ns.Scope) string {
+			return locales.ReadinessMissingTools(cx, strings.Join(absent, locales.PrecheckToolSeparator(cx)))
 		}, settings.SectionGeneral)
 	}
 	if tools.WhisperModel == "" {
@@ -159,7 +161,7 @@ func everyAPICLIMissing(t media.ChatTranslator) bool {
 }
 
 // everyAPISignInFailed is what to do about an everyapi sign-in that failed: install the program when it has gone since it was found, sign in to it when nobody is, and otherwise read on the AI 服务 page what it said, as when it timed out or crashed.
-func everyAPISignInFailed(err error) func() string {
+func everyAPISignInFailed(err error) func(*ns.Scope) string {
 	switch {
 	case errors.Is(err, media.ErrEveryAPIMissing):
 		return everyAPIMissing

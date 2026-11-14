@@ -103,7 +103,7 @@ func (a *app) browseHooks() areaHooks {
 				a.pipeline = tools
 			}
 		},
-		afterFrame: a.browseAfterFrame,
+		afterChange: a.browseAfterFrame,
 	}
 }
 

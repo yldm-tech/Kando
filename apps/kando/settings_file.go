@@ -125,6 +125,7 @@ type savedSettings struct {
 	savedOverlay    // state_overlay.go
 	savedMenu       // state_menu.go
 	savedOnboarding // state_onboarding.go
+	savedWindow     // state_window.go
 }
 
 // clean tidies what was read. Every part has a clean of its own, in its own file, which trims its text or does nothing, and each is called here, so an area changes only its own clean.
@@ -142,4 +143,5 @@ func (s *savedSettings) clean() {
 	s.savedOverlay.clean()
 	s.savedMenu.clean()
 	s.savedOnboarding.clean()
+	s.savedWindow.clean()
 }

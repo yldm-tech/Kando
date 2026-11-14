@@ -281,8 +281,8 @@ func TestSidebarFollowsTheLanguage(t *testing.T) {
 func TestTitleIsTheFolderWithoutItsExtension(t *testing.T) {
 	for dir, want := range map[string]string{
 		filepath.Join("films", "我的影片.kando"): "我的影片",
-		filepath.Join("films", "Plain"):         "Plain",
-		string(filepath.Separator):              string(filepath.Separator),
+		filepath.Join("films", "Plain"):      "Plain",
+		string(filepath.Separator):           string(filepath.Separator),
 	} {
 		if got := Title(dir); got != want {
 			t.Errorf("Title(%q) = %q, want %q", dir, got, want)

@@ -5,35 +5,36 @@ import (
 
 	"kando/apps/kando/cheatsheet"
 	"kando/apps/kando/locales"
-	"kando/apps/kando/onboarding"
 
 	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
 // overlayUI is what is drawn over the window's pages: the shortcut cheat sheet, and later the command palette. The first-run guide, drawn over them too, keeps its state in onboardUI (state_onboarding.go).
 type overlayUI struct {
 	cheatsheet bool
-	// modal counts the modal dialogs up over the window: a system file panel (dialogs.go), or a sheet or alert an area draws. AppKit keeps the menu bar's items enabled under a window's sheet, so the menu's commands wait while modalOpen is true. Change it only through holdModal.
+	// modal counts the modal dialogs up over the window: a system file panel, whose answer comes back to a callback (dialogs.go), a system alert (core.Scope.ShowAlert), or a dialog an area draws. AppKit keeps the menu bar's items enabled under them, so the menu's commands wait while modalOpen is true. Change it only through holdModal.
 	modal int
 }
 
 func newOverlayUI() overlayUI { return overlayUI{} }
 
-// overlays draws whatever is open over the pages. view calls it last, so it sits above the sidebar and the content. t is the window's theme and dark the player's.
-func (a *app) overlays(c *ui.Context, t, dark *ui.Theme) {
-	if a.overlay.cheatsheet {
-		cheatsheet.Show(c, dark, &a.overlay.cheatsheet, a.cheatsheetGroups())
+// overlays is whatever opens over the pages, in the order they stack. view puts it last, so it sits above the sidebar and the content. Each area that draws over the window gives its own node from a function in its own file, built once under cx, the main view's scope: a core.Show on the area's open flag read through live.Func around its dialog (base.Dialog, ui.Dialog), or its own layer, so nothing is built while it is closed and what it holds keeps its focus while it is open. The cheat sheet's and the first-run guide's are in state_overlay.go and state_onboarding.go, the feedback dialog's in state_feedback.go, the sites' in state_sites.go, the palette's in palette_app.go, the quit confirmation's in queue_quit.go, and the settings' where they open over the main window in state_settings.go.
+func (a *app) overlays(cx *core.Scope) core.Node {
+	return core.Group{
+		a.cheatsheetOverlay(cx),
+		a.onboardingOverlay(cx),
+		a.feedbackOverlay(cx),
+		a.sitesOverlay(cx),
+		a.paletteOverlay(cx),
+		a.queueQuitOverlay(cx),
+		a.settingsOverlay(cx),
 	}
-	onboarding.Show(c, a)
-	a.feedbackOverlay(c, t)
-	a.sitesOverlay(c, t)
-	a.paletteOverlay(c, dark)
-	a.queueQuitOverlay(c)
 }
 
 func (a *app) toggleCheatsheet() { a.overlay.cheatsheet = !a.overlay.cheatsheet }
 
-// holdModal marks a modal dialog as up over the window until release runs. A dialog calls it as it opens and runs release as it closes; an area that draws a sheet or alert keeps release in its state and runs it once its open flag is false again (its afterFrame is a good place). Dialogs nest, as a file panel opened from a sheet does, and release counts only once however often it runs.
+// holdModal marks a modal dialog as up over the window until release runs. A dialog calls it as it opens and runs release as it closes: a file panel or a system alert in its answer's callback, an area's own dialog in its OnOpenChange or wherever it clears its open flag. Dialogs nest, as a file panel opened from a sheet does, and release counts only once however often it runs.
 func (a *app) holdModal() (release func()) {
 	a.overlay.modal++
 	released := false
@@ -158,8 +159,8 @@ func (s *savedOverlay) clean() {}
 func (a *app) overlayHooks() areaHooks { return areaHooks{} }
 
 // overlayKeys are the shortcuts of the overlays.
-func (a *app) overlayKeys() []shortcut {
+func (a *app) overlayKeys(cx *core.Scope) []shortcut {
 	return []shortcut{
-		{Group: groupHelp, Label: locales.CheatsheetMenuItem(), Mods: ui.Cmd, Key: ui.KeySlash, Run: a.toggleCheatsheet},
+		{Group: groupHelp, Label: locales.CheatsheetMenuItem(cx), Key: "mod+/", Run: a.toggleCheatsheet},
 	}
 }
