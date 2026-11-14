@@ -389,6 +389,72 @@ func TestBrowseSaysWhenAPageFails(t *testing.T) {
 	}
 }
 
+// browseLoading reports that the page started loading rawURL, as the platform does before the page loads or fails.
+func browseLoading(tt *nsgotest.App, rawURL string) {
+	web := tt.Find(browsePage)
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventNavigationStateChange, ID: web.ID, Navigation: &ns.WebNavigation{URL: rawURL, Loading: true, CanGoBack: true}})
+	tt.Settle()
+}
+
+// browseCancelled reports the failure the platform reports for a load cut short, as WKWebView does for NSURLErrorCancelled (-999).
+func browseCancelled(tt *nsgotest.App, rawURL string) {
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: tt.Find(browsePage).ID, Text: "The operation couldn’t be completed. (NSURLErrorDomain error -999.)", Navigation: &ns.WebNavigation{URL: rawURL}})
+	tt.Settle()
+}
+
+// A load the user cuts short with stop, home or another address says nothing when the platform reports it cancelled, and the next load of a page says again what goes wrong.
+func TestBrowseSaysNothingOfALoadItCutShort(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/")
+	browseLoading(tt, "https://example.com/slow")
+	tt.Press(testlocale.Messages().BrowseStop())
+	browseCancelled(tt, "https://example.com/slow")
+	if a.browse.notice.Open {
+		t.Fatalf("stop said %q", a.browse.notice.Text)
+	}
+
+	browseLoading(tt, "https://example.com/slow")
+	tt.Press("id:browse-home")
+	browseCancelled(tt, "https://example.com/slow")
+	browseReport(tt, ns.WebNavigation{URL: browseBlank, CanGoBack: true})
+	browseCancelled(tt, browseBlank)
+	if a.browse.notice.Open || a.browse.url != browseBlank {
+		t.Fatalf("home said %q, at %q", a.browse.notice.Text, a.browse.url)
+	}
+
+	browseOpen(t, a, tt, "https://example.com/a")
+	browseLoading(tt, "https://example.com/slow")
+	a.browseLoad("https://example.org/")
+	refresh(tt, a)
+	browseCancelled(tt, "https://example.com/slow")
+	if a.browse.notice.Open || !a.browse.loading {
+		t.Fatalf("another address said %q, loading %v", a.browse.notice.Text, a.browse.loading)
+	}
+	browseLoading(tt, "https://example.org/")
+	reason := "A server with the specified hostname could not be found."
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: tt.Find(browsePage).ID, Text: reason, Navigation: &ns.WebNavigation{URL: "https://example.org/"}})
+	tt.Settle()
+	if !a.browse.notice.Open || a.browse.notice.Text != testlocale.Messages().BrowseLoadFailed(reason) {
+		t.Fatalf("a page that failed after a cut-short load said %+v", a.browse.notice)
+	}
+	browseLoading(tt, "https://example.org/again")
+	if a.browse.notice.Open {
+		t.Fatalf("the failure stayed once another load started: %+v", a.browse.notice)
+	}
+}
+
+// A page that goes to a page of its own making (data:, blob:), which the web view lets it, keeps the last web address in the address field and for 下载视频.
+func TestBrowseKeepsTheWebAddressOverAPageOfItsOwn(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/watch")
+	for _, own := range []string{"data:text/html,hello", "blob:https://example.com/0b1c"} {
+		browseReport(tt, ns.WebNavigation{URL: own, CanGoBack: true})
+		if a.browse.url != "https://example.com/watch" || a.browse.address != "https://example.com/watch" {
+			t.Fatalf("after %s: page %q, address %q", own, a.browse.url, a.browse.address)
+		}
+	}
+}
+
 // The pages' user agent is kept for the downloads: on macOS WKWebView's own with Safari's version, which the web view sends.
 func TestBrowseKeepsTheUserAgent(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})

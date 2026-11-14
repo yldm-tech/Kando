@@ -31,8 +31,9 @@ type browseUI struct {
 	focus   bool
 	focused bool
 	notice  browse.Notice
-	// loadFailed marks the message bar as a page that failed to load, which the next page that opens takes away.
+	// loadFailed marks the message bar as a page that failed to load, which the next load that starts takes away. cutShort is set once the app cut a load short, as Stop, home or another address does, so that load's failure says nothing; the next web page that starts loading clears it.
 	loadFailed bool
+	cutShort   bool
 	// clearOpen is the confirmation's open flag, and release gives back the window's modal flag it holds (holdModal); clearing is set while clear runs.
 	clearOpen bool
 	release   func()
@@ -110,6 +111,7 @@ func (a *app) browseFocusAddress() { a.browse.focus = true }
 
 // browseLoad opens rawURL, an http or https address, in the web view, which the first address makes.
 func (a *app) browseLoad(rawURL string) {
+	a.browseCutShort()
 	a.browse.url, a.browse.loading = rawURL, true
 	a.browse.address, a.browse.shown = rawURL, rawURL
 	a.browseDropLoadFailure()
@@ -161,7 +163,7 @@ func (a *app) browseColumnGone() {
 		a.browse.source = browseBlank
 	}
 	a.browse.loading, a.browse.canBack, a.browse.canForward = false, false, false
-	a.browse.focused, a.browse.muted = false, false
+	a.browse.focused, a.browse.muted, a.browse.cutShort = false, false, false
 }
 
 // browseUserAgent is the pages' user agent: on macOS WKWebView's own, which names no browser, with Safari's version after it, as sites serve such a user agent older pages and refuse it their sign-in. WebKitGTK and WebView2 already name their browsers and keep their own ("").
@@ -210,12 +212,18 @@ func browseScript() string {
 })();`
 }
 
-// browseNavigated follows the page's address and history as the web view reports them: as a page starts loading, finishes and navigates. The address field follows the page unless the user is typing in it.
+// browseNavigated follows the page's address and history as the web view reports them: as a page starts loading, finishes and navigates. The address field follows the page unless the user is typing in it. A page of the page's own making (data:, blob:, about: other than the start's blank page), where the web view lets it go (browse/page.go), keeps the last web address, which 下载视频 then adds. A load that starts takes away the message that a page did not load.
 func (a *app) browseNavigated(nav core.WebNavigation) {
-	if nav.URL != "" {
+	if nav.URL == browseBlank || browse.Allowed(nav.URL) {
 		a.browse.url = nav.URL
 	}
 	a.browse.loading, a.browse.canBack, a.browse.canForward = nav.Loading, nav.CanGoBack, nav.CanGoForward
+	if nav.Loading {
+		a.browseDropLoadFailure()
+		if a.browseShowing() {
+			a.browse.cutShort = false
+		}
+	}
 	a.browseFollow()
 }
 
@@ -232,15 +240,25 @@ func (a *app) browseFollow() {
 	a.browse.shown = shown
 }
 
-// browseFailed says in the message bar that a page did not load, and why, as the web view reports it. A navigation the web view refused, to a file, the app's own schemes or another app's, says nothing, as it never started.
+// browseFailed says in the message bar that a page did not load, and why, as the web view reports it. A navigation the web view refused, to a file, the app's own schemes or another app's, says nothing, as it never started; nor does a load the app cut short (cutShort), whose failure the platform reports as cancelled, or any failure while the start shows.
 func (a *app) browseFailed(err error) {
 	var failed *core.WebError
 	if errors.As(err, &failed) && failed.URL != "" && failed.URL != browseBlank && !browse.Allowed(failed.URL) {
 		return
 	}
+	if a.browse.cutShort || !a.browseShowing() {
+		return
+	}
 	a.browse.loading = false
-	// TODO(nsgo): give core.WebError the platform's error code, so a load the user cut short by going elsewhere (NSURLErrorCancelled, -999) or one that turned into a file (WebKit's 102, frame load interrupted) says nothing, as MyGo dropped them; until then the bar says so, until the next page starts loading
+	// TODO(nsgo): give core.WebError the platform's error code, so a load the page itself cut short by starting another (NSURLErrorCancelled, -999) or one that turned into a file (WebKit's 102, frame load interrupted) says nothing, as MyGo dropped them; until then the bar says so until the next load starts, at once for the first and not at all for the second
 	a.browseLoadFailed(err.Error())
+}
+
+// browseCutShort marks the load under way, if one is, as one the app cut short by starting another.
+func (a *app) browseCutShort() {
+	if a.browse.loading {
+		a.browse.cutShort = true
+	}
 }
 
 // browseHeard is what a page posted: that it changed its address without loading another page (browseScript), as the web view reports nothing then. The address is read from the page itself rather than taken from what it posted, which any page could fill with another site's address. A page that pushed an address has the one it left to go back to, and none to go forward to.
@@ -344,6 +362,7 @@ func (a *app) browseCleared(err error) {
 	}
 	a.browseTell(a.messages().BrowseCleared())
 	if a.browseShowing() {
+		a.browseCutShort()
 		a.browse.view.Reload()
 		a.browse.loading = true
 	}
@@ -351,6 +370,7 @@ func (a *app) browseCleared(err error) {
 
 func (a *app) browseBack() {
 	if a.browse.source != "" && a.browse.canBack {
+		a.browseCutShort()
 		a.browse.view.GoBack()
 		a.browse.loading = true
 	}
@@ -358,6 +378,7 @@ func (a *app) browseBack() {
 
 func (a *app) browseForward() {
 	if a.browse.source != "" && a.browse.canForward {
+		a.browseCutShort()
 		a.browse.view.GoForward()
 		a.browse.loading = true
 	}
@@ -365,14 +386,16 @@ func (a *app) browseForward() {
 
 func (a *app) browseReload() {
 	if a.browseShowing() {
+		a.browseCutShort()
 		a.browse.view.Reload()
 		a.browse.loading = true
 	}
 }
 
+// browseStop stops the page loading, whose failure, which the platform reports as cancelled, says nothing (cutShort).
 func (a *app) browseStop() {
 	a.browse.view.StopLoading()
-	a.browse.loading = false
+	a.browse.loading, a.browse.cutShort = false, true
 }
 
 // browseHome shows the start: the web view loads the blank page, which stops the page shown, sound and all, and keeps it in the history for back. Before there is a web view it only clears the address.
@@ -384,7 +407,7 @@ func (a *app) browseHome() {
 		a.browse.url = ""
 		return
 	}
-	a.browse.url = browseBlank
+	a.browse.url, a.browse.cutShort = browseBlank, true
 	a.browse.view.StopLoading()
 	a.browseNavigate(browseBlank)
 }
