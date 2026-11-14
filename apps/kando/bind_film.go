@@ -7,13 +7,74 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/packages/core"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// The open film's reads and clicks (film.App). The upload row is in cloud_app.go.
+// The open film's reads and clicks (film.App). The upload row is in cloud_app.go. The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
 
-func (a *app) StartFilm(item films.Film) { a.startFilm(item) }
+// filmPage is the open film, item, as the library column shows it over the library page (films.View): the player, which fills the window or the content column.
+func (a *app) filmPage(item func() films.Film) ns.Node {
+	return film.View{App: a, Item: func() film.Item { return filmItem(item()) }}
+}
+
+// filmItem is the library's film as the player shows it.
+func filmItem(f films.Film) film.Item {
+	return film.Item{Key: f.Key, Title: f.Title, Name: f.Name, Source: f.Source, Detail: f.Detail, Stage: f.Stage,
+		JobID: f.JobID, VideoPath: f.VideoPath, SubtitlePath: f.SubtitlePath, Language: f.Language, Untranslated: f.Untranslated}
+}
+
+// openFilm is the film the player shows: the open key's, on the shelf or among the jobs.
+func (a *app) openFilm() (films.Film, bool) {
+	if a.openKey == "" {
+		return films.Film{}, false
+	}
+	if item, ok := films.Find(a.films(), a.openKey); ok {
+		return item, true
+	}
+	return a.JobFilm(a.openKey)
+}
+
+// ProcessFilm is the player's 开始处理: the open film, a video no job has processed, goes into the queue, its picture playing on.
+func (a *app) ProcessFilm() {
+	if item, ok := a.openFilm(); ok {
+		a.startFilm(item)
+	}
+}
+
+func (a *app) TranslateFilmAgain() {
+	if item, ok := a.openFilm(); ok {
+		a.TranslateAgain(item)
+	}
+}
+
+func (a *app) TranslateFilmMissing() {
+	if item, ok := a.openFilm(); ok {
+		a.TranslateMissing(item)
+	}
+}
+
+// StageLabel names a job's stage as the library does.
+func (a *app) StageLabel(cx *ns.Scope, stage core.Stage) string { return films.StageLabel(cx, stage) }
+
+// FilmUpload is the upload of the open film, as the cloud area reports it (UploadView).
+func (a *app) FilmUpload() film.Upload {
+	item, ok := a.openFilm()
+	if !ok {
+		return film.Upload{}
+	}
+	return a.UploadView(item)
+}
+
+func (a *app) BeginFilmUpload() {
+	if item, ok := a.openFilm(); ok {
+		a.BeginUpload(item)
+	}
+}
+
+// FillsWindow reports whether the open film takes the whole window (filmFillsWindow), its title bar under the traffic lights.
+func (a *app) FillsWindow() bool { return a.filmFillsWindow() }
 
 func (a *app) RetryOpen(id string) {
 	if job, ok := a.library.Find(id); ok {
@@ -25,16 +86,25 @@ func (a *app) RetryOpen(id string) {
 	}
 }
 
+// Play is the open video once the system's player has loaded it, nil before and without one.
 func (a *app) Play() film.Player {
-	if a.player.play == nil {
+	if !a.playerLoaded() {
 		return nil
 	}
 	return a.player.play
 }
 
+// playerLoaded reports whether a video is open and the system's player has loaded it, so it plays, holds and seeks.
+func (a *app) playerLoaded() bool { return a.player.play != nil && a.player.play.loaded }
+
 func (a *app) PlayPath() string { return a.player.playPath }
 
-func (a *app) PlayErr() string { return playerErrText(a.player.playErr) }
+func (a *app) PlayErr() string { return a.player.playErr }
+
+func (a *app) ErrText(cx *ns.Scope, id string) string { return playerErrTextIn(locales.For(cx), id) }
+
+// Poster is the file of the poster the library keeps for the video at path, which the player shows while the picture opens; the image is read off the engine's goroutine when it is shown, and a video without one shows the black stage.
+func (a *app) Poster(path string) string { return posterDest(a.lib.posterDir, path) }
 
 func (a *app) PlayHead() time.Duration {
 	if a.player.play == nil {
@@ -50,13 +120,23 @@ func (a *app) PlayLength() time.Duration {
 	return a.player.length
 }
 
-func (a *app) Subs() film.Subs {
-	return film.Subs{Key: a.player.subs.key, Ready: a.player.subs.ready, Err: playerErrText(a.player.subs.err), Cues: a.player.subs.cues}
+func (a *app) Video() film.Video { return a.playerVideo() }
+
+func (a *app) VideoRef() *ns.Ref { return &a.player.ref }
+
+func (a *app) VideoLoaded(info ns.VideoInfo) { a.playerLoad(info) }
+
+func (a *app) VideoProgress(position, duration time.Duration) bool {
+	return a.playerProgress(position, duration)
 }
 
-func (a *app) SubList() *ui.ListState { return &a.player.subs.list }
+func (a *app) VideoEnded() { a.playerEnded() }
 
-func (a *app) ClipList() *ui.ListState { return &a.player.subs.clips }
+func (a *app) VideoFailed(err error) { a.playerFailed(err) }
+
+func (a *app) Subs() film.Subs {
+	return film.Subs{Key: a.player.subs.key, Ready: a.player.subs.ready, Err: a.player.subs.err, Cues: a.player.subs.cues}
+}
 
 func (a *app) FilmSide() string { return a.player.filmSide }
 
@@ -66,19 +146,20 @@ func (a *app) SetFilmSide(id string) { a.player.filmSide = id }
 func (a *app) Seek(at time.Duration) { a.playerSeek(at) }
 
 func (a *app) Skip(d time.Duration) {
-	if a.player.play == nil {
+	if !a.playerLoaded() {
 		return
 	}
 	a.skip(d)
+	m := a.messages()
 	switch d {
 	case -5 * time.Second:
-		a.flash(locales.FilmSeconds("−5"))
+		a.flash(m.FilmSeconds("−5"))
 	case 5 * time.Second:
-		a.flash(locales.FilmSeconds("+5"))
+		a.flash(m.FilmSeconds("+5"))
 	case -30 * time.Second:
-		a.flash(locales.FilmSeconds("−30"))
+		a.flash(m.FilmSeconds("−30"))
 	case 30 * time.Second:
-		a.flash(locales.FilmSeconds("+30"))
+		a.flash(m.FilmSeconds("+30"))
 	}
 }
 
@@ -118,7 +199,7 @@ func (a *app) Delay() time.Duration { return a.player.film.delay }
 func (a *app) SetDelay(d time.Duration) {
 	a.player.film.delay = d
 	a.playerNoteDelay(d)
-	a.flash(locales.PlayerOsdDelay(film.DelayText(d)))
+	a.flash(a.messages().PlayerOsdDelay(film.DelayTextIn(a.messages(), d)))
 }
 
 func (a *app) Panel() bool { return a.player.panel }
@@ -141,44 +222,17 @@ func (a *app) Search() *string { return &a.player.film.search }
 
 func (a *app) SearchFocus() *bool { return &a.player.film.searchFocus }
 
-func (a *app) Follow() *int { return &a.player.film.follow }
-
-func (a *app) Scrub() (*float64, *bool) { return &a.player.film.scrub, &a.player.film.scrubbing }
-
-// OSD is the message on the picture and how much longer it shows. A message set since the last frame starts showing at now.
-func (a *app) OSD(now time.Time) (string, time.Duration) {
-	f := &a.player.film
-	if f.osd == "" {
-		return "", 0
-	}
-	if f.osdAt.IsZero() {
-		f.osdAt = now
-	}
-	left := 1400*time.Millisecond - now.Sub(f.osdAt)
-	if left <= 0 {
-		f.osd = ""
-		return "", 0
-	}
-	return f.osd, left
-}
-
-// Pointer notes when the pointer moved over the player, which keeps its controls showing.
-func (a *app) Pointer(x, y float32, now time.Time) {
-	f := &a.player.film
-	if f.pointer == [2]float32{x, y} && !f.moved.IsZero() {
-		return
-	}
-	f.pointer = [2]float32{x, y}
-	f.moved = now
-}
-
-func (a *app) LastMove() time.Time { return a.player.film.moved }
+// OSD is the message on the picture, which flash takes away after a moment.
+func (a *app) OSD() string { return a.player.film.osd }
 
 func (a *app) Info() film.Info { return a.player.film.info }
 
 func (a *app) LibraryPath() string { return a.library.Path() }
 
-func (a *app) ClipPoster(start time.Duration) ui.ImageSource { return a.player.film.clipFrames[start] }
+func (a *app) ClipPoster(start time.Duration) ([]byte, bool) {
+	data, ok := a.player.film.clipFrames[start]
+	return data, ok
+}
 
 func (a *app) UploadNote() *bool { return &a.player.film.uploadNote }
 
@@ -196,7 +250,7 @@ func (a *app) filmFillsWindow() bool { return a.page == pageFilms && a.openKey !
 func (a *app) filmOwnsTitleBar() bool { return a.filmFillsWindow() }
 
 // filmPadding is the padding around an open film that fills the window (filmFillsWindow): none, the picture runs to the window's edges.
-func (a *app) filmPadding() (x, y float32) { return 0, 0 }
+func (a *app) filmPadding() (x, y ns.Points) { return 0, 0 }
 
 // closeFilm goes back from the open film to the page it was opened from, as the film's back button does, and stops looping its line.
 func (a *app) closeFilm() {
@@ -238,7 +292,7 @@ func (a *app) toggleSubtitles() {
 	} else {
 		a.SetSubMode(film.SubOff)
 	}
-	a.flash(locales.FilmSubtitlesMode(film.ModeName(a.player.subMode)))
+	a.flash(a.messages().FilmSubtitlesMode(film.ModeNameIn(a.messages(), a.player.subMode)))
 }
 
 // cycleSubtitles is S: original, translation, bilingual, and round again.
@@ -251,7 +305,7 @@ func (a *app) cycleSubtitles() {
 		next = film.SubBilingual
 	}
 	a.SetSubMode(next)
-	a.flash(locales.FilmSubtitlesMode(film.ModeName(next)))
+	a.flash(a.messages().FilmSubtitlesMode(film.ModeNameIn(a.messages(), next)))
 }
 
 // nudgeDelay is Z and X: the subtitles a tenth of a second earlier or later.
@@ -262,7 +316,7 @@ func (a *app) scaleSubtitles(step float32) {
 	look := &a.player.look
 	look.Translation.Size = min(max(look.Translation.Size+step, 16), 48)
 	look.Original.Size = min(max(look.Original.Size+float32(math.Round(float64(step)*0.75)), 12), 40)
-	a.flash(locales.PlayerOsdSubtitleSize(int(look.Translation.Size)))
+	a.flash(a.messages().PlayerOsdSubtitleSize(int(look.Translation.Size)))
 	a.playerSaveSettings()
 }
 
@@ -274,58 +328,58 @@ func (a *app) searchSubtitles() {
 	a.player.film.searchFocus = true
 }
 
-// copyCurrentLine is ⇧⌘C: the subtitle line at the playhead on the clipboard, as the side panel's Copy Line puts it (film.LineText), saying so on the picture. Between two lines, or before the film's subtitles are read, there is nothing to copy and it does nothing. It goes by PlayHead, so while the picture is still opening, or without one (no ffmpeg), it copies the line where the film opens, and it copies with the subtitles turned off (V) as well: hiding the lines from the picture is no reason to keep them off the clipboard. ⌘C stays Edit › Copy's, for the text fields.
+// copyCurrentLine is ⇧⌘C: the subtitle line at the playhead on the clipboard, as the side panel's Copy Line puts it (film.LineText), saying so on the picture. Between two lines, or before the film's subtitles are read, there is nothing to copy and it does nothing. It goes by PlayHead, so while the picture is still opening it copies the line where the film opens, and it copies with the subtitles turned off (V) as well: hiding the lines from the picture is no reason to keep them off the clipboard. ⌘C stays Edit › Copy's, for the text fields. Without the app's scope, as in tests that start no app, there is no clipboard to copy to.
 func (a *app) copyCurrentLine() {
 	subs := &a.player.subs
-	if subs.key != a.openKey || !subs.ready {
+	if subs.key != a.openKey || !subs.ready || a.cx == nil {
 		return
 	}
 	cue, ok := film.CueAt(subs.cues, a.PlayHead()-a.Delay())
 	if !ok {
 		return
 	}
-	a.services.WriteClipboard(film.LineText(cue.Text))
-	a.flash(locales.PlayerOsdCopied())
+	a.cx.SetClipboard(film.LineText(cue.Text))
+	a.flash(a.messages().PlayerOsdCopied())
 }
 
 // playerSaveSettings keeps the subtitle settings, saying so on the picture when they cannot be saved.
 func (a *app) playerSaveSettings() {
 	if err := a.saveSettings(); err != nil {
-		a.flash(locales.PlayerSaveSubtitlesFailed())
+		a.flash(a.messages().PlayerSaveSubtitlesFailed())
 	}
 }
 
-// playerKeys are the player's shortcuts. They work while a film is open; those that move the picture wait for it to load.
-func (a *app) playerKeys() []shortcut {
-	playing := func() bool { return a.openKey != "" && a.player.play != nil }
+// playerKeys are the player's shortcuts. They work while a film is open; those that move the picture wait for the system's player to have loaded it. The rows that step a value, seeking, the volume, the speed, the subtitle delay and the line before or after, go on while their key is held.
+func (a *app) playerKeys(cx *ns.Scope) []shortcut {
+	playing := func() bool { return a.openKey != "" && a.playerLoaded() }
 	open := func() bool { return a.openKey != "" }
-	// L also works while the picture opens again, as it does on every pass of a looped line, so turning the loop off is not missed then.
-	opening := func() bool { return a.openKey != "" && (a.player.play != nil || a.player.playPath != "") }
+	// L also works while the picture opens, so turning the loop off is not missed then.
+	opening := func() bool { return a.openKey != "" && a.player.play != nil }
 	return []shortcut{
-		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(), Key: ui.KeySpace, When: playing, Run: func() { a.player.play.toggle() }},
-		{Group: groupPlayback, Label: locales.FilmSkipBack(5), Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-5 * time.Second) }},
-		{Group: groupPlayback, Label: locales.FilmSkipForward(5), Key: ui.KeyRight, When: playing, Run: func() { a.Skip(5 * time.Second) }},
-		{Group: groupPlayback, Label: locales.FilmSkipBack(30), Mods: ui.Cmd, Key: ui.KeyLeft, When: playing, Run: func() { a.Skip(-30 * time.Second) }},
-		{Group: groupPlayback, Label: locales.FilmSkipForward(30), Mods: ui.Cmd, Key: ui.KeyRight, When: playing, Run: func() { a.Skip(30 * time.Second) }},
-		{Group: groupPlayback, Label: locales.PlayerKeyPrevLine(), Key: ui.KeyA, When: playing, Run: a.PrevLine},
-		{Group: groupPlayback, Label: locales.PlayerKeyNextLine(), Key: ui.KeyD, When: playing, Run: a.NextLine},
-		{Group: groupPlayback, Label: locales.PlayerKeyReplayLine(), Key: ui.KeyR, When: playing, Run: a.ReplayLine},
-		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(), Key: ui.KeyL, When: opening, Checked: a.LoopLine, Run: a.ToggleLoopLine},
-		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(), Key: ui.KeyUp, When: open, Run: func() { a.playerNudgeVolume(1) }},
-		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(), Key: ui.KeyDown, When: open, Run: func() { a.playerNudgeVolume(-1) }},
-		{Group: groupPlayback, Label: locales.PlayerKeyMute(), Key: ui.KeyM, When: open, Run: a.ToggleMute},
-		{Group: groupPlayback, Label: locales.PlayerKeySlower(), Mods: ui.Shift, Key: ui.KeyComma, When: open, Run: func() { a.playerStepRate(-1) }},
-		{Group: groupPlayback, Label: locales.PlayerKeyFaster(), Mods: ui.Shift, Key: ui.KeyPeriod, When: open, Run: func() { a.playerStepRate(1) }},
-		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(), Key: ui.KeyV, When: open, Run: a.toggleSubtitles},
-		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(), Key: ui.KeyS, When: open, Run: a.cycleSubtitles},
-		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(), Key: ui.KeyZ, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
-		{Group: groupSubtitles, Label: locales.PlayerKeyDelayLater(), Key: ui.KeyX, When: open, Run: func() { a.nudgeDelay(100 * time.Millisecond) }},
-		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(), Mods: ui.Cmd, Key: ui.KeyEqual, When: open, Run: func() { a.scaleSubtitles(2) }},
-		{Group: groupSubtitles, Label: locales.PlayerKeySmaller(), Mods: ui.Cmd, Key: ui.KeyMinus, When: open, Run: func() { a.scaleSubtitles(-2) }},
-		{Group: groupSubtitles, Label: locales.PlayerKeySearch(), Mods: ui.Cmd, Key: ui.KeyF, When: open, Run: a.searchSubtitles},
-		{Group: groupSubtitles, Label: locales.PlayerKeyCopyLine(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyC, When: open, Run: a.copyCurrentLine},
-		{Group: groupView, Label: locales.PlayerKeyToggleSidebar(), Mods: ui.Cmd | ui.Shift, Key: ui.KeyT, When: open, Run: a.TogglePanel},
-		{Group: groupView, Label: locales.FilmFullScreen(), Key: ui.KeyF, When: open, Run: a.ToggleFullScreen},
-		{Group: groupView, Label: locales.FilmBackToLibrary(), Key: ui.KeyEscape, When: open, Run: a.escapeFilm},
+		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(cx), Key: "space", When: playing, Run: func() { a.player.play.toggle() }},
+		{Group: groupPlayback, Label: locales.FilmSkipBack(cx, 5), Key: "left", Repeat: true, When: playing, Run: func() { a.Skip(-5 * time.Second) }},
+		{Group: groupPlayback, Label: locales.FilmSkipForward(cx, 5), Key: "right", Repeat: true, When: playing, Run: func() { a.Skip(5 * time.Second) }},
+		{Group: groupPlayback, Label: locales.FilmSkipBack(cx, 30), Key: "mod+left", Repeat: true, When: playing, Run: func() { a.Skip(-30 * time.Second) }},
+		{Group: groupPlayback, Label: locales.FilmSkipForward(cx, 30), Key: "mod+right", Repeat: true, When: playing, Run: func() { a.Skip(30 * time.Second) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyPrevLine(cx), Key: "a", Repeat: true, When: playing, Run: a.PrevLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyNextLine(cx), Key: "d", Repeat: true, When: playing, Run: a.NextLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyReplayLine(cx), Key: "r", When: playing, Run: a.ReplayLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(cx), Key: "l", When: opening, Checked: a.LoopLine, Run: a.ToggleLoopLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(cx), Key: "up", Repeat: true, When: open, Run: func() { a.playerNudgeVolume(1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(cx), Key: "down", Repeat: true, When: open, Run: func() { a.playerNudgeVolume(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyMute(cx), Key: "m", When: open, Run: a.ToggleMute},
+		{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: "shift+,", Repeat: true, When: open, Run: func() { a.playerStepRate(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: "shift+.", Repeat: true, When: open, Run: func() { a.playerStepRate(1) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(cx), Key: "v", When: open, Run: a.toggleSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(cx), Key: "s", When: open, Run: a.cycleSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(cx), Key: "z", Repeat: true, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeyDelayLater(cx), Key: "x", Repeat: true, When: open, Run: func() { a.nudgeDelay(100 * time.Millisecond) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(cx), Key: "mod+=", Repeat: true, When: open, Run: func() { a.scaleSubtitles(2) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeySmaller(cx), Key: "mod+-", Repeat: true, When: open, Run: func() { a.scaleSubtitles(-2) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeySearch(cx), Key: "mod+f", When: open, Run: a.searchSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyCopyLine(cx), Key: "mod+shift+c", When: open, Run: a.copyCurrentLine},
+		{Group: groupView, Label: locales.PlayerKeyToggleSidebar(cx), Key: "mod+shift+t", When: open, Run: a.TogglePanel},
+		{Group: groupView, Label: locales.FilmFullScreen(cx), Key: "f", When: open, Run: a.ToggleFullScreen},
+		{Group: groupView, Label: locales.FilmBackToLibrary(cx), Key: "escape", When: open, Run: a.escapeFilm},
 	}
 }

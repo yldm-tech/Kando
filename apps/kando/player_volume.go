@@ -30,7 +30,7 @@ func (a *app) Muted() bool { return a.player.muted }
 func (a *app) SetVolume(volume float64) {
 	a.player.volume = min(max(volume, 0), 1)
 	a.player.muted = false
-	a.flash(playerVolumeText(a.player.volume))
+	a.flash(playerVolumeText(a.messages(), a.player.volume))
 	a.playerVolumeChanged()
 }
 
@@ -41,10 +41,10 @@ func (a *app) ToggleMute() {
 		if a.player.volume == 0 {
 			a.player.volume = 0.5
 		}
-		a.flash(playerVolumeText(a.player.volume))
+		a.flash(playerVolumeText(a.messages(), a.player.volume))
 	} else {
 		a.player.muted = true
-		a.flash(locales.PlayerOsdMuted())
+		a.flash(a.messages().PlayerOsdMuted())
 	}
 	a.playerVolumeChanged()
 }
@@ -54,11 +54,8 @@ func (a *app) playerNudgeVolume(steps int) {
 	a.SetVolume((math.Round(a.player.volume/playerVolumeStep) + float64(steps)) * playerVolumeStep)
 }
 
-// playerVolumeChanged plays the open film's sound at the new volume and keeps it in the settings once the volume has rested for playerVolumeSaveDelay. Without an update, as before the window exists, it keeps it at once.
+// playerVolumeChanged keeps the volume in the settings once it has rested for playerVolumeSaveDelay; the system's player plays at it at once, as the page binds its volume (playerVideo). Without an update, as before the window exists, it keeps it at once.
 func (a *app) playerVolumeChanged() {
-	if a.player.play != nil {
-		a.player.play.setVolume(a.playerVolume())
-	}
 	a.player.volumeUnsaved = true
 	a.player.volumeGen++
 	gen := a.player.volumeGen
@@ -83,7 +80,7 @@ func (a *app) playerSaveVolume() {
 	}
 	a.player.volumeUnsaved = false
 	if err := a.saveSettings(); err != nil {
-		a.flash(locales.PlayerSaveVolumeFailed())
+		a.flash(a.messages().PlayerSaveVolumeFailed())
 	}
 }
 
@@ -95,7 +92,7 @@ func (a *app) playerQuitting() {
 	a.playerLetSleep()
 }
 
-// playerVolumeText is what the picture says for volume, as "音量 70%".
-func playerVolumeText(volume float64) string {
-	return locales.PlayerOsdVolume(int(math.Round(volume * 100)))
+// playerVolumeText is what the picture says for volume, as "音量 70%", in the language of m.
+func playerVolumeText(m locales.Messages, volume float64) string {
+	return m.PlayerOsdVolume(int(math.Round(volume * 100)))
 }
