@@ -158,7 +158,7 @@ func (s *screen) delayRow(cx *core.Scope) core.Node {
 	}}
 }
 
-// delayInput is the subtitle delay as a number a tenth of a second at a time, from -30 to 30 seconds, written as DelayText writes it. Its name is read as it is built, as ui.NumberInput takes a static one, so it is built again when the language changes.
+// delayInput is the subtitle delay as a number a tenth of a second at a time, from -30 to 30 seconds, written as DelayText writes it. The field keeps the text Format wrote until its value changes, and reads its name as it is built, as ui.NumberInput takes a static one, so it is built again when the language changes, which happens in the settings, away from it, to show the delay in the new language.
 func delayInput(cx *core.Scope, a App, id string) core.Node {
 	return core.Dynamic(func(cx *core.Scope) core.Node {
 		return ui.NumberInput{TestID: id, Label: locales.FilmDelay(cx), Min: -30, Max: 30, Step: 0.1,

@@ -659,3 +659,55 @@ func TestChaptersCoverTheTranscript(t *testing.T) {
 		t.Fatalf("chapters %#v", chapters)
 	}
 }
+
+// TestSeekLanded checks which reports of the system's player count as where a seek landed: one at or a little past where it went, but not one sent before it from where the picture was, even when that is under a second away, as for a short looped line going back to its start; and a seek far off lands only near where it went.
+func TestSeekLanded(t *testing.T) {
+	ms := func(n int) time.Duration { return time.Duration(n) * time.Millisecond }
+	tests := []struct {
+		name                    string
+		from, to, ran, position time.Duration
+		want                    bool
+	}{
+		{"landed at the start of a short line", ms(10600), ms(10000), ms(20), ms(10010), true},
+		{"landed, played on a while", ms(10300), ms(10000), ms(300), ms(10200), true},
+		{"sent from the line's end before it landed", ms(10600), ms(10000), ms(20), ms(10620), false},
+		{"sent from just before the end", ms(10600), ms(10000), ms(20), ms(10550), false},
+		{"forward far, sent before", ms(5000), ms(60000), ms(100), ms(5050), false},
+		{"forward far, landed on a key frame before", ms(5000), ms(60000), ms(100), ms(59400), true},
+		{"forward far, landed", ms(5000), ms(60000), ms(100), ms(60050), true},
+		{"to where it was", ms(3000), ms(3000), ms(250), ms(3200), true},
+		{"held, landed", ms(8000), ms(2000), 0, ms(2000), true},
+		{"held, sent before", ms(8000), ms(2000), 0, ms(8000), false},
+	}
+	for _, tt := range tests {
+		if got := SeekLanded(tt.from, tt.to, tt.ran, tt.position); got != tt.want {
+			t.Errorf("%s: SeekLanded(%v, %v, %v, %v) = %v, want %v", tt.name, tt.from, tt.to, tt.ran, tt.position, got, tt.want)
+		}
+	}
+}
+
+// TestTimerRunsTheLastSet sets a Timer again and again, as each move of the pointer and each report of the player do: only the function set last runs, once, and a Timer stopped runs none.
+func TestTimerRunsTheLastSet(t *testing.T) {
+	var timer *Timer
+	app := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
+		timer = NewTimer(cx)
+		return ns.View{}
+	})
+	var ran []int
+	for i := range 100 {
+		timer.Set(time.Second, func() { ran = append(ran, i) })
+	}
+	if timer.At().IsZero() {
+		t.Fatal("a timer set has no time to run at")
+	}
+	app.Advance(2 * time.Second)
+	if !slices.Equal(ran, []int{99}) || !timer.At().IsZero() {
+		t.Fatalf("ran %v, at %v", ran, timer.At())
+	}
+	timer.Set(time.Second, func() { ran = append(ran, -1) })
+	timer.Stop()
+	app.Advance(2 * time.Second)
+	if !slices.Equal(ran, []int{99}) {
+		t.Fatalf("a stopped timer ran: %v", ran)
+	}
+}

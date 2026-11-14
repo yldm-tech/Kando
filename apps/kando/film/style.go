@@ -63,7 +63,7 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			a.LookChanged()
 		})
 	}
-	// The segmented controls take their labels as they are built, as ui.Tabs takes static ones, so they are built again when the language changes; none holds the keyboard's text.
+	// The segmented controls show their options' labels as they are built, as ui.Tabs takes static ones, so they are built again when the language changes, which happens in the settings, away from them; none holds the keyboard's text. A control whose language shows only in its accessible name reads it once instead, with a TODO, as the size sliders do.
 	modes := core.Dynamic(func(cx *core.Scope) core.Node {
 		opts := make([]ui.Option[string], len(styleModes))
 		for i, m := range styleModes {
@@ -191,13 +191,11 @@ func presetCard(cx *core.Scope, id string, label func() string, box bool, sample
 // faceGroup sets one line's size, between lo and hi, its color and whether it is bold. id keys its controls and name heads it; of picks the line's face out of a look.
 func (s *screen) faceGroup(cx *core.Scope, id string, name func() string, of func(l *Look) *Face, look func() Look, edit func(func(l *Look)) func(), lo, hi float64) []core.Node {
 	face := func() Face { l := look(); return *of(&l) }
-	// The slider takes its name as it is built, as ui.Slider takes a static one, so it is built again when the language changes.
-	size := core.Dynamic(func(cx *core.Scope) core.Node {
-		return ui.Slider{TestID: "film-style-size-" + id, Label: locales.FilmFaceSize(cx, name()), Min: lo, Max: hi, Step: 1,
-			Value:    func() float64 { return float64(face().Size) },
-			OnChange: func(v float64) { edit(func(l *Look) { of(l).Size = float32(v) })() },
-			Style:    core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}}
-	})
+	// TODO(nsgo): give ui.Slider's Label a LabelFunc twin, as base.Slider's, so the size slider's accessible name follows the interface language as it changes; it is read once here
+	size := ui.Slider{TestID: "film-style-size-" + id, Label: locales.FilmFaceSize(cx, name()), Min: lo, Max: hi, Step: 1,
+		Value:    func() float64 { return float64(face().Size) },
+		OnChange: func(v float64) { edit(func(l *Look) { of(l).Size = float32(v) })() },
+		Style:    core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}}
 	sizeRow := core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, Gap: 10, AlignItems: core.AlignCenter}, Children: []core.Node{
 		size,
 		core.Text{ContentFunc: func() string { return fmt.Sprintf("%.0f", face().Size) }, Style: core.Style{FontVariant: core.FontTabularNums, FontSize: 13, LineHeight: 18, Width: core.Pt(22), TextAlign: core.TextAlignEnd, FlexShrink: 0, Color: onGlass, Opacity: core.Alpha(0.7)}},

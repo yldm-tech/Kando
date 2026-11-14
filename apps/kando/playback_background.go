@@ -8,6 +8,7 @@ import (
 
 // playerAwakeLifecycle follows, under the app's scope, whether any of the app shows, as the platform reports it (core.LifecycleBackground: the window minimized, hidden or covered where the system says so), so the display may sleep while only the film's sound is heard. playerAwakeReady runs it once the main window exists.
 func (a *app) playerAwakeLifecycle() {
+	// TODO(nsgo): per-window minimize, restore, hide and show events, so the display may sleep while the main window alone is minimized or hidden, as MyGo's Window.OnMinimize and OnHide had it; the app-wide LifecycleBackground keeps it awake while the settings window still shows
 	a.cx.Run(func() {
 		a.cx.Effect(func() {
 			away := a.cx.Env().Lifecycle() == core.LifecycleBackground

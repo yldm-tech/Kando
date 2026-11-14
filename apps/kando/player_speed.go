@@ -69,10 +69,10 @@ func (a *app) playerStepRate(steps int) {
 	a.SetRate(rates[min(max(i, 0), len(rates)-1)])
 }
 
-// playerApplyRate has the open film's playhead move at the player's speed from where it is, as the system's player plays at it (playerVideo).
+// playerApplyRate has the open film's playhead move at the speed the system's player plays it at from where it is (playerSpeed, playerVideo).
 func (a *app) playerApplyRate() {
 	if p := a.player.play; p != nil {
-		p.setRate(a.player.rate)
+		p.setRate(a.playerSpeed())
 	}
 }
 

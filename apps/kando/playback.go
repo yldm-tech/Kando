@@ -29,15 +29,16 @@ type filmPlay struct {
 	// head is where the picture was when the player last said, or where it opens or a seek went; headAt is when, on the app's clock. While the film plays, the picture is that far on since, at its speed (playhead).
 	head   time.Duration
 	headAt time.Time
-	// seeking is set from a seek until the player reports a time near seekTo, so a report it sent before the seek landed does not take the picture back.
-	seeking bool
-	seekTo  time.Duration
-	seekAt  time.Time
+	// seeking is set from a seek until the player reports a time where the seek lands (film.SeekLanded), so a report it sent before the seek landed does not take the picture back. seekFrom is where the picture was as it seeked, seekTo where it went and seekAt when.
+	seeking  bool
+	seekFrom time.Duration
+	seekTo   time.Duration
+	seekAt   time.Time
 	// seeks counts the seeks of this playback, and keepSeek is whether the last was the user's, which playerKeep keeps on disk where it lands, rather than a looped line going back to its start.
 	seeks    int
 	keepSeek bool
 	paused   bool
-	// rate is how fast the film plays, picture and sound, as a multiple of the speed it was recorded at (app.player.rate); 0 counts as 1.
+	// rate is how fast the system's player plays the film, picture and sound, as a multiple of the speed it was recorded at (playerSpeed); 0 counts as 1.
 	rate float64
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool
@@ -50,11 +51,8 @@ type filmPlay struct {
 	seek  func(at time.Duration)
 }
 
-// seekLanded is how near a reported time must be to where a seek went for the seek to count as landed (filmPlay.seeking), and seekGiveUp how long a seek may take before any report is believed again, as for a seek past the end, which lands at the end.
-const (
-	seekLanded = time.Second
-	seekGiveUp = 3 * time.Second
-)
+// seekGiveUp is how long a seek may take before any report is believed again (filmPlay.seeking), as for a seek past the end, which lands at the end.
+const seekGiveUp = 3 * time.Second
 
 func (a *app) ffmpegPath() string {
 	tools, ok := a.pipeline.(media.Tools)
@@ -103,7 +101,7 @@ func (a *app) startPlayback(path string) {
 	}
 	a.player.playGen++
 	a.player.playPath = path
-	a.player.play = &filmPlay{path: path, source: path, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.player.rate, clock: a.playerNow, seek: a.player.ref.Seek}
+	a.player.play = &filmPlay{path: path, source: path, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.playerSpeed(), clock: a.playerNow, seek: a.player.ref.Seek}
 }
 
 // playerVideo is what the system's player plays and how: the open video's source, held until it has loaded, so it starts where it was asked to, and at the player's volume and speed. A volume of 0 plays muted, as the system's player plays a volume of 0 at full volume.
@@ -118,9 +116,17 @@ func (a *app) playerVideo() film.Video {
 		Paused: !p.loaded || p.paused || p.finished,
 		Muted:  a.player.muted || volume <= 0,
 		Volume: volume,
-		// TODO(nsgo#110): play at the film's speed on Linux too, where NSGo's player ignores core.Video's Rate, as MyGo's player and its atempo sound did; the speed menu and ⇧, ⇧. change it there without effect until then https://github.com/nsgo-dev/nsgo/issues/110
-		Rate: float32(playerRate(a.player.rate)),
+		Rate:   float32(playerRate(a.playerSpeed())),
 	}
+}
+
+// playerSpeed is how fast the system's player plays the open film, which the playhead, the subtitles' timers and the loop follow: the player's speed (app.player.rate), but 1 on Linux, where the system's player plays every film at the speed it was recorded at. The speed button and the settings keep the speed picked there all the same.
+func (a *app) playerSpeed() float64 {
+	if a.cx != nil && a.cx.Env().OS() == ns.OSLinux {
+		// TODO(nsgo#110): play at the film's speed on Linux too, where NSGo's player ignores core.Video's Rate, as MyGo's player and its atempo sound did; the speed menu and ⇧, ⇧. change it there without effect until then https://github.com/nsgo-dev/nsgo/issues/110
+		return 1
+	}
+	return a.player.rate
 }
 
 // playerLoad is the system's player having opened the open video: its length is known, and it seeks to where it opens, for a film opened at a point, and plays when it was opened playing.
@@ -135,7 +141,8 @@ func (a *app) playerLoad(info ns.VideoInfo) {
 		a.player.length = info.Duration
 	}
 	if p.head > 0 {
-		p.seekTo, p.seeking, p.seekAt = p.head, true, a.playerNow()
+		// The player has opened the video at its start, from which it seeks.
+		p.startSeek(0, p.head, a.playerNow())
 		a.player.ref.Seek(p.head)
 	}
 	p.headAt = a.playerNow()
@@ -155,7 +162,11 @@ func (a *app) playerProgress(position, duration time.Duration) bool {
 		a.player.length = duration
 	}
 	if p.seeking {
-		if (position-p.seekTo).Abs() > seekLanded && now.Sub(p.seekAt) < seekGiveUp {
+		ran := time.Duration(0)
+		if !p.paused && !p.finished {
+			ran = playerFilmTime(now.Sub(p.seekAt), p.speed())
+		}
+		if !film.SeekLanded(p.seekFrom, p.seekTo, ran, position) && now.Sub(p.seekAt) < seekGiveUp {
 			return false
 		}
 		p.seeking = false
@@ -164,6 +175,7 @@ func (a *app) playerProgress(position, duration time.Duration) bool {
 	gen := a.player.playGen
 	changed := a.playerKeep(now)
 	a.playerKeepLoop()
+	a.playerLoopSchedule()
 	a.areasPlaying()
 	return changed || a.player.playGen != gen
 }
@@ -196,7 +208,7 @@ func (a *app) playerFailed(err error) {
 	}
 }
 
-// playerRemux makes the copy of p's video by step off the engine's goroutine and plays it once made, keeping where p opens at. It reports false when there is no ffmpeg to make it with, and says why on the page when the copy fails.
+// playerRemux makes the copy of p's video by step off the engine's goroutine and plays it once made, keeping where p opens at. It reports false when there is no ffmpeg to make it with. A copy of the streams as they are that fails is made again encoded anew, and when that fails too the page says the video cannot be played.
 func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 	ffmpeg := a.ffmpegPath()
 	if ffmpeg == "" || a.update == nil {
@@ -230,6 +242,10 @@ func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
 			a.player.remuxStop = nil
 			if err != nil {
 				log.Printf("player: could not copy %s for the system's player: %v", filepath.Base(src), err)
+				// Streams an MP4 cannot hold as they are, as a WebM's VP8 and Vorbis, fail the copy; encoded anew they play.
+				if step == film.RemuxCopy && a.playerRemux(p, film.RemuxEncode) {
+					return
+				}
 				a.player.playErr = playerErrUnplayable
 				a.playerNowPlayingClear()
 				return
@@ -291,6 +307,7 @@ func (a *app) seekTo(at time.Duration, kept bool) {
 		at = min(at, p.duration)
 	}
 	now := a.playerNow()
+	from := p.playhead()
 	a.player.playGen++
 	a.player.opening = at
 	p.head, p.headAt = at, now
@@ -299,7 +316,7 @@ func (a *app) seekTo(at time.Duration, kept bool) {
 	p.seeks++
 	p.keepSeek = kept
 	if p.loaded {
-		p.seeking, p.seekTo, p.seekAt = true, at, now
+		p.startSeek(from, at, now)
 		a.player.ref.Seek(at)
 	}
 	a.playerNowPlayingSeeking(p.path, at)
@@ -369,12 +386,13 @@ func (p *filmPlay) toggle() {
 		now = p.clock()
 	}
 	if p.finished {
+		from := p.playhead()
 		p.finished, p.paused, p.played = false, false, true
 		p.head, p.headAt = 0, now
 		p.seeks++
 		p.keepSeek = false
 		if p.loaded {
-			p.seeking, p.seekTo, p.seekAt = true, 0, now
+			p.startSeek(from, 0, now)
 			if p.seek != nil {
 				p.seek(0)
 			}
@@ -390,6 +408,11 @@ func (p *filmPlay) toggle() {
 		p.played = true
 	}
 	p.reportPlayback()
+}
+
+// startSeek notes a seek from where the picture is, from, to to at now, so reports the player sent before it landed are dropped (playerProgress).
+func (p *filmPlay) startSeek(from, to time.Duration, now time.Time) {
+	p.seeking, p.seekFrom, p.seekTo, p.seekAt = true, from, to, now
 }
 
 // speed is how fast the film plays: rate, or 1 for a filmPlay made without one.

@@ -67,7 +67,13 @@ func Remux(ctx context.Context, ffmpeg, src, dest string, step RemuxStep) error 
 			}
 		}
 	}
-	tmp := dest + ".part"
+	// Each run writes a file of its own until the copy is whole, so a run stopped as the same film opens again does not remove what the next one writes.
+	part, err := os.CreateTemp(dir, filepath.Base(dest)+"-*.part")
+	if err != nil {
+		return err
+	}
+	tmp := part.Name()
+	_ = part.Close()
 	cmd := exec.CommandContext(ctx, ffmpeg, RemuxArgs(src, tmp, step)...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(tmp)

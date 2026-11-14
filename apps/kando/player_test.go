@@ -246,6 +246,23 @@ func TestUnsupportedVideoPlaysFromACopy(t *testing.T) {
 	wantText(t, tt, testlocale.Messages().PlayerUnplayable())
 }
 
+// TestUnsupportedVideoEncodedWhenTheCopyFails has ffmpeg fail to copy the open video's streams into an MP4 as they are, as it does for a WebM's VP8 and Vorbis: the page plays a copy encoded anew instead of saying the video cannot be played.
+func TestUnsupportedVideoEncodedWhenTheCopyFails(t *testing.T) {
+	bin := t.TempDir()
+	// The stand-in fails to copy the streams as they are and writes its output file, the last argument, when it encodes them.
+	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for arg; do [ \"$arg\" = copy ] && exit 1; done\nfor last; do :; done\nprintf encoded > \"$last\"\n")
+	a, tt, updates, item := playerFilm(t, 12, media.Tools{FFmpeg: ffmpeg})
+	openFilm(t, a, tt, updates, item)
+	apply(tt, a, func() { a.VideoFailed(errors.New("cannot open")) })
+	waitUntil(t, tt, a, updates, func() bool { return a.player.play.source != "" || a.player.playErr != "" })
+	if p := a.player.play; a.player.playErr != "" || p.remux != film.RemuxEncode || video(tt).Source != p.source {
+		t.Fatalf("after the copy failed: error %q, step %v, the player plays %q", a.player.playErr, p.remux, video(tt).Source)
+	}
+	if data, err := os.ReadFile(a.player.play.source); err != nil || string(data) != "encoded" {
+		t.Fatalf("the player plays %q, %v", data, err)
+	}
+}
+
 // TestUnsupportedVideoWithoutFFmpeg: without ffmpeg there is no copy to make, and the page says the video cannot be played.
 func TestUnsupportedVideoWithoutFFmpeg(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)
@@ -1316,6 +1333,67 @@ func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
 	}
 }
 
+// TestMediaKeysWhileTheFilmOpens presses the media keys while the system's player opens the film: pause has a film opened playing at a point open held there, and play has it play once open. While the system shows the film, as when the player opens a copy of it after failing on it, the system learns each key at once, at where the film is.
+func TestMediaKeysWhileTheFilmOpens(t *testing.T) {
+	bin := t.TempDir()
+	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for last; do :; done\nprintf copy > \"$last\"\n")
+	a, tt, updates, item := playerFilm(t, 12, media.Tools{FFmpeg: ffmpeg})
+	rec := &nowPlayingRecorder{}
+	a.playerNowPlayingConnect(rec)
+	apply(tt, a, func() { a.OpenAt(item, 4*time.Second) })
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	apply(tt, a, func() { a.playerMediaCommand(nowplaying.Pause, 0) })
+	loadFilm(tt, a, 12*time.Second)
+	p := a.player.play
+	if !video(tt).Paused || p.Playing() || !slices.Equal(seeks(tt), []time.Duration{4 * time.Second}) {
+		t.Fatalf("pause while the film opened: paused %v playing %v seeks %v", video(tt).Paused, p.Playing(), seeks(tt))
+	}
+	if e := rec.last(t); e.kind != "set" || e.info.State != nowplaying.Paused || e.info.Position != 4*time.Second {
+		t.Fatalf("the film held as it opened showed as %+v", e)
+	}
+	apply(tt, a, func() { a.playerMediaCommand(nowplaying.Play, 0) })
+	playTo(tt, a, 4500*time.Millisecond)
+	if !p.Playing() || video(tt).Paused || a.PlayHead() != 4500*time.Millisecond {
+		t.Fatalf("play: playing %v head %v", p.Playing(), a.PlayHead())
+	}
+	// The player fails on the film it showed, and opens a copy of it.
+	apply(tt, a, func() { a.VideoFailed(errors.New("cannot decode")) })
+	if p.loaded || p.Playing() {
+		t.Fatal("the film plays while its copy is made")
+	}
+	apply(tt, a, func() { a.playerMediaCommand(nowplaying.Pause, 0) })
+	if e := rec.last(t); e.kind != "playback" || e.state != nowplaying.Paused || e.at != 4500*time.Millisecond {
+		t.Fatalf("pause while the copy opens told the system %+v", e)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return p.source != "" })
+	loadFilm(tt, a, 12*time.Second)
+	if !video(tt).Paused || p.Playing() || !slices.Equal(seeks(tt), []time.Duration{4500 * time.Millisecond}) {
+		t.Fatalf("the copy opened: paused %v playing %v seeks %v", video(tt).Paused, p.Playing(), seeks(tt))
+	}
+	apply(tt, a, func() { a.playerMediaCommand(nowplaying.Play, 0) })
+	if e := rec.last(t); !p.Playing() || video(tt).Paused || e.kind != "playback" || e.state != nowplaying.Playing {
+		t.Fatalf("play once the copy opened: playing %v, told the system %+v", p.Playing(), e)
+	}
+}
+
+// TestSpeedOnLinuxStaysAtOne picks 2× on Linux, where the system's player plays every film at the speed it was recorded at: the speed button and the settings keep 2×, but the player is asked for 1×, and the playhead, which the subtitles and the loop follow, moves at it.
+func TestSpeedOnLinuxStaysAtOne(t *testing.T) {
+	usePlatform(t, ns.OSLinux)
+	a, tt, _ := playerOpen(t)
+	for range 4 {
+		tt.Key("shift+.")
+	}
+	if a.player.rate != 2 || !hasText(tt, film.RateTextIn(testlocale.Messages(), 2)) || video(tt).Rate != 1 {
+		t.Fatalf("rate %v, the player asked for %v; texts %q", a.player.rate, video(tt).Rate, tt.Texts())
+	}
+	tt.Key("space")
+	playTo(tt, a, 2*time.Second)
+	tt.Advance(time.Second)
+	if head := a.PlayHead(); head != 3*time.Second {
+		t.Fatalf("a second from 2s is at %v, want 3s", head)
+	}
+}
+
 // TestSpeedKeysStepThroughTheRates presses ⇧. and ⇧, on an open film: each steps to the next speed of film.Rates, stays at the fastest and the slowest, and says so on the picture and on the transport's speed button at once; the system's player plays at it at once, and once the keys rest the settings keep it.
 func TestSpeedKeysStepThroughTheRates(t *testing.T) {
 	a, tt, updates := playerOpen(t)
@@ -1571,6 +1649,45 @@ func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
 	playTo(tt, a, 3100*time.Millisecond)
 	if len(seeks(tt)) != 1 {
 		t.Fatalf("the film went back with the loop off: %v", seeks(tt))
+	}
+}
+
+// TestLoopGoesBackAtTheLinesEndBetweenReports plays a looped line on the app's clock alone: the film goes back to the line's start as the clock reaches its end, without waiting for the system's player's next report.
+func TestLoopGoesBackAtTheLinesEndBetweenReports(t *testing.T) {
+	a, tt, _ := playerOpenWithLines(t)
+	tt.Key("l")
+	tt.Key("space")
+	playTo(tt, a, 2*time.Second)
+	tt.Advance(900 * time.Millisecond)
+	if len(seeks(tt)) != 0 {
+		t.Fatalf("the loop went back inside the line: %v", seeks(tt))
+	}
+	tt.Advance(200 * time.Millisecond)
+	if got := seeks(tt); len(got) != 1 || got[0] != time.Second || !a.player.play.Playing() {
+		t.Fatalf("at the line's end the loop seeked %v, playing %v", got, a.player.play.Playing())
+	}
+}
+
+// TestShortLoopIgnoresAReportFromItsEnd loops a line shorter than a second: once the loop has taken the film back to the line's start, a report the system's player sent from the line's end before the seek landed does not take the picture back there, nor have the loop seek again, while the report of the seek landing does move it.
+func TestShortLoopIgnoresAReportFromItsEnd(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	apply(tt, a, func() {
+		a.player.subs.cues = []core.Segment{{Start: time.Second, End: 1600 * time.Millisecond, Text: "短句\nShort."}}
+	})
+	tt.Key("l")
+	tt.Key("space")
+	playTo(tt, a, 1200*time.Millisecond)
+	playTo(tt, a, 1650*time.Millisecond)
+	if got := seeks(tt); len(got) != 1 || got[0] != time.Second {
+		t.Fatalf("at the line's end the loop seeked %v", got)
+	}
+	playTo(tt, a, 1700*time.Millisecond)
+	if got := seeks(tt); len(got) != 1 || a.PlayHead() != time.Second {
+		t.Fatalf("a report from the line's end: seeks %v, head %v", got, a.PlayHead())
+	}
+	playTo(tt, a, 1050*time.Millisecond)
+	if got := seeks(tt); len(got) != 1 || a.PlayHead() != 1050*time.Millisecond {
+		t.Fatalf("the seek landed: seeks %v, head %v", got, a.PlayHead())
 	}
 }
 

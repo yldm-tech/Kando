@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/live"
 	"kando/packages/core"
 )
 
@@ -178,7 +179,7 @@ func playerLoopOf(key string, cues []core.Segment, i int) playerLoop {
 	return loop
 }
 
-// playerKeepLoop takes a playing film back to the start of the looped line once it reaches the line's end, or the video's end; the system's player saying where it is (playerProgress) and reaching the end (playerEnded) run it, in the background too, where it plays on. A held film stays where it is. The return is not the user's seek, so where the film continues from is not written again on every pass (playerKeep). A line the subtitle delay has pushed so near the video's end or start that less than playerLoopShortest of it is in the video cannot loop, and looping stops, rather than go back to the same place over and over.
+// playerKeepLoop takes a playing film back to the start of the looped line once it reaches the line's end, or the video's end; a timer set for the line's end (playerLoopSchedule), the system's player saying where it is (playerProgress) and reaching the end (playerEnded) run it, in the background too, where it plays on. A held film stays where it is. The return is not the user's seek, so where the film continues from is not written again on every pass (playerKeep). A line the subtitle delay has pushed so near the video's end or start that less than playerLoopShortest of it is in the video cannot loop, and looping stops, rather than go back to the same place over and over.
 func (a *app) playerKeepLoop() {
 	play := a.player.play
 	if !a.playerLooping() || play == nil || !play.loaded || a.openKey == "" {
@@ -202,3 +203,36 @@ func (a *app) playerKeepLoop() {
 	}
 	a.seekTo(start, false)
 }
+
+// playerLoopLate is how long after the looped line's end, by the app's clock, its timer runs, so the playhead has reached the end when playerKeepLoop looks, whatever the rounding of the film's time at its speed.
+const playerLoopLate = time.Millisecond
+
+// playerLoopSchedule times the return of a playing film to the start of the looped line (playerKeepLoop) for when it reaches the line's end, so it goes back on time rather than at the system's player's next report, up to a quarter second later. A timer already set for that moment stays; a held film, or one with no line looped or a loop to the video's end, which the player's end takes back, has none. The app's changes (playerAfterChange) and the player's reports (playerProgress) run it, as they move the playhead, the speed or the loop; without the app's scope, as in tests that start no app, the reports alone take the film back.
+func (a *app) playerLoopSchedule() {
+	if a.cx == nil {
+		return
+	}
+	play := a.player.play
+	if play == nil || !play.Playing() || a.openKey == "" || !a.playerLooping() || a.player.film.loop.end == 0 {
+		if a.player.loopTimer != nil {
+			a.player.loopTimer.Stop()
+		}
+		return
+	}
+	end := a.player.film.loop.end + a.player.film.delay
+	wait := playerWallTime(max(end-play.playhead(), 0), play.speed()) + playerLoopLate
+	if a.player.loopTimer == nil {
+		a.player.loopTimer = film.NewTimer(a.cx)
+	}
+	// The playhead runs on the app's clock between reports, so the same end is the same moment until a report, a seek or the speed moves it; a moment within playerLoopNear of the one set keeps the timer.
+	if at := a.player.loopTimer.At(); !at.IsZero() && (at.Sub(a.playerNow().Add(wait))).Abs() < playerLoopNear {
+		return
+	}
+	a.player.loopTimer.Set(wait, live.Do(a, func() {
+		a.playerKeepLoop()
+		a.playerLoopSchedule()
+	}))
+}
+
+// playerLoopNear is how far the moment the looped line ends may move before its timer is set again (playerLoopSchedule).
+const playerLoopNear = 20 * time.Millisecond

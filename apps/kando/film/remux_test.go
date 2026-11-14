@@ -107,3 +107,64 @@ func TestRemuxKeepsOneFilmsCopies(t *testing.T) {
 		t.Fatal("a copy without ffmpeg")
 	}
 }
+
+// TestRemuxRunsWriteFilesOfTheirOwn starts a copy, stops it while ffmpeg writes, and checks that a second run of the same copy, started meanwhile, still lands: the stopped run removes only the file it wrote.
+func TestRemuxRunsWriteFilesOfTheirOwn(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in for ffmpeg is a shell script")
+	}
+	dir := t.TempDir()
+	ffmpeg := filepath.Join(dir, "ffmpeg")
+	// The stand-in writes its output, then waits a while when told to by a file beside it, as a long copy does.
+	script := "#!/bin/sh\nfor last; do :; done\nprintf copy > \"$last\"\nif [ -f \"" + filepath.Join(dir, "slow") + "\" ]; then exec sleep 5; fi\n"
+	if err := os.WriteFile(ffmpeg, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	video := filepath.Join(dir, "a.mkv")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cache := filepath.Join(dir, "cache")
+	dest, err := RemuxPath(cache, video, RemuxCopy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "slow"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	stopped := make(chan error, 1)
+	go func() { stopped <- Remux(ctx, ffmpeg, video, dest, RemuxCopy) }()
+	// The first run has written its file and waits.
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		parts, _ := filepath.Glob(filepath.Join(cache, "*.part"))
+		if len(parts) == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the first run wrote nothing")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := os.Remove(filepath.Join(dir, "slow")); err != nil {
+		t.Fatal(err)
+	}
+	second, cancelSecond := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelSecond()
+	done := make(chan error, 1)
+	go func() { done <- Remux(second, ffmpeg, video, dest, RemuxCopy) }()
+	cancel()
+	if err := <-stopped; err == nil {
+		t.Fatal("the stopped run made its copy")
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("the second run: %v", err)
+	}
+	if data, err := os.ReadFile(dest); err != nil || string(data) != "copy" {
+		t.Fatalf("the copy holds %q, %v", data, err)
+	}
+	if parts, _ := filepath.Glob(filepath.Join(cache, "*.part")); len(parts) != 0 {
+		t.Fatalf("files left behind: %q", parts)
+	}
+}

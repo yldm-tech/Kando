@@ -52,8 +52,10 @@ type playerUI struct {
 	delays map[string]time.Duration
 	// saves is when the player last had the areas keep its resume positions and subtitle delays on disk (playerKeep).
 	saves playerSaves
-	// osdGen counts the messages flash put on the picture, so the timer of one taken over by the next leaves it.
-	osdGen int
+	// osdTimer takes the message flash put on the picture away, one timer under the app's scope that each message sets again, nil until the first message with the app running (flash).
+	osdTimer *film.Timer
+	// loopTimer takes a playing film back to the start of the looped line when it reaches its end between two reports of the system's player (playerLoopSchedule), nil until a loop is first timed.
+	loopTimer *film.Timer
 	// lastMode is the mode V turns the subtitles back on to.
 	lastMode string
 	// panel shows the side panel over the picture. It stays as it is from film to film.
@@ -152,21 +154,16 @@ func (a *app) resetFilm() {
 // osdFor is how long a message shows on the picture (prototype script 1972).
 const osdFor = 1400 * time.Millisecond
 
-// flash shows text on the picture for osdFor. The timer runs under the app's scope, so the message goes even when what said it, as a button of a panel since closed, has gone; without the app's scope, as in tests that start no app, it stays.
+// flash shows text on the picture for osdFor, from the last message on when one takes over another. The timer runs under the app's scope, so the message goes even when what said it, as a button of a panel since closed, has gone; without the app's scope, as in tests that start no app, it stays.
 func (a *app) flash(text string) {
 	a.player.film.osd = text
-	a.player.osdGen++
-	gen := a.player.osdGen
 	if a.cx == nil {
 		return
 	}
-	a.cx.Run(func() {
-		a.cx.AfterFunc(osdFor, live.Do(a, func() {
-			if a.player.osdGen == gen {
-				a.player.film.osd = ""
-			}
-		}))
-	})
+	if a.player.osdTimer == nil {
+		a.player.osdTimer = film.NewTimer(a.cx)
+	}
+	a.player.osdTimer.Set(osdFor, live.Do(a, func() { a.player.film.osd = "" }))
 }
 
 // rememberPosition keeps where the open video stopped, so ResumeAt can offer to continue from there. A video watched to the end starts over.
@@ -220,10 +217,11 @@ type playerSaves struct {
 	delayGen   int
 }
 
-// playerAfterChange keeps where the open film is on disk when it paused, ended or was moved (playerKeep), and keeps the display awake while a film plays (player_awake.go). The positions it saves are what the library's 继续 reads, so it reports when it saved one.
+// playerAfterChange keeps where the open film is on disk when it paused, ended or was moved (playerKeep), keeps the display awake while a film plays (player_awake.go) and times the return of a looped line to its start (playerLoopSchedule). The positions it saves are what the library's 继续 reads, so it reports when it saved one.
 func (a *app) playerAfterChange() bool {
 	changed := a.playerKeep(a.playerNow())
 	a.playerKeepAwake()
+	a.playerLoopSchedule()
 	return changed
 }
 

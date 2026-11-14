@@ -79,14 +79,23 @@ func (v View) Render(cx *core.Scope) core.Node {
 		held:   core.NewSignal(cx, false),
 		scrub:  core.NewSignal(cx, 0.0),
 	}
-	// The controls show for idleAfter after the pointer last moved, and start out showing.
-	var idle func() bool
-	moved := func() {
-		if idle != nil {
-			idle()
+	// The controls show for idleAfter after the pointer last moved, and start out showing. A move only notes when it was; the one timer, once it runs, waits the rest of idleAfter when the pointer moved meanwhile, so moving the pointer does not set a timer at each move.
+	idle := NewTimer(cx)
+	var lastMove time.Time
+	var rest func()
+	rest = func() {
+		if left := idleAfter - cx.Now().Sub(lastMove); left > 0 {
+			idle.Set(left, rest)
+			return
 		}
+		s.active.Set(false)
+	}
+	moved := func() {
+		lastMove = cx.Now()
 		s.active.Set(true)
-		idle = cx.AfterFunc(idleAfter, func() { s.active.Set(false) })
+		if idle.At().IsZero() {
+			idle.Set(idleAfter, rest)
+		}
 	}
 	moved()
 	playing := live.Func(a, func() bool { return a.Play() != nil && a.Play().Playing() })
@@ -232,13 +241,10 @@ type stageNoteState struct {
 // video is the system's player, filling the stage: it covers the stage with the picture when the two are close in shape and shows it whole otherwise (PictureFit). What it reports goes to the app; its clock moves the player's (tick), between reports at the moments a line of the subtitles starts or ends, so the lines change on time.
 func (s *screen) video(cx *core.Scope, natural *core.Signal[core.Size]) core.Node {
 	a := s.a
-	var boundary func() bool
+	boundary := NewTimer(cx)
 	var nextChange func()
 	nextChange = func() {
-		if boundary != nil {
-			boundary()
-			boundary = nil
-		}
+		boundary.Stop()
 		subs := a.Subs()
 		p := a.Play()
 		if p == nil || !p.Playing() || subs.Key != a.OpenKey() || !subs.Ready {
@@ -250,7 +256,7 @@ func (s *screen) video(cx *core.Scope, natural *core.Signal[core.Size]) core.Nod
 		}
 		// The film's time runs at its speed, faster or slower than the clock's.
 		wall := time.Duration(float64(after) / max(float64(a.Video().Rate), 0.1))
-		boundary = cx.AfterFunc(wall, func() {
+		boundary.Set(wall, func() {
 			s.tick.Set(struct{}{})
 			nextChange()
 		})
