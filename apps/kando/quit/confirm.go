@@ -22,6 +22,7 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.Show{When: c.Open, Then: func(cx *core.Scope) core.Node {
 		// The dialog's words are set as it is built, so it is built again for another film or language.
+		// TODO(nsgo): give ui.AlertDialog's Title and Description TitleFunc and DescriptionFunc twins, as core's fields that change have, and drop this Dynamic
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			film := c.Film()
 			return ui.AlertDialog{
