@@ -2686,6 +2686,9 @@ settingsGeneralInstalled:
 settingsGeneralInterfaceLanguage:
   message: "Interface language"
   description: "Row title and pop-up name: the language of Kando's interface."
+settingsGeneralLanguageName:
+  message: "English"
+  description: "This catalog's language named in itself, as the Interface language pop-up lists it, so the choice stays readable whatever language Kando shows."
 settingsGeneralLastCheck:
   message: "Last checked {when}"
   description: "Under Version in Settings › General: when Kando last checked for updates; {when} is a date and time."

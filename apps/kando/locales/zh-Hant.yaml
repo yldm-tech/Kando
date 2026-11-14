@@ -769,6 +769,7 @@ settingsGeneralForgetButton: "移除"
 settingsGeneralForgetHint: "只從看懂的清單中移除，檔案留在原處。"
 settingsGeneralInstalled: "已安裝"
 settingsGeneralInterfaceLanguage: "介面語言"
+settingsGeneralLanguageName: "繁體中文"
 settingsGeneralLastCheck: "上次檢查：{when}"
 settingsGeneralLibrary: "資料庫"
 settingsGeneralLibraryNote: "切換資料庫會停止進行中的工作。從清單移除資料庫不會刪除裡面的檔案。"
@@ -975,9 +976,7 @@ github.com/nsgo-dev/nsgo/base/locales:
   commandNoMatches: "沒有符合的指令"
   commandLoading: "正在載入…"
   commandList: "指令"
-  calendarMonth: "{d, date, ::yMMMM}"
-  calendarMonthName: "{d, date, ::MMM}"
-  calendarWeekday: "{d, date, ::EEEEE}"
+  # TODO(nsgo): supply calendarMonth, calendarMonthName and calendarWeekday ({d, date, ::yMMMM}, ::MMM, ::EEEEE) once nsgo i18n compiles a supplied date message: the Translation function it writes calls msgs.dated, which it does not declare (cmd/nsgo/i18n_gen.go:375 with :561); until then calendars write their months and weekdays in English
   breadcrumbsMore: "更多"
   flowLabel: "{nodes} 個節點，{edges} 條邊"
 github.com/nsgo-dev/nsgo/base/textview/locales:

@@ -769,6 +769,7 @@ settingsGeneralForgetButton: "取り除く"
 settingsGeneralForgetHint: "Kando の一覧から外すだけで、ファイルはそのまま残ります。"
 settingsGeneralInstalled: "インストール済み"
 settingsGeneralInterfaceLanguage: "表示言語"
+settingsGeneralLanguageName: "日本語"
 settingsGeneralLastCheck: "最終確認：{when}"
 settingsGeneralLibrary: "ライブラリ"
 settingsGeneralLibraryNote: "ライブラリを切り替えると、進行中のジョブは停止します。ライブラリを一覧から取り除いても、中のファイルは削除されません。"
@@ -975,9 +976,7 @@ github.com/nsgo-dev/nsgo/base/locales:
   commandNoMatches: "一致するコマンドはありません"
   commandLoading: "読み込み中…"
   commandList: "コマンド"
-  calendarMonth: "{d, date, ::yMMMM}"
-  calendarMonthName: "{d, date, ::MMM}"
-  calendarWeekday: "{d, date, ::EEEEE}"
+  # TODO(nsgo): supply calendarMonth, calendarMonthName and calendarWeekday ({d, date, ::yMMMM}, ::MMM, ::EEEEE) once nsgo i18n compiles a supplied date message: the Translation function it writes calls msgs.dated, which it does not declare (cmd/nsgo/i18n_gen.go:375 with :561); until then calendars write their months and weekdays in English
   breadcrumbsMore: "その他"
   flowLabel: "{nodes} 個のノード、{edges} 本のエッジ"
 github.com/nsgo-dev/nsgo/base/textview/locales:
