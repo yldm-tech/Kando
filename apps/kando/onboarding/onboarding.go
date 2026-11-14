@@ -181,7 +181,7 @@ func (s sheet) Render(cx *core.Scope) core.Node {
 		}
 		return last
 	})
-	return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+	return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
 		Children: []core.Node{art{a: a, step: step}, content{a: a, step: step}}}
 }
 
@@ -226,7 +226,7 @@ func (c content) Render(cx *core.Scope) core.Node {
 	scroll := core.Scroll{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Margin: core.Edges{Top: 15, Left: -4, Right: -4}},
 		Children: []core.Node{core.View{Style: core.Style{Padding: core.Symmetric(3, 4), Gap: 16, AlignItems: core.AlignStretch}, Children: []core.Node{body}}}}
 	return core.View{
-		Style:    core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Padding: core.Edges{Top: 26, Right: 30, Bottom: 20, Left: 30}, AlignItems: core.AlignStretch, Color: ink},
+		Style:    core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Padding: core.Edges{Top: 26, Right: 30, Bottom: 20, Left: 30}, AlignItems: core.AlignStretch, Color: ink},
 		Children: []core.Node{head, titleText, descriptionText, scroll, footer{a: a, step: step}},
 	}
 }

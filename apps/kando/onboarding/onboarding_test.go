@@ -229,6 +229,36 @@ func TestSecondStepRowsAndTheirButtons(t *testing.T) {
 	wantCalls(t, a, "settings ai")
 }
 
+// On a first launch every program is missing, and the second step's body is taller than the sheet: it scrolls, and the buttons stay inside the sheet.
+func TestSecondStepFitsWithEveryProgramMissing(t *testing.T) {
+	a := newFakeApp()
+	a.step = 2
+	a.tools = []Tool{{Name: "yt-dlp", Use: "links", State: ToolMissing}, {Name: "ffmpeg", Use: "video", State: ToolMissing}, {Name: "whisper-cli", Use: "speech", State: ToolMissing}}
+	a.ai = AI{Text: "no model", Missing: true}
+	app := start(t, a, core.OSMacOS)
+	if !app.Exists("id:onboarding-next") || !app.Exists("id:onboarding-back") {
+		t.Fatalf("the buttons are not shown: %q", app.Texts())
+	}
+	sheet := windowRect(app.FindMounted("id:onboarding"))
+	for _, id := range []string{"id:onboarding-next", "id:onboarding-back", "id:onboarding-skip"} {
+		if b := windowRect(app.FindMounted(id)); b[0] < sheet[0] || b[1] < sheet[1] || b[2] > sheet[2] || b[3] > sheet[3] {
+			t.Errorf("%s at %v lies outside the sheet at %v", id, b, sheet)
+		}
+	}
+	app.Press("id:onboarding-next")
+	wantCalls(t, a, "next")
+}
+
+// windowRect is v's left, top, right and bottom edges in window points, as its ancestors and their scroll offsets place it.
+func windowRect(v *nsgotest.View) [4]float32 {
+	x, y := float32(v.Frame.Origin.X), float32(v.Frame.Origin.Y)
+	for p := v.Parent; p != nil; p = p.Parent {
+		x += float32(p.Frame.Origin.X - p.Offset.X)
+		y += float32(p.Frame.Origin.Y - p.Offset.Y)
+	}
+	return [4]float32{x, y, x + float32(v.Frame.Size.Width), y + float32(v.Frame.Size.Height)}
+}
+
 func TestLinkFieldSaysWhatALinkIs(t *testing.T) {
 	a := newFakeApp()
 	a.step = 3
