@@ -537,7 +537,7 @@ func TestEnterKeepsTheFilmWhenRemoving(t *testing.T) {
 	if len(a.library.Jobs) != 0 || len(a.snap().Videos) != 0 {
 		t.Fatalf("jobs %#v videos %#v", a.library.Jobs, a.snap().Videos)
 	}
-	if shows(tt, "Talk") || !shows(tt, "已把「Talk」移到废纸篓") {
+	if finds(tt, "Talk") || !shows(tt, "已把「Talk」移到废纸篓") {
 		t.Fatalf("texts %q after removing", tt.Texts())
 	}
 }
@@ -556,7 +556,7 @@ func TestRemovingKeepsAVideoOutsideTheLibrary(t *testing.T) {
 	a.edit(func(s *session) { s.LibraryDir = lib })
 	a.library.Jobs = []core.Job{{ID: "local", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, LibraryDir: lib}}
 	refresh(tt, a)
-	if !shows(tt, "interview") {
+	if !finds(tt, "interview") {
 		t.Fatalf("a local video processed in this library is not on its shelf: %q", tt.Texts())
 	}
 	a.AskRemove(a.films()[0])
@@ -909,6 +909,10 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 	hero := pageFrame(tt.Find("id:films-hero"))
 	if fx := tt.Find("id:films-hero").Style.Effects; hero.Size.Height < 300 || fx == nil || len(fx.Shadows) == 0 {
 		t.Fatalf("hero %v has no shadow", hero)
+	}
+	// On Apple's targets a view that clips its children clips its own outer shadow too, so the hero clips its picture in a view inside it.
+	if tt.Find("id:films-hero").Style.Clip {
+		t.Fatal("the hero clips its children, which takes its shadow off on a Mac")
 	}
 	// TODO(nsgo#119): read the pixels beside the hero's sides, darker than the page under it, as MyGo's Tester.Image let the test do; nsgotest renders no pixels headless, so the test checks that the page's padding leaves the shadow room inside the scroll view, which clips it https://github.com/nsgo-dev/nsgo/issues/119
 	var scroll *nsgotest.View
@@ -1723,7 +1727,7 @@ func TestRenameGivesAFilmTheTitleKandoShows(t *testing.T) {
 	}
 
 	renameFilm(t, a, tt, "  我的演讲  ")
-	if !shows(tt, "我的演讲") {
+	if !finds(tt, "我的演讲") {
 		t.Fatalf("the shelf does not show the new title: %q", tt.Texts())
 	}
 	if got := a.films()[0]; got.Name != "我的演讲" || got.Title != "我的演讲" {
@@ -1756,7 +1760,7 @@ func TestRenameGivesAFilmTheTitleKandoShows(t *testing.T) {
 	if len(a.library.Names) != 0 {
 		t.Fatalf("an empty title kept %v", a.library.Names)
 	}
-	if !shows(tt, "Talk") {
+	if !finds(tt, "Talk") {
 		t.Fatalf("an empty title did not give the film its name back: %q", tt.Texts())
 	}
 	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
@@ -1968,4 +1972,9 @@ func shows(tt *nsgotest.App, s string) bool {
 		return true
 	}
 	return tt.Exists("label:/" + regexp.QuoteMeta(s) + "/")
+}
+
+// finds reports whether a text that shows, or a view's accessible name, is s as a whole, as MyGo's Tester.Find matched them.
+func finds(tt *nsgotest.App, s string) bool {
+	return tt.Exists(whole(s)) || tt.Exists(`label:"`+s+`"`)
 }

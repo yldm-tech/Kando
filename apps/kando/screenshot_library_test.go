@@ -143,7 +143,7 @@ func TestScreenshotsLibrary(t *testing.T) {
 		tt.Submit("id:rename-name")
 		// The dialog goes once its motion has ended.
 		tt.Advance(time.Second)
-		if !shows(tt, "线性代数 · 第一讲") {
+		if !finds(tt, "线性代数 · 第一讲") {
 			t.Fatalf("the renamed poster is not on the shelf: %q", tt.Texts())
 		}
 	})

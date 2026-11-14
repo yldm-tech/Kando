@@ -562,7 +562,7 @@ func (a *app) queueRun(job core.Job) {
 		defer close(done)
 		// A job stopped because the app quits reports nothing more: its card would say 已取消 and keep it from running again at the next launch, and the next job must not start.
 		quitting := func() bool { return errors.Is(context.Cause(ctx), errQuitting) }
-		// A report that only moves the progress waits in latest, and at most one update carries it to the engine's goroutine, no sooner than queueProgressEvery after the one before: a tool that reports many times a second neither queues an update for each nor has every binding follow each, and the card shows the newest when the update runs. Any other report goes as it comes; a progress report still waiting then comes after it, and showProgress drops it when its stage is over.
+		// A report that only moves the progress waits in latest, and at most one update carries it to the engine's goroutine, no sooner than queueProgressEvery after the one before: a tool that reports many times a second neither queues an update for each nor has every binding follow each, and the card shows the newest when the update runs. Any other report goes as it comes and takes the place of a progress report still waiting, as it carries the newest progress itself, so the bar never moves back.
 		var latest atomic.Pointer[core.Job]
 		var sent atomic.Int64
 		deliver := func() {
@@ -581,6 +581,7 @@ func (a *app) queueRun(job core.Job) {
 			onlyProgress := j.Stage == last.Stage && j.Title == last.Title && j.Thumbnail == last.Thumbnail && j.VideoPath == last.VideoPath && j.Err == nil
 			last = j
 			if !onlyProgress {
+				latest.Store(nil)
 				update(func() { a.show(j) })
 				return
 			}

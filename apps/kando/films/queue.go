@@ -23,7 +23,8 @@ type queueSection struct {
 // Render implements core.Node.
 func (q queueSection) Render(cx *ns.Scope) ns.Node {
 	a := q.a
-	expanded := live.Func(a, func() bool { return *a.QueueExpanded() })
+	expanded := live.Memo(cx, a, func() bool { return *a.QueueExpanded() })
+	count := ns.NewMemo(cx, func() int { return len(q.queue()) }).Get
 	shown := func() []Film {
 		items := q.queue()
 		if !expanded() && len(items) > QueueShown {
@@ -36,16 +37,16 @@ func (q queueSection) Render(cx *ns.Scope) ns.Node {
 		Children: []ns.Node{ns.Each(shown, func(item Film) string { return item.Key }, func(cx *ns.Scope, item func() Film, _ func() int) ns.Node {
 			return queueCard{a: a, item: item}
 		})}}
-	more := ns.Show{When: func() bool { return len(q.queue()) > QueueShown }, Then: func(*ns.Scope) ns.Node {
+	more := ns.Show{When: func() bool { return count() > QueueShown }, Then: func(*ns.Scope) ns.Node {
+		// The button says 显示全部 with the count, or 收起, so it is built again when either changes, and not when a job's progress does.
+		label := func(cx *ns.Scope) string {
+			if expanded() {
+				return locales.FilmsQueueCollapse(cx)
+			}
+			return locales.FilmsQueueShowAll(cx, count())
+		}
 		return ns.View{Style: ns.Style{AlignSelf: ns.AlignStart}, Children: []ns.Node{
-			// The button says 显示全部 with the count, or 收起, so it is built again when either changes.
-			ns.Dynamic(func(cx *ns.Scope) ns.Node {
-				label := locales.FilmsQueueShowAll(cx, len(q.queue()))
-				if expanded() {
-					label = locales.FilmsQueueCollapse(cx)
-				}
-				return ui.Button{Text: label, Variant: ui.ButtonSecondary, TestID: "queue-more", OnPress: live.Do(a, func() { *a.QueueExpanded() = !*a.QueueExpanded() })}
-			}),
+			textButton(label, ui.Button{Variant: ui.ButtonSecondary, TestID: "queue-more", OnPress: live.Do(a, func() { *a.QueueExpanded() = !*a.QueueExpanded() })}),
 		}}
 	}}
 	summary := func() string { return QueueSummary(locales.For(cx), q.queue()) }

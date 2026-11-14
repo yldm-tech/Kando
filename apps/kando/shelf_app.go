@@ -474,8 +474,8 @@ func (a *app) restartLibraryWatch() {
 			case <-stop:
 				return
 			case <-ticker.C:
-				// The check runs here, off the engine's goroutine, on a snapshot of the shelf, which nodra's store hands any goroutine: a report goes to the engine only when a known library has gone from where it was, so the window is not told about a change every second while nothing moved.
-				if !shelfLibraryGone(a.store.Get()) {
+				// The check runs here, off the engine's goroutine, on a snapshot of the shelf, which nodra's store hands any goroutine: a report goes to the engine only when a known library has moved, so the window is not told about a change every second while nothing moved or a library stays away.
+				if !shelfLibraryMoved(a.store.Get()) {
 					continue
 				}
 				update(func() {
@@ -491,15 +491,18 @@ func (a *app) restartLibraryWatch() {
 	}()
 }
 
-// shelfLibraryGone reports whether syncRenamedLibraries has anything to do for the shelf s: a library it knows is no longer at its path, as when it was renamed in Finder, or one is there under an identity the shelf has not remembered. Any goroutine may call it.
-func shelfLibraryGone(s session) bool {
+// shelfLibraryMoved reports whether syncRenamedLibraries has anything to do for the shelf s: a library it knows is no longer at its path but is beside it under another name, as when it was renamed in Finder, or one is there under an identity the shelf has not remembered. A library that is gone for good, or on a drive that is not plugged in, is not reported, so the timer does not wake the window every second while it stays away. Any goroutine may call it.
+func shelfLibraryMoved(s session) bool {
 	known := s.Libraries
 	if s.LibraryDir != "" {
 		known = addLibrary(slices.Clone(known), s.LibraryDir)
 	}
 	for _, dir := range known {
 		if _, err := os.Stat(dir); err != nil {
-			return true
+			if next, ok := media.FindDir(filepath.Dir(dir), s.Inodes[filepath.Clean(dir)]); ok && filepath.Clean(next) != filepath.Clean(dir) {
+				return true
+			}
+			continue
 		}
 		if id := media.IdentifyDir(dir); dirIDSet(id) && s.Inodes[filepath.Clean(dir)] != id {
 			return true

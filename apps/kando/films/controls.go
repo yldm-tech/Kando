@@ -31,6 +31,11 @@ func hasImage(source core.ImageSource) bool { return source.URI != "" || len(sou
 // overlay is a view over the whole of its parent.
 var overlay = core.Style{Position: core.Absolute, Top: core.Pt(0), Left: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}
 
+// clip is a view over the whole of its parent, rounded by radius as the parent is, that cuts children off at its edges. It is a view of its own because on Apple's targets a view that clips its children clips its own outer shadow too, so a card with a shadow keeps the shadow and clips here, as ui.Dialog does.
+func clip(radius core.Points, children ...core.Node) core.Node {
+	return core.View{Style: overlay.Merge(core.Style{Overflow: core.Hidden, CornerRadius: radius}), Children: children}
+}
+
 // heading is text read as a heading of level, from 1, by assistive technology: core.Text takes no level, so a view around it carries the role.
 func heading(level int, text core.Node) core.Node {
 	return core.View{Role: core.RoleHeader, AccessibilityLevel: func() int { return level }, Children: []core.Node{text}}

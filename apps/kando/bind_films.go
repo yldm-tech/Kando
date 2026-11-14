@@ -24,17 +24,18 @@ import (
 
 // libraryColumn is the library in the content column (view.go's mainColumn): the film open over it, as the player shows it (filmColumn, bind_film.go), or else the library page. A film is open while openKey names one the shelf or the queue still has (libraryOpenFilm); libraryFollowOpen lets go of one that went.
 func (a *app) libraryColumn(cx *ns.Scope) ns.Node {
-	open := live.Func(a, func() bool {
-		_, ok := a.libraryOpenFilm()
-		return ok
-	})
-	film := live.Func(a, func() films.Film {
-		item, _ := a.libraryOpenFilm()
-		return item
+	// One memo looks the open film up once a change, and tells the page only when the film or whether one is open changed.
+	type openFilm struct {
+		item films.Film
+		ok   bool
+	}
+	current := live.Memo(cx, a, func() openFilm {
+		item, ok := a.libraryOpenFilm()
+		return openFilm{item, ok}
 	})
 	return ns.Show{
-		When: open,
-		Then: func(cx *ns.Scope) ns.Node { return a.filmColumn(cx, film) },
+		When: func() bool { return current().ok },
+		Then: func(cx *ns.Scope) ns.Node { return a.filmColumn(cx, func() films.Film { return current().item }) },
 		Else: func(*ns.Scope) ns.Node { return films.View{App: a} },
 	}
 }

@@ -125,14 +125,14 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		LabelFunc: func() string { return filmName(item()) },
 		Hint:      locales.FilmsHeroKicker(cx),
 		OnPress:   live.On(a, func(ns.PressEvent) { a.Open(item()) }),
-		Style: ns.Style{Height: ns.Pt(360), CornerRadius: 18, Overflow: ns.Hidden, Cursor: ns.CursorDefault,
+		Style: ns.Style{Height: ns.Pt(360), CornerRadius: 18, Cursor: ns.CursorDefault,
 			Shadows: []ns.BoxShadow{{Offset: ns.Point{Y: 12}, Blur: 32, Color: ns.RGBA(0x000000, 0.16)}}},
 		StyleFunc: func() ns.Style { return ns.Style{Background: posterColor(item().Key)} },
-		Children: []ns.Node{
+		Children: []ns.Node{clip(18,
 			cover(live.Func(a, func() ns.ImageSource { return a.Poster(item().VideoPath) })),
 			ns.View{PointerEvents: ns.PointerEventsNone, Style: overlay.Merge(ns.Style{Gradients: []ns.Gradient{heroShade}})},
 			text,
-		},
+		)},
 	}
 	return ns.View{
 		OnContextMenu: func(e ns.ContextMenuEvent) { nsdesktop.PopupMenu(cx, filmMenu(cx, a, item()), e.PagePosition, nil) },

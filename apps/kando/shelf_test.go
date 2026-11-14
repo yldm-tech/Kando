@@ -48,6 +48,46 @@ func TestMissingLibraryFollowsTheRenamedBundle(t *testing.T) {
 	}
 }
 
+// TestShelfTimerWakesOnlyForAMovedLibrary checks what the shelf's one-second timer reports to the window: a library renamed in Finder, but not one that stays where it was, nor one that is gone for good or on a drive that is not plugged in, which would wake the whole window every second.
+func TestShelfTimerWakesOnlyForAMovedLibrary(t *testing.T) {
+	if _, _, ok := media.IdentifyDir(t.TempDir()).Parts(); !ok {
+		t.Skip("this system keeps no folder identity, so the shelf cannot follow a rename")
+	}
+	parent := t.TempDir()
+	open, other := filepath.Join(parent, "影视库.kando"), filepath.Join(parent, "旅行.kando")
+	for _, dir := range []string{open, other} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unplugged := filepath.Join(t.TempDir(), "gone", "外接盘.kando")
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, other, unplugged}
+	})
+	a.rememberLibrary(open)
+	a.rememberLibrary(other)
+	a.rememberID(unplugged, media.MakeDirID(7, 99))
+	if shelfLibraryMoved(a.store.Get()) {
+		t.Fatal("the timer reports a library that stayed where it was, or one that is away")
+	}
+	renamed := filepath.Join(parent, "旅行 2024.kando")
+	if err := os.Rename(other, renamed); err != nil {
+		t.Fatal(err)
+	}
+	if !shelfLibraryMoved(a.store.Get()) {
+		t.Fatal("the timer does not report a library renamed in Finder")
+	}
+	if !a.syncRenamedLibraries() || !containsPath(a.knownLibraries(), renamed) {
+		t.Fatalf("the rename was not followed: %v", a.knownLibraries())
+	}
+	if shelfLibraryMoved(a.store.Get()) {
+		t.Fatal("the timer keeps reporting once the rename was followed")
+	}
+}
+
 func TestRenameMovesTheInodeWithTheLibrary(t *testing.T) {
 	parent := t.TempDir()
 	old := filepath.Join(parent, "影视库.kando")

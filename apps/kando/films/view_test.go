@@ -239,6 +239,48 @@ func TestCardsStayWhileTheAppChanges(t *testing.T) {
 	}
 }
 
+// A view that clips its children clips its own outer shadow on Apple's targets, so the hero and the posters cast their shadows from a view that does not clip, and clip their picture in a view inside it.
+func TestShadowsAreNotClipped(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	for _, id := range []string{"id:films-hero", "id:film-done"} {
+		card := app.Find(id)
+		if card.Style.Effects == nil || len(card.Style.Effects.Shadows) == 0 {
+			t.Fatalf("%s casts no shadow: %+v", id, card.Style)
+		}
+		if card.Style.Clip {
+			t.Fatalf("%s clips, so on a Mac it loses its shadow", id)
+		}
+		if len(card.Children) == 0 || !card.Children[0].Style.Clip || card.Children[0].Style.CornerRadius != card.Style.CornerRadius {
+			t.Fatalf("%s does not clip its picture to its corners inside it", id)
+		}
+	}
+}
+
+func TestShowAllStaysWhileAJobRuns(t *testing.T) {
+	a := newFakeApp()
+	for i := range QueueShown {
+		key := "waiting-" + string(rune('a'+i))
+		a.queue = append(a.queue, Film{Key: key, JobID: key, Title: key, Name: key, Source: "https://youtu.be/" + key, Stage: core.StageQueued})
+	}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.FilmsQueueShowAll(QueueShown + 1))) {
+		t.Fatalf("no 显示全部 for %d cards: %q", QueueShown+1, app.Texts())
+	}
+	button := app.Find("id:queue-more").ID
+	// Progress and changes elsewhere leave the button, and the keyboard focus on it, alone.
+	change(app, a, func() { a.items[2].Progress = core.Fraction(0.42) })
+	change(app, a, func() {})
+	if app.Find("id:queue-more").ID != button {
+		t.Fatal("a progress report built 显示全部 again")
+	}
+	app.Press("id:queue-more")
+	if !app.Exists(whole(msgs.FilmsQueueCollapse())) || !app.Exists("id:queue-waiting-f") {
+		t.Fatalf("显示全部 did not show every card: %q", app.Texts())
+	}
+}
+
 func TestFilmMenuOffersWhatCanBeDone(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)

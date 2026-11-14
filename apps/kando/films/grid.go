@@ -88,9 +88,9 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 		TestID:    "film-" + item().Key,
 		LabelFunc: name,
 		OnPress:   live.On(a, func(core.PressEvent) { a.Open(item()) }),
-		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: 13, Overflow: core.Hidden, Background: thumbFill, BorderWidth: 0.5, BorderColor: posterHairline,
+		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: 13, Background: thumbFill, BorderWidth: 0.5, BorderColor: posterHairline,
 			Shadows: posterShadow, Cursor: core.CursorDefault, Hover: &core.Style{Shadows: posterLifted, Transform: core.Transform{Scale: 1.015}}},
-		Children: []core.Node{
+		Children: []core.Node{clip(13,
 			cover(live.Func(a, func() core.ImageSource { return a.Poster(item().VideoPath) })),
 			core.Show{When: func() bool { return item().Language != "" }, Then: func(*core.Scope) core.Node {
 				return posterChip(func() string {
@@ -101,7 +101,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 			core.Show{When: func() bool { return duration() != "" }, Then: func(*core.Scope) core.Node {
 				return posterChip(duration, core.Style{Right: core.Pt(9), Bottom: core.Pt(9), FontWeight: ui.Semibold, FontVariant: core.FontTabularNums})
 			}},
-		},
+		)},
 	}
 	meta := core.Text{ContentFunc: live.Func(a, func() string { return doneMeta(locales.For(cx), a, item()) }), MaxLines: 2, EllipsizeMode: core.EllipsizeTail,
 		Style: core.Style{FontSize: 12}, StyleFunc: ui.Colored(colors.Muted)}
