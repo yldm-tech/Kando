@@ -372,7 +372,7 @@ func TestDroppedFilesGoToTheApp(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
 	app.DropFiles("id:films-page", "file:///Users/me/Movies/talk.mp4", "https://example.com/not-a-file")
-	wantCalls(t, a, "drop /Users/me/Movies/talk.mp4")
+	wantCalls(t, a, "drop "+filepath.FromSlash("/Users/me/Movies/talk.mp4"))
 	if app.Exists("id:films-drop-zone") {
 		t.Fatal("the drop zone stayed after the drop")
 	}

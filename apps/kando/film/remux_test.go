@@ -35,20 +35,21 @@ func TestRemuxPathFollowsTheVideo(t *testing.T) {
 	if err := os.WriteFile(video, []byte("one"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	first, err := RemuxPath("/cache", video, RemuxCopy)
-	if err != nil || filepath.Dir(first) != "/cache" || filepath.Ext(first) != ".mp4" {
+	cache := filepath.FromSlash("/cache")
+	first, err := RemuxPath(cache, video, RemuxCopy)
+	if err != nil || filepath.Dir(first) != cache || filepath.Ext(first) != ".mp4" {
 		t.Fatalf("copy at %q, %v", first, err)
 	}
-	if again, _ := RemuxPath("/cache", video, RemuxCopy); again != first {
+	if again, _ := RemuxPath(cache, video, RemuxCopy); again != first {
 		t.Fatalf("the same video copies to %q and %q", first, again)
 	}
-	if encoded, _ := RemuxPath("/cache", video, RemuxEncode); encoded == first {
+	if encoded, _ := RemuxPath(cache, video, RemuxEncode); encoded == first {
 		t.Fatal("the encoded copy takes the copied one's place")
 	}
 	if err := os.WriteFile(video, []byte("changed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if changed, _ := RemuxPath("/cache", video, RemuxCopy); changed == first {
+	if changed, _ := RemuxPath(cache, video, RemuxCopy); changed == first {
 		t.Fatal("a changed video kept its old copy's name")
 	}
 	if _, err := RemuxPath("/cache", filepath.Join(dir, "gone.mkv"), RemuxCopy); err == nil {

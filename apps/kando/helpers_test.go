@@ -170,11 +170,11 @@ func typeFocused(t *testing.T, tt *nsgotest.App, s string) {
 	t.Fatalf("no text field has the focus\n%s", tt.Dump())
 }
 
-// fileURLs are paths as a drop from the file manager carries them.
+// fileURLs are paths as a drop from the file manager carries them: file: URLs, escaped, with a Windows drive after the slash (file:///C:/Users/…), as each platform reports them.
 func fileURLs(paths ...string) []string {
 	out := make([]string, len(paths))
 	for i, p := range paths {
-		out[i] = "file://" + filepath.ToSlash(p)
+		out[i] = core.FileURL(p)
 	}
 	return out
 }

@@ -69,9 +69,9 @@ func explorerSelectLine(path string) string {
 	return `explorer.exe /select,"` + path + `"`
 }
 
-// fileURI is path as a file: URI, its special characters escaped.
+// fileURI is path, a Linux path, as a file: URI, its special characters escaped. A backslash is a character of the name there, not a separator, so it is escaped like any other, whatever system the code runs on.
 func fileURI(path string) string {
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+	return (&url.URL{Scheme: "file", Path: path}).String()
 }
 
 // gvariantString is s as a GVariant text string: in single quotes, with its backslashes and single quotes escaped.

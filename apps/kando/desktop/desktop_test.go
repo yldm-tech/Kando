@@ -96,8 +96,13 @@ func TestRevealSelectsTheItem(t *testing.T) {
 	if errs[0] != nil || len(*ran) != 1 || len(app.OpenedFiles) != 0 {
 		t.Fatalf("done heard %v, ran %v, opened %+v", errs, *ran, app.OpenedFiles)
 	}
-	if cmd := (*ran)[0]; !strings.Contains(strings.Join(cmd.Args, " ")+" "+commandLine(cmd), film) {
-		t.Fatalf("the file manager was not given %s: %q", film, cmd.Args)
+	// Linux's file managers take the item as a file: URI (showItemsCommand), the others its path.
+	want := film
+	if runtime.GOOS == "linux" {
+		want = fileURI(film)
+	}
+	if cmd := (*ran)[0]; !strings.Contains(strings.Join(cmd.Args, " ")+" "+commandLine(cmd), want) {
+		t.Fatalf("the file manager was not given %s: %q", want, cmd.Args)
 	}
 }
 

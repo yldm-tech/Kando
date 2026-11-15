@@ -2,6 +2,7 @@ package film
 
 import (
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -328,7 +329,7 @@ func TestPanelTabsAndTheStyleView(t *testing.T) {
 		t.Fatalf("the info tab lists %q", texts)
 	}
 	app.Press("id:film-info-file-talk.mp4")
-	if !slices.Contains(a.calls, "reveal /films/talk/talk.mp4") {
+	if !slices.Contains(a.calls, "reveal "+filepath.Join("/films/talk", "talk.mp4")) {
 		t.Fatalf("revealing the video called %q", a.calls)
 	}
 	app.Press("id:film-tab-style")
