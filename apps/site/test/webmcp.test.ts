@@ -37,7 +37,7 @@ describe("page data", () => {
       for (const al of data.langs) {
         const c = JSON.parse(readFileSync(outFile(al.content), "utf8")) as AgentContent;
         // get_started's links download this release's files, as the page's buttons do: the macOS one the disk image for Apple silicon.
-        expect(c.start.steps[0]?.link?.url, al.code).toBe(`${releasesURL}/download/v${version}/kando-${version}-arm64.dmg`);
+        expect(c.start.steps[0]?.link?.url, al.code).toBe(`${releasesURL}/download/v${version}/kando-${version}-macos-arm64.dmg`);
       }
       expect(existsSync(outFile(data.sites))).toBe(true);
       const rel = data.release;
@@ -59,16 +59,18 @@ describe("page data", () => {
 it("offers the files the Release workflow publishes", () => {
   const rel = releaseDownloads("0.1.0");
   expect(rel.downloads.map((d) => `${d.platform}/${d.arch} ${d.name}`)).toEqual([
-    "macos/arm64 kando-0.1.0-arm64.dmg",
-    "macos/amd64 kando-0.1.0-amd64.dmg",
-    "linux/amd64 kando_0.1.0_amd64.deb",
-    "linux/amd64 kando-0.1.0-linux-amd64.tar.gz",
-    "linux/arm64 kando_0.1.0_arm64.deb",
-    "linux/arm64 kando-0.1.0-linux-arm64.tar.gz",
-    "windows/amd64 kando-setup-0.1.0-amd64.exe",
-    "windows/arm64 kando-setup-0.1.0-arm64.exe",
+    "macos/arm64 kando-0.1.0-macos-arm64.dmg",
+    "macos/amd64 kando-0.1.0-macos-x64.dmg",
+    "linux/amd64 kando-0.1.0-linux-x64.deb",
+    "linux/amd64 kando-0.1.0-linux-x64.pkg.tar.gz",
+    "linux/amd64 kando-0.1.0-linux-x64.AppImage",
+    "linux/arm64 kando-0.1.0-linux-arm64.deb",
+    "linux/arm64 kando-0.1.0-linux-arm64.pkg.tar.gz",
+    "linux/arm64 kando-0.1.0-linux-arm64.AppImage",
+    "windows/amd64 kando-0.1.0-windows-x64-setup.exe",
+    "windows/arm64 kando-0.1.0-windows-arm64-setup.exe",
   ]);
-  expect(rel.install["tar.gz"]).toContain(`${releasesURL}/download/v0.1.0/install.sh`);
+  expect(rel.install.AppImage).toContain(`${releasesURL}/download/v0.1.0/install.sh`);
 });
 
 it("writes the app's whole catalog to webmcp/sites.json", () => {

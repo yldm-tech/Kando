@@ -1,4 +1,4 @@
-// TestStructuredData: every page but 404.html carries one JSON-LD data block that the build's schemas accept: the app with the version of mygo.json, its publisher and the site in the page's language; a home page's FAQPage asks and answers what its FAQ section shows, and a sites page's BreadcrumbList leads back to its home page. The block is data, not script, so the page's policy names no hash for it.
+// TestStructuredData: every page but 404.html carries one JSON-LD data block that the build's schemas accept: the app with the version of nsgo.yaml, its publisher and the site in the page's language; a home page's FAQPage asks and answers what its FAQ section shows, and a sites page's BreadcrumbList leads back to its home page. The block is data, not script, so the page's policy names no hash for it.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vite-plus/test";

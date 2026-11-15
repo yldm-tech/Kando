@@ -2,15 +2,25 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { IntlMessageFormat } from "intl-messageformat";
+import { parse } from "yaml";
 import { clock, demoLineSeconds, demoLines, ratingSteps, type Language } from "../src/lib/site";
-import { issues, readJSON } from "./content";
+import { issues } from "./content";
 import { appCatalogSchema, appKeys, appStringsSchema, manifestSchema, modelSchema, type AppKey, type Model } from "./schema";
 
-// appVersion is the version in apps/kando/mygo.json, which the Release workflow tags and publishes.
+// readYAML reads the YAML file at path: the app's nsgo.yaml or one of its catalogs.
+function readYAML(path: string): unknown {
+  try {
+    return parse(readFileSync(path, "utf8"));
+  } catch (err) {
+    throw new Error(`${path}: ${(err as Error).message}`, { cause: err });
+  }
+}
+
+// appVersion is the version in apps/kando/nsgo.yaml, which the Release workflow tags and publishes.
 export function appVersion(root: string): string {
-  const res = manifestSchema.safeParse(readJSON(join(root, "apps/kando/mygo.json")));
+  const res = manifestSchema.safeParse(readYAML(join(root, "apps/kando/nsgo.yaml")));
   if (!res.success) {
-    throw issues("apps/kando/mygo.json", res.error);
+    throw issues("apps/kando/nsgo.yaml", res.error);
   }
   return res.data.version;
 }
@@ -67,31 +77,33 @@ export function readModels(root: string): Model[] {
   return models;
 }
 
-// modelName is how apps/kando/settings/speech.go's SpeechModelName names a model: a literal name, or an app string (by its key) where the name is translated.
+// modelName is how apps/kando/settings/speech.go's SpeechModelNameIn names a model: a literal name, or an app string (by its key) where the name is translated.
 export type ModelName = { literal: string } | { appKey: string };
 
-const nameRe = /case "([a-z0-9-]+)":\s*return ("([^"]+)"|locales\.(\w+)\(\))/g;
+// nameRe is a case of the switch: a literal name, or a string of the app's catalogs, called on the Messages m it is given or, for a function under a scope, as locales.X(cx).
+const nameRe = /case "([a-z0-9-]+)":\s*return ("([^"]+)"|locales\.(\w+)\((?:cx)?\)|m\.(\w+)\(\))/g;
 
-// readModelNames reads SpeechModelName and checks that it names every model.
+// readModelNames reads SpeechModelNameIn, which SpeechModelName calls with the language of its scope, and checks that it names every model.
 export function readModelNames(root: string, models: Model[]): Map<string, ModelName> {
   const file = "apps/kando/settings/speech.go";
   const src = readFileSync(join(root, file), "utf8");
-  const start = src.indexOf("func SpeechModelName(");
+  const start = src.indexOf("func SpeechModelNameIn(");
   if (start < 0) {
-    throw new Error(`${file}: no func SpeechModelName`);
+    throw new Error(`${file}: no func SpeechModelNameIn`);
   }
   const body = src.slice(start, src.indexOf("\n}\n", start));
   const names = new Map<string, ModelName>();
   for (const m of body.matchAll(nameRe)) {
-    const [, id, , literal, fn] = m;
+    const [, id, , literal, scoped, given] = m;
     if (!id) {
       continue;
     }
-    names.set(id, literal !== undefined ? { literal } : { appKey: (fn ?? "").charAt(0).toLowerCase() + (fn ?? "").slice(1) });
+    const fn = scoped ?? given ?? "";
+    names.set(id, literal !== undefined ? { literal } : { appKey: fn.charAt(0).toLowerCase() + fn.slice(1) });
   }
   for (const model of models) {
     if (!names.has(model.id)) {
-      throw new Error(`${file}: SpeechModelName does not name the whisper model ${model.id}`);
+      throw new Error(`${file}: SpeechModelNameIn does not name the whisper model ${model.id}`);
     }
   }
   return names;
@@ -131,17 +143,18 @@ export function statsWords(file: string, format: (values: Record<string, string>
   return words;
 }
 
-// loadAppStrings reads the app catalog of l (apps/kando/locales/<app>.json) and formats the strings the page shows. The app writes its strings in ICU MessageFormat, as filmSkipBack's English plural, so they are formatted as the app formats them rather than by replacing names.
+// loadAppStrings reads the app catalog of l (apps/kando/locales/<app>.yaml) and formats the strings the page shows. The app writes its strings in ICU MessageFormat, as filmSkipBack's English plural, so they are formatted as the app formats them rather than by replacing names.
 export function loadAppStrings(root: string, l: Language, models: readonly Model[], modelNames: Map<string, ModelName>): AppStrings {
-  const file = `apps/kando/locales/${l.app}.json`;
-  const raw = appCatalogSchema.safeParse(readJSON(join(root, file)));
+  const file = `apps/kando/locales/${l.app}.yaml`;
+  const raw = appCatalogSchema.safeParse(readYAML(join(root, file)));
   if (!raw.success) {
     throw issues(file, raw.error);
   }
   const all: Record<string, string> = {};
   for (const [key, v] of Object.entries(raw.data)) {
-    if (!key.startsWith("@") && typeof v === "string") {
-      all[key] = v;
+    const message = appMessage(v);
+    if (message !== undefined) {
+      all[key] = message;
     }
   }
   const picked = appStringsSchema.safeParse(Object.fromEntries(appKeys.map((k) => [k, all[k]])));
@@ -180,4 +193,15 @@ export function loadAppStrings(root: string, l: Language, models: readonly Model
   const modelWords = statsWords(file, (values) => format("settingsSpeechModelStats", values));
   const modelStats = Object.fromEntries(models.map((m) => [m.id, stats(m)]));
   return { app, clipSpans, modelNames: names, modelWords, modelStats };
+}
+
+// appMessage is the text of a catalog entry: the translation itself in a translated catalog, or the message of the source catalog's entry, which also holds its description and placeholders. Anything else, as the words of NSGo's own packages that a catalog translates under their import paths, is no string of the app's.
+function appMessage(entry: unknown): string | undefined {
+  if (typeof entry === "string") {
+    return entry;
+  }
+  if (typeof entry === "object" && entry !== null && "message" in entry && typeof entry.message === "string") {
+    return entry.message;
+  }
+  return undefined;
 }

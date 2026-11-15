@@ -15,7 +15,7 @@ it("colours the command, subcommand, flags, links, placeholders and operators", 
     "o:|",
     "k:sh",
   ]);
-  expect(kinds("go tool mygo build apps/kando")).toEqual(["k:go", "s:tool", "u:apps/kando"]);
+  expect(kinds("go tool nsgo build apps/kando")).toEqual(["k:go", "s:tool", "u:apps/kando"]);
   expect(kinds("kando subtitles <film-id> --format text")).toEqual(["k:kando", "s:subtitles", "h:<film-id>", "f:--format"]);
   expect(kinds("# a comment")).toEqual(["c:# a comment"]);
   for (const line of ["curl -fsSL https://x.test/a | sh", "  cd  Kando ", "# note", ""]) {

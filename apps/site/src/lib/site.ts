@@ -16,18 +16,20 @@ export const everyAPIURL = "https://everyapi.ai";
 // readmeBuildURL is the README's Build from source section, where get_download sends a visitor whose system has no build.
 export const readmeBuildURL = repoURL + "#build-from-source";
 
-// The names mygo build gives a release's packages (.github/workflows/package.yml), by version and architecture (arm64 or amd64).
-export const macDisk = (version: string, arch: string) => `kando-${version}-${arch}.dmg`;
-export const windowsSetup = (version: string, arch: string) => `kando-setup-${version}-${arch}.exe`;
-export const debPackage = (version: string, arch: string) => `kando_${version}_${arch}.deb`;
-export const linuxArchive = (version: string, arch: string) => `kando-${version}-linux-${arch}.tar.gz`;
+// The names nsgo build gives a release's packages (.github/workflows/package.yml), by version and architecture: arm64, or amd64 for x86-64, which nsgo build names x64.
+const packageArch = (arch: string) => (arch === "amd64" ? "x64" : arch);
+export const macDisk = (version: string, arch: string) => `kando-${version}-macos-${packageArch(arch)}.dmg`;
+export const windowsSetup = (version: string, arch: string) => `kando-${version}-windows-${packageArch(arch)}-setup.exe`;
+export const debPackage = (version: string, arch: string) => `kando-${version}-linux-${packageArch(arch)}.deb`;
+export const archPackage = (version: string, arch: string) => `kando-${version}-linux-${packageArch(arch)}.pkg.tar.gz`;
+export const appImage = (version: string, arch: string) => `kando-${version}-linux-${packageArch(arch)}.AppImage`;
 
 // releaseFileURL downloads the file name of release version. The site is deployed only once its version is published (.github/workflows/site.yml), so the Download buttons fetch the file straight away rather than opening the release's page.
 export function releaseFileURL(version: string, name: string): string {
   return `${releasesURL}/download/v${version}/${name}`;
 }
 
-// installCommand installs the newest release for the current user with the install.sh mygo build makes, as the Linux tab shows it.
+// installCommand installs the newest release with the install.sh nsgo build makes, as the Linux tab shows it: the Arch package with pacman, else the Debian one with apt, through sudo.
 export const installCommand = "curl -fsSL " + latestURL + "/download/install.sh | sh";
 
 // Language is one page of the site: the interface languages Kando ships, in the order the switcher lists them.

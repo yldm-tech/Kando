@@ -241,7 +241,7 @@
         head += system.platform === "macos" ? " The browser does not say which processor this Mac has. Use arm64 on a Mac with Apple silicon (M1 or later) and amd64 on an Intel Mac; About This Mac shows which." : system.platform === "windows" ? " The browser does not say which processor this PC has. Use amd64 on an x86-64 PC and arm64 on a Windows on Arm PC; Settings › System › About shows which under System type." : " The browser does not say which processor this computer has. Use amd64 on x86-64 and arm64 on ARM64; uname -m prints x86_64 or aarch64.";
       }
       if (system.platform === "linux") {
-        head += " Use the .deb on Debian, Ubuntu and their derivatives, and the .tar.gz anywhere else.";
+        head += " Use the .deb on Debian, Ubuntu and their derivatives, the .pkg.tar.gz on Arch Linux, and the .AppImage anywhere else.";
       }
       var foot = "SHA-256 checksums: " + release.checksums + ". Release page: " + release.page + "." + (system.platform === "windows" ? "" : " On first launch Kando downloads yt-dlp, ffmpeg and whisper-cli when they are missing.");
       return textResult(head + "\n" + lines.join("\n") + "\n" + foot, data);

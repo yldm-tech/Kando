@@ -152,7 +152,7 @@ async function main() {
   let r = await call(tools, "get_download", {});
   assert.equal(r.data.platform, "macos");
   assert.equal(r.data.arch, "");
-  assert.equal(names(r), `kando-${v}-arm64.dmg kando-${v}-amd64.dmg`);
+  assert.equal(names(r), `kando-${v}-macos-arm64.dmg kando-${v}-macos-x64.dmg`);
   assert.match(r.text, /does not say which processor this Mac has/);
   assert.match(r.text, /Open Anyway/);
   for (const d of r.data.downloads) {
@@ -162,30 +162,30 @@ async function main() {
   // Client hints tell Apple silicon.
   const hinted = await load({ userAgent: macUA, userAgentData: appleSilicon });
   r = await call(hinted.tools, "get_download", {});
-  assert.equal(names(r), `kando-${v}-arm64.dmg`);
+  assert.equal(names(r), `kando-${v}-macos-arm64.dmg`);
   assert.equal(r.data.detected.from, "User-Agent Client Hints");
   // An ARM64 Linux's User-Agent says aarch64.
   const linux = await load({ userAgent: linuxArmUA });
   r = await call(linux.tools, "get_download", {});
-  assert.equal(names(r), `kando_${v}_arm64.deb kando-${v}-linux-arm64.tar.gz`);
+  assert.equal(names(r), `kando-${v}-linux-arm64.deb kando-${v}-linux-arm64.pkg.tar.gz kando-${v}-linux-arm64.AppImage`);
   assert.match(r.text, /sudo apt install/);
   assert.match(r.text, /install\.sh/);
   // Asking for another system overrides the visitor's.
   r = await call(tools, "get_download", { platform: "linux", arch: "amd64" });
-  assert.equal(names(r), `kando_${v}_amd64.deb kando-${v}-linux-amd64.tar.gz`);
+  assert.equal(names(r), `kando-${v}-linux-x64.deb kando-${v}-linux-x64.pkg.tar.gz kando-${v}-linux-x64.AppImage`);
   r = await call(tools, "get_download", { platform: "linux" });
-  assert.equal(r.data.downloads.length, 4, "linux without an arch on a Mac lists " + names(r));
+  assert.equal(r.data.downloads.length, 6, "linux without an arch on a Mac lists " + names(r));
   // An x86-64 Windows' User-Agent says Win64; x64: its installer, with SmartScreen's warning and the tools to install by hand.
   const windows = await load({ userAgent: windowsUA });
   r = await call(windows.tools, "get_download", {});
   assert.equal(r.isError, false);
   assert.equal(r.data.platform, "windows");
-  assert.equal(names(r), `kando-setup-${v}-amd64.exe`);
+  assert.equal(names(r), `kando-${v}-windows-x64-setup.exe`);
   assert.match(r.text, /Run anyway/);
   assert.match(r.text, /package manager/);
   assert.doesNotMatch(r.text, /On first launch Kando downloads/);
   r = await call(tools, "get_download", { platform: "windows" });
-  assert.equal(names(r), `kando-setup-${v}-amd64.exe kando-setup-${v}-arm64.exe`);
+  assert.equal(names(r), `kando-${v}-windows-x64-setup.exe kando-${v}-windows-arm64-setup.exe`);
   assert.equal((await call(tools, "get_download", { platform: "freebsd" })).isError, true);
   assert.equal((await call(tools, "get_download", { arch: "x86" })).isError, true);
 

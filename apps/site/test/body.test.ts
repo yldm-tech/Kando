@@ -29,15 +29,15 @@ describe("page body", () => {
         .map((t) => attr(t, "href"))
         .filter((href) => href.startsWith(files))
         .map((href) => href.slice(files.length));
-      const mac = `kando-${version}-arm64.dmg`;
+      const mac = `kando-${version}-macos-arm64.dmg`;
       expect(downloads).toEqual([
         mac,
         mac,
-        `kando-${version}-amd64.dmg`,
-        `kando_${version}_amd64.deb`,
-        `kando_${version}_arm64.deb`,
-        `kando-setup-${version}-amd64.exe`,
-        `kando-setup-${version}-arm64.exe`,
+        `kando-${version}-macos-x64.dmg`,
+        `kando-${version}-linux-x64.deb`,
+        `kando-${version}-linux-arm64.deb`,
+        `kando-${version}-windows-x64-setup.exe`,
+        `kando-${version}-windows-arm64-setup.exe`,
         mac,
       ]);
       expect(tags(html, "a").some((t) => attr(t, "href").endsWith("/releases/latest"))).toBe(false);

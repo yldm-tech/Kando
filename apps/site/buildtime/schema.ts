@@ -44,7 +44,7 @@ export function contentSchema(source: Record<string, string>) {
 // siteNamesSchema is content/sites.<code>.json: the names of the catalog's sites as that language writes them, by domain.
 export const siteNamesSchema = z.record(z.string().min(1), nonEmpty);
 
-// manifestSchema is the part of apps/kando/mygo.json the site reads: the version the Release workflow tags and publishes.
+// manifestSchema is the part of apps/kando/nsgo.yaml the site reads: the version the Release workflow tags and publishes.
 export const manifestSchema = z.object({ version: z.string().regex(/^\d+\.\d+\.\d+/, "is not a version") });
 
 // catalogSiteSchema is a website of apps/kando/sites/catalog/sites.json.
@@ -65,7 +65,7 @@ export const catalogSchema = z.object({
 });
 export type CatalogSite = z.infer<typeof catalogSiteSchema>;
 
-// appCatalogSchema is an app catalog of apps/kando/locales: strings by key, with notes under keys that start with @.
+// appCatalogSchema is an app catalog of apps/kando/locales: by key, a translation, or in the source catalog (en.yaml) its message with a description and placeholders.
 export const appCatalogSchema = z.record(z.string(), z.unknown());
 
 // appKeys are the app's own strings the hero's player and the models section show, so that they say what the app says.

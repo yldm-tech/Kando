@@ -5,8 +5,9 @@ import { join } from "node:path";
 import {
   everyAPIURL,
   installCommand,
+  archPackage,
+  appImage,
   debPackage,
-  linuxArchive,
   macDisk,
   pageURL,
   pagePath,
@@ -31,7 +32,7 @@ export function hashLink(path: string, data: string | Uint8Array): string {
   return path + "?v=" + createHash("sha256").update(data).digest("hex").slice(0, 10);
 }
 
-// releaseDownloads are the packages the Release workflow publishes for version, under the names mygo build gives them (.github/workflows/package.yml): a disk image for each Mac, an installer for each Windows architecture, and for each Linux architecture a Debian package and an archive that the release's install.sh installs.
+// releaseDownloads are the packages the Release workflow publishes for version, under the names nsgo build gives them (.github/workflows/package.yml): a disk image for each Mac, an installer for each Windows architecture, and for each Linux architecture a Debian package, an Arch Linux package and an AppImage.
 export function releaseDownloads(version: string): AgentRelease {
   const tag = "v" + version;
   const base = releaseFileURL(version, "");
@@ -43,7 +44,8 @@ export function releaseDownloads(version: string): AgentRelease {
   }
   for (const arch of ["amd64", "arm64"]) {
     add("linux", arch, "deb", debPackage(version, arch));
-    add("linux", arch, "tar.gz", linuxArchive(version, arch));
+    add("linux", arch, "pkg.tar.gz", archPackage(version, arch));
+    add("linux", arch, "AppImage", appImage(version, arch));
   }
   for (const arch of ["amd64", "arm64"]) {
     add("windows", arch, "exe", windowsSetup(version, arch));
@@ -57,10 +59,11 @@ export function releaseDownloads(version: string): AgentRelease {
     install: {
       dmg: "Open the disk image and drag Kando to Applications. Releases newer than 0.5.1 are signed with a Developer ID and notarized, so macOS opens them without a warning. 0.5.1 and earlier are not: on macOS 15 and later open it once, then choose System Settings › Privacy & Security › Open Anyway; on macOS 14 and earlier Control-click Kando in Applications and choose Open; or run xattr -dr com.apple.quarantine /Applications/Kando.app in Terminal.",
       deb: "On Debian, Ubuntu and their derivatives, run sudo apt install ./<file name> in the folder it was downloaded to.",
-      "tar.gz":
-        "On other distributions, download " +
+      "pkg.tar.gz": "On Arch Linux and its derivatives, run sudo pacman -U <file name> in the folder it was downloaded to.",
+      AppImage:
+        "On any other distribution with GTK 4, make it executable with chmod +x <file name> and run it; it needs no installing. The release's install.sh installs the Arch or the Debian package for you: curl -fsSL " +
         base +
-        "install.sh into the same folder as the archive and run sh install.sh there. It installs Kando into ~/.local for the current user, without root, and adds it to the applications menu; sh install.sh --uninstall removes it.",
+        "install.sh | sh.",
       exe: "Run the installer. It is not signed yet, so SmartScreen may warn before it runs: choose More info, then Run anyway. On Windows Kando does not download yt-dlp, ffmpeg and whisper-cli yet: install them with a package manager and put them on PATH.",
     },
   };
