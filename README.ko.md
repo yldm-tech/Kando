@@ -12,7 +12,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · 한국어
 
-Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공부하는 데스크톱 앱입니다. YouTube나 Bilibili 링크를 붙여 넣거나 동영상 파일을 창에 끌어다 놓으면, Kando가 yt-dlp로 동영상을 내려받고, whisper.cpp로 사용자의 컴퓨터에서 음성을 전사하고, OpenAI 호환 모델로 각 대사를 번역한 뒤, 원문 대사와 번역을 화면에 함께 띄워 원본 동영상을 재생합니다. Go로 작성되었고 [MyGo](https://github.com/egoist/mygo)와 [Breeze UI](https://github.com/yldm-tech/mygo-breeze-ui)로 네이티브 인터페이스를 렌더링하며, 웹 뷰는 사용하지 않습니다.
+Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공부하는 데스크톱 앱입니다. YouTube나 Bilibili 링크를 붙여 넣거나 동영상 파일을 창에 끌어다 놓으면, Kando가 yt-dlp로 동영상을 내려받고, whisper.cpp로 사용자의 컴퓨터에서 음성을 전사하고, OpenAI 호환 모델로 각 대사를 번역한 뒤, 원문 대사와 번역을 화면에 함께 띄워 원본 동영상을 재생합니다. Go로 작성되었고 [NSGo](https://github.com/nsgo-dev/nsgo)로 네이티브 인터페이스를 렌더링하며, 웹 뷰는 사용하지 않습니다.
 
 ![라이브러리: 가장 최근 영상, 진행 중인 작업, 라이브러리의 영상](docs/assets/ko/library.png)
 
@@ -44,18 +44,21 @@ Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공
 
 macOS(Apple 실리콘과 Intel), Windows(x86-64와 ARM64), Linux(x86-64와 ARM64)용 빌드는 [GitHub Releases](https://github.com/yldm-tech/Kando/releases)에 있습니다. 사용하는 시스템에 맞는 파일을 고르세요. `<version>`은 릴리스의 버전(예: `0.5.0`)입니다.
 
-- macOS: Apple 실리콘 Mac은 `kando-<version>-arm64.dmg`, Intel Mac은 `kando-<version>-amd64.dmg`. 디스크 이미지를 열고 Kando를 응용 프로그램 폴더로 드래그합니다.
-- Windows: 대부분의 PC는 `kando-setup-<version>-amd64.exe`, Arm 기반 Windows PC는 `kando-setup-<version>-arm64.exe`. 설치 프로그램을 실행합니다. 아직 서명되지 않아 실행 전에 SmartScreen 경고가 뜰 수 있으니, ‘추가 정보’를 누른 뒤 ‘실행’을 누르세요.
-- Debian, Ubuntu와 그 파생 배포판: x86-64는 `kando_<version>_amd64.deb`, ARM64는 `kando_<version>_arm64.deb`. 내려받은 폴더에서 `sudo apt install ./kando_<version>_<arch>.deb`로 설치합니다.
-- 그 밖의 Linux 배포판: 릴리스의 설치 스크립트를 실행합니다. 패키지를 직접 내려받을 필요가 없습니다.
+- macOS: Apple 실리콘 Mac은 `kando-<version>-macos-arm64.dmg`, Intel Mac은 `kando-<version>-macos-x64.dmg`. 디스크 이미지를 열고 Kando를 응용 프로그램 폴더로 드래그합니다.
+- Windows: 대부분의 PC는 `kando-<version>-windows-x64-setup.exe`, Arm 기반 Windows PC는 `kando-<version>-windows-arm64-setup.exe`. 설치 프로그램을 실행합니다. 아직 서명되지 않아 실행 전에 SmartScreen 경고가 뜰 수 있으니, ‘추가 정보’를 누른 뒤 ‘실행’을 누르세요.
+- Debian, Ubuntu와 그 파생 배포판: x86-64는 `kando-<version>-linux-x64.deb`, ARM64는 `kando-<version>-linux-arm64.deb`. 내려받은 폴더에서 `sudo apt install ./kando-<version>-linux-<arch>.deb`로 설치합니다.
+- Arch Linux와 그 파생 배포판: `kando-<version>-linux-<arch>.pkg.tar.gz`를 `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz`로 설치합니다.
+- 그 밖의 Linux 배포판: `kando-<version>-linux-<arch>.AppImage`는 설치 없이 실행됩니다. `chmod +x`로 실행 권한을 준 뒤 여세요. GTK 4는 시스템에 있는 것을 씁니다.
 
-  ```sh
-  curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
-  ```
+릴리스의 설치 스크립트를 실행해도 됩니다. 컴퓨터에 맞는 패키지를 내려받아 `.sha256`으로 확인한 뒤 설치합니다. macOS에서는 디스크 이미지의 앱을 `/Applications`(쓸 수 없으면 `~/Applications`)에, Linux에서는 `pacman`이 있으면 Arch 패키지를, 없으면 `apt`로 Debian 패키지를, 모두 `sudo`로 설치합니다.
 
-  컴퓨터에 맞는 최신 `kando-<version>-linux-<arch>.tar.gz`를 내려받아 서명을 확인하고, root 없이 현재 사용자에게만 Kando를 설치합니다. 앱은 `~/.local/kando.app`에, `kando` 명령은 `~/.local/bin`에 놓이고, 응용 프로그램 메뉴에도 항목이 추가됩니다. 서명을 확인하려면 OpenSSL 3.0 이상(Debian 12, Ubuntu 22.04, Fedora 36 이상)이 필요합니다. 그보다 오래된 OpenSSL에서는 스크립트가 아무것도 내려받지 않고 그 사실을 알려 줍니다. 이때는 같은 릴리스에서 컴퓨터에 맞는 `.tar.gz`와 `install.sh`를 파일 이름을 바꾸지 말고 같은 폴더에 내려받은 뒤 그 폴더에서 `sh install.sh`를 실행하세요. `.tar.gz`의 경로를 넘겨 `sh install.sh <아카이브>`로 실행해도 됩니다. 어느 쪽이든 그 아카이브를 서명 확인 없이 설치합니다. 스크립트를 다시 실행하면 새 버전을 덮어 설치하고, `sh install.sh --uninstall`은 설정과 라이브러리를 남기고 Kando를 제거합니다.
+```sh
+curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
+```
 
-릴리스의 나머지 파일은 설치용이 아닙니다. `checksums.txt`는 모든 파일의 SHA-256 목록이고, `update-*.json` 매니페스트, `.delta` 파일, `darwin`과 `windows` 아카이브는 설치된 Kando가 스스로 업데이트할 때 내려받는 파일입니다([업데이트](#updates) 참고).
+Windows에서는 PowerShell에서 `irm https://github.com/yldm-tech/Kando/releases/latest/download/install.ps1 | iex`를 실행하면 설치 프로그램을 조용히 실행합니다. 스크립트를 다시 실행하면 설치된 버전 위에 최신 버전을 덮어 설치합니다.
+
+릴리스의 나머지 파일은 설치용이 아닙니다. `checksums.txt`는 모든 파일의 SHA-256 목록이고, 각 파일 옆의 `.sha256`은 설치 스크립트가 그 파일을 확인할 때 쓰며, `appcast-*.xml`은 설치된 Kando가 업데이트를 확인할 때 읽는 피드입니다([업데이트](#updates) 참고).
 
 0.5.1 이후 릴리스의 macOS 디스크 이미지는 YLDM의 Developer ID로 서명되고 Apple의 공증을 받았으므로 macOS가 경고 없이 Kando를 엽니다.
 
@@ -67,7 +70,7 @@ Kando는 GitHub에 있는 서명된 릴리스로 스스로 업데이트합니다
 
 바로 확인하려면 macOS에서는 메뉴 막대의 Kando › 업데이트 확인…을 선택합니다. 메뉴 막대가 없는 Linux와 Windows에서는 명령 팔레트(Ctrl+K)에서 업데이트 확인…을 선택합니다. 설정 › 일반의 버전 옆에도 업데이트 확인… 버튼이 있으며, 그 아래에 마지막 확인에서 찾은 새 버전이나 마지막으로 확인한 시각이 표시됩니다. 자동으로 업데이트 확인, 자동으로 업데이트 다운로드 및 설치 스위치도 설정 › 일반에 있습니다. 업데이트를 내려받는 것은 백그라운드 확인뿐이므로 두 번째 스위치는 첫 번째 스위치가 켜져 있을 때만 나타납니다. 두 번째 스위치를 켜면 백그라운드 확인에서 찾은 새 버전을 묻지 않고 설치하며, 다음에 Kando를 실행할 때 새 버전이 열립니다.
 
-자기 파일을 바꿀 수 없는 Kando는 스스로 업데이트하지 않습니다. `.deb`와 `PKGBUILD`가 그렇습니다. 둘 다 패키지 관리자가 관리하는 `/opt/kando`에 Kando를 설치하는데 Kando용 apt 저장소는 없으므로, 업데이트하려면 릴리스에서 새 `.deb`를 내려받아 같은 방법으로 설치하거나, 위의 설치 스크립트로 바꾸세요. 스크립트가 `~/.local/kando.app`에 설치한 Kando는 스스로 업데이트합니다. 이렇게 설치한 Kando에서는 설정 › 일반에 스위치가 나타나지 않고, 업데이트 확인…은 업데이트할 수 없는 이유를 알려 주는 창을 엽니다.
+자기 파일을 바꿀 수 없는 Kando는 스스로 업데이트하지 않습니다. Linux에서는 어떤 방법으로 설치해도 그렇습니다. `.deb`와 Arch 패키지는 패키지 관리자가 관리하는 `/opt/kando`에 Kando를 설치하는데 Kando용 apt나 pacman 저장소는 없으므로, 새 버전이 나오면 Kando가 그 릴리스 페이지를 엽니다. 처음 설치한 방법대로 새 패키지를 설치하거나 설치 스크립트를 다시 실행하세요.
 
 ### 소스에서 빌드
 
@@ -79,7 +82,7 @@ cd Kando
 make build
 ```
 
-`make build`는 현재 플랫폼용으로 `go tool mygo build apps/kando`를 실행하고 결과물을 `apps/kando/build/<os>-<arch>/` 아래에 생성합니다. macOS에서는 ad-hoc 서명된 `Kando.app`과 `.dmg`가, 다른 플랫폼에서는 실행 파일이 만들어집니다(Linux에서는 `.deb`, 설치 스크립트가 든 `.tar.gz`, `PKGBUILD`도, Windows에서는 NSIS로 만든 설치 프로그램도 만들어집니다. NSIS가 설치되어 있지 않으면 mygo가 내려받습니다). 기본 Windows처럼 `make`가 없는 환경에서는 저장소 루트에서 `go tool mygo build apps/kando`를 직접 실행하세요.
+`make build`는 현재 플랫폼용으로 `go tool nsgo build`를 실행하고(`make build TARGET=windows_x64`처럼 `TARGET=`으로 다른 플랫폼도 빌드합니다), 앱은 `apps/kando/build/`에, 배포할 파일은 `apps/kando/build/releases/`에 생성합니다. macOS에서는 ad-hoc 서명된 `Kando.app`과 `.dmg`가, Windows에서는 프로그램과, `makensis`가 설치되어 있으면 NSIS 설치 프로그램(없으면 어느 시스템에서나 컴파일할 수 있는 `.nsi` 스크립트)이, Linux에서는 프로그램, `.deb`, Arch용 `.pkg.tar.gz`, `.AppImage`가 만들어집니다. 릴리스와 마찬가지로 `GOFLAGS=-tags=nodra_nomygo`를 설정해 앱이 쓰지 않는 코드를 넣지 않습니다. 기본 Windows처럼 `make`가 없는 환경에서는 저장소 루트에서 `go tool nsgo build -target windows_x64 apps/kando`를 직접 실행하세요.
 
 ## 요구 사항
 
@@ -122,7 +125,7 @@ Kando 프로그램은 명령줄 `kando`이자 AI 에이전트용 MCP 서버이�
 `kando` 명령을 쓰려면:
 
 - macOS: Kando를 응용 프로그램 폴더로 옮긴 다음, 설정 › 일반에서 명령줄 도구 옆의 설치를 클릭합니다. `/usr/local/bin`, `/opt/homebrew/bin`, `~/.local/bin` 중 처음으로 쓸 수 있는 폴더에 Kando를 가리키는 `kando` 링크를 만들며, 관리자 암호를 묻지 않고 다른 프로그램의 `kando`는 바꾸지 않습니다. 디스크 이미지에서 바로 열었거나, 다운로드 후 macOS가 임시 위치로 옮겨 실행할 때(App Translocation)는 Kando의 경로가 곧 사라지므로, 카드는 곧 끊어질 링크를 만드는 대신 먼저 Kando를 옮기라고 안내합니다. 직접 링크를 만들 수도 있습니다: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`.
-- Linux: `.deb`와 `PKGBUILD`는 앱을 `/opt/kando`에 설치하고 `/opt/kando/kando`를 가리키는 링크 `/usr/bin/kando`를 추가합니다. 설치 스크립트([다운로드](#download) 참고)는 앱을 `~/.local/kando.app`에 설치하고 이를 가리키는 `~/.local/bin/kando`를 만들며, 거기에 스크립트가 만들지 않은 `kando`가 있으면 그대로 둡니다. 셸의 `PATH`에 `~/.local/bin`이 없으면 추가하십시오.
+- Linux: `.deb`와 Arch 패키지(설치 스크립트도 이것을 설치합니다. [다운로드](#download) 참고)는 앱을 `/opt/kando`에 설치하고 이를 가리키는 링크 `/usr/bin/kando`를 추가합니다.
 - Windows: Windows에서 링크를 만들려면 관리자 권한이나 개발자 모드가 필요하므로 Kando는 명령을 설치할 수 없습니다. 설정 › 일반의 명령줄 도구 아래에 `Kando.exe`가 있는 폴더가 표시되니, 그 폴더를 `PATH`에 추가하세요. Windows는 파일 이름의 대소문자를 구분하지 않으므로 터미널에서 `kando`를 입력하면 Kando가 실행됩니다.
 
 | 명령 | 하는 일 |
@@ -253,22 +256,27 @@ make dev    # run the app with live reload
 make build  # build the app for this platform into apps/kando/build
 ```
 
-`make dev`는 `tools/mygo-dev`로 패치한 MyGo의 `mygo dev`를 실행합니다. macOS에서는 리로드할 때 실행 중인 창을 먼저 종료하지 않고 새 빌드가 자기 창을 띄울 때까지 유지하므로, 변경 사항을 저장해도 앱이 종료되는 것처럼 보이지 않습니다. MyGo를 업그레이드한 뒤 패치가 더 이상 적용되지 않으면 경고를 표시하고 기본 `go tool mygo dev`로 돌아갑니다. 그때는 새 `cmd/mygo/dev.go`에 맞춰 `tools/mygo-dev/dev.go.patch`를 갱신하세요. 이를 실행하는 `tools/mygo-dev/dev.sh`는 POSIX 셸 스크립트입니다.
+`make dev`는 `go tool nsgo dev apps/kando`를 실행합니다. 앱을 빌드해 열고, Go 파일을 저장할 때마다 다시 빌드해 앱을 다시 시작합니다.
 
-스크린샷 테스트는 고정된 데모 라이브러리로 주요 화면을 PNG 파일로 렌더링합니다. 가짜 `ffmpeg`, `yt-dlp`, `whisper-cli`가 있는 빈 가짜 홈 폴더에서 실행되므로 사용자의 설정, 라이브러리, 도구를 읽지 않습니다.
+스크린샷 테스트는 고정된 데모 라이브러리로 주요 화면을 실행합니다. 가짜 `ffmpeg`, `yt-dlp`, `whisper-cli`가 있는 빈 가짜 홈 폴더에서 실행되므로 사용자의 설정, 라이브러리, 도구를 읽지 않습니다. `go test`는 창 없이 실행해 각 화면을 진행하고 확인하지만 이미지는 그리지 않습니다. NSGo의 창 없는 테스터가 아직 픽셀을 렌더링하지 않기 때문입니다([nsgo-dev/nsgo#119](https://github.com/nsgo-dev/nsgo/issues/119)). `KANDO_SCREENSHOTS`를 설정하지 않으면 건너뜁니다.
 
 ```sh
-KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
+KANDO_SCREENSHOTS=1 go test ./apps/kando/... -run TestScreenshots
 ```
 
-`KANDO_SCREENSHOTS_LANG`(`en`, `zh-Hans`, `zh-Hant`, `ja`, `ko`)을 지정하면 해당 인터페이스 언어로 렌더링하고, 데모 라이브러리도 그 언어 사용자에게 맞는 내용으로 바뀝니다. `-run TestScreenshotsReadme`는 각 언어 README에 쓰이는 이미지 4장을 렌더링하며, 이미지는 `docs/assets/<언어>/`에 있습니다.
+PNG 파일은 같은 테스트를 macOS의 실제 창에서 실행해 만들며, `apps/kando/.nsgo/test/screenshots/macos/`에 저장됩니다.
+
+```sh
+go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
+```
+
+`KANDO_SCREENSHOTS_LANG`(`en`, `zh-Hans`, `zh-Hant`, `ja`, `ko`, 또 하나의 `-env`로 넘깁니다)을 지정하면 해당 인터페이스 언어로 렌더링하고, 데모 라이브러리도 그 언어 사용자에게 맞는 내용으로 바뀝니다. `-run TestScreenshotsReadme`는 각 언어 README에 쓰이는 이미지 4장을 렌더링하며, 이미지는 `docs/assets/<언어>/`에 있습니다.
 
 저장소 구성:
 
 - `apps/kando`: 앱. 화면마다 자체 디렉터리가 있으며(`sidebar/`, `films/`, `film/`, `settings/`, `account/`, `cheatsheet/`), `view.go`가 창과 이 화면들을 연결합니다. `shelf/`는 작업 기록, `cloud/`는 Google 로그인과 오브젝트 스토리지 업로드, `brand/`는 라이브러리의 Finder 아이콘입니다.
 - `packages/core`: 플랫폼에 독립적인 작업, 단계, 링크 파싱.
 - `packages/media`: 미디어 파이프라인(다운로드, 전사, 번역, 자막 내보내기, 커버, 라이브러리).
-- `tools/mygo-dev`: `make dev`가 사용하는 패치된 `mygo dev`.
 
 [AGENTS.md](AGENTS.md)에는 인터페이스를 컴포넌트로 나누는 방식과 각 영역이 따르는 규칙이 설명되어 있습니다. UI를 바꾸기 전에 읽어 보세요.
 

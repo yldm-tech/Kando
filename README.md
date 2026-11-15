@@ -12,7 +12,7 @@
 
 English · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
 
-Kando is a desktop app for learning a language from videos in that language. Paste a YouTube or Bilibili link, or drop a video file on the window: Kando downloads the video with yt-dlp, transcribes the speech on your own computer with whisper.cpp, translates each line through an OpenAI-compatible model, and plays the original video with the original line and its translation on screen together. It is written in Go and draws its native interface with [MyGo](https://github.com/egoist/mygo) and [Breeze UI](https://github.com/yldm-tech/mygo-breeze-ui); there is no web view.
+Kando is a desktop app for learning a language from videos in that language. Paste a YouTube or Bilibili link, or drop a video file on the window: Kando downloads the video with yt-dlp, transcribes the speech on your own computer with whisper.cpp, translates each line through an OpenAI-compatible model, and plays the original video with the original line and its translation on screen together. It is written in Go and draws its native interface with [NSGo](https://github.com/nsgo-dev/nsgo); there is no web view.
 
 ![The library: the most recent film, the jobs in progress and the films in the library](docs/assets/en/library.png)
 
@@ -40,18 +40,21 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 
 Builds for macOS (Apple silicon and Intel), Windows (x86-64 and ARM64) and Linux (x86-64 and ARM64) are on [GitHub Releases](https://github.com/yldm-tech/Kando/releases). Pick the file for your system, where `<version>` is the release's version, such as `0.5.0`:
 
-- macOS: `kando-<version>-arm64.dmg` for Apple silicon, `kando-<version>-amd64.dmg` for Intel. Open the disk image and drag Kando to Applications.
-- Windows: `kando-setup-<version>-amd64.exe` for most PCs, `kando-setup-<version>-arm64.exe` for a Windows on Arm PC. Run the installer. It is not signed yet, so SmartScreen may warn before it runs: choose More info, then Run anyway.
-- Debian, Ubuntu and their derivatives: `kando_<version>_amd64.deb` for x86-64, `kando_<version>_arm64.deb` for ARM64. Install it with `sudo apt install ./kando_<version>_<arch>.deb` in the folder you downloaded it to.
-- Other Linux distributions: run the release's install script, which downloads the package for you:
+- macOS: `kando-<version>-macos-arm64.dmg` for Apple silicon, `kando-<version>-macos-x64.dmg` for Intel. Open the disk image and drag Kando to Applications.
+- Windows: `kando-<version>-windows-x64-setup.exe` for most PCs, `kando-<version>-windows-arm64-setup.exe` for a Windows on Arm PC. Run the installer. It is not signed yet, so SmartScreen may warn before it runs: choose More info, then Run anyway.
+- Debian, Ubuntu and their derivatives: `kando-<version>-linux-x64.deb` for x86-64, `kando-<version>-linux-arm64.deb` for ARM64. Install it with `sudo apt install ./kando-<version>-linux-<arch>.deb` in the folder you downloaded it to.
+- Arch Linux and its derivatives: `kando-<version>-linux-<arch>.pkg.tar.gz`, installed with `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz`.
+- Other Linux distributions: `kando-<version>-linux-<arch>.AppImage` runs without installing: make it executable with `chmod +x` and open it. It takes GTK 4 from the system.
 
-  ```sh
-  curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
-  ```
+Or run the release's install script, which downloads the package for your machine, checks it against its `.sha256` and installs it: on macOS the app from the disk image into `/Applications` (or `~/Applications` when it cannot write there), on Linux the Arch package with `pacman`, else the Debian one with `apt`, through `sudo`:
 
-  It downloads the latest `kando-<version>-linux-<arch>.tar.gz` for your machine, checks its signature, and installs Kando for your user alone, without root: the app in `~/.local/kando.app`, the `kando` command in `~/.local/bin`, and an entry in the applications menu. Checking the signature needs OpenSSL 3.0 or later (Debian 12, Ubuntu 22.04, Fedora 36 and later); with an older OpenSSL the script downloads nothing and says so. In that case, download the `.tar.gz` for your machine and `install.sh` from the same release into one folder, keeping their file names, and run `sh install.sh` there, or run `sh install.sh <archive>` with the path of the `.tar.gz`; either way the script installs that archive without checking its signature. Running the script again installs the newer version over the old one, and `sh install.sh --uninstall` removes Kando and keeps its settings and libraries.
+```sh
+curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
+```
 
-The other files of a release are not for installing: `checksums.txt` lists the SHA-256 of every file, and the `update-*.json` manifests, the `.delta` files and the `darwin` and `windows` archives are what installed copies of Kando update themselves from (see [Updates](#updates)).
+On Windows, `irm https://github.com/yldm-tech/Kando/releases/latest/download/install.ps1 | iex` in PowerShell runs the installer silently. Running a script again installs the latest version over the one installed.
+
+The other files of a release are not for installing: `checksums.txt` lists the SHA-256 of every file, the `.sha256` beside each file is what the install scripts check it against, and the `appcast-*.xml` feeds are what installed copies of Kando update from (see [Updates](#updates)).
 
 The macOS disk images of releases newer than 0.5.1 are signed with YLDM's Developer ID and notarized by Apple, so macOS opens Kando without a warning.
 
@@ -61,7 +64,7 @@ Kando updates itself from the signed releases on GitHub. It checks in the backgr
 
 To check now, choose Kando › Check for Updates… in the menu bar on macOS, or Check for Updates… in the command palette (Ctrl+K) on Linux and Windows, which have no menu bar; Settings › General also has a Check for Updates… button next to Version, under which it shows the newer version the last check found or when Kando last checked. The switches Check for updates automatically and Download and install updates automatically are in Settings › General too. The second shows only while the first is on, as only the background checks download updates; with it on, they install a new version without asking, and it opens the next time you launch Kando.
 
-A copy of Kando that cannot replace its own files does not update itself. That is the case of the `.deb` and the `PKGBUILD`, which install Kando in `/opt/kando`, a folder the package manager owns: there is no apt repository for Kando, so to update, download the new `.deb` from the release and install it the same way, or move to the install script above, whose copy in `~/.local/kando.app` updates itself. In such a copy Settings › General shows no switches, and Check for Updates… opens a window that says why it cannot update.
+A copy of Kando that cannot replace its own files does not update itself. On Linux that is every copy: the `.deb` and the Arch package install Kando in `/opt/kando`, a folder the package manager owns, and there is no apt or pacman repository for Kando, so when a new version is out Kando offers its release page; install the new package the way you installed the first, or run the install script again.
 
 ### Build from source
 
@@ -73,7 +76,7 @@ cd Kando
 make build
 ```
 
-`make build` runs `go tool mygo build apps/kando` for the platform you are on and writes the result under `apps/kando/build/<os>-<arch>/`: on macOS an ad-hoc signed `Kando.app` and a `.dmg`, on other platforms an executable (Linux also gets a `.deb`, a `.tar.gz` with an install script and a `PKGBUILD`; Windows an installer made with NSIS, which mygo downloads when it is not installed). Without `make`, as on a stock Windows, run `go tool mygo build apps/kando` from the repository root.
+`make build` runs `go tool nsgo build` for the platform you are on (`TARGET=` builds others, such as `make build TARGET=windows_x64`) and writes the app under `apps/kando/build/` and what to hand out under `apps/kando/build/releases/`: on macOS an ad-hoc signed `Kando.app` and a `.dmg`; on Windows the program, and its NSIS installer when `makensis` is installed (otherwise the `.nsi` script, which compiles anywhere); on Linux the program, a `.deb`, an Arch `.pkg.tar.gz` and an `.AppImage`. It sets `GOFLAGS=-tags=nodra_nomygo`, which leaves code the app does not use out of it, as releases do. Without `make`, as on a stock Windows, run `go tool nsgo build -target windows_x64 apps/kando` from the repository root.
 
 ## Requirements
 
@@ -114,7 +117,7 @@ The Kando program is also a command line, `kando`, and an MCP server for AI agen
 To get the `kando` command:
 
 - macOS: move Kando to Applications, then click Install next to Command-Line Tool in Settings › General. It links `kando` to the app in the first of `/usr/local/bin`, `/opt/homebrew/bin` and `~/.local/bin` it can write to, without asking for an administrator password, and never replaces a `kando` of another program. Kando opened from its disk image, or from where macOS translocated it after a download, runs from a path that goes away, so the card asks you to move it first instead of installing a link that would break. Or link it yourself: `sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`.
-- Linux: the `.deb` and the `PKGBUILD` install the app in `/opt/kando` and add `/usr/bin/kando`, a link to `/opt/kando/kando`. The install script (see [Download](#download)) installs the app in `~/.local/kando.app` and links `~/.local/bin/kando` to it, leaving alone a `kando` there that it did not make; add `~/.local/bin` to `PATH` if your shell does not have it.
+- Linux: the `.deb` and the Arch package, which the install script (see [Download](#download)) installs too, put the app in `/opt/kando` and add `/usr/bin/kando`, a link to it.
 - Windows: Kando cannot install the command, as making a link on Windows needs administrator rights or developer mode. Under Command-Line Tool, Settings › General names the folder that holds `Kando.exe`; add that folder to `PATH`, and `kando` in a terminal runs it, as Windows ignores the case of file names.
 
 | Command | What it does |
@@ -243,22 +246,27 @@ make dev    # run the app with live reload
 make build  # build the app for this platform into apps/kando/build
 ```
 
-`make dev` runs MyGo's `mygo dev` patched by `tools/mygo-dev`: on macOS, a reload keeps the running window until the new build shows its own, instead of quitting it first, so saving a change does not look like the app quitting. If the patch stops applying after a MyGo upgrade, it warns and falls back to the stock `go tool mygo dev`; update `tools/mygo-dev/dev.go.patch` against the new `cmd/mygo/dev.go` then. The script behind it, `tools/mygo-dev/dev.sh`, is a POSIX shell script.
+`make dev` runs `go tool nsgo dev apps/kando`, which builds the app, opens it, and builds and restarts it each time you save a Go file.
 
-The screenshot tests render the main scenes to PNG files from a fixed demo library, in an empty fake home folder with fake `ffmpeg`, `yt-dlp` and `whisper-cli`, so they do not read your settings, libraries or tools:
+The screenshot tests run the main scenes from a fixed demo library, in an empty fake home folder with fake `ffmpeg`, `yt-dlp` and `whisper-cli`, so they do not read your settings, libraries or tools. `go test` runs them headless, where they play each scene and check it but draw no pictures, as NSGo's headless tester renders no pixels yet ([nsgo-dev/nsgo#119](https://github.com/nsgo-dev/nsgo/issues/119)); they are skipped unless `KANDO_SCREENSHOTS` is set:
 
 ```sh
-KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
+KANDO_SCREENSHOTS=1 go test ./apps/kando/... -run TestScreenshots
 ```
 
-`KANDO_SCREENSHOTS_LANG` (`en`, `zh-Hans`, `zh-Hant`, `ja` or `ko`) renders them in that interface language, with a demo library for its reader; `-run TestScreenshotsReadme` renders the four pictures of the READMEs, kept in `docs/assets/<language>/`.
+The PNG files come from the same tests run in real windows on macOS, which saves them in `apps/kando/.nsgo/test/screenshots/macos/`:
+
+```sh
+go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
+```
+
+`KANDO_SCREENSHOTS_LANG` (`en`, `zh-Hans`, `zh-Hant`, `ja` or `ko`, given with another `-env`) renders them in that interface language, with a demo library for its reader; `-run TestScreenshotsReadme` renders the four pictures of the READMEs, kept in `docs/assets/<language>/`.
 
 Repository layout:
 
 - `apps/kando`: the app. Each screen has its own directory (`sidebar/`, `films/`, `film/`, `settings/`, `account/`, `cheatsheet/`); `view.go` connects the window to them. `shelf/` is the job record, `cloud/` is Google sign-in and object storage upload, and `brand/` is the Finder icon of a library.
 - `packages/core`: platform-independent jobs, stages and link parsing.
 - `packages/media`: the media pipeline: download, transcription, translation, subtitle export, covers and libraries.
-- `tools/mygo-dev`: the patched `mygo dev` behind `make dev`.
 
 [AGENTS.md](AGENTS.md) describes how the interface is split into components and the rules each area follows; read it before changing the UI.
 

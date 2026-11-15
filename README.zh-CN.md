@@ -12,7 +12,7 @@
 
 [English](README.md) · 简体中文 · [日本語](README.ja.md) · [繁體中文](README.zh-TW.md) · [한국어](README.ko.md)
 
-看懂是一款用原声视频学外语的桌面应用。粘贴 YouTube 或哔哩哔哩链接，或者把视频文件拖到窗口上：看懂会用 yt-dlp 下载视频，在本机用 whisper.cpp 转录语音，再通过 OpenAI 兼容模型逐句翻译，然后播放原视频，屏幕上同时显示原文和译文。它用 Go 编写，原生界面由 [MyGo](https://github.com/egoist/mygo) 和 [Breeze UI](https://github.com/yldm-tech/mygo-breeze-ui) 绘制，没有使用 Web 视图。
+看懂是一款用原声视频学外语的桌面应用。粘贴 YouTube 或哔哩哔哩链接，或者把视频文件拖到窗口上：看懂会用 yt-dlp 下载视频，在本机用 whisper.cpp 转录语音，再通过 OpenAI 兼容模型逐句翻译，然后播放原视频，屏幕上同时显示原文和译文。它用 Go 编写，原生界面由 [NSGo](https://github.com/nsgo-dev/nsgo) 绘制，没有使用 Web 视图。
 
 ![资料库：最近完成的影片、正在处理的任务和资料库中的影片](docs/assets/zh-CN/library.png)
 
@@ -44,18 +44,21 @@
 
 macOS（Apple 芯片和 Intel）、Windows（x86-64 和 ARM64）和 Linux（x86-64 和 ARM64）的安装包在 [GitHub Releases](https://github.com/yldm-tech/Kando/releases) 上。按你的系统选择文件，其中 `<version>` 是该版本的版本号，例如 `0.5.0`：
 
-- macOS：Apple 芯片的 Mac 选 `kando-<version>-arm64.dmg`，Intel 的 Mac 选 `kando-<version>-amd64.dmg`。打开磁盘映像，把看懂拖到“应用程序”文件夹。
-- Windows：大多数电脑选 `kando-setup-<version>-amd64.exe`，ARM 处理器的 Windows 电脑选 `kando-setup-<version>-arm64.exe`，下载后运行安装程序。安装程序暂时没有签名，SmartScreen 可能会在运行前弹出警告：点“更多信息”，再点“仍要运行”。
-- Debian、Ubuntu 及其衍生发行版：x86-64 选 `kando_<version>_amd64.deb`，ARM64 选 `kando_<version>_arm64.deb`。在下载所在的文件夹中用 `sudo apt install ./kando_<version>_<arch>.deb` 安装。
-- 其他 Linux 发行版：运行该版本附带的安装脚本，不需要自己下载安装包：
+- macOS：Apple 芯片的 Mac 选 `kando-<version>-macos-arm64.dmg`，Intel 的 Mac 选 `kando-<version>-macos-x64.dmg`。打开磁盘映像，把看懂拖到“应用程序”文件夹。
+- Windows：大多数电脑选 `kando-<version>-windows-x64-setup.exe`，ARM 处理器的 Windows 电脑选 `kando-<version>-windows-arm64-setup.exe`，下载后运行安装程序。安装程序暂时没有签名，SmartScreen 可能会在运行前弹出警告：点“更多信息”，再点“仍要运行”。
+- Debian、Ubuntu 及其衍生发行版：x86-64 选 `kando-<version>-linux-x64.deb`，ARM64 选 `kando-<version>-linux-arm64.deb`。在下载所在的文件夹中用 `sudo apt install ./kando-<version>-linux-<arch>.deb` 安装。
+- Arch Linux 及其衍生发行版：选 `kando-<version>-linux-<arch>.pkg.tar.gz`，用 `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz` 安装。
+- 其他 Linux 发行版：`kando-<version>-linux-<arch>.AppImage` 不用安装，用 `chmod +x` 加上可执行权限后直接打开。它使用系统自带的 GTK 4。
 
-  ```sh
-  curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
-  ```
+也可以运行该版本附带的安装脚本，它会下载适合你机器的安装包，按 `.sha256` 校验后安装：在 macOS 上把磁盘映像里的应用装进 `/Applications`（没有写入权限时装进 `~/Applications`），在 Linux 上用 `pacman` 安装 Arch 软件包，没有 `pacman` 时用 `apt` 安装 Debian 软件包，都通过 `sudo` 进行：
 
-  它会为你的机器下载最新的 `kando-<version>-linux-<arch>.tar.gz`，校验它的签名，然后只为当前用户安装看懂，不需要 root：应用装在 `~/.local/kando.app`，`kando` 命令放在 `~/.local/bin`，并在应用程序菜单中添加一项。校验签名需要 OpenSSL 3.0 或更高版本（Debian 12、Ubuntu 22.04、Fedora 36 及更高版本）；OpenSSL 版本更旧时，脚本什么也不下载，并会说明原因。这时请从同一个版本中把适合你机器的 `.tar.gz` 和 `install.sh` 下载到同一个文件夹，不要改文件名，在那里运行 `sh install.sh`；也可以运行 `sh install.sh <安装包>`，传入 `.tar.gz` 的路径。两种方式都会安装这个安装包，但不校验签名。再次运行脚本会用新版本覆盖旧版本；`sh install.sh --uninstall` 会移除看懂，并保留它的设置和资料库。
+```sh
+curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh
+```
 
-版本中的其他文件不是用来安装的：`checksums.txt` 列出每个文件的 SHA-256，而 `update-*.json` 清单、`.delta` 文件和 `darwin`、`windows` 压缩包是已安装的看懂自动更新时下载的（参见[更新](#updates)）。
+在 Windows 上，在 PowerShell 中运行 `irm https://github.com/yldm-tech/Kando/releases/latest/download/install.ps1 | iex`，它会静默运行安装程序。再次运行脚本会用最新版本覆盖已安装的版本。
+
+版本中的其他文件不是用来安装的：`checksums.txt` 列出每个文件的 SHA-256，每个文件旁的 `.sha256` 是安装脚本校验它用的，`appcast-*.xml` 是已安装的看懂检查更新时读取的（参见[更新](#updates)）。
 
 0.5.1 之后发布的 macOS 安装包用 YLDM 的 Developer ID 签名，并经过 Apple 公证，打开看懂时 macOS 不会再发出警告。
 
@@ -67,7 +70,7 @@ macOS（Apple 芯片和 Intel）、Windows（x86-64 和 ARM64）和 Linux（x86-
 
 要立即检查，在 macOS 上选择菜单栏中的“看懂 › 检查更新…”；Linux 和 Windows 没有菜单栏，请在命令面板（Ctrl+K）中选择“检查更新…”。“设置 › 通用”中“版本”旁边也有“检查更新…”按钮，下方会显示上次检查发现的新版本，或上次检查的时间。“自动检查更新”和“自动下载并安装更新”两个开关也在“设置 › 通用”中。只有打开前者时才会显示后者，因为只有后台检查会下载更新；打开后者后，后台检查发现新版本会直接安装，不再询问，下次打开看懂时生效。
 
-无法替换自身文件的看懂不会自动更新。`.deb` 和 `PKGBUILD` 就是这种情况：它们把看懂安装在由包管理器管理的 `/opt/kando` 中，而看懂没有 apt 软件源，所以更新时请从新版本下载 `.deb` 并按同样方式安装，或者改用上面的安装脚本，它安装在 `~/.local/kando.app` 的看懂可以自动更新。这样安装的看懂在“设置 › 通用”中不显示这两个开关，“检查更新…”会打开一个窗口说明无法更新的原因。
+无法替换自身文件的看懂不会自动更新。在 Linux 上所有安装方式都是这样：`.deb` 和 Arch 软件包把看懂安装在由包管理器管理的 `/opt/kando` 中，而看懂没有 apt 或 pacman 软件源，所以有新版本时看懂会打开该版本的发布页面；请按第一次安装的方式安装新的软件包，或者再运行一次安装脚本。
 
 ### 从源码构建
 
@@ -79,7 +82,7 @@ cd Kando
 make build
 ```
 
-`make build` 会针对当前平台运行 `go tool mygo build apps/kando`，并把结果写入 `apps/kando/build/<os>-<arch>/`：在 macOS 上是经过临时签名（ad-hoc）的 `Kando.app` 和一个 `.dmg`，在其他平台上是一个可执行文件（Linux 另外生成一个 `.deb`、一个附带安装脚本的 `.tar.gz` 和一个 `PKGBUILD`；Windows 另外生成一个用 NSIS 制作的安装程序，未安装 NSIS 时 mygo 会自动下载）。没有 `make` 时（例如未额外安装工具的 Windows），在仓库根目录直接运行 `go tool mygo build apps/kando`。
+`make build` 会针对当前平台运行 `go tool nsgo build`（用 `TARGET=` 构建其他平台，例如 `make build TARGET=windows_x64`），把应用写入 `apps/kando/build/`，把用来分发的文件写入 `apps/kando/build/releases/`：在 macOS 上是经过临时签名（ad-hoc）的 `Kando.app` 和一个 `.dmg`；在 Windows 上是程序本身，安装了 `makensis` 时还有 NSIS 安装程序（否则是在任何系统上都能编译的 `.nsi` 脚本）；在 Linux 上是程序本身、一个 `.deb`、一个 Arch 的 `.pkg.tar.gz` 和一个 `.AppImage`。它会设置 `GOFLAGS=-tags=nodra_nomygo`，和正式版本一样把应用用不到的代码排除在外。没有 `make` 时（例如未额外安装工具的 Windows），在仓库根目录直接运行 `go tool nsgo build -target windows_x64 apps/kando`。
 
 ## 运行依赖
 
@@ -122,7 +125,7 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 获取 `kando` 命令：
 
 - macOS：先把看懂移到“应用程序”文件夹，再在“设置 › 通用”中点击“命令行工具”旁的“安装”。它会在 `/usr/local/bin`、`/opt/homebrew/bin`、`~/.local/bin` 中第一个可写入的文件夹里创建指向看懂的 `kando` 链接，不会要求输入管理员密码，也不会替换其他程序的 `kando`。直接从磁盘映像打开，或下载后被 macOS 放到临时位置（App Translocation）运行时，看懂所在的路径很快就会失效，这时卡片会提示先移动看懂，而不是安装一个日后失效的链接。也可以自己创建链接：`sudo ln -s /Applications/Kando.app/Contents/MacOS/Kando /usr/local/bin/kando`。
-- Linux：`.deb` 和 `PKGBUILD` 把应用安装到 `/opt/kando`，并添加指向 `/opt/kando/kando` 的链接 `/usr/bin/kando`。安装脚本（参见[下载](#download)）把应用安装到 `~/.local/kando.app`，并创建指向它的 `~/.local/bin/kando`；那里已有不是它创建的 `kando` 时则保留原样。如果 shell 的 `PATH` 里没有 `~/.local/bin`，请把它加进去。
+- Linux：`.deb` 和 Arch 软件包（安装脚本也安装它们，参见[下载](#download)）把应用安装到 `/opt/kando`，并添加指向它的链接 `/usr/bin/kando`。
 - Windows：看懂无法安装这个命令，因为在 Windows 上创建链接需要管理员权限或开发者模式。“设置 › 通用”的“命令行工具”下会显示 `Kando.exe` 所在的文件夹；把这个文件夹加入 `PATH` 后，在终端中输入 `kando` 就会运行它，因为 Windows 的文件名不区分大小写。
 
 | 命令 | 作用 |
@@ -253,22 +256,27 @@ make dev    # 以热重载方式运行应用
 make build  # 为当前平台构建应用，输出到 apps/kando/build
 ```
 
-`make dev` 运行的是经 `tools/mygo-dev` 打过补丁的 MyGo `mygo dev`：在 macOS 上，重新加载时会保留正在运行的窗口，等新构建的窗口出现后再替换，而不是先退出旧窗口，所以保存改动时不会看起来像应用退出了。如果 MyGo 升级后补丁无法应用，它会发出警告并回退到原版的 `go tool mygo dev`；这时请对照新的 `cmd/mygo/dev.go` 更新 `tools/mygo-dev/dev.go.patch`。它背后的 `tools/mygo-dev/dev.sh` 是一个 POSIX 兼容的 shell 脚本。
+`make dev` 运行 `go tool nsgo dev apps/kando`：它会构建并打开应用，每次保存 Go 文件后重新构建并重启应用。
 
-截图测试会从一个固定的演示资料库把主要场景渲染成 PNG 文件，运行时使用空的模拟主目录以及模拟的 `ffmpeg`、`yt-dlp` 和 `whisper-cli`，因此不会读取你的设置、资料库或工具：
+截图测试会从一个固定的演示资料库运行主要场景，运行时使用空的模拟主目录以及模拟的 `ffmpeg`、`yt-dlp` 和 `whisper-cli`，因此不会读取你的设置、资料库或工具。`go test` 以无界面方式运行它们：会走完并检查每个场景，但不生成图片，因为 NSGo 的无界面测试器还不渲染像素（[nsgo-dev/nsgo#119](https://github.com/nsgo-dev/nsgo/issues/119)）；没有设置 `KANDO_SCREENSHOTS` 时会跳过：
 
 ```sh
-KANDO_SCREENSHOTS=/tmp/kando-shots go test ./apps/kando/... -run TestScreenshots
+KANDO_SCREENSHOTS=1 go test ./apps/kando/... -run TestScreenshots
 ```
 
-设置 `KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja` 或 `ko`）会以对应的界面语言渲染，演示资料库也换成该语言读者的内容；`-run TestScreenshotsReadme` 渲染各语言 README 用的四张图，保存在 `docs/assets/<语言>/`。
+PNG 文件要在 macOS 上用真实窗口运行同样的测试来生成，保存在 `apps/kando/.nsgo/test/screenshots/macos/`：
+
+```sh
+go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
+```
+
+设置 `KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja` 或 `ko`，用另一个 `-env` 传入）会以对应的界面语言渲染，演示资料库也换成该语言读者的内容；`-run TestScreenshotsReadme` 渲染各语言 README 用的四张图，保存在 `docs/assets/<语言>/`。
 
 仓库结构：
 
 - `apps/kando`：应用本体。每个界面有自己的目录（`sidebar/`、`films/`、`film/`、`settings/`、`account/`、`cheatsheet/`）；`view.go` 把窗口和它们连接起来。`shelf/` 是任务记录，`cloud/` 负责 Google 登录和对象存储上传，`brand/` 是资料库在访达中的图标。
 - `packages/core`：与平台无关的任务、阶段和链接解析。
 - `packages/media`：媒体处理流水线，包括下载、转录、翻译、字幕导出、封面和资料库。
-- `tools/mygo-dev`：`make dev` 背后打过补丁的 `mygo dev`。
 
 [AGENTS.md](AGENTS.md) 说明了界面如何拆分成组件，以及各部分遵循的规则；修改界面前请先阅读。
 
