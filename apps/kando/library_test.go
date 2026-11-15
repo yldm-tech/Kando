@@ -1999,3 +1999,18 @@ func TestLibraryPageScrollsWithinTheWindow(t *testing.T) {
 		}
 	})
 }
+
+// TestFollowOpenReportsAFilmItLetsGo checks that the library's afterChange reports letting go of an open film the library no longer has even when no player was open for it, as for a film whose video never loaded, so the window follows and shows the library again.
+func TestFollowOpenReportsAFilmItLetsGo(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	a.openKey = "gone"
+	if a.PlaybackOpen() {
+		t.Fatal("a player is open")
+	}
+	if !a.libraryFollowOpen() || a.openKey != "" {
+		t.Fatalf("letting go of a film the library lacks reported no change, open %q", a.openKey)
+	}
+	if a.libraryFollowOpen() {
+		t.Fatal("with no film open it reported a change")
+	}
+}

@@ -224,6 +224,8 @@ func (a *app) Search() *string { return &a.player.film.search }
 
 func (a *app) SearchFocus() *bool { return &a.player.film.searchFocus }
 
+func (a *app) SearchFocused() *bool { return &a.player.film.searchFocused }
+
 // OSD is the message on the picture, which flash takes away after a moment.
 func (a *app) OSD() string { return a.player.film.osd }
 
@@ -263,6 +265,12 @@ func (a *app) closeFilm() {
 
 // escapeFilm closes what is open over the film, the transport's menus, then the style view, then leaves full screen, and else closes the film. The window does not leave full screen on Esc by itself, so without this Esc in full screen would close the film and leave the library filling the screen.
 func (a *app) escapeFilm() {
+	// A search being typed in is emptied first, as the field's own Escape does (film's searchField): this row may run in its place.
+	// TODO(nsgo): run the binding the platform matched for a key, not the newest binding of that key's name (core.Tree.pressKey), so the search field's Escape (core.KeyAlways) is not taken over by this row (core.KeyAuto) once wireKeys binds the table again while the field has the focus
+	if f := &a.player.film; f.searchFocused && f.search != "" {
+		f.search = ""
+		return
+	}
 	if f := &a.player.film; f.modeMenu || f.speedMenu {
 		f.modeMenu, f.speedMenu = false, false
 		return
@@ -359,20 +367,24 @@ func (a *app) playerSaveSettings() {
 func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	playing := func() bool { return a.openKey != "" && a.playerLoaded() }
 	open := func() bool { return a.openKey != "" }
+	// Space and the arrows are left to the speed or mode menu while one is open, for its rows (wireKeys says why only then).
+	menus := func() bool { return a.player.film.modeMenu || a.player.film.speedMenu }
+	transport := func() bool { return playing() && !menus() }
+	volume := func() bool { return open() && !menus() }
 	// L also works while the picture opens, so turning the loop off is not missed then.
 	opening := func() bool { return a.openKey != "" && a.player.play != nil }
 	return []shortcut{
-		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(cx), Key: "space", When: playing, Run: func() { a.player.play.toggle() }},
-		{Group: groupPlayback, Label: locales.FilmSkipBack(cx, 5), Key: "left", Repeat: true, When: playing, Run: func() { a.Skip(-5 * time.Second) }},
-		{Group: groupPlayback, Label: locales.FilmSkipForward(cx, 5), Key: "right", Repeat: true, When: playing, Run: func() { a.Skip(5 * time.Second) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(cx), Key: "space", When: transport, Run: func() { a.player.play.toggle() }},
+		{Group: groupPlayback, Label: locales.FilmSkipBack(cx, 5), Key: "left", Repeat: true, When: transport, Run: func() { a.Skip(-5 * time.Second) }},
+		{Group: groupPlayback, Label: locales.FilmSkipForward(cx, 5), Key: "right", Repeat: true, When: transport, Run: func() { a.Skip(5 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipBack(cx, 30), Key: "mod+left", Repeat: true, When: playing, Run: func() { a.Skip(-30 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipForward(cx, 30), Key: "mod+right", Repeat: true, When: playing, Run: func() { a.Skip(30 * time.Second) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyPrevLine(cx), Key: "a", Repeat: true, When: playing, Run: a.PrevLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyNextLine(cx), Key: "d", Repeat: true, When: playing, Run: a.NextLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyReplayLine(cx), Key: "r", When: playing, Run: a.ReplayLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(cx), Key: "l", When: opening, Checked: a.LoopLine, Run: a.ToggleLoopLine},
-		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(cx), Key: "up", Repeat: true, When: open, Run: func() { a.playerNudgeVolume(1) }},
-		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(cx), Key: "down", Repeat: true, When: open, Run: func() { a.playerNudgeVolume(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(cx), Key: "up", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(cx), Key: "down", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(cx), Key: "m", When: open, Run: a.ToggleMute},
 		{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: "shift+,", Repeat: true, When: open, Run: func() { a.playerStepRate(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: "shift+.", Repeat: true, When: open, Run: func() { a.playerStepRate(1) }},
@@ -383,7 +395,7 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(cx), Key: "mod+=", Repeat: true, When: open, Run: func() { a.scaleSubtitles(2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySmaller(cx), Key: "mod+-", Repeat: true, When: open, Run: func() { a.scaleSubtitles(-2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySearch(cx), Key: "mod+f", When: open, Run: a.searchSubtitles},
-		{Group: groupSubtitles, Label: locales.PlayerKeyCopyLine(cx), Key: "mod+shift+c", When: open, Run: a.copyCurrentLine},
+		{Group: groupSubtitles, Label: locales.PlayerKeyCopyLine(cx), Key: "mod+shift+c", InText: true, When: open, Run: a.copyCurrentLine},
 		{Group: groupView, Label: locales.PlayerKeyToggleSidebar(cx), Key: "mod+shift+t", When: open, Run: a.TogglePanel},
 		{Group: groupView, Label: locales.FilmFullScreen(cx), Key: "f", When: open, Run: a.ToggleFullScreen},
 		{Group: groupView, Label: locales.FilmBackToLibrary(cx), Key: "escape", When: open, Run: a.escapeFilm},

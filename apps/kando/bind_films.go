@@ -56,17 +56,20 @@ func (a *app) libraryFollowOpen() bool {
 	if a.page == pageBrowse {
 		return false
 	}
+	// Letting go of the open film changes what the window shows (openKey) even when no player was open for it, as for a film whose video never loaded.
+	cleared := false
 	if a.openKey != "" {
 		if _, ok := a.libraryOpenFilm(); ok {
 			return false
 		}
 		a.openKey = ""
+		cleared = true
 	}
 	if a.PlaybackOpen() {
 		a.StopPlayback()
 		return true
 	}
-	return false
+	return cleared
 }
 
 // Films is the open library's films (films.App).

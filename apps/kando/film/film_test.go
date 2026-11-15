@@ -63,6 +63,7 @@ type fakeApp struct {
 	rate       float64
 	search     string
 	focus      bool
+	focused    bool
 	osd        string
 	info       Info
 	upload     Upload
@@ -169,6 +170,7 @@ func (f *fakeApp) SetRate(rate float64)                    { f.rate = rate }
 func (f *fakeApp) SpeedMenu() *bool                        { return &f.speedMenu }
 func (f *fakeApp) Search() *string                         { return &f.search }
 func (f *fakeApp) SearchFocus() *bool                      { return &f.focus }
+func (f *fakeApp) SearchFocused() *bool                    { return &f.focused }
 func (f *fakeApp) OSD() string                             { return f.osd }
 func (f *fakeApp) LibraryDir() string                      { return "/films/我的影片.kando" }
 func (f *fakeApp) LibraryPath() string                     { return "/films/library.json" }

@@ -46,7 +46,7 @@ jobs:
             ~/AppData/Local/go-build
           key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-
-      # NSGo's tester (nsgotest) runs the app headless, with no window or display and an approximate text engine, so the tests need none of the system's GTK, Pango or fonts. ffmpeg runs in the tests of frames, posters, key frames and the player, which fail without it where the row sets KANDO_REQUIRE_FFMPEG.
+      # NSGo's tester (nsgotest) runs the app headless, with no window or display and an approximate text engine, so the tests need none of the system's GTK, Pango or fonts. ffmpeg runs in packages/media's tests of frames and posters, which fail without it where the row sets KANDO_REQUIRE_FFMPEG.
       - name: Install ffmpeg
         if: runner.os == 'Linux'
         run: |
@@ -124,7 +124,7 @@ jobs:
             ~/.cache/go-build
           key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-
-      # go vet compiles the tests too, such as the Unix-only player_unix_test.go. The app is built again with nodra_nomygo, the tag of the Package workflow's builds, which leave nodra's MyGo helpers out (apps/kando/nsgo.yaml).
+      # go vet compiles the tests too, such as the Unix-only desktop/system_unix_test.go and the Windows-only desktop/trash_windows_test.go. The app is built again with nodra_nomygo, the tag of the Package workflow's builds, which leave nodra's MyGo helpers out (apps/kando/nsgo.yaml).
       - name: Build and vet
         env:
           GOOS: ${{ matrix.goos }}

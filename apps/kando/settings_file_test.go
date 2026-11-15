@@ -11,6 +11,8 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // TestSavedSettingsKeysAreUnique checks that the areas' parts of settings.json do not share a key. encoding/json writes the fields of embedded structs side by side and, when two of them have the same key, drops both without an error. A struct embedded in a part is written the same way, so its keys count too.
@@ -118,5 +120,61 @@ func TestStartupKeepsTheSettingsWhenALibraryWasRenamed(t *testing.T) {
 	}
 	if saved.Language != "日本語" || saved.LLMAPIKey != "sk-test" || saved.GoogleEmail != "me@example.com" || saved.R2Secret != "secret" || saved.SubMode != film.SubOriginal || saved.Onboarded == nil || !*saved.Onboarded {
 		t.Fatalf("settings.json lost the areas' settings: language %q, key %q, account %q, secret %q, subMode %q, onboarded %v", saved.Language, saved.LLMAPIKey, saved.GoogleEmail, saved.R2Secret, saved.SubMode, saved.Onboarded != nil && *saved.Onboarded)
+	}
+}
+
+// TestQuitSavesOnlyChangedSettings checks the save as the app quits (saveSettingsChanged): it leaves settings.json alone when nothing changed since the app read it, writes it when something did, such as where the main window is, with whether it was maximized, and never writes over a settings.json the app could not copy aside at startup.
+func TestQuitSavesOnlyChangedSettings(t *testing.T) {
+	for _, env := range []string{"KANDO_OUTPUT_DIR", "KANDO_LLM_BASE_URL", "KANDO_LLM_MODEL", "KANDO_LLM_API_KEY", "EVERYAPI_API_KEY", "KANDO_R2_SECRET"} {
+		t.Setenv(env, "")
+	}
+	path := filepath.Join(t.TempDir(), "settings.json")
+	kept := []byte(`{"language": "日本語", "llmAPIKey": "sk-test"}` + "\n")
+	if err := os.WriteFile(path, kept, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a := newApp(media.Tools{}, func(func()) {})
+	a.settingsPath = path
+	a.restoreSettings(a.loadSettings())
+	if err := a.saveSettingsChanged(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != string(kept) {
+		t.Fatalf("a quit with nothing changed wrote settings.json:\n%s", got)
+	}
+	a.window.frame = ns.WindowFrame{X: 40, Y: 60, Move: true, Width: 1200, Height: 800}
+	a.window.maximized = true
+	if err := a.saveSettingsChanged(); err != nil {
+		t.Fatal(err)
+	}
+	saved := loadSavedSettings(path)
+	if f := saved.MainWindow; f == nil || *f != (savedFrame{X: 40, Y: 60, Width: 1200, Height: 800, Positioned: true, Maximized: true}) || saved.Language != "日本語" || saved.LLMAPIKey != "sk-test" {
+		t.Fatalf("after the window moved settings.json holds window %+v, language %q, key %q", saved.MainWindow, saved.Language, saved.LLMAPIKey)
+	}
+	b := newApp(media.Tools{}, func(func()) {})
+	b.settingsPath = path
+	b.restoreSettings(b.loadSettings())
+	if f, ok := b.windowFrame(); !ok || f != (ns.WindowFrame{X: 40, Y: 60, Move: true, Width: 1200, Height: 800}) || !b.window.maximized {
+		t.Fatalf("the next launch opens the window at %+v (%v), maximized %v", f, ok, b.window.maximized)
+	}
+
+	// A damaged settings.json whose copy beside it cannot be written: a folder stands where settings.json.bad goes.
+	damaged := filepath.Join(t.TempDir(), "settings.json")
+	cut := []byte(`{"libraries": ["/films/a.kando"], "llmAPIKey": "sk-`)
+	if err := os.WriteFile(damaged, cut, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(damaged+".bad", 0o700); err != nil {
+		t.Fatal(err)
+	}
+	c := newApp(media.Tools{}, func(func()) {})
+	c.settingsPath = damaged
+	c.restoreSettings(c.loadSettings())
+	c.window.frame = ns.WindowFrame{Width: 1000, Height: 700}
+	if err := c.saveSettingsChanged(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(damaged); string(got) != string(cut) {
+		t.Fatalf("a quit wrote over a settings.json it could not keep a copy of:\n%s", got)
 	}
 }

@@ -93,7 +93,11 @@ func (a *app) queueHooks() areaHooks {
 		save:    a.saveQueue,
 		restore: a.restoreQueue,
 		ready: func() {
-			a.queue.keepAwake = func(reason string, display bool) func() { return desktop.KeepAwake(a.cx, reason, display) }
+			// The hold is taken under the app's scope, so it outlives the handler that started the job, as Enqueue from a button or the drop zone does.
+			a.queue.keepAwake = func(reason string, display bool) (release func()) {
+				a.cx.Run(func() { release = desktop.KeepAwake(a.cx, reason, display) })
+				return release
+			}
 			a.queueDesktopReady()
 			a.pump()
 			a.queueKeepAwake()

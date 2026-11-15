@@ -24,6 +24,8 @@ type shortcut struct {
 	Checked func() bool
 	// Repeat says the key runs the row again while it is held, as MyGo's shortcuts all did: the rows that step a value (seeking, the volume, the speed, the subtitle delay, the previous or next line) set it; a row that toggles something (Space, F, M) or opens something leaves it false, so holding the key does not flip it back and forth.
 	Repeat bool
+	// InText lets the key run while a text field has the focus, for a ⌘ key no text field uses although NSGo counts it among the ones it does (core.EditsText counts every ⌘C as copy), as ⌘⇧C, which copies the playing line from the subtitle search too.
+	InText bool
 	Run    func()
 }
 
@@ -103,18 +105,23 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 				continue
 			}
 			bound[s.Key] = true
-			cx.OnKeyWith(s.Key, core.KeyOptions{Repeat: s.Repeat}, live.Do(a, a.keyRun(cx, s.Key)))
+			// TODO(nsgo): let a binding give way to the focused control that uses its key, as core.KeyAuto does for text inputs: a focused button's or menu row's Space and Enter, a slider's, tab bar's or radio group's arrows. MyGo's OnShortcut left those keys to such a control; here the player's Space and arrows act on the film instead, except while its speed or mode menu is open (playerKeys)
+			when := core.KeyAuto
+			if s.InText {
+				when = core.KeyAlways
+			}
+			cx.OnKeyWith(s.Key, core.KeyOptions{Repeat: s.Repeat, When: when}, live.Do(a, a.keyRun(cx, s.Key)))
 		}
 		return nil
 	})
 }
 
-// binds reports whether wireKeys binds s now. While a modal dialog is up (modalOpen) no row binds, and while the cheat sheet shows only its own keys do (overlayKeys), as MyGo held the window's shortcuts behind a dialog: Space, F, M and the arrows do not act on the film behind it, Space presses the dialog's focused control, and no row binds a key again over the bindings a dialog makes for itself (core.KeyAlways).
+// binds reports whether wireKeys binds s now. While a modal dialog is up (modalOpen) or the settings show over the main window (settingsOverlay) no row binds, and while the cheat sheet shows only its own keys do (overlayKeys), as MyGo held the window's shortcuts behind a dialog and kept them out of its settings window: Space, F, M and the arrows do not act on the film behind it, Space presses the dialog's focused control, Escape closes the dialog, and no row binds a key again over the bindings a dialog makes for itself (core.KeyAlways).
 func (a *app) binds(cx *core.Scope, s shortcut) bool {
 	if s.Run == nil || s.Key == "" || (s.When != nil && !s.When()) {
 		return false
 	}
-	if a.modalOpen() || (a.overlay.cheatsheet && !slices.ContainsFunc(a.overlayKeys(cx), func(o shortcut) bool { return o.Key == s.Key })) {
+	if a.modalOpen() || (a.prefs.open && a.prefs.inWindow) || (a.overlay.cheatsheet && !slices.ContainsFunc(a.overlayKeys(cx), func(o shortcut) bool { return o.Key == s.Key })) {
 		return false
 	}
 	return !(a.menu.menuBar && hasCommand(s.Key))

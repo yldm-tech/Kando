@@ -14,6 +14,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/nowplaying"
+	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -1905,5 +1906,63 @@ func TestCueMenuCopiesTheLine(t *testing.T) {
 	copyFrom("Bye.", "拷贝台词", "Bye.")
 	if len(seeks(tt)) != 0 {
 		t.Fatalf("copying from the list seeked %v", seeks(tt))
+	}
+}
+
+// TestSettingsOverTheFilmHoldItsKeys opens the settings over the main window while a film is open, as on Windows and Linux, where they have no window of their own: Space does not play the film behind them and Escape closes the settings, not the film.
+func TestSettingsOverTheFilmHoldItsKeys(t *testing.T) {
+	usePlatform(t, ns.OSLinux)
+	a, tt, _ := playerOpen(t)
+	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
+	if !a.prefs.inWindow || !tt.Exists("id:settings-in-window") {
+		t.Fatal("the settings did not show over the main window")
+	}
+	tt.Key("space")
+	if a.player.play.Playing() {
+		t.Fatal("Space behind the settings played the film")
+	}
+	tt.Key("escape")
+	refresh(tt, a)
+	if a.prefs.open {
+		t.Fatal("Escape left the settings open")
+	}
+	if a.openKey == "" || a.player.play == nil {
+		t.Fatal("Escape behind the settings closed the film")
+	}
+}
+
+// TestEscapeEmptiesTheSearchFirst types in the subtitle search before the video has loaded, so the keys are bound again as it loads, and checks that Escape still empties the search and leaves the film open.
+func TestEscapeEmptiesTheSearchFirst(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	openFilm(t, a, tt, updates, item)
+	tt.Key("mod+f")
+	tt.Settle()
+	typeFocused(t, tt, "river")
+	loadFilm(tt, a, 12*time.Second)
+	if !a.player.film.searchFocused || a.player.film.search != "river" {
+		t.Fatalf("search %q focused %v", a.player.film.search, a.player.film.searchFocused)
+	}
+	tt.Key("escape")
+	refresh(tt, a)
+	if a.player.film.search != "" || a.openKey == "" {
+		t.Fatalf("after Escape the search is %q and the film open %q", a.player.film.search, a.openKey)
+	}
+}
+
+// TestTransportMenusKeepSpaceAndTheArrows opens the speed menu: while it is open Space and the arrows are left to its rows, so they neither play the film nor seek nor change the volume.
+func TestTransportMenusKeepSpaceAndTheArrows(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	apply(tt, a, func() { a.player.film.speedMenu = true })
+	volume := a.player.volume
+	for _, key := range []string{"space", "left", "right", "up", "down"} {
+		tt.Key(key)
+	}
+	if a.player.play.Playing() || len(seeks(tt)) != 0 || a.player.volume != volume {
+		t.Fatalf("with the speed menu open: playing %v seeks %v volume %v", a.player.play.Playing(), seeks(tt), a.player.volume)
+	}
+	apply(tt, a, func() { a.player.film.speedMenu = false })
+	tt.Key("space")
+	if !a.player.play.Playing() {
+		t.Fatal("Space did not play once the menu closed")
 	}
 }

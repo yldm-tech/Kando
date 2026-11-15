@@ -26,10 +26,12 @@ type app struct {
 	store        *nodra.Store[session]
 	libraryWatch chan struct{}
 	settingsPath string
-	// settingsFound is what loadSettings found at settingsPath at startup (settings_file.go).
-	settingsFound settingsFound
-	library       shelf.Library
-	pipeline      media.Pipeline
+	// settingsFound is what loadSettings found at settingsPath at startup (settings_file.go). settingsUnsaved is set while settings.json is one the app could neither read nor copy aside, which only a save the user asks for writes over; settingsKept is the file as the app last read or wrote it, so a quit saves only what changed (saveSettingsChanged).
+	settingsFound   settingsFound
+	settingsUnsaved bool
+	settingsKept    []byte
+	library         shelf.Library
+	pipeline        media.Pipeline
 	// rev is the revision every binding reads the app's state through, which whatever changes the state bumps (package live, state.go).
 	rev live.Rev
 	// cx is the app's own scope once nsgo.Run started the app (run), nil before and in tests that start none: the services, the windows, the menu bar and the quit go through it. Code in a component uses the component's own scope instead, which knows the window it is in.

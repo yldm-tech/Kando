@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -17,19 +18,48 @@ func (a *app) saveSettings() error {
 	if a.settingsPath == "" {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(a.settingsPath), 0o700); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(a.settingsFile(), "", "  ")
+	data, err := a.settingsData()
 	if err != nil {
 		return err
 	}
-	data = append(data, '\n')
+	return a.writeSettings(data)
+}
+
+// saveSettingsChanged saves the settings when they differ from what settings.json held when the app read it or last wrote it, as the app does when it quits, for what changed without a save of its own, such as where the windows are. It never writes over a settings.json the app could neither read nor copy aside at startup (settingsUnsaved): the user's libraries, keys and sign-ins in it would be lost to the defaults.
+func (a *app) saveSettingsChanged() error {
+	if a.settingsPath == "" || a.settingsUnsaved {
+		return nil
+	}
+	data, err := a.settingsData()
+	if err != nil || bytes.Equal(data, a.settingsKept) {
+		return err
+	}
+	return a.writeSettings(data)
+}
+
+// settingsData is settings.json as saveSettings writes it.
+func (a *app) settingsData() ([]byte, error) {
+	data, err := json.MarshalIndent(a.settingsFile(), "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(data, '\n'), nil
+}
+
+// writeSettings writes data to settings.json through a file beside it, and remembers it as what the file holds. A settings.json written in full no longer holds anything a write could lose, so writes need no longer wait for one the user asked for (settingsUnsaved).
+func (a *app) writeSettings(data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(a.settingsPath), 0o700); err != nil {
+		return err
+	}
 	tmp := a.settingsPath + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, a.settingsPath)
+	if err := os.Rename(tmp, a.settingsPath); err != nil {
+		return err
+	}
+	a.settingsKept, a.settingsUnsaved = data, false
+	return nil
 }
 
 // settingsFile is the settings as saveSettings writes them.
@@ -44,6 +74,8 @@ func (a *app) settingsFile() savedSettings {
 func (a *app) restoreSettings(saved savedSettings) {
 	moved := a.restoreShelf(saved)
 	a.areasRestore(saved)
+	// What the file holds now, as the app would write it: a quit saves only what changed since (saveSettingsChanged).
+	a.settingsKept, _ = a.settingsData()
 	if moved {
 		if err := a.saveSettings(); err != nil {
 			a.saveErr = a.messages().SettingsLibrarySaveFailed(err.Error())
@@ -75,10 +107,12 @@ func (a *app) loadSettings() savedSettings {
 	}
 	if found == settingsDamaged && data == nil {
 		a.saveErr = msgs.SettingsFileUnreadable(readErr.Error())
+		a.settingsUnsaved = true
 	} else if found == settingsDamaged {
 		bad := a.settingsPath + ".bad"
 		if err := os.WriteFile(bad, data, 0o600); err != nil {
 			a.saveErr = msgs.SettingsFileDamagedUnsaved(err.Error())
+			a.settingsUnsaved = true
 		} else {
 			a.saveErr = msgs.SettingsFileDamaged()
 		}

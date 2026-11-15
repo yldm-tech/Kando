@@ -98,6 +98,8 @@ type App interface {
 	// Search is the query of the subtitle list; SearchFocus asks the list's search field for the keyboard focus once.
 	Search() *string
 	SearchFocus() *bool
+	// SearchFocused is set while the search field holds the keyboard focus, so the app's Escape empties the field before it closes anything.
+	SearchFocused() *bool
 	// OSD is the message shown over the picture, "" for none; the app takes it away after a moment.
 	OSD() string
 	LibraryDir() string

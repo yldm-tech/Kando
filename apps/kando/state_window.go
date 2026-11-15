@@ -22,21 +22,53 @@ type windowUI struct {
 	leavingFullScreen bool
 	// quitting is set once a quit goes ahead (areaHooks.quitStarting), so the window's close button no longer puts it away and the quit closes it.
 	quitting bool
-	// frame is where the main window was last while neither maximized nor in full screen, as desktop.Frame reports it, which settings.json keeps for the next launch (savedWindow).
-	frame core.WindowFrame
+	// frame is where the main window was last while neither maximized nor in full screen, as desktop.Frame reports it, and maximized and fullScreen whether it was last maximized or in full screen, which settings.json keeps for the next launch (savedWindow).
+	frame                 core.WindowFrame
+	maximized, fullScreen bool
 }
 
 func newWindowUI() windowUI { return windowUI{} }
 
-// savedWindow is the main window's part of settings.json: its frame, which MyGo's StateKey used to keep in a file of its own.
+// savedWindow is the main window's part of settings.json: its frame and whether it was maximized or in full screen, which MyGo's StateKey used to keep in a file of its own.
 type savedWindow struct {
-	MainWindow *core.WindowFrame `json:"mainWindow,omitempty"`
+	MainWindow *savedFrame `json:"mainWindow,omitempty"`
 }
 
-func (s *savedWindow) clean() {
-	if f := s.MainWindow; f != nil && (f.Width <= 0 || f.Height <= 0) {
-		s.MainWindow = nil
+func (s *savedWindow) clean() { s.MainWindow = s.MainWindow.cleaned() }
+
+// savedFrame is how settings.json keeps a window: its frame while neither maximized nor in full screen, in points from the main screen's top left, positioned false where the platform reported only its size (Linux); and for the main window whether it was maximized or in full screen. Kando owns these keys, so a field NSGo renames in core.WindowFrame does not change the file.
+type savedFrame struct {
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	Width      float64 `json:"width"`
+	Height     float64 `json:"height"`
+	Positioned bool    `json:"positioned,omitempty"`
+	Maximized  bool    `json:"maximized,omitempty"`
+	FullScreen bool    `json:"fullScreen,omitempty"`
+}
+
+// savedFrameOf is f as settings.json keeps it, nil for a frame without a size, as before the window first reported one.
+func savedFrameOf(f core.WindowFrame) *savedFrame {
+	if f.Width <= 0 || f.Height <= 0 {
+		return nil
 	}
+	return &savedFrame{X: float64(f.X), Y: float64(f.Y), Width: float64(f.Width), Height: float64(f.Height), Positioned: f.Move}
+}
+
+// windowFrame is the frame s keeps, zero for none.
+func (s *savedFrame) windowFrame() core.WindowFrame {
+	if s == nil {
+		return core.WindowFrame{}
+	}
+	return core.WindowFrame{X: core.Points(s.X), Y: core.Points(s.Y), Move: s.Positioned, Width: core.Points(s.Width), Height: core.Points(s.Height)}
+}
+
+// cleaned is s, or nil when it holds no size a window could open at.
+func (s *savedFrame) cleaned() *savedFrame {
+	if s == nil || s.Width <= 0 || s.Height <= 0 {
+		return nil
+	}
+	return s
 }
 
 // windowFrame is the frame main opens the main window at: the one settings.json kept, false without one.
@@ -52,14 +84,15 @@ var windowHidesOnClose = runtime.GOOS == "darwin"
 func (a *app) windowHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
-			if _, ok := a.windowFrame(); ok {
-				f := a.window.frame
-				saved.MainWindow = &f
+			if f := savedFrameOf(a.window.frame); f != nil {
+				f.Maximized, f.FullScreen = a.window.maximized, a.window.fullScreen
+				saved.MainWindow = f
 			}
 		},
 		restore: func(saved savedSettings) {
 			if f := saved.MainWindow; f != nil {
-				a.window.frame = *f
+				a.window.frame = f.windowFrame()
+				a.window.maximized, a.window.fullScreen = f.Maximized, f.FullScreen
 			}
 		},
 		ready:        a.windowWatch,
@@ -74,17 +107,35 @@ func (a *app) windowKeys(cx *core.Scope) []shortcut {
 	}
 }
 
-// windowFollow follows the main window from its view's scope cx: its frame, kept for the next launch as it moves (saved with the settings, and as the app quits), whether it shows, which the areas hear about (windowSight), and a window closed in full screen, which hides once it has left it.
+// windowFollow follows the main window from its view's scope cx: its frame and whether it is maximized or in full screen, kept for the next launch as it changes (saved with the settings, and as the app quits when they changed), whether it shows, which the areas hear about (windowSight), and a window closed in full screen, which hides once it has left it. A window that was maximized or in full screen when the app last quit goes back to it once it shows.
 func (a *app) windowFollow(cx *core.Scope) {
 	a.window.cx = cx
+	maximized, fullScreen := a.window.maximized, a.window.fullScreen
 	cx.Effect(func() {
 		f := desktop.Frame(cx)
-		if desktop.Maximized(cx) || desktop.FullScreen(cx) || f.Width <= 0 || f.Height <= 0 {
+		a.window.maximized, a.window.fullScreen = desktop.Maximized(cx), desktop.FullScreen(cx)
+		if a.window.maximized || a.window.fullScreen || f.Width <= 0 || f.Height <= 0 {
 			return
 		}
 		// Linux reports no position (Move false), and the window opens centered there.
 		f.Animated = false
 		a.window.frame = f
+	})
+	// The state goes back once the platform has reported the window's frame, so the window is there to take it, and once only.
+	restoring := maximized || fullScreen
+	cx.Effect(func() {
+		if !restoring || desktop.Frame(cx).Width <= 0 {
+			return
+		}
+		restoring = false
+		cx.Post(func() {
+			switch {
+			case fullScreen && !desktop.FullScreen(cx):
+				desktop.ToggleFullScreen(cx)
+			case !fullScreen && !desktop.Maximized(cx):
+				desktop.ToggleMaximize(cx)
+			}
+		})
 	})
 	cx.Effect(func() {
 		if desktop.FullScreen(cx) || !a.window.leavingFullScreen {
@@ -96,7 +147,7 @@ func (a *app) windowFollow(cx *core.Scope) {
 			return true
 		})
 	})
-	cx.OnQuit(func(context.Context) { _ = a.saveSettings() })
+	cx.OnQuit(func(context.Context) { _ = a.saveSettingsChanged() })
 }
 
 // windowWatch listens to the main window's close button. It runs once, from ready.

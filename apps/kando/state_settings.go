@@ -68,33 +68,36 @@ type settingsUI struct {
 	win      *core.Window
 	opening  bool
 	inWindow bool
+	// frame is where the settings window was last, as desktop.Frame reports it, which settings.json keeps so the window opens there again (savedInterface).
+	frame core.WindowFrame
 }
 
 func newSettingsUI() settingsUI {
 	return settingsUI{interfaceLanguage: locales.Default, language: "简体中文", translatePrompt: media.DefaultSubtitlePrompt, translateContext: true, listModels: func(ctx context.Context, t media.ChatTranslator) ([]string, error) { return t.Models(ctx) }}
 }
 
-// savedInterface is the settings window's interface language. It is kept
-// separate from savedTranslate because the latter is the target language of
-// generated subtitles.
+// savedInterface is the settings window's own part of settings.json: the interface language, kept separate from savedTranslate, whose language is the target language of generated subtitles, and where the window was, which MyGo's StateKey used to keep in a file of its own.
 type savedInterface struct {
-	InterfaceLanguage string `json:"interfaceLanguage,omitempty"`
+	InterfaceLanguage string      `json:"interfaceLanguage,omitempty"`
+	SettingsWindow    *savedFrame `json:"settingsWindow,omitempty"`
 }
 
 func (s *savedInterface) clean() {
 	if !locales.Supported(s.InterfaceLanguage) {
 		s.InterfaceLanguage = locales.Default
 	}
+	s.SettingsWindow = s.SettingsWindow.cleaned()
 }
 
 func (a *app) saveInterface(saved *savedSettings) {
-	saved.savedInterface = savedInterface{InterfaceLanguage: a.prefs.interfaceLanguage}
+	saved.savedInterface = savedInterface{InterfaceLanguage: a.prefs.interfaceLanguage, SettingsWindow: savedFrameOf(a.prefs.frame)}
 }
 
 func (a *app) restoreInterface(saved savedSettings) {
 	if saved.InterfaceLanguage != "" {
 		a.prefs.interfaceLanguage = saved.InterfaceLanguage
 	}
+	a.prefs.frame = saved.SettingsWindow.windowFrame()
 }
 
 // savedTranslate is the translation's part of settings.json.
@@ -180,8 +183,19 @@ func (a *app) followSettingsPage() bool {
 // settingsKeys are the settings' shortcuts.
 func (a *app) settingsKeys(*core.Scope) []shortcut { return nil }
 
-// settingsView is the settings window's content, built once under the window's scope cx. Both windows read the same state through the revision (package live), so what one changes shows in the other at once.
+// settingsView is the settings window's content, built once under the window's scope cx. Both windows read the same state through the revision (package live), so what one changes shows in the other at once. The window's frame is followed for the next time it opens, and the window is forgotten as its scope goes, however it closes.
 func (a *app) settingsView(cx *core.Scope) core.Node {
+	w := nsdesktop.CurrentWindow(cx)
+	cx.Cleanup(func() {
+		a.settingsClosed(w)
+		a.cx.Post(a.Changed)
+	})
+	cx.Effect(func() {
+		if f := nsdesktop.Frame(cx); f.Width > 0 && f.Height > 0 {
+			f.Animated = false
+			a.prefs.frame = f
+		}
+	})
 	theme.Apply(cx)
 	// The traffic lights sit in a band 50 high, as the prototype's settings rail has them. No material: the prototype's settings draw their rail and pages in plain colors, without a backdrop blur.
 	nsdesktop.SetTitleBar(cx, nsdesktop.TitleBarHidden, 50)
@@ -220,6 +234,7 @@ func (a *app) openSettingsWindow() {
 		Width:       880,
 		Height:      640,
 		Key:         "settings",
+		Frame:       a.prefs.frame,
 		Constraints: core.WindowConstraints{MinWidth: 720, MinHeight: 480, NoMaximize: true},
 	}, a.settingsView)
 	if w == nil {
@@ -228,10 +243,9 @@ func (a *app) openSettingsWindow() {
 		return
 	}
 	a.prefs.win = w
-	w.OnClosing(a.cx, live.On(a, func(c *core.WindowClosing) { a.settingsClosed(w) }))
 }
 
-// settingsClosed forgets the settings window w as it closes, and the settings the user asked for with it.
+// settingsClosed forgets the settings window w as it closes (settingsView), and the settings the user asked for with it.
 func (a *app) settingsClosed(w *core.Window) {
 	if a.prefs.win != w {
 		return

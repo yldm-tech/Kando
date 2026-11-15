@@ -211,6 +211,7 @@ func (s *screen) searchField(cx *ns.Scope) ns.Node {
 	query := live.Func(a, func() string { return *a.Search() })
 	clear := live.Do(a, func() { *a.Search() = "" })
 	focused := ns.NewSignal(cx, false)
+	cx.Cleanup(func() { *a.SearchFocused() = false })
 	escape := ns.Show{When: func() bool { return focused.Get() && query() != "" }, Then: func(cx *ns.Scope) ns.Node {
 		cx.OnKeyWith("escape", ns.KeyOptions{When: ns.KeyAlways}, clear)
 		return nil
@@ -223,8 +224,8 @@ func (s *screen) searchField(cx *ns.Scope) ns.Node {
 		Value:           query,
 		PlaceholderFunc: func() string { return locales.FilmSearchLines(cx) + "  " + cx.KeyLabel("mod+f") },
 		OnChange:        live.On(a, func(text string) { *a.Search() = text }),
-		OnFocus:         func() { focused.Set(true) },
-		OnBlur:          func() { focused.Set(false) },
+		OnFocus:         func() { focused.Set(true); *a.SearchFocused() = true },
+		OnBlur:          func() { focused.Set(false); *a.SearchFocused() = false },
 		Style: ns.Style{FlexGrow: 1, MinWidth: ns.Pt(0), Height: ns.Pt(30), CornerRadius: 8, Background: ns.RGBA(0xFFFFFF, 0.1), FontSize: 12,
 			Padding: ns.Edges{Left: 28, Right: 8}, Color: onGlass, PlaceholderColor: ns.RGBA(0xFFFFFF, 0.45), CaretColor: onGlass},
 	}

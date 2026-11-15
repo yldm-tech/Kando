@@ -199,6 +199,9 @@ func TestPaletteRunsCommands(t *testing.T) {
 	if a.palette.open {
 		t.Fatal("running a command left the palette open")
 	}
+	// The settings show over the main window here, as on Windows and Linux, and hold the window's keys, ⌘K among them (binds): Escape closes them first.
+	tt.Key("escape")
+	refresh(tt, a)
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "快捷键")
 	tt.Press("快捷键速查")

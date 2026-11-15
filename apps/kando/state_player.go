@@ -110,6 +110,8 @@ type filmUI struct {
 	delay       time.Duration
 	search      string
 	searchFocus bool
+	// searchFocused is set while the subtitle search field holds the keyboard focus (SearchFocused).
+	searchFocused bool
 	uploadNote  bool
 	// info is the film's folder as readFilmInfo read it for the video at infoFor.
 	info    film.Info

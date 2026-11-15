@@ -198,6 +198,9 @@ func (a *app) menuLibraries() []nsdesktop.MenuItem {
 // menuItem is the menu bar's item for the shortcut s. own says s is one of the overlays' rows, which the cheat sheet leaves enabled.
 func (a *app) menuItem(s shortcut, own bool) nsdesktop.MenuItem {
 	it := nsdesktop.MenuItem{Label: s.Label, Disabled: a.holds(own) || (s.When != nil && !s.When()), When: core.MenuAuto}
+	if s.InText {
+		it.When = core.MenuAlways
+	}
 	if hasCommand(s.Key) {
 		it.Shortcut = s.Key
 	}
