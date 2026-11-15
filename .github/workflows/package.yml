@@ -177,9 +177,9 @@ jobs:
               spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
             done
           done
-      # Kando's MyGo builds (0.12.0 and older) update from update-<target>.json in the latest release, which nsgo build does not make, so a release build makes it for them (.github/scripts/mygo-bridge.go): the NSGo app as MyGo's updater unpacks it, with a manifest signed by MYGO_UPDATER_PRIVATE_KEY. An installed MyGo build then updates to this release once, and the NSGo build updates itself from its appcast after that. Every release makes it, so a copy left on 0.12.0 for a while still finds the latest release. On macOS each app gets its notarization ticket stapled first, as nsgo build staples only the disk images, so the updated app opens offline too. Linux has none: see mygo-bridge.go.
+      # Kando's MyGo builds (0.12.0 and older) update from update-<target>.json in the latest release, which nsgo build does not make, so a release build makes it for them (.github/scripts/mygo-bridge.go): the NSGo app as MyGo's updater unpacks it, with a manifest signed by MYGO_UPDATER_PRIVATE_KEY. An installed MyGo build then updates to this release once, and the NSGo build updates itself from its appcast after that. Every release makes it, so a copy left on 0.12.0 for a while still finds the latest release; a signed run by hand makes it too, as the run's artifacts, to check it before a release. On macOS each app gets its notarization ticket stapled first, as nsgo build staples only the disk images, so the updated app opens offline too. Linux has none: see mygo-bridge.go.
       - name: Make the updates of the MyGo builds
-        if: inputs.tag != '' && matrix.bridge
+        if: matrix.bridge && (inputs.tag != '' || inputs.sign)
         env:
           TAG: ${{ inputs.tag }}
           TARGETS: ${{ matrix.targets }}
@@ -191,6 +191,9 @@ jobs:
             exit 1
           fi
           version=${TAG#v}
+          if [ -z "$version" ]; then
+            version=$(sed -nE 's/^version: *"?([0-9.]+)"? *$/\1/p' apps/kando/nsgo.yaml)
+          fi
           if [ "$RUNNER_OS" = macOS ]; then
             for target in ${TARGETS//,/ }; do
               app=$RUNNER_TEMP/packages/Kando-$version-$target/Kando.app
@@ -206,7 +209,7 @@ jobs:
             done
           fi
           public=$(sed -nE 's/^ *key: *([A-Za-z0-9+\/=]+) *$/\1/p' apps/kando/nsgo.yaml)
-          .github/scripts/changelog.sh notes "$TAG" > "$RUNNER_TEMP/notes.md"
+          .github/scripts/changelog.sh notes "v$version" > "$RUNNER_TEMP/notes.md"
           go run .github/scripts/mygo-bridge.go make -version "$version" -repo "$GITHUB_REPOSITORY" -packages "$RUNNER_TEMP/packages" -targets "$TARGETS" -notes "$RUNNER_TEMP/notes.md" -public "$public"
           go run .github/scripts/mygo-bridge.go verify -dir "$RUNNER_TEMP/packages/releases" -public "$public"
       # The files of nsgo build's releases folder, which a release holds side by side: each target's installers with their .sha256, its appcast in a release build (on Linux in every build), and on the Linux row the install scripts. Every installer the row's targets should make must be there, once, as must a release build's appcasts. Their SHA-256 is taken here from the files nsgo build made.
@@ -218,6 +221,7 @@ jobs:
           INSTALLERS: ${{ matrix.installers }}
           SCRIPTS: ${{ matrix.scripts && 'true' || '' }}
           BRIDGE: ${{ matrix.bridge && 'true' || '' }}
+          SIGN: ${{ inputs.sign && 'true' || '' }}
         run: |
           cd "$RUNNER_TEMP/packages/releases"
           shopt -s nullglob
@@ -235,7 +239,7 @@ jobs:
               exit 1
             fi
           done
-          if [ -n "$TAG" ] && [ -n "$BRIDGE" ]; then
+          if [ -n "$TAG$SIGN" ] && [ -n "$BRIDGE" ]; then
             manifests=(update-*.json)
             archives=(kando-*-darwin-*.tar.gz kando-*-windows-*.tar.gz)
             read -ra targets <<<"${TARGETS//,/ }"
