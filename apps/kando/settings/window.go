@@ -189,7 +189,7 @@ func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
 		header{a: a, section: section.Get},
 		core.Scroll{TestID: "settings-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{content}},
 	}}
-	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, AlignItems: core.AlignStretch, Background: form.Window},
+	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch, Background: form.Window},
 		Children: []core.Node{rail{a: a}, pane}}
 }
 
@@ -256,7 +256,7 @@ func (r rail) Render(cx *core.Scope) core.Node {
 	return core.View{TestID: "settings-rail",
 		Style: core.Style{Width: core.Pt(railWidth), FlexShrink: 0, AlignItems: core.AlignStretch, Padding: core.Edges{Right: 10, Bottom: 12, Left: 10}, Gap: 2,
 			Background: railFill, Borders: core.Edges{Right: 1}, BorderColors: core.EdgeColors{Right: railLine}},
-		Children: []core.Node{top, search{a: a}, none, core.View{Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{list}}}}
+		Children: []core.Node{top, search{a: a}, none, core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{list}}}}
 }
 
 // categoryContent is a category of the rail: its colored tile and its title, as the prototype's settings sidebar draws it. ui.Sidebar marks the chosen one.

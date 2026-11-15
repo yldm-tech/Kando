@@ -55,7 +55,7 @@ func (s start) Render(cx *core.Scope) core.Node {
 	}}
 	return core.View{
 		TestID:   "browse-start",
-		Style:    core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignCenter},
+		Style:    core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignCenter},
 		Children: []core.Node{status, clear},
 	}
 }

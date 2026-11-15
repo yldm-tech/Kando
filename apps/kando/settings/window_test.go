@@ -179,7 +179,7 @@ func start(t *testing.T, a *fakeApp) *nsgotest.App {
 	account := core.Text{TestID: "account-page", Content: "account"}
 	return nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a.Attach(cx)
-		return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{Window{App: a, Version: "1.2.3", Account: account}}}
+		return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{Window{App: a, Version: "1.2.3", Account: account}}}
 	}, nsgotest.Size(880, 640), nsgotest.Environment(env))
 }
 
@@ -286,6 +286,20 @@ func TestWindowFollowsTheLanguage(t *testing.T) {
 	}
 	if got := app.Find("id:settings-search").Input.Placeholder; got != en.SettingsSearchPlaceholder() {
 		t.Fatalf("the search field's placeholder is %q", got)
+	}
+}
+
+// TestPageScrollsWithinTheWindow checks that a page longer than the window scrolls inside it: NSGo's views keep the height of their content unless they may shrink, so a window whose boxes only grew would stretch past its bottom and leave nothing to scroll.
+func TestPageScrollsWithinTheWindow(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	page := app.Find("id:settings-page")
+	if page.Frame.Size.Height >= 640 || page.Content.Height <= page.Frame.Size.Height {
+		t.Fatalf("the page is %v high in a window 640 high, its content %v", page.Frame.Size.Height, page.Content.Height)
+	}
+	app.Scroll("id:settings-page", 4000)
+	if page := app.Find("id:settings-page"); page.Offset.Y <= 0 {
+		t.Fatalf("the page did not scroll: offset %v", page.Offset)
 	}
 }
 

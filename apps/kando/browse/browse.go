@@ -82,7 +82,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 	state := live.Memo(cx, a, a.BrowseState)
 	// The web view is made once a page is first asked for and stays while the browser does, hidden behind the start after home, so back finds the pages before it.
 	body := core.View{
-		Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
 		Children: []core.Node{
 			core.Show{When: live.Func(a, func() bool { return a.BrowseSource() != "" }), Then: func(*core.Scope) core.Node { return page{a} }},
 			core.Show{When: func() bool { return !state().Page }, Then: func(*core.Scope) core.Node { return start{a} }},
@@ -90,7 +90,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 	}
 	return core.View{
 		TestID:    "browse",
-		Style:     core.Style{FlexGrow: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		Style:     core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
 		StyleFunc: ui.Filled(colors.Background),
 		Children:  []core.Node{toolbar{a}, notice{a}, body, clearDialog{a}},
 	}

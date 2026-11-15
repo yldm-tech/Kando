@@ -54,12 +54,12 @@ func (a *app) view(cx *core.Scope) core.Node {
 	}
 	// With the window's material on, the sidebar shows it and the content stays opaque.
 	content := core.View{
-		Style:     core.Style{FlexGrow: 1, MinWidth: core.Pt(0), AlignItems: core.AlignStretch},
+		Style:     core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), AlignItems: core.AlignStretch},
 		StyleFunc: ui.Filled(colors.Background),
 		Children:  []core.Node{band, a.mainColumn(cx)},
 	}
 	return core.View{
-		Style: core.Style{Direction: core.Row, FlexGrow: 1, AlignItems: core.AlignStretch},
+		Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch},
 		StyleFunc: func() core.Style {
 			if nsdesktop.ShowsMaterial(cx) {
 				return core.Style{}
@@ -81,7 +81,7 @@ func (a *app) mainColumn(cx *core.Scope) core.Node {
 	dragOver := core.NewSignal(cx, false)
 	return core.View{
 		TestID: "main-column",
-		Style:  core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Gap: 20},
+		Style:  core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 20},
 		StyleFunc: live.Func(a, func() core.Style {
 			padX, padY := pagePadX, core.Points(28)
 			if a.filmFillsWindow() {

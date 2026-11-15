@@ -70,7 +70,7 @@ func (a *app) BrowseCancelClear() { a.browseCancelClear() }
 func (a *app) browseColumn(cx *core.Scope) core.Node {
 	cx.Cleanup(a.browseColumnGone)
 	return core.View{
-		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
 		StyleFunc: live.Func(a, func() core.Style {
 			if a.page != pageBrowse {
 				return core.Style{Display: core.DisplayNone}

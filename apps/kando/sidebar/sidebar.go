@@ -104,7 +104,7 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 	colors := ui.ColorsOf(cx)
 	// The hairlines are rings of half a point that take no room, as the prototype's box-shadows: white just inside the edge, dark just outside it.
 	card := ns.View{
-		Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: cardRadius, Background: cardFill,
+		Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: cardRadius, Background: cardFill,
 			Shadows: []ns.BoxShadow{{Spread: 0.5, Color: cardHighlight, Inset: true}, {Spread: 0.5, Color: cardHairline}, {Offset: ns.Point{Y: 4}, Blur: 14, Color: cardShadow}}},
 		Children: []ns.Node{
 			ns.View{

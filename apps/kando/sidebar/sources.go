@@ -45,7 +45,7 @@ func (s sources) Render(cx *core.Scope) core.Node {
 	})
 	colors := ui.ColorsOf(cx)
 	return core.View{
-		Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0), Padding: core.Edges{Right: insetEnd, Left: insetStart}},
+		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Padding: core.Edges{Right: insetEnd, Left: insetStart}},
 		Children: []core.Node{ui.Sidebar{
 			TestID: "sidebar-sources",
 			SectionsFunc: func() []ui.SidebarSection {

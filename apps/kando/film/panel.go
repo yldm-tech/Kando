@@ -177,9 +177,9 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		}
 		return s.cueList(cx)
 	})
-	return ns.View{Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
+	return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
 		ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 8, Left: 14}, Gap: 8}, Children: []ns.Node{s.searchField(cx), chip}},
-		ns.View{Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0), Padding: ns.Edges{Right: 8, Bottom: 12, Left: 8}}, Children: []ns.Node{body}},
+		ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Padding: ns.Edges{Right: 8, Bottom: 12, Left: 8}}, Children: []ns.Node{body}},
 		ns.View{Style: ns.Style{Padding: ns.Edges{Top: 8, Right: 14, Bottom: 12, Left: 14}, Borders: ns.Edges{Top: 1}, BorderColor: panelLine}, Children: []ns.Node{
 			ns.Text{ContentFunc: func() string { return locales.FilmClickToJump(cx) }, Style: ns.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: ns.Alpha(0.55)}},
 		}},
@@ -387,7 +387,7 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 			return panelNote(live.Func(a, func() string { return a.ErrText(cx, a.Subs().Err) }), colors.Danger)
 		}
 		return ns.Show{When: func() bool { return len(chapters()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
-			return ns.View{Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0), Gap: 8}, Children: []ns.Node{
+			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Gap: 8}, Children: []ns.Node{
 				ns.View{Style: ns.Style{MinHeight: ns.Pt(30), JustifyContent: ns.JustifyCenter}, Children: []ns.Node{
 					ns.Text{ContentFunc: func() string { return locales.FilmClipsNote(cx) }, Style: ns.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: ns.Alpha(0.7)}},
 				}},
@@ -408,7 +408,7 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 			return panelNote(func() string { return locales.FilmNoClipsYet(cx) }, nil)
 		}}
 	})
-	return ns.View{Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0), Padding: ns.Edges{Right: 14, Bottom: 14, Left: 14}}, Children: []ns.Node{body}}
+	return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Padding: ns.Edges{Right: 14, Bottom: 14, Left: 14}}, Children: []ns.Node{body}}
 }
 
 // clipTiles are the colors of the 片段's tiles, the prototype's stand-ins for a frame of each.

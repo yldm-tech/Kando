@@ -33,7 +33,7 @@ func (p page) Render(cx *core.Scope) core.Node {
 		OnNavigationStateChange:         live.On(a, a.BrowseNavigated),
 		OnError:                         live.On(a, a.BrowseFailed),
 		OnMessage:                       live.On(a, a.BrowseMessage),
-		Style:                           core.Style{FlexGrow: 1, MinHeight: core.Pt(0), Background: pageFill},
+		Style:                           core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Background: pageFill},
 		// The start shows in its place after home, while the web view keeps the pages before it.
 		StyleFunc: live.Func(a, func() core.Style {
 			if !a.BrowseState().Page {

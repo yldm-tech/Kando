@@ -154,7 +154,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 	}}
 	return core.View{
 		TestID: "films-page",
-		Style:  core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		Style:  core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
 		// The page takes the files dropped on it, as the innermost view that takes drops; the main column takes those dropped elsewhere in the window.
 		OnFileDragEnter: func() { dragging.Set(true) },
 		OnFileDragLeave: func() { dragging.Set(false) },

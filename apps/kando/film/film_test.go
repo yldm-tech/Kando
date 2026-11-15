@@ -1,6 +1,7 @@
 package film
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -190,7 +191,7 @@ func start(t *testing.T, a *fakeApp) *nsgotest.App {
 	env := testlocale.Environment(ns.Environment{OS: ns.OSMacOS, Idiom: ns.IdiomDesktop, AppleKeyboard: true})
 	return nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
 		a.Attach(cx)
-		return ns.View{Style: ns.Style{FlexGrow: 1, AlignItems: ns.AlignStretch}, Children: []ns.Node{View{App: a, Item: live.Func(a, func() Item { return a.item })}}}
+		return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, AlignItems: ns.AlignStretch}, Children: []ns.Node{View{App: a, Item: live.Func(a, func() Item { return a.item })}}}
 	}, nsgotest.Size(1100, 720), nsgotest.Environment(env))
 }
 
@@ -345,6 +346,25 @@ func TestPanelTabsAndTheStyleView(t *testing.T) {
 }
 
 // TestCueRowsSeekAndCopy checks the subtitle list: a click plays from a line, its delay counted, and a right click offers to copy it, both lines or one, for a bilingual line.
+// TestCueListScrollsWithinThePanel checks that a film's many lines scroll in the panel rather than stretch it past the window: NSGo's views keep the height of their content unless they may shrink, so a panel whose boxes between the window and the list only grew would leave the list nothing to scroll.
+func TestCueListScrollsWithinThePanel(t *testing.T) {
+	a := newFakeApp()
+	a.subs.Cues = nil
+	for i := range 200 {
+		at := time.Duration(i) * 2 * time.Second
+		a.subs.Cues = append(a.subs.Cues, core.Segment{Start: at, End: at + time.Second, Text: fmt.Sprintf("第 %d 句", i+1)})
+	}
+	app := start(t, a)
+	list := app.Find("id:film-cues")
+	if list.Frame.Size.Height >= 720 || list.Content.Height <= list.Frame.Size.Height {
+		t.Fatalf("the list is %v high, its content %v, in a window 720 high", list.Frame.Size.Height, list.Content.Height)
+	}
+	app.Scroll("id:film-cues", 2000)
+	if list := app.Find("id:film-cues"); list.Offset.Y <= 0 {
+		t.Fatalf("the list did not scroll: offset %v", list.Offset)
+	}
+}
+
 func TestCueRowsSeekAndCopy(t *testing.T) {
 	a := newFakeApp()
 	a.delay = 500 * time.Millisecond

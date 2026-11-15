@@ -1980,3 +1980,20 @@ func shows(tt *nsgotest.App, s string) bool {
 func finds(tt *nsgotest.App, s string) bool {
 	return tt.Exists(whole(s)) || tt.Exists(`label:"`+s+`"`)
 }
+
+// TestLibraryPageScrollsWithinTheWindow checks that the prototype's library, longer than the window, scrolls inside it: NSGo's views keep the height of their content unless they may shrink, so a window whose boxes between it and the page's scroll view only grew would stretch past its bottom and leave nothing to scroll.
+func TestLibraryPageScrollsWithinTheWindow(t *testing.T) {
+	f := newPrototypeLibrary(t, screenshotHome(t))
+	f.shootSize(t, "scroll", 1304, 782, func(a *app, tt *nsgotest.App, _ chan func()) {
+		page := tt.Find("id:films-page")
+		if h := page.Frame.Size.Height; h != 782 {
+			t.Fatalf("the page is %v high in a window 782 high", h)
+		}
+		grid := whole(testlocale.Messages().FilmsGridCount(8))
+		tt.Scroll(grid, 300)
+		refresh(tt, a)
+		if y := pageFrame(tt.Find(grid)).Origin.Y; y >= 782 {
+			t.Fatalf("the grid's count is still at %v, below the window", y)
+		}
+	})
+}

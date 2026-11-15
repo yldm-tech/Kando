@@ -104,7 +104,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 	s.room = live.Memo(cx, a, func() bool { return panelShown(a) })
 	return core.View{
 		TestID:      "film",
-		Style:       core.Style{FlexGrow: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch, Background: core.RGB(0x000000), Overflow: core.Hidden},
+		Style:       core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch, Background: core.RGB(0x000000), Overflow: core.Hidden},
 		OnLayout:    func(b core.Bounds) { s.size.Set(b.Size) },
 		OnMouseMove: func(core.MouseEvent) { moved() },
 		Children: []core.Node{
