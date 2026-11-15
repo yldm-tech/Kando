@@ -46,7 +46,7 @@ func (a *app) restoreSettings(saved savedSettings) {
 	a.areasRestore(saved)
 	if moved {
 		if err := a.saveSettings(); err != nil {
-			a.saveErr = locales.SettingsLibrarySaveFailed(err.Error())
+			a.saveErr = a.messages().SettingsLibrarySaveFailed(err.Error())
 		}
 	}
 }
@@ -68,14 +68,19 @@ const (
 func (a *app) loadSettings() savedSettings {
 	saved, found, data, readErr := readSavedSettings(a.settingsPath)
 	a.settingsFound = found
+	// The words are kept in the app's state, in the interface language the file names when what could be read names one, as the areas have not restored theirs yet.
+	msgs := a.messages()
+	if locales.Supported(saved.InterfaceLanguage) {
+		msgs = locales.In(saved.InterfaceLanguage)
+	}
 	if found == settingsDamaged && data == nil {
-		a.saveErr = locales.SettingsFileUnreadable(readErr.Error())
+		a.saveErr = msgs.SettingsFileUnreadable(readErr.Error())
 	} else if found == settingsDamaged {
 		bad := a.settingsPath + ".bad"
 		if err := os.WriteFile(bad, data, 0o600); err != nil {
-			a.saveErr = locales.SettingsFileDamagedUnsaved(err.Error())
+			a.saveErr = msgs.SettingsFileDamagedUnsaved(err.Error())
 		} else {
-			a.saveErr = locales.SettingsFileDamaged()
+			a.saveErr = msgs.SettingsFileDamaged()
 		}
 	}
 	return saved

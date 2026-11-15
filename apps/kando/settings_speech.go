@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 )
@@ -62,7 +61,7 @@ func (a *app) useSpeechLanguage(code string) {
 	tools.SpeechLanguage = code
 	a.pipeline = tools
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.SettingsSpeechLanguageSaveFailed(err.Error())
+		a.saveErr = a.messages().SettingsSpeechLanguageSaveFailed(err.Error())
 	}
 }
 
@@ -96,7 +95,7 @@ func (a *app) useSpeechModel(path string) {
 	a.pipeline = tools
 	a.areasToolsChanged(false)
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.SettingsSpeechSaveFailed(err.Error())
+		a.saveErr = a.messages().SettingsSpeechSaveFailed(err.Error())
 	}
 }
 
@@ -109,7 +108,7 @@ func (a *app) downloadSpeechModel(id string) {
 		return
 	}
 	if a.prefs.modelsDir == "" {
-		a.prefs.downloadErr = errSpeechNoModelsDir
+		a.prefs.downloadErr = settings.ErrNoModelsDir
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -152,45 +151,6 @@ func (a *app) downloadSpeechModel(id string) {
 	}()
 }
 
-// speechTrashError is why trashSpeechModel left the whisper catalog model id where it was: err, or the model being in use when err is nil. speechDownloadError words it in the language it is shown in.
-type speechTrashError struct {
-	id  string
-	err error
-}
-
-func (e speechTrashError) Error() string {
-	if e.err == nil {
-		return e.id + " is in use"
-	}
-	return e.id + ": " + e.err.Error()
-}
-
-// errSpeechNoModelsDir is downloadSpeechModel's error when Kando has no folder to put the models in.
-var errSpeechNoModelsDir = errors.New("no models folder")
-
-// speechDownloadError says in plain words, in the interface's language, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there.
-func speechDownloadError(err error) string {
-	var status interface{ StatusCode() int }
-	var trash speechTrashError
-	switch {
-	case err == nil:
-		return ""
-	case errors.As(err, &trash) && trash.err == nil:
-		return locales.SettingsSpeechTrashInUse(settings.SpeechModelName(trash.id))
-	case errors.As(err, &trash):
-		return locales.SettingsSpeechTrashFailed(settings.SpeechModelName(trash.id), trash.err.Error())
-	case errors.Is(err, errSpeechNoModelsDir):
-		return locales.SettingsSpeechNoModelsDir()
-	case errors.Is(err, media.ErrStalled):
-		return locales.SettingsSpeechDownloadStalled()
-	case errors.As(err, &status):
-		return locales.SettingsSpeechDownloadFailedStatus(status.StatusCode())
-	case errors.Is(err, media.ErrDisconnected):
-		return locales.SettingsSpeechDownloadDisconnected()
-	}
-	return err.Error()
-}
-
 // speechModelOwned reports whether the file of the whisper catalog model id is one Kando downloaded: a file right in its models folder, where downloadSpeechModel puts them. A model in another app's folder (defaultExtraModelDirs) or one KANDO_WHISPER_MODEL names elsewhere is not Kando's to move to the Trash.
 func (a *app) speechModelOwned(id string) bool {
 	path := a.prefs.speechModels[id]
@@ -204,7 +164,7 @@ func (a *app) speechModelInUse(path string) bool {
 	return (ok && same(tools.WhisperModel)) || (a.queue.active != "" && same(a.queue.whisperModel))
 }
 
-// askTrashSpeechModel opens the confirmation of moving the model id to the Trash, holding the window's modal flag until it closes (speechModals). A model Kando did not download is not asked about.
+// askTrashSpeechModel opens the confirmation of moving the model id to the Trash, holding the window's modal flag until it closes (closeTrashSpeechModel, or speechModals when its page goes away). A model Kando did not download is not asked about.
 func (a *app) askTrashSpeechModel(id string) {
 	if !a.speechModelOwned(id) {
 		return
@@ -216,7 +176,16 @@ func (a *app) askTrashSpeechModel(id string) {
 	}
 }
 
-// speechModals gives back the modal flag the trash confirmation held once it has closed, and reports whether it closed the confirmation or gave the flag back. It runs after every change (settingsHooks' afterChange), and as the settings close. The confirmation is drawn by the 语音识别 page, so it also closes when the window shows another section, as the main window can ask for (OpenSettings) while it is open; otherwise the flag would stay held with no confirmation on screen, and the menu bar would drop every command.
+// closeTrashSpeechModel closes the trash confirmation as its 取消 or 移到废纸篓 button, Enter or Escape answers it, and gives back the modal flag it held right away, so the Changed after the answer already finds the menu bar's commands free.
+func (a *app) closeTrashSpeechModel() {
+	a.prefs.trashOpen = false
+	if a.prefs.trashRelease != nil {
+		a.prefs.trashRelease()
+		a.prefs.trashRelease = nil
+	}
+}
+
+// speechModals gives back the modal flag the trash confirmation held once it has closed, and reports whether it closed the confirmation or gave the flag back. It runs after every change (settingsHooks' afterChange), and as the settings close, for the confirmation that closes without being answered: the confirmation is drawn by the 语音识别 page, so it also closes when the window shows another section, as the main window can ask for (OpenSettings) while it is open; otherwise the flag would stay held with no confirmation on screen, and the menu bar would drop every command.
 func (a *app) speechModals() bool {
 	changed := false
 	if a.prefs.trashOpen && (!a.prefs.open || a.SettingsSection() != settings.SectionSpeech) {
@@ -238,11 +207,11 @@ func (a *app) trashSpeechModel(id string) {
 		return
 	}
 	if a.speechModelInUse(path) {
-		a.prefs.downloadErr = speechTrashError{id: id}
+		a.prefs.downloadErr = settings.TrashError{ID: id}
 		return
 	}
 	if err := trashItem(path); err != nil {
-		a.prefs.downloadErr = speechTrashError{id: id, err: err}
+		a.prefs.downloadErr = settings.TrashError{ID: id, Err: err}
 		return
 	}
 	a.prefs.downloadErr = nil

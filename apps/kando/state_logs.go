@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"kando/apps/kando/desktop/mygodesktop"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/feedback"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
 
-	"github.com/egoist/mygo"
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // logsUI is the state of the app's log file (feedback/logfile.go): the file the standard logger writes to, and the stage each job of the open shelf was in when the log last looked at it, so a job that fails is logged once.
@@ -23,11 +23,24 @@ type logsUI struct {
 
 func newLogsUI() logsUI { return logsUI{} }
 
-// logsDir is the folder the log file goes in: the system's place for the app's logs, ~/Library/Logs/Kando on macOS. Tests point it at a folder of their own.
-var logsDir = func() (string, error) { return mygo.App.Path(mygo.PathLogs) }
+// logsDir is the folder the log file goes in: the system's place for the app's logs, ~/Library/Logs/Kando on macOS, and a logs folder in Kando's folder of the user's configuration elsewhere, as MyGo's PathLogs put it, so the log stays where it was. feedback.OpenLogFile makes the folder. Tests point it at a folder of their own.
+var logsDir = func() (string, error) {
+	if runtime.GOOS == "darwin" {
+		home, err := os.UserHomeDir()
+		return filepath.Join(home, "Library", "Logs", "Kando"), err
+	}
+	dir, err := os.UserConfigDir()
+	return filepath.Join(dir, "Kando", "logs"), err
+}
 
-// logsReveal shows a file in Finder or the file manager. Tests replace it.
-var logsReveal = mygodesktop.Reveal
+// logsReveal shows a file in Finder or the file manager, under cx, the app's scope. A reveal no app answered is logged, as the menu's row has nowhere else to say so. Tests replace it.
+var logsReveal = func(cx *ns.Scope, path string) {
+	desktop.Reveal(cx, path, func(err error) {
+		if err != nil {
+			log.Printf("logs: cannot show the log file: %v", err)
+		}
+	})
+}
 
 // logsHooks: the log file opens once the window is ready, which is only in main, so a test's app does not write the user's log; its area runs first, so what the other areas log as they get ready reaches the file. At quitting it only says so and stays open: its area also runs first there, and what the other areas log as they stop, such as remote's control socket, must reach the file too; the process's exit closes it, and nothing is buffered. Each time the shelf changes, a job that has just failed is logged with the stage it failed in and its whole error; the jobs the shelf was read with are only looked at, as they failed in an earlier run.
 func (a *app) logsHooks() areaHooks {
@@ -40,9 +53,9 @@ func (a *app) logsHooks() areaHooks {
 }
 
 // logsKeys are the log's rows of the shortcut table: 显示日志文件 in the 帮助 menu, without a key, while there is a log file.
-func (a *app) logsKeys() []shortcut {
+func (a *app) logsKeys(cx *ns.Scope) []shortcut {
 	return []shortcut{
-		{Group: groupHelp, Label: locales.LogsShowLogFile(), When: func() bool { return a.logs.file != nil }, Run: a.logsShow},
+		{Group: groupHelp, Label: locales.LogsShowLogFile(cx), When: func() bool { return a.logs.file != nil }, Run: a.logsShow},
 	}
 }
 
@@ -86,7 +99,7 @@ func (a *app) logsClose() {
 // logsShow reveals the log file in Finder or the file manager, so it can be attached to a report.
 func (a *app) logsShow() {
 	if a.logs.file != nil {
-		logsReveal(a.logs.file.Path())
+		logsReveal(a.cx, a.logs.file.Path())
 	}
 }
 

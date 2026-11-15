@@ -9,6 +9,7 @@ import (
 
 	"kando/apps/kando/clitool"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 )
 
@@ -79,13 +80,12 @@ func TestSettingsGeneralAsksToMoveATemporaryApp(t *testing.T) {
 	root := cliToolRoot(t)
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
 	exe := "/Volumes/Kando/Kando.app/Contents/MacOS/Kando"
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.cliTool.env = func() clitool.Env { return clitool.Env{Exe: exe, Searched: []string{bin}, InstallTo: []string{bin}} }
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	tt.SetSize(880, 1600)
-	waitUntil(t, updates, func() bool { return a.cliTool.known })
-	tt.Frame()
-	if !tt.HasText("看懂正从磁盘映像或临时位置运行。请先把看懂移到「应用程序」文件夹，再从那里打开。") {
+	tt.Resize(880, 1600)
+	waitUntil(t, tt, a, updates, func() bool { return a.cliTool.known })
+	if !hasText(tt, "看懂正从磁盘映像或临时位置运行。请先把看懂移到「应用程序」文件夹，再从那里打开。") {
 		t.Fatalf("no hint to move the app: %q", tt.Texts())
 	}
 	for _, text := range tt.Texts() {
@@ -96,11 +96,8 @@ func TestSettingsGeneralAsksToMoveATemporaryApp(t *testing.T) {
 			t.Fatalf("the card offers to install: %q", tt.Texts())
 		}
 	}
-	tt.Click("拷贝配置")
-	tt.Click("拷贝命令")
-	tt.Frame()
-	if tt.Clipboard() != "" {
-		t.Fatalf("copied %q", tt.Clipboard())
+	if tt.Enabled("拷贝配置") || tt.Enabled("拷贝命令") || tt.Clipboard != "" {
+		t.Fatalf("the card offers to copy: clipboard %q", tt.Clipboard)
 	}
 }
 
@@ -109,47 +106,37 @@ func TestSettingsGeneralInstallsTheCommandAndCopiesTheMCPConfig(t *testing.T) {
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.cliTool.env = func() clitool.Env {
 		return clitool.Env{Exe: exe, Searched: []string{bin}, InstallTo: []string{bin}}
 	}
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	tt.SetSize(880, 1600)
-	waitUntil(t, updates, func() bool { return a.cliTool.known })
-	tt.Frame()
+	tt.Resize(880, 1600)
+	waitUntil(t, tt, a, updates, func() bool { return a.cliTool.known })
 	for _, text := range []string{"命令行与 MCP", "命令行工具", "在终端里用 kando 命令添加视频、查看任务和字幕。", "MCP", "Claude Code", "claude mcp add kando -- " + exe + " mcp"} {
-		if !tt.HasText(text) {
+		if !hasText(tt, text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
 
-	if err := tt.Click("安装"); err != nil {
-		t.Fatal(err)
-	}
-	waitUntil(t, updates, func() bool { return !a.cliTool.installing })
-	tt.Frame()
+	tt.Press("安装")
+	waitUntil(t, tt, a, updates, func() bool { return !a.cliTool.installing })
 	link := filepath.Join(bin, "kando")
 	wantLink(t, link, exe)
-	if !tt.HasText("已安装") || !tt.HasText("在终端里输入 kando 即可使用，命令在 "+link+"。") {
+	if !hasText(tt, "已安装") || !hasText(tt, "在终端里输入 kando 即可使用，命令在 "+link+"。") {
 		t.Fatalf("after 安装: %q", tt.Texts())
 	}
 
-	if err := tt.Click("拷贝配置"); err != nil {
-		t.Fatal(err)
+	tt.Press("拷贝配置")
+	if tt.Clipboard != clitool.MCPConfig(link) || !strings.Contains(tt.Clipboard, `"command": "`+link+`"`) {
+		t.Fatalf("clipboard = %s", tt.Clipboard)
 	}
-	tt.Frame()
-	if tt.Clipboard() != clitool.MCPConfig(link) || !strings.Contains(tt.Clipboard(), `"command": "`+link+`"`) {
-		t.Fatalf("clipboard = %s", tt.Clipboard())
-	}
-	if !tt.HasText("已拷贝") {
+	if !hasText(tt, "已拷贝") {
 		t.Fatalf("拷贝配置 does not say it copied: %q", tt.Texts())
 	}
-	if err := tt.Click("拷贝命令"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if tt.Clipboard() != "claude mcp add kando -- "+link+" mcp" {
-		t.Fatalf("clipboard = %s", tt.Clipboard())
+	tt.Press("拷贝命令")
+	if tt.Clipboard != "claude mcp add kando -- "+link+" mcp" {
+		t.Fatalf("clipboard = %s", tt.Clipboard)
 	}
 }
 
@@ -158,25 +145,21 @@ func TestSettingsGeneralSaysWhenTheCommandIsNotOnPath(t *testing.T) {
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	own := filepath.Join(root, "own", "bin")
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.cliTool.env = func() clitool.Env {
 		return clitool.Env{Exe: exe, InstallTo: []string{own}, Own: own}
 	}
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	tt.SetSize(880, 1600)
-	waitUntil(t, updates, func() bool { return a.cliTool.known })
-	tt.Frame()
-	if err := tt.Click("安装"); err != nil {
-		t.Fatal(err)
-	}
-	waitUntil(t, updates, func() bool { return !a.cliTool.installing })
-	tt.Frame()
+	tt.Resize(880, 1600)
+	waitUntil(t, tt, a, updates, func() bool { return a.cliTool.known })
+	tt.Press("安装")
+	waitUntil(t, tt, a, updates, func() bool { return !a.cliTool.installing })
 	link := filepath.Join(own, "kando")
 	wantLink(t, link, exe)
-	if want := "已安装到 " + link + "，但终端的 PATH 里还没有 " + own + "。把它加进 PATH，再打开一个新的终端窗口。"; !tt.HasText(want) {
+	if want := "已安装到 " + link + "，但终端的 PATH 里还没有 " + own + "。把它加进 PATH，再打开一个新的终端窗口。"; !hasText(tt, want) {
 		t.Fatalf("missing %q in %q", want, tt.Texts())
 	}
-	if !tt.HasText("重新安装") || a.CLI().Installed {
+	if !hasText(tt, "重新安装") || a.CLI().Installed {
 		t.Fatalf("a command a terminal does not find shows as installed: %q", tt.Texts())
 	}
 }
@@ -189,21 +172,17 @@ func TestSettingsGeneralShowsWhyInstallFailed(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bin, "kando"), []byte("other"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.cliTool.env = func() clitool.Env { return clitool.Env{Exe: exe, Searched: []string{bin}, InstallTo: []string{bin}} }
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	tt.SetSize(880, 1600)
-	waitUntil(t, updates, func() bool { return a.cliTool.known })
-	tt.Frame()
-	if !tt.HasText("终端里的 kando 是 " + filepath.Join(bin, "kando") + "，不是这个看懂。") {
+	tt.Resize(880, 1600)
+	waitUntil(t, tt, a, updates, func() bool { return a.cliTool.known })
+	if !hasText(tt, "终端里的 kando 是 "+filepath.Join(bin, "kando")+"，不是这个看懂。") {
 		t.Fatalf("the other kando is not named: %q", tt.Texts())
 	}
-	if err := tt.Click("重新安装"); err != nil {
-		t.Fatal(err)
-	}
-	waitUntil(t, updates, func() bool { return !a.cliTool.installing })
-	tt.Frame()
-	if !tt.HasText("没能安装：" + filepath.Join(bin, "kando") + " 是别的程序的 kando，看懂不会替换它。") {
+	tt.Press("重新安装")
+	waitUntil(t, tt, a, updates, func() bool { return !a.cliTool.installing })
+	if !hasText(tt, "没能安装："+filepath.Join(bin, "kando")+" 是别的程序的 kando，看懂不会替换它。") {
 		t.Fatalf("no reason shown: %q", tt.Texts())
 	}
 }
@@ -223,15 +202,14 @@ func TestSettingsGeneralOnWindowsAsksToAddTheFolderToPath(t *testing.T) {
 	}
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
 	searched := []string{bin}
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.cliTool.env = func() clitool.Env { return clitool.Env{Exe: exe, Searched: searched} }
 	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
-	tt.SetSize(880, 1600)
-	waitUntil(t, updates, func() bool { return a.cliTool.known })
-	tt.Frame()
+	tt.Resize(880, 1600)
+	waitUntil(t, tt, a, updates, func() bool { return a.cliTool.known })
 	command := `claude mcp add kando -- "` + exe + `" mcp`
-	for _, text := range []string{"把 " + films.DisplayPath(filepath.Dir(exe)) + " 加进 PATH，就能在终端里使用 kando。", "未安装", command} {
-		if !tt.HasText(text) {
+	for _, text := range []string{"把 " + films.DisplayPath(testlocale.Messages(), filepath.Dir(exe)) + " 加进 PATH，就能在终端里使用 kando。", "未安装", command} {
+		if !hasText(tt, text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
@@ -240,19 +218,13 @@ func TestSettingsGeneralOnWindowsAsksToAddTheFolderToPath(t *testing.T) {
 			t.Fatalf("the card offers to install: %q", tt.Texts())
 		}
 	}
-	if err := tt.Click("拷贝配置"); err != nil {
-		t.Fatal(err)
+	tt.Press("拷贝配置")
+	if tt.Clipboard != clitool.MCPConfig(exe) {
+		t.Fatalf("clipboard = %s", tt.Clipboard)
 	}
-	tt.Frame()
-	if tt.Clipboard() != clitool.MCPConfig(exe) {
-		t.Fatalf("clipboard = %s", tt.Clipboard())
-	}
-	if err := tt.Click("拷贝命令"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if tt.Clipboard() != command {
-		t.Fatalf("clipboard = %s", tt.Clipboard())
+	tt.Press("拷贝命令")
+	if tt.Clipboard != command {
+		t.Fatalf("clipboard = %s", tt.Clipboard)
 	}
 
 	// Another program's kando.cmd on PATH, as npm makes, is named.
@@ -261,18 +233,16 @@ func TestSettingsGeneralOnWindowsAsksToAddTheFolderToPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	a.cliToolCheck()
-	waitUntil(t, updates, func() bool { return a.CLI().Command != "" })
-	tt.Frame()
-	if !tt.HasText("终端里的 kando 是 " + films.DisplayPath(other) + "，不是这个看懂。") {
+	waitUntil(t, tt, a, updates, func() bool { return a.CLI().Command != "" })
+	if !hasText(tt, "终端里的 kando 是 "+films.DisplayPath(testlocale.Messages(), other)+"，不是这个看懂。") {
 		t.Fatalf("the other kando is not named: %q", tt.Texts())
 	}
 
 	// With the app's folder on PATH ahead of it, Kando.exe is the command.
 	searched = []string{filepath.Dir(exe), bin}
 	a.cliToolCheck()
-	waitUntil(t, updates, func() bool { return a.CLI().Installed })
-	tt.Frame()
-	if !tt.HasText("已安装") || !tt.HasText("在终端里输入 kando 即可使用，命令在 "+films.DisplayPath(filepath.Join(filepath.Dir(exe), "kando.exe"))+"。") {
+	waitUntil(t, tt, a, updates, func() bool { return a.CLI().Installed })
+	if !hasText(tt, "已安装") || !hasText(tt, "在终端里输入 kando 即可使用，命令在 "+films.DisplayPath(testlocale.Messages(), filepath.Join(filepath.Dir(exe), "kando.exe"))+"。") {
 		t.Fatalf("with the app's folder on PATH: %q", tt.Texts())
 	}
 }

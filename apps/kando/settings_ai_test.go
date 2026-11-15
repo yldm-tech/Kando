@@ -13,11 +13,11 @@ import (
 	"testing"
 
 	"kando/apps/kando/films"
-	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // llmEnv sets the AI service's environment for one test: HOME and the library go to temporary directories, so ToolsFromEnv never reads the user's own settings.
@@ -180,7 +180,7 @@ func TestEditingTheBaseURLDropsASavedEveryAPIKey(t *testing.T) {
 }
 
 // everyAPIApp is an app whose tools are all in a bin folder that is the whole PATH, with a speech model, and whose AI service is EveryAPI without a key on a computer that had no everyapi program when Kando started. It returns the folder, where a test installs a fake everyapi (writeFakeEveryAPI) to see Kando find it. The tools are shell scripts that only tell their version, which is all 重新检测 asks of them.
-func everyAPIApp(t *testing.T) (a *app, tt *ui.Tester, updates chan func(), bin string) {
+func everyAPIApp(t *testing.T) (a *app, tt *nsgotest.App, updates chan func(), bin string) {
 	t.Helper()
 	llmEnv(t, "", "", "")
 	saved := media.OwnToolsDir
@@ -200,44 +200,40 @@ func everyAPIApp(t *testing.T) (a *app, tt *ui.Tester, updates chan func(), bin 
 		WhisperModel: model,
 		Translator:   media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel},
 	}
-	a, tt, updates = newTestApp(tools.UseEveryAPICLI())
+	a, tt, updates = newTestApp(t, tools.UseEveryAPICLI())
 	a.restoreLLM(savedSettings{})
 	a.checkReadiness(true)
-	tt.Frame()
+	refresh(tt, a)
 	return a, tt, updates, bin
 }
 
 // TestEveryAPICLIInstalledLaterIsFoundByDetectAgain checks that without the everyapi program the sidebar and Settings › AI 服务 say it is missing rather than signed out, with 获取 EveryAPI, and that once it is installed 重新检测 on that page finds it and signs in through it without Kando starting again.
 func TestEveryAPICLIInstalledLaterIsFoundByDetectAgain(t *testing.T) {
 	a, tt, updates, bin := everyAPIApp(t)
-	if !tt.HasText(everyAPIMissing()) {
-		t.Fatalf("sidebar: missing %q in %q", everyAPIMissing(), tt.Texts())
+	if !hasText(tt, everyAPIMissing(a.cx)) {
+		t.Fatalf("sidebar: missing %q in %q", everyAPIMissing(a.cx), tt.Texts())
 	}
 	page := settingsOpenAt(a, tt, settings.SectionAI)
-	for _, text := range []string{locales.SettingsAIEveryAPICLI(), locales.SettingsAIEveryAPIMissing(), locales.SettingsAIGetEveryAPI(), locales.SettingsAIRedetect()} {
-		if !page.HasText(text) {
+	for _, text := range []string{testlocale.Messages().SettingsAIEveryAPICLI(), testlocale.Messages().SettingsAIEveryAPIMissing(), testlocale.Messages().SettingsAIGetEveryAPI(), testlocale.Messages().SettingsAIRedetect()} {
+		if !hasText(page, text) {
 			t.Fatalf("AI page: missing %q in %q", text, page.Texts())
 		}
 	}
 
 	writeFakeEveryAPI(t, bin, true)
-	if err := page.Click(locales.SettingsAIRedetect()); err != nil {
-		t.Fatal(err)
-	}
-	page.Frame()
+	page.Press("id:settings-everyapi-redetect")
 	if got := translator(t, a); got.Credential == nil {
 		t.Fatal("重新检测 did not sign in through the everyapi program it found")
 	}
-	if !page.HasText(checkingSignIn()) || page.HasText(locales.SettingsAIGetEveryAPI()) {
+	if !hasText(page, checkingSignIn(a.cx)) || hasText(page, testlocale.Messages().SettingsAIGetEveryAPI()) {
 		t.Fatalf("AI page while the sign-in is asked: %q", page.Texts())
 	}
-	waitUntil(t, updates, func() bool { return a.side.ready.signInDone })
-	tt.Frame()
-	page.Frame()
-	if !tt.HasText(readyMessage()) {
-		t.Fatalf("sidebar: missing %q in %q", readyMessage(), tt.Texts())
+	waitUntil(t, tt, a, updates, func() bool { return a.side.ready.signInDone })
+	refresh(tt, a)
+	if !hasText(tt, readyMessage(a.cx)) {
+		t.Fatalf("sidebar: missing %q in %q", readyMessage(a.cx), tt.Texts())
 	}
-	if page.HasText(locales.SettingsAIRedetect()) {
+	if hasText(page, testlocale.Messages().SettingsAIRedetect()) {
 		t.Fatalf("AI page still has the everyapi row once signed in: %q", page.Texts())
 	}
 	endpoint, err := translator(t, a).Credential(context.Background(), false)
@@ -263,16 +259,16 @@ func TestEveryAPICLISignedOutSaysHowToSignIn(t *testing.T) {
 	a, tt, updates, bin := everyAPIApp(t)
 	writeFakeEveryAPI(t, bin, false)
 	a.redetectTools()
-	waitUntil(t, updates, func() bool { return a.side.ready.signInDone })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.side.ready.signInDone })
+	refresh(tt, a)
 	if !errors.Is(a.side.ready.signInErr, media.ErrEveryAPISignedOut) {
 		t.Fatalf("sign-in error %v, want %v", a.side.ready.signInErr, media.ErrEveryAPISignedOut)
 	}
-	if !tt.HasText(everyAPISignedOut()) {
-		t.Fatalf("sidebar: missing %q in %q", everyAPISignedOut(), tt.Texts())
+	if !hasText(tt, everyAPISignedOut(a.cx)) {
+		t.Fatalf("sidebar: missing %q in %q", everyAPISignedOut(a.cx), tt.Texts())
 	}
 	page := settingsOpenAt(a, tt, settings.SectionAI)
-	if !page.HasText(locales.SettingsAIEveryAPISignedOut()) || !page.HasText(locales.SettingsAIRedetect()) || page.HasText(locales.SettingsAIGetEveryAPI()) {
+	if !hasText(page, testlocale.Messages().SettingsAIEveryAPISignedOut()) || !hasText(page, testlocale.Messages().SettingsAIRedetect()) || hasText(page, testlocale.Messages().SettingsAIGetEveryAPI()) {
 		t.Fatalf("AI page: %q", page.Texts())
 	}
 	if msg, section := a.precheck([]string{"https://youtu.be/TRWgBxVAb1M"}); msg != "" || section != "" {
@@ -292,29 +288,23 @@ func TestGetEveryAPIOpensItsWebsite(t *testing.T) {
 	t.Cleanup(func() { everyAPIOpenURL = saved })
 	a, tt, updates, _ := everyAPIApp(t)
 	page := settingsOpenAt(a, tt, settings.SectionAI)
-	if err := page.Click(locales.SettingsAIGetEveryAPI()); err != nil {
-		t.Fatal(err)
-	}
-	waitUpdate(t, updates)
-	page.Frame()
+	page.Press("id:settings-everyapi-get")
+	waitUpdate(t, tt, a, updates)
 	if !slices.Equal(opened, []string{"https://everyapi.ai"}) || a.prefs.everyAPIOpenErr != "" {
 		t.Fatalf("opened %q, error %q", opened, a.prefs.everyAPIOpenErr)
 	}
 
 	fail = errors.New("no browser")
-	if err := page.Click(locales.SettingsAIGetEveryAPI()); err != nil {
-		t.Fatal(err)
-	}
-	waitUpdate(t, updates)
-	page.Frame()
-	if want := locales.SettingsAIEveryAPIOpenFailed("no browser"); !page.HasText(want) {
+	page.Press("id:settings-everyapi-get")
+	waitUpdate(t, tt, a, updates)
+	if want := testlocale.Messages().SettingsAIEveryAPIOpenFailed("no browser"); !hasText(page, want) {
 		t.Fatalf("missing %q in %q", want, page.Texts())
 	}
 
 	// 重新检测 looks for the program again, so the row says what it needs now rather than why the website could not be opened before. The tools are not looked up here, as redetectTools would, because Relook also looks in Homebrew's folders, where this computer may have a real everyapi.
 	a.areasToolsChanged(true)
-	page.Frame()
-	if a.prefs.everyAPIOpenErr != "" || !page.HasText(locales.SettingsAIEveryAPIMissing()) {
+	refresh(tt, a)
+	if a.prefs.everyAPIOpenErr != "" || !hasText(page, testlocale.Messages().SettingsAIEveryAPIMissing()) {
 		t.Fatalf("after 重新检测: error %q, texts %q", a.prefs.everyAPIOpenErr, page.Texts())
 	}
 }
@@ -340,18 +330,13 @@ func TestGetEveryAPIKeepsOnlyTheLastPress(t *testing.T) {
 	t.Cleanup(func() { everyAPIOpenURL = saved })
 	a, tt, updates, _ := everyAPIApp(t)
 	page := settingsOpenAt(a, tt, settings.SectionAI)
-	if err := page.Click(locales.SettingsAIGetEveryAPI()); err != nil {
-		t.Fatal(err)
-	}
+	page.Press("id:settings-everyapi-get")
 	<-entered
-	if err := page.Click(locales.SettingsAIGetEveryAPI()); err != nil {
-		t.Fatal(err)
-	}
-	waitUpdate(t, updates)
+	page.Press("id:settings-everyapi-get")
+	waitUpdate(t, tt, a, updates)
 	close(release)
-	waitUpdate(t, updates)
-	page.Frame()
-	if a.prefs.everyAPIOpenErr != "" || page.HasText(locales.SettingsAIEveryAPIOpenFailed("slow browser")) {
+	waitUpdate(t, tt, a, updates)
+	if a.prefs.everyAPIOpenErr != "" || hasText(page, testlocale.Messages().SettingsAIEveryAPIOpenFailed("slow browser")) {
 		t.Fatalf("the earlier press's error stayed: %q, texts %q", a.prefs.everyAPIOpenErr, page.Texts())
 	}
 }
@@ -361,17 +346,17 @@ func TestEveryAPICLIThatFailsOtherwiseSaysWhat(t *testing.T) {
 	a, tt, updates, bin := everyAPIApp(t)
 	writeFakeScript(t, bin, "everyapi", "echo 'everyapi: config file is corrupt' >&2\nexit 2")
 	a.redetectTools()
-	waitUntil(t, updates, func() bool { return a.side.ready.signInDone })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.side.ready.signInDone })
+	refresh(tt, a)
 	err := a.side.ready.signInErr
 	if err == nil || errors.Is(err, media.ErrEveryAPISignedOut) || errors.Is(err, media.ErrEveryAPIMissing) {
 		t.Fatalf("sign-in error %v, want another failure", err)
 	}
-	if !tt.HasText(everyAPIFailed()) || tt.HasText(everyAPISignedOut()) {
-		t.Fatalf("sidebar: want %q, texts %q", everyAPIFailed(), tt.Texts())
+	if !hasText(tt, everyAPIFailed(a.cx)) || hasText(tt, everyAPISignedOut(a.cx)) {
+		t.Fatalf("sidebar: want %q, texts %q", everyAPIFailed(a.cx), tt.Texts())
 	}
 	page := settingsOpenAt(a, tt, settings.SectionAI)
-	if want := locales.SettingsAIEveryAPIFailed(films.Shorten(err.Error(), 160)); !page.HasText(want) || page.HasText(locales.SettingsAIEveryAPISignedOut()) || page.HasText(locales.SettingsAIGetEveryAPI()) {
+	if want := testlocale.Messages().SettingsAIEveryAPIFailed(films.Shorten(err.Error(), 160)); !hasText(page, want) || hasText(page, testlocale.Messages().SettingsAIEveryAPISignedOut()) || hasText(page, testlocale.Messages().SettingsAIGetEveryAPI()) {
 		t.Fatalf("AI page: want %q, texts %q", want, page.Texts())
 	}
 	if !strings.Contains(err.Error(), "config file is corrupt") {

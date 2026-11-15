@@ -3,15 +3,12 @@ package main
 import (
 	"context"
 	"errors"
-	"net/http"
-	"net/url"
 	"os"
 	"slices"
 	"strings"
 	"time"
 
 	"kando/apps/kando/films"
-	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 )
@@ -60,7 +57,7 @@ func (a *app) restoreLLM(saved savedSettings) {
 		switch base := tools.Translator.BaseURL; {
 		case base == media.EveryAPIBaseURL && everyAPIKey != "":
 			tools.Translator.APIKey = everyAPIKey
-		case sameLLMHost(base, saved.LLMBaseURL):
+		case settings.SameHost(base, saved.LLMBaseURL):
 			tools.Translator.APIKey = saved.LLMAPIKey
 		default:
 			tools.Translator.APIKey = ""
@@ -69,78 +66,19 @@ func (a *app) restoreLLM(saved savedSettings) {
 	a.syncLLM(tools.UseEveryAPICLI())
 }
 
-// llmPreset is a service the AI 服务 page offers. Name and Blurb are in the interface's language, read when llmPresets is called; Group is one of the settings package's Group values.
-type llmPreset struct {
-	ID, Name, Blurb, BaseURL, Model, Group string
-}
-
-func llmPresets() []llmPreset {
-	return []llmPreset{
-		{ID: "everyapi", Name: "EveryAPI", Blurb: locales.SettingsAIBlurbEveryAPI(), BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel, Group: settings.GroupCloud},
-		{ID: "openai", Name: "OpenAI", Blurb: locales.SettingsAIBlurbOpenAI(), BaseURL: "https://api.openai.com/v1", Group: settings.GroupCloud},
-		{ID: "openrouter", Name: "OpenRouter", Blurb: locales.SettingsAIBlurbOpenRouter(), BaseURL: "https://openrouter.ai/api/v1", Group: settings.GroupCloud},
-		{ID: "groq", Name: "Groq", Blurb: locales.SettingsAIBlurbGroq(), BaseURL: "https://api.groq.com/openai/v1", Group: settings.GroupCloud},
-		{ID: "deepseek", Name: "DeepSeek", Blurb: locales.SettingsAIBlurbDeepSeek(), BaseURL: "https://api.deepseek.com/v1", Group: settings.GroupCloud},
-		{ID: "xai", Name: "xAI", Blurb: locales.SettingsAIBlurbXAI(), BaseURL: "https://api.x.ai/v1", Group: settings.GroupCloud},
-		{ID: "mistral", Name: "Mistral", Blurb: locales.SettingsAIBlurbMistral(), BaseURL: "https://api.mistral.ai/v1", Group: settings.GroupCloud},
-		{ID: "dashscope", Name: locales.SettingsAINameDashScope(), Blurb: locales.SettingsAIBlurbDashScope(), BaseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1", Group: settings.GroupCloud},
-		{ID: "moonshot", Name: "Kimi", Blurb: locales.SettingsAIBlurbMoonshot(), BaseURL: "https://api.moonshot.cn/v1", Group: settings.GroupCloud},
-		{ID: "zhipu", Name: locales.SettingsAINameZhipu(), Blurb: locales.SettingsAIBlurbZhipu(), BaseURL: "https://open.bigmodel.cn/api/paas/v4", Group: settings.GroupCloud},
-		{ID: "siliconflow", Name: locales.SettingsAINameSiliconFlow(), Blurb: locales.SettingsAIBlurbSiliconFlow(), BaseURL: "https://api.siliconflow.cn/v1", Group: settings.GroupCloud},
-		{ID: "ollama", Name: "Ollama", Blurb: locales.SettingsAIBlurbOllama(), BaseURL: "http://127.0.0.1:11434/v1", Group: settings.GroupLocal},
-		{ID: "lmstudio", Name: "LM Studio", Blurb: locales.SettingsAIBlurbLMStudio(), BaseURL: "http://127.0.0.1:1234/v1", Group: settings.GroupLocal},
-		{ID: "custom", Name: locales.SettingsAINameCustom(), Blurb: locales.SettingsAIBlurbCustom(), Group: settings.GroupOther},
-	}
-}
-
-func llmPresetByID(id string) (llmPreset, bool) {
-	for _, preset := range llmPresets() {
-		if preset.ID == id {
-			return preset, true
-		}
-	}
-	return llmPreset{}, false
-}
-
-func llmProviderID(base string) string {
-	base = strings.TrimRight(strings.TrimSpace(base), "/")
-	for _, preset := range llmPresets() {
-		if preset.ID == "custom" || preset.BaseURL == "" {
-			continue
-		}
-		if strings.TrimRight(preset.BaseURL, "/") == base {
-			return preset.ID
-		}
-	}
-	return "custom"
-}
-
-// sameLLMHost reports whether two endpoints are on the same scheme and host, so that a key for one may go to the other.
-func sameLLMHost(a, b string) bool {
-	return llmHost(a) == llmHost(b)
-}
-
-func llmHost(base string) string {
-	parsed, err := url.Parse(strings.TrimSpace(base))
-	if err != nil {
-		return ""
-	}
-	return strings.ToLower(parsed.Scheme + "://" + parsed.Host)
-}
-
 func (a *app) syncLLM(tools media.Tools) {
 	a.pipeline = tools
 	a.prefs.llmBase = tools.Translator.BaseURL
 	a.prefs.llmModel = tools.Translator.Model
 	a.prefs.llmKey = tools.Translator.APIKey
-	a.prefs.llmProvider = llmProviderID(tools.Translator.BaseURL)
+	a.prefs.llmProvider = settings.ProviderID(tools.Translator.BaseURL)
 }
 
 func (a *app) selectLLM(id string) {
 	if a.prefs.llmProvider == id {
 		return
 	}
-	preset, ok := llmPresetByID(id)
+	preset, ok := settings.PresetByID(a.messages(), id)
 	if !ok {
 		return
 	}
@@ -162,7 +100,7 @@ func (a *app) applyLLM() {
 	base := strings.TrimSpace(a.prefs.llmBase)
 	key := strings.TrimSpace(a.prefs.llmKey)
 	// The key in the field belongs to the endpoint it was in use with. When the service or Base URL moves to another host and the key was not retyped, it is dropped rather than sent there.
-	if key != "" && key == tools.Translator.APIKey && !sameLLMHost(base, tools.Translator.BaseURL) {
+	if key != "" && key == tools.Translator.APIKey && !settings.SameHost(base, tools.Translator.BaseURL) {
 		key = ""
 		a.prefs.llmKey = ""
 	}
@@ -180,7 +118,7 @@ func (a *app) applyLLM() {
 	a.pipeline = tools.UseEveryAPICLI()
 	a.areasLLMChanged()
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.SettingsAISaveFailed(err.Error())
+		a.saveErr = a.messages().SettingsAISaveFailed(err.Error())
 	}
 }
 
@@ -340,26 +278,9 @@ func (a *app) adoptLLMModel() {
 		return
 	}
 	model := a.prefs.llmModels[0]
-	if preset, ok := llmPresetByID(a.prefs.llmProvider); ok && slices.Contains(a.prefs.llmModels, preset.Model) {
+	if preset, ok := settings.PresetByID(a.messages(), a.prefs.llmProvider); ok && slices.Contains(a.prefs.llmModels, preset.Model) {
 		model = preset.Model
 	}
 	a.prefs.llmModel = model
 	a.applyLLM()
-}
-
-// llmModelsError says in plain words, in the interface's language, why the model list could not be fetched.
-func llmModelsError(err error) string {
-	var status interface{ StatusCode() int }
-	if errors.As(err, &status) {
-		switch status.StatusCode() {
-		case http.StatusUnauthorized, http.StatusForbidden:
-			return locales.SettingsAIModelsUnauthorized()
-		case http.StatusNotFound:
-			return locales.SettingsAIModelsNotFound()
-		}
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return locales.SettingsAIModelsTimeout()
-	}
-	return locales.SettingsAIModelsFailed(err.Error())
 }

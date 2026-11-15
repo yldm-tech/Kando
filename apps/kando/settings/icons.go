@@ -6,23 +6,20 @@ package settings
 //
 // The category tiles (iconGeneral to iconAccount) are the prototype's settings sidebar tiles: its colors, and its glyphs on a 22-point grid.
 
-import "github.com/egoist/mygo/ui"
+import "github.com/nsgo-dev/nsgo/core"
 
-func icon(src string) *ui.SVG {
-	parsed, err := ui.ParseSVG([]byte(src))
-	if err != nil {
-		panic(err)
-	}
-	return parsed
-}
+func icon(src string) *core.SVG { return core.MustParseSVG([]byte(src)) }
+
+// svg wraps an icon as the getter NSGo's controls take (ui.Icon, ui.IconButton.Icon).
+func svg(icon *core.SVG) func() *core.SVG { return func() *core.SVG { return icon } }
 
 // tile parses one of the settings sidebar's category tiles as the prototype draws them: a 22-point rounded square of color with a hairline ring inside its edge, and body, a line glyph on a 22-point grid, drawn white in the middle 15 points. width is the glyph's stroke on that grid.
-func tile(color, width, body string) *ui.SVG {
+func tile(color, width, body string) *core.SVG {
 	return icon(`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22"><rect width="22" height="22" rx="6" fill="` + color + `"/><rect x="0.25" y="0.25" width="21.5" height="21.5" rx="5.75" fill="none" stroke="#000" stroke-opacity="0.1" stroke-width="0.5"/><g transform="translate(3.5 3.5) scale(0.6818)" fill="none" stroke="#fff" stroke-width="` + width + `" stroke-linecap="round" stroke-linejoin="round">` + body + `</g></svg>`)
 }
 
 var (
-	// iconMore is the ⋯ of the films' cards (films/icons.go) on the 16-point square breeze's icon buttons draw.
+	// iconMore is the ⋯ of the films' cards (films/icons.go) on a 16-point square.
 	iconMore = icon(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>`)
 
 	iconFolder = icon(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`)
