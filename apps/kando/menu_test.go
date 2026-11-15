@@ -275,7 +275,7 @@ func TestWindowKeysGoBackToTheLastFilm(t *testing.T) {
 		t.Fatalf("⌘1: open %q play %v page %q", a.openKey, a.Play() != nil, a.page)
 	}
 	tt.Key("mod+2")
-	if a.openKey != "clip" {
+	if a.openKey != "talk" {
 		t.Fatalf("⌘2 opened %q", a.openKey)
 	}
 	waitUntil(t, tt, a, updates, func() bool { return a.Play() != nil })
@@ -284,7 +284,7 @@ func TestWindowKeysGoBackToTheLastFilm(t *testing.T) {
 	tt.Key("mod+,")
 	wantSettings(t, a, settings.SectionGeneral)
 	tt.Key("mod+2")
-	if a.page != pageFilms || a.openKey != "clip" {
+	if a.page != pageFilms || a.openKey != "talk" {
 		t.Fatalf("⌘2 from settings: page %q open %q", a.page, a.openKey)
 	}
 

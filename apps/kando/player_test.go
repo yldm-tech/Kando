@@ -1816,7 +1816,7 @@ func TestCopyCurrentLineKey(t *testing.T) {
 		t.Fatalf("⇧⌘C with the subtitles off copied %q", tt.Clipboard)
 	}
 	playTo(tt, a, 4500*time.Millisecond)
-	a.installMenu(a.cx)
+	useMenuBar(t, a, tt)
 	tt.ChooseMenu("字幕", "拷贝当前台词")
 	if tt.Clipboard != "Bye." {
 		t.Fatalf("the menu's item copied %q", tt.Clipboard)

@@ -296,7 +296,8 @@ func TestGetEveryAPIOpensItsWebsite(t *testing.T) {
 
 	fail = errors.New("no browser")
 	page.Press("id:settings-everyapi-get")
-	waitUpdate(t, tt, a, updates)
+	// Other areas' background reports may come first, so this waits for the press's own answer rather than for one report
+	waitUntil(t, tt, a, updates, func() bool { return a.prefs.everyAPIOpenErr != "" })
 	if want := testlocale.Messages().SettingsAIEveryAPIOpenFailed("no browser"); !hasText(page, want) {
 		t.Fatalf("missing %q in %q", want, page.Texts())
 	}

@@ -1858,6 +1858,8 @@ func TestQuitOnASignalDoesNotAsk(t *testing.T) {
 			}
 		}
 		a.queueQuitOnSignal()
+		// nsgotest counts a quit once the engine has sent it to the platform
+		tt.Settle()
 		if tt.Quits != 1 {
 			t.Fatalf("heard first %v: the signal asked for %d quits, want 1", heardFirst, tt.Quits)
 		}
@@ -2088,7 +2090,9 @@ func TestAFailedJobNotifiesWhy(t *testing.T) {
 	if !slices.Equal(f.notes, want) {
 		t.Fatalf("notifications %+v, want %+v", f.notes, want)
 	}
+	// The reason is said in the app's interface language (a.messages()), which the running app switches to English as Settings does
 	testlocale.Use(t, "en")
+	a.SetInterfaceLanguage("en")
 	if got := testlocale.Messages().QueueNotifyFailed(a.queueFailReason(job)); got != "Couldn't make the subtitles. Generating subtitles failed: failed to read audio" {
 		t.Fatalf("in English: %q", got)
 	}

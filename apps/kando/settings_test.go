@@ -63,8 +63,12 @@ func TestSettingsPages(t *testing.T) {
 	tt = settingsOpenAt(a, tt, settings.SectionAI)
 	wantText(t, tt, "未配置")
 	tt = settingsOpenAt(a, tt, settings.SectionTranslate)
-	for _, text := range []string{"默认目标语言", "简体中文", "智能翻译", "翻译提示词", "正在使用默认提示词", "恢复默认"} {
+	for _, text := range []string{"默认目标语言", "简体中文", "智能翻译", "正在使用默认提示词", "恢复默认"} {
 		wantText(t, tt, text)
+	}
+	// 翻译提示词 is the prompt field's accessible name, not a text drawn on the page, which nsgotest's texts list apart from the labels
+	if label := tt.Find("id:settings-translate-prompt").Props.Label; label != "翻译提示词" {
+		t.Fatalf("the prompt field is labelled %q", label)
 	}
 	if prompt := tt.Find("id:settings-translate-prompt").Text; !strings.Contains(prompt, "{{language}}") {
 		t.Fatalf("the prompt %q lacks {{language}}", prompt)

@@ -159,14 +159,15 @@ func TestWindowIsLightAndTheFilmDark(t *testing.T) {
 func TestTitleBarClearsTheTrafficLights(t *testing.T) {
 	_, tt, _ := newTestApp(t, &fakePipeline{})
 	useTitleBar(tt, ns.Edges{Top: 28, Left: 70})
-	title := pageFrame(tt.Find(whole("videos")))
+	// The library's name is the sidebar switcher's title; the library page's header names it too
+	title := pageFrame(tt.Find("id:sidebar-switcher >> " + whole("videos")))
 	if title.Origin.Y < 28 {
 		t.Fatalf("title sits under the traffic lights at y=%v", title.Origin.Y)
 	}
 
 	// Without a title bar the sidebar keeps no room for the traffic lights.
 	_, plain, _ := newTestApp(t, &fakePipeline{})
-	if plainTitle := pageFrame(plain.Find(whole("videos"))); plainTitle.Origin.Y >= title.Origin.Y {
+	if plainTitle := pageFrame(plain.Find("id:sidebar-switcher >> " + whole("videos"))); plainTitle.Origin.Y >= title.Origin.Y {
 		t.Fatalf("title y=%v without a title bar, %v with one", plainTitle.Origin.Y, title.Origin.Y)
 	}
 }
