@@ -13,7 +13,7 @@ import (
 
 // windowUI is the state of the main window itself: where it is, whether its close button put it away while the app runs on, and whether a quit is closing it for good.
 type windowUI struct {
-	// main is the main window, nil before the app runs and where the platform opens no windows of the app's (Windows and Linux for now, tests), whose methods then do nothing; cx is the main view's scope, which the window's commands act through.
+	// main is the main window, nil before the app runs and where the platform opens no windows of the app's (nsgotest's host), whose methods then do nothing; cx is the main view's scope, which the window's commands act through.
 	main *core.Window
 	cx   *core.Scope
 	// hidden is set while the main window is put away by its close button (windowHidesOnClose), until the Dock icon, 窗口 › 主窗口 or anything else shows it again.
@@ -154,7 +154,6 @@ func (a *app) windowFollow(cx *core.Scope) {
 func (a *app) windowWatch() {
 	w := desktop.MainWindow(a.cx)
 	a.window.main = w
-	// TODO(nsgo#109): hear the main window's close button on Windows and Linux, so a running job asks before the app quits (queueBeforeQuit) as it does on macOS; NSGo's backends there close the window without asking OnClosing https://github.com/nsgo-dev/nsgo/issues/109
 	w.OnClosing(a.cx, live.On(a, a.windowClosing))
 	// The areas hear about it under the app's scope (core.Scope.Run), not under the effect, whose next run would dispose of what they made; the bindings and the menu bar that read whether the window is hidden follow when that changed.
 	a.cx.Effect(func() {

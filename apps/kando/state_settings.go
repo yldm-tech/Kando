@@ -226,7 +226,7 @@ func (a *app) showSettingsWindow() {
 	})
 }
 
-// openSettingsWindow opens the settings window, a window of the app's own on macOS, or the settings over the main window where none opens.
+// openSettingsWindow opens the settings window, a window of the app's own, or the settings over the main window where the platform opens none, as nsgotest's host does.
 func (a *app) openSettingsWindow() {
 	// TODO(nsgo#108): open the settings as a child window of the main one, which moves, minimizes and comes forward with it, as MyGo's WindowOptions.Parent did https://github.com/nsgo-dev/nsgo/issues/108
 	w := nsdesktop.OpenWindow(a.cx, nsdesktop.WindowOptions{
@@ -238,7 +238,6 @@ func (a *app) openSettingsWindow() {
 		Constraints: core.WindowConstraints{MinWidth: 720, MinHeight: 480, NoMaximize: true},
 	}, a.settingsView)
 	if w == nil {
-		// TODO(nsgo#31): open the settings in a window of their own on Windows and Linux, as on macOS, instead of over the main window https://github.com/nsgo-dev/nsgo/issues/31
 		a.prefs.inWindow = true
 		return
 	}

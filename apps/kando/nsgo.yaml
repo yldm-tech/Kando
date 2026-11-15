@@ -21,7 +21,7 @@ file_types:
   - { name: WebM Video, extensions: [webm], id: org.webmproject.webm, role: viewer, conforms: [public.movie] }
   - { name: AVI Video, extensions: [avi], id: public.avi, role: viewer, conforms: [public.movie] }
   - { name: Flash Video, extensions: [flv], id: com.adobe.flash.video, role: viewer, conforms: [public.movie] }
-# TODO(nsgo#31): register these types on Windows (the NSIS installer's Open With entries) and Linux (the desktop entry's MimeType of video/mp4, video/quicktime, video/x-matroska, video/webm, video/x-msvideo and video/x-flv, with %F), as Kando's MyGo builds did https://github.com/nsgo-dev/nsgo/issues/31
+# TODO(nsgo#331): register these types on Windows (the NSIS installer's Open With entries) and Linux (the desktop entry's MimeType of video/mp4, video/quicktime, video/x-matroska, video/webm, video/x-msvideo and video/x-flv, with %F), as Kando's MyGo builds did; nsgo writes them into MSIX only, which Kando does not ship https://github.com/nsgo-dev/nsgo/issues/331
 
 release: { github: yldm-tech/Kando }
 

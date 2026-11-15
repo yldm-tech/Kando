@@ -394,7 +394,6 @@ func (a *app) remoteShow(ctx context.Context, id string) error {
 
 // remoteRaise brings the main window to the front and activates the app, restored when it was minimized and shown again when its close button put it away (windowShowMain), as a click on the Dock icon and a second launch of the app do (run's OnReopen). It does nothing before the window is made or after it was closed. UI thread only.
 func (a *app) remoteRaise() {
-	// TODO(nsgo#31): bring the window forward on Windows and Linux too, where NSGo gives the app no core.Window to focus (a.window.main is nil there), as MyGo's Window.Show and App.Focus did https://github.com/nsgo-dev/nsgo/issues/31
 	if a.window.main == nil || a.window.main.Closed() {
 		return
 	}
