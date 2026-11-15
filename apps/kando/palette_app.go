@@ -18,7 +18,7 @@ import (
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
 // The command palette's behavior: what it finds for the query, what choosing a row does, and asking the AI service about the open film. package palette draws it.
@@ -37,11 +37,10 @@ const (
 	paletteAskTimeout = 90 * time.Second
 )
 
-// paletteCommand is a row of the palette's 命令 group: what it says, its shortcut outside the palette, and what it does.
+// paletteCommand is a row of the palette's 命令 group: what it says, its shortcut outside the palette in NSGo's form ("" for none), and what it does.
 type paletteCommand struct {
 	label string
-	mods  ui.Modifiers
-	key   ui.Key
+	key   string
 	run   func()
 }
 
@@ -63,17 +62,9 @@ func (a *app) togglePalette() {
 	a.paletteRead()
 }
 
-// paletteClose closes the palette, stops a question on its way and gives the window's modal flag back.
+// paletteClose closes the palette, however it was closed: by ⌘K, Escape, a click outside it or a row run. It stops a question on its way and gives the window's modal flag back.
 func (a *app) paletteClose() {
 	a.palette.open = false
-	a.paletteSettle()
-}
-
-// paletteSettle lets go of what the palette holds once it is closed, however it was closed: by paletteClose, or by Escape or a click outside it, which palette.Show reports by clearing open.
-func (a *app) paletteSettle() {
-	if a.palette.open {
-		return
-	}
 	if a.palette.cancel != nil {
 		a.palette.cancel()
 		a.palette.cancel = nil
@@ -84,37 +75,53 @@ func (a *app) paletteSettle() {
 	}
 }
 
-// paletteAfterFrame notes how far the open video has played and lets go of what a palette closed in this frame held.
-func (a *app) paletteAfterFrame() {
-	a.paletteNotePlayed(a.player.play)
-	a.paletteSettle()
-}
-
-// paletteNotePlayed moves the furthest point played of the open video with its picture, but only while it plays on from what was watched already: from the frame before, in the same playback, and from no further than the furthest point played. A seek opens the video again as another playback (seekPlayback), so where it lands is not taken as played, nor is a picture that moved while paused; and playing on from a seek past the furthest point does not count either, so a seek to the end does not give the film away. The prototype likewise moves seen only in its playback tick.
-func (a *app) paletteNotePlayed(play *filmPlay) {
+// palettePlaying notes how far the open video has played each time the player reports its progress (areaHooks.playing), about four times a second while it plays, and reports whether the open palette now lists other lines (paletteProgress). It reads the playhead the report just set, so the furthest point follows the picture as MyGo's per-frame note did.
+func (a *app) palettePlaying() bool {
+	play := a.player.play
 	if play == nil || play.path == "" {
-		a.palette.watching = nil
-		return
+		a.palette.watching = palettePlayback{}
+		return false
 	}
-	at := play.playhead()
-	prev, same := a.palette.watchedAt, a.palette.watching == play
-	a.palette.watching, a.palette.watchedAt = play, at
-	if !same || !play.Playing() || prev > a.palette.furthest[play.path]+paletteSlack {
-		return
-	}
-	a.paletteNoteFurthest(play.path, at)
+	return a.paletteProgress(palettePlayback{play: play, gen: a.player.playGen}, play.path, play.playhead(), play.Playing())
 }
 
-// paletteNoteFurthest keeps at as how far the video at path has played, when it is further than before.
-func (a *app) paletteNoteFurthest(path string, at time.Duration) {
+// paletteProgress notes that the video at path, open in the player as playback seen, is at at, playing or paused, as paletteNoteAt says, and reports whether that changed the lines the open palette lists: only when the furthest point passed the start of a line the query finds in that film, so a film playing under the open palette does not make the app follow its every progress report, nor does one playing with the palette closed.
+func (a *app) paletteProgress(seen palettePlayback, path string, at time.Duration, playing bool) bool {
+	from := a.palette.furthest[path]
+	if !a.paletteNoteAt(seen, path, at, playing) || !a.palette.open {
+		return false
+	}
+	to := a.palette.furthest[path]
+	query := strings.ToLower(strings.TrimSpace(a.palette.query))
+	for _, hit := range a.paletteHits(query) {
+		if hit.film.VideoPath == path && hit.cue.start > from+paletteSlack && hit.cue.start <= to+paletteSlack {
+			return true
+		}
+	}
+	return false
+}
+
+// paletteNoteAt moves the furthest point played of the video at path, open in the player as playback seen with its picture at at, but only while it plays on from what was watched already: from where it was noted before, in the same playback, and from no further than the furthest point played. A seek starts another playback (seekPlayback moves app.player.playGen on), so where it lands is not taken as played, nor is a picture that moved while paused; and playing on from a seek past the furthest point does not count either, so a seek to the end does not give the film away. The prototype likewise moves seen only in its playback tick. It reports whether the furthest point moved.
+func (a *app) paletteNoteAt(seen palettePlayback, path string, at time.Duration, playing bool) bool {
+	prev, same := a.palette.watchedAt, seen != palettePlayback{} && a.palette.watching == seen
+	a.palette.watching, a.palette.watchedAt = seen, at
+	if !same || !playing || prev > a.palette.furthest[path]+paletteSlack {
+		return false
+	}
+	return a.paletteNoteFurthest(path, at)
+}
+
+// paletteNoteFurthest keeps at as how far the video at path has played, when it is further than before, and reports whether it was.
+func (a *app) paletteNoteFurthest(path string, at time.Duration) bool {
 	if path == "" || at <= a.palette.furthest[path] {
-		return
+		return false
 	}
 	if a.palette.furthest == nil {
 		a.palette.furthest = map[string]time.Duration{}
 	}
 	a.palette.furthest[path] = at
 	a.palette.dirty = true
+	return true
 }
 
 // paletteSaveFurthest writes how far each video has played into library.json, beside the resume positions the queue saved just before.
@@ -128,7 +135,7 @@ func (a *app) paletteSaveFurthest() {
 		a.library.Furthest[path] = at
 	}
 	if err := a.library.Save(); err != nil {
-		a.saveErr = shelfSaveErr(err, locales.PaletteLibrarySaveFailed)
+		a.saveErr = shelfSaveErr(err, a.messages().PaletteLibrarySaveFailed)
 	}
 }
 
@@ -143,7 +150,7 @@ func (a *app) paletteOpenFilm() (films.Film, bool) {
 	return a.paletteFilm(a.openKey)
 }
 
-// paletteHorizon is how far the film has been seen: the furthest point its video played to from its start. A picture a seek moved further, which paletteNotePlayed does not count, does not move it, so the palette neither lists nor sends a line the seek passed.
+// paletteHorizon is how far the film has been seen: the furthest point its video played to from its start. A picture a seek moved further, which paletteNoteAt does not count, does not move it, so the palette neither lists nor sends a line the seek passed.
 func (a *app) paletteHorizon(item films.Film) time.Duration {
 	return a.palette.furthest[item.VideoPath]
 }
@@ -283,8 +290,8 @@ func (a *app) paletteLines() []paletteHit {
 	return out
 }
 
-// paletteCommands are the commands the palette offers now: in the player, the subtitle modes it is not in; then every row of the shortcut table that applies now but the palette's own and the screen the window shows already, the player's first while a film is open; then a row for each settings section.
-func (a *app) paletteCommands() []paletteCommand {
+// paletteCommands are the commands the palette offers now, their labels in the language the app shows under cx: in the player, the subtitle modes it is not in; then every row of the shortcut table that applies now but the palette's own and the screen the window shows already, the player's first while a film is open; then a row for each settings section.
+func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 	var out []paletteCommand
 	_, inFilm := a.paletteOpenFilm()
 	if inFilm {
@@ -292,13 +299,13 @@ func (a *app) paletteCommands() []paletteCommand {
 			if mode == a.player.subMode {
 				continue
 			}
-			out = append(out, paletteCommand{label: locales.PaletteSwitchTo(film.ModeName(mode)), run: func() {
+			out = append(out, paletteCommand{label: locales.PaletteSwitchTo(cx, film.ModeName(cx, mode)), run: func() {
 				a.SetSubMode(mode)
-				a.flash(locales.PaletteSubtitleMode(film.ModeName(mode)))
+				a.flash(a.messages().PaletteSubtitleMode(film.ModeName(cx, mode)))
 			}})
 		}
 	}
-	rows := slices.Clone(a.shortcuts())
+	rows := slices.Clone(a.shortcuts(cx))
 	if inFilm {
 		rank := func(group string) int {
 			switch group {
@@ -317,24 +324,24 @@ func (a *app) paletteCommands() []paletteCommand {
 		if s.Run == nil || (s.When != nil && !s.When()) {
 			continue
 		}
-		if s.Mods == ui.Cmd && s.Key == ui.KeyK {
+		if s.Key == paletteKey {
 			continue
 		}
 		if s.Group == groupWindow && s.Checked != nil && s.Checked() {
 			continue
 		}
-		out = append(out, paletteCommand{label: s.Label, mods: s.Mods, key: s.Key, run: s.guarded()})
+		out = append(out, paletteCommand{label: s.Label, key: s.Key, run: s.guarded()})
 	}
 	for _, id := range settings.IDs() {
-		out = append(out, paletteCommand{label: locales.PaletteSettingsSection(settings.Title(id)), run: func() { a.OpenSettings(id) }})
+		out = append(out, paletteCommand{label: locales.PaletteSettingsSection(cx, settings.Title(cx, id)), run: func() { a.OpenSettings(id) }})
 	}
 	return out
 }
 
-// paletteFound is what the palette lists for the query: its lines and the commands whose names hold it, or the first commands while nothing is typed.
-func (a *app) paletteFound() ([]paletteHit, []paletteCommand) {
+// paletteFound is what the palette lists for the query, the commands' labels in the language the app shows under cx: its lines and the commands whose names hold it, or the first commands while nothing is typed.
+func (a *app) paletteFound(cx *core.Scope) ([]paletteHit, []paletteCommand) {
 	query := strings.ToLower(strings.TrimSpace(a.palette.query))
-	cmds := a.paletteCommands()
+	cmds := a.paletteCommands(cx)
 	if query == "" {
 		return nil, cmds[:min(len(cmds), paletteFirstCommands)]
 	}
@@ -347,20 +354,24 @@ func (a *app) paletteFound() ([]paletteHit, []paletteCommand) {
 	return a.paletteLines(), found
 }
 
-// paletteView is what the palette shows now.
-func (a *app) paletteView() cmdpalette.View {
-	lines, cmds := a.paletteFound()
+// PaletteOpen reports whether the palette shows (cmdpalette.App).
+func (a *app) PaletteOpen() bool { return a.palette.open }
+
+// PaletteQuery is the palette's query, which its field edits.
+func (a *app) PaletteQuery() *string { return &a.palette.query }
+
+// PaletteView is what the palette shows now, its words in the language the app shows under cx.
+func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
+	lines, cmds := a.paletteFound(cx)
 	_, inFilm := a.paletteOpenFilm()
 	v := cmdpalette.View{
-		Query:       &a.palette.query,
-		Placeholder: locales.PalettePlaceholder(),
-		Footer:      locales.PaletteFooter(),
+		Placeholder: locales.PalettePlaceholder(cx),
+		Footer:      locales.PaletteFooter(cx),
 		Selected:    -1,
-		Reveal:      a.palette.reveal,
 	}
 	if inFilm {
-		v.Placeholder = locales.PalettePlaceholderFilm()
-		v.Footer = locales.PaletteFooterFilm()
+		v.Placeholder = locales.PalettePlaceholderFilm(cx)
+		v.Footer = locales.PaletteFooterFilm(cx)
 	}
 	for _, hit := range lines {
 		l := cmdpalette.Line{At: cmdpalette.ClockTenths(hit.cue.start), Translation: hit.cue.translation, Original: hit.cue.original}
@@ -373,7 +384,7 @@ func (a *app) paletteView() cmdpalette.View {
 		v.Lines = append(v.Lines, l)
 	}
 	for _, c := range cmds {
-		v.Commands = append(v.Commands, cmdpalette.Command{Label: c.label, Mods: c.mods, Key: c.key})
+		v.Commands = append(v.Commands, cmdpalette.Command{Label: c.label, Key: c.key})
 	}
 	total := len(v.Lines) + len(v.Commands)
 	if total > 0 {
@@ -381,28 +392,28 @@ func (a *app) paletteView() cmdpalette.View {
 	}
 	if total == 0 && a.palette.answer == nil && strings.TrimSpace(a.palette.query) != "" {
 		// Over the library the note says nothing was found; in the player it says Return asks the query instead.
-		v.Empty = locales.PaletteNothingFound()
+		v.Empty = locales.PaletteNothingFound(cx)
 		if inFilm {
-			v.Empty = locales.PaletteNothingFoundAsk()
+			v.Empty = locales.PaletteNothingFoundAsk(cx)
 		}
 	}
 	if ans := a.palette.answer; ans != nil {
-		v.Answer = a.paletteAnswerView(ans)
+		v.Answer = paletteAnswerView(cx, ans)
 	}
 	return v
 }
 
-// paletteAnswerView is the answer card as palette draws it.
-func (a *app) paletteAnswerView(ans *paletteAnswer) *cmdpalette.Answer {
+// paletteAnswerView is the answer card as palette draws it, in the language the app shows under cx.
+func paletteAnswerView(cx *core.Scope, ans *paletteAnswer) *cmdpalette.Answer {
 	out := &cmdpalette.Answer{Busy: ans.busy, Text: ans.text}
 	if ans.say != nil {
-		out.Text = ans.say()
+		out.Text = ans.say(cx)
 	}
 	if ans.needsAI {
-		out.Action = locales.PaletteNoAIAction()
+		out.Action = locales.PaletteNoAIAction(cx)
 	}
 	if !ans.busy && !ans.needsAI && !ans.failed && ans.model != "" {
-		out.Note = locales.PaletteAnswerNote(cmdpalette.Clock(ans.horizon), ans.model)
+		out.Note = locales.PaletteAnswerNote(cx, cmdpalette.Clock(ans.horizon), ans.model)
 	}
 	for _, ref := range ans.refs {
 		out.Refs = append(out.Refs, cmdpalette.Clock(ref))
@@ -410,20 +421,18 @@ func (a *app) paletteAnswerView(ans *paletteAnswer) *cmdpalette.Answer {
 	return out
 }
 
-// paletteOverlay draws the palette while it is open and does what was typed, pressed and clicked in it.
-func (a *app) paletteOverlay(c *ui.Context, dark *ui.Theme) {
-	if !a.palette.open {
+// paletteOverlay is the palette over the window while it is open (state_overlay.go).
+func (a *app) paletteOverlay(*core.Scope) core.Node { return cmdpalette.Palette{App: a} }
+
+// PaletteEvent does what was typed, pressed and clicked in the palette. It runs in the palette's handlers, on the engine's goroutine; the palette tells the revision after it.
+func (a *app) PaletteEvent(ev cmdpalette.Event) {
+	if !a.palette.open || a.cx == nil {
 		return
 	}
-	v := a.paletteView()
-	a.palette.reveal = false
-	ev := cmdpalette.Show(c, dark, &a.palette.open, v)
-	if !a.palette.open {
-		return
-	}
+	v := a.PaletteView(a.cx)
 	total := len(v.Lines) + len(v.Commands)
 	switch {
-	case ev.Toggle:
+	case ev.Close, ev.Toggle:
 		a.paletteClose()
 	case ev.Typed:
 		a.palette.sel = 0
@@ -433,7 +442,6 @@ func (a *app) paletteOverlay(c *ui.Context, dark *ui.Theme) {
 		if total > 0 {
 			a.palette.sel = min(max(v.Selected+ev.Move, 0), total-1)
 			a.palette.moved = true
-			a.palette.reveal = true
 		}
 	case ev.Submit:
 		a.paletteSubmit(v)
@@ -466,7 +474,7 @@ func (a *app) paletteSubmit(v cmdpalette.View) {
 
 // paletteRun closes the palette and runs row i, counting the lines first and the commands after them: a line opens its film at its start, a command runs.
 func (a *app) paletteRun(i int) {
-	lines, cmds := a.paletteFound()
+	lines, cmds := a.paletteFound(a.cx)
 	switch {
 	case i < 0:
 		return
@@ -498,8 +506,8 @@ func (a *app) paletteDropAnswer() {
 	}
 }
 
-// paletteTranslator is the AI service set in 「AI 服务」, when one is set that can answer: a model at an endpoint, with a key, or through the EveryAPI CLI unless the sidebar's check found it signed out. When it cannot, why says so in the words the sidebar's status line uses for the same reason, and is nil when it can.
-func (a *app) paletteTranslator() (t media.ChatTranslator, why func() string) {
+// paletteTranslator is the AI service set in 「AI 服务」, when one is set that can answer: a model at an endpoint, with a key, or through the EveryAPI CLI unless the sidebar's check found it signed out. When it cannot, why says so in the words the sidebar's status line uses for the same reason, in the language the app shows under the scope it is given, and is nil when it can.
+func (a *app) paletteTranslator() (t media.ChatTranslator, why func(*core.Scope) string) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
 		return media.ChatTranslator{}, locales.PaletteNoAI
@@ -549,7 +557,7 @@ func (a *app) paletteAsk() {
 	model := strings.TrimSpace(t.Model)
 	a.palette.askGen++
 	gen := a.palette.askGen
-	a.palette.answer = &paletteAnswer{busy: true, say: func() string { return locales.PaletteAsking(model) }, horizon: horizon, model: model, film: item.Key}
+	a.palette.answer = &paletteAnswer{busy: true, say: func(cx *core.Scope) string { return locales.PaletteAsking(cx, model) }, horizon: horizon, model: model, film: item.Key}
 	ctx, cancel := context.WithTimeout(context.Background(), paletteAskTimeout)
 	a.palette.cancel = cancel
 	system := palettePrompt(a.prefs.language, horizon)
@@ -565,7 +573,7 @@ func (a *app) paletteAsk() {
 			a.palette.cancel = nil
 			if err != nil {
 				// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, so the card offers them as it does when none is set.
-				a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: func() string { return locales.PaletteAskFailed(err.Error()) }}
+				a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: func(cx *core.Scope) string { return locales.PaletteAskFailed(cx, err.Error()) }}
 				return
 			}
 			text, refs := paletteParseReply(reply, seen)

@@ -7,18 +7,18 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // paletteSRT is a film's exported bilingual subtitle file: each translation over its original, as the pipeline writes it.
@@ -50,10 +50,10 @@ These sweeping curves are called meanders.
 `
 
 // paletteLibrary makes a library folder with two finished films, rivers and market, each a video with its exported subtitles, and an app on it. rivers has been played to 0:31, market never.
-func paletteLibrary(t *testing.T, p media.Pipeline) (*app, *ui.Tester, chan func()) {
+func paletteLibrary(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func()) {
 	t.Helper()
 	dir := t.TempDir()
-	a, tt, updates := newTestApp(p)
+	a, tt, updates := newTestApp(t, p)
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	for _, name := range []string{"rivers", "market"} {
 		video := filepath.Join(dir, name, "video.mp4")
@@ -70,62 +70,57 @@ func paletteLibrary(t *testing.T, p media.Pipeline) (*app, *ui.Tester, chan func
 		a.library.Jobs = append(a.library.Jobs, core.Job{ID: name, Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: srt, LibraryDir: dir})
 	}
 	a.palette.furthest = map[string]time.Duration{filepath.Join(dir, "rivers", "video.mp4"): 31 * time.Second}
-	tt.Frame()
+	refresh(tt, a)
 	return a, tt, updates
 }
 
 // paletteOpenFilm opens film id from the library and waits for its subtitles.
-func paletteOpenFilm(t *testing.T, a *app, tt *ui.Tester, updates chan func(), id string) {
+func paletteOpenFilm(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), id string) {
 	t.Helper()
 	item, ok := a.paletteFilm(id)
 	if !ok {
 		t.Fatalf("no film %q in %v", id, a.films())
 	}
 	a.Open(item)
-	waitUntil(t, updates, func() bool { return a.player.subs.ready })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
 }
 
 // paletteOpen presses ⌘K and waits for the subtitle files the palette reads.
-func paletteOpen(t *testing.T, a *app, tt *ui.Tester, updates chan func()) {
+func paletteOpen(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 	t.Helper()
-	tt.Key(ui.Cmd, ui.KeyK)
-	tt.Frame()
+	tt.Key("mod+k")
 	if !a.palette.open {
 		t.Fatal("⌘K did not open the palette")
 	}
-	waitUntil(t, updates, func() bool { return !a.palette.reading })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return !a.palette.reading })
 }
 
-func paletteType(tt *ui.Tester, text string) {
-	tt.Type(text)
-	tt.Frame()
-	tt.Frame()
-}
+// paletteType types text at the end of the palette's field.
+func paletteType(tt *nsgotest.App, text string) { tt.Type("id:palette-field", text) }
 
 // TestPaletteOpensAnywhereAndEscapeCloses checks that ⌘K opens the palette over the library with its commands and the field focused, that the window's menu commands wait behind it as behind any modal dialog, and that Escape closes it and gives the menu back.
 func TestPaletteOpensAnywhereAndEscapeCloses(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpen(t, a, tt, updates)
 	for _, want := range []string{"命令", "Esc", "打开本地视频…"} {
-		if !tt.HasText(want) {
+		if !hasText(tt, want) {
 			t.Fatalf("missing %q in %q", want, tt.Texts())
 		}
 	}
-	if got := a.paletteView().Placeholder; got != "命令或看过的台词…" {
+	if !tt.Find("id:palette-field").Focused {
+		t.Fatal("the palette's field does not have the keyboard")
+	}
+	if got := a.PaletteView(a.cx).Placeholder; got != "命令或看过的台词…" {
 		t.Fatalf("library placeholder %q", got)
 	}
 	if !a.modalOpen() {
 		t.Fatal("the menu bar's commands stay enabled under the palette")
 	}
-	if got := len(a.paletteView().Commands); got != paletteFirstCommands {
+	if got := len(a.PaletteView(a.cx).Commands); got != paletteFirstCommands {
 		t.Fatalf("empty query lists %d commands, want %d", got, paletteFirstCommands)
 	}
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
-	tt.Frame()
-	if a.palette.open || tt.HasText("Esc") {
+	tt.Key("escape")
+	if a.palette.open || hasText(tt, "Esc") {
 		t.Fatalf("Escape left the palette open: %q", tt.Texts())
 	}
 	if a.modalOpen() {
@@ -133,13 +128,18 @@ func TestPaletteOpensAnywhereAndEscapeCloses(t *testing.T) {
 	}
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
-	if got := a.paletteView().Placeholder; got != "命令、台词，或直接问这部影片…" {
+	if got := a.PaletteView(a.cx).Placeholder; got != "命令、台词，或直接问这部影片…" {
 		t.Fatalf("player placeholder %q", got)
 	}
-	tt.Key(ui.Cmd, ui.KeyK)
-	tt.Frame()
+	tt.Key("mod+k")
 	if a.palette.open {
 		t.Fatal("a second ⌘K left the palette open")
+	}
+	// Escape in the palette closes the palette, not the film behind it, which the window's own Escape closes.
+	paletteOpen(t, a, tt, updates)
+	tt.Key("escape")
+	if a.palette.open || a.openKey != "rivers" {
+		t.Fatalf("Escape: palette open %v, film %q", a.palette.open, a.openKey)
 	}
 }
 
@@ -149,19 +149,19 @@ func TestPaletteSearchesOnlyWatchedLines(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "河")
-	v := a.paletteView()
+	v := a.PaletteView(a.cx)
 	if len(v.Lines) != 2 || v.Lines[0].At != "0:00.4" || v.Lines[1].At != "0:30.4" {
 		t.Fatalf("lines %+v", v.Lines)
 	}
 	if v.Lines[0].Translation != "每条河都始于高山上的一股细流。" || v.Lines[0].Original != "Every river begins as a trickle high in the mountains." {
 		t.Fatalf("line %+v", v.Lines[0])
 	}
-	if !tt.HasText("台词") {
+	if !hasText(tt, "台词") {
 		t.Fatalf("no 台词 group in %q", tt.Texts())
 	}
-	tt.Key(ui.Cmd, ui.KeyA)
+	tt.Clear("id:palette-field")
 	paletteType(tt, "STONES")
-	if v := a.paletteView(); len(v.Lines) != 1 || v.Lines[0].At != "0:10.4" {
+	if v := a.PaletteView(a.cx); len(v.Lines) != 1 || v.Lines[0].At != "0:10.4" {
 		t.Fatalf("searching the original: %+v", v.Lines)
 	}
 }
@@ -171,14 +171,12 @@ func TestPaletteFindsLinesAcrossTheLibrary(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "河")
-	v := a.paletteView()
+	v := a.PaletteView(a.cx)
 	if len(v.Lines) != 2 || v.Lines[1].Film != "rivers" {
 		t.Fatalf("lines %+v", v.Lines)
 	}
-	tt.Key(0, ui.KeyDown)
-	tt.Frame()
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
+	tt.Key("down")
+	tt.Key("enter")
 	if a.palette.open {
 		t.Fatal("choosing a line left the palette open")
 	}
@@ -192,22 +190,18 @@ func TestPaletteRunsCommands(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "AI 服务")
-	v := a.paletteView()
+	v := a.PaletteView(a.cx)
 	if len(v.Lines) != 0 || len(v.Commands) != 1 || v.Commands[0].Label != "设置 › AI 服务" {
 		t.Fatalf("commands %+v", v.Commands)
 	}
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
+	tt.Key("enter")
 	wantSettings(t, a, settings.SectionAI)
 	if a.palette.open {
 		t.Fatal("running a command left the palette open")
 	}
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "快捷键")
-	if err := tt.Click("快捷键速查"); err != nil {
-		t.Fatalf("%v %q", err, tt.Texts())
-	}
-	tt.Frame()
+	tt.Press("快捷键速查")
 	if !a.overlay.cheatsheet || a.palette.open {
 		t.Fatalf("cheat sheet %v palette %v", a.overlay.cheatsheet, a.palette.open)
 	}
@@ -218,7 +212,7 @@ func TestPaletteCommandsFollowTheScreen(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	labels := func() []string {
 		var out []string
-		for _, c := range a.paletteCommands() {
+		for _, c := range a.paletteCommands(a.cx) {
 			out = append(out, c.label)
 		}
 		return out
@@ -242,11 +236,9 @@ func TestPaletteCommandsFollowTheScreen(t *testing.T) {
 	}
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "仅译文")
-	tt.Key(0, ui.KeyDown)
-	tt.Key(0, ui.KeyUp)
-	tt.Frame()
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
+	tt.Key("down")
+	tt.Key("up")
+	tt.Key("enter")
 	if a.player.subMode != "translation" {
 		t.Fatalf("sub mode %q", a.player.subMode)
 	}
@@ -258,26 +250,23 @@ func TestPaletteArrowsMoveAcrossGroups(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "字幕")
-	v := a.paletteView()
+	v := a.PaletteView(a.cx)
 	if len(v.Lines) != 1 || len(v.Commands) < 2 {
 		t.Fatalf("view %+v", v)
 	}
 	for range len(v.Lines) {
-		tt.Key(0, ui.KeyDown)
-		tt.Frame()
+		tt.Key("down")
 	}
 	if a.palette.sel != len(v.Lines) {
 		t.Fatalf("selected %d after %d lines", a.palette.sel, len(v.Lines))
 	}
 	for range len(v.Lines) + len(v.Commands) + 3 {
-		tt.Key(0, ui.KeyDown)
-		tt.Frame()
+		tt.Key("down")
 	}
 	if a.palette.sel != len(v.Lines)+len(v.Commands)-1 {
 		t.Fatalf("selected %d of %d rows", a.palette.sel, len(v.Lines)+len(v.Commands))
 	}
-	tt.Key(0, ui.KeyUp)
-	tt.Frame()
+	tt.Key("up")
 	if a.palette.sel != len(v.Lines)+len(v.Commands)-2 {
 		t.Fatalf("↑ selected %d", a.palette.sel)
 	}
@@ -317,19 +306,17 @@ func TestPaletteAsksTheConfiguredAI(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "河流为什么会越切越深")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	if !tt.HasText("正在问 m1…") {
+	tt.Key("enter")
+	if !hasText(tt, "正在问 m1…") {
 		t.Fatalf("no progress while asking: %q", tt.Texts())
 	}
-	waitUntil(t, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
 	for _, want := range []string{"回答", "0:30 讲到河道越切越深。", "▶ 0:30", "只依据已经播放到的部分（到 0:31）· m1 回答"} {
-		if !tt.HasText(want) {
+		if !hasText(tt, want) {
 			t.Fatalf("missing %q in %q", want, tt.Texts())
 		}
 	}
-	if tt.HasText("▶ 9:00") {
+	if hasText(tt, "▶ 9:00") {
 		t.Fatal("the answer jumps past what was watched")
 	}
 	sent := strings.Join(*seen, "\n")
@@ -339,10 +326,7 @@ func TestPaletteAsksTheConfiguredAI(t *testing.T) {
 	if strings.Contains(sent, "河曲") || strings.Contains(sent, "meanders") {
 		t.Fatalf("sent a line after the furthest point played: %q", sent)
 	}
-	if err := tt.Click("跳到 0:30"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt.Press("跳到 0:30")
 	if a.palette.open || a.player.opening != 30*time.Second+400*time.Millisecond {
 		t.Fatalf("palette open %v, opening %v", a.palette.open, a.player.opening)
 	}
@@ -354,15 +338,11 @@ func TestPaletteWithoutAIOffersItsSettings(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "这部影片讲了什么")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	if !tt.HasText(locales.PaletteNoAI()) {
+	tt.Key("enter")
+	if !hasText(tt, testlocale.Messages().PaletteNoAI()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	if err := tt.Click("打开「AI 服务」设置"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt.Press("打开「AI 服务」设置")
 	wantSettings(t, a, settings.SectionAI)
 	if a.palette.open {
 		t.Fatal("the palette stayed open over the settings")
@@ -372,7 +352,7 @@ func TestPaletteWithoutAIOffersItsSettings(t *testing.T) {
 // TestPaletteKeepsTheFurthestPointPlayed checks that how far each video was played is kept in library.json with the shelf, read back when the shelf is opened, and only ever grows.
 func TestPaletteKeepsTheFurthestPointPlayed(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.openLibrary(path)
 	a.paletteNoteFurthest("/v/a.mp4", 40*time.Second)
 	a.paletteNoteFurthest("/v/a.mp4", 10*time.Second)
@@ -384,7 +364,7 @@ func TestPaletteKeepsTheFurthestPointPlayed(t *testing.T) {
 	if lib.Furthest["/v/a.mp4"] != 40*time.Second {
 		t.Fatalf("saved %v", lib.Furthest)
 	}
-	b, _, _ := newTestApp(&fakePipeline{})
+	b, _, _ := newTestApp(t, &fakePipeline{})
 	b.openLibrary(path)
 	if b.palette.furthest["/v/a.mp4"] != 40*time.Second {
 		t.Fatalf("read back %v", b.palette.furthest)
@@ -393,13 +373,12 @@ func TestPaletteKeepsTheFurthestPointPlayed(t *testing.T) {
 
 // TestPaletteIsInTheMenuAndTheCheatsheet checks that ⌘K is a row of the shortcut table, so the menu bar and the cheat sheet list it as the prototype's sheet does.
 func TestPaletteIsInTheMenuAndTheCheatsheet(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
-	tt.Frame()
-	it := findMenuItem(t, a.menuBar(), "学习", "问这部影片 / 命令…")
-	if it.Accelerator != accelerator(ui.Cmd, ui.KeyK) {
-		t.Fatalf("accelerator %q", it.Accelerator)
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	it := findMenuItem(t, a.menuBar(a.cx), "学习", "问这部影片 / 命令…")
+	if it.Shortcut != "mod+k" {
+		t.Fatalf("shortcut %q", it.Shortcut)
 	}
-	groups := a.cheatsheetGroups()
+	groups := a.cheatsheetGroups(a.cx)
 	for _, g := range groups {
 		if g.Title != "窗口" {
 			continue
@@ -412,86 +391,108 @@ func TestPaletteIsInTheMenuAndTheCheatsheet(t *testing.T) {
 	t.Fatal("no 窗口 group")
 }
 
-// stillPlay is the video at video open in the player with its picture at at, playing or paused, as startPlayback leaves it after opening the video there; a seek opens it again the same way, as another playback.
-func stillPlay(t *testing.T, video string, at time.Duration, playing bool) *filmPlay {
-	t.Helper()
-	player, err := ui.NewVideoPlayer(stillFrames{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(player.Close)
-	if playing {
-		player.Play()
-	} else {
-		player.Pause()
-	}
-	return &filmPlay{player: player, frames: &frameDecoder{shown: at}, path: video, duration: 2 * time.Minute, paused: !playing, played: playing}
-}
-
-// TestPaletteNotesHowFarTheOpenVideoPlayed checks that a video playing on from its start moves the furthest point played with it, frame by frame, and that closing it writes that point into library.json beside its resume position.
+// TestPaletteNotesHowFarTheOpenVideoPlayed checks that a video playing on from its start moves the furthest point played with it, as the player reports its progress, and that the player's saving of its resume positions writes that point into library.json beside them.
 func TestPaletteNotesHowFarTheOpenVideoPlayed(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
-	a := openStill(t, path, "clip", "/v/clip.mp4", 0)
-	a.player.play.player.Play()
-	a.areasAfterFrame()
-	for _, at := range []time.Duration{2 * time.Second, 4 * time.Second, 6 * time.Second} {
-		a.player.play.frames.shown = at
-		a.areasAfterFrame()
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	a.openLibrary(path)
+	play := palettePlayback{play: new(filmPlay), gen: 1}
+	for _, at := range []time.Duration{0, 2 * time.Second, 4 * time.Second, 6 * time.Second} {
+		a.paletteProgress(play, "/v/clip.mp4", at, true)
 	}
 	if got := a.palette.furthest["/v/clip.mp4"]; got != 6*time.Second {
 		t.Fatalf("noted %v", got)
 	}
-	a.stopPlayback()
+	a.areasPositionsChanged()
 	lib, err := shelf.Load(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if lib.Furthest["/v/clip.mp4"] != 6*time.Second || lib.Positions["/v/clip.mp4"] != 6*time.Second {
-		t.Fatalf("furthest %v positions %v", lib.Furthest, lib.Positions)
+	if lib.Furthest["/v/clip.mp4"] != 6*time.Second {
+		t.Fatalf("furthest %v", lib.Furthest)
 	}
 }
 
-// TestPaletteDoesNotCountASeekAsWatched checks that only playing on from what was watched moves the furthest point played: not a picture that moved while paused, not a seek past it, paused or playing, nor playing on from there, and that playing on from a seek back into what was watched moves it again. The palette then finds no line the seek passed, and library.json keeps the point watched.
+// TestPaletteDoesNotCountASeekAsWatched checks that only playing on from what was watched moves the furthest point played: not a picture that moved while paused, not a seek past it, paused or playing, nor playing on from there, and that playing on from a seek back into what was watched moves it again. A seek starts another playback (seekPlayback moves app.player.playGen on), in the same filmPlay or a new one. The palette then finds no line the seek passed, and library.json keeps the point watched.
 func TestPaletteDoesNotCountASeekAsWatched(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	item, _ := a.paletteFilm("rivers")
 	video := item.VideoPath
 	watched := 31 * time.Second
-	frames := func(play *filmPlay, at ...time.Duration) {
+	// pictures notes the picture of playback play at each of at in turn, playing or paused, and checks that the furthest point played stayed watched.
+	pictures := func(play palettePlayback, playing bool, at ...time.Duration) {
 		t.Helper()
-		a.player.play = play
-		tt.Frame()
 		for _, to := range at {
-			play.frames.shown = to
-			tt.Frame()
+			a.paletteProgress(play, video, to, playing)
 		}
 		if got := a.palette.furthest[video]; got != watched {
 			t.Fatalf("furthest %v, want %v", got, watched)
 		}
 	}
-	paused := stillPlay(t, video, 20*time.Second, false)
-	frames(paused, 75*time.Second)
-	frames(stillPlay(t, video, 75*time.Second, false), 76*time.Second)
-	frames(stillPlay(t, video, 72*time.Second, true), 73*time.Second, 74*time.Second, 90*time.Second)
+	play := new(filmPlay)
+	pictures(palettePlayback{play: play, gen: 1}, false, 20*time.Second, 75*time.Second)
+	pictures(palettePlayback{play: play, gen: 2}, false, 75*time.Second, 76*time.Second)
+	pictures(palettePlayback{play: play, gen: 3}, true, 72*time.Second, 73*time.Second, 74*time.Second, 90*time.Second)
+	pictures(palettePlayback{play: new(filmPlay), gen: 4}, true, 72*time.Second, 73*time.Second)
 	if h := a.paletteHorizon(item); h != watched {
 		t.Fatalf("horizon %v with the picture at 1:30", h)
 	}
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "meanders")
-	if v := a.paletteView(); len(v.Lines) != 0 {
+	if v := a.PaletteView(a.cx); len(v.Lines) != 0 {
 		t.Fatalf("a line the seek passed was found: %+v", v.Lines)
 	}
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
-	back := stillPlay(t, video, 25*time.Second, true)
-	watched = 31 * time.Second
-	frames(back, 28*time.Second, 31*time.Second)
+	tt.Key("escape")
+	back := palettePlayback{play: play, gen: 5}
+	pictures(back, true, 25*time.Second, 28*time.Second, 31*time.Second)
 	watched = 33 * time.Second
-	frames(back, 33*time.Second)
-	a.stopPlayback()
+	pictures(back, true, 33*time.Second)
+	a.areasPositionsChanged()
 	if a.library.Furthest[video] != 33*time.Second {
 		t.Fatalf("library.json keeps %v", a.library.Furthest[video])
+	}
+}
+
+// TestPaletteFollowsThePlayingFilmOnlyAtNewLines checks that the player's progress reports make the app follow them only when the open palette lists another line: when the furthest point played passes the start of a line the query finds, not at every report, and never while the palette is closed or its query empty.
+func TestPaletteFollowsThePlayingFilmOnlyAtNewLines(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	item, _ := a.paletteFilm("rivers")
+	video := item.VideoPath
+	play := palettePlayback{play: a.player.play, gen: a.player.playGen}
+	// progress reports the picture at each of at in turn, playing, and returns the reports that changed what the palette lists.
+	progress := func(at ...time.Duration) []time.Duration {
+		var changed []time.Duration
+		for _, to := range at {
+			if a.paletteProgress(play, video, to, true) {
+				changed = append(changed, to)
+			}
+		}
+		return changed
+	}
+	if got := progress(31*time.Second, 40*time.Second); got != nil {
+		t.Fatalf("the closed palette was followed at %v", got)
+	}
+	paletteOpen(t, a, tt, updates)
+	if got := progress(50 * time.Second); got != nil {
+		t.Fatalf("the palette without a query was followed at %v", got)
+	}
+	paletteType(tt, "meanders")
+	if v := a.PaletteView(a.cx); len(v.Lines) != 0 {
+		t.Fatalf("a line not watched yet was found: %+v", v.Lines)
+	}
+	var at []time.Duration
+	for s := 51; s <= 80; s++ {
+		at = append(at, time.Duration(s)*time.Second)
+	}
+	// The line about meanders starts at 1:10.4, so it counts as seen from 1:09.9 on: the report at 1:10 lists it, and none of the others changes anything.
+	if got := progress(at...); !slices.Equal(got, []time.Duration{70 * time.Second}) {
+		t.Fatalf("followed at %v, want only at 1:10", got)
+	}
+	tt.Settle()
+	if v := a.PaletteView(a.cx); len(v.Lines) != 1 {
+		t.Fatalf("the line just watched is not found: %+v", v.Lines)
 	}
 }
 
@@ -525,7 +526,7 @@ func TestPaletteFollowsARenamedLibrary(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "河")
-	if v := a.paletteView(); len(v.Lines) != 2 {
+	if v := a.PaletteView(a.cx); len(v.Lines) != 2 {
 		t.Fatalf("lines %+v", v.Lines)
 	}
 }
@@ -538,7 +539,7 @@ func TestPaletteFollowsVideosGatheredIntoFolders(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "library.json")
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.openLibrary(path)
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.palette.furthest = map[string]time.Duration{loose: 12 * time.Second}
@@ -584,12 +585,10 @@ func TestPaletteSaysWhenTheServiceFails(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "河流为什么会越切越深")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	waitUntil(t, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
-	tt.Frame()
-	v := a.paletteView()
-	if v.Answer == nil || !strings.HasPrefix(v.Answer.Text, "没有拿到回答：") || v.Answer.Note != "" || v.Answer.Action != locales.PaletteNoAIAction() {
+	tt.Key("enter")
+	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
+	v := a.PaletteView(a.cx)
+	if v.Answer == nil || !strings.HasPrefix(v.Answer.Text, "没有拿到回答：") || v.Answer.Note != "" || v.Answer.Action != testlocale.Messages().PaletteNoAIAction() {
 		t.Fatalf("answer %+v", v.Answer)
 	}
 }
@@ -609,8 +608,7 @@ func TestPaletteTypingDropsTheQuestion(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "为什么")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
+	tt.Key("enter")
 	if a.palette.answer == nil || !a.palette.answer.busy || a.palette.cancel == nil {
 		t.Fatalf("answer %+v", a.palette.answer)
 	}
@@ -618,10 +616,8 @@ func TestPaletteTypingDropsTheQuestion(t *testing.T) {
 	if a.palette.answer != nil || a.palette.cancel != nil {
 		t.Fatalf("typing kept the question: %+v", a.palette.answer)
 	}
-	waitUntil(t, updates, func() bool { return true })
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
-	tt.Frame()
+	waitUpdate(t, tt, a, updates)
+	tt.Key("escape")
 	if a.palette.open || a.modalOpen() {
 		t.Fatal("Escape left the palette open")
 	}
@@ -637,9 +633,8 @@ func TestPaletteTreatsASignedOutCLIAsNoService(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "这部影片讲了什么")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	if !tt.HasText(everyAPISignedOut()) || !tt.HasText(locales.PaletteNoAIAction()) {
+	tt.Key("enter")
+	if !hasText(tt, everyAPISignedOut(a.cx)) || !hasText(tt, testlocale.Messages().PaletteNoAIAction()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
@@ -650,9 +645,8 @@ func TestPaletteSaysTheEveryAPICLIIsMissing(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "这部影片讲了什么")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	if !tt.HasText(everyAPIMissing()) || !tt.HasText(locales.PaletteNoAIAction()) {
+	tt.Key("enter")
+	if !hasText(tt, everyAPIMissing(a.cx)) || !hasText(tt, testlocale.Messages().PaletteNoAIAction()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
@@ -660,17 +654,17 @@ func TestPaletteSaysTheEveryAPICLIIsMissing(t *testing.T) {
 // TestPaletteSaysWhenNothingIsFound checks that a query that finds no line and no command says so, over the library, and in the player with the hint that Return asks the film.
 func TestPaletteSaysWhenNothingIsFound(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	msgs := testlocale.Messages()
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "火山")
-	if !tt.HasText(locales.PaletteNothingFound()) {
+	if !hasText(tt, msgs.PaletteNothingFound()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
+	tt.Key("escape")
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "火山")
-	if !tt.HasText(locales.PaletteNothingFoundAsk()) {
+	if !hasText(tt, msgs.PaletteNothingFoundAsk()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
@@ -680,7 +674,7 @@ func TestPaletteInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpen(t, a, tt, updates)
-	if got := a.paletteView().Placeholder; got != "Commands or watched lines…" {
+	if got := a.PaletteView(a.cx).Placeholder; got != "Commands or watched lines…" {
 		t.Fatalf("library placeholder %q", got)
 	}
 	for _, want := range []string{"Commands", "Type to search commands and watched lines · ↑↓ to select · Return to run"} {
@@ -688,20 +682,18 @@ func TestPaletteInEnglish(t *testing.T) {
 	}
 	paletteType(tt, "volcano")
 	wantText(t, tt, "No commands or watched lines found.")
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
+	tt.Key("escape")
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
-	if got := a.paletteView().Placeholder; got != "Commands, lines, or ask this film…" {
+	if got := a.PaletteView(a.cx).Placeholder; got != "Commands, lines, or ask this film…" {
 		t.Fatalf("player placeholder %q", got)
 	}
 	paletteType(tt, "what is this film about")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
+	tt.Key("enter")
 	for _, want := range []string{"Answer", "Answering questions needs an AI service. Choose a model in “AI Service” first.", "Open AI Service Settings"} {
 		wantText(t, tt, want)
 	}
-	if tt.HasText("回答") || tt.HasText("命令") {
+	if hasText(tt, "回答") || hasText(tt, "命令") {
 		t.Fatalf("the palette still reads Chinese: %q", tt.Texts())
 	}
 }

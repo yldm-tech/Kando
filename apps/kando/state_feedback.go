@@ -16,6 +16,8 @@ import (
 	"kando/apps/kando/locales"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // feedbackUI is the state of the 反馈问题 dialog (feedback/): the form, whether it is open, and what the app learned for it.
@@ -24,12 +26,12 @@ type feedbackUI struct {
 	form feedback.Form
 	// copied is the body 拷贝正文 copied last, so the button reads 已拷贝 until the form changes the body.
 	copied string
-	// sending is set while the browser is being asked to open the issue; err is why it could not, which FeedbackView words in the interface's language.
+	// sending is set while the system is being asked to open the issue in the browser; failed once no app opened it, which FeedbackView says in the interface's language.
 	sending bool
-	err     error
+	failed  bool
 	// gen counts the dialog's openings, so a browser that answers after the dialog closed and opened again does not close the new one.
 	gen int
-	// release gives back the window's modal flag (holdModal) the dialog holds while it is open; feedbackHooks' afterChange runs it once the dialog has closed.
+	// release gives back the window's modal flag (holdModal) the dialog holds while it is open; feedbackClose runs it as the dialog closes.
 	release func()
 	// system is the system's name, version and architecture, as feedbackDetectSystem found it once the window existed.
 	system string
@@ -39,25 +41,22 @@ func newFeedbackUI() feedbackUI {
 	return feedbackUI{system: feedback.SystemName(runtime.GOOS, "", runtime.GOARCH)}
 }
 
-// feedbackOpenURL opens the issue in the user's browser. Tests replace it.
-var feedbackOpenURL = openBrowser
-
-// feedbackHooks: the dialog learns the system's version once the window exists, and gives back the window's modal flag once it has closed.
+// feedbackHooks: the dialog learns the system's version once the window exists, and unticks what it can no longer attach while it is open.
 func (a *app) feedbackHooks() areaHooks {
 	return areaHooks{
 		ready:       a.feedbackDetectSystem,
-		afterChange: a.feedbackModal,
+		afterChange: a.feedbackSettleForm,
 	}
 }
 
 // feedbackKeys are the dialog's rows of the shortcut table, in the 帮助 menu without a key, as the prototype has them: 反馈问题…, and 反馈这部影片的字幕… while a film is open or 反馈字幕质量… otherwise.
-func (a *app) feedbackKeys() []shortcut {
-	subs := locales.FeedbackMenuSubs()
+func (a *app) feedbackKeys(cx *ns.Scope) []shortcut {
+	subs := locales.FeedbackMenuSubs(cx)
 	if a.openKey != "" {
-		subs = locales.FeedbackMenuFilmSubs()
+		subs = locales.FeedbackMenuFilmSubs(cx)
 	}
 	return []shortcut{
-		{Group: groupHelp, Label: locales.FeedbackMenuReport(), Run: func() { a.openFeedback(feedback.KindBug) }},
+		{Group: groupHelp, Label: locales.FeedbackMenuReport(cx), Run: func() { a.openFeedback(feedback.KindBug) }},
 		{Group: groupHelp, Label: subs, Run: func() { a.openFeedback(feedback.KindSubs) }},
 	}
 }
@@ -76,19 +75,37 @@ func (a *app) openFeedback(kind feedback.Kind) {
 	}
 	a.feedback.open = true
 	a.feedback.form = form
-	a.feedback.copied, a.feedback.err, a.feedback.sending = "", nil, false
+	a.feedback.copied, a.feedback.failed, a.feedback.sending = "", false, false
 	a.feedback.gen++
 	if a.feedback.release == nil {
 		a.feedback.release = a.holdModal()
 	}
 }
 
-// feedbackModal gives back the modal flag once the dialog has closed, by 取消, Escape or after the browser opened the issue.
-func (a *app) feedbackModal() {
-	if !a.feedback.open && a.feedback.release != nil {
+// feedbackClose closes the dialog and gives back the window's modal flag, however it closed: by 取消, Escape or once the browser opened the issue.
+func (a *app) feedbackClose() {
+	a.feedback.open = false
+	if a.feedback.release != nil {
 		a.feedback.release()
 		a.feedback.release = nil
 	}
+}
+
+// feedbackSettleForm unticks, while the dialog is open, the rows of 附带信息 that have nothing to attach any more, as when the film closed or its subtitles went, so they do not come back ticked once they have something again, and reports whether it unticked one. It runs after every change of the app's state (areaHooks.afterChange).
+func (a *app) feedbackSettleForm() bool {
+	form := &a.feedback.form
+	if !a.feedback.open || (!form.Film && !form.Subs) {
+		return false
+	}
+	facts := a.feedbackFacts()
+	changed := false
+	if form.Film && facts.Film == nil {
+		form.Film, changed = false, true
+	}
+	if form.Subs && facts.Excerpt == nil {
+		form.Subs, changed = false, true
+	}
+	return changed
 }
 
 // feedbackFilm is the film the player shows, while one is open.

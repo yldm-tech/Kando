@@ -210,9 +210,9 @@ func (is Issue) link(body string) string {
 	return NewIssue + "?" + q.Encode()
 }
 
-// Preview is the issue as the dialog shows it: the title and the label the link fills in, in the interface's language, then the body it carries, as it is sent.
-func (is Issue) Preview() string {
-	return locales.FeedbackPreviewTitle(orValue(is.Title, locales.FeedbackPreviewUntitled())) + "\n" + locales.FeedbackPreviewLabel(is.Label) + "\n\n" + is.Body
+// Preview is the issue as the dialog shows it: the title and the label the link fills in, in the language of msgs, the interface's, then the body it carries, as it is sent.
+func (is Issue) Preview(msgs locales.Messages) string {
+	return msgs.FeedbackPreviewTitle(orValue(is.Title, msgs.FeedbackPreviewUntitled())) + "\n" + msgs.FeedbackPreviewLabel(is.Label) + "\n\n" + is.Body
 }
 
 // Scrubber takes out of text what must not reach a public issue: every absolute path becomes <路径>, whole, with the names under it and the spaces in it, the home folder on its own becomes ~, and the secrets it knows and anything shaped like a key or token become ***.
