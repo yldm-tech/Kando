@@ -99,6 +99,7 @@ jobs:
             echo "::warning::$message"
             echo "$message" >> "$GITHUB_STEP_SUMMARY"
           fi
+      # GitHub sometimes refuses a push for a fault of its own ("Unable to create temporary file", "missing necessary objects"), which here left v0.13.1's version commit on main without its tag, so the push is tried again before the run gives up. Should it still fail, main keeps the version commit untagged, and the run of the next push to main releases it: next-version.sh gives the same version, set-version.sh and changelog.sh change nothing, and the tag goes on that push's commit.
       - name: Tag
         if: steps.commit.outputs.sha != ''
         env:
@@ -106,7 +107,15 @@ jobs:
           SHA: ${{ steps.commit.outputs.sha }}
         run: |
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
-          git push origin "refs/tags/$VERSION"
+          for attempt in 1 2 3 4 5; do
+            if git push origin "refs/tags/$VERSION"; then
+              exit 0
+            fi
+            echo "::warning::Pushing $VERSION failed (attempt $attempt of 5)."
+            sleep $((attempt * 15))
+          done
+          echo "::error::Could not push the tag $VERSION."
+          exit 1
       # The release's notes are the version's section of CHANGELOG.md. The macOS packages are signed and notarized (see package.yml); the Windows installers are not signed yet, which the notes say.
       - name: Draft the release
         if: steps.commit.outputs.sha != ''
