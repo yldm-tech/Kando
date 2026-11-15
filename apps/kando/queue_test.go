@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -332,7 +331,7 @@ func TestCancelLeavesOtherJobsAlone(t *testing.T) {
 		t.Fatalf("old %+v", job)
 	}
 	a.Cancel(a.queue.active)
-	untilState(t, updates, func() bool { return !a.running() })
+	queueUntilState(t, updates, func() bool { return !a.running() })
 }
 
 func TestRemovingTheRunningJobStartsTheNext(t *testing.T) {
@@ -465,7 +464,7 @@ func TestSwitchLibraryKeepsTheRunningJob(t *testing.T) {
 		t.Fatalf("after b, %s started", got)
 	}
 	g.release <- struct{}{}
-	untilState(t, updates, func() bool { return !a.running() })
+	queueUntilState(t, updates, func() bool { return !a.running() })
 	refresh(tt, a)
 	if job := stageOf(t, a, ids["https://example.com/b"]); job.Stage != core.StageComplete || job.LibraryDir != first {
 		t.Fatalf("b %+v", job)
@@ -537,7 +536,7 @@ func TestForgettingTheRunningJobsLibraryLetsItFinish(t *testing.T) {
 		t.Fatalf("running %q after forgetting its library, want a", a.RunningJob())
 	}
 	g.release <- struct{}{}
-	untilState(t, updates, func() bool { return !a.running() })
+	queueUntilState(t, updates, func() bool { return !a.running() })
 	noneStarted(t, g, updates)
 	done := stageOf(t, a, ids["https://example.com/a"])
 	if done.Stage != core.StageComplete || done.LibraryDir != first {
@@ -584,7 +583,7 @@ func TestJobsOfAForgottenLibraryWait(t *testing.T) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	g.release <- struct{}{}
-	untilState(t, updates, func() bool { return !a.running() })
+	queueUntilState(t, updates, func() bool { return !a.running() })
 	noneStarted(t, g, updates)
 	if job := stageOf(t, a, "gone"); job.Stage != core.StageQueued {
 		t.Fatalf("gone %+v", job)
@@ -761,7 +760,7 @@ func TestFilmCancelStopsItsOwnJob(t *testing.T) {
 	a.openKey = id
 	refresh(tt, a)
 	tt.Press("取消")
-	untilState(t, updates, func() bool { return !a.running() })
+	queueUntilState(t, updates, func() bool { return !a.running() })
 	job, ok := a.library.Find(id)
 	if !ok || job.Stage != core.StageFailed || !errors.Is(job.Err, context.Canceled) || a.RunningJob() != "" {
 		t.Fatalf("job %+v, RunningJob %q", job, a.RunningJob())
@@ -913,7 +912,7 @@ func TestTheCardFollowsTheDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	id := a.library.Jobs[0].ID
-	untilState(t, updates, func() bool { return stageOf(t, a, id).Progress.Known })
+	queueUntilState(t, updates, func() bool { return stageOf(t, a, id).Progress.Known })
 	job := stageOf(t, a, id)
 	if job.Title != "Me at the zoo" || job.Progress.Fraction != 0.25 {
 		t.Fatalf("job %+v", job)
@@ -933,7 +932,7 @@ func TestTheCardFollowsTheDownload(t *testing.T) {
 		t.Fatalf("saved %+v", s)
 	}
 	film, _ := a.JobFilm(id)
-	untilState(t, updates, func() bool { return libraryHasImage(a.Thumbnail(film)) })
+	queueUntilState(t, updates, func() bool { return libraryHasImage(a.Thumbnail(film)) })
 
 	if err := os.WriteFile(gate, nil, 0o644); err != nil {
 		t.Fatal(err)
@@ -1088,7 +1087,7 @@ func TestUpdateAndRetryUpdatesYTDLPAndRunsTheFailedDownloadsAgain(t *testing.T) 
 		t.Fatalf("job %+v", job)
 	}
 	a.queueReadYTDLP()
-	untilState(t, updates, func() bool { return a.queue.ytdlp.version != "" })
+	queueUntilState(t, updates, func() bool { return a.queue.ytdlp.version != "" })
 	film, _ := a.JobFilm(id)
 	r, _ := a.FailureRemedy(film)
 	if r.Why != "本机的 yt-dlp 是 2024.03.10 版，更新几秒就好。" || r.Actions[0].ID != remedyUpdate {
@@ -1098,7 +1097,7 @@ func TestUpdateAndRetryUpdatesYTDLPAndRunsTheFailedDownloadsAgain(t *testing.T) 
 	if r, _ := a.FailureRemedy(film); r.Headline != "正在更新下载组件…" || !r.Actions[0].Disabled {
 		t.Fatalf("while updating %+v", r)
 	}
-	untilState(t, updates, func() bool { return !a.queue.ytdlp.updating })
+	queueUntilState(t, updates, func() bool { return !a.queue.ytdlp.updating })
 	if a.queue.ytdlp.version != "2026.11.03" || a.lib.notice.Text != "下载组件已更新到 2026.11.03，已重新开始下载 1 个视频。" {
 		t.Fatalf("version %q, notice %q", a.queue.ytdlp.version, a.lib.notice.Text)
 	}
@@ -1172,7 +1171,7 @@ func TestFailedCardsDoNotLookForBrowsers(t *testing.T) {
 	withBrowsers(t, a, "firefox")
 	a.queue.ytdlp.browsers = nil
 	a.queueReadYTDLP()
-	untilState(t, updates, func() bool { return len(a.queue.ytdlp.browsers) == 1 })
+	queueUntilState(t, updates, func() bool { return len(a.queue.ytdlp.browsers) == 1 })
 	installedBrowsers = func() []media.Browser {
 		t.Error("a frame looked for the browsers")
 		return nil
@@ -1245,10 +1244,10 @@ func TestUpdateThatFindsTheNewestRunsNothingAgain(t *testing.T) {
 	settle(t, a, tt, updates)
 	id := a.library.Jobs[0].ID
 	a.queueReadYTDLP()
-	untilState(t, updates, func() bool { return a.queue.ytdlp.version != "" })
+	queueUntilState(t, updates, func() bool { return a.queue.ytdlp.version != "" })
 	film, _ := a.JobFilm(id)
 	a.RunRemedy(film, remedyUpdate)
-	untilState(t, updates, func() bool { return !a.queue.ytdlp.updating })
+	queueUntilState(t, updates, func() bool { return !a.queue.ytdlp.updating })
 	if a.lib.notice.Text != "下载组件 yt-dlp 已是最新的 2024.03.10 版，网站的修复还没发布，过一两天再试。" {
 		t.Fatalf("notice %q", a.lib.notice.Text)
 	}
@@ -1323,7 +1322,7 @@ func TestOutdatedWithASystemYTDLPOffersKandosOwn(t *testing.T) {
 	}
 
 	close(release)
-	untilState(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
+	queueUntilState(t, updates, func() bool { return len(a.kitsDownloading()) == 0 })
 	r, _ = a.FailureRemedy(film)
 	if r.Why != "没能下载 yt-dlp：服务器返回 HTTP 503。再试一次，或更新本机的 yt-dlp 后重试。" || strings.Join(remedyLabels(r), ",") != "下载 yt-dlp 并重试,已更新，重试" {
 		t.Fatalf("after the download failed: %+v", r)
@@ -1378,7 +1377,7 @@ func TestDownloadingKandosYTDLPRunsTheOutdatedDownloadsAgain(t *testing.T) {
 	systemYTDLP(a, a.pipeline.(media.Tools).YTDLP)
 	film, _ := a.JobFilm(id)
 	a.RunRemedy(film, remedyDownloadYTDLP)
-	untilState(t, updates, func() bool { return !a.queue.ytdlp.kitRetry && !a.queue.ytdlp.updating })
+	queueUntilState(t, updates, func() bool { return !a.queue.ytdlp.kitRetry && !a.queue.ytdlp.updating })
 	want := filepath.Join(own, kit.ID, "yt-dlp")
 	if a.pipeline.(media.Tools).YTDLP != want {
 		t.Fatalf("the pipeline downloads with %q, want %q", a.pipeline.(media.Tools).YTDLP, want)
@@ -1567,7 +1566,7 @@ func TestAddingAVideoTwiceQueuesItOnce(t *testing.T) {
 			}
 		}
 		a.stop()
-		untilState(t, updates, func() bool { return !a.running() })
+		queueUntilState(t, updates, func() bool { return !a.running() })
 	})
 	if err := a.Enqueue("https://www.youtube.com/watch?v=TRWgBxVAb1M", "https://example.com/v"); err != nil {
 		t.Fatal(err)
@@ -1689,7 +1688,7 @@ func TestQuitStopsTheRunningJob(t *testing.T) {
 	}
 	nextStarted(t, g, updates)
 	id := jobIDs(a)["https://example.com/a"]
-	untilState(t, updates, func() bool { return stageOf(t, a, id).Stage == core.StageDownloading })
+	queueUntilState(t, updates, func() bool { return stageOf(t, a, id).Stage == core.StageDownloading })
 	done := a.queue.done
 
 	start := time.Now()
@@ -1736,11 +1735,6 @@ func TestQuitWaitsOnlySoLongForTheJob(t *testing.T) {
 	if waited := time.Since(start); !stopped || waited < queueQuitWait || waited > queueQuitWait+time.Second {
 		t.Fatalf("stopped %v, waited %v, want %v", stopped, waited, queueQuitWait)
 	}
-}
-
-// closingCanceled reports whether the close of a window c stood for was held back (core.WindowClosing.Cancel), which NSGo tells only the platform.
-func closingCanceled(c *ns.WindowClosing) bool {
-	return reflect.ValueOf(c).Elem().FieldByName("canceled").Bool()
 }
 
 // TestQuitWhileAJobRunsAsksFirst checks that ⌘Q goes ahead at once while no job runs, and while one runs is held back by a confirmation, which keeps the app running on 取消 or Escape and quits on 退出 without asking again.
@@ -1824,14 +1818,14 @@ func TestQuitConfirmationFollowsTheRunningJob(t *testing.T) {
 
 	g.release <- struct{}{}
 	nextStarted(t, g, updates)
-	untilState(t, updates, func() bool { return a.RunningJob() == ids["https://example.com/b"] })
+	queueUntilState(t, updates, func() bool { return a.RunningJob() == ids["https://example.com/b"] })
 	refresh(tt, a)
 	if !shows(tt, message("https://example.com/b")) || shows(tt, message("https://example.com/a")) {
 		t.Fatalf("confirmation after the first job finished; texts %q", tt.Texts())
 	}
 
 	g.release <- struct{}{}
-	untilState(t, updates, func() bool { return !a.running() })
+	queueUntilState(t, updates, func() bool { return !a.running() })
 	refresh(tt, a)
 	refresh(tt, a)
 	if shows(tt, testlocale.Messages().QueueQuitWhileRunningTitle()) || a.modalOpen() || tt.Quits != 0 {
@@ -1908,8 +1902,8 @@ func TestSessionEndDoesNotAsk(t *testing.T) {
 
 			ce := &ns.WindowClosing{}
 			a.windowClosing(ce)
-			if closingCanceled(ce) || tt.Quits != 0 || a.window.hidden != !asked {
-				t.Fatalf("hides %v, asked %v: closing at the session's end prevented %v, quits %d, window hidden %v", hides, asked, closingCanceled(ce), tt.Quits, a.window.hidden)
+			if windowClosingCanceled(ce) || tt.Quits != 0 || a.window.hidden != !asked {
+				t.Fatalf("hides %v, asked %v: closing at the session's end prevented %v, quits %d, window hidden %v", hides, asked, windowClosingCanceled(ce), tt.Quits, a.window.hidden)
 			}
 
 			done := a.queue.done
@@ -2572,13 +2566,13 @@ func TestAnOpenFilmShowsItsNewTranslation(t *testing.T) {
 	a, tt, updates := retranslateLibraryAt(t, p, filepath.Join(root, "我的影片.kando"), filepath.Join(root, "Downloads", "Talk", "video.mp4"))
 	film, _ := a.JobFilm("talk")
 	a.Open(film)
-	untilState(t, updates, func() bool { return a.player.subs.ready })
+	queueUntilState(t, updates, func() bool { return a.player.subs.ready })
 	if cues := a.player.subs.cues; len(cues) != 3 || cues[0].Text != "你好。\nHello." {
 		t.Fatalf("cues %q", cues)
 	}
 	a.TranslateAgain(film)
 	settle(t, a, tt, updates)
-	untilState(t, updates, func() bool {
+	queueUntilState(t, updates, func() bool {
 		cues := a.player.subs.cues
 		return a.player.subs.ready && len(cues) == 3 && cues[0].Text == "日本語:Hello.\nHello."
 	})
@@ -2602,8 +2596,8 @@ func TestFilmPageTranslatesAgain(t *testing.T) {
 	}
 }
 
-// untilState runs the background updates, as the engine would, until done reports true, for a test that reads the app's state rather than the window.
-func untilState(t *testing.T, updates <-chan func(), done func() bool) {
+// queueUntilState runs the background updates, as the engine would, until done reports true, for a test that reads the app's state rather than the window.
+func queueUntilState(t *testing.T, updates <-chan func(), done func() bool) {
 	t.Helper()
 	timeout := time.After(5 * time.Second)
 	for !done() {

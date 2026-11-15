@@ -51,6 +51,7 @@ func (s *screen) transportMenu(cx *core.Scope, id string, open *bool, label func
 	name := core.NewMemo(cx, label).Get
 	isOpen := live.Func(a, func() bool { return *open })
 	return core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give base.Popover a LabelFunc twin so the button's name follows the mode, the speed and the interface language without building the popover again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return base.Popover{
 			TestID: id, Label: name(), Tooltip: tip(cx, tooltip),
 			Open: isOpen,
@@ -161,6 +162,7 @@ func (s *screen) delayRow(cx *core.Scope) core.Node {
 // delayInput is the subtitle delay as a number a tenth of a second at a time, from -30 to 30 seconds, written as DelayText writes it. The field keeps the text Format wrote until its value changes, and reads its name as it is built, as ui.NumberInput takes a static one, so it is built again when the language changes, which happens in the settings, away from it, to show the delay in the new language.
 func delayInput(cx *core.Scope, a App, id string) core.Node {
 	return core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.NumberInput (core.Input) a LabelFunc twin so the field's name follows the interface language without building the field again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return ui.NumberInput{TestID: id, Label: locales.FilmDelay(cx), Min: -30, Max: 30, Step: 0.1,
 			Value:  live.Func(a, func() float64 { return a.Delay().Seconds() }),
 			Format: func(v float64) string { return DelayText(cx, seconds(v)) },

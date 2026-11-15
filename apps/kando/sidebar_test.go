@@ -114,19 +114,6 @@ func sidebarCount(t *testing.T, tt *nsgotest.App, source string) string {
 // switcherLabel is the accessibility label of the library switcher while the library named name is open.
 func switcherLabel(name string) string { return testlocale.Messages().SidebarSwitcherLabel(name) }
 
-// popupLabels are the labels of the context menu showing, "-" for a separator, as MyGo's Tester.Menu listed them.
-func popupLabels(tt *nsgotest.App) []string {
-	var out []string
-	for _, it := range tt.PopupMenu {
-		if it.Separator {
-			out = append(out, "-")
-			continue
-		}
-		out = append(out, it.Label)
-	}
-	return out
-}
-
 // chooseFromSwitcher opens the library switcher's menu and chooses item, or the library item whose name is item and whose count follows it.
 func chooseFromSwitcher(t *testing.T, tt *nsgotest.App, a *app, item string) {
 	t.Helper()
@@ -349,8 +336,8 @@ func TestLibraryCountsKeepTheLatestRun(t *testing.T) {
 	}
 }
 
-// statusLine is what the sidebar's status line says.
-func statusLine(tt *nsgotest.App) string { return tt.Find("id:sidebar-status").Text }
+// sidebarStatusLine is what the sidebar's status line says.
+func sidebarStatusLine(tt *nsgotest.App) string { return tt.Find("id:sidebar-status").Text }
 
 func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 	model := filepath.Join(t.TempDir(), "ggml-base.bin")
@@ -384,12 +371,12 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			a, tt, _ := newTestApp(t, c.pipeline)
-			if got := statusLine(tt); got != msgs.ReadinessCheckingTools() {
+			if got := sidebarStatusLine(tt); got != msgs.ReadinessCheckingTools() {
 				t.Fatalf("before the first check: %q", got)
 			}
 			a.checkReadiness(true)
 			refresh(tt, a)
-			if got := statusLine(tt); got != c.want {
+			if got := sidebarStatusLine(tt); got != c.want {
 				t.Fatalf("status %q, want %q", got, c.want)
 			}
 			tt.Press("id:sidebar-settings")
@@ -402,7 +389,7 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 		a.edit(func(s *session) { s.LibraryDir = "" })
 		a.checkReadiness(true)
 		refresh(tt, a)
-		if got := statusLine(tt); got != msgs.PrecheckNoLibrary() {
+		if got := sidebarStatusLine(tt); got != msgs.PrecheckNoLibrary() {
 			t.Fatalf("status %q, want %q", got, msgs.PrecheckNoLibrary())
 		}
 	})
@@ -427,7 +414,7 @@ func TestStatusLineWaitsForTheEveryAPISignIn(t *testing.T) {
 	}
 	want := func(status, why string) {
 		t.Helper()
-		if got := statusLine(tt); got != status {
+		if got := sidebarStatusLine(tt); got != status {
 			t.Fatalf("%s: status %q, want %q", why, got, status)
 		}
 	}
@@ -489,7 +476,7 @@ func TestStatusLineAsksForTheSignInOnce(t *testing.T) {
 	for range 3 {
 		a.checkReadiness(false)
 		refresh(tt, a)
-		if got := statusLine(tt); got != msgs.ReadinessCheckingSignIn() {
+		if got := sidebarStatusLine(tt); got != msgs.ReadinessCheckingSignIn() {
 			t.Fatalf("status %q, want %q", got, msgs.ReadinessCheckingSignIn())
 		}
 	}
@@ -498,7 +485,7 @@ func TestStatusLineAsksForTheSignInOnce(t *testing.T) {
 	}
 	answers <- media.ErrEveryAPISignedOut
 	waitUpdate(t, tt, a, updates)
-	if got := statusLine(tt); got != msgs.PrecheckEveryAPISignedOut() {
+	if got := sidebarStatusLine(tt); got != msgs.PrecheckEveryAPISignedOut() {
 		t.Fatalf("the running check's answer was dropped: %q", got)
 	}
 }
@@ -527,7 +514,7 @@ func TestLLMTestAnswersTheSignIn(t *testing.T) {
 	a, tt, updates := newTestApp(t, tools)
 	a.checkReadiness(true)
 	waitUpdate(t, tt, a, updates)
-	if got := statusLine(tt); got != msgs.PrecheckEveryAPISignedOut() {
+	if got := sidebarStatusLine(tt); got != msgs.PrecheckEveryAPISignedOut() {
 		t.Fatalf("status %q, want %q", got, msgs.PrecheckEveryAPISignedOut())
 	}
 
@@ -535,8 +522,8 @@ func TestLLMTestAnswersTheSignIn(t *testing.T) {
 	signedIn = true
 	a.testLLM()
 	waitUpdate(t, tt, a, updates)
-	if a.LLMResult() != "连接成功" || statusLine(tt) != msgs.ReadinessReady() {
-		t.Fatalf("test result %q, status %q", a.LLMResult(), statusLine(tt))
+	if a.LLMResult() != "连接成功" || sidebarStatusLine(tt) != msgs.ReadinessReady() {
+		t.Fatalf("test result %q, status %q", a.LLMResult(), sidebarStatusLine(tt))
 	}
 }
 
@@ -545,7 +532,7 @@ func TestStatusDotIsGreenWhenReady(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.checkReadiness(true)
 	refresh(tt, a)
-	if got := statusLine(tt); got != testlocale.Messages().ReadinessReady() {
+	if got := sidebarStatusLine(tt); got != testlocale.Messages().ReadinessReady() {
 		t.Fatalf("status %q", got)
 	}
 	if got, want := tt.Find("id:sidebar-status-dot").Style.Background, ns.RGB(0x30D158); got != want {

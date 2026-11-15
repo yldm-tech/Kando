@@ -22,6 +22,7 @@ func (p translate) Render(cx *core.Scope) core.Node {
 	// choices is the target languages offered, joined, so the drop-down is built again only when a language typed into an older version leaves the list.
 	choices := core.NewMemo(cx, live.Func(a, func() string { return strings.Join(LanguageChoices(*a.Language()), "\n") }))
 	target := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		values := strings.Split(choices.Get(), "\n")
 		options := make([]ui.Option[string], len(values))
 		for i, value := range values {

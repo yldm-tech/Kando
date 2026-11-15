@@ -367,6 +367,7 @@ func (f failedDetail) Render(cx *ns.Scope) ns.Node {
 			func(cx *ns.Scope, action func() RemedyAction, _ func() int) ns.Node {
 				// The remedies' words come from the app in the interface's language, so a button is built again when its action says something else.
 				return ns.Dynamic(func(*ns.Scope) ns.Node {
+					// TODO(nsgo#145): give ui.Button a TextFunc twin so a remedy's words follow its action and the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 					r := action()
 					variant := ui.ButtonSecondary
 					if r.Primary {

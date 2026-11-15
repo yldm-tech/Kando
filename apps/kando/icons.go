@@ -14,9 +14,6 @@ var appLogo = core.ImageSource{Data: appIconPNG}
 
 func icon(src string) *core.SVG { return core.MustParseSVG([]byte(src)) }
 
-// svg is icon as the accessor NSGo's components take (ui.Icon, ui.SidebarItem.Icon, ui.IconButton.Icon).
-func svg(icon *core.SVG) func() *core.SVG { return func() *core.SVG { return icon } }
-
 const svgHead = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">`
 
 var (

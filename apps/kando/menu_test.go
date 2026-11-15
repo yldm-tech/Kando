@@ -281,7 +281,7 @@ func TestWindowKeysGoBackToTheLastFilm(t *testing.T) {
 	}
 	// The film opens again in the system's player, which says once it has loaded it
 	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready && tt.Exists("id:film-video") })
-	loadFilm(tt, a, 2*time.Second)
+	playerLoadFilm(tt, a, 2*time.Second)
 	if a.Play() == nil {
 		t.Fatal("⌘2 did not open the film's video again")
 	}

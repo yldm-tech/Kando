@@ -5,6 +5,8 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -56,6 +58,12 @@ func TestMain(m *testing.M) {
 
 // testOS is the system the tests' app runs on, a Mac unless usePlatform says another for a test.
 var testOS = ns.OSMacOS
+
+// windowClosingCanceled reports whether the close c stood for was held back (core.WindowClosing.Cancel), which keeps the window open. NSGo's WindowClosing only records it, for the platform that asked, so the tests read what it recorded.
+func windowClosingCanceled(c *ns.WindowClosing) bool {
+	// TODO(nsgo): read WindowClosing's Canceled() (or close the window through nsgotest) instead of its unexported canceled field, which NSGo can rename under these tests
+	return reflect.ValueOf(c).Elem().FieldByName("canceled").Bool()
+}
 
 // usePlatform runs the apps t starts after it on os, with the words and the look of that system, and goes back to the Mac after t. Call it before newTestApp.
 func usePlatform(t *testing.T, os ns.OS) {
@@ -394,4 +402,51 @@ func (f *fakeAwake) keepAwake(reason string, display bool) func() {
 			f.held--
 		}
 	}
+}
+
+// applyNext runs the next background update, as the engine would, for a test that reads the app's state rather than the window.
+func applyNext(t *testing.T, updates <-chan func()) {
+	t.Helper()
+	select {
+	case fn := <-updates:
+		fn()
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for a background update")
+	}
+}
+
+// shows reports whether s is a part of a text that shows, or of a view's accessible name.
+func shows(tt *nsgotest.App, s string) bool {
+	if tt.Exists("text:" + s) {
+		return true
+	}
+	return tt.Exists("label:/" + regexp.QuoteMeta(s) + "/")
+}
+
+// finds reports whether a text that shows, or a view's accessible name, is s as a whole.
+func finds(tt *nsgotest.App, s string) bool {
+	return tt.Exists(whole(s)) || tt.Exists(`label:"`+s+`"`)
+}
+
+// popupLabels are the labels of the context menu showing, "-" for a separator.
+func popupLabels(tt *nsgotest.App) []string {
+	var out []string
+	for _, it := range tt.PopupMenu {
+		if it.Separator {
+			out = append(out, "-")
+			continue
+		}
+		out = append(out, it.Label)
+	}
+	return out
+}
+
+// backgroundUnder is the first background drawn under v: its own, or the nearest of its ancestors'.
+func backgroundUnder(v *nsgotest.View) ns.Color {
+	for c := v; c != nil; c = c.Parent {
+		if c.Style.Background != 0 {
+			return c.Style.Background
+		}
+	}
+	return 0
 }

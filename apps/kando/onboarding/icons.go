@@ -4,9 +4,6 @@ import "github.com/nsgo-dev/nsgo/core"
 
 func icon(src string) *core.SVG { return core.MustParseSVG([]byte(src)) }
 
-// svg is icon as the accessor NSGo's components take (ui.Icon).
-func svg(icon *core.SVG) func() *core.SVG { return func() *core.SVG { return icon } }
-
 // The prototype's own glyphs. The monochrome ones take the color of the text around them (currentColor); the marks keep their colors, which core.Icon draws as the SVG has them.
 var (
 	linkIcon = icon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6.5 9.5l3-3M7 4.5l1.3-1.3a2.8 2.8 0 0 1 4 4L11 8.5M9 11.5l-1.3 1.3a2.8 2.8 0 0 1-4-4L5 7.5"/></svg>`)

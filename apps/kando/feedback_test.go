@@ -77,8 +77,8 @@ func chooseHelp(t *testing.T, a *app, tt *nsgotest.App, label string) {
 	}
 }
 
-// previewText is everything the dialog shows, the preview's lines among it.
-func previewText(tt *nsgotest.App) string { return strings.Join(tt.Texts(), "\n") }
+// feedbackPreviewText is everything the dialog shows, the preview's lines among it.
+func feedbackPreviewText(tt *nsgotest.App) string { return strings.Join(tt.Texts(), "\n") }
 
 func TestHelpMenuOpensFeedback(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
@@ -94,7 +94,7 @@ func TestHelpMenuOpensFeedback(t *testing.T) {
 		t.Fatal("the dialog does not hold the menu bar's commands")
 	}
 	for _, text := range []string{"当前不在播放页，没有可附带的影片", "打开一部有字幕的影片后才能附带", "标题：（未填写）", "标签：bug", "github.com/yldm-tech/Kando/issues/new"} {
-		if !strings.Contains(previewText(tt), text) {
+		if !strings.Contains(feedbackPreviewText(tt), text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
@@ -184,7 +184,7 @@ func TestFeedbackOnAFilmAttachesItsStateAndTheLineOnlyWhenAsked(t *testing.T) {
 			t.Fatalf("body misses %q once the line was ticked:\n%s", want, body)
 		}
 	}
-	if !strings.Contains(previewText(tt), "0:01.0 原文：Hello.") {
+	if !strings.Contains(feedbackPreviewText(tt), "0:01.0 原文：Hello.") {
 		t.Fatalf("the preview does not show the line: %q", tt.Texts())
 	}
 	// The line goes once the film closes, and its row stays unticked when a film with subtitles is open again.
@@ -243,7 +243,7 @@ func TestFeedbackKeepsTheDialogWhenTheBrowserFails(t *testing.T) {
 	a.feedback.form.Title = "崩溃"
 	refresh(tt, a)
 	tt.Press("id:feedback-send")
-	if !a.feedback.open || a.feedback.sending || a.feedback.form.Title != "崩溃" || !strings.Contains(previewText(tt), "没能打开浏览器：没有应用能打开这个链接") {
+	if !a.feedback.open || a.feedback.sending || a.feedback.form.Title != "崩溃" || !strings.Contains(feedbackPreviewText(tt), "没能打开浏览器：没有应用能打开这个链接") {
 		t.Fatalf("open %v sending %v texts %q", a.feedback.open, a.feedback.sending, tt.Texts())
 	}
 }
@@ -255,7 +255,7 @@ func TestFeedbackCopyPutsTheWholeBodyOnTheClipboard(t *testing.T) {
 	a.feedback.form.Description = strings.Repeat("字幕在第二段之后全部晚了一秒，", 600)
 	refresh(tt, a)
 	view := a.FeedbackView(a.cx)
-	if !view.Issue.Truncated || !strings.Contains(previewText(tt), "正文太长") {
+	if !view.Issue.Truncated || !strings.Contains(feedbackPreviewText(tt), "正文太长") {
 		t.Fatalf("a long body was not cut or the dialog does not say so: %q", tt.Texts())
 	}
 	if len(view.Issue.URL) > feedback.MaxURL {
@@ -311,7 +311,7 @@ func TestFeedbackScrubsCredentialsAndTheHomeFolder(t *testing.T) {
 	a.feedback.form.Description = "open " + filepath.Join(home, "Movies", "a.kando") + " with https://llm.internal.example/v1 and ea-secret-value-123, oss-secret-998877, someone@example.com, /Volumes/Disk/x/y"
 	refresh(tt, a)
 	issue := a.FeedbackView(a.cx).Issue
-	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(testlocale.Messages()), previewText(tt)} {
+	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(testlocale.Messages()), feedbackPreviewText(tt)} {
 		for _, leak := range []string{home, "sk-live", "llm.internal.example", "ea-secret", "oss-secret", "someone@example.com", "/Volumes/Disk"} {
 			if strings.Contains(s, leak) {
 				t.Fatalf("%q leaked into %q", leak, s)
@@ -345,7 +345,7 @@ func TestFeedbackScrubsEveryStoredCredential(t *testing.T) {
 	a.feedback.form.Description = "my settings: " + strings.Join(secrets, " ")
 	refresh(tt, a)
 	issue := a.FeedbackView(a.cx).Issue
-	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(testlocale.Messages()), previewText(tt)} {
+	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(testlocale.Messages()), feedbackPreviewText(tt)} {
 		for _, secret := range secrets {
 			if strings.Contains(s, secret) {
 				t.Fatalf("%q leaked into %q", secret, s)

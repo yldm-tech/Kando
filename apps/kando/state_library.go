@@ -89,7 +89,7 @@ func (a *app) libraryHooks() areaHooks {
 	}
 }
 
-// libraryAfterChange follows what the library page did in MyGo each frame (libraryFollowOpen, libraryModals), and reports whether it changed anything.
+// libraryAfterChange lets go of an open film the library no longer has (libraryFollowOpen) and closes the dialogs whose reason went away (libraryModals) after each change, and reports whether it changed anything.
 func (a *app) libraryAfterChange() bool {
 	open := a.libraryFollowOpen()
 	modals := a.libraryModals()

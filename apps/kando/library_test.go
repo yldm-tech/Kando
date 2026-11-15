@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -487,7 +486,7 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 	if countText(tt, "重试") != 2 || countText(tt, "移除") != 2 {
 		t.Fatalf("the failed cards hide 重试 or 移除 while a job runs: %q", tt.Texts())
 	}
-	// Either failed card will do, as the check below takes either; nsgotest asks which of the two, where MyGo clicked the first
+	// Either failed card will do, as the check below takes either; nsgotest asks which of the two, so the first is named
 	tt.Press("移除 >> nth=0")
 	refresh(tt, a)
 	left := ""
@@ -808,7 +807,7 @@ func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
 	if !a.MakingLibrary() || !shows(tt, "影视库.kando") || !a.modalOpen() {
 		t.Fatalf("sheet did not open with the path, or does not hold the window (modal %v): %q", a.modalOpen(), tt.Texts())
 	}
-	pressBackdrop(t, tt)
+	libraryPressBackdrop(t, tt)
 	refresh(tt, a)
 	if !a.MakingLibrary() {
 		t.Fatal("a click outside closed the sheet")
@@ -825,8 +824,8 @@ func TestNewLibrarySheetStaysOpenUntilEscape(t *testing.T) {
 	}
 }
 
-// pressBackdrop presses the backdrop under the dialog showing, outside the dialog, as a click beside a sheet does.
-func pressBackdrop(t *testing.T, tt *nsgotest.App) {
+// libraryPressBackdrop presses the backdrop under the dialog showing, outside the dialog, as a click beside a sheet does.
+func libraryPressBackdrop(t *testing.T, tt *nsgotest.App) {
 	t.Helper()
 	for _, v := range tt.Query("role:dialog") {
 		if v.Kind.String() == "modal" && len(v.Children) > 0 {
@@ -1016,17 +1015,6 @@ func TestRefreshDuringADownloadLeavesItsTracksAlone(t *testing.T) {
 }
 
 // coverFilm puts a downloaded film in its own folder of a library on the shelf, with cover.jpg holding kept when kept is not nil and thumbnail as its site's picture, and returns the app, its updates and the film's video and cover. The pipeline names an ffmpeg that is not there, so a frame grab fails.
-// applyNext runs the next background update, as the engine would, for a test that reads the app's state rather than the window.
-func applyNext(t *testing.T, updates <-chan func()) {
-	t.Helper()
-	select {
-	case fn := <-updates:
-		fn()
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for a background update")
-	}
-}
-
 func coverFilm(t *testing.T, thumbnail string, kept []byte) (*app, chan func(), string, string) {
 	t.Helper()
 	lib := filepath.Join(t.TempDir(), "我的影片.kando")
@@ -1968,19 +1956,6 @@ func TestRenameAVideoNoJobProcessed(t *testing.T) {
 	if lib, _ := shelf.Load(libraryPath); len(lib.Names) != 0 {
 		t.Fatalf("library.json keeps %v", lib.Names)
 	}
-}
-
-// shows reports whether s is a part of a text that shows, or of a view's accessible name, as MyGo's Tester.HasText read both, which the library's and the queue's tests were written against.
-func shows(tt *nsgotest.App, s string) bool {
-	if tt.Exists("text:" + s) {
-		return true
-	}
-	return tt.Exists("label:/" + regexp.QuoteMeta(s) + "/")
-}
-
-// finds reports whether a text that shows, or a view's accessible name, is s as a whole, as MyGo's Tester.Find matched them.
-func finds(tt *nsgotest.App, s string) bool {
-	return tt.Exists(whole(s)) || tt.Exists(`label:"`+s+`"`)
 }
 
 // TestLibraryPageScrollsWithinTheWindow checks that the prototype's library, longer than the window, scrolls inside it: NSGo's views keep the height of their content unless they may shrink, so a window whose boxes between it and the page's scroll view only grew would stretch past its bottom and leave nothing to scroll.

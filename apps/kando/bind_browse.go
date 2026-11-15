@@ -28,7 +28,7 @@ func (a *app) BrowseWeb() *core.Ref { return a.browse.view }
 
 func (a *app) BrowseUserAgent() string { return a.browse.agent.get() }
 
-func (a *app) BrowseScript() string { return browseScript() }
+func (a *app) BrowseScript() string { return browse.Script() }
 
 func (a *app) BrowseNavigated(nav core.WebNavigation) { a.browseNavigated(nav) }
 

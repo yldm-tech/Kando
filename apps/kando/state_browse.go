@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -46,7 +45,7 @@ type browseUI struct {
 
 func newBrowseUI() browseUI {
 	agent := &browseAgent{}
-	agent.set(browseUserAgent())
+	agent.set(browse.UserAgent())
 	return browseUI{view: &core.Ref{}, agent: agent}
 }
 
@@ -70,9 +69,6 @@ func (b *browseAgent) get() string {
 
 // browseBlank is the page home loads, which shows the start; the page's history keeps the pages before it, so back returns to them.
 const browseBlank = "about:blank"
-
-// browseHistoryMessage starts what browseScript has a page post when it changes its address without loading another page: "push", "replace" or "pop" follows it.
-const browseHistoryMessage = "kando-history:"
 
 // browseHooks: once the window exists the browser removes the cookies folders of downloads that never finished, as none runs yet; its ready runs before the queue's (areas), which starts the first job left waiting. After each change the confirmation closes when the window went to another page, and the page's sound is off while another page shows.
 func (a *app) browseHooks() areaHooks {
@@ -140,18 +136,10 @@ func (a *app) browseAfterChange() bool {
 		a.browse.muted = muted
 		if a.browse.source != "" {
 			// TODO(nsgo#114): turn the page's sound off and on with the web view's own switch, as MyGo's Page.SetAudioMuted did, which also silences what plays in the page's frames and what starts while it is muted https://github.com/nsgo-dev/nsgo/issues/114
-			a.browse.view.InjectJavaScript(browseMuteScript(muted))
+			a.browse.view.InjectJavaScript(browse.MuteScript(muted))
 		}
 	}
 	return changed
-}
-
-// browseMuteScript mutes the page's videos and sounds, marking the ones it muted, or unmutes those it marked, so what the page muted itself stays muted.
-func browseMuteScript(muted bool) string {
-	if muted {
-		return `for (const m of document.querySelectorAll("video, audio")) { if (!m.muted) { m.muted = true; m.dataset.kandoMuted = "1"; } }`
-	}
-	return `for (const m of document.querySelectorAll("[data-kando-muted]")) { m.muted = false; delete m.dataset.kandoMuted; }`
 }
 
 // browseColumnGone runs when the browser's column goes with its web view: the web view made when it comes back loads the page that was shown, or the blank page under the start, though without the history before it.
@@ -164,52 +152,6 @@ func (a *app) browseColumnGone() {
 	}
 	a.browse.loading, a.browse.canBack, a.browse.canForward = false, false, false
 	a.browse.focused, a.browse.muted, a.browse.cutShort = false, false, false
-}
-
-// browseUserAgent is the pages' user agent: on macOS WKWebView's own, which names no browser, with Safari's version after it, as sites serve such a user agent older pages and refuse it their sign-in. WebKitGTK and WebView2 already name their browsers and keep their own ("").
-func browseUserAgent() string {
-	if runtime.GOOS == "darwin" {
-		// TODO(nsgo#114): append Safari's version to the platform's own user agent, as MyGo's PageOptions.UserAgentSuffix did, rather than replacing it with WKWebView's as macOS writes it today https://github.com/nsgo-dev/nsgo/issues/114
-		return "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
-	}
-	return ""
-}
-
-// browseScript runs in each page before its own scripts. A link or a script that opens a window loads its address in the same view when the user clicked it, and does nothing otherwise, as a pop-up a script opens by itself, so the page never opens a window of the app; the web view's Access keeps it to http and https addresses. A page that changes its address without loading another, as a site that is one page does, says so (browseHistoryMessage), and the app reads the address from the page (browseHeard).
-func browseScript() string {
-	// TODO(nsgo#113): hear a page open a window, with whether the user asked for it, and change its address and title within the document from the web view itself, as MyGo's SetWindowOpenHandler and OnPageTitleUpdated did, then drop this script https://github.com/nsgo-dev/nsgo/issues/113
-	return `(() => {
-  const go = (raw) => {
-    try {
-      const u = new URL(raw, location.href);
-      if (u.protocol === "http:" || u.protocol === "https:") location.assign(u.href);
-    } catch (e) {}
-  };
-  document.addEventListener("click", (e) => {
-    if (e.defaultPrevented || e.button !== 0 || !(e.target instanceof Element)) return;
-    const a = e.target.closest("a[href]");
-    if (!a) return;
-    const target = (a.getAttribute("target") || "").toLowerCase();
-    const opens = (target !== "" && target !== "_self" && target !== "_top" && target !== "_parent") || e.metaKey || e.ctrlKey || e.shiftKey;
-    if (!opens) return;
-    e.preventDefault();
-    go(a.href);
-  });
-  window.open = function (url) {
-    if (url && navigator.userActivation && navigator.userActivation.isActive) go(String(url));
-    return null;
-  };
-  const post = (kind) => { try { window.nsgo.postMessage("` + browseHistoryMessage + `" + kind); } catch (e) {} };
-  for (const [name, kind] of [["pushState", "push"], ["replaceState", "replace"]]) {
-    const original = history[name];
-    history[name] = function (...args) {
-      const result = original.apply(this, args);
-      post(kind);
-      return result;
-    };
-  }
-  addEventListener("popstate", () => post("pop"));
-})();`
 }
 
 // browseNavigated follows the page's address and history as the web view reports them: as a page starts loading, finishes and navigates. The address field follows the page unless the user is typing in it. A page of the page's own making (data:, blob:, about: other than the start's blank page), where the web view lets it go (browse/page.go), keeps the last web address, which 下载视频 then adds. A load that starts takes away the message that a page did not load.
@@ -261,9 +203,9 @@ func (a *app) browseCutShort() {
 	}
 }
 
-// browseHeard is what a page posted: that it changed its address without loading another page (browseScript), as the web view reports nothing then. The address is read from the page itself rather than taken from what it posted, which any page could fill with another site's address. A page that pushed an address has the one it left to go back to, and none to go forward to.
+// browseHeard is what a page posted: that it changed its address without loading another page (browse.Script), as the web view reports nothing then. The address is read from the page itself rather than taken from what it posted, which any page could fill with another site's address. A page that pushed an address has the one it left to go back to, and none to go forward to.
 func (a *app) browseHeard(data string) {
-	kind, ok := strings.CutPrefix(data, browseHistoryMessage)
+	kind, ok := strings.CutPrefix(data, browse.HistoryMessage)
 	if !ok {
 		return
 	}

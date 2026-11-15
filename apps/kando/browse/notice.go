@@ -30,6 +30,7 @@ func noticeBar(cx *core.Scope, a App) core.Node {
 	settings := core.Show{When: fixable, Then: func(*core.Scope) core.Node {
 		// The button's words are set as it is built, so it is built again for another language.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
+			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 			return ui.Button{Text: locales.BrowseOpenSettings(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-settings",
 				OnPress: live.Do(a, func() { a.OpenSettings(a.BrowseNotice().Section) })}
 		})

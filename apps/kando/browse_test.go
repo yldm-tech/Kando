@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"kando/apps/kando/browse"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
@@ -212,17 +213,17 @@ func TestBrowseAddressFollowsThePage(t *testing.T) {
 func TestBrowseFollowsAPageThatChangesItsAddress(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	browseOpen(t, a, tt, "https://www.youtube.com/")
-	if !strings.Contains(tt.Find(browsePage).Web.InjectedJavaScriptBeforeContent, browseHistoryMessage) {
+	if !strings.Contains(tt.Find(browsePage).Web.InjectedJavaScriptBeforeContent, browse.HistoryMessage) {
 		t.Fatal("the pages do not run the browser's script")
 	}
-	tt.PostMessage(browsePage, browseHistoryMessage+"push")
+	tt.PostMessage(browsePage, browse.HistoryMessage+"push")
 	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
 	tt.Settle()
 	if a.browse.address != "https://www.youtube.com/watch?v=jNQXAC9IVRw" || !tt.Enabled("id:browse-back") {
 		t.Fatalf("address %q, back %v", a.browse.address, a.browse.canBack)
 	}
 	// What a page posts is never taken for its address.
-	tt.PostMessage(browsePage, browseHistoryMessage+"replace")
+	tt.PostMessage(browsePage, browse.HistoryMessage+"replace")
 	tt.AnswerScript(browsePage, `"file:///etc/passwd"`, "")
 	tt.Settle()
 	if a.browse.url != "https://www.youtube.com/watch?v=jNQXAC9IVRw" {
@@ -473,7 +474,7 @@ func TestBrowseKeepsTheWebAddressOverAPageOfItsOwn(t *testing.T) {
 func TestBrowseKeepsTheUserAgent(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	browseOpen(t, a, tt, "https://example.com/")
-	if got := a.browse.agent.get(); got != browseUserAgent() || tt.Find(browsePage).Web.UserAgent != got {
+	if got := a.browse.agent.get(); got != browse.UserAgent() || tt.Find(browsePage).Web.UserAgent != got {
 		t.Fatalf("user agent %q, the web view's %q", got, tt.Find(browsePage).Web.UserAgent)
 	}
 	if runtime.GOOS == "darwin" && !strings.HasSuffix(a.browse.agent.get(), "Version/26.0 Safari/605.1.15") {
@@ -520,14 +521,14 @@ func TestBrowseMutesWhileAnotherPageShows(t *testing.T) {
 	if !a.browse.muted {
 		t.Fatal("the page's sound stayed on")
 	}
-	if kept := len(tt.QueryMounted(browsePage)) == 1; kept && !slices.Equal(browseScripts(tt), []string{browseMuteScript(true)}) {
+	if kept := len(tt.QueryMounted(browsePage)) == 1; kept && !slices.Equal(browseScripts(tt), []string{browse.MuteScript(true)}) {
 		t.Fatalf("on the library: scripts %q", browseScripts(tt))
 	}
 	tt.Press("id:source-" + sidebar.PageBrowse)
 	if a.browse.muted {
 		t.Fatal("the page's sound stayed off on its own page")
 	}
-	if scripts := browseScripts(tt); len(scripts) == 0 || scripts[len(scripts)-1] != browseMuteScript(false) {
+	if scripts := browseScripts(tt); len(scripts) == 0 || scripts[len(scripts)-1] != browse.MuteScript(false) {
 		t.Fatalf("back on the browser: scripts %q", scripts)
 	}
 }

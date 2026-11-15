@@ -17,7 +17,7 @@ type areaHooks struct {
 	ready func()
 	// afterUpdate runs after each report of background work has run on the engine's goroutine (app.update). Only the app's own update (appUpdate) runs it; a test's update does not.
 	afterUpdate func()
-	// afterChange runs once the main view is built and again after every change of the app's state (live.State.Changed), once the bindings have followed it: where MyGo's areas brought something up to date after each frame, as closing a dialog whose reason went away. It is no clock: it runs only after a change, never on its own while a film plays, so work that follows time uses core.Video's OnProgress or the app scope's AfterFunc instead. It may change what a binding or the menu bar reads, and then returns true, and only then: areasFollow lets everything follow and runs every afterChange again, so one that always returned true would never let the app settle. It runs under the main view's scope (areasFollow), so what it creates stays until the window goes; it creates no Effect, which would pile up with each run. A modal flag (holdModal) is given back by the handler that closes its dialog, not here, so the menu bar follows at once.
+	// afterChange runs once the main view is built and again after every change of the app's state (live.State.Changed), once the bindings have followed it, to bring the area up to date with that change, as closing a dialog whose reason went away. It is no clock: it runs only after a change, never on its own while a film plays, so work that follows time uses core.Video's OnProgress or the app scope's AfterFunc instead. It may change what a binding or the menu bar reads, and then returns true, and only then: areasFollow lets everything follow and runs every afterChange again, so one that always returned true would never let the app settle. It runs under the main view's scope (areasFollow), so what it creates stays until the window goes; it creates no Effect, which would pile up with each run. A modal flag (holdModal) is given back by the handler that closes its dialog, not here, so the menu bar follows at once.
 	afterChange func() (changed bool)
 	// playing runs at each of the player's progress reports (core.Video's OnProgress, about four times a second while a film plays, and once as it pauses, ends or a seek lands), after the playhead moved there, for an area that follows the film's time, as the palette noting how far it played. It reports whether that changed what a binding reads, and only then: the player calls Changed once for all of them, never on an ordinary tick.
 	playing func() (changed bool)
@@ -56,7 +56,7 @@ func (a *app) areas() []areaHooks {
 		a.logsHooks(),
 		a.sidebarHooks(),
 		a.libraryHooks(),
-		// The browser comes before the queue, as its ready gives the pipeline the pages' cookies (media.Tools.SiteCookies) and the queue's ready starts the first job left waiting, which takes the pipeline as it is then.
+		// The browser comes before the queue, as its ready sweeps the cookie folders of downloads that never finished (media.SweepCookieDirs) before the queue's ready starts the first job left waiting, which would make one of its own; giving the pipeline the pages' cookies (media.Tools.SiteCookies) there too, which that job then takes, comes back with nsgo#112.
 		a.browseHooks(),
 		a.queueHooks(),
 		a.settingsHooks(),

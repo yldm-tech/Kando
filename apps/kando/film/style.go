@@ -63,8 +63,9 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			a.LookChanged()
 		})
 	}
-	// The segmented controls show their options' labels as they are built, as ui.Tabs takes static ones, so they are built again when the language changes, which happens in the settings, away from them; none holds the keyboard's text. A control whose language shows only in its accessible name reads it once instead, with a TODO, as the size sliders do.
+	// The segmented controls show their options' labels as they are built, as ui.Tabs takes static ones, so they are built again when the language changes, which happens in the settings, away from them; none holds the keyboard's text. A control whose language shows only in its accessible name reads it once instead, as the size sliders do.
 	modes := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Tabs LabelFunc twins for its name and its options' labels so they follow the interface language without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		opts := make([]ui.Option[string], len(styleModes))
 		for i, m := range styleModes {
 			opts[i] = ui.Option[string]{Value: m, Label: ModeName(cx, m)}
@@ -73,6 +74,7 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			Value: live.Func(a, func() string { return modeOrOff(a.SubMode()) }), OnChange: live.On(a, a.SetSubMode)}
 	})
 	order := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Tabs LabelFunc twins for its name and its options' labels so they follow the interface language without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return ui.Tabs[string]{TestID: "film-style-order", Label: locales.FilmStyleOrder(cx), Size: ui.SizeSmall,
 			Options: []ui.Option[string]{{Value: SubTranslationFirst, Label: subtitle.OrderName(cx, SubTranslationFirst)}, {Value: SubOriginalFirst, Label: subtitle.OrderName(cx, SubOriginalFirst)}},
 			Value:   live.Func(a, a.SubOrder),
@@ -82,6 +84,7 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			})}
 	})
 	place := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Tabs LabelFunc twins for its name and its options' labels so they follow the interface language without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return ui.Tabs[bool]{TestID: "film-style-place", Label: locales.FilmStylePosition(cx), Size: ui.SizeSmall,
 			Options: []ui.Option[bool]{{Value: true, Label: locales.FilmPositionHigh(cx)}, {Value: false, Label: locales.FilmPositionBottom(cx)}},
 			Value:   func() bool { return look().High },
@@ -90,6 +93,7 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 	})
 	// The menu lists the families the platform offers (styleFonts) by their names in the interface's language, and the look keeps the saved value of the one chosen.
 	font := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		fonts := styleFonts(cx.Env().OS())
 		opts := make([]ui.Option[string], len(fonts))
 		for i, family := range fonts {
@@ -118,6 +122,7 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 	presetRow := core.View{TestID: "film-style-preset", Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.FilmStylePresets(cx) },
 		Style: core.Style{Direction: core.Row, Gap: 8}, Children: presets}
 	reset := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return ui.Button{TestID: "film-style-reset", Text: locales.FilmStyleReset(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
 			OnPress: edit(func(l *Look) { *l = DefaultLook() })}
 	})

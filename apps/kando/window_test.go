@@ -1,7 +1,6 @@
 package main
 
 import (
-	"reflect"
 	"testing"
 
 	"kando/apps/kando/locales/testlocale"
@@ -14,8 +13,8 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// alphaOf is how opaque a view's background is, from 0 (none, which shows what is behind it) to 1.
-func alphaOf(v *nsgotest.View) float64 {
+// windowAlphaOf is how opaque a view's background is, from 0 (none, which shows what is behind it) to 1.
+func windowAlphaOf(v *nsgotest.View) float64 {
 	_, _, _, a := v.Style.Background.Components()
 	return a
 }
@@ -30,8 +29,8 @@ func windowRoot(t *testing.T, tt *nsgotest.App) *nsgotest.View {
 	return side.Parent
 }
 
-// childOf is the child of root that holds v.
-func childOf(t *testing.T, root, v *nsgotest.View) *nsgotest.View {
+// windowChildOf is the child of root that holds v.
+func windowChildOf(t *testing.T, root, v *nsgotest.View) *nsgotest.View {
 	t.Helper()
 	for c := v; c != nil; c = c.Parent {
 		if c.Parent == root {
@@ -40,16 +39,6 @@ func childOf(t *testing.T, root, v *nsgotest.View) *nsgotest.View {
 	}
 	t.Fatalf("view %d is not under view %d", v.ID, root.ID)
 	return nil
-}
-
-// backgroundUnder is the first background drawn under v: its own, or the nearest of its ancestors'.
-func backgroundUnder(v *nsgotest.View) ns.Color {
-	for c := v; c != nil; c = c.Parent {
-		if c.Style.Background != 0 {
-			return c.Style.Background
-		}
-	}
-	return 0
 }
 
 // TestMaterialShowsThroughTheSidebarOnly checks that with the window's material on, the gutter around the sidebar's card shows it, the card lets it through, and the content beside it stays opaque, and that without the material the gutter is painted.
@@ -62,28 +51,28 @@ func TestMaterialShowsThroughTheSidebarOnly(t *testing.T) {
 	tt.SetEnvironment(env)
 	root := windowRoot(t, tt)
 	side := tt.Find("id:sidebar")
-	content := childOf(t, root, tt.Find(whole(testlocale.Messages().FilmsStart())))
-	if a := alphaOf(root); a != 0 {
+	content := windowChildOf(t, root, tt.Find(whole(testlocale.Messages().FilmsStart())))
+	if a := windowAlphaOf(root); a != 0 {
 		t.Fatalf("the window's root is painted at alpha %v over the material", a)
 	}
-	if a := alphaOf(side); a != 0 {
+	if a := windowAlphaOf(side); a != 0 {
 		t.Fatalf("the sidebar's gutter is painted at alpha %v over the material", a)
 	}
 	if len(side.Children) == 0 {
 		t.Fatalf("the sidebar has no card\n%s", tt.Dump())
 	}
-	if a := alphaOf(side.Children[0]); a == 0 || a == 1 {
+	if a := windowAlphaOf(side.Children[0]); a == 0 || a == 1 {
 		t.Fatalf("card alpha = %v, want it translucent", a)
 	}
-	if a := alphaOf(content); a != 1 {
+	if a := windowAlphaOf(content); a != 1 {
 		t.Fatalf("content alpha = %v, want it opaque", a)
 	}
 
 	_, plain, _ := newTestApp(t, &fakePipeline{})
-	if a := alphaOf(windowRoot(t, plain)); a != 1 {
+	if a := windowAlphaOf(windowRoot(t, plain)); a != 1 {
 		t.Fatalf("window alpha without the material = %v, want opaque", a)
 	}
-	if a := alphaOf(plain.Find("id:sidebar")); a != 1 {
+	if a := windowAlphaOf(plain.Find("id:sidebar")); a != 1 {
 		t.Fatalf("gutter alpha without the material = %v, want opaque", a)
 	}
 }
@@ -141,7 +130,7 @@ func TestWindowIsLightAndTheFilmDark(t *testing.T) {
 	env := testEnvironment()
 	env.Dark = true
 	tt.SetEnvironment(env)
-	content := childOf(t, windowRoot(t, tt), tt.Find(whole(testlocale.Messages().FilmsStart())))
+	content := windowChildOf(t, windowRoot(t, tt), tt.Find(whole(testlocale.Messages().FilmsStart())))
 	if bg := content.Style.Background; bg != ns.RGB(0xFFFFFF) {
 		t.Fatalf("content = %#x, want white", uint32(bg))
 	}
@@ -186,12 +175,6 @@ func setWindowHidesOnClose(t *testing.T, hides bool) {
 	t.Cleanup(func() { windowHidesOnClose = old })
 }
 
-// closeCanceled reports whether the close button's c was canceled, which keeps the window open. NSGo's WindowClosing only records it, for the window that asked, so the test reads what it recorded.
-func closeCanceled(c *ns.WindowClosing) bool {
-	// TODO(nsgo): read WindowClosing's Canceled() (or close the window through nsgotest) instead of its unexported canceled field, which NSGo can rename under this test
-	return reflect.ValueOf(c).Elem().FieldByName("canceled").Bool()
-}
-
 // TestClosingTheWindowOnMacKeepsKandoRunning checks that on macOS the main window's close button puts the window away without quitting, the job running on, that 窗口 › 主窗口 is offered only then and brings it back, and that a quit going ahead closes it.
 func TestClosingTheWindowOnMacKeepsKandoRunning(t *testing.T) {
 	setWindowHidesOnClose(t, true)
@@ -219,8 +202,8 @@ func TestClosingTheWindowOnMacKeepsKandoRunning(t *testing.T) {
 	e := &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()
-	if !closeCanceled(e) || !a.window.hidden || tt.Quits != 0 || !a.running() {
-		t.Fatalf("close button: canceled %v, hidden %v, quits %d, job running %v", closeCanceled(e), a.window.hidden, tt.Quits, a.running())
+	if !windowClosingCanceled(e) || !a.window.hidden || tt.Quits != 0 || !a.running() {
+		t.Fatalf("close button: canceled %v, hidden %v, quits %d, job running %v", windowClosingCanceled(e), a.window.hidden, tt.Quits, a.running())
 	}
 	if !row().When() {
 		t.Fatal("主窗口 is disabled while the window is put away")
@@ -242,8 +225,8 @@ func TestClosingTheWindowOnMacKeepsKandoRunning(t *testing.T) {
 	q = &quitEvent{}
 	a.areasBeforeQuit(q)
 	a.windowClosing(e)
-	if q.DefaultPrevented() || closeCanceled(e) || a.window.hidden {
-		t.Fatalf("confirmed quit: quit prevented %v, close canceled %v, hidden %v", q.DefaultPrevented(), closeCanceled(e), a.window.hidden)
+	if q.DefaultPrevented() || windowClosingCanceled(e) || a.window.hidden {
+		t.Fatalf("confirmed quit: quit prevented %v, close canceled %v, hidden %v", q.DefaultPrevented(), windowClosingCanceled(e), a.window.hidden)
 	}
 }
 
@@ -254,8 +237,8 @@ func TestClosingTheWindowElsewhereQuits(t *testing.T) {
 	e := &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()
-	if !closeCanceled(e) || a.window.hidden || tt.Quits != 1 {
-		t.Fatalf("close button: canceled %v, hidden %v, quits %d", closeCanceled(e), a.window.hidden, tt.Quits)
+	if !windowClosingCanceled(e) || a.window.hidden || tt.Quits != 1 {
+		t.Fatalf("close button: canceled %v, hidden %v, quits %d", windowClosingCanceled(e), a.window.hidden, tt.Quits)
 	}
 	if s := a.windowKeys(a.cx)[0]; s.When() {
 		t.Fatal("主窗口 is offered where closing the window quits")
@@ -264,8 +247,8 @@ func TestClosingTheWindowElsewhereQuits(t *testing.T) {
 	e = &ns.WindowClosing{}
 	a.windowClosing(e)
 	tt.Settle()
-	if closeCanceled(e) || tt.Quits != 1 {
-		t.Fatalf("the quit's own close: canceled %v, quits %d", closeCanceled(e), tt.Quits)
+	if windowClosingCanceled(e) || tt.Quits != 1 {
+		t.Fatalf("the quit's own close: canceled %v, quits %d", windowClosingCanceled(e), tt.Quits)
 	}
 }
 

@@ -111,6 +111,7 @@ func (r storageRow) Render(cx *core.Scope) core.Node {
 	kind := live.Func(a, a.StorageKind)
 	// The drop-down's names are set as it is built, so it is built again for another language.
 	choose := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		options := make([]ui.Option[string], len(storageKinds))
 		for i, id := range storageKinds {
 			options[i] = ui.Option[string]{Value: id, Label: storageLabel(cx, id)}
@@ -227,6 +228,7 @@ func (r pathStyleRow) Render(cx *core.Scope) core.Node {
 			},
 			// The switch's name is set as it is built, so it is built again for another language.
 			core.Dynamic(func(cx *core.Scope) core.Node {
+				// TODO(nsgo#145): give ui.Switch a LabelFunc twin so its name follows the interface language without building the switch again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 				return ui.Switch{TestID: "compat-path", Label: locales.AccountPathStyle(cx), Variant: ui.SwitchSystem, Checked: on, OnChange: set}
 			}),
 		},
@@ -256,9 +258,11 @@ func (r googleRow) Render(cx *core.Scope) core.Node {
 	configured := live.Func(a, a.GoogleConfigured)
 	// The buttons' words are set as they are built, so they are built again for another language, and 登录 for 正在登录.
 	signOut := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return ui.Button{Text: locales.AccountSignOut(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "google-sign-out", OnPress: live.Do(a, a.SignOutGoogle)}
 	})
 	signIn := core.Dynamic(func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the sign-in and the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		text := locales.AccountSignIn(cx)
 		if busy() {
 			text = locales.AccountSigningIn(cx)

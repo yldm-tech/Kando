@@ -24,12 +24,12 @@ func skipWithoutFFmpeg(t *testing.T, format string, args ...any) {
 	t.Skipf(format, args...)
 }
 
-// openClip opens a film of the given seconds from the library and has the system's player load it (loadFilm), so it plays, holds and seeks.
+// openClip opens a film of the given seconds from the library and has the system's player load it (playerLoadFilm), so it plays, holds and seeks.
 func openClip(t *testing.T, seconds int) (*app, *nsgotest.App, chan func()) {
 	t.Helper()
 	a, tt, updates, item := playerFilm(t, seconds, nil)
-	openFilm(t, a, tt, updates, item)
-	loadFilm(tt, a, time.Duration(seconds)*time.Second)
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, time.Duration(seconds)*time.Second)
 	return a, tt, updates
 }
 

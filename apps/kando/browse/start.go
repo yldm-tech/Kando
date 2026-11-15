@@ -48,6 +48,7 @@ func (s start) Render(cx *core.Scope) core.Node {
 			Style: core.Style{Direction: core.Row, FlexShrink: 0, JustifyContent: core.JustifyCenter, Padding: core.Edges{Bottom: 24}},
 			// The button's words are set as it is built, so it is built again for another language.
 			Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
+				// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 				return ui.Button{Text: locales.BrowseClearData(cx), Variant: ui.ButtonSecondary, TestID: "browse-clear",
 					Disabled: func() bool { return state().Clearing }, OnPress: live.Do(a, a.BrowseAskClear)}
 			})},

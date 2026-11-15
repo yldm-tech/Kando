@@ -51,7 +51,7 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	}
 	refresh(tt, a)
 	item, _ := films.Find(a.films(), "job1")
-	openFilm(t, a, tt, updates, item)
+	playerOpenFilm(t, a, tt, updates, item)
 	view := a.UploadView(item)
 	if got := tt.Find("id:film-upload").Props.Label; got != view.Label || view.Status != film.UploadBlocked || view.Fix != "去登录" || view.Enabled || view.Detail == "" || a.player.film.uploadNote {
 		t.Fatalf("upload %+v, button %q, note %v", view, got, a.player.film.uploadNote)

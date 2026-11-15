@@ -75,8 +75,8 @@ func readSettingsFile(t *testing.T, path string) map[string]any {
 	return out
 }
 
-// guideGone lets the guide's sheet finish closing, as its closing motion keeps it on screen for a moment after it closed.
-func guideGone(tt *nsgotest.App) { tt.Advance(time.Second) }
+// onboardingGuideGone lets the guide's sheet finish closing, as its closing motion keeps it on screen for a moment after it closed.
+func onboardingGuideGone(tt *nsgotest.App) { tt.Advance(time.Second) }
 
 // TestOnboardingShowsOnFirstLaunch checks that the guide opens on its first step when settings.json says nothing, instead of the page that asks for a library.
 func TestOnboardingShowsOnFirstLaunch(t *testing.T) {
@@ -117,7 +117,7 @@ func TestOnboardingStaysClosedOnceSeen(t *testing.T) {
 func TestOnboardingSkipCreatesTheLibrary(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
 	tt.Press("跳过")
-	guideGone(tt)
+	onboardingGuideGone(tt)
 	want := filepath.Join(media.MoviesDir(), "我的影片"+media.LibraryExt)
 	if info, err := os.Stat(want); err != nil || !info.IsDir() {
 		t.Fatalf("library folder: %v", err)
@@ -642,7 +642,7 @@ func TestOnboardingInEnglish(t *testing.T) {
 	*a.OnboardingLink() = ""
 	refresh(tt, a)
 	tt.Press("Just Look Around")
-	guideGone(tt)
+	onboardingGuideGone(tt)
 	tip := a.onboardingTip()
 	if !strings.Contains(tip, "come back here") {
 		t.Fatalf("tip %q is not English", tip)
