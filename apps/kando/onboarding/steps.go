@@ -109,7 +109,7 @@ func languageSelect(cx *core.Scope, a App) core.Node {
 		for _, choice := range strings.Split(f.choices, "\x00") {
 			options = append(options, ui.Option[string]{Value: choice, Label: choice})
 		}
-		return ui.Select[string]{TestID: "onboarding-language", Label: f.label, Options: options, Style: core.Style{Width: core.Pt(160), FlexShrink: 0},
+		return ui.Select[string]{TestID: "onboarding-language", Label: f.label, Options: options, Style: core.Style{Width: core.Pt(160), FlexShrink: 0, AlignSelf: core.AlignCenter},
 			Value: live.Func(a, func() string { return *a.Language() }),
 			OnChange: live.On(a, func(v string) {
 				*a.Language() = v
