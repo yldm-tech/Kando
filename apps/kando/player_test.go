@@ -178,6 +178,38 @@ func TestPlaybackFollowsTheSystemsPlayer(t *testing.T) {
 	}
 }
 
+// TestPlayFromTheEndSeeksBeforeItPlays plays a film again once it has ended, with play and with a seek: the update that asks the system's player to jump still holds it paused, and only the next lets it play, as AVPlayer told to play at the end of its video reports the end again and stays there.
+func TestPlayFromTheEndSeeksBeforeItPlays(t *testing.T) {
+	for _, start := range []struct {
+		name string
+		do   func(a *app, tt *nsgotest.App)
+	}{
+		{"play", func(_ *app, tt *nsgotest.App) { tt.Key("space") }},
+		{"seek", func(a *app, _ *nsgotest.App) { a.seekPlayback(3 * time.Second) }},
+	} {
+		t.Run(start.name, func(t *testing.T) {
+			a, tt, _ := playerOpen(t)
+			tt.Key("space")
+			tt.Progress("id:film-video", 12*time.Second, 12*time.Second)
+			refresh(tt, a)
+			p := a.player.play
+			if !p.finished {
+				t.Fatal("the film did not end")
+			}
+			var held []func()
+			p.later = func(fn func()) { held = append(held, fn) }
+			start.do(a, tt)
+			if !p.Playing() || !a.playerVideo().Paused || len(held) != 1 {
+				t.Fatalf("as it seeks from the end: playing %v paused %v held %d", p.Playing(), a.playerVideo().Paused, len(held))
+			}
+			held[0]()
+			if a.playerVideo().Paused {
+				t.Fatal("the system's player stayed paused after the seek went out")
+			}
+		})
+	}
+}
+
 // TestSeekWaitsForItsLanding seeks the open film: the page asks the system's player to jump, the film plays from there, and a report the player sent before the seek landed does not take the playhead back.
 func TestSeekWaitsForItsLanding(t *testing.T) {
 	a, tt, _ := playerOpen(t)

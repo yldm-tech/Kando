@@ -49,6 +49,9 @@ type filmPlay struct {
 	// clock is the app's clock, which the playhead runs on between the player's reports: the engine's, a test's manual one in tests. seek has the system's player seek (app.player.ref), for toggle to start a finished film over; a filmPlay a test makes may have neither.
 	clock func() time.Time
 	seek  func(at time.Duration)
+	// restart holds the system's player paused while a seek away from the video's end reaches it (holdForSeek), which later lets go of once that update has gone to the system: later runs a function on the engine's goroutine after the update under way, and has the bindings follow.
+	restart bool
+	later   func(func())
 }
 
 // seekGiveUp is how long a seek may take before any report is believed again (filmPlay.seeking), as for a seek past the end, which lands at the end.
@@ -101,7 +104,19 @@ func (a *app) startPlayback(path string) {
 	}
 	a.player.playGen++
 	a.player.playPath = path
-	a.player.play = &filmPlay{path: path, source: path, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.playerSpeed(), clock: a.playerNow, seek: a.player.ref.Seek}
+	a.player.play = &filmPlay{path: path, source: path, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.playerSpeed(), clock: a.playerNow, seek: a.player.ref.Seek, later: a.playerLater}
+}
+
+// playerLater runs fn on the engine's goroutine in a pass of its own, after the update under way has gone to the system's player, and has the bindings follow. Without the app's scope, as in tests that start no app, it runs fn at once.
+func (a *app) playerLater(fn func()) {
+	if a.cx == nil {
+		fn()
+		return
+	}
+	a.cx.Post(func() {
+		fn()
+		a.Changed()
+	})
 }
 
 // playerVideo is what the system's player plays and how: the open video's source, held until it has loaded, so it starts where it was asked to, and at the player's volume and speed. A volume of 0 plays muted, as the system's player plays a volume of 0 at full volume.
@@ -113,7 +128,7 @@ func (a *app) playerVideo() film.Video {
 	volume := float32(a.player.volume)
 	return film.Video{
 		Source: p.source,
-		Paused: !p.loaded || p.paused || p.finished,
+		Paused: !p.loaded || p.paused || p.finished || p.restart,
 		Muted:  a.player.muted || volume <= 0,
 		Volume: volume,
 		Rate:   float32(playerRate(a.playerSpeed())),
@@ -312,6 +327,7 @@ func (a *app) seekTo(at time.Duration, kept bool) {
 	a.player.playGen++
 	a.player.opening = at
 	p.head, p.headAt = at, now
+	ended := p.finished
 	p.paused, p.finished = false, false
 	p.played = true
 	p.seeks++
@@ -319,6 +335,9 @@ func (a *app) seekTo(at time.Duration, kept bool) {
 	if p.loaded {
 		p.startSeek(from, at, now)
 		a.player.ref.Seek(at)
+		if ended {
+			p.holdForSeek()
+		}
 	}
 	a.playerNowPlayingSeeking(p.path, at)
 }
@@ -397,6 +416,7 @@ func (p *filmPlay) toggle() {
 			if p.seek != nil {
 				p.seek(0)
 			}
+			p.holdForSeek()
 		}
 		p.reportPlaybackAt(0)
 		return
@@ -409,6 +429,16 @@ func (p *filmPlay) toggle() {
 		p.played = true
 	}
 	p.reportPlayback()
+}
+
+// holdForSeek keeps the system's player paused through the update that seeks a film away from its end, and lets it play from the next one (later), so the player has jumped before it is told to play: told to play while it still sits at the end, the system's player on macOS (AVPlayer) reports the end again at once and stays where it is, and the film froze while its button said it played. Without later, as for a filmPlay a test makes, there is nothing to hold.
+func (p *filmPlay) holdForSeek() {
+	if p.later == nil {
+		return
+	}
+	// TODO(nsgo): send a video's Ref.Seek to the platform ahead of the props changed in the same update, or have the Apple player seek a finished item before it plays it again, so playing a video from its end in one update (Paused false and a seek) starts it over; NSGo's commit puts the commands (the seek) after the props (setRate), and this hold, which costs a commit, could go
+	p.restart = true
+	p.later(func() { p.restart = false })
 }
 
 // startSeek notes a seek from where the picture is, from, to to at now, so reports the player sent before it landed are dropped (playerProgress).
