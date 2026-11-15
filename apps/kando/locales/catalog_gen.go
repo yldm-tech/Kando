@@ -187,26 +187,37 @@ func init() {
 	})
 	desktoplocales.Supply("ja", desktoplocales.Translation{
 		Texts: map[string]string{
-			"edit":             "編集",
-			"window":           "ウインドウ",
-			"about":            "バージョン情報",
-			"hide":             "隠す",
-			"hideOthers":       "ほかを隠す",
-			"showAll":          "すべてを表示",
-			"quit":             "終了",
-			"undo":             "取り消す",
-			"redo":             "やり直す",
-			"cut":              "カット",
-			"copy":             "コピー",
-			"paste":            "ペースト",
-			"delete":           "削除",
-			"selectAll":        "すべてを選択",
-			"minimize":         "しまう",
-			"zoom":             "拡大/縮小",
-			"toggleFullScreen": "フルスクリーンの切り替え",
-			"enterFullScreen":  "フルスクリーンにする",
-			"exitFullScreen":   "フルスクリーンを解除",
-			"close":            "閉じる",
+			"edit":                           "編集",
+			"window":                         "ウインドウ",
+			"about":                          "バージョン情報",
+			"hide":                           "隠す",
+			"hideOthers":                     "ほかを隠す",
+			"showAll":                        "すべてを表示",
+			"quit":                           "終了",
+			"undo":                           "取り消す",
+			"redo":                           "やり直す",
+			"cut":                            "カット",
+			"copy":                           "コピー",
+			"paste":                          "ペースト",
+			"delete":                         "削除",
+			"selectAll":                      "すべてを選択",
+			"minimize":                       "しまう",
+			"zoom":                           "拡大/縮小",
+			"toggleFullScreen":               "フルスクリーンの切り替え",
+			"enterFullScreen":                "フルスクリーンにする",
+			"exitFullScreen":                 "フルスクリーンを解除",
+			"close":                          "閉じる",
+			"guideDragHint":                  "ドラッグ",
+			"permissionAccessibility":        "アクセシビリティ",
+			"permissionDeviceControl":        "デバイスの制御とデータへのアクセス",
+			"permissionScreenRecording":      "画面収録",
+			"permissionScreenAudioRecording": "画面収録とシステムオーディオ録音",
+			"permissionInputMonitoring":      "入力監視",
+			"permissionFullDiskAccess":       "フルディスクアクセス",
+			"permissionAppManagement":        "App管理",
+			"permissionDeveloperTools":       "デベロッパツール",
+			"permissionBluetooth":            "Bluetooth",
+			"permissionMediaLibrary":         "メディアとApple Music",
 		},
 		AboutApp: func(app string) string {
 			return app + "について"
@@ -217,29 +228,43 @@ func init() {
 		QuitApp: func(app string) string {
 			return app + "を終了"
 		},
+		GuideDrag: func(app string, permission string) string {
+			return app + " を上のリストにドラッグして「" + permission + "」を許可してください。"
+		},
 	})
 	desktoplocales.Supply("ko", desktoplocales.Translation{
 		Texts: map[string]string{
-			"edit":             "편집",
-			"window":           "윈도우",
-			"about":            "정보",
-			"hide":             "가리기",
-			"hideOthers":       "기타 가리기",
-			"showAll":          "모두 보기",
-			"quit":             "종료",
-			"undo":             "실행 취소",
-			"redo":             "실행 복귀",
-			"cut":              "오려두기",
-			"copy":             "복사하기",
-			"paste":            "붙여넣기",
-			"delete":           "삭제",
-			"selectAll":        "전체 선택",
-			"minimize":         "최소화",
-			"zoom":             "확대/축소",
-			"toggleFullScreen": "전체 화면 전환",
-			"enterFullScreen":  "전체 화면 시작",
-			"exitFullScreen":   "전체 화면 종료",
-			"close":            "닫기",
+			"edit":                           "편집",
+			"window":                         "윈도우",
+			"about":                          "정보",
+			"hide":                           "가리기",
+			"hideOthers":                     "기타 가리기",
+			"showAll":                        "모두 보기",
+			"quit":                           "종료",
+			"undo":                           "실행 취소",
+			"redo":                           "실행 복귀",
+			"cut":                            "오려두기",
+			"copy":                           "복사하기",
+			"paste":                          "붙여넣기",
+			"delete":                         "삭제",
+			"selectAll":                      "전체 선택",
+			"minimize":                       "최소화",
+			"zoom":                           "확대/축소",
+			"toggleFullScreen":               "전체 화면 전환",
+			"enterFullScreen":                "전체 화면 시작",
+			"exitFullScreen":                 "전체 화면 종료",
+			"close":                          "닫기",
+			"guideDragHint":                  "드래그",
+			"permissionAccessibility":        "손쉬운 사용",
+			"permissionDeviceControl":        "기기 제어 및 데이터 접근",
+			"permissionScreenRecording":      "화면 기록",
+			"permissionScreenAudioRecording": "화면 및 시스템 오디오 녹음",
+			"permissionInputMonitoring":      "입력 모니터링",
+			"permissionFullDiskAccess":       "전체 디스크 접근 권한",
+			"permissionAppManagement":        "앱 관리",
+			"permissionDeveloperTools":       "개발자 도구",
+			"permissionBluetooth":            "Bluetooth",
+			"permissionMediaLibrary":         "미디어 및 Apple Music",
 		},
 		AboutApp: func(app string) string {
 			return app + "에 관하여"
@@ -250,29 +275,43 @@ func init() {
 		QuitApp: func(app string) string {
 			return app + " 종료"
 		},
+		GuideDrag: func(app string, permission string) string {
+			return app + "을(를) 위의 목록으로 드래그하여 {permission}을(를) 허용하십시오."
+		},
 	})
 	desktoplocales.Supply("zh-Hant", desktoplocales.Translation{
 		Texts: map[string]string{
-			"edit":             "編輯",
-			"window":           "視窗",
-			"about":            "關於",
-			"hide":             "隱藏",
-			"hideOthers":       "隱藏其他",
-			"showAll":          "顯示全部",
-			"quit":             "結束",
-			"undo":             "復原",
-			"redo":             "重做",
-			"cut":              "剪下",
-			"copy":             "複製",
-			"paste":            "貼上",
-			"delete":           "刪除",
-			"selectAll":        "全選",
-			"minimize":         "最小化",
-			"zoom":             "縮放",
-			"toggleFullScreen": "切換全螢幕",
-			"enterFullScreen":  "進入全螢幕",
-			"exitFullScreen":   "結束全螢幕",
-			"close":            "關閉",
+			"edit":                           "編輯",
+			"window":                         "視窗",
+			"about":                          "關於",
+			"hide":                           "隱藏",
+			"hideOthers":                     "隱藏其他",
+			"showAll":                        "顯示全部",
+			"quit":                           "結束",
+			"undo":                           "復原",
+			"redo":                           "重做",
+			"cut":                            "剪下",
+			"copy":                           "複製",
+			"paste":                          "貼上",
+			"delete":                         "刪除",
+			"selectAll":                      "全選",
+			"minimize":                       "最小化",
+			"zoom":                           "縮放",
+			"toggleFullScreen":               "切換全螢幕",
+			"enterFullScreen":                "進入全螢幕",
+			"exitFullScreen":                 "結束全螢幕",
+			"close":                          "關閉",
+			"guideDragHint":                  "拖移",
+			"permissionAccessibility":        "輔助使用",
+			"permissionDeviceControl":        "裝置控制與資料取用",
+			"permissionScreenRecording":      "螢幕錄製",
+			"permissionScreenAudioRecording": "螢幕與系統錄音",
+			"permissionInputMonitoring":      "輸入監控",
+			"permissionFullDiskAccess":       "完整磁碟取用權限",
+			"permissionAppManagement":        "App 管理",
+			"permissionDeveloperTools":       "開發者工具",
+			"permissionBluetooth":            "藍牙",
+			"permissionMediaLibrary":         "媒體與 Apple Music",
 		},
 		AboutApp: func(app string) string {
 			return "關於" + app
@@ -283,6 +322,9 @@ func init() {
 		QuitApp: func(app string) string {
 			return "結束" + app
 		},
+		GuideDrag: func(app string, permission string) string {
+			return "將 " + app + " 拖移到上方列表以允許「" + permission + "」。"
+		},
 	})
 	updaterlocales.Supply("ja", updaterlocales.Translation{
 		Texts: map[string]string{
@@ -292,6 +334,8 @@ func init() {
 			"updateError":        "アップデートを確認できません",
 			"updateErrorMessage": "アップデートの確認中に問題が発生しました。後でもう一度お試しください。",
 			"ok":                 "OK",
+			"installError":       "アップデートをインストールできません",
+			"openPage":           "ページを開く",
 		},
 		UpdateAvailable: func(app string) string {
 			return app + " の新しいバージョンがあります"
@@ -302,6 +346,9 @@ func init() {
 		UpToDateMessage: func(app string, version string) string {
 			return app + " " + version + " は最新バージョンです。"
 		},
+		InstallErrorMessage: func(app string, version string) string {
+			return app + " " + version + " をダウンロードまたはインストールできませんでした。代わりにそのページから入手できます。"
+		},
 	})
 	updaterlocales.Supply("ko", updaterlocales.Translation{
 		Texts: map[string]string{
@@ -311,6 +358,8 @@ func init() {
 			"updateError":        "업데이트를 확인할 수 없음",
 			"updateErrorMessage": "업데이트를 확인하는 중 문제가 발생했습니다. 나중에 다시 시도하십시오.",
 			"ok":                 "확인",
+			"installError":       "업데이트를 설치할 수 없음",
+			"openPage":           "페이지 열기",
 		},
 		UpdateAvailable: func(app string) string {
 			return app + "의 새 버전을 사용할 수 있습니다"
@@ -321,6 +370,9 @@ func init() {
 		UpToDateMessage: func(app string, version string) string {
 			return app + " " + version + "은(는) 최신 버전입니다."
 		},
+		InstallErrorMessage: func(app string, version string) string {
+			return app + " " + version + "을(를) 다운로드하거나 설치할 수 없습니다. 대신 해당 페이지에서 받을 수 있습니다."
+		},
 	})
 	updaterlocales.Supply("zh-Hant", updaterlocales.Translation{
 		Texts: map[string]string{
@@ -330,6 +382,8 @@ func init() {
 			"updateError":        "無法檢查更新",
 			"updateErrorMessage": "檢查更新時發生錯誤，請稍後再試。",
 			"ok":                 "好",
+			"installError":       "無法安裝更新",
+			"openPage":           "開啟頁面",
 		},
 		UpdateAvailable: func(app string) string {
 			return app + " 有新版本可用"
@@ -339,6 +393,9 @@ func init() {
 		},
 		UpToDateMessage: func(app string, version string) string {
 			return app + " " + version + " 是目前最新的版本。"
+		},
+		InstallErrorMessage: func(app string, version string) string {
+			return app + " " + version + " 無法下載或安裝，你可以改從它的頁面取得。"
 		},
 	})
 }
