@@ -14,7 +14,7 @@
 
 Kando は、ある言語で話されている動画からその言語を学ぶためのデスクトップアプリです。中国語名は「看懂」（「見て分かる」の意）です。YouTube や Bilibili のリンクを貼り付けるか、動画ファイルをウィンドウにドロップすると、Kando は yt-dlp で動画をダウンロードし、whisper.cpp でお使いのコンピューター上で音声を文字起こしし、OpenAI 互換のモデルでセリフを 1 つずつ翻訳し、原文と訳文を同時に画面に表示しながら元の動画を再生します。Go で書かれており、ネイティブのインターフェースは [NSGo](https://github.com/nsgo-dev/nsgo) で描画しています。Web ビューは使っていません。
 
-[![34 秒でわかる Kando（クリックすると音声付きで再生）](docs/assets/promo-preview.webp)](docs/assets/promo.mp4)
+[![34 秒でわかる Kando（クリックすると音声付きで再生）](docs/assets/promo-preview.webp)](https://files.sugi.moe/o51v86qa.mp4)
 
 ![ライブラリ: 最近完了した動画、処理中のジョブ、ライブラリ内の動画](docs/assets/ja/library.png)
 

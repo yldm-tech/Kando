@@ -14,7 +14,7 @@
 
 看懂是一款桌面應用程式，讓你透過某種語言的影片來學習那種語言。貼上 YouTube 或嗶哩嗶哩的連結，或把影片檔拖曳到視窗上：看懂會用 yt-dlp 下載影片，用 whisper.cpp 在你自己的電腦上轉錄語音，透過 OpenAI 相容的模型翻譯每一句台詞，再播放原始影片，並在畫面上同時顯示原文台詞與譯文。它以 Go 撰寫，使用 [NSGo](https://github.com/nsgo-dev/nsgo) 繪製原生介面，沒有使用網頁檢視（web view）。
 
-[![34 秒認識看懂（點擊觀看有聲音的完整影片）](docs/assets/promo-preview.webp)](docs/assets/promo.mp4)
+[![34 秒認識看懂（點擊觀看有聲音的完整影片）](docs/assets/promo-preview.webp)](https://files.sugi.moe/o51v86qa.mp4)
 
 ![資料庫：最近完成的影片、處理中的工作，以及資料庫中的影片](docs/assets/zh-TW/library.png)
 
