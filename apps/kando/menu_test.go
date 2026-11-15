@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
@@ -278,7 +279,12 @@ func TestWindowKeysGoBackToTheLastFilm(t *testing.T) {
 	if a.openKey != "talk" {
 		t.Fatalf("⌘2 opened %q", a.openKey)
 	}
-	waitUntil(t, tt, a, updates, func() bool { return a.Play() != nil })
+	// The film opens again in the system's player, which says once it has loaded it
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready && tt.Exists("id:film-video") })
+	loadFilm(tt, a, 2*time.Second)
+	if a.Play() == nil {
+		t.Fatal("⌘2 did not open the film's video again")
+	}
 
 	// With the settings open too.
 	tt.Key("mod+,")

@@ -150,9 +150,15 @@ func TestWindowIsLightAndTheFilmDark(t *testing.T) {
 	a.openKey = "j"
 	refresh(tt, a)
 	back := tt.Find(testlocale.Messages().FilmBackToLibrary())
-	// Under the back button is the film's own black, under its title bar.
-	if r, g, b, _ := backgroundUnder(back).Components(); r > 60.0/255 || g > 60.0/255 || b > 60.0/255 {
-		t.Fatalf("film page = %#x, want dark", uint32(backgroundUnder(back)))
+	// Under the back button is the film's own black, under its title bar. The button and the chips around it are frosted glass, a light tint over what is under them, so the first opaque background behind the button is the page's.
+	under := ns.Color(0)
+	for c := back.Parent; c != nil && under == 0; c = c.Parent {
+		if _, _, _, alpha := c.Style.Background.Components(); alpha == 1 {
+			under = c.Style.Background
+		}
+	}
+	if r, g, b, _ := under.Components(); under == 0 || r > 60.0/255 || g > 60.0/255 || b > 60.0/255 {
+		t.Fatalf("film page = %#x, want dark", uint32(under))
 	}
 }
 

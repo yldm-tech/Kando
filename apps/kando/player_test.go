@@ -1348,7 +1348,8 @@ func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
 // TestMediaKeysWhileTheFilmOpens presses the media keys while the system's player opens the film: pause has a film opened playing at a point open held there, and play has it play once open. While the system shows the film, as when the player opens a copy of it after failing on it, the system learns each key at once, at where the film is.
 func TestMediaKeysWhileTheFilmOpens(t *testing.T) {
 	bin := t.TempDir()
-	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for last; do :; done\nprintf copy > \"$last\"\n")
+	// The stand-in writes its output file, the last argument, as ffmpeg does; asked for a poster on its standard output (pipe:1) it has none, rather than writing a file of that name where the test runs.
+	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for last; do :; done\n[ \"$last\" = pipe:1 ] && exit 1\nprintf copy > \"$last\"\n")
 	a, tt, updates, item := playerFilm(t, 12, media.Tools{FFmpeg: ffmpeg})
 	rec := &nowPlayingRecorder{}
 	a.playerNowPlayingConnect(rec)

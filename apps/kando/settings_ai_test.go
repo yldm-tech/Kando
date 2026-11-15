@@ -278,10 +278,15 @@ func TestEveryAPICLISignedOutSaysHowToSignIn(t *testing.T) {
 
 // TestGetEveryAPIOpensItsWebsite checks that 获取 EveryAPI opens everyapi.ai in the browser, and that the page says why when it could not.
 func TestGetEveryAPIOpensItsWebsite(t *testing.T) {
+	// The page opens the website off the engine's goroutine, so the fake keeps what it was asked under a lock, and the test waits for the press's own answer rather than for whichever background report comes first.
+	var mu sync.Mutex
 	var opened []string
 	fail := error(nil)
+	asked := func() []string { mu.Lock(); defer mu.Unlock(); return slices.Clone(opened) }
 	saved := everyAPIOpenURL
 	everyAPIOpenURL = func(link string) error {
+		mu.Lock()
+		defer mu.Unlock()
 		opened = append(opened, link)
 		return fail
 	}
@@ -289,14 +294,15 @@ func TestGetEveryAPIOpensItsWebsite(t *testing.T) {
 	a, tt, updates, _ := everyAPIApp(t)
 	page := settingsOpenAt(a, tt, settings.SectionAI)
 	page.Press("id:settings-everyapi-get")
-	waitUpdate(t, tt, a, updates)
-	if !slices.Equal(opened, []string{"https://everyapi.ai"}) || a.prefs.everyAPIOpenErr != "" {
-		t.Fatalf("opened %q, error %q", opened, a.prefs.everyAPIOpenErr)
+	waitUntil(t, tt, a, updates, func() bool { return len(asked()) == 1 })
+	if got := asked(); !slices.Equal(got, []string{"https://everyapi.ai"}) || a.prefs.everyAPIOpenErr != "" {
+		t.Fatalf("opened %q, error %q", got, a.prefs.everyAPIOpenErr)
 	}
 
+	mu.Lock()
 	fail = errors.New("no browser")
+	mu.Unlock()
 	page.Press("id:settings-everyapi-get")
-	// Other areas' background reports may come first, so this waits for the press's own answer rather than for one report
 	waitUntil(t, tt, a, updates, func() bool { return a.prefs.everyAPIOpenErr != "" })
 	if want := testlocale.Messages().SettingsAIEveryAPIOpenFailed("no browser"); !hasText(page, want) {
 		t.Fatalf("missing %q in %q", want, page.Texts())
