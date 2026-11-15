@@ -176,8 +176,9 @@ func (a *app) playerProgress(position, duration time.Duration) bool {
 	changed := a.playerKeep(now)
 	a.playerKeepLoop()
 	a.playerLoopSchedule()
-	a.areasPlaying()
-	return changed || a.player.playGen != gen
+	// every area hears each report, so the areas run before the result is put together rather than inside a short-circuited ||
+	followed := a.areasPlaying()
+	return changed || followed || a.player.playGen != gen
 }
 
 // playerEnded is the system's player reaching the end of the open video: the clock stops there, and the system learns the film is paused at its end, so its play key starts it over.

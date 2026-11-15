@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,11 +13,13 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 
+	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -456,9 +457,9 @@ func TestTrashSpeechModel(t *testing.T) {
 	// Another app's model: it can be shown in Finder, not moved to the Trash.
 	var revealed string
 	prev := revealInFolder
-	revealInFolder = func(path string) error {
+	revealInFolder = func(_ *ns.Scope, path string, done func(error)) {
 		revealed = path
-		return nil
+		done(nil)
 	}
 	t.Cleanup(func() { revealInFolder = prev })
 	tt.Press("Tiny 的更多操作")
@@ -508,13 +509,13 @@ func TestTrashSpeechModel(t *testing.T) {
 		t.Fatalf("the finished job still holds %q", a.queue.whisperModel)
 	}
 
-	// A file the Trash refuses stays listed, and the page says why.
+	// A file the Trash refuses stays listed, and the page says so. desktop.Trash fails with its sentinel and logs the system's reason, so the page no longer quotes it.
 	prevTrash := trashItem
-	trashItem = func(string) error { return errors.New("permission denied") }
+	trashItem = func(*ns.Scope, string) error { return desktop.ErrNotTrashed }
 	t.Cleanup(func() { trashItem = prevTrash })
 	a.TrashSpeechModel("large-v3")
 	refresh(tt, a)
-	wantText(t, tt, "没能把「Large v3」移到废纸篓：permission denied")
+	wantText(t, tt, "没能把「Large v3」移到废纸篓，文件留在原处。")
 	if a.InstalledSpeechModel("large-v3") != large {
 		t.Fatalf("large-v3 %q", a.InstalledSpeechModel("large-v3"))
 	}

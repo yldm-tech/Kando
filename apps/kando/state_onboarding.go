@@ -290,7 +290,7 @@ func (a *app) onboardingModels(cx *ns.Scope) []onboarding.Model {
 			}
 		}
 		if a.onb.lastDownload == id && a.prefs.downloading == "" {
-			m.Err = speechDownloadError(locales.For(cx), a.prefs.downloadErr)
+			m.Err = settings.SpeechDownloadError(locales.For(cx), a.prefs.downloadErr)
 		}
 		out = append(out, m)
 	}
@@ -376,7 +376,7 @@ func (a *app) onboardingTools(cx *ns.Scope) []onboarding.Tool {
 		case running:
 			rows[i].State, rows[i].Progress = onboarding.ToolDownloading, progress
 		case a.kitsCanInstall(name):
-			rows[i].State, rows[i].Err = onboarding.ToolMissing, kitsError(locales.For(cx), a.kits.errs[name])
+			rows[i].State, rows[i].Err = onboarding.ToolMissing, settings.KitsError(locales.For(cx), a.kits.errs[name])
 		default:
 			rows[i].State = onboarding.ToolUnavailable
 		}

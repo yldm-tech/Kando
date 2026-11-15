@@ -22,7 +22,7 @@ import (
 
 // The library page's reads and clicks (films.App). The page reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
 
-// libraryColumn is the library in the content column (view.go's mainColumn): the film open over it, as the player shows it (filmColumn, bind_film.go), or else the library page. A film is open while openKey names one the shelf or the queue still has (libraryOpenFilm); libraryFollowOpen lets go of one that went.
+// libraryColumn is the library in the content column (view.go's mainColumn): the film open over it, as the player shows it (filmPage, bind_film.go), or else the library page. A film is open while openKey names one the shelf or the queue still has (libraryOpenFilm); libraryFollowOpen lets go of one that went.
 func (a *app) libraryColumn(cx *ns.Scope) ns.Node {
 	// One memo looks the open film up once a change, and tells the page only when the film or whether one is open changed.
 	type openFilm struct {
@@ -35,7 +35,7 @@ func (a *app) libraryColumn(cx *ns.Scope) ns.Node {
 	})
 	return ns.Show{
 		When: func() bool { return current().ok },
-		Then: func(cx *ns.Scope) ns.Node { return a.filmColumn(cx, func() films.Film { return current().item }) },
+		Then: func(cx *ns.Scope) ns.Node { return a.filmPage(func() films.Film { return current().item }) },
 		Else: func(*ns.Scope) ns.Node { return films.View{App: a} },
 	}
 }
@@ -291,11 +291,11 @@ func (a *app) TrashFilm(item films.Film) {
 	files := filmFiles(a.snap().LibraryDir, item)
 	for _, path := range files {
 		if err := trashItem(a.cx, path); err != nil {
-			// desktop.Trash cannot use the Trash yet and says so in English (errors.ErrUnsupported), so the bar says it in a sentence of its own.
+			// desktop.Trash fails with errors.ErrUnsupported where there is no Trash it can use, and with desktop.ErrNotTrashed when the item could not go there; it logs what the system said, so the bar says each in a sentence of its own.
 			if errors.Is(err, errors.ErrUnsupported) {
 				a.warn(m.LibraryTrashUnsupported(name), "")
 			} else {
-				a.warn(m.LibraryTrashFailed(name, err.Error()), "")
+				a.warn(m.LibraryTrashFailed(name), "")
 			}
 			return
 		}
@@ -379,12 +379,12 @@ func (a *app) libraryEnqueue(sources ...string) bool {
 	m := a.messages()
 	switch {
 	case err != nil && added > 0:
-		a.warn(m.LibraryAddedSome(added, sourceError(err)), "")
+		a.warn(m.LibraryAddedSome(added, sourceError(m, err)), "")
 	case errors.As(err, &dup) && dup.Stage == core.StageComplete:
-		a.warn(sourceError(err), "")
+		a.warn(sourceError(m, err), "")
 		a.lib.notice.Film = dup.ID
 	case err != nil:
-		a.warn(sourceError(err), "")
+		a.warn(sourceError(m, err), "")
 	case added > 1:
 		a.tell(m.LibraryAddedStarting(added))
 	default:

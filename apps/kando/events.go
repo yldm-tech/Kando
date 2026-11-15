@@ -6,7 +6,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, updatesHooks in state_updates.go, windowHooks in state_window.go, logsHooks in state_logs.go, browseHooks in state_browse.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
+// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, windowHooks in state_window.go, logsHooks in state_logs.go, browseHooks in state_browse.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
 //
 // Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs before nsgo.Run starts the engine: a report through update waits for it (live.Rev.Post), but nothing may use the app's scope (app.cx) or a window, which do not exist yet. An area whose shelfChanged starts work that needs them holds it back until its ready, with a flag of its own that its restore sets. ready runs in run, the app's function, on the engine's goroutine, once the main window is open.
 type areaHooks struct {
@@ -19,6 +19,8 @@ type areaHooks struct {
 	afterUpdate func()
 	// afterChange runs once the main view is built and again after every change of the app's state (live.State.Changed), once the bindings have followed it: where MyGo's areas brought something up to date after each frame, as closing a dialog whose reason went away. It is no clock: it runs only after a change, never on its own while a film plays, so work that follows time uses core.Video's OnProgress or the app scope's AfterFunc instead. It may change what a binding or the menu bar reads, and then returns true, and only then: areasFollow lets everything follow and runs every afterChange again, so one that always returned true would never let the app settle. It runs under the main view's scope (areasFollow), so what it creates stays until the window goes; it creates no Effect, which would pile up with each run. A modal flag (holdModal) is given back by the handler that closes its dialog, not here, so the menu bar follows at once.
 	afterChange func() (changed bool)
+	// playing runs at each of the player's progress reports (core.Video's OnProgress, about four times a second while a film plays, and once as it pauses, ends or a seek lands), after the playhead moved there, for an area that follows the film's time, as the palette noting how far it played. It reports whether that changed what a binding reads, and only then: the player calls Changed once for all of them, never on an ordinary tick.
+	playing func() (changed bool)
 	// leavingLibrary runs before applyLibrary opens another library; libraryChanged runs when applyLibrary returns, on every path.
 	leavingLibrary func()
 	libraryChanged func()
@@ -68,7 +70,6 @@ func (a *app) areas() []areaHooks {
 		a.sitesHooks(),
 		a.kitsHooks(),
 		a.remoteHooks(),
-		a.updatesHooks(),
 		a.windowHooks(),
 	}
 }
@@ -128,6 +129,17 @@ func (a *app) areasFollow(cx *core.Scope) {
 		}
 		a.menuFollow()
 	})
+}
+
+// areasPlaying runs every area's playing hook and reports whether any changed what a binding reads.
+func (a *app) areasPlaying() bool {
+	changed := false
+	for _, h := range a.areas() {
+		if h.playing != nil && h.playing() {
+			changed = true
+		}
+	}
+	return changed
 }
 
 func (a *app) areasLeavingLibrary() {

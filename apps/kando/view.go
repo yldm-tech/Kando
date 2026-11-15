@@ -80,7 +80,8 @@ func (a *app) mainColumn(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	dragOver := core.NewSignal(cx, false)
 	return core.View{
-		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Gap: 20},
+		TestID: "main-column",
+		Style:  core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Gap: 20},
 		StyleFunc: live.Func(a, func() core.Style {
 			padX, padY := pagePadX, core.Points(28)
 			if a.filmFillsWindow() {
@@ -103,10 +104,10 @@ func (a *app) mainColumn(cx *core.Scope) core.Node {
 				a.dropFiles(paths)
 			}
 		}),
-		Children: []core.Node{core.Show{
-			When: live.Func(a, func() bool { return a.page == pageBrowse }),
-			Then: a.browseColumn,
-			Else: a.libraryColumn,
+		// The browser column stays mounted while another page shows, hidden (browseColumn), so its web view keeps its page, history and video position as MyGo's did; it makes the web view only once a page is first asked for.
+		Children: []core.Node{a.browseColumn(cx), core.Show{
+			When: live.Func(a, func() bool { return a.page != pageBrowse }),
+			Then: a.libraryColumn,
 		}},
 	}
 }

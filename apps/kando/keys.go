@@ -88,7 +88,7 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 	active := live.Memo(cx, a, func() string {
 		var keys []string
 		for _, s := range a.shortcuts(cx) {
-			if a.binds(s) {
+			if a.binds(cx, s) {
 				keys = append(keys, s.Key)
 			}
 		}
@@ -99,7 +99,7 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 		rows := core.Untracked(cx, func() []shortcut { return a.shortcuts(cx) })
 		bound := map[string]bool{}
 		for _, s := range rows {
-			if bound[s.Key] || !core.Untracked(cx, func() bool { return a.binds(s) }) {
+			if bound[s.Key] || !core.Untracked(cx, func() bool { return a.binds(cx, s) }) {
 				continue
 			}
 			bound[s.Key] = true
@@ -109,9 +109,12 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 	})
 }
 
-// binds reports whether wireKeys binds s now.
-func (a *app) binds(s shortcut) bool {
+// binds reports whether wireKeys binds s now. While a modal dialog is up (modalOpen) no row binds, and while the cheat sheet shows only its own keys do (overlayKeys), as MyGo held the window's shortcuts behind a dialog: Space, F, M and the arrows do not act on the film behind it, Space presses the dialog's focused control, and no row binds a key again over the bindings a dialog makes for itself (core.KeyAlways).
+func (a *app) binds(cx *core.Scope, s shortcut) bool {
 	if s.Run == nil || s.Key == "" || (s.When != nil && !s.When()) {
+		return false
+	}
+	if a.modalOpen() || (a.overlay.cheatsheet && !slices.ContainsFunc(a.overlayKeys(cx), func(o shortcut) bool { return o.Key == s.Key })) {
 		return false
 	}
 	return !(a.menu.menuBar && hasCommand(s.Key))

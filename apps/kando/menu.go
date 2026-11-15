@@ -175,7 +175,7 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 // menuLibraries are the items of File › 切换资料库: an item for each library the app knows, named as Settings › 通用 names them, with the open one checked. Choosing one switches to it as the sidebar's switcher does.
 func (a *app) menuLibraries() []nsdesktop.MenuItem {
 	dirs := a.knownLibraries()
-	labels := films.LibraryLabels(dirs)
+	labels := films.LibraryLabels(a.messages(), dirs)
 	open := filepath.Clean(a.snap().LibraryDir)
 	items := make([]nsdesktop.MenuItem, len(dirs))
 	for i, dir := range dirs {

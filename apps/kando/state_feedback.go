@@ -14,6 +14,7 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/films/sitename"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -149,7 +150,7 @@ func (a *app) feedbackFacts() feedback.Facts {
 
 // feedbackTranslator names the translation service the pipeline uses at base, as the AI service presets name it (OpenAI 兼容 for an address none of them has), and its model, never its address or key.
 func feedbackTranslator(base, model string) string {
-	preset, _ := llmPresetByID(llmProviderID(base))
+	preset, _ := settings.PresetByID(locales.In(feedbackIssueLanguage), settings.ProviderID(base))
 	name := preset.Name
 	if model = strings.TrimSpace(model); model != "" {
 		name += " · " + model
@@ -329,7 +330,7 @@ func (a *app) feedbackPaths(home string) []string {
 // feedbackPublicEndpoint reports whether address is the public address of one of the AI service presets.
 func feedbackPublicEndpoint(address string) bool {
 	address = strings.TrimRight(address, "/")
-	for _, preset := range llmPresets() {
+	for _, preset := range settings.Presets(locales.In(feedbackIssueLanguage)) {
 		if preset.BaseURL != "" && strings.TrimRight(preset.BaseURL, "/") == address {
 			return true
 		}

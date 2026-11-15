@@ -210,7 +210,7 @@ func (a *app) trashSpeechModel(id string) {
 		a.prefs.downloadErr = settings.TrashError{ID: id}
 		return
 	}
-	if err := trashItem(path); err != nil {
+	if err := trashItem(a.cx, path); err != nil {
 		a.prefs.downloadErr = settings.TrashError{ID: id, Err: err}
 		return
 	}

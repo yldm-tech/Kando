@@ -135,14 +135,14 @@ func TestOnboardingShowsTheDownloads(t *testing.T) {
 		p, ok := a.kitsProgress("yt-dlp")
 		return ok && p == 0.5
 	})
-	for _, row := range a.onboardingTools() {
+	for _, row := range a.onboardingTools(a.cx) {
 		if row.State != onboarding.ToolDownloading {
 			t.Fatalf("%s is %v, want downloading", row.Name, row.State)
 		}
 	}
 	close(release)
 	waitUntil(t, tt, a, updates, func() bool { return len(a.kitsDownloading()) == 0 })
-	for _, row := range a.onboardingTools() {
+	for _, row := range a.onboardingTools(a.cx) {
 		if row.State != onboarding.ToolReady {
 			t.Fatalf("%s is %v once downloaded", row.Name, row.State)
 		}
@@ -153,7 +153,7 @@ func TestOnboardingShowsAFailedDownload(t *testing.T) {
 	a, _, _ := newTestApp(t, media.Tools{YTDLP: "/usr/local/bin/yt-dlp", FFmpeg: "/usr/local/bin/ffmpeg"})
 	fakeKits(t, a, make(chan struct{}))
 	a.kits.errs["whisper-cli"] = rejected(503)
-	for _, row := range a.onboardingTools() {
+	for _, row := range a.onboardingTools(a.cx) {
 		want := onboarding.ToolReady
 		if row.Name == "whisper-cli" {
 			want = onboarding.ToolMissing
@@ -167,7 +167,7 @@ func TestOnboardingShowsAFailedDownload(t *testing.T) {
 	}
 	// Where Kando cannot download, the guide says how to install it instead.
 	media.OwnToolsDir = ""
-	if rows := a.onboardingTools(); rows[2].State != onboarding.ToolUnavailable {
+	if rows := a.onboardingTools(a.cx); rows[2].State != onboarding.ToolUnavailable {
 		t.Fatalf("without a folder of its own, whisper-cli is %v", rows[2].State)
 	}
 }

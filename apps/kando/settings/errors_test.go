@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"kando/apps/kando/locales/testlocale"
@@ -61,13 +62,13 @@ func TestSpeechDownloadErrorSaysWhy(t *testing.T) {
 	}
 }
 
-// TestSpeechDownloadErrorSaysWhyTheTrashRefused checks the words for a model the Trash did not take: the one in use, and one the system refused, with the system's reason.
+// TestSpeechDownloadErrorSaysWhyTheTrashRefused checks the words for a model the Trash did not take: the one in use, and one the system refused. Under NSGo desktop.Trash fails with a fixed English sentinel and logs the system's reason, so the sentence names the model and leaves the error's text out.
 func TestSpeechDownloadErrorSaysWhyTheTrashRefused(t *testing.T) {
 	msgs := testlocale.Messages()
 	if got, want := SpeechDownloadError(msgs, TrashError{ID: "large-v3"}), msgs.SettingsSpeechTrashInUse("Large v3"); got != want {
 		t.Errorf("in use: %q, want %q", got, want)
 	}
-	if got, want := SpeechDownloadError(msgs, TrashError{ID: "large-v3", Err: errors.New("permission denied")}), msgs.SettingsSpeechTrashFailed("Large v3", "permission denied"); got != want {
+	if got, want := SpeechDownloadError(msgs, TrashError{ID: "large-v3", Err: errors.New("permission denied")}), msgs.SettingsSpeechTrashFailed("Large v3"); got != want || strings.Contains(got, "permission denied") {
 		t.Errorf("refused: %q, want %q", got, want)
 	}
 }

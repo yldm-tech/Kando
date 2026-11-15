@@ -91,7 +91,7 @@ func TestOpenFilmShowsBilingualLines(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)
 	var revealed string
 	prev := showItemInFolder
-	showItemInFolder = func(path string) { revealed = path }
+	showItemInFolder = func(_ *ns.Scope, path string, done func(error)) { revealed = path; done(nil) }
 	t.Cleanup(func() { showItemInFolder = prev })
 	openFilm(t, a, tt, updates, item)
 	msgs := testlocale.Messages()
@@ -322,7 +322,7 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 		wantText(t, tt, text)
 	}
 	tt.Press("id:film-tab-info")
-	for _, text := range []string{"影片文件夹", films.DisplayPath(filepath.Dir(item.VideoPath)), "talk.mp4", "talk.bilingual.srt", "本地文件"} {
+	for _, text := range []string{"影片文件夹", films.DisplayPath(testlocale.Messages(), filepath.Dir(item.VideoPath)), "talk.mp4", "talk.bilingual.srt", "本地文件"} {
 		wantText(t, tt, text)
 	}
 	apply(tt, a, func() { a.SetStyleView(true) })

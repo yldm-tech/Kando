@@ -41,8 +41,8 @@ type App interface {
 	PlayErr() string
 	// ErrText is what the page says for an error ID of PlayErr or Subs.Err, in the language the interface shows under cx.
 	ErrText(cx *ns.Scope, id string) string
-	// Poster is the file of the film's poster for the video at path, which shows while its picture opens, or "" without one.
-	Poster(path string) string
+	// PosterFile is the file of the film's poster for the video at path, which shows while its picture opens, or "" without one.
+	PosterFile(path string) string
 	// PlayHead is where the picture is, or where the one opening will start; PlayLength is the video's length, or 0 before it is known.
 	PlayHead() time.Duration
 	PlayLength() time.Duration

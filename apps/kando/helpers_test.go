@@ -42,7 +42,7 @@ import (
 func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
 	desktop.Headless()
-	showItemInFolder = func(string) {}
+	showItemInFolder = func(_ *ns.Scope, _ string, done func(error)) { done(nil) }
 	if nsgotest.Target() != "" {
 		// TODO(nsgo): remove the fake tools' folder once the tests have run on a platform too, as headless runs do here; nsgotest.Main gives the main thread to the platform and exits without returning, so nothing runs after the tests there
 		nsgotest.Main(m)

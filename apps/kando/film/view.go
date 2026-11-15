@@ -164,7 +164,7 @@ func (s *screen) stage() core.Node {
 		if a.Play() != nil {
 			return ""
 		}
-		return a.Poster(a.PlayPath())
+		return a.PosterFile(a.PlayPath())
 	})
 	note := live.Memo(cx, a, func() stageNoteState {
 		item := s.item()

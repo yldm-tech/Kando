@@ -436,7 +436,7 @@ var Parameters = map[string][]string{
 	"LibraryShelfDamagedUnsaved":         {"error_"},
 	"LibraryShelfReadFailed":             {"error_"},
 	"LibraryShelfSaveFailed":             {"error_"},
-	"LibraryTrashFailed":                 {"name", "error_"},
+	"LibraryTrashFailed":                 {"name"},
 	"LibraryTrashUnsupported":            {"name"},
 	"LibraryTrashed":                     {"name"},
 	"LibrarySortSaveFailed":              {"error_"},
@@ -550,7 +550,7 @@ var Parameters = map[string][]string{
 	"SettingsSpeechModelStats":           {"speed", "accuracy", "size"},
 	"SettingsSpeechSaveFailed":           {"error_"},
 	"SettingsSpeechTrashConfirm":         {"model"},
-	"SettingsSpeechTrashFailed":          {"model", "error_"},
+	"SettingsSpeechTrashFailed":          {"model"},
 	"SettingsSpeechTrashInUse":           {"model"},
 	"SettingsSpeechTrashMessage":         {"size"},
 	"SidebarLibraryCount":                {"name", "count"},
@@ -638,7 +638,7 @@ type Translation struct {
 	LibraryShelfDamagedUnsaved         func(error_ string) string
 	LibraryShelfReadFailed             func(error_ string) string
 	LibraryShelfSaveFailed             func(error_ string) string
-	LibraryTrashFailed                 func(name string, error_ string) string
+	LibraryTrashFailed                 func(name string) string
 	LibraryTrashUnsupported            func(name string) string
 	LibraryTrashed                     func(name string) string
 	LibrarySortSaveFailed              func(error_ string) string
@@ -752,7 +752,7 @@ type Translation struct {
 	SettingsSpeechModelStats           func(speed string, accuracy string, size string) string
 	SettingsSpeechSaveFailed           func(error_ string) string
 	SettingsSpeechTrashConfirm         func(model string) string
-	SettingsSpeechTrashFailed          func(model string, error_ string) string
+	SettingsSpeechTrashFailed          func(model string) string
 	SettingsSpeechTrashInUse           func(model string) string
 	SettingsSpeechTrashMessage         func(size string) string
 	SidebarLibraryCount                func(name string, count int) string
@@ -15669,42 +15669,40 @@ func (msgs Messages) LibraryShelfSaveFailed(error_ string) string {
 	}
 }
 
-// LibraryTrashFailed says "Couldn't move “{name}” to the Trash: {error}"
+// LibraryTrashFailed says "Couldn't move “{name}” to the Trash. Its files are where they were."
 // in the language the app shows under cx.
 //
-// Message bar when a film could not be moved to the Trash.
-func LibraryTrashFailed(cx *core.Scope, name string, error_ string) string {
-	return For(cx).LibraryTrashFailed(name, error_)
-}
+// Message bar when a film could not be moved to the Trash: its volume has no Trash, a file was gone, or the system refused; nothing was deleted. The system's reason is in Kando's log, not in the sentence.
+func LibraryTrashFailed(cx *core.Scope, name string) string { return For(cx).LibraryTrashFailed(name) }
 
 // LibraryTrashFailed is the package's LibraryTrashFailed in the language of msgs.
-func (msgs Messages) LibraryTrashFailed(name string, error_ string) string {
+func (msgs Messages) LibraryTrashFailed(name string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryTrashFailed(name, error_))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryTrashFailed(name))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].LibraryTrashFailed; f != nil {
-			return f(name, error_)
+			return f(name)
 		}
 		switch lang {
 		case "", "en":
-			return "Couldn't move “" + msgs.arg(name) + "” to the Trash: " + msgs.arg(error_)
+			return "Couldn't move “" + msgs.arg(name) + "” to the Trash. Its files are where they were."
 		case "ja":
-			return "「" + name + "」をゴミ箱に入れられませんでした: " + error_
+			return "「" + name + "」をゴミ箱に入れられませんでした。ファイルは元の場所に残っています。"
 		case "ko":
-			return "‘" + name + "’을(를) 휴지통으로 옮기지 못했습니다: " + error_
+			return "‘" + name + "’을(를) 휴지통으로 옮기지 못했습니다. 파일은 그대로 있습니다."
 		case "zh-Hans":
-			return "没能把「" + name + "」移到废纸篓：" + error_
+			return "没能把「" + name + "」移到废纸篓，文件都留在原处。"
 		case "zh-Hant":
-			return "無法將「" + name + "」移到垃圾桶：" + error_
+			return "無法將「" + name + "」移到垃圾桶，檔案都留在原處。"
 		}
 	}
 }
 
-// LibraryTrashUnsupported says "Couldn't move “{name}” to the Trash: this version of Kando can't use the Trash yet. Its files are where they were."
+// LibraryTrashUnsupported says "Couldn't move “{name}” to the Trash: Kando can't use a Trash on this computer. Its files are where they were."
 // in the language the app shows under cx.
 //
-// Message bar when a film could not be moved to the Trash because this build of Kando cannot reach the system's Trash; nothing was deleted.
+// Message bar when a film could not be moved to the Trash because Kando cannot reach a Trash on this system (on Linux, without gio); nothing was deleted.
 func LibraryTrashUnsupported(cx *core.Scope, name string) string {
 	return For(cx).LibraryTrashUnsupported(name)
 }
@@ -15720,15 +15718,15 @@ func (msgs Messages) LibraryTrashUnsupported(name string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Couldn't move “" + msgs.arg(name) + "” to the Trash: this version of Kando can't use the Trash yet. Its files are where they were."
+			return "Couldn't move “" + msgs.arg(name) + "” to the Trash: Kando can't use a Trash on this computer. Its files are where they were."
 		case "ja":
-			return "「" + name + "」をゴミ箱に入れられませんでした: このバージョンの Kando はまだゴミ箱を使えません。ファイルは元の場所に残っています。"
+			return "「" + name + "」をゴミ箱に入れられませんでした: このコンピュータでは Kando はゴミ箱を使えません。ファイルは元の場所に残っています。"
 		case "ko":
-			return "‘" + name + "’을(를) 휴지통으로 옮기지 못했습니다: 이 버전의 Kando는 아직 휴지통을 쓸 수 없습니다. 파일은 그대로 있습니다."
+			return "‘" + name + "’을(를) 휴지통으로 옮기지 못했습니다: 이 컴퓨터에서는 Kando가 휴지통을 쓸 수 없습니다. 파일은 그대로 있습니다."
 		case "zh-Hans":
-			return "没能把「" + name + "」移到废纸篓：这个版本的看懂还不能使用废纸篓，文件都留在原处。"
+			return "没能把「" + name + "」移到废纸篓：看懂在这台电脑上用不了废纸篓，文件都留在原处。"
 		case "zh-Hant":
-			return "無法將「" + name + "」移到垃圾桶：這個版本的看懂還不能使用垃圾桶，檔案都留在原處。"
+			return "無法將「" + name + "」移到垃圾桶：看懂在這台電腦上無法使用垃圾桶，檔案都留在原處。"
 		}
 	}
 }
@@ -23329,34 +23327,34 @@ func (msgs Messages) SettingsSpeechTrashConfirm(model string) string {
 	}
 }
 
-// SettingsSpeechTrashFailed says "Couldn't move “{model}” to the Trash: {error}"
+// SettingsSpeechTrashFailed says "Couldn't move “{model}” to the Trash. The file is where it was."
 // in the language the app shows under cx.
 //
-// Error on the Speech Recognition page when a whisper model's file could not be moved to the Trash.
-func SettingsSpeechTrashFailed(cx *core.Scope, model string, error_ string) string {
-	return For(cx).SettingsSpeechTrashFailed(model, error_)
+// Error on the Speech Recognition page when a whisper model's file could not be moved to the Trash, or there is no Trash Kando can use on this system; nothing was deleted. The system's reason is in Kando's log, not in the sentence.
+func SettingsSpeechTrashFailed(cx *core.Scope, model string) string {
+	return For(cx).SettingsSpeechTrashFailed(model)
 }
 
 // SettingsSpeechTrashFailed is the package's SettingsSpeechTrashFailed in the language of msgs.
-func (msgs Messages) SettingsSpeechTrashFailed(model string, error_ string) string {
+func (msgs Messages) SettingsSpeechTrashFailed(model string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechTrashFailed(model, error_))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechTrashFailed(model))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].SettingsSpeechTrashFailed; f != nil {
-			return f(model, error_)
+			return f(model)
 		}
 		switch lang {
 		case "", "en":
-			return "Couldn't move “" + msgs.arg(model) + "” to the Trash: " + msgs.arg(error_)
+			return "Couldn't move “" + msgs.arg(model) + "” to the Trash. The file is where it was."
 		case "ja":
-			return "「" + model + "」をゴミ箱に入れられませんでした：" + error_
+			return "「" + model + "」をゴミ箱に入れられませんでした。ファイルは元の場所に残っています。"
 		case "ko":
-			return "‘" + model + "’을(를) 휴지통으로 옮기지 못했습니다: " + error_
+			return "‘" + model + "’을(를) 휴지통으로 옮기지 못했습니다. 파일은 그대로 있습니다."
 		case "zh-Hans":
-			return "没能把「" + model + "」移到废纸篓：" + error_
+			return "没能把「" + model + "」移到废纸篓，文件留在原处。"
 		case "zh-Hant":
-			return "無法將「" + model + "」移到垃圾桶：" + error_
+			return "無法將「" + model + "」移到垃圾桶，檔案留在原處。"
 		}
 	}
 }

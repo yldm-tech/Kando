@@ -270,9 +270,9 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	}
 	var revealed string
 	prev := revealInFolder
-	revealInFolder = func(path string) error {
+	revealInFolder = func(_ *ns.Scope, path string, done func(error)) {
 		revealed = path
-		return nil
+		done(nil)
 	}
 	t.Cleanup(func() { revealInFolder = prev })
 

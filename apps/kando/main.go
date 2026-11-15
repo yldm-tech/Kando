@@ -116,7 +116,6 @@ func main() {
 	}
 	a.refreshLibrary()
 	a.restartLibraryWatch()
-	useUpdater()
 	opts := []nsgo.Option{
 		nsgo.WindowSize(1100, 720),
 		nsgo.WindowConstraints(core.WindowConstraints{MinWidth: 900, MinHeight: 560}),
@@ -156,7 +155,7 @@ func (a *app) attach(app *core.Scope) {
 	app.Cleanup(nodra.InvalidateTarget(a.store, &a.rev))
 }
 
-// watchLifecycle tells the player and the areas when the app becomes the active one, in front, and when it stops being it.
+// watchLifecycle tells the areas when the app becomes the active one, in front (becameActive).
 func (a *app) watchLifecycle(app *core.Scope) {
 	active := core.LifecycleActive
 	app.Effect(func() {
@@ -164,18 +163,11 @@ func (a *app) watchLifecycle(app *core.Scope) {
 		if now == active {
 			return
 		}
-		was := active
 		active = now
-		// The player and the areas hear about it under the app's scope (core.Scope.Run), not under the effect, whose next run would dispose of what they made.
-		app.Run(func() {
-			switch {
-			case now == core.LifecycleActive:
-				a.playerDidBecomeActive()
-				a.areasBecameActive()
-			case was == core.LifecycleActive:
-				a.playerDidResignActive()
-			}
-		})
+		// The areas hear about it under the app's scope (core.Scope.Run), not under the effect, whose next run would dispose of what they made. The player follows the lifecycle itself (playerAwakeLifecycle).
+		if now == core.LifecycleActive {
+			app.Run(a.areasBecameActive)
+		}
 		a.Changed()
 	})
 }

@@ -316,7 +316,7 @@ func (a *app) browseEnqueue(u string) {
 		return
 	}
 	if err := a.Enqueue(u); err != nil {
-		a.browseWarn(sourceError(err), "")
+		a.browseWarn(sourceError(a.messages(), err), "")
 		return
 	}
 	a.browseTell(a.messages().BrowseAdded())

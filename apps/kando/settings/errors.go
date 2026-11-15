@@ -51,7 +51,8 @@ func SpeechDownloadError(m locales.Messages, err error) string {
 	case errors.As(err, &trash) && trash.Err == nil:
 		return m.SettingsSpeechTrashInUse(SpeechModelNameIn(m, trash.ID))
 	case errors.As(err, &trash):
-		return m.SettingsSpeechTrashFailed(SpeechModelNameIn(m, trash.ID), trash.Err.Error())
+		// desktop.Trash's error is a fixed English sentinel and the system's reason is in the log, so the page says it in a sentence of its own
+		return m.SettingsSpeechTrashFailed(SpeechModelNameIn(m, trash.ID))
 	case errors.Is(err, ErrNoModelsDir):
 		return m.SettingsSpeechNoModelsDir()
 	case errors.Is(err, media.ErrStalled):

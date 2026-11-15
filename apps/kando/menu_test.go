@@ -460,7 +460,7 @@ func TestMenuSwitchLibraryNamesTwinsByPath(t *testing.T) {
 	})
 	refresh(tt, a)
 	got := libraryChoices(t, findMenuItem(t, a.menuBar(a.cx), "文件", "切换资料库").Items)
-	if want := []string{films.DisplayPath(first) + "*", films.DisplayPath(second)}; !slices.Equal(got, want) {
+	if want := []string{films.DisplayPath(testlocale.Messages(), first) + "*", films.DisplayPath(testlocale.Messages(), second)}; !slices.Equal(got, want) {
 		t.Fatalf("切换资料库 lists %q, want %q", got, want)
 	}
 }
@@ -493,7 +493,7 @@ func TestHelpMenuOpensTheLinks(t *testing.T) {
 		t.Fatalf("opened %q, want %q", tt.OpenedURLs, want)
 	}
 	var palette []string
-	for _, cmd := range a.paletteCommands() {
+	for _, cmd := range a.paletteCommands(a.cx) {
 		palette = append(palette, cmd.label)
 	}
 	for _, label := range []string{"看懂官网", "更新说明"} {

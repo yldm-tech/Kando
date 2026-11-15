@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
 )
@@ -204,7 +205,7 @@ func (a *app) outdatedRemedy(site string) films.Remedy {
 		}
 		r.Why = m.QueueRemedyOutdatedDownloadWhy(y.version, hint)
 		if err := a.kits.errs["yt-dlp"]; err != nil {
-			r.Why = m.QueueRemedyDownloadYtdlpFailed(kitsError(err))
+			r.Why = m.QueueRemedyDownloadYtdlpFailed(settings.KitsError(m, err))
 		}
 		r.Actions = []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: m.QueueRemedyDownloadYtdlp(), Primary: true}, {ID: remedyRetry, Label: m.QueueRemedyUpdated()}}
 		return r

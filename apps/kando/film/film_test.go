@@ -108,7 +108,7 @@ func (f *fakeApp) Play() Player {
 func (f *fakeApp) PlayPath() string                      { return f.path }
 func (f *fakeApp) PlayErr() string                       { return f.err }
 func (f *fakeApp) ErrText(_ *ns.Scope, id string) string { return "error " + id }
-func (f *fakeApp) Poster(string) string                  { return "" }
+func (f *fakeApp) PosterFile(string) string              { return "" }
 func (f *fakeApp) PlayHead() time.Duration {
 	if f.play == nil {
 		return 0

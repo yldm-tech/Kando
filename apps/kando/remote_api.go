@@ -126,10 +126,10 @@ func (a *app) remoteFilms(ctx context.Context, p remote.FilmsParams) ([]remote.F
 		}
 		out := []remote.Film{}
 		for _, item := range all {
-			if !remoteFromSource(item, p.Source) || !films.MatchesTitle(item, p.Query) {
+			if !remoteFromSource(a.messages(), item, p.Source) || !films.MatchesTitle(item, p.Query) {
 				continue
 			}
-			out = append(out, remoteFilmOf(item))
+			out = append(out, remoteFilmOf(a.messages(), item))
 		}
 		return out, nil
 	})
@@ -149,7 +149,7 @@ func (a *app) remoteFilm(ctx context.Context, id string) (remote.Film, error) {
 		if err != nil {
 			return remote.Film{}, err
 		}
-		return remoteFilmOf(item), nil
+		return remoteFilmOf(a.messages(), item), nil
 	})
 	if err != nil {
 		return remote.Film{}, err
@@ -244,7 +244,7 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 		for _, c := range candidates {
 			id, err := a.queueTake(c.source)
 			if err != nil {
-				res.Skipped = append(res.Skipped, remote.AddFailed{Source: c.given, Reason: sourceError(err)})
+				res.Skipped = append(res.Skipped, remote.AddFailed{Source: c.given, Reason: sourceError(a.messages(), err)})
 				continue
 			}
 			ids = append(ids, id)
@@ -469,8 +469,8 @@ func (a *app) remoteQueue() (running, waiting, finished []core.Job) {
 	return running, waiting, finished
 }
 
-// remoteFromSource reports whether item comes from source as FilmsParams names it: "" or sidebar.SourceAll for every film, a sidebar source (youtube, bilibili, web, local), or a site, by its domain, its host or the name the library shows for it, ignoring case.
-func remoteFromSource(item films.Film, source string) bool {
+// remoteFromSource reports whether item comes from source as FilmsParams names it: "" or sidebar.SourceAll for every film, a sidebar source (youtube, bilibili, web, local), or a site, by its domain, its host or the name the library shows for it in m's language, ignoring case.
+func remoteFromSource(m locales.Messages, item films.Film, source string) bool {
 	source = strings.ToLower(strings.TrimSpace(source))
 	if source == "" || source == sidebar.SourceAll {
 		return true
@@ -482,7 +482,7 @@ func remoteFromSource(item films.Film, source string) bool {
 	if !ok || link.Platform == core.PlatformLocal {
 		return false
 	}
-	return link.Site == source || link.Host == source || strings.ToLower(films.SourceLabel(item)) == source
+	return link.Site == source || link.Host == source || strings.ToLower(films.SourceLabel(m, item)) == source
 }
 
 // remoteFilmTitle is the film's whole name, as the film page's title bar shows it.
@@ -493,8 +493,8 @@ func remoteFilmTitle(item films.Film) string {
 	return item.Title
 }
 
-// remoteFilmOf is item as the socket answers it, without what only its files tell (remoteFilmFiles). Its status is the line its card shows: the stage, or for a failed job the reason the card gives. UI thread only, as it says the status in the interface's language.
-func remoteFilmOf(item films.Film) remote.Film {
+// remoteFilmOf is item as the socket answers it, without what only its files tell (remoteFilmFiles). Its status is the line its card shows: the stage, or for a failed job the reason the card gives. It says the status in m's language.
+func remoteFilmOf(m locales.Messages, item films.Film) remote.Film {
 	f := remote.Film{
 		ID:        item.Key,
 		Title:     remoteFilmTitle(item),
@@ -510,7 +510,7 @@ func remoteFilmOf(item films.Film) remote.Film {
 		f.Link = item.Source
 	}
 	if item.JobID != "" {
-		f.Status, _ = failureHint(item)
+		f.Status, _ = failureHint(m, item)
 	}
 	return f
 }
@@ -528,7 +528,8 @@ func remoteFilmFiles(f *remote.Film) {
 // remoteJobOf is job as the socket answers it, without its film (remoteJobFiles). UI thread only, as it says the status in the interface's language.
 func (a *app) remoteJobOf(job core.Job) remote.Job {
 	name := a.libraryJobName(job)
-	status, _ := failureHint(films.FromJob(job, name, statusText(job)))
+	m := a.messages()
+	status, _ := failureHint(m, films.FromJob(job, name, statusText(m, job)))
 	j := remote.Job{
 		ID:        job.ID,
 		Source:    job.Source,
@@ -583,7 +584,7 @@ func remoteSource(given, dir string) (source string, reason func(locales.Message
 		}
 		// A channel or a list is skipped on its own here, rather than refusing the whole request in precheck, as a link that is not one is.
 		if !link.OneVideo() {
-			return "", func(locales.Messages) string { return precheckWhole(link) }
+			return "", func(m locales.Messages) string { return precheckWhole(m, link) }
 		}
 		return s, nil
 	}

@@ -97,7 +97,7 @@ func TestSavedLookKeepsNewDefaults(t *testing.T) {
 
 func TestResumeAtRemembersWhereTheVideoStopped(t *testing.T) {
 	a, _, _ := newTestApp(t, &fakePipeline{})
-	a.rememberPosition(&filmPlay{path: "/v.mp4", duration: 10 * time.Second, frames: &frameDecoder{shown: 3 * time.Second}})
+	a.rememberPosition(&filmPlay{path: "/v.mp4", loaded: true, duration: 10 * time.Second, head: 3 * time.Second})
 	if at := a.ResumeAt("/v.mp4"); at != 3*time.Second {
 		t.Fatalf("ResumeAt = %v", at)
 	}

@@ -437,7 +437,7 @@ func TestFeedbackItemsAreMenuOnlyRows(t *testing.T) {
 			}
 		}
 	}
-	for _, s := range a.Shortcuts() {
+	for _, s := range a.Shortcuts(a.cx) {
 		if slices.Contains(labels, s.Label) {
 			t.Fatalf("the 快捷键 page lists %q", s.Label)
 		}

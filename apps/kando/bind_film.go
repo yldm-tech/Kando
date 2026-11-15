@@ -56,7 +56,9 @@ func (a *app) TranslateFilmMissing() {
 }
 
 // StageLabel names a job's stage as the library does.
-func (a *app) StageLabel(cx *ns.Scope, stage core.Stage) string { return films.StageLabel(cx, stage) }
+func (a *app) StageLabel(cx *ns.Scope, stage core.Stage) string {
+	return films.StageLabel(locales.For(cx), stage)
+}
 
 // FilmUpload is the upload of the open film, as the cloud area reports it (UploadView).
 func (a *app) FilmUpload() film.Upload {
@@ -103,8 +105,8 @@ func (a *app) PlayErr() string { return a.player.playErr }
 
 func (a *app) ErrText(cx *ns.Scope, id string) string { return playerErrTextIn(locales.For(cx), id) }
 
-// Poster is the file of the poster the library keeps for the video at path, which the player shows while the picture opens; the image is read off the engine's goroutine when it is shown, and a video without one shows the black stage.
-func (a *app) Poster(path string) string { return posterDest(a.lib.posterDir, path) }
+// PosterFile is the file of the poster the library keeps for the video at path, which the player shows while the picture opens; the image is read off the engine's goroutine when it is shown, and a video without one shows the black stage.
+func (a *app) PosterFile(path string) string { return posterDest(a.lib.posterDir, path) }
 
 func (a *app) PlayHead() time.Duration {
 	if a.player.play == nil {

@@ -2,10 +2,8 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"testing"
 	"time"
 
@@ -13,7 +11,6 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
-	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
@@ -27,25 +24,12 @@ func skipWithoutFFmpeg(t *testing.T, format string, args ...any) {
 	t.Skipf(format, args...)
 }
 
-// openClip opens a black clip of the given seconds from the library and waits until its picture is loaded.
+// openClip opens a film of the given seconds from the library and has the system's player load it (loadFilm), so it plays, holds and seeks.
 func openClip(t *testing.T, seconds int) (*app, *nsgotest.App, chan func()) {
 	t.Helper()
-	ffmpeg, err := exec.LookPath("ffmpeg")
-	if err != nil {
-		skipWithoutFFmpeg(t, "ffmpeg is not installed")
-	}
-	dir := t.TempDir()
-	video := filepath.Join(dir, "clip.mp4")
-	if out, err := exec.Command(ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=160x90:d="+strconv.Itoa(seconds)+":r=10", "-c:v", "mpeg4", "-pix_fmt", "yuv420p", video).CombinedOutput(); err != nil {
-		skipWithoutFFmpeg(t, "ffmpeg could not make a clip: %v %s", err, out)
-	}
-	a, tt, updates := newTestApp(t, media.Tools{FFmpeg: ffmpeg})
-	a.edit(func(s *session) { s.LibraryDir = dir })
-	a.library.Jobs = []core.Job{{ID: "clip", Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
-	t.Cleanup(a.stopPlayback)
-	refresh(tt, a)
-	tt.Press("clip")
-	waitUntil(t, tt, a, updates, func() bool { return a.Play() != nil })
+	a, tt, updates, item := playerFilm(t, seconds, nil)
+	openFilm(t, a, tt, updates, item)
+	loadFilm(tt, a, time.Duration(seconds)*time.Second)
 	return a, tt, updates
 }
 
@@ -104,7 +88,7 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 	if !a.overlay.cheatsheet {
 		t.Fatal("⌘/ did not open the cheat sheet")
 	}
-	listed := map[cheatsheet.Combo]bool{}
+	listed := map[string]bool{}
 	for _, g := range a.cheatsheetGroups(a.cx) {
 		if !hasText(tt, g.Title) {
 			t.Fatalf("cheat sheet misses the group %q: %q", g.Title, tt.Texts())
@@ -119,7 +103,7 @@ func TestCheatsheetListsTheShortcutTable(t *testing.T) {
 		}
 	}
 	for _, s := range a.shortcuts(a.cx) {
-		if s.Key != "" && !listed[cheatsheet.Combo{Key: s.Key}] {
+		if s.Key != "" && !listed[s.Key] {
 			t.Fatalf("cheat sheet misses the keys of %q", s.Label)
 		}
 	}
@@ -171,7 +155,7 @@ func TestCheatsheetFollowsThePrototypeLayout(t *testing.T) {
 			rest = rest[j+1:]
 		}
 	}
-	if k := a.cheatsheetGroups(a.cx)[0].Keys[1]; !slices.Equal(k.Combos, []cheatsheet.Combo{{Key: "left"}, {Key: "right"}}) {
+	if k := a.cheatsheetGroups(a.cx)[0].Keys[1]; !slices.Equal(k.Combos, []string{"left", "right"}) {
 		t.Fatalf("后退 / 前进 5 秒 runs %v, want ← and →", k.Combos)
 	}
 }
