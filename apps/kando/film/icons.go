@@ -1,19 +1,13 @@
 package film
 
-import "github.com/egoist/mygo/ui"
+import "github.com/nsgo-dev/nsgo/core"
 
 const svgHead = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">`
 
 // svg20 is the head of the prototype's 20-unit glyphs: the skip arrows, the subtitle and panel marks.
 const svg20 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">`
 
-func icon(src string) *ui.SVG {
-	parsed, err := ui.ParseSVG([]byte(src))
-	if err != nil {
-		panic(err)
-	}
-	return parsed
-}
+func icon(src string) *core.SVG { return core.MustParseSVG([]byte(src)) }
 
 // svgBox is the head of a glyph of the prototype's drawn in a w×h viewBox, stroked 1.5 wide unless its paths say otherwise.
 func svgBox(w, h string) string {

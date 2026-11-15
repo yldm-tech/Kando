@@ -1,11 +1,10 @@
 package main
 
 import (
-	"sync/atomic"
 	"time"
 
 	"kando/apps/kando/film"
-	"kando/apps/kando/locales"
+	"kando/apps/kando/live"
 	"kando/packages/core"
 )
 
@@ -33,7 +32,7 @@ func (a *app) playerLineAt() time.Duration { return a.PlayHead() - a.player.film
 func (a *app) PrevLine() {
 	cues := a.playerCues()
 	if len(cues) == 0 {
-		a.flash(locales.FilmNoLines())
+		a.flash(a.messages().FilmNoLines())
 		return
 	}
 	at := a.playerLineAt()
@@ -44,7 +43,7 @@ func (a *app) PrevLine() {
 	case prev >= 0:
 		a.playerGoToLine(cues, prev)
 	default:
-		a.flash(locales.FilmNoEarlierLine())
+		a.flash(a.messages().FilmNoEarlierLine())
 	}
 }
 
@@ -52,21 +51,21 @@ func (a *app) PrevLine() {
 func (a *app) NextLine() {
 	cues := a.playerCues()
 	if len(cues) == 0 {
-		a.flash(locales.FilmNoLines())
+		a.flash(a.messages().FilmNoLines())
 		return
 	}
 	if _, _, next := film.CueNear(cues, a.playerLineAt()); next >= 0 {
 		a.playerGoToLine(cues, next)
 		return
 	}
-	a.flash(locales.FilmNoLaterLine())
+	a.flash(a.messages().FilmNoLaterLine())
 }
 
 // ReplayLine is R: the line playing again from its start, or between lines the line just heard.
 func (a *app) ReplayLine() {
 	cues := a.playerCues()
 	if len(cues) == 0 {
-		a.flash(locales.FilmNoLines())
+		a.flash(a.messages().FilmNoLines())
 		return
 	}
 	prev, cur, _ := film.CueNear(cues, a.playerLineAt())
@@ -74,7 +73,7 @@ func (a *app) ReplayLine() {
 		cur = prev
 	}
 	if cur < 0 {
-		a.flash(locales.FilmNoEarlierLine())
+		a.flash(a.messages().FilmNoEarlierLine())
 		return
 	}
 	a.playerGoToLine(cues, cur)
@@ -98,12 +97,12 @@ func (a *app) playerLooping() bool {
 func (a *app) ToggleLoopLine() {
 	if a.playerLooping() {
 		a.player.film.loop = playerLoop{}
-		a.flash(locales.FilmLoopOff())
+		a.flash(a.messages().FilmLoopOff())
 		return
 	}
 	cues := a.playerCues()
 	if len(cues) == 0 {
-		a.flash(locales.FilmNoLines())
+		a.flash(a.messages().FilmNoLines())
 		return
 	}
 	prev, cur, next := film.CueNear(cues, a.playerLineAt())
@@ -118,13 +117,13 @@ func (a *app) ToggleLoopLine() {
 		// Before the first line, the picture plays on into it and loops it from there.
 		a.player.film.loop = playerLoopOf(a.openKey, cues, next)
 	}
-	a.flash(locales.FilmLoopOn())
+	a.flash(a.messages().FilmLoopOn())
 }
 
 // playerGoToLine plays from the start of line i and says which line it is.
 func (a *app) playerGoToLine(cues []core.Segment, i int) {
 	a.playerSeek(max(cues[i].Start+a.player.film.delay, 0))
-	a.flash(locales.FilmLineOf(i+1, len(cues)))
+	a.flash(a.messages().FilmLineOf(i+1, len(cues)))
 }
 
 // playerSeek plays from at, picked by the user: a click on the scrubber or a line, a skip, a move by line. The loop follows it (playerLoopFollow). The loop's own return to its start seeks directly (playerKeepLoop).
@@ -180,10 +179,10 @@ func playerLoopOf(key string, cues []core.Segment, i int) playerLoop {
 	return loop
 }
 
-// playerKeepLoop takes a playing film back to the start of the looped line once its sound reaches the line's end, or the video's end. The sound is what counts: while the window is out of sight the picture stands still and the sound plays on (playback_background.go), and playerLoopAway calls this then, as no frames are built. A held film stays where it is. The seek opens the video again, so a.player.play is nil until it has, and this does not seek twice; the return does not count as stopping there, so where the film continues from is not written again on every pass. A line the subtitle delay has pushed so near the video's end or start that less than playerLoopShortest of it is in the video cannot loop, and looping stops, rather than open the video again at the same place over and over.
+// playerKeepLoop takes a playing film back to the start of the looped line once it reaches the line's end, or the video's end; a timer set for the line's end (playerLoopSchedule), the system's player saying where it is (playerProgress) and reaching the end (playerEnded) run it, in the background too, where it plays on. A held film stays where it is. The return is not the user's seek, so where the film continues from is not written again on every pass (playerKeep). A line the subtitle delay has pushed so near the video's end or start that less than playerLoopShortest of it is in the video cannot loop, and looping stops, rather than go back to the same place over and over.
 func (a *app) playerKeepLoop() {
 	play := a.player.play
-	if !a.playerLooping() || play == nil || a.openKey == "" {
+	if !a.playerLooping() || play == nil || !play.loaded || a.openKey == "" {
 		return
 	}
 	loop, delay := a.player.film.loop, a.player.film.delay
@@ -191,59 +190,49 @@ func (a *app) playerKeepLoop() {
 	end := loop.end + delay
 	if play.duration > 0 && start > play.duration-playerLoopShortest || loop.end > 0 && end < start+playerLoopShortest {
 		a.player.film.loop = playerLoop{}
-		a.flash(locales.FilmLoopOff())
+		a.flash(a.messages().FilmLoopOff())
 		return
 	}
-	away := !play.backgroundAt.IsZero()
-	head := play.soundAt(time.Now())
 	switch {
 	case play.finished:
 	case play.paused:
 		return
-	case loop.end > 0 && head >= end:
-	case loop.end == 0 && away && play.duration > 0 && head >= play.duration-backgroundDrift:
-		// The sound clock in the background stops just short of the video's end (soundClock), where a last line without an end ends.
+	case loop.end > 0 && play.playhead() >= end:
 	default:
 		return
 	}
-	play.played = false
-	a.seekPlayback(start)
+	a.seekTo(start, false)
 }
 
-// playerLoopAway keeps a looped line looping while the window is out of sight, the app inactive or the main window put away (playerSight), when the window may build no frames to run playerKeepLoop after: it checks every backgroundPoll until playerLoopBack. A film that does not loop as the window goes out of sight has nothing to check.
-func (a *app) playerLoopAway() {
-	a.playerLoopBack()
-	if !a.LoopLine() || a.update == nil {
+// playerLoopLate is how long after the looped line's end, by the app's clock, its timer runs, so the playhead has reached the end when playerKeepLoop looks, whatever the rounding of the film's time at its speed.
+const playerLoopLate = time.Millisecond
+
+// playerLoopSchedule times the return of a playing film to the start of the looped line (playerKeepLoop) for when it reaches the line's end, so it goes back on time rather than at the system's player's next report, up to a quarter second later. A timer already set for that moment stays; a held film, or one with no line looped or a loop to the video's end, which the player's end takes back, has none. The app's changes (playerAfterChange) and the player's reports (playerProgress) run it, as they move the playhead, the speed or the loop; without the app's scope, as in tests that start no app, the reports alone take the film back.
+func (a *app) playerLoopSchedule() {
+	if a.cx == nil {
 		return
 	}
-	stop := make(chan struct{})
-	a.player.loopAway = stop
-	update := a.update
-	go func() {
-		tick := time.NewTicker(backgroundPoll)
-		defer tick.Stop()
-		// One check waits on the UI thread at a time, so a busy thread is not handed a pile of them.
-		var waiting atomic.Bool
-		for {
-			select {
-			case <-stop:
-				return
-			case <-tick.C:
-				if waiting.CompareAndSwap(false, true) {
-					update(func() {
-						waiting.Store(false)
-						a.playerKeepLoop()
-					})
-				}
-			}
+	play := a.player.play
+	if play == nil || !play.Playing() || a.openKey == "" || !a.playerLooping() || a.player.film.loop.end == 0 {
+		if a.player.loopTimer != nil {
+			a.player.loopTimer.Stop()
 		}
-	}()
+		return
+	}
+	end := a.player.film.loop.end + a.player.film.delay
+	wait := playerWallTime(max(end-play.playhead(), 0), play.speed()) + playerLoopLate
+	if a.player.loopTimer == nil {
+		a.player.loopTimer = film.NewTimer(a.cx)
+	}
+	// The playhead runs on the app's clock between reports, so the same end is the same moment until a report, a seek or the speed moves it; a moment within playerLoopNear of the one set keeps the timer.
+	if at := a.player.loopTimer.At(); !at.IsZero() && (at.Sub(a.playerNow().Add(wait))).Abs() < playerLoopNear {
+		return
+	}
+	a.player.loopTimer.Set(wait, live.Do(a, func() {
+		a.playerKeepLoop()
+		a.playerLoopSchedule()
+	}))
 }
 
-// playerLoopBack stops the checks playerLoopAway started, as the window is back in sight and builds frames again.
-func (a *app) playerLoopBack() {
-	if a.player.loopAway != nil {
-		close(a.player.loopAway)
-		a.player.loopAway = nil
-	}
-}
+// playerLoopNear is how far the moment the looped line ends may move before its timer is set again (playerLoopSchedule).
+const playerLoopNear = 20 * time.Millisecond

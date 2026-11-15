@@ -1,7 +1,11 @@
-// Package subtitle is how the player draws subtitles and the values of the settings that pick which lines it shows. It imports no interface package, only the message catalogs, so the settings can show and change the look without importing the player (package film), which links to the settings by section id (package sectionid). film keeps aliases of these names, so the player's code and the main package read film.Look, film.SubOriginal and the rest as before.
+// Package subtitle is how the player draws subtitles and the values of the settings that pick which lines it shows. It imports no interface package, only the message catalogs and NSGo's core for the scope they speak under, so the settings can show and change the look without importing the player (package film), which links to the settings by section id (package sectionid). film keeps aliases of these names, so the player's code and the main package read film.Look, film.SubOriginal and the rest as before.
 package subtitle
 
-import "kando/apps/kando/locales"
+import (
+	"kando/apps/kando/locales"
+
+	"github.com/nsgo-dev/nsgo/core"
+)
 
 // Face is how one line of a cue is drawn: the translation's or the original's.
 type Face struct {
@@ -33,26 +37,29 @@ const (
 	Off         = "off"
 )
 
-// ModeName is what a subtitle mode is called in the interface's language; the mode itself is the value saved in the settings. An unknown mode is called bilingual, as the player shows it.
-func ModeName(mode string) string {
+// ModeName is what a subtitle mode is called in the language the interface shows under cx, for a binding; the mode itself is the value saved in the settings. An unknown mode is called bilingual, as the player shows it.
+func ModeName(cx *core.Scope, mode string) string { return ModeNameIn(locales.For(cx), mode) }
+
+// ModeNameIn is ModeName in the language of m, for words said outside a scope and kept as they were said, as a message on the picture.
+func ModeNameIn(m locales.Messages, mode string) string {
 	switch mode {
 	case Off:
-		return locales.FilmModeOff()
+		return m.FilmModeOff()
 	case Original:
-		return locales.FilmModeOriginal()
+		return m.FilmModeOriginal()
 	case Translation:
-		return locales.FilmModeTranslation()
+		return m.FilmModeTranslation()
 	default:
-		return locales.FilmModeBilingual()
+		return m.FilmModeBilingual()
 	}
 }
 
-// OrderName is what a subtitle order is called in the interface's language.
-func OrderName(order string) string {
+// OrderName is what a subtitle order is called in the language the interface shows under cx.
+func OrderName(cx *core.Scope, order string) string {
 	if order == OriginalFirst {
-		return locales.FilmOrderOriginalFirst()
+		return locales.FilmOrderOriginalFirst(cx)
 	}
-	return locales.FilmOrderTranslationFirst()
+	return locales.FilmOrderTranslationFirst(cx)
 }
 
 // Subtitle orders: which line of a bilingual cue goes on top.
@@ -76,25 +83,30 @@ func (l Look) PreviewInset() float32 {
 	return 15
 }
 
-// TargetLanguageName is how the interface names a target language as the settings, the jobs and the translation prompt keep it, such as 简体中文 or 日本語, in the interface's language: Simplified Chinese and Japanese in English. Every screen that names a film's or the settings' target language calls it, so they name it alike. A value typed into an older version is shown as it is.
-func TargetLanguageName(value string) string {
+// TargetLanguageName is how the interface names a target language as the settings, the jobs and the translation prompt keep it, such as 简体中文 or 日本語, in the language the interface shows under cx: Simplified Chinese and Japanese in English. Every screen that names a film's or the settings' target language calls it, so they name it alike. A value typed into an older version is shown as it is.
+func TargetLanguageName(cx *core.Scope, value string) string {
+	return TargetLanguageNameIn(locales.For(cx), value)
+}
+
+// TargetLanguageNameIn is TargetLanguageName in the language of m, for words said outside a scope.
+func TargetLanguageNameIn(m locales.Messages, value string) string {
 	switch value {
 	case "简体中文":
-		return locales.SettingsLanguageSimplifiedChinese()
+		return m.SettingsLanguageSimplifiedChinese()
 	case "繁体中文":
-		return locales.SettingsLanguageTraditionalChinese()
+		return m.SettingsLanguageTraditionalChinese()
 	case "English":
-		return locales.SettingsLanguageEnglish()
+		return m.SettingsLanguageEnglish()
 	case "日本語":
-		return locales.SettingsLanguageJapanese()
+		return m.SettingsLanguageJapanese()
 	case "한국어":
-		return locales.SettingsLanguageKorean()
+		return m.SettingsLanguageKorean()
 	case "Español":
-		return locales.SettingsLanguageSpanish()
+		return m.SettingsLanguageSpanish()
 	case "Français":
-		return locales.SettingsLanguageFrench()
+		return m.SettingsLanguageFrench()
 	case "Deutsch":
-		return locales.SettingsLanguageGerman()
+		return m.SettingsLanguageGerman()
 	}
 	return value
 }

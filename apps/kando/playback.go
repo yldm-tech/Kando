@@ -1,62 +1,58 @@
 package main
 
 import (
+	"context"
 	"log"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/nowplaying"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// filmPlay is the video open on the film page. ffmpeg decodes the picture, and the sound (player_audio.go), which mygo/audio plays.
+// filmPlay is the video open on the film page, which the system's player plays, picture and sound (core.Video, mounted by film.View): the app keeps what it asked the player for and what the player reported, and the page binds the one and hears the other.
 type filmPlay struct {
-	player   *ui.VideoPlayer
-	frames   *frameDecoder
-	audio    *pcmAudio
-	ffmpeg   string
-	path     string
+	// path is the film's video, as the library keeps it: where it continues from, its subtitle delay and what the system shows of it go by it. source is what the system's player plays: path, or a copy of it the player can open (playerRemux), "" while that copy is being made.
+	path   string
+	source string
+	// remux is the step the copy in source was made by, 0 for the video itself.
+	remux film.RemuxStep
+	// loaded is set once the system's player has opened the source and knows its length, duration.
+	loaded   bool
 	duration time.Duration
+	// head is where the picture was when the player last said, or where it opens or a seek went; headAt is when, on the app's clock. While the film plays, the picture is that far on since, at its speed (playhead).
+	head   time.Duration
+	headAt time.Time
+	// seeking is set from a seek until the player reports a time where the seek lands (film.SeekLanded), so a report it sent before the seek landed does not take the picture back. seekFrom is where the picture was as it seeked, seekTo where it went and seekAt when.
+	seeking  bool
+	seekFrom time.Duration
+	seekTo   time.Duration
+	seekAt   time.Time
+	// seeks counts the seeks of this playback, and keepSeek is whether the last was the user's, which playerKeep keeps on disk where it lands, rather than a looped line going back to its start.
+	seeks    int
+	keepSeek bool
 	paused   bool
-	// volume is how loud the sound plays, from 0 to 1, muting included (app.playerVolume).
-	volume float64
-	// rate is how fast the film plays, picture and sound, as a multiple of the speed it was recorded at (app.player.rate); 0 counts as 1 (speed). The playhead and every clock of the film count in the film's own time, which moves on rate times as fast as the wall clock.
+	// rate is how fast the system's player plays the film, picture and sound, as a multiple of the speed it was recorded at (playerSpeed); 0 counts as 1.
 	rate float64
-	// backgroundAt and backgroundHead are the clock of a film that played as the app went inactive: the playhead then, and when. The sound plays on in the background, while the picture stops as long as the window is out of sight.
-	backgroundAt   time.Time
-	backgroundHead time.Duration
-	// background decodes the picture level with the sound while the window is out of sight (playback_background.go); nil while the app is active.
-	background *backgroundPicture
-	// unseen is set once background noticed the picture standing still, as the window is out of sight, so the display may sleep while only the sound plays on (playerKeepAwake); coming back clears it.
-	unseen bool
-	// returning is where the sound is while the app, just back, puts the picture there: from playerBackInSight until the picture decoded in the background or opened again takes over, or does not come.
-	returning func() time.Duration
 	// finished is set once the picture reaches the file's end, so the clock stops there.
 	finished bool
-	// played is set once this playback has played: opened playing at a point picked for it (a seek, 继续, 从头看) or started with play. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
+	// played is set once this playback has played: opened playing at a point picked for it (继续, 从头看), started with play, or moved by a seek. stopPlayback keeps where it stopped only then, so opening a film from its poster, which holds it on its first frame, and going back leaves where it continues from as it was.
 	played bool
-	// soundSince and soundFrom are when the sound was last asked to play along with the picture, and where it was heard then, for catchUpSound to bring it level with the picture once it is heard to move; soundSince is zero once it did, or when there is nothing to check.
-	soundSince time.Time
-	soundFrom  time.Duration
 	// nowPlaying is where toggle and finish tell the system whether the film plays (playback_nowplaying.go), or nil while the system is not shown the film.
 	nowPlaying nowplaying.Center
+	// clock is the app's clock, which the playhead runs on between the player's reports: the engine's, a test's manual one in tests. seek has the system's player seek (app.player.ref), for toggle to start a finished film over; a filmPlay a test makes may have neither.
+	clock func() time.Time
+	seek  func(at time.Duration)
 }
 
-const (
-	// playerSoundSettle is how long the sound plays before catchUpSound compares it with the picture: long enough for the system's audio output to open again, which it does on the first sound after five seconds of none, and for an ffmpeg just started to decode the first of it.
-	playerSoundSettle = 250 * time.Millisecond
-	// playerSoundGiveUp is how long catchUpSound waits for a sound that is not heard to move, such as one whose output does not open, before it leaves it as it is.
-	playerSoundGiveUp = 3 * time.Second
-	// playerSoundLag is how far the sound may trail the picture before catchUpSound moves it on. The output holds about 40 ms before it is heard, so a sound that keeps pace trails by that much from the start; the 60 ms beyond it are well within what is seen as in sync.
-	playerSoundLag = 100 * time.Millisecond
-)
+// seekGiveUp is how long a seek may take before any report is believed again (filmPlay.seeking), as for a seek past the end, which lands at the end.
+const seekGiveUp = 3 * time.Second
 
 func (a *app) ffmpegPath() string {
 	tools, ok := a.pipeline.(media.Tools)
@@ -66,23 +62,26 @@ func (a *app) ffmpegPath() string {
 	return tools.FFmpeg
 }
 
-// startPlayback opens path on the film page. A missing file or a pipeline without ffmpeg leaves the page as a subtitle list.
-func (a *app) startPlayback(path string) {
-	a.startPlaybackWith(path, nil, nil)
+// playerNow is the app's clock, the engine's once it runs: a test's manual one moves with nsgotest's Advance.
+func (a *app) playerNow() time.Time {
+	if a.cx != nil {
+		return a.cx.Now()
+	}
+	return time.Now()
 }
 
-// startPlaybackWith opens a new decoder. keep, a film whose picture fell behind its sound in the background, stays on screen with its sound playing while the new picture opens where that sound is by then (sound), and the new picture takes that sound over, so the sound never stops or starts again.
-func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.Duration) {
+// startPlayback opens path on the film page, in the system's player, held on its first frame or, for 继续, 从头看 and a jump to a line, playing from where it was asked to (playFrom, playJump). A missing file leaves the page as a subtitle list. A jump within the open film's video (playSame) seeks it rather than open it again.
+func (a *app) startPlayback(path string) {
 	at := a.player.playFrom
 	jump, same := a.player.playJump, a.player.playSame
 	a.player.playFrom = 0
 	a.player.playJump, a.player.playSame = false, false
-	a.player.openHeld = jump && a.player.playHold
-	a.player.playHold = false
-	if keep == nil {
-		a.dropPlayback()
+	if same && a.player.play != nil && a.player.play.path == path {
+		a.seekTo(at, true)
+		return
 	}
-	// A seek opens the same video again and keeps the film's state; anything else is a film opening, the hero's 播放, 继续 and 从头看 and the palette's jump into another film included.
+	a.dropPlayback()
+	// Anything but a jump within the open film is a film opening, the hero's 播放, 继续 and 从头看 and the palette's jump into another film included.
 	if !same {
 		a.resetFilm()
 		a.player.film.video = path
@@ -90,140 +89,182 @@ func (a *app) startPlaybackWith(path string, keep *filmPlay, sound func() time.D
 		a.readFilmInfo(path)
 	}
 	a.player.opening = at
-	ffmpeg := a.ffmpegPath()
-	opens := path != "" && ffmpeg != ""
+	opens := path != ""
 	if opens {
 		if _, err := os.Stat(path); err != nil {
 			opens = false
 		}
 	}
-	if keep == nil {
-		a.playerNowPlayingOpening(path, jump && opens)
-	}
+	a.playerNowPlayingClear()
 	if !opens {
 		return
 	}
 	a.player.playGen++
-	gen := a.player.playGen
 	a.player.playPath = path
-	volume := a.playerVolume()
-	openRate := a.player.rate
-	update := a.update
-	go func() {
-		openAt := at
-		if keep != nil {
-			openAt = sound()
+	a.player.play = &filmPlay{path: path, source: path, head: at, headAt: a.playerNow(), paused: !jump, played: jump, rate: a.playerSpeed(), clock: a.playerNow, seek: a.player.ref.Seek}
+}
+
+// playerVideo is what the system's player plays and how: the open video's source, held until it has loaded, so it starts where it was asked to, and at the player's volume and speed. A volume of 0 plays muted, as the system's player plays a volume of 0 at full volume.
+func (a *app) playerVideo() film.Video {
+	p := a.player.play
+	if p == nil {
+		return film.Video{}
+	}
+	volume := float32(a.player.volume)
+	return film.Video{
+		Source: p.source,
+		Paused: !p.loaded || p.paused || p.finished,
+		Muted:  a.player.muted || volume <= 0,
+		Volume: volume,
+		Rate:   float32(playerRate(a.playerSpeed())),
+	}
+}
+
+// playerSpeed is how fast the system's player plays the open film, which the playhead, the subtitles' timers and the loop follow: the player's speed (app.player.rate), but 1 on Linux, where the system's player plays every film at the speed it was recorded at. The speed button and the settings keep the speed picked there all the same.
+func (a *app) playerSpeed() float64 {
+	if a.cx != nil && a.cx.Env().OS() == ns.OSLinux {
+		// TODO(nsgo#110): play at the film's speed on Linux too, where NSGo's player ignores core.Video's Rate, as MyGo's player and its atempo sound did; the speed menu and ⇧, ⇧. change it there without effect until then https://github.com/nsgo-dev/nsgo/issues/110
+		return 1
+	}
+	return a.player.rate
+}
+
+// playerLoad is the system's player having opened the open video: its length is known, and it seeks to where it opens, for a film opened at a point, and plays when it was opened playing.
+func (a *app) playerLoad(info ns.VideoInfo) {
+	p := a.player.play
+	if p == nil || p.loaded {
+		return
+	}
+	p.loaded = true
+	if info.Duration > 0 {
+		p.duration = info.Duration
+		a.player.length = info.Duration
+	}
+	if p.head > 0 {
+		// The player has opened the video at its start, from which it seeks.
+		p.startSeek(0, p.head, a.playerNow())
+		a.player.ref.Seek(p.head)
+	}
+	p.headAt = a.playerNow()
+	a.playerNowPlayingShow(p)
+	a.loadClipFrames()
+}
+
+// playerProgress is the system's player saying where the open video is, about four times a second while it plays and as it pauses or ends. It moves the playhead there, unless a seek has not landed yet; keeps where the film is on disk now and then (playerKeep), takes a looped line back to its start once it reaches its end (playerKeepLoop) and tells the areas that follow the film's time (areasPlaying). It reports whether that changed what a binding reads beyond the playhead.
+func (a *app) playerProgress(position, duration time.Duration) bool {
+	p := a.player.play
+	if p == nil || !p.loaded {
+		return false
+	}
+	now := a.playerNow()
+	if duration > 0 && duration != p.duration {
+		p.duration = duration
+		a.player.length = duration
+	}
+	if p.seeking {
+		ran := time.Duration(0)
+		if !p.paused && !p.finished {
+			ran = playerFilmTime(now.Sub(p.seekAt), p.speed())
 		}
-		frames, err := media.OpenFramesAt(ffmpeg, path, openAt)
+		if !film.SeekLanded(p.seekFrom, p.seekTo, ran, position) && now.Sub(p.seekAt) < seekGiveUp {
+			return false
+		}
+		p.seeking = false
+	}
+	p.head, p.headAt = position, now
+	gen := a.player.playGen
+	changed := a.playerKeep(now)
+	a.playerKeepLoop()
+	a.playerLoopSchedule()
+	a.areasPlaying()
+	return changed || a.player.playGen != gen
+}
+
+// playerEnded is the system's player reaching the end of the open video: the clock stops there, and the system learns the film is paused at its end, so its play key starts it over.
+func (a *app) playerEnded() {
+	p := a.player.play
+	if p == nil {
+		return
+	}
+	p.finish()
+	a.playerKeepLoop()
+}
+
+// playerFailed is the system's player saying it cannot play the open video. A video in a container or of a codec it does not take, as an MKV or a WebM on macOS, plays from a copy ffmpeg makes (playerRemux), first with its streams as they are and then encoded anew; without ffmpeg, or when neither copy plays, the page says the video cannot be played.
+func (a *app) playerFailed(err error) {
+	p := a.player.play
+	if p == nil {
+		return
+	}
+	log.Printf("player: the system's player cannot play %s: %v", filepath.Base(p.source), err)
+	next := film.RemuxCopy
+	if p.remux == film.RemuxCopy {
+		next = film.RemuxEncode
+	}
+	if p.remux == film.RemuxEncode || !a.playerRemux(p, next) {
+		a.player.playErr = playerErrUnplayable
+		p.source = ""
+		a.playerNowPlayingClear()
+	}
+}
+
+// playerRemux makes the copy of p's video by step off the engine's goroutine and plays it once made, keeping where p opens at. It reports false when there is no ffmpeg to make it with. A copy of the streams as they are that fails is made again encoded anew, and when that fails too the page says the video cannot be played.
+func (a *app) playerRemux(p *filmPlay, step film.RemuxStep) bool {
+	ffmpeg := a.ffmpegPath()
+	if ffmpeg == "" || a.update == nil {
+		return false
+	}
+	dir := a.player.remuxDir
+	if dir == "" {
+		cache, err := os.UserCacheDir()
 		if err != nil {
-			update(func() {
-				// A film coming back plays on as it was.
-				if keep != nil {
-					keep.returning = nil
-				}
-				if a.player.playGen != gen || keep != nil {
+			return false
+		}
+		dir = filepath.Join(cache, "Kando", "playback")
+	}
+	dest, err := film.RemuxPath(dir, p.path, step)
+	if err != nil {
+		return false
+	}
+	// TODO(nsgo#107): play every video ffmpeg decodes in the app's own player, as MyGo's VideoPlayer drew the frames ffmpeg decoded, rather than a copy the system's player can open https://github.com/nsgo-dev/nsgo/issues/107
+	p.source, p.remux, p.loaded = "", step, false
+	a.playerStopRemux()
+	ctx, stop := context.WithCancel(context.Background())
+	a.player.remuxStop = stop
+	update, src := a.update, p.path
+	go func() {
+		err := film.Remux(ctx, ffmpeg, src, dest, step)
+		update(func() {
+			// A seek meanwhile keeps the film; another film, or none, has stopped the copy.
+			if a.player.play != p || p.remux != step {
+				return
+			}
+			a.player.remuxStop = nil
+			if err != nil {
+				log.Printf("player: could not copy %s for the system's player: %v", filepath.Base(src), err)
+				// Streams an MP4 cannot hold as they are, as a WebM's VP8 and Vorbis, fail the copy; encoded anew they play.
+				if step == film.RemuxCopy && a.playerRemux(p, film.RemuxEncode) {
 					return
 				}
 				a.player.playErr = playerErrUnplayable
 				a.playerNowPlayingClear()
-			})
-			return
-		}
-		var audio *pcmAudio
-		if keep != nil {
-			// The sound played on while ffmpeg opened the picture.
-			if now := sound(); now > openAt {
-				if err := skipPlaybackFrames(frames, now-openAt); err != nil {
-					frames.Close()
-					update(func() { keep.returning = nil })
-					return
-				}
-				openAt = now
-			}
-		} else {
-			audio, err = openPCM(ffmpeg, path, openAt, volume, openRate)
-			if err != nil {
-				log.Printf("player: no sound for %s: %v", filepath.Base(path), err)
-			}
-		}
-		update(func() {
-			if keep != nil {
-				keep.returning = nil
-			}
-			// A film paused or ended while its picture opened again keeps the picture it has, as its sound no longer runs on.
-			if a.player.playGen != gen || keep != nil && (a.player.play != keep || keep.paused || keep.finished) {
-				frames.Close()
-				if audio != nil {
-					audio.Close()
-				}
 				return
 			}
-			// A film coming back plays on at the speed of the sound it hands over; playerApplyRate brings it to a speed changed meanwhile once its picture has caught up.
-			rate := a.player.rate
-			if keep != nil {
-				rate = keep.speed()
-			}
-			dec := &frameDecoder{frames: frames, shown: openAt, rate: rate}
-			player, err := ui.NewVideoPlayer(dec)
-			if err != nil {
-				frames.Close()
-				if audio != nil {
-					audio.Close()
-				}
-				if keep == nil {
-					a.player.playErr = playerErrUnplayable
-					a.playerNowPlayingClear()
-				}
-				return
-			}
-			if keep != nil {
-				// The sound handed over plays at the volume keep had, which setVolume kept up to date while the picture opened.
-				audio, keep.audio = keep.audio, nil
-				volume = keep.volume
-			} else {
-				// The speed may have changed while the video was opening. The sound has not started yet, so it is made again at the new one rather than started and then restarted.
-				if rate != openRate && audio != nil {
-					audio.Close()
-					audio, err = openPCM(ffmpeg, path, openAt, a.playerVolume(), rate)
-					if err != nil {
-						log.Printf("player: no sound for %s: %v", filepath.Base(path), err)
-					}
-				}
-				// The volume may have changed while the video was opening.
-				volume = a.playerVolume()
-				audio.setVolume(volume)
-			}
-			// A seek plays from where it opens, unless it was to hold there (openHeld).
-			held := a.player.openHeld
-			a.player.openHeld = false
-			paused := true
-			if jump && !held {
-				// Start does nothing to the sound a film coming back hands over, which plays already.
-				if audio != nil {
-					audio.Start()
-				}
-				player.Play()
-				paused = false
-			} else {
-				player.Pause()
-			}
-			next := &filmPlay{
-				player: player, frames: dec, audio: audio, ffmpeg: ffmpeg, path: path,
-				duration: frames.Duration(), paused: paused, played: jump, volume: volume, rate: rate,
-			}
-			// A picture opened held (openHeld) has no sound playing to check.
-			if !paused && keep == nil {
-				next.watchSound(time.Now())
-			}
-			a.playReplace(next)
-			if frames.Duration() > 0 {
-				a.player.length = frames.Duration()
-			}
+			p.source = dest
 		})
 	}()
+	return true
 }
 
-// readFilmInfo lists the folder of the video at path off the UI thread, for the player's 信息 tab. A film without a video has nothing to list.
+// playerStopRemux stops the copy being made for the open video, if one is.
+func (a *app) playerStopRemux() {
+	if a.player.remuxStop != nil {
+		a.player.remuxStop()
+		a.player.remuxStop = nil
+	}
+}
+
+// readFilmInfo lists the folder of the video at path off the engine's goroutine, for the player's 信息 tab. A film without a video has nothing to list.
 func (a *app) readFilmInfo(path string) {
 	if path == "" || a.update == nil {
 		return
@@ -253,21 +294,32 @@ func (a *app) readFilmInfo(path string) {
 	}()
 }
 
-// seekPlayback opens path again at at and plays from there.
-func (a *app) seekPlayback(at time.Duration) {
-	path := a.player.playPath
-	if a.player.play != nil && a.player.play.path != "" {
-		path = a.player.play.path
-	}
-	if path == "" || at < 0 {
+// seekPlayback plays the open video from at, as the user asked: a click on the scrubber or a line, a skip, a move by line.
+func (a *app) seekPlayback(at time.Duration) { a.seekTo(at, true) }
+
+// seekTo moves the open video to at and plays it from there, the system learning so at once. kept says it was the user's, which playerKeep keeps on disk where it lands; a looped line going back to its start is not. Before the system's player has loaded the video, it opens there instead.
+func (a *app) seekTo(at time.Duration, kept bool) {
+	p := a.player.play
+	if p == nil || at < 0 {
 		return
 	}
-	a.player.playFrom = at
-	a.player.playJump, a.player.playSame = true, true
-	a.startPlayback(path)
-	if a.player.playPath == path {
-		a.playerNowPlayingSeeking(path, at)
+	if p.duration > 0 {
+		at = min(at, p.duration)
 	}
+	now := a.playerNow()
+	from := p.playhead()
+	a.player.playGen++
+	a.player.opening = at
+	p.head, p.headAt = at, now
+	p.paused, p.finished = false, false
+	p.played = true
+	p.seeks++
+	p.keepSeek = kept
+	if p.loaded {
+		p.startSeek(from, at, now)
+		a.player.ref.Seek(at)
+	}
+	a.playerNowPlayingSeeking(p.path, at)
 }
 
 // stopPlayback ends the open video and, when it played (filmPlay.played), keeps where it stopped, and takes it off where the system shows what plays. It does nothing when the film page is not playing, but for saving a subtitle delay that changed since the last save.
@@ -276,36 +328,24 @@ func (a *app) stopPlayback() {
 	a.playerNowPlayingClear()
 }
 
-// dropPlayback is stopPlayback but for what the system shows, which a video opening in its place (startPlaybackWith) keeps through a seek.
+// dropPlayback is stopPlayback but for what the system shows, which startPlayback clears itself. The page unmounts the system's player once there is no video to play.
 func (a *app) dropPlayback() {
 	defer a.playerSaveDelay()
 	if a.player.play == nil && a.player.playPath == "" && a.player.playErr == "" {
 		return
 	}
 	a.player.playGen++
+	a.playerStopRemux()
 	play := a.player.play
 	a.player.play = nil
 	a.player.playPath = ""
 	a.player.playErr = ""
-	if play == nil {
-		return
-	}
-	if play.played {
+	if play != nil && play.played && play.loaded {
 		a.rememberPosition(play)
 	}
-	play.stopBackground()
-	if play.audio != nil {
-		play.audio.Close()
-	}
-	play.player.Close()
 }
 
-// playhead is how far the picture itself has gotten. It stays on the last frame once the file ends, instead of following the time since play was pressed.
-func (p *filmPlay) Widget() *ui.VideoPlayer { return p.player }
-
-func (p *filmPlay) Playing() bool { return p.player != nil && p.player.Playing() }
-
-func (p *filmPlay) Settle() { p.settlePlay() }
+func (p *filmPlay) Playing() bool { return p.loaded && !p.paused && !p.finished }
 
 func (p *filmPlay) Toggle() { p.toggle() }
 
@@ -313,13 +353,14 @@ func (p *filmPlay) Head() time.Duration { return p.playhead() }
 
 func (p *filmPlay) Length() time.Duration { return p.duration }
 
+// playhead is how far the picture has gotten: where the player last said, and while it plays the time since at its speed, up to the end of the video; it stays at the end once the file ends.
 func (p *filmPlay) playhead() time.Duration {
 	if p.finished && p.duration > 0 {
 		return p.duration
 	}
-	at := time.Duration(0)
-	if p.frames != nil {
-		at = p.frames.position()
+	at := p.head
+	if p.Playing() && !p.seeking && p.clock != nil {
+		at += playerFilmTime(max(p.clock().Sub(p.headAt), 0), p.speed())
 	}
 	if p.duration > 0 && at > p.duration {
 		return p.duration
@@ -327,170 +368,73 @@ func (p *filmPlay) playhead() time.Duration {
 	return at
 }
 
-// settlePlay, once a frame of the picture, brings a sound that just started level with it (catchUpSound), and stops the sound once the picture has played to the end.
-func (p *filmPlay) settlePlay() {
-	if p == nil || p.paused || p.player == nil {
-		return
-	}
-	if p.player.Playing() {
-		p.catchUpSound(time.Now())
-		return
-	}
-	p.finish()
-}
-
-// watchSound notes that the sound was asked at now to play along with the picture, from where it is heard, for catchUpSound to check it once it plays.
-func (p *filmPlay) watchSound(now time.Time) {
-	at, ok := p.audio.heard()
-	if !ok {
-		p.soundSince = time.Time{}
-		return
-	}
-	p.soundSince, p.soundFrom = now, at
-}
-
-// catchUpSound moves the sound on to where the picture is, once it has played for playerSoundSettle since watchSound, if it trails by more than playerSoundLag. The picture plays on the clock from the moment it is asked to, while the sound starts only once the system's audio output has opened again, which it does after five seconds without sound and so after most pauses, and once ffmpeg has decoded the first of it; left alone, each such start would leave the sound further behind. The picture's clock is the time since watchSound, as where the picture shows (playhead) runs a few frames ahead of what it shows.
-func (p *filmPlay) catchUpSound(now time.Time) {
-	if p.soundSince.IsZero() {
-		return
-	}
-	played := now.Sub(p.soundSince)
-	at, ok := p.audio.heard()
-	if !ok || played > playerSoundGiveUp {
-		p.soundSince = time.Time{}
-		return
-	}
-	if played < playerSoundSettle || at <= p.soundFrom {
-		return
-	}
-	p.soundSince = time.Time{}
-	// The picture's clock runs at the film's speed, as the sound does.
-	if want := p.soundFrom + playerFilmTime(played, p.speed()); want-at > playerSoundLag {
-		p.audio.seek(want)
-	}
-}
-
+// finish stops the clock at the end of the video, which the system learns.
 func (p *filmPlay) finish() {
 	if p.finished {
 		return
 	}
+	p.head = p.playhead()
 	p.finished = true
 	p.paused = true
-	if p.audio != nil {
-		p.audio.Close()
-		p.audio = nil
-	}
 	p.reportPlayback()
 }
 
+// toggle plays or holds the film, which the system learns. Play after the end starts over from the start.
 func (p *filmPlay) toggle() {
+	now := time.Now()
+	if p.clock != nil {
+		now = p.clock()
+	}
 	if p.finished {
-		p.finished = false
-		p.paused = false
-		p.played = true
-		// VideoPlayer.Play rewinds after the last frame. Start its sound from
-		// the same origin instead of the old end position.
-		p.restartAudioAt(0)
-		p.player.Play()
+		from := p.playhead()
+		p.finished, p.paused, p.played = false, false, true
+		p.head, p.headAt = 0, now
+		p.seeks++
+		p.keepSeek = false
+		if p.loaded {
+			p.startSeek(from, 0, now)
+			if p.seek != nil {
+				p.seek(0)
+			}
+		}
 		p.reportPlaybackAt(0)
 		return
 	}
-	if p.player.Playing() {
+	p.head, p.headAt = p.playhead(), now
+	if p.Playing() {
 		p.paused = true
-		p.soundSince = time.Time{}
-		p.player.Pause()
-		if p.audio != nil {
-			p.audio.Pause()
-		}
-		p.reportPlayback()
-		return
-	}
-	p.paused = false
-	p.played = true
-	if p.audio != nil {
-		p.audio.Play()
-		p.watchSound(time.Now())
 	} else {
-		p.restartAudio()
+		p.paused = false
+		p.played = true
 	}
-	p.player.Play()
 	p.reportPlayback()
 }
 
-func (p *filmPlay) restartAudio() {
-	p.restartAudioAt(p.soundAt(time.Now()))
-}
-
-// soundAt is where the sound is at now: where the picture is, except while the app is in the background (backgroundAt) or just back from it (returning), when the picture may stand still while the sound has played on.
-func (p *filmPlay) soundAt(now time.Time) time.Duration {
-	if !p.backgroundAt.IsZero() {
-		return soundClock(p.backgroundHead, p.backgroundAt, p.duration, p.speed(), now)
-	}
-	if p.returning != nil {
-		return p.returning()
-	}
-	return p.playhead()
-}
-
-func (p *filmPlay) restartAudioAt(at time.Duration) {
-	if p.audio != nil {
-		p.audio.Close()
-		p.audio = nil
-	}
-	audio, err := openPCM(p.ffmpeg, p.path, at, p.volume, p.speed())
-	if err != nil {
-		log.Printf("player: no sound for %s: %v", filepath.Base(p.path), err)
-		return
-	}
-	audio.Start()
-	p.audio = audio
-	// The picture plays on at once, while ffmpeg has only just started on the sound.
-	p.watchSound(time.Now())
-}
-
-// setVolume plays the sound at volume from now on, as it plays: a muted film's sound plays on unheard, so that unmuting it is heard at once, where the picture is.
-func (p *filmPlay) setVolume(volume float64) {
-	p.volume = volume
-	p.audio.setVolume(volume)
+// startSeek notes a seek from where the picture is, from, to to at now, so reports the player sent before it landed are dropped (playerProgress).
+func (p *filmPlay) startSeek(from, to time.Duration, now time.Time) {
+	p.seeking, p.seekFrom, p.seekTo, p.seekAt = true, from, to, now
 }
 
 // speed is how fast the film plays: rate, or 1 for a filmPlay made without one.
 func (p *filmPlay) speed() float64 { return playerRate(p.rate) }
 
-// setRate plays the film at rate from now on. The picture's frames show for their length over rate from the next one decoded. The sound's process takes its speed only when it starts, so a playing film's sound starts again where it is (soundAt), and a held one's is dropped for toggle to start at the new speed.
+// setRate plays the film at rate from now on, the playhead moving at it from where it is.
 func (p *filmPlay) setRate(rate float64) {
 	if p.speed() == playerRate(rate) {
 		return
 	}
-	at := p.soundAt(time.Now())
+	if p.clock != nil {
+		p.head, p.headAt = p.playhead(), p.clock()
+	}
 	p.rate = rate
-	if p.frames != nil {
-		p.frames.setRate(rate)
-	}
-	if p.audio != nil {
-		p.audio.Close()
-		p.audio = nil
-	}
-	if !p.paused && !p.finished && p.player != nil && p.player.Playing() {
-		p.restartAudioAt(at)
-	}
 }
 
-// playerRate is rate, or 1 for none (0), as for a film or decoder made without one.
+// playerRate is rate, or 1 for none (0), as for a film made without one.
 func playerRate(rate float64) float64 {
 	if rate <= 0 {
 		return 1
 	}
 	return rate
-}
-
-// playerWallTime is how long d of a film playing at rate takes on the wall clock.
-func playerWallTime(d time.Duration, rate float64) time.Duration {
-	rate = playerRate(rate)
-	if rate == 1 {
-		return d
-	}
-	return time.Duration(math.Round(float64(d) / rate))
 }
 
 // playerFilmTime is how much of a film playing at rate plays in d on the wall clock.
@@ -502,88 +446,11 @@ func playerFilmTime(d time.Duration, rate float64) time.Duration {
 	return time.Duration(math.Round(float64(d) * rate))
 }
 
-// frameDecoder is a FrameReader as a ui.VideoDecoder. Closing the player closes the reader.
-// shown is the time of the frames decoded so far, including the one the player is about to show, in the film's own time: a film playing at a rate other than 1 (rate) shows each frame for its length over rate, and shown still counts the frame's length.
-type frameDecoder struct {
-	frames *media.FrameReader
-	// held is a frame read ahead of the decoder, which Next gives first: the frame a picture decoded in the background stood on when it was handed over.
-	held *ui.VideoFrame
-	// sound, when set, is the clock of the sound the picture follows from the frame after held on. VideoPlayer counts its time only from when the window shows, which on macOS comes a frame or more after the app is back, and only then starts decoding; held shows until then, and the frame after it is the one the sound is in by then, for what is left of it. Without this the picture stood on held for its whole length once the window showed, then trailed the sound by the time the window took to show.
-	sound func() time.Duration
-	mu    sync.Mutex
-	shown time.Duration
-	// rate is how fast the picture plays (filmPlay.rate), which the UI thread may change while the player decodes; 0 counts as 1.
-	rate float64
-}
-
-// setRate shows the frames decoded from now on for their length over rate.
-func (d *frameDecoder) setRate(rate float64) {
-	d.mu.Lock()
-	d.rate = rate
-	d.mu.Unlock()
-}
-
-func (d *frameDecoder) Next() (ui.VideoFrame, error) {
-	if f := d.held; f != nil {
-		d.held = nil
-		d.mu.Lock()
-		d.shown += f.Duration
-		rate := d.rate
-		d.mu.Unlock()
-		shows := *f
-		if d.sound != nil {
-			shows.Duration = time.Millisecond
-		} else {
-			shows.Duration = playerWallTime(f.Duration, rate)
-		}
-		return shows, nil
+// playerWallTime is how long d of a film playing at rate takes on the wall clock.
+func playerWallTime(d time.Duration, rate float64) time.Duration {
+	rate = playerRate(rate)
+	if rate == 1 {
+		return d
 	}
-	img, dur, err := d.frames.Next()
-	if err != nil {
-		return ui.VideoFrame{}, err
-	}
-	d.mu.Lock()
-	start := d.shown
-	d.mu.Unlock()
-	shows := dur
-	if d.sound != nil {
-		at := d.sound()
-		d.sound = nil
-		for start+dur <= at {
-			start += dur
-			if img, dur, err = d.frames.Next(); err != nil {
-				d.mu.Lock()
-				d.shown = start
-				d.mu.Unlock()
-				return ui.VideoFrame{}, err
-			}
-		}
-		shows = max(start+dur-max(at, start), time.Millisecond)
-	}
-	d.mu.Lock()
-	d.shown = start + dur
-	rate := d.rate
-	d.mu.Unlock()
-	return ui.VideoFrame{Image: img, Duration: playerWallTime(shows, rate)}, nil
+	return time.Duration(math.Round(float64(d) / rate))
 }
-
-func (d *frameDecoder) position() time.Duration {
-	if d == nil {
-		return 0
-	}
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	return d.shown
-}
-
-func (d *frameDecoder) Rewind() error {
-	if err := d.frames.Rewind(); err != nil {
-		return err
-	}
-	d.mu.Lock()
-	d.shown = 0
-	d.mu.Unlock()
-	return nil
-}
-
-func (d *frameDecoder) Close() error { return d.frames.Close() }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"image"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,19 +8,17 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/packages/core"
-
-	"github.com/egoist/mygo/ui"
 )
 
 // TestResumePositionsSurviveARestart checks that where a video stopped is saved with the shelf and read back when the shelf opens again, and that a video watched to the end is forgotten on disk too.
 func TestResumePositionsSurviveARestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.openLibrary(path)
-	a.rememberPosition(&filmPlay{path: "/v.mp4", duration: 10 * time.Second, frames: &frameDecoder{shown: 3 * time.Second}})
-	a.rememberPosition(&filmPlay{path: "/w.mp4", duration: 10 * time.Second, frames: &frameDecoder{shown: 7 * time.Second}})
+	a.rememberPosition(&filmPlay{path: "/v.mp4", loaded: true, duration: 10 * time.Second, head: 3 * time.Second})
+	a.rememberPosition(&filmPlay{path: "/w.mp4", loaded: true, duration: 10 * time.Second, head: 7 * time.Second})
 
-	again, _, _ := newTestApp(&fakePipeline{})
+	again, _, _ := newTestApp(t, &fakePipeline{})
 	again.openLibrary(path)
 	if at := again.ResumeAt("/v.mp4"); at != 3*time.Second {
 		t.Fatalf("ResumeAt(/v.mp4) after a restart = %v", at)
@@ -30,8 +27,8 @@ func TestResumePositionsSurviveARestart(t *testing.T) {
 		t.Fatalf("ResumeAt(/w.mp4) after a restart = %v", at)
 	}
 
-	again.rememberPosition(&filmPlay{path: "/v.mp4", duration: 10 * time.Second, finished: true})
-	third, _, _ := newTestApp(&fakePipeline{})
+	again.rememberPosition(&filmPlay{path: "/v.mp4", loaded: true, duration: 10 * time.Second, finished: true})
+	third, _, _ := newTestApp(t, &fakePipeline{})
 	third.openLibrary(path)
 	if at := third.ResumeAt("/v.mp4"); at != 0 {
 		t.Fatalf("a finished video resumes at %v", at)
@@ -41,27 +38,15 @@ func TestResumePositionsSurviveARestart(t *testing.T) {
 	}
 }
 
-// stillFrames is a picture that shows one black frame over and over, for a player a test opens without ffmpeg.
-type stillFrames struct{}
-
-func (stillFrames) Next() (ui.VideoFrame, error) {
-	return ui.VideoFrame{Image: image.NewRGBA(image.Rect(0, 0, 2, 2)), Duration: time.Second}, nil
-}
-
-func (stillFrames) Rewind() error { return nil }
-
-// openStill makes the film page show job id with its picture at, as if it had played that far, in a library saved at path.
+// openStill makes the film page show job id with the system's player loaded and held at, as if it had played that far, in a library saved at path.
 func openStill(t *testing.T, path, id, video string, at time.Duration) *app {
 	t.Helper()
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.openLibrary(path)
 	a.library.Jobs = []core.Job{{ID: id, Source: core.FileURL(video), Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
-	player, err := ui.NewVideoPlayer(stillFrames{})
-	if err != nil {
-		t.Fatal(err)
-	}
 	a.openKey = id
-	a.player.play = &filmPlay{player: player, frames: &frameDecoder{shown: at}, path: video, duration: 10 * time.Second, played: true}
+	a.player.playPath = video
+	a.player.play = &filmPlay{path: video, source: video, loaded: true, head: at, duration: 10 * time.Second, paused: true, played: true, clock: a.playerNow}
 	t.Cleanup(a.stopPlayback)
 	return a
 }
@@ -83,7 +68,7 @@ func TestEventsThatTakeTheFilmAwayCloseIt(t *testing.T) {
 		if a.openKey != "" || a.PlaybackOpen() {
 			t.Fatalf("%s: open %q playback %v", name, a.openKey, a.PlaybackOpen())
 		}
-		again, _, _ := newTestApp(&fakePipeline{})
+		again, _, _ := newTestApp(t, &fakePipeline{})
 		again.openLibrary(path)
 		if at := again.ResumeAt("/v.mp4"); at != 3*time.Second {
 			t.Fatalf("%s: ResumeAt(/v.mp4) on disk = %v", name, at)
@@ -100,7 +85,7 @@ func TestResumePositionFollowsARenamedLibrary(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "library.json")
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.openLibrary(path)
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{ID: "talk", Source: core.FileURL(video), Stage: core.StageComplete, VideoPath: video, LibraryDir: dir}}
@@ -115,7 +100,7 @@ func TestResumePositionFollowsARenamedLibrary(t *testing.T) {
 	if at := a.ResumeAt(moved); at != 3*time.Second {
 		t.Fatalf("ResumeAt(%s) = %v, positions %v", moved, at, a.resumePositions())
 	}
-	again, _, _ := newTestApp(&fakePipeline{})
+	again, _, _ := newTestApp(t, &fakePipeline{})
 	again.openLibrary(path)
 	if at := again.ResumeAt(moved); at != 3*time.Second {
 		t.Fatalf("ResumeAt on disk = %v", at)
@@ -147,7 +132,7 @@ func TestRefreshClosesAVideoThatLeftTheLibrary(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "talk.mp4"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.refreshLibrary()
 	videos := a.snap().Videos

@@ -8,24 +8,18 @@ import (
 	"kando/apps/kando/locales"
 	"kando/packages/core"
 	"kando/packages/media"
-
-	"github.com/egoist/mygo/i18n"
-	"github.com/egoist/mygo/ui"
 )
 
-// The open film's subtitle file, read off the UI thread.
+// The open film's subtitle file, read off the engine's goroutine.
 
-// What went wrong opening the film, as the player's state keeps it (subtitleView.err, playErr): an ID, which playerErrText puts in the interface's language when the page shows it.
+// What went wrong opening the film, as the player's state keeps it (subtitleView.err, playErr): an ID, which ErrText puts in the interface's language when the page shows it.
 const (
 	playerErrSubsMissing    = "subtitle-missing"
 	playerErrSubsUnreadable = "subtitle-unreadable"
 	playerErrUnplayable     = "video-unplayable"
 )
 
-// playerErrText is what the page says for one of the errors above; any other text shows as it is.
-func playerErrText(id string) string { return playerErrTextIn(locales.In(i18n.Locale()), id) }
-
-// playerErrTextIn is playerErrText in the language of m, as the feedback issue says it in the language it is written in.
+// playerErrTextIn is what the page says for one of the errors above in the language of m, as the page says it (ErrText) and the feedback issue says it in the language it is written in; any other text shows as it is.
 func playerErrTextIn(m locales.Messages, id string) string {
 	switch id {
 	case playerErrSubsMissing:
@@ -38,21 +32,19 @@ func playerErrTextIn(m locales.Messages, id string) string {
 	return id
 }
 
-// subtitleView is the subtitle file open on the film page. list keeps the scroll position across frames. err is one of the player's error IDs, or "".
+// subtitleView is the subtitle file open on the film page. err is one of the player's error IDs, or "".
 type subtitleView struct {
 	key   string
 	path  string
 	cues  []core.Segment
 	err   string
 	ready bool
-	list  ui.ListState
-	clips ui.ListState
 	mod   time.Time
 	size  int64
 	seen  bool
 }
 
-// loadSubtitles reads path off the UI thread. An empty path means this film has no subtitle yet.
+// loadSubtitles reads path off the engine's goroutine, and the frames of the 片段 its lines cut the film into once read (loadClipFrames). An empty path means this film has no subtitle yet.
 func (a *app) loadSubtitles(key, path string) {
 	if a.player.subs.key == key && a.player.subs.path == path {
 		return
@@ -95,6 +87,7 @@ func (a *app) loadSubtitles(key, path string) {
 				a.player.subs.size = info.Size()
 				a.player.subs.seen = true
 			}
+			a.loadClipFrames()
 		})
 	}()
 }

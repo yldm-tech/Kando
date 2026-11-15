@@ -1,121 +1,184 @@
 package film
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"kando/apps/kando/film/subtitle"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// ModeName is what the player calls a subtitle mode, on its button, in its menu and on the OSD, in the interface's language.
-func ModeName(mode string) string { return subtitle.ModeName(mode) }
+// ModeName is what the player calls a subtitle mode, on its button, in its menu and on the OSD, in the language the interface shows under cx.
+func ModeName(cx *core.Scope, mode string) string { return subtitle.ModeName(cx, mode) }
 
-// modeChoices are the mode menu's rows, in the prototype's order (template 619-636), with the key that reaches each; modeNote is the line under it.
+// ModeNameIn is ModeName in the language of m, for a message on the picture.
+func ModeNameIn(m locales.Messages, mode string) string { return subtitle.ModeNameIn(m, mode) }
+
+// modeChoices are the mode menu's rows, in the prototype's order (template 619-636), with the key that reaches each.
 var modeChoices = []struct {
 	mode string
-	key  ui.Key
+	key  string
 }{
-	{SubOff, ui.KeyV},
-	{SubOriginal, ui.KeyS},
-	{SubTranslation, ui.KeyS},
-	{SubBilingual, ui.KeyS},
+	{SubOff, "v"},
+	{SubOriginal, "s"},
+	{SubTranslation, "s"},
+	{SubBilingual, "s"},
 }
 
 // modeNote is the line under a row of the mode menu, or "" for a row without one.
-func modeNote(mode string) string {
+func modeNote(cx *core.Scope, mode string) string {
 	switch mode {
 	case SubOff:
-		return locales.FilmModeOffNote()
+		return locales.FilmModeOffNote(cx)
 	case SubTranslation:
-		return locales.FilmModeTranslationNote()
+		return locales.FilmModeTranslationNote(cx)
 	}
 	return ""
 }
 
+// menuGlass is the glass of the transport's menus, which open above it.
+var menuGlass = glassSpec{fill: core.RGBA(0x1C1C20, 0.86), blur: 30, ring: 0.18, radius: 14}
+
+// transportMenu is a transport button that opens a menu above it, as the subtitle and the speed buttons do: open is the app's flag, which the menu sets as it opens and closes; trigger is what the button shows, label its name, and rows what the menu holds. The prototype opens the menu above the button, its right edge 6 past the button's and its bottom 14 above the button's top, over the picture rather than the panel. The button's name is read as it is built, as base.Popover takes a static one, so it is built again when the name changes.
+func (s *screen) transportMenu(cx *core.Scope, id string, open *bool, label func() string, tooltip func() string, width core.Points, trigger []core.Node, rows func(cx *core.Scope) []core.Node) core.Node {
+	a := s.a
+	name := core.NewMemo(cx, label).Get
+	isOpen := live.Func(a, func() bool { return *open })
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		return base.Popover{
+			TestID: id, Label: name(), Tooltip: tip(cx, tooltip),
+			Open: isOpen,
+			OnOpenChange: func(now bool, _ base.Reason) {
+				*open = now
+				a.Changed()
+			},
+			Placement: core.PlaceTop, Align: core.AlignEnd, Offset: 14,
+			Style: core.Style{Direction: core.Row, Height: core.Pt(30), Padding: core.Symmetric(0, 8), CornerRadius: 15, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, FlexShrink: 0,
+				Hover: &core.Style{Background: core.RGBA(0xFFFFFF, 0.12)}, Expanded: &core.Style{Background: core.RGBA(0xFFFFFF, 0.2)}, FocusVisible: ui.FocusRing(cx, -2)},
+			StyleFunc: func() core.Style {
+				if width > 0 {
+					return core.Style{Width: core.Pt(width)}
+				}
+				return core.Style{}
+			},
+			Trigger:    core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter}, Children: trigger},
+			PopupStyle: menuGlass.style().Merge(core.Style{Padding: core.All(6), Margin: core.Edges{Right: -6}, Shadows: append(menuGlass.style().Shadows, core.BoxShadow{Offset: core.Point{Y: 12}, Blur: 30, Color: core.RGBA(0x000000, 0.35)})}),
+			Children:   rows(cx),
+		}
+	})
+}
+
+// menuHeading is the small heading over a menu's rows.
+func menuHeading(text func() string) core.Node {
+	return core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 14, FontWeight: core.FontWeightBold, Color: onGlass, Opacity: core.Alpha(0.55), Padding: core.Edges{Top: 6, Right: 10, Bottom: 4, Left: 10}}}
+}
+
+// menuRow is a row of a transport menu that takes a press, lit under the pointer.
+func menuRow(cx *core.Scope, id string, role core.Role, label func() string, checked func() bool, press func(), style core.Style, children ...core.Node) core.Node {
+	return base.Button{TestID: id, Role: role, LabelFunc: label, Selected: checked,
+		OnPress: func(core.PressEvent) { press() },
+		Style: core.Style{Direction: core.Row, CornerRadius: 8, Gap: 8, AlignItems: core.AlignStart, Padding: core.Symmetric(6, 10),
+			Hover: &core.Style{Background: core.RGBA(0xFFFFFF, 0.1)}, FocusVisible: ui.FocusRing(cx, -2)}.Merge(style),
+		Children: children}
+}
+
+// check is a menu row's check mark, shown while checked holds.
+func check(checked func() bool) core.Node {
+	return core.Text{ContentFunc: func() string {
+		if checked() {
+			return "✓"
+		}
+		return ""
+	}, Style: core.Style{FontSize: 13, LineHeight: 18, Width: core.Pt(14), FlexShrink: 0, Color: onGlass}}
+}
+
 // modeMenu is the transport's subtitle button, named for the mode, and the menu it opens above it: the four modes, the subtitle delay and 样式…, which opens the style view in the side panel.
-func (s screen) modeMenu(c *ui.Context, t *ui.Theme) {
-	c.Key("film-mode")
-	name := ModeName(s.SubMode())
-	open := s.ModeMenu()
-	// The prototype's mode button: 30 high, its glyph and the mode's name, on white at 20% while its menu is open.
-	btn := breeze.FlatButton(c, "").Label(locales.FilmSubtitlesMode(name)).Tooltip(locales.FilmSubtitles() + " " + breeze.ShortcutText(c, 0, ui.KeyS) + " / " + breeze.ShortcutText(c, 0, ui.KeyV))
-	if btn.Clicked() {
-		*open = !*open
+func (s *screen) modeMenu(cx *core.Scope) core.Node {
+	a := s.a
+	name := live.Func(a, func() string { return ModeName(cx, a.SubMode()) })
+	label := func() string { return locales.FilmSubtitlesMode(cx, name()) }
+	tooltip := func() string {
+		return locales.FilmSubtitles(cx) + " " + cx.KeyLabel("s") + " / " + cx.KeyLabel("v")
 	}
-	if *open {
-		btn.Background(ui.RGBA(255, 255, 255, 0.2))
+	trigger := []core.Node{
+		core.Icon{SVG: iconSubtitles, Style: core.Style{Width: core.Pt(20), Height: core.Pt(15), FlexShrink: 0, Margin: core.Edges{Right: 6}, Color: onGlass}},
+		core.Text{ContentFunc: name, MaxLines: 1, Style: core.Style{FontSize: 12, LineHeight: 16, Color: onGlass}},
 	}
-	btn.Height(30).Padding(0, 8).Radius(15).Gap(0).TextColor(onGlass).Children(func() {
-		ui.Icon(c, iconSubtitles).Size(20, 15).Shrink(0).Margin(0, 6, 0, 0)
-		ui.Text(c, name).FontSize(12).SingleLine()
-	})
-	menu := breeze.Popover(c, btn, open, func() {
-		ui.Column(c).Width(258).Children(func() {
-			ui.Text(c, locales.FilmModeHeading()).FontSize(11).FontWeight(700).Opacity(0.55).Padding(6, 10, 4, 10)
-			for _, choice := range modeChoices {
-				s.modeRow(c, t, choice.mode, modeNote(choice.mode), choice.key)
-			}
-			ui.Box(c).Height(0.5).Margin(5, 10).Background(ui.RGBA(255, 255, 255, 0.15))
-			s.delayRow(c)
-			c.Key("film-style")
-			row := ui.ButtonBase(c).Padding(7, 10, 7, 32).Radius(8).Justify(ui.Start).Label(locales.FilmStyleMenuItem())
-			hoverFace(row, t)
-			if row.Clicked() {
-				*open = false
-				s.SetStyleView(true)
-			}
-			row.Children(func() { ui.Text(c, locales.FilmStyleMenuItem()).FontSize(13) })
-		})
-	})
-	// The prototype opens the menu above the button, its right edge 6 past the button's and its bottom 14 above the button's top, over the picture rather than the panel.
-	menu.AttachTo(btn, ui.AnchorTopEnd, ui.AnchorBottomEnd).Padding(6).Margin(0, 0, 14, 0).Right(-6)
+	rows := func(cx *core.Scope) []core.Node {
+		out := []core.Node{menuHeading(func() string { return locales.FilmModeHeading(cx) })}
+		for _, choice := range modeChoices {
+			out = append(out, s.modeRow(cx, choice.mode, choice.key))
+		}
+		out = append(out,
+			core.View{Style: core.Style{Height: core.Pt(0.5), Margin: core.Symmetric(5, 10), Background: core.RGBA(0xFFFFFF, 0.15)}},
+			s.delayRow(cx),
+			menuRow(cx, "film-style", core.RoleButton, func() string { return locales.FilmStyleMenuItem(cx) }, nil,
+				live.Do(a, func() {
+					*a.ModeMenu() = false
+					a.SetStyleView(true)
+				}),
+				core.Style{Padding: core.Edges{Top: 7, Right: 10, Bottom: 7, Left: 32}},
+				core.Text{ContentFunc: func() string { return locales.FilmStyleMenuItem(cx) }, Style: core.Style{FontSize: 13, LineHeight: 18, Color: onGlass}}),
+		)
+		return []core.Node{core.View{Style: core.Style{Width: core.Pt(258)}, Children: out}}
+	}
+	return s.transportMenu(cx, "film-mode", a.ModeMenu(), label, tooltip, 0, trigger, rows)
 }
 
 // modeRow is a radio row of the mode menu: a check while chosen, the mode's name with a line under it, and its key at the end.
-func (s screen) modeRow(c *ui.Context, t *ui.Theme, mode, note string, key ui.Key) {
-	c.Key("film-mode-" + mode)
-	on := s.SubMode() == mode
-	row := ui.ButtonBase(c).Padding(6, 10).Gap(8).Radius(8).AlignItems(ui.Start).Label(ModeName(mode)).Role(ui.RoleRadio).Checked(on)
-	hoverFace(row, t)
-	if row.Clicked() {
-		s.SetSubMode(mode)
-		*s.ModeMenu() = false
-	}
-	row.Children(func() {
-		check := ""
-		if on {
-			check = "✓"
-		}
-		ui.Text(c, check).FontSize(13).Width(14).Shrink(0)
-		ui.Column(c).Grow(1).Gap(1).Children(func() {
-			ui.Text(c, ModeName(mode)).FontSize(13)
-			if note != "" {
-				ui.Text(c, note).FontSize(11).Opacity(0.6).Wrap()
-			}
-		})
-		ui.Text(c, breeze.ShortcutText(c, 0, key)).FontSize(11).Opacity(0.5).Shrink(0)
-	})
+func (s *screen) modeRow(cx *core.Scope, mode, key string) core.Node {
+	a := s.a
+	on := live.Func(a, func() bool { return a.SubMode() == mode })
+	name := func() string { return ModeName(cx, mode) }
+	text := core.View{Style: core.Style{FlexGrow: 1, Gap: 1}, Children: []core.Node{
+		core.Text{ContentFunc: name, Style: core.Style{FontSize: 13, LineHeight: 18, Color: onGlass}},
+		core.Show{When: func() bool { return modeNote(cx, mode) != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{ContentFunc: func() string { return modeNote(cx, mode) }, Style: core.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: core.Alpha(0.6)}}
+		}},
+	}}
+	keycap := core.Text{ContentFunc: func() string { return cx.KeyLabel(key) }, Style: core.Style{FontSize: 11, LineHeight: 18, FlexShrink: 0, Color: onGlass, Opacity: core.Alpha(0.5)}}
+	return menuRow(cx, "film-mode-"+mode, core.RoleRadio, name, on, live.Do(a, func() {
+		a.SetSubMode(mode)
+		*a.ModeMenu() = false
+	}), core.Style{}, check(on), text, keycap)
 }
 
 // delayRow moves the subtitles against the picture by a tenth of a second, as Z and X do.
-func (s screen) delayRow(c *ui.Context) {
-	ui.Row(c).Padding(4, 10, 4, 32).Gap(6).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, locales.FilmDelay()).FontSize(13).Grow(1)
-		ui.Text(c, DelayText(s.Delay())).FontSize(12).FontFeatures("tnum").MinWidth(46).TextAlign(ui.Center).Shrink(0)
-		c.Key("film-delay")
-		v := s.Delay().Seconds()
-		if breeze.Stepper(c, &v, -30, 30, 0.1).Label(locales.FilmDelay()).Changed() {
-			s.SetDelay(seconds(v).Round(100 * time.Millisecond))
-		}
+func (s *screen) delayRow(cx *core.Scope) core.Node {
+	a := s.a
+	return core.View{Style: core.Style{Direction: core.Row, Padding: core.Edges{Top: 4, Right: 10, Bottom: 4, Left: 32}, Gap: 6, AlignItems: core.AlignCenter}, Children: []core.Node{
+		core.Text{ContentFunc: func() string { return locales.FilmDelay(cx) }, Style: core.Style{FontSize: 13, LineHeight: 18, FlexGrow: 1, Color: onGlass}},
+		delayInput(cx, a, "film-delay"),
+	}}
+}
+
+// delayInput is the subtitle delay as a number a tenth of a second at a time, from -30 to 30 seconds, written as DelayText writes it. The field keeps the text Format wrote until its value changes, and reads its name as it is built, as ui.NumberInput takes a static one, so it is built again when the language changes, which happens in the settings, away from it, to show the delay in the new language.
+func delayInput(cx *core.Scope, a App, id string) core.Node {
+	return core.Dynamic(func(cx *core.Scope) core.Node {
+		return ui.NumberInput{TestID: id, Label: locales.FilmDelay(cx), Min: -30, Max: 30, Step: 0.1,
+			Value:  live.Func(a, func() float64 { return a.Delay().Seconds() }),
+			Format: func(v float64) string { return DelayText(cx, seconds(v)) },
+			Parse:  parseDelay,
+			OnChange: live.On(a, func(v float64) {
+				a.SetDelay(seconds(v).Round(100 * time.Millisecond))
+			}),
+			Style: core.Style{Width: core.Pt(120), FlexShrink: 0}}
 	})
 }
 
-// hoverFace lights a menu row while the pointer is over it, as a menu's rows do.
-func hoverFace(row ui.Element, t *ui.Theme) {
-	if row.Hovered() {
-		row.Background(t.SurfaceHover)
+// parseDelay reads a delay typed into its field, as "+0.3", "-1" or "0.5 秒": the number it starts with, its unit left off.
+func parseDelay(text string) (float64, bool) {
+	text = strings.TrimSpace(text)
+	end := strings.IndexFunc(text, func(r rune) bool { return !strings.ContainsRune("+-.0123456789", r) })
+	if end >= 0 {
+		text = text[:end]
 	}
+	v, err := strconv.ParseFloat(strings.TrimPrefix(text, "+"), 64)
+	return v, err == nil
 }
