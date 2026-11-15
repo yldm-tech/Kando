@@ -1,6 +1,6 @@
 name: Package
 
-# Builds the app's packages for macOS, Windows and Linux with nsgo build (go tool nsgo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's files from nsgo build's releases folder, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>: per target the installer (disk image, NSIS installer, or the Debian and Arch packages and the AppImage) with the .sha256 beside it that the install scripts check, and from the Linux row the install.sh and install.ps1 that install the latest release. A release build also signs the installers for the app's updates with the updates key and keeps each target's appcast-<target>.xml, the feed installed apps read from the latest release (updates in apps/kando/nsgo.yaml, NSGo's docs/public/en/building.md). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the files to that tag's draft release. NSGo's desktop builds need no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
+# Builds the app's packages for macOS, Windows and Linux with nsgo build (go tool nsgo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's files from nsgo build's releases folder, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>: per target the installer (disk image, NSIS installer, or the Debian and Arch packages and the AppImage) with the .sha256 beside it that the install scripts check, and from the Linux row the install.sh and install.ps1 that install the latest release. A release build also signs the installers for the app's updates with the updates key and keeps each target's appcast-<target>.xml, the feed installed apps read from the latest release (updates in apps/kando/nsgo.yaml, NSGo's docs/public/en/building.md). On macOS and Windows it also makes the update that copies of Kando's MyGo builds install, update-<target>.json with the archive it names, so they move to the NSGo build (.github/scripts/mygo-bridge.go). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the files to that tag's draft release. NSGo's desktop builds need no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
 #
 # The packages are built with GOFLAGS=-tags=nodra_nomygo, which leaves nodra's MyGo helpers, and MyGo with them, out of the app (apps/kando/nsgo.yaml).
 #
@@ -58,9 +58,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # targets: the nsgo build targets of the row. installers: what each target must make, after kando-<version>-<target>, so that a package nsgo build leaves out (as it does the Windows installer without NSIS) fails the row rather than going missing from the release. scripts: install.sh and install.ps1, which every row writes alike, so kept from one.
-          - { name: macOS, os: macos-latest, targets: "macos_arm64,macos_x64", installers: ".dmg" }
-          - { name: Windows, os: ubuntu-latest, targets: "windows_x64,windows_arm64", installers: "-setup.exe" }
+          # targets: the nsgo build targets of the row. installers: what each target must make, after kando-<version>-<target>, so that a package nsgo build leaves out (as it does the Windows installer without NSIS) fails the row rather than going missing from the release. scripts: install.sh and install.ps1, which every row writes alike, so kept from one. bridge: a release build of the row also makes the updates that Kando's MyGo builds install (.github/scripts/mygo-bridge.go).
+          - { name: macOS, os: macos-latest, targets: "macos_arm64,macos_x64", installers: ".dmg", bridge: true }
+          - { name: Windows, os: ubuntu-latest, targets: "windows_x64,windows_arm64", installers: "-setup.exe", bridge: true }
           - { name: Linux, os: ubuntu-latest, targets: "linux_x64,linux_arm64", installers: ".deb .pkg.tar.gz .AppImage", scripts: true }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -177,6 +177,38 @@ jobs:
               spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
             done
           done
+      # Kando's MyGo builds (0.12.0 and older) update from update-<target>.json in the latest release, which nsgo build does not make, so a release build makes it for them (.github/scripts/mygo-bridge.go): the NSGo app as MyGo's updater unpacks it, with a manifest signed by MYGO_UPDATER_PRIVATE_KEY. An installed MyGo build then updates to this release once, and the NSGo build updates itself from its appcast after that. Every release makes it, so a copy left on 0.12.0 for a while still finds the latest release. On macOS each app gets its notarization ticket stapled first, as nsgo build staples only the disk images, so the updated app opens offline too. Linux has none: see mygo-bridge.go.
+      - name: Make the updates of the MyGo builds
+        if: inputs.tag != '' && matrix.bridge
+        env:
+          TAG: ${{ inputs.tag }}
+          TARGETS: ${{ matrix.targets }}
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+          GOWORK: "off"
+        run: |
+          if [ -z "$MYGO_UPDATER_PRIVATE_KEY" ]; then
+            echo "::error::The MYGO_UPDATER_PRIVATE_KEY secret is not set, so Kando's MyGo builds could not update to this release."
+            exit 1
+          fi
+          version=${TAG#v}
+          if [ "$RUNNER_OS" = macOS ]; then
+            for target in ${TARGETS//,/ }; do
+              app=$RUNNER_TEMP/packages/Kando-$version-$target/Kando.app
+              for attempt in 1 2 3 4 5; do
+                if xcrun stapler staple "$app"; then
+                  break
+                fi
+                if [ "$attempt" = 5 ]; then
+                  echo "::warning::No notarization ticket stapled to the $target app; the MyGo builds' update to it opens once Gatekeeper reaches Apple."
+                fi
+                sleep 30
+              done
+            done
+          fi
+          public=$(sed -nE 's/^ *key: *([A-Za-z0-9+\/=]+) *$/\1/p' apps/kando/nsgo.yaml)
+          .github/scripts/changelog.sh notes "$TAG" > "$RUNNER_TEMP/notes.md"
+          go run .github/scripts/mygo-bridge.go make -version "$version" -repo "$GITHUB_REPOSITORY" -packages "$RUNNER_TEMP/packages" -targets "$TARGETS" -notes "$RUNNER_TEMP/notes.md" -public "$public"
+          go run .github/scripts/mygo-bridge.go verify -dir "$RUNNER_TEMP/packages/releases" -public "$public"
       # The files of nsgo build's releases folder, which a release holds side by side: each target's installers with their .sha256, its appcast in a release build (on Linux in every build), and on the Linux row the install scripts. Every installer the row's targets should make must be there, once, as must a release build's appcasts. Their SHA-256 is taken here from the files nsgo build made.
       - name: Collect the packages
         env:
@@ -185,6 +217,7 @@ jobs:
           TARGETS: ${{ matrix.targets }}
           INSTALLERS: ${{ matrix.installers }}
           SCRIPTS: ${{ matrix.scripts && 'true' || '' }}
+          BRIDGE: ${{ matrix.bridge && 'true' || '' }}
         run: |
           cd "$RUNNER_TEMP/packages/releases"
           shopt -s nullglob
@@ -202,6 +235,15 @@ jobs:
               exit 1
             fi
           done
+          if [ -n "$TAG" ] && [ -n "$BRIDGE" ]; then
+            manifests=(update-*.json)
+            archives=(kando-*-darwin-*.tar.gz kando-*-windows-*.tar.gz)
+            read -ra targets <<<"${TARGETS//,/ }"
+            if [ "${#manifests[@]}" -ne "${#targets[@]}" ] || [ "${#archives[@]}" -ne "${#targets[@]}" ]; then
+              echo "::error::The row made ${#manifests[@]} manifests and ${#archives[@]} archives for the MyGo builds, not one each per target"
+              exit 1
+            fi
+          fi
           files=()
           for file in *; do
             case $file in

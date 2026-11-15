@@ -2,6 +2,12 @@
 
 What changed in each version of Kando, newest first. The app shows the section of a new version when it offers the update.
 
+## 0.13.1 - 2026-11-15
+
+### Fixes
+
+- Let Kando 0.12.0 and older update on macOS and Windows: this update replaces the MyGo build with the NSGo build of 0.13.0 and later, in the same place and with your libraries and settings, and later versions arrive through the new updater. On Linux the NSGo build needs GTK 4 and GStreamer, so it is not installed over the old one: remove the old copy with `curl -fsSL https://github.com/yldm-tech/Kando/releases/download/v0.12.0/install.sh | sh -s -- --uninstall` (your libraries and settings stay), then install the Debian or Arch package with `curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.sh | sh`, or the AppImage on other distributions
+
 ## 0.13.0 - 2026-11-15
 
 ### Features

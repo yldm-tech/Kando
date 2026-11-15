@@ -102,6 +102,9 @@ jobs:
       # changelog.sh writes the release notes only when Release runs, where a mistake would stop a release, so its test runs on every change.
       - name: changelog.sh
         run: .github/scripts/changelog-test.sh
+      # mygo-bridge.go makes the update of Kando's MyGo builds only when Release runs, where a mistake would stop a release or strand those builds, so its test runs on every change.
+      - name: mygo-bridge.go
+        run: .github/scripts/mygo-bridge-test.sh
 
   cross:
     name: Build (${{ matrix.goos }})
