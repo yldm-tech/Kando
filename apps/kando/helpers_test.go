@@ -39,7 +39,7 @@ import (
 //   - tt.SetTitleBar(bar): newTestApp's ns.Environment carries TitleBar; useTitleBar(tt, bar) reports another
 //   - tt.Move(x, y) away: tt.HoverOut(); tt.Advance(d): tt.Advance(d) on the test's clock
 //   - tt.DropFiles(paths...): tt.DropFiles(selector, fileURLs(paths...)...)
-//   - tt.Image() and the PNG screenshots: none headless, and on a platform nsgotest's Screenshot gives no bytes (nsgo#119, screenshotFixture.shoot)
+//   - tt.Image() and the PNG screenshots: none headless; on a platform (nsgo test -target) tt.Capture() and tt.CapturePNG(), which skip a headless test, so call them only when nsgotest.Target() is set (shootPNG)
 
 // TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). desktop.Headless keeps every reveal and trash off the system's tools, whichever area calls them and whether or not its test replaced its hook: a reveal opens the item's folder through the scope, which nsgotest records rather than opens, and a trash fails as unsupported, so a test never opens the file manager of the machine running it nor moves its files to the Trash. A reveal no test watches shows nothing at all.
 func TestMain(m *testing.M) {

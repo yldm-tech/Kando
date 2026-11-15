@@ -226,7 +226,7 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height n
 		steps(a, tt, updates)
 		refresh(tt, a)
 		if nsgotest.Target() == "" {
-			// TODO(nsgo#119): write name.png into f.out headless as MyGo's Tester.Image did, once nsgotest renders pixels or hands a test the bytes of its Screenshot; until then the scenes run their steps and checks, and the pictures come from `nsgo test -target`, under .nsgo/test/screenshots/<target> https://github.com/nsgo-dev/nsgo/issues/119
+			// Headless runs have no pixels, so the scenes run their steps and checks; the pictures come from `nsgo test -target`, which saves them under .nsgo/test/screenshots/<target> (README's Screenshots).
 			return
 		}
 		tt.Screenshot(name)

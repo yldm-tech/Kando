@@ -24,7 +24,7 @@ func TestScreenshotDropZone(t *testing.T) {
 		t.Fatalf("no drop zone\n%s", tt.Dump())
 	}
 	if nsgotest.Target() == "" {
-		// TODO(nsgo#119): write drop-zone.png into KANDO_SCREENSHOTS headless as MyGo's Tester.Image did, once nsgotest renders pixels or hands a test the bytes of its Screenshot; until then the picture comes from `nsgo test -target`, under .nsgo/test/screenshots/<target> https://github.com/nsgo-dev/nsgo/issues/119
+		// Headless runs have no pixels; the picture comes from `nsgo test -target`, which saves it under .nsgo/test/screenshots/<target> (README's Screenshots), the package's tests linking the platform for it (platform_test.go).
 		return
 	}
 	tt.Screenshot("drop-zone")

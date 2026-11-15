@@ -2,6 +2,7 @@ package film
 
 import (
 	"fmt"
+	"image"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -525,9 +526,9 @@ func TestSubtitleOutlineFollowsTheGlyphs(t *testing.T) {
 	line := styledLine{text: "每条河都始于高山", face: Face{Size: 30, Color: "#FFFFFF", Bold: true}}
 	for _, outline := range []bool{false, true} {
 		app := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
-			return ns.View{TestID: "line", Children: []ns.Node{subtitleLine(func() string { return line.text }, line, false, outline)}}
+			// On a white page, so the white line shows nothing dark of its own, inset so the ring outside its box is on the page.
+			return ns.View{TestID: "line", Style: ns.Style{FlexGrow: 1, Padding: ns.Symmetric(30, 20), Background: ns.RGBA(0xFFFFFF, 1)}, Children: []ns.Node{subtitleLine(func() string { return line.text }, line, false, outline)}}
 		}, nsgotest.Size(400, 120))
-		// TODO(nsgo#119): check the pixels, dark among the glyphs and none just outside the line's box, once nsgotest hands a test the bytes of its Screenshot https://github.com/nsgo-dev/nsgo/issues/119
 		copies := app.Query(whole(line.text))
 		want := 1
 		if outline {
@@ -536,7 +537,66 @@ func TestSubtitleOutlineFollowsTheGlyphs(t *testing.T) {
 		if len(copies) != want {
 			t.Fatalf("outline %v draws the line %d times, want %d", outline, len(copies), want)
 		}
+		// Headless runs have no pixels (nsgotest's Capture skips them), so the picture is checked on a platform only, under nsgo test -target.
+		if nsgotest.Target() != "" {
+			checkOutlinePixels(t, app.Capture(), absoluteFrame(copies[0]), outline)
+		}
 	}
+}
+
+// checkOutlinePixels checks the captured window (400 points wide) around the line's box: the white line on the white page shows nothing dark without its outline; with it, the box has dark pixels along the glyphs but is not dark as a whole, as a box's shadow would make it, and a ring 8 to 12 points outside the box, past the glow's 3-point blur, has none.
+func checkOutlinePixels(t *testing.T, img image.Image, box ns.Bounds, outline bool) {
+	t.Helper()
+	scale := float64(img.Bounds().Dx()) / 400
+	px := func(p ns.Points) int { return int(float64(p) * scale) }
+	dark := func(x, y int) bool {
+		r, g, b, _ := img.At(img.Bounds().Min.X+x, img.Bounds().Min.Y+y).RGBA()
+		return (r+g+b)/3 < 0x4000
+	}
+	x0, y0 := px(box.Origin.X), px(box.Origin.Y)
+	x1, y1 := px(box.Origin.X+box.Size.Width), px(box.Origin.Y+box.Size.Height)
+	inside, darkInside := 0, 0
+	for y := y0; y < y1; y++ {
+		for x := x0; x < x1; x++ {
+			inside++
+			if dark(x, y) {
+				darkInside++
+			}
+		}
+	}
+	darkRing := 0
+	near, far := px(8), px(12)
+	for y := y0 - far; y < y1+far; y++ {
+		for x := x0 - far; x < x1+far; x++ {
+			if x >= x0-near && x < x1+near && y >= y0-near && y < y1+near {
+				continue
+			}
+			if x >= 0 && y >= 0 && x < img.Bounds().Dx() && y < img.Bounds().Dy() && dark(x, y) {
+				darkRing++
+			}
+		}
+	}
+	share := float64(darkInside) / float64(max(inside, 1))
+	switch {
+	case !outline && darkInside > 0:
+		t.Fatalf("the line without an outline has %d dark pixels in its box %v", darkInside, box)
+	case outline && share < 0.01:
+		t.Fatalf("the outlined line's box %v is %.1f%% dark, want its outline along the glyphs", box, share*100)
+	case outline && share > 0.6:
+		t.Fatalf("the outlined line's box %v is %.1f%% dark, as a box's shadow, not one along the glyphs", box, share*100)
+	case darkRing > 0:
+		t.Fatalf("outline %v leaves %d dark pixels 8 to 12 points outside the line's box %v", outline, darkRing, box)
+	}
+}
+
+// absoluteFrame is v's frame in the window's points, as its ancestors and their scroll offsets place it.
+func absoluteFrame(v *nsgotest.View) ns.Bounds {
+	b := v.Frame
+	for p := v.Parent; p != nil; p = p.Parent {
+		b.Origin.X += p.Frame.Origin.X - p.Offset.X
+		b.Origin.Y += p.Frame.Origin.Y - p.Offset.Y
+	}
+	return b
 }
 
 func TestDelayText(t *testing.T) {
