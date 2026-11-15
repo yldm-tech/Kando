@@ -3,10 +3,13 @@ package main
 import (
 	"strings"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/onboarding"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // The first-run guide's reads and clicks (onboarding.App).
@@ -14,6 +17,11 @@ import (
 func (a *app) OnboardingStep() int { return a.onb.step }
 
 func (a *app) LanguageChoices() []string { return settings.LanguageChoices(a.prefs.language) }
+
+// OnboardingTargetName names the target language as every screen does (subtitle.TargetLanguageName).
+func (a *app) OnboardingTargetName(cx *ns.Scope, value string) string {
+	return subtitle.TargetLanguageName(cx, value)
+}
 
 func (a *app) OnboardingSave() { a.onboardingSave() }
 
@@ -47,11 +55,11 @@ func (a *app) OnboardingToggle(code string) {
 	a.onboardingSave()
 }
 
-func (a *app) OnboardingTools() []onboarding.Tool { return a.onboardingTools() }
+func (a *app) OnboardingTools(cx *ns.Scope) []onboarding.Tool { return a.onboardingTools(cx) }
 
 func (a *app) OnboardingDownloadTool(name string) { a.kitsInstall(name) }
 
-func (a *app) OnboardingModels() []onboarding.Model { return a.onboardingModels() }
+func (a *app) OnboardingModels(cx *ns.Scope) []onboarding.Model { return a.onboardingModels(cx) }
 
 func (a *app) OnboardingDownload(id string) { a.onboardingDownload(id) }
 
@@ -68,25 +76,25 @@ func (a *app) OnboardingDownloading() bool { return a.prefs.downloading != "" }
 
 func (a *app) OnboardingDownloadsOnNext() bool { return a.onboardingDownloadsOnNext() }
 
-// OnboardingAI says which model translates, or what the translation still needs, as the sidebar's status line words it: a model to choose, or the EveryAPI sign-in or a key.
-func (a *app) OnboardingAI() onboarding.AI {
+// OnboardingAI says which model translates, or what the translation still needs, as the sidebar's status line words it, in the language shown under cx: a model to choose, or the EveryAPI sign-in or a key.
+func (a *app) OnboardingAI(cx *ns.Scope) onboarding.AI {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
-		return onboarding.AI{Text: locales.OnboardingAIConfigured(), Ready: true}
+		return onboarding.AI{Text: locales.OnboardingAIConfigured(cx), Ready: true}
 	}
 	model := strings.TrimSpace(tools.Translator.Model)
 	switch {
 	case model == "":
-		return onboarding.AI{Text: noLLMModel(), Missing: true}
+		return onboarding.AI{Text: noLLMModel(cx), Missing: true}
 	case everyAPICLIMissing(tools.Translator):
-		return onboarding.AI{Text: everyAPIMissing(), Missing: true}
+		return onboarding.AI{Text: everyAPIMissing(cx), Missing: true}
 	case tools.Translator.Credential != nil && a.side.ready.signInErr != nil && a.side.ready.signInDone:
-		return onboarding.AI{Text: everyAPISignInFailed(a.side.ready.signInErr)(), Missing: true}
+		return onboarding.AI{Text: everyAPISignInFailed(a.side.ready.signInErr)(cx), Missing: true}
 	case tools.Translator.Credential != nil && !a.side.ready.signInDone:
 		// The sidebar checks the sign-in once the tools and a speech model are there, so before that it is not known.
-		return onboarding.AI{Text: locales.OnboardingAIModelUnchecked(model)}
+		return onboarding.AI{Text: locales.OnboardingAIModelUnchecked(cx, model)}
 	}
-	return onboarding.AI{Text: locales.OnboardingAIModel(model), Ready: true}
+	return onboarding.AI{Text: locales.OnboardingAIModel(cx, model), Ready: true}
 }
 
 func (a *app) OnboardingLink() *string { return &a.onb.link }

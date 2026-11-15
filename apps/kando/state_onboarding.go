@@ -14,8 +14,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/i18n"
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // onboardUI is the state of the first-run guide (onboarding/): the step it shows, whether it was seen, the languages chosen on its first step and the link typed on its last.
@@ -34,7 +33,7 @@ type onboardUI struct {
 	lastDownload string
 	// tip is set from the guide's closing until the note it leaves in the library's message bar is closed with its ×.
 	tip bool
-	// release gives back the window's modal flag (holdModal) the guide holds while it is open, so the menu bar's commands wait behind it; nil while it is closed.
+	// release gives back the window's modal flag (holdModal) the guide holds while it is open, so the menu bar's commands wait behind it: openOnboarding takes it and closeOnboarding gives it back. It is nil while the guide is closed.
 	release func()
 }
 
@@ -42,8 +41,8 @@ func newOnboardUI() onboardUI {
 	return onboardUI{learning: slices.Clone(onboarding.DefaultLearning)}
 }
 
-// onboardingTip is the note the library shows once the guide has closed, as the prototype's does. It names the way back that this platform has: the menu bar's 帮助 › 重新查看入门引导 on macOS, F1 (onboardingKeys) where the app has no menu bar of its own.
-func onboardingTip() string { return onboardingTipIn(locales.In(i18n.Locale())) }
+// onboardingTip is the note the library shows once the guide has closed, as the prototype's does, in the interface's language, as the message bar keeps it. It names the way back that this platform has: the menu bar's 帮助 › 重新查看入门引导 on macOS, F1 (onboardingKeys) where the app has no menu bar of its own.
+func (a *app) onboardingTip() string { return onboardingTipIn(a.messages()) }
 
 // onboardingTipIn is onboardingTip in the language of m.
 func onboardingTipIn(m locales.Messages) string {
@@ -109,7 +108,7 @@ func (a *app) onboardingHooks() areaHooks {
 			}
 			a.onb.tip = saved.OnboardingTip
 			if a.onb.tip {
-				a.lib.notice = noticeTip()
+				a.lib.notice = a.noticeTip()
 			}
 			if !a.onb.done {
 				a.openOnboarding()
@@ -128,60 +127,60 @@ func (a *app) onboardingReady() {
 }
 
 // onboardingKeys are the guide's shortcuts. On macOS 帮助 › 重新查看入门引导 is an item of the menu bar alone (menu.go), without a key, as the prototype has it. Linux and Windows have no app menu bar, so there it is F1, the key for help there, which the cheat sheet and 设置 › 快捷键 list.
-func (a *app) onboardingKeys() []shortcut {
+func (a *app) onboardingKeys(cx *ns.Scope) []shortcut {
 	if appMenuBar {
 		return nil
 	}
 	return []shortcut{
-		{Group: groupHelp, Label: locales.OnboardingReopen(), Key: ui.KeyF1, When: func() bool { return a.onb.step == 0 }, Run: a.reopenOnboarding},
+		{Group: groupHelp, Label: locales.OnboardingReopen(cx), Key: "f1", When: func() bool { return a.onb.step == 0 }, Run: a.reopenOnboarding},
 	}
 }
 
-func noticeTip() films.Notice {
-	return films.Notice{Kind: "warning", Text: onboardingTip(), Open: true}
+// noticeTip is the message bar holding the guide's note.
+func (a *app) noticeTip() films.Notice {
+	return films.Notice{Kind: "warning", Text: a.onboardingTip(), Open: true}
 }
 
-// onboardingAfterChange holds the window's modal flag while the guide is open and gives it back once it has closed. While the guide's note is still to be read, it takes the message bar whenever nothing else is shown there, as after 已加入，开始处理。 is closed, and it is forgotten once its own × has closed it. It reports whether it changed any of that, which the menu bar and the message bar read.
+// onboardingOverlay is the guide over the window while it is open (state_overlay.go): its sheet opens on a.onb.step and closes back into it.
+func (a *app) onboardingOverlay(*ns.Scope) ns.Node { return onboarding.View{App: a} }
+
+// onboardingAfterChange puts the guide's note in the message bar whenever nothing else is shown there while the note is still to be read, as after 已加入，开始处理。 is closed, and forgets it once its own × has closed it. It reports whether it changed either, which the message bar reads.
 func (a *app) onboardingAfterChange() bool {
-	changed := false
-	switch {
-	case a.onb.step > 0 && a.onb.release == nil:
-		a.onb.release = a.holdModal()
-		changed = true
-	case a.onb.step == 0 && a.onb.release != nil:
-		a.onb.release()
-		a.onb.release = nil
-		changed = true
-	}
 	switch {
 	case !a.onb.tip || a.onb.step > 0 || a.lib.notice.Open:
+		return false
 	case isOnboardingTip(a.lib.notice.Text):
 		a.onb.tip = false
 		a.onboardingSave()
-		changed = true
 	default:
-		a.lib.notice = noticeTip()
-		changed = true
+		a.lib.notice = a.noticeTip()
 	}
-	return changed
+	return true
 }
 
-// openOnboarding shows the guide from its first step with an empty link field, and looks up which speech models are on disk for its second step.
+// openOnboarding shows the guide from its first step with an empty link field, holding the window's modal flag until it closes, and looks up which speech models are on disk for its second step.
 func (a *app) openOnboarding() {
 	a.onb.step = 1
 	a.onb.link, a.onb.linkErr = "", ""
+	if a.onb.release == nil {
+		a.onb.release = a.holdModal()
+	}
 	a.findSpeechModels()
 }
 
-// closeOnboarding closes the guide: it opens a library when there is none, as D8 has it, marks the guide as seen and leaves its note in the message bar.
+// closeOnboarding closes the guide: it opens a library when there is none, as D8 has it, marks the guide as seen, leaves its note in the message bar and gives back the window's modal flag, so the menu bar's commands run again.
 func (a *app) closeOnboarding() {
 	a.onboardingLibrary()
 	a.onb.step = 0
 	a.onb.done = true
 	a.onb.tip = true
 	a.Select(pageFilms)
-	a.lib.notice = noticeTip()
+	a.lib.notice = a.noticeTip()
 	a.onboardingSave()
+	if a.onb.release != nil {
+		a.onb.release()
+		a.onb.release = nil
+	}
 }
 
 // onboardingLibrary opens a library when none is open. Libraries already in the folder where new libraries go (~/Movies at first) that Kando does not list, as after its settings were lost, are listed and the one changed last is opened. Without any, it opens 我的影片.kando there, making it as 新建资料库 does (createLibrary). A library that is open stays.
@@ -224,7 +223,7 @@ func onboardingNewest(dirs []string) string {
 
 func (a *app) onboardingSave() {
 	if err := a.saveSettings(); err != nil {
-		a.saveErr = locales.OnboardingSaveFailed(err.Error())
+		a.saveErr = a.messages().OnboardingSaveFailed(err.Error())
 	}
 }
 
@@ -240,7 +239,7 @@ func (a *app) onboardingFinish() {
 		a.closeOnboarding()
 		return
 	}
-	if _, ok := onboarding.LinkHint(raw); !ok {
+	if !onboarding.Addable(raw) {
 		return
 	}
 	link, _ := core.ParseLink(raw)
@@ -250,12 +249,12 @@ func (a *app) onboardingFinish() {
 		return
 	}
 	if err := a.Enqueue(link.URL); err != nil {
-		a.onb.linkErr, a.onb.errLink = sourceError(err), a.onb.link
+		a.onb.linkErr, a.onb.errLink = sourceError(a.messages(), err), a.onb.link
 		return
 	}
 	a.onb.link, a.onb.linkErr = "", ""
 	a.closeOnboarding()
-	a.tell(locales.OnboardingAdded())
+	a.tell(a.messages().OnboardingAdded())
 }
 
 // onboardingModelIDs is the speech models the second step offers for the languages chosen: Base, quick and enough for clear English, before Large v3 Turbo (compressed) when only English was chosen; otherwise Large v3 Turbo (compressed), the catalog's recommendation, before the lighter Small. A catalog model in use that is neither is listed after them.
@@ -275,35 +274,52 @@ func (a *app) onboardingModelIDs() []string {
 	return ids
 }
 
-// onboardingModels is the second step's rows, from the speech settings' own state: the models found on disk, the one in use and the download running.
-func (a *app) onboardingModels() []onboarding.Model {
-	tools, _ := a.pipeline.(media.Tools)
+// onboardingModels is the second step's rows, from the speech settings' own state: the models found on disk, the one in use and the download running, in the language shown under cx.
+func (a *app) onboardingModels(cx *ns.Scope) []onboarding.Model {
 	var out []onboarding.Model
 	for _, id := range a.onboardingModelIDs() {
 		model, ok := media.SpeechModelByID(id)
 		if !ok {
 			continue
 		}
-		m := onboarding.Model{ID: id, Name: settings.SpeechModelName(id), Size: model.SizeLabel, Blurb: settings.SpeechModelBlurb(id)}
-		path := a.prefs.speechModels[id]
-		switch {
-		case a.prefs.downloading == id:
-			m.State = onboarding.ModelDownloading
+		m := onboarding.Model{ID: id, Name: settings.SpeechModelName(cx, id), Size: model.SizeLabel, Blurb: settings.SpeechModelBlurb(cx, id), State: a.onboardingModelState(id)}
+		if m.State == onboarding.ModelDownloading {
 			m.Progress = -1
 			if a.prefs.downloadTotal > 0 {
 				m.Progress = float64(a.prefs.downloadWritten) / float64(a.prefs.downloadTotal)
 			}
-		case path != "" && path == tools.WhisperModel:
-			m.State = onboarding.ModelInUse
-		case path != "":
-			m.State = onboarding.ModelReady
 		}
 		if a.onb.lastDownload == id && a.prefs.downloading == "" {
-			m.Err = speechDownloadError(a.prefs.downloadErr)
+			m.Err = speechDownloadError(locales.For(cx), a.prefs.downloadErr)
 		}
 		out = append(out, m)
 	}
 	return out
+}
+
+// onboardingModelState is where the speech model id is: downloading, on disk and in use, on disk, or missing.
+func (a *app) onboardingModelState(id string) onboarding.ModelState {
+	tools, _ := a.pipeline.(media.Tools)
+	path := a.prefs.speechModels[id]
+	switch {
+	case a.prefs.downloading == id:
+		return onboarding.ModelDownloading
+	case path != "" && path == tools.WhisperModel:
+		return onboarding.ModelInUse
+	case path != "":
+		return onboarding.ModelReady
+	}
+	return onboarding.ModelMissing
+}
+
+// onboardingFirstModel is the model the second step offers first, the one its 下载并继续 downloads.
+func (a *app) onboardingFirstModel() (id string, ok bool) {
+	for _, id := range a.onboardingModelIDs() {
+		if _, ok := media.SpeechModelByID(id); ok {
+			return id, true
+		}
+	}
+	return "", false
 }
 
 // onboardingDownloadsOnNext reports whether 继续 on the second step downloads the first model it offers: no speech model is in use, none is downloading, and that one is not on disk.
@@ -311,13 +327,11 @@ func (a *app) onboardingDownloadsOnNext() bool {
 	if a.prefs.downloading != "" {
 		return false
 	}
-	if tools, ok := a.pipeline.(media.Tools); ok && tools.WhisperModel != "" {
-		return false
-	} else if !ok {
+	if tools, ok := a.pipeline.(media.Tools); !ok || tools.WhisperModel != "" {
 		return false
 	}
-	models := a.onboardingModels()
-	return len(models) > 0 && models[0].State == onboarding.ModelMissing
+	id, ok := a.onboardingFirstModel()
+	return ok && a.onboardingModelState(id) == onboarding.ModelMissing
 }
 
 // onboardingNext is the primary button: on to the next step, downloading the recommended model when the second step's button says so, or finishing on the last.
@@ -328,7 +342,8 @@ func (a *app) onboardingNext() {
 		a.findSpeechModels()
 	case 2:
 		if a.onboardingDownloadsOnNext() {
-			a.onboardingDownload(a.onboardingModels()[0].ID)
+			id, _ := a.onboardingFirstModel()
+			a.onboardingDownload(id)
 		}
 		a.onb.step = 3
 	case onboarding.Steps:
@@ -342,13 +357,13 @@ func (a *app) onboardingDownload(id string) {
 	a.downloadSpeechModel(id)
 }
 
-// onboardingTools is the programs Kando runs as the second step shows them: there, downloading, missing with Kando's download of it, or missing where Kando cannot download it.
-func (a *app) onboardingTools() []onboarding.Tool {
+// onboardingTools is the programs Kando runs as the second step shows them, in the language shown under cx: there, downloading, missing with Kando's download of it, or missing where Kando cannot download it.
+func (a *app) onboardingTools(cx *ns.Scope) []onboarding.Tool {
 	tools, own := a.pipeline.(media.Tools)
 	rows := []onboarding.Tool{
-		{Name: "yt-dlp", Use: locales.SettingsGeneralUseYTDLP()},
-		{Name: "ffmpeg", Use: locales.SettingsGeneralUseFFmpeg()},
-		{Name: "whisper-cli", Use: locales.SettingsGeneralUseWhisper()},
+		{Name: "yt-dlp", Use: locales.SettingsGeneralUseYTDLP(cx)},
+		{Name: "ffmpeg", Use: locales.SettingsGeneralUseFFmpeg(cx)},
+		{Name: "whisper-cli", Use: locales.SettingsGeneralUseWhisper(cx)},
 	}
 	paths := []string{tools.YTDLP, tools.FFmpeg, tools.Whisper}
 	for i := range rows {
@@ -361,7 +376,7 @@ func (a *app) onboardingTools() []onboarding.Tool {
 		case running:
 			rows[i].State, rows[i].Progress = onboarding.ToolDownloading, progress
 		case a.kitsCanInstall(name):
-			rows[i].State, rows[i].Err = onboarding.ToolMissing, kitsError(a.kits.errs[name])
+			rows[i].State, rows[i].Err = onboarding.ToolMissing, kitsError(locales.For(cx), a.kits.errs[name])
 		default:
 			rows[i].State = onboarding.ToolUnavailable
 		}

@@ -2,142 +2,228 @@ package onboarding
 
 import (
 	"slices"
+	"strings"
 
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/sectionid"
 
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // card is a white card with the prototype's hairline and soft shadow, its rows stacked.
-func card(c *ui.Context, fn func()) ui.Element {
-	return ui.Column(c).AlignItems(ui.Stretch).Radius(12).Background(white).Border(0.5, cardRing).Shadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.04)).Children(fn)
+func card(children ...core.Node) core.Node {
+	return core.View{Style: core.Style{AlignItems: core.AlignStretch, CornerRadius: 12, Background: white, BorderWidth: 0.5, BorderColor: cardRing,
+		Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 2, Color: core.RGBA(0x000000, 0.04)}}}, Children: children}
+}
+
+// rule is the hairline between a card's rows.
+func rule() core.Node {
+	return core.View{Style: core.Style{Height: core.Pt(0.5), FlexShrink: 0, Background: rowRule}}
 }
 
 // sectionLabel is the 12 point label over a group of the step's body.
-func sectionLabel(c *ui.Context, text string) ui.Element {
-	return ui.Text(c, text).FontSize(12).FontWeight(600).TextColor(muted)
+func sectionLabel(text func() string) core.Node {
+	return core.Text{ContentFunc: text, Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold, Color: muted}}
 }
 
 // note is the 11 point gray line under a group.
-func note(c *ui.Context, text string) ui.Element {
-	return ui.Text(c, text).FontSize(11).FixedLineHeight(16).TextColor(gray).Wrap()
+func note(text func() string) core.Node {
+	return core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 16, Color: gray}}
+}
+
+// rowText is a row's name over its second line, which takes the color sub gives with it.
+func rowText(name func() string, sub func() (string, core.Color)) core.Node {
+	return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
+		core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, Color: ink}},
+		core.Text{ContentFunc: func() string { s, _ := sub(); return s }, Style: core.Style{FontSize: 11},
+			StyleFunc: func() core.Style { _, c := sub(); return core.Style{Color: c} }},
+	}}
+}
+
+// rowStyle is the look of a card's row of a program or a model: its name and second line, then what can be done with it.
+var rowStyle = core.Style{Direction: core.Row, Padding: core.Symmetric(5, 14), Gap: 10, AlignItems: core.AlignCenter}
+
+// smallButton is a row's 24-point button, its words following text.
+func smallButton(cx *core.Scope, id string, text func() string, b ui.Button) core.Node {
+	b.TestID, b.Size, b.Variant = id, ui.SizeSmall, ui.ButtonSecondary
+	return core.View{Style: core.Style{FlexShrink: 0}, Children: []core.Node{button(cx, text, b)}}
+}
+
+// progress is a row's bar of a download, 72 wide, at value from 0 to 1, or moving while it is negative, its size not known yet.
+func progress(cx *core.Scope, value func() float64) core.Node {
+	// The bar's accessible name is set as it is built, so it is built again in another language; it holds no focus to lose.
+	name := core.NewMemo(cx, func() string { return locales.OnboardingDownloadProgress(cx) })
+	return core.Dynamic(func(*core.Scope) core.Node {
+		return ui.Progress{Label: name.Get(), Style: core.Style{Width: core.Pt(72), FlexShrink: 0},
+			Value:         func() float32 { return float32(max(value(), 0) * 100) },
+			Indeterminate: func() bool { return value() < 0 }}
+	})
 }
 
 // languagesStep is the first step: the language subtitles are translated into, and tiles for the languages of the videos the user watches.
-func languagesStep(c *ui.Context, a App) {
-	card(c, func() {
-		ui.Row(c).Height(44).Padding(0, 8, 0, 14).Gap(12).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, locales.OnboardingTranslateInto()).FontSize(13).Grow(1)
-			c.Key("onboarding-language")
-			if breeze.Select(c, a.Language(), a.LanguageChoices()).Label(locales.OnboardingTranslateInto()).Changed() {
-				a.OnboardingSave()
-			}
-		})
-	})
-	target := *a.Language()
-	chosen := Effective(a.OnboardingLearning(), target)
-	ui.Column(c).Gap(8).AlignItems(ui.Stretch).Children(func() {
-		sectionLabel(c, locales.OnboardingWatchLanguages())
-		ui.Grid(c).Columns(3).GapX(8).GapY(8).Role(ui.RoleGroup).Label(locales.OnboardingWatchLanguagesLabel()).Children(func() {
-			for _, code := range tiles(target) {
-				c.Key("onboarding-tile-" + code)
-				if tile(c, code, slices.Contains(chosen, code)).Clicked() {
-					a.OnboardingToggle(code)
-				}
-			}
-		})
-	})
-	note(c, locales.OnboardingLanguagesNote())
+type languagesStep struct{ a App }
+
+// Render implements core.Node.
+func (s languagesStep) Render(cx *core.Scope) core.Node {
+	a := s.a
+	target := live.Memo(cx, a, func() string { return *a.Language() })
+	codes := core.NewMemoFunc(cx, func() []string { return tiles(target()) }, slices.Equal[[]string])
+	chosen := core.NewMemoFunc(cx, live.Func(a, func() []string { return Effective(a.OnboardingLearning(), target()) }), slices.Equal[[]string])
+	grid := core.View{Role: core.RoleGroup, LabelFunc: func() string { return locales.OnboardingWatchLanguagesLabel(cx) },
+		Style: core.Style{Display: core.DisplayGrid, GridTemplateColumns: "repeat(3, 1fr)", Gap: 8},
+		Children: []core.Node{core.Each(codes.Get, func(code string) string { return code }, func(cx *core.Scope, code func() string, _ func() int) core.Node {
+			return tile{a: a, code: code(), on: func() bool { return slices.Contains(chosen.Get(), code()) }}
+		})}}
+	return core.View{Style: core.Style{Gap: 16, AlignItems: core.AlignStretch}, Children: []core.Node{
+		card(core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(44), Padding: core.Edges{Left: 14, Right: 8}, Gap: 12, AlignItems: core.AlignCenter},
+			Children: []core.Node{
+				core.Text{ContentFunc: func() string { return locales.OnboardingTranslateInto(cx) }, Style: core.Style{FontSize: 13, FlexGrow: 1, FlexShrink: 1}},
+				languageSelect(cx, a),
+			}}),
+		core.View{Style: core.Style{Gap: 8, AlignItems: core.AlignStretch}, Children: []core.Node{
+			sectionLabel(func() string { return locales.OnboardingWatchLanguages(cx) }),
+			grid,
+		}},
+		note(func() string { return locales.OnboardingLanguagesNote(cx) }),
+	}}
 }
 
-// tile is a language's tile: its own name over its name in the interface's language, and a check circle at its top right, blue and ringed in blue while chosen.
-func tile(c *ui.Context, code string, on bool) ui.Element {
-	own := autonyms[code]
-	b := ui.ButtonBase(c).Label(own).Checked(on).Column().Height(52).Padding(0, 12).Gap(1).Radius(10).Justify(ui.Center).AlignItems(ui.Start)
-	if on {
-		b.Background(ui.RGBA(10, 102, 216, 0.07)).InsetShadow(0, 0, 0, 1.5, blue)
-	} else {
-		b.Background(white).Border(0.5, cardRing).Shadow(0, 1, 2, 0, ui.RGBA(0, 0, 0, 0.04))
-		if b.Hovered() {
-			b.Background(ui.Hex("#FAFAFC"))
-		}
-	}
-	b.Children(func() {
-		ui.Text(c, own).FontSize(13).FontWeight(600).TextColor(ink).Lang(code).SingleLine()
-		ui.Text(c, languageName(code)).FontSize(11).TextColor(gray).SingleLine()
-		mark := checkOff
-		if on {
-			mark = checkOn
-		}
-		ui.Image(c, mark).Size(16, 16).Absolute().Top(9).Right(9)
+// selectFace is what the target language's field is built from: its accessible name and the languages it offers.
+type selectFace struct {
+	label   string
+	choices string
+}
+
+// languageSelect is the field of the language subtitles are translated into, listing the values the settings keep, as they do.
+func languageSelect(cx *core.Scope, a App) core.Node {
+	// ui.Select takes its name and options as it is built, so it is built again when the language shown or the choices change, which happens while the settings, not this field, have the keyboard.
+	face := live.Memo(cx, a, func() selectFace {
+		return selectFace{label: locales.OnboardingTranslateInto(cx), choices: strings.Join(a.LanguageChoices(), "\x00")}
 	})
-	return b
+	return core.Dynamic(func(*core.Scope) core.Node {
+		f := face()
+		var options []ui.Option[string]
+		for _, choice := range strings.Split(f.choices, "\x00") {
+			options = append(options, ui.Option[string]{Value: choice, Label: choice})
+		}
+		return ui.Select[string]{TestID: "onboarding-language", Label: f.label, Options: options, Style: core.Style{Width: core.Pt(160), FlexShrink: 0},
+			Value: live.Func(a, func() string { return *a.Language() }),
+			OnChange: live.On(a, func(v string) {
+				*a.Language() = v
+				a.OnboardingSave()
+			})}
+	})
+}
+
+// tile is a language's tile: its own name over its name in the interface's language, and a check circle at its top right, blue and ringed in blue while chosen. It is a checkbox for assistive technology.
+type tile struct {
+	a    App
+	code string
+	on   func() bool
+}
+
+// Render implements core.Node.
+func (t tile) Render(cx *core.Scope) core.Node {
+	a, code := t.a, t.code
+	own := autonyms[code]
+	look := func() core.Style {
+		if t.on() {
+			return core.Style{Background: core.RGBA(0x0A66D8, 0.07), Shadows: []core.BoxShadow{{Spread: 1.5, Color: blue, Inset: true}}}
+		}
+		return core.Style{Background: white, BorderWidth: 0.5, BorderColor: cardRing, Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 2, Color: core.RGBA(0x000000, 0.04)}},
+			Hover: &core.Style{Background: core.RGB(0xFAFAFC)}}
+	}
+	return core.View{
+		TestID: "onboarding-tile-" + code, Role: core.RoleCheckbox, Label: own, Checked: t.on,
+		OnPress: live.On(a, func(core.PressEvent) { a.OnboardingToggle(code) }),
+		Style: core.Style{Height: core.Pt(52), Padding: core.Symmetric(0, 12), Gap: 1, CornerRadius: 10, JustifyContent: core.JustifyCenter, AlignItems: core.AlignStart,
+			FocusVisible: ui.FocusRing(cx, 2)},
+		StyleFunc: look,
+		Children: []core.Node{
+			// TODO(nsgo): give core.Text the language it is written in, as MyGo's Text.Lang did, so 日本語 and 中文 are drawn with their own glyph forms
+			core.Text{Content: own, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: core.FontWeightSemibold, Color: ink}},
+			core.Text{ContentFunc: func() string { return languageName(cx, code) }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 11, Color: gray}},
+			core.Icon{SVGFunc: func() *core.SVG {
+				if t.on() {
+					return checkOn
+				}
+				return checkOff
+			}, Style: core.Style{Position: core.Absolute, Top: core.Pt(9), Right: core.Pt(9), Width: core.Pt(16), Height: core.Pt(16)}},
+		},
+	}
 }
 
 // modelsStep is the second step: the programs Kando runs, the speech models recommended for the languages chosen, each with its download, and the translation service.
-func modelsStep(c *ui.Context, a App) {
-	toolsCard(c, a.OnboardingTools(), a)
-	models := a.OnboardingModels()
-	busy := a.OnboardingDownloading()
-	card(c, func() {
-		ui.Row(c).Height(38).Padding(0, 14).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, modelsHead(models)).FontSize(12).TextColor(muted).Grow(1)
-		})
-		for _, m := range models {
-			ui.Box(c).Height(0.5).Shrink(0).Background(rowRule)
-			modelRow(c, a, m, busy)
-		}
+type modelsStep struct{ a App }
+
+// Render implements core.Node.
+func (s modelsStep) Render(cx *core.Scope) core.Node {
+	a := s.a
+	models := core.NewMemoFunc(cx, live.Func(a, func() []Model { return a.OnboardingModels(cx) }), slices.Equal[[]Model])
+	busy := live.Memo(cx, a, a.OnboardingDownloading)
+	ai := live.Memo(cx, a, func() AI { return a.OnboardingAI(cx) })
+	modelRows := core.Each(models.Get, func(m Model) string { return m.ID }, func(cx *core.Scope, m func() Model, _ func() int) core.Node {
+		return core.Group{rule(), modelRow{a: a, m: m, busy: busy}}
 	})
-	note(c, modelsNote(models))
-	ai := a.OnboardingAI()
-	card(c, func() {
-		ui.Row(c).MinHeight(46).Padding(5, 14).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-				ui.Text(c, locales.OnboardingTranslationService()).FontSize(13).TextColor(ink)
-				color := muted
-				if ai.Missing {
-					color = ui.Hex("#B25000")
-				}
-				ui.Text(c, ai.Text).FontSize(11).TextColor(color).Wrap()
-			})
-			if ai.Ready {
-				ui.Image(c, readyMark).Size(16, 16).Shrink(0)
+	aiCard := card(core.View{Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(46)}), Children: []core.Node{
+		rowText(func() string { return locales.OnboardingTranslationService(cx) }, func() (string, core.Color) {
+			if ai().Missing {
+				return ai().Text, warnOrange
 			}
-			c.Key("onboarding-ai")
-			if breeze.Button(c, locales.OnboardingSettings()).Height(24).Shrink(0).Clicked() {
-				a.OpenSettings(sectionid.AI)
-			}
-		})
-	})
+			return ai().Text, muted
+		}),
+		core.Show{When: func() bool { return ai().Ready }, Then: func(*core.Scope) core.Node { return mark(readyMark) }},
+		smallButton(cx, "onboarding-ai", func() string { return locales.OnboardingSettings(cx) },
+			ui.Button{OnPress: live.Do(a, func() { a.OpenSettings(sectionid.AI) })}),
+	}})
+	return core.View{Style: core.Style{Gap: 16, AlignItems: core.AlignStretch}, Children: []core.Node{
+		toolsCard{a},
+		card(
+			core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(38), Padding: core.Symmetric(0, 14), AlignItems: core.AlignCenter}, Children: []core.Node{
+				core.Text{ContentFunc: func() string { return modelsHead(cx, models.Get()) }, Style: core.Style{FontSize: 12, Color: muted, FlexGrow: 1, FlexShrink: 1}},
+			}},
+			modelRows,
+		),
+		note(func() string { return modelsNote(cx, models.Get()) }),
+		aiCard,
+	}}
 }
 
 // toolsCard is the programs Kando runs: a head saying whether they are ready, and a row for each that is not, with its download. Once all are there it is the head alone.
-func toolsCard(c *ui.Context, tools []Tool, a App) {
-	head, ready, downloading := toolsHead(tools)
-	card(c, func() {
-		ui.Row(c).Height(38).Padding(0, 14).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, head).FontSize(12).TextColor(muted).Grow(1)
-			if ready {
-				ui.Image(c, readyMark).Size(16, 16).Shrink(0).Label(head)
-			}
-		})
-		for _, t := range tools {
-			if t.State == ToolReady {
-				continue
-			}
-			ui.Box(c).Height(0.5).Shrink(0).Background(rowRule)
-			toolRow(c, a, t)
-		}
-	})
-	if downloading {
-		note(c, locales.OnboardingToolsNote())
+type toolsCard struct{ a App }
+
+// Render implements core.Node.
+func (t toolsCard) Render(cx *core.Scope) core.Node {
+	a := t.a
+	tools := core.NewMemoFunc(cx, live.Func(a, func() []Tool { return a.OnboardingTools(cx) }), slices.Equal[[]Tool])
+	ready := func() bool { _, ready, _ := toolsHead(cx, tools.Get()); return ready }
+	missing := func() []Tool {
+		return slices.DeleteFunc(slices.Clone(tools.Get()), func(t Tool) bool { return t.State == ToolReady })
 	}
+	return core.View{Style: core.Style{Gap: 16, AlignItems: core.AlignStretch}, Children: []core.Node{
+		card(
+			core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(38), Padding: core.Symmetric(0, 14), Gap: 10, AlignItems: core.AlignCenter}, Children: []core.Node{
+				core.Text{ContentFunc: func() string { head, _, _ := toolsHead(cx, tools.Get()); return head }, Style: core.Style{FontSize: 12, Color: muted, FlexGrow: 1, FlexShrink: 1}},
+				core.Show{When: ready, Then: func(cx *core.Scope) core.Node {
+					return core.View{Role: core.RoleImage, Accessible: true, LabelFunc: func() string { head, _, _ := toolsHead(cx, tools.Get()); return head },
+						Children: []core.Node{mark(readyMark)}}
+				}},
+			}},
+			core.Each(missing, func(t Tool) string { return t.Name }, func(cx *core.Scope, t func() Tool, _ func() int) core.Node {
+				return core.Group{rule(), toolRow{a: a, t: t}}
+			}),
+		),
+		core.Show{When: func() bool { _, _, downloading := toolsHead(cx, tools.Get()); return downloading }, Then: func(cx *core.Scope) core.Node {
+			return note(func() string { return locales.OnboardingToolsNote(cx) })
+		}},
+	}}
 }
 
 // toolsHead is the head of the card of programs, whether all of them are there, and whether one is downloading.
-func toolsHead(tools []Tool) (head string, ready, downloading bool) {
+func toolsHead(cx *core.Scope, tools []Tool) (head string, ready, downloading bool) {
 	ready = true
 	for _, t := range tools {
 		ready = ready && t.State == ToolReady
@@ -145,167 +231,208 @@ func toolsHead(tools []Tool) (head string, ready, downloading bool) {
 	}
 	switch {
 	case ready:
-		return locales.OnboardingToolsReady(), true, false
+		return locales.OnboardingToolsReady(cx), true, false
 	case downloading:
-		return locales.OnboardingToolsDownloading(), false, true
+		return locales.OnboardingToolsDownloading(cx), false, true
 	}
-	return locales.OnboardingToolsMissing(), false, false
+	return locales.OnboardingToolsMissing(cx), false, false
 }
 
 // toolRow is a program that is not there yet: its name over what it is for, its download's progress or why it failed, and a progress bar, 下载 or 重试.
-func toolRow(c *ui.Context, a App, t Tool) {
-	ui.Row(c).MinHeight(42).Padding(5, 14).Gap(10).AlignItems(ui.Center).Label(t.Name).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, t.Name).FontSize(13).TextColor(ink).SingleLine()
-			sub, color := toolSub(t)
-			ui.Text(c, sub).FontSize(11).TextColor(color).Wrap()
-		})
-		switch t.State {
+type toolRow struct {
+	a App
+	t func() Tool
+}
+
+// Render implements core.Node.
+func (r toolRow) Render(cx *core.Scope) core.Node {
+	a, t := r.a, r.t
+	name := t().Name
+	state := core.NewMemo(cx, func() ToolState { return t().State })
+	control := core.Dynamic(func(cx *core.Scope) core.Node {
+		switch state.Get() {
 		case ToolDownloading:
-			breeze.Progress(c, t.Progress).Width(72).Shrink(0).Label(locales.OnboardingDownloadProgress())
+			return progress(cx, func() float64 { return t().Progress })
 		case ToolMissing:
-			label := locales.OnboardingDownload()
-			if t.Err != "" {
-				label = locales.OnboardingRetry()
-			}
-			c.Key("onboarding-tool-" + t.Name)
-			if breeze.Button(c, label).Height(24).Shrink(0).Clicked() {
-				a.OnboardingDownloadTool(t.Name)
-			}
+			return smallButton(cx, "onboarding-tool-"+name, func() string {
+				if t().Err != "" {
+					return locales.OnboardingRetry(cx)
+				}
+				return locales.OnboardingDownload(cx)
+			}, ui.Button{OnPress: live.Do(a, func() { a.OnboardingDownloadTool(name) })})
 		}
+		return core.Group(nil)
 	})
+	return core.View{Role: core.RoleGroup, Label: name, Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(42)}), Children: []core.Node{
+		rowText(func() string { return t().Name }, func() (string, core.Color) { return toolSub(cx, t()) }),
+		control,
+	}}
 }
 
 // toolSub is the line under a program's name and its color: the download's progress in blue while it runs, why it failed in red, how to install it where Kando cannot, otherwise what it is for.
-func toolSub(t Tool) (string, ui.Color) {
+func toolSub(cx *core.Scope, t Tool) (string, core.Color) {
 	switch {
 	case t.State == ToolDownloading && t.Progress < 0:
-		return locales.OnboardingToolConnecting(), ui.Hex("#0052B0")
+		return locales.OnboardingToolConnecting(cx), progressBlue
 	case t.State == ToolDownloading:
-		return locales.OnboardingToolProgress(int(t.Progress * 100)), ui.Hex("#0052B0")
+		return locales.OnboardingToolProgress(cx, int(t.Progress*100)), progressBlue
 	case t.State == ToolUnavailable:
-		return locales.OnboardingToolUnavailable(), ui.Hex("#B25000")
+		return locales.OnboardingToolUnavailable(cx), warnOrange
 	case t.Err != "":
-		return locales.OnboardingModelFailed(t.Err), ui.Hex("#C4291C")
+		return locales.OnboardingModelFailed(cx, t.Err), failedRed
 	}
 	return t.Use, muted
 }
 
 // modelRow is a speech model: its name and size, and what can be done with it: 下载, a progress bar and 取消 while it downloads, 使用 once it is here, and a green check while it is in use.
-func modelRow(c *ui.Context, a App, m Model, busy bool) {
-	ui.Row(c).MinHeight(46).Padding(5, 14).Gap(10).AlignItems(ui.Center).Label(m.Name).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, locales.OnboardingSpeechModel(m.Name)).FontSize(13).TextColor(ink).SingleLine()
-			sub, color := modelSub(m)
-			ui.Text(c, sub).FontSize(11).TextColor(color).Wrap()
-		})
-		switch m.State {
+type modelRow struct {
+	a    App
+	m    func() Model
+	busy func() bool
+}
+
+// Render implements core.Node.
+func (r modelRow) Render(cx *core.Scope) core.Node {
+	a, m := r.a, r.m
+	id := m().ID
+	state := core.NewMemo(cx, func() ModelState { return m().State })
+	control := core.Dynamic(func(cx *core.Scope) core.Node {
+		switch state.Get() {
 		case ModelInUse:
-			ui.Image(c, readyMark).Size(16, 16).Shrink(0).Label(locales.OnboardingInUse())
+			return core.View{Role: core.RoleImage, Accessible: true, LabelFunc: func() string { return locales.OnboardingInUse(cx) }, Children: []core.Node{mark(readyMark)}}
 		case ModelReady:
-			c.Key("onboarding-use-" + m.ID)
-			if breeze.Button(c, locales.OnboardingUse()).Height(24).Shrink(0).Clicked() {
-				a.OnboardingUseModel(m.ID)
-			}
+			return smallButton(cx, "onboarding-use-"+id, func() string { return locales.OnboardingUse(cx) },
+				ui.Button{OnPress: live.Do(a, func() { a.OnboardingUseModel(id) })})
 		case ModelDownloading:
-			breeze.Progress(c, m.Progress).Width(72).Shrink(0).Label(locales.OnboardingDownloadProgress())
-			c.Key("onboarding-cancel-" + m.ID)
-			if breeze.Button(c, locales.OnboardingCancel()).Height(24).Shrink(0).Clicked() {
-				a.OnboardingCancelDownload()
-			}
-		default:
-			label := locales.OnboardingDownload()
-			if m.Err != "" {
-				label = locales.OnboardingRetry()
-			}
-			c.Key("onboarding-download-" + m.ID)
-			if breeze.Button(c, label).Height(24).Shrink(0).Disabled(busy).Tooltip(locales.OnboardingDownloadTooltip(m.Name, m.Size)).Clicked() && !busy {
-				a.OnboardingDownload(m.ID)
-			}
+			return core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{
+				progress(cx, func() float64 { return m().Progress }),
+				smallButton(cx, "onboarding-cancel-"+id, func() string { return locales.OnboardingCancel(cx) },
+					ui.Button{OnPress: live.Do(a, a.OnboardingCancelDownload)}),
+			}}
 		}
+		download := smallButton(cx, "onboarding-download-"+id, func() string {
+			if m().Err != "" {
+				return locales.OnboardingRetry(cx)
+			}
+			return locales.OnboardingDownload(cx)
+		}, ui.Button{Disabled: r.busy, OnPress: live.Do(a, func() { a.OnboardingDownload(id) })})
+		return ui.Tooltip{TextFunc: func() string { return locales.OnboardingDownloadTooltip(cx, m().Name, m().Size) }, Trigger: download,
+			Style: core.Style{FlexShrink: 0}}
 	})
+	return core.View{Role: core.RoleGroup, LabelFunc: func() string { return m().Name }, Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(46)}), Children: []core.Node{
+		rowText(func() string { return locales.OnboardingSpeechModel(cx, m().Name) }, func() (string, core.Color) { return modelSub(cx, m()) }),
+		control,
+	}}
 }
 
 // modelSub is the line under a model's name and its color: the download's progress in blue while it runs, why it failed in red, otherwise its size and what it suits.
-func modelSub(m Model) (string, ui.Color) {
+func modelSub(cx *core.Scope, m Model) (string, core.Color) {
 	switch m.State {
 	case ModelInUse:
-		return locales.OnboardingModelInUse(), muted
+		return locales.OnboardingModelInUse(cx), muted
 	case ModelReady:
-		return locales.OnboardingModelDownloaded(m.Blurb), muted
+		return locales.OnboardingModelDownloaded(cx, m.Blurb), muted
 	case ModelDownloading:
 		if m.Progress < 0 {
-			return locales.OnboardingModelConnecting(m.Size), ui.Hex("#0052B0")
+			return locales.OnboardingModelConnecting(cx, m.Size), progressBlue
 		}
-		return locales.OnboardingModelProgress(int(m.Progress*100), m.Size), ui.Hex("#0052B0")
+		return locales.OnboardingModelProgress(cx, int(m.Progress*100), m.Size), progressBlue
 	}
 	if m.Err != "" {
-		return locales.OnboardingModelFailed(m.Err), ui.Hex("#C4291C")
+		return locales.OnboardingModelFailed(cx, m.Err), failedRed
 	}
-	return locales.OnboardingModelAbout(m.Size, m.Blurb), muted
+	return locales.OnboardingModelAbout(cx, m.Size, m.Blurb), muted
 }
 
 // modelsHead is the card's head: what is in use, or what is missing.
-func modelsHead(models []Model) string {
+func modelsHead(cx *core.Scope, models []Model) string {
 	for _, m := range models {
 		if m.State == ModelInUse {
-			return locales.OnboardingModelsReady()
+			return locales.OnboardingModelsReady(cx)
 		}
 	}
 	for _, m := range models {
 		if m.State == ModelDownloading {
-			return locales.OnboardingModelsDownloading(m.Name)
+			return locales.OnboardingModelsDownloading(cx, m.Name)
 		}
 	}
-	return locales.OnboardingModelsMissing()
+	return locales.OnboardingModelsMissing(cx)
 }
 
 // modelsNote is the line under the models.
-func modelsNote(models []Model) string {
+func modelsNote(cx *core.Scope, models []Model) string {
 	for _, m := range models {
 		if m.State == ModelDownloading {
-			return locales.OnboardingModelsNoteDownloading()
+			return locales.OnboardingModelsNoteDownloading(cx)
 		}
 	}
 	for _, m := range models {
 		if m.State == ModelInUse {
-			return locales.OnboardingModelsNoteInUse()
+			return locales.OnboardingModelsNoteInUse(cx)
 		}
 	}
-	return locales.OnboardingModelsNoteLater()
+	return locales.OnboardingModelsNoteLater(cx)
 }
 
-// linkStep is the third step: the field for the first link and what it reads as.
-func linkStep(c *ui.Context, a App) {
-	value := a.OnboardingLink()
-	ui.Column(c).Gap(6).AlignItems(ui.Stretch).Children(func() {
-		field := ui.Row(c).Height(44).Radius(10).Padding(0, 14, 0, 13).Gap(8).AlignItems(ui.Center).Background(white)
-		field.Shadow(0, 1, 3, 0, ui.RGBA(0, 0, 0, 0.05)).Border(0.5, ui.RGBA(0, 0, 0, 0.14))
-		focused := false
-		field.Children(func() {
-			ui.Icon(c, linkIcon).Size(15, 15).TextColor(gray).Shrink(0)
-			c.Key("onboarding-link")
-			in := ui.TextInputBase(c, value).Placeholder(locales.OnboardingLinkPlaceholder()).Label(locales.OnboardingLinkLabel()).Grow(1).MinWidth(0).FontSize(14).FocusRing(false).AutoFocus()
-			if in.Submitted() {
-				if _, ok := LinkHint(*value); ok {
-					a.OnboardingNext()
-				}
+// linkStep is the third step: the field for the first link and what it reads as. The field takes the keyboard as the step shows, and Return adds a link it can add, as the primary button does.
+type linkStep struct{ a App }
+
+// Render implements core.Node.
+func (s linkStep) Render(cx *core.Scope) core.Node {
+	a := s.a
+	link := live.Func(a, func() string { return *a.OnboardingLink() })
+	focused := core.NewSignal(cx, false)
+	// TODO(nsgo): give core.Input (base.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it
+	input := base.Input{
+		TestID: "onboarding-link", AutoFocus: true,
+		Label:           locales.OnboardingLinkLabel(cx),
+		Value:           link,
+		PlaceholderFunc: func() string { return locales.OnboardingLinkPlaceholder(cx) },
+		OnChange:        live.On(a, func(text string) { *a.OnboardingLink() = text }),
+		OnSubmit: live.On(a, func(string) {
+			if Addable(*a.OnboardingLink()) {
+				a.OnboardingNext()
 			}
-			focused = in.Focused()
-		})
-		if focused {
-			field.Shadow(0, 0, 0, 3, blue.Alpha(0.5))
-		}
-		hint, ok := LinkHint(*value)
-		color := ui.Hex("#1B6B30")
+		}),
+		OnFocus: func() { focused.Set(true) },
+		OnBlur:  func() { focused.Set(false) },
+		Style:   core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 14, Color: ink, PlaceholderColor: gray, CaretColor: blue, SelectionColor: core.RGBA(0x0A66D8, 0.22)},
+	}
+	field := core.View{
+		Style: core.Style{Direction: core.Row, Height: core.Pt(44), CornerRadius: 10, Padding: core.Edges{Left: 13, Right: 14}, Gap: 8, AlignItems: core.AlignCenter,
+			Background: white, BorderWidth: 0.5, BorderColor: core.RGBA(0x000000, 0.14)},
+		StyleFunc: func() core.Style {
+			if focused.Get() {
+				return core.Style{Shadows: []core.BoxShadow{{Spread: 3, Color: core.RGBA(0x0A66D8, 0.5)}}}
+			}
+			return core.Style{Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 3, Color: core.RGBA(0x000000, 0.05)}}}
+		},
+		Children: []core.Node{
+			core.Icon{SVG: linkIcon, Style: core.Style{Width: core.Pt(15), Height: core.Pt(15), FlexShrink: 0, Color: gray}},
+			input,
+		},
+	}
+	hint := live.Memo(cx, a, func() hintLine {
+		hint, ok := LinkHint(cx, *a.OnboardingLink())
 		switch {
-		case a.OnboardingLinkError() != "" && *value != "":
-			hint, color = a.OnboardingLinkError(), ui.Hex("#C4291C")
+		case a.OnboardingLinkError() != "" && *a.OnboardingLink() != "":
+			return hintLine{a.OnboardingLinkError(), failedRed}
 		case hint == "":
-			hint, color = locales.OnboardingLinkHintEmpty(), gray
+			return hintLine{locales.OnboardingLinkHintEmpty(cx), gray}
 		case !ok:
-			color = ui.Hex("#C4291C")
+			return hintLine{hint, failedRed}
 		}
-		ui.Text(c, hint).FontSize(12).TextColor(color).MinHeight(16).Wrap()
+		return hintLine{hint, okGreen}
 	})
+	return core.View{Style: core.Style{Gap: 6, AlignItems: core.AlignStretch}, Children: []core.Node{
+		field,
+		core.Text{TestID: "onboarding-link-hint", ContentFunc: func() string { return hint().text }, Style: core.Style{FontSize: 12, MinHeight: core.Pt(16)},
+			StyleFunc: func() core.Style { return core.Style{Color: hint().color} }},
+	}}
+}
+
+// hintLine is the line under the link field and its color.
+type hintLine struct {
+	text  string
+	color core.Color
 }

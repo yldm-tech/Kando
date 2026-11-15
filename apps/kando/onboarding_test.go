@@ -18,40 +18,40 @@ import (
 	"kando/apps/kando/onboarding"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // newFirstRunApp is the app as main starts it on a Mac it has never run on: a home of its own with nothing in it, no library, settings.json where main keeps it, and the settings restored from that missing file.
-func newFirstRunApp(t *testing.T, p media.Pipeline) (*app, *ui.Tester, chan func(), string) {
+func newFirstRunApp(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func(), string) {
 	t.Helper()
 	return newFirstRunAppAt(t, p, t.TempDir())
 }
 
 // newFirstRunAppAt is newFirstRunApp with home, which may already hold folders, such as libraries from before.
-func newFirstRunAppAt(t *testing.T, p media.Pipeline, home string) (*app, *ui.Tester, chan func(), string) {
+func newFirstRunAppAt(t *testing.T, p media.Pipeline, home string) (*app, *nsgotest.App, chan func(), string) {
 	t.Helper()
 	onboardingHome(t, home)
 	t.Setenv("KANDO_OUTPUT_DIR", "")
-	a, tt, updates := newTestApp(p)
+	a, tt, updates := newTestApp(t, p)
 	a.edit(func(s *session) { s.LibraryDir = "" })
 	a.settingsPath = filepath.Join(home, "Library", "Application Support", "Kando", "settings.json")
 	a.prefs.modelsDir = filepath.Join(filepath.Dir(a.settingsPath), "models")
 	a.restoreSettings(a.loadSettings())
 	a.onboardingReady()
-	tt.Frame()
+	refresh(tt, a)
 	return a, tt, updates, home
 }
 
 // relaunch is the app main starts the next time with the same home: a fresh app that reads settings.json from where a saved it, as main does, and opens its window (onboardingReady).
-func relaunch(t *testing.T, a *app) (*app, *ui.Tester) {
+func relaunch(t *testing.T, a *app) (*app, *nsgotest.App) {
 	t.Helper()
-	b, btt, _ := newTestApp(&fakePipeline{})
+	b, btt, _ := newTestApp(t, &fakePipeline{})
 	b.edit(func(s *session) { s.LibraryDir = "" })
 	b.settingsPath = a.settingsPath
 	b.prefs.modelsDir = a.prefs.modelsDir
 	b.restoreSettings(b.loadSettings())
 	b.onboardingReady()
-	btt.Frame()
+	refresh(btt, b)
 	return b, btt
 }
 
@@ -75,13 +75,8 @@ func readSettingsFile(t *testing.T, path string) map[string]any {
 	return out
 }
 
-func click(t *testing.T, tt *ui.Tester, label string) {
-	t.Helper()
-	if err := tt.Click(label); err != nil {
-		t.Fatalf("click %q: %v; texts %q", label, err, tt.Texts())
-	}
-	tt.Frame()
-}
+// guideGone lets the guide's sheet finish closing, as its closing motion keeps it on screen for a moment after it closed.
+func guideGone(tt *nsgotest.App) { tt.Advance(time.Second) }
 
 // TestOnboardingShowsOnFirstLaunch checks that the guide opens on its first step when settings.json says nothing, instead of the page that asks for a library.
 func TestOnboardingShowsOnFirstLaunch(t *testing.T) {
@@ -108,7 +103,7 @@ func TestOnboardingStaysClosedOnceSeen(t *testing.T) {
 			if err := os.WriteFile(path, data, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			a, _, _ := newTestApp(&fakePipeline{})
+			a, _, _ := newTestApp(t, &fakePipeline{})
 			a.settingsPath = path
 			a.restoreSettings(loadSavedSettings(path))
 			if a.OnboardingStep() != 0 || !a.onb.done {
@@ -121,7 +116,8 @@ func TestOnboardingStaysClosedOnceSeen(t *testing.T) {
 // TestOnboardingSkipCreatesTheLibrary checks D8: skipping the guide on a Mac without a library makes 我的影片.kando in ~/Movies (~/Videos off macOS), as 新建资料库 would, opens it, saves it and the onboarded flag, and leaves the library page on 从一段视频开始 with the library's name under the title and the note about 帮助 › 重新查看入门引导.
 func TestOnboardingSkipCreatesTheLibrary(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
-	click(t, tt, "跳过")
+	tt.Press("跳过")
+	guideGone(tt)
 	want := filepath.Join(media.MoviesDir(), "我的影片"+media.LibraryExt)
 	if info, err := os.Stat(want); err != nil || !info.IsDir() {
 		t.Fatalf("library folder: %v", err)
@@ -138,16 +134,16 @@ func TestOnboardingSkipCreatesTheLibrary(t *testing.T) {
 	}
 	wantText(t, tt, "从一段视频开始")
 	wantText(t, tt, "我的影片")
-	wantText(t, tt, onboardingTip())
+	wantText(t, tt, a.onboardingTip())
 	wantNoText(t, tt, "还没有资料库")
 	wantNoText(t, tt, "欢迎使用看懂")
 
 	// The library is remembered: the next launch opens it again and the guide stays closed.
-	b, btt, _ := newTestApp(&fakePipeline{})
+	b, btt, _ := newTestApp(t, &fakePipeline{})
 	b.edit(func(s *session) { s.LibraryDir = "" })
 	b.settingsPath = a.settingsPath
 	b.restoreSettings(loadSavedSettings(b.settingsPath))
-	btt.Frame()
+	refresh(btt, b)
 	if b.snap().LibraryDir != want || b.OnboardingStep() != 0 {
 		t.Fatalf("next launch: library %q step %d", b.snap().LibraryDir, b.OnboardingStep())
 	}
@@ -161,13 +157,13 @@ func TestOnboardingOpensAnExistingLibrary(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "talk"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) { s.LibraryDir = "" })
 	a.settingsPath = filepath.Join(home, "settings.json")
 	a.restoreSettings(savedSettings{})
 	a.onboardingReady()
-	tt.Frame()
-	click(t, tt, "跳过")
+	refresh(tt, a)
+	tt.Press("跳过")
 	if a.snap().LibraryDir != dir || a.saveErr != "" {
 		t.Fatalf("library %q err %q", a.snap().LibraryDir, a.saveErr)
 	}
@@ -180,26 +176,26 @@ func TestOnboardingOpensAnExistingLibrary(t *testing.T) {
 func TestOnboardingSteps(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
 	wantNoText(t, tt, "上一步")
-	click(t, tt, "继续")
+	tt.Press("继续")
 	wantText(t, tt, "2 / 3")
 	wantText(t, tt, "下载组件和语音识别模型")
-	click(t, tt, "上一步")
+	tt.Press("上一步")
 	wantText(t, tt, "1 / 3")
-	click(t, tt, "Français")
+	tt.Press("Français")
 	if !slices.Contains(a.OnboardingLearning(), "fr") {
 		t.Fatalf("learning %q after choosing Français", a.OnboardingLearning())
 	}
-	click(t, tt, "English")
+	tt.Press("English")
 	saved := readSettingsFile(t, a.settingsPath)
 	if got := fmt.Sprint(saved["learnLanguages"]); got != "[ja fr]" {
 		t.Fatalf("learnLanguages %s, want [ja fr]", got)
 	}
-	click(t, tt, "继续")
-	click(t, tt, "继续")
+	tt.Press("继续")
+	tt.Press("继续")
 	wantText(t, tt, "3 / 3")
 	wantText(t, tt, "粘贴第一个链接")
 	wantText(t, tt, "先随便看看")
-	click(t, tt, "完成")
+	tt.Press("完成")
 	if a.OnboardingStep() != 0 || !a.onb.done {
 		t.Fatalf("step %d done %v after 完成", a.OnboardingStep(), a.onb.done)
 	}
@@ -210,7 +206,7 @@ func TestOnboardingLanguageGoesToTheJobs(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
 	*a.Language() = "日本語"
 	a.OnboardingSave()
-	tt.Frame()
+	refresh(tt, a)
 	// The tiles leave out the language subtitles are translated into.
 	if textCount(tt, "日语") != 0 {
 		t.Fatalf("the target's own tile is offered: %q", tt.Texts())
@@ -218,12 +214,10 @@ func TestOnboardingLanguageGoesToTheJobs(t *testing.T) {
 	if saved := readSettingsFile(t, a.settingsPath); saved["language"] != "日本語" {
 		t.Fatalf("language saved %v", saved["language"])
 	}
-	click(t, tt, "继续")
-	click(t, tt, "继续")
-	click(t, tt, "第一个视频的链接")
-	tt.Type("https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
-	tt.Frame()
-	click(t, tt, "加入并开始")
+	tt.Press("继续")
+	tt.Press("继续")
+	tt.Type("第一个视频的链接", "https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
+	tt.Press("加入并开始")
 	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Language != "日本語" {
 		t.Fatalf("jobs %+v", a.library.Jobs)
 	}
@@ -232,13 +226,11 @@ func TestOnboardingLanguageGoesToTheJobs(t *testing.T) {
 // TestOnboardingLinkIsEnqueued checks that the link typed on the last step goes to the queue of the library the guide opened, through Enqueue, and that the button says so.
 func TestOnboardingLinkIsEnqueued(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
-	click(t, tt, "继续")
-	click(t, tt, "继续")
-	click(t, tt, "第一个视频的链接")
-	tt.Type("youtube.com/watch?v=k9Yt2LmQ0pX")
-	tt.Frame()
+	tt.Press("继续")
+	tt.Press("继续")
+	tt.Type("第一个视频的链接", "youtube.com/watch?v=k9Yt2LmQ0pX")
 	wantText(t, tt, "识别为 YouTube 视频")
-	click(t, tt, "加入并开始")
+	tt.Press("加入并开始")
 	if len(a.library.Jobs) != 1 {
 		t.Fatalf("jobs %+v", a.library.Jobs)
 	}
@@ -251,20 +243,22 @@ func TestOnboardingLinkIsEnqueued(t *testing.T) {
 	}
 }
 
-// TestOnboardingRefusesWhatIsNotAVideo checks that a link that is not a video, or names a whole channel, cannot be added: the hint says why and the button stays off.
+// TestOnboardingRefusesWhatIsNotAVideo checks that a link that is not a video, or names a whole channel, cannot be added: the hint says why, the button stays off and Return does nothing.
 func TestOnboardingRefusesWhatIsNotAVideo(t *testing.T) {
 	for _, link := range []string{"not a link", "https://www.youtube.com/@SomeChannel"} {
 		t.Run(link, func(t *testing.T) {
 			a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
 			a.onb.step = 3
 			*a.OnboardingLink() = link
-			tt.Frame()
-			_ = tt.Click("加入并开始")
-			tt.Frame()
+			refresh(tt, a)
+			if !tt.Find("加入并开始").Props.Disabled {
+				t.Fatal("加入并开始 is on for a link that cannot be added")
+			}
+			tt.Submit("第一个视频的链接")
 			if a.OnboardingStep() != 3 || len(a.library.Jobs) != 0 {
 				t.Fatalf("step %d jobs %d", a.OnboardingStep(), len(a.library.Jobs))
 			}
-			if hint, ok := onboarding.LinkHint(link); ok || textCount(tt, hint) == 0 {
+			if hint, ok := onboarding.LinkHint(a.cx, link); ok || textCount(tt, hint) == 0 {
 				t.Fatalf("hint %q ok %v, texts %q", hint, ok, tt.Texts())
 			}
 		})
@@ -274,8 +268,7 @@ func TestOnboardingRefusesWhatIsNotAVideo(t *testing.T) {
 // TestOnboardingEscapeSkips checks that Escape closes the guide as 跳过 does.
 func TestOnboardingEscapeSkips(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
-	tt.Key(0, ui.KeyEscape)
-	tt.Frame()
+	tt.Key("escape")
 	if a.OnboardingStep() != 0 || !a.onb.done || a.snap().LibraryDir == "" {
 		t.Fatalf("step %d done %v library %q", a.OnboardingStep(), a.onb.done, a.snap().LibraryDir)
 	}
@@ -284,35 +277,40 @@ func TestOnboardingEscapeSkips(t *testing.T) {
 // TestOnboardingTipIsDismissedForGood checks the note shown after the guide: it stays until its × closes it, also across a restart, and not after.
 func TestOnboardingTipIsDismissedForGood(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
-	click(t, tt, "跳过")
-	b, btt, _ := newTestApp(&fakePipeline{})
+	tt.Press("跳过")
+	b, btt, _ := newTestApp(t, &fakePipeline{})
 	b.settingsPath = a.settingsPath
 	b.restoreSettings(loadSavedSettings(b.settingsPath))
-	btt.Frame()
-	wantText(t, btt, onboardingTip())
-	click(t, btt, "关闭提示")
-	wantNoText(t, btt, onboardingTip())
-	c, ctt, _ := newTestApp(&fakePipeline{})
+	refresh(btt, b)
+	wantText(t, btt, b.onboardingTip())
+	btt.Press("关闭提示")
+	wantNoText(t, btt, b.onboardingTip())
+	c, ctt, _ := newTestApp(t, &fakePipeline{})
 	c.settingsPath = a.settingsPath
 	c.restoreSettings(loadSavedSettings(c.settingsPath))
-	ctt.Frame()
-	wantNoText(t, ctt, onboardingTip())
+	refresh(ctt, c)
+	wantNoText(t, ctt, c.onboardingTip())
 }
 
 // TestHelpMenuReopensOnboarding checks 帮助 › 重新查看入门引导: it opens the guide at its first step with the link field empty, and finishing it again keeps the library that is open.
 func TestHelpMenuReopensOnboarding(t *testing.T) {
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.onb.done = true
 	a.onb.link = "https://example.com/old"
-	tt.Frame()
-	choose(t, findMenuItem(t, a.menuBar(), "帮助", "重新查看入门引导"), updates)
-	tt.Frame()
+	refresh(tt, a)
+	choose(tt, a, findMenuItem(t, a.menuBar(a.cx), "帮助", "重新查看入门引导"))
 	if a.OnboardingStep() != 1 || a.onb.link != "" {
 		t.Fatalf("step %d link %q", a.OnboardingStep(), a.onb.link)
 	}
 	wantText(t, tt, "欢迎使用看懂")
-	click(t, tt, "跳过")
+	if !a.modalOpen() {
+		t.Fatal("the guide does not hold the menu bar's commands while it is open")
+	}
+	tt.Press("跳过")
+	if a.modalOpen() {
+		t.Fatal("the guide still holds the menu bar's commands once closed")
+	}
 	if a.snap().LibraryDir != "/videos" {
 		t.Fatalf("library %q", a.snap().LibraryDir)
 	}
@@ -323,7 +321,7 @@ func TestOnboardingRecommendsModels(t *testing.T) {
 	a, _, _, _ := newFirstRunApp(t, &fakePipeline{})
 	ids := func() []string {
 		var out []string
-		for _, m := range a.OnboardingModels() {
+		for _, m := range a.OnboardingModels(a.cx) {
 			out = append(out, m.ID)
 		}
 		return out
@@ -371,18 +369,17 @@ func TestOnboardingDownloadsTheModel(t *testing.T) {
 	release := make(chan struct{})
 	fakeModelServer(t, 4096, release)
 	a, tt, updates, _ := newFirstRunApp(t, toolsInstalled)
-	click(t, tt, "继续")
+	tt.Press("继续")
 	wantText(t, tt, "下载并继续")
-	click(t, tt, "下载并继续")
+	tt.Press("下载并继续")
 	if a.OnboardingStep() != 3 || !a.OnboardingDownloading() {
 		t.Fatalf("step %d downloading %v", a.OnboardingStep(), a.OnboardingDownloading())
 	}
-	waitUntil(t, updates, func() bool { return a.prefs.downloadWritten > 0 })
-	click(t, tt, "上一步")
+	waitUntil(t, tt, a, updates, func() bool { return a.prefs.downloadWritten > 0 })
+	tt.Press("上一步")
 	wantText(t, tt, "下载中 50%")
 	close(release)
-	waitUntil(t, updates, func() bool { return !a.OnboardingDownloading() })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return !a.OnboardingDownloading() })
 	want := filepath.Join(a.prefs.modelsDir, "ggml-large-v3-turbo-q5_0.bin")
 	if info, err := os.Stat(want); err != nil || info.Size() != 4096 {
 		t.Fatalf("model file: %v", err)
@@ -402,13 +399,11 @@ func TestOnboardingDownloadsTheModel(t *testing.T) {
 func TestOnboardingCancelsTheDownload(t *testing.T) {
 	fakeModelServer(t, 4096, make(chan struct{}))
 	a, tt, updates, _ := newFirstRunApp(t, toolsInstalled)
-	click(t, tt, "继续")
+	tt.Press("继续")
 	a.OnboardingDownload("small")
-	waitUntil(t, updates, func() bool { return a.prefs.downloadWritten > 0 })
-	tt.Frame()
-	click(t, tt, "取消")
-	waitUntil(t, updates, func() bool { return !a.OnboardingDownloading() })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.prefs.downloadWritten > 0 })
+	tt.Press("取消")
+	waitUntil(t, tt, a, updates, func() bool { return !a.OnboardingDownloading() })
 	entries, _ := os.ReadDir(a.prefs.modelsDir)
 	if len(entries) != 0 {
 		t.Fatalf("models folder holds %v after 取消", entries)
@@ -432,6 +427,7 @@ func TestOnboardingSettingsPartIsItsOwn(t *testing.T) {
 // TestOnboardingAIStatus checks what the second step says about translation: a model to choose, the everyapi program, its sign-in or a key when one is missing, nothing claimed before the sign-in was checked, and the model once it is ready.
 func TestOnboardingAIStatus(t *testing.T) {
 	signIn := func(context.Context, bool) (media.Endpoint, error) { return media.Endpoint{}, nil }
+	msgs := testlocale.Messages()
 	for _, tc := range []struct {
 		name       string
 		translator media.ChatTranslator
@@ -439,18 +435,18 @@ func TestOnboardingAIStatus(t *testing.T) {
 		signInErr  error
 		want       onboarding.AI
 	}{
-		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}, false, nil, onboarding.AI{Text: noLLMModel(), Missing: true}},
-		{"everyapi without key or program", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, nil, onboarding.AI{Text: everyAPIMissing(), Missing: true}},
-		{"signed out", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPISignedOut, onboarding.AI{Text: everyAPISignedOut(), Missing: true}},
-		{"program gone since found", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPIMissing, onboarding.AI{Text: everyAPIMissing(), Missing: true}},
+		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}, false, nil, onboarding.AI{Text: msgs.PrecheckNoLLMModel(), Missing: true}},
+		{"everyapi without key or program", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, nil, onboarding.AI{Text: msgs.PrecheckEveryAPIMissing(), Missing: true}},
+		{"signed out", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPISignedOut, onboarding.AI{Text: msgs.PrecheckEveryAPISignedOut(), Missing: true}},
+		{"program gone since found", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPIMissing, onboarding.AI{Text: msgs.PrecheckEveryAPIMissing(), Missing: true}},
 		{"sign-in not checked", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, false, nil, onboarding.AI{Text: "翻译模型：m · 用本机登录的 EveryAPI，开始处理前会检查登录"}},
 		{"signed in", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, nil, onboarding.AI{Text: "翻译模型：m", Ready: true}},
 		{"key", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt", APIKey: "k"}, false, nil, onboarding.AI{Text: "翻译模型：gpt", Ready: true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			a, _, _ := newTestApp(media.Tools{Translator: tc.translator})
+			a, _, _ := newTestApp(t, media.Tools{Translator: tc.translator})
 			a.side.ready.signInDone, a.side.ready.signInErr = tc.checked, tc.signInErr
-			if got := a.OnboardingAI(); got != tc.want {
+			if got := a.OnboardingAI(a.cx); got != tc.want {
 				t.Fatalf("OnboardingAI = %+v, want %+v", got, tc.want)
 			}
 		})
@@ -460,8 +456,8 @@ func TestOnboardingAIStatus(t *testing.T) {
 // TestOnboardingReopensAfterQuitMidGuide checks that quitting while the guide is still open does not count as having seen it: the library the guide made under it is saved with onboarded false, and the next launch opens that library again with the guide back on its first step.
 func TestOnboardingReopensAfterQuitMidGuide(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
-	click(t, tt, "继续")
-	click(t, tt, "继续")
+	tt.Press("继续")
+	tt.Press("继续")
 	want := filepath.Join(media.MoviesDir(), "我的影片"+media.LibraryExt)
 	saved := readSettingsFile(t, a.settingsPath)
 	if saved["libraryDir"] != want || saved["onboarded"] != false {
@@ -475,7 +471,7 @@ func TestOnboardingReopensAfterQuitMidGuide(t *testing.T) {
 		t.Fatalf("next launch: library %q err %q", b.snap().LibraryDir, b.saveErr)
 	}
 	wantText(t, btt, "欢迎使用看懂")
-	click(t, btt, "跳过")
+	btt.Press("跳过")
 	if saved := readSettingsFile(t, a.settingsPath); saved["onboarded"] != true {
 		t.Fatalf("settings.json after 跳过: %v", saved)
 	}
@@ -507,13 +503,13 @@ func TestOnboardingLeavesADamagedSettingsFileAlone(t *testing.T) {
 			if err := os.WriteFile(path, data, 0o600); err != nil {
 				t.Fatal(err)
 			}
-			a, tt, _ := newTestApp(&fakePipeline{})
+			a, tt, _ := newTestApp(t, &fakePipeline{})
 			a.edit(func(s *session) { s.LibraryDir = "" })
 			a.settingsPath = path
 			saved := a.loadSettings()
 			a.restoreSettings(saved)
 			a.onboardingReady()
-			tt.Frame()
+			refresh(tt, a)
 			if a.OnboardingStep() != 0 {
 				t.Fatalf("the guide opened at step %d over a damaged settings.json", a.OnboardingStep())
 			}
@@ -572,56 +568,53 @@ func TestOnboardingReopensWithoutAMenuBar(t *testing.T) {
 	t.Cleanup(func() { appMenuBar = keep })
 
 	appMenuBar = true
-	if rows := (&app{}).onboardingKeys(); len(rows) != 0 {
+	withMenu := &app{}
+	withMenu.prefs.interfaceLanguage = testlocale.Current()
+	if rows := withMenu.onboardingKeys(nil); len(rows) != 0 {
 		t.Fatalf("with a menu bar: rows %+v", rows)
 	}
-	if !strings.Contains(onboardingTip(), "帮助 › 重新查看入门引导") {
-		t.Fatalf("with a menu bar: tip %q", onboardingTip())
+	if !strings.Contains(withMenu.onboardingTip(), "帮助 › 重新查看入门引导") {
+		t.Fatalf("with a menu bar: tip %q", withMenu.onboardingTip())
 	}
 
 	appMenuBar = false
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.onb.done = true
-	tt.Frame()
-	rows := a.onboardingKeys()
-	if len(rows) != 1 || rows[0].Group != groupHelp || rows[0].Key != ui.KeyF1 || rows[0].Label != "重新查看入门引导" {
+	refresh(tt, a)
+	rows := a.onboardingKeys(a.cx)
+	if len(rows) != 1 || rows[0].Group != groupHelp || rows[0].Key != "f1" || rows[0].Label != "重新查看入门引导" {
 		t.Fatalf("rows %+v", rows)
 	}
-	tt.Key(0, ui.KeyF1)
-	tt.Frame()
+	tt.Key("f1")
 	if a.OnboardingStep() != 1 {
 		t.Fatalf("F1: step %d", a.OnboardingStep())
 	}
-	click(t, tt, "跳过")
-	if strings.Contains(onboardingTip(), "帮助") || !strings.Contains(onboardingTip(), "F1") {
-		t.Fatalf("without a menu bar: tip %q", onboardingTip())
+	tt.Press("跳过")
+	if strings.Contains(a.onboardingTip(), "帮助") || !strings.Contains(a.onboardingTip(), "F1") {
+		t.Fatalf("without a menu bar: tip %q", a.onboardingTip())
 	}
-	wantText(t, tt, onboardingTip())
+	wantText(t, tt, a.onboardingTip())
 }
 
 // TestOnboardingTipWaitsBehindTheFinishMessage checks the note after the guide finishes with a link: 已加入，开始处理。 shows first, the note takes the message bar once that is closed, and it is gone for good once its own × has closed it, also on the next launch.
 func TestOnboardingTipWaitsBehindTheFinishMessage(t *testing.T) {
 	a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
-	click(t, tt, "继续")
-	click(t, tt, "继续")
-	click(t, tt, "第一个视频的链接")
-	tt.Type("https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
-	tt.Frame()
-	click(t, tt, "加入并开始")
+	tt.Press("继续")
+	tt.Press("继续")
+	tt.Type("第一个视频的链接", "https://www.youtube.com/watch?v=k9Yt2LmQ0pX")
+	tt.Press("加入并开始")
 	wantText(t, tt, "已加入，开始处理。")
-	wantNoText(t, tt, onboardingTip())
+	wantNoText(t, tt, a.onboardingTip())
 	if saved := readSettingsFile(t, a.settingsPath); saved["onboardingTip"] != true {
 		t.Fatalf("settings.json %v", saved)
 	}
-	click(t, tt, "关闭提示")
-	tt.Frame()
-	wantText(t, tt, onboardingTip())
-	click(t, tt, "关闭提示")
-	tt.Frame()
-	wantNoText(t, tt, onboardingTip())
-	_, btt := relaunch(t, a)
-	wantNoText(t, btt, onboardingTip())
+	tt.Press("关闭提示")
+	wantText(t, tt, a.onboardingTip())
+	tt.Press("关闭提示")
+	wantNoText(t, tt, a.onboardingTip())
+	b, btt := relaunch(t, a)
+	wantNoText(t, btt, b.onboardingTip())
 }
 
 // TestOnboardingInEnglish walks the guide in English: each step's title, buttons and lines, what the link field reads a link as, and the note it leaves in the library once it is closed.
@@ -634,22 +627,23 @@ func TestOnboardingInEnglish(t *testing.T) {
 	for _, chinese := range []string{"欢迎使用看懂", "字幕翻译成", "日语", "继续", "跳过"} {
 		wantNoText(t, tt, chinese)
 	}
-	click(t, tt, "Continue")
+	tt.Press("Continue")
 	for _, want := range []string{"2 / 3", "Download Components and a Speech Model", "Translation · AI Service", "Set up", "Settings…", "Back"} {
 		wantText(t, tt, want)
 	}
-	click(t, tt, "Continue")
+	tt.Press("Continue")
 	for _, want := range []string{"Paste Your First Link", "Just Look Around", "Done", "Press Enter to start. No link? Skip for now and drag a local video into the window later."} {
 		wantText(t, tt, want)
 	}
 	*a.OnboardingLink() = "https://www.youtube.com/watch?v=k9Yt2LmQ0pX&list=PL123"
-	tt.Frame()
+	refresh(tt, a)
 	wantText(t, tt, "Recognized as a YouTube video. Only this one is added, not the whole playlist")
 	wantText(t, tt, "Add and Start")
 	*a.OnboardingLink() = ""
-	tt.Frame()
-	click(t, tt, "Just Look Around")
-	tip := onboardingTip()
+	refresh(tt, a)
+	tt.Press("Just Look Around")
+	guideGone(tt)
+	tip := a.onboardingTip()
 	if !strings.Contains(tip, "come back here") {
 		t.Fatalf("tip %q is not English", tip)
 	}
