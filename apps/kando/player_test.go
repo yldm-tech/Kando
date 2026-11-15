@@ -220,8 +220,8 @@ func TestOpenAtSeeksOnceLoaded(t *testing.T) {
 // TestUnsupportedVideoPlaysFromACopy has the system's player fail on the open video, as AVFoundation fails on an MKV: the page plays a copy ffmpeg makes in place of the video, first with its streams as they are, then encoded anew when that fails too, and says the video cannot be played once both have.
 func TestUnsupportedVideoPlaysFromACopy(t *testing.T) {
 	bin := t.TempDir()
-	// The stand-in writes its output file, the last argument, as ffmpeg does.
-	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for last; do :; done\nprintf copy > \"$last\"\n")
+	// The stand-in writes its output file, the last argument, as ffmpeg does; asked for a poster on its standard output (pipe:1) it has none, rather than writing a file of that name where the test runs.
+	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for last; do :; done\n[ \"$last\" = pipe:1 ] && exit 1\nprintf copy > \"$last\"\n")
 	a, tt, updates, item := playerFilm(t, 12, media.Tools{FFmpeg: ffmpeg})
 	openFilm(t, a, tt, updates, item)
 	apply(tt, a, func() { a.VideoFailed(errors.New("cannot open")) })
@@ -249,8 +249,8 @@ func TestUnsupportedVideoPlaysFromACopy(t *testing.T) {
 // TestUnsupportedVideoEncodedWhenTheCopyFails has ffmpeg fail to copy the open video's streams into an MP4 as they are, as it does for a WebM's VP8 and Vorbis: the page plays a copy encoded anew instead of saying the video cannot be played.
 func TestUnsupportedVideoEncodedWhenTheCopyFails(t *testing.T) {
 	bin := t.TempDir()
-	// The stand-in fails to copy the streams as they are and writes its output file, the last argument, when it encodes them.
-	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for arg; do [ \"$arg\" = copy ] && exit 1; done\nfor last; do :; done\nprintf encoded > \"$last\"\n")
+	// The stand-in fails to copy the streams as they are and writes its output file, the last argument, when it encodes them; asked for a poster on its standard output (pipe:1) it has none.
+	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for arg; do [ \"$arg\" = copy ] && exit 1; done\nfor last; do :; done\n[ \"$last\" = pipe:1 ] && exit 1\nprintf encoded > \"$last\"\n")
 	a, tt, updates, item := playerFilm(t, 12, media.Tools{FFmpeg: ffmpeg})
 	openFilm(t, a, tt, updates, item)
 	apply(tt, a, func() { a.VideoFailed(errors.New("cannot open")) })
@@ -357,10 +357,12 @@ func TestOpenFilmStartsLocalVideo(t *testing.T) {
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.refreshLibrary()
 	refresh(tt, a)
-	item, ok := films.Find(a.films(), filepath.Join(dir, "interview.mp4"))
-	if !ok {
+	// The refresh gathers the video into a folder of its own, so the film is found by its title, as the poster's click found it
+	at := slices.IndexFunc(a.films(), func(f films.Film) bool { return f.Title == "interview" })
+	if at < 0 {
 		t.Fatalf("films %+v", a.films())
 	}
+	item := a.films()[at]
 	openFilm(t, a, tt, updates, item)
 	wantText(t, tt, testlocale.Messages().FilmNoSubtitlesYet())
 	tt.Press("id:film-start")
@@ -601,7 +603,8 @@ func TestScrubberSeeksOnRelease(t *testing.T) {
 	a, tt, _ := playerOpen(t)
 	bar := tt.Find("id:film-scrubber")
 	w, y := bar.Frame.Size.Width, bar.Frame.Size.Height/2
-	tt.DragAt("id:film-scrubber", ns.Point{X: w * 0.25, Y: y}, ns.Point{X: w * 0.75, Y: y})
+	// nsgotest's path is offsets from where the drag starts, so the pointer goes from a quarter to three quarters of the bar
+	tt.DragAt("id:film-scrubber", ns.Point{X: w * 0.25, Y: y}, ns.Point{X: w * 0.5})
 	got := seeks(tt)
 	if len(got) != 1 {
 		t.Fatalf("the drag seeked %v times, want once as it ended", got)
@@ -618,7 +621,10 @@ func TestScrubberSeeksOnRelease(t *testing.T) {
 func TestOpeningAFilmKeepsWhereItStopped(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)
 	path := filepath.Join(t.TempDir(), "library.json")
+	// The library.json at path starts empty, so the film's job comes along: the library column shows only a film the shelf or the queue has (libraryOpenFilm)
+	jobs := a.library.Jobs
 	a.openLibrary(path)
+	a.library.Jobs = jobs
 	a.player.positions = map[string]time.Duration{item.VideoPath: 6 * time.Second}
 	a.areasPositionsChanged()
 	openFilm(t, a, tt, updates, item)
@@ -637,7 +643,10 @@ func TestOpeningAFilmKeepsWhereItStopped(t *testing.T) {
 func TestContinuingAFilmKeepsWhereItGotTo(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)
 	path := filepath.Join(t.TempDir(), "library.json")
+	// The library.json at path starts empty, so the film's job comes along: the library column shows only a film the shelf or the queue has (libraryOpenFilm)
+	jobs := a.library.Jobs
 	a.openLibrary(path)
+	a.library.Jobs = jobs
 	apply(tt, a, func() { a.OpenAt(item, 6*time.Second) })
 	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
 	loadFilm(tt, a, 12*time.Second)
@@ -1297,8 +1306,11 @@ func TestNowPlayingShowsThePosterAndTheEnd(t *testing.T) {
 	openFilm(t, a, tt, updates, item)
 	rec.command(nowplaying.Play, 0)
 	waitUntil(t, tt, a, updates, func() bool { return a.player.play.played })
-	if e := rec.last(t); e.kind != "clear" && (e.kind != "playback" || e.state != nowplaying.Playing) {
-		t.Fatalf("play while the film opens told the system %+v", e)
+	// The system is shown the film only once the system's player has loaded it (playerNowPlayingShow), so a key before that may tell it nothing yet; whatever it was told must not say the film holds
+	if len(rec.events) > 0 {
+		if e := rec.last(t); e.kind != "clear" && (e.kind != "playback" || e.state != nowplaying.Playing) {
+			t.Fatalf("play while the film opens told the system %+v", e)
+		}
 	}
 	loadFilm(tt, a, 10*time.Second)
 	if !a.player.play.Playing() || video(tt).Paused {

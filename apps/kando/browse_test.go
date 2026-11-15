@@ -35,9 +35,23 @@ func browseApp(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func()
 	return a, tt, updates, &cleared
 }
 
-// browseReport reports nav for the web view as the platform does once a page starts loading and once it has loaded, and settles.
+// browseReport reports nav for the web view as the platform does once a page starts loading and once it has loaded, and settles. The web view reports while it is hidden behind the start too (after home), where nsgotest's Navigate, which looks only at shown views, finds nothing, so the reports go to the mounted view as Navigate sends them.
 func browseReport(tt *nsgotest.App, nav ns.WebNavigation) {
-	tt.Navigate(browsePage, nav)
+	// TODO(nsgo): let nsgotest's Navigate report for a mounted web view that is hidden, as a platform's hidden web view goes on reporting its loads, rather than only for a view it shows
+	web := tt.FindMounted(browsePage)
+	for _, loading := range []bool{true, false} {
+		nav.Loading = loading
+		kind := nsgotest.EventLoad
+		if loading {
+			kind = nsgotest.EventLoadStart
+		}
+		for _, k := range []nsgotest.EventKind{kind, nsgotest.EventNavigationStateChange} {
+			if web.Events.Has(k) {
+				n := nav
+				tt.Report(nsgotest.Event{Kind: k, ID: web.ID, Navigation: &n})
+			}
+		}
+	}
 	tt.Settle()
 }
 
@@ -391,14 +405,14 @@ func TestBrowseSaysWhenAPageFails(t *testing.T) {
 
 // browseLoading reports that the page started loading rawURL, as the platform does before the page loads or fails.
 func browseLoading(tt *nsgotest.App, rawURL string) {
-	web := tt.Find(browsePage)
+	web := tt.FindMounted(browsePage)
 	tt.Report(nsgotest.Event{Kind: nsgotest.EventNavigationStateChange, ID: web.ID, Navigation: &ns.WebNavigation{URL: rawURL, Loading: true, CanGoBack: true}})
 	tt.Settle()
 }
 
 // browseCancelled reports the failure the platform reports for a load cut short, as WKWebView does for NSURLErrorCancelled (-999).
 func browseCancelled(tt *nsgotest.App, rawURL string) {
-	tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: tt.Find(browsePage).ID, Text: "The operation couldn’t be completed. (NSURLErrorDomain error -999.)", Navigation: &ns.WebNavigation{URL: rawURL}})
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: tt.FindMounted(browsePage).ID, Text: "The operation couldn’t be completed. (NSURLErrorDomain error -999.)", Navigation: &ns.WebNavigation{URL: rawURL}})
 	tt.Settle()
 }
 

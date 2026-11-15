@@ -2252,12 +2252,12 @@ func TestClickingANotificationShowsTheJob(t *testing.T) {
 
 // TestTheNotificationSwitchIsSaved checks the switch in Settings › 通用: it turns the notifications off, settings.json keeps that, and they are on again for an app that never turned them off.
 func TestTheNotificationSwitchIsSaved(t *testing.T) {
-	a, _, _ := newTestApp(t, &fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	if !a.JobNotifications() {
 		t.Fatal("notifications are off by default")
 	}
-	st := settingsOpenAt(a, nil, settings.SectionGeneral)
+	st := settingsOpenAt(a, tt, settings.SectionGeneral)
 	for _, text := range []string{"影片处理完时通知", "看懂在后台时，影片的字幕做好了或没能做好，都会发一条通知。"} {
 		if !shows(st, text) {
 			t.Fatalf("no %q: %q", text, st.Texts())

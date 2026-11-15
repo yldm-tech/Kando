@@ -43,7 +43,7 @@ func TestLibraryShowsAndRestoresJob(t *testing.T) {
 	if !shows(tt, "talk") || !shows(tt, "最近完成") {
 		t.Fatalf("texts %q after the job", tt.Texts())
 	}
-	if n := sidebarCount(t, tt, "全部影片"); n != "1" {
+	if n := sidebarCount(t, tt, sidebar.SourceAll); n != "1" {
 		t.Fatalf("全部影片 shows %q films, texts %q", n, tt.Texts())
 	}
 
@@ -487,7 +487,8 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 	if countText(tt, "重试") != 2 || countText(tt, "移除") != 2 {
 		t.Fatalf("the failed cards hide 重试 or 移除 while a job runs: %q", tt.Texts())
 	}
-	tt.Press("移除")
+	// Either failed card will do, as the check below takes either; nsgotest asks which of the two, where MyGo clicked the first
+	tt.Press("移除 >> nth=0")
 	refresh(tt, a)
 	left := ""
 	for _, id := range []string{"gone", "old"} {
@@ -1487,7 +1488,7 @@ func TestSearchFiltersTheShelfByTitle(t *testing.T) {
 		t.Fatalf("films.ByTitle(RIVERS) = %+v", listed)
 	}
 	// The sidebar's sources go on counting the whole library, and a source narrows the search further.
-	if n := sidebarCount(t, tt, "YouTube"); n != "3" {
+	if n := sidebarCount(t, tt, sidebar.SourceYouTube); n != "3" {
 		t.Fatalf("YouTube counts %q while searching", n)
 	}
 	a.SetSourceFilter(sidebar.SourceLocal)
@@ -1502,7 +1503,8 @@ func TestSearchFiltersTheShelfByTitle(t *testing.T) {
 	if !shows(tt, "没有名称包含「ocean」的已完成影片。") || shows(tt, "Rivers of Europe") || !shows(tt, "Morning Market") {
 		t.Fatalf("searching ocean shows %q", tt.Texts())
 	}
-	tt.Press("清除搜索")
+	// The empty page's 清除搜索, not the sidebar search field's clear button, which NSGo labels 清除搜索 too
+	tt.Press("id:films-search-clear")
 	refresh(tt, a)
 	if a.side.query != "" || !shows(tt, "最近完成") || !shows(tt, "Linear Algebra") || shows(tt, "清除搜索") {
 		t.Fatalf("清除搜索 left query %q: %q", a.side.query, tt.Texts())
@@ -1612,7 +1614,7 @@ func TestLibrarySortOrdersTheGrid(t *testing.T) {
 	b.restoreSettings(loadSavedSettings(a.settingsPath))
 	b.library.Jobs = a.library.Jobs
 	b.refreshLibrary()
-	refresh(tt, a)
+	refresh(btt, b)
 	if got := libraryGridOrder(t, btt, names...); b.LibrarySort() != films.SortSource || got != "apple,Zebra,Mango" {
 		t.Fatalf("restored sort %q shows %s", b.LibrarySort(), got)
 	}
