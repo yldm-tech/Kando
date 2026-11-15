@@ -14,6 +14,8 @@
 
 看懂是一款用原声视频学外语的桌面应用。粘贴 YouTube 或哔哩哔哩链接，或者把视频文件拖到窗口上：看懂会用 yt-dlp 下载视频，在本机用 whisper.cpp 转录语音，再通过 OpenAI 兼容模型逐句翻译，然后播放原视频，屏幕上同时显示原文和译文。它用 Go 编写，原生界面由 [NSGo](https://github.com/nsgo-dev/nsgo) 绘制，没有使用 Web 视图。
 
+[![34 秒了解看懂（点击观看有声音的完整视频）](docs/assets/promo-preview.webp)](docs/assets/promo.mp4)
+
 ![资料库：最近完成的影片、正在处理的任务和资料库中的影片](docs/assets/zh-CN/library.png)
 
 界面支持简体中文、繁体中文、英文、日文和韩文，默认是简体中文；在“设置 › 通用 › 界面语言”中切换，窗口会立即换成所选语言。下文引用的界面文字都与简体中文界面一致。
@@ -287,3 +289,5 @@ go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 ap
 ## 许可证
 
 [MIT](LICENSE)
+
+上方视频里的电影片段来自《Tears of Steel》（© Blender Foundation | mango.blender.org），按 [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) 使用。

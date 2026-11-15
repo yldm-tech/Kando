@@ -14,6 +14,8 @@
 
 Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공부하는 데스크톱 앱입니다. YouTube나 Bilibili 링크를 붙여 넣거나 동영상 파일을 창에 끌어다 놓으면, Kando가 yt-dlp로 동영상을 내려받고, whisper.cpp로 사용자의 컴퓨터에서 음성을 전사하고, OpenAI 호환 모델로 각 대사를 번역한 뒤, 원문 대사와 번역을 화면에 함께 띄워 원본 동영상을 재생합니다. Go로 작성되었고 [NSGo](https://github.com/nsgo-dev/nsgo)로 네이티브 인터페이스를 렌더링하며, 웹 뷰는 사용하지 않습니다.
 
+[![34초로 보는 Kando (클릭하면 소리와 함께 재생)](docs/assets/promo-preview.webp)](docs/assets/promo.mp4)
+
 ![라이브러리: 가장 최근 영상, 진행 중인 작업, 라이브러리의 영상](docs/assets/ko/library.png)
 
 인터페이스는 한국어, 영어, 간체 중국어, 번체 중국어, 일본어로 제공됩니다. 처음에는 간체 중국어로 표시되므로 설정 › 일반 › 인터페이스 언어에서 바꾸세요. 창이 바로 선택한 언어로 바뀝니다. 아래에 인용한 레이블은 한국어 인터페이스에 표시되는 그대로입니다.
@@ -287,3 +289,5 @@ go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 ap
 ## 라이선스
 
 [MIT](LICENSE)
+
+위 영상에 나오는 영화는 《Tears of Steel》(© Blender Foundation | mango.blender.org)이며 [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)에 따라 사용했습니다.
