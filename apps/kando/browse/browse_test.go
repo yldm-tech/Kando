@@ -1,0 +1,365 @@
+package browse
+
+import (
+	"context"
+	"errors"
+	"slices"
+	"testing"
+	"time"
+
+	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
+	"kando/packages/media"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
+)
+
+func TestMain(m *testing.M) {
+	testlocale.Pin(locales.Default)
+	nsgotest.Main(m)
+}
+
+// fakeApp is the browser's state the page reads, kept as plain fields as the app keeps them, with the calls the page made and what the web view reported.
+type fakeApp struct {
+	live.Rev
+	state      State
+	source     string
+	web        core.Ref
+	agent      string
+	script     string
+	address    string
+	focus      bool
+	focused    bool
+	notice     Notice
+	clearOpen  bool
+	navs       []core.WebNavigation
+	failures   []error
+	messages   []string
+	calls      []string
+	settingsAt string
+}
+
+func (f *fakeApp) call(name string) { f.calls = append(f.calls, name) }
+
+func (f *fakeApp) BrowseState() State                     { return f.state }
+func (f *fakeApp) BrowseSource() string                   { return f.source }
+func (f *fakeApp) BrowseWeb() *core.Ref                   { return &f.web }
+func (f *fakeApp) BrowseUserAgent() string                { return f.agent }
+func (f *fakeApp) BrowseScript() string                   { return f.script }
+func (f *fakeApp) BrowseNavigated(nav core.WebNavigation) { f.navs = append(f.navs, nav) }
+func (f *fakeApp) BrowseFailed(err error)                 { f.failures = append(f.failures, err) }
+func (f *fakeApp) BrowseMessage(data string)              { f.messages = append(f.messages, data) }
+func (f *fakeApp) BrowseAddress() *string                 { return &f.address }
+func (f *fakeApp) BrowseAddressFocus() *bool              { return &f.focus }
+func (f *fakeApp) BrowseAddressFocused(focused bool)      { f.focused = focused }
+func (f *fakeApp) BrowseGo()                              { f.call("go " + f.address) }
+func (f *fakeApp) BrowseBack()                            { f.call("back") }
+func (f *fakeApp) BrowseForward()                         { f.call("forward") }
+func (f *fakeApp) BrowseReload()                          { f.call("reload") }
+func (f *fakeApp) BrowseStop()                            { f.call("stop") }
+func (f *fakeApp) BrowseHome()                            { f.call("home") }
+func (f *fakeApp) BrowseDownload()                        { f.call("download") }
+func (f *fakeApp) BrowseNotice() *Notice                  { return &f.notice }
+func (f *fakeApp) BrowseClearOpen() bool                  { return f.clearOpen }
+func (f *fakeApp) BrowseAskClear()                        { f.call("ask clear"); f.clearOpen = true }
+func (f *fakeApp) BrowseClear()                           { f.call("clear"); f.clearOpen = false }
+func (f *fakeApp) BrowseCancelClear()                     { f.call("cancel clear"); f.clearOpen = false }
+func (f *fakeApp) OpenSettings(section string)            { f.settingsAt = section }
+
+// show shows the browser of a across the window, on a Mac, in testlocale's language.
+func show(t *testing.T, a *fakeApp) *nsgotest.App {
+	t.Helper()
+	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+	return nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a.Attach(cx)
+		return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignStretch}, Children: []core.Node{View{App: a}}}
+	}, nsgotest.Size(1000, 700), nsgotest.Environment(env))
+}
+
+// change runs fn on the app's state as a handler or a background report would, and settles.
+func change(app *nsgotest.App, a *fakeApp, fn func()) {
+	fn()
+	a.Changed()
+	app.Settle()
+}
+
+func whole(s string) string { return `text:"` + s + `"` }
+
+// onPage is the state of a web page that loaded and has somewhere to go back to.
+func onPage(a *fakeApp, url string) {
+	a.source = url
+	a.state = State{Page: true, CanGoBack: true}
+}
+
+// Before a page opens the start shows, without a web view: 下载视频, back, forward, reload and home are off, and 清除登录信息… shows only where the sign-ins can be cleared.
+func TestStartShowsBeforeAPage(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.BrowseEmptyTitle())) || !app.Exists(whole(msgs.BrowseEmptyDescription())) {
+		t.Fatalf("no start: %q", app.Texts())
+	}
+	if app.Exists("id:browse-page") {
+		t.Fatal("a web view before any page was asked for")
+	}
+	for _, id := range []string{"browse-download", "browse-back", "browse-forward", "browse-reload", "browse-home"} {
+		if app.Enabled("id:" + id) {
+			t.Errorf("%s is on before a page", id)
+		}
+	}
+	if app.Exists("id:browse-clear") {
+		t.Fatal("清除登录信息… shows where the sign-ins cannot be cleared")
+	}
+	change(app, a, func() { a.state.Clearable = true })
+	app.Press("id:browse-clear")
+	if !slices.Equal(a.calls, []string{"ask clear"}) {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() { a.state.Clearing = true })
+	if app.Enabled("id:browse-clear") {
+		t.Fatal("清除登录信息… is on while the sign-ins are being cleared")
+	}
+}
+
+// Once a page is asked for, the web view shows it, held to the web, with the app's user agent and script; what it reports reaches the app. After home the start shows over the web view, which keeps its page.
+func TestPageShowsTheWebView(t *testing.T) {
+	a := &fakeApp{agent: "Kando-Test", script: "window.kando = 1"}
+	app := show(t, a)
+	change(app, a, func() { onPage(a, "https://example.com/") })
+	web := app.Find("id:browse-page")
+	if web.Web.Source.Src != "https://example.com/" || web.Web.UserAgent != "Kando-Test" || web.Web.InjectedJavaScriptBeforeContent != "window.kando = 1" {
+		t.Fatalf("web view %+v", web.Web)
+	}
+	if !web.Web.Restricted || web.Web.Hosts != "*" || web.Web.Navigable("file:///etc/passwd") || web.Web.Navigable("kando://open") || !web.Web.Navigable("https://www.bilibili.com/video/BV1") {
+		t.Fatalf("the web view is not held to the web: restricted %v hosts %q", web.Web.Restricted, web.Web.Hosts)
+	}
+	if app.Exists(whole(testlocale.Messages().BrowseEmptyTitle())) {
+		t.Fatal("the start shows over the page")
+	}
+	app.Navigate("id:browse-page", core.WebNavigation{URL: "https://example.com/a", CanGoBack: true})
+	if len(a.navs) == 0 || a.navs[len(a.navs)-1].URL != "https://example.com/a" || a.navs[len(a.navs)-1].Loading {
+		t.Fatalf("navigations %+v", a.navs)
+	}
+	app.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: web.ID, Text: "A server with the specified hostname could not be found.", Navigation: &core.WebNavigation{URL: "https://nowhere.example/"}})
+	app.PostMessage("id:browse-page", "kando-history:push")
+	app.Settle()
+	var we *core.WebError
+	if len(a.failures) != 1 || !errors.As(a.failures[0], &we) || we.URL != "https://nowhere.example/" || !slices.Equal(a.messages, []string{"kando-history:push"}) {
+		t.Fatalf("failures %v, messages %q", a.failures, a.messages)
+	}
+	change(app, a, func() { a.state.Page = false })
+	if !app.Exists(whole(testlocale.Messages().BrowseEmptyTitle())) || len(app.QueryMounted("id:browse-page")) != 1 {
+		t.Fatal("home did not show the start over the web view, or dropped the web view")
+	}
+}
+
+// The toolbar's buttons reach the app: back and forward while the page has somewhere to go, stop in place of reload while it loads, and home and 下载视频 on a page.
+func TestToolbarDrivesTheApp(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	change(app, a, func() { onPage(a, "https://example.com/") })
+	if app.Enabled("id:browse-forward") {
+		t.Fatal("forward is on without a page to go forward to")
+	}
+	if pill := app.Find("id:browse-download"); pill.Frame.Size.Height != 34 || pill.Style.CornerRadius != 17 || pill.Props.Label != testlocale.Messages().BrowseDownload() {
+		t.Fatalf("下载视频 is %v with corners of %v, named %q", pill.Frame.Size, pill.Style.CornerRadius, pill.Props.Label)
+	}
+	app.Press("id:browse-back")
+	app.Press("id:browse-reload")
+	app.Press("id:browse-home")
+	app.Press("id:browse-download")
+	change(app, a, func() { a.state.Loading, a.state.CanGoForward = true, true })
+	if app.Exists("id:browse-reload") {
+		t.Fatal("reload shows while the page loads")
+	}
+	app.Press(testlocale.Messages().BrowseStop())
+	app.Press("id:browse-forward")
+	if want := []string{"back", "reload", "home", "download", "stop", "forward"}; !slices.Equal(a.calls, want) {
+		t.Fatalf("calls %q, want %q", a.calls, want)
+	}
+}
+
+// ⌘L's request puts the keyboard in the address field and the app hears it take the keyboard; Enter opens what it holds.
+func TestAddressField(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	if app.Find("id:browse-address").Focused {
+		t.Fatal("the field has the keyboard before it was asked for")
+	}
+	change(app, a, func() { a.focus = true })
+	if a.focus || !app.Find("id:browse-address").Focused || !a.focused {
+		t.Fatalf("request %v, focused %v, heard %v", a.focus, app.Find("id:browse-address").Focused, a.focused)
+	}
+	app.Type(testlocale.Messages().BrowseAddressLabel(), "example.com")
+	app.Submit("id:browse-address")
+	if a.address != "example.com" || !slices.Equal(a.calls, []string{"go example.com"}) {
+		t.Fatalf("address %q, calls %q", a.address, a.calls)
+	}
+}
+
+// The message bar says what went wrong with 打开设置 when a setting fixes it, or that something worked without it, and its close button closes it.
+func TestNoticeShowsAndCloses(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	if app.Exists("id:browse-notice") {
+		t.Fatal("a message bar with nothing to say")
+	}
+	change(app, a, func() { a.notice = Notice{Kind: "warning", Text: "缺少语音模型", Section: "speech", Open: true} })
+	if !app.Exists(whole("缺少语音模型")) {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	app.Press(whole(testlocale.Messages().BrowseOpenSettings()))
+	if a.settingsAt != "speech" {
+		t.Fatalf("settings at %q", a.settingsAt)
+	}
+	change(app, a, func() { a.notice = Notice{Kind: "success", Text: "已加入资料库", Open: true} })
+	if app.Exists("id:browse-notice-settings") || !app.Exists(whole("已加入资料库")) {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	app.Press(testlocale.Messages().BrowseNoticeClose())
+	if a.notice.Open || app.Exists("id:browse-notice") {
+		t.Fatal("the close button left the bar open")
+	}
+}
+
+// 清除登录信息… asks first: Enter, Escape and 取消 keep the sign-ins, and only 清除 clears.
+func TestClearAsksFirst(t *testing.T) {
+	a := &fakeApp{state: State{Clearable: true}}
+	app := show(t, a)
+	msgs := testlocale.Messages()
+	for _, key := range []string{"enter", "escape", ""} {
+		change(app, a, func() { a.clearOpen = true })
+		if !app.Exists(whole(msgs.BrowseClearTitle())) {
+			t.Fatalf("no confirmation: %q", app.Texts())
+		}
+		if key == "" {
+			app.Press("id:browse-clear-cancel")
+		} else {
+			app.Key(key)
+		}
+		if a.clearOpen || app.Exists(whole(msgs.BrowseClearTitle())) {
+			t.Fatalf("%q left the confirmation open", key)
+		}
+	}
+	change(app, a, func() { a.clearOpen = true })
+	app.Press("id:browse-clear-confirm-button")
+	if want := []string{"cancel clear", "cancel clear", "cancel clear", "clear"}; !slices.Equal(a.calls, want) {
+		t.Fatalf("calls %q, want %q", a.calls, want)
+	}
+}
+
+// What the page reads follows the app's whole revision; a change that leaves it the same builds nothing again, so the web view keeps its page and the address field its focus and what is typed in it.
+func TestBrowserStaysWhileTheAppChanges(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	change(app, a, func() { onPage(a, "https://example.com/") })
+	app.Type("id:browse-address", "https://exa")
+	web, field := app.Find("id:browse-page").ID, app.Find("id:browse-address").ID
+	change(app, a, func() {})
+	if app.Find("id:browse-page").ID != web || app.Find("id:browse-address").ID != field {
+		t.Fatal("the browser was built again though nothing it shows changed")
+	}
+	if v := app.Find("id:browse-address"); !v.Focused || a.address != "https://exa" {
+		t.Fatalf("the field lost what was typed: focused %v, address %q", v.Focused, a.address)
+	}
+	if n := len(app.Find("id:browse-page").WebCommands); n != 0 {
+		t.Fatalf("the web view was sent %d commands", n)
+	}
+}
+
+// The browser follows the interface's language as it changes, the words set as its buttons are built among them.
+func TestBrowserFollowsTheLanguage(t *testing.T) {
+	a := &fakeApp{state: State{Clearable: true}}
+	app := show(t, a)
+	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+	env.Locale = "en"
+	app.SetEnvironment(env)
+	for _, want := range []string{"Download Video", locales.In("en").BrowseEmptyTitle(), locales.In("en").BrowseClearData()} {
+		if !app.Exists(whole(want)) {
+			t.Errorf("no %q in %q", want, app.Texts())
+		}
+	}
+	if label := app.Find("id:browse-download").Props.Label; label != "Download Video" {
+		t.Errorf("下载视频 is named %q in English", label)
+	}
+}
+
+// A page goes only to http and https addresses.
+func TestAllowedOnlyTheWeb(t *testing.T) {
+	for raw, want := range map[string]bool{
+		"https://example.com/":      true,
+		"http://example.com/a?b=c":  true,
+		"file:///Users/me/a.mp4":    false,
+		"kando://open":              false,
+		"intent://scan/#Intent;end": false,
+		"javascript:alert(1)":       false,
+		"about:blank":               false,
+		"https://":                  false,
+	} {
+		if got := Allowed(raw); got != want {
+			t.Errorf("Allowed(%q) = %v", raw, got)
+		}
+		if got := (webOnly{}).Allows(core.AccessRequest{Permission: core.AccessWebView, Resource: raw, Method: "GET"}); got != want {
+			t.Errorf("webOnly allows %q: %v", raw, got)
+		}
+	}
+	if !(webOnly{}).Allows(core.AccessRequest{Permission: core.AccessNetwork, Resource: "file:///x"}) {
+		t.Error("webOnly holds back what is not a page of the web view")
+	}
+}
+
+func TestTargetReadsAddressesAndSearches(t *testing.T) {
+	for _, c := range []struct{ text, language, want string }{
+		{"https://www.youtube.com/watch?v=jNQXAC9IVRw", "zh-Hans", "https://www.youtube.com/watch?v=jNQXAC9IVRw"},
+		{"HTTP://example.com/a", "en", "HTTP://example.com/a"},
+		{"example.com", "en", "https://example.com"},
+		{"www.bilibili.com/video/BV1xx411c7mD?p=2", "zh-Hans", "https://www.bilibili.com/video/BV1xx411c7mD?p=2"},
+		{"localhost:8080/watch", "en", "https://localhost:8080/watch"},
+		{"192.168.1.2", "en", "https://192.168.1.2"},
+		{"例子.中国", "zh-Hans", "https://例子.中国"},
+		{"cat videos", "zh-Hans", "https://www.bing.com/search?q=cat+videos"},
+		{"cat videos", "en", "https://www.google.com/search?q=cat+videos"},
+		{"猫", "ja", "https://www.google.com/search?q=%E7%8C%AB"},
+		{"3.14", "en", "https://www.google.com/search?q=3.14"},
+		{"golang", "en", "https://www.google.com/search?q=golang"},
+		{"file:///etc/passwd", "en", "https://www.google.com/search?q=file%3A%2F%2F%2Fetc%2Fpasswd"},
+		{"javascript:alert(1)", "en", "https://www.google.com/search?q=javascript%3Aalert%281%29"},
+		{"user@example.com", "en", "https://www.google.com/search?q=user%40example.com"},
+	} {
+		if got := Target(c.text, c.language); got != c.want {
+			t.Errorf("Target(%q, %s) = %q, want %q", c.text, c.language, got, c.want)
+		}
+	}
+}
+
+// The downloads get the cookies of the source's whole site, its registrable domain and the hosts under it, or for an address without one those a request to it sends, with the pages' user agent.
+func TestCookieSource(t *testing.T) {
+	var filters []CookieFilter
+	expires := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+	want := media.Cookie{Domain: ".bilibili.com", Path: "/", Secure: true, HTTPOnly: true, Expires: expires, Name: "SESSDATA", Value: "v"}
+	list := func(f CookieFilter) ([]media.Cookie, error) {
+		filters = append(filters, f)
+		return []media.Cookie{want}, nil
+	}
+	agent := func() string { return "Mozilla/5.0 Kando-Test" }
+	source := CookieSource(list, agent)
+	cookies, ua, err := source(context.Background(), "https://www.bilibili.com/video/BV1xx411c7mD")
+	if err != nil || len(cookies) != 1 || cookies[0] != want || ua != "Mozilla/5.0 Kando-Test" {
+		t.Fatalf("cookies %+v, ua %q, err %v", cookies, ua, err)
+	}
+	for _, s := range []string{"https://news.bbc.co.uk/video/1", "http://127.0.0.1:8080/v.mp4", "http://localhost:3000/v", "file:///Users/me/a.mp4", "https://[::1]/v"} {
+		if _, _, err := source(context.Background(), s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wantFilters := []CookieFilter{{Domain: "bilibili.com"}, {Domain: "bbc.co.uk"}, {URL: "http://127.0.0.1:8080/v.mp4"}, {URL: "http://localhost:3000/v"}, {URL: "https://[::1]/v"}}
+	if !slices.Equal(filters, wantFilters) {
+		t.Fatalf("filters %+v", filters)
+	}
+	failing := CookieSource(func(CookieFilter) ([]media.Cookie, error) { return nil, errors.New("no web view") }, agent)
+	if cookies, _, err := failing(context.Background(), "https://example.com/v"); err == nil || cookies != nil {
+		t.Fatalf("cookies %v, err %v", cookies, err)
+	}
+}

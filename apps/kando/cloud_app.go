@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"kando/apps/kando/cloud"
@@ -26,6 +27,7 @@ func (a *app) SignInGoogle() {
 		ClientID:     os.Getenv("KANDO_GOOGLE_CLIENT_ID"),
 		ClientSecret: os.Getenv("KANDO_GOOGLE_CLIENT_SECRET"),
 		Open:         openBrowser,
+		Language:     a.prefs.interfaceLanguage,
 	}
 	login := a.cloud.googleLogin
 	if login == nil {
@@ -38,13 +40,13 @@ func (a *app) SignInGoogle() {
 		a.update(func() {
 			a.cloud.googleBusy = false
 			if err != nil {
-				a.cloud.googleErr = locales.AccountGoogleFailed
+				a.cloud.googleErr = locales.Messages.AccountGoogleFailed
 				return
 			}
 			a.cloud.googleEmail = acc.Email
 			a.cloud.googleRefresh = acc.RefreshToken
 			if saveErr := a.saveSettings(); saveErr != nil {
-				a.cloud.googleErr = locales.AccountSaveFailed
+				a.cloud.googleErr = locales.Messages.AccountSaveFailed
 			}
 		})
 	}()
@@ -56,17 +58,19 @@ func (a *app) SignOutGoogle() {
 	a.cloud.googleErr = nil
 	a.cloud.googleBusy = false
 	if err := a.saveSettings(); err != nil {
-		a.cloud.googleErr = locales.AccountSaveFailed
+		a.cloud.googleErr = locales.Messages.AccountSaveFailed
 	}
 }
 
+// UploadView is what the player's upload button and capsule show of item's upload, in the interface's language: the player reads it in its bindings, which follow the language as it changes.
 func (a *app) UploadView(item films.Film) film.Upload {
 	if strings.TrimSpace(item.VideoPath) == "" {
 		return film.Upload{}
 	}
+	m := a.messages()
 	view := film.Upload{Show: true, Label: a.uploadLabel()}
 	if a.cloud.uploadPath == item.VideoPath {
-		view.Detail = uploadProgress(a.cloud.uploadWritten, a.cloud.uploadTotal)
+		view.Detail = uploadProgress(m, a.cloud.uploadWritten, a.cloud.uploadTotal)
 		view.Status = film.UploadBusy
 		view.Canceling = a.cloud.uploadCancel == nil
 		if a.cloud.uploadTotal > 0 {
@@ -75,23 +79,23 @@ func (a *app) UploadView(item films.Film) film.Upload {
 		return view
 	}
 	if a.cloud.uploadPath != "" {
-		view.Detail = locales.AccountUploadingOther()
+		view.Detail = m.AccountUploadingOther()
 		view.Status = film.UploadBlocked
 		return view
 	}
 	if reason := a.uploadBlocked(); reason != "" {
 		view.Detail = reason
 		view.Status = film.UploadBlocked
-		view.Fix = locales.AccountFixSettings()
+		view.Fix = m.AccountFixSettings()
 		if strings.TrimSpace(a.cloud.googleEmail) == "" {
-			view.Fix = locales.AccountFixSignIn()
+			view.Fix = m.AccountFixSignIn()
 		}
 		return view
 	}
 	view.Enabled = true
 	done := a.uploadMemo(item.VideoPath)
 	if a.cloud.uploadErrPath == done && a.cloud.uploadErr != nil {
-		view.Detail = a.cloud.uploadErr()
+		view.Detail = a.cloud.uploadErr(m)
 		view.Status = film.UploadFailed
 		if a.cloud.uploadCanceled {
 			view.Status = film.UploadCanceled
@@ -99,7 +103,7 @@ func (a *app) UploadView(item films.Film) film.Upload {
 		return view
 	}
 	if key := a.cloud.uploaded[done]; key != "" {
-		view.Detail = locales.AccountUploaded(key)
+		view.Detail = m.AccountUploaded(key)
 		view.Status = film.UploadDone
 	}
 	return view
@@ -112,7 +116,7 @@ func (a *app) BeginUpload(item films.Film) {
 	a.cloud.uploadCanceled = false
 	info, err := os.Stat(item.VideoPath)
 	if err != nil || info.IsDir() {
-		a.cloud.uploadErr = locales.AccountVideoMissing
+		a.cloud.uploadErr = locales.Messages.AccountVideoMissing
 		a.cloud.uploadErrPath = a.uploadMemo(item.VideoPath)
 		return
 	}
@@ -155,7 +159,21 @@ func (a *app) CancelUpload() {
 // runUpload sends files with ctx, which BeginUpload made and cancel releases, and records how it ended: the object key of a film uploaded, saved in settings.json, or why it failed, or that it was canceled.
 func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPath, videoKey string, cfg cloud.Store, files []cloud.File) {
 	defer cancel()
+	// Progress comes every 256 KB; only a change of the whole percent the upload shows (uploadProgress) goes to the engine's goroutine, as every update runs the app's bindings and hooks again. The finish posts its own update below.
+	var mu sync.Mutex
+	shown := -1
 	err := a.putFiles(ctx, cfg, files, func(written, total int64) {
+		percent := 0
+		if total > 0 {
+			percent = int(written * 100 / total)
+		}
+		mu.Lock()
+		same := percent == shown
+		shown = percent
+		mu.Unlock()
+		if same {
+			return
+		}
 		a.update(func() {
 			if a.cloud.uploadPath != videoPath {
 				return
@@ -163,7 +181,7 @@ func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPat
 			a.cloud.uploadWritten, a.cloud.uploadTotal = written, total
 		})
 	})
-	// Whether CancelUpload stopped it is decided here, before the deferred cancel runs: a.update may run its function after runUpload returns (win.Update only posts it), when ctx is canceled for every upload.
+	// Whether CancelUpload stopped it is decided here, before the deferred cancel runs: a.update may run its function after runUpload returns (it only posts it to the engine's goroutine), when ctx is canceled for every upload.
 	canceled := err != nil && (errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled))
 	a.update(func() {
 		if a.cloud.uploadPath != videoPath {
@@ -174,13 +192,13 @@ func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPat
 		a.cloud.uploadCancel = nil
 		done := storeKind(cfg.Kind) + "\n" + videoPath
 		if canceled {
-			a.cloud.uploadErr = locales.AccountUploadCanceled
+			a.cloud.uploadErr = locales.Messages.AccountUploadCanceled
 			a.cloud.uploadErrPath = done
 			a.cloud.uploadCanceled = true
 			return
 		}
 		if err != nil {
-			a.cloud.uploadErr = func() string { return uploadFailure(err, cfg.Secret, cfg.AccessKey) }
+			a.cloud.uploadErr = func(m locales.Messages) string { return uploadFailure(m, err, cfg.Secret, cfg.AccessKey) }
 			a.cloud.uploadErrPath = done
 			return
 		}
@@ -189,7 +207,7 @@ func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPat
 		}
 		a.cloud.uploaded[done] = videoKey
 		if saveErr := a.saveSettings(); saveErr != nil {
-			a.saveErr = locales.AccountUploadUnsaved(saveErr.Error())
+			a.saveErr = a.messages().AccountUploadUnsaved(saveErr.Error())
 		}
 	})
 }
@@ -205,19 +223,21 @@ func (a *app) putFiles(ctx context.Context, cfg cloud.Store, files []cloud.File,
 	return cloud.Upload(ctx, client, cfg.Bucket, files, progress)
 }
 
+// uploadBlocked is why an upload cannot start now, in the interface's language, "" when one can.
 func (a *app) uploadBlocked() string {
+	m := a.messages()
 	if strings.TrimSpace(a.cloud.googleEmail) == "" {
-		return locales.AccountNeedsSignIn()
+		return m.AccountNeedsSignIn()
 	}
 	cfg := a.currentStore()
 	if storeReady(cfg) {
 		return ""
 	}
-	return locales.AccountNeedsStore(uploadStoreName(cfg.Kind))
+	return m.AccountNeedsStore(uploadStoreName(m, cfg.Kind))
 }
 
-// uploadStoreName names a kind of storage as the upload button and its messages do: the brand of R2, S3, OSS and COS, and S3 兼容 in the interface's language.
-func uploadStoreName(kind string) string {
+// uploadStoreName names a kind of storage as the upload button and its messages do: the brand of R2, S3, OSS and COS, and S3 兼容 in m's language.
+func uploadStoreName(m locales.Messages, kind string) string {
 	switch kind {
 	case cloud.KindS3:
 		return "S3"
@@ -226,7 +246,7 @@ func uploadStoreName(kind string) string {
 	case cloud.KindCOS:
 		return "COS"
 	case cloud.KindCompat:
-		return locales.AccountStoreCompat()
+		return m.AccountStoreCompat()
 	default:
 		return "R2"
 	}
@@ -281,8 +301,10 @@ func (a *app) currentStore() cloud.Store {
 
 func (a *app) storageKind() string { return storageFrom(a.cloud.storage) }
 
+// uploadLabel is the upload button's words, in the interface's language.
 func (a *app) uploadLabel() string {
-	return locales.AccountUploadTo(uploadStoreName(a.storageKind()))
+	m := a.messages()
+	return m.AccountUploadTo(uploadStoreName(m, a.storageKind()))
 }
 
 func (a *app) uploadMemo(path string) string {
@@ -381,19 +403,21 @@ func firstSet(values ...string) string {
 	return ""
 }
 
-func uploadProgress(written, total int64) string {
+// uploadProgress says how far the upload running now got, in m's language.
+func uploadProgress(m locales.Messages, written, total int64) string {
 	if total <= 0 {
-		return locales.AccountUploading()
+		return m.AccountUploading()
 	}
-	return locales.AccountUploadingPercent(int(written * 100 / total))
+	return m.AccountUploadingPercent(int(written * 100 / total))
 }
 
-func uploadFailure(err error, secret, accessKey string) string {
+// uploadFailure says why an upload failed, in m's language, with the storage's own reason unless it holds the secret or the access key.
+func uploadFailure(m locales.Messages, err error, secret, accessKey string) string {
 	msg := err.Error()
 	if (secret != "" && strings.Contains(msg, secret)) || (accessKey != "" && strings.Contains(msg, accessKey)) {
-		return locales.AccountUploadFailed()
+		return m.AccountUploadFailed()
 	}
-	return locales.AccountUploadFailedBecause(msg)
+	return m.AccountUploadFailedBecause(msg)
 }
 
 func openBrowser(raw string) error {

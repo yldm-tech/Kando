@@ -6,14 +6,15 @@ import (
 	"strings"
 
 	"kando/apps/kando/cloud"
+	"kando/apps/kando/locales"
 )
 
-// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go). googleErr and uploadErr say why the last sign-in or upload failed, or that it was canceled (uploadCanceled), as functions so the message reads in the language the page shows when it is drawn; nil when nothing failed. uploadCancel stops the upload running now (CancelUpload), nil when none runs. uploaded holds the object key of each film uploaded, by uploadMemo (the storage's kind and the video's path), and is saved in settings.json so a film still reads as uploaded after a restart.
+// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go). googleErr and uploadErr say why the last sign-in or upload failed, or that it was canceled (uploadCanceled), as functions of the messages, so the message reads in the interface's language as it is shown, and again after the language changed; nil when nothing failed. uploadCancel stops the upload running now (CancelUpload), nil when none runs. uploaded holds the object key of each film uploaded, by uploadMemo (the storage's kind and the video's path), and is saved in settings.json so a film still reads as uploaded after a restart.
 type cloudUI struct {
 	googleEmail     string
 	googleRefresh   string
 	googleBusy      bool
-	googleErr       func() string
+	googleErr       func(locales.Messages) string
 	googleLogin     func(context.Context, cloud.GoogleConfig) (cloud.Account, error)
 	storage         string
 	r2Endpoint      string
@@ -41,7 +42,7 @@ type cloudUI struct {
 	uploadPath      string
 	uploadWritten   int64
 	uploadTotal     int64
-	uploadErr       func() string
+	uploadErr       func(locales.Messages) string
 	uploadErrPath   string
 	uploadCanceled  bool
 	uploadCancel    context.CancelFunc

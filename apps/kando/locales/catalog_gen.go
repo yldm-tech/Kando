@@ -824,6 +824,7 @@ const (
 	textBrowseEmptyTitle
 	textBrowseForward
 	textBrowseHome
+	textBrowseNoticeClose
 	textBrowseOpenLocation
 	textBrowseOpenSettings
 	textBrowseReload
@@ -1503,6 +1504,7 @@ const (
 	textSitesGridLabel
 	textSitesMenuItem
 	textSitesNotFoundHint
+	textSitesSearchClear
 	textSitesSearchLabel
 	textSitesSearchPlaceholder
 	textSitesTitle
@@ -1584,6 +1586,7 @@ var keyOfText = [numTexts]string{
 	"browseEmptyTitle",
 	"browseForward",
 	"browseHome",
+	"browseNoticeClose",
 	"browseOpenLocation",
 	"browseOpenSettings",
 	"browseReload",
@@ -2263,6 +2266,7 @@ var keyOfText = [numTexts]string{
 	"sitesGridLabel",
 	"sitesMenuItem",
 	"sitesNotFoundHint",
+	"sitesSearchClear",
 	"sitesSearchLabel",
 	"sitesSearchPlaceholder",
 	"sitesTitle",
@@ -2342,6 +2346,7 @@ var textsEn = i18n.NewTexts(""+
 	"Open a page with a video"+
 	"Forward"+
 	"Home"+
+	"Close Message"+
 	"Open Location…"+
 	"Open Settings"+
 	"Reload Page"+
@@ -3021,6 +3026,7 @@ var textsEn = i18n.NewTexts(""+
 	"Websites"+
 	"Supported Websites…"+
 	"You can still try pasting a link from a site that isn't listed: yt-dlp finds standard videos on many web pages, and downloads links that point straight to a video file or an m3u8 playlist."+
+	"Clear Search"+
 	"Search websites"+
 	"Search by site name or domain, or paste a video link"+
 	"Supported Websites"+
@@ -3097,6 +3103,7 @@ var textsEn = i18n.NewTexts(""+
 		24,
 		7,
 		4,
+		13,
 		16,
 		13,
 		11,
@@ -3776,6 +3783,7 @@ var textsEn = i18n.NewTexts(""+
 		8,
 		21,
 		188,
+		12,
 		15,
 		52,
 		18,
@@ -3855,6 +3863,7 @@ var textsJa = i18n.NewTexts(""+
 	"動画のあるページを開く"+
 	"進む"+
 	"ホーム"+
+	"メッセージを閉じる"+
 	"場所を開く…"+
 	"設定を開く"+
 	"再読み込み"+
@@ -4534,6 +4543,7 @@ var textsJa = i18n.NewTexts(""+
 	"サイト一覧"+
 	"対応サイト…"+
 	"一覧にないサイトでも、リンクを貼り付けて試せます。yt-dlp は多くの Web ページから標準的な動画を見つけられ、動画ファイルや m3u8 を直接指すリンクもダウンロードできます。"+
+	"検索をクリア"+
 	"サイトを検索"+
 	"サイト名やドメインで検索、または動画のリンクを貼り付け"+
 	"対応サイト"+
@@ -4610,6 +4620,7 @@ var textsJa = i18n.NewTexts(""+
 		33,
 		6,
 		9,
+		27,
 		18,
 		15,
 		15,
@@ -5290,6 +5301,7 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		240,
 		18,
+		18,
 		81,
 		15,
 		18,
@@ -5368,6 +5380,7 @@ var textsKo = i18n.NewTexts(""+
 	"동영상이 있는 페이지 열기"+
 	"앞으로"+
 	"홈"+
+	"메시지 닫기"+
 	"위치 열기…"+
 	"설정 열기"+
 	"새로고침"+
@@ -6047,6 +6060,7 @@ var textsKo = i18n.NewTexts(""+
 	"웹사이트 목록"+
 	"지원하는 웹사이트…"+
 	"목록에 없는 사이트도 링크를 붙여 넣어 시도해 볼 수 있습니다. yt-dlp는 많은 웹 페이지에서 표준 동영상을 찾을 수 있고, 동영상 파일이나 m3u8을 직접 가리키는 링크도 내려받을 수 있습니다."+
+	"검색 지우기"+
 	"웹사이트 검색"+
 	"사이트 이름이나 도메인으로 검색하거나 동영상 링크 붙여넣기"+
 	"지원하는 웹사이트"+
@@ -6123,6 +6137,7 @@ var textsKo = i18n.NewTexts(""+
 		36,
 		9,
 		3,
+		16,
 		16,
 		13,
 		12,
@@ -6802,6 +6817,7 @@ var textsKo = i18n.NewTexts(""+
 		19,
 		28,
 		253,
+		16,
 		19,
 		84,
 		25,
@@ -6881,6 +6897,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"打开有视频的网页"+
 	"前进"+
 	"主页"+
+	"关闭提示"+
 	"打开位置…"+
 	"打开设置"+
 	"重新载入"+
@@ -7560,6 +7577,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"网站列表"+
 	"支持的网站…"+
 	"不在列表里的网站也可以粘贴链接试试：yt-dlp 能从很多网页里找到标准的视频，也能下载直接指向视频文件或 m3u8 的链接。"+
+	"清除搜索"+
 	"搜索网站"+
 	"搜索网站名、域名，或粘贴视频链接"+
 	"支持的网站"+
@@ -7636,6 +7654,7 @@ var textsZhHans = i18n.NewTexts(""+
 		24,
 		6,
 		6,
+		12,
 		15,
 		12,
 		12,
@@ -8316,6 +8335,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		163,
 		12,
+		12,
 		48,
 		15,
 		12,
@@ -8394,6 +8414,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"打開有影片的網頁"+
 	"下一頁"+
 	"首頁"+
+	"關閉提示"+
 	"打開位置…"+
 	"打開設定"+
 	"重新載入"+
@@ -9073,6 +9094,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"網站清單"+
 	"支援的網站…"+
 	"不在清單中的網站也可以貼上連結試試：yt-dlp 能從許多網頁中找到標準的影片，也能下載直接指向影片檔或 m3u8 的連結。"+
+	"清除搜尋"+
 	"搜尋網站"+
 	"搜尋網站名稱、網域，或貼上影片連結"+
 	"支援的網站"+
@@ -9149,6 +9171,7 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		9,
 		6,
+		12,
 		15,
 		12,
 		12,
@@ -9828,6 +9851,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		18,
 		160,
+		12,
 		12,
 		51,
 		15,
@@ -11243,6 +11267,15 @@ func (msgs Messages) BrowseLoadFailed(error_ string) string {
 		}
 	}
 }
+
+// BrowseNoticeClose says "Close Message"
+// in the language the app shows under cx.
+//
+// Accessible name of the close button at the end of the Browse page's message bar.
+func BrowseNoticeClose(cx *core.Scope) string { return For(cx).BrowseNoticeClose() }
+
+// BrowseNoticeClose is the package's BrowseNoticeClose in the language of msgs.
+func (msgs Messages) BrowseNoticeClose() string { return msgs.text(textBrowseNoticeClose) }
 
 // BrowseOpenLocation says "Open Location…"
 // in the language the app shows under cx.
@@ -24076,6 +24109,15 @@ func SitesNotFoundHint(cx *core.Scope) string { return For(cx).SitesNotFoundHint
 
 // SitesNotFoundHint is the package's SitesNotFoundHint in the language of msgs.
 func (msgs Messages) SitesNotFoundHint() string { return msgs.text(textSitesNotFoundHint) }
+
+// SitesSearchClear says "Clear Search"
+// in the language the app shows under cx.
+//
+// Accessible name of the button at the end of the Supported Websites sheet's search field that empties it.
+func SitesSearchClear(cx *core.Scope) string { return For(cx).SitesSearchClear() }
+
+// SitesSearchClear is the package's SitesSearchClear in the language of msgs.
+func (msgs Messages) SitesSearchClear() string { return msgs.text(textSitesSearchClear) }
 
 // SitesSearchLabel says "Search websites"
 // in the language the app shows under cx.

@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/cloud"
 	"kando/apps/kando/film"
@@ -105,7 +106,8 @@ func TestR2EnvOverridesSavedSettings(t *testing.T) {
 
 func TestGoogleSignInSavesTheAccount(t *testing.T) {
 	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
 	a.cloud.googleLogin = func(context.Context, cloud.GoogleConfig) (cloud.Account, error) {
 		t.Fatal("login ran without a client id")
 		return cloud.Account{}, nil
@@ -118,7 +120,7 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "client")
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.cloud.googleLogin = func(_ context.Context, cfg cloud.GoogleConfig) (cloud.Account, error) {
-		if cfg.ClientID != "client" || cfg.Open == nil {
+		if cfg.ClientID != "client" || cfg.Open == nil || cfg.Language != testlocale.Current() {
 			return cloud.Account{}, errors.New("bad config")
 		}
 		return cloud.Account{Email: "a@b.c", RefreshToken: "rt-test"}, nil
@@ -127,7 +129,7 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 	if !a.cloud.googleBusy {
 		t.Fatal("sign-in did not start")
 	}
-	waitUpdate(t, updates)
+	waitUpdate(t, tt, a, updates)
 	if a.cloud.googleEmail != "a@b.c" || a.cloud.googleBusy || a.GoogleErr() != "" || a.cloud.googleRefresh != "rt-test" {
 		t.Fatalf("email %q busy %v err %q", a.cloud.googleEmail, a.cloud.googleBusy, a.GoogleErr())
 	}
@@ -138,16 +140,12 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 	if !strings.Contains(string(raw), `"googleEmail": "a@b.c"`) || !strings.Contains(string(raw), `"googleRefresh": "rt-test"`) {
 		t.Fatal("account was not saved")
 	}
-	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
-	if !tt.HasText("a@b.c") || !tt.HasText("退出登录") {
+	if !hasText(tt, "a@b.c") || !hasText(tt, msgs.AccountSignOut()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	if err := tt.Click("退出登录"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if a.cloud.googleEmail != "" || a.cloud.googleRefresh != "" || !tt.HasText("使用 Google 登录") {
+	tt.Press("id:google-sign-out")
+	if a.cloud.googleEmail != "" || a.cloud.googleRefresh != "" || !hasText(tt, msgs.AccountSignIn()) {
 		t.Fatal("still signed in")
 	}
 	raw, err = os.ReadFile(a.settingsPath)
@@ -157,6 +155,22 @@ func TestGoogleSignInSavesTheAccount(t *testing.T) {
 	if strings.Contains(string(raw), "rt-test") || strings.Contains(string(raw), "a@b.c") {
 		t.Fatal("signed-out account is still in the file")
 	}
+}
+
+// A sign-in that fails says so under the account's row, in the language the page shows, and again after the language changed.
+func TestGoogleSignInFailureFollowsTheLanguage(t *testing.T) {
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "client")
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	a.cloud.googleLogin = func(context.Context, cloud.GoogleConfig) (cloud.Account, error) {
+		return cloud.Account{}, errors.New("denied")
+	}
+	tt = settingsOpenAt(a, tt, settings.SectionAccount)
+	tt.Press("id:google-sign-in")
+	waitUpdate(t, tt, a, updates)
+	wantText(t, tt, testlocale.Messages().AccountGoogleFailed())
+	a.SetInterfaceLanguage("en")
+	refresh(tt, a)
+	wantText(t, tt, locales.In("en").AccountGoogleFailed())
 }
 
 func TestBeginUploadUsesTheS3Region(t *testing.T) {
@@ -183,7 +197,7 @@ func TestBeginUploadUsesTheS3Region(t *testing.T) {
 		return nil
 	}
 	a.BeginUpload(films.Film{VideoPath: video})
-	waitUpdate(t, updates)
+	cloudNext(t, updates)
 	if kind != cloud.KindS3 || region != "ap-northeast-1" || bucket != "aws-clips" {
 		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
 	}
@@ -213,7 +227,7 @@ func TestBeginUploadUsesTheOSSRegion(t *testing.T) {
 		return nil
 	}
 	a.BeginUpload(films.Film{VideoPath: video})
-	waitUpdate(t, updates)
+	cloudNext(t, updates)
 	if kind != cloud.KindOSS || region != "cn-hangzhou" || bucket != "oss-clips" {
 		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
 	}
@@ -243,7 +257,7 @@ func TestBeginUploadUsesCOS(t *testing.T) {
 		return nil
 	}
 	a.BeginUpload(films.Film{VideoPath: video})
-	waitUpdate(t, updates)
+	cloudNext(t, updates)
 	if kind != cloud.KindCOS || region != "ap-guangzhou" || bucket != "video-1250000000" {
 		t.Fatalf("kind %q region %q bucket %q", kind, region, bucket)
 	}
@@ -273,7 +287,7 @@ func TestBeginUploadUsesACompatibleEndpoint(t *testing.T) {
 		return nil
 	}
 	a.BeginUpload(films.Film{VideoPath: video})
-	waitUpdate(t, updates)
+	cloudNext(t, updates)
 	if kind != cloud.KindCompat || endpoint != "https://play.min.io" || !pathStyle {
 		t.Fatalf("kind %q endpoint %q path %v", kind, endpoint, pathStyle)
 	}
@@ -281,55 +295,47 @@ func TestBeginUploadUsesACompatibleEndpoint(t *testing.T) {
 
 func TestAccountPageShowsCOSFields(t *testing.T) {
 	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.cloud.storage = cloud.KindCOS
-	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"腾讯云 COS", "ap-guangzhou", "1250000000", "SecretId"} {
-		if !tt.HasText(text) {
-			t.Fatalf("missing %q in %q", text, tt.Texts())
-		}
+		wantText(t, tt, text)
 	}
 }
 
 func TestAccountPageShowsOSSFields(t *testing.T) {
 	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.cloud.storage = cloud.KindOSS
-	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"阿里云 OSS", "Region", "cn-hangzhou", "Bucket", "Access Key", "Secret"} {
-		if !tt.HasText(text) {
-			t.Fatalf("missing %q in %q", text, tt.Texts())
-		}
+		wantText(t, tt, text)
 	}
-	if tt.HasText("Account ID") || tt.HasText("ap-northeast-1") {
+	if textCount(tt, "Account ID") > 0 || textCount(tt, "ap-northeast-1") > 0 {
 		t.Fatal("another provider's hint is showing on the OSS form")
 	}
 }
 
 func TestAccountPageShowsS3Fields(t *testing.T) {
 	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.cloud.storage = cloud.KindS3
-	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, text := range []string{"Amazon S3", "Region", "例如 ap-northeast-1", "Bucket", "Access Key", "Secret"} {
-		if !tt.HasText(text) {
-			t.Fatalf("missing %q in %q", text, tt.Texts())
-		}
+		wantText(t, tt, text)
 	}
-	if tt.HasText("Account ID") {
+	if textCount(tt, "Account ID") > 0 {
 		t.Fatal("the R2 endpoint hint is showing on the S3 form")
 	}
 }
 
 func TestUploadFailureHidesTheSecret(t *testing.T) {
-	msg := uploadFailure(errors.New("signature secret-value"), "secret-value", "key")
+	m := testlocale.Messages()
+	msg := uploadFailure(m, errors.New("signature secret-value"), "secret-value", "key")
 	if msg != "上传失败" || strings.Contains(msg, "secret-value") {
 		t.Fatalf("msg = %q", msg)
 	}
-	plain := uploadFailure(errors.New("status 403"), "secret-value", "key")
+	plain := uploadFailure(m, errors.New("status 403"), "secret-value", "key")
 	if plain != "上传失败：status 403" {
 		t.Fatalf("msg = %q", plain)
 	}
@@ -356,9 +362,8 @@ func TestUploadBlockedPointsToTheSettingsWindow(t *testing.T) {
 func TestAccountPageInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
 	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.cloud.storage = cloud.KindCompat
-	tt.Frame()
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
 	for _, want := range []string{"Account", "Not Signed In", "Sign in to upload films.", "Sign In with Google", "Object Storage", "S3 Compatible", "The full https address.", "Path Style", "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."} {
 		wantText(t, tt, want)
@@ -378,10 +383,10 @@ func TestAccountPageInEnglish(t *testing.T) {
 	if got, want := a.uploadLabel(), "Upload to S3 Compatible"; got != want {
 		t.Fatalf("label %q, want %q", got, want)
 	}
-	if got, want := uploadFailure(errors.New("status 403"), "secret-value", "key"), "Upload failed: status 403"; got != want {
+	if got, want := uploadFailure(a.messages(), errors.New("status 403"), "secret-value", "key"), "Upload failed: status 403"; got != want {
 		t.Fatalf("failure %q, want %q", got, want)
 	}
-	if got, want := uploadProgress(1, 4), "Uploading 25%"; got != want {
+	if got, want := uploadProgress(a.messages(), 1, 4), "Uploading 25%"; got != want {
 		t.Fatalf("progress %q, want %q", got, want)
 	}
 }
@@ -402,7 +407,7 @@ func TestUploadSaysTheVideoIsMissing(t *testing.T) {
 	item := films.Film{VideoPath: video}
 	a.BeginUpload(item)
 	view := a.UploadView(item)
-	if view.Status != film.UploadFailed || view.Detail != locales.AccountVideoMissing() {
+	if view.Status != film.UploadFailed || view.Detail != testlocale.Messages().AccountVideoMissing() {
 		t.Fatalf("status %v detail %q", view.Status, view.Detail)
 	}
 }
@@ -421,7 +426,8 @@ func TestCancelUploadFreesTheSlot(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	a, tt, updates := newTestApp(&fakePipeline{})
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.library.Jobs = []core.Job{{ID: "job1", Source: "file://" + video, Language: "简体中文", Stage: core.StageComplete, VideoPath: video}}
 	a.cloud.googleEmail = "a@b.c"
@@ -435,41 +441,34 @@ func TestCancelUploadFreesTheSlot(t *testing.T) {
 		<-release
 		return ctx.Err()
 	}
-	tt.Frame()
-	if err := tt.Click("talk"); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
+	refresh(tt, a)
+	item, ok := films.Find(a.films(), "job1")
+	if !ok {
+		t.Fatalf("no film job1 in %q", tt.Texts())
 	}
-	tt.Frame()
-	waitUntil(t, updates, func() bool { return a.player.subs.ready })
-	tt.Frame()
-	item, _ := films.Find(a.films(), a.openKey)
-	if err := tt.Click(a.UploadView(item).Label); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
+	a.Open(item)
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	item, _ = films.Find(a.films(), a.openKey)
+	tt.Press(a.UploadView(item).Label)
 	<-started
-	waitUntil(t, updates, func() bool { return a.cloud.uploadWritten == 1 })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.cloud.uploadWritten == 1 })
 	otherFilm := films.Film{VideoPath: other}
-	if view := a.UploadView(item); view.Status != film.UploadBusy || !tt.HasText(view.Detail) {
+	if view := a.UploadView(item); view.Status != film.UploadBusy || !hasText(tt, view.Detail) {
 		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
 	if view := a.UploadView(otherFilm); view.Status != film.UploadBlocked || view.Enabled {
 		t.Fatalf("another film could upload while one runs: %+v", view)
 	}
-	if err := tt.Click(locales.FilmUploadCancel()); err != nil {
-		t.Fatalf("%v texts %q", err, tt.Texts())
-	}
-	tt.Frame()
+	tt.Press(msgs.FilmUploadCancel())
 	// Until the storage's client gives up, the upload still runs and its cancel button is off.
 	if view := a.UploadView(item); view.Status != film.UploadBusy || !view.Canceling {
 		t.Fatalf("upload asked to stop %+v", view)
 	}
 	close(release)
-	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
-	tt.Frame()
+	waitUntil(t, tt, a, updates, func() bool { return a.cloud.uploadPath == "" })
 	view := a.UploadView(item)
-	_, cancelShown := tt.Find(locales.FilmUploadCancel())
-	if view.Status != film.UploadCanceled || view.Detail != locales.AccountUploadCanceled() || !tt.HasText(view.Detail) || cancelShown {
+	if view.Status != film.UploadCanceled || view.Detail != msgs.AccountUploadCanceled() || !hasText(tt, view.Detail) || tt.Exists(msgs.FilmUploadCancel()) {
 		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
 	if a.cloud.uploadCancel != nil || a.cloud.uploadWritten != 0 || a.cloud.uploadTotal != 0 || len(a.cloud.uploaded) != 0 {
@@ -481,7 +480,7 @@ func TestCancelUploadFreesTheSlot(t *testing.T) {
 		t.Fatalf("slot still taken: %+v", view)
 	}
 	a.BeginUpload(otherFilm)
-	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	waitUntil(t, tt, a, updates, func() bool { return a.cloud.uploadPath == "" })
 	if view := a.UploadView(otherFilm); view.Status != film.UploadDone {
 		t.Fatalf("other film %+v", view)
 	}
@@ -490,7 +489,7 @@ func TestCancelUploadFreesTheSlot(t *testing.T) {
 	}
 }
 
-// TestUploadFailureIsNotACancel fails an upload with the storage's error while the window runs its updates later, as win.Update does: the capsule says why it failed, not that it was canceled, though the upload's context is released before the update runs.
+// TestUploadFailureIsNotACancel fails an upload with the storage's error while the engine runs its updates later, as the app's update does: the capsule says why it failed, not that it was canceled, though the upload's context is released before the update runs.
 func TestUploadFailureIsNotACancel(t *testing.T) {
 	dir := t.TempDir()
 	video := filepath.Join(dir, "talk.mp4")
@@ -512,9 +511,9 @@ func TestUploadFailureIsNotACancel(t *testing.T) {
 	a.BeginUpload(item)
 	// The upload's context is released when runUpload returns, which happens before the window runs the update it posted.
 	<-(<-contexts).Done()
-	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	cloudUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
 	view := a.UploadView(item)
-	if want := uploadFailure(failure, "secret-value", "key"); view.Status != film.UploadFailed || view.Detail != want {
+	if want := uploadFailure(a.messages(), failure, "secret-value", "key"); view.Status != film.UploadFailed || view.Detail != want {
 		t.Fatalf("upload %+v, want failed with %q", view, want)
 	}
 }
@@ -536,7 +535,7 @@ func TestUploadedFilmsSurviveARestart(t *testing.T) {
 	a.cloud.uploader = func(context.Context, cloud.Store, []cloud.File, func(int64, int64)) error { return nil }
 	item := films.Film{VideoPath: video}
 	a.BeginUpload(item)
-	waitUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	cloudUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
 	want := a.UploadView(item)
 	if want.Status != film.UploadDone {
 		t.Fatalf("upload %+v", want)
@@ -561,5 +560,42 @@ func TestUploadedFilmsSurviveARestart(t *testing.T) {
 	loaded := loadSavedSettings(settingsPath)
 	if len(loaded.Uploaded) != 1 || loaded.Uploaded[cloud.KindR2+"\n"+video] == "" {
 		t.Fatalf("uploaded %q", loaded.Uploaded)
+	}
+}
+
+// cloudNext runs the next background update of an app the test started no window for, as the engine would.
+func cloudNext(t *testing.T, updates <-chan func()) {
+	t.Helper()
+	select {
+	case fn := <-updates:
+		fn()
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for a background update")
+	}
+}
+
+// cloudUntil runs the background updates of an app the test started no window for until done holds.
+func cloudUntil(t *testing.T, updates <-chan func(), done func() bool) {
+	t.Helper()
+	for !done() {
+		cloudNext(t, updates)
+	}
+}
+
+// An upload tells the app of its progress only as the whole percent it shows changes, as every update runs the app's bindings and hooks again; the storage's client reports every 256 KB.
+func TestUploadProgressOnlyAsThePercentChanges(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	a.cloud.uploader = func(_ context.Context, _ cloud.Store, _ []cloud.File, progress func(int64, int64)) error {
+		for written := int64(0); written <= 2000; written += 10 {
+			progress(written, 100000)
+		}
+		return nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	before := len(updates)
+	a.runUpload(ctx, cancel, "/v.mp4", "v.mp4", cloud.Store{}, nil)
+	// 0%, 1%, 2% and the finish
+	if n := len(updates) - before; n != 4 {
+		t.Fatalf("the upload posted %d updates, want 4", n)
 	}
 }

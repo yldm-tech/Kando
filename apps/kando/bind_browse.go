@@ -4,12 +4,12 @@ import (
 	"runtime"
 
 	"kando/apps/kando/browse"
+	"kando/apps/kando/live"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
 )
 
-// The browser's reads and clicks (browse.App).
+// The browser's reads and clicks (browse.App). The browser reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
 
 func (a *app) BrowseState() browse.State {
 	return browse.State{
@@ -17,11 +17,24 @@ func (a *app) BrowseState() browse.State {
 		Loading:      a.browse.loading,
 		CanGoBack:    a.browse.canBack,
 		CanGoForward: a.browse.canForward,
+		Clearable:    a.browse.clear != nil,
 		Clearing:     a.browse.clearing,
 	}
 }
 
-func (a *app) BrowseWebView() *mygo.WebView { return a.browse.view }
+func (a *app) BrowseSource() string { return a.browse.source }
+
+func (a *app) BrowseWeb() *core.Ref { return a.browse.view }
+
+func (a *app) BrowseUserAgent() string { return a.browse.agent.get() }
+
+func (a *app) BrowseScript() string { return browseScript() }
+
+func (a *app) BrowseNavigated(nav core.WebNavigation) { a.browseNavigated(nav) }
+
+func (a *app) BrowseFailed(err error) { a.browseFailed(err) }
+
+func (a *app) BrowseMessage(data string) { a.browseHeard(data) }
 
 func (a *app) BrowseAddress() *string { return &a.browse.address }
 
@@ -45,15 +58,27 @@ func (a *app) BrowseDownload() { a.browseDownload() }
 
 func (a *app) BrowseNotice() *browse.Notice { return &a.browse.notice }
 
-func (a *app) BrowseClearOpen() *bool { return &a.browse.clearOpen }
+func (a *app) BrowseClearOpen() bool { return a.browse.clearOpen }
 
 func (a *app) BrowseAskClear() { a.browseAskClear() }
 
 func (a *app) BrowseClear() { a.browseClear() }
 
-// browseColumn is the browser's page in the content column (mainColumn), from the column's top to its edges.
-func (a *app) browseColumn(c *ui.Context, t *ui.Theme) {
-	browse.Show(c, t, a)
+func (a *app) BrowseCancelClear() { a.browseCancelClear() }
+
+// browseColumn is the browser's page in the content column (mainColumn), from the column's top to its edges, under cx, the scope view builds it in. It is hidden while another page shows, and should the column go, as when view builds it only while the browser shows, the web view goes with it (browseColumnGone).
+func (a *app) browseColumn(cx *core.Scope) core.Node {
+	cx.Cleanup(a.browseColumnGone)
+	return core.View{
+		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
+		StyleFunc: live.Func(a, func() core.Style {
+			if a.page != pageBrowse {
+				return core.Style{Display: core.DisplayNone}
+			}
+			return core.Style{}
+		}),
+		Children: []core.Node{browse.View{App: a}},
+	}
 }
 
 // browseOwnsTitleBar reports whether the browser draws its own bar at the top of the content column, keeping clear of the window controls and dragging the window, so the content has no drag band over it (contentBand). It does on its page on macOS, where its toolbar lies beside the sidebar's card that holds the traffic lights; elsewhere the window controls take the top of the content, and the drag band keeps the toolbar under them.

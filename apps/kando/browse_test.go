@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,356 +9,324 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/sidebar"
 	"kando/packages/media"
 
-	"github.com/egoist/mygo"
-	"github.com/egoist/mygo/ui"
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// fakeBrowsePage stands in for the web view's page, which the tests have no window to make: it records what the browser asked of it, and its fields are what it reports.
-type fakeBrowsePage struct {
-	url              string
-	loading          bool
-	back, forward    bool
-	ua               string
-	opened, loads    []string
-	backs, forwards  int
-	reloads, stops   int
-	failLoad, failUp error
-	// mutes is each SetAudioMuted the browser asked for, in order.
-	mutes []bool
-}
+// The browser's page is NSGo's web view, which nsgotest keeps as a view of the model: its config (Web) is what it loads, its WebCommands what the app asked of it, and tt.Navigate, tt.Report and tt.AnswerScript report for it as the platform's web view would.
 
-// open is browseUI.open: it makes no web view, so the page's room stays blank.
-func (p *fakeBrowsePage) open(rawURL string) (browsePage, *mygo.WebView, error) {
-	if p.failUp != nil {
-		return nil, nil, p.failUp
-	}
-	p.opened = append(p.opened, rawURL)
-	p.url, p.loading = rawURL, true
-	return p, nil, nil
-}
+// browsePage is the selector of the browser's web view.
+const browsePage = "id:browse-page"
 
-func (p *fakeBrowsePage) LoadURL(rawURL string) error {
-	if p.failLoad != nil {
-		return p.failLoad
-	}
-	p.loads = append(p.loads, rawURL)
-	p.url, p.loading = rawURL, true
-	return nil
-}
-
-func (p *fakeBrowsePage) GoBack()            { p.backs++ }
-func (p *fakeBrowsePage) GoForward()         { p.forwards++ }
-func (p *fakeBrowsePage) Reload()            { p.reloads++ }
-func (p *fakeBrowsePage) Stop()              { p.stops++ }
-func (p *fakeBrowsePage) URL() string        { return p.url }
-func (p *fakeBrowsePage) CanGoBack() bool    { return p.back }
-func (p *fakeBrowsePage) CanGoForward() bool { return p.forward }
-func (p *fakeBrowsePage) IsLoading() bool    { return p.loading }
-func (p *fakeBrowsePage) UserAgent() string  { return p.ua }
-func (p *fakeBrowsePage) SetAudioMuted(muted bool) {
-	p.mutes = append(p.mutes, muted)
-}
-
-// browseApp is a test app on the browser's page, its web view the fake page and its data cleared by a counter.
-func browseApp(t *testing.T, p media.Pipeline) (*app, *ui.Tester, chan func(), *fakeBrowsePage, *int) {
+// browseApp is a test app on the browser's page, its pages' data cleared by a counter.
+func browseApp(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func(), *int) {
 	t.Helper()
-	a, tt, updates := newTestApp(p)
-	fake := &fakeBrowsePage{ua: "Mozilla/5.0 Kando-Test"}
+	a, tt, updates := newTestApp(t, p)
 	cleared := 0
-	a.browse.open = fake.open
 	a.browse.clear = func() error { cleared++; return nil }
 	a.Select(pageBrowse)
-	tt.Frame()
-	return a, tt, updates, fake, &cleared
+	refresh(tt, a)
+	return a, tt, updates, &cleared
+}
+
+// browseReport reports nav for the web view as the platform does once a page starts loading and once it has loaded, and settles.
+func browseReport(tt *nsgotest.App, nav ns.WebNavigation) {
+	tt.Navigate(browsePage, nav)
+	tt.Settle()
 }
 
 // browseOpen loads rawURL as the address field would and lets the page finish loading it.
-func browseOpen(t *testing.T, a *app, tt *ui.Tester, fake *fakeBrowsePage, rawURL string) {
+func browseOpen(t *testing.T, a *app, tt *nsgotest.App, rawURL string) {
 	t.Helper()
 	a.browseLoad(rawURL)
-	tt.Frame()
-	fake.loading = false
-	a.browseRefresh()
-	tt.Frame()
-	if a.browse.page == nil || fake.url != rawURL {
-		t.Fatalf("page %v at %q, want %q", a.browse.page, fake.url, rawURL)
+	refresh(tt, a)
+	browseReport(tt, ns.WebNavigation{URL: rawURL, CanGoBack: a.browse.canBack, CanGoForward: a.browse.canForward})
+	if got := tt.FindMounted(browsePage).Web.Source.Src; a.browse.url != rawURL || (got != rawURL && len(browseScripts(tt)) == 0) {
+		t.Fatalf("page at %q loading %q, want %q", a.browse.url, got, rawURL)
 	}
 }
 
-// drain runs the background updates waiting in updates until done reports true.
-func drain(t *testing.T, tt *ui.Tester, updates chan func(), done func() bool) {
-	t.Helper()
-	deadline := time.After(5 * time.Second)
-	for !done() {
-		select {
-		case fn := <-updates:
-			fn()
-		case <-deadline:
-			t.Fatal("timed out waiting for a background update")
+// browseCommands are the commands of kind the web view was sent, oldest first.
+func browseCommands(tt *nsgotest.App, kind nsgotest.WebCommandKind) []string {
+	var out []string
+	for _, c := range tt.FindMounted(browsePage).WebCommands {
+		if c.Command == kind {
+			out = append(out, c.Value)
 		}
 	}
-	tt.Frame()
+	return out
 }
 
-func TestBrowseTargetReadsAddressesAndSearches(t *testing.T) {
-	for _, c := range []struct{ text, language, want string }{
-		{"https://www.youtube.com/watch?v=jNQXAC9IVRw", "zh-Hans", "https://www.youtube.com/watch?v=jNQXAC9IVRw"},
-		{"HTTP://example.com/a", "en", "HTTP://example.com/a"},
-		{"example.com", "en", "https://example.com"},
-		{"www.bilibili.com/video/BV1xx411c7mD?p=2", "zh-Hans", "https://www.bilibili.com/video/BV1xx411c7mD?p=2"},
-		{"localhost:8080/watch", "en", "https://localhost:8080/watch"},
-		{"192.168.1.2", "en", "https://192.168.1.2"},
-		{"例子.中国", "zh-Hans", "https://例子.中国"},
-		{"cat videos", "zh-Hans", "https://www.bing.com/search?q=cat+videos"},
-		{"cat videos", "en", "https://www.google.com/search?q=cat+videos"},
-		{"猫", "ja", "https://www.google.com/search?q=%E7%8C%AB"},
-		{"3.14", "en", "https://www.google.com/search?q=3.14"},
-		{"golang", "en", "https://www.google.com/search?q=golang"},
-		{"file:///etc/passwd", "en", "https://www.google.com/search?q=file%3A%2F%2F%2Fetc%2Fpasswd"},
-		{"javascript:alert(1)", "en", "https://www.google.com/search?q=javascript%3Aalert%281%29"},
-		{"user@example.com", "en", "https://www.google.com/search?q=user%40example.com"},
-	} {
-		if got := browseTarget(c.text, c.language); got != c.want {
-			t.Errorf("browseTarget(%q, %s) = %q, want %q", c.text, c.language, got, c.want)
+// browseScripts are the scripts the app ran in the page, oldest first, other than its questions to it (Ref.Evaluate).
+func browseScripts(tt *nsgotest.App) []string {
+	var out []string
+	for _, s := range browseCommands(tt, nsgotest.WebInjectJavaScript) {
+		if !strings.Contains(s, "nsgo-evaluate:") {
+			out = append(out, s)
 		}
 	}
+	return out
 }
 
 // Enter in the address field opens what it holds: the first address makes the web view, later ones load in it, and words are searched for on the engine of the interface's language, read when Enter is pressed.
 func TestBrowseEnterLoadsTheAddress(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	if err := tt.Click("网址"); err != nil {
-		t.Fatal(err)
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	if tt.Exists(browsePage) {
+		t.Fatal("a web view before any page was asked for")
 	}
-	tt.Type("example.com")
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	if !slices.Equal(fake.opened, []string{"https://example.com"}) || a.browse.page == nil {
-		t.Fatalf("opened %q", fake.opened)
-	}
-	if tt.HasText("打开有视频的网页") {
-		t.Fatal("the start still shows over the page")
+	tt.Type(testlocale.Messages().BrowseAddressLabel(), "example.com")
+	tt.Submit("id:browse-address")
+	if got := tt.Find(browsePage).Web.Source.Src; got != "https://example.com" || hasText(tt, testlocale.Messages().BrowseEmptyTitle()) {
+		t.Fatalf("loading %q, texts %q", got, tt.Texts())
 	}
 	a.browse.address = "猫 视频"
-	tt.Frame()
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	testlocale.Use(t, "en")
+	refresh(tt, a)
+	tt.Submit("id:browse-address")
+	if got := tt.Find(browsePage).Web.Source.Src; got != "https://www.bing.com/search?q=%E7%8C%AB+%E8%A7%86%E9%A2%91" {
+		t.Fatalf("loading %q", got)
+	}
+	web := tt.Find(browsePage).ID
+	a.SetInterfaceLanguage("en")
 	a.browse.address = "cat videos"
-	tt.Frame()
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-	want := []string{"https://www.bing.com/search?q=%E7%8C%AB+%E8%A7%86%E9%A2%91", "https://www.google.com/search?q=cat+videos"}
-	if !slices.Equal(fake.loads, want) || len(fake.opened) != 1 {
-		t.Fatalf("loads %q, opened %q", fake.loads, fake.opened)
+	refresh(tt, a)
+	tt.Submit("id:browse-address")
+	if v := tt.Find(browsePage); v.Web.Source.Src != "https://www.google.com/search?q=cat+videos" || v.ID != web {
+		t.Fatalf("loading %q in view %d, was %d", v.Web.Source.Src, v.ID, web)
 	}
 }
 
-// Before a page opens the start shows, 下载视频 does nothing and back, reload and home are off; home brings the start back by loading the blank page, which keeps the page in the history for back.
+// An address the web view's source holds already, which the page has left since, loads through the page, as the source has not changed.
+func TestBrowseLoadsTheSameAddressAgain(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/a")
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/b", CanGoBack: true})
+	a.browseLoad("https://example.com/a")
+	refresh(tt, a)
+	if got := browseScripts(tt); !slices.Equal(got, []string{`location.assign("https://example.com/a")`}) {
+		t.Fatalf("scripts %q", got)
+	}
+}
+
+// Before a page opens the start shows, 下载视频 is off and back, reload and home are too; home brings the start back by loading the blank page, which keeps the page in the history for back.
 func TestBrowseStartAndHome(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	for _, text := range []string{"打开有视频的网页", "清除登录信息…", "下载视频"} {
-		if !tt.HasText(text) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	for _, text := range []string{msgs.BrowseEmptyTitle(), msgs.BrowseClearData(), msgs.BrowseDownload()} {
+		if !hasText(tt, text) {
 			t.Fatalf("no %q on the start: %q", text, tt.Texts())
 		}
 	}
-	_ = tt.Click("下载视频")
-	a.BrowseDownload()
-	_ = tt.Click("后退")
-	_ = tt.Click("主页")
-	if len(a.library.Jobs) != 0 || fake.backs != 0 || len(fake.loads) != 0 || a.browse.notice.Open {
-		t.Fatalf("the start acted: jobs %v, backs %d, loads %q", a.library.Jobs, fake.backs, fake.loads)
+	for _, id := range []string{"browse-download", "browse-back", "browse-home", "browse-reload"} {
+		if tt.Enabled("id:" + id) {
+			t.Fatalf("%s is on before a page", id)
+		}
 	}
-	browseOpen(t, a, tt, fake, "https://www.bilibili.com/video/BV1xx411c7mD")
-	if a.browse.address != "https://www.bilibili.com/video/BV1xx411c7mD" || tt.HasText("打开有视频的网页") {
+	a.BrowseDownload()
+	a.BrowseHome()
+	if len(a.library.Jobs) != 0 || a.browse.source != "" || a.browse.notice.Open {
+		t.Fatalf("the start acted: jobs %v, source %q", a.library.Jobs, a.browse.source)
+	}
+	browseOpen(t, a, tt, "https://www.bilibili.com/video/BV1xx411c7mD")
+	if a.browse.address != "https://www.bilibili.com/video/BV1xx411c7mD" || hasText(tt, msgs.BrowseEmptyTitle()) {
 		t.Fatalf("address %q, texts %q", a.browse.address, tt.Texts())
 	}
-	if err := tt.Click("主页"); err != nil {
-		t.Fatal(err)
+	tt.Press("id:browse-home")
+	if got := tt.FindMounted(browsePage).Web.Source.Src; got != browseBlank || len(browseCommands(tt, nsgotest.WebStopLoading)) != 1 || a.browse.address != "" || !hasText(tt, msgs.BrowseEmptyTitle()) {
+		t.Fatalf("home: loading %q, address %q, texts %q", got, a.browse.address, tt.Texts())
 	}
-	tt.Frame()
-	if !slices.Equal(fake.loads, []string{browseBlank}) || fake.stops != 1 || a.browse.address != "" || !tt.HasText("打开有视频的网页") {
-		t.Fatalf("home: loads %q, stops %d, address %q, texts %q", fake.loads, fake.stops, a.browse.address, tt.Texts())
+	browseReport(tt, ns.WebNavigation{URL: browseBlank, CanGoBack: true})
+	if !hasText(tt, msgs.BrowseEmptyTitle()) {
+		t.Fatalf("the blank page does not show the start: %q", tt.Texts())
 	}
-	fake.back = true
-	fake.loading = false
-	a.browseRefresh()
-	tt.Frame()
-	if err := tt.Click("后退"); err != nil {
-		t.Fatal(err)
-	}
-	if fake.backs != 1 {
-		t.Fatalf("back from the start went %d pages back", fake.backs)
+	tt.Press("id:browse-back")
+	if n := len(browseCommands(tt, nsgotest.WebGoBack)); n != 1 {
+		t.Fatalf("back from the start went %d pages back", n)
 	}
 }
 
 // The toolbar's buttons drive the page: back and forward while it has somewhere to go, stop in place of reload while it loads.
 func TestBrowseToolbarDrivesThePage(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, fake, "https://example.com/a")
-	_ = tt.Click("后退")
-	_ = tt.Click("前进")
-	if fake.backs != 0 || fake.forwards != 0 {
-		t.Fatalf("went back %d and forward %d without a history", fake.backs, fake.forwards)
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/a")
+	if tt.Enabled("id:browse-back") || tt.Enabled("id:browse-forward") {
+		t.Fatal("back or forward is on without a history")
 	}
-	fake.back, fake.forward = true, true
-	a.browseRefresh()
-	tt.Frame()
-	if err := tt.Click("后退"); err != nil {
-		t.Fatal(err)
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/a", CanGoBack: true, CanGoForward: true})
+	tt.Press("id:browse-back")
+	if !tt.Exists(testlocale.Messages().BrowseStop()) {
+		t.Fatalf("no stop while the page loads: loading %v", a.browse.loading)
 	}
-	tt.Frame()
-	if fake.backs != 1 || !tt.HasText("停止载入") && !hasAccess(tt, "停止载入") {
-		t.Fatalf("backs %d, loading %v", fake.backs, a.browse.loading)
+	tt.Press(testlocale.Messages().BrowseStop())
+	tt.Press("id:browse-forward")
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/a", CanGoBack: true, CanGoForward: true})
+	tt.Press(testlocale.Messages().BrowseReload())
+	for kind, want := range map[nsgotest.WebCommandKind]int{nsgotest.WebGoBack: 1, nsgotest.WebStopLoading: 1, nsgotest.WebGoForward: 1, nsgotest.WebReload: 1} {
+		if got := len(browseCommands(tt, kind)); got != want {
+			t.Errorf("command %v sent %d times, want %d", kind, got, want)
+		}
 	}
-	if err := tt.Click("停止载入"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if err := tt.Click("前进"); err != nil {
-		t.Fatal(err)
-	}
-	fake.loading = false
-	a.browseRefresh()
-	tt.Frame()
-	if err := tt.Click("重新载入"); err != nil {
-		t.Fatal(err)
-	}
-	if fake.stops != 1 || fake.forwards != 1 || fake.reloads != 1 {
-		t.Fatalf("stops %d, forwards %d, reloads %d", fake.stops, fake.forwards, fake.reloads)
-	}
-}
-
-func hasAccess(tt *ui.Tester, name string) bool {
-	_, ok := tt.Access(name)
-	return ok
 }
 
 // The address field shows the page's address after each navigation, but not over what the user is typing.
 func TestBrowseAddressFollowsThePage(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, fake, "https://example.com/a")
-	fake.url = "https://example.com/b"
-	a.browseRefresh()
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/a")
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/b"})
 	if a.browse.address != "https://example.com/b" {
 		t.Fatalf("address %q after the page moved", a.browse.address)
 	}
-	if err := tt.Click("网址"); err != nil {
-		t.Fatal(err)
+	tt.Focus("id:browse-address")
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/b"})
+	if a.browse.address != "https://example.com/b" || !a.browse.focused {
+		t.Fatalf("address %q after a report with the field focused", a.browse.address)
 	}
-	tt.Frame()
-	a.browseRefresh()
-	if a.browse.address != "https://example.com/b" {
-		t.Fatalf("address %q after a refresh with the field focused", a.browse.address)
-	}
-	tt.Type("/x")
-	tt.Frame()
+	typeFocused(t, tt, "/x")
 	typed := a.browse.address
-	fake.url = "https://example.com/c"
-	a.browseRefresh()
-	if a.browse.address != typed || a.browse.shown != "https://example.com/c" {
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/c"})
+	if a.browse.address != typed || a.browse.shown != "https://example.com/c" || tt.Find("id:browse-address").Text != typed {
 		t.Fatalf("the page replaced what was typed: %q (typed %q)", a.browse.address, typed)
 	}
 }
 
-// 下载视频 adds the page shown to the queue, read from the page as it is now, as a site that changes its page without loading another tells nothing, and says so in the message bar.
-func TestBrowseDownloadEnqueuesTheShownPage(t *testing.T) {
-	a, tt, updates, fake, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, fake, "https://www.youtube.com/")
-	fake.url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
-	if err := tt.Click("下载视频"); err != nil {
-		t.Fatal(err)
+// A page that changes its address without loading another says so through the app's script, and the address field and back follow the address read from the page itself.
+func TestBrowseFollowsAPageThatChangesItsAddress(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://www.youtube.com/")
+	if !strings.Contains(tt.Find(browsePage).Web.InjectedJavaScriptBeforeContent, browseHistoryMessage) {
+		t.Fatal("the pages do not run the browser's script")
 	}
+	tt.PostMessage(browsePage, browseHistoryMessage+"push")
+	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
+	tt.Settle()
+	if a.browse.address != "https://www.youtube.com/watch?v=jNQXAC9IVRw" || !tt.Enabled("id:browse-back") {
+		t.Fatalf("address %q, back %v", a.browse.address, a.browse.canBack)
+	}
+	// What a page posts is never taken for its address.
+	tt.PostMessage(browsePage, browseHistoryMessage+"replace")
+	tt.AnswerScript(browsePage, `"file:///etc/passwd"`, "")
+	tt.Settle()
+	if a.browse.url != "https://www.youtube.com/watch?v=jNQXAC9IVRw" {
+		t.Fatalf("url %q", a.browse.url)
+	}
+}
+
+// 下载视频 adds the page shown to the queue, read from the page as it is now, as a site that changes its page without loading another may not have said so, and says so in the message bar.
+func TestBrowseDownloadEnqueuesTheShownPage(t *testing.T) {
+	a, tt, updates, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://www.youtube.com/")
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
+	tt.Settle()
 	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://www.youtube.com/watch?v=jNQXAC9IVRw" {
 		t.Fatalf("jobs %+v", a.library.Jobs)
 	}
 	settle(t, a, tt, updates)
-	if !tt.HasText("已加入资料库，开始处理。") || a.page != pageBrowse {
+	if !hasText(tt, testlocale.Messages().BrowseAdded()) || a.page != pageBrowse {
 		t.Fatalf("page %q, texts %q", a.page, tt.Texts())
+	}
+}
+
+// A page that cannot answer leaves the address the web view last reported.
+func TestBrowseDownloadWithoutTheAnswer(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://www.bilibili.com/video/BV1xx411c7mD")
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, "", "the page went")
+	tt.Settle()
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != "https://www.bilibili.com/video/BV1xx411c7mD" {
+		t.Fatalf("jobs %+v", a.library.Jobs)
 	}
 }
 
 // What precheck finds wrong shows in the browser's message bar, with 打开设置 when a setting fixes it.
 func TestBrowseDownloadSaysWhatIsMissing(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, media.Tools{})
-	browseOpen(t, a, tt, fake, "https://www.bilibili.com/video/BV1xx411c7mD")
-	if err := tt.Click("下载视频"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	a, tt, _, _ := browseApp(t, media.Tools{})
+	browseOpen(t, a, tt, "https://www.bilibili.com/video/BV1xx411c7mD")
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"https://www.bilibili.com/video/BV1xx411c7mD"`, "")
+	tt.Settle()
 	if len(a.library.Jobs) != 0 || !a.browse.notice.Open || a.browse.notice.Section != settings.SectionGeneral {
 		t.Fatalf("jobs %v, notice %+v", a.library.Jobs, a.browse.notice)
 	}
-	if !tt.HasText(a.browse.notice.Text) {
+	if !hasText(tt, a.browse.notice.Text) {
 		t.Fatalf("the message bar does not show %q: %q", a.browse.notice.Text, tt.Texts())
 	}
-	if err := tt.Click("打开设置"); err != nil {
-		t.Fatal(err)
-	}
+	tt.Press(whole(testlocale.Messages().BrowseOpenSettings()))
 	wantSettings(t, a, settings.SectionGeneral)
 }
 
 // 清除登录信息… asks first, holding the window's modal flag while it does; only 清除 clears, and the page shown loads again.
 func TestBrowseClearAsksFirst(t *testing.T) {
-	a, tt, updates, fake, cleared := browseApp(t, &fakePipeline{})
-	if err := tt.Click("清除登录信息…"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	a, tt, updates, cleared := browseApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	tt.Press(whole(msgs.BrowseClearData()))
 	if !a.browse.clearOpen || !a.modalOpen() || *cleared != 0 {
 		t.Fatalf("open %v, modal %v, cleared %d", a.browse.clearOpen, a.modalOpen(), *cleared)
 	}
-	if err := tt.Click("取消"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt.Press(whole(msgs.BrowseCancel()))
 	if a.browse.clearOpen || a.modalOpen() || *cleared != 0 {
 		t.Fatalf("after 取消: open %v, modal %v, cleared %d", a.browse.clearOpen, a.modalOpen(), *cleared)
 	}
-	browseOpen(t, a, tt, fake, "https://example.com/")
+	browseOpen(t, a, tt, "https://example.com/")
 	// On a page the confirmation opens from the menu bar's row.
-	for _, s := range a.browseKeys() {
-		if s.Label == "清除登录信息…" && s.When() {
+	for _, s := range a.browseKeys(a.cx) {
+		if s.Label == msgs.BrowseClearData() && s.When() {
 			s.Run()
 		}
 	}
-	tt.Frame()
-	if err := tt.Click("清除"); err != nil {
-		t.Fatal(err)
-	}
-	drain(t, tt, updates, func() bool { return !a.browse.clearing })
-	if *cleared != 1 || fake.reloads != 1 || !tt.HasText("已清除登录信息。") || a.modalOpen() {
-		t.Fatalf("cleared %d, reloads %d, modal %v, texts %q", *cleared, fake.reloads, a.modalOpen(), tt.Texts())
+	refresh(tt, a)
+	tt.Press(whole(msgs.BrowseClearConfirm()))
+	waitUntil(t, tt, a, updates, func() bool { return !a.browse.clearing })
+	if *cleared != 1 || len(browseCommands(tt, nsgotest.WebReload)) != 1 || !hasText(tt, msgs.BrowseCleared()) || a.modalOpen() {
+		t.Fatalf("cleared %d, modal %v, texts %q", *cleared, a.modalOpen(), tt.Texts())
 	}
 }
 
 func TestBrowseClearSaysWhyItFailed(t *testing.T) {
-	a, tt, updates, _, _ := browseApp(t, &fakePipeline{})
+	a, tt, updates, _ := browseApp(t, &fakePipeline{})
 	a.browse.clear = func() error { return errors.New("the web engine did not answer") }
 	a.BrowseAskClear()
-	tt.Frame()
-	if err := tt.Click("清除"); err != nil {
-		t.Fatal(err)
+	refresh(tt, a)
+	tt.Press(whole(testlocale.Messages().BrowseClearConfirm()))
+	waitUntil(t, tt, a, updates, func() bool { return !a.browse.clearing })
+	if want := testlocale.Messages().BrowseClearFailed("the web engine did not answer"); !hasText(tt, want) {
+		t.Fatalf("no %q in %q", want, tt.Texts())
 	}
-	drain(t, tt, updates, func() bool { return !a.browse.clearing })
-	if !tt.HasText("没能清除登录信息：the web engine did not answer") {
-		t.Fatalf("texts %q", tt.Texts())
+}
+
+// Where the pages' sign-ins cannot be cleared, as NSGo's web view cannot yet, 清除登录信息… shows neither on the start nor in the File menu.
+func TestBrowseClearOnlyWhereItCan(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	a.browse.clear = nil
+	refresh(tt, a)
+	msgs := testlocale.Messages()
+	if hasText(tt, msgs.BrowseClearData()) {
+		t.Fatal("清除登录信息… shows on the start")
+	}
+	for _, s := range a.browseKeys(a.cx) {
+		if s.Label == msgs.BrowseClearData() {
+			t.Fatal("清除登录信息… is a row of the File menu")
+		}
+	}
+	a.BrowseAskClear()
+	if a.browse.clearOpen || a.modalOpen() {
+		t.Fatal("the confirmation opened")
 	}
 }
 
 // Going to another page closes the confirmation, which that page does not draw, and gives back the modal flag.
 func TestBrowseConfirmationClosesOffItsPage(t *testing.T) {
-	a, tt, _, _, _ := browseApp(t, &fakePipeline{})
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	a.BrowseAskClear()
-	tt.Frame()
+	refresh(tt, a)
 	a.Select(pageFilms)
-	tt.Frame()
+	refresh(tt, a)
 	if a.browse.clearOpen || a.modalOpen() {
 		t.Fatalf("open %v, modal %v", a.browse.clearOpen, a.modalOpen())
 	}
@@ -367,251 +334,199 @@ func TestBrowseConfirmationClosesOffItsPage(t *testing.T) {
 
 // The browser's shortcuts work only while its page shows.
 func TestBrowseShortcutsOnlyOnItsPage(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, fake, "https://example.com/a")
-	fake.back, fake.forward = true, true
-	a.browseRefresh()
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/a")
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/a", CanGoBack: true, CanGoForward: true})
 	a.Select(pageFilms)
-	tt.Frame()
-	for _, key := range []ui.Key{ui.KeyR, ui.KeyBracketLeft, ui.KeyBracketRight, ui.KeyL} {
-		tt.Key(ui.Cmd, key)
-		tt.Frame()
+	refresh(tt, a)
+	for _, key := range []string{"mod+r", "mod+[", "mod+]", "mod+l"} {
+		tt.Key(key)
 	}
-	if fake.reloads+fake.backs+fake.forwards != 0 || a.browse.focus {
-		t.Fatalf("off the page: reloads %d, backs %d, forwards %d, focus %v", fake.reloads, fake.backs, fake.forwards, a.browse.focus)
+	if a.browse.focus || a.browse.loading {
+		t.Fatalf("off the page: focus %v, loading %v", a.browse.focus, a.browse.loading)
 	}
 	a.Select(pageBrowse)
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeyR)
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeyBracketLeft)
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeyBracketRight)
-	tt.Frame()
-	tt.Key(ui.Cmd, ui.KeyL)
-	tt.Frame()
-	tt.Frame()
-	if fake.reloads != 1 || fake.backs != 1 || fake.forwards != 1 || !tt.Focused("网址") {
-		t.Fatalf("on the page: reloads %d, backs %d, forwards %d, field focused %v", fake.reloads, fake.backs, fake.forwards, tt.Focused("网址"))
-	}
-}
-
-// A page goes only to http and https addresses.
-func TestBrowseAllowsOnlyTheWeb(t *testing.T) {
-	for raw, want := range map[string]bool{
-		"https://example.com/":      true,
-		"http://example.com/a?b=c":  true,
-		"file:///Users/me/a.mp4":    false,
-		"kando://open":              false,
-		"intent://scan/#Intent;end": false,
-		"javascript:alert(1)":       false,
-		"about:blank":               false,
-		"https://":                  false,
-	} {
-		if got := browseAllowed(raw); got != want {
-			t.Errorf("browseAllowed(%q) = %v", raw, got)
+	refresh(tt, a)
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/a", CanGoBack: true, CanGoForward: true})
+	tt.Key("mod+r")
+	tt.Key("mod+[")
+	tt.Key("mod+]")
+	tt.Key("mod+l")
+	for kind, want := range map[nsgotest.WebCommandKind]int{nsgotest.WebReload: 1, nsgotest.WebGoBack: 1, nsgotest.WebGoForward: 1} {
+		if got := len(browseCommands(tt, kind)); got != want {
+			t.Errorf("on the page: command %v sent %d times, want %d", kind, got, want)
 		}
 	}
+	if !tt.Find("id:browse-address").Focused {
+		t.Fatal("⌘L did not put the keyboard in the address field")
+	}
 }
 
-// A page that fails to load says why in the message bar, which goes once another page opens; a web view that cannot be made says so too.
+// A page goes only to http and https addresses: the web view refuses the rest as they start, and a refused navigation says nothing, while a page that fails to load says why in the message bar, which goes once another page opens.
 func TestBrowseSaysWhenAPageFails(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	fake.failUp = errors.New("no window")
-	a.browseLoad("https://example.com/")
-	tt.Frame()
-	tt.Frame()
-	if a.browse.page != nil || !tt.HasText("打不开这个网页：no window") || !tt.HasText("打开有视频的网页") {
-		t.Fatalf("page %v, texts %q", a.browse.page, tt.Texts())
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/")
+	web := tt.Find(browsePage)
+	if !web.Web.Restricted || web.Web.Navigable("file:///etc/passwd") || web.Web.Navigable("kando://open") || !web.Web.Navigable("http://example.com/") {
+		t.Fatalf("the web view goes beyond the web: %+v", web.Web)
 	}
-	fake.failUp = nil
-	browseOpen(t, a, tt, fake, "https://example.com/")
+	for _, refused := range []string{"file:///etc/passwd", "kando://open"} {
+		tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: web.ID, Text: "nsgo: the web view may not navigate to " + refused, Navigation: &ns.WebNavigation{URL: refused}})
+		tt.Settle()
+	}
 	if a.browse.notice.Open {
-		t.Fatalf("the failure stayed: %+v", a.browse.notice)
+		t.Fatalf("a refused navigation said %q", a.browse.notice.Text)
 	}
-	a.browseLoadFailed("A server with the specified hostname could not be found.")
-	tt.Frame()
-	if !tt.HasText("打不开这个网页：A server with the specified hostname could not be found.") {
-		t.Fatalf("texts %q", tt.Texts())
+	reason := "A server with the specified hostname could not be found."
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: web.ID, Text: reason, Navigation: &ns.WebNavigation{URL: "https://nowhere.example/"}})
+	tt.Settle()
+	if want := testlocale.Messages().BrowseLoadFailed(reason); !hasText(tt, want) || a.browse.loading {
+		t.Fatalf("no %q in %q", want, tt.Texts())
 	}
-	browseOpen(t, a, tt, fake, "https://example.org/")
+	browseOpen(t, a, tt, "https://example.org/")
 	if a.browse.notice.Open {
 		t.Fatalf("the failure stayed after another page opened: %+v", a.browse.notice)
 	}
 }
 
-// The downloads get the cookies of the source's whole site, its registrable domain and the hosts under it, or for an address without one those a request to it sends, with the pages' user agent.
-func TestBrowseCookieSource(t *testing.T) {
-	var filters []mygo.CookieFilter
-	expires := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
-	list := func(f mygo.CookieFilter) ([]mygo.Cookie, error) {
-		filters = append(filters, f)
-		return []mygo.Cookie{{Name: "SESSDATA", Value: "v", Domain: ".bilibili.com", Path: "/", Expires: expires, Secure: true, HTTPOnly: true}}, nil
+// browseLoading reports that the page started loading rawURL, as the platform does before the page loads or fails.
+func browseLoading(tt *nsgotest.App, rawURL string) {
+	web := tt.Find(browsePage)
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventNavigationStateChange, ID: web.ID, Navigation: &ns.WebNavigation{URL: rawURL, Loading: true, CanGoBack: true}})
+	tt.Settle()
+}
+
+// browseCancelled reports the failure the platform reports for a load cut short, as WKWebView does for NSURLErrorCancelled (-999).
+func browseCancelled(tt *nsgotest.App, rawURL string) {
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: tt.Find(browsePage).ID, Text: "The operation couldn’t be completed. (NSURLErrorDomain error -999.)", Navigation: &ns.WebNavigation{URL: rawURL}})
+	tt.Settle()
+}
+
+// A load the user cuts short with stop, home or another address says nothing when the platform reports it cancelled, and the next load of a page says again what goes wrong.
+func TestBrowseSaysNothingOfALoadItCutShort(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/")
+	browseLoading(tt, "https://example.com/slow")
+	tt.Press(testlocale.Messages().BrowseStop())
+	browseCancelled(tt, "https://example.com/slow")
+	if a.browse.notice.Open {
+		t.Fatalf("stop said %q", a.browse.notice.Text)
 	}
-	agent := &browseAgent{}
-	agent.set("Mozilla/5.0 Kando-Test")
-	source := browseCookieSource(list, agent)
-	cookies, ua, err := source(context.Background(), "https://www.bilibili.com/video/BV1xx411c7mD")
-	want := media.Cookie{Domain: ".bilibili.com", Path: "/", Secure: true, HTTPOnly: true, Expires: expires, Name: "SESSDATA", Value: "v"}
-	if err != nil || len(cookies) != 1 || cookies[0] != want || ua != "Mozilla/5.0 Kando-Test" {
-		t.Fatalf("cookies %+v, ua %q, err %v", cookies, ua, err)
+
+	browseLoading(tt, "https://example.com/slow")
+	tt.Press("id:browse-home")
+	browseCancelled(tt, "https://example.com/slow")
+	browseReport(tt, ns.WebNavigation{URL: browseBlank, CanGoBack: true})
+	browseCancelled(tt, browseBlank)
+	if a.browse.notice.Open || a.browse.url != browseBlank {
+		t.Fatalf("home said %q, at %q", a.browse.notice.Text, a.browse.url)
 	}
-	for _, s := range []string{"https://news.bbc.co.uk/video/1", "http://127.0.0.1:8080/v.mp4", "http://localhost:3000/v", "file:///Users/me/a.mp4", "https://[::1]/v"} {
-		if _, _, err := source(context.Background(), s); err != nil {
-			t.Fatal(err)
+
+	browseOpen(t, a, tt, "https://example.com/a")
+	browseLoading(tt, "https://example.com/slow")
+	a.browseLoad("https://example.org/")
+	refresh(tt, a)
+	browseCancelled(tt, "https://example.com/slow")
+	if a.browse.notice.Open || !a.browse.loading {
+		t.Fatalf("another address said %q, loading %v", a.browse.notice.Text, a.browse.loading)
+	}
+	browseLoading(tt, "https://example.org/")
+	reason := "A server with the specified hostname could not be found."
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: tt.Find(browsePage).ID, Text: reason, Navigation: &ns.WebNavigation{URL: "https://example.org/"}})
+	tt.Settle()
+	if !a.browse.notice.Open || a.browse.notice.Text != testlocale.Messages().BrowseLoadFailed(reason) {
+		t.Fatalf("a page that failed after a cut-short load said %+v", a.browse.notice)
+	}
+	browseLoading(tt, "https://example.org/again")
+	if a.browse.notice.Open {
+		t.Fatalf("the failure stayed once another load started: %+v", a.browse.notice)
+	}
+}
+
+// A page that goes to a page of its own making (data:, blob:), which the web view lets it, keeps the last web address in the address field and for 下载视频.
+func TestBrowseKeepsTheWebAddressOverAPageOfItsOwn(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/watch")
+	for _, own := range []string{"data:text/html,hello", "blob:https://example.com/0b1c"} {
+		browseReport(tt, ns.WebNavigation{URL: own, CanGoBack: true})
+		if a.browse.url != "https://example.com/watch" || a.browse.address != "https://example.com/watch" {
+			t.Fatalf("after %s: page %q, address %q", own, a.browse.url, a.browse.address)
 		}
 	}
-	wantFilters := []mygo.CookieFilter{{Domain: "bilibili.com"}, {Domain: "bbc.co.uk"}, {URL: "http://127.0.0.1:8080/v.mp4"}, {URL: "http://localhost:3000/v"}, {URL: "https://[::1]/v"}}
-	if !slices.Equal(filters, wantFilters) {
-		t.Fatalf("filters %+v", filters)
-	}
-	failing := browseCookieSource(func(mygo.CookieFilter) ([]mygo.Cookie, error) { return nil, errors.New("no web view") }, agent)
-	if cookies, _, err := failing(context.Background(), "https://example.com/v"); err == nil || cookies != nil {
-		t.Fatalf("cookies %v, err %v", cookies, err)
-	}
 }
 
-// The page's user agent is kept for the downloads once it has loaded.
+// The pages' user agent is kept for the downloads: on macOS WKWebView's own with Safari's version, which the web view sends.
 func TestBrowseKeepsTheUserAgent(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	if a.browse.agent.get() != "" {
-		t.Fatal("a user agent before any page")
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://example.com/")
+	if got := a.browse.agent.get(); got != browseUserAgent() || tt.Find(browsePage).Web.UserAgent != got {
+		t.Fatalf("user agent %q, the web view's %q", got, tt.Find(browsePage).Web.UserAgent)
 	}
-	browseOpen(t, a, tt, fake, "https://example.com/")
-	if got := a.browse.agent.get(); got != "Mozilla/5.0 Kando-Test" {
-		t.Fatalf("user agent %q", got)
+	if runtime.GOOS == "darwin" && !strings.HasSuffix(a.browse.agent.get(), "Version/26.0 Safari/605.1.15") {
+		t.Fatalf("user agent %q names no Safari", a.browse.agent.get())
 	}
 }
 
-// 浏览 sits in the sidebar right after 全部影片 without a count; choosing it shows the browser and keeps its page, and the sources go back to the library.
+// 浏览 sits in the sidebar right after 全部影片 without a count; choosing it shows the browser, and coming back from another page shows the page that was shown, and the sources go back to the library.
 func TestSidebarBrowseRow(t *testing.T) {
-	a, tt, _ := newTestApp(&fakePipeline{})
-	fake := &fakeBrowsePage{}
-	a.browse.open = fake.open
-	tt.Frame()
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
 	texts := tt.Texts()
-	all, browse, youtube := slices.Index(texts, "全部影片"), slices.Index(texts, "浏览"), slices.Index(texts, "YouTube")
-	if all < 0 || browse != all+2 || youtube < browse {
+	all, browse, youtube := slices.Index(texts, msgs.SidebarSourceAll()), slices.Index(texts, msgs.SidebarBrowse()), slices.Index(texts, "YouTube")
+	if all < 0 || browse <= all || youtube < browse {
 		t.Fatalf("浏览 at %d after 全部影片 at %d: %q", browse, all, texts)
 	}
-	if err := tt.Click("浏览"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if a.page != pageBrowse || !tt.HasText("打开有视频的网页") {
+	tt.Press("id:source-" + sidebar.PageBrowse)
+	if a.page != pageBrowse || !hasText(tt, msgs.BrowseEmptyTitle()) {
 		t.Fatalf("page %q, texts %q", a.page, tt.Texts())
 	}
-	browseOpen(t, a, tt, fake, "https://example.com/")
-	if err := tt.Click("全部影片"); err != nil {
-		t.Fatal(err)
+	browseOpen(t, a, tt, "https://example.com/")
+	browseReport(tt, ns.WebNavigation{URL: "https://example.com/watch", CanGoBack: true})
+	tt.Press("id:source-" + sidebar.SourceAll)
+	if a.page != pageFilms || tt.Exists(browsePage) || hasText(tt, msgs.BrowseEmptyTitle()) {
+		t.Fatalf("page %q, texts %q", a.page, tt.Texts())
 	}
-	tt.Frame()
-	if a.page != pageFilms || tt.HasText("打开有视频的网页") {
-		t.Fatalf("page %q", a.page)
+	tt.Press("id:source-" + sidebar.PageBrowse)
+	if a.page != pageBrowse || tt.Find(browsePage).Web.Source.Src == "" || hasText(tt, msgs.BrowseEmptyTitle()) {
+		t.Fatalf("coming back: page %q, url %q, texts %q", a.page, a.browse.url, tt.Texts())
 	}
-	if err := tt.Click("浏览"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
-	if a.page != pageBrowse || a.browse.page == nil || fake.url != "https://example.com/" || len(fake.opened) != 1 || strings.Contains(strings.Join(tt.Texts(), "\n"), "打开有视频的网页") {
-		t.Fatalf("coming back: page %q, url %q, opened %q", a.page, fake.url, fake.opened)
+	if v := tt.Find(browsePage); v.Web.Source.Src != "https://example.com/watch" && v.Web.Source.Src != "https://example.com/" {
+		t.Fatalf("coming back loads %q", v.Web.Source.Src)
 	}
 }
 
-// The page's own navigations go only to http and https addresses; anything else is stopped before it starts.
-func TestBrowseWillNavigateStopsAllButTheWeb(t *testing.T) {
-	a, _, updates, _, _ := browseApp(t, &fakePipeline{})
-	for raw, allowed := range map[string]bool{
-		"https://www.bilibili.com/video/BV1": true,
-		"http://example.com/":                true,
-		"file:///etc/passwd":                 false,
-		"kando://open":                       false,
-		"javascript:alert(1)":                false,
-	} {
-		e := &mygo.NavigateEvent{URL: raw, UserInitiated: true}
-		a.browseWillNavigate(e)
-		if e.DefaultPrevented() == allowed {
-			t.Errorf("%s: prevented %v", raw, e.DefaultPrevented())
-		}
-		select {
-		case fn := <-updates:
-			if !allowed {
-				t.Errorf("%s: a stopped navigation reported", raw)
-			}
-			fn()
-			if !a.browse.loading {
-				t.Errorf("%s: not loading after the report", raw)
-			}
-			a.browse.loading = false
-		default:
-			if allowed {
-				t.Errorf("%s: no report of the load", raw)
-			}
-		}
-	}
-}
-
-// A window the page opens is always refused: a link the user clicked loads in the same view, and a pop-up a script opens by itself, or one to an address that is not on the web, does nothing.
-func TestBrowseWindowOpenStaysInTheView(t *testing.T) {
-	a, tt, updates, fake, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, fake, "https://example.com/")
-	for _, req := range []mygo.WindowOpenRequest{
-		{URL: "https://ads.example.net/", UserInitiated: false},
-		{URL: "file:///etc/passwd", UserInitiated: true},
-		{URL: "kando://open", UserInitiated: true},
-		{URL: "https://example.com/watch", UserInitiated: true},
-	} {
-		if got := a.browseWindowOpen(req); got != nil {
-			t.Fatalf("%+v: answered window options %+v", req, got)
-		}
-	}
-	if len(updates) != 1 {
-		t.Fatalf("%d reports, want only the clicked web link's", len(updates))
-	}
-	(<-updates)()
-	tt.Frame()
-	if want := []string{"https://example.com/watch"}; len(fake.opened) != 1 || !slices.Equal(fake.loads, want) {
-		t.Fatalf("opened %q, loads %q, want one web view and loads %q", fake.opened, fake.loads, want)
-	}
-}
-
-// The hidden web view keeps its page, and a video in it would play on: its sound goes off while another page shows and comes back with the browser's page.
+// The web view, kept while another page shows, would play on a video in it: its sound goes off while another page shows and comes back with the browser's page. A web view that went with its column plays nothing.
 func TestBrowseMutesWhileAnotherPageShows(t *testing.T) {
-	a, tt, _, fake, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, fake, "https://www.youtube.com/watch?v=x")
-	if len(fake.mutes) != 0 {
-		t.Fatalf("muted on its own page: %v", fake.mutes)
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://www.youtube.com/watch?v=x")
+	if len(browseScripts(tt)) != 0 {
+		t.Fatalf("muted on its own page: %q", browseScripts(tt))
 	}
-	if err := tt.Click("全部影片"); err != nil {
-		t.Fatal(err)
+	tt.Press("id:source-" + sidebar.SourceAll)
+	if !a.browse.muted {
+		t.Fatal("the page's sound stayed on")
 	}
-	tt.Frame()
-	tt.Frame()
-	if !slices.Equal(fake.mutes, []bool{true}) {
-		t.Fatalf("on the library: mutes %v, want [true]", fake.mutes)
+	if kept := len(tt.QueryMounted(browsePage)) == 1; kept && !slices.Equal(browseScripts(tt), []string{browseMuteScript(true)}) {
+		t.Fatalf("on the library: scripts %q", browseScripts(tt))
 	}
-	if err := tt.Click("浏览"); err != nil {
-		t.Fatal(err)
+	tt.Press("id:source-" + sidebar.PageBrowse)
+	if a.browse.muted {
+		t.Fatal("the page's sound stayed off on its own page")
 	}
-	tt.Frame()
-	if !slices.Equal(fake.mutes, []bool{true, false}) {
-		t.Fatalf("back on the browser: mutes %v, want [true false]", fake.mutes)
+	if scripts := browseScripts(tt); len(scripts) == 0 || scripts[len(scripts)-1] != browseMuteScript(false) {
+		t.Fatalf("back on the browser: scripts %q", scripts)
 	}
 }
 
-// The browser's ready gives the pipeline the pages' cookies and removes the cookies folders of downloads that never finished; it runs before the queue's, which starts the first job left waiting from the last run, so that job downloads with them too.
-func TestBrowseReadyGivesTheQueueTheCookies(t *testing.T) {
+// The browser's ready removes the cookies folders of downloads that never finished; it runs before the queue's, which starts the first job left waiting from the last run.
+func TestBrowseReadySweepsTheCookies(t *testing.T) {
 	cache := t.TempDir()
 	stale := filepath.Join(cache, "cookies-998877")
 	if err := os.MkdirAll(stale, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	a, _, _ := newTestApp(media.Tools{CookieDir: cache})
+	a, _, _ := newTestApp(t, media.Tools{CookieDir: cache})
 	a.browseHooks().ready()
-	tools, ok := a.pipeline.(media.Tools)
-	if !ok || tools.SiteCookies == nil {
-		t.Fatalf("pipeline %T without SiteCookies", a.pipeline)
-	}
 	if _, err := os.Stat(stale); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("stale cookies folder kept: %v", err)
 	}
@@ -629,6 +544,6 @@ func TestBrowseReadyGivesTheQueueTheCookies(t *testing.T) {
 		}
 	}
 	if browseAt < 0 || queueAt < 0 || browseAt > queueAt {
-		t.Fatalf("browse ready at %d, queue ready at %d: the queue's first job would start without the cookies", browseAt, queueAt)
+		t.Fatalf("browse ready at %d, queue ready at %d: the queue's first job would start before the browser's", browseAt, queueAt)
 	}
 }
