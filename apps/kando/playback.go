@@ -436,7 +436,7 @@ func (p *filmPlay) holdForSeek() {
 	if p.later == nil {
 		return
 	}
-	// TODO(nsgo): send a video's Ref.Seek to the platform ahead of the props changed in the same update, or have the Apple player seek a finished item before it plays it again, so playing a video from its end in one update (Paused false and a seek) starts it over; NSGo's commit puts the commands (the seek) after the props (setRate), and this hold, which costs a commit, could go
+	// TODO(nsgo#206): send a video's Ref.Seek to the platform ahead of the props changed in the same update, or have the Apple player seek a finished item before it plays it again, so playing a video from its end in one update (Paused false and a seek) starts it over; NSGo's commit puts the commands (the seek) after the props (setRate), and this hold, which costs a commit, could go https://github.com/nsgo-dev/nsgo/issues/206
 	p.restart = true
 	p.later(func() { p.restart = false })
 }

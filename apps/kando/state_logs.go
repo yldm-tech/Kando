@@ -25,6 +25,7 @@ func newLogsUI() logsUI { return logsUI{} }
 
 // logsDir is the folder the log file goes in: the system's place for the app's logs, ~/Library/Logs/Kando on macOS, and a logs folder in Kando's folder of the user's configuration elsewhere, as MyGo's PathLogs put it, so the log stays where it was. feedback.OpenLogFile makes the folder. Tests point it at a folder of their own.
 var logsDir = func() (string, error) {
+	// TODO(nsgo#209): ask NSGo for the platform's folder for the app's logs (a Scope.LogsDir) instead of working it out here https://github.com/nsgo-dev/nsgo/issues/209
 	if runtime.GOOS == "darwin" {
 		home, err := os.UserHomeDir()
 		return filepath.Join(home, "Library", "Logs", "Kando"), err

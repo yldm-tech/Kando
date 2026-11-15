@@ -51,7 +51,7 @@ func (r art) Render(cx *core.Scope) core.Node {
 				return pill(cx, a, r.step(), e.code, e.target)
 			}}},
 	}
-	// TODO(nsgo): give core.Text the language it is written in, as MyGo's Text.Lang did, so the example line in Japanese, Korean or Chinese is drawn with that language's glyph forms rather than the interface language's
+	// TODO(nsgo#207): give core.Text the language it is written in, as MyGo's Text.Lang did, so the example line in Japanese, Korean or Chinese is drawn with that language's glyph forms rather than the interface language's https://github.com/nsgo-dev/nsgo/issues/207
 	original := core.Text{ContentFunc: func() string { return example().original },
 		Style: core.Style{FontSize: 13, LineHeight: 18, Opacity: core.Alpha(0.9), TextAlign: core.TextAlignCenter}}
 	translation := core.Text{ContentFunc: func() string { return example().translation },

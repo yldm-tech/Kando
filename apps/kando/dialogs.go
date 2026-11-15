@@ -19,7 +19,7 @@ func (a *app) pickVideos() {
 		types[i] = "." + ext
 	}
 	release := a.holdModal()
-	// TODO(nsgo): give core.PickFilesOptions a title, a button label and a name for the filter, so the panel says 选择本地视频 and 添加 over 视频 as MyGo's open dialog did; it shows the system's own words
+	// TODO(nsgo#199): give core.PickFilesOptions a title, a button label and a name for the filter, so the panel says 选择本地视频 and 添加 over 视频 as MyGo's open dialog did; it shows the system's own words https://github.com/nsgo-dev/nsgo/issues/199
 	// The answer belongs to the app, not to the button that asked, which may be gone by then (core.Scope.Run).
 	a.cx.Run(func() {
 		a.cx.PickFiles(ns.PickFilesOptions{Multiple: true, Types: types}, func(files []ns.File, err error) {
@@ -48,7 +48,7 @@ func (a *app) pickFolder(done func(string)) {
 		return
 	}
 	release := a.holdModal()
-	// TODO(nsgo): give core.PickDirectoriesOptions a title, a button label, the folder to start in and a way to make a new folder, so the panels of 打开已有资料库… and 更改 say their titles and buttons (libraryImportTitle, libraryPlaceTitle and their buttons in the catalogs), start in the folder shown now and offer 新建文件夹 as MyGo's open dialog did; they show the system's own words and start where the system chooses
+	// TODO(nsgo#199): give core.PickDirectoriesOptions a title, a button label, the folder to start in and a way to make a new folder, so the panels of 打开已有资料库… and 更改 say their titles and buttons (libraryImportTitle, libraryPlaceTitle and their buttons in the catalogs), start in the folder shown now and offer 新建文件夹 as MyGo's open dialog did; they show the system's own words and start where the system chooses https://github.com/nsgo-dev/nsgo/issues/199
 	a.cx.Run(func() {
 		a.cx.PickDirectories(ns.PickDirectoriesOptions{}, func(dirs []ns.Directory, err error) {
 			release()

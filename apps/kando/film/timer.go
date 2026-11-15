@@ -8,6 +8,7 @@ import (
 
 // Timer runs one function after a while under an owner, each Set replacing the one before. Every Set runs in a scope of its own, which the next Set or Stop disposes, so a timer set again and again, as on every report of the player or every move of the pointer, leaves the owner as it was: Scope.AfterFunc alone adds a cleanup to its owner on each call, which stays until the owner goes.
 type Timer struct {
+	// TODO(nsgo#198): drop the scope of its own each Set makes once Scope.AfterFunc removes its cleanup from the owner after the timer fires or is stopped, and call AfterFunc on the owner directly https://github.com/nsgo-dev/nsgo/issues/198
 	owner *core.Scope
 	cur   *core.Scope
 	at    time.Time

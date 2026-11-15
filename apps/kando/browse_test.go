@@ -38,7 +38,7 @@ func browseApp(t *testing.T, p media.Pipeline) (*app, *nsgotest.App, chan func()
 
 // browseReport reports nav for the web view as the platform does once a page starts loading and once it has loaded, and settles. The web view reports while it is hidden behind the start too (after home), where nsgotest's Navigate, which looks only at shown views, finds nothing, so the reports go to the mounted view as Navigate sends them.
 func browseReport(tt *nsgotest.App, nav ns.WebNavigation) {
-	// TODO(nsgo): let nsgotest's Navigate report for a mounted web view that is hidden, as a platform's hidden web view goes on reporting its loads, rather than only for a view it shows
+	// TODO(nsgo#201): let nsgotest's Navigate report for a mounted web view that is hidden, as a platform's hidden web view goes on reporting its loads, rather than only for a view it shows https://github.com/nsgo-dev/nsgo/issues/201
 	web := tt.FindMounted(browsePage)
 	for _, loading := range []bool{true, false} {
 		nav.Loading = loading

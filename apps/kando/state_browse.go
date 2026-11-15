@@ -120,7 +120,7 @@ func (a *app) browseNavigate(rawURL string) {
 		a.browse.source = rawURL
 		return
 	}
-	// TODO(nsgo): give core.Ref a LoadURL for web views, so the app loads an address again without the page's help; the web view loads only when its source changes, so the address its source holds already goes through a script of the page's
+	// TODO(nsgo#202): give core.Ref a LoadURL for web views, so the app loads an address again without the page's help; the web view loads only when its source changes, so the address its source holds already goes through a script of the page's https://github.com/nsgo-dev/nsgo/issues/202
 	quoted, _ := json.Marshal(rawURL)
 	a.browse.view.InjectJavaScript("location.assign(" + string(quoted) + ")")
 }
@@ -192,7 +192,7 @@ func (a *app) browseFailed(err error) {
 		return
 	}
 	a.browse.loading = false
-	// TODO(nsgo): give core.WebError the platform's error code, so a load the page itself cut short by starting another (NSURLErrorCancelled, -999) or one that turned into a file (WebKit's 102, frame load interrupted) says nothing, as MyGo dropped them; until then the bar says so until the next load starts, at once for the first and not at all for the second
+	// TODO(nsgo#202): give core.WebError the platform's error code, so a load the page itself cut short by starting another (NSURLErrorCancelled, -999) or one that turned into a file (WebKit's 102, frame load interrupted) says nothing, as MyGo dropped them; until then the bar says so until the next load starts, at once for the first and not at all for the second https://github.com/nsgo-dev/nsgo/issues/202
 	a.browseLoadFailed(err.Error())
 }
 

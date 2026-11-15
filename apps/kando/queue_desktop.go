@@ -53,7 +53,7 @@ func (a *app) queueSystemDesktop(cx *ns.Scope) queueDesktop {
 		active: func() bool { return ns.Untracked(cx, cx.Env().Lifecycle) == ns.LifecycleActive },
 		notify: func(id, title, body string) { a.queueShowNotification(cx, id, title, body) },
 		clear: func() {
-			// TODO(nsgo): remove every notification of the app's, those of earlier runs too, as MyGo's ClearNotifications did; NSGo closes one ID at a time (core.Scope.CloseNotification), so only the ones this run posted go
+			// TODO(nsgo#200): remove every notification of the app's, those of earlier runs too, as MyGo's ClearNotifications did; NSGo closes one ID at a time (core.Scope.CloseNotification), so only the ones this run posted go https://github.com/nsgo-dev/nsgo/issues/200
 			for _, id := range a.queue.sys.shown {
 				cx.CloseNotification(id)
 			}

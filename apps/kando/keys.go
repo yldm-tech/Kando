@@ -105,7 +105,7 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 				continue
 			}
 			bound[s.Key] = true
-			// TODO(nsgo): let a binding give way to the focused control that uses its key, as core.KeyAuto does for text inputs: a focused button's or menu row's Space and Enter, a slider's, tab bar's or radio group's arrows. MyGo's OnShortcut left those keys to such a control; here the player's Space and arrows act on the film instead, except while its speed or mode menu is open (playerKeys)
+			// TODO(nsgo#205): let a binding give way to the focused control that uses its key, as core.KeyAuto does for text inputs: a focused button's or menu row's Space and Enter, a slider's, tab bar's or radio group's arrows. MyGo's OnShortcut left those keys to such a control; here the player's Space and arrows act on the film instead, except while its speed or mode menu is open (playerKeys) https://github.com/nsgo-dev/nsgo/issues/205
 			when := core.KeyAuto
 			if s.InText {
 				when = core.KeyAlways

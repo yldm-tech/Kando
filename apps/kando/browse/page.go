@@ -21,8 +21,8 @@ func (p page) Render(cx *core.Scope) core.Node {
 	a := p.a
 	// The web view refuses the other navigations as they start, a file dropped on it among them, and reports them to OnError.
 	cx.ProvideAccess(webOnly{})
-	// TODO(nsgo): let Access refuse a web view's top-level navigations to about:, data: and blob: addresses, which WebConfig.Navigable allows whatever the Access says, as MyGo's OnWillNavigate refused them; until then a page may go to one, and the app keeps the last web address for the address field and 下载视频 (BrowseNavigated)
-	// TODO(nsgo): let a web view zoom its page with a pinch, as MyGo's PageOptions.PinchZoom did (WKWebView's allowsMagnification)
+	// TODO(nsgo#203): let Access refuse a web view's top-level navigations to about:, data: and blob: addresses, which WebConfig.Navigable allows whatever the Access says, as MyGo's OnWillNavigate refused them; until then a page may go to one, and the app keeps the last web address for the address field and 下载视频 (BrowseNavigated) https://github.com/nsgo-dev/nsgo/issues/203
+	// TODO(nsgo#202): let a web view zoom its page with a pinch, as MyGo's PageOptions.PinchZoom did (WKWebView's allowsMagnification) https://github.com/nsgo-dev/nsgo/issues/202
 	return core.WebView{
 		TestID:                          "browse-page",
 		Ref:                             a.BrowseWeb(),

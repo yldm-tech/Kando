@@ -7,6 +7,7 @@ const seekNear = time.Second
 
 // SeekLanded reports whether position, a time the system's player reported after a seek from from to to, is where the seek landed rather than a report the player sent before it landed. ran is how much of the film has played since the seek, 0 while it is held: a report after the seek landed is at to or up to ran past it, and one sent before goes on from from. A report counts as landed when it is no farther than seekNear from what a landed one says and at least as near that as what one sent before would say, so a seek back by less than seekNear, as a short looped line going back to its start, does not believe a report from its end.
 func SeekLanded(from, to, ran, position time.Duration) bool {
+	// TODO(nsgo#27): take the platform's word that a seek landed, a seek completion event on core.Video, rather than guessing it from the reports' positions https://github.com/nsgo-dev/nsgo/issues/27
 	landed := time.Duration(0)
 	switch {
 	case position < to:

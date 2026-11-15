@@ -61,7 +61,7 @@ var testOS = ns.OSMacOS
 
 // windowClosingCanceled reports whether the close c stood for was held back (core.WindowClosing.Cancel), which keeps the window open. NSGo's WindowClosing only records it, for the platform that asked, so the tests read what it recorded.
 func windowClosingCanceled(c *ns.WindowClosing) bool {
-	// TODO(nsgo): read WindowClosing's Canceled() (or close the window through nsgotest) instead of its unexported canceled field, which NSGo can rename under these tests
+	// TODO(nsgo#201): read WindowClosing's Canceled() (or close the window through nsgotest) instead of its unexported canceled field, which NSGo can rename under these tests https://github.com/nsgo-dev/nsgo/issues/201
 	return reflect.ValueOf(c).Elem().FieldByName("canceled").Bool()
 }
 

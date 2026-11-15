@@ -143,7 +143,7 @@ func (t tile) Render(cx *core.Scope) core.Node {
 			FocusVisible: ui.FocusRing(cx, 2)},
 		StyleFunc: look,
 		Children: []core.Node{
-			// TODO(nsgo): give core.Text the language it is written in, as MyGo's Text.Lang did, so 日本語 and 中文 are drawn with their own glyph forms
+			// TODO(nsgo#207): give core.Text the language it is written in, as MyGo's Text.Lang did, so 日本語 and 中文 are drawn with their own glyph forms https://github.com/nsgo-dev/nsgo/issues/207
 			core.Text{Content: own, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: core.FontWeightSemibold, Color: ink}},
 			core.Text{ContentFunc: func() string { return languageName(cx, code) }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 11, Color: gray}},
 			core.Icon{SVGFunc: func() *core.SVG {
