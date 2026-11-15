@@ -14,7 +14,7 @@
 
 看懂是一款用原声视频学外语的桌面应用。粘贴 YouTube 或哔哩哔哩链接，或者把视频文件拖到窗口上：看懂会用 yt-dlp 下载视频，在本机用 whisper.cpp 转录语音，再通过 OpenAI 兼容模型逐句翻译，然后播放原视频，屏幕上同时显示原文和译文。它用 Go 编写，原生界面由 [NSGo](https://github.com/nsgo-dev/nsgo) 绘制，没有使用 Web 视图。
 
-[![32 秒了解看懂（点击观看有声音的完整视频）](docs/assets/promo-preview.webp)](https://files.sugi.moe/jhi4uvac.mp4)
+[![32 秒了解看懂（点击观看有声音的完整视频）](docs/assets/promo-preview.webp)](https://files.sugi.moe/t7gnkaeh.mp4)
 
 ![资料库：最近完成的影片、正在处理的任务和资料库中的影片](docs/assets/zh-CN/library.png)
 
