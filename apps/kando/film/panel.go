@@ -132,7 +132,7 @@ func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 				}}},
 		})
 	}
-	// TODO(nsgo): give base.Tabs' Label a LabelFunc twin, so the tab list's accessible name follows the interface language as it changes; it is read once here
+	// TODO(nsgo#145): give base.Tabs' Label a LabelFunc twin, so the tab list's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
 	return base.Tabs{TestID: "film-tabs", Label: locales.FilmSidebar(cx),
 		Style:    ns.Style{Direction: ns.Row, Height: ns.Pt(32), Padding: ns.All(3), CornerRadius: 12, Background: ns.RGBA(0xFFFFFF, 0.1)},
 		Children: tabs}
@@ -215,8 +215,8 @@ func (s *screen) searchField(cx *ns.Scope) ns.Node {
 		cx.OnKeyWith("escape", ns.KeyOptions{When: ns.KeyAlways}, clear)
 		return nil
 	}}
-	// TODO(nsgo): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it
-	// TODO(nsgo): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was
+	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
+	// TODO(nsgo#144): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was https://github.com/nsgo-dev/nsgo/issues/144
 	input := base.Input{
 		Ref: field, TestID: "film-search",
 		Label:           locales.FilmSearchLines(cx),

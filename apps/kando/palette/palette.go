@@ -226,7 +226,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 
 // field is the search row: the magnifier, the field 17 high in a row of 30 that has the keyboard as the palette opens, and Esc.
 func field(cx *core.Scope, a App, view *core.Memo[View], send func(fill func(*Event))) core.Node {
-	// TODO(nsgo): give core.Input a LabelFunc twin so the field's accessible name follows the interface language as it changes; it is read once as the palette opens
+	// TODO(nsgo#145): give core.Input a LabelFunc twin so the field's accessible name follows the interface language as it changes; it is read once as the palette opens https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		TestID:          "palette-field",
 		AutoFocus:       true,
@@ -365,7 +365,7 @@ func (c answer) Render(cx *core.Scope) core.Node {
 					}},
 					core.Show{When: func() bool { return action.Get() != "" }, Then: func(*core.Scope) core.Node {
 						// ui.Button takes its title once, so the button is built again when the title changes, which only another language does.
-						// TODO(nsgo): give ui.Button a TextFunc twin so its title follows the language without building the button again, then drop this Dynamic
+						// TODO(nsgo#145): give ui.Button a TextFunc twin so its title follows the language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 						return core.View{Style: core.Style{Direction: core.Row}, Children: []core.Node{core.Dynamic(func(*core.Scope) core.Node {
 							return ui.Button{Text: action.Get(), TestID: "palette-action", OnPress: func() { c.send(func(ev *Event) { ev.Action = true }) }}
 						})}}

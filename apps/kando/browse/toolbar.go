@@ -86,7 +86,7 @@ func (f address) Render(cx *core.Scope) core.Node {
 			field.Focus()
 		}
 	})
-	// TODO(nsgo): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it
+	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		Ref: field, TestID: "browse-address",
 		Label:           locales.BrowseAddressLabel(cx),

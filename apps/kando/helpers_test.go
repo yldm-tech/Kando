@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 	desktop.Headless()
 	showItemInFolder = func(_ *ns.Scope, _ string, done func(error)) { done(nil) }
 	if nsgotest.Target() != "" {
-		// TODO(nsgo): remove the fake tools' folder once the tests have run on a platform too, as headless runs do here; nsgotest.Main gives the main thread to the platform and exits without returning, so nothing runs after the tests there
+		// TODO(nsgo#143): remove the fake tools' folder once the tests have run on a platform too, as headless runs do here; nsgotest.Main gives the main thread to the platform and exits without returning, so nothing runs after the tests there https://github.com/nsgo-dev/nsgo/issues/143
 		nsgotest.Main(m)
 		return
 	}

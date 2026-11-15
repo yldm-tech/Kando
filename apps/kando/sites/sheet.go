@@ -71,7 +71,7 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 			footer(cx, cat, found, query, s.OnClose),
 		},
 	}
-	// TODO(nsgo): give base.Dialog (ui.Dialog) LabelFunc and AccessibilityDescriptionFunc twins, so the sheet's accessible name follows the interface language as it changes while it is open; it is read as the sheet opens
+	// TODO(nsgo#145): give base.Dialog (ui.Dialog) LabelFunc and AccessibilityDescriptionFunc twins, so the sheet's accessible name follows the interface language as it changes while it is open; it is read as the sheet opens https://github.com/nsgo-dev/nsgo/issues/145
 	return ui.Dialog{
 		TestID:                 "sites",
 		Label:                  locales.SitesTitle(cx),
@@ -133,8 +133,8 @@ func (s search) Render(cx *core.Scope) core.Node {
 		cx.OnKeyWith("escape", core.KeyOptions{When: core.KeyAlways}, clear)
 		return nil
 	}}
-	// TODO(nsgo): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it
-	// TODO(nsgo): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was
+	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
+	// TODO(nsgo#144): give core.Input a search role, so assistive technology reads the field as a search field as MyGo's SearchField was https://github.com/nsgo-dev/nsgo/issues/144
 	input := base.Input{
 		TestID:          "sites-search",
 		Label:           locales.SitesSearchLabel(cx),

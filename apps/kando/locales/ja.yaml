@@ -983,7 +983,7 @@ github.com/nsgo-dev/nsgo/base/locales:
   commandNoMatches: "一致するコマンドはありません"
   commandLoading: "読み込み中…"
   commandList: "コマンド"
-  # TODO(nsgo): supply calendarMonth, calendarMonthName and calendarWeekday ({d, date, ::yMMMM}, ::MMM, ::EEEEE) once nsgo i18n compiles a supplied date message: the Translation function it writes calls msgs.dated, which it does not declare (cmd/nsgo/i18n_gen.go:375 with :561); until then calendars write their months and weekdays in English
+  # TODO(nsgo#140): supply calendarMonth, calendarMonthName and calendarWeekday ({d, date, ::yMMMM}, ::MMM, ::EEEEE) once nsgo i18n compiles a supplied date message: the Translation function it writes calls msgs.dated, which it does not declare (cmd/nsgo/i18n_gen.go:375 with :561); until then calendars write their months and weekdays in English https://github.com/nsgo-dev/nsgo/issues/140
   breadcrumbsMore: "その他"
   flowLabel: "{nodes} 個のノード、{edges} 本のエッジ"
 github.com/nsgo-dev/nsgo/base/textview/locales:

@@ -86,7 +86,7 @@ func (a *app) syncMenu(items []nsdesktop.MenuItem) {
 		}
 		a.menu.installed = next
 	})
-	// TODO(nsgo): give the Dock icon a menu of the libraries, as File › 切换资料库 lists them (menuLibraries) and MyGo's App.Dock.SetMenu did; NSGo has no Dock or taskbar menu
+	// TODO(nsgo#142): give the Dock icon a menu of the libraries, as File › 切换资料库 lists them (menuLibraries) and MyGo's App.Dock.SetMenu did; NSGo has no Dock or taskbar menu https://github.com/nsgo-dev/nsgo/issues/142
 }
 
 // menuBar builds the menu bar from the shortcut table and the app's state now, its words in the language the app shows under cx. Each row of the table is an item of the menu its Group names, enabled while its When holds; the rows without a key come last in their menu, after a separator. A ⌘ row carries its key as the item's shortcut, which runs it. A row without ⌘ shows no shortcut in the menu, because the menu would take its key before a focused text field could; its key is on the cheat sheet. While the cheat sheet is open, only the overlays' own rows stay enabled, as the window's shortcuts wait behind it; while a modal dialog such as a file panel is up, none of the rows are (holds).

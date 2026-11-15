@@ -8,7 +8,7 @@ import (
 // textButton is b, a button of ui's, saying text in the language the app shows: ui.Button takes its text once, as it is built, so the button is built again when the language changes, and only then, as text reads nothing else.
 func textButton(text func(cx *core.Scope) string, b ui.Button) core.Node {
 	return core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, which takes the keyboard focus off it; then drop this Dynamic
+		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, which takes the keyboard focus off it; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		b.Text = text(cx)
 		return b
 	})

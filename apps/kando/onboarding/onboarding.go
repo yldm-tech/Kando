@@ -158,7 +158,7 @@ func (v View) Render(cx *core.Scope) core.Node {
 		},
 		NoCloseOnBackdropPress: true,
 		Bare:                   true,
-		// TODO(nsgo): give base.Dialog (and ui.Dialog) a LabelFunc twin, so the sheet's accessible name follows the interface language as it changes; it is read once as the sheet opens, and a Dynamic would build the sheet again and take the link field's focus with it
+		// TODO(nsgo#145): give base.Dialog (and ui.Dialog) a LabelFunc twin, so the sheet's accessible name follows the interface language as it changes; it is read once as the sheet opens, and a Dynamic would build the sheet again and take the link field's focus with it https://github.com/nsgo-dev/nsgo/issues/145
 		Label: locales.OnboardingWelcome(cx),
 		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: 16, Background: sheetFill,
 			BorderWidth: 0.5, BorderColor: core.RGBA(0x000000, 0.22),

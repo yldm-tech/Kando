@@ -81,7 +81,7 @@ func (r Row) Render(*core.Scope) core.Node {
 	row := core.View{TestID: r.TestID, Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(40), Padding: core.Symmetric(6, 14), Gap: 10, AlignItems: core.AlignCenter},
 		Children: children}
 	if !r.NoGroup {
-		// TODO(nsgo): give core.View an AccessibilityDescriptionFunc twin, so a row whose subtitle changes with the app's state (SubtitleFunc) is described by it as it changes, as MyGo's Description was each frame; until then assistive technology reads that subtitle as the row's text only
+		// TODO(nsgo#145): give core.View an AccessibilityDescriptionFunc twin, so a row whose subtitle changes with the app's state (SubtitleFunc) is described by it as it changes, as MyGo's Description was each frame; until then assistive technology reads that subtitle as the row's text only https://github.com/nsgo-dev/nsgo/issues/145
 		row.Role, row.Label, row.AccessibilityDescription = core.RoleGroup, r.Title, r.Subtitle
 	}
 	return row
@@ -177,6 +177,6 @@ func (b Button) Render(cx *core.Scope) core.Node {
 		return button(b.Text)
 	}
 	text := core.NewMemo(cx, b.TextFunc)
-	// TODO(nsgo): give ui.Button a TextFunc twin, so a label that changes with the app's state, as 拷贝配置 turning to 已拷贝, does not build the button again, which takes the keyboard focus off it
+	// TODO(nsgo#145): give ui.Button a TextFunc twin, so a label that changes with the app's state, as 拷贝配置 turning to 已拷贝, does not build the button again, which takes the keyboard focus off it https://github.com/nsgo-dev/nsgo/issues/145
 	return core.Dynamic(func(*core.Scope) core.Node { return button(text.Get()) })
 }

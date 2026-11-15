@@ -108,7 +108,7 @@ func (d trashDialog) Render(cx *core.Scope) core.Node {
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			id := model.Get()
 			info, _ := media.SpeechModelByID(id)
-			// TODO(nsgo): give ui.Dialog TitleFunc and DescriptionFunc twins so the words follow the model asked about without building the dialog again, then drop this Dynamic
+			// TODO(nsgo#145): give ui.Dialog TitleFunc and DescriptionFunc twins so the words follow the model asked about without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 			return ui.Dialog{
 				TestID:                 "settings-trash-confirm",
 				Role:                   core.RoleAlertDialog,

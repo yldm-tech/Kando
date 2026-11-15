@@ -22,7 +22,7 @@ func (d clearDialog) Render(cx *core.Scope) core.Node {
 		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways}, cancel)
 		// The dialog's words are set as it is built, so it is built again for another language; it reads nothing of the app's.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the language without building the dialog again, then drop this Dynamic
+			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 			return ui.Dialog{
 				TestID:                 "browse-clear-confirm",
 				Role:                   core.RoleAlertDialog,

@@ -54,7 +54,7 @@ func (s *screen) volume(cx *core.Scope) core.Node {
 		d.SetFillColor(onGlass).BeginPath().RoundRect(knob/2, y, x-knob/2, 4, 2).Fill()
 		d.SetFillColor(onGlass).BeginPath().RoundRect(x-knob/2, h/2-knob/2, knob, knob, knob/2).Fill()
 	}
-	// TODO(nsgo): give base.Slider's Label a LabelFunc twin, so the volume slider's accessible name follows the interface language as it changes; it is read once here
+	// TODO(nsgo#145): give base.Slider's Label a LabelFunc twin, so the volume slider's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
 	slider := base.Slider{
 		TestID: "film-volume", Label: locales.FilmVolume(cx),
 		Min: func() float64 { return 0 }, Max: func() float64 { return 1 }, Step: func() float64 { return 0.1 },

@@ -65,7 +65,7 @@ func (n newLibraryBody) Render(cx *core.Scope) core.Node {
 	rowTitle := func(text func(*core.Scope) string) core.Node {
 		return core.Text{ContentFunc: func() string { return text(cx) }, MaxLines: 1, Style: core.Style{FontSize: 13, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Text)}
 	}
-	// TODO(nsgo): give core.Input (base.Input, ui.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once, as the sheet opens
+	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once, as the sheet opens https://github.com/nsgo-dev/nsgo/issues/145
 	name := base.Input{
 		TestID: "newlib-name",
 		Label:  locales.FilmsNewLibraryName(cx),

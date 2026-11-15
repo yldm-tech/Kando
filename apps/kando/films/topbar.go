@@ -121,7 +121,7 @@ func (l linkField) Render(cx *ns.Scope) ns.Node {
 		label, color, ok := linkChip(locales.For(cx), *a.Source())
 		return chipLook{label, color, ok}
 	})
-	// TODO(nsgo): give core.Input (base.Input, ui.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it
+	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		Ref: field, TestID: "films-link",
 		Label:           locales.FilmsLinkLabel(cx),

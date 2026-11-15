@@ -191,7 +191,7 @@ func presetCard(cx *core.Scope, id string, label func() string, box bool, sample
 // faceGroup sets one line's size, between lo and hi, its color and whether it is bold. id keys its controls and name heads it; of picks the line's face out of a look.
 func (s *screen) faceGroup(cx *core.Scope, id string, name func() string, of func(l *Look) *Face, look func() Look, edit func(func(l *Look)) func(), lo, hi float64) []core.Node {
 	face := func() Face { l := look(); return *of(&l) }
-	// TODO(nsgo): give ui.Slider's Label a LabelFunc twin, as base.Slider's, so the size slider's accessible name follows the interface language as it changes; it is read once here
+	// TODO(nsgo#145): give ui.Slider's Label a LabelFunc twin, as base.Slider's, so the size slider's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
 	size := ui.Slider{TestID: "film-style-size-" + id, Label: locales.FilmFaceSize(cx, name()), Min: lo, Max: hi, Step: 1,
 		Value:    func() float64 { return float64(face().Size) },
 		OnChange: func(v float64) { edit(func(l *Look) { of(l).Size = float32(v) })() },

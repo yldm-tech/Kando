@@ -40,7 +40,7 @@ func (s *screen) uploadCapsule() core.Node {
 			}
 			return core.Style{Background: c}
 		}}
-		// TODO(nsgo): give the capsule core.RoleStatus, as MyGo's RoleStatus had assistive technology read it as a status; NSGo has no status role, so it is a polite live region here
+		// TODO(nsgo#144): give the capsule core.RoleStatus, as MyGo's RoleStatus had assistive technology read it as a status; NSGo has no status role, so it is a polite live region here https://github.com/nsgo-dev/nsgo/issues/144
 		capsule := core.View{TestID: "film-upload-capsule", LiveRegion: core.LiveRegionPolite,
 			Style: uploadGlass.style().Merge(core.Style{Direction: core.Row, Wrap: core.Wrap, MaxWidth: core.Pct(70), Gap: 10, Padding: core.Edges{Top: 8, Right: 8, Bottom: 8, Left: 16}, AlignItems: core.AlignCenter}),
 			Children: []core.Node{

@@ -119,7 +119,7 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		quoteBox,
 		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 10, Wrap: ns.Wrap, Margin: ns.Edges{Top: 6}}, Children: []ns.Node{play, alt}},
 	}}
-	// TODO(nsgo): give base.Button a HintFunc twin, so the hero's hint follows the interface language as it changes; it is read once, as the hero is built
+	// TODO(nsgo#145): give base.Button a HintFunc twin, so the hero's hint follows the interface language as it changes; it is read once, as the hero is built https://github.com/nsgo-dev/nsgo/issues/145
 	box := base.Button{
 		TestID:    "films-hero",
 		LabelFunc: func() string { return filmName(item()) },

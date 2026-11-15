@@ -78,7 +78,7 @@ type Dialog struct{ App App }
 // Render implements core.Node.
 func (d Dialog) Render(cx *core.Scope) core.Node {
 	a := d.App
-	// TODO(nsgo): give ui.Dialog (base.Dialog) a LabelFunc so the dialog's accessible name follows the interface language as it changes; it is read once as the dialog is built
+	// TODO(nsgo#145): give ui.Dialog (base.Dialog) a LabelFunc so the dialog's accessible name follows the interface language as it changes; it is read once as the dialog is built https://github.com/nsgo-dev/nsgo/issues/145
 	return ui.Dialog{
 		TestID:                 "feedback",
 		Label:                  locales.FeedbackTitle(cx),
@@ -150,7 +150,7 @@ func headingLevel() int { return 1 }
 
 // titled builds a control whose title NSGo's ui controls take once, again whenever title changes, which only another language or another state of the control does: the control holds no text being typed, so building it again loses nothing but the keyboard focus on it.
 func titled(cx *core.Scope, title func() string, build func(title string) core.Node) core.Node {
-	// TODO(nsgo): give ui.Button and ui.Tabs TextFunc and LabelFunc twins, so their titles follow the language and the state without building the control again, then drop this Dynamic
+	// TODO(nsgo#145): give ui.Button and ui.Tabs TextFunc and LabelFunc twins, so their titles follow the language and the state without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 	memo := core.NewMemo(cx, title)
 	return core.Dynamic(func(*core.Scope) core.Node { return build(memo.Get()) })
 }
@@ -188,7 +188,7 @@ func card(cx *core.Scope, rows ...core.Node) core.Node {
 func fields(cx *core.Scope, a App, form *Form) core.Node {
 	hasTitle := strings.TrimSpace(form.Title) != ""
 	kind := live.Func(a, func() Kind { return Kind(form.Kind) })
-	// TODO(nsgo): give core.Input a LabelFunc twin so the fields' accessible names follow the interface language as it changes; they are read once as the dialog opens
+	// TODO(nsgo#145): give core.Input a LabelFunc twin so the fields' accessible names follow the interface language as it changes; they are read once as the dialog opens https://github.com/nsgo-dev/nsgo/issues/145
 	title := ui.Input{
 		TestID:          "feedback-title",
 		Label:           locales.FeedbackFieldTitle(cx),

@@ -58,7 +58,7 @@ func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 			}
 		}
 	}
-	// TODO(nsgo): give base.Slider's Label a LabelFunc twin, so the scrubber's accessible name follows the interface language as it changes; it is read once here
+	// TODO(nsgo#145): give base.Slider's Label a LabelFunc twin, so the scrubber's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
 	slider := base.Slider{
 		TestID: "film-scrubber", Label: locales.FilmPlaybackPosition(cx),
 		Min: func() float64 { return 0 }, Max: length,

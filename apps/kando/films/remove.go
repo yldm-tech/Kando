@@ -42,7 +42,7 @@ func (r removeDialog) Render(cx *core.Scope) core.Node {
 		// Enter answers 取消, the default answer, wherever the keyboard focus is in the dialog; the binding goes when the dialog does.
 		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways}, cancel)
 		return core.Dynamic(func(cx *core.Scope) core.Node {
-			// TODO(nsgo): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the film and the language without building the dialog again, then drop this Dynamic
+			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the film and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 			l := look()
 			message := locales.FilmsRemoveFiles(cx)
 			switch {

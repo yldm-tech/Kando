@@ -269,7 +269,7 @@ func (r googleRow) Render(cx *core.Scope) core.Node {
 	// The row is built again as the account signs in or out, which its description, read as it is built, follows; the button is the only part of it that takes the keyboard, and goes with the account anyway.
 	build := func(button core.Node) func(*core.Scope) core.Node {
 		return func(*core.Scope) core.Node {
-			// TODO(nsgo): give core.View an AccessibilityDescriptionFunc twin, so the row's description follows the interface language as it changes, as LabelFunc does its name; it is read as the row is built
+			// TODO(nsgo#145): give core.View an AccessibilityDescriptionFunc twin, so the row's description follows the interface language as it changes, as LabelFunc does its name; it is read as the row is built https://github.com/nsgo-dev/nsgo/issues/145
 			return core.View{
 				TestID:                   "google-row",
 				Role:                     core.RoleGroup,

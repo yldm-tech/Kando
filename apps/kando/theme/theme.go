@@ -22,7 +22,7 @@ func Kando() *core.Theme {
 	l := &t.Light
 	l.Background, l.Surface = lightBackground, lightBackground
 	l.Text, l.TextMuted = lightText, lightMuted
-	// TODO(nsgo): keep the platform's darker secondary text while the user asks for more contrast, as MyGo's Preferences().HighContrast let the light palette do; core.Env reports no contrast preference
+	// TODO(nsgo#141): keep the platform's darker secondary text while the user asks for more contrast, as MyGo's Preferences().HighContrast let the light palette do; core.Env reports no contrast preference https://github.com/nsgo-dev/nsgo/issues/141
 	// The roles NSGo derives from the text's color, at its opacities, derived from Kando's darker text.
 	l.SurfaceHover, l.SurfacePressed = lightText.Faded(0.08), lightText.Faded(0.14)
 	l.Border, l.Scrollbar = lightText.Faded(0.16), lightText.Faded(0.30)
