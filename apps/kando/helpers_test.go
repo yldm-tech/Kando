@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"kando/apps/kando/cloud"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
@@ -37,9 +38,10 @@ import (
 //   - tt.DropFiles(paths...): tt.DropFiles(selector, fileURLs(paths...)...)
 //   - tt.Image() and the PNG screenshots: none headless, and on a platform nsgotest's Screenshot gives no bytes (nsgo#119, screenshotFixture.shoot)
 
-// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). A reveal no test watches shows nothing, so a test never opens the file manager of the machine running it.
+// TestMain reads the interface in the language Kando shows by default, whatever the languages of the machine running the tests; the screenshots read it in KANDO_SCREENSHOTS_LANG when that names one of locales.Interface (screenshot_helpers_test.go). desktop.Headless keeps every reveal and trash off the system's tools, whichever area calls them and whether or not its test replaced its hook: a reveal opens the item's folder through the scope, which nsgotest records rather than opens, and a trash fails as unsupported, so a test never opens the file manager of the machine running it nor moves its files to the Trash. A reveal no test watches shows nothing at all.
 func TestMain(m *testing.M) {
 	testlocale.Pin(locales.Default)
+	desktop.Headless()
 	showItemInFolder = func(string) {}
 	if nsgotest.Target() != "" {
 		// TODO(nsgo): remove the fake tools' folder once the tests have run on a platform too, as headless runs do here; nsgotest.Main gives the main thread to the platform and exits without returning, so nothing runs after the tests there
