@@ -26,10 +26,10 @@ func TestQueueOrderRunsOldestFirst(t *testing.T) {
 	if got := strings.Join(keys, ","); got != "running,waiting-old,waiting-new,failed-new,failed-old" {
 		t.Fatalf("order %s", got)
 	}
-	if got := QueueSummary(items); got != "3 个进行中 · 2 个需要处理" {
+	if got := QueueSummary(testlocale.Messages(), items); got != "3 个进行中 · 2 个需要处理" {
 		t.Fatalf("summary %q", got)
 	}
-	if got := QueueSummary(items[2:3]); got != "1 个进行中" {
+	if got := QueueSummary(testlocale.Messages(), items[2:3]); got != "1 个进行中" {
 		t.Fatalf("summary %q", got)
 	}
 }
@@ -65,7 +65,7 @@ func TestLinkChipNamesThePlatform(t *testing.T) {
 		"file:///v.mp4":                                         "",
 		"hello":                                                 "",
 	} {
-		label, _, ok := linkChip(raw)
+		label, _, ok := linkChip(testlocale.Messages(), raw)
 		if label != want || ok != (want != "") {
 			t.Errorf("linkChip(%q) = %q %v, want %q", raw, label, ok, want)
 		}
@@ -105,14 +105,14 @@ func TestAVideoWithoutAJobShowsTheSubtitlesBesideIt(t *testing.T) {
 		t.Fatalf("shelf = %#v", shelf)
 	}
 	a := clockApp{d: 42 * time.Second}
-	if got, want := doneMeta(a, shelf[0]), "Local Files · 0:42"; got != want {
+	if got, want := doneMeta(testlocale.Messages(), a, shelf[0]), "Local Files · 0:42"; got != want {
 		t.Errorf("a video with subtitles beside it reads %q, want %q", got, want)
 	}
-	if got, want := doneMeta(a, shelf[1]), "Local Files · 0:42 · No subtitles yet"; got != want {
+	if got, want := doneMeta(testlocale.Messages(), a, shelf[1]), "Local Files · 0:42 · No subtitles yet"; got != want {
 		t.Errorf("a video with no subtitles reads %q, want %q", got, want)
 	}
 	done := Film{JobID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, SubtitlePath: "/Movies/a.kando/Talk/video.bilingual.srt"}
-	if got, want := doneMeta(a, done), "YouTube · 0:42"; got != want {
+	if got, want := doneMeta(testlocale.Messages(), a, done), "YouTube · 0:42"; got != want {
 		t.Errorf("a finished job reads %q, want %q", got, want)
 	}
 }
@@ -172,7 +172,7 @@ func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 		{"translate waits after no answer", Film{Source: yt, Stage: core.StageTranslating, Progress: unanswered}, "翻译接口没有回应，8 秒后重试（1/2）"},
 		{"export", Film{Source: yt, Stage: core.StageExporting, Progress: core.Fraction(0.5)}, "导出中 · 写入 video.srt 与 video.bilingual.srt"},
 	} {
-		if got := QueueMeta(tc.item); got != tc.want {
+		if got := QueueMeta(testlocale.Messages(), tc.item); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -208,6 +208,7 @@ func TestStepFillsFollowTheStage(t *testing.T) {
 // TestLabelsInEnglish reads a job's line, its stage, where a film comes from and the summary of the queue in English, plurals included.
 func TestLabelsInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
+	m := testlocale.Messages()
 	const yt = "https://youtu.be/TRWgBxVAb1M"
 	download := core.Fraction(0.42)
 	download.ETA = 12 * time.Second
@@ -216,19 +217,19 @@ func TestLabelsInEnglish(t *testing.T) {
 	batches := core.Fraction(0.25)
 	batches.Batch, batches.Batches, batches.BatchSize = 1, 3, 1
 	for _, tc := range []struct{ got, want string }{
-		{QueueMeta(Film{Source: yt, Stage: core.StageQueued}), "Queued · Waiting for the jobs ahead"},
-		{QueueMeta(Film{Source: yt, Stage: core.StageDownloading, Progress: download}), "Downloading · 42% · 0:12 left"},
-		{QueueMeta(Film{Source: "https://www.douyin.com/video/1", Stage: core.StageDownloading}), "Downloading · yt-dlp · Douyin"},
-		{QueueMeta(Film{Source: yt, Stage: core.StageTranslating, Progress: waiting}), "Translation API rate-limited, retrying in 1 second (1/2)"},
-		{QueueMeta(Film{Source: yt, Stage: core.StageTranslating, Progress: batches}), "Translating · Batch 1/3 · 1 line per batch"},
-		{StageLabel(core.StageComplete), "Done"},
-		{SourceLabel(Film{Source: "https://www.bilibili.com/video/BV1GJ411x7h7"}), "Bilibili"},
-		{SourceLabel(Film{Source: "https://vimeo.com/76979871"}), "Vimeo"},
-		{SourceLabel(Film{Source: "https://example.com/v"}), "example.com"},
-		{SourceLabel(Film{}), "Local Files"},
-		{QueueSummary([]Film{{Stage: core.StageQueued}, {Stage: core.StageFailed}, {Stage: core.StageFailed}}), "1 in progress · 2 need attention"},
-		{LanguageName("简体中文"), "Simplified Chinese"},
-		{LanguageName("日本語"), "Japanese"},
+		{QueueMeta(m, Film{Source: yt, Stage: core.StageQueued}), "Queued · Waiting for the jobs ahead"},
+		{QueueMeta(m, Film{Source: yt, Stage: core.StageDownloading, Progress: download}), "Downloading · 42% · 0:12 left"},
+		{QueueMeta(m, Film{Source: "https://www.douyin.com/video/1", Stage: core.StageDownloading}), "Downloading · yt-dlp · Douyin"},
+		{QueueMeta(m, Film{Source: yt, Stage: core.StageTranslating, Progress: waiting}), "Translation API rate-limited, retrying in 1 second (1/2)"},
+		{QueueMeta(m, Film{Source: yt, Stage: core.StageTranslating, Progress: batches}), "Translating · Batch 1/3 · 1 line per batch"},
+		{StageLabel(m, core.StageComplete), "Done"},
+		{SourceLabel(m, Film{Source: "https://www.bilibili.com/video/BV1GJ411x7h7"}), "Bilibili"},
+		{SourceLabel(m, Film{Source: "https://vimeo.com/76979871"}), "Vimeo"},
+		{SourceLabel(m, Film{Source: "https://example.com/v"}), "example.com"},
+		{SourceLabel(m, Film{}), "Local Files"},
+		{QueueSummary(m, []Film{{Stage: core.StageQueued}, {Stage: core.StageFailed}, {Stage: core.StageFailed}}), "1 in progress · 2 need attention"},
+		{LanguageName(m, "简体中文"), "Simplified Chinese"},
+		{LanguageName(m, "日本語"), "Japanese"},
 	} {
 		if tc.got != tc.want {
 			t.Errorf("%q, want %q", tc.got, tc.want)

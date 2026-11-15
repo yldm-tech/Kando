@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"kando/apps/kando/desktop/mygodesktop"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
@@ -45,8 +45,8 @@ const (
 // installedBrowsers looks on disk for the browsers whose logins the cards offer to borrow; it runs off the UI thread. Tests replace it.
 var installedBrowsers = media.InstalledBrowsers
 
-// openExternal opens a URL with the system, as the Full Disk Access pane of System Settings. Tests replace it.
-var openExternal = mygodesktop.OpenURL
+// openExternal opens a URL with the system under the scope cx, as the Full Disk Access pane of System Settings, and tells done whether it opened. Tests replace it.
+var openExternal = desktop.OpenURL
 
 // fullDiskAccess is the pane of System Settings that lets an app read Safari's cookies.
 const fullDiskAccess = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
@@ -89,7 +89,7 @@ func (a *app) queueFindBrowsers() {
 		update(func() {
 			a.queue.ytdlp.browsers = browsers
 			if len(browsers) == 0 {
-				a.tell(locales.QueueNoBrowserAgain())
+				a.tell(a.messages().QueueNoBrowserAgain())
 			}
 		})
 	}()
@@ -101,27 +101,28 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 	if !ok || job.Stage != core.StageFailed || job.FailKind == "" {
 		return films.Remedy{}, false
 	}
-	site := films.SourceLabel(item)
+	m := a.messages()
+	site := films.SourceLabel(m, item)
 	browser, other := a.remedyBrowsers(job)
 	// borrow is 借用 … 登录并重试, or 重新查找浏览器 when there is no browser to borrow from; why is then followed by the sentence that says there is none in place of withBrowser.
 	borrow := func(primary bool) films.RemedyAction {
 		if browser.ID == "" {
-			return films.RemedyAction{ID: remedyFindBrowsers, Label: locales.QueueRemedyFindBrowsers(), Primary: primary}
+			return films.RemedyAction{ID: remedyFindBrowsers, Label: m.QueueRemedyFindBrowsers(), Primary: primary}
 		}
-		return films.RemedyAction{ID: remedyBorrow + browser.ID, Label: locales.QueueRemedyBorrow(browser.Name), Primary: primary}
+		return films.RemedyAction{ID: remedyBorrow + browser.ID, Label: m.QueueRemedyBorrow(browser.Name), Primary: primary}
 	}
 	why := func(need, withBrowser string) string {
 		if browser.ID == "" {
-			return locales.QueueRemedySentences(need, locales.QueueRemedyNoBrowser())
+			return m.QueueRemedySentences(need, m.QueueRemedyNoBrowser())
 		}
-		return locales.QueueRemedySentences(need, withBrowser)
+		return m.QueueRemedySentences(need, withBrowser)
 	}
 	swap := func(primary bool) films.RemedyAction {
-		return films.RemedyAction{ID: remedySwap, Label: locales.QueueRemedySwap(), Primary: primary}
+		return films.RemedyAction{ID: remedySwap, Label: m.QueueRemedySwap(), Primary: primary}
 	}
-	retry := films.RemedyAction{ID: remedyRetry, Label: locales.QueueRemedyRetry(), Primary: true}
+	retry := films.RemedyAction{ID: remedyRetry, Label: m.QueueRemedyRetry(), Primary: true}
 	local := func(primary bool) films.RemedyAction {
-		return films.RemedyAction{ID: remedyLocal, Label: locales.QueueRemedyLocal(), Primary: primary}
+		return films.RemedyAction{ID: remedyLocal, Label: m.QueueRemedyLocal(), Primary: primary}
 	}
 	var r films.Remedy
 	switch job.FailKind {
@@ -129,43 +130,43 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 		r = a.outdatedRemedy(site)
 	case core.FailLoginExpired:
 		name := media.BrowserName(job.Cookies)
-		r = films.Remedy{Headline: locales.QueueRemedyLoginExpired(site), Why: locales.QueueRemedyLoginExpiredWhy(name, siteShort(job.Source, site)),
-			Actions: []films.RemedyAction{{ID: remedyBorrow + job.Cookies, Label: locales.QueueRemedyRelogged(), Primary: true}}}
+		r = films.Remedy{Headline: m.QueueRemedyLoginExpired(site), Why: m.QueueRemedyLoginExpiredWhy(name, siteShort(m, job.Source, site)),
+			Actions: []films.RemedyAction{{ID: remedyBorrow + job.Cookies, Label: m.QueueRemedyRelogged(), Primary: true}}}
 		if other.ID != "" {
-			r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: locales.QueueRemedySwitchBrowser(other.Name)})
+			r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: m.QueueRemedySwitchBrowser(other.Name)})
 		}
 	case core.FailMembers:
-		headline, need := locales.QueueRemedyMembers(), locales.QueueRemedyMembersNeed()
+		headline, need := m.QueueRemedyMembers(), m.QueueRemedyMembersNeed()
 		if queueBilibili(job.Source) {
-			headline, need = locales.QueueRemedyPremium(), locales.QueueRemedyPremiumNeed()
+			headline, need = m.QueueRemedyPremium(), m.QueueRemedyPremiumNeed()
 		}
-		r = films.Remedy{Headline: headline, Why: why(need, locales.QueueRemedyMembersBorrow()), Actions: []films.RemedyAction{borrow(true), swap(false)}}
+		r = films.Remedy{Headline: headline, Why: why(need, m.QueueRemedyMembersBorrow()), Actions: []films.RemedyAction{borrow(true), swap(false)}}
 	case core.FailAge:
-		r = films.Remedy{Headline: locales.QueueRemedyAge(), Why: locales.QueueRemedyAgeWhy(site), Actions: []films.RemedyAction{borrow(true)}}
+		r = films.Remedy{Headline: m.QueueRemedyAge(), Why: m.QueueRemedyAgeWhy(site), Actions: []films.RemedyAction{borrow(true)}}
 		if browser.ID == "" {
-			r.Why = locales.QueueRemedySentences(locales.QueueRemedyAgeNeed(site), locales.QueueRemedyNoBrowser())
+			r.Why = m.QueueRemedySentences(m.QueueRemedyAgeNeed(site), m.QueueRemedyNoBrowser())
 		}
 	case core.FailLogin:
-		r = films.Remedy{Headline: locales.QueueRemedyLogin(), Why: why(locales.QueueRemedyLoginNeed(hostOf(job.Source)), locales.QueueRemedyLoginBorrow()), Actions: []films.RemedyAction{borrow(true)}}
+		r = films.Remedy{Headline: m.QueueRemedyLogin(), Why: why(m.QueueRemedyLoginNeed(hostOf(job.Source)), m.QueueRemedyLoginBorrow()), Actions: []films.RemedyAction{borrow(true)}}
 	case core.FailRegion:
-		r = films.Remedy{Headline: locales.QueueRemedyRegion(), Why: locales.QueueRemedyRegionWhy(), Actions: []films.RemedyAction{swap(true)}}
+		r = films.Remedy{Headline: m.QueueRemedyRegion(), Why: m.QueueRemedyRegionWhy(), Actions: []films.RemedyAction{swap(true)}}
 	case core.FailPrivate:
-		r = films.Remedy{Headline: locales.QueueRemedyPrivate(), Why: locales.QueueRemedyPrivateWhy(), Actions: []films.RemedyAction{swap(true)}}
+		r = films.Remedy{Headline: m.QueueRemedyPrivate(), Why: m.QueueRemedyPrivateWhy(), Actions: []films.RemedyAction{swap(true)}}
 	case core.FailDRM:
-		r = films.Remedy{Headline: locales.QueueRemedyDrm(site), Why: locales.QueueRemedyDrmWhy(), Actions: []films.RemedyAction{local(true)}}
+		r = films.Remedy{Headline: m.QueueRemedyDrm(site), Why: m.QueueRemedyDrmWhy(), Actions: []films.RemedyAction{local(true)}}
 	case core.FailUnsupported:
-		r = films.Remedy{Headline: locales.QueueRemedyUnsupported(hostOf(job.Source)), Why: locales.QueueRemedyUnsupportedWhy(), Actions: []films.RemedyAction{swap(true), local(false), {ID: remedySites, Label: locales.QueueRemedySites()}}}
+		r = films.Remedy{Headline: m.QueueRemedyUnsupported(hostOf(job.Source)), Why: m.QueueRemedyUnsupportedWhy(), Actions: []films.RemedyAction{swap(true), local(false), {ID: remedySites, Label: m.QueueRemedySites()}}}
 	case core.FailRateLimit:
-		r = films.Remedy{Headline: locales.QueueRemedyRateLimit(site), Why: locales.QueueRemedyRateLimitWhy(), Actions: []films.RemedyAction{retry, borrow(false)}}
+		r = films.Remedy{Headline: m.QueueRemedyRateLimit(site), Why: m.QueueRemedyRateLimitWhy(), Actions: []films.RemedyAction{retry, borrow(false)}}
 		if browser.ID == "" {
-			r.Why, r.Actions = locales.QueueRemedyRateLimitWait(), []films.RemedyAction{retry}
+			r.Why, r.Actions = m.QueueRemedyRateLimitWait(), []films.RemedyAction{retry}
 		}
 	case core.FailNetwork:
-		r = films.Remedy{Headline: locales.QueueRemedyNetwork(), Why: locales.QueueRemedyNetworkWhy(), Actions: []films.RemedyAction{retry}}
+		r = films.Remedy{Headline: m.QueueRemedyNetwork(), Why: m.QueueRemedyNetworkWhy(), Actions: []films.RemedyAction{retry}}
 	case core.FailBadLink:
-		r = films.Remedy{Headline: locales.QueueRemedyBadLink(), Why: locales.QueueRemedyBadLinkWhy(), Actions: []films.RemedyAction{swap(true)}}
+		r = films.Remedy{Headline: m.QueueRemedyBadLink(), Why: m.QueueRemedyBadLinkWhy(), Actions: []films.RemedyAction{swap(true)}}
 	case core.FailHost:
-		r = films.Remedy{Headline: locales.QueueRemedyHost(hostOf(job.Source)), Why: locales.QueueRemedyHostWhy(), Actions: []films.RemedyAction{swap(true), {ID: remedyRetry, Label: locales.QueueRemedyRetry()}}}
+		r = films.Remedy{Headline: m.QueueRemedyHost(hostOf(job.Source)), Why: m.QueueRemedyHostWhy(), Actions: []films.RemedyAction{swap(true), {ID: remedyRetry, Label: m.QueueRemedyRetry()}}}
 	case core.FailCookies:
 		r = a.cookiesRemedy(job, other)
 	default:
@@ -176,64 +177,66 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 
 // outdatedRemedy is the card of a site yt-dlp no longer understands: the version it has, and 更新并重试, or how to update it when Kando cannot, with 下载 yt-dlp 并重试 first when Kando can download its own yt-dlp here.
 func (a *app) outdatedRemedy(site string) films.Remedy {
+	m := a.messages()
 	y := a.queue.ytdlp
 	if _, downloading := a.kitsProgress("yt-dlp"); downloading && y.kitRetry {
-		return films.Remedy{Headline: locales.QueueRemedyDownloadingYtdlp(), Why: locales.QueueRemedyDownloadingYtdlpWhy(), Working: true,
-			Actions: []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: locales.QueueRemedyDownloadingYtdlpAction(), Primary: true, Disabled: true}}}
+		return films.Remedy{Headline: m.QueueRemedyDownloadingYtdlp(), Why: m.QueueRemedyDownloadingYtdlpWhy(), Working: true,
+			Actions: []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: m.QueueRemedyDownloadingYtdlpAction(), Primary: true, Disabled: true}}}
 	}
 	if y.updating {
-		return films.Remedy{Headline: locales.QueueRemedyUpdating(), Why: locales.QueueRemedyUpdatingWhy(), Working: true,
-			Actions: []films.RemedyAction{{ID: remedyUpdate, Label: locales.QueueRemedyUpdatingAction(), Primary: true, Disabled: true}}}
+		return films.Remedy{Headline: m.QueueRemedyUpdating(), Why: m.QueueRemedyUpdatingWhy(), Working: true,
+			Actions: []films.RemedyAction{{ID: remedyUpdate, Label: m.QueueRemedyUpdatingAction(), Primary: true, Disabled: true}}}
 	}
 	if y.latest != "" && y.latest == y.version {
-		return films.Remedy{Headline: locales.QueueRemedyOutdatedLatest(site), Why: locales.QueueRemedyOutdatedLatestWhy(y.version),
-			Actions: []films.RemedyAction{{ID: remedyRetry, Label: locales.QueueRemedyRetry(), Primary: true}, {ID: remedyUpdate, Label: locales.QueueRemedyCheckUpdate()}}}
+		return films.Remedy{Headline: m.QueueRemedyOutdatedLatest(site), Why: m.QueueRemedyOutdatedLatestWhy(y.version),
+			Actions: []films.RemedyAction{{ID: remedyRetry, Label: m.QueueRemedyRetry(), Primary: true}, {ID: remedyUpdate, Label: m.QueueRemedyCheckUpdate()}}}
 	}
-	r := films.Remedy{Headline: locales.QueueRemedyOutdated(site), Why: locales.QueueRemedyOutdatedWhy()}
+	r := films.Remedy{Headline: m.QueueRemedyOutdated(site), Why: m.QueueRemedyOutdatedWhy()}
 	if y.version != "" {
-		r.Why = locales.QueueRemedyOutdatedVersionWhy(y.version)
+		r.Why = m.QueueRemedyOutdatedVersionWhy(y.version)
 	}
 	if y.path != "" && y.install.Update == nil {
-		hint := queueYTDLPHint(y.install)
+		hint := queueYTDLPHint(m, y.install)
 		if !a.kitsCanInstall("yt-dlp") {
-			r.Why = locales.QueueRemedyOutdatedManualWhy(y.version, hint)
-			r.Actions = []films.RemedyAction{{ID: remedyRetry, Label: locales.QueueRemedyUpdated(), Primary: true}}
+			r.Why = m.QueueRemedyOutdatedManualWhy(y.version, hint)
+			r.Actions = []films.RemedyAction{{ID: remedyRetry, Label: m.QueueRemedyUpdated(), Primary: true}}
 			return r
 		}
-		r.Why = locales.QueueRemedyOutdatedDownloadWhy(y.version, hint)
+		r.Why = m.QueueRemedyOutdatedDownloadWhy(y.version, hint)
 		if err := a.kits.errs["yt-dlp"]; err != nil {
-			r.Why = locales.QueueRemedyDownloadYtdlpFailed(kitsError(err))
+			r.Why = m.QueueRemedyDownloadYtdlpFailed(kitsError(err))
 		}
-		r.Actions = []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: locales.QueueRemedyDownloadYtdlp(), Primary: true}, {ID: remedyRetry, Label: locales.QueueRemedyUpdated()}}
+		r.Actions = []films.RemedyAction{{ID: remedyDownloadYTDLP, Label: m.QueueRemedyDownloadYtdlp(), Primary: true}, {ID: remedyRetry, Label: m.QueueRemedyUpdated()}}
 		return r
 	}
-	r.Actions = []films.RemedyAction{{ID: remedyUpdate, Label: locales.QueueRemedyUpdate(), Primary: true}}
+	r.Actions = []films.RemedyAction{{ID: remedyUpdate, Label: m.QueueRemedyUpdate(), Primary: true}}
 	return r
 }
 
-// queueYTDLPHint says how the user updates a yt-dlp Kando cannot update itself, by how it was installed.
-func queueYTDLPHint(install media.YTDLPInstall) string {
+// queueYTDLPHint says how the user updates a yt-dlp Kando cannot update itself, by how it was installed, in the language of m.
+func queueYTDLPHint(m locales.Messages, install media.YTDLPInstall) string {
 	switch install.Kind {
 	case "homebrew":
-		return locales.QueueYtdlpHintBrew()
+		return m.QueueYtdlpHintBrew()
 	case "pipx":
-		return locales.QueueYtdlpHintPipx()
+		return m.QueueYtdlpHintPipx()
 	case "system":
-		return locales.QueueYtdlpHintSystem(install.Dir)
+		return m.QueueYtdlpHintSystem(install.Dir)
 	}
-	return locales.QueueYtdlpHintStandalone(install.Dir)
+	return m.QueueYtdlpHintStandalone(install.Dir)
 }
 
 // cookiesRemedy is the card of a job whose borrowed browser login yt-dlp could not read: Safari's needs Full Disk Access, which yt-dlp reports as an operation not permitted, and a browser may have no login data on this machine.
 func (a *app) cookiesRemedy(job core.Job, other media.Browser) films.Remedy {
+	m := a.messages()
 	name := media.BrowserName(job.Cookies)
-	r := films.Remedy{Headline: locales.QueueRemedyCookies(name), Why: locales.QueueRemedyCookiesWhy(name)}
+	r := films.Remedy{Headline: m.QueueRemedyCookies(name), Why: m.QueueRemedyCookiesWhy(name)}
 	if job.Cookies == "safari" && job.Err != nil && strings.Contains(job.Err.Error(), "Operation not permitted") {
-		r.Why = locales.QueueRemedySafariWhy()
-		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyDiskAccess, Label: locales.QueueRemedyOpenSystemSettings(), Primary: true}, films.RemedyAction{ID: remedyBorrow + "safari", Label: locales.QueueRemedyAllowed()})
+		r.Why = m.QueueRemedySafariWhy()
+		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyDiskAccess, Label: m.QueueRemedyOpenSystemSettings(), Primary: true}, films.RemedyAction{ID: remedyBorrow + "safari", Label: m.QueueRemedyAllowed()})
 	}
 	if other.ID != "" {
-		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: locales.QueueRemedySwitchBrowser(other.Name), Primary: len(r.Actions) == 0})
+		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: m.QueueRemedySwitchBrowser(other.Name), Primary: len(r.Actions) == 0})
 	}
 	return r
 }
@@ -276,7 +279,7 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		browser := strings.TrimPrefix(action, remedyBorrow)
 		job.Cookies = browser
 		a.queueRetry(job)
-		a.tell(locales.QueueBorrowed(media.BrowserName(browser)))
+		a.tell(a.messages().QueueBorrowed(media.BrowserName(browser)))
 	case action == remedySwap:
 		a.queueSwapLink(item)
 	case action == remedyFindBrowsers:
@@ -286,10 +289,25 @@ func (a *app) RunRemedy(item films.Film, action string) {
 	case action == remedySites:
 		a.OpenSites()
 	case action == remedyDiskAccess:
-		if err := openExternal(fullDiskAccess); err != nil {
-			a.warn(locales.QueueOpenSettingsFailed(err.Error()), "")
-		}
+		a.queueOpenDiskAccess()
 	}
+}
+
+// queueOpenDiskAccess opens the Full Disk Access pane of System Settings, and says in the message bar when it could not. The answer comes later, on the engine's goroutine; without the app's scope, as in a test that starts no app, nothing opens.
+func (a *app) queueOpenDiskAccess() {
+	if a.cx == nil {
+		return
+	}
+	// The answer belongs to the app, not to the card that asked, which may be gone by then (core.Scope.Run).
+	a.cx.Run(func() {
+		openExternal(a.cx, fullDiskAccess, func(opened bool) {
+			// desktop.OpenURL says only whether an app opened it, so the bar says why in a sentence of its own.
+			if !opened {
+				a.warn(a.messages().QueueOpenSettingsNoApp(), "")
+			}
+			a.Changed()
+		})
+	})
 }
 
 // queueRetry queues a failed job again as it is now, with why it failed forgotten; the message bar says why when it cannot start.
@@ -317,23 +335,23 @@ func (a *app) queueUpdateYTDLP() {
 		update(func() {
 			a.queue.ytdlp.updating = false
 			if errors.Is(err, media.ErrCannotUpdate) {
-				a.warn(locales.QueueUpdateFailed(queueYTDLPHint(install)), "")
+				a.warn(a.messages().QueueUpdateFailed(queueYTDLPHint(a.messages(), install)), "")
 				return
 			}
 			before := a.queue.ytdlp.version
 			a.queue.ytdlp.path, a.queue.ytdlp.version, a.queue.ytdlp.install = path, version, install
 			if err != nil {
-				a.warn(locales.QueueUpdateFailed(err.Error()), "")
+				a.warn(a.messages().QueueUpdateFailed(err.Error()), "")
 				return
 			}
 			// The newest yt-dlp there is fails the same way until the site's fix is out: nothing runs again, and the cards say so.
 			if version == before {
 				a.queue.ytdlp.latest = version
-				a.tell(locales.QueueYtdlpLatest(version))
+				a.tell(a.messages().QueueYtdlpLatest(version))
 				return
 			}
 			a.queue.ytdlp.latest = ""
-			a.tell(locales.QueueYtdlpUpdated(version, a.queueRetryOutdated()))
+			a.tell(a.messages().QueueYtdlpUpdated(version, a.queueRetryOutdated()))
 		})
 	}()
 }
@@ -377,7 +395,7 @@ func (a *app) queueSwapLink(item films.Film) {
 	}
 	a.remove(item.JobID)
 	a.queue.source, a.queue.linkFocus = "", true
-	a.tell(locales.QueueSwapRemoved(name))
+	a.tell(a.messages().QueueSwapRemoved(name))
 }
 
 // hostOf is the site a link points at, without www.
@@ -388,10 +406,10 @@ func hostOf(source string) string {
 	return source
 }
 
-// siteShort is how a sentence names the site of source after 登录: B 站 for 哔哩哔哩, else site.
-func siteShort(source, site string) string {
+// siteShort is how a sentence names the site of source after 登录, in the language of m: B 站 for 哔哩哔哩, else site.
+func siteShort(m locales.Messages, source, site string) string {
 	if queueBilibili(source) {
-		return locales.QueueRemedyBilibiliShort()
+		return m.QueueRemedyBilibiliShort()
 	}
 	return site
 }

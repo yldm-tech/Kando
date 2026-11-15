@@ -1,16 +1,13 @@
 package films
 
-import "github.com/egoist/mygo/ui"
+import "github.com/nsgo-dev/nsgo/core"
 
-func icon(src string) *ui.SVG {
-	parsed, err := ui.ParseSVG([]byte(src))
-	if err != nil {
-		panic(err)
-	}
-	return parsed
-}
+func icon(src string) *core.SVG { return core.MustParseSVG([]byte(src)) }
 
-// The glyphs below are the prototype's own. The monochrome ones take the color of the text around them (currentColor); the illustrations keep their colors and are drawn with ui.Image.
+// svg is icon as the accessor NSGo's components take (ui.Icon, ui.Button.Icon).
+func svg(icon *core.SVG) func() *core.SVG { return func() *core.SVG { return icon } }
+
+// The glyphs below are the prototype's own. The monochrome ones take the color of the text around them (currentColor); the illustrations keep their colors and are drawn as authored (core.SVGView).
 var (
 	linkIcon     = icon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M5.8 8.2l2.4-2.4M4.6 6.2L3.4 7.4a2.3 2.3 0 0 0 3.2 3.2l1.2-1.2M9.4 7.8l1.2-1.2a2.3 2.3 0 0 0-3.2-3.2L6.2 4.6"/></svg>`)
 	closeIcon    = icon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 2l6 6M8 2L2 8"/></svg>`)
@@ -19,6 +16,8 @@ var (
 	downloadIcon = icon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M11 3v11M6.5 9.5L11 14l4.5-4.5M4 18h14"/></svg>`)
 	addVideoIcon = icon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1.8 3.4a1.2 1.2 0 0 1 1.2-1.2h3.8l1.6 1.7h6.6a1.2 1.2 0 0 1 1.2 1.2v7.7a1.2 1.2 0 0 1-1.2 1.2H3a1.2 1.2 0 0 1-1.2-1.2z"/><path d="M9 6.8v4.4M6.8 9h4.4"/></svg>`)
 	dropIcon     = icon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 5v16M10.5 14.5L17 21l6.5-6.5M6 26h22"/></svg>`)
+	// chevronIcon is the down arrow of the sort button, the platform's pull-down.
+	chevronIcon = icon(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4l2.5 2.5L7.5 4"/></svg>`)
 
 	// failedMark is the red circle with "!" over the thumbnail of a job that failed.
 	failedMark = icon(`<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="9" fill="#FF453A"/><path d="M11 6.5v5.5M11 15v.1" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/></svg>`)

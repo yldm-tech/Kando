@@ -1210,6 +1210,9 @@ libraryRevealFailed:
   description: "Error when the folder holding a file could not be opened."
   placeholders:
     error: { type: "String", example: "exit status 1" }
+libraryRevealNotOpened:
+  message: "Couldn't open the enclosing folder: no app opened it."
+  description: "Error when the folder holding a file could not be opened because the system had no app open it."
 librarySaveFailed:
   message: "Couldn't save the library: {error}"
   description: "Error when the list of libraries could not be saved to the settings file."
@@ -1247,6 +1250,11 @@ libraryTrashFailed:
   placeholders:
     name: { type: "String", example: "Learn Rust" }
     error: { type: "String", example: "permission denied" }
+libraryTrashUnsupported:
+  message: "Couldn't move “{name}” to the Trash: this version of Kando can't use the Trash yet. Its files are where they were."
+  description: "Message bar when a film could not be moved to the Trash because this build of Kando cannot reach the system's Trash; nothing was deleted."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
 libraryTrashed:
   message: "Moved “{name}” to the Trash"
   description: "Message bar after a film was moved to the Trash."
@@ -2053,6 +2061,9 @@ queueOpenSettingsFailed:
   description: "Message bar when System Settings could not be opened."
   placeholders:
     error: { type: "String", example: "exit status 1" }
+queueOpenSettingsNoApp:
+  message: "Couldn't open System Settings: no app opened it."
+  description: "Message bar when the Full Disk Access pane of System Settings could not be opened because the system had no app open it."
 queueQuitWhileRunningCancel:
   message: "Cancel"
   description: "Default button of the dialog asking whether to quit while a video is being processed: Kando keeps running and the job with it."

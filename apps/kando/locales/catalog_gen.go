@@ -437,6 +437,7 @@ var Parameters = map[string][]string{
 	"LibraryShelfReadFailed":             {"error_"},
 	"LibraryShelfSaveFailed":             {"error_"},
 	"LibraryTrashFailed":                 {"name", "error_"},
+	"LibraryTrashUnsupported":            {"name"},
 	"LibraryTrashed":                     {"name"},
 	"LibrarySortSaveFailed":              {"error_"},
 	"MenuOpenLinkFailed":                 {"url"},
@@ -638,6 +639,7 @@ type Translation struct {
 	LibraryShelfReadFailed             func(error_ string) string
 	LibraryShelfSaveFailed             func(error_ string) string
 	LibraryTrashFailed                 func(name string, error_ string) string
+	LibraryTrashUnsupported            func(name string) string
 	LibraryTrashed                     func(name string) string
 	LibrarySortSaveFailed              func(error_ string) string
 	MenuOpenLinkFailed                 func(url string) string
@@ -1062,6 +1064,7 @@ const (
 	textLibraryPickVideosTitle
 	textLibraryPlaceButton
 	textLibraryPlaceTitle
+	textLibraryRevealNotOpened
 	textLibrarySearchMenu
 	textLibraryShelfNotSaved
 	textLibraryVideoFilter
@@ -1246,6 +1249,7 @@ const (
 	textQueueNoLibrary
 	textQueueNoVideoToImport
 	textQueueNotifyDone
+	textQueueOpenSettingsNoApp
 	textQueueQuitWhileRunningCancel
 	textQueueQuitWhileRunningQuit
 	textQueueQuitWhileRunningTitle
@@ -1819,6 +1823,7 @@ var keyOfText = [numTexts]string{
 	"libraryPickVideosTitle",
 	"libraryPlaceButton",
 	"libraryPlaceTitle",
+	"libraryRevealNotOpened",
 	"librarySearchMenu",
 	"libraryShelfNotSaved",
 	"libraryVideoFilter",
@@ -2003,6 +2008,7 @@ var keyOfText = [numTexts]string{
 	"queueNoLibrary",
 	"queueNoVideoToImport",
 	"queueNotifyDone",
+	"queueOpenSettingsNoApp",
 	"queueQuitWhileRunningCancel",
 	"queueQuitWhileRunningQuit",
 	"queueQuitWhileRunningTitle",
@@ -2574,6 +2580,7 @@ var textsEn = i18n.NewTexts(""+
 	"Choose Videos"+
 	"Choose"+
 	"Where to Keep the Library"+
+	"Couldn't open the enclosing folder: no app opened it."+
 	"Search Films"+
 	"Kando couldn't read the film list in full, so it won't save the list until it restarts."+
 	"Videos"+
@@ -2758,6 +2765,7 @@ var textsEn = i18n.NewTexts(""+
 	"Create or import a library first"+
 	"No video to import"+
 	"The bilingual subtitles are ready."+
+	"Couldn't open System Settings: no app opened it."+
 	"Cancel"+
 	"Quit"+
 	"Quit Kando while a video is being processed?"+
@@ -3326,6 +3334,7 @@ var textsEn = i18n.NewTexts(""+
 		13,
 		6,
 		25,
+		53,
 		12,
 		87,
 		6,
@@ -3510,6 +3519,7 @@ var textsEn = i18n.NewTexts(""+
 		32,
 		18,
 		34,
+		48,
 		6,
 		4,
 		44,
@@ -4081,6 +4091,7 @@ var textsJa = i18n.NewTexts(""+
 	"動画を選択"+
 	"選択"+
 	"ライブラリの保存場所"+
+	"ファイルのあるフォルダを開けません: 開けるアプリがありません。"+
 	"動画を検索"+
 	"動画の一覧を最後まで読み込めなかったため、再起動するまで一覧を保存しません。"+
 	"動画"+
@@ -4265,6 +4276,7 @@ var textsJa = i18n.NewTexts(""+
 	"先にライブラリを作成するか読み込んでください"+
 	"読み込める動画がありません"+
 	"二言語字幕ができました。"+
+	"システム設定を開けませんでした：開けるアプリがありません。"+
 	"キャンセル"+
 	"終了"+
 	"動画の処理中に Kando を終了しますか？"+
@@ -4833,6 +4845,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		6,
 		30,
+		92,
 		15,
 		114,
 		6,
@@ -5017,6 +5030,7 @@ var textsJa = i18n.NewTexts(""+
 		66,
 		39,
 		36,
+		87,
 		15,
 		6,
 		52,
@@ -5588,6 +5602,7 @@ var textsKo = i18n.NewTexts(""+
 	"동영상 선택"+
 	"선택"+
 	"라이브러리를 둘 위치"+
+	"파일이 있는 폴더를 열 수 없습니다: 열 수 있는 앱이 없습니다."+
 	"영상 검색"+
 	"동영상 목록을 끝까지 읽지 못해 다시 시작할 때까지 목록을 저장하지 않습니다."+
 	"동영상"+
@@ -5772,6 +5787,7 @@ var textsKo = i18n.NewTexts(""+
 	"먼저 라이브러리를 만들거나 가져오십시오"+
 	"가져올 수 있는 동영상이 없습니다"+
 	"이중 언어 자막이 준비되었습니다."+
+	"시스템 설정을 열 수 없습니다: 열 수 있는 앱이 없습니다."+
 	"취소"+
 	"종료"+
 	"동영상을 처리하는 중에 Kando를 종료하시겠습니까?"+
@@ -6340,6 +6356,7 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		6,
 		29,
+		84,
 		13,
 		107,
 		9,
@@ -6524,6 +6541,7 @@ var textsKo = i18n.NewTexts(""+
 		57,
 		46,
 		46,
+		77,
 		6,
 		6,
 		67,
@@ -7095,6 +7113,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"选择视频"+
 	"选择"+
 	"资料库放在哪里"+
+	"无法打开所在文件夹：没有应用能打开它。"+
 	"搜索影片"+
 	"视频库没有完整读取，所以重新启动前看懂不会保存视频库。"+
 	"视频"+
@@ -7279,6 +7298,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"先创建或导入一个资料库"+
 	"没有可导入的视频"+
 	"双语字幕做好了。"+
+	"没能打开系统设置：没有应用能打开它。"+
 	"取消"+
 	"退出"+
 	"要在处理视频时退出看懂吗？"+
@@ -7847,6 +7867,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		6,
 		21,
+		57,
 		12,
 		81,
 		6,
@@ -8031,6 +8052,7 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		24,
 		24,
+		54,
 		6,
 		6,
 		39,
@@ -8602,6 +8624,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"選擇影片"+
 	"選擇"+
 	"資料庫要放在哪裡"+
+	"無法打開所在的檔案夾：沒有應用程式能打開它。"+
 	"搜尋影片"+
 	"影片庫沒有完整讀取，所以重新啟動前看懂不會儲存影片庫。"+
 	"影片"+
@@ -8786,6 +8809,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"先建立或匯入一個資料庫"+
 	"沒有可匯入的影片"+
 	"雙語字幕做好了。"+
+	"無法打開系統設定：沒有應用程式能打開它。"+
 	"取消"+
 	"結束"+
 	"要在處理影片時結束看懂嗎？"+
@@ -9354,6 +9378,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		6,
 		24,
+		66,
 		12,
 		81,
 		6,
@@ -9538,6 +9563,7 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		24,
 		24,
+		60,
 		6,
 		6,
 		39,
@@ -10079,6 +10105,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LibraryTrashFailed != nil {
 		s.LibraryTrashFailed = t.LibraryTrashFailed
+	}
+	if t.LibraryTrashUnsupported != nil {
+		s.LibraryTrashUnsupported = t.LibraryTrashUnsupported
 	}
 	if t.LibraryTrashed != nil {
 		s.LibraryTrashed = t.LibraryTrashed
@@ -15408,6 +15437,15 @@ func (msgs Messages) LibraryRevealFailed(error_ string) string {
 	}
 }
 
+// LibraryRevealNotOpened says "Couldn't open the enclosing folder: no app opened it."
+// in the language the app shows under cx.
+//
+// Error when the folder holding a file could not be opened because the system had no app open it.
+func LibraryRevealNotOpened(cx *core.Scope) string { return For(cx).LibraryRevealNotOpened() }
+
+// LibraryRevealNotOpened is the package's LibraryRevealNotOpened in the language of msgs.
+func (msgs Messages) LibraryRevealNotOpened() string { return msgs.text(textLibraryRevealNotOpened) }
+
 // LibrarySaveFailed says "Couldn't save the library: {error}"
 // in the language the app shows under cx.
 //
@@ -15614,6 +15652,38 @@ func (msgs Messages) LibraryTrashFailed(name string, error_ string) string {
 			return "没能把「" + name + "」移到废纸篓：" + error_
 		case "zh-Hant":
 			return "無法將「" + name + "」移到垃圾桶：" + error_
+		}
+	}
+}
+
+// LibraryTrashUnsupported says "Couldn't move “{name}” to the Trash: this version of Kando can't use the Trash yet. Its files are where they were."
+// in the language the app shows under cx.
+//
+// Message bar when a film could not be moved to the Trash because this build of Kando cannot reach the system's Trash; nothing was deleted.
+func LibraryTrashUnsupported(cx *core.Scope, name string) string {
+	return For(cx).LibraryTrashUnsupported(name)
+}
+
+// LibraryTrashUnsupported is the package's LibraryTrashUnsupported in the language of msgs.
+func (msgs Messages) LibraryTrashUnsupported(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryTrashUnsupported(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LibraryTrashUnsupported; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't move “" + msgs.arg(name) + "” to the Trash: this version of Kando can't use the Trash yet. Its files are where they were."
+		case "ja":
+			return "「" + name + "」をゴミ箱に入れられませんでした: このバージョンの Kando はまだゴミ箱を使えません。ファイルは元の場所に残っています。"
+		case "ko":
+			return "‘" + name + "’을(를) 휴지통으로 옮기지 못했습니다: 이 버전의 Kando는 아직 휴지통을 쓸 수 없습니다. 파일은 그대로 있습니다."
+		case "zh-Hans":
+			return "没能把「" + name + "」移到废纸篓：这个版本的看懂还不能使用废纸篓，文件都留在原处。"
+		case "zh-Hant":
+			return "無法將「" + name + "」移到垃圾桶：這個版本的看懂還不能使用垃圾桶，檔案都留在原處。"
 		}
 	}
 }
@@ -18952,6 +19022,15 @@ func (msgs Messages) QueueOpenSettingsFailed(error_ string) string {
 		}
 	}
 }
+
+// QueueOpenSettingsNoApp says "Couldn't open System Settings: no app opened it."
+// in the language the app shows under cx.
+//
+// Message bar when the Full Disk Access pane of System Settings could not be opened because the system had no app open it.
+func QueueOpenSettingsNoApp(cx *core.Scope) string { return For(cx).QueueOpenSettingsNoApp() }
+
+// QueueOpenSettingsNoApp is the package's QueueOpenSettingsNoApp in the language of msgs.
+func (msgs Messages) QueueOpenSettingsNoApp() string { return msgs.text(textQueueOpenSettingsNoApp) }
 
 // QueueQuitWhileRunningCancel says "Cancel"
 // in the language the app shows under cx.

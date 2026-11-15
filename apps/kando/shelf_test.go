@@ -11,11 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 func TestMissingLibraryFollowsTheRenamedBundle(t *testing.T) {
@@ -43,6 +45,46 @@ func TestMissingLibraryFollowsTheRenamedBundle(t *testing.T) {
 	}
 	if a.snap().LibraryDir != current {
 		t.Fatalf("open library = %q", a.snap().LibraryDir)
+	}
+}
+
+// TestShelfTimerWakesOnlyForAMovedLibrary checks what the shelf's one-second timer reports to the window: a library renamed in Finder, but not one that stays where it was, nor one that is gone for good or on a drive that is not plugged in, which would wake the whole window every second.
+func TestShelfTimerWakesOnlyForAMovedLibrary(t *testing.T) {
+	if _, _, ok := media.IdentifyDir(t.TempDir()).Parts(); !ok {
+		t.Skip("this system keeps no folder identity, so the shelf cannot follow a rename")
+	}
+	parent := t.TempDir()
+	open, other := filepath.Join(parent, "影视库.kando"), filepath.Join(parent, "旅行.kando")
+	for _, dir := range []string{open, other} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unplugged := filepath.Join(t.TempDir(), "gone", "外接盘.kando")
+	a := newApp(&fakePipeline{}, func(func()) {})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.edit(func(s *session) {
+		s.LibraryDir = open
+		s.Libraries = []string{open, other, unplugged}
+	})
+	a.rememberLibrary(open)
+	a.rememberLibrary(other)
+	a.rememberID(unplugged, media.MakeDirID(7, 99))
+	if shelfLibraryMoved(a.store.Get()) {
+		t.Fatal("the timer reports a library that stayed where it was, or one that is away")
+	}
+	renamed := filepath.Join(parent, "旅行 2024.kando")
+	if err := os.Rename(other, renamed); err != nil {
+		t.Fatal(err)
+	}
+	if !shelfLibraryMoved(a.store.Get()) {
+		t.Fatal("the timer does not report a library renamed in Finder")
+	}
+	if !a.syncRenamedLibraries() || !containsPath(a.knownLibraries(), renamed) {
+		t.Fatalf("the rename was not followed: %v", a.knownLibraries())
+	}
+	if shelfLibraryMoved(a.store.Get()) {
+		t.Fatal("the timer keeps reporting once the rename was followed")
 	}
 }
 
@@ -88,7 +130,7 @@ func TestRenameMovesTheInodeWithTheLibrary(t *testing.T) {
 
 func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	parent := t.TempDir()
-	a, tt, _ := newTestApp(&fakePipeline{})
+	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.edit(func(s *session) {
 		s.LibraryDir = ""
 		s.Libraries = nil
@@ -96,26 +138,23 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 		s.LibraryName = "第一库"
 	})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
-	tt.Frame()
+	refresh(tt, a)
 	for _, text := range []string{"还没有资料库", "新建资料库…", "打开已有资料库…"} {
-		if !tt.HasText(text) {
+		if !shows(tt, text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("新建资料库…"); err != nil {
-		t.Fatal(err)
-	}
+	tt.Press("新建资料库…")
 	a.edit(func(s *session) { s.LibraryName = "第一库" })
-	tt.Frame()
+	refresh(tt, a)
 	for _, text := range []string{"新建资料库", "名称", "位置", "更改…", "取消", "创建"} {
-		if !tt.HasText(text) {
+		if !shows(tt, text) {
 			t.Fatalf("missing %q in the sheet %q", text, tt.Texts())
 		}
 	}
-	if err := tt.Click("创建"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt.Press("创建")
+	// The sheet goes once its motion has ended.
+	tt.Advance(time.Second)
 	first := filepath.Join(parent, "第一库.kando")
 	if a.snap().LibraryDir != first {
 		t.Fatalf("library = %q", a.snap().LibraryDir)
@@ -123,36 +162,32 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 	if _, err := os.Stat(first); err != nil {
 		t.Fatal(err)
 	}
-	if tt.HasText("还没有资料库") || tt.HasText("新建资料库") {
+	if shows(tt, "还没有资料库") || shows(tt, "新建资料库") {
 		t.Fatalf("the empty page or the sheet stayed after the library was created: %q", tt.Texts())
 	}
-	chooseFromSwitcher(t, tt, "新建资料库…")
+	chooseFromSwitcher(t, tt, a, "新建资料库…")
 	a.edit(func(s *session) { s.LibraryName = "第二库" })
-	tt.Frame()
-	if !tt.HasText("新建资料库") || !tt.HasText("创建") {
+	refresh(tt, a)
+	if !shows(tt, "新建资料库") || !shows(tt, "创建") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	if err := tt.Click("创建"); err != nil {
-		t.Fatal(err)
-	}
-	tt.Frame()
+	tt.Press("创建")
+	tt.Advance(time.Second)
 	second := filepath.Join(parent, "第二库.kando")
 	if a.snap().LibraryDir != second || len(a.snap().Libraries) != 2 {
 		t.Fatalf("library %q list %v", a.snap().LibraryDir, a.snap().Libraries)
 	}
-	chooseFromSwitcher(t, tt, "第一库")
-	tt.Frame()
+	chooseFromSwitcher(t, tt, a, "第一库")
+	refresh(tt, a)
 	if a.snap().LibraryDir != first {
 		t.Fatalf("switched library = %q", a.snap().LibraryDir)
 	}
 	general := settingsOpenAt(a, tt, settings.SectionGeneral)
-	if !general.HasText("第一库") || !general.HasText("只从看懂的列表里拿掉") {
+	if !shows(general, "第一库") || !shows(general, "只从看懂的列表里拿掉") {
 		t.Fatalf("texts %q", general.Texts())
 	}
-	if err := general.Click("移出"); err != nil {
-		t.Fatalf("%v texts %q", err, general.Texts())
-	}
-	general.Frame()
+	general.Press("移出")
+	refresh(general, a)
 	if a.snap().LibraryDir != second {
 		t.Fatalf("after forget, library = %q", a.snap().LibraryDir)
 	}
@@ -166,7 +201,7 @@ func TestWelcomeCreatesAndSwitchesLibraries(t *testing.T) {
 }
 
 func TestSwitchLibraryUpdatesOutputDir(t *testing.T) {
-	a, _, _ := newTestApp(media.Tools{OutputDir: t.TempDir()})
+	a, _, _ := newTestApp(t, media.Tools{OutputDir: t.TempDir()})
 	dir := filepath.Join(t.TempDir(), "movies")
 	a.switchLibrary(dir)
 	tools, ok := a.pipeline.(media.Tools)
@@ -426,7 +461,7 @@ func TestDamagedLibraryIsKeptAsBad(t *testing.T) {
 	}
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.openLibrary(path)
-	if want := locales.LibraryShelfDamaged("unexpected end of JSON input"); a.saveErr != want {
+	if want := testlocale.Messages().LibraryShelfDamaged("unexpected end of JSON input"); a.saveErr != want {
 		t.Fatalf("saveErr = %q, want %q", a.saveErr, want)
 	}
 	bad, err := os.ReadFile(path + ".bad")
@@ -471,11 +506,11 @@ func TestDamagedLibraryThatCannotBeKeptIsNotSaved(t *testing.T) {
 	}
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.openLibrary(path)
-	if want := locales.LibraryShelfDamagedUnsaved(writeErr.Error()); a.saveErr != want {
+	if want := testlocale.Messages().LibraryShelfDamagedUnsaved(writeErr.Error()); a.saveErr != want {
 		t.Fatalf("saveErr = %q, want %q", a.saveErr, want)
 	}
 	a.show(core.Job{ID: "new", Source: "https://youtu.be/new", Stage: core.StageQueued})
-	if want := locales.LibraryShelfNotSaved(); a.saveErr != want {
+	if want := testlocale.Messages().LibraryShelfNotSaved(); a.saveErr != want {
 		t.Fatalf("saveErr after a save = %q, want %q", a.saveErr, want)
 	}
 	if got, err := os.ReadFile(path); err != nil || !bytes.Equal(got, damaged) {
@@ -499,7 +534,7 @@ func TestUnreadableLibraryIsNotSaved(t *testing.T) {
 	}
 	a := newApp(&fakePipeline{}, func(func()) {})
 	a.openLibrary(path)
-	if !strings.HasPrefix(a.saveErr, locales.LibraryShelfReadFailed("")) {
+	if !strings.HasPrefix(a.saveErr, testlocale.Messages().LibraryShelfReadFailed("")) {
 		t.Fatalf("saveErr = %q", a.saveErr)
 	}
 	if err := a.library.Save(); !errors.Is(err, shelf.ErrUnread) {
@@ -513,11 +548,15 @@ func TestUnreadableLibraryIsNotSaved(t *testing.T) {
 	}
 }
 
-// TestRevealSelectsTheItemInTheFileManager checks that showing a film's video hands the video itself, not its folder, to MyGo's shell, which selects it in the file manager on every system (FileManager1's ShowItems on Linux, where xdg-open of the folder selected nothing), and that a reveal that went says nothing.
+// TestRevealSelectsTheItemInTheFileManager checks that showing a film's video hands the video itself, not its folder, to the system's reveal (desktop.Reveal), which is to select it in the file manager on every system (FileManager1's ShowItems on Linux, where xdg-open of the folder selected nothing), that a reveal that went says nothing, and that one no app answered says so in the interface's words.
 func TestRevealSelectsTheItemInTheFileManager(t *testing.T) {
 	var shown []string
+	var answer error
 	prev := showItemInFolder
-	showItemInFolder = func(path string) { shown = append(shown, path) }
+	showItemInFolder = func(_ *ns.Scope, path string, done func(error)) {
+		shown = append(shown, path)
+		done(answer)
+	}
 	t.Cleanup(func() { showItemInFolder = prev })
 	video := filepath.Join(t.TempDir(), "我的影片.kando", "Talk", "video.mp4")
 	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
@@ -526,7 +565,7 @@ func TestRevealSelectsTheItemInTheFileManager(t *testing.T) {
 	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a, _, _ := newTestApp(&fakePipeline{})
+	a, _, _ := newTestApp(t, &fakePipeline{})
 	a.saveErr = "an earlier error"
 	a.reveal(video)
 	if !slices.Equal(shown, []string{video}) {
@@ -540,5 +579,11 @@ func TestRevealSelectsTheItemInTheFileManager(t *testing.T) {
 	a.reveal(missing)
 	if len(shown) != 1 || a.saveErr == "" {
 		t.Fatalf("revealing a missing file showed %q with error %q", shown, a.saveErr)
+	}
+	// A folder no app opened is said in a sentence of the catalog's, not in the English of the error.
+	answer = errors.New("no app opened the folder")
+	a.reveal(video)
+	if want := testlocale.Messages().LibraryRevealNotOpened(); a.saveErr != want {
+		t.Fatalf("a reveal no app answered says %q, want %q", a.saveErr, want)
 	}
 }

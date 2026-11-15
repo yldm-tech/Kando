@@ -1,11 +1,7 @@
-// Package sitename names the sites core.ParseLink knows (core.Link.Site) in the interface's language. It imports no interface package, so the library page and the guide both name sites with it.
+// Package sitename names the sites core.ParseLink knows (core.Link.Site) in a language of the caller's choice. It imports no interface package, so the library page and the guide both name sites with it.
 package sitename
 
-import (
-	"kando/apps/kando/locales"
-
-	"github.com/egoist/mygo/i18n"
-)
+import "kando/apps/kando/locales"
 
 // latin are the sites whose names are brands written in Latin letters, the same in every language.
 var latin = map[string]string{
@@ -16,8 +12,8 @@ var latin = map[string]string{
 	"netflix.com": "Netflix", "disneyplus.com": "Disney+", "primevideo.com": "Prime Video", "hulu.com": "Hulu", "max.com": "Max", "u-next.jp": "U-NEXT",
 }
 
-// Of is the name people know site by, a core.Link.Site such as "bilibili.com", in the interface's language; "" for a site it does not know.
-func Of(site string) string { return In(locales.In(i18n.Locale()), site) }
+// Of is the name people know site by, a core.Link.Site such as "bilibili.com", in the interface language tag names, one of locales.Interface; "" for a site it does not know.
+func Of(tag, site string) string { return In(locales.In(tag), site) }
 
 // In is Of in the language of m, as the feedback issue names a site in the language it is written in.
 func In(m locales.Messages, site string) string {

@@ -1,75 +1,75 @@
 package films
 
 import (
+	"kando/apps/kando/desktop"
+	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
-	"github.com/egoist/mygo/ui"
-	breeze "github.com/yldm-tech/mygo-breeze-ui/ui/breeze"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // noLibrary is the page before there is a library: what a library is, 新建资料库… and 打开已有资料库….
-func noLibrary(c *ui.Context, a App) {
-	statusPage(c, libraryArt, locales.FilmsNoLibraryTitle(), locales.FilmsNoLibraryDescription(breeze.PlatformOf(c).String()), func() {
-		c.Key("empty-new")
-		if statusButton(breeze.PrimaryButton(c, locales.FilmsNewLibraryEllipsis())).Clicked() {
-			a.BeginNew()
-		}
-		c.Key("empty-open")
-		if statusButton(breeze.Button(c, locales.FilmsOpenLibraryEllipsis())).Clicked() {
-			a.PickLibrary()
-		}
-	})
+type noLibrary struct{ a App }
+
+// Render implements core.Node.
+func (n noLibrary) Render(cx *core.Scope) core.Node {
+	a := n.a
+	return statusPage(cx, libraryArt, locales.FilmsNoLibraryTitle, func(cx *core.Scope) string { return locales.FilmsNoLibraryDescription(cx, desktop.Platform(cx)) },
+		textButton(locales.FilmsNewLibraryEllipsis, ui.Button{TestID: "empty-new", OnPress: live.Do(a, a.BeginNew)}),
+		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-open", OnPress: live.Do(a, a.PickLibrary)}),
+	)
 }
 
 // emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频…, 打开已有资料库… and 支持的网站, which lists the sites a link can come from.
-func emptyLibrary(c *ui.Context, a App) {
-	statusPage(c, startArt, locales.FilmsEmptyTitle(), locales.FilmsEmptyDescription(), func() {
-		c.Key("empty-pick")
-		if statusButton(breeze.PrimaryButton(c, locales.FilmsPickVideosEllipsis())).Clicked() {
-			a.PickVideos()
-		}
-		c.Key("empty-open")
-		if statusButton(breeze.Button(c, locales.FilmsOpenLibraryEllipsis())).Clicked() {
-			a.PickLibrary()
-		}
-		c.Key("empty-sites")
-		if statusButton(breeze.Button(c, locales.FilmsSupportedSites())).Clicked() {
-			a.OpenSites()
-		}
-	})
+type emptyLibrary struct{ a App }
+
+// Render implements core.Node.
+func (e emptyLibrary) Render(cx *core.Scope) core.Node {
+	a := e.a
+	return statusPage(cx, startArt, locales.FilmsEmptyTitle, locales.FilmsEmptyDescription,
+		textButton(locales.FilmsPickVideosEllipsis, ui.Button{TestID: "empty-pick", OnPress: live.Do(a, a.PickVideos)}),
+		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-open", OnPress: live.Do(a, a.PickLibrary)}),
+		textButton(locales.FilmsSupportedSites, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-sites", OnPress: live.Do(a, a.OpenSites)}),
+	)
 }
 
 // emptySource is what a source of the sidebar shows when no film of the library comes from it.
-func emptySource(c *ui.Context, t *ui.Theme) {
-	ui.Column(c).Grow(1).AlignItems(ui.Center).Padding(80, 28).Children(func() {
-		breeze.Text(c, locales.FilmsSourceEmpty(), breeze.TextSecondary)
-	})
+type emptySource struct{}
+
+// Render implements core.Node.
+func (emptySource) Render(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
+		core.Text{ContentFunc: func() string { return locales.FilmsSourceEmpty(cx) }, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)},
+	}}
 }
 
 // noMatch is what the grid shows when no done film's name holds the search field's query, with 清除搜索, which empties the field and brings the whole shelf back.
-func noMatch(c *ui.Context, a App, query string) {
-	ui.Column(c).Grow(1).AlignItems(ui.Center).Gap(14).Padding(80, 28).Children(func() {
-		breeze.Text(c, locales.FilmsSearchNoMatch(query), breeze.TextSecondary).TextAlign(ui.Center).Wrap()
-		c.Key("films-search-clear")
-		if statusButton(breeze.Button(c, locales.FilmsSearchClear())).Clicked() {
-			*a.Query() = ""
-		}
-	})
+type noMatch struct {
+	a     App
+	query func() string
+}
+
+// Render implements core.Node.
+func (n noMatch) Render(cx *core.Scope) core.Node {
+	a := n.a
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Gap: 14, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
+		core.Text{ContentFunc: func() string { return locales.FilmsSearchNoMatch(cx, n.query()) }, Style: ui.TypeBody.Merge(core.Style{TextAlign: core.TextAlignCenter}), StyleFunc: ui.Colored(colors.Muted)},
+		textButton(locales.FilmsSearchClear, ui.Button{Variant: ui.ButtonSecondary, TestID: "films-search-clear", OnPress: live.Do(a, func() { *a.Query() = "" })}),
+	}}
 }
 
 // statusPage is an empty page as the prototype draws it: the colored illustration, the title at 20 points, the description centered in gray, and the actions in a row, in a column 420 wide, 90 points under the message bar.
-func statusPage(c *ui.Context, art *ui.SVG, title, description string, actions func()) {
-	t := c.Theme()
-	ui.Column(c).AlignItems(ui.Center).Padding(90, 28).Children(func() {
-		ui.Column(c).MaxWidth(420).AlignItems(ui.Center).Gap(10).Children(func() {
-			w, h := art.Size()
-			ui.Image(c, art).Size(w, h).Shrink(0)
-			ui.Text(c, title).FontSize(20).Bold().Margin(6, 0, 0, 0).Role(ui.RoleHeading).Level(2)
-			ui.Text(c, description).FontSize(13).FixedLineHeight(20).TextColor(t.TextMuted).TextAlign(ui.Center).Wrap()
-			ui.Row(c).Gap(10).Wrap().Justify(ui.Center).Margin(8, 0, 0, 0).Children(actions)
-		})
-	})
+func statusPage(cx *core.Scope, art *core.SVG, title, description func(*core.Scope) string, actions ...core.Node) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{AlignItems: core.AlignCenter, Padding: core.Symmetric(90, 28)}, Children: []core.Node{
+		core.View{Style: core.Style{MaxWidth: core.Pt(420), AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
+			core.SVGView{SVG: art, Style: core.Style{FlexShrink: 0}},
+			heading(2, core.Text{ContentFunc: func() string { return title(cx) }, Style: core.Style{FontSize: 20, FontWeight: ui.Bold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)}),
+			core.Text{ContentFunc: func() string { return description(cx) }, Style: core.Style{FontSize: 13, LineHeight: 20, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},
+			core.View{Style: core.Style{Direction: core.Row, Gap: 10, Wrap: core.Wrap, JustifyContent: core.JustifyCenter, Margin: core.Edges{Top: 8}}, Children: actions},
+		}},
+	}}
 }
-
-// statusButton sizes an empty page's button as the prototype's, 30 points high and padded 16 at its sides; the platform draws its face.
-func statusButton(b ui.Element) ui.Element { return b.Height(30).PaddingX(16) }

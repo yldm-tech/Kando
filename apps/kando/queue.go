@@ -11,12 +11,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"kando/apps/kando/desktop/mygodesktop"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // jobQueue is the job being made and the jobs being run. The link field and the line under it, and the job the page follows, are the job being made; removed is the jobs removed while they ran. The queue runs the shelf's jobs one at a time, oldest first. The shelf (a.library) is the truth about each job's stage; the queue only keeps the order jobs were asked for and the one running now.
@@ -78,21 +80,20 @@ func (a *app) saveQueue(saved *savedSettings) {
 	}
 }
 
-// restoreQueue takes back whether the user wants notifications, and listens for clicks on them before App.Run (queueListenForClicks).
+// restoreQueue takes back whether the user wants notifications. The clicks on them are listened for once the app runs (queueDesktopReady), which still hears the click that launched it.
 func (a *app) restoreQueue(saved savedSettings) {
 	if saved.Notify != nil {
 		a.queue.sys.notify = *saved.Notify
 	}
-	a.queueListenForClicks()
 }
 
-// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (run); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The queue starts telling the system about its jobs then too, and removes its notifications whenever the app comes to the front (queue_desktop.go). The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved. From the window being ready, the computer does not sleep while a job runs, and the hold ends as the app quits.
+// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (queueRun); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The queue starts telling the system about its jobs then too, and removes its notifications whenever the app comes to the front (queue_desktop.go). The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved. From the window being ready, the computer does not sleep while a job runs, and the hold ends as the app quits.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		save:    a.saveQueue,
 		restore: a.restoreQueue,
 		ready: func() {
-			a.queue.keepAwake = mygodesktop.KeepAwake
+			a.queue.keepAwake = func(reason string, display bool) func() { return desktop.KeepAwake(a.cx, reason, display) }
 			a.queueDesktopReady()
 			a.pump()
 			a.queueKeepAwake()
@@ -126,10 +127,10 @@ func (a *app) queueHooks() areaHooks {
 }
 
 // queueKeys are the queue's shortcuts.
-func (a *app) queueKeys() []shortcut { return nil }
+func (a *app) queueKeys(*ns.Scope) []shortcut { return nil }
 
-// errBusy was Enqueue's answer while a job ran, before jobs waited in a queue. Enqueue no longer returns it; it stays so code written against the one-job contract still builds. It is made when it is said, in the language shown then.
-func errBusy() error { return errors.New(locales.QueueBusy()) }
+// errBusy was Enqueue's answer while a job ran, before jobs waited in a queue. Enqueue no longer returns it; it stays so code written against the one-job contract still builds. It is made when it is said, in the language of m, the one shown then.
+func errBusy(m locales.Messages) error { return errors.New(m.QueueBusy()) }
 
 // Enqueue adds a job for each source, a link or a local video's file:// URL, to the open library in the language the settings name. The jobs run one after another, after those already waiting. A source that cannot be added is skipped and the others are still added; the error is why the first one was not. A video the library already has a job for is not added twice (queueTake), and a source naming the same video as one before it is left out.
 func (a *app) Enqueue(sources ...string) error {
@@ -183,17 +184,18 @@ func (a *app) queueTake(source string) (string, error) {
 	return job.ID, nil
 }
 
-// queueDuplicate is why newJob makes no job for a source whose video the open library already has a job for: ID is that job, and Stage its stage, StageQueued for one that is running but has not returned from its pipeline yet. Its message is made when it is read, in the language shown then.
+// queueDuplicate is why newJob makes no job for a source whose video the open library already has a job for: ID is that job, and Stage its stage, StageQueued for one that is running but has not returned from its pipeline yet. Its message is in the language of m, the interface's when newJob made it.
 type queueDuplicate struct {
 	ID    string
 	Stage core.Stage
+	m     locales.Messages
 }
 
 func (e *queueDuplicate) Error() string {
 	if e.Stage == core.StageComplete {
-		return locales.QueueAlreadyInLibrary()
+		return e.m.QueueAlreadyInLibrary()
 	}
-	return locales.QueueAlreadyQueued()
+	return e.m.QueueAlreadyQueued()
 }
 
 // queueFindSource is the job of the open library for the same video as source (queueSourceKey). A job waiting, running or done comes before a failed or cancelled one, so a video already processed is not queued again because an earlier try of it failed.
@@ -262,7 +264,7 @@ func (a *app) RunningJob() string { return a.queue.active }
 // newJob makes the job for source in the open library and the target language, or returns why it cannot. When the library already has a job for the same video (queueFindSource), it makes none and returns a *queueDuplicate naming that job.
 func (a *app) newJob(source string) (core.Job, error) {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
-		return core.Job{}, errors.New(locales.QueueNoLibrary())
+		return core.Job{}, errors.New(a.messages().QueueNoLibrary())
 	}
 	job, err := core.NewJob(source)
 	if err != nil {
@@ -270,7 +272,7 @@ func (a *app) newJob(source string) (core.Job, error) {
 	}
 	language := strings.TrimSpace(a.prefs.language)
 	if language == "" {
-		return core.Job{}, errors.New(locales.QueueNoLanguage())
+		return core.Job{}, errors.New(a.messages().QueueNoLanguage())
 	}
 	if old, ok := a.queueFindSource(job.Source); ok {
 		stage := old.Stage
@@ -278,7 +280,7 @@ func (a *app) newJob(source string) (core.Job, error) {
 		if old.ID == a.queue.active && stage == core.StageFailed {
 			stage = core.StageQueued
 		}
-		return core.Job{}, &queueDuplicate{ID: old.ID, Stage: stage}
+		return core.Job{}, &queueDuplicate{ID: old.ID, Stage: stage, m: a.messages()}
 	}
 	job.Language = language
 	return job, nil
@@ -296,11 +298,11 @@ func (a *app) importLocal(path string) {
 // chooseLocal puts the video at path in the link field as a file:// URL, or says it is not a video. It reports whether it did.
 func (a *app) chooseLocal(path string) bool {
 	if !media.IsVideoFile(path) {
-		a.queue.status = locales.QueueNoVideoToImport()
+		a.queue.status = a.messages().QueueNoVideoToImport()
 		return false
 	}
 	a.queue.source = core.FileURL(path)
-	a.queue.status = locales.QueueLocalChosen()
+	a.queue.status = a.messages().QueueLocalChosen()
 	return true
 }
 
@@ -324,7 +326,7 @@ func (a *app) savePositions() {
 	a.library.Positions = maps.Clone(a.resumePositions())
 	a.library.Delays = maps.Clone(a.subtitleDelays())
 	if err := a.library.Save(); err != nil {
-		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
+		a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)
 	}
 }
 
@@ -350,7 +352,7 @@ func (a *app) remove(id string) {
 		a.newDraft()
 	}
 	if err := a.library.Save(); err != nil {
-		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
+		a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)
 	}
 	a.queueTellSystem()
 }
@@ -371,7 +373,7 @@ func (a *app) queueRetranslate(job core.Job, redo core.Redo) error {
 		language = strings.TrimSpace(a.prefs.language)
 	}
 	if language == "" {
-		return errors.New(locales.QueueNoLanguage())
+		return errors.New(a.messages().QueueNoLanguage())
 	}
 	if redo == core.RedoTranslation {
 		job.RedoLanguage = language
@@ -385,8 +387,8 @@ func (a *app) queueRetranslate(job core.Job, redo core.Redo) error {
 // queueRedoEnded is job, which was translating a done film again (core.Job.Redo) and has failed or been stopped, put back as the done film it was: its subtitles are still the ones it had, which the job still describes. The message bar says why the translation failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
 func (a *app) queueRedoEnded(job core.Job) core.Job {
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
-		reason, section := failureHint(films.Film{Detail: statusText(job)})
-		a.warn(locales.QueueRedoFailed(jobName(job), reason), section)
+		reason, section := failureHint(a.messages(), films.Film{Detail: statusText(a.messages(), job)})
+		a.warn(a.messages().QueueRedoFailed(jobName(job), reason), section)
 	}
 	job.Stage = core.StageComplete
 	job.Err, job.FailKind, job.Progress = nil, "", core.Progress{}
@@ -425,7 +427,7 @@ func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 		job.Language = strings.TrimSpace(a.prefs.language)
 	}
 	if job.Language == "" {
-		return core.Job{}, errors.New(locales.QueueNoLanguage())
+		return core.Job{}, errors.New(a.messages().QueueNoLanguage())
 	}
 	return job, nil
 }
@@ -448,7 +450,7 @@ func (a *app) start() {
 	a.queue.selectedID = id
 	if job, ok := a.library.Find(id); ok {
 		a.queue.job = &job
-		a.queue.status = statusText(job)
+		a.queue.status = statusText(a.messages(), job)
 	}
 }
 
@@ -469,7 +471,7 @@ func (a *app) queueAdd(job core.Job) {
 	a.pump()
 }
 
-// pump starts the oldest queued job when no job is running. Each job saves into its own library (run), so a job queued in a library that is not open runs too, as long as that library is one the app still knows (queueCanRun). A queued job on the shelf that the queue has not seen, such as one read back as queued after a restart, joins the end of the queue, oldest first.
+// pump starts the oldest queued job when no job is running. Each job saves into its own library (queueRun), so a job queued in a library that is not open runs too, as long as that library is one the app still knows (queueCanRun). A queued job on the shelf that the queue has not seen, such as one read back as queued after a restart, joins the end of the queue, oldest first.
 func (a *app) pump() {
 	if a.queue.active != "" || a.queue.stopped {
 		return
@@ -496,7 +498,7 @@ func (a *app) pump() {
 	}
 	a.queue.order = kept
 	if found {
-		a.run(next)
+		a.queueRun(next)
 	}
 	a.queueTellSystem()
 }
@@ -521,8 +523,8 @@ func (a *app) queueElsewhere(job core.Job) bool {
 	return job.Stage == core.StageQueued && a.queueCanRun(job)
 }
 
-// run starts job in the background. It keeps job.ID, so a retry updates the card already on screen. The job saves into its own library, job.LibraryDir, whichever library is open meanwhile: opening another one does not stop it. When the pipeline returns, the next queued job starts.
-func (a *app) run(job core.Job) {
+// queueRun starts job in the background. It keeps job.ID, so a retry updates the card already on screen. The job saves into its own library, job.LibraryDir, whichever library is open meanwhile: opening another one does not stop it. When the pipeline returns, the next queued job starts.
+func (a *app) queueRun(job core.Job) {
 	if job.LibraryDir == "" {
 		job.LibraryDir = a.snap().LibraryDir
 	}
@@ -560,8 +562,17 @@ func (a *app) run(job core.Job) {
 		defer close(done)
 		// A job stopped because the app quits reports nothing more: its card would say 已取消 and keep it from running again at the next launch, and the next job must not start.
 		quitting := func() bool { return errors.Is(context.Cause(ctx), errQuitting) }
-		// A report that only moves the progress waits in latest, and at most one update carries it to the UI thread: a tool that reports many times a second does not queue an update for each, and the card shows the newest when the window gets to it. Any other report goes as it comes, after the progress already waiting.
+		// A report that only moves the progress waits in latest, and at most one update carries it to the engine's goroutine, no sooner than queueProgressEvery after the one before: a tool that reports many times a second neither queues an update for each nor has every binding follow each, and the card shows the newest when the update runs. Any other report goes as it comes and takes the place of a progress report still waiting, as it carries the newest progress itself, so the bar never moves back.
 		var latest atomic.Pointer[core.Job]
+		var sent atomic.Int64
+		deliver := func() {
+			update(func() {
+				if p := latest.Swap(nil); p != nil {
+					sent.Store(time.Now().UnixNano())
+					a.showProgress(*p)
+				}
+			})
+		}
 		last := job
 		media.Run(ctx, pipeline, job, language, func(j core.Job) {
 			if quitting() {
@@ -570,15 +581,16 @@ func (a *app) run(job core.Job) {
 			onlyProgress := j.Stage == last.Stage && j.Title == last.Title && j.Thumbnail == last.Thumbnail && j.VideoPath == last.VideoPath && j.Err == nil
 			last = j
 			if !onlyProgress {
+				latest.Store(nil)
 				update(func() { a.show(j) })
 				return
 			}
 			if latest.Swap(&j) == nil {
-				update(func() {
-					if p := latest.Swap(nil); p != nil {
-						a.showProgress(*p)
-					}
-				})
+				if wait := queueProgressEvery - time.Since(time.Unix(0, sent.Load())); wait > 0 {
+					time.AfterFunc(wait, deliver)
+				} else {
+					deliver()
+				}
 			}
 		})
 		if quitting() {
@@ -587,6 +599,9 @@ func (a *app) run(job core.Job) {
 		update(func() { a.finished(job.ID) })
 	}()
 }
+
+// queueProgressEvery is how often at most a running job's progress reaches the window, about ten times a second, which is as often as its card's line and bar can be read.
+const queueProgressEvery = 100 * time.Millisecond
 
 // queuePipeline is the pipeline job runs with: the app's, borrowing the browser login the job names and saving into the job's own library rather than the one open, so a job goes on into its library after another is opened.
 func (a *app) queuePipeline(job core.Job) media.Pipeline {
@@ -619,7 +634,7 @@ func (a *app) finished(id string) {
 func (a *app) queueKeepAwake() {
 	switch {
 	case a.queue.active != "" && a.queue.awake == nil && a.queue.keepAwake != nil:
-		a.queue.awake = a.queue.keepAwake(locales.QueueKeepAwake(), false)
+		a.queue.awake = a.queue.keepAwake(a.messages().QueueKeepAwake(), false)
 	case a.queue.active == "":
 		a.queueLetSleep()
 	}
@@ -642,9 +657,9 @@ func (a *app) queueEndedElsewhere(id string) {
 	library := films.LibraryName(job.LibraryDir)
 	switch {
 	case job.Stage == core.StageComplete:
-		a.tell(locales.QueueDoneElsewhere(jobName(job), library))
+		a.tell(a.messages().QueueDoneElsewhere(jobName(job), library))
 	case job.Stage == core.StageFailed && !errors.Is(job.Err, context.Canceled):
-		a.warn(locales.QueueFailedElsewhere(jobName(job), library), "")
+		a.warn(a.messages().QueueFailedElsewhere(jobName(job), library), "")
 	}
 }
 
@@ -672,13 +687,13 @@ func (a *app) show(job core.Job) {
 	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {
-		a.saveErr = shelfSaveErr(err, locales.QueueSaveFailed)
+		a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)
 	} else {
 		a.saveErr = ""
 	}
 	if a.queue.selectedID == job.ID {
 		a.queue.job = &job
-		a.queue.status = statusText(job)
+		a.queue.status = statusText(a.messages(), job)
 	}
 	if a.openKey == job.ID {
 		if rewritten && a.player.subs.key == job.ID {
@@ -708,28 +723,29 @@ func (a *app) showProgress(job core.Job) {
 	a.queueTellSystem()
 }
 
-func statusText(job core.Job) string {
+// statusText is what the line under the link field and a job's card say of where job is, in the language of m. failureHint reads a failed job's error back from it, in the same language.
+func statusText(m locales.Messages, job core.Job) string {
 	switch job.Stage {
 	case core.StageQueued:
-		return locales.QueueStatusQueued()
+		return m.QueueStatusQueued()
 	case core.StageDownloading:
-		return locales.QueueStatusDownloading()
+		return m.QueueStatusDownloading()
 	case core.StageTranscribing:
-		return locales.QueueStatusTranscribing()
+		return m.QueueStatusTranscribing()
 	case core.StageTranslating:
-		return locales.QueueStatusTranslating()
+		return m.QueueStatusTranslating()
 	case core.StageExporting:
-		return locales.QueueStatusExporting()
+		return m.QueueStatusExporting()
 	case core.StageComplete:
-		return locales.QueueStatusComplete(job.SubtitlePath)
+		return m.QueueStatusComplete(job.SubtitlePath)
 	case core.StageFailed:
 		if errors.Is(job.Err, context.Canceled) {
-			return locales.QueueStatusCanceled()
+			return m.QueueStatusCanceled()
 		}
 		if errors.Is(job.Err, core.ErrLibrarySwitched) {
-			return locales.QueueStatusLibrarySwitched()
+			return m.QueueStatusLibrarySwitched()
 		}
-		return locales.QueueStatusFailed(job.Err.Error())
+		return m.QueueStatusFailed(job.Err.Error())
 	}
 	return string(job.Stage)
 }

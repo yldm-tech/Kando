@@ -3,16 +3,37 @@ package films
 import (
 	"kando/apps/kando/locales"
 
-	"github.com/egoist/mygo/ui"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
+// dropTitleInk is the dark blue of what the drop zone's card says letting go does.
+var dropTitleInk = core.RGB(0x0052B0)
+
 // dropZone is drawn over the library while files are dragged over it: a dashed frame in the accent and a card saying what letting go does. It lets the drop through to the page under it.
-func dropZone(c *ui.Context, t *ui.Theme) {
-	ui.Box(c).Absolute().Top(12).Left(12).Right(12).Bottom(12).PassThrough().Radius(18).Border(2, t.Accent).BorderStyle(ui.BorderDashed).Background(t.Accent.Alpha(0.07)).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-		ui.Column(c).AlignItems(ui.Center).Gap(8).Padding(18, 28).Radius(16).Background(t.Background.Alpha(0.92)).Shadow(0, 10, 30, 0, ui.RGBA(10, 60, 140, 0.18)).Children(func() {
-			ui.Icon(c, dropIcon).Size(34, 34).TextColor(t.Accent)
-			ui.Text(c, locales.FilmsDropTitle()).FontSize(15).Bold().TextColor(ui.Hex("#0052B0"))
-			ui.Text(c, locales.FilmsDropHint()).FontSize(12).TextColor(t.TextMuted)
-		})
-	})
+type dropZone struct{}
+
+// Render implements core.Node.
+func (dropZone) Render(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	card := core.View{
+		Style: core.Style{AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(18, 28), CornerRadius: 16,
+			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 10}, Blur: 30, Color: core.RGBA(0x0A3C8C, 0.18)}}},
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Background().Faded(0.92)} },
+		Children: []core.Node{
+			ui.Icon(svg(dropIcon), 34, colors.Accent),
+			core.Text{ContentFunc: func() string { return locales.FilmsDropTitle(cx) }, Style: core.Style{FontSize: 15, FontWeight: ui.Bold, Color: dropTitleInk}},
+			core.Text{ContentFunc: func() string { return locales.FilmsDropHint(cx) }, Style: core.Style{FontSize: 12}, StyleFunc: ui.Colored(colors.Muted)},
+		},
+	}
+	return core.View{
+		TestID:        "films-drop-zone",
+		PointerEvents: core.PointerEventsNone,
+		Style: core.Style{Position: core.Absolute, Top: core.Pt(12), Left: core.Pt(12), Right: core.Pt(12), Bottom: core.Pt(12), CornerRadius: 18,
+			BorderWidth: 2, BorderStyle: core.BorderDashed, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		StyleFunc: func() core.Style {
+			return core.Style{BorderColor: colors.Accent(), Background: colors.Accent().Faded(0.07)}
+		},
+		Children: []core.Node{card},
+	}
 }
