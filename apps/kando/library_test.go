@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -32,6 +31,7 @@ import (
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
+	"go.yaml.in/yaml/v3"
 )
 
 func TestLibraryShowsAndRestoresJob(t *testing.T) {
@@ -1404,29 +1404,31 @@ func TestOpenedVideoAlreadyQueuedIsNotAddedAgain(t *testing.T) {
 	}
 }
 
-// TestFileAssociationsAreTheVideos checks mygo.json's fileAssociations, which put Kando in Finder's Open With and let videos be dropped on its Dock icon: they list each video extension 本地视频 offers once, every one a video the library takes, and Kando only views them.
+// TestFileAssociationsAreTheVideos checks nsgo.yaml's file_types, which put Kando in Finder's Open With and let videos be dropped on its Dock icon: they list each video extension 本地视频 offers once, every one a video the library takes, each type a kind of public.movie that Kando only views, and none of them Kando's own, so that it ranks as an alternative to the system's player rather than claiming the system's types.
 func TestFileAssociationsAreTheVideos(t *testing.T) {
-	data, err := os.ReadFile("mygo.json")
+	data, err := os.ReadFile("nsgo.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var config struct {
-		FileAssociations []struct {
-			Ext      []string `json:"ext"`
-			Name     string   `json:"name"`
-			MimeType string   `json:"mimeType"`
-			Role     string   `json:"role"`
-		} `json:"fileAssociations"`
+		ID        string `yaml:"id"`
+		FileTypes []struct {
+			Name       string   `yaml:"name"`
+			Extensions []string `yaml:"extensions"`
+			ID         string   `yaml:"id"`
+			Role       string   `yaml:"role"`
+			Conforms   []string `yaml:"conforms"`
+		} `yaml:"file_types"`
 	}
-	if err := json.Unmarshal(data, &config); err != nil {
+	if err := yaml.Unmarshal(data, &config); err != nil {
 		t.Fatal(err)
 	}
 	var exts []string
-	for _, fa := range config.FileAssociations {
-		if fa.Name == "" || !strings.HasPrefix(fa.MimeType, "video/") || fa.Role != "Viewer" {
-			t.Errorf("association %+v: want a name, a video MIME type and the Viewer role", fa)
+	for _, ft := range config.FileTypes {
+		if ft.Name == "" || ft.ID == "" || strings.HasPrefix(ft.ID, config.ID+".") || ft.Role != "viewer" || !slices.Contains(ft.Conforms, "public.movie") {
+			t.Errorf("file type %+v: want a name, the system's type ID, the viewer role and a kind of public.movie", ft)
 		}
-		for _, ext := range fa.Ext {
+		for _, ext := range ft.Extensions {
 			if !media.IsVideoFile("clip." + ext) {
 				t.Errorf("%q is associated but the library does not take it", ext)
 			}

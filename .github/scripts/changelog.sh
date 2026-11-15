@@ -2,11 +2,11 @@
 # changelog.sh add <vX.Y.Z> [commit]
 # changelog.sh notes <vX.Y.Z>
 #
-# Kando's release notes live in apps/kando/CHANGELOG.md, beside mygo.json, a "## X.Y.Z - date" section per version, newest first. mygo build puts the section of the version it builds into the update manifests it signs (updates.changelog in MyGo's docs/updates.md), which the app's update window shows, and fails when the file has no section for that version. The Release workflow writes the section with add when it bumps the version, and makes the same section the GitHub release's notes with notes.
+# Kando's release notes live in apps/kando/CHANGELOG.md, beside nsgo.yaml, a "## X.Y.Z - date" section per version, newest first. The app's tests (TestChangelogHasTheVersion) fail when the file has no section, or an empty one, for nsgo.yaml's version. The Release workflow writes the section with add when it bumps the version, and makes the same section the GitHub release's notes with notes.
 #
-# add writes the section of a version from the Conventional Commits from the version tag before the commit (HEAD by default) to the commit, the range next-version.sh reads: breaking changes (a type ending in "!" or a "BREAKING CHANGE:" footer), features (feat), fixes (fix and revert) and performance (perf), each under a heading of its own, as their subjects without the type. A pull request's merge commit stands for the pull request with its title, so the commits that made it, review fixes among them, are not listed one by one (see entries). The types that release nothing (docs, test, ci, chore, refactor, style, build) are left out, and so are the scopes that are not the app (site, deps, dev), so a release of nothing else gets a line that says so, as mygo build fails on an empty section. A change and a revert of it in the same range are both left out. A version that has a section already keeps it, so notes written by hand before the release are the ones that ship, and the way to leave a change out of them; write one only for the version next-version.sh gives the commits, as it is kept as it is when that version comes. The new section goes above the sections of older versions.
+# add writes the section of a version from the Conventional Commits from the version tag before the commit (HEAD by default) to the commit, the range next-version.sh reads: breaking changes (a type ending in "!" or a "BREAKING CHANGE:" footer), features (feat), fixes (fix and revert) and performance (perf), each under a heading of its own, as their subjects without the type. A pull request's merge commit stands for the pull request with its title, so the commits that made it, review fixes among them, are not listed one by one (see entries). The types that release nothing (docs, test, ci, chore, refactor, style, build) are left out, and so are the scopes that are not the app (site, deps, dev), so a release of nothing else gets a line that says so, as the release's notes would otherwise be empty. A change and a revert of it in the same range are both left out. A version that has a section already keeps it, so notes written by hand before the release are the ones that ship, and the way to leave a change out of them; write one only for the version next-version.sh gives the commits, as it is kept as it is when that version comes. The new section goes above the sections of older versions.
 #
-# notes prints the section of a version without its heading, as mygo build reads it.
+# notes prints the section of a version without its heading, as the GitHub release's notes.
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -29,7 +29,7 @@ version() {
   echo "$v"
 }
 
-# section <version> prints the lines of the version's section, without its heading and the blank lines around them, the way MyGo finds it (update.ReleaseNotes): from the first "## " heading whose first word is the version, with or without a v and in brackets or not, to the next "## " heading. It fails when the file has no such heading.
+# section <version> prints the lines of the version's section, without its heading and the blank lines around them, the way TestChangelogHasTheVersion finds it: from the first "## " heading whose first word is the version, with or without a v and in brackets or not, to the next "## " heading. It fails when the file has no such heading.
 section() {
   if [ ! -f "$file" ]; then
     return 1
@@ -54,7 +54,7 @@ section() {
   ' "$file"
 }
 
-# Scopes of changes that are not the app's, left out of its notes: the landing page, dependency bumps and the mygo dev loop.
+# Scopes of changes that are not the app's, left out of its notes: the landing page, dependency bumps and the dev loop.
 skip_scopes=" site deps dev "
 
 # classify <subject> <body> prints the "<group>\t<text>" line of a Conventional Commit subject worth listing, and fails for one that is not: another type, a skipped scope or no Conventional Commit at all. The group is breaking, feat, fix, perf or revert, and the text is the subject without its type; a revert's is the subject it reverts, without that one's type.
@@ -182,7 +182,7 @@ add() {
   local version=$1 commit=$2 notes
   if notes=$(section "$version"); then
     if [ -z "$notes" ]; then
-      echo "apps/kando/CHANGELOG.md has an empty section for $version, which mygo build fails on: write its notes or remove its heading" >&2
+      echo "apps/kando/CHANGELOG.md has an empty section for $version, which the app's tests fail on: write its notes or remove its heading" >&2
       exit 1
     fi
     echo "apps/kando/CHANGELOG.md has notes for $version already; keeping them" >&2

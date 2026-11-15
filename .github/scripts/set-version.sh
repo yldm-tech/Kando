@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # set-version.sh <vX.Y.Z>
 #
-# Writes a release's version into the files that carry one: the app's mygo.json, from which mygo build names the app's version and its packages, and its nsgo.yaml, from which nsgo build does once the app runs on NSGo. Each file must hold its version exactly once, so that a moved or renamed line fails here rather than going unbumped.
+# Writes a release's version into the file that carries it: the app's nsgo.yaml, from which nsgo build names the app's version and its packages. The file must hold its version exactly once, so that a moved or renamed line fails here rather than going unbumped.
 set -euo pipefail
 
 tag=$1
@@ -25,5 +25,4 @@ bump() {
   mv "$file.tmp" "$file"
 }
 
-bump apps/kando/mygo.json '^  "version": "[^"]*",$' "  \"version\": \"$version\","
 bump apps/kando/nsgo.yaml '^version: [0-9.]+$' "version: $version"

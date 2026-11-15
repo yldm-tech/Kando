@@ -1,6 +1,6 @@
 /build/
-/.mygo/
+/apps/kando/build/
+# What MyGo builds left in a checkout before the app moved to NSGo.
 **/.mygo/
-mygo_windows_*.syso
 /.nsgo/
 **/.nsgo/

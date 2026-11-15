@@ -19,7 +19,7 @@ on:
       - "apps/kando/settings/speech.go"
       - "packages/media/whisper_model.go"
       - ".github/workflows/site.yml"
-  # The page names the version in apps/kando/mygo.json and links that release's files, so it is rebuilt after every Release run on main that succeeds, which includes the runs that find nothing to release. Release pushes its version commit with GITHUB_TOKEN, which starts no workflow, so the push trigger above never sees it; and mygo.json is not one of its paths because the version commit lands while the release is still a draft, whose files 404 for visitors. The build job checks that the release is published whatever started it.
+  # The page names the version in apps/kando/nsgo.yaml and links that release's files, so it is rebuilt after every Release run on main that succeeds, which includes the runs that find nothing to release. Release pushes its version commit with GITHUB_TOKEN, which starts no workflow, so the push trigger above never sees it; and nsgo.yaml is not one of its paths because the version commit lands while the release is still a draft, whose files 404 for visitors. The build job checks that the release is published whatever started it.
   workflow_run:
     workflows: [Release]
     types: [completed]
@@ -53,18 +53,22 @@ jobs:
         with:
           persist-credentials: false
 
-      # The agent's download data links the files of the version in mygo.json, which 404 while that release is a draft: between Release's version commit and its Publish job, or for good when Publish failed. The site is then left as it is; the Release run that publishes the release starts this workflow again. The endpoint returns published releases only, so a draft answers 404 like a missing release.
+      # The agent's download data links the files of the version in nsgo.yaml, which 404 while that release is a draft: between Release's version commit and its Publish job, or for good when Publish failed. The site is then left as it is; the Release run that publishes the release starts this workflow again. The endpoint returns published releases only, so a draft answers 404 like a missing release.
       - name: Check the release is published
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=v$(jq -r .version apps/kando/mygo.json)
+          tag=v$(sed -nE 's/^version: *"?([0-9.]+)"? *$/\1/p' apps/kando/nsgo.yaml)
+          if [ "$tag" = v ]; then
+            echo "::error::apps/kando/nsgo.yaml names no version."
+            exit 1
+          fi
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" --silent 2>"$RUNNER_TEMP/release.err"; then
             echo "published=true" >> "$GITHUB_OUTPUT"
           elif grep -qF "HTTP 404" "$RUNNER_TEMP/release.err"; then
             echo "published=false" >> "$GITHUB_OUTPUT"
-            message="$tag, the version in apps/kando/mygo.json, is not a published release yet, so the site is not deployed. The Release run that publishes it deploys the site."
+            message="$tag, the version in apps/kando/nsgo.yaml, is not a published release yet, so the site is not deployed. The Release run that publishes it deploys the site."
             echo "::warning::$message"
             echo "$message" >> "$GITHUB_STEP_SUMMARY"
           else

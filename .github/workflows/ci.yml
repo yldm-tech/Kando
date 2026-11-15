@@ -46,12 +46,12 @@ jobs:
             ~/AppData/Local/go-build
           key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.name }}-
-      # MyGo's tester renders native UI in memory, with no window or display, but on Linux it lays out text with Pango and Cairo, which it loads at run time: without them text does not show and the tests that find elements by their text fail. The CJK fonts draw the app's Chinese. ffmpeg runs in the tests of frames, posters, key frames and the player, which fail without it where the row sets KANDO_REQUIRE_FFMPEG.
-      - name: Install Pango, fonts and ffmpeg
+      # NSGo's tester (nsgotest) runs the app headless, with no window or display and an approximate text engine, so the tests need none of the system's GTK, Pango or fonts. ffmpeg runs in the tests of frames, posters, key frames and the player, which fail without it where the row sets KANDO_REQUIRE_FFMPEG.
+      - name: Install ffmpeg
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 libcairo2 libharfbuzz0b libfontconfig1 fonts-noto-cjk ffmpeg
+          sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Install ffmpeg
         if: runner.os == 'macOS'
         env:
@@ -98,7 +98,7 @@ jobs:
             exit 1
           fi
       - name: shellcheck
-        run: shellcheck .github/scripts/*.sh tools/mygo-dev/dev.sh
+        run: shellcheck .github/scripts/*.sh
       # changelog.sh writes the release notes only when Release runs, where a mistake would stop a release, so its test runs on every change.
       - name: changelog.sh
         run: .github/scripts/changelog-test.sh
@@ -124,13 +124,14 @@ jobs:
             ~/.cache/go-build
           key: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
           restore-keys: go-${{ runner.os }}-${{ github.job }}-${{ matrix.goos }}-
-      # go vet compiles the tests too, such as the Unix-only player_unix_test.go.
+      # go vet compiles the tests too, such as the Unix-only player_unix_test.go. The app is built again with nodra_nomygo, the tag of the Package workflow's builds, which leave nodra's MyGo helpers out (apps/kando/nsgo.yaml).
       - name: Build and vet
         env:
           GOOS: ${{ matrix.goos }}
         run: |
           for arch in amd64 arm64; do
             GOARCH=$arch go build $PKGS
+            GOARCH=$arch go build -tags=nodra_nomygo ./apps/kando/...
             GOARCH=$arch go vet $PKGS
           done
 
@@ -152,37 +153,6 @@ jobs:
             echo "::group::$module"
             govulncheck -C "$module" ./...
             echo "::endgroup::"
-          done
-
-  # make dev builds MyGo's CLI patched by tools/mygo-dev (dev.sh), and falls back to the stock CLI when the patch no longer applies; this does what dev.sh's build does, and fails instead, so that a MyGo upgrade the patch does not fit shows here.
-  mygo-dev:
-    name: mygo-dev patch
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # No Go cache: this job builds little, and the cache storage is left to the jobs that build (see the Test job).
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: go.work
-          cache: false
-      - name: Patch and build the CLI
-        run: |
-          here=$PWD/tools/mygo-dev
-          work=$RUNNER_TEMP/mygo-dev
-          # go list names the module's directory only once it is in the module cache, which a fresh runner's is not.
-          go mod download github.com/egoist/mygo
-          src=$(go list -m -f '{{.Dir}}' github.com/egoist/mygo)
-          test -n "$src"
-          cp -R "$src" "$work"
-          chmod -R u+w "$work"
-          patch --forward --no-backup-if-mismatch "$work/cmd/mygo/dev.go" "$here/dev.go.patch"
-          cp "$here/overlap.go" "$work/cmd/mygo/kando_overlap.go"
-          cp "$here/overlap_darwin.go" "$work/cmd/mygo/kando_overlap_darwin.go"
-          cp "$here/overlap_other.go" "$work/cmd/mygo/kando_overlap_other.go"
-          cd "$work"
-          for goos in darwin linux windows; do
-            GOWORK=off GOOS=$goos go build -o /dev/null ./cmd/mygo
           done
 
   # The landing page, apps/site: format, lint and type checks, the build with its prerender, and the tests against the built pages. It reads the app's catalogs, screenshots, icon and source, so it runs on every pull request rather than on changes to apps/site only.
@@ -214,7 +184,7 @@ jobs:
       - name: Route tree is current
         run: git diff --exit-code -- src/routeTree.gen.ts
 
-  # Whether a pull request changes how the packages are made: the workflows and scripts, the Go workspace, the app's mygo.json, module, changelog, icon or resources. A pull request that changes none of them has its packages built on main after it merges, and again by Release, rather than waiting on three package builds, the macOS one the slowest job of CI, for a change they cannot catch.
+  # Whether a pull request changes how the packages are made: the workflows and scripts, the Go workspace, the app's nsgo.yaml, module, changelog, icon or resources. A pull request that changes none of them has its packages built on main after it merges, and again by Release, rather than waiting on three package builds, the macOS one the slowest job of CI, for a change they cannot catch.
   changes:
     name: Changes
     if: github.event_name == 'pull_request'
@@ -232,7 +202,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          if git diff --name-only "$BASE...$HEAD" | grep -qE '^(\.github/(workflows/(ci|package|release)\.yml|scripts/)|go\.work|apps/kando/(mygo\.json|go\.(mod|sum)|CHANGELOG\.md|brand/|resources/))'; then
+          if git diff --name-only "$BASE...$HEAD" | grep -qE '^(\.github/(workflows/(ci|package|release)\.yml|scripts/)|go\.work|apps/kando/(nsgo\.yaml|go\.(mod|sum)|CHANGELOG\.md|brand/|resources/))'; then
             echo "package=true" >> "$GITHUB_OUTPUT"
           else
             echo "package=false" >> "$GITHUB_OUTPUT"

@@ -1,6 +1,6 @@
 name: Release
 
-# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/mygo.json (.github/scripts/set-version.sh) and the version's release notes, from the same commits, into apps/kando/CHANGELOG.md (.github/scripts/changelog.sh), commits both to main as chore(release), tags the commit, and creates a draft GitHub release with those notes, which are also the ones the update manifests carry and the app's update window shows. The Package workflow then builds the app for macOS, Windows and Linux from the tag, and the last job checks the packages of every platform against the checksums Package took, attests their provenance, uploads them with checksums.txt to the draft and publishes it. Run it by hand from main to force a bump; it releases only a commit main's CI has passed on.
+# Releases main once CI has passed on it, with the version the Conventional Commits since the last tag call for (.github/scripts/next-version.sh): it writes the version into apps/kando/nsgo.yaml (.github/scripts/set-version.sh) and the version's release notes, from the same commits, into apps/kando/CHANGELOG.md (.github/scripts/changelog.sh), commits both to main as chore(release), tags the commit, and creates a draft GitHub release with those notes. The Package workflow then builds the app for macOS, Windows and Linux from the tag, and the last job checks the packages of every platform against the checksums Package took, attests their provenance, uploads them with checksums.txt to the draft and publishes it. Run it by hand from main to force a bump; it releases only a commit main's CI has passed on.
 #
 # The jobs run in one workflow, one after another, because a tag pushed with the workflow's GITHUB_TOKEN starts no other workflow.
 on:
@@ -66,16 +66,16 @@ jobs:
             echo "::error::CI has not passed on $SHA, main's head; release it once it has."
             exit 1
           fi
-      # MyGo makes the identifier the app's identity on every platform, so a release would hand users an app under the template's placeholder, which they would keep after it is renamed.
+      # nsgo.yaml's id is the app's identity on every platform, which the updates follow, so a release would hand users an app under a placeholder, which they would keep after it is renamed.
       - name: Check the identifier
         if: steps.version.outputs.version != ''
         run: |
-          identifier=$(jq -r .identifier apps/kando/mygo.json)
-          if [[ $identifier == com.example.* ]]; then
-            echo "::error::apps/kando/mygo.json's identifier is still the placeholder $identifier; set the app's real one before releasing."
+          identifier=$(sed -nE 's/^id: *"?([^" ]+)"? *$/\1/p' apps/kando/nsgo.yaml)
+          if [ -z "$identifier" ] || [[ $identifier == com.example.* || $identifier == dev.example.* ]]; then
+            echo "::error::apps/kando/nsgo.yaml's id is ${identifier:-missing}; set the app's real one before releasing."
             exit 1
           fi
-      # The version goes to main in a commit of its own, which the tag points at, so that the app built from the tagged tree carries it, together with its section of CHANGELOG.md, without which mygo build fails to sign the update. A section written by hand before the release is kept. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
+      # The version goes to main in a commit of its own, which the tag points at, so that the app built from the tagged tree carries it, together with its section of CHANGELOG.md, which TestChangelogHasTheVersion requires. A section written by hand before the release is kept. The push only fast-forwards main from the commit CI tested: if main has moved since, its own CI run releases these commits with it.
       - name: Commit the version
         id: commit
         if: steps.version.outputs.version != ''
@@ -87,7 +87,7 @@ jobs:
           .github/scripts/set-version.sh "$VERSION"
           .github/scripts/changelog.sh add "$VERSION"
           # Named, as the changelog is a new file until the first release writes it, and git commit -a leaves new files out.
-          git add -- apps/kando/mygo.json apps/kando/CHANGELOG.md
+          git add -- apps/kando/nsgo.yaml apps/kando/CHANGELOG.md
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): $VERSION"
           fi
@@ -107,7 +107,7 @@ jobs:
         run: |
           git tag -a "$VERSION" -m "$VERSION" "$SHA"
           git push origin "refs/tags/$VERSION"
-      # The release's notes are the version's section of CHANGELOG.md, the notes the app's update window shows. The macOS packages are signed and notarized (see package.yml); the Windows installers are not signed yet, which the notes say.
+      # The release's notes are the version's section of CHANGELOG.md. The macOS packages are signed and notarized (see package.yml); the Windows installers are not signed yet, which the notes say.
       - name: Draft the release
         if: steps.commit.outputs.sha != ''
         env:
@@ -135,6 +135,7 @@ jobs:
       tag: ${{ needs.version.outputs.tag }}
     secrets:
       MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
+      NSGO_UPDATES_KEY: ${{ secrets.NSGO_UPDATES_KEY }}
       MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
       MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
       APPSTORE_API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
@@ -168,7 +169,7 @@ jobs:
               exit 1
             fi
           done
-      # The Package jobs took the checksums from the files mygo build made, so this catches a package changed on its way here.
+      # The Package jobs took the checksums from the files nsgo build made, so this catches a package changed on its way here.
       - name: Check the checksums
         working-directory: dist
         run: |

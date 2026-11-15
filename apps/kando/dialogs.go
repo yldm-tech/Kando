@@ -6,7 +6,7 @@ import (
 
 // The system file dialogs. NSGo shows them and calls back on the engine's goroutine with what the user picked; each holds the window's modal flag (holdModal) until it answers. Without the app's scope, as in a test that starts no app, no dialog shows.
 
-// libraryVideoExtensions are the extensions, without the dot, of the videos 本地视频 lets the user pick: those media.IsVideoFile takes. The fileAssociations of mygo.json and the file_types of nsgo.yaml, which make Kando one of the apps that open these files, list the same ones (library_test.go checks).
+// libraryVideoExtensions are the extensions, without the dot, of the videos 本地视频 lets the user pick: those media.IsVideoFile takes. The file_types of nsgo.yaml, which make Kando one of the apps that open these files, list the same ones (library_test.go checks).
 var libraryVideoExtensions = []string{"mp4", "m4v", "mov", "mkv", "webm", "avi", "flv"}
 
 // pickVideos asks for local videos and adds those picked to the queue (dropFiles).

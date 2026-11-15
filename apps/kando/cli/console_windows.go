@@ -12,7 +12,7 @@ const attachParentProcess = ^uint32(0)
 
 var procAttachConsole = syscall.NewLazyDLL("kernel32.dll").NewProc("AttachConsole")
 
-// attachConsole gives a command run from cmd or PowerShell its terminal back. mygo links the Windows app as a GUI program (-H=windowsgui), which Windows starts without a console, so a command's standard streams are missing unless the shell redirected them, and without this `kando status` would print nothing. When needsConsole says so, it attaches to the console of the process that started it and opens the console for each stream that is missing; a stream the shell redirected to a file or a pipe is left as it is. When there is no such console, as when the app is started from Explorer, it leaves the streams alone.
+// attachConsole gives a command run from cmd or PowerShell its terminal back. nsgo build links the Windows app as a GUI program (-H=windowsgui), which Windows starts without a console, so a command's standard streams are missing unless the shell redirected them, and without this `kando status` would print nothing. When needsConsole says so, it attaches to the console of the process that started it and opens the console for each stream that is missing; a stream the shell redirected to a file or a pipe is left as it is. When there is no such console, as when the app is started from Explorer, it leaves the streams alone.
 func attachConsole(args []string) {
 	have := stdio{in: usable(os.Stdin), out: usable(os.Stdout), err: usable(os.Stderr)}
 	if !needsConsole(args, have) {

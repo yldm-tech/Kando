@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # changelog-test.sh
 #
-# Checks changelog.sh on a repository of its own, made in a temporary folder: the section add writes from the commits since the previous version tag (pull requests by their titles, scopes that are not the app left out, reverts settled), that it puts a section above those of older versions and keeps one already there, the line it writes for a version with nothing to list, and that notes prints a section the way mygo build reads it.
+# Checks changelog.sh on a repository of its own, made in a temporary folder: the section add writes from the commits since the previous version tag (pull requests by their titles, scopes that are not the app left out, reverts settled), that it puts a section above those of older versions and keeps one already there, the line it writes for a version with nothing to list, and that notes prints a section the way TestChangelogHasTheVersion reads it.
 set -euo pipefail
 
 script=$(cd "$(dirname "$0")" && pwd)/changelog.sh
@@ -139,7 +139,7 @@ expect "hand-written notes" "Written by hand." "$("$script" notes 0.3.0)"
 
 printf '# Changelog\n\n## 0.3.0\n\n## 0.2.1\n\nOlder.\n' >apps/kando/CHANGELOG.md
 if "$script" add v0.3.0 2>/dev/null; then
-  fail "add accepted an empty section, which mygo build fails on"
+  fail "add accepted an empty section, which the app's tests fail on"
 fi
 if "$script" notes v0.3.0 2>/dev/null; then
   fail "notes printed an empty section"

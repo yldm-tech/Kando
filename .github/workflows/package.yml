@@ -1,8 +1,10 @@
 name: Package
 
-# Builds the app's packages for macOS, Windows and Linux with mygo build (go tool mygo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's packages, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>. A release build also signs the app's update for each target with the MYGO_UPDATER_PRIVATE_KEY secret and keeps the update files with the packages: the archive of the app as installed, the deltas from earlier versions and the manifest update-<target>.json, from which installed apps update themselves (updates in apps/kando/mygo.json, MyGo's docs/updates.md). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the packages to that tag's draft release. MyGo needs no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
+# Builds the app's packages for macOS, Windows and Linux with nsgo build (go tool nsgo, the version apps/kando/go.mod pins), each platform on a runner of its own, and keeps each platform's files from nsgo build's releases folder, with a checksums-<platform>.txt of their SHA-256, as the run's artifact kando-<platform>: per target the installer (disk image, NSIS installer, or the Debian and Arch packages and the AppImage) with the .sha256 beside it that the install scripts check, and from the Linux row the install.sh and install.ps1 that install the latest release. A release build also signs the installers for the app's updates with the updates key and keeps each target's appcast-<target>.xml, the feed installed apps read from the latest release (updates in apps/kando/nsgo.yaml, NSGo's docs/public/en/building.md). CI calls it to check that every package builds; Release calls it with the tag it made, and its Publish job checks the checksums and uploads the files to that tag's draft release. NSGo's desktop builds need no cgo, so Ubuntu makes the Windows installers (with NSIS) as well as the Linux packages; the macOS disk images need a macOS runner.
 #
-# A release build signs the macOS app and its disk images with YLDM's Developer ID certificate (the MACOS_CERTIFICATE secret, a base64 PKCS#12, and MACOS_CERTIFICATE_PASSWORD) and notarizes the disk images with an App Store Connect API key (APPSTORE_API_KEY_P8, base64, APPSTORE_API_KEY_ID and APPSTORE_API_ISSUER_ID), so Gatekeeper opens them without a warning. The identity and the notary profile go into the build's copy of mygo.json only, so builds on other machines and CI's builds stay signed ad hoc and need no secrets. Run it by hand (Actions › Package › Run workflow) to sign and notarize a branch without releasing: the packages become the run's artifacts. The Windows installers carry no signature yet, for which SmartScreen warns; that needs a code signing certificate (see MyGo's docs/github-actions.md).
+# The packages are built with GOFLAGS=-tags=nodra_nomygo, which leaves nodra's MyGo helpers, and MyGo with them, out of the app (apps/kando/nsgo.yaml).
+#
+# A release build signs the macOS app and its disk images with YLDM's Developer ID certificate (the MACOS_CERTIFICATE secret, a base64 PKCS#12, and MACOS_CERTIFICATE_PASSWORD) and notarizes the disk images with an App Store Connect API key (APPSTORE_API_KEY_P8, base64, APPSTORE_API_KEY_ID and APPSTORE_API_ISSUER_ID, which the build gets as NSGO_NOTARY_KEY, NSGO_NOTARY_KEY_ID and NSGO_NOTARY_ISSUER), so Gatekeeper opens them without a warning. The identity goes to nsgo build's -sign flag only, so builds on other machines and CI's builds stay signed ad hoc and need no secrets. Run it by hand (Actions › Package › Run workflow) to sign and notarize a branch without releasing: the packages become the run's artifacts. The Windows installers carry no signature yet, for which SmartScreen warns; that needs a code signing certificate.
 on:
   workflow_dispatch:
     inputs:
@@ -13,12 +15,15 @@ on:
   workflow_call:
     inputs:
       tag:
-        description: The release tag to build the packages of, which must match the version in mygo.json; empty builds the checked-out commit
+        description: The release tag to build the packages of, which must match the version in nsgo.yaml; empty builds the checked-out commit
         type: string
         default: ""
     secrets:
+      NSGO_UPDATES_KEY:
+        description: The secret key that signs the app's updates, as nsgo keygen prints it, of apps/kando/nsgo.yaml's updates.key; without it the build takes it from MYGO_UPDATER_PRIVATE_KEY
+        required: false
       MYGO_UPDATER_PRIVATE_KEY:
-        description: The secret key that signs the app's updates (mygo keygen); a release build fails without it, as installed apps could not update to the release
+        description: The secret key that signed the MyGo builds' updates (mygo keygen), whose seed is NSGO_UPDATES_KEY; a release build fails without one of the two, as installed apps could not update to the release
         required: false
       MACOS_CERTIFICATE:
         description: The Developer ID Application certificate and its private key, as a base64 PKCS#12; a release build fails without it
@@ -46,28 +51,29 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Notarizing the two disk images can take Apple's service a while.
     timeout-minutes: ${{ matrix.name == 'macOS' && 60 || 30 }}
-    # mygo build runs MyGo's code and the tools it calls, so the job holds a read-only token and keeps no git credentials; Release uploads the packages from a job of its own.
+    # nsgo build runs NSGo's code and the tools it calls, so the job holds a read-only token and keeps no git credentials; Release uploads the packages from a job of its own.
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
         include:
-          # packages: what each target must make, so that a package mygo build leaves out (as it does the Windows installer without NSIS) fails the row rather than going missing from the release. script: the install script of the Linux archives, the same for both architectures, so uploaded once.
-          - { name: macOS, os: macos-latest, platform: "darwin/arm64,darwin/amd64", packages: "*.dmg" }
-          - { name: Windows, os: ubuntu-latest, platform: "windows/amd64,windows/arm64", packages: "*-setup-*.exe" }
-          - { name: Linux, os: ubuntu-latest, platform: "linux/amd64,linux/arm64", packages: "*.deb *.tar.gz", script: linux-amd64/install.sh }
+          # targets: the nsgo build targets of the row. installers: what each target must make, after kando-<version>-<target>, so that a package nsgo build leaves out (as it does the Windows installer without NSIS) fails the row rather than going missing from the release. scripts: install.sh and install.ps1, which every row writes alike, so kept from one.
+          - { name: macOS, os: macos-latest, targets: "macos_arm64,macos_x64", installers: ".dmg" }
+          - { name: Windows, os: ubuntu-latest, targets: "windows_x64,windows_arm64", installers: "-setup.exe" }
+          - { name: Linux, os: ubuntu-latest, targets: "linux_x64,linux_arm64", installers: ".deb .pkg.tar.gz .AppImage", scripts: true }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
-      # A tag that does not match the version in mygo.json would upload packages named for another version.
+      # A tag that does not match the version in nsgo.yaml would upload packages named for another version.
       - name: Check the version
         if: inputs.tag != ''
         env:
           TAG: ${{ inputs.tag }}
-        run: test "$TAG" = "v$(jq -r .version apps/kando/mygo.json)"
+        run: |
+          test "$TAG" = "v$(sed -nE 's/^version: *"?([0-9.]+)"? *$/\1/p' apps/kando/nsgo.yaml)"
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.work
@@ -84,7 +90,7 @@ jobs:
       - name: Install NSIS, for the Windows installers
         if: matrix.name == 'Windows'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nsis
-      # A release build, or a run by hand that asks for it, signs and notarizes on macOS. The certificate goes into a keychain of the job's own, with the notary credentials, which notarytool checks with Apple as it stores them; the files written from the secrets are deleted at once.
+      # A release build, or a run by hand that asks for it, signs and notarizes on macOS. The certificate goes into a keychain of the job's own, which codesign finds on the user's keychain list; the notary key is written to a file the build reads (NSGO_NOTARY_KEY), deleted with the keychain at the end of the job, and the certificate's file is deleted at once.
       - name: Import the signing certificate and the notary key
         id: signing
         if: matrix.name == 'macOS' && (inputs.tag != '' || inputs.sign)
@@ -116,95 +122,100 @@ jobs:
             echo "::error::MACOS_CERTIFICATE does not hold $MACOS_SIGNING_IDENTITY."
             exit 1
           fi
-          printf '%s' "$APPSTORE_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary-key.p8"
-          xcrun notarytool store-credentials kando-notary --keychain "$keychain" --key "$RUNNER_TEMP/notary-key.p8" --key-id "$APPSTORE_API_KEY_ID" --issuer "$APPSTORE_API_ISSUER_ID" >/dev/null
-          rm "$RUNNER_TEMP/notary-key.p8"
+          key="$RUNNER_TEMP/notary-key.p8"
+          printf '%s' "$APPSTORE_API_KEY_P8" | base64 --decode > "$key"
+          chmod 600 "$key"
           echo "keychain=$keychain" >> "$GITHUB_OUTPUT"
-      # Only a release build gets the key: CI's builds make no updates, which would only be thrown away. A signed build names the identity and the notary profile in the job's copy of mygo.json, which is never committed.
+          echo "notary-key=$key" >> "$GITHUB_OUTPUT"
+      # Only a release build gets the updates key: CI's builds make no appcasts for macOS and Windows, which would only be thrown away. The key is NSGO_UPDATES_KEY, else the seed of MYGO_UPDATER_PRIVATE_KEY, the 64-byte key the MyGo builds signed with, whose public key nsgo.yaml's updates.key is; nsgo build refuses a key of another public key. A signed build passes the Developer ID identity to -sign and the notary key in NSGO_NOTARY_KEY*, so nsgo build signs with the hardened runtime, notarizes the disk images and staples their tickets.
       - name: Build
         env:
+          GOFLAGS: -tags=nodra_nomygo
           KEYCHAIN: ${{ steps.signing.outputs.keychain }}
-          PLATFORM: ${{ matrix.platform }}
+          NOTARY_KEY: ${{ steps.signing.outputs.notary-key }}
+          NOTARY_KEY_ID: ${{ steps.signing.outputs.notary-key != '' && secrets.APPSTORE_API_KEY_ID || '' }}
+          NOTARY_ISSUER: ${{ steps.signing.outputs.notary-key != '' && secrets.APPSTORE_API_ISSUER_ID || '' }}
+          TARGETS: ${{ matrix.targets }}
           TAG: ${{ inputs.tag }}
+          UPDATES_KEY: ${{ inputs.tag != '' && secrets.NSGO_UPDATES_KEY || '' }}
           MYGO_UPDATER_PRIVATE_KEY: ${{ inputs.tag != '' && secrets.MYGO_UPDATER_PRIVATE_KEY || '' }}
         run: |
-          if [ -n "$TAG" ] && [ -z "$MYGO_UPDATER_PRIVATE_KEY" ]; then
-            echo "::error::The MYGO_UPDATER_PRIVATE_KEY secret is not set, so the release would carry no update that installed apps could install."
-            exit 1
+          if [ -n "$TAG" ]; then
+            if [ -z "$UPDATES_KEY" ] && [ -n "$MYGO_UPDATER_PRIVATE_KEY" ]; then
+              UPDATES_KEY=$(printf '%s' "$MYGO_UPDATER_PRIVATE_KEY" | tr -d '[:space:]' | base64 --decode | head -c 32 | base64 | tr -d '[:space:]')
+            fi
+            if [ -z "$UPDATES_KEY" ]; then
+              echo "::error::Neither the NSGO_UPDATES_KEY secret nor MYGO_UPDATER_PRIVATE_KEY is set, so the release would carry no update that installed apps could install."
+              exit 1
+            fi
+            echo "::add-mask::$UPDATES_KEY"
+            export NSGO_UPDATES_KEY=$UPDATES_KEY
           fi
+          sign=()
           if [ -n "$KEYCHAIN" ]; then
-            jq --arg identity "$MACOS_SIGNING_IDENTITY" --arg keychain "$KEYCHAIN" '.macos.signingIdentity = $identity | .macos.notarize = {keychainProfile: "kando-notary", keychain: $keychain}' apps/kando/mygo.json > "$RUNNER_TEMP/mygo.json"
-            mv "$RUNNER_TEMP/mygo.json" apps/kando/mygo.json
+            sign=(-sign "$MACOS_SIGNING_IDENTITY")
+            export NSGO_NOTARY_KEY=$NOTARY_KEY NSGO_NOTARY_KEY_ID=$NOTARY_KEY_ID NSGO_NOTARY_ISSUER=$NOTARY_ISSUER
           fi
-          go tool mygo build -platform "$PLATFORM" -o "$RUNNER_TEMP/packages" apps/kando
+          go tool nsgo build -target "$TARGETS" -output "$RUNNER_TEMP/packages" "${sign[@]}" apps/kando
       # Gatekeeper's own check of what users download: the app is signed with the Developer ID and the hardened runtime, and each disk image carries its notarization ticket.
       - name: Check the signatures
         if: steps.signing.outcome == 'success'
         env:
-          PLATFORM: ${{ matrix.platform }}
+          TARGETS: ${{ matrix.targets }}
         run: |
-          for target in ${PLATFORM//,/ }; do
-            dir="$RUNNER_TEMP/packages/${target/\//-}"
-            codesign --verify --deep --strict --verbose=2 "$dir/Kando.app"
-            codesign -dvv "$dir/Kando.app" 2>&1 | grep -F "Authority=$MACOS_SIGNING_IDENTITY"
-            for dmg in "$dir"/*.dmg; do
+          shopt -s nullglob
+          for target in ${TARGETS//,/ }; do
+            apps=("$RUNNER_TEMP"/packages/Kando-*-"$target"/Kando.app)
+            if [ "${#apps[@]}" -ne 1 ]; then
+              echo "::error::nsgo build made ${#apps[@]} Kando.app for $target, not one"
+              exit 1
+            fi
+            codesign --verify --deep --strict --verbose=2 "${apps[0]}"
+            codesign -dvv "${apps[0]}" 2>&1 | grep -F "Authority=$MACOS_SIGNING_IDENTITY"
+            for dmg in "$RUNNER_TEMP"/packages/releases/*-"${target/_/-}".dmg; do
               xcrun stapler validate "$dmg"
               spctl --assess --type open --context context:primary-signature --verbose=2 "$dmg"
             done
           done
-      # The packages users download: per target, the disk image, the installer, or the Debian package and the archive; and on Linux the script that installs the archive, which is the same for both architectures. A release build adds each target's update files: exactly one manifest, the archive it names (on Linux the archive above) and the deltas, of which there are none when no earlier release has a manifest. They are copied into one folder, as a release holds its files side by side, with their SHA-256 taken here from the files mygo build made.
+      # The files of nsgo build's releases folder, which a release holds side by side: each target's installers with their .sha256, its appcast in a release build (on Linux in every build), and on the Linux row the install scripts. Every installer the row's targets should make must be there, once, as must a release build's appcasts. Their SHA-256 is taken here from the files nsgo build made.
       - name: Collect the packages
         env:
           TAG: ${{ inputs.tag }}
           NAME: ${{ matrix.name }}
-          PLATFORM: ${{ matrix.platform }}
-          PACKAGES: ${{ matrix.packages }}
-          SCRIPT: ${{ matrix.script }}
+          TARGETS: ${{ matrix.targets }}
+          INSTALLERS: ${{ matrix.installers }}
+          SCRIPTS: ${{ matrix.scripts && 'true' || '' }}
         run: |
-          cd "$RUNNER_TEMP/packages"
+          cd "$RUNNER_TEMP/packages/releases"
           shopt -s nullglob
-          read -ra patterns <<<"$PACKAGES"
-          files=()
-          for target in ${PLATFORM//,/ }; do
-            dir=${target/\//-}
-            for pattern in "${patterns[@]}"; do
-              found=("$dir"/$pattern)
-              if [ "${#found[@]}" -ne 1 ]; then
-                echo "::error::mygo build made ${#found[@]} files matching $dir/$pattern, not one"
+          read -ra suffixes <<<"$INSTALLERS"
+          for target in ${TARGETS//,/ }; do
+            for suffix in "${suffixes[@]}"; do
+              found=(*-"${target/_/-}$suffix")
+              if [ "${#found[@]}" -ne 1 ] || [ ! -f "${found[0]}.sha256" ]; then
+                echo "::error::nsgo build made ${#found[@]} files matching *-${target/_/-}$suffix, not one with its .sha256"
                 exit 1
               fi
-              files+=("${found[0]}")
             done
-            if [ -n "$TAG" ]; then
-              found=("$dir"/update-*.json)
-              if [ "${#found[@]}" -ne 1 ]; then
-                echo "::error::mygo build made ${#found[@]} update manifests in $dir, not one"
-                exit 1
-              fi
-              files+=("${found[0]}")
-              for update in "$dir"/*.tar.gz "$dir"/*.delta; do
-                if [[ " ${files[*]} " != *" $update "* ]]; then
-                  files+=("$update")
-                fi
-              done
-            fi
-          done
-          if [ -n "$SCRIPT" ]; then
-            if [ ! -f "$SCRIPT" ]; then
-              echo "::error::mygo build made no $SCRIPT"
+            if [ -n "$TAG" ] && [ ! -f "appcast-$target.xml" ]; then
+              echo "::error::nsgo build made no appcast-$target.xml"
               exit 1
             fi
-            files+=("$SCRIPT")
+          done
+          files=()
+          for file in *; do
+            case $file in
+              install.sh | install.ps1) [ -n "$SCRIPTS" ] || continue ;;
+            esac
+            files+=("$file")
+          done
+          if [ -n "$SCRIPTS" ] && { [ ! -f install.sh ] || [ ! -f install.ps1 ]; }; then
+            echo "::error::nsgo build made no install.sh or install.ps1"
+            exit 1
           fi
           out=$RUNNER_TEMP/out
           mkdir "$out"
-          for file in "${files[@]}"; do
-            if [ -e "$out/${file##*/}" ]; then
-              echo "::error::mygo build made two packages named ${file##*/}"
-              exit 1
-            fi
-            cp "$file" "$out/"
-          done
+          cp -- "${files[@]}" "$out/"
           cd "$out"
           shasum -a 256 -- * > "$RUNNER_TEMP/checksums-$NAME.txt"
           mv "$RUNNER_TEMP/checksums-$NAME.txt" .
@@ -216,8 +227,11 @@ jobs:
           path: ${{ runner.temp }}/out/
           retention-days: 7
           if-no-files-found: error
-      - name: Remove the signing keychain
+      - name: Remove the signing keychain and the notary key
         if: always() && steps.signing.outputs.keychain != ''
         env:
           KEYCHAIN: ${{ steps.signing.outputs.keychain }}
-        run: security delete-keychain "$KEYCHAIN"
+          NOTARY_KEY: ${{ steps.signing.outputs.notary-key }}
+        run: |
+          rm -f "$NOTARY_KEY"
+          security delete-keychain "$KEYCHAIN"
