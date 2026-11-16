@@ -69,7 +69,7 @@ type savedLibrary struct {
 // clean reads an order Kando does not know, such as one another version saved, as the default.
 func (s *savedLibrary) clean() { s.LibrarySort = films.ValidSort(s.LibrarySort) }
 
-// libraryHooks: the grid's order is saved and restored with the settings. The shelf's posters, video lengths and hero line are loaded whenever its films change, and held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each change the library lets go of an open film it no longer has, and its dialogs hold or give back the window's modal flag.
+// libraryHooks: the grid's order is saved and restored with the settings. The shelf's posters, video lengths and hero line are loaded whenever its films change, the hero line also when a film played, as the film played last may be the hero now, and all are held back until the window exists, because the posters report through it. Files the system asked Kando to open before the window existed are held back with them and added to the queue once it does, after every area's ready. After each change the library lets go of an open film it no longer has, and its dialogs hold or give back the window's modal flag.
 func (a *app) libraryHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) { saved.savedLibrary = savedLibrary{LibrarySort: a.lib.sort} },
@@ -86,6 +86,8 @@ func (a *app) libraryHooks() areaHooks {
 		},
 		afterChange:  a.libraryAfterChange,
 		shelfChanged: a.loadExtras,
+		// The hero shows the film played last, so a film that played may be the hero now.
+		positionsChanged: a.libraryHeroQuote,
 	}
 }
 
@@ -151,7 +153,15 @@ func (a *app) loadExtras() {
 			a.ensureThumbnail(item)
 		}
 	}
-	if hero, ok := films.HeroFilm(items); ok {
+	a.libraryHeroQuote()
+}
+
+// libraryHeroQuote reads the first bilingual line of the hero's film (films.HeroFilm), once the window is ready.
+func (a *app) libraryHeroQuote() {
+	if a.lib.holdExtras {
+		return
+	}
+	if hero, ok := films.HeroFilm(a, a.films()); ok {
 		a.loadQuote(hero.SubtitlePath)
 	}
 }

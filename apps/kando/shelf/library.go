@@ -30,6 +30,8 @@ type Library struct {
 	Positions map[string]time.Duration
 	// Furthest is how far the video at each path has ever played. Unlike its resume position it stays once the video was watched to the end, so what has been seen of a film is known for good.
 	Furthest map[string]time.Duration
+	// Played is when the video at each path last played, kept beside its resume position, so the library can offer first the film watched last.
+	Played map[string]time.Time
 	// Delays is how far the subtitles of the video at each path were moved against its picture (Z and X), so they stay in step when it is opened again. A video whose subtitles were not moved has none.
 	Delays map[string]time.Duration
 	// Names is the title the user gave the video at each path in Kando (Rename), shown in place of the title its site gives it or the name of its file or folder. Renaming never touches the files on disk, and a title kept here follows its video when the video moves (MoveVideos).
@@ -64,7 +66,7 @@ func (l Library) Path() string { return l.path }
 
 // Load reads the library at path. A missing file is an empty library. A file that is there but cannot be read is empty too, and the error says why. A file that is not a library in full returns a *DamagedError with the file's bytes, and the library keeps what could be read: a value of another type leaves only that field out, as encoding/json goes on with the rest, and a file that is not JSON at all reads as empty. After either error Save returns ErrUnread rather than write over the file, until AllowSave. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Delays: map[string]time.Duration{}, Names: map[string]string{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Names: map[string]string{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -97,6 +99,11 @@ func Load(path string) (Library, error) {
 	for path, seconds := range stored.Furthest {
 		if seconds > 0 {
 			lib.Furthest[path] = time.Duration(seconds * float64(time.Second))
+		}
+	}
+	for path, at := range stored.Played {
+		if !at.IsZero() {
+			lib.Played[path] = at
 		}
 	}
 	for path, seconds := range stored.Delays {
@@ -161,13 +168,14 @@ func (l *Library) Rename(path, name string) bool {
 	return true
 }
 
-// MoveVideos keys the resume positions, furthest points, subtitle delays and the titles given in Kando by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
+// MoveVideos keys the resume positions, furthest points, times last played, subtitle delays and the titles given in Kando by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
 func (l *Library) MoveVideos(move func(path string) (string, bool)) bool {
 	positions := MoveKeys(l.Positions, move)
 	furthest := MoveKeys(l.Furthest, move)
+	played := MoveKeys(l.Played, move)
 	delays := MoveKeys(l.Delays, move)
 	names := MoveKeys(l.Names, move)
-	return positions || furthest || delays || names
+	return positions || furthest || played || delays || names
 }
 
 // MoveKeys keys what m holds for each video that moved, by path, under the new path move gives for it. It reports whether any moved.
@@ -214,6 +222,14 @@ func (l Library) Save() error {
 			stored.Furthest[path] = at.Seconds()
 		}
 	}
+	for path, at := range l.Played {
+		if !at.IsZero() {
+			if stored.Played == nil {
+				stored.Played = map[string]time.Time{}
+			}
+			stored.Played[path] = at
+		}
+	}
 	for path, d := range l.Delays {
 		if d != 0 {
 			if stored.Delays == nil {
@@ -242,13 +258,14 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Names is Library.Names.
+// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Names is Library.Names.
 type storedLibrary struct {
-	Jobs      []storedJob        `json:"jobs"`
-	Positions map[string]float64 `json:"positions,omitempty"`
-	Furthest  map[string]float64 `json:"furthest,omitempty"`
-	Delays    map[string]float64 `json:"delays,omitempty"`
-	Names     map[string]string  `json:"names,omitempty"`
+	Jobs      []storedJob          `json:"jobs"`
+	Positions map[string]float64   `json:"positions,omitempty"`
+	Furthest  map[string]float64   `json:"furthest,omitempty"`
+	Played    map[string]time.Time `json:"played,omitempty"`
+	Delays    map[string]float64   `json:"delays,omitempty"`
+	Names     map[string]string    `json:"names,omitempty"`
 }
 
 type storedJob struct {

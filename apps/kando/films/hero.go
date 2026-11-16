@@ -19,14 +19,40 @@ import (
 // onPicture is the text over a poster or the hero, which are a picture or a dark color in either theme.
 var onPicture = ns.RGB(0xFFFFFF)
 
-// HeroFilm is the film the hero shows: the newest one a job finished. items is newest first, as the shelf lists them.
-func HeroFilm(items []Film) (Film, bool) {
+// HeroFilm is the film the hero shows: the one played last that can be continued (ResumeFrom), so a learner coming back is one click from where they were; else the newest one a job finished that was never played; else the newest one a job finished. items is newest first, as the shelf lists them, and a film still in 处理中 is never the hero.
+func HeroFilm(a App, items []Film) (Film, bool) {
+	var continued Film
+	var at time.Time
+	found := false
 	for _, item := range items {
-		if item.JobID != "" && item.Stage == core.StageComplete {
-			return item, true
+		if InQueue(item) {
+			continue
+		}
+		if _, ok := ResumeFrom(a, item); !ok {
+			continue
+		}
+		// A film stopped before Kando kept when it played has no time, and comes after those that have one, in the shelf's order.
+		if played := a.PlayedAt(item.VideoPath); !found || played.After(at) {
+			continued, at, found = item, played, true
 		}
 	}
-	return Film{}, false
+	if found {
+		return continued, true
+	}
+	var newest Film
+	found = false
+	for _, item := range items {
+		if item.JobID == "" || item.Stage != core.StageComplete {
+			continue
+		}
+		if a.PlayedAt(item.VideoPath).IsZero() && a.ResumeAt(item.VideoPath) == 0 && a.Furthest(item.VideoPath) == 0 {
+			return item, true
+		}
+		if !found {
+			newest, found = item, true
+		}
+	}
+	return newest, found
 }
 
 // ResumeFrom is where a film opens or 继续 picks it up: where it stopped, unless that is within 3 seconds of either end. Every way of opening a film but 从头看 and a jump to a line starts there (app.Open).
@@ -48,7 +74,7 @@ var heroShade = ns.Gradient{Kind: ns.GradientLinear, Angle: 90, Stops: []ns.Colo
 	{Color: ns.RGBA(0x000000, 0), At: ns.Pct(70)},
 }}
 
-// hero is the large card of the film finished last: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does.
+// hero is the large card of the film HeroFilm picks: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does.
 type hero struct {
 	a    App
 	item func() Film
@@ -64,12 +90,6 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		translation, original := a.Quote(item())
 		return heroQuote{translation, original}
 	})
-	kicker := func() string {
-		if language := item().Language; language != "" {
-			return locales.FilmsHeroKickerBilingual(cx, LanguageName(locales.For(cx), language))
-		}
-		return locales.FilmsHeroKicker(cx)
-	}
 	quoteBox := ns.Show{When: func() bool { q := quote(); return q.translation != "" || q.original != "" }, Then: func(*ns.Scope) ns.Node {
 		return ns.View{Style: ns.Style{AlignSelf: ns.AlignStart, Gap: 2, Padding: ns.Symmetric(10, 14), CornerRadius: 12, BorderWidth: 0.5, BorderColor: onPicture.Faded(0.18)}.Merge(frosted(14, ns.RGBA(0x000000, 0.28))),
 			Children: []ns.Node{
@@ -87,6 +107,19 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		at, _ := ResumeFrom(a, item())
 		return at
 	})
+	// The kicker says whether the film is one to continue or one finished last.
+	kicker := func() string {
+		language := item().Language
+		switch {
+		case resume() > 0 && language != "":
+			return locales.FilmsHeroKickerContinueBilingual(cx, LanguageName(locales.For(cx), language))
+		case resume() > 0:
+			return locales.FilmsHeroKickerContinue(cx)
+		case language != "":
+			return locales.FilmsHeroKickerBilingual(cx, LanguageName(locales.For(cx), language))
+		}
+		return locales.FilmsHeroKicker(cx)
+	}
 	play := heroButton{main: true, testID: "hero-play",
 		label: func() string {
 			if at := resume(); at > 0 {

@@ -29,6 +29,8 @@ type fakeApp struct {
 	items, queue                     []Film
 	durations                        map[string]time.Duration
 	resume                           map[string]time.Duration
+	played                           map[string]time.Time
+	furthest                         map[string]time.Duration
 	remedies                         map[string]Remedy
 	hints                            map[string]string
 	notice                           Notice
@@ -55,6 +57,8 @@ func newFakeApp() *fakeApp {
 		},
 		durations: map[string]time.Duration{lib + "/Rivers/video.mp4": 125 * time.Second},
 		resume:    map[string]time.Duration{},
+		played:    map[string]time.Time{},
+		furthest:  map[string]time.Duration{},
 		remedies:  map[string]Remedy{},
 		hints:     map[string]string{},
 	}
@@ -135,6 +139,8 @@ func (f *fakeApp) QueueFilms() []Film {
 }
 func (f *fakeApp) OpenSettings(section string)        { f.call("settings", section) }
 func (f *fakeApp) ResumeAt(path string) time.Duration { return f.resume[path] }
+func (f *fakeApp) PlayedAt(path string) time.Time     { return f.played[path] }
+func (f *fakeApp) Furthest(path string) time.Duration { return f.furthest[path] }
 func (f *fakeApp) Notice() *Notice                    { return &f.notice }
 func (f *fakeApp) QueueExpanded() *bool               { return &f.expanded }
 func (f *fakeApp) LibrarySort() string                { return f.sort }
@@ -214,6 +220,55 @@ func TestShelfShowsTheHeroTheQueueAndTheGrid(t *testing.T) {
 	}
 	app.Press("id:hero-alt")
 	wantCalls(t, a, "open-at done 0s")
+}
+
+// TestHeroIsTheFilmBeingWatched: the hero shows the film played last that can be continued, saying so, rather than the film finished last; with none to continue, the newest finished film never played; and with every film played to the end, the newest finished one.
+func TestHeroIsTheFilmBeingWatched(t *testing.T) {
+	a := newFakeApp()
+	rivers, algebra := a.items[0], a.items[1]
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	hero := func() string { return app.Find("id:films-hero").Props.Label }
+	if hero() != rivers.Name {
+		t.Fatalf("the hero of a library never played is %q", hero())
+	}
+	// Linear Algebra stopped at 1:10 yesterday and Rivers of Europe at 0:30 the week before: Linear Algebra is the one to continue.
+	now := time.Date(2026, 11, 16, 20, 0, 0, 0, time.Local)
+	change(app, a, func() {
+		a.resume[algebra.VideoPath], a.played[algebra.VideoPath] = 70*time.Second, now.AddDate(0, 0, -1)
+		a.resume[rivers.VideoPath], a.played[rivers.VideoPath] = 30*time.Second, now.AddDate(0, 0, -7)
+	})
+	if hero() != algebra.Name || !app.Exists(whole(msgs.FilmsHeroKickerContinue())) || !app.Exists(whole(msgs.FilmsHeroResume("1:10"))) {
+		t.Fatalf("the hero is %q, not Linear Algebra to continue: %q", hero(), app.Texts())
+	}
+	// A film stopped before Kando kept when it played comes after one that has a time.
+	change(app, a, func() { delete(a.played, rivers.VideoPath) })
+	if hero() != algebra.Name {
+		t.Fatalf("the hero is %q", hero())
+	}
+	// Linear Algebra was watched to the end, so Rivers of Europe is the one to continue.
+	change(app, a, func() {
+		delete(a.resume, algebra.VideoPath)
+		a.furthest[algebra.VideoPath] = 5 * time.Minute
+	})
+	if hero() != rivers.Name || !app.Exists(whole(msgs.FilmsHeroKickerContinueBilingual(msgs.SettingsLanguageSimplifiedChinese()))) {
+		t.Fatalf("the hero is %q: %q", hero(), app.Texts())
+	}
+	// With nothing to continue, the newest finished film never played is the hero, ahead of one watched to the end.
+	change(app, a, func() {
+		delete(a.resume, rivers.VideoPath)
+		a.played[rivers.VideoPath] = now
+		delete(a.furthest, algebra.VideoPath)
+		delete(a.played, algebra.VideoPath)
+	})
+	if hero() != algebra.Name || !app.Exists(whole(msgs.FilmsHeroKicker())) {
+		t.Fatalf("the hero is %q, not the film never played: %q", hero(), app.Texts())
+	}
+	// Every film was watched: the newest finished one.
+	change(app, a, func() { a.played[algebra.VideoPath] = now })
+	if hero() != rivers.Name {
+		t.Fatalf("the hero of a library watched through is %q", hero())
+	}
 }
 
 func TestCardsStayWhileTheAppChanges(t *testing.T) {

@@ -90,6 +90,10 @@ type App interface {
 	OpenSettings(section string)
 	// ResumeAt is where the video at path stopped playing last time, or 0.
 	ResumeAt(path string) time.Duration
+	// PlayedAt is when the video at path last played, the zero time when it never did.
+	PlayedAt(path string) time.Time
+	// Furthest is how far the video at path has ever played on from its start, 0 when it never did; unlike ResumeAt it stays once the video was watched to the end.
+	Furthest(path string) time.Duration
 	// Notice is the message bar under the top bar.
 	Notice() *Notice
 	// QueueExpanded is whether 处理中 shows every card rather than the first QueueShown.
@@ -221,10 +225,10 @@ func newShelfModel(a App, source, tag string) shelfModel {
 	}
 	query := strings.TrimSpace(*a.Query())
 	if query == "" && source == sidebar.SourceAll {
-		m.hero, m.heroShown = HeroFilm(done)
+		m.hero, m.heroShown = HeroFilm(a, done)
 	}
 	done = ByTitle(done, query)
-	m.done = Sorted(done, a.LibrarySort(), tag)
+	m.done = Sorted(done, a.LibrarySort(), tag, a.PlayedAt)
 	if len(done) == 0 && query != "" {
 		m.noMatch = query
 	}

@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/locales/testlocale"
 )
@@ -14,6 +15,32 @@ func keysOf(items []Film) string {
 		keys = append(keys, item.Key)
 	}
 	return strings.Join(keys, ",")
+}
+
+// neverPlayed is App.PlayedAt of a library none of whose films played.
+func neverPlayed(string) time.Time { return time.Time{} }
+
+// TestSortedByWatched puts the films played last first and those never played after them, in the order they were added.
+func TestSortedByWatched(t *testing.T) {
+	items := []Film{
+		{Key: "new", VideoPath: "/new.mp4"},
+		{Key: "week", VideoPath: "/week.mp4"},
+		{Key: "fresh", VideoPath: "/fresh.mp4"},
+		{Key: "today", VideoPath: "/today.mp4"},
+		{Key: "old", VideoPath: "/old.mp4"},
+	}
+	now := time.Date(2026, 11, 16, 20, 0, 0, 0, time.Local)
+	played := map[string]time.Time{"/today.mp4": now, "/week.mp4": now.AddDate(0, 0, -7)}
+	before := slices.Clone(items)
+	if got := keysOf(Sorted(items, SortWatched, testlocale.Current(), func(path string) time.Time { return played[path] })); got != "today,week,new,fresh,old" {
+		t.Fatalf("recently watched %s", got)
+	}
+	if !slices.Equal(items, before) {
+		t.Fatalf("Sorted changed the shelf's order: %s", keysOf(items))
+	}
+	if got := SortLabel(testlocale.Messages(), SortWatched); got != "最近观看" {
+		t.Fatalf("label %q", got)
+	}
 }
 
 // TestSortedByTitle orders the grid by name as the interface's language orders words: Latin letters regardless of case, numbers by value, then Chinese by pinyin. Films with the same name keep the order they were added in, and the shelf's own order is left alone.
@@ -29,13 +56,13 @@ func TestSortedByTitle(t *testing.T) {
 		{Key: "banana", Title: "Banana"},
 	}
 	before := slices.Clone(items)
-	if got := keysOf(Sorted(items, SortTitle, testlocale.Current())); got != "banana,l2,l10,talk-new,talk-old,an,zhong" {
+	if got := keysOf(Sorted(items, SortTitle, testlocale.Current(), neverPlayed)); got != "banana,l2,l10,talk-new,talk-old,an,zhong" {
 		t.Fatalf("by title %s", got)
 	}
 	if !slices.Equal(items, before) {
 		t.Fatalf("Sorted changed the shelf's order: %s", keysOf(items))
 	}
-	if got := keysOf(Sorted(items, SortAdded, testlocale.Current())); got != keysOf(before) {
+	if got := keysOf(Sorted(items, SortAdded, testlocale.Current(), neverPlayed)); got != keysOf(before) {
 		t.Fatalf("recently added %s", got)
 	}
 }
@@ -43,11 +70,11 @@ func TestSortedByTitle(t *testing.T) {
 // TestSortedByTitleFollowsTheInterfaceLanguage: in English Chinese titles are not ordered by pinyin, so 中 (zhōng) is no longer after 安 (ān).
 func TestSortedByTitleFollowsTheInterfaceLanguage(t *testing.T) {
 	items := []Film{{Key: "an", Name: "安静"}, {Key: "zhong", Name: "中国"}}
-	if got := keysOf(Sorted(items, SortTitle, testlocale.Current())); got != "an,zhong" {
+	if got := keysOf(Sorted(items, SortTitle, testlocale.Current(), neverPlayed)); got != "an,zhong" {
 		t.Fatalf("by pinyin %s", got)
 	}
 	testlocale.Use(t, "en")
-	if got := keysOf(Sorted(items, SortTitle, testlocale.Current())); got != "zhong,an" {
+	if got := keysOf(Sorted(items, SortTitle, testlocale.Current(), neverPlayed)); got != "zhong,an" {
 		t.Fatalf("in English %s", got)
 	}
 }
@@ -63,7 +90,7 @@ func TestSortedBySource(t *testing.T) {
 		{Key: "ted", Source: "https://www.ted.com/talks/sir_ken_robinson_do_schools_kill_creativity"},
 		{Key: "yt-old", Source: "https://www.youtube.com/watch?v=k9Yt2LmQ0pX"},
 	}
-	if got := keysOf(Sorted(items, SortSource, testlocale.Current())); got != "yt-new,yt-old,bili,ted,vimeo,found,picked" {
+	if got := keysOf(Sorted(items, SortSource, testlocale.Current(), neverPlayed)); got != "yt-new,yt-old,bili,ted,vimeo,found,picked" {
 		t.Fatalf("by source %s", got)
 	}
 }
@@ -81,7 +108,7 @@ func TestValidSortFallsBackToRecentlyAdded(t *testing.T) {
 		}
 	}
 	items := []Film{{Key: "b", Name: "B"}, {Key: "a", Name: "A"}}
-	if got := keysOf(Sorted(items, "duration", testlocale.Current())); got != "b,a" {
+	if got := keysOf(Sorted(items, "duration", testlocale.Current(), neverPlayed)); got != "b,a" {
 		t.Fatalf("an unknown order sorted the films: %s", got)
 	}
 	if got := SortLabel(testlocale.Messages(), "duration"); got != "最近添加" {

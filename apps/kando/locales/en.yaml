@@ -843,6 +843,14 @@ filmsHeroKickerBilingual:
   description: "Small label over the title of the large card of the film finished last, with the language its subtitles were translated into."
   placeholders:
     language: { type: "String", example: "Simplified Chinese" }
+filmsHeroKickerContinue:
+  message: "Continue Watching"
+  description: "Small label over the title of the large card when it shows the film played last, which was stopped partway."
+filmsHeroKickerContinueBilingual:
+  message: "Continue Watching · {language} Bilingual"
+  description: "Small label over the title of the large card when it shows the film played last, which was stopped partway, with the language its subtitles were translated into."
+  placeholders:
+    language: { type: "String", example: "Simplified Chinese" }
 filmsHeroResume:
   message: "Resume from {time}"
   description: "Main button of the large card when the film was stopped partway: play from where it stopped."
@@ -1098,6 +1106,9 @@ filmsSortSource:
 filmsSortTitle:
   message: "Title"
   description: "Sort order of the grid of finished films, and its item in the sort menu: films in alphabetical order of their titles."
+filmsSortWatched:
+  message: "Recently Watched"
+  description: "Sort order of the grid of finished films, and its item in the sort menu: the films played last come first, those never played after them."
 filmsStageComplete:
   message: "Done"
   description: "Stage of a job: finished."

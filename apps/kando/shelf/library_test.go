@@ -152,6 +152,45 @@ func TestFurthestRoundTrip(t *testing.T) {
 	}
 }
 
+// TestPlayedRoundTrip checks that when each video last played is kept under its own key, to the second at least, that a zero time is not written, and that a library.json written before it was kept still reads with none.
+func TestPlayedRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := time.Date(2026, 11, 3, 21, 40, 5, 0, time.Local)
+	lib.Played["/v/a.mp4"] = at
+	lib.Played["/v/zero.mp4"] = time.Time{}
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"played"`) || strings.Contains(string(data), "zero.mp4") {
+		t.Fatalf("library.json %s", data)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Played) != 1 || !loaded.Played["/v/a.mp4"].Equal(at) {
+		t.Fatalf("played %v", loaded.Played)
+	}
+	if err := os.WriteFile(path, []byte(`{"jobs":[],"positions":{"/v/a.mp4":3}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	older, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(older.Played) != 0 || older.Positions["/v/a.mp4"] != 3*time.Second {
+		t.Fatalf("an older library.json reads played %v positions %v", older.Played, older.Positions)
+	}
+}
+
 // TestDelaysRoundTrip checks that how far each video's subtitles were moved is kept under its own key, earlier as well as later, exactly to the tenth of a second the keys move them by, and that a video whose subtitles are back in place is not written.
 func TestDelaysRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
@@ -190,6 +229,7 @@ func TestMoveVideosKeysByTheNewPath(t *testing.T) {
 		Positions: map[string]time.Duration{"/old/a.mp4": 5 * time.Second, "/other/b.mp4": 7 * time.Second},
 		Furthest:  map[string]time.Duration{"/old/a.mp4": 40 * time.Second, "/other/b.mp4": 9 * time.Second},
 		Delays:    map[string]time.Duration{"/old/a.mp4": -300 * time.Millisecond, "/other/b.mp4": time.Second},
+		Played:    map[string]time.Time{"/old/a.mp4": time.Unix(100, 0)},
 	}
 	move := func(path string) (string, bool) {
 		if rest, ok := strings.CutPrefix(path, "/old/"); ok {
@@ -208,6 +248,9 @@ func TestMoveVideosKeysByTheNewPath(t *testing.T) {
 	}
 	if len(lib.Delays) != 2 || lib.Delays["/new/a.mp4"] != -300*time.Millisecond || lib.Delays["/other/b.mp4"] != time.Second {
 		t.Fatalf("delays %v", lib.Delays)
+	}
+	if len(lib.Played) != 1 || !lib.Played["/new/a.mp4"].Equal(time.Unix(100, 0)) {
+		t.Fatalf("played %v", lib.Played)
 	}
 	if lib.MoveVideos(func(string) (string, bool) { return "", false }) {
 		t.Fatal("MoveVideos said something moved when nothing did")
