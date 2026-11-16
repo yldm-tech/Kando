@@ -1,0 +1,8 @@
+Usage: yt-dlp [OPTIONS] URL [URL...]
+
+yt-dlp: error: You must provide at least one URL.
+Type yt-dlp --help to see a list of all options.
+Extracting cookies from chrome
+WARNING: find-generic-password failed
+WARNING: cannot decrypt v10 cookies: no key found
+Extracted 12 cookies from chrome (1520 could not be decrypted)

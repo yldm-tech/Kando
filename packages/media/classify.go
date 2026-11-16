@@ -11,8 +11,8 @@ var failSigns = []struct {
 	kind    core.FailKind
 	phrases []string
 }{
-	// The browser's cookies could not be read: Safari's file is closed to an app without Full Disk Access, and a browser that is not installed has none.
-	{core.FailCookies, []string{"Cookies.binarycookies", "cookies database", "could not find chrome", "could not find firefox", "failed to decrypt"}},
+	// The browser's cookies could not be read: Safari's file is closed to an app without Full Disk Access, a browser that is not installed has none, and on Windows an open Chromium browser holds them and Chrome's own encryption keeps them from yt-dlp (LoginTrouble tells these apart).
+	{core.FailCookies, []string{"Cookies.binarycookies", "cookies database", "could not find chrome", "could not find firefox", "failed to decrypt", "could not copy chrome cookie database"}},
 	{core.FailDRM, []string{"DRM protection", "DRM protected"}},
 	{core.FailUnsupported, []string{"Unsupported URL"}},
 	// YouTube's watch link with an id cut short (youtube:truncated_id), or without its v= part (youtube:truncated_url, which asks whether the shell split the URL at an &).
