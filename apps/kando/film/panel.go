@@ -925,7 +925,7 @@ func monoStyle(size, lineHeight ns.Points, alpha float32) ns.Style {
 }
 
 // sourceLink is the film's source in the info tab, a link that opens it, as ui.Link draws one but in the theme's accent ink, which reads on the dark panel where the accent's own blue does not.
-// TODO(nsgo): ui.Link draws its text in Palette().Accent with no way to give it another color (ui/link.go:41-44); go back to ui.Link once it takes one
+// TODO(nsgo#366): ui.Link draws its text in Palette().Accent with no way to give it another color (ui/link.go:41-44); go back to ui.Link once it takes one https://github.com/nsgo-dev/nsgo/issues/366
 func sourceLink(cx *ns.Scope, href string) ns.Node {
 	ink := theme.Of(cx).AccentInk
 	return base.Link{Href: href, Label: href,
