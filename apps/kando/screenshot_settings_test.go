@@ -116,7 +116,7 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			fn(a)
 		}
 		a.OpenSettings(section)
-		env := testEnvironment()
+		env := screenshotEnvironment()
 		env.TitleBar = ns.Edges{Top: 50, Left: 72}
 		// The settings window's own view, as openSettingsWindow opens it, on the test's graph.
 		tt := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
@@ -131,7 +131,7 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			// Headless runs have no pixels, so the scenes run their steps; the pictures come from `nsgo test -target`, which saves them under .nsgo/test/screenshots/<target> (README's Screenshots).
 			return
 		}
-		tt.Screenshot(name)
+		tt.Screenshot(screenshotName(env, name))
 	})
 }
 

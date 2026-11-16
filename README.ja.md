@@ -275,7 +275,7 @@ PNG ファイルは、同じテストを macOS の実際のウィンドウで実
 go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
 ```
 
-`KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja`、`ko`。もう一つの `-env` で渡します）を指定すると、そのインターフェース言語で描画し、デモ用ライブラリもその言語の読者向けの内容になります。`-run TestScreenshotsReadme` は各言語の README で使う 4 枚の画像を描画します。画像は `docs/assets/<言語>/` にあります。
+`KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja`、`ko`。もう一つの `-env` で渡します）を指定すると、そのインターフェース言語で描画し、デモ用ライブラリもその言語の読者向けの内容になります。`-run TestScreenshotsReadme` は各言語の README で使う 4 枚の画像を描画します。画像は `docs/assets/<言語>/` にあります。`KANDO_SCREENSHOTS_DARK=1` を指定するとダークモードで描画し、各画像は `<シーン>-dark.png` として保存されます。
 
 リポジトリの構成:
 
