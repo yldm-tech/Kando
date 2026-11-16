@@ -29,8 +29,9 @@ type State struct {
 	// Clearable is set when the pages' sign-ins can be cleared at all (清除登录信息…), and Clearing while they are being cleared.
 	Clearable bool
 	Clearing  bool
-	// SignIn names the browser whose sign-in downloads borrow (Settings › 通用 › 浏览器登录), "" while none is chosen; the start says it.
-	SignIn string
+	// SignIn names the browser whose sign-in the pages and downloads borrow (Settings › 通用 › 浏览器登录), "" while none is chosen; the start says it. SigningIn is set while its sign-in is being read or put into the pages, when 刷新登录 waits.
+	SignIn    string
+	SigningIn bool
 }
 
 // What State.Have says the library holds of the page's video.
@@ -91,6 +92,8 @@ type App interface {
 	BrowseAskClear()
 	BrowseClear()
 	BrowseCancelClear()
+	// BrowseRefreshSignIn reads the chosen browser's sign-in again and puts it into the pages (刷新登录), for a site the user signed in to there since.
+	BrowseRefreshSignIn()
 	// OpenSettings shows the settings at section, as the message bar's 打开设置 asks.
 	OpenSettings(section string)
 	// The start's sites: their logos, OpenSite, which opens one in the browser, and OpenSites, which opens the sheet that lists them all (支持的网站…).

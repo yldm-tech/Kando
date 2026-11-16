@@ -9,16 +9,17 @@ import (
 	"strings"
 
 	"kando/apps/kando/settings"
+	"kando/apps/kando/sites/catalog"
 	"kando/packages/media"
 )
 
-// Settings › 通用 › 浏览器登录: the browser whose sign-in every download borrows (media.Tools.Cookies, yt-dlp's --cookies-from-browser), which the queue gives each job it starts without a browser of its own (queueRun), the playlist dialog reads lists with (playlistAsk), and the built-in browser's start names (browse.State.SignIn). Choosing one checks at once that yt-dlp can read its sign-in, so the Keychain's question on macOS comes from the user's choice rather than in the middle of a download.
+// Settings › 通用 › 浏览器登录: the browser whose sign-in every download borrows (media.Tools.Cookies, yt-dlp's --cookies-from-browser), which the queue gives each job it starts without a browser of its own (queueRun), the playlist dialog reads lists with (playlistAsk), the built-in browser's pages are signed in with (browseSignIn), and the built-in browser's start names (browse.State.SignIn). Choosing one checks at once that yt-dlp can read its sign-in, and puts it into the pages once it could, so the Keychain's question on macOS comes from the user's choice rather than in the middle of a download; the browser asks again as it first opens in a launch and on 刷新登录, never as the app starts.
 
 // signinUI is the state of 浏览器登录: the browser chosen, and the last check of its sign-in.
 type signinUI struct {
 	// browser is the chosen browser's --cookies-from-browser name, one of media.Browsers, or "" for 关闭, as it is until the user chooses one.
 	browser string
-	// checking is a check under way (media.Tools.CheckLogin); checked is the browser the last finished check was about, and trouble what it found, "" when yt-dlp read the sign-in. gen counts the checks and choices, so only the newest check lands.
+	// checking is a check under way (media.Tools.BrowserCookies); checked is the browser the last finished check was about, and trouble what it found, "" when yt-dlp read the sign-in. gen counts the checks and choices, so only the newest check lands.
 	checking bool
 	checked  string
 	trouble  media.LoginTrouble
@@ -54,7 +55,7 @@ func (a *app) signinFor(source string) string {
 	return a.signin.browser
 }
 
-// signinChoose makes id, one of media.Browsers or "" for none, the browser downloads borrow the sign-in of, and checks it at once; a check under way of another browser is dropped.
+// signinChoose makes id, one of media.Browsers or "" for none, the browser the pages and downloads borrow the sign-in of, and checks it at once, which puts it into the pages; a check under way of another browser is dropped. 关闭 leaves the sign-in the pages took (browse/start.go, nsgo#112).
 func (a *app) signinChoose(id string) {
 	if id != "" && !media.KnownBrowser(id) {
 		return
@@ -65,8 +66,19 @@ func (a *app) signinChoose(id string) {
 	a.signinCheck()
 }
 
-// signinCheck has yt-dlp read the chosen browser's sign-in off the UI thread, which on macOS asks the user, the first time, to allow its key in the Keychain. Without a browser or a yt-dlp, which 组件 says is missing, there is nothing to check.
-func (a *app) signinCheck() {
+// signinAsk is who asked to read the chosen browser's sign-in, which decides what is said of it where: Settings › 通用 (signinFromSettings), whose row says what the check found, the browser as it first opens in a launch (signinFromBrowse), whose message bar says what went wrong, or 刷新登录 (signinFromRefresh), whose bar also says that it worked.
+type signinAsk uint8
+
+const (
+	signinFromSettings signinAsk = iota
+	signinFromBrowse
+	signinFromRefresh
+)
+
+func (a *app) signinCheck() { a.signinRead(signinFromSettings) }
+
+// signinRead has yt-dlp read the chosen browser's sign-in off the UI thread, which on macOS asks the user, the first time, to allow its key in the Keychain, and once it could, puts the cookies of the catalog's sites into the built-in browser's pages (browseSignIn). Without a browser or a yt-dlp, which 组件 says is missing, there is nothing to read.
+func (a *app) signinRead(ask signinAsk) {
 	tools, ok := a.pipeline.(media.Tools)
 	browser := a.signin.browser
 	if browser == "" || !ok || tools.YTDLP == "" || a.update == nil {
@@ -75,8 +87,9 @@ func (a *app) signinCheck() {
 	a.signin.gen++
 	a.signin.checking = true
 	gen, update := a.signin.gen, a.update
+	keep := catalog.Load().SignInCookies()
 	go func() {
-		trouble, err := tools.CheckLogin(context.Background(), browser)
+		cookies, trouble, err := tools.BrowserCookies(context.Background(), browser, keep)
 		if err != nil {
 			log.Printf("checking %s's sign-in: %v", browser, err)
 		}
@@ -85,6 +98,11 @@ func (a *app) signinCheck() {
 				return
 			}
 			a.signin.checking, a.signin.checked, a.signin.trouble = false, browser, trouble
+			if trouble != "" {
+				a.browseSignInTrouble(browser, trouble, ask)
+				return
+			}
+			a.browseSignIn(browser, cookies, ask)
 		})
 	}()
 }

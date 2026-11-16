@@ -289,16 +289,29 @@ browseShowInLibrary:
   description: "Button of the Browse page's message bar that goes to the library and shows the video the bar speaks of: the film, once processed, or its card in Processing."
 browseSignInChange:
   message: "Change…"
-  description: "Button after browseSignInOn on the Browse page's start: opens Settings › General, where the browser whose sign-in downloads use is chosen."
+  description: "Button after browseSignInRefresh on the Browse page's start: opens Settings › General, where the browser whose sign-in the pages and downloads use is chosen."
 browseSignInChoose:
   message: "Choose Browser…"
-  description: "Button after browseSignInOff on the Browse page's start: opens Settings › General, where a browser whose sign-in downloads use can be chosen."
+  description: "Button after browseSignInOff on the Browse page's start: opens Settings › General, where a browser whose sign-in the pages and downloads use can be chosen."
+browseSignInFailed:
+  message: "Couldn't sign in the pages here: {error}"
+  description: "Message bar of the Browse page when the web pages' cookie store refused the sign-in read from the user's own browser; error is the system's reason."
+  placeholders:
+    error: { type: "String", example: "The operation couldn't be completed." }
 browseSignInOff:
   message: "Downloads aren't signed in."
   description: "Line on the Browse page's start while no browser's sign-in is chosen for downloads, before browseSignInChoose."
 browseSignInOn:
-  message: "Downloads use {browser}'s sign-in. Pages here stay signed out."
-  description: "Line on the Browse page's start: downloads sign in to sites as the user is in that browser, but the pages opened in Kando's own browser are not signed in."
+  message: "Pages and downloads use {browser}'s sign-in."
+  description: "Line on the Browse page's start, before browseSignInRefresh: the pages opened in Kando's own browser and the downloads sign in to sites as the user is in that browser."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+browseSignInRefresh:
+  message: "Refresh Sign-In"
+  description: "Button after browseSignInOn on the Browse page's start: reads the chosen browser's sign-in again and puts it into the pages here, for a site the user signed in to there since."
+browseSignInRefreshed:
+  message: "Pages here use {browser}'s sign-in."
+  description: "Message bar of the Browse page once Refresh Sign-In read the chosen browser's sign-in again and put it into the pages."
   placeholders:
     browser: { type: "String", example: "Chrome" }
 browseStop:
@@ -3504,7 +3517,7 @@ settingsGeneralShowInFinder:
     platform: { type: "String", example: "macOS" }
 settingsGeneralSignIn:
   message: "Browser Sign-In"
-  description: "Heading of the General settings card that chooses the browser whose sign-in every download uses, so members-only and age-restricted videos download signed in."
+  description: "Heading of the General settings card that chooses the browser whose sign-in the Browse page's web pages and every download use, so the pages open signed in and members-only and age-restricted videos download."
 settingsGeneralSignInCheck:
   message: "Check Again"
   description: "Button of the Browser Sign-In row after the chosen browser's sign-in could not be read: reads it again."
@@ -3520,11 +3533,11 @@ settingsGeneralSignInOff:
   message: "Off"
   description: "Choice of the Browser Sign-In pop-up: downloads borrow no browser's sign-in."
 settingsGeneralSignInOffHint:
-  message: "Members-only and age-restricted videos download signed in as you are in that browser."
+  message: "Pages in Browse and downloads sign in as you are in that browser, so members-only and age-restricted videos download too."
   description: "Line under the Browser Sign-In row while it is Off: what choosing a browser does."
 settingsGeneralSignInOn:
-  message: "Downloads sign in as you are in {browser}."
-  description: "Line under the Browser Sign-In row once a browser is chosen."
+  message: "Pages in Browse and downloads sign in as you are in {browser}."
+  description: "Line under the Browser Sign-In row once a browser is chosen: the Browse page's web pages and the downloads use its sign-in."
   placeholders:
     browser: { type: "String", example: "Chrome" }
 settingsGeneralSignInReady:

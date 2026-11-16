@@ -13,7 +13,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// SignIn is the browser whose sign-in every download borrows, as the 浏览器登录 card of 通用 shows it.
+// SignIn is the browser whose sign-in the built-in browser's pages and every download borrow, as the 浏览器登录 card of 通用 shows it.
 type SignIn struct {
 	// Browser is the chosen browser's --cookies-from-browser name, "" for 关闭. Browsers are the browsers the card offers besides 关闭: those on the computer, and the chosen one.
 	Browser  string
@@ -127,7 +127,7 @@ func (g signIn) Render(cx *core.Scope) core.Node {
 	})
 }
 
-// signInDetail is the line under 借用此浏览器的登录, in the language the app shows under cx: what choosing a browser does while none is, that its sign-in is being read, why it could not be read, and otherwise that downloads sign in with it.
+// signInDetail is the line under 借用此浏览器的登录, in the language the app shows under cx: what choosing a browser does while none is, that its sign-in is being read, why it could not be read, and otherwise that the pages and downloads sign in with it.
 func signInDetail(cx *core.Scope, st SignIn) string {
 	name := media.BrowserName(st.Browser)
 	switch {

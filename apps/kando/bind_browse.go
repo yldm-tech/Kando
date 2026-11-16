@@ -25,7 +25,7 @@ func (a *app) BrowseState() browse.State {
 		Clearing:     a.browse.clearing,
 	}
 	if a.signin.browser != "" {
-		s.SignIn = media.BrowserName(a.signin.browser)
+		s.SignIn, s.SigningIn = media.BrowserName(a.signin.browser), a.browseSigningIn()
 	}
 	if s.Page && !s.NotVideo && !s.List && a.page == pageBrowse {
 		s.Title, s.Have = a.browseVideo()
@@ -84,6 +84,8 @@ func (a *app) BrowseAskClear() { a.browseAskClear() }
 func (a *app) BrowseClear() { a.browseClear() }
 
 func (a *app) BrowseCancelClear() { a.browseCancelClear() }
+
+func (a *app) BrowseRefreshSignIn() { a.browseRefreshSignIn() }
 
 // browseColumn is the browser's page in the content column (mainColumn), from the column's top to its edges, under cx, the scope view builds it in. It is hidden while another page shows, and should the column go, as when view builds it only while the browser shows, the web view goes with it (browseColumnGone).
 func (a *app) browseColumn(cx *core.Scope) core.Node {

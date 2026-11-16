@@ -20,7 +20,7 @@ var startSites = []string{"youtube.com", "bilibili.com", "ted.com", "nhk.or.jp",
 // startColumns is how many of startSites a row of the start holds.
 const startColumns = 3
 
-// start is the page before a web page is open, and after home: the globe, what the page is for, the sites learners study from most, which open in the browser, 支持的网站…, which lists the rest, the line of whose sign-in downloads borrow (signInLine), and 清除登录信息… at its foot where the pages' sign-ins can be cleared.
+// start is the page before a web page is open, and after home: the globe, what the page is for, the sites learners study from most, which open in the browser, 支持的网站…, which lists the rest, the line of whose sign-in the pages and downloads borrow (signInLine), and 清除登录信息… at its foot where the pages' sign-ins can be cleared.
 type start struct{ a App }
 
 // Render implements core.Node.
@@ -110,7 +110,7 @@ func startTiles(cx *core.Scope, a App) core.Node {
 	}
 }
 
-// signInLine is the start's line of the sign-in downloads borrow: the browser's, with 更改…, or none, with 选择浏览器…, either of which opens Settings › 通用, where it is chosen. Until NSGo can put cookies into the web views (nsgo#387), the pages shown here are signed out whatever the setting, which the line adds while downloads are signed in.
+// signInLine is the start's line of the sign-in the pages and downloads borrow: the browser's, with 刷新登录, which reads it again, and 更改…, or none, with 选择浏览器…; 更改… and 选择浏览器… open Settings › 通用, where it is chosen.
 func signInLine(cx *core.Scope, a App, state func() State) core.Node {
 	colors := ui.ColorsOf(cx)
 	on := core.NewMemo(cx, func() bool { return state().SignIn != "" })
@@ -124,18 +124,23 @@ func signInLine(cx *core.Scope, a App, state func() State) core.Node {
 		Style:     core.Style{FontSize: 12, LineHeight: 16, FlexShrink: 1, TextAlign: core.TextAlignCenter},
 		StyleFunc: ui.Colored(colors.Muted),
 	}
-	// The button's words are set as it is built, so it is built again for another language and once a browser is chosen or none is.
-	button := core.Dynamic(func(cx *core.Scope) core.Node {
-		label := locales.BrowseSignInChoose(cx)
-		if on.Get() {
-			label = locales.BrowseSignInChange(cx)
-		}
+	// The buttons' words are set as they are built, so they are built again for another language and once a browser is chosen or none is.
+	buttons := core.Dynamic(func(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		return ui.Button{Text: label, Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: live.Do(a, func() { a.OpenSettings(sectionid.General) })}
+		settings := live.Do(a, func() { a.OpenSettings(sectionid.General) })
+		if !on.Get() {
+			return ui.Button{Text: locales.BrowseSignInChoose(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: settings}
+		}
+		// TODO(nsgo#112): offer 退出“浏览”的登录 here once NSGo can clear the web views' cookies; until then turning 浏览器登录 off leaves the sign-in the pages took https://github.com/nsgo-dev/nsgo/issues/112
+		return core.Group([]core.Node{
+			ui.Button{Text: locales.BrowseSignInRefresh(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin-refresh",
+				Disabled: func() bool { return state().SigningIn }, OnPress: live.Do(a, a.BrowseRefreshSignIn)},
+			ui.Button{Text: locales.BrowseSignInChange(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: settings},
+		})
 	})
 	return core.View{
 		TestID:   "browse-signin-line",
 		Style:    core.Style{Direction: core.Row, FlexShrink: 0, Wrap: core.Wrap, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter, Gap: 2, Margin: core.Edges{Top: 4}},
-		Children: []core.Node{text, button},
+		Children: []core.Node{text, buttons},
 	}
 }

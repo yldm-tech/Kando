@@ -70,6 +70,7 @@ func (f *fakeApp) BrowseClearOpen() bool                  { return f.clearOpen }
 func (f *fakeApp) BrowseAskClear()                        { f.call("ask clear"); f.clearOpen = true }
 func (f *fakeApp) BrowseClear()                           { f.call("clear"); f.clearOpen = false }
 func (f *fakeApp) BrowseCancelClear()                     { f.call("cancel clear"); f.clearOpen = false }
+func (f *fakeApp) BrowseRefreshSignIn()                   { f.call("refresh sign-in") }
 func (f *fakeApp) OpenSettings(section string)            { f.settingsAt = section }
 func (f *fakeApp) SiteLogo(s catalog.Site) []byte         { return catalog.Logo(s) }
 func (f *fakeApp) OpenSite(s catalog.Site)                { f.call("open " + s.Domain) }
@@ -443,5 +444,31 @@ func TestCookieSource(t *testing.T) {
 	failing := CookieSource(func(CookieFilter) ([]media.Cookie, error) { return nil, errors.New("no web view") }, agent)
 	if cookies, _, err := failing(context.Background(), "https://example.com/v"); err == nil || cookies != nil {
 		t.Fatalf("cookies %v, err %v", cookies, err)
+	}
+}
+
+// The cookies of the user's own browser go to the web views' store with their HttpOnly, Secure and expiry; one that expired, and one the store would refuse, which would fail the whole write, stay out.
+func TestWebCookiesKeepWhatTheStoreTakes(t *testing.T) {
+	now := time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC)
+	later := now.Add(24 * time.Hour)
+	got := WebCookies([]media.Cookie{
+		{Domain: ".YouTube.com", Path: "/", Secure: true, HTTPOnly: true, Expires: later, Name: "__Secure-3PSID", Value: "sid"},
+		{Domain: "www.bilibili.com", Path: "/", Name: "buvid3", Value: "b, c"},
+		{Domain: "www.youtube.com", Path: "/", Secure: true, Name: "__Host-GAPS", Value: "gaps"},
+		{Domain: ".youtube.com", Path: "/", Expires: now.Add(-time.Second), Name: "old", Value: "x"},
+		{Domain: ".youtube.com", Path: "/", Name: "__Secure-plain", Value: "x"},
+		{Domain: ".youtube.com", Path: "/", Secure: true, Name: "__Host-dot", Value: "x"},
+		{Domain: ".youtube.com", Path: "/", Name: "a,b", Value: "x"},
+		{Domain: ".youtube.com", Path: "/", Name: "semi", Value: "a;b"},
+		{Domain: ".youtube.com", Path: "watch", Name: "relative", Value: "x"},
+		{Domain: ".", Path: "/", Name: "nohost", Value: "x"},
+	}, now)
+	want := []core.WebCookie{
+		{Name: "__Secure-3PSID", Value: "sid", Domain: ".youtube.com", Path: "/", Expires: later, Secure: true, HTTPOnly: true},
+		{Name: "buvid3", Value: "b, c", Domain: "www.bilibili.com", Path: "/"},
+		{Name: "__Host-GAPS", Value: "gaps", Domain: "www.youtube.com", Path: "/", Secure: true},
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("WebCookies = %+v\nwant %+v", got, want)
 	}
 }

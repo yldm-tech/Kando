@@ -442,7 +442,9 @@ var Parameters = map[string][]string{
 	"BrowseInLibraryTitled":                    {"title"},
 	"BrowseLoadFailed":                         {"error_"},
 	"BrowseQueuedTitled":                       {"title"},
+	"BrowseSignInFailed":                       {"error_"},
 	"BrowseSignInOn":                           {"browser"},
+	"BrowseSignInRefreshed":                    {"browser"},
 	"FeedbackBrowserFailed":                    {"repo"},
 	"FeedbackEnvDetail":                        {"version", "system"},
 	"FeedbackPreviewLabel":                     {"label"},
@@ -743,7 +745,9 @@ type Translation struct {
 	BrowseInLibraryTitled                    func(title string) string
 	BrowseLoadFailed                         func(error_ string) string
 	BrowseQueuedTitled                       func(title string) string
+	BrowseSignInFailed                       func(error_ string) string
 	BrowseSignInOn                           func(browser string) string
+	BrowseSignInRefreshed                    func(browser string) string
 	FeedbackBrowserFailed                    func(repo string) string
 	FeedbackEnvDetail                        func(version string, system string) string
 	FeedbackPreviewLabel                     func(label string) string
@@ -1096,6 +1100,7 @@ const (
 	textBrowseSignInChange
 	textBrowseSignInChoose
 	textBrowseSignInOff
+	textBrowseSignInRefresh
 	textBrowseStop
 	textCheatsheetClose
 	textCheatsheetHint
@@ -2033,6 +2038,7 @@ var keyOfText = [numTexts]string{
 	"browseSignInChange",
 	"browseSignInChoose",
 	"browseSignInOff",
+	"browseSignInRefresh",
 	"browseStop",
 	"cheatsheetClose",
 	"cheatsheetHint",
@@ -2968,6 +2974,7 @@ var textsEn = i18n.NewTexts(""+
 	"Change…"+
 	"Choose Browser…"+
 	"Downloads aren't signed in."+
+	"Refresh Sign-In"+
 	"Stop Loading"+
 	"Close"+
 	"Single keys work only while no text field has focus"+
@@ -3633,7 +3640,7 @@ var textsEn = i18n.NewTexts(""+
 	"Check Again"+
 	"Open System Settings"+
 	"Off"+
-	"Members-only and age-restricted videos download signed in as you are in that browser."+
+	"Pages in Browse and downloads sign in as you are in that browser, so members-only and age-restricted videos download too."+
 	"Ready"+
 	"Use the sign-in of"+
 	"Download Page"+
@@ -3900,6 +3907,7 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		17,
 		27,
+		15,
 		12,
 		5,
 		51,
@@ -4565,7 +4573,7 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		20,
 		3,
-		85,
+		121,
 		5,
 		18,
 		13,
@@ -4835,6 +4843,7 @@ var textsJa = i18n.NewTexts(""+
 	"変更…"+
 	"ブラウザを選択…"+
 	"ダウンロードはログインなしで行われます。"+
+	"ログインを更新"+
 	"読み込みを中止"+
 	"閉じる"+
 	"単独のキーは入力欄にフォーカスがないときだけ使えます"+
@@ -5500,7 +5509,7 @@ var textsJa = i18n.NewTexts(""+
 	"再確認"+
 	"システム設定を開く"+
 	"オフ"+
-	"ブラウザを選ぶと、メンバー限定や年齢確認が必要な動画も、そのブラウザでのログインのままダウンロードできます。"+
+	"ブラウザを選ぶと、「ブラウザ」で開くページとダウンロードがそのブラウザでのログインのままになり、メンバー限定や年齢確認が必要な動画もダウンロードできます。"+
 	"利用可能"+
 	"ログインを借りるブラウザ"+
 	"ダウンロードページ"+
@@ -5767,6 +5776,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		24,
 		60,
+		21,
 		21,
 		9,
 		78,
@@ -6432,7 +6442,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		27,
 		6,
-		162,
+		231,
 		12,
 		36,
 		27,
@@ -6702,6 +6712,7 @@ var textsKo = i18n.NewTexts(""+
 	"변경…"+
 	"브라우저 선택…"+
 	"다운로드는 로그인 없이 진행됩니다."+
+	"로그인 새로 고침"+
 	"로드 중지"+
 	"닫기"+
 	"단일 키는 입력란에 포커스가 없을 때만 작동합니다"+
@@ -7367,7 +7378,7 @@ var textsKo = i18n.NewTexts(""+
 	"다시 확인"+
 	"시스템 설정 열기"+
 	"끔"+
-	"브라우저를 선택하면 멤버십 전용 동영상과 연령 확인이 필요한 동영상도 그 브라우저의 로그인으로 다운로드됩니다."+
+	"브라우저를 선택하면 '브라우저'에서 여는 페이지와 다운로드가 그 브라우저의 로그인으로 진행되어 멤버십 전용 동영상과 연령 확인이 필요한 동영상도 다운로드됩니다."+
 	"사용 가능"+
 	"로그인을 빌릴 브라우저"+
 	"다운로드 페이지"+
@@ -7634,6 +7645,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		22,
 		49,
+		23,
 		13,
 		6,
 		69,
@@ -8299,7 +8311,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		23,
 		3,
-		157,
+		227,
 		13,
 		32,
 		22,
@@ -8569,6 +8581,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"更改…"+
 	"选择浏览器…"+
 	"下载不带登录。"+
+	"刷新登录"+
 	"停止载入"+
 	"关闭"+
 	"单键只在没有输入框获焦时生效"+
@@ -9234,7 +9247,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"重新检查"+
 	"打开系统设置"+
 	"关闭"+
-	"选一个浏览器，会员专享和需要年龄验证的视频就能以你在那里的登录下载。"+
+	"选一个浏览器，“浏览”里的网页和下载都会以你在那里的登录进行，会员专享和需要年龄验证的视频也能下载。"+
 	"可用"+
 	"借用此浏览器的登录"+
 	"下载页面"+
@@ -9501,6 +9514,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		18,
 		21,
+		12,
 		12,
 		6,
 		42,
@@ -10166,7 +10180,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		102,
+		150,
 		6,
 		27,
 		12,
@@ -10436,6 +10450,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"更改…"+
 	"選擇瀏覽器…"+
 	"下載不帶登入。"+
+	"重新整理登入"+
 	"停止載入"+
 	"關閉"+
 	"單鍵只在沒有輸入框取得焦點時生效"+
@@ -11101,7 +11116,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"重新檢查"+
 	"打開系統設定"+
 	"關閉"+
-	"選一個瀏覽器，會員專屬和需要年齡驗證的影片就能以你在那裡的登入下載。"+
+	"選一個瀏覽器，「瀏覽」中的網頁和下載都會以你在那裡的登入進行，會員專屬和需要年齡驗證的影片也能下載。"+
 	"可用"+
 	"借用此瀏覽器的登入"+
 	"下載頁面"+
@@ -11368,6 +11383,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		18,
 		21,
+		18,
 		12,
 		6,
 		48,
@@ -12033,7 +12049,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		18,
 		6,
-		102,
+		150,
 		6,
 		27,
 		12,
@@ -12341,8 +12357,14 @@ func Supply(lang string, t Translation) {
 	if t.BrowseQueuedTitled != nil {
 		s.BrowseQueuedTitled = t.BrowseQueuedTitled
 	}
+	if t.BrowseSignInFailed != nil {
+		s.BrowseSignInFailed = t.BrowseSignInFailed
+	}
 	if t.BrowseSignInOn != nil {
 		s.BrowseSignInOn = t.BrowseSignInOn
+	}
+	if t.BrowseSignInRefreshed != nil {
+		s.BrowseSignInRefreshed = t.BrowseSignInRefreshed
 	}
 	if t.FeedbackBrowserFailed != nil {
 		s.FeedbackBrowserFailed = t.FeedbackBrowserFailed
@@ -14339,7 +14361,7 @@ func (msgs Messages) BrowseShowInLibrary() string { return msgs.text(textBrowseS
 // BrowseSignInChange says "Change…"
 // in the language the app shows under cx.
 //
-// Button after browseSignInOn on the Browse page's start: opens Settings › General, where the browser whose sign-in downloads use is chosen.
+// Button after browseSignInRefresh on the Browse page's start: opens Settings › General, where the browser whose sign-in the pages and downloads use is chosen.
 func BrowseSignInChange(cx *core.Scope) string { return For(cx).BrowseSignInChange() }
 
 // BrowseSignInChange is the package's BrowseSignInChange in the language of msgs.
@@ -14348,11 +14370,43 @@ func (msgs Messages) BrowseSignInChange() string { return msgs.text(textBrowseSi
 // BrowseSignInChoose says "Choose Browser…"
 // in the language the app shows under cx.
 //
-// Button after browseSignInOff on the Browse page's start: opens Settings › General, where a browser whose sign-in downloads use can be chosen.
+// Button after browseSignInOff on the Browse page's start: opens Settings › General, where a browser whose sign-in the pages and downloads use can be chosen.
 func BrowseSignInChoose(cx *core.Scope) string { return For(cx).BrowseSignInChoose() }
 
 // BrowseSignInChoose is the package's BrowseSignInChoose in the language of msgs.
 func (msgs Messages) BrowseSignInChoose() string { return msgs.text(textBrowseSignInChoose) }
+
+// BrowseSignInFailed says "Couldn't sign in the pages here: {error}"
+// in the language the app shows under cx.
+//
+// Message bar of the Browse page when the web pages' cookie store refused the sign-in read from the user's own browser; error is the system's reason.
+func BrowseSignInFailed(cx *core.Scope, error_ string) string {
+	return For(cx).BrowseSignInFailed(error_)
+}
+
+// BrowseSignInFailed is the package's BrowseSignInFailed in the language of msgs.
+func (msgs Messages) BrowseSignInFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseSignInFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].BrowseSignInFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't sign in the pages here: " + msgs.arg(error_)
+		case "ja":
+			return "ここで開くページにログインできませんでした：" + error_
+		case "ko":
+			return "여기서 여는 페이지에 로그인하지 못했습니다: " + error_
+		case "zh-Hans":
+			return "无法让这里的网页登录：" + error_
+		case "zh-Hant":
+			return "無法讓這裡的網頁登入：" + error_
+		}
+	}
+}
 
 // BrowseSignInOff says "Downloads aren't signed in."
 // in the language the app shows under cx.
@@ -14363,10 +14417,10 @@ func BrowseSignInOff(cx *core.Scope) string { return For(cx).BrowseSignInOff() }
 // BrowseSignInOff is the package's BrowseSignInOff in the language of msgs.
 func (msgs Messages) BrowseSignInOff() string { return msgs.text(textBrowseSignInOff) }
 
-// BrowseSignInOn says "Downloads use {browser}'s sign-in. Pages here stay signed out."
+// BrowseSignInOn says "Pages and downloads use {browser}'s sign-in."
 // in the language the app shows under cx.
 //
-// Line on the Browse page's start: downloads sign in to sites as the user is in that browser, but the pages opened in Kando's own browser are not signed in.
+// Line on the Browse page's start, before browseSignInRefresh: the pages opened in Kando's own browser and the downloads sign in to sites as the user is in that browser.
 func BrowseSignInOn(cx *core.Scope, browser string) string { return For(cx).BrowseSignInOn(browser) }
 
 // BrowseSignInOn is the package's BrowseSignInOn in the language of msgs.
@@ -14380,15 +14434,56 @@ func (msgs Messages) BrowseSignInOn(browser string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Downloads use " + msgs.arg(browser) + "'s sign-in. Pages here stay signed out."
+			return "Pages and downloads use " + msgs.arg(browser) + "'s sign-in."
 		case "ja":
-			return "ダウンロードには " + browser + " のログインを使います。ここで開くページはログインしていません。"
+			return "ページとダウンロードには " + browser + " のログインを使います。"
 		case "ko":
-			return "다운로드는 " + browser + " 로그인을 사용합니다. 여기서 여는 페이지는 로그인되지 않습니다."
+			return "페이지와 다운로드는 " + browser + " 로그인을 사용합니다."
 		case "zh-Hans":
-			return "下载使用 " + browser + " 的登录，这里的网页仍未登录。"
+			return "网页和下载都使用 " + browser + " 的登录。"
 		case "zh-Hant":
-			return "下載使用 " + browser + " 的登入，這裡的網頁仍未登入。"
+			return "網頁和下載都使用 " + browser + " 的登入。"
+		}
+	}
+}
+
+// BrowseSignInRefresh says "Refresh Sign-In"
+// in the language the app shows under cx.
+//
+// Button after browseSignInOn on the Browse page's start: reads the chosen browser's sign-in again and puts it into the pages here, for a site the user signed in to there since.
+func BrowseSignInRefresh(cx *core.Scope) string { return For(cx).BrowseSignInRefresh() }
+
+// BrowseSignInRefresh is the package's BrowseSignInRefresh in the language of msgs.
+func (msgs Messages) BrowseSignInRefresh() string { return msgs.text(textBrowseSignInRefresh) }
+
+// BrowseSignInRefreshed says "Pages here use {browser}'s sign-in."
+// in the language the app shows under cx.
+//
+// Message bar of the Browse page once Refresh Sign-In read the chosen browser's sign-in again and put it into the pages.
+func BrowseSignInRefreshed(cx *core.Scope, browser string) string {
+	return For(cx).BrowseSignInRefreshed(browser)
+}
+
+// BrowseSignInRefreshed is the package's BrowseSignInRefreshed in the language of msgs.
+func (msgs Messages) BrowseSignInRefreshed(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseSignInRefreshed(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].BrowseSignInRefreshed; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return "Pages here use " + msgs.arg(browser) + "'s sign-in."
+		case "ja":
+			return "ここで開くページは " + browser + " のログインを使います。"
+		case "ko":
+			return "여기서 여는 페이지는 " + browser + " 로그인을 사용합니다."
+		case "zh-Hans":
+			return "这里的网页已使用 " + browser + " 的登录。"
+		case "zh-Hant":
+			return "這裡的網頁已使用 " + browser + " 的登入。"
 		}
 	}
 }
@@ -28691,7 +28786,7 @@ func (msgs Messages) SettingsGeneralShowInFinder(platform string) string {
 // SettingsGeneralSignIn says "Browser Sign-In"
 // in the language the app shows under cx.
 //
-// Heading of the General settings card that chooses the browser whose sign-in every download uses, so members-only and age-restricted videos download signed in.
+// Heading of the General settings card that chooses the browser whose sign-in the Browse page's web pages and every download use, so the pages open signed in and members-only and age-restricted videos download.
 func SettingsGeneralSignIn(cx *core.Scope) string { return For(cx).SettingsGeneralSignIn() }
 
 // SettingsGeneralSignIn is the package's SettingsGeneralSignIn in the language of msgs.
@@ -28764,7 +28859,7 @@ func (msgs Messages) SettingsGeneralSignInOff() string {
 	return msgs.text(textSettingsGeneralSignInOff)
 }
 
-// SettingsGeneralSignInOffHint says "Members-only and age-restricted videos download signed in as you are in that browser."
+// SettingsGeneralSignInOffHint says "Pages in Browse and downloads sign in as you are in that browser, so members-only and age-restricted videos download too."
 // in the language the app shows under cx.
 //
 // Line under the Browser Sign-In row while it is Off: what choosing a browser does.
@@ -28777,10 +28872,10 @@ func (msgs Messages) SettingsGeneralSignInOffHint() string {
 	return msgs.text(textSettingsGeneralSignInOffHint)
 }
 
-// SettingsGeneralSignInOn says "Downloads sign in as you are in {browser}."
+// SettingsGeneralSignInOn says "Pages in Browse and downloads sign in as you are in {browser}."
 // in the language the app shows under cx.
 //
-// Line under the Browser Sign-In row once a browser is chosen.
+// Line under the Browser Sign-In row once a browser is chosen: the Browse page's web pages and the downloads use its sign-in.
 func SettingsGeneralSignInOn(cx *core.Scope, browser string) string {
 	return For(cx).SettingsGeneralSignInOn(browser)
 }
@@ -28796,15 +28891,15 @@ func (msgs Messages) SettingsGeneralSignInOn(browser string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Downloads sign in as you are in " + msgs.arg(browser) + "."
+			return "Pages in Browse and downloads sign in as you are in " + msgs.arg(browser) + "."
 		case "ja":
-			return "ダウンロードは " + browser + " でのログインのまま行われます。"
+			return "「ブラウザ」で開くページとダウンロードは " + browser + " でのログインのまま行われます。"
 		case "ko":
-			return "다운로드는 " + browser + "의 로그인으로 진행됩니다."
+			return "'브라우저'에서 여는 페이지와 다운로드는 " + browser + "의 로그인으로 진행됩니다."
 		case "zh-Hans":
-			return "下载以你在 " + browser + " 里的登录进行。"
+			return "“浏览”里的网页和下载都以你在 " + browser + " 里的登录进行。"
 		case "zh-Hant":
-			return "下載以你在 " + browser + " 中的登入進行。"
+			return "「瀏覽」中的網頁和下載都以你在 " + browser + " 中的登入進行。"
 		}
 	}
 }
