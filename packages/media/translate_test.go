@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -383,10 +384,10 @@ func TestChatTranslatorRetriesATimeout(t *testing.T) {
 	old := retryBaseDelay
 	retryBaseDelay = time.Millisecond
 	t.Cleanup(func() { retryBaseDelay = old })
-	var calls int
+	// The retry arrives while the first request's handler still sleeps, so the two handlers count on one counter at once.
+	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		if calls == 1 {
+		if calls.Add(1) == 1 {
 			time.Sleep(300 * time.Millisecond)
 		}
 		json.NewEncoder(w).Encode(map[string]any{
@@ -405,8 +406,8 @@ func TestChatTranslatorRetriesATimeout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if calls != 2 || got[0].Text != "你好" {
-		t.Fatalf("calls = %d, got %#v", calls, got)
+	if calls.Load() != 2 || got[0].Text != "你好" {
+		t.Fatalf("calls = %d, got %#v", calls.Load(), got)
 	}
 	if len(waits) != 1 || !waits[0].Unanswered {
 		t.Fatalf("waits = %+v, want one wait for a request that was not answered", waits)

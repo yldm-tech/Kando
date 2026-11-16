@@ -50,7 +50,7 @@ func TestPlayedTimesSurviveARestart(t *testing.T) {
 	if first.IsZero() {
 		t.Fatal("rememberPosition kept no time")
 	}
-	tt.Advance(time.Hour)
+	tt.FastForward(time.Hour)
 	a.rememberPosition(&filmPlay{path: "/w.mp4", loaded: true, duration: 10 * time.Second, finished: true})
 	if got := a.PlayedAt("/w.mp4"); got.Sub(first) != time.Hour {
 		t.Fatalf("a video watched to the end played at %v, an hour after %v", got, first)
