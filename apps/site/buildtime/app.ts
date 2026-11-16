@@ -47,7 +47,8 @@ export function readSurface(root: string): Surface {
   return { commands, tools: names };
 }
 
-const modelRe = /\{ID: "([a-z0-9-]+)", Speed: (\d), Accuracy: (\d), SizeLabel: "([\d.]+) (MB|GB)", File: "([^"]+)"(?:, SHA256: "[0-9a-f]{64}", Size: \d+)?(, Recommended: true)?\}/g;
+const modelRe =
+  /\{ID: "([a-z0-9-]+)", Speed: (\d), Accuracy: (\d), SizeLabel: "([\d.]+) (MB|GB)", File: "([^"]+)"(?:, SHA256: "[0-9a-f]{64}", Size: \d+)?(, Recommended: true)?\}/g;
 
 // readModels reads the whisper models of packages/media/whisper_model.go, SpeechModels(), with their sizes in decimal megabytes, as the app's catalog lists them.
 export function readModels(root: string): Model[] {
