@@ -75,6 +75,17 @@ func (a *app) DownloadErr() string {
 	return settings.SpeechDownloadError(a.messages(), a.prefs.downloadErr)
 }
 
+func (a *app) DownloadMirror() bool {
+	_, ok := settings.MirrorHelps(a.prefs.downloadErr)
+	return ok
+}
+
+func (a *app) DownloadFromMirror() {
+	if id, ok := settings.MirrorHelps(a.prefs.downloadErr); ok {
+		a.speechDownloadFromMirror(id)
+	}
+}
+
 func (a *app) CancelDownload() { a.cancelDownload() }
 
 func (a *app) DownloadModel(id string) { a.downloadSpeechModel(id) }

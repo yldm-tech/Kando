@@ -74,15 +74,24 @@ func (a *app) useSpeechLanguage(code string) {
 	}
 }
 
-// useSpeechSource downloads the whisper models from source from the next download on (one already running keeps its source): source is one of media.SpeechSources. Any other source is ignored.
+// useSpeechSource downloads the whisper models from source from the next download on (one already running keeps its source): source is one of media.SpeechSources. Any other source is ignored. Why the last download failed goes, as its hint to try the other source no longer applies.
 func (a *app) useSpeechSource(source string) {
 	if !slices.Contains(media.SpeechSources(), source) || a.prefs.speechSource == source {
 		return
 	}
 	a.prefs.speechSource = source
+	if errors.As(a.prefs.downloadErr, new(settings.DownloadError)) {
+		a.prefs.downloadErr = nil
+	}
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().SettingsSpeechSourceSaveFailed(err.Error())
 	}
+}
+
+// speechDownloadFromMirror downloads the whisper catalog model id again from hf-mirror.com, which becomes the download source, as the button next to an error of a download from Hugging Face does (settings.MirrorHelps).
+func (a *app) speechDownloadFromMirror(id string) {
+	a.useSpeechSource(media.SpeechSourceMirror)
+	a.downloadSpeechModel(id)
 }
 
 func (a *app) speechSearchDirs() []string {
@@ -200,7 +209,7 @@ func (a *app) downloadSpeechModel(id string) {
 			a.prefs.downloadCancel = nil
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
-					a.prefs.downloadErr = settings.DownloadError{Source: source, Err: err}
+					a.prefs.downloadErr = settings.DownloadError{ID: id, Source: source, Err: err}
 				}
 				return
 			}

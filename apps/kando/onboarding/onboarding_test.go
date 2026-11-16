@@ -92,6 +92,10 @@ func (f *fakeApp) OnboardingTargetName(cx *core.Scope, value string) string {
 	return "target " + value
 }
 
+func (f *fakeApp) OnboardingDownloadFromMirror(id string) {
+	f.call("download from mirror " + id)
+}
+
 // start shows the guide of a over a window of the app's size, on os, in testlocale's language.
 func start(t *testing.T, a *fakeApp, os core.OS) *nsgotest.App {
 	t.Helper()

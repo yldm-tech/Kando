@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/settings"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -41,15 +42,15 @@ func TestScreenshotsOnboarding(t *testing.T) {
 			t.Fatalf("no %q in %q", msgs.OnboardingToolsDownloading(), tt.Texts())
 		}
 	})
-	// The second step after the recommended model's download stalled: its row says so in red, and 重试 picks it up where it stopped.
+	// The second step after the recommended model's download from Hugging Face stalled: its row says so in red, 重试 picks it up where it stopped, and 从 hf-mirror.com 下载 gets it from the mirror.
 	f.shoot(t, "onboarding-2-model-stalled", func(a *app, tt *nsgotest.App, _ chan func()) {
 		a.openOnboarding()
 		a.onb.step = 2
 		a.onb.lastDownload = "large-v3-turbo-q5"
-		a.prefs.downloadErr = media.ErrStalled
+		a.prefs.downloadErr = settings.DownloadError{ID: "large-v3-turbo-q5", Err: media.ErrStalled}
 		refresh(tt, a)
-		if !tt.Exists("id:onboarding-download-large-v3-turbo-q5") || tt.Find("id:onboarding-download-large-v3-turbo-q5").Props.Label != msgs.OnboardingRetry() {
-			t.Fatalf("the stalled model offers no %q: %q", msgs.OnboardingRetry(), tt.Texts())
+		if !tt.Exists("id:onboarding-download-large-v3-turbo-q5") || tt.Find("id:onboarding-download-large-v3-turbo-q5").Props.Label != msgs.OnboardingRetry() || !tt.Exists("id:onboarding-mirror-large-v3-turbo-q5") {
+			t.Fatalf("the stalled model offers no %q or mirror: %q", msgs.OnboardingRetry(), tt.Texts())
 		}
 	})
 }

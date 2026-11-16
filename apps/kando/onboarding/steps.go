@@ -305,7 +305,7 @@ func toolSub(cx *core.Scope, t Tool) (string, core.Color) {
 	return t.Use, ui.ColorsOf(cx).Muted()
 }
 
-// modelRow is a speech model: its name and size, and what can be done with it: 下载, a progress bar and 取消 while it downloads, 使用 once it is here, and a green check while it is in use.
+// modelRow is a speech model: its name and size, and what can be done with it: 下载, or 重试 and, where Hugging Face failed, 从 hf-mirror.com 下载 after a failed download, a progress bar and 取消 while it downloads, 使用 once it is here, and a green check while it is in use.
 type modelRow struct {
 	a    App
 	m    func() Model
@@ -337,8 +337,16 @@ func (r modelRow) Render(cx *core.Scope) core.Node {
 			}
 			return locales.OnboardingDownload(cx)
 		}, ui.Button{Disabled: r.busy, OnPress: live.Do(a, func() { a.OnboardingDownload(id) })})
-		return ui.Tooltip{TextFunc: func() string { return locales.OnboardingDownloadTooltip(cx, m().Name, m().Size) }, Trigger: download,
-			Style: core.Style{FlexShrink: 0}}
+		// From hf-mirror.com goes before 重试 when Hugging Face could not be reached or refused the download.
+		mirror := core.Show{When: func() bool { return m().Mirror }, Then: func(cx *core.Scope) core.Node {
+			return smallButton(cx, "onboarding-mirror-"+id, func() string { return locales.SettingsSpeechDownloadFromMirror(cx) },
+				ui.Button{Disabled: r.busy, OnPress: live.Do(a, func() { a.OnboardingDownloadFromMirror(id) })})
+		}}
+		return core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{
+			mirror,
+			ui.Tooltip{TextFunc: func() string { return locales.OnboardingDownloadTooltip(cx, m().Name, m().Size) }, Trigger: download,
+				Style: core.Style{FlexShrink: 0}},
+		}}
 	})
 	return core.View{Role: core.RoleGroup, LabelFunc: func() string { return m().Name }, Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(46)}), Children: []core.Node{
 		rowText(func() string { return locales.OnboardingSpeechModel(cx, m().Name) }, func() (string, core.Color) { return modelSub(cx, m()) }),

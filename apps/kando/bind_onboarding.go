@@ -63,6 +63,12 @@ func (a *app) OnboardingModels(cx *ns.Scope) []onboarding.Model { return a.onboa
 
 func (a *app) OnboardingDownload(id string) { a.onboardingDownload(id) }
 
+// OnboardingDownloadFromMirror downloads model id again from hf-mirror.com, which becomes the download source, as the button by a failed download from Hugging Face does.
+func (a *app) OnboardingDownloadFromMirror(id string) {
+	a.onb.lastDownload = id
+	a.speechDownloadFromMirror(id)
+}
+
 func (a *app) OnboardingCancelDownload() { a.cancelDownload() }
 
 // OnboardingUseModel makes the downloaded model id the one speech recognition uses, as 使用 in 设置 › 语音识别 does.
@@ -76,7 +82,7 @@ func (a *app) OnboardingDownloading() bool { return a.prefs.downloading != "" }
 
 func (a *app) OnboardingDownloadsOnNext() bool { return a.onboardingDownloadsOnNext() }
 
-// OnboardingAI says which model translates, or what the translation still needs, as the sidebar's status line words it, in the language shown under cx: the API Key of a service that cannot do without one, a model to choose, which the service's list fills in while it loads (onboardingLoadModels), or the EveryAPI sign-in.
+// OnboardingAI says which model translates, or what the translation still needs, as the sidebar's status line words it, in the language shown under cx: the Base URL of a custom endpoint, which is typed in Settings › AI 服务, the API Key of a service that cannot do without one, a model to choose, which the service's list fills in while it loads (onboardingLoadModels), or the EveryAPI sign-in.
 func (a *app) OnboardingAI(cx *ns.Scope) onboarding.AI {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
@@ -85,6 +91,8 @@ func (a *app) OnboardingAI(cx *ns.Scope) onboarding.AI {
 	model := strings.TrimSpace(tools.Translator.Model)
 	preset, _ := settings.PresetByID(locales.For(cx), a.prefs.llmProvider)
 	switch {
+	case strings.TrimSpace(tools.Translator.BaseURL) == "":
+		return onboarding.AI{Text: locales.OnboardingAINeedsBaseURL(cx), Missing: true}
 	case preset.NeedsKey() && tools.Translator.APIKey == "":
 		return onboarding.AI{Text: locales.OnboardingAINeedsKey(cx), Missing: true}
 	case model == "" && (a.prefs.llmModelsLoading || a.prefs.llmWaiting):
@@ -106,7 +114,7 @@ func (a *app) OnboardingAI(cx *ns.Scope) onboarding.AI {
 	return onboarding.AI{Text: locales.OnboardingAIModel(cx, model), Ready: true}
 }
 
-// OnboardingServices are the services of Settings › AI 服务 (settings.Presets), named in the language shown under cx, the ones on this computer after their group as the settings name them. The guide asks for the key of every service but EveryAPI, which signs in with the everyapi command-line program, and those on this computer, which need none.
+// OnboardingServices are the services of Settings › AI 服务 (settings.Presets), named in the language shown under cx, the ones on this computer after their group as the settings name them. The guide asks for the key of the services in the cloud but EveryAPI, which signs in with the everyapi command-line program; those on this computer need none, and a custom endpoint is set up in the settings, where its Base URL is typed.
 func (a *app) OnboardingServices(cx *ns.Scope) []onboarding.Service {
 	presets := settings.Presets(locales.For(cx))
 	out := make([]onboarding.Service, len(presets))
@@ -115,7 +123,7 @@ func (a *app) OnboardingServices(cx *ns.Scope) []onboarding.Service {
 		if preset.Group == settings.GroupLocal {
 			name = locales.SettingsAILocalService(cx, preset.Name)
 		}
-		out[i] = onboarding.Service{ID: preset.ID, Name: name, Key: preset.ID != "everyapi" && preset.Group != settings.GroupLocal, KeyPage: preset.KeyURL != ""}
+		out[i] = onboarding.Service{ID: preset.ID, Name: name, Key: preset.NeedsKey(), KeyPage: preset.KeyURL != "", InSettings: preset.Group == settings.GroupOther}
 	}
 	return out
 }

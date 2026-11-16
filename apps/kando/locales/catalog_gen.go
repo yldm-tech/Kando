@@ -425,264 +425,265 @@ func For(cx *core.Scope) Messages {
 // its method, for the TSX declarations of the messages
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
-	"AccountNeedsStore":                  {"store"},
-	"AccountUploadDenied":                {"bucket"},
-	"AccountUploadFailedBecause":         {"error_"},
-	"AccountUploadInsecure":              {"host"},
-	"AccountUploadNoBucket":              {"bucket"},
-	"AccountUploadRegion":                {"bucket"},
-	"AccountUploadTo":                    {"store"},
-	"AccountUploadUnreachable":           {"host"},
-	"AccountUploadUnsaved":               {"error_"},
-	"AccountUploaded":                    {"key"},
-	"AccountUploadingPercent":            {"percent"},
-	"BrowseAddedTitled":                  {"title"},
-	"BrowseClearFailed":                  {"error_"},
-	"BrowseDownloadTitled":               {"title"},
-	"BrowseInLibraryTitled":              {"title"},
-	"BrowseLoadFailed":                   {"error_"},
-	"BrowseQueuedTitled":                 {"title"},
-	"FeedbackBrowserFailed":              {"repo"},
-	"FeedbackEnvDetail":                  {"version", "system"},
-	"FeedbackPreviewLabel":               {"label"},
-	"FeedbackPreviewTitle":               {"title"},
-	"FeedbackSubsDetail":                 {"time_"},
-	"FeedbackToolMissing":                {"name"},
-	"FeedbackToolNoVersion":              {"name"},
-	"FeedbackToolsDetail":                {"tools", "speech", "translator"},
-	"FeedbackTruncated":                  {"count"},
-	"FilmBytes":                          {"count"},
-	"FilmClip":                           {"number", "start", "end", "title"},
-	"FilmClipSpan":                       {"number", "start", "end"},
-	"FilmFaceBold":                       {"line"},
-	"FilmFaceColor":                      {"line", "color"},
-	"FilmFaceSize":                       {"line"},
-	"FilmInfoLanguages":                  {"spoken", "target"},
-	"FilmLineOf":                         {"line", "total"},
-	"FilmLoopLines":                      {"from", "to"},
-	"FilmMatchOf":                        {"number", "total"},
-	"FilmReprocessFailed":                {"reason"},
-	"FilmRetranslateFailed":              {"reason"},
-	"FilmRevealFile":                     {"file"},
-	"FilmSeconds":                        {"seconds"},
-	"FilmShowInFinder":                   {"platform"},
-	"FilmSkipBack":                       {"seconds"},
-	"FilmSkipForward":                    {"seconds"},
-	"FilmSpeedLabel":                     {"rate"},
-	"FilmSpeedRate":                      {"rate"},
-	"FilmStatusTranslated":               {"percent"},
-	"FilmSubtitlesMode":                  {"mode"},
-	"FilmTranscribeAgain":                {"language"},
-	"FilmsGridCount":                     {"count"},
-	"FilmsHeroKickerBilingual":           {"language"},
-	"FilmsHeroKickerContinueBilingual":   {"language"},
-	"FilmsHeroResume":                    {"time_"},
-	"FilmsLinkChannel":                   {"site"},
-	"FilmsLinkCount":                     {"count"},
-	"FilmsLinkPlaylist":                  {"site"},
-	"FilmsLocalVideoTooltip":             {"shortcut"},
-	"FilmsMoreActions":                   {"film"},
-	"FilmsNewLibraryNote":                {"platform"},
-	"FilmsNoLibraryDescription":          {"platform"},
-	"FilmsPosterBilingual":               {"language"},
-	"FilmsPosterLanguages":               {"spoken", "target"},
-	"FilmsQueueAboutMinutes":             {"count"},
-	"FilmsQueueActive":                   {"count"},
-	"FilmsQueueDownloadingFrom":          {"site"},
-	"FilmsQueueFailed":                   {"count"},
-	"FilmsQueueInto":                     {"language"},
-	"FilmsQueueNoAnswer":                 {"seconds", "attempt", "attempts"},
-	"FilmsQueueQueued":                   {"count"},
-	"FilmsQueueRateLimited":              {"seconds", "attempt", "attempts"},
-	"FilmsQueueRemaining":                {"time_"},
-	"FilmsQueueSavingTo":                 {"library"},
-	"FilmsQueueShowAll":                  {"count"},
-	"FilmsQueueTranscribingPercent":      {"percent"},
-	"FilmsQueueTranslatingBatch":         {"batch", "batches", "size"},
-	"FilmsQueueTranslatingLines":         {"lines", "total"},
-	"FilmsQueueWaitingAhead":             {"count"},
-	"FilmsQueueWatch":                    {"name"},
-	"FilmsRemoveConfirm":                 {"name"},
-	"FilmsReprocessConfirm":              {"name"},
-	"FilmsReprocessConfirmMessage":       {"language"},
-	"FilmsRetranslateConfirm":            {"name", "language"},
-	"FilmsRetranslateConfirmMessage":     {"current"},
-	"FilmsSearchNoMatch":                 {"query"},
-	"FilmsShowInFinder":                  {"platform"},
-	"FilmsSortButton":                    {"order"},
-	"FilmsSpokenEmpty":                   {"language"},
-	"FilmsUntranslated":                  {"count"},
-	"KitsDownloadFailedStatus":           {"status"},
-	"LibraryAddedSome":                   {"count", "error_"},
-	"LibraryAddedStarting":               {"count"},
-	"LibraryMoveOutFailed":               {"error_"},
-	"LibraryRemoved":                     {"name"},
-	"LibraryRevealFailed":                {"error_"},
-	"LibrarySaveFailed":                  {"error_"},
-	"LibraryShelfDamaged":                {"error_"},
-	"LibraryShelfDamagedUnsaved":         {"error_"},
-	"LibraryShelfReadFailed":             {"error_"},
-	"LibraryShelfSaveFailed":             {"error_"},
-	"LibrarySkippedNotVideos":            {"added", "count"},
-	"LibraryTrashFailed":                 {"name"},
-	"LibraryTrashUnsupported":            {"name"},
-	"LibraryTrashed":                     {"name"},
-	"LibrarySortSaveFailed":              {"error_"},
-	"MenuOpenLinkFailed":                 {"url"},
-	"MenuRevealLibrary":                  {"platform"},
-	"OnboardingAIModel":                  {"model"},
-	"OnboardingAIModelUnchecked":         {"model"},
-	"OnboardingDownloadTooltip":          {"name", "size"},
-	"OnboardingLinkChannel":              {"site"},
-	"OnboardingLinkList":                 {"site"},
-	"OnboardingLinkPlaylistVideo":        {"site"},
-	"OnboardingLinkVideo":                {"site"},
-	"OnboardingModelAbout":               {"size", "blurb"},
-	"OnboardingModelConnecting":          {"size"},
-	"OnboardingModelDownloaded":          {"blurb"},
-	"OnboardingModelFailed":              {"error_"},
-	"OnboardingModelProgress":            {"percent", "size"},
-	"OnboardingModelsDownloading":        {"name"},
-	"OnboardingPillLanguages":            {"language", "target"},
-	"OnboardingSaveFailed":               {"error_"},
-	"OnboardingSpeechModel":              {"name"},
-	"OnboardingStepCounter":              {"step", "steps"},
-	"OnboardingStepOf":                   {"step", "steps"},
-	"OnboardingTipMenu":                  {"menu", "item"},
-	"OnboardingToolProgress":             {"percent"},
-	"OnboardingToolUnavailableCommand":   {"command"},
-	"PaletteAnswerNote":                  {"at", "model"},
-	"PaletteAskFailed":                   {"error_"},
-	"PaletteAskRow":                      {"question"},
-	"PaletteAsking":                      {"model"},
-	"PaletteExplainNote":                 {"model"},
-	"PaletteJumpTo":                      {"time_"},
-	"PaletteLibrarySaveFailed":           {"error_"},
-	"PaletteSettingsSection":             {"section"},
-	"PaletteSubtitleMode":                {"mode"},
-	"PaletteSwitchTo":                    {"mode"},
-	"PlayerOsdDelay":                     {"delay"},
-	"PlayerOsdSpeed":                     {"rate"},
-	"PlayerOsdSubtitleSize":              {"size"},
-	"PlayerOsdVolume":                    {"percent"},
-	"PlaylistAdd":                        {"count"},
-	"PlaylistChannelLimit":               {"limit"},
-	"PlaylistFailed":                     {"error_"},
-	"PlaylistHave":                       {"count"},
-	"PlaylistSeveral":                    {"count"},
-	"PlaylistVideos":                     {"count"},
-	"PrecheckChannel":                    {"site"},
-	"PrecheckFailedDownload":             {"detail"},
-	"PrecheckFailedExport":               {"detail"},
-	"PrecheckFailedProcess":              {"detail"},
-	"PrecheckFailedTranscribe":           {"detail"},
-	"PrecheckFailedTranslate":            {"detail"},
-	"PrecheckList":                       {"site"},
-	"PrecheckToolsDownloading":           {"tools"},
-	"PrecheckToolsMissing":               {"tools"},
-	"QueueBorrowed":                      {"browser"},
-	"QueueDoneElsewhere":                 {"name", "library"},
-	"QueueFailedElsewhere":               {"name", "library"},
-	"QueueMakeSubtitlesFailed":           {"name", "reason"},
-	"QueueNotifyFailed":                  {"reason"},
-	"QueueOpenSettingsFailed":            {"error_"},
-	"QueueQuitWhileRunningMessage":       {"film"},
-	"QueueRedoFailed":                    {"name", "reason"},
-	"QueueRemedyAgeNeed":                 {"site"},
-	"QueueRemedyAgeWhy":                  {"site"},
-	"QueueRemedyBorrow":                  {"browser"},
-	"QueueRemedyCookies":                 {"browser"},
-	"QueueRemedyCookiesWhy":              {"browser"},
-	"QueueRemedyDownloadYtdlpFailed":     {"error_"},
-	"QueueRemedyDrm":                     {"site"},
-	"QueueRemedyHost":                    {"host"},
-	"QueueRemedyLoginExpired":            {"site"},
-	"QueueRemedyLoginExpiredWhy":         {"browser", "site"},
-	"QueueRemedyLoginNeed":               {"host"},
-	"QueueRemedyOutdated":                {"site"},
-	"QueueRemedyOutdatedDownloadWhy":     {"version", "hint"},
-	"QueueRemedyOutdatedLatest":          {"site"},
-	"QueueRemedyOutdatedLatestWhy":       {"version"},
-	"QueueRemedyOutdatedManualWhy":       {"version", "hint"},
-	"QueueRemedyOutdatedVersionWhy":      {"version"},
-	"QueueRemedyRateLimit":               {"site"},
-	"QueueRemedySentences":               {"first", "second"},
-	"QueueRemedySwitchBrowser":           {"browser"},
-	"QueueRemedyUnsupported":             {"host"},
-	"QueueReprocessFailed":               {"name", "reason"},
-	"QueueSaveFailed":                    {"error_"},
-	"QueueStatusComplete":                {"path"},
-	"QueueStatusFailed":                  {"error_"},
-	"QueueSwapRemoved":                   {"name"},
-	"QueueUpdateFailed":                  {"error_"},
-	"QueueYtdlpHintStandalone":           {"dir"},
-	"QueueYtdlpHintSystem":               {"dir"},
-	"QueueYtdlpLatest":                   {"version"},
-	"QueueYtdlpUpdated":                  {"version", "count"},
-	"ReadinessDownloadingTools":          {"tools"},
-	"ReadinessMissingTools":              {"tools"},
-	"SavedCount":                         {"count"},
-	"SavedExportFailed":                  {"error_"},
-	"SavedExported":                      {"count"},
-	"SavedExportedNoAudio":               {"count"},
-	"SavedExportedSomeAudio":             {"lines", "sounds"},
-	"SavedExporting":                     {"done", "total"},
-	"SavedReviewDone":                    {"count"},
-	"SavedReviewDue":                     {"count"},
-	"SavedReviewLeft":                    {"count"},
-	"SavedWhere":                         {"film", "time_"},
-	"SavedWhereGone":                     {"film", "time_"},
-	"SettingsAIEveryAPIFailed":           {"error_"},
-	"SettingsAIEveryAPIOpenFailed":       {"error_"},
-	"SettingsAILocalService":             {"name"},
-	"SettingsAIModelsFailed":             {"error_"},
-	"SettingsAINote":                     {"key", "compatible"},
-	"SettingsAINoteWithBlurb":            {"blurb"},
-	"SettingsAISaveFailed":               {"error_"},
-	"SettingsFileDamagedUnsaved":         {"error_"},
-	"SettingsFileUnreadable":             {"error_"},
-	"SettingsGeneralBrowserConnectedTo":  {"browsers"},
-	"SettingsGeneralCLIAddToPath":        {"dir"},
-	"SettingsGeneralCLIBlocked":          {"path"},
-	"SettingsGeneralCLIInstallFailed":    {"error_"},
-	"SettingsGeneralCLIInstalledAt":      {"path"},
-	"SettingsGeneralCLINotOnPath":        {"path", "dir"},
-	"SettingsGeneralCLIOther":            {"path"},
-	"SettingsGeneralDownloadFailed":      {"error_"},
-	"SettingsGeneralLastCheck":           {"when"},
-	"SettingsGeneralShowInFinder":        {"platform"},
-	"SettingsGeneralToolDetail":          {"use", "where"},
-	"SettingsGeneralToolPageLabel":       {"program"},
-	"SettingsGeneralToolsNoteScoop":      {"command"},
-	"SettingsGeneralUpdateAvailable":     {"version"},
-	"SettingsLibrarySaveFailed":          {"error_"},
-	"SettingsLookColorOf":                {"line"},
-	"SettingsSpeechDownloadFailedStatus": {"status"},
-	"SettingsSpeechDownloadProgress":     {"model"},
-	"SettingsSpeechLanguageSaveFailed":   {"error_"},
-	"SettingsSpeechModelActions":         {"model"},
-	"SettingsSpeechModelFileUnreadable":  {"file"},
-	"SettingsSpeechModelStats":           {"speed", "accuracy", "size"},
-	"SettingsSpeechNotModelFile":         {"file"},
-	"SettingsSpeechSaveFailed":           {"error_"},
-	"SettingsSpeechSourceSaveFailed":     {"error_"},
-	"SettingsSpeechTrashConfirm":         {"model"},
-	"SettingsSpeechTrashFailed":          {"model"},
-	"SettingsSpeechTrashInUse":           {"model"},
-	"SettingsSpeechTrashMessage":         {"size"},
-	"SidebarCommandsTooltip":             {"shortcut"},
-	"SidebarJobsActive":                  {"count"},
-	"SidebarJobsFailed":                  {"count"},
-	"SidebarLibraryCount":                {"name", "count"},
-	"SidebarMenuShowInFinder":            {"platform"},
-	"SidebarRevealLibrary":               {"name", "platform"},
-	"SidebarRowCount":                    {"name", "count"},
-	"SidebarSwitcherLabel":               {"name"},
-	"SitesFound":                         {"count", "source"},
-	"SitesIntro":                         {"count"},
-	"SitesNotFound":                      {"query"},
-	"SitesSource":                        {"version"},
-	"SitesTileLabel":                     {"name", "domain"},
+	"AccountNeedsStore":                        {"store"},
+	"AccountUploadDenied":                      {"bucket"},
+	"AccountUploadFailedBecause":               {"error_"},
+	"AccountUploadInsecure":                    {"host"},
+	"AccountUploadNoBucket":                    {"bucket"},
+	"AccountUploadRegion":                      {"bucket"},
+	"AccountUploadTo":                          {"store"},
+	"AccountUploadUnreachable":                 {"host"},
+	"AccountUploadUnsaved":                     {"error_"},
+	"AccountUploaded":                          {"key"},
+	"AccountUploadingPercent":                  {"percent"},
+	"BrowseAddedTitled":                        {"title"},
+	"BrowseClearFailed":                        {"error_"},
+	"BrowseDownloadTitled":                     {"title"},
+	"BrowseInLibraryTitled":                    {"title"},
+	"BrowseLoadFailed":                         {"error_"},
+	"BrowseQueuedTitled":                       {"title"},
+	"FeedbackBrowserFailed":                    {"repo"},
+	"FeedbackEnvDetail":                        {"version", "system"},
+	"FeedbackPreviewLabel":                     {"label"},
+	"FeedbackPreviewTitle":                     {"title"},
+	"FeedbackSubsDetail":                       {"time_"},
+	"FeedbackToolMissing":                      {"name"},
+	"FeedbackToolNoVersion":                    {"name"},
+	"FeedbackToolsDetail":                      {"tools", "speech", "translator"},
+	"FeedbackTruncated":                        {"count"},
+	"FilmBytes":                                {"count"},
+	"FilmClip":                                 {"number", "start", "end", "title"},
+	"FilmClipSpan":                             {"number", "start", "end"},
+	"FilmFaceBold":                             {"line"},
+	"FilmFaceColor":                            {"line", "color"},
+	"FilmFaceSize":                             {"line"},
+	"FilmInfoLanguages":                        {"spoken", "target"},
+	"FilmLineOf":                               {"line", "total"},
+	"FilmLoopLines":                            {"from", "to"},
+	"FilmMatchOf":                              {"number", "total"},
+	"FilmReprocessFailed":                      {"reason"},
+	"FilmRetranslateFailed":                    {"reason"},
+	"FilmRevealFile":                           {"file"},
+	"FilmSeconds":                              {"seconds"},
+	"FilmShowInFinder":                         {"platform"},
+	"FilmSkipBack":                             {"seconds"},
+	"FilmSkipForward":                          {"seconds"},
+	"FilmSpeedLabel":                           {"rate"},
+	"FilmSpeedRate":                            {"rate"},
+	"FilmStatusTranslated":                     {"percent"},
+	"FilmSubtitlesMode":                        {"mode"},
+	"FilmTranscribeAgain":                      {"language"},
+	"FilmsGridCount":                           {"count"},
+	"FilmsHeroKickerBilingual":                 {"language"},
+	"FilmsHeroKickerContinueBilingual":         {"language"},
+	"FilmsHeroResume":                          {"time_"},
+	"FilmsLinkChannel":                         {"site"},
+	"FilmsLinkCount":                           {"count"},
+	"FilmsLinkPlaylist":                        {"site"},
+	"FilmsLocalVideoTooltip":                   {"shortcut"},
+	"FilmsMoreActions":                         {"film"},
+	"FilmsNewLibraryNote":                      {"platform"},
+	"FilmsNoLibraryDescription":                {"platform"},
+	"FilmsPosterBilingual":                     {"language"},
+	"FilmsPosterLanguages":                     {"spoken", "target"},
+	"FilmsQueueAboutMinutes":                   {"count"},
+	"FilmsQueueActive":                         {"count"},
+	"FilmsQueueDownloadingFrom":                {"site"},
+	"FilmsQueueFailed":                         {"count"},
+	"FilmsQueueInto":                           {"language"},
+	"FilmsQueueNoAnswer":                       {"seconds", "attempt", "attempts"},
+	"FilmsQueueQueued":                         {"count"},
+	"FilmsQueueRateLimited":                    {"seconds", "attempt", "attempts"},
+	"FilmsQueueRemaining":                      {"time_"},
+	"FilmsQueueSavingTo":                       {"library"},
+	"FilmsQueueShowAll":                        {"count"},
+	"FilmsQueueTranscribingPercent":            {"percent"},
+	"FilmsQueueTranslatingBatch":               {"batch", "batches", "size"},
+	"FilmsQueueTranslatingLines":               {"lines", "total"},
+	"FilmsQueueWaitingAhead":                   {"count"},
+	"FilmsQueueWatch":                          {"name"},
+	"FilmsRemoveConfirm":                       {"name"},
+	"FilmsReprocessConfirm":                    {"name"},
+	"FilmsReprocessConfirmMessage":             {"language"},
+	"FilmsRetranslateConfirm":                  {"name", "language"},
+	"FilmsRetranslateConfirmMessage":           {"current"},
+	"FilmsSearchNoMatch":                       {"query"},
+	"FilmsShowInFinder":                        {"platform"},
+	"FilmsSortButton":                          {"order"},
+	"FilmsSpokenEmpty":                         {"language"},
+	"FilmsUntranslated":                        {"count"},
+	"KitsDownloadFailedStatus":                 {"status"},
+	"LibraryAddedSome":                         {"count", "error_"},
+	"LibraryAddedStarting":                     {"count"},
+	"LibraryMoveOutFailed":                     {"error_"},
+	"LibraryRemoved":                           {"name"},
+	"LibraryRevealFailed":                      {"error_"},
+	"LibrarySaveFailed":                        {"error_"},
+	"LibraryShelfDamaged":                      {"error_"},
+	"LibraryShelfDamagedUnsaved":               {"error_"},
+	"LibraryShelfReadFailed":                   {"error_"},
+	"LibraryShelfSaveFailed":                   {"error_"},
+	"LibrarySkippedNotVideos":                  {"added", "count"},
+	"LibraryTrashFailed":                       {"name"},
+	"LibraryTrashUnsupported":                  {"name"},
+	"LibraryTrashed":                           {"name"},
+	"LibrarySortSaveFailed":                    {"error_"},
+	"MenuOpenLinkFailed":                       {"url"},
+	"MenuRevealLibrary":                        {"platform"},
+	"OnboardingAIModel":                        {"model"},
+	"OnboardingAIModelUnchecked":               {"model"},
+	"OnboardingDownloadTooltip":                {"name", "size"},
+	"OnboardingLinkChannel":                    {"site"},
+	"OnboardingLinkList":                       {"site"},
+	"OnboardingLinkPlaylistVideo":              {"site"},
+	"OnboardingLinkVideo":                      {"site"},
+	"OnboardingModelAbout":                     {"size", "blurb"},
+	"OnboardingModelConnecting":                {"size"},
+	"OnboardingModelDownloaded":                {"blurb"},
+	"OnboardingModelFailed":                    {"error_"},
+	"OnboardingModelProgress":                  {"percent", "size"},
+	"OnboardingModelsDownloading":              {"name"},
+	"OnboardingPillLanguages":                  {"language", "target"},
+	"OnboardingSaveFailed":                     {"error_"},
+	"OnboardingSpeechModel":                    {"name"},
+	"OnboardingStepCounter":                    {"step", "steps"},
+	"OnboardingStepOf":                         {"step", "steps"},
+	"OnboardingTipMenu":                        {"menu", "item"},
+	"OnboardingToolProgress":                   {"percent"},
+	"OnboardingToolUnavailableCommand":         {"command"},
+	"PaletteAnswerNote":                        {"at", "model"},
+	"PaletteAskFailed":                         {"error_"},
+	"PaletteAskRow":                            {"question"},
+	"PaletteAsking":                            {"model"},
+	"PaletteExplainNote":                       {"model"},
+	"PaletteJumpTo":                            {"time_"},
+	"PaletteLibrarySaveFailed":                 {"error_"},
+	"PaletteSettingsSection":                   {"section"},
+	"PaletteSubtitleMode":                      {"mode"},
+	"PaletteSwitchTo":                          {"mode"},
+	"PlayerOsdDelay":                           {"delay"},
+	"PlayerOsdSpeed":                           {"rate"},
+	"PlayerOsdSubtitleSize":                    {"size"},
+	"PlayerOsdVolume":                          {"percent"},
+	"PlaylistAdd":                              {"count"},
+	"PlaylistChannelLimit":                     {"limit"},
+	"PlaylistFailed":                           {"error_"},
+	"PlaylistHave":                             {"count"},
+	"PlaylistSeveral":                          {"count"},
+	"PlaylistVideos":                           {"count"},
+	"PrecheckChannel":                          {"site"},
+	"PrecheckFailedDownload":                   {"detail"},
+	"PrecheckFailedExport":                     {"detail"},
+	"PrecheckFailedProcess":                    {"detail"},
+	"PrecheckFailedTranscribe":                 {"detail"},
+	"PrecheckFailedTranslate":                  {"detail"},
+	"PrecheckList":                             {"site"},
+	"PrecheckToolsDownloading":                 {"tools"},
+	"PrecheckToolsMissing":                     {"tools"},
+	"QueueBorrowed":                            {"browser"},
+	"QueueDoneElsewhere":                       {"name", "library"},
+	"QueueFailedElsewhere":                     {"name", "library"},
+	"QueueMakeSubtitlesFailed":                 {"name", "reason"},
+	"QueueNotifyFailed":                        {"reason"},
+	"QueueOpenSettingsFailed":                  {"error_"},
+	"QueueQuitWhileRunningMessage":             {"film"},
+	"QueueRedoFailed":                          {"name", "reason"},
+	"QueueRemedyAgeNeed":                       {"site"},
+	"QueueRemedyAgeWhy":                        {"site"},
+	"QueueRemedyBorrow":                        {"browser"},
+	"QueueRemedyCookies":                       {"browser"},
+	"QueueRemedyCookiesWhy":                    {"browser"},
+	"QueueRemedyDownloadYtdlpFailed":           {"error_"},
+	"QueueRemedyDrm":                           {"site"},
+	"QueueRemedyHost":                          {"host"},
+	"QueueRemedyLoginExpired":                  {"site"},
+	"QueueRemedyLoginExpiredWhy":               {"browser", "site"},
+	"QueueRemedyLoginNeed":                     {"host"},
+	"QueueRemedyOutdated":                      {"site"},
+	"QueueRemedyOutdatedDownloadWhy":           {"version", "hint"},
+	"QueueRemedyOutdatedLatest":                {"site"},
+	"QueueRemedyOutdatedLatestWhy":             {"version"},
+	"QueueRemedyOutdatedManualWhy":             {"version", "hint"},
+	"QueueRemedyOutdatedVersionWhy":            {"version"},
+	"QueueRemedyRateLimit":                     {"site"},
+	"QueueRemedySentences":                     {"first", "second"},
+	"QueueRemedySwitchBrowser":                 {"browser"},
+	"QueueRemedyUnsupported":                   {"host"},
+	"QueueReprocessFailed":                     {"name", "reason"},
+	"QueueSaveFailed":                          {"error_"},
+	"QueueStatusComplete":                      {"path"},
+	"QueueStatusFailed":                        {"error_"},
+	"QueueSwapRemoved":                         {"name"},
+	"QueueUpdateFailed":                        {"error_"},
+	"QueueYtdlpHintStandalone":                 {"dir"},
+	"QueueYtdlpHintSystem":                     {"dir"},
+	"QueueYtdlpLatest":                         {"version"},
+	"QueueYtdlpUpdated":                        {"version", "count"},
+	"ReadinessDownloadingTools":                {"tools"},
+	"ReadinessMissingTools":                    {"tools"},
+	"SavedCount":                               {"count"},
+	"SavedExportFailed":                        {"error_"},
+	"SavedExported":                            {"count"},
+	"SavedExportedNoAudio":                     {"count"},
+	"SavedExportedSomeAudio":                   {"lines", "sounds"},
+	"SavedExporting":                           {"done", "total"},
+	"SavedReviewDone":                          {"count"},
+	"SavedReviewDue":                           {"count"},
+	"SavedReviewLeft":                          {"count"},
+	"SavedWhere":                               {"film", "time_"},
+	"SavedWhereGone":                           {"film", "time_"},
+	"SettingsAIEveryAPIFailed":                 {"error_"},
+	"SettingsAIEveryAPIOpenFailed":             {"error_"},
+	"SettingsAILocalService":                   {"name"},
+	"SettingsAIModelsFailed":                   {"error_"},
+	"SettingsAINote":                           {"key", "compatible"},
+	"SettingsAINoteWithBlurb":                  {"blurb"},
+	"SettingsAISaveFailed":                     {"error_"},
+	"SettingsFileDamagedUnsaved":               {"error_"},
+	"SettingsFileUnreadable":                   {"error_"},
+	"SettingsGeneralBrowserConnectedTo":        {"browsers"},
+	"SettingsGeneralCLIAddToPath":              {"dir"},
+	"SettingsGeneralCLIBlocked":                {"path"},
+	"SettingsGeneralCLIInstallFailed":          {"error_"},
+	"SettingsGeneralCLIInstalledAt":            {"path"},
+	"SettingsGeneralCLINotOnPath":              {"path", "dir"},
+	"SettingsGeneralCLIOther":                  {"path"},
+	"SettingsGeneralDownloadFailed":            {"error_"},
+	"SettingsGeneralLastCheck":                 {"when"},
+	"SettingsGeneralShowInFinder":              {"platform"},
+	"SettingsGeneralToolDetail":                {"use", "where"},
+	"SettingsGeneralToolPageLabel":             {"program"},
+	"SettingsGeneralToolsNoteScoop":            {"command"},
+	"SettingsGeneralUpdateAvailable":           {"version"},
+	"SettingsLibrarySaveFailed":                {"error_"},
+	"SettingsLookColorOf":                      {"line"},
+	"SettingsSpeechDownloadFailedStatus":       {"status"},
+	"SettingsSpeechDownloadFailedStatusMirror": {"status"},
+	"SettingsSpeechDownloadProgress":           {"model"},
+	"SettingsSpeechLanguageSaveFailed":         {"error_"},
+	"SettingsSpeechModelActions":               {"model"},
+	"SettingsSpeechModelFileUnreadable":        {"file"},
+	"SettingsSpeechModelStats":                 {"speed", "accuracy", "size"},
+	"SettingsSpeechNotModelFile":               {"file"},
+	"SettingsSpeechSaveFailed":                 {"error_"},
+	"SettingsSpeechSourceSaveFailed":           {"error_"},
+	"SettingsSpeechTrashConfirm":               {"model"},
+	"SettingsSpeechTrashFailed":                {"model"},
+	"SettingsSpeechTrashInUse":                 {"model"},
+	"SettingsSpeechTrashMessage":               {"size"},
+	"SidebarCommandsTooltip":                   {"shortcut"},
+	"SidebarJobsActive":                        {"count"},
+	"SidebarJobsFailed":                        {"count"},
+	"SidebarLibraryCount":                      {"name", "count"},
+	"SidebarMenuShowInFinder":                  {"platform"},
+	"SidebarRevealLibrary":                     {"name", "platform"},
+	"SidebarRowCount":                          {"name", "count"},
+	"SidebarSwitcherLabel":                     {"name"},
+	"SitesFound":                               {"count", "source"},
+	"SitesIntro":                               {"count"},
+	"SitesNotFound":                            {"query"},
+	"SitesSource":                              {"version"},
+	"SitesTileLabel":                           {"name", "domain"},
 }
 
 // Translation is a language's messages another package supplies:
@@ -690,265 +691,266 @@ var Parameters = map[string][]string{
 // of the others; a key or a field left out leaves the message to the
 // catalog.
 type Translation struct {
-	Texts                              map[string]string
-	AccountNeedsStore                  func(store string) string
-	AccountUploadDenied                func(bucket string) string
-	AccountUploadFailedBecause         func(error_ string) string
-	AccountUploadInsecure              func(host string) string
-	AccountUploadNoBucket              func(bucket string) string
-	AccountUploadRegion                func(bucket string) string
-	AccountUploadTo                    func(store string) string
-	AccountUploadUnreachable           func(host string) string
-	AccountUploadUnsaved               func(error_ string) string
-	AccountUploaded                    func(key string) string
-	AccountUploadingPercent            func(percent int) string
-	BrowseAddedTitled                  func(title string) string
-	BrowseClearFailed                  func(error_ string) string
-	BrowseDownloadTitled               func(title string) string
-	BrowseInLibraryTitled              func(title string) string
-	BrowseLoadFailed                   func(error_ string) string
-	BrowseQueuedTitled                 func(title string) string
-	FeedbackBrowserFailed              func(repo string) string
-	FeedbackEnvDetail                  func(version string, system string) string
-	FeedbackPreviewLabel               func(label string) string
-	FeedbackPreviewTitle               func(title string) string
-	FeedbackSubsDetail                 func(time_ string) string
-	FeedbackToolMissing                func(name string) string
-	FeedbackToolNoVersion              func(name string) string
-	FeedbackToolsDetail                func(tools string, speech string, translator string) string
-	FeedbackTruncated                  func(count int) string
-	FilmBytes                          func(count int) string
-	FilmClip                           func(number int, start string, end string, title string) string
-	FilmClipSpan                       func(number int, start string, end string) string
-	FilmFaceBold                       func(line string) string
-	FilmFaceColor                      func(line string, color string) string
-	FilmFaceSize                       func(line string) string
-	FilmInfoLanguages                  func(spoken string, target string) string
-	FilmLineOf                         func(line int, total int) string
-	FilmLoopLines                      func(from int, to int) string
-	FilmMatchOf                        func(number int, total int) string
-	FilmReprocessFailed                func(reason string) string
-	FilmRetranslateFailed              func(reason string) string
-	FilmRevealFile                     func(file string) string
-	FilmSeconds                        func(seconds string) string
-	FilmShowInFinder                   func(platform string) string
-	FilmSkipBack                       func(seconds int) string
-	FilmSkipForward                    func(seconds int) string
-	FilmSpeedLabel                     func(rate string) string
-	FilmSpeedRate                      func(rate string) string
-	FilmStatusTranslated               func(percent int) string
-	FilmSubtitlesMode                  func(mode string) string
-	FilmTranscribeAgain                func(language string) string
-	FilmsGridCount                     func(count int) string
-	FilmsHeroKickerBilingual           func(language string) string
-	FilmsHeroKickerContinueBilingual   func(language string) string
-	FilmsHeroResume                    func(time_ string) string
-	FilmsLinkChannel                   func(site string) string
-	FilmsLinkCount                     func(count int) string
-	FilmsLinkPlaylist                  func(site string) string
-	FilmsLocalVideoTooltip             func(shortcut string) string
-	FilmsMoreActions                   func(film string) string
-	FilmsNewLibraryNote                func(platform string) string
-	FilmsNoLibraryDescription          func(platform string) string
-	FilmsPosterBilingual               func(language string) string
-	FilmsPosterLanguages               func(spoken string, target string) string
-	FilmsQueueAboutMinutes             func(count int) string
-	FilmsQueueActive                   func(count int) string
-	FilmsQueueDownloadingFrom          func(site string) string
-	FilmsQueueFailed                   func(count int) string
-	FilmsQueueInto                     func(language string) string
-	FilmsQueueNoAnswer                 func(seconds int, attempt int, attempts int) string
-	FilmsQueueQueued                   func(count int) string
-	FilmsQueueRateLimited              func(seconds int, attempt int, attempts int) string
-	FilmsQueueRemaining                func(time_ string) string
-	FilmsQueueSavingTo                 func(library string) string
-	FilmsQueueShowAll                  func(count int) string
-	FilmsQueueTranscribingPercent      func(percent string) string
-	FilmsQueueTranslatingBatch         func(batch int, batches int, size int) string
-	FilmsQueueTranslatingLines         func(lines int, total int) string
-	FilmsQueueWaitingAhead             func(count int) string
-	FilmsQueueWatch                    func(name string) string
-	FilmsRemoveConfirm                 func(name string) string
-	FilmsReprocessConfirm              func(name string) string
-	FilmsReprocessConfirmMessage       func(language string) string
-	FilmsRetranslateConfirm            func(name string, language string) string
-	FilmsRetranslateConfirmMessage     func(current string) string
-	FilmsSearchNoMatch                 func(query string) string
-	FilmsShowInFinder                  func(platform string) string
-	FilmsSortButton                    func(order string) string
-	FilmsSpokenEmpty                   func(language string) string
-	FilmsUntranslated                  func(count int) string
-	KitsDownloadFailedStatus           func(status int) string
-	LibraryAddedSome                   func(count int, error_ string) string
-	LibraryAddedStarting               func(count int) string
-	LibraryMoveOutFailed               func(error_ string) string
-	LibraryRemoved                     func(name string) string
-	LibraryRevealFailed                func(error_ string) string
-	LibrarySaveFailed                  func(error_ string) string
-	LibraryShelfDamaged                func(error_ string) string
-	LibraryShelfDamagedUnsaved         func(error_ string) string
-	LibraryShelfReadFailed             func(error_ string) string
-	LibraryShelfSaveFailed             func(error_ string) string
-	LibrarySkippedNotVideos            func(added string, count int) string
-	LibraryTrashFailed                 func(name string) string
-	LibraryTrashUnsupported            func(name string) string
-	LibraryTrashed                     func(name string) string
-	LibrarySortSaveFailed              func(error_ string) string
-	MenuOpenLinkFailed                 func(url string) string
-	MenuRevealLibrary                  func(platform string) string
-	OnboardingAIModel                  func(model string) string
-	OnboardingAIModelUnchecked         func(model string) string
-	OnboardingDownloadTooltip          func(name string, size string) string
-	OnboardingLinkChannel              func(site string) string
-	OnboardingLinkList                 func(site string) string
-	OnboardingLinkPlaylistVideo        func(site string) string
-	OnboardingLinkVideo                func(site string) string
-	OnboardingModelAbout               func(size string, blurb string) string
-	OnboardingModelConnecting          func(size string) string
-	OnboardingModelDownloaded          func(blurb string) string
-	OnboardingModelFailed              func(error_ string) string
-	OnboardingModelProgress            func(percent int, size string) string
-	OnboardingModelsDownloading        func(name string) string
-	OnboardingPillLanguages            func(language string, target string) string
-	OnboardingSaveFailed               func(error_ string) string
-	OnboardingSpeechModel              func(name string) string
-	OnboardingStepCounter              func(step int, steps int) string
-	OnboardingStepOf                   func(step int, steps int) string
-	OnboardingTipMenu                  func(menu string, item string) string
-	OnboardingToolProgress             func(percent int) string
-	OnboardingToolUnavailableCommand   func(command string) string
-	PaletteAnswerNote                  func(at string, model string) string
-	PaletteAskFailed                   func(error_ string) string
-	PaletteAskRow                      func(question string) string
-	PaletteAsking                      func(model string) string
-	PaletteExplainNote                 func(model string) string
-	PaletteJumpTo                      func(time_ string) string
-	PaletteLibrarySaveFailed           func(error_ string) string
-	PaletteSettingsSection             func(section string) string
-	PaletteSubtitleMode                func(mode string) string
-	PaletteSwitchTo                    func(mode string) string
-	PlayerOsdDelay                     func(delay string) string
-	PlayerOsdSpeed                     func(rate string) string
-	PlayerOsdSubtitleSize              func(size int) string
-	PlayerOsdVolume                    func(percent int) string
-	PlaylistAdd                        func(count int) string
-	PlaylistChannelLimit               func(limit int) string
-	PlaylistFailed                     func(error_ string) string
-	PlaylistHave                       func(count int) string
-	PlaylistSeveral                    func(count int) string
-	PlaylistVideos                     func(count int) string
-	PrecheckChannel                    func(site string) string
-	PrecheckFailedDownload             func(detail string) string
-	PrecheckFailedExport               func(detail string) string
-	PrecheckFailedProcess              func(detail string) string
-	PrecheckFailedTranscribe           func(detail string) string
-	PrecheckFailedTranslate            func(detail string) string
-	PrecheckList                       func(site string) string
-	PrecheckToolsDownloading           func(tools string) string
-	PrecheckToolsMissing               func(tools string) string
-	QueueBorrowed                      func(browser string) string
-	QueueDoneElsewhere                 func(name string, library string) string
-	QueueFailedElsewhere               func(name string, library string) string
-	QueueMakeSubtitlesFailed           func(name string, reason string) string
-	QueueNotifyFailed                  func(reason string) string
-	QueueOpenSettingsFailed            func(error_ string) string
-	QueueQuitWhileRunningMessage       func(film string) string
-	QueueRedoFailed                    func(name string, reason string) string
-	QueueRemedyAgeNeed                 func(site string) string
-	QueueRemedyAgeWhy                  func(site string) string
-	QueueRemedyBorrow                  func(browser string) string
-	QueueRemedyCookies                 func(browser string) string
-	QueueRemedyCookiesWhy              func(browser string) string
-	QueueRemedyDownloadYtdlpFailed     func(error_ string) string
-	QueueRemedyDrm                     func(site string) string
-	QueueRemedyHost                    func(host string) string
-	QueueRemedyLoginExpired            func(site string) string
-	QueueRemedyLoginExpiredWhy         func(browser string, site string) string
-	QueueRemedyLoginNeed               func(host string) string
-	QueueRemedyOutdated                func(site string) string
-	QueueRemedyOutdatedDownloadWhy     func(version string, hint string) string
-	QueueRemedyOutdatedLatest          func(site string) string
-	QueueRemedyOutdatedLatestWhy       func(version string) string
-	QueueRemedyOutdatedManualWhy       func(version string, hint string) string
-	QueueRemedyOutdatedVersionWhy      func(version string) string
-	QueueRemedyRateLimit               func(site string) string
-	QueueRemedySentences               func(first string, second string) string
-	QueueRemedySwitchBrowser           func(browser string) string
-	QueueRemedyUnsupported             func(host string) string
-	QueueReprocessFailed               func(name string, reason string) string
-	QueueSaveFailed                    func(error_ string) string
-	QueueStatusComplete                func(path string) string
-	QueueStatusFailed                  func(error_ string) string
-	QueueSwapRemoved                   func(name string) string
-	QueueUpdateFailed                  func(error_ string) string
-	QueueYtdlpHintStandalone           func(dir string) string
-	QueueYtdlpHintSystem               func(dir string) string
-	QueueYtdlpLatest                   func(version string) string
-	QueueYtdlpUpdated                  func(version string, count int) string
-	ReadinessDownloadingTools          func(tools string) string
-	ReadinessMissingTools              func(tools string) string
-	SavedCount                         func(count int) string
-	SavedExportFailed                  func(error_ string) string
-	SavedExported                      func(count int) string
-	SavedExportedNoAudio               func(count int) string
-	SavedExportedSomeAudio             func(lines int, sounds int) string
-	SavedExporting                     func(done int, total int) string
-	SavedReviewDone                    func(count int) string
-	SavedReviewDue                     func(count int) string
-	SavedReviewLeft                    func(count int) string
-	SavedWhere                         func(film string, time_ string) string
-	SavedWhereGone                     func(film string, time_ string) string
-	SettingsAIEveryAPIFailed           func(error_ string) string
-	SettingsAIEveryAPIOpenFailed       func(error_ string) string
-	SettingsAILocalService             func(name string) string
-	SettingsAIModelsFailed             func(error_ string) string
-	SettingsAINote                     func(key string, compatible string) string
-	SettingsAINoteWithBlurb            func(blurb string) string
-	SettingsAISaveFailed               func(error_ string) string
-	SettingsFileDamagedUnsaved         func(error_ string) string
-	SettingsFileUnreadable             func(error_ string) string
-	SettingsGeneralBrowserConnectedTo  func(browsers string) string
-	SettingsGeneralCLIAddToPath        func(dir string) string
-	SettingsGeneralCLIBlocked          func(path string) string
-	SettingsGeneralCLIInstallFailed    func(error_ string) string
-	SettingsGeneralCLIInstalledAt      func(path string) string
-	SettingsGeneralCLINotOnPath        func(path string, dir string) string
-	SettingsGeneralCLIOther            func(path string) string
-	SettingsGeneralDownloadFailed      func(error_ string) string
-	SettingsGeneralLastCheck           func(when time.Time) string
-	SettingsGeneralShowInFinder        func(platform string) string
-	SettingsGeneralToolDetail          func(use string, where string) string
-	SettingsGeneralToolPageLabel       func(program string) string
-	SettingsGeneralToolsNoteScoop      func(command string) string
-	SettingsGeneralUpdateAvailable     func(version string) string
-	SettingsLibrarySaveFailed          func(error_ string) string
-	SettingsLookColorOf                func(line string) string
-	SettingsSpeechDownloadFailedStatus func(status int) string
-	SettingsSpeechDownloadProgress     func(model string) string
-	SettingsSpeechLanguageSaveFailed   func(error_ string) string
-	SettingsSpeechModelActions         func(model string) string
-	SettingsSpeechModelFileUnreadable  func(file string) string
-	SettingsSpeechModelStats           func(speed string, accuracy string, size string) string
-	SettingsSpeechNotModelFile         func(file string) string
-	SettingsSpeechSaveFailed           func(error_ string) string
-	SettingsSpeechSourceSaveFailed     func(error_ string) string
-	SettingsSpeechTrashConfirm         func(model string) string
-	SettingsSpeechTrashFailed          func(model string) string
-	SettingsSpeechTrashInUse           func(model string) string
-	SettingsSpeechTrashMessage         func(size string) string
-	SidebarCommandsTooltip             func(shortcut string) string
-	SidebarJobsActive                  func(count int) string
-	SidebarJobsFailed                  func(count int) string
-	SidebarLibraryCount                func(name string, count int) string
-	SidebarMenuShowInFinder            func(platform string) string
-	SidebarRevealLibrary               func(name string, platform string) string
-	SidebarRowCount                    func(name string, count int) string
-	SidebarSwitcherLabel               func(name string) string
-	SitesFound                         func(count int, source string) string
-	SitesIntro                         func(count int) string
-	SitesNotFound                      func(query string) string
-	SitesSource                        func(version string) string
-	SitesTileLabel                     func(name string, domain string) string
+	Texts                                    map[string]string
+	AccountNeedsStore                        func(store string) string
+	AccountUploadDenied                      func(bucket string) string
+	AccountUploadFailedBecause               func(error_ string) string
+	AccountUploadInsecure                    func(host string) string
+	AccountUploadNoBucket                    func(bucket string) string
+	AccountUploadRegion                      func(bucket string) string
+	AccountUploadTo                          func(store string) string
+	AccountUploadUnreachable                 func(host string) string
+	AccountUploadUnsaved                     func(error_ string) string
+	AccountUploaded                          func(key string) string
+	AccountUploadingPercent                  func(percent int) string
+	BrowseAddedTitled                        func(title string) string
+	BrowseClearFailed                        func(error_ string) string
+	BrowseDownloadTitled                     func(title string) string
+	BrowseInLibraryTitled                    func(title string) string
+	BrowseLoadFailed                         func(error_ string) string
+	BrowseQueuedTitled                       func(title string) string
+	FeedbackBrowserFailed                    func(repo string) string
+	FeedbackEnvDetail                        func(version string, system string) string
+	FeedbackPreviewLabel                     func(label string) string
+	FeedbackPreviewTitle                     func(title string) string
+	FeedbackSubsDetail                       func(time_ string) string
+	FeedbackToolMissing                      func(name string) string
+	FeedbackToolNoVersion                    func(name string) string
+	FeedbackToolsDetail                      func(tools string, speech string, translator string) string
+	FeedbackTruncated                        func(count int) string
+	FilmBytes                                func(count int) string
+	FilmClip                                 func(number int, start string, end string, title string) string
+	FilmClipSpan                             func(number int, start string, end string) string
+	FilmFaceBold                             func(line string) string
+	FilmFaceColor                            func(line string, color string) string
+	FilmFaceSize                             func(line string) string
+	FilmInfoLanguages                        func(spoken string, target string) string
+	FilmLineOf                               func(line int, total int) string
+	FilmLoopLines                            func(from int, to int) string
+	FilmMatchOf                              func(number int, total int) string
+	FilmReprocessFailed                      func(reason string) string
+	FilmRetranslateFailed                    func(reason string) string
+	FilmRevealFile                           func(file string) string
+	FilmSeconds                              func(seconds string) string
+	FilmShowInFinder                         func(platform string) string
+	FilmSkipBack                             func(seconds int) string
+	FilmSkipForward                          func(seconds int) string
+	FilmSpeedLabel                           func(rate string) string
+	FilmSpeedRate                            func(rate string) string
+	FilmStatusTranslated                     func(percent int) string
+	FilmSubtitlesMode                        func(mode string) string
+	FilmTranscribeAgain                      func(language string) string
+	FilmsGridCount                           func(count int) string
+	FilmsHeroKickerBilingual                 func(language string) string
+	FilmsHeroKickerContinueBilingual         func(language string) string
+	FilmsHeroResume                          func(time_ string) string
+	FilmsLinkChannel                         func(site string) string
+	FilmsLinkCount                           func(count int) string
+	FilmsLinkPlaylist                        func(site string) string
+	FilmsLocalVideoTooltip                   func(shortcut string) string
+	FilmsMoreActions                         func(film string) string
+	FilmsNewLibraryNote                      func(platform string) string
+	FilmsNoLibraryDescription                func(platform string) string
+	FilmsPosterBilingual                     func(language string) string
+	FilmsPosterLanguages                     func(spoken string, target string) string
+	FilmsQueueAboutMinutes                   func(count int) string
+	FilmsQueueActive                         func(count int) string
+	FilmsQueueDownloadingFrom                func(site string) string
+	FilmsQueueFailed                         func(count int) string
+	FilmsQueueInto                           func(language string) string
+	FilmsQueueNoAnswer                       func(seconds int, attempt int, attempts int) string
+	FilmsQueueQueued                         func(count int) string
+	FilmsQueueRateLimited                    func(seconds int, attempt int, attempts int) string
+	FilmsQueueRemaining                      func(time_ string) string
+	FilmsQueueSavingTo                       func(library string) string
+	FilmsQueueShowAll                        func(count int) string
+	FilmsQueueTranscribingPercent            func(percent string) string
+	FilmsQueueTranslatingBatch               func(batch int, batches int, size int) string
+	FilmsQueueTranslatingLines               func(lines int, total int) string
+	FilmsQueueWaitingAhead                   func(count int) string
+	FilmsQueueWatch                          func(name string) string
+	FilmsRemoveConfirm                       func(name string) string
+	FilmsReprocessConfirm                    func(name string) string
+	FilmsReprocessConfirmMessage             func(language string) string
+	FilmsRetranslateConfirm                  func(name string, language string) string
+	FilmsRetranslateConfirmMessage           func(current string) string
+	FilmsSearchNoMatch                       func(query string) string
+	FilmsShowInFinder                        func(platform string) string
+	FilmsSortButton                          func(order string) string
+	FilmsSpokenEmpty                         func(language string) string
+	FilmsUntranslated                        func(count int) string
+	KitsDownloadFailedStatus                 func(status int) string
+	LibraryAddedSome                         func(count int, error_ string) string
+	LibraryAddedStarting                     func(count int) string
+	LibraryMoveOutFailed                     func(error_ string) string
+	LibraryRemoved                           func(name string) string
+	LibraryRevealFailed                      func(error_ string) string
+	LibrarySaveFailed                        func(error_ string) string
+	LibraryShelfDamaged                      func(error_ string) string
+	LibraryShelfDamagedUnsaved               func(error_ string) string
+	LibraryShelfReadFailed                   func(error_ string) string
+	LibraryShelfSaveFailed                   func(error_ string) string
+	LibrarySkippedNotVideos                  func(added string, count int) string
+	LibraryTrashFailed                       func(name string) string
+	LibraryTrashUnsupported                  func(name string) string
+	LibraryTrashed                           func(name string) string
+	LibrarySortSaveFailed                    func(error_ string) string
+	MenuOpenLinkFailed                       func(url string) string
+	MenuRevealLibrary                        func(platform string) string
+	OnboardingAIModel                        func(model string) string
+	OnboardingAIModelUnchecked               func(model string) string
+	OnboardingDownloadTooltip                func(name string, size string) string
+	OnboardingLinkChannel                    func(site string) string
+	OnboardingLinkList                       func(site string) string
+	OnboardingLinkPlaylistVideo              func(site string) string
+	OnboardingLinkVideo                      func(site string) string
+	OnboardingModelAbout                     func(size string, blurb string) string
+	OnboardingModelConnecting                func(size string) string
+	OnboardingModelDownloaded                func(blurb string) string
+	OnboardingModelFailed                    func(error_ string) string
+	OnboardingModelProgress                  func(percent int, size string) string
+	OnboardingModelsDownloading              func(name string) string
+	OnboardingPillLanguages                  func(language string, target string) string
+	OnboardingSaveFailed                     func(error_ string) string
+	OnboardingSpeechModel                    func(name string) string
+	OnboardingStepCounter                    func(step int, steps int) string
+	OnboardingStepOf                         func(step int, steps int) string
+	OnboardingTipMenu                        func(menu string, item string) string
+	OnboardingToolProgress                   func(percent int) string
+	OnboardingToolUnavailableCommand         func(command string) string
+	PaletteAnswerNote                        func(at string, model string) string
+	PaletteAskFailed                         func(error_ string) string
+	PaletteAskRow                            func(question string) string
+	PaletteAsking                            func(model string) string
+	PaletteExplainNote                       func(model string) string
+	PaletteJumpTo                            func(time_ string) string
+	PaletteLibrarySaveFailed                 func(error_ string) string
+	PaletteSettingsSection                   func(section string) string
+	PaletteSubtitleMode                      func(mode string) string
+	PaletteSwitchTo                          func(mode string) string
+	PlayerOsdDelay                           func(delay string) string
+	PlayerOsdSpeed                           func(rate string) string
+	PlayerOsdSubtitleSize                    func(size int) string
+	PlayerOsdVolume                          func(percent int) string
+	PlaylistAdd                              func(count int) string
+	PlaylistChannelLimit                     func(limit int) string
+	PlaylistFailed                           func(error_ string) string
+	PlaylistHave                             func(count int) string
+	PlaylistSeveral                          func(count int) string
+	PlaylistVideos                           func(count int) string
+	PrecheckChannel                          func(site string) string
+	PrecheckFailedDownload                   func(detail string) string
+	PrecheckFailedExport                     func(detail string) string
+	PrecheckFailedProcess                    func(detail string) string
+	PrecheckFailedTranscribe                 func(detail string) string
+	PrecheckFailedTranslate                  func(detail string) string
+	PrecheckList                             func(site string) string
+	PrecheckToolsDownloading                 func(tools string) string
+	PrecheckToolsMissing                     func(tools string) string
+	QueueBorrowed                            func(browser string) string
+	QueueDoneElsewhere                       func(name string, library string) string
+	QueueFailedElsewhere                     func(name string, library string) string
+	QueueMakeSubtitlesFailed                 func(name string, reason string) string
+	QueueNotifyFailed                        func(reason string) string
+	QueueOpenSettingsFailed                  func(error_ string) string
+	QueueQuitWhileRunningMessage             func(film string) string
+	QueueRedoFailed                          func(name string, reason string) string
+	QueueRemedyAgeNeed                       func(site string) string
+	QueueRemedyAgeWhy                        func(site string) string
+	QueueRemedyBorrow                        func(browser string) string
+	QueueRemedyCookies                       func(browser string) string
+	QueueRemedyCookiesWhy                    func(browser string) string
+	QueueRemedyDownloadYtdlpFailed           func(error_ string) string
+	QueueRemedyDrm                           func(site string) string
+	QueueRemedyHost                          func(host string) string
+	QueueRemedyLoginExpired                  func(site string) string
+	QueueRemedyLoginExpiredWhy               func(browser string, site string) string
+	QueueRemedyLoginNeed                     func(host string) string
+	QueueRemedyOutdated                      func(site string) string
+	QueueRemedyOutdatedDownloadWhy           func(version string, hint string) string
+	QueueRemedyOutdatedLatest                func(site string) string
+	QueueRemedyOutdatedLatestWhy             func(version string) string
+	QueueRemedyOutdatedManualWhy             func(version string, hint string) string
+	QueueRemedyOutdatedVersionWhy            func(version string) string
+	QueueRemedyRateLimit                     func(site string) string
+	QueueRemedySentences                     func(first string, second string) string
+	QueueRemedySwitchBrowser                 func(browser string) string
+	QueueRemedyUnsupported                   func(host string) string
+	QueueReprocessFailed                     func(name string, reason string) string
+	QueueSaveFailed                          func(error_ string) string
+	QueueStatusComplete                      func(path string) string
+	QueueStatusFailed                        func(error_ string) string
+	QueueSwapRemoved                         func(name string) string
+	QueueUpdateFailed                        func(error_ string) string
+	QueueYtdlpHintStandalone                 func(dir string) string
+	QueueYtdlpHintSystem                     func(dir string) string
+	QueueYtdlpLatest                         func(version string) string
+	QueueYtdlpUpdated                        func(version string, count int) string
+	ReadinessDownloadingTools                func(tools string) string
+	ReadinessMissingTools                    func(tools string) string
+	SavedCount                               func(count int) string
+	SavedExportFailed                        func(error_ string) string
+	SavedExported                            func(count int) string
+	SavedExportedNoAudio                     func(count int) string
+	SavedExportedSomeAudio                   func(lines int, sounds int) string
+	SavedExporting                           func(done int, total int) string
+	SavedReviewDone                          func(count int) string
+	SavedReviewDue                           func(count int) string
+	SavedReviewLeft                          func(count int) string
+	SavedWhere                               func(film string, time_ string) string
+	SavedWhereGone                           func(film string, time_ string) string
+	SettingsAIEveryAPIFailed                 func(error_ string) string
+	SettingsAIEveryAPIOpenFailed             func(error_ string) string
+	SettingsAILocalService                   func(name string) string
+	SettingsAIModelsFailed                   func(error_ string) string
+	SettingsAINote                           func(key string, compatible string) string
+	SettingsAINoteWithBlurb                  func(blurb string) string
+	SettingsAISaveFailed                     func(error_ string) string
+	SettingsFileDamagedUnsaved               func(error_ string) string
+	SettingsFileUnreadable                   func(error_ string) string
+	SettingsGeneralBrowserConnectedTo        func(browsers string) string
+	SettingsGeneralCLIAddToPath              func(dir string) string
+	SettingsGeneralCLIBlocked                func(path string) string
+	SettingsGeneralCLIInstallFailed          func(error_ string) string
+	SettingsGeneralCLIInstalledAt            func(path string) string
+	SettingsGeneralCLINotOnPath              func(path string, dir string) string
+	SettingsGeneralCLIOther                  func(path string) string
+	SettingsGeneralDownloadFailed            func(error_ string) string
+	SettingsGeneralLastCheck                 func(when time.Time) string
+	SettingsGeneralShowInFinder              func(platform string) string
+	SettingsGeneralToolDetail                func(use string, where string) string
+	SettingsGeneralToolPageLabel             func(program string) string
+	SettingsGeneralToolsNoteScoop            func(command string) string
+	SettingsGeneralUpdateAvailable           func(version string) string
+	SettingsLibrarySaveFailed                func(error_ string) string
+	SettingsLookColorOf                      func(line string) string
+	SettingsSpeechDownloadFailedStatus       func(status int) string
+	SettingsSpeechDownloadFailedStatusMirror func(status int) string
+	SettingsSpeechDownloadProgress           func(model string) string
+	SettingsSpeechLanguageSaveFailed         func(error_ string) string
+	SettingsSpeechModelActions               func(model string) string
+	SettingsSpeechModelFileUnreadable        func(file string) string
+	SettingsSpeechModelStats                 func(speed string, accuracy string, size string) string
+	SettingsSpeechNotModelFile               func(file string) string
+	SettingsSpeechSaveFailed                 func(error_ string) string
+	SettingsSpeechSourceSaveFailed           func(error_ string) string
+	SettingsSpeechTrashConfirm               func(model string) string
+	SettingsSpeechTrashFailed                func(model string) string
+	SettingsSpeechTrashInUse                 func(model string) string
+	SettingsSpeechTrashMessage               func(size string) string
+	SidebarCommandsTooltip                   func(shortcut string) string
+	SidebarJobsActive                        func(count int) string
+	SidebarJobsFailed                        func(count int) string
+	SidebarLibraryCount                      func(name string, count int) string
+	SidebarMenuShowInFinder                  func(platform string) string
+	SidebarRevealLibrary                     func(name string, platform string) string
+	SidebarRowCount                          func(name string, count int) string
+	SidebarSwitcherLabel                     func(name string) string
+	SitesFound                               func(count int, source string) string
+	SitesIntro                               func(count int) string
+	SitesNotFound                            func(query string) string
+	SitesSource                              func(version string) string
+	SitesTileLabel                           func(name string, domain string) string
 }
 
 var supplied = map[string]Translation{}
@@ -1328,6 +1330,7 @@ const (
 	textMenuWindowPlayer
 	textMenuZoom
 	textOnboardingAIConfigured
+	textOnboardingAINeedsBaseURL
 	textOnboardingAINeedsKey
 	textOnboardingAddAndStart
 	textOnboardingAdded
@@ -1751,6 +1754,7 @@ const (
 	textSettingsSpeechDownload
 	textSettingsSpeechDownloadDisconnected
 	textSettingsSpeechDownloadDisconnectedMirror
+	textSettingsSpeechDownloadFromMirror
 	textSettingsSpeechDownloadMismatch
 	textSettingsSpeechDownloadStalled
 	textSettingsSpeechDownloadStalledMirror
@@ -2225,6 +2229,7 @@ var keyOfText = [numTexts]string{
 	"menuWindowPlayer",
 	"menuZoom",
 	"onboardingAIConfigured",
+	"onboardingAINeedsBaseURL",
 	"onboardingAINeedsKey",
 	"onboardingAddAndStart",
 	"onboardingAdded",
@@ -2648,6 +2653,7 @@ var keyOfText = [numTexts]string{
 	"settingsSpeechDownload",
 	"settingsSpeechDownloadDisconnected",
 	"settingsSpeechDownloadDisconnectedMirror",
+	"settingsSpeechDownloadFromMirror",
 	"settingsSpeechDownloadMismatch",
 	"settingsSpeechDownloadStalled",
 	"settingsSpeechDownloadStalledMirror",
@@ -3120,6 +3126,7 @@ var textsEn = i18n.NewTexts(""+
 	"Player"+
 	"Zoom"+
 	"Set up"+
+	"Enter the Base URL in Settings to translate"+
 	"Enter the service's API Key to translate"+
 	"Add and Start"+
 	"Added. Processing started."+
@@ -3474,7 +3481,7 @@ var textsEn = i18n.NewTexts(""+
 	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"keyboard keys commands"+
-	"whisper models download recognition transcription HuggingFace Vimpo hyperframes"+
+	"whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"+
 	"target language smart translation context prompt restore default"+
 	"Arabic"+
 	"Dutch"+
@@ -3542,10 +3549,11 @@ var textsEn = i18n.NewTexts(""+
 	"Choose Model File…"+
 	"Download"+
 	"The connection dropped. Check your network and download again."+
-	"The connection to Hugging Face failed. Check your network, or set Download Source to hf-mirror.com in Settings › Speech Recognition, and download again."+
+	"The connection to Hugging Face failed. Check your network, or download from hf-mirror.com."+
+	"Download from hf-mirror.com"+
 	"The downloaded file didn't match the model's checksum, so it was deleted. Download it again."+
 	"The download stopped receiving data. Download again to continue from where it stopped."+
-	"Hugging Face stopped sending data. Download again to continue from where it stopped, or set Download Source to hf-mirror.com in Settings › Speech Recognition."+
+	"Hugging Face stopped sending data. Download again to continue from where it stopped, or download from hf-mirror.com."+
 	"Downloaded"+
 	"Arabic"+
 	"German"+
@@ -4012,6 +4020,7 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		4,
 		6,
+		43,
 		40,
 		13,
 		26,
@@ -4366,7 +4375,7 @@ var textsEn = i18n.NewTexts(""+
 		226,
 		141,
 		22,
-		79,
+		161,
 		64,
 		6,
 		5,
@@ -4434,10 +4443,11 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		8,
 		62,
-		154,
+		90,
+		27,
 		92,
 		86,
-		160,
+		116,
 		10,
 		6,
 		6,
@@ -4907,6 +4917,7 @@ var textsJa = i18n.NewTexts(""+
 	"プレーヤー"+
 	"拡大/縮小"+
 	"設定済み"+
+	"翻訳するには設定で Base URL を入力してください"+
 	"翻訳するにはサービスの API Key を入力してください"+
 	"追加して開始"+
 	"追加して処理を開始しました。"+
@@ -5261,7 +5272,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"キーボード キー コマンド"+
-	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Vimpo hyperframes"+
+	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Hugging Face Vimpo hyperframes 認識する言語 話されている言語 ダウンロード元 ミラー hf-mirror.com モデルファイル ggml"+
 	"翻訳先の言語 スマート翻訳 文脈 プロンプト デフォルトに戻す"+
 	"アラビア語"+
 	"オランダ語"+
@@ -5329,10 +5340,11 @@ var textsJa = i18n.NewTexts(""+
 	"モデルファイルを選択…"+
 	"ダウンロード"+
 	"接続が切れました。ネットワークを確認して、もう一度ダウンロードしてください。"+
-	"Hugging Face に接続できませんでした。ネットワークを確認するか、「設定 › 音声認識」でダウンロード元を hf-mirror.com に変えて、もう一度ダウンロードしてください。"+
+	"Hugging Face に接続できませんでした。ネットワークを確認するか、hf-mirror.com からダウンロードしてください。"+
+	"hf-mirror.com からダウンロード"+
 	"ダウンロードしたファイルがモデルのチェックサムと一致しないため、削除しました。もう一度ダウンロードしてください。"+
 	"データが届かなくなり、ダウンロードが止まりました。もう一度ダウンロードすると、途中から再開します。"+
-	"Hugging Face からデータが届かなくなり、ダウンロードが止まりました。もう一度ダウンロードすると途中から再開します。「設定 › 音声認識」でダウンロード元を hf-mirror.com に変えることもできます。"+
+	"Hugging Face からデータが届かなくなり、ダウンロードが止まりました。もう一度ダウンロードすると途中から再開します。hf-mirror.com からダウンロードすることもできます。"+
 	"ダウンロード済み"+
 	"アラビア語"+
 	"ドイツ語"+
@@ -5799,6 +5811,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		13,
 		12,
+		64,
 		69,
 		18,
 		42,
@@ -6153,7 +6166,7 @@ var textsJa = i18n.NewTexts(""+
 		303,
 		163,
 		35,
-		89,
+		219,
 		85,
 		15,
 		15,
@@ -6221,10 +6234,11 @@ var textsJa = i18n.NewTexts(""+
 		33,
 		18,
 		114,
-		225,
+		147,
+		38,
 		168,
 		147,
-		270,
+		231,
 		24,
 		15,
 		12,
@@ -6694,6 +6708,7 @@ var textsKo = i18n.NewTexts(""+
 	"플레이어"+
 	"확대/축소"+
 	"설정됨"+
+	"번역하려면 설정에서 Base URL을 입력하십시오"+
 	"번역하려면 서비스의 API Key를 입력하십시오"+
 	"추가하고 시작"+
 	"추가하고 처리를 시작했습니다."+
@@ -7048,7 +7063,7 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"키보드 키 명령"+
-	"whisper 모델 다운로드 인식 전사 HuggingFace Vimpo hyperframes"+
+	"whisper 모델 다운로드 인식 전사 HuggingFace Hugging Face Vimpo hyperframes 인식 언어 다운로드 소스 미러 hf-mirror.com 모델 파일 ggml"+
 	"대상 언어 스마트 번역 문맥 프롬프트 기본값 복원"+
 	"아랍어"+
 	"네덜란드어"+
@@ -7116,10 +7131,11 @@ var textsKo = i18n.NewTexts(""+
 	"모델 파일 선택…"+
 	"다운로드"+
 	"연결이 끊어졌습니다. 네트워크를 확인한 뒤 다시 다운로드하세요."+
-	"Hugging Face에 연결하지 못했습니다. 네트워크를 확인하거나 ‘설정 › 음성 인식’에서 다운로드 소스를 hf-mirror.com으로 바꾼 뒤 다시 다운로드하세요."+
+	"Hugging Face에 연결하지 못했습니다. 네트워크를 확인하거나 hf-mirror.com에서 다운로드하세요."+
+	"hf-mirror.com에서 다운로드"+
 	"다운로드한 파일이 모델의 체크섬과 일치하지 않아 삭제했습니다. 다시 다운로드하세요."+
 	"데이터가 더 이상 오지 않아 다운로드가 멈췄습니다. 다시 다운로드하면 중단된 곳부터 이어받습니다."+
-	"Hugging Face에서 데이터가 더 이상 오지 않아 다운로드가 멈췄습니다. 다시 다운로드하면 중단된 곳부터 이어받습니다. ‘설정 › 음성 인식’에서 다운로드 소스를 hf-mirror.com으로 바꿀 수도 있습니다."+
+	"Hugging Face에서 데이터가 더 이상 오지 않아 다운로드가 멈췄습니다. 다시 다운로드하면 중단된 곳부터 이어받습니다. hf-mirror.com에서 다운로드할 수도 있습니다."+
 	"다운로드됨"+
 	"아랍어"+
 	"독일어"+
@@ -7586,6 +7602,7 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		13,
 		9,
+		59,
 		58,
 		19,
 		42,
@@ -7940,7 +7957,7 @@ var textsKo = i18n.NewTexts(""+
 		237,
 		158,
 		20,
-		71,
+		158,
 		67,
 		9,
 		15,
@@ -8008,10 +8025,11 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		12,
 		89,
-		198,
+		120,
+		32,
 		118,
 		136,
-		263,
+		212,
 		15,
 		9,
 		9,
@@ -8481,6 +8499,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"播放器"+
 	"缩放"+
 	"已设置"+
+	"在设置里填入 Base URL 才能翻译"+
 	"填入服务的 API Key 才能翻译"+
 	"加入并开始"+
 	"已加入，开始处理。"+
@@ -8835,7 +8854,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"键盘 按键 命令"+
-	"whisper 模型 下载 识别 HuggingFace Vimpo hyperframes"+
+	"whisper 模型 下载 识别 HuggingFace Hugging Face Vimpo hyperframes 识别语言 下载源 镜像 hf-mirror.com 模型文件 ggml"+
 	"目标语言 智能翻译 上下文 提示词 恢复默认"+
 	"العربية"+
 	"Nederlands"+
@@ -8903,10 +8922,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"选择模型文件…"+
 	"下载"+
 	"连接断了。检查网络后再下载一次。"+
-	"连接 Hugging Face 失败。检查网络，或在「设置 › 语音识别」里把下载源换成 hf-mirror.com，再下载一次。"+
+	"连接 Hugging Face 失败。检查网络，或从 hf-mirror.com 下载。"+
+	"从 hf-mirror.com 下载"+
 	"下载的文件与模型的校验值不符，已删除。请重新下载。"+
 	"下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"+
-	"Hugging Face 一直不发数据，下载停住了。重新下载会从断开的地方接着下，也可以在「设置 › 语音识别」里把下载源换成 hf-mirror.com。"+
+	"Hugging Face 一直不发数据，下载停住了。重新下载会从断开的地方接着下，也可以从 hf-mirror.com 下载。"+
 	"已下载"+
 	"阿拉伯语"+
 	"德语"+
@@ -9373,6 +9393,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		6,
 		9,
+		40,
 		36,
 		15,
 		27,
@@ -9727,7 +9748,7 @@ var textsZhHans = i18n.NewTexts(""+
 		207,
 		130,
 		20,
-		58,
+		133,
 		58,
 		14,
 		10,
@@ -9795,10 +9816,11 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		6,
 		48,
-		135,
+		74,
+		24,
 		75,
 		87,
-		176,
+		133,
 		9,
 		12,
 		6,
@@ -10268,6 +10290,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"播放器"+
 	"縮放"+
 	"已設定"+
+	"在設定中填入 Base URL 才能翻譯"+
 	"填入服務的 API Key 才能翻譯"+
 	"加入並開始"+
 	"已加入，開始處理。"+
@@ -10622,7 +10645,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"鍵盤 按鍵 指令"+
-	"whisper 模型 下載 辨識 HuggingFace Vimpo hyperframes"+
+	"whisper 模型 下載 辨識 HuggingFace Hugging Face Vimpo hyperframes 辨識語言 下載來源 鏡像 hf-mirror.com 模型檔案 ggml"+
 	"目標語言 智慧翻譯 上下文 提示詞 恢復預設"+
 	"العربية"+
 	"Nederlands"+
@@ -10690,10 +10713,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"選擇模型檔案…"+
 	"下載"+
 	"連線中斷了。檢查網路後再下載一次。"+
-	"連線 Hugging Face 失敗。檢查網路，或在「設定 › 語音辨識」中把下載來源換成 hf-mirror.com，再下載一次。"+
+	"連線 Hugging Face 失敗。檢查網路，或從 hf-mirror.com 下載。"+
+	"從 hf-mirror.com 下載"+
 	"下載的檔案與模型的校驗值不符，已刪除。請重新下載。"+
 	"下載停住了，一直收不到資料。重新下載會從中斷的地方接著下。"+
-	"Hugging Face 一直沒有傳來資料，下載停住了。重新下載會從中斷的地方接著下，也可以在「設定 › 語音辨識」中把下載來源換成 hf-mirror.com。"+
+	"Hugging Face 一直沒有傳來資料，下載停住了。重新下載會從中斷的地方接著下，也可以從 hf-mirror.com 下載。"+
 	"已下載"+
 	"阿拉伯語"+
 	"德語"+
@@ -11160,6 +11184,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		6,
 		9,
+		40,
 		36,
 		15,
 		27,
@@ -11514,7 +11539,7 @@ var textsZhHant = i18n.NewTexts(""+
 		201,
 		130,
 		20,
-		58,
+		136,
 		58,
 		14,
 		10,
@@ -11582,10 +11607,11 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		6,
 		51,
-		138,
+		74,
+		24,
 		75,
 		87,
-		185,
+		139,
 		9,
 		12,
 		6,
@@ -12438,6 +12464,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSpeechDownloadFailedStatus != nil {
 		s.SettingsSpeechDownloadFailedStatus = t.SettingsSpeechDownloadFailedStatus
+	}
+	if t.SettingsSpeechDownloadFailedStatusMirror != nil {
+		s.SettingsSpeechDownloadFailedStatusMirror = t.SettingsSpeechDownloadFailedStatusMirror
 	}
 	if t.SettingsSpeechDownloadProgress != nil {
 		s.SettingsSpeechDownloadProgress = t.SettingsSpeechDownloadProgress
@@ -19657,6 +19686,17 @@ func (msgs Messages) OnboardingAIModelUnchecked(model string) string {
 			return "翻譯模型：" + model + " · 使用本機登入的 EveryAPI，開始處理前會檢查登入狀態"
 		}
 	}
+}
+
+// OnboardingAINeedsBaseURL says "Enter the Base URL in Settings to translate"
+// in the language the app shows under cx.
+//
+// Second step's line about translation when the chosen service is a custom endpoint without a Base URL yet, which is typed in Settings › AI Service; the guide has no field for it, and its Settings… button opens that page. Keep Base URL as it is.
+func OnboardingAINeedsBaseURL(cx *core.Scope) string { return For(cx).OnboardingAINeedsBaseURL() }
+
+// OnboardingAINeedsBaseURL is the package's OnboardingAINeedsBaseURL in the language of msgs.
+func (msgs Messages) OnboardingAINeedsBaseURL() string {
+	return msgs.text(textOnboardingAINeedsBaseURL)
 }
 
 // OnboardingAINeedsKey says "Enter the service's API Key to translate"
@@ -27209,7 +27249,7 @@ func (msgs Messages) SettingsKeywordsShortcuts() string {
 	return msgs.text(textSettingsKeywordsShortcuts)
 }
 
-// SettingsKeywordsSpeech says "whisper models download recognition transcription HuggingFace Vimpo hyperframes"
+// SettingsKeywordsSpeech says "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"
 // in the language the app shows under cx.
 //
 // Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown.
@@ -27963,10 +28003,10 @@ func (msgs Messages) SettingsSpeechDownloadDisconnected() string {
 	return msgs.text(textSettingsSpeechDownloadDisconnected)
 }
 
-// SettingsSpeechDownloadDisconnectedMirror says "The connection to Hugging Face failed. Check your network, or set Download Source to hf-mirror.com in Settings › Speech Recognition, and download again."
+// SettingsSpeechDownloadDisconnectedMirror says "The connection to Hugging Face failed. Check your network, or download from hf-mirror.com."
 // in the language the app shows under cx.
 //
-// Error on the Speech Recognition page and in the guide: the connection to Hugging Face failed or broke off during a whisper model's download. hf-mirror.com is a mirror of Hugging Face reachable where Hugging Face often is not, as in mainland China; Download Source is the name of the Speech Recognition page's row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are.
+// Error on the Speech Recognition page and in the guide: the connection to Hugging Face failed or broke off during a whisper model's download. hf-mirror.com is a mirror of Hugging Face reachable where Hugging Face often is not, as in mainland China; the error is shown next to the button that downloads the model from there (settingsSpeechDownloadFromMirror). Keep hf-mirror.com and Hugging Face as they are.
 func SettingsSpeechDownloadDisconnectedMirror(cx *core.Scope) string {
 	return For(cx).SettingsSpeechDownloadDisconnectedMirror()
 }
@@ -28006,6 +28046,51 @@ func (msgs Messages) SettingsSpeechDownloadFailedStatus(status int) string {
 			return "伺服器回傳 HTTP " + i18n.FormatNumber("zh-Hant", float64(status)) + "，請稍後再試。"
 		}
 	}
+}
+
+// SettingsSpeechDownloadFailedStatusMirror says "Hugging Face answered HTTP {status}. Try again later, or download from hf-mirror.com."
+// in the language the app shows under cx.
+//
+// Error on the Speech Recognition page and in the guide: Hugging Face answered a whisper model's download with an error status, as it does where it is blocked. hf-mirror.com is a mirror of Hugging Face; the error is shown next to the button that downloads the model from there (settingsSpeechDownloadFromMirror). Keep hf-mirror.com and Hugging Face as they are.
+func SettingsSpeechDownloadFailedStatusMirror(cx *core.Scope, status int) string {
+	return For(cx).SettingsSpeechDownloadFailedStatusMirror(status)
+}
+
+// SettingsSpeechDownloadFailedStatusMirror is the package's SettingsSpeechDownloadFailedStatusMirror in the language of msgs.
+func (msgs Messages) SettingsSpeechDownloadFailedStatusMirror(status int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechDownloadFailedStatusMirror(status))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSpeechDownloadFailedStatusMirror; f != nil {
+			return f(status)
+		}
+		switch lang {
+		case "", "en":
+			return "Hugging Face answered HTTP " + msgs.arg(i18n.FormatNumber("en", float64(status))) + ". Try again later, or download from hf-mirror.com."
+		case "ja":
+			return "Hugging Face が HTTP " + i18n.FormatNumber("ja", float64(status)) + " を返しました。しばらくしてからもう一度お試しいただくか、hf-mirror.com からダウンロードしてください。"
+		case "ko":
+			return "Hugging Face가 HTTP " + i18n.FormatNumber("ko", float64(status)) + " 오류를 반환했습니다. 잠시 후 다시 시도하거나 hf-mirror.com에서 다운로드하세요."
+		case "zh-Hans":
+			return "Hugging Face 返回 HTTP " + i18n.FormatNumber("zh-Hans", float64(status)) + "。请稍后再试，或从 hf-mirror.com 下载。"
+		case "zh-Hant":
+			return "Hugging Face 回傳 HTTP " + i18n.FormatNumber("zh-Hant", float64(status)) + "。請稍後再試，或從 hf-mirror.com 下載。"
+		}
+	}
+}
+
+// SettingsSpeechDownloadFromMirror says "Download from hf-mirror.com"
+// in the language the app shows under cx.
+//
+// Button next to the error of a whisper model's download from Hugging Face that failed, on the Speech Recognition page and in the guide: sets the download source to hf-mirror.com, a mirror of Hugging Face, and downloads the model again from there. Keep hf-mirror.com as it is.
+func SettingsSpeechDownloadFromMirror(cx *core.Scope) string {
+	return For(cx).SettingsSpeechDownloadFromMirror()
+}
+
+// SettingsSpeechDownloadFromMirror is the package's SettingsSpeechDownloadFromMirror in the language of msgs.
+func (msgs Messages) SettingsSpeechDownloadFromMirror() string {
+	return msgs.text(textSettingsSpeechDownloadFromMirror)
 }
 
 // SettingsSpeechDownloadMismatch says "The downloaded file didn't match the model's checksum, so it was deleted. Download it again."
@@ -28066,10 +28151,10 @@ func (msgs Messages) SettingsSpeechDownloadStalled() string {
 	return msgs.text(textSettingsSpeechDownloadStalled)
 }
 
-// SettingsSpeechDownloadStalledMirror says "Hugging Face stopped sending data. Download again to continue from where it stopped, or set Download Source to hf-mirror.com in Settings › Speech Recognition."
+// SettingsSpeechDownloadStalledMirror says "Hugging Face stopped sending data. Download again to continue from where it stopped, or download from hf-mirror.com."
 // in the language the app shows under cx.
 //
-// Error on the Speech Recognition page and in the guide: no data arrived from Hugging Face for a long while during a whisper model's download; downloading again resumes it. hf-mirror.com is a mirror of Hugging Face; Download Source is the name of the row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are.
+// Error on the Speech Recognition page and in the guide: no data arrived from Hugging Face for a long while during a whisper model's download; downloading again resumes it. hf-mirror.com is a mirror of Hugging Face; the error is shown next to the button that downloads the model from there (settingsSpeechDownloadFromMirror). Keep hf-mirror.com and Hugging Face as they are.
 func SettingsSpeechDownloadStalledMirror(cx *core.Scope) string {
 	return For(cx).SettingsSpeechDownloadStalledMirror()
 }

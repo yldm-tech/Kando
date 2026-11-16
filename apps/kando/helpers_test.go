@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"image"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -126,6 +131,7 @@ func newTestApp(t *testing.T, p media.Pipeline, opts ...nsgotest.Option) (*app, 
 	updates := make(chan func(), 16)
 	a := newApp(p, func(fn func()) { updates <- fn })
 	a.prefs.listModels = offlineModels
+	a.prefs.pingLLM = offlinePing
 	a.prefs.interfaceLanguage = testlocale.Current()
 	a.edit(func(s *session) { s.LibraryDir = "/videos" })
 	opts = append([]nsgotest.Option{nsgotest.Size(1100, 720), nsgotest.Environment(testEnvironment())}, opts...)
@@ -404,6 +410,30 @@ func offlineModels(_ context.Context, t media.ChatTranslator) ([]string, error) 
 	return []string{t.Model}, nil
 }
 
+// offlinePing stands in for the connection test in tests, which reach no network: it asks a service on this computer, as a test's httptest server, and no other.
+func offlinePing(ctx context.Context, t media.ChatTranslator) error {
+	client := http.Client{Transport: loopbackOnly{}}
+	if t.Client != nil {
+		client = *t.Client
+		client.Transport = loopbackOnly{next: t.Client.Transport}
+	}
+	t.Client = &client
+	return t.Ping(ctx)
+}
+
+// loopbackOnly sends a request on to next, or the default transport, only when it goes to this computer.
+type loopbackOnly struct{ next http.RoundTripper }
+
+func (l loopbackOnly) RoundTrip(r *http.Request) (*http.Response, error) {
+	if ip := net.ParseIP(r.URL.Hostname()); r.URL.Hostname() != "localhost" && (ip == nil || !ip.IsLoopback()) {
+		return nil, errors.New("tests reach no network: " + r.URL.Host)
+	}
+	if l.next == nil {
+		return http.DefaultTransport.RoundTrip(r)
+	}
+	return l.next.RoundTrip(r)
+}
+
 // clickRow puts the keyboard in the field of the form row labeled label, as a click on the row does, and fails t unless the field took the focus.
 func clickRow(t *testing.T, tt *nsgotest.App, label string) {
 	t.Helper()
@@ -502,4 +532,25 @@ func serveSpeechModels(t *testing.T, url string, data []byte, sources *[]string)
 		return model, ok
 	}
 	t.Cleanup(func() { whisperModelBaseURL, speechModelFor = oldURL, oldModel })
+}
+
+// mirrorOnlyServer is Hugging Face where it cannot be reached and hf-mirror.com where it can: a download from Hugging Face is refused with 451, one from the mirror gets data. It points the whisper model downloads at itself, and records the download source of every download in sources.
+func mirrorOnlyServer(t *testing.T, data []byte, sources *[]string) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/mirror/") {
+			http.Error(w, "unavailable for legal reasons", http.StatusUnavailableForLegalReasons)
+			return
+		}
+		http.ServeContent(w, r, "ggml-tiny.bin", time.Time{}, bytes.NewReader(data))
+	}))
+	t.Cleanup(srv.Close)
+	serveSpeechModels(t, srv.URL, data, sources)
+	whisperModelBaseURL = func(source string) string {
+		*sources = append(*sources, source)
+		if source == media.SpeechSourceMirror {
+			return srv.URL + "/mirror"
+		}
+		return srv.URL + "/huggingface"
+	}
 }

@@ -82,6 +82,9 @@ type App interface {
 	DownloadWritten() int64
 	DownloadTotal() int64
 	DownloadErr() string
+	// DownloadMirror reports whether the download DownloadErr is about failed where hf-mirror.com may get the model, as when Hugging Face could not be reached or refused it; DownloadFromMirror makes hf-mirror.com the download source and downloads that model again from there.
+	DownloadMirror() bool
+	DownloadFromMirror()
 	CancelDownload()
 	DownloadModel(id string)
 	// OwnsSpeechModel reports whether the file of the whisper catalog model id is one Kando downloaded into its own models folder, which it may move to the Trash; a model another app keeps is that app's. AskTrashSpeechModel opens the confirmation of moving it to the Trash, TrashingSpeechModel reports whether that confirmation is open and the model it asks about, CloseTrashSpeechModel closes it, giving back what it held, and TrashSpeechModel moves the file, refusing the model in use, another app's and any while a download runs.

@@ -50,8 +50,15 @@ func (p speech) Render(cx *core.Scope) core.Node {
 	}}
 	// One radio group, so that Tab stops once in it and the arrows choose among the models on disk.
 	group := ui.RadioGroup{Label: locales.SettingsSpeechModels(cx), Children: []core.Node{form.Card(rows...), more}, Style: core.Style{Gap: 6, AlignItems: core.AlignStretch}}
+	// failed is why the last download failed, with 从 hf-mirror.com 下载 after it when Hugging Face could not be reached or refused it.
 	failed := core.Show{When: live.Func(a, func() bool { return a.DownloadErr() != "" }), Then: func(cx *core.Scope) core.Node {
-		return core.Text{ContentFunc: live.Func(a, a.DownloadErr), Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
+		mirror := core.Show{When: live.Func(a, a.DownloadMirror), Then: func(cx *core.Scope) core.Node {
+			return form.Button{TextFunc: func() string { return locales.SettingsSpeechDownloadFromMirror(cx) }, TestID: "settings-download-mirror", OnPress: live.Do(a, a.DownloadFromMirror)}
+		}}
+		return core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 12)}, Children: []core.Node{
+			core.Text{ContentFunc: live.Func(a, a.DownloadErr), Style: core.Style{FontSize: 11, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Danger)},
+			mirror,
+		}}
 	}}
 	choose := form.Button{Text: locales.SettingsSpeechChooseFile(cx), TestID: "settings-model-choose-file", OnPress: live.Do(a, a.PickSpeechModel)}
 	return form.Page(
