@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -42,6 +43,26 @@ func TestSaveLineKeepsItInTheLibrary(t *testing.T) {
 	tt.Key("b")
 	if book, _ := saved.Load(dir); len(book.Lines) != 0 || a.LineSaved(0) || a.player.film.osd != a.messages().SavedOsdRemoved() {
 		t.Fatalf("B again left %+v, the picture says %q", book.Lines, a.player.film.osd)
+	}
+}
+
+// TestSavedLineTakesItsTranslationLater saves a line of the open film that has no translation yet, as while the film is still being translated, and reads the film's subtitles again with the line translated: the saved line takes the translation, in saved-lines.json as well; a translated line saved before keeps the one it was saved with.
+func TestSavedLineTakesItsTranslationLater(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	playerPlayTo(tt, a, 4500*time.Millisecond)
+	tt.Key("b")
+	translated := slices.Clone(a.player.subs.cues)
+	translated[0].Text = "您好。\nHello."
+	translated[1].Text = "再见。\nBye."
+	apply(tt, a, func() { a.player.subs.cues = translated })
+	book, _ := saved.Load(a.snap().LibraryDir)
+	if len(book.Lines) != 2 || book.Lines[0].Original != "Bye." || book.Lines[0].Translation != "再见。" || book.Lines[1].Translation != "你好。" {
+		t.Fatalf("saved-lines.json holds %+v", book.Lines)
+	}
+	if lines := a.savedBook().Lines; lines[0].Translation != "再见。" {
+		t.Fatalf("the saved lines hold %+v", lines)
 	}
 }
 
@@ -173,7 +194,8 @@ func TestReviewSchedulesTheLines(t *testing.T) {
 	}
 	tt.Key("space")
 	tt.Key("1")
-	if !tt.Exists("id:review >> " + whole("Bye.")) {
+	// Bye. has no translation, so there is nothing to show first: it is answered at once.
+	if !tt.Exists("id:review >> "+whole("Bye.")) || !tt.Exists("id:review-good") || tt.Exists("id:review-show") {
 		t.Fatalf("after Again the review shows %q", tt.Texts())
 	}
 	tt.Key("space")

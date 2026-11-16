@@ -127,7 +127,8 @@ func (a *app) ReviewCard() study.Card {
 	if f, ok := a.savedFilm(l); ok && f.Name != "" {
 		c.Film = f.Name
 	}
-	c.Revealed = r.revealed
+	// A line with no translation has nothing to reveal: it is answered at once.
+	c.Revealed = r.revealed || l.Translation == ""
 	c.Clip = clip
 	c.NoAudio = cut && clip == ""
 	c.Playing = r.playing && clip != ""
