@@ -35,7 +35,7 @@ func (f *fakeApp) PaletteEvent(ev Event) {
 	case ev.Close, ev.Toggle:
 		f.open = false
 	case ev.Move != 0:
-		rows := len(f.view.Lines) + len(f.view.Commands)
+		rows := len(f.view.Films) + len(f.view.Lines) + len(f.view.Commands)
 		if f.view.Ask != "" {
 			rows++
 		}
@@ -54,7 +54,7 @@ func (f *fakeApp) last(t *testing.T) Event {
 
 func newFakeApp() *fakeApp {
 	return &fakeApp{open: true, view: View{
-		Placeholder: "命令或看过的台词…",
+		Placeholder: "影片、命令或看过的台词…",
 		Footer:      "输入以搜索",
 		Lines:       []Line{{At: "0:00.4", Translation: "每条河都始于高山上的一股细流。", Original: "Every river begins as a trickle.", Film: "rivers"}},
 		Commands:    []Command{{Label: "打开本地视频…", Key: "mod+o"}, {Label: "返回片库", Key: "escape"}, {Label: "设置 › AI 服务"}},
@@ -64,7 +64,13 @@ func newFakeApp() *fakeApp {
 // start shows a's palette over a window of 1100×720 on a Mac, in testlocale's language.
 func start(t *testing.T, a *fakeApp, height core.Points) *nsgotest.App {
 	t.Helper()
-	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+	return startIn(t, a, height, core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+}
+
+// startIn is start in env.
+func startIn(t *testing.T, a *fakeApp, height core.Points, env core.Environment) *nsgotest.App {
+	t.Helper()
+	env = testlocale.Environment(env)
 	return nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a.Attach(cx)
 		return Palette{App: a}
@@ -88,7 +94,7 @@ func TestPaletteShowsTheLinesAndCommands(t *testing.T) {
 		}
 	}
 	field := app.Find("id:palette-field")
-	if !field.Focused || field.Input.Placeholder != "命令或看过的台词…" {
+	if !field.Focused || field.Input.Placeholder != "影片、命令或看过的台词…" {
 		t.Fatalf("field focused %v, placeholder %q", field.Focused, field.Input.Placeholder)
 	}
 	change(app, a, func() { a.open = false })
@@ -130,7 +136,7 @@ func TestPaletteReportsTheKeys(t *testing.T) {
 func TestPalettePicksTheRowClicked(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a, 720)
-	app.Press("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle.")
+	app.Press("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle. rivers")
 	if ev := a.last(t); ev.Pick != 0 {
 		t.Fatalf("a click on the line: %+v", ev)
 	}
@@ -161,14 +167,14 @@ func TestPaletteAskRowComesFirst(t *testing.T) {
 	if got := app.Find(a.view.Ask).Style.Background; got != selected {
 		t.Fatalf("the ask row's background is %v, want %v", got, selected)
 	}
-	if got := app.Find("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle.").Style.Background; got == selected {
+	if got := app.Find("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle. rivers").Style.Background; got == selected {
 		t.Fatal("the line is highlighted with the ask row")
 	}
 	app.Press(a.view.Ask)
 	if ev := a.last(t); ev.Pick != 0 {
 		t.Fatalf("a click on the ask row: %+v", ev)
 	}
-	app.Press("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle.")
+	app.Press("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle. rivers")
 	if ev := a.last(t); ev.Pick != 1 {
 		t.Fatalf("a click on the line: %+v", ev)
 	}
@@ -278,5 +284,59 @@ func TestPaletteStaysWhileTheAppChanges(t *testing.T) {
 	})
 	if !app.Exists(`text:"0:30.4"`) || app.Exists(`text:"0:00.4"`) {
 		t.Fatalf("the palette does not follow its lines: %q", app.Texts())
+	}
+}
+
+// TestPaletteFilmsComeBeforeTheLines checks that the films found are drawn under their heading after the row that asks the film and before the lines, counted in that order.
+func TestPaletteFilmsComeBeforeTheLines(t *testing.T) {
+	a := newFakeApp()
+	a.view.Ask = "问这部影片：“河”"
+	a.view.Films = []string{"Rivers of Europe", "River Deltas"}
+	app := start(t, a, 720)
+	if !app.Exists(`text:"` + testlocale.Messages().PaletteHeadingFilms() + `"`) {
+		t.Fatalf("no films heading in %q", app.Texts())
+	}
+	app.Press("River Deltas")
+	if ev := a.last(t); ev.Pick != 2 {
+		t.Fatalf("a click on the second film: %+v", ev)
+	}
+	app.Press("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle. rivers")
+	if ev := a.last(t); ev.Pick != 3 {
+		t.Fatalf("a click on the line after two films: %+v", ev)
+	}
+	change(app, a, func() { a.view.Selected = 1 })
+	if got := app.Find("Rivers of Europe").Style.Background; got != selected {
+		t.Fatalf("the first film's background is %v at 1, want %v", got, selected)
+	}
+}
+
+// TestPaletteTellsTheScreenReaderTheHighlight checks that the rows report which is highlighted, and that with a screen reader running ↑ and ↓, which leave the keyboard in the field, have it say the row they move to, a line's both texts and its film among it.
+func TestPaletteTellsTheScreenReaderTheHighlight(t *testing.T) {
+	a := newFakeApp()
+	line := "0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle. rivers"
+	app := startIn(t, a, 720, core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true, ScreenReader: true})
+	if !app.Find(line).Props.Selected || app.Find("打开本地视频…").Props.Selected {
+		t.Fatal("the rows do not report the highlighted one")
+	}
+	app.Key("down")
+	if !app.Find("打开本地视频…").Props.Selected || app.Find(line).Props.Selected {
+		t.Fatal("the rows do not report the highlight ↓ moved")
+	}
+	if n := len(app.Announced); n == 0 || app.Announced[n-1] != "打开本地视频…" {
+		t.Fatalf("↓ announced %q", app.Announced)
+	}
+	app.Key("up")
+	if n := len(app.Announced); app.Announced[n-1] != line {
+		t.Fatalf("↑ announced %q", app.Announced)
+	}
+}
+
+// TestPaletteAnswerIsALiveRegion checks that a screen reader reads the answer as it comes, the keyboard staying in the field meanwhile.
+func TestPaletteAnswerIsALiveRegion(t *testing.T) {
+	a := newFakeApp()
+	a.view.Answer = &Answer{Busy: true, Text: "正在问 m1…"}
+	app := start(t, a, 720)
+	if got := app.Find(`text:"正在问 m1…"`).Props.LiveRegion; got != core.LiveRegionPolite {
+		t.Fatalf("the answer's live region is %v", got)
 	}
 }

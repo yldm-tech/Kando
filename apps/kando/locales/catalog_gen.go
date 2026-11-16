@@ -447,7 +447,7 @@ var Parameters = map[string][]string{
 	"FeedbackToolsDetail":                {"tools", "speech", "translator"},
 	"FeedbackTruncated":                  {"count"},
 	"FilmBytes":                          {"count"},
-	"FilmClip":                           {"number"},
+	"FilmClip":                           {"number", "start", "end", "title"},
 	"FilmClipSpan":                       {"number", "start", "end"},
 	"FilmFaceBold":                       {"line"},
 	"FilmFaceColor":                      {"line", "color"},
@@ -455,6 +455,7 @@ var Parameters = map[string][]string{
 	"FilmLineOf":                         {"line", "total"},
 	"FilmLoopLines":                      {"from", "to"},
 	"FilmMatchOf":                        {"number", "total"},
+	"FilmRevealFile":                     {"file"},
 	"FilmSeconds":                        {"seconds"},
 	"FilmShowInFinder":                   {"platform"},
 	"FilmSkipBack":                       {"seconds"},
@@ -470,6 +471,7 @@ var Parameters = map[string][]string{
 	"FilmsLinkChannel":                   {"site"},
 	"FilmsLinkPlaylist":                  {"site"},
 	"FilmsLocalVideoTooltip":             {"shortcut"},
+	"FilmsMoreActions":                   {"film"},
 	"FilmsNewLibraryNote":                {"platform"},
 	"FilmsNoLibraryDescription":          {"platform"},
 	"FilmsPosterBilingual":               {"language"},
@@ -662,7 +664,7 @@ type Translation struct {
 	FeedbackToolsDetail                func(tools string, speech string, translator string) string
 	FeedbackTruncated                  func(count int) string
 	FilmBytes                          func(count int) string
-	FilmClip                           func(number int) string
+	FilmClip                           func(number int, start string, end string, title string) string
 	FilmClipSpan                       func(number int, start string, end string) string
 	FilmFaceBold                       func(line string) string
 	FilmFaceColor                      func(line string, color string) string
@@ -670,6 +672,7 @@ type Translation struct {
 	FilmLineOf                         func(line int, total int) string
 	FilmLoopLines                      func(from int, to int) string
 	FilmMatchOf                        func(number int, total int) string
+	FilmRevealFile                     func(file string) string
 	FilmSeconds                        func(seconds string) string
 	FilmShowInFinder                   func(platform string) string
 	FilmSkipBack                       func(seconds int) string
@@ -685,6 +688,7 @@ type Translation struct {
 	FilmsLinkChannel                   func(site string) string
 	FilmsLinkPlaylist                  func(site string) string
 	FilmsLocalVideoTooltip             func(shortcut string) string
+	FilmsMoreActions                   func(film string) string
 	FilmsNewLibraryNote                func(platform string) string
 	FilmsNoLibraryDescription          func(platform string) string
 	FilmsPosterBilingual               func(language string) string
@@ -1087,7 +1091,6 @@ const (
 	textFilmsLinkLabel
 	textFilmsLinkPlaceholder
 	textFilmsLocalVideo
-	textFilmsMoreActions
 	textFilmsNewLibraryEllipsis
 	textFilmsNewLibraryName
 	textFilmsNewLibraryPlace
@@ -1269,6 +1272,7 @@ const (
 	textPaletteFooter
 	textPaletteHeadingAnswer
 	textPaletteHeadingCommands
+	textPaletteHeadingFilms
 	textPaletteHeadingLines
 	textPaletteMenuItem
 	textPaletteNoAI
@@ -1903,7 +1907,6 @@ var keyOfText = [numTexts]string{
 	"filmsLinkLabel",
 	"filmsLinkPlaceholder",
 	"filmsLocalVideo",
-	"filmsMoreActions",
 	"filmsNewLibraryEllipsis",
 	"filmsNewLibraryName",
 	"filmsNewLibraryPlace",
@@ -2085,6 +2088,7 @@ var keyOfText = [numTexts]string{
 	"paletteFooter",
 	"paletteHeadingAnswer",
 	"paletteHeadingCommands",
+	"paletteHeadingFilms",
 	"paletteHeadingLines",
 	"paletteMenuItem",
 	"paletteNoAI",
@@ -2717,7 +2721,6 @@ var textsEn = i18n.NewTexts(""+
 	"Video Link"+
 	"Paste a video link from YouTube, Bilibili and more"+
 	"Local Video"+
-	"More Actions"+
 	"New Library…"+
 	"Name"+
 	"Location"+
@@ -2896,17 +2899,18 @@ var textsEn = i18n.NewTexts(""+
 	"Welcome to Kando"+
 	"Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."+
 	"Commands, lines or questions"+
-	"Type to search commands and watched lines · ↑↓ to select · Return to run"+
+	"Type to search films, commands and watched lines · ↑↓ to select · Return to run"+
 	"Answer"+
 	"Commands"+
+	"Films"+
 	"Lines"+
 	"Ask This Film / Commands…"+
 	"Answering questions needs an AI service. Choose a model in “AI Service” first."+
 	"Open AI Service Settings"+
 	"This film has no subtitles yet, so it can't be answered."+
 	"You haven't started watching this film. Play some of it first, then ask."+
-	"No commands or watched lines found."+
-	"Commands or watched lines…"+
+	"No films, commands or watched lines found."+
+	"Films, commands or watched lines…"+
 	"Commands, lines, or ask this film…"+
 	"Playing a video"+
 	"Copy Current Line"+
@@ -3528,7 +3532,6 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		50,
 		11,
-		12,
 		14,
 		4,
 		8,
@@ -3707,17 +3710,18 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		113,
 		28,
-		78,
+		85,
 		6,
 		8,
+		5,
 		5,
 		27,
 		82,
 		24,
 		56,
 		72,
+		42,
 		35,
-		28,
 		36,
 		15,
 		17,
@@ -4342,7 +4346,6 @@ var textsJa = i18n.NewTexts(""+
 	"動画のリンク"+
 	"YouTube や bilibili などの動画リンクを貼り付け"+
 	"ローカル動画"+
-	"その他の操作"+
 	"新規ライブラリ…"+
 	"名前"+
 	"場所"+
@@ -4521,17 +4524,18 @@ var textsJa = i18n.NewTexts(""+
 	"Kando へようこそ"+
 	"YouTube や bilibili のリンクを貼り付けるか、ローカル動画をドラッグすれば、観ながら学べます。まず言語を選びましょう。"+
 	"コマンド、セリフ、または質問"+
-	"入力するとコマンドと見たセリフを検索 · ↑↓ で選択 · Return で実行"+
+	"入力すると動画、コマンド、見たセリフを検索 · ↑↓ で選択 · Return で実行"+
 	"回答"+
 	"コマンド"+
+	"動画"+
 	"セリフ"+
 	"この動画に質問 / コマンド…"+
 	"質問に答えるには AI サービスが必要です。まず「AI サービス」でモデルを選んでください。"+
 	"「AI サービス」設定を開く"+
 	"この動画にはまだ字幕がないため、答えられません。"+
 	"この動画はまだ見始めていません。少し再生してから質問してください。"+
-	"コマンドも見たセリフも見つかりません。"+
-	"コマンドまたは見たセリフ…"+
+	"動画もコマンドも見たセリフも見つかりません。"+
+	"動画、コマンド、または見たセリフ…"+
 	"コマンド、セリフ、またはこの動画に質問…"+
 	"動画を再生中"+
 	"現在のセリフをコピー"+
@@ -5153,7 +5157,6 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		60,
 		18,
-		18,
 		24,
 		6,
 		6,
@@ -5332,17 +5335,18 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		165,
 		42,
-		94,
+		103,
 		6,
 		12,
+		6,
 		9,
 		39,
 		124,
 		36,
 		72,
 		99,
-		57,
-		39,
+		66,
+		51,
 		60,
 		18,
 		30,
@@ -5967,7 +5971,6 @@ var textsKo = i18n.NewTexts(""+
 	"동영상 링크"+
 	"YouTube, Bilibili 등의 동영상 링크 붙여넣기"+
 	"로컬 동영상"+
-	"기타 동작"+
 	"새로운 라이브러리…"+
 	"이름"+
 	"위치"+
@@ -6146,17 +6149,18 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에 오신 것을 환영합니다"+
 	"YouTube, Bilibili 링크를 붙여 넣거나 로컬 동영상을 끌어다 놓으면 보면서 배울 수 있습니다. 먼저 언어를 선택하세요."+
 	"명령, 대사 또는 질문"+
-	"입력하면 명령과 본 대사 검색 · ↑↓ 선택 · Return 실행"+
+	"입력하면 영상, 명령, 본 대사 검색 · ↑↓ 선택 · Return 실행"+
 	"답변"+
 	"명령"+
+	"영상"+
 	"대사"+
 	"이 영상에 질문 / 명령…"+
 	"질문에 답하려면 AI 서비스가 필요합니다. 먼저 ‘AI 서비스’에서 모델을 선택하십시오."+
 	"AI 서비스 설정 열기"+
 	"이 영상에는 아직 자막이 없어 답할 수 없습니다."+
 	"이 영상은 아직 보기 시작하지 않았습니다. 조금 재생한 다음 질문하십시오."+
-	"명령이나 본 대사를 찾지 못했습니다."+
-	"명령 또는 본 대사…"+
+	"영상이나 명령, 본 대사를 찾지 못했습니다."+
+	"영상, 명령 또는 본 대사…"+
 	"명령, 대사 또는 이 영상에 질문…"+
 	"동영상 재생 중"+
 	"현재 대사 복사"+
@@ -6778,7 +6782,6 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		54,
 		16,
-		13,
 		28,
 		6,
 		6,
@@ -6957,7 +6960,8 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		153,
 		28,
-		74,
+		80,
+		6,
 		6,
 		6,
 		6,
@@ -6966,8 +6970,8 @@ var textsKo = i18n.NewTexts(""+
 		26,
 		65,
 		101,
-		50,
-		27,
+		58,
+		35,
 		45,
 		20,
 		20,
@@ -7592,7 +7596,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"视频链接"+
 	"粘贴 YouTube、哔哩哔哩等视频链接"+
 	"本地视频"+
-	"更多操作"+
 	"新建资料库…"+
 	"名称"+
 	"位置"+
@@ -7771,17 +7774,18 @@ var textsZhHans = i18n.NewTexts(""+
 	"欢迎使用看懂"+
 	"粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"+
 	"命令、台词或问题"+
-	"打字时搜命令和看过的台词 · ↑↓ 选择 · Return 执行"+
+	"打字时搜影片、命令和看过的台词 · ↑↓ 选择 · Return 执行"+
 	"回答"+
 	"命令"+
+	"影片"+
 	"台词"+
 	"问这部影片 / 命令…"+
 	"回答问题要用 AI 服务，先在「AI 服务」里选好一个模型。"+
 	"打开「AI 服务」设置"+
 	"这部影片还没有字幕，没法回答。"+
 	"这部影片还没开始看。先播放一段，再来问。"+
-	"没有找到命令或看过的台词。"+
-	"命令或看过的台词…"+
+	"没有找到影片、命令或看过的台词。"+
+	"影片、命令或看过的台词…"+
 	"命令、台词，或直接问这部影片…"+
 	"正在播放视频"+
 	"拷贝当前台词"+
@@ -8403,7 +8407,6 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		44,
 		12,
-		12,
 		18,
 		6,
 		6,
@@ -8582,7 +8585,8 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		98,
 		24,
-		70,
+		79,
+		6,
 		6,
 		6,
 		6,
@@ -8591,8 +8595,8 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		45,
 		60,
-		39,
-		27,
+		48,
+		36,
 		45,
 		18,
 		18,
@@ -9217,7 +9221,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"影片連結"+
 	"貼上 YouTube、嗶哩嗶哩等影片連結"+
 	"本機影片"+
-	"更多動作"+
 	"新增資料庫…"+
 	"名稱"+
 	"位置"+
@@ -9396,17 +9399,18 @@ var textsZhHant = i18n.NewTexts(""+
 	"歡迎使用看懂"+
 	"貼上 YouTube、嗶哩嗶哩連結或拖入本機影片，就能邊看邊學。先選好語言。"+
 	"指令、台詞或問題"+
-	"輸入時搜尋指令和看過的台詞 · ↑↓ 選擇 · Return 執行"+
+	"輸入時搜尋影片、指令和看過的台詞 · ↑↓ 選擇 · Return 執行"+
 	"回答"+
 	"指令"+
+	"影片"+
 	"台詞"+
 	"問這部影片 / 指令…"+
 	"回答問題需要 AI 服務，請先在「AI 服務」中選好一個模型。"+
 	"打開「AI 服務」設定"+
 	"這部影片還沒有字幕，無法回答。"+
 	"這部影片還沒開始看。先播放一段，再來問。"+
-	"沒有找到指令或看過的台詞。"+
-	"指令或看過的台詞…"+
+	"沒有找到影片、指令或看過的台詞。"+
+	"影片、指令或看過的台詞…"+
 	"指令、台詞，或直接問這部影片…"+
 	"正在播放影片"+
 	"拷貝目前台詞"+
@@ -10028,7 +10032,6 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		44,
 		12,
-		12,
 		18,
 		6,
 		6,
@@ -10207,7 +10210,8 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		98,
 		24,
-		73,
+		82,
+		6,
 		6,
 		6,
 		6,
@@ -10216,8 +10220,8 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		45,
 		60,
-		39,
-		27,
+		48,
+		36,
 		45,
 		18,
 		18,
@@ -10756,6 +10760,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmMatchOf != nil {
 		s.FilmMatchOf = t.FilmMatchOf
 	}
+	if t.FilmRevealFile != nil {
+		s.FilmRevealFile = t.FilmRevealFile
+	}
 	if t.FilmSeconds != nil {
 		s.FilmSeconds = t.FilmSeconds
 	}
@@ -10800,6 +10807,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsLocalVideoTooltip != nil {
 		s.FilmsLocalVideoTooltip = t.FilmsLocalVideoTooltip
+	}
+	if t.FilmsMoreActions != nil {
+		s.FilmsMoreActions = t.FilmsMoreActions
 	}
 	if t.FilmsNewLibraryNote != nil {
 		s.FilmsNewLibraryNote = t.FilmsNewLibraryNote
@@ -13068,32 +13078,34 @@ func FilmCancel(cx *core.Scope) string { return For(cx).FilmCancel() }
 // FilmCancel is the package's FilmCancel in the language of msgs.
 func (msgs Messages) FilmCancel() string { return msgs.text(textFilmCancel) }
 
-// FilmClip says "Clip {number}"
+// FilmClip says "Clip {number}, {start}–{end}: {title}"
 // in the language the app shows under cx.
 //
-// Accessible name of a clip in the Clips tab.
-func FilmClip(cx *core.Scope, number int) string { return For(cx).FilmClip(number) }
+// Accessible name of a clip in the Clips tab: its number, the times it starts and ends, and the line it is named after.
+func FilmClip(cx *core.Scope, number int, start string, end string, title string) string {
+	return For(cx).FilmClip(number, start, end, title)
+}
 
 // FilmClip is the package's FilmClip in the language of msgs.
-func (msgs Messages) FilmClip(number int) string {
+func (msgs Messages) FilmClip(number int, start string, end string, title string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmClip(number))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmClip(number, start, end, title))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].FilmClip; f != nil {
-			return f(number)
+			return f(number, start, end, title)
 		}
 		switch lang {
 		case "", "en":
-			return "Clip " + msgs.arg(i18n.FormatNumber("en", float64(number)))
+			return "Clip " + msgs.arg(i18n.FormatNumber("en", float64(number))) + ", " + msgs.arg(start) + "–" + msgs.arg(end) + ": " + msgs.arg(title)
 		case "ja":
-			return "クリップ " + i18n.FormatNumber("ja", float64(number))
+			return "クリップ " + i18n.FormatNumber("ja", float64(number)) + "、" + start + "–" + end + "：" + title
 		case "ko":
-			return "클립 " + i18n.FormatNumber("ko", float64(number))
+			return "클립 " + i18n.FormatNumber("ko", float64(number)) + ", " + start + "–" + end + ": " + title
 		case "zh-Hans":
-			return "片段 " + i18n.FormatNumber("zh-Hans", float64(number))
+			return "片段 " + i18n.FormatNumber("zh-Hans", float64(number)) + "，" + start + "–" + end + "：" + title
 		case "zh-Hant":
-			return "片段 " + i18n.FormatNumber("zh-Hant", float64(number))
+			return "片段 " + i18n.FormatNumber("zh-Hant", float64(number)) + "，" + start + "–" + end + "：" + title
 		}
 	}
 }
@@ -13967,6 +13979,36 @@ func FilmReveal(cx *core.Scope) string { return For(cx).FilmReveal() }
 
 // FilmReveal is the package's FilmReveal in the language of msgs.
 func (msgs Messages) FilmReveal() string { return msgs.text(textFilmReveal) }
+
+// FilmRevealFile says "Show {file}"
+// in the language the app shows under cx.
+//
+// Accessible name of the Show button on a file of the Info tab, which shows that file in Finder.
+func FilmRevealFile(cx *core.Scope, file string) string { return For(cx).FilmRevealFile(file) }
+
+// FilmRevealFile is the package's FilmRevealFile in the language of msgs.
+func (msgs Messages) FilmRevealFile(file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmRevealFile(file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmRevealFile; f != nil {
+			return f(file)
+		}
+		switch lang {
+		case "", "en":
+			return "Show " + msgs.arg(file)
+		case "ja":
+			return file + " を表示"
+		case "ko":
+			return file + " 보기"
+		case "zh-Hans":
+			return "显示 " + file
+		case "zh-Hant":
+			return "顯示 " + file
+		}
+	}
+}
 
 // FilmSearchLines says "Search Lines"
 // in the language the app shows under cx.
@@ -14924,14 +14966,35 @@ func (msgs Messages) FilmsLocalVideoTooltip(shortcut string) string {
 	}
 }
 
-// FilmsMoreActions says "More Actions"
+// FilmsMoreActions says "More Actions for {film}"
 // in the language the app shows under cx.
 //
-// Accessible name of the ⋯ button beside a poster's title.
-func FilmsMoreActions(cx *core.Scope) string { return For(cx).FilmsMoreActions() }
+// Accessible name of the ⋯ button beside a poster's title, naming the film it acts on.
+func FilmsMoreActions(cx *core.Scope, film string) string { return For(cx).FilmsMoreActions(film) }
 
 // FilmsMoreActions is the package's FilmsMoreActions in the language of msgs.
-func (msgs Messages) FilmsMoreActions() string { return msgs.text(textFilmsMoreActions) }
+func (msgs Messages) FilmsMoreActions(film string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsMoreActions(film))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsMoreActions; f != nil {
+			return f(film)
+		}
+		switch lang {
+		case "", "en":
+			return "More Actions for " + msgs.arg(film)
+		case "ja":
+			return "「" + film + "」のその他の操作"
+		case "ko":
+			return film + "의 기타 동작"
+		case "zh-Hans":
+			return "“" + film + "”的更多操作"
+		case "zh-Hant":
+			return "「" + film + "」的更多動作"
+		}
+	}
+}
 
 // FilmsNewLibraryEllipsis says "New Library…"
 // in the language the app shows under cx.
@@ -18783,7 +18846,7 @@ func PaletteFieldLabel(cx *core.Scope) string { return For(cx).PaletteFieldLabel
 // PaletteFieldLabel is the package's PaletteFieldLabel in the language of msgs.
 func (msgs Messages) PaletteFieldLabel() string { return msgs.text(textPaletteFieldLabel) }
 
-// PaletteFooter says "Type to search commands and watched lines · ↑↓ to select · Return to run"
+// PaletteFooter says "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
 // in the language the app shows under cx.
 //
 // Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do.
@@ -18809,6 +18872,15 @@ func PaletteHeadingCommands(cx *core.Scope) string { return For(cx).PaletteHeadi
 
 // PaletteHeadingCommands is the package's PaletteHeadingCommands in the language of msgs.
 func (msgs Messages) PaletteHeadingCommands() string { return msgs.text(textPaletteHeadingCommands) }
+
+// PaletteHeadingFilms says "Films"
+// in the language the app shows under cx.
+//
+// Heading of the films of the library whose names hold what was typed in the command palette; choosing one plays it.
+func PaletteHeadingFilms(cx *core.Scope) string { return For(cx).PaletteHeadingFilms() }
+
+// PaletteHeadingFilms is the package's PaletteHeadingFilms in the language of msgs.
+func (msgs Messages) PaletteHeadingFilms() string { return msgs.text(textPaletteHeadingFilms) }
 
 // PaletteHeadingLines says "Lines"
 // in the language the app shows under cx.
@@ -18926,7 +18998,7 @@ func PaletteNotWatched(cx *core.Scope) string { return For(cx).PaletteNotWatched
 // PaletteNotWatched is the package's PaletteNotWatched in the language of msgs.
 func (msgs Messages) PaletteNotWatched() string { return msgs.text(textPaletteNotWatched) }
 
-// PaletteNothingFound says "No commands or watched lines found."
+// PaletteNothingFound says "No films, commands or watched lines found."
 // in the language the app shows under cx.
 //
 // Note when the palette's query found nothing over the library.
@@ -18935,7 +19007,7 @@ func PaletteNothingFound(cx *core.Scope) string { return For(cx).PaletteNothingF
 // PaletteNothingFound is the package's PaletteNothingFound in the language of msgs.
 func (msgs Messages) PaletteNothingFound() string { return msgs.text(textPaletteNothingFound) }
 
-// PalettePlaceholder says "Commands or watched lines…"
+// PalettePlaceholder says "Films, commands or watched lines…"
 // in the language the app shows under cx.
 //
 // Placeholder of the command palette's field over the library.

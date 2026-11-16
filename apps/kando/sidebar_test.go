@@ -750,3 +750,17 @@ func TestSidebarOpensThePaletteWithoutAMenuBar(t *testing.T) {
 		t.Fatal("the status card has the palette's button beside a menu bar")
 	}
 }
+
+// TestSidebarSearchReturnPlaysTheOnlyFilm checks that Return in the sidebar's search field plays the film when the search leaves one, and does nothing when it leaves several.
+func TestSidebarSearchReturnPlaysTheOnlyFilm(t *testing.T) {
+	a, tt, _ := paletteLibrary(t, &fakePipeline{})
+	tt.Type("id:sidebar-search", "e\n")
+	if a.openKey != "" {
+		t.Fatalf("Return with two films found opened %q", a.openKey)
+	}
+	tt.Clear("id:sidebar-search")
+	tt.Type("id:sidebar-search", "riv\n")
+	if a.openKey != "rivers" || a.player.play == nil {
+		t.Fatalf("Return with one film found: open %q", a.openKey)
+	}
+}

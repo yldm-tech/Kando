@@ -34,10 +34,12 @@ func (s *screen) topBar() ns.Node {
 		ns.Text{TestID: "film-status", ContentFunc: live.Func(a, func() string { return s.status(cx) }), MaxLines: 1, EllipsizeMode: ns.EllipsizeTail,
 			Style: ns.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: ns.Alpha(0.8)}},
 	}}
+	focusIn, focusOut := s.focusWithin(s.topFocus)
 	return ns.View{
 		TestID: "film-top", Role: ns.RoleGroup, LabelFunc: func() string { return title(s.item()) },
-		Desktop: ns.DesktopViewProps{WindowDrag: ns.WindowDragOn},
-		Style:   ns.Style{Position: ns.Absolute, Left: ns.Pt(0), Top: ns.Pt(0), Right: ns.Pt(0), Direction: ns.Row, Gap: 12, AlignItems: ns.AlignCenter},
+		Desktop:   ns.DesktopViewProps{WindowDrag: ns.WindowDragOn},
+		OnFocusIn: focusIn, OnFocusOut: focusOut,
+		Style: ns.Style{Position: ns.Absolute, Left: ns.Pt(0), Top: ns.Pt(0), Right: ns.Pt(0), Direction: ns.Row, Gap: 12, AlignItems: ns.AlignCenter},
 		StyleFunc: func() ns.Style {
 			st := s.faded()
 			st.Padding = ns.Edges{Top: 14, Right: 16, Left: s.barStart()}

@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/sidebar"
@@ -67,6 +68,28 @@ func (a *app) SetQuery(text string) {
 }
 
 func (a *app) QueryFocus() *bool { return &a.side.queryFocus }
+
+// SubmitQuery is Return in the sidebar's search field: when the search leaves a single film in the library page's grid, it plays it, as a click on its poster does.
+// TODO(nsgo#348): when the search leaves several films, Return should put the keyboard on the first poster; core.Ref.Focus moves the keyboard only to a text field on macOS (internal/platform/macos/macos.go, ItemFocus), so it does nothing here https://github.com/nsgo-dev/nsgo/issues/348
+func (a *app) SubmitQuery() {
+	query := strings.TrimSpace(a.side.query)
+	if query == "" {
+		return
+	}
+	var found []films.Film
+	for _, item := range films.BySource(a.films(), a.side.filter) {
+		if !films.InQueue(item) && films.MatchesTitle(item, query) {
+			found = append(found, item)
+		}
+	}
+	if len(found) != 1 {
+		return
+	}
+	if a.page != pageFilms {
+		a.Select(pageFilms)
+	}
+	a.Open(found[0])
+}
 
 // LibraryCount is the count countLibraries last read for the library at dir.
 func (a *app) LibraryCount(dir string) (int, bool) {

@@ -123,7 +123,7 @@ func (s sortButton) Render(cx *core.Scope) core.Node {
 		Expanded:  open.Get,
 		OnPress:   press,
 		Style: core.Style{Direction: core.Row, Height: core.Pt(26), Padding: core.Symmetric(0, 10), Gap: 6, CornerRadius: ui.RadiusControl, AlignItems: core.AlignCenter,
-			Cursor: core.CursorDefault},
+			Cursor: core.CursorDefault, FocusVisible: ui.FocusRing(cx, 2)},
 		StyleFunc: func() core.Style {
 			s := core.Style{Hover: &core.Style{Background: colors.Hover()}, Active: &core.Style{Background: colors.Pressed()}}
 			if open.Get() {

@@ -42,6 +42,10 @@ type screen struct {
 	tick *core.Signal[struct{}]
 	// active is set while the pointer moved over the player in the last idleAfter.
 	active *core.Signal[bool]
+	// moved shows the controls for idleAfter from now, as the pointer moving does.
+	moved func()
+	// topFocus and transportFocus are set while the keyboard focus is in the title bar or the transport, which then show, so Tab reaches their buttons and the scrubber while the film plays.
+	topFocus, transportFocus *core.Signal[bool]
 	// size is the player's size, as its last layout gave it.
 	size *core.Signal[core.Size]
 	// shown is whether the title bar and the transport show; room is whether the side panel takes its room.
@@ -73,11 +77,13 @@ func (v View) Render(cx *core.Scope) core.Node {
 	a := v.App
 	item := core.NewMemo(cx, v.Item).Get
 	s := &screen{a: a, cx: cx, item: item,
-		tick:   core.NewSignalFunc(cx, struct{}{}, nil),
-		active: core.NewSignal(cx, true),
-		size:   core.NewSignal(cx, core.Size{}),
-		held:   core.NewSignal(cx, false),
-		scrub:  core.NewSignal(cx, 0.0),
+		tick:           core.NewSignalFunc(cx, struct{}{}, nil),
+		active:         core.NewSignal(cx, true),
+		topFocus:       core.NewSignal(cx, false),
+		transportFocus: core.NewSignal(cx, false),
+		size:           core.NewSignal(cx, core.Size{}),
+		held:           core.NewSignal(cx, false),
+		scrub:          core.NewSignal(cx, 0.0),
 	}
 	// The controls show for idleAfter after the pointer last moved, and start out showing. A move only notes when it was; the one timer, once it runs, waits the rest of idleAfter when the pointer moved meanwhile, so moving the pointer does not set a timer at each move.
 	idle := NewTimer(cx)
@@ -90,23 +96,25 @@ func (v View) Render(cx *core.Scope) core.Node {
 		}
 		s.active.Set(false)
 	}
-	moved := func() {
+	s.moved = func() {
 		lastMove = cx.Now()
 		s.active.Set(true)
 		if idle.At().IsZero() {
 			idle.Set(idleAfter, rest)
 		}
 	}
-	moved()
+	s.moved()
 	playing := live.Func(a, func() bool { return a.Play() != nil && a.Play().Playing() })
 	menus := live.Func(a, func() bool { return *a.ModeMenu() || *a.SpeedMenu() })
-	s.shown = core.NewMemo(cx, func() bool { return !playing() || menus() || s.held.Get() || s.active.Get() }).Get
+	s.shown = core.NewMemo(cx, func() bool {
+		return !playing() || menus() || s.held.Get() || s.active.Get() || s.topFocus.Get() || s.transportFocus.Get()
+	}).Get
 	s.room = live.Memo(cx, a, func() bool { return panelShown(a) })
 	return core.View{
 		TestID:      "film",
 		Style:       core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch, Background: core.RGB(0x000000), Overflow: core.Hidden},
 		OnLayout:    func(b core.Bounds) { s.size.Set(b.Size) },
-		OnMouseMove: func(core.MouseEvent) { moved() },
+		OnMouseMove: func(core.MouseEvent) { s.moved() },
 		Children: []core.Node{
 			s.stage(),
 			s.gradients(),
@@ -146,6 +154,11 @@ func (s *screen) faded() core.Style {
 		return core.Style{Opacity: core.Alpha(1), Transition: fadeTransition}
 	}
 	return core.Style{Opacity: core.Alpha(0), Transition: fadeTransition, PointerEvents: core.PointerEventsNone}
+}
+
+// focusWithin is a fading part's OnFocusIn and OnFocusOut: on is set while the keyboard focus is in the part, and the controls show for idleAfter after it comes and after it leaves, as after the pointer moved.
+func (s *screen) focusWithin(on *core.Signal[bool]) (in, out func()) {
+	return func() { on.Set(true); s.moved() }, func() { on.Set(false); s.moved() }
 }
 
 // togglePlay starts or holds the picture.

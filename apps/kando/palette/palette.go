@@ -3,6 +3,7 @@ package palette
 
 import (
 	"slices"
+	"strings"
 
 	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
@@ -45,13 +46,15 @@ type View struct {
 	Placeholder string
 	Footer      string
 	// Ask is the row that asks the open film what was typed, which comes first of the rows when there is one; "" shows none.
-	Ask      string
-	Answer   *Answer
+	Ask    string
+	Answer *Answer
+	// Films are the names of the films the query found, whose rows come after the Ask row and before the lines.
+	Films    []string
 	Lines    []Line
 	Commands []Command
 	// Empty is the note shown in place of the results when the query found nothing; "" shows none.
 	Empty string
-	// Selected is the highlighted row, counting the Ask row first when there is one, then the lines, then the commands; -1 highlights none.
+	// Selected is the highlighted row, counting the Ask row first when there is one, then the films, the lines and the commands; -1 highlights none.
 	Selected int
 }
 
@@ -123,7 +126,7 @@ var (
 	placeholder = core.RGBA(0xFFFFFF, 0.45)
 )
 
-// Palette draws the palette over the window in the dark theme while the app's PaletteOpen holds: the window dimmed, and near its top dark glass with the field, the row that asks the film, the answer, the lines and the commands. Escape or a click outside it report Close, ⌘K reports Toggle.
+// Palette draws the palette over the window in the dark theme while the app's PaletteOpen holds: the window dimmed, and near its top dark glass with the field, the row that asks the film, the answer, the films, the lines and the commands. Escape or a click outside it report Close, ⌘K reports Toggle.
 type Palette struct{ App App }
 
 // Render implements core.Node.
@@ -166,23 +169,31 @@ func (p panel) Render(cx *core.Scope) core.Node {
 	a, send := p.a, p.send
 	// PaletteView follows the app's whole revision, which changes on every keystroke and progress report; the memos let the rows follow only what they show.
 	view := core.NewMemoFunc(cx, live.Func(a, func() View { return a.PaletteView(cx) }), equalView)
+	films := core.NewMemoFunc(cx, func() []string { return view.Get().Films }, slices.Equal[[]string])
 	lines := core.NewMemoFunc(cx, func() []Line { return view.Get().Lines }, slices.Equal[[]Line])
 	commands := core.NewMemoFunc(cx, func() []Command { return view.Get().Commands }, slices.Equal[[]Command])
 	sel := core.NewMemo(cx, func() int { return view.Get().Selected })
 	ask := core.NewMemo(cx, func() string { return view.Get().Ask })
-	// first is where the lines' rows start: after the Ask row while there is one.
+	// first is where the films' rows start: after the Ask row while there is one. The lines' start after the films'.
 	first := func() int {
 		if ask.Get() != "" {
 			return 1
 		}
 		return 0
 	}
-	list := &rows{ask: &core.Ref{}, lines: map[int]*core.Ref{}, commands: map[int]*core.Ref{}}
+	linesAt := func() int { return first() + len(films.Get()) }
+	list := &rows{ask: &core.Ref{}, films: map[int]*core.Ref{}, lines: map[int]*core.Ref{}, commands: map[int]*core.Ref{}}
 
-	// The keys work wherever the keyboard focus is in the palette, before the window's own, which would act on the film behind it: ↑ and ↓ move the highlight and bring it into view, Escape closes the palette, and ⌘K, which opened it, closes it again.
+	// The keys work wherever the keyboard focus is in the palette, before the window's own, which would act on the film behind it: ↑ and ↓ move the highlight and bring it into view, Escape closes the palette, and ⌘K, which opened it, closes it again. The keyboard stays in the field as the highlight moves, so a screen reader is told the row now highlighted, as base.Command tells it.
 	move := func(by int) {
 		send(func(ev *Event) { ev.Move = by })
-		list.reveal(core.Untracked(cx, sel.Get), core.Untracked(cx, first), len(core.Untracked(cx, lines.Get)))
+		v := core.Untracked(cx, view.Get)
+		list.reveal(v)
+		if core.Untracked(cx, cx.Env().ScreenReader) {
+			if label := rowLabel(v); label != "" {
+				cx.Announce(label)
+			}
+		}
 	}
 	cx.OnKeyWith("down", core.KeyOptions{When: core.KeyAlways, Repeat: true}, func() { move(1) })
 	cx.OnKeyWith("up", core.KeyOptions{When: core.KeyAlways, Repeat: true}, func() { move(-1) })
@@ -197,6 +208,20 @@ func (p panel) Render(cx *core.Scope) core.Node {
 		core.Show{When: func() bool { return view.Get().Empty != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{ContentFunc: func() string { return view.Get().Empty }, Style: core.Style{FontSize: 13, Opacity: core.Alpha(0.55), Padding: core.Symmetric(8, 10)}}
 		}},
+		core.Show{When: func() bool { return len(films.Get()) > 0 }, Then: func(cx *core.Scope) core.Node {
+			return heading(func() string { return locales.PaletteHeadingFilms(cx) }, 6)
+		}},
+		core.Each(func() []int { return count(len(films.Get())) }, func(i int) int { return i }, func(cx *core.Scope, item func() int, _ func() int) core.Node {
+			i := core.Untracked(cx, item)
+			name := func() Command {
+				if f := films.Get(); i < len(f) {
+					return Command{Label: f[i]}
+				}
+				return Command{}
+			}
+			at := func() int { return first() + i }
+			return commandRow(cx, list.ref(cx, list.films, i), name, func() bool { return sel.Get() == at() }, func() { send(func(ev *Event) { ev.Pick = core.Untracked(cx, at) }) })
+		}),
 		core.Show{When: func() bool { return len(lines.Get()) > 0 }, Then: func(cx *core.Scope) core.Node {
 			return heading(func() string { return locales.PaletteHeadingLines(cx) }, 6)
 		}},
@@ -208,7 +233,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 				}
 				return Line{}
 			}
-			at := func() int { return first() + i }
+			at := func() int { return linesAt() + i }
 			return lineRow(cx, list.ref(cx, list.lines, i), line, func() bool { return sel.Get() == at() }, func() { send(func(ev *Event) { ev.Pick = core.Untracked(cx, at) }) })
 		}),
 		core.Show{When: func() bool { return len(commands.Get()) > 0 }, Then: func(cx *core.Scope) core.Node {
@@ -222,7 +247,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 				}
 				return Command{}
 			}
-			at := func() int { return first() + len(lines.Get()) + i }
+			at := func() int { return linesAt() + len(lines.Get()) + i }
 			return commandRow(cx, list.ref(cx, list.commands, i), command, func() bool { return sel.Get() == at() }, func() { send(func(ev *Event) { ev.Pick = core.Untracked(cx, at) }) })
 		}),
 	}}
@@ -283,6 +308,7 @@ func commandRow(cx *core.Scope, ref *core.Ref, cmd func() Command, on func() boo
 	keys := func() string { return hotkey.Label(cx, cmd().Key) }
 	return core.View{Ref: ref, Children: []core.Node{base.Button{
 		LabelFunc: func() string { return cmd().Label },
+		Selected:  on,
 		OnPress:   func(core.PressEvent) { press() },
 		Style:     core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Height: core.Pt(commandHeight), Padding: core.Symmetric(0, 10), CornerRadius: rowRadius, Color: ink},
 		StyleFunc: rowStyle(on),
@@ -303,7 +329,8 @@ func lineRow(cx *core.Scope, ref *core.Ref, line func() Line, on func() bool, pr
 		}}
 	}
 	return core.View{Ref: ref, Children: []core.Node{base.Button{
-		LabelFunc: func() string { l := line(); return l.At + " " + l.Translation + " " + l.Original },
+		LabelFunc: func() string { return lineLabel(line()) },
+		Selected:  on,
 		OnPress:   func(core.PressEvent) { press() },
 		Style:     core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignStart, Padding: core.Symmetric(8, 10), CornerRadius: rowRadius, Color: ink},
 		StyleFunc: rowStyle(on),
@@ -317,6 +344,39 @@ func lineRow(cx *core.Scope, ref *core.Ref, line func() Line, on func() bool, pr
 			text(func(l Line) string { return l.Film }, core.Style{FontSize: 11, Opacity: core.Alpha(0.55), FlexShrink: 0, MaxWidth: core.Pt(160), Padding: core.Edges{Top: 2}}),
 		},
 	}}}
+}
+
+// lineLabel is what assistive technology reads of a line's row: its time, its translation, its original and the film it is in, those it has.
+func lineLabel(l Line) string {
+	var parts []string
+	for _, part := range []string{l.At, l.Translation, l.Original, l.Film} {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// rowLabel is the accessible name of the row v highlights, as its row reads it, or "" for none.
+func rowLabel(v View) string {
+	i := v.Selected
+	if v.Ask != "" {
+		if i == 0 {
+			return v.Ask
+		}
+		i--
+	}
+	switch {
+	case i < 0:
+		return ""
+	case i < len(v.Films):
+		return v.Films[i]
+	case i < len(v.Films)+len(v.Lines):
+		return lineLabel(v.Lines[i-len(v.Films)])
+	case i < len(v.Films)+len(v.Lines)+len(v.Commands):
+		return v.Commands[i-len(v.Films)-len(v.Lines)].Label
+	}
+	return ""
 }
 
 // answer is the 回答 heading and the card under it, while there is an answer: the text 14 on lines of 21, the chips that jump to the moments it names, the button that fixes what kept it from answering, and the footnote.
@@ -357,7 +417,8 @@ func (c answer) Render(cx *core.Scope) core.Node {
 			heading(func() string { return locales.PaletteHeadingAnswer(cx) }, 4),
 			core.View{Style: core.Style{Margin: core.Edges{Right: 2, Bottom: 6, Left: 2}, Padding: core.Symmetric(12, 14), CornerRadius: cardRadius, Background: cardFill, Gap: 8, AlignItems: core.AlignStretch},
 				Children: []core.Node{
-					core.Text{ContentFunc: func() string { return get().Text }, Style: core.Style{FontSize: 14, LineHeight: 21},
+					// The keyboard stays in the field while the question is on its way, so a screen reader reads the answer as it comes.
+					core.Text{ContentFunc: func() string { return get().Text }, LiveRegion: core.LiveRegionPolite, Style: core.Style{FontSize: 14, LineHeight: 21},
 						StyleFunc: func() core.Style {
 							if get().Busy {
 								return core.Style{Opacity: core.Alpha(0.7)}
@@ -382,10 +443,10 @@ func (c answer) Render(cx *core.Scope) core.Node {
 	}}
 }
 
-// rows are the refs of the result rows the palette shows: the Ask row's, and the others by their place in the lines and in the commands, so ↑ and ↓ can bring the highlighted row into view.
+// rows are the refs of the result rows the palette shows: the Ask row's, and the others by their place in the films, the lines and the commands, so ↑ and ↓ can bring the highlighted row into view.
 type rows struct {
-	ask             *core.Ref
-	lines, commands map[int]*core.Ref
+	ask                    *core.Ref
+	films, lines, commands map[int]*core.Ref
 }
 
 // ref is the ref of row i of group, which it holds while the row is built under cx.
@@ -400,18 +461,28 @@ func (r *rows) ref(cx *core.Scope, group map[int]*core.Ref, i int) *core.Ref {
 	return ref
 }
 
-// reveal scrolls the list the least that shows row sel whole, counted as View.Selected counts the rows, the lines' starting at first and lines of them, once the highlight has moved there, as MyGo's ScrollIntoView did.
-func (r *rows) reveal(sel, first, lines int) {
-	if sel < first {
-		r.ask.Reveal(core.RevealOptions{Vertical: core.ScrollAlignNearest})
-		return
+// reveal scrolls the list the least that shows the row v highlights whole, once the highlight has moved there, as MyGo's ScrollIntoView did.
+func (r *rows) reveal(v View) {
+	nearest := core.RevealOptions{Vertical: core.ScrollAlignNearest}
+	i := v.Selected
+	if v.Ask != "" {
+		if i == 0 {
+			r.ask.Reveal(nearest)
+			return
+		}
+		i--
 	}
-	group, i := r.lines, sel-first
-	if i >= lines {
-		group, i = r.commands, i-lines
-	}
-	if row, ok := group[i]; ok {
-		row.Reveal(core.RevealOptions{Vertical: core.ScrollAlignNearest})
+	for _, group := range []struct {
+		refs map[int]*core.Ref
+		n    int
+	}{{r.films, len(v.Films)}, {r.lines, len(v.Lines)}, {r.commands, len(v.Commands)}} {
+		if i < group.n {
+			if row, ok := group.refs[i]; ok {
+				row.Reveal(nearest)
+			}
+			return
+		}
+		i -= group.n
 	}
 }
 
@@ -427,7 +498,7 @@ func count(n int) []int {
 // equalView reports whether a and b show the same.
 func equalView(a, b View) bool {
 	return a.Placeholder == b.Placeholder && a.Footer == b.Footer && a.Ask == b.Ask && a.Empty == b.Empty && a.Selected == b.Selected &&
-		equalAnswer(a.Answer, b.Answer) && slices.Equal(a.Lines, b.Lines) && slices.Equal(a.Commands, b.Commands)
+		equalAnswer(a.Answer, b.Answer) && slices.Equal(a.Films, b.Films) && slices.Equal(a.Lines, b.Lines) && slices.Equal(a.Commands, b.Commands)
 }
 
 // equalAnswer reports whether a and b are the same card, or both none.

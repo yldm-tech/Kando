@@ -508,7 +508,7 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 func TestEnterKeepsTheFilmWhenRemoving(t *testing.T) {
 	a, tt, video := libraryWith(t, "Talk")
 	trashed := fakeTrash(t)
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	tt.ChoosePopup(testlocale.Messages().FilmsRemoveFromLibrary())
 	refresh(tt, a)
 	if !shows(tt, "要从资料库移除「Talk」吗？") || !a.modalOpen() {
@@ -1764,7 +1764,7 @@ func renamedLibrary(t *testing.T, name string) (a *app, tt *nsgotest.App, video,
 // renameFilm opens 重命名… from the poster's ⋯, puts title in the field in place of what it holds, and presses Enter.
 func renameFilm(t *testing.T, a *app, tt *nsgotest.App, title string) {
 	t.Helper()
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	tt.ChoosePopup("重命名…")
 	refresh(tt, a)
 	if !shows(tt, "重命名影片") || !a.modalOpen() {
@@ -1784,7 +1784,7 @@ func renameFilm(t *testing.T, a *app, tt *nsgotest.App, title string) {
 // TestRenameGivesAFilmTheTitleKandoShows checks that 重命名… opens with the title the film shows, that the new title shows on the shelf and in the player and is kept in library.json, that nothing on disk is renamed, and that an empty title gives the film its own name back.
 func TestRenameGivesAFilmTheTitleKandoShows(t *testing.T) {
 	a, tt, video, libraryPath := renamedLibrary(t, "Talk")
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	tt.ChoosePopup("重命名…")
 	refresh(tt, a)
 	if a.lib.renameName != "Talk" || a.lib.renameOriginal != "Talk" {
@@ -1795,7 +1795,7 @@ func TestRenameGivesAFilmTheTitleKandoShows(t *testing.T) {
 	if len(a.library.Names) != 0 || a.modalOpen() {
 		t.Fatalf("取消 renamed the film (%v) or still holds the window (modal %v)", a.library.Names, a.modalOpen())
 	}
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	tt.ChoosePopup("重命名…")
 	refresh(tt, a)
 	typeFocused(t, tt, "Escaped")
@@ -1924,7 +1924,7 @@ func TestRenameFollowsAReprocessToANewFolder(t *testing.T) {
 // TestRenameKeepsTheVideoTheWatcherMoved checks that a title typed while the library watcher moves the film's video is kept for where the video is now.
 func TestRenameKeepsTheVideoTheWatcherMoved(t *testing.T) {
 	a, tt, video, _ := renamedLibrary(t, "Talk")
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	tt.ChoosePopup("重命名…")
 	refresh(tt, a)
 	renamed := filepath.Join(filepath.Dir(filepath.Dir(video)), "Finder name")

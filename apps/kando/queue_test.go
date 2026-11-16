@@ -2422,7 +2422,7 @@ func retranslateLibraryAt(t *testing.T, p *retranslatePipeline, lib, video strin
 // chooseFilmMenu chooses label in the ⋯ menu of the film on screen.
 func chooseFilmMenu(t *testing.T, tt *nsgotest.App, label string) {
 	t.Helper()
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	tt.ChoosePopup(label)
 }
 
@@ -2460,7 +2460,7 @@ func TestNoMissingLinesNoButton(t *testing.T) {
 	if shows(tt, "补译未译的句子") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	if menu := popupLabels(tt); slices.Contains(menu, "补译未译的句子") || !slices.Contains(menu, "重新翻译") {
 		t.Fatalf("menu %q", menu)
 	}

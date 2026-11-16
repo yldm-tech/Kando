@@ -460,10 +460,13 @@ filmCancel:
   message: "Cancel"
   description: "Player title bar button: cancels this film's running job."
 filmClip:
-  message: "Clip {number}"
-  description: "Accessible name of a clip in the Clips tab."
+  message: "Clip {number}, {start}–{end}: {title}"
+  description: "Accessible name of a clip in the Clips tab: its number, the times it starts and ends, and the line it is named after."
   placeholders:
     number: { type: "int", example: "3" }
+    start: { type: "String", example: "1:00" }
+    end: { type: "String", example: "1:30" }
+    title: { type: "String", example: "These sweeping curves are called meanders." }
 filmClipSpan:
   message: "Clip {number} · {start}–{end}"
   description: "Heading of a clip in the Clips tab: its number and the times it starts and ends."
@@ -721,6 +724,11 @@ filmRetry:
 filmReveal:
   message: "Show"
   description: "Button on a file of the Info tab that shows it in Finder."
+filmRevealFile:
+  message: "Show {file}"
+  description: "Accessible name of the Show button on a file of the Info tab, which shows that file in Finder."
+  placeholders:
+    file: { type: "String", example: "video.bilingual.srt" }
 filmSearchLines:
   message: "Search Lines"
   description: "Search field over the subtitle list (its placeholder is followed by its shortcut)."
@@ -935,8 +943,10 @@ filmsLocalVideoTooltip:
   placeholders:
     shortcut: { type: "String", example: "⌘O" }
 filmsMoreActions:
-  message: "More Actions"
-  description: "Accessible name of the ⋯ button beside a poster's title."
+  message: "More Actions for {film}"
+  description: "Accessible name of the ⋯ button beside a poster's title, naming the film it acts on."
+  placeholders:
+    film: { type: "String", example: "Rivers of Europe" }
 filmsNewLibraryEllipsis:
   message: "New Library…"
   description: "Button that opens the sheet creating a new library."
@@ -1792,7 +1802,7 @@ paletteFieldLabel:
   message: "Commands, lines or questions"
   description: "Accessible name of the command palette's field."
 paletteFooter:
-  message: "Type to search commands and watched lines · ↑↓ to select · Return to run"
+  message: "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
   description: "Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do."
 paletteHeadingAnswer:
   message: "Answer"
@@ -1800,6 +1810,9 @@ paletteHeadingAnswer:
 paletteHeadingCommands:
   message: "Commands"
   description: "Heading of the commands the command palette found."
+paletteHeadingFilms:
+  message: "Films"
+  description: "Heading of the films of the library whose names hold what was typed in the command palette; choosing one plays it."
 paletteHeadingLines:
   message: "Lines"
   description: "Heading of the subtitle lines the command palette found."
@@ -1829,10 +1842,10 @@ paletteNotWatched:
   message: "You haven't started watching this film. Play some of it first, then ask."
   description: "Answer card when nothing of the open film has been played yet, so there is nothing to answer from."
 paletteNothingFound:
-  message: "No commands or watched lines found."
+  message: "No films, commands or watched lines found."
   description: "Note when the palette's query found nothing over the library."
 palettePlaceholder:
-  message: "Commands or watched lines…"
+  message: "Films, commands or watched lines…"
   description: "Placeholder of the command palette's field over the library."
 palettePlaceholderFilm:
   message: "Commands, lines, or ask this film…"

@@ -112,7 +112,7 @@ func TestPaletteOpensAnywhereAndEscapeCloses(t *testing.T) {
 	if !tt.Find("id:palette-field").Focused {
 		t.Fatal("the palette's field does not have the keyboard")
 	}
-	if got := a.PaletteView(a.cx).Placeholder; got != "命令或看过的台词…" {
+	if got := a.PaletteView(a.cx).Placeholder; got != "影片、命令或看过的台词…" {
 		t.Fatalf("library placeholder %q", got)
 	}
 	if !a.modalOpen() {
@@ -754,14 +754,14 @@ func TestPaletteInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpen(t, a, tt, updates)
-	if got := a.PaletteView(a.cx).Placeholder; got != "Commands or watched lines…" {
+	if got := a.PaletteView(a.cx).Placeholder; got != "Films, commands or watched lines…" {
 		t.Fatalf("library placeholder %q", got)
 	}
-	for _, want := range []string{"Commands", "Type to search commands and watched lines · ↑↓ to select · Return to run"} {
+	for _, want := range []string{"Commands", "Type to search films, commands and watched lines · ↑↓ to select · Return to run"} {
 		wantText(t, tt, want)
 	}
 	paletteType(tt, "volcano")
-	wantText(t, tt, "No commands or watched lines found.")
+	wantText(t, tt, "No films, commands or watched lines found.")
 	tt.Key("escape")
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
@@ -775,5 +775,35 @@ func TestPaletteInEnglish(t *testing.T) {
 	}
 	if hasText(tt, "回答") || hasText(tt, "命令") {
 		t.Fatalf("the palette still reads Chinese: %q", tt.Texts())
+	}
+}
+
+// TestPaletteFindsFilmsByName checks that the palette lists the films whose names hold the query before the lines, none while nothing is typed and not the film open in the player, and that Return on one closes the palette and plays it.
+func TestPaletteFindsFilmsByName(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	paletteOpen(t, a, tt, updates)
+	if v := a.PaletteView(a.cx); len(v.Films) != 0 {
+		t.Fatalf("films %q with nothing typed", v.Films)
+	}
+	paletteType(tt, "MARK")
+	if v := a.PaletteView(a.cx); !slices.Equal(v.Films, []string{"market"}) || v.Selected != 0 {
+		t.Fatalf("films %q, selected %d", v.Films, v.Selected)
+	}
+	wantText(t, tt, testlocale.Messages().PaletteHeadingFilms())
+	tt.Key("enter")
+	if a.palette.open || a.openKey != "market" {
+		t.Fatalf("Return on the film: palette open %v, film %q", a.palette.open, a.openKey)
+	}
+	// In the player the row that asks the film comes first, and the open film is not offered.
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, "r")
+	v := a.PaletteView(a.cx)
+	if v.Ask == "" || !slices.Equal(v.Films, []string{"rivers"}) {
+		t.Fatalf("player view: ask %q, films %q", v.Ask, v.Films)
+	}
+	tt.Key("down")
+	tt.Key("enter")
+	if a.palette.open || a.openKey != "rivers" {
+		t.Fatalf("Return on the film in the player: palette open %v, film %q", a.palette.open, a.openKey)
 	}
 }

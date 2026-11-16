@@ -2,6 +2,7 @@ package films
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -521,5 +522,33 @@ func TestTopBarCentersItsControls(t *testing.T) {
 	}
 	if center := y + start.Frame.Size.Height/2; center < 28 || center > 29 {
 		t.Fatalf("开始处理 is centered %v points down, want 28.5", center)
+	}
+}
+
+// TestKeyboardFocusShowsOnEveryButton checks that each of the page's own buttons, which draw their own look, shows a ring while Tab has the keyboard on it, as ui's buttons do, and none before.
+func TestKeyboardFocusShowsOnEveryButton(t *testing.T) {
+	a := newFakeApp()
+	a.notice = Notice{Kind: "success", Text: "已加入。", Open: true}
+	app := start(t, a)
+	for _, id := range []string{"id:films-local", "id:notice-close", "id:films-hero", "id:hero-play", "id:hero-alt", "id:queue-cancel", "id:films-sort", "id:film-done", "id:film-more >> nth=0"} {
+		if w := app.Find(id).Style.Outline.Width; w != 0 {
+			t.Fatalf("%s shows a ring of %v without the focus", id, w)
+		}
+		app.Focus(id)
+		if v := app.Find(id); !v.Focused || v.Style.Outline.Width == 0 {
+			t.Fatalf("%s shows no ring with the keyboard on it (focused %v)", id, v.Focused)
+		}
+	}
+}
+
+// TestMoreActionsNamesItsFilm checks that each poster's ⋯ is named for the film it acts on, so a screen reader moving between them tells them apart.
+func TestMoreActionsNamesItsFilm(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	for i, name := range []string{"Rivers of Europe", "Linear Algebra"} {
+		if got := app.Find(fmt.Sprintf("id:film-more >> nth=%d", i)).Props.Label; got != msgs.FilmsMoreActions(name) {
+			t.Fatalf("⋯ %d is named %q, want %q", i, got, msgs.FilmsMoreActions(name))
+		}
 	}
 }

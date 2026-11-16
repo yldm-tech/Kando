@@ -13,7 +13,7 @@ import (
 // searchFill is the field's gray on the card, which has no border.
 var searchFill = core.RGBA(0x000000, 0.06)
 
-// search is the field under the library switcher that narrows the library page to the done films whose names hold what is typed, as `kando list [query]` does, beside the sources it narrows with. It shows while the open library has films. ⌘F puts the keyboard in it (QueryFocus), and its clear button or Escape empties it. Its look is the settings window's search field in its rail: 28 points high, its corners 8, gray on the card without a border, a magnifying glass before the text.
+// search is the field under the library switcher that narrows the library page to the done films whose names hold what is typed, as `kando list [query]` does, beside the sources it narrows with. It shows while the open library has films. ⌘F puts the keyboard in it (QueryFocus), Return in it reports SubmitQuery, and its clear button or Escape empties it. Its look is the settings window's search field in its rail: 28 points high, its corners 8, gray on the card without a border, a magnifying glass before the text.
 type search struct{ a App }
 
 // Render implements core.Node.
@@ -57,6 +57,7 @@ func searchField(cx *core.Scope, a App, field *core.Ref) core.Node {
 		Value:           query,
 		PlaceholderFunc: func() string { return locales.SidebarSearchPlaceholder(cx) + "  " + cx.KeyLabel("mod+f") },
 		OnChange:        live.On(a, a.SetQuery),
+		OnSubmit:        live.On(a, func(string) { a.SubmitQuery() }),
 		OnFocus:         func() { focused.Set(true) },
 		OnBlur:          func() { focused.Set(false) },
 		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, Background: searchFill, FontSize: 13,

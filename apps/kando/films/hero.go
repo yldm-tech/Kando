@@ -126,7 +126,7 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		Hint:      locales.FilmsHeroKicker(cx),
 		OnPress:   live.On(a, func(ns.PressEvent) { a.Open(item()) }),
 		Style: ns.Style{Height: ns.Pt(360), CornerRadius: 18, Cursor: ns.CursorDefault,
-			Shadows: []ns.BoxShadow{{Offset: ns.Point{Y: 12}, Blur: 32, Color: ns.RGBA(0x000000, 0.16)}}},
+			Shadows: []ns.BoxShadow{{Offset: ns.Point{Y: 12}, Blur: 32, Color: ns.RGBA(0x000000, 0.16)}}, FocusVisible: ui.FocusRing(cx, 2)},
 		StyleFunc: func() ns.Style { return ns.Style{Background: posterColor(item().Key)} },
 		Children: []ns.Node{clip(18,
 			cover(live.Func(a, func() ns.ImageSource { return a.Poster(item().VideoPath) })),
@@ -170,7 +170,7 @@ type heroButton struct {
 }
 
 // Render implements core.Node.
-func (b heroButton) Render(*ns.Scope) ns.Node {
+func (b heroButton) Render(cx *ns.Scope) ns.Node {
 	fill, ink := onPicture.Faded(0.2), onPicture
 	weight := ui.Medium
 	shape := ns.Style{Direction: ns.Row, Height: ns.Pt(34), CornerRadius: 17, Gap: 8, FlexShrink: 0, AlignItems: ns.AlignCenter, Cursor: ns.CursorDefault}
@@ -188,6 +188,7 @@ func (b heroButton) Render(*ns.Scope) ns.Node {
 	shape.Background = fill
 	shape.Hover = &ns.Style{Background: ui.Mix(fill, heroShadow, 0.05)}
 	shape.Active = &ns.Style{Background: ui.Mix(fill, heroShadow, 0.12)}
+	shape.FocusVisible = ui.FocusRing(cx, 2)
 	return base.Button{TestID: b.testID, LabelFunc: b.label, OnPress: func(ns.PressEvent) { b.press() }, Style: shape, Children: children}
 }
 

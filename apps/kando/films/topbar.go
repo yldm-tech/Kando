@@ -87,7 +87,7 @@ func (l localButton) Render(cx *ns.Scope) ns.Node {
 		LabelFunc: func() string { return locales.FilmsLocalVideo(cx) },
 		OnPress:   live.On(a, func(ns.PressEvent) { a.PickVideos() }),
 		Style: ns.Style{Direction: ns.Row, FlexGrow: 1, Height: ns.Pt(28), CornerRadius: 14, AlignItems: ns.AlignCenter, JustifyContent: ns.JustifyCenter,
-			Padding: ns.Edges{Left: 10, Right: 12}, Cursor: ns.CursorDefault},
+			Padding: ns.Edges{Left: 10, Right: 12}, Cursor: ns.CursorDefault, FocusVisible: ui.FocusRing(cx, -2)},
 		StyleFunc: func() ns.Style {
 			return ns.Style{Hover: &ns.Style{Background: colors.Hover()}, Active: &ns.Style{Background: colors.Pressed()}}
 		},

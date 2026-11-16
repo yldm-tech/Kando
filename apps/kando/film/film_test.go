@@ -333,7 +333,7 @@ func TestPanelTabsAndTheStyleView(t *testing.T) {
 		t.Fatalf("the subtitle tab lists %q", app.Texts())
 	}
 	app.Press("id:film-tab-clips")
-	if a.side != "clips" || !app.Exists(`label:"`+msgs.FilmClip(1)+`"`) {
+	if a.side != "clips" || !app.Exists(`label:"`+clipName(a, 1)+`"`) {
 		t.Fatalf("the clips tab: side %q texts %q", a.side, app.Texts())
 	}
 	app.Press("id:film-tab-info")
@@ -629,6 +629,28 @@ func TestSubtitleTabHasNoFooterHint(t *testing.T) {
 	}
 }
 
+// TestPanelRowsNameWhatTheyShow checks what assistive technology reads of the panel's rows: a line its time, its translation and its original, and that it is the one playing; a clip its number, its span and the line it is named after; a file's 显示 button the file it shows.
+func TestPanelRowsNameWhatTheyShow(t *testing.T) {
+	a := newFakeApp()
+	a.play = &fakePlay{head: 2 * time.Second, length: 10 * time.Second}
+	a.info = Info{Folder: "/films/talk", Files: []File{{Name: "talk.mp4", Size: 5 << 20}}}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	first, second := app.Find("0:01 你好。 Hello."), app.Find("0:04 Bye.")
+	if !first.Props.Selected || second.Props.Selected {
+		t.Fatalf("the line playing is not the one selected: %v %v", first.Props.Selected, second.Props.Selected)
+	}
+	app.Press("id:film-tab-clips")
+	ch := Chapters(a.subs.Cues, a.play.length)[0]
+	if !app.Exists(msgs.FilmClip(1, cueClock(ch.Start), cueClock(ch.End), ch.Title)) {
+		t.Fatalf("no clip named %q\n%s", msgs.FilmClip(1, cueClock(ch.Start), cueClock(ch.End), ch.Title), app.Dump())
+	}
+	app.Press("id:film-tab-info")
+	if got := app.Find("id:film-info-file-talk.mp4").Props.Label; got != msgs.FilmRevealFile("talk.mp4") {
+		t.Fatalf("the file's button is named %q", got)
+	}
+}
+
 // TestModeMenuPicksTheMode opens the transport's subtitle menu, picks a mode in it, and checks that the menu closes; 样式… opens the style view.
 func TestModeMenuPicksTheMode(t *testing.T) {
 	a := newFakeApp()
@@ -691,7 +713,7 @@ func TestClipPlaysFromItsLineWithTheDelay(t *testing.T) {
 	a.subs.Cues = chapterCues
 	app := start(t, a)
 	app.Press("id:film-tab-clips")
-	app.Press(`label:"` + testlocale.Messages().FilmClip(2) + `"`)
+	app.Press(`label:"` + clipName(a, 2) + `"`)
 	if !slices.Contains(a.calls, "seek 37s") {
 		t.Fatalf("the second 片段 played with %v, want seek 37s", a.calls)
 	}
@@ -1119,4 +1141,14 @@ func TestTimerRunsTheLastSet(t *testing.T) {
 	if !slices.Equal(ran, []int{99}) {
 		t.Fatalf("a stopped timer ran: %v", ran)
 	}
+}
+
+// clipName is what the 片段 tab names clip n (from 1) of a's film, as clipsTab does: its span and, when it has one, the line it is named after.
+func clipName(a *fakeApp, n int) string {
+	ch := Chapters(a.subs.Cues, a.PlayLength())[n-1]
+	m := testlocale.Messages()
+	if ch.Title == "" {
+		return m.FilmClipSpan(n, cueClock(ch.Start), cueClock(ch.End))
+	}
+	return m.FilmClip(n, cueClock(ch.Start), cueClock(ch.End), ch.Title)
 }

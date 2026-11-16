@@ -72,7 +72,7 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 	close := base.Button{TestID: "notice-close", LabelFunc: func() string { return locales.FilmsCloseNotice(cx) },
 		OnPress: live.On(a, func(core.PressEvent) { a.Notice().Open = false }),
 		Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), CornerRadius: 12, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-			Cursor: core.CursorDefault, Hover: &core.Style{Background: core.RGBA(0x000000, 0.06)}},
+			Cursor: core.CursorDefault, Hover: &core.Style{Background: core.RGBA(0x000000, 0.06)}, FocusVisible: ui.FocusRing(cx, -2)},
 		Children: []core.Node{core.Text{Content: "×", Style: core.Style{FontSize: 15}, StyleFunc: func() core.Style { return core.Style{Color: ink()} }}}}
 	// The bar is 42 points high with one line of text, its hairline included.
 	// TODO(nsgo#144): give the bar the status role, so assistive technology reads it as MyGo's RoleStatus did; NSGo's roles have none, and a polite live region announces what it says instead https://github.com/nsgo-dev/nsgo/issues/144

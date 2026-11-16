@@ -89,7 +89,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 		LabelFunc: name,
 		OnPress:   live.On(a, func(core.PressEvent) { a.Open(item()) }),
 		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: 13, Background: thumbFill, BorderWidth: 0.5, BorderColor: posterHairline,
-			Shadows: posterShadow, Cursor: core.CursorDefault, Hover: &core.Style{Shadows: posterLifted, Transform: core.Transform{Scale: 1.015}}},
+			Shadows: posterShadow, Cursor: core.CursorDefault, Hover: &core.Style{Shadows: posterLifted, Transform: core.Transform{Scale: 1.015}}, FocusVisible: ui.FocusRing(cx, 2)},
 		Children: []core.Node{clip(13,
 			cover(live.Func(a, func() core.ImageSource { return a.Poster(item().VideoPath) })),
 			core.Show{When: func() bool { return item().Language != "" }, Then: func(*core.Scope) core.Node {
@@ -192,11 +192,11 @@ func (m moreButton) Render(cx *core.Scope) core.Node {
 	}
 	button := base.Button{
 		TestID:    m.testID,
-		LabelFunc: func() string { return locales.FilmsMoreActions(cx) },
+		LabelFunc: func() string { return locales.FilmsMoreActions(cx, filmName(m.item())) },
 		Expanded:  open.Get,
 		OnPress:   press,
 		Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), CornerRadius: 13, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Cursor: core.CursorDefault,
-			Hover: &core.Style{Background: moreHover}, Active: &core.Style{Background: morePressed}},
+			Hover: &core.Style{Background: moreHover}, Active: &core.Style{Background: morePressed}, FocusVisible: ui.FocusRing(cx, -2)},
 		Children: []core.Node{core.Icon{SVG: moreIcon, Style: core.Style{Width: core.Pt(14), Height: core.Pt(4), Color: moreInk}}},
 	}
 	return core.View{Ref: place, Style: core.Style{FlexShrink: 0}, Children: []core.Node{button}}

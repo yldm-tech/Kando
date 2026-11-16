@@ -64,10 +64,11 @@ type App interface {
 	SetSourceFilter(source string)
 	// SourceCount is how many films of the open library come from source.
 	SourceCount(source string) int
-	// Query is what the search field holds: the library page shows the done films whose names hold it. SetQuery is what the user typed into it, which shows the library page, where the films found are, when another page shows. QueryFocus asks the field for the keyboard focus once, as ⌘F does; the field sets it back to false when it has taken the focus, or when it is not shown.
+	// Query is what the search field holds: the library page shows the done films whose names hold it. SetQuery is what the user typed into it, which shows the library page, where the films found are, when another page shows. QueryFocus asks the field for the keyboard focus once, as ⌘F does; the field sets it back to false when it has taken the focus, or when it is not shown. SubmitQuery is Return in the field.
 	Query() *string
 	SetQuery(text string)
 	QueryFocus() *bool
+	SubmitQuery()
 	// OpenSettings shows the settings at section, one of the settings package's Section values; "" opens 通用.
 	OpenSettings(section string)
 	// Readiness is what the status line at the foot of the sidebar says.

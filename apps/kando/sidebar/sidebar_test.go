@@ -65,6 +65,7 @@ func (f *fakeApp) SourceCount(s string) int { return f.bySource[s] }
 func (f *fakeApp) Query() *string           { return &f.query }
 func (f *fakeApp) SetQuery(text string)     { f.query = text }
 func (f *fakeApp) QueryFocus() *bool        { return &f.focus }
+func (f *fakeApp) SubmitQuery()             { f.calls = append(f.calls, "submit "+f.query) }
 func (f *fakeApp) Readiness() Readiness     { return f.ready }
 func (f *fakeApp) PaletteButton() bool      { return f.paletteButton }
 func (f *fakeApp) PaletteKey() string       { return "mod+k" }
@@ -221,6 +222,12 @@ func TestSearchShowsWithFilmsAndTakesTheFocus(t *testing.T) {
 	app.Key("escape")
 	if a.query != "" {
 		t.Fatalf("query %q after Escape", a.query)
+	}
+	// Return in the field reports the search, which the app plays when it leaves a single film.
+	a.calls = nil
+	app.Type("id:sidebar-search", "rivers\n")
+	if !slices.Equal(a.calls, []string{"submit rivers"}) {
+		t.Fatalf("Return in the field called %q", a.calls)
 	}
 }
 

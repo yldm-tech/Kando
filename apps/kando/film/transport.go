@@ -31,8 +31,12 @@ func (s *screen) transport() core.Node {
 		forward := func() string { return locales.FilmSkipForward(cx, 5) }
 		fullLabel := func() string { return locales.FilmFullScreen(cx) }
 		panelLabel := func() string { return locales.FilmSidebar(cx) }
+		focusIn, focusOut := s.focusWithin(s.transportFocus)
+		// The transport goes with the focus in it when the film closes, which tells it no focus out.
+		cx.Cleanup(func() { s.transportFocus.Set(false) })
 		return core.View{
-			TestID: "film-transport",
+			TestID:    "film-transport",
+			OnFocusIn: focusIn, OnFocusOut: focusOut,
 			Style: transportGlass.style().Merge(core.Style{Position: core.Absolute, Left: core.Pt(20), Bottom: core.Pt(18), Direction: core.Row, Gap: 10,
 				Padding: core.Edges{Top: 8, Right: 10, Bottom: 8, Left: 12}, AlignItems: core.AlignCenter}).
 				Merge(core.Style{Shadows: append(transportGlass.style().Shadows, core.BoxShadow{Offset: core.Point{Y: 10}, Blur: 30, Color: core.RGBA(0x000000, 0.3)})}),

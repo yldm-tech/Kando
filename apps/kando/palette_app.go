@@ -28,6 +28,8 @@ import (
 const (
 	// paletteFirstCommands is how many commands the palette lists before anything is typed, as the prototype's.
 	paletteFirstCommands = 5
+	// paletteFilms is how many films it lists whose names hold the query.
+	paletteFilms = 5
 	// paletteFilmLines and paletteLibraryLines are how many lines it lists for a query: the prototype's four from the open film, and more over the library, whose lines come from every film in it.
 	paletteFilmLines    = 4
 	paletteLibraryLines = 8
@@ -349,6 +351,25 @@ func (a *app) paletteFound(cx *core.Scope) ([]paletteHit, []paletteCommand) {
 	return a.paletteLines(), out
 }
 
+// paletteFilmsFound are the films the palette lists for the query: the done films of the open library whose names hold it, as the sidebar's search finds them (films.MatchesTitle), in the shelf's order, the open film left out. While nothing is typed it lists none.
+func (a *app) paletteFilmsFound() []films.Film {
+	query := strings.TrimSpace(a.palette.query)
+	if query == "" {
+		return nil
+	}
+	var out []films.Film
+	for _, item := range a.films() {
+		if films.InQueue(item) || item.VideoPath == "" || item.Key == a.openKey || !films.MatchesTitle(item, query) {
+			continue
+		}
+		out = append(out, item)
+		if len(out) == paletteFilms {
+			break
+		}
+	}
+	return out
+}
+
 // paletteAsks reports whether the palette offers to ask the open film what was typed: in the player, once something is. Its row comes first, before the lines and the commands, and is the one highlighted until ↑ or ↓ moves on, so Return asks only while the row that says so is highlighted.
 func (a *app) paletteAsks() bool {
 	_, inFilm := a.paletteOpenFilm()
@@ -378,6 +399,9 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 		v.Ask = locales.PaletteAskRow(cx, strings.TrimSpace(a.palette.query))
 		asks = 1
 	}
+	for _, item := range a.paletteFilmsFound() {
+		v.Films = append(v.Films, item.Name)
+	}
 	for _, hit := range lines {
 		l := cmdpalette.Line{At: cmdpalette.ClockTenths(hit.cue.Start), Translation: hit.cue.Translation, Original: hit.cue.Original}
 		if l.Translation == "" {
@@ -391,7 +415,7 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 	for _, c := range cmds {
 		v.Commands = append(v.Commands, cmdpalette.Command{Label: c.label, Key: c.key})
 	}
-	found := len(v.Lines) + len(v.Commands)
+	found := len(v.Films) + len(v.Lines) + len(v.Commands)
 	if total := asks + found; total > 0 {
 		v.Selected = min(a.palette.sel, total-1)
 	}
@@ -431,7 +455,7 @@ func (a *app) PaletteEvent(ev cmdpalette.Event) {
 		return
 	}
 	v := a.PaletteView(a.cx)
-	total := len(v.Lines) + len(v.Commands)
+	total := len(v.Films) + len(v.Lines) + len(v.Commands)
 	if v.Ask != "" {
 		total++
 	}
@@ -462,7 +486,7 @@ func (a *app) PaletteEvent(ev cmdpalette.Event) {
 	}
 }
 
-// paletteRun runs row i, as Return runs the highlighted row and a click the row clicked, counting the row that asks the film first when there is one (paletteAsks), then the lines, then the commands: the first asks the film what was typed, and keeps the palette open for the answer; a line closes it and opens its film at its start, a command closes it and runs.
+// paletteRun runs row i, as Return runs the highlighted row and a click the row clicked, counting the row that asks the film first when there is one (paletteAsks), then the films, the lines and the commands: the first asks the film what was typed, and keeps the palette open for the answer; a film closes it and plays the film as its poster does; a line closes it and opens its film at its start, a command closes it and runs.
 func (a *app) paletteRun(i int) {
 	if a.paletteAsks() {
 		if i == 0 {
@@ -471,6 +495,16 @@ func (a *app) paletteRun(i int) {
 		}
 		i--
 	}
+	found := a.paletteFilmsFound()
+	if i >= 0 && i < len(found) {
+		a.paletteClose()
+		if a.page != pageFilms {
+			a.Select(pageFilms)
+		}
+		a.Open(found[i])
+		return
+	}
+	i -= len(found)
 	lines, cmds := a.paletteFound(a.cx)
 	switch {
 	case i < 0:

@@ -631,6 +631,36 @@ func TestControlsFadeWhileTheFilmPlays(t *testing.T) {
 	}
 }
 
+// TestControlsShowWhileTheKeyboardIsOnThem checks that Tab brings back the controls a playing film hid, keeps them while the keyboard is on the title bar or the transport however long the pointer rests, and lets them fade again idleAfter after it leaves them.
+func TestControlsShowWhileTheKeyboardIsOnThem(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	opacity := func() float32 { return tt.Find("id:film-transport").Style.Opacity }
+	tt.HoverAt("id:film", ns.Point{X: 400, Y: 300})
+	tt.Key("space")
+	tt.Advance(3 * time.Second)
+	if opacity() != 0 {
+		t.Fatalf("the controls show after the pointer rested: opacity %v", opacity())
+	}
+	tt.Focus("id:film-back")
+	if opacity() == 0 || tt.Find("id:film-top").Style.Opacity == 0 {
+		t.Fatal("Tab onto 返回 left the controls hidden")
+	}
+	tt.Focus("id:film-full")
+	tt.Advance(10 * time.Second)
+	if !a.player.play.Playing() || opacity() == 0 {
+		t.Fatalf("the controls hid with the keyboard on 全屏 (playing %v)", a.player.play.Playing())
+	}
+	// The next stop after the transport is in the side panel, out of the controls.
+	tt.Key("tab")
+	if tt.Find("id:film-transport").Style.Opacity == 0 {
+		t.Fatal("the controls hid at once as the keyboard left them")
+	}
+	tt.Advance(3 * time.Second)
+	if opacity() != 0 {
+		t.Fatalf("the controls stayed after the keyboard left them: opacity %v", opacity())
+	}
+}
+
 // TestScrubberSeeksOnRelease drags the scrubber and checks that the film seeks only once the pointer lets go, while the time shown follows the pointer meanwhile.
 func TestScrubberSeeksOnRelease(t *testing.T) {
 	a, tt, _ := playerOpen(t)

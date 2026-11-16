@@ -102,7 +102,7 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 		return base.Button{TestID: "queue-cancel", LabelFunc: func() string { return locales.FilmsQueueCancel(cx) },
 			OnPress: live.On(a, func(ns.PressEvent) { a.Cancel(item().JobID) }),
 			Style: ns.Style{Position: ns.Absolute, Top: ns.Pt(8), Right: ns.Pt(8), Width: ns.Pt(22), Height: ns.Pt(22), CornerRadius: 11, AlignItems: ns.AlignCenter,
-				JustifyContent: ns.JustifyCenter, Cursor: ns.CursorDefault, Hover: &ns.Style{Background: ns.RGBA(0x000000, 0.06)}},
+				JustifyContent: ns.JustifyCenter, Cursor: ns.CursorDefault, Hover: &ns.Style{Background: ns.RGBA(0x000000, 0.06)}, FocusVisible: ui.FocusRing(cx, -2)},
 			Children: []ns.Node{ui.Icon(svg(closeIcon), 10, colors.Muted)}}
 	}}
 	return ns.View{

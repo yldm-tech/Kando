@@ -628,8 +628,15 @@ func (s *screen) chapterRow(cx *ns.Scope, index func() int, ch func() Chapter) n
 		},
 	}
 	return base.Button{
-		LabelFunc: func() string { return locales.FilmClip(cx, index()+1) },
-		OnPress:   live.On(a, func(ns.PressEvent) { a.Seek(ch().Start + a.Delay()) }),
+		LabelFunc: func() string {
+			c := ch()
+			if c.Title == "" {
+				return locales.FilmClipSpan(cx, index()+1, cueClock(c.Start), cueClock(c.End))
+			}
+			return locales.FilmClip(cx, index()+1, cueClock(c.Start), cueClock(c.End), c.Title)
+		},
+		Selected: active,
+		OnPress:  live.On(a, func(ns.PressEvent) { a.Seek(ch().Start + a.Delay()) }),
 		Style: ns.Style{Direction: ns.Row, Gap: 12, Padding: ns.All(8), CornerRadius: 12, AlignItems: ns.AlignCenter,
 			Hover: &ns.Style{Background: panelLine}, FocusVisible: ui.FocusRing(cx, -2)},
 		StyleFunc: func() ns.Style {
@@ -815,7 +822,7 @@ func fileRow(cx *ns.Scope, f File, divided bool, reveal func()) ns.Node {
 			ns.Text{Content: f.Name, Style: monoStyle(12, 16, 1)},
 			ns.Text{Content: about, Style: ns.Style{FontSize: 11, LineHeight: 14, Color: onGlass, Opacity: ns.Alpha(0.65)}},
 		}},
-		ui.Button{TestID: "film-info-file-" + f.Name, Text: locales.FilmReveal(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, OnPress: reveal},
+		ui.Button{TestID: "film-info-file-" + f.Name, Text: locales.FilmReveal(cx), Label: locales.FilmRevealFile(cx, f.Name), Variant: ui.ButtonGhost, Size: ui.SizeSmall, OnPress: reveal},
 	}}
 }
 
