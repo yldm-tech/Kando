@@ -245,7 +245,7 @@ func transcribeTools(t *testing.T) (tools Tools, args string) {
 	dir := t.TempDir()
 	args = filepath.Join(dir, "args")
 	ffmpeg := writeFakeTool(t, dir, "ffmpeg", fakeTool{})
-	whisper := writeFakeTool(t, dir, "whisper-cli", fakeTool{Args: args, Act: "transcribe", Transcript: `{"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello"}]}`})
+	whisper := writeFakeTool(t, dir, "whisper-cli", fakeTool{Args: args, Act: "transcribe", Transcript: `{"result":{"language":"en"},"transcription":[{"offsets":{"from":0,"to":1500},"text":" Hello"}]}`})
 	return Tools{FFmpeg: ffmpeg, Whisper: whisper, WhisperModel: filepath.Join(dir, "ggml-base.bin")}, args
 }
 
@@ -271,9 +271,15 @@ func TestTranscribeNamesTheSpokenLanguage(t *testing.T) {
 	video := filepath.Join(t.TempDir(), "talk.mp4")
 	for _, tc := range []struct{ language, want string }{{"", "auto"}, {"ja", "ja"}, {" zh ", "zh"}} {
 		tools.SpeechLanguage = tc.language
-		segments, err := tools.Transcribe(context.Background(), video)
+		heard := ""
+		ctx := WithTrace(context.Background(), &Trace{Spoken: func(language string) { heard = language }})
+		segments, err := tools.Transcribe(ctx, video)
 		if err != nil {
 			t.Fatal(err)
+		}
+		// The language whisper's output says it heard reaches the context's Trace.
+		if heard != "en" {
+			t.Fatalf("language %q: Trace heard %q, want en", tc.language, heard)
 		}
 		if len(segments) != 1 || segments[0].Text != "Hello" {
 			t.Fatalf("segments %+v", segments)

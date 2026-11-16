@@ -48,6 +48,8 @@ type playerUI struct {
 	yieldSubs bool
 	// positions is where each video was when its playback stopped, by video path, so it can resume there.
 	positions map[string]time.Duration
+	// played is when each video last played, by video path, kept as its resume position is, so the library can offer the film watched last first.
+	played map[string]time.Time
 	// delays is how far the subtitles of each video were moved against its picture, by video path, so a film opens with them where they were left. A video whose subtitles are in place has none.
 	delays map[string]time.Duration
 	// saves is when the player last had the areas keep its resume positions and subtitle delays on disk (playerKeep).
@@ -189,7 +191,7 @@ func (a *app) flash(text string) {
 	a.player.osdTimer.Set(osdFor, live.Do(a, func() { a.player.film.osd = "" }))
 }
 
-// rememberPosition keeps where the open video stopped, so ResumeAt can offer to continue from there. A video watched to the end starts over.
+// rememberPosition keeps where the open video stopped, so ResumeAt can offer to continue from there, and that it played now (PlayedAt). A video watched to the end starts over.
 func (a *app) rememberPosition(play *filmPlay) {
 	if play == nil || play.path == "" {
 		return
@@ -198,6 +200,10 @@ func (a *app) rememberPosition(play *filmPlay) {
 	if a.player.positions == nil {
 		a.player.positions = map[string]time.Duration{}
 	}
+	if a.player.played == nil {
+		a.player.played = map[string]time.Time{}
+	}
+	a.player.played[play.path] = a.playerNow()
 	if play.finished || at <= 0 {
 		delete(a.player.positions, play.path)
 	} else {
@@ -213,6 +219,14 @@ func (a *app) setResumePositions(positions map[string]time.Duration) { a.player.
 
 // ResumeAt is where the video at path stopped last time, or 0 when it was not watched or was watched to the end.
 func (a *app) ResumeAt(path string) time.Duration { return a.player.positions[path] }
+
+// playedTimes and setPlayedTimes are when each video last played, by video path, for the area that keeps them on disk with the shelf beside the resume positions. The map is the player's own; setPlayedTimes takes played over as it is.
+func (a *app) playedTimes() map[string]time.Time { return a.player.played }
+
+func (a *app) setPlayedTimes(played map[string]time.Time) { a.player.played = played }
+
+// PlayedAt is when the video at path last played, the zero time when it never did.
+func (a *app) PlayedAt(path string) time.Time { return a.player.played[path] }
 
 // subtitleDelays and setSubtitleDelays are how far the subtitles of each video were moved, by video path, for the area that keeps them on disk with the shelf beside the resume positions. The map is the player's own; setSubtitleDelays takes delays over as they are.
 func (a *app) subtitleDelays() map[string]time.Duration { return a.player.delays }

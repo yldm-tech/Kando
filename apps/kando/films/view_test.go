@@ -30,11 +30,14 @@ type fakeApp struct {
 	items, queue                     []Film
 	durations                        map[string]time.Duration
 	resume                           map[string]time.Duration
+	played                           map[string]time.Time
+	furthest                         map[string]time.Duration
 	remedies                         map[string]Remedy
 	hints                            map[string]string
 	notice                           Notice
 	expanded, linkFocus              bool
 	sort                             string
+	language                         string
 	removeOpen, removeFolder         bool
 	removing                         Film
 	renameOpen                       bool
@@ -45,7 +48,7 @@ type fakeApp struct {
 func newFakeApp() *fakeApp {
 	lib := "/films/我的影片.kando"
 	return &fakeApp{
-		dir: lib, page: sidebar.PageFilms, filter: sidebar.SourceAll, sort: SortAdded, place: "/films",
+		dir: lib, page: sidebar.PageFilms, filter: sidebar.SourceAll, sort: SortAdded, place: "/films", language: "简体中文",
 		name: "新资料库",
 		items: []Film{
 			{Key: "done", JobID: "done", Title: "Rivers of Europe", Name: "Rivers of Europe", Source: "https://youtu.be/rivers", Stage: core.StageComplete,
@@ -56,6 +59,8 @@ func newFakeApp() *fakeApp {
 		},
 		durations: map[string]time.Duration{lib + "/Rivers/video.mp4": 125 * time.Second},
 		resume:    map[string]time.Duration{},
+		played:    map[string]time.Time{},
+		furthest:  map[string]time.Duration{},
 		remedies:  map[string]Remedy{},
 		hints:     map[string]string{},
 	}
@@ -140,9 +145,12 @@ func (f *fakeApp) QueueFilms() []Film {
 }
 func (f *fakeApp) OpenSettings(section string)        { f.call("settings", section) }
 func (f *fakeApp) ResumeAt(path string) time.Duration { return f.resume[path] }
+func (f *fakeApp) PlayedAt(path string) time.Time     { return f.played[path] }
+func (f *fakeApp) Furthest(path string) time.Duration { return f.furthest[path] }
 func (f *fakeApp) Notice() *Notice                    { return &f.notice }
 func (f *fakeApp) QueueExpanded() *bool               { return &f.expanded }
 func (f *fakeApp) LibrarySort() string                { return f.sort }
+func (f *fakeApp) Language() *string                  { return &f.language }
 func (f *fakeApp) SetLibrarySort(order string)        { f.call("sort", order); f.sort = order }
 func (f *fakeApp) AskRemove(item Film) {
 	f.call("ask-remove", item.Key)
@@ -196,15 +204,26 @@ func TestShelfShowsTheHeroTheQueueAndTheGrid(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
 	msgs := testlocale.Messages()
-	for _, text := range []string{msgs.FilmsQueueTitle(), msgs.SourceAll(), "Rivers of Europe", "Linear Algebra", "Morning Market", "“河流塑造了大地”", "Rivers shape the land",
+	for _, text := range []string{msgs.FilmsQueueTitle(), msgs.SourceAll(), "Rivers of Europe", "Linear Algebra", "Morning Market",
 		msgs.FilmsHeroKickerBilingual(msgs.SettingsLanguageSimplifiedChinese()), msgs.FilmsGridCount(2)} {
 		if !app.Exists(whole(text)) {
 			t.Errorf("no %q in %q", text, app.Texts())
 		}
 	}
-	if !app.Exists(whole("YouTube · 2:05")) {
-		t.Errorf("the grid's meta lacks the length: %q", app.Texts())
+	// While 处理中 has cards the hero is compact: its kicker, title and buttons, under a lower card.
+	if got := app.Find("id:films-hero").Frame.Size.Height; got != heroCompactHeight || app.Exists(whole("“河流塑造了大地”")) || app.Exists("id:films-hero >> "+whole("YouTube · 2:05")) {
+		t.Errorf("the hero over 处理中 is %v high: %q", got, app.Texts())
 	}
+	// With 处理中 empty it is whole again, with its line and its first bilingual line; the line says how long the film is, which under a poster is left to the chip on it.
+	running := a.items[2]
+	change(app, a, func() { a.items = a.items[:2] })
+	if got := app.Find("id:films-hero").Frame.Size.Height; got != heroHeight || !app.Exists(whole("“河流塑造了大地”")) || !app.Exists(whole("Rivers shape the land")) {
+		t.Errorf("the hero with nothing processing is %v high: %q", got, app.Texts())
+	}
+	if !app.Exists("id:films-hero >> "+whole("YouTube · 2:05")) || !app.Exists("id:film-done >> "+whole("2:05")) || !app.Exists("id:films-grid >> "+whole("YouTube")) || app.Exists("id:films-grid >> "+whole("YouTube · 2:05")) {
+		t.Errorf("the length is not on the hero's line and the poster alone: %q", app.Texts())
+	}
+	change(app, a, func() { a.items = append(a.items, running) })
 	// A done film with untranslated lines offers to translate them under its line.
 	app.Press("id:film-translate-missing")
 	app.Press("id:film-done")
@@ -219,6 +238,117 @@ func TestShelfShowsTheHeroTheQueueAndTheGrid(t *testing.T) {
 	}
 	app.Press("id:hero-alt")
 	wantCalls(t, a, "open-at done 0s")
+}
+
+// TestHeroIsTheFilmBeingWatched: the hero shows the film played last that can be continued, saying so, rather than the film finished last; with none to continue, the newest finished film never played; and with every film played to the end, the newest finished one.
+func TestHeroIsTheFilmBeingWatched(t *testing.T) {
+	a := newFakeApp()
+	rivers, algebra := a.items[0], a.items[1]
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	hero := func() string { return app.Find("id:films-hero").Props.Label }
+	if hero() != rivers.Name {
+		t.Fatalf("the hero of a library never played is %q", hero())
+	}
+	// Linear Algebra stopped at 1:10 yesterday and Rivers of Europe at 0:30 the week before: Linear Algebra is the one to continue.
+	now := time.Date(2026, 11, 16, 20, 0, 0, 0, time.Local)
+	change(app, a, func() {
+		a.resume[algebra.VideoPath], a.played[algebra.VideoPath] = 70*time.Second, now.AddDate(0, 0, -1)
+		a.resume[rivers.VideoPath], a.played[rivers.VideoPath] = 30*time.Second, now.AddDate(0, 0, -7)
+	})
+	if hero() != algebra.Name || !app.Exists(whole(msgs.FilmsHeroKickerContinue())) || !app.Exists(whole(msgs.FilmsHeroResume("1:10"))) {
+		t.Fatalf("the hero is %q, not Linear Algebra to continue: %q", hero(), app.Texts())
+	}
+	// A film stopped before Kando kept when it played comes after one that has a time.
+	change(app, a, func() { delete(a.played, rivers.VideoPath) })
+	if hero() != algebra.Name {
+		t.Fatalf("the hero is %q", hero())
+	}
+	// Linear Algebra was watched to the end, so Rivers of Europe is the one to continue.
+	change(app, a, func() {
+		delete(a.resume, algebra.VideoPath)
+		a.furthest[algebra.VideoPath] = 5 * time.Minute
+	})
+	if hero() != rivers.Name || !app.Exists(whole(msgs.FilmsHeroKickerContinueBilingual(msgs.SettingsLanguageSimplifiedChinese()))) {
+		t.Fatalf("the hero is %q: %q", hero(), app.Texts())
+	}
+	// With nothing to continue, the newest finished film never played is the hero, ahead of one watched to the end.
+	change(app, a, func() {
+		delete(a.resume, rivers.VideoPath)
+		a.played[rivers.VideoPath] = now
+		delete(a.furthest, algebra.VideoPath)
+		delete(a.played, algebra.VideoPath)
+	})
+	if hero() != algebra.Name || !app.Exists(whole(msgs.FilmsHeroKicker())) {
+		t.Fatalf("the hero is %q, not the film never played: %q", hero(), app.Texts())
+	}
+	// Every film was watched: the newest finished one.
+	change(app, a, func() { a.played[algebra.VideoPath] = now })
+	if hero() != rivers.Name {
+		t.Fatalf("the hero of a library watched through is %q", hero())
+	}
+}
+
+// TestPostersShowHowMuchWasWatched: a poster draws an accent line along its bottom, inside its hairline, as far as the film has played, and a check once it played to its end; a film never played has neither. The grid's heading is its count alone, the top bar names the source and not the library, and the poster's tooltip names the film in full.
+func TestPostersShowHowMuchWasWatched(t *testing.T) {
+	a := newFakeApp()
+	rivers := a.items[0]
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	poster := "id:film-done"
+	if app.Exists(poster+" >> id:film-progress") || app.Exists(poster+" >> id:film-watched") {
+		t.Fatal("a film never played shows how much was watched")
+	}
+	change(app, a, func() { a.furthest[rivers.VideoPath] = 50 * time.Second })
+	bar, track := app.Find(poster+" >> id:film-progress"), app.Find(poster)
+	if bar.Frame.Size.Width < track.Frame.Size.Width-2 || bar.Frame.Size.Height != 3 {
+		t.Fatalf("the track is %v in a poster %v", bar.Frame, track.Frame)
+	}
+	if fill := bar.Children[0].Frame.Size.Width; fill < bar.Frame.Size.Width*0.39 || fill > bar.Frame.Size.Width*0.41 {
+		t.Fatalf("0:50 of 2:05 fills %v of %v", fill, bar.Frame.Size.Width)
+	}
+	if app.Exists(poster + " >> id:film-watched") {
+		t.Fatal("a film played partway is marked watched")
+	}
+	change(app, a, func() { a.furthest[rivers.VideoPath] = 124 * time.Second })
+	if !app.Exists(poster+" >> id:film-watched") || app.Exists(poster+" >> id:film-progress") {
+		t.Fatal("a film played to its end is not marked watched")
+	}
+	if got := app.Find(poster + " >> id:film-watched").Props.Label; got != msgs.FilmsWatched() {
+		t.Fatalf("the check reads %q", got)
+	}
+	// The grid's heading is the count, with no title repeating the top bar's; the top bar does not repeat the library's name the sidebar shows.
+	if !app.Exists(whole(msgs.FilmsGridCount(2))) || app.Exists("id:films-top-bar >> "+whole(LibraryName(a.dir))) {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	if got := app.Find("id:films-grid >> " + whole("Linear Algebra")).MaxLines; got != 2 {
+		t.Fatalf("a poster's title keeps %d lines", got)
+	}
+	before := len(app.Query(whole("Linear Algebra")))
+	app.Hover("id:film-algebra")
+	app.Advance(time.Second)
+	if got := len(app.Query(whole("Linear Algebra"))); got != before+1 {
+		t.Fatalf("resting on the poster shows %d texts naming the film, want the %d there were and its tooltip", got, before)
+	}
+}
+
+// TestPosterNamesTheSpokenLanguage: the tag over a poster names the language heard in the film, and the translation's language too once that is not the one set for new films.
+func TestPosterNamesTheSpokenLanguage(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	tag := "id:film-done >> " + whole(msgs.FilmsPosterBilingual(msgs.FilmsLanguageTagSimplifiedChinese()))
+	if !app.Exists(tag) {
+		t.Fatalf("a film whose spoken language is not known: %q", app.Texts())
+	}
+	change(app, a, func() { a.items[0].Spoken = "ja" })
+	if !app.Exists("id:film-done >> " + whole("JA")) {
+		t.Fatalf("a Japanese film translated into the language set: %q", app.Texts())
+	}
+	change(app, a, func() { a.language = "English" })
+	if !app.Exists("id:film-done >> " + whole(msgs.FilmsPosterLanguages("JA", msgs.FilmsLanguageTagSimplifiedChinese()))) {
+		t.Fatalf("a Japanese film translated into another language than the one set: %q", app.Texts())
+	}
 }
 
 func TestCardsStayWhileTheAppChanges(t *testing.T) {

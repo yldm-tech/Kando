@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"time"
 
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
@@ -28,12 +29,20 @@ func (a *app) rememberFilm() bool {
 	return true
 }
 
-// lastFilm is the film the window showed last, while it is still on the open library's shelf.
+// lastFilm is the film the window showed last, while it is still on the open library's shelf. Before the window showed one since the app started, it is the film of the shelf that played last (PlayedAt), so 窗口 › 播放器 goes back to it after a restart too.
 func (a *app) lastFilm() (films.Film, bool) {
-	if a.menu.lastFilm == "" {
-		return films.Film{}, false
+	items := a.films()
+	if a.menu.lastFilm != "" {
+		return films.Find(items, a.menu.lastFilm)
 	}
-	return films.Find(a.films(), a.menu.lastFilm)
+	var last films.Film
+	var at time.Time
+	for _, item := range items {
+		if played := a.PlayedAt(item.VideoPath); played.After(at) {
+			last, at = item, played
+		}
+	}
+	return last, !at.IsZero()
 }
 
 // reopenFilm goes back to the film the window showed last, from whatever page it shows now.

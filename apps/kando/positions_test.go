@@ -38,6 +38,35 @@ func TestResumePositionsSurviveARestart(t *testing.T) {
 	}
 }
 
+// TestPlayedTimesSurviveARestart checks that when a video last played is kept as its position is, a video watched to the end included, saved with the shelf and read back when it opens again, and that a library.json written before it was kept reads with no time.
+func TestPlayedTimesSurviveARestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.openLibrary(path)
+	if !a.PlayedAt("/v.mp4").IsZero() {
+		t.Fatalf("a video never played played at %v", a.PlayedAt("/v.mp4"))
+	}
+	a.rememberPosition(&filmPlay{path: "/v.mp4", loaded: true, duration: 10 * time.Second, head: 3 * time.Second})
+	first := a.PlayedAt("/v.mp4")
+	if first.IsZero() {
+		t.Fatal("rememberPosition kept no time")
+	}
+	tt.Advance(time.Hour)
+	a.rememberPosition(&filmPlay{path: "/w.mp4", loaded: true, duration: 10 * time.Second, finished: true})
+	if got := a.PlayedAt("/w.mp4"); got.Sub(first) != time.Hour {
+		t.Fatalf("a video watched to the end played at %v, an hour after %v", got, first)
+	}
+
+	again, _, _ := newTestApp(t, &fakePipeline{})
+	again.openLibrary(path)
+	if got := again.PlayedAt("/v.mp4"); !got.Equal(first) {
+		t.Fatalf("PlayedAt(/v.mp4) after a restart = %v, want %v", got, first)
+	}
+	if got := again.PlayedAt("/w.mp4"); !got.Equal(first.Add(time.Hour)) {
+		t.Fatalf("PlayedAt(/w.mp4) after a restart = %v", got)
+	}
+}
+
 // openStill makes the film page show job id with the system's player loaded and held at, as if it had played that far, in a library saved at path.
 func openStill(t *testing.T, path, id, video string, at time.Duration) *app {
 	t.Helper()

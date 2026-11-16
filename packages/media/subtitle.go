@@ -16,6 +16,10 @@ import (
 )
 
 type whisperOutput struct {
+	// Result.Language is the language whisper heard, or the one -l told it to hear.
+	Result struct {
+		Language string `json:"language"`
+	} `json:"result"`
 	Transcription []struct {
 		Offsets struct {
 			From int64 `json:"from"`
@@ -25,11 +29,11 @@ type whisperOutput struct {
 	} `json:"transcription"`
 }
 
-// parseWhisperJSON reads the file whisper-cli writes with -oj, whose offsets are milliseconds.
-func parseWhisperJSON(data []byte) ([]core.Segment, error) {
+// parseWhisperJSON reads the file whisper-cli writes with -oj, whose offsets are milliseconds: the lines it heard and the language it heard them in, as its code, "" when the file does not say.
+func parseWhisperJSON(data []byte) ([]core.Segment, string, error) {
 	var out whisperOutput
 	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("decode whisper output: %w", err)
+		return nil, "", fmt.Errorf("decode whisper output: %w", err)
 	}
 	segments := make([]core.Segment, 0, len(out.Transcription))
 	for _, t := range out.Transcription {
@@ -43,7 +47,7 @@ func parseWhisperJSON(data []byte) ([]core.Segment, error) {
 			Text:  text,
 		})
 	}
-	return segments, nil
+	return segments, strings.ToLower(strings.TrimSpace(out.Result.Language)), nil
 }
 
 // exportSubtitles writes "<video>.srt" with the original speech and "<video>.bilingual.srt" with each translation above its original line, or the original alone for a line left untranslated, returning the bilingual path.

@@ -26,6 +26,8 @@ type Film struct {
 	JobID, VideoPath, SubtitlePath   string
 	// Language is what the job translates into, such as 简体中文; empty for a video no job has processed.
 	Language string
+	// Spoken is the language the speech recognition heard in the video, as whisper's code (ja, en); empty until the job transcribed it, and for a video no job has processed.
+	Spoken string
 	// Progress is how far the job has gone in Stage, as its tool reports it. Thumbnail is the address of the picture the video's site gives it, empty until the download has looked the video up.
 	Progress  core.Progress
 	Thumbnail string
@@ -92,7 +94,7 @@ func FromJob(job core.Job, name, detail string) Film {
 	return Film{
 		Key: job.ID, Title: Shorten(name, 22), Name: name, Source: job.Source,
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
-		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language,
+		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage,
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated,
 		Stopped: errors.Is(job.Err, context.Canceled),
 	}
@@ -429,6 +431,18 @@ func LanguageShort(m locales.Messages, language string) string {
 		return "TH"
 	}
 	return language
+}
+
+// PosterLanguages is the tag over a done film's poster, in the language of m: the language heard in it, as JA, and the one it was translated into only when that is not target, the language the settings translate new films into, as JA → 简中. A film whose spoken language is not known says it is bilingual in its translation's language.
+func PosterLanguages(m locales.Messages, item Film, target string) string {
+	if item.Spoken == "" {
+		return m.FilmsPosterBilingual(LanguageShort(m, item.Language))
+	}
+	spoken := strings.ToUpper(item.Spoken)
+	if item.Language == target {
+		return spoken
+	}
+	return m.FilmsPosterLanguages(spoken, LanguageShort(m, item.Language))
 }
 
 // LanguageName names a subtitle language in the language of m, as the settings and the player name it (subtitle.TargetLanguageName): Simplified Chinese and Japanese in English. language is the target language a job keeps, as settings.json and library.json store it; one typed into an older version is shown as it is.

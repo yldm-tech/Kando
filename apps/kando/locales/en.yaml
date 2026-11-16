@@ -550,6 +550,15 @@ filmFontSerif:
 filmFullScreen:
   message: "Full Screen"
   description: "Full screen button, and its shortcut row."
+filmInfoLanguages:
+  message: "{spoken} → {target}"
+  description: "Tag in the film's Info tab: the language heard in the video and the language its subtitles were translated into."
+  placeholders:
+    spoken: { type: "String", example: "Japanese" }
+    target: { type: "String", example: "Simplified Chinese" }
+filmHideSidebar:
+  message: "Hide Sidebar"
+  description: "Button at the player's top right that folds the side panel away."
 filmJobRecord:
   message: "Job record"
   description: "Label in the Info tab over the path of the library file that records the jobs."
@@ -888,14 +897,6 @@ filmsGridCount:
   description: "Dimmed note beside the grid's heading: how many films it holds."
   placeholders:
     count: { type: "int", example: "12" }
-filmsGridTitle:
-  message: "Films"
-  description: "Heading of the grid of finished films when the sidebar shows one source."
-filmsHeroExported:
-  message: "Exported {file}"
-  description: "Part of the line under the large card's title: the subtitle file that was written."
-  placeholders:
-    file: { type: "String", example: "video.bilingual.srt" }
 filmsHeroFromStart:
   message: "Play from Beginning"
   description: "Second button of the large card when the film was stopped partway: play from the beginning."
@@ -905,6 +906,14 @@ filmsHeroKicker:
 filmsHeroKickerBilingual:
   message: "Recently Finished · {language} Bilingual"
   description: "Small label over the title of the large card of the film finished last, with the language its subtitles were translated into."
+  placeholders:
+    language: { type: "String", example: "Simplified Chinese" }
+filmsHeroKickerContinue:
+  message: "Continue Watching"
+  description: "Small label over the title of the large card when it shows the film played last, which was stopped partway."
+filmsHeroKickerContinueBilingual:
+  message: "Continue Watching · {language} Bilingual"
+  description: "Small label over the title of the large card when it shows the film played last, which was stopped partway, with the language its subtitles were translated into."
   placeholders:
     language: { type: "String", example: "Simplified Chinese" }
 filmsHeroResume:
@@ -1012,6 +1021,12 @@ filmsPosterBilingual:
   description: "Small tag over a poster: the film has bilingual subtitles, with the short tag of the translation's language."
   placeholders:
     language: { type: "String", example: "EN" }
+filmsPosterLanguages:
+  message: "{spoken} → {target}"
+  description: "Small tag over a poster: the short code of the language heard in the video and the short tag of the language it was translated into, shown when that is not the language set for new films."
+  placeholders:
+    spoken: { type: "String", example: "JA" }
+    target: { type: "String", example: "CHS" }
 filmsQueueActive:
   message: "{count} in progress"
   description: "Dimmed note beside the processing heading: how many jobs are waiting or running."
@@ -1176,9 +1191,15 @@ filmsSortButton:
 filmsSortSource:
   message: "Source"
   description: "Sort order of the grid of finished films, and its item in the sort menu: films grouped by where they come from (YouTube, Bilibili, other sites, local files), as the sidebar lists the sources."
+filmsSortSpoken:
+  message: "Spoken Language"
+  description: "Sort order of the grid of finished films, and its item in the sort menu: films grouped by the language heard in them, those whose language is not known last."
 filmsSortTitle:
   message: "Title"
   description: "Sort order of the grid of finished films, and its item in the sort menu: films in alphabetical order of their titles."
+filmsSortWatched:
+  message: "Recently Watched"
+  description: "Sort order of the grid of finished films, and its item in the sort menu: the films played last come first, those never played after them."
 filmsStageComplete:
   message: "Done"
   description: "Stage of a job: finished."
@@ -1217,6 +1238,9 @@ filmsUntranslated:
   description: "Part of the line under a finished film: how many subtitle lines the translation failed on."
   placeholders:
     count: { type: "int", example: "3" }
+filmsWatched:
+  message: "Watched"
+  description: "Accessible name of the check mark over a poster: the film was played to its end."
 kitsDownloadDisconnected:
   message: "the connection dropped"
   description: "Why Kando's download of a program failed, after 'Download failed:': the connection to the server broke off."

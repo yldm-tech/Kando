@@ -682,3 +682,6 @@ func paletteParseReply(reply string, seen []lines.Line) (string, []time.Duration
 	}
 	return strings.TrimSpace(parsed.Answer), refs
 }
+
+// Furthest is how far the video at path has ever played on from its start (films.App), the furthest point the palette keeps.
+func (a *app) Furthest(path string) time.Duration { return a.palette.furthest[path] }

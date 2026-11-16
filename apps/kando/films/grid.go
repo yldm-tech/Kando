@@ -3,15 +3,16 @@ package films
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
-	"kando/apps/kando/sidebar"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -22,23 +23,20 @@ func gridTracks(min core.Points) core.GridTracks {
 
 // grid is the films that are done, as 16:9 posters across the page, in the order the sort button beside its heading chose (done is in that order already). With a single film there is nothing to order, and the button stays away.
 type grid struct {
-	a      App
-	source func() string
-	done   func() []Film
+	a    App
+	done func() []Film
 }
 
 // Render implements core.Node.
 func (g grid) Render(cx *core.Scope) core.Node {
 	a := g.a
-	title := func() string {
-		if g.source() == sidebar.SourceAll {
-			return locales.SourceAll(cx)
-		}
-		return locales.FilmsGridTitle(cx)
-	}
+	colors := ui.ColorsOf(cx)
+	// The top bar names the source the page shows, so the grid's heading is only how many films it holds.
 	count := func() string { return locales.FilmsGridCount(cx, len(g.done())) }
 	head := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter}, Children: []core.Node{
-		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}, Children: []core.Node{sectionTitle(cx, title, count)}},
+		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
+			heading(2, core.Text{ContentFunc: count, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Muted)}),
+		}},
 		core.Show{When: func() bool { return len(g.done()) > 1 }, Then: func(*core.Scope) core.Node { return sortButton{a} }},
 	}}
 	cards := core.View{TestID: "films-grid",
@@ -84,6 +82,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 		}
 		return ""
 	})
+	seen := live.Memo(cx, a, func() watched { return watchedOf(a, item()) })
 	poster := base.Button{
 		TestID:    "film-" + item().Key,
 		LabelFunc: name,
@@ -93,17 +92,21 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 		Children: []core.Node{clip(13,
 			cover(live.Func(a, func() core.ImageSource { return a.Poster(item().VideoPath) })),
 			core.Show{When: func() bool { return item().Language != "" }, Then: func(*core.Scope) core.Node {
-				return posterChip(func() string {
-					return locales.FilmsPosterBilingual(cx, LanguageShort(locales.For(cx), item().Language))
-				},
+				return posterChip(live.Func(a, func() string { return PosterLanguages(locales.For(cx), item(), *a.Language()) }),
 					core.Style{Top: core.Pt(9), Left: core.Pt(9), LetterSpacing: 0.4, FontWeight: ui.Bold})
 			}},
 			core.Show{When: func() bool { return duration() != "" }, Then: func(*core.Scope) core.Node {
 				return posterChip(duration, core.Style{Right: core.Pt(9), Bottom: core.Pt(9), FontWeight: ui.Semibold, FontVariant: core.FontTabularNums})
 			}},
+			core.Show{When: func() bool { return seen().end }, Then: func(*core.Scope) core.Node { return watchedMark(cx) }},
+			core.Show{When: func() bool { s := seen(); return s.part > 0 && !s.end }, Then: func(*core.Scope) core.Node {
+				return watchedBar(cx, func() float64 { return seen().part })
+			}},
 		)},
 	}
-	meta := core.Text{ContentFunc: live.Func(a, func() string { return doneMeta(locales.For(cx), a, item()) }), MaxLines: 2, EllipsizeMode: core.EllipsizeTail,
+	// The title under the poster may be cut short; the tooltip names the film in full.
+	tip := ui.Tooltip{TextFunc: name, Trigger: poster, Style: core.Style{Width: core.Pct(100)}}
+	meta := core.Text{ContentFunc: live.Func(a, func() string { return doneMeta(locales.For(cx), item()) }), MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		Style: core.Style{FontSize: 12}, StyleFunc: ui.Colored(colors.Muted)}
 	missing := core.Show{When: func() bool { return item().JobID != "" && item().Untranslated > 0 }, Then: func(*core.Scope) core.Node {
 		return core.View{Style: core.Style{AlignSelf: core.AlignStart, Margin: core.Edges{Top: 5}}, Children: []core.Node{
@@ -113,7 +116,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 	}}
 	caption := core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignStart}, Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
-			core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: name, MaxLines: 2, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)},
 			meta,
 			missing,
 		}},
@@ -122,8 +125,40 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 	return core.View{
 		Style:         core.Style{Width: core.Pct(100), MinWidth: core.Pt(0), Gap: 9},
 		OnContextMenu: func(e core.ContextMenuEvent) { nsdesktop.PopupMenu(cx, filmMenu(cx, a, item()), e.PagePosition, nil) },
-		Children:      []core.Node{poster, caption},
+		Children:      []core.Node{tip, caption},
 	}
+}
+
+// watched is how much of a film has been seen: part is the furthest point played over its length, from 0 to 1, and end is set once it played to within 3 seconds of its end, as ResumeFrom counts the end.
+type watched struct {
+	part float64
+	end  bool
+}
+
+func watchedOf(a App, item Film) watched {
+	length, furthest := a.Duration(item.VideoPath), a.Furthest(item.VideoPath)
+	if length <= 0 || furthest <= 0 {
+		return watched{}
+	}
+	return watched{part: min(float64(furthest)/float64(length), 1), end: furthest >= length-3*time.Second}
+}
+
+// watchedBar is the accent line along a poster's bottom edge as far as the film has been played, over a faint track the width of the poster.
+func watchedBar(cx *core.Scope, part func() float64) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{TestID: "film-progress", PointerEvents: core.PointerEventsNone,
+		Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Height: core.Pt(3), Background: onPicture.Faded(0.3)},
+		Children: []core.Node{core.View{Style: core.Style{Height: core.Pct(100)}, StyleFunc: func() core.Style {
+			return core.Style{Width: core.Pct(float32(part() * 100)), Background: colors.Accent()}
+		}}}}
+}
+
+// watchedMark is the check at the top end of the poster of a film played to its end.
+func watchedMark(cx *core.Scope) core.Node {
+	place := core.Style{Position: core.Absolute, Top: core.Pt(9), Right: core.Pt(9), Width: core.Pt(20), Height: core.Pt(20), CornerRadius: 10, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}
+	return core.View{TestID: "film-watched", Role: core.RoleImage, LabelFunc: func() string { return locales.FilmsWatched(cx) }, PointerEvents: core.PointerEventsNone,
+		Style:    place.Merge(frosted(10, chipShade)),
+		Children: []core.Node{core.Icon{SVG: lucide.Check(), Style: core.Style{Width: core.Pt(12), Height: core.Pt(12), Color: onPicture}}}}
 }
 
 // filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero, in the system's menu. Its reveal item names the file manager of the system the app runs on, as the buttons beside it do. It is built as the menu opens, so it says what is true then.
@@ -202,12 +237,9 @@ func (m moreButton) Render(cx *core.Scope) core.Node {
 	return core.View{Ref: place, Style: core.Style{FlexShrink: 0}, Children: []core.Node{button}}
 }
 
-// doneMeta is the line under a poster's title, in the language of m: where the film comes from, how long it is, that it has no subtitles yet, and how many lines its translation left untranslated.
-func doneMeta(m locales.Messages, a App, item Film) string {
+// doneMeta is the line under a poster's title, in the language of m: where the film comes from, that it has no subtitles yet, and how many lines its translation left untranslated. How long it is shows on the poster.
+func doneMeta(m locales.Messages, item Film) string {
 	parts := []string{SourceLabel(m, item)}
-	if d := a.Duration(item.VideoPath); d > 0 {
-		parts = append(parts, Clock(d))
-	}
 	if item.SubtitlePath == "" {
 		parts = append(parts, m.FilmsNoSubtitles())
 	}

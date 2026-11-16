@@ -55,7 +55,16 @@ func (a *app) SetSourceFilter(source string) {
 	a.side.filter = source
 }
 
-func (a *app) SourceCount(source string) int { return len(films.BySource(a.films(), source)) }
+// SourceCount is how many done films of the open library come from source, the films the grid shows for it; a job still in 处理中 is not one yet.
+func (a *app) SourceCount(source string) int {
+	n := 0
+	for _, item := range films.BySource(a.films(), source) {
+		if !films.InQueue(item) {
+			n++
+		}
+	}
+	return n
+}
 
 func (a *app) Query() *string { return &a.side.query }
 

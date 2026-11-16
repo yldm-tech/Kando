@@ -66,6 +66,8 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			job.Title, job.Thumbnail = info.Title, info.Thumbnail
 			report(job)
 		},
+		// The language heard goes out with the job's next report, as the transcription ends.
+		Spoken: func(language string) { job.SpokenLanguage = language },
 	})
 	if job.Redo == "" {
 		job.Untranslated = 0

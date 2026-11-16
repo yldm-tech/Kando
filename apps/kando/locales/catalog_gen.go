@@ -452,6 +452,7 @@ var Parameters = map[string][]string{
 	"FilmFaceBold":                       {"line"},
 	"FilmFaceColor":                      {"line", "color"},
 	"FilmFaceSize":                       {"line"},
+	"FilmInfoLanguages":                  {"spoken", "target"},
 	"FilmLineOf":                         {"line", "total"},
 	"FilmLoopLines":                      {"from", "to"},
 	"FilmMatchOf":                        {"number", "total"},
@@ -465,8 +466,8 @@ var Parameters = map[string][]string{
 	"FilmStatusTranslated":               {"percent"},
 	"FilmSubtitlesMode":                  {"mode"},
 	"FilmsGridCount":                     {"count"},
-	"FilmsHeroExported":                  {"file"},
 	"FilmsHeroKickerBilingual":           {"language"},
+	"FilmsHeroKickerContinueBilingual":   {"language"},
 	"FilmsHeroResume":                    {"time_"},
 	"FilmsLinkChannel":                   {"site"},
 	"FilmsLinkCount":                     {"count"},
@@ -476,6 +477,7 @@ var Parameters = map[string][]string{
 	"FilmsNewLibraryNote":                {"platform"},
 	"FilmsNoLibraryDescription":          {"platform"},
 	"FilmsPosterBilingual":               {"language"},
+	"FilmsPosterLanguages":               {"spoken", "target"},
 	"FilmsQueueActive":                   {"count"},
 	"FilmsQueueDownloadingFrom":          {"site"},
 	"FilmsQueueFailed":                   {"count"},
@@ -676,6 +678,7 @@ type Translation struct {
 	FilmFaceBold                       func(line string) string
 	FilmFaceColor                      func(line string, color string) string
 	FilmFaceSize                       func(line string) string
+	FilmInfoLanguages                  func(spoken string, target string) string
 	FilmLineOf                         func(line int, total int) string
 	FilmLoopLines                      func(from int, to int) string
 	FilmMatchOf                        func(number int, total int) string
@@ -689,8 +692,8 @@ type Translation struct {
 	FilmStatusTranslated               func(percent int) string
 	FilmSubtitlesMode                  func(mode string) string
 	FilmsGridCount                     func(count int) string
-	FilmsHeroExported                  func(file string) string
 	FilmsHeroKickerBilingual           func(language string) string
+	FilmsHeroKickerContinueBilingual   func(language string) string
 	FilmsHeroResume                    func(time_ string) string
 	FilmsLinkChannel                   func(site string) string
 	FilmsLinkCount                     func(count int) string
@@ -700,6 +703,7 @@ type Translation struct {
 	FilmsNewLibraryNote                func(platform string) string
 	FilmsNoLibraryDescription          func(platform string) string
 	FilmsPosterBilingual               func(language string) string
+	FilmsPosterLanguages               func(spoken string, target string) string
 	FilmsQueueActive                   func(count int) string
 	FilmsQueueDownloadingFrom          func(site string) string
 	FilmsQueueFailed                   func(count int) string
@@ -1007,6 +1011,7 @@ const (
 	textFilmFontSans
 	textFilmFontSerif
 	textFilmFullScreen
+	textFilmHideSidebar
 	textFilmJobRecord
 	textFilmKeySpace
 	textFilmKindBilingual
@@ -1097,9 +1102,9 @@ const (
 	textFilmsDropTitle
 	textFilmsEmptyDescription
 	textFilmsEmptyTitle
-	textFilmsGridTitle
 	textFilmsHeroFromStart
 	textFilmsHeroKicker
+	textFilmsHeroKickerContinue
 	textFilmsLanguageTagJapanese
 	textFilmsLanguageTagKorean
 	textFilmsLanguageTagSimplifiedChinese
@@ -1146,7 +1151,9 @@ const (
 	textFilmsSourceEmpty
 	textFilmsSortAdded
 	textFilmsSortSource
+	textFilmsSortSpoken
 	textFilmsSortTitle
+	textFilmsSortWatched
 	textFilmsStageComplete
 	textFilmsStageDownloading
 	textFilmsStageExporting
@@ -1158,6 +1165,7 @@ const (
 	textFilmsSupportedSites
 	textFilmsTranslateAgain
 	textFilmsTranslateMissing
+	textFilmsWatched
 	textKitsDownloadDisconnected
 	textKitsDownloadStalled
 	textLibraryAddedOneStarting
@@ -1832,6 +1840,7 @@ var keyOfText = [numTexts]string{
 	"filmFontSans",
 	"filmFontSerif",
 	"filmFullScreen",
+	"filmHideSidebar",
 	"filmJobRecord",
 	"filmKeySpace",
 	"filmKindBilingual",
@@ -1922,9 +1931,9 @@ var keyOfText = [numTexts]string{
 	"filmsDropTitle",
 	"filmsEmptyDescription",
 	"filmsEmptyTitle",
-	"filmsGridTitle",
 	"filmsHeroFromStart",
 	"filmsHeroKicker",
+	"filmsHeroKickerContinue",
 	"filmsLanguageTagJapanese",
 	"filmsLanguageTagKorean",
 	"filmsLanguageTagSimplifiedChinese",
@@ -1971,7 +1980,9 @@ var keyOfText = [numTexts]string{
 	"filmsSourceEmpty",
 	"filmsSortAdded",
 	"filmsSortSource",
+	"filmsSortSpoken",
 	"filmsSortTitle",
+	"filmsSortWatched",
 	"filmsStageComplete",
 	"filmsStageDownloading",
 	"filmsStageExporting",
@@ -1983,6 +1994,7 @@ var keyOfText = [numTexts]string{
 	"filmsSupportedSites",
 	"filmsTranslateAgain",
 	"filmsTranslateMissing",
+	"filmsWatched",
 	"kitsDownloadDisconnected",
 	"kitsDownloadStalled",
 	"libraryAddedOneStarting",
@@ -2655,6 +2667,7 @@ var textsEn = i18n.NewTexts(""+
 	"Sans Serif"+
 	"Serif"+
 	"Full Screen"+
+	"Hide Sidebar"+
 	"Job record"+
 	"Space"+
 	"Bilingual subtitles"+
@@ -2745,9 +2758,9 @@ var textsEn = i18n.NewTexts(""+
 	"Drop to Add Local Videos"+
 	"Paste a link from YouTube, Bilibili or another site above, or drag a video file into the window. Kando downloads the video, recognizes the speech and makes bilingual subtitles."+
 	"Start with a Video"+
-	"Films"+
 	"Play from Beginning"+
 	"Recently Finished"+
+	"Continue Watching"+
 	"JA"+
 	"KO"+
 	"CHS"+
@@ -2794,7 +2807,9 @@ var textsEn = i18n.NewTexts(""+
 	"No films from this source yet."+
 	"Recently Added"+
 	"Source"+
+	"Spoken Language"+
 	"Title"+
+	"Recently Watched"+
 	"Done"+
 	"Downloading"+
 	"Exporting"+
@@ -2806,6 +2821,7 @@ var textsEn = i18n.NewTexts(""+
 	"Supported Websites…"+
 	"Translate Again"+
 	"Translate Missing Lines"+
+	"Watched"+
 	"the connection dropped"+
 	"the server stopped sending data"+
 	"Added. Processing started."+
@@ -3475,6 +3491,7 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		5,
 		11,
+		12,
 		10,
 		5,
 		19,
@@ -3565,8 +3582,8 @@ var textsEn = i18n.NewTexts(""+
 		24,
 		176,
 		18,
-		5,
 		19,
+		17,
 		17,
 		2,
 		2,
@@ -3614,7 +3631,9 @@ var textsEn = i18n.NewTexts(""+
 		30,
 		14,
 		6,
+		15,
 		5,
+		16,
 		4,
 		11,
 		9,
@@ -3626,6 +3645,7 @@ var textsEn = i18n.NewTexts(""+
 		21,
 		15,
 		23,
+		7,
 		22,
 		31,
 		26,
@@ -4298,6 +4318,7 @@ var textsJa = i18n.NewTexts(""+
 	"ゴシック体"+
 	"明朝体"+
 	"フルスクリーン"+
+	"サイドバーを隠す"+
 	"ジョブの記録"+
 	"スペース"+
 	"二言語字幕"+
@@ -4388,9 +4409,9 @@ var textsJa = i18n.NewTexts(""+
 	"ドロップしてローカル動画を追加"+
 	"上の欄に YouTube や bilibili などの動画のリンクを貼り付けるか、ローカルの動画をウインドウにドラッグしてください。Kando が動画をダウンロードし、音声を認識して、二言語字幕を作成します。"+
 	"動画から始めましょう"+
-	"動画"+
 	"最初から再生"+
 	"最近完了"+
+	"続きを見る"+
 	"日"+
 	"韓"+
 	"簡体"+
@@ -4437,7 +4458,9 @@ var textsJa = i18n.NewTexts(""+
 	"このソースの動画はまだありません。"+
 	"追加日が新しい順"+
 	"ソース"+
+	"音声の言語"+
 	"タイトル"+
+	"最近見た順"+
 	"完了"+
 	"ダウンロード中"+
 	"書き出し中"+
@@ -4449,6 +4472,7 @@ var textsJa = i18n.NewTexts(""+
 	"対応サイト…"+
 	"再翻訳"+
 	"未翻訳の行を翻訳"+
+	"視聴済み"+
 	"接続が切れました"+
 	"サーバーからデータが届かなくなりました"+
 	"追加して処理を開始しました。"+
@@ -5118,6 +5142,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		9,
 		21,
+		24,
 		18,
 		12,
 		15,
@@ -5208,9 +5233,9 @@ var textsJa = i18n.NewTexts(""+
 		45,
 		262,
 		30,
-		6,
 		18,
 		12,
+		15,
 		3,
 		3,
 		6,
@@ -5257,7 +5282,9 @@ var textsJa = i18n.NewTexts(""+
 		51,
 		24,
 		9,
+		15,
 		12,
+		15,
 		6,
 		21,
 		15,
@@ -5269,6 +5296,7 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		9,
 		24,
+		12,
 		24,
 		57,
 		42,
@@ -5941,6 +5969,7 @@ var textsKo = i18n.NewTexts(""+
 	"고딕체"+
 	"명조체"+
 	"전체 화면"+
+	"사이드바 숨기기"+
 	"작업 기록"+
 	"스페이스"+
 	"이중 언어 자막"+
@@ -6031,9 +6060,9 @@ var textsKo = i18n.NewTexts(""+
 	"놓아서 로컬 동영상 추가"+
 	"위에 YouTube, Bilibili 등의 동영상 링크를 붙여 넣거나 로컬 동영상을 윈도우로 드래그하세요. Kando가 동영상을 내려받고 음성을 인식한 뒤 이중 언어 자막을 만듭니다."+
 	"동영상으로 시작하기"+
-	"영상"+
 	"처음부터 보기"+
 	"최근 완료"+
+	"이어서 보기"+
 	"일"+
 	"한"+
 	"간체"+
@@ -6080,7 +6109,9 @@ var textsKo = i18n.NewTexts(""+
 	"이 출처의 영상이 아직 없습니다."+
 	"최근 추가순"+
 	"출처"+
+	"음성 언어"+
 	"제목"+
+	"최근 시청"+
 	"완료"+
 	"다운로드 중"+
 	"내보내는 중"+
@@ -6092,6 +6123,7 @@ var textsKo = i18n.NewTexts(""+
 	"지원하는 웹사이트…"+
 	"다시 번역"+
 	"번역 안 된 대사 번역"+
+	"시청 완료"+
 	"연결이 끊어졌습니다"+
 	"서버에서 데이터가 더 이상 오지 않습니다"+
 	"추가하고 처리를 시작했습니다."+
@@ -6761,6 +6793,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		9,
 		13,
+		22,
 		13,
 		12,
 		20,
@@ -6851,9 +6884,9 @@ var textsKo = i18n.NewTexts(""+
 		33,
 		218,
 		28,
-		6,
 		19,
 		13,
+		16,
 		3,
 		3,
 		6,
@@ -6900,7 +6933,9 @@ var textsKo = i18n.NewTexts(""+
 		44,
 		16,
 		6,
+		13,
 		6,
+		13,
 		6,
 		16,
 		16,
@@ -6912,6 +6947,7 @@ var textsKo = i18n.NewTexts(""+
 		28,
 		13,
 		28,
+		13,
 		28,
 		56,
 		42,
@@ -7584,6 +7620,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"黑体"+
 	"宋体"+
 	"全屏"+
+	"收起侧栏"+
 	"任务记录"+
 	"空格"+
 	"双语字幕"+
@@ -7674,9 +7711,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"松开以添加本地视频"+
 	"在上方粘贴 YouTube、哔哩哔哩等视频链接，或把本地视频拖进窗口。看懂会下载视频，识别语音，再生成双语字幕。"+
 	"从一段视频开始"+
-	"影片"+
 	"从头看"+
 	"最近完成"+
+	"继续观看"+
 	"日"+
 	"한"+
 	"简中"+
@@ -7723,7 +7760,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"这个来源下还没有影片。"+
 	"最近添加"+
 	"来源"+
+	"原声语言"+
 	"标题"+
+	"最近观看"+
 	"已完成"+
 	"下载中"+
 	"导出中"+
@@ -7735,6 +7774,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"支持的网站…"+
 	"重新翻译"+
 	"补译未译的句子"+
+	"已看完"+
 	"连接断了"+
 	"服务器一直没有发来数据"+
 	"已加入，开始处理。"+
@@ -8405,6 +8445,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		12,
 		6,
 		12,
 		6,
@@ -8494,8 +8535,8 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		152,
 		21,
-		6,
 		9,
+		12,
 		12,
 		3,
 		3,
@@ -8543,7 +8584,9 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		12,
 		6,
+		12,
 		6,
+		12,
 		9,
 		9,
 		9,
@@ -8555,6 +8598,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		12,
 		21,
+		9,
 		12,
 		33,
 		27,
@@ -9227,6 +9271,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"黑體"+
 	"宋體"+
 	"全螢幕"+
+	"收合側邊欄"+
 	"工作記錄"+
 	"空白鍵"+
 	"雙語字幕"+
@@ -9317,9 +9362,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"放開以加入本機影片"+
 	"在上方貼上 YouTube、嗶哩嗶哩等影片連結，或把本機影片拖進視窗。看懂會下載影片、辨識語音，再產生雙語字幕。"+
 	"從一段影片開始"+
-	"影片"+
 	"從頭看"+
 	"最近完成"+
+	"繼續觀看"+
 	"日"+
 	"韓"+
 	"簡中"+
@@ -9366,7 +9411,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"這個來源下還沒有影片。"+
 	"最近加入"+
 	"來源"+
+	"原聲語言"+
 	"標題"+
+	"最近觀看"+
 	"已完成"+
 	"下載中"+
 	"匯出中"+
@@ -9378,6 +9425,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"支援的網站…"+
 	"重新翻譯"+
 	"補譯未譯的句子"+
+	"已看完"+
 	"連線中斷了"+
 	"伺服器一直沒有傳來資料"+
 	"已加入，開始處理。"+
@@ -10047,6 +10095,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
+		15,
 		12,
 		9,
 		12,
@@ -10137,8 +10186,8 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		152,
 		21,
-		6,
 		9,
+		12,
 		12,
 		3,
 		3,
@@ -10186,7 +10235,9 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		12,
 		6,
+		12,
 		6,
+		12,
 		9,
 		9,
 		9,
@@ -10198,6 +10249,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		12,
 		21,
+		9,
 		15,
 		33,
 		27,
@@ -10873,6 +10925,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmFaceSize != nil {
 		s.FilmFaceSize = t.FilmFaceSize
 	}
+	if t.FilmInfoLanguages != nil {
+		s.FilmInfoLanguages = t.FilmInfoLanguages
+	}
 	if t.FilmLineOf != nil {
 		s.FilmLineOf = t.FilmLineOf
 	}
@@ -10912,11 +10967,11 @@ func Supply(lang string, t Translation) {
 	if t.FilmsGridCount != nil {
 		s.FilmsGridCount = t.FilmsGridCount
 	}
-	if t.FilmsHeroExported != nil {
-		s.FilmsHeroExported = t.FilmsHeroExported
-	}
 	if t.FilmsHeroKickerBilingual != nil {
 		s.FilmsHeroKickerBilingual = t.FilmsHeroKickerBilingual
+	}
+	if t.FilmsHeroKickerContinueBilingual != nil {
+		s.FilmsHeroKickerContinueBilingual = t.FilmsHeroKickerContinueBilingual
 	}
 	if t.FilmsHeroResume != nil {
 		s.FilmsHeroResume = t.FilmsHeroResume
@@ -10944,6 +10999,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsPosterBilingual != nil {
 		s.FilmsPosterBilingual = t.FilmsPosterBilingual
+	}
+	if t.FilmsPosterLanguages != nil {
+		s.FilmsPosterLanguages = t.FilmsPosterLanguages
 	}
 	if t.FilmsQueueActive != nil {
 		s.FilmsQueueActive = t.FilmsQueueActive
@@ -13559,6 +13617,47 @@ func FilmFullScreen(cx *core.Scope) string { return For(cx).FilmFullScreen() }
 // FilmFullScreen is the package's FilmFullScreen in the language of msgs.
 func (msgs Messages) FilmFullScreen() string { return msgs.text(textFilmFullScreen) }
 
+// FilmInfoLanguages says "{spoken} → {target}"
+// in the language the app shows under cx.
+//
+// Tag in the film's Info tab: the language heard in the video and the language its subtitles were translated into.
+func FilmInfoLanguages(cx *core.Scope, spoken string, target string) string {
+	return For(cx).FilmInfoLanguages(spoken, target)
+}
+
+// FilmInfoLanguages is the package's FilmInfoLanguages in the language of msgs.
+func (msgs Messages) FilmInfoLanguages(spoken string, target string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmInfoLanguages(spoken, target))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmInfoLanguages; f != nil {
+			return f(spoken, target)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(spoken) + " → " + msgs.arg(target)
+		case "ja":
+			return spoken + " → " + target
+		case "ko":
+			return spoken + " → " + target
+		case "zh-Hans":
+			return spoken + " → " + target
+		case "zh-Hant":
+			return spoken + " → " + target
+		}
+	}
+}
+
+// FilmHideSidebar says "Hide Sidebar"
+// in the language the app shows under cx.
+//
+// Button at the player's top right that folds the side panel away.
+func FilmHideSidebar(cx *core.Scope) string { return For(cx).FilmHideSidebar() }
+
+// FilmHideSidebar is the package's FilmHideSidebar in the language of msgs.
+func (msgs Messages) FilmHideSidebar() string { return msgs.text(textFilmHideSidebar) }
+
 // FilmJobRecord says "Job record"
 // in the language the app shows under cx.
 //
@@ -14845,45 +14944,6 @@ func (msgs Messages) FilmsGridCount(count int) string {
 	}
 }
 
-// FilmsGridTitle says "Films"
-// in the language the app shows under cx.
-//
-// Heading of the grid of finished films when the sidebar shows one source.
-func FilmsGridTitle(cx *core.Scope) string { return For(cx).FilmsGridTitle() }
-
-// FilmsGridTitle is the package's FilmsGridTitle in the language of msgs.
-func (msgs Messages) FilmsGridTitle() string { return msgs.text(textFilmsGridTitle) }
-
-// FilmsHeroExported says "Exported {file}"
-// in the language the app shows under cx.
-//
-// Part of the line under the large card's title: the subtitle file that was written.
-func FilmsHeroExported(cx *core.Scope, file string) string { return For(cx).FilmsHeroExported(file) }
-
-// FilmsHeroExported is the package's FilmsHeroExported in the language of msgs.
-func (msgs Messages) FilmsHeroExported(file string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHeroExported(file))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].FilmsHeroExported; f != nil {
-			return f(file)
-		}
-		switch lang {
-		case "", "en":
-			return "Exported " + msgs.arg(file)
-		case "ja":
-			return file + " を書き出し済み"
-		case "ko":
-			return file + " 내보냄"
-		case "zh-Hans":
-			return "已导出 " + file
-		case "zh-Hant":
-			return "已匯出 " + file
-		}
-	}
-}
-
 // FilmsHeroFromStart says "Play from Beginning"
 // in the language the app shows under cx.
 //
@@ -14930,6 +14990,47 @@ func (msgs Messages) FilmsHeroKickerBilingual(language string) string {
 			return "最近完成 · " + language + "双语"
 		case "zh-Hant":
 			return "最近完成 · " + language + "雙語"
+		}
+	}
+}
+
+// FilmsHeroKickerContinue says "Continue Watching"
+// in the language the app shows under cx.
+//
+// Small label over the title of the large card when it shows the film played last, which was stopped partway.
+func FilmsHeroKickerContinue(cx *core.Scope) string { return For(cx).FilmsHeroKickerContinue() }
+
+// FilmsHeroKickerContinue is the package's FilmsHeroKickerContinue in the language of msgs.
+func (msgs Messages) FilmsHeroKickerContinue() string { return msgs.text(textFilmsHeroKickerContinue) }
+
+// FilmsHeroKickerContinueBilingual says "Continue Watching · {language} Bilingual"
+// in the language the app shows under cx.
+//
+// Small label over the title of the large card when it shows the film played last, which was stopped partway, with the language its subtitles were translated into.
+func FilmsHeroKickerContinueBilingual(cx *core.Scope, language string) string {
+	return For(cx).FilmsHeroKickerContinueBilingual(language)
+}
+
+// FilmsHeroKickerContinueBilingual is the package's FilmsHeroKickerContinueBilingual in the language of msgs.
+func (msgs Messages) FilmsHeroKickerContinueBilingual(language string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHeroKickerContinueBilingual(language))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsHeroKickerContinueBilingual; f != nil {
+			return f(language)
+		}
+		switch lang {
+		case "", "en":
+			return "Continue Watching · " + msgs.arg(language) + " Bilingual"
+		case "ja":
+			return "続きを見る · " + language + "の二言語"
+		case "ko":
+			return "이어서 보기 · " + language + " 이중 언어"
+		case "zh-Hans":
+			return "继续观看 · " + language + "双语"
+		case "zh-Hant":
+			return "繼續觀看 · " + language + "雙語"
 		}
 	}
 }
@@ -15489,6 +15590,38 @@ func (msgs Messages) FilmsPosterBilingual(language string) string {
 			return "双语 · " + language
 		case "zh-Hant":
 			return "雙語 · " + language
+		}
+	}
+}
+
+// FilmsPosterLanguages says "{spoken} → {target}"
+// in the language the app shows under cx.
+//
+// Small tag over a poster: the short code of the language heard in the video and the short tag of the language it was translated into, shown when that is not the language set for new films.
+func FilmsPosterLanguages(cx *core.Scope, spoken string, target string) string {
+	return For(cx).FilmsPosterLanguages(spoken, target)
+}
+
+// FilmsPosterLanguages is the package's FilmsPosterLanguages in the language of msgs.
+func (msgs Messages) FilmsPosterLanguages(spoken string, target string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsPosterLanguages(spoken, target))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsPosterLanguages; f != nil {
+			return f(spoken, target)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(spoken) + " → " + msgs.arg(target)
+		case "ja":
+			return spoken + " → " + target
+		case "ko":
+			return spoken + " → " + target
+		case "zh-Hans":
+			return spoken + " → " + target
+		case "zh-Hant":
+			return spoken + " → " + target
 		}
 	}
 }
@@ -16328,6 +16461,15 @@ func FilmsSortSource(cx *core.Scope) string { return For(cx).FilmsSortSource() }
 // FilmsSortSource is the package's FilmsSortSource in the language of msgs.
 func (msgs Messages) FilmsSortSource() string { return msgs.text(textFilmsSortSource) }
 
+// FilmsSortSpoken says "Spoken Language"
+// in the language the app shows under cx.
+//
+// Sort order of the grid of finished films, and its item in the sort menu: films grouped by the language heard in them, those whose language is not known last.
+func FilmsSortSpoken(cx *core.Scope) string { return For(cx).FilmsSortSpoken() }
+
+// FilmsSortSpoken is the package's FilmsSortSpoken in the language of msgs.
+func (msgs Messages) FilmsSortSpoken() string { return msgs.text(textFilmsSortSpoken) }
+
 // FilmsSortTitle says "Title"
 // in the language the app shows under cx.
 //
@@ -16336,6 +16478,15 @@ func FilmsSortTitle(cx *core.Scope) string { return For(cx).FilmsSortTitle() }
 
 // FilmsSortTitle is the package's FilmsSortTitle in the language of msgs.
 func (msgs Messages) FilmsSortTitle() string { return msgs.text(textFilmsSortTitle) }
+
+// FilmsSortWatched says "Recently Watched"
+// in the language the app shows under cx.
+//
+// Sort order of the grid of finished films, and its item in the sort menu: the films played last come first, those never played after them.
+func FilmsSortWatched(cx *core.Scope) string { return For(cx).FilmsSortWatched() }
+
+// FilmsSortWatched is the package's FilmsSortWatched in the language of msgs.
+func (msgs Messages) FilmsSortWatched() string { return msgs.text(textFilmsSortWatched) }
 
 // FilmsStageComplete says "Done"
 // in the language the app shows under cx.
@@ -16475,6 +16626,15 @@ func (msgs Messages) FilmsUntranslated(count int) string {
 		}
 	}
 }
+
+// FilmsWatched says "Watched"
+// in the language the app shows under cx.
+//
+// Accessible name of the check mark over a poster: the film was played to its end.
+func FilmsWatched(cx *core.Scope) string { return For(cx).FilmsWatched() }
+
+// FilmsWatched is the package's FilmsWatched in the language of msgs.
+func (msgs Messages) FilmsWatched() string { return msgs.text(textFilmsWatched) }
 
 // KitsDownloadDisconnected says "the connection dropped"
 // in the language the app shows under cx.

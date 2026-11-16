@@ -114,6 +114,8 @@ func TestSourcesFilterTheLibrary(t *testing.T) {
 		{ID: "bili", Source: "https://www.bilibili.com/video/BV1GJ411x7h7", Stage: core.StageComplete, VideoPath: "/videos/bili-clip/video.mp4"},
 		{ID: "web", Source: "https://vimeo.com/76979871", Stage: core.StageComplete, VideoPath: "/videos/web-clip/video.mp4"},
 		{ID: "file", Source: "file:///videos/file-clip/video.mp4", Stage: core.StageComplete, VideoPath: "/videos/file-clip/video.mp4"},
+		// A job still in 处理中 is not counted, as the grid does not show it.
+		{ID: "queued", Source: "https://youtu.be/k9Yt2LmQ0pX", Stage: core.StageQueued},
 	}
 	a.edit(func(s *session) {
 		s.Videos = []media.Video{{Name: "loose-clip.mp4", Path: "/videos/loose/loose-clip.mp4"}}

@@ -1564,8 +1564,8 @@ func TestSearchFiltersTheShelfByTitle(t *testing.T) {
 	if len(listed) != 1 || listed[0].Name != "Rivers of Europe" {
 		t.Fatalf("films.ByTitle(RIVERS) = %+v", listed)
 	}
-	// The sidebar's sources go on counting the whole library, and a source narrows the search further.
-	if n := sidebarCount(t, tt, sidebar.SourceYouTube); n != "3" {
+	// The sidebar's sources go on counting the whole library's done films, as the grid shows them without a search, and a source narrows the search further.
+	if n := sidebarCount(t, tt, sidebar.SourceYouTube); n != "2" {
 		t.Fatalf("YouTube counts %q while searching", n)
 	}
 	a.SetSourceFilter(sidebar.SourceLocal)
@@ -1658,7 +1658,7 @@ func TestLibrarySortOrdersTheGrid(t *testing.T) {
 	choose := func(button, item string) {
 		t.Helper()
 		tt.Press(button)
-		if got, want := popupLabels(tt), []string{"最近添加", "标题", "来源"}; !slices.Equal(got, want) {
+		if got, want := popupLabels(tt), []string{"最近添加", "最近观看", "标题", "来源", "原声语言"}; !slices.Equal(got, want) {
 			t.Fatalf("sort menu %q, want %q", got, want)
 		}
 		tt.ChoosePopup(item)
@@ -1696,7 +1696,17 @@ func TestLibrarySortOrdersTheGrid(t *testing.T) {
 		t.Fatalf("restored sort %q shows %s", b.LibrarySort(), got)
 	}
 
-	choose("排序：来源", "最近添加")
+	// By when they played, Zebra played last, then apple, and Mango never.
+	now := time.Date(2026, 11, 16, 20, 0, 0, 0, time.Local)
+	apply(tt, a, func() {
+		a.setPlayedTimes(map[string]time.Time{a.library.Jobs[1].VideoPath: now.Add(-time.Hour), a.library.Jobs[2].VideoPath: now})
+	})
+	choose("排序：来源", "最近观看")
+	if got := libraryGridOrder(t, tt, names...); got != "Zebra,apple,Mango" {
+		t.Fatalf("recently watched %s", got)
+	}
+
+	choose("排序：最近观看", "最近添加")
 	if got := libraryGridOrder(t, tt, names...); got != "Mango,apple,Zebra" {
 		t.Fatalf("back to recently added %s", got)
 	}

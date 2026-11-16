@@ -22,9 +22,12 @@ const whisperSample = `{
 }`
 
 func TestParseWhisperJSON(t *testing.T) {
-	got, err := parseWhisperJSON([]byte(whisperSample))
+	got, spoken, err := parseWhisperJSON([]byte(whisperSample))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if spoken != "en" {
+		t.Fatalf("heard %q, want en", spoken)
 	}
 	want := []core.Segment{
 		{Start: 0, End: 4880 * time.Millisecond, Text: "Hello world."},
@@ -36,7 +39,7 @@ func TestParseWhisperJSON(t *testing.T) {
 }
 
 func TestParseWhisperJSONRejectsGarbage(t *testing.T) {
-	if _, err := parseWhisperJSON([]byte("not json")); err == nil {
+	if _, _, err := parseWhisperJSON([]byte("not json")); err == nil {
 		t.Fatal("expected an error")
 	}
 }

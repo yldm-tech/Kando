@@ -96,10 +96,16 @@ type App interface {
 	OpenSettings(section string)
 	// ResumeAt is where the video at path stopped playing last time, or 0.
 	ResumeAt(path string) time.Duration
+	// PlayedAt is when the video at path last played, the zero time when it never did.
+	PlayedAt(path string) time.Time
+	// Furthest is how far the video at path has ever played on from its start, 0 when it never did; unlike ResumeAt it stays once the video was watched to the end.
+	Furthest(path string) time.Duration
 	// Notice is the message bar under the top bar.
 	Notice() *Notice
 	// QueueExpanded is whether 处理中 shows every card rather than the first QueueShown.
 	QueueExpanded() *bool
+	// Language is the language the settings translate new films into, such as 简体中文.
+	Language() *string
 	// LibrarySort is the order the done grid shows its films in, one of Sorts; SetLibrarySort shows them in order from now on and keeps it for the next launch.
 	LibrarySort() string
 	SetLibrarySort(order string)
@@ -229,10 +235,10 @@ func newShelfModel(a App, source, tag string) shelfModel {
 	}
 	query := strings.TrimSpace(*a.Query())
 	if query == "" && source == sidebar.SourceAll {
-		m.hero, m.heroShown = HeroFilm(done)
+		m.hero, m.heroShown = HeroFilm(a, done)
 	}
 	done = ByTitle(done, query)
-	m.done = Sorted(done, a.LibrarySort(), tag)
+	m.done = Sorted(done, a.LibrarySort(), tag, a.PlayedAt)
 	if len(done) == 0 && query != "" {
 		m.noMatch = query
 	}
@@ -251,7 +257,7 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 	model := core.NewMemoFunc(cx, live.Func(a, func() shelfModel { return newShelfModel(a, s.source(), i18n.Language(cx)) }), shelfModel.equal).Get
 	return core.Group{
 		core.Show{When: func() bool { return model().heroShown }, Then: func(*core.Scope) core.Node {
-			return hero{a: a, item: func() Film { return model().hero }}
+			return hero{a: a, item: func() Film { return model().hero }, compact: func() bool { return len(model().queue) > 0 }}
 		}},
 		core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
 			return queueSection{a: a, queue: func() []Film { return model().queue }}
@@ -259,7 +265,7 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
 		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},
 		core.Show{When: func() bool { return len(model().done) > 0 }, Then: func(*core.Scope) core.Node {
-			return grid{a: a, source: s.source, done: func() []Film { return model().done }}
+			return grid{a: a, done: func() []Film { return model().done }}
 		}},
 		core.Show{When: func() bool { return model().noMatch != "" }, Then: func(*core.Scope) core.Node {
 			return noMatch{a: a, query: func() string { return model().noMatch }}

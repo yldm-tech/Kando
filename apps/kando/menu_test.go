@@ -307,6 +307,25 @@ func TestWindowKeysGoBackToTheLastFilm(t *testing.T) {
 	}
 }
 
+// TestWindowPlayerGoesBackToTheFilmPlayedLastAfterARestart checks that ⌘2 goes back to the film played last before the window has shown one since the app started, as after a restart: the shelf keeps when each film played.
+func TestWindowPlayerGoesBackToTheFilmPlayedLastAfterARestart(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 2, nil)
+	if _, ok := a.lastFilm(); ok {
+		t.Fatal("a film never played is one to go back to")
+	}
+	apply(tt, a, func() {
+		a.setPlayedTimes(map[string]time.Time{item.VideoPath: time.Date(2026, 11, 15, 21, 0, 0, 0, time.Local)})
+	})
+	if findMenuItem(t, a.menuBar(a.cx), "窗口", "播放器").Disabled {
+		t.Fatal("播放器 disabled with a film played before the restart")
+	}
+	tt.Key("mod+2")
+	if a.openKey != item.Key {
+		t.Fatalf("⌘2 opened %q, want the film played last", a.openKey)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+}
+
 // TestCheatsheetCloseButton checks the cheat sheet's × button.
 func TestCheatsheetCloseButton(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})

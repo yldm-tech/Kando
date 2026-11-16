@@ -346,6 +346,16 @@ func TestPanelTabsAndTheStyleView(t *testing.T) {
 	if texts := app.Texts(); slices.Index(texts, "talk.mp4") > slices.Index(texts, "talk.bilingual.srt") {
 		t.Fatalf("the info tab lists %q", texts)
 	}
+	// The film's languages: the one it was translated into, and the one heard in it once that is known.
+	if !app.Exists(whole(msgs.SettingsLanguageSimplifiedChinese())) {
+		t.Fatalf("the info tab does not name the translation's language: %q", app.Texts())
+	}
+	a.item.Spoken = "ja"
+	a.Changed()
+	app.Settle()
+	if want := msgs.FilmInfoLanguages(msgs.SettingsSpeechLanguageJa(), msgs.SettingsLanguageSimplifiedChinese()); !app.Exists(whole(want)) {
+		t.Fatalf("the info tab does not say %q: %q", want, app.Texts())
+	}
 	app.Press("id:film-info-file-talk.mp4")
 	if !slices.Contains(a.calls, "reveal "+filepath.Join("/films/talk", "talk.mp4")) {
 		t.Fatalf("revealing the video called %q", a.calls)

@@ -87,7 +87,7 @@ func (a *app) restoreQueue(saved savedSettings) {
 	}
 }
 
-// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (queueRun); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The queue starts telling the system about its jobs then too, and removes its notifications whenever the app comes to the front (queue_desktop.go). The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions and subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved. From the window being ready, the computer does not sleep while a job runs, and the hold ends as the app quits.
+// queueHooks: opening another library does not stop the running job, which goes on saving into its own library (queueRun); a job queued in the library opened starts once nothing runs. A quit while a job runs asks first, unless a signal asked for it, and the job still running when the app quits is stopped, left on the shelf as it stood so the next launch runs it again (queue_quit.go). Jobs the app quit in the middle of were read back as queued; they run once the window is ready, so their background updates have a window to land in. The queue starts telling the system about its jobs then too, and removes its notifications whenever the app comes to the front (queue_desktop.go). The version of yt-dlp, which the card of a download it was too old for names, and the browsers whose logins the cards offer to borrow are read then and whenever the tools change; when they were looked up again because the yt-dlp that card asked Kando to download is in, it is updated and the downloads it was too old for run again. The player's resume positions, when each video last played and its subtitle delays are kept with the shelf: read when it is opened and saved when the player remembers one, and keyed by the new paths of videos that moved. From the window being ready, the computer does not sleep while a job runs, and the hold ends as the app quits.
 func (a *app) queueHooks() areaHooks {
 	return areaHooks{
 		save:    a.saveQueue,
@@ -113,12 +113,14 @@ func (a *app) queueHooks() areaHooks {
 		libraryChanged: a.pump,
 		shelfLoaded: func() {
 			a.setResumePositions(maps.Clone(a.library.Positions))
+			a.setPlayedTimes(maps.Clone(a.library.Played))
 			a.setSubtitleDelays(maps.Clone(a.library.Delays))
 		},
 		becameActive:     a.queueBecameActive,
 		positionsChanged: a.savePositions,
 		videosMoved: func(move func(string) (string, bool)) {
 			shelf.MoveKeys(a.resumePositions(), move)
+			shelf.MoveKeys(a.playedTimes(), move)
 			shelf.MoveKeys(a.subtitleDelays(), move)
 		},
 		afterChange: a.queueQuitModal,
@@ -325,9 +327,10 @@ func (a *app) startFilm(item films.Film) {
 	a.loadSubtitles(a.queue.job.ID, a.queue.job.SubtitlePath)
 }
 
-// savePositions writes the player's resume positions and subtitle delays into library.json with the jobs.
+// savePositions writes the player's resume positions, when each video last played and its subtitle delays into library.json with the jobs.
 func (a *app) savePositions() {
 	a.library.Positions = maps.Clone(a.resumePositions())
+	a.library.Played = maps.Clone(a.playedTimes())
 	a.library.Delays = maps.Clone(a.subtitleDelays())
 	if err := a.library.Save(); err != nil {
 		a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)

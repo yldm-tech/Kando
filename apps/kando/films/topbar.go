@@ -30,7 +30,7 @@ var (
 	pillShadow   = []ns.BoxShadow{{Offset: ns.Point{Y: 2}, Blur: 8, Color: ns.RGBA(0x000000, 0.06)}}
 )
 
-// topBar is the bar along the top of the library: the source being shown and the library's name, the link field, 本地视频 and 开始处理. Enter in the field adds the link as 开始处理 does. It lies over the page's scroll view, which scrolls under it, and drags the window. It takes the prototype's toolbar: 65 points high, its controls 10 from its top and 14 from its end, and its title 24 from its start at 15 points over the library's name; on macOS the sidebar holds the traffic lights, so none of its room is the window controls', and elsewhere it keeps clear of those at its end and is at least as tall as the title bar.
+// topBar is the bar along the top of the library: the source being shown, the link field, 本地视频 and 开始处理. Enter in the field adds the link as 开始处理 does. It lies over the page's scroll view, which scrolls under it, and drags the window. It takes the prototype's toolbar: 65 points high, its controls 10 from its top and 14 from its end, and its title 24 from its start at 15 points; on macOS the sidebar holds the traffic lights, so none of its room is the window controls', and elsewhere it keeps clear of those at its end and is at least as tall as the title bar.
 type topBar struct {
 	a      App
 	source func() string
@@ -41,13 +41,10 @@ func (b topBar) Render(cx *ns.Scope) ns.Node {
 	a := b.a
 	colors := ui.ColorsOf(cx)
 	title := func() string { return PageTitle(locales.For(cx), b.source()) }
-	subtitle := live.Func(a, func() string { return LibraryName(a.LibraryDir()) })
-	head := ns.View{Style: ns.Style{Gap: 3, FlexShrink: 1, MinWidth: ns.Pt(0)}, Children: []ns.Node{
+	// The sidebar's switcher names the open library, so the bar names only the source the page shows.
+	head := ns.View{Style: ns.Style{FlexShrink: 1, MinWidth: ns.Pt(0), JustifyContent: ns.JustifyCenter}, Children: []ns.Node{
 		heading(1, ns.Text{ContentFunc: title, MaxLines: 1, EllipsizeMode: ns.EllipsizeTail,
 			Style: ns.Style{FontSize: 15, FontWeight: ui.Bold, LetterSpacing: -0.1}, StyleFunc: ui.Colored(colors.Text)}),
-		ns.Show{When: func() bool { return subtitle() != "" }, Then: func(*ns.Scope) ns.Node {
-			return ns.Text{ContentFunc: subtitle, MaxLines: 1, EllipsizeMode: ns.EllipsizeTail, Style: ns.Style{FontSize: 11}, StyleFunc: ui.Colored(colors.Muted)}
-		}},
 	}}
 	// The prototype's toolbar pills are 34 points high; 开始处理 is the platform's primary button, its accent's shadow under it.
 	start := ns.View{Style: ns.Style{CornerRadius: 17}, StyleFunc: func() ns.Style {

@@ -23,7 +23,7 @@ func (a *app) filmPage(item func() films.Film) ns.Node {
 // filmItem is the library's film as the player shows it.
 func filmItem(f films.Film) film.Item {
 	return film.Item{Key: f.Key, Title: f.Title, Name: f.Name, Source: f.Source, Detail: f.Detail, Stage: f.Stage,
-		JobID: f.JobID, VideoPath: f.VideoPath, SubtitlePath: f.SubtitlePath, Language: f.Language, Untranslated: f.Untranslated}
+		JobID: f.JobID, VideoPath: f.VideoPath, SubtitlePath: f.SubtitlePath, Language: f.Language, Spoken: f.Spoken, Untranslated: f.Untranslated}
 }
 
 // openFilm is the film the player shows: the open key's, on the shelf or among the jobs.

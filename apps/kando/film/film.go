@@ -211,6 +211,8 @@ type Item struct {
 	JobID, VideoPath, SubtitlePath   string
 	// Language is what the job translated into, such as 简体中文; empty for a video no job has processed.
 	Language string
+	// Spoken is the language the speech recognition heard in the video, as whisper's code (ja, en); empty when it is not known.
+	Spoken string
 	// Untranslated is how many lines of a done film's subtitles the translation left untranslated.
 	Untranslated int
 }
