@@ -58,6 +58,7 @@ func desktop(t *testing.T) (*httptest.Server, netip.AddrPort, []byte) {
 	}))
 	mux.HandleFunc("GET "+PathVideo, authed(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", `"v1"`)
+		w.Header().Set("Content-Type", "video/mp4")
 		http.ServeContent(w, r, "talk.mp4", time.Unix(1, 0), bytes.NewReader(video))
 	}))
 	srv := httptest.NewTLSServer(mux)
@@ -106,7 +107,7 @@ func TestClientPairsAndReads(t *testing.T) {
 	}
 	body, _ := io.ReadAll(part.Body)
 	part.Body.Close()
-	if string(body) != "56789" || part.Start != 5 || part.End != 9 || part.Total != 20 || part.ETag != `"v1"` {
+	if string(body) != "56789" || part.Start != 5 || part.End != 9 || part.Total != 20 || part.ETag != `"v1"` || part.ContentType != "video/mp4" {
 		t.Fatalf("part %q %+v", body, part)
 	}
 	rest, err := c.Video(ctx, "f1", 15, -1, part.ETag)

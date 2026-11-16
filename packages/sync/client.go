@@ -123,12 +123,13 @@ func (c *Client) Poster(ctx context.Context, id string) (data []byte, contentTyp
 	return data, resp.Header.Get("Content-Type"), err
 }
 
-// Part is a part of a film's video the desktop answers: Body reads the bytes from Start to End, both included, of the Total the file holds, and ETag names the file as it is, which a later request sends as IfRange so a part of a file that changed meanwhile comes whole instead.
+// Part is a part of a film's video the desktop answers: Body reads the bytes from Start to End, both included, of the Total the file holds, and ETag names the file as it is, which a later request sends as IfRange so a part of a file that changed meanwhile comes whole instead. ContentType is the file's type as the desktop names it, such as video/mp4, which a phone keeping the file names it by.
 type Part struct {
-	Body       io.ReadCloser
-	Start, End int64
-	Total      int64
-	ETag       string
+	Body        io.ReadCloser
+	Start, End  int64
+	Total       int64
+	ETag        string
+	ContentType string
 }
 
 // Video asks for film id's video from byte from to byte to, both included; a negative to asks for the rest of the file. With ifRange, the ETag of an earlier part, a file that changed since answers whole, from byte 0. The caller closes the Part's Body.
@@ -146,7 +147,7 @@ func (c *Client) Video(ctx context.Context, id string, from, to int64, ifRange s
 	if err != nil {
 		return nil, err
 	}
-	part := &Part{Body: resp.Body, ETag: resp.Header.Get("ETag")}
+	part := &Part{Body: resp.Body, ETag: resp.Header.Get("ETag"), ContentType: resp.Header.Get("Content-Type")}
 	if resp.StatusCode == http.StatusPartialContent {
 		if _, err := fmt.Sscanf(resp.Header.Get("Content-Range"), "bytes %d-%d/%d", &part.Start, &part.End, &part.Total); err != nil {
 			resp.Body.Close()
