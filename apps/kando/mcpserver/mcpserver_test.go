@@ -64,7 +64,7 @@ func (f *fakeApp) handle(method string, params json.RawMessage) (any, error) {
 		}
 		return out, nil
 	case remote.MethodFilm, remote.MethodSubtitles:
-		p, err := remote.Params[remote.IDParams](params)
+		p, err := remote.Params[remote.SubtitlesParams](params)
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,38 @@ func (f *fakeApp) handle(method string, params json.RawMessage) (any, error) {
 	case remote.MethodSites:
 		return []remote.Site{{Name: "Vimeo", Domain: "vimeo.com"}}, nil
 	case remote.MethodShow:
-		return nil, nil
+		p, err := remote.Params[remote.ShowParams](params)
+		if err != nil {
+			return nil, err
+		}
+		if p.ID == "queued" {
+			return remote.ShowResult{Reason: remote.ShowInQueue}, nil
+		}
+		return remote.ShowResult{Shown: p.ID, AtMS: p.AtMS}, nil
+	case remote.MethodJob:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		for _, job := range sampleJobs {
+			if job.ID == p.ID {
+				return job, nil
+			}
+		}
+		return nil, remote.Errorf(remote.CodeNotFound, "no job %s", p.ID)
+	case remote.MethodSearch:
+		p, err := remote.Params[remote.SearchParams](params)
+		if err != nil {
+			return nil, err
+		}
+		var out []remote.Line
+		for i := range 3 {
+			out = append(out, remote.Line{FilmID: "f1", Title: "Rivers of Light", StartMS: int64(i) * 1000, EndMS: int64(i)*1000 + 500, Text: p.Query + " " + fmt.Sprint(i)})
+		}
+		if p.Limit > 0 && len(out) > p.Limit {
+			out = out[:p.Limit]
+		}
+		return out, nil
 	}
 	return nil, remote.Errorf(remote.CodeUnknownMethod, "%s", method)
 }
@@ -226,17 +257,19 @@ func TestListTools(t *testing.T) {
 		readOnly, destructive, idempotent, openWorld bool
 	}
 	want := map[string]hints{
-		"kando_status":        {readOnly: true, idempotent: true},
-		"kando_list_films":    {readOnly: true, idempotent: true},
-		"kando_get_film":      {readOnly: true, idempotent: true},
-		"kando_get_subtitles": {readOnly: true, idempotent: true},
-		"kando_add_videos":    {openWorld: true},
-		"kando_list_jobs":     {readOnly: true, idempotent: true},
-		"kando_cancel_job":    {destructive: true, idempotent: true},
-		"kando_retry_job":     {destructive: true, openWorld: true},
-		"kando_remove_job":    {destructive: true, idempotent: true},
-		"kando_search_sites":  {readOnly: true, idempotent: true},
-		"kando_open":          {idempotent: true},
+		"kando_status":           {readOnly: true, idempotent: true},
+		"kando_list_films":       {readOnly: true, idempotent: true},
+		"kando_get_film":         {readOnly: true, idempotent: true},
+		"kando_get_subtitles":    {readOnly: true, idempotent: true},
+		"kando_search_subtitles": {readOnly: true, idempotent: true},
+		"kando_get_job":          {readOnly: true, idempotent: true},
+		"kando_add_videos":       {openWorld: true},
+		"kando_list_jobs":        {readOnly: true, idempotent: true},
+		"kando_cancel_job":       {destructive: true, idempotent: true},
+		"kando_retry_job":        {destructive: true, openWorld: true},
+		"kando_remove_job":       {destructive: true, idempotent: true},
+		"kando_search_sites":     {readOnly: true, idempotent: true},
+		"kando_open":             {idempotent: true},
 	}
 	if len(res.Tools) != len(want) {
 		t.Errorf("%d tools, want %d", len(res.Tools), len(want))
@@ -268,7 +301,7 @@ func TestListTools(t *testing.T) {
 		}
 	}
 	schema, _ := json.Marshal(subtitles.InputSchema)
-	for _, want := range []string{`"enum":["both","original","translation"]`, `"enum":["text","srt"]`, `"required":["id"]`, `"max_cues"`} {
+	for _, want := range []string{`"enum":["both","original","translation"]`, `"enum":["text","srt"]`, `"required":["id"]`, `"max_cues"`, `"from_ms"`, `"to_ms"`, `"enum":["watched"]`} {
 		if !strings.Contains(string(schema), want) {
 			t.Errorf("kando_get_subtitles input schema %s lacks %s", schema, want)
 		}
@@ -301,6 +334,25 @@ func TestReadTools(t *testing.T) {
 	film := structured[remote.Film](t, call(t, cs, "kando_get_film", map[string]any{"id": "f1"}))
 	if film.Title != "Rivers of Light" || film.Subtitles != "/lib/a.bilingual.srt" {
 		t.Errorf("film = %+v", film)
+	}
+
+	if job := structured[remote.Job](t, call(t, cs, "kando_get_job", map[string]any{"id": "j0"})); job.ID != "j0" || job.FilmID != "f1" {
+		t.Errorf("job = %+v", job)
+	}
+	if res := call(t, cs, "kando_get_job", map[string]any{"id": "j7"}); !res.IsError || text(t, res) != "not_found: no job j7" {
+		t.Errorf("an unknown job = %v %q", res.IsError, text(t, res))
+	}
+
+	found := structured[searchSubtitlesOutput](t, call(t, cs, "kando_search_subtitles", map[string]any{"query": "river", "film_id": "f1", "until": "watched"}))
+	if len(found.Lines) != 3 || found.Cut || found.Lines[0].FilmID != "f1" {
+		t.Errorf("found = %+v", found)
+	}
+	if got := string(f.lastParams(remote.MethodSearch)); got != `{"query":"river","film_id":"f1","until":"watched","limit":51}` {
+		t.Errorf("search params = %s, want the default limit and one more", got)
+	}
+	found = structured[searchSubtitlesOutput](t, call(t, cs, "kando_search_subtitles", map[string]any{"query": "river", "limit": 2}))
+	if len(found.Lines) != 2 || !found.Cut {
+		t.Errorf("found at most 2 = %+v", found)
 	}
 
 	jobs := structured[listJobsOutput](t, call(t, cs, "kando_list_jobs", nil))
@@ -381,11 +433,24 @@ func TestChangingTools(t *testing.T) {
 	if !strings.Contains(text(t, res), "library") || string(f.lastParams(remote.MethodShow)) != `{"id":""}` {
 		t.Errorf("open library = %q, params %s", text(t, res), f.lastParams(remote.MethodShow))
 	}
+	res = call(t, cs, "kando_open", map[string]any{"id": "f1", "at_ms": 65000})
+	if shown := structured[openOutput](t, res); shown.Shown != "f1" || shown.AtMS == nil || *shown.AtMS != 65000 || !strings.Contains(text(t, res), "playing film f1 from 00:01:05") {
+		t.Errorf("open at = %+v, %q", shown, text(t, res))
+	}
+	if got := string(f.lastParams(remote.MethodShow)); got != `{"id":"f1","at_ms":65000}` {
+		t.Errorf("show params = %s", got)
+	}
+	// A film the window cannot show yet is not reported as shown.
+	res = call(t, cs, "kando_open", map[string]any{"id": "queued"})
+	if shown := structured[openOutput](t, res); shown.Shown != "" || shown.Reason != remote.ShowInQueue || !strings.Contains(text(t, res), "still being processed") {
+		t.Errorf("open queued = %+v, %q", shown, text(t, res))
+	}
 }
 
 func TestSubtitles(t *testing.T) {
 	path := shortSocket(t)
-	serveFake(t, path, newFake())
+	f := newFake()
+	serveFake(t, path, f)
 	cs := connect(t)
 
 	res := call(t, cs, "kando_get_subtitles", map[string]any{"id": "f1"})
@@ -425,11 +490,17 @@ func TestSubtitles(t *testing.T) {
 		t.Fatalf("truncated result has %d content blocks, want the text and a note", len(res.Content))
 	}
 	got := text(t, res)
-	if !strings.HasPrefix(got, "[00:00:00] 你好 | Hello there\n[00:00:01] Untranslated line\nTruncated: these are the first 2 of 3 subtitle lines, up to 00:00:03.") {
+	if got != "[00:00:00] 你好 | Hello there\n[00:00:01] Untranslated line\nTruncated: these are the first 2 of 3 subtitle lines, up to 00:00:03. Call kando_get_subtitles again with from_ms 3725250 for the next ones." {
 		t.Errorf("truncated text = %q", got)
 	}
-	if out := structured[subtitlesOutput](t, res); out.Total != 3 || out.Shown != 2 || !out.Cut || len(out.Cues) != 2 {
+	if out := structured[subtitlesOutput](t, res); out.Total != 3 || out.Shown != 2 || !out.Cut || len(out.Cues) != 2 || out.Next != 3_725_250 {
 		t.Errorf("truncated structured = %+v", out)
+	}
+
+	// The part of the film asked for is the app's to cut, which it is asked for.
+	call(t, cs, "kando_get_subtitles", map[string]any{"id": "f1", "from_ms": 1000, "to_ms": 5000, "until": "watched"})
+	if got := string(f.lastParams(remote.MethodSubtitles)); got != `{"id":"f1","from_ms":1000,"to_ms":5000,"until":"watched"}` {
+		t.Errorf("subtitles params = %s", got)
 	}
 
 	res = call(t, cs, "kando_get_subtitles", map[string]any{"id": "f1", "which": "both", "max_cues": 3})
@@ -559,7 +630,7 @@ func TestLostAddAnswer(t *testing.T) {
 	cs := connect(t)
 
 	res := call(t, cs, "kando_add_videos", map[string]any{"sources": []string{"https://youtu.be/z"}})
-	if !res.IsError || !strings.Contains(text(t, res), "check kando_list_jobs before adding them again") {
+	if !res.IsError || !strings.Contains(text(t, res), "a video already queued is answered with its job") {
 		t.Errorf("add with a lost answer = %v %q", res.IsError, text(t, res))
 	}
 	res = call(t, cs, "kando_retry_job", map[string]any{"id": "j0"})

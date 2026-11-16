@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/lines"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/shelf"
 
@@ -47,22 +48,15 @@ type palettePlayback struct {
 
 // paletteFile is a subtitle file as the palette read it: its cues, and the size and time it had, so it is read again only once it changed.
 type paletteFile struct {
-	cues []paletteCue
+	cues []lines.Line
 	mod  time.Time
 	size int64
-}
-
-// paletteCue is a line of a subtitle file: where it starts, its translation and its original, and both in lower case for the search.
-type paletteCue struct {
-	start                 time.Duration
-	translation, original string
-	folded                string
 }
 
 // paletteHit is a line the query found, in the film it belongs to.
 type paletteHit struct {
 	film films.Film
-	cue  paletteCue
+	cue  lines.Line
 }
 
 // paletteAnswer is the answer card. busy is set while the question is on its way; needsAI when no AI service is set or the one set could not answer, so the card offers to open its settings; failed when no answer came.

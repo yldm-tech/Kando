@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"kando/apps/kando/locales"
-	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/remote"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -113,7 +113,7 @@ func TestRemoteStatusSaysWhatTheAppIs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Version != appVersion || got.LibraryDir != "/videos" || !got.Ready || got.Readiness != testlocale.Messages().ReadinessReady() || got.Language != "简体中文" || got.Running != "" || got.Queued != 0 {
+	if got.Version != appVersion || got.LibraryDir != "/videos" || !got.Ready || got.Readiness != remoteMessages().ReadinessReady() || got.Language != "简体中文" || got.Running != "" || got.Queued != 0 {
 		t.Fatalf("status %+v", got)
 	}
 
@@ -158,7 +158,7 @@ func TestRemoteListsAndFindsTheLibrarysFilms(t *testing.T) {
 	if found.Title != "interview" || found.Source != "local" || found.Link != "" || found.Stage != "" || found.Progress != -1 || found.JobID != "" || found.Status != "" || found.Subtitles != filepath.Join(dir, "Interview", "interview.bilingual.srt") || found.OriginalSubtitles != "" {
 		t.Fatalf("found film %+v", found)
 	}
-	if clip := all[0]; clip.Source != "local" || clip.Link != "" || clip.Stage != "queued" || clip.Progress != 0 || clip.Status != testlocale.Messages().QueueStatusQueued() {
+	if clip := all[0]; clip.Source != "local" || clip.Link != "" || clip.Stage != "queued" || clip.Progress != 0 || clip.Status != remoteMessages().QueueStatusQueued() {
 		t.Fatalf("queued film %+v", clip)
 	}
 
@@ -256,7 +256,7 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	for _, s := range added.Skipped {
 		reasons[s.Source] = s.Reason
 	}
-	if len(added.Skipped) != 4 || reasons[" "] != testlocale.Messages().PrecheckEmpty() || reasons["not a link"] != testlocale.Messages().PrecheckNotLink() || reasons["notes.txt"] != testlocale.Messages().PrecheckNoVideo() || missing == nil || reasons["missing.mp4"] != missing.Error() {
+	if len(added.Skipped) != 4 || reasons[" "] != remoteMessages().PrecheckEmpty() || reasons["not a link"] != remoteMessages().PrecheckNotLink() || reasons["notes.txt"] != remoteMessages().PrecheckNoVideo() || missing == nil || reasons["missing.mp4"] != missing.Error() {
 		t.Fatalf("skipped %+v", added.Skipped)
 	}
 	first, clip, last := added.Jobs[0].ID, added.Jobs[1].ID, added.Jobs[2].ID
@@ -268,7 +268,7 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	if len(jobs) != 4 || jobs[0].ID != first || jobs[1].ID != clip || jobs[2].ID != last || jobs[3].ID != "old" {
 		t.Fatalf("jobs %+v", jobs)
 	}
-	if jobs[0].Stage != "downloading" || jobs[1].Stage != "queued" || jobs[1].Status != testlocale.Messages().QueueStatusQueued() || jobs[3].FilmID != "old" || jobs[0].FilmID != "" {
+	if jobs[0].Stage != "downloading" || jobs[1].Stage != "queued" || jobs[1].Status != remoteMessages().QueueStatusQueued() || jobs[3].FilmID != "old" || jobs[0].FilmID != "" {
 		t.Fatalf("jobs %+v", jobs)
 	}
 	status, err := remoteCall[remote.Status](t, updates, remote.MethodStatus, nil)
@@ -280,7 +280,7 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if canceled.ID != last || canceled.Stage != "failed" || !canceled.Canceled || canceled.Error != "" || canceled.Status != "已取消" {
+	if canceled.ID != last || canceled.Stage != "failed" || !canceled.Canceled || canceled.Error != "" || canceled.Status != remoteMessages().QueueStatusCanceled() {
 		t.Fatalf("canceled waiting job %+v", canceled)
 	}
 	canceled, err = remoteCall[remote.Job](t, updates, remote.MethodCancel, remote.IDParams{ID: first})
@@ -329,14 +329,24 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 		reasons = append(reasons, s.Source+": "+s.Reason)
 	}
 	want := []string{
-		"https://www.youtube.com/@veritasium: " + testlocale.Messages().PrecheckChannel("YouTube"),
-		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8: " + testlocale.Messages().PrecheckList("YouTube"),
-		"https://www.youtube.com/results?search_query=french: " + testlocale.Messages().PrecheckPage(),
-		"https://youtu.be/TRWgBxVAb1M: " + testlocale.Messages().QueueAlreadyInLibrary(),
-		"https://example.com/a: " + testlocale.Messages().QueueAlreadyQueued(),
+		"https://www.youtube.com/@veritasium: " + remoteMessages().PrecheckChannel("YouTube"),
+		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8: " + remoteMessages().PrecheckList("YouTube"),
+		"https://www.youtube.com/results?search_query=french: " + remoteMessages().PrecheckPage(),
+		"https://youtu.be/TRWgBxVAb1M: " + remoteMessages().QueueAlreadyInLibrary(),
+		"https://example.com/a: " + remoteMessages().QueueAlreadyQueued(),
 	}
 	if !slices.Equal(reasons, want) {
 		t.Fatalf("skipped %q\nwant %q", reasons, want)
+	}
+	// A video already there is skipped with its job, which a client follows as one it queued; a list is not.
+	if s := added.Skipped[0]; s.JobID != "" || s.Stage != "" || s.FilmID != "" {
+		t.Errorf("a channel skipped with a job %+v", s)
+	}
+	if s := added.Skipped[2]; s.JobID != "done" || s.Stage != "complete" || s.FilmID != "done" {
+		t.Errorf("a video already in the library skipped as %+v", s)
+	}
+	if s, first := added.Skipped[3], added.Jobs[0]; s.JobID != first.ID || s.Stage == "" || s.Stage == "complete" || s.Stage == "failed" || s.FilmID != "" {
+		t.Errorf("a video given twice skipped as %+v, its job %+v", s, first)
 	}
 	if len(a.library.Jobs) != 3 {
 		t.Fatalf("jobs %+v", a.library.Jobs)
@@ -435,7 +445,7 @@ func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
 	_, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{"https://example.com/a"}})
 	remoteWantCode(t, err, remote.CodeNotReady)
 	var e *remote.Error
-	if !errors.As(err, &e) || e.Message != testlocale.Messages().PrecheckNoLibrary() {
+	if !errors.As(err, &e) || e.Message != remoteMessages().PrecheckNoLibrary() {
 		t.Fatalf("error %v", err)
 	}
 	if len(a.library.Jobs) != 0 {
@@ -445,18 +455,194 @@ func TestRemoteAddSaysWhatIsMissing(t *testing.T) {
 	remoteWantCode(t, err, remote.CodeInvalid)
 }
 
-// TestRemoteAddSaysWhyInTheInterfaceLanguage checks that the reasons jobs.add gives for the sources it skips are in the language the window shows, which the app may have been switched to, not the one the tests read.
-func TestRemoteAddSaysWhyInTheInterfaceLanguage(t *testing.T) {
+// TestRemoteSpeaksEnglish checks that the socket says what it says in English, whatever language the window shows, as the command line and the MCP server say the rest in English: the status line, a film's and a job's status, the reasons jobs.add gives for the sources it skips, and why it cannot add any.
+func TestRemoteSpeaksEnglish(t *testing.T) {
 	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
-	a.prefs.interfaceLanguage = "en"
+	remoteLibrary(t, a)
+	a.prefs.interfaceLanguage = "ja"
+	a.checkReadiness(false)
+	en := locales.In("en")
+
+	status, err := remoteCall[remote.Status](t, updates, remote.MethodStatus, nil)
+	if err != nil || status.Readiness != en.ReadinessReady() {
+		t.Fatalf("status %+v, %v, want the readiness %q", status, err, en.ReadinessReady())
+	}
+	clip, err := remoteCall[remote.Film](t, updates, remote.MethodFilm, remote.IDParams{ID: "clip"})
+	if err != nil || clip.Status != en.QueueStatusQueued() {
+		t.Fatalf("film %+v, %v, want the status %q", clip, err, en.QueueStatusQueued())
+	}
+	jobs, err := remoteCall[[]remote.Job](t, updates, remote.MethodJobs, nil)
+	if err != nil || len(jobs) == 0 || jobs[0].Status != en.QueueStatusQueued() {
+		t.Fatalf("jobs %+v, %v", jobs, err)
+	}
 	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{" ", "not a link"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	en := locales.In("en")
 	if len(added.Skipped) != 2 || added.Skipped[0].Reason != en.PrecheckEmpty() || added.Skipped[1].Reason != en.PrecheckNotLink() || len(added.Jobs) != 0 {
 		t.Fatalf("added %+v", added)
+	}
+	a.prefs.language = ""
+	_, err = remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{"https://example.com/a"}})
+	var e *remote.Error
+	if !errors.As(err, &e) || e.Code != remote.CodeNotReady || e.Message != en.QueueNoLanguage() {
+		t.Fatalf("add without a language: %v, want not_ready %q", err, en.QueueNoLanguage())
+	}
+
+	found, err := remoteCall[[]remote.Film](t, updates, remote.MethodFilms, remote.FilmsParams{Source: "local"})
+	if err != nil || len(found) != 2 {
+		t.Fatalf("local films %+v, %v", found, err)
+	}
+}
+
+// TestRemoteStatusListsTheLibraries checks that status lists every library the app knows, with the name the window gives it, which one is open and how many films each holds, and marks one whose folder is gone, so an agent can tell why a film it looks for is not in the open one.
+func TestRemoteStatusListsTheLibraries(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	open := remoteLibrary(t, a)
+	other := filepath.Join(t.TempDir(), "Lectures.kando")
+	remoteWriteFile(t, filepath.Join(other, "One", "one.mp4"), "video")
+	remoteWriteFile(t, filepath.Join(other, "Two", "two.mp4"), "video")
+	gone := filepath.Join(t.TempDir(), "Gone.kando")
+	a.edit(func(s *session) { s.Libraries = []string{other, gone} })
+
+	status, err := remoteCall[remote.Status](t, updates, remote.MethodStatus, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byPath := map[string]remote.Library{}
+	for _, lib := range status.Libraries {
+		byPath[lib.Path] = lib
+	}
+	if len(status.Libraries) != 3 {
+		t.Fatalf("libraries %+v", status.Libraries)
+	}
+	if lib := byPath[open]; !lib.Open || lib.Films != 3 || lib.Missing || lib.Name == "" {
+		t.Errorf("open library %+v", lib)
+	}
+	if lib := byPath[other]; lib.Open || lib.Films != 2 || lib.Missing || lib.Name != "Lectures" {
+		t.Errorf("other library %+v", lib)
+	}
+	if lib := byPath[gone]; lib.Open || lib.Films != 0 || !lib.Missing {
+		t.Errorf("missing library %+v", lib)
+	}
+}
+
+// TestRemoteReadsPartOfTheSubtitles checks that subtitles.get keeps the cues that start in from_ms to to_ms, and with until watched only those up to the furthest point the video was played to, with the palette's slack, none of a film not played yet; films.get says how far that is and where the player stopped.
+func TestRemoteReadsPartOfTheSubtitles(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	remoteLibrary(t, a)
+
+	starts := func(p remote.SubtitlesParams) []int64 {
+		t.Helper()
+		cues, err := remoteCall[[]remote.Cue](t, updates, remote.MethodSubtitles, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []int64
+		for _, c := range cues {
+			out = append(out, c.StartMS)
+		}
+		return out
+	}
+	if got := starts(remote.SubtitlesParams{ID: "yt", FromMS: 1001}); !slices.Equal(got, []int64{3000}) {
+		t.Errorf("from 1001: %v", got)
+	}
+	if got := starts(remote.SubtitlesParams{ID: "yt", FromMS: 1000, ToMS: 3000}); !slices.Equal(got, []int64{1000}) {
+		t.Errorf("from 1000 to 3000: %v", got)
+	}
+	if got := starts(remote.SubtitlesParams{ID: "yt", Until: remote.UntilWatched}); len(got) != 0 {
+		t.Errorf("until watched before it was played: %v", got)
+	}
+
+	item, _ := a.paletteFilm("yt")
+	a.palette.furthest = map[string]time.Duration{item.VideoPath: 2600 * time.Millisecond}
+	a.player.positions = map[string]time.Duration{item.VideoPath: 1500 * time.Millisecond}
+	if got := starts(remote.SubtitlesParams{ID: "yt", Until: remote.UntilWatched}); !slices.Equal(got, []int64{1000, 3000}) {
+		t.Errorf("until watched to 2.6s, with the slack: %v", got)
+	}
+	a.palette.furthest[item.VideoPath] = 2400 * time.Millisecond
+	if got := starts(remote.SubtitlesParams{ID: "yt", Until: remote.UntilWatched}); !slices.Equal(got, []int64{1000}) {
+		t.Errorf("until watched to 2.4s: %v", got)
+	}
+	film, err := remoteCall[remote.Film](t, updates, remote.MethodFilm, remote.IDParams{ID: "yt"})
+	if err != nil || film.WatchedMS != 2400 || film.ResumeMS != 1500 {
+		t.Fatalf("film %+v, %v, want watched 2400 and resume 1500", film, err)
+	}
+
+	_, err = remoteCall[[]remote.Cue](t, updates, remote.MethodSubtitles, remote.SubtitlesParams{ID: "yt", Until: "tomorrow"})
+	remoteWantCode(t, err, remote.CodeInvalid)
+	_, err = remoteCall[[]remote.Cue](t, updates, remote.MethodSubtitles, remote.SubtitlesParams{ID: "yt", FromMS: -1})
+	remoteWantCode(t, err, remote.CodeInvalid)
+}
+
+// TestRemoteSearchesTheLines checks that lines.search finds the lines that hold the query in their original or their translation, ignoring case, over the library or in one film, only up to where each film was watched with until watched, at most limit of them.
+func TestRemoteSearchesTheLines(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	dir := remoteLibrary(t, a)
+	interview := filepath.Join(dir, "Interview", "interview.mp4")
+
+	search := func(p remote.SearchParams) []string {
+		t.Helper()
+		found, err := remoteCall[[]remote.Line](t, updates, remote.MethodSearch, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, l := range found {
+			out = append(out, fmt.Sprintf("%s@%d %s|%s", l.Title, l.StartMS, l.Translation, l.Text))
+		}
+		return out
+	}
+	if got := search(remote.SearchParams{Query: "  HELLO "}); !slices.Equal(got, []string{"Rust Talk@1000 你好|Hello there"}) {
+		t.Errorf("hello: %q", got)
+	}
+	if got := search(remote.SearchParams{Query: "早上"}); !slices.Equal(got, []string{"interview@500 早上好|Good morning"}) {
+		t.Errorf("a translation: %q", got)
+	}
+	if got := search(remote.SearchParams{Query: "o"}); len(got) != 3 {
+		t.Errorf("o over the library: %q", got)
+	}
+	if got := search(remote.SearchParams{Query: "o", Limit: 2}); len(got) != 2 {
+		t.Errorf("o, at most 2: %q", got)
+	}
+	if got := search(remote.SearchParams{Query: "o", FilmID: interview}); !slices.Equal(got, []string{"interview@500 早上好|Good morning"}) {
+		t.Errorf("o in the interview: %q", got)
+	}
+	if got := search(remote.SearchParams{Query: "o", Until: remote.UntilWatched}); len(got) != 0 {
+		t.Errorf("o in what was watched, before anything was: %q", got)
+	}
+	item, _ := a.paletteFilm("yt")
+	a.palette.furthest = map[string]time.Duration{item.VideoPath: 1200 * time.Millisecond}
+	if got := search(remote.SearchParams{Query: "o", Until: remote.UntilWatched}); !slices.Equal(got, []string{"Rust Talk@1000 你好|Hello there"}) {
+		t.Errorf("o in what was watched: %q", got)
+	}
+
+	_, err := remoteCall[[]remote.Line](t, updates, remote.MethodSearch, remote.SearchParams{Query: " "})
+	remoteWantCode(t, err, remote.CodeInvalid)
+	_, err = remoteCall[[]remote.Line](t, updates, remote.MethodSearch, remote.SearchParams{Query: "o", FilmID: "nope"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+	_, err = remoteCall[[]remote.Line](t, updates, remote.MethodSearch, remote.SearchParams{Query: "o", FilmID: "clip"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+}
+
+// TestRemoteGetsAJob checks that jobs.get answers one job as jobs.list lists it, and not_found for an id it does not list.
+func TestRemoteGetsAJob(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	remoteLibrary(t, a)
+	job, err := remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: "yt"})
+	if err != nil || job.ID != "yt" || job.Stage != "complete" || job.FilmID != "yt" || job.Status == "" {
+		t.Fatalf("job %+v, %v", job, err)
+	}
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: "nope"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+	// A job's id names its film too, before its video is downloaded.
+	if film, err := remoteCall[remote.Film](t, updates, remote.MethodFilm, remote.IDParams{ID: "clip"}); err != nil || film.ID != "clip" || film.Stage != "queued" {
+		t.Fatalf("the film of job clip %+v, %v", film, err)
 	}
 }
 
@@ -477,7 +663,7 @@ func TestRemoteSourceTakesFileURLsToTheirFile(t *testing.T) {
 	if path, local := remoteLocalPath("file://other-machine/clip.mp4", ""); local || path != "" {
 		t.Fatalf("remoteLocalPath(remote host) = %q, %v", path, local)
 	}
-	if source, reason := remoteSource("file://other-machine/clip.mp4", ""); source != "" || reason == nil || reason(testlocale.Messages()) != testlocale.Messages().PrecheckNotLink() {
+	if source, reason := remoteSource("file://other-machine/clip.mp4", ""); source != "" || reason == nil || reason(remoteMessages()) != remoteMessages().PrecheckNotLink() {
 		t.Fatalf("remoteSource(remote host) = %q, %v", source, reason != nil)
 	}
 }
@@ -567,7 +753,7 @@ func TestRemoteRetrySaysWhatIsMissing(t *testing.T) {
 	a, _, updates := newTestApp(t, media.Tools{})
 	remoteServe(t, a)
 	a.library.Jobs = []core.Job{failed}
-	want, _ := a.precheck([]string{failed.Source})
+	want, _ := a.precheckIn(remoteMessages(), []string{failed.Source})
 	if want == "" {
 		t.Fatal("precheck passed without any program")
 	}
@@ -584,7 +770,7 @@ func TestRemoteRetrySaysWhatIsMissing(t *testing.T) {
 	a.pipeline = &fakePipeline{}
 	a.prefs.language = ""
 	_, err = remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "bad"})
-	if !errors.As(err, &e) || e.Code != remote.CodeNotReady || e.Message != testlocale.Messages().QueueNoLanguage() {
+	if !errors.As(err, &e) || e.Code != remote.CodeNotReady || e.Message != remoteMessages().QueueNoLanguage() {
 		t.Fatalf("retry without a language: %v", err)
 	}
 	if job, _ := a.library.Find("bad"); job.Stage != core.StageFailed || a.running() || a.queue.status != "" {
@@ -659,32 +845,74 @@ func TestRemoteSearchesSites(t *testing.T) {
 	}
 }
 
+// TestRemoteShowOpensTheFilm checks that app.show opens a done film and says so, shows the library for a film still in the queue and says why, and shows the library without an id.
 func TestRemoteShowOpensTheFilm(t *testing.T) {
 	a, _, updates := newTestApp(t, &fakePipeline{})
 	remoteServe(t, a)
 	remoteLibrary(t, a)
 	a.page = pageYouTube
 
-	if _, err := remoteCall[any](t, updates, remote.MethodShow, remote.IDParams{ID: "clip"}); err != nil {
+	shown, err := remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.IDParams{ID: "clip"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if a.page != pageFilms || a.openKey != "" {
-		t.Fatalf("a queued film shows page %q, film %q", a.page, a.openKey)
+	if a.page != pageFilms || a.openKey != "" || shown != (remote.ShowResult{Reason: remote.ShowInQueue}) {
+		t.Fatalf("a queued film shows page %q, film %q, answers %+v", a.page, a.openKey, shown)
 	}
-	if _, err := remoteCall[any](t, updates, remote.MethodShow, remote.IDParams{ID: "yt"}); err != nil {
+	shown, err = remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.IDParams{ID: "yt"})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if a.page != pageFilms || a.openKey != "yt" {
-		t.Fatalf("a done film shows page %q, film %q", a.page, a.openKey)
+	if a.page != pageFilms || a.openKey != "yt" || shown != (remote.ShowResult{Shown: "yt"}) {
+		t.Fatalf("a done film shows page %q, film %q, answers %+v", a.page, a.openKey, shown)
 	}
-	if _, err := remoteCall[any](t, updates, remote.MethodShow, nil); err != nil {
+	shown, err = remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.IDParams{ID: "yt"})
+	if err != nil || a.openKey != "yt" || shown.Shown != "yt" {
+		t.Fatalf("the open film again: film %q, answers %+v, %v", a.openKey, shown, err)
+	}
+	shown, err = remoteCall[remote.ShowResult](t, updates, remote.MethodShow, nil)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if a.page != pageFilms || a.openKey != "" {
-		t.Fatalf("the library shows page %q, film %q", a.page, a.openKey)
+	if a.page != pageFilms || a.openKey != "" || shown != (remote.ShowResult{}) {
+		t.Fatalf("the library shows page %q, film %q, answers %+v", a.page, a.openKey, shown)
 	}
-	_, err := remoteCall[any](t, updates, remote.MethodShow, remote.IDParams{ID: "nope"})
+	_, err = remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.IDParams{ID: "nope"})
 	remoteWantCode(t, err, remote.CodeNotFound)
+}
+
+// TestRemoteShowPlaysAFilmFromALine checks that app.show with at_ms plays the film from where the line starting there shows, with the film's subtitle delay, as a jump from the palette does: a film not open yet with the delay kept for it, the open one with the delay it plays with now, which it seeks to rather than opening it again.
+func TestRemoteShowPlaysAFilmFromALine(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	remoteLibrary(t, a)
+	item, _ := a.paletteFilm("yt")
+	a.player.delays = map[string]time.Duration{item.VideoPath: 200 * time.Millisecond}
+	a.page = pageYouTube
+
+	at := int64(3000)
+	shown, err := remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.ShowParams{ID: "yt", AtMS: &at})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.page != pageFilms || a.openKey != "yt" || a.player.opening != 3200*time.Millisecond || shown.Shown != "yt" || shown.AtMS == nil || *shown.AtMS != 3000 {
+		t.Fatalf("page %q, film %q, opening %v, answers %+v", a.page, a.openKey, a.player.opening, shown)
+	}
+	play := a.player.play
+	a.player.film.delay = -500 * time.Millisecond
+	at = 1000
+	if _, err := remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.ShowParams{ID: "yt", AtMS: &at}); err != nil {
+		t.Fatal(err)
+	}
+	if a.openKey != "yt" || a.player.opening != 500*time.Millisecond || a.player.play != play {
+		t.Fatalf("film %q, opening %v, same playback %v", a.openKey, a.player.opening, a.player.play == play)
+	}
+
+	_, err = remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.ShowParams{AtMS: &at})
+	remoteWantCode(t, err, remote.CodeInvalid)
+	at = -1
+	_, err = remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.ShowParams{ID: "yt", AtMS: &at})
+	remoteWantCode(t, err, remote.CodeInvalid)
 }
 
 func TestRemoteAnswersAnUnknownMethod(t *testing.T) {

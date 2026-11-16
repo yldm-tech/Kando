@@ -9,11 +9,11 @@ import (
 	"kando/apps/kando/remote"
 )
 
-// The languages kando_get_subtitles can return.
+// The languages kando_get_subtitles can return (remote.PickCues).
 const (
-	whichBoth        = "both"
-	whichOriginal    = "original"
-	whichTranslation = "translation"
+	whichBoth        = remote.WhichBoth
+	whichOriginal    = remote.WhichOriginal
+	whichTranslation = remote.WhichTranslation
 )
 
 // The formats kando_get_subtitles can return its text in.
@@ -22,12 +22,22 @@ const (
 	formatSRT  = "srt"
 )
 
-// subtitlesInput is kando_get_subtitles's input. Its schema is subtitlesInputSchema, written out rather than inferred so which and format list the values they take and default to them.
+// subtitlesInput is kando_get_subtitles's input. Its schema is subtitlesInputSchema, written out rather than inferred so which, format and until list the values they take and default to them.
 type subtitlesInput struct {
 	ID      string `json:"id"`
 	Which   string `json:"which,omitempty"`
 	Format  string `json:"format,omitempty"`
 	MaxCues int    `json:"max_cues,omitempty"`
+	FromMS  int64  `json:"from_ms,omitempty"`
+	ToMS    int64  `json:"to_ms,omitempty"`
+	Until   string `json:"until,omitempty"`
+}
+
+// untilSchema is the until property of the tools that read subtitles.
+var untilSchema = map[string]any{
+	"type":        "string",
+	"enum":        []string{remote.UntilWatched},
+	"description": "watched: only the lines up to the furthest point the user has played the film to (its watched_ms), none of a film not played yet, so nothing after it is given away. Use it to quiz, recap or answer questions about what the user has seen. Leave it out for every line.",
 }
 
 var subtitlesInputSchema = map[string]any{
@@ -52,8 +62,19 @@ var subtitlesInputSchema = map[string]any{
 		"max_cues": map[string]any{
 			"type":        "integer",
 			"minimum":     0,
-			"description": "Return at most this many subtitle lines, from the start of the video. Leave it out, or 0, for all of them.",
+			"description": "Return at most this many subtitle lines, from from_ms on. Leave it out, or 0, for all of them. When it cuts the lines short, the result gives next_from_ms to read the next ones.",
 		},
+		"from_ms": map[string]any{
+			"type":        "integer",
+			"minimum":     0,
+			"description": "Only the lines that start at this time or later, in milliseconds from the start of the video. Leave it out to start at the beginning.",
+		},
+		"to_ms": map[string]any{
+			"type":        "integer",
+			"minimum":     0,
+			"description": "Only the lines that start before this time, in milliseconds. Leave it out, or 0, to read to the end.",
+		},
+		"until": untilSchema,
 	},
 	"required":             []string{"id"},
 	"additionalProperties": false,
@@ -63,13 +84,14 @@ var subtitlesInputSchema = map[string]any{
 type subtitlesOutput struct {
 	ID    string       `json:"id" jsonschema:"The film's id."`
 	Which string       `json:"which" jsonschema:"Which subtitles were returned: both, original or translation."`
-	Total int          `json:"total" jsonschema:"How many subtitle lines the film has in the returned language or languages."`
+	Total int          `json:"total" jsonschema:"How many subtitle lines the film has in the returned language or languages, within from_ms, to_ms and until."`
 	Shown int          `json:"shown" jsonschema:"How many of them are returned, fewer than total when max_cues cut them short."`
 	Cut   bool         `json:"truncated" jsonschema:"Whether max_cues left lines out."`
+	Next  int64        `json:"next_from_ms,omitempty" jsonschema:"When max_cues left lines out, the from_ms that reads on from the first of them."`
 	Cues  []remote.Cue `json:"cues" jsonschema:"The returned lines: start_ms and end_ms in milliseconds from the start of the video, text the original speech, translation its translation. With which original, translation is left out; with which translation, text is empty."`
 }
 
-// subtitlesResult is kando_get_subtitles's answer for the film's cues: the text in the asked format as its content, a note after it when max_cues cut it short, and the returned cues as its structured output.
+// subtitlesResult is kando_get_subtitles's answer for the film's cues, which the app already kept to from_ms, to_ms and until: the text in the asked format as its content, a note after it when max_cues cut it short, and the returned cues as its structured output.
 func subtitlesResult(in subtitlesInput, cues []remote.Cue) (*mcp.CallToolResult, subtitlesOutput, error) {
 	which := in.Which
 	if which == "" {
@@ -86,19 +108,7 @@ func subtitlesResult(in subtitlesInput, cues []remote.Cue) (*mcp.CallToolResult,
 		return nil, subtitlesOutput{}, fmt.Errorf("format is %q; it takes text or srt", format)
 	}
 
-	picked := make([]remote.Cue, 0, len(cues))
-	for _, cue := range cues {
-		switch which {
-		case whichOriginal:
-			cue.Translation = ""
-		case whichTranslation:
-			if cue.Translation == "" {
-				continue
-			}
-			cue.Text = ""
-		}
-		picked = append(picked, cue)
-	}
+	picked := remote.PickCues(cues, which)
 	shown := picked
 	if in.MaxCues > 0 && len(shown) > in.MaxCues {
 		shown = shown[:in.MaxCues]
@@ -106,76 +116,26 @@ func subtitlesResult(in subtitlesInput, cues []remote.Cue) (*mcp.CallToolResult,
 
 	var text string
 	switch {
+	case len(shown) == 0 && in.Until == remote.UntilWatched && len(cues) == 0:
+		text = "No subtitle lines have been watched yet in this part of the film."
+	case len(shown) == 0 && (in.FromMS > 0 || in.ToMS > 0):
+		text = "This film has no subtitle lines in this part."
 	case len(shown) == 0:
 		text = "This film has no subtitle lines."
 		if which == whichTranslation && len(cues) > 0 {
 			text = "This film's subtitles have no translated lines."
 		}
 	case format == formatSRT:
-		text = subtitlesSRT(shown)
+		text = strings.TrimSuffix(remote.CuesSRT(shown), "\n")
 	default:
-		text = subtitlesText(shown)
+		text = strings.TrimSuffix(remote.CuesText(shown), "\n")
 	}
 	content := []mcp.Content{&mcp.TextContent{Text: text}}
-	if len(shown) < len(picked) {
-		last := shown[len(shown)-1]
-		content = append(content, &mcp.TextContent{Text: fmt.Sprintf("Truncated: these are the first %d of %d subtitle lines, up to %s. Call kando_get_subtitles again with a larger max_cues, or without it, for the rest.", len(shown), len(picked), clock(last.EndMS))})
-	}
 	out := subtitlesOutput{ID: in.ID, Which: which, Total: len(picked), Shown: len(shown), Cut: len(shown) < len(picked), Cues: shown}
+	if out.Cut {
+		last, next := shown[len(shown)-1], picked[len(shown)]
+		out.Next = next.StartMS
+		content = append(content, &mcp.TextContent{Text: fmt.Sprintf("Truncated: these are the first %d of %d subtitle lines, up to %s. Call kando_get_subtitles again with from_ms %d for the next ones.", len(shown), len(picked), remote.Clock(last.EndMS), next.StartMS)})
+	}
 	return &mcp.CallToolResult{Content: content}, out, nil
-}
-
-// subtitlesText is one line per cue, "[hh:mm:ss] translation | original", with only the part a cue has when it has one.
-func subtitlesText(cues []remote.Cue) string {
-	var b strings.Builder
-	for _, cue := range cues {
-		b.WriteString("[" + clock(cue.StartMS) + "] ")
-		switch {
-		case cue.Translation != "" && cue.Text != "":
-			b.WriteString(oneLine(cue.Translation) + " | " + oneLine(cue.Text))
-		case cue.Translation != "":
-			b.WriteString(oneLine(cue.Translation))
-		default:
-			b.WriteString(oneLine(cue.Text))
-		}
-		b.WriteByte('\n')
-	}
-	return strings.TrimSuffix(b.String(), "\n")
-}
-
-// subtitlesSRT is the cues as a SubRip file, numbered from 1, the translation above the original as Kando's bilingual .srt has them.
-func subtitlesSRT(cues []remote.Cue) string {
-	var b strings.Builder
-	for i, cue := range cues {
-		fmt.Fprintf(&b, "%d\n%s --> %s\n", i+1, srtTime(cue.StartMS), srtTime(cue.EndMS))
-		for _, part := range []string{cue.Translation, cue.Text} {
-			if part != "" {
-				b.WriteString(part + "\n")
-			}
-		}
-		b.WriteByte('\n')
-	}
-	return strings.TrimSuffix(b.String(), "\n")
-}
-
-// oneLine joins the lines of a cue's text with spaces, so each cue stays on one line of the text format.
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
-}
-
-// clock is ms as hh:mm:ss.
-func clock(ms int64) string {
-	if ms < 0 {
-		ms = 0
-	}
-	s := ms / 1000
-	return fmt.Sprintf("%02d:%02d:%02d", s/3600, s/60%60, s%60)
-}
-
-// srtTime is ms as SubRip's hh:mm:ss,mmm.
-func srtTime(ms int64) string {
-	if ms < 0 {
-		ms = 0
-	}
-	return fmt.Sprintf("%s,%03d", clock(ms), ms%1000)
 }

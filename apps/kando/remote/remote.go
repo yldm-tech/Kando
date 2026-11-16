@@ -16,12 +16,16 @@ const (
 	MethodStatus = "status"
 	// MethodFilms takes FilmsParams and answers []Film, the open library's films, newest first as the window lists them.
 	MethodFilms = "films.list"
-	// MethodFilm takes IDParams, a Film's ID, and answers that Film.
+	// MethodFilm takes IDParams, a Film's ID, and answers that Film. A Job's ID names the film the job makes, so a job's film can be read before its video is downloaded.
 	MethodFilm = "films.get"
-	// MethodSubtitles takes IDParams, a Film's ID, and answers []Cue from its subtitles.
+	// MethodSubtitles takes SubtitlesParams, a Film's ID and the part of its subtitles to read, and answers []Cue from its subtitles. IDParams are SubtitlesParams that ask for all of them.
 	MethodSubtitles = "subtitles.get"
+	// MethodSearch takes SearchParams and answers []Line: the lines of the open library's subtitles that hold the query, film by film in the order MethodFilms lists them, and line by line in the order they show.
+	MethodSearch = "lines.search"
 	// MethodJobs takes no params and answers []Job, the open library's jobs and those the queue runs for other libraries, as the window's 处理中 shows them: the running one, the waiting ones in order, then the finished ones, newest first: the open library's and those the queue ran to the end for other libraries since the app started.
 	MethodJobs = "jobs.list"
+	// MethodJob takes IDParams, a Job's ID, and answers that Job, as MethodJobs lists it.
+	MethodJob = "jobs.get"
 	// MethodAdd takes AddParams and answers AddResult: a job for each source, queued as 开始处理 queues them.
 	MethodAdd = "jobs.add"
 	// MethodCancel takes IDParams, a Job's ID, and answers the Job as it is after canceling: a running job stops, a waiting one leaves the queue.
@@ -32,9 +36,12 @@ const (
 	MethodRemove = "jobs.remove"
 	// MethodSites takes SitesParams and answers []Site, the websites Kando downloads from that the query finds.
 	MethodSites = "sites.search"
-	// MethodShow takes IDParams, a Film's ID or "" for the library, brings the window to the front showing it, and answers nothing (null).
+	// MethodShow takes ShowParams, a Film's ID or "" for the library and where to play the film from, brings the window to the front showing it, and answers ShowResult, what it shows. IDParams are ShowParams without a time.
 	MethodShow = "app.show"
 )
+
+// Language is the language the app answers in: the messages of Errors, the status lines of Films and Jobs, the Readiness of Status and the reasons of AddFailed are English, whatever language the window shows, as the command line and the MCP server say everything else in English. Machine-readable values, as codes, stages and IDs, are never translated; names that come from the user or the videos, as titles, and the target Language of Status, Film and Job, which the settings name in the user's words, are kept as they are.
+const Language = "en"
 
 // The codes of an Error.
 const (
@@ -44,7 +51,7 @@ const (
 	CodeInvalid = "invalid_request"
 	// CodeUnknownMethod is a method the app does not answer.
 	CodeUnknownMethod = "unknown_method"
-	// CodeNotFound is an ID that names no film or job of the open library.
+	// CodeNotFound is an ID that names no film or job of the open library, or a film without subtitles.
 	CodeNotFound = "not_found"
 	// CodeNotReady is a request the app cannot carry out yet: no library is open, or something a job needs is missing. Its message says what, in the app's words.
 	CodeNotReady = "not_ready"
@@ -96,6 +103,49 @@ type FilmsParams struct {
 	Query  string `json:"query,omitempty"`
 }
 
+// SubtitlesParams name a film and the part of its subtitles to read: the cues that start at FromMS or later, before ToMS when it is set, and with Until UntilWatched, only those the learner has watched (Film.WatchedMS, with WatchedSlackMS), none for a film not played yet. Times are milliseconds from the start of the video.
+type SubtitlesParams struct {
+	ID     string `json:"id"`
+	FromMS int64  `json:"from_ms,omitempty"`
+	ToMS   int64  `json:"to_ms,omitempty"`
+	Until  string `json:"until,omitempty"`
+}
+
+// UntilWatched is the Until of SubtitlesParams and SearchParams that keeps only the lines the learner has watched, as the app's palette and its questions about a film do, so that nothing of what comes after is given away.
+const UntilWatched = "watched"
+
+// WatchedSlackMS is how far past Film.WatchedMS a line may start and still count as watched, in milliseconds.
+const WatchedSlackMS = 500
+
+// SearchParams are a search of the subtitles' lines: those whose original or translation contains Query, ignoring case; only FilmID's when it is set, else every film's of the open library; with Until UntilWatched only the watched ones (SubtitlesParams). Limit caps the answer, 0 for no cap.
+type SearchParams struct {
+	Query  string `json:"query"`
+	FilmID string `json:"film_id,omitempty"`
+	Until  string `json:"until,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
+// ShowParams name what MethodShow shows: a Film's ID, "" for the library, and, for a film, AtMS, where in its subtitles to play it from in milliseconds, as a Cue's or Line's StartMS gives it; the app adds the film's subtitle delay. Without AtMS a film opens as a click on its poster opens it, and one open already stays as it is.
+type ShowParams struct {
+	ID   string `json:"id"`
+	AtMS *int64 `json:"at_ms,omitempty"`
+}
+
+// ShowResult is what MethodShow shows: Shown is the film's ID, or "" for the library, and Reason why it shows the library instead of the film asked for. AtMS is where the film plays from, as ShowParams gave it, when it was asked to.
+type ShowResult struct {
+	Shown  string `json:"shown"`
+	Reason string `json:"reason,omitempty"`
+	AtMS   *int64 `json:"at_ms,omitempty"`
+}
+
+// The reasons of a ShowResult.
+const (
+	// ShowInQueue is a film still being processed: the library shows its card in the queue.
+	ShowInQueue = "in_queue"
+	// ShowNoVideo is a film whose video is not on disk, as a job that failed before its download ended.
+	ShowNoVideo = "no_video"
+)
+
 // AddParams are the videos to process: links, or local files as paths or file:// URLs. A relative path is taken from Dir, the directory the client runs in.
 type AddParams struct {
 	Sources []string `json:"sources"`
@@ -125,6 +175,19 @@ type Status struct {
 	// Running is the ID of the job being processed, Queued how many wait after it.
 	Running string `json:"running,omitempty"`
 	Queued  int    `json:"queued"`
+	// Libraries are the libraries the app knows, as its library switcher lists them: the open one, if any, among them. The tools see only the open one; the user switches libraries in the window.
+	Libraries []Library `json:"libraries"`
+}
+
+// Library is a library the app knows.
+type Library struct {
+	Path string `json:"path"`
+	// Name is the name the window gives it.
+	Name string `json:"name"`
+	Open bool   `json:"open"`
+	// Films is how many films it holds, as the window would list them; Missing is set, and Films is 0, when its folder cannot be read, as on a drive that is not plugged in.
+	Films   int  `json:"films"`
+	Missing bool `json:"missing,omitempty"`
 }
 
 // Film is a video of the open library, as the window lists it.
@@ -139,7 +202,7 @@ type Film struct {
 	Stage string `json:"stage,omitempty"`
 	// Progress is how far that stage has gone, from 0 to 1, or -1 when its tool has not said.
 	Progress float64 `json:"progress"`
-	// Status is the line under the film's title in the window, in the interface's language: its stage, or why it failed.
+	// Status is the line under the film's title in the window, in English (Language): its stage, or why it failed.
 	Status string `json:"status,omitempty"`
 	JobID  string `json:"job_id,omitempty"`
 	// Language is what the subtitles are translated into, as the settings name it.
@@ -148,6 +211,9 @@ type Film struct {
 	// Subtitles is the bilingual .srt, "" until the film is done; OriginalSubtitles the .srt of the speech alone.
 	Subtitles         string `json:"subtitles,omitempty"`
 	OriginalSubtitles string `json:"original_subtitles,omitempty"`
+	// ResumeMS is where the player stopped last time, which the window offers to continue from, 0 when it was not watched or was watched to the end. WatchedMS is the furthest point the video was played to from its start, which UntilWatched cuts at; a seek past it does not move it. Both are milliseconds of the video.
+	ResumeMS  int64 `json:"resume_ms"`
+	WatchedMS int64 `json:"watched_ms"`
 }
 
 // Job is a job of the open library, or one the queue runs or will run for another library.
@@ -158,7 +224,7 @@ type Job struct {
 	// Stage is core.Stage: queued, downloading, transcribing, translating, exporting, complete or failed.
 	Stage    string  `json:"stage"`
 	Progress float64 `json:"progress"`
-	// Status is the line the window shows for it, in the interface's language.
+	// Status is the line the window shows for it, in English (Language).
 	Status string `json:"status,omitempty"`
 	// Error is why a failed job failed; Canceled is set for one that was stopped instead.
 	Error     string `json:"error,omitempty"`
@@ -176,14 +242,27 @@ type AddResult struct {
 	Skipped []AddFailed `json:"skipped,omitempty"`
 }
 
-// AddFailed is a source MethodAdd did not queue, and why, in the app's words.
+// AddFailed is a source MethodAdd did not queue, and why, in the app's words. For a video the library already has a job for, JobID is that job, Stage its stage (a Job's) and FilmID its film once its video is on disk, so a client can follow it as if it had just been queued.
 type AddFailed struct {
 	Source string `json:"source"`
 	Reason string `json:"reason"`
+	JobID  string `json:"job_id,omitempty"`
+	Stage  string `json:"stage,omitempty"`
+	FilmID string `json:"film_id,omitempty"`
 }
 
 // Cue is one line of a film's subtitles: when it shows, in milliseconds from the start, what was said, and its translation, "" for a line the translation left out.
 type Cue struct {
+	StartMS     int64  `json:"start_ms"`
+	EndMS       int64  `json:"end_ms"`
+	Text        string `json:"text"`
+	Translation string `json:"translation,omitempty"`
+}
+
+// Line is a line of a film's subtitles that MethodSearch found: the film, by its ID and title, and the line as a Cue has it.
+type Line struct {
+	FilmID      string `json:"film_id"`
+	Title       string `json:"title"`
 	StartMS     int64  `json:"start_ms"`
 	EndMS       int64  `json:"end_ms"`
 	Text        string `json:"text"`

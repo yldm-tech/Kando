@@ -3,6 +3,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -56,9 +57,22 @@ const (
 	exitOK    = 0
 	exitFail  = 1
 	exitUsage = 2
+	// exitNotReady is the app's not_ready: no library is open, or something a job needs is missing.
+	exitNotReady = 3
+	// exitNotFound is the app's not_found: no film or job of the open library has the id, or the film has no subtitles yet.
+	exitNotFound = 4
+	// exitNotRunning is an app that is not running and could not be started.
+	exitNotRunning = 5
 )
 
-// Run runs the command args name, writing its output to stdout and its errors to stderr, and returns the exit code: 0 when it succeeded, 1 when it failed, 2 when it was used wrongly. Commands that need the app connect to it at remote.SocketPath, starting it when it is not running.
+// The codes of the errors --json prints that the app does not answer itself (remote.Code…).
+const (
+	codeUsage       = "usage"
+	codeNotRunning  = "not_running"
+	codeInterrupted = "interrupted"
+)
+
+// Run runs the command args name, writing its output to stdout and its errors to stderr, and returns the exit code: 0 when it succeeded, 1 when it failed, 2 when it was used wrongly, 3, 4 and 5 when the app said not_ready or not_found or could not be reached. Commands that need the app connect to it at remote.SocketPath, starting it when it is not running.
 func Run(ctx context.Context, args []string, stdout, stderr io.Writer, version string) int {
 	if len(args) == 0 {
 		writeUsage(stderr)
@@ -130,14 +144,15 @@ func init() {
 		{name: "status", summary: "Show the library, the programs and models in use, and whether a job can start", app: true, run: runStatus},
 		{name: "list", synopsis: "[--source S] [query]", summary: "List the library's films, newest first", app: true, run: runList},
 		{name: "show", synopsis: "<film-id>", summary: "Show one film", app: true, run: runShow},
-		{name: "subtitles", synopsis: "<film-id> [--format srt|text|json] [--original|--translation]", summary: "Print a film's subtitles", app: true, run: runSubtitles},
-		{name: "jobs", summary: "List the jobs: the running one, the waiting ones, then the finished ones", app: true, run: runJobs},
+		{name: "subtitles", synopsis: "<film-id> [--format srt|text|json] [--original|--translation] [--from T] [--to T] [--until watched]", summary: "Print a film's subtitles, or part of them", app: true, run: runSubtitles},
+		{name: "search", synopsis: "<words> [--film ID] [--until watched] [--limit N]", summary: "Find the subtitle lines that hold some words, in the library or one film", app: true, run: runSearch},
+		{name: "jobs", synopsis: "[job-id]", summary: "List the jobs: the running one, the waiting ones, then the finished ones; or show one", app: true, run: runJobs},
 		{name: "add", synopsis: "<link-or-file>... [--wait]", summary: "Queue videos to download, transcribe and translate", app: true, run: runAdd},
 		{name: "cancel", synopsis: "<job-id>", summary: "Stop a running job or take a waiting one out of the queue", app: true, run: runCancel},
 		{name: "retry", synopsis: "<job-id> [--wait]", summary: "Queue a failed, canceled or finished job again", app: true, run: runRetry},
 		{name: "remove", synopsis: "<job-id>", summary: "Take a job off the library, stopping it if it runs; its files stay", app: true, run: runRemove},
 		{name: "sites", synopsis: "[query] [--limit N]", summary: "Search the websites Kando downloads from", app: true, run: runSites},
-		{name: "open", synopsis: "[film-id]", summary: "Bring Kando to the front, showing a film or the library", app: true, run: runOpen},
+		{name: "open", synopsis: "[film-id] [--at T]", summary: "Bring Kando to the front, showing a film or the library", app: true, run: runOpen},
 		{name: "mcp", summary: "Serve MCP on standard input and output for AI agents", run: runMCP},
 		{name: "version", summary: "Print the version", run: runVersion},
 		{name: "help", synopsis: "[command]", summary: "Show this help, or a command's", run: runHelp},
@@ -175,7 +190,8 @@ func writeUsage(w io.Writer) {
 		fmt.Fprintf(w, "  %-10s %s\n", c.name, c.summary)
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Every command that talks to the app takes --json to print the app's answer as JSON.")
+	fmt.Fprintln(w, "Every command that talks to the app takes --json to print the app's answer as JSON, and an error as {\"error\": {\"code\", \"message\"}}.")
+	fmt.Fprintln(w, "Exit codes: 0 success, 1 failure, 2 wrong usage, 3 not ready, 4 not found, 5 Kando not running.")
 	fmt.Fprintln(w, "Run 'kando help <command>' for a command's arguments.")
 }
 
@@ -207,7 +223,7 @@ func usagef(format string, args ...any) error {
 // errReported is a failure the command has already told the user about: exit code 1 and nothing more.
 var errReported = errors.New("failed")
 
-// exit reports err on stderr and turns it into the exit code.
+// exit reports err and turns it into the exit code: on stderr, or with --json as the one JSON value on stdout, {"error": {"code", "message"}}, so a script reads the same stream whatever happened.
 func (e *env) exit(err error) int {
 	var usage *usageError
 	var remoteErr *remote.Error
@@ -218,21 +234,51 @@ func (e *env) exit(err error) int {
 		e.writeCommandUsage(e.stdout)
 		return exitOK
 	case errors.As(err, &usage):
+		if e.json {
+			return e.jsonError(codeUsage, usage.msg, exitUsage)
+		}
 		fmt.Fprintf(e.stderr, "kando %s: %s\nUsage: %s\n", e.cmd.name, printable(usage.msg), e.cmd.usageLine())
 		return exitUsage
 	case errors.Is(err, errReported):
 		return exitFail
 	case e.ctx.Err() != nil:
-		fmt.Fprintf(e.stderr, "kando %s: interrupted\n", e.cmd.name)
-		return exitFail
+		return e.report(codeInterrupted, "interrupted", exitFail)
 	case errors.As(err, &remoteErr):
+		code := exitFail
+		switch remoteErr.Code {
+		case remote.CodeNotReady:
+			code = exitNotReady
+		case remote.CodeNotFound:
+			code = exitNotFound
+		}
 		// The app's messages are written for the user, not_ready's above all, so they are shown without the code.
-		fmt.Fprintf(e.stderr, "kando %s: %s\n", e.cmd.name, printable(remoteErr.Message))
-		return exitFail
+		return e.report(remoteErr.Code, remoteErr.Message, code)
+	case errors.Is(err, remote.ErrNotRunning):
+		return e.report(codeNotRunning, err.Error(), exitNotRunning)
 	default:
-		fmt.Fprintf(e.stderr, "kando %s: %s\n", e.cmd.name, printable(err.Error()))
-		return exitFail
+		return e.report(remote.CodeFailed, err.Error(), exitFail)
 	}
+}
+
+// report says why the command failed, as the error code with message: with --json as JSON on stdout, otherwise message on stderr. It returns exit.
+func (e *env) report(code, message string, exit int) int {
+	if e.json {
+		return e.jsonError(code, message, exit)
+	}
+	fmt.Fprintf(e.stderr, "kando %s: %s\n", e.cmd.name, printable(message))
+	return exit
+}
+
+// jsonError writes {"error": {"code", "message"}} to stdout and returns exit.
+func (e *env) jsonError(code, message string, exit int) int {
+	data, err := json.Marshal(map[string]remote.Error{"error": {Code: code, Message: message}})
+	if err == nil {
+		err = writeJSON(e.stdout, data)
+	}
+	if err != nil {
+		fmt.Fprintf(e.stderr, "kando %s: %s\n", e.cmd.name, printable(message))
+	}
+	return exit
 }
 
 // writeCommandUsage writes the command's help: its usage line, what it does and its flags, as `kando help <command>` and `kando <command> -h` show it.

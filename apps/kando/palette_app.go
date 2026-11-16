@@ -14,6 +14,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/hotkey"
+	"kando/apps/kando/lines"
 	"kando/apps/kando/locales"
 	cmdpalette "kando/apps/kando/palette"
 	"kando/apps/kando/settings"
@@ -30,8 +31,8 @@ const (
 	// paletteFilmLines and paletteLibraryLines are how many lines it lists for a query: the prototype's four from the open film, and more over the library, whose lines come from every film in it.
 	paletteFilmLines    = 4
 	paletteLibraryLines = 8
-	// paletteSlack is how far past the furthest point played a line may start and still count as seen, as the prototype's half second.
-	paletteSlack = 500 * time.Millisecond
+	// paletteSlack is how far past the furthest point played a line may start and still count as seen (lines.Slack).
+	paletteSlack = lines.Slack
 	// paletteContextRunes caps the subtitles sent with a question; past it the earliest lines are left out, so a long film still fits a small model's context.
 	paletteContextRunes = 40000
 	// paletteAskTimeout is how long a question may take.
@@ -95,7 +96,7 @@ func (a *app) paletteProgress(seen palettePlayback, path string, at time.Duratio
 	to := a.palette.furthest[path]
 	query := strings.ToLower(strings.TrimSpace(a.palette.query))
 	for _, hit := range a.paletteHits(query) {
-		if hit.film.VideoPath == path && hit.cue.start > from+paletteSlack && hit.cue.start <= to+paletteSlack {
+		if hit.film.VideoPath == path && hit.cue.Start > from+paletteSlack && hit.cue.Start <= to+paletteSlack {
 			return true
 		}
 	}
@@ -198,18 +199,9 @@ func (a *app) paletteRead() {
 	go func() {
 		read := make(map[string]paletteFile, len(todo))
 		for _, w := range todo {
-			data, err := os.ReadFile(w.path)
+			cues, err := lines.Read(w.path)
 			if err != nil {
 				continue
-			}
-			segments, err := media.ParseSRT(data)
-			if err != nil {
-				continue
-			}
-			cues := make([]paletteCue, len(segments))
-			for i, seg := range segments {
-				translation, original := paletteSplit(seg.Text)
-				cues[i] = paletteCue{start: seg.Start, translation: translation, original: original, folded: strings.ToLower(translation + "\n" + original)}
 			}
 			read[w.path] = paletteFile{cues: cues, mod: w.mod, size: w.size}
 		}
@@ -226,16 +218,6 @@ func (a *app) paletteRead() {
 			}
 		})
 	}()
-}
-
-// paletteSplit is a cue of an exported subtitle file as its translation and its original: the pipeline writes the translation on the first line and the original under it, and a cue of one line is an original without a translation.
-func paletteSplit(text string) (translation, original string) {
-	text = strings.TrimSpace(text)
-	first, rest, ok := strings.Cut(text, "\n")
-	if !ok {
-		return "", text
-	}
-	return strings.TrimSpace(first), strings.TrimSpace(rest)
 }
 
 // paletteHits are the lines of the films in scope that hold the query, whether seen yet or not, in the order of the films and of their lines.
@@ -256,7 +238,7 @@ func (a *app) paletteHits(query string) []paletteHit {
 			continue
 		}
 		for _, cue := range f.cues {
-			if strings.Contains(cue.folded, query) {
+			if cue.Holds(query) {
 				a.palette.hits = append(a.palette.hits, paletteHit{film: item, cue: cue})
 			}
 		}
@@ -280,7 +262,7 @@ func (a *app) paletteLines() []paletteHit {
 			h = a.paletteHorizon(hit.film)
 			horizons[hit.film.Key] = h
 		}
-		if (!inFilm && h <= 0) || hit.cue.start > h+paletteSlack {
+		if (!inFilm && h <= 0) || hit.cue.Start > h+paletteSlack {
 			continue
 		}
 		out = append(out, hit)
@@ -397,7 +379,7 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 		asks = 1
 	}
 	for _, hit := range lines {
-		l := cmdpalette.Line{At: cmdpalette.ClockTenths(hit.cue.start), Translation: hit.cue.translation, Original: hit.cue.original}
+		l := cmdpalette.Line{At: cmdpalette.ClockTenths(hit.cue.Start), Translation: hit.cue.Translation, Original: hit.cue.Original}
 		if l.Translation == "" {
 			l.Translation, l.Original = l.Original, ""
 		}
@@ -495,7 +477,7 @@ func (a *app) paletteRun(i int) {
 		return
 	case i < len(lines):
 		a.paletteClose()
-		a.paletteJump(lines[i].film, lines[i].cue.start)
+		a.paletteJump(lines[i].film, lines[i].cue.Start)
 	case i < len(lines)+len(cmds):
 		a.paletteClose()
 		cmds[i-len(lines)].run()
@@ -559,9 +541,9 @@ func (a *app) paletteAsk() {
 		return
 	}
 	horizon := a.paletteHorizon(item)
-	var seen []paletteCue
+	var seen []lines.Line
 	for _, cue := range f.cues {
-		if cue.start <= horizon+paletteSlack {
+		if cue.Start <= horizon+paletteSlack {
 			seen = append(seen, cue)
 		}
 	}
@@ -609,17 +591,17 @@ func palettePrompt(language string, horizon time.Duration) string {
 }
 
 // paletteContext writes the lines seen of the film named name, one a line as "[m:ss] translation / original", leaving out the earliest past paletteContextRunes.
-func paletteContext(name string, seen []paletteCue) string {
+func paletteContext(name string, seen []lines.Line) string {
 	lines := make([]string, len(seen))
 	for i, cue := range seen {
-		text := cue.translation
+		text := cue.Translation
 		switch {
 		case text == "":
-			text = cue.original
-		case cue.original != "":
-			text += " / " + cue.original
+			text = cue.Original
+		case cue.Original != "":
+			text += " / " + cue.Original
 		}
-		lines[i] = "[" + cmdpalette.Clock(cue.start) + "] " + text
+		lines[i] = "[" + cmdpalette.Clock(cue.Start) + "] " + text
 	}
 	size, from := 0, len(lines)
 	for from > 0 {
@@ -637,7 +619,7 @@ func paletteContext(name string, seen []paletteCue) string {
 var paletteClockRef = regexp.MustCompile(`^(?:(\d+):)?(\d{1,2}):(\d{2})$`)
 
 // paletteParseReply reads the model's reply: the answer and the lines it rests on, each the seen line that starts at the moment it named. A reply that is not the JSON asked for is shown as it is, without chips; a moment that is not the start of a line seen is dropped, so a chip never jumps past what was watched.
-func paletteParseReply(reply string, seen []paletteCue) (string, []time.Duration) {
+func paletteParseReply(reply string, seen []lines.Line) (string, []time.Duration) {
 	var parsed struct {
 		Answer string   `json:"answer"`
 		Refs   []string `json:"refs"`
@@ -656,9 +638,9 @@ func paletteParseReply(reply string, seen []paletteCue) (string, []time.Duration
 		ss, _ := strconv.Atoi(m[3])
 		label := cmdpalette.Clock(time.Duration(h*3600+mm*60+ss) * time.Second)
 		for _, cue := range seen {
-			if cmdpalette.Clock(cue.start) == label {
-				if !slices.Contains(refs, cue.start) {
-					refs = append(refs, cue.start)
+			if cmdpalette.Clock(cue.Start) == label {
+				if !slices.Contains(refs, cue.Start) {
+					refs = append(refs, cue.Start)
 				}
 				break
 			}

@@ -132,40 +132,43 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 
 | 命令 | 作用 |
 | --- | --- |
-| `kando status` | 显示当前打开的资料库、正在使用的程序和模型，以及能否开始任务；不能时说明缺少什么。 |
+| `kando status` | 显示当前打开的资料库、正在使用的程序和模型，以及能否开始任务；不能时说明缺少什么。还会列出看懂知道的每个资料库及其影片数，并标出当前打开的那个。 |
 | `kando list [--source S] [query]` | 按从新到旧列出资料库中的影片及其 ID。`--source` 只保留一个来源（`youtube`、`bilibili`、`local` 或其他网站的名称）；query 只保留标题中包含它的影片。 |
-| `kando show <film-id>` | 显示一部影片：来源、所处阶段，以及视频和字幕的路径。 |
-| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation]` | 输出影片的字幕，格式可以是 SubRip（默认）、每条字幕一行的文本（`text`）或 JSON，可以输出双语，也可以只输出其中一种。 |
-| `kando jobs` | 列出任务：先是正在运行的，然后是等待中的，最后是已结束的。 |
+| `kando show <film-id>` | 显示一部影片：来源、所处阶段、视频和字幕的路径，以及看到了哪里。任务 ID 也可以指代它生成的影片。 |
+| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation] [--from T] [--to T] [--until watched]` | 输出影片的字幕，格式可以是 SubRip（默认）、每条字幕一行的文本（`text`，`[hh:mm:ss] 译文 \| 原文`）或 JSON，可以输出双语，也可以只输出其中一种。`--from` 和 `--to` 只保留在这段时间内开始的字幕（秒、`mm:ss` 或 `hh:mm:ss`）；`--until watched` 只保留到你播放到的位置为止的字幕。 |
+| `kando search <words> [--film ID] [--until watched] [--limit N]` | 在整个资料库或某一部影片中查找原文或译文包含这些词的字幕，并给出每条所在的影片和时间。`--until watched` 只查已经看过的部分。 |
+| `kando jobs [job-id]` | 列出任务：先是正在运行的，然后是等待中的，最后是已结束的；带 ID 时只显示这个任务。 |
 | `kando add <link-or-file>... [--wait]` | 像“开始处理”一样把链接和本地视频文件加入队列，并输出每个任务的 ID。相对路径以当前目录为准。 |
 | `kando cancel <job-id>` | 停止正在运行的任务，或把等待中的任务移出队列。 |
 | `kando retry <job-id> [--wait]` | 像“重试”和“重新处理”一样，以同一个 ID 把失败、已取消或已完成的任务重新加入队列，不改变窗口显示的内容。正在运行或等待中的任务会被拒绝。 |
 | `kando remove <job-id>` | 像“移除”一样把任务从资料库中去掉，正在运行的任务会先停止。它的文件留在磁盘上。 |
 | `kando sites [query] [--limit N]` | 按名称、域名或视频链接搜索看懂支持下载的网站。 |
-| `kando open [film-id]` | 把看懂窗口调到最前面，显示指定的影片；不带 ID 时显示资料库。 |
+| `kando open [film-id] [--at T]` | 把看懂窗口调到最前面，显示指定的影片；不带 ID 时显示资料库。`--at` 从字幕中的这个时间开始播放，例如 `kando search` 找到的某一句。仍在处理中的影片会改为显示资料库，并给出提示。 |
 | `kando mcp` | 在标准输入和标准输出上提供 MCP 服务（见下文）。 |
 | `kando version` | 输出版本号。 |
 | `kando help [command]` | 列出所有命令，或显示某个命令的用法和选项。 |
 
 需要应用的命令通过套接字与它通信，套接字是 `settings.json` 所在文件夹中的 `kando.sock`（macOS 上是 `~/Library/Application Support/Kando/kando.sock`，Linux 上是 `~/.config/Kando/kando.sock`，Windows 上是 `%AppData%\Kando\kando.sock`）；`KANDO_SOCKET` 可以指定其他路径，运行第二个看懂时也需要它，并且还要有单独的 `HOME`（参见[配置](#configuration)）。看懂没有运行时，命令会在后台启动它，向标准错误输出 `Starting Kando…`，并最多等待 30 秒。添加视频需要的条件和“开始处理”相同，例如已打开资料库、程序齐全、已有 whisper 模型；缺少某项时，`kando add` 会失败，并给出窗口中对应的提示。
 
-所有与应用通信的命令都支持 `--json`，以 JSON 而不是文本输出应用的应答。有来源未能加入时，`kando add` 以 1 退出。加上 `--wait` 时，它会一直等到所有新加的任务完成或失败，每当某个任务的阶段或进度变化时输出一行；只要有任务失败，同样以 1 退出。加上 `--json` 时，进度输出到标准错误，结束时的任务输出到标准输出。`kando retry --wait` 以同样的方式等待重新加入队列的任务。退出码：0 表示成功，1 表示失败，2 表示命令用法有误。
+所有与应用通信的命令都支持 `--json`，以 JSON 而不是文本输出应用的应答，出错时也会在标准输出上输出 `{"error": {"code": ..., "message": ...}}`。无论窗口显示哪种语言，命令行、MCP 服务器以及应用对它们的应答都使用英文；标题、目标语言等名称保持原样。有来源未能加入时，`kando add` 以 1 退出；资料库中已有的视频算作已加入，会输出它的任务，加上 `--wait` 时也会等待它，所以重复运行同一条命令也会成功。加上 `--wait` 时，它会一直等到所有新加的任务完成或失败，每当某个任务的阶段或进度变化时输出一行；只要有任务失败，同样以 1 退出。加上 `--json` 时，进度输出到标准错误，结束时的任务输出到标准输出。`kando retry --wait` 以同样的方式等待重新加入队列的任务。退出码：0 表示成功，1 表示失败，2 表示命令用法有误，3 表示看懂还没准备好（没有打开资料库，或缺少任务需要的东西），4 表示没有这个 ID 的影片或任务，5 表示看懂没有运行且无法启动。
 
 `kando mcp` 是在标准输入和标准输出上运行的 MCP 服务器。看懂没有运行时，它的工具也会同样地启动它：
 
 | 工具 | 作用 |
 | --- | --- |
-| `kando_status` | 应用版本、当前打开的资料库、能否开始任务以及缺少什么、各个程序、语音识别和翻译模型、目标语言，以及正在运行和等待中的任务。 |
+| `kando_status` | 应用版本、当前打开的资料库、能否开始任务以及缺少什么、各个程序、语音识别和翻译模型、目标语言、正在运行和等待中的任务，以及看懂知道的每个资料库及其影片数。其他工具只能看到当前打开的资料库。 |
 | `kando_list_films` | 按从新到旧列出当前资料库的影片，可按 `source` 或标题中的文字（`query`）筛选。 |
-| `kando_get_film` | 按 ID 获取一部影片：所处阶段、目标语言，以及视频和字幕的路径。 |
-| `kando_get_subtitles` | 已完成影片的带时间戳字幕，可以是双语或其中一种（`which`），格式为紧凑文本或 SRT（`format`）；设置 `max_cues` 时只返回开头的若干条。 |
-| `kando_add_videos` | 把链接和本地视频文件加入队列；返回这些任务，以及每个未能加入的来源被跳过的原因。 |
+| `kando_get_film` | 按 ID 或生成它的任务 ID 获取一部影片：所处阶段、目标语言、视频和字幕的路径，以及看到了哪里（`resume_ms`、`watched_ms`）。 |
+| `kando_get_subtitles` | 已完成影片的带时间戳字幕，可以是双语或其中一种（`which`），格式为紧凑文本或 SRT（`format`）。`from_ms` 和 `to_ms` 读取影片的一部分，`until: "watched"` 只读取用户已经看过的部分，`max_cues` 每次读取一页，并给出继续读取用的 `next_from_ms`。 |
+| `kando_search_subtitles` | 在整个资料库或某一部影片（`film_id`）中查找包含 `query` 的字幕，每条都带有所在影片和 `start_ms`，可以作为 `at_ms` 交给 `kando_open`（未设置 `limit` 时返回 50 条；`until: "watched"` 同上）。 |
+| `kando_add_videos` | 把链接和本地视频文件加入队列；返回这些任务，以及每个未能加入的来源被跳过的原因。资料库中已有的视频会出现在 `skipped` 中，并带有它的 `job_id`、`stage` 和 `film_id`，所以重复请求是安全的。 |
 | `kando_list_jobs` | 列出任务，包括阶段、进度、状态、错误，完成后还有影片 ID 和文件路径。 |
+| `kando_get_job` | 按 ID 获取一个任务，内容与 `kando_list_jobs` 中的相同；可以轮询它来跟踪任务。 |
 | `kando_cancel_job` | 停止正在运行的任务，或把等待中的任务移出队列。 |
 | `kando_retry_job` | 以同一个 ID 把失败、已取消或已完成的任务重新加入队列，并返回这个任务。 |
 | `kando_remove_job` | 把任务从资料库中去掉，正在运行的任务会先停止；它的文件留在磁盘上。 |
 | `kando_search_sites` | 按名称、域名或视频链接搜索看懂支持下载的网站（未设置 `limit` 时返回 20 个结果）。 |
-| `kando_open` | 把看懂窗口调到最前面，显示一部影片或资料库。 |
+| `kando_open` | 把看懂窗口调到最前面，显示一部影片或资料库；设置 `at_ms` 时从影片的某一句开始播放。`shown` 和 `reason` 说明实际显示的内容：仍在处理中的影片会改为显示资料库（`in_queue`）。 |
 
 在 Claude Code 中添加时填写程序的路径；`kando` 已在 `PATH` 中时直接写 `kando` 即可：
 

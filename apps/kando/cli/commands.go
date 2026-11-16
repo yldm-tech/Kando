@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -131,6 +132,9 @@ func runSubtitles(e *env, args []string) error {
 	format := fs.String("format", "srt", "srt, text or json")
 	original := fs.Bool("original", false, "only the original speech")
 	translation := fs.Bool("translation", false, "only the translation")
+	from := fs.String("from", "", "only the lines that start at this time or later: seconds, mm:ss or hh:mm:ss")
+	to := fs.String("to", "", "only the lines that start before this time")
+	until := fs.String("until", "", "watched: only the lines up to how far the film was played, giving nothing away of the rest")
 	positional, err := e.parse(fs, args)
 	if err != nil {
 		return err
@@ -148,31 +152,95 @@ func runSubtitles(e *env, args []string) error {
 	default:
 		return usagef("unknown format %q: use srt, text or json", *format)
 	}
-	side := sideBoth
+	which := remote.WhichBoth
 	switch {
 	case *original && *translation:
 		return usagef("--original and --translation each leave the other out; leave both out for both")
 	case *original:
-		side = sideOriginal
+		which = remote.WhichOriginal
 	case *translation:
-		side = sideTranslation
+		which = remote.WhichTranslation
+	}
+	params := remote.SubtitlesParams{ID: positional[0]}
+	if params.FromMS, err = clockFlag("from", *from); err != nil {
+		return err
+	}
+	if params.ToMS, err = clockFlag("to", *to); err != nil {
+		return err
+	}
+	if params.Until, err = untilFlag(*until); err != nil {
+		return err
 	}
 	// The cues are decoded and printed here rather than by answer, as --original and --translation pick from them in JSON too.
 	var cues []remote.Cue
-	if err := e.call(remote.MethodSubtitles, remote.IDParams{ID: positional[0]}, &cues); err != nil {
+	if err := e.call(remote.MethodSubtitles, params, &cues); err != nil {
 		return err
 	}
+	picked := remote.PickCues(cues, which)
 	switch {
 	case e.json:
-		data, err := json.Marshal(pickCues(cues, side))
+		data, err := json.Marshal(picked)
 		if err != nil {
 			return err
 		}
 		return writeJSON(e.stdout, data)
 	case *format == "text":
-		return writeCuesText(e.stdout, cues, side)
+		_, err := io.WriteString(e.stdout, printableLines(remote.CuesText(picked)))
+		return err
 	}
-	return writeSRT(e.stdout, cues, side)
+	_, err = io.WriteString(e.stdout, printableLines(remote.CuesSRT(picked)))
+	return err
+}
+
+// clockFlag is the time the flag name was given as, in milliseconds, 0 when it was not given.
+func clockFlag(name, value string) (int64, error) {
+	if value == "" {
+		return 0, nil
+	}
+	ms, err := remote.ParseClock(value)
+	if err != nil {
+		return 0, usagef("--%s: %v", name, err)
+	}
+	return ms, nil
+}
+
+// untilFlag checks --until, which takes only watched.
+func untilFlag(value string) (string, error) {
+	if value != "" && value != remote.UntilWatched {
+		return "", usagef("--until takes %q, got %q", remote.UntilWatched, value)
+	}
+	return value, nil
+}
+
+func runSearch(e *env, args []string) error {
+	fs := e.flags()
+	film := fs.String("film", "", "only this film's lines, by its id")
+	until := fs.String("until", "", "watched: only the lines up to how far each film was played")
+	limit := fs.Int("limit", 0, "at most this many lines, 0 for all")
+	positional, err := e.parse(fs, args)
+	if err != nil {
+		return err
+	}
+	query := strings.TrimSpace(strings.Join(positional, " "))
+	if query == "" {
+		return usagef("needs words to search for")
+	}
+	if *limit < 0 {
+		return usagef("--limit must not be negative")
+	}
+	params := remote.SearchParams{Query: query, FilmID: *film, Limit: *limit}
+	if params.Until, err = untilFlag(*until); err != nil {
+		return err
+	}
+	var found []remote.Line
+	if done, err := e.answer(remote.MethodSearch, params, &found); done || err != nil {
+		return err
+	}
+	if len(found) == 0 {
+		fmt.Fprintln(e.stderr, "No lines found.")
+		return nil
+	}
+	return writeLines(e.stdout, found)
 }
 
 func runJobs(e *env, args []string) error {
@@ -180,8 +248,16 @@ func runJobs(e *env, args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(positional) > 0 {
-		return usagef("takes no arguments")
+	switch len(positional) {
+	case 0:
+	case 1:
+		var job remote.Job
+		if done, err := e.answer(remote.MethodJob, remote.IDParams{ID: positional[0]}, &job); done || err != nil {
+			return err
+		}
+		return writeJobs(e.stdout, []remote.Job{job})
+	default:
+		return usagef("takes at most one job id, got %d arguments", len(positional))
 	}
 	var jobs []remote.Job
 	if done, err := e.answer(remote.MethodJobs, nil, &jobs); done || err != nil {
@@ -219,22 +295,37 @@ func runAdd(e *env, args []string) error {
 	if err := json.Unmarshal(raw, &result); err != nil {
 		return err
 	}
+	// A video the library already has is not added again, but its job is the one asked for: it counts as added, is printed as an added job is, and is waited for with --wait, so running the same command again succeeds. One whose job failed and could not be queued again is a failure, as any other source skipped.
+	failed := false
+	var dups []int
+	for i, skipped := range result.Skipped {
+		if skipped.JobID != "" && skipped.Stage != string(core.StageFailed) {
+			dups = append(dups, i)
+			fmt.Fprintf(e.stderr, "kando add: %s: %s\n", printable(skipped.Source), printable(skipped.Reason))
+			continue
+		}
+		failed = true
+		fmt.Fprintf(e.stderr, "kando add: skipped %s: %s\n", printable(skipped.Source), printable(skipped.Reason))
+	}
 	if !e.json {
 		for _, job := range result.Jobs {
 			fmt.Fprintf(e.stdout, "%s\t%s\n", printable(job.ID), printable(job.Source))
 		}
+		for _, i := range dups {
+			fmt.Fprintf(e.stdout, "%s\t%s\n", printable(result.Skipped[i].JobID), printable(result.Skipped[i].Source))
+		}
 	}
-	for _, skipped := range result.Skipped {
-		fmt.Fprintf(e.stderr, "kando add: skipped %s: %s\n", printable(skipped.Source), printable(skipped.Reason))
-	}
-	failed := len(result.Skipped) > 0
-	if *wait && len(result.Jobs) > 0 {
+	if *wait && len(result.Jobs)+len(dups) > 0 {
 		// With --json, standard output is kept for the one JSON answer, the added jobs as they ended, and the progress goes to standard error.
 		progress := e.stdout
 		if e.json {
 			progress = e.stderr
 		}
-		final, err := e.waitJobs(result.Jobs, progress)
+		waiting := slices.Clone(result.Jobs)
+		for _, i := range dups {
+			waiting = append(waiting, remote.Job{ID: result.Skipped[i].JobID, Source: result.Skipped[i].Source, Stage: result.Skipped[i].Stage})
+		}
+		final, err := e.waitJobs(waiting, progress)
 		if err != nil {
 			return err
 		}
@@ -242,7 +333,13 @@ func runAdd(e *env, args []string) error {
 			if job.Stage != string(core.StageComplete) {
 				failed = true
 			}
-			result.Jobs[i] = job
+			if i < len(result.Jobs) {
+				result.Jobs[i] = job
+				continue
+			}
+			// A video already there ends as its job ended.
+			skipped := &result.Skipped[dups[i-len(result.Jobs)]]
+			skipped.Stage, skipped.FilmID = job.Stage, job.FilmID
 		}
 		if raw, err = json.Marshal(result); err != nil {
 			return err
@@ -402,19 +499,41 @@ func runSites(e *env, args []string) error {
 }
 
 func runOpen(e *env, args []string) error {
-	positional, err := e.parse(e.flags(), args)
+	fs := e.flags()
+	at := fs.String("at", "", "play the film from this time of its subtitles, as a line's start: seconds, mm:ss or hh:mm:ss")
+	positional, err := e.parse(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(positional) > 1 {
 		return usagef("takes at most one film id, got %d arguments", len(positional))
 	}
-	id := ""
+	params := remote.ShowParams{}
 	if len(positional) == 1 {
-		id = positional[0]
+		params.ID = positional[0]
 	}
-	_, err = e.answer(remote.MethodShow, remote.IDParams{ID: id}, nil)
-	return err
+	if *at != "" {
+		if params.ID == "" {
+			return usagef("--at needs a film id")
+		}
+		ms, err := clockFlag("at", *at)
+		if err != nil {
+			return err
+		}
+		params.AtMS = &ms
+	}
+	var shown remote.ShowResult
+	if done, err := e.answer(remote.MethodShow, params, &shown); done || err != nil {
+		return err
+	}
+	// The window shows the library rather than a film it cannot play yet; the command still did what it could, so it says why and succeeds.
+	switch shown.Reason {
+	case remote.ShowInQueue:
+		fmt.Fprintf(e.stderr, "kando open: %s is still being processed; showing the library\n", printable(params.ID))
+	case remote.ShowNoVideo:
+		fmt.Fprintf(e.stderr, "kando open: %s has no video on disk; showing the library\n", printable(params.ID))
+	}
+	return nil
 }
 
 func runMCP(e *env, args []string) error {

@@ -109,6 +109,25 @@ func writeStatus(w io.Writer, s remote.Status) error {
 		}
 		rows = append(rows, []string{name, path})
 	}
+	// Each library the app knows is a row of its own, the open one marked, so it shows which films the commands see and where the others are.
+	for i, lib := range s.Libraries {
+		key := ""
+		if i == 0 {
+			key = "libraries"
+		}
+		mark := " "
+		if lib.Open {
+			mark = "*"
+		}
+		films := fmt.Sprintf("%d films", lib.Films)
+		switch {
+		case lib.Missing:
+			films = "missing"
+		case lib.Films == 1:
+			films = "1 film"
+		}
+		rows = append(rows, []string{key, mark + " " + lib.Name + "  " + films + "  " + lib.Path})
+	}
 	return table(w, rows)
 }
 
@@ -151,6 +170,8 @@ func writeFilm(w io.Writer, f remote.Film) error {
 		{"video", f.VideoPath},
 		{"subtitles", f.Subtitles},
 		{"original subtitles", f.OriginalSubtitles},
+		{"resume at", clockIf(f.ResumeMS)},
+		{"watched to", clockIf(f.WatchedMS)},
 	}
 	for _, kv := range optional {
 		if kv[1] != "" {
@@ -158,6 +179,14 @@ func writeFilm(w io.Writer, f remote.Film) error {
 		}
 	}
 	return table(w, rows)
+}
+
+// clockIf is ms as remote.Clock writes it, or "" for 0, so the line is left out.
+func clockIf(ms int64) string {
+	if ms <= 0 {
+		return ""
+	}
+	return remote.Clock(ms)
 }
 
 // stageTextIf is stageText, or "" for no stage, so the line is left out.
@@ -197,87 +226,12 @@ func writeSites(w io.Writer, sites []remote.Site) error {
 	return table(w, rows)
 }
 
-// side is which of a cue's lines the subtitles command prints.
-type side int
-
-const (
-	// sideBoth is the translation above the original, as the bilingual .srt has them, or the original alone for a line left untranslated.
-	sideBoth side = iota
-	sideOriginal
-	// sideTranslation leaves out the lines the translation left out.
-	sideTranslation
-)
-
-// pickCues is the cues for side as --json prints them, as kando_get_subtitles picks them over MCP: every cue for both; for the original, every cue without its translation; for the translation, only the translated cues, their text left empty and their times kept. It is never nil, so no cues print as [].
-func pickCues(cues []remote.Cue, s side) []remote.Cue {
-	picked := make([]remote.Cue, 0, len(cues))
-	for _, c := range cues {
-		switch s {
-		case sideOriginal:
-			c.Translation = ""
-		case sideTranslation:
-			if c.Translation == "" {
-				continue
-			}
-			c.Text = ""
-		}
-		picked = append(picked, c)
+// writeLines writes the lines `kando search` found, one a row: the film's id, when the line shows, the film's title, and the line as the text format of `kando subtitles` has it.
+func writeLines(w io.Writer, found []remote.Line) error {
+	rows := [][]string{{"FILM", "AT", "TITLE", "LINE"}}
+	for _, l := range found {
+		line := remote.CueLine(remote.Cue{Text: l.Text, Translation: l.Translation})
+		rows = append(rows, []string{l.FilmID, remote.Clock(l.StartMS), l.Title, line})
 	}
-	return picked
-}
-
-// cueText is the cue's lines for side, joined by sep, "" when it has none.
-func cueText(c remote.Cue, s side, sep string) string {
-	switch s {
-	case sideOriginal:
-		return c.Text
-	case sideTranslation:
-		return c.Translation
-	}
-	if c.Translation == "" {
-		return c.Text
-	}
-	return c.Translation + sep + c.Text
-}
-
-// writeSRT writes cues as a SubRip file, numbering the cues it keeps from 1.
-func writeSRT(w io.Writer, cues []remote.Cue, s side) error {
-	var b strings.Builder
-	n := 0
-	for _, c := range cues {
-		text := strings.TrimSpace(cueText(c, s, "\n"))
-		if text == "" {
-			continue
-		}
-		n++
-		fmt.Fprintf(&b, "%d\n%s --> %s\n%s\n\n", n, srtTime(c.StartMS), srtTime(c.EndMS), printableLines(text))
-	}
-	_, err := io.WriteString(w, b.String())
-	return err
-}
-
-func srtTime(ms int64) string {
-	return fmt.Sprintf("%02d:%02d:%02d,%03d", ms/3_600_000, ms/60_000%60, ms/1000%60, ms%1000)
-}
-
-// writeCuesText writes one line per cue, "[mm:ss] translation / original", with hours in front for a cue an hour or more in.
-func writeCuesText(w io.Writer, cues []remote.Cue, s side) error {
-	var b strings.Builder
-	for _, c := range cues {
-		text := strings.TrimSpace(cueText(c, s, " / "))
-		if text == "" {
-			continue
-		}
-		fmt.Fprintf(&b, "[%s] %s\n", clock(c.StartMS), printable(strings.Join(strings.Fields(text), " ")))
-	}
-	_, err := io.WriteString(w, b.String())
-	return err
-}
-
-func clock(ms int64) string {
-	seconds := ms / 1000
-	if seconds >= 3600 {
-		return fmt.Sprintf("%d:%02d:%02d", seconds/3600, seconds/60%60, seconds%60)
-	}
-	return fmt.Sprintf("%02d:%02d", seconds/60, seconds%60)
+	return table(w, rows)
 }

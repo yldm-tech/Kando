@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/lines"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
@@ -567,9 +568,9 @@ func TestPaletteFollowsVideosGatheredIntoFolders(t *testing.T) {
 
 // TestPaletteReadsTheModelsReply checks that a reply in the JSON asked for gives the answer and chips at the starts of the lines it names, that a moment no line seen starts at gives no chip, and that a reply in plain text is shown as it is.
 func TestPaletteReadsTheModelsReply(t *testing.T) {
-	seen := []paletteCue{{start: 400 * time.Millisecond}, {start: 30*time.Second + 400*time.Millisecond}, {start: 62 * time.Second}}
+	seen := []lines.Line{{Start: 400 * time.Millisecond}, {Start: 30*time.Second + 400*time.Millisecond}, {Start: 62 * time.Second}}
 	text, refs := paletteParseReply(`{"answer":"讲到了。","refs":["0:30","1:02","0:30","0:45","later"]}`, seen)
-	if text != "讲到了。" || len(refs) != 2 || refs[0] != seen[1].start || refs[1] != seen[2].start {
+	if text != "讲到了。" || len(refs) != 2 || refs[0] != seen[1].Start || refs[1] != seen[2].Start {
 		t.Fatalf("text %q refs %v", text, refs)
 	}
 	text, refs = paletteParseReply("  这部影片讲河流。 ", seen)

@@ -124,40 +124,43 @@ To get the `kando` command:
 
 | Command | What it does |
 | --- | --- |
-| `kando status` | Shows the open library, the programs and models in use, and whether a job can start, or what is missing. |
+| `kando status` | Shows the open library, the programs and models in use, and whether a job can start, or what is missing, and lists every library Kando knows with how many films it holds, the open one marked. |
 | `kando list [--source S] [query]` | Lists the library's films, newest first, with their ids. `--source` keeps one source (`youtube`, `bilibili`, `local` or another site's name); the query keeps the films whose title contains it. |
-| `kando show <film-id>` | Shows one film: its source, stage, and the paths of its video and subtitles. |
-| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation]` | Prints a film's subtitles, as SubRip (the default), one line per subtitle (`text`) or JSON, both languages or only one. |
-| `kando jobs` | Lists the jobs: the running one, the waiting ones, then the finished ones. |
+| `kando show <film-id>` | Shows one film: its source, stage, the paths of its video and subtitles, and how far you have watched it. A job's id names the film it makes. |
+| `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation] [--from T] [--to T] [--until watched]` | Prints a film's subtitles, as SubRip (the default), one line per subtitle (`text`, `[hh:mm:ss] translation \| original`) or JSON, both languages or only one. `--from` and `--to` keep the lines that start between them (seconds, `mm:ss` or `hh:mm:ss`); `--until watched` keeps only the lines up to how far you have played the film. |
+| `kando search <words> [--film ID] [--until watched] [--limit N]` | Finds the subtitle lines that contain the words, in the original or the translation, across the library or in one film, with each line's film and time. `--until watched` keeps only what you have watched. |
+| `kando jobs [job-id]` | Lists the jobs: the running one, the waiting ones, then the finished ones; with an id, shows that job alone. |
 | `kando add <link-or-file>... [--wait]` | Queues links and local video files, as Start Processing does, and prints each job's id. Relative paths are taken from the current directory. |
 | `kando cancel <job-id>` | Stops a running job, or takes a waiting one out of the queue. |
 | `kando retry <job-id> [--wait]` | Queues a failed, canceled or finished job again under the same id, as Retry and Process Again do, without changing what the window shows. A running or waiting job is refused. |
 | `kando remove <job-id>` | Takes a job off the library, as Remove does, stopping it first when it is running. Its files stay on disk. |
 | `kando sites [query] [--limit N]` | Searches the websites Kando downloads from, by name, domain or a video link. |
-| `kando open [film-id]` | Brings Kando to the front, showing a film, or the library without an id. |
+| `kando open [film-id] [--at T]` | Brings Kando to the front, showing a film, or the library without an id. `--at` plays the film from that time of its subtitles, such as a line `kando search` found. A film still being processed shows the library instead, with a note. |
 | `kando mcp` | Serves MCP on standard input and output (see below). |
 | `kando version` | Prints the version. |
 | `kando help [command]` | Lists the commands, or shows one command's usage and its flags. |
 
 A command that needs the app connects to it through a socket, `kando.sock` in the folder that holds `settings.json` (`~/Library/Application Support/Kando/kando.sock` on macOS, `~/.config/Kando/kando.sock` on Linux, `%AppData%\Kando\kando.sock` on Windows); `KANDO_SOCKET` sets another path, which a second copy of Kando also needs, with its own `HOME` (see [Configuration](#configuration)). When Kando is not running, the command starts it in the background, prints `Starting Kando…` to standard error, and waits up to 30 seconds for it. Adding videos needs what Start Processing needs, such as an open library, the programs and a whisper model; when something is missing, `kando add` fails with the message the window shows for it.
 
-Every command that talks to the app takes `--json`, which prints the app's answer as JSON instead of text. `kando add` exits with 1 when a source could not be added. With `--wait` it stays until every added job is complete or failed, printing a line whenever one's stage or progress changes, and also exits with 1 when any of them failed; with `--json` the progress goes to standard error and the jobs as they ended to standard output. `kando retry --wait` waits for the job it queued again in the same way. Exit codes are 0 for success, 1 for a failure and 2 for a command used wrongly.
+Every command that talks to the app takes `--json`, which prints the app's answer as JSON instead of text, and an error as `{"error": {"code": ..., "message": ...}}` on standard output. The command line, the MCP server and the app's answers to them are in English whatever language the window shows; titles, target languages and other names stay as they are. `kando add` exits with 1 when a source could not be added; a video the library already has counts as added, so it prints that video's job, waits for it with `--wait`, and running the same command again succeeds. With `--wait` it stays until every added job is complete or failed, printing a line whenever one's stage or progress changes, and also exits with 1 when any of them failed; with `--json` the progress goes to standard error and the jobs as they ended to standard output. `kando retry --wait` waits for the job it queued again in the same way. Exit codes are 0 for success, 1 for a failure, 2 for a command used wrongly, 3 when Kando is not ready (no library is open, or something a job needs is missing), 4 when no film or job has the id, and 5 when Kando is not running and could not be started.
 
 `kando mcp` is an MCP server on standard input and output. Its tools start Kando the same way when it is not running:
 
 | Tool | What it does |
 | --- | --- |
-| `kando_status` | The app's version, the open library, whether a job can start and what is missing, the programs, the speech and translation models, the target language, and the running and waiting jobs. |
+| `kando_status` | The app's version, the open library, whether a job can start and what is missing, the programs, the speech and translation models, the target language, the running job and how many wait, and every library Kando knows with how many films it holds. The other tools see only the open library. |
 | `kando_list_films` | The open library's films, newest first, filtered by `source` or by words of the title (`query`). |
-| `kando_get_film` | One film by its id: its stage, target language, and the paths of its video and subtitles. |
-| `kando_get_subtitles` | A finished film's subtitles with timestamps, both languages or one (`which`), as compact text or SRT (`format`), the first `max_cues` lines only when it is set. |
-| `kando_add_videos` | Queues links and local video files; returns the jobs, and why each source that was not added was skipped. |
+| `kando_get_film` | One film by its id, or by the id of the job that makes it: its stage, target language, the paths of its video and subtitles, and how far it was watched (`resume_ms`, `watched_ms`). |
+| `kando_get_subtitles` | A finished film's subtitles with timestamps, both languages or one (`which`), as compact text or SRT (`format`). `from_ms` and `to_ms` read part of the film, `until: "watched"` only what the user has watched, and `max_cues` a page at a time, with `next_from_ms` to read on. |
+| `kando_search_subtitles` | The subtitle lines that contain `query`, across the library or in one film (`film_id`), each with its film and `start_ms`, which `kando_open` takes as `at_ms` (50 lines unless `limit` is set; `until: "watched"` as above). |
+| `kando_add_videos` | Queues links and local video files; returns the jobs, and why each source that was not added was skipped. A video the library already has comes back under `skipped` with its `job_id`, `stage` and `film_id`, so asking again is safe. |
 | `kando_list_jobs` | The jobs, with their stage, progress, status, error, and once complete the film id and file paths. |
+| `kando_get_job` | One job by its id, as `kando_list_jobs` lists it; poll it to follow a job. |
 | `kando_cancel_job` | Stops a running job, or takes a waiting one out of the queue. |
 | `kando_retry_job` | Queues a failed, canceled or finished job again under the same id; returns the job. |
 | `kando_remove_job` | Takes a job off the library, stopping it first when it is running; its files stay on disk. |
 | `kando_search_sites` | Searches the websites Kando downloads from, by name, domain or a video link (20 results unless `limit` is set). |
-| `kando_open` | Brings the Kando window to the front, showing a film or the library. |
+| `kando_open` | Brings the Kando window to the front, showing a film or the library, from a line of the film when `at_ms` is set. `shown` and `reason` say what it shows: a film still being processed shows the library (`in_queue`). |
 
 Add it to Claude Code with the path of the program, `kando` once it is on `PATH`:
 

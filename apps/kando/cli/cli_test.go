@@ -330,15 +330,18 @@ func TestHelp(t *testing.T) {
 func TestHelpListsFlags(t *testing.T) {
 	shortSocket(t)
 	noLaunch(t)
-	wantSubtitles := "Usage: kando subtitles <film-id> [--format srt|text|json] [--original|--translation] [--json]\n" +
+	wantSubtitles := "Usage: kando subtitles <film-id> [--format srt|text|json] [--original|--translation] [--from T] [--to T] [--until watched] [--json]\n" +
 		"\n" +
-		"Print a film's subtitles.\n" +
+		"Print a film's subtitles, or part of them.\n" +
 		"\n" +
 		"Flags:\n" +
 		"  --format string  srt, text or json (default srt)\n" +
+		"  --from string    only the lines that start at this time or later: seconds, mm:ss or hh:mm:ss\n" +
 		"  --json           print the app's answer as JSON\n" +
 		"  --original       only the original speech\n" +
-		"  --translation    only the translation\n"
+		"  --to string      only the lines that start before this time\n" +
+		"  --translation    only the translation\n" +
+		"  --until string   watched: only the lines up to how far the film was played, giving nothing away of the rest\n"
 	for _, args := range [][]string{{"help", "subtitles"}, {"subtitles", "-h"}, {"subtitles", "f1", "--help"}} {
 		if code, stdout, stderr := run(args...); code != 0 || stdout != wantSubtitles || stderr != "" {
 			t.Errorf("%q = %d\nstdout:\n%s\nwant:\n%s\nstderr: %q", args, code, stdout, wantSubtitles, stderr)
@@ -354,6 +357,8 @@ func TestHelpListsFlags(t *testing.T) {
 		{"retry", []string{"--wait", "--json"}},
 		{"remove", []string{"--json"}},
 		{"sites", []string{"--limit int", "--json"}},
+		{"search", []string{"--film string", "--until string", "--limit int", "--json"}},
+		{"open", []string{"--at string", "--json"}},
 	} {
 		_, stdout, _ := run("help", tt.command)
 		for _, flag := range tt.flags {
@@ -428,11 +433,11 @@ func TestTextOutput(t *testing.T) {
 		},
 		{
 			args: []string{"subtitles", "f1", "--format", "text"},
-			want: "[00:01] 你好。 / Hello there.\n[1:02:05] Untranslated.\n",
+			want: "[00:00:01] 你好。 | Hello there.\n[01:02:05] Untranslated.\n",
 		},
 		{
 			args: []string{"subtitles", "f1", "--format=text", "--original"},
-			want: "[00:01] Hello there.\n[1:02:05] Untranslated.\n",
+			want: "[00:00:01] Hello there.\n[01:02:05] Untranslated.\n",
 		},
 		{
 			args: []string{"jobs"},
@@ -621,8 +626,16 @@ func TestUsageErrors(t *testing.T) {
 		{"subtitles", "f1", "--format", "xml"},
 		{"subtitles", "f1", "--format"},
 		{"subtitles", "f1", "--original", "--translation"},
-		{"subtitles", "f1", "--format", "json", "--original", "--translation"},
-		{"jobs", "extra"},
+		{"jobs", "j1", "j2"},
+		{"search"},
+		{"search", "  "},
+		{"search", "word", "--limit", "-1"},
+		{"search", "word", "--until", "tomorrow"},
+		{"subtitles", "f1", "--from", "1:75"},
+		{"subtitles", "f1", "--to", "soon"},
+		{"subtitles", "f1", "--until", "tomorrow"},
+		{"open", "--at", "1:00"},
+		{"open", "f1", "--at", "later"},
 		{"add"},
 		{"add", "--wait"},
 		{"cancel"},
@@ -646,6 +659,11 @@ func TestUsageErrors(t *testing.T) {
 			t.Errorf("%q = %d, %q, %q, want a usage error", args, code, stdout, stderr)
 		}
 	}
+	// With --json, which --format json sets, a usage error is the one JSON value on standard output, as any other error is.
+	code, stdout, stderr := run("subtitles", "f1", "--format", "json", "--original", "--translation")
+	if code != 2 || stderr != "" || !strings.Contains(stdout, `"code": "usage"`) {
+		t.Errorf("a usage error with --json = %d, %q, %q", code, stdout, stderr)
+	}
 	if calls := f.asked(); len(calls) != 0 {
 		t.Errorf("usage errors asked the app %+v", calls)
 	}
@@ -663,21 +681,41 @@ func TestRemoteErrors(t *testing.T) {
 	})
 	for _, tt := range []struct {
 		args   []string
+		code   int
 		stderr string
 	}{
-		{[]string{"show", "nope"}, "kando show: No film nope.\n"},
-		{[]string{"subtitles", "nope", "--json"}, "kando subtitles: No film nope.\n"},
-		{[]string{"cancel", "j7"}, "kando cancel: No job j7.\n"},
-		{[]string{"retry", "j7"}, "kando retry: No job j7.\n"},
-		{[]string{"retry", "j7", "--wait"}, "kando retry: No job j7.\n"},
-		{[]string{"remove", "j7"}, "kando remove: No job j7.\n"},
-		{[]string{"add", "https://youtu.be/x"}, "kando add: Choose a folder for the library first.\n"},
-		{[]string{"status"}, "kando status: disk on fire\n"},
+		{[]string{"show", "nope"}, 4, "kando show: No film nope.\n"},
+		{[]string{"cancel", "j7"}, 4, "kando cancel: No job j7.\n"},
+		{[]string{"retry", "j7"}, 4, "kando retry: No job j7.\n"},
+		{[]string{"retry", "j7", "--wait"}, 4, "kando retry: No job j7.\n"},
+		{[]string{"remove", "j7"}, 4, "kando remove: No job j7.\n"},
+		{[]string{"add", "https://youtu.be/x"}, 3, "kando add: Choose a folder for the library first.\n"},
+		{[]string{"status"}, 1, "kando status: disk on fire\n"},
 	} {
 		code, stdout, stderr := run(tt.args...)
-		if code != 1 || stdout != "" || stderr != tt.stderr {
-			t.Errorf("%q = %d, %q, %q, want 1 and %q", tt.args, code, stdout, stderr, tt.stderr)
+		if code != tt.code || stdout != "" || stderr != tt.stderr {
+			t.Errorf("%q = %d, %q, %q, want %d and %q", tt.args, code, stdout, stderr, tt.code, tt.stderr)
 		}
+	}
+	// With --json the error is the one JSON value on standard output, with its code, and nothing goes to standard error.
+	for _, tt := range []struct {
+		args []string
+		code int
+		want string
+	}{
+		{[]string{"subtitles", "nope", "--json"}, 4, `{"error": {"code": "not_found", "message": "No film nope."}}`},
+		{[]string{"--json", "add", "https://youtu.be/x"}, 3, `{"error": {"code": "not_ready", "message": "Choose a folder for the library first."}}`},
+		{[]string{"status", "--json"}, 1, `{"error": {"code": "failed", "message": "disk on fire"}}`},
+	} {
+		code, stdout, stderr := run(tt.args...)
+		if code != tt.code || stderr != "" {
+			t.Errorf("%q = %d, %q, want %d and nothing on stderr", tt.args, code, stderr, tt.code)
+		}
+		var want any
+		if err := json.Unmarshal([]byte(tt.want), &want); err != nil {
+			t.Fatal(err)
+		}
+		assertSameJSON(t, tt.args, stdout, want)
 	}
 }
 
@@ -950,10 +988,10 @@ func TestControlCharactersEscaped(t *testing.T) {
 		{args: []string{"jobs"}, stdout: "j1  failed  " + tamed + "  " + tamed + "\n"},
 		// The .srt keeps the cue's line breaks and drops the carriage returns; the text format puts each cue on one line, so they are spaces there.
 		{args: []string{"subtitles", "f1"}, stdout: "1\n00:00:00,000 --> 00:00:01,000\n" + tamedLine + "\nline one\n" + tamedLine + "\n\n"},
-		{args: []string{"subtitles", "f1", "--format", "text"}, stdout: "[00:00] " + tamedWords + " / line one " + tamedWords + "\n"},
+		{args: []string{"subtitles", "f1", "--format", "text"}, stdout: "[00:00:00] " + tamedWords + " | line one " + tamedWords + "\n"},
 		{args: []string{"add", "x"}, stdout: "j1\t" + tamed + "\n", stderr: "kando add: skipped " + tamed + ": " + tamed + "\n", wantStatus: 1},
 		{args: []string{"add", "x", "--wait"}, stdout: "j1\t" + tamed + "\nj1  failed  " + tamed + "  " + tamed + "\n", stderr: "kando add: skipped " + tamed + ": " + tamed + "\n", wantStatus: 1},
-		{args: []string{"cancel", "j1"}, stderr: "kando cancel: " + tamed + "\n", wantStatus: 1},
+		{args: []string{"cancel", "j1"}, stderr: "kando cancel: " + tamed + "\n", wantStatus: 4},
 	} {
 		code, stdout, stderr := run(tt.args...)
 		if code != tt.wantStatus || stdout != tt.stdout || stderr != tt.stderr {
@@ -989,5 +1027,211 @@ func TestNeedsConsole(t *testing.T) {
 		if got := needsConsole(tt.args, tt.have); got != tt.want {
 			t.Errorf("needsConsole(%q, %+v) = %v, want %v", tt.args, tt.have, got, tt.want)
 		}
+	}
+}
+
+// TestSearch checks that kando search sends the words and its flags, prints a row for each line found with when it shows, and says so when none is.
+func TestSearch(t *testing.T) {
+	found := []remote.Line{
+		{FilmID: "f1", Title: "Rivers of Japan", StartMS: 1500, EndMS: 3000, Text: "Hello there.", Translation: "你好。"},
+		{FilmID: "f2", Title: "Home video", StartMS: 3_725_250, EndMS: 3_727_000, Text: "Hello\nagain"},
+	}
+	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method != remote.MethodSearch {
+			return cannedApp(method, params)
+		}
+		p, err := remote.Params[remote.SearchParams](params)
+		if err != nil {
+			return nil, err
+		}
+		if p.Query == "nothing" {
+			return []remote.Line{}, nil
+		}
+		return found, nil
+	})
+	code, stdout, stderr := run("search", "hello", "there", "--film", "f1", "--until", "watched", "--limit", "5")
+	want := "FILM  AT        TITLE            LINE\n" +
+		"f1    00:00:01  Rivers of Japan  你好。 | Hello there.\n" +
+		"f2    01:02:05  Home video       Hello again\n"
+	if code != 0 || stdout != want || stderr != "" {
+		t.Errorf("search = %d\nstdout:\n%s\nwant:\n%s\nstderr: %q", code, stdout, want, stderr)
+	}
+	var p remote.SearchParams
+	f.lastParams(t, remote.MethodSearch, &p)
+	if p != (remote.SearchParams{Query: "hello there", FilmID: "f1", Until: "watched", Limit: 5}) {
+		t.Errorf("search params = %+v", p)
+	}
+	code, stdout, _ = run("search", "hello", "--json")
+	if code != 0 {
+		t.Errorf("search --json = %d", code)
+	}
+	assertSameJSON(t, []string{"search", "--json"}, stdout, found)
+	if code, stdout, stderr := run("search", "nothing"); code != 0 || stdout != "" || stderr != "No lines found.\n" {
+		t.Errorf("search nothing = %d, %q, %q", code, stdout, stderr)
+	}
+}
+
+// TestSubtitlesRange checks that kando subtitles sends the part of the subtitles --from, --to and --until ask for, the times as a person writes them.
+func TestSubtitlesRange(t *testing.T) {
+	f := startFake(t, cannedApp)
+	for _, tt := range []struct {
+		args []string
+		want remote.SubtitlesParams
+	}{
+		{[]string{"subtitles", "f1"}, remote.SubtitlesParams{ID: "f1"}},
+		{[]string{"subtitles", "f1", "--from", "12:34", "--to", "1:02:03.5"}, remote.SubtitlesParams{ID: "f1", FromMS: 754_000, ToMS: 3_723_500}},
+		{[]string{"subtitles", "--from=90", "f1", "--until", "watched"}, remote.SubtitlesParams{ID: "f1", FromMS: 90_000, Until: "watched"}},
+	} {
+		if code, _, stderr := run(tt.args...); code != 0 {
+			t.Fatalf("%q = %d, %q", tt.args, code, stderr)
+		}
+		var p remote.SubtitlesParams
+		f.lastParams(t, remote.MethodSubtitles, &p)
+		if p != tt.want {
+			t.Errorf("%q sent %+v, want %+v", tt.args, p, tt.want)
+		}
+	}
+}
+
+// TestOpenAt checks that kando open --at sends where to play the film from, and that a film the window cannot show yet still succeeds, saying why the library shows instead.
+func TestOpenAt(t *testing.T) {
+	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method != remote.MethodShow {
+			return cannedApp(method, params)
+		}
+		p, err := remote.Params[remote.ShowParams](params)
+		if err != nil {
+			return nil, err
+		}
+		if p.ID == "queued" {
+			return remote.ShowResult{Reason: remote.ShowInQueue}, nil
+		}
+		return remote.ShowResult{Shown: p.ID, AtMS: p.AtMS}, nil
+	})
+	if code, stdout, stderr := run("open", "f1", "--at", "1:05"); code != 0 || stdout != "" || stderr != "" {
+		t.Errorf("open --at = %d, %q, %q", code, stdout, stderr)
+	}
+	var p remote.ShowParams
+	f.lastParams(t, remote.MethodShow, &p)
+	if p.ID != "f1" || p.AtMS == nil || *p.AtMS != 65_000 {
+		t.Errorf("open --at sent %+v", p)
+	}
+	if code, _, _ := run("open", "f1"); code != 0 {
+		t.Errorf("open = %d", code)
+	}
+	p = remote.ShowParams{}
+	f.lastParams(t, remote.MethodShow, &p)
+	if p.ID != "f1" || p.AtMS != nil {
+		t.Errorf("open without --at sent %+v", p)
+	}
+	if code, stdout, stderr := run("open", "queued"); code != 0 || stdout != "" || stderr != "kando open: queued is still being processed; showing the library\n" {
+		t.Errorf("open queued = %d, %q, %q", code, stdout, stderr)
+	}
+	code, stdout, _ := run("open", "f1", "--at", "3", "--json")
+	at := int64(3000)
+	if code != 0 {
+		t.Errorf("open --json = %d", code)
+	}
+	assertSameJSON(t, []string{"open", "--json"}, stdout, remote.ShowResult{Shown: "f1", AtMS: &at})
+}
+
+// TestJobsOne checks that kando jobs with an id shows that job alone, from jobs.get.
+func TestJobsOne(t *testing.T) {
+	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method == remote.MethodJob {
+			return cannedJobs[0], nil
+		}
+		return cannedApp(method, params)
+	})
+	if code, stdout, stderr := run("jobs", "j1"); code != 0 || stdout != "j1  downloading 50%  Rivers of Japan\n" || stderr != "" {
+		t.Errorf("jobs j1 = %d, %q, %q", code, stdout, stderr)
+	}
+	var p remote.IDParams
+	f.lastParams(t, remote.MethodJob, &p)
+	if p.ID != "j1" {
+		t.Errorf("jobs j1 sent %+v", p)
+	}
+}
+
+// TestAddDuplicates checks that a video the library already has counts as added: its job is printed and waited for, and the command succeeds, so running it again does; one whose job failed still fails it.
+func TestAddDuplicates(t *testing.T) {
+	fastPoll(t)
+	startFake(t, func(method string, params json.RawMessage) (any, error) {
+		switch method {
+		case remote.MethodAdd:
+			p, err := remote.Params[remote.AddParams](params)
+			if err != nil {
+				return nil, err
+			}
+			res := remote.AddResult{Jobs: []remote.Job{}}
+			for _, source := range p.Sources {
+				switch source {
+				case "done":
+					res.Skipped = append(res.Skipped, remote.AddFailed{Source: source, Reason: "Already in the library.", JobID: "jd", Stage: "complete", FilmID: "jd"})
+				case "running":
+					res.Skipped = append(res.Skipped, remote.AddFailed{Source: source, Reason: "Already in the queue.", JobID: "jr", Stage: "downloading"})
+				case "broken":
+					res.Skipped = append(res.Skipped, remote.AddFailed{Source: source, Reason: "No language.", JobID: "jb", Stage: "failed"})
+				}
+			}
+			return res, nil
+		case remote.MethodJobs:
+			return []remote.Job{{ID: "jd", Source: "done", Stage: "complete", Progress: 1, FilmID: "jd"}, {ID: "jr", Source: "running", Stage: "complete", Progress: 1, FilmID: "jr"}}, nil
+		}
+		return cannedApp(method, params)
+	})
+	code, stdout, stderr := run("add", "done", "running")
+	if code != 0 || stdout != "jd\tdone\njr\trunning\n" || stderr != "kando add: done: Already in the library.\nkando add: running: Already in the queue.\n" {
+		t.Errorf("add duplicates = %d, %q, %q", code, stdout, stderr)
+	}
+	code, stdout, _ = run("add", "done", "running", "--wait", "--json")
+	if code != 0 {
+		t.Errorf("add duplicates --wait = %d", code)
+	}
+	assertSameJSON(t, []string{"add", "--wait", "--json"}, stdout, remote.AddResult{Jobs: []remote.Job{}, Skipped: []remote.AddFailed{
+		{Source: "done", Reason: "Already in the library.", JobID: "jd", Stage: "complete", FilmID: "jd"},
+		{Source: "running", Reason: "Already in the queue.", JobID: "jr", Stage: "complete", FilmID: "jr"},
+	}})
+	if code, _, stderr := run("add", "broken"); code != 1 || stderr != "kando add: skipped broken: No language.\n" {
+		t.Errorf("add a duplicate that failed = %d, %q", code, stderr)
+	}
+}
+
+// TestStatusLibraries checks that kando status lists the libraries the app knows, the open one marked.
+func TestStatusLibraries(t *testing.T) {
+	status := cannedStatus
+	status.Libraries = []remote.Library{
+		{Path: "/Users/me/Movies/Kando", Name: "Kando", Open: true, Films: 12},
+		{Path: "/Volumes/Disk/Lectures.kando", Name: "Lectures", Films: 1},
+		{Path: "/Volumes/Gone/Old.kando", Name: "Old", Missing: true},
+	}
+	startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method == remote.MethodStatus {
+			return status, nil
+		}
+		return cannedApp(method, params)
+	})
+	_, stdout, _ := run("status")
+	for _, want := range []string{
+		"libraries          * Kando  12 films  /Users/me/Movies/Kando\n",
+		"                     Lectures  1 film  /Volumes/Disk/Lectures.kando\n",
+		"                     Old  missing  /Volumes/Gone/Old.kando\n",
+	} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("status = %q, want %q", stdout, want)
+		}
+	}
+}
+
+// TestNotRunningExitCode checks that a command whose app did not open its socket in time exits with 5, and with --json says not_running.
+func TestNotRunningExitCode(t *testing.T) {
+	shortSocket(t)
+	old, oldTimeout := remote.Launch, remote.Timeout
+	t.Cleanup(func() { remote.Launch, remote.Timeout = old, oldTimeout })
+	remote.Launch = func() error { return nil }
+	remote.Timeout = 10 * time.Millisecond
+	code, stdout, _ := run("status", "--json")
+	if code != 5 || !strings.Contains(stdout, `"code": "not_running"`) {
+		t.Errorf("status = %d, %q", code, stdout)
 	}
 }

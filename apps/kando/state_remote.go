@@ -5,7 +5,10 @@ import (
 	"errors"
 	"log"
 
+	"kando/apps/kando/locales"
 	"kando/apps/kando/remote"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // remoteUI is the app's end of the control socket (package remote), where the kando command line and its MCP server drive the running app. server is nil until the window is ready, and stays nil when another Kando already serves the socket or it could not be opened. ctx ends when the app quits, so a request still waiting for the UI thread, the engine's goroutine, gives up instead of holding the quit back until its timeout.
@@ -13,6 +16,8 @@ type remoteUI struct {
 	server *remote.Server
 	ctx    context.Context
 	cancel context.CancelFunc
+	// en is the scope the socket says the window's words under, in English (remoteScope), made on first use.
+	en *ns.Scope
 }
 
 func newRemoteUI() remoteUI {
@@ -57,3 +62,15 @@ func (a *app) remoteClose() {
 	}
 	a.remote.server = nil
 }
+
+// remoteScope is a scope that says Kando's words in English (remote.Language), for what the app says under a scope, as the sidebar's status line (sidebar.Readiness.Text). It is the root of a graph of its own, apart from the window's, as a scope's language is that of its whole app (Scope.SetLocale). UI thread only.
+func (a *app) remoteScope() *ns.Scope {
+	if a.remote.en == nil {
+		a.remote.en = ns.NewRoot(ns.RootOptions{})
+		a.remote.en.SetLocale(remote.Language)
+	}
+	return a.remote.en
+}
+
+// remoteMessages says Kando's words in English, the language the socket answers in (remote.Language), whatever language the window shows.
+func remoteMessages() locales.Messages { return locales.In(remote.Language) }
