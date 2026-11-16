@@ -48,7 +48,7 @@ func (s *screen) subtitles() core.Node {
 			return nil
 		}
 		list := cues()
-		i := cueIndex(list, s.playhead()-a.Delay())
+		i := s.playingCue(list)
 		switch {
 		case i < 0:
 			return nil

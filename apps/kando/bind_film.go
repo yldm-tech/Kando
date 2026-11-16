@@ -386,7 +386,7 @@ func (a *app) copyCurrentLine() {
 	if subs.key != a.openKey || !subs.ready || a.cx == nil {
 		return
 	}
-	cue, ok := film.CueAt(subs.cues, a.PlayHead()-a.Delay())
+	cue, ok := film.CueAt(subs.cues, a.playerLineAt())
 	if !ok {
 		return
 	}

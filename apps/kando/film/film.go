@@ -94,6 +94,8 @@ type App interface {
 	SetSubOrder(order string)
 	// Peek is the index of the cue the picture shows both lines of, whatever SubMode, or -1.
 	Peek() int
+	// HeldLine is the index of the cue the film is held at the end of, by Pause After Each Line or a looped line's stop, or -1. The picture, the subtitle list and the held-line card show it, though the playhead has stopped just past its end, where the next cue may have started (playingCue).
+	HeldLine() int
 	// Untranslated is UntranslatedDim or UntranslatedBlank: what SubTranslation shows for a cue that has no translation.
 	Untranslated() string
 	// YieldSubs moves the subtitles up while the player's controls show.
@@ -295,6 +297,15 @@ func CueAt(cues []core.Segment, at time.Duration) (core.Segment, bool) {
 		return core.Segment{}, false
 	}
 	return cues[i], true
+}
+
+// playingCue is the index of the cue the picture shows at the playhead, as cueIndex finds it, or the one the film is held at the end of (App.HeldLine), or -1.
+func (s *screen) playingCue(list []core.Segment) int {
+	at := s.playhead() - s.a.Delay()
+	if i := s.a.HeldLine(); i >= 0 && i < len(list) {
+		return i
+	}
+	return cueIndex(list, at)
 }
 
 // cueIndex is the index of the line CueAt finds, or -1.

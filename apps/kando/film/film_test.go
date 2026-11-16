@@ -162,6 +162,7 @@ func (f *fakeApp) SetFilmSide(side string) { f.side = side }
 func (f *fakeApp) Seek(at time.Duration)   { f.call("seek " + at.String()); f.jumps++ }
 func (f *fakeApp) Jumps() int              { return f.jumps }
 func (f *fakeApp) Peek() int               { return f.peek }
+func (f *fakeApp) HeldLine() int           { return -1 }
 func (f *fakeApp) Skip(d time.Duration)    { f.call("skip " + d.String()) }
 func (f *fakeApp) PrevLine()               { f.call("prev line") }
 func (f *fakeApp) NextLine()               { f.call("next line") }
