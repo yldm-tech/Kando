@@ -8,11 +8,12 @@ import (
 	"hash/fnv"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"kando/packages/media"
 )
 
 // The export's files, in the folder the user picks: the notes, which Anki's File › Import reads, and the folder of the lines' sound beside them, whose files go into Anki's collection.media folder.
@@ -132,7 +133,7 @@ func CutClip(ctx context.Context, ffmpeg, video string, from, to time.Duration, 
 		return errors.New("the clip is empty")
 	}
 	seconds := func(d time.Duration) string { return strconv.FormatFloat(d.Seconds(), 'f', 3, 64) }
-	cmd := exec.CommandContext(ctx, ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-ss", seconds(from), "-i", video, "-t", seconds(to-from), "-vn", "-ac", "1", "-c:a", "aac", "-b:a", "96k", out)
+	cmd := media.Command(ctx, ffmpeg, "-nostdin", "-loglevel", "error", "-y", "-ss", seconds(from), "-i", video, "-t", seconds(to-from), "-vn", "-ac", "1", "-c:a", "aac", "-b:a", "96k", out)
 	if msg, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(out)
 		if ctx.Err() != nil {

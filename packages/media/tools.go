@@ -488,7 +488,7 @@ func runTool(ctx context.Context, logFailure bool, name string, args ...string) 
 	err := retryBusy(ctx, func() error {
 		stdout.Reset()
 		stderr.Reset()
-		cmd := exec.CommandContext(ctx, name, args...)
+		cmd := Command(ctx, name, args...)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		return cmd.Run()

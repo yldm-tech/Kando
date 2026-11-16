@@ -7,10 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"kando/packages/media"
 )
 
 // The system's player plays what the platform's media framework reads: on macOS AVFoundation, which takes MP4 and QuickTime files of the codecs it knows but not an MKV or a WebM, as many downloaded and recorded films are. Such a film plays from a copy in an MP4 the player can open, which ffmpeg, the one the pipeline uses, makes: first by copying its streams into the new container, which takes seconds for a whole film, and when the player cannot play that either, by encoding its picture as H.264 and its sound as AAC, which every platform's player plays.
@@ -74,7 +75,7 @@ func Remux(ctx context.Context, ffmpeg, src, dest string, step RemuxStep) error 
 	}
 	tmp := part.Name()
 	_ = part.Close()
-	cmd := exec.CommandContext(ctx, ffmpeg, RemuxArgs(src, tmp, step)...)
+	cmd := media.Command(ctx, ffmpeg, RemuxArgs(src, tmp, step)...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(tmp)
 		if ctx.Err() != nil {
