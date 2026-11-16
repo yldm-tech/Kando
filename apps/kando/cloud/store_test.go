@@ -134,7 +134,7 @@ type memPut struct {
 	body []byte
 }
 
-func (m *memPut) Put(_ context.Context, _, key, contentType string, body io.Reader, _ int64) error {
+func (m *memPut) Put(_ context.Context, _, key, contentType string, body io.ReadSeeker, _ int64) error {
 	buf, err := io.ReadAll(body)
 	if err != nil {
 		return err

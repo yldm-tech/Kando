@@ -426,8 +426,13 @@ func For(cx *core.Scope) Messages {
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
 	"AccountNeedsStore":                  {"store"},
+	"AccountUploadDenied":                {"bucket"},
 	"AccountUploadFailedBecause":         {"error_"},
+	"AccountUploadInsecure":              {"host"},
+	"AccountUploadNoBucket":              {"bucket"},
+	"AccountUploadRegion":                {"bucket"},
 	"AccountUploadTo":                    {"store"},
+	"AccountUploadUnreachable":           {"host"},
 	"AccountUploadUnsaved":               {"error_"},
 	"AccountUploaded":                    {"key"},
 	"AccountUploadingPercent":            {"percent"},
@@ -679,8 +684,13 @@ var Parameters = map[string][]string{
 type Translation struct {
 	Texts                              map[string]string
 	AccountNeedsStore                  func(store string) string
+	AccountUploadDenied                func(bucket string) string
 	AccountUploadFailedBecause         func(error_ string) string
+	AccountUploadInsecure              func(host string) string
+	AccountUploadNoBucket              func(bucket string) string
+	AccountUploadRegion                func(bucket string) string
 	AccountUploadTo                    func(store string) string
+	AccountUploadUnreachable           func(host string) string
 	AccountUploadUnsaved               func(error_ string) string
 	AccountUploaded                    func(key string) string
 	AccountUploadingPercent            func(percent int) string
@@ -959,7 +969,12 @@ const (
 	textAccountStoreOSS
 	textAccountUploadCanceled
 	textAccountUploadFailed
+	textAccountUploadFailedSeeLog
+	textAccountUploadKeys
 	textAccountUploadNote
+	textAccountUploadOffline
+	textAccountUploadStalled
+	textAccountUploadTooLarge
 	textAccountUploading
 	textAccountUploadingOther
 	textAccountVideoMissing
@@ -1828,7 +1843,12 @@ var keyOfText = [numTexts]string{
 	"accountStoreOSS",
 	"accountUploadCanceled",
 	"accountUploadFailed",
+	"accountUploadFailedSeeLog",
+	"accountUploadKeys",
 	"accountUploadNote",
+	"accountUploadOffline",
+	"accountUploadStalled",
+	"accountUploadTooLarge",
 	"accountUploading",
 	"accountUploadingOther",
 	"accountVideoMissing",
@@ -2695,7 +2715,12 @@ var textsEn = i18n.NewTexts(""+
 	"Alibaba Cloud OSS"+
 	"Upload canceled"+
 	"Upload failed"+
+	"Upload failed. The details are in the log file."+
+	"The storage didn't accept the Access Key or Secret. Check them."+
 	"Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer."+
+	"Couldn't connect to the storage. Check the network and try again."+
+	"The storage stopped answering. Check the network and try again."+
+	"The video is larger than 5 GB, the most one upload can send."+
 	"Uploading"+
 	"Uploading another film"+
 	"The video file isn't on this computer"+
@@ -3559,7 +3584,12 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		15,
 		13,
+		47,
+		63,
 		176,
+		65,
+		63,
+		60,
 		9,
 		22,
 		37,
@@ -4426,7 +4456,12 @@ var textsJa = i18n.NewTexts(""+
 	"Alibaba Cloud OSS"+
 	"アップロードをキャンセルしました"+
 	"アップロードに失敗しました"+
+	"アップロードに失敗しました。詳細はログファイルにあります。"+
+	"ストレージが Access Key または Secret を受け付けませんでした。確認してください。"+
 	"動画はダウンロードが完了しても自動ではアップロードされません。再生画面でアップロードをクリックしてください。各ストレージのキーは別々に、このコンピュータの設定ファイルにだけ保存されます。"+
+	"ストレージに接続できませんでした。ネットワークを確認してもう一度お試しください。"+
+	"ストレージが応答しなくなりました。ネットワークを確認してもう一度お試しください。"+
+	"動画が 5 GB を超えています。1 回のアップロードで送れる上限です。"+
 	"アップロード中"+
 	"別の動画をアップロード中"+
 	"動画ファイルがこのコンピュータにありません"+
@@ -5290,7 +5325,12 @@ var textsJa = i18n.NewTexts(""+
 		17,
 		48,
 		39,
+		87,
+		110,
 		279,
+		120,
+		120,
+		92,
 		21,
 		36,
 		63,
@@ -6157,7 +6197,12 @@ var textsKo = i18n.NewTexts(""+
 	"Alibaba Cloud OSS"+
 	"업로드를 취소했습니다"+
 	"업로드에 실패했습니다"+
+	"업로드에 실패했습니다. 자세한 내용은 로그 파일에 있습니다."+
+	"스토리지가 Access Key 또는 Secret을 받아들이지 않았습니다. 확인하십시오."+
 	"동영상은 다운로드가 끝나도 자동으로 업로드되지 않습니다. 재생 화면에서 업로드를 클릭하십시오. 각 스토리지의 키는 따로, 이 컴퓨터의 설정 파일에만 저장됩니다."+
+	"스토리지에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하십시오."+
+	"스토리지가 응답하지 않습니다. 네트워크를 확인하고 다시 시도하십시오."+
+	"동영상이 5 GB보다 큽니다. 한 번에 업로드할 수 있는 최대 크기입니다."+
 	"업로드 중"+
 	"다른 영상을 업로드하는 중"+
 	"동영상 파일이 이 컴퓨터에 없습니다"+
@@ -7021,7 +7066,12 @@ var textsKo = i18n.NewTexts(""+
 		17,
 		31,
 		31,
+		83,
+		96,
 		223,
+		99,
+		98,
+		93,
 		13,
 		36,
 		49,
@@ -7888,7 +7938,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"阿里云 OSS"+
 	"已取消上传"+
 	"上传失败"+
+	"上传失败，详情见日志文件。"+
+	"存储服务不接受这组 Access Key 或 Secret，请检查。"+
 	"视频不会在下载完成时自动上传。到播放页点上传。各处的密钥分开保存，只存在本机设置文件里。"+
+	"连不上存储服务。检查网络后重试。"+
+	"存储服务没有回应。检查网络后重试。"+
+	"视频大于 5 GB，超过了单次上传的上限。"+
 	"正在上传"+
 	"正在上传另一部影片"+
 	"视频文件不在本地"+
@@ -8752,7 +8807,12 @@ var textsZhHans = i18n.NewTexts(""+
 		13,
 		15,
 		12,
+		39,
+		64,
 		132,
+		48,
+		51,
+		53,
 		12,
 		27,
 		24,
@@ -9619,7 +9679,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"阿里雲 OSS"+
 	"已取消上傳"+
 	"上傳失敗"+
+	"上傳失敗，詳情見記錄檔。"+
+	"儲存服務不接受這組 Access Key 或 Secret，請檢查。"+
 	"影片不會在下載完成時自動上傳。到播放頁面點按上傳。各處的密鑰分開儲存，只存在本機設定檔中。"+
+	"無法連線到儲存服務。檢查網路後重試。"+
+	"儲存服務沒有回應。檢查網路後重試。"+
+	"影片大於 5 GB，超過單次上傳的上限。"+
 	"正在上傳"+
 	"正在上傳另一部影片"+
 	"影片檔不在本機"+
@@ -10483,7 +10548,12 @@ var textsZhHant = i18n.NewTexts(""+
 		13,
 		15,
 		12,
+		36,
+		64,
 		135,
+		54,
+		51,
+		50,
 		12,
 		27,
 		21,
@@ -11381,11 +11451,26 @@ func Supply(lang string, t Translation) {
 	if t.AccountNeedsStore != nil {
 		s.AccountNeedsStore = t.AccountNeedsStore
 	}
+	if t.AccountUploadDenied != nil {
+		s.AccountUploadDenied = t.AccountUploadDenied
+	}
 	if t.AccountUploadFailedBecause != nil {
 		s.AccountUploadFailedBecause = t.AccountUploadFailedBecause
 	}
+	if t.AccountUploadInsecure != nil {
+		s.AccountUploadInsecure = t.AccountUploadInsecure
+	}
+	if t.AccountUploadNoBucket != nil {
+		s.AccountUploadNoBucket = t.AccountUploadNoBucket
+	}
+	if t.AccountUploadRegion != nil {
+		s.AccountUploadRegion = t.AccountUploadRegion
+	}
 	if t.AccountUploadTo != nil {
 		s.AccountUploadTo = t.AccountUploadTo
+	}
+	if t.AccountUploadUnreachable != nil {
+		s.AccountUploadUnreachable = t.AccountUploadUnreachable
 	}
 	if t.AccountUploadUnsaved != nil {
 		s.AccountUploadUnsaved = t.AccountUploadUnsaved
@@ -12194,7 +12279,7 @@ func (msgs Messages) AccountCompatRegionHint() string { return msgs.text(textAcc
 // AccountFixSettings says "Open Settings"
 // in the language the app shows under cx.
 //
-// Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage.
+// Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage, or to correct it after an upload failed because of it.
 func AccountFixSettings(cx *core.Scope) string { return For(cx).AccountFixSettings() }
 
 // AccountFixSettings is the package's AccountFixSettings in the language of msgs.
@@ -12419,6 +12504,38 @@ func AccountUploadCanceled(cx *core.Scope) string { return For(cx).AccountUpload
 // AccountUploadCanceled is the package's AccountUploadCanceled in the language of msgs.
 func (msgs Messages) AccountUploadCanceled() string { return msgs.text(textAccountUploadCanceled) }
 
+// AccountUploadDenied says "These keys can't write to the bucket {bucket}. Give them write access, or use other keys."
+// in the language the app shows under cx.
+//
+// Upload error: the storage refused the keys write access to the bucket (AccessDenied). The settings button follows it.
+func AccountUploadDenied(cx *core.Scope, bucket string) string {
+	return For(cx).AccountUploadDenied(bucket)
+}
+
+// AccountUploadDenied is the package's AccountUploadDenied in the language of msgs.
+func (msgs Messages) AccountUploadDenied(bucket string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadDenied(bucket))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadDenied; f != nil {
+			return f(bucket)
+		}
+		switch lang {
+		case "", "en":
+			return "These keys can't write to the bucket " + msgs.arg(bucket) + ". Give them write access, or use other keys."
+		case "ja":
+			return "このキーではバケット " + bucket + " に書き込めません。書き込み権限を与えるか、別のキーを使ってください。"
+		case "ko":
+			return "이 키로는 버킷 " + bucket + "에 쓸 수 없습니다. 쓰기 권한을 주거나 다른 키를 사용하십시오."
+		case "zh-Hans":
+			return "这组密钥不能写入存储桶 " + bucket + "。给它写入权限，或换一组密钥。"
+		case "zh-Hant":
+			return "這組金鑰無法寫入儲存桶 " + bucket + "。給它寫入權限，或換一組金鑰。"
+		}
+	}
+}
+
 // AccountUploadFailed says "Upload failed"
 // in the language the app shows under cx.
 //
@@ -12460,6 +12577,90 @@ func (msgs Messages) AccountUploadFailedBecause(error_ string) string {
 	}
 }
 
+// AccountUploadFailedSeeLog says "Upload failed. The details are in the log file."
+// in the language the app shows under cx.
+//
+// Upload error that none of the others names; the storage's own error is in the log file (Help › Show Log File).
+func AccountUploadFailedSeeLog(cx *core.Scope) string { return For(cx).AccountUploadFailedSeeLog() }
+
+// AccountUploadFailedSeeLog is the package's AccountUploadFailedSeeLog in the language of msgs.
+func (msgs Messages) AccountUploadFailedSeeLog() string {
+	return msgs.text(textAccountUploadFailedSeeLog)
+}
+
+// AccountUploadInsecure says "Couldn't connect securely to {host}. Check whether the Endpoint is http or https, and its certificate."
+// in the language the app shows under cx.
+//
+// Upload error: the TLS connection to the storage failed, because the certificate is not trusted or the server speaks plain http. Endpoint is the field's name, not translated. The settings button follows it.
+func AccountUploadInsecure(cx *core.Scope, host string) string {
+	return For(cx).AccountUploadInsecure(host)
+}
+
+// AccountUploadInsecure is the package's AccountUploadInsecure in the language of msgs.
+func (msgs Messages) AccountUploadInsecure(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadInsecure(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadInsecure; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't connect securely to " + msgs.arg(host) + ". Check whether the Endpoint is http or https, and its certificate."
+		case "ja":
+			return host + " に安全に接続できませんでした。Endpoint が http か https か、その証明書を確認してください。"
+		case "ko":
+			return host + "에 안전하게 연결할 수 없습니다. Endpoint가 http인지 https인지와 인증서를 확인하십시오."
+		case "zh-Hans":
+			return "无法与 " + host + " 建立安全连接。检查 Endpoint 是 http 还是 https，以及它的证书。"
+		case "zh-Hant":
+			return "無法與 " + host + " 建立安全連線。檢查 Endpoint 是 http 還是 https，以及它的憑證。"
+		}
+	}
+}
+
+// AccountUploadKeys says "The storage didn't accept the Access Key or Secret. Check them."
+// in the language the app shows under cx.
+//
+// Upload error: the storage rejected the keys (SignatureDoesNotMatch, InvalidAccessKeyId). Access Key and Secret are the fields' names, not translated. The settings button follows it.
+func AccountUploadKeys(cx *core.Scope) string { return For(cx).AccountUploadKeys() }
+
+// AccountUploadKeys is the package's AccountUploadKeys in the language of msgs.
+func (msgs Messages) AccountUploadKeys() string { return msgs.text(textAccountUploadKeys) }
+
+// AccountUploadNoBucket says "There's no bucket named {bucket}. Check the Bucket, or create it first."
+// in the language the app shows under cx.
+//
+// Upload error: the bucket does not exist (NoSuchBucket). Bucket is the field's name, not translated. The settings button follows it.
+func AccountUploadNoBucket(cx *core.Scope, bucket string) string {
+	return For(cx).AccountUploadNoBucket(bucket)
+}
+
+// AccountUploadNoBucket is the package's AccountUploadNoBucket in the language of msgs.
+func (msgs Messages) AccountUploadNoBucket(bucket string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadNoBucket(bucket))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadNoBucket; f != nil {
+			return f(bucket)
+		}
+		switch lang {
+		case "", "en":
+			return "There's no bucket named " + msgs.arg(bucket) + ". Check the Bucket, or create it first."
+		case "ja":
+			return bucket + " という名前のバケットはありません。Bucket を確認するか、先に作成してください。"
+		case "ko":
+			return bucket + "(이)라는 버킷이 없습니다. Bucket을 확인하거나 먼저 만드십시오."
+		case "zh-Hans":
+			return "没有名为 " + bucket + " 的存储桶。检查 Bucket，或先创建它。"
+		case "zh-Hant":
+			return "沒有名為 " + bucket + " 的儲存桶。檢查 Bucket，或先建立它。"
+		}
+	}
+}
+
 // AccountUploadNote says "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer."
 // in the language the app shows under cx.
 //
@@ -12468,6 +12669,56 @@ func AccountUploadNote(cx *core.Scope) string { return For(cx).AccountUploadNote
 
 // AccountUploadNote is the package's AccountUploadNote in the language of msgs.
 func (msgs Messages) AccountUploadNote() string { return msgs.text(textAccountUploadNote) }
+
+// AccountUploadOffline says "Couldn't connect to the storage. Check the network and try again."
+// in the language the app shows under cx.
+//
+// Upload error: the connection to the storage could not be made or broke off.
+func AccountUploadOffline(cx *core.Scope) string { return For(cx).AccountUploadOffline() }
+
+// AccountUploadOffline is the package's AccountUploadOffline in the language of msgs.
+func (msgs Messages) AccountUploadOffline() string { return msgs.text(textAccountUploadOffline) }
+
+// AccountUploadRegion says "The bucket {bucket} is in another region. Check the Region or Endpoint."
+// in the language the app shows under cx.
+//
+// Upload error: the request was signed for another region than the bucket's (PermanentRedirect, AuthorizationHeaderMalformed). Region and Endpoint are the fields' names, not translated. The settings button follows it.
+func AccountUploadRegion(cx *core.Scope, bucket string) string {
+	return For(cx).AccountUploadRegion(bucket)
+}
+
+// AccountUploadRegion is the package's AccountUploadRegion in the language of msgs.
+func (msgs Messages) AccountUploadRegion(bucket string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadRegion(bucket))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadRegion; f != nil {
+			return f(bucket)
+		}
+		switch lang {
+		case "", "en":
+			return "The bucket " + msgs.arg(bucket) + " is in another region. Check the Region or Endpoint."
+		case "ja":
+			return "バケット " + bucket + " は別のリージョンにあります。Region または Endpoint を確認してください。"
+		case "ko":
+			return "버킷 " + bucket + "이(가) 다른 리전에 있습니다. Region 또는 Endpoint를 확인하십시오."
+		case "zh-Hans":
+			return "存储桶 " + bucket + " 在别的区域。检查 Region 或 Endpoint。"
+		case "zh-Hant":
+			return "儲存桶 " + bucket + " 在別的區域。檢查 Region 或 Endpoint。"
+		}
+	}
+}
+
+// AccountUploadStalled says "The storage stopped answering. Check the network and try again."
+// in the language the app shows under cx.
+//
+// Upload error: the storage took no data and gave no answer for a minute.
+func AccountUploadStalled(cx *core.Scope) string { return For(cx).AccountUploadStalled() }
+
+// AccountUploadStalled is the package's AccountUploadStalled in the language of msgs.
+func (msgs Messages) AccountUploadStalled() string { return msgs.text(textAccountUploadStalled) }
 
 // AccountUploadTo says "Upload to {store}"
 // in the language the app shows under cx.
@@ -12495,6 +12746,47 @@ func (msgs Messages) AccountUploadTo(store string) string {
 			return "上传到 " + store
 		case "zh-Hant":
 			return "上傳到 " + store
+		}
+	}
+}
+
+// AccountUploadTooLarge says "The video is larger than 5 GB, the most one upload can send."
+// in the language the app shows under cx.
+//
+// Upload error: the video is larger than one upload to object storage can take.
+func AccountUploadTooLarge(cx *core.Scope) string { return For(cx).AccountUploadTooLarge() }
+
+// AccountUploadTooLarge is the package's AccountUploadTooLarge in the language of msgs.
+func (msgs Messages) AccountUploadTooLarge() string { return msgs.text(textAccountUploadTooLarge) }
+
+// AccountUploadUnreachable says "Couldn't find {host}. Check the Endpoint or Region."
+// in the language the app shows under cx.
+//
+// Upload error: the storage's host name does not resolve. Endpoint and Region are the fields' names, not translated. The settings button follows it.
+func AccountUploadUnreachable(cx *core.Scope, host string) string {
+	return For(cx).AccountUploadUnreachable(host)
+}
+
+// AccountUploadUnreachable is the package's AccountUploadUnreachable in the language of msgs.
+func (msgs Messages) AccountUploadUnreachable(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadUnreachable(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadUnreachable; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't find " + msgs.arg(host) + ". Check the Endpoint or Region."
+		case "ja":
+			return host + " が見つかりませんでした。Endpoint または Region を確認してください。"
+		case "ko":
+			return host + "을(를) 찾을 수 없습니다. Endpoint 또는 Region을 확인하십시오."
+		case "zh-Hans":
+			return "找不到 " + host + "。检查 Endpoint 或 Region。"
+		case "zh-Hant":
+			return "找不到 " + host + "。檢查 Endpoint 或 Region。"
 		}
 	}
 }

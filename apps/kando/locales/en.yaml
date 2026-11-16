@@ -21,7 +21,7 @@ accountCompatRegionHint:
   description: "Hint under the S3-compatible storage's Region field."
 accountFixSettings:
   message: "Open Settings"
-  description: "Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage."
+  description: "Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage, or to correct it after an upload failed because of it."
 accountGoogleFailed:
   message: "Google sign-in didn't finish"
   description: "Error under the account card when the Google sign-in failed or was cancelled."
@@ -90,6 +90,11 @@ accountStoreOSS:
 accountUploadCanceled:
   message: "Upload canceled"
   description: "The player's upload capsule after the upload was canceled with its Cancel button."
+accountUploadDenied:
+  message: "These keys can't write to the bucket {bucket}. Give them write access, or use other keys."
+  description: "Upload error: the storage refused the keys write access to the bucket (AccessDenied). The settings button follows it."
+  placeholders:
+    bucket: { type: "String", example: "clips" }
 accountUploadFailed:
   message: "Upload failed"
   description: "Upload error whose cause is hidden because it would show a key."
@@ -98,14 +103,49 @@ accountUploadFailedBecause:
   description: "Upload error with the storage's error message."
   placeholders:
     error: { type: "String", example: "status 403" }
+accountUploadFailedSeeLog:
+  message: "Upload failed. The details are in the log file."
+  description: "Upload error that none of the others names; the storage's own error is in the log file (Help › Show Log File)."
+accountUploadInsecure:
+  message: "Couldn't connect securely to {host}. Check whether the Endpoint is http or https, and its certificate."
+  description: "Upload error: the TLS connection to the storage failed, because the certificate is not trusted or the server speaks plain http. Endpoint is the field's name, not translated. The settings button follows it."
+  placeholders:
+    host: { type: "String", example: "minio.local:9000" }
+accountUploadKeys:
+  message: "The storage didn't accept the Access Key or Secret. Check them."
+  description: "Upload error: the storage rejected the keys (SignatureDoesNotMatch, InvalidAccessKeyId). Access Key and Secret are the fields' names, not translated. The settings button follows it."
+accountUploadNoBucket:
+  message: "There's no bucket named {bucket}. Check the Bucket, or create it first."
+  description: "Upload error: the bucket does not exist (NoSuchBucket). Bucket is the field's name, not translated. The settings button follows it."
+  placeholders:
+    bucket: { type: "String", example: "clips" }
 accountUploadNote:
   message: "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer."
   description: "Note under the object storage card: uploads are by hand, and where the keys are kept."
+accountUploadOffline:
+  message: "Couldn't connect to the storage. Check the network and try again."
+  description: "Upload error: the connection to the storage could not be made or broke off."
+accountUploadRegion:
+  message: "The bucket {bucket} is in another region. Check the Region or Endpoint."
+  description: "Upload error: the request was signed for another region than the bucket's (PermanentRedirect, AuthorizationHeaderMalformed). Region and Endpoint are the fields' names, not translated. The settings button follows it."
+  placeholders:
+    bucket: { type: "String", example: "clips" }
+accountUploadStalled:
+  message: "The storage stopped answering. Check the network and try again."
+  description: "Upload error: the storage took no data and gave no answer for a minute."
 accountUploadTo:
   message: "Upload to {store}"
   description: "The player's upload button, naming the storage (R2, S3, OSS, COS or S3 Compatible)."
   placeholders:
     store: { type: "String", example: "R2" }
+accountUploadTooLarge:
+  message: "The video is larger than 5 GB, the most one upload can send."
+  description: "Upload error: the video is larger than one upload to object storage can take."
+accountUploadUnreachable:
+  message: "Couldn't find {host}. Check the Endpoint or Region."
+  description: "Upload error: the storage's host name does not resolve. Endpoint and Region are the fields' names, not translated. The settings button follows it."
+  placeholders:
+    host: { type: "String", example: "clips.s3.ap-northeast-1.amazonaws.com" }
 accountUploadUnsaved:
   message: "The film was uploaded, but couldn't be marked as uploaded: {error}"
   description: "Error in the sidebar when a film was uploaded but settings.json, which remembers uploaded films across restarts, could not be written."
