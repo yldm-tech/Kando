@@ -197,16 +197,26 @@ func TestShelfShowsTheHeroTheQueueAndTheGrid(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)
 	msgs := testlocale.Messages()
-	for _, text := range []string{msgs.FilmsQueueTitle(), msgs.SourceAll(), "Rivers of Europe", "Linear Algebra", "Morning Market", "“河流塑造了大地”", "Rivers shape the land",
+	for _, text := range []string{msgs.FilmsQueueTitle(), msgs.SourceAll(), "Rivers of Europe", "Linear Algebra", "Morning Market",
 		msgs.FilmsHeroKickerBilingual(msgs.SettingsLanguageSimplifiedChinese()), msgs.FilmsGridCount(2)} {
 		if !app.Exists(whole(text)) {
 			t.Errorf("no %q in %q", text, app.Texts())
 		}
 	}
-	// The hero's line says how long the film is; under a poster that is left to the chip on it.
+	// While 处理中 has cards the hero is compact: its kicker, title and buttons, under a lower card.
+	if got := app.Find("id:films-hero").Frame.Size.Height; got != heroCompactHeight || app.Exists(whole("“河流塑造了大地”")) || app.Exists("id:films-hero >> "+whole("YouTube · 2:05")) {
+		t.Errorf("the hero over 处理中 is %v high: %q", got, app.Texts())
+	}
+	// With 处理中 empty it is whole again, with its line and its first bilingual line; the line says how long the film is, which under a poster is left to the chip on it.
+	running := a.items[2]
+	change(app, a, func() { a.items = a.items[:2] })
+	if got := app.Find("id:films-hero").Frame.Size.Height; got != heroHeight || !app.Exists(whole("“河流塑造了大地”")) || !app.Exists(whole("Rivers shape the land")) {
+		t.Errorf("the hero with nothing processing is %v high: %q", got, app.Texts())
+	}
 	if !app.Exists("id:films-hero >> "+whole("YouTube · 2:05")) || !app.Exists("id:film-done >> "+whole("2:05")) || !app.Exists("id:films-grid >> "+whole("YouTube")) || app.Exists("id:films-grid >> "+whole("YouTube · 2:05")) {
 		t.Errorf("the length is not on the hero's line and the poster alone: %q", app.Texts())
 	}
+	change(app, a, func() { a.items = append(a.items, running) })
 	// A done film with untranslated lines offers to translate them under its line.
 	app.Press("id:film-translate-missing")
 	app.Press("id:film-done")

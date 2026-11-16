@@ -247,7 +247,7 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 	model := core.NewMemoFunc(cx, live.Func(a, func() shelfModel { return newShelfModel(a, s.source(), i18n.Language(cx)) }), shelfModel.equal).Get
 	return core.Group{
 		core.Show{When: func() bool { return model().heroShown }, Then: func(*core.Scope) core.Node {
-			return hero{a: a, item: func() Film { return model().hero }}
+			return hero{a: a, item: func() Film { return model().hero }, compact: func() bool { return len(model().queue) > 0 }}
 		}},
 		core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
 			return queueSection{a: a, queue: func() []Film { return model().queue }}

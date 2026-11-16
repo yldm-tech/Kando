@@ -73,11 +73,18 @@ var heroShade = ns.Gradient{Kind: ns.GradientLinear, Angle: 90, Stops: []ns.Colo
 	{Color: ns.RGBA(0x000000, 0), At: ns.Pct(70)},
 }}
 
-// hero is the large card of the film HeroFilm picks: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does.
+// hero is the large card of the film HeroFilm picks: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does. While compact reports true, as while 处理中 has cards under it, it is lower and shows only its kicker, title and buttons, so the queue and the first posters fit a laptop's window.
 type hero struct {
-	a    App
-	item func() Film
+	a       App
+	item    func() Film
+	compact func() bool
 }
+
+// The hero's height, full and compact.
+const (
+	heroHeight        ns.Points = 360
+	heroCompactHeight ns.Points = 220
+)
 
 // heroQuote is the hero's bilingual line: the translation over the original, both empty until the subtitles have been read.
 type heroQuote struct{ translation, original string }
@@ -89,7 +96,7 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		translation, original := a.Quote(item())
 		return heroQuote{translation, original}
 	})
-	quoteBox := ns.Show{When: func() bool { q := quote(); return q.translation != "" || q.original != "" }, Then: func(*ns.Scope) ns.Node {
+	quoteBox := ns.Show{When: func() bool { q := quote(); return !h.compact() && (q.translation != "" || q.original != "") }, Then: func(*ns.Scope) ns.Node {
 		return ns.View{Style: ns.Style{AlignSelf: ns.AlignStart, Gap: 2, Padding: ns.Symmetric(10, 14), CornerRadius: 12, BorderWidth: 0.5, BorderColor: onPicture.Faded(0.18)}.Merge(frosted(14, ns.RGBA(0x000000, 0.28))),
 			Children: []ns.Node{
 				ns.Show{When: func() bool { return quote().translation != "" }, Then: func(*ns.Scope) ns.Node {
@@ -147,7 +154,9 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		ns.Text{ContentFunc: kicker, Style: ns.Style{FontSize: 11, LineHeight: 16, FontWeight: ui.Bold, LetterSpacing: 1.2, Color: onPicture.Faded(0.85)}},
 		heading(2, ns.Text{ContentFunc: func() string { return filmName(item()) }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail,
 			Style: ns.Style{FontSize: 34, FontWeight: ui.Bold, LineHeight: 40, LetterSpacing: -0.4, Color: onPicture}}),
-		ns.Text{ContentFunc: live.Func(a, func() string { return heroMeta(locales.For(cx), a, item()) }), Style: ns.Style{FontSize: 13, LineHeight: 16, Color: onPicture.Faded(0.85)}},
+		ns.Show{When: func() bool { return !h.compact() }, Then: func(*ns.Scope) ns.Node {
+			return ns.Text{ContentFunc: live.Func(a, func() string { return heroMeta(locales.For(cx), a, item()) }), Style: ns.Style{FontSize: 13, LineHeight: 16, Color: onPicture.Faded(0.85)}}
+		}},
 		quoteBox,
 		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 10, Wrap: ns.Wrap, Margin: ns.Edges{Top: 6}}, Children: []ns.Node{play, alt}},
 	}}
@@ -157,9 +166,15 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		LabelFunc: func() string { return filmName(item()) },
 		Hint:      locales.FilmsHeroKicker(cx),
 		OnPress:   live.On(a, func(ns.PressEvent) { a.Open(item()) }),
-		Style: ns.Style{Height: ns.Pt(360), CornerRadius: 18, Cursor: ns.CursorDefault,
+		Style: ns.Style{CornerRadius: 18, Cursor: ns.CursorDefault,
 			Shadows: []ns.BoxShadow{{Offset: ns.Point{Y: 12}, Blur: 32, Color: ns.RGBA(0x000000, 0.16)}}},
-		StyleFunc: func() ns.Style { return ns.Style{Background: posterColor(item().Key)} },
+		StyleFunc: func() ns.Style {
+			height := heroHeight
+			if h.compact() {
+				height = heroCompactHeight
+			}
+			return ns.Style{Height: ns.Pt(height), Background: posterColor(item().Key)}
+		},
 		Children: []ns.Node{clip(18,
 			cover(live.Func(a, func() ns.ImageSource { return a.Poster(item().VideoPath) })),
 			ns.View{PointerEvents: ns.PointerEventsNone, Style: overlay.Merge(ns.Style{Gradients: []ns.Gradient{heroShade}})},
