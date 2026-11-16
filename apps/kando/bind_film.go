@@ -79,8 +79,8 @@ func (a *app) BeginFilmUpload() {
 func (a *app) FillsWindow() bool { return a.filmFillsWindow() }
 
 func (a *app) RetryOpen(id string) {
-	if job, ok := a.library.Find(id); ok {
-		a.retry(job)
+	if _, ok := a.library.Find(id); ok {
+		a.Retry(id)
 		if a.queue.job != nil {
 			a.openKey = a.queue.job.ID
 			a.loadSubtitles(a.queue.job.ID, a.queue.job.SubtitlePath)

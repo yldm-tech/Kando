@@ -104,6 +104,8 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 	// untranslated counts the lines of batches left untranslated, failedRun the batches in a row that failed, and lastErr why the last of them did.
 	var untranslated, failedRun int
 	var lastErr error
+	// The batches an earlier run of this translation kept are not sent again; each batch translated now is kept as soon as it is (withCheckpoint).
+	kept := openCheckpoint(ctx, segments, language)
 	batches := (len(segments) + translateBatch - 1) / translateBatch
 	for start := 0; start < len(segments); start += translateBatch {
 		batch := segments[start:min(start+translateBatch, len(segments))]
@@ -113,6 +115,15 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		texts := make([]string, len(batch))
 		for i, s := range batch {
 			texts[i] = s.Text
+		}
+		if lines, ok := kept.batch(start, len(batch)); ok {
+			earlier = append(earlier, texts...)
+			failedRun = 0
+			for i, s := range batch {
+				s.Text = lines[i]
+				out = append(out, s)
+			}
+			continue
 		}
 		var contextSoFar []string
 		if t.Context {
@@ -142,6 +153,7 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			lines = make([]string, len(batch))
 		} else {
 			failedRun = 0
+			kept.keep(start, lines)
 		}
 		for i, s := range batch {
 			s.Text = lines[i]

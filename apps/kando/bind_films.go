@@ -177,7 +177,43 @@ func (a *app) OpenAt(item films.Film, at time.Duration) {
 	a.Open(item)
 }
 
-// Reprocess runs a done film through the pipeline again, into the target language set now: a job again from its source, a video no job has processed from its file.
+// AskReprocess opens the confirmation of 重新处理 for item, as processing a film again transcribes it and pays for its translation again. With no target language set there is nothing to confirm: Reprocess says so at once. The confirmation holds the window's modal flag until it closes (CloseReprocess).
+func (a *app) AskReprocess(item films.Film) {
+	if strings.TrimSpace(a.prefs.language) == "" {
+		a.Reprocess(item)
+		return
+	}
+	a.lib.reprocessing = item
+	a.lib.reprocessOpen = true
+	if a.lib.reprocessRelease == nil {
+		a.lib.reprocessRelease = a.holdModal()
+	}
+}
+
+func (a *app) Reprocessing() (*bool, films.Film, string) {
+	return &a.lib.reprocessOpen, a.lib.reprocessing, a.prefs.language
+}
+
+// CloseReprocess closes the confirmation of 重新处理 and gives back the window's modal flag it held, so the menu bar's commands run again at once.
+func (a *app) CloseReprocess() {
+	a.lib.reprocessOpen = false
+	if a.lib.reprocessRelease != nil {
+		a.lib.reprocessRelease()
+		a.lib.reprocessRelease = nil
+	}
+}
+
+// ReprocessFilm is the film page's 重新处理整部影片: the open film is processed again once confirmed (AskReprocess), and stays open, following its job.
+func (a *app) ReprocessFilm() {
+	if item, ok := a.openFilm(); ok {
+		a.AskReprocess(item)
+	}
+}
+
+// libraryReprocessOverlay is the confirmation of 重新处理 over the window (overlays), so the film page asks too.
+func (a *app) libraryReprocessOverlay(*ns.Scope) ns.Node { return films.ReprocessDialog{App: a} }
+
+// Reprocess runs a done film through the pipeline again, into the target language set now: a job again from its source, a video no job has processed from its file. A film with a job stays the done film it was until the new subtitles are written (core.RedoAll).
 func (a *app) Reprocess(item films.Film) {
 	delete(a.lib.quotes, item.SubtitlePath)
 	if item.JobID != "" {
@@ -210,20 +246,20 @@ func (a *app) libraryRetranslate(item films.Film, redo core.Redo) {
 
 func (a *app) Remove(id string) { a.remove(id) }
 
-// Retry runs a failed or finished job again on the same card. When it cannot start now, the message bar says why.
+// Retry runs a failed or finished job again on the same card. When it cannot be queued, the message bar says why: a job already running or waiting says nothing, as its card says so; otherwise the settings name no target language (queueRetryable), and the bar links to where it is set. The film page draws no message bar, so there the settings open too, as libraryRetranslate does.
 func (a *app) Retry(id string) {
 	job, ok := a.library.Find(id)
 	if !ok {
 		return
 	}
-	a.retry(job)
-	if now, _ := a.library.Find(id); now.Stage != job.Stage {
+	ready, err := a.queueRetryable(job)
+	a.queueAgain(ready, err)
+	if err == nil || errors.Is(err, errInQueue) {
 		return
 	}
-	if a.RunningJob() != "" {
-		a.warn(errBusy(a.messages()).Error(), "")
-	} else if a.queue.status != "" {
-		a.warn(a.queue.status, "")
+	a.warn(err.Error(), settings.SectionTranslate)
+	if a.openKey != "" {
+		a.OpenSettings(settings.SectionTranslate)
 	}
 }
 

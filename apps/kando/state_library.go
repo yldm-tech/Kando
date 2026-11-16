@@ -37,15 +37,19 @@ type libraryUI struct {
 	removing     films.Film
 	removeOpen   bool
 	removeFolder bool
+	// reprocessing is the film whose 重新处理 is waiting to be confirmed, while reprocessOpen (bind_films.go).
+	reprocessing  films.Film
+	reprocessOpen bool
 	// renaming is the film whose 重命名… dialog is open, while renameOpen. renameName is the title typed into it, which starts as the one the film shows, and renameOriginal the title the film has without one given in Kando (library_rename.go).
 	renaming       films.Film
 	renameOpen     bool
 	renameName     string
 	renameOriginal string
-	// removeRelease, renameRelease and sheetRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog and the new-library sheet hold while they are open; nil while they are closed. The handlers that close the confirmation and the rename dialog give theirs back (libraryCloseRemove, libraryCloseRename); libraryHooks' afterChange gives back the sheet's, and any a dialog closed some other way left behind.
-	removeRelease func()
-	renameRelease func()
-	sheetRelease  func()
+	// removeRelease, renameRelease, sheetRelease and reprocessRelease give back the window's modal flag (holdModal) that the remove confirmation, the rename dialog, the new-library sheet and the confirmation of 重新处理 hold while they are open; nil while they are closed. The handlers that close the confirmations and the rename dialog give theirs back (libraryCloseRemove, libraryCloseRename, CloseReprocess); libraryHooks' afterChange gives back the sheet's, and any a dialog closed some other way left behind.
+	removeRelease    func()
+	renameRelease    func()
+	sheetRelease     func()
+	reprocessRelease func()
 	// durations is how long each video plays, by path, read with the poster. A video that has none here is not known yet.
 	durations map[string]time.Duration
 	// quotes is the first bilingual line of each subtitle file read for the hero, by path.
@@ -134,7 +138,7 @@ func (a *app) libraryNoticeJob(id string, stage core.Stage) {
 	a.lib.noticeJob, a.lib.noticeStage = id, stage
 }
 
-// libraryModals keeps the window's modal flag held while the library's dialogs are open, and reports whether it held or gave it back. AskRemove and AskRename hold it as the remove confirmation and the rename dialog open, and the handlers that close them give it back; one a dialog closed some other way left behind is given back here. The new-library sheet is open while the session is making a library, which the shelf, the sidebar and the settings start, and which several of them end, so its flag is held here as the sheet opens and given back as it closes.
+// libraryModals keeps the window's modal flag held while the library's dialogs are open, and reports whether it held or gave it back. AskRemove, AskRename and AskReprocess hold it as the remove confirmation, the rename dialog and the confirmation of 重新处理 open, and the handlers that close them give it back; one a dialog closed some other way left behind is given back here. The new-library sheet is open while the session is making a library, which the shelf, the sidebar and the settings start, and which several of them end, so its flag is held here as the sheet opens and given back as it closes.
 func (a *app) libraryModals() bool {
 	changed := false
 	if !a.lib.removeOpen && a.lib.removeRelease != nil {
@@ -145,6 +149,11 @@ func (a *app) libraryModals() bool {
 	if !a.lib.renameOpen && a.lib.renameRelease != nil {
 		a.lib.renameRelease()
 		a.lib.renameRelease = nil
+		changed = true
+	}
+	if !a.lib.reprocessOpen && a.lib.reprocessRelease != nil {
+		a.lib.reprocessRelease()
+		a.lib.reprocessRelease = nil
 		changed = true
 	}
 	making := a.snap().MakingLibrary

@@ -51,7 +51,7 @@ func exportSubtitles(ctx context.Context, videoPath string, original, translated
 	if len(original) != len(translated) {
 		return "", fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
 	}
-	if err := saveTranscript(videoPath, original); err != nil {
+	if err := saveTranscript(transcriptPath(videoPath), original); err != nil {
 		return "", err
 	}
 	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
@@ -78,14 +78,29 @@ func transcriptPath(videoPath string) string {
 	return strings.TrimSuffix(videoPath, filepath.Ext(videoPath)) + ".srt"
 }
 
-// saveTranscript writes the original speech of the video at videoPath to transcriptPath. It writes a hidden file beside it first and renames that over it, so a job that reads the transcript back to resume never finds one cut off by a crash in the middle of writing it.
-func saveTranscript(videoPath string, segments []core.Segment) error {
-	path := transcriptPath(videoPath)
+// pendingTranscriptPath is where a job processing a done film again entirely (core.RedoAll) keeps the speech it transcribed until it exports: a hidden file beside the video, so the film's own transcript, which its bilingual subtitles and a later translation of them again read, stays as it is until the new subtitles replace both.
+func pendingTranscriptPath(videoPath string) string {
+	return hiddenBeside(videoPath, ".pending.srt")
+}
+
+// hiddenBeside is a hidden file beside the video at videoPath, named after the video with suffix in place of its extension, such as ".video.pending.srt". The library lists no hidden file and its watcher does not look at them.
+func hiddenBeside(videoPath, suffix string) string {
+	name := strings.TrimSuffix(filepath.Base(videoPath), filepath.Ext(videoPath))
+	return filepath.Join(filepath.Dir(videoPath), "."+name+suffix)
+}
+
+// saveTranscript writes segments, the original speech of a video, to path as SubRip (writeFileAtomic), so a job that reads the transcript back to resume never finds one cut off by a crash in the middle of writing it.
+func saveTranscript(path string, segments []core.Segment) error {
+	return writeFileAtomic(path, []byte(formatSRT(segments)))
+}
+
+// writeFileAtomic writes data to path through a hidden file beside it, renamed over it once written, so path holds either what it held before or all of data.
+func writeFileAtomic(path string, data []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
 	if err != nil {
 		return err
 	}
-	_, err = tmp.WriteString(formatSRT(segments))
+	_, err = tmp.Write(data)
 	if closeErr := tmp.Close(); err == nil {
 		err = closeErr
 	}
@@ -101,9 +116,9 @@ func saveTranscript(videoPath string, segments []core.Segment) error {
 	return err
 }
 
-// loadTranscript reads back the original speech saveTranscript wrote for the video at videoPath.
-func loadTranscript(videoPath string) ([]core.Segment, error) {
-	data, err := os.ReadFile(transcriptPath(videoPath))
+// loadTranscript reads back the original speech saveTranscript wrote to path.
+func loadTranscript(path string) ([]core.Segment, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

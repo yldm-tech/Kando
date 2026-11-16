@@ -101,14 +101,17 @@ func (f *fakeApp) Quote(item Film) (string, string) {
 	}
 	return "", ""
 }
-func (f *fakeApp) Open(item Film)                     { f.call("open", item.Key) }
-func (f *fakeApp) OpenAt(item Film, at time.Duration) { f.call("open-at", item.Key, at.String()) }
-func (f *fakeApp) Reveal(path string)                 { f.call("reveal", path) }
-func (f *fakeApp) Reprocess(item Film)                { f.call("reprocess", item.Key) }
-func (f *fakeApp) TranslateAgain(item Film)           { f.call("translate-again", item.Key) }
-func (f *fakeApp) TranslateMissing(item Film)         { f.call("translate-missing", item.Key) }
-func (f *fakeApp) Remove(id string)                   { f.call("remove", id) }
-func (f *fakeApp) Retry(id string)                    { f.call("retry", id) }
+func (f *fakeApp) Open(item Film)                      { f.call("open", item.Key) }
+func (f *fakeApp) OpenAt(item Film, at time.Duration)  { f.call("open-at", item.Key, at.String()) }
+func (f *fakeApp) Reveal(path string)                  { f.call("reveal", path) }
+func (f *fakeApp) Reprocess(item Film)                 { f.call("reprocess", item.Key) }
+func (f *fakeApp) AskReprocess(item Film)              { f.call("ask-reprocess", item.Key) }
+func (f *fakeApp) Reprocessing() (*bool, Film, string) { return new(bool), Film{}, "" }
+func (f *fakeApp) CloseReprocess()                     { f.call("close-reprocess") }
+func (f *fakeApp) TranslateAgain(item Film)            { f.call("translate-again", item.Key) }
+func (f *fakeApp) TranslateMissing(item Film)          { f.call("translate-missing", item.Key) }
+func (f *fakeApp) Remove(id string)                    { f.call("remove", id) }
+func (f *fakeApp) Retry(id string)                     { f.call("retry", id) }
 func (f *fakeApp) FailureHint(item Film) (string, string) {
 	return f.hints[item.JobID], ""
 }

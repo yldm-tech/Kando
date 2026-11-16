@@ -187,7 +187,7 @@ func (s *screen) moreButton(cx *ns.Scope) ns.Node {
 		item := s.item()
 		items := []nsdesktop.MenuItem{
 			{Label: locales.FilmFeedbackSubtitles(cx), OnSelect: live.Do(a, a.FeedbackSubtitles)},
-			{Label: locales.FilmReprocess(cx), OnSelect: live.Do(a, func() { a.RetryOpen(item.JobID) })},
+			{Label: locales.FilmReprocess(cx), OnSelect: live.Do(a, a.ReprocessFilm)},
 			{Label: locales.FilmTranslateAgain(cx), OnSelect: live.Do(a, a.TranslateFilmAgain)},
 		}
 		if item.Untranslated > 0 {

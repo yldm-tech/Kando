@@ -60,6 +60,10 @@ type App interface {
 	Reveal(path string)
 	// Reprocess makes the subtitles of a done film again, from its download, in the target language set now.
 	Reprocess(item Film)
+	// AskReprocess asks to confirm Reprocess, which transcribes the film and pays for its translation again. Reprocessing is whether its confirmation is open, the film it asked about and the target language set now, which the film would be translated into; CloseReprocess closes it without processing anything. The confirmation is drawn over the window (ReprocessDialog), as the film page asks too.
+	AskReprocess(item Film)
+	Reprocessing() (open *bool, item Film, language string)
+	CloseReprocess()
 	// TranslateAgain translates every line of a done film's subtitles again, in the target language set now, without downloading or transcribing it; TranslateMissing translates only the lines its translation left untranslated (Film.Untranslated).
 	TranslateAgain(item Film)
 	TranslateMissing(item Film)

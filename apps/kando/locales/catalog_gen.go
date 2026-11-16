@@ -482,6 +482,8 @@ var Parameters = map[string][]string{
 	"FilmsQueueTranscribingPercent":      {"percent"},
 	"FilmsQueueTranslatingBatch":         {"batch", "batches", "size"},
 	"FilmsRemoveConfirm":                 {"name"},
+	"FilmsReprocessConfirm":              {"name"},
+	"FilmsReprocessConfirmMessage":       {"language"},
 	"FilmsSearchNoMatch":                 {"query"},
 	"FilmsShowInFinder":                  {"platform"},
 	"FilmsSortButton":                    {"order"},
@@ -573,6 +575,7 @@ var Parameters = map[string][]string{
 	"QueueRemedySentences":               {"first", "second"},
 	"QueueRemedySwitchBrowser":           {"browser"},
 	"QueueRemedyUnsupported":             {"host"},
+	"QueueReprocessFailed":               {"name", "reason"},
 	"QueueSaveFailed":                    {"error_"},
 	"QueueStatusComplete":                {"path"},
 	"QueueStatusFailed":                  {"error_"},
@@ -692,6 +695,8 @@ type Translation struct {
 	FilmsQueueTranscribingPercent      func(percent string) string
 	FilmsQueueTranslatingBatch         func(batch int, batches int, size int) string
 	FilmsRemoveConfirm                 func(name string) string
+	FilmsReprocessConfirm              func(name string) string
+	FilmsReprocessConfirmMessage       func(language string) string
 	FilmsSearchNoMatch                 func(query string) string
 	FilmsShowInFinder                  func(platform string) string
 	FilmsSortButton                    func(order string) string
@@ -783,6 +788,7 @@ type Translation struct {
 	QueueRemedySentences               func(first string, second string) string
 	QueueRemedySwitchBrowser           func(browser string) string
 	QueueRemedyUnsupported             func(host string) string
+	QueueReprocessFailed               func(name string, reason string) string
 	QueueSaveFailed                    func(error_ string) string
 	QueueStatusComplete                func(path string) string
 	QueueStatusFailed                  func(error_ string) string
@@ -10695,6 +10701,12 @@ func Supply(lang string, t Translation) {
 	if t.FilmsRemoveConfirm != nil {
 		s.FilmsRemoveConfirm = t.FilmsRemoveConfirm
 	}
+	if t.FilmsReprocessConfirm != nil {
+		s.FilmsReprocessConfirm = t.FilmsReprocessConfirm
+	}
+	if t.FilmsReprocessConfirmMessage != nil {
+		s.FilmsReprocessConfirmMessage = t.FilmsReprocessConfirmMessage
+	}
 	if t.FilmsSearchNoMatch != nil {
 		s.FilmsSearchNoMatch = t.FilmsSearchNoMatch
 	}
@@ -10967,6 +10979,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.QueueRemedyUnsupported != nil {
 		s.QueueRemedyUnsupported = t.QueueRemedyUnsupported
+	}
+	if t.QueueReprocessFailed != nil {
+		s.QueueReprocessFailed = t.QueueReprocessFailed
 	}
 	if t.QueueSaveFailed != nil {
 		s.QueueSaveFailed = t.QueueSaveFailed
@@ -15568,6 +15583,70 @@ func FilmsReprocess(cx *core.Scope) string { return For(cx).FilmsReprocess() }
 
 // FilmsReprocess is the package's FilmsReprocess in the language of msgs.
 func (msgs Messages) FilmsReprocess() string { return msgs.text(textFilmsReprocess) }
+
+// FilmsReprocessConfirm says "Process “{name}” again?"
+// in the language the app shows under cx.
+//
+// Title of the dialog confirming Process Again on a finished film, from the library or the film page.
+func FilmsReprocessConfirm(cx *core.Scope, name string) string {
+	return For(cx).FilmsReprocessConfirm(name)
+}
+
+// FilmsReprocessConfirm is the package's FilmsReprocessConfirm in the language of msgs.
+func (msgs Messages) FilmsReprocessConfirm(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsReprocessConfirm(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsReprocessConfirm; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Process “" + msgs.arg(name) + "” again?"
+		case "ja":
+			return "「" + name + "」を再処理しますか？"
+		case "ko":
+			return "‘" + name + "’을(를) 다시 처리하시겠습니까?"
+		case "zh-Hans":
+			return "要重新处理「" + name + "」吗？"
+		case "zh-Hant":
+			return "要重新處理「" + name + "」嗎？"
+		}
+	}
+}
+
+// FilmsReprocessConfirmMessage says "Its speech will be transcribed again and every line translated into {language}, which uses your AI service."
+// in the language the app shows under cx.
+//
+// Message of the dialog confirming Process Again: what it costs. language is the target language set now, which may differ from the one the film was translated into.
+func FilmsReprocessConfirmMessage(cx *core.Scope, language string) string {
+	return For(cx).FilmsReprocessConfirmMessage(language)
+}
+
+// FilmsReprocessConfirmMessage is the package's FilmsReprocessConfirmMessage in the language of msgs.
+func (msgs Messages) FilmsReprocessConfirmMessage(language string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsReprocessConfirmMessage(language))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsReprocessConfirmMessage; f != nil {
+			return f(language)
+		}
+		switch lang {
+		case "", "en":
+			return "Its speech will be transcribed again and every line translated into " + msgs.arg(language) + ", which uses your AI service."
+		case "ja":
+			return "音声をもう一度文字起こしし、すべての行を" + language + "に翻訳します。AI サービスを使います。"
+		case "ko":
+			return "음성을 다시 인식하고 모든 줄을 " + language + "(으)로 번역합니다. AI 서비스를 사용합니다."
+		case "zh-Hans":
+			return "会重新识别语音，并把每一句翻译成" + language + "，这会用到你的 AI 服务。"
+		case "zh-Hant":
+			return "會重新辨識語音，並把每一句翻譯成" + language + "，這會用到你的 AI 服務。"
+		}
+	}
+}
 
 // FilmsRetry says "Retry"
 // in the language the app shows under cx.
@@ -21057,6 +21136,38 @@ func QueueRemedyUpdatingWhy(cx *core.Scope) string { return For(cx).QueueRemedyU
 
 // QueueRemedyUpdatingWhy is the package's QueueRemedyUpdatingWhy in the language of msgs.
 func (msgs Messages) QueueRemedyUpdatingWhy() string { return msgs.text(textQueueRemedyUpdatingWhy) }
+
+// QueueReprocessFailed says "“{name}” keeps its subtitles: it couldn't be processed again. {reason}"
+// in the language the app shows under cx.
+//
+// Message bar when processing a finished film again (Process Again) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key.
+func QueueReprocessFailed(cx *core.Scope, name string, reason string) string {
+	return For(cx).QueueReprocessFailed(name, reason)
+}
+
+// QueueReprocessFailed is the package's QueueReprocessFailed in the language of msgs.
+func (msgs Messages) QueueReprocessFailed(name string, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueReprocessFailed(name, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueReprocessFailed; f != nil {
+			return f(name, reason)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” keeps its subtitles: it couldn't be processed again. " + msgs.arg(reason)
+		case "ja":
+			return "「" + name + "」は元の字幕のままです：再処理できませんでした。" + reason
+		case "ko":
+			return "‘" + name + "’은(는) 기존 자막을 유지합니다: 다시 처리하지 못했습니다. " + reason
+		case "zh-Hans":
+			return "“" + name + "”保留原来的字幕：没能重新处理。" + reason
+		case "zh-Hant":
+			return "「" + name + "」保留原來的字幕：沒能重新處理。" + reason
+		}
+	}
+}
 
 // QueueSaveFailed says "Couldn't save the film list: {error}"
 // in the language the app shows under cx.

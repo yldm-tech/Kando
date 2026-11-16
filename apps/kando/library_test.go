@@ -329,18 +329,18 @@ func TestDropQueuesEveryVideo(t *testing.T) {
 	if len(a.library.Jobs) == 0 {
 		t.Fatalf("no job was queued: %q", tt.Texts())
 	}
-	// Each video either got a job, whose card shows, or the message bar says why the queue did not take it, as the queue of one job at a time does with errBusy.
+	// Each video got a job, whose card shows: the queue takes every video while another runs.
 	for _, path := range paths[:3] {
 		name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 		queued := false
 		for _, job := range a.library.Jobs {
 			queued = queued || job.Source == core.FileURL(path)
 		}
-		if queued && !shows(tt, name) {
-			t.Fatalf("no card for %s: %q", name, tt.Texts())
+		if !queued {
+			t.Fatalf("%s was not queued: %q", name, tt.Texts())
 		}
-		if !queued && !shows(tt, errBusy(testlocale.Messages()).Error()) {
-			t.Fatalf("%s was dropped without a word: %q", name, tt.Texts())
+		if !shows(tt, name) {
+			t.Fatalf("no card for %s: %q", name, tt.Texts())
 		}
 	}
 	for _, job := range a.library.Jobs {
@@ -437,7 +437,7 @@ func TestQueueShowsEveryWaitingJob(t *testing.T) {
 	}
 }
 
-// TestLibraryControlsStayOpenWhileAJobRuns checks that nothing on the library page waits for the running job: the link field takes a link, 开始处理 and Enter pass it on, and the failed cards offer 重试 and 移除. Passing on means the queue added the link or the message bar says why it did not, as the queue of one job at a time does with errBusy; a field or button held shut while a job runs would do neither.
+// TestLibraryControlsStayOpenWhileAJobRuns checks that nothing on the library page waits for the running job: the link field takes a link, 开始处理 and Enter queue it, and the failed cards offer 重试 and 移除, which queue the job again and take it off. A field or button held shut while a job runs would do none of these.
 func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{block: true})
 	t.Cleanup(func() {
@@ -462,7 +462,7 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 				return true
 			}
 		}
-		return shows(tt, errBusy(testlocale.Messages()).Error())
+		return false
 	}
 	refresh(tt, a)
 
@@ -500,7 +500,7 @@ func TestLibraryControlsStayOpenWhileAJobRuns(t *testing.T) {
 	}
 	tt.Press("重试")
 	refresh(tt, a)
-	if job, _ := a.library.Find(left); job.Stage != core.StageQueued && !shows(tt, errBusy(testlocale.Messages()).Error()) {
+	if job, _ := a.library.Find(left); job.Stage != core.StageQueued {
 		t.Fatalf("重试 while a job runs did nothing: %+v %q", job, tt.Texts())
 	}
 }

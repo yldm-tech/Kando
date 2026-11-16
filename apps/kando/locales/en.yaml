@@ -1094,6 +1094,16 @@ filmsRenameTitle:
 filmsReprocess:
   message: "Process Again"
   description: "Menu item that runs a finished film through download, subtitles and translation again."
+filmsReprocessConfirm:
+  message: "Process “{name}” again?"
+  description: "Title of the dialog confirming Process Again on a finished film, from the library or the film page."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+filmsReprocessConfirmMessage:
+  message: "Its speech will be transcribed again and every line translated into {language}, which uses your AI service."
+  description: "Message of the dialog confirming Process Again: what it costs. language is the target language set now, which may differ from the one the film was translated into."
+  placeholders:
+    language: { type: "String", example: "Simplified Chinese" }
 filmsRetry:
   message: "Retry"
   description: "Button on a failed job's card that runs it again."
@@ -2360,6 +2370,12 @@ queueRemedyUpdatingAction:
 queueRemedyUpdatingWhy:
   message: "The download starts again once it's updated."
   description: "Under the headline while yt-dlp updates."
+queueReprocessFailed:
+  message: "“{name}” keeps its subtitles: it couldn't be processed again. {reason}"
+  description: "Message bar when processing a finished film again (Process Again) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    reason: { type: "String", example: "Can't connect to the AI service. Check your network, then retry." }
 queueSaveFailed:
   message: "Couldn't save the film list: {error}"
   description: "Error line when library.json, the list of jobs, cannot be written."

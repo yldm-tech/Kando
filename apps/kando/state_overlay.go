@@ -19,7 +19,7 @@ type overlayUI struct {
 
 func newOverlayUI() overlayUI { return overlayUI{} }
 
-// overlays is whatever opens over the pages, in the order they stack. view puts it last, so it sits above the sidebar and the content. Each area that draws over the window gives its own node from a function in its own file, built once under cx, the main view's scope: a core.Show on the area's open flag read through live.Func around its dialog (base.Dialog, ui.Dialog), or its own layer, so nothing is built while it is closed and what it holds keeps its focus while it is open. The cheat sheet's and the first-run guide's are in state_overlay.go and state_onboarding.go, the feedback dialog's in state_feedback.go, the sites' in state_sites.go, the palette's in palette_app.go, the quit confirmation's in queue_quit.go, and the settings' where they open over the main window in state_settings.go.
+// overlays is whatever opens over the pages, in the order they stack. view puts it last, so it sits above the sidebar and the content. Each area that draws over the window gives its own node from a function in its own file, built once under cx, the main view's scope: a core.Show on the area's open flag read through live.Func around its dialog (base.Dialog, ui.Dialog), or its own layer, so nothing is built while it is closed and what it holds keeps its focus while it is open. The cheat sheet's and the first-run guide's are in state_overlay.go and state_onboarding.go, the feedback dialog's in state_feedback.go, the sites' in state_sites.go, the palette's in palette_app.go, the quit confirmation's in queue_quit.go, the confirmation of 重新处理 in bind_films.go, and the settings' where they open over the main window in state_settings.go.
 func (a *app) overlays(cx *core.Scope) core.Node {
 	return core.Group{
 		a.cheatsheetOverlay(cx),
@@ -28,6 +28,7 @@ func (a *app) overlays(cx *core.Scope) core.Node {
 		a.sitesOverlay(cx),
 		a.paletteOverlay(cx),
 		a.queueQuitOverlay(cx),
+		a.libraryReprocessOverlay(cx),
 		a.settingsOverlay(cx),
 	}
 }

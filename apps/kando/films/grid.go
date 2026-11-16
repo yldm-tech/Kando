@@ -140,7 +140,7 @@ func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 	if item.VideoPath != "" {
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsRename(cx), OnSelect: do(a.AskRename)})
 	}
-	items = append(items, nsdesktop.MenuItem{Label: locales.FilmsReprocess(cx), OnSelect: do(a.Reprocess)})
+	items = append(items, nsdesktop.MenuItem{Label: locales.FilmsReprocess(cx), OnSelect: do(a.AskReprocess)})
 	if item.JobID != "" {
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslateAgain(cx), OnSelect: do(a.TranslateAgain)})
 		if item.Untranslated > 0 {

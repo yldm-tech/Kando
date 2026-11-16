@@ -99,6 +99,7 @@ func (f *fakeApp) RunningJob() string                          { return "" }
 func (f *fakeApp) ProcessFilm()                                { f.call("process") }
 func (f *fakeApp) Remove(id string)                            { f.call("remove " + id) }
 func (f *fakeApp) RetryOpen(id string)                         { f.call("retry " + id) }
+func (f *fakeApp) ReprocessFilm()                              { f.call("reprocess") }
 func (f *fakeApp) TranslateFilmAgain()                         { f.call("translate again") }
 func (f *fakeApp) TranslateFilmMissing()                       { f.call("translate missing") }
 func (f *fakeApp) StageLabel(_ *ns.Scope, s core.Stage) string { return string(s) }

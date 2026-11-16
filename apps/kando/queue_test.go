@@ -410,6 +410,37 @@ func TestRetryGoesToTheLibrary(t *testing.T) {
 	settle(t, a, tt, updates)
 }
 
+// TestRetrySaysWhatHoldsItBack checks that 重试 that cannot queue the job says the real reason in the message bar, even while another job runs: with no target language set, that one is missing and where to set it; for a job already waiting, nothing, since its card says so.
+func TestRetrySaysWhatHoldsItBack(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(t, g)
+	a.library.Jobs = []core.Job{
+		{ID: "bare", Source: "https://example.com/bare", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: "/videos"},
+	}
+	if err := a.Enqueue("https://example.com/a", "https://example.com/b"); err != nil {
+		t.Fatal(err)
+	}
+	nextStarted(t, g, updates)
+	a.prefs.language = ""
+	a.Retry("bare")
+	if job := stageOf(t, a, "bare"); job.Stage != core.StageFailed {
+		t.Fatalf("bare after a refused retry %+v", job)
+	}
+	if a.lib.notice.Text != testlocale.Messages().QueueNoLanguage() || a.lib.notice.Section != settings.SectionTranslate {
+		t.Fatalf("notice %+v", a.lib.notice)
+	}
+
+	a.lib.notice = films.Notice{}
+	a.Retry(jobIDs(a)["https://example.com/b"])
+	if a.lib.notice.Open {
+		t.Fatalf("retrying a waiting job says %+v", a.lib.notice)
+	}
+	g.release <- struct{}{}
+	nextStarted(t, g, updates)
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+}
+
 // TestSwitchLibraryKeepsTheRunningJob opens another library while a job runs: the job goes on, its card stays in 处理中 saying which library it saves into, and once it is done the message bar says where it went. The jobs queued in the first library run after it, before the one queued in the second, and each job stays in the library it was queued in.
 func TestSwitchLibraryKeepsTheRunningJob(t *testing.T) {
 	g := newGatePipeline()
@@ -2452,18 +2483,123 @@ func TestTranslateAgainUsesTheLanguageSetNow(t *testing.T) {
 	}
 }
 
-// 重新处理 processes the entire film again but for its download, which is still beside the job (media.Run), into the target language set now rather than the one it was translated into.
+// 重新处理 processes the entire film again but for its download, which is still beside the job (media.Run), into the target language set now rather than the one it was translated into, once confirmed.
 func TestProcessAgainUsesTheLanguageSetNow(t *testing.T) {
 	p := &retranslatePipeline{}
 	a, tt, updates := retranslateLibrary(t, p)
 	chooseFilmMenu(t, tt, "重新处理")
+	tt.Press("id:reprocess-confirm-run")
 	settle(t, a, tt, updates)
 	if p.downloads != 0 || p.transcriptions != 1 || p.language != "日本語" {
 		t.Fatalf("%d downloads, %d transcriptions, language %q", p.downloads, p.transcriptions, p.language)
 	}
-	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Language != "日本語" {
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Language != "日本語" || job.Redo != "" || job.RedoLanguage != "" {
 		t.Fatalf("job %+v", job)
 	}
+}
+
+// 重新处理 asks first, from the library and from the film page, naming the film and the language it would be translated into, since it transcribes the film and pays for its translation again: 取消 queues nothing, and the confirmation holds the window's modal flag only while it is open.
+func TestProcessAgainAsksFirst(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	msgs := testlocale.Messages()
+	chooseFilmMenu(t, tt, "重新处理")
+	if !hasText(tt, msgs.FilmsReprocessConfirm("Talk")) || !hasText(tt, msgs.FilmsReprocessConfirmMessage(msgs.SettingsLanguageJapanese())) || !a.modalOpen() {
+		t.Fatalf("no confirmation naming the film and the language: %q", tt.Texts())
+	}
+	if role := tt.Find("id:reprocess-confirm").Props.Role; role != ns.RoleAlertDialog {
+		t.Fatalf("the confirmation's role is %v", role)
+	}
+	tt.Press("id:reprocess-cancel")
+	refresh(tt, a)
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Redo != "" || a.running() || a.modalOpen() || tt.Exists("id:reprocess-confirm") {
+		t.Fatalf("取消 left job %+v, running %v, modal %v", job, a.running(), a.modalOpen())
+	}
+
+	film, _ := a.JobFilm("talk")
+	a.Open(film)
+	refresh(tt, a)
+	tt.Press("更多操作")
+	tt.ChoosePopup("重新处理整部影片")
+	if !tt.Exists("id:reprocess-confirm") || a.running() {
+		t.Fatalf("the film page did not ask first: %q", tt.Texts())
+	}
+	tt.Press("id:reprocess-confirm-run")
+	settle(t, a, tt, updates)
+	if a.openKey != "talk" || p.transcriptions != 1 || p.language != "日本語" || a.modalOpen() {
+		t.Fatalf("open %q, %d transcriptions in %q, modal %v", a.openKey, p.transcriptions, p.language, a.modalOpen())
+	}
+}
+
+// reprocessKeptTheFilm checks that Talk of retranslateLibrary, which was being processed again, is the done film it was: in the language it was translated into, on the done grid, with the transcript and bilingual subtitles it had on disk, which the film opens with.
+func reprocessKeptTheFilm(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), before core.Job, srt, bilingual string) {
+	t.Helper()
+	job := stageOf(t, a, "talk")
+	if job.Stage != core.StageComplete || job.Err != nil || job.Redo != "" || job.RedoLanguage != "" || job.Language != "简体中文" || job.Untranslated != 1 || !job.CompletedAt.Equal(before.CompletedAt) || job.SubtitlePath != before.SubtitlePath {
+		t.Fatalf("job %+v", job)
+	}
+	for path, want := range map[string]string{strings.TrimSuffix(before.VideoPath, ".mp4") + ".srt": srt, before.SubtitlePath: bilingual} {
+		if data, err := os.ReadFile(path); err != nil || string(data) != want {
+			t.Fatalf("%s is now %q, %v", path, data, err)
+		}
+	}
+	if !shows(tt, "补译未译的句子") {
+		t.Fatalf("the film is no longer a done card: %q", tt.Texts())
+	}
+	film, _ := a.JobFilm("talk")
+	a.Open(film)
+	queueUntilState(t, updates, func() bool { return a.player.subs.ready })
+	if cues := a.player.subs.cues; len(cues) != 3 || cues[0].Text != "你好。\nHello." {
+		t.Fatalf("cues %q", cues)
+	}
+}
+
+// readFile is the file at path, failing t when it cannot be read.
+func readFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+// 重新处理 that fails leaves the film done and watchable with the subtitles it had, rather than a failed card, and the message bar says why.
+func TestAFailedReprocessKeepsTheFilm(t *testing.T) {
+	p := &retranslatePipeline{translateErr: errors.New("translation API returned 401 Unauthorized: invalid key")}
+	a, tt, updates := retranslateLibrary(t, p)
+	before := stageOf(t, a, "talk")
+	srt, bilingual := readFile(t, strings.TrimSuffix(before.VideoPath, ".mp4")+".srt"), readFile(t, before.SubtitlePath)
+	film, _ := a.JobFilm("talk")
+	a.Reprocess(film)
+	settle(t, a, tt, updates)
+	if p.transcriptions != 1 {
+		t.Fatalf("%d transcriptions", p.transcriptions)
+	}
+	if want := testlocale.Messages().QueueReprocessFailed("Talk", testlocale.Messages().PrecheckTranslateAuth()); a.lib.notice.Text != want || a.lib.notice.Section != settings.SectionAI {
+		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
+	}
+	reprocessKeptTheFilm(t, a, tt, updates, before, srt, bilingual)
+}
+
+// Stopping 重新处理 while it runs leaves the film done and watchable with the subtitles it had, with nothing in the message bar.
+func TestCancellingAReprocessKeepsTheFilm(t *testing.T) {
+	p := &retranslatePipeline{hold: true}
+	a, tt, updates := retranslateLibrary(t, p)
+	before := stageOf(t, a, "talk")
+	srt, bilingual := readFile(t, strings.TrimSuffix(before.VideoPath, ".mp4")+".srt"), readFile(t, before.SubtitlePath)
+	film, _ := a.JobFilm("talk")
+	a.Reprocess(film)
+	if !a.running() {
+		t.Fatal("重新处理 did not start")
+	}
+	queueUntilState(t, updates, func() bool { return stageOf(t, a, "talk").Stage == core.StageTranslating })
+	a.Cancel("talk")
+	settle(t, a, tt, updates)
+	if a.lib.notice.Open {
+		t.Fatalf("notice %+v", a.lib.notice)
+	}
+	reprocessKeptTheFilm(t, a, tt, updates, before, srt, bilingual)
 }
 
 // With no target language set, 重新翻译 queues nothing and the message bar says why. The film page draws no message bar, so from there the settings open where the language is chosen.

@@ -361,7 +361,7 @@ func (a *app) remove(id string) {
 	a.queueTellSystem()
 }
 
-// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says: its speech is transcribed anew, into the target language the settings name now rather than the one it was translated into. A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
+// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says (core.RedoAll): its speech is transcribed anew, into the target language the settings name now rather than the one it was translated into, and it stays the done film it was until the new subtitles are written, so a run that fails or is stopped puts it back as it was (queueRedoEnded). A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
 func (a *app) retry(job core.Job) {
 	a.queueAgain(a.queueRetryable(job))
 }
@@ -388,11 +388,16 @@ func (a *app) queueRetranslate(job core.Job, redo core.Redo) error {
 	return nil
 }
 
-// queueRedoEnded is job, which was translating a done film again (core.Job.Redo) and has failed or been stopped, put back as the done film it was: its subtitles are still the ones it had, which the job still describes. The message bar says why the translation failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
+// queueRedoEnded is job, which was processing or translating a done film again (core.Job.Redo) and has failed or been stopped, put back as the done film it was: its subtitles are still the ones it had, which the job still describes. The message bar says why the job failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
 func (a *app) queueRedoEnded(job core.Job) core.Job {
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
-		reason, section := failureHint(a.messages(), films.Film{Detail: statusText(a.messages(), job)})
-		a.warn(a.messages().QueueRedoFailed(jobName(job), reason), section)
+		m := a.messages()
+		reason, section := failureHint(m, films.Film{Detail: statusText(m, job)})
+		if job.Redo == core.RedoAll {
+			a.warn(m.QueueReprocessFailed(jobName(job), reason), section)
+		} else {
+			a.warn(m.QueueRedoFailed(jobName(job), reason), section)
+		}
 		a.libraryNoticeJob(job.ID, core.StageComplete)
 	}
 	job.Stage = core.StageComplete
@@ -418,15 +423,19 @@ func (a *app) queueAgain(job core.Job, err error) {
 // errInQueue is queueRetryable's answer for a job that is running or waiting already.
 var errInQueue = errors.New("the job is already running or waiting in the queue")
 
-// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. A done film is made ready to be processed again entirely, into the language the settings name now. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
+// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. A done film is made ready to be processed again entirely (core.RedoAll), into the language the settings name now, which becomes its Language once it is done. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
 func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 	if job.ID == a.queue.active || job.Stage == core.StageQueued {
 		return core.Job{}, errInQueue
 	}
 	if job.Stage == core.StageComplete {
+		language := strings.TrimSpace(a.prefs.language)
+		if language == "" {
+			return core.Job{}, errors.New(a.messages().QueueNoLanguage())
+		}
 		job.Transcribed = false
-		job.Redo, job.RedoLanguage = "", ""
-		job.Language = strings.TrimSpace(a.prefs.language)
+		job.Redo, job.RedoLanguage = core.RedoAll, language
+		return job, nil
 	}
 	if strings.TrimSpace(job.Language) == "" {
 		job.Language = strings.TrimSpace(a.prefs.language)
@@ -464,7 +473,7 @@ func (a *app) queueAdd(job core.Job) {
 	job.Stage = core.StageQueued
 	job.Err = nil
 	job.FailKind = ""
-	// A job translating a done film again keeps the film's completion until it completes again (core.Job.Redo).
+	// A job processing or translating a done film again keeps the film's completion until it completes again (core.Job.Redo).
 	if job.Redo == "" {
 		job.CompletedAt = time.Time{}
 	}
@@ -548,9 +557,9 @@ func (a *app) queueRun(job core.Job) {
 		tools.Translator.Context = a.prefs.translateContext
 		a.pipeline = tools
 	}
-	// A job translating every line of a done film again translates into the language it was asked for, which becomes its Language once it is done.
+	// A job processing a done film again entirely, or translating every line of it again, translates into the language it was asked for, which becomes its Language once it is done.
 	language := job.Language
-	if job.Redo == core.RedoTranslation && strings.TrimSpace(job.RedoLanguage) != "" {
+	if (job.Redo == core.RedoAll || job.Redo == core.RedoTranslation) && strings.TrimSpace(job.RedoLanguage) != "" {
 		language = job.RedoLanguage
 	}
 	ctx, cancel := context.WithCancelCause(context.Background())

@@ -28,6 +28,8 @@ type App interface {
 	ProcessFilm()
 	Remove(id string)
 	RetryOpen(id string)
+	// ReprocessFilm asks to process the open film, a done one, again entirely, as the library's 重新处理 does, once the user confirms; the film stays open and follows its job.
+	ReprocessFilm()
 	// TranslateFilmAgain and TranslateFilmMissing translate the open film, a done one, again without downloading or transcribing it, as the library's 重新翻译 and 补译未译的句子 do: every line, or only those its translation left untranslated. The film stays open and follows its job.
 	TranslateFilmAgain()
 	TranslateFilmMissing()

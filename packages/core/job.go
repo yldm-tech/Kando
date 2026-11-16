@@ -74,32 +74,39 @@ type Job struct {
 	SubtitlePath string
 	// LibraryDir is the library that owns this job. Empty means it was saved before libraries were separate.
 	LibraryDir string
-	// CompletedAt is when the job reached StageComplete; zero until then. A job translating a done film again (Redo) keeps the film's until it completes again.
+	// CompletedAt is when the job reached StageComplete; zero until then. A job processing or translating a done film again (Redo) keeps the film's until it completes again.
 	CompletedAt time.Time
 	Err         error
 	// FailKind is why the download failed, when yt-dlp said why; empty otherwise.
 	FailKind FailKind
-	// Untranslated is how many lines of a completed job's subtitles the translation left untranslated after trying them again; 0 when every line was translated. A job translating a done film again (Redo) keeps the film's count until it completes again.
+	// Untranslated is how many lines of a completed job's subtitles the translation left untranslated after trying them again; 0 when every line was translated. A job processing or translating a done film again (Redo) keeps the film's count until it completes again.
 	Untranslated int
 	// Transcribed is true once this job's transcription has saved the speech it heard beside VideoPath, so running the job again, as a retry after a failed translation or after the app quit in the middle, reads it back instead of transcribing the video again. Processing a done film again clears it, so its speech is transcribed anew.
 	Transcribed bool
 	// Cookies is the browser whose login the download borrows (yt-dlp's --cookies-from-browser name, such as chrome); empty borrows none.
 	Cookies string
-	// Redo is the part of a done film's processing the job does again instead of every stage: RedoTranslation or RedoMissing. Empty runs every stage. It stays set while the job waits, runs or has failed, so a restart does the same part again, and is cleared once the job is complete. Until then Language, Untranslated, CompletedAt and SubtitlePath still describe the film's subtitles on disk, which the job only rewrites as its last step, so a redo that fails or is stopped leaves the film done as it was.
+	// Redo is what a job processing a done film again does: RedoAll, RedoTranslation or RedoMissing. Empty is a job that has not completed yet, which runs every stage. It stays set while the job waits, runs or has failed, so a restart does the same part again, and is cleared once the job is complete. Until then Language, Untranslated, CompletedAt and SubtitlePath still describe the film's subtitles on disk, which the job only rewrites as its last step, so a redo that fails or is stopped leaves the film done as it was.
 	Redo Redo
-	// RedoLanguage is the language a RedoTranslation job translates into; it becomes Language once the job completes. Empty for any other job.
+	// RedoLanguage is the language a RedoAll or RedoTranslation job translates into; it becomes Language once the job completes. Empty for any other job.
 	RedoLanguage string
 }
 
-// Redo is what a job made to translate a done film again translates. Both read the subtitles the film's job exported beside its video and neither downloads nor transcribes it again.
+// Redo is what a job made to process a done film again does. RedoTranslation and RedoMissing read the subtitles the film's job exported beside its video and neither download nor transcribe it again; RedoAll runs every stage.
 type Redo string
 
 const (
+	// RedoAll processes the film again entirely, transcribing its speech anew, but for a download still beside the job.
+	RedoAll Redo = "all"
 	// RedoTranslation translates every line of the film's transcript again.
 	RedoTranslation Redo = "translation"
 	// RedoMissing translates only the lines the film's subtitles left untranslated and keeps the others as they are.
 	RedoMissing Redo = "missing"
 )
+
+// TranslatesOnly reports whether a job redoing r only translates the film's exported transcript again, without downloading or transcribing it.
+func (r Redo) TranslatesOnly() bool {
+	return r == RedoTranslation || r == RedoMissing
+}
 
 // NewJob is a queued job for source: an http or https link, a web address typed without a scheme, which the job keeps with https:// before it (WithScheme), or a local video's file:// URL.
 func NewJob(source string) (Job, error) {
