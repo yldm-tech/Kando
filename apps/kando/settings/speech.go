@@ -15,32 +15,47 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// speech is the 语音识别 page: the whisper models, one of which recognizes speech, their downloads and what can be done with the files on disk, and the language spoken in the videos.
+// speech is the 语音识别 page: the whisper models, one of which recognizes speech, all but the recommended one, Small and Base under 更多模型 until they are on disk, their downloads and what can be done with the files on disk, and the language spoken in the videos.
 type speech struct{ s screen }
 
 // Render implements core.Node.
 func (p speech) Render(cx *core.Scope) core.Node {
 	a := p.s.a
 	colors := ui.ColorsOf(cx)
-	var rows []core.Node
-	for i, model := range media.SpeechModels() {
-		if i > 0 {
-			rows = append(rows, form.Separator(false))
-		}
-		rows = append(rows, modelRow{a: a, model: model})
+	models := media.SpeechModels()
+	// shown is whether a model is in the card rather than under 更多模型.
+	shown := func(model media.SpeechModel) func() bool {
+		return live.Func(a, func() bool { return featuredSpeechModel(a, model) })
 	}
+	hidden := func(model media.SpeechModel) func() bool {
+		return live.Func(a, func() bool { return !featuredSpeechModel(a, model) })
+	}
+	rows := modelRows(a, models, shown)
 	rows = append(rows, core.Show{When: live.Func(a, func() bool { return otherSpeechModel(a) != "" }), Then: func(*core.Scope) core.Node {
 		return core.Group([]core.Node{form.Separator(false), fileRow{a: a}})
 	}})
+	open := core.NewSignal(cx, false)
+	more := core.Show{When: live.Func(a, func() bool {
+		for _, model := range models {
+			if !featuredSpeechModel(a, model) {
+				return true
+			}
+		}
+		return false
+	}), Then: func(cx *core.Scope) core.Node {
+		return ui.Collapsible{Text: locales.SettingsSpeechMoreModels(cx), TestID: "settings-models-more", Open: open.Get, OnOpenChange: open.Set,
+			Variant: ui.CollapsibleArrowLeft, Style: core.Style{Margin: core.Edges{Left: 6}},
+			Content: form.Card(modelRows(a, models, hidden)...)}
+	}}
 	// One radio group, so that Tab stops once in it and the arrows choose among the models on disk.
-	group := ui.RadioGroup{Label: locales.SettingsSpeechModels(cx), Children: rows, Style: core.Style{Gap: 0, AlignItems: core.AlignStretch}}
+	group := ui.RadioGroup{Label: locales.SettingsSpeechModels(cx), Children: []core.Node{form.Card(rows...), more}, Style: core.Style{Gap: 6, AlignItems: core.AlignStretch}}
 	failed := core.Show{When: live.Func(a, func() bool { return a.DownloadErr() != "" }), Then: func(cx *core.Scope) core.Node {
 		return core.Text{ContentFunc: live.Func(a, a.DownloadErr), Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
 	}}
 	choose := form.Button{Text: locales.SettingsSpeechChooseFile(cx), TestID: "settings-model-choose-file", OnPress: live.Do(a, a.PickSpeechModel)}
 	return form.Page(
 		form.Label(locales.SettingsSpeechModels(cx), 6, choose),
-		form.Card(group),
+		group,
 		form.Note(static(locales.SettingsSpeechNote(cx)), 0),
 		failed,
 		spokenLanguage(cx, a),
@@ -58,6 +73,35 @@ func chosenSpeechModel(a App) string {
 		}
 	}
 	return ""
+}
+
+// featuredSpeechModel reports whether the catalog model is listed in the card rather than under 更多模型: the recommended one, Small and Base, which cover the choice between accuracy and size, and any on disk, which can be chosen.
+func featuredSpeechModel(a App, model media.SpeechModel) bool {
+	return model.Recommended || model.ID == "small" || model.ID == "base" || a.InstalledSpeechModel(model.ID) != ""
+}
+
+// modelRows are the rows of the catalog models for which shown reports true, in the catalog's order, a line between two of them.
+func modelRows(a App, models []media.SpeechModel, shown func(media.SpeechModel) func() bool) []core.Node {
+	rows := make([]core.Node, len(models))
+	for i, model := range models {
+		visible := shown(model)
+		// first is whether no model before this one shows, so no line goes above it.
+		first := func() bool {
+			for _, before := range models[:i] {
+				if shown(before)() {
+					return false
+				}
+			}
+			return true
+		}
+		rows[i] = core.Show{When: visible, Then: func(*core.Scope) core.Node {
+			return core.Group([]core.Node{
+				core.Show{When: func() bool { return !first() }, Then: func(*core.Scope) core.Node { return form.Separator(false) }},
+				modelRow{a: a, model: model},
+			})
+		}}
+	}
+	return rows
 }
 
 // otherSpeechModel is the model file in use when it is none of the whisper catalog's, as one chosen with 选择模型文件…, or "". A file named as a catalog model's is that model, wherever it is, as the app finds it there (media.ResolveSpeechModel).

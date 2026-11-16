@@ -12,7 +12,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// ai is the AI 服务 page: the service that translates and how Kando reaches it, in one card as the prototype's, with what the fields mean in the footnote under it. The prototype's page starts 6 points lower than one that opens with a section label.
+// ai is the AI 服务 page: the service that translates and how Kando reaches it, in one card as the prototype's, with where the key comes from in the footnote under it. The prototype's page starts 6 points lower than one that opens with a section label.
 type ai struct{ s screen }
 
 // Render implements core.Node.
@@ -46,12 +46,24 @@ func aiService(cx *core.Scope, a App) core.Node {
 		}),
 		Style: core.Style{Width: core.Pt(330), FontFamily: "monospace"}}
 	key := ui.Input{TestID: "settings-llm-key", Label: "API Key", Masked: true,
-		Value: live.Func(a, func() string { return *a.LLMKey() }),
+		Value:           live.Func(a, func() string { return *a.LLMKey() }),
+		PlaceholderFunc: keyPlaceholder(cx, a),
 		OnChange: live.On(a, func(text string) {
 			*a.LLMKey() = text
 			a.ApplyLLM()
 		}),
-		Style: core.Style{Width: core.Pt(330)}}
+		Style: core.Style{Width: core.Pct(100)}}
+	// keyPage is whether the service has a page where its key is made, which 获取 API Key opens; the field gives the button room, so the row ends where the others do.
+	keyPage := live.Func(a, func() bool { preset, _ := a.CurrentPreset(); return preset.KeyURL != "" })
+	keyField := core.View{Children: []core.Node{key}, StyleFunc: func() core.Style {
+		if keyPage() {
+			return core.Style{Width: core.Pt(230)}
+		}
+		return core.Style{Width: core.Pt(330)}
+	}}
+	getKey := core.Show{When: keyPage, Then: func(cx *core.Scope) core.Node {
+		return form.Button{Text: locales.SettingsAIGetKey(cx), TestID: "settings-llm-get-key", OnPress: live.Do(a, a.OpenKeyPage)}
+	}}
 	everyAPI := core.Show{When: live.Func(a, func() bool {
 		cli := a.EveryAPI()
 		return cli.Missing || cli.Checking || cli.SignedOut || cli.Failed != ""
@@ -73,25 +85,40 @@ func aiService(cx *core.Scope, a App) core.Node {
 		form.Separator(true),
 		form.Row{Title: "Base URL", NoGroup: true, Trailing: []core.Node{base}},
 		form.Separator(true),
-		form.Row{Title: "API Key", NoGroup: true, Trailing: []core.Node{key}},
+		form.Row{Title: "API Key", NoGroup: true, Trailing: []core.Node{keyField, getKey}},
 		everyAPI,
 		form.Separator(true),
 		form.Row{Title: locales.SettingsAIModel(cx), NoGroup: true, SubtitleFunc: modelsFailure(a), Trailing: []core.Node{modelSelect(cx, a)}},
 		test,
 	)
 	card.Style.Margin = core.Edges{Top: 6}
-	note := live.Func(a, func() string {
+	return form.Page(card, form.Note(aiNote(cx, a), 0))
+}
+
+// aiNote is the footnote under the card: what the service is for one on this computer, where the key comes from otherwise, and for a custom endpoint which ones work.
+func aiNote(cx *core.Scope, a App) func() string {
+	return live.Func(a, func() string {
 		preset, _ := a.CurrentPreset()
-		key := locales.SettingsAIKeyStoredLocally(cx)
-		if a.LLMProvider() == "everyapi" && strings.TrimSpace(*a.LLMKey()) == "" {
-			key = locales.SettingsAIKeyEveryAPILogin(cx)
+		switch {
+		case preset.Group == GroupLocal:
+			return locales.SettingsAINoteWithBlurb(cx, preset.Blurb)
+		case preset.Group == GroupOther:
+			return locales.SettingsAINote(cx, locales.SettingsAIKeyStoredLocally(cx), locales.SettingsAICompatible(cx))
+		case a.LLMProvider() == "everyapi" && strings.TrimSpace(*a.LLMKey()) == "":
+			return locales.SettingsAIKeyEveryAPILogin(cx)
 		}
-		if preset.Blurb != "" {
-			return locales.SettingsAINoteWithBlurb(cx, preset.Blurb, key, locales.SettingsAICompatible(cx))
-		}
-		return locales.SettingsAINote(cx, key, locales.SettingsAICompatible(cx))
+		return locales.SettingsAIKeyStoredLocally(cx)
 	})
-	return form.Page(card, form.Note(note, 0))
+}
+
+// keyPlaceholder is what the empty API Key field says: that it may stay empty for EveryAPI, which signs in with the everyapi command-line program, and for a service on this computer.
+func keyPlaceholder(cx *core.Scope, a App) func() string {
+	return live.Func(a, func() string {
+		if preset, _ := a.CurrentPreset(); preset.ID == "everyapi" || preset.Group == GroupLocal {
+			return locales.SettingsAIKeyOptional(cx)
+		}
+		return ""
+	})
 }
 
 // everyAPIRow says what the everyapi command-line program, whose sign-in EveryAPI uses without an API Key, still needs: to be installed, with 获取 EveryAPI to open the website it is downloaded from, or to be signed in to in Terminal, or what it said when asking it failed otherwise; 重新检测 looks for it and asks it again afterwards. While Kando asks it whether someone is signed in, the row says so and 重新检测 waits.

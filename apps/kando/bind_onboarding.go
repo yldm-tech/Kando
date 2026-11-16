@@ -76,26 +76,51 @@ func (a *app) OnboardingDownloading() bool { return a.prefs.downloading != "" }
 
 func (a *app) OnboardingDownloadsOnNext() bool { return a.onboardingDownloadsOnNext() }
 
-// OnboardingAI says which model translates, or what the translation still needs, as the sidebar's status line words it, in the language shown under cx: a model to choose, or the EveryAPI sign-in or a key.
+// OnboardingAI says which model translates, or what the translation still needs, as the sidebar's status line words it, in the language shown under cx: the API Key of a service that cannot do without one, a model to choose, which the service's list fills in while it loads (onboardingLoadModels), or the EveryAPI sign-in.
 func (a *app) OnboardingAI(cx *ns.Scope) onboarding.AI {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
 		return onboarding.AI{Text: locales.OnboardingAIConfigured(cx), Ready: true}
 	}
 	model := strings.TrimSpace(tools.Translator.Model)
+	preset, _ := settings.PresetByID(locales.For(cx), a.prefs.llmProvider)
 	switch {
+	case preset.NeedsKey() && tools.Translator.APIKey == "":
+		return onboarding.AI{Text: locales.OnboardingAINeedsKey(cx), Missing: true}
+	case model == "" && (a.prefs.llmModelsLoading || a.prefs.llmWaiting):
+		return onboarding.AI{Text: locales.SettingsAILoadingModels(cx)}
+	case model == "" && a.prefs.llmModelsErr != nil:
+		return onboarding.AI{Text: settings.LLMModelsError(locales.For(cx), a.prefs.llmModelsErr), Missing: true}
 	case model == "":
 		return onboarding.AI{Text: noLLMModel(cx), Missing: true}
+	case everyAPICLIMissing(tools.Translator) && a.prefs.everyAPIOpenErr != "":
+		return onboarding.AI{Text: locales.SettingsAIEveryAPIOpenFailed(cx, a.prefs.everyAPIOpenErr), Missing: true}
 	case everyAPICLIMissing(tools.Translator):
 		return onboarding.AI{Text: everyAPIMissing(cx), Missing: true}
 	case tools.Translator.Credential != nil && a.side.ready.signInErr != nil && a.side.ready.signInDone:
 		return onboarding.AI{Text: everyAPISignInFailed(a.side.ready.signInErr)(cx), Missing: true}
 	case tools.Translator.Credential != nil && !a.side.ready.signInDone:
-		// The sidebar checks the sign-in once the tools and a speech model are there, so before that it is not known.
+		// The sidebar checks the sign-in once the tools and a speech model are there, so before that it is not known; 测试连接 checks it too.
 		return onboarding.AI{Text: locales.OnboardingAIModelUnchecked(cx, model)}
 	}
 	return onboarding.AI{Text: locales.OnboardingAIModel(cx, model), Ready: true}
 }
+
+// OnboardingServices are the services of Settings › AI 服务 (settings.Presets), named in the language shown under cx, the ones on this computer after their group as the settings name them. The guide asks for the key of every service but EveryAPI, which signs in with the everyapi command-line program, and those on this computer, which need none.
+func (a *app) OnboardingServices(cx *ns.Scope) []onboarding.Service {
+	presets := settings.Presets(locales.For(cx))
+	out := make([]onboarding.Service, len(presets))
+	for i, preset := range presets {
+		name := preset.Name
+		if preset.Group == settings.GroupLocal {
+			name = locales.SettingsAILocalService(cx, preset.Name)
+		}
+		out[i] = onboarding.Service{ID: preset.ID, Name: name, Key: preset.ID != "everyapi" && preset.Group != settings.GroupLocal, KeyPage: preset.KeyURL != ""}
+	}
+	return out
+}
+
+func (a *app) OnboardingEveryAPIMissing() bool { return a.everyAPIStatus().Missing }
 
 func (a *app) OnboardingLink() *string { return &a.onb.link }
 

@@ -86,7 +86,7 @@ func (s *savedOnboarding) clean() {
 	s.LearnLanguages = kept
 }
 
-// onboardingHooks: the guide opens by itself at startup when there is no settings.json yet, or one that says it was not seen through (quitting while it is open), and once the window exists it opens a library under it. A settings.json from before the guide existed counts as seen when it names a library, and one that could not be read in full always does, so the guide never makes a library and saves over it. It saves whether it was seen, the languages chosen and whether its note is still to be read, puts that note back in the message bar at startup, holds the window's modal flag while it is open, and forgets the note once its × has closed it.
+// onboardingHooks: the guide opens by itself at startup when there is no settings.json yet, or one that says it was not seen through (quitting while it is open), and once the window exists it opens a library under it. A settings.json from before the guide existed counts as seen when it names a library, and one that could not be read in full always does, so the guide never makes a library and saves over it. It saves whether it was seen, the languages chosen and whether its note is still to be read, puts that note back in the message bar at startup, holds the window's modal flag while it is open, forgets the note once its × has closed it, and fetches the AI service's model list for its second step when no model is chosen (onboardingLoadModels).
 func (a *app) onboardingHooks() areaHooks {
 	return areaHooks{
 		save: func(saved *savedSettings) {
@@ -114,9 +114,22 @@ func (a *app) onboardingHooks() areaHooks {
 				a.openOnboarding()
 			}
 		},
-		ready:       a.onboardingReady,
-		afterChange: a.onboardingAfterChange,
+		ready: a.onboardingReady,
+		afterChange: func() bool {
+			tip := a.onboardingAfterChange()
+			models := a.onboardingLoadModels()
+			return tip || models
+		},
 	}
+}
+
+// onboardingLoadModels fetches the AI service's model list while the guide's second step shows and no model is chosen, as for a service the guide picked that names no model of its own, so one is chosen from the list (adoptLLMModel) as the AI 服务 page does. It reports whether it changed the settings' state so.
+func (a *app) onboardingLoadModels() bool {
+	tools, ok := a.pipeline.(media.Tools)
+	if !ok || a.onb.step != 2 || strings.TrimSpace(tools.Translator.Model) != "" {
+		return false
+	}
+	return a.fetchLLMModels(false)
 }
 
 // onboardingReady opens a library under the guide (onboardingLibrary, D8) once the window exists, when the guide opened by itself and no library is open, so the page under the guide is that library's rather than one asking for a library. It waits for the window because opening a library starts following its folder, which reports through the window.

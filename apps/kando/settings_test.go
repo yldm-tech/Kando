@@ -57,9 +57,14 @@ func TestSettingsPages(t *testing.T) {
 		t.Fatal("redetect is only for a real tool pipeline")
 	}
 	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
-	for _, text := range []string{"whisper 模型", "Tiny", "Large v3 Turbo（压缩版）", "推荐", "下载"} {
+	for _, text := range []string{"whisper 模型", "Base", "Small", "Large v3 Turbo（压缩版）", "推荐", "下载", "更多模型"} {
 		wantText(t, tt, text)
 	}
+	// The models that are neither recommended nor on disk wait under 更多模型.
+	wantNoText(t, tt, "Tiny")
+	tt.Press("更多模型")
+	tt.Advance(time.Second)
+	wantText(t, tt, "Tiny")
 	tt = settingsOpenAt(a, tt, settings.SectionAI)
 	wantText(t, tt, "未配置")
 	tt = settingsOpenAt(a, tt, settings.SectionTranslate)
@@ -162,7 +167,7 @@ func TestAISettingsSelectsAProvider(t *testing.T) {
 	a.syncLLM(tools)
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt = settingsOpenAt(a, tt, settings.SectionAI)
-	for _, text := range []string{"EveryAPI", "EveryAPI 的 OpenAI 兼容接口", "Base URL", "API Key", "模型", "测试连接", "尚未测试"} {
+	for _, text := range []string{"EveryAPI", "Base URL", "API Key", "模型", "测试连接", "尚未测试"} {
 		wantText(t, tt, text)
 	}
 	tt.Press("选择服务")
@@ -291,8 +296,12 @@ func TestSettingsInEnglish(t *testing.T) {
 	a.syncLLM(tools)
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt = settingsOpenAt(a, tt, settings.SectionAI)
-	for _, text := range []string{"General", "Speech Recognition", "AI Service", "Translation", "Subtitle Style", "Keyboard Shortcuts", "Account & Upload", "Service", "Model", "Test Connection", "Not tested", "EveryAPI's OpenAI-compatible API. Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac. Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."} {
+	for _, text := range []string{"General", "Speech Recognition", "AI Service", "Translation", "Subtitle Style", "Keyboard Shortcuts", "Account & Upload", "Service", "Model", "Test Connection", "Not tested", "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."} {
 		wantText(t, tt, text)
+	}
+	// The empty API Key field says EveryAPI does without one.
+	if !tt.Exists(`text:"Optional"`) {
+		t.Fatalf("no placeholder in the key field: %q", tt.Find("id:settings-llm-key").Text)
 	}
 	if got := settings.Title(a.cx, settings.SectionLook); got != "Subtitle Style" {
 		t.Fatalf("title %q", got)

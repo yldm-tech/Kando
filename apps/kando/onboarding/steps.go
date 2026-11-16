@@ -6,7 +6,6 @@ import (
 
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
-	"kando/apps/kando/settings/sectionid"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -156,7 +155,7 @@ func (t tile) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// modelsStep is the second step: the programs Kando runs, the speech models recommended for the languages chosen, each with its download, and the translation service.
+// modelsStep is the second step: the programs Kando runs, the speech models recommended for the languages chosen, each with its download, and the translation service, set up in place (aiCard).
 type modelsStep struct{ a App }
 
 // Render implements core.Node.
@@ -168,17 +167,6 @@ func (s modelsStep) Render(cx *core.Scope) core.Node {
 	modelRows := core.Each(models.Get, func(m Model) string { return m.ID }, func(cx *core.Scope, m func() Model, _ func() int) core.Node {
 		return core.Group{rule(), modelRow{a: a, m: m, busy: busy}}
 	})
-	aiCard := card(core.View{Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(46)}), Children: []core.Node{
-		rowText(func() string { return locales.OnboardingTranslationService(cx) }, func() (string, core.Color) {
-			if ai().Missing {
-				return ai().Text, warnOrange
-			}
-			return ai().Text, muted
-		}),
-		core.Show{When: func() bool { return ai().Ready }, Then: func(*core.Scope) core.Node { return mark(readyMark) }},
-		smallButton(cx, "onboarding-ai", func() string { return locales.OnboardingSettings(cx) },
-			ui.Button{OnPress: live.Do(a, func() { a.OpenSettings(sectionid.AI) })}),
-	}})
 	return core.View{Style: core.Style{Gap: 16, AlignItems: core.AlignStretch}, Children: []core.Node{
 		toolsCard{a},
 		card(
@@ -188,7 +176,7 @@ func (s modelsStep) Render(cx *core.Scope) core.Node {
 			modelRows,
 		),
 		note(func() string { return modelsNote(cx, models.Get()) }),
-		aiCard,
+		aiCard{a: a, ai: ai},
 	}}
 }
 

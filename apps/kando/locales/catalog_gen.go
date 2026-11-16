@@ -589,7 +589,7 @@ var Parameters = map[string][]string{
 	"SettingsAILocalService":             {"name"},
 	"SettingsAIModelsFailed":             {"error_"},
 	"SettingsAINote":                     {"key", "compatible"},
-	"SettingsAINoteWithBlurb":            {"blurb", "key", "compatible"},
+	"SettingsAINoteWithBlurb":            {"blurb"},
 	"SettingsAISaveFailed":               {"error_"},
 	"SettingsFileDamagedUnsaved":         {"error_"},
 	"SettingsFileUnreadable":             {"error_"},
@@ -799,7 +799,7 @@ type Translation struct {
 	SettingsAILocalService             func(name string) string
 	SettingsAIModelsFailed             func(error_ string) string
 	SettingsAINote                     func(key string, compatible string) string
-	SettingsAINoteWithBlurb            func(blurb string, key string, compatible string) string
+	SettingsAINoteWithBlurb            func(blurb string) string
 	SettingsAISaveFailed               func(error_ string) string
 	SettingsFileDamagedUnsaved         func(error_ string) string
 	SettingsFileUnreadable             func(error_ string) string
@@ -1188,6 +1188,7 @@ const (
 	textMenuWindowPlayer
 	textMenuZoom
 	textOnboardingAIConfigured
+	textOnboardingAINeedsKey
 	textOnboardingAddAndStart
 	textOnboardingAdded
 	textOnboardingBack
@@ -1407,7 +1408,9 @@ const (
 	textSettingsAIEveryAPIMissing
 	textSettingsAIEveryAPISignedOut
 	textSettingsAIGetEveryAPI
+	textSettingsAIGetKey
 	textSettingsAIKeyEveryAPILogin
+	textSettingsAIKeyOptional
 	textSettingsAIKeyStoredLocally
 	textSettingsAILoadingModels
 	textSettingsAIModel
@@ -1575,6 +1578,7 @@ const (
 	textSettingsSpeechLanguageVi
 	textSettingsSpeechLanguageZh
 	textSettingsSpeechModels
+	textSettingsSpeechMoreModels
 	textSettingsSpeechNameLargeV3TurboQ5
 	textSettingsSpeechNoModelsDir
 	textSettingsSpeechNote
@@ -1993,6 +1997,7 @@ var keyOfText = [numTexts]string{
 	"menuWindowPlayer",
 	"menuZoom",
 	"onboardingAIConfigured",
+	"onboardingAINeedsKey",
 	"onboardingAddAndStart",
 	"onboardingAdded",
 	"onboardingBack",
@@ -2212,7 +2217,9 @@ var keyOfText = [numTexts]string{
 	"settingsAIEveryAPIMissing",
 	"settingsAIEveryAPISignedOut",
 	"settingsAIGetEveryAPI",
+	"settingsAIGetKey",
 	"settingsAIKeyEveryAPILogin",
+	"settingsAIKeyOptional",
 	"settingsAIKeyStoredLocally",
 	"settingsAILoadingModels",
 	"settingsAIModel",
@@ -2380,6 +2387,7 @@ var keyOfText = [numTexts]string{
 	"settingsSpeechLanguageVi",
 	"settingsSpeechLanguageZh",
 	"settingsSpeechModels",
+	"settingsSpeechMoreModels",
 	"settingsSpeechNameLargeV3TurboQ5",
 	"settingsSpeechNoModelsDir",
 	"settingsSpeechNote",
@@ -2796,6 +2804,7 @@ var textsEn = i18n.NewTexts(""+
 	"Player"+
 	"Zoom"+
 	"Set up"+
+	"Enter the service's API Key to translate"+
 	"Add and Start"+
 	"Added. Processing started."+
 	"Back"+
@@ -2817,7 +2826,7 @@ var textsEn = i18n.NewTexts(""+
 	"Japanese"+
 	"Korean"+
 	"Mandarin"+
-	"Languages you don't choose are recognized too: whisper works out which language a video speaks by itself. The languages you choose decide which model the next step recommends."+
+	"The languages you choose decide which model the next step recommends; whisper recognizes the others too."+
 	"This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos"+
 	"Any video from YouTube, Bilibili or another site yt-dlp can download from will do."+
 	"Press Enter to start. No link? Skip for now and drag a local video into the window later."+
@@ -3009,13 +3018,15 @@ var textsEn = i18n.NewTexts(""+
 	"Grok's OpenAI-compatible API"+
 	"Zhipu's OpenAI-compatible API"+
 	"Choose service"+
-	"Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."+
+	"Any service compatible with OpenAI Chat Completions works."+
 	"Connected"+
 	"everyapi command line"+
 	"Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."+
 	"Not signed in. Run everyapi auth login in Terminal, then choose Detect Again."+
 	"Get EveryAPI"+
+	"Get API Key"+
 	"Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."+
+	"Optional"+
 	"The API Key is kept only in the settings file on this Mac."+
 	"Getting the model list…"+
 	"Model"+
@@ -3183,9 +3194,10 @@ var textsEn = i18n.NewTexts(""+
 	"Vietnamese"+
 	"Chinese"+
 	"whisper Models"+
+	"More Models"+
 	"Large v3 Turbo (Compressed)"+
 	"There is no models folder yet"+
-	"Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying."+
+	"Larger models are more accurate but slower; if unsure, use the recommended one."+
 	"Recommended"+
 	"Show in Finder"+
 	"Detect Automatically"+
@@ -3596,6 +3608,7 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		4,
 		6,
+		40,
 		13,
 		26,
 		4,
@@ -3617,7 +3630,7 @@ var textsEn = i18n.NewTexts(""+
 		8,
 		6,
 		8,
-		175,
+		104,
 		107,
 		82,
 		89,
@@ -3809,13 +3822,15 @@ var textsEn = i18n.NewTexts(""+
 		28,
 		29,
 		14,
-		102,
+		58,
 		9,
 		21,
 		73,
 		77,
 		12,
+		11,
 		92,
+		8,
 		58,
 		25,
 		5,
@@ -3983,9 +3998,10 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		7,
 		14,
+		11,
 		27,
 		29,
-		316,
+		79,
 		11,
 		14,
 		20,
@@ -4399,6 +4415,7 @@ var textsJa = i18n.NewTexts(""+
 	"プレーヤー"+
 	"拡大/縮小"+
 	"設定済み"+
+	"翻訳するにはサービスの API Key を入力してください"+
 	"追加して開始"+
 	"追加して処理を開始しました。"+
 	"戻る"+
@@ -4420,7 +4437,7 @@ var textsJa = i18n.NewTexts(""+
 	"日本語"+
 	"韓国語"+
 	"中国語"+
-	"選ばなかった言語も認識できます。whisper が動画の言語を自分で聞き分けます。選んだ言語によって、次のステップでおすすめするモデルが決まります。"+
+	"選んだ言語で次のステップのおすすめモデルが決まり、選ばなかった言語も whisper が認識します。"+
 	"チャンネルのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください"+
 	"YouTube、bilibili のほか、yt-dlp でダウンロードできるサイトの動画ならどれでも使えます。"+
 	"Enter キーで開始します。リンクがなければスキップして、あとでローカル動画をウインドウにドラッグできます。"+
@@ -4612,13 +4629,15 @@ var textsJa = i18n.NewTexts(""+
 	"Grok の OpenAI 互換 API"+
 	"Zhipu の OpenAI 互換 API"+
 	"サービスを選択"+
-	"OpenAI Chat Completions 互換のサービスなら利用できます。接続テストではごく短いリクエストを送信します。"+
+	"OpenAI Chat Completions 互換のサービスなら利用できます。"+
 	"接続に成功しました"+
 	"everyapi コマンドラインツール"+
 	"この Mac に見つかりません。everyapi.ai から入手して、「再検出」を押してください。"+
 	"ログインしていません。ターミナルで everyapi auth login を実行してから、「再検出」を押してください。"+
 	"EveryAPI を入手"+
+	"API Key を取得"+
 	"API Key を入力しない場合は、この Mac の everyapi コマンドラインツールのログインを使います。"+
+	"省略可"+
 	"API Key はこの Mac の設定ファイルにだけ保存されます。"+
 	"モデルの一覧を取得中…"+
 	"モデル"+
@@ -4786,9 +4805,10 @@ var textsJa = i18n.NewTexts(""+
 	"ベトナム語"+
 	"中国語"+
 	"whisper モデル"+
+	"その他のモデル"+
 	"Large v3 Turbo（圧縮版）"+
 	"モデルのフォルダがまだありません"+
-	"文の区切りをスマートに判断します。大きいモデルほど正確ですが、遅く、容量も大きくなります。迷ったらおすすめのモデルを使ってください。モデルは HuggingFace からダウンロードし、キャンセルしても途中のファイルは残りません。ほかの App がダウンロード済みのモデル（Vimpo、hyperframes）はコピーせずにそのまま使います。"+
+	"大きいモデルほど正確ですが遅くなるので、迷ったらおすすめのモデルを使ってください。"+
 	"おすすめ"+
 	"Finder で表示"+
 	"自動で認識"+
@@ -5199,6 +5219,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		13,
 		12,
+		69,
 		18,
 		42,
 		6,
@@ -5220,7 +5241,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		9,
 		9,
-		206,
+		132,
 		144,
 		119,
 		153,
@@ -5412,13 +5433,15 @@ var textsJa = i18n.NewTexts(""+
 		26,
 		27,
 		21,
-		141,
+		72,
 		27,
 		39,
 		113,
 		138,
 		18,
+		17,
 		125,
+		9,
 		73,
 		33,
 		9,
@@ -5586,9 +5609,10 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		9,
 		17,
+		21,
 		29,
 		48,
-		445,
+		123,
 		12,
 		16,
 		15,
@@ -6002,6 +6026,7 @@ var textsKo = i18n.NewTexts(""+
 	"플레이어"+
 	"확대/축소"+
 	"설정됨"+
+	"번역하려면 서비스의 API Key를 입력하십시오"+
 	"추가하고 시작"+
 	"추가하고 처리를 시작했습니다."+
 	"이전"+
@@ -6023,7 +6048,7 @@ var textsKo = i18n.NewTexts(""+
 	"일본어"+
 	"한국어"+
 	"중국어"+
-	"선택하지 않은 언어도 인식할 수 있습니다. whisper가 동영상의 언어를 스스로 알아냅니다. 선택한 언어에 따라 다음 단계에서 추천할 모델이 정해집니다."+
+	"선택한 언어에 따라 다음 단계의 추천 모델이 정해지며, 선택하지 않은 언어도 whisper가 인식합니다."+
 	"채널 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요"+
 	"YouTube, Bilibili를 비롯해 yt-dlp로 내려받을 수 있는 사이트의 동영상이라면 모두 가능합니다."+
 	"Enter 키를 눌러 시작합니다. 링크가 없으면 건너뛰고 나중에 로컬 동영상을 윈도우로 끌어다 놓으면 됩니다."+
@@ -6215,13 +6240,15 @@ var textsKo = i18n.NewTexts(""+
 	"Grok의 OpenAI 호환 API"+
 	"Zhipu의 OpenAI 호환 API"+
 	"서비스 선택"+
-	"OpenAI Chat Completions와 호환되는 서비스라면 모두 사용할 수 있습니다. 연결 테스트는 아주 짧은 요청을 보냅니다."+
+	"OpenAI Chat Completions와 호환되는 서비스라면 모두 사용할 수 있습니다."+
 	"연결되었습니다"+
 	"everyapi 명령줄 도구"+
 	"이 Mac에서 찾을 수 없습니다. everyapi.ai에서 받은 다음 ‘다시 감지’를 누르십시오."+
 	"로그인되어 있지 않습니다. 터미널에서 everyapi auth login을 실행한 다음 ‘다시 감지’를 누르십시오."+
 	"EveryAPI 받기"+
+	"API Key 받기"+
 	"API Key를 입력하지 않으면 이 Mac에 있는 everyapi 명령줄 도구의 로그인을 사용합니다."+
+	"선택 사항"+
 	"API Key는 이 Mac의 설정 파일에만 저장됩니다."+
 	"모델 목록을 가져오는 중…"+
 	"모델"+
@@ -6389,9 +6416,10 @@ var textsKo = i18n.NewTexts(""+
 	"베트남어"+
 	"중국어"+
 	"whisper 모델"+
+	"더 많은 모델"+
 	"Large v3 Turbo (압축 버전)"+
 	"아직 모델 폴더가 없습니다"+
-	"문장을 똑똑하게 나눕니다. 모델이 클수록 정확하지만 느리고 공간도 더 차지합니다. 잘 모르겠으면 추천 모델을 사용하십시오. 모델은 HuggingFace에서 내려받으며, 취소하면 받다 만 파일을 남기지 않습니다. 다른 앱이 이미 내려받은 모델(Vimpo, hyperframes)은 복사하지 않고 바로 사용합니다."+
+	"모델이 클수록 정확하지만 느리므로, 잘 모르겠으면 추천 모델을 사용하십시오."+
 	"추천"+
 	"Finder에서 보기"+
 	"자동 인식"+
@@ -6802,6 +6830,7 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		13,
 		9,
+		58,
 		19,
 		42,
 		6,
@@ -6823,7 +6852,7 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		9,
 		9,
-		202,
+		132,
 		127,
 		120,
 		143,
@@ -7015,13 +7044,15 @@ var textsKo = i18n.NewTexts(""+
 		25,
 		26,
 		16,
-		148,
+		90,
 		21,
 		25,
 		110,
 		132,
 		15,
+		14,
 		110,
+		13,
 		58,
 		36,
 		6,
@@ -7189,9 +7220,10 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		9,
 		14,
+		17,
 		30,
 		36,
-		381,
+		106,
 		6,
 		19,
 		13,
@@ -7605,6 +7637,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"播放器"+
 	"缩放"+
 	"已设置"+
+	"填入服务的 API Key 才能翻译"+
 	"加入并开始"+
 	"已加入，开始处理。"+
 	"上一步"+
@@ -7626,7 +7659,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"日语"+
 	"韩语"+
 	"普通话"+
-	"没选的语言也能识别：whisper 会自己听出视频说的是哪种语言。选好的语言决定下一步推荐哪个模型。"+
+	"选好的语言决定下一步推荐哪个模型；没选的语言 whisper 也能识别。"+
 	"这是这个网站频道的链接。现在一次加入一个视频，请粘贴其中一个视频的链接"+
 	"YouTube、哔哩哔哩，以及 yt-dlp 能下载的网站上的视频都可以。"+
 	"回车开始；没有链接也可以先跳过，之后把本地视频拖进窗口。"+
@@ -7818,13 +7851,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"Grok 的 OpenAI 兼容接口"+
 	"智谱的 OpenAI 兼容接口"+
 	"选择服务"+
-	"任何兼容 OpenAI Chat Completions 的服务都可以；测试连接会发一个很短的请求。"+
+	"任何兼容 OpenAI Chat Completions 的服务都可以。"+
 	"连接成功"+
 	"everyapi 命令行工具"+
 	"本机没有找到。从 everyapi.ai 获取后，点「重新检测」。"+
 	"还没有登录。在终端运行 everyapi auth login 后，点「重新检测」。"+
 	"获取 EveryAPI"+
+	"获取 API Key"+
 	"不填 API Key 时，使用本机 everyapi 命令行工具的登录。"+
+	"可不填"+
 	"API Key 只保存在本机设置文件里。"+
 	"正在获取模型列表…"+
 	"模型"+
@@ -7992,9 +8027,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"越南语"+
 	"中文"+
 	"whisper 模型"+
+	"更多模型"+
 	"Large v3 Turbo（压缩版）"+
 	"还没有模型目录"+
-	"支持智能断句。越大越准，也越慢、越占空间；不确定就用推荐的。模型从 HuggingFace 下载，取消后不留下半截文件；其他应用已经下好的模型（Vimpo、hyperframes）会直接选用，不用复制。"+
+	"模型越大越准，也越慢；不确定就用推荐的。"+
 	"推荐"+
 	"在访达中显示"+
 	"自动识别"+
@@ -8405,6 +8441,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		6,
 		9,
+		36,
 		15,
 		27,
 		9,
@@ -8426,7 +8463,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		134,
+		90,
 		105,
 		81,
 		84,
@@ -8618,13 +8655,15 @@ var textsZhHans = i18n.NewTexts(""+
 		28,
 		29,
 		12,
-		100,
+		58,
 		12,
 		24,
 		73,
 		84,
 		15,
+		14,
 		70,
+		9,
 		44,
 		27,
 		6,
@@ -8792,9 +8831,10 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		6,
 		14,
+		12,
 		29,
 		21,
-		245,
+		60,
 		6,
 		18,
 		12,
@@ -9208,6 +9248,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"播放器"+
 	"縮放"+
 	"已設定"+
+	"填入服務的 API Key 才能翻譯"+
 	"加入並開始"+
 	"已加入，開始處理。"+
 	"上一步"+
@@ -9229,7 +9270,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"日語"+
 	"韓語"+
 	"普通話"+
-	"沒選的語言也能辨識：whisper 會自己聽出影片說的是哪種語言。選好的語言決定下一步推薦哪個模型。"+
+	"選好的語言決定下一步推薦哪個模型；沒選的語言 whisper 也能辨識。"+
 	"這是這個網站頻道的連結。目前一次加入一個影片，請貼上其中一個影片的連結"+
 	"YouTube、嗶哩嗶哩，以及 yt-dlp 能下載的網站上的影片都可以。"+
 	"按 Enter 開始；沒有連結也可以先略過，之後把本機影片拖進視窗。"+
@@ -9421,13 +9462,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"Grok 的 OpenAI 相容介面"+
 	"智譜的 OpenAI 相容介面"+
 	"選擇服務"+
-	"任何相容 OpenAI Chat Completions 的服務都可以；測試連線會傳送一個很短的請求。"+
+	"任何相容 OpenAI Chat Completions 的服務都可以。"+
 	"連線成功"+
 	"everyapi 命令列工具"+
 	"在本機找不到。從 everyapi.ai 取得後，按「重新偵測」。"+
 	"尚未登入。在終端機執行 everyapi auth login 後，按「重新偵測」。"+
 	"取得 EveryAPI"+
+	"取得 API Key"+
 	"不填 API Key 時，使用本機 everyapi 命令列工具的登入。"+
+	"可不填"+
 	"API Key 只儲存在本機的設定檔中。"+
 	"正在取得模型清單…"+
 	"模型"+
@@ -9595,9 +9638,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"越南語"+
 	"中文"+
 	"whisper 模型"+
+	"更多模型"+
 	"Large v3 Turbo（壓縮版）"+
 	"還沒有模型資料夾"+
-	"支援智慧斷句。越大越準，也越慢、越佔空間；不確定就用推薦的。模型從 HuggingFace 下載，取消後不留下半截檔案；其他 App 已經下載好的模型（Vimpo、hyperframes）會直接選用，不用拷貝。"+
+	"模型越大越準，也越慢；不確定就用推薦的。"+
 	"推薦"+
 	"在 Finder 中顯示"+
 	"自動辨識"+
@@ -10008,6 +10052,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		6,
 		9,
+		36,
 		15,
 		27,
 		9,
@@ -10029,7 +10074,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		134,
+		90,
 		105,
 		81,
 		88,
@@ -10221,13 +10266,15 @@ var textsZhHant = i18n.NewTexts(""+
 		28,
 		29,
 		12,
-		103,
+		58,
 		12,
 		24,
 		73,
 		84,
 		15,
+		14,
 		70,
+		9,
 		44,
 		27,
 		6,
@@ -10395,9 +10442,10 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		6,
 		14,
+		12,
 		29,
 		24,
-		247,
+		60,
 		6,
 		20,
 		12,
@@ -17128,6 +17176,15 @@ func (msgs Messages) OnboardingAIModelUnchecked(model string) string {
 	}
 }
 
+// OnboardingAINeedsKey says "Enter the service's API Key to translate"
+// in the language the app shows under cx.
+//
+// Second step's line about translation when the chosen cloud service, such as OpenAI, has no API Key yet.
+func OnboardingAINeedsKey(cx *core.Scope) string { return For(cx).OnboardingAINeedsKey() }
+
+// OnboardingAINeedsKey is the package's OnboardingAINeedsKey in the language of msgs.
+func (msgs Messages) OnboardingAINeedsKey() string { return msgs.text(textOnboardingAINeedsKey) }
+
 // OnboardingAddAndStart says "Add and Start"
 // in the language the app shows under cx.
 //
@@ -17363,7 +17420,7 @@ func OnboardingLanguageZh(cx *core.Scope) string { return For(cx).OnboardingLang
 // OnboardingLanguageZh is the package's OnboardingLanguageZh in the language of msgs.
 func (msgs Messages) OnboardingLanguageZh() string { return msgs.text(textOnboardingLanguageZh) }
 
-// OnboardingLanguagesNote says "Languages you don't choose are recognized too: whisper works out which language a video speaks by itself. The languages you choose decide which model the next step recommends."
+// OnboardingLanguagesNote says "The languages you choose decide which model the next step recommends; whisper recognizes the others too."
 // in the language the app shows under cx.
 //
 // Note under the first step's language tiles.
@@ -21670,10 +21727,10 @@ func SettingsAIChooseService(cx *core.Scope) string { return For(cx).SettingsAIC
 // SettingsAIChooseService is the package's SettingsAIChooseService in the language of msgs.
 func (msgs Messages) SettingsAIChooseService() string { return msgs.text(textSettingsAIChooseService) }
 
-// SettingsAICompatible says "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
+// SettingsAICompatible says "Any service compatible with OpenAI Chat Completions works."
 // in the language the app shows under cx.
 //
-// Last sentence of the AI Service page's footnote.
+// Last sentence of the AI Service page's footnote for an OpenAI Compatible endpoint.
 func SettingsAICompatible(cx *core.Scope) string { return For(cx).SettingsAICompatible() }
 
 // SettingsAICompatible is the package's SettingsAICompatible in the language of msgs.
@@ -21792,10 +21849,19 @@ func SettingsAIGetEveryAPI(cx *core.Scope) string { return For(cx).SettingsAIGet
 // SettingsAIGetEveryAPI is the package's SettingsAIGetEveryAPI in the language of msgs.
 func (msgs Messages) SettingsAIGetEveryAPI() string { return msgs.text(textSettingsAIGetEveryAPI) }
 
+// SettingsAIGetKey says "Get API Key"
+// in the language the app shows under cx.
+//
+// Button after the API Key field, on the AI Service page and in the first-run guide, that opens the service's page where an API key is made, in the browser.
+func SettingsAIGetKey(cx *core.Scope) string { return For(cx).SettingsAIGetKey() }
+
+// SettingsAIGetKey is the package's SettingsAIGetKey in the language of msgs.
+func (msgs Messages) SettingsAIGetKey() string { return msgs.text(textSettingsAIGetKey) }
+
 // SettingsAIKeyEveryAPILogin says "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."
 // in the language the app shows under cx.
 //
-// First sentence of the footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program.
+// The AI Service page's footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program.
 func SettingsAIKeyEveryAPILogin(cx *core.Scope) string { return For(cx).SettingsAIKeyEveryAPILogin() }
 
 // SettingsAIKeyEveryAPILogin is the package's SettingsAIKeyEveryAPILogin in the language of msgs.
@@ -21803,10 +21869,19 @@ func (msgs Messages) SettingsAIKeyEveryAPILogin() string {
 	return msgs.text(textSettingsAIKeyEveryAPILogin)
 }
 
+// SettingsAIKeyOptional says "Optional"
+// in the language the app shows under cx.
+//
+// Placeholder of the empty API Key field when the service works without one: EveryAPI, which uses the everyapi sign-in, and services on this computer such as Ollama.
+func SettingsAIKeyOptional(cx *core.Scope) string { return For(cx).SettingsAIKeyOptional() }
+
+// SettingsAIKeyOptional is the package's SettingsAIKeyOptional in the language of msgs.
+func (msgs Messages) SettingsAIKeyOptional() string { return msgs.text(textSettingsAIKeyOptional) }
+
 // SettingsAIKeyStoredLocally says "The API Key is kept only in the settings file on this Mac."
 // in the language the app shows under cx.
 //
-// First sentence of the AI Service page's footnote.
+// The AI Service page's footnote for a cloud service, and its first sentence for an OpenAI Compatible endpoint.
 func SettingsAIKeyStoredLocally(cx *core.Scope) string { return For(cx).SettingsAIKeyStoredLocally() }
 
 // SettingsAIKeyStoredLocally is the package's SettingsAIKeyStoredLocally in the language of msgs.
@@ -21979,7 +22054,7 @@ func (msgs Messages) SettingsAINotConfigured() string { return msgs.text(textSet
 // SettingsAINote says "{key} {compatible}"
 // in the language the app shows under cx.
 //
-// The AI Service page's footnote: the sentence about the API Key, then the sentence about compatible services.
+// The AI Service page's footnote for an OpenAI Compatible endpoint: the sentence about the API Key, then the sentence about compatible services.
 func SettingsAINote(cx *core.Scope, key string, compatible string) string {
 	return For(cx).SettingsAINote(key, compatible)
 }
@@ -22008,34 +22083,34 @@ func (msgs Messages) SettingsAINote(key string, compatible string) string {
 	}
 }
 
-// SettingsAINoteWithBlurb says "{blurb}. {key} {compatible}"
+// SettingsAINoteWithBlurb says "{blurb}."
 // in the language the app shows under cx.
 //
-// The AI Service page's footnote for a service with a description: the description as a sentence, the sentence about the API Key, then the sentence about compatible services.
-func SettingsAINoteWithBlurb(cx *core.Scope, blurb string, key string, compatible string) string {
-	return For(cx).SettingsAINoteWithBlurb(blurb, key, compatible)
+// The AI Service page's footnote for a service on this computer, as Ollama: its description as a sentence.
+func SettingsAINoteWithBlurb(cx *core.Scope, blurb string) string {
+	return For(cx).SettingsAINoteWithBlurb(blurb)
 }
 
 // SettingsAINoteWithBlurb is the package's SettingsAINoteWithBlurb in the language of msgs.
-func (msgs Messages) SettingsAINoteWithBlurb(blurb string, key string, compatible string) string {
+func (msgs Messages) SettingsAINoteWithBlurb(blurb string) string {
 	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsAINoteWithBlurb(blurb, key, compatible))
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsAINoteWithBlurb(blurb))
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].SettingsAINoteWithBlurb; f != nil {
-			return f(blurb, key, compatible)
+			return f(blurb)
 		}
 		switch lang {
 		case "", "en":
-			return msgs.arg(blurb) + ". " + msgs.arg(key) + " " + msgs.arg(compatible)
+			return msgs.arg(blurb) + "."
 		case "ja":
-			return blurb + "。" + key + compatible
+			return blurb + "。"
 		case "ko":
-			return blurb + ". " + key + " " + compatible
+			return blurb + "."
 		case "zh-Hans":
-			return blurb + "。" + key + compatible
+			return blurb + "。"
 		case "zh-Hant":
-			return blurb + "。" + key + compatible
+			return blurb + "。"
 		}
 	}
 }
@@ -24365,6 +24440,17 @@ func SettingsSpeechModels(cx *core.Scope) string { return For(cx).SettingsSpeech
 // SettingsSpeechModels is the package's SettingsSpeechModels in the language of msgs.
 func (msgs Messages) SettingsSpeechModels() string { return msgs.text(textSettingsSpeechModels) }
 
+// SettingsSpeechMoreModels says "More Models"
+// in the language the app shows under cx.
+//
+// Disclosure under the whisper models card that shows the models not listed in it: those other than the recommended one, Small and Base that are not on this computer yet.
+func SettingsSpeechMoreModels(cx *core.Scope) string { return For(cx).SettingsSpeechMoreModels() }
+
+// SettingsSpeechMoreModels is the package's SettingsSpeechMoreModels in the language of msgs.
+func (msgs Messages) SettingsSpeechMoreModels() string {
+	return msgs.text(textSettingsSpeechMoreModels)
+}
+
 // SettingsSpeechNameLargeV3TurboQ5 says "Large v3 Turbo (Compressed)"
 // in the language the app shows under cx.
 //
@@ -24421,7 +24507,7 @@ func (msgs Messages) SettingsSpeechNotModelFile(file string) string {
 	}
 }
 
-// SettingsSpeechNote says "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying."
+// SettingsSpeechNote says "Larger models are more accurate but slower; if unsure, use the recommended one."
 // in the language the app shows under cx.
 //
 // Footnote under the whisper models.

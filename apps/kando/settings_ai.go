@@ -126,6 +126,13 @@ func (a *app) applyLLM() {
 	}
 }
 
+// openLLMKeyPage opens the page of the service in use where an API Key is made, as 获取 API Key on the AI 服务 page and in the first-run guide does, and says in the library's message bar when the system could not (menuOpenLink).
+func (a *app) openLLMKeyPage() {
+	if preset, ok := settings.PresetByID(a.messages(), a.prefs.llmProvider); ok && preset.KeyURL != "" {
+		a.menuOpenLink(preset.KeyURL)
+	}
+}
+
 // everyAPISite is EveryAPI's website, where the everyapi command-line program is downloaded. Kando does not download it.
 const everyAPISite = "https://everyapi.ai"
 

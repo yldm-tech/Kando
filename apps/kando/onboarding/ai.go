@@ -1,0 +1,129 @@
+package onboarding
+
+import (
+	"strings"
+
+	"kando/apps/kando/live"
+	"kando/apps/kando/locales"
+	"kando/apps/kando/settings/sectionid"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
+)
+
+// Service is a translation service the second step offers, as Settings › AI 服务 lists it: its id, its name as the drop-down shows it, whether the step asks for its API Key (Key), and whether it has a page where the key is made, which 获取 API Key opens (KeyPage).
+type Service struct {
+	ID, Name     string
+	Key, KeyPage bool
+}
+
+// aiCard is the second step's card of the translation service, so the guide ends with translation working: the service, chosen in place, with which model translates or what it still needs; its API Key where it takes one, with 获取 API Key; and 测试连接 with its result. EveryAPI without a key signs in with the everyapi command-line program instead, so while that program is missing the card offers 获取 EveryAPI and 重新检测 in place of the test. 设置… opens Settings › AI 服务 for the rest, as another model or a custom endpoint.
+type aiCard struct {
+	a  App
+	ai func() AI
+}
+
+// Render implements core.Node.
+func (c aiCard) Render(cx *core.Scope) core.Node {
+	a, ai := c.a, c.ai
+	current := live.Memo(cx, a, func() Service {
+		for _, s := range a.OnboardingServices(cx) {
+			if s.ID == a.LLMProvider() {
+				return s
+			}
+		}
+		return Service{ID: a.LLMProvider()}
+	})
+	missing := live.Memo(cx, a, a.OnboardingEveryAPIMissing)
+	head := core.View{Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(46)}), Children: []core.Node{
+		rowText(func() string { return locales.OnboardingTranslationService(cx) }, func() (string, core.Color) {
+			if ai().Missing {
+				return ai().Text, warnOrange
+			}
+			return ai().Text, muted
+		}),
+		core.Show{When: func() bool { return ai().Ready }, Then: func(*core.Scope) core.Node { return mark(readyMark) }},
+		serviceSelect(cx, a),
+	}}
+	key := core.Show{When: func() bool { return current().Key }, Then: func(cx *core.Scope) core.Node {
+		return core.Group{rule(), keyRow(cx, a, func() bool { return current().KeyPage })}
+	}}
+	// The test's result, once there is one; before that the head says what the service needs.
+	colors := ui.ColorsOf(cx)
+	result := core.Show{When: live.Func(a, func() bool { return a.TestingLLM() || a.LLMResult() != "" }), Then: func(cx *core.Scope) core.Node {
+		return core.Text{TestID: "onboarding-ai-result", ContentFunc: live.Func(a, func() string {
+			switch {
+			case a.TestingLLM():
+				return locales.SettingsAITesting(cx)
+			case a.LLMConnected():
+				return locales.SettingsAIConnected(cx)
+			}
+			return a.LLMResult()
+		}), Style: core.Style{FontSize: 11, LineHeight: 15, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: live.Func(a, func() core.Style {
+			switch {
+			case a.TestingLLM():
+				return core.Style{Color: progressBlue}
+			case a.LLMConnected():
+				return core.Style{Color: okGreen}
+			}
+			return core.Style{Color: colors.Danger()}
+		})}
+	}}
+	settings := smallButton(cx, "onboarding-ai", func() string { return locales.OnboardingSettings(cx) },
+		ui.Button{OnPress: live.Do(a, func() { a.OpenSettings(sectionid.AI) })})
+	actions := core.Show{When: missing, Then: func(cx *core.Scope) core.Node {
+		return core.Group{
+			smallButton(cx, "onboarding-everyapi-get", func() string { return locales.SettingsAIGetEveryAPI(cx) }, ui.Button{OnPress: live.Do(a, a.GetEveryAPI)}),
+			smallButton(cx, "onboarding-everyapi-redetect", func() string { return locales.SettingsAIRedetect(cx) }, ui.Button{OnPress: live.Do(a, a.Redetect)}),
+		}
+	}, Else: func(cx *core.Scope) core.Node {
+		return smallButton(cx, "onboarding-ai-test", func() string { return locales.SettingsAITest(cx) },
+			ui.Button{Disabled: live.Func(a, a.TestingLLM), OnPress: live.Do(a, func() {
+				if !a.TestingLLM() {
+					a.TestLLM()
+				}
+			})})
+	}}
+	foot := core.View{Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(40)}), Children: []core.Node{
+		core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{result}},
+		settings,
+		actions,
+	}}
+	return card(head, key, rule(), foot)
+}
+
+// serviceSelect is the drop-down of the services, as Settings › AI 服务 has it. ui.Select takes its name and options as it is built, so it is built again when the language shown changes the names, which happens while the settings, not this field, have the keyboard.
+func serviceSelect(cx *core.Scope, a App) core.Node {
+	face := live.Memo(cx, a, func() selectFace {
+		var names []string
+		for _, s := range a.OnboardingServices(cx) {
+			names = append(names, s.ID+"\x01"+s.Name)
+		}
+		return selectFace{label: locales.SettingsAIChooseService(cx), choices: strings.Join(names, "\x00")}
+	})
+	return core.Dynamic(func(*core.Scope) core.Node {
+		f := face()
+		var options []ui.Option[string]
+		for _, choice := range strings.Split(f.choices, "\x00") {
+			id, name, _ := strings.Cut(choice, "\x01")
+			options = append(options, ui.Option[string]{Value: id, Label: name})
+		}
+		return ui.Select[string]{TestID: "onboarding-ai-service", Label: f.label, Options: options, Style: core.Style{Width: core.Pt(150), FlexShrink: 0, AlignSelf: core.AlignCenter},
+			Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, a.SelectLLM)}
+	})
+}
+
+// keyRow is the service's API Key, typed into a masked field, with 获取 API Key after it when the service has a page where the key is made. The field is built once, so it keeps the keyboard and what was typed as the app's state changes.
+func keyRow(cx *core.Scope, a App, page func() bool) core.Node {
+	field := ui.Input{TestID: "onboarding-ai-key", Label: "API Key", Placeholder: "API Key", Masked: true,
+		Value: live.Func(a, func() string { return *a.LLMKey() }),
+		OnChange: live.On(a, func(text string) {
+			*a.LLMKey() = text
+			a.ApplyLLM()
+		}),
+		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}}
+	get := core.Show{When: page, Then: func(cx *core.Scope) core.Node {
+		return smallButton(cx, "onboarding-ai-get-key", func() string { return locales.SettingsAIGetKey(cx) }, ui.Button{OnPress: live.Do(a, a.OpenKeyPage)})
+	}}
+	return core.View{Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(42)}), Children: []core.Node{field, get}}
+}

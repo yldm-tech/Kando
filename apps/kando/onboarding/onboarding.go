@@ -1,4 +1,4 @@
-// Package onboarding draws the first-run guide: a sheet of three steps over the window that picks the languages, gets the programs Kando runs and a speech model onto this Mac and takes the first link. It draws and hands the clicks back; the settings it changes, the download and the library it opens are the app's.
+// Package onboarding draws the first-run guide: a sheet of three steps over the window that picks the languages, gets the programs Kando runs and a speech model onto this Mac, sets up the translation service and takes the first link. It draws and hands the clicks back; the settings it changes, the download and the library it opens are the app's.
 package onboarding
 
 import (
@@ -106,6 +106,23 @@ type App interface {
 	OnboardingDownloadsOnNext() bool
 	// OnboardingAI is the translation service's state.
 	OnboardingAI(cx *core.Scope) AI
+	// OnboardingServices are the translation services the second step offers, named in the language shown under cx; LLMProvider is the id of the one in use and SelectLLM uses another, as Settings › AI 服务 does.
+	OnboardingServices(cx *core.Scope) []Service
+	LLMProvider() string
+	SelectLLM(id string)
+	// LLMKey is the API Key typed, which ApplyLLM puts to use; OpenKeyPage opens the service's page where a key is made.
+	LLMKey() *string
+	ApplyLLM()
+	OpenKeyPage()
+	// OnboardingEveryAPIMissing reports whether EveryAPI is in use without an API Key and the everyapi command-line program it signs in with is not on this computer; GetEveryAPI opens EveryAPI's website, where the program is downloaded, and Redetect looks for it again.
+	OnboardingEveryAPIMissing() bool
+	GetEveryAPI()
+	Redetect()
+	// TestLLM sends the service a short request; TestingLLM reports one running, LLMConnected that the last one passed, and LLMResult is "" before any and otherwise its outcome, in the interface's language.
+	TestLLM()
+	TestingLLM() bool
+	LLMConnected() bool
+	LLMResult() string
 	// OpenSettings shows the settings at section, a settings/sectionid value.
 	OpenSettings(section string)
 	// OnboardingLink is the link typed into the third step, and OnboardingLinkError why the last one could not be added.

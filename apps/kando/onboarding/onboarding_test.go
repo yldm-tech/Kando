@@ -25,6 +25,12 @@ type fakeApp struct {
 	downloading bool
 	onNext      bool
 	ai          AI
+	provider    string
+	key         string
+	cliMissing  bool
+	testing     bool
+	connected   bool
+	result      string
 	link        string
 	linkErr     string
 	calls       []string
@@ -39,8 +45,25 @@ func newFakeApp() *fakeApp {
 		models:   []Model{{ID: "large-v3-turbo-q5", Name: "Large v3 Turbo", Size: "574 MB", Blurb: "best"}, {ID: "small", Name: "Small", Size: "466 MB", Blurb: "light"}},
 		onNext:   true,
 		ai:       AI{Text: "翻译模型：m", Ready: true},
+		provider: "everyapi",
 	}
 }
+
+func (f *fakeApp) OnboardingServices(*core.Scope) []Service {
+	return []Service{{ID: "everyapi", Name: "EveryAPI"}, {ID: "openai", Name: "OpenAI", Key: true, KeyPage: true}, {ID: "ollama", Name: "本机 · Ollama"}}
+}
+func (f *fakeApp) LLMProvider() string             { return f.provider }
+func (f *fakeApp) SelectLLM(id string)             { f.call("select " + id); f.provider = id }
+func (f *fakeApp) LLMKey() *string                 { return &f.key }
+func (f *fakeApp) ApplyLLM()                       { f.call("apply " + f.key) }
+func (f *fakeApp) OpenKeyPage()                    { f.call("key page " + f.provider) }
+func (f *fakeApp) OnboardingEveryAPIMissing() bool { return f.cliMissing }
+func (f *fakeApp) GetEveryAPI()                    { f.call("get everyapi") }
+func (f *fakeApp) Redetect()                       { f.call("redetect") }
+func (f *fakeApp) TestLLM()                        { f.call("test") }
+func (f *fakeApp) TestingLLM() bool                { return f.testing }
+func (f *fakeApp) LLMConnected() bool              { return f.connected }
+func (f *fakeApp) LLMResult() string               { return f.result }
 
 func (f *fakeApp) call(s string)                        { f.calls = append(f.calls, s) }
 func (f *fakeApp) OnboardingStep() int                  { return f.step }
@@ -227,6 +250,58 @@ func TestSecondStepRowsAndTheirButtons(t *testing.T) {
 	}
 	app.Press("id:onboarding-ai")
 	wantCalls(t, a, "settings ai")
+}
+
+// TestSecondStepSetsUpTranslation checks the translation card of the second step: EveryAPI without its everyapi program offers 获取 EveryAPI and 重新检测 rather than a test; another service is chosen in place, a cloud one takes its API Key there with 获取 API Key, and 测试连接 shows its result, while one on this computer asks for no key.
+func TestSecondStepSetsUpTranslation(t *testing.T) {
+	a := newFakeApp()
+	a.step = 2
+	a.cliMissing = true
+	a.ai = AI{Text: "install everyapi", Missing: true}
+	app := start(t, a, core.OSMacOS)
+	msgs := testlocale.Messages()
+	if app.Exists("id:onboarding-ai-test") || app.Exists("id:onboarding-ai-key") {
+		t.Fatalf("EveryAPI without its program: %q", app.Texts())
+	}
+	app.Press("id:onboarding-everyapi-get")
+	app.Press("id:onboarding-everyapi-redetect")
+	wantCalls(t, a, "get everyapi", "redetect")
+	app.Press("id:onboarding-ai-service")
+	app.Press(`text:"OpenAI"`)
+	wantCalls(t, a, "select openai")
+	change(app, a, func() { a.cliMissing, a.ai = false, AI{Text: msgs.OnboardingAINeedsKey(), Missing: true} })
+	if !app.Exists(`text:"`+msgs.OnboardingAINeedsKey()+`"`) || app.Exists("id:onboarding-everyapi-get") {
+		t.Fatalf("OpenAI without a key: %q", app.Texts())
+	}
+	app.Focus("id:onboarding-ai-key")
+	app.Type("id:onboarding-ai-key", "sk")
+	field := app.Find("id:onboarding-ai-key")
+	if a.key != "sk" || !field.Focused {
+		t.Fatalf("key %q, focused %v", a.key, field.Focused)
+	}
+	change(app, a, func() { a.ai = AI{Text: "翻译模型：gpt", Ready: true} })
+	if again := app.Find("id:onboarding-ai-key"); again.ID != field.ID || !again.Focused {
+		t.Fatal("the key field was built again as the app changed")
+	}
+	app.Press("id:onboarding-ai-get-key")
+	app.Press("id:onboarding-ai-test")
+	wantCalls(t, a, "apply s", "apply sk", "key page openai", "test")
+	change(app, a, func() { a.testing = true })
+	if !app.Exists(`text:"`+msgs.SettingsAITesting()+`"`) || !app.Find("id:onboarding-ai-test").Props.Disabled {
+		t.Fatalf("while testing: %q", app.Texts())
+	}
+	change(app, a, func() { a.testing, a.result = false, "服务不接受这个 API Key" })
+	if got := app.Find(`text:"服务不接受这个 API Key"`).TextStyle.Color; got == okGreen {
+		t.Errorf("a failed test reads in %v", got)
+	}
+	change(app, a, func() { a.connected, a.result = true, msgs.SettingsAIConnected() })
+	if got := app.Find("id:onboarding-ai-result").TextStyle.Color; got != okGreen || !app.Exists(`text:"`+msgs.SettingsAIConnected()+`"`) {
+		t.Fatalf("a passed test reads %q in %v", app.Texts(), got)
+	}
+	change(app, a, func() { a.provider = "ollama" })
+	if app.Exists("id:onboarding-ai-key") {
+		t.Fatal("a service on this computer asks for a key")
+	}
 }
 
 // On a first launch every program is missing, and the second step's body is taller than the sheet: it scrolls, and the buttons stay inside the sheet.

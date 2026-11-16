@@ -1447,6 +1447,9 @@ onboardingAIModelUnchecked:
   description: "Second step's line about translation before the EveryAPI sign-in was checked: the model, and that the sign-in on this computer is used and checked later."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
+onboardingAINeedsKey:
+  message: "Enter the service's API Key to translate"
+  description: "Second step's line about translation when the chosen cloud service, such as OpenAI, has no API Key yet."
 onboardingAddAndStart:
   message: "Add and Start"
   description: "Primary button of the last step with a link: adds it to the queue and closes the guide."
@@ -1517,7 +1520,7 @@ onboardingLanguageZh:
   message: "Mandarin"
   description: "Mandarin Chinese, the spoken language, under its own name (中文) on a language tile of the first step."
 onboardingLanguagesNote:
-  message: "Languages you don't choose are recognized too: whisper works out which language a video speaks by itself. The languages you choose decide which model the next step recommends."
+  message: "The languages you choose decide which model the next step recommends; whisper recognizes the others too."
   description: "Note under the first step's language tiles."
 onboardingLinkChannel:
   message: "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos"
@@ -2498,8 +2501,8 @@ settingsAIChooseService:
   message: "Choose service"
   description: "Accessible name of the pop-up choosing the AI service."
 settingsAICompatible:
-  message: "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request."
-  description: "Last sentence of the AI Service page's footnote."
+  message: "Any service compatible with OpenAI Chat Completions works."
+  description: "Last sentence of the AI Service page's footnote for an OpenAI Compatible endpoint."
 settingsAIConnected:
   message: "Connected"
   description: "Connection test status when the service answered."
@@ -2525,12 +2528,18 @@ settingsAIEveryAPISignedOut:
 settingsAIGetEveryAPI:
   message: "Get EveryAPI"
   description: "Button on the everyapi command line row that opens everyapi.ai in the browser, where the program is downloaded."
+settingsAIGetKey:
+  message: "Get API Key"
+  description: "Button after the API Key field, on the AI Service page and in the first-run guide, that opens the service's page where an API key is made, in the browser."
 settingsAIKeyEveryAPILogin:
   message: "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."
-  description: "First sentence of the footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program."
+  description: "The AI Service page's footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program."
+settingsAIKeyOptional:
+  message: "Optional"
+  description: "Placeholder of the empty API Key field when the service works without one: EveryAPI, which uses the everyapi sign-in, and services on this computer such as Ollama."
 settingsAIKeyStoredLocally:
   message: "The API Key is kept only in the settings file on this Mac."
-  description: "First sentence of the AI Service page's footnote."
+  description: "The AI Service page's footnote for a cloud service, and its first sentence for an OpenAI Compatible endpoint."
 settingsAILoadingModels:
   message: "Getting the model list…"
   description: "In the Model row while the service's models are being fetched."
@@ -2573,17 +2582,15 @@ settingsAINotConfigured:
   description: "Value of the Translation service row when nothing is set up."
 settingsAINote:
   message: "{key} {compatible}"
-  description: "The AI Service page's footnote: the sentence about the API Key, then the sentence about compatible services."
+  description: "The AI Service page's footnote for an OpenAI Compatible endpoint: the sentence about the API Key, then the sentence about compatible services."
   placeholders:
     key: { type: "String", example: "The API Key is kept only in the settings file on this Mac." }
-    compatible: { type: "String", example: "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request." }
+    compatible: { type: "String", example: "Any service compatible with OpenAI Chat Completions works." }
 settingsAINoteWithBlurb:
-  message: "{blurb}. {key} {compatible}"
-  description: "The AI Service page's footnote for a service with a description: the description as a sentence, the sentence about the API Key, then the sentence about compatible services."
+  message: "{blurb}."
+  description: "The AI Service page's footnote for a service on this computer, as Ollama: its description as a sentence."
   placeholders:
-    blurb: { type: "String", example: "OpenAI's official API" }
-    key: { type: "String", example: "The API Key is kept only in the settings file on this Mac." }
-    compatible: { type: "String", example: "Any service compatible with OpenAI Chat Completions works; Test Connection sends a very short request." }
+    blurb: { type: "String", example: "Ollama on this Mac" }
 settingsAIRedetect:
   message: "Detect Again"
   description: "Button on the everyapi command line row looking for the program again and asking it again whether someone is signed in."
@@ -3159,6 +3166,9 @@ settingsSpeechModelStats:
 settingsSpeechModels:
   message: "whisper Models"
   description: "Heading of the Speech Recognition page's card, and the name of its radio group. whisper is a program name, kept lowercase."
+settingsSpeechMoreModels:
+  message: "More Models"
+  description: "Disclosure under the whisper models card that shows the models not listed in it: those other than the recommended one, Small and Base that are not on this computer yet."
 settingsSpeechNameLargeV3TurboQ5:
   message: "Large v3 Turbo (Compressed)"
   description: "Name of the whisper model large-v3-turbo-q5, the quantized (smaller) Large v3 Turbo. Large v3 Turbo is the model's name; translate only the qualifier."
@@ -3171,7 +3181,7 @@ settingsSpeechNotModelFile:
   placeholders:
     file: { type: "String", example: "model.gguf" }
 settingsSpeechNote:
-  message: "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying."
+  message: "Larger models are more accurate but slower; if unsure, use the recommended one."
   description: "Footnote under the whisper models."
 settingsSpeechRecommended:
   message: "Recommended"

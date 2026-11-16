@@ -132,6 +132,9 @@ func (f *fakeApp) TrashSpeechModel(id string)            { f.call("trash " + id)
 func (f *fakeApp) SpeechLanguage() string                { return f.spoken }
 func (f *fakeApp) SetSpeechLanguage(code string)         { f.spoken = code }
 func (f *fakeApp) CurrentPreset() (Preset, bool) {
+	if preset, ok := PresetByID(testlocale.Messages(), f.provider); ok {
+		return preset, true
+	}
 	return Preset{ID: f.provider, Name: f.provider}, true
 }
 func (f *fakeApp) Presets() []Preset {
@@ -150,6 +153,7 @@ func (f *fakeApp) LLMConnected() bool              { return f.connected }
 func (f *fakeApp) LLMResult() string               { return f.result }
 func (f *fakeApp) LLMResultDetail() string         { return f.resultDetail }
 func (f *fakeApp) SelectLLM(id string)             { f.call("select " + id); f.provider = id }
+func (f *fakeApp) OpenKeyPage()                    { f.call("key page " + f.provider) }
 func (f *fakeApp) LLMModels() []string             { return f.llmModels }
 func (f *fakeApp) LoadingLLMModels() bool          { return f.loadingModels }
 func (f *fakeApp) LLMModelsErr() string            { return f.modelsErr }
@@ -385,6 +389,12 @@ func TestSpeechPage(t *testing.T) {
 	a.section = SectionSpeech
 	app := start(t, a)
 	msgs := testlocale.Messages()
+	// The recommended model, Small and Base are listed, with the others under 更多模型 until one of them is on disk.
+	if !app.Exists("id:settings-model-row-large-v3-turbo-q5") || !app.Exists("id:settings-model-row-small") || app.Exists("id:settings-model-row-tiny") || app.Exists("id:settings-model-row-medium") {
+		t.Fatalf("listed: %q", app.Texts())
+	}
+	app.Press(msgs.SettingsSpeechMoreModels())
+	app.Advance(time.Second)
 	if app.Enabled("id:settings-model-tiny") || !app.Enabled("id:settings-model-base") {
 		t.Fatal("a model not on disk can be chosen, or one on disk cannot")
 	}
@@ -429,6 +439,42 @@ func TestSpeechPage(t *testing.T) {
 	change(app, a, func() { a.downloadErr = "连接断了。" })
 	if !app.Exists(whole("连接断了。")) {
 		t.Fatalf("texts %q", app.Texts())
+	}
+	// Once on disk, a model of 更多模型 is listed with the others, and 更多模型 goes when none is left there.
+	change(app, a, func() {
+		for _, id := range []string{"tiny", "medium", "large-v3-turbo", "large-v3"} {
+			a.models[id] = "/models/" + id + ".bin"
+		}
+	})
+	if !app.Exists("id:settings-model-row-medium") || app.Exists(whole(msgs.SettingsSpeechMoreModels())) {
+		t.Fatalf("texts %q", app.Texts())
+	}
+}
+
+// TestAIPageSaysWhatTheServiceNeeds checks the footnote and the API Key field for each kind of service: EveryAPI without a key uses the everyapi sign-in and its field says the key is optional; a cloud service keeps its key on this Mac and offers 获取 API Key; a service on this computer says what it is; a custom endpoint says which ones work.
+func TestAIPageSaysWhatTheServiceNeeds(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionAI
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.SettingsAIKeyEveryAPILogin())) || !app.Exists(whole(msgs.SettingsAIKeyOptional())) || app.Exists("id:settings-llm-get-key") {
+		t.Fatalf("EveryAPI: %q", app.Texts())
+	}
+	change(app, a, func() { a.provider = "openai" })
+	if !app.Exists(whole(msgs.SettingsAIKeyStoredLocally())) || app.Exists(whole(msgs.SettingsAIKeyOptional())) {
+		t.Fatalf("OpenAI: %q", app.Texts())
+	}
+	app.Press("id:settings-llm-get-key")
+	if !slices.Contains(a.calls, "key page openai") {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() { a.provider = "ollama" })
+	if !app.Exists(whole(msgs.SettingsAINoteWithBlurb(msgs.SettingsAIBlurbOllama()))) || !app.Exists(whole(msgs.SettingsAIKeyOptional())) || app.Exists("id:settings-llm-get-key") {
+		t.Fatalf("Ollama: %q", app.Texts())
+	}
+	change(app, a, func() { a.provider = "custom" })
+	if !app.Exists(whole(msgs.SettingsAINote(msgs.SettingsAIKeyStoredLocally(), msgs.SettingsAICompatible()))) {
+		t.Fatalf("custom: %q", app.Texts())
 	}
 }
 

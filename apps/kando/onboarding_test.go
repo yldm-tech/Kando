@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/onboarding"
+	"kando/apps/kando/settings"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -424,7 +426,7 @@ func TestOnboardingSettingsPartIsItsOwn(t *testing.T) {
 	}
 }
 
-// TestOnboardingAIStatus checks what the second step says about translation: a model to choose, the everyapi program, its sign-in or a key when one is missing, nothing claimed before the sign-in was checked, and the model once it is ready.
+// TestOnboardingAIStatus checks what the second step says about translation: the API Key of a cloud service, a model to choose, the everyapi program, its sign-in or a key when one is missing, nothing claimed before the sign-in was checked, and the model once it is ready.
 func TestOnboardingAIStatus(t *testing.T) {
 	signIn := func(context.Context, bool) (media.Endpoint, error) { return media.Endpoint{}, nil }
 	msgs := testlocale.Messages()
@@ -435,7 +437,9 @@ func TestOnboardingAIStatus(t *testing.T) {
 		signInErr  error
 		want       onboarding.AI
 	}{
-		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}, false, nil, onboarding.AI{Text: msgs.PrecheckNoLLMModel(), Missing: true}},
+		{"no model", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", APIKey: "k"}, false, nil, onboarding.AI{Text: msgs.PrecheckNoLLMModel(), Missing: true}},
+		{"no key", media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt"}, false, nil, onboarding.AI{Text: msgs.OnboardingAINeedsKey(), Missing: true}},
+		{"no key on this computer", media.ChatTranslator{BaseURL: "http://127.0.0.1:11434/v1", Model: "llama"}, false, nil, onboarding.AI{Text: "翻译模型：llama", Ready: true}},
 		{"everyapi without key or program", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m"}, false, nil, onboarding.AI{Text: msgs.PrecheckEveryAPIMissing(), Missing: true}},
 		{"signed out", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPISignedOut, onboarding.AI{Text: msgs.PrecheckEveryAPISignedOut(), Missing: true}},
 		{"program gone since found", media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", Credential: signIn}, true, media.ErrEveryAPIMissing, onboarding.AI{Text: msgs.PrecheckEveryAPIMissing(), Missing: true}},
@@ -445,12 +449,66 @@ func TestOnboardingAIStatus(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			a, _, _ := newTestApp(t, media.Tools{Translator: tc.translator})
+			a.prefs.llmProvider = settings.ProviderID(tc.translator.BaseURL)
 			a.side.ready.signInDone, a.side.ready.signInErr = tc.checked, tc.signInErr
 			if got := a.OnboardingAI(a.cx); got != tc.want {
 				t.Fatalf("OnboardingAI = %+v, want %+v", got, tc.want)
 			}
 		})
 	}
+}
+
+// TestOnboardingSetsUpTranslation checks that the guide's second step makes translation work without the settings: EveryAPI without its everyapi program says so and offers to get it; a cloud service chosen there takes its key in place, after which its model list is fetched and a model chosen from it, all saved; and 测试连接 shows its result there.
+func TestOnboardingSetsUpTranslation(t *testing.T) {
+	llmEnv(t, "", "", "")
+	tools := toolsInstalled
+	tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
+	a, tt, updates, _ := newFirstRunApp(t, tools)
+	a.prefs.listModels = func(_ context.Context, tr media.ChatTranslator) ([]string, error) {
+		if tr.APIKey != "gsk-test" {
+			return nil, errors.New("translation API returned 401 Unauthorized")
+		}
+		return []string{"whisper-large-v3", "llama-3.3-70b-versatile"}, nil
+	}
+	tt.Press("继续")
+	msgs := testlocale.Messages()
+	wantText(t, tt, msgs.PrecheckEveryAPIMissing())
+	if !tt.Exists("id:onboarding-everyapi-get") || tt.Exists("id:onboarding-ai-key") {
+		t.Fatalf("EveryAPI without its program: %q", tt.Texts())
+	}
+
+	tt.Press("id:onboarding-ai-service")
+	tt.Press(`text:"Groq"`)
+	refresh(tt, a)
+	if a.prefs.llmProvider != "groq" || !tt.Exists("id:onboarding-ai-get-key") {
+		t.Fatalf("provider %q, texts %q", a.prefs.llmProvider, tt.Texts())
+	}
+	wantText(t, tt, msgs.OnboardingAINeedsKey())
+	tt.Focus("id:onboarding-ai-key")
+	tt.Type("id:onboarding-ai-key", "gsk-test")
+	waitUntil(t, tt, a, updates, func() bool { return a.prefs.llmModel != "" })
+	refresh(tt, a)
+	if got := translator(t, a); got.APIKey != "gsk-test" || got.Model != "llama-3.3-70b-versatile" {
+		t.Fatalf("translator %+v", got)
+	}
+	if saved := loadSavedSettings(a.settingsPath); saved.LLMAPIKey != "gsk-test" || saved.LLMModel != "llama-3.3-70b-versatile" {
+		t.Fatalf("saved key %q model %q", saved.LLMAPIKey, saved.LLMModel)
+	}
+	wantText(t, tt, "翻译模型：llama-3.3-70b-versatile")
+	tt.Press("id:onboarding-ai-get-key")
+	if want := []string{"https://console.groq.com/keys"}; !slices.Equal(tt.OpenedURLs, want) {
+		t.Fatalf("opened %q, want %q", tt.OpenedURLs, want)
+	}
+
+	server := chatServer(t, func() (int, string) { return http.StatusOK, "" }, nil)
+	apply(tt, a, func() {
+		a.prefs.llmProvider, a.prefs.llmBase = "custom", server.URL
+		a.applyLLM()
+	})
+	tt.Press("id:onboarding-ai-test")
+	waitUntil(t, tt, a, updates, func() bool { return !a.prefs.testingLLM })
+	refresh(tt, a)
+	wantText(t, tt, msgs.SettingsAIConnected())
 }
 
 // TestOnboardingReopensAfterQuitMidGuide checks that quitting while the guide is still open does not count as having seen it: the library the guide made under it is saved with onboarded false, and the next launch opens that library again with the guide back on its first step.

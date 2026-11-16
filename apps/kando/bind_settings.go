@@ -143,6 +143,8 @@ func (a *app) LLMResultDetail() string {
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }
 
+func (a *app) OpenKeyPage() { a.openLLMKeyPage() }
+
 func (a *app) LLMModels() []string { return a.prefs.llmModels }
 
 func (a *app) LoadingLLMModels() bool { return a.prefs.llmModelsLoading }

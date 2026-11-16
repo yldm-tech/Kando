@@ -106,6 +106,8 @@ type App interface {
 	LLMResult() string
 	LLMResultDetail() string
 	SelectLLM(id string)
+	// OpenKeyPage opens the page of the service in use where an API Key is made (Preset.KeyURL) in the browser.
+	OpenKeyPage()
 	// LLMModels are the models the AI service offers, fetched while its page shows; LoadingLLMModels reports a fetch in flight, LLMModelsErr why the last one failed, and RetryLLMModels fetches again.
 	LLMModels() []string
 	LoadingLLMModels() bool
