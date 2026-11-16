@@ -29,7 +29,7 @@ jobs:
           - { name: Linux, os: ubuntu-latest, ffmpeg: "1" }
           - { name: macOS, os: macos-latest, ffmpeg: "1" }
           # Windows runs all three modules, as Release publishes the Windows installers.
-          - { name: Windows, os: windows-latest }
+          - { name: Windows, os: windows-latest, ffmpeg: "1" }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -58,12 +58,92 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE: "1"
           HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: brew install ffmpeg
+      # Chocolatey puts ffmpeg's shim in its bin folder, which the runner's PATH already holds.
+      - name: Install ffmpeg
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      # -timeout stops a test that hangs with the stacks of every goroutine, well before the job's own limit would cancel it without them.
       - name: Test
         shell: bash
         env:
           KANDO_REQUIRE_FFMPEG: ${{ matrix.ffmpeg }}
           TEST_PKGS: ${{ matrix.pkgs || env.PKGS }}
-        run: go test $TEST_PKGS
+        run: go test -timeout 5m $TEST_PKGS
+      # The screenshot scenes, headless: each plays its steps and checks what it shows, with no pictures drawn, so a change that breaks a scene fails here (the Screenshots job draws them). They are skipped without KANDO_SCREENSHOTS, the folder they would write to.
+      - name: Screenshot scenes
+        if: runner.os == 'Linux'
+        shell: bash
+        run: KANDO_SCREENSHOTS="$RUNNER_TEMP/screenshots" go test -count=1 -timeout 5m -run TestScreenshot ./apps/kando/ ./apps/kando/films/
+
+  # The tests under the race detector. The app's root package takes about 15 minutes with it on a 10-core Mac, so it runs on pushes to main only; a pull request runs every other package with it, a few minutes.
+  race:
+    name: Race
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-${{ github.job }}-
+      - name: Test with the race detector
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          pkgs=$(go list $PKGS)
+          if [ "$EVENT" != push ]; then
+            pkgs=$(grep -vx kando/apps/kando <<< "$pkgs")
+          fi
+          # shellcheck disable=SC2086 # one package a word
+          go test -race -timeout 45m $pkgs
+
+  # The screenshot scenes drawn in real windows on macOS (README's Screenshots), kept as the run's artifact screenshots-macos, so a pull request that changes what a screen looks like can be compared with main's pictures. Each test runs in a process of its own, within nsgo test's limit per test.
+  screenshots:
+    name: Screenshots
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.work
+          cache: false
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/Library/Caches/go-build
+          key: go-${{ runner.os }}-${{ github.job }}-${{ hashFiles('go.work.sum', '**/go.sum') }}
+          restore-keys: go-${{ runner.os }}-${{ github.job }}-
+      # The app's scenes save their pictures in apps/kando/.nsgo/test/screenshots/macos, and the drop zone's, drawn by the films package's own test, in apps/kando/films' folder of the same name. Both run, and the pictures are kept, though one of them fails.
+      - name: Draw the scenes
+        run: go tool nsgo test -target macos -timeout 10m -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
+      - name: Draw the drop zone
+        if: ${{ !cancelled() }}
+        run: go tool nsgo test -target macos -run TestScreenshotDropZone -env KANDO_SCREENSHOTS=1 apps/kando/films
+      - name: Keep the pictures
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshots-macos
+          path: |
+            apps/kando/.nsgo/test/screenshots/macos/
+            apps/kando/films/.nsgo/test/screenshots/macos/
+          retention-days: 14
+          if-no-files-found: error
+          # The pictures are under .nsgo, a hidden folder, which upload-artifact leaves out unless told.
+          include-hidden-files: true
 
   lint:
     name: Lint
