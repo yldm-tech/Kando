@@ -5,11 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/locales/testlocale"
+
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// open opens film id at at and has the system's player report it loaded, held there.
@@ -99,14 +101,15 @@ func TestScreenshotsPlayer(t *testing.T) {
 		apply(tt, a, func() { a.page = pageYouTube })
 		open(a, tt, updates, "j1", protoCues[1].Start)
 	})
-	// A right click on the second line of the subtitle list opens its menu, 拷贝台词, 拷贝原文 and 拷贝译文; the menu is the system's, which the tester lists (tt.PopupMenu) rather than draws, so the picture shows the line under the pointer.
+	// A right click on the second line of the subtitle list opens its menu, 讲解这句 and 收藏这句, then 拷贝台词, 拷贝原文 and 拷贝译文; the menu is the system's, which the tester lists (tt.PopupMenu) rather than draws, so the picture shows the line under the pointer.
 	f.shoot(t, "player-line-menu", held(func(_ *app, tt *nsgotest.App) {
 		tt.RightClick(whole(protoCues[1].Translation))
 		var got []string
 		for _, it := range tt.PopupMenu {
 			got = append(got, it.Label)
 		}
-		if want := []string{"拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(got, want) {
+		msgs := testlocale.Messages()
+		if want := []string{msgs.FilmExplainLine(), msgs.SavedKeySaveLine(), "", msgs.FilmCopyLine(), msgs.FilmCopyOriginal(), msgs.FilmCopyTranslation()}; !slices.Equal(got, want) {
 			t.Fatalf("the line's menu is %q, want %q", got, want)
 		}
 	}))

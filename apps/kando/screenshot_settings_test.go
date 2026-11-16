@@ -89,7 +89,7 @@ func shootSettings(t *testing.T, f *screenshotFixture, section, name, shown, mod
 	shootSettingsAt(t, f, section, name, shown, models, turbo, false, setup...)
 }
 
-// shootSettingsScrolled is shootSettings with the page scrolled to its end.
+// shootSettingsScrolled is shootSettings with the page scrolled to its end, when it is longer than the window.
 func shootSettingsScrolled(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, setup ...func(*app)) {
 	t.Helper()
 	shootSettingsAt(t, f, section, name, shown, models, turbo, true, setup...)
@@ -124,7 +124,10 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			return a.settingsView(cx)
 		}, nsgotest.Size(880, 640), nsgotest.Environment(env))
 		if end {
-			tt.Scroll("id:settings-page", 4000)
+			// A page that fits in the window has no end to scroll to: the headless tester's approximate text engine fits the whole of 语音识别 in it, which a platform's fonts make longer.
+			if page := tt.Find("id:settings-page"); page.Content.Height > page.Frame.Size.Height {
+				tt.Scroll("id:settings-page", 4000)
+			}
 		}
 		refresh(tt, a)
 		if nsgotest.Target() == "" {
