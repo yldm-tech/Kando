@@ -904,9 +904,10 @@ func TestBrowsePageButtonAddsAsDownloadDoes(t *testing.T) {
 		t.Fatalf("a second click: jobs %d, page %q, queue open %v", len(a.library.Jobs), a.page, a.lib.queueOpen)
 	}
 
-	p.block = false
 	a.Cancel(id)
 	settle(t, a, tt, updates)
+	// The cancelled job's goroutine read block as its download began; settle has applied the update it sent as it returned, so this write comes after that read, and the retry's goroutine starts after it.
+	p.block = false
 	a.Retry(id)
 	settle(t, a, tt, updates)
 	a.Select(pageBrowse)
