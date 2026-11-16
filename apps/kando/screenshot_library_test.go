@@ -11,12 +11,13 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
+	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding and 浏览网站 beside the link field, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library, whose page offers 浏览网站 too. It also renders the grid with a film whose translation left a line untranslated, which offers to translate it. Besides those it renders the grid ordered by title, a query in the sidebar's search field and one that matches no film, the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, the 重命名… dialog and the poster it renamed, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
+// TestScreenshotsLibrary renders the library page from the prototype's library (screenshot_helpers_test.go) to PNG files in the directory named by KANDO_SCREENSHOTS, in the states the prototype's library screenshots show: the first screen with the message bar the prototype shows after its onboarding and 浏览网站 beside the link field, scrolled to 处理中 and to the grid as far as the prototype scrolls, ⋯ on the first poster, a YouTube link typed into the field, and a new empty library, whose page offers 浏览网站 too. It also renders the grid with a film whose translation left a line untranslated, which offers to translate it, and with two films made without a translation once an AI service is set up, which the message bar and the grid's heading offer to translate. Besides those it renders the grid ordered by title, a query in the sidebar's search field and one that matches no film, the whole page, the page before there is a library, the new-library sheet, the 从资料库移除 confirmation for a film alone in its folder and for one whose folder holds another folder, the 重命名… dialog and the poster it renamed, a video dropped over an open film, and a library copied without its job records whose videos show the subtitles exported beside them. The prototype's drag-over state is rendered by TestScreenshotDropZone in the films package, because the tester cannot hold files over the window without dropping them. It is skipped when the variable is unset.
 func TestScreenshotsLibrary(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// onboarding is the message bar the prototype shows once its onboarding is skipped.
@@ -67,6 +68,31 @@ func TestScreenshotsLibrary(t *testing.T) {
 		job.Untranslated = 1
 		a.library.Upsert(job)
 		refresh(tt, a)
+		scrollTo(a, tt, "8 部", 315)
+	})
+	// Linear Algebra, Lecture 1 and the film after it made before an AI service was set up, their subtitles the original lines alone: once a service is set up, the message bar at the top of the page offers to translate them (library-translate-offer), and so does the grid's heading, Translate 2 Films (library-translate-all).
+	untranslated := func(a *app, tt *nsgotest.App) {
+		t.Helper()
+		for _, id := range []string{"j3", "j4"} {
+			job := f.job(t, id)
+			job.TranslationErr, job.Untranslated = "no translator", 18
+			a.library.Upsert(job)
+		}
+		tools := a.pipeline.(media.Tools)
+		tools.Translator.Model = ""
+		a.pipeline = tools
+		a.libraryOfferTranslate()
+		tools.Translator.Model, tools.Translator.APIKey = media.EveryAPIModel, "sk-demo"
+		a.pipeline = tools
+		a.libraryOfferTranslate()
+		refresh(tt, a)
+		if !tt.Exists("id:notice-translate") || !tt.Exists("id:films-translate-all") {
+			t.Fatalf("no offer to translate the films: %q", tt.Texts())
+		}
+	}
+	f.shoot(t, "library-translate-offer", func(a *app, tt *nsgotest.App, _ chan func()) { untranslated(a, tt) })
+	f.shoot(t, "library-translate-all", func(a *app, tt *nsgotest.App, _ chan func()) {
+		untranslated(a, tt)
 		scrollTo(a, tt, "8 部", 315)
 	})
 	// The grid ordered by title, chosen from the sort button beside its heading (whose menu is the system's, which the tester lists rather than draws): Latin names first, then Chinese ones by pinyin.

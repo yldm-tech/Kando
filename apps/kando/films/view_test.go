@@ -47,6 +47,8 @@ type fakeApp struct {
 	renameName, renameOriginal       string
 	calls                            []string
 	retryable, failed                int
+	// untranslatable is whether no AI service is set up (CanTranslate).
+	untranslatable bool
 }
 
 func newFakeApp() *fakeApp {
@@ -128,6 +130,7 @@ func (f *fakeApp) Retranslating() (*bool, Film, string) { return new(bool), Film
 func (f *fakeApp) CloseRetranslate()                    { f.call("close-retranslate") }
 func (f *fakeApp) Retranslate()                         { f.call("retranslate") }
 func (f *fakeApp) TranslateMissing(item Film)           { f.call("translate-missing", item.Key) }
+func (f *fakeApp) CanTranslate() bool                   { return !f.untranslatable }
 func (f *fakeApp) Remove(id string)                     { f.call("remove", id) }
 func (f *fakeApp) Retry(id string)                      { f.call("retry", id) }
 func (f *fakeApp) Failures(string) (int, int)           { return f.retryable, f.failed }
@@ -138,6 +141,13 @@ func (f *fakeApp) RemoveFailed(string)                  { f.call("remove-failed"
 func (f *fakeApp) Withdraw(id string)                   { f.call("withdraw", id) }
 func (f *fakeApp) FailureHint(item Film) (string, string) {
 	return f.hints[item.JobID], ""
+}
+func (f *fakeApp) TranslateFilms(items []Film) {
+	keys := []string{"translate-films"}
+	for _, item := range NotTranslated(items) {
+		keys = append(keys, item.Key)
+	}
+	f.call(strings.Join(keys, " "))
 }
 func (f *fakeApp) TranslationHint(item Film) (string, string) {
 	if item.TranslationErr == "" {
@@ -708,6 +718,64 @@ func TestTranslateAgainNamesItsLanguage(t *testing.T) {
 	}
 	app.ChoosePopup(msgs.FilmsTranslateAgain(), msgs.SettingsLanguageJapanese())
 	wantCalls(t, a, "translate-again done 日本語")
+}
+
+// A film that was not translated at all has no language of its own: 重新翻译为 ▸ checks none, rather than the language it was meant to be translated into.
+func TestTranslateAgainChecksNoLanguageForAFilmWithoutATranslation(t *testing.T) {
+	a := newFakeApp()
+	a.items[0].TranslationErr = "no translator"
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	app.Press("id:film-more >> nth=0")
+	var checked []string
+	for _, it := range app.PopupMenu {
+		if it.Label == msgs.FilmsTranslateAgain() {
+			for _, sub := range it.Items {
+				if sub.Checked {
+					checked = append(checked, sub.Label)
+				}
+			}
+		}
+	}
+	if len(checked) != 0 {
+		t.Fatalf("the submenu checks %q", checked)
+	}
+}
+
+// Past one done film shown without a translation, the grid's heading offers to translate them all at once, while an AI service is set up to; a film whose job runs again is not counted.
+func TestTheGridOffersToTranslateTheFilmsWithoutATranslation(t *testing.T) {
+	a := newFakeApp()
+	a.items[0].TranslationErr = "no translator"
+	a.items[2].TranslationErr = "no translator"
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if app.Exists("id:films-translate-all") {
+		t.Fatal("one film without a translation offers to translate them all")
+	}
+	change(app, a, func() { a.items[1].TranslationErr = "no translator" })
+	if !app.Exists(whole(msgs.FilmsTranslateAll(2))) {
+		t.Fatalf("no Translate 2 Films: %q", app.Texts())
+	}
+	app.Press("id:films-translate-all")
+	wantCalls(t, a, "translate-films done algebra")
+	change(app, a, func() { a.untranslatable = true })
+	if app.Exists("id:films-translate-all") {
+		t.Fatal("Translate All shows without an AI service")
+	}
+}
+
+// The message bar's Translate translates every film of the library that was not translated at all, and closes the bar.
+func TestTheMessageBarTranslatesTheFilmsWithoutATranslation(t *testing.T) {
+	a := newFakeApp()
+	a.items[0].TranslationErr = "no translator"
+	a.items[1].TranslationErr = "no translator"
+	a.notice = Notice{Kind: "warning", Text: "2 films", Translate: true, Open: true}
+	app := start(t, a)
+	app.Press("id:notice-translate")
+	wantCalls(t, a, "translate-films done algebra")
+	if a.notice.Open {
+		t.Fatal("the bar stayed open")
+	}
 }
 
 func TestEmptyPagesSayWhatToDo(t *testing.T) {

@@ -511,6 +511,7 @@ var Parameters = map[string][]string{
 	"FilmsShowInFinder":                  {"platform"},
 	"FilmsSortButton":                    {"order"},
 	"FilmsSpokenEmpty":                   {"language"},
+	"FilmsTranslateAll":                  {"count"},
 	"FilmsUntranslated":                  {"count"},
 	"KitsDownloadFailedStatus":           {"status"},
 	"LibraryAddedSome":                   {"count", "error_"},
@@ -524,6 +525,7 @@ var Parameters = map[string][]string{
 	"LibraryShelfReadFailed":             {"error_"},
 	"LibraryShelfSaveFailed":             {"error_"},
 	"LibrarySkippedNotVideos":            {"added", "count"},
+	"LibraryTranslateOffer":              {"count"},
 	"LibraryTrashFailed":                 {"name"},
 	"LibraryTrashUnsupported":            {"name"},
 	"LibraryTrashed":                     {"name"},
@@ -582,9 +584,11 @@ var Parameters = map[string][]string{
 	"PrecheckToolsMissing":               {"tools"},
 	"QueueBorrowed":                      {"browser"},
 	"QueueDoneElsewhere":                 {"name", "library"},
+	"QueueDoneElsewhereUntranslated":     {"name", "library", "reason"},
 	"QueueFailedElsewhere":               {"name", "library"},
 	"QueueMakeSubtitlesFailed":           {"name", "reason"},
 	"QueueNotifyFailed":                  {"reason"},
+	"QueueNotifyUntranslated":            {"reason"},
 	"QueueOpenSettingsFailed":            {"error_"},
 	"QueueQuitWhileRunningMessage":       {"film"},
 	"QueueRedoFailed":                    {"name", "reason"},
@@ -776,6 +780,7 @@ type Translation struct {
 	FilmsShowInFinder                  func(platform string) string
 	FilmsSortButton                    func(order string) string
 	FilmsSpokenEmpty                   func(language string) string
+	FilmsTranslateAll                  func(count int) string
 	FilmsUntranslated                  func(count int) string
 	KitsDownloadFailedStatus           func(status int) string
 	LibraryAddedSome                   func(count int, error_ string) string
@@ -789,6 +794,7 @@ type Translation struct {
 	LibraryShelfReadFailed             func(error_ string) string
 	LibraryShelfSaveFailed             func(error_ string) string
 	LibrarySkippedNotVideos            func(added string, count int) string
+	LibraryTranslateOffer              func(count int) string
 	LibraryTrashFailed                 func(name string) string
 	LibraryTrashUnsupported            func(name string) string
 	LibraryTrashed                     func(name string) string
@@ -847,9 +853,11 @@ type Translation struct {
 	PrecheckToolsMissing               func(tools string) string
 	QueueBorrowed                      func(browser string) string
 	QueueDoneElsewhere                 func(name string, library string) string
+	QueueDoneElsewhereUntranslated     func(name string, library string, reason string) string
 	QueueFailedElsewhere               func(name string, library string) string
 	QueueMakeSubtitlesFailed           func(name string, reason string) string
 	QueueNotifyFailed                  func(reason string) string
+	QueueNotifyUntranslated            func(reason string) string
 	QueueOpenSettingsFailed            func(error_ string) string
 	QueueQuitWhileRunningMessage       func(film string) string
 	QueueRedoFailed                    func(name string, reason string) string
@@ -11852,6 +11860,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmsSpokenEmpty != nil {
 		s.FilmsSpokenEmpty = t.FilmsSpokenEmpty
 	}
+	if t.FilmsTranslateAll != nil {
+		s.FilmsTranslateAll = t.FilmsTranslateAll
+	}
 	if t.FilmsUntranslated != nil {
 		s.FilmsUntranslated = t.FilmsUntranslated
 	}
@@ -11890,6 +11901,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LibrarySkippedNotVideos != nil {
 		s.LibrarySkippedNotVideos = t.LibrarySkippedNotVideos
+	}
+	if t.LibraryTranslateOffer != nil {
+		s.LibraryTranslateOffer = t.LibraryTranslateOffer
 	}
 	if t.LibraryTrashFailed != nil {
 		s.LibraryTrashFailed = t.LibraryTrashFailed
@@ -12065,6 +12079,9 @@ func Supply(lang string, t Translation) {
 	if t.QueueDoneElsewhere != nil {
 		s.QueueDoneElsewhere = t.QueueDoneElsewhere
 	}
+	if t.QueueDoneElsewhereUntranslated != nil {
+		s.QueueDoneElsewhereUntranslated = t.QueueDoneElsewhereUntranslated
+	}
 	if t.QueueFailedElsewhere != nil {
 		s.QueueFailedElsewhere = t.QueueFailedElsewhere
 	}
@@ -12073,6 +12090,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.QueueNotifyFailed != nil {
 		s.QueueNotifyFailed = t.QueueNotifyFailed
+	}
+	if t.QueueNotifyUntranslated != nil {
+		s.QueueNotifyUntranslated = t.QueueNotifyUntranslated
 	}
 	if t.QueueOpenSettingsFailed != nil {
 		s.QueueOpenSettingsFailed = t.QueueOpenSettingsFailed
@@ -18160,6 +18180,46 @@ func FilmsTranslateAgain(cx *core.Scope) string { return For(cx).FilmsTranslateA
 // FilmsTranslateAgain is the package's FilmsTranslateAgain in the language of msgs.
 func (msgs Messages) FilmsTranslateAgain() string { return msgs.text(textFilmsTranslateAgain) }
 
+// FilmsTranslateAll says "Translate {count, plural, one {# Film} other {# Films}}"
+// in the language the app shows under cx.
+//
+// Button beside the heading of the finished films when two or more of those shown have no translation, their subtitles being the original lines only, and an AI service is set up: translates every line of each of them into the target language set in the settings.
+func FilmsTranslateAll(cx *core.Scope, count int) string { return For(cx).FilmsTranslateAll(count) }
+
+// FilmsTranslateAll is the package's FilmsTranslateAll in the language of msgs.
+func (msgs Messages) FilmsTranslateAll(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsTranslateAll(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsTranslateAll; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Translate ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Films")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本を翻訳"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "편 번역"
+		case "zh-Hans":
+			return "翻译 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片"
+		case "zh-Hant":
+			return "翻譯 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片"
+		}
+	}
+}
+
 // FilmsTranslateMissing says "Translate Missing Lines"
 // in the language the app shows under cx.
 //
@@ -18826,6 +18886,48 @@ func (msgs Messages) LibrarySkippedNotVideos(added string, count int) string {
 			return added + "已跳过 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个不是视频的文件。"
 		case "zh-Hant":
 			return added + "已略過 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個不是影片的檔案。"
+		}
+	}
+}
+
+// LibraryTranslateOffer says "{count, plural, one {# film has} other {# films have}} subtitles in the original language only."
+// in the language the app shows under cx.
+//
+// Message bar once an AI service is set up while finished films of the open library have no translation, their subtitles being the original lines only. Comes with a Translate button that translates all of them.
+func LibraryTranslateOffer(cx *core.Scope, count int) string {
+	return For(cx).LibraryTranslateOffer(count)
+}
+
+// LibraryTranslateOffer is the package's LibraryTranslateOffer in the language of msgs.
+func (msgs Messages) LibraryTranslateOffer(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryTranslateOffer(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LibraryTranslateOffer; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film has")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films have")
+			}
+			b.WriteString(" subtitles in the original language only.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本の字幕が原文のみです。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "편의 자막이 원문만 있습니다."
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片的字幕只有原文。"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片的字幕只有原文。"
 		}
 	}
 }
@@ -22535,6 +22637,38 @@ func (msgs Messages) QueueDoneElsewhere(name string, library string) string {
 	}
 }
 
+// QueueDoneElsewhereUntranslated says "“{name}” is saved to “{library}” with subtitles in the original language only. {reason}"
+// in the language the app shows under cx.
+//
+// Message bar when a job that saves into another library than the open one has finished without translating its subtitles, as when no AI service was set up or it refused the key; its card leaves Processing then. reason says why, a full sentence of its own.
+func QueueDoneElsewhereUntranslated(cx *core.Scope, name string, library string, reason string) string {
+	return For(cx).QueueDoneElsewhereUntranslated(name, library, reason)
+}
+
+// QueueDoneElsewhereUntranslated is the package's QueueDoneElsewhereUntranslated in the language of msgs.
+func (msgs Messages) QueueDoneElsewhereUntranslated(name string, library string, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueDoneElsewhereUntranslated(name, library, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueDoneElsewhereUntranslated; f != nil {
+			return f(name, library, reason)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” is saved to “" + msgs.arg(library) + "” with subtitles in the original language only. " + msgs.arg(reason)
+		case "ja":
+			return "「" + name + "」を「" + library + "」に保存しましたが、字幕は原文のみです。" + reason
+		case "ko":
+			return "‘" + name + "’을(를) ‘" + library + "’에 저장했지만 자막은 원문만 있습니다. " + reason
+		case "zh-Hans":
+			return "「" + name + "」已存入「" + library + "」，字幕只有原文。" + reason
+		case "zh-Hant":
+			return "「" + name + "」已存入「" + library + "」，字幕只有原文。" + reason
+		}
+	}
+}
+
 // QueueFailedElsewhere says "Couldn't process “{name}” for “{library}”. Open that library to see why"
 // in the language the app shows under cx.
 //
@@ -22690,6 +22824,38 @@ func (msgs Messages) QueueNotifyFailed(reason string) string {
 			return "字幕没能做好。" + reason
 		case "zh-Hant":
 			return "字幕沒能做好。" + reason
+		}
+	}
+}
+
+// QueueNotifyUntranslated says "Subtitles are ready in the original language only. {reason}"
+// in the language the app shows under cx.
+//
+// Body of the notification posted while Kando is in the background, when a video's job is done but its subtitles could not be translated, as when no AI service is set up or it refused the key. The notification's title is the video's title; the reason says why, a full sentence of its own.
+func QueueNotifyUntranslated(cx *core.Scope, reason string) string {
+	return For(cx).QueueNotifyUntranslated(reason)
+}
+
+// QueueNotifyUntranslated is the package's QueueNotifyUntranslated in the language of msgs.
+func (msgs Messages) QueueNotifyUntranslated(reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueNotifyUntranslated(reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueNotifyUntranslated; f != nil {
+			return f(reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Subtitles are ready in the original language only. " + msgs.arg(reason)
+		case "ja":
+			return "字幕ができましたが、原文のみです。" + reason
+		case "ko":
+			return "자막이 준비되었지만 원문만 있습니다. " + reason
+		case "zh-Hans":
+			return "字幕做好了，但只有原文。" + reason
+		case "zh-Hant":
+			return "字幕做好了，但只有原文。" + reason
 		}
 	}
 }

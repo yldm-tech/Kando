@@ -1371,6 +1371,11 @@ filmsTranslate:
 filmsTranslateAgain:
   message: "Translate Again Into"
   description: "Submenu of a finished film's menu listing the target languages, the one set in the settings first and the film's own checked: translates its subtitles again into the language chosen, without downloading or transcribing it again."
+filmsTranslateAll:
+  message: "Translate {count, plural, one {# Film} other {# Films}}"
+  description: "Button beside the heading of the finished films when two or more of those shown have no translation, their subtitles being the original lines only, and an AI service is set up: translates every line of each of them into the target language set in the settings."
+  placeholders:
+    count: { type: "int", example: "3" }
 filmsTranslateMissing:
   message: "Translate Missing Lines"
   description: "Button under a finished film whose translation failed for some lines, and the same item in its menu: translates only those lines."
@@ -1507,6 +1512,11 @@ librarySkippedNotVideos:
   placeholders:
     added: { type: "String", example: "Added 3 videos. Processing started." }
     count: { type: "int", example: "2" }
+libraryTranslateOffer:
+  message: "{count, plural, one {# film has} other {# films have}} subtitles in the original language only."
+  description: "Message bar once an AI service is set up while finished films of the open library have no translation, their subtitles being the original lines only. Comes with a Translate button that translates all of them."
+  placeholders:
+    count: { type: "int", example: "3" }
 libraryTrashFailed:
   message: "Couldn't move “{name}” to the Trash. Its files are where they were."
   description: "Message bar when a film could not be moved to the Trash: its volume has no Trash, a file was gone, or the system refused; nothing was deleted. The system's reason is in Kando's log, not in the sentence."
@@ -2382,6 +2392,13 @@ queueDoneElsewhere:
   placeholders:
     name: { type: "String", example: "Learn Rust" }
     library: { type: "String", example: "Listening" }
+queueDoneElsewhereUntranslated:
+  message: "“{name}” is saved to “{library}” with subtitles in the original language only. {reason}"
+  description: "Message bar when a job that saves into another library than the open one has finished without translating its subtitles, as when no AI service was set up or it refused the key; its card leaves Processing then. reason says why, a full sentence of its own."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    library: { type: "String", example: "Listening" }
+    reason: { type: "String", example: "No AI model is chosen." }
 queueFailedElsewhere:
   message: "Couldn't process “{name}” for “{library}”. Open that library to see why"
   description: "Message bar when a job that saves into another library than the open one has failed; its failed card shows only in its own library."
@@ -2420,6 +2437,11 @@ queueNotifyFailed:
   description: "Body of the notification posted while Kando is in the background, when a video's job failed. The notification's title is the video's title; the reason is what the failed card says, a full sentence of its own."
   placeholders:
     reason: { type: "String", example: "The video is private or was deleted" }
+queueNotifyUntranslated:
+  message: "Subtitles are ready in the original language only. {reason}"
+  description: "Body of the notification posted while Kando is in the background, when a video's job is done but its subtitles could not be translated, as when no AI service is set up or it refused the key. The notification's title is the video's title; the reason says why, a full sentence of its own."
+  placeholders:
+    reason: { type: "String", example: "No AI model is chosen." }
 queueOpenSettingsFailed:
   message: "Couldn't open System Settings: {error}"
   description: "Message bar when System Settings could not be opened."

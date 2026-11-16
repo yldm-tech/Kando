@@ -192,10 +192,15 @@ func (s *screen) moreButton(cx *ns.Scope) ns.Node {
 	label := func() string { return locales.FilmMoreActions(cx) }
 	btn := glyphButton(cx, svg(iconMore), label, nil, 34, 28, 14, 4, "film-more", func() {
 		item := s.item()
+		// A film that was not translated at all is in no language yet, whatever its job was asked to translate it into.
+		current := item.Language
+		if item.TranslationErr != "" {
+			current = ""
+		}
 		items := []nsdesktop.MenuItem{
 			{Label: locales.FilmFeedbackSubtitles(cx), OnSelect: live.Do(a, a.FeedbackSubtitles)},
 			{Label: locales.FilmReprocess(cx), OnSelect: live.Do(a, a.ReprocessFilm)},
-			{Label: locales.FilmTranslateAgain(cx), Items: subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), item.Language, func(language string) { live.Do(a, func() { a.TranslateFilmAgain(language) })() })},
+			{Label: locales.FilmTranslateAgain(cx), Items: subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), current, func(language string) { live.Do(a, func() { a.TranslateFilmAgain(language) })() })},
 		}
 		switch {
 		case item.TranslationErr != "":

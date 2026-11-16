@@ -68,6 +68,8 @@ type libraryUI struct {
 	openedPosted bool
 	// sort is the order the done grid shows its films in, one of films.Sorts, kept in settings.json (savedLibrary).
 	sort string
+	// translateOffered is set once the message bar has offered to translate the films that have no translation, or there was nothing to offer, since an AI service was last set up; it is cleared while none is, so setting one up offers it again (libraryOfferTranslate). libraryHooks' ready sets it when the app starts with a service set up, so a launch offers nothing.
+	translateOffered bool
 }
 
 // quote is the first bilingual line of a subtitle file: the translation over the original, as the exported file writes them.
@@ -95,6 +97,7 @@ func (a *app) libraryHooks() areaHooks {
 			a.lib.holdOpened = true
 		},
 		ready: func() {
+			a.lib.translateOffered = !a.untranslatable()
 			a.lib.holdExtras = false
 			a.loadExtras()
 			a.lib.holdOpened = false
@@ -105,6 +108,23 @@ func (a *app) libraryHooks() areaHooks {
 		libraryChanged: a.libraryDropNotice,
 		// The hero shows the film played last, so a film that played may be the hero now.
 		positionsChanged: a.libraryHeroQuote,
+		llmChanged:       a.libraryOfferTranslate,
+		toolsChanged:     func(bool) { a.libraryOfferTranslate() },
+	}
+}
+
+// libraryOfferTranslate says in the message bar, once an AI service is set up, how many films of the open library have no translation, their subtitles the original lines alone (films.NotTranslated), and offers to translate them all (films.Notice.Translate), once each time a service is set up: a service set up again, another model chosen or the tools found again, offers nothing more.
+func (a *app) libraryOfferTranslate() {
+	if a.untranslatable() {
+		a.lib.translateOffered = false
+		return
+	}
+	if a.lib.translateOffered {
+		return
+	}
+	a.lib.translateOffered = true
+	if n := len(films.NotTranslated(a.films())); n > 0 {
+		a.libraryShow(films.Notice{Kind: "warning", Text: a.messages().LibraryTranslateOffer(n), Translate: true, Open: true})
 	}
 }
 
@@ -116,7 +136,7 @@ func (a *app) libraryAfterChange() bool {
 	return open || modals || notice
 }
 
-// libraryFollowNotice closes the message bar, or brings it up to date, once what it says is no longer so: a warning of precheckReady follows it (precheckFollow), and a warning about a job closes once the job is gone or has left the stage it spoke of. It reports whether it changed the bar.
+// libraryFollowNotice closes the message bar, or brings it up to date, once what it says is no longer so: a warning of precheckReady follows it (precheckFollow), a warning about a job closes once the job is gone or has left the stage it spoke of, and the offer to translate the films without a translation follows how many are left (libraryOfferTranslate). It reports whether it changed the bar.
 func (a *app) libraryFollowNotice() bool {
 	n := &a.lib.notice
 	switch {
@@ -129,6 +149,19 @@ func (a *app) libraryFollowNotice() bool {
 			return false
 		}
 		n.Open = false
+		return true
+	case n.Translate:
+		// The offer to translate the films without a translation counts them as they are translated, and closes once none is left or no service is set up to translate them.
+		count := len(films.NotTranslated(a.films()))
+		text := a.messages().LibraryTranslateOffer(count)
+		switch {
+		case count == 0 || a.untranslatable():
+			n.Open = false
+		case n.Text != text:
+			n.Text = text
+		default:
+			return false
+		}
 		return true
 	}
 	return false

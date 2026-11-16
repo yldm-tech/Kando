@@ -72,6 +72,9 @@ type App interface {
 	TranslateAgain(item Film, language string)
 	TranslateMissing(item Film)
 	TargetLanguage() string
+	// TranslateFilms translates every line of each film of items that was not translated at all (NotTranslated), into the target language the settings name, as its own 翻译 does (TranslateMissing), behind the jobs waiting. CanTranslate reports whether an AI service is set up to do it; without one, Translate N Films does not show.
+	TranslateFilms(items []Film)
+	CanTranslate() bool
 	// Retranslating is whether the confirmation of translating a film into another language is open, the film and the language; CloseRetranslate closes it without translating anything, and Retranslate translates the film into it and closes it.
 	Retranslating() (open *bool, item Film, language string)
 	CloseRetranslate()
@@ -155,7 +158,9 @@ type Notice struct {
 	Film string
 	// List is the whole playlist the bar's Add Whole Playlist adds (App.AddList), as after one of its videos was added; empty shows no button.
 	List string
-	Open bool
+	// Translate shows the bar's Translate, which translates every film of the library that was not translated at all (NotTranslated, App.TranslateFilms), as the bar offers once an AI service is set up.
+	Translate bool
+	Open      bool
 }
 
 // The library's content, as the prototype lays it out: inset PagePadX from the content column's sides, starting contentTop down, under the top bar that it scrolls beneath, with pagePadBottom under its last part.

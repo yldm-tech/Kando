@@ -355,6 +355,17 @@ func InQueue(item Film) bool {
 	return item.JobID != "" && item.Stage != core.StageComplete
 }
 
+// NotTranslated is the films of items that are done but were not translated at all, their subtitles being the original lines alone (Film.TranslationErr), in the order of items: those Translate N Films and the message bar's Translate translate (App.TranslateFilms). A film whose job is waiting or running again is not one of them.
+func NotTranslated(items []Film) []Film {
+	var out []Film
+	for _, item := range items {
+		if item.JobID != "" && item.Stage == core.StageComplete && item.TranslationErr != "" {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
 // Running reports whether the film's job is at work on a stage.
 func Running(item Film) bool {
 	return item.JobID != "" && item.Stage != core.StageQueued && !item.Stage.Done()

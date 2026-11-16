@@ -3269,3 +3269,64 @@ func TestRetryingAFailedReprocessDoesNotTranscribeAgain(t *testing.T) {
 		t.Fatalf("job %+v, %d transcriptions", job, p.transcriptions)
 	}
 }
+
+// A film that was not translated at all is in no language yet: 重新翻译为 ▸ on the film page checks none, and translating it into another language than the one its job was asked for replaces no translation, so it does not ask first.
+func TestTranslateAgainOfAFilmWithoutATranslationAsksNothing(t *testing.T) {
+	p := &retranslatePipeline{hold: true}
+	a, tt, _ := retranslateLibrary(t, p)
+	job := stageOf(t, a, "talk")
+	job.TranslationErr, job.Untranslated = "no translator", 3
+	a.library.Upsert(job)
+	film, _ := a.JobFilm("talk")
+	a.Open(film)
+	refresh(tt, a)
+	m := testlocale.Messages()
+	tt.Press("id:film-more")
+	for _, it := range tt.PopupMenu {
+		for _, sub := range it.Items {
+			if it.Label == m.FilmTranslateAgain() && sub.Checked {
+				t.Fatalf("the film page's submenu checks %q", sub.Label)
+			}
+		}
+	}
+	tt.ChoosePopup(m.FilmTranslateAgain(), m.SettingsLanguageJapanese())
+	if a.lib.retranslateOpen || !a.running() {
+		t.Fatalf("asked %v, running %v", a.lib.retranslateOpen, a.running())
+	}
+	if job := stageOf(t, a, "talk"); job.Redo != core.RedoTranslation || job.RedoLanguage != "日本語" {
+		t.Fatalf("queued %+v", job)
+	}
+}
+
+// A job that made its film without translating it, as when the AI service refused the key, does not notify that the bilingual subtitles are ready: the notification says the subtitles are in the original language only, and why.
+func TestAFilmWithoutATranslationNotifiesWhy(t *testing.T) {
+	a, tt, updates := newTestApp(t, &refusedTranslation{})
+	f := useFakeDesktop(a)
+	if err := a.Enqueue("https://example.com/v"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	job := a.library.Jobs[0]
+	m := testlocale.Messages()
+	want := []fakeNote{{job.ID, jobName(job), m.QueueNotifyUntranslated(m.PrecheckTranslateAuth())}}
+	if job.TranslationErr == "" || !slices.Equal(f.notes, want) {
+		t.Fatalf("job %+v, notifications %+v, want %+v", job, f.notes, want)
+	}
+}
+
+// A job of another library than the open one that made its film without translating it says so in the message bar, and why, rather than that it is done.
+func TestAFilmWithoutATranslationInAnotherLibrarySaysSo(t *testing.T) {
+	a, tt, updates := newTestApp(t, &refusedTranslation{})
+	if err := a.Enqueue("https://example.com/v"); err != nil {
+		t.Fatal(err)
+	}
+	library := a.snap().LibraryDir
+	a.edit(func(s *session) { s.LibraryDir = filepath.Join(t.TempDir(), "other.kando") })
+	settle(t, a, tt, updates)
+	job := a.library.Jobs[0]
+	m := testlocale.Messages()
+	want := m.QueueDoneElsewhereUntranslated(jobName(job), films.LibraryName(library), m.PrecheckTranslateAuth())
+	if job.TranslationErr == "" || a.lib.notice.Text != want || a.lib.notice.Kind != "warning" || a.lib.notice.Section != settings.SectionAI {
+		t.Fatalf("job %+v, notice %+v, want %q", job, a.lib.notice, want)
+	}
+}

@@ -128,8 +128,13 @@ func (a *app) queueNotifyEnded(was core.Stage, job core.Job) {
 	}
 	m := a.messages()
 	body := m.QueueNotifyDone()
-	if job.Stage == core.StageFailed {
+	switch {
+	case job.Stage == core.StageFailed:
 		body = m.QueueNotifyFailed(a.queueFailReason(job))
+	// A film made without a translation has no bilingual subtitles to speak of.
+	case job.TranslationErr != "":
+		reason, _ := translationHint(m, job.TranslationErr)
+		body = m.QueueNotifyUntranslated(reason)
 	}
 	d.notify(job.ID, jobName(job), body)
 }

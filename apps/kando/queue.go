@@ -496,7 +496,7 @@ func (a *app) retry(job core.Job) {
 	a.queueAgain(a.queueRetryable(job))
 }
 
-// queueRetranslate queues done film job to be translated again from the subtitles it exported, without downloading or transcribing it (core.Job.Redo): with core.RedoTranslation every line, into into, or the target language the settings name now when into is "" (core.Job.RedoLanguage); with core.RedoMissing only the lines it left untranslated, into the language its other lines are in. The job keeps saying what the film's subtitles are until it has rewritten them, so one that fails or is stopped puts the film back as it was (queueRedoEnded). A job that is not done is left alone. It returns why it could not queue the job, which is when no target language is given or set.
+// queueRetranslate queues done film job to be translated again from the subtitles it exported, without downloading or transcribing it (core.Job.Redo): with core.RedoTranslation every line, into into, or the target language the settings name now when into is "" (core.Job.RedoLanguage); with core.RedoMissing only the lines it left untranslated, into the language its other lines are in, or for a film that translated none of them (core.Job.TranslationErr) the one the settings name now. The job keeps saying what the film's subtitles are until it has rewritten them, so one that fails or is stopped puts the film back as it was (queueRedoEnded). A job that is not done is left alone. It returns why it could not queue the job, which is when no target language is given or set.
 func (a *app) queueRetranslate(job core.Job, redo core.Redo, into string) error {
 	if job.Stage != core.StageComplete || job.ID == a.queue.active {
 		return nil
@@ -516,7 +516,8 @@ func (a *app) queueRetranslatable(job core.Job, redo core.Redo, into string) (co
 	switch {
 	case redo == core.RedoTranslation && strings.TrimSpace(into) != "":
 		language = strings.TrimSpace(into)
-	case redo == core.RedoTranslation || language == "":
+	// A film that was not translated at all has no other lines to match: it is translated into the language the settings name now, as processing it again would be (queueReprocessLanguage), or else the one its job was asked for.
+	case redo == core.RedoTranslation || language == "" || (job.TranslationErr != "" && strings.TrimSpace(a.prefs.language) != ""):
 		language = strings.TrimSpace(a.prefs.language)
 	}
 	if language == "" {
@@ -878,7 +879,7 @@ func (a *app) queueLetSleep() {
 	}
 }
 
-// queueEndedElsewhere tells, in the library's message bar, that job id, which saved into a library that is not open, is done or has failed: its card leaves 处理中 then, and only its own library shows it. A job that was cancelled or removed says nothing, and neither does one whose processing or translating a done film again failed or was stopped: its film is done as it was, not anew, and the bar already says why it failed (queueRedoEnded).
+// queueEndedElsewhere tells, in the library's message bar, that job id, which saved into a library that is not open, is done, done without a translation and why (core.Job.TranslationErr), or has failed: its card leaves 处理中 then, and only its own library shows it. A job that was cancelled or removed says nothing, and neither does one whose processing or translating a done film again failed or was stopped: its film is done as it was, not anew, and the bar already says why it failed (queueRedoEnded).
 func (a *app) queueEndedElsewhere(id string) {
 	job, ok := a.library.Find(id)
 	if _, redo := a.queue.redoEnded[id]; !ok || redo || a.queue.removed[id] || job.LibraryDir == "" || films.InLibrary(a.snap().LibraryDir, job) {
@@ -886,6 +887,10 @@ func (a *app) queueEndedElsewhere(id string) {
 	}
 	library := films.LibraryName(job.LibraryDir)
 	switch {
+	case job.Stage == core.StageComplete && job.TranslationErr != "":
+		m := a.messages()
+		reason, section := translationHint(m, job.TranslationErr)
+		a.warn(m.QueueDoneElsewhereUntranslated(jobName(job), library, reason), section)
 	case job.Stage == core.StageComplete:
 		a.tell(a.messages().QueueDoneElsewhere(jobName(job), library))
 	case job.Stage == core.StageFailed && !errors.Is(job.Err, context.Canceled):

@@ -241,7 +241,12 @@ func (a *app) Reprocess(item films.Film) {
 // TranslateAgain translates a done film's transcript again into language, without downloading or transcribing it, as 重新翻译为 ▸ does from the library and the film page's ⋯ (film.App). Translating into another language than the film's replaces its translation, so that waits for the user to confirm (RetranslateDialog); the confirmation holds the window's modal flag until it closes (CloseRetranslate).
 func (a *app) TranslateAgain(item films.Film, language string) {
 	language = strings.TrimSpace(language)
-	if current := strings.TrimSpace(item.Language); current == "" || current == language {
+	// A film that was not translated at all has no translation to replace, whatever language its job was asked for.
+	current := strings.TrimSpace(item.Language)
+	if item.TranslationErr != "" {
+		current = ""
+	}
+	if current == "" || current == language {
 		a.libraryRetranslate(item, core.RedoTranslation, language)
 		return
 	}
@@ -281,6 +286,32 @@ func (a *app) libraryRetranslateOverlay(*ns.Scope) ns.Node { return films.Retran
 
 // TranslateMissing translates only the lines a done film's translation left untranslated, as the card's 补译未译的句子 does. The film page's ⋯ uses it too (film.App).
 func (a *app) TranslateMissing(item films.Film) { a.libraryRetranslate(item, core.RedoMissing, "") }
+
+// TranslateFilms translates every line of each film of items that was not translated at all (films.NotTranslated), in their order, behind the jobs waiting, as its own 翻译 does (TranslateMissing) and the control socket's jobs.translate does (remoteTranslate), into the language the settings name now (queueRetranslatable). It moves neither the page nor the selected card, as RetryAll does not. One that cannot be queued, without a target language, says why in the message bar, once.
+func (a *app) TranslateFilms(items []films.Film) {
+	var first error
+	for _, item := range films.NotTranslated(items) {
+		job, ok := a.library.Find(item.JobID)
+		if !ok || job.Stage != core.StageComplete || job.ID == a.queue.active || job.TranslationErr == "" {
+			continue
+		}
+		ready, err := a.queueRetranslatable(job, core.RedoMissing, "")
+		if err != nil {
+			if first == nil {
+				first = err
+			}
+			continue
+		}
+		delete(a.lib.quotes, job.SubtitlePath)
+		a.queueAdd(ready)
+	}
+	if first != nil {
+		a.warn(first.Error(), settings.SectionTranslate)
+	}
+}
+
+// CanTranslate reports whether an AI service is set up to translate with (untranslatable), which Translate N Films waits for.
+func (a *app) CanTranslate() bool { return !a.untranslatable() }
 
 // libraryRetranslate queues done film item to be translated again (queueRetranslate) into language, "" for the one queueRetranslate picks, on its card, or an open film's page, and says in the message bar why when it cannot. The film page draws no message bar, so there the settings also open where the target language is chosen. The hero's line is read again once the film is done.
 func (a *app) libraryRetranslate(item films.Film, redo core.Redo, language string) {

@@ -2195,3 +2195,138 @@ func TestFollowOpenReportsAFilmItLetsGo(t *testing.T) {
 		t.Fatal("with no film open it reported a change")
 	}
 }
+
+// untranslatedLibrary is retranslateLibrary with two done films, Talk and Walk, whose jobs made their subtitles without translating them, as when no AI service was set up (core.Job.TranslationErr): each film's bilingual subtitles are its three original lines alone. Their jobs were asked for 简体中文; the settings now name 日本語.
+func untranslatedLibrary(t *testing.T, p *retranslatePipeline) (*app, *nsgotest.App, chan func()) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "我的影片.kando")
+	a, tt, updates := retranslateLibraryAt(t, p, lib, filepath.Join(lib, "Talk", "video.mp4"))
+	original := "1\n00:00:01,000 --> 00:00:02,000\nHello.\n\n2\n00:00:02,000 --> 00:00:03,000\nHow are you?\n\n3\n00:00:03,000 --> 00:00:04,000\nBye.\n\n"
+	a.library.Jobs = nil
+	for id, source := range map[string]string{"talk": "https://www.youtube.com/watch?v=jNQXAC9IVRw", "walk": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"} {
+		video := filepath.Join(lib, strings.ToUpper(id[:1])+id[1:], "video.mp4")
+		base := strings.TrimSuffix(video, ".mp4")
+		if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for path, body := range map[string]string{video: "v", base + ".srt": original, base + ".bilingual.srt": original} {
+			if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		a.library.Jobs = append(a.library.Jobs, core.Job{
+			ID: id, Source: source, Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: base + ".bilingual.srt", LibraryDir: lib,
+			Untranslated: 3, TranslationErr: "no translator", CompletedAt: time.Now(),
+		})
+	}
+	a.refreshLibrary()
+	refresh(tt, a)
+	return a, tt, updates
+}
+
+// Translate 2 Films beside the grid's heading translates every line of each film that was not translated, into the target language set now, without downloading or transcribing them; it shows only while an AI service is set up, and goes once they are translated.
+func TestTranslateAllFilmsWithoutATranslation(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := untranslatedLibrary(t, p)
+	m := testlocale.Messages()
+	a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}}
+	refresh(tt, a)
+	if tt.Exists("id:films-translate-all") {
+		t.Fatal("Translate All shows without an AI service")
+	}
+	a.pipeline = p
+	refresh(tt, a)
+	if !hasText(tt, m.FilmsTranslateAll(2)) {
+		t.Fatalf("no Translate 2 Films: %q", tt.Texts())
+	}
+	tt.Press("id:films-translate-all")
+	for _, id := range []string{"talk", "walk"} {
+		if job := stageOf(t, a, id); job.Redo != core.RedoMissing || job.Language != "日本語" {
+			t.Fatalf("queued %+v", job)
+		}
+	}
+	settle(t, a, tt, updates)
+	if len(p.sent) != 6 || p.language != "日本語" || p.downloads != 0 || p.transcriptions != 0 {
+		t.Fatalf("sent %q in %q, %d downloads, %d transcriptions", p.sent, p.language, p.downloads, p.transcriptions)
+	}
+	for _, id := range []string{"talk", "walk"} {
+		if job := stageOf(t, a, id); job.Stage != core.StageComplete || job.TranslationErr != "" || job.Untranslated != 0 || job.Language != "日本語" {
+			t.Fatalf("job %+v", job)
+		}
+	}
+	if tt.Exists("id:films-translate-all") {
+		t.Fatal("Translate All stayed once every film was translated")
+	}
+}
+
+// Once an AI service is set up, the message bar says how many films have no translation and offers to translate them all; setting the service up again does not offer it again, and the bar closes once none is left.
+func TestSettingUpAnAIServiceOffersToTranslateTheFilms(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := untranslatedLibrary(t, p)
+	m := testlocale.Messages()
+	a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}}
+	a.prefs.llmBase, a.prefs.llmModel, a.prefs.llmKey = "https://api.openai.com/v1", "", ""
+	a.applyLLM()
+	if a.lib.notice.Open {
+		t.Fatalf("the bar offers to translate without an AI service: %+v", a.lib.notice)
+	}
+	a.prefs.llmModel, a.prefs.llmKey = "gpt-4o-mini", "sk-test"
+	a.applyLLM()
+	if n := a.lib.notice; !n.Open || !n.Translate || n.Text != m.LibraryTranslateOffer(2) {
+		t.Fatalf("notice %+v", n)
+	}
+	a.lib.notice.Open = false
+	a.applyLLM()
+	if a.lib.notice.Open {
+		t.Fatalf("the offer came back: %+v", a.lib.notice)
+	}
+	a.prefs.llmModel = ""
+	a.applyLLM()
+	a.prefs.llmModel = "gpt-4o-mini"
+	a.applyLLM()
+	if !a.lib.notice.Open || !a.lib.notice.Translate {
+		t.Fatalf("setting the service up again did not offer it: %+v", a.lib.notice)
+	}
+	// The test's pipeline stands in for the service, so nothing goes out to it.
+	a.pipeline = p
+	refresh(tt, a)
+	tt.Press("id:notice-translate")
+	settle(t, a, tt, updates)
+	for _, id := range []string{"talk", "walk"} {
+		if job := stageOf(t, a, id); job.Stage != core.StageComplete || job.TranslationErr != "" {
+			t.Fatalf("job %+v", job)
+		}
+	}
+	if a.lib.notice.Open {
+		t.Fatalf("notice %+v", a.lib.notice)
+	}
+
+	// A bar left open closes once no film is left without a translation, as one translated on its own.
+	a, tt, updates = untranslatedLibrary(t, p)
+	a.pipeline = media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}}
+	a.prefs.llmBase, a.prefs.llmModel, a.prefs.llmKey = "https://api.openai.com/v1", "", ""
+	a.applyLLM()
+	a.prefs.llmModel, a.prefs.llmKey = "gpt-4o-mini", "sk-test"
+	a.applyLLM()
+	a.pipeline = p
+	a.TranslateMissing(mustFilm(t, a, "talk"))
+	settle(t, a, tt, updates)
+	if n := a.lib.notice; !n.Open || n.Text != m.LibraryTranslateOffer(1) {
+		t.Fatalf("with one film left the bar says %+v", n)
+	}
+	a.TranslateMissing(mustFilm(t, a, "walk"))
+	settle(t, a, tt, updates)
+	if a.lib.notice.Open {
+		t.Fatalf("notice %+v", a.lib.notice)
+	}
+}
+
+// mustFilm is the film of job id.
+func mustFilm(t *testing.T, a *app, id string) films.Film {
+	t.Helper()
+	item, ok := a.JobFilm(id)
+	if !ok {
+		t.Fatalf("no film %s", id)
+	}
+	return item
+}

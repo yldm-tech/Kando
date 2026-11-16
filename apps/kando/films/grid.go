@@ -35,10 +35,22 @@ func (g grid) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	// The top bar names the source the page shows, so the grid's heading is only how many films it holds.
 	count := func() string { return locales.FilmsGridCount(cx, len(g.done())) }
+	// Past one film shown without a translation, as those made before an AI service was set up, the heading offers to translate them all at once while a service is set up to do it, as 处理中 offers Retry All; a single one has its own 翻译.
+	untranslated := live.Memo(cx, a, func() int {
+		if !a.CanTranslate() {
+			return 0
+		}
+		return len(NotTranslated(g.done()))
+	})
+	translateAll := core.Show{When: func() bool { return untranslated() > 1 }, Then: func(*core.Scope) core.Node {
+		return textButton(func(cx *core.Scope) string { return locales.FilmsTranslateAll(cx, untranslated()) },
+			ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "films-translate-all", OnPress: live.Do(a, func() { a.TranslateFilms(g.done()) })})
+	}}
 	head := core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter}, Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
 			heading(2, core.Text{ContentFunc: count, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Muted)}),
 		}},
+		translateAll,
 		core.Show{When: func() bool { return len(g.done()) > 1 }, Then: func(*core.Scope) core.Node { return sortButton{a} }},
 	}}
 	cards := core.View{TestID: "films-grid",
@@ -230,7 +242,12 @@ func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsReprocess(cx), OnSelect: do(a.AskReprocess)})
 	}
 	if item.JobID != "" {
-		into := subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), item.Language, func(language string) { live.Do(a, func() { a.TranslateAgain(item, language) })() })
+		// A film that was not translated at all is in no language yet, whatever its job was asked to translate it into.
+		current := item.Language
+		if item.TranslationErr != "" {
+			current = ""
+		}
+		into := subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), current, func(language string) { live.Do(a, func() { a.TranslateAgain(item, language) })() })
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslateAgain(cx), Items: into})
 		switch {
 		case item.TranslationErr != "":

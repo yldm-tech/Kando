@@ -19,9 +19,11 @@ type noticeLook struct {
 	film Film
 	// list is the playlist the bar's Add Whole Playlist adds.
 	list string
+	// translate is whether the bar offers Translate (Notice.Translate).
+	translate bool
 }
 
-// notice is the message bar under the top bar, as the prototype draws it: amber with a warning triangle for what went wrong, green with a check mark for what worked, 打开设置 when a setting fixes what it says, 打开 when it names a film in the library, Add Whole Playlist when the video it added is one of a playlist's, and × to close it.
+// notice is the message bar under the top bar, as the prototype draws it: amber with a warning triangle for what went wrong, green with a check mark for what worked, 打开设置 when a setting fixes what it says, 打开 when it names a film in the library, Add Whole Playlist when the video it added is one of a playlist's, Translate when it says films have no translation, and × to close it.
 type notice struct{ a App }
 
 // Render implements core.Node.
@@ -29,7 +31,7 @@ func (n notice) Render(cx *core.Scope) core.Node {
 	a := n.a
 	look := live.Memo(cx, a, func() noticeLook {
 		bar := a.Notice()
-		l := noticeLook{open: bar.Open, success: bar.Kind == "success", text: bar.Text, section: bar.Section, list: bar.List}
+		l := noticeLook{open: bar.Open, success: bar.Kind == "success", text: bar.Text, section: bar.Section, list: bar.List, translate: bar.Translate}
 		// The film named may have been removed since the bar opened; then there is nothing to open and no button. It is a film of the library's, a job's or a video of its folder no job holds, or a job's the queue runs for another library.
 		if bar.Film != "" {
 			var ok bool
@@ -75,6 +77,13 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 		return textButton(locales.PlaylistAddWhole, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "notice-list",
 			OnPress: live.Do(a, func() { a.AddList(look().list) })})
 	}}
+	translate := core.Show{When: func() bool { return look().translate }, Then: func(*core.Scope) core.Node {
+		return textButton(locales.FilmsTranslate, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "notice-translate",
+			OnPress: live.Do(a, func() {
+				a.Notice().Open = false
+				a.TranslateFilms(NotTranslated(a.Films()))
+			})})
+	}}
 	close := base.Button{TestID: "notice-close", LabelFunc: func() string { return locales.FilmsCloseNotice(cx) },
 		OnPress: live.On(a, func(core.PressEvent) { a.Notice().Open = false }),
 		Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), CornerRadius: 12, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
@@ -95,6 +104,6 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 			}
 			return core.Style{Background: k.WarnFill(), BorderColor: k.WarnRing()}
 		},
-		Children: []core.Node{mark, text, settings, open, list, close},
+		Children: []core.Node{mark, text, settings, open, list, translate, close},
 	}
 }
