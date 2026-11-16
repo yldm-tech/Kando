@@ -25,7 +25,7 @@ func platform(cx *core.Scope) string {
 }
 
 // deviceName is the name pairing gives the phone, which the computer lists it by: the kind of device. They are product names, not words of the interface.
-// TODO(nsgo): give apps the device's own name (Android's Settings.Global.DEVICE_NAME, or Build.MODEL), so a computer paired with two Android phones tells them apart; iOS gives apps only "iPhone" or "iPad" since iOS 16
+// TODO(nsgo#451): give apps the device's own name (Android's Settings.Global.DEVICE_NAME, or Build.MODEL), so a computer paired with two Android phones tells them apart; iOS gives apps only "iPhone" or "iPad" since iOS 16 https://github.com/nsgo-dev/nsgo/issues/451
 func deviceName(cx *core.Scope) string {
 	tablet := cx.Env().Idiom() == core.IdiomTablet
 	switch {

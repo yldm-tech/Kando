@@ -126,7 +126,7 @@ func transport(cx *core.Scope, p *play) core.Node {
 		core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
 			times(func() time.Duration { return p.at.Get() }, "player-at"),
 			// The slider's range is fixed when it is built, so it is built again once the video tells its length.
-			// TODO(nsgo): give ui.Slider a MaxFunc twin of Max, so a range that is known only once a video loads needs no rebuild
+			// TODO(nsgo#450): give ui.Slider a MaxFunc twin of Max, so a range that is known only once a video loads needs no rebuild https://github.com/nsgo-dev/nsgo/issues/450
 			core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}, Children: []core.Node{core.Dynamic(func(cx *core.Scope) core.Node {
 				return ui.Slider{TestID: "player-position", Label: locales.PlayerPosition(cx), Min: 0, Step: 1, Max: max(seconds.Get(), 1),
 					Value:     func() float64 { return p.at.Get().Seconds() },

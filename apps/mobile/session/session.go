@@ -460,7 +460,7 @@ func (s *Session) setTransfer(key string, change func(Transfer) Transfer) {
 }
 
 // keepAwake keeps the screen on while a download runs, so the phone does not lock and stop it: downloads go on only while the app is in front.
-// TODO(nsgo): let a download go on in the background, as iOS's background URLSession and Android's WorkManager or a data-sync foreground service do; NSGo's networking is Go's net/http, which the system suspends with the app
+// TODO(nsgo#452): let a download go on in the background, as iOS's background URLSession and Android's WorkManager or a data-sync foreground service do; NSGo's networking is Go's net/http, which the system suspends with the app https://github.com/nsgo-dev/nsgo/issues/452
 func (s *Session) keepAwake() {
 	switch {
 	case len(s.jobs) > 0 && s.awake == nil:
