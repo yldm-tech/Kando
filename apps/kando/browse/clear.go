@@ -19,7 +19,7 @@ func (d clearDialog) Render(cx *core.Scope) core.Node {
 	return core.Show{When: live.Func(a, a.BrowseClearOpen), Then: func(cx *core.Scope) core.Node {
 		colors := ui.ColorsOf(cx)
 		// Enter answers 取消, the default answer, wherever the keyboard focus is in the dialog; the binding goes when the dialog does.
-		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways}, cancel)
+		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways, OverModals: true}, cancel)
 		// The dialog's words are set as it is built, so it is built again for another language; it reads nothing of the app's.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145

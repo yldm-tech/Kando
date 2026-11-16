@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -82,43 +83,78 @@ const ytdlpUsageExit = 2
 
 // CheckLogin has yt-dlp read the sign-in of browser, as --cookies-from-browser names it, the way a download borrows it, without downloading anything: given no URL, yt-dlp still loads the browser's cookies to save them to the --cookies file, and exits with ytdlpUsageExit once it has, or with its error when it could not. That file, which holds every cookie of the browser, is written in a folder of its own in CookieDir and removed as soon as yt-dlp exits; SweepCookieDirs removes one a check that never ended left. On macOS the first read of a Chromium browser's sign-in asks the user to allow its key in the Keychain (KeychainItem), so the app checks only when the user asks for it. It returns "" when yt-dlp read the sign-in, and otherwise why not with an error that says it in yt-dlp's words, and that the system keeps the browser's data folder from Kando when yt-dlp took that for no cookies database (withClosedBrowserData).
 func (t Tools) CheckLogin(ctx context.Context, browser string) (LoginTrouble, error) {
+	_, trouble, err := t.readLogin(ctx, browser, nil)
+	return trouble, err
+}
+
+// BrowserCookies reads the sign-in of browser as CheckLogin does and returns the cookies of it that keep takes, by their domain and name, read from the file yt-dlp saved them to (ReadCookies) before its folder is removed; the browser's other cookies never leave this call. keep also says whether a cookie is HttpOnly, which yt-dlp's file does not say: a cookie it marks HttpOnly is returned so. trouble and err are CheckLogin's, and no cookies come with them.
+func (t Tools) BrowserCookies(ctx context.Context, browser string, keep func(domain, name string) (take, httpOnly bool)) (cookies []Cookie, trouble LoginTrouble, err error) {
+	if keep == nil {
+		keep = func(string, string) (bool, bool) { return false, false }
+	}
+	return t.readLogin(ctx, browser, keep)
+}
+
+// readLogin is CheckLogin, which also reads the cookies keep takes from the file yt-dlp saved when keep is set (BrowserCookies).
+func (t Tools) readLogin(ctx context.Context, browser string, keep func(domain, name string) (take, httpOnly bool)) ([]Cookie, LoginTrouble, error) {
 	if t.YTDLP == "" {
-		return LoginUnreadable, errors.New("yt-dlp is not installed")
+		return nil, LoginUnreadable, errors.New("yt-dlp is not installed")
 	}
 	base := t.CookieDir
 	if base == "" {
 		base = os.TempDir()
 	}
 	if err := os.MkdirAll(base, 0o700); err != nil {
-		return LoginUnreadable, err
+		return nil, LoginUnreadable, err
 	}
 	dir, err := os.MkdirTemp(base, cookieDirPrefix+"*")
 	if err != nil {
-		return LoginUnreadable, err
+		return nil, LoginUnreadable, err
 	}
 	defer os.RemoveAll(dir)
 	ctx, cancel := context.WithTimeout(ctx, LoginCheckTimeout)
 	defer cancel()
+	file := filepath.Join(dir, "cookies.txt")
 	var stdout, stderr bytes.Buffer
-	cmd := Command(ctx, t.YTDLP, "--cookies-from-browser", browser, "--cookies", filepath.Join(dir, "cookies.txt"))
+	cmd := Command(ctx, t.YTDLP, "--cookies-from-browser", browser, "--cookies", file)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err = cmd.Run()
 	if ctxErr := ctx.Err(); ctxErr != nil {
-		return LoginUnreadable, ctxErr
+		return nil, LoginUnreadable, ctxErr
 	}
 	var exit *exec.ExitError
 	if err != nil && !errors.As(err, &exit) {
-		return LoginUnreadable, err
+		return nil, LoginUnreadable, err
 	}
 	output := stderr.String() + "\n" + stdout.String()
 	if trouble := ReadLoginTrouble(output); trouble != "" {
 		err := withClosedBrowserData(fmt.Errorf("yt-dlp: %s", toolError(output)), browser)
-		return ReadLoginTrouble(err.Error()), err
+		return nil, ReadLoginTrouble(err.Error()), err
 	}
 	if err != nil && exit.ExitCode() != ytdlpUsageExit {
-		return LoginUnreadable, fmt.Errorf("yt-dlp: %w: %s", err, toolError(stderr.String()))
+		return nil, LoginUnreadable, fmt.Errorf("yt-dlp: %w: %s", err, toolError(stderr.String()))
 	}
-	return "", nil
+	if keep == nil {
+		return nil, "", nil
+	}
+	data, err := os.ReadFile(file)
+	if errors.Is(err, fs.ErrNotExist) {
+		// yt-dlp read the browser's sign-in without saving the file: there are no cookies to take.
+		return nil, "", nil
+	}
+	if err != nil {
+		return nil, LoginUnreadable, fmt.Errorf("yt-dlp saved no cookies of %s: %w", browser, err)
+	}
+	var cookies []Cookie
+	for _, c := range ReadCookies(data) {
+		take, httpOnly := keep(c.Domain, c.Name)
+		if !take {
+			continue
+		}
+		c.HTTPOnly = c.HTTPOnly || httpOnly
+		cookies = append(cookies, c)
+	}
+	return cookies, "", nil
 }
 
 // KeychainItem is the item of the macOS Keychain that holds the key to the cookies of the Chromium browser whose --cookies-from-browser name is id, which macOS asks the user to allow yt-dlp to use, as yt_dlp/cookies.py of 2026.08.19 names it (keyring_name followed by Safe Storage); "" for a browser that has none, as Firefox and Safari.

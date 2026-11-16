@@ -134,6 +134,7 @@ func newTestApp(t *testing.T, p media.Pipeline, opts ...nsgotest.Option) (*app, 
 	a.prefs.listModels = offlineModels
 	a.prefs.pingLLM = offlinePing
 	a.prefs.interfaceLanguage = testlocale.Current()
+	a.prefs.overMain = true
 	a.edit(func(s *session) { s.LibraryDir = "/videos" })
 	opts = append([]nsgotest.Option{nsgotest.Size(1100, 720), nsgotest.Environment(testEnvironment())}, opts...)
 	return a, nsgotest.Start(t, a.testView, opts...), updates

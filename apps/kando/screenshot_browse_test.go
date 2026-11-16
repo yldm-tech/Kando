@@ -22,10 +22,11 @@ func TestScreenshotsBrowse(t *testing.T) {
 		screenshotReady(t, f, a)
 		a.Select(pageBrowse)
 	})
-	// The start's line once Chrome's sign-in is the one downloads use, with 更改….
+	// The start's line once Chrome's sign-in is the one the pages and downloads use, with 刷新登录 and 更改…, after the pages took it as the browser first opened.
 	f.shoot(t, "browse-signin", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 		a.signin.browser = "chrome"
+		a.browse.signin.opened, a.browse.signin.signedIn = true, "chrome"
 		a.Select(pageBrowse)
 	})
 	f.shoot(t, "browse-typing", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {

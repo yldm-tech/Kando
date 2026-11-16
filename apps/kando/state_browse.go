@@ -52,6 +52,8 @@ type browseUI struct {
 	quiet bool
 	// buttons is what the page's own buttons were told (state_browse_buttons.go).
 	buttons browseButtons
+	// signin is what the browser knows of its pages' sign-in (state_browse_signin.go).
+	signin browseSignInState
 }
 
 func newBrowseUI() browseUI {
@@ -81,13 +83,12 @@ func (b *browseAgent) get() string {
 // browseBlank is the page home loads, which shows the start; the page's history keeps the pages before it, so back returns to them.
 const browseBlank = "about:blank"
 
-// browseHooks: once the window exists the browser removes the cookies folders of downloads that never finished, as none runs yet; its ready runs before the queue's (areas), which starts the first job left waiting. After each change the confirmation closes when the window went to another page, and the page's videos are paused and its sound off while another page shows.
+// browseHooks: once the window exists the browser removes the cookies folders of downloads that never finished, as none runs yet; its ready runs before the queue's (areas), which starts the first job left waiting. It reads nothing of the chosen browser's sign-in then: that waits for the browser's page to show (browseSignInOnOpen). After each change the confirmation closes when the window went to another page, the page's videos are paused and its sound off while another page shows, and the first time the browser's page shows in a launch its pages take the chosen browser's sign-in.
 func (a *app) browseHooks() areaHooks {
 	return areaHooks{
 		ready: func() {
 			if tools, ok := a.pipeline.(media.Tools); ok {
 				media.SweepCookieDirs(tools.CookieDir)
-				// TODO(nsgo#387): import the chosen browser's cookies for the catalog's sites into the web views' store, so Browse's pages are signed in too https://github.com/nsgo-dev/nsgo/issues/387 (yldm-tech/Kando#167)
 				// TODO(nsgo#112): give every download the cookies the browser's pages hold for its site, tools.SiteCookies = browse.CookieSource over the web view's cookie store with a.browse.agent.get, as MyGo's Cookies.List gave them; until then a site the user signed in to here downloads signed out, and a download that needs the sign-in fails with the queue's remedy of borrowing a browser's (media.Tools.Cookies) https://github.com/nsgo-dev/nsgo/issues/112
 			}
 			// TODO(nsgo#114): clear the pages' cookies and storage (a.browse.clear), as MyGo's App.ClearBrowsingData did; until then 清除登录信息… is left out of the start and the File menu https://github.com/nsgo-dev/nsgo/issues/114
@@ -184,9 +185,12 @@ func (a *app) browseNavigate(rawURL string) {
 	a.browse.view.InjectJavaScript("location.assign(" + string(quoted) + ")")
 }
 
-// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, pauses the page's videos and turns its sound off while another page shows, and turns the sound on again without playing them once the browser's shows, as the hidden web view keeps its page and a video in it plays on, keeps the message bar about what is still so (browseFollowNotice) and tells the page's own buttons what changed for them (browsePagePush). It reports whether it closed the confirmation or changed the bar.
+// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, pauses the page's videos and turns its sound off while another page shows, and turns the sound on again without playing them once the browser's shows, as the hidden web view keeps its page and a video in it plays on, keeps the message bar about what is still so (browseFollowNotice), tells the page's own buttons what changed for them (browsePagePush) and reads the chosen browser's sign-in into the pages the first time the browser's page shows (browseSignInOnOpen). It reports whether it closed the confirmation, changed the bar or started reading the sign-in.
 func (a *app) browseAfterChange() bool {
 	changed := a.browseFollowNotice()
+	if a.browseSignInOnOpen() {
+		changed = true
+	}
 	if a.page != pageBrowse && a.browse.clearOpen {
 		a.browseCancelClear()
 		changed = true

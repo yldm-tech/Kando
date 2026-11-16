@@ -6,12 +6,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // The browser chosen in Settings › 通用 › 浏览器登录 is kept in settings.json under a key of its own, and taken back at the next launch without being checked, so a launch never asks for the Keychain. A browser Kando does not know, as another version may save, is dropped, since it goes to yt-dlp as an argument.
@@ -253,5 +257,159 @@ func TestSignInCheckTellsAClosedBrowserFolderFromAMissingOne(t *testing.T) {
 			}
 			wantText(t, tt, msgs.SettingsGeneralSignInReady())
 		})
+	}
+}
+
+// signinTools is the pipeline of a test of the browser's sign-in: the fake yt-dlp, which reads Chrome's sign-in (fakeChromeCookies), and a cookies folder of its own.
+func signinTools(t *testing.T) media.Tools {
+	t.Helper()
+	home := t.TempDir()
+	return media.Tools{YTDLP: fakeTool(t, filepath.Join(home, "bin"), "yt-dlp"), CookieDir: filepath.Join(home, "cookies")}
+}
+
+// wantSignedIn fails t unless the web views' store holds the cookies of fakeChromeCookies of the sites Browse is for, with their Secure and expiry, YSC HttpOnly as YouTube sets it and the others as their file has them, and nothing of Amazon's or the bank's, and the cookies folder is empty again.
+func wantSignedIn(t *testing.T, tt *nsgotest.App, tools media.Tools) {
+	t.Helper()
+	got := map[string]ns.WebCookie{}
+	for _, c := range tt.WebCookies {
+		got[c.Domain+" "+c.Name] = c
+	}
+	want := []ns.WebCookie{
+		{Name: "SID", Value: "fake", Domain: ".youtube.com", Path: "/", Secure: true},
+		{Name: "YSC", Value: "fake-ysc", Domain: ".youtube.com", Path: "/", Secure: true, HTTPOnly: true},
+		{Name: "__Secure-3PSID", Value: "fake-3p", Domain: ".google.com", Path: "/", Secure: true, Expires: time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{Name: "SESSDATA", Value: "fake-sess", Domain: ".bilibili.com", Path: "/"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("the pages' store holds %+v", tt.WebCookies)
+	}
+	for _, w := range want {
+		g, ok := got[w.Domain+" "+w.Name]
+		if !ok || g.Value != w.Value || g.Path != w.Path || g.Secure != w.Secure || g.HTTPOnly != w.HTTPOnly || !g.Expires.Equal(w.Expires) {
+			t.Fatalf("the pages' store holds %+v for %s, want %+v", g, w.Name, w)
+		}
+	}
+	if entries, _ := os.ReadDir(tools.CookieDir); len(entries) != 0 {
+		t.Fatalf("reading the sign-in left %v", entries)
+	}
+}
+
+// Choosing a browser whose sign-in yt-dlp reads puts the cookies of the sites Browse is for into the web views' store, with one run of yt-dlp, so Browse's pages are signed in too; any other site's stays in the browser, and the file yt-dlp saved them to is gone.
+func TestChoosingABrowserSignsInThePages(t *testing.T) {
+	tools := signinTools(t)
+	a, tt, updates := newTestApp(t, tools)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.SetSignInBrowser("chrome")
+	waitUntil(t, tt, a, updates, func() bool { return !a.signin.checking })
+	refresh(tt, a)
+	wantSignedIn(t, tt, tools)
+	if a.browse.signin.signedIn != "chrome" || a.browse.signin.writing {
+		t.Fatalf("the browser's sign-in state %+v", a.browse.signin)
+	}
+	// The first look at the browser after that reads nothing again, as its pages have Chrome's sign-in.
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	if a.signin.checking {
+		t.Fatal("opening the browser read Chrome's sign-in again")
+	}
+	wantText(t, tt, testlocale.Messages().BrowseSignInOn("Chrome"))
+}
+
+// A sign-in yt-dlp cannot read puts nothing into the pages: the row says why, as before.
+func TestABrowserWhoseSignInCannotBeReadSignsInNothing(t *testing.T) {
+	tools := signinTools(t)
+	a, tt, updates := newTestApp(t, tools)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.SetSignInBrowser("safari")
+	waitUntil(t, tt, a, updates, func() bool { return !a.signin.checking })
+	refresh(tt, a)
+	if len(tt.WebCookies) != 0 || a.browse.signin.signedIn != "" || a.browse.notice.Open {
+		t.Fatalf("store %+v, state %+v, bar %+v", tt.WebCookies, a.browse.signin, a.browse.notice)
+	}
+}
+
+// With a browser chosen in an earlier launch, the browser's page reads its sign-in into the pages the first time it shows in this one, and not again after; 刷新登录 reads it again and says so in the message bar, and loads the page shown again so it is signed in.
+func TestBrowseSignsInAsItFirstOpensAndOnRefresh(t *testing.T) {
+	tools := signinTools(t)
+	a, tt, updates := newTestApp(t, tools)
+	a.signin.browser = "chrome"
+	refresh(tt, a)
+	if a.signin.checking || len(tt.WebCookies) != 0 {
+		t.Fatal("the sign-in was read before the browser opened")
+	}
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	if !a.signin.checking || !a.BrowseState().SigningIn || tt.Enabled("id:browse-signin-refresh") {
+		t.Fatalf("opening the browser did not read the sign-in, or 刷新登录 does not wait for it: %+v", a.BrowseState())
+	}
+	waitUntil(t, tt, a, updates, func() bool { return !a.signin.checking })
+	refresh(tt, a)
+	wantSignedIn(t, tt, tools)
+	if a.browse.notice.Open {
+		t.Fatalf("the first sign-in said %q", a.browse.notice.Text)
+	}
+	a.Select(pageFilms)
+	refresh(tt, a)
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	if a.signin.checking {
+		t.Fatal("the browser read the sign-in again as it showed again")
+	}
+
+	tt.WebCookies = nil
+	browseOpen(t, a, tt, "https://www.youtube.com/watch?v=Rg5Lk2Pz8Wd")
+	// 刷新登录 is on the start, behind the page shown, so the test asks through the app's binding, as the start's button does.
+	a.BrowseRefreshSignIn()
+	if !a.signin.checking {
+		t.Fatal("刷新登录 did not read the sign-in")
+	}
+	waitUntil(t, tt, a, updates, func() bool { return !a.signin.checking })
+	refresh(tt, a)
+	wantSignedIn(t, tt, tools)
+	if n := a.browse.notice; !n.Open || n.Text != testlocale.Messages().BrowseSignInRefreshed("Chrome") {
+		t.Fatalf("the bar says %+v", n)
+	}
+	if !a.browse.loading {
+		t.Fatal("the page shown was not loaded again")
+	}
+}
+
+// 刷新登录 on the start reads the sign-in; one that cannot be read says why in the message bar, with the setting.
+func TestRefreshSignInSaysWhyItCannotBeRead(t *testing.T) {
+	tools := signinTools(t)
+	a, tt, updates, _ := browseApp(t, tools)
+	a.signin.browser = "chrome"
+	refresh(tt, a)
+	tt.Press("id:browse-signin-refresh")
+	waitUntil(t, tt, a, updates, func() bool { return !a.signin.checking })
+	refresh(tt, a)
+	wantSignedIn(t, tt, tools)
+	a.signin.browser = "safari"
+	refresh(tt, a)
+	tt.Press("id:browse-signin-refresh")
+	waitUntil(t, tt, a, updates, func() bool { return !a.signin.checking })
+	refresh(tt, a)
+	if n := a.browse.notice; !n.Open || n.Kind != "warning" || n.Text != testlocale.Messages().QueueRemedyDiskAccessWhy("Safari") || n.Section != settings.SectionGeneral {
+		t.Fatalf("the bar says %+v", n)
+	}
+}
+
+// The app reads no browser's sign-in as it starts, with one chosen in an earlier launch: not as it restores the settings, not in the browser's ready, which sweeps the cookies folders, and not while another page shows, so macOS never asks for the Keychain at launch. (The other areas' ready run on the machine itself, its logs and tools, so the test runs the browser's alone.)
+func TestNoSignInIsReadAtStartup(t *testing.T) {
+	tools := signinTools(t)
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(path, []byte(`{"signInBrowser": "chrome"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, updates := newTestApp(t, tools)
+	a.settingsPath = path
+	a.restoreSettings(a.loadSettings())
+	a.browseHooks().ready()
+	refresh(tt, a)
+	if a.signin.browser != "chrome" || a.signin.checking || len(tt.WebCookies) != 0 || len(updates) != 0 {
+		t.Fatalf("browser %q, checking %v, store %+v, %d updates", a.signin.browser, a.signin.checking, tt.WebCookies, len(updates))
+	}
+	if entries, _ := os.ReadDir(tools.CookieDir); len(entries) != 0 {
+		t.Fatalf("the cookies folder holds %v", entries)
 	}
 }

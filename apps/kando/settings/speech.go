@@ -205,7 +205,7 @@ func (d trashDialog) Render(cx *core.Scope) core.Node {
 	model := core.NewMemo(cx, live.Func(a, func() string { _, id := a.TrashingSpeechModel(); return id }))
 	cancel := live.Do(a, a.CloseTrashSpeechModel)
 	return core.Show{When: live.Func(a, func() bool { open, _ := a.TrashingSpeechModel(); return open }), Then: func(cx *core.Scope) core.Node {
-		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways}, cancel)
+		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways, OverModals: true}, cancel)
 		// The dialog's words are set as it is built, so it is built again for another model.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			id := model.Get()
