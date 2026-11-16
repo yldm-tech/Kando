@@ -36,6 +36,8 @@ type feedbackUI struct {
 	release func()
 	// system is the system's name, version and architecture, as feedbackDetectSystem found it once the window existed.
 	system string
+	// job is the job the dialog reports, opened from the 报告… of its failed card (ReportFailure), while no film is open; "" otherwise.
+	job string
 }
 
 func newFeedbackUI() feedbackUI {
@@ -64,6 +66,7 @@ func (a *app) feedbackKeys(cx *ns.Scope) []shortcut {
 
 // openFeedback opens the dialog afresh for kind. It attaches the app's and the tools' versions, and the open film's state when a film is open; the subtitle line stays off until the user ticks it, as it goes to a public issue. Feedback on a film's subtitles is titled after the film, in Chinese as the rest of the issue (feedback.Report.Body). A playing film pauses, as the dialog covers it.
 func (a *app) openFeedback(kind feedback.Kind) {
+	a.feedback.job = ""
 	form := feedback.Form{Kind: int(kind), Env: true, Tools: true}
 	if item, ok := a.feedbackFilm(); ok {
 		form.Film = true
@@ -109,12 +112,34 @@ func (a *app) feedbackSettleForm() bool {
 	return changed
 }
 
-// feedbackFilm is the film the player shows, while one is open.
+// ReportFailure opens the dialog to report the failure of job id, from its card, with the job's stage and error attached as an open film's are (feedbackFilmLines).
+func (a *app) ReportFailure(id string) {
+	a.openFeedback(feedback.KindBug)
+	a.feedback.job = id
+	if _, ok := a.feedbackFilm(); ok {
+		a.feedback.form.Film = true
+	}
+}
+
+// feedbackFilm is the film the player shows, while one is open, or else the job whose failure the dialog reports (ReportFailure).
 func (a *app) feedbackFilm() (films.Film, bool) {
-	if a.openKey == "" {
+	key := a.openKey
+	if key == "" {
+		key = a.feedback.job
+	}
+	if key == "" {
 		return films.Film{}, false
 	}
-	return films.Find(a.films(), a.openKey)
+	return films.Find(a.films(), key)
+}
+
+// FailureDetail is the whole error of a failed job, all its lines, as its card's tooltip shows it, with the credentials the app holds taken out (feedbackSecrets), as the log takes them.
+func (a *app) FailureDetail(item films.Film) string {
+	job, ok := a.library.Find(item.JobID)
+	if !ok || job.Err == nil {
+		return ""
+	}
+	return feedback.Scrubber{Secrets: a.feedbackSecrets()}.NoSecrets(job.Err.Error())
 }
 
 // filmName is the film's full name, or its short title without one.

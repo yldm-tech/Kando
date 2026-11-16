@@ -30,11 +30,14 @@ type App interface {
 	RetryOpen(id string)
 	// ReprocessFilm asks to process the open film, a done one, again entirely, as the library's 重新处理 does, once the user confirms; the film stays open and follows its job.
 	ReprocessFilm()
-	// TranslateFilmAgain and TranslateFilmMissing translate the open film, a done one, again without downloading or transcribing it, as the library's 重新翻译 and 补译未译的句子 do: every line, or only those its translation left untranslated. The film stays open and follows its job.
-	TranslateFilmAgain()
+	// TranslateFilmAgain and TranslateFilmMissing translate the open film, a done one, again without downloading or transcribing it, as the library's 重新翻译为 and 补译未译的句子 do: every line into language, once the user confirms replacing a translation in another language, or only those its translation left untranslated. The film stays open and follows its job. TargetLanguage is the target language the settings name, which 重新翻译为 ▸ offers first.
+	TranslateFilmAgain(language string)
 	TranslateFilmMissing()
+	TargetLanguage() string
 	// StageLabel names a job's stage in the language the interface shows under cx, as the library does.
 	StageLabel(cx *ns.Scope, stage core.Stage) string
+	// JobStatus is what the open film's job is doing and how far it has gone, as its card in the library says, in the language the interface shows under cx; "" while no job of it waits or runs.
+	JobStatus(cx *ns.Scope) string
 	// FillsWindow reports whether the film takes the whole window, its title bar lying under the window's traffic lights, rather than the content column beside the sidebar.
 	FillsWindow() bool
 	// Play is the picture open now, nil until the system's player has loaded it and while there is none. PlayPath is the video opening or open, "" without one; PlayErr is why it would not play, an error ID ErrText names, or "".
@@ -215,6 +218,8 @@ type Item struct {
 	Spoken string
 	// Untranslated is how many lines of a done film's subtitles the translation left untranslated.
 	Untranslated int
+	// TranslationErr is why a done film translated none of its lines, its subtitles being the original lines alone; empty for one that was translated.
+	TranslationErr string
 }
 
 // title is how the film is named in the title bar.

@@ -19,10 +19,14 @@ func TestToolsCheckListsEveryProblem(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error")
 	}
-	for _, want := range []string{"yt-dlp", "ffmpeg", "whisper-cli", "KANDO_WHISPER_MODEL", "KANDO_LLM_MODEL"} {
+	for _, want := range []string{"yt-dlp", "ffmpeg", "whisper-cli", "KANDO_WHISPER_MODEL"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %s", err, want)
 		}
+	}
+	// A job without a translator still makes the original-language subtitles; Run checks the translator before translating.
+	if strings.Contains(err.Error(), "KANDO_LLM_MODEL") {
+		t.Errorf("error %q asks for the translator", err)
 	}
 }
 
@@ -112,13 +116,13 @@ func TestToolsFromEnvTranslator(t *testing.T) {
 	}
 }
 
-func TestToolsCheckRequiresEveryAPIKey(t *testing.T) {
+func TestToolsCheckTranslateRequiresEveryAPIKey(t *testing.T) {
 	tools := Tools{Translator: ChatTranslator{BaseURL: EveryAPIBaseURL, Model: EveryAPIModel}}
-	if err := tools.Check(); !errors.Is(err, ErrEveryAPIMissing) {
+	if err := tools.CheckTranslate(); !errors.Is(err, ErrEveryAPIMissing) {
 		t.Fatalf("err = %v, want %v", err, ErrEveryAPIMissing)
 	}
 	tools.Translator = ChatTranslator{BaseURL: "http://localhost:11434/v1", Model: "qwen3"}
-	if err := tools.Check(); errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
+	if err := tools.CheckTranslate(); errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
 		t.Fatalf("custom provider asked for the everyapi program: %v", err)
 	}
 }
@@ -134,7 +138,7 @@ func noPackageManagerDirs(t *testing.T) {
 // signedInEveryAPI is an everyapi someone signed in to: `everyapi auth credential` prints the relay key.
 var signedInEveryAPI = fakeTool{Want: []string{"auth", "credential"}, Stdout: `{"version":1,"base_url":"https://api.everyapi.ai/v1","api_key":"from-login"}` + "\n"}
 
-// TestRelookFindsTheEveryAPICLIInstalledLater checks that without the everyapi program Check says it is missing rather than signed out, and that once it is installed Relook signs the translator in through it without Kando starting again.
+// TestRelookFindsTheEveryAPICLIInstalledLater checks that without the everyapi program CheckTranslate says it is missing rather than signed out, and that once it is installed Relook signs the translator in through it without Kando starting again.
 func TestRelookFindsTheEveryAPICLIInstalledLater(t *testing.T) {
 	noPackageManagerDirs(t)
 	dir := t.TempDir()
@@ -144,8 +148,8 @@ func TestRelookFindsTheEveryAPICLIInstalledLater(t *testing.T) {
 	if tools.EveryAPI != "" || tools.Translator.Credential != nil {
 		t.Fatalf("found an everyapi in an empty PATH: %q", tools.EveryAPI)
 	}
-	if err := tools.Check(); !errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
-		t.Fatalf("Check = %v, want %v", err, ErrEveryAPIMissing)
+	if err := tools.CheckTranslate(); !errors.Is(err, ErrEveryAPIMissing) || errors.Is(err, ErrEveryAPISignedOut) {
+		t.Fatalf("CheckTranslate = %v, want %v", err, ErrEveryAPIMissing)
 	}
 
 	cli := writeFakeTool(t, dir, "everyapi", signedInEveryAPI)
@@ -217,7 +221,7 @@ func TestToolsFromEnvUsesSignedInCLI(t *testing.T) {
 	if got != (Endpoint{BaseURL: EveryAPIBaseURL, APIKey: "from-login"}) {
 		t.Fatalf("endpoint = %#v", got)
 	}
-	if err := tools.Check(); err != nil && strings.Contains(err.Error(), "EveryAPI") {
+	if err := tools.CheckTranslate(); err != nil && strings.Contains(err.Error(), "EveryAPI") {
 		t.Fatal(err)
 	}
 }

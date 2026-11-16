@@ -13,7 +13,7 @@ import (
 	"kando/packages/media"
 )
 
-// precheck says why sources cannot be processed yet, in the prototype's words (locales.Precheck…) in the interface's language, as the message bar and the guide's link field keep them, and the settings section that fixes it ("" when none does), in the prototype's order: an empty field, something that is not a link, a channel, a list or a page that names no single video, then what precheckReady finds missing. It reads only what the app already holds, so a click can afford it; what it cannot tell without running a program, as an EveryAPI login that has expired, still fails the job, whose card says so.
+// precheck says why sources cannot be processed yet, in the prototype's words (locales.Precheck…) in the interface's language, as the message bar and the guide's link field keep them, and the settings section that fixes it ("" when none does), in the prototype's order: an empty field, something that is not a link, a channel, a list or a page that names no single video, then what precheckReady finds missing to start; a missing AI service is not one of them (untranslatable). It reads only what the app already holds, so a click can afford it; what it cannot tell without running a program, as an EveryAPI login that has expired, still fails the job, whose card says so.
 func (a *app) precheck(sources []string) (msg, section string) {
 	return a.precheckIn(a.messages(), sources)
 }
@@ -69,11 +69,8 @@ func (a *app) precheckReadyIn(m locales.Messages) (msg, section string) {
 		return m.PrecheckToolsMissing(strings.Join(missing, m.PrecheckToolSeparator())), settings.SectionGeneral
 	case tools.WhisperModel == "":
 		return m.PrecheckNoSpeechModel(), settings.SectionSpeech
-	case tools.Translator.Model == "":
-		return m.PrecheckNoLLMModel(), settings.SectionAI
-	case everyAPICLIMissing(tools.Translator):
-		return m.PrecheckEveryAPIMissing(), settings.SectionAI
 	}
+	// No AI service does not stop a job: its film's subtitles are the original lines until it is translated (core.Job.TranslationErr), as the message bar says once it is added (untranslatable).
 	return "", ""
 }
 
@@ -95,6 +92,12 @@ func (a *app) precheckFollow(text, section *string, open *bool) bool {
 		*text, *section = msg, sec
 	}
 	return true
+}
+
+// untranslatable reports whether a job added now would have no translator: no model is chosen, or EveryAPI has neither an API Key nor the everyapi program to sign in through. What only running a program can tell, as an expired sign-in, is left to the job.
+func (a *app) untranslatable() bool {
+	tools, ok := a.pipeline.(media.Tools)
+	return ok && (strings.TrimSpace(tools.Translator.Model) == "" || everyAPICLIMissing(tools.Translator))
 }
 
 // precheckWhole says that link names a channel, a list or a page that lists videos rather than one video, which a job would download whole or pick a video of, naming the site when Kando knows it, in the language of m. It asks for the link of one of its videos, as the onboarding's link field does (onboarding.LinkHint, which also refuses a local file and so is not used here).

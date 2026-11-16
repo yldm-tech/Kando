@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sidebar"
@@ -34,6 +35,7 @@ type fakeApp struct {
 	furthest                         map[string]time.Duration
 	remedies                         map[string]Remedy
 	hints                            map[string]string
+	details                          map[string]string
 	notice                           Notice
 	expanded, linkFocus              bool
 	sort                             string
@@ -43,6 +45,7 @@ type fakeApp struct {
 	renameOpen                       bool
 	renameName, renameOriginal       string
 	calls                            []string
+	retryable, failed                int
 }
 
 func newFakeApp() *fakeApp {
@@ -115,12 +118,30 @@ func (f *fakeApp) Reprocess(item Film)                 { f.call("reprocess", ite
 func (f *fakeApp) AskReprocess(item Film)              { f.call("ask-reprocess", item.Key) }
 func (f *fakeApp) Reprocessing() (*bool, Film, string) { return new(bool), Film{}, "" }
 func (f *fakeApp) CloseReprocess()                     { f.call("close-reprocess") }
-func (f *fakeApp) TranslateAgain(item Film)            { f.call("translate-again", item.Key) }
-func (f *fakeApp) TranslateMissing(item Film)          { f.call("translate-missing", item.Key) }
-func (f *fakeApp) Remove(id string)                    { f.call("remove", id) }
-func (f *fakeApp) Retry(id string)                     { f.call("retry", id) }
+func (f *fakeApp) TranslateAgain(item Film, language string) {
+	f.call("translate-again", item.Key, language)
+}
+func (f *fakeApp) TargetLanguage() string               { return "日本語" }
+func (f *fakeApp) Retranslating() (*bool, Film, string) { return new(bool), Film{}, "" }
+func (f *fakeApp) CloseRetranslate()                    { f.call("close-retranslate") }
+func (f *fakeApp) Retranslate()                         { f.call("retranslate") }
+func (f *fakeApp) TranslateMissing(item Film)           { f.call("translate-missing", item.Key) }
+func (f *fakeApp) Remove(id string)                     { f.call("remove", id) }
+func (f *fakeApp) Retry(id string)                      { f.call("retry", id) }
+func (f *fakeApp) Failures() (int, int)                 { return f.retryable, f.failed }
+func (f *fakeApp) FailureDetail(item Film) string       { return f.details[item.JobID] }
+func (f *fakeApp) ReportFailure(id string)              { f.call("report", id) }
+func (f *fakeApp) RetryAll()                            { f.call("retry-all") }
+func (f *fakeApp) RemoveFailed()                        { f.call("remove-failed") }
+func (f *fakeApp) Withdraw(id string)                   { f.call("withdraw", id) }
 func (f *fakeApp) FailureHint(item Film) (string, string) {
 	return f.hints[item.JobID], ""
+}
+func (f *fakeApp) TranslationHint(item Film) (string, string) {
+	if item.TranslationErr == "" {
+		return "", ""
+	}
+	return "没有 AI 服务", "ai"
 }
 func (f *fakeApp) FailureRemedy(item Film) (Remedy, bool) {
 	r, ok := f.remedies[item.JobID]
@@ -470,6 +491,28 @@ func TestFilmMenuOffersWhatCanBeDone(t *testing.T) {
 	wantCalls(t, a, "trash done")
 }
 
+// A done film that translated none of its lines says so under its title rather than calling itself bilingual, says why, and offers 翻译, which translates its missing lines, and the settings that fix it.
+func TestAFilmWithoutATranslationOffersToTranslateIt(t *testing.T) {
+	a := newFakeApp()
+	a.items[0].TranslationErr, a.items[0].Untranslated = "KANDO_LLM_MODEL is not set", 12
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists("text:"+msgs.FilmsNoTranslation()) || !app.Exists(whole("没有 AI 服务")) {
+		t.Fatalf("the card does not say it has no translation: %q", app.Texts())
+	}
+	if app.Exists(whole(msgs.FilmsPosterBilingual(LanguageShort(msgs, "简体中文")))) {
+		t.Fatal("a film without a translation is tagged bilingual")
+	}
+	if app.Exists("text:" + msgs.FilmsUntranslated(12)) {
+		t.Fatal("a film without a translation counts its untranslated lines")
+	}
+	app.Press("id:film-translate")
+	app.Press("id:film-translation-settings")
+	// Linear Algebra, which translated all but three lines, still offers 补译未译的句子.
+	app.Press("id:film-translate-missing")
+	wantCalls(t, a, "translate-missing done", "settings ai", "translate-missing algebra")
+}
+
 func TestNoticeOffersItsButtons(t *testing.T) {
 	a := newFakeApp()
 	a.notice = Notice{Kind: "warning", Text: "这个视频已在资料库中。", Section: "translate", Film: "done", Open: true}
@@ -549,6 +592,7 @@ func TestFailedCardsOfferTheirRemedy(t *testing.T) {
 	}
 	a.remedies["failed"] = Remedy{Headline: "你所在的地区不能看", Why: "换个链接试试。", Actions: []RemedyAction{{ID: "swap", Label: "换个链接", Primary: true}, {ID: "update", Label: "更新中", Disabled: true}}}
 	a.hints["plain"] = "网络断开"
+	a.details = map[string]string{"plain": "transcribe: whisper-cli: exit status 3: failed to load model\nsecond line"}
 	app := start(t, a)
 	msgs := testlocale.Messages()
 	for _, text := range []string{"你所在的地区不能看", "换个链接试试。", "网络断开"} {
@@ -562,7 +606,69 @@ func TestFailedCardsOfferTheirRemedy(t *testing.T) {
 	}
 	app.Press(whole(msgs.FilmsRetry()))
 	app.Press("id:queue-cancel")
-	wantCalls(t, a, "remedy failed swap", "retry plain", "cancel running")
+	// A failure without a known fix shows its whole error over its reason and can be reported.
+	if !app.Exists("id:queue-reason-tip") {
+		t.Fatal("the reason has no tooltip with the whole error")
+	}
+	app.Press("id:queue-report")
+	wantCalls(t, a, "remedy failed swap", "retry plain", "withdraw running", "report plain")
+}
+
+// A job that has its video can be watched before it is done: its card's thumbnail opens the film. One still downloading has nothing to watch yet.
+func TestAProcessingFilmCanBeWatched(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	if app.Exists("id:queue-watch") {
+		t.Fatal("a film still downloading offers to be watched")
+	}
+	change(app, a, func() {
+		a.items[2].Stage, a.items[2].VideoPath, a.items[2].SubtitlePath = core.StageTranslating, a.dir+"/Market/video.mp4", a.dir+"/Market/video.srt"
+	})
+	app.Press("id:queue-watch")
+	wantCalls(t, a, "open running")
+}
+
+// Past one failure, the heading of 处理中 offers to retry those that can be and to remove them all.
+func TestTheQueueOffersToRetryOrRemoveEveryFailure(t *testing.T) {
+	a := newFakeApp()
+	a.retryable, a.failed = 1, 1
+	app := start(t, a)
+	if app.Exists("id:queue-retry-all") || app.Exists("id:queue-remove-failed") {
+		t.Fatal("one failure offers bulk actions")
+	}
+	change(app, a, func() { a.retryable, a.failed = 2, 3 })
+	app.Press("id:queue-retry-all")
+	app.Press("id:queue-remove-failed")
+	wantCalls(t, a, "retry-all", "remove-failed")
+	change(app, a, func() { a.retryable = 1 })
+	if app.Exists("id:queue-retry-all") || !app.Exists("id:queue-remove-failed") {
+		t.Fatal("Retry All stayed for a single retryable failure")
+	}
+}
+
+// 重新翻译为 ▸ offers the language set now first and checks the film's own; a card waiting or running says the language it translates into.
+func TestTranslateAgainNamesItsLanguage(t *testing.T) {
+	a := newFakeApp()
+	a.items[2].Target = "日本語"
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.FilmsQueueInto(msgs.SettingsLanguageJapanese()))) {
+		t.Fatalf("the running card does not say its language: %q", app.Texts())
+	}
+	app.Press("id:film-more >> nth=0")
+	var into []string
+	for _, it := range app.PopupMenu {
+		if it.Label == msgs.FilmsTranslateAgain() {
+			for _, sub := range it.Items {
+				into = append(into, fmt.Sprint(sub.Label, sub.Checked))
+			}
+		}
+	}
+	if len(into) != len(subtitle.TargetLanguages()) || into[0] != msgs.SettingsLanguageJapanese()+"false" || into[1] != msgs.SettingsLanguageSimplifiedChinese()+"true" {
+		t.Fatalf("submenu %q", into)
+	}
+	app.ChoosePopup(msgs.FilmsTranslateAgain(), msgs.SettingsLanguageJapanese())
+	wantCalls(t, a, "translate-again done 日本語")
 }
 
 func TestEmptyPagesSayWhatToDo(t *testing.T) {

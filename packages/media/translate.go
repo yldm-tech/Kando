@@ -111,11 +111,12 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 		batch := segments[start:min(start+translateBatch, len(segments))]
 		progress := core.Fraction(float64(start) / float64(len(segments)))
 		progress.Batch, progress.Batches, progress.BatchSize = start/translateBatch+1, batches, translateBatch
-		reportProgress(ctx, progress)
+		progress.Lines, progress.Of = start, len(segments)
 		texts := make([]string, len(batch))
 		for i, s := range batch {
 			texts[i] = s.Text
 		}
+		// A batch an earlier run kept is not reported: it takes no time, and the card's time left is told from the batches sent.
 		if lines, ok := kept.batch(start, len(batch)); ok {
 			earlier = append(earlier, texts...)
 			failedRun = 0
@@ -125,6 +126,7 @@ func (t ChatTranslator) Translate(ctx context.Context, segments []core.Segment, 
 			}
 			continue
 		}
+		reportProgress(ctx, progress)
 		var contextSoFar []string
 		if t.Context {
 			contextSoFar = earlier

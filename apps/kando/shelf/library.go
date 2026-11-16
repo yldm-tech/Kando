@@ -285,6 +285,8 @@ type storedJob struct {
 	Cookies  string        `json:"cookies,omitempty"`
 	// Untranslated is how many lines a completed job's translation left untranslated (core.Job.Untranslated).
 	Untranslated int `json:"untranslated,omitempty"`
+	// TranslationError is why a completed job translated none of its lines (core.Job.TranslationErr).
+	TranslationError string `json:"translationError,omitempty"`
 	// Transcribed is whether the job saved its transcript beside its video (core.Job.Transcribed).
 	Transcribed bool `json:"transcribed,omitempty"`
 	// Redo is the part of a done film's processing a job translating it again does (core.Job.Redo).
@@ -300,7 +302,7 @@ func storeJob(job core.Job) storedJob {
 		ID: job.ID, Source: job.Source, Language: job.Language, Stage: job.Stage,
 		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
-		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated,
+		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated, TranslationError: job.TranslationErr,
 		Transcribed: job.Transcribed, Redo: job.Redo, RedoLanguage: job.RedoLanguage, SpokenLanguage: job.SpokenLanguage,
 	}
 	switch {
@@ -319,7 +321,7 @@ func (s storedJob) job() core.Job {
 		ID: s.ID, Source: s.Source, Language: s.Language, Stage: s.Stage,
 		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
-		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated,
+		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated, TranslationErr: s.TranslationError,
 		Transcribed: s.Transcribed, Redo: s.Redo, RedoLanguage: s.RedoLanguage, SpokenLanguage: s.SpokenLanguage,
 	}
 	switch s.Error {

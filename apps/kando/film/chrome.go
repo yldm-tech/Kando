@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"kando/apps/kando/desktop"
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
@@ -121,7 +122,10 @@ func (s *screen) actions() ns.Node {
 		row := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 8, FlexShrink: 0, AlignItems: ns.AlignCenter}}
 		switch which().job {
 		case "cancel":
-			row.Children = append(row.Children, ui.Button{TestID: "film-cancel", Text: locales.FilmCancel(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, func() { a.Cancel(s.item().JobID) })})
+			// A film watched while its job runs says what the job is doing beside 取消, as its card does.
+			status := ns.Text{TestID: "film-job-status", ContentFunc: live.Func(a, func() string { return a.JobStatus(cx) }), MaxLines: 1, EllipsizeMode: ns.EllipsizeTail,
+				Style: ns.Style{FontSize: 12, FlexShrink: 1, MinWidth: ns.Pt(0), Color: onGlass, Opacity: ns.Alpha(0.8)}}
+			row.Children = append(row.Children, status, ui.Button{TestID: "film-cancel", Text: locales.FilmCancel(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, func() { a.Cancel(s.item().JobID) })})
 		case "start":
 			row.Children = append(row.Children, ui.Button{TestID: "film-start", Text: locales.FilmStartProcessing(cx), OnPress: live.Do(a, a.ProcessFilm)})
 		case "failed":
@@ -174,9 +178,12 @@ func (s *screen) moreButton(cx *ns.Scope) ns.Node {
 		items := []nsdesktop.MenuItem{
 			{Label: locales.FilmFeedbackSubtitles(cx), OnSelect: live.Do(a, a.FeedbackSubtitles)},
 			{Label: locales.FilmReprocess(cx), OnSelect: live.Do(a, a.ReprocessFilm)},
-			{Label: locales.FilmTranslateAgain(cx), OnSelect: live.Do(a, a.TranslateFilmAgain)},
+			{Label: locales.FilmTranslateAgain(cx), Items: subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), item.Language, func(language string) { live.Do(a, func() { a.TranslateFilmAgain(language) })() })},
 		}
-		if item.Untranslated > 0 {
+		switch {
+		case item.TranslationErr != "":
+			items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslate(cx), OnSelect: live.Do(a, a.TranslateFilmMissing)})
+		case item.Untranslated > 0:
 			items = append(items, nsdesktop.MenuItem{Label: locales.FilmTranslateMissing(cx), OnSelect: live.Do(a, a.TranslateFilmMissing)})
 		}
 		b, _ := anchor.Bounds()

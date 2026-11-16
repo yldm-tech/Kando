@@ -33,10 +33,16 @@ type Film struct {
 	Thumbnail string
 	// Untranslated is how many lines of a done film's subtitles the translation left untranslated.
 	Untranslated int
+	// TranslationErr is why a done film translated none of its lines, its subtitles being the original lines alone (core.Job.TranslationErr); empty for one that was translated.
+	TranslationErr string
 	// Stopped reports a failed job that was cancelled rather than one that went wrong; Canceled reads it.
 	Stopped bool
 	// Library is the name of the library the job saves into when that is not the open one, as for a job that kept running after another library was opened; empty for the open library's films.
 	Library string
+	// Ahead is how many jobs run before a waiting one; 0 for any other film.
+	Ahead int
+	// Target is the language the film's job translates into: the one a job processing or translating a done film again was asked for (core.Job.RedoLanguage), else Language.
+	Target string
 }
 
 // List is the open library's films: the jobs that belong on its shelf, then the videos found in its folder that no job holds. Such a video shows the bilingual subtitles found beside it (media.Video.Subtitles), as a film copied from another library or one whose job records were lost has them. names is the title the user gave each video in Kando, by path (shelf.Library.Names), which a film shows in place of the name nameOf gives its job or its file's name.
@@ -95,9 +101,17 @@ func FromJob(job core.Job, name, detail string) Film {
 		Key: job.ID, Title: Shorten(name, 22), Name: name, Source: job.Source,
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage,
-		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated,
-		Stopped: errors.Is(job.Err, context.Canceled),
+		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr,
+		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job),
 	}
+}
+
+// jobTarget is the language job translates into (Film.Target).
+func jobTarget(job core.Job) string {
+	if job.Redo != core.RedoMissing && strings.TrimSpace(job.RedoLanguage) != "" {
+		return job.RedoLanguage
+	}
+	return job.Language
 }
 
 // InLibrary reports whether job belongs on the open library's shelf. A finished job follows its video file. A job that has not downloaded yet, or whose video is a local file kept where it was picked, follows the library it was started in.
@@ -311,19 +325,25 @@ func QueueOrder(items []Film) []Film {
 	return slices.Concat(running, waiting, failed)
 }
 
-// QueueSummary is the line beside 处理中, such as "1 个进行中 · 2 个需要处理".
+// QueueSummary is the line beside 处理中, such as "1 个进行中 · 2 个排队 · 2 个需要处理".
 func QueueSummary(m locales.Messages, items []Film) string {
-	active, failed := 0, 0
+	running, queued, failed := 0, 0, 0
 	for _, item := range items {
-		if item.Stage == core.StageFailed {
+		switch item.Stage {
+		case core.StageFailed:
 			failed++
-		} else {
-			active++
+		case core.StageQueued:
+			queued++
+		default:
+			running++
 		}
 	}
 	var parts []string
-	if active > 0 {
-		parts = append(parts, m.FilmsQueueActive(active))
+	if running > 0 {
+		parts = append(parts, m.FilmsQueueActive(running))
+	}
+	if queued > 0 {
+		parts = append(parts, m.FilmsQueueQueued(queued))
 	}
 	if failed > 0 {
 		parts = append(parts, m.FilmsQueueFailed(failed))

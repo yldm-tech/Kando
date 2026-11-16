@@ -229,20 +229,58 @@ func (a *app) Reprocess(item films.Film) {
 	a.libraryEnqueue(core.FileURL(item.VideoPath))
 }
 
-// TranslateAgain translates a done film's transcript again into the target language set now, without downloading or transcribing it. The film page's ⋯ uses it too (film.App).
-func (a *app) TranslateAgain(item films.Film) { a.libraryRetranslate(item, core.RedoTranslation) }
+// TranslateAgain translates a done film's transcript again into language, without downloading or transcribing it, as 重新翻译为 ▸ does from the library and the film page's ⋯ (film.App). Translating into another language than the film's replaces its translation, so that waits for the user to confirm (RetranslateDialog); the confirmation holds the window's modal flag until it closes (CloseRetranslate).
+func (a *app) TranslateAgain(item films.Film, language string) {
+	language = strings.TrimSpace(language)
+	if current := strings.TrimSpace(item.Language); current == "" || current == language {
+		a.libraryRetranslate(item, core.RedoTranslation, language)
+		return
+	}
+	a.lib.retranslating, a.lib.retranslateLanguage, a.lib.retranslateOpen = item, language, true
+	if a.lib.retranslateRelease == nil {
+		a.lib.retranslateRelease = a.holdModal()
+	}
+}
+
+func (a *app) TargetLanguage() string { return strings.TrimSpace(a.prefs.language) }
+
+func (a *app) Retranslating() (*bool, films.Film, string) {
+	return &a.lib.retranslateOpen, a.lib.retranslating, a.lib.retranslateLanguage
+}
+
+// CloseRetranslate closes the confirmation of 重新翻译为 and gives back the window's modal flag it held.
+func (a *app) CloseRetranslate() {
+	a.lib.retranslateOpen = false
+	if a.lib.retranslateRelease != nil {
+		a.lib.retranslateRelease()
+		a.lib.retranslateRelease = nil
+	}
+}
+
+// Retranslate translates the film the confirmation of 重新翻译为 asked about into its language, and closes it.
+func (a *app) Retranslate() {
+	if !a.lib.retranslateOpen {
+		return
+	}
+	item, language := a.lib.retranslating, a.lib.retranslateLanguage
+	a.CloseRetranslate()
+	a.libraryRetranslate(item, core.RedoTranslation, language)
+}
+
+// libraryRetranslateOverlay is the confirmation of 重新翻译为 over the window (overlays), so the film page asks too.
+func (a *app) libraryRetranslateOverlay(*ns.Scope) ns.Node { return films.RetranslateDialog{App: a} }
 
 // TranslateMissing translates only the lines a done film's translation left untranslated, as the card's 补译未译的句子 does. The film page's ⋯ uses it too (film.App).
-func (a *app) TranslateMissing(item films.Film) { a.libraryRetranslate(item, core.RedoMissing) }
+func (a *app) TranslateMissing(item films.Film) { a.libraryRetranslate(item, core.RedoMissing, "") }
 
-// libraryRetranslate queues done film item to be translated again (queueRetranslate) on its card, or an open film's page, and says in the message bar why when it cannot. The film page draws no message bar, so there the settings also open where the target language is chosen. The hero's line is read again once the film is done.
-func (a *app) libraryRetranslate(item films.Film, redo core.Redo) {
+// libraryRetranslate queues done film item to be translated again (queueRetranslate) into language, "" for the one queueRetranslate picks, on its card, or an open film's page, and says in the message bar why when it cannot. The film page draws no message bar, so there the settings also open where the target language is chosen. The hero's line is read again once the film is done.
+func (a *app) libraryRetranslate(item films.Film, redo core.Redo, language string) {
 	job, ok := a.library.Find(item.JobID)
 	if !ok {
 		return
 	}
 	delete(a.lib.quotes, item.SubtitlePath)
-	if err := a.queueRetranslate(job, redo); err != nil {
+	if err := a.queueRetranslate(job, redo, language); err != nil {
 		a.warn(err.Error(), settings.SectionTranslate)
 		if a.openKey != "" {
 			a.OpenSettings(settings.SectionTranslate)
@@ -271,6 +309,15 @@ func (a *app) Retry(id string) {
 
 func (a *app) FailureHint(item films.Film) (reason, section string) {
 	return failureHint(a.messages(), item)
+}
+
+// TranslationHint reads why a done film translated none of its lines as failureHint reads a failed translation, so it says what to do in the same words a failed job's card would.
+func (a *app) TranslationHint(item films.Film) (reason, section string) {
+	if item.TranslationErr == "" {
+		return "", ""
+	}
+	m := a.messages()
+	return failureHint(m, films.Film{Detail: m.QueueStatusFailed("translate: " + item.TranslationErr)})
 }
 
 func (a *app) JobFilm(id string) (films.Film, bool) {
@@ -412,9 +459,30 @@ func (a *app) films() []films.Film {
 // statusOf is what a job's card says of where it is, in the interface's language (statusText), as films.List and films.Queue take it.
 func (a *app) statusOf(job core.Job) string { return statusText(a.messages(), job) }
 
-// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere).
+// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere). A waiting one says how many jobs run before it (queueAhead).
 func (a *app) QueueFilms() []films.Film {
-	return films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, a.statusOf)
+	items := films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, a.statusOf)
+	ahead := a.queueAhead()
+	for i := range items {
+		items[i].Ahead = ahead[items[i].JobID]
+	}
+	return items
+}
+
+// queueAhead is how many jobs run before each waiting job, by ID: the running one, and those before it in the order the queue runs them (jobQueue.order). A waiting job the queue has not taken in yet, as one read back after a restart before the window is ready, is not counted.
+func (a *app) queueAhead() map[string]int {
+	ahead := map[string]int{}
+	n := 0
+	if a.queue.active != "" {
+		n = 1
+	}
+	for _, id := range a.queue.order {
+		if job, ok := a.library.Find(id); ok && job.Stage == core.StageQueued && id != a.queue.active {
+			ahead[id] = n
+			n++
+		}
+	}
+	return ahead
 }
 
 // libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added, a failed job of the same video queued again included, or a playlist or a channel among them opened the dialog that lists its videos (playlistAsk), which adds them only once asked. A video the library already holds is not added; the bar says so and offers to open it.
@@ -443,6 +511,8 @@ func (a *app) libraryQueue(sources []string) bool {
 	var dup *queueDuplicate
 	m := a.messages()
 	switch {
+	case err == nil && added > 0 && a.untranslatable():
+		a.warn(m.LibraryAddedUntranslated(), settings.SectionAI)
 	case err != nil && added > 0:
 		a.warn(m.LibraryAddedSome(added, sourceError(m, err)), "")
 	case errors.As(err, &dup) && dup.Stage == core.StageComplete:

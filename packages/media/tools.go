@@ -168,6 +168,7 @@ func (t Tools) Relook() Tools {
 	return t.UseEveryAPICLI()
 }
 
+// Check reports which of the download and speech tools a job needs are missing. The translator is not one of them: a job without it still makes the film's subtitles, the original lines alone, and Run checks it before translating (CheckTranslate).
 func (t Tools) Check() error {
 	var errs []error
 	for _, tool := range []struct{ name, path string }{{"yt-dlp", t.YTDLP}, {"ffmpeg", t.FFmpeg}, {"whisper-cli", t.Whisper}} {
@@ -180,10 +181,10 @@ func (t Tools) Check() error {
 	} else if _, err := os.Stat(t.WhisperModel); err != nil {
 		errs = append(errs, fmt.Errorf("whisper model: %w", err))
 	}
-	return errors.Join(append(errs, t.CheckTranslate())...)
+	return errors.Join(errs...)
 }
 
-// CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, without the download and speech tools Check also wants: translating a done film again (core.Job.Redo) runs only Translate and Export (TranslateChecker).
+// CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, which Check leaves out (TranslateChecker).
 func (t Tools) CheckTranslate() error {
 	var errs []error
 	if t.Translator.Model == "" {

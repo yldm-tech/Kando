@@ -48,6 +48,11 @@ type Progress struct {
 	ETA   time.Duration
 	// Batch is the translation batch being sent, from 1, of Batches, each of up to BatchSize lines.
 	Batch, Batches, BatchSize int
+	// Lines is how many of the Of lines being translated are done; both are 0 outside a translation.
+	Lines, Of int
+	// Started is when the stage first said how far it had gone, at From, which media.Run keeps through the stage's later reports, so the time it has left can be told from how fast it has gone since; zero until it has said.
+	Started time.Time
+	From    float64
 	// RetryIn is how long the translation waits before trying a rate-limited or failed request again, as the API's Retry-After asked or the backoff chose; Attempt is the retry about to be made, of Attempts. RetryIn is 0 while no retry is waiting.
 	RetryIn           time.Duration
 	Attempt, Attempts int
@@ -81,6 +86,8 @@ type Job struct {
 	FailKind FailKind
 	// Untranslated is how many lines of a completed job's subtitles the translation left untranslated after trying them again; 0 when every line was translated. A job processing or translating a done film again (Redo) keeps the film's count until it completes again.
 	Untranslated int
+	// TranslationErr is why a completed job translated none of its lines: its translation failed as a whole, or no AI service was set up to do it. Its subtitles are then the original lines alone, and Untranslated counts every line, so translating its missing lines (RedoMissing) translates the film once the service works. Empty for a job that translated, or has not completed; a job translating a done film again keeps the film's until it completes again.
+	TranslationErr string
 	// Transcribed is true once this job's transcription has saved the speech it heard beside VideoPath, so running the job again, as a retry after a failed translation or after the app quit in the middle, reads it back instead of transcribing the video again. Processing a done film again clears it, so its speech is transcribed anew.
 	Transcribed bool
 	// Cookies is the browser whose login the download borrows (yt-dlp's --cookies-from-browser name, such as chrome); empty borrows none.

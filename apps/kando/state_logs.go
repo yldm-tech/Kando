@@ -104,19 +104,24 @@ func (a *app) logsShow() {
 	}
 }
 
-// logsJobs records the stage of each job on the shelf. With report set, a job that is failed now and was not when the log last looked is logged: its ID, the stage it was in, and its whole error, which its card shortens.
+// logsJobs records the stage of each job on the shelf. With report set, a job that is failed now and was not when the log last looked is logged: its ID, the stage it was in, and its whole error, which its card shortens. So is a job that has completed since without translating any line (core.Job.TranslationErr), with why.
 func (a *app) logsJobs(report bool) {
 	stages := make(map[string]core.Stage, len(a.library.Jobs))
 	for _, job := range a.library.Jobs {
 		stages[job.ID] = job.Stage
 		before, seen := a.logs.stages[job.ID]
-		if !report || job.Stage != core.StageFailed || before == core.StageFailed {
+		if !report || job.Stage == before {
 			continue
 		}
 		if !seen {
 			before = "added"
 		}
-		a.logsJobFailed(job, before)
+		switch {
+		case job.Stage == core.StageFailed:
+			a.logsJobFailed(job, before)
+		case job.Stage == core.StageComplete && job.TranslationErr != "":
+			log.Printf("job %s completed without a translation: %s", job.ID, feedback.Scrubber{Secrets: a.feedbackSecrets()}.NoSecrets(job.TranslationErr))
+		}
 	}
 	a.logs.stages = stages
 }

@@ -478,19 +478,27 @@ var Parameters = map[string][]string{
 	"FilmsNoLibraryDescription":          {"platform"},
 	"FilmsPosterBilingual":               {"language"},
 	"FilmsPosterLanguages":               {"spoken", "target"},
+	"FilmsQueueAboutMinutes":             {"count"},
 	"FilmsQueueActive":                   {"count"},
 	"FilmsQueueDownloadingFrom":          {"site"},
 	"FilmsQueueFailed":                   {"count"},
+	"FilmsQueueInto":                     {"language"},
 	"FilmsQueueNoAnswer":                 {"seconds", "attempt", "attempts"},
+	"FilmsQueueQueued":                   {"count"},
 	"FilmsQueueRateLimited":              {"seconds", "attempt", "attempts"},
 	"FilmsQueueRemaining":                {"time_"},
 	"FilmsQueueSavingTo":                 {"library"},
 	"FilmsQueueShowAll":                  {"count"},
 	"FilmsQueueTranscribingPercent":      {"percent"},
 	"FilmsQueueTranslatingBatch":         {"batch", "batches", "size"},
+	"FilmsQueueTranslatingLines":         {"lines", "total"},
+	"FilmsQueueWaitingAhead":             {"count"},
+	"FilmsQueueWatch":                    {"name"},
 	"FilmsRemoveConfirm":                 {"name"},
 	"FilmsReprocessConfirm":              {"name"},
 	"FilmsReprocessConfirmMessage":       {"language"},
+	"FilmsRetranslateConfirm":            {"name", "language"},
+	"FilmsRetranslateConfirmMessage":     {"current"},
 	"FilmsSearchNoMatch":                 {"query"},
 	"FilmsShowInFinder":                  {"platform"},
 	"FilmsSortButton":                    {"order"},
@@ -635,6 +643,8 @@ var Parameters = map[string][]string{
 	"SettingsSpeechTrashInUse":           {"model"},
 	"SettingsSpeechTrashMessage":         {"size"},
 	"SidebarCommandsTooltip":             {"shortcut"},
+	"SidebarJobsActive":                  {"count"},
+	"SidebarJobsFailed":                  {"count"},
 	"SidebarLibraryCount":                {"name", "count"},
 	"SidebarMenuShowInFinder":            {"platform"},
 	"SidebarRevealLibrary":               {"name", "platform"},
@@ -705,19 +715,27 @@ type Translation struct {
 	FilmsNoLibraryDescription          func(platform string) string
 	FilmsPosterBilingual               func(language string) string
 	FilmsPosterLanguages               func(spoken string, target string) string
+	FilmsQueueAboutMinutes             func(count int) string
 	FilmsQueueActive                   func(count int) string
 	FilmsQueueDownloadingFrom          func(site string) string
 	FilmsQueueFailed                   func(count int) string
+	FilmsQueueInto                     func(language string) string
 	FilmsQueueNoAnswer                 func(seconds int, attempt int, attempts int) string
+	FilmsQueueQueued                   func(count int) string
 	FilmsQueueRateLimited              func(seconds int, attempt int, attempts int) string
 	FilmsQueueRemaining                func(time_ string) string
 	FilmsQueueSavingTo                 func(library string) string
 	FilmsQueueShowAll                  func(count int) string
 	FilmsQueueTranscribingPercent      func(percent string) string
 	FilmsQueueTranslatingBatch         func(batch int, batches int, size int) string
+	FilmsQueueTranslatingLines         func(lines int, total int) string
+	FilmsQueueWaitingAhead             func(count int) string
+	FilmsQueueWatch                    func(name string) string
 	FilmsRemoveConfirm                 func(name string) string
 	FilmsReprocessConfirm              func(name string) string
 	FilmsReprocessConfirmMessage       func(language string) string
+	FilmsRetranslateConfirm            func(name string, language string) string
+	FilmsRetranslateConfirmMessage     func(current string) string
 	FilmsSearchNoMatch                 func(query string) string
 	FilmsShowInFinder                  func(platform string) string
 	FilmsSortButton                    func(order string) string
@@ -862,6 +880,8 @@ type Translation struct {
 	SettingsSpeechTrashInUse           func(model string) string
 	SettingsSpeechTrashMessage         func(size string) string
 	SidebarCommandsTooltip             func(shortcut string) string
+	SidebarJobsActive                  func(count int) string
+	SidebarJobsFailed                  func(count int) string
 	SidebarLibraryCount                func(name string, count int) string
 	SidebarMenuShowInFinder            func(platform string) string
 	SidebarRevealLibrary               func(name string, platform string) string
@@ -1120,6 +1140,7 @@ const (
 	textFilmsNewLibraryTitle
 	textFilmsNoLibraryTitle
 	textFilmsNoSubtitles
+	textFilmsNoTranslation
 	textFilmsNoticeOpen
 	textFilmsOpenLibraryEllipsis
 	textFilmsOpenSettings
@@ -1136,8 +1157,10 @@ const (
 	textFilmsQueueTitle
 	textFilmsQueueTranscribing
 	textFilmsQueueTranslating
+	textFilmsQueueUnderAMinute
 	textFilmsQueueWaiting
 	textFilmsRemove
+	textFilmsRemoveFailed
 	textFilmsRemoveFiles
 	textFilmsRemoveFolder
 	textFilmsRemoveFromLibrary
@@ -1147,8 +1170,10 @@ const (
 	textFilmsRenameNote
 	textFilmsRenameSave
 	textFilmsRenameTitle
+	textFilmsReport
 	textFilmsReprocess
 	textFilmsRetry
+	textFilmsRetryAll
 	textFilmsSearchClear
 	textFilmsSourceEmpty
 	textFilmsSortAdded
@@ -1165,12 +1190,14 @@ const (
 	textFilmsStageTranslating
 	textFilmsStart
 	textFilmsSupportedSites
+	textFilmsTranslate
 	textFilmsTranslateAgain
 	textFilmsTranslateMissing
 	textFilmsWatched
 	textKitsDownloadDisconnected
 	textKitsDownloadStalled
 	textLibraryAddedOneStarting
+	textLibraryAddedUntranslated
 	textLibraryDefaultName
 	textLibraryFileMissing
 	textLibraryFileTaken
@@ -1953,6 +1980,7 @@ var keyOfText = [numTexts]string{
 	"filmsNewLibraryTitle",
 	"filmsNoLibraryTitle",
 	"filmsNoSubtitles",
+	"filmsNoTranslation",
 	"filmsNoticeOpen",
 	"filmsOpenLibraryEllipsis",
 	"filmsOpenSettings",
@@ -1969,8 +1997,10 @@ var keyOfText = [numTexts]string{
 	"filmsQueueTitle",
 	"filmsQueueTranscribing",
 	"filmsQueueTranslating",
+	"filmsQueueUnderAMinute",
 	"filmsQueueWaiting",
 	"filmsRemove",
+	"filmsRemoveFailed",
 	"filmsRemoveFiles",
 	"filmsRemoveFolder",
 	"filmsRemoveFromLibrary",
@@ -1980,8 +2010,10 @@ var keyOfText = [numTexts]string{
 	"filmsRenameNote",
 	"filmsRenameSave",
 	"filmsRenameTitle",
+	"filmsReport",
 	"filmsReprocess",
 	"filmsRetry",
+	"filmsRetryAll",
 	"filmsSearchClear",
 	"filmsSourceEmpty",
 	"filmsSortAdded",
@@ -1998,12 +2030,14 @@ var keyOfText = [numTexts]string{
 	"filmsStageTranslating",
 	"filmsStart",
 	"filmsSupportedSites",
+	"filmsTranslate",
 	"filmsTranslateAgain",
 	"filmsTranslateMissing",
 	"filmsWatched",
 	"kitsDownloadDisconnected",
 	"kitsDownloadStalled",
 	"libraryAddedOneStarting",
+	"libraryAddedUntranslated",
 	"libraryDefaultName",
 	"libraryFileMissing",
 	"libraryFileTaken",
@@ -2754,7 +2788,7 @@ var textsEn = i18n.NewTexts(""+
 	"Clips"+
 	"Info"+
 	"Style"+
-	"Translate Again"+
+	"Translate Again Into"+
 	"Translate Missing Lines"+
 	"Unmute"+
 	"Not Processed"+
@@ -2784,6 +2818,7 @@ var textsEn = i18n.NewTexts(""+
 	"New Library"+
 	"No Library Yet"+
 	"No subtitles yet"+
+	"No translation"+
 	"Open"+
 	"Open Existing Library…"+
 	"Open Settings"+
@@ -2794,14 +2829,16 @@ var textsEn = i18n.NewTexts(""+
 	"Cancel Processing"+
 	"Canceled"+
 	"Show Less"+
-	"Exporting · Writing video.srt and video.bilingual.srt"+
+	"Exporting subtitles"+
 	"Progress"+
 	"Reading · Local file"+
 	"Processing"+
-	"Transcribing · whisper on this computer"+
-	"Translating · AI service"+
-	"Queued · Waiting for the jobs ahead"+
+	"Transcribing"+
+	"Translating"+
+	"under a minute left"+
+	"Queued"+
 	"Remove"+
+	"Remove Failed"+
 	"The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay where they are."+
 	"The film's folder will be moved to the Trash. You can get its video, cover and subtitles back from there."+
 	"Remove from Library…"+
@@ -2811,8 +2848,10 @@ var textsEn = i18n.NewTexts(""+
 	"Only the title Kando shows changes; the files on disk keep their names. Leave it empty to show the original title again."+
 	"Rename"+
 	"Rename Film"+
+	"Report…"+
 	"Process Again"+
 	"Retry"+
+	"Retry All"+
 	"Clear Search"+
 	"No films from this source yet."+
 	"Recently Added"+
@@ -2829,12 +2868,14 @@ var textsEn = i18n.NewTexts(""+
 	"Translating"+
 	"Start Processing"+
 	"Supported Websites…"+
-	"Translate Again"+
+	"Translate"+
+	"Translate Again Into"+
 	"Translate Missing Lines"+
 	"Watched"+
 	"the connection dropped"+
 	"the server stopped sending data"+
 	"Added. Processing started."+
+	"Added. Without an AI service, subtitles will be in the original language only."+
 	"Film Library"+
 	"The file is no longer there."+
 	"A file with this name already exists in this location."+
@@ -3582,7 +3623,7 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		4,
 		5,
-		15,
+		20,
 		23,
 		6,
 		13,
@@ -3612,6 +3653,7 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		14,
 		16,
+		14,
 		4,
 		24,
 		13,
@@ -3622,14 +3664,16 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		8,
 		9,
-		54,
+		19,
 		8,
 		21,
 		10,
-		40,
-		25,
-		36,
+		12,
+		11,
+		19,
 		6,
+		6,
+		13,
 		131,
 		105,
 		22,
@@ -3639,8 +3683,10 @@ var textsEn = i18n.NewTexts(""+
 		120,
 		6,
 		11,
+		9,
 		13,
 		5,
+		9,
 		12,
 		30,
 		14,
@@ -3657,12 +3703,14 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		16,
 		21,
-		15,
+		9,
+		20,
 		23,
 		7,
 		22,
 		31,
 		26,
+		78,
 		12,
 		28,
 		54,
@@ -4413,7 +4461,7 @@ var textsJa = i18n.NewTexts(""+
 	"クリップ"+
 	"情報"+
 	"スタイル"+
-	"再翻訳"+
+	"再翻訳先"+
 	"未翻訳の行を翻訳"+
 	"消音を解除"+
 	"未処理"+
@@ -4443,6 +4491,7 @@ var textsJa = i18n.NewTexts(""+
 	"新規ライブラリ"+
 	"ライブラリがまだありません"+
 	"字幕はまだありません"+
+	"翻訳なし"+
 	"開く"+
 	"既存のライブラリを開く…"+
 	"設定を開く"+
@@ -4453,14 +4502,16 @@ var textsJa = i18n.NewTexts(""+
 	"処理をキャンセル"+
 	"キャンセル済み"+
 	"折りたたむ"+
-	"書き出し中 · video.srt と video.bilingual.srt に書き込み"+
+	"字幕を書き出し中"+
 	"進行状況"+
 	"読み込み中 · ローカルファイル"+
 	"処理中"+
-	"文字起こし中 · whisper でローカル認識"+
-	"翻訳中 · AI サービス"+
-	"待機中 · 前のジョブを待っています"+
+	"文字起こし中"+
+	"翻訳中"+
+	"残り 1 分未満"+
+	"待機中"+
 	"取り除く"+
+	"失敗したものを削除"+
 	"動画とその字幕はゴミ箱に移動され、ゴミ箱から戻せます。同じフォルダにあるほかのファイルはそのまま残ります。"+
 	"動画のフォルダはゴミ箱に移動されます。中の動画、カバー、字幕はゴミ箱から戻せます。"+
 	"ライブラリから取り除く…"+
@@ -4470,8 +4521,10 @@ var textsJa = i18n.NewTexts(""+
 	"変わるのは Kando に表示されるタイトルだけで、ディスク上のファイル名はそのままです。空にすると元のタイトルに戻ります。"+
 	"名前を変更"+
 	"動画の名前を変更"+
+	"報告…"+
 	"再処理"+
 	"再試行"+
+	"すべて再試行"+
 	"検索をクリア"+
 	"このソースの動画はまだありません。"+
 	"追加日が新しい順"+
@@ -4488,12 +4541,14 @@ var textsJa = i18n.NewTexts(""+
 	"翻訳中"+
 	"処理を開始"+
 	"対応サイト…"+
-	"再翻訳"+
+	"翻訳"+
+	"再翻訳先"+
 	"未翻訳の行を翻訳"+
 	"視聴済み"+
 	"接続が切れました"+
 	"サーバーからデータが届かなくなりました"+
 	"追加して処理を開始しました。"+
+	"追加しました。AI サービスがないため、字幕は原文のみになります。"+
 	"動画ライブラリ"+
 	"ファイルが見つかりません"+
 	"この場所には同じ名前のファイルがすでにあります"+
@@ -5241,7 +5296,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		6,
 		12,
-		9,
+		12,
 		24,
 		15,
 		9,
@@ -5271,6 +5326,7 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		39,
 		30,
+		12,
 		6,
 		36,
 		15,
@@ -5281,14 +5337,16 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		21,
 		15,
-		68,
+		24,
 		12,
 		43,
 		9,
-		51,
-		28,
-		49,
+		18,
+		9,
+		18,
+		9,
 		12,
+		27,
 		159,
 		123,
 		36,
@@ -5300,6 +5358,8 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		9,
 		9,
+		9,
+		18,
 		18,
 		51,
 		24,
@@ -5316,12 +5376,14 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		15,
 		18,
-		9,
+		6,
+		12,
 		24,
 		12,
 		24,
 		57,
 		42,
+		93,
 		21,
 		36,
 		69,
@@ -6072,7 +6134,7 @@ var textsKo = i18n.NewTexts(""+
 	"클립"+
 	"정보"+
 	"스타일"+
-	"다시 번역"+
+	"다시 번역할 언어"+
 	"번역 안 된 대사 번역"+
 	"음소거 해제"+
 	"처리 안 됨"+
@@ -6102,6 +6164,7 @@ var textsKo = i18n.NewTexts(""+
 	"새로운 라이브러리"+
 	"아직 라이브러리가 없습니다"+
 	"아직 자막 없음"+
+	"번역 없음"+
 	"열기"+
 	"기존 라이브러리 열기…"+
 	"설정 열기"+
@@ -6112,14 +6175,16 @@ var textsKo = i18n.NewTexts(""+
 	"처리 취소"+
 	"취소됨"+
 	"접기"+
-	"내보내는 중 · video.srt 및 video.bilingual.srt 쓰는 중"+
+	"자막 내보내는 중"+
 	"진행률"+
 	"읽는 중 · 로컬 파일"+
 	"처리 중"+
-	"전사 중 · whisper 로컬 인식"+
-	"번역 중 · AI 서비스"+
-	"대기 중 · 앞의 작업을 기다리는 중"+
+	"전사 중"+
+	"번역 중"+
+	"1분 미만 남음"+
+	"대기 중"+
 	"제거"+
+	"실패한 항목 제거"+
 	"동영상과 자막은 휴지통으로 이동되며 휴지통에서 되살릴 수 있습니다. 같은 폴더의 다른 파일은 그대로 남습니다."+
 	"영상 폴더가 휴지통으로 이동됩니다. 안의 동영상, 표지, 자막은 휴지통에서 되살릴 수 있습니다."+
 	"라이브러리에서 제거…"+
@@ -6129,8 +6194,10 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에 표시되는 제목만 바뀌고 디스크의 파일 이름은 그대로입니다. 비워 두면 원래 제목으로 돌아갑니다."+
 	"이름 변경"+
 	"영상 이름 변경"+
+	"보고…"+
 	"다시 처리"+
 	"다시 시도"+
+	"모두 재시도"+
 	"검색 지우기"+
 	"이 출처의 영상이 아직 없습니다."+
 	"최근 추가순"+
@@ -6147,12 +6214,14 @@ var textsKo = i18n.NewTexts(""+
 	"번역 중"+
 	"처리 시작"+
 	"지원하는 웹사이트…"+
-	"다시 번역"+
+	"번역"+
+	"다시 번역할 언어"+
 	"번역 안 된 대사 번역"+
 	"시청 완료"+
 	"연결이 끊어졌습니다"+
 	"서버에서 데이터가 더 이상 오지 않습니다"+
 	"추가하고 처리를 시작했습니다."+
+	"추가했습니다. AI 서비스가 없어 자막은 원문만 표시됩니다."+
 	"영상 라이브러리"+
 	"파일이 더 이상 없습니다"+
 	"이 위치에 같은 이름의 파일이 이미 있습니다"+
@@ -6900,7 +6969,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		13,
+		23,
 		28,
 		16,
 		14,
@@ -6930,6 +6999,7 @@ var textsKo = i18n.NewTexts(""+
 		25,
 		38,
 		20,
+		13,
 		6,
 		32,
 		13,
@@ -6940,14 +7010,16 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		9,
 		6,
-		64,
+		23,
 		9,
 		27,
 		10,
-		35,
-		26,
-		47,
+		10,
+		10,
+		18,
+		10,
 		6,
+		23,
 		153,
 		129,
 		31,
@@ -6957,8 +7029,10 @@ var textsKo = i18n.NewTexts(""+
 		142,
 		13,
 		20,
+		9,
 		13,
 		13,
+		16,
 		16,
 		44,
 		16,
@@ -6975,12 +7049,14 @@ var textsKo = i18n.NewTexts(""+
 		10,
 		13,
 		28,
-		13,
+		6,
+		23,
 		28,
 		13,
 		28,
 		56,
 		42,
+		79,
 		22,
 		33,
 		60,
@@ -7731,7 +7807,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"片段"+
 	"信息"+
 	"样式"+
-	"重新翻译"+
+	"重新翻译为"+
 	"补译未译的句子"+
 	"取消静音"+
 	"未处理"+
@@ -7761,6 +7837,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"新建资料库"+
 	"还没有资料库"+
 	"还没有字幕"+
+	"未翻译"+
 	"打开"+
 	"打开已有资料库…"+
 	"打开设置"+
@@ -7771,14 +7848,16 @@ var textsZhHans = i18n.NewTexts(""+
 	"取消处理"+
 	"已取消"+
 	"收起"+
-	"导出中 · 写入 video.srt 与 video.bilingual.srt"+
+	"导出字幕中"+
 	"进度"+
 	"读取中 · 本地文件"+
 	"处理中"+
-	"生成字幕中 · whisper 本机识别"+
-	"翻译中 · AI 服务"+
-	"排队中 · 等待前面的任务"+
+	"生成字幕中"+
+	"翻译中"+
+	"不到 1 分钟"+
+	"排队中"+
 	"移除"+
+	"移除失败项"+
 	"视频和它的字幕会移到废纸篓，可以从废纸篓找回。所在文件夹里的其他文件留在原处。"+
 	"影片文件夹会移到废纸篓，里面的视频、封面和字幕都可以从废纸篓找回。"+
 	"从资料库移除…"+
@@ -7788,8 +7867,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"只改看懂里显示的标题，磁盘上的文件名不变。留空就恢复原来的标题。"+
 	"重命名"+
 	"重命名影片"+
+	"报告…"+
 	"重新处理"+
 	"重试"+
+	"全部重试"+
 	"清除搜索"+
 	"这个来源下还没有影片。"+
 	"最近添加"+
@@ -7806,12 +7887,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"翻译中"+
 	"开始处理"+
 	"支持的网站…"+
-	"重新翻译"+
+	"翻译"+
+	"重新翻译为"+
 	"补译未译的句子"+
 	"已看完"+
 	"连接断了"+
 	"服务器一直没有发来数据"+
 	"已加入，开始处理。"+
+	"已加入。没有 AI 服务，字幕只有原文。"+
 	"影视库"+
 	"文件不在了"+
 	"这个位置已经有同名文件"+
@@ -8559,7 +8642,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		6,
-		12,
+		15,
 		21,
 		12,
 		9,
@@ -8589,6 +8672,7 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		18,
 		15,
+		9,
 		6,
 		24,
 		12,
@@ -8599,14 +8683,16 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		9,
 		6,
-		53,
+		15,
 		6,
 		25,
 		9,
-		39,
-		22,
-		34,
+		15,
+		9,
+		15,
+		9,
 		6,
+		15,
 		117,
 		99,
 		21,
@@ -8616,8 +8702,10 @@ var textsZhHans = i18n.NewTexts(""+
 		96,
 		9,
 		15,
+		9,
 		12,
 		6,
+		12,
 		12,
 		33,
 		12,
@@ -8634,12 +8722,14 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		12,
 		18,
-		12,
+		6,
+		15,
 		21,
 		9,
 		12,
 		33,
 		27,
+		52,
 		9,
 		15,
 		33,
@@ -9390,7 +9480,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"片段"+
 	"資訊"+
 	"樣式"+
-	"重新翻譯"+
+	"重新翻譯為"+
 	"補譯未譯的句子"+
 	"取消靜音"+
 	"未處理"+
@@ -9420,6 +9510,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"新增資料庫"+
 	"還沒有資料庫"+
 	"還沒有字幕"+
+	"未翻譯"+
 	"打開"+
 	"打開現有資料庫…"+
 	"打開設定"+
@@ -9430,14 +9521,16 @@ var textsZhHant = i18n.NewTexts(""+
 	"取消處理"+
 	"已取消"+
 	"收合"+
-	"匯出中 · 寫入 video.srt 與 video.bilingual.srt"+
+	"匯出字幕中"+
 	"進度"+
 	"讀取中 · 本機檔案"+
 	"處理中"+
-	"產生字幕中 · whisper 本機辨識"+
-	"翻譯中 · AI 服務"+
-	"排隊中 · 等待前面的工作"+
+	"產生字幕中"+
+	"翻譯中"+
+	"不到 1 分鐘"+
+	"排隊中"+
 	"移除"+
+	"移除失敗項目"+
 	"影片和它的字幕會移到垃圾桶，可以從垃圾桶找回。所在檔案夾裡的其他檔案會留在原處。"+
 	"影片檔案夾會移到垃圾桶，裡面的影片、封面和字幕都可以從垃圾桶找回。"+
 	"從資料庫移除…"+
@@ -9447,8 +9540,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"只改看懂裡顯示的標題，磁碟上的檔名不變。留空就恢復原本的標題。"+
 	"重新命名"+
 	"重新命名影片"+
+	"回報…"+
 	"重新處理"+
 	"重試"+
+	"全部重試"+
 	"清除搜尋"+
 	"這個來源下還沒有影片。"+
 	"最近加入"+
@@ -9465,12 +9560,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"翻譯中"+
 	"開始處理"+
 	"支援的網站…"+
-	"重新翻譯"+
+	"翻譯"+
+	"重新翻譯為"+
 	"補譯未譯的句子"+
 	"已看完"+
 	"連線中斷了"+
 	"伺服器一直沒有傳來資料"+
 	"已加入，開始處理。"+
+	"已加入。沒有 AI 服務，字幕只有原文。"+
 	"影視庫"+
 	"檔案已不在原處"+
 	"這個位置已經有同名檔案"+
@@ -10218,7 +10315,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		6,
-		12,
+		15,
 		21,
 		12,
 		9,
@@ -10248,6 +10345,7 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		18,
 		15,
+		9,
 		6,
 		24,
 		12,
@@ -10258,14 +10356,16 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		9,
 		6,
-		53,
+		15,
 		6,
 		25,
 		9,
-		39,
-		22,
-		34,
+		15,
+		9,
+		15,
+		9,
 		6,
+		18,
 		120,
 		99,
 		21,
@@ -10275,8 +10375,10 @@ var textsZhHant = i18n.NewTexts(""+
 		93,
 		12,
 		18,
+		9,
 		12,
 		6,
+		12,
 		12,
 		33,
 		12,
@@ -10293,12 +10395,14 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		12,
 		18,
-		12,
+		6,
+		15,
 		21,
 		9,
 		15,
 		33,
 		27,
+		52,
 		9,
 		21,
 		33,
@@ -11053,6 +11157,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmsPosterLanguages != nil {
 		s.FilmsPosterLanguages = t.FilmsPosterLanguages
 	}
+	if t.FilmsQueueAboutMinutes != nil {
+		s.FilmsQueueAboutMinutes = t.FilmsQueueAboutMinutes
+	}
 	if t.FilmsQueueActive != nil {
 		s.FilmsQueueActive = t.FilmsQueueActive
 	}
@@ -11062,8 +11169,14 @@ func Supply(lang string, t Translation) {
 	if t.FilmsQueueFailed != nil {
 		s.FilmsQueueFailed = t.FilmsQueueFailed
 	}
+	if t.FilmsQueueInto != nil {
+		s.FilmsQueueInto = t.FilmsQueueInto
+	}
 	if t.FilmsQueueNoAnswer != nil {
 		s.FilmsQueueNoAnswer = t.FilmsQueueNoAnswer
+	}
+	if t.FilmsQueueQueued != nil {
+		s.FilmsQueueQueued = t.FilmsQueueQueued
 	}
 	if t.FilmsQueueRateLimited != nil {
 		s.FilmsQueueRateLimited = t.FilmsQueueRateLimited
@@ -11083,6 +11196,15 @@ func Supply(lang string, t Translation) {
 	if t.FilmsQueueTranslatingBatch != nil {
 		s.FilmsQueueTranslatingBatch = t.FilmsQueueTranslatingBatch
 	}
+	if t.FilmsQueueTranslatingLines != nil {
+		s.FilmsQueueTranslatingLines = t.FilmsQueueTranslatingLines
+	}
+	if t.FilmsQueueWaitingAhead != nil {
+		s.FilmsQueueWaitingAhead = t.FilmsQueueWaitingAhead
+	}
+	if t.FilmsQueueWatch != nil {
+		s.FilmsQueueWatch = t.FilmsQueueWatch
+	}
 	if t.FilmsRemoveConfirm != nil {
 		s.FilmsRemoveConfirm = t.FilmsRemoveConfirm
 	}
@@ -11091,6 +11213,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsReprocessConfirmMessage != nil {
 		s.FilmsReprocessConfirmMessage = t.FilmsReprocessConfirmMessage
+	}
+	if t.FilmsRetranslateConfirm != nil {
+		s.FilmsRetranslateConfirm = t.FilmsRetranslateConfirm
+	}
+	if t.FilmsRetranslateConfirmMessage != nil {
+		s.FilmsRetranslateConfirmMessage = t.FilmsRetranslateConfirmMessage
 	}
 	if t.FilmsSearchNoMatch != nil {
 		s.FilmsSearchNoMatch = t.FilmsSearchNoMatch
@@ -11523,6 +11651,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SidebarCommandsTooltip != nil {
 		s.SidebarCommandsTooltip = t.SidebarCommandsTooltip
+	}
+	if t.SidebarJobsActive != nil {
+		s.SidebarJobsActive = t.SidebarJobsActive
+	}
+	if t.SidebarJobsFailed != nil {
+		s.SidebarJobsFailed = t.SidebarJobsFailed
 	}
 	if t.SidebarLibraryCount != nil {
 		s.SidebarLibraryCount = t.SidebarLibraryCount
@@ -14832,10 +14966,10 @@ func FilmTabStyle(cx *core.Scope) string { return For(cx).FilmTabStyle() }
 // FilmTabStyle is the package's FilmTabStyle in the language of msgs.
 func (msgs Messages) FilmTabStyle() string { return msgs.text(textFilmTabStyle) }
 
-// FilmTranslateAgain says "Translate Again"
+// FilmTranslateAgain says "Translate Again Into"
 // in the language the app shows under cx.
 //
-// Item of the player's ⋯ menu that translates a finished film's subtitles again into the target language set now, without downloading or transcribing it again.
+// Submenu of the player's ⋯ menu listing the target languages, the one set in the settings first and the film's own checked: translates its subtitles again into the language chosen.
 func FilmTranslateAgain(cx *core.Scope) string { return For(cx).FilmTranslateAgain() }
 
 // FilmTranslateAgain is the package's FilmTranslateAgain in the language of msgs.
@@ -15550,6 +15684,15 @@ func FilmsNoSubtitles(cx *core.Scope) string { return For(cx).FilmsNoSubtitles()
 // FilmsNoSubtitles is the package's FilmsNoSubtitles in the language of msgs.
 func (msgs Messages) FilmsNoSubtitles() string { return msgs.text(textFilmsNoSubtitles) }
 
+// FilmsNoTranslation says "No translation"
+// in the language the app shows under cx.
+//
+// Part of the line under a finished film whose translation failed or was never done because no AI service is set up: its subtitles are the original lines only.
+func FilmsNoTranslation(cx *core.Scope) string { return For(cx).FilmsNoTranslation() }
+
+// FilmsNoTranslation is the package's FilmsNoTranslation in the language of msgs.
+func (msgs Messages) FilmsNoTranslation() string { return msgs.text(textFilmsNoTranslation) }
+
 // FilmsNoticeOpen says "Open"
 // in the language the app shows under cx.
 //
@@ -15679,10 +15822,53 @@ func (msgs Messages) FilmsPosterLanguages(spoken string, target string) string {
 	}
 }
 
-// FilmsQueueActive says "{count} in progress"
+// FilmsQueueAboutMinutes says "about {count, plural, one {# min} other {# min}} left"
 // in the language the app shows under cx.
 //
-// Dimmed note beside the processing heading: how many jobs are waiting or running.
+// Part of a running job's line: about how many minutes its stage still needs, told from how fast it has gone so far.
+func FilmsQueueAboutMinutes(cx *core.Scope, count int) string {
+	return For(cx).FilmsQueueAboutMinutes(count)
+}
+
+// FilmsQueueAboutMinutes is the package's FilmsQueueAboutMinutes in the language of msgs.
+func (msgs Messages) FilmsQueueAboutMinutes(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueAboutMinutes(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueueAboutMinutes; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("about ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" min")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" min")
+			}
+			b.WriteString(" left")
+			return b.String()
+		case "ja":
+			return "残り約 " + i18n.FormatNumber("ja", float64(count)) + " 分"
+		case "ko":
+			return "약 " + i18n.FormatNumber("ko", float64(count)) + "분 남음"
+		case "zh-Hans":
+			return "约剩 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 分钟"
+		case "zh-Hant":
+			return "約剩 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 分鐘"
+		}
+	}
+}
+
+// FilmsQueueActive says "{count} running"
+// in the language the app shows under cx.
+//
+// Dimmed note beside the processing heading: how many jobs are running now.
 func FilmsQueueActive(cx *core.Scope, count int) string { return For(cx).FilmsQueueActive(count) }
 
 // FilmsQueueActive is the package's FilmsQueueActive in the language of msgs.
@@ -15696,7 +15882,7 @@ func (msgs Messages) FilmsQueueActive(count int) string {
 		}
 		switch lang {
 		case "", "en":
-			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " in progress"
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " running"
 		case "ja":
 			return "処理中 " + i18n.FormatNumber("ja", float64(count)) + " 件"
 		case "ko":
@@ -15736,10 +15922,10 @@ func FilmsQueueCollapse(cx *core.Scope) string { return For(cx).FilmsQueueCollap
 // FilmsQueueCollapse is the package's FilmsQueueCollapse in the language of msgs.
 func (msgs Messages) FilmsQueueCollapse() string { return msgs.text(textFilmsQueueCollapse) }
 
-// FilmsQueueDownloadingFrom says "Downloading · yt-dlp · {site}"
+// FilmsQueueDownloadingFrom says "Downloading · {site}"
 // in the language the app shows under cx.
 //
-// Line under the title of a job whose download has not reported progress yet: the tool and the site.
+// Line under the title of a job whose download has not reported progress yet: the site it downloads from.
 func FilmsQueueDownloadingFrom(cx *core.Scope, site string) string {
 	return For(cx).FilmsQueueDownloadingFrom(site)
 }
@@ -15755,20 +15941,20 @@ func (msgs Messages) FilmsQueueDownloadingFrom(site string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Downloading · yt-dlp · " + msgs.arg(site)
+			return "Downloading · " + msgs.arg(site)
 		case "ja":
-			return "ダウンロード中 · yt-dlp · " + site
+			return "ダウンロード中 · " + site
 		case "ko":
-			return "다운로드 중 · yt-dlp · " + site
+			return "다운로드 중 · " + site
 		case "zh-Hans":
-			return "下载中 · yt-dlp · " + site
+			return "下载中 · " + site
 		case "zh-Hant":
-			return "下載中 · yt-dlp · " + site
+			return "下載中 · " + site
 		}
 	}
 }
 
-// FilmsQueueExporting says "Exporting · Writing video.srt and video.bilingual.srt"
+// FilmsQueueExporting says "Exporting subtitles"
 // in the language the app shows under cx.
 //
 // Line under the title of a job writing its subtitle files.
@@ -15812,6 +15998,36 @@ func (msgs Messages) FilmsQueueFailed(count int) string {
 			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个需要处理"
 		case "zh-Hant":
 			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個需要處理"
+		}
+	}
+}
+
+// FilmsQueueInto says "→ {language}"
+// in the language the app shows under cx.
+//
+// Short tag beside the title of a waiting or running card: the language its subtitles are translated into.
+func FilmsQueueInto(cx *core.Scope, language string) string { return For(cx).FilmsQueueInto(language) }
+
+// FilmsQueueInto is the package's FilmsQueueInto in the language of msgs.
+func (msgs Messages) FilmsQueueInto(language string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueInto(language))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueueInto; f != nil {
+			return f(language)
+		}
+		switch lang {
+		case "", "en":
+			return "→ " + msgs.arg(language)
+		case "ja":
+			return "→ " + language
+		case "ko":
+			return "→ " + language
+		case "zh-Hans":
+			return "→ " + language
+		case "zh-Hant":
+			return "→ " + language
 		}
 	}
 }
@@ -15871,6 +16087,36 @@ func FilmsQueueProgress(cx *core.Scope) string { return For(cx).FilmsQueueProgre
 
 // FilmsQueueProgress is the package's FilmsQueueProgress in the language of msgs.
 func (msgs Messages) FilmsQueueProgress() string { return msgs.text(textFilmsQueueProgress) }
+
+// FilmsQueueQueued says "{count} queued"
+// in the language the app shows under cx.
+//
+// Dimmed note beside the processing heading, after the running count: how many jobs wait their turn.
+func FilmsQueueQueued(cx *core.Scope, count int) string { return For(cx).FilmsQueueQueued(count) }
+
+// FilmsQueueQueued is the package's FilmsQueueQueued in the language of msgs.
+func (msgs Messages) FilmsQueueQueued(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueQueued(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueueQueued; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(i18n.FormatNumber("en", float64(count))) + " queued"
+		case "ja":
+			return "待機 " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 대기"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个排队"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個排隊"
+		}
+	}
+}
 
 // FilmsQueueRateLimited says "Translation API rate-limited, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
 // in the language the app shows under cx.
@@ -16031,19 +16277,19 @@ func FilmsQueueTitle(cx *core.Scope) string { return For(cx).FilmsQueueTitle() }
 // FilmsQueueTitle is the package's FilmsQueueTitle in the language of msgs.
 func (msgs Messages) FilmsQueueTitle() string { return msgs.text(textFilmsQueueTitle) }
 
-// FilmsQueueTranscribing says "Transcribing · whisper on this computer"
+// FilmsQueueTranscribing says "Transcribing"
 // in the language the app shows under cx.
 //
-// Line under the title of a job transcribing the speech with whisper on this computer.
+// Line under the title of a job transcribing the speech, before it says how far it has gone.
 func FilmsQueueTranscribing(cx *core.Scope) string { return For(cx).FilmsQueueTranscribing() }
 
 // FilmsQueueTranscribing is the package's FilmsQueueTranscribing in the language of msgs.
 func (msgs Messages) FilmsQueueTranscribing() string { return msgs.text(textFilmsQueueTranscribing) }
 
-// FilmsQueueTranscribingPercent says "Transcribing · whisper on this computer · {percent}"
+// FilmsQueueTranscribingPercent says "Transcribing · {percent}"
 // in the language the app shows under cx.
 //
-// Line under the title of a job transcribing the speech with whisper on this computer, with how far it has gone.
+// Line under the title of a job transcribing the speech, with how far it has gone.
 func FilmsQueueTranscribingPercent(cx *core.Scope, percent string) string {
 	return For(cx).FilmsQueueTranscribingPercent(percent)
 }
@@ -16059,23 +16305,23 @@ func (msgs Messages) FilmsQueueTranscribingPercent(percent string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "Transcribing · whisper on this computer · " + msgs.arg(percent)
+			return "Transcribing · " + msgs.arg(percent)
 		case "ja":
-			return "文字起こし中 · whisper でローカル認識 · " + percent
+			return "文字起こし中 · " + percent
 		case "ko":
-			return "전사 중 · whisper 로컬 인식 · " + percent
+			return "전사 중 · " + percent
 		case "zh-Hans":
-			return "生成字幕中 · whisper 本机识别 · " + percent
+			return "生成字幕中 · " + percent
 		case "zh-Hant":
-			return "產生字幕中 · whisper 本機辨識 · " + percent
+			return "產生字幕中 · " + percent
 		}
 	}
 }
 
-// FilmsQueueTranslating says "Translating · AI service"
+// FilmsQueueTranslating says "Translating"
 // in the language the app shows under cx.
 //
-// Line under the title of a job translating its subtitles before it reports batches.
+// Line under the title of a job translating its subtitles, before it says how many lines are done.
 func FilmsQueueTranslating(cx *core.Scope) string { return For(cx).FilmsQueueTranslating() }
 
 // FilmsQueueTranslating is the package's FilmsQueueTranslating in the language of msgs.
@@ -16128,14 +16374,117 @@ func (msgs Messages) FilmsQueueTranslatingBatch(batch int, batches int, size int
 	}
 }
 
-// FilmsQueueWaiting says "Queued · Waiting for the jobs ahead"
+// FilmsQueueTranslatingLines says "Translating · {lines} of {total} lines"
 // in the language the app shows under cx.
 //
-// Line under a queued job's title.
+// Line under the title of a job translating its subtitles: how many lines are done of how many.
+func FilmsQueueTranslatingLines(cx *core.Scope, lines int, total int) string {
+	return For(cx).FilmsQueueTranslatingLines(lines, total)
+}
+
+// FilmsQueueTranslatingLines is the package's FilmsQueueTranslatingLines in the language of msgs.
+func (msgs Messages) FilmsQueueTranslatingLines(lines int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueTranslatingLines(lines, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueueTranslatingLines; f != nil {
+			return f(lines, total)
+		}
+		switch lang {
+		case "", "en":
+			return "Translating · " + msgs.arg(i18n.FormatNumber("en", float64(lines))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(total))) + " lines"
+		case "ja":
+			return "翻訳中 · " + i18n.FormatNumber("ja", float64(lines)) + "/" + i18n.FormatNumber("ja", float64(total)) + " 行"
+		case "ko":
+			return "번역 중 · " + i18n.FormatNumber("ko", float64(lines)) + "/" + i18n.FormatNumber("ko", float64(total)) + "줄"
+		case "zh-Hans":
+			return "翻译中 · " + i18n.FormatNumber("zh-Hans", float64(lines)) + "/" + i18n.FormatNumber("zh-Hans", float64(total)) + " 句"
+		case "zh-Hant":
+			return "翻譯中 · " + i18n.FormatNumber("zh-Hant", float64(lines)) + "/" + i18n.FormatNumber("zh-Hant", float64(total)) + " 句"
+		}
+	}
+}
+
+// FilmsQueueUnderAMinute says "under a minute left"
+// in the language the app shows under cx.
+//
+// Part of a running job's line: its stage needs less than a minute more, told from how fast it has gone so far.
+func FilmsQueueUnderAMinute(cx *core.Scope) string { return For(cx).FilmsQueueUnderAMinute() }
+
+// FilmsQueueUnderAMinute is the package's FilmsQueueUnderAMinute in the language of msgs.
+func (msgs Messages) FilmsQueueUnderAMinute() string { return msgs.text(textFilmsQueueUnderAMinute) }
+
+// FilmsQueueWaiting says "Queued"
+// in the language the app shows under cx.
+//
+// Line under the title of a queued job that runs next.
 func FilmsQueueWaiting(cx *core.Scope) string { return For(cx).FilmsQueueWaiting() }
 
 // FilmsQueueWaiting is the package's FilmsQueueWaiting in the language of msgs.
 func (msgs Messages) FilmsQueueWaiting() string { return msgs.text(textFilmsQueueWaiting) }
+
+// FilmsQueueWaitingAhead says "Queued · {count} ahead"
+// in the language the app shows under cx.
+//
+// Line under the title of a queued job: how many jobs run before it.
+func FilmsQueueWaitingAhead(cx *core.Scope, count int) string {
+	return For(cx).FilmsQueueWaitingAhead(count)
+}
+
+// FilmsQueueWaitingAhead is the package's FilmsQueueWaitingAhead in the language of msgs.
+func (msgs Messages) FilmsQueueWaitingAhead(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueWaitingAhead(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueueWaitingAhead; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			return "Queued · " + msgs.arg(i18n.FormatNumber("en", float64(count))) + " ahead"
+		case "ja":
+			return "待機中 · 前に " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return "대기 중 · 앞에 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "排队中 · 前面还有 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个"
+		case "zh-Hant":
+			return "排隊中 · 前面還有 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個"
+		}
+	}
+}
+
+// FilmsQueueWatch says "Watch “{name}”"
+// in the language the app shows under cx.
+//
+// Accessibility name of the thumbnail of a processing card whose video is already downloaded: opens the film while it is still being transcribed or translated.
+func FilmsQueueWatch(cx *core.Scope, name string) string { return For(cx).FilmsQueueWatch(name) }
+
+// FilmsQueueWatch is the package's FilmsQueueWatch in the language of msgs.
+func (msgs Messages) FilmsQueueWatch(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueWatch(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsQueueWatch; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Watch “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」を見る"
+		case "ko":
+			return "‘" + name + "’ 보기"
+		case "zh-Hans":
+			return "观看“" + name + "”"
+		case "zh-Hant":
+			return "觀看「" + name + "」"
+		}
+	}
+}
 
 // FilmsRemove says "Remove"
 // in the language the app shows under cx.
@@ -16175,6 +16524,15 @@ func (msgs Messages) FilmsRemoveConfirm(name string) string {
 		}
 	}
 }
+
+// FilmsRemoveFailed says "Remove Failed"
+// in the language the app shows under cx.
+//
+// Button on the Processing heading when two or more videos failed: removes their cards. Their downloaded files stay in the library.
+func FilmsRemoveFailed(cx *core.Scope) string { return For(cx).FilmsRemoveFailed() }
+
+// FilmsRemoveFailed is the package's FilmsRemoveFailed in the language of msgs.
+func (msgs Messages) FilmsRemoveFailed() string { return msgs.text(textFilmsRemoveFailed) }
 
 // FilmsRemoveFiles says "The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay where they are."
 // in the language the app shows under cx.
@@ -16257,6 +16615,15 @@ func FilmsRenameTitle(cx *core.Scope) string { return For(cx).FilmsRenameTitle()
 // FilmsRenameTitle is the package's FilmsRenameTitle in the language of msgs.
 func (msgs Messages) FilmsRenameTitle() string { return msgs.text(textFilmsRenameTitle) }
 
+// FilmsReport says "Report…"
+// in the language the app shows under cx.
+//
+// Button on a failed card whose failure Kando has no fix for: opens the feedback dialog with the job's stage and error attached.
+func FilmsReport(cx *core.Scope) string { return For(cx).FilmsReport() }
+
+// FilmsReport is the package's FilmsReport in the language of msgs.
+func (msgs Messages) FilmsReport() string { return msgs.text(textFilmsReport) }
+
 // FilmsReprocess says "Process Again"
 // in the language the app shows under cx.
 //
@@ -16330,6 +16697,70 @@ func (msgs Messages) FilmsReprocessConfirmMessage(language string) string {
 	}
 }
 
+// FilmsRetranslateConfirm says "Translate “{name}” into {language}?"
+// in the language the app shows under cx.
+//
+// Title of the dialog confirming Translate Again Into a language other than the one a finished film's subtitles are translated into.
+func FilmsRetranslateConfirm(cx *core.Scope, name string, language string) string {
+	return For(cx).FilmsRetranslateConfirm(name, language)
+}
+
+// FilmsRetranslateConfirm is the package's FilmsRetranslateConfirm in the language of msgs.
+func (msgs Messages) FilmsRetranslateConfirm(name string, language string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsRetranslateConfirm(name, language))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsRetranslateConfirm; f != nil {
+			return f(name, language)
+		}
+		switch lang {
+		case "", "en":
+			return "Translate “" + msgs.arg(name) + "” into " + msgs.arg(language) + "?"
+		case "ja":
+			return "「" + name + "」を" + language + "に翻訳しますか？"
+		case "ko":
+			return "‘" + name + "’을(를) " + language + "(으)로 번역할까요?"
+		case "zh-Hans":
+			return "把“" + name + "”翻译为" + language + "？"
+		case "zh-Hant":
+			return "把「" + name + "」翻譯為" + language + "？"
+		}
+	}
+}
+
+// FilmsRetranslateConfirmMessage says "Its {current} translation will be replaced. Every line is translated again, which uses your AI service."
+// in the language the app shows under cx.
+//
+// Message of the dialog confirming Translate Again Into another language: what it replaces and costs. current is the language the film is translated into now.
+func FilmsRetranslateConfirmMessage(cx *core.Scope, current string) string {
+	return For(cx).FilmsRetranslateConfirmMessage(current)
+}
+
+// FilmsRetranslateConfirmMessage is the package's FilmsRetranslateConfirmMessage in the language of msgs.
+func (msgs Messages) FilmsRetranslateConfirmMessage(current string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsRetranslateConfirmMessage(current))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsRetranslateConfirmMessage; f != nil {
+			return f(current)
+		}
+		switch lang {
+		case "", "en":
+			return "Its " + msgs.arg(current) + " translation will be replaced. Every line is translated again, which uses your AI service."
+		case "ja":
+			return "今の" + current + "の訳は置き換えられます。すべての行を翻訳し直すため、AI サービスを使います。"
+		case "ko":
+			return "지금의 " + current + " 번역은 바뀝니다. 모든 줄을 다시 번역하며 AI 서비스를 사용합니다."
+		case "zh-Hans":
+			return "现有的" + current + "译文会被替换。每一句都会重新翻译，会用到你的 AI 服务。"
+		case "zh-Hant":
+			return "現有的" + current + "譯文會被取代。每一句都會重新翻譯，會用到你的 AI 服務。"
+		}
+	}
+}
+
 // FilmsRetry says "Retry"
 // in the language the app shows under cx.
 //
@@ -16338,6 +16769,15 @@ func FilmsRetry(cx *core.Scope) string { return For(cx).FilmsRetry() }
 
 // FilmsRetry is the package's FilmsRetry in the language of msgs.
 func (msgs Messages) FilmsRetry() string { return msgs.text(textFilmsRetry) }
+
+// FilmsRetryAll says "Retry All"
+// in the language the app shows under cx.
+//
+// Button on the Processing heading when two or more failed videos can be retried as they are: queues them all again. Videos that need a login, another link or an update are left for their own cards.
+func FilmsRetryAll(cx *core.Scope) string { return For(cx).FilmsRetryAll() }
+
+// FilmsRetryAll is the package's FilmsRetryAll in the language of msgs.
+func (msgs Messages) FilmsRetryAll() string { return msgs.text(textFilmsRetryAll) }
 
 // FilmsSearchClear says "Clear Search"
 // in the language the app shows under cx.
@@ -16622,10 +17062,19 @@ func FilmsSupportedSites(cx *core.Scope) string { return For(cx).FilmsSupportedS
 // FilmsSupportedSites is the package's FilmsSupportedSites in the language of msgs.
 func (msgs Messages) FilmsSupportedSites() string { return msgs.text(textFilmsSupportedSites) }
 
-// FilmsTranslateAgain says "Translate Again"
+// FilmsTranslate says "Translate"
 // in the language the app shows under cx.
 //
-// Menu item of a finished film that translates its subtitles again into the target language set now, without downloading or transcribing it again.
+// Button under a finished film that has no translation, its subtitles being the original lines only, and the same item in its menu and the player's ⋯ menu: translates every line into the film's language.
+func FilmsTranslate(cx *core.Scope) string { return For(cx).FilmsTranslate() }
+
+// FilmsTranslate is the package's FilmsTranslate in the language of msgs.
+func (msgs Messages) FilmsTranslate() string { return msgs.text(textFilmsTranslate) }
+
+// FilmsTranslateAgain says "Translate Again Into"
+// in the language the app shows under cx.
+//
+// Submenu of a finished film's menu listing the target languages, the one set in the settings first and the film's own checked: translates its subtitles again into the language chosen, without downloading or transcribing it again.
 func FilmsTranslateAgain(cx *core.Scope) string { return For(cx).FilmsTranslateAgain() }
 
 // FilmsTranslateAgain is the package's FilmsTranslateAgain in the language of msgs.
@@ -16836,6 +17285,17 @@ func (msgs Messages) LibraryAddedStarting(count int) string {
 			return "已加入 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片，開始處理。"
 		}
 	}
+}
+
+// LibraryAddedUntranslated says "Added. Without an AI service, subtitles will be in the original language only."
+// in the language the app shows under cx.
+//
+// Message bar when videos were added to the queue while no AI service is set up (no model, or EveryAPI without a key or its program): they are processed, and their subtitles are the original lines until they are translated. Comes with an Open Settings button to “AI Service”.
+func LibraryAddedUntranslated(cx *core.Scope) string { return For(cx).LibraryAddedUntranslated() }
+
+// LibraryAddedUntranslated is the package's LibraryAddedUntranslated in the language of msgs.
+func (msgs Messages) LibraryAddedUntranslated() string {
+	return msgs.text(textLibraryAddedUntranslated)
 }
 
 // LibraryDefaultName says "Film Library"
@@ -26122,6 +26582,84 @@ func (msgs Messages) SidebarCommandsTooltip(shortcut string) string {
 			return "命令（" + shortcut + "）"
 		case "zh-Hant":
 			return "指令（" + shortcut + "）"
+		}
+	}
+}
+
+// SidebarJobsActive says "{count, plural, one {# processing} other {# processing}}"
+// in the language the app shows under cx.
+//
+// Sidebar status line: how many videos are waiting or being processed. Pressing it shows them in Processing on the library page.
+func SidebarJobsActive(cx *core.Scope, count int) string { return For(cx).SidebarJobsActive(count) }
+
+// SidebarJobsActive is the package's SidebarJobsActive in the language of msgs.
+func (msgs Messages) SidebarJobsActive(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SidebarJobsActive(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SidebarJobsActive; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" processing")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" processing")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件を処理中"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 처리 중"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个处理中"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個處理中"
+		}
+	}
+}
+
+// SidebarJobsFailed says "{count, plural, one {# failed} other {# failed}}"
+// in the language the app shows under cx.
+//
+// Sidebar status line, after the processing count: how many videos failed to process and need attention.
+func SidebarJobsFailed(cx *core.Scope, count int) string { return For(cx).SidebarJobsFailed(count) }
+
+// SidebarJobsFailed is the package's SidebarJobsFailed in the language of msgs.
+func (msgs Messages) SidebarJobsFailed(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SidebarJobsFailed(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SidebarJobsFailed; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" failed")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" failed")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件が失敗"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 실패"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个失败"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個失敗"
 		}
 	}
 }

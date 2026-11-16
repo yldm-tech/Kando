@@ -2,9 +2,9 @@ package films
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
@@ -50,8 +50,25 @@ func (q queueSection) Render(cx *ns.Scope) ns.Node {
 		}}
 	}}
 	summary := func() string { return QueueSummary(locales.For(cx), q.queue()) }
+	// Past one failure, the heading offers to retry or remove them all at once, as after the cause of a batch of failures was fixed.
+	failures := live.Memo(cx, a, func() [2]int {
+		retryable, failed := a.Failures()
+		return [2]int{retryable, failed}
+	})
+	bulk := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, FlexShrink: 0}, Children: []ns.Node{
+		ns.Show{When: func() bool { return failures()[1] > 1 }, Then: func(*ns.Scope) ns.Node {
+			return textButton(locales.FilmsRemoveFailed, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-remove-failed", OnPress: live.Do(a, a.RemoveFailed)})
+		}},
+		ns.Show{When: func() bool { return failures()[0] > 1 }, Then: func(*ns.Scope) ns.Node {
+			return textButton(locales.FilmsRetryAll, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-retry-all", OnPress: live.Do(a, a.RetryAll)})
+		}},
+	}}
+	head := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 12, AlignItems: ns.AlignCenter}, Children: []ns.Node{
+		ns.View{Style: ns.Style{FlexGrow: 1, MinWidth: ns.Pt(0)}, Children: []ns.Node{sectionTitle(cx, func() string { return locales.FilmsQueueTitle(cx) }, summary)}},
+		bulk,
+	}}
 	return ns.View{Style: ns.Style{Margin: ns.Edges{Top: 26}, Gap: 12}, Children: []ns.Node{
-		sectionTitle(cx, func() string { return locales.FilmsQueueTitle(cx) }, summary),
+		head,
 		cards,
 		more,
 	}}
@@ -91,16 +108,31 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 			}}
 		return ns.Group{meta, stepsBar{item: item}}
 	}
+	// A job that has its video can be watched before it is done (Watchable): its thumbnail opens the film, with the transcript's lines once there are some.
+	thumb := ns.Show{When: func() bool { return Watchable(item()) }, Then: func(cx *ns.Scope) ns.Node {
+		return base.Button{TestID: "queue-watch", LabelFunc: func() string { return locales.FilmsQueueWatch(cx, filmName(item())) },
+			OnPress:  live.On(a, func(ns.PressEvent) { a.Open(item()) }),
+			Style:    ns.Style{FlexShrink: 0, CornerRadius: 9, Cursor: ns.CursorDefault, FocusVisible: ui.FocusRing(cx, 2)},
+			Children: []ns.Node{queueThumb{a: a, item: item, watch: true}}}
+	}, Else: func(*ns.Scope) ns.Node { return queueThumb{a: a, item: item} }}
 	// The end keeps clear of the cancel button over the card's corner.
+	// A waiting or running card says beside its title the language it translates into, as one translated again into another language does.
+	into := ns.Show{When: func() bool { return !failed() && item().Target != "" }, Then: func(cx *ns.Scope) ns.Node {
+		return ns.Text{TestID: "queue-into", ContentFunc: func() string { return locales.FilmsQueueInto(cx, subtitle.TargetLanguageName(cx, item().Target)) }, MaxLines: 1,
+			Style: ns.Style{FontSize: 11, FlexShrink: 0}, StyleFunc: ui.Colored(colors.Muted)}
+	}}
 	text := ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 4, Padding: ns.Edges{Right: 18}}, Children: []ns.Node{
-		ns.Text{ContentFunc: func() string { return filmName(item()) }, MaxLines: 1, EllipsizeMode: ns.EllipsizeTail, Style: ns.Style{FontSize: 13, FontWeight: ui.Semibold},
-			StyleFunc: ui.Colored(colors.Text)},
+		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignBaseline, MinWidth: ns.Pt(0)}, Children: []ns.Node{
+			ns.Text{ContentFunc: func() string { return filmName(item()) }, MaxLines: 1, EllipsizeMode: ns.EllipsizeTail, Style: ns.Style{FontSize: 13, FontWeight: ui.Semibold, FlexShrink: 1, MinWidth: ns.Pt(0)},
+				StyleFunc: ui.Colored(colors.Text)},
+			into,
+		}},
 		library,
 		ns.Show{When: failed, Then: func(*ns.Scope) ns.Node { return failedDetail{a: a, item: item} }, Else: working},
 	}}
 	cancel := ns.Show{When: func() bool { return !failed() }, Then: func(cx *ns.Scope) ns.Node {
 		return base.Button{TestID: "queue-cancel", LabelFunc: func() string { return locales.FilmsQueueCancel(cx) },
-			OnPress: live.On(a, func(ns.PressEvent) { a.Cancel(item().JobID) }),
+			OnPress: live.On(a, func(ns.PressEvent) { a.Withdraw(item().JobID) }),
 			Style: ns.Style{Position: ns.Absolute, Top: ns.Pt(8), Right: ns.Pt(8), Width: ns.Pt(22), Height: ns.Pt(22), CornerRadius: 11, AlignItems: ns.AlignCenter,
 				JustifyContent: ns.JustifyCenter, Cursor: ns.CursorDefault, Hover: &ns.Style{Background: ns.RGBA(0x000000, 0.06)}, FocusVisible: ui.FocusRing(cx, -2)},
 			Children: []ns.Node{ui.Icon(svg(closeIcon), 10, colors.Muted)}}
@@ -117,17 +149,18 @@ func (q queueCard) Render(cx *ns.Scope) ns.Node {
 			}
 			return ns.Style{AlignItems: ns.AlignCenter}
 		},
-		Children: []ns.Node{queueThumb{a: a, item: item}, text, cancel},
+		Children: []ns.Node{thumb, text, cancel},
 	}
 }
 
 // failedVeil is the dark veil over a failed job's thumbnail, under its red mark.
 var failedVeil = ns.RGBA(0x000000, 0.45)
 
-// queueThumb is a processing card's 16:9 thumbnail: the poster once there is one, the picture the video's site gives it before that, a download glyph until either is there, and a red mark over a failed job's.
+// queueThumb is a processing card's 16:9 thumbnail: the poster once there is one, the picture the video's site gives it before that, a download glyph until either is there, and a red mark over a failed job's. watch puts a play glyph over it, for a film its card opens.
 type queueThumb struct {
-	a    App
-	item func() Film
+	a     App
+	item  func() Film
+	watch bool
 }
 
 // Render implements core.Node.
@@ -149,15 +182,42 @@ func (q queueThumb) Render(*ns.Scope) ns.Node {
 					ns.SVGView{SVG: failedMark, Style: ns.Style{Width: ns.Pt(22), Height: ns.Pt(22)}},
 				}}
 			}},
+			ns.Show{When: func() bool { return q.watch }, Then: func(*ns.Scope) ns.Node {
+				return ns.View{PointerEvents: ns.PointerEventsNone, Style: overlay.Merge(ns.Style{AlignItems: ns.AlignCenter, JustifyContent: ns.JustifyCenter}), Children: []ns.Node{
+					ns.View{Style: ns.Style{Width: ns.Pt(26), Height: ns.Pt(26), CornerRadius: 13, AlignItems: ns.AlignCenter, JustifyContent: ns.JustifyCenter, Padding: ns.Edges{Left: 2}}.Merge(frosted(8, chipShade)),
+						Children: []ns.Node{ns.Icon{SVG: playIcon, Style: ns.Style{Width: ns.Pt(10), Height: ns.Pt(11), Color: onPicture}}}},
+				}}
+			}},
 		},
 	}
 }
 
-// QueueMeta is the line under a waiting or running job's title, in the language of m: the stage and how far it has gone, as its tool reports it, or what does the work until the tool has said.
-func QueueMeta(m locales.Messages, item Film) string {
+// Watchable reports whether a film still in 处理中 can be watched already: its job is waiting or running and has its video, downloaded or found on disk. Until its transcript is saved it plays without subtitles.
+func Watchable(item Film) bool {
+	return item.JobID != "" && item.VideoPath != "" && !item.Stage.Done()
+}
+
+// QueueMeta is the line under a waiting or running job's title, in the language of m: the stage and how far it has gone, as its tool reports it, and about how long it has left once that can be told (Remaining), or how many jobs run before a waiting one.
+func QueueMeta(m locales.Messages, item Film) string { return queueMetaAt(m, item, time.Now()) }
+
+// queueMetaAt is QueueMeta at the time now.
+func queueMetaAt(m locales.Messages, item Film, now time.Time) string {
 	p := item.Progress
+	left := func(line string) string {
+		d, ok := Remaining(item, now)
+		if !ok {
+			return line
+		}
+		if d < time.Minute {
+			return line + " · " + m.FilmsQueueUnderAMinute()
+		}
+		return line + " · " + m.FilmsQueueAboutMinutes(int((d+time.Minute-1)/time.Minute))
+	}
 	switch item.Stage {
 	case core.StageQueued:
+		if item.Ahead > 0 {
+			return m.FilmsQueueWaitingAhead(item.Ahead)
+		}
 		return m.FilmsQueueWaiting()
 	case core.StageDownloading:
 		if Local(item) {
@@ -166,17 +226,15 @@ func QueueMeta(m locales.Messages, item Film) string {
 		if !p.Known {
 			return m.FilmsQueueDownloadingFrom(SourceLabel(m, item))
 		}
-		parts := []string{m.FilmsStageDownloading(), Percent(p.Fraction)}
-		if p.Speed > 0 {
-			parts = append(parts, Rate(p.Speed))
-		}
+		line := m.FilmsStageDownloading() + " · " + Percent(p.Fraction)
+		// yt-dlp's own estimate is the download's; without it, the download is timed as the other stages are.
 		if p.ETA > 0 {
-			parts = append(parts, m.FilmsQueueRemaining(Clock(p.ETA)))
+			return line + " · " + m.FilmsQueueRemaining(Clock(p.ETA))
 		}
-		return strings.Join(parts, " · ")
+		return left(line)
 	case core.StageTranscribing:
 		if p.Known {
-			return m.FilmsQueueTranscribingPercent(Percent(p.Fraction))
+			return left(m.FilmsQueueTranscribingPercent(Percent(p.Fraction)))
 		}
 		return m.FilmsQueueTranscribing()
 	case core.StageTranslating:
@@ -187,14 +245,25 @@ func QueueMeta(m locales.Messages, item Film) string {
 			}
 			return m.FilmsQueueRateLimited(seconds, p.Attempt, p.Attempts)
 		}
-		if p.Batches > 0 {
-			return m.FilmsQueueTranslatingBatch(p.Batch, p.Batches, p.BatchSize)
+		if p.Of > 0 {
+			return left(m.FilmsQueueTranslatingLines(p.Lines, p.Of))
 		}
 		return m.FilmsQueueTranslating()
 	case core.StageExporting:
 		return m.FilmsQueueExporting()
 	}
 	return StageLabel(m, item.Stage)
+}
+
+// Remaining is about how long the stage a running job is in still needs at the time now, told from how fast it has gone since it first said how far it had gone (core.Progress.Started, From). It is false until that is worth telling: before the stage has gone 5% further or run 10 seconds since, and once it is done.
+func Remaining(item Film, now time.Time) (time.Duration, bool) {
+	p := item.Progress
+	gone := p.Fraction - p.From
+	elapsed := now.Sub(p.Started)
+	if !Running(item) || !p.Known || p.Started.IsZero() || p.Fraction >= 1 || gone < 0.05 || elapsed < 10*time.Second {
+		return 0, false
+	}
+	return time.Duration(float64(elapsed) * (1 - p.Fraction) / gone), true
 }
 
 // RetryWaiting reports whether the film's translation is waiting to try a request again: one rate-limited, or one that got no usable answer.
@@ -350,7 +419,16 @@ func (f failedDetail) Render(cx *ns.Scope) ns.Node {
 				OnPress: live.Do(a, func() { a.OpenSettings(look().section) })})
 		}}
 		retry := textButton(locales.FilmsRetry, ui.Button{Size: ui.SizeSmall, TestID: "queue-retry", OnPress: live.Do(a, func() { a.Retry(item().JobID) })})
-		return ns.Group{reason, actionRow(settings, retry, remove)}
+		// A failure no setting fixes may be Kando's own: its whole error shows over the reason, which is cut short, and 报告… files it with the job attached.
+		detail := live.Func(a, func() string { return a.FailureDetail(item()) })
+		why := ns.Show{When: func() bool { return look().canceled || detail() == "" }, Then: func(*ns.Scope) ns.Node { return reason },
+			Else: func(*ns.Scope) ns.Node {
+				return ui.Tooltip{TestID: "queue-reason-tip", TextFunc: detail, Trigger: reason}
+			}}
+		report := ns.Show{When: func() bool { return !look().canceled && look().section == "" }, Then: func(*ns.Scope) ns.Node {
+			return textButton(locales.FilmsReport, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-report", OnPress: live.Do(a, func() { a.ReportFailure(item().JobID) })})
+		}}
+		return ns.Group{why, actionRow(settings, retry, remove, report)}
 	}
 	remedy := func(*ns.Scope) ns.Node {
 		headline := ns.Text{ContentFunc: func() string { return look().remedy.Headline }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail, Style: ns.Style{FontSize: 11},

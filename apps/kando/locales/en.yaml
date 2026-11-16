@@ -851,8 +851,8 @@ filmTabStyle:
   message: "Style"
   description: "Side panel tab with the subtitle style."
 filmTranslateAgain:
-  message: "Translate Again"
-  description: "Item of the player's ⋯ menu that translates a finished film's subtitles again into the target language set now, without downloading or transcribing it again."
+  message: "Translate Again Into"
+  description: "Submenu of the player's ⋯ menu listing the target languages, the one set in the settings first and the film's own checked: translates its subtitles again into the language chosen."
 filmTranslateMissing:
   message: "Translate Missing Lines"
   description: "Item of the player's ⋯ menu, shown when some lines failed to translate: translates only those lines."
@@ -995,6 +995,9 @@ filmsNoLibraryTitle:
 filmsNoSubtitles:
   message: "No subtitles yet"
   description: "Part of the line under a poster: the video has not been processed yet."
+filmsNoTranslation:
+  message: "No translation"
+  description: "Part of the line under a finished film whose translation failed or was never done because no AI service is set up: its subtitles are the original lines only."
 filmsNoticeOpen:
   message: "Open"
   description: "Button in the message bar that says a video is already in the library; it opens that film."
@@ -1027,9 +1030,14 @@ filmsPosterLanguages:
   placeholders:
     spoken: { type: "String", example: "JA" }
     target: { type: "String", example: "CHS" }
+filmsQueueAboutMinutes:
+  message: "about {count, plural, one {# min} other {# min}} left"
+  description: "Part of a running job's line: about how many minutes its stage still needs, told from how fast it has gone so far."
+  placeholders:
+    count: { type: "int", example: "4" }
 filmsQueueActive:
-  message: "{count} in progress"
-  description: "Dimmed note beside the processing heading: how many jobs are waiting or running."
+  message: "{count} running"
+  description: "Dimmed note beside the processing heading: how many jobs are running now."
   placeholders:
     count: { type: "int", example: "1" }
 filmsQueueCancel:
@@ -1042,18 +1050,23 @@ filmsQueueCollapse:
   message: "Show Less"
   description: "Button under the processing cards that hides all but the first ones again."
 filmsQueueDownloadingFrom:
-  message: "Downloading · yt-dlp · {site}"
-  description: "Line under the title of a job whose download has not reported progress yet: the tool and the site."
+  message: "Downloading · {site}"
+  description: "Line under the title of a job whose download has not reported progress yet: the site it downloads from."
   placeholders:
     site: { type: "String", example: "YouTube" }
 filmsQueueExporting:
-  message: "Exporting · Writing video.srt and video.bilingual.srt"
+  message: "Exporting subtitles"
   description: "Line under the title of a job writing its subtitle files."
 filmsQueueFailed:
   message: "{count, plural, one {# needs attention} other {# need attention}}"
   description: "Dimmed note beside the processing heading: how many jobs failed and wait for the user."
   placeholders:
     count: { type: "int", example: "2" }
+filmsQueueInto:
+  message: "→ {language}"
+  description: "Short tag beside the title of a waiting or running card: the language its subtitles are translated into."
+  placeholders:
+    language: { type: "String", example: "Japanese" }
 filmsQueueNoAnswer:
   message: "Translation API didn't answer, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
   description: "Line under the title of a job whose translation request got no usable answer and will be retried."
@@ -1064,6 +1077,11 @@ filmsQueueNoAnswer:
 filmsQueueProgress:
   message: "Progress"
   description: "Accessible name of a job's progress bar."
+filmsQueueQueued:
+  message: "{count} queued"
+  description: "Dimmed note beside the processing heading, after the running count: how many jobs wait their turn."
+  placeholders:
+    count: { type: "int", example: "2" }
 filmsQueueRateLimited:
   message: "Translation API rate-limited, retrying in {seconds, plural, one {# second} other {# seconds}} ({attempt}/{attempts})"
   description: "Line under the title of a job whose translation request was rate-limited and will be retried."
@@ -1093,16 +1111,16 @@ filmsQueueTitle:
   message: "Processing"
   description: "Heading of the section of jobs waiting, running or failed."
 filmsQueueTranscribing:
-  message: "Transcribing · whisper on this computer"
-  description: "Line under the title of a job transcribing the speech with whisper on this computer."
+  message: "Transcribing"
+  description: "Line under the title of a job transcribing the speech, before it says how far it has gone."
 filmsQueueTranscribingPercent:
-  message: "Transcribing · whisper on this computer · {percent}"
-  description: "Line under the title of a job transcribing the speech with whisper on this computer, with how far it has gone."
+  message: "Transcribing · {percent}"
+  description: "Line under the title of a job transcribing the speech, with how far it has gone."
   placeholders:
     percent: { type: "String", example: "23%" }
 filmsQueueTranslating:
-  message: "Translating · AI service"
-  description: "Line under the title of a job translating its subtitles before it reports batches."
+  message: "Translating"
+  description: "Line under the title of a job translating its subtitles, before it says how many lines are done."
 filmsQueueTranslatingBatch:
   message: "Translating · Batch {batch}/{batches} · {size, plural, one {# line} other {# lines}} per batch"
   description: "Line under the title of a job translating its subtitles in batches."
@@ -1110,9 +1128,28 @@ filmsQueueTranslatingBatch:
     batch: { type: "int", example: "2" }
     batches: { type: "int", example: "5" }
     size: { type: "int", example: "40" }
+filmsQueueTranslatingLines:
+  message: "Translating · {lines} of {total} lines"
+  description: "Line under the title of a job translating its subtitles: how many lines are done of how many."
+  placeholders:
+    lines: { type: "int", example: "120" }
+    total: { type: "int", example: "480" }
+filmsQueueUnderAMinute:
+  message: "under a minute left"
+  description: "Part of a running job's line: its stage needs less than a minute more, told from how fast it has gone so far."
 filmsQueueWaiting:
-  message: "Queued · Waiting for the jobs ahead"
-  description: "Line under a queued job's title."
+  message: "Queued"
+  description: "Line under the title of a queued job that runs next."
+filmsQueueWaitingAhead:
+  message: "Queued · {count} ahead"
+  description: "Line under the title of a queued job: how many jobs run before it."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsQueueWatch:
+  message: "Watch “{name}”"
+  description: "Accessibility name of the thumbnail of a processing card whose video is already downloaded: opens the film while it is still being transcribed or translated."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
 filmsRemove:
   message: "Remove"
   description: "Button that removes a failed job's card, and the confirming button of removing a film from the library."
@@ -1121,6 +1158,9 @@ filmsRemoveConfirm:
   description: "Title of the dialog confirming that a film is removed from the library."
   placeholders:
     name: { type: "String", example: "Learn Rust" }
+filmsRemoveFailed:
+  message: "Remove Failed"
+  description: "Button on the Processing heading when two or more videos failed: removes their cards. Their downloaded files stay in the library."
 filmsRemoveFiles:
   message: "The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay where they are."
   description: "What removing a film does when its folder holds other files too."
@@ -1148,6 +1188,9 @@ filmsRenameSave:
 filmsRenameTitle:
   message: "Rename Film"
   description: "Title of the dialog that renames a film."
+filmsReport:
+  message: "Report…"
+  description: "Button on a failed card whose failure Kando has no fix for: opens the feedback dialog with the job's stage and error attached."
 filmsReprocess:
   message: "Process Again"
   description: "Menu item that runs a finished film through download, subtitles and translation again."
@@ -1161,9 +1204,23 @@ filmsReprocessConfirmMessage:
   description: "Message of the dialog confirming Process Again: what it costs. language is the target language set now, which may differ from the one the film was translated into."
   placeholders:
     language: { type: "String", example: "Simplified Chinese" }
+filmsRetranslateConfirm:
+  message: "Translate “{name}” into {language}?"
+  description: "Title of the dialog confirming Translate Again Into a language other than the one a finished film's subtitles are translated into."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    language: { type: "String", example: "Japanese" }
+filmsRetranslateConfirmMessage:
+  message: "Its {current} translation will be replaced. Every line is translated again, which uses your AI service."
+  description: "Message of the dialog confirming Translate Again Into another language: what it replaces and costs. current is the language the film is translated into now."
+  placeholders:
+    current: { type: "String", example: "Simplified Chinese" }
 filmsRetry:
   message: "Retry"
   description: "Button on a failed job's card that runs it again."
+filmsRetryAll:
+  message: "Retry All"
+  description: "Button on the Processing heading when two or more failed videos can be retried as they are: queues them all again. Videos that need a login, another link or an update are left for their own cards."
 filmsSearchClear:
   message: "Clear Search"
   description: "Button under the no-match message that empties the search field and shows every film again."
@@ -1227,9 +1284,12 @@ filmsStart:
 filmsSupportedSites:
   message: "Supported Websites…"
   description: "Button on the empty library's page that opens the sheet listing the websites Kando downloads from."
+filmsTranslate:
+  message: "Translate"
+  description: "Button under a finished film that has no translation, its subtitles being the original lines only, and the same item in its menu and the player's ⋯ menu: translates every line into the film's language."
 filmsTranslateAgain:
-  message: "Translate Again"
-  description: "Menu item of a finished film that translates its subtitles again into the target language set now, without downloading or transcribing it again."
+  message: "Translate Again Into"
+  description: "Submenu of a finished film's menu listing the target languages, the one set in the settings first and the film's own checked: translates its subtitles again into the language chosen, without downloading or transcribing it again."
 filmsTranslateMissing:
   message: "Translate Missing Lines"
   description: "Button under a finished film whose translation failed for some lines, and the same item in its menu: translates only those lines."
@@ -1266,6 +1326,9 @@ libraryAddedStarting:
   description: "Message bar when several videos were added to the queue."
   placeholders:
     count: { type: "int", example: "3" }
+libraryAddedUntranslated:
+  message: "Added. Without an AI service, subtitles will be in the original language only."
+  description: "Message bar when videos were added to the queue while no AI service is set up (no model, or EveryAPI without a key or its program): they are processed, and their subtitles are the original lines until they are translated. Comes with an Open Settings button to “AI Service”."
 libraryDefaultName:
   message: "Film Library"
   description: "Name the new-library sheet suggests for a new library; it becomes the folder's name, followed by a number when taken."
@@ -3444,6 +3507,16 @@ sidebarCommandsTooltip:
   description: "Tooltip of the button on the sidebar's status card that opens the command palette, with its shortcut as the system writes it."
   placeholders:
     shortcut: { type: "String", example: "Ctrl+K" }
+sidebarJobsActive:
+  message: "{count, plural, one {# processing} other {# processing}}"
+  description: "Sidebar status line: how many videos are waiting or being processed. Pressing it shows them in Processing on the library page."
+  placeholders:
+    count: { type: "int", example: "2" }
+sidebarJobsFailed:
+  message: "{count, plural, one {# failed} other {# failed}}"
+  description: "Sidebar status line, after the processing count: how many videos failed to process and need attention."
+  placeholders:
+    count: { type: "int", example: "1" }
 sidebarLibrary:
   message: "Library"
   description: "Caption over the open library's name in the library switcher at the top of the sidebar."

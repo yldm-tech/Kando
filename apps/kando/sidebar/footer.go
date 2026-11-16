@@ -1,10 +1,13 @@
 package sidebar
 
 import (
+	"strings"
+
 	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
+	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -45,6 +48,7 @@ var (
 	footerText     = core.RGB(0x3A3A3F)
 	readyDot       = core.RGB(0x30D158)
 	missingDot     = core.RGB(0xFF9F0A)
+	failedDot      = core.RGB(0xFF453A)
 )
 
 // footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has no menu bar (PaletteButton), a button that opens the command palette, its key in its tooltip.
@@ -86,8 +90,45 @@ func (f footer) Render(cx *core.Scope) core.Node {
 	return core.View{
 		Role:      core.RoleGroup,
 		LabelFunc: func() string { return locales.SidebarStatus(cx) },
-		Style: core.Style{Direction: core.Row, FlexShrink: 0, Margin: core.Edges{Top: 8, Right: insetEnd, Bottom: 8, Left: insetStart}, Padding: core.Symmetric(10, 12), Gap: 10,
-			AlignItems: core.AlignCenter, CornerRadius: 11, Background: footerFill, Shadows: []core.BoxShadow{{Spread: 0.5, Color: footerHairline}}},
-		Children: buttons,
+		Style: core.Style{FlexShrink: 0, Margin: core.Edges{Top: 8, Right: insetEnd, Bottom: 8, Left: insetStart}, Padding: core.Symmetric(10, 12), Gap: 8,
+			CornerRadius: 11, Background: footerFill, Shadows: []core.BoxShadow{{Spread: 0.5, Color: footerHairline}}},
+		Children: []core.Node{
+			jobsLine{a},
+			core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter}, Children: buttons},
+		},
 	}
+}
+
+// jobsLine is the status line's count of the queue's jobs while it holds any: a dot, in the accent while they run and red once one has failed, and how many run and how many failed. It opens 处理中.
+type jobsLine struct{ a App }
+
+// Render implements core.Node.
+func (j jobsLine) Render(cx *core.Scope) core.Node {
+	a := j.a
+	jobs := live.Memo(cx, a, a.Jobs)
+	text := func() string {
+		n := jobs()
+		var parts []string
+		if n.Active > 0 {
+			parts = append(parts, locales.SidebarJobsActive(cx, n.Active))
+		}
+		if n.Failed > 0 {
+			parts = append(parts, locales.SidebarJobsFailed(cx, n.Failed))
+		}
+		return strings.Join(parts, " · ")
+	}
+	colors := ui.ColorsOf(cx)
+	return core.Show{When: func() bool { n := jobs(); return n.Active > 0 || n.Failed > 0 }, Then: func(cx *core.Scope) core.Node {
+		dot := core.View{Style: core.Style{Width: core.Pt(8), Height: core.Pt(8), FlexShrink: 0, CornerRadius: 4},
+			StyleFunc: func() core.Style {
+				if jobs().Failed > 0 {
+					return core.Style{Background: failedDot}
+				}
+				return core.Style{Background: colors.Accent()}
+			}}
+		return base.Button{TestID: "sidebar-jobs", LabelFunc: text, OnPress: live.On(a, func(core.PressEvent) { a.ShowJobs() }),
+			Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, Cursor: core.CursorDefault, CornerRadius: 6, FocusVisible: ui.FocusRing(cx, 2)},
+			Children: []core.Node{dot, core.Text{ContentFunc: text, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
+				Style: core.Style{FontSize: 11, LineHeight: 15, Color: footerText, FlexShrink: 1, MinWidth: core.Pt(0)}}}}
+	}}
 }

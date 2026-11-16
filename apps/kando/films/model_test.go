@@ -26,7 +26,7 @@ func TestQueueOrderRunsOldestFirst(t *testing.T) {
 	if got := strings.Join(keys, ","); got != "running,waiting-old,waiting-new,failed-new,failed-old" {
 		t.Fatalf("order %s", got)
 	}
-	if got := QueueSummary(testlocale.Messages(), items); got != "3 个进行中 · 2 个需要处理" {
+	if got := QueueSummary(testlocale.Messages(), items); got != "1 个进行中 · 2 个排队 · 2 个需要处理" {
 		t.Fatalf("summary %q", got)
 	}
 	if got := QueueSummary(testlocale.Messages(), items[2:3]); got != "1 个进行中" {
@@ -149,7 +149,7 @@ func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 	download := core.Fraction(0.42)
 	download.Speed, download.ETA = 3.2*1024*1024, 12*time.Second
 	translate := core.Fraction(0.25)
-	translate.Batch, translate.Batches, translate.BatchSize = 2, 5, 40
+	translate.Batch, translate.Batches, translate.BatchSize, translate.Lines, translate.Of = 2, 5, 40, 40, 160
 	waiting := translate
 	waiting.RetryIn, waiting.Attempt, waiting.Attempts = 8*time.Second, 1, 2
 	unanswered := waiting
@@ -159,15 +159,16 @@ func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 		item Film
 		want string
 	}{
-		{"queued", Film{Source: yt, Stage: core.StageQueued}, "排队中 · 等待前面的任务"},
-		{"download before yt-dlp says", Film{Source: yt, Stage: core.StageDownloading}, "下载中 · yt-dlp · YouTube"},
-		{"download", Film{Source: yt, Stage: core.StageDownloading, Progress: download}, "下载中 · 42% · 3.2 MB/s · 还剩 0:12"},
+		{"next", Film{Source: yt, Stage: core.StageQueued}, "排队中"},
+		{"queued", Film{Source: yt, Stage: core.StageQueued, Ahead: 2}, "排队中 · 前面还有 2 个"},
+		{"download before yt-dlp says", Film{Source: yt, Stage: core.StageDownloading}, "下载中 · YouTube"},
+		{"download", Film{Source: yt, Stage: core.StageDownloading, Progress: download}, "下载中 · 42% · 还剩 0:12"},
 		{"local file", Film{Source: "file:///v/a.mp4", Stage: core.StageDownloading}, "读取中 · 本地文件"},
-		{"transcribe", Film{Source: yt, Stage: core.StageTranscribing, Progress: core.Fraction(0.23)}, "生成字幕中 · whisper 本机识别 · 23%"},
-		{"translate", Film{Source: yt, Stage: core.StageTranslating, Progress: translate}, "翻译中 · 第 2/5 批 · 每批 40 句"},
+		{"transcribe", Film{Source: yt, Stage: core.StageTranscribing, Progress: core.Fraction(0.23)}, "生成字幕中 · 23%"},
+		{"translate", Film{Source: yt, Stage: core.StageTranslating, Progress: translate}, "翻译中 · 40/160 句"},
 		{"translate waits", Film{Source: yt, Stage: core.StageTranslating, Progress: waiting}, "翻译接口限流，8 秒后重试（1/2）"},
 		{"translate waits after no answer", Film{Source: yt, Stage: core.StageTranslating, Progress: unanswered}, "翻译接口没有回应，8 秒后重试（1/2）"},
-		{"export", Film{Source: yt, Stage: core.StageExporting, Progress: core.Fraction(0.5)}, "导出中 · 写入 video.srt 与 video.bilingual.srt"},
+		{"export", Film{Source: yt, Stage: core.StageExporting, Progress: core.Fraction(0.5)}, "导出字幕中"},
 	} {
 		if got := QueueMeta(testlocale.Messages(), tc.item); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
@@ -175,6 +176,33 @@ func TestQueueMetaSaysHowFarTheStageHasGone(t *testing.T) {
 	}
 	if !RetryWaiting(Film{Stage: core.StageTranslating, Progress: waiting}) || RetryWaiting(Film{Stage: core.StageTranslating, Progress: translate}) {
 		t.Fatal("RetryWaiting is wrong")
+	}
+}
+
+// The time a stage has left shows only once there is a rate to tell it from: 10 seconds and 5% into the stage since it first said how far it had gone, which a translation resumed halfway counts from where it resumed.
+func TestTimeLeftIsToldOnlyFromARate(t *testing.T) {
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	at := func(fraction, from float64, ago time.Duration) Film {
+		p := core.Fraction(fraction)
+		p.From, p.Started, p.Lines, p.Of = from, now.Add(-ago), int(fraction*480), 480
+		return Film{JobID: "j", Source: "https://youtu.be/x", Stage: core.StageTranslating, Progress: p}
+	}
+	m := testlocale.Messages()
+	for _, tc := range []struct {
+		name string
+		item Film
+		want string
+	}{
+		{"too soon", at(0.5, 0, 5*time.Second), "翻译中 · 240/480 句"},
+		{"too little done", at(0.04, 0, time.Minute), "翻译中 · 19/480 句"},
+		{"minutes", at(0.25, 0, 2*time.Minute), "翻译中 · 120/480 句 · 约剩 6 分钟"},
+		{"resumed halfway", at(0.6, 0.5, time.Minute), "翻译中 · 288/480 句 · 约剩 4 分钟"},
+		{"under a minute", at(0.9, 0, 3*time.Minute), "翻译中 · 432/480 句 · 不到 1 分钟"},
+		{"not timed", Film{JobID: "j", Source: "https://youtu.be/x", Stage: core.StageTranscribing, Progress: core.Fraction(0.5)}, "生成字幕中 · 50%"},
+	} {
+		if got := queueMetaAt(m, tc.item, now); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
 	}
 }
 
@@ -212,19 +240,20 @@ func TestLabelsInEnglish(t *testing.T) {
 	waiting := core.Fraction(0.25)
 	waiting.RetryIn, waiting.Attempt, waiting.Attempts = time.Second, 1, 2
 	batches := core.Fraction(0.25)
-	batches.Batch, batches.Batches, batches.BatchSize = 1, 3, 1
+	batches.Lines, batches.Of = 120, 480
 	for _, tc := range []struct{ got, want string }{
-		{QueueMeta(m, Film{Source: yt, Stage: core.StageQueued}), "Queued · Waiting for the jobs ahead"},
+		{QueueMeta(m, Film{Source: yt, Stage: core.StageQueued, Ahead: 2}), "Queued · 2 ahead"},
 		{QueueMeta(m, Film{Source: yt, Stage: core.StageDownloading, Progress: download}), "Downloading · 42% · 0:12 left"},
-		{QueueMeta(m, Film{Source: "https://www.douyin.com/video/1", Stage: core.StageDownloading}), "Downloading · yt-dlp · Douyin"},
+		{QueueMeta(m, Film{Source: "https://www.douyin.com/video/1", Stage: core.StageDownloading}), "Downloading · Douyin"},
 		{QueueMeta(m, Film{Source: yt, Stage: core.StageTranslating, Progress: waiting}), "Translation API rate-limited, retrying in 1 second (1/2)"},
-		{QueueMeta(m, Film{Source: yt, Stage: core.StageTranslating, Progress: batches}), "Translating · Batch 1/3 · 1 line per batch"},
+		{QueueMeta(m, Film{Source: yt, Stage: core.StageTranslating, Progress: batches}), "Translating · 120 of 480 lines"},
+		{QueueMeta(m, Film{Source: yt, Stage: core.StageExporting}), "Exporting subtitles"},
 		{StageLabel(m, core.StageComplete), "Done"},
 		{SourceLabel(m, Film{Source: "https://www.bilibili.com/video/BV1GJ411x7h7"}), "Bilibili"},
 		{SourceLabel(m, Film{Source: "https://vimeo.com/76979871"}), "Vimeo"},
 		{SourceLabel(m, Film{Source: "https://example.com/v"}), "example.com"},
 		{SourceLabel(m, Film{}), "Local Files"},
-		{QueueSummary(m, []Film{{Stage: core.StageQueued}, {Stage: core.StageFailed}, {Stage: core.StageFailed}}), "1 in progress · 2 need attention"},
+		{QueueSummary(m, []Film{{Stage: core.StageTranscribing}, {Stage: core.StageQueued}, {Stage: core.StageQueued}, {Stage: core.StageFailed}}), "1 running · 2 queued · 1 needs attention"},
 		{LanguageName(m, "简体中文"), "Simplified Chinese"},
 		{LanguageName(m, "日本語"), "Japanese"},
 	} {

@@ -230,7 +230,7 @@ func TestFailedJobLogHasNoSecrets(t *testing.T) {
 	}
 	settle(t, a, tt, updates)
 	got := readLog(t, path)
-	if !strings.Contains(got, "failed while translating: translate: Post \"***/chat/completions\": 401 Unauthorized: key *** rejected; storage ***") {
+	if !strings.Contains(got, "completed without a translation: Post \"***/chat/completions\": 401 Unauthorized: key *** rejected; storage ***") {
 		t.Fatalf("log:\n%s", got)
 	}
 	for _, secret := range []string{"llm.private.example", "sk-kando-secret", "r2-secret-value"} {

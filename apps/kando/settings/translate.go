@@ -87,8 +87,7 @@ func (p translate) Render(cx *core.Scope) core.Node {
 
 // LanguageChoices is the target languages the settings offer, with current added when it is not one of them, as a language typed into an older version is kept. These are the values the settings, the jobs and the translation prompt keep, as 简体中文; LanguageName is what the interface shows for each.
 func LanguageChoices(current string) []string {
-	choices := []string{"简体中文", "繁体中文", "English", "日本語", "한국어", "Español", "Français", "Deutsch",
-		"Português", "Italiano", "Русский", "Nederlands", "Polski", "Українська", "Türkçe", "العربية", "हिन्दी", "Bahasa Indonesia", "Tiếng Việt", "ไทย"}
+	choices := subtitle.TargetLanguages()
 	for _, choice := range choices {
 		if choice == current {
 			return choices

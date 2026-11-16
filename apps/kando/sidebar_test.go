@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -762,5 +763,24 @@ func TestSidebarSearchReturnPlaysTheOnlyFilm(t *testing.T) {
 	tt.Type("id:sidebar-search", "riv\n")
 	if a.openKey != "rivers" || a.player.play == nil {
 		t.Fatalf("Return with one film found: open %q", a.openKey)
+	}
+}
+
+// The sidebar counts the jobs of 处理中 that wait or run and those that failed, but not one that was cancelled, and its count takes a player or another page back to the library.
+func TestSidebarCountsTheJobs(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.library.Jobs = []core.Job{
+		{ID: "wait", Source: "https://example.com/a", Stage: core.StageQueued, LibraryDir: "/videos"},
+		{ID: "bad", Source: "https://example.com/b", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: "/videos"},
+		{ID: "stop", Source: "https://example.com/c", Stage: core.StageFailed, Err: context.Canceled, LibraryDir: "/videos"},
+	}
+	a.page = sidebar.PageBrowse
+	refresh(tt, a)
+	if got := a.Jobs(); got != (sidebar.Jobs{Active: 1, Failed: 1}) {
+		t.Fatalf("jobs %+v", got)
+	}
+	tt.Press("sidebar-jobs")
+	if a.page != pageFilms || a.side.filter != sidebar.SourceAll {
+		t.Fatalf("the count went to page %q, source %q", a.page, a.side.filter)
 	}
 }

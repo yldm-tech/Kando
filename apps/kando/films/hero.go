@@ -116,6 +116,10 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 	// The kicker says whether the film is one to continue or one finished last.
 	kicker := func() string {
 		language := item().Language
+		// A film whose translation failed shows its original lines only, so it is not said to be bilingual.
+		if item().TranslationErr != "" {
+			language = ""
+		}
 		switch {
 		case resume() > 0 && language != "":
 			return locales.FilmsHeroKickerContinueBilingual(cx, LanguageName(locales.For(cx), language))

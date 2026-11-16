@@ -30,6 +30,7 @@ func (a *app) overlays(cx *core.Scope) core.Node {
 		a.queueQuitOverlay(cx),
 		a.libraryReprocessOverlay(cx),
 		a.playlistOverlay(cx),
+		a.libraryRetranslateOverlay(cx),
 		a.settingsOverlay(cx),
 	}
 }

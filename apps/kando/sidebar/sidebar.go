@@ -77,6 +77,14 @@ type App interface {
 	PaletteButton() bool
 	PaletteKey() string
 	TogglePalette()
+	// Jobs is how many of the queue's jobs are waiting or running and how many failed, which the status line counts, so a job that ends while another page is shown is seen there; ShowJobs shows them, in 处理中 on the library page.
+	Jobs() Jobs
+	ShowJobs()
+}
+
+// Jobs is how many jobs the queue holds that are waiting or running (Active) and that failed rather than being cancelled (Failed).
+type Jobs struct {
+	Active, Failed int
 }
 
 // The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a white inner hairline, a dark outer one and a soft shadow, 8 points in from the window's edges.

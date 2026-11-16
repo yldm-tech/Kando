@@ -427,12 +427,12 @@ func TestQueueShowsEveryWaitingJob(t *testing.T) {
 		a.library.Jobs = append(a.library.Jobs, core.Job{ID: string(rune('a' + i)), Source: "https://youtu.be/clip" + string(rune('a'+i)), Stage: core.StageQueued, LibraryDir: "/videos"})
 	}
 	refresh(tt, a)
-	if got := countText(tt, "排队中 · 等待前面的任务"); got != 6 || !shows(tt, "显示全部 8 个") || !shows(tt, "8 个进行中") {
+	if got := countText(tt, "排队中"); got != 6 || !shows(tt, "显示全部 8 个") || !shows(tt, "8 个排队") {
 		t.Fatalf("%d cards: %q", got, tt.Texts())
 	}
 	tt.Press("显示全部 8 个")
 	refresh(tt, a)
-	if got := countText(tt, "排队中 · 等待前面的任务"); got != 8 || !shows(tt, "收起") {
+	if got := countText(tt, "排队中"); got != 8 || !shows(tt, "收起") {
 		t.Fatalf("%d cards after 显示全部: %q", got, tt.Texts())
 	}
 }
@@ -650,6 +650,29 @@ func TestRemoveSaysWhatGoesToTheTrash(t *testing.T) {
 	}
 }
 
+// A video added while no AI service is set up is queued, and the message bar says its subtitles will be the original lines, with 打开设置 to 「AI 服务」.
+func TestAddingWithoutAnAIServiceSaysTheSubtitlesStayOriginal(t *testing.T) {
+	model := filepath.Join(t.TempDir(), "model.bin")
+	if err := os.WriteFile(model, []byte("m"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, translator := range map[string]media.ChatTranslator{
+		"no model":                 {BaseURL: "https://api.openai.com/v1"},
+		"everyapi without its key": {BaseURL: media.EveryAPIBaseURL, Model: "m"},
+	} {
+		// The tools are not on this machine; the job only has to be queued, and fails its check in the background.
+		tools := media.Tools{YTDLP: "/missing/yt-dlp", FFmpeg: "/missing/ffmpeg", Whisper: "/missing/whisper-cli", WhisperModel: model, Translator: translator}
+		a := newApp(tools, func(func()) {})
+		a.edit(func(s *session) { s.LibraryDir = t.TempDir() })
+		if !a.libraryEnqueue("https://youtu.be/TRWgBxVAb1M") || len(a.library.Jobs) != 1 {
+			t.Fatalf("%s: the video was not added: %+v", name, a.lib.notice)
+		}
+		if n := a.lib.notice; n.Kind != "warning" || n.Text != testlocale.Messages().LibraryAddedUntranslated() || n.Section != settings.SectionAI {
+			t.Errorf("%s: notice %+v", name, n)
+		}
+	}
+}
+
 func TestPrecheckSaysWhatToFix(t *testing.T) {
 	ready := media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", WhisperModel: "model.bin", Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", APIKey: "k"}}
 	link := []string{"https://youtu.be/TRWgBxVAb1M"}
@@ -686,8 +709,9 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 		{name: "no yt-dlp", sources: link, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: testlocale.Messages().PrecheckToolsMissing("yt-dlp"), section: settings.SectionGeneral},
 		{name: "a local file still needs yt-dlp", sources: []string{"file:///v.mp4"}, tools: func(t *media.Tools) { t.YTDLP = "" }, msg: testlocale.Messages().PrecheckToolsMissing("yt-dlp"), section: settings.SectionGeneral},
 		{name: "no model", sources: link, tools: func(t *media.Tools) { t.WhisperModel = "" }, msg: testlocale.Messages().PrecheckNoSpeechModel(), section: settings.SectionSpeech},
-		{name: "no LLM model", sources: link, tools: func(t *media.Tools) { t.Translator.Model = "" }, msg: testlocale.Messages().PrecheckNoLLMModel(), section: settings.SectionAI},
-		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }, msg: testlocale.Messages().PrecheckEveryAPIMissing(), section: settings.SectionAI},
+		// Without an AI service a job still makes the film's subtitles, the original lines alone (TestAddingWithoutAnAIServiceSaysTheSubtitlesStayOriginal).
+		{name: "no LLM model", sources: link, tools: func(t *media.Tools) { t.Translator.Model = "" }},
+		{name: "no EveryAPI key", sources: link, tools: func(t *media.Tools) { t.Translator.APIKey = "" }},
 		{name: "ready", sources: link},
 	} {
 		tools := ready
@@ -739,11 +763,12 @@ func TestLibraryNoticeFollowsWhatItSays(t *testing.T) {
 	if !a.lib.notice.Open {
 		t.Fatal("a warning closed by itself")
 	}
-	noLLM := ready
-	noLLM.Translator.Model = ""
-	a.pipeline = noLLM
+	// A missing AI model no longer holds a job back (it finishes with the original lines), so the next thing missing is the speech model.
+	noModel := ready
+	noModel.WhisperModel = ""
+	a.pipeline = noModel
 	refresh(tt, a)
-	if !a.lib.notice.Open || a.lib.notice.Text != msgs.PrecheckNoLLMModel() || a.lib.notice.Section != settings.SectionAI {
+	if !a.lib.notice.Open || a.lib.notice.Text != msgs.PrecheckNoSpeechModel() || a.lib.notice.Section != settings.SectionSpeech {
 		t.Fatalf("with ffmpeg in: notice %+v", a.lib.notice)
 	}
 	a.pipeline = ready
@@ -1273,7 +1298,7 @@ func TestLibraryInEnglish(t *testing.T) {
 	for _, want := range []string{
 		"Recently Finished · Simplified Chinese Bilingual", "Play", testlocale.Messages().FilmsShowInFinder(platformName()),
 		"Bilingual · CHS", "All Films", "1 film",
-		"Processing", "1 in progress · 1 needs attention", "Queued · Waiting for the jobs ahead", "Canceled", "Retry", "Remove",
+		"Processing", "1 queued · 1 needs attention", "Queued", "Canceled", "Retry", "Remove",
 		"Start Processing", "Local Video",
 	} {
 		wantText(t, tt, want)

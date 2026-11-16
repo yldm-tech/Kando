@@ -66,14 +66,29 @@ type App interface {
 	AskReprocess(item Film)
 	Reprocessing() (open *bool, item Film, language string)
 	CloseReprocess()
-	// TranslateAgain translates every line of a done film's subtitles again, in the target language set now, without downloading or transcribing it; TranslateMissing translates only the lines its translation left untranslated (Film.Untranslated).
-	TranslateAgain(item Film)
+	// TranslateAgain translates every line of a done film's subtitles again into language, without downloading or transcribing it, once the user confirms replacing a translation in another language (RetranslateDialog); TranslateMissing translates only the lines its translation left untranslated (Film.Untranslated). TargetLanguage is the target language the settings name, which 重新翻译为 ▸ offers first.
+	TranslateAgain(item Film, language string)
 	TranslateMissing(item Film)
+	TargetLanguage() string
+	// Retranslating is whether the confirmation of translating a film into another language is open, the film and the language; CloseRetranslate closes it without translating anything, and Retranslate translates the film into it and closes it.
+	Retranslating() (open *bool, item Film, language string)
+	CloseRetranslate()
+	Retranslate()
 	// Remove drops a job's card; its video, if any, stays in the library.
 	Remove(id string)
 	Retry(id string)
-	// FailureHint says, for a failed job, what went wrong and the settings section that fixes it ("" when none does).
+	// Failures is how many failed jobs of 处理中 RetryAll would queue again, those whose fix needs no choice of the user's (not a login, a members-only, private, region-locked or DRM video), and how many RemoveFailed would take off; a cancelled job counts for neither. RetryAll queues them again, oldest first, behind the jobs waiting; RemoveFailed removes their cards, keeping their files.
+	Failures() (retryable, failed int)
+	RetryAll()
+	RemoveFailed()
+	// Withdraw is the × of a waiting or running card: a waiting job that has done nothing yet (no video, no transcript, no film it redoes) leaves the queue and the shelf, and any other is cancelled (Cancel), its card staying.
+	Withdraw(id string)
+	// FailureHint says, for a failed job, what went wrong and the settings section that fixes it ("" when none does). FailureDetail is its whole error, as the tool said it, which the card's tooltip shows. ReportFailure opens the feedback dialog to report it, with the job's stage and error attached.
 	FailureHint(item Film) (reason, section string)
+	FailureDetail(item Film) string
+	ReportFailure(id string)
+	// TranslationHint says, for a done film that translated none of its lines (Film.TranslationErr), why in the user's words and the settings section that fixes it ("" when none does).
+	TranslationHint(item Film) (reason, section string)
 	// FailureRemedy is what a failed card says and offers when the app knows why its download failed; false shows FailureHint instead. RunRemedy does the action of the remedy's button the user clicked.
 	FailureRemedy(item Film) (Remedy, bool)
 	RunRemedy(item Film, action string)

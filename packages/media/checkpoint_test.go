@@ -111,7 +111,7 @@ func firstLines(from, n int) []string {
 	return out
 }
 
-// A translation that stops partway, at its third batch of five, keeps the two it translated: the job run again sends only the third batch on, and its subtitles hold every line, with nothing left beside the video but them. It stops by failing, as on a key the API rejects, or by being cancelled, as the 取消 of the card or quitting Kando does.
+// A translation that stops partway, at its third batch of five, keeps the two it translated: the job run again, or translating the film's missing lines once a failed translation left it with the original lines alone, sends only the third batch on, and its subtitles hold every line, with nothing left beside the video but them. It stops by failing, as on a key the API rejects, or by being cancelled, as the 取消 of the card or quitting Kando does.
 func TestRunResumesATranslationFromTheBatchItStoppedAt(t *testing.T) {
 	n := translateBatch*4 + 3
 	third := fmt.Sprintf("line %d", 2*translateBatch)
@@ -149,7 +149,16 @@ func TestRunResumesATranslationFromTheBatchItStoppedAt(t *testing.T) {
 			job, _ := core.NewJob(core.FileURL(video))
 
 			failed := Run(ctx, p, job, "English", func(core.Job) {})
-			if failed.Stage != core.StageFailed || !strings.HasPrefix(failed.Err.Error(), "translate: ") || !failed.Transcribed {
+			if !failed.Transcribed {
+				t.Fatalf("first run %+v", failed)
+			}
+			// A translation that failed as a whole still makes the film, with the original lines; the batches it did are kept for translating its missing lines. One that was stopped stays stopped, and runs again.
+			if name == "failed" {
+				if failed.Stage != core.StageComplete || failed.TranslationErr == "" || failed.Untranslated != n {
+					t.Fatalf("first run %+v", failed)
+				}
+				failed.Redo = core.RedoMissing
+			} else if failed.Stage != core.StageFailed || !strings.HasPrefix(failed.Err.Error(), "translate: ") {
 				t.Fatalf("first run %+v", failed)
 			}
 			if got := chat.sentSince(0); !reflect.DeepEqual(got, firstLines(0, 3*translateBatch)) {
@@ -162,7 +171,7 @@ func TestRunResumesATranslationFromTheBatchItStoppedAt(t *testing.T) {
 			before := len(chat.sentSince(0))
 			failed.Stage, failed.Err = core.StageQueued, nil
 			done := Run(context.Background(), p, failed, "English", func(core.Job) {})
-			if done.Stage != core.StageComplete || done.Untranslated != 0 {
+			if done.Stage != core.StageComplete || done.Untranslated != 0 || done.TranslationErr != "" {
 				t.Fatalf("retry %+v", done)
 			}
 			if got, want := chat.sentSince(before), firstLines(2, n); !reflect.DeepEqual(got, want) {

@@ -1,12 +1,14 @@
-// Package subtitle is how the player draws subtitles and the values of the settings that pick which lines it shows. It imports no interface package, only the message catalogs and NSGo's core for the scope they speak under, so the settings can show and change the look without importing the player (package film), which links to the settings by section id (package sectionid). film keeps aliases of these names, so the player's code and the main package read film.Look, film.SubOriginal and the rest as before.
+// Package subtitle is how the player draws subtitles and the values of the settings that pick which lines it shows. It imports no interface package, only the message catalogs, NSGo's core for the scope they speak under and NSGo's desktop for the menu of target languages (TranslateIntoMenu), so the settings can show and change the look without importing the player (package film), which links to the settings by section id (package sectionid). film keeps aliases of these names, so the player's code and the main package read film.Look, film.SubOriginal and the rest as before.
 package subtitle
 
 import (
+	"slices"
 	"strings"
 
 	"kando/apps/kando/locales"
 
 	"github.com/nsgo-dev/nsgo/core"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 )
 
 // Face is how one line of a cue is drawn: the translation's or the original's.
@@ -83,6 +85,28 @@ func (l Look) PreviewInset() float32 {
 		return 40
 	}
 	return 15
+}
+
+// TargetLanguages are the target languages Kando offers, as the settings, the jobs and the translation prompt keep them, such as 简体中文; TargetLanguageName is what the interface shows for each.
+func TargetLanguages() []string {
+	return []string{"简体中文", "繁体中文", "English", "日本語", "한국어", "Español", "Français", "Deutsch",
+		"Português", "Italiano", "Русский", "Nederlands", "Polski", "Українська", "Türkçe", "العربية", "हिन्दी", "Bahasa Indonesia", "Tiếng Việt", "ไทย"}
+}
+
+// TranslateIntoMenu is the items of 重新翻译为 ▸, the submenu of a done film's menus in the library and the player: preferred, the target language the settings name, first, then the others Kando offers, and current, the film's own, checked, and added when it is none of them, as one typed into an older version. choose translates the film into the language picked. With no preferred language set, current comes first.
+func TranslateIntoMenu(cx *core.Scope, preferred, current string, choose func(language string)) []nsdesktop.MenuItem {
+	preferred, current = strings.TrimSpace(preferred), strings.TrimSpace(current)
+	var order []string
+	for _, language := range append([]string{preferred, current}, TargetLanguages()...) {
+		if language != "" && !slices.Contains(order, language) {
+			order = append(order, language)
+		}
+	}
+	items := make([]nsdesktop.MenuItem, len(order))
+	for i, language := range order {
+		items[i] = nsdesktop.MenuItem{Label: TargetLanguageName(cx, language), Checkable: true, Checked: language == current, OnSelect: func() { choose(language) }}
+	}
+	return items
 }
 
 // TargetLanguageName is how the interface names a target language as the settings, the jobs and the translation prompt keep it, such as 简体中文 or 日本語, in the language the interface shows under cx: Simplified Chinese and Japanese in English. Every screen that names a film's or the settings' target language calls it, so they name it alike. A value typed into an older version is shown as it is.

@@ -40,6 +40,10 @@ type libraryUI struct {
 	// reprocessing is the film whose 重新处理 is waiting to be confirmed, while reprocessOpen (bind_films.go).
 	reprocessing  films.Film
 	reprocessOpen bool
+	// retranslating is the film whose translation into retranslateLanguage, another than its own, is waiting to be confirmed, while retranslateOpen (bind_films.go).
+	retranslating       films.Film
+	retranslateLanguage string
+	retranslateOpen     bool
 	// renaming is the film whose 重命名… dialog is open, while renameOpen. renameName is the title typed into it, which starts as the one the film shows, and renameOriginal the title the film has without one given in Kando (library_rename.go).
 	renaming       films.Film
 	renameOpen     bool
@@ -50,6 +54,8 @@ type libraryUI struct {
 	renameRelease    func()
 	sheetRelease     func()
 	reprocessRelease func()
+	// retranslateRelease is the modal flag the confirmation of 重新翻译为 holds while it is open, given back by CloseRetranslate or here.
+	retranslateRelease func()
 	// durations is how long each video plays, by path, read with the poster. A video that has none here is not known yet.
 	durations map[string]time.Duration
 	// quotes is the first bilingual line of each subtitle file read for the hero, by path.
@@ -156,6 +162,11 @@ func (a *app) libraryModals() bool {
 	if !a.lib.reprocessOpen && a.lib.reprocessRelease != nil {
 		a.lib.reprocessRelease()
 		a.lib.reprocessRelease = nil
+		changed = true
+	}
+	if !a.lib.retranslateOpen && a.lib.retranslateRelease != nil {
+		a.lib.retranslateRelease()
+		a.lib.retranslateRelease = nil
 		changed = true
 	}
 	making := a.snap().MakingLibrary

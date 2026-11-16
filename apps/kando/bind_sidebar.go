@@ -115,6 +115,24 @@ func (a *app) PaletteKey() string { return paletteKey }
 
 func (a *app) TogglePalette() { a.togglePalette() }
 
+// Jobs counts the cards of 处理中 (QueueFilms): those waiting or running, and those that failed; a cancelled job is neither.
+func (a *app) Jobs() sidebar.Jobs {
+	var n sidebar.Jobs
+	for _, item := range a.QueueFilms() {
+		switch {
+		case films.Canceled(item):
+		case item.Stage.Done():
+			n.Failed++
+		default:
+			n.Active++
+		}
+	}
+	return n
+}
+
+// ShowJobs shows 处理中: the library page with every source, the open film closed.
+func (a *app) ShowJobs() { a.SetSourceFilter(sidebar.SourceAll) }
+
 // sidebarLibraryChanged runs after the open library changed (libraryChanged in sidebarHooks): the sidebar shows all of the new library's films, with no search, and the switcher's counts are read again, the library just left among them.
 func (a *app) sidebarLibraryChanged() {
 	a.side.filter = sidebar.SourceAll

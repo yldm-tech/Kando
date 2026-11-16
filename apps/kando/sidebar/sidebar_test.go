@@ -23,6 +23,7 @@ type fakeApp struct {
 	live.Rev
 	dir       string
 	libraries []string
+	jobs      Jobs
 	counts    map[string]int
 	page      string
 	filter    string
@@ -70,6 +71,8 @@ func (f *fakeApp) Readiness() Readiness     { return f.ready }
 func (f *fakeApp) PaletteButton() bool      { return f.paletteButton }
 func (f *fakeApp) PaletteKey() string       { return "mod+k" }
 func (f *fakeApp) TogglePalette()           { f.calls = append(f.calls, "palette") }
+func (f *fakeApp) Jobs() Jobs               { return f.jobs }
+func (f *fakeApp) ShowJobs()                { f.calls = append(f.calls, "jobs") }
 func (f *fakeApp) OpenSettings(section string) {
 	f.calls = append(f.calls, "settings "+section)
 }
@@ -253,6 +256,32 @@ func TestStatusLineSaysWhatIsMissing(t *testing.T) {
 	app.Press("id:sidebar-settings")
 	if !slices.Equal(a.calls, []string{"settings speech"}) {
 		t.Fatalf("the gear called %q", a.calls)
+	}
+}
+
+// The status line counts the queue's jobs while it holds any, red once one failed, so a job that ends while the player, the settings or the browser is shown is seen; the count opens 处理中.
+func TestStatusLineCountsTheJobs(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if app.Exists("id:sidebar-jobs") {
+		t.Fatal("the status line counts jobs while there are none")
+	}
+	change(app, a, func() { a.jobs = Jobs{Active: 2} })
+	if !app.Exists(`text:"` + msgs.SidebarJobsActive(2) + `"`) {
+		t.Fatalf("no count of the jobs: %q", app.Texts())
+	}
+	change(app, a, func() { a.jobs = Jobs{Active: 1, Failed: 1} })
+	if !app.Exists(`text:"` + msgs.SidebarJobsActive(1) + " · " + msgs.SidebarJobsFailed(1) + `"`) {
+		t.Fatalf("no count of the failed job: %q", app.Texts())
+	}
+	app.Press("id:sidebar-jobs")
+	if !slices.Equal(a.calls, []string{"jobs"}) {
+		t.Fatalf("the count called %q", a.calls)
+	}
+	change(app, a, func() { a.jobs = Jobs{} })
+	if app.Exists("id:sidebar-jobs") {
+		t.Fatal("the count stayed once the queue was empty")
 	}
 }
 

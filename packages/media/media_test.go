@@ -200,6 +200,16 @@ func TestRunReportsWhatTheStagesTrace(t *testing.T) {
 	if !downloading || !transcribing {
 		t.Fatalf("reports %+v", seen)
 	}
+	// A stage is timed from its first report that says how far it has gone, which its later reports keep, so how long it has left can be told from how fast it goes.
+	for i, j := range seen {
+		p := j.Progress
+		if p.Known != !p.Started.IsZero() || (p.Known && p.From != 0 && p.From > p.Fraction) {
+			t.Fatalf("report %d of stage %s: %+v", i, j.Stage, p)
+		}
+		if before := seen[max(i-1, 0)].Progress; i > 0 && seen[i-1].Stage == j.Stage && before.Known && (!p.Started.Equal(before.Started) || p.From != before.From) {
+			t.Fatalf("report %d of stage %s timed from %v at %v, the one before from %v at %v", i, j.Stage, p.Started, p.From, before.Started, before.From)
+		}
+	}
 	if final.Progress != (core.Progress{}) {
 		t.Fatalf("a finished job keeps progress %+v", final.Progress)
 	}
@@ -308,38 +318,58 @@ var heard = []core.Segment{
 	{Start: 1500 * time.Millisecond, End: 3250 * time.Millisecond, Text: "Nice to meet you."},
 }
 
-// A translation that fails, as with a key the API rejects, leaves the transcript beside the video, and the retry goes straight to translating it: the video is not downloaded again and whisper-cli does not run again.
-func TestRunResumesAfterAFailedTranslation(t *testing.T) {
+// stopsTranslating is Tools whose translation is stopped as it starts, as quitting Kando or 取消 stops a job.
+type stopsTranslating struct {
+	Tools
+	cancel context.CancelFunc
+}
+
+func (s stopsTranslating) Translate(ctx context.Context, _ []core.Segment, _ string) ([]core.Segment, error) {
+	s.cancel()
+	return nil, ctx.Err()
+}
+
+// stoppedInTranslation runs job with tools until it starts translating and stops it there, returning the job as it stood: downloaded and transcribed, not translated.
+func stoppedInTranslation(tools Tools, job core.Job) core.Job {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	job.Stage, job.Err = core.StageQueued, nil
+	return Run(ctx, stopsTranslating{Tools: tools, cancel: cancel}, job, "简体中文", func(core.Job) {})
+}
+
+// A translation that fails as a whole, as with a key the API rejects, still makes the film: its subtitles are the original lines, every one untranslated, and the job keeps why. The transcript is beside the video, the bilingual file holds the original lines alone, and translating the missing lines later goes straight to translating them: the video is not downloaded again and whisper-cli does not run again.
+func TestRunCompletesWithTheOriginalLinesWhenTheTranslationFails(t *testing.T) {
 	srv, _ := flakyChat(t, http.StatusUnauthorized)
 	tools, ytdlpRuns, whisperRuns := resumeTools(t, srv.URL)
 	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
 
-	_, failed := runRecording(tools, job)
-	if failed.Stage != core.StageFailed || !strings.HasPrefix(failed.Err.Error(), "translate:") {
-		t.Fatalf("first run %+v", failed)
+	_, first := runRecording(tools, job)
+	if first.Stage != core.StageComplete || first.Err != nil || first.Untranslated != len(heard) || !strings.Contains(first.TranslationErr, "401") || !first.Transcribed {
+		t.Fatalf("first run %+v", first)
 	}
-	if !failed.Transcribed {
-		t.Fatal("the failed job does not say its transcript was saved")
-	}
-	transcript := strings.TrimSuffix(failed.VideoPath, ".mp4") + ".srt"
-	data, err := os.ReadFile(transcript)
+	transcript := strings.TrimSuffix(first.VideoPath, ".mp4") + ".srt"
+	srt, err := os.ReadFile(transcript)
 	if err != nil {
-		t.Fatalf("no transcript after the failed translation: %v", err)
+		t.Fatalf("no transcript: %v", err)
 	}
-	if saved, err := ParseSRT(data); err != nil || !reflect.DeepEqual(saved, heard) {
+	if saved, err := ParseSRT(srt); err != nil || !reflect.DeepEqual(saved, heard) {
 		t.Fatalf("saved transcript %+v, %v", saved, err)
 	}
-	if entries, _ := os.ReadDir(filepath.Dir(transcript)); len(entries) != 2 {
-		t.Fatalf("the video's folder holds %v", entries)
+	if first.SubtitlePath != strings.TrimSuffix(first.VideoPath, ".mp4")+".bilingual.srt" {
+		t.Fatalf("subtitles at %q", first.SubtitlePath)
+	}
+	if bilingual, err := os.ReadFile(first.SubtitlePath); err != nil || string(bilingual) != string(srt) {
+		t.Fatalf("bilingual %q, %v; want the original lines alone", bilingual, err)
 	}
 
-	stages, done := runRecording(tools, failed)
+	first.Redo = core.RedoMissing
+	stages, done := runRecording(tools, first)
 	want := []core.Stage{core.StageTranslating, core.StageExporting, core.StageComplete}
 	if !reflect.DeepEqual(stages, want) {
-		t.Fatalf("retry stages %v, want %v", stages, want)
+		t.Fatalf("stages %v, want %v", stages, want)
 	}
-	if done.Err != nil || done.VideoPath != failed.VideoPath || done.SubtitlePath == "" || !done.Transcribed {
-		t.Fatalf("retry %+v", done)
+	if done.Err != nil || done.Untranslated != 0 || done.TranslationErr != "" || done.Redo != "" {
+		t.Fatalf("translated %+v", done)
 	}
 	if got := runCount(t, ytdlpRuns); got != 1 {
 		t.Fatalf("yt-dlp ran %d times", got)
@@ -348,9 +378,58 @@ func TestRunResumesAfterAFailedTranslation(t *testing.T) {
 		t.Fatalf("whisper-cli ran %d times", got)
 	}
 	bilingual, err := os.ReadFile(done.SubtitlePath)
-	if err != nil || !strings.Contains(string(bilingual), "Nice to meet you.") {
+	if err != nil || !strings.Contains(string(bilingual), "Nice to meet you.\nNice to meet you.") {
 		t.Fatalf("bilingual %q, %v", bilingual, err)
 	}
+}
+
+// A film made without an AI service set up is a film too: the translator is not asked, and the job says why it translated nothing. A job processing a done film again needs the service, so it fails rather than replace the film's translation.
+func TestRunWithoutATranslatorKeepsTheOriginalLines(t *testing.T) {
+	srv, calls := flakyChat(t)
+	tools, _, _ := resumeTools(t, srv.URL)
+	tools.Translator.Model = ""
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	_, done := runRecording(tools, job)
+	if done.Stage != core.StageComplete || done.Untranslated != len(heard) || !strings.Contains(done.TranslationErr, "KANDO_LLM_MODEL") || *calls != 0 {
+		t.Fatalf("job %+v, %d requests", done, *calls)
+	}
+
+	for _, redo := range []core.Redo{core.RedoAll, core.RedoMissing} {
+		again := done
+		again.Redo = redo
+		if _, failed := runRecording(tools, again); failed.Stage != core.StageFailed || !strings.HasPrefix(failed.Err.Error(), "check: ") || failed.TranslationErr != done.TranslationErr {
+			t.Fatalf("%s without a translator: %+v", redo, failed)
+		}
+	}
+}
+
+// A film being made shows its transcript from the moment it is translated, so it can be watched with its original lines; its bilingual subtitles take the transcript's place once exported. A film processed again keeps its own subtitles until then.
+func TestRunShowsTheTranscriptWhileTranslating(t *testing.T) {
+	srv, _ := flakyChat(t)
+	tools, _, _ := resumeTools(t, srv.URL)
+	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
+	var translating core.Job
+	done := Run(context.Background(), tools, job, "简体中文", func(j core.Job) {
+		if j.Stage == core.StageTranslating && translating.Stage == "" {
+			translating = j
+		}
+	})
+	transcript := strings.TrimSuffix(done.VideoPath, ".mp4") + ".srt"
+	if translating.SubtitlePath != transcript {
+		t.Fatalf("translating with subtitles %q, want the transcript %q", translating.SubtitlePath, transcript)
+	}
+	if done.SubtitlePath != strings.TrimSuffix(done.VideoPath, ".mp4")+".bilingual.srt" {
+		t.Fatalf("done with subtitles %q", done.SubtitlePath)
+	}
+
+	again := done
+	again.Redo, again.RedoLanguage, again.Transcribed = core.RedoAll, "简体中文", false
+	again.Stage = core.StageQueued
+	Run(context.Background(), tools, again, "简体中文", func(j core.Job) {
+		if j.Stage != core.StageComplete && j.SubtitlePath != done.SubtitlePath {
+			t.Fatalf("processing again showed %q while %s", j.SubtitlePath, j.Stage)
+		}
+	})
 }
 
 // A done film processed again, its Transcribed cleared, keeps the video it downloaded but is transcribed anew.
@@ -412,10 +491,10 @@ func TestRunRedoesWhatIsMissing(t *testing.T) {
 
 // A video with a partial download beside it never merged, so the retry downloads it again rather than transcribing a silent track.
 func TestRunDownloadsAgainAVideoThatNeverMerged(t *testing.T) {
-	srv, _ := flakyChat(t, http.StatusUnauthorized)
+	srv, _ := flakyChat(t)
 	tools, ytdlpRuns, whisperRuns := resumeTools(t, srv.URL)
 	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
-	_, failed := runRecording(tools, job)
+	failed := stoppedInTranslation(tools, job)
 	if failed.Stage != core.StageFailed || failed.VideoPath == "" || !failed.Transcribed {
 		t.Fatalf("first run %+v", failed)
 	}
@@ -437,14 +516,14 @@ func TestRunDownloadsAgainAVideoThatNeverMerged(t *testing.T) {
 
 // A local video's job checks its file through Download every time, and reads the transcript saved beside it instead of transcribing it again.
 func TestRunResumesALocalVideo(t *testing.T) {
-	srv, _ := flakyChat(t, http.StatusUnauthorized)
+	srv, _ := flakyChat(t)
 	tools, _, whisperRuns := resumeTools(t, srv.URL)
 	video := filepath.Join(t.TempDir(), "interview.mp4")
 	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	job, _ := core.NewJob(core.FileURL(video))
-	_, failed := runRecording(tools, job)
+	failed := stoppedInTranslation(tools, job)
 	if failed.Stage != core.StageFailed || !failed.Transcribed || failed.VideoPath != video {
 		t.Fatalf("first run %+v", failed)
 	}

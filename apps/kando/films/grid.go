@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"kando/apps/kando/desktop"
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
@@ -91,7 +92,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 			Shadows: posterShadow, Cursor: core.CursorDefault, Hover: &core.Style{Shadows: posterLifted, Transform: core.Transform{Scale: 1.015}}, FocusVisible: ui.FocusRing(cx, 2)},
 		Children: []core.Node{clip(13,
 			cover(live.Func(a, func() core.ImageSource { return a.Poster(item().VideoPath) })),
-			core.Show{When: func() bool { return item().Language != "" }, Then: func(*core.Scope) core.Node {
+			core.Show{When: func() bool { return item().Language != "" && item().TranslationErr == "" }, Then: func(*core.Scope) core.Node {
 				return posterChip(live.Func(a, func() string { return PosterLanguages(locales.For(cx), item(), *a.Language()) }),
 					core.Style{Top: core.Pt(9), Left: core.Pt(9), LetterSpacing: 0.4, FontWeight: ui.Bold})
 			}},
@@ -109,10 +110,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 	meta := core.Text{ContentFunc: live.Func(a, func() string { return doneMeta(locales.For(cx), item()) }), MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		Style: core.Style{FontSize: 12}, StyleFunc: ui.Colored(colors.Muted)}
 	missing := core.Show{When: func() bool { return item().JobID != "" && item().Untranslated > 0 }, Then: func(*core.Scope) core.Node {
-		return core.View{Style: core.Style{AlignSelf: core.AlignStart, Margin: core.Edges{Top: 5}}, Children: []core.Node{
-			textButton(locales.FilmsTranslateMissing, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "film-translate-missing",
-				OnPress: live.Do(a, func() { a.TranslateMissing(item()) })}),
-		}}
+		return untranslatedActions{a: a, item: item}
 	}}
 	caption := core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignStart}, Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
@@ -161,6 +159,45 @@ func watchedMark(cx *core.Scope) core.Node {
 		Children: []core.Node{core.Icon{SVG: lucide.Check(), Style: core.Style{Width: core.Pt(12), Height: core.Pt(12), Color: onPicture}}}}
 }
 
+// untranslatedActions is what a done film whose translation left lines untranslated offers under its line: 补译未译的句子, or, for one that translated none (Film.TranslationErr), why in a line of its own, 翻译 and 打开设置 where a setting fixes it.
+type untranslatedActions struct {
+	a    App
+	item func() Film
+}
+
+// Render implements core.Node.
+func (u untranslatedActions) Render(cx *core.Scope) core.Node {
+	a, item := u.a, u.item
+	colors := ui.ColorsOf(cx)
+	none := func() bool { return item().TranslationErr != "" }
+	hint := live.Memo(cx, a, func() [2]string {
+		if !none() {
+			return [2]string{}
+		}
+		reason, section := a.TranslationHint(item())
+		return [2]string{reason, section}
+	})
+	reason := core.Show{When: func() bool { return hint()[0] != "" }, Then: func(*core.Scope) core.Node {
+		return core.Text{TestID: "film-translation-reason", ContentFunc: func() string { return hint()[0] }, MaxLines: 2, EllipsizeMode: core.EllipsizeTail,
+			Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(colors.Muted)}
+	}}
+	translate := core.Dynamic(func(cx *core.Scope) core.Node {
+		label, testID := locales.FilmsTranslateMissing, "film-translate-missing"
+		if none() {
+			label, testID = locales.FilmsTranslate, "film-translate"
+		}
+		return textButton(label, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: testID, OnPress: live.Do(a, func() { a.TranslateMissing(item()) })})
+	})
+	settings := core.Show{When: func() bool { return hint()[1] != "" }, Then: func(*core.Scope) core.Node {
+		return textButton(locales.FilmsOpenSettings, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "film-translation-settings",
+			OnPress: live.Do(a, func() { a.OpenSettings(hint()[1]) })})
+	}}
+	return core.View{Style: core.Style{Gap: 5, Margin: core.Edges{Top: 3}}, Children: []core.Node{
+		reason,
+		core.View{Style: core.Style{Direction: core.Row, Wrap: core.Wrap, Gap: 6, AlignSelf: core.AlignStart}, Children: []core.Node{translate, settings}},
+	}}
+}
+
 // filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero, in the system's menu. Its reveal item names the file manager of the system the app runs on, as the buttons beside it do. It is built as the menu opens, so it says what is true then.
 func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 	do := func(fn func(Film)) func() { return live.Do(a, func() { fn(item) }) }
@@ -177,8 +214,12 @@ func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 	}
 	items = append(items, nsdesktop.MenuItem{Label: locales.FilmsReprocess(cx), OnSelect: do(a.AskReprocess)})
 	if item.JobID != "" {
-		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslateAgain(cx), OnSelect: do(a.TranslateAgain)})
-		if item.Untranslated > 0 {
+		into := subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), item.Language, func(language string) { live.Do(a, func() { a.TranslateAgain(item, language) })() })
+		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslateAgain(cx), Items: into})
+		switch {
+		case item.TranslationErr != "":
+			items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslate(cx), OnSelect: do(a.TranslateMissing)})
+		case item.Untranslated > 0:
 			items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslateMissing(cx), OnSelect: do(a.TranslateMissing)})
 		}
 	}
@@ -249,8 +290,11 @@ func doneMeta(m locales.Messages, item Film) string {
 	return strings.Join(parts, " · ")
 }
 
-// untranslatedNote says how many lines of a done film the translation left untranslated, as the prototype words a translation that failed for some lines; "" when it left none.
+// untranslatedNote says how many lines of a done film the translation left untranslated, as the prototype words a translation that failed for some lines, or that it has no translation when it translated none; "" when it left none.
 func untranslatedNote(m locales.Messages, item Film) string {
+	if item.TranslationErr != "" {
+		return m.FilmsNoTranslation()
+	}
 	if item.Untranslated <= 0 {
 		return ""
 	}

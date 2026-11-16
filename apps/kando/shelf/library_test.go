@@ -326,12 +326,12 @@ func TestLibraryKeepsWhyADownloadFailedAndTheBorrowedLogin(t *testing.T) {
 func TestLibraryKeepsHowManyLinesAreUntranslated(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
 	lib, _ := Load(path)
-	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, Untranslated: 12})
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, Untranslated: 12, TranslationErr: "translate: KANDO_LLM_MODEL is not set"})
 	if err := lib.Save(); err != nil {
 		t.Fatal(err)
 	}
 	loaded, _ := Load(path)
-	if job := loaded.Jobs[0]; job.Untranslated != 12 {
+	if job := loaded.Jobs[0]; job.Untranslated != 12 || job.TranslationErr != "translate: KANDO_LLM_MODEL is not set" {
 		t.Fatalf("job %+v", job)
 	}
 }

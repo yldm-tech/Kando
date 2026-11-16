@@ -55,6 +55,7 @@ type fakeApp struct {
 	mode       string
 	order      string
 	untrans    string
+	jobStatus  string
 	yield      bool
 	delay      time.Duration
 	panel      bool
@@ -105,9 +106,11 @@ func (f *fakeApp) ProcessFilm()                                { f.call("process
 func (f *fakeApp) Remove(id string)                            { f.call("remove " + id) }
 func (f *fakeApp) RetryOpen(id string)                         { f.call("retry " + id) }
 func (f *fakeApp) ReprocessFilm()                              { f.call("reprocess") }
-func (f *fakeApp) TranslateFilmAgain()                         { f.call("translate again") }
+func (f *fakeApp) TranslateFilmAgain(language string)          { f.call("translate again " + language) }
+func (f *fakeApp) TargetLanguage() string                      { return "简体中文" }
 func (f *fakeApp) TranslateFilmMissing()                       { f.call("translate missing") }
 func (f *fakeApp) StageLabel(_ *ns.Scope, s core.Stage) string { return string(s) }
+func (f *fakeApp) JobStatus(*ns.Scope) string                  { return f.jobStatus }
 func (f *fakeApp) FillsWindow() bool                           { return f.fills }
 func (f *fakeApp) Play() Player {
 	if f.play == nil {
@@ -775,6 +778,24 @@ func TestTopBarActsOnTheFilm(t *testing.T) {
 	app.Press("id:film-back")
 	if !slices.Contains(a.calls, "stop") || a.item.Key != "" {
 		t.Fatalf("back called %q", a.calls)
+	}
+}
+
+// A film watched while its job runs says beside 取消 what the job is doing, as its card does, and stops saying it once the job is done.
+func TestTheTitleBarFollowsTheFilmsJob(t *testing.T) {
+	a := newFakeApp()
+	a.item.Stage, a.jobStatus = core.StageTranslating, "翻译 · 120/480 句"
+	app := start(t, a)
+	if !app.Exists(whole(a.jobStatus)) || !app.Exists("id:film-cancel") {
+		t.Fatalf("no job status: %q", app.Texts())
+	}
+	change(app, a, func() { a.jobStatus = "翻译 · 240/480 句" })
+	if !app.Exists(whole(a.jobStatus)) {
+		t.Fatalf("the status did not follow the job: %q", app.Texts())
+	}
+	change(app, a, func() { a.item.Stage, a.jobStatus = core.StageComplete, "" })
+	if app.Exists("id:film-job-status") || app.Exists("id:film-cancel") {
+		t.Fatal("a done film still shows its job")
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
@@ -139,7 +140,7 @@ func TestQueueRunsJobsOneAtATimeInOrder(t *testing.T) {
 	}
 	noneStarted(t, g, updates)
 	refresh(tt, a)
-	if len(a.library.Jobs) != 3 || textCount(tt, "排队") != 2 || textCount(tt, "下载中") != 1 {
+	if len(a.library.Jobs) != 3 || textCount(tt, "排队中") != 2 || textCount(tt, "下载中") != 1 {
 		t.Fatalf("jobs %d texts %q", len(a.library.Jobs), tt.Texts())
 	}
 	ids := jobIDs(a)
@@ -798,6 +799,32 @@ func TestFilmCancelStopsItsOwnJob(t *testing.T) {
 	}
 }
 
+// refusedTranslation is fakePipeline with a translation the AI service refuses as a whole, as one whose key it rejects.
+type refusedTranslation struct{ fakePipeline }
+
+func (*refusedTranslation) Translate(context.Context, []core.Segment, string) ([]core.Segment, error) {
+	return nil, errors.New("translation API returned 401 Unauthorized")
+}
+
+// A job whose translation fails as a whole is still a film: it goes to the done grid with its original lines, says it has no translation and why, and 翻译 translates its missing lines once the service works, without downloading or transcribing it again.
+func TestAFailedTranslationStillMakesTheFilm(t *testing.T) {
+	a, tt, updates := newTestApp(t, &refusedTranslation{})
+	startJob(t, tt, "https://example.com/video")
+	settle(t, a, tt, updates)
+	job := a.library.Jobs[0]
+	if job.Stage != core.StageComplete || job.SubtitlePath == "" || job.TranslationErr == "" || job.Untranslated != 1 {
+		t.Fatalf("job %+v", job)
+	}
+	msgs := testlocale.Messages()
+	if shows(tt, "处理中") || !shows(tt, msgs.FilmsNoTranslation()) || !shows(tt, msgs.PrecheckTranslateAuth()) {
+		t.Fatalf("the film does not say it has no translation: %q", tt.Texts())
+	}
+	tt.Press("film-translate")
+	if job := a.library.Jobs[0]; job.Redo != core.RedoMissing || job.Stage != core.StageQueued || job.Language != "简体中文" {
+		t.Fatalf("翻译 queued %+v", job)
+	}
+}
+
 func TestRetryKeepsTheSameCard(t *testing.T) {
 	a, tt, updates := newTestApp(t, &fakePipeline{})
 	a.library.Jobs = []core.Job{{
@@ -949,7 +976,7 @@ func TestTheCardFollowsTheDownload(t *testing.T) {
 		t.Fatalf("job %+v", job)
 	}
 	refresh(tt, a)
-	for _, want := range []string{"Me at the zoo", "下载中 · 25% · 1.0 MB/s · 还剩 0:03"} {
+	for _, want := range []string{"Me at the zoo", "下载中 · 25% · 还剩 0:03"} {
 		if textCount(tt, want) == 0 {
 			t.Fatalf("the card does not say %q", want)
 		}
@@ -1948,10 +1975,10 @@ func TestSessionEndDoesNotAsk(t *testing.T) {
 	}
 }
 
-// resumePipeline downloads into its own folder and fails the first translation as an API that rejects the key does, counting each stage it runs.
+// resumePipeline downloads into its own folder and fails the first export as a full disk does, counting each stage it runs. A translation that fails no longer fails the job (TestAFailedTranslationStillMakesTheFilm), so the export is the stage after the transcript that can.
 type resumePipeline struct {
-	dir                                string
-	downloads, transcribes, translates atomic.Int32
+	dir                                         string
+	downloads, transcribes, translates, exports atomic.Int32
 }
 
 func (p *resumePipeline) Check() error { return nil }
@@ -1971,13 +1998,14 @@ func (p *resumePipeline) Transcribe(context.Context, string) ([]core.Segment, er
 }
 
 func (p *resumePipeline) Translate(_ context.Context, segments []core.Segment, _ string) ([]core.Segment, error) {
-	if p.translates.Add(1) == 1 {
-		return nil, errors.New("translation API returned 401 Unauthorized")
-	}
+	p.translates.Add(1)
 	return segments, nil
 }
 
 func (p *resumePipeline) Export(_ context.Context, video string, _, _ []core.Segment) (string, error) {
+	if p.exports.Add(1) == 1 {
+		return "", errors.New("no space left on device")
+	}
 	return strings.TrimSuffix(video, ".mp4") + ".bilingual.srt", nil
 }
 
@@ -2001,7 +2029,7 @@ func settleStages(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), i
 	return stages
 }
 
-// A job whose translation failed is retried from its translation: the video it downloaded and the speech it transcribed are used again. Processing the done film again transcribes it anew but does not download it again.
+// A job that failed after its transcript was saved is retried from its translation: the video it downloaded and the speech it transcribed are used again. Processing the done film again transcribes it anew but does not download it again.
 func TestRetryResumesAfterTheStagesItFinished(t *testing.T) {
 	p := &resumePipeline{dir: t.TempDir()}
 	a, tt, updates := newTestApp(t, p)
@@ -2420,10 +2448,21 @@ func retranslateLibraryAt(t *testing.T, p *retranslatePipeline, lib, video strin
 }
 
 // chooseFilmMenu chooses label in the ⋯ menu of the film on screen.
-func chooseFilmMenu(t *testing.T, tt *nsgotest.App, label string) {
+func chooseFilmMenu(t *testing.T, tt *nsgotest.App, path ...string) {
 	t.Helper()
 	tt.Press("id:film-more")
-	tt.ChoosePopup(label)
+	tt.ChoosePopup(path...)
+}
+
+// translateAgainInto chooses 重新翻译为 ▸ language in the ⋯ of the film shown, and confirms replacing the film's translation when it asks.
+func translateAgainInto(t *testing.T, a *app, tt *nsgotest.App, language string) {
+	t.Helper()
+	m := testlocale.Messages()
+	tt.Press("id:film-more")
+	tt.ChoosePopup(m.FilmsTranslateAgain(), subtitle.TargetLanguageNameIn(m, language))
+	if a.lib.retranslateOpen {
+		tt.Press("id:retranslate-confirm-run")
+	}
 }
 
 // The card of a film whose translation failed for some lines offers to translate them: only those lines go to the translator, in the language the film's other lines are in rather than the one set now, and the film is neither downloaded nor transcribed again.
@@ -2461,7 +2500,7 @@ func TestNoMissingLinesNoButton(t *testing.T) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 	tt.Press("id:film-more")
-	if menu := popupLabels(tt); slices.Contains(menu, "补译未译的句子") || !slices.Contains(menu, "重新翻译") {
+	if menu := popupLabels(tt); slices.Contains(menu, "补译未译的句子") || !slices.Contains(menu, testlocale.Messages().FilmsTranslateAgain()) {
 		t.Fatalf("menu %q", menu)
 	}
 }
@@ -2470,7 +2509,7 @@ func TestNoMissingLinesNoButton(t *testing.T) {
 func TestTranslateAgainUsesTheLanguageSetNow(t *testing.T) {
 	p := &retranslatePipeline{}
 	a, tt, updates := retranslateLibrary(t, p)
-	chooseFilmMenu(t, tt, "重新翻译")
+	translateAgainInto(t, a, tt, "日本語")
 	settle(t, a, tt, updates)
 	if !slices.Equal(p.sent, []string{"Hello.", "How are you?", "Bye."}) || p.language != "日本語" {
 		t.Fatalf("sent %q in %q", p.sent, p.language)
@@ -2519,7 +2558,7 @@ func TestProcessAgainAsksFirst(t *testing.T) {
 	film, _ := a.JobFilm("talk")
 	a.Open(film)
 	refresh(tt, a)
-	tt.Press("更多操作")
+	tt.Press("id:film-more")
 	tt.ChoosePopup("重新处理整部影片")
 	if !tt.Exists("id:reprocess-confirm") || a.running() {
 		t.Fatalf("the film page did not ask first: %q", tt.Texts())
@@ -2603,30 +2642,46 @@ func TestCancellingAReprocessKeepsTheFilm(t *testing.T) {
 }
 
 // With no target language set, 重新翻译 queues nothing and the message bar says why. The film page draws no message bar, so from there the settings open where the language is chosen.
-func TestTranslateAgainWithoutALanguage(t *testing.T) {
-	p := &retranslatePipeline{}
+// 重新翻译为 ▸ lists the target languages, the one set now first and the film's own checked. Translating into the film's own language runs at once; into another, which replaces its translation, it asks first, and 取消 queues nothing. With no language set, the film's own comes first.
+func TestTranslateAgainIntoAsksBeforeChangingTheLanguage(t *testing.T) {
+	p := &retranslatePipeline{hold: true}
 	a, tt, _ := retranslateLibrary(t, p)
+	m := testlocale.Messages()
+	tt.Press("id:film-more")
+	var into []string
+	for _, it := range tt.PopupMenu {
+		if it.Label == m.FilmsTranslateAgain() {
+			for _, sub := range it.Items {
+				into = append(into, fmt.Sprintf("%s%v", sub.Label, sub.Checked))
+			}
+		}
+	}
+	if len(into) < 3 || into[0] != m.SettingsLanguageJapanese()+"false" || into[1] != m.SettingsLanguageSimplifiedChinese()+"true" {
+		t.Fatalf("submenu %q", into)
+	}
+	tt.ChoosePopup(m.FilmsTranslateAgain(), m.SettingsLanguageJapanese())
+	if !a.lib.retranslateOpen || a.running() || !tt.Exists("id:retranslate-confirm") {
+		t.Fatalf("another language did not ask: open %v running %v", a.lib.retranslateOpen, a.running())
+	}
+	tt.Press("id:retranslate-cancel")
+	if a.lib.retranslateOpen || a.lib.retranslateRelease != nil || a.running() {
+		t.Fatal("取消 queued the translation or kept the modal flag")
+	}
+	chooseFilmMenu(t, tt, m.FilmsTranslateAgain(), m.SettingsLanguageSimplifiedChinese())
+	if a.lib.retranslateOpen || !a.running() {
+		t.Fatal("the film's own language asked first")
+	}
+	if job := stageOf(t, a, "talk"); job.RedoLanguage != "简体中文" {
+		t.Fatalf("queued %+v", job)
+	}
+
 	a.prefs.language = ""
-	chooseFilmMenu(t, tt, "重新翻译")
-	refresh(tt, a)
-	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Redo != "" || a.running() {
-		t.Fatalf("job %+v running %v", job, a.running())
-	}
-	if a.lib.notice.Text != testlocale.Messages().QueueNoLanguage() || a.lib.notice.Section != settings.SectionTranslate {
-		t.Fatalf("notice %+v", a.lib.notice)
-	}
-	if a.prefs.open {
-		t.Fatal("the library opened the settings")
-	}
 	film, _ := a.JobFilm("talk")
-	a.Open(film)
-	refresh(tt, a)
-	tt.Press("更多操作")
-	tt.ChoosePopup("重新翻译")
-	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || a.running() {
-		t.Fatalf("job %+v", job)
+	film.Language = "日本語"
+	cx := a.cx
+	if items := subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), film.Language, func(string) {}); items[0].Label != m.SettingsLanguageJapanese() || !items[0].Checked {
+		t.Fatalf("with no language set the menu starts with %+v", items[0])
 	}
-	wantSettings(t, a, settings.SectionTranslate)
 }
 
 // A translation of the missing lines that fails leaves the film done with the subtitles it had, rather than a failed card: the message bar says why, the card still offers to translate the missing lines, and doing so again translates only those, still without downloading or transcribing the film.
@@ -2662,7 +2717,7 @@ func TestAFailedRetranslationKeepsTheFilmDone(t *testing.T) {
 func TestCancellingATranslationAgainKeepsTheFilmDone(t *testing.T) {
 	p := &retranslatePipeline{hold: true}
 	a, tt, updates := retranslateLibrary(t, p)
-	chooseFilmMenu(t, tt, "重新翻译")
+	translateAgainInto(t, a, tt, "日本語")
 	if !a.running() {
 		t.Fatal("重新翻译 did not start")
 	}
@@ -2685,7 +2740,7 @@ func TestCancellingATranslationAgainKeepsTheFilmDone(t *testing.T) {
 
 	// Another job holds the queue, so 重新翻译 waits behind it and is cancelled from its queued card.
 	a.queue.active = "other"
-	chooseFilmMenu(t, tt, "重新翻译")
+	translateAgainInto(t, a, tt, "日本語")
 	if job := stageOf(t, a, "talk"); job.Stage != core.StageQueued || job.RedoLanguage != "日本語" || job.Language != "简体中文" {
 		t.Fatalf("queued job %+v", job)
 	}
@@ -2706,7 +2761,8 @@ func TestAnOpenFilmShowsItsNewTranslation(t *testing.T) {
 	if cues := a.player.subs.cues; len(cues) != 3 || cues[0].Text != "你好。\nHello." {
 		t.Fatalf("cues %q", cues)
 	}
-	a.TranslateAgain(film)
+	a.TranslateAgain(film, "日本語")
+	a.Retranslate()
 	settle(t, a, tt, updates)
 	queueUntilState(t, updates, func() bool {
 		cues := a.player.subs.cues
@@ -2721,11 +2777,12 @@ func TestFilmPageTranslatesAgain(t *testing.T) {
 	film, _ := a.JobFilm("talk")
 	a.Open(film)
 	refresh(tt, a)
-	tt.Press("更多操作")
-	if menu := popupLabels(tt); !slices.Contains(menu, "重新翻译") || !slices.Contains(menu, "补译未译的句子") {
+	tt.Press("id:film-more")
+	if menu := popupLabels(tt); !slices.Contains(menu, testlocale.Messages().FilmsTranslateAgain()) || !slices.Contains(menu, "补译未译的句子") {
 		t.Fatalf("menu %q", menu)
 	}
-	tt.ChoosePopup("重新翻译")
+	tt.ChoosePopup(testlocale.Messages().FilmsTranslateAgain(), testlocale.Messages().SettingsLanguageJapanese())
+	tt.Press("id:retranslate-confirm-run")
 	settle(t, a, tt, updates)
 	if a.openKey != "talk" || p.language != "日本語" || len(p.sent) != 3 || p.downloads != 0 {
 		t.Fatalf("open %q, sent %q in %q, %d downloads", a.openKey, p.sent, p.language, p.downloads)
@@ -2754,5 +2811,91 @@ func TestAFailedRetranslationSaysTheAccountIsOutOfCredit(t *testing.T) {
 	settle(t, a, tt, updates)
 	if want := testlocale.Messages().QueueRedoFailed("Talk", testlocale.Messages().PrecheckTranslateQuota()); a.lib.notice.Text != want || a.lib.notice.Section != settings.SectionAI {
 		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
+	}
+}
+
+// Retry All queues again the failures that need no choice of the user's, oldest first, and leaves a login to borrow, a cancelled job and the others to their own cards; Remove Failed takes every failed card off and leaves a cancelled one.
+func TestRetryAllAndRemoveFailed(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, _ := newTestApp(t, g)
+	failed := func(id string, kind core.FailKind) core.Job {
+		return core.Job{ID: id, Source: "https://example.com/" + id, Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), FailKind: kind, LibraryDir: "/videos"}
+	}
+	stopped := failed("stopped", "")
+	stopped.Err = context.Canceled
+	// The shelf keeps its jobs newest first.
+	a.library.Jobs = []core.Job{failed("net", core.FailNetwork), failed("login", core.FailLogin), stopped, failed("plain", "")}
+	refresh(tt, a)
+	if r, f := a.Failures(); r != 2 || f != 3 {
+		t.Fatalf("failures %d retryable, %d failed", r, f)
+	}
+	tt.Press("queue-retry-all")
+	if a.RunningJob() != "plain" || stageOf(t, a, "net").Stage != core.StageQueued || stageOf(t, a, "login").Stage != core.StageFailed || stageOf(t, a, "stopped").Stage != core.StageFailed {
+		t.Fatalf("after Retry All: running %q, jobs %+v", a.RunningJob(), a.library.Jobs)
+	}
+	if r, f := a.Failures(); r != 0 || f != 1 {
+		t.Fatalf("failures after Retry All: %d retryable, %d failed", r, f)
+	}
+
+	a.library.Jobs = append(a.library.Jobs, failed("other", core.FailRegion))
+	refresh(tt, a)
+	tt.Press("queue-remove-failed")
+	if _, ok := a.library.Find("login"); ok {
+		t.Fatal("Remove Failed kept a failed card")
+	}
+	if _, ok := a.library.Find("other"); ok {
+		t.Fatal("Remove Failed kept a failed card")
+	}
+	if _, ok := a.library.Find("stopped"); !ok {
+		t.Fatal("Remove Failed took a cancelled card")
+	}
+	<-g.started
+}
+
+// The × of a waiting card takes a job that has done nothing yet off the shelf, and cancels one that has, as a film waiting to be processed again, which keeps its card.
+func TestWithdrawRemovesOnlyAFreshWaitingJob(t *testing.T) {
+	g := newGatePipeline()
+	a, _, _ := newTestApp(t, g)
+	for _, source := range []string{"https://example.com/run", "https://example.com/fresh"} {
+		if err := a.Enqueue(source); err != nil {
+			t.Fatal(err)
+		}
+	}
+	<-g.started
+	ids := jobIDs(a)
+	again := core.Job{ID: "again", Source: "https://example.com/again", Language: "简体中文", Stage: core.StageComplete, VideoPath: "/videos/again.mp4", SubtitlePath: "/videos/again.bilingual.srt", CompletedAt: time.Now(), LibraryDir: "/videos"}
+	a.library.Upsert(again)
+	a.Retry("again")
+	a.Withdraw(ids["https://example.com/fresh"])
+	if _, ok := a.library.Find(ids["https://example.com/fresh"]); ok {
+		t.Fatal("× kept a waiting job that had done nothing")
+	}
+	a.Withdraw("again")
+	if job := stageOf(t, a, "again"); job.Stage != core.StageComplete {
+		t.Fatalf("× on a film waiting to be processed again left %+v", job)
+	}
+	a.Withdraw(ids["https://example.com/run"])
+	if _, ok := a.library.Find(ids["https://example.com/run"]); !ok {
+		t.Fatal("× removed the running job")
+	}
+}
+
+// A waiting card says how many jobs run before it: the running one and those queued before it.
+func TestWaitingCardsCountTheJobsAhead(t *testing.T) {
+	g := newGatePipeline()
+	a, _, _ := newTestApp(t, g)
+	for _, source := range []string{"https://example.com/a", "https://example.com/b", "https://example.com/c"} {
+		if err := a.Enqueue(source); err != nil {
+			t.Fatal(err)
+		}
+	}
+	<-g.started
+	ids := jobIDs(a)
+	ahead := map[string]int{}
+	for _, item := range a.QueueFilms() {
+		ahead[item.JobID] = item.Ahead
+	}
+	if ahead[ids["https://example.com/a"]] != 0 || ahead[ids["https://example.com/b"]] != 1 || ahead[ids["https://example.com/c"]] != 2 {
+		t.Fatalf("ahead %v for %v", ahead, ids)
 	}
 }

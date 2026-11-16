@@ -23,7 +23,7 @@ func (a *app) filmPage(item func() films.Film) ns.Node {
 // filmItem is the library's film as the player shows it.
 func filmItem(f films.Film) film.Item {
 	return film.Item{Key: f.Key, Title: f.Title, Name: f.Name, Source: f.Source, Detail: f.Detail, Stage: f.Stage,
-		JobID: f.JobID, VideoPath: f.VideoPath, SubtitlePath: f.SubtitlePath, Language: f.Language, Spoken: f.Spoken, Untranslated: f.Untranslated}
+		JobID: f.JobID, VideoPath: f.VideoPath, SubtitlePath: f.SubtitlePath, Language: f.Language, Spoken: f.Spoken, Untranslated: f.Untranslated, TranslationErr: f.TranslationErr}
 }
 
 // openFilm is the film the player shows: the open key's, on the shelf or among the jobs.
@@ -44,9 +44,9 @@ func (a *app) ProcessFilm() {
 	}
 }
 
-func (a *app) TranslateFilmAgain() {
+func (a *app) TranslateFilmAgain(language string) {
 	if item, ok := a.openFilm(); ok {
-		a.TranslateAgain(item)
+		a.TranslateAgain(item, language)
 	}
 }
 
@@ -54,6 +54,15 @@ func (a *app) TranslateFilmMissing() {
 	if item, ok := a.openFilm(); ok {
 		a.TranslateMissing(item)
 	}
+}
+
+// JobStatus is the line the open film's card says while its job waits or runs (films.QueueMeta).
+func (a *app) JobStatus(cx *ns.Scope) string {
+	item, ok := a.openFilm()
+	if !ok || item.JobID == "" || item.Stage == "" || item.Stage.Done() {
+		return ""
+	}
+	return films.QueueMeta(locales.For(cx), item)
 }
 
 // StageLabel names a job's stage as the library does.

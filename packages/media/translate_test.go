@@ -275,7 +275,7 @@ func TestChatTranslatorReportsEachBatchAndRetryWait(t *testing.T) {
 		t.Fatalf("steps = %+v", steps)
 	}
 	first, waiting, resumed, second, done := steps[0], steps[1], steps[2], steps[3], steps[4]
-	if first.Batch != 1 || first.Batches != 2 || first.BatchSize != translateBatch || first.Fraction != 0 || first.RetryIn != 0 {
+	if first.Batch != 1 || first.Batches != 2 || first.BatchSize != translateBatch || first.Fraction != 0 || first.RetryIn != 0 || first.Lines != 0 || first.Of != len(segments) {
 		t.Fatalf("first = %+v", first)
 	}
 	if waiting.RetryIn <= 0 || waiting.Attempt != 1 || waiting.Attempts != maxAttempts-1 || waiting.Batch != 1 {
@@ -284,7 +284,7 @@ func TestChatTranslatorReportsEachBatchAndRetryWait(t *testing.T) {
 	if resumed.RetryIn != 0 || resumed.Batch != 1 {
 		t.Fatalf("resumed = %+v", resumed)
 	}
-	if second.Batch != 2 || second.Fraction != float64(translateBatch)/float64(len(segments)) {
+	if second.Batch != 2 || second.Fraction != float64(translateBatch)/float64(len(segments)) || second.Lines != translateBatch || second.Of != len(segments) {
 		t.Fatalf("second = %+v", second)
 	}
 	if !done.Known || done.Fraction != 1 {

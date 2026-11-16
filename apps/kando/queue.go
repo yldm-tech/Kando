@@ -14,6 +14,7 @@ import (
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -264,6 +265,77 @@ func (a *app) Cancel(id string) {
 	a.show(job)
 }
 
+// Withdraw is the × of a card in 处理中: a waiting job that has done nothing yet is taken off the shelf, as if it had never been added (queueFresh); any other is cancelled and keeps its card (Cancel), so neither a download nor a film being processed again is lost to it.
+func (a *app) Withdraw(id string) {
+	if job, ok := a.library.Find(id); ok && job.Stage == core.StageQueued && id != a.queue.active && queueFresh(job) {
+		a.remove(id)
+		return
+	}
+	a.Cancel(id)
+}
+
+// queueFresh reports whether job has done nothing yet that removing it would lose: no video downloaded or found, no transcript, and no done film it is processing again.
+func queueFresh(job core.Job) bool {
+	return job.VideoPath == "" && !job.Transcribed && job.Redo == "" && job.CompletedAt.IsZero()
+}
+
+// queueFailures is the open library's failed jobs, oldest first, that a bulk action of 处理中 acts on: retryable those Retry All queues again, failed every one. A cancelled job is neither.
+func (a *app) queueFailures() (retryable, failed []core.Job) {
+	root := a.snap().LibraryDir
+	for i := len(a.library.Jobs) - 1; i >= 0; i-- {
+		job := a.library.Jobs[i]
+		if job.Stage != core.StageFailed || errors.Is(job.Err, context.Canceled) || job.ID == a.queue.active || !films.InLibrary(root, job) {
+			continue
+		}
+		failed = append(failed, job)
+		if queueRetriesAlone(job.FailKind) {
+			retryable = append(retryable, job)
+		}
+	}
+	return retryable, failed
+}
+
+// queueRetriesAlone reports whether a download that failed for kind can be tried again with nothing changed: a failure no remedy is known for, as one past the download, or one the network, the site's name or its rate limit caused. The others wait for a choice of the user's, a login to borrow, another link or an update of yt-dlp, which their cards offer.
+func queueRetriesAlone(kind core.FailKind) bool {
+	switch kind {
+	case "", core.FailNetwork, core.FailHost, core.FailRateLimit:
+		return true
+	}
+	return false
+}
+
+func (a *app) Failures() (retryable, failed int) {
+	r, f := a.queueFailures()
+	return len(r), len(f)
+}
+
+// RetryAll queues again, oldest first, every failed job of the open library that needs no choice of the user's (queueRetriesAlone). One that cannot be queued, as without a target language, says why in the message bar as Retry does, once.
+func (a *app) RetryAll() {
+	retryable, _ := a.queueFailures()
+	var first error
+	for _, job := range retryable {
+		ready, err := a.queueRetryable(job)
+		if err != nil {
+			if first == nil && !errors.Is(err, errInQueue) {
+				first = err
+			}
+			continue
+		}
+		a.queueAdd(ready)
+	}
+	if first != nil {
+		a.warn(first.Error(), settings.SectionTranslate)
+	}
+}
+
+// RemoveFailed removes the card of every failed job of the open library; their downloads stay where they are.
+func (a *app) RemoveFailed() {
+	_, failed := a.queueFailures()
+	for _, job := range failed {
+		a.remove(job.ID)
+	}
+}
+
 // RunningJob is the ID of the job being processed now, or "" when none is. A job waiting in the queue is not running.
 func (a *app) RunningJob() string { return a.queue.active }
 
@@ -369,14 +441,17 @@ func (a *app) retry(job core.Job) {
 	a.queueAgain(a.queueRetryable(job))
 }
 
-// queueRetranslate queues done film job to be translated again from the subtitles it exported, without downloading or transcribing it (core.Job.Redo): with core.RedoTranslation every line, into the target language the settings name now (core.Job.RedoLanguage); with core.RedoMissing only the lines it left untranslated, into the language its other lines are in. The job keeps saying what the film's subtitles are until it has rewritten them, so one that fails or is stopped puts the film back as it was (queueRedoEnded). A job that is not done is left alone. It returns why it could not queue the job, which is when the settings name no target language.
-func (a *app) queueRetranslate(job core.Job, redo core.Redo) error {
+// queueRetranslate queues done film job to be translated again from the subtitles it exported, without downloading or transcribing it (core.Job.Redo): with core.RedoTranslation every line, into into, or the target language the settings name now when into is "" (core.Job.RedoLanguage); with core.RedoMissing only the lines it left untranslated, into the language its other lines are in. The job keeps saying what the film's subtitles are until it has rewritten them, so one that fails or is stopped puts the film back as it was (queueRedoEnded). A job that is not done is left alone. It returns why it could not queue the job, which is when no target language is given or set.
+func (a *app) queueRetranslate(job core.Job, redo core.Redo, into string) error {
 	if job.Stage != core.StageComplete || job.ID == a.queue.active {
 		return nil
 	}
 	job.Redo, job.RedoLanguage = redo, ""
 	language := strings.TrimSpace(job.Language)
-	if redo == core.RedoTranslation || language == "" {
+	switch {
+	case redo == core.RedoTranslation && strings.TrimSpace(into) != "":
+		language = strings.TrimSpace(into)
+	case redo == core.RedoTranslation || language == "":
 		language = strings.TrimSpace(a.prefs.language)
 	}
 	if language == "" {

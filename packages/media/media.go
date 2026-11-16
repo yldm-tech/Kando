@@ -24,7 +24,7 @@ var ErrNoTranscript = errors.New("the film's transcript is no longer beside its 
 // ErrSubtitlesChanged is why a job translating only the missing lines of a done film again failed when the film's bilingual subtitles no longer match its transcript cue for cue, as after they were edited by hand: which lines are missing cannot be told, and translating every line would overwrite the edits.
 var ErrSubtitlesChanged = errors.New("the film's bilingual subtitles no longer match its transcript")
 
-// TranslateChecker is a Pipeline that can check only what translating needs, which is all a job translating a done film again (core.Job.Redo) uses, so such a job does not fail for a download or speech tool it does not run.
+// TranslateChecker is a Pipeline that checks what translating needs apart from Check: a job translating a done film again (core.Job.Redo) checks only that, so it does not fail for a download or speech tool it does not run, and a job making a film for the first time checks it before translating, so one without a translator still completes with the original lines (core.Job.TranslationErr).
 type TranslateChecker interface {
 	CheckTranslate() error
 }
@@ -43,9 +43,13 @@ type Pipeline interface {
 
 // Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done; Untranslated counts the lines this run's translation left untranslated. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
 //
+// Once transcribed, a job making a film for the first time reports its transcript as job.SubtitlePath with StageTranslating, so the film can be watched with its original lines while it is translated.
+//
 // A job run again resumes after the stages an earlier run finished. A link whose video is still at job.VideoPath is not downloaded again, so the retry works offline or after the site took the video down. Once transcribed, the speech is saved beside the video before the translation starts and job.Transcribed set; a job that comes back with it set reads that transcript back instead of calling p.Transcribe, and goes straight to StageTranslating. A job whose Transcribed is false, as a done film processed again, or whose video had to be downloaded again, is transcribed anew.
 //
 // A job whose Redo is RedoTranslation or RedoMissing translates a done film again from the subtitles its earlier run exported beside job.VideoPath (exportSubtitles): it neither downloads nor transcribes, so it goes from StageQueued straight to StageTranslating, and a pipeline that is a TranslateChecker checks only what translating needs. RedoTranslation translates every line of the transcript again; RedoMissing sends p.Translate only the lines the bilingual subtitles left untranslated and keeps the rest. A film whose transcript is gone fails with ErrNoTranscript, and one whose bilingual subtitles no longer match it, as ones edited by hand, fails a RedoMissing with ErrSubtitlesChanged rather than translating every line over them. A job whose Redo is RedoAll runs every stage as a job run again does, but keeps the speech it transcribed in a hidden file beside the video (pendingTranscriptPath) rather than over the film's transcript, which Export replaces. Until the new subtitles are exported a redo keeps the film's Language, Untranslated and CompletedAt, and its subtitles on disk are untouched, so a redo that fails still describes them; once it is complete its Language is language and Redo and RedoLanguage are cleared.
+//
+// A job making a film for the first time (Redo empty) whose translation fails as a whole, other than by being stopped, or whose pipeline has no translator (TranslateChecker), still completes: Export writes the transcript and a bilingual file of the original lines alone, every line counts as untranslated, and job.TranslationErr says why. Translating its missing lines (RedoMissing) translates it later. A redo whose translation fails fails, leaving the film as it was.
 //
 // The translation keeps each batch it has done in a hidden file beside the video (withCheckpoint) until the job exports, so a job whose translation stopped partway, cancelled, quit or failed, does not pay for those batches again when it runs again with the same lines and language.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
@@ -56,6 +60,11 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 	ctx = WithTrace(ctx, &Trace{
 		Progress: func(progress core.Progress) {
+			// The stage is timed from the first report that says how far it has gone, so the minutes before it, as a model loading, and the batches a translation kept from an earlier run, which it does not report, do not make it look faster than it goes.
+			progress.Started, progress.From = job.Progress.Started, job.Progress.From
+			if progress.Known && progress.Started.IsZero() {
+				progress.Started, progress.From = time.Now(), progress.Fraction
+			}
 			job.Progress = progress
 			report(job)
 		},
@@ -78,9 +87,14 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		return job
 	}
 
+	// A job that has not completed yet needs only its download and speech tools to start: without a translator it still makes the film's subtitles, the original lines alone (core.Job.TranslationErr). A redo needs the translator, as it would otherwise replace the film's translated subtitles with fewer.
+	tc, translateChecked := p.(TranslateChecker)
 	check := p.Check
-	if tc, ok := p.(TranslateChecker); ok && job.Redo.TranslatesOnly() {
+	switch {
+	case translateChecked && job.Redo.TranslatesOnly():
 		check = tc.CheckTranslate
+	case translateChecked && job.Redo != "":
+		check = func() error { return errors.Join(p.Check(), tc.CheckTranslate()) }
 	}
 	if err := check(); err != nil {
 		return fail("check", err)
@@ -137,6 +151,10 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			// The transcript is kept before the translation starts, so a translation that fails does not cost the minutes of transcribing again. A transcript that cannot be saved only means a retry transcribes again; Export, which writes beside the video too, says why the folder cannot be written.
 			job.Transcribed = saveTranscript(transcript, original) == nil
 		}
+		// Until its subtitles are exported, a film being made for the first time shows its transcript, the original lines, so it can be watched while it is translated; Export puts the bilingual subtitles in its place. A redo keeps the film's own subtitles until then.
+		if job.Redo == "" && job.Transcribed {
+			job.SubtitlePath = transcript
+		}
 	} else {
 		var err error
 		original, earlier, err = readExported(job.VideoPath, job.Redo == core.RedoMissing)
@@ -151,15 +169,31 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	var err error
 	kept := translationCheckpointPath(job.VideoPath)
 	translateCtx := withCheckpoint(ctx, kept)
-	if job.Redo == core.RedoMissing {
+	// notTranslated is why this run translated no line, "" once it translated.
+	var notTranslated string
+	if translateChecked && job.Redo == "" {
+		err = tc.CheckTranslate()
+	}
+	switch {
+	case err != nil:
+	case job.Redo == core.RedoMissing:
 		translated, untranslated, err = translateMissing(translateCtx, p, original, earlier, language)
-	} else {
+	default:
 		translated, err = p.Translate(translateCtx, original, language)
 		// Lines the translation could not do after trying them again stay untranslated; the rest of the film is not lost for them.
 		var partial *UntranslatedError
 		if errors.As(err, &partial) && len(translated) == len(original) {
 			untranslated, err = partial.Lines, nil
 		}
+	}
+	// A film being made for the first time whose translation failed as a whole, or that has no translator, is still a film: its subtitles are the original lines, every one untranslated, and the job keeps why, so translating its missing lines later translates it (core.Job.TranslationErr). The batches a failed translation did stay kept beside the video for that. A job that was stopped stays stopped, and a redo fails, leaving the film's subtitles as they were.
+	if err != nil && job.Redo == "" && ctx.Err() == nil && !errors.Is(err, context.Canceled) {
+		notTranslated = err.Error()
+		translated = make([]core.Segment, len(original))
+		for i, s := range original {
+			translated[i] = core.Segment{Start: s.Start, End: s.End}
+		}
+		untranslated, err = len(original), nil
 	}
 	if err != nil {
 		return fail("translate", err)
@@ -170,8 +204,8 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	if err != nil {
 		return fail("export", err)
 	}
-	// The subtitles hold every line now; what was kept to resume them is done with.
-	if kept != "" {
+	// The subtitles hold every line now; what was kept to resume them is done with, unless the translation did not get to the end.
+	if kept != "" && notTranslated == "" {
 		_ = os.Remove(kept)
 	}
 	if job.Redo == core.RedoAll {
@@ -179,7 +213,7 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 	job.SubtitlePath = subtitles
 	job.CompletedAt = time.Now()
-	job.Language, job.Untranslated = language, untranslated
+	job.Language, job.Untranslated, job.TranslationErr = language, untranslated, notTranslated
 	job.Redo, job.RedoLanguage = "", ""
 
 	enter(core.StageComplete)
