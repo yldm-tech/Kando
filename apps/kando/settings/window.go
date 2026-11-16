@@ -67,6 +67,11 @@ type App interface {
 	ConnectBrowsers()
 	DisconnectBrowsers()
 	ShowExtensionFolder()
+	// SignIn is the browser whose sign-in every download borrows and what the last check of it found, which the 浏览器登录 card shows. SetSignInBrowser chooses one, "" for none, saves it and checks its sign-in at once, off the UI thread, which on macOS asks the user to allow its key in the Keychain the first time; CheckSignIn checks it again. OpenFullDiskAccess opens the pane of System Settings that lets Kando read Safari's sign-in.
+	SignIn() SignIn
+	SetSignInBrowser(id string)
+	CheckSignIn()
+	OpenFullDiskAccess()
 	// CheckForUpdates checks for a newer version of Kando at once and shows what it finds.
 	CheckForUpdates()
 	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.

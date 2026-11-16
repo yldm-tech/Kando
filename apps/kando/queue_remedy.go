@@ -41,6 +41,8 @@ const (
 	remedySites = "sites"
 	// remedyDownloadYTDLP downloads Kando's own yt-dlp (media.Kit) in place of one Kando cannot update, and then runs the download again with it.
 	remedyDownloadYTDLP = "download-ytdlp"
+	// remedyChooseBrowser opens Settings › 通用, whose 浏览器登录 chooses the browser every download borrows the login of, for a card whose browser's login could not be read.
+	remedyChooseBrowser = "choose-browser"
 )
 
 // installedBrowsers looks on disk for the browsers whose logins the cards offer to borrow; it runs off the UI thread. Tests replace it.
@@ -227,17 +229,28 @@ func queueYTDLPHint(m locales.Messages, install media.YTDLPInstall) string {
 	return m.QueueYtdlpHintStandalone(install.Dir)
 }
 
-// cookiesRemedy is the card of a job whose borrowed browser login yt-dlp could not read: Safari's needs Full Disk Access, which yt-dlp reports as an operation not permitted, and a browser may have no login data on this machine.
+// cookiesRemedy is the card of a job whose borrowed browser login yt-dlp could not read, saying why as Settings › 通用 › 浏览器登录 does (settings.SignInWhy): Safari's needs Full Disk Access, which yt-dlp reports as an operation not permitted; on Windows an open Chromium browser locks its login, which closing it fixes, and Chrome's own encryption keeps it from yt-dlp; on macOS the Keychain may not have given its key; and a browser may have no login data on this machine. 选择浏览器… opens that setting, where the browser every download borrows from is chosen, while the computer has one to choose.
 func (a *app) cookiesRemedy(job core.Job, other media.Browser) films.Remedy {
 	m := a.messages()
 	name := media.BrowserName(job.Cookies)
-	r := films.Remedy{Headline: m.QueueRemedyCookies(name), Why: m.QueueRemedyCookiesWhy(name)}
-	if job.Cookies == "safari" && job.Err != nil && strings.Contains(job.Err.Error(), "Operation not permitted") {
-		r.Why = m.QueueRemedySafariWhy()
+	var trouble media.LoginTrouble
+	if job.Err != nil {
+		trouble = media.ReadLoginTrouble(job.Err.Error())
+	}
+	r := films.Remedy{Headline: m.QueueRemedyCookies(name), Why: settings.SignInWhy(m, signinPlatform(), job.Cookies, trouble)}
+	switch {
+	// macOS hides Safari's cookies from an app without Full Disk Access, and yt-dlp then says it found none, or that it may not open them.
+	case job.Cookies == "safari" && (trouble == media.LoginNoAccess || trouble == media.LoginNotFound):
 		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyDiskAccess, Label: m.QueueRemedyOpenSystemSettings(), Primary: true}, films.RemedyAction{ID: remedyBorrow + "safari", Label: m.QueueRemedyAllowed()})
+	case trouble == media.LoginInUse || trouble == media.LoginNoKey:
+		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + job.Cookies, Label: m.QueueRemedyRetry(), Primary: true})
 	}
 	if other.ID != "" {
 		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: m.QueueRemedySwitchBrowser(other.Name), Primary: len(r.Actions) == 0})
+	}
+	// The setting offers the browsers the computer has; with none, there is nothing to choose.
+	if len(a.queue.ytdlp.browsers) > 0 {
+		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyChooseBrowser, Label: m.QueueRemedyChooseBrowser()})
 	}
 	return r
 }
@@ -291,6 +304,8 @@ func (a *app) RunRemedy(item films.Film, action string) {
 		a.OpenSites()
 	case action == remedyDiskAccess:
 		a.queueOpenDiskAccess()
+	case action == remedyChooseBrowser:
+		a.OpenSettings(settings.SectionGeneral)
 	}
 }
 

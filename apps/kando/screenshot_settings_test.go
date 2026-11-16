@@ -32,6 +32,12 @@ func TestScreenshotsSettings(t *testing.T) {
 	// The 浏览器扩展 card at the very end of 通用: Chrome and Firefox on the computer, before Kando is connected to them, with 连接; and once it is, with 断开连接.
 	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-browser", shown, models, turbo, func(a *app) { shotCLITool(f, a, true); shotBrowserExt(a, false) })
 	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-browser-connected", shown, models, turbo, func(a *app) { shotCLITool(f, a, true); shotBrowserExt(a, true) })
+	// The 浏览器登录 card above it: Chrome chosen, whose sign-in yt-dlp read; and Safari, which macOS keeps from Kando without Full Disk Access, with 打开系统设置 and 重新检查.
+	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-signin", shown, models, turbo, func(a *app) { shotCLITool(f, a, true); shotSignIn(a, "chrome", "") })
+	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-signin-safari", shown, models, turbo, func(a *app) {
+		shotCLITool(f, a, true)
+		shotSignIn(a, "safari", media.LoginNoAccess)
+	})
 	// EveryAPI without a key on a computer without the everyapi program: the row under API Key offers 获取 EveryAPI and 重新检测.
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-missing", shown, models, turbo, func(a *app) {
 		tools := a.pipeline.(media.Tools)
@@ -94,6 +100,12 @@ func shotBrowserExt(a *app, connected bool) {
 	if connected {
 		a.ext.status.Connected = a.ext.status.Found
 	}
+}
+
+// shotSignIn shows Chrome, Firefox and Safari on the computer, with browser chosen in 浏览器登录 and its check finished with trouble, as the app's own check would leave them.
+func shotSignIn(a *app, browser string, trouble media.LoginTrouble) {
+	a.queue.ytdlp.browsers = []media.Browser{media.Browsers[0], media.Browsers[1], media.Browsers[5]}
+	a.signin.browser, a.signin.checked, a.signin.trouble = browser, browser, trouble
 }
 
 // shootSettings renders the settings window open at section, at the prototype's 880 by 640, as name.png: the library shown, the whisper models in models with turbo in use, and EveryAPI as the AI service, without a key, through the everyapi program in ~/bin (writeFakeEveryAPI). setup, when given, changes the app before it is drawn.

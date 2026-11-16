@@ -287,6 +287,20 @@ browseReload:
 browseShowInLibrary:
   message: "Show in Library"
   description: "Button of the Browse page's message bar that goes to the library and shows the video the bar speaks of: the film, once processed, or its card in Processing."
+browseSignInChange:
+  message: "Change…"
+  description: "Button after browseSignInOn on the Browse page's start: opens Settings › General, where the browser whose sign-in downloads use is chosen."
+browseSignInChoose:
+  message: "Choose Browser…"
+  description: "Button after browseSignInOff on the Browse page's start: opens Settings › General, where a browser whose sign-in downloads use can be chosen."
+browseSignInOff:
+  message: "Downloads aren't signed in."
+  description: "Line on the Browse page's start while no browser's sign-in is chosen for downloads, before browseSignInChoose."
+browseSignInOn:
+  message: "Downloads use {browser}'s sign-in. Pages here stay signed out."
+  description: "Line on the Browse page's start: downloads sign in to sites as the user is in that browser, but the pages opened in Kando's own browser are not signed in."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
 browseStop:
   message: "Stop Loading"
   description: "Browse page toolbar button, in place of Reload while a web page loads, that stops loading it."
@@ -2506,11 +2520,36 @@ queueRemedyBorrow:
 queueRemedyCheckUpdate:
   message: "Check for Updates"
   description: "Button of the card: look for a newer yt-dlp again."
+queueRemedyChooseBrowser:
+  message: "Choose Browser…"
+  description: "Button of a failed download's card whose browser sign-in could not be read: opens Settings › General, where the browser whose sign-in downloads use is chosen."
 queueRemedyCookies:
   message: "Can't read {browser}'s sign-in"
   description: "Headline of a failed download's card when yt-dlp could not read the browser's sign-in."
   placeholders:
     browser: { type: "String", example: "Safari" }
+queueRemedyCookiesEncrypted:
+  message: "On Windows, {browser} encrypts its sign-in so that only it can read it, and yt-dlp can't decrypt it yet. Use Firefox or another browser instead."
+  description: "Why the browser's sign-in could not be read, and what to do, when the browser (Chrome since version 127) encrypts its cookies with app-bound encryption on Windows, which yt-dlp cannot decrypt."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+queueRemedyCookiesInUse:
+  message: "{browser} keeps its sign-in locked while it's open. Quit {browser}, then try again."
+  description: "Why the browser's sign-in could not be read, and what to do, when the browser is open on Windows and holds its cookies file."
+  placeholders:
+    browser: { type: "String", example: "Edge" }
+queueRemedyCookiesNoKey:
+  message: "{platform, select, macOS {{browser}'s sign-in is locked with “{item}” in the keychain, and Kando wasn't allowed to use it. Try again and choose Always Allow.} other {The keyring didn't give Kando the key to {browser}'s sign-in. Unlock the keyring, then try again.}}"
+  description: "Why the browser's sign-in could not be read, and what to do, when the key to its cookies was not given: on macOS the user did not allow the keychain item named {item} (Always Allow is the button of macOS's keychain prompt; use Apple's words), elsewhere the system keyring was locked. {platform} is macOS, Windows or another system."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
+    browser: { type: "String", example: "Chrome" }
+    item: { type: "String", example: "Chrome Safe Storage" }
+queueRemedyCookiesUnreadable:
+  message: "yt-dlp couldn't read {browser}'s sign-in. Try another browser you're signed in with."
+  description: "Why the browser's sign-in could not be read, and what to do, when yt-dlp gave another reason."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
 queueRemedyCookiesWhy:
   message: "There's no {browser} sign-in data on this computer. Try another browser you're signed in with."
   description: "What to do when the browser has no sign-in data on this computer."
@@ -3346,6 +3385,37 @@ settingsGeneralShowInFinder:
   description: "Button showing the library folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
   placeholders:
     platform: { type: "String", example: "macOS" }
+settingsGeneralSignIn:
+  message: "Browser Sign-In"
+  description: "Heading of the General settings card that chooses the browser whose sign-in every download uses, so members-only and age-restricted videos download signed in."
+settingsGeneralSignInCheck:
+  message: "Check Again"
+  description: "Button of the Browser Sign-In row after the chosen browser's sign-in could not be read: reads it again."
+settingsGeneralSignInChecking:
+  message: "Reading {browser}'s sign-in…"
+  description: "Line under the Browser Sign-In row while Kando checks that it can read the chosen browser's sign-in."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+settingsGeneralSignInDiskAccess:
+  message: "Open System Settings"
+  description: "Button of the Browser Sign-In row when macOS keeps Safari's sign-in from Kando: opens the Full Disk Access pane of System Settings."
+settingsGeneralSignInOff:
+  message: "Off"
+  description: "Choice of the Browser Sign-In pop-up: downloads borrow no browser's sign-in."
+settingsGeneralSignInOffHint:
+  message: "Members-only and age-restricted videos download signed in as you are in that browser."
+  description: "Line under the Browser Sign-In row while it is Off: what choosing a browser does."
+settingsGeneralSignInOn:
+  message: "Downloads sign in as you are in {browser}."
+  description: "Line under the Browser Sign-In row once a browser is chosen."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+settingsGeneralSignInReady:
+  message: "Ready"
+  description: "Status at the end of the Browser Sign-In row once Kando read the chosen browser's sign-in."
+settingsGeneralSignInUse:
+  message: "Use the sign-in of"
+  description: "Title of the Browser Sign-In row, followed by the pop-up of the browsers whose sign-in downloads can use, and its accessible name."
 settingsGeneralToolDetail:
   message: "{use} · {where}"
   description: "Line under a program's name: what it is for, then where it was found or Not Installed."
@@ -3393,7 +3463,7 @@ settingsKeywordsAccount:
   message: "Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"
   description: "Search keywords of the Account & Upload settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsGeneral:
-  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify"
+  message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"
   description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
 settingsKeywordsLook:
   message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"

@@ -29,6 +29,7 @@ type fakeApp struct {
 	fetch                   map[string]ToolFetch
 	cli                     CLI
 	ext                     BrowserExtension
+	signIn                  SignIn
 	notify                  bool
 	models                  map[string]string
 	owned                   map[string]bool
@@ -118,6 +119,10 @@ func (f *fakeApp) BrowserExtension() BrowserExtension    { return f.ext }
 func (f *fakeApp) ConnectBrowsers()                      { f.call("connect browsers") }
 func (f *fakeApp) DisconnectBrowsers()                   { f.call("disconnect browsers") }
 func (f *fakeApp) ShowExtensionFolder()                  { f.call("show extension folder") }
+func (f *fakeApp) SignIn() SignIn                        { return f.signIn }
+func (f *fakeApp) SetSignInBrowser(id string)            { f.call("sign in with " + id); f.signIn.Browser = id }
+func (f *fakeApp) CheckSignIn()                          { f.call("check sign-in") }
+func (f *fakeApp) OpenFullDiskAccess()                   { f.call("full disk access") }
 func (f *fakeApp) CheckForUpdates()                      { f.call("check updates") }
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }

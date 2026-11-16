@@ -442,6 +442,7 @@ var Parameters = map[string][]string{
 	"BrowseInLibraryTitled":                    {"title"},
 	"BrowseLoadFailed":                         {"error_"},
 	"BrowseQueuedTitled":                       {"title"},
+	"BrowseSignInOn":                           {"browser"},
 	"FeedbackBrowserFailed":                    {"repo"},
 	"FeedbackEnvDetail":                        {"version", "system"},
 	"FeedbackPreviewLabel":                     {"label"},
@@ -597,6 +598,10 @@ var Parameters = map[string][]string{
 	"QueueRemedyAgeWhy":                        {"site"},
 	"QueueRemedyBorrow":                        {"browser"},
 	"QueueRemedyCookies":                       {"browser"},
+	"QueueRemedyCookiesEncrypted":              {"browser"},
+	"QueueRemedyCookiesInUse":                  {"browser"},
+	"QueueRemedyCookiesNoKey":                  {"platform", "browser", "item"},
+	"QueueRemedyCookiesUnreadable":             {"browser"},
 	"QueueRemedyCookiesWhy":                    {"browser"},
 	"QueueRemedyDownloadYtdlpFailed":           {"error_"},
 	"QueueRemedyDrm":                           {"site"},
@@ -656,6 +661,8 @@ var Parameters = map[string][]string{
 	"SettingsGeneralDownloadFailed":            {"error_"},
 	"SettingsGeneralLastCheck":                 {"when"},
 	"SettingsGeneralShowInFinder":              {"platform"},
+	"SettingsGeneralSignInChecking":            {"browser"},
+	"SettingsGeneralSignInOn":                  {"browser"},
 	"SettingsGeneralToolDetail":                {"use", "where"},
 	"SettingsGeneralToolPageLabel":             {"program"},
 	"SettingsGeneralToolsNoteScoop":            {"command"},
@@ -716,6 +723,7 @@ type Translation struct {
 	BrowseInLibraryTitled                    func(title string) string
 	BrowseLoadFailed                         func(error_ string) string
 	BrowseQueuedTitled                       func(title string) string
+	BrowseSignInOn                           func(browser string) string
 	FeedbackBrowserFailed                    func(repo string) string
 	FeedbackEnvDetail                        func(version string, system string) string
 	FeedbackPreviewLabel                     func(label string) string
@@ -871,6 +879,10 @@ type Translation struct {
 	QueueRemedyAgeWhy                        func(site string) string
 	QueueRemedyBorrow                        func(browser string) string
 	QueueRemedyCookies                       func(browser string) string
+	QueueRemedyCookiesEncrypted              func(browser string) string
+	QueueRemedyCookiesInUse                  func(browser string) string
+	QueueRemedyCookiesNoKey                  func(platform string, browser string, item string) string
+	QueueRemedyCookiesUnreadable             func(browser string) string
 	QueueRemedyCookiesWhy                    func(browser string) string
 	QueueRemedyDownloadYtdlpFailed           func(error_ string) string
 	QueueRemedyDrm                           func(site string) string
@@ -930,6 +942,8 @@ type Translation struct {
 	SettingsGeneralDownloadFailed            func(error_ string) string
 	SettingsGeneralLastCheck                 func(when time.Time) string
 	SettingsGeneralShowInFinder              func(platform string) string
+	SettingsGeneralSignInChecking            func(browser string) string
+	SettingsGeneralSignInOn                  func(browser string) string
 	SettingsGeneralToolDetail                func(use string, where string) string
 	SettingsGeneralToolPageLabel             func(program string) string
 	SettingsGeneralToolsNoteScoop            func(command string) string
@@ -1039,6 +1053,9 @@ const (
 	textBrowseQueuedTooltip
 	textBrowseReload
 	textBrowseShowInLibrary
+	textBrowseSignInChange
+	textBrowseSignInChoose
+	textBrowseSignInOff
 	textBrowseStop
 	textCheatsheetClose
 	textCheatsheetHint
@@ -1510,6 +1527,7 @@ const (
 	textQueueRemedyBadLinkWhy
 	textQueueRemedyBilibiliShort
 	textQueueRemedyCheckUpdate
+	textQueueRemedyChooseBrowser
 	textQueueRemedyDownloadYtdlp
 	textQueueRemedyDownloadingYtdlp
 	textQueueRemedyDownloadingYtdlpAction
@@ -1686,6 +1704,13 @@ const (
 	textSettingsGeneralOpenLibrary
 	textSettingsGeneralRedetect
 	textSettingsGeneralRetry
+	textSettingsGeneralSignIn
+	textSettingsGeneralSignInCheck
+	textSettingsGeneralSignInDiskAccess
+	textSettingsGeneralSignInOff
+	textSettingsGeneralSignInOffHint
+	textSettingsGeneralSignInReady
+	textSettingsGeneralSignInUse
 	textSettingsGeneralToolPage
 	textSettingsGeneralToolsNote
 	textSettingsGeneralToolsNoteManual
@@ -1936,6 +1961,9 @@ var keyOfText = [numTexts]string{
 	"browseQueuedTooltip",
 	"browseReload",
 	"browseShowInLibrary",
+	"browseSignInChange",
+	"browseSignInChoose",
+	"browseSignInOff",
 	"browseStop",
 	"cheatsheetClose",
 	"cheatsheetHint",
@@ -2407,6 +2435,7 @@ var keyOfText = [numTexts]string{
 	"queueRemedyBadLinkWhy",
 	"queueRemedyBilibiliShort",
 	"queueRemedyCheckUpdate",
+	"queueRemedyChooseBrowser",
 	"queueRemedyDownloadYtdlp",
 	"queueRemedyDownloadingYtdlp",
 	"queueRemedyDownloadingYtdlpAction",
@@ -2583,6 +2612,13 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralOpenLibrary",
 	"settingsGeneralRedetect",
 	"settingsGeneralRetry",
+	"settingsGeneralSignIn",
+	"settingsGeneralSignInCheck",
+	"settingsGeneralSignInDiskAccess",
+	"settingsGeneralSignInOff",
+	"settingsGeneralSignInOffHint",
+	"settingsGeneralSignInReady",
+	"settingsGeneralSignInUse",
 	"settingsGeneralToolPage",
 	"settingsGeneralToolsNote",
 	"settingsGeneralToolsNoteManual",
@@ -2831,6 +2867,9 @@ var textsEn = i18n.NewTexts(""+
 	"Show this video in the queue"+
 	"Reload Page"+
 	"Show in Library"+
+	"Change…"+
+	"Choose Browser…"+
+	"Downloads aren't signed in."+
 	"Stop Loading"+
 	"Close"+
 	"Single keys work only while no text field has focus"+
@@ -3302,6 +3341,7 @@ var textsEn = i18n.NewTexts(""+
 	"Part of the link seems to be missing, so retrying won't download it. Copy the whole link and try again with it."+
 	"Bilibili"+
 	"Check for Updates"+
+	"Choose Browser…"+
 	"Download yt-dlp and Retry"+
 	"Downloading yt-dlp…"+
 	"Downloading…"+
@@ -3478,6 +3518,13 @@ var textsEn = i18n.NewTexts(""+
 	"Open Library…"+
 	"Detect Again"+
 	"Retry"+
+	"Browser Sign-In"+
+	"Check Again"+
+	"Open System Settings"+
+	"Off"+
+	"Members-only and age-restricted videos download signed in as you are in that browser."+
+	"Ready"+
+	"Use the sign-in of"+
 	"Download Page"+
 	"Kando downloads the programs it is missing. Those already installed on this computer are used as they are."+
 	"Kando doesn't download these programs on this system. Install each from its download page and add its folder to PATH, then choose Detect Again."+
@@ -3487,7 +3534,7 @@ var textsEn = i18n.NewTexts(""+
 	"Version"+
 	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection"+
 	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"+
-	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify"+
+	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"keyboard keys commands"+
 	"whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"+
@@ -3723,6 +3770,9 @@ var textsEn = i18n.NewTexts(""+
 		28,
 		11,
 		15,
+		9,
+		17,
+		27,
 		12,
 		5,
 		51,
@@ -4194,6 +4244,7 @@ var textsEn = i18n.NewTexts(""+
 		111,
 		8,
 		17,
+		17,
 		25,
 		21,
 		14,
@@ -4370,6 +4421,13 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		12,
 		5,
+		15,
+		11,
+		20,
+		3,
+		85,
+		5,
+		18,
 		13,
 		106,
 		143,
@@ -4379,7 +4437,7 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		156,
 		111,
-		226,
+		356,
 		141,
 		22,
 		161,
@@ -4618,6 +4676,9 @@ var textsJa = i18n.NewTexts(""+
 	"この動画をキューに表示"+
 	"再読み込み"+
 	"ライブラリで表示"+
+	"変更…"+
+	"ブラウザを選択…"+
+	"ダウンロードはログインなしで行われます。"+
 	"読み込みを中止"+
 	"閉じる"+
 	"単独のキーは入力欄にフォーカスがないときだけ使えます"+
@@ -5089,6 +5150,7 @@ var textsJa = i18n.NewTexts(""+
 	"リンクの一部が欠けているようで、再試行してもダウンロードできません。リンク全体をコピーして、もう一度試してください。"+
 	"bilibili"+
 	"アップデートを確認"+
+	"ブラウザを選択…"+
 	"yt-dlp をダウンロードして再試行"+
 	"yt-dlp をダウンロード中…"+
 	"ダウンロード中…"+
@@ -5265,6 +5327,13 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリを開く…"+
 	"再検出"+
 	"再試行"+
+	"ブラウザのログイン"+
+	"再確認"+
+	"システム設定を開く"+
+	"オフ"+
+	"ブラウザを選ぶと、メンバー限定や年齢確認が必要な動画も、そのブラウザでのログインのままダウンロードできます。"+
+	"利用可能"+
+	"ログインを借りるブラウザ"+
 	"ダウンロードページ"+
 	"足りないプログラムは Kando が自動でダウンロードします。このコンピュータにすでにあるものはそのまま使います。"+
 	"このシステムでは Kando はこれらのプログラムをダウンロードできません。それぞれのダウンロードページからインストールしてフォルダを PATH に追加し、「再検出」を押してください。"+
@@ -5274,7 +5343,7 @@ var textsJa = i18n.NewTexts(""+
 	"バージョン"+
 	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト"+
 	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式"+
-	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知"+
+	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"キーボード キー コマンド"+
 	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Hugging Face Vimpo hyperframes 認識する言語 話されている言語 ダウンロード元 ミラー hf-mirror.com モデルファイル ggml"+
@@ -5510,6 +5579,9 @@ var textsJa = i18n.NewTexts(""+
 		33,
 		15,
 		24,
+		9,
+		24,
+		60,
 		21,
 		9,
 		78,
@@ -5981,6 +6053,7 @@ var textsJa = i18n.NewTexts(""+
 		174,
 		8,
 		27,
+		24,
 		43,
 		34,
 		24,
@@ -6158,6 +6231,13 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		9,
 		27,
+		9,
+		27,
+		6,
+		162,
+		12,
+		36,
+		27,
 		157,
 		250,
 		60,
@@ -6166,7 +6246,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		160,
 		156,
-		303,
+		445,
 		163,
 		35,
 		219,
@@ -6405,6 +6485,9 @@ var textsKo = i18n.NewTexts(""+
 	"대기열에서 이 동영상 보기"+
 	"새로고침"+
 	"라이브러리에서 보기"+
+	"변경…"+
+	"브라우저 선택…"+
+	"다운로드는 로그인 없이 진행됩니다."+
 	"로드 중지"+
 	"닫기"+
 	"단일 키는 입력란에 포커스가 없을 때만 작동합니다"+
@@ -6876,6 +6959,7 @@ var textsKo = i18n.NewTexts(""+
 	"링크 일부가 빠진 것 같아 다시 시도해도 다운로드할 수 없습니다. 전체 링크를 복사해 다시 시도하십시오."+
 	"Bilibili"+
 	"업데이트 확인"+
+	"브라우저 선택…"+
 	"yt-dlp 다운로드 후 다시 시도"+
 	"yt-dlp 다운로드 중…"+
 	"다운로드 중…"+
@@ -7052,6 +7136,13 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 열기…"+
 	"다시 감지"+
 	"다시 시도"+
+	"브라우저 로그인"+
+	"다시 확인"+
+	"시스템 설정 열기"+
+	"끔"+
+	"브라우저를 선택하면 멤버십 전용 동영상과 연령 확인이 필요한 동영상도 그 브라우저의 로그인으로 다운로드됩니다."+
+	"사용 가능"+
+	"로그인을 빌릴 브라우저"+
 	"다운로드 페이지"+
 	"없는 프로그램은 Kando가 자동으로 다운로드합니다. 이 컴퓨터에 이미 설치된 것은 그대로 사용합니다."+
 	"이 시스템에서는 Kando가 이 프로그램들을 다운로드할 수 없습니다. 각 다운로드 페이지에서 설치하고 폴더를 PATH에 추가한 다음 ‘다시 감지’를 누르십시오."+
@@ -7061,7 +7152,7 @@ var textsKo = i18n.NewTexts(""+
 	"버전"+
 	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트"+
 	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일"+
-	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림"+
+	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"키보드 키 명령"+
 	"whisper 모델 다운로드 인식 전사 HuggingFace Hugging Face Vimpo hyperframes 인식 언어 다운로드 소스 미러 hf-mirror.com 모델 파일 ggml"+
@@ -7297,6 +7388,9 @@ var textsKo = i18n.NewTexts(""+
 		36,
 		12,
 		28,
+		9,
+		22,
+		49,
 		13,
 		6,
 		69,
@@ -7768,6 +7862,7 @@ var textsKo = i18n.NewTexts(""+
 		142,
 		8,
 		19,
+		22,
 		37,
 		26,
 		19,
@@ -7945,6 +8040,13 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		13,
 		22,
+		13,
+		23,
+		3,
+		157,
+		13,
+		32,
+		22,
 		135,
 		209,
 		49,
@@ -7953,7 +8055,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		155,
 		137,
-		237,
+		359,
 		158,
 		20,
 		158,
@@ -8192,6 +8294,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"在处理队列中显示这个视频"+
 	"重新载入"+
 	"在资料库中显示"+
+	"更改…"+
+	"选择浏览器…"+
+	"下载不带登录。"+
 	"停止载入"+
 	"关闭"+
 	"单键只在没有输入框获焦时生效"+
@@ -8663,6 +8768,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"链接好像少了一截，重试也下载不了。复制完整的链接后再试。"+
 	"B 站"+
 	"检查更新"+
+	"选择浏览器…"+
 	"下载 yt-dlp 并重试"+
 	"正在下载 yt-dlp…"+
 	"下载中…"+
@@ -8839,6 +8945,13 @@ var textsZhHans = i18n.NewTexts(""+
 	"打开资料库…"+
 	"重新检测"+
 	"重试"+
+	"浏览器登录"+
+	"重新检查"+
+	"打开系统设置"+
+	"关闭"+
+	"选一个浏览器，会员专享和需要年龄验证的视频就能以你在那里的登录下载。"+
+	"可用"+
+	"借用此浏览器的登录"+
 	"下载页面"+
 	"缺少的程序看懂会自动下载；这台电脑上已经装了的，就用已装的那份。"+
 	"看懂无法在这个系统上下载这些程序。请从各自的下载页面安装，并把所在文件夹加进 PATH，然后点「重新检测」。"+
@@ -8848,7 +8961,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"版本"+
 	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接"+
 	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式"+
-	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知"+
+	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"键盘 按键 命令"+
 	"whisper 模型 下载 识别 HuggingFace Hugging Face Vimpo hyperframes 识别语言 下载源 镜像 hf-mirror.com 模型文件 ggml"+
@@ -9083,6 +9196,9 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		36,
 		12,
+		21,
+		9,
+		18,
 		21,
 		12,
 		6,
@@ -9555,6 +9671,7 @@ var textsZhHans = i18n.NewTexts(""+
 		84,
 		5,
 		12,
+		18,
 		23,
 		22,
 		12,
@@ -9731,6 +9848,13 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		12,
 		6,
+		15,
+		12,
+		18,
+		6,
+		102,
+		6,
+		27,
 		12,
 		96,
 		152,
@@ -9740,7 +9864,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		158,
 		108,
-		207,
+		320,
 		130,
 		20,
 		133,
@@ -9979,6 +10103,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"在處理佇列中顯示這個影片"+
 	"重新載入"+
 	"在資料庫中顯示"+
+	"更改…"+
+	"選擇瀏覽器…"+
+	"下載不帶登入。"+
 	"停止載入"+
 	"關閉"+
 	"單鍵只在沒有輸入框取得焦點時生效"+
@@ -10450,6 +10577,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"連結好像少了一截，重試也無法下載。複製完整的連結後再試。"+
 	"B 站"+
 	"檢查更新"+
+	"選擇瀏覽器…"+
 	"下載 yt-dlp 並重試"+
 	"正在下載 yt-dlp…"+
 	"下載中…"+
@@ -10626,6 +10754,13 @@ var textsZhHant = i18n.NewTexts(""+
 	"打開資料庫…"+
 	"重新偵測"+
 	"重試"+
+	"瀏覽器登入"+
+	"重新檢查"+
+	"打開系統設定"+
+	"關閉"+
+	"選一個瀏覽器，會員專屬和需要年齡驗證的影片就能以你在那裡的登入下載。"+
+	"可用"+
+	"借用此瀏覽器的登入"+
 	"下載頁面"+
 	"缺少的程式看懂會自動下載；這台電腦上已經裝了的，就用已裝的那份。"+
 	"看懂無法在這個系統上下載這些程式。請從各自的下載頁面安裝，並把所在資料夾加入 PATH，然後按「重新偵測」。"+
@@ -10635,7 +10770,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"版本"+
 	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線"+
 	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式"+
-	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知"+
+	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"鍵盤 按鍵 指令"+
 	"whisper 模型 下載 辨識 HuggingFace Hugging Face Vimpo hyperframes 辨識語言 下載來源 鏡像 hf-mirror.com 模型檔案 ggml"+
@@ -10870,6 +11005,9 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		36,
 		12,
+		21,
+		9,
+		18,
 		21,
 		12,
 		6,
@@ -11342,6 +11480,7 @@ var textsZhHant = i18n.NewTexts(""+
 		84,
 		5,
 		12,
+		18,
 		23,
 		22,
 		12,
@@ -11518,6 +11657,13 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		12,
 		6,
+		15,
+		12,
+		18,
+		6,
+		102,
+		6,
+		27,
 		12,
 		96,
 		152,
@@ -11527,7 +11673,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		158,
 		108,
-		201,
+		308,
 		130,
 		20,
 		136,
@@ -11806,6 +11952,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.BrowseQueuedTitled != nil {
 		s.BrowseQueuedTitled = t.BrowseQueuedTitled
+	}
+	if t.BrowseSignInOn != nil {
+		s.BrowseSignInOn = t.BrowseSignInOn
 	}
 	if t.FeedbackBrowserFailed != nil {
 		s.FeedbackBrowserFailed = t.FeedbackBrowserFailed
@@ -12272,6 +12421,18 @@ func Supply(lang string, t Translation) {
 	if t.QueueRemedyCookies != nil {
 		s.QueueRemedyCookies = t.QueueRemedyCookies
 	}
+	if t.QueueRemedyCookiesEncrypted != nil {
+		s.QueueRemedyCookiesEncrypted = t.QueueRemedyCookiesEncrypted
+	}
+	if t.QueueRemedyCookiesInUse != nil {
+		s.QueueRemedyCookiesInUse = t.QueueRemedyCookiesInUse
+	}
+	if t.QueueRemedyCookiesNoKey != nil {
+		s.QueueRemedyCookiesNoKey = t.QueueRemedyCookiesNoKey
+	}
+	if t.QueueRemedyCookiesUnreadable != nil {
+		s.QueueRemedyCookiesUnreadable = t.QueueRemedyCookiesUnreadable
+	}
 	if t.QueueRemedyCookiesWhy != nil {
 		s.QueueRemedyCookiesWhy = t.QueueRemedyCookiesWhy
 	}
@@ -12448,6 +12609,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsGeneralShowInFinder != nil {
 		s.SettingsGeneralShowInFinder = t.SettingsGeneralShowInFinder
+	}
+	if t.SettingsGeneralSignInChecking != nil {
+		s.SettingsGeneralSignInChecking = t.SettingsGeneralSignInChecking
+	}
+	if t.SettingsGeneralSignInOn != nil {
+		s.SettingsGeneralSignInOn = t.SettingsGeneralSignInOn
 	}
 	if t.SettingsGeneralToolDetail != nil {
 		s.SettingsGeneralToolDetail = t.SettingsGeneralToolDetail
@@ -13720,6 +13887,63 @@ func BrowseShowInLibrary(cx *core.Scope) string { return For(cx).BrowseShowInLib
 
 // BrowseShowInLibrary is the package's BrowseShowInLibrary in the language of msgs.
 func (msgs Messages) BrowseShowInLibrary() string { return msgs.text(textBrowseShowInLibrary) }
+
+// BrowseSignInChange says "Change…"
+// in the language the app shows under cx.
+//
+// Button after browseSignInOn on the Browse page's start: opens Settings › General, where the browser whose sign-in downloads use is chosen.
+func BrowseSignInChange(cx *core.Scope) string { return For(cx).BrowseSignInChange() }
+
+// BrowseSignInChange is the package's BrowseSignInChange in the language of msgs.
+func (msgs Messages) BrowseSignInChange() string { return msgs.text(textBrowseSignInChange) }
+
+// BrowseSignInChoose says "Choose Browser…"
+// in the language the app shows under cx.
+//
+// Button after browseSignInOff on the Browse page's start: opens Settings › General, where a browser whose sign-in downloads use can be chosen.
+func BrowseSignInChoose(cx *core.Scope) string { return For(cx).BrowseSignInChoose() }
+
+// BrowseSignInChoose is the package's BrowseSignInChoose in the language of msgs.
+func (msgs Messages) BrowseSignInChoose() string { return msgs.text(textBrowseSignInChoose) }
+
+// BrowseSignInOff says "Downloads aren't signed in."
+// in the language the app shows under cx.
+//
+// Line on the Browse page's start while no browser's sign-in is chosen for downloads, before browseSignInChoose.
+func BrowseSignInOff(cx *core.Scope) string { return For(cx).BrowseSignInOff() }
+
+// BrowseSignInOff is the package's BrowseSignInOff in the language of msgs.
+func (msgs Messages) BrowseSignInOff() string { return msgs.text(textBrowseSignInOff) }
+
+// BrowseSignInOn says "Downloads use {browser}'s sign-in. Pages here stay signed out."
+// in the language the app shows under cx.
+//
+// Line on the Browse page's start: downloads sign in to sites as the user is in that browser, but the pages opened in Kando's own browser are not signed in.
+func BrowseSignInOn(cx *core.Scope, browser string) string { return For(cx).BrowseSignInOn(browser) }
+
+// BrowseSignInOn is the package's BrowseSignInOn in the language of msgs.
+func (msgs Messages) BrowseSignInOn(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseSignInOn(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].BrowseSignInOn; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return "Downloads use " + msgs.arg(browser) + "'s sign-in. Pages here stay signed out."
+		case "ja":
+			return "ダウンロードには " + browser + " のログインを使います。ここで開くページはログインしていません。"
+		case "ko":
+			return "다운로드는 " + browser + " 로그인을 사용합니다. 여기서 여는 페이지는 로그인되지 않습니다."
+		case "zh-Hans":
+			return "下载使用 " + browser + " 的登录，这里的网页仍未登录。"
+		case "zh-Hant":
+			return "下載使用 " + browser + " 的登入，這裡的網頁仍未登入。"
+		}
+	}
+}
 
 // BrowseStop says "Stop Loading"
 // in the language the app shows under cx.
@@ -23420,6 +23644,17 @@ func QueueRemedyCheckUpdate(cx *core.Scope) string { return For(cx).QueueRemedyC
 // QueueRemedyCheckUpdate is the package's QueueRemedyCheckUpdate in the language of msgs.
 func (msgs Messages) QueueRemedyCheckUpdate() string { return msgs.text(textQueueRemedyCheckUpdate) }
 
+// QueueRemedyChooseBrowser says "Choose Browser…"
+// in the language the app shows under cx.
+//
+// Button of a failed download's card whose browser sign-in could not be read: opens Settings › General, where the browser whose sign-in downloads use is chosen.
+func QueueRemedyChooseBrowser(cx *core.Scope) string { return For(cx).QueueRemedyChooseBrowser() }
+
+// QueueRemedyChooseBrowser is the package's QueueRemedyChooseBrowser in the language of msgs.
+func (msgs Messages) QueueRemedyChooseBrowser() string {
+	return msgs.text(textQueueRemedyChooseBrowser)
+}
+
 // QueueRemedyCookies says "Can't read {browser}'s sign-in"
 // in the language the app shows under cx.
 //
@@ -23448,6 +23683,194 @@ func (msgs Messages) QueueRemedyCookies(browser string) string {
 			return "读不到 " + browser + " 的登录"
 		case "zh-Hant":
 			return "讀不到 " + browser + " 的登入"
+		}
+	}
+}
+
+// QueueRemedyCookiesEncrypted says "On Windows, {browser} encrypts its sign-in so that only it can read it, and yt-dlp can't decrypt it yet. Use Firefox or another browser instead."
+// in the language the app shows under cx.
+//
+// Why the browser's sign-in could not be read, and what to do, when the browser (Chrome since version 127) encrypts its cookies with app-bound encryption on Windows, which yt-dlp cannot decrypt.
+func QueueRemedyCookiesEncrypted(cx *core.Scope, browser string) string {
+	return For(cx).QueueRemedyCookiesEncrypted(browser)
+}
+
+// QueueRemedyCookiesEncrypted is the package's QueueRemedyCookiesEncrypted in the language of msgs.
+func (msgs Messages) QueueRemedyCookiesEncrypted(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueRemedyCookiesEncrypted(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueRemedyCookiesEncrypted; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return "On Windows, " + msgs.arg(browser) + " encrypts its sign-in so that only it can read it, and yt-dlp can't decrypt it yet. Use Firefox or another browser instead."
+		case "ja":
+			return "Windows の " + browser + " はログインを自分だけが読めるように暗号化しており、yt-dlp はまだ復号できません。Firefox など別のブラウザを使ってください。"
+		case "ko":
+			return "Windows의 " + browser + "는 로그인을 자신만 읽을 수 있도록 암호화하며, yt-dlp는 아직 이를 해독할 수 없습니다. Firefox 등 다른 브라우저를 사용하십시오."
+		case "zh-Hans":
+			return "在 Windows 上，" + browser + " 把登录加密成只有它自己能读，yt-dlp 目前解不开。请改用 Firefox 或别的浏览器。"
+		case "zh-Hant":
+			return "在 Windows 上，" + browser + " 把登入加密成只有它自己能讀取，yt-dlp 目前無法解密。請改用 Firefox 或其他瀏覽器。"
+		}
+	}
+}
+
+// QueueRemedyCookiesInUse says "{browser} keeps its sign-in locked while it's open. Quit {browser}, then try again."
+// in the language the app shows under cx.
+//
+// Why the browser's sign-in could not be read, and what to do, when the browser is open on Windows and holds its cookies file.
+func QueueRemedyCookiesInUse(cx *core.Scope, browser string) string {
+	return For(cx).QueueRemedyCookiesInUse(browser)
+}
+
+// QueueRemedyCookiesInUse is the package's QueueRemedyCookiesInUse in the language of msgs.
+func (msgs Messages) QueueRemedyCookiesInUse(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueRemedyCookiesInUse(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueRemedyCookiesInUse; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(browser) + " keeps its sign-in locked while it's open. Quit " + msgs.arg(browser) + ", then try again."
+		case "ja":
+			return browser + " は開いている間ログインをロックします。" + browser + " を終了してからもう一度試してください。"
+		case "ko":
+			return browser + "는 열려 있는 동안 로그인을 잠급니다. " + browser + "를 종료한 후 다시 시도하십시오."
+		case "zh-Hans":
+			return browser + " 开着时会锁住它的登录。退出 " + browser + " 后再试。"
+		case "zh-Hant":
+			return browser + " 開著時會鎖住它的登入。結束 " + browser + " 後再試。"
+		}
+	}
+}
+
+// QueueRemedyCookiesNoKey says "{platform, select, macOS {{browser}'s sign-in is locked with “{item}” in the keychain, and Kando wasn't allowed to use it. Try again and choose Always Allow.} other {The keyring didn't give Kando the key to {browser}'s sign-in. Unlock the keyring, then try again.}}"
+// in the language the app shows under cx.
+//
+// Why the browser's sign-in could not be read, and what to do, when the key to its cookies was not given: on macOS the user did not allow the keychain item named {item} (Always Allow is the button of macOS's keychain prompt; use Apple's words), elsewhere the system keyring was locked. {platform} is macOS, Windows or another system.
+func QueueRemedyCookiesNoKey(cx *core.Scope, platform string, browser string, item string) string {
+	return For(cx).QueueRemedyCookiesNoKey(platform, browser, item)
+}
+
+// QueueRemedyCookiesNoKey is the package's QueueRemedyCookiesNoKey in the language of msgs.
+func (msgs Messages) QueueRemedyCookiesNoKey(platform string, browser string, item string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueRemedyCookiesNoKey(platform, browser, item))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueRemedyCookiesNoKey; f != nil {
+			return f(platform, browser, item)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString(msgs.arg(browser))
+				b.WriteString("'s sign-in is locked with “")
+				b.WriteString(msgs.arg(item))
+				b.WriteString("” in the keychain, and Kando wasn't allowed to use it. Try again and choose Always Allow.")
+			default:
+				b.WriteString("The keyring didn't give Kando the key to ")
+				b.WriteString(msgs.arg(browser))
+				b.WriteString("'s sign-in. Unlock the keyring, then try again.")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString(browser)
+				b.WriteString(" のログインはキーチェーンの“")
+				b.WriteString(item)
+				b.WriteString("”でロックされていて、Kando には使用が許可されませんでした。もう一度試して「常に許可」を選んでください。")
+			default:
+				b.WriteString("キーリングが ")
+				b.WriteString(browser)
+				b.WriteString(" のログインの鍵を Kando に渡しませんでした。キーリングのロックを解除してからもう一度試してください。")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString(browser)
+				b.WriteString(" 로그인은 키체인의 ‘")
+				b.WriteString(item)
+				b.WriteString("’으로 잠겨 있으며, Kando에 사용이 허용되지 않았습니다. 다시 시도하고 ‘항상 허용’을 선택하십시오.")
+			default:
+				b.WriteString("키링이 ")
+				b.WriteString(browser)
+				b.WriteString(" 로그인의 키를 Kando에 주지 않았습니다. 키링 잠금을 해제한 후 다시 시도하십시오.")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString(browser)
+				b.WriteString(" 的登录由钥匙串里的“")
+				b.WriteString(item)
+				b.WriteString("”锁着，看懂没有获准使用它。再试一次，并选择“始终允许”。")
+			default:
+				b.WriteString("钥匙环没有把 ")
+				b.WriteString(browser)
+				b.WriteString(" 登录的密钥交给看懂。解锁钥匙环后再试。")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString(browser)
+				b.WriteString(" 的登入由鑰匙圈中的「")
+				b.WriteString(item)
+				b.WriteString("」鎖著，看懂沒有獲准使用它。再試一次，並選擇「永遠允許」。")
+			default:
+				b.WriteString("鑰匙圈沒有把 ")
+				b.WriteString(browser)
+				b.WriteString(" 登入的金鑰交給看懂。解鎖鑰匙圈後再試。")
+			}
+			return b.String()
+		}
+	}
+}
+
+// QueueRemedyCookiesUnreadable says "yt-dlp couldn't read {browser}'s sign-in. Try another browser you're signed in with."
+// in the language the app shows under cx.
+//
+// Why the browser's sign-in could not be read, and what to do, when yt-dlp gave another reason.
+func QueueRemedyCookiesUnreadable(cx *core.Scope, browser string) string {
+	return For(cx).QueueRemedyCookiesUnreadable(browser)
+}
+
+// QueueRemedyCookiesUnreadable is the package's QueueRemedyCookiesUnreadable in the language of msgs.
+func (msgs Messages) QueueRemedyCookiesUnreadable(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueRemedyCookiesUnreadable(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueRemedyCookiesUnreadable; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return "yt-dlp couldn't read " + msgs.arg(browser) + "'s sign-in. Try another browser you're signed in with."
+		case "ja":
+			return "yt-dlp は " + browser + " のログインを読み取れませんでした。ログイン済みの別のブラウザで試してください。"
+		case "ko":
+			return "yt-dlp가 " + browser + " 로그인을 읽지 못했습니다. 로그인된 다른 브라우저로 다시 시도하십시오."
+		case "zh-Hans":
+			return "yt-dlp 读不到 " + browser + " 的登录。换一个已登录的浏览器再试。"
+		case "zh-Hant":
+			return "yt-dlp 讀不到 " + browser + " 的登入。換一個已登入的瀏覽器再試。"
 		}
 	}
 }
@@ -27252,6 +27675,149 @@ func (msgs Messages) SettingsGeneralShowInFinder(platform string) string {
 	}
 }
 
+// SettingsGeneralSignIn says "Browser Sign-In"
+// in the language the app shows under cx.
+//
+// Heading of the General settings card that chooses the browser whose sign-in every download uses, so members-only and age-restricted videos download signed in.
+func SettingsGeneralSignIn(cx *core.Scope) string { return For(cx).SettingsGeneralSignIn() }
+
+// SettingsGeneralSignIn is the package's SettingsGeneralSignIn in the language of msgs.
+func (msgs Messages) SettingsGeneralSignIn() string { return msgs.text(textSettingsGeneralSignIn) }
+
+// SettingsGeneralSignInCheck says "Check Again"
+// in the language the app shows under cx.
+//
+// Button of the Browser Sign-In row after the chosen browser's sign-in could not be read: reads it again.
+func SettingsGeneralSignInCheck(cx *core.Scope) string { return For(cx).SettingsGeneralSignInCheck() }
+
+// SettingsGeneralSignInCheck is the package's SettingsGeneralSignInCheck in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInCheck() string {
+	return msgs.text(textSettingsGeneralSignInCheck)
+}
+
+// SettingsGeneralSignInChecking says "Reading {browser}'s sign-in…"
+// in the language the app shows under cx.
+//
+// Line under the Browser Sign-In row while Kando checks that it can read the chosen browser's sign-in.
+func SettingsGeneralSignInChecking(cx *core.Scope, browser string) string {
+	return For(cx).SettingsGeneralSignInChecking(browser)
+}
+
+// SettingsGeneralSignInChecking is the package's SettingsGeneralSignInChecking in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInChecking(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsGeneralSignInChecking(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsGeneralSignInChecking; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return "Reading " + msgs.arg(browser) + "'s sign-in…"
+		case "ja":
+			return browser + " のログインを読み取り中…"
+		case "ko":
+			return browser + " 로그인을 읽는 중…"
+		case "zh-Hans":
+			return "正在读取 " + browser + " 的登录…"
+		case "zh-Hant":
+			return "正在讀取 " + browser + " 的登入…"
+		}
+	}
+}
+
+// SettingsGeneralSignInDiskAccess says "Open System Settings"
+// in the language the app shows under cx.
+//
+// Button of the Browser Sign-In row when macOS keeps Safari's sign-in from Kando: opens the Full Disk Access pane of System Settings.
+func SettingsGeneralSignInDiskAccess(cx *core.Scope) string {
+	return For(cx).SettingsGeneralSignInDiskAccess()
+}
+
+// SettingsGeneralSignInDiskAccess is the package's SettingsGeneralSignInDiskAccess in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInDiskAccess() string {
+	return msgs.text(textSettingsGeneralSignInDiskAccess)
+}
+
+// SettingsGeneralSignInOff says "Off"
+// in the language the app shows under cx.
+//
+// Choice of the Browser Sign-In pop-up: downloads borrow no browser's sign-in.
+func SettingsGeneralSignInOff(cx *core.Scope) string { return For(cx).SettingsGeneralSignInOff() }
+
+// SettingsGeneralSignInOff is the package's SettingsGeneralSignInOff in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInOff() string {
+	return msgs.text(textSettingsGeneralSignInOff)
+}
+
+// SettingsGeneralSignInOffHint says "Members-only and age-restricted videos download signed in as you are in that browser."
+// in the language the app shows under cx.
+//
+// Line under the Browser Sign-In row while it is Off: what choosing a browser does.
+func SettingsGeneralSignInOffHint(cx *core.Scope) string {
+	return For(cx).SettingsGeneralSignInOffHint()
+}
+
+// SettingsGeneralSignInOffHint is the package's SettingsGeneralSignInOffHint in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInOffHint() string {
+	return msgs.text(textSettingsGeneralSignInOffHint)
+}
+
+// SettingsGeneralSignInOn says "Downloads sign in as you are in {browser}."
+// in the language the app shows under cx.
+//
+// Line under the Browser Sign-In row once a browser is chosen.
+func SettingsGeneralSignInOn(cx *core.Scope, browser string) string {
+	return For(cx).SettingsGeneralSignInOn(browser)
+}
+
+// SettingsGeneralSignInOn is the package's SettingsGeneralSignInOn in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInOn(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsGeneralSignInOn(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsGeneralSignInOn; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return "Downloads sign in as you are in " + msgs.arg(browser) + "."
+		case "ja":
+			return "ダウンロードは " + browser + " でのログインのまま行われます。"
+		case "ko":
+			return "다운로드는 " + browser + "의 로그인으로 진행됩니다."
+		case "zh-Hans":
+			return "下载以你在 " + browser + " 里的登录进行。"
+		case "zh-Hant":
+			return "下載以你在 " + browser + " 中的登入進行。"
+		}
+	}
+}
+
+// SettingsGeneralSignInReady says "Ready"
+// in the language the app shows under cx.
+//
+// Status at the end of the Browser Sign-In row once Kando read the chosen browser's sign-in.
+func SettingsGeneralSignInReady(cx *core.Scope) string { return For(cx).SettingsGeneralSignInReady() }
+
+// SettingsGeneralSignInReady is the package's SettingsGeneralSignInReady in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInReady() string {
+	return msgs.text(textSettingsGeneralSignInReady)
+}
+
+// SettingsGeneralSignInUse says "Use the sign-in of"
+// in the language the app shows under cx.
+//
+// Title of the Browser Sign-In row, followed by the pop-up of the browsers whose sign-in downloads can use, and its accessible name.
+func SettingsGeneralSignInUse(cx *core.Scope) string { return For(cx).SettingsGeneralSignInUse() }
+
+// SettingsGeneralSignInUse is the package's SettingsGeneralSignInUse in the language of msgs.
+func (msgs Messages) SettingsGeneralSignInUse() string {
+	return msgs.text(textSettingsGeneralSignInUse)
+}
+
 // SettingsGeneralToolDetail says "{use} · {where}"
 // in the language the app shows under cx.
 //
@@ -27471,7 +28037,7 @@ func SettingsKeywordsAccount(cx *core.Scope) string { return For(cx).SettingsKey
 // SettingsKeywordsAccount is the package's SettingsKeywordsAccount in the language of msgs.
 func (msgs Messages) SettingsKeywordsAccount() string { return msgs.text(textSettingsKeywordsAccount) }
 
-// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify"
+// SettingsKeywordsGeneral says "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"
 // in the language the app shows under cx.
 //
 // Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows.

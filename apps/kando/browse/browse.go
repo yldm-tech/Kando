@@ -29,6 +29,8 @@ type State struct {
 	// Clearable is set when the pages' sign-ins can be cleared at all (清除登录信息…), and Clearing while they are being cleared.
 	Clearable bool
 	Clearing  bool
+	// SignIn names the browser whose sign-in downloads borrow (Settings › 通用 › 浏览器登录), "" while none is chosen; the start says it.
+	SignIn string
 }
 
 // What State.Have says the library holds of the page's video.

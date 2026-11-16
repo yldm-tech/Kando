@@ -68,6 +68,11 @@ func (a *app) playlistAsk(sources []string, from string) {
 	if !ok || len(sources) == 0 {
 		return
 	}
+	// A list only a signed-in account sees, as Watch Later, is read with the sign-in downloads borrow (Settings › 通用 › 浏览器登录).
+	if tools, isTools := lister.(media.Tools); isTools {
+		tools.Cookies = a.signin.browser
+		lister = tools
+	}
 	a.playlistClose()
 	ctx, cancel := context.WithCancel(context.Background())
 	run := a.playlist.run + 1

@@ -5,6 +5,7 @@ import (
 
 	"kando/apps/kando/browse"
 	"kando/apps/kando/live"
+	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -22,6 +23,9 @@ func (a *app) BrowseState() browse.State {
 		CanGoForward: a.browse.canForward,
 		Clearable:    a.browse.clear != nil,
 		Clearing:     a.browse.clearing,
+	}
+	if a.signin.browser != "" {
+		s.SignIn = media.BrowserName(a.signin.browser)
 	}
 	if s.Page && !s.NotVideo && !s.List && a.page == pageBrowse {
 		s.Title, s.Have = a.browseVideo()

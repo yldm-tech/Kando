@@ -87,6 +87,7 @@ func (a *app) browseHooks() areaHooks {
 		ready: func() {
 			if tools, ok := a.pipeline.(media.Tools); ok {
 				media.SweepCookieDirs(tools.CookieDir)
+				// TODO(nsgo#387): import the chosen browser's cookies for the catalog's sites into the web views' store, so Browse's pages are signed in too https://github.com/nsgo-dev/nsgo/issues/387 (yldm-tech/Kando#167)
 				// TODO(nsgo#112): give every download the cookies the browser's pages hold for its site, tools.SiteCookies = browse.CookieSource over the web view's cookie store with a.browse.agent.get, as MyGo's Cookies.List gave them; until then a site the user signed in to here downloads signed out, and a download that needs the sign-in fails with the queue's remedy of borrowing a browser's (media.Tools.Cookies) https://github.com/nsgo-dev/nsgo/issues/112
 			}
 			// TODO(nsgo#114): clear the pages' cookies and storage (a.browse.clear), as MyGo's App.ClearBrowsingData did; until then 清除登录信息… is left out of the start and the File menu https://github.com/nsgo-dev/nsgo/issues/114

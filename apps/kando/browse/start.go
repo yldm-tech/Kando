@@ -3,6 +3,7 @@ package browse
 import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings/sectionid"
 	"kando/apps/kando/sites"
 	"kando/apps/kando/sites/catalog"
 
@@ -19,7 +20,7 @@ var startSites = []string{"youtube.com", "bilibili.com", "ted.com", "nhk.or.jp",
 // startColumns is how many of startSites a row of the start holds.
 const startColumns = 3
 
-// start is the page before a web page is open, and after home: the globe, what the page is for, the sites learners study from most, which open in the browser, 支持的网站…, which lists the rest, and 清除登录信息… at its foot where the pages' sign-ins can be cleared.
+// start is the page before a web page is open, and after home: the globe, what the page is for, the sites learners study from most, which open in the browser, 支持的网站…, which lists the rest, the line of whose sign-in downloads borrow (signInLine), and 清除登录信息… at its foot where the pages' sign-ins can be cleared.
 type start struct{ a App }
 
 // Render implements core.Node.
@@ -55,6 +56,7 @@ func (s start) Render(cx *core.Scope) core.Node {
 				// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 				return ui.Button{Text: locales.SitesMenuItem(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-sites", OnPress: live.Do(a, a.OpenSites)}
 			}),
+			signInLine(cx, a, state),
 		},
 	}
 	clear := core.Show{When: func() bool { return state().Clearable }, Then: func(*core.Scope) core.Node {
@@ -105,5 +107,35 @@ func startTiles(cx *core.Scope, a App) core.Node {
 		LabelFunc: func() string { return locales.SitesGridLabel(cx) },
 		Style:     core.Style{AlignSelf: core.AlignStretch, Gap: 8, Margin: core.Edges{Top: 24, Bottom: 8}},
 		Children:  rows,
+	}
+}
+
+// signInLine is the start's line of the sign-in downloads borrow: the browser's, with 更改…, or none, with 选择浏览器…, either of which opens Settings › 通用, where it is chosen. Until NSGo can put cookies into the web views (nsgo#387), the pages shown here are signed out whatever the setting, which the line adds while downloads are signed in.
+func signInLine(cx *core.Scope, a App, state func() State) core.Node {
+	colors := ui.ColorsOf(cx)
+	on := core.NewMemo(cx, func() bool { return state().SignIn != "" })
+	text := core.Text{
+		ContentFunc: func() string {
+			if name := state().SignIn; name != "" {
+				return locales.BrowseSignInOn(cx, name)
+			}
+			return locales.BrowseSignInOff(cx)
+		},
+		Style:     core.Style{FontSize: 12, LineHeight: 16, FlexShrink: 1, TextAlign: core.TextAlignCenter},
+		StyleFunc: ui.Colored(colors.Muted),
+	}
+	// The button's words are set as it is built, so it is built again for another language and once a browser is chosen or none is.
+	button := core.Dynamic(func(cx *core.Scope) core.Node {
+		label := locales.BrowseSignInChoose(cx)
+		if on.Get() {
+			label = locales.BrowseSignInChange(cx)
+		}
+		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+		return ui.Button{Text: label, Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-signin", OnPress: live.Do(a, func() { a.OpenSettings(sectionid.General) })}
+	})
+	return core.View{
+		TestID:   "browse-signin-line",
+		Style:    core.Style{Direction: core.Row, FlexShrink: 0, Wrap: core.Wrap, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter, Gap: 2, Margin: core.Edges{Top: 4}},
+		Children: []core.Node{text, button},
 	}
 }

@@ -759,6 +759,10 @@ func (a *app) queueRun(job core.Job) {
 	if job.LibraryDir == "" {
 		job.LibraryDir = a.snap().LibraryDir
 	}
+	// A download that borrows no browser's sign-in of its own, as one a failed card's remedy chose, borrows the one Settings › 通用 › 浏览器登录 names, from its first run, and keeps it on its card, whose remedies name it.
+	if job.Cookies == "" {
+		job.Cookies = a.signinFor(job.Source)
+	}
 	// Jobs written by older versions, or jobs interrupted before their language
 	// was saved, can come back from the shelf without a target language. Use the
 	// current translation setting before handing the job to the pipeline; an

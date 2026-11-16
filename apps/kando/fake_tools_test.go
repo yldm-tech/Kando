@@ -227,11 +227,14 @@ func writeFakeScript(t *testing.T, dir, name, body string) string {
 // fakeYTDLPFolder is the folder the fake yt-dlp downloads its one video into, as the real one names "Me at the zoo" with Kando's output template.
 const fakeYTDLPFolder = "Me at the zoo [jNQXAC9IVRw]"
 
-// fakeYTDLP answers --version, and downloads "Me at the zoo" whatever the source as the real yt-dlp downloads a video YouTube serves as separate video and sound: the video track video.f395.mp4, then the sound track, written as video.f251.webm.part and renamed to video.f251.webm when done, both in the temp path (-P temp:) or, without one, in the video's folder under the home path (-P); then it merges them into <home>/Me at the zoo [jNQXAC9IVRw]/video.mp4, a clip the fake ffmpeg plays, and prints its path. A track gone by then fails the merge as the real one fails. A video already there is reported without downloading it again. When FAKE_YTDLP_GATE names a folder, the fake writes "tracks" there while the sound track is still a .part file and waits for "go" before it goes on, so a test can look at the library in between.
+// fakeYTDLP answers --version and, given no URL, the check of a browser's sign-in (fakeYTDLPLogin), and downloads "Me at the zoo" whatever the source as the real yt-dlp downloads a video YouTube serves as separate video and sound: the video track video.f395.mp4, then the sound track, written as video.f251.webm.part and renamed to video.f251.webm when done, both in the temp path (-P temp:) or, without one, in the video's folder under the home path (-P); then it merges them into <home>/Me at the zoo [jNQXAC9IVRw]/video.mp4, a clip the fake ffmpeg plays, and prints its path. A track gone by then fails the merge as the real one fails. A video already there is reported without downloading it again. When FAKE_YTDLP_GATE names a folder, the fake writes "tracks" there while the sound track is still a .part file and waits for "go" before it goes on, so a test can look at the library in between.
 func fakeYTDLP(args []string) int {
 	if slices.Contains(args, "--version") {
 		fmt.Println(fakeYTDLPVersion)
 		return 0
+	}
+	if browser := fakeArg(args, "--cookies-from-browser"); browser != "" && !slices.Contains(args, "--") {
+		return fakeYTDLPLogin(browser, fakeArg(args, "--cookies"))
 	}
 	var home, temp string
 	for i := 0; i+1 < len(args) && args[i] != "--"; i++ {
@@ -311,6 +314,35 @@ func fakeYTDLP(args []string) int {
 	}
 	fmt.Println(final)
 	return 0
+}
+
+// fakeYTDLPLogin answers the check of a browser's sign-in (media.Tools.CheckLogin), yt-dlp given a browser and a cookies file but no URL, as the real one does for each browser on a Mac: Chrome's it reads and saves to the cookies file, then fails with its usage error for want of a URL; Edge's it reads without the key the Keychain did not give; Safari's macOS keeps from it without Full Disk Access; and any other browser has no cookies here.
+func fakeYTDLPLogin(browser, cookies string) int {
+	usage := func() int {
+		fmt.Fprint(os.Stderr, "Usage: yt-dlp [OPTIONS] URL [URL...]\n\nyt-dlp: error: You must provide at least one URL.\nType yt-dlp --help to see a list of all options.\n")
+		return 2
+	}
+	switch browser {
+	case "chrome":
+		if err := os.WriteFile(cookies, []byte("# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\tSID\tfake\n"), 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR:", err)
+			return 1
+		}
+		fmt.Println("Extracting cookies from chrome")
+		fmt.Println("Extracted 1 cookies from chrome")
+		return usage()
+	case "edge":
+		fmt.Println("Extracting cookies from edge")
+		fmt.Fprintln(os.Stderr, "WARNING: find-generic-password failed")
+		fmt.Fprintln(os.Stderr, "WARNING: cannot decrypt v10 cookies: no key found")
+		fmt.Println("Extracted 0 cookies from edge (1 could not be decrypted)")
+		return usage()
+	case "safari":
+		fmt.Fprintln(os.Stderr, "ERROR: [Errno 1] Operation not permitted: '/Users/someone/Library/Containers/com.apple.Safari/Data/Library/Cookies/Cookies.binarycookies'")
+		return 1
+	}
+	fmt.Fprintf(os.Stderr, "ERROR: could not find %s cookies database in \"/Users/someone/Library/Application Support\"\n", browser)
+	return 1
 }
 
 // fakeFFmpeg answers the calls Kando makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, and its sound as 48 kHz stereo f32le (fakeSound), for the player; one frame as JPEG, for a poster; and the sound of a span as AAC, for the review of saved lines. The input must be a placeholder from writeFakeClip; any other file is not a video to it.
