@@ -55,7 +55,7 @@ func (p translate) Render(cx *core.Scope) core.Node {
 			a.Save()
 		}),
 		Style: core.Style{Height: core.Pt(106), FontFamily: "monospace"}}
-	state := core.Text{Style: core.Style{FontSize: 11, Color: form.Secondary, FlexGrow: 1, FlexShrink: 1},
+	state := core.Text{Style: core.Style{FontSize: 11, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted),
 		ContentFunc: live.Func(a, func() string {
 			switch {
 			case usingDefault():

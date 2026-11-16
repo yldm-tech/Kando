@@ -6,40 +6,56 @@ import (
 
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// card is a white card with the prototype's hairline and soft shadow, its rows stacked.
+// cardShadow is the soft shadow under a card or a tile.
+var cardShadow = []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 2, Color: core.RGBA(0x000000, 0.04)}}
+
+// card is a card in the theme's card color with the prototype's hairline and soft shadow, its rows stacked.
 func card(children ...core.Node) core.Node {
-	return core.View{Style: core.Style{AlignItems: core.AlignStretch, CornerRadius: 12, Background: white, BorderWidth: 0.5, BorderColor: cardRing,
-		Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 2, Color: core.RGBA(0x000000, 0.04)}}}, Children: children}
+	return core.Func(func(cx *core.Scope) core.Node {
+		k := theme.Of(cx)
+		return core.View{Style: core.Style{AlignItems: core.AlignStretch, CornerRadius: 12, BorderWidth: 0.5, Shadows: cardShadow},
+			StyleFunc: func() core.Style { return core.Style{Background: k.Card(), BorderColor: k.Shade(0.1)} }, Children: children}
+	})
 }
 
 // rule is the hairline between a card's rows.
 func rule() core.Node {
-	return core.View{Style: core.Style{Height: core.Pt(0.5), FlexShrink: 0, Background: rowRule}}
+	return core.Func(func(cx *core.Scope) core.Node {
+		k := theme.Of(cx)
+		return core.View{Style: core.Style{Height: core.Pt(0.5), FlexShrink: 0}, StyleFunc: func() core.Style { return core.Style{Background: k.Shade(0.08)} }}
+	})
 }
 
 // sectionLabel is the 12 point label over a group of the step's body.
 func sectionLabel(text func() string) core.Node {
-	return core.Text{ContentFunc: text, Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold, Color: muted}}
+	return core.Func(func(cx *core.Scope) core.Node {
+		return core.Text{ContentFunc: text, Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
+	})
 }
 
 // note is the 11 point gray line under a group.
 func note(text func() string) core.Node {
-	return core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 16, Color: gray}}
+	return core.Func(func(cx *core.Scope) core.Node {
+		return core.Text{ContentFunc: text, Style: core.Style{FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(theme.Of(cx).Placeholder)}
+	})
 }
 
 // rowText is a row's name over its second line, which takes the color sub gives with it.
 func rowText(name func() string, sub func() (string, core.Color)) core.Node {
-	return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
-		core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, Color: ink}},
-		core.Text{ContentFunc: func() string { s, _ := sub(); return s }, Style: core.Style{FontSize: 11},
-			StyleFunc: func() core.Style { _, c := sub(); return core.Style{Color: c} }},
-	}}
+	return core.Func(func(cx *core.Scope) core.Node {
+		return core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
+			core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)},
+			core.Text{ContentFunc: func() string { s, _ := sub(); return s }, Style: core.Style{FontSize: 11},
+				StyleFunc: func() core.Style { _, c := sub(); return core.Style{Color: c} }},
+		}}
+	})
 }
 
 // rowStyle is the look of a card's row of a program or a model: its name and second line, then what can be done with it.
@@ -127,13 +143,13 @@ type tile struct {
 // Render implements core.Node.
 func (t tile) Render(cx *core.Scope) core.Node {
 	a, code := t.a, t.code
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	own := autonyms[code]
 	look := func() core.Style {
 		if t.on() {
-			return core.Style{Background: core.RGBA(0x0A66D8, 0.07), Shadows: []core.BoxShadow{{Spread: 1.5, Color: blue, Inset: true}}}
+			return core.Style{Background: theme.Accent.Faded(0.07), Shadows: []core.BoxShadow{{Spread: 1.5, Color: theme.Accent, Inset: true}}}
 		}
-		return core.Style{Background: white, BorderWidth: 0.5, BorderColor: cardRing, Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 2, Color: core.RGBA(0x000000, 0.04)}},
-			Hover: &core.Style{Background: core.RGB(0xFAFAFC)}}
+		return core.Style{Background: k.Card(), BorderWidth: 0.5, BorderColor: k.Shade(0.1), Shadows: cardShadow, Hover: &core.Style{Background: k.CardHover()}}
 	}
 	return core.View{
 		TestID: "onboarding-tile-" + code, Role: core.RoleCheckbox, Label: own, Checked: t.on,
@@ -143,14 +159,15 @@ func (t tile) Render(cx *core.Scope) core.Node {
 		StyleFunc: look,
 		Children: []core.Node{
 			// TODO(nsgo#207): give core.Text the language it is written in, as MyGo's Text.Lang did, so 日本語 and 中文 are drawn with their own glyph forms https://github.com/nsgo-dev/nsgo/issues/207
-			core.Text{Content: own, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: core.FontWeightSemibold, Color: ink}},
-			core.Text{ContentFunc: func() string { return languageName(cx, code) }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 11, Color: gray}},
+			core.Text{Content: own, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: core.FontWeightSemibold}, StyleFunc: ui.Colored(colors.Text)},
+			core.Text{ContentFunc: func() string { return languageName(cx, code) }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 11}, StyleFunc: ui.Colored(k.Placeholder)},
+			// The empty ring is drawn in the shade, which checkOff takes as its current color.
 			core.Icon{SVGFunc: func() *core.SVG {
 				if t.on() {
 					return checkOn
 				}
 				return checkOff
-			}, Style: core.Style{Position: core.Absolute, Top: core.Pt(9), Right: core.Pt(9), Width: core.Pt(16), Height: core.Pt(16)}},
+			}, Style: core.Style{Position: core.Absolute, Top: core.Pt(9), Right: core.Pt(9), Width: core.Pt(16), Height: core.Pt(16)}, StyleFunc: ui.Colored(func() core.Color { return k.Shade(1) })},
 		},
 	}
 }
@@ -161,6 +178,7 @@ type modelsStep struct{ a App }
 // Render implements core.Node.
 func (s modelsStep) Render(cx *core.Scope) core.Node {
 	a := s.a
+	colors := ui.ColorsOf(cx)
 	models := core.NewMemoFunc(cx, live.Func(a, func() []Model { return a.OnboardingModels(cx) }), slices.Equal[[]Model])
 	busy := live.Memo(cx, a, a.OnboardingDownloading)
 	ai := live.Memo(cx, a, func() AI { return a.OnboardingAI(cx) })
@@ -171,7 +189,7 @@ func (s modelsStep) Render(cx *core.Scope) core.Node {
 		toolsCard{a},
 		card(
 			core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(38), Padding: core.Symmetric(0, 14), AlignItems: core.AlignCenter}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { return modelsHead(cx, models.Get()) }, Style: core.Style{FontSize: 12, Color: muted, FlexGrow: 1, FlexShrink: 1}},
+				core.Text{ContentFunc: func() string { return modelsHead(cx, models.Get()) }, Style: core.Style{FontSize: 12, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(colors.Muted)},
 			}},
 			modelRows,
 		),
@@ -194,7 +212,7 @@ func (t toolsCard) Render(cx *core.Scope) core.Node {
 	return core.View{Style: core.Style{Gap: 16, AlignItems: core.AlignStretch}, Children: []core.Node{
 		card(
 			core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(38), Padding: core.Symmetric(0, 14), Gap: 10, AlignItems: core.AlignCenter}, Children: []core.Node{
-				core.Text{ContentFunc: func() string { head, _, _ := toolsHead(cx, tools.Get()); return head }, Style: core.Style{FontSize: 12, Color: muted, FlexGrow: 1, FlexShrink: 1}},
+				core.Text{ContentFunc: func() string { head, _, _ := toolsHead(cx, tools.Get()); return head }, Style: core.Style{FontSize: 12, FlexGrow: 1, FlexShrink: 1}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)},
 				core.Show{When: ready, Then: func(cx *core.Scope) core.Node {
 					return core.View{Role: core.RoleImage, Accessible: true, LabelFunc: func() string { head, _, _ := toolsHead(cx, tools.Get()); return head },
 						Children: []core.Node{mark(readyMark)}}
@@ -259,17 +277,18 @@ func (r toolRow) Render(cx *core.Scope) core.Node {
 
 // toolSub is the line under a program's name and its color: the download's progress in blue while it runs, why it failed in red, how to install it where Kando cannot, otherwise what it is for.
 func toolSub(cx *core.Scope, t Tool) (string, core.Color) {
+	k := theme.Of(cx)
 	switch {
 	case t.State == ToolDownloading && t.Progress < 0:
-		return locales.OnboardingToolConnecting(cx), progressBlue
+		return locales.OnboardingToolConnecting(cx), k.AccentInk()
 	case t.State == ToolDownloading:
-		return locales.OnboardingToolProgress(cx, int(t.Progress*100)), progressBlue
+		return locales.OnboardingToolProgress(cx, int(t.Progress*100)), k.AccentInk()
 	case t.State == ToolUnavailable:
-		return locales.OnboardingToolUnavailable(cx), warnOrange
+		return locales.OnboardingToolUnavailable(cx), k.WarnInk()
 	case t.Err != "":
-		return locales.OnboardingModelFailed(cx, t.Err), failedRed
+		return locales.OnboardingModelFailed(cx, t.Err), k.DangerInk()
 	}
-	return t.Use, muted
+	return t.Use, ui.ColorsOf(cx).Muted()
 }
 
 // modelRow is a speech model: its name and size, and what can be done with it: 下载, a progress bar and 取消 while it downloads, 使用 once it is here, and a green check while it is in use.
@@ -315,6 +334,7 @@ func (r modelRow) Render(cx *core.Scope) core.Node {
 
 // modelSub is the line under a model's name and its color: the download's progress in blue while it runs, why it failed in red, otherwise its size and what it suits.
 func modelSub(cx *core.Scope, m Model) (string, core.Color) {
+	k, muted := theme.Of(cx), ui.ColorsOf(cx).Muted()
 	switch m.State {
 	case ModelInUse:
 		return locales.OnboardingModelInUse(cx), muted
@@ -322,12 +342,12 @@ func modelSub(cx *core.Scope, m Model) (string, core.Color) {
 		return locales.OnboardingModelDownloaded(cx, m.Blurb), muted
 	case ModelDownloading:
 		if m.Progress < 0 {
-			return locales.OnboardingModelConnecting(cx, m.Size), progressBlue
+			return locales.OnboardingModelConnecting(cx, m.Size), k.AccentInk()
 		}
-		return locales.OnboardingModelProgress(cx, int(m.Progress*100), m.Size), progressBlue
+		return locales.OnboardingModelProgress(cx, int(m.Progress*100), m.Size), k.AccentInk()
 	}
 	if m.Err != "" {
-		return locales.OnboardingModelFailed(cx, m.Err), failedRed
+		return locales.OnboardingModelFailed(cx, m.Err), k.DangerInk()
 	}
 	return locales.OnboardingModelAbout(cx, m.Size, m.Blurb), muted
 }
@@ -368,6 +388,7 @@ type linkStep struct{ a App }
 // Render implements core.Node.
 func (s linkStep) Render(cx *core.Scope) core.Node {
 	a := s.a
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	link := live.Func(a, func() string { return *a.OnboardingLink() })
 	focused := core.NewSignal(cx, false)
 	// TODO(nsgo#145): give core.Input (base.Input) a LabelFunc twin, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
@@ -384,19 +405,23 @@ func (s linkStep) Render(cx *core.Scope) core.Node {
 		}),
 		OnFocus: func() { focused.Set(true) },
 		OnBlur:  func() { focused.Set(false) },
-		Style:   core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 14, Color: ink, PlaceholderColor: gray, CaretColor: blue, SelectionColor: core.RGBA(0x0A66D8, 0.22)},
+		Style:   core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), FontSize: 14, CaretColor: theme.Accent, SelectionColor: theme.Accent.Faded(0.22)},
+		StyleFunc: func() core.Style {
+			return core.Style{Color: colors.Text(), PlaceholderColor: k.Placeholder()}
+		},
 	}
 	field := core.View{
 		Style: core.Style{Direction: core.Row, Height: core.Pt(44), CornerRadius: 10, Padding: core.Edges{Left: 13, Right: 14}, Gap: 8, AlignItems: core.AlignCenter,
-			Background: white, BorderWidth: 0.5, BorderColor: core.RGBA(0x000000, 0.14)},
+			BorderWidth: 0.5},
 		StyleFunc: func() core.Style {
+			s := core.Style{Background: k.Card(), BorderColor: k.Shade(0.14), Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 3, Color: core.RGBA(0x000000, 0.05)}}}
 			if focused.Get() {
-				return core.Style{Shadows: []core.BoxShadow{{Spread: 3, Color: core.RGBA(0x0A66D8, 0.5)}}}
+				s.Shadows = []core.BoxShadow{{Spread: 3, Color: theme.Accent.Faded(0.5)}}
 			}
-			return core.Style{Shadows: []core.BoxShadow{{Offset: core.Point{Y: 1}, Blur: 3, Color: core.RGBA(0x000000, 0.05)}}}
+			return s
 		},
 		Children: []core.Node{
-			core.Icon{SVG: linkIcon, Style: core.Style{Width: core.Pt(15), Height: core.Pt(15), FlexShrink: 0, Color: gray}},
+			core.Icon{SVG: linkIcon, Style: core.Style{Width: core.Pt(15), Height: core.Pt(15), FlexShrink: 0}, StyleFunc: ui.Colored(k.Placeholder)},
 			input,
 		},
 	}
@@ -404,13 +429,13 @@ func (s linkStep) Render(cx *core.Scope) core.Node {
 		hint, ok := LinkHint(cx, *a.OnboardingLink())
 		switch {
 		case a.OnboardingLinkError() != "" && *a.OnboardingLink() != "":
-			return hintLine{a.OnboardingLinkError(), failedRed}
+			return hintLine{a.OnboardingLinkError(), k.DangerInk()}
 		case hint == "":
-			return hintLine{locales.OnboardingLinkHintEmpty(cx), gray}
+			return hintLine{locales.OnboardingLinkHintEmpty(cx), k.Placeholder()}
 		case !ok:
-			return hintLine{hint, failedRed}
+			return hintLine{hint, k.DangerInk()}
 		}
-		return hintLine{hint, okGreen}
+		return hintLine{hint, k.SuccessInk()}
 	})
 	return core.View{Style: core.Style{Gap: 6, AlignItems: core.AlignStretch}, Children: []core.Node{
 		field,

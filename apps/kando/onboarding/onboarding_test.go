@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -96,10 +97,18 @@ func start(t *testing.T, a *fakeApp, os core.OS) *nsgotest.App {
 	t.Helper()
 	env := testlocale.Environment(core.Environment{OS: os, Idiom: core.IdiomDesktop, AppleKeyboard: os == core.OSMacOS})
 	return nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		theme.Apply(cx)
 		a.Attach(cx)
 		return core.View{Style: core.Style{FlexGrow: 1}, Children: []core.Node{View{App: a}}}
 	}, nsgotest.Size(1100, 720), nsgotest.Environment(env))
 }
+
+// The light theme's inks the window shows them in: orange for what Kando cannot do, red for a link it cannot add and green for one it can.
+var (
+	lightWarnInk    = core.RGB(0xB25000)
+	lightDangerInk  = core.RGB(0xC4291C)
+	lightSuccessInk = core.RGB(0x1B6B30)
+)
 
 // change runs fn on the app's state as a background report would, and settles.
 func change(app *nsgotest.App, a *fakeApp, fn func()) {
@@ -245,7 +254,7 @@ func TestSecondStepRowsAndTheirButtons(t *testing.T) {
 	if !app.Exists(`text:"`+msgs.OnboardingModelsReady()+`"`) || !app.Exists("label:"+msgs.OnboardingInUse()) {
 		t.Fatalf("with a model in use: %q", app.Texts())
 	}
-	if got := app.Find(`text:"no model"`).TextStyle.Color; got != warnOrange {
+	if got := app.Find(`text:"no model"`).TextStyle.Color; got != lightWarnInk {
 		t.Errorf("a missing AI service reads in %v", got)
 	}
 	app.Press("id:onboarding-ai")
@@ -291,11 +300,11 @@ func TestSecondStepSetsUpTranslation(t *testing.T) {
 		t.Fatalf("while testing: %q", app.Texts())
 	}
 	change(app, a, func() { a.testing, a.result = false, "服务不接受这个 API Key" })
-	if got := app.Find(`text:"服务不接受这个 API Key"`).TextStyle.Color; got == okGreen {
+	if got := app.Find(`text:"服务不接受这个 API Key"`).TextStyle.Color; got == lightSuccessInk {
 		t.Errorf("a failed test reads in %v", got)
 	}
 	change(app, a, func() { a.connected, a.result = true, msgs.SettingsAIConnected() })
-	if got := app.Find("id:onboarding-ai-result").TextStyle.Color; got != okGreen || !app.Exists(`text:"`+msgs.SettingsAIConnected()+`"`) {
+	if got := app.Find("id:onboarding-ai-result").TextStyle.Color; got != lightSuccessInk || !app.Exists(`text:"`+msgs.SettingsAIConnected()+`"`) {
 		t.Fatalf("a passed test reads %q in %v", app.Texts(), got)
 	}
 	change(app, a, func() { a.provider = "ollama" })
@@ -344,7 +353,7 @@ func TestLinkFieldSaysWhatALinkIs(t *testing.T) {
 		t.Fatalf("link %q after typing", a.link)
 	}
 	hint := app.Find("id:onboarding-link-hint")
-	if want, _ := linkHint(msgs, a.link); hint.Text != want || hint.TextStyle.Color != failedRed {
+	if want, _ := linkHint(msgs, a.link); hint.Text != want || hint.TextStyle.Color != lightDangerInk {
 		t.Fatalf("hint %q in %v, want %q in red", hint.Text, hint.TextStyle.Color, want)
 	}
 	next := app.Find("id:onboarding-next")
@@ -357,7 +366,7 @@ func TestLinkFieldSaysWhatALinkIs(t *testing.T) {
 	}
 	app.Clear("id:onboarding-link")
 	app.Type("id:onboarding-link", "https://youtu.be/k9Yt2LmQ0pX")
-	if hint := app.Find("id:onboarding-link-hint"); hint.TextStyle.Color != okGreen {
+	if hint := app.Find("id:onboarding-link-hint"); hint.TextStyle.Color != lightSuccessInk {
 		t.Fatalf("hint %q in %v for a video", hint.Text, hint.TextStyle.Color)
 	}
 	app.Submit("id:onboarding-link")

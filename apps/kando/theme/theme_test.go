@@ -35,3 +35,41 @@ func TestKandoLightAndDark(t *testing.T) {
 		t.Errorf("hairlines %v are not drawn in the text's color %v", got, lightText)
 	}
 }
+
+// Kando's own roles are set in both palettes, and a binding that reads one turns with the system's appearance: the light window's white card turns the dark one's as the environment turns dark, and back.
+func TestRolesFollowTheAppearance(t *testing.T) {
+	for name := range lightRoles {
+		if _, ok := darkRoles[name]; !ok {
+			t.Errorf("role %s has no dark color", name)
+		}
+	}
+	for name := range darkRoles {
+		if _, ok := lightRoles[name]; !ok {
+			t.Errorf("role %s has no light color", name)
+		}
+	}
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		Apply(cx)
+		k := Of(cx)
+		return core.View{TestID: "card", Style: core.Style{Width: core.Pt(10), Height: core.Pt(10)},
+			StyleFunc: func() core.Style { return core.Style{Background: k.Card(), BorderColor: k.Shade(0.08)} }}
+	})
+	card := func() *nsgotest.View { return app.Find("id:card") }
+	if got := card().Style.Background; got != lightRoles[roleCard] {
+		t.Fatalf("card %#x in the light, want %#x", uint32(got), uint32(lightRoles[roleCard]))
+	}
+	if got := card().Style.BorderColor; got != core.RGBA(0x000000, 0.08) {
+		t.Fatalf("hairline %#x in the light, want black at 8%%", uint32(got))
+	}
+	app.SetEnvironment(core.Environment{Dark: true})
+	if got := card().Style.Background; got != darkRoles[roleCard] {
+		t.Fatalf("card %#x in the dark, want %#x", uint32(got), uint32(darkRoles[roleCard]))
+	}
+	if got := card().Style.BorderColor; got != core.RGBA(0xFFFFFF, 0.08) {
+		t.Fatalf("hairline %#x in the dark, want white at 8%%", uint32(got))
+	}
+	app.SetEnvironment(core.Environment{})
+	if got := card().Style.Background; got != lightRoles[roleCard] {
+		t.Fatalf("card %#x back in the light, want %#x", uint32(got), uint32(lightRoles[roleCard]))
+	}
+}

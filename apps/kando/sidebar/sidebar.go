@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -98,14 +99,8 @@ const (
 	LightsRow ns.Points = 48
 )
 
-var (
-	cardFill      = ns.RGBA(0xFFFFFF, 0.42)
-	cardHighlight = ns.RGBA(0xFFFFFF, 0.85)
-	cardHairline  = ns.RGBA(0x000000, 0.06)
-	cardShadow    = ns.RGBA(0x1E325A, 0.08)
-	// gutterFill stands in for the window's material where the window shows none (a test, Linux, a window without one): the prototype's frosted strip over a white page.
-	gutterFill = ns.RGB(0xF0F2F6)
-)
+// cardShadow is the soft shadow under the card. Its face and its rings are the theme's card color, translucent, and its shade (theme.Of), and the gutter around it stands in for the window's material where the window shows none (a test, Linux, a window without one): the prototype's frosted strip over the page.
+var cardShadow = ns.RGBA(0x1E325A, 0.08)
 
 // View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
 type View struct {
@@ -115,11 +110,14 @@ type View struct {
 // Render implements core.Node.
 func (v View) Render(cx *ns.Scope) ns.Node {
 	a := v.App
-	colors := ui.ColorsOf(cx)
-	// The hairlines are rings of half a point that take no room, as the prototype's box-shadows: white just inside the edge, dark just outside it.
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
+	// The hairlines are rings of half a point that take no room, as the prototype's box-shadows: the card's face just inside the edge, the shade just outside it.
 	card := ns.View{
-		Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: cardRadius, Background: cardFill,
-			Shadows: []ns.BoxShadow{{Spread: 0.5, Color: cardHighlight, Inset: true}, {Spread: 0.5, Color: cardHairline}, {Offset: ns.Point{Y: 4}, Blur: 14, Color: cardShadow}}},
+		Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), AlignItems: ns.AlignStretch, CornerRadius: cardRadius},
+		StyleFunc: func() ns.Style {
+			return ns.Style{Background: k.Card().Faded(0.42),
+				Shadows: []ns.BoxShadow{{Spread: 0.5, Color: k.Card().Faded(0.85), Inset: true}, {Spread: 0.5, Color: k.Shade(0.06)}, {Offset: ns.Point{Y: 4}, Blur: 14, Color: cardShadow}}}
+		},
 		Children: []ns.Node{
 			ns.View{
 				Desktop: ns.DesktopViewProps{WindowDrag: ns.WindowDragOn},
@@ -152,7 +150,7 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 			if nsdesktop.ShowsMaterial(cx) {
 				return ns.Style{}
 			}
-			return ns.Style{Background: gutterFill}
+			return ns.Style{Background: k.Gutter()}
 		},
 		Children: []ns.Node{card},
 	}

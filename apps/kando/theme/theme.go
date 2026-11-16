@@ -16,7 +16,7 @@ var (
 	lightMuted      = core.RGB(0x6A6A70)
 )
 
-// Kando is NSGo's default theme in Kando's colors: the light palette is the window's, which the app shows everywhere (nsgo.Appearance), and the dark one is the player's and the cheat sheet's, which they force on their subtree with Dark. Every color the app sets on a theme is set here; a component reads them through ui.ColorsOf or core.Scope.Palette inside a StyleFunc, so they follow the subtree's theme and appearance.
+// Kando is NSGo's default theme in Kando's colors: the window shows the light palette or the dark one as the system does (Appearance), and the player and the cheat sheet force the dark one on their subtree with Dark. Every color the app sets on a theme is set here, Kando's own roles (Of) in both palettes; a component reads them through ui.ColorsOf, Of or core.Scope.Palette inside a StyleFunc, so they follow the subtree's theme and appearance.
 func Kando() *core.Theme {
 	t := core.DefaultTheme()
 	l := &t.Light
@@ -35,6 +35,12 @@ func Kando() *core.Theme {
 		p.Selection, p.Focus = Accent.Faded(0.22), Accent.Faded(0.55)
 		p.SetColor("accentFill", Accent)
 	}
+	for name, c := range lightRoles {
+		t.Light.SetColor(name, c)
+	}
+	for name, c := range darkRoles {
+		t.Dark.SetColor(name, c)
+	}
 	return t
 }
 
@@ -44,5 +50,5 @@ func Apply(cx *core.Scope) { cx.SetTheme(Kando()) }
 // Dark shows cx and everything it builds in the dark palette, whatever the window shows: the player and the cheat sheet call it at their root.
 func Dark(cx *core.Scope) { cx.SetSubtreeAppearance(core.AppearanceDark) }
 
-// Appearance is the one the app runs in, light whatever the system's, as nsgo.Appearance and core.Scope.SetAppearance take it.
-const Appearance = core.AppearanceLight
+// Appearance is the one the app runs in, the system's, light or dark as it changes, as nsgo.Appearance and core.Scope.SetAppearance take it.
+const Appearance = core.AppearanceSystem

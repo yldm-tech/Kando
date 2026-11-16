@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -226,29 +227,29 @@ func modelsFailure(a App) func() string {
 
 // testStatus is the connection test's state: a dot and a word, why it failed when it did, with what the service answered as the pointer rests on it.
 func testStatus(cx *core.Scope, a App) core.Node {
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	failed := func() bool { return !a.TestingLLM() && !a.LLMConnected() && a.LLMResult() != "" }
 	dot := live.Func(a, func() core.Color {
 		switch {
 		case a.TestingLLM():
-			return form.Idle
+			return k.Idle()
 		case a.LLMConnected():
 			return form.OK
 		case failed():
 			return colors.Danger()
 		}
-		return form.Idle
+		return k.Idle()
 	})
 	color := live.Func(a, func() core.Color {
 		switch {
 		case a.TestingLLM():
-			return form.Secondary
+			return colors.Muted()
 		case a.LLMConnected():
-			return form.SuccessText
+			return k.SuccessInk()
 		case failed():
 			return colors.Danger()
 		}
-		return form.Secondary
+		return colors.Muted()
 	})
 	text := live.Func(a, func() string {
 		switch {

@@ -6,6 +6,7 @@ import (
 
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -272,7 +273,8 @@ func (r googleRow) Render(cx *core.Scope) core.Node {
 	})
 	// The row is built again as the account signs in or out, which its description, read as it is built, follows; the button is the only part of it that takes the keyboard, and goes with the account anyway.
 	build := func(button core.Node) func(*core.Scope) core.Node {
-		return func(*core.Scope) core.Node {
+		return func(cx *core.Scope) core.Node {
+			colors := ui.ColorsOf(cx)
 			// TODO(nsgo#145): give core.View an AccessibilityDescriptionFunc twin, so the row's description follows the interface language as it changes, as LabelFunc does its name; it is read as the row is built https://github.com/nsgo-dev/nsgo/issues/145
 			return core.View{
 				TestID:                   "google-row",
@@ -282,10 +284,10 @@ func (r googleRow) Render(cx *core.Scope) core.Node {
 				Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(62), Padding: core.Symmetric(10, 14), Gap: 12,
 					AlignItems: core.AlignCenter},
 				Children: []core.Node{
-					core.View{Style: core.Style{Width: core.Pt(40), Height: core.Pt(40), CornerRadius: 20, FlexShrink: 0, Background: formIdle}},
+					core.View{Style: core.Style{Width: core.Pt(40), Height: core.Pt(40), CornerRadius: 20, FlexShrink: 0}, StyleFunc: ui.Filled(theme.Of(cx).Idle)},
 					core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
-						core.Text{ContentFunc: title, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: formText}},
-						core.Text{ContentFunc: subtitle, Style: core.Style{FontSize: 11, Color: formSecondary}},
+						core.Text{ContentFunc: title, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)},
+						core.Text{ContentFunc: subtitle, Style: core.Style{FontSize: 11}, StyleFunc: ui.Colored(colors.Muted)},
 					}},
 					button,
 				},

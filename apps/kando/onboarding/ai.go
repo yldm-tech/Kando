@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/sectionid"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -26,6 +27,7 @@ type aiCard struct {
 // Render implements core.Node.
 func (c aiCard) Render(cx *core.Scope) core.Node {
 	a, ai := c.a, c.ai
+	k, colors := theme.Of(cx), ui.ColorsOf(cx)
 	current := live.Memo(cx, a, func() Service {
 		for _, s := range a.OnboardingServices(cx) {
 			if s.ID == a.LLMProvider() {
@@ -38,9 +40,9 @@ func (c aiCard) Render(cx *core.Scope) core.Node {
 	head := core.View{Style: rowStyle.Merge(core.Style{MinHeight: core.Pt(46)}), Children: []core.Node{
 		rowText(func() string { return locales.OnboardingTranslationService(cx) }, func() (string, core.Color) {
 			if ai().Missing {
-				return ai().Text, warnOrange
+				return ai().Text, k.WarnInk()
 			}
-			return ai().Text, muted
+			return ai().Text, colors.Muted()
 		}),
 		core.Show{When: func() bool { return ai().Ready }, Then: func(*core.Scope) core.Node { return mark(readyMark) }},
 		serviceSelect(cx, a),
@@ -49,7 +51,6 @@ func (c aiCard) Render(cx *core.Scope) core.Node {
 		return core.Group{rule(), keyRow(cx, a, func() bool { return current().KeyPage })}
 	}}
 	// The test's result, once there is one; before that the head says what the service needs.
-	colors := ui.ColorsOf(cx)
 	result := core.Show{When: live.Func(a, func() bool { return a.TestingLLM() || a.LLMResult() != "" }), Then: func(cx *core.Scope) core.Node {
 		return core.Text{TestID: "onboarding-ai-result", ContentFunc: live.Func(a, func() string {
 			switch {
@@ -62,9 +63,9 @@ func (c aiCard) Render(cx *core.Scope) core.Node {
 		}), Style: core.Style{FontSize: 11, LineHeight: 15, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: live.Func(a, func() core.Style {
 			switch {
 			case a.TestingLLM():
-				return core.Style{Color: progressBlue}
+				return core.Style{Color: k.AccentInk()}
 			case a.LLMConnected():
-				return core.Style{Color: okGreen}
+				return core.Style{Color: k.SuccessInk()}
 			}
 			return core.Style{Color: colors.Danger()}
 		})}

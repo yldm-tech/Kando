@@ -135,7 +135,7 @@ func newTestApp(t *testing.T, p media.Pipeline, opts ...nsgotest.Option) (*app, 
 // testView is the app as run starts it, for nsgotest: the revision on the test's graph, the test's root as the app's scope, and the main view. The areas' ready does not run, as in MyGo's tests, so the menu bar is not installed and wireKeys binds the ⌘ rows too: a test of the menu bar calls a.installMenu(a.cx) and reads tt.Menu, and a test that needs another ready calls what it needs.
 func (a *app) testView(cx *ns.Scope) ns.Node {
 	a.attach(cx)
-	// nsgo.Run starts the app in theme.Appearance (main's nsgo.Appearance), which nsgotest's host has no option for, so the test app forces it as the app starts
+	// nsgo.Run starts the app in theme.Appearance (main's nsgo.Appearance), the system's, which nsgotest's host has no option for, so the test app sets it as the app starts and the test's Environment (Dark) stands in for the system's
 	cx.SetAppearance(theme.Appearance)
 	return a.view(cx)
 }

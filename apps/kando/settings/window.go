@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
+	"kando/apps/kando/theme"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -152,14 +153,8 @@ type screen struct {
 	version string
 }
 
-// The rail's look, as the prototype's settings sidebar: 220 points wide with its line along the end, a translucent gray over the window's, and the search field's gray.
+// The rail's look, as the prototype's settings sidebar: 220 points wide with its line along the end, a translucent gray over the window's, and the search field's gray, from the theme (theme.Of).
 const railWidth core.Points = 220
-
-var (
-	railFill   = core.RGBA(0xECECF0, 0.92)
-	railLine   = core.RGBA(0x000000, 0.1)
-	searchFill = core.RGBA(0x000000, 0.06)
-)
 
 // Window is the settings window's content: the categories with a search field on the left, the chosen one's page on the right under its title. Account is the 账号与上传 page, the account package's. It fills the window it is in, the settings window of its own or the dialog over the main window where the platform opens none.
 type Window struct {
@@ -197,7 +192,7 @@ func (s screen) layout(cx *core.Scope, account core.Node) core.Node {
 		header{a: a, section: section.Get},
 		core.Scroll{TestID: "settings-page", Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{content}},
 	}}
-	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch, Background: form.Window},
+	return core.View{TestID: "settings-window", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, AlignItems: core.AlignStretch}, StyleFunc: ui.Filled(theme.Of(cx).Window),
 		Children: []core.Node{rail{a: a}, pane}}
 }
 
@@ -211,10 +206,10 @@ type header struct {
 func (h header) Render(cx *core.Scope) core.Node {
 	title := core.Text{TestID: "settings-title", Role: core.RoleHeader, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		ContentFunc: func() string { return Title(cx, h.section()) },
-		Style:       core.Style{FontSize: 15, LineHeight: 18, FontWeight: ui.Bold, Color: form.Text}}
+		Style:       core.Style{FontSize: 15, LineHeight: 18, FontWeight: ui.Bold}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)}
 	bar := core.View{Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn},
 		Style: core.Style{Direction: core.Row, Height: core.Pt(50), Padding: core.Symmetric(0, 28), AlignItems: core.AlignCenter}, Children: []core.Node{title}}
-	line := core.View{Style: core.Style{Height: core.Pt(1), FlexShrink: 0, Background: form.Line}}
+	line := core.View{Style: core.Style{Height: core.Pt(1), FlexShrink: 0}, StyleFunc: ui.Filled(form.Line(cx))}
 	return core.View{Style: core.Style{FlexShrink: 0, AlignItems: core.AlignStretch}, Children: []core.Node{bar, line}}
 }
 
@@ -254,16 +249,19 @@ func (r rail) Render(cx *core.Scope) core.Node {
 		}),
 	}
 	none := core.Show{When: func() bool { return found.Get() == "" }, Then: func(cx *core.Scope) core.Node {
-		return core.Text{Content: locales.SettingsSearchNone(cx), Style: core.Style{FontSize: 12, Color: form.Secondary, Padding: core.Symmetric(10, 8)}}
+		return core.Text{Content: locales.SettingsSearchNone(cx), Style: core.Style{FontSize: 12, Padding: core.Symmetric(10, 8)}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
 	}}
 	// The traffic lights sit in the band at the top, which moves the window; past them, where the title bar says they end.
 	top := core.View{Desktop: core.DesktopViewProps{WindowDrag: core.WindowDragOn}, StyleFunc: func() core.Style {
 		bar := nsdesktop.TitleBar(cx)
 		return core.Style{Height: core.Pt(max(bar.Top, 50)), FlexShrink: 0}
 	}}
+	k := theme.Of(cx)
 	return core.View{TestID: "settings-rail",
-		Style: core.Style{Width: core.Pt(railWidth), FlexShrink: 0, AlignItems: core.AlignStretch, Padding: core.Edges{Right: 10, Bottom: 12, Left: 10}, Gap: 2,
-			Background: railFill, Borders: core.Edges{Right: 1}, BorderColors: core.EdgeColors{Right: railLine}},
+		Style: core.Style{Width: core.Pt(railWidth), FlexShrink: 0, AlignItems: core.AlignStretch, Padding: core.Edges{Right: 10, Bottom: 12, Left: 10}, Gap: 2, Borders: core.Edges{Right: 1}},
+		StyleFunc: func() core.Style {
+			return core.Style{Background: k.Rail(), BorderColors: core.EdgeColors{Right: k.Shade(0.1)}}
+		},
 		Children: []core.Node{top, search{a: a}, none, core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)}, Children: []core.Node{list}}}}
 }
 
@@ -303,10 +301,10 @@ func (s search) Render(cx *core.Scope) core.Node {
 		OnChange:    live.On(a, func(text string) { *a.SettingsQuery() = text }),
 		OnFocus:     func() { focused.Set(true) },
 		OnBlur:      func() { focused.Set(false) },
-		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, Background: searchFill, FontSize: 13,
+		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, FontSize: 13,
 			Padding: core.Edges{Left: 28, Right: 28}},
 		StyleFunc: func() core.Style {
-			return core.Style{Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
+			return core.Style{Background: theme.Of(cx).Shade(0.06), Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
 		},
 	}
 	clearButton := core.Show{When: func() bool { return query() != "" }, Then: func(cx *core.Scope) core.Node {

@@ -3,6 +3,7 @@ package sidebar
 import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -10,10 +11,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// searchFill is the field's gray on the card, which has no border.
-var searchFill = core.RGBA(0x000000, 0.06)
-
-// search is the field under the library switcher that narrows the library page to the done films whose names hold what is typed, as `kando list [query]` does, beside the sources it narrows with. It shows while the open library has films. ⌘F puts the keyboard in it (QueryFocus), Return in it reports SubmitQuery, and its clear button or Escape empties it. Its look is the settings window's search field in its rail: 28 points high, its corners 8, gray on the card without a border, a magnifying glass before the text.
+// search is the field under the library switcher that narrows the library page to the done films whose names hold what is typed, as `kando list [query]` does, beside the sources it narrows with. It shows while the open library has films. ⌘F puts the keyboard in it (QueryFocus), and its clear button or Escape empties it. Its look is the settings window's search field in its rail: 28 points high, its corners 8, gray on the card without a border, a magnifying glass before the text.
 type search struct{ a App }
 
 // Render implements core.Node.
@@ -60,10 +58,11 @@ func searchField(cx *core.Scope, a App, field *core.Ref) core.Node {
 		OnSubmit:        live.On(a, func(string) { a.SubmitQuery() }),
 		OnFocus:         func() { focused.Set(true) },
 		OnBlur:          func() { focused.Set(false) },
-		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, Background: searchFill, FontSize: 13,
+		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, FontSize: 13,
 			Padding: core.Edges{Left: 28, Right: 28}},
+		// The field's gray on the card, which has no border, is the theme's shade.
 		StyleFunc: func() core.Style {
-			return core.Style{Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
+			return core.Style{Background: theme.Of(cx).Shade(0.06), Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
 		},
 	}
 	clearButton := core.Show{When: func() bool { return query() != "" }, Then: func(cx *core.Scope) core.Node {

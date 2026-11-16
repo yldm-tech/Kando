@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -42,13 +43,11 @@ func (r Readiness) Text(cx *core.Scope) string {
 	return r.Message(cx)
 }
 
+// The status dots, the same in both appearances. The card is the theme's card color, translucent, with its shade's hairline, and the message is in its strong ink (theme.Of).
 var (
-	footerFill     = core.RGBA(0xFFFFFF, 0.55)
-	footerHairline = core.RGBA(0x000000, 0.06)
-	footerText     = core.RGB(0x3A3A3F)
-	readyDot       = core.RGB(0x30D158)
-	missingDot     = core.RGB(0xFF9F0A)
-	failedDot      = core.RGB(0xFF453A)
+	readyDot   = core.RGB(0x30D158)
+	missingDot = core.RGB(0xFF9F0A)
+	failedDot  = core.RGB(0xFF453A)
 )
 
 // footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has no menu bar (PaletteButton), a button that opens the command palette, its key in its tooltip.
@@ -57,7 +56,7 @@ type footer struct{ a App }
 // Render implements core.Node.
 func (f footer) Render(cx *core.Scope) core.Node {
 	a := f.a
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	state := live.Memo(cx, a, func() ReadyState { return a.Readiness().State })
 	dot := core.View{TestID: "sidebar-status-dot",
 		Style: core.Style{Width: core.Pt(8), Height: core.Pt(8), FlexShrink: 0, CornerRadius: 4},
@@ -72,14 +71,14 @@ func (f footer) Render(cx *core.Scope) core.Node {
 		}}
 	// The message is the prototype's 11 points on 15, a point above the platform's caption.
 	message := core.Text{TestID: "sidebar-status", ContentFunc: live.Func(a, func() string { return a.Readiness().Text(cx) }),
-		Style: core.Style{FontSize: 11, LineHeight: 15, Color: footerText, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}}
+		Style: core.Style{FontSize: 11, LineHeight: 15, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(k.Strong)}
 	// The gear's button is the prototype's 26-point square, the gear in the message's color.
-	gear := ui.IconButton{Icon: svg(iconGear), LabelFunc: func() string { return locales.SidebarSettings(cx) }, Size: 26, Tint: ui.Fixed(footerText), TestID: "sidebar-settings",
+	gear := ui.IconButton{Icon: svg(iconGear), LabelFunc: func() string { return locales.SidebarSettings(cx) }, Size: 26, Tint: k.Strong, TestID: "sidebar-settings",
 		OnPress: live.Do(a, func() { a.OpenSettings(a.Readiness().Section) })}
 	buttons := []core.Node{dot, message}
 	if a.PaletteButton() {
 		// The palette's button is the gear's twin, so the two read as the card's pair of actions.
-		palette := ui.IconButton{Icon: lucide.Command, LabelFunc: func() string { return locales.SidebarCommands(cx) }, Size: 26, Tint: ui.Fixed(footerText), TestID: "sidebar-palette",
+		palette := ui.IconButton{Icon: lucide.Command, LabelFunc: func() string { return locales.SidebarCommands(cx) }, Size: 26, Tint: k.Strong, TestID: "sidebar-palette",
 			OnPress: live.Do(a, a.TogglePalette)}
 		buttons = append(buttons, ui.Tooltip{TextFunc: func() string { return locales.SidebarCommandsTooltip(cx, hotkey.Label(cx, a.PaletteKey())) }, Trigger: palette,
 			Style: core.Style{FlexShrink: 0}})
@@ -91,7 +90,10 @@ func (f footer) Render(cx *core.Scope) core.Node {
 		Role:      core.RoleGroup,
 		LabelFunc: func() string { return locales.SidebarStatus(cx) },
 		Style: core.Style{FlexShrink: 0, Margin: core.Edges{Top: 8, Right: insetEnd, Bottom: 8, Left: insetStart}, Padding: core.Symmetric(10, 12), Gap: 8,
-			CornerRadius: 11, Background: footerFill, Shadows: []core.BoxShadow{{Spread: 0.5, Color: footerHairline}}},
+			CornerRadius: 11},
+		StyleFunc: func() core.Style {
+			return core.Style{Background: k.Card().Faded(0.55), Shadows: []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.06)}}}
+		},
 		Children: []core.Node{
 			jobsLine{a},
 			core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter}, Children: buttons},
@@ -129,6 +131,6 @@ func (j jobsLine) Render(cx *core.Scope) core.Node {
 		return base.Button{TestID: "sidebar-jobs", LabelFunc: text, OnPress: live.On(a, func(core.PressEvent) { a.ShowJobs() }),
 			Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, Cursor: core.CursorDefault, CornerRadius: 6, FocusVisible: ui.FocusRing(cx, 2)},
 			Children: []core.Node{dot, core.Text{ContentFunc: text, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
-				Style: core.Style{FontSize: 11, LineHeight: 15, Color: footerText, FlexShrink: 1, MinWidth: core.Pt(0)}}}}
+				Style: core.Style{FontSize: 11, LineHeight: 15, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(theme.Of(cx).Strong)}}}
 	}}
 }

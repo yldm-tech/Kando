@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -59,11 +60,10 @@ func sectionTitle(cx *core.Scope, title, note func() string) core.Node {
 	}}
 }
 
-// The poster's hairline and its shadows at rest and while the pointer is over it, when it lifts toward the pointer.
+// The poster's shadows at rest and while the pointer is over it, when it lifts toward the pointer. Its face before the picture is there is the theme's thumb, and its hairline the shade (theme.Of).
 var (
-	posterHairline = core.RGBA(0x000000, 0.1)
-	posterShadow   = []core.BoxShadow{{Offset: core.Point{Y: 4}, Blur: 12, Color: core.RGBA(0x000000, 0.12)}}
-	posterLifted   = []core.BoxShadow{{Offset: core.Point{Y: 14}, Blur: 30, Color: core.RGBA(0x000000, 0.22)}}
+	posterShadow = []core.BoxShadow{{Offset: core.Point{Y: 4}, Blur: 12, Color: core.RGBA(0x000000, 0.12)}}
+	posterLifted = []core.BoxShadow{{Offset: core.Point{Y: 14}, Blur: 30, Color: core.RGBA(0x000000, 0.22)}}
 )
 
 // doneCard is a film in the grid: the poster opens it where it stopped last time, and ⋯ and a right click offer 播放, 从头播放 for a film stopped partway, 在访达中显示, 重命名…, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
@@ -75,7 +75,7 @@ type doneCard struct {
 // Render implements core.Node.
 func (d doneCard) Render(cx *core.Scope) core.Node {
 	a, item := d.a, d.item
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	name := func() string { return filmName(item()) }
 	duration := live.Func(a, func() string {
 		if length := a.Duration(item().VideoPath); length > 0 {
@@ -88,8 +88,9 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 		TestID:    "film-" + item().Key,
 		LabelFunc: name,
 		OnPress:   live.On(a, func(core.PressEvent) { a.Open(item()) }),
-		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: 13, Background: thumbFill, BorderWidth: 0.5, BorderColor: posterHairline,
+		Style: core.Style{Width: core.Pct(100), AspectRatio: 16.0 / 9, CornerRadius: 13, BorderWidth: 0.5,
 			Shadows: posterShadow, Cursor: core.CursorDefault, Hover: &core.Style{Shadows: posterLifted, Transform: core.Transform{Scale: 1.015}}, FocusVisible: ui.FocusRing(cx, 2)},
+		StyleFunc: func() core.Style { return core.Style{Background: k.Thumb(), BorderColor: k.Shade(0.1)} },
 		Children: []core.Node{clip(13,
 			cover(live.Func(a, func() core.ImageSource { return a.Poster(item().VideoPath) })),
 			core.Show{When: func() bool { return item().Language != "" && item().TranslationErr == "" }, Then: func(*core.Scope) core.Node {
@@ -238,13 +239,7 @@ func posterChip(text func() string, at core.Style) core.Node {
 	}}
 }
 
-// The ⋯ button's fill while the pointer is over it and while it is pressed.
-var (
-	moreHover   = core.RGBA(0x000000, 0.06)
-	morePressed = core.RGBA(0x000000, 0.08)
-	moreInk     = core.RGB(0x3A3A3F)
-)
-
+// The ⋯ button's fill while the pointer is over it and while it is pressed is the theme's shade, and its dots its strong ink (theme.Of).
 // moreButton is ⋯ beside a poster's title: a 26-point round button with the prototype's three dots, gray while pressed. It opens the film's menu under it, at its leading edge.
 type moreButton struct {
 	a      App
@@ -254,7 +249,7 @@ type moreButton struct {
 
 // Render implements core.Node.
 func (m moreButton) Render(cx *core.Scope) core.Node {
-	a := m.a
+	a, k := m.a, theme.Of(cx)
 	open := core.NewSignal(cx, false)
 	// place is the view around the button, which base.Button takes no Ref for, so its frame gives the button's.
 	place := &core.Ref{}
@@ -271,9 +266,11 @@ func (m moreButton) Render(cx *core.Scope) core.Node {
 		LabelFunc: func() string { return locales.FilmsMoreActions(cx, filmName(m.item())) },
 		Expanded:  open.Get,
 		OnPress:   press,
-		Style: core.Style{Width: core.Pt(26), Height: core.Pt(26), CornerRadius: 13, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Cursor: core.CursorDefault,
-			Hover: &core.Style{Background: moreHover}, Active: &core.Style{Background: morePressed}, FocusVisible: ui.FocusRing(cx, -2)},
-		Children: []core.Node{core.Icon{SVG: moreIcon, Style: core.Style{Width: core.Pt(14), Height: core.Pt(4), Color: moreInk}}},
+		Style:     core.Style{Width: core.Pt(26), Height: core.Pt(26), CornerRadius: 13, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Cursor: core.CursorDefault, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() core.Style {
+			return core.Style{Hover: &core.Style{Background: k.Shade(0.06)}, Active: &core.Style{Background: k.Shade(0.08)}}
+		},
+		Children: []core.Node{core.Icon{SVG: moreIcon, Style: core.Style{Width: core.Pt(14), Height: core.Pt(4)}, StyleFunc: ui.Colored(k.Strong)}},
 	}
 	return core.View{Ref: place, Style: core.Style{FlexShrink: 0}, Children: []core.Node{button}}
 }

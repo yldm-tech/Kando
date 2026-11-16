@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -16,19 +17,21 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// barFade is the top bar's face: the page's white, nearly opaque at the top and fading out at its bottom, so what scrolls under it fades into it, with no blur and no line, as the prototype's toolbar.
-var barFade = ns.Gradient{Kind: ns.GradientLinear, Angle: 180, Stops: []ns.ColorStop{
-	{Color: ns.RGBA(0xFFFFFF, 0.96), At: ns.Pct(0)},
-	{Color: ns.RGBA(0xFFFFFF, 0.86), At: ns.Pct(60)},
-	{Color: ns.RGBA(0xFFFFFF, 0), At: ns.Pct(100)},
-}}
+// barFade is the top bar's face: the page's color, nearly opaque at the top and fading out at its bottom, so what scrolls under it fades into it, with no blur and no line, as the prototype's toolbar.
+func barFade(page ns.Color) ns.Gradient {
+	return ns.Gradient{Kind: ns.GradientLinear, Angle: 180, Stops: []ns.ColorStop{
+		{Color: page.Faded(0.96), At: ns.Pct(0)},
+		{Color: page.Faded(0.86), At: ns.Pct(60)},
+		{Color: page.Faded(0), At: ns.Pct(100)},
+	}}
+}
 
-// The white pills of the link field and 本地视频, which lift them off what scrolls under the bar.
-var (
-	pillFill     = ns.RGBA(0xFFFFFF, 0.75)
-	pillHairline = ns.RGBA(0x000000, 0.12)
-	pillShadow   = []ns.BoxShadow{{Offset: ns.Point{Y: 2}, Blur: 8, Color: ns.RGBA(0x000000, 0.06)}}
-)
+// pill is the look of the pills of the link field and 本地视频, which lift them off what scrolls under the bar: the theme's card color, translucent, with the shade's hairline (theme.Of).
+func pill(k theme.Colors) ns.Style {
+	return ns.Style{Background: k.Card().Faded(0.75), BorderColor: k.Shade(0.12), Shadows: pillShadow}
+}
+
+var pillShadow = []ns.BoxShadow{{Offset: ns.Point{Y: 2}, Blur: 8, Color: ns.RGBA(0x000000, 0.06)}}
 
 // topBar is the bar along the top of the library: the source being shown, the link field, 本地视频 and 开始处理. Enter in the field adds the link as 开始处理 does. It lies over the page's scroll view, which scrolls under it, and drags the window. It takes the prototype's toolbar: 65 points high, its controls 10 from its top and 14 from its end, and its title 24 from its start at 15 points; on macOS the sidebar holds the traffic lights, so none of its room is the window controls', and elsewhere it keeps clear of those at its end and is at least as tall as the title bar.
 type topBar struct {
@@ -59,10 +62,10 @@ func (b topBar) Render(cx *ns.Scope) ns.Node {
 		LabelFunc: title,
 		Desktop:   ns.DesktopViewProps{WindowDrag: ns.WindowDragOn},
 		Style: ns.Style{Position: ns.Absolute, Top: ns.Pt(0), Left: ns.Pt(0), Right: ns.Pt(0), Direction: ns.Row, AlignItems: ns.AlignStretch, JustifyContent: ns.JustifySpaceBetween,
-			Gap: 16, Gradients: []ns.Gradient{barFade}},
+			Gap: 16},
 		StyleFunc: func() ns.Style {
 			bar := nsdesktop.TitleBar(cx)
-			return ns.Style{MinHeight: ns.Pt(max(65, bar.Top)), Padding: ns.Edges{Top: 10, Right: 14 + bar.Right, Bottom: 18, Left: 24}}
+			return ns.Style{MinHeight: ns.Pt(max(65, bar.Top)), Padding: ns.Edges{Top: 10, Right: 14 + bar.Right, Bottom: 18, Left: 24}, Gradients: []ns.Gradient{barFade(colors.Background())}}
 		},
 		Children: []ns.Node{head, end},
 	}
@@ -92,8 +95,9 @@ func (l localButton) Render(cx *ns.Scope) ns.Node {
 	}
 	tip := ui.Tooltip{TextFunc: func() string { return locales.FilmsLocalVideoTooltip(cx, cx.KeyLabel(a.PickVideosShortcut())) }, Trigger: button,
 		Style: ns.Style{FlexGrow: 1}}
+	k := theme.Of(cx)
 	return ns.View{Style: ns.Style{Direction: ns.Row, MinWidth: ns.Pt(104), FlexShrink: 0, Height: ns.Pt(34), Padding: ns.Symmetric(0, 3), CornerRadius: 17, AlignItems: ns.AlignCenter,
-		Background: pillFill, BorderWidth: 0.5, BorderColor: pillHairline, Shadows: pillShadow}, Children: []ns.Node{tip}}
+		BorderWidth: 0.5}, StyleFunc: func() ns.Style { return pill(k) }, Children: []ns.Node{tip}}
 }
 
 // linkField is the pill the link is pasted into, with the link's platform at its end once it reads as one, and the prototype's focus ring around it while it has the focus: a 3-point ring of the accent at half its strength, a point outside the pill.
@@ -140,13 +144,14 @@ func (l linkField) Render(cx *ns.Scope) ns.Node {
 	}}
 	return ns.View{
 		Style: ns.Style{Direction: ns.Row, Width: ns.Pt(380), FlexShrink: 1, MinWidth: ns.Pt(200), Height: ns.Pt(34), CornerRadius: 17, Padding: ns.Edges{Left: 12, Right: 8}, Gap: 7,
-			AlignItems: ns.AlignCenter, Background: pillFill, BorderWidth: 0.5, BorderColor: pillHairline, Shadows: pillShadow},
+			AlignItems: ns.AlignCenter, BorderWidth: 0.5},
 		StyleFunc: func() ns.Style {
-			if !focused.Get() {
-				return ns.Style{}
+			s := pill(theme.Of(cx))
+			if focused.Get() {
+				// outline: 3px solid rgba(10,102,216,.5); outline-offset: 1px.
+				s.OutlineWidth, s.OutlineOffset, s.OutlineColor = 3, 1, colors.Accent().Faded(0.5)
 			}
-			// outline: 3px solid rgba(10,102,216,.5); outline-offset: 1px.
-			return ns.Style{OutlineWidth: 3, OutlineOffset: 1, OutlineColor: colors.Accent().Faded(0.5)}
+			return s
 		},
 		Children: []ns.Node{ui.Icon(svg(linkIcon), 15, colors.Muted), input, badge},
 	}

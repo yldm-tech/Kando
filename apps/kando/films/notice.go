@@ -3,6 +3,7 @@ package films
 import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -38,18 +39,14 @@ func (n notice) Render(cx *core.Scope) core.Node {
 	return core.Show{When: func() bool { return look().open }, Then: func(cx *core.Scope) core.Node { return noticeBar(cx, a, look) }}
 }
 
-// The message bar's colors: its fill, hairline and ink, amber for a warning and green for news that something worked.
-var (
-	warnFill, warnRing, warnInk = core.RGB(0xFFF7E3), core.RGBA(0xB47800, 0.25), core.RGB(0x5A3A00)
-	okFill, okRing, okInk       = core.RGB(0xEAF7EE), core.RGBA(0x1E823C, 0.25), core.RGB(0x14532D)
-)
-
+// noticeBar is the message bar in the theme's colors for it (theme.Of): its fill, hairline and ink, amber for a warning and green for news that something worked.
 func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
+	k := theme.Of(cx)
 	ink := func() core.Color {
 		if look().success {
-			return okInk
+			return k.OKText()
 		}
-		return warnInk
+		return k.WarnText()
 	}
 	mark := core.SVGView{Style: core.Style{Width: core.Pt(16), Height: core.Pt(16), FlexShrink: 0}, SVGFunc: func() *core.SVG {
 		if look().success {
@@ -78,8 +75,9 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 	close := base.Button{TestID: "notice-close", LabelFunc: func() string { return locales.FilmsCloseNotice(cx) },
 		OnPress: live.On(a, func(core.PressEvent) { a.Notice().Open = false }),
 		Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), CornerRadius: 12, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
-			Cursor: core.CursorDefault, Hover: &core.Style{Background: core.RGBA(0x000000, 0.06)}, FocusVisible: ui.FocusRing(cx, -2)},
-		Children: []core.Node{core.Text{Content: "×", Style: core.Style{FontSize: 15}, StyleFunc: func() core.Style { return core.Style{Color: ink()} }}}}
+			Cursor: core.CursorDefault, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() core.Style { return core.Style{Hover: &core.Style{Background: k.Shade(0.06)}} },
+		Children:  []core.Node{core.Text{Content: "×", Style: core.Style{FontSize: 15}, StyleFunc: func() core.Style { return core.Style{Color: ink()} }}}}
 	// The bar is 42 points high with one line of text, its hairline included.
 	// TODO(nsgo#144): give the bar the status role, so assistive technology reads it as MyGo's RoleStatus did; NSGo's roles have none, and a polite live region announces what it says instead https://github.com/nsgo-dev/nsgo/issues/144
 	return core.View{
@@ -90,9 +88,9 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 			AlignItems: core.AlignCenter, CornerRadius: 14, BorderWidth: 0.5},
 		StyleFunc: func() core.Style {
 			if look().success {
-				return core.Style{Background: okFill, BorderColor: okRing}
+				return core.Style{Background: k.OKFill(), BorderColor: k.OKRing()}
 			}
-			return core.Style{Background: warnFill, BorderColor: warnRing}
+			return core.Style{Background: k.WarnFill(), BorderColor: k.WarnRing()}
 		},
 		Children: []core.Node{mark, text, settings, open, list, close},
 	}

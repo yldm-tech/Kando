@@ -124,16 +124,48 @@ func TestSidebarSourceLeavesTheSettings(t *testing.T) {
 	}
 }
 
-// TestWindowIsLightAndTheFilmDark checks the palette: the window is light with Kando's colors whatever the desktop's appearance, and an open film is drawn in the dark theme.
-func TestWindowIsLightAndTheFilmDark(t *testing.T) {
+// TestWindowFollowsTheSystemAppearance checks the palette: the window is light with Kando's colors while the system is, turns dark with the system, the sidebar, the library page and the settings window with it, and an open film is drawn in the dark theme either way.
+func TestWindowFollowsTheSystemAppearance(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
+	content := func() *nsgotest.View {
+		return windowChildOf(t, windowRoot(t, tt), tt.Find(whole(testlocale.Messages().FilmsStart())))
+	}
+	status := func() ns.Color { return tt.Find("id:sidebar-status").TextStyle.Color }
+	if bg := content().Style.Background; bg != ns.RGB(0xFFFFFF) {
+		t.Fatalf("content = %#x in the light, want white", uint32(bg))
+	}
+	if c := status(); c != ns.RGB(0x3A3A3F) {
+		t.Fatalf("sidebar status = %#x in the light, want #3A3A3F", uint32(c))
+	}
+
 	env := testEnvironment()
 	env.Dark = true
 	tt.SetEnvironment(env)
-	content := windowChildOf(t, windowRoot(t, tt), tt.Find(whole(testlocale.Messages().FilmsStart())))
-	if bg := content.Style.Background; bg != ns.RGB(0xFFFFFF) {
-		t.Fatalf("content = %#x, want white", uint32(bg))
+	if bg := content().Style.Background; !darkFace(bg) {
+		t.Fatalf("content = %#x in the dark, want dark", uint32(bg))
 	}
+	if c := status(); !lightInk(c) {
+		t.Fatalf("sidebar status = %#x in the dark, want light", uint32(c))
+	}
+	if face := tt.Find("id:sidebar-switcher").Style.Background; lightInk(face) {
+		t.Fatalf("library switcher = %#x in the dark, want no white pill", uint32(face))
+	}
+
+	settingsOpenAt(a, tt, settings.SectionGeneral)
+	if bg := tt.Find("id:settings-window").Style.Background; !darkFace(bg) {
+		t.Fatalf("settings window = %#x in the dark, want dark", uint32(bg))
+	}
+	if c := tt.Find("id:settings-title").TextStyle.Color; !lightInk(c) {
+		t.Fatalf("settings title = %#x in the dark, want light", uint32(c))
+	}
+	env.Dark = false
+	tt.SetEnvironment(env)
+	if bg := tt.Find("id:settings-window").Style.Background; bg != ns.RGB(0xF5F5F7) {
+		t.Fatalf("settings window = %#x back in the light, want #F5F5F7", uint32(bg))
+	}
+	a.prefs.open = false
+	env.Dark = true
+	tt.SetEnvironment(env)
 
 	a.library.Jobs = []core.Job{{ID: "j", Source: "https://example.com/v", Stage: core.StageQueued}}
 	a.openKey = "j"
@@ -146,9 +178,21 @@ func TestWindowIsLightAndTheFilmDark(t *testing.T) {
 			under = c.Style.Background
 		}
 	}
-	if r, g, b, _ := under.Components(); under == 0 || r > 60.0/255 || g > 60.0/255 || b > 60.0/255 {
+	if !darkFace(under) {
 		t.Fatalf("film page = %#x, want dark", uint32(under))
 	}
+}
+
+// darkFace reports whether c is an opaque dark color, as the dark page's and window's are.
+func darkFace(c ns.Color) bool {
+	r, g, b, alpha := c.Components()
+	return c != 0 && alpha == 1 && r <= 60.0/255 && g <= 60.0/255 && b <= 60.0/255
+}
+
+// lightInk reports whether c is a light color, as text on a dark page is.
+func lightInk(c ns.Color) bool {
+	r, g, b, _ := c.Components()
+	return r >= 180.0/255 && g >= 180.0/255 && b >= 180.0/255
 }
 
 func TestTitleBarClearsTheTrafficLights(t *testing.T) {

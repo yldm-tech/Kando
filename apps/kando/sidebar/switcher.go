@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -13,10 +14,8 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
+// The pill is the theme's card color, translucent, pressed in its shade, its hairline the shade (theme.Of).
 var (
-	pillFill     = core.RGBA(0xFFFFFF, 0.6)
-	pillOpenFill = core.RGBA(0x000000, 0.07)
-	pillHairline = core.RGBA(0x000000, 0.06)
 	// The folder tile's blue, from light at the top left to dark at the bottom right.
 	tileFrom = core.RGB(0x2F8BFF)
 	tileTo   = core.RGB(0x0A57C2)
@@ -29,7 +28,7 @@ type switcher struct{ a App }
 // Render implements core.Node.
 func (s switcher) Render(cx *core.Scope) core.Node {
 	a := s.a
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	name := live.Func(a, func() string {
 		if dir := a.LibraryDir(); dir != "" {
 			return Title(dir)
@@ -65,12 +64,13 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 		Expanded:  open.Get,
 		OnPress:   press,
 		Style: core.Style{Direction: core.Row, FlexGrow: 1, Height: core.Pt(40), AlignItems: core.AlignCenter, Gap: 9, Padding: core.Symmetric(0, 10), CornerRadius: 10,
-			Shadows: []core.BoxShadow{{Spread: 0.5, Color: pillHairline, Inset: true}}, Cursor: core.CursorDefault},
+			Cursor: core.CursorDefault},
 		StyleFunc: func() core.Style {
+			hairline := []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.06), Inset: true}}
 			if open.Get() {
-				return core.Style{Background: pillOpenFill}
+				return core.Style{Background: k.Shade(0.07), Shadows: hairline}
 			}
-			return core.Style{Background: pillFill, Active: &core.Style{Background: pillOpenFill}}
+			return core.Style{Background: k.Card().Faded(0.6), Shadows: hairline, Active: &core.Style{Background: k.Shade(0.07)}}
 		},
 		Children: []core.Node{
 			tile,

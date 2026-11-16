@@ -3,6 +3,7 @@ package browse
 import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -12,14 +13,8 @@ import (
 // toolbarHeight is the toolbar's height on macOS, where it lies under the window's hidden title bar beside the sidebar's card and drags the window, as a unified toolbar does.
 const toolbarHeight core.Points = 52
 
-var (
-	// toolbarLine is the hairline under the toolbar.
-	toolbarLine = core.RGBA(0x000000, 0.1)
-	// The address field's pill: white over the toolbar, a hairline around it and a soft shadow under it.
-	addressFill   = core.RGBA(0xFFFFFF, 0.75)
-	addressBorder = core.RGBA(0x000000, 0.12)
-	addressShadow = core.RGBA(0x000000, 0.06)
-)
+// addressShadow is the soft shadow under the address field's pill. The pill is the theme's card color, translucent, over the toolbar with the shade's hairline around it, and the toolbar's hairline under it is the shade too (theme.Of).
+var addressShadow = core.RGBA(0x000000, 0.06)
 
 // toolbar is the row along the top of the page: back, forward, reload (stop while the page loads) and home, the address field growing between them and 下载视频 at the end. On macOS it is the window's title bar beside the sidebar and drags the window; elsewhere the content's drag band lies above it.
 type toolbar struct{ a App }
@@ -27,13 +22,13 @@ type toolbar struct{ a App }
 // Render implements core.Node.
 func (t toolbar) Render(cx *core.Scope) core.Node {
 	a := t.a
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	state := live.Memo(cx, a, a.BrowseState)
 	bar := core.View{
 		TestID: "browse-toolbar",
 		Style: core.Style{Direction: core.Row, FlexShrink: 0, AlignItems: core.AlignCenter, Gap: 10, Padding: core.Edges{Top: 9, Right: 14, Bottom: 9, Left: 14},
-			Borders: core.Edges{Bottom: 0.5}, BorderColor: toolbarLine},
-		StyleFunc: ui.Filled(colors.Background),
+			Borders: core.Edges{Bottom: 0.5}},
+		StyleFunc: func() core.Style { return core.Style{Background: colors.Background(), BorderColor: k.Shade(0.1)} },
 	}
 	if core.Untracked(cx, func() bool { return cx.Env().OS() == core.OSMacOS }) {
 		bar.Style.MinHeight = core.Pt(toolbarHeight)
@@ -111,12 +106,14 @@ func (f address) Render(cx *core.Scope) core.Node {
 	return core.View{
 		Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(160), Height: core.Pt(34), CornerRadius: 17,
 			Padding: core.Edges{Left: 12, Right: 12}, Gap: 8, AlignItems: core.AlignCenter,
-			Background: addressFill, BorderWidth: 0.5, BorderColor: addressBorder, Shadows: []core.BoxShadow{{Offset: core.Point{Y: 2}, Blur: 8, Color: addressShadow}}},
+			BorderWidth: 0.5, Shadows: []core.BoxShadow{{Offset: core.Point{Y: 2}, Blur: 8, Color: addressShadow}}},
 		StyleFunc: func() core.Style {
-			if !focused.Get() {
-				return core.Style{}
+			k := theme.Of(cx)
+			s := core.Style{Background: k.Card().Faded(0.75), BorderColor: k.Shade(0.12)}
+			if focused.Get() {
+				s.OutlineWidth, s.OutlineOffset, s.OutlineColor = 3, 1, ui.Alpha(colors.Accent(), 0.5)
 			}
-			return core.Style{OutlineWidth: 3, OutlineOffset: 1, OutlineColor: ui.Alpha(colors.Accent(), 0.5)}
+			return s
 		},
 		Children: []core.Node{
 			core.View{Style: core.Style{FlexShrink: 0}, Children: []core.Node{ui.Icon(svg(iconGlobe), 15, colors.Muted)}},

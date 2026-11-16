@@ -133,7 +133,7 @@ func (r fileRow) Render(cx *core.Scope) core.Node {
 		name := filepath.Base(file)
 		radio := ui.Radio{Label: name, TestID: "settings-model-file", Checked: func() bool { return true }, OnChange: func(bool) {}}
 		texts := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
-			core.Text{Content: name, MaxLines: 1, EllipsizeMode: core.EllipsizeMiddle, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: form.Text}},
+			core.Text{Content: name, MaxLines: 1, EllipsizeMode: core.EllipsizeMiddle, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)},
 			form.Value(static(a.DisplayPath(file)), 11),
 		}}
 		return core.View{TestID: "settings-model-row-file",
@@ -245,14 +245,14 @@ func (r modelRow) Render(cx *core.Scope) core.Node {
 				a.UseSpeechModel(path)
 			}
 		})}
-	title := []core.Node{core.Text{Content: name, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: form.Text}}}
+	title := []core.Node{core.Text{Content: name, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)}}
 	if model.Recommended {
 		title = append(title, form.Badge(locales.SettingsSpeechRecommended(cx)))
 	}
 	about := SpeechModelBlurb(cx, model.ID) + "\n" + locales.SettingsSpeechModelStats(cx, stars(model.Speed), stars(model.Accuracy), model.SizeLabel)
 	texts := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignCenter}, Children: title},
-		core.Text{Content: about, Style: core.Style{FontSize: 11, LineHeight: 15, Color: form.Secondary}},
+		core.Text{Content: about, Style: core.Style{FontSize: 11, LineHeight: 15}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)},
 	}}
 	end := core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, Gap: 8, AlignItems: core.AlignCenter}, Children: []core.Node{modelAction{a: a, model: model}}}
 	return core.View{TestID: "settings-model-row-" + model.ID,

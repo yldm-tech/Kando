@@ -5,6 +5,7 @@ import (
 
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -66,10 +67,8 @@ const (
 )
 
 var (
-	// tile is the GitHub tile's #24292F.
+	// tile is the GitHub tile's #24292F. The preview's well is the theme's shade over the dialog, the prototype's #F2F2F5 on the light one.
 	tile = core.RGB(0x24292F)
-	// previewFill is the preview's well, the prototype's #F2F2F5 over the dialog.
-	previewFill = core.RGBA(0x000000, 0.045)
 )
 
 // Dialog shows the dialog over the window while the app's FeedbackOpen holds. A click outside it does not close it, so nothing typed is lost; Escape and 取消 close it, and 在 GitHub 中打开 asks the app to open the issue, which closes it once the browser has the link.
@@ -274,11 +273,12 @@ func attachment(cx *core.Scope, a App, id string, on *bool, label func() string,
 func preview(cx *core.Scope, view func() View) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.Group{
-		core.Scroll{Style: core.Style{MaxHeight: core.Pt(previewMaxH), FlexShrink: 0, CornerRadius: 12, Background: previewFill}, Children: []core.Node{
-			core.Text{TestID: "feedback-preview", ContentFunc: func() string { return view().Issue.Preview(locales.For(cx)) }, Selectable: core.SelectableOn,
-				Style:     core.Style{FontFamily: ui.Mono, FontSize: 12, LineHeight: 18, Padding: core.Symmetric(10, 12)},
-				StyleFunc: func() core.Style { return core.Style{Color: colors.Text().Faded(0.8)} }},
-		}},
+		core.Scroll{Style: core.Style{MaxHeight: core.Pt(previewMaxH), FlexShrink: 0, CornerRadius: 12},
+			StyleFunc: func() core.Style { return core.Style{Background: theme.Of(cx).Shade(0.045)} }, Children: []core.Node{
+				core.Text{TestID: "feedback-preview", ContentFunc: func() string { return view().Issue.Preview(locales.For(cx)) }, Selectable: core.SelectableOn,
+					Style:     core.Style{FontFamily: ui.Mono, FontSize: 12, LineHeight: 18, Padding: core.Symmetric(10, 12)},
+					StyleFunc: func() core.Style { return core.Style{Color: colors.Text().Faded(0.8)} }},
+			}},
 		core.Show{When: func() bool { return view().Issue.Truncated }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{ContentFunc: func() string { return locales.FeedbackTruncated(cx, view().Issue.Cut) }, Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 4)},
 				StyleFunc: ui.Colored(colors.Warn)}

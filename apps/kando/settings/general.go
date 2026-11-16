@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
+	"kando/apps/kando/theme"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -227,7 +228,7 @@ func (r toolRow) Render(cx *core.Scope) core.Node {
 	end := core.Dynamic(func(cx *core.Scope) core.Node {
 		switch state.Get() {
 		case toolInstalled:
-			return form.Status(ui.Fixed(form.OK), ui.Fixed(form.Secondary), live.Func(a, func() string {
+			return form.Status(ui.Fixed(form.OK), colors.Muted, live.Func(a, func() string {
 				if version := a.ToolVersion(path()); version != "" {
 					return version
 				}
@@ -247,13 +248,14 @@ func (r toolRow) Render(cx *core.Scope) core.Node {
 					return locales.SettingsGeneralDownload(cx)
 				})}
 		}
-		return form.Status(colors.Danger, ui.Fixed(form.Secondary), static(locales.SettingsGeneralNotInstalled(cx)))
+		return form.Status(colors.Danger, colors.Muted, static(locales.SettingsGeneralNotInstalled(cx)))
 	})
-	tile := core.View{Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), FlexShrink: 0, CornerRadius: 8, Background: core.RGB(0xF0F1F4), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
-		Children: []core.Node{core.Text{Content: r.mark, Role: core.RoleNone, Style: core.Style{FontFamily: "monospace", FontSize: 10, FontWeight: ui.Bold, Color: core.RGB(0x3A3A3F)}}}}
+	k := theme.Of(cx)
+	tile := core.View{Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), FlexShrink: 0, CornerRadius: 8, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, StyleFunc: ui.Filled(k.Tile),
+		Children: []core.Node{core.Text{Content: r.mark, Role: core.RoleNone, Style: core.Style{FontFamily: "monospace", FontSize: 10, FontWeight: ui.Bold}, StyleFunc: ui.Colored(k.Strong)}}}
 	texts := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
-		core.Text{Content: r.name, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: form.Text}},
-		core.Text{ContentFunc: func() string { return locales.SettingsGeneralToolDetail(cx, r.use, where()) }, Style: core.Style{FontSize: 11, Color: form.Secondary}},
+		core.Text{Content: r.name, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)},
+		core.Text{ContentFunc: func() string { return locales.SettingsGeneralToolDetail(cx, r.use, where()) }, Style: core.Style{FontSize: 11}, StyleFunc: ui.Colored(colors.Muted)},
 	}}
 	return core.View{Role: core.RoleGroup, Label: r.name, TestID: "settings-tool-" + r.name,
 		Style:    core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(48), Padding: core.Symmetric(6, 14), Gap: 12, AlignItems: core.AlignCenter},

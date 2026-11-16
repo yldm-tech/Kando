@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -65,7 +66,7 @@ func (c cli) Render(cx *core.Scope) core.Node {
 	end := core.Dynamic(func(cx *core.Scope) core.Node {
 		switch state.Get() {
 		case cliInstalled:
-			return form.Status(ui.Fixed(form.OK), ui.Fixed(form.Secondary), static(locales.SettingsGeneralInstalled(cx)))
+			return form.Status(ui.Fixed(form.OK), colors.Muted, static(locales.SettingsGeneralInstalled(cx)))
 		case cliInstallable:
 			return form.Button{TestID: "settings-cli-install", OnPress: live.Do(a, func() {
 				if !a.CLI().Installing {
@@ -80,7 +81,7 @@ func (c cli) Render(cx *core.Scope) core.Node {
 					return locales.SettingsGeneralCLIInstall(cx)
 				})}
 		case cliMissing:
-			return form.Status(ui.Fixed(form.Idle), ui.Fixed(form.Secondary), static(locales.SettingsGeneralNotInstalled(cx)))
+			return form.Status(theme.Of(cx).Idle, colors.Muted, static(locales.SettingsGeneralNotInstalled(cx)))
 		}
 		return core.Group(nil)
 	})
@@ -95,13 +96,13 @@ func (c cli) Render(cx *core.Scope) core.Node {
 		Trailing: []core.Node{cliCopy(cx, a, "settings-cli-copy-config", locales.SettingsGeneralCLICopyConfig(cx), func(st CLI) string { return st.MCPConfig })}}
 	command := core.Show{When: live.Func(a, func() bool { st := a.CLI(); return st.Known && st.ClaudeCommand != "" }), Then: func(*core.Scope) core.Node {
 		return core.Text{ContentFunc: live.Func(a, func() string { return a.CLI().ClaudeCommand }), Selectable: core.SelectableOn,
-			Style: core.Style{FontFamily: "Menlo", FontSize: 11, LineHeight: 16, Color: form.Secondary}}
+			Style: core.Style{FontFamily: "Menlo", FontSize: 11, LineHeight: 16}, StyleFunc: ui.Colored(colors.Muted)}
 	}}
 	claude := core.View{Role: core.RoleGroup, Label: locales.SettingsGeneralCLIClaudeCode(cx),
 		Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(46), Padding: core.Symmetric(6, 14), Gap: 10, AlignItems: core.AlignCenter},
 		Children: []core.Node{
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
-				core.Text{Content: locales.SettingsGeneralCLIClaudeCode(cx), Style: core.Style{FontSize: 13, LineHeight: 18, Color: form.Text}},
+				core.Text{Content: locales.SettingsGeneralCLIClaudeCode(cx), Style: core.Style{FontSize: 13, LineHeight: 18}, StyleFunc: ui.Colored(colors.Text)},
 				command,
 			}},
 			core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, AlignItems: core.AlignCenter}, Children: []core.Node{

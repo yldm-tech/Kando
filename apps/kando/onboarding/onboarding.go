@@ -4,6 +4,7 @@ package onboarding
 import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -141,22 +142,10 @@ const (
 	artWidth    = 340
 )
 
-var (
-	// sheetFill is the sheet's face, ink its text, and the grays its secondary text, as the prototype colors them.
-	sheetFill = core.RGB(0xF6F6F8)
-	ink       = core.RGB(0x1D1D1F)
-	gray      = core.RGB(0x8A8A90)
-	muted     = core.RGB(0x6A6A70)
-	blue      = core.RGB(0x0A66D8)
-	// cardRing is the hairline around a white card, and rowRule the line between a card's rows.
-	cardRing = core.RGBA(0x000000, 0.1)
-	rowRule  = core.RGBA(0x000000, 0.08)
-	// The colors of a row's second line: progress, a failure, and what Kando cannot do, and of a link the field reads as one.
-	progressBlue = core.RGB(0x0052B0)
-	failedRed    = core.RGB(0xC4291C)
-	warnOrange   = core.RGB(0xB25000)
-	okGreen      = core.RGB(0x1B6B30)
-)
+// The sheet's colors are the theme's, which follow the window's appearance and are the prototype's on the light window: its face the window's ground (theme.Of's Window), its text the text's color and its secondary text the muted one (ui.ColorsOf), its dimmest words the placeholder gray, the accent's blue, cards in the card color with the shade's hairline, and the inks of a row's second line and of what the link field reads: the accent ink for progress, the danger ink for a failure, the warn ink for what Kando cannot do and the success ink for a link it can add.
+
+// transparent is a color that is set and shows nothing, which a static style merges over the dialog's own where a zero color would leave it.
+var transparent = core.RGBA(0xFFFFFF, 0)
 
 // View is the guide over the window while App.OnboardingStep is not 0: the art on the left, the step on the right, and its buttons at the foot. Escape skips it, as 跳过 does; a click beside it does nothing, so what was typed is not lost. It is the prototype's own 820-wide sheet on every platform, held inside the window.
 type View struct{ App App }
@@ -177,14 +166,15 @@ func (v View) Render(cx *core.Scope) core.Node {
 		Bare:                   true,
 		// TODO(nsgo#145): give base.Dialog (and ui.Dialog) a LabelFunc twin, so the sheet's accessible name follows the interface language as it changes; it is read once as the sheet opens, and a Dynamic would build the sheet again and take the link field's focus with it https://github.com/nsgo-dev/nsgo/issues/145
 		Label: locales.OnboardingWelcome(cx),
-		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: 16, Background: sheetFill,
-			BorderWidth: 0.5, BorderColor: core.RGBA(0x000000, 0.22),
+		// TODO(nsgo#347): give ui.Dialog a StyleFunc twin, so a bare dialog's own face and rim can follow the appearance; its Style is merged as it is, so the dialog's face and rim are left clear here and the sheet inside draws them (sheet) https://github.com/nsgo-dev/nsgo/issues/347
+		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: 16, Background: transparent,
+			BorderWidth: 0.5, BorderColor: transparent,
 			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 24}, Blur: 70, Color: core.RGBA(0x000000, 0.35)}}},
 		Children: []core.Node{sheet{a}},
 	}
 }
 
-// sheet is what the dialog holds, built as it opens: the art and the step side by side.
+// sheet is what the dialog holds, built as it opens: the art and the step side by side, on the sheet's face with its hairline rim.
 type sheet struct{ a App }
 
 // Render implements core.Node.
@@ -198,8 +188,14 @@ func (s sheet) Render(cx *core.Scope) core.Node {
 		}
 		return last
 	})
-	return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch},
-		Children: []core.Node{art{a: a, step: step}, content{a: a, step: step}}}
+	k := theme.Of(cx)
+	// The rim is a ring inside the edge, over the art too, as the dialog's border was.
+	rim := core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), CornerRadius: ui.RadiusDialog - 1},
+		StyleFunc: func() core.Style {
+			return core.Style{Shadows: []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.22), Inset: true}}}
+		}}
+	return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch}, StyleFunc: ui.Filled(k.Window),
+		Children: []core.Node{art{a: a, step: step}, content{a: a, step: step}, rim}}
 }
 
 // content is the right side: the step's number and dots and 跳过, its title and description, its body, and the buttons.
@@ -211,6 +207,7 @@ type content struct {
 // Render implements core.Node.
 func (c content) Render(cx *core.Scope) core.Node {
 	a, step := c.a, c.step
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	skip := func() string {
 		if step() == Steps {
 			return locales.OnboardingLookAround(cx)
@@ -219,7 +216,7 @@ func (c content) Render(cx *core.Scope) core.Node {
 	}
 	head := core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter}, Children: []core.Node{
 		core.Text{ContentFunc: func() string { return locales.OnboardingStepCounter(cx, step(), Steps) },
-			Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold, Color: gray, FontVariant: core.FontTabularNums}},
+			Style: core.Style{FontSize: 12, FontWeight: core.FontWeightSemibold, FontVariant: core.FontTabularNums}, StyleFunc: ui.Colored(k.Placeholder)},
 		dots{step},
 		core.View{Style: core.Style{FlexGrow: 1}},
 		flatButton(cx, "onboarding-skip", skip, live.Do(a, a.OnboardingSkip)),
@@ -229,7 +226,7 @@ func (c content) Render(cx *core.Scope) core.Node {
 	titleText := core.View{Role: core.RoleHeader, AccessibilityLevel: func() int { return 1 }, Accessible: true, LabelFunc: title,
 		Style:    core.Style{Margin: core.Edges{Top: 14}},
 		Children: []core.Node{core.Text{ContentFunc: title, Style: core.Style{FontSize: 22, FontWeight: core.FontWeightBold, LetterSpacing: -0.22}}}}
-	descriptionText := core.Text{ContentFunc: description, Style: core.Style{FontSize: 13, LineHeight: 20, Color: muted, Margin: core.Edges{Top: 6}}}
+	descriptionText := core.Text{ContentFunc: description, Style: core.Style{FontSize: 13, LineHeight: 20, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Muted)}
 	// The step's body is built again for each step; its parts follow the app's state through their bindings.
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
 		switch step() {
@@ -243,8 +240,9 @@ func (c content) Render(cx *core.Scope) core.Node {
 	scroll := core.Scroll{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Margin: core.Edges{Top: 15, Left: -4, Right: -4}},
 		Children: []core.Node{core.View{Style: core.Style{Padding: core.Symmetric(3, 4), Gap: 16, AlignItems: core.AlignStretch}, Children: []core.Node{body}}}}
 	return core.View{
-		Style:    core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Padding: core.Edges{Top: 26, Right: 30, Bottom: 20, Left: 30}, AlignItems: core.AlignStretch, Color: ink},
-		Children: []core.Node{head, titleText, descriptionText, scroll, footer{a: a, step: step}},
+		Style:     core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Padding: core.Edges{Top: 26, Right: 30, Bottom: 20, Left: 30}, AlignItems: core.AlignStretch},
+		StyleFunc: ui.Colored(colors.Text),
+		Children:  []core.Node{head, titleText, descriptionText, scroll, footer{a: a, step: step}},
 	}
 }
 
@@ -267,15 +265,16 @@ type dots struct{ step func() int }
 
 // Render implements core.Node.
 func (d dots) Render(cx *core.Scope) core.Node {
+	k := theme.Of(cx)
 	var row []core.Node
 	for i := 1; i <= Steps; i++ {
 		row = append(row, core.View{StyleFunc: func() core.Style {
-			w, fill := core.Points(4), core.RGBA(0x000000, 0.14)
+			w, fill := core.Points(4), k.Shade(0.14)
 			if i == d.step() {
 				w = 16
 			}
 			if i <= d.step() {
-				fill = blue
+				fill = theme.Accent
 			}
 			return core.Style{Width: core.Pt(w), Height: core.Pt(4), CornerRadius: 2, Background: fill}
 		}})
@@ -293,7 +292,7 @@ type footer struct {
 // Render implements core.Node.
 func (f footer) Render(cx *core.Scope) core.Node {
 	a, step := f.a, f.step
-	privacy := core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 6, AlignItems: core.AlignCenter, Color: gray},
+	privacy := core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 6, AlignItems: core.AlignCenter}, StyleFunc: ui.Colored(theme.Of(cx).Placeholder),
 		Children: []core.Node{
 			core.Icon{SVG: lockIcon, Style: core.Style{Width: core.Pt(11), Height: core.Pt(11), FlexShrink: 0}},
 			core.Text{ContentFunc: func() string { return locales.OnboardingPrivacy(cx) }, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
@@ -335,9 +334,11 @@ func button(cx *core.Scope, text func() string, b ui.Button) core.Node {
 
 // flatButton is the prototype's quiet gray button of the step's head, 跳过: its words alone, a fill under the pointer.
 func flatButton(cx *core.Scope, id string, text func() string, press func()) core.Node {
+	k := theme.Of(cx)
 	return base.Button{TestID: id, LabelFunc: text, OnPress: func(core.PressEvent) { press() },
-		Style: core.Style{Height: core.Pt(24), Padding: core.Symmetric(0, 8), CornerRadius: 6, JustifyContent: core.JustifyCenter, FlexShrink: 0,
-			Hover: &core.Style{Background: core.RGBA(0x000000, 0.05)}, Active: &core.Style{Background: core.RGBA(0x000000, 0.09)}},
-		StyleFunc: func() core.Style { return core.Style{FocusVisible: ui.FocusRing(cx, 2)} },
-		Children:  []core.Node{core.Text{ContentFunc: text, Style: core.Style{FontSize: 12, Color: gray}}}}
+		Style: core.Style{Height: core.Pt(24), Padding: core.Symmetric(0, 8), CornerRadius: 6, JustifyContent: core.JustifyCenter, FlexShrink: 0},
+		StyleFunc: func() core.Style {
+			return core.Style{FocusVisible: ui.FocusRing(cx, 2), Hover: &core.Style{Background: k.Shade(0.05)}, Active: &core.Style{Background: k.Shade(0.09)}}
+		},
+		Children: []core.Node{core.Text{ContentFunc: text, Style: core.Style{FontSize: 12}, StyleFunc: ui.Colored(k.Placeholder)}}}
 }

@@ -7,6 +7,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -21,7 +22,7 @@ func (p shortcuts) Render(cx *core.Scope) core.Node {
 	field := ui.Input{TestID: "settings-shortcut-search", Label: locales.SettingsShortcutsSearch(cx), Placeholder: locales.SettingsShortcutsSearch(cx),
 		Value:    live.Func(a, func() string { return *a.ShortcutQuery() }),
 		OnChange: live.On(a, func(text string) { *a.ShortcutQuery() = text })}
-	note := core.Text{Content: locales.SettingsShortcutsNote(cx), Style: core.Style{FontSize: 11, LineHeight: 15, Color: form.Secondary, Padding: core.Symmetric(0, 4)}}
+	note := core.Text{Content: locales.SettingsShortcutsNote(cx), Style: core.Style{FontSize: 11, LineHeight: 15, Padding: core.Symmetric(0, 4)}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)}
 	// found is the rows the search finds, so the list is built again only when they change, not after every change of the app's state, and not while the field keeps the focus.
 	found := core.NewMemoFunc(cx, live.Func(a, func() []Shortcut {
 		var rows []Shortcut
@@ -41,8 +42,9 @@ func (p shortcuts) Render(cx *core.Scope) core.Node {
 
 // shortcutGroups lists rows under their groups' labels, in the order the groups first come, or says that the search found none.
 func shortcutGroups(cx *core.Scope, rows []Shortcut) core.Node {
+	colors := ui.ColorsOf(cx)
 	if len(rows) == 0 {
-		return core.Text{Content: locales.SettingsShortcutsNone(cx), Style: core.Style{FontSize: 12, Color: form.Secondary, Padding: core.Symmetric(0, 12)}}
+		return core.Text{Content: locales.SettingsShortcutsNone(cx), Style: core.Style{FontSize: 12, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Muted)}
 	}
 	groups, order := map[string][]Shortcut{}, []string{}
 	for _, row := range rows {
@@ -60,8 +62,8 @@ func shortcutGroups(cx *core.Scope, rows []Shortcut) core.Node {
 			}
 			lines = append(lines, core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(36), Padding: core.Symmetric(4, 14), Gap: 10, AlignItems: core.AlignCenter},
 				Children: []core.Node{
-					core.Text{Content: row.Label, Style: core.Style{FontSize: 13, Color: form.Text, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}},
-					keycap(hotkey.Label(cx, row.Key)),
+					core.Text{Content: row.Label, Style: core.Style{FontSize: 13, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Text)},
+					keycap(cx, hotkey.Label(cx, row.Key)),
 				}})
 		}
 		nodes = append(nodes, form.Label(group, 8), form.Card(lines...))
@@ -70,10 +72,13 @@ func shortcutGroups(cx *core.Scope, rows []Shortcut) core.Node {
 }
 
 // keycap is a shortcut's keys on a key, as the prototype's table draws them: 22 points high, light gray with a darker bottom edge.
-func keycap(keys string) core.Node {
-	return core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, Height: core.Pt(22), Padding: core.Symmetric(0, 8), CornerRadius: 6, AlignItems: core.AlignCenter,
-		Background: core.RGBA(0x000000, 0.05), Shadows: []core.BoxShadow{{Offset: core.Point{Y: -1}, Color: core.RGBA(0x000000, 0.08), Inset: true}}},
-		Children: []core.Node{core.Text{Content: keys, MaxLines: 1, Style: core.Style{FontSize: 12, Color: form.Text}}}}
+func keycap(cx *core.Scope, keys string) core.Node {
+	k := theme.Of(cx)
+	return core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, Height: core.Pt(22), Padding: core.Symmetric(0, 8), CornerRadius: 6, AlignItems: core.AlignCenter},
+		StyleFunc: func() core.Style {
+			return core.Style{Background: k.Shade(0.05), Shadows: []core.BoxShadow{{Offset: core.Point{Y: -1}, Color: k.Shade(0.08), Inset: true}}}
+		},
+		Children: []core.Node{core.Text{Content: keys, MaxLines: 1, Style: core.Style{FontSize: 12}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)}}}
 }
 
 // shortcutMatches reports whether the search query finds row, as the command palette finds a command (hotkey.Match): every word of it in what the row does, its group or its keys as the page writes them, ignoring case.

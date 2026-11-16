@@ -10,6 +10,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sites/catalog"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -47,8 +48,6 @@ var (
 	logoPlate    = core.RGB(0xFFFFFF)
 	logoHairline = core.RGBA(0x000000, 0.12)
 	initialText  = core.RGB(0xFFFFFF)
-	// searchFill is the search field's gray, which has no border.
-	searchFill = core.RGBA(0x000000, 0.06)
 )
 
 // Sheet is the sheet, built while it is open: the title and what the list is, the search, the grid of the sites it finds, and where the list comes from with 完成. 完成, Escape once the search is empty, and closing the sheet run OnClose, which closes it.
@@ -150,10 +149,11 @@ func (s search) Render(cx *core.Scope) core.Node {
 		OnChange:        live.On(a, func(text string) { *a.SitesQuery() = text }),
 		OnFocus:         func() { focused.Set(true) },
 		OnBlur:          func() { focused.Set(false) },
-		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(30), CornerRadius: 8, Background: searchFill, FontSize: 13,
+		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(30), CornerRadius: 8, FontSize: 13,
 			Padding: core.Edges{Left: 30, Right: 30}},
+		// The search field's gray, which has no border, is the theme's shade.
 		StyleFunc: func() core.Style {
-			return core.Style{Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
+			return core.Style{Background: theme.Of(cx).Shade(0.06), Color: colors.Text(), PlaceholderColor: colors.Faint(), CaretColor: colors.Accent(), SelectionColor: cx.Palette().Selection}
 		},
 	}
 	clearButton := core.Show{When: func() bool { return s.query() != "" }, Then: func(cx *core.Scope) core.Node {
