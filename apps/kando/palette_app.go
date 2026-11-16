@@ -595,7 +595,7 @@ func (a *app) paletteAsk() {
 		a.palette.answer = &paletteAnswer{failed: true, say: locales.PaletteNotWatched}
 		return
 	}
-	a.paletteSend(t, item, palettePrompt(a.prefs.language, horizon), paletteContext(item.Name, seen)+"\n\n问题："+question, seen, paletteAnswer{horizon: horizon})
+	a.paletteSend(t, item, palettePrompt(paletteAnswerLanguage(item, a.prefs.language), horizon), paletteContext(item.Name, seen)+"\n\n问题："+question, seen, paletteAnswer{horizon: horizon})
 }
 
 // paletteSend sends user, with the instruction system, to t, the AI service set, about item, and shows its reply in the answer card once it comes: the answer and the lines of seen it rests on (paletteParseReply). Meanwhile the card says the question is on its way; when the service fails it says why and offers the service's settings. done is the card the answer fills in: how far the film had been watched, or the line it explains, and the chips it has before those the reply names.
@@ -668,7 +668,7 @@ func (a *app) ExplainLine(i int) {
 	line := around[i-from]
 	quoted := cmp.Or(line.Original, line.Translation)
 	user := paletteContext(item.Name, around) + "\n\n要讲解的一句：[" + cmdpalette.Clock(line.Start) + "] " + quoted
-	a.paletteSend(t, item, paletteExplainPrompt(a.prefs.language), user, around, paletteAnswer{explained: quoted, refs: []time.Duration{line.Start}})
+	a.paletteSend(t, item, paletteExplainPrompt(paletteAnswerLanguage(item, a.prefs.language)), user, around, paletteAnswer{explained: quoted, refs: []time.Duration{line.Start}})
 }
 
 // paletteExplainPlaying is E: Explain Line on the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.
@@ -680,6 +680,16 @@ func (a *app) paletteExplainPlaying() {
 			return
 		}
 	}
+}
+
+// paletteAnswerLanguage is the language the AI service answers about item in: the one its subtitles are translated into, which may not be the one the settings name now, or, for a film translated into none, fallback, the settings' target language.
+func paletteAnswerLanguage(item films.Film, fallback string) string {
+	if item.TranslationErr == "" {
+		if language := strings.TrimSpace(item.Language); language != "" {
+			return language
+		}
+	}
+	return fallback
 }
 
 // paletteExplainPrompt is the instruction Explain Line is sent with: explain the original of the line named last, in the language subtitles are translated into, as JSON in the form palettePrompt asks for.
