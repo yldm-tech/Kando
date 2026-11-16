@@ -118,6 +118,12 @@ func (f *fakeApp) handle(method string, params json.RawMessage) (any, error) {
 			return []remote.List{{Source: p.Sources[0], Videos: []remote.ListVideo{}, Error: "not a playlist or a channel link"}}, nil
 		}
 		return []remote.List{{Source: p.Sources[0], Kind: "channel", Title: "Veritasium", Limit: 50, Videos: []remote.ListVideo{{URL: "https://youtu.be/v1", Title: "One", Duration: 61, InLibrary: true}}}}, nil
+	case remote.MethodTranslate:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return remote.Job{ID: "j0", Source: "https://youtu.be/x", Stage: "queued", Language: "简体中文", FilmID: p.ID}, nil
 	case remote.MethodSites:
 		return []remote.Site{{Name: "Vimeo", Domain: "vimeo.com"}}, nil
 	case remote.MethodShow:
@@ -277,6 +283,7 @@ func TestListTools(t *testing.T) {
 		"kando_list_jobs":        {readOnly: true, idempotent: true},
 		"kando_cancel_job":       {destructive: true, idempotent: true},
 		"kando_retry_job":        {destructive: true, openWorld: true},
+		"kando_translate_film":   {openWorld: true},
 		"kando_remove_job":       {destructive: true, idempotent: true},
 		"kando_search_sites":     {readOnly: true, idempotent: true},
 		"kando_open":             {idempotent: true},
@@ -727,5 +734,43 @@ func TestRunOnStdio(t *testing.T) {
 	}
 	if cmd.ProcessState == nil || !cmd.ProcessState.Success() {
 		t.Errorf("server process ended with %v", cmd.ProcessState)
+	}
+}
+
+// kando_add_videos leaves a folder to kando_list_playlist, which asks the app for it from the server's directory; kando_list_films passes the language to keep; kando_translate_film asks the app to translate a film's missing lines.
+func TestFolderLanguageAndTranslateTools(t *testing.T) {
+	path := shortSocket(t)
+	f := newFake()
+	serveFake(t, path, f)
+	cs := connect(t)
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "Course"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	before := f.count(remote.MethodAdd)
+	added := structured[remote.AddResult](t, call(t, cs, "kando_add_videos", map[string]any{"sources": []string{"Course"}, "dir": dir}))
+	if len(added.Jobs) != 0 || len(added.Skipped) != 1 || added.Skipped[0].Reason != folderSkipped || f.count(remote.MethodAdd) != before {
+		t.Errorf("adding a folder = %+v, asked the app %d times", added, f.count(remote.MethodAdd)-before)
+	}
+	added = structured[remote.AddResult](t, call(t, cs, "kando_add_videos", map[string]any{"sources": []string{filepath.Join(dir, "Course"), "https://youtu.be/z"}}))
+	if len(added.Jobs) != 1 || len(added.Skipped) != 1 || added.Skipped[0].Reason != folderSkipped {
+		t.Errorf("adding a folder by its path = %+v", added)
+	}
+
+	call(t, cs, "kando_list_playlist", map[string]any{"source": "Course"})
+	lists, err := remote.Params[remote.ListsParams](f.lastParams(remote.MethodLists))
+	if wd, _ := os.Getwd(); err != nil || lists.Dir != wd || len(lists.Sources) != 1 || lists.Sources[0] != "Course" {
+		t.Errorf("lists params %+v, %v, want dir %q", lists, err, wd)
+	}
+
+	call(t, cs, "kando_list_films", map[string]any{"spoken_language": "ja"})
+	if p, err := remote.Params[remote.FilmsParams](f.lastParams(remote.MethodFilms)); err != nil || p.Spoken != "ja" {
+		t.Errorf("films params %+v, %v", p, err)
+	}
+
+	job := structured[remote.Job](t, call(t, cs, "kando_translate_film", map[string]any{"id": "f1"}))
+	if job.ID != "j0" || job.Stage != "queued" || string(f.lastParams(remote.MethodTranslate)) != `{"id":"f1"}` {
+		t.Errorf("translate = %+v, params %s", job, f.lastParams(remote.MethodTranslate))
 	}
 }

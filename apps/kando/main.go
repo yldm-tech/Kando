@@ -7,6 +7,7 @@ import (
 
 	"kando/apps/kando/brand"
 	"kando/apps/kando/cli"
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/shelf"
 	"kando/apps/kando/theme"
@@ -14,7 +15,7 @@ import (
 
 	"github.com/nsgo-dev/nsgo"
 	"github.com/nsgo-dev/nsgo/core"
-	"github.com/nsgo-dev/nsgo/desktop"
+	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
 	"github.com/yldm-tech/nodra"
 )
 
@@ -106,6 +107,8 @@ func main() {
 	// TODO(nsgo#332): let a copy started with KANDO_SOCKET run beside the user's own on Windows and Linux, as it does on macOS (remote.launchCommand's open -n) and as MyGo's RequestSingleInstanceLock let Kando decide; nsgo.Run hands every launch of the app's ID to the running copy, so the command line waits on a socket nothing listens on https://github.com/nsgo-dev/nsgo/issues/332
 	// The programs Kando downloads for itself go beside its settings, and are looked up before those on PATH.
 	media.OwnToolsDir = filepath.Join(filepath.Dir(shelf.DefaultPath()), "tools")
+	// A new library goes in the videos folder the system names, as Windows' when it was moved, rather than always in ~/Videos.
+	media.VideosDir = desktop.VideosDir()
 	a := newApp(media.ToolsFromEnv(), nil)
 	defer func() { _ = a.store.Close() }()
 	a.settingsPath = filepath.Join(filepath.Dir(shelf.DefaultPath()), "settings.json")
@@ -140,8 +143,8 @@ func main() {
 func (a *app) run(app *core.Scope) {
 	a.attach(app)
 	// A click on the Dock icon and a second launch reopen the app: the main window comes back, from wherever it was put away.
-	desktop.OnReopen(app, live.Do(a, a.remoteRaise))
-	desktop.OnOpenFiles(app, live.On(a, func(paths []string) {
+	nsdesktop.OnReopen(app, live.Do(a, a.remoteRaise))
+	nsdesktop.OnOpenFiles(app, live.On(a, func(paths []string) {
 		for _, path := range paths {
 			a.libraryOpenFile(path)
 		}

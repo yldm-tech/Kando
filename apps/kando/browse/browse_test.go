@@ -38,7 +38,7 @@ type fakeApp struct {
 	clearOpen  bool
 	navs       []core.WebNavigation
 	failures   []error
-	messages   []string
+	messages   []core.WebMessage
 	calls      []string
 	settingsAt string
 }
@@ -52,7 +52,7 @@ func (f *fakeApp) BrowseUserAgent() string                { return f.agent }
 func (f *fakeApp) BrowseScript() string                   { return f.script }
 func (f *fakeApp) BrowseNavigated(nav core.WebNavigation) { f.navs = append(f.navs, nav) }
 func (f *fakeApp) BrowseFailed(err error)                 { f.failures = append(f.failures, err) }
-func (f *fakeApp) BrowseMessage(data string)              { f.messages = append(f.messages, data) }
+func (f *fakeApp) BrowseMessage(msg core.WebMessage)      { f.messages = append(f.messages, msg) }
 func (f *fakeApp) BrowseAddress() *string                 { return &f.address }
 func (f *fakeApp) BrowseAddressFocus() *bool              { return &f.focus }
 func (f *fakeApp) BrowseAddressFocused(focused bool)      { f.focused = focused }
@@ -151,9 +151,12 @@ func TestPageShowsTheWebView(t *testing.T) {
 	}
 	app.Report(nsgotest.Event{Kind: nsgotest.EventError, ID: web.ID, Text: "A server with the specified hostname could not be found.", Navigation: &core.WebNavigation{URL: "https://nowhere.example/"}})
 	app.PostMessage("id:browse-page", "kando-history:push")
+	// A page the user went on to, of another site, reaches the app too, with its origin, and the app checks what it asks.
+	app.PostMessageFrom("id:browse-page", "https://www.youtube.com/watch?v=jNQXAC9IVRw", true, "kando-ask:[]")
 	app.Settle()
 	var we *core.WebError
-	if len(a.failures) != 1 || !errors.As(a.failures[0], &we) || we.URL != "https://nowhere.example/" || !slices.Equal(a.messages, []string{"kando-history:push"}) {
+	want := []core.WebMessage{{Data: "kando-history:push", Origin: "https://example.com"}, {Data: "kando-ask:[]", Origin: "https://www.youtube.com"}}
+	if len(a.failures) != 1 || !errors.As(a.failures[0], &we) || we.URL != "https://nowhere.example/" || !slices.Equal(a.messages, want) {
 		t.Fatalf("failures %v, messages %q", a.failures, a.messages)
 	}
 	change(app, a, func() { a.state.Page = false })

@@ -1,13 +1,13 @@
 package film
 
 import (
-	"path/filepath"
 	"time"
 
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
+	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -240,11 +240,36 @@ func (s *screen) stage() core.Node {
 							}
 							return core.Style{Color: colors.Muted()}
 						}},
+						s.pluginsRemedy(note),
 						s.unplayableRemedy(note),
 					}}
 			}},
 		},
 	}
+}
+
+// pluginsRemedy is what goes under the note of a video the system's player cannot play for want of GStreamer plug-ins, on Linux: the command that installs them on Debian and Ubuntu, which can be selected, and a button that copies it.
+func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
+	return core.Show{When: func() bool { return note().err == ErrMissingPlugins }, Then: func(cx *core.Scope) core.Node {
+		colors := ui.ColorsOf(cx)
+		copied := core.NewSignal(cx, false)
+		return core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, MaxWidth: core.Pct(100)}, Children: []core.Node{
+			core.Text{TestID: "film-stage-command", Content: GStreamerInstall, Selectable: core.SelectableOn,
+				Style: core.Style{FontFamily: "monospace", FontSize: 11, LineHeight: 16, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Muted)},
+			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language and 已拷贝 without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+			core.Dynamic(func(cx *core.Scope) core.Node {
+				text := locales.FilmCopyCommand(cx)
+				if copied.Get() {
+					text = locales.FilmCommandCopied(cx)
+				}
+				return ui.Button{TestID: "film-stage-copy-command", Text: text, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+					OnPress: func() {
+						cx.SetClipboard(GStreamerInstall)
+						copied.Set(true)
+					}}
+			}),
+		}}
+	}}
 }
 
 // unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file.
@@ -320,12 +345,13 @@ func (s *screen) video(cx *core.Scope, natural *core.Signal[core.Size]) core.Nod
 // fillStyle fills the parent, over what is in it.
 var fillStyle = core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}
 
-// fileURL is the file: URL of path, for an image's source.
+// fileURL is the file: URL of path, for an image's source, escaped (core.FileURL), as the folder yt-dlp names after a video's title may hold a '#' or a '%'.
 func fileURL(path string) string {
 	if path == "" {
 		return ""
 	}
-	return "file://" + filepath.ToSlash(path)
+	// TODO(nsgo#365): NSGo's image loader reads file:///C:/dir/poster.jpg as \C:\dir\poster.jpg on Windows, so the poster does not show there until it reads the drive back https://github.com/nsgo-dev/nsgo/issues/365
+	return kcore.FileURL(path)
 }
 
 // gradients darken the top and the bottom of the picture under the title bar and the transport, and fade with them.

@@ -127,6 +127,11 @@ func sourceError(m locales.Messages, err error) string {
 	return err.Error()
 }
 
+// translationHint says, in the language of m, why a done film translated none of its lines, err being core.Job.TranslationErr, as failureHint says why a translation failed, and the settings section that fixes it: the film page and the card say it (TranslationHint), and the control socket says it in English.
+func translationHint(m locales.Messages, err string) (reason, section string) {
+	return failureHint(m, films.Film{Detail: m.QueueStatusFailed("translate: " + err)})
+}
+
 // failureHint says in the user's words, in the language of m, which is the one the card's detail is in, what a failed job's error means for them, and the settings section that fixes it ("" when none does): a known reason in the user's words, or else the stage that failed and what its tool said, without the tool's prefixes. A job that was stopped rather than failed, as one whose library was switched, already says so in the app's words (statusText), which are kept as they are.
 func failureHint(m locales.Messages, item films.Film) (reason, section string) {
 	detail, isError := strings.CutPrefix(item.Detail, failedPrefix(m))

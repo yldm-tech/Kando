@@ -2,10 +2,12 @@ package saved
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -58,20 +60,35 @@ func standInFFmpeg(t *testing.T, dir string) string {
 	return path
 }
 
+// TestWriteNotesIsAnAnkiTextFile writes notes whose lines hold quotes, tabs, line breaks and a leading #, and reads them back as Anki's text import does (rslib's csv reader: a tab between fields, " quoting with "" for a quote, # starting a comment line, and no column names, so the fields go into Basic's Front and Back in order): every note is one record of two fields, front the original and back the translation, the sound and where the line is, each as it was.
 func TestWriteNotesIsAnAnkiTextFile(t *testing.T) {
 	var b strings.Builder
 	rows := []Row{
-		{Line: Line{Original: "Every river\nbegins", Translation: "每条河\t始于", Film: "#Talk", Start: 72400 * time.Millisecond}, Sound: "kando-1.m4a"},
-		{Line: Line{Original: "Bye.", Film: "Talk", Start: time.Second}},
+		{Line: Line{Original: "\"Every river\"\nbegins", Translation: "每条河\t始于", Film: "#Talk", Start: 72400 * time.Millisecond}, Sound: "kando-1.m4a"},
+		{Line: Line{Original: "#1 \"fan", Film: "Talk", Start: time.Second}},
+		{Line: Line{Original: "Bye.", Translation: "再见。\r\n", Start: 2 * time.Second}},
 	}
 	if err := WriteNotes(&b, rows); err != nil {
 		t.Fatal(err)
 	}
-	want := "#separator:tab\n#html:false\n#columns:Original\tTranslation\tFilm\tTime\tAudio\n" +
-		"Every river begins\t每条河 始于\tTalk\t1:12.4\t[sound:kando-1.m4a]\n" +
-		"Bye.\t\tTalk\t0:01.0\t\n"
-	if b.String() != want {
-		t.Fatalf("notes\n%q\nwant\n%q", b.String(), want)
+	text := b.String()
+	header := "#separator:tab\n#html:false\n#notetype:Basic\n"
+	if !strings.HasPrefix(text, header) || strings.Contains(text, "#columns:") {
+		t.Fatalf("the header of\n%s", text)
+	}
+	r := csv.NewReader(strings.NewReader(text))
+	r.Comma, r.Comment, r.FieldsPerRecord = '\t', '#', -1
+	got, err := r.ReadAll()
+	if err != nil {
+		t.Fatalf("Anki's reader would not read\n%s\n%v", text, err)
+	}
+	want := [][]string{
+		{"\"Every river\"\nbegins", "每条河\t始于\n[sound:kando-1.m4a]\n#Talk · 1:12.4"},
+		{"#1 \"fan", "Talk · 0:01.0"},
+		{"Bye.", "再见。\n0:02.0"},
+	}
+	if !slices.EqualFunc(got, want, slices.Equal[[]string]) {
+		t.Fatalf("notes read back as\n%q\nwant\n%q", got, want)
 	}
 }
 
@@ -128,7 +145,7 @@ func TestExportWritesNotesAndSounds(t *testing.T) {
 	}
 	notes, _ := os.ReadFile(got.File)
 	sound := SoundName(b.Lines[0])
-	if !strings.Contains(string(notes), "Hello.\t你好。\tTalk\t0:02.0\t[sound:"+sound+"]\n") || !strings.Contains(string(notes), "Gone\t\t\t0:01.0\t\n") {
+	if !strings.Contains(string(notes), "\"Hello.\"\t\"你好。\n[sound:"+sound+"]\nTalk · 0:02.0\"\n") || !strings.Contains(string(notes), "\"Gone\"\t\"0:01.0\"\n") {
 		t.Fatalf("notes %q", notes)
 	}
 	if data, err := os.ReadFile(filepath.Join(out, ExportAudio, sound)); err != nil || string(data) != "sound\n" {

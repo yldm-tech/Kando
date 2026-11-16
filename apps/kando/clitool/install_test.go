@@ -240,10 +240,16 @@ func TestCLIToolRefusesATemporaryApp(t *testing.T) {
 
 func TestCLIToolInstallReplacesAStaleKandoLink(t *testing.T) {
 	cliToolUnixOnly(t)
+	for _, stale := range []string{"/Users/someone/.Trash/Kando.app/Contents/MacOS/Kando", "/tmp/.mount_kando-Xy12Ab/kando"} {
+		t.Run(filepath.Base(filepath.Dir(stale)), func(t *testing.T) { cliToolReplacesStaleLink(t, stale) })
+	}
+}
+
+// cliToolReplacesStaleLink checks that Install replaces a kando linked to stale, a Kando that is gone: one deleted from the Trash, or the kando in the mount of an AppImage that has quit, which an earlier Kando linked to.
+func cliToolReplacesStaleLink(t *testing.T, stale string) {
 	root := cliToolRoot(t)
 	exe := cliToolFakeApp(t, root)
 	bin := cliToolMkdir(t, filepath.Join(root, "bin"), 0o755)
-	stale := "/Users/someone/.Trash/Kando.app/Contents/MacOS/Kando"
 	if err := os.Symlink(stale, filepath.Join(bin, "kando")); err != nil {
 		t.Fatal(err)
 	}
@@ -380,5 +386,34 @@ func TestCLIToolLookOnWindows(t *testing.T) {
 	st = Look(env)
 	if st.Ours || st.Command != filepath.Join(first, "kando.cmd") || st.MCPCommand() != exe {
 		t.Fatalf("with another kando first on PATH: %+v", st)
+	}
+}
+
+// TestCLIToolRunsTheAppImage checks that on Linux the command and the MCP configuration run the AppImage Kando was started from, which $APPIMAGE names, rather than the executable inside its mount, which goes when Kando quits; elsewhere, or when $APPIMAGE names no file, they run the executable.
+func TestCLIToolRunsTheAppImage(t *testing.T) {
+	root := cliToolRoot(t)
+	mounted := filepath.Join(root, ".mount_KandoAb12", "kando")
+	appImage := filepath.Join(root, "Applications", "Kando.AppImage")
+	cliToolFakeFile(t, appImage)
+	if got := cliToolAppExe("linux", mounted, appImage); got != appImage {
+		t.Errorf("on Linux under an AppImage: %q, want %q", got, appImage)
+	}
+	for _, c := range []struct{ goos, appImage string }{
+		{"linux", ""},
+		{"linux", filepath.Join(root, "gone.AppImage")},
+		{"linux", filepath.Dir(appImage)},
+		{"linux", "Kando.AppImage"},
+		{"darwin", appImage},
+		{"windows", appImage},
+	} {
+		if got := cliToolAppExe(c.goos, mounted, c.appImage); got != mounted {
+			t.Errorf("cliToolAppExe(%q, APPIMAGE=%q) = %q, want the executable %q", c.goos, c.appImage, got, mounted)
+		}
+	}
+	if runtime.GOOS == "linux" {
+		t.Setenv("APPIMAGE", appImage)
+		if env := EnvHere(); env.Exe != appImage {
+			t.Errorf("EnvHere().Exe = %q with APPIMAGE set, want %q", env.Exe, appImage)
+		}
 	}
 }

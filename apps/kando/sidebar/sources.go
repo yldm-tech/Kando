@@ -52,7 +52,7 @@ func (s sources) Render(cx *core.Scope) core.Node {
 				list := rows.Get()
 				items := make([]ui.SidebarItem, list.n)
 				for i, r := range list.rows[:list.n] {
-					items[i] = ui.SidebarItem{ID: r.id, Text: r.label, TestID: "source-" + r.id, Content: sourceContent(colors, r)}
+					items[i] = ui.SidebarItem{ID: r.id, Text: rowName(cx, r.label, r.count, r.counted), TestID: "source-" + r.id, Content: sourceContent(colors, r)}
 				}
 				return []ui.SidebarSection{{Items: items}}
 			},
@@ -99,6 +99,14 @@ func sourceRowsOf(cx *core.Scope, a App, current string) sourceRows {
 		}
 	}
 	return out
+}
+
+// rowName is the accessible name of a source or a language row: its label, with the count it draws at its end when it is counted, as the count is not read from the row's content.
+func rowName(cx *core.Scope, label string, count int, counted bool) string {
+	if !counted {
+		return label
+	}
+	return locales.SidebarRowCount(cx, label, count)
 }
 
 // sourceContent is a row's icon, label and count, as ui.Sidebar draws an item's icon and label, with the count at its end.

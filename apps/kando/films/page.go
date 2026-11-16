@@ -27,6 +27,8 @@ type App interface {
 	PickLibrary()
 	// OpenSites opens the 支持的网站 sheet.
 	OpenSites()
+	// Select shows a page of the window, as sidebar.PageBrowse, the built-in browser, which 浏览网站 opens.
+	Select(page string)
 	// BeginNew opens the new-library sheet.
 	BeginNew()
 	CancelMaking()
@@ -60,9 +62,9 @@ type App interface {
 	// OpenAt opens a film and starts its picture at at.
 	OpenAt(item Film, at time.Duration)
 	Reveal(path string)
-	// Reprocess makes the subtitles of a done film again, from its download, in the target language set now, or those of a video found in the folder that has none (生成字幕). Either keeps the film as it was if its job fails or is stopped.
+	// Reprocess makes the subtitles of a done film again, from its download, in the language it was translated into (the target language set now for one that was not translated), or those of a video found in the folder that has none (生成字幕). Either keeps the film as it was if its job fails or is stopped.
 	Reprocess(item Film)
-	// AskReprocess asks to confirm Reprocess, which transcribes the film and pays for its translation again. Reprocessing is whether its confirmation is open, the film it asked about and the target language set now, which the film would be translated into; CloseReprocess closes it without processing anything. The confirmation is drawn over the window (ReprocessDialog), as the film page asks too.
+	// AskReprocess asks to confirm Reprocess, which transcribes the film and pays for its translation again. Reprocessing is whether its confirmation is open, the film it asked about and the language it would be translated into; CloseReprocess closes it without processing anything. The confirmation is drawn over the window (ReprocessDialog), as the film page asks too.
 	AskReprocess(item Film)
 	Reprocessing() (open *bool, item Film, language string)
 	CloseReprocess()
@@ -77,10 +79,10 @@ type App interface {
 	// Remove drops a job's card; its video, if any, stays in the library.
 	Remove(id string)
 	Retry(id string)
-	// Failures is how many failed jobs of 处理中 RetryAll would queue again, those whose fix needs no choice of the user's (not a login, a members-only, private, region-locked or DRM video), and how many RemoveFailed would take off; a cancelled job counts for neither. RetryAll queues them again, oldest first, behind the jobs waiting; RemoveFailed removes their cards, keeping their files.
-	Failures() (retryable, failed int)
-	RetryAll()
-	RemoveFailed()
+	// Failures is how many failed jobs of 处理中 from source, the sidebar source the page shows (sidebar.SourceAll for every one), RetryAll would queue again, those whose fix needs no choice of the user's (not a login, a members-only, private, region-locked or DRM video), and how many RemoveFailed would take off; a cancelled job counts for neither. RetryAll queues them again, oldest first, behind the jobs waiting; RemoveFailed removes their cards, keeping their files. Neither touches a failure from another source, whose card 处理中 does not show.
+	Failures(source string) (retryable, failed int)
+	RetryAll(source string)
+	RemoveFailed(source string)
 	// Withdraw is the × of a waiting or running card: a waiting job that has done nothing yet (no video, no transcript, no film it redoes) leaves the queue and the shelf, and any other is cancelled (Cancel), its card staying.
 	Withdraw(id string)
 	// FailureHint says, for a failed job, what went wrong and the settings section that fixes it ("" when none does). FailureDetail is its whole error, as the tool said it, which the card's tooltip shows. ReportFailure opens the feedback dialog to report it, with the job's stage and error attached.
@@ -149,7 +151,7 @@ type Notice struct {
 	Text string
 	// Section is the settings section 打开设置 opens; empty shows no button.
 	Section string
-	// Film is the job ID of the film the bar's 打开 opens, such as the film a link just added is already in the library as; empty shows no button.
+	// Film is the key of the film the bar's 打开 opens, its job's ID or the path of a video of the library's folder no job holds, such as the film a link or a video just added is already in the library as; empty shows no button.
 	Film string
 	// List is the whole playlist the bar's Add Whole Playlist adds (App.AddList), as after one of its videos was added; empty shows no button.
 	List string
@@ -241,12 +243,7 @@ func newShelfModel(a App, source, tag string) shelfModel {
 		m.empty = true
 		return m
 	}
-	var done []Film
-	for _, item := range BySource(items, source) {
-		if !InQueue(item) {
-			done = append(done, item)
-		}
-	}
+	done := Shown(items, source, sidebar.SpokenAll, "")
 	if len(m.queue) == 0 && len(done) == 0 {
 		m.emptySource = true
 		return m
@@ -284,7 +281,7 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 			return hero{a: a, item: func() Film { return model().hero }, compact: func() bool { return len(model().queue) > 0 }}
 		}},
 		core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
-			return queueSection{a: a, queue: func() []Film { return model().queue }}
+			return queueSection{a: a, source: s.source, queue: func() []Film { return model().queue }}
 		}},
 		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
 		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},

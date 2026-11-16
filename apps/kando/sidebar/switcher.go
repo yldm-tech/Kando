@@ -42,7 +42,7 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 	press := func(core.PressEvent) {
 		at := core.Point{}
 		if b, ok := place.Bounds(); ok {
-			at = core.Point{X: b.Origin.X + insetStart, Y: b.Origin.Y + b.Size.Height - 10 + 4}
+			at = core.Point{X: b.Origin.X + insetStart + listPad, Y: b.Origin.Y + b.Size.Height - 10 + 4}
 		}
 		open.Set(true)
 		nsdesktop.PopupMenu(cx, switcherMenu(cx, a), at, func() { open.Set(false) })
@@ -57,14 +57,14 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 		Style: core.Style{FontSize: 11, LineHeight: 16.5, FontWeight: ui.Bold, LetterSpacing: 0.2}, StyleFunc: ui.Colored(colors.Muted)}
 	title := core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		Style: core.Style{FontSize: 13, LineHeight: 16, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)}
-	// A plain row on the sidebar, as the source rows under it: no card of its own, shaded only under the pointer and while its menu is open.
+	// A plain row on the sidebar, as the source rows under it: no card of its own, as wide as their fills with their corners, its tile over their icons, shaded only under the pointer and while its menu is open, and ringed while the keyboard is on it, as they are.
 	button := base.Button{
 		TestID:    "sidebar-switcher",
 		LabelFunc: func() string { return locales.SidebarSwitcherLabel(cx, name()) },
 		Expanded:  open.Get,
 		OnPress:   press,
-		Style: core.Style{Direction: core.Row, FlexGrow: 1, Height: core.Pt(40), AlignItems: core.AlignCenter, Gap: 9, Padding: core.Symmetric(0, 10), CornerRadius: 10,
-			Cursor: core.CursorDefault},
+		Style: core.Style{Direction: core.Row, FlexGrow: 1, Height: core.Pt(40), AlignItems: core.AlignCenter, Gap: 9, Padding: core.Symmetric(0, rowPad), CornerRadius: rowRadius,
+			Cursor: core.CursorDefault, FocusVisible: ui.FocusRing(cx, -2)},
 		StyleFunc: func() core.Style {
 			if open.Get() {
 				return core.Style{Background: k.Shade(0.07)}

@@ -1,9 +1,13 @@
 package films
 
 import (
+	"errors"
+	"strings"
+
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -118,4 +122,44 @@ func (n newLibraryBody) Render(cx *core.Scope) core.Node {
 		textButton(locales.FilmsCreate, ui.Button{TestID: "newlib-create", Disabled: func() bool { return look().err != "" }, OnPress: live.Do(a, a.CreateLibrary)}),
 	}}
 	return core.View{Style: core.Style{Padding: core.All(20), Gap: 14}, Children: []core.Node{head, card, status, failed, footer}}
+}
+
+// LibraryFolder is the folder name of a library called name, its .kando bundle, or why there can be none on goos, in the language of m. On Windows, where the library's folder is made, a name can hold none of the characters Windows refuses in a file's name, < > : " | ? * and the control characters, nor be one of the names it keeps for devices, as CON or COM1, with any extension.
+func LibraryFolder(m locales.Messages, goos, name string) (string, error) {
+	name = strings.TrimSpace(name)
+	name = strings.TrimSuffix(name, media.LibraryExt)
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", errors.New(m.LibraryNameEmpty())
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return "", errors.New(m.LibraryNameHasPath())
+	}
+	if goos == "windows" && !windowsName(name) {
+		return "", errors.New(m.LibraryNameNotAllowed())
+	}
+	return name + media.LibraryExt, nil
+}
+
+// windowsName reports whether Windows takes name, followed by an extension, as a file's name: none of < > : " | ? * or a control character, and before its first dot, its trailing spaces aside, none of the device names, whatever their case.
+func windowsName(name string) bool {
+	if strings.ContainsAny(name, `<>:"|?*`) || strings.ContainsFunc(name, func(r rune) bool { return r < 0x20 }) {
+		return false
+	}
+	stem, _, _ := strings.Cut(name, ".")
+	stem = strings.ToUpper(strings.TrimRight(stem, " "))
+	switch stem {
+	case "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$":
+		return false
+	}
+	if len(stem) == 4 && (strings.HasPrefix(stem, "COM") || strings.HasPrefix(stem, "LPT")) && stem[3] >= '0' && stem[3] <= '9' {
+		return false
+	}
+	// COM¹ to COM³ and LPT¹ to LPT³, with a superscript digit, are kept too.
+	for _, device := range []string{"COM", "LPT"} {
+		if rest, ok := strings.CutPrefix(stem, device); ok && (rest == "¹" || rest == "²" || rest == "³") {
+			return false
+		}
+	}
+	return true
 }

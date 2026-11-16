@@ -26,14 +26,16 @@ const (
 	MethodJobs = "jobs.list"
 	// MethodJob takes IDParams, a Job's ID, and answers that Job, as MethodJobs lists it.
 	MethodJob = "jobs.get"
-	// MethodAdd takes AddParams and answers AddResult: a job for each source, queued as 开始处理 queues them. A playlist or a channel link is skipped: list its videos with MethodLists, and add those.
+	// MethodAdd takes AddParams and answers AddResult: a job for each source, queued as 开始处理 queues them. A playlist or a channel link, or a local folder, is skipped: list its videos with MethodLists, and add those.
 	MethodAdd = "jobs.add"
-	// MethodLists takes ListsParams and answers []List, the videos of each playlist or channel link, in the order of the sources, so a client can say how many there are and ask before it adds them with MethodAdd. It may take minutes, as yt-dlp reads a long playlist page by page (ListTimeout).
+	// MethodLists takes ListsParams and answers []List, the videos of each playlist or channel link, or of each local folder as dropping it on the window adds them, in the order of the sources, so a client can say how many there are and ask before it adds them with MethodAdd. It may take minutes, as yt-dlp reads a long playlist page by page (ListTimeout).
 	MethodLists = "lists.expand"
 	// MethodCancel takes IDParams, a Job's ID, and answers the Job as it is after canceling: a running job stops, a waiting one leaves the queue.
 	MethodCancel = "jobs.cancel"
 	// MethodRetry takes IDParams, a Job's ID, and answers the Job as it is once queued again under the same ID, as the window's 重试 and 重新处理 queue it: a failed, canceled or complete job runs through the pipeline again. A job still running or waiting is refused.
 	MethodRetry = "jobs.retry"
+	// MethodTranslate takes IDParams, a Film's ID, and answers the Job of the film as it is once queued to translate the lines its translation left untranslated (Film.Untranslated), as the window's 补译未译的句子 does, without downloading or transcribing it again: every line of a film that was not translated at all (Film.TranslationError). A film with no untranslated line, or still being processed, is refused.
+	MethodTranslate = "jobs.translate"
 	// MethodRemove takes IDParams, a Job's ID, takes the job off the open library's shelf as the window's 移除 does, stopping it first when it is running, and answers nothing (null). Its files stay on disk.
 	MethodRemove = "jobs.remove"
 	// MethodSites takes SitesParams and answers []Site, the websites Kando downloads from that the query finds.
@@ -99,10 +101,11 @@ type IDParams struct {
 	ID string `json:"id"`
 }
 
-// FilmsParams filters the films: Source is "youtube", "bilibili", "local" or another site's name as the sidebar groups them, "" for all; Query keeps the films whose title contains it, ignoring case.
+// FilmsParams filters the films: Source is "youtube", "bilibili", "local" or another site's name as the sidebar groups them, "" for all; Query keeps the films whose title contains it, ignoring case; Spoken keeps the films heard in that language, by its code (Film.SpokenLanguage), as the sidebar's languages keep them, "" for all.
 type FilmsParams struct {
 	Source string `json:"source,omitempty"`
 	Query  string `json:"query,omitempty"`
+	Spoken string `json:"spoken_language,omitempty"`
 }
 
 // SubtitlesParams name a film and the part of its subtitles to read: the cues that start at FromMS or later, before ToMS when it is set, and with Until UntilWatched, only those the learner has watched (Film.WatchedMS, with WatchedSlackMS), none for a film not played yet. Times are milliseconds from the start of the video.
@@ -142,7 +145,7 @@ type ShowResult struct {
 
 // The reasons of a ShowResult.
 const (
-	// ShowInQueue is a film still being processed: the library shows its card in the queue.
+	// ShowInQueue is a film still being processed that cannot be watched yet, as one whose video is not downloaded yet, or one whose job failed: the library shows its card in the queue. A film being processed whose video is on disk opens, as its card's Watch does.
 	ShowInQueue = "in_queue"
 	// ShowNoVideo is a film whose video is not on disk, as a job that failed before its download ended.
 	ShowNoVideo = "no_video"
@@ -154,23 +157,28 @@ type AddParams struct {
 	Dir     string   `json:"dir,omitempty"`
 }
 
-// ListsParams are the playlist and channel links to list.
+// ListsParams are the playlist and channel links, and the local folders, to list. A folder is a path or a file:// URL, a relative path taken from Dir, as in AddParams.
 type ListsParams struct {
 	Sources []string `json:"sources"`
+	Dir     string   `json:"dir,omitempty"`
 }
 
-// List is the videos of a playlist or a channel link. A channel lists its Limit most recent videos; a playlist lists all of its own. Error says why a source could not be listed, as when it is not a playlist or a channel, and Videos is then empty.
+// List is the videos of a playlist or a channel link, or of a local folder. A channel lists its Limit most recent videos; a playlist lists all of its own; a folder the videos in it and in the folders directly in it, in their names' order, as dropping it on the window adds them, and NotVideos counts the files in them that are not videos, which are left out. Error says why a source could not be listed, as when it is not a playlist, a channel or a folder, and Videos is then empty.
 type List struct {
 	Source string `json:"source"`
-	// Kind is "playlist" or "channel".
-	Kind   string      `json:"kind,omitempty"`
-	Title  string      `json:"title,omitempty"`
-	Limit  int         `json:"limit,omitempty"`
-	Videos []ListVideo `json:"videos"`
-	Error  string      `json:"error,omitempty"`
+	// Kind is "playlist", "channel" or "folder".
+	Kind      string      `json:"kind,omitempty"`
+	Title     string      `json:"title,omitempty"`
+	Limit     int         `json:"limit,omitempty"`
+	Videos    []ListVideo `json:"videos"`
+	NotVideos int         `json:"not_videos,omitempty"`
+	Error     string      `json:"error,omitempty"`
 }
 
-// ListVideo is one video of a List: the link MethodAdd takes for it, its title, how long it plays in seconds (0 when the site did not say), and whether the open library has it already, waiting, being processed or done, which MethodAdd would skip.
+// ListFolder is the Kind of a List of a local folder's videos.
+const ListFolder = "folder"
+
+// ListVideo is one video of a List: the link MethodAdd takes for it, a folder's video as a file:// URL, its title, how long it plays in seconds (0 when the site did not say, and for a folder's video), and whether the open library has it already, waiting, being processed or done, which MethodAdd would skip.
 type ListVideo struct {
 	URL       string  `json:"url"`
 	Title     string  `json:"title,omitempty"`
@@ -218,7 +226,7 @@ type Library struct {
 
 // Film is a video of the open library, as the window lists it.
 type Film struct {
-	// ID names the film in MethodFilm, MethodSubtitles and MethodShow. It stays the same while the film's video stays where it is.
+	// ID names the film in MethodFilm, MethodSubtitles, MethodShow and MethodTranslate. It stays the same while the film's video stays where it is. A video no job has processed is named by its path; once a job processes it, the film is named by the job's ID, and its path still names it.
 	ID     string `json:"id"`
 	Title  string `json:"title"`
 	Source string `json:"source"`
@@ -231,9 +239,15 @@ type Film struct {
 	// Status is the line under the film's title in the window, in English (Language): its stage, or why it failed.
 	Status string `json:"status,omitempty"`
 	JobID  string `json:"job_id,omitempty"`
-	// Language is what the subtitles are translated into, as the settings name it.
-	Language  string `json:"language,omitempty"`
-	VideoPath string `json:"video_path,omitempty"`
+	// Language is what the subtitles are translated into, as the settings name it; "" for a film that was not translated (TranslationError).
+	Language string `json:"language,omitempty"`
+	// Untranslated is how many lines of the subtitles the translation left untranslated, every line of a film that was not translated, which MethodTranslate translates. TranslationError is why a done film was not translated at all, as the AI service refusing its key, in English (Language): its subtitles are then the original lines alone.
+	Untranslated     int    `json:"untranslated,omitempty"`
+	TranslationError string `json:"translation_error,omitempty"`
+	// SpokenLanguage is the language the speech recognition heard in the video, by its code (ja, en, zh), "" until a job transcribed it; SpeechLanguage the one the user said the video is spoken in, which its job is told to hear, "" when the user named none.
+	SpokenLanguage string `json:"spoken_language,omitempty"`
+	SpeechLanguage string `json:"speech_language,omitempty"`
+	VideoPath      string `json:"video_path,omitempty"`
 	// Subtitles is the bilingual .srt, "" until the film is done; OriginalSubtitles the .srt of the speech alone.
 	Subtitles         string `json:"subtitles,omitempty"`
 	OriginalSubtitles string `json:"original_subtitles,omitempty"`
@@ -247,25 +261,30 @@ type Job struct {
 	ID     string `json:"id"`
 	Source string `json:"source"`
 	Title  string `json:"title,omitempty"`
-	// Stage is core.Stage: queued, downloading, transcribing, translating, exporting, complete or failed.
+	// Stage is core.Stage: queued, downloading, transcribing, translating, exporting, complete or failed. A job that was processing or translating a done film again and failed or was stopped is failed, with its Error or Canceled, though its film stays done with the subtitles it had.
 	Stage    string  `json:"stage"`
 	Progress float64 `json:"progress"`
 	// Status is the line the window shows for it, in English (Language).
 	Status string `json:"status,omitempty"`
 	// Error is why a failed job failed; Canceled is set for one that was stopped instead.
-	Error     string `json:"error,omitempty"`
-	Canceled  bool   `json:"canceled,omitempty"`
-	Language  string `json:"language,omitempty"`
-	VideoPath string `json:"video_path,omitempty"`
-	Subtitles string `json:"subtitles,omitempty"`
-	// FilmID is the Film the job makes, "" before its video is downloaded.
+	Error    string `json:"error,omitempty"`
+	Canceled bool   `json:"canceled,omitempty"`
+	// Language is what the job translates the subtitles into: for a job processing or translating a done film again, the language it was asked for, which its film's subtitles are in once it is done; "" for a complete job whose film was not translated (TranslationError).
+	Language string `json:"language,omitempty"`
+	// Untranslated and TranslationError are its film's, as a Film has them: a job that completed without translating its film, as when the AI service refused its key, is complete with TranslationError saying why.
+	Untranslated     int    `json:"untranslated,omitempty"`
+	TranslationError string `json:"translation_error,omitempty"`
+	VideoPath        string `json:"video_path,omitempty"`
+	Subtitles        string `json:"subtitles,omitempty"`
+	// FilmID is the Film the job makes, "" before its video is downloaded. A job that was making the subtitles of a video no job had processed, and failed or was stopped, leaves that video as it was, named by its path, which FilmID is then.
 	FilmID string `json:"film_id,omitempty"`
 }
 
-// AddResult is the jobs MethodAdd queued, and why each source it skipped could not be added.
+// AddResult is the jobs MethodAdd queued, and why each source it skipped could not be added. Note says, in English, what the client should know of the jobs it queued, as that no AI service is set up, so their subtitles will be the original lines alone.
 type AddResult struct {
 	Jobs    []Job       `json:"jobs"`
 	Skipped []AddFailed `json:"skipped,omitempty"`
+	Note    string      `json:"note,omitempty"`
 }
 
 // AddFailed is a source MethodAdd did not queue, and why, in the app's words. For a video the library already has a job for, JobID is that job, Stage its stage (a Job's) and FilmID its film once its video is on disk, so a client can follow it as if it had just been queued.

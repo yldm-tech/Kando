@@ -10,6 +10,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/saved"
+	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
@@ -29,27 +30,33 @@ type savedUI struct {
 	export savedExport
 	// review is the review of the lines due open now (saved_review.go).
 	review savedReview
+	// filled is the open film's subtitle lines the saved lines' translations were last filled from (savedFillTranslations), so each reading of them fills them once.
+	filled []kcore.Segment
 }
 
-// savedExport is an export of the saved lines (saved.Export): busy while it runs, with how many lines it has done of total; once done, what it wrote, or why it failed. cancel stops the one running. gen numbers the exports, so a report of one that was stopped is dropped.
+// savedExport is an export of the saved lines (saved.Export): busy while it runs, with how many lines it has done of total; once done, what it wrote, or why it failed, context.Canceled once stopped. noFFmpeg is set when it ran without ffmpeg, so without the lines' audio. cancel stops the one running. gen numbers the exports, so a report of one that another took over from is dropped.
 type savedExport struct {
 	busy        bool
 	done, total int
 	result      saved.Exported
 	err         error
 	finished    bool
+	noFFmpeg    bool
 	cancel      context.CancelFunc
 	gen         int
 }
 
 func newSavedUI() savedUI { return savedUI{now: time.Now} }
 
-// savedHooks: the open library's saved lines are read once its films are, and again when another library opens; lines of videos that moved follow them.
+// savedHooks: the open library's saved lines are read once its films are, and again when another library opens; lines of videos that moved follow them; the open film's lines saved without a translation take the one its subtitles have, each time they are read.
 func (a *app) savedHooks() areaHooks {
 	return areaHooks{
 		shelfChanged:   a.savedSync,
 		libraryChanged: a.savedSync,
-		afterChange:    a.savedFollowFilm,
+		afterChange: func() bool {
+			followed := a.savedFollowFilm()
+			return a.savedFillTranslations() || followed
+		},
 		quitting: func() {
 			a.savedStopExport()
 			a.CloseReview()
@@ -113,6 +120,33 @@ func (a *app) savedPlayingLine() int {
 		return prev
 	}
 	return cur
+}
+
+// savedFillTranslations gives the open film's saved lines that have no translation, as lines saved while it was still being translated, the ones its subtitles have now (saved.Book.FillTranslations), and keeps them. It runs once each time the film's subtitles are read, as when its translation finishes and the file is written again, and reports whether it changed a saved line.
+func (a *app) savedFillTranslations() bool {
+	cues, video := a.playerCues(), a.player.film.video
+	if len(cues) == 0 || video == "" {
+		return false
+	}
+	if last := a.saved.filled; len(last) == len(cues) && &last[0] == &cues[0] {
+		return false
+	}
+	a.saved.filled = cues
+	a.savedSync()
+	book := &a.saved.book
+	filled := book.FillTranslations(book.Key(video), func(start time.Duration) (string, string, bool) {
+		for _, cue := range cues {
+			if saved.SameStart(cue.Start, start) {
+				translation, original := film.SplitCue(cue.Text)
+				return translation, original, true
+			}
+		}
+		return "", "", false
+	})
+	if filled {
+		a.savedWrite()
+	}
+	return filled
 }
 
 // savedFollowFilm has the subtitle list of a film opened since the Saved chip was picked show all its lines again, and reports whether it changed that.
@@ -203,8 +237,8 @@ func (a *app) ExportSaved() {
 		book := a.saved.book
 		book.Lines = slices.Clone(book.Lines)
 		delays := maps.Clone(a.player.delays)
-		a.saved.export = savedExport{busy: true, total: len(book.Lines), cancel: cancel, gen: gen}
 		ffmpeg, update := a.ffmpegPath(), a.update
+		a.saved.export = savedExport{busy: true, total: len(book.Lines), noFFmpeg: ffmpeg == "", cancel: cancel, gen: gen}
 		report := func(fn func(e *savedExport)) {
 			update(func() {
 				if a.saved.export.gen == gen {
@@ -218,13 +252,13 @@ func (a *app) ExportSaved() {
 			})
 			report(func(e *savedExport) {
 				cancel()
-				*e = savedExport{finished: true, result: result, err: err, gen: gen, total: e.total, done: e.done}
+				*e = savedExport{finished: true, result: result, err: err, noFFmpeg: e.noFFmpeg, gen: gen, total: e.total, done: e.done}
 			})
 		}()
 	})
 }
 
-// savedStopExport stops the export running, as the app quits or another starts.
+// savedStopExport stops the export running, as the user cancels it, the app quits or another starts.
 func (a *app) savedStopExport() {
 	if a.saved.export.cancel != nil {
 		a.saved.export.cancel()

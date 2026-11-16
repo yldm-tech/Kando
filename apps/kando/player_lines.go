@@ -25,8 +25,28 @@ func (a *app) playerCues() []core.Segment {
 	return subs.cues
 }
 
-// playerLineAt is where the picture is, in the subtitles' time.
-func (a *app) playerLineAt() time.Duration { return a.PlayHead() - a.player.film.delay }
+// playerLineAt is where the picture is, in the subtitles' time, for what the keys and the picture take as the line playing. While the film is held at the end of a line (playerHolding), it is the moment just before that end: the playhead stops a timer's or a report's time past the end, where the next line may already have started, but the line just heard is the one the learner shadows, saves or explains, so every key and the picture take that one (HeldLine).
+func (a *app) playerLineAt() time.Duration {
+	if a.playerHolding() {
+		return a.player.film.stop.end - time.Nanosecond
+	}
+	return a.PlayHead() - a.player.film.delay
+}
+
+// playerHolding reports whether the film is held at the end of a line on the pass it is on: paused there by Pause After Each Line, or by a looped line's stop or gap (playerStopAt), and not moved since.
+func (a *app) playerHolding() bool {
+	play := a.player.play
+	return play != nil && a.openKey != "" && !play.Playing() && a.playerStopped(play)
+}
+
+// HeldLine is the index of the line the film is held at the end of (playerHolding), which the picture, the subtitle list and the held-line card show though the playhead is just past its end, or -1 while it is not held at one (film.App).
+func (a *app) HeldLine() int {
+	if !a.playerHolding() {
+		return -1
+	}
+	_, cur, _ := film.CueNear(a.playerCues(), a.playerLineAt())
+	return cur
+}
 
 // PrevLine is A: back to the start of the line playing once it has played for more than playerLineRewind, else to the start of the line before it. Between lines it goes to the start of the line just heard.
 func (a *app) PrevLine() {

@@ -23,6 +23,7 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -2526,17 +2527,39 @@ func TestTranslateAgainUsesTheLanguageSetNow(t *testing.T) {
 }
 
 // 重新处理 processes the entire film again but for its download, which is still beside the job (media.Run), into the target language set now rather than the one it was translated into, once confirmed.
-func TestProcessAgainUsesTheLanguageSetNow(t *testing.T) {
+// 重新处理 transcribes a done film again and translates it into the language it was translated into, not the one the settings name now, so transcribing it in the language the user said it is spoken in does not change its translation; the control socket's jobs.retry answers that language. A film that translated none of its lines is translated into the language the settings name.
+func TestProcessAgainKeepsTheFilmsLanguage(t *testing.T) {
 	p := &retranslatePipeline{}
 	a, tt, updates := retranslateLibrary(t, p)
 	chooseFilmMenu(t, tt, "重新处理")
 	tt.Press("id:reprocess-confirm-run")
+	if job := stageOf(t, a, "talk"); job.RedoLanguage != "简体中文" || a.remoteJobOf(job).Language != "简体中文" {
+		t.Fatalf("job %+v, answered %+v", job, a.remoteJobOf(job))
+	}
 	settle(t, a, tt, updates)
-	if p.downloads != 0 || p.transcriptions != 1 || p.language != "日本語" {
+	if p.downloads != 0 || p.transcriptions != 1 || p.language != "简体中文" {
 		t.Fatalf("%d downloads, %d transcriptions, language %q", p.downloads, p.transcriptions, p.language)
 	}
-	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Language != "日本語" || job.Redo != "" || job.RedoLanguage != "" {
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Language != "简体中文" || job.Redo != "" || job.RedoLanguage != "" {
 		t.Fatalf("job %+v", job)
+	}
+
+	untranslated := stageOf(t, a, "talk")
+	untranslated.TranslationErr = "no translator"
+	a.library.Upsert(untranslated)
+	film, _ := a.JobFilm("talk")
+	a.AskReprocess(film)
+	if _, item, language := a.Reprocessing(); item.JobID != "talk" || language != "日本語" {
+		t.Fatalf("asks about %+v in %q", item, language)
+	}
+	a.CloseReprocess()
+	a.Retry("talk")
+	if job := stageOf(t, a, "talk"); job.RedoLanguage != "日本語" || a.remoteJobOf(job).Language != "日本語" {
+		t.Fatalf("job %+v", job)
+	}
+	settle(t, a, tt, updates)
+	if p.language != "日本語" || stageOf(t, a, "talk").Language != "日本語" {
+		t.Fatalf("translated into %q, job %+v", p.language, stageOf(t, a, "talk"))
 	}
 }
 
@@ -2546,7 +2569,7 @@ func TestProcessAgainAsksFirst(t *testing.T) {
 	a, tt, updates := retranslateLibrary(t, p)
 	msgs := testlocale.Messages()
 	chooseFilmMenu(t, tt, "重新处理")
-	if !hasText(tt, msgs.FilmsReprocessConfirm("Talk")) || !hasText(tt, msgs.FilmsReprocessConfirmMessage(msgs.SettingsLanguageJapanese())) || !a.modalOpen() {
+	if !hasText(tt, msgs.FilmsReprocessConfirm("Talk")) || !hasText(tt, msgs.FilmsReprocessConfirmMessage(msgs.SettingsLanguageSimplifiedChinese())) || !a.modalOpen() {
 		t.Fatalf("no confirmation naming the film and the language: %q", tt.Texts())
 	}
 	if role := tt.Find("id:reprocess-confirm").Props.Role; role != ns.RoleAlertDialog {
@@ -2568,7 +2591,7 @@ func TestProcessAgainAsksFirst(t *testing.T) {
 	}
 	tt.Press("id:reprocess-confirm-run")
 	settle(t, a, tt, updates)
-	if a.openKey != "talk" || p.transcriptions != 1 || p.language != "日本語" || a.modalOpen() {
+	if a.openKey != "talk" || p.transcriptions != 1 || p.language != "简体中文" || a.modalOpen() {
 		t.Fatalf("open %q, %d transcriptions in %q, modal %v", a.openKey, p.transcriptions, p.language, a.modalOpen())
 	}
 }
@@ -2829,14 +2852,14 @@ func TestRetryAllAndRemoveFailed(t *testing.T) {
 	// The shelf keeps its jobs newest first.
 	a.library.Jobs = []core.Job{failed("net", core.FailNetwork), failed("login", core.FailLogin), stopped, failed("plain", "")}
 	refresh(tt, a)
-	if r, f := a.Failures(); r != 2 || f != 3 {
+	if r, f := a.Failures(sidebar.SourceAll); r != 2 || f != 3 {
 		t.Fatalf("failures %d retryable, %d failed", r, f)
 	}
 	tt.Press("queue-retry-all")
 	if a.RunningJob() != "plain" || stageOf(t, a, "net").Stage != core.StageQueued || stageOf(t, a, "login").Stage != core.StageFailed || stageOf(t, a, "stopped").Stage != core.StageFailed {
 		t.Fatalf("after Retry All: running %q, jobs %+v", a.RunningJob(), a.library.Jobs)
 	}
-	if r, f := a.Failures(); r != 0 || f != 1 {
+	if r, f := a.Failures(sidebar.SourceAll); r != 0 || f != 1 {
 		t.Fatalf("failures after Retry All: %d retryable, %d failed", r, f)
 	}
 
@@ -2853,6 +2876,48 @@ func TestRetryAllAndRemoveFailed(t *testing.T) {
 		t.Fatal("Remove Failed took a cancelled card")
 	}
 	<-g.started
+}
+
+// With a source chosen in the sidebar, Retry All and Remove Failed act only on the failed cards 处理中 shows, those from that source, and leave the others' failures as they are.
+func TestRetryAllAndRemoveFailedKeepToTheSourceShown(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, _ := newTestApp(t, g)
+	failed := func(id, source string) core.Job {
+		return core.Job{ID: id, Source: source, Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: "/videos"}
+	}
+	a.library.Jobs = []core.Job{
+		failed("yt1", "https://youtu.be/TRWgBxVAb1M"), failed("yt2", "https://youtu.be/dQw4w9WgXcQ"),
+		failed("web1", "https://example.com/a"), failed("web2", "https://example.com/b"),
+	}
+	a.SetSourceFilter(sidebar.SourceYouTube)
+	refresh(tt, a)
+	if r, f := a.Failures(sidebar.SourceYouTube); r != 2 || f != 2 {
+		t.Fatalf("YouTube's failures %d retryable, %d failed, want 2 and 2", r, f)
+	}
+	tt.Press("queue-retry-all")
+	for _, id := range []string{"web1", "web2"} {
+		if stageOf(t, a, id).Stage != core.StageFailed {
+			t.Fatalf("Retry All on YouTube's page queued %s again: %+v", id, a.library.Jobs)
+		}
+	}
+	if stageOf(t, a, "yt2").Stage != core.StageQueued && a.RunningJob() != "yt2" {
+		t.Fatalf("Retry All left YouTube's yt2 failed: %+v", a.library.Jobs)
+	}
+	<-g.started
+
+	a.library.Jobs = append(a.library.Jobs, failed("yt3", "https://youtu.be/9bZkp7q19f0"), failed("yt4", "https://youtu.be/kJQP7kiw5Fk"))
+	refresh(tt, a)
+	tt.Press("queue-remove-failed")
+	for _, id := range []string{"yt3", "yt4"} {
+		if _, ok := a.library.Find(id); ok {
+			t.Fatalf("Remove Failed on YouTube's page kept %s", id)
+		}
+	}
+	for _, id := range []string{"web1", "web2"} {
+		if _, ok := a.library.Find(id); !ok {
+			t.Fatalf("Remove Failed on YouTube's page took %s from another source", id)
+		}
+	}
 }
 
 // The × of a waiting card takes a job that has done nothing yet off the shelf, and cancels one that has, as a film waiting to be processed again, which keeps its card.
@@ -3055,5 +3120,152 @@ func TestAFolderVideoWithSubtitlesAsksBeforeProcessingFromTheFilm(t *testing.T) 
 	settle(t, a, tt, updates)
 	if job := a.library.Jobs[0]; job.Stage != core.StageComplete || job.FromFolder || job.Redo != "" || job.Language != "日本語" || job.SubtitlePath != item.SubtitlePath {
 		t.Fatalf("job %+v", job)
+	}
+}
+
+// A video of the library's folder dropped on the window again, as the library's own folder dropped back onto Kando, is the film it is. One with subtitles beside it is in the library already: nothing is queued, its files stay as they are, and the message bar offers to open it, as for a link already in the library. One without any is made as 生成字幕 makes it, on a card that puts the video back as it was if it fails.
+func TestDroppingALibraryFolderAgainQueuesNothingItHolds(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, _, item := folderLibrary(t, p, true)
+	folder := filepath.Dir(item.VideoPath)
+	bilingual := readFile(t, item.SubtitlePath)
+	a.dropFiles([]string{folder})
+	refresh(tt, a)
+	if len(a.library.Jobs) != 0 || a.running() || p.transcriptions != 0 {
+		t.Fatalf("jobs %+v, running %v, %d transcriptions", a.library.Jobs, a.running(), p.transcriptions)
+	}
+	if a.lib.notice.Text != testlocale.Messages().QueueAlreadyInLibrary() || a.lib.notice.Film != item.Key || !slices.Contains(tt.Texts(), "打开") {
+		t.Fatalf("notice %+v, texts %q", a.lib.notice, tt.Texts())
+	}
+	entries, err := os.ReadDir(folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 || readFile(t, item.SubtitlePath) != bilingual {
+		t.Fatalf("the folder now holds %v", entries)
+	}
+	tt.Press("打开")
+	if a.openKey != item.Key {
+		t.Fatalf("open %q, want %q", a.openKey, item.Key)
+	}
+
+	p = &retranslatePipeline{}
+	a, tt, updates, item := folderLibrary(t, p, false)
+	a.dropFiles([]string{filepath.Dir(item.VideoPath)})
+	if len(a.library.Jobs) != 1 || !a.library.Jobs[0].FromFolder || a.library.Jobs[0].VideoPath != item.VideoPath {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	settle(t, a, tt, updates)
+	if job := a.library.Jobs[0]; job.Stage != core.StageComplete || p.transcriptions != 1 || len(a.films()) != 1 {
+		t.Fatalf("job %+v, %d transcriptions, films %+v", job, p.transcriptions, a.films())
+	}
+}
+
+// The video of a film downloaded from a link, dropped on the window or added with kando add, is that film: no second job is queued to write its subtitles again, and the message bar offers to open it.
+func TestDroppingADownloadedFilmsVideoQueuesNothing(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, _ := retranslateLibrary(t, p)
+	job := stageOf(t, a, "talk")
+	srt, bilingual := readFile(t, strings.TrimSuffix(job.VideoPath, ".mp4")+".srt"), readFile(t, job.SubtitlePath)
+	for _, dropped := range []string{job.VideoPath, filepath.Dir(job.VideoPath)} {
+		a.lib.notice = films.Notice{}
+		a.dropFiles([]string{dropped})
+		refresh(tt, a)
+		if len(a.library.Jobs) != 1 || a.running() || a.lib.notice.Film != "talk" || a.lib.notice.Text != testlocale.Messages().QueueAlreadyInLibrary() {
+			t.Fatalf("dropping %s: jobs %+v, notice %+v", dropped, a.library.Jobs, a.lib.notice)
+		}
+	}
+	err := a.Enqueue(core.FileURL(job.VideoPath))
+	var dup *queueDuplicate
+	if !errors.As(err, &dup) || dup.ID != "talk" || dup.Stage != core.StageComplete || len(a.library.Jobs) != 1 {
+		t.Fatalf("err %v, jobs %+v", err, a.library.Jobs)
+	}
+	if p.transcriptions != 0 || readFile(t, strings.TrimSuffix(job.VideoPath, ".mp4")+".srt") != srt || readFile(t, job.SubtitlePath) != bilingual {
+		t.Fatalf("%d transcriptions; the film's subtitles changed", p.transcriptions)
+	}
+}
+
+// 重新处理 of a film of another library than the open one that fails, or is stopped, is not said to be done: the film is done as it was, and the message bar keeps saying why it failed, or says nothing for one stopped.
+func TestAFailedReprocessInAnotherLibraryIsNotDone(t *testing.T) {
+	for _, stop := range []bool{false, true} {
+		p := &retranslatePipeline{translateErr: errors.New("translation API returned 401 Unauthorized: invalid key"), hold: stop}
+		a, tt, updates := retranslateLibrary(t, p)
+		film, _ := a.JobFilm("talk")
+		a.Reprocess(film)
+		other := filepath.Join(t.TempDir(), "other.kando")
+		a.edit(func(s *session) { s.LibraryDir = other })
+		if stop {
+			queueUntilState(t, updates, func() bool { return stageOf(t, a, "talk").Stage == core.StageTranslating })
+			a.Cancel("talk")
+		}
+		settle(t, a, tt, updates)
+		done := testlocale.Messages().QueueDoneElsewhere(jobName(stageOf(t, a, "talk")), "我的影片")
+		switch {
+		case a.lib.notice.Text == done:
+			t.Fatalf("stopped %v: the bar says the film is done: %+v", stop, a.lib.notice)
+		case stop && a.lib.notice.Open:
+			t.Fatalf("a stopped reprocess says %+v", a.lib.notice)
+		case !stop && (a.lib.notice.Kind != "warning" || a.lib.notice.Text != testlocale.Messages().QueueReprocessFailed("Talk", testlocale.Messages().PrecheckTranslateAuth())):
+			t.Fatalf("notice %+v", a.lib.notice)
+		}
+		if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || job.Language != "简体中文" {
+			t.Fatalf("job %+v", job)
+		}
+	}
+}
+
+// The film page draws no message bar, so 重新处理 of the film open that fails says why in its title bar, with 打开设置 when a setting fixes it, while the film plays on with the subtitles it had; one stopped says nothing there, and neither does the film once it is processed again.
+func TestAFailedReprocessSaysWhyOnTheFilmPage(t *testing.T) {
+	p := &retranslatePipeline{translateErr: errors.New("translation API returned 401 Unauthorized: invalid key")}
+	a, tt, updates := retranslateLibrary(t, p)
+	film, _ := a.JobFilm("talk")
+	a.Open(film)
+	a.Reprocess(film)
+	settle(t, a, tt, updates)
+	m := testlocale.Messages()
+	if a.openKey != "talk" || !hasText(tt, m.FilmReprocessFailed(m.PrecheckTranslateAuth())) {
+		t.Fatalf("open %q, texts %q", a.openKey, tt.Texts())
+	}
+	tt.Press("id:film-redo-settings")
+	wantSettings(t, a, settings.SectionAI)
+
+	a.prefs.open = false
+	a.Open(film)
+	p.translateErr = nil
+	a.Reprocess(film)
+	refresh(tt, a)
+	if tt.Exists("id:film-redo-failed") {
+		t.Fatalf("the failure still shows while the film is processed again: %q", tt.Texts())
+	}
+	settle(t, a, tt, updates)
+	if tt.Exists("id:film-redo-failed") || stageOf(t, a, "talk").Language != "简体中文" {
+		t.Fatalf("texts %q, job %+v", tt.Texts(), stageOf(t, a, "talk"))
+	}
+
+	p.hold = true
+	a.Reprocess(film)
+	queueUntilState(t, updates, func() bool { return stageOf(t, a, "talk").Stage == core.StageTranslating })
+	a.Cancel("talk")
+	settle(t, a, tt, updates)
+	if tt.Exists("id:film-redo-failed") {
+		t.Fatalf("a stopped reprocess says %q", tt.Texts())
+	}
+}
+
+// Retrying 重新处理 that failed after its transcription, once the AI service is fixed, reads back the speech it heard rather than transcribing the whole film again.
+func TestRetryingAFailedReprocessDoesNotTranscribeAgain(t *testing.T) {
+	p := &retranslatePipeline{translateErr: errors.New("translation API returned 401 Unauthorized: invalid key")}
+	a, tt, updates := retranslateLibrary(t, p)
+	film, _ := a.JobFilm("talk")
+	a.Reprocess(film)
+	settle(t, a, tt, updates)
+	if p.transcriptions != 1 {
+		t.Fatalf("%d transcriptions", p.transcriptions)
+	}
+	p.translateErr = nil
+	a.Retry("talk")
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, "talk"); job.Stage != core.StageComplete || p.transcriptions != 1 || job.Untranslated != 0 {
+		t.Fatalf("job %+v, %d transcriptions", job, p.transcriptions)
 	}
 }

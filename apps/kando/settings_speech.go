@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -329,7 +328,7 @@ func toolVersion(path string) string {
 	if strings.Contains(strings.ToLower(filepath.Base(path)), "ffmpeg") {
 		args = []string{"-version"}
 	}
-	out, err := exec.CommandContext(ctx, path, args...).CombinedOutput()
+	out, err := media.Command(ctx, path, args...).CombinedOutput()
 	if len(out) == 0 || (err != nil && ctx.Err() != nil) {
 		return ""
 	}

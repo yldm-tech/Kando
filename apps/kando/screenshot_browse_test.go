@@ -14,6 +14,8 @@ import (
 //   - browse-typing: the address field with the keyboard and an address typed
 //   - browse-clear: the confirmation of 清除登录信息… over the start, as the browser draws it where the pages' sign-ins can be cleared, which NSGo's web view cannot yet (browseHooks)
 //   - browse-not-ready: 下载视频 on a page while the speech model is missing, the message bar saying so with 打开设置
+//
+// The page's own buttons (browse/buttons.go) are drawn by the browser's script inside the page, which a test's web view does not run, so no scene shows them.
 func TestScreenshotsBrowse(t *testing.T) {
 	f := newScreenshotFixture(t)
 	f.shoot(t, "browse", func(a *app, tt *nsgotest.App, _ chan func()) {

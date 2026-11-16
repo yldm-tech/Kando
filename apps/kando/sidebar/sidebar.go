@@ -99,6 +99,10 @@ const (
 	// insetStart and insetEnd are how far the switcher, the sources and the status line stand in from the card's edges. In the prototype the card is 231 wide and runs 3 points under the content, so they end 8 points before that hidden edge, 5 before the one that shows.
 	insetStart ns.Points = 8
 	insetEnd   ns.Points = 5
+	// listPad is how far ui.Sidebar stands its rows in from its own sides (its content's padding, nsgo ui/sidebar.go), so the switcher and the search field, which stand as far in, fill the same width as a source row; rowRadius and rowPad are those rows' corners and the room inside their ends.
+	listPad   ns.Points = 10
+	rowRadius ns.Points = 8
+	rowPad    ns.Points = 8
 	// LightsRow is the empty row at the top of the card that the traffic lights sit in.
 	LightsRow ns.Points = 48
 )
@@ -191,5 +195,5 @@ func Title(dir string) string {
 	return base
 }
 
-// rowStyle is a part of the sidebar that stands insetStart and insetEnd in from the card's edges, 10 points above the next: the switcher and the search field.
-var rowStyle = ns.Style{Direction: ns.Row, AlignItems: ns.AlignStretch, Padding: ns.Edges{Right: insetEnd, Bottom: 10, Left: insetStart}}
+// rowStyle is a part of the sidebar that stands as far in from the card's edges as the source rows' fills, insetStart and insetEnd and then listPad, 10 points above the next: the switcher and the search field.
+var rowStyle = ns.Style{Direction: ns.Row, AlignItems: ns.AlignStretch, Padding: ns.Edges{Right: insetEnd + listPad, Bottom: 10, Left: insetStart + listPad}}

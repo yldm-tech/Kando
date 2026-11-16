@@ -135,7 +135,7 @@ func runFollowing(ctx context.Context, fromStderr bool, onLine func(string), nam
 	var piped error
 	err = retryBusy(ctx, func() error {
 		otherBuf.Reset()
-		cmd = exec.CommandContext(ctx, name, args...)
+		cmd = Command(ctx, name, args...)
 		if fromStderr {
 			cmd.Stdout = &otherBuf
 			pipe, piped = cmd.StderrPipe()

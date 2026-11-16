@@ -69,6 +69,9 @@ type Tool struct {
 	Progress float64
 	// Err is why the last download of this program failed.
 	Err string
+	// Page is the program's own page of builds, and Install the command that installs it, as Scoop's on Windows, for a program that is ToolUnavailable; either may be "".
+	Page    string
+	Install string
 }
 
 // AI is what the second step says about the translation service: a line saying which model translates or what is missing, whether it is ready, and whether something is missing. Neither means it is not known yet, as the EveryAPI sign-in before it was checked.
@@ -93,7 +96,7 @@ type App interface {
 	// OnboardingLearning is the languages of the videos the user watches, as codes ("en", "ja", …); OnboardingToggle adds or removes one.
 	OnboardingLearning() []string
 	OnboardingToggle(code string)
-	// OnboardingTools is the programs Kando runs, which it downloads by itself when they are missing; OnboardingDownloadTool starts one again after its download failed.
+	// OnboardingTools is the programs Kando runs, which it downloads by itself when they are missing; OnboardingDownloadTool starts one again after its download failed. Redetect looks for them again, as for one the user installed where Kando cannot download it.
 	OnboardingTools(cx *core.Scope) []Tool
 	OnboardingDownloadTool(name string)
 	// OnboardingModels is the speech models the second step offers for the languages chosen.

@@ -7,10 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"kando/packages/media"
 )
 
 // The system's player plays what the platform's media framework reads: on macOS AVFoundation, which takes MP4 and QuickTime files of the codecs it knows but not an MKV or a WebM, as many downloaded and recorded films are. Such a film plays from a copy in an MP4 the player can open, which ffmpeg, the one the pipeline uses, makes: first by copying its streams into the new container, which takes seconds for a whole film, and when the player cannot play that either, by encoding its picture as H.264 and its sound as AAC, which every platform's player plays.
@@ -24,6 +25,26 @@ const (
 	// RemuxEncode encodes them as H.264 and AAC in an MP4.
 	RemuxEncode
 )
+
+// ErrMissingPlugins is PlayErr's ID for a video the system's player cannot play because GStreamer, which plays videos on Linux, lacks the plug-ins for it (MissingPlugins); the page says which to install and offers GStreamerInstall to copy.
+const ErrMissingPlugins = "video-plugins"
+
+// GStreamerInstall is the command that installs GTK 4's GStreamer media backend and the GStreamer plug-ins that play the videos Kando downloads, on Debian and Ubuntu, as the README gives it.
+const GStreamerInstall = "sudo apt install libgtk-4-media-gstreamer gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav"
+
+// MissingPlugins reports whether err, the system player's, says it has no media backend or no plug-in for the video, as GTK and GStreamer say on Linux (NSGo passes GStreamer's message on, with a hint of its own once it says a plug-in is missing). No copy ffmpeg makes would play then either, as its H.264 needs gst-libav too. GTK and GStreamer translate their messages, so in another language than English it is not recognized, and the copies are tried.
+func MissingPlugins(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	for _, says := range []string{"could not find a media module", "missing a plug-in", "No suitable plugins", "No installed GStreamer plug-in"} {
+		if strings.Contains(msg, says) {
+			return true
+		}
+	}
+	return false
+}
 
 // RemuxPath is where the copy of the video at path made by step goes, in dir: named after the video's path, size and time of change, so a video changed since makes a copy of its own.
 func RemuxPath(dir, path string, step RemuxStep) (string, error) {
@@ -74,7 +95,7 @@ func Remux(ctx context.Context, ffmpeg, src, dest string, step RemuxStep) error 
 	}
 	tmp := part.Name()
 	_ = part.Close()
-	cmd := exec.CommandContext(ctx, ffmpeg, RemuxArgs(src, tmp, step)...)
+	cmd := media.Command(ctx, ffmpeg, RemuxArgs(src, tmp, step)...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.Remove(tmp)
 		if ctx.Err() != nil {

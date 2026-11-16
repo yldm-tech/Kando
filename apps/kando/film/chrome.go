@@ -87,8 +87,9 @@ func translatedPercent(cues []core.Segment) int {
 
 // filmActions is which of the film's buttons the title bar shows, which change only as its job moves on or its files come.
 type filmActions struct {
-	// job is "cancel", "make", "reprocess", "failed" or "" for the job's own buttons: "make" and "reprocess" start a video found in the library's folder that no job holds, one without subtitles or one with subtitles found beside it.
-	job string
+	// job is "cancel", "make", "reprocess", "failed", "redoFailed" or "" for the job's own buttons: "make" and "reprocess" start a video found in the library's folder that no job holds, one without subtitles or one with subtitles found beside it; "redoFailed" says why processing or translating a done film again failed, with 打开设置 when redoSection fixes it.
+	job         string
+	redoSection string
 	// reveal is the path 在访达中显示 shows, "" for none.
 	reveal string
 	upload bool
@@ -110,6 +111,10 @@ func (s *screen) actions() ns.Node {
 			f.job = "reprocess"
 		case item.Stage == core.StageFailed:
 			f.job = "failed"
+		default:
+			if text, section := a.RedoFailure(cx); text != "" {
+				f.job, f.redoSection = "redoFailed", section
+			}
 		}
 		f.reveal = item.SubtitlePath
 		if f.reveal == "" {
@@ -136,6 +141,14 @@ func (s *screen) actions() ns.Node {
 			row.Children = append(row.Children,
 				ui.Button{TestID: "film-remove", Text: locales.FilmRemove(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, func() { a.Remove(s.item().JobID) })},
 				ui.Button{TestID: "film-retry", Text: locales.FilmRetry(cx), OnPress: live.Do(a, func() { a.RetryOpen(s.item().JobID) })})
+		case "redoFailed":
+			// The film page draws no message bar, so a redo of the film shown that failed says why here, the film playing on with the subtitles it had.
+			text := ns.Text{TestID: "film-redo-failed", LiveRegion: ns.LiveRegionPolite, ContentFunc: live.Func(a, func() string { text, _ := a.RedoFailure(cx); return text }), MaxLines: 2, EllipsizeMode: ns.EllipsizeTail,
+				Style: ns.Style{FontSize: 12, LineHeight: 16, FlexShrink: 1, MinWidth: ns.Pt(0), MaxWidth: ns.Pt(360), Color: onGlass}}
+			row.Children = append(row.Children, text)
+			if section := which().redoSection; section != "" {
+				row.Children = append(row.Children, ui.Button{TestID: "film-redo-settings", Text: locales.FilmsOpenSettings(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, func() { a.OpenSettings(section) })})
+			}
 		}
 		return row
 	})

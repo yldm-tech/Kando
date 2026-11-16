@@ -856,3 +856,48 @@ func TestSidebarCountsTheJobs(t *testing.T) {
 		t.Fatalf("the count went to page %q, source %q", a.page, a.side.filter)
 	}
 }
+
+// TestSidebarSearchReturnKeepsToTheLanguageChosen checks that Return in the sidebar's search field acts on the films the grid shows, those heard in the language chosen: it plays the one film shown when another of the same name is hidden, and opens none that the language hides.
+func TestSidebarSearchReturnKeepsToTheLanguageChosen(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.library.Jobs = []core.Job{
+		{ID: "ja", Title: "Rivers in Japanese", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: "/videos/ja/video.mp4", SpokenLanguage: "ja"},
+		{ID: "en", Title: "Rivers in English", Source: "https://youtu.be/jNQXAC9IVRw", Stage: core.StageComplete, VideoPath: "/videos/en/video.mp4", SpokenLanguage: "en"},
+	}
+	refresh(tt, a)
+	tt.Press("id:spoken-ja")
+	refresh(tt, a)
+	tt.Type("id:sidebar-search", "english\n")
+	if a.openKey != "" {
+		t.Fatalf("Return opened %q, which 日语 hides", a.openKey)
+	}
+	tt.Clear("id:sidebar-search")
+	tt.Type("id:sidebar-search", "rivers\n")
+	if a.openKey != "ja" {
+		t.Fatalf("Return with one film shown of two found: open %q, want ja", a.openKey)
+	}
+}
+
+// TestSidebarDropsALanguageNoLongerListed checks that a language chosen in the sidebar is let go once the list no longer offers it, as after its last film was removed, so a film heard in it later does not narrow 全部影片 by itself; a language still listed stays chosen.
+func TestSidebarDropsALanguageNoLongerListed(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.library.Jobs = []core.Job{
+		{ID: "ja", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: "/videos/ja/video.mp4", SpokenLanguage: "ja"},
+		{ID: "en", Source: "https://youtu.be/jNQXAC9IVRw", Stage: core.StageComplete, VideoPath: "/videos/en/video.mp4", SpokenLanguage: "en"},
+		{ID: "ko", Source: "https://youtu.be/9bZkp7q19f0", Stage: core.StageComplete, VideoPath: "/videos/ko/video.mp4", SpokenLanguage: "ko"},
+	}
+	refresh(tt, a)
+	tt.Press("id:spoken-en")
+	a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool { return job.ID == "ko" })
+	refresh(tt, a)
+	if a.side.spoken != "en" {
+		t.Fatalf("a language still listed was let go: %q", a.side.spoken)
+	}
+	a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool { return job.ID == "en" })
+	refresh(tt, a)
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "en2", Source: "https://youtu.be/kJQP7kiw5Fk", Stage: core.StageComplete, VideoPath: "/videos/en2/video.mp4", SpokenLanguage: "en"})
+	refresh(tt, a)
+	if a.SpokenFilter() != sidebar.SpokenAll || !tt.Exists("id:film-ja") {
+		t.Fatalf("a film heard in English brought back the filter %q: %q", a.SpokenFilter(), tt.Texts())
+	}
+}

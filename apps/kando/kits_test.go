@@ -165,9 +165,18 @@ func TestOnboardingShowsAFailedDownload(t *testing.T) {
 			t.Fatalf("%s is %v, want %v", row.Name, row.State, want)
 		}
 	}
-	// Where Kando cannot download, the guide says how to install it instead.
+	// Where Kando cannot download, the guide says how to install it instead: from its download page, or on Windows with Scoop.
 	media.OwnToolsDir = ""
-	if rows := a.onboardingTools(a.cx); rows[2].State != onboarding.ToolUnavailable {
+	rows := a.onboardingTools(a.cx)
+	if rows[2].State != onboarding.ToolUnavailable {
 		t.Fatalf("without a folder of its own, whisper-cli is %v", rows[2].State)
+	}
+	src, _ := media.SourceFor("whisper-cli")
+	install := ""
+	if src.Scoop != "" {
+		install = "scoop install " + src.Scoop
+	}
+	if src.Page == "" || rows[2].Page != src.Page || rows[2].Install != install {
+		t.Fatalf("whisper-cli's page %q and command %q, want %+v", rows[2].Page, rows[2].Install, src)
 	}
 }

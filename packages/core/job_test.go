@@ -36,6 +36,17 @@ func TestStageDone(t *testing.T) {
 }
 
 // A web address typed without a scheme makes a job whose source has https:// before it, the address yt-dlp is given and the library keeps.
+// A job downloads a bilibili video from its canonical link, which yt-dlp's bilibili extractor reads, though the page it came from was under the reader's language.
+func TestNewJobDownloadsTheCanonicalLink(t *testing.T) {
+	job, err := NewJob("https://www.bilibili.com/zh-Hant/video/BV1nx4y1x7t1/?p=2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Source != "https://www.bilibili.com/video/BV1nx4y1x7t1/?p=2" {
+		t.Errorf("source %q", job.Source)
+	}
+}
+
 func TestNewJobAddsTheScheme(t *testing.T) {
 	job, err := NewJob("  vimeo.com/76979871 ")
 	if err != nil {

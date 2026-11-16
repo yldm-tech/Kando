@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"kando/apps/kando/cloud"
+	"kando/apps/kando/feedback"
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
@@ -97,6 +100,9 @@ func (a *app) UploadView(item films.Film) film.Upload {
 		if a.cloud.uploadCanceled {
 			view.Status = film.UploadCanceled
 		}
+		if a.cloud.uploadFix {
+			view.Fix = m.AccountFixSettings()
+		}
 		return view
 	}
 	if key := a.cloud.uploaded[done]; key != "" {
@@ -111,6 +117,7 @@ func (a *app) BeginUpload(item films.Film) {
 		return
 	}
 	a.cloud.uploadCanceled = false
+	a.cloud.uploadFix = false
 	info, err := os.Stat(item.VideoPath)
 	if err != nil || info.IsDir() {
 		a.cloud.uploadErr = locales.Messages.AccountVideoMissing
@@ -139,7 +146,8 @@ func (a *app) BeginUpload(item films.Film) {
 	a.cloud.uploadErrPath = ""
 	cfg := a.currentStore()
 	videoPath := item.VideoPath
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	// No deadline: a long film on a slow connection takes as long as it takes. The upload ends when CancelUpload cancels ctx, or with cloud.ErrStalled when the storage stops taking it.
+	ctx, cancel := context.WithCancel(context.Background())
 	a.cloud.uploadCancel = cancel
 	go a.runUpload(ctx, cancel, videoPath, videoKey, cfg, files)
 }
@@ -195,8 +203,11 @@ func (a *app) runUpload(ctx context.Context, cancel context.CancelFunc, videoPat
 			return
 		}
 		if err != nil {
-			a.cloud.uploadErr = func(m locales.Messages) string { return uploadFailure(m, err, cfg.Secret, cfg.AccessKey) }
+			// The capsule says what went wrong and what to do; the storage's whole error goes to the log file, where the feedback dialog's log and the user can read it.
+			log.Printf("upload: %s to %s failed: %s", filepath.Base(videoPath), storeKind(cfg.Kind), feedback.Scrubber{Secrets: a.feedbackSecrets()}.NoSecrets(err.Error()))
+			a.cloud.uploadErr = func(m locales.Messages) string { return uploadFailure(m, err, cfg) }
 			a.cloud.uploadErrPath = done
+			a.cloud.uploadFix = uploadNeedsSettings(err)
 			return
 		}
 		if a.cloud.uploaded == nil {
@@ -405,13 +416,49 @@ func uploadProgress(m locales.Messages, written, total int64) string {
 	return m.AccountUploadingPercent(int(written * 100 / total))
 }
 
-// uploadFailure says why an upload failed, in m's language, with the storage's own reason unless it holds the secret or the access key.
-func uploadFailure(m locales.Messages, err error, secret, accessKey string) string {
-	msg := err.Error()
-	if (secret != "" && strings.Contains(msg, secret)) || (accessKey != "" && strings.Contains(msg, accessKey)) {
+// uploadFailure says why an upload to cfg failed and what to do about it, in m's language. An error none of cloud.Diagnose's reasons names reads as the storage's own code and message, unless they hold the secret or the access key, or, when the storage did not answer, points to the log file, which has the whole error.
+func uploadFailure(m locales.Messages, err error, cfg cloud.Store) string {
+	f := cloud.Diagnose(err)
+	switch f.Reason {
+	case cloud.ReasonStalled:
+		return m.AccountUploadStalled()
+	case cloud.ReasonOffline:
+		return m.AccountUploadOffline()
+	case cloud.ReasonUnreachable:
+		if f.Host != "" {
+			return m.AccountUploadUnreachable(f.Host)
+		}
+	case cloud.ReasonInsecure:
+		if f.Host != "" {
+			return m.AccountUploadInsecure(f.Host)
+		}
+	case cloud.ReasonKeys:
+		return m.AccountUploadKeys()
+	case cloud.ReasonDenied:
+		return m.AccountUploadDenied(cfg.Bucket)
+	case cloud.ReasonNoBucket:
+		return m.AccountUploadNoBucket(cfg.Bucket)
+	case cloud.ReasonRegion:
+		return m.AccountUploadRegion(cfg.Bucket)
+	case cloud.ReasonTooLarge:
+		return m.AccountUploadTooLarge()
+	}
+	if f.Detail == "" {
+		return m.AccountUploadFailedSeeLog()
+	}
+	if (cfg.Secret != "" && strings.Contains(f.Detail, cfg.Secret)) || (cfg.AccessKey != "" && strings.Contains(f.Detail, cfg.AccessKey)) {
 		return m.AccountUploadFailed()
 	}
-	return m.AccountUploadFailedBecause(msg)
+	return m.AccountUploadFailedBecause(f.Detail)
+}
+
+// uploadNeedsSettings is whether an upload failed because of what is filled in for the storage in 设置 › 账号与上传: the endpoint, region, bucket or keys, which the capsule's button opens.
+func uploadNeedsSettings(err error) bool {
+	switch cloud.Diagnose(err).Reason {
+	case cloud.ReasonUnreachable, cloud.ReasonInsecure, cloud.ReasonKeys, cloud.ReasonDenied, cloud.ReasonNoBucket, cloud.ReasonRegion:
+		return true
+	}
+	return false
 }
 
 func openBrowser(raw string) error {

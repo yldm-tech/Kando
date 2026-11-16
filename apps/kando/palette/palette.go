@@ -43,6 +43,8 @@ type Answer struct {
 
 // View is what the palette shows.
 type View struct {
+	// Label is the field's accessible name, read as the palette opens.
+	Label       string
 	Placeholder string
 	Footer      string
 	// Ask is the row that asks the open film what was typed, which comes first of the rows when there is one; "" shows none.
@@ -266,11 +268,11 @@ func (p panel) Render(cx *core.Scope) core.Node {
 
 // field is the search row: the magnifier, the field 17 high in a row of 30 that has the keyboard as the palette opens, and Esc.
 func field(cx *core.Scope, a App, view *core.Memo[View], send func(fill func(*Event))) core.Node {
-	// TODO(nsgo#145): give core.Input a LabelFunc twin so the field's accessible name follows the interface language as it changes; it is read once as the palette opens https://github.com/nsgo-dev/nsgo/issues/145
+	// TODO(nsgo#145): give core.Input a LabelFunc twin so the field's accessible name follows the interface language as it changes; it is read once as the palette opens, for where it opens (View.Label) https://github.com/nsgo-dev/nsgo/issues/145
 	input := base.Input{
 		TestID:          "palette-field",
 		AutoFocus:       true,
-		Label:           locales.PaletteFieldLabel(cx),
+		Label:           view.GetUntracked().Label,
 		Value:           live.Func(a, func() string { return *a.PaletteQuery() }),
 		PlaceholderFunc: func() string { return view.Get().Placeholder },
 		OnChange: func(text string) {
@@ -497,7 +499,7 @@ func count(n int) []int {
 
 // equalView reports whether a and b show the same.
 func equalView(a, b View) bool {
-	return a.Placeholder == b.Placeholder && a.Footer == b.Footer && a.Ask == b.Ask && a.Empty == b.Empty && a.Selected == b.Selected &&
+	return a.Label == b.Label && a.Placeholder == b.Placeholder && a.Footer == b.Footer && a.Ask == b.Ask && a.Empty == b.Empty && a.Selected == b.Selected &&
 		equalAnswer(a.Answer, b.Answer) && slices.Equal(a.Films, b.Films) && slices.Equal(a.Lines, b.Lines) && slices.Equal(a.Commands, b.Commands)
 }
 

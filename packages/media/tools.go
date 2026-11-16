@@ -127,7 +127,13 @@ func VimpoLibraryDir() string {
 // MoviesDir is the folder a new library is created in unless the user picks another place.
 func MoviesDir() string { return moviesDir() }
 
+// VideosDir is the user's videos folder as the system names it, when it does: the Videos known folder on Windows, wherever it was moved, and the XDG_VIDEOS_DIR of a Linux desktop, named in the user's language. main sets it before the tools are looked up; empty, as on macOS and in tests, the folder is ~/Movies on macOS and ~/Videos elsewhere.
+var VideosDir string
+
 func moviesDir() string {
+	if VideosDir != "" {
+		return VideosDir
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return os.TempDir()
@@ -139,8 +145,42 @@ func moviesDir() string {
 	return filepath.Join(home, folder)
 }
 
-// Apps opened from Finder or a desktop launcher get a minimal PATH that omits package manager directories.
-var extraToolDirs = []string{"/opt/homebrew/bin", "/usr/local/bin", "/home/linuxbrew/.linuxbrew/bin"}
+// extraToolDirs are the package managers' folders lookTool looks in after PATH (packageManagerDirs).
+var extraToolDirs = packageManagerDirs(runtime.GOOS, os.Getenv)
+
+// packageManagerDirs are the folders package managers put their programs in on goos, with getenv reading the environment. Apps opened from Finder or a desktop launcher get a minimal PATH that omits Homebrew's and Linuxbrew's. On Windows winget, Scoop and Chocolatey put the programs they install, or links to them, in a folder of their own, which they add to the PATH in the registry; Kando's PATH, read as it started, has it only once Kando restarts, so without these 重新检测 would not find a program installed since.
+func packageManagerDirs(goos string, getenv func(string) string) []string {
+	if goos != "windows" {
+		return []string{"/opt/homebrew/bin", "/usr/local/bin", "/home/linuxbrew/.linuxbrew/bin"}
+	}
+	var dirs []string
+	under := func(base string, elem ...string) {
+		if base != "" {
+			dirs = append(dirs, filepath.Join(append([]string{base}, elem...)...))
+		}
+	}
+	// winget links a portable package's programs in the user's folder, or in Program Files for one installed for every user.
+	under(getenv("LOCALAPPDATA"), "Microsoft", "WinGet", "Links")
+	under(getenv("ProgramFiles"), "WinGet", "Links")
+	// Scoop keeps a shim of each program under $SCOOP, ~\scoop unless the user moved it, and under $SCOOP_GLOBAL, %ProgramData%\scoop, for one installed for every user.
+	if scoop := getenv("SCOOP"); scoop != "" {
+		under(scoop, "shims")
+	} else {
+		under(getenv("USERPROFILE"), "scoop", "shims")
+	}
+	if global := getenv("SCOOP_GLOBAL"); global != "" {
+		under(global, "shims")
+	} else {
+		under(getenv("ProgramData"), "scoop", "shims")
+	}
+	// Chocolatey keeps a shim of each program in the bin folder of $ChocolateyInstall, %ProgramData%\chocolatey unless moved.
+	if choco := getenv("ChocolateyInstall"); choco != "" {
+		under(choco, "bin")
+	} else {
+		under(getenv("ProgramData"), "chocolatey", "bin")
+	}
+	return dirs
+}
 
 // lookTool finds the program name: the one Kando downloaded for itself (ownTool), then one on PATH or in a package manager's folder.
 func lookTool(name string) string {
@@ -150,9 +190,9 @@ func lookTool(name string) string {
 	if path, err := exec.LookPath(name); err == nil {
 		return path
 	}
+	// LookPath of a path checks the file as it does those on PATH: an executable file, or on Windows one with an extension of PATHEXT, as ffmpeg.exe.
 	for _, dir := range extraToolDirs {
-		path := filepath.Join(dir, name)
-		if info, err := os.Stat(path); err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+		if path, err := exec.LookPath(filepath.Join(dir, name)); err == nil {
 			return path
 		}
 	}
@@ -182,6 +222,15 @@ func (t Tools) Check() error {
 		errs = append(errs, fmt.Errorf("whisper model: %w", err))
 	}
 	return errors.Join(errs...)
+}
+
+// hearing is how Transcribe hears the speech of a video under ctx: with the whisper model WhisperModel, in the language a film the user said is spoken in a language of its own is heard in (withSpeechLanguage), else in the one the settings name, "" for whichever whisper detects (hearer).
+func (t Tools) hearing(ctx context.Context) (model, language string) {
+	language = speechLanguageOf(ctx)
+	if language == "" {
+		language = strings.TrimSpace(t.SpeechLanguage)
+	}
+	return t.WhisperModel, language
 }
 
 // CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, which Check leaves out (TranslateChecker).
@@ -384,11 +433,7 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 			reportProgress(ctx, core.Fraction(f))
 		}
 	}
-	// A film the user said is spoken in a language of its own is heard in it (withSpeechLanguage); the others in the one the settings name, or whichever whisper detects.
-	language := speechLanguageOf(ctx)
-	if language == "" {
-		language = strings.TrimSpace(t.SpeechLanguage)
-	}
+	_, language := t.hearing(ctx)
 	if language == "" {
 		language = "auto"
 	}
@@ -488,7 +533,7 @@ func runTool(ctx context.Context, logFailure bool, name string, args ...string) 
 	err := retryBusy(ctx, func() error {
 		stdout.Reset()
 		stderr.Reset()
-		cmd := exec.CommandContext(ctx, name, args...)
+		cmd := Command(ctx, name, args...)
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		return cmd.Run()
