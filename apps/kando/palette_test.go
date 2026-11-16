@@ -855,3 +855,25 @@ func TestPaletteExplainWithoutAIOffersItsSettings(t *testing.T) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
+
+// TestPaletteSaysWhatItTakesWhereItOpens checks that the palette's field is named, and its footer says what Return does, for where it opens: over the library it finds films, commands and lines and runs them; in the player it also asks the open film, which Return does while the ask row is highlighted.
+func TestPaletteSaysWhatItTakesWhereItOpens(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	paletteOpen(t, a, tt, updates)
+	if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabel() {
+		t.Fatalf("field over the library is named %q, want %q", got, msgs.PaletteFieldLabel())
+	}
+	if !hasText(tt, msgs.PaletteFooter()) {
+		t.Fatalf("no library footer in %q", tt.Texts())
+	}
+	tt.Key("escape")
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
+	if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabelFilm() {
+		t.Fatalf("field in the player is named %q, want %q", got, msgs.PaletteFieldLabelFilm())
+	}
+	if !hasText(tt, msgs.PaletteFooterFilm()) {
+		t.Fatalf("no player footer in %q", tt.Texts())
+	}
+}

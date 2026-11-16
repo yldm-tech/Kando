@@ -295,6 +295,10 @@ func TestHeroIsTheFilmBeingWatched(t *testing.T) {
 	if hero() != rivers.Name || !app.Exists(whole(msgs.FilmsHeroKickerContinueBilingual(msgs.SettingsLanguageSimplifiedChinese()))) {
 		t.Fatalf("the hero is %q: %q", hero(), app.Texts())
 	}
+	// The hero is named by its film and gives no hint of its own that could say 最近完成 over a kicker that says 继续观看.
+	if d := app.Find("id:films-hero").Props.Hint; d != "" {
+		t.Fatalf("the hero's hint is %q", d)
+	}
 	// With nothing to continue, the newest finished film never played is the hero, ahead of one watched to the end.
 	change(app, a, func() {
 		delete(a.resume, rivers.VideoPath)

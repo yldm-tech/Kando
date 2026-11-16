@@ -393,12 +393,16 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 	lines, cmds := a.paletteFound(cx)
 	_, inFilm := a.paletteOpenFilm()
 	v := cmdpalette.View{
+		Label:       locales.PaletteFieldLabel(cx),
 		Placeholder: locales.PalettePlaceholder(cx),
 		Footer:      locales.PaletteFooter(cx),
 		Selected:    -1,
 	}
+	// In the player the palette also asks the open film, which its field's name and its footer say.
 	if inFilm {
+		v.Label = locales.PaletteFieldLabelFilm(cx)
 		v.Placeholder = locales.PalettePlaceholderFilm(cx)
+		v.Footer = locales.PaletteFooterFilm(cx)
 	}
 	asks := 0
 	if a.paletteAsks() {

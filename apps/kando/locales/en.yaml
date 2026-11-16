@@ -1933,11 +1933,17 @@ paletteExplainNote:
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
 paletteFieldLabel:
+  message: "Films, commands or watched lines"
+  description: "Accessible name of the command palette's field over the library, where it finds films, commands and lines but takes no question."
+paletteFieldLabelFilm:
   message: "Commands, lines or questions"
-  description: "Accessible name of the command palette's field."
+  description: "Accessible name of the command palette's field in the player, where a question can also be asked about the open film."
 paletteFooter:
   message: "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
-  description: "Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do."
+  description: "Footer of the command palette over the library: what typing, the arrow keys and Return do."
+paletteFooterFilm:
+  message: "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"
+  description: "Footer of the command palette in the player: what typing, the arrow keys and Return do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise."
 paletteHeadingAnswer:
   message: "Answer"
   description: "Heading of the card with the answer to a question about the film."
@@ -3724,6 +3730,12 @@ sidebarRevealLibrary:
   placeholders:
     name: { type: "String", example: "My Films" }
     platform: { type: "String", example: "macOS" }
+sidebarRowCount:
+  message: "{name}, {count, plural, one {# film} other {# films}}"
+  description: "Accessible name of a sidebar row of a source or a spoken language: its name and how many films the library page shows for it, the count the row draws at its end."
+  placeholders:
+    name: { type: "String", example: "YouTube" }
+    count: { type: "int", example: "12" }
 sidebarSearchClear:
   message: "Clear Search"
   description: "Accessible name of the button at the end of the sidebar’s search field that empties it."

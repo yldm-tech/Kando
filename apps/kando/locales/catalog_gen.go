@@ -664,6 +664,7 @@ var Parameters = map[string][]string{
 	"SidebarLibraryCount":                {"name", "count"},
 	"SidebarMenuShowInFinder":            {"platform"},
 	"SidebarRevealLibrary":               {"name", "platform"},
+	"SidebarRowCount":                    {"name", "count"},
 	"SidebarSwitcherLabel":               {"name"},
 	"SitesFound":                         {"count", "source"},
 	"SitesIntro":                         {"count"},
@@ -917,6 +918,7 @@ type Translation struct {
 	SidebarLibraryCount                func(name string, count int) string
 	SidebarMenuShowInFinder            func(platform string) string
 	SidebarRevealLibrary               func(name string, platform string) string
+	SidebarRowCount                    func(name string, count int) string
 	SidebarSwitcherLabel               func(name string) string
 	SitesFound                         func(count int, source string) string
 	SitesIntro                         func(count int) string
@@ -1359,7 +1361,9 @@ const (
 	textOnboardingWelcomeDescription
 	textPaletteExplainLine
 	textPaletteFieldLabel
+	textPaletteFieldLabelFilm
 	textPaletteFooter
+	textPaletteFooterFilm
 	textPaletteHeadingAnswer
 	textPaletteHeadingCommands
 	textPaletteHeadingFilms
@@ -2228,7 +2232,9 @@ var keyOfText = [numTexts]string{
 	"onboardingWelcomeDescription",
 	"paletteExplainLine",
 	"paletteFieldLabel",
+	"paletteFieldLabelFilm",
 	"paletteFooter",
+	"paletteFooterFilm",
 	"paletteHeadingAnswer",
 	"paletteHeadingCommands",
 	"paletteHeadingFilms",
@@ -3094,8 +3100,10 @@ var textsEn = i18n.NewTexts(""+
 	"Welcome to Kando"+
 	"Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."+
 	"Explain Line"+
+	"Films, commands or watched lines"+
 	"Commands, lines or questions"+
 	"Type to search films, commands and watched lines · ↑↓ to select · Return to run"+
+	"Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"+
 	"Answer"+
 	"Commands"+
 	"Films"+
@@ -3958,8 +3966,10 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		113,
 		12,
+		32,
 		28,
 		85,
+		113,
 		6,
 		8,
 		5,
@@ -4825,8 +4835,10 @@ var textsJa = i18n.NewTexts(""+
 	"Kando へようこそ"+
 	"YouTube や bilibili のリンクを貼り付けるか、ローカル動画をドラッグすれば、観ながら学べます。まず言語を選びましょう。"+
 	"このセリフを解説"+
+	"動画、コマンド、または見たセリフ"+
 	"コマンド、セリフ、または質問"+
 	"入力すると動画、コマンド、見たセリフを検索 · ↑↓ で選択 · Return で実行"+
+	"入力すると動画、コマンド、見たセリフを検索、またはこの動画に質問 · ↑↓ で選択 · Return で質問または実行"+
 	"回答"+
 	"コマンド"+
 	"動画"+
@@ -5689,8 +5701,10 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		165,
 		24,
+		48,
 		42,
 		103,
+		151,
 		6,
 		12,
 		6,
@@ -6556,8 +6570,10 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에 오신 것을 환영합니다"+
 	"YouTube, Bilibili 링크를 붙여 넣거나 로컬 동영상을 끌어다 놓으면 보면서 배울 수 있습니다. 먼저 언어를 선택하세요."+
 	"이 대사 설명"+
+	"영상, 명령 또는 본 대사"+
 	"명령, 대사 또는 질문"+
 	"입력하면 영상, 명령, 본 대사 검색 · ↑↓ 선택 · Return 실행"+
+	"입력하면 영상, 명령, 본 대사 검색 또는 이 영상에 질문 · ↑↓ 선택 · Return 질문 또는 실행"+
 	"답변"+
 	"명령"+
 	"영상"+
@@ -7420,8 +7436,10 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		153,
 		17,
+		32,
 		28,
 		80,
+		122,
 		6,
 		6,
 		6,
@@ -8287,8 +8305,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"欢迎使用看懂"+
 	"粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"+
 	"讲解这句"+
+	"影片、命令或看过的台词"+
 	"命令、台词或问题"+
 	"打字时搜影片、命令和看过的台词 · ↑↓ 选择 · Return 执行"+
+	"打字时搜影片、命令和看过的台词，或问这部影片 · ↑↓ 选择 · Return 提问或执行"+
 	"回答"+
 	"命令"+
 	"影片"+
@@ -9151,8 +9171,10 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		98,
 		12,
+		33,
 		24,
 		79,
+		109,
 		6,
 		6,
 		6,
@@ -10018,8 +10040,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"歡迎使用看懂"+
 	"貼上 YouTube、嗶哩嗶哩連結或拖入本機影片，就能邊看邊學。先選好語言。"+
 	"講解這句"+
+	"影片、指令或看過的台詞"+
 	"指令、台詞或問題"+
 	"輸入時搜尋影片、指令和看過的台詞 · ↑↓ 選擇 · Return 執行"+
+	"輸入時搜尋影片、指令和看過的台詞，或問這部影片 · ↑↓ 選擇 · Return 提問或執行"+
 	"回答"+
 	"指令"+
 	"影片"+
@@ -10882,8 +10906,10 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		98,
 		12,
+		33,
 		24,
 		82,
+		112,
 		6,
 		6,
 		6,
@@ -12094,6 +12120,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SidebarRevealLibrary != nil {
 		s.SidebarRevealLibrary = t.SidebarRevealLibrary
+	}
+	if t.SidebarRowCount != nil {
+		s.SidebarRowCount = t.SidebarRowCount
 	}
 	if t.SidebarSwitcherLabel != nil {
 		s.SidebarSwitcherLabel = t.SidebarSwitcherLabel
@@ -20328,23 +20357,41 @@ func (msgs Messages) PaletteExplainNote(model string) string {
 	}
 }
 
-// PaletteFieldLabel says "Commands, lines or questions"
+// PaletteFieldLabel says "Films, commands or watched lines"
 // in the language the app shows under cx.
 //
-// Accessible name of the command palette's field.
+// Accessible name of the command palette's field over the library, where it finds films, commands and lines but takes no question.
 func PaletteFieldLabel(cx *core.Scope) string { return For(cx).PaletteFieldLabel() }
 
 // PaletteFieldLabel is the package's PaletteFieldLabel in the language of msgs.
 func (msgs Messages) PaletteFieldLabel() string { return msgs.text(textPaletteFieldLabel) }
 
+// PaletteFieldLabelFilm says "Commands, lines or questions"
+// in the language the app shows under cx.
+//
+// Accessible name of the command palette's field in the player, where a question can also be asked about the open film.
+func PaletteFieldLabelFilm(cx *core.Scope) string { return For(cx).PaletteFieldLabelFilm() }
+
+// PaletteFieldLabelFilm is the package's PaletteFieldLabelFilm in the language of msgs.
+func (msgs Messages) PaletteFieldLabelFilm() string { return msgs.text(textPaletteFieldLabelFilm) }
+
 // PaletteFooter says "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
 // in the language the app shows under cx.
 //
-// Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do.
+// Footer of the command palette over the library: what typing, the arrow keys and Return do.
 func PaletteFooter(cx *core.Scope) string { return For(cx).PaletteFooter() }
 
 // PaletteFooter is the package's PaletteFooter in the language of msgs.
 func (msgs Messages) PaletteFooter() string { return msgs.text(textPaletteFooter) }
+
+// PaletteFooterFilm says "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"
+// in the language the app shows under cx.
+//
+// Footer of the command palette in the player: what typing, the arrow keys and Return do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise.
+func PaletteFooterFilm(cx *core.Scope) string { return For(cx).PaletteFooterFilm() }
+
+// PaletteFooterFilm is the package's PaletteFooterFilm in the language of msgs.
+func (msgs Messages) PaletteFooterFilm() string { return msgs.text(textPaletteFooterFilm) }
 
 // PaletteHeadingAnswer says "Answer"
 // in the language the app shows under cx.
@@ -28252,6 +28299,49 @@ func (msgs Messages) SidebarRevealLibrary(name string, platform string) string {
 				b.WriteString("」")
 			}
 			return b.String()
+		}
+	}
+}
+
+// SidebarRowCount says "{name}, {count, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Accessible name of a sidebar row of a source or a spoken language: its name and how many films the library page shows for it, the count the row draws at its end.
+func SidebarRowCount(cx *core.Scope, name string, count int) string {
+	return For(cx).SidebarRowCount(name, count)
+}
+
+// SidebarRowCount is the package's SidebarRowCount in the language of msgs.
+func (msgs Messages) SidebarRowCount(name string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SidebarRowCount(name, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SidebarRowCount; f != nil {
+			return f(name, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(name))
+			b.WriteString(", ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			return name + "、" + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return name + ", " + i18n.FormatNumber("ko", float64(count)) + "편"
+		case "zh-Hans":
+			return name + "，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片"
+		case "zh-Hant":
+			return name + "，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片"
 		}
 	}
 }

@@ -469,3 +469,26 @@ func TestSidebarStopsShowTheKeyboardAndThePointer(t *testing.T) {
 		t.Fatalf("the switcher's corners are %v, the source rows' %v", r, want)
 	}
 }
+
+// TestRowsSayTheirCounts checks that a screen reader hears the count a source or a language row draws at its end with its name, and only the name of a row without a count.
+func TestRowsSayTheirCounts(t *testing.T) {
+	a := newFakeApp()
+	a.bySpoken = []SpokenCount{{Code: "ja", Count: 3}, {Code: "en", Count: 1}}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	for selector, want := range map[string]string{
+		"id:source-" + SourceAll:     msgs.SidebarRowCount(msgs.SidebarSourceAll(), 4),
+		"id:source-" + SourceYouTube: msgs.SidebarRowCount("YouTube", 1),
+		"id:source-" + PageBrowse:    msgs.SidebarBrowse(),
+		"id:spoken-ja":               msgs.SidebarRowCount(msgs.SettingsSpeechLanguageJa(), 3),
+		"id:spoken-" + SpokenAll:     msgs.SidebarLanguagesAll(),
+	} {
+		if got := app.Find(selector).Props.Label; got != want {
+			t.Errorf("%s is named %q, want %q", selector, got, want)
+		}
+	}
+	change(app, a, func() { a.bySource[SourceYouTube] = 2 })
+	if got, want := app.Find("id:source-"+SourceYouTube).Props.Label, msgs.SidebarRowCount("YouTube", 2); got != want {
+		t.Fatalf("YouTube is named %q after its count changed, want %q", got, want)
+	}
+}
