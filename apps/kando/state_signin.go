@@ -77,7 +77,7 @@ const (
 
 func (a *app) signinCheck() { a.signinRead(signinFromSettings) }
 
-// signinRead has yt-dlp read the chosen browser's sign-in off the UI thread, which on macOS asks the user, the first time, to allow its key in the Keychain, and once it could, puts the cookies of the catalog's sites into the built-in browser's pages (browseSignIn). Without a browser or a yt-dlp, which 组件 says is missing, there is nothing to read.
+// signinRead has yt-dlp read the chosen browser's sign-in off the UI thread, which on macOS asks the user, the first time, to allow its key in the Keychain, and once it could, puts the cookies of the video sites Browse is for (catalog.SignInCookies) into the built-in browser's pages (browseSignIn). Without a browser or a yt-dlp, which 组件 says is missing, there is nothing to read.
 func (a *app) signinRead(ask signinAsk) {
 	tools, ok := a.pipeline.(media.Tools)
 	browser := a.signin.browser
@@ -87,9 +87,8 @@ func (a *app) signinRead(ask signinAsk) {
 	a.signin.gen++
 	a.signin.checking = true
 	gen, update := a.signin.gen, a.update
-	keep := catalog.Load().SignInCookies()
 	go func() {
-		cookies, trouble, err := tools.BrowserCookies(context.Background(), browser, keep)
+		cookies, trouble, err := tools.BrowserCookies(context.Background(), browser, catalog.SignInCookies)
 		if err != nil {
 			log.Printf("checking %s's sign-in: %v", browser, err)
 		}

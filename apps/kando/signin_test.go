@@ -267,7 +267,7 @@ func signinTools(t *testing.T) media.Tools {
 	return media.Tools{YTDLP: fakeTool(t, filepath.Join(home, "bin"), "yt-dlp"), CookieDir: filepath.Join(home, "cookies")}
 }
 
-// wantSignedIn fails t unless the web views' store holds the cookies of fakeChromeCookies of the catalog's sites, with their Secure and expiry, and nothing of the bank's, and the cookies folder is empty again.
+// wantSignedIn fails t unless the web views' store holds the cookies of fakeChromeCookies of the sites Browse is for, with their Secure and expiry, YSC HttpOnly as YouTube sets it and the others as their file has them, and nothing of Amazon's or the bank's, and the cookies folder is empty again.
 func wantSignedIn(t *testing.T, tt *nsgotest.App, tools media.Tools) {
 	t.Helper()
 	got := map[string]ns.WebCookie{}
@@ -276,6 +276,7 @@ func wantSignedIn(t *testing.T, tt *nsgotest.App, tools media.Tools) {
 	}
 	want := []ns.WebCookie{
 		{Name: "SID", Value: "fake", Domain: ".youtube.com", Path: "/", Secure: true},
+		{Name: "YSC", Value: "fake-ysc", Domain: ".youtube.com", Path: "/", Secure: true, HTTPOnly: true},
 		{Name: "__Secure-3PSID", Value: "fake-3p", Domain: ".google.com", Path: "/", Secure: true, Expires: time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)},
 		{Name: "SESSDATA", Value: "fake-sess", Domain: ".bilibili.com", Path: "/"},
 	}
@@ -284,7 +285,7 @@ func wantSignedIn(t *testing.T, tt *nsgotest.App, tools media.Tools) {
 	}
 	for _, w := range want {
 		g, ok := got[w.Domain+" "+w.Name]
-		if !ok || g.Value != w.Value || g.Path != w.Path || g.Secure != w.Secure || !g.Expires.Equal(w.Expires) {
+		if !ok || g.Value != w.Value || g.Path != w.Path || g.Secure != w.Secure || g.HTTPOnly != w.HTTPOnly || !g.Expires.Equal(w.Expires) {
 			t.Fatalf("the pages' store holds %+v for %s, want %+v", g, w.Name, w)
 		}
 	}
@@ -293,7 +294,7 @@ func wantSignedIn(t *testing.T, tt *nsgotest.App, tools media.Tools) {
 	}
 }
 
-// Choosing a browser whose sign-in yt-dlp reads puts the cookies of the catalog's sites into the web views' store, with one run of yt-dlp, so Browse's pages are signed in too; a site outside the catalog stays in the browser, and the file yt-dlp saved them to is gone.
+// Choosing a browser whose sign-in yt-dlp reads puts the cookies of the sites Browse is for into the web views' store, with one run of yt-dlp, so Browse's pages are signed in too; any other site's stays in the browser, and the file yt-dlp saved them to is gone.
 func TestChoosingABrowserSignsInThePages(t *testing.T) {
 	tools := signinTools(t)
 	a, tt, updates := newTestApp(t, tools)

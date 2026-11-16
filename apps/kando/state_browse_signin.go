@@ -9,7 +9,7 @@ import (
 	"kando/packages/media"
 )
 
-// The built-in browser's pages are signed in as the user is in the browser chosen in Settings › 通用 › 浏览器登录: the cookies of the catalog's sites that yt-dlp reads from it (signinRead) go into the web views' store (core.Scope.SetWebCookies), as the browser is chosen, as the browser first opens in a launch, and on 刷新登录. Never as the app starts, as on macOS reading a Chromium browser's sign-in asks for the Keychain.
+// The built-in browser's pages are signed in as the user is in the browser chosen in Settings › 通用 › 浏览器登录: the cookies of the video sites Browse is for (catalog.SignInCookies) that yt-dlp reads from it (signinRead) go into the web views' store (core.Scope.SetWebCookies), as the browser is chosen, as the browser first opens in a launch, and on 刷新登录. Never as the app starts, as on macOS reading a Chromium browser's sign-in asks for the Keychain.
 
 // browseSignInState is what the browser knows of its pages' sign-in: opened is set once its page showed in this launch, signedIn names the browser whose sign-in the pages took last in it, and writing is set while the store takes it.
 type browseSignInState struct {
@@ -42,7 +42,7 @@ func (a *app) browseRefreshSignIn() {
 // browseSigningIn reports whether the chosen browser's sign-in is being read or put into the pages, when 刷新登录 waits.
 func (a *app) browseSigningIn() bool { return a.signin.checking || a.browse.signin.writing }
 
-// browseSignIn puts cookies, those of the catalog's sites that yt-dlp read from browser, into the web views' store, and loads the page shown again once it holds them, so the page is signed in. 刷新登录 says in the message bar that it worked; a store that refused them says why there, whoever asked.
+// browseSignIn puts cookies, those of the video sites Browse is for that yt-dlp read from browser, into the web views' store, and loads the page shown again once it holds them, so the page is signed in. 刷新登录 says in the message bar that it worked; a store that refused them says why there, whoever asked.
 func (a *app) browseSignIn(browser string, cookies []media.Cookie, ask signinAsk) {
 	if a.cx == nil {
 		return

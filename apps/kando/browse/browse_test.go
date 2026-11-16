@@ -472,3 +472,16 @@ func TestWebCookiesKeepWhatTheStoreTakes(t *testing.T) {
 		t.Fatalf("WebCookies = %+v\nwant %+v", got, want)
 	}
 }
+
+// The sign-in Browse takes from the user's own browser covers every site its start page offers and every site its own buttons know (catalog.SignInCookies), so a site added to either is added there too.
+func TestSignInCoversBrowsesSites(t *testing.T) {
+	domains := slices.Clone(startSites)
+	for _, s := range videoSites {
+		domains = append(domains, s.Domain)
+	}
+	for _, d := range domains {
+		if take, _ := catalog.SignInCookies("."+d, "any"); !take {
+			t.Errorf("the sign-in leaves out %s", d)
+		}
+	}
+}

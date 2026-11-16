@@ -87,16 +87,16 @@ func (t Tools) CheckLogin(ctx context.Context, browser string) (LoginTrouble, er
 	return trouble, err
 }
 
-// BrowserCookies reads the sign-in of browser as CheckLogin does and returns the cookies of it whose domain keep takes, read from the file yt-dlp saved them to (ReadCookies) before its folder is removed; the browser's other cookies never leave this call. trouble and err are CheckLogin's, and no cookies come with them.
-func (t Tools) BrowserCookies(ctx context.Context, browser string, keep func(domain string) bool) (cookies []Cookie, trouble LoginTrouble, err error) {
+// BrowserCookies reads the sign-in of browser as CheckLogin does and returns the cookies of it that keep takes, by their domain and name, read from the file yt-dlp saved them to (ReadCookies) before its folder is removed; the browser's other cookies never leave this call. keep also says whether a cookie is HttpOnly, which yt-dlp's file does not say: a cookie it marks HttpOnly is returned so. trouble and err are CheckLogin's, and no cookies come with them.
+func (t Tools) BrowserCookies(ctx context.Context, browser string, keep func(domain, name string) (take, httpOnly bool)) (cookies []Cookie, trouble LoginTrouble, err error) {
 	if keep == nil {
-		keep = func(string) bool { return false }
+		keep = func(string, string) (bool, bool) { return false, false }
 	}
 	return t.readLogin(ctx, browser, keep)
 }
 
-// readLogin is CheckLogin, which also reads the cookies keep takes from the file yt-dlp saved when keep is set.
-func (t Tools) readLogin(ctx context.Context, browser string, keep func(domain string) bool) ([]Cookie, LoginTrouble, error) {
+// readLogin is CheckLogin, which also reads the cookies keep takes from the file yt-dlp saved when keep is set (BrowserCookies).
+func (t Tools) readLogin(ctx context.Context, browser string, keep func(domain, name string) (take, httpOnly bool)) ([]Cookie, LoginTrouble, error) {
 	if t.YTDLP == "" {
 		return nil, LoginUnreadable, errors.New("yt-dlp is not installed")
 	}
@@ -147,9 +147,12 @@ func (t Tools) readLogin(ctx context.Context, browser string, keep func(domain s
 	}
 	var cookies []Cookie
 	for _, c := range ReadCookies(data) {
-		if keep(c.Domain) {
-			cookies = append(cookies, c)
+		take, httpOnly := keep(c.Domain, c.Name)
+		if !take {
+			continue
 		}
+		c.HTTPOnly = c.HTTPOnly || httpOnly
+		cookies = append(cookies, c)
 	}
 	return cookies, "", nil
 }
