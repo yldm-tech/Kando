@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -88,5 +89,55 @@ func TestProviderIDFindsThePreset(t *testing.T) {
 	}
 	if !SameHost("https://api.openai.com/v1", "HTTPS://API.OPENAI.COM/other") || SameHost("https://api.openai.com/v1", "http://api.openai.com/v1") {
 		t.Error("SameHost compares the scheme and host alone")
+	}
+}
+
+// TestLLMTestErrorSaysWhy checks the words for why 测试连接 failed: a missing model or Base URL, a key the service refuses, an account out of credit, a refused request, a busy service, a timeout, an unreachable service and a reply that is not a chat answer each in plain words of the interface's language, never the API's English text.
+func TestLLMTestErrorSaysWhy(t *testing.T) {
+	msgs := testlocale.Messages()
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{nil, ""},
+		{media.ErrNoModel, msgs.SettingsAITestNoModel()},
+		{media.ErrNoBaseURL, msgs.SettingsAITestNoBaseURL()},
+		{errors.New(`translation API returned 401 Unauthorized: {"error":{"message":"Incorrect API key provided"}}`), msgs.SettingsAITestUnauthorized()},
+		{errors.New(`translation API returned 402 Payment Required: {"error":{"message":"Insufficient Balance"}}`), msgs.SettingsAITestQuota()},
+		{errors.New(`translation API returned 429 Too Many Requests: {"error":{"type":"insufficient_quota"}}`), msgs.SettingsAITestQuota()},
+		{errors.New(`translation API returned 404 Not Found: {"error":{"message":"The model gpt-x does not exist"}}`), msgs.SettingsAITestRejected()},
+		{errors.New(`translation API returned 429 Too Many Requests: slow down`), msgs.SettingsAITestBusy()},
+		{context.DeadlineExceeded, msgs.SettingsAITestTimeout()},
+		{errors.New(`Post "https://llm.example.com/v1/chat/completions": dial tcp: lookup llm.example.com: no such host`), msgs.SettingsAITestNetwork()},
+		{errors.New("decode translation response: invalid character '<' looking for beginning of value"), msgs.SettingsAITestMalformed()},
+		{media.ErrEveryAPISignedOut, msgs.PrecheckEveryAPISignedOut()},
+		{errors.New("something nobody has seen"), msgs.SettingsAITestFailed()},
+	} {
+		got := LLMTestError(msgs, tc.err)
+		if got != tc.want {
+			t.Errorf("LLMTestError(%v) = %q, want %q", tc.err, got, tc.want)
+		}
+		if tc.err != nil && strings.Contains(got, "translation API") {
+			t.Errorf("LLMTestError(%v) shows the API's text: %q", tc.err, got)
+		}
+	}
+}
+
+// TestDefaultModelPrefersChatModels checks the model chosen for a service that has none yet: the preset's own when the service lists it, otherwise the first that looks like a chat model rather than an embedding, speech or image model, and the first listed only when none does.
+func TestDefaultModelPrefersChatModels(t *testing.T) {
+	for _, tc := range []struct {
+		preset Preset
+		models []string
+		want   string
+	}{
+		{Preset{Model: "deepseek-chat"}, []string{"deepseek-chat", "deepseek-reasoner"}, "deepseek-chat"},
+		{Preset{Model: "gone"}, []string{"babbage-002", "dall-e-3", "gpt-4.1-mini", "text-embedding-3-small"}, "gpt-4.1-mini"},
+		{Preset{}, []string{"distil-whisper-large-v3-en", "llama-3.3-70b-versatile", "whisper-large-v3"}, "llama-3.3-70b-versatile"},
+		{Preset{}, []string{"text-embedding-v3", "tts-1"}, "text-embedding-v3"},
+		{Preset{Model: "m"}, nil, ""},
+	} {
+		if got := DefaultModel(tc.preset, tc.models); got != tc.want {
+			t.Errorf("DefaultModel(%q, %q) = %q, want %q", tc.preset.Model, tc.models, got, tc.want)
+		}
 	}
 }

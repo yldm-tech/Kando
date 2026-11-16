@@ -55,12 +55,16 @@ func (p translate) Render(cx *core.Scope) core.Node {
 		}),
 		Style: core.Style{Height: core.Pt(106), FontFamily: "monospace"}}
 	state := core.Text{Style: core.Style{FontSize: 11, Color: form.Secondary, FlexGrow: 1, FlexShrink: 1},
-		ContentFunc: func() string {
-			if usingDefault() {
+		ContentFunc: live.Func(a, func() string {
+			switch {
+			case usingDefault():
 				return locales.SettingsTranslatePromptDefault(cx)
+			case !strings.Contains(*a.TranslatePrompt(), "{{language}}"):
+				// The translation then names the target language after the prompt (media's subtitlePrompt), which the line says rather than leaving the language to look forgotten.
+				return locales.SettingsTranslatePromptNoLanguage(cx)
 			}
 			return locales.SettingsTranslatePromptCustom(cx)
-		}}
+		})}
 	restore := form.Button{Text: locales.SettingsTranslateRestore(cx), TestID: "settings-translate-reset", Disabled: usingDefault, OnPress: live.Do(a, func() {
 		if strings.TrimSpace(*a.TranslatePrompt()) != strings.TrimSpace(media.DefaultSubtitlePrompt) {
 			*a.TranslatePrompt() = media.DefaultSubtitlePrompt

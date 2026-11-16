@@ -181,7 +181,7 @@ func modelSelect(cx *core.Scope, a App, colors ui.Colors) core.Node {
 	return core.Group([]core.Node{choose, loading, why, retry})
 }
 
-// testStatus is the connection test's state: a dot and a word, the error when it failed.
+// testStatus is the connection test's state: a dot and a word, why it failed when it did, with what the service answered as the pointer rests on it.
 func testStatus(cx *core.Scope, a App) core.Node {
 	colors := ui.ColorsOf(cx)
 	failed := func() bool { return !a.TestingLLM() && !a.LLMConnected() && a.LLMResult() != "" }
@@ -218,5 +218,11 @@ func testStatus(cx *core.Scope, a App) core.Node {
 		}
 		return locales.SettingsAIUntested(cx)
 	})
-	return form.Status(dot, color, text)
+	status := form.Status(dot, color, text)
+	return core.Show{When: live.Func(a, func() bool { return failed() && a.LLMResultDetail() != "" }),
+		Then: func(*core.Scope) core.Node {
+			return ui.Tooltip{TextFunc: live.Func(a, a.LLMResultDetail), Trigger: status, TestID: "settings-llm-test-detail",
+				Style: core.Style{Direction: core.Row, FlexShrink: 1, MinWidth: core.Pt(0)}}
+		},
+		Else: func(*core.Scope) core.Node { return status }}
 }

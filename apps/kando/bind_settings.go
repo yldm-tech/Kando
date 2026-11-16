@@ -123,12 +123,20 @@ func (a *app) TestLLM() { a.testLLM() }
 // LLMConnected reports whether the last connection test passed, which the page words in the language it is shown in.
 func (a *app) LLMConnected() bool { return a.prefs.llmTestOK }
 
-// LLMResult is the last connection test's outcome: "" before any, 连接成功 in the interface language after one that passed, otherwise why it failed. The page reads LLMConnected and words the pass in the language it is shown in.
+// LLMResult is the last connection test's outcome: "" before any, 连接成功 in the interface language after one that passed, otherwise why it failed in the interface language. The page reads LLMConnected and words the pass in the language it is shown in.
 func (a *app) LLMResult() string {
 	if a.prefs.llmTestOK {
 		return a.messages().SettingsAIConnected()
 	}
-	return a.prefs.llmTestErr
+	return settings.LLMTestError(a.messages(), a.prefs.llmTestErr)
+}
+
+// LLMResultDetail is what the service answered when the last connection test failed, which the page shows as a tooltip on the status, "" otherwise.
+func (a *app) LLMResultDetail() string {
+	if a.prefs.llmTestErr == nil {
+		return ""
+	}
+	return films.Shorten(a.prefs.llmTestErr.Error(), 300)
 }
 
 func (a *app) SelectLLM(id string) { a.selectLLM(id) }

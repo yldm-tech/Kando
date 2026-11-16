@@ -45,10 +45,11 @@ type settingsUI struct {
 	trashModel   string
 	trashOpen    bool
 	trashRelease func()
-	// testingLLM is set while the connection test runs; llmTestOK is set when the last one passed and llmTestErr says why it failed. The page words the pass in the language it is shown in (LLMResult).
+	// testingLLM is set while the connection test runs; llmTestOK is set when the last one passed and llmTestErr is why it failed, which the page words in the language it is shown in (LLMResult). llmTestGen counts the tests and the changes of the service, key or model that forget them (llmForgetTest), so only the answer of a test about the settings in use is kept.
 	testingLLM bool
 	llmTestOK  bool
-	llmTestErr string
+	llmTestErr error
+	llmTestGen int
 	// llmModels are the model ids the AI service offers, fetched for the service, Base URL and key in llmModelsFor; llmModelsLoading is set while a fetch runs and llmModelsErr is why the last one failed, which LLMModelsErr words in the language it is shown in. llmEdited is when the Base URL or the key was last typed, so a fetch waits for typing to pause, and llmWaiting is set while a timer waits for that pause. listModels asks a service for its models; tests replace it.
 	llmModels        []string
 	llmModelsFor     string

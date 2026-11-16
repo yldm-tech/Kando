@@ -1295,6 +1295,7 @@ const (
 	textPrecheckTranslateBusy
 	textPrecheckTranslateMalformed
 	textPrecheckTranslateNetwork
+	textPrecheckTranslateQuota
 	textPrecheckTranslateRejected
 	textPrecheckTranslateTimeout
 	textQueueAlreadyInLibrary
@@ -1403,6 +1404,16 @@ const (
 	textSettingsAIRetry
 	textSettingsAIService
 	textSettingsAITest
+	textSettingsAITestBusy
+	textSettingsAITestFailed
+	textSettingsAITestMalformed
+	textSettingsAITestNetwork
+	textSettingsAITestNoBaseURL
+	textSettingsAITestNoModel
+	textSettingsAITestQuota
+	textSettingsAITestRejected
+	textSettingsAITestTimeout
+	textSettingsAITestUnauthorized
 	textSettingsAITesting
 	textSettingsAITranslationService
 	textSettingsAIUntested
@@ -1534,6 +1545,7 @@ const (
 	textSettingsTranslatePromptCustom
 	textSettingsTranslatePromptDefault
 	textSettingsTranslatePromptLabel
+	textSettingsTranslatePromptNoLanguage
 	textSettingsTranslatePromptNote
 	textSettingsTranslateRestore
 	textSettingsTranslateTarget
@@ -2057,6 +2069,7 @@ var keyOfText = [numTexts]string{
 	"precheckTranslateBusy",
 	"precheckTranslateMalformed",
 	"precheckTranslateNetwork",
+	"precheckTranslateQuota",
 	"precheckTranslateRejected",
 	"precheckTranslateTimeout",
 	"queueAlreadyInLibrary",
@@ -2165,6 +2178,16 @@ var keyOfText = [numTexts]string{
 	"settingsAIRetry",
 	"settingsAIService",
 	"settingsAITest",
+	"settingsAITestBusy",
+	"settingsAITestFailed",
+	"settingsAITestMalformed",
+	"settingsAITestNetwork",
+	"settingsAITestNoBaseURL",
+	"settingsAITestNoModel",
+	"settingsAITestQuota",
+	"settingsAITestRejected",
+	"settingsAITestTimeout",
+	"settingsAITestUnauthorized",
 	"settingsAITesting",
 	"settingsAITranslationService",
 	"settingsAIUntested",
@@ -2296,6 +2319,7 @@ var keyOfText = [numTexts]string{
 	"settingsTranslatePromptCustom",
 	"settingsTranslatePromptDefault",
 	"settingsTranslatePromptLabel",
+	"settingsTranslatePromptNoLanguage",
 	"settingsTranslatePromptNote",
 	"settingsTranslateRestore",
 	"settingsTranslateTarget",
@@ -2817,6 +2841,7 @@ var textsEn = i18n.NewTexts(""+
 	"The AI service stayed busy, even after automatic retries. Retry in a few minutes."+
 	"The AI returned the translation in the wrong format, even after a few retries. Retry, or choose another model in “AI Service”."+
 	"Can't connect to the AI service. Check your network, then retry."+
+	"Your AI service account is out of credit. Top it up, then retry."+
 	"The AI service refused the request. Check the address and model in “AI Service”."+
 	"The AI service didn't respond, even after automatic retries. Retry later."+
 	"This video is already in the library."+
@@ -2925,6 +2950,16 @@ var textsEn = i18n.NewTexts(""+
 	"Retry"+
 	"Service"+
 	"Test Connection"+
+	"The service is busy. Test again in a minute."+
+	"Connection test failed"+
+	"The reply isn't an OpenAI Chat Completions answer. Check the Base URL."+
+	"Can't reach the service. Check the Base URL and your network."+
+	"Enter the Base URL first"+
+	"Choose a model first"+
+	"The account is out of credit. Top it up, then test again."+
+	"The service refused the request. Check the Base URL and the model."+
+	"The service didn't answer in time"+
+	"The service doesn't accept this API Key"+
 	"Sending a test request…"+
 	"Translation service"+
 	"Not tested"+
@@ -3056,6 +3091,7 @@ var textsEn = i18n.NewTexts(""+
 	"Using a custom prompt · Write {{language}} for the target language."+
 	"Using the default prompt · Write {{language}} for the target language."+
 	"Translation prompt"+
+	"Using a custom prompt · Without {{language}}, the target language is added at the end."+
 	"You can add style requests, such as a conversational tone or keeping names in English. Kando asks for the number of JSON lines itself, so there's no need to write it here."+
 	"Restore Default"+
 	"Default target language"+
@@ -3574,6 +3610,7 @@ var textsEn = i18n.NewTexts(""+
 		81,
 		130,
 		64,
+		64,
 		84,
 		73,
 		37,
@@ -3682,6 +3719,16 @@ var textsEn = i18n.NewTexts(""+
 		5,
 		7,
 		15,
+		44,
+		22,
+		70,
+		61,
+		24,
+		20,
+		57,
+		66,
+		33,
+		39,
 		25,
 		19,
 		10,
@@ -3813,6 +3860,7 @@ var textsEn = i18n.NewTexts(""+
 		68,
 		71,
 		18,
+		87,
 		171,
 		15,
 		23,
@@ -4334,6 +4382,7 @@ var textsJa = i18n.NewTexts(""+
 	"AI サービスが混み合っていて、自動で再試行してもうまくいきませんでした。数分後に再試行してください。"+
 	"AI が返した訳文の形式が正しくなく、何度か送り直してもうまくいきませんでした。再試行するか、「AI サービス」で別のモデルを選択してください。"+
 	"AI サービスに接続できません。ネットワークを確認してから再試行してください。"+
+	"AI サービスのアカウントのクレジットが不足しています。チャージしてから再試行してください。"+
 	"AI サービスがリクエストを拒否しました。「AI サービス」のアドレスとモデルを確認してください。"+
 	"AI サービスから応答がなく、自動で再試行してもうまくいきませんでした。しばらくしてから再試行してください。"+
 	"この動画はすでにライブラリにあります。"+
@@ -4442,6 +4491,16 @@ var textsJa = i18n.NewTexts(""+
 	"再試行"+
 	"サービス"+
 	"接続をテスト"+
+	"サービスが混み合っています。1 分ほどしてからもう一度テストしてください。"+
+	"接続テストに失敗しました"+
+	"OpenAI Chat Completions の応答ではありません。Base URL を確認してください。"+
+	"サービスに接続できません。Base URL とネットワークを確認してください。"+
+	"先に Base URL を入力してください"+
+	"先にモデルを選択してください"+
+	"アカウントのクレジットが不足しています。チャージしてからもう一度テストしてください。"+
+	"サービスがリクエストを拒否しました。Base URL とモデルを確認してください。"+
+	"サービスが時間内に応答しませんでした"+
+	"サービスがこの API Key を受け付けません"+
 	"テストリクエストを送信中…"+
 	"翻訳サービス"+
 	"未テスト"+
@@ -4573,6 +4632,7 @@ var textsJa = i18n.NewTexts(""+
 	"カスタムプロンプトを使用中 · 翻訳先の言語は {{language}} と書きます。"+
 	"デフォルトのプロンプトを使用中 · 翻訳先の言語は {{language}} と書きます。"+
 	"翻訳プロンプト"+
+	"カスタムプロンプトを使用中 · {{language}} がないため、翻訳先の言語を末尾に追加します。"+
 	"口語的にする、人名は英語のまま残す、といったスタイルの指定を加えられます。返される JSON の行数は Kando が自動で指定するので、ここに書く必要はありません。"+
 	"デフォルトに戻す"+
 	"デフォルトの翻訳先言語"+
@@ -5091,6 +5151,7 @@ var textsJa = i18n.NewTexts(""+
 		147,
 		204,
 		111,
+		132,
 		135,
 		156,
 		57,
@@ -5199,6 +5260,16 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		12,
 		18,
+		107,
+		36,
+		96,
+		99,
+		43,
+		42,
+		126,
+		105,
+		54,
+		54,
 		39,
 		18,
 		12,
@@ -5330,6 +5401,7 @@ var textsJa = i18n.NewTexts(""+
 		96,
 		102,
 		21,
+		122,
 		223,
 		24,
 		33,
@@ -5851,6 +5923,7 @@ var textsKo = i18n.NewTexts(""+
 	"AI 서비스가 계속 혼잡하며, 자동으로 다시 시도해도 해결되지 않았습니다. 몇 분 후 다시 시도하십시오."+
 	"AI가 반환한 번역의 형식이 올바르지 않으며, 몇 번 다시 보내도 해결되지 않았습니다. 다시 시도하거나 ‘AI 서비스’에서 다른 모델을 선택하십시오."+
 	"AI 서비스에 연결할 수 없습니다. 네트워크를 확인한 후 다시 시도하십시오."+
+	"AI 서비스 계정의 크레딧이 부족합니다. 충전한 후 다시 시도하십시오."+
 	"AI 서비스가 요청을 거부했습니다. ‘AI 서비스’에서 주소와 모델을 확인하십시오."+
 	"AI 서비스가 응답하지 않으며, 자동으로 다시 시도해도 해결되지 않았습니다. 잠시 후 다시 시도하십시오."+
 	"이 동영상은 이미 라이브러리에 있습니다."+
@@ -5959,6 +6032,16 @@ var textsKo = i18n.NewTexts(""+
 	"다시 시도"+
 	"서비스"+
 	"연결 테스트"+
+	"서비스가 혼잡합니다. 1분 후 다시 테스트하십시오."+
+	"연결 테스트에 실패했습니다"+
+	"OpenAI Chat Completions 응답이 아닙니다. Base URL을 확인하십시오."+
+	"서비스에 연결할 수 없습니다. Base URL과 네트워크를 확인하십시오."+
+	"먼저 Base URL을 입력하십시오"+
+	"먼저 모델을 선택하십시오"+
+	"계정의 크레딧이 부족합니다. 충전한 후 다시 테스트하십시오."+
+	"서비스가 요청을 거부했습니다. Base URL과 모델을 확인하십시오."+
+	"서비스가 제시간에 응답하지 않았습니다"+
+	"서비스가 이 API Key를 받지 않습니다"+
 	"테스트 요청을 보내는 중…"+
 	"번역 서비스"+
 	"테스트하지 않음"+
@@ -6090,6 +6173,7 @@ var textsKo = i18n.NewTexts(""+
 	"사용자 지정 프롬프트 사용 중 · 대상 언어는 {{language}}로 나타냅니다."+
 	"기본 프롬프트 사용 중 · 대상 언어는 {{language}}로 나타냅니다."+
 	"번역 프롬프트"+
+	"사용자 지정 프롬프트 사용 중 · {{language}}가 없어 대상 언어를 끝에 덧붙입니다."+
 	"구어체로 옮기기, 인명은 영어로 두기 같은 스타일 요청을 덧붙일 수 있습니다. 돌려받을 JSON 줄 수는 Kando가 자동으로 요청하므로 여기에 쓸 필요가 없습니다."+
 	"기본값 복원"+
 	"기본 대상 언어"+
@@ -6608,6 +6692,7 @@ var textsKo = i18n.NewTexts(""+
 		138,
 		199,
 		100,
+		93,
 		110,
 		140,
 		56,
@@ -6716,6 +6801,16 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		9,
 		16,
+		68,
+		38,
+		79,
+		88,
+		37,
+		35,
+		83,
+		84,
+		54,
+		47,
 		36,
 		16,
 		22,
@@ -6847,6 +6942,7 @@ var textsKo = i18n.NewTexts(""+
 		93,
 		83,
 		19,
+		107,
 		210,
 		16,
 		20,
@@ -7368,6 +7464,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"AI 服务一直很忙，已自动重试，还是不行。过几分钟再重试。"+
 	"AI 返回的译文格式不对，已重发几次还是不行。重试，或在「AI 服务」里换个模型。"+
 	"连不上 AI 服务，检查网络后再重试。"+
+	"AI 服务账户余额不足。充值后再重试。"+
 	"AI 服务拒绝了请求，检查「AI 服务」里的地址和模型。"+
 	"AI 服务一直没有回应，已自动重试，还是不行。稍后再重试。"+
 	"这个视频已在资料库中。"+
@@ -7476,6 +7573,16 @@ var textsZhHans = i18n.NewTexts(""+
 	"重试"+
 	"服务"+
 	"测试连接"+
+	"服务正忙，过一分钟再测试。"+
+	"连接测试失败"+
+	"返回的不是 OpenAI Chat Completions 的回复，检查 Base URL。"+
+	"连不上服务，检查 Base URL 和网络。"+
+	"先填写 Base URL"+
+	"先选择模型"+
+	"账户余额不足，充值后再测试。"+
+	"服务拒绝了请求，检查 Base URL 和模型。"+
+	"服务没有及时回应"+
+	"服务不接受这个 API Key"+
 	"正在发送测试请求…"+
 	"翻译服务"+
 	"尚未测试"+
@@ -7607,6 +7714,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在使用自定义提示词 · 用 {{language}} 代表目标语言。"+
 	"正在使用默认提示词 · 用 {{language}} 代表目标语言。"+
 	"翻译提示词"+
+	"正在使用自定义提示词 · 没有写 {{language}}，会在末尾注明目标语言。"+
 	"可以加上风格要求，例如口语化、人名保留英文。返回的 JSON 行数由看懂自动要求，不用写在这里。"+
 	"恢复默认"+
 	"默认目标语言"+
@@ -8125,6 +8233,7 @@ var textsZhHans = i18n.NewTexts(""+
 		81,
 		111,
 		49,
+		51,
 		72,
 		81,
 		33,
@@ -8233,6 +8342,16 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		39,
+		18,
+		70,
+		46,
+		18,
+		15,
+		42,
+		52,
+		24,
+		29,
 		27,
 		12,
 		12,
@@ -8364,6 +8483,7 @@ var textsZhHans = i18n.NewTexts(""+
 		72,
 		69,
 		15,
+		92,
 		132,
 		12,
 		18,
@@ -8885,6 +9005,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"AI 服務一直很忙，已自動重試，還是不行。過幾分鐘再重試。"+
 	"AI 傳回的譯文格式不對，已重送幾次還是不行。重試，或在「AI 服務」中換個模型。"+
 	"無法連上 AI 服務，檢查網路後再重試。"+
+	"AI 服務帳戶餘額不足。儲值後再重試。"+
 	"AI 服務拒絕了請求，檢查「AI 服務」中的位址和模型。"+
 	"AI 服務一直沒有回應，已自動重試，還是不行。稍後再重試。"+
 	"這個影片已在資料庫中。"+
@@ -8993,6 +9114,16 @@ var textsZhHant = i18n.NewTexts(""+
 	"重試"+
 	"服務"+
 	"測試連線"+
+	"服務正忙，過一分鐘再測試。"+
+	"連線測試失敗"+
+	"傳回的不是 OpenAI Chat Completions 的回覆，請檢查 Base URL。"+
+	"連不上服務，請檢查 Base URL 和網路。"+
+	"請先填寫 Base URL"+
+	"請先選擇模型"+
+	"帳戶餘額不足，儲值後再測試。"+
+	"服務拒絕了請求，請檢查 Base URL 和模型。"+
+	"服務沒有及時回應"+
+	"服務不接受這個 API Key"+
 	"正在傳送測試請求…"+
 	"翻譯服務"+
 	"尚未測試"+
@@ -9124,6 +9255,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在使用自訂提示詞 · 用 {{language}} 代表目標語言。"+
 	"正在使用預設提示詞 · 用 {{language}} 代表目標語言。"+
 	"翻譯提示詞"+
+	"正在使用自訂提示詞 · 沒有寫 {{language}}，會在末尾註明目標語言。"+
 	"可以加上風格要求，例如口語化、人名保留英文。回傳的 JSON 行數由看懂自動要求，不用寫在這裡。"+
 	"恢復預設"+
 	"預設目標語言"+
@@ -9642,6 +9774,7 @@ var textsZhHant = i18n.NewTexts(""+
 		81,
 		111,
 		52,
+		51,
 		72,
 		81,
 		33,
@@ -9750,6 +9883,16 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		12,
+		39,
+		18,
+		73,
+		49,
+		21,
+		18,
+		42,
+		55,
+		24,
+		29,
 		27,
 		12,
 		12,
@@ -9881,6 +10024,7 @@ var textsZhHant = i18n.NewTexts(""+
 		69,
 		69,
 		15,
+		89,
 		132,
 		12,
 		18,
@@ -18853,6 +18997,15 @@ func (msgs Messages) PrecheckTranslateNetwork() string {
 	return msgs.text(textPrecheckTranslateNetwork)
 }
 
+// PrecheckTranslateQuota says "Your AI service account is out of credit. Top it up, then retry."
+// in the language the app shows under cx.
+//
+// Card of a job whose translation failed because the AI service said the account is out of credit or over its quota.
+func PrecheckTranslateQuota(cx *core.Scope) string { return For(cx).PrecheckTranslateQuota() }
+
+// PrecheckTranslateQuota is the package's PrecheckTranslateQuota in the language of msgs.
+func (msgs Messages) PrecheckTranslateQuota() string { return msgs.text(textPrecheckTranslateQuota) }
+
 // PrecheckTranslateRejected says "The AI service refused the request. Check the address and model in “AI Service”."
 // in the language the app shows under cx.
 //
@@ -21356,6 +21509,98 @@ func SettingsAITest(cx *core.Scope) string { return For(cx).SettingsAITest() }
 // SettingsAITest is the package's SettingsAITest in the language of msgs.
 func (msgs Messages) SettingsAITest() string { return msgs.text(textSettingsAITest) }
 
+// SettingsAITestBusy says "The service is busy. Test again in a minute."
+// in the language the app shows under cx.
+//
+// Connection test status when the service answered that it is busy or rate limited.
+func SettingsAITestBusy(cx *core.Scope) string { return For(cx).SettingsAITestBusy() }
+
+// SettingsAITestBusy is the package's SettingsAITestBusy in the language of msgs.
+func (msgs Messages) SettingsAITestBusy() string { return msgs.text(textSettingsAITestBusy) }
+
+// SettingsAITestFailed says "Connection test failed"
+// in the language the app shows under cx.
+//
+// Connection test status when it failed for a reason Kando does not recognize. The service's own answer shows in a tooltip.
+func SettingsAITestFailed(cx *core.Scope) string { return For(cx).SettingsAITestFailed() }
+
+// SettingsAITestFailed is the package's SettingsAITestFailed in the language of msgs.
+func (msgs Messages) SettingsAITestFailed() string { return msgs.text(textSettingsAITestFailed) }
+
+// SettingsAITestMalformed says "The reply isn't an OpenAI Chat Completions answer. Check the Base URL."
+// in the language the app shows under cx.
+//
+// Connection test status when the address answered with something other than a chat reply, as a web page. Base URL is the field's name and stays as it is.
+func SettingsAITestMalformed(cx *core.Scope) string { return For(cx).SettingsAITestMalformed() }
+
+// SettingsAITestMalformed is the package's SettingsAITestMalformed in the language of msgs.
+func (msgs Messages) SettingsAITestMalformed() string { return msgs.text(textSettingsAITestMalformed) }
+
+// SettingsAITestNetwork says "Can't reach the service. Check the Base URL and your network."
+// in the language the app shows under cx.
+//
+// Connection test status when the service could not be reached. Base URL is the field's name and stays as it is.
+func SettingsAITestNetwork(cx *core.Scope) string { return For(cx).SettingsAITestNetwork() }
+
+// SettingsAITestNetwork is the package's SettingsAITestNetwork in the language of msgs.
+func (msgs Messages) SettingsAITestNetwork() string { return msgs.text(textSettingsAITestNetwork) }
+
+// SettingsAITestNoBaseURL says "Enter the Base URL first"
+// in the language the app shows under cx.
+//
+// Connection test status when no Base URL is filled in. Base URL is the field's name and stays as it is.
+func SettingsAITestNoBaseURL(cx *core.Scope) string { return For(cx).SettingsAITestNoBaseURL() }
+
+// SettingsAITestNoBaseURL is the package's SettingsAITestNoBaseURL in the language of msgs.
+func (msgs Messages) SettingsAITestNoBaseURL() string { return msgs.text(textSettingsAITestNoBaseURL) }
+
+// SettingsAITestNoModel says "Choose a model first"
+// in the language the app shows under cx.
+//
+// Connection test status when no model is chosen.
+func SettingsAITestNoModel(cx *core.Scope) string { return For(cx).SettingsAITestNoModel() }
+
+// SettingsAITestNoModel is the package's SettingsAITestNoModel in the language of msgs.
+func (msgs Messages) SettingsAITestNoModel() string { return msgs.text(textSettingsAITestNoModel) }
+
+// SettingsAITestQuota says "The account is out of credit. Top it up, then test again."
+// in the language the app shows under cx.
+//
+// Connection test status when the service said the account is out of credit or over its quota.
+func SettingsAITestQuota(cx *core.Scope) string { return For(cx).SettingsAITestQuota() }
+
+// SettingsAITestQuota is the package's SettingsAITestQuota in the language of msgs.
+func (msgs Messages) SettingsAITestQuota() string { return msgs.text(textSettingsAITestQuota) }
+
+// SettingsAITestRejected says "The service refused the request. Check the Base URL and the model."
+// in the language the app shows under cx.
+//
+// Connection test status when the service rejected the request, as for a model or an address it does not know. Base URL is the field's name and stays as it is.
+func SettingsAITestRejected(cx *core.Scope) string { return For(cx).SettingsAITestRejected() }
+
+// SettingsAITestRejected is the package's SettingsAITestRejected in the language of msgs.
+func (msgs Messages) SettingsAITestRejected() string { return msgs.text(textSettingsAITestRejected) }
+
+// SettingsAITestTimeout says "The service didn't answer in time"
+// in the language the app shows under cx.
+//
+// Connection test status when the service did not answer in time.
+func SettingsAITestTimeout(cx *core.Scope) string { return For(cx).SettingsAITestTimeout() }
+
+// SettingsAITestTimeout is the package's SettingsAITestTimeout in the language of msgs.
+func (msgs Messages) SettingsAITestTimeout() string { return msgs.text(textSettingsAITestTimeout) }
+
+// SettingsAITestUnauthorized says "The service doesn't accept this API Key"
+// in the language the app shows under cx.
+//
+// Connection test status when the service refused the key. API Key is the field's name and stays as it is.
+func SettingsAITestUnauthorized(cx *core.Scope) string { return For(cx).SettingsAITestUnauthorized() }
+
+// SettingsAITestUnauthorized is the package's SettingsAITestUnauthorized in the language of msgs.
+func (msgs Messages) SettingsAITestUnauthorized() string {
+	return msgs.text(textSettingsAITestUnauthorized)
+}
+
 // SettingsAITesting says "Sending a test request…"
 // in the language the app shows under cx.
 //
@@ -23550,6 +23795,19 @@ func SettingsTranslatePromptLabel(cx *core.Scope) string {
 // SettingsTranslatePromptLabel is the package's SettingsTranslatePromptLabel in the language of msgs.
 func (msgs Messages) SettingsTranslatePromptLabel() string {
 	return msgs.text(textSettingsTranslatePromptLabel)
+}
+
+// SettingsTranslatePromptNoLanguage says "Using a custom prompt · Without '{{language}}', the target language is added at the end."
+// in the language the app shows under cx.
+//
+// Under the prompt when it was edited and does not contain {{language}}: Kando then adds a sentence naming the target language after it. {{language}} is written literally into the prompt and must stay as it is, inside the apostrophes.
+func SettingsTranslatePromptNoLanguage(cx *core.Scope) string {
+	return For(cx).SettingsTranslatePromptNoLanguage()
+}
+
+// SettingsTranslatePromptNoLanguage is the package's SettingsTranslatePromptNoLanguage in the language of msgs.
+func (msgs Messages) SettingsTranslatePromptNoLanguage() string {
+	return msgs.text(textSettingsTranslatePromptNoLanguage)
 }
 
 // SettingsTranslatePromptNote says "You can add style requests, such as a conversational tone or keeping names in English. Kando asks for the number of JSON lines itself, so there's no need to write it here."

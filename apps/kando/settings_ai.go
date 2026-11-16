@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
-	"slices"
 	"strings"
 	"time"
 
@@ -83,10 +83,9 @@ func (a *app) selectLLM(id string) {
 		return
 	}
 	a.prefs.llmProvider = id
+	// Another endpoint does not have the model of the one before: the preset's own default goes in, or none, which adoptLLMModel fills in once the service lists its models. 自定义 has no endpoint and keeps both.
 	if preset.BaseURL != "" {
 		a.prefs.llmBase = preset.BaseURL
-	}
-	if preset.Model != "" {
 		a.prefs.llmModel = preset.Model
 	}
 	a.applyLLM()
@@ -112,8 +111,13 @@ func (a *app) applyLLM() {
 	if base != tools.Translator.BaseURL || key != tools.Translator.APIKey {
 		a.prefs.llmEdited = time.Now()
 	}
+	model := strings.TrimSpace(a.prefs.llmModel)
+	// The connection test's verdict is about the service, key and model it tested.
+	if base != tools.Translator.BaseURL || key != tools.Translator.APIKey || model != tools.Translator.Model {
+		a.llmForgetTest()
+	}
 	tools.Translator.BaseURL = base
-	tools.Translator.Model = strings.TrimSpace(a.prefs.llmModel)
+	tools.Translator.Model = model
 	tools.Translator.APIKey = key
 	a.pipeline = tools.UseEveryAPICLI()
 	a.areasLLMChanged()
@@ -179,8 +183,9 @@ func (a *app) testLLM() {
 	if !ok || a.prefs.testingLLM {
 		return
 	}
+	a.llmForgetTest()
 	a.prefs.testingLLM = true
-	a.prefs.llmTestOK, a.prefs.llmTestErr = false, ""
+	gen := a.prefs.llmTestGen
 	translator := tools.Translator
 	credential := translator.Credential != nil
 	update := a.update
@@ -189,14 +194,25 @@ func (a *app) testLLM() {
 		defer cancel()
 		err := translator.Ping(ctx)
 		update(func() {
+			if gen != a.prefs.llmTestGen {
+				return
+			}
 			a.prefs.testingLLM = false
 			a.prefs.llmTestOK = err == nil
+			a.prefs.llmTestErr = err
 			if err != nil {
-				a.prefs.llmTestErr = err.Error()
+				log.Printf("settings: the AI service's connection test failed: %v", err)
 			}
 			a.areasLLMTested(err, credential)
 		})
 	}()
+}
+
+// llmForgetTest drops the connection test's verdict, and the answer of a test still running, when the service, key or model it was about changes or the test starts again.
+func (a *app) llmForgetTest() {
+	a.prefs.llmTestGen++
+	a.prefs.testingLLM = false
+	a.prefs.llmTestOK, a.prefs.llmTestErr = false, nil
 }
 
 // llmTypingPause is how long the Base URL and the key must rest before the models are fetched for them, so typing an address asks the service once, not at every key.
@@ -272,15 +288,12 @@ func (a *app) fetchLLMModels(force bool) bool {
 	return true
 }
 
-// adoptLLMModel picks a model when none is chosen yet: the service's own default when it offers it, else the first it lists. A model already chosen is kept even when the list lacks it; the drop-down shows it on top.
+// adoptLLMModel picks a model when none is chosen yet: the service's own default when it offers it, else the first chat model it lists (settings.DefaultModel). A model already chosen is kept even when the list lacks it; the drop-down shows it on top.
 func (a *app) adoptLLMModel() {
 	if strings.TrimSpace(a.prefs.llmModel) != "" || len(a.prefs.llmModels) == 0 {
 		return
 	}
-	model := a.prefs.llmModels[0]
-	if preset, ok := settings.PresetByID(a.messages(), a.prefs.llmProvider); ok && slices.Contains(a.prefs.llmModels, preset.Model) {
-		model = preset.Model
-	}
-	a.prefs.llmModel = model
+	preset, _ := settings.PresetByID(a.messages(), a.prefs.llmProvider)
+	a.prefs.llmModel = settings.DefaultModel(preset, a.prefs.llmModels)
 	a.applyLLM()
 }

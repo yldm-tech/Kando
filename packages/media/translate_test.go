@@ -570,6 +570,9 @@ func TestClassifyTranslate(t *testing.T) {
 		"translation API returned 400 Bad Request: model is required":                                                                    TranslateRejected,
 		"translation API returned 429 Too Many Requests: slow down":                                                                      TranslateBusy,
 		"translation API returned 503 Service Unavailable: capacity_limited":                                                             TranslateBusy,
+		"translation API returned 402 Payment Required: Insufficient Balance":                                                            TranslateQuota,
+		`translation API returned 429 Too Many Requests: {"error":{"type":"insufficient_quota"}}`:                                        TranslateQuota,
+		"translation API returned 403 Forbidden: Arrearage":                                                                              TranslateQuota,
 		`Post "https://api.example.com/v1/chat/completions": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`: TranslateTimeout,
 		"decode translation response: context deadline exceeded (Client.Timeout or context cancellation while reading body)":             TranslateTimeout,
 		`Post "https://api.example.com/v1/chat/completions": dial tcp: lookup api.example.com: no such host`:                             TranslateNetwork,
@@ -623,5 +626,68 @@ func TestChatTranslatorListsModels(t *testing.T) {
 	}
 	if _, err := (ChatTranslator{}).Models(context.Background()); err == nil {
 		t.Fatal("no base URL gave no error")
+	}
+}
+
+// An account out of credit fails every request the same way until it is topped up, so its answer is neither retried nor left behind as one untranslated batch: the translation stops at once and says so.
+func TestChatTranslatorStopsAtOnceWhenOutOfCredit(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+	}{
+		{name: "402", status: http.StatusPaymentRequired, body: `{"error":{"message":"Insufficient Balance"}}`},
+		{name: "429 insufficient_quota", status: http.StatusTooManyRequests, body: `{"error":{"message":"You exceeded your current quota, please check your plan and billing details.","type":"insufficient_quota"}}`},
+		{name: "403 credit", status: http.StatusForbidden, body: `{"error":{"message":"Your credit balance is too low"}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			old := retryBaseDelay
+			retryBaseDelay = time.Millisecond
+			t.Cleanup(func() { retryBaseDelay = old })
+			calls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				http.Error(w, tc.body, tc.status)
+			}))
+			t.Cleanup(srv.Close)
+			tr := ChatTranslator{BaseURL: srv.URL, Model: "m"}
+			segments := make([]core.Segment, translateBatch*2)
+			_, err := tr.Translate(context.Background(), segments, "English")
+			var partial *UntranslatedError
+			if err == nil || errors.As(err, &partial) || calls != 1 || ClassifyTranslate("translate: "+err.Error()) != TranslateQuota {
+				t.Fatalf("calls = %d, err = %v", calls, err)
+			}
+		})
+	}
+}
+
+// A rate limit that does not name the account's credit is still a rate limit: retried, and busy once the retries are spent.
+func TestRateLimitIsNotOutOfCredit(t *testing.T) {
+	if got := ClassifyTranslate("translate: translation API returned 429 Too Many Requests: Rate limit reached for requests per min"); got != TranslateBusy {
+		t.Fatalf("rate limit classified %q", got)
+	}
+}
+
+// A custom prompt that does not write {{language}} still names the target language, so a prompt that only asks for a tone does not leave the lines in the language they are in.
+func TestCustomPromptWithoutTheLanguageStillNamesIt(t *testing.T) {
+	prompt := subtitlePrompt("Use a casual tone.", "日本語", nil)
+	if !strings.HasPrefix(prompt, "Use a casual tone.") || !strings.Contains(prompt, "日本語") || !strings.HasSuffix(prompt, subtitleReplyRule) {
+		t.Fatalf("prompt = %q", prompt)
+	}
+	if prompt := subtitlePrompt("Translate into {{language}}, casually.", "日本語", nil); strings.Count(prompt, "日本語") != 1 {
+		t.Fatalf("a prompt naming the language named it again: %q", prompt)
+	}
+	if prompt := subtitlePrompt("", "日本語", nil); strings.Count(prompt, "日本語") != 1 {
+		t.Fatalf("the default prompt: %q", prompt)
+	}
+}
+
+// Ping says which setting is missing with an error a caller can tell apart.
+func TestPingNamesWhatIsMissing(t *testing.T) {
+	if err := (ChatTranslator{BaseURL: "https://example.com/v1"}).Ping(context.Background()); !errors.Is(err, ErrNoModel) {
+		t.Fatalf("no model: %v", err)
+	}
+	if err := (ChatTranslator{Model: "m"}).Ping(context.Background()); !errors.Is(err, ErrNoBaseURL) {
+		t.Fatalf("no base URL: %v", err)
 	}
 }

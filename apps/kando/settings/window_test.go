@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
@@ -39,7 +40,7 @@ type fakeApp struct {
 	provider                string
 	base, key, model        string
 	testing, connected      bool
-	result                  string
+	result, resultDetail    string
 	llmModels               []string
 	loadingModels           bool
 	modelsErr               string
@@ -146,6 +147,7 @@ func (f *fakeApp) TestingLLM() bool                { return f.testing }
 func (f *fakeApp) TestLLM()                        { f.call("test") }
 func (f *fakeApp) LLMConnected() bool              { return f.connected }
 func (f *fakeApp) LLMResult() string               { return f.result }
+func (f *fakeApp) LLMResultDetail() string         { return f.resultDetail }
 func (f *fakeApp) SelectLLM(id string)             { f.call("select " + id); f.provider = id }
 func (f *fakeApp) LLMModels() []string             { return f.llmModels }
 func (f *fakeApp) LoadingLLMModels() bool          { return f.loadingModels }
@@ -465,7 +467,17 @@ func TestAIPage(t *testing.T) {
 	if !slices.Contains(a.calls, "retry models") {
 		t.Fatalf("calls %q", a.calls)
 	}
-	change(app, a, func() { a.connected = true })
+	change(app, a, func() {
+		a.result, a.resultDetail = msgs.SettingsAITestQuota(), "translation API returned 402 Payment Required: Insufficient Balance"
+	})
+	if !app.Exists(whole(msgs.SettingsAITestQuota())) || app.Exists(whole(a.resultDetail)) {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	app.Hover("id:settings-llm-test-detail")
+	app.Advance(600 * time.Millisecond)
+	app.Find(whole(a.resultDetail))
+	app.HoverOut()
+	change(app, a, func() { a.connected, a.result, a.resultDetail = true, msgs.SettingsAIConnected(), "" })
 	if !app.Exists(whole(msgs.SettingsAIConnected())) {
 		t.Fatalf("texts %q", app.Texts())
 	}
@@ -482,6 +494,13 @@ func TestTranslateAndLookPages(t *testing.T) {
 	app.Type("id:settings-translate-prompt", " 更多")
 	if !app.Enabled("id:settings-translate-reset") {
 		t.Fatal("恢复默认 is not offered for a prompt of the user's")
+	}
+	if !app.Exists(whole(msgs.SettingsTranslatePromptCustom())) {
+		t.Fatalf("a prompt of the user's with {{language}}: %q", app.Texts())
+	}
+	change(app, a, func() { a.prompt = "Keep it casual." })
+	if !app.Exists(whole(msgs.SettingsTranslatePromptNoLanguage())) {
+		t.Fatalf("a prompt without {{language}}: %q", app.Texts())
 	}
 	app.Press("id:settings-translate-reset")
 	if a.prompt != media.DefaultSubtitlePrompt {

@@ -1999,6 +1999,9 @@ precheckTranslateMalformed:
 precheckTranslateNetwork:
   message: "Can't connect to the AI service. Check your network, then retry."
   description: "Card of a job whose translation failed because the AI service could not be reached."
+precheckTranslateQuota:
+  message: "Your AI service account is out of credit. Top it up, then retry."
+  description: "Card of a job whose translation failed because the AI service said the account is out of credit or over its quota."
 precheckTranslateRejected:
   message: "The AI service refused the request. Check the address and model in “AI Service”."
   description: "Card of a job whose translation failed because the AI service rejected the request, as for an unknown model."
@@ -2564,6 +2567,36 @@ settingsAIService:
 settingsAITest:
   message: "Test Connection"
   description: "Button sending a short request to check the AI service answers."
+settingsAITestBusy:
+  message: "The service is busy. Test again in a minute."
+  description: "Connection test status when the service answered that it is busy or rate limited."
+settingsAITestFailed:
+  message: "Connection test failed"
+  description: "Connection test status when it failed for a reason Kando does not recognize. The service's own answer shows in a tooltip."
+settingsAITestMalformed:
+  message: "The reply isn't an OpenAI Chat Completions answer. Check the Base URL."
+  description: "Connection test status when the address answered with something other than a chat reply, as a web page. Base URL is the field's name and stays as it is."
+settingsAITestNetwork:
+  message: "Can't reach the service. Check the Base URL and your network."
+  description: "Connection test status when the service could not be reached. Base URL is the field's name and stays as it is."
+settingsAITestNoBaseURL:
+  message: "Enter the Base URL first"
+  description: "Connection test status when no Base URL is filled in. Base URL is the field's name and stays as it is."
+settingsAITestNoModel:
+  message: "Choose a model first"
+  description: "Connection test status when no model is chosen."
+settingsAITestQuota:
+  message: "The account is out of credit. Top it up, then test again."
+  description: "Connection test status when the service said the account is out of credit or over its quota."
+settingsAITestRejected:
+  message: "The service refused the request. Check the Base URL and the model."
+  description: "Connection test status when the service rejected the request, as for a model or an address it does not know. Base URL is the field's name and stays as it is."
+settingsAITestTimeout:
+  message: "The service didn't answer in time"
+  description: "Connection test status when the service did not answer in time."
+settingsAITestUnauthorized:
+  message: "The service doesn't accept this API Key"
+  description: "Connection test status when the service refused the key. API Key is the field's name and stays as it is."
 settingsAITesting:
   message: "Sending a test request…"
   description: "Connection test status while the test request is in flight."
@@ -3079,6 +3112,9 @@ settingsTranslatePromptDefault:
 settingsTranslatePromptLabel:
   message: "Translation prompt"
   description: "Accessible name of the text area holding the translation prompt."
+settingsTranslatePromptNoLanguage:
+  message: "Using a custom prompt · Without '{{language}}', the target language is added at the end."
+  description: "Under the prompt when it was edited and does not contain {{language}}: Kando then adds a sentence naming the target language after it. {{language}} is written literally into the prompt and must stay as it is, inside the apostrophes."
 settingsTranslatePromptNote:
   message: "You can add style requests, such as a conversational tone or keeping names in English. Kando asks for the number of JSON lines itself, so there's no need to write it here."
   description: "Footnote under the prompt."

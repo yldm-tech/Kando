@@ -370,3 +370,138 @@ func TestEveryAPICLIThatFailsOtherwiseSaysWhat(t *testing.T) {
 		t.Fatalf("sign-in error %v does not say what the program said", err)
 	}
 }
+
+// TestSwitchingTheServiceChoosesItsModel checks that choosing another service does not keep the model of the one before, which the new service does not have: a service with a default model of its own gets it, one without gets none until its list is fetched, where a chat model is preferred to the first id listed.
+func TestSwitchingTheServiceChoosesItsModel(t *testing.T) {
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}}
+	a, tt, updates := newTestApp(t, tools)
+	a.syncLLM(tools)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.prefs.listModels = func(_ context.Context, tr media.ChatTranslator) ([]string, error) {
+		if tr.BaseURL == "https://api.groq.com/openai/v1" {
+			return []string{"distil-whisper-large-v3-en", "llama-3.3-70b-versatile", "whisper-large-v3"}, nil
+		}
+		return offlineModels(context.Background(), tr)
+	}
+
+	a.selectLLM("openai")
+	if got := translator(t, a); got.Model != "gpt-4.1-mini" || a.prefs.llmModel != "gpt-4.1-mini" {
+		t.Fatalf("OpenAI's model %q, field %q", got.Model, a.prefs.llmModel)
+	}
+	a.selectLLM("custom")
+	if got := translator(t, a); got.BaseURL != "https://api.openai.com/v1" || got.Model != "gpt-4.1-mini" {
+		t.Fatalf("choosing 自定义 on the same endpoint changed it: base %q model %q", got.BaseURL, got.Model)
+	}
+	a.selectLLM("everyapi")
+	if got := translator(t, a); got.Model != media.EveryAPIModel {
+		t.Fatalf("EveryAPI's model %q", got.Model)
+	}
+
+	tt = settingsOpenAt(a, tt, settings.SectionAI)
+	waitUntil(t, tt, a, updates, func() bool { return !a.prefs.llmModelsLoading && !a.prefs.llmWaiting })
+	a.selectLLM("groq")
+	if got := translator(t, a); got.Model == media.EveryAPIModel {
+		t.Fatalf("Groq kept EveryAPI's model %q", got.Model)
+	}
+	refresh(tt, a)
+	waitUntil(t, tt, a, updates, func() bool { return a.prefs.llmModel != "" })
+	if got := translator(t, a); got.Model != "llama-3.3-70b-versatile" || loadSavedSettings(a.settingsPath).LLMModel != "llama-3.3-70b-versatile" {
+		t.Fatalf("Groq's model %q saved %q", got.Model, loadSavedSettings(a.settingsPath).LLMModel)
+	}
+}
+
+// chatServer answers each chat request with the status and body status returns, blocking while hold is not closed when it is set.
+func chatServer(t *testing.T, status func() (int, string), hold <-chan struct{}) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hold != nil {
+			<-hold
+		}
+		code, body := status()
+		if code != http.StatusOK {
+			http.Error(w, body, code)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"role":"assistant","content":"pong"}}]}`))
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+// TestConnectionTestSaysWhyInPlainWords checks that a failed 测试连接 says why in the interface's language, with what the service answered only in the tooltip, and that an account out of credit says so rather than that the key or model is wrong.
+func TestConnectionTestSaysWhyInPlainWords(t *testing.T) {
+	llmEnv(t, "", "", "")
+	server := chatServer(t, func() (int, string) {
+		return http.StatusPaymentRequired, `{"error":{"message":"Insufficient Balance"}}`
+	}, nil)
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: server.URL, Model: "m", APIKey: "sk-test"}}
+	a, tt, updates := newTestApp(t, tools)
+	a.syncLLM(tools)
+	page := settingsOpenAt(a, tt, settings.SectionAI)
+	page.Press("id:settings-llm-test")
+	waitUntil(t, tt, a, updates, func() bool { return !a.prefs.testingLLM })
+	msgs := testlocale.Messages()
+	if a.LLMResult() != msgs.SettingsAITestQuota() || !hasText(page, msgs.SettingsAITestQuota()) {
+		t.Fatalf("result %q, texts %q", a.LLMResult(), page.Texts())
+	}
+	if hasText(page, "translation API returned 402 Payment Required: {\"error\":{\"message\":\"Insufficient Balance\"}}") {
+		t.Fatalf("the page shows the API's text: %q", page.Texts())
+	}
+	if !strings.Contains(a.LLMResultDetail(), "Insufficient Balance") {
+		t.Fatalf("detail %q", a.LLMResultDetail())
+	}
+}
+
+// TestConnectionTestResultFollowsTheSettings checks that 测试连接's verdict belongs to the service, key and model it tested: changing any of them forgets it, and a test still running when they change does not put its verdict on the new ones.
+func TestConnectionTestResultFollowsTheSettings(t *testing.T) {
+	llmEnv(t, "", "", "")
+	server := chatServer(t, func() (int, string) { return http.StatusOK, "" }, nil)
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: server.URL, Model: "m", APIKey: "sk-test"}}
+	a, tt, updates := newTestApp(t, tools)
+	a.syncLLM(tools)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	connected := func() {
+		t.Helper()
+		a.testLLM()
+		waitUntil(t, tt, a, updates, func() bool { return !a.prefs.testingLLM })
+		if !a.LLMConnected() {
+			t.Fatalf("the test did not pass: %q", a.LLMResult())
+		}
+	}
+
+	connected()
+	a.prefs.llmModel = "m"
+	a.applyLLM()
+	if !a.LLMConnected() {
+		t.Fatal("applying the same settings forgot the test")
+	}
+	for name, change := range map[string]func(){
+		"model":    func() { a.prefs.llmModel = "other" },
+		"key":      func() { a.prefs.llmKey = "sk-other" },
+		"Base URL": func() { a.prefs.llmBase = server.URL + "/v2" },
+	} {
+		connected()
+		change()
+		a.applyLLM()
+		if a.LLMConnected() || a.LLMResult() != "" {
+			t.Fatalf("changing the %s kept the result %q", name, a.LLMResult())
+		}
+	}
+
+	hold := make(chan struct{})
+	slow := chatServer(t, func() (int, string) { return http.StatusOK, "" }, hold)
+	a.prefs.llmBase = slow.URL
+	a.applyLLM()
+	a.testLLM()
+	a.prefs.llmModel = "newer"
+	a.applyLLM()
+	if a.prefs.testingLLM {
+		t.Fatal("still testing the settings before")
+	}
+	close(hold)
+	waitUpdate(t, tt, a, updates)
+	if a.LLMConnected() || a.LLMResult() != "" || a.prefs.testingLLM {
+		t.Fatalf("the earlier test's verdict stayed: connected %v result %q", a.LLMConnected(), a.LLMResult())
+	}
+}

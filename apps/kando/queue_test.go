@@ -2609,3 +2609,14 @@ func queueUntilState(t *testing.T, updates <-chan func(), done func() bool) {
 		}
 	}
 }
+
+// An account out of credit is said as such, with 「AI 服务」 to go to, rather than as a busy service or a wrong key.
+func TestAFailedRetranslationSaysTheAccountIsOutOfCredit(t *testing.T) {
+	p := &retranslatePipeline{translateErr: errors.New(`translation API returned 402 Payment Required: {"error":{"message":"Insufficient Balance"}}`)}
+	a, tt, updates := retranslateLibrary(t, p)
+	tt.Press("补译未译的句子")
+	settle(t, a, tt, updates)
+	if want := testlocale.Messages().QueueRedoFailed("Talk", testlocale.Messages().PrecheckTranslateQuota()); a.lib.notice.Text != want || a.lib.notice.Section != settings.SectionAI {
+		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
+	}
+}

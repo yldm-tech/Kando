@@ -99,9 +99,10 @@ type App interface {
 	ApplyLLM()
 	TestingLLM() bool
 	TestLLM()
-	// LLMConnected reports whether the last connection test passed; LLMResult is "" before any test, 连接成功 after one that passed, and otherwise why it failed. The page words a pass itself, in the language it is shown in, so it reads LLMResult only when LLMConnected is false.
+	// LLMConnected reports whether the last connection test passed; LLMResult is "" before any test, 连接成功 after one that passed, and otherwise why it failed, in plain words. The page words a pass itself, in the language it is shown in, so it reads LLMResult only when LLMConnected is false. LLMResultDetail is what the service answered when the test failed, "" otherwise.
 	LLMConnected() bool
 	LLMResult() string
+	LLMResultDetail() string
 	SelectLLM(id string)
 	// LLMModels are the models the AI service offers, fetched while its page shows; LoadingLLMModels reports a fetch in flight, LLMModelsErr why the last one failed, and RetryLLMModels fetches again.
 	LLMModels() []string

@@ -44,6 +44,12 @@ type ChatTranslator struct {
 	Client *http.Client
 }
 
+// ErrNoModel and ErrNoBaseURL are what Ping and Chat return before they send anything, when the model or the endpoint is not set.
+var (
+	ErrNoModel   = errors.New("model is empty")
+	ErrNoBaseURL = errors.New("base URL is empty")
+)
+
 // Endpoint is where translation requests go and the bearer key they carry.
 type Endpoint struct {
 	BaseURL string
@@ -53,7 +59,7 @@ type Endpoint struct {
 // Ping checks that the chat endpoint accepts one short request with the configured model.
 func (t ChatTranslator) Ping(ctx context.Context) error {
 	if strings.TrimSpace(t.Model) == "" {
-		return errors.New("model is empty")
+		return ErrNoModel
 	}
 	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
 	if t.Credential != nil {
@@ -63,7 +69,7 @@ func (t ChatTranslator) Ping(ctx context.Context) error {
 		}
 	}
 	if strings.TrimSpace(endpoint.BaseURL) == "" {
-		return errors.New("base URL is empty")
+		return ErrNoBaseURL
 	}
 	body, err := json.Marshal(chatRequest{
 		Model:       t.Model,
@@ -167,10 +173,13 @@ func (e *UntranslatedError) Error() string {
 
 func (e *UntranslatedError) Unwrap() error { return e.Err }
 
-// skippableBatch reports whether a batch that failed with err can be left untranslated while the rest of the film goes on: a reply that could not be read or had the wrong lines, a request that timed out or lost its connection, a rate limit or a server error that outlasted its retries. A key, model or address the API rejects is not: it fails every batch.
+// skippableBatch reports whether a batch that failed with err can be left untranslated while the rest of the film goes on: a reply that could not be read or had the wrong lines, a request that timed out or lost its connection, a rate limit or a server error that outlasted its retries. A key, model or address the API rejects is not, nor an account out of credit: they fail every batch.
 func skippableBatch(err error) bool {
 	var status *statusError
 	if errors.As(err, &status) {
+		if outOfCredit(status.code, status.detail) {
+			return false
+		}
 		return status.code == http.StatusTooManyRequests || status.code == http.StatusRequestTimeout || status.code >= 500
 	}
 	return true
@@ -179,7 +188,7 @@ func skippableBatch(err error) bool {
 // Chat sends one conversation, a system instruction and the user's message, to the same endpoint and model translations use, and returns the model's reply without the code fence a model may wrap around it. A key the API rejects is renewed once through Credential, as Translate does; rate limits, server errors, timeouts and lost connections are retried as for a translation.
 func (t ChatTranslator) Chat(ctx context.Context, system, user string) (string, error) {
 	if strings.TrimSpace(t.Model) == "" {
-		return "", errors.New("model is empty")
+		return "", ErrNoModel
 	}
 	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
 	if t.Credential != nil {
@@ -189,7 +198,7 @@ func (t ChatTranslator) Chat(ctx context.Context, system, user string) (string, 
 		}
 	}
 	if strings.TrimSpace(endpoint.BaseURL) == "" {
-		return "", errors.New("base URL is empty")
+		return "", ErrNoBaseURL
 	}
 	body, err := json.Marshal(chatRequest{
 		Model:    t.Model,
@@ -251,7 +260,12 @@ func subtitlePrompt(custom, language string, earlier []string) string {
 	if prompt == "" {
 		prompt = DefaultSubtitlePrompt
 	}
-	prompt = strings.ReplaceAll(prompt, "{{language}}", language)
+	if strings.Contains(prompt, "{{language}}") {
+		prompt = strings.ReplaceAll(prompt, "{{language}}", language)
+	} else {
+		// A custom prompt that only asks for a style would otherwise leave the target language unnamed, and the model answers in the language of the lines; naming it here also follows a job's own target language, which a language written into the prompt would not.
+		prompt += "\n\nTranslate every subtitle line into " + language + "."
+	}
 	if len(earlier) > contextLines {
 		earlier = earlier[len(earlier)-contextLines:]
 	}
@@ -388,6 +402,8 @@ const (
 	TranslateAuth TranslateFail = "auth"
 	// TranslateRejected is a request the API refused for another reason of the client's, as a model or an address it does not know.
 	TranslateRejected TranslateFail = "rejected"
+	// TranslateQuota is an account the API says is out of credit or over its quota (402, or a 403 or 429 that says so), which no retry mends.
+	TranslateQuota TranslateFail = "quota"
 	// TranslateBusy is a rate limit or a server error that outlasted the retries.
 	TranslateBusy TranslateFail = "busy"
 	// TranslateTimeout is a request that got no answer in time, after the retries.
@@ -401,6 +417,25 @@ const (
 // statusPattern finds the HTTP status in a statusError's text.
 var statusPattern = regexp.MustCompile(`translation API returned (\d{3}) `)
 
+// creditSigns are what services write in a 403 or 429 when the account is out of credit or over its quota rather than sending too fast: OpenAI's insufficient_quota, Moonshot's exceeded_current_quota_error, billing, balance and credit, DashScope's Arrearage, and Zhipu's 余额 (balance) and 欠费 (in arrears).
+var creditSigns = []string{"insufficient_quota", "insufficient quota", "exceeded_current_quota", "billing", "balance", "credit", "arrearage", "余额", "欠费"}
+
+// outOfCredit reports whether an API answer with status code and body detail says the account is out of credit or over its quota: always for 402 Payment Required, and for a 403 or 429 whose body says so.
+func outOfCredit(code int, detail string) bool {
+	switch code {
+	case http.StatusPaymentRequired:
+		return true
+	case http.StatusForbidden, http.StatusTooManyRequests:
+		detail = strings.ToLower(detail)
+		for _, sign := range creditSigns {
+			if strings.Contains(detail, sign) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // translateSigns are the phrases of the errors this file and net/http give, in the order they are tried: a timeout while a reply's body was read is a timeout before it is a reply that could not be decoded, and a connection cut off while it was read is the network's.
 var translateSigns = []struct {
 	kind    TranslateFail
@@ -413,9 +448,11 @@ var translateSigns = []struct {
 
 // ClassifyTranslate reads why a translation failed from its error's text, which is what a failed job keeps once it has been saved and read back. It returns "" for an error it does not recognize.
 func ClassifyTranslate(msg string) TranslateFail {
-	if m := statusPattern.FindStringSubmatch(msg); m != nil {
-		code, _ := strconv.Atoi(m[1])
+	if m := statusPattern.FindStringSubmatchIndex(msg); m != nil {
+		code, _ := strconv.Atoi(msg[m[2]:m[3]])
 		switch {
+		case outOfCredit(code, msg[m[1]:]):
+			return TranslateQuota
 		case code == http.StatusUnauthorized || code == http.StatusForbidden:
 			return TranslateAuth
 		case code == http.StatusTooManyRequests || code >= 500:
@@ -476,7 +513,7 @@ func (t ChatTranslator) complete(ctx context.Context, endpoint Endpoint, body []
 	}
 }
 
-// completeOnce makes one request. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait: a rate limit, a server error, or a request that got no usable answer, as one that timed out, lost its connection or came back cut off. Once ctx is done its error is returned as it is, not retried.
+// completeOnce makes one request. A non-negative retryAfter marks a retryable failure, positive when the server said how long to wait: a rate limit that does not say the account is out of credit, a server error, or a request that got no usable answer, as one that timed out, lost its connection or came back cut off. Once ctx is done its error is returned as it is, not retried.
 func completeOnce(ctx context.Context, client *http.Client, endpoint Endpoint, body []byte) (reply chatResponse, retryAfter time.Duration, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(endpoint.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
@@ -497,7 +534,7 @@ func completeOnce(ctx context.Context, client *http.Client, endpoint Endpoint, b
 	if resp.StatusCode != http.StatusOK {
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		err := &statusError{code: resp.StatusCode, status: resp.Status, detail: strings.TrimSpace(string(detail))}
-		if resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500 {
+		if (resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode < 500) || outOfCredit(err.code, err.detail) {
 			return reply, -1, err
 		}
 		retryAfter = 0

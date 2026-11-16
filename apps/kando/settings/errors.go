@@ -81,3 +81,36 @@ func LLMModelsError(m locales.Messages, err error) string {
 	}
 	return m.SettingsAIModelsFailed(err.Error())
 }
+
+// LLMTestError says in plain words, in the language of m, why the AI service's connection test failed, or "" when it passed. It reads the error as a failed translation's is read (media.ClassifyTranslate), so the test and a failed job say the same reason; what the service answered goes to the log and the status's tooltip instead.
+func LLMTestError(m locales.Messages, err error) string {
+	switch {
+	case err == nil:
+		return ""
+	case errors.Is(err, media.ErrNoModel):
+		return m.SettingsAITestNoModel()
+	case errors.Is(err, media.ErrNoBaseURL):
+		return m.SettingsAITestNoBaseURL()
+	case errors.Is(err, media.ErrEveryAPIMissing):
+		return m.PrecheckEveryAPIMissing()
+	case errors.Is(err, media.ErrEveryAPISignedOut):
+		return m.PrecheckEveryAPISignedOut()
+	}
+	switch media.ClassifyTranslate(err.Error()) {
+	case media.TranslateQuota:
+		return m.SettingsAITestQuota()
+	case media.TranslateAuth:
+		return m.SettingsAITestUnauthorized()
+	case media.TranslateRejected:
+		return m.SettingsAITestRejected()
+	case media.TranslateBusy:
+		return m.SettingsAITestBusy()
+	case media.TranslateTimeout:
+		return m.SettingsAITestTimeout()
+	case media.TranslateNetwork:
+		return m.SettingsAITestNetwork()
+	case media.TranslateMalformed:
+		return m.SettingsAITestMalformed()
+	}
+	return m.SettingsAITestFailed()
+}

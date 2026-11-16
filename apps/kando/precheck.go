@@ -125,6 +125,8 @@ func failureHint(m locales.Messages, item films.Film) (reason, section string) {
 	}
 	if stage == "translate" {
 		switch media.ClassifyTranslate(rest) {
+		case media.TranslateQuota:
+			return m.PrecheckTranslateQuota(), settings.SectionAI
 		case media.TranslateAuth:
 			return m.PrecheckTranslateAuth(), settings.SectionAI
 		case media.TranslateRejected:
