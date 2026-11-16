@@ -3,6 +3,8 @@
 # The program go build leaves in apps/kando when run there.
 /apps/kando/kando
 /apps/kando/kando.exe
+/apps/mobile/build/
+/apps/mobile/mobile
 # What MyGo builds left in a checkout before the app moved to NSGo.
 **/.mygo/
 /.nsgo/

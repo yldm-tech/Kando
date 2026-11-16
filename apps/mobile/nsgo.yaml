@@ -1,0 +1,18 @@
+# Kando's app for phones and tablets (yldm-tech/Kando#178), for the nsgo tool (go tool nsgo, the version go.mod pins). It plays the films Kando on a computer has made, downloaded over the local network from the computers it is paired with; downloading from video sites, transcribing and translating stay on the computer. Packaging and signing are phase 4 (#178).
+name: Kando
+id: ai.yldm.kando.mobile
+version: 0.1.0
+# The desktop app's icon, until phase 4 gives the phone app its own.
+icon:
+  png: ../kando/resources/icon.png
+i18n: { dir: locales, source: en }
+
+build:
+  output: build
+  targets: [ios, android_arm64]
+
+apple:
+  info:
+    # iOS asks before an app reaches devices on the local network, as the computers the app pairs with and downloads from are. Go's net/http on iOS goes through no URLSession, so App Transport Security does not apply to the computer's self-signed certificate, which the app pins by its fingerprint (kando/packages/sync).
+    NSLocalNetworkUsageDescription: Kando connects to Kando on your computer over your local network to list and download your films.
+# Android: the runtime's manifest asks for INTERNET, the one permission the app needs; HTTPS to the computer needs no cleartext exception.

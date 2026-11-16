@@ -1,0 +1,238 @@
+appName:
+  message: "Kando"
+  description: "The app's name in this language, which the home screen and the system show."
+commonCancel:
+  message: "Cancel"
+  description: "Button that closes a dialog or a step without doing anything."
+commonRetry:
+  message: "Try Again"
+  description: "Button that asks the computer again after it could not be reached."
+desktopsPairAnother:
+  message: "Pair Another Computer"
+  description: "Button on the Computers page that opens the pairing page."
+desktopsTitle:
+  message: "Computers"
+  description: "Title of the page listing the computers the phone is paired with, and the name of the home page's button that opens it."
+desktopsUnpair:
+  message: "Unpair"
+  description: "Button on a paired computer's row, and the alert's button that confirms unpairing."
+desktopsUnpairMessage:
+  message: "The films downloaded from it stay on this phone."
+  description: "Message of the alert that confirms unpairing a computer."
+desktopsUnpairTitle:
+  message: "Unpair {name}?"
+  description: "Title of the alert that confirms unpairing a computer, by its name."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+filmCancel:
+  message: "Cancel Download"
+  description: "Button on a film's page that stops its download and deletes what was downloaded."
+filmDelete:
+  message: "Delete Download"
+  description: "Button on a downloaded film's page that deletes it from the phone."
+filmDeleteConfirm:
+  message: "Delete"
+  description: "The alert's button that confirms deleting a downloaded film."
+filmDeleteTitle:
+  message: "Delete “{title}” from this phone?"
+  description: "Title of the alert that confirms deleting a downloaded film."
+  placeholders:
+    title: { type: "String", example: "Talk at the café" }
+filmDownload:
+  message: "Download"
+  description: "Button on a film's page that downloads it to the phone, and the name of its progress bar."
+filmDownloaded:
+  message: "Downloaded"
+  description: "Where a film stands: it is on the phone and plays offline."
+filmDownloading:
+  message: "Downloading {percent}%"
+  description: "Where a film stands while it downloads, with how much of its video is done."
+  placeholders:
+    percent: { type: "int", example: "42" }
+filmGone:
+  message: "This film is no longer on the computer."
+  description: "Why a download stopped: the computer no longer serves the film."
+filmNoSpace:
+  message: "There isn't enough space on this phone."
+  description: "Why a download stopped: the phone's storage is full."
+filmPause:
+  message: "Pause"
+  description: "Button on a film's page that pauses its download."
+filmPaused:
+  message: "Paused at {percent}%"
+  description: "Where a film stands while its download is paused, with how much of its video is done."
+  placeholders:
+    percent: { type: "int", example: "42" }
+filmPlay:
+  message: "Play"
+  description: "Button on a downloaded film's page that plays it."
+filmResume:
+  message: "Resume"
+  description: "Button on a film's page that goes on with a paused or stopped download."
+filmStopped:
+  message: "The download stopped. Resume it when the computer can be reached."
+  description: "Why a download stopped: the computer could not be reached."
+filmUnpaired:
+  message: "Pair with the computer again to download."
+  description: "Why a download stopped: the computer no longer takes this phone, or answers with another certificate."
+homeCertificate:
+  message: "{name} answered with another certificate. Pair with it again."
+  description: "Under a paired computer's name on the home page: it answered with a certificate other than the one paired with."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+homeDownloads:
+  message: "Downloads"
+  description: "Heading of the home page's section of the films downloaded to the phone."
+homeEmptyBody:
+  message: "Kando on your phone plays the films Kando on your computer has made. Turn on Settings › Phone Sync there, then pair."
+  description: "The home page before any computer is paired: what the app does and what to do first."
+homeEmptyTitle:
+  message: "Pair with Kando on your computer"
+  description: "Heading of the home page before any computer is paired."
+homeFilmCount:
+  message: "{count, plural, one {# film} other {# films}}"
+  description: "Under a library's name: how many films it holds."
+  placeholders:
+    count: { type: "int", example: "12" }
+homeNoLibraries:
+  message: "No libraries to show"
+  description: "Under a paired computer's name when it lists no libraries (locked ones are never listed)."
+homePair:
+  message: "Pair"
+  description: "Button on the home page before any computer is paired: opens the pairing page."
+homePairAgain:
+  message: "Pair Again"
+  description: "Button under a computer that no longer takes this phone: opens the pairing page."
+homeSpaceUsed:
+  message: "{size} used"
+  description: "Beside the Downloads heading: the space the downloaded films take on the phone, as 1.2 GB."
+  placeholders:
+    size: { type: "String", example: "1.2 GB" }
+homeUnpaired:
+  message: "{name} no longer knows this phone"
+  description: "Under a paired computer's name: it revoked this phone in its Phone Sync settings."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+homeUnreachable:
+  message: "Can't reach {name}"
+  description: "Under a paired computer's name: it does not answer (off, asleep, on another network, or Phone Sync off)."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+libraryEmpty:
+  message: "No films ready yet"
+  description: "A library's page when it has no film done processing."
+libraryGone:
+  message: "This library is no longer on {name}, or it is locked."
+  description: "A library's page when the computer no longer serves it: it was removed or locked."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+pairAddress:
+  message: "Address"
+  description: "Label of the field for the computer's address (IP and port), as its Phone Sync settings show it."
+pairAddressExample:
+  message: "192.168.1.20:47123"
+  description: "Example in the empty address field: an IP address and a port. Keep the digits."
+pairCode:
+  message: "Code"
+  description: "Label of the field for the 6-digit pairing code the computer shows."
+pairCompareHint:
+  message: "Pair only if Phone Sync shows the same fingerprint."
+  description: "Under the fingerprint on the pairing page: compare it with the one the computer shows before trusting it."
+pairCompareTitle:
+  message: "Does your computer show these letters?"
+  description: "Heading over the computer certificate's fingerprint in short, which the user compares with the computer's."
+pairConfirm:
+  message: "Pair"
+  description: "Button that pairs once the user has compared the fingerprint."
+pairConnecting:
+  message: "Connecting…"
+  description: "Spoken name of the spinner while the phone reaches the computer."
+pairContinue:
+  message: "Continue"
+  description: "Button under the address and code that reaches the computer."
+pairErrAddress:
+  message: "Enter the address as your computer shows it, such as 192.168.1.20:47123."
+  description: "Error on the pairing page: the address is not an IP address with a port."
+pairErrCodeExpired:
+  message: "That code has expired. Show a new one on your computer."
+  description: "Error on the pairing page: the code is past its 5 minutes or was tried wrongly too often."
+pairErrCodeUsed:
+  message: "That code was used already. Show a new one on your computer."
+  description: "Error on the pairing page: a phone paired with this code already."
+pairErrFailed:
+  message: "Pairing didn't finish. Try again."
+  description: "Error on the pairing page for any other failure."
+pairErrFingerprint:
+  message: "This computer's certificate isn't the one in the pairing link."
+  description: "Error on the pairing page: a pasted kando://pair link names another certificate than the computer's."
+pairErrNoCode:
+  message: "Open Settings › Phone Sync on your computer: it takes a code only while that page is open."
+  description: "Error on the pairing page: the computer offers no code because its Phone Sync settings are not open."
+pairErrTooMany:
+  message: "Too many tries. Wait a minute, then try again."
+  description: "Error on the pairing page: the computer refuses pairings for a while after many."
+pairErrUnreachable:
+  message: "Can't reach a computer at {address}. Check that both are on the same network and Phone Sync is on."
+  description: "Error on the pairing page: nothing answered at the address."
+  placeholders:
+    address: { type: "String", example: "192.168.1.20:47123" }
+pairErrWrongCode:
+  message: "That isn't the code your computer shows."
+  description: "Error on the pairing page: the code is not the one on offer."
+pairHint:
+  message: "On your computer, open Kando's Settings › Phone Sync, then enter the address and code it shows."
+  description: "At the top of the pairing page."
+pairTitle:
+  message: "Pair with a Computer"
+  description: "Title of the pairing page."
+playerBack:
+  message: "Back"
+  description: "Spoken name of the player's button that leaves it."
+playerCantPlay:
+  message: "This video can't play on this phone."
+  description: "Over the player when the system's player cannot open the video, as one in a format the phone does not play."
+playerKeepAwake:
+  message: "Playing a film"
+  description: "Why the app keeps the screen on while a film plays, where the system lists it."
+playerLines:
+  message: "Lines"
+  description: "Spoken name of the player's list of the film's lines."
+playerLoopLine:
+  message: "Loop"
+  description: "Spoken name of the player's button that plays the line playing over and over."
+playerModeBilingual:
+  message: "Bilingual"
+  description: "Subtitle mode: the translation and the original."
+playerModeOriginal:
+  message: "Original Only"
+  description: "Subtitle mode: the original line alone."
+playerModeTranslation:
+  message: "Translation Only"
+  description: "Subtitle mode: the translation alone, the original where a line is not translated."
+playerNextLine:
+  message: "Next Line"
+  description: "Spoken name of the player's button that plays from the next line."
+playerNoLines:
+  message: "This film has no subtitles."
+  description: "In place of the line list for a film without subtitles."
+playerPause:
+  message: "Pause"
+  description: "Spoken name of the player's button while the film plays."
+playerPlay:
+  message: "Play"
+  description: "Spoken name of the player's button while the film is held."
+playerPosition:
+  message: "Position"
+  description: "Spoken name of the player's slider of where the film is."
+playerPrevLine:
+  message: "Previous Line"
+  description: "Spoken name of the player's button that plays from the line before."
+playerSpeed:
+  message: "Speed"
+  description: "Spoken name of the player's menu of playback speeds."
+playerSubtitles:
+  message: "Subtitles"
+  description: "Spoken name of the player's menu of subtitle modes."
+sessionDownloading:
+  message: "Downloading films"
+  description: "Why the app keeps the screen on while films download, where the system lists it."
