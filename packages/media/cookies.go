@@ -130,3 +130,42 @@ func netscapeBool(v bool) string {
 	}
 	return "FALSE"
 }
+
+// httpOnlyPrefix starts the domain of an HttpOnly cookie in a Netscape cookies file, as curl writes it and netscapeCookies does.
+const httpOnlyPrefix = "#HttpOnly_"
+
+// chromiumExpiryFloor is the least expiry ReadCookies takes for a Chromium browser's: yt-dlp of 2026.08.19 saves a Chromium browser's expires_utc as the browser keeps it (_process_chrome_cookie), in microseconds since 1601, where Firefox's and Safari's are in seconds since 1970. A time in seconds this large is millions of years away, and one in microseconds since 1601 above it is past 1632.
+const chromiumExpiryFloor = 1e15
+
+// chromiumEpoch is the start of a Chromium browser's time, 1601-01-01 UTC, in seconds before 1970's.
+const chromiumEpoch = 11644473600
+
+// ReadCookies reads a Netscape cookies file, as yt-dlp's --cookies saves the cookies it read from a browser: one cookie a line, its domain, whether its subdomains get it, its path, whether it goes only over https, when it expires (0 for a session cookie, and for a Chromium browser's in that browser's time, chromiumExpiryFloor), its name and its value, separated by tabs. A domain starting with #HttpOnly_ is an HttpOnly cookie's; other lines starting with # are comments. A line without seven fields or a name is left out. yt-dlp writes neither HttpOnly nor SameSite, as it does not read them from the browser.
+func ReadCookies(data []byte) []Cookie {
+	var cookies []Cookie
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		httpOnly := strings.HasPrefix(line, httpOnlyPrefix)
+		line = strings.TrimPrefix(line, httpOnlyPrefix)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		f := strings.Split(line, "\t")
+		if len(f) != 7 || f[0] == "" || f[5] == "" {
+			continue
+		}
+		domain := strings.ToLower(f[0])
+		if f[1] == "TRUE" && !strings.HasPrefix(domain, ".") {
+			domain = "." + domain
+		}
+		c := Cookie{Domain: domain, Path: f[2], Secure: f[3] == "TRUE", HTTPOnly: httpOnly, Name: f[5], Value: f[6]}
+		if expires, err := strconv.ParseFloat(f[4], 64); err == nil && expires > 0 {
+			if expires >= chromiumExpiryFloor {
+				expires = expires/1e6 - chromiumEpoch
+			}
+			c.Expires = time.Unix(int64(expires), 0)
+		}
+		cookies = append(cookies, c)
+	}
+	return cookies
+}

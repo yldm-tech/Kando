@@ -183,3 +183,49 @@ func TestDownloadSaysTheSystemKeepsTheBrowserFolder(t *testing.T) {
 		t.Errorf("without a browser: %v", err)
 	}
 }
+
+// BrowserCookies runs yt-dlp as CheckLogin does and gives the cookies of the file it saved whose domain keep takes, and none of the others; the file's folder is gone once it returns. A sign-in it cannot read gives no cookies but the reason.
+func TestBrowserCookiesReadsOnlyTheCookiesKept(t *testing.T) {
+	dir := t.TempDir()
+	cookieDir := filepath.Join(dir, "cookies")
+	args := filepath.Join(dir, "args")
+	saved := "# Netscape HTTP Cookie File\n" +
+		".youtube.com\tTRUE\t/\tTRUE\t0\tSID\tsid\n" +
+		".bank.example\tTRUE\t/\tTRUE\t0\tsession\tbank-secret\n"
+	fake := fakeTool{Args: args, Cookies: saved, Stderr: readTestdata(t, "login/chrome-read.stderr"), Exit: 2}
+	tools := Tools{YTDLP: writeFakeTool(t, filepath.Join(dir, "bin"), "yt-dlp", fake), CookieDir: cookieDir}
+	var asked []string
+	cookies, trouble, err := tools.BrowserCookies(context.Background(), "chrome", func(domain string) bool {
+		asked = append(asked, domain)
+		return domain == ".youtube.com"
+	})
+	if err != nil || trouble != "" {
+		t.Fatalf("BrowserCookies = %q, %v", trouble, err)
+	}
+	if len(cookies) != 1 || cookies[0].Name != "SID" || cookies[0].Value != "sid" || !cookies[0].Secure {
+		t.Fatalf("cookies %+v", cookies)
+	}
+	if strings.Join(asked, ",") != ".youtube.com,.bank.example" {
+		t.Fatalf("keep was asked about %q", asked)
+	}
+	data, err := os.ReadFile(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Split(strings.TrimSpace(string(data)), "\n"); len(got) != 4 || got[0] != "--cookies-from-browser" || got[1] != "chrome" || got[2] != "--cookies" || !strings.HasPrefix(got[3], filepath.Join(cookieDir, cookieDirPrefix)) {
+		t.Fatalf("yt-dlp ran with %q", got)
+	}
+	if entries, err := os.ReadDir(cookieDir); err != nil || len(entries) != 0 {
+		t.Fatalf("the cookies folder holds %v (%v)", entries, err)
+	}
+
+	fake = fakeTool{Cookies: saved, Stderr: readTestdata(t, "errors/cookies-safari-denied.stderr"), Exit: 1}
+	tools.YTDLP = writeFakeTool(t, filepath.Join(dir, "denied"), "yt-dlp", fake)
+	cookies, trouble, err = tools.BrowserCookies(context.Background(), "safari", func(string) bool { return true })
+	if len(cookies) != 0 || trouble != LoginNoAccess || err == nil {
+		t.Fatalf("Safari without Full Disk Access gave %d cookies, %q, %v", len(cookies), trouble, err)
+	}
+	if entries, err := os.ReadDir(cookieDir); err != nil || len(entries) != 0 {
+		t.Fatalf("the cookies folder holds %v (%v)", entries, err)
+	}
+}

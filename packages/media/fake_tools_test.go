@@ -31,6 +31,8 @@ type fakeTool struct {
 	Args string
 	// Jar and Mode, when set, are where the fake copies the cookies file it is given with --cookies, and writes that file's permission bits in octal, as yt-dlp reads the file while it runs.
 	Jar, Mode string
+	// Cookies, when set, is what the fake saves to the cookies file it is given with --cookies, as yt-dlp saves there the cookies it read from a browser.
+	Cookies string
 	// Act is what the fake does as the tool: "" nothing more; "download" downloads a split-format video as yt-dlp does (fakeDownload); "update" answers --version and -U as the standalone yt-dlp does (fakeUpdate); "extract-audio" writes an empty file where its last argument says, as ffmpeg writes the audio track; "transcribe" writes Transcript where -of says, with .json added, as whisper-cli -oj does.
 	Act        string
 	Transcript string
@@ -208,6 +210,15 @@ func (f fakeTool) act(args []string) error {
 			if err := os.Rename(f.Jar+".tmp", f.Jar); err != nil {
 				return err
 			}
+		}
+	}
+	if f.Cookies != "" {
+		cookies, ok := argAfterIn(args, "--cookies")
+		if !ok {
+			return errors.New("no --cookies")
+		}
+		if err := os.WriteFile(cookies, []byte(f.Cookies), 0o600); err != nil {
+			return err
 		}
 	}
 	switch f.Act {
