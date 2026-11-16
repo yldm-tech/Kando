@@ -1004,7 +1004,7 @@ func TestEscapeLeavesFullScreenFirst(t *testing.T) {
 	}
 }
 
-// TestSubtitlesDragOffBurnedInLines drags the lines on the picture up, as off a film's own burned-in subtitles, and checks that they stay where the pointer lets them go, as a share of the picture's height kept in the settings; that a click on them starts or holds the film; and that a double click puts them back, after which a double click on them enters full screen, as on the picture.
+// TestSubtitlesDragOffBurnedInLines drags the lines on the picture up, as off a film's own burned-in subtitles, and checks that they stay where the pointer lets them go, as a share of the picture's height kept for the film in library.json and not in the settings; that a click on them starts or holds the film; and that a double click puts them back, after which a double click on them enters full screen, as on the picture.
 func TestSubtitlesDragOffBurnedInLines(t *testing.T) {
 	a, tt, _ := playerOpen(t)
 	screen := &fakeScreen{}
@@ -1014,15 +1014,19 @@ func TestSubtitlesDragOffBurnedInLines(t *testing.T) {
 	place := lines()
 	// The held film shows its controls, so the lines yield 60 points to them, and the drag takes them from there.
 	tt.Pan("id:film-subtitle-lines", ns.Point{Y: -20}, ns.Point{Y: -60}, ns.Point{Y: -100})
-	if want := float32(160) / 720; math.Abs(float64(a.player.look.Lift-want)) > 0.002 || a.player.play.Playing() || screen.full {
-		t.Fatalf("lift %v, want %v; playing %v full screen %v", a.player.look.Lift, want, a.player.play.Playing(), screen.full)
+	if want := float32(160) / 720; math.Abs(float64(a.SubLift()-want)) > 0.002 || a.player.play.Playing() || screen.full {
+		t.Fatalf("lift %v, want %v; playing %v full screen %v", a.SubLift(), want, a.player.play.Playing(), screen.full)
 	}
-	saved, _, _, err := readSavedSettings(a.settingsPath)
-	if err != nil || saved.Look == nil || saved.Look.Lift != a.player.look.Lift {
-		t.Fatalf("settings keep %+v (%v), want lift %v", saved.Look, err, a.player.look.Lift)
+	a.playerSaveDelay()
+	if got := a.library.Lifts[a.player.film.video]; got != a.SubLift() {
+		t.Fatalf("the shelf keeps the film's lift at %v, want %v", got, a.SubLift())
 	}
-	if moved := tt.Find("id:film-subtitle-lines").Style.Transform.TranslateY; math.Abs(float64(moved+160)) > 0.5 {
-		t.Fatalf("the lines show %v points from their place, want 160 up", moved)
+	if data, err := os.ReadFile(a.settingsPath); err == nil && strings.Contains(string(data), "Lift") {
+		t.Fatalf("the settings keep a place for every film: %s", data)
+	}
+	// They were 60 points up, out of the controls' way, and are 160 up now.
+	if moved := place.Origin.Y - lines().Origin.Y; math.Abs(float64(moved-100)) > 0.5 {
+		t.Fatalf("the lines moved %v points up, want 100 more than the 60 they yielded", moved)
 	}
 	tt.Press("id:film-subtitle-lines")
 	if !a.player.play.Playing() {
@@ -1036,12 +1040,234 @@ func TestSubtitlesDragOffBurnedInLines(t *testing.T) {
 		tt.Press("id:film-subtitle-lines")
 	}
 	double()
-	if a.player.look.Lift != 0 || screen.full || a.player.play.Playing() {
-		t.Fatalf("a double click left lift %v; full screen %v playing %v", a.player.look.Lift, screen.full, a.player.play.Playing())
+	if a.SubLift() != 0 || screen.full || a.player.play.Playing() {
+		t.Fatalf("a double click left lift %v; full screen %v playing %v", a.SubLift(), screen.full, a.player.play.Playing())
+	}
+	a.playerSaveDelay()
+	if got, ok := a.library.Lifts[a.player.film.video]; ok {
+		t.Fatalf("lines put back in their place are still kept at %v", got)
 	}
 	double()
 	if !screen.full {
 		t.Fatalf("a double click on lines in their place did not enter full screen; lines at %v", place)
+	}
+}
+
+// TestSubtitlePlaceStaysWithItsFilm moves the subtitles of one film and checks that they are there again when it opens again, in this launch and the next, that another film opens with its own at the look's place, that a run of ⌥↑ presses is saved once it rests, and that ⌥0's reset is forgotten on disk.
+func TestSubtitlePlaceStaysWithItsFilm(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	a.openLibrary(path)
+	filmA := films.Film{Key: "a", VideoPath: "/films/a.mp4"}
+	filmB := films.Film{Key: "b", VideoPath: "/films/b.mp4"}
+	near := func(got, want float32) bool { return math.Abs(float64(got-want)) < 1e-4 }
+
+	a.Open(filmA)
+	a.player.subRoom = film.SubRoom{Lo: -0.05, Hi: 0.6}
+	start := time.Date(2026, 11, 16, 20, 0, 0, 0, time.UTC)
+	a.playerNudgeLift(1)
+	a.playerNudgeLift(1)
+	a.playerKeep(start)
+	a.playerNudgeLift(1)
+	a.playerKeep(start.Add(500 * time.Millisecond))
+	if got, ok := onDisk(t, path).Lifts[filmA.VideoPath]; ok {
+		t.Fatalf("the place was saved at %v before it rested", got)
+	}
+	a.playerKeep(start.Add(1500 * time.Millisecond))
+	if got := onDisk(t, path).Lifts[filmA.VideoPath]; !near(got, 0.06) {
+		t.Fatalf("library.json keeps film A's subtitles at %v once they rested, want 0.06", got)
+	}
+	a.closeFilm()
+
+	a.Open(filmB)
+	if got := a.SubLift(); got != 0 {
+		t.Fatalf("film B opens with film A's place %v", got)
+	}
+	a.closeFilm()
+	if lib := onDisk(t, path); len(lib.Lifts) != 1 {
+		t.Fatalf("library.json lifts %v, want film A's alone", lib.Lifts)
+	}
+	a.Open(filmA)
+	if got := a.SubLift(); !near(got, 0.06) {
+		t.Fatalf("film A opens again with its subtitles at %v, want 0.06", got)
+	}
+
+	again, _, _ := newTestApp(t, &fakePipeline{})
+	again.openLibrary(path)
+	again.Open(filmA)
+	if got := again.SubLift(); !near(got, 0.06) {
+		t.Fatalf("after a restart film A opens with its subtitles at %v, want 0.06", got)
+	}
+	again.keyRun(again.cx, "alt+0")()
+	if got := again.SubLift(); got != 0 {
+		t.Fatalf("⌥0 left the subtitles at %v", got)
+	}
+	again.closeFilm()
+	if got, ok := onDisk(t, path).Lifts[filmA.VideoPath]; ok {
+		t.Fatalf("subtitles put back in their place are still kept at %v", got)
+	}
+}
+
+// TestSubtitlePlaceFollowsAMovedVideo checks that the place of the subtitles of a video that moved on disk is kept by its new path, with the film open and in library.json.
+func TestSubtitlePlaceFollowsAMovedVideo(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	a.openLibrary(path)
+	a.Open(films.Film{Key: "a", VideoPath: "/old/a.mp4"})
+	a.SetSubLift(0.2)
+	a.playerSaveDelay()
+	moved := func(p string) (string, bool) {
+		if p == "/old/a.mp4" {
+			return "/new/a.mp4", true
+		}
+		return "", false
+	}
+	if !a.moveVideos(moved) {
+		t.Fatal("moving the video changed nothing in library.json")
+	}
+	if got := a.SubLift(); got != 0.2 {
+		t.Fatalf("the open film's subtitles are at %v after its video moved, want 0.2", got)
+	}
+	a.SetSubLift(0.3)
+	a.closeFilm()
+	lib := onDisk(t, path)
+	if len(lib.Lifts) != 1 || lib.Lifts["/new/a.mp4"] != 0.3 {
+		t.Fatalf("library.json lifts %v", lib.Lifts)
+	}
+}
+
+// TestSubtitlePlaceKeys checks ⌥↑, ⌥↓ and ⌥0 on the lines of a held film: the first ⌥↑ moves them on from where they yield to the controls, each press a fiftieth of the picture, ⌥↓ brings them back down, a run of ⌥↑ stops where a drag stops, 8 points inside the picture, and ⌥0 puts them back. The keys are listed in the menu bar's 字幕 menu and on the cheat sheet.
+func TestSubtitlePlaceKeys(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	// shown is how far up from their place the lines show, the held film's yielding 60 points to the controls at first.
+	yielded := pageFrame(tt.Find("id:film-subtitle-lines")).Origin.Y
+	shown := func() ns.Points { return yielded + 60 - pageFrame(tt.Find("id:film-subtitle-lines")).Origin.Y }
+	tt.Key("alt+up")
+	if got, want := shown(), ns.Points(60+0.02*720); math.Abs(float64(got-want)) > 0.5 {
+		t.Fatalf("⌥↑ shows the lines %v points up, want %v", got, want)
+	}
+	tt.Key("alt+down")
+	tt.Key("alt+down")
+	if got, want := shown(), ns.Points(60-0.02*720); math.Abs(float64(got-want)) > 0.5 {
+		t.Fatalf("⌥↑ then ⌥↓ twice shows the lines %v points up, want %v", got, want)
+	}
+	for range 60 {
+		tt.Key("alt+up")
+	}
+	if top := pageFrame(tt.Find("id:film-subtitle-lines")).Origin.Y - pageFrame(tt.Find("id:film")).Origin.Y; math.Abs(float64(top-8)) > 0.5 {
+		t.Fatalf("a run of ⌥↑ took the lines to %v points from the picture's top, want the 8 a drag keeps", top)
+	}
+	if got := a.SubLift(); got != a.player.subRoom.Hi {
+		t.Fatalf("a run of ⌥↑ left the lift at %v, want the room's top %v", got, a.player.subRoom.Hi)
+	}
+	tt.Key("alt+0")
+	if got := shown(); a.SubLift() != 0 || math.Abs(float64(got-60)) > 0.5 {
+		t.Fatalf("⌥0 left lift %v, the lines %v points up", a.SubLift(), got)
+	}
+
+	a.installMenu(a.cx)
+	refresh(tt, a)
+	msgs := testlocale.Messages()
+	for _, label := range []string{msgs.PlayerKeySubtitlesUp(), msgs.PlayerKeySubtitlesDown(), msgs.PlayerKeySubtitlesReset()} {
+		findMenuItem(t, a.menuBar(a.cx), msgs.MenuGroupSubtitles(), label)
+	}
+	var sheet []string
+	for _, g := range a.cheatsheetGroups(a.cx) {
+		for _, k := range g.Keys {
+			sheet = append(sheet, k.Label+" "+strings.Join(k.Combos, ","))
+		}
+	}
+	for _, want := range []string{msgs.CheatsheetSubtitlesPosition() + " alt+up,alt+down", msgs.PlayerKeySubtitlesReset() + " alt+0"} {
+		if !slices.Contains(sheet, want) {
+			t.Fatalf("the cheat sheet lacks %q: %q", want, sheet)
+		}
+	}
+}
+
+// TestMovedSubtitlesTakeThePointerWhereTheyShow moves the lines up a quarter of the picture and checks that the pointer finds them where they show, as the platforms' hit tests go by frames: a double click there puts them back rather than entering full screen, as one on the picture would.
+func TestMovedSubtitlesTakeThePointerWhereTheyShow(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	screen := &fakeScreen{}
+	a.player.screen = screen
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	apply(tt, a, func() { a.SetSubLift(0.25) })
+	lines := tt.Find("id:film-subtitle-lines")
+	box, film := pageFrame(lines), pageFrame(tt.Find("id:film"))
+	at := ns.Point{X: box.Origin.X + box.Size.Width/2 - film.Origin.X, Y: box.Origin.Y + lines.Style.Transform.TranslateY + box.Size.Height/2 - film.Origin.Y}
+	tt.PressAt("id:film", at)
+	tt.PressAt("id:film", at)
+	if a.SubLift() != 0 || screen.full {
+		t.Fatalf("a double click where the moved lines show left lift %v, full screen %v", a.SubLift(), screen.full)
+	}
+}
+
+// TestSubtitlesShowTheyCanBeGrabbed checks that the pointer over the lines puts a backdrop of the theme's behind them, without moving them, and that it goes once the pointer leaves.
+func TestSubtitlesShowTheyCanBeGrabbed(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	before := pageFrame(tt.Find("id:film-subtitle-lines"))
+	if bg := tt.Find("id:film-subtitle-lines").Style.Background; bg != 0 {
+		t.Fatalf("the lines show a backdrop %#x before the pointer is over them", uint32(bg))
+	}
+	tt.Hover("id:film-subtitle-lines")
+	lines := tt.Find("id:film-subtitle-lines")
+	if lines.Style.Background == 0 || lines.Style.Cursor != ns.CursorGrab {
+		t.Fatalf("the lines under the pointer show backdrop %#x and cursor %v, want a backdrop and the grab cursor", uint32(lines.Style.Background), lines.Style.Cursor)
+	}
+	if after := pageFrame(lines); after != before {
+		t.Fatalf("the backdrop moved the lines from %v to %v", before, after)
+	}
+	tt.HoverAt("id:film", ns.Point{X: 20, Y: 200})
+	if bg := tt.Find("id:film-subtitle-lines").Style.Background; bg != 0 {
+		t.Fatalf("the backdrop %#x stays once the pointer left the lines", uint32(bg))
+	}
+}
+
+// TestSubtitleTipShowsOnce checks that the tip that the subtitles can be dragged does not show while the first film is held, shows once it plays with subtitles, goes after a moment, and is kept in the settings as seen, so it shows neither when the film plays again nor after a restart; and that dragging the lines takes it away at once.
+func TestSubtitleTipShowsOnce(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	msgs := testlocale.Messages()
+	if tt.Exists("id:film-subtitle-tip") {
+		t.Fatal("the tip shows while the film is held")
+	}
+	tt.Key("space")
+	if !tt.Exists("id:film-subtitle-tip") || !hasText(tt, msgs.FilmSubtitleTip()) {
+		t.Fatalf("the tip does not show as the film plays: %q", tt.Texts())
+	}
+	if saved := loadSavedSettings(a.settingsPath); !saved.SubtitleTipSeen {
+		t.Fatal("the settings do not keep that the tip was seen")
+	}
+	tt.Advance(playerTipFor)
+	refresh(tt, a)
+	if tt.Exists("id:film-subtitle-tip") {
+		t.Fatal("the tip stays")
+	}
+	tt.Key("space")
+	tt.Key("space")
+	if tt.Exists("id:film-subtitle-tip") {
+		t.Fatal("the tip shows again as the film plays again")
+	}
+
+	b, btt, bupdates, item := playerFilm(t, 12, nil)
+	b.settingsPath = a.settingsPath
+	b.restoreSettings(loadSavedSettings(b.settingsPath))
+	playerOpenFilm(t, b, btt, bupdates, item)
+	playerLoadFilm(btt, b, 12*time.Second)
+	btt.Key("space")
+	if btt.Exists("id:film-subtitle-tip") {
+		t.Fatal("the tip shows again after a restart")
+	}
+
+	c, ctt, _ := playerOpen(t)
+	ctt.Key("space")
+	playerPlayTo(ctt, c, 1500*time.Millisecond)
+	if !ctt.Exists("id:film-subtitle-tip") {
+		t.Fatal("the tip does not show for a first film")
+	}
+	ctt.Pan("id:film-subtitle-lines", ns.Point{Y: -20}, ns.Point{Y: -40})
+	if ctt.Exists("id:film-subtitle-tip") {
+		t.Fatal("the tip stays once the lines were dragged")
 	}
 }
 
@@ -2407,5 +2633,31 @@ func TestFilmKeepsTheSpokenLanguageNamed(t *testing.T) {
 	settle(t, a, tt, updates)
 	if job, _ := a.library.Find("talk"); job.Stage != core.StageComplete || job.SpeechLanguage != "en" {
 		t.Fatalf("processed again %+v", job)
+	}
+}
+
+// TestOldGlobalSubtitlePlaceIsDropped reads settings.json from a version that kept one subtitle place for every film (the look's Lift): every film's subtitles then start at the look's place, the rest of the look is kept, and the next save writes the look without it.
+func TestOldGlobalSubtitlePlaceIsDropped(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	old := `{"look": {"Preset": "box", "Box": true, "High": true, "Lift": 0.2, "Translation": {"Family": "默认", "Size": 30, "Color": "#FFFFFF", "Bold": true}, "Original": {"Family": "默认", "Size": 22, "Color": "#FFD60A"}}}`
+	if err := os.WriteFile(a.settingsPath, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a.restoreSettings(loadSavedSettings(a.settingsPath))
+	if l := a.player.look; !l.Box || !l.High || l.Preset != "box" {
+		t.Fatalf("the rest of the old look was lost: %+v", l)
+	}
+	a.Open(films.Film{Key: "a", VideoPath: "/films/a.mp4"})
+	if got := a.SubLift(); got != 0 {
+		t.Fatalf("a film opens with its subtitles at %v, want the look's place", got)
+	}
+	a.playerSaveSettings()
+	data, err := os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "Lift") || !strings.Contains(string(data), `"High": true`) {
+		t.Fatalf("settings.json after a save: %s", data)
 	}
 }

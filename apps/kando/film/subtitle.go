@@ -11,6 +11,7 @@ import (
 	"kando/apps/kando/locales"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
 )
 
 // DefaultLook is the prototype's: outlined, the translation 30 bold white over the original 22 yellow, at the bottom. A face's Family is the value saved in the settings (默认, 苹方, 冬青黑体, 黑体 or 宋体), not what the style view shows: subtitle.FontName names it.
@@ -29,16 +30,36 @@ type styledLine struct {
 	dim bool
 }
 
-// The subtitles' places, from the player's bottom: 44 points, or 30% of its height when High. While the controls show they yield to them by 60 points, or 4% of the height when High.
+// The subtitles' places, from the player's bottom: 44 points, or 30% of its height when High. While the controls show they yield to them by 60 points, or 4% of the height when High. A drag and the keys that move them keep them 8 points inside the picture, and the keys move them by 2% of its height a press.
 const (
 	subsBottom     core.Points = 44
 	subsYield      core.Points = 60
 	subsHigh                   = 30
 	subsHighYield              = 4
 	subsDragMargin core.Points = 8
+	subsLiftStep   float32     = 0.02
 )
 
-// subtitles draws the playing cue over the picture, centered above the transport, its lines as the mode picks them, or both for the cue the app peeks at (Peek), whatever the mode. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles (Look.Lift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
+// SubRoom is where the lines on the picture show and may go, in SubLift's measure, a share of the picture's height up from the place their look puts them: Rest is where they show while the film has no place of its own, up out of the way of the controls while those show, else 0; Lo and Hi are as far down and up as a drag takes them, a margin inside the picture, Lo above Hi for lines too tall for the picture, which a drag moves freely. The zero SubRoom is that of lines not laid out yet.
+type SubRoom struct{ Rest, Lo, Hi float32 }
+
+// NudgeLift is where one press of Move Subtitles Up (dir 1) or Down (dir -1) takes the lines from lift, the film's place or 0 for none, within room: on from where they show, so the first press on lines yielding to the controls moves them from there, and no further than a drag would. Lines not laid out yet stay where they are.
+func NudgeLift(lift float32, dir int, room SubRoom) float32 {
+	if room == (SubRoom{}) {
+		return lift
+	}
+	from := lift
+	if from == 0 {
+		from = room.Rest
+	}
+	next := from + float32(dir)*subsLiftStep
+	if room.Lo <= room.Hi {
+		next = min(max(next, room.Lo), room.Hi)
+	}
+	return next
+}
+
+// subtitles draws the playing cue over the picture, centered above the transport, its lines as the mode picks them, or both for the cue the app peeks at (Peek), whatever the mode. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles, to a place the film keeps (SubLift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The once-only tip that says so (SubTip) shows over them, and alone where they go between two lines. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
 func (s *screen) subtitles() core.Node {
 	a, cx := s.a, s.cx
 	cues := filmCues(cx, a)
@@ -59,43 +80,79 @@ func (s *screen) subtitles() core.Node {
 		}
 		return pictureLines(a, list[i].Text)
 	}, slices.Equal[[]styledLine]).Get
-	return core.Show{When: func() bool { return len(lines()) > 0 }, Then: func(cx *core.Scope) core.Node { return s.subtitleLayer(cx, lines) }}
+	tip := live.Memo(cx, a, a.SubTip)
+	return core.Show{When: func() bool { return len(lines()) > 0 || tip() }, Then: func(cx *core.Scope) core.Node { return s.subtitleLayer(cx, lines, tip) }}
 }
 
-// subtitleLayer is the layer the lines sit in, at their place over the picture, and the block of them the pointer drags.
-func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine) core.Node {
+// subtitleLayer is the layer the lines sit in, at their place over the picture, the block of them the pointer drags, which shows a backdrop while the pointer is over it so it reads as something to take hold of, and the tip above them while it shows.
+func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine, tip func() bool) core.Node {
 	a := s.a
+	colors := ui.ColorsOf(cx)
 	look := live.Memo(cx, a, func() Look { return *a.Cue() })
 	yield := live.Memo(cx, a, a.YieldSubs)
+	lift := live.Memo(cx, a, a.SubLift)
 	dragging := core.NewSignal(cx, false)
+	hovered := core.NewSignal(cx, false)
 	drag := core.NewSignal(cx, core.Points(0))
-	layerY := core.NewSignal(cx, core.Points(0))
+	layerH := core.NewSignal(cx, core.Points(0))
 	block := core.NewSignal(cx, core.Bounds{})
-	// offset is how far up from their place the lines show, before a drag moves them: where they were dragged to, or for lines never dragged the yield to the controls while they show.
-	offset := func() core.Points {
-		h := s.size.Get().Height
-		l := look()
-		if l.Lift != 0 {
-			return core.Points(l.Lift) * h
+	// place is how far up from the player's bottom the look puts the lines' layer.
+	place := func() core.Points {
+		if look().High {
+			return s.size.Get().Height * subsHigh / 100
 		}
+		return subsBottom
+	}
+	// rest is how far up from their place lines the film has not moved show: out of the way of the controls while they show, if the look yields to them.
+	rest := func() core.Points {
 		if s.shown() && yield() {
-			if l.High {
-				return h * subsHighYield / 100
+			if look().High {
+				return s.size.Get().Height * subsHighYield / 100
 			}
 			return subsYield
 		}
 		return 0
 	}
-	// clamp keeps a drag of the lines inside the player, a margin from its top and its bottom, from their place as their layout put them.
-	clamp := func(dy core.Points) core.Points {
+	// offset is how far up from their place the lines show, before a drag moves them: where the film has them (SubLift), which stays while the controls show, or else rest.
+	offset := func() core.Points {
+		if l := lift(); l != 0 {
+			return core.Points(l) * s.size.Get().Height
+		}
+		return rest()
+	}
+	// room is how far a drag can take the lines, up and down from their place, a margin inside the player, and ok false when they are too tall for it.
+	room := func() (up, down core.Points, ok bool) {
 		h, b := s.size.Get().Height, block.Get()
-		top := layerY.Get() + b.Origin.Y
-		up, down := top-subsDragMargin, h-subsDragMargin-top-b.Size.Height
-		if up+down < 0 {
+		top := h - place() - layerH.Get() + b.Origin.Y
+		up, down = top-subsDragMargin, h-subsDragMargin-top-b.Size.Height
+		return up, down, up+down >= 0
+	}
+	// clamp keeps a drag of the lines inside the player.
+	clamp := func(dy core.Points) core.Points {
+		up, down, ok := room()
+		if !ok {
 			return dy
 		}
 		return min(max(dy, -up), down)
 	}
+	// The keys that move the lines move them from where they show, within the room a drag has, which only the layout knows (SetSubRoom). The tip alone between two lines, over no lines, leaves the room the last lines had.
+	measured := core.NewMemo(cx, func() SubRoom {
+		h := s.size.Get().Height
+		if h <= 0 || len(lines()) == 0 {
+			return SubRoom{}
+		}
+		up, down, ok := room()
+		r := SubRoom{Rest: float32(rest() / h), Lo: float32(-down / h), Hi: float32(up / h)}
+		if !ok {
+			r.Lo, r.Hi = 1, -1
+		}
+		return r
+	}).Get
+	cx.Effect(func() {
+		if r := measured(); r != (SubRoom{}) {
+			a.SetSubRoom(r)
+		}
+	})
 	pan := func(e core.PanEvent) {
 		switch e.Phase {
 		case core.GestureBegan:
@@ -105,8 +162,7 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine) core.N
 			drag.Set(clamp(-offset() + e.Translation.Y))
 		case core.GestureEnded, core.GestureCancelled:
 			if h := s.size.Get().Height; h > 0 {
-				a.Cue().Lift = float32(-clamp(-offset()+e.Translation.Y) / h)
-				a.LookChanged()
+				a.SetSubLift(float32(-clamp(-offset()+e.Translation.Y) / h))
 			}
 			dragging.Set(false)
 			a.Changed()
@@ -118,9 +174,8 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine) core.N
 		if e.Clicks != 2 {
 			return
 		}
-		if a.Cue().Lift != 0 {
-			a.Cue().Lift = 0
-			a.LookChanged()
+		if a.SubLift() != 0 {
+			a.SetSubLift(0)
 			return
 		}
 		a.ToggleFullScreen()
@@ -134,38 +189,48 @@ func (s *screen) subtitleLayer(cx *core.Scope, lines func() []styledLine) core.N
 		}
 		return core.Group(children)
 	})
+	// The tip is text alone, which takes neither the pointer nor the keyboard's focus.
+	tipNode := core.Show{When: tip, Then: func(cx *core.Scope) core.Node {
+		return core.View{TestID: "film-subtitle-tip", PointerEvents: core.PointerEventsNone, LiveRegion: core.LiveRegionPolite,
+			Style:     core.Style{Margin: core.Edges{Bottom: 10}, Padding: core.Symmetric(6, 12), CornerRadius: 8, BorderWidth: 1},
+			StyleFunc: func() core.Style { return core.Style{Background: colors.Raised(), BorderColor: colors.Border()} },
+			Children: []core.Node{core.Text{ContentFunc: func() string { return locales.FilmSubtitleTip(cx) },
+				Style: core.Style{FontSize: 13, LineHeight: 18, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Text)}}}
+	}}
+	// The layer, and the tip in it with the lines, goes up from its place as far as the lines show from it: under the pointer while it drags them, else where they belong, to which they move as the controls and the side panel come and go, as MyGo's Draggable sprang them there. It moves by its frame rather than by a transform, as NSGo's hit tests go by frames: lines moved by a transform would take presses, the pointer's hover and drags where their frame lies, not where they show.
+	// TODO(nsgo): hit tests do not follow transforms (docs/roadmap.md, Hit tests through transforms), so the lines move by their layer's place, laid out again at each step of a drag, rather than by a TranslateY; once they do, a transform can move them again.
 	return core.View{TestID: "film-subtitles", PointerEvents: core.PointerEventsBoxNone,
 		Style:    core.Style{Position: core.Absolute, Left: core.Pt(0), AlignItems: core.AlignCenter},
-		OnLayout: func(b core.Bounds) { layerY.Set(b.Origin.Y) },
+		OnLayout: func(b core.Bounds) { layerH.Set(b.Size.Height) },
 		StyleFunc: func() core.Style {
 			room := s.roomRight()
-			st := core.Style{Right: core.Pt(room), Padding: core.Symmetric(0, (s.size.Get().Width-room)*0.05), Transition: roomTransition}
-			if look().High {
-				st.Bottom = core.Pct(subsHigh)
+			st := core.Style{Right: core.Pt(room), Padding: core.Symmetric(0, (s.size.Get().Width-room)*0.05)}
+			if dragging.Get() {
+				st.Bottom = core.Pt(place() - drag.Get())
 			} else {
-				st.Bottom = core.Pt(subsBottom)
+				st.Bottom = core.Pt(place() + offset())
+				st.Transition = roomTransition
 			}
 			return st
 		},
-		Children: []core.Node{core.View{
+		Children: []core.Node{tipNode, core.View{
 			TestID: "film-subtitle-lines", Role: core.RoleGroup,
-			OnLayout: func(b core.Bounds) { block.Set(b) },
-			OnPan:    pan,
-			OnPress:  press,
-			Style:    core.Style{MaxWidth: core.Pct(100), Gap: 4, AlignItems: core.AlignCenter},
+			OnLayout:     func(b core.Bounds) { block.Set(b) },
+			OnPan:        pan,
+			OnPress:      press,
+			OnMouseEnter: func(core.MouseEvent) { hovered.Set(true) },
+			OnMouseLeave: func(core.MouseEvent) { hovered.Set(false) },
+			// The backdrop's padding is taken back by the margin, so it shows around the lines without moving them.
+			Style: core.Style{MaxWidth: core.Pct(100), Gap: 4, AlignItems: core.AlignCenter, Padding: core.Symmetric(6, 14), Margin: core.Edges{Top: -6, Right: -14, Bottom: -6, Left: -14}, CornerRadius: 10},
 			StyleFunc: func() core.Style {
-				st := core.Style{}
-				if dragging.Get() {
-					st.Transform = core.Transform{TranslateY: drag.Get()}
-					st.Cursor = core.CursorGrabbing
-				} else {
-					// The lines move to their new place as the controls come and go, as MyGo's Draggable sprang them there.
-					st.Transform = core.Transform{TranslateY: -offset()}
-					st.Transition = core.Transition{Duration: 250 * time.Millisecond, Easing: core.EaseOut, Properties: core.TransitionTransform}
-					st.Cursor = core.CursorGrab
-				}
-				if !s.shown() {
+				st := core.Style{Cursor: core.CursorGrab}
+				switch {
+				case !s.shown():
 					st.Cursor = core.CursorNone
+				case dragging.Get():
+					st.Cursor, st.Background = core.CursorGrabbing, colors.Pressed()
+				case hovered.Get():
+					st.Background = colors.Hover()
 				}
 				return st
 			},

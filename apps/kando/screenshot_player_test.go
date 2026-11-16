@@ -11,7 +11,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its menu, the picture saying ⇧⌘C copied the playing line, the lines under the pointer showing they can be taken hold of, and the once-only tip that they can be dragged. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// open opens film id at at and has the system's player report it loaded, held there.
@@ -69,10 +69,26 @@ func TestScreenshotsPlayer(t *testing.T) {
 	}
 	f.shoot(t, "player-playing", playing(0))
 	f.shoot(t, "player-idle", playing(3*time.Second))
-	// Playing with the subtitles dragged up a sixth of the picture, as off a film's own burned-in lines: they stay where they were let go as the controls fade.
+	// Playing with the film's subtitles dragged up a sixth of the picture, as off its own burned-in lines: they stay where they were let go as the controls fade.
 	f.shoot(t, "player-dragged", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
-		a.player.look.Lift = 1.0 / 6
+		a.setSubtitleLifts(map[string]float32{f.job(t, "j1").VideoPath: 1.0 / 6})
 		playing(3*time.Second)(t, a, tt, updates)
+	})
+	// Held on the first line with the pointer over it: a backdrop behind the lines shows they can be taken hold of.
+	f.shoot(t, "player-subtitles-hover", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		open(t, a, tt, updates, "j1", protoCues[0].Start)
+		tt.Hover("id:film-subtitle-lines")
+		if tt.Find("id:film-subtitle-lines").Style.Background == 0 {
+			t.Fatal("no backdrop behind the lines under the pointer")
+		}
+	})
+	// The first film played with subtitles: the tip over them says they can be dragged and double-clicked back.
+	f.shoot(t, "player-subtitle-tip", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		a.player.subTipSeen = false
+		playing(0)(t, a, tt, updates)
+		if !tt.Exists("id:film-subtitle-tip") {
+			t.Fatalf("no tip over the subtitles: %q", tt.Texts())
+		}
 	})
 	// Playing with the sound muted by M: the speaker crossed out and the picture saying so.
 	f.shoot(t, "player-muted", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {

@@ -224,12 +224,51 @@ func TestDelaysRoundTrip(t *testing.T) {
 	}
 }
 
-// TestMoveVideosKeysByTheNewPath checks that when videos moved on disk, their resume positions, furthest points and subtitle delays are kept under their new paths, those of videos that did not move stay, and MoveVideos says whether anything moved.
+// TestLiftsRoundTrip checks that where each video's subtitles were moved to over its picture is kept under its own key, up as well as down, that a video whose subtitles are in their place is not written, and that a place past the picture's edge, as a hand-edited file may hold, is dropped on reading.
+func TestLiftsRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib.Lifts["/v/a.mp4"] = 0.25
+	lib.Lifts["/v/b.mp4"] = -0.05
+	lib.Lifts["/v/zero.mp4"] = 0
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"lifts"`) || strings.Contains(string(data), "zero.mp4") {
+		t.Fatalf("library.json %s", data)
+	}
+	loaded, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Lifts) != 2 || loaded.Lifts["/v/a.mp4"] != 0.25 || loaded.Lifts["/v/b.mp4"] != -0.05 {
+		t.Fatalf("lifts %v", loaded.Lifts)
+	}
+	if len(loaded.Delays) != 0 {
+		t.Fatalf("delays %v", loaded.Delays)
+	}
+	if err := os.WriteFile(path, []byte(`{"jobs":[],"lifts":{"/v/a.mp4":0.3,"/v/off.mp4":1.5,"/v/under.mp4":-1}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if loaded, err = Load(path); err != nil || len(loaded.Lifts) != 1 || loaded.Lifts["/v/a.mp4"] != 0.3 {
+		t.Fatalf("lifts %v (%v), want only a.mp4's", loaded.Lifts, err)
+	}
+}
+
+// TestMoveVideosKeysByTheNewPath checks that when videos moved on disk, their resume positions, furthest points, subtitle delays and subtitle places are kept under their new paths, those of videos that did not move stay, and MoveVideos says whether anything moved.
 func TestMoveVideosKeysByTheNewPath(t *testing.T) {
 	lib := Library{
 		Positions: map[string]time.Duration{"/old/a.mp4": 5 * time.Second, "/other/b.mp4": 7 * time.Second},
 		Furthest:  map[string]time.Duration{"/old/a.mp4": 40 * time.Second, "/other/b.mp4": 9 * time.Second},
 		Delays:    map[string]time.Duration{"/old/a.mp4": -300 * time.Millisecond, "/other/b.mp4": time.Second},
+		Lifts:     map[string]float32{"/old/a.mp4": 0.2, "/other/b.mp4": -0.1},
 		Played:    map[string]time.Time{"/old/a.mp4": time.Unix(100, 0)},
 	}
 	move := func(path string) (string, bool) {
@@ -249,6 +288,9 @@ func TestMoveVideosKeysByTheNewPath(t *testing.T) {
 	}
 	if len(lib.Delays) != 2 || lib.Delays["/new/a.mp4"] != -300*time.Millisecond || lib.Delays["/other/b.mp4"] != time.Second {
 		t.Fatalf("delays %v", lib.Delays)
+	}
+	if len(lib.Lifts) != 2 || lib.Lifts["/new/a.mp4"] != 0.2 || lib.Lifts["/other/b.mp4"] != -0.1 {
+		t.Fatalf("lifts %v", lib.Lifts)
 	}
 	if len(lib.Played) != 1 || !lib.Played["/new/a.mp4"].Equal(time.Unix(100, 0)) {
 		t.Fatalf("played %v", lib.Played)

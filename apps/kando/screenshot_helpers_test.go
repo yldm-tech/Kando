@@ -232,6 +232,8 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height n
 			}
 		}
 		a.setResumePositions(watched)
+		// The tip that the subtitles can be dragged has been seen, as the prototype shows none; the scene of the tip shows it again.
+		a.player.subTipSeen = true
 		a.refreshLibrary()
 		t.Cleanup(a.stopPlayback)
 		// A scene can start the queue's next job, as opening another library starts the prototype's queued j6 (queueHooks' libraryChanged), and the fake yt-dlp downloads it into the fixture's home. The job is stopped as a quit stops it, and waited for, before the scene ends, so it does not write into the home while the test removes it.

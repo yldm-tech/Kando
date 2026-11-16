@@ -25,10 +25,8 @@ type Look struct {
 	Preset string
 	// Box puts each line on a dark box; Shadow draws an outline around the glyphs.
 	Box, Shadow bool
-	// High lifts the subtitles to about a third of the picture's height, from the bottom.
-	High bool
-	// Lift is how far the pointer dragged the subtitles up from where High puts them, as a share of the picture's height, so they keep their place over the picture as the window changes size; a negative Lift moves them down. It is for dragging them off a film's own burned-in subtitles. Subtitles dragged anywhere stay there while the controls show, rather than yield to them.
-	Lift        float32
+	// High lifts the subtitles to about a third of the picture's height, from the bottom. Where a film's own subtitles were moved from there is the film's, not the look's: the player keeps it with the film (film.App.SubLift).
+	High        bool
 	Translation Face
 	Original    Face
 }

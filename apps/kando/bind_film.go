@@ -259,6 +259,25 @@ func (a *app) SetDelay(d time.Duration) {
 	a.flash(a.messages().PlayerOsdDelay(film.DelayTextIn(a.messages(), d)))
 }
 
+// SubLift is where the open film's subtitles were moved to over its picture, 0 while they are in their place (film.App.SubLift).
+func (a *app) SubLift() float32 { return a.player.lifts[a.player.film.video] }
+
+// SetSubLift moves the open film's subtitles to lift and keeps it for the film's video, so they are where they were left when it opens again; other films keep theirs. Moving them is what the tip says, so the tip goes.
+func (a *app) SetSubLift(lift float32) {
+	a.player.film.subTip = false
+	a.playerNoteLift(lift)
+}
+
+// SetSubRoom keeps where the lines on the picture show and may go as the player laid them out, for Move Subtitles Up and Down (playerNudgeLift). Nothing on screen reads it, so it changes nothing there.
+func (a *app) SetSubRoom(room film.SubRoom) { a.player.subRoom = room }
+
+func (a *app) SubTip() bool { return a.player.film.subTip }
+
+// playerNudgeLift is ⌥↑ and ⌥↓: the open film's subtitles a step up (dir 1) or down (dir -1) over the picture, from where they show and within the room a drag has (film.NudgeLift).
+func (a *app) playerNudgeLift(dir int) {
+	a.SetSubLift(film.NudgeLift(a.SubLift(), dir, a.player.subRoom))
+}
+
 func (a *app) Panel() bool { return a.player.panel }
 
 func (a *app) TogglePanel() { a.player.panel = !a.player.panel }
@@ -421,7 +440,7 @@ func (a *app) playerSaveSettings() {
 	}
 }
 
-// playerKeys are the player's shortcuts. They work while a film is open; those that move the picture wait for the system's player to have loaded it. The rows that step a value, seeking, the volume, the speed, the subtitle delay and the line before or after, go on while their key is held.
+// playerKeys are the player's shortcuts. They work while a film is open; those that move the picture wait for the system's player to have loaded it. The rows that step a value, seeking, the volume, the speed, the subtitle delay and place and the line before or after, go on while their key is held.
 func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	playing := func() bool { return a.openKey != "" && a.playerLoaded() }
 	open := func() bool { return a.openKey != "" }
@@ -452,6 +471,9 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 		{Group: groupSubtitles, Label: locales.PlayerKeyPeekLine(cx), Key: "t", When: playing, Run: a.PeekLine},
 		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(cx), Key: "z", Repeat: true, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyDelayLater(cx), Key: "x", Repeat: true, When: open, Run: func() { a.nudgeDelay(100 * time.Millisecond) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeySubtitlesUp(cx), Key: "alt+up", Repeat: true, When: open, Run: func() { a.playerNudgeLift(1) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeySubtitlesDown(cx), Key: "alt+down", Repeat: true, When: open, Run: func() { a.playerNudgeLift(-1) }},
+		{Group: groupSubtitles, Label: locales.PlayerKeySubtitlesReset(cx), Key: "alt+0", When: open, Run: func() { a.SetSubLift(0) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(cx), Key: "mod+=", Repeat: true, When: open, Run: func() { a.scaleSubtitles(2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySmaller(cx), Key: "mod+-", Repeat: true, When: open, Run: func() { a.scaleSubtitles(-2) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeySearch(cx), Key: "mod+f", When: open, Run: a.searchSubtitles},

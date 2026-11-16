@@ -121,6 +121,7 @@ func (a *app) queueHooks() areaHooks {
 			a.setResumePositions(maps.Clone(a.library.Positions))
 			a.setPlayedTimes(maps.Clone(a.library.Played))
 			a.setSubtitleDelays(maps.Clone(a.library.Delays))
+			a.setSubtitleLifts(maps.Clone(a.library.Lifts))
 		},
 		becameActive:     a.queueBecameActive,
 		positionsChanged: a.savePositions,
@@ -128,6 +129,7 @@ func (a *app) queueHooks() areaHooks {
 			shelf.MoveKeys(a.resumePositions(), move)
 			shelf.MoveKeys(a.playedTimes(), move)
 			shelf.MoveKeys(a.subtitleDelays(), move)
+			shelf.MoveKeys(a.subtitleLifts(), move)
 		},
 		afterChange: a.queueQuitModal,
 		beforeQuit:  a.queueBeforeQuit,
@@ -453,11 +455,12 @@ func (a *app) startFilm(item films.Film) {
 	}
 }
 
-// savePositions writes the player's resume positions, when each video last played and its subtitle delays into library.json with the jobs.
+// savePositions writes the player's resume positions, when each video last played and its subtitle delays and places into library.json with the jobs.
 func (a *app) savePositions() {
 	a.library.Positions = maps.Clone(a.resumePositions())
 	a.library.Played = maps.Clone(a.playedTimes())
 	a.library.Delays = maps.Clone(a.subtitleDelays())
+	a.library.Lifts = maps.Clone(a.subtitleLifts())
 	if err := a.library.Save(); err != nil {
 		a.saveErr = a.shelfSaveErr(err, a.messages().QueueSaveFailed)
 	}

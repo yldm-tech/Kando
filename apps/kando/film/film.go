@@ -105,6 +105,13 @@ type App interface {
 	// Delay shifts the subtitles against the picture: a positive delay shows each line later.
 	Delay() time.Duration
 	SetDelay(d time.Duration)
+	// SubLift is how far the open film's subtitles were moved up over its picture from the place their look puts them (Look.High), as a share of the picture's height, negative for down, so they keep their place as the window changes size; 0 for a film whose subtitles were never moved, which show at that place. It is for moving them off a film's own burned-in subtitles or other text. SetSubLift moves them there for this film alone and keeps it with the film, 0 putting them back.
+	SubLift() float32
+	SetSubLift(lift float32)
+	// SetSubRoom tells the app where the lines on the picture show and how far a drag could take them, as the picture lays them out, so the keys that move them (NudgeLift) start from where they show and stop where a drag stops.
+	SetSubRoom(room SubRoom)
+	// SubTip reports whether the tip that the subtitles can be dragged shows over them, as it does once, the first time a film plays with subtitles.
+	SubTip() bool
 	// Panel reports whether the side panel is on, and StyleView whether it shows the subtitle style in place of its tabs. A film without a picture shows the panel whether it is on or not.
 	Panel() bool
 	TogglePanel()

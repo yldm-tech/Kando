@@ -346,6 +346,9 @@ cheatsheetSubtitlesDelay:
 cheatsheetSubtitlesMode:
   message: "Switch Display Mode"
   description: "Cheat sheet line, under Subtitles, for the key that cycles bilingual, translation only and original only."
+cheatsheetSubtitlesPosition:
+  message: "Subtitles Up / Down"
+  description: "Cheat sheet line, under Subtitles, for the Option-Up and Option-Down keys that move the subtitles up or down over the picture."
 cheatsheetSubtitlesShowHide:
   message: "Show / Hide"
   description: "Cheat sheet line, under Subtitles, for the key that shows or hides the subtitles."
@@ -906,6 +909,9 @@ filmStyleShow:
 filmStyleSize:
   message: "Size"
   description: "Style view row setting a line's font size."
+filmSubtitleTip:
+  message: "Drag the subtitles to move them. Double-click to put them back."
+  description: "Tip shown once over the subtitles, the first time a film plays with them: they can be dragged up or down, and a double click puts them back where the subtitle style places them."
 filmSubtitles:
   message: "Subtitles"
   description: "The side panel's subtitle tab, and the tooltip of the subtitle mode button (followed by its keys)."
@@ -2164,6 +2170,15 @@ playerKeySlower:
 playerKeySmaller:
   message: "Smaller Subtitles"
   description: "Shortcut row and menu item: smaller subtitles."
+playerKeySubtitlesDown:
+  message: "Move Subtitles Down"
+  description: "Shortcut row and menu item: move the open film's subtitles a little lower over the picture."
+playerKeySubtitlesReset:
+  message: "Reset Subtitle Position"
+  description: "Shortcut row and menu item: put the open film's subtitles back where the subtitle style places them."
+playerKeySubtitlesUp:
+  message: "Move Subtitles Up"
+  description: "Shortcut row and menu item: move the open film's subtitles a little higher over the picture."
 playerKeyToggleSidebar:
   message: "Show/Hide Sidebar"
   description: "Shortcut row and menu item: show or hide the player's side panel."

@@ -52,7 +52,14 @@ type playerUI struct {
 	played map[string]time.Time
 	// delays is how far the subtitles of each video were moved against its picture, by video path, so a film opens with them where they were left. A video whose subtitles are in place has none.
 	delays map[string]time.Duration
-	// saves is when the player last had the areas keep its resume positions and subtitle delays on disk (playerKeep).
+	// lifts is where the subtitles of each video were moved to over its picture (film.App.SubLift), by video path, so a film opens with them off its own burned-in text where they were left. A video whose subtitles are in their place has none.
+	lifts map[string]float32
+	// subRoom is where the lines on the picture last showed and how far a drag could take them, as the player laid them out (film.App.SetSubRoom), which Move Subtitles Up and Down keep to. It stays from film to film, the zero room until lines first showed.
+	subRoom film.SubRoom
+	// subTipSeen is kept in the settings once the tip that the subtitles can be dragged has shown (playerSubTip), so it shows only once; tipTimer takes the tip away, nil until it first shows with the app running.
+	subTipSeen bool
+	tipTimer   *film.Timer
+	// saves is when the player last had the areas keep its resume positions and subtitle delays and places on disk (playerKeep).
 	saves playerSaves
 	// osdTimer takes the message flash put on the picture away, one timer under the app's scope that each message sets again, nil until the first message with the app running (flash).
 	osdTimer *film.Timer
@@ -111,8 +118,10 @@ type filmUI struct {
 	modeMenu  bool
 	speedMenu bool
 	// video is the path of the film's video, which delay is kept by in playerUI.delays.
-	video       string
-	delay       time.Duration
+	video string
+	delay time.Duration
+	// subTip shows the tip that the subtitles can be dragged over them (playerSubTip).
+	subTip      bool
 	search      string
 	searchFocus bool
 	// searchFocused is set while the subtitle search field holds the keyboard focus (SearchFocused).
@@ -233,7 +242,12 @@ func (a *app) subtitleDelays() map[string]time.Duration { return a.player.delays
 
 func (a *app) setSubtitleDelays(delays map[string]time.Duration) { a.player.delays = delays }
 
-// How often a playing film is kept on disk (playerKeep): at most every playerKeepEvery, once it has moved more than playerKeepMoved since, and a subtitle delay once it has rested playerDelaySettle, so a run of Z or X presses is saved once.
+// subtitleLifts and setSubtitleLifts are where the subtitles of each video were moved to over its picture, by video path, for the area that keeps them on disk with the shelf beside the subtitle delays. The map is the player's own; setSubtitleLifts takes lifts over as they are.
+func (a *app) subtitleLifts() map[string]float32 { return a.player.lifts }
+
+func (a *app) setSubtitleLifts(lifts map[string]float32) { a.player.lifts = lifts }
+
+// How often a playing film is kept on disk (playerKeep): at most every playerKeepEvery, once it has moved more than playerKeepMoved since, and a subtitle delay or place once it has rested playerDelaySettle, so a run of Z or X presses, or of ⌥↑ and ⌥↓, is saved once.
 const (
 	playerKeepEvery   = 20 * time.Second
 	playerKeepMoved   = 2 * time.Second
@@ -248,18 +262,40 @@ type playerSaves struct {
 	at      time.Time
 	head    time.Duration
 	playing bool
-	// delayDirty is set while a subtitle delay changed since the last save; delayAt is when it was first looked at since its last change, zero until then; delayGen counts the changes, so only the timer of the last of a run of them saves it.
+	// delayDirty is set while a subtitle delay or place changed since the last save; delayAt is when it was first looked at since its last change, zero until then; delayGen counts the changes, so only the timer of the last of a run of them saves it.
 	delayDirty bool
 	delayAt    time.Time
 	delayGen   int
 }
 
-// playerAfterChange keeps where the open film is on disk when it paused, ended or was moved (playerKeep), keeps the display awake while a film plays (player_awake.go) and times the return of a looped line to its start (playerLoopSchedule). The positions it saves are what the library's 继续 reads, so it reports when it saved one.
+// playerAfterChange keeps where the open film is on disk when it paused, ended or was moved (playerKeep), keeps the display awake while a film plays (player_awake.go), times the return of a looped line to its start (playerLoopSchedule) and shows the tip that the subtitles can be dragged the first time a film plays with them (playerSubTip). The positions it saves are what the library's 继续 reads, and the tip shows over the picture, so it reports when it saved one or showed the tip.
 func (a *app) playerAfterChange() bool {
 	changed := a.playerKeep(a.playerNow())
 	a.playerKeepAwake()
 	a.playerLoopSchedule()
-	return changed
+	tip := a.playerSubTip()
+	return changed || tip
+}
+
+// playerTipFor is how long the tip that the subtitles can be dragged shows.
+const playerTipFor = 6 * time.Second
+
+// playerSubTip shows the tip that the subtitles can be dragged and double-clicked back (film.App.SubTip) the first time a film plays with subtitles that show on the picture, for playerTipFor, and keeps in the settings that it has, so it never shows again. Without the app's scope, as in tests that start no app, it stays. It reports whether it showed the tip.
+func (a *app) playerSubTip() bool {
+	p, subs := a.player.play, &a.player.subs
+	if a.player.subTipSeen || a.openKey == "" || p == nil || !p.Playing() || subs.key != a.openKey || !subs.ready || len(subs.cues) == 0 || a.player.subMode == film.SubOff {
+		return false
+	}
+	a.player.subTipSeen = true
+	a.player.film.subTip = true
+	a.playerSaveSettings()
+	if a.cx != nil {
+		if a.player.tipTimer == nil {
+			a.player.tipTimer = film.NewTimer(a.cx)
+		}
+		a.player.tipTimer.Set(playerTipFor, live.Do(a, func() { a.player.film.subTip = false }))
+	}
+	return true
 }
 
 // playerKeep saves where the open film is while it plays, so a crash, a force quit or a power cut loses little of it rather than all since it opened: at once when a playback opened playing at a point picked for it (继续, 从头看) or a seek the user made lands, and when it pauses or ends, and in between every playerKeepEvery once it has moved on. A film held on the frame it opened on is not kept until it plays, as stopPlayback does not keep it either, and a looped line going back to its start does not count as a seek, nor its hold in the gap before it does as a pause. A subtitle delay is saved once it has rested playerDelaySettle. now is the time it looks. It reports whether it saved anything.
@@ -323,6 +359,31 @@ func (a *app) playerNoteDelay(d time.Duration) {
 		}
 		a.player.delays[video] = d
 	}
+	a.playerSaveSettled()
+}
+
+// playerNoteLift keeps lift as where the subtitles of the open film's video are moved to (film.App.SubLift), to be saved once it rests (playerKeep), or as the film closes (playerSaveDelay), as a delay is. Putting them back in their place forgets it.
+func (a *app) playerNoteLift(lift float32) {
+	video := a.player.film.video
+	if video == "" {
+		return
+	}
+	if was, ok := a.player.lifts[video]; ok && was == lift || !ok && lift == 0 {
+		return
+	}
+	if lift == 0 {
+		delete(a.player.lifts, video)
+	} else {
+		if a.player.lifts == nil {
+			a.player.lifts = map[string]float32{}
+		}
+		a.player.lifts[video] = lift
+	}
+	a.playerSaveSettled()
+}
+
+// playerSaveSettled has a subtitle delay or place just changed saved once it rests playerDelaySettle, so a run of changes is saved once.
+func (a *app) playerSaveSettled() {
 	a.player.saves.delayDirty = true
 	a.player.saves.delayAt = time.Time{}
 	// A delay that rests is saved without waiting for the film to report where it is, as a held film reports nothing.
@@ -339,14 +400,14 @@ func (a *app) playerNoteDelay(d time.Duration) {
 	}
 }
 
-// playerSaveDelay saves a subtitle delay that changed since the last save, as its film closes or another opens.
+// playerSaveDelay saves a subtitle delay or place that changed since the last save, as its film closes or another opens.
 func (a *app) playerSaveDelay() {
 	if a.player.saves.delayDirty {
 		a.playerPositionsChanged()
 	}
 }
 
-// playerPositionsChanged has the areas that keep the player's resume positions and subtitle delays on disk save them, which saves a delay waiting to be saved too.
+// playerPositionsChanged has the areas that keep the player's resume positions and subtitle delays and places on disk save them, which saves a delay or place waiting to be saved too.
 func (a *app) playerPositionsChanged() {
 	a.player.saves.delayDirty = false
 	a.player.saves.delayAt = time.Time{}
@@ -385,9 +446,10 @@ func (a *app) restorePlayer(saved savedSettings) {
 	}
 	a.player.pauseLines = saved.PauseLines
 	a.player.loopGap = saved.LoopGap
+	a.player.subTipSeen = saved.SubtitleTipSeen
 }
 
-// savedPlayer is the player's part of settings.json: how subtitles look, which lines show, how loud and how fast films play, and whether they stop after each line.
+// savedPlayer is the player's part of settings.json: how subtitles look, which lines show, how loud and how fast films play, whether they stop after each line, and whether the tip that the subtitles can be dragged has shown. Where each film's subtitles were moved to is the film's, kept in library.json (shelf.Library.Lifts); a look saved by a version that kept one place for every film (its Lift) reads without it, so every film's subtitles start at the look's place.
 type savedPlayer struct {
 	Look         *film.Look `json:"look,omitempty"`
 	SubMode      string     `json:"subMode,omitempty"`
@@ -402,6 +464,8 @@ type savedPlayer struct {
 	// PauseLines pauses films at the end of each line; LoopGap is what a looped line waits after each pass, "" or playerLoopGapLine.
 	PauseLines bool   `json:"pauseAfterLine,omitempty"`
 	LoopGap    string `json:"loopGap,omitempty"`
+	// SubtitleTipSeen is set once the tip that the subtitles can be dragged has shown.
+	SubtitleTipSeen bool `json:"subtitleTipSeen,omitempty"`
 }
 
 // clean brings a saved speed to the nearest of film.Rates and drops a loop gap this version does not know, and leaves the player's other settings as they were read; restorePlayer replaces a value it does not know with the default.
@@ -420,20 +484,21 @@ func (a *app) savePlayer(saved *savedSettings) {
 	volume := a.player.volume
 	rate := a.player.rate
 	saved.savedPlayer = savedPlayer{
-		Look:         changedLook(a.player.look),
-		SubMode:      a.player.subMode,
-		SubOrder:     a.player.subOrder,
-		Untranslated: a.player.untranslated,
-		YieldSubs:    &yieldSubs,
-		Volume:       &volume,
-		Muted:        a.player.muted,
-		Rate:         &rate,
-		PauseLines:   a.player.pauseLines,
-		LoopGap:      a.player.loopGap,
+		Look:            changedLook(a.player.look),
+		SubMode:         a.player.subMode,
+		SubOrder:        a.player.subOrder,
+		Untranslated:    a.player.untranslated,
+		YieldSubs:       &yieldSubs,
+		Volume:          &volume,
+		Muted:           a.player.muted,
+		Rate:            &rate,
+		PauseLines:      a.player.pauseLines,
+		LoopGap:         a.player.loopGap,
+		SubtitleTipSeen: a.player.subTipSeen,
 	}
 }
 
-// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is on disk when it pauses or ends (playerAfterChange) and now and then as it plays (VideoProgress), keeps the display awake while a film plays in sight once the window is ready, follows the open film's video when it moves on disk so its subtitle delay is kept by the new path, lets the display sleep while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so where it stopped is kept for next time, keeping a volume changed just before.
+// playerHooks: the player saves how subtitles look, takes the main window for full screen once it exists, shows the open film where the system shows what plays once the window is ready, so the media keys command it, closes the open film once it has left the shelf, keeps where a playing film is on disk when it pauses or ends (playerAfterChange) and now and then as it plays (VideoProgress), keeps the display awake while a film plays in sight once the window is ready, follows the open film's video when it moves on disk so its subtitle delay and place are kept by the new path, lets the display sleep while the main window is put away (playerWindowHidden), and stops the open video when the app quits, so where it stopped is kept for next time, keeping a volume changed just before.
 func (a *app) playerHooks() areaHooks {
 	return areaHooks{
 		save: a.savePlayer, restore: a.restorePlayer, ready: a.playerReady, shelfChanged: a.closeFilmThatLeft, afterChange: a.playerAfterChange, windowShown: func(shown bool) { a.playerWindowHidden(!shown) }, quitting: a.playerQuitting,

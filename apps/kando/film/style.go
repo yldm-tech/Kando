@@ -51,8 +51,13 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 		return ui.Tabs[bool]{TestID: "film-style-place", Label: locales.FilmStylePosition(cx), Size: ui.SizeSmall,
 			Options: []ui.Option[bool]{{Value: true, Label: locales.FilmPositionHigh(cx)}, {Value: false, Label: locales.FilmPositionBottom(cx)}},
 			Value:   func() bool { return look().High },
-			// Picking a place also puts subtitles dragged away from it (Lift) back there.
-			OnChange: func(high bool) { edit(func(l *Look) { l.High, l.Lift = high, 0 })() }}
+			// Picking a place also puts the open film's subtitles, if they were moved away from it (SubLift), back there.
+			OnChange: func(high bool) {
+				edit(func(l *Look) {
+					l.High = high
+					a.SetSubLift(0)
+				})()
+			}}
 	})
 	font := subtitle.FontSelect(cx, "film-style-font", look, change)
 	presets := make([]core.Node, len(subtitle.Presets))
@@ -70,7 +75,10 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 	reset := core.Dynamic(func(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 		return ui.Button{TestID: "film-style-reset", Text: locales.FilmStyleReset(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
-			OnPress: edit(func(l *Look) { *l = DefaultLook() })}
+			OnPress: edit(func(l *Look) {
+				*l = DefaultLook()
+				a.SetSubLift(0)
+			})}
 	})
 	content := []core.Node{
 		core.View{Style: core.Style{Direction: core.Row, Height: core.Pt(28), AlignItems: core.AlignCenter, JustifyContent: core.JustifySpaceBetween}, Children: []core.Node{

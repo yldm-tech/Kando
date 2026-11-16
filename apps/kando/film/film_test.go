@@ -61,6 +61,8 @@ type fakeApp struct {
 	jobStatus  string
 	yield      bool
 	delay      time.Duration
+	lift       float32
+	room       SubRoom
 	panel      bool
 	styleView  bool
 	modeMenu   bool
@@ -189,6 +191,10 @@ func (f *fakeApp) Untranslated() string                    { return f.untrans }
 func (f *fakeApp) YieldSubs() bool                         { return f.yield }
 func (f *fakeApp) Delay() time.Duration                    { return f.delay }
 func (f *fakeApp) SetDelay(d time.Duration)                { f.delay = d }
+func (f *fakeApp) SubLift() float32                        { return f.lift }
+func (f *fakeApp) SetSubLift(lift float32)                 { f.lift = lift }
+func (f *fakeApp) SetSubRoom(room SubRoom)                 { f.room = room }
+func (f *fakeApp) SubTip() bool                            { return false }
 func (f *fakeApp) Panel() bool                             { return f.panel }
 func (f *fakeApp) TogglePanel()                            { f.panel = !f.panel }
 func (f *fakeApp) StyleView() bool                         { return f.styleView }
@@ -1431,5 +1437,30 @@ func TestPosterURL(t *testing.T) {
 	}
 	if fileURL("") != "" {
 		t.Errorf("fileURL(\"\") = %q, want \"\"", fileURL(""))
+	}
+}
+
+// TestNudgeLift checks where Move Subtitles Up and Down take the lines: a fiftieth of the picture a press, from where they yield to the controls for a film that never moved them, from the film's own place otherwise, no further than a drag's room, freely within lines too tall for the picture, and nowhere before the lines were laid out.
+func TestNudgeLift(t *testing.T) {
+	room := SubRoom{Rest: 0.08, Lo: -0.05, Hi: 0.3}
+	for _, c := range []struct {
+		name string
+		lift float32
+		dir  int
+		room SubRoom
+		want float32
+	}{
+		{"up from the yield", 0, 1, room, 0.10},
+		{"down from the yield", 0, -1, room, 0.06},
+		{"up from the film's place", 0.2, 1, room, 0.22},
+		{"down from the film's place", 0.2, -1, room, 0.18},
+		{"up at the room's top", 0.29, 1, room, 0.3},
+		{"down at the room's bottom", -0.04, -1, room, -0.05},
+		{"lines too tall for the picture", 0.5, 1, SubRoom{Lo: 1, Hi: -1}, 0.52},
+		{"lines not laid out yet", 0.2, 1, SubRoom{}, 0.2},
+	} {
+		if got := NudgeLift(c.lift, c.dir, c.room); math.Abs(float64(got-c.want)) > 1e-6 {
+			t.Errorf("%s: NudgeLift(%v, %d) = %v, want %v", c.name, c.lift, c.dir, got, c.want)
+		}
 	}
 }

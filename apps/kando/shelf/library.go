@@ -22,7 +22,7 @@ const (
 	storedLibrarySwitched = "library-switched"
 )
 
-// Library is the videos this machine has processed, newest first, where each video stopped playing, how its subtitles were moved against it, and the titles the user gave videos in Kando.
+// Library is the videos this machine has processed, newest first, where each video stopped playing, how its subtitles were moved against it and over it, and the titles the user gave videos in Kando.
 type Library struct {
 	path string
 	Jobs []core.Job
@@ -34,6 +34,8 @@ type Library struct {
 	Played map[string]time.Time
 	// Delays is how far the subtitles of the video at each path were moved against its picture (Z and X), so they stay in step when it is opened again. A video whose subtitles were not moved has none.
 	Delays map[string]time.Duration
+	// Lifts is how far the subtitles of the video at each path were moved up over its picture from the place the subtitle style puts them (dragged, or ⌥↑ and ⌥↓), as a share of the picture's height, negative for down, so they stay off the film's own burned-in text when it is opened again. A video whose subtitles are in their place has none.
+	Lifts map[string]float32
 	// Names is the title the user gave the video at each path in Kando (Rename), shown in place of the title its site gives it or the name of its file or folder. Renaming never touches the files on disk, and a title kept here follows its video when the video moves (MoveVideos).
 	Names map[string]string
 	// unread is why Load could not read the file in full. While it is set Save does not write, as the file may hold jobs this library lacks; AllowSave clears it once a copy of the file is kept.
@@ -66,7 +68,7 @@ func (l Library) Path() string { return l.path }
 
 // Load reads the library at path. A missing file is an empty library. A file that is there but cannot be read is empty too, and the error says why. A file that is not a library in full returns a *DamagedError with the file's bytes, and the library keeps what could be read: a value of another type leaves only that field out, as encoding/json goes on with the rest, and a file that is not JSON at all reads as empty. After either error Save returns ErrUnread rather than write over the file, until AllowSave. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Names: map[string]string{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Lifts: map[string]float32{}, Names: map[string]string{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -110,6 +112,12 @@ func Load(path string) (Library, error) {
 		// A delay is earlier or later, so it may be below 0. It is read to the millisecond, as seconds such as 2.3 are not exact in binary and would otherwise read back a nanosecond short.
 		if at := time.Duration(math.Round(seconds*1000)) * time.Millisecond; at != 0 {
 			lib.Delays[path] = at
+		}
+	}
+	for path, lift := range stored.Lifts {
+		// A place past the picture's edge, as a hand-edited file may hold, is dropped rather than show the lines off the picture.
+		if lift != 0 && lift > -1 && lift < 1 {
+			lib.Lifts[path] = lift
 		}
 	}
 	for path, name := range stored.Names {
@@ -168,14 +176,15 @@ func (l *Library) Rename(path, name string) bool {
 	return true
 }
 
-// MoveVideos keys the resume positions, furthest points, times last played, subtitle delays and the titles given in Kando by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
+// MoveVideos keys the resume positions, furthest points, times last played, subtitle delays and places and the titles given in Kando by the new paths of videos that moved on disk: move gives a video's new path for its old one, and reports false for one that did not move. It reports whether any moved.
 func (l *Library) MoveVideos(move func(path string) (string, bool)) bool {
 	positions := MoveKeys(l.Positions, move)
 	furthest := MoveKeys(l.Furthest, move)
 	played := MoveKeys(l.Played, move)
 	delays := MoveKeys(l.Delays, move)
+	lifts := MoveKeys(l.Lifts, move)
 	names := MoveKeys(l.Names, move)
-	return positions || furthest || played || delays || names
+	return positions || furthest || played || delays || lifts || names
 }
 
 // MoveKeys keys what m holds for each video that moved, by path, under the new path move gives for it. It reports whether any moved.
@@ -238,6 +247,14 @@ func (l Library) Save() error {
 			stored.Delays[path] = d.Seconds()
 		}
 	}
+	for path, lift := range l.Lifts {
+		if lift != 0 {
+			if stored.Lifts == nil {
+				stored.Lifts = map[string]float32{}
+			}
+			stored.Lifts[path] = lift
+		}
+	}
 	for path, name := range l.Names {
 		if name != "" {
 			if stored.Names == nil {
@@ -258,13 +275,14 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Names is Library.Names.
+// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Lifts and Names are Library.Lifts and Library.Names.
 type storedLibrary struct {
 	Jobs      []storedJob          `json:"jobs"`
 	Positions map[string]float64   `json:"positions,omitempty"`
 	Furthest  map[string]float64   `json:"furthest,omitempty"`
 	Played    map[string]time.Time `json:"played,omitempty"`
 	Delays    map[string]float64   `json:"delays,omitempty"`
+	Lifts     map[string]float32   `json:"lifts,omitempty"`
 	Names     map[string]string    `json:"names,omitempty"`
 }
 
