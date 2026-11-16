@@ -30,7 +30,7 @@ func (a *app) browsePageText() browse.PageText {
 func (a *app) browseHaves() map[string]string {
 	root := a.snap().LibraryDir
 	out := map[string]string{}
-	for _, job := range a.library.Jobs {
+	for _, job := range a.lockVisible(a.library.Jobs) {
 		if job.Stage == kcore.StageFailed || !films.InLibrary(root, job) {
 			continue
 		}

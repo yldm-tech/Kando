@@ -541,6 +541,13 @@ var Parameters = map[string][]string{
 	"LibraryTrashUnsupported":                  {"name"},
 	"LibraryTrashed":                           {"name"},
 	"LibrarySortSaveFailed":                    {"error_"},
+	"LockChangeTitle":                          {"name"},
+	"LockLibraryIsLocked":                      {"name"},
+	"LockLibraryLocked":                        {"name"},
+	"LockRemoveTitle":                          {"name"},
+	"LockScreenTitle":                          {"name"},
+	"LockSetTitle":                             {"name"},
+	"LockUnlockTitle":                          {"name"},
 	"MenuOpenLinkFailed":                       {"url"},
 	"MenuRevealLibrary":                        {"platform"},
 	"OnboardingAIModel":                        {"model"},
@@ -842,6 +849,13 @@ type Translation struct {
 	LibraryTrashUnsupported                  func(name string) string
 	LibraryTrashed                           func(name string) string
 	LibrarySortSaveFailed                    func(error_ string) string
+	LockChangeTitle                          func(name string) string
+	LockLibraryIsLocked                      func(name string) string
+	LockLibraryLocked                        func(name string) string
+	LockRemoveTitle                          func(name string) string
+	LockScreenTitle                          func(name string) string
+	LockSetTitle                             func(name string) string
+	LockUnlockTitle                          func(name string) string
 	MenuOpenLinkFailed                       func(url string) string
 	MenuRevealLibrary                        func(platform string) string
 	OnboardingAIModel                        func(model string) string
@@ -1366,6 +1380,23 @@ const (
 	textLibraryShelfNotSaved
 	textLibraryVideoFilter
 	textLibraryWindowTitle
+	textLockCancel
+	textLockChangeButton
+	textLockFieldConfirm
+	textLockFieldCurrent
+	textLockFieldNew
+	textLockFieldPassword
+	textLockMenuChange
+	textLockMenuRemove
+	textLockMenuSet
+	textLockMismatch
+	textLockNow
+	textLockRemoveButton
+	textLockScreenOthers
+	textLockSetButton
+	textLockSetNote
+	textLockUnlockButton
+	textLockWrong
 	textLogsShowLogFile
 	textMenuAbout
 	textMenuBringAllToFront
@@ -2303,6 +2334,23 @@ var keyOfText = [numTexts]string{
 	"libraryShelfNotSaved",
 	"libraryVideoFilter",
 	"libraryWindowTitle",
+	"lockCancel",
+	"lockChangeButton",
+	"lockFieldConfirm",
+	"lockFieldCurrent",
+	"lockFieldNew",
+	"lockFieldPassword",
+	"lockMenuChange",
+	"lockMenuRemove",
+	"lockMenuSet",
+	"lockMismatch",
+	"lockNow",
+	"lockRemoveButton",
+	"lockScreenOthers",
+	"lockSetButton",
+	"lockSetNote",
+	"lockUnlockButton",
+	"lockWrong",
 	"logsShowLogFile",
 	"menuAbout",
 	"menuBringAllToFront",
@@ -3238,6 +3286,23 @@ var textsEn = i18n.NewTexts(""+
 	"Kando couldn't read the film list in full, so it won't save the list until it restarts."+
 	"Videos"+
 	"Kando"+
+	"Cancel"+
+	"Change Password"+
+	"Confirm Password"+
+	"Current Password"+
+	"New Password"+
+	"Password"+
+	"Change Password…"+
+	"Remove Password…"+
+	"Set Password…"+
+	"The new passwords don't match."+
+	"Lock Now"+
+	"Remove Password"+
+	"Open Another Library…"+
+	"Set Password"+
+	"Kando will ask for this password before it shows the library. This is a lock in Kando, not encryption: the library's files stay readable on disk. A forgotten password cannot be recovered."+
+	"Unlock"+
+	"Wrong password. Try again."+
 	"Show Log File"+
 	"About Kando"+
 	"Bring All to Front"+
@@ -4170,6 +4235,23 @@ var textsEn = i18n.NewTexts(""+
 		87,
 		6,
 		5,
+		6,
+		15,
+		16,
+		16,
+		12,
+		8,
+		18,
+		18,
+		15,
+		30,
+		8,
+		15,
+		23,
+		12,
+		187,
+		6,
+		26,
 		13,
 		11,
 		18,
@@ -5105,6 +5187,23 @@ var textsJa = i18n.NewTexts(""+
 	"動画の一覧を最後まで読み込めなかったため、再起動するまで一覧を保存しません。"+
 	"動画"+
 	"Kando"+
+	"キャンセル"+
+	"パスワードを変更"+
+	"パスワードの確認"+
+	"現在のパスワード"+
+	"新しいパスワード"+
+	"パスワード"+
+	"パスワードを変更…"+
+	"パスワードを削除…"+
+	"パスワードを設定…"+
+	"新しいパスワードが一致しません。"+
+	"今すぐロック"+
+	"パスワードを削除"+
+	"ほかのライブラリを開く…"+
+	"パスワードを設定"+
+	"ライブラリを表示する前に Kando がこのパスワードを求めます。これは Kando の中のロックで、暗号化ではありません。ライブラリのファイルはディスク上でそのまま開けます。忘れたパスワードは復元できません。"+
+	"ロックを解除"+
+	"パスワードが違います。もう一度入力してください。"+
 	"ログファイルを表示"+
 	"Kando について"+
 	"すべてを手前に移動"+
@@ -6037,6 +6136,23 @@ var textsJa = i18n.NewTexts(""+
 		114,
 		6,
 		5,
+		15,
+		24,
+		24,
+		24,
+		24,
+		15,
+		27,
+		27,
+		27,
+		48,
+		18,
+		24,
+		36,
+		24,
+		287,
+		18,
+		72,
 		27,
 		18,
 		27,
@@ -6972,6 +7088,23 @@ var textsKo = i18n.NewTexts(""+
 	"동영상 목록을 끝까지 읽지 못해 다시 시작할 때까지 목록을 저장하지 않습니다."+
 	"동영상"+
 	"Kando"+
+	"취소"+
+	"암호 변경"+
+	"암호 확인"+
+	"현재 암호"+
+	"새로운 암호"+
+	"암호"+
+	"암호 변경…"+
+	"암호 제거…"+
+	"암호 설정…"+
+	"새로운 암호가 일치하지 않습니다."+
+	"지금 잠그기"+
+	"암호 제거"+
+	"다른 라이브러리 열기…"+
+	"암호 설정"+
+	"라이브러리를 보여주기 전에 Kando가 이 암호를 요청합니다. 이것은 Kando 안의 잠금이며 암호화가 아닙니다. 라이브러리의 파일은 디스크에서 그대로 열 수 있습니다. 잊어버린 암호는 복구할 수 없습니다."+
+	"잠금 해제"+
+	"암호가 올바르지 않습니다. 다시 시도하십시오."+
 	"로그 파일 보기"+
 	"Kando에 관하여"+
 	"모두 앞으로 가져오기"+
@@ -7904,6 +8037,23 @@ var textsKo = i18n.NewTexts(""+
 		107,
 		9,
 		5,
+		6,
+		13,
+		13,
+		13,
+		16,
+		6,
+		16,
+		16,
+		16,
+		46,
+		16,
+		13,
+		32,
+		13,
+		269,
+		13,
+		63,
 		20,
 		18,
 		29,
@@ -8839,6 +8989,23 @@ var textsZhHans = i18n.NewTexts(""+
 	"资料库的影片列表没有完整读取，所以重新启动前看懂不会保存这个列表。"+
 	"视频"+
 	"看懂"+
+	"取消"+
+	"更改密码"+
+	"确认密码"+
+	"当前密码"+
+	"新密码"+
+	"密码"+
+	"更改密码…"+
+	"移除密码…"+
+	"设置密码…"+
+	"两次输入的新密码不一致。"+
+	"立即锁定"+
+	"移除密码"+
+	"打开其他资料库…"+
+	"设置密码"+
+	"看懂会在显示这个资料库之前要求输入这个密码。这是看懂里的锁，不是加密：资料库的文件在磁盘上仍可直接打开。忘记密码后无法找回。"+
+	"解锁"+
+	"密码不正确，请重试。"+
 	"显示日志文件"+
 	"关于看懂"+
 	"前置全部窗口"+
@@ -9771,6 +9938,23 @@ var textsZhHans = i18n.NewTexts(""+
 		99,
 		6,
 		6,
+		6,
+		12,
+		12,
+		12,
+		9,
+		6,
+		15,
+		15,
+		15,
+		36,
+		12,
+		12,
+		24,
+		12,
+		186,
+		6,
+		30,
 		18,
 		12,
 		18,
@@ -10706,6 +10890,23 @@ var textsZhHant = i18n.NewTexts(""+
 	"資料庫的影片清單沒有完整讀取，所以重新啟動前看懂不會儲存這個清單。"+
 	"影片"+
 	"看懂"+
+	"取消"+
+	"更改密碼"+
+	"確認密碼"+
+	"目前的密碼"+
+	"新密碼"+
+	"密碼"+
+	"更改密碼…"+
+	"移除密碼…"+
+	"設定密碼…"+
+	"兩次輸入的新密碼不一致。"+
+	"立即鎖定"+
+	"移除密碼"+
+	"打開其他資料庫…"+
+	"設定密碼"+
+	"看懂會在顯示這個資料庫之前要求輸入這個密碼。這是看懂裡的鎖，不是加密：資料庫的檔案在磁碟上仍可直接打開。忘記密碼後無法找回。"+
+	"解鎖"+
+	"密碼不正確，請再試一次。"+
 	"顯示記錄檔"+
 	"關於看懂"+
 	"將所有視窗移至最前"+
@@ -11638,6 +11839,23 @@ var textsZhHant = i18n.NewTexts(""+
 		99,
 		6,
 		6,
+		6,
+		12,
+		12,
+		15,
+		9,
+		6,
+		15,
+		15,
+		15,
+		36,
+		12,
+		12,
+		24,
+		12,
+		186,
+		6,
+		36,
 		15,
 		12,
 		27,
@@ -12637,6 +12855,27 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LibrarySortSaveFailed != nil {
 		s.LibrarySortSaveFailed = t.LibrarySortSaveFailed
+	}
+	if t.LockChangeTitle != nil {
+		s.LockChangeTitle = t.LockChangeTitle
+	}
+	if t.LockLibraryIsLocked != nil {
+		s.LockLibraryIsLocked = t.LockLibraryIsLocked
+	}
+	if t.LockLibraryLocked != nil {
+		s.LockLibraryLocked = t.LockLibraryLocked
+	}
+	if t.LockRemoveTitle != nil {
+		s.LockRemoveTitle = t.LockRemoveTitle
+	}
+	if t.LockScreenTitle != nil {
+		s.LockScreenTitle = t.LockScreenTitle
+	}
+	if t.LockSetTitle != nil {
+		s.LockSetTitle = t.LockSetTitle
+	}
+	if t.LockUnlockTitle != nil {
+		s.LockUnlockTitle = t.LockUnlockTitle
 	}
 	if t.MenuOpenLinkFailed != nil {
 		s.MenuOpenLinkFailed = t.MenuOpenLinkFailed
@@ -20269,6 +20508,371 @@ func LibraryWindowTitle(cx *core.Scope) string { return For(cx).LibraryWindowTit
 
 // LibraryWindowTitle is the package's LibraryWindowTitle in the language of msgs.
 func (msgs Messages) LibraryWindowTitle() string { return msgs.text(textLibraryWindowTitle) }
+
+// LockCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button of the library password dialog that closes it without changing anything.
+func LockCancel(cx *core.Scope) string { return For(cx).LockCancel() }
+
+// LockCancel is the package's LockCancel in the language of msgs.
+func (msgs Messages) LockCancel() string { return msgs.text(textLockCancel) }
+
+// LockChangeButton says "Change Password"
+// in the language the app shows under cx.
+//
+// Button of the library password dialog that gives the library the new password.
+func LockChangeButton(cx *core.Scope) string { return For(cx).LockChangeButton() }
+
+// LockChangeButton is the package's LockChangeButton in the language of msgs.
+func (msgs Messages) LockChangeButton() string { return msgs.text(textLockChangeButton) }
+
+// LockChangeTitle says "Change the Password of “{name}”"
+// in the language the app shows under cx.
+//
+// Title of the dialog that changes a library's password; it asks for the current one first.
+func LockChangeTitle(cx *core.Scope, name string) string { return For(cx).LockChangeTitle(name) }
+
+// LockChangeTitle is the package's LockChangeTitle in the language of msgs.
+func (msgs Messages) LockChangeTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockChangeTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockChangeTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Change the Password of “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」のパスワードを変更"
+		case "ko":
+			return "“" + name + "”의 암호 변경"
+		case "zh-Hans":
+			return "更改「" + name + "」的密码"
+		case "zh-Hant":
+			return "更改「" + name + "」的密碼"
+		}
+	}
+}
+
+// LockFieldConfirm says "Confirm Password"
+// in the language the app shows under cx.
+//
+// Placeholder and accessible name of the field where the new library password is typed a second time.
+func LockFieldConfirm(cx *core.Scope) string { return For(cx).LockFieldConfirm() }
+
+// LockFieldConfirm is the package's LockFieldConfirm in the language of msgs.
+func (msgs Messages) LockFieldConfirm() string { return msgs.text(textLockFieldConfirm) }
+
+// LockFieldCurrent says "Current Password"
+// in the language the app shows under cx.
+//
+// Placeholder and accessible name of the field for the library's present password, asked before it is changed or removed.
+func LockFieldCurrent(cx *core.Scope) string { return For(cx).LockFieldCurrent() }
+
+// LockFieldCurrent is the package's LockFieldCurrent in the language of msgs.
+func (msgs Messages) LockFieldCurrent() string { return msgs.text(textLockFieldCurrent) }
+
+// LockFieldNew says "New Password"
+// in the language the app shows under cx.
+//
+// Placeholder and accessible name of the field for the library's new password.
+func LockFieldNew(cx *core.Scope) string { return For(cx).LockFieldNew() }
+
+// LockFieldNew is the package's LockFieldNew in the language of msgs.
+func (msgs Messages) LockFieldNew() string { return msgs.text(textLockFieldNew) }
+
+// LockFieldPassword says "Password"
+// in the language the app shows under cx.
+//
+// Placeholder and accessible name of the field where a locked library's password is typed to open it.
+func LockFieldPassword(cx *core.Scope) string { return For(cx).LockFieldPassword() }
+
+// LockFieldPassword is the package's LockFieldPassword in the language of msgs.
+func (msgs Messages) LockFieldPassword() string { return msgs.text(textLockFieldPassword) }
+
+// LockLibraryIsLocked says "“{name}” is locked. Unlock it in Kando's window."
+// in the language the app shows under cx.
+//
+// Why something cannot be done with the open library while it is locked with a password, as adding a video to it; also what the command line and the MCP server answer then.
+func LockLibraryIsLocked(cx *core.Scope, name string) string {
+	return For(cx).LockLibraryIsLocked(name)
+}
+
+// LockLibraryIsLocked is the package's LockLibraryIsLocked in the language of msgs.
+func (msgs Messages) LockLibraryIsLocked(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockLibraryIsLocked(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockLibraryIsLocked; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” is locked. Unlock it in Kando's window."
+		case "ja":
+			return "「" + name + "」はロックされています。Kando のウインドウでロックを解除してください。"
+		case "ko":
+			return "“" + name + "”이(가) 잠겨 있습니다. Kando 윈도우에서 잠금을 해제하십시오."
+		case "zh-Hans":
+			return "「" + name + "」已锁定，请在看懂的窗口中解锁。"
+		case "zh-Hant":
+			return "「" + name + "」已鎖定，請在看懂的視窗中解鎖。"
+		}
+	}
+}
+
+// LockLibraryLocked says "{name} (Locked)"
+// in the language the app shows under cx.
+//
+// Item of the library menus for a library locked with a password, in place of its name and film count, which are not shown while it is locked.
+func LockLibraryLocked(cx *core.Scope, name string) string { return For(cx).LockLibraryLocked(name) }
+
+// LockLibraryLocked is the package's LockLibraryLocked in the language of msgs.
+func (msgs Messages) LockLibraryLocked(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockLibraryLocked(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockLibraryLocked; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " (Locked)"
+		case "ja":
+			return name + "（ロック中）"
+		case "ko":
+			return name + "(잠김)"
+		case "zh-Hans":
+			return name + "（已锁定）"
+		case "zh-Hant":
+			return name + "（已鎖定）"
+		}
+	}
+}
+
+// LockMenuChange says "Change Password…"
+// in the language the app shows under cx.
+//
+// Item of the library switcher's menu that changes the open library's password.
+func LockMenuChange(cx *core.Scope) string { return For(cx).LockMenuChange() }
+
+// LockMenuChange is the package's LockMenuChange in the language of msgs.
+func (msgs Messages) LockMenuChange() string { return msgs.text(textLockMenuChange) }
+
+// LockMenuRemove says "Remove Password…"
+// in the language the app shows under cx.
+//
+// Item of the library switcher's menu that takes the open library's password away.
+func LockMenuRemove(cx *core.Scope) string { return For(cx).LockMenuRemove() }
+
+// LockMenuRemove is the package's LockMenuRemove in the language of msgs.
+func (msgs Messages) LockMenuRemove() string { return msgs.text(textLockMenuRemove) }
+
+// LockMenuSet says "Set Password…"
+// in the language the app shows under cx.
+//
+// Item of the library switcher's menu that gives the open library a password Kando asks for before it shows the library.
+func LockMenuSet(cx *core.Scope) string { return For(cx).LockMenuSet() }
+
+// LockMenuSet is the package's LockMenuSet in the language of msgs.
+func (msgs Messages) LockMenuSet() string { return msgs.text(textLockMenuSet) }
+
+// LockMismatch says "The new passwords don't match."
+// in the language the app shows under cx.
+//
+// Error in the library password dialog when the new password was typed differently the second time.
+func LockMismatch(cx *core.Scope) string { return For(cx).LockMismatch() }
+
+// LockMismatch is the package's LockMismatch in the language of msgs.
+func (msgs Messages) LockMismatch() string { return msgs.text(textLockMismatch) }
+
+// LockNow says "Lock Now"
+// in the language the app shows under cx.
+//
+// Command of the File menu and the command palette that locks the open library, which has a password, so Kando asks for the password again before it shows it.
+func LockNow(cx *core.Scope) string { return For(cx).LockNow() }
+
+// LockNow is the package's LockNow in the language of msgs.
+func (msgs Messages) LockNow() string { return msgs.text(textLockNow) }
+
+// LockRemoveButton says "Remove Password"
+// in the language the app shows under cx.
+//
+// Button of the library password dialog that takes the library's password away.
+func LockRemoveButton(cx *core.Scope) string { return For(cx).LockRemoveButton() }
+
+// LockRemoveButton is the package's LockRemoveButton in the language of msgs.
+func (msgs Messages) LockRemoveButton() string { return msgs.text(textLockRemoveButton) }
+
+// LockRemoveTitle says "Remove the Password of “{name}”"
+// in the language the app shows under cx.
+//
+// Title of the dialog that takes a library's password away; it asks for the current one.
+func LockRemoveTitle(cx *core.Scope, name string) string { return For(cx).LockRemoveTitle(name) }
+
+// LockRemoveTitle is the package's LockRemoveTitle in the language of msgs.
+func (msgs Messages) LockRemoveTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockRemoveTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockRemoveTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Remove the Password of “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」のパスワードを削除"
+		case "ko":
+			return "“" + name + "”의 암호 제거"
+		case "zh-Hans":
+			return "移除「" + name + "」的密码"
+		case "zh-Hant":
+			return "移除「" + name + "」的密碼"
+		}
+	}
+}
+
+// LockScreenOthers says "Open Another Library…"
+// in the language the app shows under cx.
+//
+// Button of the screen a locked library shows that opens a menu of the other libraries and of the ways to make or open one.
+func LockScreenOthers(cx *core.Scope) string { return For(cx).LockScreenOthers() }
+
+// LockScreenOthers is the package's LockScreenOthers in the language of msgs.
+func (msgs Messages) LockScreenOthers() string { return msgs.text(textLockScreenOthers) }
+
+// LockScreenTitle says "“{name}” is locked"
+// in the language the app shows under cx.
+//
+// Heading of the screen that covers the window while the open library is locked with a password, over its password field.
+func LockScreenTitle(cx *core.Scope, name string) string { return For(cx).LockScreenTitle(name) }
+
+// LockScreenTitle is the package's LockScreenTitle in the language of msgs.
+func (msgs Messages) LockScreenTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockScreenTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockScreenTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(name) + "” is locked"
+		case "ja":
+			return "「" + name + "」はロックされています"
+		case "ko":
+			return "“" + name + "”이(가) 잠겨 있음"
+		case "zh-Hans":
+			return "「" + name + "」已锁定"
+		case "zh-Hant":
+			return "「" + name + "」已鎖定"
+		}
+	}
+}
+
+// LockSetButton says "Set Password"
+// in the language the app shows under cx.
+//
+// Button of the library password dialog that gives the library its password.
+func LockSetButton(cx *core.Scope) string { return For(cx).LockSetButton() }
+
+// LockSetButton is the package's LockSetButton in the language of msgs.
+func (msgs Messages) LockSetButton() string { return msgs.text(textLockSetButton) }
+
+// LockSetNote says "Kando will ask for this password before it shows the library. This is a lock in Kando, not encryption: the library's files stay readable on disk. A forgotten password cannot be recovered."
+// in the language the app shows under cx.
+//
+// Text under the title of the dialog that gives a library a password: what the password does and does not protect, and that it cannot be recovered.
+func LockSetNote(cx *core.Scope) string { return For(cx).LockSetNote() }
+
+// LockSetNote is the package's LockSetNote in the language of msgs.
+func (msgs Messages) LockSetNote() string { return msgs.text(textLockSetNote) }
+
+// LockSetTitle says "Set a Password for “{name}”"
+// in the language the app shows under cx.
+//
+// Title of the dialog that gives a library a password.
+func LockSetTitle(cx *core.Scope, name string) string { return For(cx).LockSetTitle(name) }
+
+// LockSetTitle is the package's LockSetTitle in the language of msgs.
+func (msgs Messages) LockSetTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockSetTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockSetTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Set a Password for “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」にパスワードを設定"
+		case "ko":
+			return "“" + name + "”에 암호 설정"
+		case "zh-Hans":
+			return "为「" + name + "」设置密码"
+		case "zh-Hant":
+			return "為「" + name + "」設定密碼"
+		}
+	}
+}
+
+// LockUnlockButton says "Unlock"
+// in the language the app shows under cx.
+//
+// Button that opens a locked library once its password is typed, in the password dialog and on the lock screen.
+func LockUnlockButton(cx *core.Scope) string { return For(cx).LockUnlockButton() }
+
+// LockUnlockButton is the package's LockUnlockButton in the language of msgs.
+func (msgs Messages) LockUnlockButton() string { return msgs.text(textLockUnlockButton) }
+
+// LockUnlockTitle says "Unlock “{name}”"
+// in the language the app shows under cx.
+//
+// Title of the dialog that asks for a locked library's password before switching to it.
+func LockUnlockTitle(cx *core.Scope, name string) string { return For(cx).LockUnlockTitle(name) }
+
+// LockUnlockTitle is the package's LockUnlockTitle in the language of msgs.
+func (msgs Messages) LockUnlockTitle(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LockUnlockTitle(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LockUnlockTitle; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "Unlock “" + msgs.arg(name) + "”"
+		case "ja":
+			return "「" + name + "」のロックを解除"
+		case "ko":
+			return "“" + name + "” 잠금 해제"
+		case "zh-Hans":
+			return "解锁「" + name + "」"
+		case "zh-Hant":
+			return "解鎖「" + name + "」"
+		}
+	}
+}
+
+// LockWrong says "Wrong password. Try again."
+// in the language the app shows under cx.
+//
+// Error in the library password dialog and on the lock screen when the password typed is not the library's.
+func LockWrong(cx *core.Scope) string { return For(cx).LockWrong() }
+
+// LockWrong is the package's LockWrong in the language of msgs.
+func (msgs Messages) LockWrong() string { return msgs.text(textLockWrong) }
 
 // LogsShowLogFile says "Show Log File"
 // in the language the app shows under cx.

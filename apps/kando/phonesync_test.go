@@ -17,6 +17,7 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/phonesync"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/shelf"
 	psync "kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -298,7 +299,11 @@ func TestPhoneSyncNeverServesALockedLibrary(t *testing.T) {
 	other := t.TempDir()
 	remoteWriteFile(t, filepath.Join(other, "clip.mp4"), "clip")
 	a.edit(func(s *session) { s.Libraries = []string{dir, other} })
-	a.phone.locked = func(lib string) bool { return filepath.Clean(lib) == filepath.Clean(dir) }
+	l, err := shelf.NewLock("pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(dir, l)
 	phoneSyncOn(t, a, tt, updates)
 	c := phoneClient(t, a, "")
 	if _, err := phonePair(t, a, tt, updates, c, a.phone.offer.Code); err != nil {

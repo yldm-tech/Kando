@@ -94,9 +94,9 @@ func (a *app) savedSync() {
 	}
 }
 
-// savedBook is the saved lines of the library open now, none while they are not read yet (savedSync), for the bindings.
+// savedBook is the saved lines of the library open now, none while they are not read yet (savedSync) or while the library is locked (lockShut), for the bindings.
 func (a *app) savedBook() saved.Book {
-	if a.saved.book.Dir() != a.snap().LibraryDir {
+	if a.saved.book.Dir() != a.snap().LibraryDir || a.lockShut() {
 		return saved.Book{}
 	}
 	return a.saved.book

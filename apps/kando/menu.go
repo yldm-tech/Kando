@@ -147,7 +147,7 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 		case groupFile:
 			reveal := nsdesktop.MenuItem{Label: locales.MenuRevealLibrary(cx, desktop.Platform(cx)), Disabled: a.holds(false) || a.snap().LibraryDir == "", OnSelect: a.menuSelect(false, func() { a.reveal(a.snap().LibraryDir) })}
 			library := []nsdesktop.MenuItem{reveal}
-			if libs := a.menuLibraries(); len(libs) > 0 {
+			if libs := a.menuLibraries(cx); len(libs) > 0 {
 				library = append([]nsdesktop.MenuItem{{Label: locales.MenuSwitchLibrary(cx), Items: libs}}, library...)
 			}
 			// 关闭窗口 keeps ⌘W, which the default menu bar has in its File menu.
@@ -181,8 +181,8 @@ func (a *app) menuBar(cx *core.Scope) []nsdesktop.MenuItem {
 	return bar
 }
 
-// menuLibraries are the items of File › 切换资料库: an item for each library the app knows, named as Settings › 通用 names them, with the open one checked. Choosing one switches to it as the sidebar's switcher does.
-func (a *app) menuLibraries() []nsdesktop.MenuItem {
+// menuLibraries are the items of File › 切换资料库: an item for each library the app knows, named as Settings › 通用 names them in the language the app shows under cx, a locked one marked so, with the open one checked. Choosing one switches to it as the sidebar's switcher does.
+func (a *app) menuLibraries(cx *core.Scope) []nsdesktop.MenuItem {
 	dirs := a.knownLibraries()
 	labels := films.LibraryLabels(a.messages(), dirs)
 	open := filepath.Clean(a.snap().LibraryDir)
@@ -190,7 +190,7 @@ func (a *app) menuLibraries() []nsdesktop.MenuItem {
 	for i, dir := range dirs {
 		// TODO(nsgo#118): make the libraries radio items, one of which is chosen, as MyGo's MenuItemRadio drew them; NSGo's menu items are only checkable https://github.com/nsgo-dev/nsgo/issues/118
 		items[i] = nsdesktop.MenuItem{
-			Label:     labels[i],
+			Label:     a.lockLibraryLabel(cx, dir, labels[i]),
 			Checkable: true,
 			Checked:   filepath.Clean(dir) == open,
 			Disabled:  a.holds(false),

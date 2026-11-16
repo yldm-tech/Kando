@@ -212,6 +212,9 @@ func (a *app) adoptRenamedLibrary(next string) {
 // retargetLibraryPrefix points the jobs, and what is kept by video path, at the paths under newRoot of their files under oldRoot.
 func (a *app) retargetLibraryPrefix(oldRoot, newRoot string) {
 	changed := a.moveVideos(func(path string) (string, bool) { return replacePathPrefix(oldRoot, newRoot, path) })
+	if a.lockMoved(oldRoot, newRoot) {
+		changed = true
+	}
 	for i, job := range a.library.Jobs {
 		if job.LibraryDir != "" && filepath.Clean(job.LibraryDir) == filepath.Clean(oldRoot) {
 			a.library.Jobs[i].LibraryDir = newRoot

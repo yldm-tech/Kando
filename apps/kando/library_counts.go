@@ -17,7 +17,8 @@ func (a *app) countLibraries() {
 	open := filepath.Clean(a.snap().LibraryDir)
 	var dirs []string
 	for _, dir := range a.knownLibraries() {
-		if filepath.Clean(dir) != open {
+		// A locked library is not counted: its menu item shows its name alone.
+		if filepath.Clean(dir) != open && !a.LibraryLocked(dir) {
 			dirs = append(dirs, filepath.Clean(dir))
 		}
 	}

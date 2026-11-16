@@ -51,8 +51,6 @@ type phoneUI struct {
 	// listen gives the addresses the server listens on, nil for the computer's local network ones (phonesync.LANAddrs); tests give loopback, and a clock of their own as now, nil for time.Now.
 	listen func() []netip.Addr
 	now    func() time.Time
-	// locked stands in for the libraries' lock (#177) in tests until it lands (libraryLocked).
-	locked func(dir string) bool
 }
 
 func newPhoneUI() phoneUI { return phoneUI{} }
@@ -89,11 +87,8 @@ func (a *app) phoneSyncHooks() areaHooks {
 	}
 }
 
-// libraryLocked reports whether the library at dir is locked, which Phone Sync never serves, nor lists.
-// TODO(#177): answer from the library's lock once #177 lands; until then no library is locked but one a test locks through phone.locked.
-func (a *app) libraryLocked(dir string) bool {
-	return a.phone.locked != nil && a.phone.locked(dir)
-}
+// libraryLocked reports whether the library at dir is locked (LibraryLocked, state_lock.go), which Phone Sync never serves, nor lists.
+func (a *app) libraryLocked(dir string) bool { return a.LibraryLocked(dir) }
 
 // phoneSyncDir is Kando's config folder, beside settings.json, where the server keeps its certificate and the paired devices; "" in a test that has no settings file.
 func (a *app) phoneSyncDir() string {

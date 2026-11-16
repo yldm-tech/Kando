@@ -6,7 +6,7 @@ import (
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, windowHooks in state_window.go, logsHooks in state_logs.go, browseHooks in state_browse.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
+// areaHooks is what an area does at the moments every area shares. Each area returns its hooks from a function in its own file (sidebarHooks in state_sidebar.go, libraryHooks in state_library.go, queueHooks in queue.go, settingsHooks in state_settings.go, cloudHooks in state_cloud.go, playerHooks in state_player.go, overlayHooks in state_overlay.go, menuHooks in state_menu.go, feedbackHooks in state_feedback.go, onboardingHooks in state_onboarding.go, kitsHooks in state_kits.go, remoteHooks in state_remote.go, windowHooks in state_window.go, logsHooks in state_logs.go, browseHooks in state_browse.go, lockHooks in state_lock.go), as each area returns its rows of the shortcut table. A nil field means the area does nothing then. An area that needs another moment sets the field in its own hooks, not a call where the moment happens.
 //
 // Startup runs the moments in this order: restore, shelfLoaded, shelfChanged (main's first refreshLibrary), then ready. Everything before ready runs before nsgo.Run starts the engine: a report through update waits for it (live.Rev.Post), but nothing may use the app's scope (app.cx) or a window, which do not exist yet. An area whose shelfChanged starts work that needs them holds it back until its ready, with a flag of its own that its restore sets. ready runs in run, the app's function, on the engine's goroutine, once the main window is open.
 type areaHooks struct {
@@ -53,6 +53,8 @@ type areaHooks struct {
 // areas is each area's hooks, in the order they run.
 func (a *app) areas() []areaHooks {
 	return []areaHooks{
+		// The lock comes first, as its libraryChanged locks the library left before the sidebar counts the films of the libraries that are not open (countLibraries), which leaves the locked ones out.
+		a.lockHooks(),
 		a.logsHooks(),
 		a.sidebarHooks(),
 		a.libraryHooks(),

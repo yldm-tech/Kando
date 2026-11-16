@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/films/sitename"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 )
@@ -46,6 +47,9 @@ func (a *app) precheckReady() (msg, section string) { return a.precheckReadyIn(a
 func (a *app) precheckReadyIn(m locales.Messages) (msg, section string) {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
 		return m.PrecheckNoLibrary(), ""
+	}
+	if a.lockShut() {
+		return m.LockLibraryIsLocked(sidebar.Title(a.snap().LibraryDir)), ""
 	}
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {

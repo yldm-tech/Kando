@@ -11,6 +11,7 @@ import (
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -35,6 +36,14 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 		}
 		return locales.SidebarChooseLibrary(cx)
 	})
+	// A locked library's tile shows a lock in place of the folder, and the switcher's name says so.
+	locked := live.Func(a, func() bool { return a.LibraryDir() != "" && a.LibraryLocked(a.LibraryDir()) })
+	glyph := func() *core.SVG {
+		if locked() {
+			return lucide.LockKeyhole()
+		}
+		return iconFolder
+	}
 	// open is set while the menu shows, which keeps the pill pressed.
 	open := core.NewSignal(cx, false)
 	// place is the row around the pill, which base.Button takes no Ref for, so the row's frame gives the pill's: the menu opens under the pill, at its leading edge, wherever it was pressed from, a key included.
@@ -50,17 +59,23 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 	tile := core.View{
 		Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), FlexShrink: 0, CornerRadius: 6, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
 			Gradients: []core.Gradient{core.LinearGradient(135, tileFrom, tileTo)}},
-		Children: []core.Node{ui.Icon(svg(iconFolder), 14, ui.Fixed(white))},
+		Children: []core.Node{ui.IconOf(glyph, 14, ui.Fixed(white))},
 	}
 	// The prototype's two lines take 15 and 16 points, the browser's normal line heights for these sizes, which puts the caption's top 4.5 points below the pill's.
 	caption := core.Text{ContentFunc: func() string { return locales.SidebarLibrary(cx) }, MaxLines: 1,
 		Style: core.Style{FontSize: 11, LineHeight: 16.5, FontWeight: ui.Bold, LetterSpacing: 0.2}, StyleFunc: ui.Colored(colors.Muted)}
 	title := core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		Style: core.Style{FontSize: 13, LineHeight: 16, FontWeight: ui.Semibold}, StyleFunc: ui.Colored(colors.Text)}
+	label := func() string {
+		if locked() {
+			return locales.SidebarSwitcherLabel(cx, locales.LockLibraryLocked(cx, name()))
+		}
+		return locales.SidebarSwitcherLabel(cx, name())
+	}
 	// A plain row on the sidebar, as the source rows under it: no card of its own, as wide as their fills with their corners, its tile over their icons, shaded only under the pointer and while its menu is open, and ringed while the keyboard is on it, as they are.
 	button := base.Button{
 		TestID:    "sidebar-switcher",
-		LabelFunc: func() string { return locales.SidebarSwitcherLabel(cx, name()) },
+		LabelFunc: label,
 		Expanded:  open.Get,
 		OnPress:   press,
 		Style: core.Style{Direction: core.Row, FlexGrow: 1, Height: core.Pt(40), AlignItems: core.AlignCenter, Gap: 9, Padding: core.Symmetric(0, rowPad), CornerRadius: rowRadius,
@@ -80,7 +95,7 @@ func (s switcher) Render(cx *core.Scope) core.Node {
 	return core.View{Ref: place, Style: rowStyle, Children: []core.Node{button}}
 }
 
-// switcherMenu lists the known libraries, the open one checked, each with how many films it holds; then 新建资料库…, 打开已有资料库… and 在访达中显示 the open library. The system's menu has no column for the counts, so each joins its library's name. It is built as the menu opens, so it says what is true then.
+// switcherMenu lists the known libraries, the open one checked, each with how many films it holds, or a locked one marked so without its count; then 新建资料库…, 打开已有资料库…, 在访达中显示 the open library, and its password's items: 设置密码…, or 更改密码…, 移除密码… and, while it is unlocked, 立即锁定. The system's menu has no column for the counts, so each joins its library's name. It is built as the menu opens, so it says what is true then.
 func switcherMenu(cx *core.Scope, a App) []nsdesktop.MenuItem {
 	open := a.LibraryDir()
 	libraries := a.KnownLibraries()
@@ -88,7 +103,9 @@ func switcherMenu(cx *core.Scope, a App) []nsdesktop.MenuItem {
 	for _, dir := range libraries {
 		current := open != "" && filepath.Clean(open) == filepath.Clean(dir)
 		label := Title(dir)
-		if current {
+		if a.LibraryLocked(dir) {
+			label = locales.LockLibraryLocked(cx, label)
+		} else if current {
 			label = locales.SidebarLibraryCount(cx, label, a.FilmCount())
 		} else if n, ok := a.LibraryCount(dir); ok {
 			label = locales.SidebarLibraryCount(cx, label, n)
@@ -105,6 +122,18 @@ func switcherMenu(cx *core.Scope, a App) []nsdesktop.MenuItem {
 	)
 	if open != "" {
 		items = append(items, nsdesktop.MenuItem{Label: locales.SidebarRevealLibrary(cx, Title(open), desktop.Platform(cx)), OnSelect: live.Do(a, func() { a.Reveal(open) })})
+		items = append(items, nsdesktop.MenuItem{Separator: true})
+		if !a.LibraryHasPassword(open) {
+			items = append(items, nsdesktop.MenuItem{Label: locales.LockMenuSet(cx), OnSelect: live.Do(a, func() { a.SetPassword(open) })})
+		} else {
+			items = append(items,
+				nsdesktop.MenuItem{Label: locales.LockMenuChange(cx), OnSelect: live.Do(a, func() { a.ChangePassword(open) })},
+				nsdesktop.MenuItem{Label: locales.LockMenuRemove(cx), OnSelect: live.Do(a, func() { a.RemovePassword(open) })},
+			)
+			if !a.LibraryLocked(open) {
+				items = append(items, nsdesktop.MenuItem{Label: locales.LockNow(cx), OnSelect: live.Do(a, a.LockNow)})
+			}
+		}
 	}
 	return items
 }

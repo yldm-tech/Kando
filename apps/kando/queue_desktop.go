@@ -120,7 +120,8 @@ func (a *app) queueNotifyEnded(was core.Stage, job core.Job) {
 	if d.notify == nil || !a.queue.sys.notify || job.ID != a.queue.active || was == job.Stage || !job.Stage.Done() {
 		return
 	}
-	if errors.Is(job.Err, context.Canceled) || errors.Is(job.Err, core.ErrLibrarySwitched) {
+	// A job of a locked library is not news anyone may read outside it.
+	if errors.Is(job.Err, context.Canceled) || errors.Is(job.Err, core.ErrLibrarySwitched) || a.lockHidesJob(job) {
 		return
 	}
 	if d.active != nil && d.active() {
@@ -162,10 +163,10 @@ func (a *app) queueTellSystem() {
 	s.told, s.badge, s.progress = true, badge, progress
 }
 
-// queueOutstanding is how many jobs are still to do: the running one, and those waiting that pump will run, in the open library or another the app knows (queueCanRun). Jobs waiting in a library the app has forgotten start only once it is opened again.
+// queueOutstanding is how many jobs are still to do: the running one, and those waiting that pump will run, in the open library or another the app knows (queueCanRun). Jobs waiting in a library the app has forgotten start only once it is opened again. Those of a locked library are not counted (lockVisible).
 func (a *app) queueOutstanding() int {
 	n := 0
-	for _, job := range a.library.Jobs {
+	for _, job := range a.lockVisible(a.library.Jobs) {
 		if job.ID == a.queue.active || (job.Stage == core.StageQueued && a.queueCanRun(job)) {
 			n++
 		}

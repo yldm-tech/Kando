@@ -361,7 +361,7 @@ func (a *app) TranslationHint(item films.Film) (reason, section string) {
 
 func (a *app) JobFilm(id string) (films.Film, bool) {
 	job, ok := a.library.Find(id)
-	if !ok {
+	if !ok || a.lockHidesJob(job) {
 		return films.Film{}, false
 	}
 	return films.FromJob(job, a.libraryJobName(job), statusText(a.messages(), job)), true
@@ -490,7 +490,11 @@ func aloneIn(dir, video string) bool {
 	return true
 }
 
+// films is the open library's films, none while it is locked (lockShut).
 func (a *app) films() []films.Film {
+	if a.lockShut() {
+		return nil
+	}
 	shot := a.snap()
 	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, a.statusOf)
 }
@@ -498,9 +502,9 @@ func (a *app) films() []films.Film {
 // statusOf is what a job's card says of where it is, in the interface's language (statusText), as films.List and films.Queue take it.
 func (a *app) statusOf(job core.Job) string { return statusText(a.messages(), job) }
 
-// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere). A waiting one says how many jobs run before it (queueAhead).
+// QueueFilms is the films of 处理中: the open library's jobs that are waiting, running, failed or were cancelled, and the jobs the queue runs or will run for other libraries (queueElsewhere), but for those of a locked library (lockVisible). A waiting one says how many jobs run before it (queueAhead).
 func (a *app) QueueFilms() []films.Film {
-	items := films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, a.statusOf)
+	items := films.Queue(a.snap().LibraryDir, a.lockVisible(a.library.Jobs), a.queueElsewhere, jobName, a.statusOf)
 	ahead := a.queueAhead()
 	for i := range items {
 		items[i].Ahead = ahead[items[i].JobID]

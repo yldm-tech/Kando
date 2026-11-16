@@ -105,7 +105,7 @@ func (a *app) libraryMoveItems(cx *ns.Scope, item films.Film, wrap func(func()) 
 		}
 		reach, looked := a.lib.move.reach[filepath.Clean(dir)]
 		items = append(items, nsdesktop.MenuItem{
-			Label:    labels[i],
+			Label:    a.lockLibraryLabel(cx, dir, labels[i]),
 			Disabled: (looked && !reach) || a.lib.move.copying != nil,
 			OnSelect: wrap(func() { a.MoveFilm(item, dir) }),
 		})
@@ -151,14 +151,16 @@ func (a *app) libraryMoveRow(cx *ns.Scope) shortcut {
 		}}
 }
 
-// MoveFilm moves item, a film of the open library, to the library at dir, and says in the message bar why it cannot, how far a copy to another volume has gone and how it ended, offering to open dir and to undo the move once it is done.
+// MoveFilm moves item, a film of the open library, to the library at dir, and says in the message bar why it cannot, how far a copy to another volume has gone and how it ended, offering to open dir and to undo the move once it is done. A locked dir asks for its password first (lockThen), as switching to it does.
 func (a *app) MoveFilm(item films.Film, dir string) {
-	if err := a.libraryMoveFilm(a.messages(), item, a.snap().LibraryDir, dir, true, nil); err != nil {
-		a.warn(err.Error(), "")
-	}
+	a.lockThen(dir, func() {
+		if err := a.libraryMoveFilm(a.messages(), item, a.snap().LibraryDir, dir, true, nil); err != nil {
+			a.warn(err.Error(), "")
+		}
+	})
 }
 
-// UndoMove moves the film the message bar says was moved back to the library it came from, as the bar's Undo does.
+// UndoMove moves the film the message bar says was moved back to the library it came from, as the bar's Undo does. When the library it went to is locked, its password is asked for first (lockThen).
 func (a *app) UndoMove() {
 	back := a.lib.move.undo
 	a.lib.move.undo = libraryMoveBack{}
@@ -166,14 +168,16 @@ func (a *app) UndoMove() {
 	if back.key == "" {
 		return
 	}
-	item, ok := films.Find(a.libraryMoveFilmsOf(back.to), back.key)
-	if !ok {
-		a.warn(a.messages().LibraryMoveGone(), "")
-		return
-	}
-	if err := a.libraryMoveFilm(a.messages(), item, back.to, back.from, false, nil); err != nil {
-		a.warn(err.Error(), "")
-	}
+	a.lockThen(back.to, func() {
+		item, ok := films.Find(a.libraryMoveFilmsOf(back.to), back.key)
+		if !ok {
+			a.warn(a.messages().LibraryMoveGone(), "")
+			return
+		}
+		if err := a.libraryMoveFilm(a.messages(), item, back.to, back.from, false, nil); err != nil {
+			a.warn(err.Error(), "")
+		}
+	})
 }
 
 // CancelMove stops the copy of a film to another volume, as the message bar's 取消 does; its files stay where they were.
@@ -204,7 +208,7 @@ func (a *app) libraryMoveLabel(m locales.Messages, dir string) string {
 	return sidebar.Title(dir)
 }
 
-// libraryMoveFilm moves item, a film of the library at from, to the library at to, and returns why it cannot, in the words of m, before anything moved: another film is being copied, to is not a library Kando knows, is from itself or its folder is not there, the film is being processed, or library.json or either library's saved lines could not be read, so they could not be written without losing what is in them. Within one volume it moves at once; across volumes it copies the film off the UI thread, saying in the message bar how far it has gone, and moves it once the copy is whole. The message bar says how it ended, in the interface's language, offering to open to and, with undo, to move the film back; done, when it is not nil, hears the film's key in to, or why it did not move, in the words of m. An open film it moves is closed first.
+// libraryMoveFilm moves item, a film of the library at from, to the library at to, and returns why it cannot, in the words of m, before anything moved: another film is being copied, to is not a library Kando knows, from or to is locked and its password was not typed for this move (lockBars), to is from itself or its folder is not there, the film is being processed, or library.json or either library's saved lines could not be read, so they could not be written without losing what is in them. Within one volume it moves at once; across volumes it copies the film off the UI thread, saying in the message bar how far it has gone, and moves it once the copy is whole. The message bar says how it ended, in the interface's language, offering to open to and, with undo, to move the film back; done, when it is not nil, hears the film's key in to, or why it did not move, in the words of m. An open film it moves is closed first.
 func (a *app) libraryMoveFilm(m locales.Messages, item films.Film, from, to string, undo bool, done func(key string, err error)) error {
 	from, to = filepath.Clean(from), filepath.Clean(to)
 	name := item.Name
@@ -218,6 +222,10 @@ func (a *app) libraryMoveFilm(m locales.Messages, item films.Film, from, to stri
 		return refuse(remote.CodeNotReady, locales.Messages.LibraryMoveBusy)
 	case !slices.ContainsFunc(a.knownLibraries(), func(dir string) bool { return filepath.Clean(dir) == to }):
 		return refuse(remote.CodeNotFound, func(m locales.Messages) string { return m.LibraryMoveUnknown(to) })
+	case a.lockBars(from):
+		return refuse(remote.CodeNotReady, func(m locales.Messages) string { return m.LockLibraryIsLocked(sidebar.Title(from)) })
+	case a.lockBars(to):
+		return refuse(remote.CodeNotReady, func(m locales.Messages) string { return m.LockLibraryIsLocked(sidebar.Title(to)) })
 	case to == from:
 		return refuse(remote.CodeInvalid, func(m locales.Messages) string { return m.LibraryMoveSame(name, a.libraryMoveLabel(m, to)) })
 	case item.VideoPath == "":

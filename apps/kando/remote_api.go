@@ -30,6 +30,14 @@ import (
 func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 	ctx, cancel := context.WithTimeout(a.remote.ctx, remote.TimeoutOf(method))
 	defer cancel()
+	// While the open library is locked, only the status, the sites and what the browser extension's buttons say (which tells nothing of the library's films, lockVisible) answer; every other method says it is locked.
+	switch method {
+	case remote.MethodStatus, remote.MethodSites, remote.MethodBrowserState:
+	default:
+		if err := a.lockRemoteGate(ctx); err != nil {
+			return nil, err
+		}
+	}
 	switch method {
 	case remote.MethodStatus:
 		return a.remoteStatus(ctx)
@@ -141,7 +149,7 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 	return nil, remote.Errorf(remote.CodeUnknownMethod, "unknown method %q", method)
 }
 
-// remoteStatus is what the app is and whether a job can start: the sidebar's status line, the tools the pipeline runs, the queue as the open library's 处理中 shows it (remoteQueue), and the libraries the app knows, with how many films each holds, read off the UI thread for those that are not open (remoteCountLibraries).
+// remoteStatus is what the app is and whether a job can start: the sidebar's status line, the tools the pipeline runs, the queue as the open library's 处理中 shows it (remoteQueue), and the libraries the app knows, with how many films each holds, read off the UI thread for those that are not open (remoteCountLibraries), but for a locked one, which says only that it is.
 func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 	var jobs []core.Job
 	s, err := remote.OnUI(ctx, a.update, func() (remote.Status, error) {
@@ -160,8 +168,8 @@ func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 		dirs := a.knownLibraries()
 		open := filepath.Clean(s.LibraryDir)
 		for i, name := range films.LibraryLabels(remoteMessages(), dirs) {
-			lib := remote.Library{Path: dirs[i], Name: name, Open: s.LibraryDir != "" && filepath.Clean(dirs[i]) == open}
-			if lib.Open {
+			lib := remote.Library{Path: dirs[i], Name: name, Open: s.LibraryDir != "" && filepath.Clean(dirs[i]) == open, Locked: a.LibraryLocked(dirs[i])}
+			if lib.Open && !lib.Locked {
 				lib.Films = len(a.remoteFilmList())
 			}
 			s.Libraries = append(s.Libraries, lib)
@@ -188,7 +196,7 @@ func (a *app) remoteStatus(ctx context.Context) (remote.Status, error) {
 func remoteCountLibraries(libs []remote.Library, jobs []core.Job) {
 	noName := func(core.Job) string { return "" }
 	for i := range libs {
-		if libs[i].Open {
+		if libs[i].Open || libs[i].Locked {
 			continue
 		}
 		dir := filepath.Clean(libs[i].Path)
@@ -381,7 +389,7 @@ func (a *app) remoteJob(ctx context.Context, id string) (remote.Job, error) {
 		if ended, done := a.queue.folderEnded[id]; !ok && done && (films.InLibrary(root, ended) || a.queue.ran[id]) {
 			return a.remoteFolderJobOf(ended), nil
 		}
-		if id == "" || !ok || !(films.InLibrary(root, job) || a.queueElsewhere(job) || a.queue.ran[job.ID]) {
+		if id == "" || !ok || !(films.InLibrary(root, job) || a.queueElsewhere(job) || a.queue.ran[job.ID]) || a.lockHidesJob(job) {
 			return remote.Job{}, remote.Errorf(remote.CodeNotFound, "no job %q in the open library", id)
 		}
 		return a.remoteJobOf(job), nil
@@ -882,7 +890,7 @@ func (a *app) remoteFindJob(id string) (core.Job, error) {
 		return core.Job{}, remote.Errorf(remote.CodeNotReady, "%s", remoteMessages().PrecheckNoLibrary())
 	}
 	job, ok := a.library.Find(id)
-	if id == "" || !ok || (!films.InLibrary(root, job) && !a.queueElsewhere(job)) {
+	if id == "" || !ok || (!films.InLibrary(root, job) && !a.queueElsewhere(job)) || a.lockHidesJob(job) {
 		return core.Job{}, remote.Errorf(remote.CodeNotFound, "no job %q in the open library", id)
 	}
 	return job, nil
@@ -892,9 +900,9 @@ func (a *app) remoteFindJob(id string) (core.Job, error) {
 func (a *app) remoteQueue() (running, waiting, finished []core.Job) {
 	root := a.snap().LibraryDir
 	seen := map[string]bool{}
-	// take reports whether job goes in the list: it is on the open library's shelf, or elsewhere says the list keeps it although it saves into another library, and it is not in the list yet.
+	// take reports whether job goes in the list: it is on the open library's shelf, or elsewhere says the list keeps it although it saves into another library, it is not in the list yet, and it is not of a locked library (lockHidesJob).
 	take := func(job core.Job, elsewhere bool) bool {
-		if seen[job.ID] || !(films.InLibrary(root, job) || elsewhere) {
+		if seen[job.ID] || !(films.InLibrary(root, job) || elsewhere) || a.lockHidesJob(job) {
 			return false
 		}
 		seen[job.ID] = true

@@ -38,6 +38,8 @@ type Library struct {
 	Lifts map[string]float32
 	// Names is the title the user gave the video at each path in Kando (Rename), shown in place of the title its site gives it or the name of its file or folder. Renaming never touches the files on disk, and a title kept here follows its video when the video moves (MoveVideos).
 	Names map[string]string
+	// Locks is the password of each library that has one, by the library folder's cleaned path (Lock). library.json is the machine's, so the lock stays with the library on this machine, follows it when its folder is renamed in Finder (MoveLock), and stays when the library is taken off the list.
+	Locks map[string]Lock
 	// unread is why Load could not read the file in full. While it is set Save does not write, as the file may hold jobs this library lacks; AllowSave clears it once a copy of the file is kept.
 	unread error
 }
@@ -68,7 +70,7 @@ func (l Library) Path() string { return l.path }
 
 // Load reads the library at path. A missing file is an empty library. A file that is there but cannot be read is empty too, and the error says why. A file that is not a library in full returns a *DamagedError with the file's bytes, and the library keeps what could be read: a value of another type leaves only that field out, as encoding/json goes on with the rest, and a file that is not JSON at all reads as empty. After either error Save returns ErrUnread rather than write over the file, until AllowSave. A job the app was still working on when it quit is read back as queued, so the queue runs it again from the start. A file written before positions were kept, a bare list of jobs, still reads.
 func Load(path string) (Library, error) {
-	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Lifts: map[string]float32{}, Names: map[string]string{}}
+	lib := Library{path: path, Positions: map[string]time.Duration{}, Furthest: map[string]time.Duration{}, Played: map[string]time.Time{}, Delays: map[string]time.Duration{}, Lifts: map[string]float32{}, Names: map[string]string{}, Locks: map[string]Lock{}}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -123,6 +125,12 @@ func Load(path string) (Library, error) {
 	for path, name := range stored.Names {
 		if name = strings.TrimSpace(name); name != "" {
 			lib.Names[path] = name
+		}
+	}
+	// A lock is kept as it was read, even one Matches cannot check, so a damaged lock keeps its library locked rather than open.
+	for dir, lock := range stored.Locks {
+		if dir = strings.TrimSpace(dir); dir != "" && lock.Algorithm != "" {
+			lib.Locks[filepath.Clean(dir)] = lock
 		}
 	}
 	if err != nil {
@@ -266,6 +274,9 @@ func (l Library) Save() error {
 			stored.Names[path] = name
 		}
 	}
+	if len(l.Locks) > 0 {
+		stored.Locks = maps.Clone(l.Locks)
+	}
 	data, err := json.MarshalIndent(stored, "", "  ")
 	if err != nil {
 		return err
@@ -278,7 +289,7 @@ func (l Library) Save() error {
 	return os.Rename(tmp, l.path)
 }
 
-// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Lifts and Names are Library.Lifts and Library.Names.
+// storedLibrary is library.json. Positions, Furthest and Delays are in seconds; Played is Library.Played, as RFC 3339 times; Lifts, Names and Locks are Library.Lifts, Library.Names and Library.Locks.
 type storedLibrary struct {
 	Jobs      []storedJob          `json:"jobs"`
 	Positions map[string]float64   `json:"positions,omitempty"`
@@ -287,6 +298,7 @@ type storedLibrary struct {
 	Delays    map[string]float64   `json:"delays,omitempty"`
 	Lifts     map[string]float32   `json:"lifts,omitempty"`
 	Names     map[string]string    `json:"names,omitempty"`
+	Locks     map[string]Lock      `json:"locks,omitempty"`
 }
 
 type storedJob struct {

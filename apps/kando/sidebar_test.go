@@ -350,7 +350,7 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	}
 	tt.Press("id:sidebar-switcher")
 	msgs := testlocale.Messages()
-	want := []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", msgs.SidebarRevealLibrary("甲", platformName())}
+	want := []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", msgs.SidebarRevealLibrary("甲", platformName()), "-", msgs.LockMenuSet()}
 	if got := popupLabels(tt); !slices.Equal(got, want) {
 		t.Fatalf("menu %q, want %q", got, want)
 	}
@@ -367,7 +367,7 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	}
 	applyUntil(t, tt, a, updates, func() bool { _, ok := a.LibraryCount(first); return ok })
 	tt.Press("id:sidebar-switcher")
-	want = []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", msgs.SidebarRevealLibrary("乙", platformName())}
+	want = []string{"甲 · 1", "乙 · 2", "-", "新建资料库…", "打开已有资料库…", msgs.SidebarRevealLibrary("乙", platformName()), "-", msgs.LockMenuSet()}
 	if got := popupLabels(tt); !slices.Equal(got, want) {
 		t.Fatalf("menu %q, want %q", got, want)
 	}

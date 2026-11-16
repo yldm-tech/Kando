@@ -1,0 +1,224 @@
+// Package lock is the password of a library: the dialog that sets, changes or removes it or asks for it before another library opens, and the screen a locked library shows in place of its films. The password is an app lock, not encryption, which the dialog that sets it says. The keys are made and checked by the app (shelf.Lock), never here.
+package lock
+
+import (
+	"kando/apps/kando/locales"
+
+	"github.com/nsgo-dev/nsgo/base"
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/ui"
+)
+
+// Mode is what the dialog asks for.
+type Mode int
+
+const (
+	// Set gives a library without a password one: the new password twice.
+	Set Mode = iota + 1
+	// Change gives it another: the current password, then the new one twice.
+	Change
+	// Remove takes it away: the current password.
+	Remove
+	// Unlock opens a locked library: its password.
+	Unlock
+)
+
+// Problem is why the last try did not go through.
+type Problem int
+
+const (
+	NoProblem Problem = iota
+	// Wrong is a current password that is not the library's.
+	Wrong
+	// Mismatch is a new password typed differently the second time.
+	Mismatch
+	// SaveFailed is a password that could not be kept in library.json; Look.Detail says why.
+	SaveFailed
+)
+
+// Look is what the dialog and the screen show: what is asked for, the library's name, why the last try did not go through, and whether the password is being checked or its key made, which takes a moment.
+type Look struct {
+	Mode    Mode
+	Name    string
+	Problem Problem
+	// Detail is why the password could not be kept, in the interface's language, with SaveFailed.
+	Detail string
+	Busy   bool
+}
+
+// Dialog asks for the passwords Mode needs while Open returns true, over the window. Its button, or Return in a field, runs OnSubmit with what was typed, "" for a field the mode does not have, and empties the fields, so a wrong password is typed again; it is disabled while Look is Busy or a field is empty. Cancel, Escape and closing it run OnCancel. A press outside it keeps it, so what was typed is not lost.
+type Dialog struct {
+	Open     func() bool
+	Look     func() Look
+	OnSubmit func(current, next, confirm string)
+	OnCancel func()
+}
+
+// Render implements core.Node.
+func (d Dialog) Render(cx *core.Scope) core.Node {
+	// Look follows the app's whole revision; the memos let the dialog be built again only when what it asks for changes, not as the password is checked.
+	look := core.NewMemo(cx, d.Look)
+	type ask struct {
+		mode Mode
+		name string
+	}
+	asks := core.NewMemo(cx, func() ask { l := look.Get(); return ask{l.Mode, l.Name} })
+	cancel := func() {
+		if d.OnCancel != nil {
+			d.OnCancel()
+		}
+	}
+	return core.Show{When: d.Open, Then: func(cx *core.Scope) core.Node {
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			a := asks.Get()
+			// TODO(nsgo#145): give ui.Dialog TitleFunc and DescriptionFunc twins, ui.Button a TextFunc and core.Input a LabelFunc, so the words follow the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+			f := newForm(cx, a.mode)
+			submit := func() {
+				if look.Get().Busy || !f.filled() {
+					return
+				}
+				current, next, confirm := f.take()
+				if d.OnSubmit != nil {
+					d.OnSubmit(current, next, confirm)
+				}
+			}
+			description := ""
+			if a.mode == Set {
+				description = locales.LockSetNote(cx)
+			}
+			return ui.Dialog{
+				TestID:                 "lock-dialog",
+				Role:                   core.RoleAlertDialog,
+				NoCloseOnBackdropPress: true,
+				Open:                   func() bool { return true },
+				Title:                  title(cx, a.mode, a.name),
+				Description:            description,
+				Style:                  core.Style{Width: core.Pt(380)},
+				OnOpenChange: func(open bool, _ base.Reason) {
+					if !open {
+						cancel()
+					}
+				},
+				Children: []core.Node{core.View{Style: core.Style{Gap: 8}, Children: append(f.fields(submit), problemLine(cx, look.Get))}},
+				Footer: []core.Node{
+					ui.Button{Text: locales.LockCancel(cx), Variant: ui.ButtonSecondary, TestID: "lock-cancel", OnPress: cancel},
+					ui.Button{Text: action(cx, a.mode), TestID: "lock-submit", Disabled: func() bool { return look.Get().Busy || !f.filled() }, OnPress: submit},
+				},
+			}
+		})
+	}}
+}
+
+// title is the dialog's title for mode, naming the library.
+func title(cx *core.Scope, mode Mode, name string) string {
+	switch mode {
+	case Set:
+		return locales.LockSetTitle(cx, name)
+	case Change:
+		return locales.LockChangeTitle(cx, name)
+	case Remove:
+		return locales.LockRemoveTitle(cx, name)
+	}
+	return locales.LockUnlockTitle(cx, name)
+}
+
+// action is the dialog's button for mode.
+func action(cx *core.Scope, mode Mode) string {
+	switch mode {
+	case Set:
+		return locales.LockSetButton(cx)
+	case Change:
+		return locales.LockChangeButton(cx)
+	case Remove:
+		return locales.LockRemoveButton(cx)
+	}
+	return locales.LockUnlockButton(cx)
+}
+
+// form is the dialog's password fields for its mode: the current password for Change, Remove and Unlock, the new one twice for Set and Change. Each field keeps what is typed in a signal of its own, which take empties.
+type form struct {
+	cx                     *core.Scope
+	current, next, confirm *core.Signal[string]
+	mode                   Mode
+}
+
+func newForm(cx *core.Scope, mode Mode) form {
+	return form{cx: cx, mode: mode, current: core.NewSignal(cx, ""), next: core.NewSignal(cx, ""), confirm: core.NewSignal(cx, "")}
+}
+
+func (f form) asksCurrent() bool { return f.mode != Set }
+
+func (f form) asksNew() bool { return f.mode == Set || f.mode == Change }
+
+// filled reports whether every field the mode has holds something.
+func (f form) filled() bool {
+	if f.asksCurrent() && f.current.Get() == "" {
+		return false
+	}
+	return !f.asksNew() || f.next.Get() != "" && f.confirm.Get() != ""
+}
+
+// take is what the fields hold, and empties them.
+func (f form) take() (current, next, confirm string) {
+	current, next, confirm = f.current.Get(), f.next.Get(), f.confirm.Get()
+	f.current.Set("")
+	f.next.Set("")
+	f.confirm.Set("")
+	return current, next, confirm
+}
+
+// fields are the mode's fields, the first holding the keyboard; Return in any of them runs submit.
+func (f form) fields(submit func()) []core.Node {
+	var out []core.Node
+	if f.asksCurrent() {
+		label := locales.LockFieldCurrent(f.cx)
+		if f.mode == Unlock {
+			label = locales.LockFieldPassword(f.cx)
+		}
+		out = append(out, passwordField(f.current, "lock-current", label, core.AutoCompletePassword, true, submit))
+	}
+	if f.asksNew() {
+		out = append(out,
+			passwordField(f.next, "lock-new", locales.LockFieldNew(f.cx), core.AutoCompleteNewPassword, !f.asksCurrent(), submit),
+			passwordField(f.confirm, "lock-confirm", locales.LockFieldConfirm(f.cx), core.AutoCompleteNewPassword, false, submit))
+	}
+	return out
+}
+
+// passwordField is a secure text field (Masked) that keeps what is typed in value, labelled and hinted with label.
+func passwordField(value *core.Signal[string], id, label string, fill core.AutoComplete, focus bool, submit func()) core.Node {
+	return ui.Input{
+		TestID:       id,
+		Label:        label,
+		Placeholder:  label,
+		Masked:       true,
+		AutoComplete: fill,
+		AutoFocus:    focus,
+		Value:        value.Get,
+		OnChange:     value.Set,
+		OnSubmit:     func(string) { submit() },
+	}
+}
+
+// problemLine says why the last try did not go through, or nothing.
+func problemLine(cx *core.Scope, look func() Look) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.Show{
+		When: func() bool { return look().Problem != NoProblem },
+		Then: func(cx *core.Scope) core.Node {
+			return core.Text{TestID: "lock-problem", Role: core.RoleAlert, ContentFunc: func() string { return problemText(cx, look()) }, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Danger)}
+		},
+	}
+}
+
+func problemText(cx *core.Scope, l Look) string {
+	switch l.Problem {
+	case Wrong:
+		return locales.LockWrong(cx)
+	case Mismatch:
+		return locales.LockMismatch(cx)
+	case SaveFailed:
+		return l.Detail
+	}
+	return ""
+}

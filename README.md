@@ -248,6 +248,12 @@ Kando keeps its own files in the user config directory, `~/Library/Application S
 
 Cover images of videos that are not named `video.*` are cached in `~/Library/Caches/Kando/posters` on macOS, `%LocalAppData%\Kando\posters` on Windows and `~/.cache/Kando/posters` on Linux.
 
+### Private libraries
+
+A library can have a password: Set Password… in the library switcher's menu gives it one, and Change Password… and Remove Password… there ask for it first. Kando asks for the password before it shows the library, when you switch to it and when it starts with that library open, and locks it again when you quit, when another library opens, and with File › Lock Now. While it is locked, nothing of its films shows: not in the window, notifications, the Dock badge or Now Playing, and the command line and the MCP server answer that it is locked. Paired phones do not see it, and moving a film into it asks for its password.
+
+This is a lock in Kando, not encryption. The library's videos and subtitles stay ordinary files that Finder or any other app opens, and the lock is kept on this computer in `library.json` as a salted PBKDF2-SHA256 key of the password, never the password itself, so a copy of the library folder on another computer opens without it, and anyone who can edit `library.json` can remove it. A forgotten password cannot be recovered; with Kando closed, deleting the library's entry under `locks` in `library.json` removes the lock.
+
 ## Upgrading from LingoCut
 
 Kando was called LingoCut, and nothing reads the old names. To keep your libraries and settings:

@@ -121,6 +121,8 @@ func writeStatus(w io.Writer, s remote.Status) error {
 		}
 		films := fmt.Sprintf("%d films", lib.Films)
 		switch {
+		case lib.Locked:
+			films = "locked"
 		case lib.Missing:
 			films = "missing"
 		case lib.Films == 1:

@@ -1631,6 +1631,92 @@ libraryVideoFilter:
 libraryWindowTitle:
   message: "Kando"
   description: "Title of the main window: the app's name."
+lockCancel:
+  message: "Cancel"
+  description: "Button of the library password dialog that closes it without changing anything."
+lockChangeButton:
+  message: "Change Password"
+  description: "Button of the library password dialog that gives the library the new password."
+lockChangeTitle:
+  message: "Change the Password of “{name}”"
+  description: "Title of the dialog that changes a library's password; it asks for the current one first."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockFieldConfirm:
+  message: "Confirm Password"
+  description: "Placeholder and accessible name of the field where the new library password is typed a second time."
+lockFieldCurrent:
+  message: "Current Password"
+  description: "Placeholder and accessible name of the field for the library's present password, asked before it is changed or removed."
+lockFieldNew:
+  message: "New Password"
+  description: "Placeholder and accessible name of the field for the library's new password."
+lockFieldPassword:
+  message: "Password"
+  description: "Placeholder and accessible name of the field where a locked library's password is typed to open it."
+lockLibraryIsLocked:
+  message: "“{name}” is locked. Unlock it in Kando's window."
+  description: "Why something cannot be done with the open library while it is locked with a password, as adding a video to it; also what the command line and the MCP server answer then."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockLibraryLocked:
+  message: "{name} (Locked)"
+  description: "Item of the library menus for a library locked with a password, in place of its name and film count, which are not shown while it is locked."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockMenuChange:
+  message: "Change Password…"
+  description: "Item of the library switcher's menu that changes the open library's password."
+lockMenuRemove:
+  message: "Remove Password…"
+  description: "Item of the library switcher's menu that takes the open library's password away."
+lockMenuSet:
+  message: "Set Password…"
+  description: "Item of the library switcher's menu that gives the open library a password Kando asks for before it shows the library."
+lockMismatch:
+  message: "The new passwords don't match."
+  description: "Error in the library password dialog when the new password was typed differently the second time."
+lockNow:
+  message: "Lock Now"
+  description: "Command of the File menu and the command palette that locks the open library, which has a password, so Kando asks for the password again before it shows it."
+lockRemoveButton:
+  message: "Remove Password"
+  description: "Button of the library password dialog that takes the library's password away."
+lockRemoveTitle:
+  message: "Remove the Password of “{name}”"
+  description: "Title of the dialog that takes a library's password away; it asks for the current one."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockScreenOthers:
+  message: "Open Another Library…"
+  description: "Button of the screen a locked library shows that opens a menu of the other libraries and of the ways to make or open one."
+lockScreenTitle:
+  message: "“{name}” is locked"
+  description: "Heading of the screen that covers the window while the open library is locked with a password, over its password field."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockSetButton:
+  message: "Set Password"
+  description: "Button of the library password dialog that gives the library its password."
+lockSetNote:
+  message: "Kando will ask for this password before it shows the library. This is a lock in Kando, not encryption: the library's files stay readable on disk. A forgotten password cannot be recovered."
+  description: "Text under the title of the dialog that gives a library a password: what the password does and does not protect, and that it cannot be recovered."
+lockSetTitle:
+  message: "Set a Password for “{name}”"
+  description: "Title of the dialog that gives a library a password."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockUnlockButton:
+  message: "Unlock"
+  description: "Button that opens a locked library once its password is typed, in the password dialog and on the lock screen."
+lockUnlockTitle:
+  message: "Unlock “{name}”"
+  description: "Title of the dialog that asks for a locked library's password before switching to it."
+  placeholders:
+    name: { type: "String", example: "Private" }
+lockWrong:
+  message: "Wrong password. Try again."
+  description: "Error in the library password dialog and on the lock screen when the password typed is not the library's."
 logsShowLogFile:
   message: "Show Log File"
   description: "Help menu item, and command palette row, that reveals Kando's log file in Finder or the file manager, so a user can attach it to a bug report."

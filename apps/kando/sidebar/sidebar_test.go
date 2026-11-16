@@ -39,6 +39,8 @@ type fakeApp struct {
 	calls     []string
 	// paletteButton is PaletteButton: whether the status card has the palette's button.
 	paletteButton bool
+	// passwords are the libraries with a password, and locked those of them that are locked.
+	passwords, locked map[string]bool
 }
 
 func newFakeApp() *fakeApp {
@@ -94,6 +96,13 @@ func (f *fakeApp) LibraryCount(dir string) (int, bool) {
 	n, ok := f.counts[dir]
 	return n, ok
 }
+
+func (f *fakeApp) LibraryHasPassword(dir string) bool { return f.passwords[dir] }
+func (f *fakeApp) LibraryLocked(dir string) bool      { return f.locked[dir] }
+func (f *fakeApp) SetPassword(dir string)             { f.calls = append(f.calls, "set password "+dir) }
+func (f *fakeApp) ChangePassword(dir string)          { f.calls = append(f.calls, "change password "+dir) }
+func (f *fakeApp) RemovePassword(dir string)          { f.calls = append(f.calls, "remove password "+dir) }
+func (f *fakeApp) LockNow()                           { f.calls = append(f.calls, "lock now") }
 
 // start shows the sidebar of a as the main window does, on a Mac, in testlocale's language.
 func start(t *testing.T, a *fakeApp) *nsgotest.App {
@@ -256,7 +265,7 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	for _, it := range app.PopupMenu {
 		labels = append(labels, it.Label)
 	}
-	want := []string{msgs.SidebarLibraryCount("我的影片", 4), msgs.SidebarLibraryCount("课程", 3), "", msgs.SidebarNewLibrary(), msgs.SidebarOpenLibrary(), msgs.SidebarRevealLibrary("我的影片", "macOS")}
+	want := []string{msgs.SidebarLibraryCount("我的影片", 4), msgs.SidebarLibraryCount("课程", 3), "", msgs.SidebarNewLibrary(), msgs.SidebarOpenLibrary(), msgs.SidebarRevealLibrary("我的影片", "macOS"), "", msgs.LockMenuSet()}
 	if !slices.Equal(labels, want) {
 		t.Fatalf("switcher menu %q, want %q", labels, want)
 	}
@@ -269,6 +278,44 @@ func TestSwitcherMenuListsTheLibrariesWithCounts(t *testing.T) {
 	}
 	if got := app.Find("id:sidebar-switcher").Props.Label; got != msgs.SidebarSwitcherLabel("课程") {
 		t.Fatalf("switcher labelled %q after the switch", got)
+	}
+}
+
+// A library with a password offers to change or remove it, and to lock it while it is open and unlocked; a locked library shows its name with a lock and no count, in the menu and on the switcher.
+func TestSwitcherMenuShowsPasswordsAndLockedLibraries(t *testing.T) {
+	a := newFakeApp()
+	a.passwords = map[string]bool{"/films/我的影片.kando": true, "/films/课程.kando": true}
+	a.locked = map[string]bool{"/films/课程.kando": true}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	app.Press("id:sidebar-switcher")
+	var labels []string
+	for _, it := range app.PopupMenu {
+		labels = append(labels, it.Label)
+	}
+	want := []string{msgs.SidebarLibraryCount("我的影片", 4), msgs.LockLibraryLocked("课程"), "", msgs.SidebarNewLibrary(), msgs.SidebarOpenLibrary(), msgs.SidebarRevealLibrary("我的影片", "macOS"), "", msgs.LockMenuChange(), msgs.LockMenuRemove(), msgs.LockNow()}
+	if !slices.Equal(labels, want) {
+		t.Fatalf("switcher menu %q, want %q", labels, want)
+	}
+	app.ChoosePopup(msgs.LockNow())
+	app.Press("id:sidebar-switcher")
+	app.ChoosePopup(msgs.LockMenuChange())
+	app.Press("id:sidebar-switcher")
+	app.ChoosePopup(msgs.LockMenuRemove())
+	if want := []string{"lock now", "change password /films/我的影片.kando", "remove password /films/我的影片.kando"}; !slices.Equal(a.calls, want) {
+		t.Fatalf("calls %q, want %q", a.calls, want)
+	}
+	change(app, a, func() { a.locked["/films/我的影片.kando"] = true })
+	if got := app.Find("id:sidebar-switcher").Props.Label; got != msgs.SidebarSwitcherLabel(msgs.LockLibraryLocked("我的影片")) {
+		t.Fatalf("a locked library's switcher labelled %q", got)
+	}
+	app.Press("id:sidebar-switcher")
+	labels = labels[:0]
+	for _, it := range app.PopupMenu {
+		labels = append(labels, it.Label)
+	}
+	if slices.Contains(labels, msgs.LockNow()) || labels[0] != msgs.LockLibraryLocked("我的影片") {
+		t.Fatalf("the menu of a locked open library: %q", labels)
 	}
 }
 

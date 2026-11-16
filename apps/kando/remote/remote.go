@@ -240,9 +240,10 @@ type Library struct {
 	// Name is the name the window gives it.
 	Name string `json:"name"`
 	Open bool   `json:"open"`
-	// Films is how many films it holds, as the window would list them; Missing is set, and Films is 0, when its folder cannot be read, as on a drive that is not plugged in.
+	// Films is how many films it holds, as the window would list them; Missing is set, and Films is 0, when its folder cannot be read, as on a drive that is not plugged in. Locked is set, and Films is 0, while it has a password that was not typed in the window since Kando started: nothing of its films shows, and the other methods refuse the open library while it is locked.
 	Films   int  `json:"films"`
 	Missing bool `json:"missing,omitempty"`
+	Locked  bool `json:"locked,omitempty"`
 }
 
 // Film is a video of the open library, as the window lists it.

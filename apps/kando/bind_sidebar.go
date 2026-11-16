@@ -29,7 +29,11 @@ func (a *app) Select(page string) {
 	a.stopPlayback()
 }
 
+// Choose opens the library at dir, after its password when it is locked (lockAsksFirst).
 func (a *app) Choose(dir string) {
+	if a.lockAsksFirst(dir) {
+		return
+	}
 	a.edit(func(s *session) { s.MakingLibrary = false })
 	a.page = pageFilms
 	a.switchLibrary(dir)

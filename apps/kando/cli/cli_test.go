@@ -1319,13 +1319,14 @@ func TestAddDuplicates(t *testing.T) {
 	}
 }
 
-// TestStatusLibraries checks that kando status lists the libraries the app knows, the open one marked.
+// TestStatusLibraries checks that kando status lists the libraries the app knows, the open one marked, a locked one without its count.
 func TestStatusLibraries(t *testing.T) {
 	status := cannedStatus
 	status.Libraries = []remote.Library{
 		{Path: "/Users/me/Movies/Kando", Name: "Kando", Open: true, Films: 12},
 		{Path: "/Volumes/Disk/Lectures.kando", Name: "Lectures", Films: 1},
 		{Path: "/Volumes/Gone/Old.kando", Name: "Old", Missing: true},
+		{Path: "/Users/me/Movies/Private.kando", Name: "Private", Locked: true},
 	}
 	startFake(t, func(method string, params json.RawMessage) (any, error) {
 		if method == remote.MethodStatus {
@@ -1338,6 +1339,7 @@ func TestStatusLibraries(t *testing.T) {
 		"libraries          * Kando  12 films  /Users/me/Movies/Kando\n",
 		"                     Lectures  1 film  /Volumes/Disk/Lectures.kando\n",
 		"                     Old  missing  /Volumes/Gone/Old.kando\n",
+		"                     Private  locked  /Users/me/Movies/Private.kando\n",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Errorf("status = %q, want %q", stdout, want)

@@ -157,6 +157,11 @@ func (a *app) queueEnqueue(sources []string) (added int, err error) {
 	if len(sources) == 0 {
 		return 0, core.ErrEmptySource
 	}
+	// Nothing is added to a locked library.
+	if a.lockShut() {
+		msg, _ := a.precheckReady()
+		return 0, errors.New(msg)
+	}
 	seen := map[string]bool{}
 	var first error
 	for _, source := range sources {
@@ -243,7 +248,7 @@ func (a *app) queueFindSource(source string) (core.Job, bool) {
 	var failed core.Job
 	found := false
 	for _, job := range a.library.Jobs {
-		if !films.InLibrary(root, job) || !same(job) {
+		if !films.InLibrary(root, job) || !same(job) || a.lockHidesJob(job) {
 			continue
 		}
 		if job.Stage != core.StageFailed {

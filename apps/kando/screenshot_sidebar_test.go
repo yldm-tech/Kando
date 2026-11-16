@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/shelf"
 	"kando/apps/kando/sidebar"
 	"kando/packages/media"
 
@@ -18,8 +19,39 @@ import (
 //   - sidebar-empty: a new empty library, every count 0 (library_empty)
 //   - sidebar-focused: 全部影片 chosen with a click, so the sidebar holds the focus and rings the chosen row
 //   - sidebar-languages: the films heard in three languages, so the sidebar lists them under the sources, and 英语 chosen, the grid showing the films heard in English
+//   - lock-set-password: the switcher's 设置密码… for 我的影片, its new password typed once
+//   - lock-unlock-wrong: 英语听力 locked and chosen in the switcher, its password dialog after a wrong password
+//   - lock-screen: 我的影片 locked as the app starts, its lock screen over the window
 func TestScreenshotsSidebar(t *testing.T) {
 	f := newScreenshotFixture(t)
+	f.shoot(t, "lock-set-password", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		screenshotReady(t, f, a)
+		refresh(tt, a)
+		tt.Press("id:sidebar-switcher")
+		tt.ChoosePopup(testlocale.Messages().LockMenuSet())
+		tt.Type("id:lock-new", "password")
+		if !tt.Exists("id:lock-dialog") {
+			t.Fatal("the password dialog did not open")
+		}
+	})
+	f.shoot(t, "lock-unlock-wrong", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		screenshotReady(t, f, a)
+		screenshotLock(t, a, f.libs["listening"])
+		refresh(tt, a)
+		tt.Press("id:sidebar-switcher")
+		tt.ChoosePopup(testlocale.Messages().LockLibraryLocked(sidebar.Title(f.libs["listening"])))
+		tt.Type("id:lock-current", "wrong")
+		tt.Press("id:lock-submit")
+		screenshotWait(t, tt, a, updates, "the password's check", func() bool { return a.lock.dialog.problem != 0 })
+	})
+	f.shoot(t, "lock-screen", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
+		screenshotReady(t, f, a)
+		screenshotLock(t, a, f.lib)
+		refresh(tt, a)
+		if !tt.Exists("id:lock-screen") || tt.Exists("id:poster-j1") {
+			t.Fatalf("the lock screen does not cover the library: %q", tt.Texts())
+		}
+	})
 	f.shoot(t, "sidebar-languages", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 		heard := map[string]string{"j1": "en", "j3": "en", "j8": "en", "j9": "en", "j10": "en", "j4": "zh", "j11": "zh", "j15": "ja"}
@@ -62,6 +94,16 @@ func TestScreenshotsSidebar(t *testing.T) {
 			return ok
 		})
 	})
+}
+
+// screenshotLock gives the library at dir a password, as one set before the app started, so it is locked.
+func screenshotLock(t *testing.T, a *app, dir string) {
+	t.Helper()
+	l, err := shelf.NewLock("screenshot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.library.SetLock(dir, l)
 }
 
 // screenshotReady gives the fake tools what the status line asks for, a speech model on disk and an EveryAPI key, so it says 已就绪 as the prototype's does.

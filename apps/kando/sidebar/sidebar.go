@@ -59,6 +59,13 @@ type App interface {
 	FilmCount() int
 	// LibraryCount is how many films the library at dir holds, for a library that is not open; ok is false until the count has been read.
 	LibraryCount(dir string) (n int, ok bool)
+	// LibraryHasPassword reports whether the library at dir has a password, and LibraryLocked whether it is locked now, so the switcher shows its name with a lock and no count. SetPassword, ChangePassword and RemovePassword open the password dialog for it, and LockNow locks the open library again.
+	LibraryHasPassword(dir string) bool
+	LibraryLocked(dir string) bool
+	SetPassword(dir string)
+	ChangePassword(dir string)
+	RemovePassword(dir string)
+	LockNow()
 	// SourceFilter is the source the library page shows, SourceAll or another Source value.
 	SourceFilter() string
 	// SetSourceFilter shows the library page filtered by source and closes the open film.
