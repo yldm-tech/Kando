@@ -37,20 +37,26 @@ const (
 	subsDragMargin core.Points = 8
 )
 
-// subtitles draws the playing cue over the picture, centered above the transport. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles (Look.Lift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
+// subtitles draws the playing cue over the picture, centered above the transport, its lines as the mode picks them, or both for the cue the app peeks at (Peek), whatever the mode. While the controls show and the look yields to them, the lines move up out of their way; with the side panel open they keep to the room it leaves. The pointer drags the lines up and down, off a film's own burned-in subtitles (Look.Lift), and a double click puts dragged lines back; on lines in their place it enters or leaves full screen, as on the picture, and a click starts or holds the film. The lines are built again only when the playing cue or how it is drawn changes, as the clock moves on (tick).
 func (s *screen) subtitles() core.Node {
 	a, cx := s.a, s.cx
 	cues := filmCues(cx, a)
 	lines := core.NewMemoFunc(cx, func() []styledLine {
 		a.Track()
-		if a.Play() == nil || a.SubMode() == SubOff {
+		if a.Play() == nil {
 			return nil
 		}
-		cue, ok := CueAt(cues(), s.playhead()-a.Delay())
-		if !ok {
+		list := cues()
+		i := cueIndex(list, s.playhead()-a.Delay())
+		switch {
+		case i < 0:
+			return nil
+		case i == a.Peek():
+			return styledLines(bothLines{a}, list[i].Text)
+		case a.SubMode() == SubOff:
 			return nil
 		}
-		return pictureLines(a, cue.Text)
+		return pictureLines(a, list[i].Text)
 	}, slices.Equal[[]styledLine]).Get
 	return core.Show{When: func() bool { return len(lines()) > 0 }, Then: func(cx *core.Scope) core.Node { return s.subtitleLayer(cx, lines) }}
 }
@@ -242,6 +248,25 @@ func pictureLines(a lineSettings, text string) []styledLine {
 		lines[0].dim = true
 	}
 	return lines
+}
+
+// bothLines are the settings with both lines of a cue showing, in their order, as for the cue peeked at.
+type bothLines struct{ lineSettings }
+
+func (bothLines) SubMode() string { return SubBilingual }
+
+// listLines is a cue as the subtitle list shows it: shown, its lines as the picture shows them (styledLines), and hidden, the line the mode leaves off it, or "".
+func listLines(a lineSettings, text string) (shown []string, hidden string) {
+	for _, l := range styledLines(a, text) {
+		shown = append(shown, l.text)
+	}
+	translation, original := splitCue(text)
+	for _, line := range []string{translation, original} {
+		if line != "" && !slices.Contains(shown, line) {
+			hidden = line
+		}
+	}
+	return shown, hidden
 }
 
 // styledLines is the lines of a cue as SubMode and SubOrder pick them, for the picture and the subtitle list. SubOff counts as bilingual here: it hides only the lines on the picture (subtitles), and the list keeps both.

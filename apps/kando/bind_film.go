@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"slices"
 	"time"
 
 	"kando/apps/kando/film"
@@ -147,6 +148,8 @@ func (a *app) SetFilmSide(id string) { a.player.filmSide = id }
 // Seek plays from at, where the scrubber or a line of the side panel was clicked; a looped line moves with it (playerSeek).
 func (a *app) Seek(at time.Duration) { a.playerSeek(at) }
 
+func (a *app) Jumps() int { return a.player.film.jumps }
+
 func (a *app) Skip(d time.Duration) {
 	if !a.playerLoaded() {
 		return
@@ -228,6 +231,9 @@ func (a *app) SearchFocused() *bool { return &a.player.film.searchFocused }
 
 // OSD is the message on the picture, which flash takes away after a moment.
 func (a *app) OSD() string { return a.player.film.osd }
+
+// Flash shows text on the picture for a moment (flash).
+func (a *app) Flash(text string) { a.flash(text) }
 
 func (a *app) Info() film.Info { return a.player.film.info }
 
@@ -373,9 +379,7 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	volume := func() bool { return open() && !menus() }
 	// L also works while the picture opens, so turning the loop off is not missed then.
 	opening := func() bool { return a.openKey != "" && a.player.play != nil }
-	// The speed keys work where the system's player plays at the speed picked, not on Linux (film.RateWorks).
-	speed := func() bool { return open() && film.RateWorks(cx) }
-	return []shortcut{
+	rows := []shortcut{
 		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(cx), Key: "space", When: transport, Run: func() { a.player.play.toggle() }},
 		{Group: groupPlayback, Label: locales.FilmSkipBack(cx, 5), Key: "left", Repeat: true, When: transport, Run: func() { a.Skip(-5 * time.Second) }},
 		{Group: groupPlayback, Label: locales.FilmSkipForward(cx, 5), Key: "right", Repeat: true, When: transport, Run: func() { a.Skip(5 * time.Second) }},
@@ -385,13 +389,15 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 		{Group: groupPlayback, Label: locales.PlayerKeyNextLine(cx), Key: "d", Repeat: true, When: playing, Run: a.NextLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyReplayLine(cx), Key: "r", When: playing, Run: a.ReplayLine},
 		{Group: groupPlayback, Label: locales.PlayerKeyLoopLine(cx), Key: "l", When: opening, Checked: a.LoopLine, Run: a.ToggleLoopLine},
+		{Group: groupPlayback, Label: locales.PlayerKeyExtendLoop(cx), Key: "shift+l", When: opening, Run: a.ExtendLoop},
+		{Group: groupPlayback, Label: locales.PlayerKeyPauseLines(cx), Key: "p", When: open, Checked: a.PauseLines, Run: a.TogglePauseLines},
+		{Group: groupPlayback, Label: locales.PlayerKeyLoopGap(cx), When: open, Checked: a.playerLoopGap, Run: a.playerToggleLoopGap},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(cx), Key: "up", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(cx), Key: "down", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(cx), Key: "m", When: open, Run: a.ToggleMute},
-		{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: "shift+,", Repeat: true, When: speed, Run: func() { a.playerStepRate(-1) }},
-		{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: "shift+.", Repeat: true, When: speed, Run: func() { a.playerStepRate(1) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(cx), Key: "v", When: open, Run: a.toggleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(cx), Key: "s", When: open, Run: a.cycleSubtitles},
+		{Group: groupSubtitles, Label: locales.PlayerKeyPeekLine(cx), Key: "t", When: playing, Run: a.PeekLine},
 		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(cx), Key: "z", Repeat: true, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyDelayLater(cx), Key: "x", Repeat: true, When: open, Run: func() { a.nudgeDelay(100 * time.Millisecond) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyLarger(cx), Key: "mod+=", Repeat: true, When: open, Run: func() { a.scaleSubtitles(2) }},
@@ -402,4 +408,13 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 		{Group: groupView, Label: locales.FilmFullScreen(cx), Key: "f", When: open, Run: a.ToggleFullScreen},
 		{Group: groupView, Label: locales.FilmBackToLibrary(cx), Key: "escape", When: open, Run: a.escapeFilm},
 	}
+	// The speed keys are only where the system's player plays at the speed picked, not on Linux (film.RateWorks), so neither the cheat sheet, Settings › 快捷键 nor the menu bar offers keys that do nothing there.
+	if !film.RateWorks(cx) {
+		return rows
+	}
+	mute := slices.IndexFunc(rows, func(s shortcut) bool { return s.Key == "m" })
+	return slices.Insert(rows, mute+1,
+		shortcut{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: "shift+,", Repeat: true, When: open, Run: func() { a.playerStepRate(-1) }},
+		shortcut{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: "shift+.", Repeat: true, When: open, Run: func() { a.playerStepRate(1) }},
+	)
 }

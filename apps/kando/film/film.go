@@ -60,6 +60,8 @@ type App interface {
 	FilmSide() string
 	SetFilmSide(string)
 	Seek(at time.Duration)
+	// Jumps counts the user's moves of the picture: a seek, a skip, a move by line. The subtitle list follows the playing line again after one.
+	Jumps() int
 	// Skip moves the picture by d from where it is and says so on the picture.
 	Skip(d time.Duration)
 	// PrevLine, NextLine and ReplayLine play from the start of the line before, the line after or the line playing; ToggleLoopLine plays the line playing over and over, or stops, and LoopLine reports whether it does. Each says so on the picture.
@@ -68,6 +70,12 @@ type App interface {
 	ReplayLine()
 	ToggleLoopLine()
 	LoopLine() bool
+	// LoopSpan is the span looped, in the subtitles' time, end 0 for the video's end, ok false while none is; LoopThrough has the loop run through cue i too, from its start or to its end, as a click with Shift on a line of the list does.
+	LoopSpan() (start, end time.Duration, ok bool)
+	LoopThrough(i int)
+	// PauseLines reports whether the film pauses at the end of each line, for shadowing or dictation; TogglePauseLines turns it on or off and says so on the picture.
+	PauseLines() bool
+	TogglePauseLines()
 	Cue() *Look
 	// LookChanged keeps the look after the style view changed it.
 	LookChanged()
@@ -77,6 +85,8 @@ type App interface {
 	// SubOrder is which line of a bilingual cue goes on top: SubTranslationFirst or SubOriginalFirst.
 	SubOrder() string
 	SetSubOrder(order string)
+	// Peek is the index of the cue the picture shows both lines of, whatever SubMode, or -1.
+	Peek() int
 	// Untranslated is UntranslatedDim or UntranslatedBlank: what SubTranslation shows for a cue that has no translation.
 	Untranslated() string
 	// YieldSubs moves the subtitles up while the player's controls show.
@@ -100,8 +110,9 @@ type App interface {
 	SearchFocus() *bool
 	// SearchFocused is set while the search field holds the keyboard focus, so the app's Escape empties the field before it closes anything.
 	SearchFocused() *bool
-	// OSD is the message shown over the picture, "" for none; the app takes it away after a moment.
+	// OSD is the message shown over the picture, "" for none; the app takes it away after a moment. Flash shows text there.
 	OSD() string
+	Flash(text string)
 	LibraryDir() string
 	LibraryPath() string
 	// ClipPoster is a frame of the film at start, JPEG, for a 片段's tile, once it has been read.

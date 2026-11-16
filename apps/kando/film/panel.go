@@ -157,12 +157,24 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		}
 		return subsReady
 	})
-	count := live.Func(a, func() int { return len(a.Subs().Cues) })
+	cues := filmCues(cx, a)
+	query := live.Memo(cx, a, func() string { return strings.ToLower(strings.TrimSpace(*a.Search())) })
+	shown := ns.NewMemoFunc(cx, func() []int { return cueMatches(cues(), query()) }, slices.Equal[[]int]).Get
+	// The chip counts the lines, or while a search is typed the lines that hold it of them all.
 	chip := ns.Show{When: func() bool { return state() == subsReady }, Then: func(cx *ns.Scope) ns.Node {
+		chipText := ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightSemibold, Color: onGlass}
 		return ns.View{TestID: "film-subs-count", Style: ns.Style{Direction: ns.Row, Height: ns.Pt(24), Padding: ns.Symmetric(0, 10), CornerRadius: 12, Gap: 3, AlignItems: ns.AlignCenter, AlignSelf: ns.AlignStart, Background: ns.RGBA(0xFFFFFF, 0.25)},
 			Children: []ns.Node{
-				ns.Text{ContentFunc: func() string { return locales.FilmAll(cx) }, Style: ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightSemibold, Color: onGlass}},
-				ns.Text{ContentFunc: func() string { return fmt.Sprint(count()) }, Style: ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightSemibold, Color: onGlass, Opacity: ns.Alpha(0.6)}},
+				ns.Show{When: func() bool { return query() == "" },
+					Then: func(cx *ns.Scope) ns.Node {
+						return ns.Group([]ns.Node{
+							ns.Text{ContentFunc: func() string { return locales.FilmAll(cx) }, Style: chipText},
+							ns.Text{ContentFunc: func() string { return fmt.Sprint(len(cues())) }, Style: chipText.Merge(ns.Style{Opacity: ns.Alpha(0.6)})},
+						})
+					},
+					Else: func(cx *ns.Scope) ns.Node {
+						return ns.Text{ContentFunc: func() string { return fmt.Sprintf("%d / %d", len(shown()), len(cues())) }, Style: chipText}
+					}},
 			}}
 	}}
 	body := ns.Dynamic(func(cx *ns.Scope) ns.Node {
@@ -176,15 +188,60 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		case subsEmpty:
 			return panelNote(func() string { return locales.FilmSubtitlesEmpty(cx) }, nil)
 		}
-		return s.cueList(cx)
+		return s.cueList(cx, cues, shown)
 	})
+	// Return in the search plays from the next line that holds it, Shift+Return from the one before.
+	step := func(back bool) {
+		if query() == "" {
+			return
+		}
+		list, rows := cues(), shown()
+		k := searchStep(list, rows, a.PlayHead()-a.Delay(), back)
+		if k < 0 {
+			return
+		}
+		a.Seek(list[rows[k]].Start + a.Delay())
+		a.Flash(locales.FilmMatchOf(cx, k+1, len(rows)))
+	}
 	return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
-		ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 8, Left: 14}, Gap: 8}, Children: []ns.Node{s.searchField(cx), chip}},
+		ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 8, Left: 14}, Gap: 8}, Children: []ns.Node{s.searchField(cx, step), chip}},
 		ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Padding: ns.Edges{Right: 8, Bottom: 12, Left: 8}}, Children: []ns.Node{body}},
-		ns.View{Style: ns.Style{Padding: ns.Edges{Top: 8, Right: 14, Bottom: 12, Left: 14}, Borders: ns.Edges{Top: 1}, BorderColor: panelLine}, Children: []ns.Node{
-			ns.Text{ContentFunc: func() string { return locales.FilmClickToJump(cx) }, Style: ns.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: ns.Alpha(0.55)}},
-		}},
 	}}
+}
+
+// cueMatches is the indexes of the cues that hold query, which is lower case, or all of them for none.
+func cueMatches(cues []core.Segment, query string) []int {
+	out := make([]int, 0, len(cues))
+	for i, cue := range cues {
+		if query == "" || strings.Contains(strings.ToLower(cue.Text), query) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// searchRewind is how far into a match Shift+Return goes back past it to the match before, rather than to its start again, as Previous Line does with a line.
+const searchRewind = time.Second
+
+// searchStep is which of matches, indexes of cues in the order they start, Return plays from with the picture at at in the subtitles' time: the first starting after at, or the first of all after the last; with back the last starting more than searchRewind before at, or the last of all before the first. It is -1 without matches.
+func searchStep(cues []core.Segment, matches []int, at time.Duration, back bool) int {
+	if len(matches) == 0 {
+		return -1
+	}
+	if back {
+		for k := len(matches) - 1; k >= 0; k-- {
+			if cues[matches[k]].Start < at-searchRewind {
+				return k
+			}
+		}
+		return len(matches) - 1
+	}
+	for k, i := range matches {
+		if cues[i].Start > at {
+			return k
+		}
+	}
+	return 0
 }
 
 // subsState is what the subtitle tab shows: the list once the film's subtitles are read and hold lines, else why there is none.
@@ -198,8 +255,8 @@ const (
 	subsReady
 )
 
-// searchField is the subtitle list's search field: the prototype's is 30 high, white at 10%, its text 12, a magnifying glass before it. ⌘F puts the keyboard in it (SearchFocus), and Escape empties it while it holds something.
-func (s *screen) searchField(cx *ns.Scope) ns.Node {
+// searchField is the subtitle list's search field: the prototype's is 30 high, white at 10%, its text 12, a magnifying glass before it. ⌘F puts the keyboard in it (SearchFocus), and Escape empties it while it holds something. Return runs step, and Shift+Return step back; the field keeps the focus, so they can be pressed again.
+func (s *screen) searchField(cx *ns.Scope, step func(back bool)) ns.Node {
 	a := s.a
 	field := &ns.Ref{}
 	cx.Effect(func() {
@@ -215,6 +272,7 @@ func (s *screen) searchField(cx *ns.Scope) ns.Node {
 	cx.Cleanup(func() { *a.SearchFocused() = false })
 	escape := ns.Show{When: func() bool { return focused.Get() && query() != "" }, Then: func(cx *ns.Scope) ns.Node {
 		cx.OnKeyWith("escape", ns.KeyOptions{When: ns.KeyAlways}, clear)
+		cx.OnKeyWith("shift+enter", ns.KeyOptions{When: ns.KeyAlways}, live.Do(a, func() { step(true) }))
 		return nil
 	}}
 	// TODO(nsgo#145): give core.Input (base.Input, ui.Input) LabelFunc and AccessibilityDescriptionFunc twins, so the field's accessible name follows the interface language as it changes; it is read once here, and a Dynamic would take the focus and the typed text with it https://github.com/nsgo-dev/nsgo/issues/145
@@ -225,6 +283,8 @@ func (s *screen) searchField(cx *ns.Scope) ns.Node {
 		Value:           query,
 		PlaceholderFunc: func() string { return locales.FilmSearchLines(cx) + "  " + cx.KeyLabel("mod+f") },
 		OnChange:        live.On(a, func(text string) { *a.Search() = text }),
+		SubmitBehavior:  ns.SubmitBehaviorSubmit,
+		OnSubmit:        live.On(a, func(string) { step(false) }),
 		OnFocus:         func() { focused.Set(true); *a.SearchFocused() = true },
 		OnBlur:          func() { focused.Set(false); *a.SearchFocused() = false },
 		Style: ns.Style{FlexGrow: 1, MinWidth: ns.Pt(0), Height: ns.Pt(30), CornerRadius: 8, Background: ns.RGBA(0xFFFFFF, 0.1), FontSize: 12,
@@ -237,21 +297,9 @@ func (s *screen) searchField(cx *ns.Scope) ns.Node {
 	}}
 }
 
-// cueList is the subtitle list, narrowed to the cues that hold the search, the playing one lit and scrolled into view as it changes.
-func (s *screen) cueList(cx *ns.Scope) ns.Node {
+// cueList is the subtitle list, narrowed to shown, the indexes of the cues that hold the search, the playing one lit and scrolled into view as it changes.
+func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() []int) ns.Node {
 	a := s.a
-	cues := filmCues(cx, a)
-	query := live.Memo(cx, a, func() string { return strings.ToLower(strings.TrimSpace(*a.Search())) })
-	shown := ns.NewMemoFunc(cx, func() []int {
-		q := query()
-		out := make([]int, 0, len(cues()))
-		for i, cue := range cues() {
-			if q == "" || strings.Contains(strings.ToLower(cue.Text), q) {
-				out = append(out, i)
-			}
-		}
-		return out
-	}, slices.Equal[[]int]).Get
 	current := ns.NewMemo(cx, func() int {
 		a.Track()
 		if a.Play() == nil {
@@ -261,52 +309,112 @@ func (s *screen) cueList(cx *ns.Scope) ns.Node {
 	}).Get
 	clockWidth := cueClockWidth(cx, a, cues)
 	list := &ns.Ref{}
-	// The list follows the playing cue as it changes, not as it is scrolled by hand or narrowed by the search.
-	followed := -2
-	cx.Effect(func() {
-		cur, rows := current(), shown()
-		if cur == followed {
-			return
-		}
-		followed = cur
-		for row, i := range rows {
+	// seen is the first and the last cue in view, by index, as the list reports its viewable rows, -1 before it has.
+	seen := ns.NewSignal(cx, [2]int{-1, -1})
+	inView := func(i int) bool { r := ns.Untracked(cx, seen.Get); return r[0] >= 0 && i >= r[0] && i <= r[1] }
+	// anchor is the cue the list last scrolled to; away is set while the list was left scrolled off it, the user reading elsewhere in it, so it does not follow the film until the pill brings it back, the user scrolls the playing cue into view, or moves the picture.
+	anchor := -1
+	away := ns.NewSignal(cx, false)
+	follow := func(cur int) {
+		for row, i := range ns.Untracked(cx, shown) {
 			if i == cur {
 				list.ScrollToIndex(row, true)
+				anchor = cur
+				away.Set(false)
 				return
 			}
 		}
+	}
+	jumps := live.Memo(cx, a, a.Jumps)
+	// The list follows the playing cue as it changes, or as the user moves the picture (Jumps), not as it is scrolled by hand or narrowed by the search.
+	followed, jumped := -2, ns.Untracked(cx, jumps)
+	cx.Effect(func() {
+		cur, j := current(), jumps()
+		shown()
+		moved := j != jumped
+		jumped = j
+		if cur == followed && !moved {
+			return
+		}
+		followed = cur
+		switch {
+		case cur < 0:
+		case moved || anchor < 0 || inView(anchor):
+			follow(cur)
+		default:
+			away.Set(true)
+		}
 	})
+	viewable := func(v ns.ViewableItems) {
+		r := [2]int{-1, -1}
+		if n := len(v.Viewable); n > 0 {
+			first, ok1 := v.Viewable[0].Key.(int)
+			last, ok2 := v.Viewable[n-1].Key.(int)
+			if ok1 && ok2 {
+				r = [2]int{first, last}
+			}
+		}
+		seen.Set(r)
+		// The user scrolled the playing cue back into view: the list follows it again from there.
+		if cur := current(); away.Get() && cur >= 0 && inView(cur) {
+			anchor = cur
+			away.Set(false)
+		}
+	}
+	pill := ns.Show{When: func() bool { return away.Get() && current() >= 0 }, Then: func(cx *ns.Scope) ns.Node {
+		label := func() string { return locales.FilmBackToCurrentLine(cx) }
+		return ns.View{PointerEvents: ns.PointerEventsBoxNone, Style: ns.Style{Position: ns.Absolute, Left: ns.Pt(0), Right: ns.Pt(0), Bottom: ns.Pt(10), AlignItems: ns.AlignCenter},
+			Children: []ns.Node{base.Button{TestID: "film-cues-current", LabelFunc: label,
+				OnPress: func(ns.PressEvent) { follow(current()) },
+				Style: ns.Style{Height: ns.Pt(28), Padding: ns.Symmetric(0, 12), CornerRadius: 14, JustifyContent: ns.JustifyCenter, Background: ns.RGBA(0x3A3A40, 0.95),
+					Shadows: []ns.BoxShadow{{Spread: 0.5, Color: ns.RGBA(0xFFFFFF, 0.2), Inset: true}, {Offset: ns.Point{Y: 6}, Blur: 18, Color: ns.RGBA(0x000000, 0.35)}},
+					Hover:   &ns.Style{Background: ns.RGBA(0x4A4A52, 0.95)}, FocusVisible: ui.FocusRing(cx, -2)},
+				Children: []ns.Node{ns.Text{ContentFunc: label, MaxLines: 1, Style: ns.Style{FontSize: 12, LineHeight: 16, FontWeight: ns.FontWeightSemibold, Color: onGlass}}},
+			}}}
+	}}
 	return ns.Show{
 		When: func() bool { return len(shown()) > 0 },
 		Then: func(cx *ns.Scope) ns.Node {
-			return ns.List{TestID: "film-cues", Ref: list, Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, EstimatedSize: 56,
-				Count: func() int { return len(shown()) },
-				Key: func(i int) any {
-					if rows := shown(); i < len(rows) {
-						return rows[i]
-					}
-					return i
-				},
-				Row: func(cx *ns.Scope, row ns.ListRow) ns.Node {
-					cue := func() core.Segment {
-						rows := shown()
-						if i := row.Index(); i < len(rows) && rows[i] < len(cues()) {
-							return cues()[rows[i]]
-						}
-						return core.Segment{}
-					}
-					on := func() bool {
-						rows := shown()
-						i := row.Index()
-						return i < len(rows) && rows[i] == current()
-					}
-					return s.cueRow(cx, cue, on, clockWidth)
-				}}
+			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{s.cueRows(cx, list, cues, shown, current, clockWidth, viewable), pill}}
 		},
 		Else: func(cx *ns.Scope) ns.Node {
 			return panelNote(func() string { return locales.FilmNoMatch(cx) }, nil)
 		},
 	}
+}
+
+// cueRows is the list of the cues of shown, the current one lit, which reports the cues in view to viewable.
+func (s *screen) cueRows(cx *ns.Scope, list *ns.Ref, cues func() []core.Segment, shown func() []int, current func() int, clockWidth func() ns.Points, viewable func(ns.ViewableItems)) ns.Node {
+	return ns.List{TestID: "film-cues", Ref: list, Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, EstimatedSize: 56,
+		OnViewableItemsChange: viewable,
+		Count:                 func() int { return len(shown()) },
+		Key: func(i int) any {
+			if rows := shown(); i < len(rows) {
+				return rows[i]
+			}
+			return i
+		},
+		Row: func(cx *ns.Scope, row ns.ListRow) ns.Node {
+			cue := func() core.Segment {
+				rows := shown()
+				if i := row.Index(); i < len(rows) && rows[i] < len(cues()) {
+					return cues()[rows[i]]
+				}
+				return core.Segment{}
+			}
+			on := func() bool {
+				rows := shown()
+				i := row.Index()
+				return i < len(rows) && rows[i] == current()
+			}
+			index := func() int {
+				if rows, i := shown(), row.Index(); i < len(rows) {
+					return rows[i]
+				}
+				return -1
+			}
+			return s.cueRow(cx, cue, index, on, clockWidth)
+		}}
 }
 
 // cueClockStyle is the style of a line's start in the subtitle list.
@@ -324,49 +432,106 @@ func cueClockWidth(cx *ns.Scope, a App, cues func() []core.Segment) func() ns.Po
 	})
 }
 
-// cueRow is one cue of the list: its start, in a column clockWidth wide, the translation and the original under it. A click plays from its start, and a right click copies it (cueMenu).
-func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, current func() bool, clockWidth func() ns.Points) ns.Node {
+// cueRow is one cue of the list: its start, in a column clockWidth wide, and its lines as the picture shows them, in their order (listLines). The line the mode hides, as the translation in Original Only, shows under them blurred until the pointer rests on the row or the keyboard focus is in it, so the list reads as a transcript without giving away what the learner listens for. The row is named by both lines in their order, is selected while it plays, and has a bar at its start while its line loops. A click plays from its start, with Shift has the loop run through its line (LoopThrough), and a right click copies it (cueMenu).
+func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, index func() int, current func() bool, clockWidth func() ns.Points) ns.Node {
 	a := s.a
-	lines := func() (string, string) {
-		translation, original := splitCue(cue().Text)
-		if translation == "" {
-			return original, ""
-		}
-		return translation, original
-	}
-	main := func() string { t, _ := lines(); return t }
-	second := func() string { _, o := lines(); return o }
-	place := &ns.Ref{}
-	return ns.View{Ref: place, Children: []ns.Node{base.Button{
-		LabelFunc: func() string { return cueClock(cue().Start) + " " + main() },
-		OnPress:   live.On(a, func(ns.PressEvent) { a.Seek(cue().Start + a.Delay()) }),
-		Style: ns.Style{Direction: ns.Row, Gap: 10, Padding: ns.Symmetric(8, 10), CornerRadius: 10, AlignItems: ns.AlignStart,
-			Hover: &ns.Style{Background: panelLine}, FocusVisible: ui.FocusRing(cx, -2)},
-		StyleFunc: func() ns.Style {
-			if current() {
-				return ns.Style{Background: panelCurrent}
+	looped := live.Func(a, func() bool {
+		from, to, ok := a.LoopSpan()
+		at := cue().Start
+		return ok && at >= from && (to == 0 || at < to)
+	})
+	lines := live.Func(a, func() cueLines {
+		shown, hidden := listLines(a, cue().Text)
+		return cueLines{shown: shown, hidden: hidden}
+	})
+	nth := func(i int) func() string {
+		return func() string {
+			if l := lines().shown; i < len(l) {
+				return l[i]
 			}
-			return ns.Style{}
-		},
-		Children: []ns.Node{
-			ns.Text{ContentFunc: func() string { return cueClockTenths(cue().Start) }, MaxLines: 1, Style: cueClockStyle,
-				StyleFunc: func() ns.Style { return ns.Style{Width: ns.Pt(clockWidth())} }},
-			ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 2}, Children: []ns.Node{
-				ns.Text{ContentFunc: main, Style: ns.Style{FontSize: 14, LineHeight: 19, Color: onGlass}, StyleFunc: func() ns.Style {
-					if current() {
-						return ns.Style{FontWeight: ns.FontWeightSemibold}
-					}
-					return ns.Style{FontWeight: ns.FontWeightNormal}
+			return ""
+		}
+	}
+	main, second := nth(0), nth(1)
+	both := live.Func(a, func() string {
+		var out []string
+		for _, l := range styledLines(bothLines{a}, cue().Text) {
+			out = append(out, l.text)
+		}
+		return strings.Join(out, " ")
+	})
+	// peeking is set while the pointer rests on the row or the keyboard focus is in it.
+	hovered, focused := ns.NewSignal(cx, false), ns.NewSignal(cx, false)
+	peeking := func() bool { return hovered.Get() || focused.Get() }
+	place := &ns.Ref{}
+	return ns.View{Ref: place,
+		OnMouseEnter: func(ns.MouseEvent) { hovered.Set(true) }, OnMouseLeave: func(ns.MouseEvent) { hovered.Set(false) },
+		OnFocusIn: func() { focused.Set(true) }, OnFocusOut: func() { focused.Set(false) },
+		Children: []ns.Node{base.Button{
+			LabelFunc: func() string { return cueClock(cue().Start) + " " + both() },
+			Selected:  current,
+			OnPress: live.On(a, func(e ns.PressEvent) {
+				if e.Modifiers.Shift {
+					a.LoopThrough(index())
+					return
+				}
+				a.Seek(cue().Start + a.Delay())
+			}),
+			Style: ns.Style{Direction: ns.Row, Gap: 10, Padding: ns.Symmetric(8, 10), CornerRadius: 10, AlignItems: ns.AlignStart,
+				Hover: &ns.Style{Background: panelLine}, FocusVisible: ui.FocusRing(cx, -2)},
+			StyleFunc: func() ns.Style {
+				if current() {
+					return ns.Style{Background: panelCurrent}
+				}
+				return ns.Style{}
+			},
+			Children: []ns.Node{
+				ns.Show{When: looped, Then: func(*ns.Scope) ns.Node {
+					return ns.View{TestID: "film-cue-looped", PointerEvents: ns.PointerEventsNone,
+						Style: ns.Style{Position: ns.Absolute, Left: ns.Pt(3), Top: ns.Pt(9), Bottom: ns.Pt(9), Width: ns.Pt(3), CornerRadius: 1.5, Background: cueLoopBar}}
 				}},
-				ns.Show{When: func() bool { return second() != "" }, Then: func(*ns.Scope) ns.Node {
-					return ns.Text{ContentFunc: second, Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass, Opacity: ns.Alpha(0.7)}}
+				ns.Text{ContentFunc: func() string { return cueClockTenths(cue().Start) }, MaxLines: 1, Style: cueClockStyle,
+					StyleFunc: func() ns.Style { return ns.Style{Width: ns.Pt(clockWidth())} }},
+				ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 2}, Children: []ns.Node{
+					ns.Text{ContentFunc: main, Style: ns.Style{FontSize: 14, LineHeight: 19, Color: onGlass}, StyleFunc: func() ns.Style {
+						if current() {
+							return ns.Style{FontWeight: ns.FontWeightSemibold}
+						}
+						return ns.Style{FontWeight: ns.FontWeightNormal}
+					}},
+					ns.Show{When: func() bool { return second() != "" }, Then: func(*ns.Scope) ns.Node {
+						return ns.Text{ContentFunc: second, Style: cueSecondStyle}
+					}},
+					ns.Show{When: func() bool { return lines().hidden != "" }, Then: func(*ns.Scope) ns.Node {
+						return ns.Text{ContentFunc: func() string { return lines().hidden }, Role: ns.RoleNone, Style: cueSecondStyle,
+							StyleFunc: func() ns.Style {
+								if peeking() {
+									return ns.Style{Transition: cuePeekTransition}
+								}
+								return ns.Style{Opacity: ns.Alpha(0.45), Filters: []ns.Filter{ns.Blur(5)}, Transition: cuePeekTransition}
+							}}
+					}},
 				}},
-			}},
-		},
-	}}, OnContextMenu: func(e ns.ContextMenuEvent) {
-		nsdesktop.PopupMenu(cx, cueMenu(cx, cue()), e.PagePosition, nil)
-	}}
+			},
+		}}, OnContextMenu: func(e ns.ContextMenuEvent) {
+			nsdesktop.PopupMenu(cx, cueMenu(cx, cue()), e.PagePosition, nil)
+		}}
 }
+
+// cueLines is a cue as a row of the subtitle list shows it (listLines).
+type cueLines struct {
+	shown  []string
+	hidden string
+}
+
+// cueLoopBar marks the rows of the lines the player loops, by their start.
+var cueLoopBar = ns.RGBA(0xFFD60A, 0.9)
+
+// cueSecondStyle is the style of a row's lines under its first.
+var cueSecondStyle = ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass, Opacity: ns.Alpha(0.7)}
+
+// cuePeekTransition clears a row's hidden line, and blurs it again, gently.
+var cuePeekTransition = ns.Transition{Duration: 150 * time.Millisecond, Easing: ns.EaseOut, Properties: ns.TransitionOpacity}
 
 // cueMenu is what a right click on a cue of the list offers: copying the cue as the list shows it, and, for a cue that has a translation, its original or its translation alone.
 func cueMenu(cx *ns.Scope, cue core.Segment) []nsdesktop.MenuItem {

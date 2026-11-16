@@ -93,7 +93,6 @@ export const appKeys = [
   "filmTabInfo",
   "filmTabStyle",
   "filmSearchLines",
-  "filmClickToJump",
   "filmNoMatch",
   "filmClipSpan",
   "filmSource",

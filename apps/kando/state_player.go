@@ -81,7 +81,10 @@ type playerUI struct {
 	// rateGen counts speed changes, so only the last of a quick run of them reaches the settings (playerRateChanged); rateSettling is set until it has.
 	rateGen      int
 	rateSettling bool
-	film         filmUI
+	// pauseLines pauses the film at the end of each subtitle line (P), and loopGap is what a looped line waits after each pass, "" for nothing or playerLoopGapLine for as long as it played. Both stay as they are from film to film.
+	pauseLines bool
+	loopGap    string
+	film       filmUI
 }
 
 // fullScreen is the part of a window the player uses to enter and leave full screen (windowScreen, player_awake.go).
@@ -123,6 +126,13 @@ type filmUI struct {
 	osd string
 	// loop is the subtitle line playing over and over (ToggleLoopLine). It belongs to this film only and is not saved.
 	loop playerLoop
+	// jumps counts the user's moves of the picture (playerSeek), after which the subtitle list follows the playing line again (film.App.Jumps).
+	jumps int
+	// stop is where the player stopped at a line's end on this pass through it, so it does not stop there again as it plays on (playerStopped). lineEnd is the end of the line, in the subtitles' time, Pause After Each Line pauses the film at next, 0 for none (playerTimerWait).
+	stop    playerStop
+	lineEnd time.Duration
+	// peek is 1 more than the index of the line the picture shows both lines of, whatever the subtitle mode (PeekLine), and 0 for none, until the user moves the picture (playerSeek).
+	peek int
 }
 
 // playerLoop is the line the player loops, in the subtitles' time, so the film's subtitle delay (filmUI.delay) moves it with its line: playback goes back to start once it reaches end. An end of 0 is the end of the video, for the last line when it has no end of its own.
@@ -131,6 +141,17 @@ type playerLoop struct {
 	// key is the film the loop was made for (app.openKey); a loop of another film is no loop (playerLooping).
 	key        string
 	start, end time.Duration
+}
+
+// playerStop is the player stopping at the end of a line: Pause After Each Line pausing there, or a looped line holding for its gap before it plays again (Pause Between Repeats).
+type playerStop struct {
+	on bool
+	// seeks is the playback's count of seeks (filmPlay.seeks) at the stop: a seek, the loop's return included, starts another pass through the line.
+	seeks int
+	// end is the end of the line it stopped at, in the subtitles' time.
+	end time.Duration
+	// resume is when a loop's gap ends and its line plays again, zero for a pause the user ends with Space.
+	resume time.Time
 }
 
 func newPlayerUI() playerUI {
@@ -227,7 +248,7 @@ func (a *app) playerAfterChange() bool {
 	return changed
 }
 
-// playerKeep saves where the open film is while it plays, so a crash, a force quit or a power cut loses little of it rather than all since it opened: at once when a playback opened playing at a point picked for it (继续, 从头看) or a seek the user made lands, and when it pauses or ends, and in between every playerKeepEvery once it has moved on. A film held on the frame it opened on is not kept until it plays, as stopPlayback does not keep it either, and a looped line going back to its start does not count as a seek. A subtitle delay is saved once it has rested playerDelaySettle. now is the time it looks. It reports whether it saved anything.
+// playerKeep saves where the open film is while it plays, so a crash, a force quit or a power cut loses little of it rather than all since it opened: at once when a playback opened playing at a point picked for it (继续, 从头看) or a seek the user made lands, and when it pauses or ends, and in between every playerKeepEvery once it has moved on. A film held on the frame it opened on is not kept until it plays, as stopPlayback does not keep it either, and a looped line going back to its start does not count as a seek, nor its hold in the gap before it does as a pause. A subtitle delay is saved once it has rested playerDelaySettle. now is the time it looks. It reports whether it saved anything.
 func (a *app) playerKeep(now time.Time) bool {
 	s := &a.player.saves
 	saved := false
@@ -262,7 +283,7 @@ func (a *app) playerKeep(now time.Time) bool {
 		if play.keepSeek {
 			keep()
 		}
-	case s.playing && !playing:
+	case s.playing && !playing && !a.playerInGap(play):
 		keep()
 	case now.Sub(s.at) >= playerKeepEvery && (head-s.head).Abs() > playerKeepMoved:
 		keep()
@@ -348,9 +369,11 @@ func (a *app) restorePlayer(saved savedSettings) {
 	if saved.Rate != nil {
 		a.player.rate = playerNearestRate(*saved.Rate)
 	}
+	a.player.pauseLines = saved.PauseLines
+	a.player.loopGap = saved.LoopGap
 }
 
-// savedPlayer is the player's part of settings.json: how subtitles look, which lines show, and how loud and how fast films play.
+// savedPlayer is the player's part of settings.json: how subtitles look, which lines show, how loud and how fast films play, and whether they stop after each line.
 type savedPlayer struct {
 	Look         *film.Look `json:"look,omitempty"`
 	SubMode      string     `json:"subMode,omitempty"`
@@ -362,13 +385,19 @@ type savedPlayer struct {
 	Muted  bool     `json:"muted,omitempty"`
 	// Rate is how fast films play, one of film.Rates.
 	Rate *float64 `json:"rate,omitempty"`
+	// PauseLines pauses films at the end of each line; LoopGap is what a looped line waits after each pass, "" or playerLoopGapLine.
+	PauseLines bool   `json:"pauseAfterLine,omitempty"`
+	LoopGap    string `json:"loopGap,omitempty"`
 }
 
-// clean brings a saved speed to the nearest of film.Rates, and leaves the player's other settings as they were read; restorePlayer replaces a value it does not know with the default.
+// clean brings a saved speed to the nearest of film.Rates and drops a loop gap this version does not know, and leaves the player's other settings as they were read; restorePlayer replaces a value it does not know with the default.
 func (s *savedPlayer) clean() {
 	if s.Rate != nil {
 		rate := playerNearestRate(*s.Rate)
 		s.Rate = &rate
+	}
+	if s.LoopGap != playerLoopGapLine {
+		s.LoopGap = ""
 	}
 }
 
@@ -385,6 +414,8 @@ func (a *app) savePlayer(saved *savedSettings) {
 		Volume:       &volume,
 		Muted:        a.player.muted,
 		Rate:         &rate,
+		PauseLines:   a.player.pauseLines,
+		LoopGap:      a.player.loopGap,
 	}
 }
 

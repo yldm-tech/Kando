@@ -357,7 +357,6 @@ export function Player() {
                     type="button"
                     className={"kp-line" + (i === line ? " on" : "")}
                     data-line={i + 1}
-                    title={app("filmClickToJump")}
                     hidden={!hits[i]}
                     onClick={() => seekTo(i * demoLineSeconds + 0.05)}
                   >

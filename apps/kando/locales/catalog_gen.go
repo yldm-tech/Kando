@@ -453,6 +453,8 @@ var Parameters = map[string][]string{
 	"FilmFaceColor":                      {"line", "color"},
 	"FilmFaceSize":                       {"line"},
 	"FilmLineOf":                         {"line", "total"},
+	"FilmLoopLines":                      {"from", "to"},
+	"FilmMatchOf":                        {"number", "total"},
 	"FilmSeconds":                        {"seconds"},
 	"FilmShowInFinder":                   {"platform"},
 	"FilmSkipBack":                       {"seconds"},
@@ -663,6 +665,8 @@ type Translation struct {
 	FilmFaceColor                      func(line string, color string) string
 	FilmFaceSize                       func(line string) string
 	FilmLineOf                         func(line int, total int) string
+	FilmLoopLines                      func(from int, to int) string
+	FilmMatchOf                        func(number int, total int) string
 	FilmSeconds                        func(seconds string) string
 	FilmShowInFinder                   func(platform string) string
 	FilmSkipBack                       func(seconds int) string
@@ -956,9 +960,9 @@ const (
 	textFeedbackTitleHint
 	textFeedbackTitleHintIdea
 	textFilmAll
+	textFilmBackToCurrentLine
 	textFilmBackToLibrary
 	textFilmCancel
-	textFilmClickToJump
 	textFilmColorOrange
 	textFilmColorWhite
 	textFilmColorYellow
@@ -977,7 +981,6 @@ const (
 	textFilmFontSans
 	textFilmFontSerif
 	textFilmFullScreen
-	textFilmHideSidebar
 	textFilmJobRecord
 	textFilmKeySpace
 	textFilmKindBilingual
@@ -989,6 +992,8 @@ const (
 	textFilmLoadingSubtitles
 	textFilmLocalFile
 	textFilmLocalVideo
+	textFilmLoopGapOff
+	textFilmLoopGapOn
 	textFilmLoopLine
 	textFilmLoopOff
 	textFilmLoopOn
@@ -1014,6 +1019,9 @@ const (
 	textFilmOrderOriginalFirst
 	textFilmOrderTranslationFirst
 	textFilmPause
+	textFilmPauseLines
+	textFilmPauseLinesOff
+	textFilmPauseLinesOn
 	textFilmPicture
 	textFilmPlay
 	textFilmPlaybackPosition
@@ -1028,7 +1036,6 @@ const (
 	textFilmRetry
 	textFilmReveal
 	textFilmSearchLines
-	textFilmShowSidebar
 	textFilmSidebar
 	textFilmSizeUnknown
 	textFilmSource
@@ -1269,11 +1276,15 @@ const (
 	textPlayerKeyCycleSubtitles
 	textPlayerKeyDelayEarlier
 	textPlayerKeyDelayLater
+	textPlayerKeyExtendLoop
 	textPlayerKeyFaster
 	textPlayerKeyLarger
+	textPlayerKeyLoopGap
 	textPlayerKeyLoopLine
 	textPlayerKeyMute
 	textPlayerKeyNextLine
+	textPlayerKeyPauseLines
+	textPlayerKeyPeekLine
 	textPlayerKeyPlayPause
 	textPlayerKeyPrevLine
 	textPlayerKeyReplayLine
@@ -1761,9 +1772,9 @@ var keyOfText = [numTexts]string{
 	"feedbackTitleHint",
 	"feedbackTitleHintIdea",
 	"filmAll",
+	"filmBackToCurrentLine",
 	"filmBackToLibrary",
 	"filmCancel",
-	"filmClickToJump",
 	"filmColorOrange",
 	"filmColorWhite",
 	"filmColorYellow",
@@ -1782,7 +1793,6 @@ var keyOfText = [numTexts]string{
 	"filmFontSans",
 	"filmFontSerif",
 	"filmFullScreen",
-	"filmHideSidebar",
 	"filmJobRecord",
 	"filmKeySpace",
 	"filmKindBilingual",
@@ -1794,6 +1804,8 @@ var keyOfText = [numTexts]string{
 	"filmLoadingSubtitles",
 	"filmLocalFile",
 	"filmLocalVideo",
+	"filmLoopGapOff",
+	"filmLoopGapOn",
 	"filmLoopLine",
 	"filmLoopOff",
 	"filmLoopOn",
@@ -1819,6 +1831,9 @@ var keyOfText = [numTexts]string{
 	"filmOrderOriginalFirst",
 	"filmOrderTranslationFirst",
 	"filmPause",
+	"filmPauseLines",
+	"filmPauseLinesOff",
+	"filmPauseLinesOn",
 	"filmPicture",
 	"filmPlay",
 	"filmPlaybackPosition",
@@ -1833,7 +1848,6 @@ var keyOfText = [numTexts]string{
 	"filmRetry",
 	"filmReveal",
 	"filmSearchLines",
-	"filmShowSidebar",
 	"filmSidebar",
 	"filmSizeUnknown",
 	"filmSource",
@@ -2074,11 +2088,15 @@ var keyOfText = [numTexts]string{
 	"playerKeyCycleSubtitles",
 	"playerKeyDelayEarlier",
 	"playerKeyDelayLater",
+	"playerKeyExtendLoop",
 	"playerKeyFaster",
 	"playerKeyLarger",
+	"playerKeyLoopGap",
 	"playerKeyLoopLine",
 	"playerKeyMute",
 	"playerKeyNextLine",
+	"playerKeyPauseLines",
+	"playerKeyPeekLine",
 	"playerKeyPlayPause",
 	"playerKeyPrevLine",
 	"playerKeyReplayLine",
@@ -2564,9 +2582,9 @@ var textsEn = i18n.NewTexts(""+
 	"Describe the problem in one sentence"+
 	"Say what you'd like in one sentence"+
 	"All"+
+	"Back to Current Line"+
 	"Back to Library"+
 	"Cancel"+
-	"Click a line to jump to it"+
 	"Orange"+
 	"White"+
 	"Yellow"+
@@ -2585,7 +2603,6 @@ var textsEn = i18n.NewTexts(""+
 	"Sans Serif"+
 	"Serif"+
 	"Full Screen"+
-	"Hide Sidebar"+
 	"Job record"+
 	"Space"+
 	"Bilingual subtitles"+
@@ -2597,6 +2614,8 @@ var textsEn = i18n.NewTexts(""+
 	"Loading subtitles…"+
 	"Local file"+
 	"Local Video"+
+	"Pause Between Repeats: Off"+
+	"Pause Between Repeats: On"+
 	"Loop Line"+
 	"Loop Line: Off"+
 	"Loop Line: On"+
@@ -2622,6 +2641,9 @@ var textsEn = i18n.NewTexts(""+
 	"Original on Top"+
 	"Translation on Top"+
 	"Pause"+
+	"Pause After Each Line"+
+	"Pause After Each Line: Off"+
+	"Pause After Each Line: On"+
 	"Picture"+
 	"Play"+
 	"Playback position"+
@@ -2636,7 +2658,6 @@ var textsEn = i18n.NewTexts(""+
 	"Retry"+
 	"Show"+
 	"Search Lines"+
-	"Show Sidebar"+
 	"Sidebar"+
 	"Size unknown"+
 	"Source"+
@@ -2877,11 +2898,15 @@ var textsEn = i18n.NewTexts(""+
 	"Cycle Original/Translation/Bilingual"+
 	"Subtitles 0.1 Second Earlier"+
 	"Subtitles 0.1 Second Later"+
+	"Extend Loop to Next Line"+
 	"Faster"+
 	"Larger Subtitles"+
+	"Pause Between Repeats"+
 	"Loop Line"+
 	"Mute/Unmute"+
 	"Next Line"+
+	"Pause After Each Line"+
+	"Show This Line in Both Languages"+
 	"Play/Pause"+
 	"Previous Line"+
 	"Replay Line"+
@@ -3364,9 +3389,9 @@ var textsEn = i18n.NewTexts(""+
 		36,
 		35,
 		3,
+		20,
 		15,
 		6,
-		26,
 		6,
 		5,
 		6,
@@ -3385,7 +3410,6 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		5,
 		11,
-		12,
 		10,
 		5,
 		19,
@@ -3397,6 +3421,8 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		10,
 		11,
+		26,
+		25,
 		9,
 		14,
 		13,
@@ -3422,6 +3448,9 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		18,
 		5,
+		21,
+		26,
+		25,
 		7,
 		4,
 		17,
@@ -3435,7 +3464,6 @@ var textsEn = i18n.NewTexts(""+
 		25,
 		5,
 		4,
-		12,
 		12,
 		7,
 		12,
@@ -3677,11 +3705,15 @@ var textsEn = i18n.NewTexts(""+
 		36,
 		28,
 		26,
+		24,
 		6,
 		16,
+		21,
 		9,
 		11,
 		9,
+		21,
+		32,
 		10,
 		13,
 		11,
@@ -4167,9 +4199,9 @@ var textsJa = i18n.NewTexts(""+
 	"問題を一文で"+
 	"ほしいものを一文で"+
 	"すべて"+
+	"再生中のセリフに戻る"+
 	"ライブラリに戻る"+
 	"キャンセル"+
-	"クリックするとそのセリフに移動します"+
 	"オレンジ"+
 	"白"+
 	"黄"+
@@ -4188,7 +4220,6 @@ var textsJa = i18n.NewTexts(""+
 	"ゴシック体"+
 	"明朝体"+
 	"フルスクリーン"+
-	"サイドバーを隠す"+
 	"ジョブの記録"+
 	"スペース"+
 	"二言語字幕"+
@@ -4200,6 +4231,8 @@ var textsJa = i18n.NewTexts(""+
 	"字幕を読み込んでいます…"+
 	"ローカルファイル"+
 	"ローカル動画"+
+	"リピートの間をあける：オフ"+
+	"リピートの間をあける：オン"+
 	"セリフをリピート"+
 	"セリフリピート：オフ"+
 	"セリフリピート：オン"+
@@ -4225,6 +4258,9 @@ var textsJa = i18n.NewTexts(""+
 	"原文を上に"+
 	"訳文を上に"+
 	"一時停止"+
+	"セリフごとに一時停止"+
+	"セリフごとに一時停止：オフ"+
+	"セリフごとに一時停止：オン"+
 	"映像"+
 	"再生"+
 	"再生位置"+
@@ -4239,7 +4275,6 @@ var textsJa = i18n.NewTexts(""+
 	"再試行"+
 	"表示"+
 	"セリフを検索"+
-	"サイドバーを表示"+
 	"サイドバー"+
 	"サイズ不明"+
 	"ソース"+
@@ -4480,11 +4515,15 @@ var textsJa = i18n.NewTexts(""+
 	"原文/訳文/二言語を切り替え"+
 	"字幕を 0.1 秒早める"+
 	"字幕を 0.1 秒遅らせる"+
+	"リピートを次のセリフまで広げる"+
 	"再生速度を上げる"+
 	"字幕を大きく"+
+	"リピートの間をあける"+
 	"セリフをリピート"+
 	"消音/消音解除"+
 	"次のセリフ"+
+	"セリフごとに一時停止"+
+	"このセリフを二言語で表示"+
 	"再生/一時停止"+
 	"前のセリフ"+
 	"このセリフをもう一度"+
@@ -4967,9 +5006,9 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		27,
 		9,
+		30,
 		24,
 		15,
-		54,
 		12,
 		3,
 		3,
@@ -4988,7 +5027,6 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		9,
 		21,
-		24,
 		18,
 		12,
 		15,
@@ -5000,6 +5038,8 @@ var textsJa = i18n.NewTexts(""+
 		36,
 		24,
 		18,
+		39,
+		39,
 		24,
 		30,
 		30,
@@ -5025,6 +5065,9 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		15,
 		12,
+		30,
+		39,
+		39,
 		6,
 		6,
 		12,
@@ -5039,7 +5082,6 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		6,
 		18,
-		24,
 		15,
 		15,
 		9,
@@ -5280,11 +5322,15 @@ var textsJa = i18n.NewTexts(""+
 		38,
 		26,
 		29,
+		45,
 		24,
 		18,
+		30,
 		24,
 		19,
 		15,
+		30,
+		36,
 		19,
 		15,
 		30,
@@ -5770,9 +5816,9 @@ var textsKo = i18n.NewTexts(""+
 	"문제를 한 문장으로"+
 	"원하는 것을 한 문장으로"+
 	"전체"+
+	"현재 대사로 돌아가기"+
 	"라이브러리로 돌아가기"+
 	"취소"+
-	"클릭하면 해당 대사로 이동합니다"+
 	"주황색"+
 	"흰색"+
 	"노란색"+
@@ -5791,7 +5837,6 @@ var textsKo = i18n.NewTexts(""+
 	"고딕체"+
 	"명조체"+
 	"전체 화면"+
-	"사이드바 숨기기"+
 	"작업 기록"+
 	"스페이스"+
 	"이중 언어 자막"+
@@ -5803,6 +5848,8 @@ var textsKo = i18n.NewTexts(""+
 	"자막을 불러오는 중…"+
 	"로컬 파일"+
 	"로컬 동영상"+
+	"반복 사이 쉬기: 끔"+
+	"반복 사이 쉬기: 켬"+
 	"대사 반복"+
 	"대사 반복: 끔"+
 	"대사 반복: 켬"+
@@ -5828,6 +5875,9 @@ var textsKo = i18n.NewTexts(""+
 	"원문을 위에"+
 	"번역을 위에"+
 	"일시 정지"+
+	"대사마다 일시 정지"+
+	"대사마다 일시 정지: 끔"+
+	"대사마다 일시 정지: 켬"+
 	"화면"+
 	"재생"+
 	"재생 위치"+
@@ -5842,7 +5892,6 @@ var textsKo = i18n.NewTexts(""+
 	"다시 시도"+
 	"보기"+
 	"대사 검색"+
-	"사이드바 보기"+
 	"사이드바"+
 	"크기 알 수 없음"+
 	"출처"+
@@ -6083,11 +6132,15 @@ var textsKo = i18n.NewTexts(""+
 	"원문/번역/이중 언어 전환"+
 	"자막 0.1초 앞당기기"+
 	"자막 0.1초 늦추기"+
+	"반복을 다음 대사까지 늘리기"+
 	"재생 속도 높이기"+
 	"자막 크게"+
+	"반복 사이 쉬기"+
 	"대사 반복"+
 	"음소거/음소거 해제"+
 	"다음 대사"+
+	"대사마다 일시 정지"+
+	"이 대사를 이중 언어로 보기"+
 	"재생/일시 정지"+
 	"이전 대사"+
 	"현재 대사 다시 듣기"+
@@ -6570,9 +6623,9 @@ var textsKo = i18n.NewTexts(""+
 		26,
 		33,
 		6,
+		29,
 		31,
 		6,
-		45,
 		9,
 		6,
 		9,
@@ -6591,7 +6644,6 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		9,
 		13,
-		22,
 		13,
 		12,
 		20,
@@ -6603,6 +6655,8 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		13,
 		16,
+		25,
+		25,
 		13,
 		18,
 		18,
@@ -6628,6 +6682,9 @@ var textsKo = i18n.NewTexts(""+
 		16,
 		16,
 		13,
+		26,
+		31,
+		31,
 		6,
 		6,
 		13,
@@ -6642,7 +6699,6 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		6,
 		13,
-		19,
 		12,
 		21,
 		6,
@@ -6883,11 +6939,15 @@ var textsKo = i18n.NewTexts(""+
 		34,
 		26,
 		23,
+		39,
 		23,
 		13,
+		20,
 		13,
 		26,
 		13,
+		26,
+		37,
 		20,
 		13,
 		27,
@@ -7373,9 +7433,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"一句话说明问题"+
 	"一句话说明想要什么"+
 	"全部"+
+	"回到当前句"+
 	"返回资料库"+
 	"取消"+
-	"单击跳到该句"+
 	"橙色"+
 	"白色"+
 	"黄色"+
@@ -7394,7 +7454,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"黑体"+
 	"宋体"+
 	"全屏"+
-	"收起侧栏"+
 	"任务记录"+
 	"空格"+
 	"双语字幕"+
@@ -7406,6 +7465,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在读取字幕…"+
 	"本地文件"+
 	"本地视频"+
+	"循环间停顿：关"+
+	"循环间停顿：开"+
 	"单句循环"+
 	"单句循环：关"+
 	"单句循环：开"+
@@ -7431,6 +7492,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"原文在上"+
 	"译文在上"+
 	"暂停"+
+	"逐句暂停"+
+	"逐句暂停：关"+
+	"逐句暂停：开"+
 	"画面"+
 	"播放"+
 	"进度"+
@@ -7445,7 +7509,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"重试"+
 	"显示"+
 	"搜索台词"+
-	"展开侧栏"+
 	"侧栏"+
 	"大小未知"+
 	"来源"+
@@ -7686,11 +7749,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"切换原文/译文/双语"+
 	"字幕提前 0.1 秒"+
 	"字幕推后 0.1 秒"+
+	"循环延伸到下一句"+
 	"加速播放"+
 	"放大字幕"+
+	"循环间停顿"+
 	"单句循环"+
 	"静音/取消静音"+
 	"下一句"+
+	"逐句暂停"+
+	"本句显示双语"+
 	"播放/暂停"+
 	"上一句"+
 	"重听本句"+
@@ -8174,8 +8241,8 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		6,
 		15,
+		15,
 		6,
-		18,
 		6,
 		6,
 		6,
@@ -8195,7 +8262,6 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		12,
-		12,
 		6,
 		12,
 		6,
@@ -8206,6 +8272,8 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		12,
 		12,
+		21,
+		21,
 		12,
 		18,
 		18,
@@ -8231,6 +8299,9 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		6,
+		12,
+		18,
+		18,
 		6,
 		6,
 		6,
@@ -8244,7 +8315,6 @@ var textsZhHans = i18n.NewTexts(""+
 		24,
 		6,
 		6,
-		12,
 		12,
 		6,
 		12,
@@ -8486,11 +8556,15 @@ var textsZhHans = i18n.NewTexts(""+
 		26,
 		20,
 		20,
+		24,
 		12,
 		12,
+		15,
 		12,
 		19,
 		9,
+		12,
+		18,
 		13,
 		9,
 		12,
@@ -8976,9 +9050,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"用一句話說明問題"+
 	"用一句話說明想要什麼"+
 	"全部"+
+	"回到目前這句"+
 	"返回資料庫"+
 	"取消"+
-	"按一下即可跳到該句"+
 	"橙色"+
 	"白色"+
 	"黃色"+
@@ -8997,7 +9071,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"黑體"+
 	"宋體"+
 	"全螢幕"+
-	"收合側邊欄"+
 	"工作記錄"+
 	"空白鍵"+
 	"雙語字幕"+
@@ -9009,6 +9082,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在讀取字幕…"+
 	"本機檔案"+
 	"本機影片"+
+	"循環間停頓：關"+
+	"循環間停頓：開"+
 	"單句循環"+
 	"單句循環：關"+
 	"單句循環：開"+
@@ -9034,6 +9109,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"原文在上"+
 	"譯文在上"+
 	"暫停"+
+	"逐句暫停"+
+	"逐句暫停：關"+
+	"逐句暫停：開"+
 	"畫面"+
 	"播放"+
 	"進度"+
@@ -9048,7 +9126,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"重試"+
 	"顯示"+
 	"搜尋台詞"+
-	"展開側邊欄"+
 	"側邊欄"+
 	"大小不明"+
 	"來源"+
@@ -9289,11 +9366,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"切換原文/譯文/雙語"+
 	"字幕提前 0.1 秒"+
 	"字幕延後 0.1 秒"+
+	"循環延伸到下一句"+
 	"加速播放"+
 	"放大字幕"+
+	"循環間停頓"+
 	"單句循環"+
 	"靜音/取消靜音"+
 	"下一句"+
+	"逐句暫停"+
+	"本句顯示雙語"+
 	"播放/暫停"+
 	"上一句"+
 	"重聽本句"+
@@ -9776,9 +9857,9 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		30,
 		6,
+		18,
 		15,
 		6,
-		27,
 		6,
 		6,
 		6,
@@ -9797,7 +9878,6 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		15,
 		12,
 		9,
 		12,
@@ -9809,6 +9889,8 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		12,
 		12,
+		21,
+		21,
 		12,
 		18,
 		18,
@@ -9834,6 +9916,9 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		6,
+		12,
+		18,
+		18,
 		6,
 		6,
 		6,
@@ -9848,7 +9933,6 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		12,
-		15,
 		9,
 		12,
 		6,
@@ -10089,11 +10173,15 @@ var textsZhHant = i18n.NewTexts(""+
 		26,
 		20,
 		20,
+		24,
 		12,
 		12,
+		15,
 		12,
 		19,
 		9,
+		12,
+		18,
 		13,
 		9,
 		12,
@@ -10607,6 +10695,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmLineOf != nil {
 		s.FilmLineOf = t.FilmLineOf
+	}
+	if t.FilmLoopLines != nil {
+		s.FilmLoopLines = t.FilmLoopLines
+	}
+	if t.FilmMatchOf != nil {
+		s.FilmMatchOf = t.FilmMatchOf
 	}
 	if t.FilmSeconds != nil {
 		s.FilmSeconds = t.FilmSeconds
@@ -12845,6 +12939,15 @@ func FilmAll(cx *core.Scope) string { return For(cx).FilmAll() }
 // FilmAll is the package's FilmAll in the language of msgs.
 func (msgs Messages) FilmAll() string { return msgs.text(textFilmAll) }
 
+// FilmBackToCurrentLine says "Back to Current Line"
+// in the language the app shows under cx.
+//
+// Pill over the subtitle list while it was scrolled away from the line playing: scrolls the list back to that line, and the list follows the film again.
+func FilmBackToCurrentLine(cx *core.Scope) string { return For(cx).FilmBackToCurrentLine() }
+
+// FilmBackToCurrentLine is the package's FilmBackToCurrentLine in the language of msgs.
+func (msgs Messages) FilmBackToCurrentLine() string { return msgs.text(textFilmBackToCurrentLine) }
+
 // FilmBackToLibrary says "Back to Library"
 // in the language the app shows under cx.
 //
@@ -12901,15 +13004,6 @@ func FilmCancel(cx *core.Scope) string { return For(cx).FilmCancel() }
 
 // FilmCancel is the package's FilmCancel in the language of msgs.
 func (msgs Messages) FilmCancel() string { return msgs.text(textFilmCancel) }
-
-// FilmClickToJump says "Click a line to jump to it"
-// in the language the app shows under cx.
-//
-// Hint under the subtitle list.
-func FilmClickToJump(cx *core.Scope) string { return For(cx).FilmClickToJump() }
-
-// FilmClickToJump is the package's FilmClickToJump in the language of msgs.
-func (msgs Messages) FilmClickToJump() string { return msgs.text(textFilmClickToJump) }
 
 // FilmClip says "Clip {number}"
 // in the language the app shows under cx.
@@ -13227,15 +13321,6 @@ func FilmFullScreen(cx *core.Scope) string { return For(cx).FilmFullScreen() }
 // FilmFullScreen is the package's FilmFullScreen in the language of msgs.
 func (msgs Messages) FilmFullScreen() string { return msgs.text(textFilmFullScreen) }
 
-// FilmHideSidebar says "Hide Sidebar"
-// in the language the app shows under cx.
-//
-// Button at the player's top right that folds the side panel away.
-func FilmHideSidebar(cx *core.Scope) string { return For(cx).FilmHideSidebar() }
-
-// FilmHideSidebar is the package's FilmHideSidebar in the language of msgs.
-func (msgs Messages) FilmHideSidebar() string { return msgs.text(textFilmHideSidebar) }
-
 // FilmJobRecord says "Job record"
 // in the language the app shows under cx.
 //
@@ -13365,6 +13450,24 @@ func FilmLocalVideo(cx *core.Scope) string { return For(cx).FilmLocalVideo() }
 // FilmLocalVideo is the package's FilmLocalVideo in the language of msgs.
 func (msgs Messages) FilmLocalVideo() string { return msgs.text(textFilmLocalVideo) }
 
+// FilmLoopGapOff says "Pause Between Repeats: Off"
+// in the language the app shows under cx.
+//
+// Message on the picture after Pause Between Repeats was turned off.
+func FilmLoopGapOff(cx *core.Scope) string { return For(cx).FilmLoopGapOff() }
+
+// FilmLoopGapOff is the package's FilmLoopGapOff in the language of msgs.
+func (msgs Messages) FilmLoopGapOff() string { return msgs.text(textFilmLoopGapOff) }
+
+// FilmLoopGapOn says "Pause Between Repeats: On"
+// in the language the app shows under cx.
+//
+// Message on the picture after Pause Between Repeats was turned on: a looped line now waits, after each pass, for as long as it played before it plays again.
+func FilmLoopGapOn(cx *core.Scope) string { return For(cx).FilmLoopGapOn() }
+
+// FilmLoopGapOn is the package's FilmLoopGapOn in the language of msgs.
+func (msgs Messages) FilmLoopGapOn() string { return msgs.text(textFilmLoopGapOn) }
+
 // FilmLoopLine says "Loop Line"
 // in the language the app shows under cx.
 //
@@ -13373,6 +13476,36 @@ func FilmLoopLine(cx *core.Scope) string { return For(cx).FilmLoopLine() }
 
 // FilmLoopLine is the package's FilmLoopLine in the language of msgs.
 func (msgs Messages) FilmLoopLine() string { return msgs.text(textFilmLoopLine) }
+
+// FilmLoopLines says "Loop: Lines {from}–{to}"
+// in the language the app shows under cx.
+//
+// Message on the picture after the loop was made to span several subtitle lines (Shift+L, or Shift and a click on a line): the numbers, counting from 1, of its first and its last line.
+func FilmLoopLines(cx *core.Scope, from int, to int) string { return For(cx).FilmLoopLines(from, to) }
+
+// FilmLoopLines is the package's FilmLoopLines in the language of msgs.
+func (msgs Messages) FilmLoopLines(from int, to int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmLoopLines(from, to))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmLoopLines; f != nil {
+			return f(from, to)
+		}
+		switch lang {
+		case "", "en":
+			return "Loop: Lines " + msgs.arg(i18n.FormatNumber("en", float64(from))) + "–" + msgs.arg(i18n.FormatNumber("en", float64(to)))
+		case "ja":
+			return "セリフ " + i18n.FormatNumber("ja", float64(from)) + "–" + i18n.FormatNumber("ja", float64(to)) + " をリピート"
+		case "ko":
+			return "대사 " + i18n.FormatNumber("ko", float64(from)) + "–" + i18n.FormatNumber("ko", float64(to)) + " 반복"
+		case "zh-Hans":
+			return "循环第 " + i18n.FormatNumber("zh-Hans", float64(from)) + "–" + i18n.FormatNumber("zh-Hans", float64(to)) + " 句"
+		case "zh-Hant":
+			return "循環第 " + i18n.FormatNumber("zh-Hant", float64(from)) + "–" + i18n.FormatNumber("zh-Hant", float64(to)) + " 句"
+		}
+	}
+}
 
 // FilmLoopOff says "Loop Line: Off"
 // in the language the app shows under cx.
@@ -13391,6 +13524,38 @@ func FilmLoopOn(cx *core.Scope) string { return For(cx).FilmLoopOn() }
 
 // FilmLoopOn is the package's FilmLoopOn in the language of msgs.
 func (msgs Messages) FilmLoopOn() string { return msgs.text(textFilmLoopOn) }
+
+// FilmMatchOf says "Match {number} of {total}"
+// in the language the app shows under cx.
+//
+// Message on the picture after Return or Shift+Return in the subtitle search jumped to a line holding the search: which match it is, counting from 1, and how many lines hold it.
+func FilmMatchOf(cx *core.Scope, number int, total int) string {
+	return For(cx).FilmMatchOf(number, total)
+}
+
+// FilmMatchOf is the package's FilmMatchOf in the language of msgs.
+func (msgs Messages) FilmMatchOf(number int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmMatchOf(number, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmMatchOf; f != nil {
+			return f(number, total)
+		}
+		switch lang {
+		case "", "en":
+			return "Match " + msgs.arg(i18n.FormatNumber("en", float64(number))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(total)))
+		case "ja":
+			return "一致 " + i18n.FormatNumber("ja", float64(number)) + " / " + i18n.FormatNumber("ja", float64(total))
+		case "ko":
+			return "일치 " + i18n.FormatNumber("ko", float64(number)) + " / " + i18n.FormatNumber("ko", float64(total))
+		case "zh-Hans":
+			return "第 " + i18n.FormatNumber("zh-Hans", float64(number)) + " / " + i18n.FormatNumber("zh-Hans", float64(total)) + " 处"
+		case "zh-Hant":
+			return "第 " + i18n.FormatNumber("zh-Hant", float64(number)) + " / " + i18n.FormatNumber("zh-Hant", float64(total)) + " 處"
+		}
+	}
+}
 
 // FilmModeBilingual says "Bilingual"
 // in the language the app shows under cx.
@@ -13595,6 +13760,33 @@ func FilmPause(cx *core.Scope) string { return For(cx).FilmPause() }
 
 // FilmPause is the package's FilmPause in the language of msgs.
 func (msgs Messages) FilmPause() string { return msgs.text(textFilmPause) }
+
+// FilmPauseLines says "Pause After Each Line"
+// in the language the app shows under cx.
+//
+// Accessible name and tooltip of the transport toggle that pauses the film at the end of each subtitle line (its shortcut follows the tooltip).
+func FilmPauseLines(cx *core.Scope) string { return For(cx).FilmPauseLines() }
+
+// FilmPauseLines is the package's FilmPauseLines in the language of msgs.
+func (msgs Messages) FilmPauseLines() string { return msgs.text(textFilmPauseLines) }
+
+// FilmPauseLinesOff says "Pause After Each Line: Off"
+// in the language the app shows under cx.
+//
+// Message on the picture after Pause After Each Line was turned off.
+func FilmPauseLinesOff(cx *core.Scope) string { return For(cx).FilmPauseLinesOff() }
+
+// FilmPauseLinesOff is the package's FilmPauseLinesOff in the language of msgs.
+func (msgs Messages) FilmPauseLinesOff() string { return msgs.text(textFilmPauseLinesOff) }
+
+// FilmPauseLinesOn says "Pause After Each Line: On"
+// in the language the app shows under cx.
+//
+// Message on the picture after Pause After Each Line was turned on: the film now pauses as each subtitle line ends, and Space plays on.
+func FilmPauseLinesOn(cx *core.Scope) string { return For(cx).FilmPauseLinesOn() }
+
+// FilmPauseLinesOn is the package's FilmPauseLinesOn in the language of msgs.
+func (msgs Messages) FilmPauseLinesOn() string { return msgs.text(textFilmPauseLinesOn) }
 
 // FilmPicture says "Picture"
 // in the language the app shows under cx.
@@ -13828,15 +14020,6 @@ func (msgs Messages) FilmShowInFinder(platform string) string {
 		}
 	}
 }
-
-// FilmShowSidebar says "Show Sidebar"
-// in the language the app shows under cx.
-//
-// Button at the player's top right that brings back the side panel (subtitles, clips, info).
-func FilmShowSidebar(cx *core.Scope) string { return For(cx).FilmShowSidebar() }
-
-// FilmShowSidebar is the package's FilmShowSidebar in the language of msgs.
-func (msgs Messages) FilmShowSidebar() string { return msgs.text(textFilmShowSidebar) }
 
 // FilmSidebar says "Sidebar"
 // in the language the app shows under cx.
@@ -18773,6 +18956,15 @@ func PlayerKeyDelayLater(cx *core.Scope) string { return For(cx).PlayerKeyDelayL
 // PlayerKeyDelayLater is the package's PlayerKeyDelayLater in the language of msgs.
 func (msgs Messages) PlayerKeyDelayLater() string { return msgs.text(textPlayerKeyDelayLater) }
 
+// PlayerKeyExtendLoop says "Extend Loop to Next Line"
+// in the language the app shows under cx.
+//
+// Shortcut row and menu item (Shift+L): the loop takes in the subtitle line after it, so several lines play over and over; without a loop it loops the line playing.
+func PlayerKeyExtendLoop(cx *core.Scope) string { return For(cx).PlayerKeyExtendLoop() }
+
+// PlayerKeyExtendLoop is the package's PlayerKeyExtendLoop in the language of msgs.
+func (msgs Messages) PlayerKeyExtendLoop() string { return msgs.text(textPlayerKeyExtendLoop) }
+
 // PlayerKeyFaster says "Faster"
 // in the language the app shows under cx.
 //
@@ -18790,6 +18982,15 @@ func PlayerKeyLarger(cx *core.Scope) string { return For(cx).PlayerKeyLarger() }
 
 // PlayerKeyLarger is the package's PlayerKeyLarger in the language of msgs.
 func (msgs Messages) PlayerKeyLarger() string { return msgs.text(textPlayerKeyLarger) }
+
+// PlayerKeyLoopGap says "Pause Between Repeats"
+// in the language the app shows under cx.
+//
+// Menu item of the Playback menu, checked while on: a looped line waits, after each pass, for as long as it played, so the learner can say it after it, and then plays again by itself.
+func PlayerKeyLoopGap(cx *core.Scope) string { return For(cx).PlayerKeyLoopGap() }
+
+// PlayerKeyLoopGap is the package's PlayerKeyLoopGap in the language of msgs.
+func (msgs Messages) PlayerKeyLoopGap() string { return msgs.text(textPlayerKeyLoopGap) }
 
 // PlayerKeyLoopLine says "Loop Line"
 // in the language the app shows under cx.
@@ -18817,6 +19018,24 @@ func PlayerKeyNextLine(cx *core.Scope) string { return For(cx).PlayerKeyNextLine
 
 // PlayerKeyNextLine is the package's PlayerKeyNextLine in the language of msgs.
 func (msgs Messages) PlayerKeyNextLine() string { return msgs.text(textPlayerKeyNextLine) }
+
+// PlayerKeyPauseLines says "Pause After Each Line"
+// in the language the app shows under cx.
+//
+// Shortcut row and menu item (P), checked while on: the film pauses as each subtitle line ends, for shadowing or dictation, and Space plays on.
+func PlayerKeyPauseLines(cx *core.Scope) string { return For(cx).PlayerKeyPauseLines() }
+
+// PlayerKeyPauseLines is the package's PlayerKeyPauseLines in the language of msgs.
+func (msgs Messages) PlayerKeyPauseLines() string { return msgs.text(textPlayerKeyPauseLines) }
+
+// PlayerKeyPeekLine says "Show This Line in Both Languages"
+// in the language the app shows under cx.
+//
+// Shortcut row and menu item (T): the line playing shows on the picture with its translation and its original, whatever the subtitle mode, until the line changes or T is pressed again.
+func PlayerKeyPeekLine(cx *core.Scope) string { return For(cx).PlayerKeyPeekLine() }
+
+// PlayerKeyPeekLine is the package's PlayerKeyPeekLine in the language of msgs.
+func (msgs Messages) PlayerKeyPeekLine() string { return msgs.text(textPlayerKeyPeekLine) }
 
 // PlayerKeyPlayPause says "Play/Pause"
 // in the language the app shows under cx.

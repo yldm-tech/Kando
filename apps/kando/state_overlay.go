@@ -68,6 +68,8 @@ func cheatsheetLayout(cx *core.Scope) []cheatsheetGroup {
 			{locales.CheatsheetPrevNextLine(cx), []string{"a", "d"}},
 			{"", []string{"r"}},
 			{"", []string{"l"}},
+			{"", []string{"shift+l"}},
+			{"", []string{"p"}},
 			{"", []string{"f"}},
 			{locales.CheatsheetVolume(cx), []string{"up", "down"}},
 			{"", []string{"m"}},
@@ -76,6 +78,7 @@ func cheatsheetLayout(cx *core.Scope) []cheatsheetGroup {
 		{groupSubtitles, []cheatsheetLine{
 			{locales.CheatsheetSubtitlesShowHide(cx), []string{"v"}},
 			{locales.CheatsheetSubtitlesMode(cx), []string{"s"}},
+			{"", []string{"t"}},
 			{locales.CheatsheetSubtitlesDelay(cx), []string{"z", "x"}},
 			{locales.CheatsheetSidebar(cx), []string{"mod+shift+t"}},
 			{locales.CheatsheetSearchLines(cx), []string{"mod+f"}},

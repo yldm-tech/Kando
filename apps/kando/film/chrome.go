@@ -43,7 +43,7 @@ func (s *screen) topBar() ns.Node {
 			st.Padding = ns.Edges{Top: 14, Right: 16, Left: s.barStart()}
 			return st
 		},
-		Children: []ns.Node{back, heading, s.actions(), s.panelButton()},
+		Children: []ns.Node{back, heading, s.actions()},
 	}
 }
 
@@ -54,22 +54,6 @@ func (s *screen) barStart() ns.Points {
 		return bar.Left + backGap
 	}
 	return 20
-}
-
-// panelButton folds the side panel away or brings it back from the title bar's top right corner, where it is found without the transport, which hides while the film plays. It is named for what a click does. A film without a picture always shows its panel, so it has none.
-func (s *screen) panelButton() ns.Node {
-	a, cx := s.a, s.cx
-	label := live.Func(a, func() string {
-		if a.Panel() {
-			return locales.FilmHideSidebar(cx)
-		}
-		return locales.FilmShowSidebar(cx)
-	})
-	return ns.Show{When: live.Func(a, func() bool { return a.PlayPath() != "" }), Then: func(cx *ns.Scope) ns.Node {
-		btn := glyphButton(cx, svg(iconPanel), label, withKey(cx, label, "mod+shift+t"), 34, 34, 18, 15, "film-top-panel", live.Do(a, a.TogglePanel))
-		btn.Style = btn.Style.Merge(capsuleGlass.style())
-		return btn
-	}}
 }
 
 // status is the line under the title: the library, then how much of the film's subtitles is translated, as the prototype says it ("字幕 94%"), or how far its job is while it has no subtitles to show.

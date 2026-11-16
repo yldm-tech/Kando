@@ -312,7 +312,7 @@ func TestPlayerInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
 	a, tt, updates, item := playerFilm(t, 12, nil)
 	playerOpenFilm(t, a, tt, updates, item)
-	for _, want := range []string{"50% translated", "All", "Click a line to jump to it", "Subtitles", "Clips", "Info", "Style", "Opening video…"} {
+	for _, want := range []string{"50% translated", "All", "Subtitles", "Clips", "Info", "Style", "Opening video…"} {
 		wantText(t, tt, want)
 	}
 	tt.Press("id:film-tab-info")
@@ -320,7 +320,7 @@ func TestPlayerInEnglish(t *testing.T) {
 		wantText(t, tt, want)
 	}
 	playerLoadFilm(tt, a, 12*time.Second)
-	for id, want := range map[string]string{"film-back5": "Back 5 Seconds", "film-forward5": "Forward 5 Seconds", "film-mute": "Mute", "film-full": "Full Screen", "film-top-panel": "Hide Sidebar", "film-play": "Play", "film-back": "Back to Library"} {
+	for id, want := range map[string]string{"film-back5": "Back 5 Seconds", "film-forward5": "Forward 5 Seconds", "film-mute": "Mute", "film-full": "Full Screen", "film-panel-toggle": "Sidebar", "film-play": "Play", "film-back": "Back to Library"} {
 		if got := tt.Find("id:" + id).Props.Label; got != want {
 			t.Fatalf("%s is named %q, want %q", id, got, want)
 		}
@@ -568,23 +568,23 @@ func TestPanelLeavesThePictureAlone(t *testing.T) {
 	}
 }
 
-// TestTopBarTogglesThePanel checks the button at the title bar's end that folds the side panel away and brings it back, named for what a click does.
-func TestTopBarTogglesThePanel(t *testing.T) {
+// TestTransportTogglesThePanel checks the one control that folds the side panel away and brings it back, the transport's toggle, lit while the panel shows: the title bar has none of its own, as it fades with the transport.
+func TestTransportTogglesThePanel(t *testing.T) {
 	a, tt, _ := playerOpen(t)
-	if got := tt.Find("id:film-top-panel").Props.Label; got != "收起侧栏" {
-		t.Fatalf("the button is named %q", got)
+	if tt.Exists("id:film-top-panel") {
+		t.Fatal("the title bar has a panel button besides the transport's")
 	}
-	tt.Press("id:film-top-panel")
+	if !tt.Find("id:film-panel-toggle").Props.Selected {
+		t.Fatal("the transport's toggle is not lit with the panel showing")
+	}
+	tt.Press("id:film-panel-toggle")
 	tt.Advance(400 * time.Millisecond)
-	if a.player.panel || tt.Exists("id:film-panel") {
-		t.Fatal("收起侧栏 left the panel")
+	if a.player.panel || tt.Exists("id:film-panel") || tt.Find("id:film-panel-toggle").Props.Selected {
+		t.Fatal("the toggle left the panel")
 	}
-	if got := tt.Find("id:film-top-panel").Props.Label; got != "展开侧栏" {
-		t.Fatalf("the button is named %q with the panel hidden", got)
-	}
-	tt.Press("id:film-top-panel")
+	tt.Press("id:film-panel-toggle")
 	if !a.player.panel || !tt.Exists("id:film-search") {
-		t.Fatal("展开侧栏 did not bring the panel back")
+		t.Fatal("the toggle did not bring the panel back")
 	}
 }
 
@@ -1473,6 +1473,29 @@ func TestSpeedOnLinuxStaysAtOne(t *testing.T) {
 	if head := a.PlayHead(); head != 3*time.Second {
 		t.Fatalf("a second from 2s is at %v, want 3s", head)
 	}
+	if playerListsSpeedKeys(a) {
+		t.Fatal("the cheat sheet lists the speed keys on Linux")
+	}
+}
+
+// TestSpeedKeysAreListedWhereTheyWork checks the cheat sheet lists ⇧, and ⇧. on a Mac, where the speed keys change the film's speed.
+func TestSpeedKeysAreListedWhereTheyWork(t *testing.T) {
+	a, _, _ := playerOpen(t)
+	if !playerListsSpeedKeys(a) {
+		t.Fatal("the cheat sheet does not list the speed keys")
+	}
+}
+
+// playerListsSpeedKeys reports whether the cheat sheet lists ⇧, or ⇧..
+func playerListsSpeedKeys(a *app) bool {
+	for _, g := range a.cheatsheetGroups(a.cx) {
+		for _, k := range g.Keys {
+			if slices.Contains(k.Combos, "shift+,") || slices.Contains(k.Combos, "shift+.") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // TestSpeedKeysStepThroughTheRates presses ⇧. and ⇧, on an open film: each steps to the next speed of film.Rates, stays at the fastest and the slowest, and says so on the picture and on the transport's speed button at once; the system's player plays at it at once, and once the keys rest the settings keep it.
@@ -1702,6 +1725,91 @@ func TestLineKeysMoveBetweenLines(t *testing.T) {
 	stays("a", "前面没有台词了")
 }
 
+// TestPeekKeyShowsTheLineInBothLanguages listens to the original alone and presses T on a line: the picture shows its translation too, until T again, or a move to another line; between lines it shows nothing.
+func TestPeekKeyShowsTheLineInBothLanguages(t *testing.T) {
+	a, tt, _ := playerOpenWithLines(t)
+	apply(tt, a, func() { a.SetSubMode(film.SubOriginal) })
+	playerPlayTo(tt, a, 2*time.Second)
+	if !onPicture(tt, "One.") || onPicture(tt, "第一句") {
+		t.Fatal("Original Only does not show the original alone")
+	}
+	tt.Key("t")
+	if !onPicture(tt, "One.") || !onPicture(tt, "第一句") {
+		t.Fatal("T does not show both lines")
+	}
+	tt.Key("t")
+	if onPicture(tt, "第一句") {
+		t.Fatal("T again leaves the translation")
+	}
+	tt.Key("t")
+	tt.Key("d")
+	playerPlayTo(tt, a, 3500*time.Millisecond)
+	if a.Peek() != -1 || onPicture(tt, "第二句") {
+		t.Fatalf("the next line, after T on the one before, peeks at %d", a.Peek())
+	}
+	playerPlayTo(tt, a, 6*time.Second)
+	tt.Key("t")
+	if a.Peek() != -1 {
+		t.Fatalf("T between lines peeks at line %d", a.Peek())
+	}
+}
+
+// onPicture reports whether the subtitles on the picture show a line that is s as a whole.
+func onPicture(tt *nsgotest.App, s string) bool {
+	return tt.Exists("id:film-subtitle-lines >> " + whole(s))
+}
+
+// TestExtendLoopTakesInTheNextLine presses ⇧L: without a loop it loops the line playing, as L does, and then each press takes in the line after the loop, up to the last line, whose loop runs to the video's end; past it there is no line to take in. The picture says which lines loop. A move within the span keeps it, and a click on a line with Shift (LoopThrough) loops from the span's start through that line, or from that line through the span's end when it comes before it.
+func TestExtendLoopTakesInTheNextLine(t *testing.T) {
+	a := linesApp(t, "film")
+	a.player.opening = 2 * time.Second
+	extend := func(start, end time.Duration, osd string) {
+		t.Helper()
+		a.ExtendLoop()
+		if loop := a.player.film.loop; !loop.on || loop.start != start || loop.end != end || a.player.film.osd != osd {
+			t.Fatalf("loop %+v osd %q, want %v to %v and %q", loop, a.player.film.osd, start, end, osd)
+		}
+	}
+	extend(time.Second, 3*time.Second, "单句循环：开")
+	extend(time.Second, 5*time.Second, "循环第 1–2 句")
+	extend(time.Second, 9*time.Second, "循环第 1–3 句")
+	extend(time.Second, 0, "循环第 1–4 句")
+	a.ExtendLoop()
+	if loop := a.player.film.loop; loop.end != 0 || a.player.film.osd != "后面没有台词了" {
+		t.Fatalf("past the last line: loop %+v osd %q", loop, a.player.film.osd)
+	}
+	a.player.film.loop = playerLoop{on: true, key: "film", start: time.Second, end: 5 * time.Second}
+	a.Seek(3500 * time.Millisecond)
+	if loop := a.player.film.loop; loop.start != time.Second || loop.end != 5*time.Second {
+		t.Fatalf("a move within the span left %+v", loop)
+	}
+	a.LoopThrough(2)
+	if loop := a.player.film.loop; loop.start != time.Second || loop.end != 9*time.Second || a.player.film.osd != "循环第 1–3 句" {
+		t.Fatalf("Shift and a click on the third line: loop %+v osd %q", loop, a.player.film.osd)
+	}
+	a.player.film.loop = playerLoop{on: true, key: "film", start: 7 * time.Second, end: 9 * time.Second}
+	a.LoopThrough(1)
+	if loop := a.player.film.loop; loop.start != 3*time.Second || loop.end != 9*time.Second {
+		t.Fatalf("Shift and a click on the line before the loop: %+v", loop)
+	}
+	a.player.film.loop = playerLoop{}
+	a.player.opening = 2 * time.Second
+	a.LoopThrough(1)
+	if loop := a.player.film.loop; !loop.on || loop.start != time.Second || loop.end != 5*time.Second {
+		t.Fatalf("Shift and a click without a loop: %+v, want from the line playing", loop)
+	}
+}
+
+// TestExtendLoopKey presses ⇧L on an open film: the loop takes in the next line, and the transport's toggle is lit.
+func TestExtendLoopKey(t *testing.T) {
+	a, tt, _ := playerOpenWithLines(t)
+	tt.Key("l")
+	tt.Key("shift+l")
+	if loop := a.player.film.loop; !loop.on || loop.start != time.Second || loop.end != 5*time.Second || !tt.Find("id:film-loop").Props.Selected {
+		t.Fatalf("⇧L looped %+v", loop)
+	}
+}
+
 // TestLoopLineSeeksBackAtItsEnd plays a looped line and checks that the system's player is taken back to the line's start once it reports the line's end, without writing where the film continues from, and plays on past it once L turns the loop off. The transport's toggle is lit while the line loops.
 func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
 	a, tt, _ := playerOpenWithLines(t)
@@ -1733,6 +1841,123 @@ func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
 	playerPlayTo(tt, a, 3100*time.Millisecond)
 	if len(playerSeeks(tt)) != 1 {
 		t.Fatalf("the film went back with the loop off: %v", playerSeeks(tt))
+	}
+}
+
+// TestPauseAfterEachLine turns on Pause After Each Line with P and plays: the film pauses as each line ends, on the app's clock, so the learner can repeat it or write it down, and Space plays on to the next line's end, where it pauses again; R plays the same line again and pauses at its end. The transport's toggle is lit while it is on, and the setting is kept.
+func TestPauseAfterEachLine(t *testing.T) {
+	a, tt, _ := playerOpenWithLines(t)
+	tt.Key("p")
+	if !a.player.pauseLines || !hasText(tt, "逐句暂停：开") || !tt.Find("id:film-pause-lines").Props.Selected {
+		t.Fatalf("P: on %v, texts %q", a.player.pauseLines, tt.Texts())
+	}
+	tt.Key("space")
+	playerPlayTo(tt, a, 2*time.Second)
+	tt.Advance(900 * time.Millisecond)
+	if !a.player.play.Playing() {
+		t.Fatal("the film paused inside the first line")
+	}
+	tt.Advance(200 * time.Millisecond)
+	if a.player.play.Playing() || a.PlayHead() < 3*time.Second || len(playerSeeks(tt)) != 0 {
+		t.Fatalf("at the first line's end: playing %v, at %v, seeks %v", a.player.play.Playing(), a.PlayHead(), playerSeeks(tt))
+	}
+	// The system's player reports where it held, a little before the line's end.
+	playerPlayTo(tt, a, 2950*time.Millisecond)
+	tt.Key("space")
+	tt.Advance(time.Second)
+	if !a.player.play.Playing() {
+		t.Fatal("Space did not play on into the second line")
+	}
+	tt.Advance(1100 * time.Millisecond)
+	if a.player.play.Playing() || a.PlayHead() < 5*time.Second {
+		t.Fatalf("at the second line's end: playing %v, at %v", a.player.play.Playing(), a.PlayHead())
+	}
+	tt.Key("r")
+	playerPlayTo(tt, a, 3*time.Second)
+	tt.Advance(2100 * time.Millisecond)
+	if a.player.play.Playing() || a.PlayHead() < 5*time.Second {
+		t.Fatalf("R, then the line's end: playing %v, at %v", a.player.play.Playing(), a.PlayHead())
+	}
+	if saved := loadSavedSettings(a.settingsPath); !saved.PauseLines {
+		t.Fatal("Pause After Each Line was not kept")
+	}
+	tt.Key("p")
+	if a.player.pauseLines || !hasText(tt, "逐句暂停：关") {
+		t.Fatalf("P again: on %v, texts %q", a.player.pauseLines, tt.Texts())
+	}
+	tt.Key("space")
+	tt.Advance(3 * time.Second)
+	if !a.player.play.Playing() {
+		t.Fatal("with P off again the film paused")
+	}
+}
+
+// TestPauseAfterEachLineInALoop loops a line with Pause After Each Line on: at the line's end the film pauses rather than go back, and Space plays the line again from its start.
+func TestPauseAfterEachLineInALoop(t *testing.T) {
+	a, tt, _ := playerOpenWithLines(t)
+	tt.Key("p")
+	tt.Key("l")
+	tt.Key("space")
+	playerPlayTo(tt, a, 2*time.Second)
+	tt.Advance(1100 * time.Millisecond)
+	if a.player.play.Playing() || len(playerSeeks(tt)) != 0 {
+		t.Fatalf("at the looped line's end: playing %v, seeks %v", a.player.play.Playing(), playerSeeks(tt))
+	}
+	tt.Key("space")
+	tt.Advance(10 * time.Millisecond)
+	if got := playerSeeks(tt); len(got) != 1 || got[0] != time.Second || !a.player.play.Playing() {
+		t.Fatalf("Space after the pause: seeks %v, playing %v", got, a.player.play.Playing())
+	}
+}
+
+// TestLoopGapWaitsTheLinesLength loops a two-second line with Pause Between Repeats on: at its end the film holds for as long as the line took, for the learner to say it after it, and then plays it again from its start by itself, without keeping that hold as where the film continues from.
+func TestLoopGapWaitsTheLinesLength(t *testing.T) {
+	a, tt, _ := playerOpenWithLines(t)
+	useMenuBar(t, a, tt)
+	tt.ChooseMenu("播放", "循环间停顿")
+	if a.player.loopGap != playerLoopGapLine || !hasText(tt, "循环间停顿：开") {
+		t.Fatalf("the menu row left the gap %q; texts %q", a.player.loopGap, tt.Texts())
+	}
+	tt.Key("l")
+	tt.Key("space")
+	playerPlayTo(tt, a, 2*time.Second)
+	positions := a.player.positions[a.player.play.path]
+	tt.Advance(1100 * time.Millisecond)
+	if a.player.play.Playing() || len(playerSeeks(tt)) != 0 {
+		t.Fatalf("at the line's end: playing %v, seeks %v", a.player.play.Playing(), playerSeeks(tt))
+	}
+	tt.Advance(1800 * time.Millisecond)
+	if a.player.play.Playing() || len(playerSeeks(tt)) != 0 {
+		t.Fatal("the gap ended before the line's length")
+	}
+	tt.Advance(300 * time.Millisecond)
+	if got := playerSeeks(tt); len(got) != 1 || got[0] != time.Second || !a.player.play.Playing() {
+		t.Fatalf("after the gap: seeks %v, playing %v", got, a.player.play.Playing())
+	}
+	if a.player.positions[a.player.play.path] != positions {
+		t.Fatal("the gap's hold wrote where the film continues from")
+	}
+	if saved := loadSavedSettings(a.settingsPath); saved.LoopGap != playerLoopGapLine {
+		t.Fatalf("the gap was kept as %q", saved.LoopGap)
+	}
+}
+
+// TestStudySettingsRoundTrip reads Pause After Each Line and Pause Between Repeats back from settings.json; a gap this version does not know is none.
+func TestStudySettingsRoundTrip(t *testing.T) {
+	for _, tc := range []struct {
+		saved string
+		pause bool
+		gap   string
+	}{{`{"pauseAfterLine": true, "loopGap": "line"}`, true, playerLoopGapLine}, {`{"loopGap": "forever"}`, false, ""}, {`{}`, false, ""}} {
+		path := filepath.Join(t.TempDir(), "settings.json")
+		if err := os.WriteFile(path, []byte(tc.saved), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		a, _, _ := newTestApp(t, &fakePipeline{})
+		a.restorePlayer(loadSavedSettings(path))
+		if a.player.pauseLines != tc.pause || a.player.loopGap != tc.gap {
+			t.Fatalf("%s restored as pause %v gap %q", tc.saved, a.player.pauseLines, a.player.loopGap)
+		}
 	}
 }
 

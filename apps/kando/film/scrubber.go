@@ -17,16 +17,19 @@ var (
 	scrubTranslated = ns.RGBA(0x78B4FF, 0.8)
 	scrubMissing    = ns.RGB(0xFFB340)
 	scrubTick       = ns.RGBA(0x000000, 0.55)
+	// scrubLoop is the band behind the track over the span the player loops.
+	scrubLoop = ns.RGBA(0xFFD60A, 0.45)
 )
 
 // scrubberHeight is the scrubber's: the track 7 down, 5 high, and the strip of the cues 15 down, 3 high.
 const scrubberHeight ns.Points = 22
 
-// scrubber is the film's progress bar: a white fill over the track, under it a strip marking each cue, blue where it has a translation and dashed orange where it has only one line, and ticks between the 片段. Dragging it moves the time shown and seeks once released; a click or the arrow keys seek at once. While the pointer is over it, a card above it shows the time there and that moment's line.
+// scrubber is the film's progress bar: a white fill over the track, behind it a band over the span looped, under it a strip marking each cue, blue where it has a translation and dashed orange where it has only one line, and ticks between the 片段. Dragging it moves the time shown and seeks once released; a click or the arrow keys seek at once. While the pointer is over it, a card above it shows the time there and that moment's line.
 func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 	a := s.a
 	length := live.Func(a, func() float64 { return max(a.PlayLength().Seconds(), 1) })
 	cues := filmCues(cx, a)
+	loop := func() (time.Duration, time.Duration, bool) { a.Track(); return a.LoopSpan() }
 	width := ns.NewSignal(cx, ns.Points(0))
 	hover := ns.NewSignal(cx, ns.Points(-1))
 	draw := func(d *ns.Drawing, size ns.Size) {
@@ -34,6 +37,17 @@ func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 		w := float32(size.Width)
 		at := func(t time.Duration) float32 { return w * float32(t.Seconds()/hi) }
 		frac := float32(s.shownHead().Seconds() / hi)
+		// The span looped, where the picture plays it, the subtitle delay counted, to the video's end for a loop without one.
+		if from, to, ok := loop(); ok {
+			delay := a.Delay()
+			x1 := w
+			if to > 0 {
+				x1 = at(to + delay)
+			}
+			x0 := min(max(at(from+delay), 0), w)
+			x1 = min(max(x1, x0), w)
+			d.SetFillColor(scrubLoop).BeginPath().RoundRect(x0, 4, x1-x0, 11, 3).Fill()
+		}
 		d.SetFillColor(scrubTrack).BeginPath().RoundRect(0, 7, w, 5, 2.5).Fill()
 		d.Save().BeginPath().RoundRect(0, 7, w, 5, 2.5).Clip()
 		d.SetFillColor(onGlass).FillRect(0, 7, w*min(max(frac, 0), 1), 5)
@@ -122,7 +136,7 @@ func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 		OnMouseMove:  func(e ns.MouseEvent) { hover.Set(e.Position.X) },
 		OnMouseLeave: func(ns.MouseEvent) { hover.Set(-1) },
 		Children: []ns.Node{
-			ns.Canvas{Style: fillStyle, Draw: draw},
+			ns.Canvas{TestID: "film-scrub-marks", Style: fillStyle, Draw: draw},
 			slider,
 			preview,
 		},

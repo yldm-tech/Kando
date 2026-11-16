@@ -445,6 +445,9 @@ feedbackTruncated:
 filmAll:
   message: "All"
   description: "Chip over the subtitle list, followed by how many lines it holds."
+filmBackToCurrentLine:
+  message: "Back to Current Line"
+  description: "Pill over the subtitle list while it was scrolled away from the line playing: scrolls the list back to that line, and the list follows the film again."
 filmBackToLibrary:
   message: "Back to Library"
   description: "The player's back button, and the shortcut row of Escape: closes the film and goes back to the library."
@@ -456,9 +459,6 @@ filmBytes:
 filmCancel:
   message: "Cancel"
   description: "Player title bar button: cancels this film's running job."
-filmClickToJump:
-  message: "Click a line to jump to it"
-  description: "Hint under the subtitle list."
 filmClip:
   message: "Clip {number}"
   description: "Accessible name of a clip in the Clips tab."
@@ -541,9 +541,6 @@ filmFontSerif:
 filmFullScreen:
   message: "Full Screen"
   description: "Full screen button, and its shortcut row."
-filmHideSidebar:
-  message: "Hide Sidebar"
-  description: "Button at the player's top right that folds the side panel away."
 filmJobRecord:
   message: "Job record"
   description: "Label in the Info tab over the path of the library file that records the jobs."
@@ -583,15 +580,33 @@ filmLocalFile:
 filmLocalVideo:
   message: "Local Video"
   description: "Chip in the Info tab of a local video no job has processed."
+filmLoopGapOff:
+  message: "Pause Between Repeats: Off"
+  description: "Message on the picture after Pause Between Repeats was turned off."
+filmLoopGapOn:
+  message: "Pause Between Repeats: On"
+  description: "Message on the picture after Pause Between Repeats was turned on: a looped line now waits, after each pass, for as long as it played before it plays again."
 filmLoopLine:
   message: "Loop Line"
   description: "Accessible name and tooltip of the transport's toggle that plays the subtitle line playing over and over (its shortcut follows the tooltip)."
+filmLoopLines:
+  message: "Loop: Lines {from}–{to}"
+  description: "Message on the picture after the loop was made to span several subtitle lines (Shift+L, or Shift and a click on a line): the numbers, counting from 1, of its first and its last line."
+  placeholders:
+    from: { type: "int", example: "3" }
+    to: { type: "int", example: "5" }
 filmLoopOff:
   message: "Loop Line: Off"
   description: "Message on the picture after the line loop was turned off."
 filmLoopOn:
   message: "Loop Line: On"
   description: "Message on the picture after the line loop was turned on."
+filmMatchOf:
+  message: "Match {number} of {total}"
+  description: "Message on the picture after Return or Shift+Return in the subtitle search jumped to a line holding the search: which match it is, counting from 1, and how many lines hold it."
+  placeholders:
+    number: { type: "int", example: "2" }
+    total: { type: "int", example: "7" }
 filmModeBilingual:
   message: "Bilingual"
   description: "Subtitle mode: the translation and the original both show."
@@ -658,6 +673,15 @@ filmOrderTranslationFirst:
 filmPause:
   message: "Pause"
   description: "Pause button."
+filmPauseLines:
+  message: "Pause After Each Line"
+  description: "Accessible name and tooltip of the transport toggle that pauses the film at the end of each subtitle line (its shortcut follows the tooltip)."
+filmPauseLinesOff:
+  message: "Pause After Each Line: Off"
+  description: "Message on the picture after Pause After Each Line was turned off."
+filmPauseLinesOn:
+  message: "Pause After Each Line: On"
+  description: "Message on the picture after Pause After Each Line was turned on: the film now pauses as each subtitle line ends, and Space plays on."
 filmPicture:
   message: "Picture"
   description: "Accessible name of the video picture."
@@ -710,9 +734,6 @@ filmShowInFinder:
   description: "Button that shows the film's file or folder in the system's file manager. {platform} is the system the app runs on: macOS, Windows or another (Linux); each case names that system's file manager."
   placeholders:
     platform: { type: "String", example: "macOS" }
-filmShowSidebar:
-  message: "Show Sidebar"
-  description: "Button at the player's top right that brings back the side panel (subtitles, clips, info)."
 filmSidebar:
   message: "Sidebar"
   description: "The player's side panel: its accessible name, and the transport button that shows or hides it."
@@ -1833,12 +1854,18 @@ playerKeyDelayEarlier:
 playerKeyDelayLater:
   message: "Subtitles 0.1 Second Later"
   description: "Shortcut row and menu item: subtitles a tenth of a second later."
+playerKeyExtendLoop:
+  message: "Extend Loop to Next Line"
+  description: "Shortcut row and menu item (Shift+L): the loop takes in the subtitle line after it, so several lines play over and over; without a loop it loops the line playing."
 playerKeyFaster:
   message: "Faster"
   description: "Shortcut row and menu item: play the film at the next faster speed."
 playerKeyLarger:
   message: "Larger Subtitles"
   description: "Shortcut row and menu item: larger subtitles."
+playerKeyLoopGap:
+  message: "Pause Between Repeats"
+  description: "Menu item of the Playback menu, checked while on: a looped line waits, after each pass, for as long as it played, so the learner can say it after it, and then plays again by itself."
 playerKeyLoopLine:
   message: "Loop Line"
   description: "Shortcut row and menu item: play the subtitle line playing over and over, or stop doing so."
@@ -1848,6 +1875,12 @@ playerKeyMute:
 playerKeyNextLine:
   message: "Next Line"
   description: "Shortcut row and menu item: play from the start of the next subtitle line."
+playerKeyPauseLines:
+  message: "Pause After Each Line"
+  description: "Shortcut row and menu item (P), checked while on: the film pauses as each subtitle line ends, for shadowing or dictation, and Space plays on."
+playerKeyPeekLine:
+  message: "Show This Line in Both Languages"
+  description: "Shortcut row and menu item (T): the line playing shows on the picture with its translation and its original, whatever the subtitle mode, until the line changes or T is pressed again."
 playerKeyPlayPause:
   message: "Play/Pause"
   description: "Shortcut row and menu item: play or pause."

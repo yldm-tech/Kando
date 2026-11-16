@@ -72,6 +72,11 @@ type fakeApp struct {
 	volume     float64
 	muted      bool
 	fills      bool
+	jumps      int
+	peek       int
+	pauseLines bool
+	loop       [2]time.Duration
+	looping    bool
 	calls      []string
 }
 
@@ -84,7 +89,7 @@ func newFakeApp() *fakeApp {
 			{Start: 4 * time.Second, End: 6 * time.Second, Text: "Bye."},
 		}},
 		look: DefaultLook(), mode: SubBilingual, order: SubTranslationFirst, untrans: UntranslatedDim, yield: true,
-		panel: true, rate: 1, volume: 1, fills: true,
+		panel: true, rate: 1, volume: 1, fills: true, peek: -1,
 		video: Video{Source: "/films/talk/talk.mp4", Paused: true, Volume: 1, Rate: 1},
 	}
 }
@@ -139,18 +144,26 @@ func (f *fakeApp) VideoProgress(position, _ time.Duration) bool {
 	}
 	return false
 }
-func (f *fakeApp) VideoEnded()                             { f.ended++ }
-func (f *fakeApp) VideoFailed(err error)                   { f.failed = err }
-func (f *fakeApp) Subs() Subs                              { return f.subs }
-func (f *fakeApp) FilmSide() string                        { return f.side }
-func (f *fakeApp) SetFilmSide(side string)                 { f.side = side }
-func (f *fakeApp) Seek(at time.Duration)                   { f.call("seek " + at.String()) }
-func (f *fakeApp) Skip(d time.Duration)                    { f.call("skip " + d.String()) }
-func (f *fakeApp) PrevLine()                               { f.call("prev line") }
-func (f *fakeApp) NextLine()                               { f.call("next line") }
-func (f *fakeApp) ReplayLine()                             { f.call("replay line") }
-func (f *fakeApp) ToggleLoopLine()                         { f.call("loop") }
-func (f *fakeApp) LoopLine() bool                          { return false }
+func (f *fakeApp) VideoEnded()             { f.ended++ }
+func (f *fakeApp) VideoFailed(err error)   { f.failed = err }
+func (f *fakeApp) Subs() Subs              { return f.subs }
+func (f *fakeApp) FilmSide() string        { return f.side }
+func (f *fakeApp) SetFilmSide(side string) { f.side = side }
+func (f *fakeApp) Seek(at time.Duration)   { f.call("seek " + at.String()); f.jumps++ }
+func (f *fakeApp) Jumps() int              { return f.jumps }
+func (f *fakeApp) Peek() int               { return f.peek }
+func (f *fakeApp) Skip(d time.Duration)    { f.call("skip " + d.String()) }
+func (f *fakeApp) PrevLine()               { f.call("prev line") }
+func (f *fakeApp) NextLine()               { f.call("next line") }
+func (f *fakeApp) ReplayLine()             { f.call("replay line") }
+func (f *fakeApp) ToggleLoopLine()         { f.call("loop") }
+func (f *fakeApp) LoopLine() bool          { return false }
+func (f *fakeApp) PauseLines() bool        { return f.pauseLines }
+func (f *fakeApp) LoopSpan() (time.Duration, time.Duration, bool) {
+	return f.loop[0], f.loop[1], f.looping
+}
+func (f *fakeApp) LoopThrough(i int)                       { f.call(fmt.Sprintf("loop through %d", i)) }
+func (f *fakeApp) TogglePauseLines()                       { f.pauseLines = !f.pauseLines }
 func (f *fakeApp) Cue() *Look                              { return &f.look }
 func (f *fakeApp) LookChanged()                            { f.call("look") }
 func (f *fakeApp) SubMode() string                         { return f.mode }
@@ -188,6 +201,7 @@ func (f *fakeApp) Muted() bool                             { return f.muted }
 func (f *fakeApp) SetVolume(v float64)                     { f.volume = v }
 func (f *fakeApp) ToggleMute()                             { f.muted = !f.muted }
 func (f *fakeApp) FeedbackSubtitles()                      { f.call("feedback") }
+func (f *fakeApp) Flash(text string)                       { f.osd = text }
 
 // start shows the open film of a as the main window does, on a Mac, in testlocale's language.
 func start(t *testing.T, a *fakeApp) *nsgotest.App {
@@ -314,7 +328,7 @@ func TestPanelTabsAndTheStyleView(t *testing.T) {
 	a.info = Info{Folder: "/films/talk", Files: []File{{Name: "talk.bilingual.srt", Size: 2048}, {Name: "talk.mp4", Size: 5 << 20}}}
 	app := start(t, a)
 	msgs := testlocale.Messages()
-	if !app.Exists(whole("你好。")) || !app.Exists(whole(msgs.FilmClickToJump())) {
+	if !app.Exists(whole("你好。")) {
 		t.Fatalf("the subtitle tab lists %q", app.Texts())
 	}
 	app.Press("id:film-tab-clips")
@@ -369,6 +383,164 @@ func TestCueListScrollsWithinThePanel(t *testing.T) {
 	}
 }
 
+// TestCueListLetsTheUserReadAway scrolls the subtitle list away from the playing line by hand: as the film moves on to the next line the list stays where it was scrolled to, and a pill offers to go back to the line playing, which brings the list back to it and goes. A line clicked plays and the list follows from it again, and so does a line reached by a move of the user's, as A, D or R, while one scrolled out of view by playing on does not.
+func TestCueListLetsTheUserReadAway(t *testing.T) {
+	a := newFakeApp()
+	a.subs.Cues = nil
+	for i := range 200 {
+		at := time.Duration(i) * 2 * time.Second
+		a.subs.Cues = append(a.subs.Cues, core.Segment{Start: at, End: at + time.Second, Text: fmt.Sprintf("第 %d 句", i+1)})
+	}
+	a.play = &fakePlay{head: 500 * time.Millisecond, length: 400 * time.Second}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	offset := func() ns.Points { app.Advance(time.Second); return app.Find("id:film-cues").Offset.Y }
+	pill := `label:"` + msgs.FilmBackToCurrentLine() + `"`
+	playAt := func(head time.Duration) {
+		t.Helper()
+		change(app, a, func() { a.play.head = head })
+	}
+	first := offset()
+	playAt(2500 * time.Millisecond)
+	if got := offset(); got <= first || app.Exists(pill) {
+		t.Fatalf("the list did not follow the second line: offset %v from %v, pill %v", got, first, app.Exists(pill))
+	}
+	app.Scroll("id:film-cues", 2000)
+	away := offset()
+	playAt(4500 * time.Millisecond)
+	if got := offset(); got != away || !app.Exists(pill) {
+		t.Fatalf("the list read away at %v moved to %v as the film went on; pill %v", away, got, app.Exists(pill))
+	}
+	app.Press(pill)
+	back := offset()
+	if back >= away || app.Exists(pill) {
+		t.Fatalf("the pill took the list to %v from %v, and it stays %v", back, away, app.Exists(pill))
+	}
+	app.Scroll("id:film-cues", 2000)
+	away = offset()
+	app.Press(whole("第 60 句"))
+	playAt(118500 * time.Millisecond)
+	if got := offset(); got == away || app.Exists(pill) {
+		t.Fatalf("a clicked line left the list at %v; pill %v", got, app.Exists(pill))
+	}
+	app.Scroll("id:film-cues", -1000)
+	away = offset()
+	change(app, a, func() { a.jumps++; a.play.head = 120500 * time.Millisecond })
+	if got := offset(); got == away || app.Exists(pill) {
+		t.Fatalf("a move of the user's left the list at %v; pill %v", got, app.Exists(pill))
+	}
+}
+
+// TestCueRowsFollowTheMode lists a bilingual line in each subtitle mode: the list shows the lines the picture shows, in the order the settings put them, and the line the mode hides stays under them blurred until the pointer rests on the row or the keyboard focus comes to it, so the list can be read as a transcript without giving the answer away. The row is named by both lines in their order, and the playing one is selected.
+func TestCueRowsFollowTheMode(t *testing.T) {
+	a := newFakeApp()
+	a.mode = SubOriginal
+	a.play = &fakePlay{head: 1500 * time.Millisecond, length: 10 * time.Second}
+	app := start(t, a)
+	blurred := func(text string) bool {
+		e := app.Find(inList(text)).Style.Effects
+		return e != nil && len(e.Filters) > 0
+	}
+	row := app.Find(`label:"0:01 你好。 Hello."`)
+	if !row.Props.Selected || app.Find(`label:"0:04 Bye."`).Props.Selected {
+		t.Fatalf("the playing row is selected %v", row.Props.Selected)
+	}
+	if blurred("Hello.") || !blurred("你好。") {
+		t.Fatalf("in Original Only the original is blurred %v and the translation %v", blurred("Hello."), blurred("你好。"))
+	}
+	if hello, nihao := app.Find(inList("Hello.")), app.Find(inList("你好。")); pageY(hello) >= pageY(nihao) {
+		t.Fatal("the original is not over the translation it hides")
+	}
+	app.Hover(inList("Hello."))
+	if blurred("你好。") {
+		t.Fatal("the translation stays blurred under the pointer")
+	}
+	app.HoverOut()
+	if !blurred("你好。") {
+		t.Fatal("the translation stays clear once the pointer left")
+	}
+	change(app, a, func() { a.mode = SubTranslation })
+	if blurred("你好。") || !blurred("Hello.") {
+		t.Fatalf("in Translation Only the translation is blurred %v and the original %v", blurred("你好。"), blurred("Hello."))
+	}
+	change(app, a, func() { a.mode, a.order = SubBilingual, SubOriginalFirst })
+	if blurred("你好。") || blurred("Hello.") || pageY(app.Find(inList("Hello."))) >= pageY(app.Find(inList("你好。"))) {
+		t.Fatal("bilingual, the original first, is not both lines clear with the original on top")
+	}
+	if !app.Exists(`label:"0:01 Hello. 你好。"`) {
+		t.Fatal("the row is not named by its lines in their order")
+	}
+}
+
+// inList is the selector of a text of the subtitle list that is s as a whole.
+func inList(s string) string { return "id:film-cues >> " + whole(s) }
+
+// pageY is how far down the window v is.
+func pageY(v *nsgotest.View) ns.Points {
+	y := ns.Points(0)
+	for ; v != nil; v = v.Parent {
+		y += v.Frame.Origin.Y - v.Offset.Y
+	}
+	return y
+}
+
+// TestPeekShowsTheWholeLine checks the line the app peeks at (T): the picture shows both its lines, whatever the mode, the subtitles off as well, and only it.
+func TestPeekShowsTheWholeLine(t *testing.T) {
+	a := newFakeApp()
+	a.mode = SubOriginal
+	app := start(t, a)
+	app.Play("id:film-video", ns.VideoInfo{Duration: 10 * time.Second})
+	app.Progress("id:film-video", 1500*time.Millisecond, 10*time.Second)
+	onPicture := func(text string) bool {
+		if !app.Exists("id:film-subtitle-lines") {
+			return false
+		}
+		var has func(v *nsgotest.View) bool
+		has = func(v *nsgotest.View) bool {
+			return v.Text == text || slices.ContainsFunc(v.Children, has)
+		}
+		return has(app.Find("id:film-subtitle-lines"))
+	}
+	if !onPicture("Hello.") || onPicture("你好。") {
+		t.Fatal("Original Only does not show the original alone")
+	}
+	change(app, a, func() { a.peek = 0 })
+	if !onPicture("Hello.") || !onPicture("你好。") {
+		t.Fatal("the line peeked at does not show both its lines")
+	}
+	change(app, a, func() { a.mode = SubOff })
+	if !onPicture("你好。") {
+		t.Fatal("the line peeked at hides with the subtitles off")
+	}
+	change(app, a, func() { a.peek = 1 })
+	if app.Exists("id:film-subtitle-lines") {
+		t.Fatal("a peek at another line shows this one with the subtitles off")
+	}
+}
+
+// TestLoopSpanShows loops the first two lines: the scrubber draws the span played over and over, the subtitle delay counted, and the looped lines of the list are marked by a bar at their start, the others not.
+func TestLoopSpanShows(t *testing.T) {
+	a := newFakeApp()
+	a.subs.Cues = append(a.subs.Cues, core.Segment{Start: 8 * time.Second, End: 9 * time.Second, Text: "再来。\nAgain."})
+	a.play = &fakePlay{head: 1500 * time.Millisecond, length: 10 * time.Second}
+	app := start(t, a)
+	band := func() bool {
+		for _, op := range app.Find("id:film-scrub-marks").Ops {
+			if op.Color == scrubLoop {
+				return true
+			}
+		}
+		return false
+	}
+	if band() || app.Exists("id:film-cue-looped") {
+		t.Fatal("the loop shows without a loop")
+	}
+	change(app, a, func() { a.loop, a.looping = [2]time.Duration{time.Second, 6 * time.Second}, true })
+	if !band() || len(app.Query("id:film-cue-looped")) != 2 {
+		t.Fatalf("looping two lines: band %v, %d rows marked", band(), len(app.Query("id:film-cue-looped")))
+	}
+}
+
 func TestCueRowsSeekAndCopy(t *testing.T) {
 	a := newFakeApp()
 	a.delay = 500 * time.Millisecond
@@ -397,6 +569,62 @@ func TestCueRowsSeekAndCopy(t *testing.T) {
 	app.ChoosePopup(msgs.FilmCopyLine())
 	if app.Clipboard != "Bye." {
 		t.Fatalf("拷贝台词 copied %q", app.Clipboard)
+	}
+}
+
+// searchCues are lines where "hello" is said three times, at 1, 10 and 30 seconds.
+var searchCues = []core.Segment{
+	{Start: time.Second, End: 2 * time.Second, Text: "你好。\nHello."},
+	{Start: 5 * time.Second, End: 6 * time.Second, Text: "再见。\nBye."},
+	{Start: 10 * time.Second, End: 11 * time.Second, Text: "你好吗？\nHello again?"},
+	{Start: 30 * time.Second, End: 31 * time.Second, Text: "又是你好。\nHello once more."},
+}
+
+// TestSearchReturnJumpsToTheNextMatch types a word in the subtitle search and presses Return: the film plays from the next line that holds it after where the picture is, the delay counted, and the picture says which match of how many it is; Return again goes on to the one after, around to the first after the last, and Shift+Return goes back. The field keeps the focus, so the keys go on working. The chip over the list counts the matches of all the lines.
+func TestSearchReturnJumpsToTheNextMatch(t *testing.T) {
+	a := newFakeApp()
+	a.subs.Cues = searchCues
+	a.delay = 500 * time.Millisecond
+	a.play = &fakePlay{head: 4 * time.Second, length: time.Minute}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.FilmAll())) || !app.Exists(whole("4")) {
+		t.Fatalf("without a query the chip reads %q", app.Texts())
+	}
+	app.Type("id:film-search", "hello")
+	if app.Exists(whole(msgs.FilmAll())) || !app.Exists(whole("3 / 4")) {
+		t.Fatalf("with a query the chip reads %q", app.Texts())
+	}
+	step := func(back bool, want time.Duration, match int) {
+		t.Helper()
+		a.calls = nil
+		if back {
+			app.Key("shift+enter")
+		} else {
+			app.Submit("id:film-search")
+		}
+		if !slices.Equal(a.calls, []string{"seek " + want.String()}) || a.osd != msgs.FilmMatchOf(match, 3) {
+			t.Fatalf("back %v: called %q, osd %q; want seek %v, match %d", back, a.calls, a.osd, want, match)
+		}
+		a.play.head = want
+		a.Changed()
+		app.Settle()
+	}
+	step(false, 10500*time.Millisecond, 2)
+	step(false, 30500*time.Millisecond, 3)
+	step(false, 1500*time.Millisecond, 1)
+	step(true, 30500*time.Millisecond, 3)
+	step(true, 10500*time.Millisecond, 2)
+	if !a.focused {
+		t.Fatal("the search field let go of the focus")
+	}
+}
+
+// TestSubtitleTabHasNoFooterHint checks the subtitle tab ends with its lines: no hint under them that a click jumps to a line, which every row's hover already shows.
+func TestSubtitleTabHasNoFooterHint(t *testing.T) {
+	app := start(t, newFakeApp())
+	if app.Exists(whole("单击跳到该句")) {
+		t.Fatalf("the subtitle tab still has the footer hint: %q", app.Texts())
 	}
 }
 

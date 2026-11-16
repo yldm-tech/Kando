@@ -164,7 +164,7 @@ func (a *app) playerLoad(info ns.VideoInfo) {
 	a.loadClipFrames()
 }
 
-// playerProgress is the system's player saying where the open video is, about four times a second while it plays and as it pauses or ends. It moves the playhead there, unless a seek has not landed yet; keeps where the film is on disk now and then (playerKeep), takes a looped line back to its start once it reaches its end (playerKeepLoop) and tells the areas that follow the film's time (areasPlaying). It reports whether that changed what a binding reads beyond the playhead.
+// playerProgress is the system's player saying where the open video is, about four times a second while it plays and as it pauses or ends. It moves the playhead there, unless a seek has not landed yet; keeps where the film is on disk now and then (playerKeep), takes a looped line back to its start once it reaches its end (playerKeepLoop), pauses at a line's end with Pause After Each Line (playerPauseAtLineEnd) and tells the areas that follow the film's time (areasPlaying). It reports whether that changed what a binding reads beyond the playhead.
 func (a *app) playerProgress(position, duration time.Duration) bool {
 	p := a.player.play
 	if p == nil || !p.loaded {
@@ -186,13 +186,14 @@ func (a *app) playerProgress(position, duration time.Duration) bool {
 		p.seeking = false
 	}
 	p.head, p.headAt = position, now
-	gen := a.player.playGen
+	gen, paused := a.player.playGen, p.paused
 	changed := a.playerKeep(now)
 	a.playerKeepLoop()
+	a.playerPauseAtLineEnd()
 	a.playerLoopSchedule()
 	// every area hears each report, so the areas run before the result is put together rather than inside a short-circuited ||
 	followed := a.areasPlaying()
-	return changed || followed || a.player.playGen != gen
+	return changed || followed || a.player.playGen != gen || p.paused != paused
 }
 
 // playerEnded is the system's player reaching the end of the open video: the clock stops there, and the system learns the film is paused at its end, so its play key starts it over.

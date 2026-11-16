@@ -12,7 +12,7 @@ import (
 // transportGlass is the glass of the capsule along the bottom of the picture.
 var transportGlass = glassSpec{fill: core.RGBA(0x1E1E22, 0.5), blur: 28, ring: 0.22, radius: 24}
 
-// transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the volume, the speed, the line loop, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
+// transport is the glass capsule along the bottom of the picture: back and forward 5 seconds, play or hold, the time played, the scrubber, the time left, the volume, the speed, the line loop, Pause After Each Line, the subtitle mode, the side panel and full screen. It shows once a video is opening and fades with the title bar.
 func (s *screen) transport() core.Node {
 	a := s.a
 	return core.Show{When: live.Func(a, func() bool { return a.PlayPath() != "" }), Then: func(cx *core.Scope) core.Node {
@@ -59,6 +59,7 @@ func (s *screen) transport() core.Node {
 				row(2,
 					core.Show{When: func() bool { return RateWorks(cx) }, Then: s.speedMenu},
 					s.loopToggle(cx),
+					s.pauseLinesToggle(cx),
 					s.modeMenu(cx),
 					glyphToggle(cx, svg(iconPanel), panelLabel, withKey(cx, panelLabel, "mod+shift+t"), 34, 30, 18, 15, "film-panel-toggle", live.Func(a, a.Panel), live.Do(a, a.TogglePanel)),
 					glyphButton(cx, svg(iconFullScreen), fullLabel, func() string { return fullLabel() + " " + cx.KeyLabel("f") }, 34, 30, 16, 16, "film-full", live.Do(a, a.ToggleFullScreen)),
@@ -125,6 +126,18 @@ func (s *screen) loopToggle(cx *core.Scope) core.Node {
 	a := s.a
 	label := func() string { return locales.FilmLoopLine(cx) }
 	b := glyphToggle(cx, svg(iconLoopLine), label, withKey(cx, label, "l"), 34, 30, 18, 18, "film-loop", live.Func(a, a.LoopLine), live.Do(a, a.ToggleLoopLine))
+	b.Disabled = live.Func(a, func() bool {
+		subs := a.Subs()
+		return subs.Key != a.OpenKey() || !subs.Ready || len(subs.Cues) == 0
+	})
+	return b
+}
+
+// pauseLinesToggle pauses the film at the end of each line, lit while it does. It waits for the film's subtitle lines, whose ends it pauses at.
+func (s *screen) pauseLinesToggle(cx *core.Scope) core.Node {
+	a := s.a
+	label := func() string { return locales.FilmPauseLines(cx) }
+	b := glyphToggle(cx, svg(iconPauseLines), label, withKey(cx, label, "p"), 34, 30, 18, 18, "film-pause-lines", live.Func(a, a.PauseLines), live.Do(a, a.TogglePauseLines))
 	b.Disabled = live.Func(a, func() bool {
 		subs := a.Subs()
 		return subs.Key != a.OpenKey() || !subs.Ready || len(subs.Cues) == 0
