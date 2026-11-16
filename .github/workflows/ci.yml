@@ -221,10 +221,10 @@ jobs:
             GOARCH=$arch go vet $PKGS
           done
 
-  # The phone app (apps/mobile) vetted for iOS and Android, behind their build tags, which the Test and Build jobs never compile: nsgo check needs neither Xcode nor an Android SDK. Packaging it is phase 4 of #178.
+  # The phone app (apps/mobile) vetted for iOS and Android, behind their build tags, which the Test and Build jobs never compile. Vetting for iOS compiles its cgo against the iOS SDK, so it runs on macOS, whose image has Xcode; Android's arm64 needs no SDK. Packaging it is phase 4 of #178.
   mobile:
     name: Check (iOS, Android)
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

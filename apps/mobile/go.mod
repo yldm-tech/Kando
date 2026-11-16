@@ -5,7 +5,7 @@ go 1.27.4
 tool github.com/nsgo-dev/nsgo/cmd/nsgo
 
 require (
-	github.com/nsgo-dev/nsgo v0.0.0-20261115232620-b6cf06fbbefa
+	github.com/nsgo-dev/nsgo v0.1.1-0.20261116154601-80d94246b875
 	kando/packages/core v0.0.0
 	kando/packages/sync v0.0.0
 )
@@ -25,7 +25,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/image v0.48.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
-	golang.org/x/oauth2 v0.35.0 // indirect
+	golang.org/x/oauth2 v0.38.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
 	golang.org/x/text v0.44.0 // indirect

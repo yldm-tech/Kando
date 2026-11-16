@@ -258,6 +258,10 @@ func (s *Server) Close() error {
 	s.mu.Unlock()
 	close(s.stop)
 	err := s.http.Close()
+	if errors.Is(err, net.ErrClosed) {
+		// The listeners were closed above; http.Server still tracks those its Serve has not yet let go of, and closing them again reports it.
+		err = nil
+	}
 	s.done.Wait()
 	return err
 }

@@ -380,6 +380,8 @@ func TestMoveFilmFromThePlayerAndMenuBar(t *testing.T) {
 	refresh(tt, a)
 	tt.Press("id:film-more")
 	tt.ChoosePopup(m.FilmsMoveToLibrary(), "英语听力")
+	// A rename the system refuses (Windows, while a handle on the film's folder is still open) falls back to the copy, which ends on its own goroutine.
+	waitUntil(t, tt, a, f.updates, func() bool { return a.lib.move.copying == nil })
 	refresh(tt, a)
 	if a.openKey != "" {
 		t.Fatalf("the moved film is still open: %q", a.openKey)
@@ -394,6 +396,7 @@ func TestMoveFilmFromThePlayerAndMenuBar(t *testing.T) {
 	// The app has a menu bar of its own on macOS alone (appMenuBar); the test gives it one on every system, as the menu bar's own tests do.
 	useMenuBar(t, a, tt)
 	tt.ChooseMenu(m.MenuGroupFile(), m.FilmsMoveToLibrary(), "我的影片")
+	waitUntil(t, tt, a, f.updates, func() bool { return a.lib.move.copying == nil })
 	refresh(tt, a)
 	if _, err := os.Stat(f.video); err != nil {
 		t.Fatalf("the menu bar did not move the film back: %v", err)
