@@ -36,6 +36,7 @@ type fakeApp struct {
 	notice                           Notice
 	expanded, linkFocus              bool
 	sort                             string
+	language                         string
 	removeOpen, removeFolder         bool
 	removing                         Film
 	renameOpen                       bool
@@ -46,7 +47,7 @@ type fakeApp struct {
 func newFakeApp() *fakeApp {
 	lib := "/films/我的影片.kando"
 	return &fakeApp{
-		dir: lib, page: sidebar.PageFilms, filter: sidebar.SourceAll, sort: SortAdded, place: "/films",
+		dir: lib, page: sidebar.PageFilms, filter: sidebar.SourceAll, sort: SortAdded, place: "/films", language: "简体中文",
 		name: "新资料库",
 		items: []Film{
 			{Key: "done", JobID: "done", Title: "Rivers of Europe", Name: "Rivers of Europe", Source: "https://youtu.be/rivers", Stage: core.StageComplete,
@@ -144,6 +145,7 @@ func (f *fakeApp) Furthest(path string) time.Duration { return f.furthest[path] 
 func (f *fakeApp) Notice() *Notice                    { return &f.notice }
 func (f *fakeApp) QueueExpanded() *bool               { return &f.expanded }
 func (f *fakeApp) LibrarySort() string                { return f.sort }
+func (f *fakeApp) Language() *string                  { return &f.language }
 func (f *fakeApp) SetLibrarySort(order string)        { f.call("sort", order); f.sort = order }
 func (f *fakeApp) AskRemove(item Film) {
 	f.call("ask-remove", item.Key)
@@ -322,6 +324,25 @@ func TestPostersShowHowMuchWasWatched(t *testing.T) {
 	app.Advance(time.Second)
 	if got := len(app.Query(whole("Linear Algebra"))); got != before+1 {
 		t.Fatalf("resting on the poster shows %d texts naming the film, want the %d there were and its tooltip", got, before)
+	}
+}
+
+// TestPosterNamesTheSpokenLanguage: the tag over a poster names the language heard in the film, and the translation's language too once that is not the one set for new films.
+func TestPosterNamesTheSpokenLanguage(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	tag := "id:film-done >> " + whole(msgs.FilmsPosterBilingual(msgs.FilmsLanguageTagSimplifiedChinese()))
+	if !app.Exists(tag) {
+		t.Fatalf("a film whose spoken language is not known: %q", app.Texts())
+	}
+	change(app, a, func() { a.items[0].Spoken = "ja" })
+	if !app.Exists("id:film-done >> " + whole("JA")) {
+		t.Fatalf("a Japanese film translated into the language set: %q", app.Texts())
+	}
+	change(app, a, func() { a.language = "English" })
+	if !app.Exists("id:film-done >> " + whole(msgs.FilmsPosterLanguages("JA", msgs.FilmsLanguageTagSimplifiedChinese()))) {
+		t.Fatalf("a Japanese film translated into another language than the one set: %q", app.Texts())
 	}
 }
 

@@ -483,8 +483,8 @@ func (s *screen) chapterRow(cx *ns.Scope, index func() int, ch func() Chapter) n
 
 // infoState is what the info tab lists of the film, which changes only as the film's folder is read or its job moves on.
 type infoState struct {
-	title, stage, language, folder, source, record string
-	files                                          string
+	title, stage, language, spoken, folder, source, record string
+	files                                                  string
 }
 
 // infoTab shows where the film is: its folder, the files in it and where it came from.
@@ -507,7 +507,7 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 		if record == "" {
 			record = "~/Library/Application Support/Kando/library.json"
 		}
-		return infoState{title: title(item), stage: string(item.Stage), language: item.Language, folder: folder, source: item.Source, record: record}
+		return infoState{title: title(item), stage: string(item.Stage), language: item.Language, spoken: item.Spoken, folder: folder, source: item.Source, record: record}
 	})
 	return ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		st := state()
@@ -516,7 +516,7 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 			ns.Text{Content: shorten(st.title, 52), Style: ns.Style{FontSize: 15, LineHeight: 19, FontWeight: 650, Color: onGlass}},
 			ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignCenter}, Children: []ns.Node{
 				infoChip(s.infoStage(cx, item)),
-				infoChip(languageName(cx, st.language)),
+				infoChip(languagesName(cx, st.spoken, st.language)),
 			}},
 		}})}
 		if st.folder != "" {
@@ -614,6 +614,17 @@ func languageName(cx *ns.Scope, saved string) string {
 		return ""
 	}
 	return subtitle.TargetLanguageName(cx, saved)
+}
+
+// languagesName is what the info tab shows for the languages of a film: the one heard in it, whisper's code spoken, and the one it was translated into, saved, such as 日语 → 简体中文; either alone when the other is not known.
+func languagesName(cx *ns.Scope, spoken, saved string) string {
+	switch {
+	case spoken == "":
+		return languageName(cx, saved)
+	case saved == "":
+		return subtitle.SpokenLanguageName(cx, spoken)
+	}
+	return locales.FilmInfoLanguages(cx, subtitle.SpokenLanguageName(cx, spoken), languageName(cx, saved))
 }
 
 // fileRow is a file of the film's folder: a tile with its kind, its name, its size, and a reveal action.

@@ -2,6 +2,8 @@
 package subtitle
 
 import (
+	"strings"
+
 	"kando/apps/kando/locales"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -109,4 +111,30 @@ func TargetLanguageNameIn(m locales.Messages, value string) string {
 		return m.SettingsLanguageGerman()
 	}
 	return value
+}
+
+// SpokenLanguageName is how the interface names a language the speech recognition hears, as whisper's code keeps it (ja, en), in the language the interface shows under cx: the settings' spoken-language drop-down and a film's information name it alike. A code the settings do not offer is shown in capitals, as JA would be.
+func SpokenLanguageName(cx *core.Scope, code string) string {
+	return SpokenLanguageNameIn(locales.For(cx), code)
+}
+
+// SpokenLanguageNameIn is SpokenLanguageName in the language of m, for words said outside a scope.
+func SpokenLanguageNameIn(m locales.Messages, code string) string {
+	switch code {
+	case "en":
+		return m.SettingsSpeechLanguageEn()
+	case "zh":
+		return m.SettingsSpeechLanguageZh()
+	case "ja":
+		return m.SettingsSpeechLanguageJa()
+	case "ko":
+		return m.SettingsSpeechLanguageKo()
+	case "fr":
+		return m.SettingsSpeechLanguageFr()
+	case "es":
+		return m.SettingsSpeechLanguageEs()
+	case "de":
+		return m.SettingsSpeechLanguageDe()
+	}
+	return strings.ToUpper(code)
 }

@@ -291,6 +291,8 @@ type storedJob struct {
 	Redo core.Redo `json:"redo,omitempty"`
 	// RedoLanguage is the language a job translating every line again translates into (core.Job.RedoLanguage).
 	RedoLanguage string `json:"redoLanguage,omitempty"`
+	// SpokenLanguage is the language the transcription heard (core.Job.SpokenLanguage).
+	SpokenLanguage string `json:"spokenLanguage,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -299,7 +301,7 @@ func storeJob(job core.Job) storedJob {
 		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
 		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated,
-		Transcribed: job.Transcribed, Redo: job.Redo, RedoLanguage: job.RedoLanguage,
+		Transcribed: job.Transcribed, Redo: job.Redo, RedoLanguage: job.RedoLanguage, SpokenLanguage: job.SpokenLanguage,
 	}
 	switch {
 	case errors.Is(job.Err, context.Canceled):
@@ -318,7 +320,7 @@ func (s storedJob) job() core.Job {
 		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
 		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated,
-		Transcribed: s.Transcribed, Redo: s.Redo, RedoLanguage: s.RedoLanguage,
+		Transcribed: s.Transcribed, Redo: s.Redo, RedoLanguage: s.RedoLanguage, SpokenLanguage: s.SpokenLanguage,
 	}
 	switch s.Error {
 	case "":

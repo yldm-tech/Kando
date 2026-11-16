@@ -20,6 +20,8 @@ type Trace struct {
 	Progress func(core.Progress)
 	// Info is the video's title and thumbnail, once the download knows them.
 	Info func(Info)
+	// Spoken is the language the transcription heard, as whisper's code (ja, en), once it knows it.
+	Spoken func(language string)
 }
 
 type traceKey struct{}
@@ -43,5 +45,11 @@ func reportProgress(ctx context.Context, p core.Progress) {
 func reportInfo(ctx context.Context, info Info) {
 	if trace := traceOf(ctx); trace != nil && trace.Info != nil {
 		trace.Info(info)
+	}
+}
+
+func reportSpoken(ctx context.Context, language string) {
+	if trace := traceOf(ctx); trace != nil && trace.Spoken != nil && language != "" {
+		trace.Spoken(language)
 	}
 }

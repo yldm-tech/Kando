@@ -98,6 +98,8 @@ type App interface {
 	Notice() *Notice
 	// QueueExpanded is whether 处理中 shows every card rather than the first QueueShown.
 	QueueExpanded() *bool
+	// Language is the language the settings translate new films into, such as 简体中文.
+	Language() *string
 	// LibrarySort is the order the done grid shows its films in, one of Sorts; SetLibrarySort shows them in order from now on and keeps it for the next launch.
 	LibrarySort() string
 	SetLibrarySort(order string)

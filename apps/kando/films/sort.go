@@ -6,6 +6,7 @@ import (
 	"slices"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
@@ -18,16 +19,17 @@ import (
 	"golang.org/x/text/language"
 )
 
-// The orders the done grid can be shown in, as settings.json keeps them. SortAdded is the films added last first, the order the shelf keeps them in (List), and the one the grid shows until another is chosen. SortWatched is the films played last first.
+// The orders the done grid can be shown in, as settings.json keeps them. SortAdded is the films added last first, the order the shelf keeps them in (List), and the one the grid shows until another is chosen. SortWatched is the films played last first, and SortSpoken groups them by the language heard in them.
 const (
 	SortAdded   = "added"
 	SortWatched = "watched"
 	SortTitle   = "title"
 	SortSource  = "source"
+	SortSpoken  = "spoken"
 )
 
 // Sorts are the orders the grid's sort menu offers, in the order it lists them.
-var Sorts = []string{SortAdded, SortWatched, SortTitle, SortSource}
+var Sorts = []string{SortAdded, SortWatched, SortTitle, SortSource, SortSpoken}
 
 // ValidSort is order when it is one of Sorts and SortAdded otherwise, as for an empty value or one another version saved.
 func ValidSort(order string) string {
@@ -46,6 +48,8 @@ func SortLabel(m locales.Messages, order string) string {
 		return m.FilmsSortSource()
 	case SortWatched:
 		return m.FilmsSortWatched()
+	case SortSpoken:
+		return m.FilmsSortSpoken()
 	default:
 		return m.FilmsSortAdded()
 	}
@@ -54,7 +58,7 @@ func SortLabel(m locales.Messages, order string) string {
 // sourceOrder is the sources in the order the sidebar lists them, which SortSource groups the films in.
 var sourceOrder = []string{sidebar.SourceYouTube, sidebar.SourceBilibili, sidebar.SourceWeb, sidebar.SourceLocal}
 
-// Sorted returns items in order, leaving items as they are. items are the films added last first, as List gives them, which SortAdded keeps. SortWatched puts the films played last first, by played, when the video at a path last played (App.PlayedAt), and those never played after them. SortTitle orders them by name as tag, the interface's language, orders words (Chinese by pinyin, numbers by value, so "Lecture 2" comes before "Lecture 10"); SortSource groups them by source in the sidebar's order, other sites by their names. Films the order does not tell apart keep the order they were added in.
+// Sorted returns items in order, leaving items as they are. items are the films added last first, as List gives them, which SortAdded keeps. SortWatched puts the films played last first, by played, when the video at a path last played (App.PlayedAt), and those never played after them. SortTitle orders them by name as tag, the interface's language, orders words (Chinese by pinyin, numbers by value, so "Lecture 2" comes before "Lecture 10"); SortSource groups them by source in the sidebar's order, other sites by their names; SortSpoken groups them by the language heard in them, by its name in tag's language, those whose language is not known last. Films the order does not tell apart keep the order they were added in.
 func Sorted(items []Film, order, tag string, played func(path string) time.Time) []Film {
 	order = ValidSort(order)
 	if order == SortAdded || len(items) < 2 {
@@ -79,9 +83,16 @@ func Sorted(items []Film, order, tag string, played func(path string) time.Time)
 	entries := make([]entry, len(items))
 	for i, item := range items {
 		e := entry{item: item}
-		if order == SortTitle {
+		switch order {
+		case SortTitle:
 			e.key = col.KeyFromString(&buf, filmName(item))
-		} else {
+		case SortSpoken:
+			if item.Spoken == "" {
+				e.rank = 1
+			} else {
+				e.key = col.KeyFromString(&buf, subtitle.SpokenLanguageNameIn(locales.In(tag), item.Spoken))
+			}
+		default:
 			e.rank = slices.Index(sourceOrder, SourceOf(item))
 			e.key = col.KeyFromString(&buf, SourceLabel(locales.In(tag), item))
 		}

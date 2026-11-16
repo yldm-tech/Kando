@@ -89,6 +89,8 @@ type Job struct {
 	Redo Redo
 	// RedoLanguage is the language a RedoTranslation job translates into; it becomes Language once the job completes. Empty for any other job.
 	RedoLanguage string
+	// SpokenLanguage is the language the speech recognition heard in the video, as its code (ja, en, zh), once the job transcribed it; empty before then and for a job whose transcript was read back from a run that did not keep it. A job that transcribes the video again hears it anew.
+	SpokenLanguage string
 }
 
 // Redo is what a job made to translate a done film again translates. Both read the subtitles the film's job exported beside its video and neither downloads nor transcribes it again.

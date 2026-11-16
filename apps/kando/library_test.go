@@ -1571,7 +1571,7 @@ func TestLibrarySortOrdersTheGrid(t *testing.T) {
 	choose := func(button, item string) {
 		t.Helper()
 		tt.Press(button)
-		if got, want := popupLabels(tt), []string{"最近添加", "最近观看", "标题", "来源"}; !slices.Equal(got, want) {
+		if got, want := popupLabels(tt), []string{"最近添加", "最近观看", "标题", "来源", "原声语言"}; !slices.Equal(got, want) {
 			t.Fatalf("sort menu %q, want %q", got, want)
 		}
 		tt.ChoosePopup(item)

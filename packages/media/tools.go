@@ -394,7 +394,13 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 	if err != nil {
 		return nil, err
 	}
-	return parseWhisperJSON(data)
+	segments, spoken, err := parseWhisperJSON(data)
+	if err != nil {
+		return nil, err
+	}
+	// The language whisper heard reaches the job through the context's Trace, as the Pipeline's Transcribe returns the lines alone.
+	reportSpoken(ctx, spoken)
+	return segments, nil
 }
 
 // NoAudioStream reports whether ffmpeg's error says the input had no sound to extract: with -vn and nothing but a picture left, it has no stream to write ("Output file does not contain any stream", "Output file #0 does not contain any stream" before ffmpeg 7).

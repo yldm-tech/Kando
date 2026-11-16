@@ -173,6 +173,7 @@ func (p *tracingPipeline) Download(ctx context.Context, _ string) (string, error
 
 func (p *tracingPipeline) Transcribe(ctx context.Context, _ string) ([]core.Segment, error) {
 	reportProgress(ctx, core.Fraction(0.7))
+	reportSpoken(ctx, "ja")
 	return []core.Segment{{End: time.Second, Text: "hello"}}, nil
 }
 
@@ -180,12 +181,14 @@ func TestRunReportsWhatTheStagesTrace(t *testing.T) {
 	job, _ := core.NewJob("https://www.youtube.com/watch?v=jNQXAC9IVRw")
 	var seen []core.Job
 	final := Run(context.Background(), &tracingPipeline{}, job, "简体中文", func(j core.Job) { seen = append(seen, j) })
-	if final.Stage != core.StageComplete || final.Title != "Me at the zoo" || final.Thumbnail == "" {
+	if final.Stage != core.StageComplete || final.Title != "Me at the zoo" || final.Thumbnail == "" || final.SpokenLanguage != "ja" {
 		t.Fatalf("final = %+v", final)
 	}
 	var downloading, transcribing bool
 	for _, j := range seen {
 		switch {
+		case j.Stage == core.StageTranslating && j.SpokenLanguage != "ja":
+			t.Fatalf("the translation started without the language heard: %+v", j)
 		case j.Stage == core.StageDownloading && j.Progress.Known && j.Progress.Fraction == 0.4:
 			downloading = j.Title == "Me at the zoo"
 		case j.Stage == core.StageTranscribing && j.Progress.Known && j.Progress.Fraction == 0.7:

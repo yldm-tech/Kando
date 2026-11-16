@@ -92,9 +92,7 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 		Children: []core.Node{clip(13,
 			cover(live.Func(a, func() core.ImageSource { return a.Poster(item().VideoPath) })),
 			core.Show{When: func() bool { return item().Language != "" }, Then: func(*core.Scope) core.Node {
-				return posterChip(func() string {
-					return locales.FilmsPosterBilingual(cx, LanguageShort(locales.For(cx), item().Language))
-				},
+				return posterChip(live.Func(a, func() string { return PosterLanguages(locales.For(cx), item(), *a.Language()) }),
 					core.Style{Top: core.Pt(9), Left: core.Pt(9), LetterSpacing: 0.4, FontWeight: ui.Bold})
 			}},
 			core.Show{When: func() bool { return duration() != "" }, Then: func(*core.Scope) core.Node {

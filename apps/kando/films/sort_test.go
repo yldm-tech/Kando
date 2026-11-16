@@ -43,6 +43,40 @@ func TestSortedByWatched(t *testing.T) {
 	}
 }
 
+// TestSortedBySpoken groups the grid by the language heard in each film, by its name as the interface's language orders words, those whose language is not known last; within a language the films keep the order they were added in.
+func TestSortedBySpoken(t *testing.T) {
+	testlocale.Use(t, "en")
+	items := []Film{
+		{Key: "unknown", Name: "Found"},
+		{Key: "ja-new", Spoken: "ja"},
+		{Key: "en", Spoken: "en"},
+		{Key: "ja-old", Spoken: "ja"},
+		{Key: "it", Spoken: "it"},
+	}
+	// English, IT (a language the settings do not name), Japanese, then the one not known.
+	if got := keysOf(Sorted(items, SortSpoken, testlocale.Current(), neverPlayed)); got != "en,it,ja-new,ja-old,unknown" {
+		t.Fatalf("by spoken language %s", got)
+	}
+}
+
+// TestPosterLanguages: a poster's tag names the language heard in its film and adds the translation's only when it is not the one set for new films; a film whose spoken language is not known says it is bilingual.
+func TestPosterLanguages(t *testing.T) {
+	m := testlocale.Messages()
+	for _, tc := range []struct {
+		item   Film
+		target string
+		want   string
+	}{
+		{Film{Spoken: "ja", Language: "简体中文"}, "简体中文", "JA"},
+		{Film{Spoken: "ja", Language: "English"}, "简体中文", m.FilmsPosterLanguages("JA", "EN")},
+		{Film{Language: "简体中文"}, "简体中文", m.FilmsPosterBilingual(m.FilmsLanguageTagSimplifiedChinese())},
+	} {
+		if got := PosterLanguages(m, tc.item, tc.target); got != tc.want {
+			t.Errorf("PosterLanguages(%+v, %q) = %q, want %q", tc.item, tc.target, got, tc.want)
+		}
+	}
+}
+
 // TestSortedByTitle orders the grid by name as the interface's language orders words: Latin letters regardless of case, numbers by value, then Chinese by pinyin. Films with the same name keep the order they were added in, and the shelf's own order is left alone.
 func TestSortedByTitle(t *testing.T) {
 	// Newest first, as List gives them.

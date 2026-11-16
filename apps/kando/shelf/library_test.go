@@ -420,6 +420,20 @@ func TestLibraryKeepsWhatAJobRedoes(t *testing.T) {
 	}
 }
 
+// TestLibraryKeepsTheSpokenLanguage checks that the language the transcription heard is kept with its job.
+func TestLibraryKeepsTheSpokenLanguage(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, Language: "简体中文", SpokenLanguage: "ja"})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if job := loaded.Jobs[0]; job.SpokenLanguage != "ja" || job.Language != "简体中文" {
+		t.Fatalf("job %+v", job)
+	}
+}
+
 // TestRenameKeepsTheTitleGivenInKando checks that a title the user gives a video is kept trimmed, read back from library.json, dropped by an empty one, and that Rename says whether anything changed.
 func TestRenameKeepsTheTitleGivenInKando(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")

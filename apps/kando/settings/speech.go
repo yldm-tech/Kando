@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
@@ -70,27 +71,12 @@ func spokenLanguage(cx *core.Scope, a App) core.Node {
 	return card
 }
 
-// spokenLanguageName is how the spoken-language drop-down names whisper's language code, 自动识别 for "", in the language of m.
+// spokenLanguageName is how the spoken-language drop-down names whisper's language code, 自动识别 for "", in the language of m, as a film's information names the language heard in it (subtitle.SpokenLanguageNameIn).
 func spokenLanguageName(m locales.Messages, code string) string {
-	switch code {
-	case "":
+	if code == "" {
 		return m.SettingsSpeechSpokenAuto()
-	case "en":
-		return m.SettingsSpeechLanguageEn()
-	case "zh":
-		return m.SettingsSpeechLanguageZh()
-	case "ja":
-		return m.SettingsSpeechLanguageJa()
-	case "ko":
-		return m.SettingsSpeechLanguageKo()
-	case "fr":
-		return m.SettingsSpeechLanguageFr()
-	case "es":
-		return m.SettingsSpeechLanguageEs()
-	case "de":
-		return m.SettingsSpeechLanguageDe()
 	}
-	return code
+	return subtitle.SpokenLanguageNameIn(m, code)
 }
 
 // trashDialog confirms moving a downloaded model to the Trash, saying how much room it frees. 取消 is the default, so Enter keeps the model; Escape keeps it too.

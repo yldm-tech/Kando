@@ -448,6 +448,7 @@ var Parameters = map[string][]string{
 	"FilmFaceBold":                       {"line"},
 	"FilmFaceColor":                      {"line", "color"},
 	"FilmFaceSize":                       {"line"},
+	"FilmInfoLanguages":                  {"spoken", "target"},
 	"FilmLineOf":                         {"line", "total"},
 	"FilmSeconds":                        {"seconds"},
 	"FilmShowInFinder":                   {"platform"},
@@ -467,6 +468,7 @@ var Parameters = map[string][]string{
 	"FilmsNewLibraryNote":                {"platform"},
 	"FilmsNoLibraryDescription":          {"platform"},
 	"FilmsPosterBilingual":               {"language"},
+	"FilmsPosterLanguages":               {"spoken", "target"},
 	"FilmsQueueActive":                   {"count"},
 	"FilmsQueueDownloadingFrom":          {"site"},
 	"FilmsQueueFailed":                   {"count"},
@@ -650,6 +652,7 @@ type Translation struct {
 	FilmFaceBold                       func(line string) string
 	FilmFaceColor                      func(line string, color string) string
 	FilmFaceSize                       func(line string) string
+	FilmInfoLanguages                  func(spoken string, target string) string
 	FilmLineOf                         func(line int, total int) string
 	FilmSeconds                        func(seconds string) string
 	FilmShowInFinder                   func(platform string) string
@@ -669,6 +672,7 @@ type Translation struct {
 	FilmsNewLibraryNote                func(platform string) string
 	FilmsNoLibraryDescription          func(platform string) string
 	FilmsPosterBilingual               func(language string) string
+	FilmsPosterLanguages               func(spoken string, target string) string
 	FilmsQueueActive                   func(count int) string
 	FilmsQueueDownloadingFrom          func(site string) string
 	FilmsQueueFailed                   func(count int) string
@@ -1095,6 +1099,7 @@ const (
 	textFilmsSourceEmpty
 	textFilmsSortAdded
 	textFilmsSortSource
+	textFilmsSortSpoken
 	textFilmsSortTitle
 	textFilmsSortWatched
 	textFilmsStageComplete
@@ -1860,6 +1865,7 @@ var keyOfText = [numTexts]string{
 	"filmsSourceEmpty",
 	"filmsSortAdded",
 	"filmsSortSource",
+	"filmsSortSpoken",
 	"filmsSortTitle",
 	"filmsSortWatched",
 	"filmsStageComplete",
@@ -2623,6 +2629,7 @@ var textsEn = i18n.NewTexts(""+
 	"No films from this source yet."+
 	"Recently Added"+
 	"Source"+
+	"Spoken Language"+
 	"Title"+
 	"Recently Watched"+
 	"Done"+
@@ -3383,6 +3390,7 @@ var textsEn = i18n.NewTexts(""+
 		30,
 		14,
 		6,
+		15,
 		5,
 		16,
 		4,
@@ -4146,6 +4154,7 @@ var textsJa = i18n.NewTexts(""+
 	"このソースの動画はまだありません。"+
 	"追加日が新しい順"+
 	"ソース"+
+	"音声の言語"+
 	"タイトル"+
 	"最近見た順"+
 	"完了"+
@@ -4906,6 +4915,7 @@ var textsJa = i18n.NewTexts(""+
 		51,
 		24,
 		9,
+		15,
 		12,
 		15,
 		6,
@@ -5669,6 +5679,7 @@ var textsKo = i18n.NewTexts(""+
 	"이 출처의 영상이 아직 없습니다."+
 	"최근 추가순"+
 	"출처"+
+	"음성 언어"+
 	"제목"+
 	"최근 시청"+
 	"완료"+
@@ -6429,6 +6440,7 @@ var textsKo = i18n.NewTexts(""+
 		44,
 		16,
 		6,
+		13,
 		6,
 		13,
 		6,
@@ -7192,6 +7204,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"这个来源下还没有影片。"+
 	"最近添加"+
 	"来源"+
+	"原声语言"+
 	"标题"+
 	"最近观看"+
 	"已完成"+
@@ -7952,6 +7965,7 @@ var textsZhHans = i18n.NewTexts(""+
 		33,
 		12,
 		6,
+		12,
 		6,
 		12,
 		9,
@@ -8715,6 +8729,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"這個來源下還沒有影片。"+
 	"最近加入"+
 	"來源"+
+	"原聲語言"+
 	"標題"+
 	"最近觀看"+
 	"已完成"+
@@ -9475,6 +9490,7 @@ var textsZhHant = i18n.NewTexts(""+
 		33,
 		12,
 		6,
+		12,
 		6,
 		12,
 		9,
@@ -10097,6 +10113,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmFaceSize != nil {
 		s.FilmFaceSize = t.FilmFaceSize
 	}
+	if t.FilmInfoLanguages != nil {
+		s.FilmInfoLanguages = t.FilmInfoLanguages
+	}
 	if t.FilmLineOf != nil {
 		s.FilmLineOf = t.FilmLineOf
 	}
@@ -10153,6 +10172,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsPosterBilingual != nil {
 		s.FilmsPosterBilingual = t.FilmsPosterBilingual
+	}
+	if t.FilmsPosterLanguages != nil {
+		s.FilmsPosterLanguages = t.FilmsPosterLanguages
 	}
 	if t.FilmsQueueActive != nil {
 		s.FilmsQueueActive = t.FilmsQueueActive
@@ -12563,6 +12585,38 @@ func FilmFullScreen(cx *core.Scope) string { return For(cx).FilmFullScreen() }
 // FilmFullScreen is the package's FilmFullScreen in the language of msgs.
 func (msgs Messages) FilmFullScreen() string { return msgs.text(textFilmFullScreen) }
 
+// FilmInfoLanguages says "{spoken} → {target}"
+// in the language the app shows under cx.
+//
+// Tag in the film's Info tab: the language heard in the video and the language its subtitles were translated into.
+func FilmInfoLanguages(cx *core.Scope, spoken string, target string) string {
+	return For(cx).FilmInfoLanguages(spoken, target)
+}
+
+// FilmInfoLanguages is the package's FilmInfoLanguages in the language of msgs.
+func (msgs Messages) FilmInfoLanguages(spoken string, target string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmInfoLanguages(spoken, target))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmInfoLanguages; f != nil {
+			return f(spoken, target)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(spoken) + " → " + msgs.arg(target)
+		case "ja":
+			return spoken + " → " + target
+		case "ko":
+			return spoken + " → " + target
+		case "zh-Hans":
+			return spoken + " → " + target
+		case "zh-Hant":
+			return spoken + " → " + target
+		}
+	}
+}
+
 // FilmHideSidebar says "Hide Sidebar"
 // in the language the app shows under cx.
 //
@@ -14307,6 +14361,38 @@ func (msgs Messages) FilmsPosterBilingual(language string) string {
 	}
 }
 
+// FilmsPosterLanguages says "{spoken} → {target}"
+// in the language the app shows under cx.
+//
+// Small tag over a poster: the short code of the language heard in the video and the short tag of the language it was translated into, shown when that is not the language set for new films.
+func FilmsPosterLanguages(cx *core.Scope, spoken string, target string) string {
+	return For(cx).FilmsPosterLanguages(spoken, target)
+}
+
+// FilmsPosterLanguages is the package's FilmsPosterLanguages in the language of msgs.
+func (msgs Messages) FilmsPosterLanguages(spoken string, target string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsPosterLanguages(spoken, target))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsPosterLanguages; f != nil {
+			return f(spoken, target)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(spoken) + " → " + msgs.arg(target)
+		case "ja":
+			return spoken + " → " + target
+		case "ko":
+			return spoken + " → " + target
+		case "zh-Hans":
+			return spoken + " → " + target
+		case "zh-Hant":
+			return spoken + " → " + target
+		}
+	}
+}
+
 // FilmsQueueActive says "{count} in progress"
 // in the language the app shows under cx.
 //
@@ -15077,6 +15163,15 @@ func FilmsSortSource(cx *core.Scope) string { return For(cx).FilmsSortSource() }
 
 // FilmsSortSource is the package's FilmsSortSource in the language of msgs.
 func (msgs Messages) FilmsSortSource() string { return msgs.text(textFilmsSortSource) }
+
+// FilmsSortSpoken says "Spoken Language"
+// in the language the app shows under cx.
+//
+// Sort order of the grid of finished films, and its item in the sort menu: films grouped by the language heard in them, those whose language is not known last.
+func FilmsSortSpoken(cx *core.Scope) string { return For(cx).FilmsSortSpoken() }
+
+// FilmsSortSpoken is the package's FilmsSortSpoken in the language of msgs.
+func (msgs Messages) FilmsSortSpoken() string { return msgs.text(textFilmsSortSpoken) }
 
 // FilmsSortTitle says "Title"
 // in the language the app shows under cx.
