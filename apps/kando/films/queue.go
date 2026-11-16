@@ -337,7 +337,7 @@ func (s stepsBar) Render(cx *ns.Scope) ns.Node {
 	}
 }
 
-// Remedy is what a failed card says when the app knows why its download failed, as the prototype words each kind: Headline in red (in the accent while Working, as while yt-dlp updates), Why under it, and the Actions that fix it, the primary one first. 移除 always follows them.
+// Remedy is what a failed card says when the app knows why its download failed, as the prototype words each kind: Headline in red (in the accent's ink while Working, as while yt-dlp updates), Why under it, and the Actions that fix it, the primary one first. 移除 always follows them.
 type Remedy struct {
 	Headline, Why string
 	Working       bool
@@ -431,7 +431,7 @@ func (f failedDetail) Render(cx *ns.Scope) ns.Node {
 		headline := ns.Text{ContentFunc: func() string { return look().remedy.Headline }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail, Style: ns.Style{FontSize: 11},
 			StyleFunc: func() ns.Style {
 				if look().remedy.Working {
-					return ns.Style{Color: colors.Accent()}
+					return ns.Style{Color: k.AccentInk()}
 				}
 				return ns.Style{Color: k.DangerInk()}
 			}}
