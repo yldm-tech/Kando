@@ -36,12 +36,14 @@ func (a *app) precheckIn(m locales.Messages, sources []string) (msg, section str
 			return precheckWhole(m, link), ""
 		}
 	}
-	return a.precheckReady()
+	return a.precheckReadyIn(m)
 }
 
-// precheckReady is what precheck says of the app rather than of the sources: no library, then the tools and settings a job needs. A message bar that says it closes once it says nothing, and follows it once it says something else (libraryFollowNotice, browseFollowNotice), as the problem was fixed in the meantime.
-func (a *app) precheckReady() (msg, section string) {
-	m := a.messages()
+// precheckReady is precheckReadyIn in the interface's language.
+func (a *app) precheckReady() (msg, section string) { return a.precheckReadyIn(a.messages()) }
+
+// precheckReadyIn is what precheck says of the app rather than of the sources: no library, then the tools and settings a job needs. A message bar that says it closes once it says nothing, and follows it once it says something else (libraryFollowNotice, browseFollowNotice), as the problem was fixed in the meantime.
+func (a *app) precheckReadyIn(m locales.Messages) (msg, section string) {
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
 		return m.PrecheckNoLibrary(), ""
 	}

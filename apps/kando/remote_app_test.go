@@ -342,10 +342,10 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 	if s := added.Skipped[0]; s.JobID != "" || s.Stage != "" || s.FilmID != "" {
 		t.Errorf("a channel skipped with a job %+v", s)
 	}
-	if s := added.Skipped[2]; s.JobID != "done" || s.Stage != "complete" || s.FilmID != "done" {
+	if s := added.Skipped[3]; s.JobID != "done" || s.Stage != "complete" || s.FilmID != "done" {
 		t.Errorf("a video already in the library skipped as %+v", s)
 	}
-	if s, first := added.Skipped[3], added.Jobs[0]; s.JobID != first.ID || s.Stage == "" || s.Stage == "complete" || s.Stage == "failed" || s.FilmID != "" {
+	if s, first := added.Skipped[4], added.Jobs[0]; s.JobID != first.ID || s.Stage == "" || s.Stage == "complete" || s.Stage == "failed" || s.FilmID != "" {
 		t.Errorf("a video given twice skipped as %+v, its job %+v", s, first)
 	}
 	if len(a.library.Jobs) != 3 {
