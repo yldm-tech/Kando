@@ -87,7 +87,7 @@ func transport(cx *core.Scope, p *play) core.Node {
 		return ui.IconButton{TestID: id, Icon: svg, LabelFunc: label, Variant: ui.IconButtonGhost, Size: 44, IconSize: 22, OnPress: press}
 	}
 	playButton := ui.IconButton{TestID: "player-play", Variant: ui.IconButtonGhost, Size: 52, IconSize: 30,
-		IconFunc: func() *core.SVG {
+		Icon: func() *core.SVG {
 			if p.playing.Get() {
 				return lucide.Pause()
 			}

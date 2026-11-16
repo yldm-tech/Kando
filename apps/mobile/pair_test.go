@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"kando/apps/mobile/pair"
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // Typed by hand, the address shows the desktop certificate's fingerprint in short before the phone trusts it; once confirmed, the phone pairs and keeps the desktop.
@@ -39,9 +45,46 @@ func TestPairingShowsTheFingerprintBeforeTrustingIt(t *testing.T) {
 	var desktops []store.Desktop
 	var err error
 	p.app.WaitUntil(wait, func() bool { desktops, err = store.Open(p.dir).Desktops(); return len(desktops) > 0 })
-	if err != nil || len(desktops) != 1 || desktops[0].Name != "Studio" || desktops[0].Token == "" || desktops[0].Addr != d.Addr {
+	if err != nil || len(desktops) != 1 || desktops[0].Name != "Studio" || desktops[0].Addr != d.Addr {
 		t.Fatalf("kept %+v, %v", desktops, err)
 	}
+}
+
+// The device token is kept in the platform's secure store, readable after the first unlock and on this device alone, and not in desktops.json; the phone started again reads it from there, and unpairing deletes it.
+func TestTheTokenIsKeptInTheSecureStore(t *testing.T) {
+	d := newDesktop(t)
+	p := startPhone(t, "")
+	p.app.WaitFor("id:home-welcome", wait)
+	p.pair(d)
+	account := store.TokenAccount(store.DesktopID(d.Fingerprint))
+	var token string
+	var accessible core.SecretAccessible
+	p.app.WaitUntil(wait, func() bool { token, accessible = secretOf(p, account); return token != "" })
+	if accessible != core.SecretAfterFirstUnlockThisDeviceOnly {
+		t.Errorf("the token is kept with accessibility %v, want after the first unlock, this device only", accessible)
+	}
+	p.app.WaitUntil(wait, func() bool { kept, _ := store.Open(p.dir).Desktops(); return len(kept) == 1 })
+	if data, err := os.ReadFile(filepath.Join(p.dir, "desktops.json")); err != nil || bytes.Contains(data, []byte(token)) {
+		t.Fatalf("desktops.json holds the token: %v", err)
+	}
+
+	p = startPhone(t, p.dir, nsgotest.Secrets(map[string]string{account: token}))
+	p.app.WaitFor("id:home-library-lib", wait)
+	p.app.Press("id:home-desktops")
+	p.app.WaitFor("id:desktops-unpair", wait)
+	p.app.Press("id:desktops-unpair")
+	p.app.Answer(1)
+	p.app.WaitUntil(wait, func() bool { token, _ := secretOf(p, account); return token == "" })
+}
+
+// secretOf is what the phone's secure store keeps for account, and how it was written.
+func secretOf(p *phone, account string) (string, core.SecretAccessible) {
+	for item, v := range p.app.Secrets.Items() {
+		if item.Account == account {
+			return v, item.Accessible
+		}
+	}
+	return "", core.SecretAccessibleDefault
 }
 
 // A wrong code is refused with the desktop's reason, and the right one pairs after it.

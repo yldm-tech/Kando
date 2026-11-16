@@ -24,8 +24,12 @@ func TestDesktopsAreKeptPrivately(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := Open(dir).Desktops()
-	if err != nil || len(got) != 1 || got[0].Addr != want.Addr || !bytes.Equal(got[0].Fingerprint, fp) || got[0].Token != "tok" || !got[0].Paired.Equal(want.Paired) {
+	if err != nil || len(got) != 1 || got[0].Addr != want.Addr || !bytes.Equal(got[0].Fingerprint, fp) || got[0].Token != "" || !got[0].Paired.Equal(want.Paired) {
 		t.Fatalf("read back %+v, %v", got, err)
+	}
+	// The token is the secure store's to keep (the session's), never the file's.
+	if data, err := os.ReadFile(filepath.Join(dir, desktopsFile)); err != nil || bytes.Contains(data, []byte("tok")) {
+		t.Fatalf("desktops.json holds the token: %s, %v", data, err)
 	}
 	if len(want.ID) != 16 {
 		t.Errorf("DesktopID %q is not the short fingerprint's 16 letters", want.ID)

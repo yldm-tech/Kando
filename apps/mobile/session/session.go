@@ -112,6 +112,13 @@ type Session struct {
 	// posters are the remote films' posters fetched so far, by film key, which fetchers read and write off the engine's goroutine.
 	postersMu gosync.Mutex
 	posters   map[string][]byte
+	// secrets is the platform's secure store, which keeps the desktops' device tokens.
+	secrets core.Secrets
+	// saveMu orders the saves of the desktops, which run on goroutines of their own: saving is the generation setDesktops last gave out, saved the one last written and savedIDs the desktops it kept, so an older list never overwrites a newer one and an unpaired desktop's token is deleted.
+	saveMu   gosync.Mutex
+	saving   uint64
+	saved    uint64
+	savedIDs []string
 }
 
 // job is a download running on a goroutine of its own.
@@ -128,8 +135,11 @@ func New(cx *core.Scope, cfg Config) *Session {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
+	secrets := cx.Secrets()
+	// Downloads go on with the screen locked, after the first unlock; ThisDeviceOnly keeps the tokens out of backups and off other devices.
+	secrets.Accessible = core.SecretAfterFirstUnlockThisDeviceOnly
 	s := &Session{
-		cx: cx, st: store.Open(cfg.Dir), cfg: cfg,
+		cx: cx, st: store.Open(cfg.Dir), cfg: cfg, secrets: secrets,
 		loaded:    core.NewSignal(cx, false),
 		desktops:  core.NewSignalFunc[[]store.Desktop](cx, nil, nil),
 		films:     core.NewSignalFunc[[]store.Film](cx, nil, nil),
@@ -153,6 +163,13 @@ func New(cx *core.Scope, cfg Config) *Session {
 	})
 	s.work.Go(func() {
 		desktops, _ := s.st.Desktops()
+		s.saveMu.Lock()
+		for i, d := range desktops {
+			// A token the secure store lost leaves the desktop paired without one, which it refuses as it would a revoked phone, so the phone pairs again.
+			desktops[i].Token, _, _ = s.secrets.Get(store.TokenAccount(d.ID))
+			s.savedIDs = append(s.savedIDs, d.ID)
+		}
+		s.saveMu.Unlock()
 		films, _ := s.st.Films()
 		used, _ := s.st.Used()
 		parts := map[string]int64{}
@@ -249,8 +266,38 @@ func (s *Session) Unpair(id string) {
 
 func (s *Session) setDesktops(list []store.Desktop) {
 	s.desktops.Set(list)
-	saved := slices.Clone(list)
-	s.work.Go(func() { _ = s.st.SaveDesktops(saved) })
+	list = slices.Clone(list)
+	s.saveMu.Lock()
+	s.saving++
+	gen := s.saving
+	s.saveMu.Unlock()
+	s.work.Go(func() { _ = s.saveDesktops(gen, list) })
+}
+
+// saveDesktops keeps list, generation gen of the desktops, unless a later one is kept already: the tokens in the secure store first, then the desktops without them, then the tokens of the desktops no longer in it deleted.
+func (s *Session) saveDesktops(gen uint64, list []store.Desktop) error {
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+	if gen <= s.saved {
+		return nil
+	}
+	ids := make([]string, len(list))
+	for i, d := range list {
+		ids[i] = d.ID
+		if err := s.secrets.Set(store.TokenAccount(d.ID), d.Token); err != nil {
+			return err
+		}
+	}
+	if err := s.st.SaveDesktops(list); err != nil {
+		return err
+	}
+	for _, id := range s.savedIDs {
+		if !slices.Contains(ids, id) {
+			_ = s.secrets.Delete(store.TokenAccount(id))
+		}
+	}
+	s.saved, s.savedIDs = gen, ids
+	return nil
 }
 
 // Films are the films kept on the phone, downloading ones too, the latest added first.

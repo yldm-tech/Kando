@@ -22,12 +22,16 @@ type Desktop struct {
 	Name string `json:"name"`
 	// Addr is where it answered at pairing.
 	Addr netip.AddrPort `json:"addr"`
-	// Fingerprint is its certificate's SHA-256, which every request pins, and Token the device token it gave.
-	Fingerprint []byte    `json:"fingerprint"`
-	Token       string    `json:"token"`
-	DeviceID    string    `json:"device_id"`
-	Paired      time.Time `json:"paired"`
+	// Fingerprint is its certificate's SHA-256, which every request pins.
+	Fingerprint []byte `json:"fingerprint"`
+	// Token is the device token it gave, which the session keeps in the platform's secure store under TokenAccount, never in desktops.json.
+	Token    string    `json:"-"`
+	DeviceID string    `json:"device_id"`
+	Paired   time.Time `json:"paired"`
 }
+
+// TokenAccount is the account the device token of desktop id is kept under in the platform's secure store.
+func TokenAccount(id string) string { return "desktop-token." + id }
 
 // DesktopID is the ID of the desktop whose certificate has fingerprint.
 func DesktopID(fingerprint []byte) string {
@@ -74,7 +78,7 @@ type Store struct{ dir string }
 // Open is the store in dir, the app's data folder.
 func Open(dir string) *Store { return &Store{dir: dir} }
 
-// Desktops are the paired desktops, in the order they were paired.
+// Desktops are the paired desktops, in the order they were paired, without their tokens.
 func (s *Store) Desktops() ([]Desktop, error) {
 	var out []Desktop
 	err := readJSON(filepath.Join(s.dir, desktopsFile), &out)
@@ -84,8 +88,7 @@ func (s *Store) Desktops() ([]Desktop, error) {
 	return out, err
 }
 
-// SaveDesktops keeps desktops, the device tokens with them, readable by the app alone.
-// TODO(nsgo#263): keep the tokens and pinned fingerprints in the platform's keystore (the Keychain, Android's Keystore) once NSGo has one, rather than in the app's private data folder https://github.com/nsgo-dev/nsgo/issues/263
+// SaveDesktops keeps desktops, without their tokens, readable by the app alone.
 func (s *Store) SaveDesktops(desktops []Desktop) error {
 	return writeJSON(filepath.Join(s.dir, desktopsFile), desktops)
 }

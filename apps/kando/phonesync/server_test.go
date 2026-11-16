@@ -72,12 +72,30 @@ func startTest(t *testing.T) (*Server, string, *clock) {
 	}
 	dir := t.TempDir()
 	c := &clock{now: time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC)}
-	srv, err := Start(Config{Dir: dir, Name: "Test Mac", Source: fakeSource{dir: lib}, Addrs: loopback, Now: c.Now, Logf: t.Logf})
+	srv, err := Start(Config{Dir: dir, Name: "Test Mac", Source: fakeSource{dir: lib}, Addrs: loopback, Now: c.Now, Logf: testLogf(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { srv.Close() })
 	return srv, dir, c
+}
+
+// testLogf is t.Logf until the test ends, then nothing: http.Server's connection goroutines can still log a failed handshake after Close returns, and t.Logf panics once the test is over.
+func testLogf(t *testing.T) func(string, ...any) {
+	var mu gosync.Mutex
+	over := false
+	t.Cleanup(func() {
+		mu.Lock()
+		over = true
+		mu.Unlock()
+	})
+	return func(format string, args ...any) {
+		mu.Lock()
+		defer mu.Unlock()
+		if !over {
+			t.Logf(format, args...)
+		}
+	}
 }
 
 func loopback() []netip.Addr { return []netip.Addr{netip.MustParseAddr("127.0.0.1")} }
@@ -279,7 +297,7 @@ func TestTheCertificateIsMadeOnceAndKeptPrivate(t *testing.T) {
 		wantPrivate(t, filepath.Join(dir, name))
 	}
 	srv.Close()
-	again, err := Start(Config{Dir: dir, Source: fakeSource{}, Addrs: loopback, Logf: t.Logf})
+	again, err := Start(Config{Dir: dir, Source: fakeSource{}, Addrs: loopback, Logf: testLogf(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +331,7 @@ func TestThePortIsKeptAcrossStarts(t *testing.T) {
 	srv, dir, _ := startTest(t)
 	port := srv.Port()
 	srv.Close()
-	again, err := Start(Config{Dir: dir, Port: port, Source: fakeSource{}, Addrs: loopback, Logf: t.Logf})
+	again, err := Start(Config{Dir: dir, Port: port, Source: fakeSource{}, Addrs: loopback, Logf: testLogf(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
