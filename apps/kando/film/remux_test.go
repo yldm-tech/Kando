@@ -2,6 +2,7 @@ package film
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -167,5 +168,23 @@ func TestRemuxRunsWriteFilesOfTheirOwn(t *testing.T) {
 	}
 	if parts, _ := filepath.Glob(filepath.Join(cache, "*.part")); len(parts) != 0 {
 		t.Fatalf("files left behind: %q", parts)
+	}
+}
+
+// TestMissingPlugins checks which of the system player's errors say GStreamer lacks what the video needs, as GTK and NSGo word them on Linux, and that the others, as a file that is not there, leave the copies to try.
+func TestMissingPlugins(t *testing.T) {
+	for _, msg := range []string{
+		"Your GStreamer installation is missing a plug-in. No installed GStreamer plug-in can play this format (H.264 / AAC need gst-libav or gst-plugins-ugly / -bad).",
+		"GTK could not find a media module. Check your installation.",
+		"No suitable plugins found",
+	} {
+		if !MissingPlugins(errors.New(msg)) {
+			t.Errorf("MissingPlugins(%q) = false", msg)
+		}
+	}
+	for _, err := range []error{nil, errors.New("Resource not found."), errors.New("The operation couldn’t be completed. (AVFoundationErrorDomain error -11828.)")} {
+		if MissingPlugins(err) {
+			t.Errorf("MissingPlugins(%v) = true", err)
+		}
 	}
 }

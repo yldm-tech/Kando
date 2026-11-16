@@ -454,6 +454,57 @@ func TestDropElsewhereShowsTheLibrary(t *testing.T) {
 	})
 }
 
+// TestAddingShowsTheNewJob adds a video while the sidebar shows a source it does not come from: the page goes back to every source, so the new card shows where it was added, rather than hiding it behind 此来源还没有影片. A video from the source shown leaves the source as it is.
+func TestAddingShowsTheNewJob(t *testing.T) {
+	video := filepath.Join(t.TempDir(), "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	newApp := func(t *testing.T, source string) (*app, *nsgotest.App) {
+		a, tt, updates := newTestApp(t, &fakePipeline{block: true})
+		t.Cleanup(func() {
+			a.Cancel(a.RunningJob())
+			for a.RunningJob() != "" {
+				(<-updates)()
+			}
+		})
+		a.SetSourceFilter(source)
+		refresh(tt, a)
+		return a, tt
+	}
+
+	t.Run("drop", func(t *testing.T) {
+		a, tt := newApp(t, sidebar.SourceBilibili)
+		tt.DropFiles("id:films-page", fileURLs(video)...)
+		refresh(tt, a)
+		if a.side.filter != sidebar.SourceAll {
+			t.Fatalf("filter %q after the drop, want every source", a.side.filter)
+		}
+		if !shows(tt, "talk") {
+			t.Fatalf("the dropped video's card is hidden: %q", tt.Texts())
+		}
+	})
+
+	t.Run("link", func(t *testing.T) {
+		a, tt := newApp(t, sidebar.SourceLocal)
+		tt.Type("视频链接", "https://youtu.be/TRWgBxVAb1M")
+		tt.Submit("视频链接")
+		refresh(tt, a)
+		if a.side.filter != sidebar.SourceAll || len(a.library.Jobs) != 1 {
+			t.Fatalf("filter %q jobs %+v after adding a link, want every source", a.side.filter, a.library.Jobs)
+		}
+	})
+
+	t.Run("same source", func(t *testing.T) {
+		a, tt := newApp(t, sidebar.SourceLocal)
+		tt.DropFiles("id:films-page", fileURLs(video)...)
+		refresh(tt, a)
+		if a.side.filter != sidebar.SourceLocal || !shows(tt, "talk") {
+			t.Fatalf("filter %q after dropping a local video on 本地文件, texts %q", a.side.filter, tt.Texts())
+		}
+	})
+}
+
 func TestQueueShowsEveryWaitingJob(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	for i := range 8 {
@@ -1318,7 +1369,7 @@ func TestCoverJPEG(t *testing.T) {
 	}
 }
 
-// TestLibraryInEnglish reads the library page in English: the hero of the film finished last and its poster, a waiting and a failed job, the top bar, and the dialog that removes a film.
+// TestLibraryInEnglish reads the library page in English: the hero of the film finished last and its poster, a waiting and a cancelled job, which the line beside Processing does not count as needing attention, the top bar, and the dialog that removes a film.
 func TestLibraryInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
 	a, tt, _ := libraryWith(t, "Talk")
@@ -1331,7 +1382,7 @@ func TestLibraryInEnglish(t *testing.T) {
 	for _, want := range []string{
 		"Recently Finished · Simplified Chinese Bilingual", "Play", testlocale.Messages().FilmsShowInFinder(platformName()),
 		"Bilingual · CHS", "All Films", "1 film",
-		"Processing", "1 queued · 1 needs attention", "Queued", "Canceled", "Retry", "Remove",
+		"Processing", "1 queued", "Queued", "Canceled", "Retry", "Remove",
 		"Start Processing", "Local Video",
 	} {
 		wantText(t, tt, want)

@@ -7,7 +7,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -84,12 +86,13 @@ func runStatus(e *env, args []string) error {
 func runList(e *env, args []string) error {
 	fs := e.flags()
 	source := fs.String("source", "", "only the films from this source: youtube, bilibili, local or another site's name")
+	language := fs.String("language", "", "only the films heard in this language, by its code, as ja or en")
 	positional, err := e.parse(fs, args)
 	if err != nil {
 		return err
 	}
 	var films []remote.Film
-	params := remote.FilmsParams{Source: *source, Query: strings.Join(positional, " ")}
+	params := remote.FilmsParams{Source: *source, Query: strings.Join(positional, " "), Spoken: *language}
 	if done, err := e.answer(remote.MethodFilms, params, &films); done || err != nil {
 		return err
 	}
@@ -277,7 +280,7 @@ var pollInterval = time.Second
 func runAdd(e *env, args []string) error {
 	fs := e.flags()
 	wait := fs.Bool("wait", false, "wait until every added job is complete or failed, printing its progress")
-	yes := fs.Bool("yes", false, "add the videos of playlist and channel links without asking")
+	yes := fs.Bool("yes", false, "add the videos of playlist and channel links and of folders without asking")
 	sources, err := e.parse(fs, args)
 	if err != nil {
 		return err
@@ -306,17 +309,23 @@ func runAdd(e *env, args []string) error {
 	} else if raw, err = json.Marshal(result); err != nil {
 		return err
 	}
-	// A video the library already has is not added again, but its job is the one asked for: it counts as added, is printed as an added job is, and is waited for with --wait, so running the same command again succeeds. One whose job failed and could not be queued again is a failure, as any other source skipped.
+	// A video the library already has is not added again, but its job is the one asked for: it counts as added, is printed as an added job is, and is waited for with --wait while it is still in the queue, so running the same command again succeeds. One whose job failed and could not be queued again is a failure, as any other source skipped.
 	failed := false
-	var dups []int
+	var dups, pending []int
 	for i, skipped := range result.Skipped {
 		if skipped.JobID != "" && skipped.Stage != string(core.StageFailed) {
 			dups = append(dups, i)
+			if skipped.Stage != string(core.StageComplete) {
+				pending = append(pending, i)
+			}
 			fmt.Fprintf(e.stderr, "kando add: %s: %s\n", printable(skipped.Source), printable(skipped.Reason))
 			continue
 		}
 		failed = true
 		fmt.Fprintf(e.stderr, "kando add: skipped %s: %s\n", printable(skipped.Source), printable(skipped.Reason))
+	}
+	if result.Note != "" {
+		fmt.Fprintf(e.stderr, "kando add: %s\n", printable(result.Note))
 	}
 	if !e.json {
 		for _, job := range result.Jobs {
@@ -327,14 +336,14 @@ func runAdd(e *env, args []string) error {
 		}
 	}
 	failed = failed || listFailed
-	if *wait && len(result.Jobs)+len(dups) > 0 {
+	if *wait && len(result.Jobs)+len(pending) > 0 {
 		// With --json, standard output is kept for the one JSON answer, the added jobs as they ended, and the progress goes to standard error.
 		progress := e.stdout
 		if e.json {
 			progress = e.stderr
 		}
 		waiting := slices.Clone(result.Jobs)
-		for _, i := range dups {
+		for _, i := range pending {
 			waiting = append(waiting, remote.Job{ID: result.Skipped[i].JobID, Source: result.Skipped[i].Source, Stage: result.Skipped[i].Stage})
 		}
 		final, err := e.waitJobs(waiting, progress)
@@ -342,15 +351,15 @@ func runAdd(e *env, args []string) error {
 			return err
 		}
 		for i, job := range final {
-			if job.Stage != string(core.StageComplete) {
+			if !jobDone(job) {
 				failed = true
 			}
 			if i < len(result.Jobs) {
 				result.Jobs[i] = job
 				continue
 			}
-			// A video already there ends as its job ended.
-			skipped := &result.Skipped[dups[i-len(result.Jobs)]]
+			// A video already in the queue ends as its job ended.
+			skipped := &result.Skipped[pending[i-len(result.Jobs)]]
 			skipped.Stage, skipped.FilmID = job.Stage, job.FilmID
 		}
 		if raw, err = json.Marshal(result); err != nil {
@@ -378,12 +387,12 @@ var (
 	}
 )
 
-// expandLists puts the videos of the playlist and channel links among sources in their place, in order, as the app lists them (remote.MethodLists): a playlist whole, a channel's most recent, without those the library has already, which it would skip. It says on standard error what each list holds, and asks on standard input before it adds them unless yes is set; without a terminal to ask on, it is a usage error that says to pass --yes. A list the app could not read is skipped as a source jobs.add skips is, and failed reports it.
+// expandLists puts the videos of the playlist and channel links and of the folders among sources in their place, in order, as the app lists them (remote.MethodLists): a playlist whole, a channel's most recent, a folder's as dropping it on the window adds them, without those the library has already, which it would skip. It says on standard error what each list holds, and asks on standard input before it adds them unless yes is set; without a terminal to ask on, it is a usage error that says to pass --yes. A list the app could not read, or a folder without a video, is skipped as a source jobs.add skips is, and failed reports it.
 func (e *env) expandLists(sources []string, yes bool) (out []string, failed bool, err error) {
 	var lists []string
 	for _, s := range sources {
-		if isList(s) {
-			lists = append(lists, s)
+		if list, ok := listSource(s); ok {
+			lists = append(lists, list)
 		}
 	}
 	if len(lists) == 0 {
@@ -416,7 +425,7 @@ func (e *env) expandLists(sources []string, yes bool) (out []string, failed bool
 	}
 	if total > 0 && !yes {
 		if !stdinTerminal() {
-			return nil, false, usagef("the playlists and channels hold %s to add; pass --yes to add them without asking", videoCount(total))
+			return nil, false, usagef("the playlists, channels and folders hold %s to add; pass --yes to add them without asking", videoCount(total))
 		}
 		fmt.Fprintf(e.stderr, "Add %s? [y/N] ", videoCount(total))
 		line, _ := bufio.NewReader(stdin).ReadString('\n')
@@ -426,13 +435,40 @@ func (e *env) expandLists(sources []string, yes bool) (out []string, failed bool
 		}
 	}
 	for _, s := range sources {
-		if isList(s) {
-			out = append(out, videos[s]...)
+		if list, ok := listSource(s); ok {
+			out = append(out, videos[list]...)
 			continue
 		}
 		out = append(out, s)
 	}
 	return out, failed, nil
+}
+
+// listSource is what kando add asks the app to list for s, and whether s is a list at all: a playlist or a channel link as it is, or a folder, given as a path or a file:// URL, as its absolute path, as the app runs in another directory.
+func listSource(s string) (string, bool) {
+	if isList(s) {
+		return s, true
+	}
+	path := s
+	if strings.HasPrefix(strings.ToLower(s), "file:") {
+		u, err := url.Parse(s)
+		if err != nil {
+			return "", false
+		}
+		local, ok := core.FilePath(u)
+		if !ok {
+			return "", false
+		}
+		path = local
+	}
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		return "", false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", false
+	}
+	return abs, true
 }
 
 // isList reports whether s is a playlist or a channel link (core.Link.IsList), whose videos kando add lists and adds rather than the link itself.
@@ -441,17 +477,26 @@ func isList(s string) bool {
 	return ok && link.IsList()
 }
 
-// listLine says what a list holds: its name, how many videos, a channel's most recent only, and how many of them the library has already.
+// listLine says what a list holds: its name, how many videos, a channel's most recent only, how many files of a folder are not videos, and how many of the videos the library has already.
 func listLine(list remote.List, have int) string {
 	name := list.Title
 	if name == "" {
 		name = list.Source
 	}
 	what := "playlist"
-	if list.Kind == string(core.LinkChannel) {
+	switch list.Kind {
+	case string(core.LinkChannel):
 		what = fmt.Sprintf("channel, its %d most recent", list.Limit)
+	case remote.ListFolder:
+		what = "folder"
 	}
 	line := fmt.Sprintf("%s: %s (%s)", name, videoCount(len(list.Videos)), what)
+	switch {
+	case list.NotVideos == 1:
+		line += ", 1 file that is not a video left out"
+	case list.NotVideos > 1:
+		line += fmt.Sprintf(", %d files that are not videos left out", list.NotVideos)
+	}
 	if have > 0 {
 		line += fmt.Sprintf(", %d already in the library", have)
 	}
@@ -466,7 +511,7 @@ func videoCount(n int) string {
 	return fmt.Sprintf("%d videos", n)
 }
 
-// waitJobs asks the app for its jobs every pollInterval until each of jobs is complete or failed, writing a line to w whenever one's stage or progress changes, and returns them as they ended, in the same order. A job that leaves the queue before it ends, as a waiting one canceled in the window does, counts as failed.
+// waitJobs asks the app for its jobs every pollInterval until each of jobs is complete or failed, writing a line to w whenever one's stage or progress changes, and returns them as they ended, in the same order. A job jobs.list no longer lists is asked for alone, as one making the subtitles of a video of the library's folder leaves the list when it fails; one the app no longer has, as a waiting one removed in the window, counts as failed.
 func (e *env) waitJobs(jobs []remote.Job, w io.Writer) ([]remote.Job, error) {
 	final := make([]remote.Job, len(jobs))
 	ended := make([]bool, len(jobs))
@@ -487,10 +532,10 @@ func (e *env) waitJobs(jobs []remote.Job, w io.Writer) ([]remote.Job, error) {
 			}
 			job, ok := byID[added.ID]
 			if !ok {
-				job = added
-				job.Stage = string(core.StageFailed)
-				job.Progress = 0
-				job.Error = "it is no longer in the queue"
+				var err error
+				if job, err = e.gone(added); err != nil {
+					return nil, err
+				}
 			}
 			if line := printable(strings.Join(jobFields(job), "  ")); line != shown[i] {
 				fmt.Fprintln(w, line)
@@ -515,6 +560,22 @@ func (e *env) waitJobs(jobs []remote.Job, w io.Writer) ([]remote.Job, error) {
 	}
 }
 
+// gone is job as the app answers it alone once jobs.list no longer lists it, or, when the app no longer has it, job failed, as it is no longer in the queue.
+func (e *env) gone(job remote.Job) (remote.Job, error) {
+	var alone remote.Job
+	err := e.call(remote.MethodJob, remote.IDParams{ID: job.ID}, &alone)
+	switch {
+	case err == nil:
+		return alone, nil
+	case !remote.IsCode(err, remote.CodeNotFound) && !remote.IsCode(err, remote.CodeUnknownMethod):
+		return remote.Job{}, err
+	}
+	job.Stage = string(core.StageFailed)
+	job.Progress = 0
+	job.Error = "it is no longer in the queue"
+	return job, nil
+}
+
 func runCancel(e *env, args []string) error {
 	id, err := e.oneID(args, "a job id")
 	if err != nil {
@@ -528,6 +589,15 @@ func runCancel(e *env, args []string) error {
 }
 
 func runRetry(e *env, args []string) error {
+	return e.requeue(args, remote.MethodRetry, "a job id")
+}
+
+func runTranslate(e *env, args []string) error {
+	return e.requeue(args, remote.MethodTranslate, "a film id")
+}
+
+// requeue asks the app for method, which queues a job again for the one id in args, what naming what that id is, and prints the job; with --wait it waits for it as add --wait does, and fails unless it ends complete with its film translated (jobDone).
+func (e *env) requeue(args []string, method, what string) error {
 	fs := e.flags()
 	wait := fs.Bool("wait", false, "wait until the job is complete or failed, printing its progress")
 	positional, err := e.parse(fs, args)
@@ -536,20 +606,20 @@ func runRetry(e *env, args []string) error {
 	}
 	switch len(positional) {
 	case 0:
-		return usagef("needs a job id")
+		return usagef("needs %s", what)
 	case 1:
 	default:
 		return usagef("takes one id, got %d arguments", len(positional))
 	}
 	if !*wait {
 		var job remote.Job
-		if done, err := e.answer(remote.MethodRetry, remote.IDParams{ID: positional[0]}, &job); done || err != nil {
+		if done, err := e.answer(method, remote.IDParams{ID: positional[0]}, &job); done || err != nil {
 			return err
 		}
 		return writeJobs(e.stdout, []remote.Job{job})
 	}
 	var job remote.Job
-	if err := e.call(remote.MethodRetry, remote.IDParams{ID: positional[0]}, &job); err != nil {
+	if err := e.call(method, remote.IDParams{ID: positional[0]}, &job); err != nil {
 		return err
 	}
 	// As add --wait does: with --json, standard output is kept for the one JSON answer, the job as it ended, and the progress goes to standard error.
@@ -570,10 +640,15 @@ func runRetry(e *env, args []string) error {
 			return err
 		}
 	}
-	if final[0].Stage != string(core.StageComplete) {
+	if !jobDone(final[0]) {
 		return errReported
 	}
 	return nil
+}
+
+// jobDone reports whether a job --wait waited for did what it was asked: it is complete and its film was translated. One that completed without translating its film, as when the AI service refused its key, says why (remote.Job.TranslationError), and is a failure.
+func jobDone(j remote.Job) bool {
+	return j.Stage == string(core.StageComplete) && j.TranslationError == ""
 }
 
 func runRemove(e *env, args []string) error {

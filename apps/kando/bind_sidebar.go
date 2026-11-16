@@ -56,6 +56,22 @@ func (a *app) SetSourceFilter(source string) {
 	a.side.filter = source
 }
 
+// sidebarShowQueued shows every source on the library page when one of sources, which were just added to the queue, comes from another source than the one the sidebar shows and now waits or runs, so its card shows where it was added rather than being hidden, perhaps behind 此来源还没有影片. The language chosen stays, as 处理中 ignores it.
+func (a *app) sidebarShowQueued(sources []string) {
+	if a.side.filter == sidebar.SourceAll {
+		return
+	}
+	for _, source := range sources {
+		if films.SourceOf(films.Film{Source: source}) == a.side.filter {
+			continue
+		}
+		if job, ok := a.queueFindSource(source); ok && !job.Stage.Done() {
+			a.side.filter = sidebar.SourceAll
+			return
+		}
+	}
+}
+
 // SourceCount is how many done films of the open library come from source, the films the grid shows for it; a job still in 处理中 is not one yet.
 func (a *app) SourceCount(source string) int {
 	n := 0
@@ -109,19 +125,14 @@ func (a *app) SetQuery(text string) {
 
 func (a *app) QueryFocus() *bool { return &a.side.queryFocus }
 
-// SubmitQuery is Return in the sidebar's search field: when the search leaves a single film in the library page's grid, it plays it, as a click on its poster does.
+// SubmitQuery is Return in the sidebar's search field: when the search leaves a single film in the library page's grid, among those of the source and the language chosen (films.Shown), it plays it, as a click on its poster does.
 // TODO(nsgo#348): when the search leaves several films, Return should put the keyboard on the first poster; core.Ref.Focus moves the keyboard only to a text field on macOS (internal/platform/macos/macos.go, ItemFocus), so it does nothing here https://github.com/nsgo-dev/nsgo/issues/348
 func (a *app) SubmitQuery() {
 	query := strings.TrimSpace(a.side.query)
 	if query == "" {
 		return
 	}
-	var found []films.Film
-	for _, item := range films.BySource(a.films(), a.side.filter) {
-		if !films.InQueue(item) && films.MatchesTitle(item, query) {
-			found = append(found, item)
-		}
-	}
+	found := films.Shown(a.films(), a.side.filter, a.SpokenFilter(), query)
 	if len(found) != 1 {
 		return
 	}

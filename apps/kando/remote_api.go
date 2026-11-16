@@ -89,6 +89,12 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return a.remoteRetry(ctx, p.ID)
+	case remote.MethodTranslate:
+		p, err := remote.Params[remote.IDParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return a.remoteTranslate(ctx, p.ID)
 	case remote.MethodRemove:
 		p, err := remote.Params[remote.IDParams](params)
 		if err != nil {
@@ -175,8 +181,9 @@ func remoteCountLibraries(libs []remote.Library, jobs []core.Job) {
 	}
 }
 
-// remoteFilms is the open library's films as the window lists them, those from p.Source whose title holds p.Query.
+// remoteFilms is the open library's films as the window lists them, those from p.Source whose title holds p.Query, heard in p.Spoken when it is set, as the sidebar's languages keep them (films.BySpoken).
 func (a *app) remoteFilms(ctx context.Context, p remote.FilmsParams) ([]remote.Film, error) {
+	spoken := strings.ToLower(strings.TrimSpace(p.Spoken))
 	items, err := remote.OnUI(ctx, a.update, func() ([]remote.Film, error) {
 		all, err := a.remoteLibraryFilms()
 		if err != nil {
@@ -186,6 +193,9 @@ func (a *app) remoteFilms(ctx context.Context, p remote.FilmsParams) ([]remote.F
 		for _, item := range all {
 			// A source may be named as the window names it, in its language, or in English, as the socket answers it.
 			if !remoteFromSource(remoteMessages(), item, p.Source) && !remoteFromSource(a.messages(), item, p.Source) || !films.MatchesTitle(item, p.Query) {
+				continue
+			}
+			if spoken != "" && item.Spoken != spoken {
 				continue
 			}
 			out = append(out, a.remoteFilmOf(item))
@@ -336,7 +346,7 @@ func (a *app) remoteSearch(ctx context.Context, p remote.SearchParams) ([]remote
 	return found, nil
 }
 
-// remoteJob is job id as jobs.list lists it: on the open library's shelf, or one the queue runs or will run for another library, or ran to the end for another since the app started (remoteQueue).
+// remoteJob is job id as jobs.list lists it: on the open library's shelf, or one the queue runs or will run for another library, or ran to the end for another since the app started (remoteQueue). A job that was making the subtitles of a video of the folder and failed or was stopped left the shelf, but answers as it ended (remoteFolderJobOf).
 func (a *app) remoteJob(ctx context.Context, id string) (remote.Job, error) {
 	j, err := remote.OnUI(ctx, a.update, func() (remote.Job, error) {
 		root := a.snap().LibraryDir
@@ -344,6 +354,9 @@ func (a *app) remoteJob(ctx context.Context, id string) (remote.Job, error) {
 			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", remoteMessages().PrecheckNoLibrary())
 		}
 		job, ok := a.library.Find(id)
+		if ended, done := a.queue.folderEnded[id]; !ok && done && (films.InLibrary(root, ended) || a.queue.ran[id]) {
+			return a.remoteFolderJobOf(ended), nil
+		}
 		if id == "" || !ok || !(films.InLibrary(root, job) || a.queueElsewhere(job) || a.queue.ran[job.ID]) {
 			return remote.Job{}, remote.Errorf(remote.CodeNotFound, "no job %q in the open library", id)
 		}
@@ -378,7 +391,7 @@ func (a *app) remoteJobs(ctx context.Context) ([]remote.Job, error) {
 	return jobs, nil
 }
 
-// remoteAdd queues a job for each of p's sources, as 开始处理 and dropping videos on the window do: after the precheck the library's message bar would show, each source is added on its own, and one that cannot be is skipped with the reason. A video the library already has a job for is skipped with that job, so a client can follow it as one it queued. Local files become the file:// URL dropping them makes; a file that is missing or not a video is skipped before the app is asked.
+// remoteAdd queues a job for each of p's sources, as 开始处理 and dropping videos on the window do: after the precheck the library's message bar would show, each source is added on its own, and one that cannot be is skipped with the reason. A video the library already has a job for is skipped with that job, so a client can follow it as one it queued. Local files become the file:// URL dropping them makes; a file that is missing or not a video is skipped before the app is asked, and a folder is skipped for its videos to be listed with lists.expand, as a playlist is. Without an AI service the jobs are queued, and the answer's note says their subtitles will be the original lines alone.
 func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResult, error) {
 	if len(p.Sources) == 0 {
 		return remote.AddResult{}, remote.Errorf(remote.CodeInvalid, "no sources")
@@ -440,6 +453,9 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 						videos = map[int]string{}
 					}
 					videos[len(res.Skipped)] = job.VideoPath
+				} else {
+					// A video of the library's folder that no job holds is that film, named by its key (queueTake).
+					skip.JobID, skip.FilmID = "", dup.ID
 				}
 				res.Skipped = append(res.Skipped, skip)
 			case err != nil:
@@ -452,6 +468,10 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 			if job, ok := a.library.Find(id); ok {
 				res.Jobs = append(res.Jobs, a.remoteJobOf(job))
 			}
+		}
+		// As the message bar says once videos are added without an AI service, their subtitles will be the original lines alone.
+		if len(res.Jobs) > 0 && a.untranslatable() {
+			res.Note = m.LibraryAddedUntranslated()
 		}
 		return res, nil
 	})
@@ -470,20 +490,31 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 	return added, nil
 }
 
-// remoteLists lists the videos of each of p's playlist and channel links, as the playlist dialog does (playlist.Read): a playlist whole, a channel's playlist.ChannelLimit most recent, and marks those the open library has already, waiting, running or done, which jobs.add would skip. yt-dlp runs off the UI thread; what the library has is read on it once the videos are known. A source that is not a playlist or a channel, or that yt-dlp could not list, says why in its List's Error, and the others are still listed. Without a library, or without yt-dlp, it answers not_ready with what precheckReady says.
+// remoteLists lists the videos of each of p's playlist and channel links, as the playlist dialog does (playlist.Read): a playlist whole, a channel's playlist.ChannelLimit most recent, and of each local folder, as dropping it on the window adds them (films.DroppedVideos), and marks those the open library has already, waiting, running or done, which jobs.add would skip (remoteHas). yt-dlp and the folders' reads run off the UI thread; what the library has is read on it once the videos are known. A source that is not a playlist, a channel or a folder, that yt-dlp could not list, or a folder that holds no video, says why in its List's Error, and the others are still listed. Without a library, or without yt-dlp, it answers not_ready with what precheckReady says.
 func (a *app) remoteLists(ctx context.Context, p remote.ListsParams) ([]remote.List, error) {
 	if len(p.Sources) == 0 {
 		return nil, remote.Errorf(remote.CodeInvalid, "no sources")
 	}
-	lister, err := remote.OnUI(ctx, a.update, func() (media.Lister, error) {
+	folders := make([]string, len(p.Sources))
+	links := false
+	for i, source := range p.Sources {
+		folders[i], _ = remoteFolder(source, p.Dir)
+		links = links || folders[i] == ""
+	}
+	type setup struct {
+		lister media.Lister
+		// tag is the interface's language, which orders a folder's videos by their names as dropping it does.
+		tag string
+	}
+	got, err := remote.OnUI(ctx, a.update, func() (setup, error) {
 		lister, ok := a.pipeline.(media.Lister)
-		if !ok {
-			return nil, remote.Errorf(remote.CodeNotReady, "this Kando cannot list a playlist's videos")
+		if !ok && links {
+			return setup{}, remote.Errorf(remote.CodeNotReady, "this Kando cannot list a playlist's videos")
 		}
 		if msg, _ := a.precheckReady(); msg != "" {
-			return nil, remote.Errorf(remote.CodeNotReady, "%s", msg)
+			return setup{}, remote.Errorf(remote.CodeNotReady, "%s", msg)
 		}
-		return lister, nil
+		return setup{lister: lister, tag: a.prefs.interfaceLanguage}, nil
 	})
 	if err != nil {
 		return nil, err
@@ -491,12 +522,23 @@ func (a *app) remoteLists(ctx context.Context, p remote.ListsParams) ([]remote.L
 	lists := make([]remote.List, len(p.Sources))
 	for i, source := range p.Sources {
 		lists[i] = remote.List{Source: source, Videos: []remote.ListVideo{}}
-		link, ok := core.ParseLink(strings.TrimSpace(source))
-		if !ok || !link.IsList() {
-			lists[i].Error = "not a playlist or a channel link"
+		if folders[i] != "" {
+			videos, notVideos := films.DroppedVideos([]string{folders[i]}, got.tag)
+			lists[i].Kind, lists[i].Title, lists[i].NotVideos = remote.ListFolder, filepath.Base(folders[i]), notVideos
+			for _, video := range videos {
+				lists[i].Videos = append(lists[i].Videos, remote.ListVideo{URL: core.FileURL(video), Title: strings.TrimSuffix(filepath.Base(video), filepath.Ext(video))})
+			}
+			if len(videos) == 0 {
+				lists[i].Error = remoteMessages().PrecheckNoVideo()
+			}
 			continue
 		}
-		read, err := playlist.ReadOne(ctx, lister, source)
+		link, ok := core.ParseLink(strings.TrimSpace(source))
+		if !ok || !link.IsList() {
+			lists[i].Error = "not a playlist, a channel link or a folder"
+			continue
+		}
+		read, err := playlist.ReadOne(ctx, got.lister, source)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
@@ -515,15 +557,45 @@ func (a *app) remoteLists(ctx context.Context, p remote.ListsParams) ([]remote.L
 	return remote.OnUI(ctx, a.update, func() ([]remote.List, error) {
 		for i := range lists {
 			for j, v := range lists[i].Videos {
-				job, ok := a.queueFindSource(v.URL)
-				lists[i].Videos[j].InLibrary = ok && job.Stage != core.StageFailed
+				lists[i].Videos[j].InLibrary = a.remoteHas(v.URL)
 			}
 		}
 		return lists, nil
 	})
 }
 
-// remoteCancel cancels job id of the open library, or one the queue runs for another library, as the queue card's 取消 does, and answers it once it has stopped: a waiting job leaves the queue at once, and the running one when its pipeline returns.
+// remoteHas reports whether the open library has the video source names already, waiting, being processed or done, which jobs.add skips (queueTake): a job of it that has not failed, or a video of the library's folder no job holds with subtitles beside it. UI thread only.
+func (a *app) remoteHas(source string) bool {
+	if job, ok := a.queueFindSource(source); ok && job.Stage != core.StageFailed {
+		return true
+	}
+	path := queueLocalPath(source)
+	if path == "" {
+		return false
+	}
+	item, ok := films.Find(a.films(), path)
+	return ok && item.JobID == "" && item.SubtitlePath != ""
+}
+
+// remoteFolder is the folder given names, as a path or a file:// URL, a relative path taken from dir, and whether it is one.
+func remoteFolder(given, dir string) (string, bool) {
+	s := strings.TrimSpace(given)
+	path, local := remoteLocalPath(s, dir)
+	// A folder's name may read as a link, as "Course.2024" does; one in dir is the folder.
+	if !local && dir != "" && !strings.Contains(s, "://") {
+		path, local = filepath.Join(dir, s), true
+	}
+	if !local || path == "" {
+		return "", false
+	}
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return "", false
+	}
+	return path, true
+}
+
+// remoteCancel cancels job id of the open library, or one the queue runs for another library, as the queue card's 取消 does, and answers it once it has stopped: a waiting job leaves the queue at once, and the running one when its pipeline returns. A job making the subtitles of a video of the folder leaves the shelf once stopped, the video back as it was, and answers as it ended, canceled (remoteFolderJobOf).
 func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 	job, err := remote.OnUI(ctx, a.update, func() (core.Job, error) {
 		job, err := a.remoteFindJob(id)
@@ -543,6 +615,9 @@ func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 			}
 			// A job of another library leaves 处理中 once it has stopped, so it is looked up on the shelf rather than with remoteFindJob.
 			job, ok := a.library.Find(id)
+			if ended, done := a.queue.folderEnded[id]; !ok && done {
+				return a.remoteFolderJobOf(ended), nil
+			}
 			if !ok {
 				return remote.Job{}, remote.Errorf(remote.CodeNotFound, "job %q was removed", id)
 			}
@@ -597,6 +672,62 @@ func (a *app) remoteRetry(ctx context.Context, id string) (remote.Job, error) {
 	return job, nil
 }
 
+// remoteTranslate queues the film id names, a done film of the open library, to translate the lines its translation left untranslated, as its card's 补译未译的句子 does (TranslateMissing), but without moving the window, and answers its job as it is once queued. It neither downloads nor transcribes the film, and a film that was not translated at all (core.Job.TranslationErr) has every line translated. A film Kando did not make the subtitles of, one whose every line is translated, and one still in the queue are refused; without an AI service to translate with, or a language to translate into, it answers not_ready with what is missing.
+func (a *app) remoteTranslate(ctx context.Context, id string) (remote.Job, error) {
+	job, err := remote.OnUI(ctx, a.update, func() (remote.Job, error) {
+		m := remoteMessages()
+		item, err := a.remoteFind(id)
+		if err != nil {
+			return remote.Job{}, err
+		}
+		job, ok := a.library.Find(item.JobID)
+		switch {
+		case item.JobID == "" || !ok:
+			return remote.Job{}, remote.Errorf(remote.CodeInvalid, "Kando did not make the subtitles of %q, so none of their lines is left to translate", remoteFilmTitle(item))
+		case job.ID == a.queue.active || job.Stage == core.StageQueued:
+			return remote.Job{}, remote.Errorf(remote.CodeInvalid, "film %s is still running or waiting in the queue; wait until it ends", id)
+		case job.Stage != core.StageComplete:
+			return remote.Job{}, remote.Errorf(remote.CodeInvalid, "film %s is not done: its job failed or was canceled; retry it first", id)
+		case job.Untranslated == 0:
+			return remote.Job{}, remote.Errorf(remote.CodeInvalid, "every line of %q is translated already", remoteFilmTitle(item))
+		}
+		if msg := a.remoteNoTranslator(m); msg != "" {
+			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", msg)
+		}
+		ready, err := a.queueRetranslatable(job, core.RedoMissing, "")
+		if err != nil {
+			return remote.Job{}, remote.Errorf(remote.CodeNotReady, "%s", m.QueueNoLanguage())
+		}
+		// As 补译未译的句子 does, the hero forgets the first line it read from the subtitles the job will write again.
+		delete(a.lib.quotes, job.SubtitlePath)
+		a.queueAdd(ready)
+		queued, err := a.remoteFindJob(job.ID)
+		if err != nil {
+			return remote.Job{}, err
+		}
+		return a.remoteJobOf(queued), nil
+	})
+	if err != nil {
+		return remote.Job{}, err
+	}
+	remoteJobFiles(&job)
+	return job, nil
+}
+
+// remoteNoTranslator is what is missing to translate with, in the language of m, as the sidebar's status line says it, "" when an AI service is set up (untranslatable). UI thread only.
+func (a *app) remoteNoTranslator(m locales.Messages) string {
+	tools, ok := a.pipeline.(media.Tools)
+	switch {
+	case !ok:
+		return ""
+	case strings.TrimSpace(tools.Translator.Model) == "":
+		return m.PrecheckNoLLMModel()
+	case everyAPICLIMissing(tools.Translator):
+		return m.PrecheckEveryAPIMissing()
+	}
+	return ""
+}
+
 // remoteRemove takes job id off the open library's shelf as the queue card's 移除 does: a running job is stopped, the film open in the player closes when it is this one, and its files stay on disk. When it is the card the library follows, the library stops following it, but the link field keeps what the user may be typing there.
 func (a *app) remoteRemove(ctx context.Context, id string) error {
 	_, err := remote.OnUI(ctx, a.update, func() (struct{}, error) {
@@ -624,7 +755,7 @@ func remoteSites(p remote.SitesParams) []remote.Site {
 	return out
 }
 
-// remoteShow brings the window to the front on the library, or on the film p.ID names, and answers what it shows: a done film opens as a click on its poster opens it, and one still in the queue, or without its video, shows the library, where its card is, with the reason. With p.AtMS the film plays from that moment of its subtitles, where the line starting there shows with the film's subtitle delay, as a jump to a line from the palette does, also when it is open already; without it, a film open already stays as it is. A main window its close button put away comes back (remoteRaise). Once the main window is closed for good while the app runs on, there is nothing to bring forward, as NSGo does not open a closed window again, so it answers not_ready and changes nothing.
+// remoteShow brings the window to the front on the library, or on the film p.ID names, and answers what it shows: a done film opens as a click on its poster opens it, one being processed whose video is on disk as its card's Watch opens it (films.Watchable), and one still in the queue that cannot be watched yet, or without its video, shows the library, where its card is, with the reason. While a dialog or a sheet is open, which the window's own shortcuts and menus wait for (modalOpen), it changes nothing under it: it brings the window to the front, where the user sees the dialog, and answers not_ready. With p.AtMS the film plays from that moment of its subtitles, where the line starting there shows with the film's subtitle delay, as a jump to a line from the palette does, also when it is open already; without it, a film open already stays as it is. A main window its close button put away comes back (remoteRaise). Once the main window is closed for good while the app runs on, there is nothing to bring forward, as NSGo does not open a closed window again, so it answers not_ready and changes nothing.
 func (a *app) remoteShow(ctx context.Context, p remote.ShowParams) (remote.ShowResult, error) {
 	if p.AtMS != nil && (*p.AtMS < 0 || p.ID == "") {
 		return remote.ShowResult{}, remote.Errorf(remote.CodeInvalid, "at_ms needs a film id and must not be negative")
@@ -632,6 +763,10 @@ func (a *app) remoteShow(ctx context.Context, p remote.ShowParams) (remote.ShowR
 	return remote.OnUI(ctx, a.update, func() (remote.ShowResult, error) {
 		if w := a.window.main; w != nil && w.Closed() {
 			return remote.ShowResult{}, remote.Errorf(remote.CodeNotReady, "the Kando window was closed; quit Kando and open it again to show it")
+		}
+		if a.modalOpen() {
+			a.remoteRaise()
+			return remote.ShowResult{}, remote.Errorf(remote.CodeNotReady, "a dialog is open in Kando; close it, then try again")
 		}
 		var res remote.ShowResult
 		if p.ID == "" {
@@ -643,7 +778,7 @@ func (a *app) remoteShow(ctx context.Context, p remote.ShowParams) (remote.ShowR
 			}
 			open := a.page == pageFilms && a.openKey == item.Key
 			switch {
-			case films.InQueue(item):
+			case films.InQueue(item) && !films.Watchable(item):
 				a.Select(pageFilms)
 				res.Reason = remote.ShowInQueue
 			case item.VideoPath == "":
@@ -694,13 +829,22 @@ func (a *app) remoteFilmList() []films.Film {
 	return films.List(shot.LibraryDir, a.library.Jobs, shot.Videos, a.library.Names, jobName, func(job core.Job) string { return statusText(m, job) })
 }
 
-// remoteFind is the open library's film with key id, the ID the socket names films by. UI thread only.
+// remoteFind is the open library's film with key id, the ID the socket names films by, or, for an id that is a video's path, the film of that video: a video of the folder is named by its path until a job processes it, and by the job's ID from then on, so a client that kept the path still finds it (remote.Film.ID). UI thread only.
 func (a *app) remoteFind(id string) (films.Film, error) {
 	all, err := a.remoteLibraryFilms()
 	if err != nil {
 		return films.Film{}, err
 	}
 	item, ok := films.Find(all, id)
+	if !ok && id != "" {
+		path := filepath.Clean(id)
+		for _, f := range all {
+			if f.VideoPath != "" && filepath.Clean(f.VideoPath) == path {
+				item, ok = f, true
+				break
+			}
+		}
+	}
 	if id == "" || !ok {
 		return films.Film{}, remote.Errorf(remote.CodeNotFound, "no film %q in the open library", id)
 	}
@@ -788,18 +932,25 @@ func (a *app) remoteFilmOf(item films.Film) remote.Film {
 	return f
 }
 
-// remoteFilmOfIn is item as the socket answers it, without what only its files tell (remoteFilmFiles) and what the player knows of it (app.remoteFilmOf). Its status is the line its card shows: the stage, or for a failed job the reason the card gives. It says the status in m's language, which must be the language of item's status line (films.Film.Detail).
+// remoteFilmOfIn is item as the socket answers it, without what only its files tell (remoteFilmFiles) and what the player knows of it (app.remoteFilmOf). Its status is the line its card shows: the stage, or for a failed job the reason the card gives. A film that was not translated says why as its page does (translationHint), and has no language. It says the status in m's language, which must be the language of item's status line (films.Film.Detail).
 func remoteFilmOfIn(m locales.Messages, item films.Film) remote.Film {
 	f := remote.Film{
-		ID:        item.Key,
-		Title:     remoteFilmTitle(item),
-		Source:    films.SourceOf(item),
-		Stage:     string(item.Stage),
-		Progress:  remoteProgress(item.Stage, item.Progress, item.JobID != ""),
-		JobID:     item.JobID,
-		Language:  item.Language,
-		VideoPath: item.VideoPath,
-		Subtitles: item.SubtitlePath,
+		ID:             item.Key,
+		Title:          remoteFilmTitle(item),
+		Source:         films.SourceOf(item),
+		Stage:          string(item.Stage),
+		Progress:       remoteProgress(item.Stage, item.Progress, item.JobID != ""),
+		JobID:          item.JobID,
+		Language:       item.Language,
+		Untranslated:   item.Untranslated,
+		SpokenLanguage: item.Spoken,
+		SpeechLanguage: item.SpeechLanguage,
+		VideoPath:      item.VideoPath,
+		Subtitles:      item.SubtitlePath,
+	}
+	if item.TranslationErr != "" {
+		f.TranslationError, _ = translationHint(m, item.TranslationErr)
+		f.Language = ""
 	}
 	if !films.Local(item) {
 		f.Link = item.Source
@@ -810,32 +961,48 @@ func remoteFilmOfIn(m locales.Messages, item films.Film) remote.Film {
 	return f
 }
 
-// remoteFilmFiles fills in what f's files on disk tell: the original subtitles beside its video. Its bilingual subtitles are the film's own (remoteFilmOf), which for a video no job has processed are the ones the library scan found beside it (media.Video.Subtitles), so the window and the socket show the same.
+// remoteFilmFiles fills in what f's files on disk tell: the original subtitles beside its video, the transcript Kando made of it (media.TranscriptOf). Its bilingual subtitles are the film's own (remoteFilmOf), which for a video no job has processed are the ones the library scan found beside it (media.Video.Subtitles), so the window and the socket show the same.
 func remoteFilmFiles(f *remote.Film) {
 	if f.VideoPath == "" {
 		return
 	}
-	if original := strings.TrimSuffix(f.VideoPath, filepath.Ext(f.VideoPath)) + ".srt"; fileExists(original) {
+	if original := media.TranscriptOf(f.VideoPath); fileExists(original) {
 		f.OriginalSubtitles = original
 	}
 }
 
-// remoteJobOf is job as the socket answers it, without its film (remoteJobFiles), its status in English. UI thread only.
+// remoteJobOf is job as the socket answers it, without its film (remoteJobFiles), its status in English. A job whose film was not translated says why, as the film's page does (translationHint), and has no language once it is done. A job that was processing or translating a done film again and failed or was stopped since it was last queued is on the shelf as the done film it was (queueRedoEnded), and answers as it ended, failed or canceled, so a client following it is not told it worked. UI thread only.
 func (a *app) remoteJobOf(job core.Job) remote.Job {
 	name := a.libraryJobName(job)
 	m := remoteMessages()
-	status, _ := failureHint(m, films.FromJob(job, name, statusText(m, job)))
+	item := films.FromJob(job, name, statusText(m, job))
+	status, _ := failureHint(m, item)
 	j := remote.Job{
-		ID:        job.ID,
-		Source:    job.Source,
-		Title:     name,
-		Stage:     string(job.Stage),
-		Progress:  remoteProgress(job.Stage, job.Progress, true),
-		Status:    status,
-		Canceled:  errors.Is(job.Err, context.Canceled),
-		Language:  job.Language,
-		VideoPath: job.VideoPath,
-		Subtitles: job.SubtitlePath,
+		ID:           job.ID,
+		Source:       job.Source,
+		Title:        name,
+		Stage:        string(job.Stage),
+		Progress:     remoteProgress(job.Stage, job.Progress, true),
+		Status:       status,
+		Canceled:     errors.Is(job.Err, context.Canceled),
+		Language:     item.Target,
+		Untranslated: job.Untranslated,
+		VideoPath:    job.VideoPath,
+		Subtitles:    job.SubtitlePath,
+	}
+	if job.TranslationErr != "" {
+		j.TranslationError, _ = translationHint(m, job.TranslationErr)
+		// A redo still names the language it translates into; a done film that was not translated has none.
+		if job.Redo == "" {
+			j.Language = ""
+		}
+	}
+	if ended, ok := a.queue.redoEnded[job.ID]; ok && job.Stage == core.StageComplete {
+		j.Stage = string(core.StageFailed)
+		j.Progress = remoteProgress(core.StageFailed, ended.Progress, true)
+		j.Status, _ = failureHint(m, films.FromJob(ended, name, statusText(m, ended)))
+		j.Canceled = errors.Is(ended.Err, context.Canceled)
+		job = ended
 	}
 	if job.Stage == core.StageFailed && job.Err != nil && !j.Canceled {
 		j.Error = job.Err.Error()
@@ -843,9 +1010,16 @@ func (a *app) remoteJobOf(job core.Job) remote.Job {
 	return j
 }
 
-// remoteJobFiles names the film j makes once its video is on disk: the job's ID, the key the library gives a job's film.
+// remoteFolderJobOf is job, which was making the subtitles of a video found in the library's folder and failed or was stopped, as the socket answers it: it left the shelf and the video is back as it was (queueFolderEnded), so its film is that video, named by its path. UI thread only.
+func (a *app) remoteFolderJobOf(job core.Job) remote.Job {
+	j := a.remoteJobOf(job)
+	j.FilmID = job.VideoPath
+	return j
+}
+
+// remoteJobFiles names the film j makes once its video is on disk: the job's ID, the key the library gives a job's film, unless j names its film already (remoteFolderJobOf).
 func remoteJobFiles(j *remote.Job) {
-	if j.VideoPath != "" && fileExists(j.VideoPath) {
+	if j.FilmID == "" && j.VideoPath != "" && fileExists(j.VideoPath) {
 		j.FilmID = j.ID
 	}
 }
@@ -890,7 +1064,11 @@ func remoteSource(given, dir string) (source string, reason func(locales.Message
 	if err != nil {
 		return "", remoteReason(err.Error())
 	}
-	if info.IsDir() || !media.IsVideoFile(path) {
+	// A folder may hold many videos, so a client lists them first and says how many, as for a playlist (remoteLists).
+	if info.IsDir() {
+		return "", remoteReason("a folder: list its videos with lists.expand, then add them")
+	}
+	if !media.IsVideoFile(path) {
 		return "", locales.Messages.PrecheckNoVideo
 	}
 	return core.FileURL(path), nil

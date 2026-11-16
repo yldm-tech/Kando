@@ -267,3 +267,22 @@ func TestLookToolPrefersOwnKit(t *testing.T) {
 		t.Fatalf("lookTool found whisper-cli in an empty kit folder: %q", got)
 	}
 }
+
+// TestSourceOnWindows checks that every program Kando runs has a page to get it from and a Scoop package on Windows, where Kando downloads none of them, and a page elsewhere.
+func TestSourceOnWindows(t *testing.T) {
+	for _, program := range []string{"yt-dlp", "ffmpeg", "whisper-cli"} {
+		if _, ok := kitOn("windows-amd64", program); ok {
+			t.Errorf("a Windows kit of %s: its row would offer the download, not the source", program)
+		}
+		src, ok := sourceOn("windows", program)
+		if !ok || !strings.HasPrefix(src.Page, "https://") || src.Scoop == "" {
+			t.Errorf("sourceOn(windows, %s) = %+v, %v", program, src, ok)
+		}
+		if src, ok := sourceOn("linux", program); !ok || !strings.HasPrefix(src.Page, "https://") || src.Scoop != "" {
+			t.Errorf("sourceOn(linux, %s) = %+v, %v", program, src, ok)
+		}
+	}
+	if _, ok := sourceOn("windows", "everyapi"); ok {
+		t.Error("a source of everyapi, which the AI settings get")
+	}
+}

@@ -9,7 +9,7 @@ import (
 	"kando/apps/kando/locales"
 )
 
-// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go). googleErr and uploadErr say why the last sign-in or upload failed, or that it was canceled (uploadCanceled), as functions of the messages, so the message reads in the interface's language as it is shown, and again after the language changed; nil when nothing failed. uploadCancel stops the upload running now (CancelUpload), nil when none runs. uploaded holds the object key of each film uploaded, by uploadMemo (the storage's kind and the video's path), and is saved in settings.json so a film still reads as uploaded after a restart.
+// cloudUI is the state of the account page and of uploads: the Google account, the storage each kind of bucket is reached with, and the upload running now (cloud_app.go). googleErr and uploadErr say why the last sign-in or upload failed, or that it was canceled (uploadCanceled), as functions of the messages, so the message reads in the interface's language as it is shown, and again after the language changed; nil when nothing failed. uploadFix is whether the last upload failed because of what is filled in for the storage, so its capsule offers to open the settings. uploadCancel stops the upload running now (CancelUpload), nil when none runs. uploaded holds the object key of each film uploaded, by uploadMemo (the storage's kind and the video's path), and is saved in settings.json so a film still reads as uploaded after a restart.
 type cloudUI struct {
 	googleEmail     string
 	googleRefresh   string
@@ -45,6 +45,7 @@ type cloudUI struct {
 	uploadErr       func(locales.Messages) string
 	uploadErrPath   string
 	uploadCanceled  bool
+	uploadFix       bool
 	uploadCancel    context.CancelFunc
 	uploaded        map[string]string
 	uploader        func(context.Context, cloud.Store, []cloud.File, func(written, total int64)) error

@@ -150,7 +150,7 @@ func startFrames(ffmpeg, path string, width, height int, frame, at time.Duration
 		"-f", "rawvideo", "-pix_fmt", "rgba",
 		"pipe:1",
 	)
-	cmd := exec.CommandContext(ctx, ffmpeg, args...)
+	cmd := Command(ctx, ffmpeg, args...)
 	cmd.Stderr = io.Discard
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -169,7 +169,7 @@ func startFrames(ffmpeg, path string, width, height int, frame, at time.Duration
 }
 
 func probePicture(ffmpeg, path string) (width, height int, frame, duration time.Duration, err error) {
-	cmd := exec.Command(ffmpeg, "-hide_banner", "-nostdin", "-i", path)
+	cmd := Command(context.Background(), ffmpeg, "-hide_banner", "-nostdin", "-i", path)
 	var stderr bytes.Buffer
 	cmd.Stdout = io.Discard
 	cmd.Stderr = &stderr

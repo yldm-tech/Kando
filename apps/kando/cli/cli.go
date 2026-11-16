@@ -142,7 +142,7 @@ var commands []*command
 func init() {
 	commands = []*command{
 		{name: "status", summary: "Show the library, the programs and models in use, and whether a job can start", app: true, run: runStatus},
-		{name: "list", synopsis: "[--source S] [query]", summary: "List the library's films, newest first", app: true, run: runList},
+		{name: "list", synopsis: "[--source S] [--language L] [query]", summary: "List the library's films, newest first", app: true, run: runList},
 		{name: "show", synopsis: "<film-id>", summary: "Show one film", app: true, run: runShow},
 		{name: "subtitles", synopsis: "<film-id> [--format srt|text|json] [--original|--translation] [--from T] [--to T] [--until watched]", summary: "Print a film's subtitles, or part of them", app: true, run: runSubtitles},
 		{name: "search", synopsis: "<words> [--film ID] [--until watched] [--limit N]", summary: "Find the subtitle lines that hold some words, in the library or one film", app: true, run: runSearch},
@@ -150,6 +150,7 @@ func init() {
 		{name: "add", synopsis: "<link-or-file>... [--wait] [--yes]", summary: "Queue videos to download, transcribe and translate", app: true, run: runAdd},
 		{name: "cancel", synopsis: "<job-id>", summary: "Stop a running job or take a waiting one out of the queue", app: true, run: runCancel},
 		{name: "retry", synopsis: "<job-id> [--wait]", summary: "Queue a failed, canceled or finished job again", app: true, run: runRetry},
+		{name: "translate", synopsis: "<film-id> [--wait]", summary: "Translate the lines a film's translation left untranslated", app: true, run: runTranslate},
 		{name: "remove", synopsis: "<job-id>", summary: "Take a job off the library, stopping it if it runs; its files stay", app: true, run: runRemove},
 		{name: "sites", synopsis: "[query] [--limit N]", summary: "Search the websites Kando downloads from", app: true, run: runSites},
 		{name: "open", synopsis: "[film-id] [--at T]", summary: "Bring Kando to the front, showing a film or the library", app: true, run: runOpen},

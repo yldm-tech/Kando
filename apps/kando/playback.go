@@ -206,13 +206,19 @@ func (a *app) playerEnded() {
 	a.playerKeepLoop()
 }
 
-// playerFailed is the system's player saying it cannot play the open video. A video in a container or of a codec it does not take, as an MKV or a WebM on macOS, plays from a copy ffmpeg makes (playerRemux), first with its streams as they are and then encoded anew; without ffmpeg, or when neither copy plays, the page says the video cannot be played.
+// playerFailed is the system's player saying it cannot play the open video. A video in a container or of a codec it does not take, as an MKV or a WebM on macOS, plays from a copy ffmpeg makes (playerRemux), first with its streams as they are and then encoded anew; without ffmpeg, or when neither copy plays, the page says the video cannot be played. On Linux without the GStreamer plug-ins the video needs (film.MissingPlugins) no copy would play either, so the page says which to install at once.
 func (a *app) playerFailed(err error) {
 	p := a.player.play
 	if p == nil {
 		return
 	}
 	log.Printf("player: the system's player cannot play %s: %v", filepath.Base(p.source), err)
+	if film.MissingPlugins(err) {
+		a.player.playErr = playerErrPlugins
+		p.source = ""
+		a.playerNowPlayingClear()
+		return
+	}
 	next := film.RemuxCopy
 	if p.remux == film.RemuxCopy {
 		next = film.RemuxEncode

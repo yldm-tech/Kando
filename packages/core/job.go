@@ -96,7 +96,7 @@ type Job struct {
 	Redo Redo
 	// RedoLanguage is the language a RedoAll or RedoTranslation job translates into; it becomes Language once the job completes. Empty for any other job.
 	RedoLanguage string
-	// SpokenLanguage is the language the speech recognition heard in the video, as its code (ja, en, zh), once the job transcribed it; empty before then and for a job whose transcript was read back from a run that did not keep it. A job that transcribes the video again hears it anew.
+	// SpokenLanguage is the language the speech recognition heard in the video, as its code (ja, en, zh), once the job transcribed it; empty before then and for a job whose transcript was read back from a run that did not keep it. A job that transcribes the video again hears it anew; one processing a done film again entirely (RedoAll) keeps the film's until it completes, so one that fails or is stopped leaves the film heard as it was.
 	SpokenLanguage string
 	// SpeechLanguage is the language the user said is spoken in this job's video, as whisper's code (ja, en), which the speech recognition is told to hear each time the job transcribes it, in place of the one the settings name for every video; empty hears the settings' language. Unlike SpokenLanguage it is the user's choice, so it stays when a run fails or the film is processed again.
 	SpeechLanguage string
@@ -121,7 +121,7 @@ func (r Redo) TranslatesOnly() bool {
 	return r == RedoTranslation || r == RedoMissing
 }
 
-// NewJob is a queued job for source: an http or https link, a web address typed without a scheme, which the job keeps with https:// before it (WithScheme), or a local video's file:// URL.
+// NewJob is a queued job for source: an http or https link, a web address typed without a scheme, which the job keeps with https:// before it (WithScheme), or a local video's file:// URL. A link is kept as ParseLink writes it (Link.URL), so a bilibili video under a reader's language downloads from its canonical link.
 func NewJob(source string) (Job, error) {
 	source = WithScheme(strings.TrimSpace(source))
 	if source == "" {
@@ -140,6 +140,9 @@ func NewJob(source string) (Job, error) {
 		return Job{}, errors.New("video source must be a valid URL")
 	}
 
+	if link, ok := ParseLink(source); ok && link.Platform != PlatformLocal {
+		source = link.URL
+	}
 	return Job{ID: newID(), Source: source, Stage: StageQueued}, nil
 }
 

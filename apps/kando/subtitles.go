@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"kando/apps/kando/film"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
 	"kando/packages/media"
@@ -17,6 +18,7 @@ const (
 	playerErrSubsMissing    = "subtitle-missing"
 	playerErrSubsUnreadable = "subtitle-unreadable"
 	playerErrUnplayable     = "video-unplayable"
+	playerErrPlugins        = film.ErrMissingPlugins
 )
 
 // playerErrTextIn is what the page says for one of the errors above in the language of m, as the page says it (ErrText) and the feedback issue says it in the language it is written in; any other text shows as it is.
@@ -28,6 +30,8 @@ func playerErrTextIn(m locales.Messages, id string) string {
 		return m.PlayerSubsUnreadable()
 	case playerErrUnplayable:
 		return m.PlayerUnplayable()
+	case playerErrPlugins:
+		return m.PlayerMissingPlugins()
 	}
 	return id
 }

@@ -845,6 +845,31 @@ func TestPaletteExplainsTheLinePlaying(t *testing.T) {
 	}
 }
 
+// TestPaletteAnswersInTheFilmsLanguage checks that Explain Line and a question about a film translated into another language than the one the settings name now are answered in the film's, the language of its subtitles on screen, and that a film translated into none is answered in the settings' one.
+func TestPaletteAnswersInTheFilmsLanguage(t *testing.T) {
+	srv, seen := fakeLLM(t, `{"answer":"說明。","refs":[]}`)
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	a, tt, updates := paletteLibrary(t, tools)
+	a.prefs.language = "简体中文"
+	a.library.Jobs[0].Language = "繁體中文"
+	refresh(tt, a)
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	ask := func(run func(), want string) {
+		t.Helper()
+		*seen = nil
+		apply(tt, a, run)
+		waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
+		if sent := strings.Join(*seen, "\n"); !strings.Contains(sent, "用"+want) {
+			t.Fatalf("sent %q, want it answered in %s", sent, want)
+		}
+	}
+	ask(func() { a.ExplainLine(1) }, "繁體中文")
+	ask(func() { a.palette.query = "what is this film about"; a.paletteAsk() }, "繁體中文")
+	a.library.Jobs[0].TranslationErr = "the AI service refused the key"
+	refresh(tt, a)
+	ask(func() { a.ExplainLine(1) }, "简体中文")
+}
+
 // TestPaletteExplainWithoutAIOffersItsSettings checks that Explain Line, with no AI service set, gets the palette's prompt to set one rather than a question sent nowhere.
 func TestPaletteExplainWithoutAIOffersItsSettings(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
@@ -853,5 +878,27 @@ func TestPaletteExplainWithoutAIOffersItsSettings(t *testing.T) {
 	refresh(tt, a)
 	if !a.palette.open || !hasText(tt, testlocale.Messages().PaletteNoAI()) || !hasText(tt, testlocale.Messages().PaletteNoAIAction()) {
 		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// TestPaletteSaysWhatItTakesWhereItOpens checks that the palette's field is named, and its footer says what Return does, for where it opens: over the library it finds films, commands and lines and runs them; in the player it also asks the open film, which Return does while the ask row is highlighted.
+func TestPaletteSaysWhatItTakesWhereItOpens(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	paletteOpen(t, a, tt, updates)
+	if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabel() {
+		t.Fatalf("field over the library is named %q, want %q", got, msgs.PaletteFieldLabel())
+	}
+	if !hasText(tt, msgs.PaletteFooter()) {
+		t.Fatalf("no library footer in %q", tt.Texts())
+	}
+	tt.Key("escape")
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
+	if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabelFilm() {
+		t.Fatalf("field in the player is named %q, want %q", got, msgs.PaletteFieldLabelFilm())
+	}
+	if !hasText(tt, msgs.PaletteFooterFilm()) {
+		t.Fatalf("no player footer in %q", tt.Texts())
 	}
 }

@@ -53,7 +53,7 @@ func (l languages) Render(cx *core.Scope) core.Node {
 					list := rows.Get()
 					items := make([]ui.SidebarItem, len(list))
 					for i, r := range list {
-						items[i] = ui.SidebarItem{ID: r.code, Text: r.label, TestID: "spoken-" + r.code, Content: languageContent(colors, k, r)}
+						items[i] = ui.SidebarItem{ID: r.code, Text: rowName(cx, r.label, r.count, r.code != SpokenAll), TestID: "spoken-" + r.code, Content: languageContent(colors, k, r)}
 					}
 					return []ui.SidebarSection{{Title: locales.SidebarLanguages(cx), Items: items}}
 				},

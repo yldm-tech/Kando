@@ -3,9 +3,10 @@ package feedback
 import (
 	"context"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
+
+	"kando/packages/media"
 )
 
 // SystemVersion is the system's version as its own tool says it, or "" when it does not.
@@ -14,13 +15,13 @@ func SystemVersion(goos string) string {
 	defer cancel()
 	switch goos {
 	case "darwin":
-		out, err := exec.CommandContext(ctx, "sw_vers", "-productVersion").Output()
+		out, err := media.Command(ctx, "sw_vers", "-productVersion").Output()
 		if err != nil {
 			return ""
 		}
 		return strings.TrimSpace(string(out))
 	case "windows":
-		out, err := exec.CommandContext(ctx, "cmd", "/c", "ver").Output()
+		out, err := media.Command(ctx, "cmd", "/c", "ver").Output()
 		if err != nil {
 			return ""
 		}

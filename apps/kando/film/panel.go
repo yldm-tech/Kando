@@ -222,7 +222,7 @@ func (s *screen) heldLine(cx *ns.Scope, cues func() []core.Segment, ready func()
 		if p := a.Play(); p == nil || p.Playing() || !ready() {
 			return -1
 		}
-		return cueIndex(cues(), s.playhead()-a.Delay())
+		return s.playingCue(cues())
 	}).Get
 	return ns.Show{When: func() bool { return index() >= 0 }, Then: func(cx *ns.Scope) ns.Node {
 		lines := live.Func(a, func() cueLines {
@@ -441,7 +441,7 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 		if a.Play() == nil {
 			return -1
 		}
-		return cueIndex(cues(), s.playhead()-a.Delay())
+		return s.playingCue(cues())
 	}).Get
 	clockWidth := cueClockWidth(cx, a, cues)
 	list := &ns.Ref{}

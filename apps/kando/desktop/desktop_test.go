@@ -170,6 +170,18 @@ func TestDroppedPaths(t *testing.T) {
 	}
 }
 
+// TestDroppedPathsOfANetworkFolder checks that a file dropped from a network folder, which File Explorer reports as file://server/share/…, is its UNC path on Windows, not a path on this machine without the server; elsewhere such a URL names no file here and is left out.
+func TestDroppedPathsOfANetworkFolder(t *testing.T) {
+	got := DroppedPaths([]string{"file://nas/films/My%20Talk.mp4"})
+	var want []string
+	if runtime.GOOS == "windows" {
+		want = []string{`\\nas\films\My Talk.mp4`}
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("DroppedPaths = %q, want %q", got, want)
+	}
+}
+
 // TestHeadlessRunsNoTool checks that after Headless, Reveal opens the item's folder through the scope, which nsgotest records, and Trash fails as unsupported, neither running a tool nor touching the item.
 func TestHeadlessRunsNoTool(t *testing.T) {
 	ran := fakeTools(t, nil)
@@ -198,5 +210,42 @@ func TestHeadlessRunsNoTool(t *testing.T) {
 	}
 	if _, err := os.Stat(film); err != nil {
 		t.Fatalf("the item is gone: %v", err)
+	}
+}
+
+// TestXDGVideosDir checks the videos folder a Linux desktop names: from the environment, else from user-dirs.dirs, as xdg-user-dirs writes it in the user's language, and none when neither says or it is turned off.
+func TestXDGVideosDir(t *testing.T) {
+	home := t.TempDir()
+	env := map[string]string{}
+	getenv := func(key string) string { return env[key] }
+	if got := xdgVideosDir(home, getenv); got != "" {
+		t.Fatalf("with no user-dirs.dirs: %q", got)
+	}
+	config := filepath.Join(home, ".config")
+	if err := os.MkdirAll(config, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dirs := "# This file is written by xdg-user-dirs-update\nXDG_DESKTOP_DIR=\"$HOME/Bureau\"\nXDG_VIDEOS_DIR=\"$HOME/Vidéos\"\n"
+	if err := os.WriteFile(filepath.Join(config, "user-dirs.dirs"), []byte(dirs), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := xdgVideosDir(home, getenv), filepath.Join(home, "Vidéos"); got != want {
+		t.Fatalf("from user-dirs.dirs: %q, want %q", got, want)
+	}
+	other := filepath.Join(t.TempDir(), "conf")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "user-dirs.dirs"), []byte("XDG_VIDEOS_DIR=\"$HOME\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env["XDG_CONFIG_HOME"] = other
+	if got := xdgVideosDir(home, getenv); got != "" {
+		t.Fatalf("turned off in $XDG_CONFIG_HOME's user-dirs.dirs: %q", got)
+	}
+	media := filepath.Join(t.TempDir(), "media")
+	env["XDG_VIDEOS_DIR"] = media
+	if got := xdgVideosDir(home, getenv); got != media {
+		t.Fatalf("from the environment: %q, want %q", got, media)
 	}
 }

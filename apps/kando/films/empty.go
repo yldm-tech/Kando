@@ -5,6 +5,7 @@ import (
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/sidebar"
 	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -23,7 +24,7 @@ func (n noLibrary) Render(cx *core.Scope) core.Node {
 	)
 }
 
-// emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频…, 打开已有资料库… and 支持的网站, which lists the sites a link can come from.
+// emptyLibrary is the page of a library that holds no film yet: how to add one, 选择本地视频…, 浏览网站, which opens the built-in browser to find a video in, 打开已有资料库… and 支持的网站, which lists the sites a link can come from.
 type emptyLibrary struct{ a App }
 
 // Render implements core.Node.
@@ -31,6 +32,7 @@ func (e emptyLibrary) Render(cx *core.Scope) core.Node {
 	a := e.a
 	return statusPage(cx, startTile(cx), locales.FilmsEmptyTitle, locales.FilmsEmptyDescription,
 		textButton(locales.FilmsPickVideosEllipsis, ui.Button{TestID: "empty-pick", OnPress: live.Do(a, a.PickVideos)}),
+		textButton(locales.FilmsBrowseSites, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-browse", OnPress: live.Do(a, func() { a.Select(sidebar.PageBrowse) })}),
 		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-open", OnPress: live.Do(a, a.PickLibrary)}),
 		textButton(locales.FilmsSupportedSites, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-sites", OnPress: live.Do(a, a.OpenSites)}),
 	)

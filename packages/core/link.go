@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -76,7 +77,12 @@ var (
 	bilibiliBV  = regexp.MustCompile(`BV[0-9A-Za-z]{10}`)
 	bilibiliAV  = regexp.MustCompile(`(?i)\bav\d+`)
 	bilibiliUID = regexp.MustCompile(`^\d+$`)
+	// bilibiliLocale is the first part of the path of bilibili's pages under a reader's language, as /zh-Hans/video/… or /en/.
+	bilibiliLocale = regexp.MustCompile(`^` + BilibiliLocale + `$`)
 )
+
+// BilibiliLocale is the language bilibili may put first in the paths of its pages (www.bilibili.com/zh-Hans/video/BV…, search.bilibili.com/ja/all?keyword=…), as a regular expression Go and JavaScript read alike: zh-Hans, zh-Hant, en, ja and the like.
+const BilibiliLocale = `[a-z]{2}(-[A-Za-z]{2,4})?`
 
 // youTubePages are the first parts of the paths of YouTube's pages that list videos without being one: search results, the feeds (subscriptions, history, trending…), hashtags and the gaming and trending pages.
 var youTubePages = map[string]bool{"results": true, "feed": true, "hashtag": true, "gaming": true, "trending": true}
@@ -142,13 +148,17 @@ func FileURL(path string) string {
 	return (&url.URL{Scheme: "file", Path: p}).String()
 }
 
-// FilePath is the path on this machine of the file a file:// URL names, the inverse of FileURL. On Windows the slash before a drive letter is dropped and the slashes become backslashes, so file:///C:/Users/me/clip.mp4 is C:\Users\me\clip.mp4. It reports false for a URL of another scheme, one without a path, and one whose host names another machine (anything but empty or localhost).
+// FilePath is the path on this machine of the file a file:// URL names, the inverse of FileURL. On Windows the slash before a drive letter is dropped and the slashes become backslashes, so file:///C:/Users/me/clip.mp4 is C:\Users\me\clip.mp4, and a host that names another machine is a share on it, as File Explorer drops a file of a network folder, so file://server/share/clip.mp4 is \\server\share\clip.mp4. It reports false for a URL of another scheme and one without a path; for one whose host names another machine (anything but empty or localhost) other than on Windows, which has no paths of other machines; and on Windows for one of a share's own folder, file://server/share, which is no file.
 func FilePath(u *url.URL) (string, bool) {
 	if u == nil || !strings.EqualFold(u.Scheme, "file") || u.Path == "" {
 		return "", false
 	}
 	if u.Host != "" && !strings.EqualFold(u.Host, "localhost") {
-		return "", false
+		share, rest, _ := strings.Cut(strings.TrimPrefix(u.Path, "/"), "/")
+		if runtime.GOOS != "windows" || share == "" || rest == "" {
+			return "", false
+		}
+		return filepath.FromSlash("//" + u.Host + u.Path), true
 	}
 	p := u.Path
 	if rest, ok := strings.CutPrefix(p, "/"); ok {
@@ -201,6 +211,20 @@ func youTubeLink(link *Link, u *url.URL) {
 
 func bilibiliLink(link *Link, u *url.URL) {
 	parts := pathParts(u.Path)
+	// A page under a reader's language is the page without it, whose link yt-dlp's bilibili extractor reads; it reads the other as a page of any site.
+	if link.Host != "b23.tv" && len(parts) > 0 && bilibiliLocale.MatchString(parts[0]) {
+		parts = parts[1:]
+		canonical := *u
+		canonical.Path, canonical.RawPath = "/"+strings.Join(parts, "/"), ""
+		if len(parts) > 0 && strings.HasSuffix(u.Path, "/") {
+			canonical.Path += "/"
+		}
+		u = &canonical
+		// The home page and the search pages under a language keep their links, which name no video.
+		if len(parts) > 0 && link.Host != "search.bilibili.com" {
+			link.URL = u.String()
+		}
+	}
 	if link.Host == "space.bilibili.com" {
 		link.Kind = LinkChannel
 		if len(parts) > 0 && bilibiliUID.MatchString(parts[0]) {

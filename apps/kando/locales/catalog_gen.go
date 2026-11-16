@@ -426,8 +426,13 @@ func For(cx *core.Scope) Messages {
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
 	"AccountNeedsStore":                  {"store"},
+	"AccountUploadDenied":                {"bucket"},
 	"AccountUploadFailedBecause":         {"error_"},
+	"AccountUploadInsecure":              {"host"},
+	"AccountUploadNoBucket":              {"bucket"},
+	"AccountUploadRegion":                {"bucket"},
 	"AccountUploadTo":                    {"store"},
+	"AccountUploadUnreachable":           {"host"},
 	"AccountUploadUnsaved":               {"error_"},
 	"AccountUploaded":                    {"key"},
 	"AccountUploadingPercent":            {"percent"},
@@ -456,6 +461,8 @@ var Parameters = map[string][]string{
 	"FilmLineOf":                         {"line", "total"},
 	"FilmLoopLines":                      {"from", "to"},
 	"FilmMatchOf":                        {"number", "total"},
+	"FilmReprocessFailed":                {"reason"},
+	"FilmRetranslateFailed":              {"reason"},
 	"FilmRevealFile":                     {"file"},
 	"FilmSeconds":                        {"seconds"},
 	"FilmShowInFinder":                   {"platform"},
@@ -543,6 +550,7 @@ var Parameters = map[string][]string{
 	"OnboardingStepOf":                   {"step", "steps"},
 	"OnboardingTipMenu":                  {"menu", "item"},
 	"OnboardingToolProgress":             {"percent"},
+	"OnboardingToolUnavailableCommand":   {"command"},
 	"PaletteAnswerNote":                  {"at", "model"},
 	"PaletteAskFailed":                   {"error_"},
 	"PaletteAskRow":                      {"question"},
@@ -617,6 +625,7 @@ var Parameters = map[string][]string{
 	"SavedExportFailed":                  {"error_"},
 	"SavedExported":                      {"count"},
 	"SavedExportedNoAudio":               {"count"},
+	"SavedExportedSomeAudio":             {"lines", "sounds"},
 	"SavedExporting":                     {"done", "total"},
 	"SavedReviewDone":                    {"count"},
 	"SavedReviewDue":                     {"count"},
@@ -642,6 +651,8 @@ var Parameters = map[string][]string{
 	"SettingsGeneralLastCheck":           {"when"},
 	"SettingsGeneralShowInFinder":        {"platform"},
 	"SettingsGeneralToolDetail":          {"use", "where"},
+	"SettingsGeneralToolPageLabel":       {"program"},
+	"SettingsGeneralToolsNoteScoop":      {"command"},
 	"SettingsGeneralUpdateAvailable":     {"version"},
 	"SettingsLibrarySaveFailed":          {"error_"},
 	"SettingsLookColorOf":                {"line"},
@@ -664,6 +675,7 @@ var Parameters = map[string][]string{
 	"SidebarLibraryCount":                {"name", "count"},
 	"SidebarMenuShowInFinder":            {"platform"},
 	"SidebarRevealLibrary":               {"name", "platform"},
+	"SidebarRowCount":                    {"name", "count"},
 	"SidebarSwitcherLabel":               {"name"},
 	"SitesFound":                         {"count", "source"},
 	"SitesIntro":                         {"count"},
@@ -679,8 +691,13 @@ var Parameters = map[string][]string{
 type Translation struct {
 	Texts                              map[string]string
 	AccountNeedsStore                  func(store string) string
+	AccountUploadDenied                func(bucket string) string
 	AccountUploadFailedBecause         func(error_ string) string
+	AccountUploadInsecure              func(host string) string
+	AccountUploadNoBucket              func(bucket string) string
+	AccountUploadRegion                func(bucket string) string
 	AccountUploadTo                    func(store string) string
+	AccountUploadUnreachable           func(host string) string
 	AccountUploadUnsaved               func(error_ string) string
 	AccountUploaded                    func(key string) string
 	AccountUploadingPercent            func(percent int) string
@@ -709,6 +726,8 @@ type Translation struct {
 	FilmLineOf                         func(line int, total int) string
 	FilmLoopLines                      func(from int, to int) string
 	FilmMatchOf                        func(number int, total int) string
+	FilmReprocessFailed                func(reason string) string
+	FilmRetranslateFailed              func(reason string) string
 	FilmRevealFile                     func(file string) string
 	FilmSeconds                        func(seconds string) string
 	FilmShowInFinder                   func(platform string) string
@@ -796,6 +815,7 @@ type Translation struct {
 	OnboardingStepOf                   func(step int, steps int) string
 	OnboardingTipMenu                  func(menu string, item string) string
 	OnboardingToolProgress             func(percent int) string
+	OnboardingToolUnavailableCommand   func(command string) string
 	PaletteAnswerNote                  func(at string, model string) string
 	PaletteAskFailed                   func(error_ string) string
 	PaletteAskRow                      func(question string) string
@@ -870,6 +890,7 @@ type Translation struct {
 	SavedExportFailed                  func(error_ string) string
 	SavedExported                      func(count int) string
 	SavedExportedNoAudio               func(count int) string
+	SavedExportedSomeAudio             func(lines int, sounds int) string
 	SavedExporting                     func(done int, total int) string
 	SavedReviewDone                    func(count int) string
 	SavedReviewDue                     func(count int) string
@@ -895,6 +916,8 @@ type Translation struct {
 	SettingsGeneralLastCheck           func(when time.Time) string
 	SettingsGeneralShowInFinder        func(platform string) string
 	SettingsGeneralToolDetail          func(use string, where string) string
+	SettingsGeneralToolPageLabel       func(program string) string
+	SettingsGeneralToolsNoteScoop      func(command string) string
 	SettingsGeneralUpdateAvailable     func(version string) string
 	SettingsLibrarySaveFailed          func(error_ string) string
 	SettingsLookColorOf                func(line string) string
@@ -917,6 +940,7 @@ type Translation struct {
 	SidebarLibraryCount                func(name string, count int) string
 	SidebarMenuShowInFinder            func(platform string) string
 	SidebarRevealLibrary               func(name string, platform string) string
+	SidebarRowCount                    func(name string, count int) string
 	SidebarSwitcherLabel               func(name string) string
 	SitesFound                         func(count int, source string) string
 	SitesIntro                         func(count int) string
@@ -959,7 +983,12 @@ const (
 	textAccountStoreOSS
 	textAccountUploadCanceled
 	textAccountUploadFailed
+	textAccountUploadFailedSeeLog
+	textAccountUploadKeys
 	textAccountUploadNote
+	textAccountUploadOffline
+	textAccountUploadStalled
+	textAccountUploadTooLarge
 	textAccountUploading
 	textAccountUploadingOther
 	textAccountVideoMissing
@@ -1050,7 +1079,9 @@ const (
 	textFilmColorOrange
 	textFilmColorWhite
 	textFilmColorYellow
+	textFilmCommandCopied
 	textFilmCopy
+	textFilmCopyCommand
 	textFilmCopyLine
 	textFilmCopyOriginal
 	textFilmCopyTranslation
@@ -1151,6 +1182,7 @@ const (
 	textFilmUnprocessed
 	textFilmUploadCancel
 	textFilmVolume
+	textFilmsBrowseSites
 	textFilmsCancel
 	textFilmsChange
 	textFilmsCloseNotice
@@ -1241,6 +1273,7 @@ const (
 	textLibraryImportTitle
 	textLibraryNameEmpty
 	textLibraryNameHasPath
+	textLibraryNameNotAllowed
 	textLibraryNameTaken
 	textLibraryOpenVideosMenu
 	textLibraryPickVideosButton
@@ -1359,7 +1392,9 @@ const (
 	textOnboardingWelcomeDescription
 	textPaletteExplainLine
 	textPaletteFieldLabel
+	textPaletteFieldLabelFilm
 	textPaletteFooter
+	textPaletteFooterFilm
 	textPaletteHeadingAnswer
 	textPaletteHeadingCommands
 	textPaletteHeadingFilms
@@ -1396,6 +1431,7 @@ const (
 	textPlayerKeyToggleSubtitles
 	textPlayerKeyVolumeDown
 	textPlayerKeyVolumeUp
+	textPlayerMissingPlugins
 	textPlayerOsdCopied
 	textPlayerOsdMuted
 	textPlayerSaveSpeedFailed
@@ -1508,6 +1544,9 @@ const (
 	textSavedDone
 	textSavedEmpty
 	textSavedExport
+	textSavedExportCancel
+	textSavedExportOpenSettings
+	textSavedExportStopped
 	textSavedKeySaveLine
 	textSavedMark
 	textSavedMenuItem
@@ -1617,6 +1656,7 @@ const (
 	textSettingsGeneralOpenLibrary
 	textSettingsGeneralRedetect
 	textSettingsGeneralRetry
+	textSettingsGeneralToolPage
 	textSettingsGeneralToolsNote
 	textSettingsGeneralToolsNoteManual
 	textSettingsGeneralUseFFmpeg
@@ -1828,7 +1868,12 @@ var keyOfText = [numTexts]string{
 	"accountStoreOSS",
 	"accountUploadCanceled",
 	"accountUploadFailed",
+	"accountUploadFailedSeeLog",
+	"accountUploadKeys",
 	"accountUploadNote",
+	"accountUploadOffline",
+	"accountUploadStalled",
+	"accountUploadTooLarge",
 	"accountUploading",
 	"accountUploadingOther",
 	"accountVideoMissing",
@@ -1919,7 +1964,9 @@ var keyOfText = [numTexts]string{
 	"filmColorOrange",
 	"filmColorWhite",
 	"filmColorYellow",
+	"filmCommandCopied",
 	"filmCopy",
+	"filmCopyCommand",
 	"filmCopyLine",
 	"filmCopyOriginal",
 	"filmCopyTranslation",
@@ -2020,6 +2067,7 @@ var keyOfText = [numTexts]string{
 	"filmUnprocessed",
 	"filmUploadCancel",
 	"filmVolume",
+	"filmsBrowseSites",
 	"filmsCancel",
 	"filmsChange",
 	"filmsCloseNotice",
@@ -2110,6 +2158,7 @@ var keyOfText = [numTexts]string{
 	"libraryImportTitle",
 	"libraryNameEmpty",
 	"libraryNameHasPath",
+	"libraryNameNotAllowed",
 	"libraryNameTaken",
 	"libraryOpenVideosMenu",
 	"libraryPickVideosButton",
@@ -2228,7 +2277,9 @@ var keyOfText = [numTexts]string{
 	"onboardingWelcomeDescription",
 	"paletteExplainLine",
 	"paletteFieldLabel",
+	"paletteFieldLabelFilm",
 	"paletteFooter",
+	"paletteFooterFilm",
 	"paletteHeadingAnswer",
 	"paletteHeadingCommands",
 	"paletteHeadingFilms",
@@ -2265,6 +2316,7 @@ var keyOfText = [numTexts]string{
 	"playerKeyToggleSubtitles",
 	"playerKeyVolumeDown",
 	"playerKeyVolumeUp",
+	"playerMissingPlugins",
 	"playerOsdCopied",
 	"playerOsdMuted",
 	"playerSaveSpeedFailed",
@@ -2377,6 +2429,9 @@ var keyOfText = [numTexts]string{
 	"savedDone",
 	"savedEmpty",
 	"savedExport",
+	"savedExportCancel",
+	"savedExportOpenSettings",
+	"savedExportStopped",
 	"savedKeySaveLine",
 	"savedMark",
 	"savedMenuItem",
@@ -2486,6 +2541,7 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralOpenLibrary",
 	"settingsGeneralRedetect",
 	"settingsGeneralRetry",
+	"settingsGeneralToolPage",
 	"settingsGeneralToolsNote",
 	"settingsGeneralToolsNoteManual",
 	"settingsGeneralUseFFmpeg",
@@ -2695,7 +2751,12 @@ var textsEn = i18n.NewTexts(""+
 	"Alibaba Cloud OSS"+
 	"Upload canceled"+
 	"Upload failed"+
+	"Upload failed. The details are in the log file."+
+	"The storage didn't accept the Access Key or Secret. Check them."+
 	"Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer."+
+	"Couldn't connect to the storage. Check the network and try again."+
+	"The storage stopped answering. Check the network and try again."+
+	"The video is larger than 5 GB, the most one upload can send."+
 	"Uploading"+
 	"Uploading another film"+
 	"The video file isn't on this computer"+
@@ -2786,7 +2847,9 @@ var textsEn = i18n.NewTexts(""+
 	"Orange"+
 	"White"+
 	"Yellow"+
+	"Copied"+
 	"Copy"+
+	"Copy Command"+
 	"Copy Line"+
 	"Copy Original"+
 	"Copy Translation"+
@@ -2887,6 +2950,7 @@ var textsEn = i18n.NewTexts(""+
 	"Not Processed"+
 	"Cancel"+
 	"Volume"+
+	"Browse Sites"+
 	"Cancel"+
 	"Change…"+
 	"Close Message"+
@@ -2977,6 +3041,7 @@ var textsEn = i18n.NewTexts(""+
 	"Import Library"+
 	"Enter a name for the library."+
 	"A library name can't contain a path."+
+	"Windows doesn't allow this name. Leave out < > : \" | ? * and don't use a name Windows reserves, such as CON or NUL."+
 	"A library with this name already exists. Choose another name."+
 	"Open Local Video…"+
 	"Open"+
@@ -3081,7 +3146,7 @@ var textsEn = i18n.NewTexts(""+
 	"Skip"+
 	"Press F1 anytime to come back here."+
 	"Connecting…"+
-	"Install it with your package manager and make sure it is on PATH"+
+	"Install it from its download page and add it to PATH"+
 	"Downloading the programs Kando needs"+
 	"Kando needs these programs to process videos"+
 	"Kando downloads them by itself. You can go on to the next step meanwhile."+
@@ -3094,8 +3159,10 @@ var textsEn = i18n.NewTexts(""+
 	"Welcome to Kando"+
 	"Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."+
 	"Explain Line"+
+	"Films, commands or watched lines"+
 	"Commands, lines or questions"+
 	"Type to search films, commands and watched lines · ↑↓ to select · Return to run"+
+	"Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"+
 	"Answer"+
 	"Commands"+
 	"Films"+
@@ -3132,6 +3199,7 @@ var textsEn = i18n.NewTexts(""+
 	"Show/Hide Subtitles"+
 	"Volume Down"+
 	"Volume Up"+
+	"This video needs GStreamer plug-ins that aren't installed. On Debian or Ubuntu, run the command below in a terminal; on other systems, install GTK 4's GStreamer media backend and GStreamer's good, bad and libav plug-ins. Then reopen Kando."+
 	"Copied"+
 	"Muted"+
 	"Couldn't save the speed"+
@@ -3244,6 +3312,9 @@ var textsEn = i18n.NewTexts(""+
 	"Done"+
 	"No saved lines yet. Press B while a film plays to save the line you hear."+
 	"Export for Anki…"+
+	"Cancel"+
+	"Open Settings"+
+	"Export stopped."+
 	"Save Line"+
 	"Saved"+
 	"Saved Lines…"+
@@ -3353,8 +3424,9 @@ var textsEn = i18n.NewTexts(""+
 	"Open Library…"+
 	"Detect Again"+
 	"Retry"+
+	"Download Page"+
 	"Kando downloads the programs it is missing. Those already installed on this computer are used as they are."+
-	"These programs come from this computer; Kando doesn't install or update them."+
+	"Kando doesn't download these programs on this system. Install each from its download page and add its folder to PATH, then choose Detect Again."+
 	"Converts audio, grabs covers, decodes frames"+
 	"Speech recognition"+
 	"Downloads online videos"+
@@ -3559,7 +3631,12 @@ var textsEn = i18n.NewTexts(""+
 		17,
 		15,
 		13,
+		47,
+		63,
 		176,
+		65,
+		63,
+		60,
 		9,
 		22,
 		37,
@@ -3650,7 +3727,9 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		5,
 		6,
+		6,
 		4,
+		12,
 		9,
 		13,
 		16,
@@ -3751,6 +3830,7 @@ var textsEn = i18n.NewTexts(""+
 		13,
 		6,
 		6,
+		12,
 		6,
 		9,
 		13,
@@ -3841,6 +3921,7 @@ var textsEn = i18n.NewTexts(""+
 		14,
 		29,
 		36,
+		115,
 		61,
 		19,
 		4,
@@ -3945,7 +4026,7 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		35,
 		13,
-		64,
+		52,
 		36,
 		44,
 		73,
@@ -3958,8 +4039,10 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		113,
 		12,
+		32,
 		28,
 		85,
+		113,
 		6,
 		8,
 		5,
@@ -3996,6 +4079,7 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		11,
 		9,
+		239,
 		6,
 		5,
 		23,
@@ -4108,6 +4192,9 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		73,
 		18,
+		6,
+		13,
+		15,
 		9,
 		5,
 		14,
@@ -4217,8 +4304,9 @@ var textsEn = i18n.NewTexts(""+
 		15,
 		12,
 		5,
+		13,
 		106,
-		77,
+		143,
 		44,
 		18,
 		23,
@@ -4426,7 +4514,12 @@ var textsJa = i18n.NewTexts(""+
 	"Alibaba Cloud OSS"+
 	"アップロードをキャンセルしました"+
 	"アップロードに失敗しました"+
+	"アップロードに失敗しました。詳細はログファイルにあります。"+
+	"ストレージが Access Key または Secret を受け付けませんでした。確認してください。"+
 	"動画はダウンロードが完了しても自動ではアップロードされません。再生画面でアップロードをクリックしてください。各ストレージのキーは別々に、このコンピュータの設定ファイルにだけ保存されます。"+
+	"ストレージに接続できませんでした。ネットワークを確認してもう一度お試しください。"+
+	"ストレージが応答しなくなりました。ネットワークを確認してもう一度お試しください。"+
+	"動画が 5 GB を超えています。1 回のアップロードで送れる上限です。"+
 	"アップロード中"+
 	"別の動画をアップロード中"+
 	"動画ファイルがこのコンピュータにありません"+
@@ -4517,7 +4610,9 @@ var textsJa = i18n.NewTexts(""+
 	"オレンジ"+
 	"白"+
 	"黄"+
+	"コピーしました"+
 	"コピー"+
+	"コマンドをコピー"+
 	"セリフをコピー"+
 	"原文をコピー"+
 	"訳文をコピー"+
@@ -4618,6 +4713,7 @@ var textsJa = i18n.NewTexts(""+
 	"未処理"+
 	"キャンセル"+
 	"音量"+
+	"サイトを閲覧"+
 	"キャンセル"+
 	"変更…"+
 	"メッセージを閉じる"+
@@ -4708,6 +4804,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリを読み込む"+
 	"ライブラリの名前を入力してください"+
 	"ライブラリの名前にはパスを含められません"+
+	"Windows ではこの名前を使えません。< > : \" | ? * を含めず、CON や NUL など Windows が予約している名前も避けてください。"+
 	"この名前のライブラリはすでにあります。別の名前にしてください"+
 	"ローカル動画を開く…"+
 	"開く"+
@@ -4812,7 +4909,7 @@ var textsJa = i18n.NewTexts(""+
 	"スキップ"+
 	"F1 キーでいつでもここに戻れます。"+
 	"接続中…"+
-	"パッケージマネージャーでインストールし、PATH に含めてください"+
+	"ダウンロードページからインストールして PATH に追加してください"+
 	"Kando に必要なプログラムをダウンロードしています"+
 	"動画の処理にはこれらのプログラムが必要です"+
 	"Kando が自動でダウンロードします。待たずに次へ進めます。"+
@@ -4825,8 +4922,10 @@ var textsJa = i18n.NewTexts(""+
 	"Kando へようこそ"+
 	"YouTube や bilibili のリンクを貼り付けるか、ローカル動画をドラッグすれば、観ながら学べます。まず言語を選びましょう。"+
 	"このセリフを解説"+
+	"動画、コマンド、または見たセリフ"+
 	"コマンド、セリフ、または質問"+
 	"入力すると動画、コマンド、見たセリフを検索 · ↑↓ で選択 · Return で実行"+
+	"入力すると動画、コマンド、見たセリフを検索、またはこの動画に質問 · ↑↓ で選択 · Return で質問または実行"+
 	"回答"+
 	"コマンド"+
 	"動画"+
@@ -4863,6 +4962,7 @@ var textsJa = i18n.NewTexts(""+
 	"字幕を表示/隠す"+
 	"音量を下げる"+
 	"音量を上げる"+
+	"この動画の再生には、インストールされていない GStreamer プラグインが必要です。Debian または Ubuntu では、ターミナルで下のコマンドを実行してください。その他のシステムでは、GTK 4 の GStreamer メディアバックエンドと、GStreamer の good、bad、libav プラグインをインストールしてください。その後、Kando を開き直してください。"+
 	"コピーしました"+
 	"消音"+
 	"再生速度の設定を保存できませんでした"+
@@ -4975,6 +5075,9 @@ var textsJa = i18n.NewTexts(""+
 	"完了"+
 	"保存したセリフはまだありません。映画の再生中に B を押すと、聞いているセリフを保存できます。"+
 	"Anki に書き出す…"+
+	"キャンセル"+
+	"設定を開く"+
+	"書き出しを中止しました。"+
 	"このセリフを保存"+
 	"保存済み"+
 	"保存したセリフ…"+
@@ -5084,8 +5187,9 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリを開く…"+
 	"再検出"+
 	"再試行"+
+	"ダウンロードページ"+
 	"足りないプログラムは Kando が自動でダウンロードします。このコンピュータにすでにあるものはそのまま使います。"+
-	"これらのプログラムはこのコンピュータにあるものです。Kando はインストールやアップデートを行いません。"+
+	"このシステムでは Kando はこれらのプログラムをダウンロードできません。それぞれのダウンロードページからインストールしてフォルダを PATH に追加し、「再検出」を押してください。"+
 	"音声の変換、カバーの取得、映像のデコード"+
 	"音声認識"+
 	"オンライン動画のダウンロード"+
@@ -5290,7 +5394,12 @@ var textsJa = i18n.NewTexts(""+
 		17,
 		48,
 		39,
+		87,
+		110,
 		279,
+		120,
+		120,
+		92,
 		21,
 		36,
 		63,
@@ -5381,7 +5490,9 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		3,
 		3,
+		21,
 		9,
+		24,
 		21,
 		18,
 		18,
@@ -5482,6 +5593,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		15,
 		6,
+		18,
 		15,
 		9,
 		27,
@@ -5572,6 +5684,7 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		51,
 		60,
+		157,
 		90,
 		30,
 		6,
@@ -5676,7 +5789,7 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		48,
 		12,
-		89,
+		90,
 		69,
 		63,
 		81,
@@ -5689,8 +5802,10 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		165,
 		24,
+		48,
 		42,
 		103,
+		151,
 		6,
 		12,
 		6,
@@ -5727,6 +5842,7 @@ var textsJa = i18n.NewTexts(""+
 		22,
 		18,
 		18,
+		439,
 		21,
 		6,
 		54,
@@ -5839,6 +5955,9 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		135,
 		23,
+		15,
+		15,
+		36,
 		24,
 		12,
 		24,
@@ -5948,8 +6067,9 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		9,
 		9,
+		27,
 		157,
-		147,
+		250,
 		60,
 		12,
 		42,
@@ -6157,7 +6277,12 @@ var textsKo = i18n.NewTexts(""+
 	"Alibaba Cloud OSS"+
 	"업로드를 취소했습니다"+
 	"업로드에 실패했습니다"+
+	"업로드에 실패했습니다. 자세한 내용은 로그 파일에 있습니다."+
+	"스토리지가 Access Key 또는 Secret을 받아들이지 않았습니다. 확인하십시오."+
 	"동영상은 다운로드가 끝나도 자동으로 업로드되지 않습니다. 재생 화면에서 업로드를 클릭하십시오. 각 스토리지의 키는 따로, 이 컴퓨터의 설정 파일에만 저장됩니다."+
+	"스토리지에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하십시오."+
+	"스토리지가 응답하지 않습니다. 네트워크를 확인하고 다시 시도하십시오."+
+	"동영상이 5 GB보다 큽니다. 한 번에 업로드할 수 있는 최대 크기입니다."+
 	"업로드 중"+
 	"다른 영상을 업로드하는 중"+
 	"동영상 파일이 이 컴퓨터에 없습니다"+
@@ -6248,7 +6373,9 @@ var textsKo = i18n.NewTexts(""+
 	"주황색"+
 	"흰색"+
 	"노란색"+
+	"복사됨"+
 	"복사"+
+	"명령 복사"+
 	"대사 복사"+
 	"원문 복사"+
 	"번역 복사"+
@@ -6349,6 +6476,7 @@ var textsKo = i18n.NewTexts(""+
 	"처리 안 됨"+
 	"취소"+
 	"음량"+
+	"사이트 둘러보기"+
 	"취소"+
 	"변경…"+
 	"메시지 닫기"+
@@ -6439,6 +6567,7 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 가져오기"+
 	"라이브러리 이름을 입력하세요"+
 	"라이브러리 이름에는 경로를 포함할 수 없습니다"+
+	"Windows에서는 이 이름을 사용할 수 없습니다. < > : \" | ? *를 빼고, CON이나 NUL처럼 Windows가 예약한 이름도 쓰지 마십시오."+
 	"같은 이름의 라이브러리가 이미 있습니다. 다른 이름을 사용하세요"+
 	"로컬 동영상 열기…"+
 	"열기"+
@@ -6543,7 +6672,7 @@ var textsKo = i18n.NewTexts(""+
 	"건너뛰기"+
 	"언제든지 F1 키를 눌러 여기로 돌아올 수 있습니다."+
 	"연결 중…"+
-	"패키지 관리자로 설치하고 PATH에 포함되어 있는지 확인하세요"+
+	"다운로드 페이지에서 설치하고 PATH에 추가하세요"+
 	"Kando에 필요한 프로그램을 다운로드하는 중"+
 	"동영상을 처리하려면 이 프로그램들이 필요합니다"+
 	"Kando가 자동으로 다운로드합니다. 기다리지 않고 다음 단계로 넘어가도 됩니다."+
@@ -6556,8 +6685,10 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에 오신 것을 환영합니다"+
 	"YouTube, Bilibili 링크를 붙여 넣거나 로컬 동영상을 끌어다 놓으면 보면서 배울 수 있습니다. 먼저 언어를 선택하세요."+
 	"이 대사 설명"+
+	"영상, 명령 또는 본 대사"+
 	"명령, 대사 또는 질문"+
 	"입력하면 영상, 명령, 본 대사 검색 · ↑↓ 선택 · Return 실행"+
+	"입력하면 영상, 명령, 본 대사 검색 또는 이 영상에 질문 · ↑↓ 선택 · Return 질문 또는 실행"+
 	"답변"+
 	"명령"+
 	"영상"+
@@ -6594,6 +6725,7 @@ var textsKo = i18n.NewTexts(""+
 	"자막 보기/숨기기"+
 	"음량 낮추기"+
 	"음량 높이기"+
+	"이 동영상을 재생하려면 설치되지 않은 GStreamer 플러그인이 필요합니다. Debian 또는 Ubuntu에서는 터미널에서 아래 명령을 실행하십시오. 다른 시스템에서는 GTK 4의 GStreamer 미디어 백엔드와 GStreamer의 good, bad, libav 플러그인을 설치하십시오. 그런 다음 Kando를 다시 여십시오."+
 	"복사됨"+
 	"음소거됨"+
 	"재생 속도 설정을 저장할 수 없습니다"+
@@ -6706,6 +6838,9 @@ var textsKo = i18n.NewTexts(""+
 	"완료"+
 	"아직 저장한 대사가 없습니다. 영화를 재생하는 동안 B를 누르면 듣고 있는 대사를 저장합니다."+
 	"Anki로 내보내기…"+
+	"취소"+
+	"설정 열기"+
+	"내보내기를 중지했습니다."+
 	"이 대사 저장"+
 	"저장됨"+
 	"저장한 대사…"+
@@ -6815,8 +6950,9 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 열기…"+
 	"다시 감지"+
 	"다시 시도"+
+	"다운로드 페이지"+
 	"없는 프로그램은 Kando가 자동으로 다운로드합니다. 이 컴퓨터에 이미 설치된 것은 그대로 사용합니다."+
-	"이 프로그램들은 이 컴퓨터에 있는 것으로, Kando가 설치하거나 업데이트하지 않습니다."+
+	"이 시스템에서는 Kando가 이 프로그램들을 다운로드할 수 없습니다. 각 다운로드 페이지에서 설치하고 폴더를 PATH에 추가한 다음 ‘다시 감지’를 누르십시오."+
 	"오디오 변환, 표지 추출, 화면 디코딩"+
 	"음성 인식"+
 	"온라인 동영상 다운로드"+
@@ -7021,7 +7157,12 @@ var textsKo = i18n.NewTexts(""+
 		17,
 		31,
 		31,
+		83,
+		96,
 		223,
+		99,
+		98,
+		93,
 		13,
 		36,
 		49,
@@ -7112,7 +7253,9 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		6,
 		9,
+		9,
 		6,
+		13,
 		13,
 		13,
 		13,
@@ -7213,6 +7356,7 @@ var textsKo = i18n.NewTexts(""+
 		14,
 		6,
 		6,
+		22,
 		6,
 		9,
 		16,
@@ -7303,6 +7447,7 @@ var textsKo = i18n.NewTexts(""+
 		28,
 		41,
 		65,
+		155,
 		89,
 		26,
 		6,
@@ -7407,7 +7552,7 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		67,
 		13,
-		82,
+		65,
 		57,
 		67,
 		105,
@@ -7420,8 +7565,10 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		153,
 		17,
+		32,
 		28,
 		80,
+		122,
 		6,
 		6,
 		6,
@@ -7458,6 +7605,7 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		16,
 		16,
+		356,
 		9,
 		12,
 		50,
@@ -7570,6 +7718,9 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		126,
 		23,
+		6,
+		13,
+		35,
 		17,
 		9,
 		19,
@@ -7679,8 +7830,9 @@ var textsKo = i18n.NewTexts(""+
 		25,
 		13,
 		13,
+		22,
 		135,
-		115,
+		209,
 		49,
 		13,
 		32,
@@ -7888,7 +8040,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"阿里云 OSS"+
 	"已取消上传"+
 	"上传失败"+
+	"上传失败，详情见日志文件。"+
+	"存储服务不接受这组 Access Key 或 Secret，请检查。"+
 	"视频不会在下载完成时自动上传。到播放页点上传。各处的密钥分开保存，只存在本机设置文件里。"+
+	"连不上存储服务。检查网络后重试。"+
+	"存储服务没有回应。检查网络后重试。"+
+	"视频大于 5 GB，超过了单次上传的上限。"+
 	"正在上传"+
 	"正在上传另一部影片"+
 	"视频文件不在本地"+
@@ -7979,7 +8136,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"橙色"+
 	"白色"+
 	"黄色"+
+	"已拷贝"+
 	"复制"+
+	"拷贝命令"+
 	"拷贝台词"+
 	"拷贝原文"+
 	"拷贝译文"+
@@ -8080,6 +8239,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"未处理"+
 	"取消"+
 	"音量"+
+	"浏览网站"+
 	"取消"+
 	"更改…"+
 	"关闭提示"+
@@ -8170,6 +8330,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"导入资料库"+
 	"先写资料库的名称"+
 	"资料库名称不能包含路径"+
+	"Windows 不允许这个名称。请不要使用 < > : \" | ? *，也不要使用 CON、NUL 等 Windows 保留的名称。"+
 	"已经有这个资料库，换个名字"+
 	"打开本地视频…"+
 	"打开"+
@@ -8274,7 +8435,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"跳过"+
 	"随时可以按 F1 回到这里。"+
 	"正在连接…"+
-	"请用包管理器安装，并确保它在 PATH 中"+
+	"请从它的下载页面安装，并加进 PATH"+
 	"正在下载看懂需要的程序"+
 	"看懂要用这些程序处理视频"+
 	"看懂会自动下载，不用等，可以先进入下一步。"+
@@ -8287,8 +8448,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"欢迎使用看懂"+
 	"粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"+
 	"讲解这句"+
+	"影片、命令或看过的台词"+
 	"命令、台词或问题"+
 	"打字时搜影片、命令和看过的台词 · ↑↓ 选择 · Return 执行"+
+	"打字时搜影片、命令和看过的台词，或问这部影片 · ↑↓ 选择 · Return 提问或执行"+
 	"回答"+
 	"命令"+
 	"影片"+
@@ -8325,6 +8488,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"显示/隐藏字幕"+
 	"音量减小"+
 	"音量加大"+
+	"播放这个视频需要尚未安装的 GStreamer 插件。在 Debian 或 Ubuntu 上，请在终端运行下面的命令；在其他系统上，请安装 GTK 4 的 GStreamer 媒体后端，以及 GStreamer 的 good、bad 和 libav 插件。然后重新打开看懂。"+
 	"已拷贝"+
 	"静音"+
 	"播放速度设置无法保存"+
@@ -8437,6 +8601,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"完成"+
 	"还没有收藏的句子。播放影片时按 B 即可收藏正在听的这句。"+
 	"导出到 Anki…"+
+	"取消"+
+	"打开设置"+
+	"已停止导出。"+
 	"收藏这句"+
 	"已收藏"+
 	"收藏的句子…"+
@@ -8546,8 +8713,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"打开资料库…"+
 	"重新检测"+
 	"重试"+
+	"下载页面"+
 	"缺少的程序看懂会自动下载；这台电脑上已经装了的，就用已装的那份。"+
-	"这些程序来自本机，看懂不负责安装或更新。"+
+	"看懂无法在这个系统上下载这些程序。请从各自的下载页面安装，并把所在文件夹加进 PATH，然后点「重新检测」。"+
 	"音频转换、截取封面、解码画面"+
 	"语音识别"+
 	"下载在线视频"+
@@ -8752,7 +8920,12 @@ var textsZhHans = i18n.NewTexts(""+
 		13,
 		15,
 		12,
+		39,
+		64,
 		132,
+		48,
+		51,
+		53,
 		12,
 		27,
 		24,
@@ -8843,7 +9016,9 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		9,
 		6,
+		12,
 		12,
 		12,
 		12,
@@ -8944,6 +9119,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		6,
 		6,
+		12,
 		6,
 		9,
 		12,
@@ -9034,6 +9210,7 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		24,
 		33,
+		120,
 		39,
 		21,
 		6,
@@ -9138,7 +9315,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		34,
 		15,
-		51,
+		47,
 		33,
 		36,
 		63,
@@ -9151,8 +9328,10 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		98,
 		12,
+		33,
 		24,
 		79,
+		109,
 		6,
 		6,
 		6,
@@ -9189,6 +9368,7 @@ var textsZhHans = i18n.NewTexts(""+
 		19,
 		12,
 		12,
+		267,
 		9,
 		6,
 		30,
@@ -9301,6 +9481,9 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		81,
 		17,
+		6,
+		12,
+		18,
 		12,
 		9,
 		18,
@@ -9410,8 +9593,9 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		12,
 		6,
+		12,
 		96,
-		60,
+		152,
 		42,
 		12,
 		18,
@@ -9619,7 +9803,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"阿里雲 OSS"+
 	"已取消上傳"+
 	"上傳失敗"+
+	"上傳失敗，詳情見記錄檔。"+
+	"儲存服務不接受這組 Access Key 或 Secret，請檢查。"+
 	"影片不會在下載完成時自動上傳。到播放頁面點按上傳。各處的密鑰分開儲存，只存在本機設定檔中。"+
+	"無法連線到儲存服務。檢查網路後重試。"+
+	"儲存服務沒有回應。檢查網路後重試。"+
+	"影片大於 5 GB，超過單次上傳的上限。"+
 	"正在上傳"+
 	"正在上傳另一部影片"+
 	"影片檔不在本機"+
@@ -9710,7 +9899,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"橙色"+
 	"白色"+
 	"黃色"+
+	"已拷貝"+
 	"拷貝"+
+	"拷貝指令"+
 	"拷貝台詞"+
 	"拷貝原文"+
 	"拷貝譯文"+
@@ -9811,6 +10002,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"未處理"+
 	"取消"+
 	"音量"+
+	"瀏覽網站"+
 	"取消"+
 	"更改…"+
 	"關閉提示"+
@@ -9901,6 +10093,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"匯入資料庫"+
 	"請先輸入資料庫的名稱"+
 	"資料庫名稱不能包含路徑"+
+	"Windows 不允許這個名稱。請不要使用 < > : \" | ? *，也不要使用 CON、NUL 等 Windows 保留的名稱。"+
 	"已經有這個資料庫，請換個名稱"+
 	"打開本機影片…"+
 	"打開"+
@@ -10005,7 +10198,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"略過"+
 	"隨時可以按 F1 回到這裡。"+
 	"正在連線…"+
-	"請用套件管理器安裝，並確認它在 PATH 中"+
+	"請從它的下載頁面安裝，並加入 PATH"+
 	"正在下載看懂需要的程式"+
 	"看懂要用這些程式處理影片"+
 	"看懂會自動下載，不用等，可以先進入下一步。"+
@@ -10018,8 +10211,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"歡迎使用看懂"+
 	"貼上 YouTube、嗶哩嗶哩連結或拖入本機影片，就能邊看邊學。先選好語言。"+
 	"講解這句"+
+	"影片、指令或看過的台詞"+
 	"指令、台詞或問題"+
 	"輸入時搜尋影片、指令和看過的台詞 · ↑↓ 選擇 · Return 執行"+
+	"輸入時搜尋影片、指令和看過的台詞，或問這部影片 · ↑↓ 選擇 · Return 提問或執行"+
 	"回答"+
 	"指令"+
 	"影片"+
@@ -10056,6 +10251,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"顯示/隱藏字幕"+
 	"調低音量"+
 	"調高音量"+
+	"播放這部影片需要尚未安裝的 GStreamer 外掛。在 Debian 或 Ubuntu 上，請在終端機執行下方的指令；在其他系統上，請安裝 GTK 4 的 GStreamer 媒體後端，以及 GStreamer 的 good、bad 和 libav 外掛。然後重新開啟看懂。"+
 	"已拷貝"+
 	"靜音"+
 	"播放速度設定無法儲存"+
@@ -10168,6 +10364,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"完成"+
 	"還沒有收藏的句子。播放影片時按 B 即可收藏正在聽的這句。"+
 	"匯出到 Anki…"+
+	"取消"+
+	"打開設定"+
+	"已停止匯出。"+
 	"收藏這句"+
 	"已收藏"+
 	"收藏的句子…"+
@@ -10277,8 +10476,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"打開資料庫…"+
 	"重新偵測"+
 	"重試"+
+	"下載頁面"+
 	"缺少的程式看懂會自動下載；這台電腦上已經裝了的，就用已裝的那份。"+
-	"這些程式來自本機，看懂不負責安裝或更新。"+
+	"看懂無法在這個系統上下載這些程式。請從各自的下載頁面安裝，並把所在資料夾加入 PATH，然後按「重新偵測」。"+
 	"音訊轉換、擷取封面、解碼畫面"+
 	"語音辨識"+
 	"下載線上影片"+
@@ -10483,7 +10683,12 @@ var textsZhHant = i18n.NewTexts(""+
 		13,
 		15,
 		12,
+		36,
+		64,
 		135,
+		54,
+		51,
+		50,
 		12,
 		27,
 		21,
@@ -10574,7 +10779,9 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		6,
+		9,
 		6,
+		12,
 		12,
 		12,
 		12,
@@ -10675,6 +10882,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		6,
 		6,
+		12,
 		6,
 		9,
 		12,
@@ -10765,6 +10973,7 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		30,
 		33,
+		120,
 		42,
 		21,
 		6,
@@ -10869,7 +11078,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		34,
 		15,
-		54,
+		47,
 		33,
 		36,
 		63,
@@ -10882,8 +11091,10 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		98,
 		12,
+		33,
 		24,
 		82,
+		112,
 		6,
 		6,
 		6,
@@ -10920,6 +11131,7 @@ var textsZhHant = i18n.NewTexts(""+
 		19,
 		12,
 		12,
+		270,
 		9,
 		6,
 		30,
@@ -11032,6 +11244,9 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		81,
 		17,
+		6,
+		12,
+		18,
 		12,
 		9,
 		18,
@@ -11141,8 +11356,9 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		12,
 		6,
+		12,
 		96,
-		60,
+		152,
 		42,
 		12,
 		18,
@@ -11381,11 +11597,26 @@ func Supply(lang string, t Translation) {
 	if t.AccountNeedsStore != nil {
 		s.AccountNeedsStore = t.AccountNeedsStore
 	}
+	if t.AccountUploadDenied != nil {
+		s.AccountUploadDenied = t.AccountUploadDenied
+	}
 	if t.AccountUploadFailedBecause != nil {
 		s.AccountUploadFailedBecause = t.AccountUploadFailedBecause
 	}
+	if t.AccountUploadInsecure != nil {
+		s.AccountUploadInsecure = t.AccountUploadInsecure
+	}
+	if t.AccountUploadNoBucket != nil {
+		s.AccountUploadNoBucket = t.AccountUploadNoBucket
+	}
+	if t.AccountUploadRegion != nil {
+		s.AccountUploadRegion = t.AccountUploadRegion
+	}
 	if t.AccountUploadTo != nil {
 		s.AccountUploadTo = t.AccountUploadTo
+	}
+	if t.AccountUploadUnreachable != nil {
+		s.AccountUploadUnreachable = t.AccountUploadUnreachable
 	}
 	if t.AccountUploadUnsaved != nil {
 		s.AccountUploadUnsaved = t.AccountUploadUnsaved
@@ -11470,6 +11701,12 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmMatchOf != nil {
 		s.FilmMatchOf = t.FilmMatchOf
+	}
+	if t.FilmReprocessFailed != nil {
+		s.FilmReprocessFailed = t.FilmReprocessFailed
+	}
+	if t.FilmRetranslateFailed != nil {
+		s.FilmRetranslateFailed = t.FilmRetranslateFailed
 	}
 	if t.FilmRevealFile != nil {
 		s.FilmRevealFile = t.FilmRevealFile
@@ -11732,6 +11969,9 @@ func Supply(lang string, t Translation) {
 	if t.OnboardingToolProgress != nil {
 		s.OnboardingToolProgress = t.OnboardingToolProgress
 	}
+	if t.OnboardingToolUnavailableCommand != nil {
+		s.OnboardingToolUnavailableCommand = t.OnboardingToolUnavailableCommand
+	}
 	if t.PaletteAnswerNote != nil {
 		s.PaletteAnswerNote = t.PaletteAnswerNote
 	}
@@ -11954,6 +12194,9 @@ func Supply(lang string, t Translation) {
 	if t.SavedExportedNoAudio != nil {
 		s.SavedExportedNoAudio = t.SavedExportedNoAudio
 	}
+	if t.SavedExportedSomeAudio != nil {
+		s.SavedExportedSomeAudio = t.SavedExportedSomeAudio
+	}
 	if t.SavedExporting != nil {
 		s.SavedExporting = t.SavedExporting
 	}
@@ -12029,6 +12272,12 @@ func Supply(lang string, t Translation) {
 	if t.SettingsGeneralToolDetail != nil {
 		s.SettingsGeneralToolDetail = t.SettingsGeneralToolDetail
 	}
+	if t.SettingsGeneralToolPageLabel != nil {
+		s.SettingsGeneralToolPageLabel = t.SettingsGeneralToolPageLabel
+	}
+	if t.SettingsGeneralToolsNoteScoop != nil {
+		s.SettingsGeneralToolsNoteScoop = t.SettingsGeneralToolsNoteScoop
+	}
 	if t.SettingsGeneralUpdateAvailable != nil {
 		s.SettingsGeneralUpdateAvailable = t.SettingsGeneralUpdateAvailable
 	}
@@ -12094,6 +12343,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SidebarRevealLibrary != nil {
 		s.SidebarRevealLibrary = t.SidebarRevealLibrary
+	}
+	if t.SidebarRowCount != nil {
+		s.SidebarRowCount = t.SidebarRowCount
 	}
 	if t.SidebarSwitcherLabel != nil {
 		s.SidebarSwitcherLabel = t.SidebarSwitcherLabel
@@ -12194,7 +12446,7 @@ func (msgs Messages) AccountCompatRegionHint() string { return msgs.text(textAcc
 // AccountFixSettings says "Open Settings"
 // in the language the app shows under cx.
 //
-// Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage.
+// Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage, or to correct it after an upload failed because of it.
 func AccountFixSettings(cx *core.Scope) string { return For(cx).AccountFixSettings() }
 
 // AccountFixSettings is the package's AccountFixSettings in the language of msgs.
@@ -12419,6 +12671,38 @@ func AccountUploadCanceled(cx *core.Scope) string { return For(cx).AccountUpload
 // AccountUploadCanceled is the package's AccountUploadCanceled in the language of msgs.
 func (msgs Messages) AccountUploadCanceled() string { return msgs.text(textAccountUploadCanceled) }
 
+// AccountUploadDenied says "These keys can't write to the bucket {bucket}. Give them write access, or use other keys."
+// in the language the app shows under cx.
+//
+// Upload error: the storage refused the keys write access to the bucket (AccessDenied). The settings button follows it.
+func AccountUploadDenied(cx *core.Scope, bucket string) string {
+	return For(cx).AccountUploadDenied(bucket)
+}
+
+// AccountUploadDenied is the package's AccountUploadDenied in the language of msgs.
+func (msgs Messages) AccountUploadDenied(bucket string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadDenied(bucket))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadDenied; f != nil {
+			return f(bucket)
+		}
+		switch lang {
+		case "", "en":
+			return "These keys can't write to the bucket " + msgs.arg(bucket) + ". Give them write access, or use other keys."
+		case "ja":
+			return "このキーではバケット " + bucket + " に書き込めません。書き込み権限を与えるか、別のキーを使ってください。"
+		case "ko":
+			return "이 키로는 버킷 " + bucket + "에 쓸 수 없습니다. 쓰기 권한을 주거나 다른 키를 사용하십시오."
+		case "zh-Hans":
+			return "这组密钥不能写入存储桶 " + bucket + "。给它写入权限，或换一组密钥。"
+		case "zh-Hant":
+			return "這組金鑰無法寫入儲存桶 " + bucket + "。給它寫入權限，或換一組金鑰。"
+		}
+	}
+}
+
 // AccountUploadFailed says "Upload failed"
 // in the language the app shows under cx.
 //
@@ -12460,6 +12744,90 @@ func (msgs Messages) AccountUploadFailedBecause(error_ string) string {
 	}
 }
 
+// AccountUploadFailedSeeLog says "Upload failed. The details are in the log file."
+// in the language the app shows under cx.
+//
+// Upload error that none of the others names; the storage's own error is in the log file (Help › Show Log File).
+func AccountUploadFailedSeeLog(cx *core.Scope) string { return For(cx).AccountUploadFailedSeeLog() }
+
+// AccountUploadFailedSeeLog is the package's AccountUploadFailedSeeLog in the language of msgs.
+func (msgs Messages) AccountUploadFailedSeeLog() string {
+	return msgs.text(textAccountUploadFailedSeeLog)
+}
+
+// AccountUploadInsecure says "Couldn't connect securely to {host}. Check whether the Endpoint is http or https, and its certificate."
+// in the language the app shows under cx.
+//
+// Upload error: the TLS connection to the storage failed, because the certificate is not trusted or the server speaks plain http. Endpoint is the field's name, not translated. The settings button follows it.
+func AccountUploadInsecure(cx *core.Scope, host string) string {
+	return For(cx).AccountUploadInsecure(host)
+}
+
+// AccountUploadInsecure is the package's AccountUploadInsecure in the language of msgs.
+func (msgs Messages) AccountUploadInsecure(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadInsecure(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadInsecure; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't connect securely to " + msgs.arg(host) + ". Check whether the Endpoint is http or https, and its certificate."
+		case "ja":
+			return host + " に安全に接続できませんでした。Endpoint が http か https か、その証明書を確認してください。"
+		case "ko":
+			return host + "에 안전하게 연결할 수 없습니다. Endpoint가 http인지 https인지와 인증서를 확인하십시오."
+		case "zh-Hans":
+			return "无法与 " + host + " 建立安全连接。检查 Endpoint 是 http 还是 https，以及它的证书。"
+		case "zh-Hant":
+			return "無法與 " + host + " 建立安全連線。檢查 Endpoint 是 http 還是 https，以及它的憑證。"
+		}
+	}
+}
+
+// AccountUploadKeys says "The storage didn't accept the Access Key or Secret. Check them."
+// in the language the app shows under cx.
+//
+// Upload error: the storage rejected the keys (SignatureDoesNotMatch, InvalidAccessKeyId). Access Key and Secret are the fields' names, not translated. The settings button follows it.
+func AccountUploadKeys(cx *core.Scope) string { return For(cx).AccountUploadKeys() }
+
+// AccountUploadKeys is the package's AccountUploadKeys in the language of msgs.
+func (msgs Messages) AccountUploadKeys() string { return msgs.text(textAccountUploadKeys) }
+
+// AccountUploadNoBucket says "There's no bucket named {bucket}. Check the Bucket, or create it first."
+// in the language the app shows under cx.
+//
+// Upload error: the bucket does not exist (NoSuchBucket). Bucket is the field's name, not translated. The settings button follows it.
+func AccountUploadNoBucket(cx *core.Scope, bucket string) string {
+	return For(cx).AccountUploadNoBucket(bucket)
+}
+
+// AccountUploadNoBucket is the package's AccountUploadNoBucket in the language of msgs.
+func (msgs Messages) AccountUploadNoBucket(bucket string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadNoBucket(bucket))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadNoBucket; f != nil {
+			return f(bucket)
+		}
+		switch lang {
+		case "", "en":
+			return "There's no bucket named " + msgs.arg(bucket) + ". Check the Bucket, or create it first."
+		case "ja":
+			return bucket + " という名前のバケットはありません。Bucket を確認するか、先に作成してください。"
+		case "ko":
+			return bucket + "(이)라는 버킷이 없습니다. Bucket을 확인하거나 먼저 만드십시오."
+		case "zh-Hans":
+			return "没有名为 " + bucket + " 的存储桶。检查 Bucket，或先创建它。"
+		case "zh-Hant":
+			return "沒有名為 " + bucket + " 的儲存桶。檢查 Bucket，或先建立它。"
+		}
+	}
+}
+
 // AccountUploadNote says "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer."
 // in the language the app shows under cx.
 //
@@ -12468,6 +12836,56 @@ func AccountUploadNote(cx *core.Scope) string { return For(cx).AccountUploadNote
 
 // AccountUploadNote is the package's AccountUploadNote in the language of msgs.
 func (msgs Messages) AccountUploadNote() string { return msgs.text(textAccountUploadNote) }
+
+// AccountUploadOffline says "Couldn't connect to the storage. Check the network and try again."
+// in the language the app shows under cx.
+//
+// Upload error: the connection to the storage could not be made or broke off.
+func AccountUploadOffline(cx *core.Scope) string { return For(cx).AccountUploadOffline() }
+
+// AccountUploadOffline is the package's AccountUploadOffline in the language of msgs.
+func (msgs Messages) AccountUploadOffline() string { return msgs.text(textAccountUploadOffline) }
+
+// AccountUploadRegion says "The bucket {bucket} is in another region. Check the Region or Endpoint."
+// in the language the app shows under cx.
+//
+// Upload error: the request was signed for another region than the bucket's (PermanentRedirect, AuthorizationHeaderMalformed). Region and Endpoint are the fields' names, not translated. The settings button follows it.
+func AccountUploadRegion(cx *core.Scope, bucket string) string {
+	return For(cx).AccountUploadRegion(bucket)
+}
+
+// AccountUploadRegion is the package's AccountUploadRegion in the language of msgs.
+func (msgs Messages) AccountUploadRegion(bucket string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadRegion(bucket))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadRegion; f != nil {
+			return f(bucket)
+		}
+		switch lang {
+		case "", "en":
+			return "The bucket " + msgs.arg(bucket) + " is in another region. Check the Region or Endpoint."
+		case "ja":
+			return "バケット " + bucket + " は別のリージョンにあります。Region または Endpoint を確認してください。"
+		case "ko":
+			return "버킷 " + bucket + "이(가) 다른 리전에 있습니다. Region 또는 Endpoint를 확인하십시오."
+		case "zh-Hans":
+			return "存储桶 " + bucket + " 在别的区域。检查 Region 或 Endpoint。"
+		case "zh-Hant":
+			return "儲存桶 " + bucket + " 在別的區域。檢查 Region 或 Endpoint。"
+		}
+	}
+}
+
+// AccountUploadStalled says "The storage stopped answering. Check the network and try again."
+// in the language the app shows under cx.
+//
+// Upload error: the storage took no data and gave no answer for a minute.
+func AccountUploadStalled(cx *core.Scope) string { return For(cx).AccountUploadStalled() }
+
+// AccountUploadStalled is the package's AccountUploadStalled in the language of msgs.
+func (msgs Messages) AccountUploadStalled() string { return msgs.text(textAccountUploadStalled) }
 
 // AccountUploadTo says "Upload to {store}"
 // in the language the app shows under cx.
@@ -12495,6 +12913,47 @@ func (msgs Messages) AccountUploadTo(store string) string {
 			return "上传到 " + store
 		case "zh-Hant":
 			return "上傳到 " + store
+		}
+	}
+}
+
+// AccountUploadTooLarge says "The video is larger than 5 GB, the most one upload can send."
+// in the language the app shows under cx.
+//
+// Upload error: the video is larger than one upload to object storage can take.
+func AccountUploadTooLarge(cx *core.Scope) string { return For(cx).AccountUploadTooLarge() }
+
+// AccountUploadTooLarge is the package's AccountUploadTooLarge in the language of msgs.
+func (msgs Messages) AccountUploadTooLarge() string { return msgs.text(textAccountUploadTooLarge) }
+
+// AccountUploadUnreachable says "Couldn't find {host}. Check the Endpoint or Region."
+// in the language the app shows under cx.
+//
+// Upload error: the storage's host name does not resolve. Endpoint and Region are the fields' names, not translated. The settings button follows it.
+func AccountUploadUnreachable(cx *core.Scope, host string) string {
+	return For(cx).AccountUploadUnreachable(host)
+}
+
+// AccountUploadUnreachable is the package's AccountUploadUnreachable in the language of msgs.
+func (msgs Messages) AccountUploadUnreachable(host string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AccountUploadUnreachable(host))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AccountUploadUnreachable; f != nil {
+			return f(host)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't find " + msgs.arg(host) + ". Check the Endpoint or Region."
+		case "ja":
+			return host + " が見つかりませんでした。Endpoint または Region を確認してください。"
+		case "ko":
+			return host + "을(를) 찾을 수 없습니다. Endpoint 또는 Region을 확인하십시오."
+		case "zh-Hans":
+			return "找不到 " + host + "。检查 Endpoint 或 Region。"
+		case "zh-Hant":
+			return "找不到 " + host + "。檢查 Endpoint 或 Region。"
 		}
 	}
 }
@@ -14005,6 +14464,15 @@ func FilmColorYellow(cx *core.Scope) string { return For(cx).FilmColorYellow() }
 // FilmColorYellow is the package's FilmColorYellow in the language of msgs.
 func (msgs Messages) FilmColorYellow() string { return msgs.text(textFilmColorYellow) }
 
+// FilmCommandCopied says "Copied"
+// in the language the app shows under cx.
+//
+// Copy Command once it has copied the command.
+func FilmCommandCopied(cx *core.Scope) string { return For(cx).FilmCommandCopied() }
+
+// FilmCommandCopied is the package's FilmCommandCopied in the language of msgs.
+func (msgs Messages) FilmCommandCopied() string { return msgs.text(textFilmCommandCopied) }
+
 // FilmCopy says "Copy"
 // in the language the app shows under cx.
 //
@@ -14013,6 +14481,15 @@ func FilmCopy(cx *core.Scope) string { return For(cx).FilmCopy() }
 
 // FilmCopy is the package's FilmCopy in the language of msgs.
 func (msgs Messages) FilmCopy() string { return msgs.text(textFilmCopy) }
+
+// FilmCopyCommand says "Copy Command"
+// in the language the app shows under cx.
+//
+// Button under the note of a video that needs GStreamer plug-ins, on Linux: copies the command that installs them.
+func FilmCopyCommand(cx *core.Scope) string { return For(cx).FilmCopyCommand() }
+
+// FilmCopyCommand is the package's FilmCopyCommand in the language of msgs.
+func (msgs Messages) FilmCopyCommand() string { return msgs.text(textFilmCopyCommand) }
 
 // FilmCopyLine says "Copy Line"
 // in the language the app shows under cx.
@@ -14857,6 +15334,38 @@ func FilmReprocess(cx *core.Scope) string { return For(cx).FilmReprocess() }
 // FilmReprocess is the package's FilmReprocess in the language of msgs.
 func (msgs Messages) FilmReprocess() string { return msgs.text(textFilmReprocess) }
 
+// FilmReprocessFailed says "Couldn't process again. {reason}"
+// in the language the app shows under cx.
+//
+// Player title bar line when processing the open film again (Process Again) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key.
+func FilmReprocessFailed(cx *core.Scope, reason string) string {
+	return For(cx).FilmReprocessFailed(reason)
+}
+
+// FilmReprocessFailed is the package's FilmReprocessFailed in the language of msgs.
+func (msgs Messages) FilmReprocessFailed(reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmReprocessFailed(reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmReprocessFailed; f != nil {
+			return f(reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't process again. " + msgs.arg(reason)
+		case "ja":
+			return "再処理できませんでした。" + reason
+		case "ko":
+			return "다시 처리하지 못했습니다. " + reason
+		case "zh-Hans":
+			return "没能重新处理。" + reason
+		case "zh-Hant":
+			return "沒能重新處理。" + reason
+		}
+	}
+}
+
 // FilmRetry says "Retry"
 // in the language the app shows under cx.
 //
@@ -14865,6 +15374,38 @@ func FilmRetry(cx *core.Scope) string { return For(cx).FilmRetry() }
 
 // FilmRetry is the package's FilmRetry in the language of msgs.
 func (msgs Messages) FilmRetry() string { return msgs.text(textFilmRetry) }
+
+// FilmRetranslateFailed says "Couldn't translate again. {reason}"
+// in the language the app shows under cx.
+//
+// Player title bar line when translating the open film again (Translate Again or Translate Missing Lines) failed: the film keeps the subtitles it had. reason is a full sentence saying why.
+func FilmRetranslateFailed(cx *core.Scope, reason string) string {
+	return For(cx).FilmRetranslateFailed(reason)
+}
+
+// FilmRetranslateFailed is the package's FilmRetranslateFailed in the language of msgs.
+func (msgs Messages) FilmRetranslateFailed(reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmRetranslateFailed(reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmRetranslateFailed; f != nil {
+			return f(reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't translate again. " + msgs.arg(reason)
+		case "ja":
+			return "再翻訳できませんでした。" + reason
+		case "ko":
+			return "다시 번역하지 못했습니다. " + reason
+		case "zh-Hans":
+			return "没能重新翻译。" + reason
+		case "zh-Hant":
+			return "沒能重新翻譯。" + reason
+		}
+	}
+}
 
 // FilmReveal says "Show"
 // in the language the app shows under cx.
@@ -15508,6 +16049,15 @@ func FilmVolume(cx *core.Scope) string { return For(cx).FilmVolume() }
 
 // FilmVolume is the package's FilmVolume in the language of msgs.
 func (msgs Messages) FilmVolume() string { return msgs.text(textFilmVolume) }
+
+// FilmsBrowseSites says "Browse Sites"
+// in the language the app shows under cx.
+//
+// Button beside the library's link field, and on the page of an empty library, that opens the built-in browser (Browse) to find a video in.
+func FilmsBrowseSites(cx *core.Scope) string { return For(cx).FilmsBrowseSites() }
+
+// FilmsBrowseSites is the package's FilmsBrowseSites in the language of msgs.
+func (msgs Messages) FilmsBrowseSites() string { return msgs.text(textFilmsBrowseSites) }
 
 // FilmsCancel says "Cancel"
 // in the language the app shows under cx.
@@ -17166,7 +17716,7 @@ func (msgs Messages) FilmsReprocessConfirm(name string) string {
 // FilmsReprocessConfirmMessage says "Its speech will be transcribed again and every line translated into {language}, which uses your AI service."
 // in the language the app shows under cx.
 //
-// Message of the dialog confirming Process Again: what it costs. language is the target language set now, which may differ from the one the film was translated into.
+// Message of the dialog confirming Process Again: what it costs. language is the language the film was translated into, or the target language set now for a film that was not translated.
 func FilmsReprocessConfirmMessage(cx *core.Scope, language string) string {
 	return For(cx).FilmsReprocessConfirmMessage(language)
 }
@@ -17922,6 +18472,15 @@ func LibraryNameHasPath(cx *core.Scope) string { return For(cx).LibraryNameHasPa
 
 // LibraryNameHasPath is the package's LibraryNameHasPath in the language of msgs.
 func (msgs Messages) LibraryNameHasPath() string { return msgs.text(textLibraryNameHasPath) }
+
+// LibraryNameNotAllowed says "Windows doesn't allow this name. Leave out < > : \" | ? * and don't use a name Windows reserves, such as CON or NUL."
+// in the language the app shows under cx.
+//
+// Error in the new-library sheet on Windows: the name holds a character Windows refuses in a file's name, or is a device name it reserves.
+func LibraryNameNotAllowed(cx *core.Scope) string { return For(cx).LibraryNameNotAllowed() }
+
+// LibraryNameNotAllowed is the package's LibraryNameNotAllowed in the language of msgs.
+func (msgs Messages) LibraryNameNotAllowed() string { return msgs.text(textLibraryNameNotAllowed) }
 
 // LibraryNameTaken says "A library with this name already exists. Choose another name."
 // in the language the app shows under cx.
@@ -20039,15 +20598,47 @@ func (msgs Messages) OnboardingToolProgress(percent int) string {
 	}
 }
 
-// OnboardingToolUnavailable says "Install it with your package manager and make sure it is on PATH"
+// OnboardingToolUnavailable says "Install it from its download page and add it to PATH"
 // in the language the app shows under cx.
 //
-// Line under a program in the guide on a system Kando cannot download it for, such as Windows.
+// Line under a program in the guide on a system Kando cannot download it for, beside the link to its download page.
 func OnboardingToolUnavailable(cx *core.Scope) string { return For(cx).OnboardingToolUnavailable() }
 
 // OnboardingToolUnavailable is the package's OnboardingToolUnavailable in the language of msgs.
 func (msgs Messages) OnboardingToolUnavailable() string {
 	return msgs.text(textOnboardingToolUnavailable)
+}
+
+// OnboardingToolUnavailableCommand says "Install it with {command}, or from its download page"
+// in the language the app shows under cx.
+//
+// Line under a program in the guide on Windows, where Kando cannot download it; {command} installs it with the Scoop package manager and is not translated.
+func OnboardingToolUnavailableCommand(cx *core.Scope, command string) string {
+	return For(cx).OnboardingToolUnavailableCommand(command)
+}
+
+// OnboardingToolUnavailableCommand is the package's OnboardingToolUnavailableCommand in the language of msgs.
+func (msgs Messages) OnboardingToolUnavailableCommand(command string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.OnboardingToolUnavailableCommand(command))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].OnboardingToolUnavailableCommand; f != nil {
+			return f(command)
+		}
+		switch lang {
+		case "", "en":
+			return "Install it with " + msgs.arg(command) + ", or from its download page"
+		case "ja":
+			return command + " でインストールするか、ダウンロードページから入手してください"
+		case "ko":
+			return command + "(으)로 설치하거나 다운로드 페이지에서 받으세요"
+		case "zh-Hans":
+			return "用 " + command + " 安装，或从它的下载页面安装"
+		case "zh-Hant":
+			return "用 " + command + " 安裝，或從它的下載頁面安裝"
+		}
+	}
 }
 
 // OnboardingToolsDownloading says "Downloading the programs Kando needs"
@@ -20328,23 +20919,41 @@ func (msgs Messages) PaletteExplainNote(model string) string {
 	}
 }
 
-// PaletteFieldLabel says "Commands, lines or questions"
+// PaletteFieldLabel says "Films, commands or watched lines"
 // in the language the app shows under cx.
 //
-// Accessible name of the command palette's field.
+// Accessible name of the command palette's field over the library, where it finds films, commands and lines but takes no question.
 func PaletteFieldLabel(cx *core.Scope) string { return For(cx).PaletteFieldLabel() }
 
 // PaletteFieldLabel is the package's PaletteFieldLabel in the language of msgs.
 func (msgs Messages) PaletteFieldLabel() string { return msgs.text(textPaletteFieldLabel) }
 
+// PaletteFieldLabelFilm says "Commands, lines or questions"
+// in the language the app shows under cx.
+//
+// Accessible name of the command palette's field in the player, where a question can also be asked about the open film.
+func PaletteFieldLabelFilm(cx *core.Scope) string { return For(cx).PaletteFieldLabelFilm() }
+
+// PaletteFieldLabelFilm is the package's PaletteFieldLabelFilm in the language of msgs.
+func (msgs Messages) PaletteFieldLabelFilm() string { return msgs.text(textPaletteFieldLabelFilm) }
+
 // PaletteFooter says "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
 // in the language the app shows under cx.
 //
-// Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do.
+// Footer of the command palette over the library: what typing, the arrow keys and Return do.
 func PaletteFooter(cx *core.Scope) string { return For(cx).PaletteFooter() }
 
 // PaletteFooter is the package's PaletteFooter in the language of msgs.
 func (msgs Messages) PaletteFooter() string { return msgs.text(textPaletteFooter) }
+
+// PaletteFooterFilm says "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"
+// in the language the app shows under cx.
+//
+// Footer of the command palette in the player: what typing, the arrow keys and Return do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise.
+func PaletteFooterFilm(cx *core.Scope) string { return For(cx).PaletteFooterFilm() }
+
+// PaletteFooterFilm is the package's PaletteFooterFilm in the language of msgs.
+func (msgs Messages) PaletteFooterFilm() string { return msgs.text(textPaletteFooterFilm) }
 
 // PaletteHeadingAnswer says "Answer"
 // in the language the app shows under cx.
@@ -20828,6 +21437,15 @@ func PlayerKeyVolumeUp(cx *core.Scope) string { return For(cx).PlayerKeyVolumeUp
 // PlayerKeyVolumeUp is the package's PlayerKeyVolumeUp in the language of msgs.
 func (msgs Messages) PlayerKeyVolumeUp() string { return msgs.text(textPlayerKeyVolumeUp) }
 
+// PlayerMissingPlugins says "This video needs GStreamer plug-ins that aren't installed. On Debian or Ubuntu, run the command below in a terminal; on other systems, install GTK 4's GStreamer media backend and GStreamer's good, bad and libav plug-ins. Then reopen Kando."
+// in the language the app shows under cx.
+//
+// Shown in place of the picture on Linux when the system's player has no GStreamer plug-in for the video; the command to copy, for Debian and Ubuntu, is under it.
+func PlayerMissingPlugins(cx *core.Scope) string { return For(cx).PlayerMissingPlugins() }
+
+// PlayerMissingPlugins is the package's PlayerMissingPlugins in the language of msgs.
+func (msgs Messages) PlayerMissingPlugins() string { return msgs.text(textPlayerMissingPlugins) }
+
 // PlayerOsdCopied says "Copied"
 // in the language the app shows under cx.
 //
@@ -21018,7 +21636,7 @@ func (msgs Messages) PlayerSubsUnreadable() string { return msgs.text(textPlayer
 // PlayerUnplayable says "This video can't be played"
 // in the language the app shows under cx.
 //
-// Shown in place of the picture when ffmpeg cannot open the video.
+// Shown in place of the picture when the system's player cannot play the video, nor the copies ffmpeg makes of it for the player.
 func PlayerUnplayable(cx *core.Scope) string { return For(cx).PlayerUnplayable() }
 
 // PlayerUnplayable is the package's PlayerUnplayable in the language of msgs.
@@ -23860,6 +24478,15 @@ func SavedExport(cx *core.Scope) string { return For(cx).SavedExport() }
 // SavedExport is the package's SavedExport in the language of msgs.
 func (msgs Messages) SavedExport() string { return msgs.text(textSavedExport) }
 
+// SavedExportCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button of the Saved Lines sheet in place of Export for Anki… while an export runs: stops it.
+func SavedExportCancel(cx *core.Scope) string { return For(cx).SavedExportCancel() }
+
+// SavedExportCancel is the package's SavedExportCancel in the language of msgs.
+func (msgs Messages) SavedExportCancel() string { return msgs.text(textSavedExportCancel) }
+
 // SavedExportFailed says "Couldn't export the saved lines: {error}"
 // in the language the app shows under cx.
 //
@@ -23891,6 +24518,24 @@ func (msgs Messages) SavedExportFailed(error_ string) string {
 		}
 	}
 }
+
+// SavedExportOpenSettings says "Open Settings"
+// in the language the app shows under cx.
+//
+// Button of the Saved Lines sheet after an export without audio because ffmpeg is not installed: opens the settings section that installs it.
+func SavedExportOpenSettings(cx *core.Scope) string { return For(cx).SavedExportOpenSettings() }
+
+// SavedExportOpenSettings is the package's SavedExportOpenSettings in the language of msgs.
+func (msgs Messages) SavedExportOpenSettings() string { return msgs.text(textSavedExportOpenSettings) }
+
+// SavedExportStopped says "Export stopped."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, after the user cancelled the export.
+func SavedExportStopped(cx *core.Scope) string { return For(cx).SavedExportStopped() }
+
+// SavedExportStopped is the package's SavedExportStopped in the language of msgs.
+func (msgs Messages) SavedExportStopped() string { return msgs.text(textSavedExportStopped) }
 
 // SavedExported says "{count, plural, one {Exported # line with its audio.} other {Exported # lines with their audio.}} Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
 // in the language the app shows under cx.
@@ -23974,6 +24619,52 @@ func (msgs Messages) SavedExportedNoAudio(count int) string {
 			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句，但没有音频：未安装 ffmpeg，或影片已不在资料库中。在 Anki 中导入“Kando Saved Lines.txt”即可。"
 		case "zh-Hant":
 			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句，但沒有音訊：未安裝 ffmpeg，或影片已不在資料庫中。在 Anki 中匯入「Kando Saved Lines.txt」即可。"
+		}
+	}
+}
+
+// SavedExportedSomeAudio says "{lines, plural, one {Exported # line,} other {Exported # lines,}} {sounds} with audio. Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export is done that cut the audio of only some lines (the others' videos are gone or ffmpeg could not cut them): how many lines it wrote, how many with audio, and how to bring them into Anki. The quoted names are the export's folder and file, which are not translated.
+func SavedExportedSomeAudio(cx *core.Scope, lines int, sounds int) string {
+	return For(cx).SavedExportedSomeAudio(lines, sounds)
+}
+
+// SavedExportedSomeAudio is the package's SavedExportedSomeAudio in the language of msgs.
+func (msgs Messages) SavedExportedSomeAudio(lines int, sounds int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportedSomeAudio(lines, sounds))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportedSomeAudio; f != nil {
+			return f(lines, sounds)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" line,")
+			default:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" lines,")
+			}
+			b.WriteString(" ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(sounds))))
+			b.WriteString(" with audio. Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(lines)) + " 件のセリフを書き出しました（音声付きは " + i18n.FormatNumber("ja", float64(sounds)) + " 件）。「Kando Saved Lines audio」のファイルを Anki の collection.media フォルダにコピーしてから、Anki で「Kando Saved Lines.txt」を読み込んでください。"
+		case "ko":
+			return "대사 " + i18n.FormatNumber("ko", float64(lines)) + "개를 내보냈습니다(오디오 포함 " + i18n.FormatNumber("ko", float64(sounds)) + "개). ‘Kando Saved Lines audio’의 파일을 Anki의 collection.media 폴더에 복사한 다음 Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
+		case "zh-Hans":
+			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句，其中 " + i18n.FormatNumber("zh-Hans", float64(sounds)) + " 句有音频。把“Kando Saved Lines audio”里的文件拷贝到 Anki 的 collection.media 文件夹，再在 Anki 中导入“Kando Saved Lines.txt”。"
+		case "zh-Hant":
+			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句，其中 " + i18n.FormatNumber("zh-Hant", float64(sounds)) + " 句有音訊。把「Kando Saved Lines audio」裡的檔案拷貝到 Anki 的 collection.media 檔案夾，再在 Anki 中匯入「Kando Saved Lines.txt」。"
 		}
 	}
 }
@@ -25973,6 +26664,47 @@ func (msgs Messages) SettingsGeneralToolDetail(use string, where string) string 
 	}
 }
 
+// SettingsGeneralToolPage says "Download Page"
+// in the language the app shows under cx.
+//
+// Link at the end of a program's row in Settings › General and in the guide, on a system where Kando cannot download the program (Windows): opens the program's own page of builds.
+func SettingsGeneralToolPage(cx *core.Scope) string { return For(cx).SettingsGeneralToolPage() }
+
+// SettingsGeneralToolPage is the package's SettingsGeneralToolPage in the language of msgs.
+func (msgs Messages) SettingsGeneralToolPage() string { return msgs.text(textSettingsGeneralToolPage) }
+
+// SettingsGeneralToolPageLabel says "{program} download page"
+// in the language the app shows under cx.
+//
+// What assistive technology reads for the Download Page link of a program; {program} is its name, such as ffmpeg.
+func SettingsGeneralToolPageLabel(cx *core.Scope, program string) string {
+	return For(cx).SettingsGeneralToolPageLabel(program)
+}
+
+// SettingsGeneralToolPageLabel is the package's SettingsGeneralToolPageLabel in the language of msgs.
+func (msgs Messages) SettingsGeneralToolPageLabel(program string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsGeneralToolPageLabel(program))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsGeneralToolPageLabel; f != nil {
+			return f(program)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(program) + " download page"
+		case "ja":
+			return program + " のダウンロードページ"
+		case "ko":
+			return program + " 다운로드 페이지"
+		case "zh-Hans":
+			return program + " 的下载页面"
+		case "zh-Hant":
+			return program + " 的下載頁面"
+		}
+	}
+}
+
 // SettingsGeneralToolsNote says "Kando downloads the programs it is missing. Those already installed on this computer are used as they are."
 // in the language the app shows under cx.
 //
@@ -25984,10 +26716,10 @@ func (msgs Messages) SettingsGeneralToolsNote() string {
 	return msgs.text(textSettingsGeneralToolsNote)
 }
 
-// SettingsGeneralToolsNoteManual says "These programs come from this computer; Kando doesn't install or update them."
+// SettingsGeneralToolsNoteManual says "Kando doesn't download these programs on this system. Install each from its download page and add its folder to PATH, then choose Detect Again."
 // in the language the app shows under cx.
 //
-// Footnote under the programs Kando runs, on a system where it does not download them (Windows): they are the user's to install.
+// Footnote under the programs Kando runs, on a system where it does not download them and Scoop does not run: they are the user's to install, and Detect Again finds them.
 func SettingsGeneralToolsNoteManual(cx *core.Scope) string {
 	return For(cx).SettingsGeneralToolsNoteManual()
 }
@@ -25995,6 +26727,38 @@ func SettingsGeneralToolsNoteManual(cx *core.Scope) string {
 // SettingsGeneralToolsNoteManual is the package's SettingsGeneralToolsNoteManual in the language of msgs.
 func (msgs Messages) SettingsGeneralToolsNoteManual() string {
 	return msgs.text(textSettingsGeneralToolsNoteManual)
+}
+
+// SettingsGeneralToolsNoteScoop says "Kando doesn't download these programs on Windows. Install them by running {command} in a terminal, or each from its download page and add its folder to PATH, then choose Detect Again."
+// in the language the app shows under cx.
+//
+// Footnote under the programs Kando runs on Windows, where it does not download them; {command} installs all of them with the Scoop package manager and is not translated.
+func SettingsGeneralToolsNoteScoop(cx *core.Scope, command string) string {
+	return For(cx).SettingsGeneralToolsNoteScoop(command)
+}
+
+// SettingsGeneralToolsNoteScoop is the package's SettingsGeneralToolsNoteScoop in the language of msgs.
+func (msgs Messages) SettingsGeneralToolsNoteScoop(command string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsGeneralToolsNoteScoop(command))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsGeneralToolsNoteScoop; f != nil {
+			return f(command)
+		}
+		switch lang {
+		case "", "en":
+			return "Kando doesn't download these programs on Windows. Install them by running " + msgs.arg(command) + " in a terminal, or each from its download page and add its folder to PATH, then choose Detect Again."
+		case "ja":
+			return "Windows では Kando はこれらのプログラムをダウンロードできません。ターミナルで " + command + " を実行するとまとめてインストールできます。または、それぞれのダウンロードページからインストールしてフォルダを PATH に追加し、「再検出」を押してください。"
+		case "ko":
+			return "Windows에서는 Kando가 이 프로그램들을 다운로드할 수 없습니다. 터미널에서 " + command + "을(를) 실행하면 한꺼번에 설치되며, 각 다운로드 페이지에서 설치하고 폴더를 PATH에 추가할 수도 있습니다. 그런 다음 ‘다시 감지’를 누르십시오."
+		case "zh-Hans":
+			return "看懂无法在 Windows 上下载这些程序。在终端运行 " + command + " 即可全部安装，或从各自的下载页面安装并把所在文件夹加进 PATH，然后点「重新检测」。"
+		case "zh-Hant":
+			return "看懂無法在 Windows 上下載這些程式。在終端機執行 " + command + " 即可全部安裝，或從各自的下載頁面安裝並把所在資料夾加入 PATH，然後按「重新偵測」。"
+		}
+	}
 }
 
 // SettingsGeneralUpdateAvailable says "Version {version} is available"
@@ -28252,6 +29016,49 @@ func (msgs Messages) SidebarRevealLibrary(name string, platform string) string {
 				b.WriteString("」")
 			}
 			return b.String()
+		}
+	}
+}
+
+// SidebarRowCount says "{name}, {count, plural, one {# film} other {# films}}"
+// in the language the app shows under cx.
+//
+// Accessible name of a sidebar row of a source or a spoken language: its name and how many films the library page shows for it, the count the row draws at its end.
+func SidebarRowCount(cx *core.Scope, name string, count int) string {
+	return For(cx).SidebarRowCount(name, count)
+}
+
+// SidebarRowCount is the package's SidebarRowCount in the language of msgs.
+func (msgs Messages) SidebarRowCount(name string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SidebarRowCount(name, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SidebarRowCount; f != nil {
+			return f(name, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(name))
+			b.WriteString(", ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" film")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" films")
+			}
+			return b.String()
+		case "ja":
+			return name + "、" + i18n.FormatNumber("ja", float64(count)) + " 本"
+		case "ko":
+			return name + ", " + i18n.FormatNumber("ko", float64(count)) + "편"
+		case "zh-Hans":
+			return name + "，" + i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片"
+		case "zh-Hant":
+			return name + "，" + i18n.FormatNumber("zh-Hant", float64(count)) + " 部影片"
 		}
 	}
 }

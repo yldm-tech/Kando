@@ -50,12 +50,16 @@ func parseWhisperJSON(data []byte) ([]core.Segment, string, error) {
 	return segments, strings.ToLower(strings.TrimSpace(out.Result.Language)), nil
 }
 
-// exportSubtitles writes "<video>.srt" with the original speech and "<video>.bilingual.srt" with each translation above its original line, or the original alone for a line left untranslated, returning the bilingual path.
+// exportSubtitles writes the original speech to the video's transcript, the file ctx names (withTranscript) or else TranscriptOf, and "<video>.bilingual.srt" with each translation above its original line, or the original alone for a line left untranslated, returning the bilingual path.
 func exportSubtitles(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error) {
 	if len(original) != len(translated) {
 		return "", fmt.Errorf("%d translated lines for %d original lines", len(translated), len(original))
 	}
-	if err := saveTranscript(transcriptPath(videoPath), original); err != nil {
+	transcript, _ := ctx.Value(transcriptKey{}).(string)
+	if transcript == "" {
+		transcript = TranscriptOf(videoPath)
+	}
+	if err := saveTranscript(transcript, original); err != nil {
 		return "", err
 	}
 	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
@@ -77,14 +81,71 @@ func exportSubtitles(ctx context.Context, videoPath string, original, translated
 	return path, nil
 }
 
-// transcriptPath is the file that holds the original speech of the video at videoPath: "<video>.srt", beside it.
+// transcriptPath is the file that holds the original speech of the video at videoPath unless a file of the user's took that name first: "<video>.srt", beside it.
 func transcriptPath(videoPath string) string {
 	return strings.TrimSuffix(videoPath, filepath.Ext(videoPath)) + ".srt"
+}
+
+// asideTranscriptPath is where Kando keeps the original speech of the video at videoPath when a "<video>.srt" it did not write lies beside the video, as subtitles the user brought with it: "<video>.kando.srt". GatherVideos moves it with the video.
+func asideTranscriptPath(videoPath string) string {
+	return strings.TrimSuffix(videoPath, filepath.Ext(videoPath)) + ".kando.srt"
+}
+
+// TranscriptOf is the file that holds the original speech Kando transcribed from the video at videoPath: "<video>.kando.srt" when Kando kept it there, beside a "<video>.srt" of the user's (Run), else "<video>.srt". It need not exist.
+func TranscriptOf(videoPath string) string {
+	if aside := asideTranscriptPath(videoPath); fileExists(aside) {
+		return aside
+	}
+	return transcriptPath(videoPath)
+}
+
+// foreignTranscript reports whether "<video>.srt" beside the video at videoPath is a file Kando did not write, which a job making the video's subtitles must leave as it is: it is there, Kando keeps no transcript of the video beside it under its own name, and nothing Kando writes beside a transcript it made is there, neither the bilingual subtitles it exports with it nor the translation it keeps while it translates (translationCheckpointPath).
+func foreignTranscript(videoPath string) bool {
+	if !fileExists(transcriptPath(videoPath)) || fileExists(asideTranscriptPath(videoPath)) {
+		return false
+	}
+	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
+	return !fileExists(base+".bilingual.srt") && !fileExists(translationCheckpointPath(videoPath))
+}
+
+type transcriptKey struct{}
+
+// withTranscript returns ctx naming path as the file exportSubtitles writes the original speech to, the transcript Run chose for the job (TranscriptOf, or asideTranscriptPath beside a file of the user's).
+func withTranscript(ctx context.Context, path string) context.Context {
+	return context.WithValue(ctx, transcriptKey{}, path)
 }
 
 // pendingTranscriptPath is where a job processing a done film again entirely (core.RedoAll) keeps the speech it transcribed until it exports: a hidden file beside the video, so the film's own transcript, which its bilingual subtitles and a later translation of them again read, stays as it is until the new subtitles replace both.
 func pendingTranscriptPath(videoPath string) string {
 	return hiddenBeside(videoPath, ".pending.srt")
+}
+
+// pendingHeard is how the speech a RedoAll job keeps aside was heard (pendingTranscriptPath), which Run keeps in a hidden file beside it (pendingHeardPath): by Model in Language, as Tools hears it (hearer), and Spoken, the language the transcription said it heard, "" when it said none. A redo that failed or was stopped after it transcribed reads that speech back when run again the same way, rather than transcribing the film again.
+type pendingHeard struct {
+	Model    string `json:"model"`
+	Language string `json:"language"`
+	Spoken   string `json:"spoken,omitempty"`
+}
+
+// pendingHeardPath is the hidden file beside the video at videoPath that says how the speech kept aside was heard (pendingHeard).
+func pendingHeardPath(videoPath string) string {
+	return hiddenBeside(videoPath, ".pending.json")
+}
+
+// readPendingHeard is how the speech kept aside beside the video at videoPath was heard, ok false when nothing says.
+func readPendingHeard(videoPath string) (heard pendingHeard, ok bool) {
+	data, err := os.ReadFile(pendingHeardPath(videoPath))
+	if err != nil || json.Unmarshal(data, &heard) != nil {
+		return pendingHeard{}, false
+	}
+	return heard, true
+}
+
+// savePendingHeard writes how the speech kept aside beside the video at videoPath was heard. One that cannot be written only means a retry transcribes again.
+func savePendingHeard(videoPath string, heard pendingHeard) {
+	if data, err := json.Marshal(heard); err == nil {
+		_ = writeFileAtomic(pendingHeardPath(videoPath), data)
+	}
 }
 
 // hiddenBeside is a hidden file beside the video at videoPath, named after the video with suffix in place of its extension, such as ".video.pending.srt". The library lists no hidden file and its watcher does not look at them.
@@ -129,13 +190,13 @@ func loadTranscript(path string) ([]core.Segment, error) {
 	return ParseSRT(data)
 }
 
-// readExported reads back what exportSubtitles wrote beside the video at videoPath: the original speech from "<video>.srt" and, when withTranslation, each line's translation from "<video>.bilingual.srt", empty for a line it left untranslated. A transcript that is gone, unreadable or empty is ErrNoTranscript. A bilingual file that is gone leaves every translation empty, so every line is translated; one that does not match the transcript cue for cue, as one edited by hand, is ErrSubtitlesChanged, since which lines are missing cannot be told and translating them all would overwrite the edits.
+// readExported reads back what exportSubtitles wrote beside the video at videoPath: the original speech from its transcript (TranscriptOf) and, when withTranslation, each line's translation from "<video>.bilingual.srt", empty for a line it left untranslated. A transcript that is gone, unreadable or empty is ErrNoTranscript. A bilingual file that is gone leaves every translation empty, so every line is translated; one that does not match the transcript cue for cue, as one edited by hand, is ErrSubtitlesChanged, since which lines are missing cannot be told and translating them all would overwrite the edits.
 func readExported(videoPath string, withTranslation bool) (original, translated []core.Segment, err error) {
 	if videoPath == "" {
 		return nil, nil, ErrNoTranscript
 	}
 	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
-	data, err := os.ReadFile(base + ".srt")
+	data, err := os.ReadFile(TranscriptOf(videoPath))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil, ErrNoTranscript
 	}

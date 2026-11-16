@@ -167,6 +167,10 @@ func writeFilm(w io.Writer, f remote.Film) error {
 		{"status", f.Status},
 		{"job", f.JobID},
 		{"language", f.Language},
+		{"not translated", f.TranslationError},
+		{"untranslated lines", countIf(f.Untranslated)},
+		{"spoken language", f.SpokenLanguage},
+		{"speech language", f.SpeechLanguage},
 		{"video", f.VideoPath},
 		{"subtitles", f.Subtitles},
 		{"original subtitles", f.OriginalSubtitles},
@@ -179,6 +183,14 @@ func writeFilm(w io.Writer, f remote.Film) error {
 		}
 	}
 	return table(w, rows)
+}
+
+// countIf is n in digits, or "" for 0, so the line is left out.
+func countIf(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return fmt.Sprint(n)
 }
 
 // clockIf is ms as remote.Clock writes it, or "" for 0, so the line is left out.
@@ -197,15 +209,22 @@ func stageTextIf(stage string, progress float64) string {
 	return stageText(stage, progress, false)
 }
 
-// jobFields are a job's cells as `kando jobs` and `kando add --wait` show it: its id, its stage, its title or source, and why it failed.
+// jobFields are a job's cells as `kando jobs` and `kando add --wait` show it: its id, its stage, its title or source, and why it failed, or, for one that completed without translating its film, "complete, not translated" and why.
 func jobFields(j remote.Job) []string {
 	name := j.Title
 	if name == "" {
 		name = j.Source
 	}
-	fields := []string{j.ID, stageText(j.Stage, j.Progress, j.Canceled), name}
-	if j.Error != "" && !j.Canceled {
+	stage := stageText(j.Stage, j.Progress, j.Canceled)
+	if j.Stage == string(core.StageComplete) && j.TranslationError != "" {
+		stage = "complete, not translated"
+	}
+	fields := []string{j.ID, stage, name}
+	switch {
+	case j.Error != "" && !j.Canceled:
 		fields = append(fields, j.Error)
+	case j.Stage == string(core.StageComplete) && j.TranslationError != "":
+		fields = append(fields, j.TranslationError)
 	}
 	return fields
 }
