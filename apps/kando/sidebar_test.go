@@ -856,3 +856,24 @@ func TestSidebarCountsTheJobs(t *testing.T) {
 		t.Fatalf("the count went to page %q, source %q", a.page, a.side.filter)
 	}
 }
+
+// TestSidebarSearchReturnKeepsToTheLanguageChosen checks that Return in the sidebar's search field acts on the films the grid shows, those heard in the language chosen: it plays the one film shown when another of the same name is hidden, and opens none that the language hides.
+func TestSidebarSearchReturnKeepsToTheLanguageChosen(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.library.Jobs = []core.Job{
+		{ID: "ja", Title: "Rivers in Japanese", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: "/videos/ja/video.mp4", SpokenLanguage: "ja"},
+		{ID: "en", Title: "Rivers in English", Source: "https://youtu.be/jNQXAC9IVRw", Stage: core.StageComplete, VideoPath: "/videos/en/video.mp4", SpokenLanguage: "en"},
+	}
+	refresh(tt, a)
+	tt.Press("id:spoken-ja")
+	refresh(tt, a)
+	tt.Type("id:sidebar-search", "english\n")
+	if a.openKey != "" {
+		t.Fatalf("Return opened %q, which 日语 hides", a.openKey)
+	}
+	tt.Clear("id:sidebar-search")
+	tt.Type("id:sidebar-search", "rivers\n")
+	if a.openKey != "ja" {
+		t.Fatalf("Return with one film shown of two found: open %q, want ja", a.openKey)
+	}
+}

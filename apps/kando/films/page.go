@@ -241,12 +241,7 @@ func newShelfModel(a App, source, tag string) shelfModel {
 		m.empty = true
 		return m
 	}
-	var done []Film
-	for _, item := range BySource(items, source) {
-		if !InQueue(item) {
-			done = append(done, item)
-		}
-	}
+	done := Shown(items, source, sidebar.SpokenAll, "")
 	if len(m.queue) == 0 && len(done) == 0 {
 		m.emptySource = true
 		return m
