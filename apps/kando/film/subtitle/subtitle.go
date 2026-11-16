@@ -1,4 +1,4 @@
-// Package subtitle is how the player draws subtitles and the values of the settings that pick which lines it shows. It imports no interface package, only the message catalogs, NSGo's core for the scope they speak under and NSGo's desktop for the menu of target languages (TranslateIntoMenu), so the settings can show and change the look without importing the player (package film), which links to the settings by section id (package sectionid). film keeps aliases of these names, so the player's code and the main package read film.Look, film.SubOriginal and the rest as before.
+// Package subtitle is how the player draws subtitles and the values of the settings that pick which lines it shows. It imports no interface package, only the message catalogs, Kando's shared subtitle model (kando/packages/core), NSGo's core for the scope they speak under and NSGo's desktop for the menu of target languages (TranslateIntoMenu), so the settings can show and change the look without importing the player (package film), which links to the settings by section id (package sectionid). film keeps aliases of these names, so the player's code and the main package read film.Look, film.SubOriginal and the rest as before.
 package subtitle
 
 import (
@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"kando/apps/kando/locales"
+	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
@@ -31,12 +32,12 @@ type Look struct {
 	Original    Face
 }
 
-// Subtitle modes: which lines of a bilingual cue the player shows. S steps through the three that show lines, in the order original, translation, bilingual.
+// Subtitle modes: which lines of a bilingual cue the player shows. S steps through the three that show lines, in the order original, translation, bilingual. The values are the subtitle model Kando's players share (kando/packages/core), the phone's too.
 const (
-	Bilingual   = "bilingual"
-	Translation = "translation"
-	Original    = "original"
-	Off         = "off"
+	Bilingual   = kcore.SubBilingual
+	Translation = kcore.SubTranslation
+	Original    = kcore.SubOriginal
+	Off         = kcore.SubOff
 )
 
 // ModeName is what a subtitle mode is called in the language the interface shows under cx, for a binding; the mode itself is the value saved in the settings. An unknown mode is called bilingual, as the player shows it.
@@ -66,14 +67,14 @@ func OrderName(cx *core.Scope, order string) string {
 
 // Subtitle orders: which line of a bilingual cue goes on top.
 const (
-	TranslationFirst = "translation-first"
-	OriginalFirst    = "original-first"
+	TranslationFirst = kcore.SubTranslationFirst
+	OriginalFirst    = kcore.SubOriginalFirst
 )
 
 // What the player shows for a cue that has no translation yet.
 const (
-	UntranslatedDim   = "dim"
-	UntranslatedBlank = "blank"
+	UntranslatedDim   = kcore.UntranslatedDim
+	UntranslatedBlank = kcore.UntranslatedBlank
 )
 
 // PreviewInset is how far above a preview tile's bottom edge the settings' sample cue sits, so the preview shows the subtitles as high as the player draws them. The player owns where subtitles sit; the settings read it only through this.

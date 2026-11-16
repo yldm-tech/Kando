@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -301,19 +302,10 @@ type lineSettings interface {
 	Untranslated() string
 }
 
-// pictureLines is the lines of a cue the picture shows. In SubTranslation mode a cue without a translation shows its original dimmed, or nothing when the setting leaves it blank.
+// pictureLines is the lines of a cue the picture shows (kcore.PictureLines). In SubTranslation mode a cue without a translation shows its original dimmed, or nothing when the setting leaves it blank.
 func pictureLines(a lineSettings, text string) []styledLine {
-	lines := styledLines(a, text)
-	if a.SubMode() != SubTranslation {
-		return lines
-	}
-	if translation, _ := splitCue(text); translation == "" && len(lines) > 0 {
-		if a.Untranslated() == UntranslatedBlank {
-			return nil
-		}
-		lines[0].dim = true
-	}
-	return lines
+	translation, original := splitCue(text)
+	return faced(a.Cue(), kcore.PictureLines(a.SubMode(), a.SubOrder(), a.Untranslated(), translation, original))
 }
 
 // bothLines are the settings with both lines of a cue showing, in their order, as for the cue peeked at.
@@ -335,30 +327,26 @@ func listLines(a lineSettings, text string) (shown []string, hidden string) {
 	return shown, hidden
 }
 
-// styledLines is the lines of a cue as SubMode and SubOrder pick them, for the picture and the subtitle list. SubOff counts as bilingual here: it hides only the lines on the picture (subtitles), and the list keeps both.
+// styledLines is the lines of a cue as SubMode and SubOrder pick them (kcore.CueLines), for the picture and the subtitle list. SubOff counts as bilingual here: it hides only the lines on the picture (subtitles), and the list keeps both.
 func styledLines(a lineSettings, text string) []styledLine {
 	translation, original := splitCue(text)
-	add := func(lines []styledLine, s string, face Face) []styledLine {
-		if s == "" {
-			return lines
+	return faced(a.Cue(), kcore.CueLines(a.SubMode(), a.SubOrder(), translation, original))
+}
+
+// faced gives each line its face in look: the original's or the translation's.
+func faced(look *Look, lines []kcore.CueLine) []styledLine {
+	if len(lines) == 0 {
+		return nil
+	}
+	out := make([]styledLine, len(lines))
+	for i, l := range lines {
+		face := look.Translation
+		if l.Original {
+			face = look.Original
 		}
-		return append(lines, styledLine{text: s, face: face})
+		out[i] = styledLine{text: l.Text, face: face, dim: l.Dim}
 	}
-	look := a.Cue()
-	switch a.SubMode() {
-	case SubTranslation:
-		lines := add(nil, translation, look.Translation)
-		if len(lines) == 0 {
-			lines = add(lines, original, look.Original)
-		}
-		return lines
-	case SubOriginal:
-		return add(nil, original, look.Original)
-	}
-	if a.SubOrder() == SubOriginalFirst {
-		return add(add(nil, original, look.Original), translation, look.Translation)
-	}
-	return add(add(nil, translation, look.Translation), original, look.Original)
+	return out
 }
 
 // DelayText writes a subtitle delay as the mode menu and the OSD show it, to a tenth of a second, in the language the interface shows under cx: "+0.3 秒", "-0.1 秒", "0.0 秒".
