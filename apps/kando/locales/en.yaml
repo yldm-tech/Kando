@@ -824,14 +824,6 @@ filmsGridCount:
   description: "Dimmed note beside the grid's heading: how many films it holds."
   placeholders:
     count: { type: "int", example: "12" }
-filmsGridTitle:
-  message: "Films"
-  description: "Heading of the grid of finished films when the sidebar shows one source."
-filmsHeroExported:
-  message: "Exported {file}"
-  description: "Part of the line under the large card's title: the subtitle file that was written."
-  placeholders:
-    file: { type: "String", example: "video.bilingual.srt" }
 filmsHeroFromStart:
   message: "Play from Beginning"
   description: "Second button of the large card when the film was stopped partway: play from the beginning."
@@ -1147,6 +1139,9 @@ filmsUntranslated:
   description: "Part of the line under a finished film: how many subtitle lines the translation failed on."
   placeholders:
     count: { type: "int", example: "3" }
+filmsWatched:
+  message: "Watched"
+  description: "Accessible name of the check mark over a poster: the film was played to its end."
 kitsDownloadDisconnected:
   message: "the connection dropped"
   description: "Why Kando's download of a program failed, after 'Download failed:': the connection to the server broke off."

@@ -104,26 +104,18 @@ func TestAVideoWithoutAJobShowsTheSubtitlesBesideIt(t *testing.T) {
 	if len(shelf) != 2 || shelf[0].SubtitlePath != videos[0].Subtitles || shelf[1].SubtitlePath != "" {
 		t.Fatalf("shelf = %#v", shelf)
 	}
-	a := clockApp{d: 42 * time.Second}
-	if got, want := doneMeta(testlocale.Messages(), a, shelf[0]), "Local Files · 0:42"; got != want {
+	// How long a film is shows on its poster, not in the line under it.
+	if got, want := doneMeta(testlocale.Messages(), shelf[0]), "Local Files"; got != want {
 		t.Errorf("a video with subtitles beside it reads %q, want %q", got, want)
 	}
-	if got, want := doneMeta(testlocale.Messages(), a, shelf[1]), "Local Files · 0:42 · No subtitles yet"; got != want {
+	if got, want := doneMeta(testlocale.Messages(), shelf[1]), "Local Files · No subtitles yet"; got != want {
 		t.Errorf("a video with no subtitles reads %q, want %q", got, want)
 	}
 	done := Film{JobID: "j", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, SubtitlePath: "/Movies/a.kando/Talk/video.bilingual.srt"}
-	if got, want := doneMeta(testlocale.Messages(), a, done), "YouTube · 0:42"; got != want {
+	if got, want := doneMeta(testlocale.Messages(), done), "YouTube"; got != want {
 		t.Errorf("a finished job reads %q, want %q", got, want)
 	}
 }
-
-// clockApp is an App that knows only how long every video is, which is all doneMeta asks of it.
-type clockApp struct {
-	App
-	d time.Duration
-}
-
-func (a clockApp) Duration(string) time.Duration { return a.d }
 
 // The queue holds the open library's jobs that are not finished and the other libraries' jobs the queue runs, each of those naming its library, in the shelf's order.
 func TestQueueHoldsTheJobsOfOtherLibrariesTheQueueRuns(t *testing.T) {

@@ -458,7 +458,6 @@ var Parameters = map[string][]string{
 	"FilmStatusTranslated":               {"percent"},
 	"FilmSubtitlesMode":                  {"mode"},
 	"FilmsGridCount":                     {"count"},
-	"FilmsHeroExported":                  {"file"},
 	"FilmsHeroKickerBilingual":           {"language"},
 	"FilmsHeroKickerContinueBilingual":   {"language"},
 	"FilmsHeroResume":                    {"time_"},
@@ -661,7 +660,6 @@ type Translation struct {
 	FilmStatusTranslated               func(percent int) string
 	FilmSubtitlesMode                  func(mode string) string
 	FilmsGridCount                     func(count int) string
-	FilmsHeroExported                  func(file string) string
 	FilmsHeroKickerBilingual           func(language string) string
 	FilmsHeroKickerContinueBilingual   func(language string) string
 	FilmsHeroResume                    func(time_ string) string
@@ -1047,7 +1045,6 @@ const (
 	textFilmsDropTitle
 	textFilmsEmptyDescription
 	textFilmsEmptyTitle
-	textFilmsGridTitle
 	textFilmsHeroFromStart
 	textFilmsHeroKicker
 	textFilmsHeroKickerContinue
@@ -1111,6 +1108,7 @@ const (
 	textFilmsSupportedSites
 	textFilmsTranslateAgain
 	textFilmsTranslateMissing
+	textFilmsWatched
 	textKitsDownloadDisconnected
 	textKitsDownloadStalled
 	textLibraryAddedOneStarting
@@ -1812,7 +1810,6 @@ var keyOfText = [numTexts]string{
 	"filmsDropTitle",
 	"filmsEmptyDescription",
 	"filmsEmptyTitle",
-	"filmsGridTitle",
 	"filmsHeroFromStart",
 	"filmsHeroKicker",
 	"filmsHeroKickerContinue",
@@ -1876,6 +1873,7 @@ var keyOfText = [numTexts]string{
 	"filmsSupportedSites",
 	"filmsTranslateAgain",
 	"filmsTranslateMissing",
+	"filmsWatched",
 	"kitsDownloadDisconnected",
 	"kitsDownloadStalled",
 	"libraryAddedOneStarting",
@@ -2575,7 +2573,6 @@ var textsEn = i18n.NewTexts(""+
 	"Drop to Add Local Videos"+
 	"Paste a link from YouTube, Bilibili or another site above, or drag a video file into the window. Kando downloads the video, recognizes the speech and makes bilingual subtitles."+
 	"Start with a Video"+
-	"Films"+
 	"Play from Beginning"+
 	"Recently Finished"+
 	"Continue Watching"+
@@ -2639,6 +2636,7 @@ var textsEn = i18n.NewTexts(""+
 	"Supported Websites…"+
 	"Translate Again"+
 	"Translate Missing Lines"+
+	"Watched"+
 	"the connection dropped"+
 	"the server stopped sending data"+
 	"Added. Processing started."+
@@ -3335,7 +3333,6 @@ var textsEn = i18n.NewTexts(""+
 		24,
 		176,
 		18,
-		5,
 		19,
 		17,
 		17,
@@ -3399,6 +3396,7 @@ var textsEn = i18n.NewTexts(""+
 		21,
 		15,
 		23,
+		7,
 		22,
 		31,
 		26,
@@ -4098,7 +4096,6 @@ var textsJa = i18n.NewTexts(""+
 	"ドロップしてローカル動画を追加"+
 	"上の欄に YouTube や bilibili などの動画のリンクを貼り付けるか、ローカルの動画をウインドウにドラッグしてください。Kando が動画をダウンロードし、音声を認識して、二言語字幕を作成します。"+
 	"動画から始めましょう"+
-	"動画"+
 	"最初から再生"+
 	"最近完了"+
 	"続きを見る"+
@@ -4162,6 +4159,7 @@ var textsJa = i18n.NewTexts(""+
 	"対応サイト…"+
 	"再翻訳"+
 	"未翻訳の行を翻訳"+
+	"視聴済み"+
 	"接続が切れました"+
 	"サーバーからデータが届かなくなりました"+
 	"追加して処理を開始しました。"+
@@ -4858,7 +4856,6 @@ var textsJa = i18n.NewTexts(""+
 		45,
 		262,
 		30,
-		6,
 		18,
 		12,
 		15,
@@ -4922,6 +4919,7 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		9,
 		24,
+		12,
 		24,
 		57,
 		42,
@@ -5621,7 +5619,6 @@ var textsKo = i18n.NewTexts(""+
 	"놓아서 로컬 동영상 추가"+
 	"위에 YouTube, Bilibili 등의 동영상 링크를 붙여 넣거나 로컬 동영상을 윈도우로 드래그하세요. Kando가 동영상을 내려받고 음성을 인식한 뒤 이중 언어 자막을 만듭니다."+
 	"동영상으로 시작하기"+
-	"영상"+
 	"처음부터 보기"+
 	"최근 완료"+
 	"이어서 보기"+
@@ -5685,6 +5682,7 @@ var textsKo = i18n.NewTexts(""+
 	"지원하는 웹사이트…"+
 	"다시 번역"+
 	"번역 안 된 대사 번역"+
+	"시청 완료"+
 	"연결이 끊어졌습니다"+
 	"서버에서 데이터가 더 이상 오지 않습니다"+
 	"추가하고 처리를 시작했습니다."+
@@ -6381,7 +6379,6 @@ var textsKo = i18n.NewTexts(""+
 		33,
 		218,
 		28,
-		6,
 		19,
 		13,
 		16,
@@ -6445,6 +6442,7 @@ var textsKo = i18n.NewTexts(""+
 		28,
 		13,
 		28,
+		13,
 		28,
 		56,
 		42,
@@ -7144,7 +7142,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"松开以添加本地视频"+
 	"在上方粘贴 YouTube、哔哩哔哩等视频链接，或把本地视频拖进窗口。看懂会下载视频，识别语音，再生成双语字幕。"+
 	"从一段视频开始"+
-	"影片"+
 	"从头看"+
 	"最近完成"+
 	"继续观看"+
@@ -7208,6 +7205,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"支持的网站…"+
 	"重新翻译"+
 	"补译未译的句子"+
+	"已看完"+
 	"连接断了"+
 	"服务器一直没有发来数据"+
 	"已加入，开始处理。"+
@@ -7904,7 +7902,6 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		152,
 		21,
-		6,
 		9,
 		12,
 		12,
@@ -7968,6 +7965,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		12,
 		21,
+		9,
 		12,
 		33,
 		27,
@@ -8667,7 +8665,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"放開以加入本機影片"+
 	"在上方貼上 YouTube、嗶哩嗶哩等影片連結，或把本機影片拖進視窗。看懂會下載影片、辨識語音，再產生雙語字幕。"+
 	"從一段影片開始"+
-	"影片"+
 	"從頭看"+
 	"最近完成"+
 	"繼續觀看"+
@@ -8731,6 +8728,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"支援的網站…"+
 	"重新翻譯"+
 	"補譯未譯的句子"+
+	"已看完"+
 	"連線中斷了"+
 	"伺服器一直沒有傳來資料"+
 	"已加入，開始處理。"+
@@ -9427,7 +9425,6 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		152,
 		21,
-		6,
 		9,
 		12,
 		12,
@@ -9491,6 +9488,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		12,
 		21,
+		9,
 		15,
 		33,
 		27,
@@ -10128,9 +10126,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsGridCount != nil {
 		s.FilmsGridCount = t.FilmsGridCount
-	}
-	if t.FilmsHeroExported != nil {
-		s.FilmsHeroExported = t.FilmsHeroExported
 	}
 	if t.FilmsHeroKickerBilingual != nil {
 		s.FilmsHeroKickerBilingual = t.FilmsHeroKickerBilingual
@@ -13722,45 +13717,6 @@ func (msgs Messages) FilmsGridCount(count int) string {
 	}
 }
 
-// FilmsGridTitle says "Films"
-// in the language the app shows under cx.
-//
-// Heading of the grid of finished films when the sidebar shows one source.
-func FilmsGridTitle(cx *core.Scope) string { return For(cx).FilmsGridTitle() }
-
-// FilmsGridTitle is the package's FilmsGridTitle in the language of msgs.
-func (msgs Messages) FilmsGridTitle() string { return msgs.text(textFilmsGridTitle) }
-
-// FilmsHeroExported says "Exported {file}"
-// in the language the app shows under cx.
-//
-// Part of the line under the large card's title: the subtitle file that was written.
-func FilmsHeroExported(cx *core.Scope, file string) string { return For(cx).FilmsHeroExported(file) }
-
-// FilmsHeroExported is the package's FilmsHeroExported in the language of msgs.
-func (msgs Messages) FilmsHeroExported(file string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsHeroExported(file))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].FilmsHeroExported; f != nil {
-			return f(file)
-		}
-		switch lang {
-		case "", "en":
-			return "Exported " + msgs.arg(file)
-		case "ja":
-			return file + " を書き出し済み"
-		case "ko":
-			return file + " 내보냄"
-		case "zh-Hans":
-			return "已导出 " + file
-		case "zh-Hant":
-			return "已匯出 " + file
-		}
-	}
-}
-
 // FilmsHeroFromStart says "Play from Beginning"
 // in the language the app shows under cx.
 //
@@ -15278,6 +15234,15 @@ func (msgs Messages) FilmsUntranslated(count int) string {
 		}
 	}
 }
+
+// FilmsWatched says "Watched"
+// in the language the app shows under cx.
+//
+// Accessible name of the check mark over a poster: the film was played to its end.
+func FilmsWatched(cx *core.Scope) string { return For(cx).FilmsWatched() }
+
+// FilmsWatched is the package's FilmsWatched in the language of msgs.
+func (msgs Messages) FilmsWatched() string { return msgs.text(textFilmsWatched) }
 
 // KitsDownloadDisconnected says "the connection dropped"
 // in the language the app shows under cx.

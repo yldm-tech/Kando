@@ -1471,7 +1471,7 @@ func TestADoneFilmSaysWhichLinesAreUntranslated(t *testing.T) {
 	a.library.Jobs = []core.Job{{ID: "d", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Language: "简体中文", Stage: core.StageComplete, VideoPath: video, SubtitlePath: strings.TrimSuffix(video, ".mp4") + ".bilingual.srt", Untranslated: 12, LibraryDir: a.snap().LibraryDir}}
 	refresh(tt, a)
 	// The poster's line, and the hero's, as the film is the one done last.
-	if textCount(tt, "YouTube · 12 句翻译失败，其余已完成") == 0 || textCount(tt, "YouTube · 已导出 video.bilingual.srt · 12 句翻译失败，其余已完成") == 0 {
+	if textCount(tt, "YouTube · 12 句翻译失败，其余已完成") != 2 {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }

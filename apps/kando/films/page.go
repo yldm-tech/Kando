@@ -255,7 +255,7 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
 		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},
 		core.Show{When: func() bool { return len(model().done) > 0 }, Then: func(*core.Scope) core.Node {
-			return grid{a: a, source: s.source, done: func() []Film { return model().done }}
+			return grid{a: a, done: func() []Film { return model().done }}
 		}},
 		core.Show{When: func() bool { return model().noMatch != "" }, Then: func(*core.Scope) core.Node {
 			return noMatch{a: a, query: func() string { return model().noMatch }}

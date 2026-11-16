@@ -1477,8 +1477,8 @@ func TestSearchFiltersTheShelfByTitle(t *testing.T) {
 	if len(listed) != 1 || listed[0].Name != "Rivers of Europe" {
 		t.Fatalf("films.ByTitle(RIVERS) = %+v", listed)
 	}
-	// The sidebar's sources go on counting the whole library, and a source narrows the search further.
-	if n := sidebarCount(t, tt, sidebar.SourceYouTube); n != "3" {
+	// The sidebar's sources go on counting the whole library's done films, as the grid shows them without a search, and a source narrows the search further.
+	if n := sidebarCount(t, tt, sidebar.SourceYouTube); n != "2" {
 		t.Fatalf("YouTube counts %q while searching", n)
 	}
 	a.SetSourceFilter(sidebar.SourceLocal)

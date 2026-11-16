@@ -203,8 +203,9 @@ func TestShelfShowsTheHeroTheQueueAndTheGrid(t *testing.T) {
 			t.Errorf("no %q in %q", text, app.Texts())
 		}
 	}
-	if !app.Exists(whole("YouTube · 2:05")) {
-		t.Errorf("the grid's meta lacks the length: %q", app.Texts())
+	// The hero's line says how long the film is; under a poster that is left to the chip on it.
+	if !app.Exists("id:films-hero >> "+whole("YouTube · 2:05")) || !app.Exists("id:film-done >> "+whole("2:05")) || !app.Exists("id:films-grid >> "+whole("YouTube")) || app.Exists("id:films-grid >> "+whole("YouTube · 2:05")) {
+		t.Errorf("the length is not on the hero's line and the poster alone: %q", app.Texts())
 	}
 	// A done film with untranslated lines offers to translate them under its line.
 	app.Press("id:film-translate-missing")
@@ -268,6 +269,49 @@ func TestHeroIsTheFilmBeingWatched(t *testing.T) {
 	change(app, a, func() { a.played[algebra.VideoPath] = now })
 	if hero() != rivers.Name {
 		t.Fatalf("the hero of a library watched through is %q", hero())
+	}
+}
+
+// TestPostersShowHowMuchWasWatched: a poster draws an accent line along its bottom, inside its hairline, as far as the film has played, and a check once it played to its end; a film never played has neither. The grid's heading is its count alone, the top bar names the source and not the library, and the poster's tooltip names the film in full.
+func TestPostersShowHowMuchWasWatched(t *testing.T) {
+	a := newFakeApp()
+	rivers := a.items[0]
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	poster := "id:film-done"
+	if app.Exists(poster+" >> id:film-progress") || app.Exists(poster+" >> id:film-watched") {
+		t.Fatal("a film never played shows how much was watched")
+	}
+	change(app, a, func() { a.furthest[rivers.VideoPath] = 50 * time.Second })
+	bar, track := app.Find(poster+" >> id:film-progress"), app.Find(poster)
+	if bar.Frame.Size.Width < track.Frame.Size.Width-2 || bar.Frame.Size.Height != 3 {
+		t.Fatalf("the track is %v in a poster %v", bar.Frame, track.Frame)
+	}
+	if fill := bar.Children[0].Frame.Size.Width; fill < bar.Frame.Size.Width*0.39 || fill > bar.Frame.Size.Width*0.41 {
+		t.Fatalf("0:50 of 2:05 fills %v of %v", fill, bar.Frame.Size.Width)
+	}
+	if app.Exists(poster + " >> id:film-watched") {
+		t.Fatal("a film played partway is marked watched")
+	}
+	change(app, a, func() { a.furthest[rivers.VideoPath] = 124 * time.Second })
+	if !app.Exists(poster+" >> id:film-watched") || app.Exists(poster+" >> id:film-progress") {
+		t.Fatal("a film played to its end is not marked watched")
+	}
+	if got := app.Find(poster + " >> id:film-watched").Props.Label; got != msgs.FilmsWatched() {
+		t.Fatalf("the check reads %q", got)
+	}
+	// The grid's heading is the count, with no title repeating the top bar's; the top bar does not repeat the library's name the sidebar shows.
+	if !app.Exists(whole(msgs.FilmsGridCount(2))) || app.Exists("id:films-top-bar >> "+whole(LibraryName(a.dir))) {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	if got := app.Find("id:films-grid >> " + whole("Linear Algebra")).MaxLines; got != 2 {
+		t.Fatalf("a poster's title keeps %d lines", got)
+	}
+	before := len(app.Query(whole("Linear Algebra")))
+	app.Hover("id:film-algebra")
+	app.Advance(time.Second)
+	if got := len(app.Query(whole("Linear Algebra"))); got != before+1 {
+		t.Fatalf("resting on the poster shows %d texts naming the film, want the %d there were and its tooltip", got, before)
 	}
 }
 

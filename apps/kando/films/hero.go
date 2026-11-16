@@ -1,7 +1,6 @@
 package films
 
 import (
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -173,14 +172,11 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 	}
 }
 
-// heroMeta is the line under the hero's title, in the language of m: where the film comes from, how long it is, the subtitle file it has and how many of its lines are untranslated.
+// heroMeta is the line under the hero's title, in the language of m: where the film comes from, how long it is and how many of its lines are untranslated.
 func heroMeta(m locales.Messages, a App, item Film) string {
 	parts := []string{SourceLabel(m, item)}
 	if d := a.Duration(item.VideoPath); d > 0 {
 		parts = append(parts, Clock(d))
-	}
-	if item.SubtitlePath != "" {
-		parts = append(parts, m.FilmsHeroExported(filepath.Base(item.SubtitlePath)))
 	}
 	if note := untranslatedNote(m, item); note != "" {
 		parts = append(parts, note)
