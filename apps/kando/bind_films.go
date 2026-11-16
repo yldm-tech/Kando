@@ -508,6 +508,9 @@ func (a *app) libraryEnqueue(sources ...string) bool {
 // libraryQueue adds sources, which precheck let through, to the queue and says in the message bar what happened, as libraryEnqueue does. A video of a YouTube playlist added alone, as watch?v=…&list=… is, is that video, and the bar offers to add the whole playlist (core.Link.WholeList); it then stays until it is closed, rather than closing by itself.
 func (a *app) libraryQueue(sources []string) bool {
 	added, err := a.queueEnqueue(sources)
+	if added > 0 {
+		a.sidebarShowQueued(sources)
+	}
 	var dup *queueDuplicate
 	m := a.messages()
 	switch {

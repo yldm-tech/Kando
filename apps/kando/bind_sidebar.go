@@ -56,6 +56,22 @@ func (a *app) SetSourceFilter(source string) {
 	a.side.filter = source
 }
 
+// sidebarShowQueued shows every source on the library page when one of sources, which were just added to the queue, comes from another source than the one the sidebar shows and now waits or runs, so its card shows where it was added rather than being hidden, perhaps behind 此来源还没有影片. The language chosen stays, as 处理中 ignores it.
+func (a *app) sidebarShowQueued(sources []string) {
+	if a.side.filter == sidebar.SourceAll {
+		return
+	}
+	for _, source := range sources {
+		if films.SourceOf(films.Film{Source: source}) == a.side.filter {
+			continue
+		}
+		if job, ok := a.queueFindSource(source); ok && !job.Stage.Done() {
+			a.side.filter = sidebar.SourceAll
+			return
+		}
+	}
+}
+
 // SourceCount is how many done films of the open library come from source, the films the grid shows for it; a job still in 处理中 is not one yet.
 func (a *app) SourceCount(source string) int {
 	n := 0
