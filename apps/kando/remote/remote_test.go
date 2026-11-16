@@ -379,3 +379,18 @@ func TestTimeoutOf(t *testing.T) {
 		t.Fatalf("timeouts: add %v, lists %v", TimeoutOf(MethodAdd), TimeoutOf(MethodLists))
 	}
 }
+
+// On Linux an app run from an AppImage is started by the AppImage, as its executable is in the folder the AppImage mounts only while it runs, which would go away with the command or the browser extension's host that started it.
+func TestLaunchExeIsTheAppImage(t *testing.T) {
+	for _, tc := range []struct{ goos, exe, image, want string }{
+		{"linux", "/tmp/.mount_KandoX/Kando", "/home/me/Apps/Kando.AppImage", "/home/me/Apps/Kando.AppImage"},
+		{"linux", "/opt/kando/Kando", "", "/opt/kando/Kando"},
+		{"linux", "/opt/kando/Kando", "Kando.AppImage", "/opt/kando/Kando"},
+		{"darwin", "/Applications/Kando.app/Contents/MacOS/Kando", "/x.AppImage", "/Applications/Kando.app/Contents/MacOS/Kando"},
+		{"windows", `C:\Kando\Kando.exe`, "", `C:\Kando\Kando.exe`},
+	} {
+		if got := launchExe(tc.goos, tc.exe, tc.image); got != tc.want {
+			t.Errorf("launchExe(%s, %s, %s) = %s, want %s", tc.goos, tc.exe, tc.image, got, tc.want)
+		}
+	}
+}

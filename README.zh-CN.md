@@ -197,6 +197,15 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 
 <a id="configuration"></a>
 
+## 浏览器扩展
+
+看懂的扩展把看懂内置浏览器里的「下载视频」和 + 按钮放进 YouTube、哔哩哔哩等看懂浏览器认识的视频网站页面，在你已登录的 Chrome、Edge、Brave、Vivaldi、Arc、Chromium 或 Firefox 里使用。工具栏按钮可以加入当前标签页的视频或在看懂中显示它，视频链接的右键菜单里有「把视频加入看懂」。扩展只通过本机消息（native messaging）和你电脑上的看懂通信，看懂没打开时会自动打开它。
+
+1. 在设置 › 通用 › 浏览器扩展里点「连接」，看懂会在找到的浏览器里登记自己（「断开连接」可以撤销）。
+2. 点「显示扩展文件夹」，然后载入这个文件夹：Chrome 和 Edge 在扩展程序 › 开发者模式 › 加载已解压的扩展程序；Firefox 在 `about:debugging` › 此 Firefox › 临时载入附加组件，选择其中的 `manifest.json`。Firefox 退出后会移除临时附加组件。
+
+Chrome 应用商店和 addons.mozilla.org 的上架版本稍后提供。每个版本的发布也附带分别为 Chromium 系浏览器和 Firefox 打包的扩展 zip。
+
 ## 配置
 
 除 Google 客户端 ID、客户端密钥和 `KANDO_SOCKET` 外，下表各项也都可以在应用内设置（资料库在侧栏中切换，其他项在“设置”中修改）。环境变量一旦设置，就会覆盖应用中保存的值。
@@ -277,7 +286,7 @@ PNG 文件要在 macOS 上用真实窗口运行同样的测试来生成，保存
 go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
 ```
 
-设置 `KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja` 或 `ko`，用另一个 `-env` 传入）会以对应的界面语言渲染，演示资料库也换成该语言读者的内容；`-run TestScreenshotsReadme` 渲染各语言 README 用的四张图，保存在 `docs/assets/<语言>/`。
+设置 `KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja` 或 `ko`，用另一个 `-env` 传入）会以对应的界面语言渲染，演示资料库也换成该语言读者的内容；`-run TestScreenshotsReadme` 渲染各语言 README 用的四张图，保存在 `docs/assets/<语言>/`。设置 `KANDO_SCREENSHOTS_DARK=1` 会以深色外观渲染，每张图保存为 `<场景>-dark.png`。
 
 仓库结构：
 

@@ -1,0 +1,32 @@
+{
+  "name": {
+    "message": "看懂"
+  },
+  "description": {
+    "message": "在视频网站的页面里把视频加入看懂。"
+  },
+  "buttonAdd": {
+    "message": "下载视频"
+  },
+  "buttonQueued": {
+    "message": "已在队列中"
+  },
+  "buttonDone": {
+    "message": "已在资料库中"
+  },
+  "menuAdd": {
+    "message": "把视频加入看懂"
+  },
+  "popupAdd": {
+    "message": "加入看懂"
+  },
+  "popupShow": {
+    "message": "在看懂中显示"
+  },
+  "popupNoVideo": {
+    "message": "打开一个视频的页面，即可把它加入看懂。"
+  },
+  "popupConnect": {
+    "message": "请在看懂的设置 › 通用 › 浏览器扩展中连接这个浏览器。"
+  }
+}

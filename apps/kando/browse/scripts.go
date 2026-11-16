@@ -56,7 +56,7 @@ func Script() string {
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watchTitle); else watchTitle();
 })();
-` + buttonsScript()
+` + buttonsScript(webViewBridge)
 }
 
 // QuietScript quiets the page's videos and sounds while another page of the window shows (quiet), or lets them be heard again once the browser's shows. Quieting pauses what plays, so a hidden video stops downloading and decoding and the site's autoplay does not move on to the next one, and mutes what is not muted, marking it, as a page may start playing again by itself. Letting them be heard unmutes what it marked, so what the page muted itself stays muted, and leaves what it paused paused, for the learner to play again.

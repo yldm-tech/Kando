@@ -641,6 +641,7 @@ var Parameters = map[string][]string{
 	"SettingsAISaveFailed":                     {"error_"},
 	"SettingsFileDamagedUnsaved":               {"error_"},
 	"SettingsFileUnreadable":                   {"error_"},
+	"SettingsGeneralBrowserConnectedTo":        {"browsers"},
 	"SettingsGeneralCLIAddToPath":              {"dir"},
 	"SettingsGeneralCLIBlocked":                {"path"},
 	"SettingsGeneralCLIInstallFailed":          {"error_"},
@@ -907,6 +908,7 @@ type Translation struct {
 	SettingsAISaveFailed                     func(error_ string) string
 	SettingsFileDamagedUnsaved               func(error_ string) string
 	SettingsFileUnreadable                   func(error_ string) string
+	SettingsGeneralBrowserConnectedTo        func(browsers string) string
 	SettingsGeneralCLIAddToPath              func(dir string) string
 	SettingsGeneralCLIBlocked                func(path string) string
 	SettingsGeneralCLIInstallFailed          func(error_ string) string
@@ -1625,6 +1627,18 @@ const (
 	textSettingsGeneralAutoCheck
 	textSettingsGeneralAutoDownload
 	textSettingsGeneralAutoDownloadHint
+	textSettingsGeneralBrowser
+	textSettingsGeneralBrowserBrowsers
+	textSettingsGeneralBrowserConnect
+	textSettingsGeneralBrowserConnected
+	textSettingsGeneralBrowserDisconnect
+	textSettingsGeneralBrowserFolder
+	textSettingsGeneralBrowserHint
+	textSettingsGeneralBrowserLoadHint
+	textSettingsGeneralBrowserNone
+	textSettingsGeneralBrowserNotShipped
+	textSettingsGeneralBrowserSeparator
+	textSettingsGeneralBrowserShowFolder
 	textSettingsGeneralCLI
 	textSettingsGeneralCLIClaudeCode
 	textSettingsGeneralCLICopied
@@ -2512,6 +2526,18 @@ var keyOfText = [numTexts]string{
 	"settingsGeneralAutoCheck",
 	"settingsGeneralAutoDownload",
 	"settingsGeneralAutoDownloadHint",
+	"settingsGeneralBrowser",
+	"settingsGeneralBrowserBrowsers",
+	"settingsGeneralBrowserConnect",
+	"settingsGeneralBrowserConnected",
+	"settingsGeneralBrowserDisconnect",
+	"settingsGeneralBrowserFolder",
+	"settingsGeneralBrowserHint",
+	"settingsGeneralBrowserLoadHint",
+	"settingsGeneralBrowserNone",
+	"settingsGeneralBrowserNotShipped",
+	"settingsGeneralBrowserSeparator",
+	"settingsGeneralBrowserShowFolder",
 	"settingsGeneralCLI",
 	"settingsGeneralCLIClaudeCode",
 	"settingsGeneralCLICopied",
@@ -3397,6 +3423,18 @@ var textsEn = i18n.NewTexts(""+
 	"Check for updates automatically"+
 	"Download and install updates automatically"+
 	"The new version opens the next time you launch Kando."+
+	"Browser Extension"+
+	"Browsers"+
+	"Connect"+
+	"Connected"+
+	"Disconnect"+
+	"Extension"+
+	"Lets Kando's extension add videos from your browser."+
+	"Chrome, Edge: Extensions › Developer mode › Load unpacked. Firefox: about:debugging › This Firefox › Load Temporary Add-on."+
+	"No browser the extension runs in was found."+
+	"This copy of Kando has no extension folder."+
+	", "+
+	"Show Extension Folder"+
 	"Command Line & MCP"+
 	"Claude Code"+
 	"Copied"+
@@ -4279,6 +4317,18 @@ var textsEn = i18n.NewTexts(""+
 		31,
 		42,
 		53,
+		17,
+		8,
+		7,
+		9,
+		10,
+		9,
+		52,
+		131,
+		43,
+		43,
+		2,
+		21,
 		18,
 		11,
 		6,
@@ -5164,6 +5214,18 @@ var textsJa = i18n.NewTexts(""+
 	"アップデートを自動的に確認"+
 	"アップデートを自動的にダウンロードしてインストール"+
 	"新しいバージョンは次回 Kando を起動したときに有効になります。"+
+	"ブラウザ拡張機能"+
+	"ブラウザ"+
+	"接続"+
+	"接続済み"+
+	"接続を解除"+
+	"拡張機能"+
+	"Kando の拡張機能で、ブラウザから動画を追加できます。"+
+	"Chrome・Edge：拡張機能 › デベロッパー モード › パッケージ化されていない拡張機能を読み込む。Firefox：about:debugging › この Firefox › 一時的なアドオンを読み込む。"+
+	"拡張機能が動くブラウザが見つかりません。"+
+	"この Kando には拡張機能のフォルダがありません。"+
+	"、"+
+	"拡張機能のフォルダを表示"+
 	"コマンドラインと MCP"+
 	"Claude Code"+
 	"コピーしました"+
@@ -6046,6 +6108,18 @@ var textsJa = i18n.NewTexts(""+
 		39,
 		75,
 		88,
+		24,
+		12,
+		6,
+		12,
+		15,
+		12,
+		75,
+		223,
+		60,
+		67,
+		3,
+		36,
 		28,
 		11,
 		21,
@@ -6931,6 +7005,18 @@ var textsKo = i18n.NewTexts(""+
 	"자동으로 업데이트 확인"+
 	"자동으로 업데이트 다운로드 및 설치"+
 	"새 버전은 다음에 Kando를 열 때 적용됩니다."+
+	"브라우저 확장 프로그램"+
+	"브라우저"+
+	"연결"+
+	"연결됨"+
+	"연결 해제"+
+	"확장 프로그램"+
+	"Kando 확장 프로그램으로 브라우저에서 동영상을 추가할 수 있습니다."+
+	"Chrome, Edge: 확장 프로그램 › 개발자 모드 › 압축해제된 확장 프로그램을 로드합니다. Firefox: about:debugging › 이 Firefox › 임시 부가 기능 로드."+
+	"확장 프로그램을 쓸 수 있는 브라우저를 찾지 못했습니다."+
+	"이 Kando에는 확장 프로그램 폴더가 없습니다."+
+	", "+
+	"확장 프로그램 폴더 보기"+
 	"명령줄 및 MCP"+
 	"Claude Code"+
 	"복사됨"+
@@ -7813,6 +7899,18 @@ var textsKo = i18n.NewTexts(""+
 		32,
 		49,
 		57,
+		32,
+		12,
+		6,
+		9,
+		13,
+		19,
+		91,
+		188,
+		77,
+		59,
+		2,
+		33,
 		17,
 		11,
 		9,
@@ -8698,6 +8796,18 @@ var textsZhHans = i18n.NewTexts(""+
 	"自动检查更新"+
 	"自动下载并安装更新"+
 	"新版本在下次打开看懂时生效。"+
+	"浏览器扩展"+
+	"浏览器"+
+	"连接"+
+	"已连接"+
+	"断开连接"+
+	"扩展"+
+	"让看懂的扩展从你的浏览器里加入视频。"+
+	"Chrome、Edge：扩展程序 › 开发者模式 › 加载已解压的扩展程序。Firefox：about:debugging › 此 Firefox › 临时载入附加组件。"+
+	"没有找到扩展能用的浏览器。"+
+	"这份看懂没有附带扩展文件夹。"+
+	"、"+
+	"显示扩展文件夹"+
 	"命令行与 MCP"+
 	"Claude Code"+
 	"已拷贝"+
@@ -9580,6 +9690,18 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		27,
 		42,
+		15,
+		9,
+		6,
+		9,
+		12,
+		6,
+		54,
+		159,
+		39,
+		42,
+		3,
+		21,
 		16,
 		11,
 		9,
@@ -10465,6 +10587,18 @@ var textsZhHant = i18n.NewTexts(""+
 	"自動檢查更新"+
 	"自動下載並安裝更新"+
 	"新版本在下次開啟看懂時生效。"+
+	"瀏覽器擴充功能"+
+	"瀏覽器"+
+	"連接"+
+	"已連接"+
+	"中斷連接"+
+	"擴充功能"+
+	"讓看懂的擴充功能從你的瀏覽器加入影片。"+
+	"Chrome、Edge：擴充功能 › 開發人員模式 › 載入未封裝項目。Firefox：about:debugging › 這個 Firefox › 載入暫時性附加元件。"+
+	"沒有找到擴充功能能用的瀏覽器。"+
+	"這份看懂沒有附帶擴充功能資料夾。"+
+	"、"+
+	"顯示擴充功能資料夾"+
 	"命令列與 MCP"+
 	"Claude Code"+
 	"已拷貝"+
@@ -11347,6 +11481,18 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		27,
 		42,
+		21,
+		9,
+		6,
+		9,
+		12,
+		12,
+		57,
+		159,
+		45,
+		48,
+		3,
+		27,
 		16,
 		11,
 		9,
@@ -12267,6 +12413,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsFileUnreadable != nil {
 		s.SettingsFileUnreadable = t.SettingsFileUnreadable
+	}
+	if t.SettingsGeneralBrowserConnectedTo != nil {
+		s.SettingsGeneralBrowserConnectedTo = t.SettingsGeneralBrowserConnectedTo
 	}
 	if t.SettingsGeneralCLIAddToPath != nil {
 		s.SettingsGeneralCLIAddToPath = t.SettingsGeneralCLIAddToPath
@@ -25975,6 +26124,186 @@ func SettingsGeneralAutoDownloadHint(cx *core.Scope) string {
 // SettingsGeneralAutoDownloadHint is the package's SettingsGeneralAutoDownloadHint in the language of msgs.
 func (msgs Messages) SettingsGeneralAutoDownloadHint() string {
 	return msgs.text(textSettingsGeneralAutoDownloadHint)
+}
+
+// SettingsGeneralBrowser says "Browser Extension"
+// in the language the app shows under cx.
+//
+// Heading of the General settings card about Kando's extension for Chrome, Edge, Firefox and other browsers.
+func SettingsGeneralBrowser(cx *core.Scope) string { return For(cx).SettingsGeneralBrowser() }
+
+// SettingsGeneralBrowser is the package's SettingsGeneralBrowser in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowser() string { return msgs.text(textSettingsGeneralBrowser) }
+
+// SettingsGeneralBrowserBrowsers says "Browsers"
+// in the language the app shows under cx.
+//
+// Title of the row of the Browser Extension card that connects Kando to the browsers on the computer, so its extension can reach Kando.
+func SettingsGeneralBrowserBrowsers(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserBrowsers()
+}
+
+// SettingsGeneralBrowserBrowsers is the package's SettingsGeneralBrowserBrowsers in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserBrowsers() string {
+	return msgs.text(textSettingsGeneralBrowserBrowsers)
+}
+
+// SettingsGeneralBrowserConnect says "Connect"
+// in the language the app shows under cx.
+//
+// Button of the Browsers row: registers Kando with the browsers on the computer so its extension can reach it.
+func SettingsGeneralBrowserConnect(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserConnect()
+}
+
+// SettingsGeneralBrowserConnect is the package's SettingsGeneralBrowserConnect in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserConnect() string {
+	return msgs.text(textSettingsGeneralBrowserConnect)
+}
+
+// SettingsGeneralBrowserConnected says "Connected"
+// in the language the app shows under cx.
+//
+// Status at the end of the Browsers row once every browser on the computer is connected.
+func SettingsGeneralBrowserConnected(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserConnected()
+}
+
+// SettingsGeneralBrowserConnected is the package's SettingsGeneralBrowserConnected in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserConnected() string {
+	return msgs.text(textSettingsGeneralBrowserConnected)
+}
+
+// SettingsGeneralBrowserConnectedTo says "Connected to {browsers}."
+// in the language the app shows under cx.
+//
+// Line under Browsers: the browsers Kando is connected to, by their names joined with settingsGeneralBrowserSeparator.
+func SettingsGeneralBrowserConnectedTo(cx *core.Scope, browsers string) string {
+	return For(cx).SettingsGeneralBrowserConnectedTo(browsers)
+}
+
+// SettingsGeneralBrowserConnectedTo is the package's SettingsGeneralBrowserConnectedTo in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserConnectedTo(browsers string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsGeneralBrowserConnectedTo(browsers))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsGeneralBrowserConnectedTo; f != nil {
+			return f(browsers)
+		}
+		switch lang {
+		case "", "en":
+			return "Connected to " + msgs.arg(browsers) + "."
+		case "ja":
+			return browsers + " に接続済みです。"
+		case "ko":
+			return browsers + "에 연결되었습니다."
+		case "zh-Hans":
+			return "已连接 " + browsers + "。"
+		case "zh-Hant":
+			return "已連接 " + browsers + "。"
+		}
+	}
+}
+
+// SettingsGeneralBrowserDisconnect says "Disconnect"
+// in the language the app shows under cx.
+//
+// Button of the Browsers row once connected: unregisters Kando from every browser.
+func SettingsGeneralBrowserDisconnect(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserDisconnect()
+}
+
+// SettingsGeneralBrowserDisconnect is the package's SettingsGeneralBrowserDisconnect in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserDisconnect() string {
+	return msgs.text(textSettingsGeneralBrowserDisconnect)
+}
+
+// SettingsGeneralBrowserFolder says "Extension"
+// in the language the app shows under cx.
+//
+// Title of the row of the Browser Extension card whose button shows the extension's folder, to load it in the browser.
+func SettingsGeneralBrowserFolder(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserFolder()
+}
+
+// SettingsGeneralBrowserFolder is the package's SettingsGeneralBrowserFolder in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserFolder() string {
+	return msgs.text(textSettingsGeneralBrowserFolder)
+}
+
+// SettingsGeneralBrowserHint says "Lets Kando's extension add videos from your browser."
+// in the language the app shows under cx.
+//
+// Line under Browsers before any browser is connected: what connecting is for.
+func SettingsGeneralBrowserHint(cx *core.Scope) string { return For(cx).SettingsGeneralBrowserHint() }
+
+// SettingsGeneralBrowserHint is the package's SettingsGeneralBrowserHint in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserHint() string {
+	return msgs.text(textSettingsGeneralBrowserHint)
+}
+
+// SettingsGeneralBrowserLoadHint says "Chrome, Edge: Extensions › Developer mode › Load unpacked. Firefox: about:debugging › This Firefox › Load Temporary Add-on."
+// in the language the app shows under cx.
+//
+// Line under Extension: how to load the extension's folder, in the words of each browser's own menus and buttons.
+func SettingsGeneralBrowserLoadHint(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserLoadHint()
+}
+
+// SettingsGeneralBrowserLoadHint is the package's SettingsGeneralBrowserLoadHint in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserLoadHint() string {
+	return msgs.text(textSettingsGeneralBrowserLoadHint)
+}
+
+// SettingsGeneralBrowserNone says "No browser the extension runs in was found."
+// in the language the app shows under cx.
+//
+// Line under Browsers when none of Chrome, Edge, Brave, Vivaldi, Arc, Chromium and Firefox is on the computer.
+func SettingsGeneralBrowserNone(cx *core.Scope) string { return For(cx).SettingsGeneralBrowserNone() }
+
+// SettingsGeneralBrowserNone is the package's SettingsGeneralBrowserNone in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserNone() string {
+	return msgs.text(textSettingsGeneralBrowserNone)
+}
+
+// SettingsGeneralBrowserNotShipped says "This copy of Kando has no extension folder."
+// in the language the app shows under cx.
+//
+// Error under the Browser Extension card when Show Extension Folder finds no extension in the app, as in a build that is not packaged.
+func SettingsGeneralBrowserNotShipped(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserNotShipped()
+}
+
+// SettingsGeneralBrowserNotShipped is the package's SettingsGeneralBrowserNotShipped in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserNotShipped() string {
+	return msgs.text(textSettingsGeneralBrowserNotShipped)
+}
+
+// SettingsGeneralBrowserSeparator says ", "
+// in the language the app shows under cx.
+//
+// What joins the names of the browsers in settingsGeneralBrowserConnectedTo.
+func SettingsGeneralBrowserSeparator(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserSeparator()
+}
+
+// SettingsGeneralBrowserSeparator is the package's SettingsGeneralBrowserSeparator in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserSeparator() string {
+	return msgs.text(textSettingsGeneralBrowserSeparator)
+}
+
+// SettingsGeneralBrowserShowFolder says "Show Extension Folder"
+// in the language the app shows under cx.
+//
+// Button of the Extension row: shows the folder of Kando's browser extension in the file manager, to load it in the browser.
+func SettingsGeneralBrowserShowFolder(cx *core.Scope) string {
+	return For(cx).SettingsGeneralBrowserShowFolder()
+}
+
+// SettingsGeneralBrowserShowFolder is the package's SettingsGeneralBrowserShowFolder in the language of msgs.
+func (msgs Messages) SettingsGeneralBrowserShowFolder() string {
+	return msgs.text(textSettingsGeneralBrowserShowFolder)
 }
 
 // SettingsGeneralCLI says "Command Line & MCP"

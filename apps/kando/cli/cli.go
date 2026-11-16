@@ -13,11 +13,15 @@ import (
 	"strings"
 	"syscall"
 
+	"kando/apps/kando/browserext"
 	"kando/apps/kando/remote"
 )
 
-// Main runs the command args name and returns its exit code, or ok false when args are what the app is opened with (OpensWindow), and the app then starts its window. Anything else is the command line's, so a mistyped command or a flag it does not know is an error in the terminal rather than the window opening.
+// Main runs the command args name and returns its exit code, or ok false when args are what the app is opened with (OpensWindow), and the app then starts its window. Anything else is the command line's, so a mistyped command or a flag it does not know is an error in the terminal rather than the window opening. Started by a browser as the browser extension's native messaging host (browserext.IsHost), whose arguments would otherwise read as a link or a file to open, it serves the extension instead, without a console.
 func Main(args []string, version string) (code int, ok bool) {
+	if browserext.IsHost(args) {
+		return browserext.Main(), true
+	}
 	if OpensWindow(args) {
 		return 0, false
 	}

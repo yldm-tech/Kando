@@ -1,0 +1,42 @@
+{
+  "name": {
+    "message": "Kando",
+    "description": "The extension's name, Kando's name in this language."
+  },
+  "description": {
+    "message": "Add videos to Kando from the pages of video sites.",
+    "description": "The extension's description in the browser's list of extensions."
+  },
+  "buttonAdd": {
+    "message": "Download Video",
+    "description": "Button in a video's page while Kando is not running, the same words as Kando's Download Video in its browser."
+  },
+  "buttonQueued": {
+    "message": "Queued",
+    "description": "Button in a video's page for a video in Kando's queue, while Kando is not running."
+  },
+  "buttonDone": {
+    "message": "In Library",
+    "description": "Button in a video's page for a video in Kando's library, while Kando is not running."
+  },
+  "menuAdd": {
+    "message": "Add Video to Kando",
+    "description": "Item of the menu on a link to a video."
+  },
+  "popupAdd": {
+    "message": "Add to Kando",
+    "description": "Button of the toolbar popup that adds the tab's video to Kando."
+  },
+  "popupShow": {
+    "message": "Show in Kando",
+    "description": "Button of the toolbar popup that shows the tab's video in Kando."
+  },
+  "popupNoVideo": {
+    "message": "Open a video’s page to add it to Kando.",
+    "description": "Line of the toolbar popup on a page that is not a video's."
+  },
+  "popupConnect": {
+    "message": "Connect Kando to this browser in Kando’s Settings › General › Browser Extension.",
+    "description": "Line of the toolbar popup when the browser cannot reach Kando: where in Kando to connect it."
+  }
+}

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"kando/apps/kando/browserext"
 	"kando/apps/kando/clitool"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
@@ -28,6 +29,9 @@ func TestScreenshotsSettings(t *testing.T) {
 		shotCLITool(f, a, true)
 		a.cliTool.copied = clitool.MCPConfig(a.cliTool.status.MCPCommand())
 	})
+	// The 浏览器扩展 card at the very end of 通用: Chrome and Firefox on the computer, before Kando is connected to them, with 连接; and once it is, with 断开连接.
+	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-browser", shown, models, turbo, func(a *app) { shotCLITool(f, a, true); shotBrowserExt(a, false) })
+	shootSettingsScrolled(t, f, settings.SectionGeneral, "settings-general-browser-connected", shown, models, turbo, func(a *app) { shotCLITool(f, a, true); shotBrowserExt(a, true) })
 	// EveryAPI without a key on a computer without the everyapi program: the row under API Key offers 获取 EveryAPI and 重新检测.
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-missing", shown, models, turbo, func(a *app) {
 		tools := a.pipeline.(media.Tools)
@@ -83,6 +87,15 @@ func shotCLITool(f *screenshotFixture, a *app, installed bool) {
 	}
 }
 
+// shotBrowserExt shows Chrome and Firefox on the computer, connected or not, as the app's own look would find them. The look the window starts when it opens sees the fixture's fake home (shootSettingsAt), where no browser is, and its answer is dropped, as the scenes' updates are.
+func shotBrowserExt(a *app, connected bool) {
+	a.ext.known = true
+	a.ext.status = browserext.Status{Exe: "/Applications/Kando.app/Contents/MacOS/Kando", Found: []string{"Chrome", "Firefox"}}
+	if connected {
+		a.ext.status.Connected = a.ext.status.Found
+	}
+}
+
 // shootSettings renders the settings window open at section, at the prototype's 880 by 640, as name.png: the library shown, the whisper models in models with turbo in use, and EveryAPI as the AI service, without a key, through the everyapi program in ~/bin (writeFakeEveryAPI). setup, when given, changes the app before it is drawn.
 func shootSettings(t *testing.T, f *screenshotFixture, section, name, shown, models, turbo string, setup ...func(*app)) {
 	t.Helper()
@@ -106,6 +119,10 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			s.Libraries = []string{shown}
 		})
 		a.prefs.modelsDir = models
+		// The 浏览器扩展 card looks for browsers in the fixture's fake home, not the machine's.
+		a.ext.env = func(dir string) browserext.Env {
+			return browserext.Env{GOOS: "darwin", Home: f.home, Getenv: func(string) string { return "" }, Exe: filepath.Join(f.home, "Kando"), Dir: dir}
+		}
 		if tools, ok := f.pipeline.(media.Tools); ok {
 			tools.Translator = media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}
 			tools.WhisperModel = turbo
@@ -116,7 +133,7 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			fn(a)
 		}
 		a.OpenSettings(section)
-		env := testEnvironment()
+		env := screenshotEnvironment()
 		env.TitleBar = ns.Edges{Top: 50, Left: 72}
 		// The settings window's own view, as openSettingsWindow opens it, on the test's graph.
 		tt := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
@@ -134,7 +151,7 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			// Headless runs have no pixels, so the scenes run their steps; the pictures come from `nsgo test -target`, which saves them under .nsgo/test/screenshots/<target> (README's Screenshots).
 			return
 		}
-		tt.Screenshot(name)
+		tt.Screenshot(screenshotName(env, name))
 	})
 }
 

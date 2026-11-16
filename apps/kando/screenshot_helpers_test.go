@@ -19,7 +19,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// The screenshot tests render the main scenes to PNG files in the directory named by KANDO_SCREENSHOTS, so a visual change can be compared before and after, and with the prototype. They are skipped when the variable is unset. Each area renders its own scenes in its own screenshot_<area>_test.go (TestScreenshots<Area>), from the library this file makes; `go test -run TestScreenshots` renders them all. The window is light, as main sets it, and the size of the prototype's window (1304×782) unless a scene asks for another.
+// The screenshot tests render the main scenes to PNG files in the directory named by KANDO_SCREENSHOTS, so a visual change can be compared before and after, and with the prototype. They are skipped when the variable is unset. Each area renders its own scenes in its own screenshot_<area>_test.go (TestScreenshots<Area>), from the library this file makes; `go test -run TestScreenshots` renders them all. The window follows the system's appearance, as main sets it: the scenes are light, or dark with KANDO_SCREENSHOTS_DARK=1, which saves each picture as <scene>-dark beside the light one (screenshotEnvironment, screenshotName). It is the size of the prototype's window (1304×782) unless a scene asks for another.
 
 // screenshotFixture is the library every scene starts from: the prototype's (screenshot_prototype_test.go). Its two libraries, 我的影片 (open) and 英语听力, are ~/Movies/<name>.kando in a new empty home folder; its films are jobs whose IDs are the prototype's (j1 How Rivers Shape Landscapes, j2 Morning Market in Kyoto, …), each in the prototype's stage, with the prototype's error for a failed one. A film that has its video has it in a folder named after its title, a placeholder the fake ffmpeg plays as the film's scene picture (writeFakeScene); a finished one has the prototype's 18 subtitles beside it, as the pipeline exports them. A film not downloaded yet has no video, as in the app. The scenes do not see this machine: the pipeline runs the fake ffmpeg, yt-dlp and whisper-cli in ~/bin (fake_tools_test.go), so every path a scene shows starts with ~ and the versions and the pictures are the same everywhere. A scene picks a film by its prototype ID (screenshotOpen, f.job) and changes the state it needs in its steps; a scene that needs another folder makes it under home.
 type screenshotFixture struct {
@@ -188,6 +188,21 @@ func screenshotHome(t *testing.T) string {
 	return home
 }
 
+// screenshotEnvironment is the environment the scenes run in: testEnvironment, dark when KANDO_SCREENSHOTS_DARK is 1.
+func screenshotEnvironment() ns.Environment {
+	env := testEnvironment()
+	env.Dark = os.Getenv("KANDO_SCREENSHOTS_DARK") == "1"
+	return env
+}
+
+// screenshotName is the file name of scene name's picture: name, with -dark after it in the dark appearance, so a dark run keeps the light pictures.
+func screenshotName(env ns.Environment, name string) string {
+	if env.Dark {
+		return name + "-dark"
+	}
+	return name
+}
+
 // shoot opens the window on 我的影片 at the prototype's size, 1304×782, runs steps and saves what it shows as name.png.
 func (f *screenshotFixture) shoot(t *testing.T, name string, steps func(a *app, tt *nsgotest.App, updates chan func())) {
 	t.Helper()
@@ -232,7 +247,7 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height n
 				t.Error("the job the scene left running did not stop")
 			}
 		})
-		env := testEnvironment()
+		env := screenshotEnvironment()
 		env.TitleBar = ns.Edges{Top: 28, Left: 80}
 		tt := nsgotest.Start(t, a.testView, nsgotest.Size(width, height), nsgotest.Environment(env))
 		// TODO(nsgo#380): drop this cleanup once a disposed nsgotest App closes the menu it leaves open https://github.com/nsgo-dev/nsgo/issues/380
@@ -249,7 +264,7 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height n
 			// Headless runs have no pixels, so the scenes run their steps and checks; the pictures come from `nsgo test -target`, which saves them under .nsgo/test/screenshots/<target> (README's Screenshots).
 			return
 		}
-		tt.Screenshot(name)
+		tt.Screenshot(screenshotName(env, name))
 	})
 }
 

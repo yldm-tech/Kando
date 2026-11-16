@@ -21,11 +21,12 @@ type videoSite struct {
 	Cut    []string     `json:"cut,omitempty"`
 }
 
-// videoShape is a link to one video: its path, as the URL escapes it, matching Path, and, when Param is set, that query parameter's first value matching Value.
+// videoShape is a link to one video: its path, as the URL escapes it, matching Path, and, when Param is set, that query parameter's first value matching Value. Menu are the paths of the browser extension's menu item on links (ExtensionFiles), as match patterns write them, with * for any characters, query included (https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns): they take in every link of the shape, and as few others as such a pattern can, as the menu shows by them alone and the item adds only a link VideoLink takes.
 type videoShape struct {
-	Path  string `json:"path"`
-	Param string `json:"param,omitempty"`
-	Value string `json:"value,omitempty"`
+	Path  string   `json:"path"`
+	Param string   `json:"param,omitempty"`
+	Value string   `json:"value,omitempty"`
+	Menu  []string `json:"menu"`
 }
 
 // videoRow is a site's row of buttons under a video, which 下载视频 goes into, at its start or, with End, at its end.
@@ -39,28 +40,28 @@ var videoSites = []videoSite{
 	{
 		Domain: "youtube.com",
 		Videos: []videoShape{
-			{Path: `^/watch/?$`, Param: "v", Value: `^[\w-]{6,}$`},
-			{Path: `^/(shorts|live)/[\w-]{6,}/?$`},
+			{Path: `^/watch/?$`, Param: "v", Value: `^[\w-]{6,}$`, Menu: []string{"/watch?*", "/watch/?*"}},
+			{Path: `^/(shorts|live)/[\w-]{6,}/?$`, Menu: []string{"/shorts/*", "/live/*"}},
 		},
 		Rows:   []videoRow{{Selector: "ytd-watch-metadata #top-level-buttons-computed"}},
 		Titles: []string{"ytd-watch-metadata h1", "ytd-reel-video-renderer[is-active] h2"},
 		Cut:    []string{" - YouTube"},
 	},
-	{Domain: "youtu.be", Videos: []videoShape{{Path: `^/[\w-]{6,}/?$`}}},
+	{Domain: "youtu.be", Videos: []videoShape{{Path: `^/[\w-]{6,}/?$`, Menu: []string{"/*"}}}},
 	{
 		Domain: "bilibili.com",
 		Not:    []string{"space.bilibili.com", "search.bilibili.com", "live.bilibili.com"},
 		// Its pages may be under the reader's language, as /zh-Hans/video/BV…/, which ParseLink reads as the video's canonical link.
-		Videos: []videoShape{{Path: `^/(` + kcore.BilibiliLocale + `/)?video/(BV[0-9A-Za-z]{10}|av[0-9]+)/?$`}},
+		Videos: []videoShape{{Path: `^/(` + kcore.BilibiliLocale + `/)?video/(BV[0-9A-Za-z]{10}|av[0-9]+)/?$`, Menu: []string{"/video/*", "/*/video/*"}}},
 		Rows:   []videoRow{{Selector: ".video-toolbar-left-main", End: true}, {Selector: ".video-toolbar-left", End: true}},
 		Titles: []string{"h1.video-title", ".video-info-title h1", ".video-title"},
 		Cut:    []string{"_哔哩哔哩_bilibili"},
 	},
-	{Domain: "vimeo.com", Not: []string{"player.vimeo.com"}, Videos: []videoShape{{Path: `^/[0-9]+/?$`}}},
-	{Domain: "ted.com", Videos: []videoShape{{Path: `^/talks/[\w-]+/?$`}}},
-	{Domain: "nicovideo.jp", Videos: []videoShape{{Path: `^/watch/(sm|nm|so)[0-9]+/?$`}}},
-	{Domain: "dailymotion.com", Videos: []videoShape{{Path: `^/video/[0-9A-Za-z]+/?$`}}},
-	{Domain: "tiktok.com", Videos: []videoShape{{Path: `^/@[^/]+/video/[0-9]+/?$`}}},
+	{Domain: "vimeo.com", Not: []string{"player.vimeo.com"}, Videos: []videoShape{{Path: `^/[0-9]+/?$`, Menu: []string{"/0*", "/1*", "/2*", "/3*", "/4*", "/5*", "/6*", "/7*", "/8*", "/9*"}}}},
+	{Domain: "ted.com", Videos: []videoShape{{Path: `^/talks/[\w-]+/?$`, Menu: []string{"/talks/*"}}}},
+	{Domain: "nicovideo.jp", Videos: []videoShape{{Path: `^/watch/(sm|nm|so)[0-9]+/?$`, Menu: []string{"/watch/sm*", "/watch/nm*", "/watch/so*"}}}},
+	{Domain: "dailymotion.com", Videos: []videoShape{{Path: `^/video/[0-9A-Za-z]+/?$`, Menu: []string{"/video/*"}}}},
+	{Domain: "tiktok.com", Videos: []videoShape{{Path: `^/@[^/]+/video/[0-9]+/?$`, Menu: []string{"/@*/video/*"}}}},
 }
 
 // compiledShape is a videoShape as Go reads it.
@@ -114,6 +115,37 @@ func VideoLink(rawURL string) bool {
 		return false
 	}
 	return false
+}
+
+// sitesScript is the JavaScript that reads videoSites as VideoLink does: sites, siteOf(hostname), the site of a host or null, and videoOf(raw), the link raw resolves to against base, a JavaScript expression, when it is one video's, and "" otherwise. It expects MAX_URL to be declared before it. The page's buttons (buttonsScript) and the browser extension's background and popup (ExtensionFiles' sites.js) share it.
+func sitesScript(base string) string {
+	return `  const sites = (` + videoSitesJSON() + `).map((s) => ({
+    domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
+    videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
+  }));
+  const siteOf = (hostname) => {
+    const host = hostname.toLowerCase().replace(/\.$/, "");
+    const bare = host.replace(/^www\./, "").replace(/^m\./, "");
+    for (const s of sites) {
+      if (host !== s.domain && !host.endsWith("." + s.domain)) continue;
+      return s.not.includes(bare) ? null : s;
+    }
+    return null;
+  };
+  // videoOf is the link raw resolves to when it is one video's, as VideoLink decides it, and "" otherwise.
+  const videoOf = (raw) => {
+    if (!raw || raw.length > MAX_URL) return "";
+    let u;
+    try { u = new URL(raw, ` + base + `); } catch (e) { return ""; }
+    if ((u.protocol !== "http:" && u.protocol !== "https:") || u.href.length > MAX_URL) return "";
+    const s = siteOf(u.hostname);
+    if (!s) return "";
+    for (const v of s.videos) {
+      if (v.path.test(u.pathname) && (!v.param || v.value.test(u.searchParams.get(v.param) || ""))) return u.href;
+    }
+    return "";
+  };
+`
 }
 
 // videoSitesJSON is videoSites as the page's script reads them.

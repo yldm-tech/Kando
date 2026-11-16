@@ -197,6 +197,15 @@ WebMCP に対応したブラウザでは、ランディングページ [kando.yl
 
 <a id="configuration"></a>
 
+## ブラウザ拡張機能
+
+Kando の拡張機能は、Kando 内蔵ブラウザの「動画をダウンロード」と + ボタンを、YouTube や bilibili など Kando のブラウザが知っている動画サイトのページに表示します。ログイン済みの Chrome、Edge、Brave、Vivaldi、Arc、Chromium、Firefox で使えます。ツールバーのボタンで今のタブの動画を追加したり Kando で表示したりでき、動画へのリンクの右クリックメニューには「動画を Kando に追加」があります。拡張機能はネイティブメッセージング（native messaging）でこのコンピュータの Kando とだけ通信し、Kando が起動していなければ起動します。
+
+1. 設定 › 一般 › ブラウザ拡張機能で「接続」をクリックします。Kando は見つかったブラウザに自分を登録します（「接続を解除」で元に戻せます）。
+2. 「拡張機能のフォルダを表示」をクリックし、そのフォルダを読み込みます。Chrome と Edge は 拡張機能 › デベロッパー モード › パッケージ化されていない拡張機能を読み込む。Firefox は `about:debugging` › この Firefox › 一時的なアドオンを読み込む で、中の `manifest.json` を選びます。Firefox は終了すると一時的なアドオンを取り除きます。
+
+Chrome ウェブストアと addons.mozilla.org での公開は今後の予定です。各リリースには、Chromium 系ブラウザ用と Firefox 用に zip にした拡張機能も添付されます。
+
 ## 設定項目
 
 以下の項目は、Google のクライアント ID とシークレット、`KANDO_SOCKET` を除き、すべてアプリ内でも設定できます（ライブラリはサイドバーから、それ以外は「設定」から）。環境変数を設定すると、アプリに保存された値の代わりにその値が使われます。
@@ -277,7 +286,7 @@ PNG ファイルは、同じテストを macOS の実際のウィンドウで実
 go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
 ```
 
-`KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja`、`ko`。もう一つの `-env` で渡します）を指定すると、そのインターフェース言語で描画し、デモ用ライブラリもその言語の読者向けの内容になります。`-run TestScreenshotsReadme` は各言語の README で使う 4 枚の画像を描画します。画像は `docs/assets/<言語>/` にあります。
+`KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja`、`ko`。もう一つの `-env` で渡します）を指定すると、そのインターフェース言語で描画し、デモ用ライブラリもその言語の読者向けの内容になります。`-run TestScreenshotsReadme` は各言語の README で使う 4 枚の画像を描画します。画像は `docs/assets/<言語>/` にあります。`KANDO_SCREENSHOTS_DARK=1` を指定するとダークモードで描画し、各画像は `<シーン>-dark.png` として保存されます。
 
 リポジトリの構成:
 

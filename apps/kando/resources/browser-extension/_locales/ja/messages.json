@@ -1,0 +1,32 @@
+{
+  "name": {
+    "message": "Kando"
+  },
+  "description": {
+    "message": "動画サイトのページから動画を Kando に追加します。"
+  },
+  "buttonAdd": {
+    "message": "動画をダウンロード"
+  },
+  "buttonQueued": {
+    "message": "キューにあります"
+  },
+  "buttonDone": {
+    "message": "ライブラリにあります"
+  },
+  "menuAdd": {
+    "message": "動画を Kando に追加"
+  },
+  "popupAdd": {
+    "message": "Kando に追加"
+  },
+  "popupShow": {
+    "message": "Kando で表示"
+  },
+  "popupNoVideo": {
+    "message": "動画のページを開くと、Kando に追加できます。"
+  },
+  "popupConnect": {
+    "message": "Kando の設定 › 一般 › ブラウザ拡張機能で、このブラウザを接続してください。"
+  }
+}

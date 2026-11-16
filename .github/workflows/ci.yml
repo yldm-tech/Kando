@@ -179,6 +179,9 @@ jobs:
           fi
       - name: shellcheck
         run: shellcheck .github/scripts/*.sh
+      # The browser extension, apps/kando/resources/browser-extension, which Release zips for each browser family: its manifest names files that are there, its strings are in the five languages, and its scripts parse (browser-extension-check.mjs, with the runner's Node.js). Whether its generated files are current, the Go tests check (apps/kando/browse).
+      - name: Browser extension
+        run: .github/scripts/browser-extension.sh "$RUNNER_TEMP"
       # changelog.sh writes the release notes only when Release runs, where a mistake would stop a release, so its test runs on every change.
       - name: changelog.sh
         run: .github/scripts/changelog-test.sh

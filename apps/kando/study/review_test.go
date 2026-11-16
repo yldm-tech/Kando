@@ -7,6 +7,7 @@ import (
 
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -85,5 +86,29 @@ func TestReviewHidesTheTranslationUntilShown(t *testing.T) {
 	app.Press("id:review-close")
 	if want := []string{"replay", "reveal", "good", "reveal", "again", "close"}; !slices.Equal(a.calls, want) {
 		t.Fatalf("calls %q, want %q", a.calls, want)
+	}
+}
+
+// TestReviewFollowsTheAppearance checks the review in the window's theme as the system turns dark: the line's original and translation turn light.
+func TestReviewFollowsTheAppearance(t *testing.T) {
+	a := &fakeReview{cards: []Card{{Left: 1, Film: "Talk", Original: "Every river", Translation: "每条河", Revealed: true, NoAudio: true}}}
+	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop})
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a.Attach(cx)
+		theme.Apply(cx)
+		return Review{App: a}
+	}, nsgotest.Size(1100, 720), nsgotest.Environment(env))
+	ink := func(id string) core.Color { return app.Find("id:" + id).TextStyle.Color }
+	for _, id := range []string{"review-original", "review-translation"} {
+		if r, g, b, _ := ink(id).Components(); r > 0.5 || g > 0.5 || b > 0.5 {
+			t.Fatalf("%s is %#x on the light review, want a dark ink", id, uint32(ink(id)))
+		}
+	}
+	env.Dark = true
+	app.SetEnvironment(env)
+	for _, id := range []string{"review-original", "review-translation"} {
+		if r, g, b, _ := ink(id).Components(); r < 0.5 || g < 0.5 || b < 0.5 {
+			t.Fatalf("%s is %#x on the dark review, want a light ink", id, uint32(ink(id)))
+		}
 	}
 }

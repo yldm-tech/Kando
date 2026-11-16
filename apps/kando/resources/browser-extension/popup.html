@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; width: 280px; font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", sans-serif; }
+  main { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+  #title { font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  #line { opacity: 0.72; }
+  #line:empty, #title:empty { display: none; }
+  button { font: inherit; font-weight: 500; padding: 6px 14px; border-radius: 6px; border: 0; cursor: pointer; background: #0a84ff; color: #fff; align-self: flex-start; }
+  button.plain { background: color-mix(in srgb, currentColor 12%, transparent); color: inherit; }
+  button[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="title"></div>
+  <div id="line"></div>
+  <button id="add" type="button" hidden></button>
+  <button id="show" class="plain" type="button" hidden></button>
+</main>
+<script src="sites.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
