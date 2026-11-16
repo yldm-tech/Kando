@@ -317,7 +317,7 @@ func TestHelp(t *testing.T) {
 		t.Errorf("help add = %d, %q", code, stdout)
 	}
 	code, stdout, _ = run("list", "-h")
-	if code != 0 || !strings.Contains(stdout, "Usage: kando list [--source S] [query] [--json]") {
+	if code != 0 || !strings.Contains(stdout, "Usage: kando list [--source S] [--language L] [query] [--json]") {
 		t.Errorf("list -h = %d, %q", code, stdout)
 	}
 	if code, _, stderr := run("help", "bogus"); code != 2 || !strings.Contains(stderr, `unknown command "bogus"`) {
@@ -1326,5 +1326,142 @@ func TestNotRunningExitCode(t *testing.T) {
 	code, stdout, _ := run("status", "--json")
 	if code != 5 || !strings.Contains(stdout, `"code": "not_running"`) {
 		t.Errorf("status = %d, %q", code, stdout)
+	}
+}
+
+// A job that completes without translating its film did not do what kando add --wait asked: its line says so and why, and the command fails.
+func TestAddWaitNotTranslated(t *testing.T) {
+	fastPoll(t)
+	startFake(t, waitApp([][]remote.Job{
+		{{ID: "a", Source: "https://youtu.be/a", Title: "A", Stage: "complete", Progress: 1, TranslationError: "The AI service doesn't accept this key."}, {ID: "b", Source: "/tmp/b.mp4", Stage: "complete", Progress: 1}},
+	}))
+	code, stdout, _ := run("add", "https://youtu.be/a", "/tmp/b.mp4", "--wait")
+	want := "a\thttps://youtu.be/a\n" +
+		"b\t/tmp/b.mp4\n" +
+		"a  complete, not translated  A  The AI service doesn't accept this key.\n" +
+		"b  complete  /tmp/b.mp4\n"
+	if code != 1 || stdout != want {
+		t.Errorf("add --wait = %d\nstdout:\n%s\nwant:\n%s", code, stdout, want)
+	}
+}
+
+// kando add says the app's note on what it queued, as that the subtitles will not be translated.
+func TestAddNote(t *testing.T) {
+	startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method == remote.MethodAdd {
+			return remote.AddResult{Jobs: []remote.Job{{ID: "j9", Source: "https://youtu.be/new", Stage: "queued"}}, Note: "Added. Without an AI service, subtitles will be in the original language only."}, nil
+		}
+		return cannedApp(method, params)
+	})
+	code, stdout, stderr := run("add", "https://youtu.be/new")
+	if code != 0 || stdout != "j9\thttps://youtu.be/new\n" || stderr != "kando add: Added. Without an AI service, subtitles will be in the original language only.\n" {
+		t.Errorf("add = %d, %q, %q", code, stdout, stderr)
+	}
+}
+
+// kando translate asks the app to translate a film's missing lines and prints its job; with --wait it waits for it as retry --wait does.
+func TestTranslate(t *testing.T) {
+	fastPoll(t)
+	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
+		switch method {
+		case remote.MethodTranslate:
+			return remote.Job{ID: "j1", Source: "https://youtu.be/x", Title: "Rivers of Japan", Stage: "queued"}, nil
+		case remote.MethodJobs:
+			return []remote.Job{{ID: "j1", Source: "https://youtu.be/x", Title: "Rivers of Japan", Stage: "complete", Progress: 1}}, nil
+		}
+		return cannedApp(method, params)
+	})
+	code, stdout, _ := run("translate", "f1")
+	if code != 0 || stdout != "j1  queued  Rivers of Japan\n" {
+		t.Errorf("translate = %d, %q", code, stdout)
+	}
+	var p remote.IDParams
+	f.lastParams(t, remote.MethodTranslate, &p)
+	if p.ID != "f1" {
+		t.Errorf("translated %q", p.ID)
+	}
+	if code, stdout, _ := run("translate", "f1", "--wait"); code != 0 || stdout != "j1  complete  Rivers of Japan\n" {
+		t.Errorf("translate --wait = %d, %q", code, stdout)
+	}
+	if code, _, stderr := run("translate"); code != 2 || !strings.Contains(stderr, "needs a film id") {
+		t.Errorf("translate without an id = %d, %q", code, stderr)
+	}
+}
+
+// A job jobs.list no longer lists, as one making the subtitles of a video of the library's folder that failed, is asked for alone, and ends as the app says it did.
+func TestWaitAsksForAJobTheListLeftOut(t *testing.T) {
+	fastPoll(t)
+	wait := waitApp([][]remote.Job{{{ID: "a", Source: "https://youtu.be/a", Stage: "complete", Progress: 1}}})
+	startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method == remote.MethodJob {
+			return remote.Job{ID: "b", Source: "/tmp/b.mp4", Stage: "failed", Error: "transcribe: no speech", FilmID: "/lib/b.mp4"}, nil
+		}
+		return wait(method, params)
+	})
+	code, stdout, _ := run("add", "https://youtu.be/a", "/tmp/b.mp4", "--wait")
+	if code != 1 || !strings.HasSuffix(stdout, "b  failed  /tmp/b.mp4  transcribe: no speech\n") {
+		t.Errorf("add --wait = %d, %q", code, stdout)
+	}
+}
+
+// kando add lists a folder's videos through the app, by its absolute path, says what it holds, and adds them once asked, as it does a playlist's.
+func TestAddFolder(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "Course"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method == remote.MethodLists {
+			p, err := remote.Params[remote.ListsParams](params)
+			if err != nil {
+				return nil, err
+			}
+			return []remote.List{{Source: p.Sources[0], Kind: remote.ListFolder, Title: "Course", NotVideos: 1, Videos: []remote.ListVideo{
+				{URL: "file:///c/1.mp4"}, {URL: "file:///c/2.mp4", InLibrary: true}, {URL: "file:///c/3.mp4"},
+			}}}, nil
+		}
+		return playlistApp(method, params)
+	})
+	answerWith(t, true, "y\n")
+	code, stdout, stderr := run("add", "Course")
+	if code != 0 || stdout != "j1\tfile:///c/1.mp4\nj2\tfile:///c/3.mp4\n" || stderr != "Course: 3 videos (folder), 1 file that is not a video left out, 1 already in the library\nAdd 2 videos? [y/N] " {
+		t.Fatalf("add a folder = %d, %q, %q", code, stdout, stderr)
+	}
+	var lists remote.ListsParams
+	f.lastParams(t, remote.MethodLists, &lists)
+	want, _ := filepath.Abs("Course")
+	if !slices.Equal(lists.Sources, []string{want}) {
+		t.Errorf("listed %q, want %q", lists.Sources, want)
+	}
+}
+
+// kando list --language asks for the films heard in a language, and kando show says the language heard in a film and how its translation went.
+func TestFilmLanguages(t *testing.T) {
+	film := cannedFilm
+	film.SpokenLanguage, film.SpeechLanguage, film.Language = "ja", "ja", ""
+	film.TranslationError, film.Untranslated = "Choose a model in “AI Service” first", 12
+	f := startFake(t, func(method string, params json.RawMessage) (any, error) {
+		if method == remote.MethodFilm {
+			return film, nil
+		}
+		return cannedApp(method, params)
+	})
+	if code, _, _ := run("list", "--language", "ja"); code != 0 {
+		t.Errorf("list --language = %d", code)
+	}
+	var p remote.FilmsParams
+	f.lastParams(t, remote.MethodFilms, &p)
+	if p.Spoken != "ja" {
+		t.Errorf("films params %+v", p)
+	}
+	code, stdout, _ := run("show", "f1")
+	for _, want := range []string{"not translated      Choose a model in “AI Service” first\n", "untranslated lines  12\n", "spoken language     ja\n", "speech language     ja\n"} {
+		if code != 0 || !strings.Contains(stdout, want) {
+			t.Errorf("show = %d, %q, want it to hold %q", code, stdout, want)
+		}
+	}
+	if strings.Contains(stdout, "\nlanguage ") {
+		t.Errorf("show names a language for a film that was not translated: %q", stdout)
 	}
 }

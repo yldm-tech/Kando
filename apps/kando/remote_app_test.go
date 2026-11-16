@@ -967,3 +967,284 @@ func TestRemoteAddSkipsAFolderFilm(t *testing.T) {
 		t.Fatalf("skipped as %+v", s)
 	}
 }
+
+// A film whose translation failed as a whole is complete with the original lines alone: films.get and jobs.get say why, in the words its page uses, count its lines as untranslated, and name no language it was translated into.
+func TestRemoteSaysAFilmWasNotTranslated(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	remoteLibrary(t, a)
+	job, _ := a.library.Find("yt")
+	job.TranslationErr, job.Untranslated = "translation API returned 401 Unauthorized: invalid key", 2
+	a.library.Upsert(job)
+	want := remoteMessages().PrecheckTranslateAuth()
+
+	film, err := remoteCall[remote.Film](t, updates, remote.MethodFilm, remote.IDParams{ID: "yt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if film.Stage != "complete" || film.TranslationError != want || film.Untranslated != 2 || film.Language != "" {
+		t.Fatalf("film %+v", film)
+	}
+	got, err := remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: "yt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Stage != "complete" || got.TranslationError != want || got.Untranslated != 2 || got.Language != "" {
+		t.Fatalf("job %+v", got)
+	}
+}
+
+// Videos added while no AI service is set up are queued, and jobs.add's note says their subtitles will be the original lines, as the message bar does.
+func TestRemoteAddSaysTheSubtitlesWillNotBeTranslated(t *testing.T) {
+	model := filepath.Join(t.TempDir(), "model.bin")
+	remoteWriteFile(t, model, "m")
+	// The tools are not on this machine; the job only has to be queued, and fails its check in the background.
+	tools := media.Tools{YTDLP: "/missing/yt-dlp", FFmpeg: "/missing/ffmpeg", Whisper: "/missing/whisper-cli", WhisperModel: model, Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}}
+	a, tt, updates := newTestApp(t, tools)
+	remoteServe(t, a)
+	a.edit(func(s *session) { s.LibraryDir = t.TempDir() })
+	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{"https://youtu.be/TRWgBxVAb1M"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(added.Jobs) != 1 || added.Note != remoteMessages().LibraryAddedUntranslated() {
+		t.Fatalf("added %+v", added)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return !a.running() })
+}
+
+// A redo of a done film that fails or is stopped puts the film back as it was, but its job answers as it ended, failed or canceled, rather than complete, so a client following jobs.retry is not told it worked; the film itself stays complete.
+func TestRemoteSaysAFailedRedoFailed(t *testing.T) {
+	t.Run("fails", func(t *testing.T) {
+		p := &retranslatePipeline{translateErr: errors.New("translation API returned 401 Unauthorized: invalid key")}
+		a, tt, updates := retranslateLibrary(t, p)
+		remoteServe(t, a)
+		if _, err := remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "talk"}); err != nil {
+			t.Fatal(err)
+		}
+		settle(t, a, tt, updates)
+		job, err := remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: "talk"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if job.Stage != "failed" || job.Canceled || !strings.Contains(job.Error, "401") || job.Status != remoteMessages().PrecheckTranslateAuth() || job.FilmID != "talk" || job.Language != "简体中文" {
+			t.Fatalf("job %+v", job)
+		}
+		if film, err := remoteCall[remote.Film](t, updates, remote.MethodFilm, remote.IDParams{ID: "talk"}); err != nil || film.Stage != "complete" {
+			t.Fatalf("film %+v, %v", film, err)
+		}
+		// Queued again, it is the job it is now.
+		p.translateErr = nil
+		if job, err := remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "talk"}); err != nil || job.Stage != "queued" {
+			t.Fatalf("retried %+v, %v", job, err)
+		}
+		settle(t, a, tt, updates)
+		if job, err := remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: "talk"}); err != nil || job.Stage != "complete" || job.Error != "" {
+			t.Fatalf("job once done %+v, %v", job, err)
+		}
+	})
+	t.Run("canceled", func(t *testing.T) {
+		p := &retranslatePipeline{hold: true}
+		a, tt, updates := retranslateLibrary(t, p)
+		remoteServe(t, a)
+		if _, err := remoteCall[remote.Job](t, updates, remote.MethodRetry, remote.IDParams{ID: "talk"}); err != nil {
+			t.Fatal(err)
+		}
+		queueUntilState(t, updates, func() bool { return stageOf(t, a, "talk").Stage == core.StageTranslating })
+		job, err := remoteCall[remote.Job](t, updates, remote.MethodCancel, remote.IDParams{ID: "talk"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if job.Stage != "failed" || !job.Canceled || job.Error != "" {
+			t.Fatalf("canceled %+v", job)
+		}
+		settle(t, a, tt, updates)
+	})
+}
+
+// jobs.translate translates the lines a done film left untranslated, as 补译未译的句子 does, without moving the window or downloading or transcribing the film, and refuses a film with none.
+func TestRemoteTranslatesTheMissingLines(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates := retranslateLibrary(t, p)
+	remoteServe(t, a)
+	a.page = pageYouTube
+	job, err := remoteCall[remote.Job](t, updates, remote.MethodTranslate, remote.IDParams{ID: "talk"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.ID != "talk" || job.Stage != "queued" || job.Language != "简体中文" || a.page != pageYouTube {
+		t.Fatalf("queued %+v, page %q", job, a.page)
+	}
+	settle(t, a, tt, updates)
+	if !slices.Equal(p.sent, []string{"How are you?"}) || p.language != "简体中文" || p.downloads != 0 || p.transcriptions != 0 {
+		t.Fatalf("sent %q in %q, %d downloads, %d transcriptions", p.sent, p.language, p.downloads, p.transcriptions)
+	}
+	done, err := remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: "talk"})
+	if err != nil || done.Stage != "complete" || done.Untranslated != 0 {
+		t.Fatalf("job %+v, %v", done, err)
+	}
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodTranslate, remote.IDParams{ID: "talk"})
+	remoteWantCode(t, err, remote.CodeInvalid)
+	_, err = remoteCall[remote.Job](t, updates, remote.MethodTranslate, remote.IDParams{ID: "nope"})
+	remoteWantCode(t, err, remote.CodeNotFound)
+}
+
+// Without an AI service, jobs.translate answers not_ready with what is missing, as the sidebar says it, and queues nothing.
+func TestRemoteTranslateSaysWhatIsMissing(t *testing.T) {
+	a, _, updates := newTestApp(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
+	remoteServe(t, a)
+	dir := remoteLibrary(t, a)
+	job, _ := a.library.Find("yt")
+	job.TranslationErr, job.Untranslated = "no translator", 2
+	a.library.Upsert(job)
+	_, err := remoteCall[remote.Job](t, updates, remote.MethodTranslate, remote.IDParams{ID: "yt"})
+	remoteWantCode(t, err, remote.CodeNotReady)
+	if !strings.Contains(err.Error(), remoteMessages().PrecheckNoLLMModel()) || a.running() {
+		t.Fatalf("error %v, running %v", err, a.running())
+	}
+	if job, _ := a.library.Find("yt"); job.Stage != core.StageComplete || job.Redo != "" {
+		t.Fatalf("job %+v in %s", job, dir)
+	}
+}
+
+// A job making the subtitles of a video of the library's folder leaves the shelf when it is stopped or fails, the video back as it was; jobs.cancel and jobs.get still answer how it ended, its film the video, rather than that it is gone.
+func TestRemoteFollowsAFolderVideosJobToItsEnd(t *testing.T) {
+	t.Run("canceled", func(t *testing.T) {
+		p := &retranslatePipeline{hold: true}
+		a, tt, updates, item := folderLibrary(t, p, false)
+		remoteServe(t, a)
+		added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{core.FileURL(item.VideoPath)}})
+		if err != nil || len(added.Jobs) != 1 {
+			t.Fatalf("added %+v, %v", added, err)
+		}
+		id := added.Jobs[0].ID
+		queueUntilState(t, updates, func() bool { return stageOf(t, a, id).Stage == core.StageTranslating })
+		job, err := remoteCall[remote.Job](t, updates, remote.MethodCancel, remote.IDParams{ID: id})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if job.ID != id || job.Stage != "failed" || !job.Canceled || job.FilmID != item.Key {
+			t.Fatalf("canceled %+v", job)
+		}
+		settle(t, a, tt, updates)
+		folderVideoKept(t, a, tt, item)
+		if got, err := remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: id}); err != nil || got != job {
+			t.Fatalf("jobs.get %+v, %v, want %+v", got, err, job)
+		}
+	})
+	t.Run("fails", func(t *testing.T) {
+		p := noSpeechPipeline{&retranslatePipeline{}}
+		a, tt, updates, item := folderLibrary(t, p, false)
+		remoteServe(t, a)
+		added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{core.FileURL(item.VideoPath)}})
+		if err != nil || len(added.Jobs) != 1 {
+			t.Fatalf("added %+v, %v", added, err)
+		}
+		settle(t, a, tt, updates)
+		folderVideoKept(t, a, tt, item)
+		job, err := remoteCall[remote.Job](t, updates, remote.MethodJob, remote.IDParams{ID: added.Jobs[0].ID})
+		if err != nil || job.Stage != "failed" || job.Canceled || job.Error == "" || job.FilmID != item.Key {
+			t.Fatalf("job %+v, %v", job, err)
+		}
+	})
+}
+
+// app.show opens a film still being processed once its video is on disk, as its card's Watch does, and shows the library for one that cannot be watched yet.
+func TestRemoteShowOpensAFilmBeingProcessed(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	dir := remoteLibrary(t, a)
+	video := filepath.Join(dir, "Live", "live.mp4")
+	remoteWriteFile(t, video, "video")
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "live", Source: "https://www.youtube.com/watch?v=live1234567", Language: "简体中文", Stage: core.StageTranslating, VideoPath: video, SubtitlePath: filepath.Join(dir, "Live", "live.srt"), LibraryDir: dir})
+	shown, err := remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.IDParams{ID: "live"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shown != (remote.ShowResult{Shown: "live"}) || a.openKey != "live" {
+		t.Fatalf("answers %+v, film %q", shown, a.openKey)
+	}
+}
+
+// While a dialog is open over the window, app.show changes nothing under it and answers not_ready, as the window's own shortcuts wait for it.
+func TestRemoteShowWaitsForAnOpenDialog(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	remoteLibrary(t, a)
+	a.page = pageYouTube
+	release := a.holdModal()
+	_, err := remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.IDParams{ID: "yt"})
+	remoteWantCode(t, err, remote.CodeNotReady)
+	if a.page != pageYouTube || a.openKey != "" {
+		t.Fatalf("page %q, film %q under the dialog", a.page, a.openKey)
+	}
+	release()
+	if shown, err := remoteCall[remote.ShowResult](t, updates, remote.MethodShow, remote.IDParams{ID: "yt"}); err != nil || shown.Shown != "yt" || a.openKey != "yt" {
+		t.Fatalf("once closed: %+v, %v, film %q", shown, err, a.openKey)
+	}
+}
+
+// films.list and films.get say the language heard in a film and the one the user said it is spoken in, films.list keeps those heard in a language, and a film is found by its video's path, as a video of the folder kept its id from before a job processed it.
+func TestRemoteFilmsSayTheirSpokenLanguage(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	remoteLibrary(t, a)
+	job, _ := a.library.Find("yt")
+	job.SpokenLanguage, job.SpeechLanguage = "en", "en"
+	a.library.Upsert(job)
+	heard, err := remoteCall[[]remote.Film](t, updates, remote.MethodFilms, remote.FilmsParams{Spoken: "EN"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(heard) != 1 || heard[0].ID != "yt" || heard[0].SpokenLanguage != "en" || heard[0].SpeechLanguage != "en" {
+		t.Fatalf("films heard in en %+v", heard)
+	}
+	if none, err := remoteCall[[]remote.Film](t, updates, remote.MethodFilms, remote.FilmsParams{Spoken: "ja"}); err != nil || len(none) != 0 {
+		t.Fatalf("films heard in ja %+v, %v", none, err)
+	}
+	film, err := remoteCall[remote.Film](t, updates, remote.MethodFilm, remote.IDParams{ID: job.VideoPath})
+	if err != nil || film.ID != "yt" {
+		t.Fatalf("film by its path %+v, %v", film, err)
+	}
+}
+
+// lists.expand lists a local folder's videos as dropping it adds them, in their names' order with those of the folders in it, counting the files that are not videos and marking those the library has; jobs.add skips a folder for it to be listed first.
+func TestRemoteListsAFolder(t *testing.T) {
+	a, _, updates := newTestApp(t, &fakePipeline{})
+	remoteServe(t, a)
+	from := t.TempDir()
+	course := filepath.Join(from, "Course")
+	for _, name := range []string{"Lesson 10.mp4", "Lesson 2.mp4", "notes.txt", filepath.Join("Part 2", "Lesson 11.mov"), ".hidden.mp4"} {
+		remoteWriteFile(t, filepath.Join(course, name), "v")
+	}
+	remoteWriteFile(t, filepath.Join(from, "Empty", "readme.txt"), "x")
+	a.library.Jobs = []core.Job{{ID: "had", Source: core.FileURL(filepath.Join(course, "Lesson 2.mp4")), Stage: core.StageComplete, LibraryDir: "/videos"}}
+
+	lists, err := remoteCall[[]remote.List](t, updates, remote.MethodLists, remote.ListsParams{Sources: []string{"Course", core.FileURL(filepath.Join(from, "Empty"))}, Dir: from})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(lists) != 2 {
+		t.Fatalf("lists %+v", lists)
+	}
+	l := lists[0]
+	var urls []string
+	for _, v := range l.Videos {
+		urls = append(urls, v.URL)
+	}
+	want := []string{core.FileURL(filepath.Join(course, "Lesson 2.mp4")), core.FileURL(filepath.Join(course, "Lesson 10.mp4")), core.FileURL(filepath.Join(course, "Part 2", "Lesson 11.mov"))}
+	if l.Kind != remote.ListFolder || l.Title != "Course" || l.NotVideos != 1 || l.Error != "" || !slices.Equal(urls, want) || !l.Videos[0].InLibrary || l.Videos[1].InLibrary || l.Videos[0].Title != "Lesson 2" {
+		t.Fatalf("folder %+v", l)
+	}
+	if lists[1].Kind != remote.ListFolder || len(lists[1].Videos) != 0 || lists[1].Error != remoteMessages().PrecheckNoVideo() {
+		t.Fatalf("empty folder %+v", lists[1])
+	}
+
+	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{course}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(added.Jobs) != 0 || len(added.Skipped) != 1 || !strings.Contains(added.Skipped[0].Reason, "lists.expand") {
+		t.Fatalf("added a folder %+v", added)
+	}
+}

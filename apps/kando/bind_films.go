@@ -324,8 +324,7 @@ func (a *app) TranslationHint(item films.Film) (reason, section string) {
 	if item.TranslationErr == "" {
 		return "", ""
 	}
-	m := a.messages()
-	return failureHint(m, films.Film{Detail: m.QueueStatusFailed("translate: " + item.TranslationErr)})
+	return translationHint(a.messages(), item.TranslationErr)
 }
 
 func (a *app) JobFilm(id string) (films.Film, bool) {

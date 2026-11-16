@@ -37,6 +37,8 @@ type jobQueue struct {
 	whisperModel string
 	// redoEnded is the jobs that were processing or translating a done film again (core.Job.Redo) and failed or were stopped since they were last queued, as they ended, by ID. Each film is the done film it was (queueRedoEnded), so it is not said to be done anew (queueEndedElsewhere), and the film page says why its redo failed (RedoFailure), as it draws no message bar.
 	redoEnded map[string]core.Job
+	// folderEnded is the jobs that were processing a video found in the library's folder (core.Job.FromFolder) and failed or were stopped since launch, as they ended, by ID. They left the shelf, the video back as it was (queueFolderEnded), so the control socket still answers how each ended to a client that follows it (remoteJob), rather than that it is gone.
+	folderEnded map[string]core.Job
 	// ran is the IDs of the jobs the queue has run to the end since launch, whichever library they saved into. jobs.list keeps listing them after they end even when another library is open (remoteQueue), so a client waiting on one sees how it ended rather than losing it.
 	ran map[string]bool
 	// cancel stops the running job; with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
@@ -495,6 +497,16 @@ func (a *app) queueRetranslate(job core.Job, redo core.Redo, into string) error 
 	if job.Stage != core.StageComplete || job.ID == a.queue.active {
 		return nil
 	}
+	ready, err := a.queueRetranslatable(job, redo, into)
+	if err != nil {
+		return err
+	}
+	a.queueAgain(ready, nil)
+	return nil
+}
+
+// queueRetranslatable is done film job ready for queueAdd to translate again as queueRetranslate says, or why it cannot be: no target language is given or set. It changes nothing, neither the page nor the selected card, so the control socket's jobs.translate, which must not move the window, starts from it too.
+func (a *app) queueRetranslatable(job core.Job, redo core.Redo, into string) (core.Job, error) {
 	job.Redo, job.RedoLanguage = redo, ""
 	language := strings.TrimSpace(job.Language)
 	switch {
@@ -504,15 +516,14 @@ func (a *app) queueRetranslate(job core.Job, redo core.Redo, into string) error 
 		language = strings.TrimSpace(a.prefs.language)
 	}
 	if language == "" {
-		return errors.New(a.messages().QueueNoLanguage())
+		return core.Job{}, errors.New(a.messages().QueueNoLanguage())
 	}
 	if redo == core.RedoTranslation {
 		job.RedoLanguage = language
 	} else {
 		job.Language = language
 	}
-	a.queueAgain(job, nil)
-	return nil
+	return job, nil
 }
 
 // queueRedoEnded is job, which was processing or translating a done film again (core.Job.Redo) and has failed or been stopped, put back as the done film it was: its subtitles are still the ones it had, which the job still describes, and so is the language heard in it (media.Run). The message bar says why the job failed, and the film page too while the film is open (jobQueue.redoEnded); a job the user cancelled, or one stopped by a switch of library, says nothing.
@@ -566,7 +577,7 @@ func (a *app) queueFolderJob(job *core.Job, item films.Film) {
 	}
 }
 
-// queueFolderEnded takes job, which was processing a video found in the library's folder (core.Job.FromFolder) and has failed or been stopped, off the shelf, so the folder's film is back as it was, with the subtitles found beside it, and an open film stays open on it. The message bar says why the job failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
+// queueFolderEnded takes job, which was processing a video found in the library's folder (core.Job.FromFolder) and has failed or been stopped, off the shelf, so the folder's film is back as it was, with the subtitles found beside it, and an open film stays open on it; the control socket still answers how the job ended (jobQueue.folderEnded). The message bar says why the job failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
 func (a *app) queueFolderEnded(job core.Job) {
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
 		m := a.messages()
@@ -583,6 +594,10 @@ func (a *app) queueFolderEnded(job core.Job) {
 		a.openKey = job.VideoPath
 	}
 	a.remove(job.ID)
+	if a.queue.folderEnded == nil {
+		a.queue.folderEnded = map[string]core.Job{}
+	}
+	a.queue.folderEnded[job.ID] = job
 	if following {
 		if item, ok := films.Find(a.films(), job.VideoPath); ok {
 			a.loadSubtitles(item.Key, item.SubtitlePath)
