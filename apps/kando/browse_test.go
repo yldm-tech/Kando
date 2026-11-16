@@ -255,7 +255,7 @@ func TestBrowseDownloadEnqueuesTheShownPage(t *testing.T) {
 func TestBrowseDownloadIsOffOnAPageOfVideos(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	msgs := testlocale.Messages()
-	for _, u := range []string{"https://www.youtube.com/", "https://www.youtube.com/results?search_query=french", "https://www.youtube.com/@veritasium", "https://search.bilibili.com/all?keyword=french"} {
+	for _, u := range []string{"https://www.youtube.com/", "https://www.youtube.com/results?search_query=french", "https://www.youtube.com/@veritasium", "https://search.bilibili.com/all?keyword=french", "https://www.bilibili.com/zh-Hans", "https://search.bilibili.com/zh-Hans/all?keyword=french"} {
 		browseOpen(t, a, tt, u)
 		if tt.Enabled("id:browse-download") {
 			t.Fatalf("下载视频 is on at %s", u)
@@ -969,5 +969,25 @@ func TestLibraryOpensTheBrowser(t *testing.T) {
 	tt.Press("id:films-browse")
 	if a.page != pageBrowse {
 		t.Fatalf("page %q", a.page)
+	}
+}
+
+// bilibili may serve its pages under the reader's language (www.bilibili.com/zh-Hans/video/BV…/), whose links yt-dlp's bilibili extractor does not read: a page's button adds the video by its canonical link, which is the same video as the localized one, so the page hears it is queued under either.
+func TestBrowsePageButtonAddsALocalizedBilibiliVideo(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{block: true})
+	home, localized, canonical := "https://www.bilibili.com/zh-Hans", "https://www.bilibili.com/zh-Hans/video/BV1nx4y1x7t1/?p=2", "https://www.bilibili.com/video/BV1nx4y1x7t1/?p=2"
+	browseOpen(t, a, tt, home)
+	browsePagePost(tt, "https://search.bilibili.com/zh-Hans/all?keyword=x", browseAskData(localized))
+	browsePagePost(tt, home, browseAddData(localized, "爆旋陀螺"))
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != canonical {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	if queueSourceKey(localized) != queueSourceKey(canonical) {
+		t.Fatalf("keys %q and %q", queueSourceKey(localized), queueSourceKey(canonical))
+	}
+	browsePagePost(tt, home, browseAskData(canonical))
+	states := browsePageStates(t, tt)
+	if pushed, asked := states[len(states)-2], states[len(states)-1]; pushed.Have[localized] != browse.HaveQueued || asked.Have[canonical] != browse.HaveQueued {
+		t.Fatalf("the page heard %+v", states)
 	}
 }

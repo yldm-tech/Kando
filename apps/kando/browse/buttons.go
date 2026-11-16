@@ -96,7 +96,7 @@ func ParseAdd(data string) (link, title string, ok bool) {
 	return add.URL, title, true
 }
 
-// buttonsScript is the part of Script that draws the page's buttons. It reads videoSites as VideoLink does, finds the videos of a page by its links (a[href]) that are videos' and hold a picture, rather than by the sites' own components, and looks again as the page changes, a site that is one page as much as any other: once things settle after a change of the page or its address. Its buttons never move what the page lays out: + lies over the thumbnail's corner without taking room, marked so another look does not add it again, and 下载视频 goes into the site's row of buttons or floats over the player. They live in a closed shadow root, drawn with inline styles only, so the page's styles and its content security policy leave them be, and they keep to themselves only the events of their own clicks, keys and the app's StateMessage. A click adds only when the user made it (event.isTrusted); the app checks again what it adds (the app's browsePageAdd).
+// buttonsScript is the part of Script that draws the page's buttons. It reads videoSites as VideoLink does, finds the videos of a page by its links (a[href]) that are videos' and hold a picture, rather than by the sites' own components, and looks again as the page changes, a site that is one page as much as any other: once things settle after a change of the page or its address. Its buttons never move what the page lays out: + and the marks of the videos the library has float over the top-left corner of the thumbnails, above whatever the site draws over them, and each thumbnail's link holds only a button that takes no room, for the keyboard, marked so another look does not add it again; 下载视频 goes into the site's row of buttons or floats over the player. They live in a closed shadow root, drawn with inline styles only, so the page's styles and its content security policy leave them be, and they keep to themselves only the events of their own clicks, keys and the app's StateMessage. A click adds only when the user made it (event.isTrusted); the app checks again what it adds (the app's browsePageAdd).
 func buttonsScript() string {
 	return `(() => {
   const ASK = "` + AskMessage + `", ADD = "` + AddMessage + `", STATE = "` + StateMessage + `";
@@ -106,7 +106,7 @@ func buttonsScript() string {
   if (typeof send !== "function") return;
   const tell = (data) => { try { send.call(bridge, data); } catch (e) {} };
   const sites = (` + videoSitesJSON() + `).map((s) => ({
-    domain: s.domain, not: s.not || [], rows: s.rows || [],
+    domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
     videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
   }));
   const siteOf = (hostname) => {
@@ -157,7 +157,8 @@ func buttonsScript() string {
     paint();
   }, true);
 
-  // The buttons, each a host element whose closed shadow root holds the button.
+  // The buttons, each a host element whose closed shadow root holds the button: 下载视频 (PILL), the + over the thumbnail under the pointer or the keyboard (PLUS), a mark over each thumbnail of a video the library has (BADGE), and, inside each thumbnail's link, a button the keyboard reaches it by, which shows nothing itself (MARK).
+  const PLUS = "data-kando-plus", BADGE = "data-kando-mark";
   const SVG = "http://www.w3.org/2000/svg";
   const ICONS = {
     plus: ["M12 5v14", "M5 12h14"],
@@ -165,42 +166,49 @@ func buttonsScript() string {
     queued: ["M22 12a10 10 0 1 1-20 0 10 10 0 1 1 20 0", "M12 6v6l4 2"],
     done: ["M20 6 9 17l-5-5"],
   };
+  const DARK = "rgba(0, 0, 0, 0.72)", DARKER = "rgba(0, 0, 0, 0.88)";
   const put = (style, props) => { for (const [k, v] of Object.entries(props)) style.setProperty(k, v, "important"); };
   const hosts = new WeakMap();
   const make = (kind) => {
     const host = document.createElement("span");
     host.setAttribute(kind, "");
     const root = host.attachShadow({ mode: "closed" });
-    const button = document.createElement("button");
-    button.type = "button";
+    const button = document.createElement(kind === BADGE ? "span" : "button");
+    if (kind !== BADGE) button.type = "button";
     const icon = document.createElementNS(SVG, "svg");
     for (const [k, v] of Object.entries({ viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", "stroke-width": "2.25", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) icon.setAttribute(k, v);
     button.append(icon);
-    const entry = { kind, host, button, icon, label: null, url: "", link: null, state: null, text: null, glyph: "", floating: false, hover: false };
+    const entry = { kind, host, button, icon, label: null, url: "", link: null, state: null, text: null, glyph: "", floating: false, hover: false, badge: null };
     put(button.style, { all: "initial", "box-sizing": "border-box", display: "flex", "align-items": "center", "justify-content": "center", cursor: "pointer", color: "inherit", "-webkit-tap-highlight-color": "transparent" });
+    const floating = { position: "fixed", "z-index": "2147483646", top: "0", left: "0", right: "auto", bottom: "auto", margin: "0", padding: "0", border: "0", float: "none", transform: "none", opacity: "1" };
     if (kind === PILL) {
       entry.label = document.createElement("span");
       button.append(entry.label);
       put(button.style, { gap: "6px", height: "32px", padding: "0 14px", "border-radius": "16px", "white-space": "nowrap", font: "500 14px/1 system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans', 'Microsoft YaHei', sans-serif" });
       put(host.style, { display: "none", "flex": "none", "align-self": "center", padding: "0", border: "0", "pointer-events": "auto" });
+    } else if (kind === MARK) {
+      // It takes no room and draws nothing; with the keyboard on it, PLUS shows over the thumbnail.
+      put(host.style, { display: "block", position: "absolute", width: "1px", height: "1px", margin: "0", padding: "0", border: "0", overflow: "hidden", opacity: "0", "pointer-events": "none", "clip-path": "inset(50%)" });
     } else {
-      put(button.style, { width: "28px", height: "28px", "border-radius": "14px", padding: "0", background: "rgba(0, 0, 0, 0.72)", color: "#fff" });
-      put(host.style, { display: "none", position: "absolute", "z-index": "2147483646", top: "auto", left: "auto", right: "auto", bottom: "auto", margin: "6px", padding: "0", border: "0", width: "28px", height: "28px", float: "none", transform: "none", opacity: "0", transition: "opacity 0.15s", "pointer-events": "auto" });
+      put(button.style, { width: "28px", height: "28px", "border-radius": "14px", padding: "0", background: DARK, color: "#fff" });
+      put(host.style, { ...floating, display: "none", width: "28px", height: "28px", "pointer-events": kind === PLUS ? "auto" : "none" });
     }
-    button.addEventListener("pointerenter", () => { entry.hover = true; fill(entry); });
-    button.addEventListener("pointerleave", () => { entry.hover = false; fill(entry); });
-    button.addEventListener("focus", () => put(button.style, { outline: "2px solid #3ea6ff", "outline-offset": "2px" }));
-    button.addEventListener("blur", () => put(button.style, { outline: "none" }));
+    if (kind === PLUS || kind === PILL) {
+      button.addEventListener("pointerenter", () => { entry.hover = true; fill(entry); });
+      button.addEventListener("pointerleave", () => { entry.hover = false; fill(entry); });
+    }
+    if (kind === PILL) {
+      button.addEventListener("focus", () => put(button.style, { outline: "2px solid #3ea6ff", "outline-offset": "2px" }));
+      button.addEventListener("blur", () => put(button.style, { outline: "none" }));
+    }
     root.append(button);
     hosts.set(host, entry);
     return entry;
   };
   // fill gives a button its background for where it lies and whether the pointer is on it.
   const fill = (e) => {
-    if (e.kind !== PILL) {
-      put(e.button.style, { background: e.hover ? "rgba(0, 0, 0, 0.88)" : "rgba(0, 0, 0, 0.72)" });
-    } else if (e.floating) {
-      put(e.button.style, { background: e.hover ? "rgba(0, 0, 0, 0.88)" : "rgba(0, 0, 0, 0.72)" });
+    if (e.kind !== PILL || e.floating) {
+      put(e.button.style, { background: e.hover ? DARKER : DARK });
     } else {
       put(e.button.style, { background: e.hover ? "rgba(128, 128, 128, 0.28)" : "rgba(128, 128, 128, 0.16)" });
       e.button.style.setProperty("background", "color-mix(in srgb, currentColor " + (e.hover ? "18%" : "10%") + ", transparent)", "important");
@@ -209,29 +217,123 @@ func buttonsScript() string {
   const glyph = (e, name) => {
     if (e.glyph === name) return;
     e.glyph = name;
-    e.icon.replaceChildren(...ICONS[name].map((d) => { const p = document.createElementNS(SVG, "path"); p.setAttribute("d", d); return p; }));
+    e.icon.replaceChildren(...(ICONS[name] || ICONS.plus).map((d) => { const p = document.createElementNS(SVG, "path"); p.setAttribute("d", d); return p; }));
+  };
+  // look gives a button the words and the glyph of what the library has of its video.
+  const look = (e, url, plain) => {
+    const state = have.get(url) || "";
+    if (e.state === state && e.text === text) return;
+    e.state = state;
+    e.text = text;
+    const words = String((state === "done" ? text.done : state === "queued" ? text.queued : text.add) || "");
+    if (e.kind === BADGE) {
+      e.host.setAttribute("data-kando-have", state);
+    } else {
+      e.button.setAttribute("aria-label", words);
+      if (e.kind === PILL) e.label.textContent = words; else e.button.title = words;
+    }
+    glyph(e, state || plain);
   };
 
-  // Where the pointer and the keyboard focus are, which show a thumbnail's +.
-  let pointed = null, focused = null;
-  const thumbOf = (node) => {
+  // The + shows over the thumbnail of the link the pointer is on, or the keyboard, and stays while the pointer is on the + itself; it floats over the page, above whatever the site draws over its thumbnails. The link under the pointer is the first marked one of all the elements there, not only the topmost, as a site may lay its own layer over a thumbnail the pointer rests on, as YouTube's preview that plays it.
+  const ours = (target) => target instanceof Element && hosts.has(target);
+  let plus = null, target = null, pointed = null, focused = null;
+  const markOf = (node) => {
     const a = node instanceof Element ? node.closest("a[href]") : null;
     const seen = a && links.get(a);
     return seen && seen.mark && seen.mark.host.parentNode === a ? seen.mark : null;
   };
-  const look = (e) => {
-    if (!e || e.kind === PILL) return;
-    const shown = text && (e.state || e === pointed || e === focused);
-    put(e.host.style, { opacity: shown ? "1" : "0" });
+  const aim = () => {
+    const now = pointed || focused;
+    if (now === target) return;
+    target = now;
+    if (target) {
+      if (!plus) { plus = make(PLUS); document.documentElement.append(plus.host); }
+      plus.url = target.url;
+      plus.link = target.link;
+    }
+    layoutSoon();
   };
-  const point = (e) => { if (pointed === e) return; const was = pointed; pointed = e; look(was); look(e); };
-  addEventListener("pointerover", (ev) => point(thumbOf(ev.target)), { capture: true, passive: true });
-  addEventListener("pointerout", (ev) => { if (!ev.relatedTarget) point(null); }, { capture: true, passive: true });
-  addEventListener("focusin", (ev) => { const was = focused; focused = thumbOf(ev.target); look(was); look(focused); }, true);
-  addEventListener("focusout", (ev) => { if (!ev.relatedTarget) { const was = focused; focused = null; look(was); } }, true);
+  let pointer = null, under = new Set();
+  const hit = () => {
+    if (!pointer) return;
+    const all = document.elementsFromPoint(pointer.x, pointer.y);
+    under = new Set(all);
+    if (plus && all[0] === plus.host) return;
+    let found = null;
+    for (const el of all) {
+      if (ours(el)) continue;
+      if ((found = markOf(el))) break;
+    }
+    pointed = found;
+  };
+  let hitting = 0;
+  addEventListener("pointermove", (ev) => {
+    pointer = { x: ev.clientX, y: ev.clientY };
+    if (!hitting) hitting = requestAnimationFrame(() => { hitting = 0; hit(); aim(); layoutSoon(); });
+  }, { capture: true, passive: true });
+  addEventListener("pointerout", (ev) => { if (!ev.relatedTarget) { pointer = null; under = new Set(); pointed = null; aim(); } }, { capture: true, passive: true });
+  addEventListener("focusin", (ev) => { focused = markOf(ev.target); aim(); }, true);
+  addEventListener("focusout", (ev) => { if (!ev.relatedTarget) { focused = null; aim(); } }, true);
+
+  // corner is where a mark of the link a goes: the top-left corner of its thumbnail as it shows, the largest picture in it, inside the link; null while it shows none.
+  const corner = (a) => {
+    const box = a.getBoundingClientRect();
+    let best = null, area = 0;
+    for (const el of a.querySelectorAll("img, picture, video, [style*='background-image']")) {
+      const r = el.getBoundingClientRect();
+      if (r.width * r.height > area) { best = r; area = r.width * r.height; }
+    }
+    if (!best || best.width < 40 || best.height < 30) best = box;
+    if (best.width < 40 || best.height < 30) return null;
+    return { x: Math.round(Math.max(best.left, box.left) + 6), y: Math.round(Math.max(best.top, box.top) + 6) };
+  };
+  // shows reports whether the corner p of the link a is on the screen and not under something else of the page, as a bar over the thumbnail; what lies over the pointer too, as a preview over the whole thumbnail, does not count.
+  const shows = (a, p) => {
+    if (p.x < 0 || p.y < 0 || p.x + 28 > innerWidth || p.y + 28 > innerHeight) return false;
+    for (const el of document.elementsFromPoint(p.x + 14, p.y + 14)) {
+      if (ours(el)) continue;
+      return a.contains(el) || under.has(el);
+    }
+    return false;
+  };
+  let laying = 0;
+  const layoutSoon = () => { if (!laying) laying = requestAnimationFrame(layout); };
+  const layout = () => {
+    laying = 0;
+    hit();
+    aim();
+    if (plus) {
+      const at = text && target && target.host.isConnected ? corner(target.link) : null;
+      if (at && (target === focused || shows(target.link, at))) {
+        look(plus, target.url, "plus");
+        put(plus.host.style, { display: "block", left: at.x + "px", top: at.y + "px" });
+        put(plus.button.style, { outline: target === focused && document.activeElement === target.host ? "2px solid #3ea6ff" : "none", "outline-offset": "2px" });
+      } else {
+        put(plus.host.style, { display: "none" });
+      }
+    }
+    let shown = 0;
+    for (const e of marks) {
+      if (!e.host.isConnected) { marks.delete(e); if (e.badge) e.badge.host.remove(); continue; }
+      const state = text ? have.get(e.url) || "" : "";
+      if (!state) { if (e.badge) put(e.badge.host.style, { display: "none" }); continue; }
+      if (!e.badge) { e.badge = make(BADGE); document.documentElement.append(e.badge.host); }
+      look(e.badge, e.url, "plus");
+      const at = e !== target && shown < 60 ? corner(e.link) : null;
+      if (at && shows(e.link, at)) {
+        shown++;
+        put(e.badge.host.style, { display: "block", left: at.x + "px", top: at.y + "px" });
+      } else {
+        put(e.badge.host.style, { display: "none" });
+      }
+    }
+    place();
+  };
+  addEventListener("scroll", layoutSoon, { capture: true, passive: true });
+  addEventListener("resize", layoutSoon, { passive: true });
 
   // A press on a button is the button's alone: the page under it neither follows the link nor hears it.
-  const ours = (target) => target instanceof Element && hosts.has(target);
   for (const type of ["pointerdown", "mousedown", "pointerup", "mouseup", "click", "auxclick", "dblclick"]) {
     addEventListener(type, (ev) => {
       if (!ours(ev.target)) return;
@@ -245,9 +347,21 @@ func buttonsScript() string {
     addEventListener(type, (ev) => { if (ours(ev.target) && (ev.key === "Enter" || ev.key === " ")) ev.stopImmediatePropagation(); }, true);
   }
   const clean = (s) => (s || "").replace(/\s+/g, " ").trim();
-  // titleOf names a thumbnail's video as the page does, by a link to it with a title, or the words of one without a picture; the page's own video the app names itself.
+  const visible = (el) => el.getClientRects().length > 0;
+  // titleOf names the video as the page does: a thumbnail's by a link to it with a title, or the words of one without a picture, and the page's own by its heading, or its document's title without the site's name.
   const titleOf = (e) => {
-    if (e.kind === PILL) return "";
+    if (e.kind === PILL) {
+      const site = siteOf(new URL(e.url).hostname);
+      for (const sel of site.titles) {
+        for (const el of document.querySelectorAll(sel)) {
+          const t = visible(el) && clean(el.textContent);
+          if (t) return t;
+        }
+      }
+      let t = clean(document.title).replace(/^\(\d+\+?\) /, "");
+      for (const cut of site.cut) if (t.endsWith(cut)) t = t.slice(0, -cut.length).trim();
+      return t;
+    }
     let words = "";
     for (const a of document.querySelectorAll("a[href]")) {
       if (videoOf(a.getAttribute("href")) !== e.url) continue;
@@ -259,44 +373,21 @@ func buttonsScript() string {
   };
   const add = (e) => { if (e && e.url) tell(ADD + JSON.stringify({ url: e.url, title: titleOf(e).slice(0, 300) })); };
 
-  // paint gives every button its words, its glyph and its look for what the library has of its video.
+  // paint gives every button its words and its glyph for what the library has of its video.
   const marks = new Set();
   let pill = null;
-  const paintOne = (e) => {
-    const state = have.get(e.url) || "";
-    if (!text) { put(e.host.style, { display: "none" }); return; }
-    if (e.state !== state || e.text !== text) {
-      e.state = state;
-      e.text = text;
-      const words = String((state === "done" ? text.done : state === "queued" ? text.queued : text.add) || "");
-      e.button.setAttribute("aria-label", words);
-      if (e.kind === PILL) {
-        e.label.textContent = words;
-      } else {
-        e.button.title = words;
-        if (state) e.host.setAttribute("data-kando-have", state); else e.host.removeAttribute("data-kando-have");
-      }
-      glyph(e, state || (e.kind === PILL ? "download" : "plus"));
-    }
-    if (e.kind === PILL) {
-      if (!e.floating) put(e.host.style, { display: "inline-flex" });
-      fill(e);
-      place();
-    } else {
-      put(e.host.style, { display: "block" });
-      look(e);
-    }
-  };
   const paint = () => {
-    for (const e of marks) {
-      if (!e.host.isConnected) { marks.delete(e); continue; }
-      paintOne(e);
+    if (!text) return;
+    for (const e of marks) if (e.host.isConnected) look(e, e.url, "plus");
+    if (pill && pill.url) {
+      look(pill, pill.url, "download");
+      if (!pill.floating) put(pill.host.style, { display: "inline-flex" });
+      fill(pill);
     }
-    if (pill && pill.url) paintOne(pill);
+    layoutSoon();
   };
 
   // place puts 下载视频 over the top corner of the largest video showing, when it is not in the site's row.
-  let placing = 0;
   const place = () => {
     if (!pill || !pill.floating || !pill.host.isConnected) return;
     let best = null, area = 0;
@@ -307,9 +398,6 @@ func buttonsScript() string {
     if (!best || !text) { put(pill.host.style, { display: "none" }); return; }
     put(pill.host.style, { display: "inline-flex", top: Math.round(Math.max(best.top, 0) + 12) + "px", left: Math.round(best.left + 12) + "px" });
   };
-  const placeSoon = () => { if (!placing) placing = requestAnimationFrame(() => { placing = 0; place(); }); };
-  addEventListener("scroll", placeSoon, { capture: true, passive: true });
-  addEventListener("resize", placeSoon, { passive: true });
 
   // pagePill shows 下载视频 on a page of one video, in the first of the site's rows the page shows, or else floating over its player.
   const pagePill = () => {
@@ -325,7 +413,7 @@ func buttonsScript() string {
     let row = null, end = false;
     for (const r of site.rows) {
       const el = document.querySelector(r.selector);
-      if (el && el.getClientRects().length) { row = el; end = !!r.end; break; }
+      if (el && visible(el)) { row = el; end = !!r.end; break; }
     }
     const h = pill.host;
     if (row) {
@@ -340,7 +428,7 @@ func buttonsScript() string {
     }
   };
 
-  // scan finds the page's videos, gives each thumbnail its + and asks the app what the library has of them.
+  // scan finds the page's videos, gives each thumbnail's link its MARK and asks the app what the library has of them.
   const links = new WeakMap();
   const scan = () => {
     timer = 0;
@@ -352,7 +440,7 @@ func buttonsScript() string {
       const url = seen && seen.raw === raw ? seen.url : videoOf(raw);
       let mark = seen && seen.mark;
       if (!url || !a.querySelector("img, picture, video, [style*='background-image']")) {
-        if (mark) { mark.host.remove(); marks.delete(mark); }
+        if (mark) { mark.host.remove(); marks.delete(mark); if (mark.badge) mark.badge.host.remove(); }
         links.set(a, { raw, url, mark: null });
         continue;
       }
@@ -360,6 +448,7 @@ func buttonsScript() string {
       if (mark.host.parentNode !== a) a.insertBefore(mark.host, a.firstChild);
       mark.url = url;
       mark.link = a;
+      if (target === mark && plus) plus.url = url;
       marks.add(mark);
       links.set(a, { raw, url, mark });
       ask(url);

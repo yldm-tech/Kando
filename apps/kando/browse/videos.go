@@ -5,9 +5,11 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	kcore "kando/packages/core"
 )
 
-// videoSite is a site whose links to one video the browser knows by their shape, so its pages get the browser's own buttons (PageScript): 下载视频 on a page of one video, and + over the thumbnail of each video a page lists. Domain is the site's host and its subdomains, but for Not, hosts of the site whose pages are no video, as ParseLink writes them (without www. and m.). Videos are the shapes of its videos' links; Rows are where the site keeps the buttons under a video, by CSS selector, the first one found taking 下载视频 at its start or at its end (End).
+// videoSite is a site whose links to one video the browser knows by their shape, so its pages get the browser's own buttons (PageScript): 下载视频 on a page of one video, and + over the thumbnail of each video a page lists. Domain is the site's host and its subdomains, but for Not, hosts of the site whose pages are no video, as ParseLink writes them (without www. and m.). Videos are the shapes of its videos' links; Rows are where the site keeps the buttons under a video, by CSS selector, the first one found taking 下载视频 at its start or at its end (End). Titles are the headings that name the video of its page, the first one showing; without one the document's title names it, without a leading count and without the site's name after it (Cut).
 //
 // The JavaScript of the pages reads this same data (PageScript), so the page and the app cannot tell a video apart differently; every shape is a link kcore.ParseLink reads as one video (videos_test.go). The patterns are regular expressions both Go and JavaScript read alike: no flags, no named groups, no lookaround.
 type videoSite struct {
@@ -15,6 +17,8 @@ type videoSite struct {
 	Not    []string     `json:"not,omitempty"`
 	Videos []videoShape `json:"videos"`
 	Rows   []videoRow   `json:"rows,omitempty"`
+	Titles []string     `json:"titles,omitempty"`
+	Cut    []string     `json:"cut,omitempty"`
 }
 
 // videoShape is a link to one video: its path, as the URL escapes it, matching Path, and, when Param is set, that query parameter's first value matching Value.
@@ -38,14 +42,19 @@ var videoSites = []videoSite{
 			{Path: `^/watch/?$`, Param: "v", Value: `^[\w-]{6,}$`},
 			{Path: `^/(shorts|live)/[\w-]{6,}/?$`},
 		},
-		Rows: []videoRow{{Selector: "ytd-watch-metadata #top-level-buttons-computed"}},
+		Rows:   []videoRow{{Selector: "ytd-watch-metadata #top-level-buttons-computed"}},
+		Titles: []string{"ytd-watch-metadata h1", "ytd-reel-video-renderer[is-active] h2"},
+		Cut:    []string{" - YouTube"},
 	},
 	{Domain: "youtu.be", Videos: []videoShape{{Path: `^/[\w-]{6,}/?$`}}},
 	{
 		Domain: "bilibili.com",
 		Not:    []string{"space.bilibili.com", "search.bilibili.com", "live.bilibili.com"},
-		Videos: []videoShape{{Path: `^/video/(BV[0-9A-Za-z]{10}|av[0-9]+)/?$`}},
+		// Its pages may be under the reader's language, as /zh-Hans/video/BV…/, which ParseLink reads as the video's canonical link.
+		Videos: []videoShape{{Path: `^/(` + kcore.BilibiliLocale + `/)?video/(BV[0-9A-Za-z]{10}|av[0-9]+)/?$`}},
 		Rows:   []videoRow{{Selector: ".video-toolbar-left-main", End: true}, {Selector: ".video-toolbar-left", End: true}},
+		Titles: []string{"h1.video-title", ".video-info-title h1", ".video-title"},
+		Cut:    []string{"_哔哩哔哩_bilibili"},
 	},
 	{Domain: "vimeo.com", Not: []string{"player.vimeo.com"}, Videos: []videoShape{{Path: `^/[0-9]+/?$`}}},
 	{Domain: "ted.com", Videos: []videoShape{{Path: `^/talks/[\w-]+/?$`}}},
