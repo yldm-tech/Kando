@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,8 @@ import (
 
 	"kando/apps/kando/settings"
 	"kando/packages/media"
+
+	ns "github.com/nsgo-dev/nsgo/core"
 )
 
 // Settings › 语音识别 and 通用: the whisper model, its download and its file, the language spoken in the videos, and the tools' versions.
@@ -97,6 +100,38 @@ func (a *app) useSpeechModel(path string) {
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().SettingsSpeechSaveFailed(err.Error())
 	}
+}
+
+// pickSpeechModel asks for a whisper.cpp model file already on the computer, as 选择模型文件… on the 语音识别 page does, holding the window's modal flag until the panel answers, and uses the one picked from the next job on. A file that is not a model, or one Kando cannot read, is not used; the page says why under the models.
+func (a *app) pickSpeechModel() {
+	if a.cx == nil {
+		return
+	}
+	release := a.holdModal()
+	// TODO(nsgo#199): give core.PickFilesOptions a title, a button label and a name for the filter, so the panel says 选择模型文件 over whisper 模型 as the button does; it shows the system's own words https://github.com/nsgo-dev/nsgo/issues/199
+	a.cx.Run(func() {
+		a.cx.PickFiles(ns.PickFilesOptions{Types: []string{".bin"}}, func(files []ns.File, err error) {
+			release()
+			defer a.Changed()
+			if err != nil {
+				a.prefs.downloadErr = err
+				return
+			}
+			if len(files) == 0 || files[0].Path == "" {
+				return
+			}
+			path := files[0].Path
+			if err := media.CheckSpeechModelFile(path); err != nil {
+				if !errors.Is(err, media.ErrNotSpeechModel) {
+					log.Printf("settings: cannot read the speech model %s: %v", path, err)
+				}
+				a.prefs.downloadErr = settings.ModelFileError{Path: path, Err: err}
+				return
+			}
+			a.prefs.downloadErr = nil
+			a.useSpeechModel(path)
+		})
+	})
 }
 
 // whisperModelBaseURL is where downloadSpeechModel fetches the whisper models from. Tests point it at a server of their own.

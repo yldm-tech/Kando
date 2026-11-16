@@ -29,6 +29,7 @@ func (p translate) Render(cx *core.Scope) core.Node {
 			options[i] = ui.Option[string]{Value: value, Label: LanguageName(cx, value)}
 		}
 		return ui.Select[string]{Options: options, Label: locales.SettingsTranslateTarget(cx), TestID: "settings-translate-language",
+			Searchable: true, SearchPlaceholder: locales.SettingsLanguagesSearch(cx),
 			Value: live.Func(a, func() string { return *a.Language() }),
 			OnChange: live.On(a, func(value string) {
 				*a.Language() = value
@@ -86,7 +87,8 @@ func (p translate) Render(cx *core.Scope) core.Node {
 
 // LanguageChoices is the target languages the settings offer, with current added when it is not one of them, as a language typed into an older version is kept. These are the values the settings, the jobs and the translation prompt keep, as 简体中文; LanguageName is what the interface shows for each.
 func LanguageChoices(current string) []string {
-	choices := []string{"简体中文", "繁体中文", "English", "日本語", "한국어", "Español", "Français", "Deutsch"}
+	choices := []string{"简体中文", "繁体中文", "English", "日本語", "한국어", "Español", "Français", "Deutsch",
+		"Português", "Italiano", "Русский", "Nederlands", "Polski", "Українська", "Türkçe", "العربية", "हिन्दी", "Bahasa Indonesia", "Tiếng Việt", "ไทย"}
 	for _, choice := range choices {
 		if choice == current {
 			return choices

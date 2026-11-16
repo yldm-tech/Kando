@@ -49,9 +49,9 @@ func SpeechModelByID(id string) (SpeechModel, bool) {
 	return SpeechModel{}, false
 }
 
-// SpeechLanguages are the languages the speech settings let the user name as the one spoken in the videos, as whisper.cpp's -l codes, in the order the settings list them: the languages Kando's first-run guide offers.
+// SpeechLanguages are the languages the speech settings let the user name as the one spoken in the videos, as whisper.cpp's -l codes, in the order the settings list them: the languages Kando's first-run guide offers, then others whisper recognizes well.
 func SpeechLanguages() []string {
-	return []string{"en", "zh", "ja", "ko", "fr", "es", "de"}
+	return []string{"en", "zh", "ja", "ko", "fr", "es", "de", "pt", "it", "ru", "nl", "pl", "uk", "tr", "ar", "hi", "id", "vi", "th"}
 }
 
 // KnownSpeechLanguage reports whether code is one of SpeechLanguages.
@@ -74,6 +74,29 @@ func ResolveSpeechModel(configured string, dirs []string, file string) string {
 		}
 	}
 	return ""
+}
+
+// ErrNotSpeechModel is CheckSpeechModelFile's answer for a file that is not a whisper.cpp model.
+var ErrNotSpeechModel = errors.New("not a whisper.cpp ggml model")
+
+// CheckSpeechModelFile reports whether path is a whisper.cpp model, as the catalog's files and whisper-cli's other ggml models are: it starts with the ggml magic 0x67676d6c written little-endian, which whisper-cli checks before loading one. It returns ErrNotSpeechModel for any other file and the error that kept it from reading one it could not open.
+func CheckSpeechModelFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	magic := make([]byte, 4)
+	if _, err := io.ReadFull(f, magic); err != nil {
+		if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+			return ErrNotSpeechModel
+		}
+		return err
+	}
+	if string(magic) != "lmgg" {
+		return ErrNotSpeechModel
+	}
+	return nil
 }
 
 func fileExists(path string) bool {

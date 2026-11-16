@@ -224,7 +224,7 @@ type rejected int
 func (r rejected) Error() string   { return "rejected " + strconv.Itoa(int(r)) }
 func (r rejected) StatusCode() int { return int(r) }
 
-// TestAISettingsChoosesTheModelFromTheServiceList checks that Settings › AI 服务 lists the key before the model, fetches the service's models once it shows instead of having the model typed, picks the service's default model when none was chosen and saves it, and that a list the service refuses says why and fetches again on 重试.
+// TestAISettingsChoosesTheModelFromTheServiceList checks that Settings › AI 服务 lists the key before the model, fetches the service's models once it shows, picks the service's default model when none was chosen and saves it, and that a list the service refuses says why, keeps the model chosen in the field it is then typed into, and fetches again on 重试.
 func TestAISettingsChoosesTheModelFromTheServiceList(t *testing.T) {
 	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL}}
 	a, tt, updates := newTestApp(t, tools)
@@ -271,7 +271,10 @@ func TestAISettingsChoosesTheModelFromTheServiceList(t *testing.T) {
 	if calls != 2 || !hasText(tt, "重试") || a.LLMModelsErr() != "服务不接受这个 API Key，取不到模型列表" {
 		t.Fatalf("calls %d error %q texts %q", calls, a.LLMModelsErr(), tt.Texts())
 	}
-	wantText(t, tt, "zeta-chat")
+	// The model chosen stays, in the field its ID is typed into while there is no list.
+	if got := tt.Find("id:settings-llm-model-id").Text; got != "zeta-chat" {
+		t.Fatalf("model field %q", got)
+	}
 	answer = nil
 	tt.Press("id:settings-llm-models-retry")
 	waitUntil(t, tt, a, updates, func() bool { return !a.prefs.llmModelsLoading })
@@ -552,5 +555,50 @@ func TestTrashConfirmationClosesWithItsPage(t *testing.T) {
 	refresh(tt, a)
 	if hasText(tt, "要把「Base」移到废纸篓吗？") || len(*trashed) != 0 || !fileExists(files[0]) {
 		t.Fatalf("the confirmation came back or the model moved: trashed %v", *trashed)
+	}
+}
+
+// TestChoosingAModelFileUsesIt picks a whisper.cpp model already on the computer with 选择模型文件… on the 语音识别 page: the file panel offers .bin files, a file that is not a model is turned away with a line saying so and leaves the model in use as it was, and a model is used from then on, saved, and shown as a row of its own. The panel holds the window's modal flag until it answers.
+func TestChoosingAModelFileUsesIt(t *testing.T) {
+	a, tt, _ := newTestApp(t, media.Tools{})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	dir := t.TempDir()
+	model := filepath.Join(dir, "ggml-distil-large-v3.bin")
+	notes := filepath.Join(dir, "notes.bin")
+	if err := os.WriteFile(model, append([]byte("lmgg"), make([]byte, 64)...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(notes, []byte("not a model"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
+	picked := notes
+	held := false
+	tt.PickFiles = func(r ns.FilesRequest) []ns.File {
+		held = a.modalOpen()
+		if !slices.Equal(r.Types, []string{".bin"}) {
+			t.Errorf("the panel offers %q", r.Types)
+		}
+		return []ns.File{{Name: filepath.Base(picked), Path: picked}}
+	}
+	tt.Press("id:settings-model-choose-file")
+	tt.Settle()
+	if !held || a.modalOpen() {
+		t.Fatalf("modal flag held while the panel showed %v, after %v", held, a.modalOpen())
+	}
+	wantText(t, tt, testlocale.Messages().SettingsSpeechNotModelFile("notes.bin"))
+	if tools := a.pipeline.(media.Tools); tools.WhisperModel != "" {
+		t.Fatalf("a file that is not a model was taken: %q", tools.WhisperModel)
+	}
+
+	picked = model
+	tt.Press("id:settings-model-choose-file")
+	tt.Settle()
+	if tools := a.pipeline.(media.Tools); tools.WhisperModel != model || loadSavedSettings(a.settingsPath).WhisperModel != model {
+		t.Fatalf("model %q saved %q", tools.WhisperModel, loadSavedSettings(a.settingsPath).WhisperModel)
+	}
+	wantNoText(t, tt, testlocale.Messages().SettingsSpeechNotModelFile("notes.bin"))
+	if !tt.Exists("id:settings-model-row-file") || !tt.Find("id:settings-model-file").Props.Checked {
+		t.Fatalf("no row for the model file: %q", tt.Texts())
 	}
 }

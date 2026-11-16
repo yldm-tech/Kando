@@ -29,7 +29,6 @@ func (p ai) Render(cx *core.Scope) core.Node {
 
 // aiService is the page once there are tools to translate with.
 func aiService(cx *core.Scope, a App) core.Node {
-	colors := ui.ColorsOf(cx)
 	// mark is the service's logo, built again only when the service changes.
 	provider := core.NewMemo(cx, live.Func(a, func() string { preset, _ := a.CurrentPreset(); return preset.ID }))
 	mark := core.Dynamic(func(*core.Scope) core.Node {
@@ -77,7 +76,7 @@ func aiService(cx *core.Scope, a App) core.Node {
 		form.Row{Title: "API Key", NoGroup: true, Trailing: []core.Node{key}},
 		everyAPI,
 		form.Separator(true),
-		form.Row{Title: locales.SettingsAIModel(cx), NoGroup: true, Trailing: []core.Node{modelSelect(cx, a, colors)}},
+		form.Row{Title: locales.SettingsAIModel(cx), NoGroup: true, SubtitleFunc: modelsFailure(a), Trailing: []core.Node{modelSelect(cx, a)}},
 		test,
 	)
 	card.Style.Margin = core.Edges{Top: 6}
@@ -137,8 +136,19 @@ func providerSelect(cx *core.Scope, a App) core.Node {
 		Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, a.SelectLLM), Style: core.Style{Width: core.Pt(220)}}
 }
 
-// modelSelect chooses the model among those the service lists, which the app fetches once the service, its Base URL and its key are known (the endpoint's GET /models), rather than having it typed. A model chosen before stays on top of the list when the service no longer lists it, so it is not changed behind the user's back. While the list loads, or when it could not be fetched, the row says so, with 重试.
-func modelSelect(cx *core.Scope, a App, colors ui.Colors) core.Node {
+// modelSelect chooses the model among those the service lists, which the app fetches once the service, its Base URL and its key are known (the endpoint's GET /models). A model chosen before stays on top of the list when the service no longer lists it, so it is not changed behind the user's back. The drop-down is searched by typing part of a model's ID, as a gateway such as OpenRouter lists hundreds. While the list loads the row says so; when it could not be fetched or the service lists none, as a proxy without GET /models, the model's ID is typed into a field instead, with 重试 to fetch the list again.
+func modelSelect(cx *core.Scope, a App) core.Node {
+	// typed is whether the model's ID is typed rather than chosen. It does not follow the model itself, so the field stays while it is typed into.
+	typed := live.Func(a, func() bool { return !a.LoadingLLMModels() && len(a.LLMModels()) == 0 })
+	field := func(cx *core.Scope) core.Node {
+		return ui.Input{TestID: "settings-llm-model-id", Label: locales.SettingsAIModel(cx),
+			Value: live.Func(a, func() string { return *a.LLMModel() }),
+			OnChange: live.On(a, func(text string) {
+				*a.LLMModel() = text
+				a.ApplyLLM()
+			}),
+			Style: core.Style{Width: core.Pt(330), FontFamily: "monospace"}}
+	}
 	// options is the list, joined, so the drop-down is built again only when the list changes.
 	options := core.NewMemo(cx, live.Func(a, func() string {
 		list := a.LLMModels()
@@ -147,38 +157,44 @@ func modelSelect(cx *core.Scope, a App, colors ui.Colors) core.Node {
 		}
 		return strings.Join(list, "\n")
 	}))
-	choose := core.Dynamic(func(cx *core.Scope) core.Node {
-		joined := options.Get()
-		if joined == "" {
-			return core.Group(nil)
-		}
-		models := strings.Split(joined, "\n")
-		opts := make([]ui.Option[string], len(models))
-		for i, model := range models {
-			opts[i] = ui.Option[string]{Value: model, Label: model}
-		}
-		return ui.Select[string]{Options: opts, Label: locales.SettingsAIModel(cx), TestID: "settings-llm-model",
-			Value: live.Func(a, func() string { return strings.TrimSpace(*a.LLMModel()) }),
-			OnChange: live.On(a, func(model string) {
-				*a.LLMModel() = model
-				a.ApplyLLM()
-			}),
-			Style: core.Style{Width: core.Pt(330)}}
-	})
-	empty := func() bool { return options.Get() == "" }
-	loading := core.Show{When: live.Func(a, func() bool { return a.LoadingLLMModels() && empty() }), Then: func(cx *core.Scope) core.Node {
-		return form.Value(static(locales.SettingsAILoadingModels(cx)), 13)
-	}}
-	failed := live.Func(a, func() bool { return !a.LoadingLLMModels() && a.LLMModelsErr() != "" })
-	why := core.Show{When: func() bool { return failed() && empty() }, Then: func(cx *core.Scope) core.Node {
-		return core.Text{ContentFunc: live.Func(a, a.LLMModelsErr), Style: core.Style{FontSize: 12, FlexShrink: 1, MaxWidth: core.Pt(240)}, StyleFunc: ui.Colored(colors.Danger)}
-	}}
-	retry := core.Show{When: failed, Then: func(cx *core.Scope) core.Node {
-		// 重试 says why the list could not be fetched as the pointer rests on it, as the list beside it hides the error.
+	list := func(cx *core.Scope) core.Node {
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			joined := options.Get()
+			if joined == "" {
+				return form.Value(static(locales.SettingsAILoadingModels(cx)), 13)
+			}
+			models := strings.Split(joined, "\n")
+			opts := make([]ui.Option[string], len(models))
+			for i, model := range models {
+				opts[i] = ui.Option[string]{Value: model, Label: model}
+			}
+			return ui.Select[string]{Options: opts, Label: locales.SettingsAIModel(cx), TestID: "settings-llm-model",
+				Searchable: true, SearchPlaceholder: locales.SettingsAISearchModels(cx),
+				Value: live.Func(a, func() string { return strings.TrimSpace(*a.LLMModel()) }),
+				OnChange: live.On(a, func(model string) {
+					*a.LLMModel() = model
+					a.ApplyLLM()
+				}),
+				Style: core.Style{Width: core.Pt(330)}}
+		})
+	}
+	choose := core.Show{When: typed, Then: field, Else: list}
+	retry := core.Show{When: live.Func(a, func() bool { return !a.LoadingLLMModels() && a.LLMModelsErr() != "" }), Then: func(cx *core.Scope) core.Node {
+		// 重试 says why the list could not be fetched as the pointer rests on it, as does the line under the row's title.
 		return ui.Tooltip{TextFunc: live.Func(a, a.LLMModelsErr),
 			Trigger: form.Button{Text: locales.SettingsAIRetry(cx), OnPress: live.Do(a, a.RetryLLMModels), TestID: "settings-llm-models-retry"}}
 	}}
-	return core.Group([]core.Node{choose, loading, why, retry})
+	return core.Group([]core.Node{choose, retry})
+}
+
+// modelsFailure is why the service's model list could not be fetched, under the Model row's title, or "" while it could be or is being fetched.
+func modelsFailure(a App) func() string {
+	return live.Func(a, func() string {
+		if a.LoadingLLMModels() {
+			return ""
+		}
+		return a.LLMModelsErr()
+	})
 }
 
 // testStatus is the connection test's state: a dot and a word, why it failed when it did, with what the service answered as the pointer rests on it.

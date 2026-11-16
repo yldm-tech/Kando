@@ -370,3 +370,26 @@ func TestDownloadSpeechModelCancelRemovesResumedPartial(t *testing.T) {
 		t.Fatalf("left %v", entries)
 	}
 }
+
+// TestCheckSpeechModelFile takes a whisper.cpp ggml model by its first four bytes, the magic whisper-cli checks before it loads one, and turns away any other file, so choosing the wrong file says so at once rather than when a job transcribes.
+func TestCheckSpeechModelFile(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name string, data []byte) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	if err := CheckSpeechModelFile(write("ggml-custom.bin", append([]byte("lmgg"), make([]byte, 64)...))); err != nil {
+		t.Fatalf("a ggml model: %v", err)
+	}
+	for _, path := range []string{write("model.gguf", []byte("GGUF\x03\x00\x00\x00")), write("short.bin", []byte("lm")), write("empty.bin", nil)} {
+		if err := CheckSpeechModelFile(path); !errors.Is(err, ErrNotSpeechModel) {
+			t.Fatalf("%s: %v", filepath.Base(path), err)
+		}
+	}
+	if err := CheckSpeechModelFile(filepath.Join(dir, "missing.bin")); err == nil || errors.Is(err, ErrNotSpeechModel) {
+		t.Fatalf("a missing file: %v", err)
+	}
+}

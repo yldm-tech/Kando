@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"path/filepath"
 
 	"kando/apps/kando/locales"
 	"kando/packages/media"
@@ -38,6 +39,16 @@ func (e TrashError) Error() string {
 	return e.ID + ": " + e.Err.Error()
 }
 
+// ModelFileError is why the model file at Path, chosen with 选择模型文件…, is not used: Err is media.ErrNotSpeechModel for a file that is not a whisper.cpp model, or why it could not be read. SpeechDownloadError words it in the language it is shown in.
+type ModelFileError struct {
+	Path string
+	Err  error
+}
+
+func (e ModelFileError) Error() string { return e.Path + ": " + e.Err.Error() }
+
+func (e ModelFileError) Unwrap() error { return e.Err }
+
 // ErrNoModelsDir is a speech model download's error when Kando has no folder to put the models in.
 var ErrNoModelsDir = errors.New("no models folder")
 
@@ -45,9 +56,15 @@ var ErrNoModelsDir = errors.New("no models folder")
 func SpeechDownloadError(m locales.Messages, err error) string {
 	var status interface{ StatusCode() int }
 	var trash TrashError
+	var file ModelFileError
 	switch {
 	case err == nil:
 		return ""
+	case errors.As(err, &file) && errors.Is(file.Err, media.ErrNotSpeechModel):
+		return m.SettingsSpeechNotModelFile(filepath.Base(file.Path))
+	case errors.As(err, &file):
+		// the system's reason, in English, goes to the log
+		return m.SettingsSpeechModelFileUnreadable(filepath.Base(file.Path))
 	case errors.As(err, &trash) && trash.Err == nil:
 		return m.SettingsSpeechTrashInUse(SpeechModelNameIn(m, trash.ID))
 	case errors.As(err, &trash):

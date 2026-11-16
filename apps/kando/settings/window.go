@@ -70,6 +70,8 @@ type App interface {
 	// InstalledSpeechModel is the file on disk of the whisper catalog model id, "" when it is not downloaded. The app looks the models up when the window opens, when the model in use changes and on 重新检测, never while the page is drawn.
 	InstalledSpeechModel(id string) string
 	UseSpeechModel(path string)
+	// PickSpeechModel asks for a whisper.cpp model file already on the computer with the system's file panel and uses the one picked, or says under the models why it cannot.
+	PickSpeechModel()
 	Downloading() string
 	DownloadWritten() int64
 	DownloadTotal() int64

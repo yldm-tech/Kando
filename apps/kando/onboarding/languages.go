@@ -49,6 +49,8 @@ func languageName(cx *ns.Scope, code string) string {
 // targetCodes maps the settings' target languages (settings › 翻译 › 默认目标语言) to the language they are written in.
 var targetCodes = map[string]string{
 	"简体中文": "zh", "繁体中文": "zh", "繁體中文": "zh", "English": "en", "日本語": "ja", "한국어": "ko", "Español": "es", "Français": "fr", "Deutsch": "de",
+	"Português": "pt", "Italiano": "it", "Русский": "ru", "Nederlands": "nl", "Polski": "pl", "Українська": "uk", "Türkçe": "tr", "العربية": "ar", "हिन्दी": "hi",
+	"Bahasa Indonesia": "id", "Tiếng Việt": "vi", "ไทย": "th",
 }
 
 // DefaultLearning is what the first step has chosen before the user changes it, as the prototype starts: English and Japanese.
@@ -57,20 +59,14 @@ var DefaultLearning = []string{"en", "ja"}
 // Known reports whether code is one of the languages the first step offers.
 func Known(code string) bool { return slices.Contains(tileCodes, code) }
 
-// LanguageCode is the language the target language target is written in, "zh" for one Kando does not know.
-func LanguageCode(target string) string {
-	if code, ok := targetCodes[target]; ok {
-		return code
-	}
-	return "zh"
-}
+// LanguageCode is the language the target language target is written in, "" for one Kando does not know.
+func LanguageCode(target string) string { return targetCodes[target] }
 
-// Effective is the languages chosen in learning that the first step shows as chosen: those it offers, other than the one subtitles are translated into, in the tiles' order.
+// Effective is the languages chosen in learning that the first step shows as chosen: those whose tiles it shows for target, in the tiles' order.
 func Effective(learning []string, target string) []string {
-	own := LanguageCode(target)
 	var out []string
-	for _, code := range tileCodes {
-		if code != own && slices.Contains(learning, code) {
+	for _, code := range tiles(target) {
+		if slices.Contains(learning, code) {
 			out = append(out, code)
 		}
 	}
@@ -89,7 +85,7 @@ func tiles(target string) []string {
 	return out[:min(6, len(out))]
 }
 
-// demoLines are the art panel's example line in each language.
+// demoLines are the art panel's example line in each language: those of the tiles, and those of the target languages, as the line's translation.
 var demoLines = map[string]string{
 	"en": "Every river begins as a trickle high in the mountains.",
 	"ja": "どの川も、山の上の小さな流れから始まる。",
@@ -98,6 +94,18 @@ var demoLines = map[string]string{
 	"es": "Todo río nace como un hilo de agua en la montaña.",
 	"de": "Jeder Fluss beginnt als Rinnsal hoch in den Bergen.",
 	"zh": "每条河都始于高山上的一股细流。",
+	"pt": "Todo rio nasce como um fio de água no alto das montanhas.",
+	"it": "Ogni fiume nasce come un rivolo d’acqua in alta montagna.",
+	"ru": "Каждая река начинается с ручейка высоко в горах.",
+	"nl": "Elke rivier begint als een klein stroompje hoog in de bergen.",
+	"pl": "Każda rzeka zaczyna się jako mały strumyk wysoko w górach.",
+	"uk": "Кожна річка починається з маленького струмка високо в горах.",
+	"tr": "Her nehir, dağların yükseklerinde küçük bir dere olarak başlar.",
+	"ar": "كل نهر يبدأ جدولًا صغيرًا في أعالي الجبال.",
+	"hi": "हर नदी ऊँचे पहाड़ों में एक छोटी धारा के रूप में शुरू होती है।",
+	"id": "Setiap sungai berawal dari aliran kecil di pegunungan tinggi.",
+	"vi": "Mọi dòng sông đều bắt đầu từ một dòng suối nhỏ trên núi cao.",
+	"th": "แม่น้ำทุกสายเริ่มต้นจากลำธารเล็ก ๆ บนภูเขาสูง",
 }
 
 // demoTranslations is the example line in the target languages whose wording differs from demoLines.

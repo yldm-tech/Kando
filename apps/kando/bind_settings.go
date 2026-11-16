@@ -62,6 +62,8 @@ func (a *app) InstalledSpeechModel(id string) string { return a.prefs.speechMode
 
 func (a *app) UseSpeechModel(path string) { a.useSpeechModel(path) }
 
+func (a *app) PickSpeechModel() { a.pickSpeechModel() }
+
 func (a *app) Downloading() string { return a.prefs.downloading }
 
 func (a *app) DownloadWritten() int64 { return a.prefs.downloadWritten }

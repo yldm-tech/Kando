@@ -403,6 +403,30 @@ func LanguageShort(m locales.Messages, language string) string {
 		return "FR"
 	case "Deutsch":
 		return "DE"
+	case "Português":
+		return "PT"
+	case "Italiano":
+		return "IT"
+	case "Русский":
+		return "RU"
+	case "Nederlands":
+		return "NL"
+	case "Polski":
+		return "PL"
+	case "Українська":
+		return "UK"
+	case "Türkçe":
+		return "TR"
+	case "العربية":
+		return "AR"
+	case "हिन्दी":
+		return "HI"
+	case "Bahasa Indonesia":
+		return "ID"
+	case "Tiếng Việt":
+		return "VI"
+	case "ไทย":
+		return "TH"
 	}
 	return language
 }
@@ -426,6 +450,30 @@ func LanguageName(m locales.Messages, language string) string {
 		return m.SettingsLanguageFrench()
 	case "Deutsch":
 		return m.SettingsLanguageGerman()
+	case "Português":
+		return m.SettingsLanguagePortuguese()
+	case "Italiano":
+		return m.SettingsLanguageItalian()
+	case "Русский":
+		return m.SettingsLanguageRussian()
+	case "Nederlands":
+		return m.SettingsLanguageDutch()
+	case "Polski":
+		return m.SettingsLanguagePolish()
+	case "Українська":
+		return m.SettingsLanguageUkrainian()
+	case "Türkçe":
+		return m.SettingsLanguageTurkish()
+	case "العربية":
+		return m.SettingsLanguageArabic()
+	case "हिन्दी":
+		return m.SettingsLanguageHindi()
+	case "Bahasa Indonesia":
+		return m.SettingsLanguageIndonesian()
+	case "Tiếng Việt":
+		return m.SettingsLanguageVietnamese()
+	case "ไทย":
+		return m.SettingsLanguageThai()
 	}
 	return language
 }

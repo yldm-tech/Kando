@@ -29,13 +29,17 @@ func (p speech) Render(cx *core.Scope) core.Node {
 		}
 		rows = append(rows, modelRow{a: a, model: model})
 	}
+	rows = append(rows, core.Show{When: live.Func(a, func() bool { return otherSpeechModel(a) != "" }), Then: func(*core.Scope) core.Node {
+		return core.Group([]core.Node{form.Separator(false), fileRow{a: a}})
+	}})
 	// One radio group, so that Tab stops once in it and the arrows choose among the models on disk.
 	group := ui.RadioGroup{Label: locales.SettingsSpeechModels(cx), Children: rows, Style: core.Style{Gap: 0, AlignItems: core.AlignStretch}}
 	failed := core.Show{When: live.Func(a, func() bool { return a.DownloadErr() != "" }), Then: func(cx *core.Scope) core.Node {
 		return core.Text{ContentFunc: live.Func(a, a.DownloadErr), Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
 	}}
+	choose := form.Button{Text: locales.SettingsSpeechChooseFile(cx), TestID: "settings-model-choose-file", OnPress: live.Do(a, a.PickSpeechModel)}
 	return form.Page(
-		form.Label(locales.SettingsSpeechModels(cx), 6),
+		form.Label(locales.SettingsSpeechModels(cx), 6, choose),
 		form.Card(group),
 		form.Note(static(locales.SettingsSpeechNote(cx)), 0),
 		failed,
@@ -56,6 +60,42 @@ func chosenSpeechModel(a App) string {
 	return ""
 }
 
+// otherSpeechModel is the model file in use when it is none of the whisper catalog's, as one chosen with 选择模型文件…, or "". A file named as a catalog model's is that model, wherever it is, as the app finds it there (media.ResolveSpeechModel).
+func otherSpeechModel(a App) string {
+	tools, _ := a.Tools()
+	if tools.WhisperModel == "" {
+		return ""
+	}
+	name := filepath.Base(tools.WhisperModel)
+	for _, model := range media.SpeechModels() {
+		if model.File == name {
+			return ""
+		}
+	}
+	return tools.WhisperModel
+}
+
+// fileRow is the model file in use when it is none of the catalog's: its radio button, chosen, its file's name over where it is. It is built again for another file, as the radio button takes its name as it is built.
+type fileRow struct{ a App }
+
+// Render implements core.Node.
+func (r fileRow) Render(cx *core.Scope) core.Node {
+	a := r.a
+	path := core.NewMemo(cx, live.Func(a, func() string { return otherSpeechModel(a) }))
+	return core.Dynamic(func(*core.Scope) core.Node {
+		file := path.Get()
+		name := filepath.Base(file)
+		radio := ui.Radio{Label: name, TestID: "settings-model-file", Checked: func() bool { return true }, OnChange: func(bool) {}}
+		texts := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
+			core.Text{Content: name, MaxLines: 1, EllipsizeMode: core.EllipsizeMiddle, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, Color: form.Text}},
+			form.Value(static(a.DisplayPath(file)), 11),
+		}}
+		return core.View{TestID: "settings-model-row-file",
+			Style:    core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(54), Padding: core.Symmetric(8, 14), Gap: 12, AlignItems: core.AlignCenter},
+			Children: []core.Node{radio, texts}}
+	})
+}
+
 // spokenLanguage is the card naming the language spoken in the videos: 自动识别, which lets whisper detect it from each video's first 30 seconds, or one of the languages whisper is told to hear. The drop-down shows the languages' names; what is saved is whisper's code.
 func spokenLanguage(cx *core.Scope, a App) core.Node {
 	codes := append([]string{""}, media.SpeechLanguages()...)
@@ -64,6 +104,7 @@ func spokenLanguage(cx *core.Scope, a App) core.Node {
 		options[i] = ui.Option[string]{Value: code, Label: spokenLanguageName(locales.For(cx), code)}
 	}
 	choose := ui.Select[string]{Options: options, Label: locales.SettingsSpeechSpokenLanguage(cx), TestID: "settings-speech-language",
+		Searchable: true, SearchPlaceholder: locales.SettingsLanguagesSearch(cx),
 		Value: live.Func(a, a.SpeechLanguage), OnChange: live.On(a, a.SetSpeechLanguage), Style: core.Style{Width: core.Pt(160)}}
 	card := form.Card(form.Row{Title: locales.SettingsSpeechSpokenLanguage(cx), NoGroup: true, Trailing: []core.Node{choose}})
 	card.Style.Margin = core.Edges{Top: 10}
@@ -89,6 +130,30 @@ func spokenLanguageName(m locales.Messages, code string) string {
 		return m.SettingsSpeechLanguageEs()
 	case "de":
 		return m.SettingsSpeechLanguageDe()
+	case "pt":
+		return m.SettingsSpeechLanguagePt()
+	case "it":
+		return m.SettingsSpeechLanguageIt()
+	case "ru":
+		return m.SettingsSpeechLanguageRu()
+	case "nl":
+		return m.SettingsSpeechLanguageNl()
+	case "pl":
+		return m.SettingsSpeechLanguagePl()
+	case "uk":
+		return m.SettingsSpeechLanguageUk()
+	case "tr":
+		return m.SettingsSpeechLanguageTr()
+	case "ar":
+		return m.SettingsSpeechLanguageAr()
+	case "hi":
+		return m.SettingsSpeechLanguageHi()
+	case "id":
+		return m.SettingsSpeechLanguageId()
+	case "vi":
+		return m.SettingsSpeechLanguageVi()
+	case "th":
+		return m.SettingsSpeechLanguageTh()
 	}
 	return code
 }

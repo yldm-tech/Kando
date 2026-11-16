@@ -107,6 +107,30 @@ func TargetLanguageNameIn(m locales.Messages, value string) string {
 		return m.SettingsLanguageFrench()
 	case "Deutsch":
 		return m.SettingsLanguageGerman()
+	case "Português":
+		return m.SettingsLanguagePortuguese()
+	case "Italiano":
+		return m.SettingsLanguageItalian()
+	case "Русский":
+		return m.SettingsLanguageRussian()
+	case "Nederlands":
+		return m.SettingsLanguageDutch()
+	case "Polski":
+		return m.SettingsLanguagePolish()
+	case "Українська":
+		return m.SettingsLanguageUkrainian()
+	case "Türkçe":
+		return m.SettingsLanguageTurkish()
+	case "العربية":
+		return m.SettingsLanguageArabic()
+	case "हिन्दी":
+		return m.SettingsLanguageHindi()
+	case "Bahasa Indonesia":
+		return m.SettingsLanguageIndonesian()
+	case "Tiếng Việt":
+		return m.SettingsLanguageVietnamese()
+	case "ไทย":
+		return m.SettingsLanguageThai()
 	}
 	return value
 }

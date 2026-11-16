@@ -74,6 +74,17 @@ func TestSpeechDownloadErrorSaysWhyTheTrashRefused(t *testing.T) {
 	}
 }
 
+// TestSpeechDownloadErrorSaysWhyTheModelFileWasNotUsed checks the words for a file chosen with 选择模型文件… that is not used: one that is not a whisper.cpp model, and one Kando could not read, whose system reason goes to the log rather than into the sentence.
+func TestSpeechDownloadErrorSaysWhyTheModelFileWasNotUsed(t *testing.T) {
+	msgs := testlocale.Messages()
+	if got, want := SpeechDownloadError(msgs, ModelFileError{Path: "/models/model.gguf", Err: media.ErrNotSpeechModel}), msgs.SettingsSpeechNotModelFile("model.gguf"); got != want {
+		t.Errorf("not a model: %q, want %q", got, want)
+	}
+	if got, want := SpeechDownloadError(msgs, ModelFileError{Path: "/models/ggml-base.bin", Err: errors.New("permission denied")}), msgs.SettingsSpeechModelFileUnreadable("ggml-base.bin"); got != want || strings.Contains(got, "permission denied") {
+		t.Errorf("unreadable: %q, want %q", got, want)
+	}
+}
+
 // TestProviderIDFindsThePreset checks that an endpoint finds its preset whatever its trailing slash and spaces, and that any other is custom.
 func TestProviderIDFindsThePreset(t *testing.T) {
 	for base, want := range map[string]string{

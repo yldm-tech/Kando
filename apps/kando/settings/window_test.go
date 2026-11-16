@@ -116,6 +116,7 @@ func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }
 func (f *fakeApp) InstalledSpeechModel(id string) string { return f.models[id] }
 func (f *fakeApp) UseSpeechModel(path string)            { f.call("use " + path); f.tools.WhisperModel = path }
+func (f *fakeApp) PickSpeechModel()                      { f.call("pick model") }
 func (f *fakeApp) Downloading() string                   { return f.downloading }
 func (f *fakeApp) DownloadWritten() int64                { return f.written }
 func (f *fakeApp) DownloadTotal() int64                  { return f.total }
@@ -557,5 +558,106 @@ func TestShortcutsPageWritesKeysAsThePaletteDoes(t *testing.T) {
 	app.Type("id:settings-shortcut-search", "显示 f")
 	if !app.Exists(whole("全屏")) || app.Exists(whole("返回资料库")) || app.Exists(whole("设置…")) {
 		t.Fatalf("显示 f: texts %q", app.Texts())
+	}
+}
+
+// TestLanguageDropDownsSearch checks that the spoken language and the target language, whose lists run past a screen's worth of names, are found by typing part of a name into the drop-down's search field, and that the choice saves whisper's code or the stored value, not the name shown.
+func TestLanguageDropDownsSearch(t *testing.T) {
+	msgs := testlocale.Messages()
+	a := newFakeApp()
+	a.section = SectionSpeech
+	app := start(t, a)
+	app.Press("id:settings-speech-language")
+	app.Type("label:"+msgs.SettingsLanguagesSearch(), msgs.SettingsSpeechLanguagePt())
+	if !app.Exists("role:option "+msgs.SettingsSpeechLanguagePt()) || app.Exists("role:option "+msgs.SettingsSpeechLanguageEn()) {
+		t.Fatalf("the search did not filter the spoken languages: %q", app.Texts())
+	}
+	app.Press("role:option " + msgs.SettingsSpeechLanguagePt())
+	if a.spoken != "pt" {
+		t.Fatalf("spoken language %q", a.spoken)
+	}
+
+	a = newFakeApp()
+	a.section = SectionTranslate
+	app = start(t, a)
+	name := msgs.SettingsLanguageVietnamese()
+	app.Press("id:settings-translate-language")
+	app.Type("label:"+msgs.SettingsLanguagesSearch(), name)
+	if !app.Exists("role:option "+name) || app.Exists("role:option "+msgs.SettingsLanguageEnglish()) {
+		t.Fatalf("the search did not filter the target languages: %q", app.Texts())
+	}
+	app.Press("role:option " + name)
+	if a.language != "Tiếng Việt" {
+		t.Fatalf("target language %q", a.language)
+	}
+}
+
+// TestAIModelTypedWhenTheServiceListsNone checks that a service whose model list could not be fetched, or lists none, leaves a field to type the model's ID in, saying why under the row's title, and that a list it does give is searched by typing part of a model's ID.
+func TestAIModelTypedWhenTheServiceListsNone(t *testing.T) {
+	msgs := testlocale.Messages()
+	a := newFakeApp()
+	a.section = SectionAI
+	a.modelsErr = msgs.SettingsAIModelsNotFound()
+	app := start(t, a)
+	if !app.Exists("id:settings-llm-model-id") || app.Exists("id:settings-llm-model") || !app.Exists(whole(a.modelsErr)) || !app.Exists("id:settings-llm-models-retry") {
+		t.Fatalf("no field to type the model in: %q", app.Texts())
+	}
+	app.Type("id:settings-llm-model-id", "vendor/model-7b")
+	if a.model != "vendor/model-7b" || !slices.Contains(a.calls, "apply") {
+		t.Fatalf("model %q, calls %q", a.model, a.calls)
+	}
+	// While the list loads the field gives way to the loading line; the list, once fetched, is a drop-down that keeps the typed model on top.
+	change(app, a, func() { a.modelsErr, a.loadingModels = "", true })
+	if app.Exists("id:settings-llm-model-id") {
+		t.Fatal("the field stays while the list loads")
+	}
+	change(app, a, func() { a.loadingModels, a.llmModels = false, []string{"alpha-chat", "beta-chat", "gamma-chat"} })
+	if app.Exists("id:settings-llm-model-id") || !app.Exists("id:settings-llm-model") {
+		t.Fatalf("no drop-down for the fetched list: %q", app.Texts())
+	}
+	app.Press("id:settings-llm-model")
+	app.Type("label:"+msgs.SettingsAISearchModels(), "beta")
+	if !app.Exists("role:option beta-chat") || app.Exists("role:option alpha-chat") || app.Exists("role:option vendor/model-7b") {
+		t.Fatalf("the search did not filter the models: %q", app.Texts())
+	}
+	app.Press("role:option beta-chat")
+	if a.model != "beta-chat" {
+		t.Fatalf("model %q", a.model)
+	}
+	// A service that answers with an empty list leaves the field too, holding the model chosen.
+	change(app, a, func() { a.llmModels = nil })
+	if !app.Exists("id:settings-llm-model-id") || app.Find("id:settings-llm-model-id").Text != "beta-chat" {
+		t.Fatalf("no field holding the model: %q", app.Texts())
+	}
+}
+
+// TestSpeechPageTakesAModelFile checks that 选择模型文件… asks the app for a model file already on the computer, and that a model in use that is none of the catalog's, as one chosen so, shows as a row of its own, chosen, with its name and where it is, while one of the catalog's shows as its row.
+func TestSpeechPageTakesAModelFile(t *testing.T) {
+	msgs := testlocale.Messages()
+	a := newFakeApp()
+	a.section = SectionSpeech
+	app := start(t, a)
+	app.Press(whole(msgs.SettingsSpeechChooseFile()))
+	if !slices.Contains(a.calls, "pick model") {
+		t.Fatalf("calls %q", a.calls)
+	}
+	if app.Exists("id:settings-model-row-file") {
+		t.Fatal("a row for a model file while none is in use")
+	}
+	change(app, a, func() { a.tools.WhisperModel = "/elsewhere/ggml-large-v2.bin" })
+	if !app.Exists("id:settings-model-row-file") || !app.Exists(whole("ggml-large-v2.bin")) || !app.Exists(whole("/elsewhere/ggml-large-v2.bin")) {
+		t.Fatalf("no row for the model file in use: %q", app.Texts())
+	}
+	if !app.Find("id:settings-model-file").Props.Checked || app.Find("id:settings-model-base").Props.Checked {
+		t.Fatal("the model file in use is not the one chosen")
+	}
+	app.Press("id:settings-model-base")
+	if a.tools.WhisperModel != "/models/ggml-base.bin" || app.Exists("id:settings-model-row-file") {
+		t.Fatalf("model %q, the file's row stays: %v", a.tools.WhisperModel, app.Exists("id:settings-model-row-file"))
+	}
+	// A catalog model's file, wherever it is, is that model's row.
+	change(app, a, func() { a.tools.WhisperModel = "/elsewhere/ggml-small.bin" })
+	if app.Exists("id:settings-model-row-file") {
+		t.Fatal("a catalog model's file has a row of its own")
 	}
 }

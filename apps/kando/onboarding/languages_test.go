@@ -8,10 +8,12 @@ import (
 	"kando/packages/media"
 )
 
-// TestSpeechLanguagesAreTheTiles keeps the languages the speech settings offer as the one spoken in the videos (media.SpeechLanguages) the same as the ones this guide offers, so a language added here can be told to whisper and is not dropped from settings.json.
-func TestSpeechLanguagesAreTheTiles(t *testing.T) {
-	if got, want := slices.Sorted(slices.Values(media.SpeechLanguages())), slices.Sorted(slices.Values(tileCodes)); !slices.Equal(got, want) {
-		t.Fatalf("speech languages %q, the guide's languages %q", got, want)
+// TestTilesAreSpeechLanguages keeps every language this guide offers among the ones the speech settings offer as the one spoken in the videos (media.SpeechLanguages), so a language added here can be told to whisper and is not dropped from settings.json.
+func TestTilesAreSpeechLanguages(t *testing.T) {
+	for _, code := range tileCodes {
+		if !slices.Contains(media.SpeechLanguages(), code) {
+			t.Fatalf("the guide offers %q, which the speech settings do not", code)
+		}
 	}
 }
 
@@ -49,5 +51,15 @@ func TestEffectiveLeavesOutTheTarget(t *testing.T) {
 	}
 	if got := tiles("English"); len(got) != 6 || slices.Contains(got, "en") {
 		t.Fatalf("tiles(English) = %q", got)
+	}
+	// A target language none of the tiles is written in leaves six tiles, and only those can be chosen.
+	if got := tiles("Português"); len(got) != 6 || slices.Contains(got, "zh") {
+		t.Fatalf("tiles(Português) = %q", got)
+	}
+	if got := Effective([]string{"zh", "ja"}, "Português"); !slices.Equal(got, []string{"ja"}) {
+		t.Fatalf("Effective for Português = %q", got)
+	}
+	if code, original, translation := demo([]string{"ja"}, "Português"); code != "ja" || original != demoLines["ja"] || translation != demoLines["pt"] || translation == "" {
+		t.Fatalf("demo for Português = %q %q %q", code, original, translation)
 	}
 }

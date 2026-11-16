@@ -605,7 +605,9 @@ var Parameters = map[string][]string{
 	"SettingsSpeechDownloadProgress":     {"model"},
 	"SettingsSpeechLanguageSaveFailed":   {"error_"},
 	"SettingsSpeechModelActions":         {"model"},
+	"SettingsSpeechModelFileUnreadable":  {"file"},
 	"SettingsSpeechModelStats":           {"speed", "accuracy", "size"},
+	"SettingsSpeechNotModelFile":         {"file"},
 	"SettingsSpeechSaveFailed":           {"error_"},
 	"SettingsSpeechTrashConfirm":         {"model"},
 	"SettingsSpeechTrashFailed":          {"model"},
@@ -809,7 +811,9 @@ type Translation struct {
 	SettingsSpeechDownloadProgress     func(model string) string
 	SettingsSpeechLanguageSaveFailed   func(error_ string) string
 	SettingsSpeechModelActions         func(model string) string
+	SettingsSpeechModelFileUnreadable  func(file string) string
 	SettingsSpeechModelStats           func(speed string, accuracy string, size string) string
+	SettingsSpeechNotModelFile         func(file string) string
 	SettingsSpeechSaveFailed           func(error_ string) string
 	SettingsSpeechTrashConfirm         func(model string) string
 	SettingsSpeechTrashFailed          func(model string) string
@@ -1404,6 +1408,7 @@ const (
 	textSettingsAINotConfigured
 	textSettingsAIRedetect
 	textSettingsAIRetry
+	textSettingsAISearchModels
 	textSettingsAIService
 	textSettingsAITest
 	textSettingsAITestBusy
@@ -1470,14 +1475,27 @@ const (
 	textSettingsKeywordsShortcuts
 	textSettingsKeywordsSpeech
 	textSettingsKeywordsTranslate
+	textSettingsLanguageArabic
+	textSettingsLanguageDutch
 	textSettingsLanguageEnglish
 	textSettingsLanguageFrench
 	textSettingsLanguageGerman
+	textSettingsLanguageHindi
+	textSettingsLanguageIndonesian
+	textSettingsLanguageItalian
 	textSettingsLanguageJapanese
 	textSettingsLanguageKorean
+	textSettingsLanguagePolish
+	textSettingsLanguagePortuguese
+	textSettingsLanguageRussian
 	textSettingsLanguageSimplifiedChinese
 	textSettingsLanguageSpanish
+	textSettingsLanguageThai
 	textSettingsLanguageTraditionalChinese
+	textSettingsLanguageTurkish
+	textSettingsLanguageUkrainian
+	textSettingsLanguageVietnamese
+	textSettingsLanguagesSearch
 	textSettingsLookMode
 	textSettingsLookModeBilingual
 	textSettingsLookModeOriginal
@@ -1519,16 +1537,29 @@ const (
 	textSettingsSpeechBlurbSmall
 	textSettingsSpeechBlurbTiny
 	textSettingsSpeechCancel
+	textSettingsSpeechChooseFile
 	textSettingsSpeechDownload
 	textSettingsSpeechDownloadDisconnected
 	textSettingsSpeechDownloadStalled
 	textSettingsSpeechDownloaded
+	textSettingsSpeechLanguageAr
 	textSettingsSpeechLanguageDe
 	textSettingsSpeechLanguageEn
 	textSettingsSpeechLanguageEs
 	textSettingsSpeechLanguageFr
+	textSettingsSpeechLanguageHi
+	textSettingsSpeechLanguageId
+	textSettingsSpeechLanguageIt
 	textSettingsSpeechLanguageJa
 	textSettingsSpeechLanguageKo
+	textSettingsSpeechLanguageNl
+	textSettingsSpeechLanguagePl
+	textSettingsSpeechLanguagePt
+	textSettingsSpeechLanguageRu
+	textSettingsSpeechLanguageTh
+	textSettingsSpeechLanguageTr
+	textSettingsSpeechLanguageUk
+	textSettingsSpeechLanguageVi
 	textSettingsSpeechLanguageZh
 	textSettingsSpeechModels
 	textSettingsSpeechNameLargeV3TurboQ5
@@ -2177,6 +2208,7 @@ var keyOfText = [numTexts]string{
 	"settingsAINotConfigured",
 	"settingsAIRedetect",
 	"settingsAIRetry",
+	"settingsAISearchModels",
 	"settingsAIService",
 	"settingsAITest",
 	"settingsAITestBusy",
@@ -2243,14 +2275,27 @@ var keyOfText = [numTexts]string{
 	"settingsKeywordsShortcuts",
 	"settingsKeywordsSpeech",
 	"settingsKeywordsTranslate",
+	"settingsLanguageArabic",
+	"settingsLanguageDutch",
 	"settingsLanguageEnglish",
 	"settingsLanguageFrench",
 	"settingsLanguageGerman",
+	"settingsLanguageHindi",
+	"settingsLanguageIndonesian",
+	"settingsLanguageItalian",
 	"settingsLanguageJapanese",
 	"settingsLanguageKorean",
+	"settingsLanguagePolish",
+	"settingsLanguagePortuguese",
+	"settingsLanguageRussian",
 	"settingsLanguageSimplifiedChinese",
 	"settingsLanguageSpanish",
+	"settingsLanguageThai",
 	"settingsLanguageTraditionalChinese",
+	"settingsLanguageTurkish",
+	"settingsLanguageUkrainian",
+	"settingsLanguageVietnamese",
+	"settingsLanguagesSearch",
 	"settingsLookMode",
 	"settingsLookModeBilingual",
 	"settingsLookModeOriginal",
@@ -2292,16 +2337,29 @@ var keyOfText = [numTexts]string{
 	"settingsSpeechBlurbSmall",
 	"settingsSpeechBlurbTiny",
 	"settingsSpeechCancel",
+	"settingsSpeechChooseFile",
 	"settingsSpeechDownload",
 	"settingsSpeechDownloadDisconnected",
 	"settingsSpeechDownloadStalled",
 	"settingsSpeechDownloaded",
+	"settingsSpeechLanguageAr",
 	"settingsSpeechLanguageDe",
 	"settingsSpeechLanguageEn",
 	"settingsSpeechLanguageEs",
 	"settingsSpeechLanguageFr",
+	"settingsSpeechLanguageHi",
+	"settingsSpeechLanguageId",
+	"settingsSpeechLanguageIt",
 	"settingsSpeechLanguageJa",
 	"settingsSpeechLanguageKo",
+	"settingsSpeechLanguageNl",
+	"settingsSpeechLanguagePl",
+	"settingsSpeechLanguagePt",
+	"settingsSpeechLanguageRu",
+	"settingsSpeechLanguageTh",
+	"settingsSpeechLanguageTr",
+	"settingsSpeechLanguageUk",
+	"settingsSpeechLanguageVi",
 	"settingsSpeechLanguageZh",
 	"settingsSpeechModels",
 	"settingsSpeechNameLargeV3TurboQ5",
@@ -2938,7 +2996,7 @@ var textsEn = i18n.NewTexts(""+
 	"The API Key is kept only in the settings file on this Mac."+
 	"Getting the model list…"+
 	"Model"+
-	"This service doesn't offer a model list; check the Base URL"+
+	"This service doesn't offer a model list; check the Base URL, or type the model's ID"+
 	"The service didn't answer in time, so the model list couldn't be fetched"+
 	"The service doesn't accept this API Key, so the model list couldn't be fetched"+
 	"OpenAI Compatible"+
@@ -2948,6 +3006,7 @@ var textsEn = i18n.NewTexts(""+
 	"Not set up"+
 	"Detect Again"+
 	"Retry"+
+	"Search models"+
 	"Service"+
 	"Test Connection"+
 	"The service is busy. Test again in a minute."+
@@ -3014,14 +3073,27 @@ var textsEn = i18n.NewTexts(""+
 	"keyboard keys commands"+
 	"whisper models download recognition transcription HuggingFace Vimpo hyperframes"+
 	"target language smart translation context prompt restore default"+
+	"Arabic"+
+	"Dutch"+
 	"English"+
 	"French"+
 	"German"+
+	"Hindi"+
+	"Indonesian"+
+	"Italian"+
 	"Japanese"+
 	"Korean"+
+	"Polish"+
+	"Portuguese"+
+	"Russian"+
 	"Simplified Chinese"+
 	"Spanish"+
+	"Thai"+
 	"Traditional Chinese"+
+	"Turkish"+
+	"Ukrainian"+
+	"Vietnamese"+
+	"Search languages"+
 	"Default display"+
 	"Bilingual"+
 	"Original Only"+
@@ -3063,16 +3135,29 @@ var textsEn = i18n.NewTexts(""+
 	"Good enough for everyday videos, and mostly reliable for Chinese and other languages too."+
 	"For a quick try only. It makes many mistakes and suits only clearly spoken English."+
 	"Cancel"+
+	"Choose Model File…"+
 	"Download"+
 	"The connection dropped. Check your network and download again."+
 	"The download stopped receiving data. Download again to continue from where it stopped."+
 	"Downloaded"+
+	"Arabic"+
 	"German"+
 	"English"+
 	"Spanish"+
 	"French"+
+	"Hindi"+
+	"Indonesian"+
+	"Italian"+
 	"Japanese"+
 	"Korean"+
+	"Dutch"+
+	"Polish"+
+	"Portuguese"+
+	"Russian"+
+	"Thai"+
+	"Turkish"+
+	"Ukrainian"+
+	"Vietnamese"+
 	"Chinese"+
 	"whisper Models"+
 	"Large v3 Turbo (Compressed)"+
@@ -3706,7 +3791,7 @@ var textsEn = i18n.NewTexts(""+
 		58,
 		25,
 		5,
-		59,
+		83,
 		72,
 		78,
 		17,
@@ -3716,6 +3801,7 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		12,
 		5,
+		13,
 		7,
 		15,
 		44,
@@ -3782,14 +3868,27 @@ var textsEn = i18n.NewTexts(""+
 		22,
 		79,
 		64,
+		6,
+		5,
 		7,
 		6,
 		6,
+		5,
+		10,
+		7,
 		8,
 		6,
+		6,
+		10,
+		7,
 		18,
 		7,
+		4,
 		19,
+		7,
+		9,
+		10,
+		16,
 		15,
 		9,
 		13,
@@ -3831,16 +3930,29 @@ var textsEn = i18n.NewTexts(""+
 		89,
 		83,
 		6,
+		20,
 		8,
 		62,
 		86,
 		10,
 		6,
+		6,
 		7,
 		7,
 		6,
+		5,
+		10,
+		7,
 		8,
 		6,
+		5,
+		6,
+		10,
+		7,
+		4,
+		7,
+		9,
+		10,
 		7,
 		14,
 		27,
@@ -4477,7 +4589,7 @@ var textsJa = i18n.NewTexts(""+
 	"API Key はこの Mac の設定ファイルにだけ保存されます。"+
 	"モデルの一覧を取得中…"+
 	"モデル"+
-	"このサービスはモデルの一覧を提供していません。Base URL を確認してください"+
+	"このサービスはモデルの一覧を提供していません。Base URL を確認するか、モデル ID を入力してください"+
 	"サービスから時間内に応答がないため、モデルの一覧を取得できません"+
 	"サービスがこの API Key を受け付けないため、モデルの一覧を取得できません"+
 	"OpenAI 互換"+
@@ -4487,6 +4599,7 @@ var textsJa = i18n.NewTexts(""+
 	"未設定"+
 	"再検出"+
 	"再試行"+
+	"モデルを検索"+
 	"サービス"+
 	"接続をテスト"+
 	"サービスが混み合っています。1 分ほどしてからもう一度テストしてください。"+
@@ -4553,14 +4666,27 @@ var textsJa = i18n.NewTexts(""+
 	"キーボード キー コマンド"+
 	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Vimpo hyperframes"+
 	"翻訳先の言語 スマート翻訳 文脈 プロンプト デフォルトに戻す"+
+	"アラビア語"+
+	"オランダ語"+
 	"英語"+
 	"フランス語"+
 	"ドイツ語"+
+	"ヒンディー語"+
+	"インドネシア語"+
+	"イタリア語"+
 	"日本語"+
 	"韓国語"+
+	"ポーランド語"+
+	"ポルトガル語"+
+	"ロシア語"+
 	"簡体字中国語"+
 	"スペイン語"+
+	"タイ語"+
 	"繁体字中国語"+
+	"トルコ語"+
+	"ウクライナ語"+
+	"ベトナム語"+
+	"言語を検索"+
 	"デフォルトの表示方法"+
 	"二言語"+
 	"原文のみ"+
@@ -4602,16 +4728,29 @@ var textsJa = i18n.NewTexts(""+
 	"普段の動画には十分で、中国語やほかの言語でもおおむね信頼できます。"+
 	"とりあえず試したいとき向け。誤りが多く、発音のはっきりした英語にしか向きません。"+
 	"キャンセル"+
+	"モデルファイルを選択…"+
 	"ダウンロード"+
 	"接続が切れました。ネットワークを確認して、もう一度ダウンロードしてください。"+
 	"データが届かなくなり、ダウンロードが止まりました。もう一度ダウンロードすると、途中から再開します。"+
 	"ダウンロード済み"+
+	"アラビア語"+
 	"ドイツ語"+
 	"英語"+
 	"スペイン語"+
 	"フランス語"+
+	"ヒンディー語"+
+	"インドネシア語"+
+	"イタリア語"+
 	"日本語"+
 	"韓国語"+
+	"オランダ語"+
+	"ポーランド語"+
+	"ポルトガル語"+
+	"ロシア語"+
+	"タイ語"+
+	"トルコ語"+
+	"ウクライナ語"+
+	"ベトナム語"+
 	"中国語"+
 	"whisper モデル"+
 	"Large v3 Turbo（圧縮版）"+
@@ -5245,7 +5384,7 @@ var textsJa = i18n.NewTexts(""+
 		73,
 		33,
 		9,
-		105,
+		139,
 		96,
 		102,
 		13,
@@ -5255,6 +5394,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		9,
 		9,
+		18,
 		12,
 		18,
 		107,
@@ -5321,14 +5461,27 @@ var textsJa = i18n.NewTexts(""+
 		35,
 		89,
 		85,
+		15,
+		15,
 		6,
 		15,
 		12,
+		18,
+		21,
+		15,
 		9,
 		9,
+		18,
+		18,
+		12,
 		18,
 		15,
+		9,
 		18,
+		12,
+		18,
+		15,
+		15,
 		30,
 		9,
 		12,
@@ -5370,16 +5523,29 @@ var textsJa = i18n.NewTexts(""+
 		99,
 		120,
 		15,
+		33,
 		18,
 		114,
 		147,
 		24,
+		15,
 		12,
 		6,
 		15,
 		15,
+		18,
+		21,
+		15,
 		9,
 		9,
+		15,
+		18,
+		18,
+		12,
+		9,
+		12,
+		18,
+		15,
 		9,
 		17,
 		29,
@@ -6016,7 +6182,7 @@ var textsKo = i18n.NewTexts(""+
 	"API Key는 이 Mac의 설정 파일에만 저장됩니다."+
 	"모델 목록을 가져오는 중…"+
 	"모델"+
-	"이 서비스는 모델 목록을 제공하지 않습니다. Base URL을 확인하십시오"+
+	"이 서비스는 모델 목록을 제공하지 않습니다. Base URL을 확인하거나 모델 ID를 입력하십시오"+
 	"서비스가 제시간에 응답하지 않아 모델 목록을 가져올 수 없습니다"+
 	"서비스가 이 API Key를 받지 않아 모델 목록을 가져올 수 없습니다"+
 	"OpenAI 호환"+
@@ -6026,6 +6192,7 @@ var textsKo = i18n.NewTexts(""+
 	"설정되지 않음"+
 	"다시 감지"+
 	"다시 시도"+
+	"모델 검색"+
 	"서비스"+
 	"연결 테스트"+
 	"서비스가 혼잡합니다. 1분 후 다시 테스트하십시오."+
@@ -6092,14 +6259,27 @@ var textsKo = i18n.NewTexts(""+
 	"키보드 키 명령"+
 	"whisper 모델 다운로드 인식 전사 HuggingFace Vimpo hyperframes"+
 	"대상 언어 스마트 번역 문맥 프롬프트 기본값 복원"+
+	"아랍어"+
+	"네덜란드어"+
 	"영어"+
 	"프랑스어"+
 	"독일어"+
+	"힌디어"+
+	"인도네시아어"+
+	"이탈리아어"+
 	"일본어"+
 	"한국어"+
+	"폴란드어"+
+	"포르투갈어"+
+	"러시아어"+
 	"중국어(간체)"+
 	"스페인어"+
+	"태국어"+
 	"중국어(번체)"+
+	"튀르키예어"+
+	"우크라이나어"+
+	"베트남어"+
+	"언어 검색"+
 	"기본 표시 방식"+
 	"이중 언어"+
 	"원문만"+
@@ -6141,16 +6321,29 @@ var textsKo = i18n.NewTexts(""+
 	"일상적인 동영상에는 충분하고, 중국어와 다른 언어에서도 대체로 믿을 만합니다."+
 	"빠르게 시험해 보고 싶을 때 사용합니다. 오류가 많아 발음이 또렷한 영어에만 적합합니다."+
 	"취소"+
+	"모델 파일 선택…"+
 	"다운로드"+
 	"연결이 끊어졌습니다. 네트워크를 확인한 뒤 다시 다운로드하세요."+
 	"데이터가 더 이상 오지 않아 다운로드가 멈췄습니다. 다시 다운로드하면 중단된 곳부터 이어받습니다."+
 	"다운로드됨"+
+	"아랍어"+
 	"독일어"+
 	"영어"+
 	"스페인어"+
 	"프랑스어"+
+	"힌디어"+
+	"인도네시아어"+
+	"이탈리아어"+
 	"일본어"+
 	"한국어"+
+	"네덜란드어"+
+	"폴란드어"+
+	"포르투갈어"+
+	"러시아어"+
+	"태국어"+
+	"튀르키예어"+
+	"우크라이나어"+
+	"베트남어"+
 	"중국어"+
 	"whisper 모델"+
 	"Large v3 Turbo (압축 버전)"+
@@ -6784,7 +6977,7 @@ var textsKo = i18n.NewTexts(""+
 		58,
 		36,
 		6,
-		91,
+		120,
 		89,
 		85,
 		13,
@@ -6792,6 +6985,7 @@ var textsKo = i18n.NewTexts(""+
 		11,
 		9,
 		19,
+		13,
 		13,
 		13,
 		9,
@@ -6860,14 +7054,27 @@ var textsKo = i18n.NewTexts(""+
 		20,
 		71,
 		67,
+		9,
+		15,
 		6,
 		12,
 		9,
 		9,
+		18,
+		15,
 		9,
-		17,
+		9,
+		12,
+		15,
 		12,
 		17,
+		12,
+		9,
+		17,
+		15,
+		18,
+		12,
+		13,
 		20,
 		13,
 		9,
@@ -6909,16 +7116,29 @@ var textsKo = i18n.NewTexts(""+
 		109,
 		121,
 		6,
+		23,
 		12,
 		89,
 		136,
 		15,
 		9,
+		9,
 		6,
 		12,
 		12,
 		9,
+		18,
+		15,
 		9,
+		9,
+		15,
+		12,
+		15,
+		12,
+		9,
+		15,
+		18,
+		12,
 		9,
 		14,
 		30,
@@ -7555,7 +7775,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"API Key 只保存在本机设置文件里。"+
 	"正在获取模型列表…"+
 	"模型"+
-	"这个服务不提供模型列表，检查 Base URL"+
+	"这个服务不提供模型列表，检查 Base URL，或直接填写模型 ID"+
 	"服务没有按时回复，取不到模型列表"+
 	"服务不接受这个 API Key，取不到模型列表"+
 	"OpenAI 兼容"+
@@ -7565,6 +7785,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"未配置"+
 	"重新检测"+
 	"重试"+
+	"搜索模型"+
 	"服务"+
 	"测试连接"+
 	"服务正忙，过一分钟再测试。"+
@@ -7631,14 +7852,27 @@ var textsZhHans = i18n.NewTexts(""+
 	"键盘 按键 命令"+
 	"whisper 模型 下载 识别 HuggingFace Vimpo hyperframes"+
 	"目标语言 智能翻译 上下文 提示词 恢复默认"+
+	"العربية"+
+	"Nederlands"+
 	"English"+
 	"Français"+
 	"Deutsch"+
+	"हिन्दी"+
+	"Bahasa Indonesia"+
+	"Italiano"+
 	"日本語"+
 	"한국어"+
+	"Polski"+
+	"Português"+
+	"Русский"+
 	"简体中文"+
 	"Español"+
+	"ไทย"+
 	"繁体中文"+
+	"Türkçe"+
+	"Українська"+
+	"Tiếng Việt"+
+	"搜索语言"+
 	"默认显示方式"+
 	"双语"+
 	"仅原文"+
@@ -7680,16 +7914,29 @@ var textsZhHans = i18n.NewTexts(""+
 	"日常视频够用，中文和其他语言也基本可靠。"+
 	"只想快速试一下。错字较多，只适合发音清楚的英语。"+
 	"取消"+
+	"选择模型文件…"+
 	"下载"+
 	"连接断了。检查网络后再下载一次。"+
 	"下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"+
 	"已下载"+
+	"阿拉伯语"+
 	"德语"+
 	"英语"+
 	"西班牙语"+
 	"法语"+
+	"印地语"+
+	"印度尼西亚语"+
+	"意大利语"+
 	"日语"+
 	"韩语"+
+	"荷兰语"+
+	"波兰语"+
+	"葡萄牙语"+
+	"俄语"+
+	"泰语"+
+	"土耳其语"+
+	"乌克兰语"+
+	"越南语"+
 	"中文"+
 	"whisper 模型"+
 	"Large v3 Turbo（压缩版）"+
@@ -8323,7 +8570,7 @@ var textsZhHans = i18n.NewTexts(""+
 		44,
 		27,
 		6,
-		51,
+		78,
 		48,
 		53,
 		13,
@@ -8333,6 +8580,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		12,
 		6,
+		12,
 		6,
 		12,
 		39,
@@ -8399,13 +8647,26 @@ var textsZhHans = i18n.NewTexts(""+
 		20,
 		58,
 		58,
+		14,
+		10,
 		7,
 		9,
 		7,
+		18,
+		16,
+		8,
 		9,
+		9,
+		6,
+		10,
+		14,
+		12,
+		8,
 		9,
 		12,
 		8,
+		20,
+		14,
 		12,
 		18,
 		6,
@@ -8448,16 +8709,29 @@ var textsZhHans = i18n.NewTexts(""+
 		60,
 		72,
 		6,
+		21,
 		6,
 		48,
 		87,
 		9,
+		12,
 		6,
 		6,
 		12,
 		6,
+		9,
+		18,
+		12,
 		6,
 		6,
+		9,
+		9,
+		12,
+		6,
+		6,
+		12,
+		12,
+		9,
 		6,
 		14,
 		29,
@@ -9094,7 +9368,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"API Key 只儲存在本機的設定檔中。"+
 	"正在取得模型清單…"+
 	"模型"+
-	"這個服務不提供模型清單，請檢查 Base URL"+
+	"這個服務不提供模型清單，請檢查 Base URL，或直接填寫模型 ID"+
 	"服務沒有按時回覆，取不到模型清單"+
 	"服務不接受這個 API Key，取不到模型清單"+
 	"OpenAI 相容"+
@@ -9104,6 +9378,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"未設定"+
 	"重新偵測"+
 	"重試"+
+	"搜尋模型"+
 	"服務"+
 	"測試連線"+
 	"服務正忙，過一分鐘再測試。"+
@@ -9170,14 +9445,27 @@ var textsZhHant = i18n.NewTexts(""+
 	"鍵盤 按鍵 指令"+
 	"whisper 模型 下載 辨識 HuggingFace Vimpo hyperframes"+
 	"目標語言 智慧翻譯 上下文 提示詞 恢復預設"+
+	"العربية"+
+	"Nederlands"+
 	"English"+
 	"Français"+
 	"Deutsch"+
+	"हिन्दी"+
+	"Bahasa Indonesia"+
+	"Italiano"+
 	"日本語"+
 	"한국어"+
+	"Polski"+
+	"Português"+
+	"Русский"+
 	"簡體中文"+
 	"Español"+
+	"ไทย"+
 	"繁體中文"+
+	"Türkçe"+
+	"Українська"+
+	"Tiếng Việt"+
+	"搜尋語言"+
 	"預設顯示方式"+
 	"雙語"+
 	"僅原文"+
@@ -9219,16 +9507,29 @@ var textsZhHant = i18n.NewTexts(""+
 	"日常影片夠用，中文和其他語言也大致可靠。"+
 	"只想快速試一下。錯字較多，只適合發音清楚的英語。"+
 	"取消"+
+	"選擇模型檔案…"+
 	"下載"+
 	"連線中斷了。檢查網路後再下載一次。"+
 	"下載停住了，一直收不到資料。重新下載會從中斷的地方接著下。"+
 	"已下載"+
+	"阿拉伯語"+
 	"德語"+
 	"英語"+
 	"西班牙語"+
 	"法語"+
+	"印地語"+
+	"印尼語"+
+	"義大利語"+
 	"日語"+
 	"韓語"+
+	"荷蘭語"+
+	"波蘭語"+
+	"葡萄牙語"+
+	"俄語"+
+	"泰語"+
+	"土耳其語"+
+	"烏克蘭語"+
+	"越南語"+
 	"中文"+
 	"whisper 模型"+
 	"Large v3 Turbo（壓縮版）"+
@@ -9862,7 +10163,7 @@ var textsZhHant = i18n.NewTexts(""+
 		44,
 		27,
 		6,
-		54,
+		81,
 		48,
 		53,
 		13,
@@ -9872,6 +10173,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		12,
 		6,
+		12,
 		6,
 		12,
 		39,
@@ -9938,13 +10240,26 @@ var textsZhHant = i18n.NewTexts(""+
 		20,
 		58,
 		58,
+		14,
+		10,
 		7,
 		9,
 		7,
+		18,
+		16,
+		8,
 		9,
+		9,
+		6,
+		10,
+		14,
+		12,
+		8,
 		9,
 		12,
 		8,
+		20,
+		14,
 		12,
 		18,
 		6,
@@ -9987,16 +10302,29 @@ var textsZhHant = i18n.NewTexts(""+
 		60,
 		72,
 		6,
+		21,
 		6,
 		51,
 		87,
 		9,
+		12,
 		6,
 		6,
 		12,
 		6,
+		9,
+		9,
+		12,
 		6,
 		6,
+		9,
+		9,
+		12,
+		6,
+		6,
+		12,
+		12,
+		9,
 		6,
 		14,
 		29,
@@ -10668,8 +10996,14 @@ func Supply(lang string, t Translation) {
 	if t.SettingsSpeechModelActions != nil {
 		s.SettingsSpeechModelActions = t.SettingsSpeechModelActions
 	}
+	if t.SettingsSpeechModelFileUnreadable != nil {
+		s.SettingsSpeechModelFileUnreadable = t.SettingsSpeechModelFileUnreadable
+	}
 	if t.SettingsSpeechModelStats != nil {
 		s.SettingsSpeechModelStats = t.SettingsSpeechModelStats
+	}
+	if t.SettingsSpeechNotModelFile != nil {
+		s.SettingsSpeechNotModelFile = t.SettingsSpeechNotModelFile
 	}
 	if t.SettingsSpeechSaveFailed != nil {
 		s.SettingsSpeechSaveFailed = t.SettingsSpeechSaveFailed
@@ -21307,10 +21641,10 @@ func (msgs Messages) SettingsAIModelsFailed(error_ string) string {
 	}
 }
 
-// SettingsAIModelsNotFound says "This service doesn't offer a model list; check the Base URL"
+// SettingsAIModelsNotFound says "This service doesn't offer a model list; check the Base URL, or type the model's ID"
 // in the language the app shows under cx.
 //
-// Why the model list could not be fetched: the endpoint has no model list.
+// Why the model list could not be fetched: the endpoint has no model list. Shown under the Model row's title, beside the field the model's ID is then typed into.
 func SettingsAIModelsNotFound(cx *core.Scope) string { return For(cx).SettingsAIModelsNotFound() }
 
 // SettingsAIModelsNotFound is the package's SettingsAIModelsNotFound in the language of msgs.
@@ -21500,6 +21834,15 @@ func (msgs Messages) SettingsAISaveFailed(error_ string) string {
 		}
 	}
 }
+
+// SettingsAISearchModels says "Search models"
+// in the language the app shows under cx.
+//
+// Placeholder and name of the search field at the top of the Model drop-down, which filters the service's models by ID.
+func SettingsAISearchModels(cx *core.Scope) string { return For(cx).SettingsAISearchModels() }
+
+// SettingsAISearchModels is the package's SettingsAISearchModels in the language of msgs.
+func (msgs Messages) SettingsAISearchModels() string { return msgs.text(textSettingsAISearchModels) }
 
 // SettingsAIService says "Service"
 // in the language the app shows under cx.
@@ -22640,6 +22983,24 @@ func (msgs Messages) SettingsKeywordsTranslate() string {
 	return msgs.text(textSettingsKeywordsTranslate)
 }
 
+// SettingsLanguageArabic says "Arabic"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Arabic.
+func SettingsLanguageArabic(cx *core.Scope) string { return For(cx).SettingsLanguageArabic() }
+
+// SettingsLanguageArabic is the package's SettingsLanguageArabic in the language of msgs.
+func (msgs Messages) SettingsLanguageArabic() string { return msgs.text(textSettingsLanguageArabic) }
+
+// SettingsLanguageDutch says "Dutch"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Dutch.
+func SettingsLanguageDutch(cx *core.Scope) string { return For(cx).SettingsLanguageDutch() }
+
+// SettingsLanguageDutch is the package's SettingsLanguageDutch in the language of msgs.
+func (msgs Messages) SettingsLanguageDutch() string { return msgs.text(textSettingsLanguageDutch) }
+
 // SettingsLanguageEnglish says "English"
 // in the language the app shows under cx.
 //
@@ -22667,6 +23028,35 @@ func SettingsLanguageGerman(cx *core.Scope) string { return For(cx).SettingsLang
 // SettingsLanguageGerman is the package's SettingsLanguageGerman in the language of msgs.
 func (msgs Messages) SettingsLanguageGerman() string { return msgs.text(textSettingsLanguageGerman) }
 
+// SettingsLanguageHindi says "Hindi"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Hindi.
+func SettingsLanguageHindi(cx *core.Scope) string { return For(cx).SettingsLanguageHindi() }
+
+// SettingsLanguageHindi is the package's SettingsLanguageHindi in the language of msgs.
+func (msgs Messages) SettingsLanguageHindi() string { return msgs.text(textSettingsLanguageHindi) }
+
+// SettingsLanguageIndonesian says "Indonesian"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Indonesian.
+func SettingsLanguageIndonesian(cx *core.Scope) string { return For(cx).SettingsLanguageIndonesian() }
+
+// SettingsLanguageIndonesian is the package's SettingsLanguageIndonesian in the language of msgs.
+func (msgs Messages) SettingsLanguageIndonesian() string {
+	return msgs.text(textSettingsLanguageIndonesian)
+}
+
+// SettingsLanguageItalian says "Italian"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Italian.
+func SettingsLanguageItalian(cx *core.Scope) string { return For(cx).SettingsLanguageItalian() }
+
+// SettingsLanguageItalian is the package's SettingsLanguageItalian in the language of msgs.
+func (msgs Messages) SettingsLanguageItalian() string { return msgs.text(textSettingsLanguageItalian) }
+
 // SettingsLanguageJapanese says "Japanese"
 // in the language the app shows under cx.
 //
@@ -22686,6 +23076,35 @@ func SettingsLanguageKorean(cx *core.Scope) string { return For(cx).SettingsLang
 
 // SettingsLanguageKorean is the package's SettingsLanguageKorean in the language of msgs.
 func (msgs Messages) SettingsLanguageKorean() string { return msgs.text(textSettingsLanguageKorean) }
+
+// SettingsLanguagePolish says "Polish"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Polish.
+func SettingsLanguagePolish(cx *core.Scope) string { return For(cx).SettingsLanguagePolish() }
+
+// SettingsLanguagePolish is the package's SettingsLanguagePolish in the language of msgs.
+func (msgs Messages) SettingsLanguagePolish() string { return msgs.text(textSettingsLanguagePolish) }
+
+// SettingsLanguagePortuguese says "Portuguese"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Portuguese.
+func SettingsLanguagePortuguese(cx *core.Scope) string { return For(cx).SettingsLanguagePortuguese() }
+
+// SettingsLanguagePortuguese is the package's SettingsLanguagePortuguese in the language of msgs.
+func (msgs Messages) SettingsLanguagePortuguese() string {
+	return msgs.text(textSettingsLanguagePortuguese)
+}
+
+// SettingsLanguageRussian says "Russian"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Russian.
+func SettingsLanguageRussian(cx *core.Scope) string { return For(cx).SettingsLanguageRussian() }
+
+// SettingsLanguageRussian is the package's SettingsLanguageRussian in the language of msgs.
+func (msgs Messages) SettingsLanguageRussian() string { return msgs.text(textSettingsLanguageRussian) }
 
 // SettingsLanguageSimplifiedChinese says "Simplified Chinese"
 // in the language the app shows under cx.
@@ -22709,6 +23128,15 @@ func SettingsLanguageSpanish(cx *core.Scope) string { return For(cx).SettingsLan
 // SettingsLanguageSpanish is the package's SettingsLanguageSpanish in the language of msgs.
 func (msgs Messages) SettingsLanguageSpanish() string { return msgs.text(textSettingsLanguageSpanish) }
 
+// SettingsLanguageThai says "Thai"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Thai.
+func SettingsLanguageThai(cx *core.Scope) string { return For(cx).SettingsLanguageThai() }
+
+// SettingsLanguageThai is the package's SettingsLanguageThai in the language of msgs.
+func (msgs Messages) SettingsLanguageThai() string { return msgs.text(textSettingsLanguageThai) }
+
 // SettingsLanguageTraditionalChinese says "Traditional Chinese"
 // in the language the app shows under cx.
 //
@@ -22721,6 +23149,46 @@ func SettingsLanguageTraditionalChinese(cx *core.Scope) string {
 func (msgs Messages) SettingsLanguageTraditionalChinese() string {
 	return msgs.text(textSettingsLanguageTraditionalChinese)
 }
+
+// SettingsLanguageTurkish says "Turkish"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Turkish.
+func SettingsLanguageTurkish(cx *core.Scope) string { return For(cx).SettingsLanguageTurkish() }
+
+// SettingsLanguageTurkish is the package's SettingsLanguageTurkish in the language of msgs.
+func (msgs Messages) SettingsLanguageTurkish() string { return msgs.text(textSettingsLanguageTurkish) }
+
+// SettingsLanguageUkrainian says "Ukrainian"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Ukrainian.
+func SettingsLanguageUkrainian(cx *core.Scope) string { return For(cx).SettingsLanguageUkrainian() }
+
+// SettingsLanguageUkrainian is the package's SettingsLanguageUkrainian in the language of msgs.
+func (msgs Messages) SettingsLanguageUkrainian() string {
+	return msgs.text(textSettingsLanguageUkrainian)
+}
+
+// SettingsLanguageVietnamese says "Vietnamese"
+// in the language the app shows under cx.
+//
+// Target language in the pop-up: Vietnamese.
+func SettingsLanguageVietnamese(cx *core.Scope) string { return For(cx).SettingsLanguageVietnamese() }
+
+// SettingsLanguageVietnamese is the package's SettingsLanguageVietnamese in the language of msgs.
+func (msgs Messages) SettingsLanguageVietnamese() string {
+	return msgs.text(textSettingsLanguageVietnamese)
+}
+
+// SettingsLanguagesSearch says "Search languages"
+// in the language the app shows under cx.
+//
+// Placeholder and name of the search field at the top of the Spoken Language and Default target language drop-downs.
+func SettingsLanguagesSearch(cx *core.Scope) string { return For(cx).SettingsLanguagesSearch() }
+
+// SettingsLanguagesSearch is the package's SettingsLanguagesSearch in the language of msgs.
+func (msgs Messages) SettingsLanguagesSearch() string { return msgs.text(textSettingsLanguagesSearch) }
 
 // SettingsLibrarySaveFailed says "Couldn't save the library: {error}"
 // in the language the app shows under cx.
@@ -23175,6 +23643,17 @@ func SettingsSpeechCancel(cx *core.Scope) string { return For(cx).SettingsSpeech
 // SettingsSpeechCancel is the package's SettingsSpeechCancel in the language of msgs.
 func (msgs Messages) SettingsSpeechCancel() string { return msgs.text(textSettingsSpeechCancel) }
 
+// SettingsSpeechChooseFile says "Choose Model File…"
+// in the language the app shows under cx.
+//
+// Button at the end of the whisper Models heading. It opens a file panel to use a whisper.cpp model file (.bin) already on this computer instead of downloading one.
+func SettingsSpeechChooseFile(cx *core.Scope) string { return For(cx).SettingsSpeechChooseFile() }
+
+// SettingsSpeechChooseFile is the package's SettingsSpeechChooseFile in the language of msgs.
+func (msgs Messages) SettingsSpeechChooseFile() string {
+	return msgs.text(textSettingsSpeechChooseFile)
+}
+
 // SettingsSpeechDownload says "Download"
 // in the language the app shows under cx.
 //
@@ -23285,6 +23764,17 @@ func (msgs Messages) SettingsSpeechDownloaded() string {
 	return msgs.text(textSettingsSpeechDownloaded)
 }
 
+// SettingsSpeechLanguageAr says "Arabic"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Arabic.
+func SettingsSpeechLanguageAr(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageAr() }
+
+// SettingsSpeechLanguageAr is the package's SettingsSpeechLanguageAr in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageAr() string {
+	return msgs.text(textSettingsSpeechLanguageAr)
+}
+
 // SettingsSpeechLanguageDe says "German"
 // in the language the app shows under cx.
 //
@@ -23329,6 +23819,39 @@ func (msgs Messages) SettingsSpeechLanguageFr() string {
 	return msgs.text(textSettingsSpeechLanguageFr)
 }
 
+// SettingsSpeechLanguageHi says "Hindi"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Hindi.
+func SettingsSpeechLanguageHi(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageHi() }
+
+// SettingsSpeechLanguageHi is the package's SettingsSpeechLanguageHi in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageHi() string {
+	return msgs.text(textSettingsSpeechLanguageHi)
+}
+
+// SettingsSpeechLanguageId says "Indonesian"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Indonesian.
+func SettingsSpeechLanguageId(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageId() }
+
+// SettingsSpeechLanguageId is the package's SettingsSpeechLanguageId in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageId() string {
+	return msgs.text(textSettingsSpeechLanguageId)
+}
+
+// SettingsSpeechLanguageIt says "Italian"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Italian.
+func SettingsSpeechLanguageIt(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageIt() }
+
+// SettingsSpeechLanguageIt is the package's SettingsSpeechLanguageIt in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageIt() string {
+	return msgs.text(textSettingsSpeechLanguageIt)
+}
+
 // SettingsSpeechLanguageJa says "Japanese"
 // in the language the app shows under cx.
 //
@@ -23349,6 +23872,50 @@ func SettingsSpeechLanguageKo(cx *core.Scope) string { return For(cx).SettingsSp
 // SettingsSpeechLanguageKo is the package's SettingsSpeechLanguageKo in the language of msgs.
 func (msgs Messages) SettingsSpeechLanguageKo() string {
 	return msgs.text(textSettingsSpeechLanguageKo)
+}
+
+// SettingsSpeechLanguageNl says "Dutch"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Dutch.
+func SettingsSpeechLanguageNl(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageNl() }
+
+// SettingsSpeechLanguageNl is the package's SettingsSpeechLanguageNl in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageNl() string {
+	return msgs.text(textSettingsSpeechLanguageNl)
+}
+
+// SettingsSpeechLanguagePl says "Polish"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Polish.
+func SettingsSpeechLanguagePl(cx *core.Scope) string { return For(cx).SettingsSpeechLanguagePl() }
+
+// SettingsSpeechLanguagePl is the package's SettingsSpeechLanguagePl in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguagePl() string {
+	return msgs.text(textSettingsSpeechLanguagePl)
+}
+
+// SettingsSpeechLanguagePt says "Portuguese"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Portuguese.
+func SettingsSpeechLanguagePt(cx *core.Scope) string { return For(cx).SettingsSpeechLanguagePt() }
+
+// SettingsSpeechLanguagePt is the package's SettingsSpeechLanguagePt in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguagePt() string {
+	return msgs.text(textSettingsSpeechLanguagePt)
+}
+
+// SettingsSpeechLanguageRu says "Russian"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Russian.
+func SettingsSpeechLanguageRu(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageRu() }
+
+// SettingsSpeechLanguageRu is the package's SettingsSpeechLanguageRu in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageRu() string {
+	return msgs.text(textSettingsSpeechLanguageRu)
 }
 
 // SettingsSpeechLanguageSaveFailed says "Couldn't save the spoken language: {error}"
@@ -23381,6 +23948,50 @@ func (msgs Messages) SettingsSpeechLanguageSaveFailed(error_ string) string {
 			return "辨識語言無法儲存：" + error_
 		}
 	}
+}
+
+// SettingsSpeechLanguageTh says "Thai"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Thai.
+func SettingsSpeechLanguageTh(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageTh() }
+
+// SettingsSpeechLanguageTh is the package's SettingsSpeechLanguageTh in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageTh() string {
+	return msgs.text(textSettingsSpeechLanguageTh)
+}
+
+// SettingsSpeechLanguageTr says "Turkish"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Turkish.
+func SettingsSpeechLanguageTr(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageTr() }
+
+// SettingsSpeechLanguageTr is the package's SettingsSpeechLanguageTr in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageTr() string {
+	return msgs.text(textSettingsSpeechLanguageTr)
+}
+
+// SettingsSpeechLanguageUk says "Ukrainian"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Ukrainian.
+func SettingsSpeechLanguageUk(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageUk() }
+
+// SettingsSpeechLanguageUk is the package's SettingsSpeechLanguageUk in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageUk() string {
+	return msgs.text(textSettingsSpeechLanguageUk)
+}
+
+// SettingsSpeechLanguageVi says "Vietnamese"
+// in the language the app shows under cx.
+//
+// Choice of the Spoken Language drop-down: Vietnamese.
+func SettingsSpeechLanguageVi(cx *core.Scope) string { return For(cx).SettingsSpeechLanguageVi() }
+
+// SettingsSpeechLanguageVi is the package's SettingsSpeechLanguageVi in the language of msgs.
+func (msgs Messages) SettingsSpeechLanguageVi() string {
+	return msgs.text(textSettingsSpeechLanguageVi)
 }
 
 // SettingsSpeechLanguageZh says "Chinese"
@@ -23422,6 +24033,38 @@ func (msgs Messages) SettingsSpeechModelActions(model string) string {
 			return model + " 的更多操作"
 		case "zh-Hant":
 			return model + " 的更多操作"
+		}
+	}
+}
+
+// SettingsSpeechModelFileUnreadable says "Couldn't read “{file}”."
+// in the language the app shows under cx.
+//
+// Error on the Speech Recognition page when the file chosen with Choose Model File… could not be opened, as when Kando may not read it.
+func SettingsSpeechModelFileUnreadable(cx *core.Scope, file string) string {
+	return For(cx).SettingsSpeechModelFileUnreadable(file)
+}
+
+// SettingsSpeechModelFileUnreadable is the package's SettingsSpeechModelFileUnreadable in the language of msgs.
+func (msgs Messages) SettingsSpeechModelFileUnreadable(file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechModelFileUnreadable(file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSpeechModelFileUnreadable; f != nil {
+			return f(file)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't read “" + msgs.arg(file) + "”."
+		case "ja":
+			return "「" + file + "」を読み込めませんでした。"
+		case "ko":
+			return "‘" + file + "’을(를) 읽을 수 없습니다."
+		case "zh-Hans":
+			return "无法读取「" + file + "」。"
+		case "zh-Hant":
+			return "無法讀取「" + file + "」。"
 		}
 	}
 }
@@ -23489,6 +24132,38 @@ func SettingsSpeechNoModelsDir(cx *core.Scope) string { return For(cx).SettingsS
 // SettingsSpeechNoModelsDir is the package's SettingsSpeechNoModelsDir in the language of msgs.
 func (msgs Messages) SettingsSpeechNoModelsDir() string {
 	return msgs.text(textSettingsSpeechNoModelsDir)
+}
+
+// SettingsSpeechNotModelFile says "“{file}” isn't a whisper.cpp model. Choose a ggml .bin model file."
+// in the language the app shows under cx.
+//
+// Error on the Speech Recognition page when the file chosen with Choose Model File… is not a whisper.cpp model. ggml is the model format's name.
+func SettingsSpeechNotModelFile(cx *core.Scope, file string) string {
+	return For(cx).SettingsSpeechNotModelFile(file)
+}
+
+// SettingsSpeechNotModelFile is the package's SettingsSpeechNotModelFile in the language of msgs.
+func (msgs Messages) SettingsSpeechNotModelFile(file string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechNotModelFile(file))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSpeechNotModelFile; f != nil {
+			return f(file)
+		}
+		switch lang {
+		case "", "en":
+			return "“" + msgs.arg(file) + "” isn't a whisper.cpp model. Choose a ggml .bin model file."
+		case "ja":
+			return "「" + file + "」は whisper.cpp のモデルではありません。ggml 形式の .bin モデルファイルを選択してください。"
+		case "ko":
+			return "‘" + file + "’은(는) whisper.cpp 모델이 아닙니다. ggml 형식의 .bin 모델 파일을 선택하십시오."
+		case "zh-Hans":
+			return "「" + file + "」不是 whisper.cpp 的模型。请选择 ggml 格式的 .bin 模型文件。"
+		case "zh-Hant":
+			return "「" + file + "」不是 whisper.cpp 的模型。請選擇 ggml 格式的 .bin 模型檔案。"
+		}
+	}
 }
 
 // SettingsSpeechNote says "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying."

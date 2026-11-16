@@ -2513,8 +2513,8 @@ settingsAIModelsFailed:
   placeholders:
     error: { type: "String", example: "connection refused" }
 settingsAIModelsNotFound:
-  message: "This service doesn't offer a model list; check the Base URL"
-  description: "Why the model list could not be fetched: the endpoint has no model list."
+  message: "This service doesn't offer a model list; check the Base URL, or type the model's ID"
+  description: "Why the model list could not be fetched: the endpoint has no model list. Shown under the Model row's title, beside the field the model's ID is then typed into."
 settingsAIModelsTimeout:
   message: "The service didn't answer in time, so the model list couldn't be fetched"
   description: "Why the model list could not be fetched: the service did not answer in time."
@@ -2560,6 +2560,9 @@ settingsAISaveFailed:
   description: "Error when the AI service's settings could not be saved to settings.json."
   placeholders:
     error: { type: "String", example: "permission denied" }
+settingsAISearchModels:
+  message: "Search models"
+  description: "Placeholder and name of the search field at the top of the Model drop-down, which filters the service's models by ID."
 settingsAIService:
   message: "Service"
   description: "Row title: the AI service that translates."
@@ -2823,6 +2826,12 @@ settingsKeywordsSpeech:
 settingsKeywordsTranslate:
   message: "target language smart translation context prompt restore default"
   description: "Search keywords of the Translation settings section, separated by spaces, besides its title. Not shown."
+settingsLanguageArabic:
+  message: "Arabic"
+  description: "Target language in the pop-up: Arabic."
+settingsLanguageDutch:
+  message: "Dutch"
+  description: "Target language in the pop-up: Dutch."
 settingsLanguageEnglish:
   message: "English"
   description: "Target language in the pop-up: English."
@@ -2832,21 +2841,54 @@ settingsLanguageFrench:
 settingsLanguageGerman:
   message: "German"
   description: "Target language in the pop-up: German."
+settingsLanguageHindi:
+  message: "Hindi"
+  description: "Target language in the pop-up: Hindi."
+settingsLanguageIndonesian:
+  message: "Indonesian"
+  description: "Target language in the pop-up: Indonesian."
+settingsLanguageItalian:
+  message: "Italian"
+  description: "Target language in the pop-up: Italian."
 settingsLanguageJapanese:
   message: "Japanese"
   description: "Target language in the pop-up: Japanese."
 settingsLanguageKorean:
   message: "Korean"
   description: "Target language in the pop-up: Korean."
+settingsLanguagePolish:
+  message: "Polish"
+  description: "Target language in the pop-up: Polish."
+settingsLanguagePortuguese:
+  message: "Portuguese"
+  description: "Target language in the pop-up: Portuguese."
+settingsLanguageRussian:
+  message: "Russian"
+  description: "Target language in the pop-up: Russian."
 settingsLanguageSimplifiedChinese:
   message: "Simplified Chinese"
   description: "Target language in the pop-up: Simplified Chinese."
 settingsLanguageSpanish:
   message: "Spanish"
   description: "Target language in the pop-up: Spanish."
+settingsLanguageThai:
+  message: "Thai"
+  description: "Target language in the pop-up: Thai."
 settingsLanguageTraditionalChinese:
   message: "Traditional Chinese"
   description: "Target language in the pop-up: Traditional Chinese."
+settingsLanguageTurkish:
+  message: "Turkish"
+  description: "Target language in the pop-up: Turkish."
+settingsLanguageUkrainian:
+  message: "Ukrainian"
+  description: "Target language in the pop-up: Ukrainian."
+settingsLanguageVietnamese:
+  message: "Vietnamese"
+  description: "Target language in the pop-up: Vietnamese."
+settingsLanguagesSearch:
+  message: "Search languages"
+  description: "Placeholder and name of the search field at the top of the Spoken Language and Default target language drop-downs."
 settingsLibrarySaveFailed:
   message: "Couldn't save the library: {error}"
   description: "Error when the libraries could not be saved to settings.json."
@@ -2975,6 +3017,9 @@ settingsSpeechBlurbTiny:
 settingsSpeechCancel:
   message: "Cancel"
   description: "Button canceling a whisper model's download."
+settingsSpeechChooseFile:
+  message: "Choose Model File…"
+  description: "Button at the end of the whisper Models heading. It opens a file panel to use a whisper.cpp model file (.bin) already on this computer instead of downloading one."
 settingsSpeechDownload:
   message: "Download"
   description: "Button downloading a whisper model."
@@ -2997,6 +3042,9 @@ settingsSpeechDownloadStalled:
 settingsSpeechDownloaded:
   message: "Downloaded"
   description: "At the end of a whisper model's row: the model is on disk."
+settingsSpeechLanguageAr:
+  message: "Arabic"
+  description: "Choice of the Spoken Language drop-down: Arabic."
 settingsSpeechLanguageDe:
   message: "German"
   description: "Choice of the Spoken Language drop-down: German."
@@ -3009,17 +3057,50 @@ settingsSpeechLanguageEs:
 settingsSpeechLanguageFr:
   message: "French"
   description: "Choice of the Spoken Language drop-down: French."
+settingsSpeechLanguageHi:
+  message: "Hindi"
+  description: "Choice of the Spoken Language drop-down: Hindi."
+settingsSpeechLanguageId:
+  message: "Indonesian"
+  description: "Choice of the Spoken Language drop-down: Indonesian."
+settingsSpeechLanguageIt:
+  message: "Italian"
+  description: "Choice of the Spoken Language drop-down: Italian."
 settingsSpeechLanguageJa:
   message: "Japanese"
   description: "Choice of the Spoken Language drop-down: Japanese."
 settingsSpeechLanguageKo:
   message: "Korean"
   description: "Choice of the Spoken Language drop-down: Korean."
+settingsSpeechLanguageNl:
+  message: "Dutch"
+  description: "Choice of the Spoken Language drop-down: Dutch."
+settingsSpeechLanguagePl:
+  message: "Polish"
+  description: "Choice of the Spoken Language drop-down: Polish."
+settingsSpeechLanguagePt:
+  message: "Portuguese"
+  description: "Choice of the Spoken Language drop-down: Portuguese."
+settingsSpeechLanguageRu:
+  message: "Russian"
+  description: "Choice of the Spoken Language drop-down: Russian."
 settingsSpeechLanguageSaveFailed:
   message: "Couldn't save the spoken language: {error}"
   description: "Error when the chosen spoken language could not be saved to settings.json."
   placeholders:
     error: { type: "String", example: "permission denied" }
+settingsSpeechLanguageTh:
+  message: "Thai"
+  description: "Choice of the Spoken Language drop-down: Thai."
+settingsSpeechLanguageTr:
+  message: "Turkish"
+  description: "Choice of the Spoken Language drop-down: Turkish."
+settingsSpeechLanguageUk:
+  message: "Ukrainian"
+  description: "Choice of the Spoken Language drop-down: Ukrainian."
+settingsSpeechLanguageVi:
+  message: "Vietnamese"
+  description: "Choice of the Spoken Language drop-down: Vietnamese."
 settingsSpeechLanguageZh:
   message: "Chinese"
   description: "Choice of the Spoken Language drop-down: Chinese."
@@ -3028,6 +3109,11 @@ settingsSpeechModelActions:
   description: "Accessible name and tooltip of the ⋯ button after a downloaded whisper model, which opens a menu of what can be done with its file."
   placeholders:
     model: { type: "String", example: "Base" }
+settingsSpeechModelFileUnreadable:
+  message: "Couldn't read “{file}”."
+  description: "Error on the Speech Recognition page when the file chosen with Choose Model File… could not be opened, as when Kando may not read it."
+  placeholders:
+    file: { type: "String", example: "ggml-base.bin" }
 settingsSpeechModelStats:
   message: "Speed {speed}  Accuracy {accuracy}  {size}"
   description: "Line under a whisper model: its speed and accuracy as five stars each, then its size. Two spaces between the parts."
@@ -3044,6 +3130,11 @@ settingsSpeechNameLargeV3TurboQ5:
 settingsSpeechNoModelsDir:
   message: "There is no models folder yet"
   description: "Error on the Speech Recognition page: Kando has no folder to download whisper models into."
+settingsSpeechNotModelFile:
+  message: "“{file}” isn't a whisper.cpp model. Choose a ggml .bin model file."
+  description: "Error on the Speech Recognition page when the file chosen with Choose Model File… is not a whisper.cpp model. ggml is the model format's name."
+  placeholders:
+    file: { type: "String", example: "model.gguf" }
 settingsSpeechNote:
   message: "Breaks sentences smartly. Larger models are more accurate but slower and take more space; if unsure, use the recommended one. Models download from HuggingFace, and a canceled download leaves no partial file behind; models other apps have already downloaded (Vimpo, hyperframes) are used as they are, without copying."
   description: "Footnote under the whisper models."
