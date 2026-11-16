@@ -864,7 +864,8 @@ func TestPaletteAnswersInTheFilmsLanguage(t *testing.T) {
 		t.Helper()
 		*seen = nil
 		apply(tt, a, run)
-		waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
+		// Explain Line opens the palette, which reads the subtitle files in the background (paletteRead), and a question asked before they are read finds no lines: the next ask waits for them as well as for the answer, which can come first.
+		waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy && !a.palette.reading })
 		if sent := strings.Join(*seen, "\n"); !strings.Contains(sent, "用"+want) {
 			t.Fatalf("sent %q, want it answered in %s", sent, want)
 		}

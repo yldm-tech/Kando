@@ -18,31 +18,31 @@ import (
 // The page's own buttons (browse/buttons.go) are drawn by the browser's script inside the page, which a test's web view does not run, so no scene shows them.
 func TestScreenshotsBrowse(t *testing.T) {
 	f := newScreenshotFixture(t)
-	f.shoot(t, "browse", func(a *app, tt *nsgotest.App, _ chan func()) {
+	f.shoot(t, "browse", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 		a.Select(pageBrowse)
 	})
 	// The start's line once Chrome's sign-in is the one downloads use, with 更改….
-	f.shoot(t, "browse-signin", func(a *app, tt *nsgotest.App, _ chan func()) {
+	f.shoot(t, "browse-signin", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 		a.signin.browser = "chrome"
 		a.Select(pageBrowse)
 	})
-	f.shoot(t, "browse-typing", func(a *app, tt *nsgotest.App, _ chan func()) {
+	f.shoot(t, "browse-typing", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 		a.Select(pageBrowse)
 		a.browseFocusAddress()
 		refresh(tt, a)
 		typeFocused(t, tt, "www.bilibili.com/video/BV1xx411c7mD")
 	})
-	f.shoot(t, "browse-clear", func(a *app, tt *nsgotest.App, _ chan func()) {
+	f.shoot(t, "browse-clear", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 		a.browse.clear = func() error { return nil }
 		a.Select(pageBrowse)
 		refresh(tt, a)
 		screenshotClick(t, tt, whole(testlocale.Messages().BrowseClearData()))
 	})
-	f.shoot(t, "browse-not-ready", func(a *app, tt *nsgotest.App, _ chan func()) {
+	f.shoot(t, "browse-not-ready", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		a.Select(pageBrowse)
 		const page = "https://www.bilibili.com/video/BV1xx411c7mD"
 		a.browseLoad(page)

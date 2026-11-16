@@ -15,33 +15,33 @@ import (
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// open opens film id at at and has the system's player report it loaded, held there.
-	open := func(a *app, tt *nsgotest.App, updates chan func(), id string, at time.Duration) {
+	open := func(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), id string, at time.Duration) {
 		screenshotOpen(t, a, tt, updates, id, at)
 		// TODO(nsgo#107): show the film's own picture, its frames decoded by the fake ffmpeg as MyGo's player showed them; the system's player plays no fake clip headless, so the stage shows the film's poster behind the report of a load https://github.com/nsgo-dev/nsgo/issues/107
 		screenshotLoad(tt, a)
 	}
-	f.shoot(t, "film", func(a *app, tt *nsgotest.App, updates chan func()) {
-		open(a, tt, updates, "j1", protoCues[0].Start)
+	f.shoot(t, "film", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		open(t, a, tt, updates, "j1", protoCues[0].Start)
 	})
-	held := func(steps func(a *app, tt *nsgotest.App)) func(a *app, tt *nsgotest.App, updates chan func()) {
-		return func(a *app, tt *nsgotest.App, updates chan func()) {
-			open(a, tt, updates, "j1", 0)
+	held := func(steps func(t *testing.T, a *app, tt *nsgotest.App)) func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		return func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+			open(t, a, tt, updates, "j1", 0)
 			if steps != nil {
-				steps(a, tt)
+				steps(t, a, tt)
 			}
 		}
 	}
 	f.shoot(t, "player-opened", held(nil))
-	f.shoot(t, "player-clips", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-clips") }))
-	f.shoot(t, "player-info", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-info") }))
+	f.shoot(t, "player-clips", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-tab-clips") }))
+	f.shoot(t, "player-info", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-tab-info") }))
 	// The film heard in English, and 日语 named in the info tab as the language spoken in it, which offers to transcribe it again in Japanese.
-	f.shoot(t, "player-info-spoken-language", func(a *app, tt *nsgotest.App, updates chan func()) {
+	f.shoot(t, "player-info-spoken-language", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		for i, job := range a.library.Jobs {
 			if job.ID == "j1" {
 				a.library.Jobs[i].SpokenLanguage = "en"
 			}
 		}
-		open(a, tt, updates, "j1", 0)
+		open(t, a, tt, updates, "j1", 0)
 		tt.Press("id:film-tab-info")
 		a.SetFilmSpeechLanguage("ja")
 		refresh(tt, a)
@@ -49,15 +49,15 @@ func TestScreenshotsPlayer(t *testing.T) {
 			t.Fatalf("no offer to transcribe again: %q", tt.Texts())
 		}
 	})
-	f.shoot(t, "player-menu", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-mode") }))
-	f.shoot(t, "player-style", held(func(_ *app, tt *nsgotest.App) {
+	f.shoot(t, "player-menu", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-mode") }))
+	f.shoot(t, "player-style", held(func(t *testing.T, _ *app, tt *nsgotest.App) {
 		tt.Press("id:film-mode")
 		tt.Press("id:film-style")
 	}))
 	// Playing 3 seconds in, on the first line: with the pointer just moved the controls show, and once it has rested for the player's idle time they fade, the subtitles moving down into their room.
-	playing := func(rest time.Duration) func(a *app, tt *nsgotest.App, updates chan func()) {
-		return func(a *app, tt *nsgotest.App, updates chan func()) {
-			open(a, tt, updates, "j1", 3*time.Second)
+	playing := func(rest time.Duration) func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		return func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+			open(t, a, tt, updates, "j1", 3*time.Second)
 			tt.Key("space")
 			tt.HoverAt("id:film", ns.Point{X: 400, Y: 300})
 			screenshotProgress(tt, a, 3*time.Second)
@@ -70,39 +70,39 @@ func TestScreenshotsPlayer(t *testing.T) {
 	f.shoot(t, "player-playing", playing(0))
 	f.shoot(t, "player-idle", playing(3*time.Second))
 	// Playing with the subtitles dragged up a sixth of the picture, as off a film's own burned-in lines: they stay where they were let go as the controls fade.
-	f.shoot(t, "player-dragged", func(a *app, tt *nsgotest.App, updates chan func()) {
+	f.shoot(t, "player-dragged", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		a.player.look.Lift = 1.0 / 6
-		playing(3*time.Second)(a, tt, updates)
+		playing(3*time.Second)(t, a, tt, updates)
 	})
 	// Playing with the sound muted by M: the speaker crossed out and the picture saying so.
-	f.shoot(t, "player-muted", func(a *app, tt *nsgotest.App, updates chan func()) {
-		playing(0)(a, tt, updates)
+	f.shoot(t, "player-muted", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		playing(0)(t, a, tt, updates)
 		tt.Key("m")
 	})
-	f.shoot(t, "player-speed-menu", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-speed") }))
+	f.shoot(t, "player-speed-menu", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-speed") }))
 	// Playing at 1.5×, two presses of ⇧. up from 1×: the speed button and the picture say so.
-	f.shoot(t, "player-speed", func(a *app, tt *nsgotest.App, updates chan func()) {
-		playing(0)(a, tt, updates)
+	f.shoot(t, "player-speed", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		playing(0)(t, a, tt, updates)
 		tt.Key("shift+.")
 		tt.Key("shift+.")
 	})
 	// A video no job has processed, from a library copied without its job records (sidecarLibrary), plays with the subtitles exported beside it.
-	f.shoot(t, "player-sidecar-subtitles", func(a *app, tt *nsgotest.App, updates chan func()) {
+	f.shoot(t, "player-sidecar-subtitles", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		dir, video := f.sidecarLibrary(t)
 		f.showLibrary(t, a, tt, updates, dir)
-		open(a, tt, updates, video, protoCues[0].Start)
+		open(t, a, tt, updates, video, protoCues[0].Start)
 	})
 	// Playing with the line looped by L: the transport's loop toggle lit and the picture saying so.
-	f.shoot(t, "player-loop", func(a *app, tt *nsgotest.App, updates chan func()) {
-		playing(0)(a, tt, updates)
+	f.shoot(t, "player-loop", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		playing(0)(t, a, tt, updates)
 		tt.Key("l")
 	})
-	f.shoot(t, "player-youtube", func(a *app, tt *nsgotest.App, updates chan func()) {
+	f.shoot(t, "player-youtube", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		apply(tt, a, func() { a.page = pageYouTube })
-		open(a, tt, updates, "j1", protoCues[1].Start)
+		open(t, a, tt, updates, "j1", protoCues[1].Start)
 	})
 	// A right click on the second line of the subtitle list opens its menu, 讲解这句 and 收藏这句, then 拷贝台词, 拷贝原文 and 拷贝译文; the menu is the system's, which the tester lists (tt.PopupMenu) rather than draws, so the picture shows the line under the pointer.
-	f.shoot(t, "player-line-menu", held(func(_ *app, tt *nsgotest.App) {
+	f.shoot(t, "player-line-menu", held(func(t *testing.T, _ *app, tt *nsgotest.App) {
 		tt.RightClick(whole(protoCues[1].Translation))
 		var got []string
 		for _, it := range tt.PopupMenu {
@@ -114,23 +114,23 @@ func TestScreenshotsPlayer(t *testing.T) {
 		}
 	}))
 	// ⇧⌘C on the first line: the picture says the line was copied.
-	f.shoot(t, "player-line-copied", func(a *app, tt *nsgotest.App, updates chan func()) {
-		open(a, tt, updates, "j1", protoCues[0].Start)
+	f.shoot(t, "player-line-copied", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
+		open(t, a, tt, updates, "j1", protoCues[0].Start)
 		tt.Key("mod+shift+c")
 		if !hasText(tt, "已拷贝") {
 			t.Fatalf("⇧⌘C did not say it copied: %q", tt.Texts())
 		}
 	})
 	// A video the system's player cannot play, which the app cannot copy for it either: the stage says so, and the side panel lists the film's lines.
-	f.shoot(t, "player-no-picture", func(a *app, tt *nsgotest.App, updates chan func()) {
+	f.shoot(t, "player-no-picture", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		a.player.panel = false
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[1].Start)
 		apply(tt, a, func() { a.player.playErr = playerErrUnplayable })
 	})
 	// Off macOS the player names the system's file manager, here the Linux one, and the style view's font menu offers a sans-serif and a serif font, shown open.
 	usePlatform(t, ns.OSLinux)
-	f.shoot(t, "player-info-linux", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-info") }))
-	f.shoot(t, "player-style-fonts-linux", held(func(_ *app, tt *nsgotest.App) {
+	f.shoot(t, "player-info-linux", held(func(t *testing.T, _ *app, tt *nsgotest.App) { tt.Press("id:film-tab-info") }))
+	f.shoot(t, "player-style-fonts-linux", held(func(t *testing.T, _ *app, tt *nsgotest.App) {
 		tt.Press("id:film-mode")
 		tt.Press("id:film-style")
 		tt.Press("id:film-style-font")

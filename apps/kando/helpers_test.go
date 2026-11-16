@@ -146,9 +146,11 @@ func (a *app) testView(cx *ns.Scope) ns.Node {
 	return a.view(cx)
 }
 
-// refresh tells the revision that the test changed the app's state and settles, as MyGo's Tester.Frame drew the state the test had set.
+// TODO(nsgo#391): drop the second, empty post once Settle on a target waits for the engine's pending commit https://github.com/nsgo-dev/nsgo/issues/391
+// refresh tells the revision that the test changed the app's state and settles, as MyGo's Tester.Frame drew the state the test had set. Under `nsgo test -target` the engine commits what Changed set off only after the post that ran it returned, and Settle stops waiting once nothing came for a tenth of a second, so a commit slower than that, as the first-run guide's on a busy machine, reached the test after its check and the window seemed not to show the state the test set. The engine runs a post after it has committed and sent everything the posts before it changed, so a second, empty one returns once that commit's batch is on its way to the test, and Settle applies it however long it took.
 func refresh(tt *nsgotest.App, a *app) {
 	onEngine(a, a.Changed)
+	onEngine(a, func() {})
 	tt.Settle()
 }
 
@@ -188,14 +190,22 @@ func pageFrame(v *nsgotest.View) ns.Bounds {
 	return b
 }
 
-// typeFocused types s into the text field that has the keyboard focus, as a user types without moving it, and fails t when none has it.
+// TODO(nsgo#346): drop the wait for the focus once a target test window reports a click's focus within the step that pressed https://github.com/nsgo-dev/nsgo/issues/346
+// typeFocused types s into the text field that has the keyboard focus, as a user types without moving it, and fails t when none has it. Under `nsgo test -target` the focus is the platform's report of the press that gave it, which comes from the window's own thread and can come after the step that pressed settled, so there it waits up to two seconds for a field to have it; headless the press sets it as the step runs.
 func typeFocused(t *testing.T, tt *nsgotest.App, s string) {
 	t.Helper()
-	for _, v := range tt.Query("role:textbox") {
-		if v.Focused {
-			tt.Type("view:"+strconv.FormatUint(uint64(v.ID), 10), s)
-			return
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		for _, v := range tt.Query("role:textbox") {
+			if v.Focused {
+				tt.Type("view:"+strconv.FormatUint(uint64(v.ID), 10), s)
+				return
+			}
 		}
+		if nsgotest.Target() == "" || time.Now().After(deadline) {
+			break
+		}
+		tt.Settle()
 	}
 	t.Fatalf("no text field has the focus\n%s", tt.Dump())
 }

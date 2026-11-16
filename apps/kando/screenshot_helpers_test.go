@@ -204,13 +204,13 @@ func screenshotName(env ns.Environment, name string) string {
 }
 
 // shoot opens the window on 我的影片 at the prototype's size, 1304×782, runs steps and saves what it shows as name.png.
-func (f *screenshotFixture) shoot(t *testing.T, name string, steps func(a *app, tt *nsgotest.App, updates chan func())) {
+func (f *screenshotFixture) shoot(t *testing.T, name string, steps func(t *testing.T, a *app, tt *nsgotest.App, updates chan func())) {
 	t.Helper()
 	f.shootSize(t, name, 1304, 782, steps)
 }
 
-// shootSize is shoot at width×height, under a hidden title bar 28 points high whose traffic lights take 80 at its left. Before steps run, the cards' posters have been grabbed and the window shows them, and the player remembers where the prototype stopped each film (protoFilm.Watched). Each scene runs as a subtest, so `nsgo test -target` runs it in a process of its own within its time limit.
-func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height ns.Points, steps func(a *app, tt *nsgotest.App, updates chan func())) {
+// shootSize is shoot at width×height, under a hidden title bar 28 points high whose traffic lights take 80 at its left. Before steps run, the cards' posters have been grabbed and the window shows them, and the player remembers where the prototype stopped each film (protoFilm.Watched). Each scene runs as a subtest, and steps get the subtest's t, so a scene that fails ends only itself and the scenes after it still run.
+func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height ns.Points, steps func(t *testing.T, a *app, tt *nsgotest.App, updates chan func())) {
 	t.Helper()
 	t.Run(name, func(t *testing.T) {
 		updates := make(chan func(), 64)
@@ -258,7 +258,7 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height n
 			}
 		})
 		screenshotWait(t, tt, a, updates, "posters", func() bool { return len(a.lib.posterBusy) == 0 })
-		steps(a, tt, updates)
+		steps(t, a, tt, updates)
 		refresh(tt, a)
 		if nsgotest.Target() == "" {
 			// Headless runs have no pixels, so the scenes run their steps and checks; the pictures come from `nsgo test -target`, which saves them under .nsgo/test/screenshots/<target> (README's Screenshots).
@@ -268,14 +268,17 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height n
 	})
 }
 
-// screenshotWait applies the background updates until done holds, failing t after ten seconds with what shows.
+// screenshotWait applies the background updates until done holds, failing t after ten seconds with what shows. It looks again every tenth of a second without an update too, as what done reads can change on its own under `nsgo test -target`: the platform reports a focus, a scroll or a commit's batch from the window's own thread.
 func screenshotWait(t *testing.T, tt *nsgotest.App, a *app, updates chan func(), what string, done func() bool) {
 	t.Helper()
 	deadline := time.After(10 * time.Second)
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
 	for !done() {
 		select {
 		case fn := <-updates:
 			onEngine(a, fn)
+		case <-tick.C:
 		case <-deadline:
 			t.Fatalf("%s did not load; texts %q", what, tt.Texts())
 		}

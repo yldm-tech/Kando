@@ -260,6 +260,11 @@ func TestRemoteAddsListsAndCancelsJobs(t *testing.T) {
 		t.Fatalf("skipped %+v", added.Skipped)
 	}
 	first, clip, last := added.Jobs[0].ID, added.Jobs[1].ID, added.Jobs[2].ID
+	// The queue starts the first job as it is added, but its card says downloading only once the job's goroutine reports that stage through an update, which can come after the next call is answered.
+	waitUntil(t, tt, a, updates, func() bool {
+		job, ok := a.library.Find(first)
+		return ok && job.Stage == core.StageDownloading
+	})
 
 	jobs, err := remoteCall[[]remote.Job](t, updates, remote.MethodJobs, nil)
 	if err != nil {

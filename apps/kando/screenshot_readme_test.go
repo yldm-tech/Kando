@@ -16,11 +16,11 @@ func TestScreenshotsReadme(t *testing.T) {
 	// The library is the first picture of the READMEs and the landing page, and the one link previews show, so 处理中 shows the running and queued jobs without the prototype's failed ones, whose red cards would read as a broken app.
 	working := *f
 	working.jobs = slices.DeleteFunc(slices.Clone(f.jobs), func(job core.Job) bool { return job.Stage == core.StageFailed })
-	working.shoot(t, "readme-library", func(a *app, tt *nsgotest.App, _ chan func()) {
+	working.shoot(t, "readme-library", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 		refresh(tt, a)
 	})
-	f.shoot(t, "readme-player", func(a *app, tt *nsgotest.App, updates chan func()) {
+	f.shoot(t, "readme-player", func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 		screenshotOpen(t, a, tt, updates, "j1", protoCues[0].Start)
 	})
 	shown, models, turbo := settingsShotFolders(t, f)

@@ -15,17 +15,16 @@ func TestScreenshotsOnboarding(t *testing.T) {
 	f := newScreenshotFixture(t)
 	msgs := testlocale.Messages()
 	for step, name := range []string{"onboarding-1", "onboarding-2", "onboarding-3"} {
-		f.shoot(t, name, func(a *app, tt *nsgotest.App, _ chan func()) {
+		f.shoot(t, name, func(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 			a.openOnboarding()
 			a.onb.step = step + 1
 			refresh(tt, a)
-			if counter := msgs.OnboardingStepCounter(step+1, 3); !hasText(tt, counter) {
-				t.Fatalf("no %q in %q", counter, tt.Texts())
-			}
+			counter := msgs.OnboardingStepCounter(step+1, 3)
+			screenshotWait(t, tt, a, updates, "the guide's "+counter, func() bool { return hasText(tt, counter) })
 		})
 	}
 	// The second step on a first launch that finds none of the programs: Kando downloads all three.
-	f.shoot(t, "onboarding-2-downloading", func(a *app, tt *nsgotest.App, _ chan func()) {
+	f.shoot(t, "onboarding-2-downloading", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		shotKitsDownloading(t, f, a)
 		tools := a.pipeline.(media.Tools)
 		tools.YTDLP = ""
@@ -43,7 +42,7 @@ func TestScreenshotsOnboarding(t *testing.T) {
 		}
 	})
 	// The second step after the recommended model's download from Hugging Face stalled: its row says so in red, 重试 picks it up where it stopped, and 从 hf-mirror.com 下载 gets it from the mirror.
-	f.shoot(t, "onboarding-2-model-stalled", func(a *app, tt *nsgotest.App, _ chan func()) {
+	f.shoot(t, "onboarding-2-model-stalled", func(t *testing.T, a *app, tt *nsgotest.App, _ chan func()) {
 		a.openOnboarding()
 		a.onb.step = 2
 		a.onb.lastDownload = "large-v3-turbo-q5"

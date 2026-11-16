@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// The tests run fake yt-dlp, ffmpeg, whisper-cli and everyapi programs instead of whatever this machine has installed. Each fake is a link named after the tool to this test binary (a copy where links cannot be made, or where the code under test follows links), and what it does is written beside it in <tool>.fake.json; started under that name, the binary reads the file, acts as the tool and exits before any test runs. Being the test binary rather than a shell script, a fake runs the same on Linux, macOS and Windows, which cannot start a script.
+// The tests run fake yt-dlp, ffmpeg, whisper-cli and everyapi programs instead of whatever this machine has installed. Each fake is a link named after the tool to this test binary (a copy where links cannot be made, or where the code under test follows links: on macOS a script that runs a link instead, writeFakeTool), and what it does is written beside it in <tool>.fake.json; started under that name, the binary reads the file, acts as the tool and exits before any test runs. Being the test binary rather than a shell script, a fake runs the same on Linux, macOS and Windows, which cannot start a script.
 
 func init() {
 	if fake, ok := readFakeTool(); ok {
@@ -40,7 +40,7 @@ type fakeTool struct {
 	// Wait keeps the fake running, for 30 seconds, until it is stopped; then, or straight away without Wait, it exits with Exit.
 	Wait bool
 	Exit int
-	// Standalone makes the fake a copy of the test binary rather than a link to it, for code that follows links to the program they name, as FindYTDLPInstall does.
+	// Standalone makes the fake a file of its own rather than a link to the test binary, for code that follows links to the program they name, as FindYTDLPInstall does.
 	Standalone bool `json:"-"`
 }
 
@@ -65,15 +65,32 @@ func writeFakeTool(t *testing.T, dir, name string, fake fakeTool) string {
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, name)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fake.Standalone && runtime.GOOS == "darwin" {
+		// A copy of the test binary is a new program to macOS, which the system's security policy (syspolicyd) assesses as it starts; while many new programs start at once, as in parallel test runs, the assessment stalls or fails and the kernel kills the program ("ASP: Security policy would not allow process" in the system log), so the fake died of SIGKILL or hung past its caller's deadline. A hard link to the test binary is killed every time it runs under its other name. So on macOS the standalone fake is a script of its own at path that runs a link to the test binary kept in a folder beside it, and what the fake does is written beside that link, which it is started as; macOS lets a program's file be written while it runs, so a script stands for a running standalone yt-dlp there as well as a copy did.
+		link := filepath.Join(dir, ".fake", name)
+		if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(link+".fake.json", data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(exe, link); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("#!/bin/sh\nexec '"+link+"' \"$@\"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
 	if err := os.WriteFile(path+".fake.json", data, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if runtime.GOOS == "windows" {
 		path += ".exe"
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
 	}
 	if !fake.Standalone && os.Symlink(exe, path) == nil {
 		return path
