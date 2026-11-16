@@ -87,9 +87,6 @@ func (a *app) UploadView(item films.Film) film.Upload {
 		view.Detail = reason
 		view.Status = film.UploadBlocked
 		view.Fix = m.AccountFixSettings()
-		if strings.TrimSpace(a.cloud.googleEmail) == "" {
-			view.Fix = m.AccountFixSignIn()
-		}
 		return view
 	}
 	view.Enabled = true
@@ -223,12 +220,9 @@ func (a *app) putFiles(ctx context.Context, cfg cloud.Store, files []cloud.File,
 	return cloud.Upload(ctx, client, cfg.Bucket, files, progress)
 }
 
-// uploadBlocked is why an upload cannot start now, in the interface's language, "" when one can.
+// uploadBlocked is why an upload cannot start now, in the interface's language, "" when one can. A Google account is not needed: it only names the folder the film goes under (cloud.ObjectKey).
 func (a *app) uploadBlocked() string {
 	m := a.messages()
-	if strings.TrimSpace(a.cloud.googleEmail) == "" {
-		return m.AccountNeedsSignIn()
-	}
 	cfg := a.currentStore()
 	if storeReady(cfg) {
 		return ""

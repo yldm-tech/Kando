@@ -28,7 +28,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 - Each finished video gets two SubRip files next to it: `<video>.srt` with the original lines and `<video>.bilingual.srt` with each translation above its original line (`video.srt` and `video.bilingual.srt` for a downloaded video).
 - The player shows the subtitles as bilingual, original only, translation only or off, with a delay you can adjust in 0.1-second steps and a style you can change. You can move to the previous or next line, hear a line again, or loop one line until you have caught it. Its side panel lists every line with search (click a line to jump to it), splits the video into 4 to 12 clips of about 30 seconds, and shows the film's files and source. Each film resumes where you stopped watching.
 - Libraries are `.kando` folders of ordinary files you can manage in Finder or a file manager. You can keep several and switch between them from the sidebar, which also filters a library by source: YouTube, Bilibili, other sites and local files.
-- Optional upload of a film's video and bilingual subtitles to your own object storage (Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS or any S3-compatible store), from the player, after signing in with Google. See [Configuration](#configuration).
+- Optional upload of a film's video and bilingual subtitles to your own object storage (Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS or any S3-compatible store), from the player. See [Configuration](#configuration).
 - Keyboard shortcuts for playback, subtitles and windows, listed in a cheat sheet (⌘/) and in Settings › Keyboard Shortcuts.
 - A log file for bug reports: Help › Show Log File (or the command palette, ⌘K) reveals it. It is `~/Library/Logs/Kando/kando.log` on macOS, and `kando.log` in the `Kando/logs` folder of the user's configuration folder elsewhere; it records why each failed job failed, without the keys Kando holds or the AI service's address, and the end of what the tool that failed printed (its last 64 KB). Anything shaped like a key is written as `***`. Past 5 MB a new file starts, and the two before it are kept.
 
@@ -193,7 +193,7 @@ Everything below except the Google client id and secret and `KANDO_SOCKET` can a
 | `EVERYAPI_API_KEY` | none | EveryAPI key, used when `KANDO_LLM_BASE_URL` is unset and `KANDO_LLM_API_KEY` is empty, instead of the CLI login. |
 | `KANDO_OUTPUT_DIR` | the library opened last | Library folder to open at launch, where new videos and subtitles go. |
 | `KANDO_SOCKET` | `kando.sock` beside `settings.json` | Path of the socket the app listens on and the `kando` command line and `kando mcp` connect to. Set it to the same path for the app and for the commands. Only one copy of Kando runs for a user, and launching another brings the first one forward. On macOS a copy started with `KANDO_SOCKET` set is a second copy on purpose, as for development, and needs its own `HOME` too, so that it keeps its own library and settings; on Windows and Linux such a copy is handed to the running one for now ([nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)), so quit your own Kando first. See [Command line and MCP](#command-line-and-mcp). |
-| `KANDO_GOOGLE_CLIENT_ID` | none | Google OAuth client id for signing in on Settings › Account & Upload. Without it the sign-in button is disabled. It is never saved to the settings file. |
+| `KANDO_GOOGLE_CLIENT_ID` | none | Google OAuth client id for signing in on Settings › Account & Upload. Without it the account card is hidden. It is never saved to the settings file. |
 | `KANDO_GOOGLE_CLIENT_SECRET` | none | Optional client secret for the same OAuth client. |
 | `KANDO_STORAGE` | `r2` | Where uploads go: `r2`, `s3` (or `aws`), `oss` (or `aliyun`), `cos` (or `tencent`), `compat` (or `s3compat`). Any other value means R2. |
 | `KANDO_R2_ENDPOINT` | none | Cloudflare R2: an account id or a full `https://` endpoint. |
@@ -209,7 +209,7 @@ Everything below except the Google client id and secret and `KANDO_SOCKET` can a
 | `KANDO_S3COMPAT_BUCKET`, `KANDO_S3COMPAT_ACCESS_KEY`, `KANDO_S3COMPAT_SECRET` | none | Bucket and keys of that store. |
 | `KANDO_S3COMPAT_PATH_STYLE` | off | `1`, `true`, `yes` or `on` turns on path-style addressing, which MinIO needs; `0`, `false`, `no` or `off` turns it off. |
 
-Uploading is manual: open a film and click Upload to R2 (or the store you chose) in the player. Kando uploads the video and its bilingual subtitles under `<Google account email>/<library>/<film folder>/<file>`; the sign-in only says who uploaded. Videos are never uploaded automatically.
+Uploading is manual: open a film and click Upload to R2 (or the store you chose) in the player. Kando uploads the video and its bilingual subtitles under `kando/<library>/<film folder>/<file>`, or under `<Google account email>/<library>/<film folder>/<file>` when signed in with Google; signing in is optional. Videos are never uploaded automatically.
 
 ## Libraries and settings
 

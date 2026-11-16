@@ -11,6 +11,7 @@ import (
 	"kando/apps/kando/cloud"
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 )
@@ -53,10 +54,10 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	item, _ := films.Find(a.films(), "job1")
 	playerOpenFilm(t, a, tt, updates, item)
 	view := a.UploadView(item)
-	if got := tt.Find("id:film-upload").Props.Label; got != view.Label || view.Status != film.UploadBlocked || view.Fix != "去登录" || view.Enabled || view.Detail == "" || a.player.film.uploadNote {
+	if got := tt.Find("id:film-upload").Props.Label; got != view.Label || view.Status != film.UploadBlocked || view.Fix != testlocale.Messages().AccountFixSettings() || view.Enabled || view.Detail == "" || a.player.film.uploadNote {
 		t.Fatalf("upload %+v, button %q, note %v", view, got, a.player.film.uploadNote)
 	}
-	// The button stays clickable without an account, and opens a note on what is missing, with the way to fix it, instead of uploading.
+	// The button stays clickable without a storage, and opens a note on what is missing, with the way to fix it, instead of uploading.
 	tt.Press("id:film-upload")
 	if !a.player.film.uploadNote || !hasText(tt, view.Detail) || tt.Find("id:film-upload-fix").Props.Label != view.Fix || a.cloud.uploadPath != "" {
 		t.Fatalf("note %v upload %q texts %q", a.player.film.uploadNote, a.cloud.uploadPath, tt.Texts())
@@ -65,8 +66,8 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	if a.player.film.uploadNote || tt.Exists("id:film-upload-capsule") {
 		t.Fatalf("note stayed: %q", tt.Texts())
 	}
+	// No Google account is needed: without one the film goes under kando/.
 	apply(tt, a, func() {
-		a.cloud.googleEmail = "a@b.c"
 		a.cloud.r2Endpoint = "acct"
 		a.cloud.r2Bucket = "clips"
 		a.cloud.r2AccessKey = "key"
@@ -79,14 +80,20 @@ func TestUploadSendsTheVideoAndSubtitle(t *testing.T) {
 	tt.Press("id:film-upload")
 	got := takeUpload(t, uploadedFiles)
 	waitUntil(t, tt, a, updates, func() bool { return a.cloud.uploaded[cloud.KindR2+"\n"+video] != "" })
-	want := cloud.ObjectKey("a@b.c", sidebar.Title(dir), video)
-	if bucket != "clips" || len(got) != 2 || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
+	want := cloud.ObjectKey("", sidebar.Title(dir), video)
+	if bucket != "clips" || len(got) != 2 || !strings.HasPrefix(want, "kando/") || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
 		t.Fatalf("bucket %q keys %#v", bucket, keysOf(got))
 	}
 	view = a.UploadView(item)
 	if view.Status != film.UploadDone || !strings.Contains(view.Detail, want) || !hasText(tt, view.Detail) {
 		t.Fatalf("upload %+v texts %q", view, tt.Texts())
 	}
+	// Signed in, the film goes under the account's email, as uploads always did.
+	apply(tt, a, func() { a.cloud.googleEmail = "a@b.c" })
 	tt.Press("id:film-upload")
-	takeUpload(t, uploadedFiles)
+	got = takeUpload(t, uploadedFiles)
+	want = cloud.ObjectKey("a@b.c", sidebar.Title(dir), video)
+	if len(got) != 2 || !strings.HasPrefix(want, "a@b.c/") || got[0].Key != want || got[1].Key != cloud.SiblingKey(want, srt) {
+		t.Fatalf("signed in, keys %#v", keysOf(got))
+	}
 }

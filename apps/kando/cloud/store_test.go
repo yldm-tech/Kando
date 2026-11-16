@@ -116,6 +116,11 @@ func TestObjectKeyUsesEmailLibraryAndVideoFolder(t *testing.T) {
 	if sub != "a@b.c/影视库/Learn Rust/video.bilingual.srt" {
 		t.Fatalf("subtitle key = %q", sub)
 	}
+	for _, email := range []string{"", "  "} {
+		if got := ObjectKey(email, "影视库", "/Movies/影视库.kando/Learn Rust/video.mp4"); got != "kando/影视库/Learn Rust/video.mp4" {
+			t.Fatalf("key without an account (%q) = %q", email, got)
+		}
+	}
 	got = ObjectKey("a/../b", "库", "/tmp/../x/video.mp4")
 	for _, part := range strings.Split(got, "/") {
 		if part == "." || part == ".." {

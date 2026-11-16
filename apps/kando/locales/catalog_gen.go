@@ -835,10 +835,7 @@ const (
 	textAccountCompatEndpointHint
 	textAccountCompatRegionHint
 	textAccountFixSettings
-	textAccountFixSignIn
 	textAccountGoogleFailed
-	textAccountNeedsSignIn
-	textAccountNoClientNote
 	textAccountOSSRegionHint
 	textAccountPathStyle
 	textAccountPathStyleHint
@@ -1597,10 +1594,7 @@ var keyOfText = [numTexts]string{
 	"accountCompatEndpointHint",
 	"accountCompatRegionHint",
 	"accountFixSettings",
-	"accountFixSignIn",
 	"accountGoogleFailed",
-	"accountNeedsSignIn",
-	"accountNoClientNote",
 	"accountOSSRegionHint",
 	"accountPathStyle",
 	"accountPathStyleHint",
@@ -2357,10 +2351,7 @@ var textsEn = i18n.NewTexts(""+
 	"The full https address."+
 	"The region name used for signing. For MinIO, usually us-east-1."+
 	"Open Settings"+
-	"Sign In"+
 	"Google sign-in didn't finish"+
-	"Sign in to Google in Settings › Account & Upload first"+
-	"Needs the environment variable KANDO_GOOGLE_CLIENT_ID; without it, the sign-in button is unavailable. The Client ID is not written to the settings file."+
 	"For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."+
 	"Path Style"+
 	"On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."+
@@ -2374,7 +2365,7 @@ var textsEn = i18n.NewTexts(""+
 	"Sign Out"+
 	"Signed in with Google"+
 	"Not Signed In"+
-	"Sign in to upload films."+
+	"Sign in to file uploads under your email."+
 	"Signing In…"+
 	"Type"+
 	"Tencent Cloud COS"+
@@ -3114,10 +3105,7 @@ var textsEn = i18n.NewTexts(""+
 		23,
 		63,
 		13,
-		7,
 		28,
-		56,
-		152,
 		79,
 		10,
 		57,
@@ -3131,7 +3119,7 @@ var textsEn = i18n.NewTexts(""+
 		8,
 		21,
 		13,
-		24,
+		41,
 		13,
 		4,
 		17,
@@ -3874,10 +3862,7 @@ var textsJa = i18n.NewTexts(""+
 	"完全な https アドレス。"+
 	"署名に使うリージョン名。MinIO では通常 us-east-1 です。"+
 	"設定を開く"+
-	"ログイン"+
 	"Google ログインが完了しませんでした"+
-	"先に「設定 › アカウントとアップロード」で Google にログインしてください"+
-	"環境変数 KANDO_GOOGLE_CLIENT_ID の設定が必要です。設定していない場合、ログインボタンは使えません。Client ID は設定ファイルに書き込まれません。"+
 	"例：cn-hangzhou。内部ネットワークでは cn-hangzhou-internal と入力します。"+
 	"パス形式"+
 	"MinIO ではオン。B2、Wasabi、Huawei Cloud、Qiniu ではオフのままにします。"+
@@ -3891,7 +3876,7 @@ var textsJa = i18n.NewTexts(""+
 	"ログアウト"+
 	"Google でログイン中"+
 	"未ログイン"+
-	"動画をアップロードするにはログインが必要です。"+
+	"ログインすると、アップロードした動画はメールアドレスごとに保存されます。"+
 	"ログイン中…"+
 	"種類"+
 	"Tencent Cloud COS"+
@@ -4631,10 +4616,7 @@ var textsJa = i18n.NewTexts(""+
 		31,
 		74,
 		15,
-		12,
 		49,
-		103,
-		196,
 		93,
 		12,
 		92,
@@ -4648,7 +4630,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		25,
 		15,
-		69,
+		108,
 		18,
 		6,
 		17,
@@ -5391,10 +5373,7 @@ var textsKo = i18n.NewTexts(""+
 	"전체 https 주소입니다."+
 	"서명에 사용하는 리전 이름입니다. MinIO는 보통 us-east-1입니다."+
 	"설정 열기"+
-	"로그인"+
 	"Google 로그인이 완료되지 않았습니다"+
-	"먼저 ‘설정 › 계정 및 업로드’에서 Google에 로그인하십시오"+
-	"환경 변수 KANDO_GOOGLE_CLIENT_ID를 설정해야 합니다. 설정하지 않으면 로그인 버튼을 사용할 수 없습니다. Client ID는 설정 파일에 기록되지 않습니다."+
 	"예: cn-hangzhou. 내부 네트워크는 cn-hangzhou-internal을 입력합니다."+
 	"경로 스타일"+
 	"MinIO는 켭니다. B2, Wasabi, Huawei Cloud, Qiniu는 끈 상태로 둡니다."+
@@ -5408,7 +5387,7 @@ var textsKo = i18n.NewTexts(""+
 	"로그아웃"+
 	"Google로 로그인됨"+
 	"로그인 안 됨"+
-	"영상을 업로드하려면 로그인해야 합니다."+
+	"로그인하면 업로드한 영상이 이메일별로 저장됩니다."+
 	"로그인 중…"+
 	"유형"+
 	"Tencent Cloud COS"+
@@ -6148,10 +6127,7 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		82,
 		13,
-		9,
 		48,
-		82,
-		191,
 		81,
 		16,
 		79,
@@ -6165,7 +6141,7 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		22,
 		17,
-		55,
+		71,
 		16,
 		6,
 		17,
@@ -6908,10 +6884,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"完整的 https 地址。"+
 	"签名用的区域名。MinIO 通常填 us-east-1。"+
 	"去设置"+
-	"去登录"+
 	"Google 登录没有完成"+
-	"先在「设置 › 账号与上传」里登录 Google"+
-	"需要设置环境变量 KANDO_GOOGLE_CLIENT_ID；没有设置时登录按钮不可用。Client ID 不写入设置文件。"+
 	"例如 cn-hangzhou。内网填 cn-hangzhou-internal。"+
 	"路径样式"+
 	"MinIO 打开。B2、Wasabi、华为云、七牛保持关闭。"+
@@ -6925,7 +6898,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"退出登录"+
 	"通过 Google 登录"+
 	"未登录"+
-	"登录后才能上传影片。"+
+	"登录后，上传的影片按你的邮箱归档。"+
 	"正在登录…"+
 	"类型"+
 	"腾讯云 COS"+
@@ -7665,10 +7638,7 @@ var textsZhHans = i18n.NewTexts(""+
 		25,
 		52,
 		9,
-		9,
 		25,
-		54,
-		123,
 		54,
 		12,
 		62,
@@ -7682,7 +7652,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		20,
 		9,
-		30,
+		51,
 		15,
 		6,
 		13,
@@ -8425,10 +8395,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"完整的 https 位址。"+
 	"簽章用的區域名稱。MinIO 通常填 us-east-1。"+
 	"前往設定"+
-	"前往登入"+
 	"Google 登入未完成"+
-	"先在「設定 › 帳號與上傳」中登入 Google"+
-	"需要設定環境變數 KANDO_GOOGLE_CLIENT_ID；未設定時登入按鈕無法使用。Client ID 不會寫入設定檔。"+
 	"例如 cn-hangzhou。內網填 cn-hangzhou-internal。"+
 	"路徑樣式"+
 	"MinIO 打開。B2、Wasabi、華為雲、七牛保持關閉。"+
@@ -8442,7 +8409,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"登出"+
 	"透過 Google 登入"+
 	"未登入"+
-	"登入後才能上傳影片。"+
+	"登入後，上傳的影片會依你的電子郵件歸檔。"+
 	"正在登入…"+
 	"類型"+
 	"騰訊雲 COS"+
@@ -9182,10 +9149,7 @@ var textsZhHant = i18n.NewTexts(""+
 		25,
 		55,
 		12,
-		12,
 		22,
-		54,
-		123,
 		54,
 		12,
 		62,
@@ -9199,7 +9163,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		20,
 		9,
-		30,
+		60,
 		15,
 		6,
 		13,
@@ -10661,15 +10625,6 @@ func AccountFixSettings(cx *core.Scope) string { return For(cx).AccountFixSettin
 // AccountFixSettings is the package's AccountFixSettings in the language of msgs.
 func (msgs Messages) AccountFixSettings() string { return msgs.text(textAccountFixSettings) }
 
-// AccountFixSignIn says "Sign In"
-// in the language the app shows under cx.
-//
-// Button in the player's upload capsule opening Settings › Account & Upload to sign in.
-func AccountFixSignIn(cx *core.Scope) string { return For(cx).AccountFixSignIn() }
-
-// AccountFixSignIn is the package's AccountFixSignIn in the language of msgs.
-func (msgs Messages) AccountFixSignIn() string { return msgs.text(textAccountFixSignIn) }
-
 // AccountGoogleFailed says "Google sign-in didn't finish"
 // in the language the app shows under cx.
 //
@@ -10678,15 +10633,6 @@ func AccountGoogleFailed(cx *core.Scope) string { return For(cx).AccountGoogleFa
 
 // AccountGoogleFailed is the package's AccountGoogleFailed in the language of msgs.
 func (msgs Messages) AccountGoogleFailed() string { return msgs.text(textAccountGoogleFailed) }
-
-// AccountNeedsSignIn says "Sign in to Google in Settings › Account & Upload first"
-// in the language the app shows under cx.
-//
-// Why the player cannot upload: no Google account is signed in. Names the settings page.
-func AccountNeedsSignIn(cx *core.Scope) string { return For(cx).AccountNeedsSignIn() }
-
-// AccountNeedsSignIn is the package's AccountNeedsSignIn in the language of msgs.
-func (msgs Messages) AccountNeedsSignIn() string { return msgs.text(textAccountNeedsSignIn) }
 
 // AccountNeedsStore says "Fill in {store} in Settings › Account & Upload first"
 // in the language the app shows under cx.
@@ -10717,15 +10663,6 @@ func (msgs Messages) AccountNeedsStore(store string) string {
 		}
 	}
 }
-
-// AccountNoClientNote says "Needs the environment variable KANDO_GOOGLE_CLIENT_ID; without it, the sign-in button is unavailable. The Client ID is not written to the settings file."
-// in the language the app shows under cx.
-//
-// Note under the account card when the Google client ID is not set in the environment.
-func AccountNoClientNote(cx *core.Scope) string { return For(cx).AccountNoClientNote() }
-
-// AccountNoClientNote is the package's AccountNoClientNote in the language of msgs.
-func (msgs Messages) AccountNoClientNote() string { return msgs.text(textAccountNoClientNote) }
 
 // AccountOSSRegionHint says "For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."
 // in the language the app shows under cx.
@@ -10844,10 +10781,10 @@ func AccountSignedOut(cx *core.Scope) string { return For(cx).AccountSignedOut()
 // AccountSignedOut is the package's AccountSignedOut in the language of msgs.
 func (msgs Messages) AccountSignedOut() string { return msgs.text(textAccountSignedOut) }
 
-// AccountSignedOutHint says "Sign in to upload films."
+// AccountSignedOutHint says "Sign in to file uploads under your email."
 // in the language the app shows under cx.
 //
-// The account row's subtitle while no Google account is signed in.
+// The account row's subtitle while no Google account is signed in: uploads work without one, and signing in files them in a folder named by the account's email.
 func AccountSignedOutHint(cx *core.Scope) string { return For(cx).AccountSignedOutHint() }
 
 // AccountSignedOutHint is the package's AccountSignedOutHint in the language of msgs.

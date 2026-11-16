@@ -28,7 +28,7 @@
 - 每个处理完成的视频旁边会生成两个 SubRip 字幕文件：`<video>.srt` 是原文字幕，`<video>.bilingual.srt` 中每句译文位于对应原文上方（下载的视频则是 `video.srt` 和 `video.bilingual.srt`）。
 - 播放器可以把字幕显示为双语、仅原文、仅译文或关闭，字幕延迟可按 0.1 秒步进调整，样式也可以修改。可以跳到上一句、下一句，重听本句，或单句循环直到听懂为止。侧边面板列出全部台词并支持搜索（单击某句即可跳转），把视频切分成 4 到 12 个约 30 秒的片段，并显示影片的文件和来源。每部影片都会从你上次停下的位置继续播放。
 - 资料库是 `.kando` 文件夹，里面都是普通文件，可以在访达或文件管理器中管理。可以同时保留多个资料库，并在侧栏中切换；侧栏还能按来源筛选当前资料库中的影片：YouTube、哔哩哔哩、其他网站和本地文件。
-- 可选：登录 Google 后，在播放器中把影片的视频和双语字幕上传到你自己的对象存储（Cloudflare R2、Amazon S3、阿里云 OSS、腾讯云 COS 或任何 S3 兼容存储）。参见[配置](#configuration)。
+- 可选：在播放器中把影片的视频和双语字幕上传到你自己的对象存储（Cloudflare R2、Amazon S3、阿里云 OSS、腾讯云 COS 或任何 S3 兼容存储）。参见[配置](#configuration)。
 - 播放、字幕和窗口都有键盘快捷键，可以在“快捷键速查”（⌘/）和“设置 › 快捷键”中查看。
 - 反馈问题时可以附上日志文件：“帮助 › 显示日志文件”（或命令面板 ⌘K）会在访达中显示它。macOS 上是 `~/Library/Logs/Kando/kando.log`，其他系统在用户配置目录的 `Kando/logs` 文件夹里。日志记下每个失败任务的原因（不含看懂保存的密钥和 AI 服务的地址）和出错工具输出的最后 64 KB，形似密钥的内容都写成 `***`。文件超过 5 MB 时另起一份，保留之前的两份。
 
@@ -203,7 +203,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 | `EVERYAPI_API_KEY` | 无 | EveryAPI 密钥，在 `KANDO_LLM_BASE_URL` 未设置且 `KANDO_LLM_API_KEY` 为空时使用，代替 CLI 登录。 |
 | `KANDO_OUTPUT_DIR` | 上次打开的资料库 | 启动时打开的资料库文件夹，新的视频和字幕都存放在这里。 |
 | `KANDO_SOCKET` | `settings.json` 旁的 `kando.sock` | 应用监听、`kando` 命令行和 `kando mcp` 连接的套接字路径。应用和命令需要设置成同一个路径。同一个用户只运行一个看懂，再次启动只会把已运行的那个带到前台。在 macOS 上，设置了 `KANDO_SOCKET` 启动的是有意运行的第二个看懂（例如开发时），它还需要单独的 `HOME`，才能使用自己的资料库和设置；在 Windows 和 Linux 上，这样启动的看懂暂时也会交给已运行的那个（[nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)），请先退出自己的看懂。参见[命令行与 MCP](#command-line-and-mcp)。 |
-| `KANDO_GOOGLE_CLIENT_ID` | 无 | 用于在“设置 › 账号与上传”中登录的 Google OAuth 客户端 ID。不设置时登录按钮不可用。它永远不会保存到设置文件中。 |
+| `KANDO_GOOGLE_CLIENT_ID` | 无 | 用于在“设置 › 账号与上传”中登录的 Google OAuth 客户端 ID。不设置时不显示账号卡片。它永远不会保存到设置文件中。 |
 | `KANDO_GOOGLE_CLIENT_SECRET` | 无 | 同一 OAuth 客户端的客户端密钥，可选。 |
 | `KANDO_STORAGE` | `r2` | 上传目标：`r2`、`s3`（或 `aws`）、`oss`（或 `aliyun`）、`cos`（或 `tencent`）、`compat`（或 `s3compat`）。其他任何值都按 R2 处理。 |
 | `KANDO_R2_ENDPOINT` | 无 | Cloudflare R2：账号 ID 或完整的 `https://` 端点。 |
@@ -219,7 +219,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 | `KANDO_S3COMPAT_BUCKET`、`KANDO_S3COMPAT_ACCESS_KEY`、`KANDO_S3COMPAT_SECRET` | 无 | 该存储的存储桶和密钥。 |
 | `KANDO_S3COMPAT_PATH_STYLE` | 关闭 | `1`、`true`、`yes` 或 `on` 开启路径样式寻址（MinIO 需要）；`0`、`false`、`no` 或 `off` 关闭。 |
 
-上传需要手动进行：打开一部影片，在播放器中点击“上传到 R2”（或你选择的存储）。看懂会把视频及其双语字幕上传到 `<Google 账号邮箱>/<资料库>/<影片文件夹>/<文件>` 下；登录只用于标明是谁上传的。视频永远不会自动上传。
+上传需要手动进行：打开一部影片，在播放器中点击“上传到 R2”（或你选择的存储）。看懂会把视频及其双语字幕上传到 `kando/<资料库>/<影片文件夹>/<文件>` 下，登录 Google 后则是 `<Google 账号邮箱>/<资料库>/<影片文件夹>/<文件>`；登录不是必需的。视频永远不会自动上传。
 
 ## 资料库与设置
 

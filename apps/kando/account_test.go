@@ -341,13 +341,9 @@ func TestUploadFailureHidesTheSecret(t *testing.T) {
 	}
 }
 
-// TestUploadBlockedPointsToTheSettingsWindow checks every message that blocks an upload sends the user to 设置 › 账号与上传, where the account now lives, not to the 账号 row the sidebar no longer has.
+// TestUploadBlockedPointsToTheSettingsWindow checks every message that blocks an upload sends the user to 设置 › 账号与上传, where the storage is filled in, not to the 账号 row the sidebar no longer has. Signed out, only the storage blocks an upload: no Google account is needed.
 func TestUploadBlockedPointsToTheSettingsWindow(t *testing.T) {
 	a := newApp(&fakePipeline{}, func(func()) {})
-	if got, want := a.uploadBlocked(), "先在「设置 › 账号与上传」里登录 Google"; got != want {
-		t.Errorf("signed out: %q, want %q", got, want)
-	}
-	a.cloud.googleEmail = "a@b.c"
 	for kind, name := range map[string]string{
 		cloud.KindR2: "R2", cloud.KindS3: "S3", cloud.KindOSS: "OSS", cloud.KindCOS: "COS", cloud.KindCompat: "S3 兼容",
 	} {
@@ -361,11 +357,11 @@ func TestUploadBlockedPointsToTheSettingsWindow(t *testing.T) {
 // TestAccountPageInEnglish reads the 账号与上传 page and the player's upload texts in English.
 func TestAccountPageInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
-	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "")
+	t.Setenv("KANDO_GOOGLE_CLIENT_ID", "client")
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.cloud.storage = cloud.KindCompat
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
-	for _, want := range []string{"Account", "Not Signed In", "Sign in to upload films.", "Sign In with Google", "Object Storage", "S3 Compatible", "The full https address.", "Path Style", "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."} {
+	for _, want := range []string{"Account", "Not Signed In", "Sign in to file uploads under your email.", "Sign In with Google", "Object Storage", "S3 Compatible", "The full https address.", "Path Style", "On for MinIO. Off for B2, Wasabi, Huawei Cloud and Qiniu."} {
 		wantText(t, tt, want)
 	}
 	for _, unwanted := range []string{"对象存储", "未登录", "使用 Google 登录", "S3 兼容"} {
@@ -373,10 +369,6 @@ func TestAccountPageInEnglish(t *testing.T) {
 			t.Fatalf("the page still reads %q", unwanted)
 		}
 	}
-	if got, want := a.uploadBlocked(), "Sign in to Google in Settings › Account & Upload first"; got != want {
-		t.Fatalf("blocked %q, want %q", got, want)
-	}
-	a.cloud.googleEmail = "a@b.c"
 	if got, want := a.uploadBlocked(), "Fill in S3 Compatible in Settings › Account & Upload first"; got != want {
 		t.Fatalf("blocked %q, want %q", got, want)
 	}

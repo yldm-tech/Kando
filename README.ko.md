@@ -28,7 +28,7 @@ Kando는 배우고 싶은 언어로 된 동영상을 보면서 그 언어를 공
 - 완료된 동영상마다 그 옆에 SubRip 파일 두 개가 생깁니다. 원문 대사가 담긴 `<video>.srt`와, 각 번역을 원문 대사 위에 둔 `<video>.bilingual.srt`입니다(내려받은 동영상은 `video.srt`와 `video.bilingual.srt`).
 - 플레이어는 자막을 이중 언어, 원문만, 번역만, 끔 중 하나로 표시하며, 자막 지연은 0.1초 단위로 조정할 수 있고 스타일도 바꿀 수 있습니다. 이전·다음 대사로 이동하거나, 현재 대사를 다시 듣거나, 알아들을 때까지 한 대사를 반복할 수 있습니다. 사이드 패널은 모든 대사를 검색 기능과 함께 나열하고(대사를 클릭하면 해당 위치로 이동), 동영상을 약 30초 길이의 클립 4~12개로 나누며, 영상의 파일과 출처를 보여 줍니다. 각 영상은 시청을 멈춘 곳부터 이어서 재생됩니다.
 - 라이브러리는 Finder나 파일 관리자에서 다룰 수 있는 일반 파일로 이루어진 `.kando` 폴더입니다. 여러 개를 두고 사이드바에서 전환할 수 있으며, 사이드바에서는 라이브러리를 출처별(YouTube, Bilibili, 기타 사이트, 로컬 파일)로 걸러 볼 수도 있습니다.
-- 선택 사항으로, Google로 로그인한 뒤 플레이어에서 영상 파일과 이중 언어 자막을 자신의 오브젝트 스토리지(Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS 또는 S3 호환 스토리지)에 업로드할 수 있습니다. [구성](#configuration)을 참고하세요.
+- 선택 사항으로, 플레이어에서 영상 파일과 이중 언어 자막을 자신의 오브젝트 스토리지(Cloudflare R2, Amazon S3, Alibaba Cloud OSS, Tencent Cloud COS 또는 S3 호환 스토리지)에 업로드할 수 있습니다. [구성](#configuration)을 참고하세요.
 - 재생, 자막, 창을 다루는 키보드 단축키가 있으며, 단축키 목록(⌘/)과 설정 › 단축키에서 확인할 수 있습니다.
 - 버그를 제보할 때 첨부할 수 있는 로그 파일이 있습니다. 도움말 › 로그 파일 보기(또는 명령 팔레트 ⌘K)로 파일을 보여 줍니다. macOS에서는 `~/Library/Logs/Kando/kando.log`, 다른 OS에서는 사용자 설정 폴더 안 `Kando/logs` 폴더의 `kando.log`입니다. 실패한 작업마다 실패한 이유(Kando가 보관하는 키와 AI 서비스 주소는 빼고)와 실패한 도구가 출력한 내용의 마지막 64 KB를 기록합니다. 키처럼 보이는 내용은 모두 `***`로 적습니다. 5 MB를 넘으면 새 파일을 시작하고 그 전의 두 파일을 남깁니다.
 
@@ -203,7 +203,7 @@ Google 클라이언트 ID와 시크릿, `KANDO_SOCKET`을 제외한 아래 항�
 | `EVERYAPI_API_KEY` | 없음 | EveryAPI 키. `KANDO_LLM_BASE_URL`이 설정되지 않고 `KANDO_LLM_API_KEY`가 비어 있을 때 CLI 로그인 대신 사용합니다. |
 | `KANDO_OUTPUT_DIR` | 마지막으로 연 라이브러리 | 시작할 때 열 라이브러리 폴더. 새 동영상과 자막이 이곳에 저장됩니다. |
 | `KANDO_SOCKET` | `settings.json` 옆의 `kando.sock` | 앱이 대기하고 `kando` 명령줄과 `kando mcp`가 연결하는 소켓의 경로. 앱과 명령 양쪽에 같은 경로를 설정합니다. Kando는 사용자당 하나만 실행되며, 다시 실행하면 이미 실행 중인 Kando가 앞으로 나옵니다. macOS에서 `KANDO_SOCKET`을 설정해 시작한 것은 개발용처럼 일부러 실행하는 두 번째 Kando이며, 자신의 라이브러리와 설정을 쓰도록 별도의 `HOME`도 필요합니다. Windows와 Linux에서는 이렇게 시작한 Kando도 아직 실행 중인 Kando에 넘겨지므로([nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)), 먼저 자신의 Kando를 종료하세요. [명령줄과 MCP](#command-line-and-mcp)를 참고하세요. |
-| `KANDO_GOOGLE_CLIENT_ID` | 없음 | 설정 › 계정 및 업로드에서 로그인할 때 쓰는 Google OAuth 클라이언트 ID. 없으면 로그인 버튼이 비활성화됩니다. 설정 파일에는 저장되지 않습니다. |
+| `KANDO_GOOGLE_CLIENT_ID` | 없음 | 설정 › 계정 및 업로드에서 로그인할 때 쓰는 Google OAuth 클라이언트 ID. 없으면 계정 카드가 표시되지 않습니다. 설정 파일에는 저장되지 않습니다. |
 | `KANDO_GOOGLE_CLIENT_SECRET` | 없음 | 같은 OAuth 클라이언트의 클라이언트 시크릿(선택 사항). |
 | `KANDO_STORAGE` | `r2` | 업로드 대상: `r2`, `s3`(또는 `aws`), `oss`(또는 `aliyun`), `cos`(또는 `tencent`), `compat`(또는 `s3compat`). 그 밖의 값은 R2로 간주합니다. |
 | `KANDO_R2_ENDPOINT` | 없음 | Cloudflare R2: 계정 ID 또는 전체 `https://` 엔드포인트. |
@@ -219,7 +219,7 @@ Google 클라이언트 ID와 시크릿, `KANDO_SOCKET`을 제외한 아래 항�
 | `KANDO_S3COMPAT_BUCKET`, `KANDO_S3COMPAT_ACCESS_KEY`, `KANDO_S3COMPAT_SECRET` | 없음 | 그 스토리지의 버킷과 키. |
 | `KANDO_S3COMPAT_PATH_STYLE` | 꺼짐 | `1`, `true`, `yes`, `on`은 MinIO에 필요한 경로 스타일 주소 지정을 켜고, `0`, `false`, `no`, `off`는 끕니다. |
 
-업로드는 수동으로만 합니다. 영상을 열고 플레이어에서 R2에 업로드(다른 스토리지를 골랐다면 그 이름)를 클릭합니다. Kando는 동영상과 이중 언어 자막을 `<Google 계정 이메일>/<라이브러리>/<영상 폴더>/<파일>` 아래에 업로드하며, 로그인은 누가 업로드했는지만 나타냅니다. 동영상은 자동으로 업로드되지 않습니다.
+업로드는 수동으로만 합니다. 영상을 열고 플레이어에서 R2에 업로드(다른 스토리지를 골랐다면 그 이름)를 클릭합니다. Kando는 동영상과 이중 언어 자막을 `kando/<라이브러리>/<영상 폴더>/<파일>` 아래에, Google로 로그인한 경우에는 `<Google 계정 이메일>/<라이브러리>/<영상 폴더>/<파일>` 아래에 업로드합니다. 로그인은 필수가 아닙니다. 동영상은 자동으로 업로드되지 않습니다.
 
 ## 라이브러리와 설정
 

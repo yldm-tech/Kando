@@ -22,23 +22,14 @@ accountCompatRegionHint:
 accountFixSettings:
   message: "Open Settings"
   description: "Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage."
-accountFixSignIn:
-  message: "Sign In"
-  description: "Button in the player's upload capsule opening Settings › Account & Upload to sign in."
 accountGoogleFailed:
   message: "Google sign-in didn't finish"
   description: "Error under the account card when the Google sign-in failed or was cancelled."
-accountNeedsSignIn:
-  message: "Sign in to Google in Settings › Account & Upload first"
-  description: "Why the player cannot upload: no Google account is signed in. Names the settings page."
 accountNeedsStore:
   message: "Fill in {store} in Settings › Account & Upload first"
   description: "Why the player cannot upload: the chosen storage is not filled in. Names the settings page."
   placeholders:
     store: { type: "String", example: "R2" }
-accountNoClientNote:
-  message: "Needs the environment variable KANDO_GOOGLE_CLIENT_ID; without it, the sign-in button is unavailable. The Client ID is not written to the settings file."
-  description: "Note under the account card when the Google client ID is not set in the environment."
 accountOSSRegionHint:
   message: "For example, cn-hangzhou. For the internal network, enter cn-hangzhou-internal."
   description: "Hint under the Alibaba Cloud OSS Region field."
@@ -79,8 +70,8 @@ accountSignedOut:
   message: "Not Signed In"
   description: "The account row's title while no Google account is signed in."
 accountSignedOutHint:
-  message: "Sign in to upload films."
-  description: "The account row's subtitle while no Google account is signed in."
+  message: "Sign in to file uploads under your email."
+  description: "The account row's subtitle while no Google account is signed in: uploads work without one, and signing in files them in a folder named by the account's email."
 accountSigningIn:
   message: "Signing In…"
   description: "The sign-in button's title while the browser sign-in runs."

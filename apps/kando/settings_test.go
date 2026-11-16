@@ -74,10 +74,14 @@ func TestSettingsPages(t *testing.T) {
 		t.Fatalf("the prompt %q lacks {{language}}", prompt)
 	}
 	tt = settingsOpenAt(a, tt, settings.SectionAccount)
-	for _, text := range []string{"Google", "未登录", "使用 Google 登录", "KANDO_GOOGLE_CLIENT_ID", "Cloudflare R2", "Endpoint", "Bucket", "Access Key", "Secret"} {
+	for _, text := range []string{"Cloudflare R2", "Endpoint", "Bucket", "Access Key", "Secret"} {
 		if textCount(tt, text) == 0 && !tt.Exists("label:"+text) {
 			t.Fatalf("missing %q in %q", text, tt.Texts())
 		}
+	}
+	// Without an OAuth client nobody can sign in, so the page has no account card; uploads work without one.
+	if tt.Exists("id:account-google") || hasText(tt, "未登录") || hasText(tt, "使用 Google 登录") {
+		t.Fatalf("the account card shows without a client ID: %q", tt.Texts())
 	}
 }
 

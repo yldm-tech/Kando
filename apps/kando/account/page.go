@@ -59,22 +59,22 @@ func (v View) Render(cx *core.Scope) core.Node {
 	a := v.App
 	colors := ui.ColorsOf(cx)
 	failed := live.Func(a, a.GoogleErr)
-	signInNote := live.Func(a, func() string {
-		if !a.GoogleConfigured() && a.GoogleEmail() == "" {
-			return locales.AccountNoClientNote(cx)
-		}
-		return locales.AccountSignInNote(cx)
-	})
+	// Without an OAuth client nobody can sign in, so the account card only stays for an account signed in before, to sign it out. Uploads work either way (cloud.ObjectKey).
+	hasAccount := live.Memo(cx, a, func() bool { return a.GoogleConfigured() || a.GoogleEmail() != "" })
 	return core.View{
 		TestID: "account",
 		Style:  core.Style{Width: core.Pct(100), Gap: 6, AlignItems: core.AlignStretch},
 		Children: []core.Node{
-			label(func() string { return locales.AccountSectionAccount(cx) }, 6),
-			card("account-google", googleRow{a}),
-			core.Show{When: func() bool { return failed() != "" }, Then: func(*core.Scope) core.Node {
-				return core.Text{ContentFunc: failed, Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
+			core.Show{When: hasAccount, Then: func(*core.Scope) core.Node {
+				return core.Group{
+					label(func() string { return locales.AccountSectionAccount(cx) }, 6),
+					card("account-google", googleRow{a}),
+					core.Show{When: func() bool { return failed() != "" }, Then: func(*core.Scope) core.Node {
+						return core.Text{ContentFunc: failed, Style: core.Style{FontSize: 11, Padding: core.Symmetric(0, 12)}, StyleFunc: ui.Colored(colors.Danger)}
+					}},
+					note(func() string { return locales.AccountSignInNote(cx) }, 10),
+				}
 			}},
-			note(signInNote, 10),
 			label(func() string { return locales.AccountSectionStorage(cx) }, 6),
 			card("account-storage", storageRow{a}, storageFields{a}),
 			note(func() string { return locales.AccountUploadNote(cx) }, 0),

@@ -93,22 +93,26 @@ func change(app *nsgotest.App, a *fakeApp, fn func()) {
 
 func whole(s string) string { return `text:"` + s + `"` }
 
-// Signed out without a client ID, the row says so and 使用 Google 登录 is off; with one it signs in, says 正在登录 while it does, and once signed in shows the account with 退出登录.
+// Without a client ID and signed out, the page has no account card at all, as nobody can sign in; signed in from before, the card stays to sign out. With a client ID it signs in, says 正在登录 while it does, and once signed in shows the account with 退出登录.
 func TestGoogleRow(t *testing.T) {
 	a := &fakeApp{}
 	app := show(t, a)
 	msgs := testlocale.Messages()
-	for _, want := range []string{msgs.AccountSignedOut(), msgs.AccountSignedOutHint(), msgs.AccountNoClientNote()} {
+	if app.Exists("id:account-google") || app.Exists(whole(msgs.AccountSectionAccount())) || app.Exists(whole(msgs.AccountSignInNote())) || !app.Exists("id:account-storage") {
+		t.Fatalf("without a client ID the account card shows: %q", app.Texts())
+	}
+	change(app, a, func() { a.email = "a@b.c" })
+	if !app.Exists("id:account-google") || !app.Exists(whole("a@b.c")) || !app.Exists("id:google-sign-out") {
+		t.Fatalf("signed in without a client ID, no way to sign out: %q", app.Texts())
+	}
+	change(app, a, func() { a.email, a.configured = "", true })
+	for _, want := range []string{msgs.AccountSectionAccount(), msgs.AccountSignedOut(), msgs.AccountSignedOutHint(), msgs.AccountSignInNote()} {
 		if !app.Exists(whole(want)) {
 			t.Fatalf("no %q in %q", want, app.Texts())
 		}
 	}
-	if app.Enabled("id:google-sign-in") {
-		t.Fatal("sign-in is on without a client ID")
-	}
-	change(app, a, func() { a.configured = true })
-	if !app.Exists(whole(msgs.AccountSignInNote())) {
-		t.Fatalf("no %q in %q", msgs.AccountSignInNote(), app.Texts())
+	if !app.Enabled("id:google-sign-in") {
+		t.Fatal("sign-in is off with a client ID")
 	}
 	app.Press(whole(msgs.AccountSignIn()))
 	change(app, a, func() { a.busy = true })
@@ -193,7 +197,7 @@ func TestPageStaysWhileTheAppChanges(t *testing.T) {
 
 // The page follows the interface's language as it changes.
 func TestPageFollowsTheLanguage(t *testing.T) {
-	a := &fakeApp{storage: "compat"}
+	a := &fakeApp{storage: "compat", configured: true}
 	app := show(t, a)
 	app.SetEnvironment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true, Locale: "en"})
 	for _, want := range []string{"Account", "Not Signed In", "Object Storage", "S3 Compatible", "Path Style", "The full https address."} {

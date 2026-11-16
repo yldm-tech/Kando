@@ -44,12 +44,18 @@ func Region(raw string) string {
 	return raw
 }
 
-// ObjectKey is {email}/{library}/{video folder}/{file}.
+// sharedPrefix is the first segment of an object key when no Google account is signed in. An email always holds an @, so it never names the same folder as an account.
+const sharedPrefix = "kando"
+
+// ObjectKey is {email}/{library}/{video folder}/{file}, or kando/{library}/{video folder}/{file} when email is blank because no account is signed in.
 func ObjectKey(email, library, videoPath string) string {
 	folder := filepath.Base(filepath.Dir(videoPath))
 	name := filepath.Base(videoPath)
 	if strings.TrimSpace(library) == "" {
 		library = "library"
+	}
+	if strings.TrimSpace(email) == "" {
+		email = sharedPrefix
 	}
 	return path.Join(cleanKey(email), cleanKey(library), cleanKey(folder), cleanKey(name))
 }

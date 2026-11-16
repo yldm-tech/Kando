@@ -28,7 +28,7 @@
 - 每部處理完成的影片旁邊會產生兩個 SubRip 字幕檔：`<video>.srt` 是原文台詞，`<video>.bilingual.srt` 則把每句譯文放在原文台詞上方（下載的影片則是 `video.srt` 和 `video.bilingual.srt`）。
 - 播放器可將字幕顯示為雙語、僅原文、僅譯文或關閉，延遲可以 0.1 秒為單位調整，樣式也可以變更。可以跳到上一句、下一句，重聽本句，或單句循環直到聽懂為止。側邊面板列出所有台詞並可搜尋（按一下台詞即可跳到該處），把影片切成 4 到 12 個約 30 秒的片段，並顯示影片的檔案與來源。每部影片都會從你上次停止觀看的地方繼續播放。
 - 資料庫是由一般檔案組成的 `.kando` 資料夾，可以在 Finder 或檔案管理員中管理。你可以保留多個資料庫，並從側邊欄切換；側邊欄也能依來源篩選資料庫：YouTube、嗶哩嗶哩、其他網站和本機檔案。
-- 可選擇在使用 Google 登入後，從播放器把影片檔與雙語字幕檔上傳到你自己的物件儲存空間（Cloudflare R2、Amazon S3、阿里雲 OSS、騰訊雲 COS，或任何 S3 相容的儲存服務）。請參閱[組態設定](#configuration)。
+- 可選擇從播放器把影片檔與雙語字幕檔上傳到你自己的物件儲存空間（Cloudflare R2、Amazon S3、阿里雲 OSS、騰訊雲 COS，或任何 S3 相容的儲存服務）。請參閱[組態設定](#configuration)。
 - 播放、字幕與視窗都有鍵盤快速鍵，列在速查表（⌘/）和「設定 › 快速鍵」中。
 - 回報問題時可以附上記錄檔：「輔助說明 › 顯示記錄檔」（或指令面板 ⌘K）會在 Finder 中顯示它。macOS 上是 `~/Library/Logs/Kando/kando.log`，其他系統在使用者設定目錄的 `Kando/logs` 資料夾裡。記錄檔記下每個失敗任務的原因（不含看懂儲存的金鑰和 AI 服務的位址）和出錯工具輸出的最後 64 KB，看起來像金鑰的內容都寫成 `***`。檔案超過 5 MB 時另起一份，保留之前的兩份。
 
@@ -203,7 +203,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 | `EVERYAPI_API_KEY` | 無 | EveryAPI 金鑰，在 `KANDO_LLM_BASE_URL` 未設定且 `KANDO_LLM_API_KEY` 為空時使用，取代 CLI 登入。 |
 | `KANDO_OUTPUT_DIR` | 上次開啟的資料庫 | 啟動時要開啟的資料庫資料夾，新的影片和字幕都會放在這裡。 |
 | `KANDO_SOCKET` | `settings.json` 旁的 `kando.sock` | 應用程式監聽、`kando` 命令列和 `kando mcp` 連線的 socket 路徑。應用程式和命令要設定成同一個路徑。同一個使用者只會執行一個看懂，再次啟動只會把已執行的那個帶到前景。在 macOS 上，設定了 `KANDO_SOCKET` 啟動的是刻意執行的第二個看懂（例如開發時），它還需要獨立的 `HOME`，才能使用自己的資料庫和設定；在 Windows 和 Linux 上，這樣啟動的看懂暫時也會交給已執行的那個（[nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)），請先結束自己的看懂。請參閱[命令列與 MCP](#command-line-and-mcp)。 |
-| `KANDO_GOOGLE_CLIENT_ID` | 無 | 用於在「設定 › 帳號與上傳」登入的 Google OAuth 用戶端 ID。沒有設定時，登入按鈕會停用。它永遠不會儲存到設定檔中。 |
+| `KANDO_GOOGLE_CLIENT_ID` | 無 | 用於在「設定 › 帳號與上傳」登入的 Google OAuth 用戶端 ID。沒有設定時，不會顯示帳號卡片。它永遠不會儲存到設定檔中。 |
 | `KANDO_GOOGLE_CLIENT_SECRET` | 無 | 選填，同一個 OAuth 用戶端的用戶端密鑰。 |
 | `KANDO_STORAGE` | `r2` | 上傳的目的地：`r2`、`s3`（或 `aws`）、`oss`（或 `aliyun`）、`cos`（或 `tencent`）、`compat`（或 `s3compat`）。其他任何值都視為 R2。 |
 | `KANDO_R2_ENDPOINT` | 無 | Cloudflare R2：帳號 ID 或完整的 `https://` 端點。 |
@@ -219,7 +219,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 | `KANDO_S3COMPAT_BUCKET`、`KANDO_S3COMPAT_ACCESS_KEY`、`KANDO_S3COMPAT_SECRET` | 無 | 該儲存服務的儲存貯體和金鑰。 |
 | `KANDO_S3COMPAT_PATH_STYLE` | 關閉 | `1`、`true`、`yes` 或 `on` 會開啟 MinIO 所需的路徑樣式定址；`0`、`false`、`no` 或 `off` 會關閉它。 |
 
-上傳需要手動進行：開啟一部影片，在播放器中按一下「上傳到 R2」，或你所選儲存服務對應的按鈕。看懂會把影片和它的雙語字幕上傳到 `<Google 帳號電子郵件>/<資料庫>/<影片資料夾>/<檔案>` 底下；登入只用來表明是誰上傳的。影片永遠不會自動上傳。
+上傳需要手動進行：開啟一部影片，在播放器中按一下「上傳到 R2」，或你所選儲存服務對應的按鈕。看懂會把影片和它的雙語字幕上傳到 `kando/<資料庫>/<影片資料夾>/<檔案>` 底下，使用 Google 登入後則是 `<Google 帳號電子郵件>/<資料庫>/<影片資料夾>/<檔案>`；登入不是必要的。影片永遠不會自動上傳。
 
 ## 資料庫與設定
 
