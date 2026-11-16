@@ -877,3 +877,27 @@ func TestSidebarSearchReturnKeepsToTheLanguageChosen(t *testing.T) {
 		t.Fatalf("Return with one film shown of two found: open %q, want ja", a.openKey)
 	}
 }
+
+// TestSidebarDropsALanguageNoLongerListed checks that a language chosen in the sidebar is let go once the list no longer offers it, as after its last film was removed, so a film heard in it later does not narrow 全部影片 by itself; a language still listed stays chosen.
+func TestSidebarDropsALanguageNoLongerListed(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.library.Jobs = []core.Job{
+		{ID: "ja", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: "/videos/ja/video.mp4", SpokenLanguage: "ja"},
+		{ID: "en", Source: "https://youtu.be/jNQXAC9IVRw", Stage: core.StageComplete, VideoPath: "/videos/en/video.mp4", SpokenLanguage: "en"},
+		{ID: "ko", Source: "https://youtu.be/9bZkp7q19f0", Stage: core.StageComplete, VideoPath: "/videos/ko/video.mp4", SpokenLanguage: "ko"},
+	}
+	refresh(tt, a)
+	tt.Press("id:spoken-en")
+	a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool { return job.ID == "ko" })
+	refresh(tt, a)
+	if a.side.spoken != "en" {
+		t.Fatalf("a language still listed was let go: %q", a.side.spoken)
+	}
+	a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool { return job.ID == "en" })
+	refresh(tt, a)
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "en2", Source: "https://youtu.be/kJQP7kiw5Fk", Stage: core.StageComplete, VideoPath: "/videos/en2/video.mp4", SpokenLanguage: "en"})
+	refresh(tt, a)
+	if a.SpokenFilter() != sidebar.SpokenAll || !tt.Exists("id:film-ja") {
+		t.Fatalf("a film heard in English brought back the filter %q: %q", a.SpokenFilter(), tt.Texts())
+	}
+}

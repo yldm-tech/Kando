@@ -1369,7 +1369,7 @@ func TestCoverJPEG(t *testing.T) {
 	}
 }
 
-// TestLibraryInEnglish reads the library page in English: the hero of the film finished last and its poster, a waiting and a failed job, the top bar, and the dialog that removes a film.
+// TestLibraryInEnglish reads the library page in English: the hero of the film finished last and its poster, a waiting and a cancelled job, which the line beside Processing does not count as needing attention, the top bar, and the dialog that removes a film.
 func TestLibraryInEnglish(t *testing.T) {
 	testlocale.Use(t, "en")
 	a, tt, _ := libraryWith(t, "Talk")
@@ -1382,7 +1382,7 @@ func TestLibraryInEnglish(t *testing.T) {
 	for _, want := range []string{
 		"Recently Finished · Simplified Chinese Bilingual", "Play", testlocale.Messages().FilmsShowInFinder(platformName()),
 		"Bilingual · CHS", "All Films", "1 film",
-		"Processing", "1 queued · 1 needs attention", "Queued", "Canceled", "Retry", "Remove",
+		"Processing", "1 queued", "Queued", "Canceled", "Retry", "Remove",
 		"Start Processing", "Local Video",
 	} {
 		wantText(t, tt, want)

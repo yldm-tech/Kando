@@ -32,7 +32,7 @@ type savedSidebar struct{}
 
 func (s *savedSidebar) clean() {}
 
-// sidebarHooks keeps the status line and the switcher's counts up to date: both are read once the window exists, the status line again when the tools or the AI service change or 测试 reaches the model through the EveryAPI CLI's key, and the counts again whenever another library opens.
+// sidebarHooks keeps the status line and the switcher's counts up to date: both are read once the window exists, the status line again when the tools or the AI service change or 测试 reaches the model through the EveryAPI CLI's key, and the counts again whenever another library opens. After every change it lets go of a language chosen that the list no longer offers (sidebarDropLanguage).
 func (a *app) sidebarHooks() areaHooks {
 	return areaHooks{
 		ready: func() {
@@ -48,7 +48,16 @@ func (a *app) sidebarHooks() areaHooks {
 			}
 		},
 		libraryChanged: a.sidebarLibraryChanged,
+		afterChange:    a.sidebarDropLanguage,
 	}
+}
+
+// sidebarDropLanguage lets go of the language chosen in the sidebar once the list no longer offers it (SpokenFilter), as after its last film was removed or the films were left heard in one language, so a film heard in it later does not narrow the library by itself. The page already shows every language then, so nothing a binding reads changes.
+func (a *app) sidebarDropLanguage() bool {
+	if a.side.spoken != sidebar.SpokenAll && a.SpokenFilter() == sidebar.SpokenAll {
+		a.side.spoken = sidebar.SpokenAll
+	}
+	return false
 }
 
 // sidebarKeys are the sidebar's shortcuts.
