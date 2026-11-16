@@ -177,4 +177,6 @@ const (
 	FailCookies FailKind = "cookies"
 	// FailBadLink is a link the site says is cut short or wrong, as a YouTube watch link whose video id lost its last characters: no retry can work, only the whole link.
 	FailBadLink FailKind = "badlink"
+	// FailHiddenVideo is a post on X that showed yt-dlp no video: X leaves the video out of a sensitive post, or a protected account's, for a viewer who is signed out, or signed in to an account that does not show sensitive media or does not follow the protected one. Whether the job borrowed a browser's sign-in (Job.Cookies) tells which; it is not a sign-in that ran out (FailLoginExpired).
+	FailHiddenVideo FailKind = "hiddenvideo"
 )

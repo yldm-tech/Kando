@@ -10,7 +10,9 @@ import (
 	"image/png"
 	"io/fs"
 	"math"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -233,8 +235,12 @@ func fakeYTDLP(args []string) int {
 		fmt.Println(fakeYTDLPVersion)
 		return 0
 	}
-	if browser := fakeArg(args, "--cookies-from-browser"); browser != "" && !slices.Contains(args, "--") {
+	browser := fakeArg(args, "--cookies-from-browser")
+	if browser != "" && !slices.Contains(args, "--") {
 		return fakeYTDLPLogin(browser, fakeArg(args, "--cookies"))
+	}
+	if code, ok := fakeYTDLPHiddenPost(args, browser); ok {
+		return code
 	}
 	var home, temp string
 	for i := 0; i+1 < len(args) && args[i] != "--"; i++ {
@@ -314,6 +320,25 @@ func fakeYTDLP(args []string) int {
 	}
 	fmt.Println(final)
 	return 0
+}
+
+// fakeYTDLPHiddenPost fails the download of a post on X as the real yt-dlp 2026.08.19 fails one whose video X marks as sensitive (packages/media/testdata/ytdlp/errors/hidden-x.stderr) for a viewer who may not see it: signed out, or signed in through any browser but Chrome, whose account here shows sensitive media and downloads the post. ok is false for any other download.
+func fakeYTDLPHiddenPost(args []string, browser string) (code int, ok bool) {
+	i := slices.Index(args, "--")
+	if i < 0 || i+1 >= len(args) || browser == "chrome" {
+		return 0, false
+	}
+	u, err := url.Parse(args[i+1])
+	if err != nil {
+		return 0, false
+	}
+	host := strings.TrimPrefix(u.Hostname(), "www.")
+	id := path.Base(u.Path)
+	if host != "x.com" && host != "twitter.com" {
+		return 0, false
+	}
+	fmt.Fprintf(os.Stderr, "ERROR: [twitter] %s: No video could be found in this tweet\n", id)
+	return 1, true
 }
 
 // fakeYTDLPLogin answers the check of a browser's sign-in (media.Tools.CheckLogin), yt-dlp given a browser and a cookies file but no URL, as the real one does for each browser on a Mac: Chrome's it reads and saves to the cookies file, then fails with its usage error for want of a URL; Edge's it reads without the key the Keychain did not give; Safari's macOS keeps from it without Full Disk Access; and any other browser has no cookies here.

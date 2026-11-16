@@ -17,6 +17,8 @@ var failSigns = []struct {
 	{core.FailUnsupported, []string{"Unsupported URL"}},
 	// YouTube's watch link with an id cut short (youtube:truncated_id), or without its v= part (youtube:truncated_url, which asks whether the shell split the URL at an &).
 	{core.FailBadLink, []string{"looks truncated", "Incomplete YouTube ID", "forget to quote the URL"}},
+	// The twitter extractor's words for a post whose answer from X has no video (extractor/twitter.py, raise_no_formats), as X answers for a sensitive post or a protected account's a viewer who may not see its media. Tumblr and Bluesky say "in this post", which is not this.
+	{core.FailHiddenVideo, []string{"No video could be found in this tweet"}},
 	{core.FailRegion, []string{"geo restriction", "geo-restricted", "not available in your country", "not available from your location", "available in your country"}},
 	{core.FailAge, []string{"confirm your age", "age-restricted", "age restricted", "inappropriate for some users"}},
 	{core.FailMembers, []string{"members-only", "members only", "premium members", "Join this channel", "channel members", "大会员"}},

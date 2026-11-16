@@ -2750,6 +2750,23 @@ queueRemedyUpdatingAction:
 queueRemedyUpdatingWhy:
   message: "The download starts again once it's updated."
   description: "Under the headline while yt-dlp updates."
+queueRemedyXSignedIn:
+  message: "X shows no video to your account"
+  description: "Headline of a failed download's card when X answered the browser's signed-in account with a post without its video: the account does not show sensitive media, or does not follow the protected account."
+queueRemedyXSignedInWhy:
+  message: "Check that you're signed in to X in {browser}. X shows a sensitive post's video only with “Display media that may contain sensitive content” on (Settings and privacy › Privacy and safety › Content you see), and a protected account's only to its followers."
+  description: "What to do when X showed the browser's signed-in account a post without its video. Use X's own names of that setting and of its place in X's settings, as X shows them in this language."
+  placeholders:
+    browser: { type: "String", example: "Chrome" }
+queueRemedyXSignedOut:
+  message: "X shows this video only to signed-in accounts"
+  description: "Headline of a failed download's card when X answered a signed-out download with a post without its video, as it does for sensitive posts and protected accounts."
+queueRemedyXSignedOutChoose:
+  message: "Choose a browser where you're signed in to X, then retry."
+  description: "Second sentence of the card of an X post whose video X shows only to signed-in accounts, when there is a browser to choose."
+queueRemedyXSignedOutNeed:
+  message: "X shows the videos of sensitive posts and protected accounts only when you're signed in."
+  description: "First sentence of the card of an X post whose video X shows only to signed-in accounts."
 queueReprocessFailed:
   message: "“{name}” keeps its subtitles: it couldn't be processed again. {reason}"
   description: "Message bar when processing a finished film again (Process Again) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key."

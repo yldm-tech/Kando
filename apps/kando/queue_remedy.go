@@ -172,6 +172,8 @@ func (a *app) FailureRemedy(item films.Film) (films.Remedy, bool) {
 		r = films.Remedy{Headline: m.QueueRemedyHost(hostOf(job.Source)), Why: m.QueueRemedyHostWhy(), Actions: []films.RemedyAction{swap(true), {ID: remedyRetry, Label: m.QueueRemedyRetry()}}}
 	case core.FailCookies:
 		r = a.cookiesRemedy(job, other)
+	case core.FailHiddenVideo:
+		r = a.hiddenVideoRemedy(job, other)
 	default:
 		return films.Remedy{}, false
 	}
@@ -251,6 +253,28 @@ func (a *app) cookiesRemedy(job core.Job, other media.Browser) films.Remedy {
 	// The setting offers the browsers the computer has; with none, there is nothing to choose.
 	if len(a.queue.ytdlp.browsers) > 0 {
 		r.Actions = append(r.Actions, films.RemedyAction{ID: remedyChooseBrowser, Label: m.QueueRemedyChooseBrowser()})
+	}
+	return r
+}
+
+// hiddenVideoRemedy is the card of an X post that showed yt-dlp no video (core.FailHiddenVideo). Signed out, X leaves out the video of a sensitive post or a protected account's, so the card says the sign-in shows it and offers 选择浏览器…, which opens Settings › 通用 › 浏览器登录, and 重试, which then borrows the browser chosen there (queueRun); with no browser on the computer to choose, 重新查找浏览器 instead. Signed in through a browser already, the account is one X does not show the video to: the card names X's setting for sensitive media and offers 重试 with that browser, or another one, rather than the sign-in again.
+func (a *app) hiddenVideoRemedy(job core.Job, other media.Browser) films.Remedy {
+	m := a.messages()
+	retry := films.RemedyAction{ID: remedyRetry, Label: m.QueueRemedyRetry()}
+	if job.Cookies != "" {
+		retry.Primary = true
+		r := films.Remedy{Headline: m.QueueRemedyXSignedIn(), Why: m.QueueRemedyXSignedInWhy(media.BrowserName(job.Cookies)), Actions: []films.RemedyAction{retry}}
+		if other.ID != "" {
+			r.Actions = append(r.Actions, films.RemedyAction{ID: remedyBorrow + other.ID, Label: m.QueueRemedySwitchBrowser(other.Name)})
+		}
+		return r
+	}
+	r := films.Remedy{Headline: m.QueueRemedyXSignedOut(), Why: m.QueueRemedySentences(m.QueueRemedyXSignedOutNeed(), m.QueueRemedyXSignedOutChoose()),
+		Actions: []films.RemedyAction{{ID: remedyChooseBrowser, Label: m.QueueRemedyChooseBrowser(), Primary: true}, retry}}
+	// The setting offers the browsers the computer has; with none, there is nothing to choose.
+	if len(a.queue.ytdlp.browsers) == 0 {
+		r.Why = m.QueueRemedySentences(m.QueueRemedyXSignedOutNeed(), m.QueueRemedyNoBrowser())
+		r.Actions[0] = films.RemedyAction{ID: remedyFindBrowsers, Label: m.QueueRemedyFindBrowsers(), Primary: true}
 	}
 	return r
 }

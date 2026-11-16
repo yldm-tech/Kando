@@ -1191,6 +1191,119 @@ func TestBorrowingALoginRunsTheDownloadWithTheBrowsersCookies(t *testing.T) {
 	}
 }
 
+// hiddenXPost is a post on X whose video the fake yt-dlp finds only through Chrome's sign-in (fakeYTDLPHiddenPost), as X shows a sensitive post's video only to an account that allows it.
+const hiddenXPost = "https://x.com/someone/status/2122000096271503767"
+
+// newHiddenXApp starts the app for a test of X's hidden videos with the fake yt-dlp, saving into a library of its own, and tools after it that a download that fails never reaches.
+func newHiddenXApp(t *testing.T) (*app, *nsgotest.App, chan func()) {
+	t.Helper()
+	tools := toolsForRemedies(t, fakeTool(t, filepath.Join(t.TempDir(), "bin"), "yt-dlp"))
+	tools.CookieDir = filepath.Join(t.TempDir(), "cookies")
+	a, tt, updates := newTestApp(t, tools)
+	lib := t.TempDir()
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	return a, tt, updates
+}
+
+// hiddenXDownloaded fails the test unless the job id got past its download, which only the post's video lets it do.
+func hiddenXDownloaded(t *testing.T, a *app, id string) {
+	t.Helper()
+	job := stageOf(t, a, id)
+	if job.FailKind != "" || job.VideoPath == "" || (job.Err != nil && strings.HasPrefix(job.Err.Error(), "download:")) {
+		t.Fatalf("the post's video was not downloaded: %+v", job)
+	}
+}
+
+// A post on X that yt-dlp found no video in when it borrowed no sign-in says that X shows such videos only to signed-in accounts, rather than yt-dlp's words: 选择浏览器… opens Settings › 通用, where the sign-in is chosen, and 重试 then downloads the video with it.
+func TestHiddenXVideoSignedOutLeadsToTheSignIn(t *testing.T) {
+	a, tt, updates := newHiddenXApp(t)
+	withBrowsers(t, a, "chrome", "firefox")
+	if err := a.Enqueue(hiddenXPost); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	id := a.library.Jobs[0].ID
+	if job := stageOf(t, a, id); job.Stage != core.StageFailed || job.FailKind != core.FailHiddenVideo || job.Cookies != "" {
+		t.Fatalf("job %+v", job)
+	}
+	msgs := testlocale.Messages()
+	film, _ := a.JobFilm(id)
+	r, ok := a.FailureRemedy(film)
+	if !ok || r.Headline != "X 只给已登录的账号看这个视频" || r.Why != "敏感帖子和受保护账号的视频，X 只给已登录的账号看。选一个已登录 X 的浏览器，再重试。" ||
+		strings.Join(remedyLabels(r), ",") != strings.Join([]string{msgs.QueueRemedyChooseBrowser(), msgs.QueueRemedyRetry()}, ",") || !r.Actions[0].Primary || r.Actions[1].Primary {
+		t.Fatalf("remedy %+v", r)
+	}
+	refresh(tt, a)
+	if textCount(tt, r.Headline) == 0 {
+		t.Fatalf("the card does not say %q; texts %q", r.Headline, tt.Texts())
+	}
+	for _, text := range tt.Texts() {
+		if strings.Contains(text, "No video could be found") {
+			t.Fatalf("the card shows yt-dlp's words: %q", text)
+		}
+	}
+	a.RunRemedy(film, remedyChooseBrowser)
+	refresh(tt, a)
+	wantSettings(t, a, settings.SectionGeneral)
+	a.SetSignInBrowser("chrome")
+	settle(t, a, tt, updates)
+	a.RunRemedy(film, remedyRetry)
+	settle(t, a, tt, updates)
+	hiddenXDownloaded(t, a, id)
+	if job := stageOf(t, a, id); job.Cookies != "chrome" {
+		t.Fatalf("the retry borrowed %q", job.Cookies)
+	}
+}
+
+// With no browser on the computer whose sign-in yt-dlp can borrow, the card of X's hidden video says so, and offers to look for one again in place of 选择浏览器….
+func TestHiddenXVideoSignedOutWithoutABrowser(t *testing.T) {
+	a, _, _ := newTestApp(t, &fakePipeline{})
+	withBrowsers(t, a)
+	msgs := testlocale.Messages()
+	film := failedJob(t, a, hiddenXPost, core.FailHiddenVideo, "")
+	r, ok := a.FailureRemedy(film)
+	if !ok || r.Why != msgs.QueueRemedySentences(msgs.QueueRemedyXSignedOutNeed(), msgs.QueueRemedyNoBrowser()) ||
+		strings.Join(remedyLabels(r), ",") != strings.Join([]string{msgs.QueueRemedyFindBrowsers(), msgs.QueueRemedyRetry()}, ",") {
+		t.Fatalf("remedy %+v", r)
+	}
+}
+
+// A post on X that yt-dlp found no video in through a browser's sign-in is one X does not show that account the video of: the card names X's setting for sensitive media rather than offering the sign-in again or saying it ran out, and 重试 and 改用 … run again with that browser or the other one.
+func TestHiddenXVideoSignedInNamesXsSetting(t *testing.T) {
+	a, tt, updates := newHiddenXApp(t)
+	withBrowsers(t, a, "chrome", "firefox")
+	a.signin.browser = "firefox"
+	if err := a.Enqueue(hiddenXPost); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	id := a.library.Jobs[0].ID
+	if job := stageOf(t, a, id); job.Stage != core.StageFailed || job.FailKind != core.FailHiddenVideo || job.Cookies != "firefox" {
+		t.Fatalf("job %+v", job)
+	}
+	msgs := testlocale.Messages()
+	film, _ := a.JobFilm(id)
+	r, ok := a.FailureRemedy(film)
+	want := "确认 Firefox 里已登录 X。敏感帖子的视频要在「设置和隐私 › 隐私和安全 › 你看到的内容」里打开「显示可能含有敏感内容的媒体」才看得到，受保护账号的视频只给关注者看。"
+	if !ok || r.Headline != "X 没给你的账号显示视频" || r.Why != want ||
+		strings.Join(remedyLabels(r), ",") != strings.Join([]string{msgs.QueueRemedyRetry(), msgs.QueueRemedySwitchBrowser("Chrome")}, ",") {
+		t.Fatalf("remedy %+v", r)
+	}
+	// 重试 keeps the job's browser, whose account still sees no video.
+	a.RunRemedy(film, r.Actions[0].ID)
+	settle(t, a, tt, updates)
+	if job := stageOf(t, a, id); job.FailKind != core.FailHiddenVideo || job.Cookies != "firefox" {
+		t.Fatalf("after 重试 %+v", job)
+	}
+	a.RunRemedy(film, r.Actions[1].ID)
+	settle(t, a, tt, updates)
+	hiddenXDownloaded(t, a, id)
+	if job := stageOf(t, a, id); job.Cookies != "chrome" {
+		t.Fatalf("the switch borrowed %q", job.Cookies)
+	}
+}
+
 // 换个链接 does what the prototype's swapLink does: the card goes, the link field above is emptied and takes the focus, and the message bar says to paste the link from elsewhere there. A link pasted then starts a job of its own, without the old card's borrowed login.
 func TestSwapLinkRemovesTheCardAndFocusesTheLinkField(t *testing.T) {
 	g := newGatePipeline()

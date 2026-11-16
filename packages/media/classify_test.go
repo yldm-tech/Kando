@@ -8,7 +8,7 @@ import (
 	"kando/packages/core"
 )
 
-// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced. badlink-youtube-id and badlink-youtube-url were captured the same way with yt-dlp 2026.08.19 on 2026-11-07, from a watch link whose id lost its last two characters and one that lost its v= part. login-vimeo is what an extractor that also takes a password says when it wants a login (yt-dlp's _login_hint "any").
+// The stderr files in testdata/ytdlp/errors were captured from the real yt-dlp (2026.08.19, and 2024.03.10 for outdated-youtube) run against real failing links on 2026-11-07, with the home folder in paths replaced. badlink-youtube-id and badlink-youtube-url were captured the same way with yt-dlp 2026.08.19 on 2026-11-07, from a watch link whose id lost its last two characters and one that lost its v= part. login-vimeo is what an extractor that also takes a password says when it wants a login (yt-dlp's _login_hint "any"). hidden-x was captured with yt-dlp 2026.08.19 on 2026-11-16 with --simulate, signed out, from an X post whose video X marks as sensitive.
 func TestClassifyRealYTDLPErrors(t *testing.T) {
 	for file, want := range map[string]core.FailKind{
 		"outdated-youtube.stderr":        core.FailOutdated,
@@ -27,6 +27,7 @@ func TestClassifyRealYTDLPErrors(t *testing.T) {
 		"cookies-firefox-missing.stderr": core.FailCookies,
 		"badlink-youtube-id.stderr":      core.FailBadLink,
 		"badlink-youtube-url.stderr":     core.FailBadLink,
+		"hidden-x.stderr":                core.FailHiddenVideo,
 	} {
 		data, err := os.ReadFile(filepath.Join("testdata", "ytdlp", "errors", file))
 		if err != nil {
@@ -55,7 +56,10 @@ func TestClassifyMessagesFromTheYTDLPSource(t *testing.T) {
 		// On Linux a name that does not resolve for now is the network, not the site.
 		"ERROR: [generic] 1: Unable to download webpage: <urlopen error [Errno -3] Temporary failure in name resolution>":            core.FailNetwork,
 		"ERROR: [generic] 1: Unable to download webpage: Failed to resolve 'example.invalid' ([Errno -2] Name or service not known)": core.FailHost,
-		"ERROR: something nobody has seen": "",
+		// Only the twitter extractor's words are X's hidden video: Tumblr's and Bluesky's say "post", and nothing tells why.
+		"ERROR: [tumblr] 1: No video could be found in this post":  "",
+		"ERROR: [Bluesky] 1: No video could be found in this post": "",
+		"ERROR: something nobody has seen":                         "",
 	} {
 		if got := ClassifyDownload(msg); got != want {
 			t.Errorf("%q: %q, want %q", msg, got, want)

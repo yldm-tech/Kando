@@ -619,6 +619,7 @@ var Parameters = map[string][]string{
 	"QueueRemedySentences":                     {"first", "second"},
 	"QueueRemedySwitchBrowser":                 {"browser"},
 	"QueueRemedyUnsupported":                   {"host"},
+	"QueueRemedyXSignedInWhy":                  {"browser"},
 	"QueueReprocessFailed":                     {"name", "reason"},
 	"QueueSaveFailed":                          {"error_"},
 	"QueueStatusComplete":                      {"path"},
@@ -900,6 +901,7 @@ type Translation struct {
 	QueueRemedySentences                     func(first string, second string) string
 	QueueRemedySwitchBrowser                 func(browser string) string
 	QueueRemedyUnsupported                   func(host string) string
+	QueueRemedyXSignedInWhy                  func(browser string) string
 	QueueReprocessFailed                     func(name string, reason string) string
 	QueueSaveFailed                          func(error_ string) string
 	QueueStatusComplete                      func(path string) string
@@ -1565,6 +1567,10 @@ const (
 	textQueueRemedyUpdating
 	textQueueRemedyUpdatingAction
 	textQueueRemedyUpdatingWhy
+	textQueueRemedyXSignedIn
+	textQueueRemedyXSignedOut
+	textQueueRemedyXSignedOutChoose
+	textQueueRemedyXSignedOutNeed
 	textQueueStatusCanceled
 	textQueueStatusDownloading
 	textQueueStatusExporting
@@ -2473,6 +2479,10 @@ var keyOfText = [numTexts]string{
 	"queueRemedyUpdating",
 	"queueRemedyUpdatingAction",
 	"queueRemedyUpdatingWhy",
+	"queueRemedyXSignedIn",
+	"queueRemedyXSignedOut",
+	"queueRemedyXSignedOutChoose",
+	"queueRemedyXSignedOutNeed",
 	"queueStatusCanceled",
 	"queueStatusDownloading",
 	"queueStatusExporting",
@@ -3379,6 +3389,10 @@ var textsEn = i18n.NewTexts(""+
 	"Updating the download component…"+
 	"Updating…"+
 	"The download starts again once it's updated."+
+	"X shows no video to your account"+
+	"X shows this video only to signed-in accounts"+
+	"Choose a browser where you're signed in to X, then retry."+
+	"X shows the videos of sensitive posts and protected accounts only when you're signed in."+
 	"Canceled"+
 	"Downloading the video…"+
 	"Exporting bilingual subtitles…"+
@@ -4282,6 +4296,10 @@ var textsEn = i18n.NewTexts(""+
 		34,
 		11,
 		44,
+		32,
+		45,
+		57,
+		88,
 		8,
 		24,
 		32,
@@ -5188,6 +5206,10 @@ var textsJa = i18n.NewTexts(""+
 	"ダウンロードコンポーネントをアップデート中…"+
 	"アップデート中…"+
 	"アップデートが終わると自動的にダウンロードし直します。"+
+	"X があなたのアカウントに動画を表示しません"+
+	"X はこの動画をログイン中のアカウントにしか表示しません"+
+	"X にログインしているブラウザを選んでから、再試行してください。"+
+	"センシティブな投稿や非公開アカウントの動画は、X にログインしているときしか表示されません。"+
 	"キャンセル済み"+
 	"動画をダウンロード中…"+
 	"二言語字幕を書き出し中…"+
@@ -6091,6 +6113,10 @@ var textsJa = i18n.NewTexts(""+
 		66,
 		24,
 		81,
+		62,
+		80,
+		92,
+		134,
 		21,
 		33,
 		36,
@@ -6997,6 +7023,10 @@ var textsKo = i18n.NewTexts(""+
 	"다운로드 구성 요소 업데이트 중…"+
 	"업데이트 중…"+
 	"업데이트가 끝나면 자동으로 다시 다운로드합니다."+
+	"X가 이 계정에 동영상을 보여 주지 않습니다"+
+	"X는 로그인한 계정에만 이 동영상을 보여 줍니다"+
+	"X에 로그인된 브라우저를 선택한 후 다시 시도하십시오."+
+	"민감한 게시물과 비공개 계정의 동영상은 X에 로그인해야 볼 수 있습니다."+
 	"취소됨"+
 	"동영상 다운로드 중…"+
 	"이중 언어 자막 내보내는 중…"+
@@ -7900,6 +7930,10 @@ var textsKo = i18n.NewTexts(""+
 		46,
 		19,
 		68,
+		58,
+		64,
+		74,
+		98,
 		9,
 		29,
 		40,
@@ -8806,6 +8840,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在更新下载组件…"+
 	"更新中…"+
 	"更新完会自动重新下载。"+
+	"X 没给你的账号显示视频"+
+	"X 只给已登录的账号看这个视频"+
+	"选一个已登录 X 的浏览器，再重试。"+
+	"敏感帖子和受保护账号的视频，X 只给已登录的账号看。"+
 	"已取消"+
 	"正在下载视频…"+
 	"正在导出双语字幕…"+
@@ -9709,6 +9747,10 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		12,
 		33,
+		32,
+		41,
+		48,
+		74,
 		9,
 		21,
 		27,
@@ -10615,6 +10657,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在更新下載元件…"+
 	"更新中…"+
 	"更新完成後會自動重新下載。"+
+	"X 沒有為你的帳號顯示影片"+
+	"X 只讓已登入的帳號觀看這部影片"+
+	"選一個已登入 X 的瀏覽器，再重試。"+
+	"敏感貼文和受保護帳號的影片，X 只讓已登入的帳號觀看。"+
 	"已取消"+
 	"正在下載影片…"+
 	"正在匯出雙語字幕…"+
@@ -11518,6 +11564,10 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		12,
 		39,
+		35,
+		44,
+		48,
+		77,
 		9,
 		21,
 		27,
@@ -12483,6 +12533,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.QueueRemedyUnsupported != nil {
 		s.QueueRemedyUnsupported = t.QueueRemedyUnsupported
+	}
+	if t.QueueRemedyXSignedInWhy != nil {
+		s.QueueRemedyXSignedInWhy = t.QueueRemedyXSignedInWhy
 	}
 	if t.QueueReprocessFailed != nil {
 		s.QueueReprocessFailed = t.QueueReprocessFailed
@@ -24771,6 +24824,78 @@ func QueueRemedyUpdatingWhy(cx *core.Scope) string { return For(cx).QueueRemedyU
 
 // QueueRemedyUpdatingWhy is the package's QueueRemedyUpdatingWhy in the language of msgs.
 func (msgs Messages) QueueRemedyUpdatingWhy() string { return msgs.text(textQueueRemedyUpdatingWhy) }
+
+// QueueRemedyXSignedIn says "X shows no video to your account"
+// in the language the app shows under cx.
+//
+// Headline of a failed download's card when X answered the browser's signed-in account with a post without its video: the account does not show sensitive media, or does not follow the protected account.
+func QueueRemedyXSignedIn(cx *core.Scope) string { return For(cx).QueueRemedyXSignedIn() }
+
+// QueueRemedyXSignedIn is the package's QueueRemedyXSignedIn in the language of msgs.
+func (msgs Messages) QueueRemedyXSignedIn() string { return msgs.text(textQueueRemedyXSignedIn) }
+
+// QueueRemedyXSignedInWhy says "Check that you're signed in to X in {browser}. X shows a sensitive post's video only with “Display media that may contain sensitive content” on (Settings and privacy › Privacy and safety › Content you see), and a protected account's only to its followers."
+// in the language the app shows under cx.
+//
+// What to do when X showed the browser's signed-in account a post without its video. Use X's own names of that setting and of its place in X's settings, as X shows them in this language.
+func QueueRemedyXSignedInWhy(cx *core.Scope, browser string) string {
+	return For(cx).QueueRemedyXSignedInWhy(browser)
+}
+
+// QueueRemedyXSignedInWhy is the package's QueueRemedyXSignedInWhy in the language of msgs.
+func (msgs Messages) QueueRemedyXSignedInWhy(browser string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueRemedyXSignedInWhy(browser))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueRemedyXSignedInWhy; f != nil {
+			return f(browser)
+		}
+		switch lang {
+		case "", "en":
+			return "Check that you're signed in to X in " + msgs.arg(browser) + ". X shows a sensitive post's video only with “Display media that may contain sensitive content” on (Settings and privacy › Privacy and safety › Content you see), and a protected account's only to its followers."
+		case "ja":
+			return browser + " で X にログインしているか確認してください。センシティブな投稿の動画は「設定とプライバシー › プライバシーとセキュリティ › 表示するコンテンツ」で「センシティブな内容を含む可能性のあるメディアを表示する」をオンにすると表示され、非公開アカウントの動画はフォロワーにしか表示されません。"
+		case "ko":
+			return browser + "에서 X에 로그인되어 있는지 확인하십시오. 민감한 게시물의 동영상은 ‘설정 및 개인정보 › 개인정보 및 보안 › 표시되는 콘텐츠’에서 ‘민감한 내용을 포함할 수 있는 미디어 표시’를 켜야 볼 수 있고, 비공개 계정의 동영상은 팔로워만 볼 수 있습니다."
+		case "zh-Hans":
+			return "确认 " + browser + " 里已登录 X。敏感帖子的视频要在「设置和隐私 › 隐私和安全 › 你看到的内容」里打开「显示可能含有敏感内容的媒体」才看得到，受保护账号的视频只给关注者看。"
+		case "zh-Hant":
+			return "確認 " + browser + " 中已登入 X。敏感貼文的影片要在「設定和隱私 › 隱私和安全 › 你看到的內容」中開啟「顯示可能含有敏感內容的媒體」才看得到，受保護帳號的影片只給跟隨者觀看。"
+		}
+	}
+}
+
+// QueueRemedyXSignedOut says "X shows this video only to signed-in accounts"
+// in the language the app shows under cx.
+//
+// Headline of a failed download's card when X answered a signed-out download with a post without its video, as it does for sensitive posts and protected accounts.
+func QueueRemedyXSignedOut(cx *core.Scope) string { return For(cx).QueueRemedyXSignedOut() }
+
+// QueueRemedyXSignedOut is the package's QueueRemedyXSignedOut in the language of msgs.
+func (msgs Messages) QueueRemedyXSignedOut() string { return msgs.text(textQueueRemedyXSignedOut) }
+
+// QueueRemedyXSignedOutChoose says "Choose a browser where you're signed in to X, then retry."
+// in the language the app shows under cx.
+//
+// Second sentence of the card of an X post whose video X shows only to signed-in accounts, when there is a browser to choose.
+func QueueRemedyXSignedOutChoose(cx *core.Scope) string { return For(cx).QueueRemedyXSignedOutChoose() }
+
+// QueueRemedyXSignedOutChoose is the package's QueueRemedyXSignedOutChoose in the language of msgs.
+func (msgs Messages) QueueRemedyXSignedOutChoose() string {
+	return msgs.text(textQueueRemedyXSignedOutChoose)
+}
+
+// QueueRemedyXSignedOutNeed says "X shows the videos of sensitive posts and protected accounts only when you're signed in."
+// in the language the app shows under cx.
+//
+// First sentence of the card of an X post whose video X shows only to signed-in accounts.
+func QueueRemedyXSignedOutNeed(cx *core.Scope) string { return For(cx).QueueRemedyXSignedOutNeed() }
+
+// QueueRemedyXSignedOutNeed is the package's QueueRemedyXSignedOutNeed in the language of msgs.
+func (msgs Messages) QueueRemedyXSignedOutNeed() string {
+	return msgs.text(textQueueRemedyXSignedOutNeed)
+}
 
 // QueueReprocessFailed says "“{name}” keeps its subtitles: it couldn't be processed again. {reason}"
 // in the language the app shows under cx.
