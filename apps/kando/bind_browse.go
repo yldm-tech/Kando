@@ -14,6 +14,7 @@ import (
 func (a *app) BrowseState() browse.State {
 	return browse.State{
 		Page:         a.browseShowing(),
+		NotVideo:     a.browseShowing() && browseNotVideo(a.browse.url),
 		Loading:      a.browse.loading,
 		CanGoBack:    a.browse.canBack,
 		CanGoForward: a.browse.canForward,

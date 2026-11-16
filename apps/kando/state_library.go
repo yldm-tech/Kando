@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/live"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -23,8 +25,12 @@ type libraryUI struct {
 	thumbs    map[string]ns.ImageSource
 	thumbMiss map[string]bool
 	thumbBusy map[string]bool
-	// notice is the message bar under the top bar.
-	notice films.Notice
+	// notice is the message bar under the top bar. noticeTimer closes a message that something worked after noticeFor (noticeLater). noticeReady marks a warning of precheckReady, which the bar follows until it is fixed; noticeJob and noticeStage are the job a warning is about and the stage it spoke of, and the bar closes once the job is gone or has moved on from it, as when it is retried (libraryFollowNotice).
+	notice      films.Notice
+	noticeTimer *film.Timer
+	noticeReady bool
+	noticeJob   string
+	noticeStage core.Stage
 	// queueOpen shows every card of 处理中 rather than the first films.QueueShown.
 	queueOpen bool
 	// removing is the film whose 从资料库移除 is waiting to be confirmed, while removeOpen. removeFolder is whether its folder, rather than only its video and subtitles, goes to the Trash, as filmFiles decided when it was asked.
@@ -84,16 +90,48 @@ func (a *app) libraryHooks() areaHooks {
 			a.lib.holdOpened = false
 			a.libraryPostOpened()
 		},
-		afterChange:  a.libraryAfterChange,
-		shelfChanged: a.loadExtras,
+		afterChange:    a.libraryAfterChange,
+		shelfChanged:   a.loadExtras,
+		libraryChanged: a.libraryDropNotice,
 	}
 }
 
-// libraryAfterChange lets go of an open film the library no longer has (libraryFollowOpen) and closes the dialogs whose reason went away (libraryModals) after each change, and reports whether it changed anything.
+// libraryAfterChange lets go of an open film the library no longer has (libraryFollowOpen), closes the dialogs whose reason went away (libraryModals) and keeps the message bar about what is still so (libraryFollowNotice) after each change, and reports whether it changed anything.
 func (a *app) libraryAfterChange() bool {
 	open := a.libraryFollowOpen()
 	modals := a.libraryModals()
-	return open || modals
+	notice := a.libraryFollowNotice()
+	return open || modals || notice
+}
+
+// libraryFollowNotice closes the message bar, or brings it up to date, once what it says is no longer so: a warning of precheckReady follows it (precheckFollow), and a warning about a job closes once the job is gone or has left the stage it spoke of. It reports whether it changed the bar.
+func (a *app) libraryFollowNotice() bool {
+	n := &a.lib.notice
+	switch {
+	case !n.Open:
+		return false
+	case a.lib.noticeReady:
+		return a.precheckFollow(&n.Text, &n.Section, &n.Open)
+	case a.lib.noticeJob != "":
+		if job, ok := a.library.Find(a.lib.noticeJob); ok && job.Stage == a.lib.noticeStage {
+			return false
+		}
+		n.Open = false
+		return true
+	}
+	return false
+}
+
+// libraryDropNotice closes the message bar as another library opens, as what it said was about the one left; the guide's note, which is about Kando, stays.
+func (a *app) libraryDropNotice() {
+	if !isOnboardingTip(a.lib.notice.Text) {
+		a.lib.notice.Open = false
+	}
+}
+
+// libraryNoticeJob ties the warning the message bar shows to job id at stage, so it closes once the job is gone or has left that stage (libraryFollowNotice).
+func (a *app) libraryNoticeJob(id string, stage core.Stage) {
+	a.lib.noticeJob, a.lib.noticeStage = id, stage
 }
 
 // libraryModals keeps the window's modal flag held while the library's dialogs are open, and reports whether it held or gave it back. AskRemove and AskRename hold it as the remove confirmation and the rename dialog open, and the handlers that close them give it back; one a dialog closed some other way left behind is given back here. The new-library sheet is open while the session is making a library, which the shelf, the sidebar and the settings start, and which several of them end, so its flag is held here as the sheet opens and given back as it closes.
@@ -122,14 +160,40 @@ func (a *app) libraryModals() bool {
 	return changed
 }
 
-// warn shows a warning in the library's message bar; section, when not empty, is the settings section that fixes it.
-func (a *app) warn(text, section string) {
-	a.lib.notice = films.Notice{Kind: "warning", Text: text, Section: section, Open: true}
+// libraryShow puts n in the library's message bar, in place of what it said, which takes with it what the bar followed of that (noticeReady, noticeJob). Everything that fills the bar goes through it: warn, tell and the guide's note.
+func (a *app) libraryShow(n films.Notice) {
+	a.lib.notice = n
+	a.lib.noticeReady, a.lib.noticeJob, a.lib.noticeStage = false, "", ""
 }
 
-// tell shows a message that something worked in the library's message bar.
+// warn shows a warning in the library's message bar, which stays until it is closed or what it says is no longer so (libraryFollowNotice); section, when not empty, is the settings section that fixes it.
+func (a *app) warn(text, section string) {
+	a.libraryShow(films.Notice{Kind: "warning", Text: text, Section: section, Open: true})
+}
+
+// tell shows a message that something worked in the library's message bar, which closes by itself after noticeFor.
 func (a *app) tell(text string) {
-	a.lib.notice = films.Notice{Kind: "success", Text: text, Open: true}
+	a.libraryShow(films.Notice{Kind: "success", Text: text, Open: true})
+	shown := a.lib.notice
+	a.noticeLater(&a.lib.noticeTimer, func() {
+		if a.lib.notice == shown {
+			a.lib.notice.Open = false
+		}
+	})
+}
+
+// noticeFor is how long a message bar says that something worked before it closes by itself. A warning stays until it is closed, or until what it says is no longer so.
+const noticeFor = 5 * time.Second
+
+// noticeLater runs close after noticeFor, on the timer *timer, made under the app's scope on first use, unless it is set again first; close checks that the bar still says what it was set for, as another message may have taken its place. The library's and the browser's message bars close their messages that something worked with it. Without the app's scope, as in tests that start no app, close never runs.
+func (a *app) noticeLater(timer **film.Timer, close func()) {
+	if a.cx == nil {
+		return
+	}
+	if *timer == nil {
+		*timer = film.NewTimer(a.cx)
+	}
+	(*timer).Set(noticeFor, live.Do(a, close))
 }
 
 // loadExtras reads what the shelf shows of its films beyond the session: each poster and the video's length, and the site's picture of each processing film, off the UI thread, and the hero's first bilingual line. The shelf calls it when its films change, so the page only reads what it has; nothing is read twice.

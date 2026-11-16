@@ -108,7 +108,7 @@ func (a *app) onboardingHooks() areaHooks {
 			}
 			a.onb.tip = saved.OnboardingTip
 			if a.onb.tip {
-				a.lib.notice = a.noticeTip()
+				a.libraryShow(a.noticeTip())
 			}
 			if !a.onb.done {
 				a.openOnboarding()
@@ -153,7 +153,7 @@ func (a *app) onboardingAfterChange() bool {
 		a.onb.tip = false
 		a.onboardingSave()
 	default:
-		a.lib.notice = a.noticeTip()
+		a.libraryShow(a.noticeTip())
 	}
 	return true
 }
@@ -175,7 +175,7 @@ func (a *app) closeOnboarding() {
 	a.onb.done = true
 	a.onb.tip = true
 	a.Select(pageFilms)
-	a.lib.notice = a.noticeTip()
+	a.libraryShow(a.noticeTip())
 	a.onboardingSave()
 	if a.onb.release != nil {
 		a.onb.release()

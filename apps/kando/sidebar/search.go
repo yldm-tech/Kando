@@ -56,7 +56,7 @@ func searchField(cx *core.Scope, a App, field *core.Ref) core.Node {
 		Label:           locales.SidebarSearchLabel(cx),
 		Value:           query,
 		PlaceholderFunc: func() string { return locales.SidebarSearchPlaceholder(cx) + "  " + cx.KeyLabel("mod+f") },
-		OnChange:        live.On(a, func(text string) { *a.Query() = text }),
+		OnChange:        live.On(a, a.SetQuery),
 		OnFocus:         func() { focused.Set(true) },
 		OnBlur:          func() { focused.Set(false) },
 		Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0), Height: core.Pt(28), CornerRadius: 8, Background: searchFill, FontSize: 13,

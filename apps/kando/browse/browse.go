@@ -12,6 +12,8 @@ import (
 type State struct {
 	// Page is set while a web page is open; without one the page's start shows.
 	Page bool
+	// NotVideo is set while the page lists videos without being one, as a site's home page, its search results or a channel do: 下载视频 is off on it, and its tooltip says why.
+	NotVideo bool
 	// Loading is set while the page loads; reload then stops it.
 	Loading      bool
 	CanGoBack    bool

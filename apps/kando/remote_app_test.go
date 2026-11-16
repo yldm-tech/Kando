@@ -316,7 +316,7 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 	a.page = pageAccount
 
 	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{
-		Sources: []string{"https://example.com/a", "https://www.youtube.com/@veritasium", "https://www.youtube.com/playlist?list=PLx0sYbCqOb8", "https://youtu.be/TRWgBxVAb1M", "https://example.com/a", "https://www.bilibili.com/video/BV1GJ411x7h7/"},
+		Sources: []string{"https://example.com/a", "https://www.youtube.com/@veritasium", "https://www.youtube.com/playlist?list=PLx0sYbCqOb8", "https://www.youtube.com/results?search_query=french", "https://youtu.be/TRWgBxVAb1M", "https://example.com/a", "https://www.bilibili.com/video/BV1GJ411x7h7/"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -331,6 +331,7 @@ func TestRemoteAddSkipsListsAndVideosAlreadyThere(t *testing.T) {
 	want := []string{
 		"https://www.youtube.com/@veritasium: " + testlocale.Messages().PrecheckChannel("YouTube"),
 		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8: " + testlocale.Messages().PrecheckList("YouTube"),
+		"https://www.youtube.com/results?search_query=french: " + testlocale.Messages().PrecheckPage(),
 		"https://youtu.be/TRWgBxVAb1M: " + testlocale.Messages().QueueAlreadyInLibrary(),
 		"https://example.com/a: " + testlocale.Messages().QueueAlreadyQueued(),
 	}

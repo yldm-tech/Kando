@@ -672,6 +672,13 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 		{name: "a list without a video", sources: []string{"https://www.youtube.com/watch?list=PLx0sYbCqOb8"}, msg: testlocale.Messages().PrecheckList("YouTube")},
 		{name: "a bilibili collection", sources: []string{"https://space.bilibili.com/946974/channel/collectiondetail?sid=1"}, msg: testlocale.Messages().PrecheckList("哔哩哔哩")},
 		{name: "a channel among videos", sources: []string{"https://youtu.be/TRWgBxVAb1M", "https://www.youtube.com/@veritasium"}, msg: testlocale.Messages().PrecheckChannel("YouTube")},
+		// yt-dlp would download whichever video it finds first on a page that lists videos.
+		{name: "the YouTube home page", sources: []string{"https://www.youtube.com/"}, msg: testlocale.Messages().PrecheckPage()},
+		{name: "YouTube's search results", sources: []string{"https://www.youtube.com/results?search_query=french"}, msg: testlocale.Messages().PrecheckPage()},
+		{name: "a YouTube hashtag", sources: []string{"https://www.youtube.com/hashtag/french"}, msg: testlocale.Messages().PrecheckPage()},
+		{name: "bilibili's search", sources: []string{"https://search.bilibili.com/all?keyword=french"}, msg: testlocale.Messages().PrecheckPage()},
+		{name: "a YouTube clip", sources: []string{"https://www.youtube.com/clip/UgkxAbCdEfGhIjKlMnOpQrStUvWxYz"}},
+		{name: "a bilibili episode", sources: []string{"https://www.bilibili.com/bangumi/play/ep12345"}},
 		{name: "a video in a list", sources: []string{"https://www.youtube.com/watch?v=TRWgBxVAb1M&list=PLx0sYbCqOb8"}},
 		{name: "a part of a bilibili video", sources: []string{"https://www.bilibili.com/video/BV1GJ411x7h7?p=3"}},
 		{name: "a local file", sources: []string{"file:///Users/me/Movies/clip.mp4"}},
@@ -695,6 +702,86 @@ func TestPrecheckSaysWhatToFix(t *testing.T) {
 		if msg != tc.msg || section != tc.section {
 			t.Errorf("%s: precheck = %q, %q; want %q, %q", tc.name, msg, section, tc.msg, tc.section)
 		}
+	}
+}
+
+// TestLibraryNoticeFollowsWhatItSays checks that the library's message bar says only what is still so: a message that something worked closes by itself after noticeFor, a warning stays until it is closed or no longer so, a missing tool or setting is followed until everything is in, a warning about a job closes once the job is retried, and opening another library closes the bar.
+func TestLibraryNoticeFollowsWhatItSays(t *testing.T) {
+	a, tt, _ := libraryWith(t, "Talk")
+	t.Cleanup(func() {
+		if a.libraryWatch != nil {
+			close(a.libraryWatch)
+			a.libraryWatch = nil
+		}
+	})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	msgs := testlocale.Messages()
+	apply(tt, a, func() { a.libraryEnqueue("https://example.com/a") })
+	wantText(t, tt, msgs.LibraryAddedOneStarting())
+	tt.Advance(noticeFor + time.Second)
+	if a.lib.notice.Open {
+		t.Fatalf("%q still shows after %v", a.lib.notice.Text, noticeFor+time.Second)
+	}
+
+	model := filepath.Join(t.TempDir(), "model.bin")
+	if err := os.WriteFile(model, []byte("m"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ready := media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", WhisperModel: model, Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", APIKey: "k"}}
+	missing := ready
+	missing.FFmpeg = ""
+	a.pipeline = missing
+	apply(tt, a, func() { a.libraryEnqueue("https://example.com/b") })
+	if a.lib.notice.Text != msgs.PrecheckToolsMissing("ffmpeg") || a.lib.notice.Section != settings.SectionGeneral {
+		t.Fatalf("notice %+v", a.lib.notice)
+	}
+	tt.Advance(2 * noticeFor)
+	if !a.lib.notice.Open {
+		t.Fatal("a warning closed by itself")
+	}
+	noLLM := ready
+	noLLM.Translator.Model = ""
+	a.pipeline = noLLM
+	refresh(tt, a)
+	if !a.lib.notice.Open || a.lib.notice.Text != msgs.PrecheckNoLLMModel() || a.lib.notice.Section != settings.SectionAI {
+		t.Fatalf("with ffmpeg in: notice %+v", a.lib.notice)
+	}
+	a.pipeline = ready
+	refresh(tt, a)
+	if a.lib.notice.Open {
+		t.Fatalf("%q still shows with everything in", a.lib.notice.Text)
+	}
+
+	// A job of another library failed; retrying it takes the warning away.
+	other := filepath.Join(t.TempDir(), "其他.kando")
+	a.library.Jobs = append(a.library.Jobs, core.Job{ID: "away", Source: "https://youtu.be/away", Stage: core.StageFailed, Err: errors.New("boom"), LibraryDir: other})
+	apply(tt, a, func() { a.queueEndedElsewhere("away") })
+	if !a.lib.notice.Open || a.lib.notice.Kind != "warning" {
+		t.Fatalf("notice %+v", a.lib.notice)
+	}
+	apply(tt, a, func() {
+		for i := range a.library.Jobs {
+			if a.library.Jobs[i].ID == "away" {
+				a.library.Jobs[i].Stage, a.library.Jobs[i].Err = core.StageQueued, nil
+			}
+		}
+	})
+	if a.lib.notice.Open {
+		t.Fatalf("%q still shows once the job is retried", a.lib.notice.Text)
+	}
+
+	apply(tt, a, func() { a.warn("boom", "") })
+	apply(tt, a, func() { a.switchLibrary(other) })
+	if a.lib.notice.Open {
+		t.Fatalf("%q still shows in another library", a.lib.notice.Text)
+	}
+
+	// The guide's note that takes a warning's place is not followed as the warning was.
+	a.pipeline = missing
+	apply(tt, a, func() { a.libraryEnqueue("https://example.com/c") })
+	apply(tt, a, a.closeOnboarding)
+	if !a.lib.notice.Open || !isOnboardingTip(a.lib.notice.Text) {
+		t.Fatalf("after the guide: notice %+v", a.lib.notice)
 	}
 }
 

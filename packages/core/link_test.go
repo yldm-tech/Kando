@@ -28,6 +28,8 @@ func TestParseLink(t *testing.T) {
 		{"b23.tv/xYz12Ab", Link{URL: "https://b23.tv/xYz12Ab", Platform: PlatformBilibili, Kind: LinkVideo, ID: "xYz12Ab", Host: "b23.tv", Site: "bilibili.com", Short: true}},
 		{"https://space.bilibili.com/946974", Link{URL: "https://space.bilibili.com/946974", Platform: PlatformBilibili, Kind: LinkChannel, ID: "946974", Host: "space.bilibili.com", Site: "bilibili.com"}},
 		{"https://space.bilibili.com/946974/channel/collectiondetail?sid=1", Link{URL: "https://space.bilibili.com/946974/channel/collectiondetail?sid=1", Platform: PlatformBilibili, Kind: LinkPlaylist, ID: "946974", Host: "space.bilibili.com", Site: "bilibili.com"}},
+		{"https://www.youtube.com/results?search_query=french", Link{URL: "https://www.youtube.com/results?search_query=french", Platform: PlatformYouTube, Kind: LinkPage, Host: "youtube.com", Site: "youtube.com"}},
+		{"https://search.bilibili.com/all?keyword=french", Link{URL: "https://search.bilibili.com/all?keyword=french", Platform: PlatformBilibili, Kind: LinkPage, Host: "search.bilibili.com", Site: "bilibili.com"}},
 		{"https://vimeo.com/76979871", Link{URL: "https://vimeo.com/76979871", Platform: PlatformWeb, Kind: LinkVideo, Host: "vimeo.com", Site: "vimeo.com"}},
 		{"https://www.ted.com/talks/some_talk", Link{URL: "https://www.ted.com/talks/some_talk", Platform: PlatformWeb, Kind: LinkVideo, Host: "ted.com", Site: "ted.com"}},
 		{"https://example.com/v", Link{URL: "https://example.com/v", Platform: PlatformWeb, Kind: LinkVideo, Host: "example.com"}},
@@ -107,6 +109,25 @@ func TestLinkOneVideo(t *testing.T) {
 		"https://www.bilibili.com/list/watchlater":                                            false,
 		"https://vimeo.com/76979871":                                                          true,
 		"file:///Users/me/Movies/clip.mp4":                                                    true,
+		// A site's home, its search results, a feed or a hashtag lists videos without being one; yt-dlp would download the first it finds there.
+		"https://www.youtube.com":                             false,
+		"https://www.youtube.com/":                            false,
+		"https://m.youtube.com/":                              false,
+		"https://www.youtube.com/results?search_query=french": false,
+		"https://www.youtube.com/feed/subscriptions":          false,
+		"https://www.youtube.com/feed/trending":               false,
+		"https://www.youtube.com/hashtag/french":              false,
+		"https://www.youtube.com/gaming":                      false,
+		"https://www.youtube.com/trending":                    false,
+		"https://www.bilibili.com":                            false,
+		"https://www.bilibili.com/":                           false,
+		"https://m.bilibili.com/":                             false,
+		"https://search.bilibili.com/all?keyword=french":      false,
+		// These are one video though the link names no ID ParseLink reads.
+		"https://www.youtube.com/clip/UgkxAbCdEfGhIjKlMnOpQrStUvWxYz": true,
+		"https://www.youtube.com/?v=Rv3Hn7Qm2Ts":                      true,
+		"https://www.bilibili.com/bangumi/play/ep12345":               true,
+		"https://www.bilibili.com/cheese/play/ep67890":                true,
 	}
 	for raw, want := range cases {
 		link, ok := ParseLink(raw)

@@ -627,6 +627,28 @@ func TestFindFocusesTheSidebarSearch(t *testing.T) {
 	}
 }
 
+// TestSearchFromTheBrowser checks that the sidebar's search, which narrows the library page, goes there from the browser's page as the user types, or presses ⌘F, so what it finds shows; an empty field leaves the browser where it is.
+func TestSearchFromTheBrowser(t *testing.T) {
+	a, tt := librarySearchWith(t)
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	tt.Focus("搜索影片")
+	if a.page != pageBrowse {
+		t.Fatalf("focusing the field went to %q", a.page)
+	}
+	typeFocused(t, tt, "rivers")
+	if a.page != pageFilms || !shows(tt, "Rivers of Europe") || shows(tt, "Linear Algebra") {
+		t.Fatalf("typing on the browser's page: page %q, %q", a.page, tt.Texts())
+	}
+	a.side.query = ""
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	tt.Key("mod+f")
+	if a.page != pageFilms || !tt.Find("搜索影片").Focused {
+		t.Fatalf("⌘F on the browser's page: page %q, focused %v", a.page, tt.Find("搜索影片").Focused)
+	}
+}
+
 // TestSearchIsForItsLibrary checks that the search is not saved, that opening another library empties it, and that a library with no film shows no search field and leaves ⌘F to nothing.
 func TestSearchIsForItsLibrary(t *testing.T) {
 	a, tt := librarySearchWith(t)

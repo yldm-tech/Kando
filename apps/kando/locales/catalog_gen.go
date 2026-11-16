@@ -876,6 +876,7 @@ const (
 	textBrowseClearTitle
 	textBrowseCleared
 	textBrowseDownload
+	textBrowseDownloadNotVideo
 	textBrowseDownloadTooltip
 	textBrowseEmptyDescription
 	textBrowseEmptyTitle
@@ -1289,6 +1290,7 @@ const (
 	textPrecheckNoTranscript
 	textPrecheckNoVideo
 	textPrecheckNotLink
+	textPrecheckPage
 	textPrecheckSubtitlesChanged
 	textPrecheckToolSeparator
 	textPrecheckTranslateAuth
@@ -1638,6 +1640,7 @@ var keyOfText = [numTexts]string{
 	"browseClearTitle",
 	"browseCleared",
 	"browseDownload",
+	"browseDownloadNotVideo",
 	"browseDownloadTooltip",
 	"browseEmptyDescription",
 	"browseEmptyTitle",
@@ -2051,6 +2054,7 @@ var keyOfText = [numTexts]string{
 	"precheckNoTranscript",
 	"precheckNoVideo",
 	"precheckNotLink",
+	"precheckPage",
 	"precheckSubtitlesChanged",
 	"precheckToolSeparator",
 	"precheckTranslateAuth",
@@ -2398,8 +2402,9 @@ var textsEn = i18n.NewTexts(""+
 	"Clear sign-in data?"+
 	"Sign-in data cleared."+
 	"Download Video"+
+	"This page isn't a video. Open one of its videos first."+
 	"Add this page's video to the library"+
-	"Enter a URL or search in the address bar above, then click Download Video at the top right. Sites you sign in to here stay signed in when you download."+
+	"Open a site, find a video, then click Download Video."+
 	"Open a page with a video"+
 	"Forward"+
 	"Home"+
@@ -2811,6 +2816,7 @@ var textsEn = i18n.NewTexts(""+
 	"This film's original subtitles are gone, so its translation can't be redone on its own. Process the entire film again instead."+
 	"Only video files can be added (mp4, mov, mkv, webm and others)."+
 	"This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read."+
+	"This page isn't a video. Paste the link of one of its videos."+
 	"This film's subtitles were changed since Kando made them, so the lines that failed can't be found. Translate it again to redo every line."+
 	", "+
 	"The AI service doesn't accept this key. Check it in “AI Service”."+
@@ -3155,8 +3161,9 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		21,
 		14,
+		54,
 		36,
-		151,
+		53,
 		24,
 		7,
 		4,
@@ -3568,6 +3575,7 @@ var textsEn = i18n.NewTexts(""+
 		126,
 		63,
 		116,
+		61,
 		137,
 		2,
 		69,
@@ -3915,8 +3923,9 @@ var textsJa = i18n.NewTexts(""+
 	"ログイン情報を消去しますか？"+
 	"ログイン情報を消去しました。"+
 	"動画をダウンロード"+
+	"このページは動画ではありません。先にその中の動画を開いてください。"+
 	"このページの動画をライブラリに追加"+
-	"上のアドレスバーに URL を入力するか検索して、右上の「動画をダウンロード」をクリックします。ここでログインしたサイトには、ダウンロードするときもログインしたままです。"+
+	"サイトを開いて動画を見つけたら、「動画をダウンロード」をクリックします。"+
 	"動画のあるページを開く"+
 	"進む"+
 	"ホーム"+
@@ -4328,6 +4337,7 @@ var textsJa = i18n.NewTexts(""+
 	"この動画の元の字幕が見つからないため、翻訳だけをやり直すことはできません。動画全体を再処理してください。"+
 	"追加できるのは動画ファイル（mp4、mov、mkv、webm など）だけです。"+
 	"動画のリンクではないようです。YouTube、bilibili のほか、yt-dlp が解析できる数千のサイトに対応しています。"+
+	"このページは動画ではありません。その中の動画のリンクを貼り付けてください。"+
 	"この動画の字幕は Kando が作成した後に編集されているため、翻訳できなかった行を特定できません。再翻訳するとすべての行を翻訳し直します。"+
 	"、"+
 	"AI サービスがこの Key を受け付けません。「AI サービス」で確認してください。"+
@@ -4672,8 +4682,9 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		42,
 		27,
+		99,
 		51,
-		245,
+		108,
 		33,
 		6,
 		9,
@@ -5085,6 +5096,7 @@ var textsJa = i18n.NewTexts(""+
 		156,
 		89,
 		146,
+		111,
 		196,
 		3,
 		107,
@@ -5432,8 +5444,9 @@ var textsKo = i18n.NewTexts(""+
 	"로그인 정보를 지울까요?"+
 	"로그인 정보를 지웠습니다."+
 	"동영상 다운로드"+
+	"이 페이지는 동영상이 아닙니다. 먼저 그중 한 동영상을 여세요."+
 	"이 페이지의 동영상을 라이브러리에 추가"+
-	"위 주소 표시줄에 URL을 입력하거나 검색한 다음 오른쪽 위의 '동영상 다운로드'를 클릭하세요. 여기서 로그인한 사이트는 다운로드할 때도 로그인 상태가 유지됩니다."+
+	"사이트를 열고 동영상을 찾은 다음 '동영상 다운로드'를 클릭하세요."+
 	"동영상이 있는 페이지 열기"+
 	"앞으로"+
 	"홈"+
@@ -5845,6 +5858,7 @@ var textsKo = i18n.NewTexts(""+
 	"이 영상의 원문 자막이 없어 번역만 따로 다시 할 수 없습니다. 영상 전체를 다시 처리하십시오."+
 	"동영상 파일(mp4, mov, mkv, webm 등)만 추가할 수 있습니다."+
 	"동영상 링크가 아닌 것 같습니다. YouTube, Bilibili를 비롯해 yt-dlp가 분석할 수 있는 수천 개의 웹사이트를 지원합니다."+
+	"이 페이지는 동영상이 아닙니다. 그중 한 동영상의 링크를 붙여 넣으세요."+
 	"이 영상의 자막이 Kando가 만든 뒤 수정되어 번역되지 않은 줄을 찾을 수 없습니다. 다시 번역하면 모든 줄을 다시 번역합니다."+
 	", "+
 	"AI 서비스가 이 Key를 받아들이지 않습니다. ‘AI 서비스’에서 확인하십시오."+
@@ -6189,8 +6203,9 @@ var textsKo = i18n.NewTexts(""+
 		33,
 		36,
 		22,
+		85,
 		55,
-		221,
+		91,
 		36,
 		9,
 		3,
@@ -6602,6 +6617,7 @@ var textsKo = i18n.NewTexts(""+
 		127,
 		72,
 		153,
+		98,
 		166,
 		2,
 		101,
@@ -6949,8 +6965,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"清除登录信息？"+
 	"已清除登录信息。"+
 	"下载视频"+
+	"这个网页不是视频。请先打开其中一个视频。"+
 	"把这个网页的视频加入资料库"+
-	"在上方地址栏输入网址或搜索，然后点右上角「下载视频」。在这里登录过的网站，下载时会带上登录状态。"+
+	"打开一个网站，找到视频，然后点「下载视频」。"+
 	"打开有视频的网页"+
 	"前进"+
 	"主页"+
@@ -7362,6 +7379,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"这部影片的原文字幕不见了，没法单独重新翻译。请重新处理整部影片。"+
 	"只能添加视频文件（mp4、mov、mkv、webm 等）。"+
 	"这不像一个视频链接。支持 YouTube、哔哩哔哩，以及 yt-dlp 能解析的上千个网站。"+
+	"这个网页不是视频。请粘贴其中一个视频的链接。"+
 	"这部影片的字幕在看懂生成后被改过，找不到哪些句子没译。重新翻译可以重译每一句。"+
 	"、"+
 	"AI 服务不接受这个 Key，去「AI 服务」里检查一下。"+
@@ -7706,8 +7724,9 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		24,
 		12,
+		60,
 		39,
-		144,
+		66,
 		24,
 		6,
 		6,
@@ -8119,6 +8138,7 @@ var textsZhHans = i18n.NewTexts(""+
 		96,
 		59,
 		106,
+		66,
 		117,
 		3,
 		67,
@@ -8466,8 +8486,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"清除登入資訊？"+
 	"已清除登入資訊。"+
 	"下載影片"+
+	"這個網頁不是影片。請先打開其中一個影片。"+
 	"把這個網頁的影片加入資料庫"+
-	"在上方網址列輸入網址或搜尋，然後點右上角「下載影片」。在這裡登入過的網站，下載時會帶上登入狀態。"+
+	"打開一個網站，找到影片，然後點「下載影片」。"+
 	"打開有影片的網頁"+
 	"下一頁"+
 	"首頁"+
@@ -8879,6 +8900,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"這部影片的原文字幕不見了，無法單獨重新翻譯。請重新處理整部影片。"+
 	"只能加入影片檔（mp4、mov、mkv、webm 等）。"+
 	"這不像一個影片連結。支援 YouTube、嗶哩嗶哩，以及 yt-dlp 能解析的上千個網站。"+
+	"這個網頁不是影片。請貼上其中一個影片的連結。"+
 	"這部影片的字幕在看懂產生後被改過，找不到哪些句子沒譯。重新翻譯可以重譯每一句。"+
 	"、"+
 	"AI 服務不接受這個 Key，去「AI 服務」中檢查一下。"+
@@ -9223,8 +9245,9 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		24,
 		12,
+		60,
 		39,
-		144,
+		66,
 		24,
 		9,
 		6,
@@ -9636,6 +9659,7 @@ var textsZhHant = i18n.NewTexts(""+
 		96,
 		56,
 		106,
+		66,
 		117,
 		3,
 		67,
@@ -11250,6 +11274,15 @@ func BrowseDownload(cx *core.Scope) string { return For(cx).BrowseDownload() }
 // BrowseDownload is the package's BrowseDownload in the language of msgs.
 func (msgs Messages) BrowseDownload() string { return msgs.text(textBrowseDownload) }
 
+// BrowseDownloadNotVideo says "This page isn't a video. Open one of its videos first."
+// in the language the app shows under cx.
+//
+// Tooltip of the Browse page's Download Video button while it is off, and its message bar, when the page shown lists videos without being one: a site's home page, search results, a feed, a hashtag, a channel or a playlist.
+func BrowseDownloadNotVideo(cx *core.Scope) string { return For(cx).BrowseDownloadNotVideo() }
+
+// BrowseDownloadNotVideo is the package's BrowseDownloadNotVideo in the language of msgs.
+func (msgs Messages) BrowseDownloadNotVideo() string { return msgs.text(textBrowseDownloadNotVideo) }
+
 // BrowseDownloadTooltip says "Add this page's video to the library"
 // in the language the app shows under cx.
 //
@@ -11259,7 +11292,7 @@ func BrowseDownloadTooltip(cx *core.Scope) string { return For(cx).BrowseDownloa
 // BrowseDownloadTooltip is the package's BrowseDownloadTooltip in the language of msgs.
 func (msgs Messages) BrowseDownloadTooltip() string { return msgs.text(textBrowseDownloadTooltip) }
 
-// BrowseEmptyDescription says "Enter a URL or search in the address bar above, then click Download Video at the top right. Sites you sign in to here stay signed in when you download."
+// BrowseEmptyDescription says "Open a site, find a video, then click Download Video."
 // in the language the app shows under cx.
 //
 // Description of the Browse page before a web page is open.
@@ -18728,6 +18761,15 @@ func PrecheckNotLink(cx *core.Scope) string { return For(cx).PrecheckNotLink() }
 
 // PrecheckNotLink is the package's PrecheckNotLink in the language of msgs.
 func (msgs Messages) PrecheckNotLink() string { return msgs.text(textPrecheckNotLink) }
+
+// PrecheckPage says "This page isn't a video. Paste the link of one of its videos."
+// in the language the app shows under cx.
+//
+// Message bar when the link added is a page that lists videos without being one, such as a site's home page, search results, a feed or a hashtag: yt-dlp would download whichever video it finds there first.
+func PrecheckPage(cx *core.Scope) string { return For(cx).PrecheckPage() }
+
+// PrecheckPage is the package's PrecheckPage in the language of msgs.
+func (msgs Messages) PrecheckPage() string { return msgs.text(textPrecheckPage) }
 
 // PrecheckSubtitlesChanged says "This film's subtitles were changed since Kando made them, so the lines that failed can't be found. Translate it again to redo every line."
 // in the language the app shows under cx.

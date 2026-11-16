@@ -62,9 +62,14 @@ func (t toolbar) Render(cx *core.Scope) core.Node {
 		},
 	}
 	download := ui.Tooltip{
-		TextFunc: func() string { return locales.BrowseDownloadTooltip(cx) },
-		Style:    core.Style{FlexShrink: 0},
-		Trigger:  downloadPill{a: a, state: state},
+		TextFunc: func() string {
+			if state().NotVideo {
+				return locales.BrowseDownloadNotVideo(cx)
+			}
+			return locales.BrowseDownloadTooltip(cx)
+		},
+		Style:   core.Style{FlexShrink: 0},
+		Trigger: downloadPill{a: a, state: state},
 	}
 	bar.Children = []core.Node{buttons, address{a}, download}
 	return bar
@@ -125,7 +130,7 @@ func (f address) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// downloadPill is 下载视频, a pill as high as the library's toolbar pills (34 points) filled with the accent, as MyGo's primary button was there. ui.Button keeps to its sizes, so the pill is drawn on base.Button with ui.Button's primary colors.
+// downloadPill is 下载视频, off before a page opens and on a page that lists videos without being one (State.NotVideo), a pill as high as the library's toolbar pills (34 points) filled with the accent, as MyGo's primary button was there. ui.Button keeps to its sizes, so the pill is drawn on base.Button with ui.Button's primary colors.
 type downloadPill struct {
 	a     App
 	state func() State
@@ -137,7 +142,7 @@ func (d downloadPill) Render(cx *core.Scope) core.Node {
 	return base.Button{
 		TestID:    "browse-download",
 		LabelFunc: func() string { return locales.BrowseDownload(cx) },
-		Disabled:  func() bool { return !state().Page },
+		Disabled:  func() bool { s := state(); return !s.Page || s.NotVideo },
 		OnPress:   live.On(a, func(core.PressEvent) { a.BrowseDownload() }),
 		Style: core.Style{Height: core.Pt(34), CornerRadius: 17, BorderCurve: core.BorderCurveContinuous, Padding: core.Symmetric(0, 18),
 			Direction: core.Row, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Disabled: &core.Style{Opacity: core.Alpha(0.4)}},

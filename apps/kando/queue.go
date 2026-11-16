@@ -393,6 +393,7 @@ func (a *app) queueRedoEnded(job core.Job) core.Job {
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
 		reason, section := failureHint(a.messages(), films.Film{Detail: statusText(a.messages(), job)})
 		a.warn(a.messages().QueueRedoFailed(jobName(job), reason), section)
+		a.libraryNoticeJob(job.ID, core.StageComplete)
 	}
 	job.Stage = core.StageComplete
 	job.Err, job.FailKind, job.Progress = nil, "", core.Progress{}
@@ -664,6 +665,7 @@ func (a *app) queueEndedElsewhere(id string) {
 		a.tell(a.messages().QueueDoneElsewhere(jobName(job), library))
 	case job.Stage == core.StageFailed && !errors.Is(job.Err, context.Canceled):
 		a.warn(a.messages().QueueFailedElsewhere(jobName(job), library), "")
+		a.libraryNoticeJob(id, core.StageFailed)
 	}
 }
 

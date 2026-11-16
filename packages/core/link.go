@@ -17,13 +17,15 @@ const (
 	PlatformLocal    Platform = "local"
 )
 
-// LinkKind is what a link points at: one video, a list that holds several (a playlist, a collection, a multi-part upload) or a channel.
+// LinkKind is what a link points at: one video, a list that holds several (a playlist, a collection, a multi-part upload), a channel, or a page that lists videos (LinkPage).
 type LinkKind string
 
 const (
 	LinkVideo    LinkKind = "video"
 	LinkPlaylist LinkKind = "playlist"
 	LinkChannel  LinkKind = "channel"
+	// LinkPage is a page of a site that lists videos without being one: its home, its search results, a feed or a hashtag. yt-dlp would download the first video it finds there.
+	LinkPage LinkKind = "page"
 )
 
 // Link is what ParseLink reads from a pasted address or a job's source.
@@ -44,10 +46,10 @@ type Link struct {
 	Short bool
 }
 
-// OneVideo reports whether the link names one video a job can download: false for a channel, and for a list that names none of its videos, which yt-dlp would download whole even with --no-playlist. A list link that also names a video, such as YouTube's watch?v=…&list=…, is that video.
+// OneVideo reports whether the link names one video a job can download: false for a channel, for a page that lists videos (LinkPage), and for a list that names none of its videos, which yt-dlp would download whole even with --no-playlist. A list link that also names a video, such as YouTube's watch?v=…&list=…, is that video.
 func (l Link) OneVideo() bool {
 	switch l.Kind {
-	case LinkChannel:
+	case LinkChannel, LinkPage:
 		return false
 	case LinkPlaylist:
 		// A collection on a bilibili channel's page keeps the channel's number in ID, which is not a video.
@@ -62,6 +64,9 @@ var (
 	bilibiliAV  = regexp.MustCompile(`(?i)\bav\d+`)
 	bilibiliUID = regexp.MustCompile(`^\d+$`)
 )
+
+// youTubePages are the first parts of the paths of YouTube's pages that list videos without being one: search results, the feeds (subscriptions, history, trending…), hashtags and the gaming and trending pages.
+var youTubePages = map[string]bool{"results": true, "feed": true, "hashtag": true, "gaming": true, "trending": true}
 
 // knownSites maps a domain to the ID of the site it belongs to, the site's main domain. Sites whose videos are DRM-protected are listed too, so the warning about them can name the site.
 var knownSites = map[string]string{
@@ -162,6 +167,9 @@ func youTubeLink(link *Link, u *url.URL) {
 			if len(parts) > 1 && youTubeID.MatchString(parts[1]) {
 				link.ID = parts[1]
 			}
+		case youTubePages[parts[0]]:
+			link.Kind = LinkPage
+			return
 		}
 	}
 	query := u.Query()
@@ -170,6 +178,11 @@ func youTubeLink(link *Link, u *url.URL) {
 	}
 	if list := query.Get("list"); list != "" {
 		link.Kind, link.List = LinkPlaylist, list
+		return
+	}
+	// The home page, which names no video, lists the ones YouTube picks.
+	if len(parts) == 0 && link.ID == "" {
+		link.Kind = LinkPage
 	}
 }
 
@@ -183,6 +196,11 @@ func bilibiliLink(link *Link, u *url.URL) {
 		if listPath(u.Path) {
 			link.Kind = LinkPlaylist
 		}
+		return
+	}
+	// The home page and the search pages list videos without being one.
+	if link.Host == "search.bilibili.com" || (link.Host == "bilibili.com" && len(parts) == 0) {
+		link.Kind = LinkPage
 		return
 	}
 	if link.Host == "b23.tv" {

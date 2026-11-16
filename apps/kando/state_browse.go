@@ -7,7 +7,9 @@ import (
 	"sync"
 
 	"kando/apps/kando/browse"
+	"kando/apps/kando/film"
 	"kando/apps/kando/locales"
+	kcore "kando/packages/core"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -30,6 +32,10 @@ type browseUI struct {
 	focus   bool
 	focused bool
 	notice  browse.Notice
+	// noticeURL is the page the message bar speaks of, as 下载视频's 已加入资料库, and the bar closes once another page shows; "" for a message about no page. noticeReady marks a warning of precheckReady, which the bar follows until it is fixed (precheckFollow). noticeTimer closes a message that something worked after noticeFor (noticeLater).
+	noticeURL   string
+	noticeReady bool
+	noticeTimer *film.Timer
 	// loadFailed marks the message bar as a page that failed to load, which the next load that starts takes away. cutShort is set once the app cut a load short, as Stop, home or another address does, so that load's failure says nothing; the next web page that starts loading clears it.
 	loadFailed bool
 	cutShort   bool
@@ -125,9 +131,9 @@ func (a *app) browseNavigate(rawURL string) {
 	a.browse.view.InjectJavaScript("location.assign(" + string(quoted) + ")")
 }
 
-// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, and turns the page's sound off while another page shows and on again once the browser's shows, as the hidden web view keeps its page and a video in it plays on. It reports whether it closed the confirmation.
+// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, turns the page's sound off while another page shows and on again once the browser's shows, as the hidden web view keeps its page and a video in it plays on, and keeps the message bar about what is still so (browseFollowNotice). It reports whether it closed the confirmation or changed the bar.
 func (a *app) browseAfterChange() bool {
-	changed := false
+	changed := a.browseFollowNotice()
 	if a.page != pageBrowse && a.browse.clearOpen {
 		a.browseCancelClear()
 		changed = true
@@ -140,6 +146,24 @@ func (a *app) browseAfterChange() bool {
 		}
 	}
 	return changed
+}
+
+// browseFollowNotice closes the message bar once what it says is no longer so: a message about a page once another page shows, or the start, and a warning of precheckReady once it is fixed, which until then says what is missing now. It reports whether it changed the bar.
+func (a *app) browseFollowNotice() bool {
+	n := &a.browse.notice
+	switch {
+	case !n.Open:
+		return false
+	case a.browse.noticeURL != "":
+		if a.browse.url == a.browse.noticeURL {
+			return false
+		}
+		n.Open = false
+		return true
+	case a.browse.noticeReady:
+		return a.precheckFollow(&n.Text, &n.Section, &n.Open)
+	}
+	return false
 }
 
 // browseColumnGone runs when the browser's column goes with its web view: the web view made when it comes back loads the page that was shown, or the blank page under the start, though without the history before it.
@@ -248,20 +272,38 @@ func (a *app) browseDownload() {
 	})
 }
 
-// browseEnqueue adds u to the library's queue, as the library's link field does: what precheck finds wrong shows in the message bar with the setting that fixes it, and the pipeline's own checks, with the remedies of a failed job, take care of a page without a video it can download.
+// browseEnqueue adds u to the library's queue, as the library's link field does: a page that lists videos without being one, which 下载视频 is off on, is not added, what precheck finds wrong shows in the message bar with the setting that fixes it, and the pipeline's own checks, with the remedies of a failed job, take care of a page without a video it can download. What the bar says of the page closes once another page shows; what it says of the app, once that is fixed.
 func (a *app) browseEnqueue(u string) {
 	if !browse.Allowed(u) {
 		return
 	}
+	if browseNotVideo(u) {
+		a.browseWarn(a.messages().BrowseDownloadNotVideo(), "")
+		a.browse.noticeURL = a.browse.url
+		return
+	}
 	if msg, section := a.precheck([]string{u}); msg != "" {
 		a.browseWarn(msg, section)
+		if a.precheckAboutApp(msg) {
+			a.browse.noticeReady = true
+		} else {
+			a.browse.noticeURL = a.browse.url
+		}
 		return
 	}
 	if err := a.Enqueue(u); err != nil {
 		a.browseWarn(sourceError(a.messages(), err), "")
+		a.browse.noticeURL = a.browse.url
 		return
 	}
 	a.browseTell(a.messages().BrowseAdded())
+	a.browse.noticeURL = a.browse.url
+}
+
+// browseNotVideo reports whether u is a link to a page that lists videos without being one, which 下载视频 does not add: a site's home page, its search results, a feed, a hashtag, a channel or a playlist that names none of its videos (core.Link.OneVideo).
+func browseNotVideo(u string) bool {
+	link, ok := kcore.ParseLink(u)
+	return ok && !link.OneVideo()
 }
 
 // browseAskClear opens the confirmation of 清除登录信息…, which holds the window's modal flag while it is open.
@@ -354,15 +396,21 @@ func (a *app) browseHome() {
 	a.browseNavigate(browseBlank)
 }
 
-// browseWarn and browseTell show the browser's message bar: something that went wrong, with the settings section that fixes it ("" when none does), or something that worked. The text is said already, in the interface's language.
+// browseWarn and browseTell show the browser's message bar: something that went wrong, with the settings section that fixes it ("" when none does), which stays until it is closed or is no longer so (browseFollowNotice), or something that worked, which closes by itself after noticeFor. The text is said already, in the interface's language.
 func (a *app) browseWarn(text, section string) {
 	a.browse.notice = browse.Notice{Kind: "warning", Text: text, Section: section, Open: true}
-	a.browse.loadFailed = false
+	a.browse.loadFailed, a.browse.noticeURL, a.browse.noticeReady = false, "", false
 }
 
 func (a *app) browseTell(text string) {
 	a.browse.notice = browse.Notice{Kind: "success", Text: text, Open: true}
-	a.browse.loadFailed = false
+	a.browse.loadFailed, a.browse.noticeURL, a.browse.noticeReady = false, "", false
+	shown := a.browse.notice
+	a.noticeLater(&a.browse.noticeTimer, func() {
+		if a.browse.notice == shown {
+			a.browse.notice.Open = false
+		}
+	})
 }
 
 // browseLoadFailed says in the message bar that a page did not load, and why.

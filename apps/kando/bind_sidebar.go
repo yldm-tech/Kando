@@ -58,6 +58,14 @@ func (a *app) SourceCount(source string) int { return len(films.BySource(a.films
 
 func (a *app) Query() *string { return &a.side.query }
 
+// SetQuery keeps what was typed into the sidebar's search field, and goes to the library page from the browser's, as the films it finds show only there.
+func (a *app) SetQuery(text string) {
+	a.side.query = text
+	if text != "" && a.page == pageBrowse {
+		a.Select(pageFilms)
+	}
+}
+
 func (a *app) QueryFocus() *bool { return &a.side.queryFocus }
 
 // LibraryCount is the count countLibraries last read for the library at dir.

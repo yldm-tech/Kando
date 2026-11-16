@@ -55,5 +55,10 @@ func (a *app) sidebarKeys(*core.Scope) []shortcut { return nil }
 // sidebarSearchable reports whether ⌘F goes to the sidebar's search field now: no film is open, as the player takes ⌘F while one is, and the open library has films to search, as sidebar.View shows the field only then.
 func (a *app) sidebarSearchable() bool { return a.openKey == "" && a.FilmCount() > 0 }
 
-// sidebarSearch is ⌘F on the library page (libraryKeys): the keyboard in the sidebar's search field.
-func (a *app) sidebarSearch() { a.side.queryFocus = true }
+// sidebarSearch is ⌘F (libraryKeys): the keyboard in the sidebar's search field. From the browser's page it goes to the library page first, where the films it finds show.
+func (a *app) sidebarSearch() {
+	if a.page == pageBrowse {
+		a.Select(pageFilms)
+	}
+	a.side.queryFocus = true
+}

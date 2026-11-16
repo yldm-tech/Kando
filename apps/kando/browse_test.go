@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/browse"
 	"kando/apps/kando/locales/testlocale"
@@ -234,7 +235,7 @@ func TestBrowseFollowsAPageThatChangesItsAddress(t *testing.T) {
 // 下载视频 adds the page shown to the queue, read from the page as it is now, as a site that changes its page without loading another may not have said so, and says so in the message bar.
 func TestBrowseDownloadEnqueuesTheShownPage(t *testing.T) {
 	a, tt, updates, _ := browseApp(t, &fakePipeline{})
-	browseOpen(t, a, tt, "https://www.youtube.com/")
+	browseOpen(t, a, tt, "https://www.youtube.com/watch?v=TRWgBxVAb1M")
 	tt.Press("id:browse-download")
 	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
 	tt.Settle()
@@ -244,6 +245,100 @@ func TestBrowseDownloadEnqueuesTheShownPage(t *testing.T) {
 	settle(t, a, tt, updates)
 	if !hasText(tt, testlocale.Messages().BrowseAdded()) || a.page != pageBrowse {
 		t.Fatalf("page %q, texts %q", a.page, tt.Texts())
+	}
+}
+
+// 下载视频 is off on a page that lists videos without being one, a site's home page, its search results or a channel, where yt-dlp would download whichever video it found first, and its tooltip says why; it comes on once a video of the page opens. A page that moved to such a page without saying so adds nothing either, and the message bar says why.
+func TestBrowseDownloadIsOffOnAPageOfVideos(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	for _, u := range []string{"https://www.youtube.com/", "https://www.youtube.com/results?search_query=french", "https://www.youtube.com/@veritasium", "https://search.bilibili.com/all?keyword=french"} {
+		browseOpen(t, a, tt, u)
+		if tt.Enabled("id:browse-download") {
+			t.Fatalf("下载视频 is on at %s", u)
+		}
+	}
+	tt.Hover("id:browse-download")
+	tt.Advance(time.Second)
+	if !hasText(tt, msgs.BrowseDownloadNotVideo()) || hasText(tt, msgs.BrowseDownloadTooltip()) {
+		t.Fatalf("the tooltip of 下载视频 off: %q", tt.Texts())
+	}
+	tt.HoverOut()
+	browseReport(tt, ns.WebNavigation{URL: "https://www.bilibili.com/video/BV1xx411c7mD"})
+	if !tt.Enabled("id:browse-download") {
+		t.Fatal("下载视频 is off on a video")
+	}
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"https://www.youtube.com/results?search_query=french"`, "")
+	tt.Settle()
+	if len(a.library.Jobs) != 0 || !a.browse.notice.Open || a.browse.notice.Text != msgs.BrowseDownloadNotVideo() {
+		t.Fatalf("jobs %+v, notice %+v", a.library.Jobs, a.browse.notice)
+	}
+}
+
+// The message bar says what is still so: what it says of a page closes once another page shows, a message that something worked closes by itself after a while, and a setting it asks for stays across pages until it is set, saying what is missing now as that changes.
+func TestBrowseNoticeFollowsWhatItSays(t *testing.T) {
+	a, tt, updates, _ := browseApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	video := "https://www.youtube.com/watch?v=TRWgBxVAb1M"
+	browseOpen(t, a, tt, video)
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"`+video+`"`, "")
+	settle(t, a, tt, updates)
+	wantText(t, tt, msgs.BrowseAdded())
+	tt.Advance(noticeFor - time.Second)
+	wantText(t, tt, msgs.BrowseAdded())
+	tt.Advance(2 * time.Second)
+	if a.browse.notice.Open {
+		t.Fatalf("%q still shows after %v", a.browse.notice.Text, noticeFor+time.Second)
+	}
+
+	// The same video again is in the queue already, which says so until another page shows.
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"`+video+`"`, "")
+	tt.Settle()
+	if !a.browse.notice.Open || a.browse.notice.Kind != "warning" {
+		t.Fatalf("notice %+v", a.browse.notice)
+	}
+	tt.Advance(2 * noticeFor)
+	if !a.browse.notice.Open {
+		t.Fatal("a warning closed by itself")
+	}
+	browseReport(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=jNQXAC9IVRw"})
+	if a.browse.notice.Open {
+		t.Fatalf("%q still shows on another page", a.browse.notice.Text)
+	}
+
+	model := filepath.Join(t.TempDir(), "model.bin")
+	if err := os.WriteFile(model, []byte("m"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ready := media.Tools{YTDLP: "yt-dlp", FFmpeg: "ffmpeg", Whisper: "whisper-cli", WhisperModel: model, Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: "m", APIKey: "k"}}
+	missing := ready
+	missing.YTDLP = ""
+	a.pipeline = missing
+	refresh(tt, a)
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
+	tt.Settle()
+	if a.browse.notice.Text != msgs.PrecheckToolsMissing("yt-dlp") || a.browse.notice.Section != settings.SectionGeneral {
+		t.Fatalf("notice %+v", a.browse.notice)
+	}
+	browseReport(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts"})
+	if !a.browse.notice.Open {
+		t.Fatal("what the app misses closed with the page")
+	}
+	noModel := ready
+	noModel.WhisperModel = ""
+	a.pipeline = noModel
+	refresh(tt, a)
+	if !a.browse.notice.Open || a.browse.notice.Text != msgs.PrecheckNoSpeechModel() || a.browse.notice.Section != settings.SectionSpeech {
+		t.Fatalf("with yt-dlp in: notice %+v", a.browse.notice)
+	}
+	a.pipeline = ready
+	refresh(tt, a)
+	if a.browse.notice.Open {
+		t.Fatalf("%q still shows with everything in", a.browse.notice.Text)
 	}
 }
 

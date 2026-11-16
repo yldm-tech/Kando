@@ -180,11 +180,14 @@ browseCleared:
 browseDownload:
   message: "Download Video"
   description: "Button at the end of the Browse page's toolbar that adds the page shown to the library's queue."
+browseDownloadNotVideo:
+  message: "This page isn't a video. Open one of its videos first."
+  description: "Tooltip of the Browse page's Download Video button while it is off, and its message bar, when the page shown lists videos without being one: a site's home page, search results, a feed, a hashtag, a channel or a playlist."
 browseDownloadTooltip:
   message: "Add this page's video to the library"
   description: "Tooltip of the Browse page's Download Video button."
 browseEmptyDescription:
-  message: "Enter a URL or search in the address bar above, then click Download Video at the top right. Sites you sign in to here stay signed in when you download."
+  message: "Open a site, find a video, then click Download Video."
   description: "Description of the Browse page before a web page is open."
 browseEmptyTitle:
   message: "Open a page with a video"
@@ -1971,6 +1974,9 @@ precheckNoVideo:
 precheckNotLink:
   message: "This doesn't look like a video link. Kando supports YouTube, Bilibili and the thousands of websites yt-dlp can read."
   description: "Message bar when what was pasted is not a link."
+precheckPage:
+  message: "This page isn't a video. Paste the link of one of its videos."
+  description: "Message bar when the link added is a page that lists videos without being one, such as a site's home page, search results, a feed or a hashtag: yt-dlp would download whichever video it finds there first."
 precheckSubtitlesChanged:
   message: "This film's subtitles were changed since Kando made them, so the lines that failed can't be found. Translate it again to redo every line."
   description: "Why translating only a film's missing lines failed: its bilingual subtitle file was edited by hand and no longer matches the transcript line for line, so Kando cannot tell which lines are untranslated. Translate Again redoes every line."

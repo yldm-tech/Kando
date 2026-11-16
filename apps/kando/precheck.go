@@ -13,7 +13,7 @@ import (
 	"kando/packages/media"
 )
 
-// precheck says why sources cannot be processed yet, in the prototype's words (locales.Precheck…) in the interface's language, as the message bar and the guide's link field keep them, and the settings section that fixes it ("" when none does), in the prototype's order: an empty field, something that is not a link, a channel or a list that names no single video, no library, then the tools and settings a job needs. It reads only what the app already holds, so a click can afford it; what it cannot tell without running a program, as an EveryAPI login that has expired, still fails the job, whose card says so.
+// precheck says why sources cannot be processed yet, in the prototype's words (locales.Precheck…) in the interface's language, as the message bar and the guide's link field keep them, and the settings section that fixes it ("" when none does), in the prototype's order: an empty field, something that is not a link, a channel, a list or a page that names no single video, then what precheckReady finds missing. It reads only what the app already holds, so a click can afford it; what it cannot tell without running a program, as an EveryAPI login that has expired, still fails the job, whose card says so.
 func (a *app) precheck(sources []string) (msg, section string) {
 	m := a.messages()
 	if len(sources) == 0 {
@@ -32,6 +32,12 @@ func (a *app) precheck(sources []string) (msg, section string) {
 			return precheckWhole(m, link), ""
 		}
 	}
+	return a.precheckReady()
+}
+
+// precheckReady is what precheck says of the app rather than of the sources: no library, then the tools and settings a job needs. A message bar that says it closes once it says nothing, and follows it once it says something else (libraryFollowNotice, browseFollowNotice), as the problem was fixed in the meantime.
+func (a *app) precheckReady() (msg, section string) {
+	m := a.messages()
 	if strings.TrimSpace(a.snap().LibraryDir) == "" {
 		return m.PrecheckNoLibrary(), ""
 	}
@@ -65,10 +71,32 @@ func (a *app) precheck(sources []string) (msg, section string) {
 	return "", ""
 }
 
-// precheckWhole says that link names a channel or a list rather than one video, which a job would download whole, naming the site when Kando knows it, in the language of m. It asks for the link of one of its videos, as the onboarding's link field does (onboarding.LinkHint, which also refuses a local file and so is not used here).
+// precheckAboutApp reports whether msg, which precheck said, is what precheckReady says: a problem of the app rather than of the sources, which a message bar that shows it follows until it is fixed (precheckFollow).
+func (a *app) precheckAboutApp(msg string) bool {
+	ready, _ := a.precheckReady()
+	return msg != "" && msg == ready
+}
+
+// precheckFollow brings a message bar that shows what precheckReady said, its text, section and open flag, up to date with what it says now: the bar closes once nothing is missing any more, and says what is missing now when that changed, as when the tools are in but no speech model is chosen yet. It reports whether it changed the bar.
+func (a *app) precheckFollow(text, section *string, open *bool) bool {
+	msg, sec := a.precheckReady()
+	switch {
+	case msg == *text && sec == *section:
+		return false
+	case msg == "":
+		*open = false
+	default:
+		*text, *section = msg, sec
+	}
+	return true
+}
+
+// precheckWhole says that link names a channel, a list or a page that lists videos rather than one video, which a job would download whole or pick a video of, naming the site when Kando knows it, in the language of m. It asks for the link of one of its videos, as the onboarding's link field does (onboarding.LinkHint, which also refuses a local file and so is not used here).
 func precheckWhole(m locales.Messages, link core.Link) string {
 	site := sitename.In(m, link.Site)
 	switch {
+	case link.Kind == core.LinkPage:
+		return m.PrecheckPage()
 	case link.Kind == core.LinkChannel && site == "":
 		return m.PrecheckChannelUnnamed()
 	case link.Kind == core.LinkChannel:

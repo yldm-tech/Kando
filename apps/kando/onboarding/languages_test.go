@@ -30,6 +30,9 @@ func TestLinkHint(t *testing.T) {
 		{"https://www.bilibili.com/video/BV1xK4y1A7nM", "识别为 哔哩哔哩 视频", true},
 		// A collection on a channel's page names the channel, not one of its videos.
 		{"https://space.bilibili.com/946974/channel/collectiondetail?sid=1", "这是哔哩哔哩列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接", false},
+		// A site's home page and its search results list videos without being one.
+		{"https://www.youtube.com/", "这不像一个视频链接", false},
+		{"https://search.bilibili.com/all?keyword=french", "这不像一个视频链接", false},
 		{"https://vimeo.com/123456", "识别为 Vimeo 视频", true},
 		{"https://example.org/clip", "识别为网页视频", true},
 	} {

@@ -138,7 +138,8 @@ func linkHint(m locales.Messages, raw string) (hint string, ok bool) {
 		return "", true
 	}
 	link, parsed := core.ParseLink(raw)
-	if !parsed || link.Platform == core.PlatformLocal {
+	// A site's home page, its search results, a feed or a hashtag list videos without being one.
+	if !parsed || link.Platform == core.PlatformLocal || link.Kind == core.LinkPage {
 		return m.OnboardingLinkNotVideo(), false
 	}
 	site := sitename.In(m, link.Site)

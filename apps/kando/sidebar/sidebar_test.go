@@ -61,6 +61,7 @@ func (f *fakeApp) FilmCount() int           { return f.films }
 func (f *fakeApp) SourceFilter() string     { return f.filter }
 func (f *fakeApp) SourceCount(s string) int { return f.bySource[s] }
 func (f *fakeApp) Query() *string           { return &f.query }
+func (f *fakeApp) SetQuery(text string)     { f.query = text }
 func (f *fakeApp) QueryFocus() *bool        { return &f.focus }
 func (f *fakeApp) Readiness() Readiness     { return f.ready }
 func (f *fakeApp) OpenSettings(section string) {

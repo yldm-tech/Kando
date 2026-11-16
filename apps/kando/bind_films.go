@@ -375,6 +375,7 @@ func (a *app) QueueFilms() []films.Film {
 func (a *app) libraryEnqueue(sources ...string) bool {
 	if msg, section := a.precheck(sources); msg != "" {
 		a.warn(msg, section)
+		a.lib.noticeReady = a.precheckAboutApp(msg)
 		return false
 	}
 	added, err := a.queueEnqueue(sources)
