@@ -468,6 +468,7 @@ var Parameters = map[string][]string{
 	"FilmsHeroKickerBilingual":           {"language"},
 	"FilmsHeroResume":                    {"time_"},
 	"FilmsLinkChannel":                   {"site"},
+	"FilmsLinkCount":                     {"count"},
 	"FilmsLinkPlaylist":                  {"site"},
 	"FilmsLocalVideoTooltip":             {"shortcut"},
 	"FilmsNewLibraryNote":                {"platform"},
@@ -540,6 +541,12 @@ var Parameters = map[string][]string{
 	"PlayerOsdSpeed":                     {"rate"},
 	"PlayerOsdSubtitleSize":              {"size"},
 	"PlayerOsdVolume":                    {"percent"},
+	"PlaylistAdd":                        {"count"},
+	"PlaylistChannelLimit":               {"limit"},
+	"PlaylistFailed":                     {"error_"},
+	"PlaylistHave":                       {"count"},
+	"PlaylistSeveral":                    {"count"},
+	"PlaylistVideos":                     {"count"},
 	"PrecheckChannel":                    {"site"},
 	"PrecheckFailedDownload":             {"detail"},
 	"PrecheckFailedExport":               {"detail"},
@@ -683,6 +690,7 @@ type Translation struct {
 	FilmsHeroKickerBilingual           func(language string) string
 	FilmsHeroResume                    func(time_ string) string
 	FilmsLinkChannel                   func(site string) string
+	FilmsLinkCount                     func(count int) string
 	FilmsLinkPlaylist                  func(site string) string
 	FilmsLocalVideoTooltip             func(shortcut string) string
 	FilmsNewLibraryNote                func(platform string) string
@@ -755,6 +763,12 @@ type Translation struct {
 	PlayerOsdSpeed                     func(rate string) string
 	PlayerOsdSubtitleSize              func(size int) string
 	PlayerOsdVolume                    func(percent int) string
+	PlaylistAdd                        func(count int) string
+	PlaylistChannelLimit               func(limit int) string
+	PlaylistFailed                     func(error_ string) string
+	PlaylistHave                       func(count int) string
+	PlaylistSeveral                    func(count int) string
+	PlaylistVideos                     func(count int) string
 	PrecheckChannel                    func(site string) string
 	PrecheckFailedDownload             func(detail string) string
 	PrecheckFailedExport               func(detail string) string
@@ -899,6 +913,8 @@ const (
 	textBrowseClearTitle
 	textBrowseCleared
 	textBrowseDownload
+	textBrowseDownloadList
+	textBrowseDownloadListTooltip
 	textBrowseDownloadNotVideo
 	textBrowseDownloadTooltip
 	textBrowseEmptyDescription
@@ -1310,6 +1326,13 @@ const (
 	textPlayerSubsMissing
 	textPlayerSubsUnreadable
 	textPlayerUnplayable
+	textPlaylistAddWhole
+	textPlaylistCancel
+	textPlaylistEmpty
+	textPlaylistReading
+	textPlaylistTimedOut
+	textPlaylistUntitled
+	textPlaylistUntitledChannel
 	textPrecheckChannelUnnamed
 	textPrecheckEmpty
 	textPrecheckEveryAPIFailed
@@ -1715,6 +1738,8 @@ var keyOfText = [numTexts]string{
 	"browseClearTitle",
 	"browseCleared",
 	"browseDownload",
+	"browseDownloadList",
+	"browseDownloadListTooltip",
 	"browseDownloadNotVideo",
 	"browseDownloadTooltip",
 	"browseEmptyDescription",
@@ -2126,6 +2151,13 @@ var keyOfText = [numTexts]string{
 	"playerSubsMissing",
 	"playerSubsUnreadable",
 	"playerUnplayable",
+	"playlistAddWhole",
+	"playlistCancel",
+	"playlistEmpty",
+	"playlistReading",
+	"playlistTimedOut",
+	"playlistUntitled",
+	"playlistUntitledChannel",
 	"precheckChannelUnnamed",
 	"precheckEmpty",
 	"precheckEveryAPIFailed",
@@ -2529,6 +2561,8 @@ var textsEn = i18n.NewTexts(""+
 	"Clear sign-in data?"+
 	"Sign-in data cleared."+
 	"Download Video"+
+	"Download Videos"+
+	"Add this page's videos to the library"+
 	"This page isn't a video. Open one of its videos first."+
 	"Add this page's video to the library"+
 	"Open a site, find a video, then click Download Video."+
@@ -2940,12 +2974,19 @@ var textsEn = i18n.NewTexts(""+
 	"The subtitle file is gone"+
 	"Couldn't read the subtitles"+
 	"This video can't be played"+
-	"This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos."+
+	"Add Whole Playlist"+
+	"Cancel"+
+	"No videos found."+
+	"Finding Videos…"+
+	"Reading the videos took too long. Try again later."+
+	"Playlist"+
+	"Channel"+
+	"This is a link to a channel, not to one video. List its videos first, then add them."+
 	"Paste a video link first, or choose a local file."+
 	"Couldn't get the sign-in from the everyapi command-line program; see “AI Service”"+
 	"Translation needs the everyapi command-line program, or an API Key in “AI Service”"+
 	"Run everyapi auth login in Terminal, or enter an API Key in “AI Service”"+
-	"This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos."+
+	"This is a link to a playlist, not to one video. List its videos first, then add them."+
 	"The video has no sound, so there is no speech to transcribe"+
 	"Choose a model in “AI Service” first"+
 	"Create or open a library first"+
@@ -3340,6 +3381,8 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		21,
 		14,
+		15,
+		37,
 		54,
 		36,
 		53,
@@ -3751,12 +3794,19 @@ var textsEn = i18n.NewTexts(""+
 		25,
 		27,
 		26,
-		108,
+		18,
+		6,
+		16,
+		17,
+		50,
+		8,
+		7,
+		84,
 		49,
 		85,
 		86,
 		76,
-		109,
+		85,
 		59,
 		40,
 		30,
@@ -4154,6 +4204,8 @@ var textsJa = i18n.NewTexts(""+
 	"ログイン情報を消去しますか？"+
 	"ログイン情報を消去しました。"+
 	"動画をダウンロード"+
+	"動画をまとめてダウンロード"+
+	"このページの動画をライブラリに追加"+
 	"このページは動画ではありません。先にその中の動画を開いてください。"+
 	"このページの動画をライブラリに追加"+
 	"サイトを開いて動画を見つけたら、「動画をダウンロード」をクリックします。"+
@@ -4565,12 +4617,19 @@ var textsJa = i18n.NewTexts(""+
 	"字幕ファイルが見つかりません"+
 	"字幕を読み込めません"+
 	"この動画は再生できません"+
-	"チャンネルのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください。"+
+	"プレイリスト全体を追加"+
+	"キャンセル"+
+	"動画が見つかりませんでした。"+
+	"動画を探しています…"+
+	"動画の読み込みに時間がかかりすぎました。しばらくしてからもう一度お試しください。"+
+	"プレイリスト"+
+	"チャンネル"+
+	"チャンネルのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"+
 	"まず動画のリンクを貼り付けるか、ローカルファイルを選択してください。"+
 	"everyapi コマンドラインツールからログインを取得できません。「AI サービス」を確認してください"+
 	"翻訳には everyapi コマンドラインツールが必要です。または「AI サービス」で API Key を入力してください"+
 	"ターミナルで everyapi auth login を実行してログインするか、「AI サービス」で API Key を入力してください"+
-	"再生リストのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください。"+
+	"再生リストのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"+
 	"この動画には音声がないため、文字起こしできません"+
 	"先に「AI サービス」でモデルを選択してください"+
 	"先にライブラリを作成するか開いてください"+
@@ -4965,6 +5024,8 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		42,
 		27,
+		39,
+		51,
 		99,
 		51,
 		108,
@@ -5376,12 +5437,19 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		30,
 		36,
-		147,
+		33,
+		15,
+		42,
+		30,
+		120,
+		18,
+		15,
+		134,
 		102,
 		132,
 		139,
 		138,
-		147,
+		134,
 		72,
 		66,
 		60,
@@ -5779,6 +5847,8 @@ var textsKo = i18n.NewTexts(""+
 	"로그인 정보를 지울까요?"+
 	"로그인 정보를 지웠습니다."+
 	"동영상 다운로드"+
+	"동영상 모두 다운로드"+
+	"이 페이지의 동영상을 라이브러리에 추가"+
 	"이 페이지는 동영상이 아닙니다. 먼저 그중 한 동영상을 여세요."+
 	"이 페이지의 동영상을 라이브러리에 추가"+
 	"사이트를 열고 동영상을 찾은 다음 '동영상 다운로드'를 클릭하세요."+
@@ -6190,12 +6260,19 @@ var textsKo = i18n.NewTexts(""+
 	"자막 파일이 없습니다"+
 	"자막을 읽을 수 없습니다"+
 	"이 동영상은 재생할 수 없습니다"+
-	"채널 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요."+
+	"재생목록 전체 추가"+
+	"취소"+
+	"동영상을 찾지 못했습니다."+
+	"동영상을 찾는 중…"+
+	"동영상을 읽는 데 너무 오래 걸렸습니다. 나중에 다시 시도하세요."+
+	"재생목록"+
+	"채널"+
+	"채널 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."+
 	"먼저 동영상 링크를 붙여 넣거나 로컬 파일을 선택하십시오."+
 	"everyapi 명령줄 도구에서 로그인 정보를 가져올 수 없습니다. ‘AI 서비스’를 확인하십시오"+
 	"번역하려면 everyapi 명령줄 도구가 필요합니다. 또는 ‘AI 서비스’에서 API Key를 입력하십시오"+
 	"터미널에서 everyapi auth login을 실행해 로그인하거나 ‘AI 서비스’에서 API Key를 입력하십시오"+
-	"재생목록 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요."+
+	"재생목록 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."+
 	"이 동영상에는 소리가 없어 받아쓸 대사가 없습니다"+
 	"먼저 ‘AI 서비스’에서 모델을 선택하십시오"+
 	"먼저 라이브러리를 만들거나 여십시오"+
@@ -6590,6 +6667,8 @@ var textsKo = i18n.NewTexts(""+
 		33,
 		36,
 		22,
+		29,
+		55,
 		85,
 		55,
 		91,
@@ -7001,12 +7080,19 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		33,
 		43,
-		128,
+		26,
+		6,
+		36,
+		26,
+		88,
+		12,
+		6,
+		111,
 		80,
 		120,
 		123,
 		122,
-		134,
+		117,
 		69,
 		60,
 		51,
@@ -7404,6 +7490,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"清除登录信息？"+
 	"已清除登录信息。"+
 	"下载视频"+
+	"下载这些视频"+
+	"把这个网页的视频加入资料库"+
 	"这个网页不是视频。请先打开其中一个视频。"+
 	"把这个网页的视频加入资料库"+
 	"打开一个网站，找到视频，然后点「下载视频」。"+
@@ -7815,12 +7903,19 @@ var textsZhHans = i18n.NewTexts(""+
 	"字幕文件不在了"+
 	"字幕无法读取"+
 	"这个视频播不了"+
-	"这是这个网站频道的链接。现在一次加入一个视频，请粘贴其中一个视频的链接。"+
+	"加入整个合集"+
+	"取消"+
+	"没有找到视频。"+
+	"正在查找视频…"+
+	"读取视频用时太久，请稍后再试。"+
+	"合集"+
+	"频道"+
+	"这是这个网站频道的链接，不是单个视频。请先列出它的视频再加入。"+
 	"先粘贴一个视频链接，或选择本地文件。"+
 	"无法从 everyapi 命令行工具取得登录，详见「AI 服务」"+
 	"翻译需要 everyapi 命令行工具，或在「AI 服务」里填 Key"+
 	"在终端运行 everyapi auth login 登录，或在「AI 服务」里填 Key"+
-	"这是这个网站列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接。"+
+	"这是这个网站合集的链接，不是单个视频。请先列出它的视频再加入。"+
 	"这个视频没有声音，没有可以识别的台词"+
 	"先在「AI 服务」里选一个模型"+
 	"先新建或打开一个资料库"+
@@ -8215,6 +8310,8 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		24,
 		12,
+		18,
+		39,
 		60,
 		39,
 		66,
@@ -8626,12 +8723,19 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		18,
 		21,
-		108,
+		18,
+		6,
+		21,
+		21,
+		45,
+		6,
+		6,
+		93,
 		54,
 		70,
 		71,
 		76,
-		108,
+		93,
 		54,
 		39,
 		33,
@@ -9029,6 +9133,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"清除登入資訊？"+
 	"已清除登入資訊。"+
 	"下載影片"+
+	"下載這些影片"+
+	"把這個網頁的影片加入資料庫"+
 	"這個網頁不是影片。請先打開其中一個影片。"+
 	"把這個網頁的影片加入資料庫"+
 	"打開一個網站，找到影片，然後點「下載影片」。"+
@@ -9440,12 +9546,19 @@ var textsZhHant = i18n.NewTexts(""+
 	"字幕檔已不存在"+
 	"無法讀取字幕"+
 	"這部影片無法播放"+
-	"這是這個網站頻道的連結。目前一次加入一個影片，請貼上其中一個影片的連結。"+
+	"加入整個合集"+
+	"取消"+
+	"找不到影片。"+
+	"正在尋找影片…"+
+	"讀取影片花太久時間，請稍後再試。"+
+	"合集"+
+	"頻道"+
+	"這是這個網站頻道的連結，不是單一影片。請先列出它的影片再加入。"+
 	"先貼上一個影片連結，或選擇本機檔案。"+
 	"無法從 everyapi 命令列工具取得登入，詳見「AI 服務」"+
 	"翻譯需要 everyapi 命令列工具，或在「AI 服務」中填入 Key"+
 	"在終端機執行 everyapi auth login 登入，或在「AI 服務」中填入 Key"+
-	"這是這個網站清單的連結。目前一次加入一個影片，請貼上其中一個影片的連結。"+
+	"這是這個網站合集的連結，不是單一影片。請先列出它的影片再加入。"+
 	"這部影片沒有聲音，沒有可以辨識的台詞"+
 	"先在「AI 服務」中選一個模型"+
 	"先新增或打開一個資料庫"+
@@ -9840,6 +9953,8 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		24,
 		12,
+		18,
+		39,
 		60,
 		39,
 		66,
@@ -10251,12 +10366,19 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		18,
 		24,
-		108,
+		18,
+		6,
+		18,
+		21,
+		48,
+		6,
+		6,
+		93,
 		54,
 		70,
 		74,
 		82,
-		108,
+		93,
 		54,
 		39,
 		33,
@@ -10795,6 +10917,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmsLinkChannel != nil {
 		s.FilmsLinkChannel = t.FilmsLinkChannel
 	}
+	if t.FilmsLinkCount != nil {
+		s.FilmsLinkCount = t.FilmsLinkCount
+	}
 	if t.FilmsLinkPlaylist != nil {
 		s.FilmsLinkPlaylist = t.FilmsLinkPlaylist
 	}
@@ -11010,6 +11135,24 @@ func Supply(lang string, t Translation) {
 	}
 	if t.PlayerOsdVolume != nil {
 		s.PlayerOsdVolume = t.PlayerOsdVolume
+	}
+	if t.PlaylistAdd != nil {
+		s.PlaylistAdd = t.PlaylistAdd
+	}
+	if t.PlaylistChannelLimit != nil {
+		s.PlaylistChannelLimit = t.PlaylistChannelLimit
+	}
+	if t.PlaylistFailed != nil {
+		s.PlaylistFailed = t.PlaylistFailed
+	}
+	if t.PlaylistHave != nil {
+		s.PlaylistHave = t.PlaylistHave
+	}
+	if t.PlaylistSeveral != nil {
+		s.PlaylistSeveral = t.PlaylistSeveral
+	}
+	if t.PlaylistVideos != nil {
+		s.PlaylistVideos = t.PlaylistVideos
 	}
 	if t.PrecheckChannel != nil {
 		s.PrecheckChannel = t.PrecheckChannel
@@ -11966,10 +12109,30 @@ func BrowseDownload(cx *core.Scope) string { return For(cx).BrowseDownload() }
 // BrowseDownload is the package's BrowseDownload in the language of msgs.
 func (msgs Messages) BrowseDownload() string { return msgs.text(textBrowseDownload) }
 
+// BrowseDownloadList says "Download Videos"
+// in the language the app shows under cx.
+//
+// Button at the end of the Browse page's toolbar while the page shown is a playlist or a channel: it lists the videos and asks before adding them to the library's queue.
+func BrowseDownloadList(cx *core.Scope) string { return For(cx).BrowseDownloadList() }
+
+// BrowseDownloadList is the package's BrowseDownloadList in the language of msgs.
+func (msgs Messages) BrowseDownloadList() string { return msgs.text(textBrowseDownloadList) }
+
+// BrowseDownloadListTooltip says "Add this page's videos to the library"
+// in the language the app shows under cx.
+//
+// Tooltip of the Browse page's Download Videos button, on a playlist's or a channel's page.
+func BrowseDownloadListTooltip(cx *core.Scope) string { return For(cx).BrowseDownloadListTooltip() }
+
+// BrowseDownloadListTooltip is the package's BrowseDownloadListTooltip in the language of msgs.
+func (msgs Messages) BrowseDownloadListTooltip() string {
+	return msgs.text(textBrowseDownloadListTooltip)
+}
+
 // BrowseDownloadNotVideo says "This page isn't a video. Open one of its videos first."
 // in the language the app shows under cx.
 //
-// Tooltip of the Browse page's Download Video button while it is off, and its message bar, when the page shown lists videos without being one: a site's home page, search results, a feed, a hashtag, a channel or a playlist.
+// Tooltip of the Browse page's Download Video button while it is off, and its message bar, when the page shown lists videos without being one: a site's home page, search results, a feed or a hashtag. A playlist's or a channel's page has Download Videos instead.
 func BrowseDownloadNotVideo(cx *core.Scope) string { return For(cx).BrowseDownloadNotVideo() }
 
 // BrowseDownloadNotVideo is the package's BrowseDownloadNotVideo in the language of msgs.
@@ -14831,6 +14994,45 @@ func (msgs Messages) FilmsLinkChannel(site string) string {
 			return site + " · 频道"
 		case "zh-Hant":
 			return site + " · 頻道"
+		}
+	}
+}
+
+// FilmsLinkCount says "{count, plural, one {# link} other {# links}}"
+// in the language the app shows under cx.
+//
+// Tag at the end of the link field when several links were pasted, between spaces or on lines of their own; each is added on its own.
+func FilmsLinkCount(cx *core.Scope, count int) string { return For(cx).FilmsLinkCount(count) }
+
+// FilmsLinkCount is the package's FilmsLinkCount in the language of msgs.
+func (msgs Messages) FilmsLinkCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsLinkCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsLinkCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" link")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" links")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件のリンク"
+		case "ko":
+			return "링크 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个链接"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個連結"
 		}
 	}
 }
@@ -19461,7 +19663,290 @@ func PlayerUnplayable(cx *core.Scope) string { return For(cx).PlayerUnplayable()
 // PlayerUnplayable is the package's PlayerUnplayable in the language of msgs.
 func (msgs Messages) PlayerUnplayable() string { return msgs.text(textPlayerUnplayable) }
 
-// PrecheckChannel says "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos."
+// PlaylistAdd says "{count, plural, one {Add # Video} other {Add # Videos}}"
+// in the language the app shows under cx.
+//
+// Button of the playlist dialog that adds the videos found to the library's queue, those the library does not have yet.
+func PlaylistAdd(cx *core.Scope, count int) string { return For(cx).PlaylistAdd(count) }
+
+// PlaylistAdd is the package's PlaylistAdd in the language of msgs.
+func (msgs Messages) PlaylistAdd(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistAdd(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistAdd; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Add ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Video")
+			default:
+				b.WriteString("Add ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Videos")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本の動画を追加"
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(count)) + "개 추가"
+		case "zh-Hans":
+			return "加入 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频"
+		case "zh-Hant":
+			return "加入 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片"
+		}
+	}
+}
+
+// PlaylistAddWhole says "Add Whole Playlist"
+// in the language the app shows under cx.
+//
+// Button of the message bar after a video of a YouTube playlist was added on its own: it lists the playlist's videos and asks before adding them.
+func PlaylistAddWhole(cx *core.Scope) string { return For(cx).PlaylistAddWhole() }
+
+// PlaylistAddWhole is the package's PlaylistAddWhole in the language of msgs.
+func (msgs Messages) PlaylistAddWhole() string { return msgs.text(textPlaylistAddWhole) }
+
+// PlaylistCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button of the playlist dialog that closes it without adding anything, and stops looking for the videos.
+func PlaylistCancel(cx *core.Scope) string { return For(cx).PlaylistCancel() }
+
+// PlaylistCancel is the package's PlaylistCancel in the language of msgs.
+func (msgs Messages) PlaylistCancel() string { return msgs.text(textPlaylistCancel) }
+
+// PlaylistChannelLimit says "Kando adds a channel's {limit} most recent videos."
+// in the language the app shows under cx.
+//
+// Line of the playlist dialog when a channel was read: only its most recent videos are listed, as a channel may hold thousands.
+func PlaylistChannelLimit(cx *core.Scope, limit int) string {
+	return For(cx).PlaylistChannelLimit(limit)
+}
+
+// PlaylistChannelLimit is the package's PlaylistChannelLimit in the language of msgs.
+func (msgs Messages) PlaylistChannelLimit(limit int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistChannelLimit(limit))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistChannelLimit; f != nil {
+			return f(limit)
+		}
+		switch lang {
+		case "", "en":
+			return "Kando adds a channel's " + msgs.arg(i18n.FormatNumber("en", float64(limit))) + " most recent videos."
+		case "ja":
+			return "チャンネルからは最新の " + i18n.FormatNumber("ja", float64(limit)) + " 本だけを追加します。"
+		case "ko":
+			return "채널에서는 최신 동영상 " + i18n.FormatNumber("ko", float64(limit)) + "개만 추가합니다."
+		case "zh-Hans":
+			return "频道只加入最新的 " + i18n.FormatNumber("zh-Hans", float64(limit)) + " 个视频。"
+		case "zh-Hant":
+			return "頻道只加入最新的 " + i18n.FormatNumber("zh-Hant", float64(limit)) + " 個影片。"
+		}
+	}
+}
+
+// PlaylistEmpty says "No videos found."
+// in the language the app shows under cx.
+//
+// Line of the playlist dialog when the playlist or channel holds no video Kando can add.
+func PlaylistEmpty(cx *core.Scope) string { return For(cx).PlaylistEmpty() }
+
+// PlaylistEmpty is the package's PlaylistEmpty in the language of msgs.
+func (msgs Messages) PlaylistEmpty() string { return msgs.text(textPlaylistEmpty) }
+
+// PlaylistFailed says "Couldn't read the videos: {error}"
+// in the language the app shows under cx.
+//
+// Line of the playlist dialog when yt-dlp could not list the videos of the playlist or channel; the error is what yt-dlp said, in English.
+func PlaylistFailed(cx *core.Scope, error_ string) string { return For(cx).PlaylistFailed(error_) }
+
+// PlaylistFailed is the package's PlaylistFailed in the language of msgs.
+func (msgs Messages) PlaylistFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't read the videos: " + msgs.arg(error_)
+		case "ja":
+			return "動画を読み込めませんでした：" + error_
+		case "ko":
+			return "동영상을 읽지 못했습니다: " + error_
+		case "zh-Hans":
+			return "无法读取视频：" + error_
+		case "zh-Hant":
+			return "無法讀取影片：" + error_
+		}
+	}
+}
+
+// PlaylistHave says "{count, plural, one {# is already in the library and won't be added again.} other {# are already in the library and won't be added again.}}"
+// in the language the app shows under cx.
+//
+// Line of the playlist dialog: how many of the videos found the library already has, waiting, being processed or done.
+func PlaylistHave(cx *core.Scope, count int) string { return For(cx).PlaylistHave(count) }
+
+// PlaylistHave is the package's PlaylistHave in the language of msgs.
+func (msgs Messages) PlaylistHave(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistHave(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistHave; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" is already in the library and won't be added again.")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" are already in the library and won't be added again.")
+			}
+			return b.String()
+		case "ja":
+			return "うち " + i18n.FormatNumber("ja", float64(count)) + " 本はすでにライブラリにあるため、追加しません。"
+		case "ko":
+			return "그중 " + i18n.FormatNumber("ko", float64(count)) + "개는 이미 라이브러리에 있어 다시 추가하지 않습니다."
+		case "zh-Hans":
+			return "其中 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个已在资料库中，不会重复加入。"
+		case "zh-Hant":
+			return "其中 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個已在資料庫中，不會重複加入。"
+		}
+	}
+}
+
+// PlaylistReading says "Finding Videos…"
+// in the language the app shows under cx.
+//
+// Title of the playlist dialog, and the name of its spinner, while Kando reads which videos a playlist or a channel holds.
+func PlaylistReading(cx *core.Scope) string { return For(cx).PlaylistReading() }
+
+// PlaylistReading is the package's PlaylistReading in the language of msgs.
+func (msgs Messages) PlaylistReading() string { return msgs.text(textPlaylistReading) }
+
+// PlaylistSeveral says "{count, plural, one {# Playlist or Channel} other {# Playlists and Channels}}"
+// in the language the app shows under cx.
+//
+// Title of the playlist dialog when several playlist or channel links were added at once.
+func PlaylistSeveral(cx *core.Scope, count int) string { return For(cx).PlaylistSeveral(count) }
+
+// PlaylistSeveral is the package's PlaylistSeveral in the language of msgs.
+func (msgs Messages) PlaylistSeveral(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistSeveral(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistSeveral; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Playlist or Channel")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" Playlists and Channels")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件のプレイリストとチャンネル"
+		case "ko":
+			return "재생목록과 채널 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个合集和频道"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個合集和頻道"
+		}
+	}
+}
+
+// PlaylistTimedOut says "Reading the videos took too long. Try again later."
+// in the language the app shows under cx.
+//
+// Line of the playlist dialog when yt-dlp did not finish listing the videos in time.
+func PlaylistTimedOut(cx *core.Scope) string { return For(cx).PlaylistTimedOut() }
+
+// PlaylistTimedOut is the package's PlaylistTimedOut in the language of msgs.
+func (msgs Messages) PlaylistTimedOut() string { return msgs.text(textPlaylistTimedOut) }
+
+// PlaylistUntitled says "Playlist"
+// in the language the app shows under cx.
+//
+// Title of the playlist dialog for a playlist the site gives no name.
+func PlaylistUntitled(cx *core.Scope) string { return For(cx).PlaylistUntitled() }
+
+// PlaylistUntitled is the package's PlaylistUntitled in the language of msgs.
+func (msgs Messages) PlaylistUntitled() string { return msgs.text(textPlaylistUntitled) }
+
+// PlaylistUntitledChannel says "Channel"
+// in the language the app shows under cx.
+//
+// Title of the playlist dialog for a channel the site gives no name.
+func PlaylistUntitledChannel(cx *core.Scope) string { return For(cx).PlaylistUntitledChannel() }
+
+// PlaylistUntitledChannel is the package's PlaylistUntitledChannel in the language of msgs.
+func (msgs Messages) PlaylistUntitledChannel() string { return msgs.text(textPlaylistUntitledChannel) }
+
+// PlaylistVideos says "{count, plural, one {# video.} other {# videos.}}"
+// in the language the app shows under cx.
+//
+// Line of the playlist dialog: how many videos the playlist or channel holds, each counted once.
+func PlaylistVideos(cx *core.Scope, count int) string { return For(cx).PlaylistVideos(count) }
+
+// PlaylistVideos is the package's PlaylistVideos in the language of msgs.
+func (msgs Messages) PlaylistVideos(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PlaylistVideos(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PlaylistVideos; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" video.")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" videos.")
+			}
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 本の動画。"
+		case "ko":
+			return "동영상 " + i18n.FormatNumber("ko", float64(count)) + "개."
+		case "zh-Hans":
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个视频。"
+		case "zh-Hant":
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個影片。"
+		}
+	}
+}
+
+// PrecheckChannel says "This is a link to a {site} channel, not to one video. List its videos first, then add them."
 // in the language the app shows under cx.
 //
 // Message bar when the link added is a channel's on a named site: a job downloads one video, and yt-dlp would download the whole channel.
@@ -19478,20 +19963,20 @@ func (msgs Messages) PrecheckChannel(site string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "This is a link to a " + msgs.arg(site) + " channel. Videos are added one at a time for now, so paste the link of one of its videos."
+			return "This is a link to a " + msgs.arg(site) + " channel, not to one video. List its videos first, then add them."
 		case "ja":
-			return site + " のチャンネルのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください。"
+			return site + " のチャンネルのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"
 		case "ko":
-			return site + " 채널 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요."
+			return site + " 채널 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."
 		case "zh-Hans":
-			return "这是" + site + "频道的链接。现在一次加入一个视频，请粘贴其中一个视频的链接。"
+			return "这是" + site + "频道的链接，不是单个视频。请先列出它的视频再加入。"
 		case "zh-Hant":
-			return "這是" + site + "頻道的連結。目前一次加入一個影片，請貼上其中一個影片的連結。"
+			return "這是" + site + "頻道的連結，不是單一影片。請先列出它的影片再加入。"
 		}
 	}
 }
 
-// PrecheckChannelUnnamed says "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos."
+// PrecheckChannelUnnamed says "This is a link to a channel, not to one video. List its videos first, then add them."
 // in the language the app shows under cx.
 //
 // Message bar when the link added is a channel's on a site without a known name.
@@ -19698,7 +20183,7 @@ func (msgs Messages) PrecheckFailedTranslate(detail string) string {
 	}
 }
 
-// PrecheckList says "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+// PrecheckList says "This is a link to a {site} playlist, not to one video. List its videos first, then add them."
 // in the language the app shows under cx.
 //
 // Message bar when the link added is a playlist on a named site that names no single video: yt-dlp would download the whole list.
@@ -19715,20 +20200,20 @@ func (msgs Messages) PrecheckList(site string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "This is a link to a " + msgs.arg(site) + " playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+			return "This is a link to a " + msgs.arg(site) + " playlist, not to one video. List its videos first, then add them."
 		case "ja":
-			return site + " の再生リストのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください。"
+			return site + " の再生リストのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"
 		case "ko":
-			return site + " 재생목록 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요."
+			return site + " 재생목록 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."
 		case "zh-Hans":
-			return "这是" + site + "列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接。"
+			return "这是" + site + "合集的链接，不是单个视频。请先列出它的视频再加入。"
 		case "zh-Hant":
-			return "這是" + site + "清單的連結。目前一次加入一個影片，請貼上其中一個影片的連結。"
+			return "這是" + site + "合集的連結，不是單一影片。請先列出它的影片再加入。"
 		}
 	}
 }
 
-// PrecheckListUnnamed says "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+// PrecheckListUnnamed says "This is a link to a playlist, not to one video. List its videos first, then add them."
 // in the language the app shows under cx.
 //
 // Message bar when the link added is a playlist on a site without a known name that names no single video.

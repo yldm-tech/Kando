@@ -21,7 +21,8 @@
 ## 功能
 
 - 新增影片的方式：貼上 YouTube、嗶哩嗶哩或其他 yt-dlp 支援之網站的連結（「輔助說明 › 支援的網站…」列出全部網站及其標誌），或選擇本機檔案（mp4、mov、mkv、webm 及其他影片檔），也可以把檔案拖曳到視窗上。本機檔案會在原處轉錄，不會被複製。
-- 側欄的「瀏覽」是內建瀏覽器：打開網站，需要時先登入，然後點「下載影片」把目前的網頁加入資料庫。下載暫時還用不到在這裡登入的狀態（[nsgo-dev/nsgo#112](https://github.com/nsgo-dev/nsgo/issues/112)）：需要登入帳號的影片會下載失敗，看懂會提示改用你在瀏覽器中已登入的帳號。
+- 貼上合集或頻道的連結，看懂會列出其中的影片，說明共有多少個、資料庫裡已有多少個，確認後把每個影片當成獨立的工作加入；頻道只取最新的 50 個影片。YouTube 合集中某個影片的連結只加入這個影片，之後訊息列會提供「加入整個合集」。一次貼上多個連結（以空格或換行分隔）會一起加入。
+- 側欄的「瀏覽」是內建瀏覽器：打開網站，需要時先登入，然後點「下載影片」把目前的網頁加入資料庫；在合集或頻道的網頁上則是「下載這些影片」。下載暫時還用不到在這裡登入的狀態（[nsgo-dev/nsgo#112](https://github.com/nsgo-dev/nsgo/issues/112)）：需要登入帳號的影片會下載失敗，看懂會提示改用你在瀏覽器中已登入的帳號。
 - 工作會依序經過下載、轉錄、翻譯和匯出各階段。失敗的工作會說明原因，附上能修正問題的設定項目連結，並可重試或移除。
 - 語音辨識在你的電腦上以 whisper.cpp 進行，whisper.cpp 會自動偵測影片所說的語言。「設定 › 語音辨識」列出七個 whisper 模型，從 Tiny（77.7 MB）到 Large v3（3.1 GB），並從 Hugging Face 下載你選擇的那一個。
 - 台詞預設由 EveryAPI 翻譯，也可以使用任何 OpenAI 相容的聊天 API：「設定 › AI 服務」內建 OpenAI、OpenRouter、Groq、DeepSeek、xAI、Mistral、通义千问（Qwen／DashScope）、Kimi、智谱 GLM（Zhipu）、硅基流动（SiliconFlow）、Ollama 和 LM Studio 的預設選項，另可自訂端點。目標語言、讓模型參考前面幾句台詞的情境感知模式，以及提示詞，都可以在「設定 › 翻譯」中修改。
@@ -138,7 +139,7 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 | `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation] [--from T] [--to T] [--until watched]` | 輸出影片的字幕，格式可以是 SubRip（預設）、每則字幕一行的文字（`text`，`[hh:mm:ss] 譯文 \| 原文`）或 JSON，可以輸出雙語，也可以只輸出其中一種。`--from` 和 `--to` 只保留在這段時間內開始的字幕（秒、`mm:ss` 或 `hh:mm:ss`）；`--until watched` 只保留到你播放到的位置為止的字幕。 |
 | `kando search <words> [--film ID] [--until watched] [--limit N]` | 在整個資料庫或某一部影片中尋找原文或譯文包含這些詞的字幕，並列出每則所在的影片和時間。`--until watched` 只找已經看過的部分。 |
 | `kando jobs [job-id]` | 列出工作：先是正在執行的，接著是等待中的，最後是已結束的；帶 ID 時只顯示這個工作。 |
-| `kando add <link-or-file>... [--wait]` | 和「開始處理」一樣把連結和本機影片檔加入佇列，並輸出每個工作的 ID。相對路徑以目前目錄為準。 |
+| `kando add <link-or-file>... [--wait] [--yes]` | 和「開始處理」一樣把連結和本機影片檔加入佇列，並輸出每個工作的 ID。相對路徑以目前目錄為準。合集或頻道的連結會加入其中資料庫還沒有的影片（頻道取最新的 50 個），先說明裡面有什麼並詢問；`--yes` 不詢問直接加入，沒有終端機可以詢問時必須加上它。 |
 | `kando cancel <job-id>` | 停止正在執行的工作，或把等待中的工作移出佇列。 |
 | `kando retry <job-id> [--wait]` | 和「重試」與「重新處理」一樣，以同一個 ID 把失敗、已取消或已完成的工作重新加入佇列，不改變視窗顯示的內容。正在執行或等待中的工作會被拒絕。 |
 | `kando remove <job-id>` | 和「移除」一樣把工作從資料庫中拿掉，正在執行的工作會先停止。它的檔案留在磁碟上。 |
@@ -161,7 +162,8 @@ tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.githu
 | `kando_get_film` | 依 ID 或產生它的工作 ID 取得一部影片：所處階段、目標語言、影片檔和字幕的路徑，以及看到了哪裡（`resume_ms`、`watched_ms`）。 |
 | `kando_get_subtitles` | 已完成影片的含時間戳記字幕，可以是雙語或其中一種（`which`），格式為精簡文字或 SRT（`format`）。`from_ms` 和 `to_ms` 讀取影片的一部分，`until: "watched"` 只讀取使用者已經看過的部分，`max_cues` 每次讀取一頁，並給出繼續讀取用的 `next_from_ms`。 |
 | `kando_search_subtitles` | 在整個資料庫或某一部影片（`film_id`）中尋找包含 `query` 的字幕，每則都附有所在影片和 `start_ms`，可以當作 `at_ms` 交給 `kando_open`（未設定 `limit` 時回傳 50 則；`until: "watched"` 同上）。 |
-| `kando_add_videos` | 把連結和本機影片檔加入佇列；回傳這些工作，以及每個未能加入的來源被略過的原因。資料庫中已有的影片會出現在 `skipped` 中，並附有它的 `job_id`、`stage` 和 `film_id`，所以重複請求是安全的。 |
+| `kando_add_videos` | 把連結和本機影片檔加入佇列；回傳這些工作，以及每個未能加入的來源被略過的原因。資料庫中已有的影片會出現在 `skipped` 中，並附有它的 `job_id`、`stage` 和 `film_id`，所以重複請求是安全的。合集或頻道的連結會被略過：先用 `kando_list_playlist` 列出，再加入其中的影片。 |
+| `kando_list_playlist` | 合集或頻道連結中的影片（頻道取最新的 50 個），包括連結、標題、長度以及資料庫裡是否已有，方便代理程式在加入前說明共有多少個。 |
 | `kando_list_jobs` | 列出工作，包括階段、進度、狀態、錯誤，完成後還有影片 ID 和檔案路徑。 |
 | `kando_get_job` | 依 ID 取得一個工作，內容與 `kando_list_jobs` 中的相同；可以輪詢它來追蹤工作。 |
 | `kando_cancel_job` | 停止正在執行的工作，或把等待中的工作移出佇列。 |

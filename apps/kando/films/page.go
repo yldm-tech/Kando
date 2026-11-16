@@ -38,8 +38,10 @@ type App interface {
 	BindName(edit func(*string) bool) error
 	// NewLibraryPath is where the new-library sheet would create the library, or why it cannot.
 	NewLibraryPath() (string, error)
-	// Start adds the link in the top bar to the queue, or says in the notice why it cannot.
+	// Start adds the links in the top bar to the queue, or says in the notice why it cannot.
 	Start()
+	// AddList lists the videos of the playlist at source and asks before it adds them, as the message bar's Add Whole Playlist does (Notice.List).
+	AddList(source string)
 	// PickVideos asks for local videos and adds them to the queue.
 	PickVideos()
 	// PickVideosShortcut is the shortcut bound to PickVideos, in NSGo's form ("mod+o"), which the tooltip of 本地视频 writes as the platform does (⌘O on macOS, Ctrl+O elsewhere).
@@ -126,6 +128,8 @@ type Notice struct {
 	Section string
 	// Film is the job ID of the film the bar's 打开 opens, such as the film a link just added is already in the library as; empty shows no button.
 	Film string
+	// List is the whole playlist the bar's Add Whole Playlist adds (App.AddList), as after one of its videos was added; empty shows no button.
+	List string
 	Open bool
 }
 

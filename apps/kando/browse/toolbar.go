@@ -125,11 +125,13 @@ func (f address) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// downloadTooltip is what 下载视频's tooltip says in state: why it is off on a page that lists videos, and else what pressing it does to the page's video, named when its title is known.
+// downloadTooltip is what 下载视频's tooltip says in state: why it is off on a page that lists videos, what it does on a playlist's or a channel's page, and else what pressing it does to the page's video, named when its title is known.
 func downloadTooltip(cx *core.Scope, state State) string {
 	switch {
 	case state.NotVideo:
 		return locales.BrowseDownloadNotVideo(cx)
+	case state.List:
+		return locales.BrowseDownloadListTooltip(cx)
 	case state.Have == HaveDone && state.Title != "":
 		return locales.BrowseInLibraryTitled(cx, state.Title)
 	case state.Have == HaveDone:
@@ -144,8 +146,11 @@ func downloadTooltip(cx *core.Scope, state State) string {
 	return locales.BrowseDownloadTooltip(cx)
 }
 
-// downloadLabel is 下载视频's words in state: 已在资料库中 or 已在队列中 where the library has the page's video already, which pressing it then shows.
+// downloadLabel is 下载视频's words in state: Download Videos on a playlist's or a channel's page, and 已在资料库中 or 已在队列中 where the library has the page's video already, which pressing it then shows.
 func downloadLabel(cx *core.Scope, state State) string {
+	if state.List {
+		return locales.BrowseDownloadList(cx)
+	}
 	switch state.Have {
 	case HaveDone:
 		return locales.BrowseInLibrary(cx)

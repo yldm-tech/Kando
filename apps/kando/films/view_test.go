@@ -89,6 +89,7 @@ func (f *fakeApp) NewLibraryPath() (string, error) {
 	return filepath.Join(f.place, f.name+".kando"), nil
 }
 func (f *fakeApp) Start()                             { f.call("start", f.source) }
+func (f *fakeApp) AddList(source string)              { f.call("add-list", source) }
 func (f *fakeApp) PickVideos()                        { f.call("pick-videos") }
 func (f *fakeApp) PickVideosShortcut() string         { return "mod+o" }
 func (f *fakeApp) DropFiles(paths []string)           { f.call("drop", paths...) }

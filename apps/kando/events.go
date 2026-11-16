@@ -71,6 +71,7 @@ func (a *app) areas() []areaHooks {
 		a.kitsHooks(),
 		a.remoteHooks(),
 		a.windowHooks(),
+		a.playlistHooks(),
 	}
 }
 

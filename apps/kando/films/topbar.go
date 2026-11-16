@@ -162,18 +162,21 @@ type chipLook struct {
 	ok    bool
 }
 
-// linkChip names the platform of a link being typed, in the language of m and in the platform's color: YouTube's red, 哔哩哔哩's blue, and gray for another site. A list or a channel says so after the name.
+// linkChip names the platform of a link being typed, in the language of m and in the platform's color: YouTube's red, 哔哩哔哩's blue, and gray for another site. A list or a channel says so after the name; a link to a video of a list, as watch?v=…&list=…, is that video and says nothing more. Several links, between spaces or on lines of their own, are counted, in gray.
 func linkChip(m locales.Messages, raw string) (label string, color ns.Color, ok bool) {
+	if fields := strings.Fields(raw); len(fields) > 1 {
+		return m.FilmsLinkCount(len(fields)), ns.RGB(0x6A6A70), true
+	}
 	link, ok := core.ParseLink(strings.TrimSpace(raw))
 	if !ok || link.Platform == core.PlatformLocal {
 		return "", 0, false
 	}
 	label = PlatformLabel(m, link)
-	switch link.Kind {
-	case core.LinkPlaylist:
-		label = m.FilmsLinkPlaylist(label)
-	case core.LinkChannel:
+	switch {
+	case link.Kind == core.LinkChannel:
 		label = m.FilmsLinkChannel(label)
+	case link.IsList():
+		label = m.FilmsLinkPlaylist(label)
 	}
 	switch link.Platform {
 	case core.PlatformYouTube:

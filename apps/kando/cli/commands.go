@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -276,6 +277,7 @@ var pollInterval = time.Second
 func runAdd(e *env, args []string) error {
 	fs := e.flags()
 	wait := fs.Bool("wait", false, "wait until every added job is complete or failed, printing its progress")
+	yes := fs.Bool("yes", false, "add the videos of playlist and channel links without asking")
 	sources, err := e.parse(fs, args)
 	if err != nil {
 		return err
@@ -287,12 +289,21 @@ func runAdd(e *env, args []string) error {
 	if err != nil {
 		return err
 	}
-	var raw json.RawMessage
-	if err := e.call(remote.MethodAdd, remote.AddParams{Sources: sources, Dir: dir}, &raw); err != nil {
+	sources, listFailed, err := e.expandLists(sources, *yes)
+	if err != nil {
 		return err
 	}
-	var result remote.AddResult
-	if err := json.Unmarshal(raw, &result); err != nil {
+	var raw json.RawMessage
+	result := remote.AddResult{Jobs: []remote.Job{}}
+	// Every video of the lists may be in the library already, which leaves nothing to ask the app to add.
+	if len(sources) > 0 {
+		if err := e.call(remote.MethodAdd, remote.AddParams{Sources: sources, Dir: dir}, &raw); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(raw, &result); err != nil {
+			return err
+		}
+	} else if raw, err = json.Marshal(result); err != nil {
 		return err
 	}
 	// A video the library already has is not added again, but its job is the one asked for: it counts as added, is printed as an added job is, and is waited for with --wait, so running the same command again succeeds. One whose job failed and could not be queued again is a failure, as any other source skipped.
@@ -315,6 +326,7 @@ func runAdd(e *env, args []string) error {
 			fmt.Fprintf(e.stdout, "%s\t%s\n", printable(result.Skipped[i].JobID), printable(result.Skipped[i].Source))
 		}
 	}
+	failed = failed || listFailed
 	if *wait && len(result.Jobs)+len(dups) > 0 {
 		// With --json, standard output is kept for the one JSON answer, the added jobs as they ended, and the progress goes to standard error.
 		progress := e.stdout
@@ -355,6 +367,103 @@ func runAdd(e *env, args []string) error {
 		return errReported
 	}
 	return nil
+}
+
+// stdin is where kando add reads the answer when it asks before adding the videos of a playlist or a channel, and stdinTerminal reports whether a person is there to answer, which a script piping into it is not. Tests replace them.
+var (
+	stdin         io.Reader = os.Stdin
+	stdinTerminal           = func() bool {
+		info, err := os.Stdin.Stat()
+		return err == nil && info.Mode()&os.ModeCharDevice != 0
+	}
+)
+
+// expandLists puts the videos of the playlist and channel links among sources in their place, in order, as the app lists them (remote.MethodLists): a playlist whole, a channel's most recent, without those the library has already, which it would skip. It says on standard error what each list holds, and asks on standard input before it adds them unless yes is set; without a terminal to ask on, it is a usage error that says to pass --yes. A list the app could not read is skipped as a source jobs.add skips is, and failed reports it.
+func (e *env) expandLists(sources []string, yes bool) (out []string, failed bool, err error) {
+	var lists []string
+	for _, s := range sources {
+		if isList(s) {
+			lists = append(lists, s)
+		}
+	}
+	if len(lists) == 0 {
+		return sources, false, nil
+	}
+	var answer []remote.List
+	if err := e.call(remote.MethodLists, remote.ListsParams{Sources: lists}, &answer); err != nil {
+		return nil, false, err
+	}
+	if len(answer) != len(lists) {
+		return nil, false, fmt.Errorf("the app listed %d of %d playlists and channels", len(answer), len(lists))
+	}
+	videos := map[string][]string{}
+	total := 0
+	for i, list := range answer {
+		if list.Error != "" {
+			fmt.Fprintf(e.stderr, "kando add: skipped %s: %s\n", printable(list.Source), printable(list.Error))
+			failed = true
+			continue
+		}
+		var fresh []string
+		for _, v := range list.Videos {
+			if !v.InLibrary {
+				fresh = append(fresh, v.URL)
+			}
+		}
+		videos[lists[i]] = fresh
+		total += len(fresh)
+		fmt.Fprintln(e.stderr, printable(listLine(list, len(list.Videos)-len(fresh))))
+	}
+	if total > 0 && !yes {
+		if !stdinTerminal() {
+			return nil, false, usagef("the playlists and channels hold %s to add; pass --yes to add them without asking", videoCount(total))
+		}
+		fmt.Fprintf(e.stderr, "Add %s? [y/N] ", videoCount(total))
+		line, _ := bufio.NewReader(stdin).ReadString('\n')
+		if answer := strings.ToLower(strings.TrimSpace(line)); answer != "y" && answer != "yes" {
+			fmt.Fprintln(e.stderr, "kando add: nothing added")
+			return nil, false, errReported
+		}
+	}
+	for _, s := range sources {
+		if isList(s) {
+			out = append(out, videos[s]...)
+			continue
+		}
+		out = append(out, s)
+	}
+	return out, failed, nil
+}
+
+// isList reports whether s is a playlist or a channel link (core.Link.IsList), whose videos kando add lists and adds rather than the link itself.
+func isList(s string) bool {
+	link, ok := core.ParseLink(strings.TrimSpace(s))
+	return ok && link.IsList()
+}
+
+// listLine says what a list holds: its name, how many videos, a channel's most recent only, and how many of them the library has already.
+func listLine(list remote.List, have int) string {
+	name := list.Title
+	if name == "" {
+		name = list.Source
+	}
+	what := "playlist"
+	if list.Kind == string(core.LinkChannel) {
+		what = fmt.Sprintf("channel, its %d most recent", list.Limit)
+	}
+	line := fmt.Sprintf("%s: %s (%s)", name, videoCount(len(list.Videos)), what)
+	if have > 0 {
+		line += fmt.Sprintf(", %d already in the library", have)
+	}
+	return line
+}
+
+// videoCount is n videos in words: "1 video", "54 videos".
+func videoCount(n int) string {
+	if n == 1 {
+		return "1 video"
+	}
+	return fmt.Sprintf("%d videos", n)
 }
 
 // waitJobs asks the app for its jobs every pollInterval until each of jobs is complete or failed, writing a line to w whenever one's stage or progress changes, and returns them as they ended, in the same order. A job that leaves the queue before it ends, as a waiting one canceled in the window does, counts as failed.

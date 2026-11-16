@@ -65,6 +65,7 @@ func (f *fakeApp) BrowseHome()                            { f.call("home") }
 func (f *fakeApp) BrowseDownload()                        { f.call("download") }
 func (f *fakeApp) BrowseShowFilm(id string)               { f.call("show " + id) }
 func (f *fakeApp) BrowseNotice() *Notice                  { return &f.notice }
+func (f *fakeApp) BrowseAddList(source string)            { f.call("add list " + source) }
 func (f *fakeApp) BrowseClearOpen() bool                  { return f.clearOpen }
 func (f *fakeApp) BrowseAskClear()                        { f.call("ask clear"); f.clearOpen = true }
 func (f *fakeApp) BrowseClear()                           { f.call("clear"); f.clearOpen = false }

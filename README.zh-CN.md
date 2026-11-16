@@ -21,7 +21,8 @@
 ## 功能
 
 - 添加视频：粘贴 YouTube、哔哩哔哩或 yt-dlp 支持的其他任何网站的链接（“帮助 › 支持的网站…”列出了全部网站及其标志），或者选择本地文件（mp4、mov、mkv、webm 等视频文件），也可以直接拖到窗口上。本地文件在原位置转录，不会被复制。
-- 侧栏的“浏览”是内置浏览器：打开网站，需要时先登录，然后点“下载视频”把当前网页加入资料库。下载暂时还用不上在这里登录的状态（[nsgo-dev/nsgo#112](https://github.com/nsgo-dev/nsgo/issues/112)）：需要登录账号的视频会下载失败，看懂会提示改用你在浏览器里已登录的账号。
+- 粘贴合集或频道的链接，看懂会列出其中的视频，说明共有多少个、资料库里已有多少个，确认后把每个视频作为单独的任务加入；频道只取最新的 50 个视频。YouTube 合集中某个视频的链接只加入这个视频，之后消息栏会提供“加入整个合集”。一次粘贴多个链接（用空格或换行分隔）会一起加入。
+- 侧栏的“浏览”是内置浏览器：打开网站，需要时先登录，然后点“下载视频”把当前网页加入资料库；在合集或频道的网页上则是“下载这些视频”。下载暂时还用不上在这里登录的状态（[nsgo-dev/nsgo#112](https://github.com/nsgo-dev/nsgo/issues/112)）：需要登录账号的视频会下载失败，看懂会提示改用你在浏览器里已登录的账号。
 - 任务按顺序逐个处理，依次经过下载、转录、翻译和导出。失败的任务会显示原因，并给出对应设置项的入口，可以重试或移除。
 - 语音识别由 whisper.cpp 在你的电脑上完成，它会检测说话的语言。“设置 › 语音识别”列出七个 whisper 模型，从 Tiny（77.7 MB）到 Large v3（3.1 GB），你选中的模型会从 Hugging Face 下载。
 - 台词默认由 EveryAPI 翻译，也可以使用任何 OpenAI 兼容的聊天 API：“设置 › AI 服务”提供 OpenAI、OpenRouter、Groq、DeepSeek、xAI、Mistral、通义千问（DashScope）、Kimi、智谱 GLM、硅基流动、Ollama 和 LM Studio 的预设，还可以自定义接口地址。目标语言、“智能翻译”（让模型参考前面几句台词）和提示词，都可以在“设置 › 翻译”中修改。
@@ -138,7 +139,7 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 | `kando subtitles <film-id> [--format srt\|text\|json] [--original\|--translation] [--from T] [--to T] [--until watched]` | 输出影片的字幕，格式可以是 SubRip（默认）、每条字幕一行的文本（`text`，`[hh:mm:ss] 译文 \| 原文`）或 JSON，可以输出双语，也可以只输出其中一种。`--from` 和 `--to` 只保留在这段时间内开始的字幕（秒、`mm:ss` 或 `hh:mm:ss`）；`--until watched` 只保留到你播放到的位置为止的字幕。 |
 | `kando search <words> [--film ID] [--until watched] [--limit N]` | 在整个资料库或某一部影片中查找原文或译文包含这些词的字幕，并给出每条所在的影片和时间。`--until watched` 只查已经看过的部分。 |
 | `kando jobs [job-id]` | 列出任务：先是正在运行的，然后是等待中的，最后是已结束的；带 ID 时只显示这个任务。 |
-| `kando add <link-or-file>... [--wait]` | 像“开始处理”一样把链接和本地视频文件加入队列，并输出每个任务的 ID。相对路径以当前目录为准。 |
+| `kando add <link-or-file>... [--wait] [--yes]` | 像“开始处理”一样把链接和本地视频文件加入队列，并输出每个任务的 ID。相对路径以当前目录为准。合集或频道的链接会加入其中资料库还没有的视频（频道取最新的 50 个），先说明里面有什么并询问；`--yes` 不询问直接加入，没有终端可以询问时必须加上它。 |
 | `kando cancel <job-id>` | 停止正在运行的任务，或把等待中的任务移出队列。 |
 | `kando retry <job-id> [--wait]` | 像“重试”和“重新处理”一样，以同一个 ID 把失败、已取消或已完成的任务重新加入队列，不改变窗口显示的内容。正在运行或等待中的任务会被拒绝。 |
 | `kando remove <job-id>` | 像“移除”一样把任务从资料库中去掉，正在运行的任务会先停止。它的文件留在磁盘上。 |
@@ -161,7 +162,8 @@ tools 发布由 Tools 工作流（`.github/workflows/tools.yml`）按 `.github/t
 | `kando_get_film` | 按 ID 或生成它的任务 ID 获取一部影片：所处阶段、目标语言、视频和字幕的路径，以及看到了哪里（`resume_ms`、`watched_ms`）。 |
 | `kando_get_subtitles` | 已完成影片的带时间戳字幕，可以是双语或其中一种（`which`），格式为紧凑文本或 SRT（`format`）。`from_ms` 和 `to_ms` 读取影片的一部分，`until: "watched"` 只读取用户已经看过的部分，`max_cues` 每次读取一页，并给出继续读取用的 `next_from_ms`。 |
 | `kando_search_subtitles` | 在整个资料库或某一部影片（`film_id`）中查找包含 `query` 的字幕，每条都带有所在影片和 `start_ms`，可以作为 `at_ms` 交给 `kando_open`（未设置 `limit` 时返回 50 条；`until: "watched"` 同上）。 |
-| `kando_add_videos` | 把链接和本地视频文件加入队列；返回这些任务，以及每个未能加入的来源被跳过的原因。资料库中已有的视频会出现在 `skipped` 中，并带有它的 `job_id`、`stage` 和 `film_id`，所以重复请求是安全的。 |
+| `kando_add_videos` | 把链接和本地视频文件加入队列；返回这些任务，以及每个未能加入的来源被跳过的原因。资料库中已有的视频会出现在 `skipped` 中，并带有它的 `job_id`、`stage` 和 `film_id`，所以重复请求是安全的。合集或频道的链接会被跳过：先用 `kando_list_playlist` 列出，再加入其中的视频。 |
+| `kando_list_playlist` | 合集或频道链接中的视频（频道取最新的 50 个），包括链接、标题、时长以及资料库里是否已有，方便智能体在加入前说明共有多少个。 |
 | `kando_list_jobs` | 列出任务，包括阶段、进度、状态、错误，完成后还有影片 ID 和文件路径。 |
 | `kando_get_job` | 按 ID 获取一个任务，内容与 `kando_list_jobs` 中的相同；可以轮询它来跟踪任务。 |
 | `kando_cancel_job` | 停止正在运行的任务，或把等待中的任务移出队列。 |

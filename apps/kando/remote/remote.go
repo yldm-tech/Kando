@@ -26,8 +26,10 @@ const (
 	MethodJobs = "jobs.list"
 	// MethodJob takes IDParams, a Job's ID, and answers that Job, as MethodJobs lists it.
 	MethodJob = "jobs.get"
-	// MethodAdd takes AddParams and answers AddResult: a job for each source, queued as 开始处理 queues them.
+	// MethodAdd takes AddParams and answers AddResult: a job for each source, queued as 开始处理 queues them. A playlist or a channel link is skipped: list its videos with MethodLists, and add those.
 	MethodAdd = "jobs.add"
+	// MethodLists takes ListsParams and answers []List, the videos of each playlist or channel link, in the order of the sources, so a client can say how many there are and ask before it adds them with MethodAdd. It may take minutes, as yt-dlp reads a long playlist page by page (ListTimeout).
+	MethodLists = "lists.expand"
 	// MethodCancel takes IDParams, a Job's ID, and answers the Job as it is after canceling: a running job stops, a waiting one leaves the queue.
 	MethodCancel = "jobs.cancel"
 	// MethodRetry takes IDParams, a Job's ID, and answers the Job as it is once queued again under the same ID, as the window's 重试 and 重新处理 queue it: a failed, canceled or complete job runs through the pipeline again. A job still running or waiting is refused.
@@ -150,6 +152,30 @@ const (
 type AddParams struct {
 	Sources []string `json:"sources"`
 	Dir     string   `json:"dir,omitempty"`
+}
+
+// ListsParams are the playlist and channel links to list.
+type ListsParams struct {
+	Sources []string `json:"sources"`
+}
+
+// List is the videos of a playlist or a channel link. A channel lists its Limit most recent videos; a playlist lists all of its own. Error says why a source could not be listed, as when it is not a playlist or a channel, and Videos is then empty.
+type List struct {
+	Source string `json:"source"`
+	// Kind is "playlist" or "channel".
+	Kind   string      `json:"kind,omitempty"`
+	Title  string      `json:"title,omitempty"`
+	Limit  int         `json:"limit,omitempty"`
+	Videos []ListVideo `json:"videos"`
+	Error  string      `json:"error,omitempty"`
+}
+
+// ListVideo is one video of a List: the link MethodAdd takes for it, its title, how long it plays in seconds (0 when the site did not say), and whether the open library has it already, waiting, being processed or done, which MethodAdd would skip.
+type ListVideo struct {
+	URL       string  `json:"url"`
+	Title     string  `json:"title,omitempty"`
+	Duration  float64 `json:"duration,omitempty"`
+	InLibrary bool    `json:"in_library,omitempty"`
 }
 
 // SitesParams is a search of the supported websites: a name, a domain or a link. Limit caps the answer, 0 for no cap.
@@ -289,5 +315,16 @@ func SocketPath() string {
 	return filepath.Join(os.TempDir(), "Kando", "kando.sock")
 }
 
-// Timeout is how long a client waits for the app: to start when it was not running, and for each answer.
+// Timeout is how long a client waits for the app: to start when it was not running, and for each answer but MethodLists' (TimeoutOf).
 var Timeout = 30 * time.Second
+
+// ListTimeout is how long a client waits for MethodLists' answer, and the app gives it: longer than the app gives yt-dlp to list one link (media.ListTimeout), so the app's own answer, an error when yt-dlp took too long, comes first.
+var ListTimeout = 4 * time.Minute
+
+// TimeoutOf is how long a client waits for the app's answer to method, and the app takes to give it.
+func TimeoutOf(method string) time.Duration {
+	if method == MethodLists {
+		return ListTimeout
+	}
+	return Timeout
+}

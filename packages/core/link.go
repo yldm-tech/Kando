@@ -58,6 +58,19 @@ func (l Link) OneVideo() bool {
 	return true
 }
 
+// IsList reports whether the link names a playlist or a channel rather than one video, whose videos can be listed (yt-dlp --flat-playlist) and added one job each: a channel, and a list that names none of its videos. A page that lists videos without being a list, as a site's home or its search results, is not one; nor is a list link that names a video, which is that video (OneVideo).
+func (l Link) IsList() bool {
+	return l.Kind == LinkChannel || (l.Kind == LinkPlaylist && !l.OneVideo())
+}
+
+// WholeList is the link of the whole YouTube playlist a link to one of its videos names, as watch?v=…&list=… does, so the list can be added after the video: https://www.youtube.com/playlist?list=…. It is "" for any other link, and for a mix (a list= starting with RD), which YouTube makes up from the video and has no end.
+func (l Link) WholeList() string {
+	if l.Platform != PlatformYouTube || l.Kind != LinkPlaylist || !l.OneVideo() || l.List == "" || strings.HasPrefix(l.List, "RD") {
+		return ""
+	}
+	return "https://www.youtube.com/playlist?list=" + url.QueryEscape(l.List)
+}
+
 var (
 	youTubeID   = regexp.MustCompile(`^[\w-]{6,}$`)
 	bilibiliBV  = regexp.MustCompile(`BV[0-9A-Za-z]{10}`)

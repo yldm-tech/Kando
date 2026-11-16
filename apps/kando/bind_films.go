@@ -133,11 +133,17 @@ func (a *app) NewLibraryPath() (string, error) {
 	return filepath.Join(a.libraryPlace(), file), nil
 }
 
-// Start adds the link in the top bar to the queue. The field empties once the link is added; otherwise the message bar says why and the link stays, to be fixed.
+// Start adds the links in the top bar to the queue, several when what was pasted holds several, between spaces or on lines of their own; a playlist or a channel among them opens the dialog that lists its videos (playlistAsk). The field empties once they are added; otherwise the message bar says why and the links stay, to be fixed.
 func (a *app) Start() {
-	if a.libraryEnqueue(a.queue.source) {
+	if a.libraryEnqueue(strings.Fields(a.queue.source)...) {
 		a.queue.source = ""
 	}
+}
+
+// AddList opens the dialog that lists the videos of the playlist at source, as the message bar's Add Whole Playlist does after one of its videos was added.
+func (a *app) AddList(source string) {
+	a.lib.notice.Open = false
+	a.libraryEnqueue(source)
 }
 
 func (a *app) PickVideos() { a.pickVideos() }
@@ -411,13 +417,28 @@ func (a *app) QueueFilms() []films.Film {
 	return films.Queue(a.snap().LibraryDir, a.library.Jobs, a.queueElsewhere, jobName, a.statusOf)
 }
 
-// libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added, a failed job of the same video queued again included. A video the library already holds is not added; the bar says so and offers to open it.
+// libraryEnqueue adds sources to the queue once precheck passes, and says in the message bar what happened. It reports whether any source was added, a failed job of the same video queued again included, or a playlist or a channel among them opened the dialog that lists its videos (playlistAsk), which adds them only once asked. A video the library already holds is not added; the bar says so and offers to open it.
 func (a *app) libraryEnqueue(sources ...string) bool {
-	if msg, section := a.precheck(sources); msg != "" {
+	videos, lists := a.playlistSplit(sources)
+	msg, section := a.precheckReady()
+	if len(videos) > 0 || len(lists) == 0 {
+		msg, section = a.precheck(videos)
+	}
+	if msg != "" {
 		a.warn(msg, section)
 		a.lib.noticeReady = a.precheckAboutApp(msg)
 		return false
 	}
+	added := len(videos) > 0 && a.libraryQueue(videos)
+	if len(lists) > 0 {
+		a.playlistAsk(lists, playlistFromLibrary)
+		return true
+	}
+	return added
+}
+
+// libraryQueue adds sources, which precheck let through, to the queue and says in the message bar what happened, as libraryEnqueue does. A video of a YouTube playlist added alone, as watch?v=…&list=… is, is that video, and the bar offers to add the whole playlist (core.Link.WholeList); it then stays until it is closed, rather than closing by itself.
+func (a *app) libraryQueue(sources []string) bool {
 	added, err := a.queueEnqueue(sources)
 	var dup *queueDuplicate
 	m := a.messages()
@@ -433,6 +454,9 @@ func (a *app) libraryEnqueue(sources ...string) bool {
 		a.tell(m.LibraryAddedStarting(added))
 	default:
 		a.tell(m.LibraryAddedOneStarting())
+		if len(sources) == 1 {
+			a.lib.notice.List = a.playlistWhole(sources[0])
+		}
 	}
 	return added > 0
 }

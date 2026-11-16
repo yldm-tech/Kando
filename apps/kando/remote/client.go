@@ -92,7 +92,7 @@ func (c *Client) Call(ctx context.Context, method string, params, out any) error
 	if err != nil {
 		return err
 	}
-	resp, err := c.exchange(ctx, line)
+	resp, err := c.exchange(ctx, line, TimeoutOf(method))
 	if err != nil {
 		c.closeWith(err)
 		return err
@@ -111,9 +111,9 @@ func (c *Client) Call(ctx context.Context, method string, params, out any) error
 	return json.Unmarshal(resp.Result, out)
 }
 
-// exchange writes a request line and reads its answer, within Timeout or ctx's deadline, whichever comes first.
-func (c *Client) exchange(ctx context.Context, line []byte) (Response, error) {
-	deadline := time.Now().Add(Timeout)
+// exchange writes a request line and reads its answer, within timeout or ctx's deadline, whichever comes first.
+func (c *Client) exchange(ctx context.Context, line []byte, timeout time.Duration) (Response, error) {
+	deadline := time.Now().Add(timeout)
 	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
 		deadline = d
 	}

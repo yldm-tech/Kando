@@ -176,9 +176,15 @@ browseCleared:
 browseDownload:
   message: "Download Video"
   description: "Button at the end of the Browse page's toolbar that adds the page shown to the library's queue."
+browseDownloadList:
+  message: "Download Videos"
+  description: "Button at the end of the Browse page's toolbar while the page shown is a playlist or a channel: it lists the videos and asks before adding them to the library's queue."
+browseDownloadListTooltip:
+  message: "Add this page's videos to the library"
+  description: "Tooltip of the Browse page's Download Videos button, on a playlist's or a channel's page."
 browseDownloadNotVideo:
   message: "This page isn't a video. Open one of its videos first."
-  description: "Tooltip of the Browse page's Download Video button while it is off, and its message bar, when the page shown lists videos without being one: a site's home page, search results, a feed, a hashtag, a channel or a playlist."
+  description: "Tooltip of the Browse page's Download Video button while it is off, and its message bar, when the page shown lists videos without being one: a site's home page, search results, a feed or a hashtag. A playlist's or a channel's page has Download Videos instead."
 browseDownloadTitled:
   message: "Add “{title}” to the library"
   description: "Tooltip of the Browse page's Download Video button, naming the page's video by its title."
@@ -915,6 +921,11 @@ filmsLinkChannel:
   description: "Tag at the end of the link field when the link names a channel."
   placeholders:
     site: { type: "String", example: "YouTube" }
+filmsLinkCount:
+  message: "{count, plural, one {# link} other {# links}}"
+  description: "Tag at the end of the link field when several links were pasted, between spaces or on lines of their own; each is added on its own."
+  placeholders:
+    count: { type: "int", example: "3" }
 filmsLinkLabel:
   message: "Video Link"
   description: "Accessible name of the toolbar's link field."
@@ -1968,13 +1979,64 @@ playerSubsUnreadable:
 playerUnplayable:
   message: "This video can't be played"
   description: "Shown in place of the picture when ffmpeg cannot open the video."
+playlistAdd:
+  message: "{count, plural, one {Add # Video} other {Add # Videos}}"
+  description: "Button of the playlist dialog that adds the videos found to the library's queue, those the library does not have yet."
+  placeholders:
+    count: { type: "int", example: "24" }
+playlistAddWhole:
+  message: "Add Whole Playlist"
+  description: "Button of the message bar after a video of a YouTube playlist was added on its own: it lists the playlist's videos and asks before adding them."
+playlistCancel:
+  message: "Cancel"
+  description: "Button of the playlist dialog that closes it without adding anything, and stops looking for the videos."
+playlistChannelLimit:
+  message: "Kando adds a channel's {limit} most recent videos."
+  description: "Line of the playlist dialog when a channel was read: only its most recent videos are listed, as a channel may hold thousands."
+  placeholders:
+    limit: { type: "int", example: "50" }
+playlistEmpty:
+  message: "No videos found."
+  description: "Line of the playlist dialog when the playlist or channel holds no video Kando can add."
+playlistFailed:
+  message: "Couldn't read the videos: {error}"
+  description: "Line of the playlist dialog when yt-dlp could not list the videos of the playlist or channel; the error is what yt-dlp said, in English."
+  placeholders:
+    error: { type: "String", example: "The playlist does not exist." }
+playlistHave:
+  message: "{count, plural, one {# is already in the library and won't be added again.} other {# are already in the library and won't be added again.}}"
+  description: "Line of the playlist dialog: how many of the videos found the library already has, waiting, being processed or done."
+  placeholders:
+    count: { type: "int", example: "3" }
+playlistReading:
+  message: "Finding Videos…"
+  description: "Title of the playlist dialog, and the name of its spinner, while Kando reads which videos a playlist or a channel holds."
+playlistSeveral:
+  message: "{count, plural, one {# Playlist or Channel} other {# Playlists and Channels}}"
+  description: "Title of the playlist dialog when several playlist or channel links were added at once."
+  placeholders:
+    count: { type: "int", example: "2" }
+playlistTimedOut:
+  message: "Reading the videos took too long. Try again later."
+  description: "Line of the playlist dialog when yt-dlp did not finish listing the videos in time."
+playlistUntitled:
+  message: "Playlist"
+  description: "Title of the playlist dialog for a playlist the site gives no name."
+playlistUntitledChannel:
+  message: "Channel"
+  description: "Title of the playlist dialog for a channel the site gives no name."
+playlistVideos:
+  message: "{count, plural, one {# video.} other {# videos.}}"
+  description: "Line of the playlist dialog: how many videos the playlist or channel holds, each counted once."
+  placeholders:
+    count: { type: "int", example: "54" }
 precheckChannel:
-  message: "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos."
+  message: "This is a link to a {site} channel, not to one video. List its videos first, then add them."
   description: "Message bar when the link added is a channel's on a named site: a job downloads one video, and yt-dlp would download the whole channel."
   placeholders:
     site: { type: "String", example: "YouTube" }
 precheckChannelUnnamed:
-  message: "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos."
+  message: "This is a link to a channel, not to one video. List its videos first, then add them."
   description: "Message bar when the link added is a channel's on a site without a known name."
 precheckEmpty:
   message: "Paste a video link first, or choose a local file."
@@ -2014,12 +2076,12 @@ precheckFailedTranslate:
   placeholders:
     detail: { type: "String", example: "something nobody has seen" }
 precheckList:
-  message: "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+  message: "This is a link to a {site} playlist, not to one video. List its videos first, then add them."
   description: "Message bar when the link added is a playlist on a named site that names no single video: yt-dlp would download the whole list."
   placeholders:
     site: { type: "String", example: "YouTube" }
 precheckListUnnamed:
-  message: "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos."
+  message: "This is a link to a playlist, not to one video. List its videos first, then add them."
   description: "Message bar when the link added is a playlist on a site without a known name that names no single video."
 precheckNoAudio:
   message: "The video has no sound, so there is no speech to transcribe"

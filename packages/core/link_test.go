@@ -140,6 +140,54 @@ func TestLinkOneVideo(t *testing.T) {
 	}
 }
 
+func TestLinkIsList(t *testing.T) {
+	cases := map[string]bool{
+		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8":                                  true,
+		"https://www.youtube.com/watch?list=PLx0sYbCqOb8":                                     true,
+		"https://www.youtube.com/@veritasium":                                                 true,
+		"https://www.youtube.com/@veritasium/videos":                                          true,
+		"https://www.youtube.com/channel/UCHnyfMqiRRG1u-2MsSQLbXA":                            true,
+		"https://space.bilibili.com/946974":                                                   true,
+		"https://space.bilibili.com/946974/channel/collectiondetail?sid=1":                    true,
+		"https://www.bilibili.com/list/watchlater":                                            true,
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts&list=PLx0sYbCqOb8TBPRdmBHs5Iftvv9TPboYG": false,
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts":                                         false,
+		"https://www.bilibili.com/video/BV1GJ411x7h7?p=3":                                     false,
+		"https://vimeo.com/76979871":                                                          false,
+		// A page that lists videos is no list: yt-dlp would pick a video of it.
+		"https://www.youtube.com/":                            false,
+		"https://www.youtube.com/results?search_query=french": false,
+		"https://search.bilibili.com/all?keyword=french":      false,
+	}
+	for raw, want := range cases {
+		link, ok := ParseLink(raw)
+		if !ok {
+			t.Fatalf("ParseLink(%q) reported false", raw)
+		}
+		if got := link.IsList(); got != want {
+			t.Errorf("ParseLink(%q).IsList() = %v, want %v (%+v)", raw, got, want, link)
+		}
+	}
+}
+
+func TestLinkWholeList(t *testing.T) {
+	cases := map[string]string{
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts&list=PLx0sYbCqOb8": "https://www.youtube.com/playlist?list=PLx0sYbCqOb8",
+		"https://youtu.be/TRWgBxVAb1M?list=PLx0sYbCqOb8&index=2":        "https://www.youtube.com/playlist?list=PLx0sYbCqOb8",
+		// A mix has no end, and a list or a lone video names no other list.
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts&list=RDRv3Hn7Qm2Ts&start_radio=1": "",
+		"https://www.youtube.com/playlist?list=PLx0sYbCqOb8":                           "",
+		"https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts":                                  "",
+		"https://www.bilibili.com/video/BV1GJ411x7h7?p=3":                              "",
+	}
+	for raw, want := range cases {
+		link, _ := ParseLink(raw)
+		if got := link.WholeList(); got != want {
+			t.Errorf("ParseLink(%q).WholeList() = %q, want %q", raw, got, want)
+		}
+	}
+}
+
 func TestFileURL(t *testing.T) {
 	cases := []struct {
 		path, want string

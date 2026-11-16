@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -312,7 +313,7 @@ func TestHelp(t *testing.T) {
 		}
 	}
 	code, stdout, _ := run("help", "add")
-	if code != 0 || !strings.Contains(stdout, "Usage: kando add <link-or-file>... [--wait] [--json]") {
+	if code != 0 || !strings.Contains(stdout, "Usage: kando add <link-or-file>... [--wait] [--yes] [--json]") {
 		t.Errorf("help add = %d, %q", code, stdout)
 	}
 	code, stdout, _ = run("list", "-h")
@@ -749,6 +750,98 @@ func TestAddAllSkippedJSON(t *testing.T) {
 			t.Errorf("%q = %d, %q", args, code, stderr)
 		}
 		assertSameJSON(t, args, stdout, skipped)
+	}
+}
+
+// playlistApp lists a playlist of three videos, the second already in the library, and a channel it cannot read, and queues what it is given.
+func playlistApp(method string, params json.RawMessage) (any, error) {
+	switch method {
+	case remote.MethodLists:
+		p, err := remote.Params[remote.ListsParams](params)
+		if err != nil {
+			return nil, err
+		}
+		var lists []remote.List
+		for _, source := range p.Sources {
+			if source == "https://www.youtube.com/@gone" {
+				lists = append(lists, remote.List{Source: source, Videos: []remote.ListVideo{}, Error: "This channel does not exist."})
+				continue
+			}
+			lists = append(lists, remote.List{Source: source, Kind: "playlist", Title: "French in Action", Videos: []remote.ListVideo{
+				{URL: "https://youtu.be/v1"}, {URL: "https://youtu.be/v2", InLibrary: true}, {URL: "https://youtu.be/v3"},
+			}})
+		}
+		return lists, nil
+	case remote.MethodAdd:
+		p, err := remote.Params[remote.AddParams](params)
+		if err != nil {
+			return nil, err
+		}
+		res := remote.AddResult{Jobs: []remote.Job{}}
+		for i, source := range p.Sources {
+			res.Jobs = append(res.Jobs, remote.Job{ID: fmt.Sprintf("j%d", i+1), Source: source, Stage: "queued"})
+		}
+		return res, nil
+	}
+	return cannedApp(method, params)
+}
+
+// answerWith makes kando add's question read answer from a terminal, or, with terminal false, find no one to ask.
+func answerWith(t *testing.T, terminal bool, answer string) {
+	t.Helper()
+	oldIn, oldTerminal := stdin, stdinTerminal
+	stdin, stdinTerminal = strings.NewReader(answer), func() bool { return terminal }
+	t.Cleanup(func() { stdin, stdinTerminal = oldIn, oldTerminal })
+}
+
+const testPlaylist = "https://www.youtube.com/playlist?list=PLx0sYbCqOb8"
+
+// kando add puts a playlist's videos in its place, without those the library has, says what the list holds, and asks first unless --yes is given.
+func TestAddPlaylist(t *testing.T) {
+	f := startFake(t, playlistApp)
+	answerWith(t, false, "")
+	code, stdout, stderr := run("add", testPlaylist, "https://youtu.be/x", "--yes")
+	if code != 0 || stdout != "j1\thttps://youtu.be/v1\nj2\thttps://youtu.be/v3\nj3\thttps://youtu.be/x\n" || stderr != "French in Action: 3 videos (playlist), 1 already in the library\n" {
+		t.Fatalf("add --yes = %d, %q, %q", code, stdout, stderr)
+	}
+	var lists remote.ListsParams
+	f.lastParams(t, remote.MethodLists, &lists)
+	if !slices.Equal(lists.Sources, []string{testPlaylist}) {
+		t.Errorf("listed %q, want only the playlist", lists.Sources)
+	}
+
+	answerWith(t, true, "y\n")
+	if code, _, stderr := run("add", testPlaylist); code != 0 || !strings.HasSuffix(stderr, "Add 2 videos? [y/N] ") {
+		t.Errorf("add answered y = %d, %q", code, stderr)
+	}
+	before := len(f.asked())
+	answerWith(t, true, "\n")
+	if code, _, stderr := run("add", testPlaylist); code != 1 || !strings.HasSuffix(stderr, "kando add: nothing added\n") {
+		t.Errorf("add answered no = %d, %q", code, stderr)
+	}
+	for _, c := range f.asked()[before:] {
+		if c.method == remote.MethodAdd {
+			t.Error("declining added the videos")
+		}
+	}
+}
+
+// Without a terminal to ask on, kando add does not add a playlist's videos unless --yes says to; a list the app cannot read is skipped with why, and the others still added.
+func TestAddPlaylistWithoutATerminal(t *testing.T) {
+	f := startFake(t, playlistApp)
+	answerWith(t, false, "")
+	code, _, stderr := run("add", testPlaylist)
+	if code != 2 || !strings.Contains(stderr, "pass --yes") {
+		t.Errorf("add without a terminal = %d, %q", code, stderr)
+	}
+	for _, c := range f.asked() {
+		if c.method == remote.MethodAdd {
+			t.Error("added without asking")
+		}
+	}
+	code, stdout, stderr := run("add", "https://www.youtube.com/@gone", "https://youtu.be/x", "--yes")
+	if code != 1 || stdout != "j1\thttps://youtu.be/x\n" || stderr != "kando add: skipped https://www.youtube.com/@gone: This channel does not exist.\n" {
+		t.Errorf("add a channel that is gone = %d, %q, %q", code, stdout, stderr)
 	}
 }
 

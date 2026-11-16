@@ -16,6 +16,8 @@ type State struct {
 	Page bool
 	// NotVideo is set while the page lists videos without being one, as a site's home page, its search results or a channel do: 下载视频 is off on it, and its tooltip says why.
 	NotVideo bool
+	// List is set while the page is a playlist or a channel: 下载视频 then lists its videos and asks before it adds them.
+	List bool
 	// Title names the page's video, "" while it is not known: the library's name for it once the library has it, and else the page's own title.
 	Title string
 	// Have is what the library holds of the page's video: "" nothing yet, HaveQueued a job waiting or being processed, HaveDone a film. 下载视频 then says so and shows it rather than adding it again.
@@ -35,13 +37,15 @@ const (
 	HaveDone   = "done"
 )
 
-// Notice is the message bar under the toolbar: Kind is "warning" or "success", Section the settings section that fixes what it says ("" when none does), Film the job its 在资料库中显示 shows (BrowseShowFilm, "" for none), and Open whether it shows.
+// Notice is the message bar under the toolbar: Kind is "warning" or "success", Section the settings section that fixes what it says ("" when none does), Film the job its 在资料库中显示 shows (BrowseShowFilm, "" for none), List the playlist its Add Whole Playlist adds, and Open whether it shows.
 type Notice struct {
 	Kind    string
 	Text    string
 	Section string
 	Film    string
-	Open    bool
+	// List is the whole playlist the bar's Add Whole Playlist adds (BrowseAddList), as after one of its videos was added; "" for none.
+	List string
+	Open bool
 }
 
 // App is the browser's state the page reads, and where its clicks and the web page's reports go. The page reads it inside its bindings through live.Func and calls its actions through live.Do and live.On, so what they change shows at once (package live).
@@ -78,6 +82,8 @@ type App interface {
 	// BrowseShowFilm shows job id in the library: the film, once it is done, and else its card in 处理中.
 	BrowseShowFilm(id string)
 	BrowseNotice() *Notice
+	// BrowseAddList lists the videos of the playlist at source and asks before it adds them (Notice.List).
+	BrowseAddList(source string)
 	// BrowseClearOpen reports whether the 清除登录信息 confirmation is open; BrowseAskClear opens it, BrowseClear clears once it is confirmed and BrowseCancelClear closes it without clearing.
 	BrowseClearOpen() bool
 	BrowseAskClear()

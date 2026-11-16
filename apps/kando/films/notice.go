@@ -16,9 +16,11 @@ type noticeLook struct {
 	text, section string
 	// film is the film the bar's 打开 opens: the film it names, while it is still in the library.
 	film Film
+	// list is the playlist the bar's Add Whole Playlist adds.
+	list string
 }
 
-// notice is the message bar under the top bar, as the prototype draws it: amber with a warning triangle for what went wrong, green with a check mark for what worked, 打开设置 when a setting fixes what it says, 打开 when it names a film in the library, and × to close it.
+// notice is the message bar under the top bar, as the prototype draws it: amber with a warning triangle for what went wrong, green with a check mark for what worked, 打开设置 when a setting fixes what it says, 打开 when it names a film in the library, Add Whole Playlist when the video it added is one of a playlist's, and × to close it.
 type notice struct{ a App }
 
 // Render implements core.Node.
@@ -26,7 +28,7 @@ func (n notice) Render(cx *core.Scope) core.Node {
 	a := n.a
 	look := live.Memo(cx, a, func() noticeLook {
 		bar := a.Notice()
-		l := noticeLook{open: bar.Open, success: bar.Kind == "success", text: bar.Text, section: bar.Section}
+		l := noticeLook{open: bar.Open, success: bar.Kind == "success", text: bar.Text, section: bar.Section, list: bar.List}
 		// The film named may have been removed since the bar opened; then there is nothing to open and no button.
 		if bar.Film != "" {
 			l.film, _ = a.JobFilm(bar.Film)
@@ -69,6 +71,10 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 				a.Open(item)
 			})})
 	}}
+	list := core.Show{When: func() bool { return look().list != "" }, Then: func(*core.Scope) core.Node {
+		return textButton(locales.PlaylistAddWhole, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "notice-list",
+			OnPress: live.Do(a, func() { a.AddList(look().list) })})
+	}}
 	close := base.Button{TestID: "notice-close", LabelFunc: func() string { return locales.FilmsCloseNotice(cx) },
 		OnPress: live.On(a, func(core.PressEvent) { a.Notice().Open = false }),
 		Style: core.Style{Width: core.Pt(24), Height: core.Pt(24), CornerRadius: 12, FlexShrink: 0, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter,
@@ -88,6 +94,6 @@ func noticeBar(cx *core.Scope, a App, look func() noticeLook) core.Node {
 			}
 			return core.Style{Background: warnFill, BorderColor: warnRing}
 		},
-		Children: []core.Node{mark, text, settings, open, close},
+		Children: []core.Node{mark, text, settings, open, list, close},
 	}
 }

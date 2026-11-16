@@ -64,6 +64,11 @@ func TestLinkChipNamesThePlatform(t *testing.T) {
 		"https://vimeo.com/76979871":                            "Vimeo",
 		"file:///v.mp4":                                         "",
 		"hello":                                                 "",
+		// A video of a list is that video.
+		"https://www.youtube.com/watch?v=TRWgBxVAb1M&list=PL590L5WQmH8fJ5": "YouTube",
+		"https://www.bilibili.com/video/BV1GJ411x7h7?p=3":                  "哔哩哔哩",
+		// Links pasted together are counted.
+		"https://youtu.be/TRWgBxVAb1M https://vimeo.com/76979871\nhttps://youtu.be/x": testlocale.Messages().FilmsLinkCount(3),
 	} {
 		label, _, ok := linkChip(testlocale.Messages(), raw)
 		if label != want || ok != (want != "") {

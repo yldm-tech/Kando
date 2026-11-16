@@ -109,6 +109,15 @@ func (f *fakeApp) handle(method string, params json.RawMessage) (any, error) {
 			return nil, nil
 		}
 		return remote.Job{ID: p.ID, Source: "https://youtu.be/x", Stage: "queued"}, nil
+	case remote.MethodLists:
+		p, err := remote.Params[remote.ListsParams](params)
+		if err != nil {
+			return nil, err
+		}
+		if p.Sources[0] == "https://youtu.be/x" {
+			return []remote.List{{Source: p.Sources[0], Videos: []remote.ListVideo{}, Error: "not a playlist or a channel link"}}, nil
+		}
+		return []remote.List{{Source: p.Sources[0], Kind: "channel", Title: "Veritasium", Limit: 50, Videos: []remote.ListVideo{{URL: "https://youtu.be/v1", Title: "One", Duration: 61, InLibrary: true}}}}, nil
 	case remote.MethodSites:
 		return []remote.Site{{Name: "Vimeo", Domain: "vimeo.com"}}, nil
 	case remote.MethodShow:
@@ -264,6 +273,7 @@ func TestListTools(t *testing.T) {
 		"kando_search_subtitles": {readOnly: true, idempotent: true},
 		"kando_get_job":          {readOnly: true, idempotent: true},
 		"kando_add_videos":       {openWorld: true},
+		"kando_list_playlist":    {readOnly: true, idempotent: true, openWorld: true},
 		"kando_list_jobs":        {readOnly: true, idempotent: true},
 		"kando_cancel_job":       {destructive: true, idempotent: true},
 		"kando_retry_job":        {destructive: true, openWorld: true},
@@ -370,6 +380,35 @@ func TestReadTools(t *testing.T) {
 	call(t, cs, "kando_search_sites", map[string]any{"query": "vimeo", "limit": 3})
 	if got := string(f.lastParams(remote.MethodSites)); got != `{"query":"vimeo","limit":3}` {
 		t.Errorf("sites params = %s", got)
+	}
+}
+
+// kando_list_playlist answers a playlist's or a channel's videos, and kando_add_videos leaves such a link to it rather than asking the app to add it.
+func TestPlaylistTools(t *testing.T) {
+	path := shortSocket(t)
+	f := newFake()
+	serveFake(t, path, f)
+	cs := connect(t)
+
+	list := structured[remote.List](t, call(t, cs, "kando_list_playlist", map[string]any{"source": "https://www.youtube.com/@veritasium"}))
+	if list.Kind != "channel" || list.Limit != 50 || len(list.Videos) != 1 || !list.Videos[0].InLibrary || list.Videos[0].Duration != 61 {
+		t.Errorf("list = %+v", list)
+	}
+	if res := call(t, cs, "kando_list_playlist", map[string]any{"source": "https://youtu.be/x"}); !res.IsError || !strings.Contains(text(t, res), "not a playlist") {
+		t.Errorf("listing a video = %+v", res)
+	}
+
+	added := structured[remote.AddResult](t, call(t, cs, "kando_add_videos", map[string]any{"sources": []string{"https://www.youtube.com/playlist?list=PLx0sYbCqOb8", "https://youtu.be/z"}}))
+	if len(added.Jobs) != 1 || len(added.Skipped) != 1 || !strings.Contains(added.Skipped[0].Reason, "kando_list_playlist") {
+		t.Errorf("added = %+v", added)
+	}
+	if p, _ := remote.Params[remote.AddParams](f.lastParams(remote.MethodAdd)); len(p.Sources) != 1 || p.Sources[0] != "https://youtu.be/z" {
+		t.Errorf("add sources = %q", p.Sources)
+	}
+	before := f.count(remote.MethodAdd)
+	added = structured[remote.AddResult](t, call(t, cs, "kando_add_videos", map[string]any{"sources": []string{"https://www.youtube.com/@veritasium"}}))
+	if len(added.Jobs) != 0 || len(added.Skipped) != 1 || f.count(remote.MethodAdd) != before {
+		t.Errorf("adding only a channel = %+v, asked the app %d times", added, f.count(remote.MethodAdd)-before)
 	}
 }
 

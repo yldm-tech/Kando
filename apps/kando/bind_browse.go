@@ -15,14 +15,15 @@ import (
 func (a *app) BrowseState() browse.State {
 	s := browse.State{
 		Page:         a.browseShowing(),
-		NotVideo:     a.browseShowing() && browseNotVideo(a.browse.url),
+		NotVideo:     a.browseShowing() && a.browseNotVideo(a.browse.url),
+		List:         a.browseShowing() && a.browseList(a.browse.url),
 		Loading:      a.browse.loading,
 		CanGoBack:    a.browse.canBack,
 		CanGoForward: a.browse.canForward,
 		Clearable:    a.browse.clear != nil,
 		Clearing:     a.browse.clearing,
 	}
-	if s.Page && !s.NotVideo && a.page == pageBrowse {
+	if s.Page && !s.NotVideo && !s.List && a.page == pageBrowse {
 		s.Title, s.Have = a.browseVideo()
 	}
 	return s
@@ -63,6 +64,12 @@ func (a *app) BrowseHome() { a.browseHome() }
 func (a *app) BrowseDownload() { a.browseDownload() }
 
 func (a *app) BrowseShowFilm(id string) { a.browseShowFilm(id) }
+
+// BrowseAddList lists the videos of the playlist at source and asks before it adds them, as the message bar's Add Whole Playlist does after one of its videos was added.
+func (a *app) BrowseAddList(source string) {
+	a.browse.notice.Open = false
+	a.browseEnqueue(source)
+}
 
 func (a *app) BrowseNotice() *browse.Notice { return &a.browse.notice }
 

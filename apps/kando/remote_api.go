@@ -16,6 +16,7 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/lines"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/playlist"
 	"kando/apps/kando/remote"
 	"kando/apps/kando/sidebar"
 	"kando/apps/kando/sites/catalog"
@@ -27,7 +28,7 @@ import (
 
 // remoteHandle answers one request of the control socket.
 func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
-	ctx, cancel := context.WithTimeout(a.remote.ctx, remote.Timeout)
+	ctx, cancel := context.WithTimeout(a.remote.ctx, remote.TimeoutOf(method))
 	defer cancel()
 	switch method {
 	case remote.MethodStatus:
@@ -70,6 +71,12 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return a.remoteAdd(ctx, p)
+	case remote.MethodLists:
+		p, err := remote.Params[remote.ListsParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return a.remoteLists(ctx, p)
 	case remote.MethodCancel:
 		p, err := remote.Params[remote.IDParams](params)
 		if err != nil {
@@ -463,6 +470,59 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 	return added, nil
 }
 
+// remoteLists lists the videos of each of p's playlist and channel links, as the playlist dialog does (playlist.Read): a playlist whole, a channel's playlist.ChannelLimit most recent, and marks those the open library has already, waiting, running or done, which jobs.add would skip. yt-dlp runs off the UI thread; what the library has is read on it once the videos are known. A source that is not a playlist or a channel, or that yt-dlp could not list, says why in its List's Error, and the others are still listed. Without a library, or without yt-dlp, it answers not_ready with what precheckReady says.
+func (a *app) remoteLists(ctx context.Context, p remote.ListsParams) ([]remote.List, error) {
+	if len(p.Sources) == 0 {
+		return nil, remote.Errorf(remote.CodeInvalid, "no sources")
+	}
+	lister, err := remote.OnUI(ctx, a.update, func() (media.Lister, error) {
+		lister, ok := a.pipeline.(media.Lister)
+		if !ok {
+			return nil, remote.Errorf(remote.CodeNotReady, "this Kando cannot list a playlist's videos")
+		}
+		if msg, _ := a.precheckReady(); msg != "" {
+			return nil, remote.Errorf(remote.CodeNotReady, "%s", msg)
+		}
+		return lister, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	lists := make([]remote.List, len(p.Sources))
+	for i, source := range p.Sources {
+		lists[i] = remote.List{Source: source, Videos: []remote.ListVideo{}}
+		link, ok := core.ParseLink(strings.TrimSpace(source))
+		if !ok || !link.IsList() {
+			lists[i].Error = "not a playlist or a channel link"
+			continue
+		}
+		read, err := playlist.ReadOne(ctx, lister, source)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			lists[i].Error = err.Error()
+			continue
+		}
+		lists[i].Kind, lists[i].Title = string(core.LinkPlaylist), read.Title
+		if read.Channel {
+			lists[i].Kind, lists[i].Limit = string(core.LinkChannel), playlist.ChannelLimit
+		}
+		for _, v := range read.Videos {
+			lists[i].Videos = append(lists[i].Videos, remote.ListVideo{URL: v.URL, Title: v.Title, Duration: v.Duration.Seconds()})
+		}
+	}
+	return remote.OnUI(ctx, a.update, func() ([]remote.List, error) {
+		for i := range lists {
+			for j, v := range lists[i].Videos {
+				job, ok := a.queueFindSource(v.URL)
+				lists[i].Videos[j].InLibrary = ok && job.Stage != core.StageFailed
+			}
+		}
+		return lists, nil
+	})
+}
+
 // remoteCancel cancels job id of the open library, or one the queue runs for another library, as the queue card's 取消 does, and answers it once it has stopped: a waiting job leaves the queue at once, and the running one when its pipeline returns.
 func (a *app) remoteCancel(ctx context.Context, id string) (remote.Job, error) {
 	job, err := remote.OnUI(ctx, a.update, func() (core.Job, error) {
@@ -817,7 +877,7 @@ func remoteSource(given, dir string) (source string, reason func(locales.Message
 		if !ok {
 			return "", locales.Messages.PrecheckNotLink
 		}
-		// A channel or a list is skipped on its own here, rather than refusing the whole request in precheck, as a link that is not one is.
+		// A channel or a list is skipped on its own here, rather than refusing the whole request in precheck, as a link that is not one is; a client lists its videos with lists.expand and adds those (remoteLists).
 		if !link.OneVideo() {
 			return "", func(m locales.Messages) string { return precheckWhole(m, link) }
 		}

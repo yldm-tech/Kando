@@ -147,7 +147,7 @@ func init() {
 		{name: "subtitles", synopsis: "<film-id> [--format srt|text|json] [--original|--translation] [--from T] [--to T] [--until watched]", summary: "Print a film's subtitles, or part of them", app: true, run: runSubtitles},
 		{name: "search", synopsis: "<words> [--film ID] [--until watched] [--limit N]", summary: "Find the subtitle lines that hold some words, in the library or one film", app: true, run: runSearch},
 		{name: "jobs", synopsis: "[job-id]", summary: "List the jobs: the running one, the waiting ones, then the finished ones; or show one", app: true, run: runJobs},
-		{name: "add", synopsis: "<link-or-file>... [--wait]", summary: "Queue videos to download, transcribe and translate", app: true, run: runAdd},
+		{name: "add", synopsis: "<link-or-file>... [--wait] [--yes]", summary: "Queue videos to download, transcribe and translate", app: true, run: runAdd},
 		{name: "cancel", synopsis: "<job-id>", summary: "Stop a running job or take a waiting one out of the queue", app: true, run: runCancel},
 		{name: "retry", synopsis: "<job-id> [--wait]", summary: "Queue a failed, canceled or finished job again", app: true, run: runRetry},
 		{name: "remove", synopsis: "<job-id>", summary: "Take a job off the library, stopping it if it runs; its files stay", app: true, run: runRemove},

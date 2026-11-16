@@ -117,7 +117,7 @@ func (a *app) browseFocusAddress() { a.browse.focus = true }
 
 // browseCanDownload reports whether 下载视频 adds the page shown: a page of one video, which the library has no job for yet that is waiting, running or done.
 func (a *app) browseCanDownload() bool {
-	if !a.browseShowing() || browseNotVideo(a.browse.url) {
+	if !a.browseShowing() || a.browseNotVideo(a.browse.url) {
 		return false
 	}
 	_, have := a.browseJob(a.browse.url)
@@ -341,12 +341,16 @@ func (a *app) browseDownload() {
 	})
 }
 
-// browseEnqueue adds u to the library's queue, as the library's link field does, and the message bar says so, naming the video by the page's title when it is known, with 在资料库中显示 for its card: a page that lists videos without being one, which 下载视频 is off on, is not added, what precheck finds wrong shows in the message bar with the setting that fixes it, and the pipeline's own checks, with the remedies of a failed job, take care of a page without a video it can download. What the bar says of the page closes once another page shows; what it says of the app, once that is fixed.
+// browseEnqueue adds u to the library's queue, as the library's link field does, and the message bar says so, naming the video by the page's title when it is known, with 在资料库中显示 for its card, and Add Whole Playlist for a video of a playlist (core.Link.WholeList): a playlist or a channel opens the dialog that lists its videos (browseAskList), a page that lists videos without being one, which 下载视频 is off on, is not added, what precheck finds wrong shows in the message bar with the setting that fixes it, and the pipeline's own checks, with the remedies of a failed job, take care of a page without a video it can download. What the bar says of the page closes once another page shows; what it says of the app, once that is fixed.
 func (a *app) browseEnqueue(u string) {
 	if !browse.Allowed(u) {
 		return
 	}
-	if browseNotVideo(u) {
+	if a.browseList(u) {
+		a.browseAskList(u)
+		return
+	}
+	if a.browseNotVideo(u) {
 		a.browseWarn(a.messages().BrowseDownloadNotVideo(), "")
 		a.browse.noticeURL = a.browse.url
 		return
@@ -375,13 +379,49 @@ func (a *app) browseEnqueue(u string) {
 	}
 	job, _ := a.browseJob(u)
 	a.browseTell(text, job.ID)
+	a.browse.notice.List = a.playlistWhole(u)
 	a.browse.noticeURL = a.browse.url
 }
 
-// browseNotVideo reports whether u is a link to a page that lists videos without being one, which 下载视频 does not add: a site's home page, its search results, a feed, a hashtag, a channel or a playlist that names none of its videos (core.Link.OneVideo).
-func browseNotVideo(u string) bool {
+// browseList reports whether u is a playlist or a channel whose videos 下载视频 lists (core.Link.IsList), which the pipeline can do (playlistCan).
+func (a *app) browseList(u string) bool {
 	link, ok := kcore.ParseLink(u)
-	return ok && !link.OneVideo()
+	return ok && link.IsList() && a.playlistCan()
+}
+
+// browseAskList opens the dialog that lists the videos of the playlist or the channel at u, once precheckReady finds nothing missing; what it finds missing shows in the message bar until it is fixed. The videos the dialog adds are said in the browser's message bar (browseEnqueueAll).
+func (a *app) browseAskList(u string) {
+	if msg, section := a.precheckReady(); msg != "" {
+		a.browseWarn(msg, section)
+		a.browse.noticeReady = true
+		return
+	}
+	a.playlistAsk([]string{u}, playlistFromBrowse)
+}
+
+// browseEnqueueAll adds sources, the videos the playlist dialog opened from the browser read, to the library's queue, and the browser's message bar says how many were added, or why they could not be.
+func (a *app) browseEnqueueAll(sources []string) {
+	m := a.messages()
+	if msg, section := a.precheck(sources); msg != "" {
+		a.browseWarn(msg, section)
+		a.browse.noticeReady = a.precheckAboutApp(msg)
+		return
+	}
+	added, err := a.queueEnqueue(sources)
+	switch {
+	case err != nil && added > 0:
+		a.browseWarn(m.LibraryAddedSome(added, sourceError(m, err)), "")
+	case err != nil:
+		a.browseWarn(sourceError(m, err), "")
+	default:
+		a.browseTell(m.LibraryAddedStarting(added), "")
+	}
+}
+
+// browseNotVideo reports whether u is a link to a page that lists videos without being one, which 下载视频 does not add: a site's home page, its search results, a feed or a hashtag, and a playlist or a channel when the pipeline cannot list their videos (browseList).
+func (a *app) browseNotVideo(u string) bool {
+	link, ok := kcore.ParseLink(u)
+	return ok && !link.OneVideo() && !a.browseList(u)
 }
 
 // browseAskClear opens the confirmation of 清除登录信息…, which holds the window's modal flag while it is open.

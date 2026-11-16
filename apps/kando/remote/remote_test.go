@@ -372,3 +372,10 @@ func TestLaunchCommand(t *testing.T) {
 		}
 	}
 }
+
+// Listing a playlist may take minutes, longer than any other answer, and longer than the app gives yt-dlp, so the app's own answer comes first.
+func TestTimeoutOf(t *testing.T) {
+	if TimeoutOf(MethodAdd) != Timeout || TimeoutOf(MethodLists) != ListTimeout || ListTimeout <= Timeout {
+		t.Fatalf("timeouts: add %v, lists %v", TimeoutOf(MethodAdd), TimeoutOf(MethodLists))
+	}
+}
