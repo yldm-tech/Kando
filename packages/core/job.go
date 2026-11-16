@@ -121,7 +121,7 @@ func (r Redo) TranslatesOnly() bool {
 	return r == RedoTranslation || r == RedoMissing
 }
 
-// NewJob is a queued job for source: an http or https link, a web address typed without a scheme, which the job keeps with https:// before it (WithScheme), or a local video's file:// URL.
+// NewJob is a queued job for source: an http or https link, a web address typed without a scheme, which the job keeps with https:// before it (WithScheme), or a local video's file:// URL. A link is kept as ParseLink writes it (Link.URL), so a bilibili video under a reader's language downloads from its canonical link.
 func NewJob(source string) (Job, error) {
 	source = WithScheme(strings.TrimSpace(source))
 	if source == "" {
@@ -140,6 +140,9 @@ func NewJob(source string) (Job, error) {
 		return Job{}, errors.New("video source must be a valid URL")
 	}
 
+	if link, ok := ParseLink(source); ok && link.Platform != PlatformLocal {
+		source = link.URL
+	}
 	return Job{ID: newID(), Source: source, Stage: StageQueued}, nil
 }
 

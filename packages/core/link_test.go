@@ -30,6 +30,12 @@ func TestParseLink(t *testing.T) {
 		{"https://space.bilibili.com/946974/channel/collectiondetail?sid=1", Link{URL: "https://space.bilibili.com/946974/channel/collectiondetail?sid=1", Platform: PlatformBilibili, Kind: LinkPlaylist, ID: "946974", Host: "space.bilibili.com", Site: "bilibili.com"}},
 		{"https://www.youtube.com/results?search_query=french", Link{URL: "https://www.youtube.com/results?search_query=french", Platform: PlatformYouTube, Kind: LinkPage, Host: "youtube.com", Site: "youtube.com"}},
 		{"https://search.bilibili.com/all?keyword=french", Link{URL: "https://search.bilibili.com/all?keyword=french", Platform: PlatformBilibili, Kind: LinkPage, Host: "search.bilibili.com", Site: "bilibili.com"}},
+		// bilibili serves its pages under the reader's language too; a video's link is then its canonical one, which yt-dlp's bilibili extractor reads, and a language alone is the home page.
+		{"https://www.bilibili.com/zh-Hans/video/BV1nx4y1x7t1/?spm_id_from=333", Link{URL: "https://www.bilibili.com/video/BV1nx4y1x7t1/?spm_id_from=333", Platform: PlatformBilibili, Kind: LinkVideo, ID: "BV1nx4y1x7t1", Host: "bilibili.com", Site: "bilibili.com"}},
+		{"https://www.bilibili.com/en/video/BV1nx4y1x7t1?p=2", Link{URL: "https://www.bilibili.com/video/BV1nx4y1x7t1?p=2", Platform: PlatformBilibili, Kind: LinkPlaylist, ID: "BV1nx4y1x7t1", Host: "bilibili.com", Site: "bilibili.com"}},
+		{"https://www.bilibili.com/zh-Hans", Link{URL: "https://www.bilibili.com/zh-Hans", Platform: PlatformBilibili, Kind: LinkPage, Host: "bilibili.com", Site: "bilibili.com"}},
+		{"https://www.bilibili.com/ja/", Link{URL: "https://www.bilibili.com/ja/", Platform: PlatformBilibili, Kind: LinkPage, Host: "bilibili.com", Site: "bilibili.com"}},
+		{"https://search.bilibili.com/zh-Hans/all?keyword=french", Link{URL: "https://search.bilibili.com/zh-Hans/all?keyword=french", Platform: PlatformBilibili, Kind: LinkPage, Host: "search.bilibili.com", Site: "bilibili.com"}},
 		{"https://vimeo.com/76979871", Link{URL: "https://vimeo.com/76979871", Platform: PlatformWeb, Kind: LinkVideo, Host: "vimeo.com", Site: "vimeo.com"}},
 		{"https://www.ted.com/talks/some_talk", Link{URL: "https://www.ted.com/talks/some_talk", Platform: PlatformWeb, Kind: LinkVideo, Host: "ted.com", Site: "ted.com"}},
 		{"https://example.com/v", Link{URL: "https://example.com/v", Platform: PlatformWeb, Kind: LinkVideo, Host: "example.com"}},
