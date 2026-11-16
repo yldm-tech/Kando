@@ -2677,6 +2677,122 @@ readinessMissingTools:
 readinessReady:
   message: "Ready to process"
   description: "The sidebar's status line when a job can start."
+savedCount:
+  message: "{count, plural, one {# line in this library} other {# lines in this library}}"
+  description: "Under the Saved Lines sheet's title: how many lines are saved in the open library."
+  placeholders:
+    count: { type: "int", example: "12" }
+savedDone:
+  message: "Done"
+  description: "Button that closes the Saved Lines sheet."
+savedEmpty:
+  message: "No saved lines yet. Press B while a film plays to save the line you hear."
+  description: "The Saved Lines sheet with no lines saved: how to save one."
+savedExport:
+  message: "Export for Anki…"
+  description: "File menu item and button of the Saved Lines sheet: writes the saved lines, with each line's audio, into a folder the user picks, as a text file Anki imports."
+savedExportFailed:
+  message: "Couldn't export the saved lines: {error}"
+  description: "Saved Lines sheet, when the export failed, with the system's reason."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+savedExported:
+  message: "{count, plural, one {Exported # line with its audio.} other {Exported # lines with their audio.}} Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
+  description: "Saved Lines sheet, once the export is done: what it wrote and how to bring it into Anki. The quoted names are the export's folder and file, which are not translated."
+  placeholders:
+    count: { type: "int", example: "12" }
+savedExportedNoAudio:
+  message: "{count, plural, one {Exported # line without audio,} other {Exported # lines without audio,}} as ffmpeg is not installed or the videos are not in the library. Import “Kando Saved Lines.txt” in Anki."
+  description: "Saved Lines sheet, once an export is done that could cut no audio. The quoted name is the export's file, which is not translated."
+  placeholders:
+    count: { type: "int", example: "12" }
+savedExporting:
+  message: "Exporting {done} of {total}…"
+  description: "Saved Lines sheet, while the export runs: how many lines it has written of all of them."
+  placeholders:
+    done: { type: "int", example: "3" }
+    total: { type: "int", example: "12" }
+savedKeySaveLine:
+  message: "Save Line"
+  description: "Study menu item and shortcut row (B), checked while the line playing is saved; also the item of a subtitle line's right-click menu and the button under the line the film is held on: keeps the line among the saved lines, for review and export."
+savedMark:
+  message: "Saved"
+  description: "Said of a subtitle line that is among the saved lines: the label of the button under the held line once it is saved (pressing it removes it), and what the accessible name of a saved row of the subtitle list adds."
+savedMenuItem:
+  message: "Saved Lines…"
+  description: "Study menu item: opens the sheet listing the lines saved in the library."
+savedNoneInFilm:
+  message: "No saved lines in this film"
+  description: "Note in the player's subtitle list while it shows the saved lines alone (the Saved chip) and the film has none, as after the last one was removed."
+savedOsdRemoved:
+  message: "Removed from Saved Lines"
+  description: "Message on the picture after a saved subtitle line was taken out of the saved lines (B again)."
+savedOsdSaved:
+  message: "Line Saved"
+  description: "Message on the picture after a subtitle line was saved (B)."
+savedReadFailed:
+  message: "The saved lines of this library could not be read. They are left as they are, and lines saved now are not kept."
+  description: "Message bar text when the library's saved-lines.json is there but cannot be read; Kando does not write over it."
+savedRemoveLine:
+  message: "Remove from Saved Lines"
+  description: "Item of a saved subtitle line's right-click menu in the player's side panel: takes the line out of the saved lines."
+savedReviewAgain:
+  message: "Again"
+  description: "Review button (1): the learner did not know the line, which comes back before the review ends."
+savedReviewDone:
+  message: "{count, plural, one {Reviewed # line.} other {Reviewed # lines.}} Each comes back when it is due."
+  description: "Review, once no line is left: how many were reviewed."
+  placeholders:
+    count: { type: "int", example: "8" }
+savedReviewDue:
+  message: "{count, plural, =0 {Nothing to Review} one {Review # Line} other {Review # Lines}}"
+  description: "Button of the Saved Lines sheet that starts the review of the lines due, with how many are due; off when none is."
+  placeholders:
+    count: { type: "int", example: "3" }
+savedReviewGood:
+  message: "Good"
+  description: "Review button (2): the learner knew the line, which comes back later each time."
+savedReviewLeft:
+  message: "{count, plural, one {# line left} other {# lines left}}"
+  description: "Beside the review's title: how many lines are left to review, the one shown with them."
+  placeholders:
+    count: { type: "int", example: "5" }
+savedReviewMenuItem:
+  message: "Review Saved Lines"
+  description: "Study menu item and shortcut row (N): reviews the saved lines that are due, one at a time."
+savedReviewNoAudio:
+  message: "No audio"
+  description: "Review, in place of Play Again, for a line whose audio cannot be had: ffmpeg is not installed, the video is gone, or cutting it failed."
+savedReviewNothingDue:
+  message: "No saved line is due for review."
+  description: "Review opened with no saved line due."
+savedReviewReplay:
+  message: "Play Again"
+  description: "Review button (R): plays the line's audio again from its start."
+savedReviewShow:
+  message: "Show Translation"
+  description: "Review button (Space): shows the translation of the line under review."
+savedReviewTitle:
+  message: "Review"
+  description: "Title of the review of the saved lines."
+savedTitle:
+  message: "Saved Lines"
+  description: "Title of the sheet listing the lines saved in the library."
+savedWhere:
+  message: "{film} · {time}"
+  description: "Over a saved line in the Saved Lines sheet: its film and where in it the line starts."
+  placeholders:
+    film: { type: "String", example: "Learn Rust" }
+    time: { type: "String", example: "0:12.5" }
+savedWhereGone:
+  message: "{film} · {time} · Not in the library"
+  description: "Over a saved line in the Saved Lines sheet whose video is no longer in the library, so it does not play."
+  placeholders:
+    film: { type: "String", example: "Learn Rust" }
+    time: { type: "String", example: "0:12.5" }
+savedWriteFailed:
+  message: "Couldn't keep the saved lines"
+  description: "Message on the picture when the saved lines could not be written to the library folder."
 settingsAIBlurbCustom:
   message: "Any API compatible with OpenAI Chat Completions"
   description: "What the OpenAI Compatible item is. A phrase."

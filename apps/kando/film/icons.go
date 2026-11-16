@@ -35,4 +35,7 @@ var (
 	iconMore        = icon(svgBox("14", "4") + `<circle cx="2" cy="2" r="1.5" fill="currentColor" stroke="none"/><circle cx="7" cy="2" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="2" r="1.5" fill="currentColor" stroke="none"/></svg>`)
 	iconSearch      = icon(svgBox("14", "14") + `<circle cx="6" cy="6" r="4.3"/><path d="M9.3 9.3l3.2 3.2"/></svg>`)
 	iconClose       = icon(svgHead + `<path d="M4 4l8 8M12 4l-8 8"/></svg>`)
+	// iconStar marks a saved line, filled, and iconStarOpen offers to save one.
+	iconStar     = icon(svgHead + `<path d="M8 1.7l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.5l-3.8 2 .7-4.3-3.1-3 4.3-.6z" fill="currentColor" stroke="none"/></svg>`)
+	iconStarOpen = icon(svgHead + `<path d="M8 1.7l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.5l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>`)
 )

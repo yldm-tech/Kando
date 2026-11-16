@@ -72,6 +72,7 @@ func (a *app) areas() []areaHooks {
 		a.remoteHooks(),
 		a.windowHooks(),
 		a.playlistHooks(),
+		a.savedHooks(),
 	}
 }
 

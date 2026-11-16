@@ -77,6 +77,8 @@ type fakeApp struct {
 	pauseLines bool
 	loop       [2]time.Duration
 	looping    bool
+	saved      map[int]bool
+	savedOnly  bool
 	calls      []string
 }
 
@@ -206,6 +208,25 @@ func (f *fakeApp) ToggleMute()                             { f.muted = !f.muted 
 func (f *fakeApp) FeedbackSubtitles()                      { f.call("feedback") }
 func (f *fakeApp) Flash(text string)                       { f.osd = text }
 func (f *fakeApp) ExplainLine(i int)                       { f.call(fmt.Sprintf("explain %d", i)) }
+func (f *fakeApp) LineSaved(i int) bool                    { return f.saved[i] }
+func (f *fakeApp) SavedOnly() *bool                        { return &f.savedOnly }
+func (f *fakeApp) SavedLines() []int {
+	var out []int
+	for i, on := range f.saved {
+		if on {
+			out = append(out, i)
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+func (f *fakeApp) ToggleSaveLine(i int) {
+	f.call(fmt.Sprintf("save %d", i))
+	if f.saved == nil {
+		f.saved = map[int]bool{}
+	}
+	f.saved[i] = !f.saved[i]
+}
 
 // start shows the open film of a as the main window does, on a Mac, in testlocale's language.
 func start(t *testing.T, a *fakeApp) *nsgotest.App {
@@ -588,7 +609,7 @@ func TestCueRowsSeekAndCopy(t *testing.T) {
 	for _, it := range app.PopupMenu {
 		labels = append(labels, it.Label)
 	}
-	if want := []string{msgs.FilmExplainLine(), "", msgs.FilmCopyLine(), msgs.FilmCopyOriginal(), msgs.FilmCopyTranslation()}; !slices.Equal(labels, want) {
+	if want := []string{msgs.FilmExplainLine(), msgs.SavedKeySaveLine(), "", msgs.FilmCopyLine(), msgs.FilmCopyOriginal(), msgs.FilmCopyTranslation()}; !slices.Equal(labels, want) {
 		t.Fatalf("the bilingual line's menu is %q, want %q", labels, want)
 	}
 	app.ChoosePopup(msgs.FilmCopyOriginal())
@@ -596,8 +617,8 @@ func TestCueRowsSeekAndCopy(t *testing.T) {
 		t.Fatalf("拷贝原文 copied %q", app.Clipboard)
 	}
 	app.RightClick(whole("Bye."))
-	if len(app.PopupMenu) != 3 {
-		t.Fatalf("the line without a translation offers %d items, want Explain Line, a separator and Copy Line", len(app.PopupMenu))
+	if len(app.PopupMenu) != 4 {
+		t.Fatalf("the line without a translation offers %d items, want Explain Line, Save Line, a separator and Copy Line", len(app.PopupMenu))
 	}
 	app.ChoosePopup(msgs.FilmCopyLine())
 	if app.Clipboard != "Bye." {
@@ -1184,12 +1205,70 @@ func TestDeadEndsOfferTheirRemedy(t *testing.T) {
 	}
 }
 
+// TestCueMenuSavesTheLine checks that a right click on a line offers Save Line, which asks the app to save that line by its index, and that a saved line's row shows a star and is named saved, and its menu offers to remove it instead.
+func TestCueMenuSavesTheLine(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if app.Exists("id:film-cue-saved") {
+		t.Fatal("a star shows before any line was saved")
+	}
+	app.RightClick(inList("Bye."))
+	app.ChoosePopup(msgs.SavedKeySaveLine())
+	if !slices.Contains(a.calls, "save 1") {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() {})
+	if !app.Exists("id:film-cues >> id:film-cue-saved") {
+		t.Fatalf("the saved line shows no star: %q", app.Texts())
+	}
+	if !app.Exists("role:button 0:04 Bye., " + msgs.SavedMark()) {
+		t.Fatal("the saved row is not named saved")
+	}
+	app.RightClick(inList("Bye."))
+	app.ChoosePopup(msgs.SavedRemoveLine())
+	if !slices.Equal(a.calls[len(a.calls)-2:], []string{"save 1", "save 1"}) || a.saved[1] {
+		t.Fatalf("calls %q, saved %v", a.calls, a.saved)
+	}
+}
+
+// TestSavedChipShowsTheSavedLines checks that the Saved chip shows once a line is saved, with how many, and that picking it narrows the list to the saved lines, the search narrowing them further, and All shows every line again; with no saved line left the list says so.
+func TestSavedChipShowsTheSavedLines(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if app.Exists("id:film-subs-saved") {
+		t.Fatal("the Saved chip shows before a line is saved")
+	}
+	change(app, a, func() { a.saved = map[int]bool{1: true} })
+	if !app.Exists("role:button " + msgs.SavedMark() + " 1") {
+		t.Fatalf("no Saved chip counting one line: %q", app.Texts())
+	}
+	app.Press("id:film-subs-saved")
+	if !a.savedOnly || app.Exists(inList("你好。")) || !app.Exists(inList("Bye.")) || !app.Find("id:film-subs-saved").Props.Selected || app.Find("id:film-subs-count").Props.Selected {
+		t.Fatalf("Saved shows %q", app.Texts())
+	}
+	app.Type("id:film-search", "zzz")
+	if !app.Exists(whole("0 / 1")) || !app.Exists(whole(msgs.FilmNoMatch())) {
+		t.Fatalf("a search among the saved lines: %q", app.Texts())
+	}
+	change(app, a, func() { a.search, a.saved = "", nil })
+	if !app.Exists(whole(msgs.SavedNoneInFilm())) {
+		t.Fatalf("no note without saved lines: %q", app.Texts())
+	}
+	app.Press("id:film-subs-count")
+	if a.savedOnly || !app.Exists(inList("你好。")) || app.Exists("id:film-subs-saved") {
+		t.Fatalf("All shows %q", app.Texts())
+	}
+}
+
 // TestHeldLineCanBeSelected checks that while the film is held on a line, the subtitle list shows that line in a card whose text can be selected, a word or the whole line, with the line the mode hides blurred, and an Explain Line that explains that line; it goes as the film plays.
 func TestHeldLineCanBeSelected(t *testing.T) {
 	a := newFakeApp()
 	a.mode = SubOriginal
 	a.play = &fakePlay{head: 1500 * time.Millisecond, length: 10 * time.Second}
 	app := start(t, a)
+	msgs := testlocale.Messages()
 	card := "id:film-held-line"
 	if !app.Exists(card+" >> "+whole("Hello.")) || !app.Exists(card+" >> "+whole("你好。")) {
 		t.Fatalf("the held line: %q", app.Texts())
@@ -1203,6 +1282,13 @@ func TestHeldLineCanBeSelected(t *testing.T) {
 	app.Press("id:film-held-explain")
 	if !slices.Contains(a.calls, "explain 0") {
 		t.Fatalf("calls %q", a.calls)
+	}
+	if save := app.Find("id:film-held-save"); save.Props.Label != msgs.SavedKeySaveLine() || save.Props.Selected {
+		t.Fatalf("the held line's save button reads %q, selected %v", save.Props.Label, save.Props.Selected)
+	}
+	app.Press("id:film-held-save")
+	if save := app.Find("id:film-held-save"); !slices.Contains(a.calls, "save 0") || save.Props.Label != msgs.SavedMark() || !save.Props.Selected {
+		t.Fatalf("calls %q, the button reads %q", a.calls, save.Props.Label)
 	}
 	change(app, a, func() { a.play.playing = true })
 	if app.Exists(card) {

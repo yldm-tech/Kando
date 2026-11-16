@@ -158,23 +158,28 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 	})
 	cues := filmCues(cx, a)
 	query := live.Memo(cx, a, func() string { return strings.ToLower(strings.TrimSpace(*a.Search())) })
-	shown := ns.NewMemoFunc(cx, func() []int { return cueMatches(cues(), query()) }, slices.Equal[[]int]).Get
-	// The chip counts the lines, or while a search is typed the lines that hold it of them all.
+	saved := ns.NewMemoFunc(cx, live.Func(a, a.SavedLines), slices.Equal[[]int]).Get
+	savedOnly := live.Memo(cx, a, func() bool { return *a.SavedOnly() })
+	shown := ns.NewMemoFunc(cx, func() []int {
+		rows := cueMatches(cues(), query())
+		if savedOnly() {
+			keep := saved()
+			rows = slices.DeleteFunc(rows, func(i int) bool { _, ok := slices.BinarySearch(keep, i); return !ok })
+		}
+		return rows
+	}, slices.Equal[[]int]).Get
+	// The chips count the lines and the saved ones, and pick which the list shows; while a search is typed the chip picked counts the lines that hold it of them. The saved chip shows once a line of the film is saved.
 	chip := ns.Show{When: func() bool { return state() == subsReady }, Then: func(cx *ns.Scope) ns.Node {
-		chipText := ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightSemibold, Color: onGlass}
-		return ns.View{TestID: "film-subs-count", Style: ns.Style{Direction: ns.Row, Height: ns.Pt(24), Padding: ns.Symmetric(0, 10), CornerRadius: 12, Gap: 3, AlignItems: ns.AlignCenter, AlignSelf: ns.AlignStart, Background: ns.RGBA(0xFFFFFF, 0.25)},
-			Children: []ns.Node{
-				ns.Show{When: func() bool { return query() == "" },
-					Then: func(cx *ns.Scope) ns.Node {
-						return ns.Group([]ns.Node{
-							ns.Text{ContentFunc: func() string { return locales.FilmAll(cx) }, Style: chipText},
-							ns.Text{ContentFunc: func() string { return fmt.Sprint(len(cues())) }, Style: chipText.Merge(ns.Style{Opacity: ns.Alpha(0.6)})},
-						})
-					},
-					Else: func(cx *ns.Scope) ns.Node {
-						return ns.Text{ContentFunc: func() string { return fmt.Sprintf("%d / %d", len(shown()), len(cues())) }, Style: chipText}
-					}},
-			}}
+		searching := func() bool { return query() != "" }
+		pick := func(on bool) func(ns.PressEvent) {
+			return live.On(a, func(ns.PressEvent) { *a.SavedOnly() = on })
+		}
+		return ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignSelf: ns.AlignStart}, Children: []ns.Node{
+			subsChip(cx, "film-subs-count", func() string { return locales.FilmAll(cx) }, func() int { return len(cues()) }, shown, searching, func() bool { return !savedOnly() }, pick(false), nil),
+			ns.Show{When: func() bool { return len(saved()) > 0 || savedOnly() }, Then: func(cx *ns.Scope) ns.Node {
+				return subsChip(cx, "film-subs-saved", func() string { return locales.SavedMark(cx) }, func() int { return len(saved()) }, shown, searching, savedOnly, pick(true), iconStar)
+			}},
+		}}
 	}}
 	body := ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		switch state() {
@@ -187,7 +192,7 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		case subsEmpty:
 			return panelNote(func() string { return locales.FilmSubtitlesEmpty(cx) }, nil)
 		}
-		return s.cueList(cx, cues, shown)
+		return s.cueList(cx, cues, shown, func() bool { return savedOnly() && query() == "" })
 	})
 	// Return in the search plays from the next line that holds it, Shift+Return from the one before.
 	step := func(back bool) {
@@ -208,7 +213,7 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 	}}
 }
 
-// heldLine is the line the picture is held on, while the film is held on one, in a card whose text the user can select, a word of it or the whole line, and copy, as the list's rows, which play their line at a click, cannot be. Its lines are the row's: those the mode shows, and the one it hides blurred until the pointer rests on the card. Explain Line under them has the AI service explain the line. It goes as the film plays on, so it never moves under the pointer. ready reports whether the film's lines are read.
+// heldLine is the line the picture is held on, while the film is held on one, in a card whose text the user can select, a word of it or the whole line, and copy, as the list's rows, which play their line at a click, cannot be. Its lines are the row's: those the mode shows, and the one it hides blurred until the pointer rests on the card. Explain Line under them has the AI service explain the line, and Save Line saves it (heldSave). It goes as the film plays on, so it never moves under the pointer. ready reports whether the film's lines are read.
 func (s *screen) heldLine(cx *ns.Scope, cues func() []core.Segment, ready func() bool) ns.Node {
 	a := s.a
 	index := ns.NewMemo(cx, func() int {
@@ -255,12 +260,88 @@ func (s *screen) heldLine(cx *ns.Scope, cues func() []core.Segment, ready func()
 							}}
 					}},
 				}},
-				base.Button{TestID: "film-held-explain", LabelFunc: explain, OnPress: live.On(a, func(ns.PressEvent) { a.ExplainLine(index()) }),
-					Style: ns.Style{AlignSelf: ns.AlignStart, Height: ns.Pt(24), Padding: ns.Symmetric(0, 10), CornerRadius: 12, JustifyContent: ns.JustifyCenter, Background: ns.RGBA(0xFFFFFF, 0.14),
-						Hover: &ns.Style{Background: ns.RGBA(0xFFFFFF, 0.22)}, FocusVisible: ui.FocusRing(cx, -2)},
-					Children: []ns.Node{ns.Text{ContentFunc: explain, MaxLines: 1, Style: ns.Style{FontSize: 12, LineHeight: 16, FontWeight: ns.FontWeightSemibold, Color: onGlass}}}},
+				ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6}, Children: []ns.Node{
+					base.Button{TestID: "film-held-explain", LabelFunc: explain, OnPress: live.On(a, func(ns.PressEvent) { a.ExplainLine(index()) }),
+						Style:    heldButtonStyle(cx),
+						Children: []ns.Node{ns.Text{ContentFunc: explain, MaxLines: 1, Style: heldButtonText}}},
+					s.heldSave(cx, index),
+				}},
 			}}
 	}}
+}
+
+// heldButtonStyle is the style of the buttons under the held line: pills of white at 14%, lit as the pointer rests on them.
+func heldButtonStyle(cx *ns.Scope) ns.Style {
+	return ns.Style{Direction: ns.Row, Gap: 5, AlignItems: ns.AlignCenter, Height: ns.Pt(24), Padding: ns.Symmetric(0, 10), CornerRadius: 12, JustifyContent: ns.JustifyCenter, Background: ns.RGBA(0xFFFFFF, 0.14),
+		Hover: &ns.Style{Background: ns.RGBA(0xFFFFFF, 0.22)}, FocusVisible: ui.FocusRing(cx, -2)}
+}
+
+// heldButtonText is the label of a button under the held line.
+var heldButtonText = ns.Style{FontSize: 12, LineHeight: 16, FontWeight: ns.FontWeightSemibold, Color: onGlass}
+
+// heldSave saves the held line, cue index, or removes it from the saved lines: Save Line with an open star, or Saved with a filled one, selected, while it is saved.
+func (s *screen) heldSave(cx *ns.Scope, index func() int) ns.Node {
+	a := s.a
+	saved := live.Func(a, func() bool { return a.LineSaved(index()) })
+	label := func() string {
+		if saved() {
+			return locales.SavedMark(cx)
+		}
+		return locales.SavedKeySaveLine(cx)
+	}
+	return base.Button{TestID: "film-held-save", LabelFunc: label, Selected: saved, OnPress: live.On(a, func(ns.PressEvent) { a.ToggleSaveLine(index()) }),
+		Style: heldButtonStyle(cx),
+		Children: []ns.Node{
+			ns.Icon{SVGFunc: func() *ns.SVG {
+				if saved() {
+					return iconStar
+				}
+				return iconStarOpen
+			}, Style: ns.Style{Width: ns.Pt(12), Height: ns.Pt(12)}, StyleFunc: func() ns.Style {
+				if saved() {
+					return ns.Style{Color: cueSavedStar}
+				}
+				return ns.Style{Color: onGlass}
+			}},
+			ns.Text{ContentFunc: label, MaxLines: 1, Style: heldButtonText},
+		}}
+}
+
+// subsChip is a chip over the subtitle list that picks which lines it shows, lit while on: its label and how many lines it holds, total, or while it is on and a search is typed how many of them the list shows of them all; a glyph, when there is one, goes before the label.
+func subsChip(cx *ns.Scope, testID string, label func() string, total func() int, shown func() []int, searching, on func() bool, press func(ns.PressEvent), glyph *ns.SVG) ns.Node {
+	text := ns.Style{FontSize: 11, LineHeight: 14, FontWeight: ns.FontWeightSemibold, Color: onGlass}
+	matching := func() bool { return searching() && on() }
+	var children []ns.Node
+	if glyph != nil {
+		children = append(children, ns.Icon{SVG: glyph, Style: ns.Style{Width: ns.Pt(10), Height: ns.Pt(10), Color: cueSavedStar, Margin: ns.Edges{Right: 2}}})
+	}
+	children = append(children, ns.Show{When: matching,
+		Then: func(*ns.Scope) ns.Node {
+			return ns.Text{ContentFunc: func() string { return fmt.Sprintf("%d / %d", len(shown()), total()) }, Style: text}
+		},
+		Else: func(*ns.Scope) ns.Node {
+			return ns.Group([]ns.Node{
+				ns.Text{ContentFunc: label, Style: text},
+				ns.Text{ContentFunc: func() string { return fmt.Sprint(total()) }, Style: text.Merge(ns.Style{Opacity: ns.Alpha(0.6)})},
+			})
+		}})
+	name := func() string {
+		if matching() {
+			return label() + " " + fmt.Sprintf("%d / %d", len(shown()), total())
+		}
+		return label() + " " + fmt.Sprint(total())
+	}
+	return base.Button{TestID: testID, LabelFunc: name, Selected: on, OnPress: press,
+		Style: ns.Style{Direction: ns.Row, Height: ns.Pt(24), Padding: ns.Symmetric(0, 10), CornerRadius: 12, Gap: 3, AlignItems: ns.AlignCenter,
+			Hover: &ns.Style{Background: ns.RGBA(0xFFFFFF, 0.18)}, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() ns.Style {
+			if on() {
+				return ns.Style{Background: ns.RGBA(0xFFFFFF, 0.25)}
+			}
+			return ns.Style{Background: ns.RGBA(0xFFFFFF, 0.08)}
+		},
+		Children: children,
+	}
 }
 
 // cueMatches is the indexes of the cues that hold query, which is lower case, or all of them for none.
@@ -351,8 +432,8 @@ func (s *screen) searchField(cx *ns.Scope, step func(back bool)) ns.Node {
 	}}
 }
 
-// cueList is the subtitle list, narrowed to shown, the indexes of the cues that hold the search, the playing one lit and scrolled into view as it changes.
-func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() []int) ns.Node {
+// cueList is the subtitle list, narrowed to shown, the indexes of the cues that hold the search, the playing one lit and scrolled into view as it changes. savedOnly reports that it shows the saved lines alone, without a search, so an empty list says none is saved rather than that nothing matches.
+func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() []int, savedOnly func() bool) ns.Node {
 	a := s.a
 	current := ns.NewMemo(cx, func() int {
 		a.Track()
@@ -432,7 +513,12 @@ func (s *screen) cueList(cx *ns.Scope, cues func() []core.Segment, shown func() 
 			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{s.cueRows(cx, list, cues, shown, current, clockWidth, viewable), pill}}
 		},
 		Else: func(cx *ns.Scope) ns.Node {
-			return panelNote(func() string { return locales.FilmNoMatch(cx) }, nil)
+			return panelNote(func() string {
+				if savedOnly() {
+					return locales.SavedNoneInFilm(cx)
+				}
+				return locales.FilmNoMatch(cx)
+			}, nil)
 		},
 	}
 }
@@ -514,6 +600,7 @@ func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, index func() int,
 		}
 		return strings.Join(out, " ")
 	})
+	saved := live.Func(a, func() bool { return a.LineSaved(index()) })
 	// peeking is set while the pointer rests on the row or the keyboard focus is in it.
 	hovered, focused := ns.NewSignal(cx, false), ns.NewSignal(cx, false)
 	peeking := func() bool { return hovered.Get() || focused.Get() }
@@ -522,8 +609,14 @@ func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, index func() int,
 		OnMouseEnter: func(ns.MouseEvent) { hovered.Set(true) }, OnMouseLeave: func(ns.MouseEvent) { hovered.Set(false) },
 		OnFocusIn: func() { focused.Set(true) }, OnFocusOut: func() { focused.Set(false) },
 		Children: []ns.Node{base.Button{
-			LabelFunc: func() string { return cueClock(cue().Start) + " " + both() },
-			Selected:  current,
+			LabelFunc: func() string {
+				label := cueClock(cue().Start) + " " + both()
+				if saved() {
+					label += ", " + locales.SavedMark(cx)
+				}
+				return label
+			},
+			Selected: current,
 			OnPress: live.On(a, func(e ns.PressEvent) {
 				if e.Modifiers.Shift {
 					a.LoopThrough(index())
@@ -566,9 +659,13 @@ func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, index func() int,
 							}}
 					}},
 				}},
+				ns.Show{When: saved, Then: func(*ns.Scope) ns.Node {
+					return ns.Icon{TestID: "film-cue-saved", SVG: iconStar, Style: ns.Style{Width: ns.Pt(12), Height: ns.Pt(12), FlexShrink: 0, Margin: ns.Edges{Top: 3}, Color: cueSavedStar}}
+				}},
 			},
 		}}, OnContextMenu: func(e ns.ContextMenuEvent) {
-			nsdesktop.PopupMenu(cx, cueMenu(cx, cue(), live.Do(a, func() { a.ExplainLine(index()) })), e.PagePosition, nil)
+			i := index()
+			nsdesktop.PopupMenu(cx, cueMenu(cx, cue(), live.Do(a, func() { a.ExplainLine(i) }), ns.Untracked(cx, func() bool { return a.LineSaved(i) }), live.Do(a, func() { a.ToggleSaveLine(i) })), e.PagePosition, nil)
 		}}
 }
 
@@ -577,6 +674,9 @@ type cueLines struct {
 	shown  []string
 	hidden string
 }
+
+// cueSavedStar marks the rows of the lines the learner saved.
+var cueSavedStar = ns.RGBA(0xFFD60A, 0.95)
 
 // cueLoopBar marks the rows of the lines the player loops, by their start.
 var cueLoopBar = ns.RGBA(0xFFD60A, 0.9)
@@ -587,10 +687,15 @@ var cueSecondStyle = ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass, Opac
 // cuePeekTransition clears a row's hidden line, and blurs it again, gently.
 var cuePeekTransition = ns.Transition{Duration: 150 * time.Millisecond, Easing: ns.EaseOut, Properties: ns.TransitionOpacity}
 
-// cueMenu is what a right click on a cue of the list offers: explaining it with the AI service (explain), then copying the cue as the list shows it, and, for a cue that has a translation, its original or its translation alone.
-func cueMenu(cx *ns.Scope, cue core.Segment, explain func()) []nsdesktop.MenuItem {
+// cueMenu is what a right click on a cue of the list offers: explaining it with the AI service (explain), saving it or, once saved, removing it from the saved lines (save), then copying the cue as the list shows it, and, for a cue that has a translation, its original or its translation alone.
+func cueMenu(cx *ns.Scope, cue core.Segment, explain func(), saved bool, save func()) []nsdesktop.MenuItem {
+	saveLabel := locales.SavedKeySaveLine(cx)
+	if saved {
+		saveLabel = locales.SavedRemoveLine(cx)
+	}
 	items := []nsdesktop.MenuItem{
 		{Label: locales.FilmExplainLine(cx), OnSelect: explain},
+		{Label: saveLabel, OnSelect: save},
 		{Separator: true},
 		{Label: locales.FilmCopyLine(cx), OnSelect: func() { cx.SetClipboard(LineText(cue.Text)) }},
 	}

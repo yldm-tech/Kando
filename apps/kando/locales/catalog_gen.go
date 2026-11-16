@@ -609,6 +609,16 @@ var Parameters = map[string][]string{
 	"QueueYtdlpUpdated":                  {"version", "count"},
 	"ReadinessDownloadingTools":          {"tools"},
 	"ReadinessMissingTools":              {"tools"},
+	"SavedCount":                         {"count"},
+	"SavedExportFailed":                  {"error_"},
+	"SavedExported":                      {"count"},
+	"SavedExportedNoAudio":               {"count"},
+	"SavedExporting":                     {"done", "total"},
+	"SavedReviewDone":                    {"count"},
+	"SavedReviewDue":                     {"count"},
+	"SavedReviewLeft":                    {"count"},
+	"SavedWhere":                         {"film", "time_"},
+	"SavedWhereGone":                     {"film", "time_"},
 	"SettingsAIEveryAPIFailed":           {"error_"},
 	"SettingsAIEveryAPIOpenFailed":       {"error_"},
 	"SettingsAILocalService":             {"name"},
@@ -848,6 +858,16 @@ type Translation struct {
 	QueueYtdlpUpdated                  func(version string, count int) string
 	ReadinessDownloadingTools          func(tools string) string
 	ReadinessMissingTools              func(tools string) string
+	SavedCount                         func(count int) string
+	SavedExportFailed                  func(error_ string) string
+	SavedExported                      func(count int) string
+	SavedExportedNoAudio               func(count int) string
+	SavedExporting                     func(done int, total int) string
+	SavedReviewDone                    func(count int) string
+	SavedReviewDue                     func(count int) string
+	SavedReviewLeft                    func(count int) string
+	SavedWhere                         func(film string, time_ string) string
+	SavedWhereGone                     func(film string, time_ string) string
 	SettingsAIEveryAPIFailed           func(error_ string) string
 	SettingsAIEveryAPIOpenFailed       func(error_ string) string
 	SettingsAILocalService             func(name string) string
@@ -1474,6 +1494,27 @@ const (
 	textReadinessCheckingSignIn
 	textReadinessCheckingTools
 	textReadinessReady
+	textSavedDone
+	textSavedEmpty
+	textSavedExport
+	textSavedKeySaveLine
+	textSavedMark
+	textSavedMenuItem
+	textSavedNoneInFilm
+	textSavedOsdRemoved
+	textSavedOsdSaved
+	textSavedReadFailed
+	textSavedRemoveLine
+	textSavedReviewAgain
+	textSavedReviewGood
+	textSavedReviewMenuItem
+	textSavedReviewNoAudio
+	textSavedReviewNothingDue
+	textSavedReviewReplay
+	textSavedReviewShow
+	textSavedReviewTitle
+	textSavedTitle
+	textSavedWriteFailed
 	textSettingsAIBlurbCustom
 	textSettingsAIBlurbDashScope
 	textSettingsAIBlurbDeepSeek
@@ -2317,6 +2358,27 @@ var keyOfText = [numTexts]string{
 	"readinessCheckingSignIn",
 	"readinessCheckingTools",
 	"readinessReady",
+	"savedDone",
+	"savedEmpty",
+	"savedExport",
+	"savedKeySaveLine",
+	"savedMark",
+	"savedMenuItem",
+	"savedNoneInFilm",
+	"savedOsdRemoved",
+	"savedOsdSaved",
+	"savedReadFailed",
+	"savedRemoveLine",
+	"savedReviewAgain",
+	"savedReviewGood",
+	"savedReviewMenuItem",
+	"savedReviewNoAudio",
+	"savedReviewNothingDue",
+	"savedReviewReplay",
+	"savedReviewShow",
+	"savedReviewTitle",
+	"savedTitle",
+	"savedWriteFailed",
 	"settingsAIBlurbCustom",
 	"settingsAIBlurbDashScope",
 	"settingsAIBlurbDeepSeek",
@@ -3158,6 +3220,27 @@ var textsEn = i18n.NewTexts(""+
 	"Checking the EveryAPI sign-in…"+
 	"Checking components…"+
 	"Ready to process"+
+	"Done"+
+	"No saved lines yet. Press B while a film plays to save the line you hear."+
+	"Export for Anki…"+
+	"Save Line"+
+	"Saved"+
+	"Saved Lines…"+
+	"No saved lines in this film"+
+	"Removed from Saved Lines"+
+	"Line Saved"+
+	"The saved lines of this library could not be read. They are left as they are, and lines saved now are not kept."+
+	"Remove from Saved Lines"+
+	"Again"+
+	"Good"+
+	"Review Saved Lines"+
+	"No audio"+
+	"No saved line is due for review."+
+	"Play Again"+
+	"Show Translation"+
+	"Review"+
+	"Saved Lines"+
+	"Couldn't keep the saved lines"+
 	"Any API compatible with OpenAI Chat Completions"+
 	"Alibaba Cloud DashScope's compatible API"+
 	"DeepSeek's OpenAI-compatible API"+
@@ -3996,6 +4079,27 @@ var textsEn = i18n.NewTexts(""+
 		32,
 		22,
 		16,
+		4,
+		73,
+		18,
+		9,
+		5,
+		14,
+		27,
+		24,
+		10,
+		111,
+		23,
+		5,
+		4,
+		18,
+		8,
+		32,
+		10,
+		16,
+		6,
+		11,
+		29,
 		47,
 		40,
 		32,
@@ -4837,6 +4941,27 @@ var textsJa = i18n.NewTexts(""+
 	"EveryAPI のログインを確認中…"+
 	"コンポーネントを確認中…"+
 	"準備ができました。処理を開始できます"+
+	"完了"+
+	"保存したセリフはまだありません。映画の再生中に B を押すと、聞いているセリフを保存できます。"+
+	"Anki に書き出す…"+
+	"このセリフを保存"+
+	"保存済み"+
+	"保存したセリフ…"+
+	"この映画に保存したセリフはありません"+
+	"保存を解除しました"+
+	"セリフを保存しました"+
+	"このライブラリの保存したセリフを読み込めませんでした。ファイルはそのままにし、今保存したセリフは残りません。"+
+	"保存を解除"+
+	"もう一度"+
+	"覚えた"+
+	"復習"+
+	"音声なし"+
+	"今復習するセリフはありません。"+
+	"もう一度聞く"+
+	"訳を表示"+
+	"復習"+
+	"保存したセリフ"+
+	"保存したセリフを書き込めませんでした"+
 	"OpenAI Chat Completions 互換の任意の API"+
 	"Alibaba Cloud DashScope の互換 API"+
 	"DeepSeek の OpenAI 互換 API"+
@@ -5674,6 +5799,27 @@ var textsJa = i18n.NewTexts(""+
 		66,
 		39,
 		36,
+		54,
+		6,
+		135,
+		23,
+		24,
+		12,
+		24,
+		54,
+		27,
+		30,
+		162,
+		15,
+		12,
+		9,
+		6,
+		12,
+		45,
+		18,
+		12,
+		6,
+		21,
 		54,
 		46,
 		37,
@@ -6516,6 +6662,27 @@ var textsKo = i18n.NewTexts(""+
 	"EveryAPI 로그인 확인 중…"+
 	"구성 요소 확인 중…"+
 	"준비되었습니다. 처리를 시작할 수 있습니다"+
+	"완료"+
+	"아직 저장한 대사가 없습니다. 영화를 재생하는 동안 B를 누르면 듣고 있는 대사를 저장합니다."+
+	"Anki로 내보내기…"+
+	"이 대사 저장"+
+	"저장됨"+
+	"저장한 대사…"+
+	"이 영화에 저장한 대사가 없습니다"+
+	"저장을 해제했습니다"+
+	"대사를 저장했습니다"+
+	"이 라이브러리의 저장한 대사를 읽을 수 없습니다. 파일은 그대로 두며, 지금 저장하는 대사는 남지 않습니다."+
+	"저장 해제"+
+	"다시"+
+	"알아요"+
+	"복습"+
+	"오디오 없음"+
+	"지금 복습할 대사가 없습니다."+
+	"다시 듣기"+
+	"번역 보기"+
+	"복습"+
+	"저장한 대사"+
+	"저장한 대사를 기록할 수 없습니다"+
 	"OpenAI Chat Completions와 호환되는 모든 API"+
 	"Alibaba Cloud DashScope 호환 API"+
 	"DeepSeek의 OpenAI 호환 API"+
@@ -7354,6 +7521,27 @@ var textsKo = i18n.NewTexts(""+
 		32,
 		27,
 		59,
+		6,
+		126,
+		23,
+		17,
+		9,
+		19,
+		46,
+		28,
+		28,
+		146,
+		13,
+		6,
+		9,
+		6,
+		16,
+		40,
+		13,
+		13,
+		6,
+		16,
+		46,
 		50,
 		34,
 		29,
@@ -8195,6 +8383,27 @@ var textsZhHans = i18n.NewTexts(""+
 	"正在检查 EveryAPI 登录…"+
 	"正在检查组件…"+
 	"已就绪，可以开始处理"+
+	"完成"+
+	"还没有收藏的句子。播放影片时按 B 即可收藏正在听的这句。"+
+	"导出到 Anki…"+
+	"收藏这句"+
+	"已收藏"+
+	"收藏的句子…"+
+	"这部影片还没有收藏的句子"+
+	"已取消收藏"+
+	"已收藏这句"+
+	"无法读取此资料库收藏的句子。文件保持原样，现在收藏的句子不会保存。"+
+	"取消收藏"+
+	"再来一次"+
+	"记住了"+
+	"复习"+
+	"没有音频"+
+	"目前没有要复习的句子。"+
+	"再听一遍"+
+	"显示译文"+
+	"复习"+
+	"收藏的句子"+
+	"无法保存收藏的句子"+
 	"任何兼容 OpenAI Chat Completions 的接口"+
 	"阿里云 DashScope 兼容接口"+
 	"DeepSeek 的 OpenAI 兼容接口"+
@@ -9033,6 +9242,27 @@ var textsZhHans = i18n.NewTexts(""+
 		31,
 		21,
 		30,
+		6,
+		81,
+		17,
+		12,
+		9,
+		18,
+		36,
+		15,
+		15,
+		99,
+		12,
+		12,
+		9,
+		6,
+		12,
+		33,
+		12,
+		12,
+		6,
+		15,
+		27,
 		46,
 		32,
 		32,
@@ -9874,6 +10104,27 @@ var textsZhHant = i18n.NewTexts(""+
 	"正在檢查 EveryAPI 登入…"+
 	"正在檢查元件…"+
 	"已就緒，可以開始處理"+
+	"完成"+
+	"還沒有收藏的句子。播放影片時按 B 即可收藏正在聽的這句。"+
+	"匯出到 Anki…"+
+	"收藏這句"+
+	"已收藏"+
+	"收藏的句子…"+
+	"這部影片還沒有收藏的句子"+
+	"已取消收藏"+
+	"已收藏這句"+
+	"無法讀取此資料庫收藏的句子。檔案保持原樣，現在收藏的句子不會儲存。"+
+	"取消收藏"+
+	"再來一次"+
+	"記住了"+
+	"複習"+
+	"沒有音訊"+
+	"目前沒有要複習的句子。"+
+	"再聽一遍"+
+	"顯示譯文"+
+	"複習"+
+	"收藏的句子"+
+	"無法儲存收藏的句子"+
 	"任何相容 OpenAI Chat Completions 的介面"+
 	"阿里雲 DashScope 相容介面"+
 	"DeepSeek 的 OpenAI 相容介面"+
@@ -10712,6 +10963,27 @@ var textsZhHant = i18n.NewTexts(""+
 		31,
 		21,
 		30,
+		6,
+		81,
+		17,
+		12,
+		9,
+		18,
+		36,
+		15,
+		15,
+		99,
+		12,
+		12,
+		9,
+		6,
+		12,
+		33,
+		12,
+		12,
+		6,
+		15,
+		27,
 		46,
 		32,
 		32,
@@ -11589,6 +11861,36 @@ func Supply(lang string, t Translation) {
 	}
 	if t.ReadinessMissingTools != nil {
 		s.ReadinessMissingTools = t.ReadinessMissingTools
+	}
+	if t.SavedCount != nil {
+		s.SavedCount = t.SavedCount
+	}
+	if t.SavedExportFailed != nil {
+		s.SavedExportFailed = t.SavedExportFailed
+	}
+	if t.SavedExported != nil {
+		s.SavedExported = t.SavedExported
+	}
+	if t.SavedExportedNoAudio != nil {
+		s.SavedExportedNoAudio = t.SavedExportedNoAudio
+	}
+	if t.SavedExporting != nil {
+		s.SavedExporting = t.SavedExporting
+	}
+	if t.SavedReviewDone != nil {
+		s.SavedReviewDone = t.SavedReviewDone
+	}
+	if t.SavedReviewDue != nil {
+		s.SavedReviewDue = t.SavedReviewDue
+	}
+	if t.SavedReviewLeft != nil {
+		s.SavedReviewLeft = t.SavedReviewLeft
+	}
+	if t.SavedWhere != nil {
+		s.SavedWhere = t.SavedWhere
+	}
+	if t.SavedWhereGone != nil {
+		s.SavedWhereGone = t.SavedWhereGone
 	}
 	if t.SettingsAIEveryAPIFailed != nil {
 		s.SettingsAIEveryAPIFailed = t.SettingsAIEveryAPIFailed
@@ -23241,6 +23543,621 @@ func ReadinessReady(cx *core.Scope) string { return For(cx).ReadinessReady() }
 
 // ReadinessReady is the package's ReadinessReady in the language of msgs.
 func (msgs Messages) ReadinessReady() string { return msgs.text(textReadinessReady) }
+
+// SavedCount says "{count, plural, one {# line in this library} other {# lines in this library}}"
+// in the language the app shows under cx.
+//
+// Under the Saved Lines sheet's title: how many lines are saved in the open library.
+func SavedCount(cx *core.Scope, count int) string { return For(cx).SavedCount(count) }
+
+// SavedCount is the package's SavedCount in the language of msgs.
+func (msgs Messages) SavedCount(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedCount(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedCount; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line in this library")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines in this library")
+			}
+			return b.String()
+		case "ja":
+			return "このライブラリに " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return "이 라이브러리에 " + i18n.FormatNumber("ko", float64(count)) + "개"
+		case "zh-Hans":
+			return "此资料库中共 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return "此資料庫中共 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// SavedDone says "Done"
+// in the language the app shows under cx.
+//
+// Button that closes the Saved Lines sheet.
+func SavedDone(cx *core.Scope) string { return For(cx).SavedDone() }
+
+// SavedDone is the package's SavedDone in the language of msgs.
+func (msgs Messages) SavedDone() string { return msgs.text(textSavedDone) }
+
+// SavedEmpty says "No saved lines yet. Press B while a film plays to save the line you hear."
+// in the language the app shows under cx.
+//
+// The Saved Lines sheet with no lines saved: how to save one.
+func SavedEmpty(cx *core.Scope) string { return For(cx).SavedEmpty() }
+
+// SavedEmpty is the package's SavedEmpty in the language of msgs.
+func (msgs Messages) SavedEmpty() string { return msgs.text(textSavedEmpty) }
+
+// SavedExport says "Export for Anki…"
+// in the language the app shows under cx.
+//
+// File menu item and button of the Saved Lines sheet: writes the saved lines, with each line's audio, into a folder the user picks, as a text file Anki imports.
+func SavedExport(cx *core.Scope) string { return For(cx).SavedExport() }
+
+// SavedExport is the package's SavedExport in the language of msgs.
+func (msgs Messages) SavedExport() string { return msgs.text(textSavedExport) }
+
+// SavedExportFailed says "Couldn't export the saved lines: {error}"
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, when the export failed, with the system's reason.
+func SavedExportFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SavedExportFailed(error_)
+}
+
+// SavedExportFailed is the package's SavedExportFailed in the language of msgs.
+func (msgs Messages) SavedExportFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't export the saved lines: " + msgs.arg(error_)
+		case "ja":
+			return "保存したセリフを書き出せませんでした：" + error_
+		case "ko":
+			return "저장한 대사를 내보낼 수 없습니다: " + error_
+		case "zh-Hans":
+			return "无法导出收藏的句子：" + error_
+		case "zh-Hant":
+			return "無法匯出收藏的句子：" + error_
+		}
+	}
+}
+
+// SavedExported says "{count, plural, one {Exported # line with its audio.} other {Exported # lines with their audio.}} Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once the export is done: what it wrote and how to bring it into Anki. The quoted names are the export's folder and file, which are not translated.
+func SavedExported(cx *core.Scope, count int) string { return For(cx).SavedExported(count) }
+
+// SavedExported is the package's SavedExported in the language of msgs.
+func (msgs Messages) SavedExported(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExported(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExported; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line with its audio.")
+			default:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines with their audio.")
+			}
+			b.WriteString(" Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件のセリフを音声付きで書き出しました。「Kando Saved Lines audio」のファイルを Anki の collection.media フォルダにコピーしてから、Anki で「Kando Saved Lines.txt」を読み込んでください。"
+		case "ko":
+			return "대사 " + i18n.FormatNumber("ko", float64(count)) + "개를 오디오와 함께 내보냈습니다. ‘Kando Saved Lines audio’의 파일을 Anki의 collection.media 폴더에 복사한 다음 Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
+		case "zh-Hans":
+			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句及其音频。把“Kando Saved Lines audio”里的文件拷贝到 Anki 的 collection.media 文件夹，再在 Anki 中导入“Kando Saved Lines.txt”。"
+		case "zh-Hant":
+			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句及其音訊。把「Kando Saved Lines audio」裡的檔案拷貝到 Anki 的 collection.media 檔案夾，再在 Anki 中匯入「Kando Saved Lines.txt」。"
+		}
+	}
+}
+
+// SavedExportedNoAudio says "{count, plural, one {Exported # line without audio,} other {Exported # lines without audio,}} as ffmpeg is not installed or the videos are not in the library. Import “Kando Saved Lines.txt” in Anki."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export is done that could cut no audio. The quoted name is the export's file, which is not translated.
+func SavedExportedNoAudio(cx *core.Scope, count int) string {
+	return For(cx).SavedExportedNoAudio(count)
+}
+
+// SavedExportedNoAudio is the package's SavedExportedNoAudio in the language of msgs.
+func (msgs Messages) SavedExportedNoAudio(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportedNoAudio(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportedNoAudio; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line without audio,")
+			default:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines without audio,")
+			}
+			b.WriteString(" as ffmpeg is not installed or the videos are not in the library. Import “Kando Saved Lines.txt” in Anki.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件のセリフを音声なしで書き出しました。ffmpeg がインストールされていないか、映画がライブラリにありません。Anki で「Kando Saved Lines.txt」を読み込んでください。"
+		case "ko":
+			return "대사 " + i18n.FormatNumber("ko", float64(count)) + "개를 오디오 없이 내보냈습니다. ffmpeg가 설치되어 있지 않거나 영화가 라이브러리에 없습니다. Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
+		case "zh-Hans":
+			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句，但没有音频：未安装 ffmpeg，或影片已不在资料库中。在 Anki 中导入“Kando Saved Lines.txt”即可。"
+		case "zh-Hant":
+			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句，但沒有音訊：未安裝 ffmpeg，或影片已不在資料庫中。在 Anki 中匯入「Kando Saved Lines.txt」即可。"
+		}
+	}
+}
+
+// SavedExporting says "Exporting {done} of {total}…"
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, while the export runs: how many lines it has written of all of them.
+func SavedExporting(cx *core.Scope, done int, total int) string {
+	return For(cx).SavedExporting(done, total)
+}
+
+// SavedExporting is the package's SavedExporting in the language of msgs.
+func (msgs Messages) SavedExporting(done int, total int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExporting(done, total))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExporting; f != nil {
+			return f(done, total)
+		}
+		switch lang {
+		case "", "en":
+			return "Exporting " + msgs.arg(i18n.FormatNumber("en", float64(done))) + " of " + msgs.arg(i18n.FormatNumber("en", float64(total))) + "…"
+		case "ja":
+			return "書き出し中 " + i18n.FormatNumber("ja", float64(done)) + "/" + i18n.FormatNumber("ja", float64(total)) + "…"
+		case "ko":
+			return "내보내는 중 " + i18n.FormatNumber("ko", float64(done)) + "/" + i18n.FormatNumber("ko", float64(total)) + "…"
+		case "zh-Hans":
+			return "正在导出 " + i18n.FormatNumber("zh-Hans", float64(done)) + "/" + i18n.FormatNumber("zh-Hans", float64(total)) + "…"
+		case "zh-Hant":
+			return "正在匯出 " + i18n.FormatNumber("zh-Hant", float64(done)) + "/" + i18n.FormatNumber("zh-Hant", float64(total)) + "…"
+		}
+	}
+}
+
+// SavedKeySaveLine says "Save Line"
+// in the language the app shows under cx.
+//
+// Study menu item and shortcut row (B), checked while the line playing is saved; also the item of a subtitle line's right-click menu and the button under the line the film is held on: keeps the line among the saved lines, for review and export.
+func SavedKeySaveLine(cx *core.Scope) string { return For(cx).SavedKeySaveLine() }
+
+// SavedKeySaveLine is the package's SavedKeySaveLine in the language of msgs.
+func (msgs Messages) SavedKeySaveLine() string { return msgs.text(textSavedKeySaveLine) }
+
+// SavedMark says "Saved"
+// in the language the app shows under cx.
+//
+// Said of a subtitle line that is among the saved lines: the label of the button under the held line once it is saved (pressing it removes it), and what the accessible name of a saved row of the subtitle list adds.
+func SavedMark(cx *core.Scope) string { return For(cx).SavedMark() }
+
+// SavedMark is the package's SavedMark in the language of msgs.
+func (msgs Messages) SavedMark() string { return msgs.text(textSavedMark) }
+
+// SavedMenuItem says "Saved Lines…"
+// in the language the app shows under cx.
+//
+// Study menu item: opens the sheet listing the lines saved in the library.
+func SavedMenuItem(cx *core.Scope) string { return For(cx).SavedMenuItem() }
+
+// SavedMenuItem is the package's SavedMenuItem in the language of msgs.
+func (msgs Messages) SavedMenuItem() string { return msgs.text(textSavedMenuItem) }
+
+// SavedNoneInFilm says "No saved lines in this film"
+// in the language the app shows under cx.
+//
+// Note in the player's subtitle list while it shows the saved lines alone (the Saved chip) and the film has none, as after the last one was removed.
+func SavedNoneInFilm(cx *core.Scope) string { return For(cx).SavedNoneInFilm() }
+
+// SavedNoneInFilm is the package's SavedNoneInFilm in the language of msgs.
+func (msgs Messages) SavedNoneInFilm() string { return msgs.text(textSavedNoneInFilm) }
+
+// SavedOsdRemoved says "Removed from Saved Lines"
+// in the language the app shows under cx.
+//
+// Message on the picture after a saved subtitle line was taken out of the saved lines (B again).
+func SavedOsdRemoved(cx *core.Scope) string { return For(cx).SavedOsdRemoved() }
+
+// SavedOsdRemoved is the package's SavedOsdRemoved in the language of msgs.
+func (msgs Messages) SavedOsdRemoved() string { return msgs.text(textSavedOsdRemoved) }
+
+// SavedOsdSaved says "Line Saved"
+// in the language the app shows under cx.
+//
+// Message on the picture after a subtitle line was saved (B).
+func SavedOsdSaved(cx *core.Scope) string { return For(cx).SavedOsdSaved() }
+
+// SavedOsdSaved is the package's SavedOsdSaved in the language of msgs.
+func (msgs Messages) SavedOsdSaved() string { return msgs.text(textSavedOsdSaved) }
+
+// SavedReadFailed says "The saved lines of this library could not be read. They are left as they are, and lines saved now are not kept."
+// in the language the app shows under cx.
+//
+// Message bar text when the library's saved-lines.json is there but cannot be read; Kando does not write over it.
+func SavedReadFailed(cx *core.Scope) string { return For(cx).SavedReadFailed() }
+
+// SavedReadFailed is the package's SavedReadFailed in the language of msgs.
+func (msgs Messages) SavedReadFailed() string { return msgs.text(textSavedReadFailed) }
+
+// SavedRemoveLine says "Remove from Saved Lines"
+// in the language the app shows under cx.
+//
+// Item of a saved subtitle line's right-click menu in the player's side panel: takes the line out of the saved lines.
+func SavedRemoveLine(cx *core.Scope) string { return For(cx).SavedRemoveLine() }
+
+// SavedRemoveLine is the package's SavedRemoveLine in the language of msgs.
+func (msgs Messages) SavedRemoveLine() string { return msgs.text(textSavedRemoveLine) }
+
+// SavedReviewAgain says "Again"
+// in the language the app shows under cx.
+//
+// Review button (1): the learner did not know the line, which comes back before the review ends.
+func SavedReviewAgain(cx *core.Scope) string { return For(cx).SavedReviewAgain() }
+
+// SavedReviewAgain is the package's SavedReviewAgain in the language of msgs.
+func (msgs Messages) SavedReviewAgain() string { return msgs.text(textSavedReviewAgain) }
+
+// SavedReviewDone says "{count, plural, one {Reviewed # line.} other {Reviewed # lines.}} Each comes back when it is due."
+// in the language the app shows under cx.
+//
+// Review, once no line is left: how many were reviewed.
+func SavedReviewDone(cx *core.Scope, count int) string { return For(cx).SavedReviewDone(count) }
+
+// SavedReviewDone is the package's SavedReviewDone in the language of msgs.
+func (msgs Messages) SavedReviewDone(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedReviewDone(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedReviewDone; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Reviewed ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line.")
+			default:
+				b.WriteString("Reviewed ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines.")
+			}
+			b.WriteString(" Each comes back when it is due.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(count)) + " 件を復習しました。期日が来たらまた出てきます。"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개를 복습했습니다. 기한이 되면 다시 나옵니다."
+		case "zh-Hans":
+			return "已复习 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句，到期时会再出现。"
+		case "zh-Hant":
+			return "已複習 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句，到期時會再出現。"
+		}
+	}
+}
+
+// SavedReviewDue says "{count, plural, =0 {Nothing to Review} one {Review # Line} other {Review # Lines}}"
+// in the language the app shows under cx.
+//
+// Button of the Saved Lines sheet that starts the review of the lines due, with how many are due; off when none is.
+func SavedReviewDue(cx *core.Scope, count int) string { return For(cx).SavedReviewDue(count) }
+
+// SavedReviewDue is the package's SavedReviewDue in the language of msgs.
+func (msgs Messages) SavedReviewDue(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedReviewDue(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedReviewDue; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("Nothing to Review")
+			default:
+				switch i18n.Cardinal("en", float64(count)) {
+				case i18n.One:
+					b.WriteString("Review ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Line")
+				default:
+					b.WriteString("Review ")
+					b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+					b.WriteString(" Lines")
+				}
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("復習するものはありません")
+			default:
+				switch i18n.Cardinal("ja", float64(count)) {
+				default:
+					b.WriteString(i18n.FormatNumber("ja", float64(count)))
+					b.WriteString(" 件を復習")
+				}
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("복습할 것 없음")
+			default:
+				switch i18n.Cardinal("ko", float64(count)) {
+				default:
+					b.WriteString(i18n.FormatNumber("ko", float64(count)))
+					b.WriteString("개 복습")
+				}
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("没有要复习的")
+			default:
+				switch i18n.Cardinal("zh-Hans", float64(count)) {
+				default:
+					b.WriteString("复习 ")
+					b.WriteString(i18n.FormatNumber("zh-Hans", float64(count)))
+					b.WriteString(" 句")
+				}
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch {
+			case count == 0:
+				b.WriteString("沒有要複習的")
+			default:
+				switch i18n.Cardinal("zh-Hant", float64(count)) {
+				default:
+					b.WriteString("複習 ")
+					b.WriteString(i18n.FormatNumber("zh-Hant", float64(count)))
+					b.WriteString(" 句")
+				}
+			}
+			return b.String()
+		}
+	}
+}
+
+// SavedReviewGood says "Good"
+// in the language the app shows under cx.
+//
+// Review button (2): the learner knew the line, which comes back later each time.
+func SavedReviewGood(cx *core.Scope) string { return For(cx).SavedReviewGood() }
+
+// SavedReviewGood is the package's SavedReviewGood in the language of msgs.
+func (msgs Messages) SavedReviewGood() string { return msgs.text(textSavedReviewGood) }
+
+// SavedReviewLeft says "{count, plural, one {# line left} other {# lines left}}"
+// in the language the app shows under cx.
+//
+// Beside the review's title: how many lines are left to review, the one shown with them.
+func SavedReviewLeft(cx *core.Scope, count int) string { return For(cx).SavedReviewLeft(count) }
+
+// SavedReviewLeft is the package's SavedReviewLeft in the language of msgs.
+func (msgs Messages) SavedReviewLeft(count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedReviewLeft(count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedReviewLeft; f != nil {
+			return f(count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" line left")
+			default:
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" lines left")
+			}
+			return b.String()
+		case "ja":
+			return "残り " + i18n.FormatNumber("ja", float64(count)) + " 件"
+		case "ko":
+			return i18n.FormatNumber("ko", float64(count)) + "개 남음"
+		case "zh-Hans":
+			return "还剩 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句"
+		case "zh-Hant":
+			return "還剩 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句"
+		}
+	}
+}
+
+// SavedReviewMenuItem says "Review Saved Lines"
+// in the language the app shows under cx.
+//
+// Study menu item and shortcut row (N): reviews the saved lines that are due, one at a time.
+func SavedReviewMenuItem(cx *core.Scope) string { return For(cx).SavedReviewMenuItem() }
+
+// SavedReviewMenuItem is the package's SavedReviewMenuItem in the language of msgs.
+func (msgs Messages) SavedReviewMenuItem() string { return msgs.text(textSavedReviewMenuItem) }
+
+// SavedReviewNoAudio says "No audio"
+// in the language the app shows under cx.
+//
+// Review, in place of Play Again, for a line whose audio cannot be had: ffmpeg is not installed, the video is gone, or cutting it failed.
+func SavedReviewNoAudio(cx *core.Scope) string { return For(cx).SavedReviewNoAudio() }
+
+// SavedReviewNoAudio is the package's SavedReviewNoAudio in the language of msgs.
+func (msgs Messages) SavedReviewNoAudio() string { return msgs.text(textSavedReviewNoAudio) }
+
+// SavedReviewNothingDue says "No saved line is due for review."
+// in the language the app shows under cx.
+//
+// Review opened with no saved line due.
+func SavedReviewNothingDue(cx *core.Scope) string { return For(cx).SavedReviewNothingDue() }
+
+// SavedReviewNothingDue is the package's SavedReviewNothingDue in the language of msgs.
+func (msgs Messages) SavedReviewNothingDue() string { return msgs.text(textSavedReviewNothingDue) }
+
+// SavedReviewReplay says "Play Again"
+// in the language the app shows under cx.
+//
+// Review button (R): plays the line's audio again from its start.
+func SavedReviewReplay(cx *core.Scope) string { return For(cx).SavedReviewReplay() }
+
+// SavedReviewReplay is the package's SavedReviewReplay in the language of msgs.
+func (msgs Messages) SavedReviewReplay() string { return msgs.text(textSavedReviewReplay) }
+
+// SavedReviewShow says "Show Translation"
+// in the language the app shows under cx.
+//
+// Review button (Space): shows the translation of the line under review.
+func SavedReviewShow(cx *core.Scope) string { return For(cx).SavedReviewShow() }
+
+// SavedReviewShow is the package's SavedReviewShow in the language of msgs.
+func (msgs Messages) SavedReviewShow() string { return msgs.text(textSavedReviewShow) }
+
+// SavedReviewTitle says "Review"
+// in the language the app shows under cx.
+//
+// Title of the review of the saved lines.
+func SavedReviewTitle(cx *core.Scope) string { return For(cx).SavedReviewTitle() }
+
+// SavedReviewTitle is the package's SavedReviewTitle in the language of msgs.
+func (msgs Messages) SavedReviewTitle() string { return msgs.text(textSavedReviewTitle) }
+
+// SavedTitle says "Saved Lines"
+// in the language the app shows under cx.
+//
+// Title of the sheet listing the lines saved in the library.
+func SavedTitle(cx *core.Scope) string { return For(cx).SavedTitle() }
+
+// SavedTitle is the package's SavedTitle in the language of msgs.
+func (msgs Messages) SavedTitle() string { return msgs.text(textSavedTitle) }
+
+// SavedWhere says "{film} · {time}"
+// in the language the app shows under cx.
+//
+// Over a saved line in the Saved Lines sheet: its film and where in it the line starts.
+func SavedWhere(cx *core.Scope, film string, time_ string) string {
+	return For(cx).SavedWhere(film, time_)
+}
+
+// SavedWhere is the package's SavedWhere in the language of msgs.
+func (msgs Messages) SavedWhere(film string, time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedWhere(film, time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedWhere; f != nil {
+			return f(film, time_)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(film) + " · " + msgs.arg(time_)
+		case "ja":
+			return film + " · " + time_
+		case "ko":
+			return film + " · " + time_
+		case "zh-Hans":
+			return film + " · " + time_
+		case "zh-Hant":
+			return film + " · " + time_
+		}
+	}
+}
+
+// SavedWhereGone says "{film} · {time} · Not in the library"
+// in the language the app shows under cx.
+//
+// Over a saved line in the Saved Lines sheet whose video is no longer in the library, so it does not play.
+func SavedWhereGone(cx *core.Scope, film string, time_ string) string {
+	return For(cx).SavedWhereGone(film, time_)
+}
+
+// SavedWhereGone is the package's SavedWhereGone in the language of msgs.
+func (msgs Messages) SavedWhereGone(film string, time_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedWhereGone(film, time_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedWhereGone; f != nil {
+			return f(film, time_)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(film) + " · " + msgs.arg(time_) + " · Not in the library"
+		case "ja":
+			return film + " · " + time_ + " · ライブラリにありません"
+		case "ko":
+			return film + " · " + time_ + " · 라이브러리에 없음"
+		case "zh-Hans":
+			return film + " · " + time_ + " · 已不在资料库中"
+		case "zh-Hant":
+			return film + " · " + time_ + " · 已不在資料庫中"
+		}
+	}
+}
+
+// SavedWriteFailed says "Couldn't keep the saved lines"
+// in the language the app shows under cx.
+//
+// Message on the picture when the saved lines could not be written to the library folder.
+func SavedWriteFailed(cx *core.Scope) string { return For(cx).SavedWriteFailed() }
+
+// SavedWriteFailed is the package's SavedWriteFailed in the language of msgs.
+func (msgs Messages) SavedWriteFailed() string { return msgs.text(textSavedWriteFailed) }
 
 // SettingsAIBlurbCustom says "Any API compatible with OpenAI Chat Completions"
 // in the language the app shows under cx.

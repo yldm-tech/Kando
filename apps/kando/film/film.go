@@ -144,6 +144,12 @@ type App interface {
 	FeedbackSubtitles()
 	// ExplainLine has the AI service explain cue i, its meaning, key words and grammar, in the command palette.
 	ExplainLine(i int)
+	// LineSaved reports whether cue i is among the lines the learner saved; ToggleSaveLine saves it, or removes it from them, and says which on the picture.
+	LineSaved(i int) bool
+	ToggleSaveLine(i int)
+	// SavedLines is the indexes of the cues saved, in order. SavedOnly is whether the subtitle list shows them alone.
+	SavedLines() []int
+	SavedOnly() *bool
 }
 
 // Video is what the system's player plays and how. Source is "" while there is nothing to play, as while a video the system cannot open is copied into one it can (Remux).

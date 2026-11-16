@@ -2172,7 +2172,7 @@ func TestCopyCurrentLineWaitsForTheSubtitles(t *testing.T) {
 	}
 }
 
-// TestCueMenuCopiesTheLine right-clicks lines of the side panel's subtitle list: a bilingual line offers to explain it first, then its two lines together, its original and its translation, each put on the clipboard as chosen, and a line without a translation offers only itself; copying is no seek.
+// TestCueMenuCopiesTheLine right-clicks lines of the side panel's subtitle list: a bilingual line offers to explain it and to save it first, then its two lines together, its original and its translation, each put on the clipboard as chosen, and a line without a translation offers only itself; copying is no seek.
 func TestCueMenuCopiesTheLine(t *testing.T) {
 	_, tt, _ := playerOpen(t)
 	copyFrom := func(line, item, want string) {
@@ -2189,7 +2189,7 @@ func TestCueMenuCopiesTheLine(t *testing.T) {
 	for _, it := range tt.PopupMenu {
 		labels = append(labels, it.Label)
 	}
-	if want := []string{"讲解这句", "", "拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(labels, want) {
+	if want := []string{"讲解这句", "收藏这句", "", "拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(labels, want) {
 		t.Fatalf("the bilingual line's menu is %q, want %q", labels, want)
 	}
 	tt.ClosePopup()
