@@ -64,6 +64,10 @@ type App interface {
 	SetSourceFilter(source string)
 	// SourceCount is how many films of the open library come from source.
 	SourceCount(source string) int
+	// SpokenCounts is how many done films of the open library were heard in each language, those whose language is not known left out. SpokenFilter is the language the library page shows the films of, SpokenAll or whisper's code for one of them, which applies together with SourceFilter; SetSpokenFilter shows the library page filtered by it, keeping the source, and closes the open film.
+	SpokenCounts() []SpokenCount
+	SpokenFilter() string
+	SetSpokenFilter(code string)
 	// Query is what the search field holds: the library page shows the done films whose names hold it. SetQuery is what the user typed into it, which shows the library page, where the films found are, when another page shows. QueryFocus asks the field for the keyboard focus once, as ⌘F does; the field sets it back to false when it has taken the focus, or when it is not shown. SubmitQuery is Return in the field.
 	Query() *string
 	SetQuery(text string)
@@ -107,7 +111,7 @@ var (
 	gutterFill = ns.RGB(0xF0F2F6)
 )
 
-// View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
+// View is the sidebar: a column Width wide holding the card with the library switcher, the search field, the sources, the spoken languages and the status line. Its top row clears the traffic lights of a window with a hidden title bar and drags the window.
 type View struct {
 	App App
 }
@@ -134,7 +138,8 @@ func (v View) Render(cx *ns.Scope) ns.Node {
 			},
 			switcher{a},
 			search{a},
-			sources{a},
+			// The languages follow the sources, each list as tall as its rows, and the room left stays under them.
+			ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{sources{a}, languages{a}}},
 			ns.Show{
 				When: live.Func(a, func() bool { return a.SaveErr() != "" }),
 				Then: func(cx *ns.Scope) ns.Node {

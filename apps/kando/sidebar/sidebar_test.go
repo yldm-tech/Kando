@@ -29,6 +29,8 @@ type fakeApp struct {
 	filter    string
 	films     int
 	bySource  map[string]int
+	spoken    string
+	bySpoken  []SpokenCount
 	query     string
 	focus     bool
 	ready     Readiness
@@ -44,41 +46,48 @@ func newFakeApp() *fakeApp {
 		libraries: []string{"/films/我的影片.kando", "/films/课程.kando"},
 		counts:    map[string]int{"/films/课程.kando": 3},
 		filter:    SourceAll,
+		spoken:    SpokenAll,
 		films:     4,
 		bySource:  map[string]int{SourceAll: 4, SourceYouTube: 1, SourceBilibili: 1, SourceLocal: 2},
 		ready:     Readiness{State: Ready, Message: locales.ReadinessReady},
 	}
 }
 
-func (f *fakeApp) LibraryDir() string       { return f.dir }
-func (f *fakeApp) KnownLibraries() []string { return f.libraries }
-func (f *fakeApp) SaveErr() string          { return f.saveErr }
-func (f *fakeApp) Page() string             { return f.page }
-func (f *fakeApp) Select(page string)       { f.calls = append(f.calls, "select "+page); f.page = page }
-func (f *fakeApp) Choose(dir string)        { f.calls = append(f.calls, "choose "+dir); f.dir = dir }
-func (f *fakeApp) BeginNew()                { f.calls = append(f.calls, "new") }
-func (f *fakeApp) PickLibrary()             { f.calls = append(f.calls, "pick") }
-func (f *fakeApp) Reveal(path string)       { f.calls = append(f.calls, "reveal "+path) }
-func (f *fakeApp) Forget(dir string)        { f.calls = append(f.calls, "forget "+dir) }
-func (f *fakeApp) FilmCount() int           { return f.films }
-func (f *fakeApp) SourceFilter() string     { return f.filter }
-func (f *fakeApp) SourceCount(s string) int { return f.bySource[s] }
-func (f *fakeApp) Query() *string           { return &f.query }
-func (f *fakeApp) SetQuery(text string)     { f.query = text }
-func (f *fakeApp) QueryFocus() *bool        { return &f.focus }
-func (f *fakeApp) SubmitQuery()             { f.calls = append(f.calls, "submit "+f.query) }
-func (f *fakeApp) Readiness() Readiness     { return f.ready }
-func (f *fakeApp) PaletteButton() bool      { return f.paletteButton }
-func (f *fakeApp) PaletteKey() string       { return "mod+k" }
-func (f *fakeApp) TogglePalette()           { f.calls = append(f.calls, "palette") }
-func (f *fakeApp) Jobs() Jobs               { return f.jobs }
-func (f *fakeApp) ShowJobs()                { f.calls = append(f.calls, "jobs") }
+func (f *fakeApp) LibraryDir() string          { return f.dir }
+func (f *fakeApp) KnownLibraries() []string    { return f.libraries }
+func (f *fakeApp) SaveErr() string             { return f.saveErr }
+func (f *fakeApp) Page() string                { return f.page }
+func (f *fakeApp) Select(page string)          { f.calls = append(f.calls, "select "+page); f.page = page }
+func (f *fakeApp) Choose(dir string)           { f.calls = append(f.calls, "choose "+dir); f.dir = dir }
+func (f *fakeApp) BeginNew()                   { f.calls = append(f.calls, "new") }
+func (f *fakeApp) PickLibrary()                { f.calls = append(f.calls, "pick") }
+func (f *fakeApp) Reveal(path string)          { f.calls = append(f.calls, "reveal "+path) }
+func (f *fakeApp) Forget(dir string)           { f.calls = append(f.calls, "forget "+dir) }
+func (f *fakeApp) FilmCount() int              { return f.films }
+func (f *fakeApp) SourceFilter() string        { return f.filter }
+func (f *fakeApp) SourceCount(s string) int    { return f.bySource[s] }
+func (f *fakeApp) Query() *string              { return &f.query }
+func (f *fakeApp) SetQuery(text string)        { f.query = text }
+func (f *fakeApp) QueryFocus() *bool           { return &f.focus }
+func (f *fakeApp) SubmitQuery()                { f.calls = append(f.calls, "submit "+f.query) }
+func (f *fakeApp) Readiness() Readiness        { return f.ready }
+func (f *fakeApp) PaletteButton() bool         { return f.paletteButton }
+func (f *fakeApp) PaletteKey() string          { return "mod+k" }
+func (f *fakeApp) TogglePalette()              { f.calls = append(f.calls, "palette") }
+func (f *fakeApp) Jobs() Jobs                  { return f.jobs }
+func (f *fakeApp) ShowJobs()                   { f.calls = append(f.calls, "jobs") }
+func (f *fakeApp) SpokenCounts() []SpokenCount { return f.bySpoken }
+func (f *fakeApp) SpokenFilter() string        { return f.spoken }
 func (f *fakeApp) OpenSettings(section string) {
 	f.calls = append(f.calls, "settings "+section)
 }
 func (f *fakeApp) SetSourceFilter(source string) {
 	f.calls = append(f.calls, "filter "+source)
 	f.page, f.filter = PageFilms, source
+}
+func (f *fakeApp) SetSpokenFilter(code string) {
+	f.calls = append(f.calls, "spoken "+code)
+	f.page, f.spoken = PageFilms, code
 }
 func (f *fakeApp) LibraryCount(dir string) (int, bool) {
 	n, ok := f.counts[dir]
@@ -163,6 +172,74 @@ func TestChoosingASourceFiltersTheLibrary(t *testing.T) {
 	change(app, a, func() { a.page, a.filter = PageFilms, SourceLocal })
 	if !app.Find("id:source-" + SourceLocal).Props.Selected {
 		t.Errorf("%s is not chosen while the library shows it", SourceLocal)
+	}
+}
+
+// windowFrame is v's frame in the window's points, as its ancestors and their scroll offsets place it.
+func windowFrame(v *nsgotest.View) core.Bounds {
+	b := v.Frame
+	for p := v.Parent; p != nil; p = p.Parent {
+		b.Origin.X += p.Frame.Origin.X - p.Offset.X
+		b.Origin.Y += p.Frame.Origin.Y - p.Offset.Y
+	}
+	return b
+}
+
+// TestLanguagesShowWithMoreThanOne checks that the sidebar lists the languages heard in the library's films, each with its count, under 全部语言, right under the sources, only while there are films in more than one, and that choosing one filters the library by it, 全部语言 by none, with the row chosen following the filter on the library page only.
+func TestLanguagesShowWithMoreThanOne(t *testing.T) {
+	a := newFakeApp()
+	a.bySpoken = []SpokenCount{{Code: "ja", Count: 3}}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if app.Exists("id:sidebar-languages") {
+		t.Fatalf("languages listed with films heard in one: %q", app.Texts())
+	}
+	change(app, a, func() { a.bySpoken = []SpokenCount{{Code: "ja", Count: 3}, {Code: "en", Count: 1}} })
+	if !app.Exists(`text:"` + msgs.SidebarLanguages() + `"`) {
+		t.Fatalf("no %s heading in %q", msgs.SidebarLanguages(), app.Texts())
+	}
+	texts := app.Texts()
+	all, ja, en := slices.Index(texts, msgs.SidebarLanguagesAll()), slices.Index(texts, msgs.SettingsSpeechLanguageJa()), slices.Index(texts, msgs.SettingsSpeechLanguageEn())
+	if all < 0 || ja < all || en < ja {
+		t.Fatalf("languages out of order in %q", texts)
+	}
+	if got, want := app.Find("id:spoken-count-ja").Text, "3"; got != want {
+		t.Fatalf("日语 shows %q, want %q", got, want)
+	}
+	if got, want := app.Find("id:spoken-count-en").Text, "1"; got != want {
+		t.Fatalf("英语 shows %q, want %q", got, want)
+	}
+	if app.Exists("id:spoken-count-" + SpokenAll) {
+		t.Fatal("全部语言 shows a count")
+	}
+	// The languages follow the last source, with no room between them.
+	local, heading := windowFrame(app.Find("id:source-"+SourceLocal)), windowFrame(app.Find(`text:"`+msgs.SidebarLanguages()+`"`))
+	if gap := heading.Origin.Y - (local.Origin.Y + local.Size.Height); gap < 0 || gap > 40 {
+		t.Fatalf("the languages start %v below the last source", gap)
+	}
+	if !app.Find("id:spoken-" + SpokenAll).Props.Selected {
+		t.Fatal("全部语言 is not chosen while no language is")
+	}
+	app.Press("id:spoken-ja")
+	app.Press("id:spoken-ja")
+	app.Press("id:spoken-" + SpokenAll)
+	if want := []string{"spoken ja", "spoken " + SpokenAll}; !slices.Equal(a.calls, want) {
+		t.Fatalf("calls %q, want %q: the language already chosen does nothing", a.calls, want)
+	}
+	if a.filter != SourceAll {
+		t.Fatalf("choosing a language changed the source to %q", a.filter)
+	}
+	change(app, a, func() { a.spoken = "en" })
+	if !app.Find("id:spoken-en").Props.Selected || app.Find("id:spoken-"+SpokenAll).Props.Selected {
+		t.Fatal("英语 is not the row chosen while the library shows it")
+	}
+	change(app, a, func() { a.page = PageGeneral })
+	if app.Find("id:spoken-en").Props.Selected {
+		t.Fatal("a language is chosen on a settings page")
+	}
+	change(app, a, func() { a.bySpoken = a.bySpoken[:1] })
+	if app.Exists("id:sidebar-languages") {
+		t.Fatal("languages still listed once the films are heard in one")
 	}
 }
 

@@ -729,9 +729,11 @@ func (s *screen) chapterRow(cx *ns.Scope, index func() int, ch func() Chapter) n
 type infoState struct {
 	title, stage, language, spoken, folder, source, record string
 	files                                                  string
+	// speech is whether the film can be told the language spoken in it: a done film with a job (speechLanguage).
+	speech bool
 }
 
-// infoTab shows where the film is: its folder, the files in it and where it came from.
+// infoTab shows where the film is: its folder, the files in it and where it came from, and for a done film the language spoken in it, which the user can correct.
 func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 	a := s.a
 	// The tab is built again when the film's folder has been read, its job moved on or the language changed; it holds no field that keeps the focus.
@@ -751,7 +753,8 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 		if record == "" {
 			record = "~/Library/Application Support/Kando/library.json"
 		}
-		return infoState{title: title(item), stage: string(item.Stage), language: item.Language, spoken: item.Spoken, folder: folder, source: item.Source, record: record}
+		return infoState{title: title(item), stage: string(item.Stage), language: item.Language, spoken: item.Spoken, folder: folder, source: item.Source, record: record,
+			speech: item.JobID != "" && item.Stage == core.StageComplete}
 	})
 	return ns.Dynamic(func(cx *ns.Scope) ns.Node {
 		st := state()
@@ -763,6 +766,9 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 				infoChip(languagesName(cx, st.spoken, st.language)),
 			}},
 		}})}
+		if st.speech {
+			groups = append(groups, panelHeading(locales.FilmSpokenLanguage(cx)), panelGroup(s.speechLanguage(cx, st.spoken)))
+		}
 		if st.folder != "" {
 			groups = append(groups, panelHeading(locales.FilmFolder(cx)), panelGroup(ns.View{Style: ns.Style{Padding: ns.Symmetric(10, 12), Gap: 8}, Children: []ns.Node{
 				ns.View{Selectable: true, Children: []ns.Node{ns.Text{Content: displayPath(st.folder), Style: monoStyle(11, 16, 0.9)}}},

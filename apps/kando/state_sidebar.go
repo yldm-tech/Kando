@@ -10,6 +10,8 @@ import (
 type sidebarUI struct {
 	// filter is the source the sidebar shows: sidebar.SourceAll or one of the platforms of core.ParseLink.
 	filter string
+	// spoken is the language the sidebar shows the films of, sidebar.SpokenAll or whisper's code for one, together with filter; like filter it is not saved, and another library starts without it (SpokenFilter).
+	spoken string
 	// query is what the search field under the switcher holds: the library page shows the done films whose names hold it (films.ByTitle). It is not saved, and another library starts without it, as with filter. queryFocus asks the field for the keyboard focus once, as ⌘F does (sidebarSearch).
 	query      string
 	queryFocus bool
@@ -22,7 +24,7 @@ type sidebarUI struct {
 }
 
 func newSidebarUI() sidebarUI {
-	return sidebarUI{filter: sidebar.SourceAll}
+	return sidebarUI{filter: sidebar.SourceAll, spoken: sidebar.SpokenAll}
 }
 
 // savedSidebar is the sidebar's part of settings.json.

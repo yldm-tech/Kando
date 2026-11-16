@@ -99,6 +99,8 @@ type App interface {
 	JobFilm(id string) (Film, bool)
 	// SourceFilter is the sidebar source the page shows, sidebar.SourceAll or another sidebar.Source value.
 	SourceFilter() string
+	// SpokenFilter is the language heard in the done films the page shows, sidebar.SpokenAll or whisper's code for one, among those of SourceFilter.
+	SpokenFilter() string
 	// Enqueue adds a job for each source, a link or a local video's file:// URL, to the open library in the language the settings name, and runs them one after another. The error is why a source was not added.
 	Enqueue(sources ...string) error
 	// Cancel stops job id if it is waiting or running. Its card stays, marked 已取消. Enqueue, Cancel and RunningJob are the contract of the job queue; queue.go in the main package says how much of it runs today. Job control is per job: a page cancels the job it shows, never "whatever runs".
@@ -219,17 +221,18 @@ type shelfModel struct {
 	// heroShown is whether the hero shows, hero being its film.
 	heroShown bool
 	done      []Film
-	// empty is the page of a library that holds no film yet; emptySource that of a source no film comes from; query the search no done film matched, "" when it matched one or there is none.
+	// empty is the page of a library that holds no film yet; emptySource that of a source no film comes from; emptySpoken the language, whisper's code, that none of the source's done films was heard in, "" when one was or no language is chosen; query the search no done film matched, "" when it matched one or there is none.
 	empty, emptySource bool
+	emptySpoken        string
 	noMatch            string
 }
 
 func (m shelfModel) equal(o shelfModel) bool {
 	return slices.Equal(m.queue, o.queue) && m.hero == o.hero && m.heroShown == o.heroShown && slices.Equal(m.done, o.done) &&
-		m.empty == o.empty && m.emptySource == o.emptySource && m.noMatch == o.noMatch
+		m.empty == o.empty && m.emptySource == o.emptySource && m.emptySpoken == o.emptySpoken && m.noMatch == o.noMatch
 }
 
-// newShelfModel is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out; 处理中 shows every job still, so none seems to vanish while a search is on. tag is the interface's language, which orders the grid by title.
+// newShelfModel is what the library shows under the message bar: the hero, 处理中 and the done grid of the films from source, the grid only those heard in the language the sidebar chose (SpokenFilter), or what to do when there are none. 处理中 also holds the jobs the queue runs for other libraries, so a library with no film of its own shows them above what to do. While the search field holds a query, the grid shows only the done films whose names hold it, or says that none does, and the hero, which is no answer to a search, is left out, as it is while a language is chosen; 处理中 shows every job still, so none seems to vanish while a search is on. tag is the interface's language, which orders the grid by title.
 func newShelfModel(a App, source, tag string) shelfModel {
 	items := a.Films()
 	var m shelfModel
@@ -248,11 +251,17 @@ func newShelfModel(a App, source, tag string) shelfModel {
 		m.emptySource = true
 		return m
 	}
+	spoken := a.SpokenFilter()
+	heard := BySpoken(done, spoken)
+	if len(m.queue) == 0 && len(heard) == 0 {
+		m.emptySpoken = spoken
+		return m
+	}
 	query := strings.TrimSpace(*a.Query())
-	if query == "" && source == sidebar.SourceAll {
+	if query == "" && source == sidebar.SourceAll && spoken == sidebar.SpokenAll {
 		m.hero, m.heroShown = HeroFilm(a, done)
 	}
-	done = ByTitle(done, query)
+	done = ByTitle(heard, query)
 	m.done = Sorted(done, a.LibrarySort(), tag, a.PlayedAt)
 	if len(done) == 0 && query != "" {
 		m.noMatch = query
@@ -279,6 +288,9 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 		}},
 		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
 		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},
+		core.Show{When: func() bool { return model().emptySpoken != "" }, Then: func(*core.Scope) core.Node {
+			return emptySpoken{code: func() string { return model().emptySpoken }}
+		}},
 		core.Show{When: func() bool { return len(model().done) > 0 }, Then: func(*core.Scope) core.Node {
 			return grid{a: a, done: func() []Film { return model().done }}
 		}},

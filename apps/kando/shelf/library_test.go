@@ -420,16 +420,16 @@ func TestLibraryKeepsWhatAJobRedoes(t *testing.T) {
 	}
 }
 
-// TestLibraryKeepsTheSpokenLanguage checks that the language the transcription heard is kept with its job.
+// TestLibraryKeepsTheSpokenLanguage checks that the language the transcription heard, and the one the user said the video is spoken in, are kept with its job.
 func TestLibraryKeepsTheSpokenLanguage(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")
 	lib, _ := Load(path)
-	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, Language: "简体中文", SpokenLanguage: "ja"})
+	lib.Upsert(core.Job{ID: "a", Source: "https://www.youtube.com/watch?v=jNQXAC9IVRw", Stage: core.StageComplete, Language: "简体中文", SpokenLanguage: "ja", SpeechLanguage: "en"})
 	if err := lib.Save(); err != nil {
 		t.Fatal(err)
 	}
 	loaded, _ := Load(path)
-	if job := loaded.Jobs[0]; job.SpokenLanguage != "ja" || job.Language != "简体中文" {
+	if job := loaded.Jobs[0]; job.SpokenLanguage != "ja" || job.SpeechLanguage != "en" || job.Language != "简体中文" {
 		t.Fatalf("job %+v", job)
 	}
 }

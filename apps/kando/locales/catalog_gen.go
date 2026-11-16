@@ -465,6 +465,7 @@ var Parameters = map[string][]string{
 	"FilmSpeedRate":                      {"rate"},
 	"FilmStatusTranslated":               {"percent"},
 	"FilmSubtitlesMode":                  {"mode"},
+	"FilmTranscribeAgain":                {"language"},
 	"FilmsGridCount":                     {"count"},
 	"FilmsHeroKickerBilingual":           {"language"},
 	"FilmsHeroKickerContinueBilingual":   {"language"},
@@ -502,6 +503,7 @@ var Parameters = map[string][]string{
 	"FilmsSearchNoMatch":                 {"query"},
 	"FilmsShowInFinder":                  {"platform"},
 	"FilmsSortButton":                    {"order"},
+	"FilmsSpokenEmpty":                   {"language"},
 	"FilmsUntranslated":                  {"count"},
 	"KitsDownloadFailedStatus":           {"status"},
 	"LibraryAddedSome":                   {"count", "error_"},
@@ -704,6 +706,7 @@ type Translation struct {
 	FilmSpeedRate                      func(rate string) string
 	FilmStatusTranslated               func(percent int) string
 	FilmSubtitlesMode                  func(mode string) string
+	FilmTranscribeAgain                func(language string) string
 	FilmsGridCount                     func(count int) string
 	FilmsHeroKickerBilingual           func(language string) string
 	FilmsHeroKickerContinueBilingual   func(language string) string
@@ -741,6 +744,7 @@ type Translation struct {
 	FilmsSearchNoMatch                 func(query string) string
 	FilmsShowInFinder                  func(platform string) string
 	FilmsSortButton                    func(order string) string
+	FilmsSpokenEmpty                   func(language string) string
 	FilmsUntranslated                  func(count int) string
 	KitsDownloadFailedStatus           func(status int) string
 	LibraryAddedSome                   func(count int, error_ string) string
@@ -1099,6 +1103,8 @@ const (
 	textFilmSource
 	textFilmSpeed
 	textFilmSpeedNormal
+	textFilmSpokenLanguage
+	textFilmSpokenLanguageUnknown
 	textFilmStartProcessing
 	textFilmStyleColor
 	textFilmStyleFont
@@ -1696,6 +1702,8 @@ const (
 	textSidebarBrowse
 	textSidebarChooseLibrary
 	textSidebarCommands
+	textSidebarLanguages
+	textSidebarLanguagesAll
 	textSidebarLibrary
 	textSidebarMenuForget
 	textSidebarMenuNewLibrary
@@ -1942,6 +1950,8 @@ var keyOfText = [numTexts]string{
 	"filmSource",
 	"filmSpeed",
 	"filmSpeedNormal",
+	"filmSpokenLanguage",
+	"filmSpokenLanguageUnknown",
 	"filmStartProcessing",
 	"filmStyleColor",
 	"filmStyleFont",
@@ -2539,6 +2549,8 @@ var keyOfText = [numTexts]string{
 	"sidebarBrowse",
 	"sidebarChooseLibrary",
 	"sidebarCommands",
+	"sidebarLanguages",
+	"sidebarLanguagesAll",
 	"sidebarLibrary",
 	"sidebarMenuForget",
 	"sidebarMenuNewLibrary",
@@ -2783,6 +2795,8 @@ var textsEn = i18n.NewTexts(""+
 	"Source"+
 	"Speed"+
 	"Normal"+
+	"Spoken Language"+
+	"Unknown"+
 	"Start Processing"+
 	"Color"+
 	"Font"+
@@ -3380,6 +3394,8 @@ var textsEn = i18n.NewTexts(""+
 	"Browse"+
 	"Choose a Library"+
 	"Commands"+
+	"Languages"+
+	"All Languages"+
 	"Library"+
 	"Remove from List"+
 	"New Library…"+
@@ -3621,6 +3637,8 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		5,
 		6,
+		15,
+		7,
 		16,
 		5,
 		4,
@@ -4218,6 +4236,8 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		16,
 		8,
+		9,
+		13,
 		7,
 		16,
 		14,
@@ -4462,6 +4482,8 @@ var textsJa = i18n.NewTexts(""+
 	"ソース"+
 	"再生速度"+
 	"標準"+
+	"認識する言語"+
+	"不明"+
 	"処理を開始"+
 	"色"+
 	"フォント"+
@@ -5059,6 +5081,8 @@ var textsJa = i18n.NewTexts(""+
 	"ブラウザ"+
 	"ライブラリを選択"+
 	"コマンド"+
+	"言語"+
+	"すべての言語"+
 	"ライブラリ"+
 	"リストから取り除く"+
 	"新規ライブラリ…"+
@@ -5299,6 +5323,8 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		9,
 		12,
+		6,
+		18,
 		6,
 		15,
 		3,
@@ -5897,6 +5923,8 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		24,
 		12,
+		6,
+		18,
 		15,
 		27,
 		24,
@@ -6141,6 +6169,8 @@ var textsKo = i18n.NewTexts(""+
 	"출처"+
 	"재생 속도"+
 	"보통"+
+	"인식 언어"+
+	"알 수 없음"+
 	"처리 시작"+
 	"색상"+
 	"글꼴"+
@@ -6738,6 +6768,8 @@ var textsKo = i18n.NewTexts(""+
 	"브라우저"+
 	"라이브러리 선택"+
 	"명령"+
+	"언어"+
+	"모든 언어"+
 	"라이브러리"+
 	"목록에서 제거"+
 	"새 라이브러리…"+
@@ -6979,6 +7011,8 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		13,
 		6,
+		13,
+		14,
 		13,
 		6,
 		6,
@@ -7576,6 +7610,8 @@ var textsKo = i18n.NewTexts(""+
 		12,
 		22,
 		6,
+		6,
+		13,
 		15,
 		19,
 		22,
@@ -7820,6 +7856,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"来源"+
 	"播放速度"+
 	"正常"+
+	"识别语言"+
+	"未知"+
 	"开始处理"+
 	"颜色"+
 	"字体"+
@@ -8417,6 +8455,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"浏览"+
 	"选择资料库"+
 	"命令"+
+	"语言"+
+	"全部语言"+
 	"资料库"+
 	"从列表移出"+
 	"新建资料库..."+
@@ -8651,6 +8691,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		24,
 		6,
+		6,
+		12,
 		6,
 		12,
 		6,
@@ -9255,6 +9297,8 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		15,
 		6,
+		6,
+		12,
 		9,
 		15,
 		18,
@@ -9499,6 +9543,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"來源"+
 	"播放速度"+
 	"正常"+
+	"辨識語言"+
+	"未知"+
 	"開始處理"+
 	"顏色"+
 	"字體"+
@@ -10096,6 +10142,8 @@ var textsZhHant = i18n.NewTexts(""+
 	"瀏覽"+
 	"選擇資料庫"+
 	"指令"+
+	"語言"+
+	"全部語言"+
 	"資料庫"+
 	"從清單中移除"+
 	"新增資料庫…"+
@@ -10333,6 +10381,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		9,
+		12,
+		6,
 		12,
 		6,
 		12,
@@ -10934,6 +10984,8 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		15,
 		6,
+		6,
+		12,
 		9,
 		18,
 		18,
@@ -11158,6 +11210,9 @@ func Supply(lang string, t Translation) {
 	if t.FilmSubtitlesMode != nil {
 		s.FilmSubtitlesMode = t.FilmSubtitlesMode
 	}
+	if t.FilmTranscribeAgain != nil {
+		s.FilmTranscribeAgain = t.FilmTranscribeAgain
+	}
 	if t.FilmsGridCount != nil {
 		s.FilmsGridCount = t.FilmsGridCount
 	}
@@ -11268,6 +11323,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.FilmsSortButton != nil {
 		s.FilmsSortButton = t.FilmsSortButton
+	}
+	if t.FilmsSpokenEmpty != nil {
+		s.FilmsSpokenEmpty = t.FilmsSpokenEmpty
 	}
 	if t.FilmsUntranslated != nil {
 		s.FilmsUntranslated = t.FilmsUntranslated
@@ -14815,6 +14873,26 @@ func (msgs Messages) FilmSpeedRate(rate string) string {
 	}
 }
 
+// FilmSpokenLanguage says "Spoken Language"
+// in the language the app shows under cx.
+//
+// Heading in a done film's Info tab over the drop-down naming the language spoken in the film, which the speech recognition hears when the film is processed again, and that drop-down's name.
+func FilmSpokenLanguage(cx *core.Scope) string { return For(cx).FilmSpokenLanguage() }
+
+// FilmSpokenLanguage is the package's FilmSpokenLanguage in the language of msgs.
+func (msgs Messages) FilmSpokenLanguage() string { return msgs.text(textFilmSpokenLanguage) }
+
+// FilmSpokenLanguageUnknown says "Unknown"
+// in the language the app shows under cx.
+//
+// Shown in a film's Spoken Language drop-down when the speech recognition did not say which language it heard and the user named none.
+func FilmSpokenLanguageUnknown(cx *core.Scope) string { return For(cx).FilmSpokenLanguageUnknown() }
+
+// FilmSpokenLanguageUnknown is the package's FilmSpokenLanguageUnknown in the language of msgs.
+func (msgs Messages) FilmSpokenLanguageUnknown() string {
+	return msgs.text(textFilmSpokenLanguageUnknown)
+}
+
 // FilmStartProcessing says "Start Processing"
 // in the language the app shows under cx.
 //
@@ -15020,6 +15098,38 @@ func FilmTabStyle(cx *core.Scope) string { return For(cx).FilmTabStyle() }
 
 // FilmTabStyle is the package's FilmTabStyle in the language of msgs.
 func (msgs Messages) FilmTabStyle() string { return msgs.text(textFilmTabStyle) }
+
+// FilmTranscribeAgain says "Transcribe Again in {language}"
+// in the language the app shows under cx.
+//
+// Button in a film's Info tab, under the Spoken Language drop-down, shown when the language chosen there is not the one heard in the film: processes the film again, transcribing its speech in that language.
+func FilmTranscribeAgain(cx *core.Scope, language string) string {
+	return For(cx).FilmTranscribeAgain(language)
+}
+
+// FilmTranscribeAgain is the package's FilmTranscribeAgain in the language of msgs.
+func (msgs Messages) FilmTranscribeAgain(language string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmTranscribeAgain(language))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmTranscribeAgain; f != nil {
+			return f(language)
+		}
+		switch lang {
+		case "", "en":
+			return "Transcribe Again in " + msgs.arg(language)
+		case "ja":
+			return language + "で認識し直す"
+		case "ko":
+			return "다시 인식: " + language
+		case "zh-Hans":
+			return "用" + language + "重新识别"
+		case "zh-Hant":
+			return "用" + language + "重新辨識"
+		}
+	}
+}
 
 // FilmTranslateAgain says "Translate Again Into"
 // in the language the app shows under cx.
@@ -17035,6 +17145,38 @@ func FilmsSortWatched(cx *core.Scope) string { return For(cx).FilmsSortWatched()
 
 // FilmsSortWatched is the package's FilmsSortWatched in the language of msgs.
 func (msgs Messages) FilmsSortWatched() string { return msgs.text(textFilmsSortWatched) }
+
+// FilmsSpokenEmpty says "No films in {language} from this source yet."
+// in the language the app shows under cx.
+//
+// Shown when none of the films of the source chosen in the sidebar was heard in the language chosen under Languages.
+func FilmsSpokenEmpty(cx *core.Scope, language string) string {
+	return For(cx).FilmsSpokenEmpty(language)
+}
+
+// FilmsSpokenEmpty is the package's FilmsSpokenEmpty in the language of msgs.
+func (msgs Messages) FilmsSpokenEmpty(language string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsSpokenEmpty(language))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmsSpokenEmpty; f != nil {
+			return f(language)
+		}
+		switch lang {
+		case "", "en":
+			return "No films in " + msgs.arg(language) + " from this source yet."
+		case "ja":
+			return "このソースには" + language + "の動画がまだありません。"
+		case "ko":
+			return "이 출처에는 아직 " + language + " 영상이 없습니다."
+		case "zh-Hans":
+			return "这个来源下还没有" + language + "的影片。"
+		case "zh-Hant":
+			return "這個來源下還沒有" + language + "的影片。"
+		}
+	}
+}
 
 // FilmsStageComplete says "Done"
 // in the language the app shows under cx.
@@ -26800,6 +26942,24 @@ func (msgs Messages) SidebarJobsFailed(count int) string {
 		}
 	}
 }
+
+// SidebarLanguages says "Languages"
+// in the language the app shows under cx.
+//
+// Heading of the sidebar's list of the languages heard in the library's films, shown when there are films in more than one.
+func SidebarLanguages(cx *core.Scope) string { return For(cx).SidebarLanguages() }
+
+// SidebarLanguages is the package's SidebarLanguages in the language of msgs.
+func (msgs Messages) SidebarLanguages() string { return msgs.text(textSidebarLanguages) }
+
+// SidebarLanguagesAll says "All Languages"
+// in the language the app shows under cx.
+//
+// First row of the sidebar's Languages list: shows the films of every language.
+func SidebarLanguagesAll(cx *core.Scope) string { return For(cx).SidebarLanguagesAll() }
+
+// SidebarLanguagesAll is the package's SidebarLanguagesAll in the language of msgs.
+func (msgs Messages) SidebarLanguagesAll() string { return msgs.text(textSidebarLanguagesAll) }
 
 // SidebarLibrary says "Library"
 // in the language the app shows under cx.

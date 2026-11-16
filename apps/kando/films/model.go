@@ -1,6 +1,7 @@
 package films
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -28,6 +29,8 @@ type Film struct {
 	Language string
 	// Spoken is the language the speech recognition heard in the video, as whisper's code (ja, en); empty until the job transcribed it, and for a video no job has processed.
 	Spoken string
+	// SpeechLanguage is the language the user said the video is spoken in, as whisper's code, which its job is transcribed in from then on (core.Job.SpeechLanguage); empty when the user named none.
+	SpeechLanguage string
 	// Progress is how far the job has gone in Stage, as its tool reports it. Thumbnail is the address of the picture the video's site gives it, empty until the download has looked the video up.
 	Progress  core.Progress
 	Thumbnail string
@@ -100,7 +103,7 @@ func FromJob(job core.Job, name, detail string) Film {
 	return Film{
 		Key: job.ID, Title: Shorten(name, 22), Name: name, Source: job.Source,
 		Detail: detail, Stage: job.Stage, JobID: job.ID,
-		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage,
+		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, Language: job.Language, Spoken: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage,
 		Progress: job.Progress, Thumbnail: job.Thumbnail, Untranslated: job.Untranslated, TranslationErr: job.TranslationErr,
 		Stopped: errors.Is(job.Err, context.Canceled), Target: jobTarget(job),
 	}
@@ -160,6 +163,41 @@ func BySource(items []Film, source string) []Film {
 			out = append(out, item)
 		}
 	}
+	return out
+}
+
+// BySpoken keeps the films heard in code, whisper's code for a language (Film.Spoken); sidebar.SpokenAll keeps them all.
+func BySpoken(items []Film, code string) []Film {
+	if code == sidebar.SpokenAll {
+		return items
+	}
+	var out []Film
+	for _, item := range items {
+		if item.Spoken == code {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+// SpokenCounts is how many of items were heard in each language, those whose language is not known left out: the language most were heard in first, languages as many films were heard in by their codes.
+func SpokenCounts(items []Film) []sidebar.SpokenCount {
+	n := map[string]int{}
+	for _, item := range items {
+		if item.Spoken != "" {
+			n[item.Spoken]++
+		}
+	}
+	out := make([]sidebar.SpokenCount, 0, len(n))
+	for code, count := range n {
+		out = append(out, sidebar.SpokenCount{Code: code, Count: count})
+	}
+	slices.SortFunc(out, func(x, y sidebar.SpokenCount) int {
+		if c := cmp.Compare(y.Count, x.Count); c != 0 {
+			return c
+		}
+		return strings.Compare(x.Code, y.Code)
+	})
 	return out
 }
 

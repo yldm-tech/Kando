@@ -9,7 +9,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
+// TestScreenshotsPlayer renders the prototype's film, How Rivers Shape Landscapes (j1), from the library every scene starts from (screenshot_helpers_test.go), in the states the prototype's player screenshots show: opened and held at the start with the side panel on 字幕 (01), playing on the first line with the controls showing (02), the 片段 and 信息 tabs (04, 08), the 信息 tab with another spoken language named than the one heard, the subtitle mode menu (09), the style view (10), playing with the controls faded (11), playing with the subtitles dragged up, playing muted, the speed menu, playing at 1.5× and playing with its line looped, and, beyond the prototype, a line of the subtitle list right-clicked for its copy menu and the picture saying ⇧⌘C copied the playing line. It also renders the film on its first line (film), the film opened from the YouTube page, the film whose video the system's player cannot play, and a video no job has processed playing with the subtitles exported beside it.
 func TestScreenshotsPlayer(t *testing.T) {
 	f := newScreenshotFixture(t)
 	// open opens film id at at and has the system's player report it loaded, held there.
@@ -32,6 +32,21 @@ func TestScreenshotsPlayer(t *testing.T) {
 	f.shoot(t, "player-opened", held(nil))
 	f.shoot(t, "player-clips", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-clips") }))
 	f.shoot(t, "player-info", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-tab-info") }))
+	// The film heard in English, and 日语 named in the info tab as the language spoken in it, which offers to transcribe it again in Japanese.
+	f.shoot(t, "player-info-spoken-language", func(a *app, tt *nsgotest.App, updates chan func()) {
+		for i, job := range a.library.Jobs {
+			if job.ID == "j1" {
+				a.library.Jobs[i].SpokenLanguage = "en"
+			}
+		}
+		open(a, tt, updates, "j1", 0)
+		tt.Press("id:film-tab-info")
+		a.SetFilmSpeechLanguage("ja")
+		refresh(tt, a)
+		if !tt.Exists("id:film-info-transcribe-again") {
+			t.Fatalf("no offer to transcribe again: %q", tt.Texts())
+		}
+	})
 	f.shoot(t, "player-menu", held(func(_ *app, tt *nsgotest.App) { tt.Press("id:film-mode") }))
 	f.shoot(t, "player-style", held(func(_ *app, tt *nsgotest.App) {
 		tt.Press("id:film-mode")

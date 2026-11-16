@@ -34,6 +34,8 @@ type App interface {
 	TranslateFilmAgain(language string)
 	TranslateFilmMissing()
 	TargetLanguage() string
+	// SetFilmSpeechLanguage names code, whisper's code for a language, as the one spoken in the open film, a done one with a job, which Process Again transcribes it in from then on rather than the one the settings name; ReprocessFilm transcribes it again, once the user confirms.
+	SetFilmSpeechLanguage(code string)
 	// StageLabel names a job's stage in the language the interface shows under cx, as the library does.
 	StageLabel(cx *ns.Scope, stage core.Stage) string
 	// JobStatus is what the open film's job is doing and how far it has gone, as its card in the library says, in the language the interface shows under cx; "" while no job of it waits or runs.
@@ -218,6 +220,8 @@ type Item struct {
 	Language string
 	// Spoken is the language the speech recognition heard in the video, as whisper's code (ja, en); empty when it is not known.
 	Spoken string
+	// SpeechLanguage is the language the user said the video is spoken in, as whisper's code, which Process Again transcribes it in; empty when the user named none.
+	SpeechLanguage string
 	// Untranslated is how many lines of a done film's subtitles the translation left untranslated.
 	Untranslated int
 	// TranslationErr is why a done film translated none of its lines, its subtitles being the original lines alone; empty for one that was translated.

@@ -294,6 +294,33 @@ func TestTranscribeNamesTheSpokenLanguage(t *testing.T) {
 	}
 }
 
+// whisperPipeline is a pipeline whose transcription is Tools', so a test reads the -l whisper was given.
+type whisperPipeline struct {
+	fakePipeline
+	tools Tools
+}
+
+func (p *whisperPipeline) Transcribe(ctx context.Context, video string) ([]core.Segment, error) {
+	return p.tools.Transcribe(ctx, video)
+}
+
+// TestRunHearsTheLanguageTheJobNames checks that a job whose film the user said is spoken in a language of its own is transcribed in that language rather than the one the settings name for every video, that a job naming none is transcribed in the settings', and that the job keeps what it named.
+func TestRunHearsTheLanguageTheJobNames(t *testing.T) {
+	tools, args := transcribeTools(t)
+	tools.SpeechLanguage = "ja"
+	for _, tc := range []struct{ job, want string }{{"", "ja"}, {"en", "en"}, {" ko ", "ko"}} {
+		job, _ := core.NewJob("https://example.com/video")
+		job.SpeechLanguage = tc.job
+		final := Run(context.Background(), &whisperPipeline{tools: tools}, job, "简体中文", func(core.Job) {})
+		if final.Stage != core.StageComplete || final.SpeechLanguage != tc.job {
+			t.Fatalf("job naming %q: %+v", tc.job, final)
+		}
+		if got := whisperLanguage(t, args); got != tc.want {
+			t.Fatalf("job naming %q: -l %q, want %q", tc.job, got, tc.want)
+		}
+	}
+}
+
 // A video with no sound track makes ffmpeg write no stream; Transcribe returns ErrNoAudio rather than ffmpeg's words.
 func TestTranscribeSaysTheVideoHasNoSound(t *testing.T) {
 	dir := t.TempDir()

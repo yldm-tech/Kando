@@ -12,6 +12,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/packages/core"
+	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -116,6 +117,10 @@ func (f *fakeApp) Play() Player {
 		return nil
 	}
 	return f.play
+}
+func (f *fakeApp) SetFilmSpeechLanguage(code string) {
+	f.call("speech " + code)
+	f.item.SpeechLanguage = code
 }
 func (f *fakeApp) PlayPath() string                      { return f.path }
 func (f *fakeApp) PlayErr() string                       { return f.err }
@@ -322,6 +327,59 @@ func TestPlayerStaysWhileTheAppChanges(t *testing.T) {
 	for id, before := range ids {
 		if after := uint32(app.Find("id:" + id).ID); after != before {
 			t.Fatalf("%s was built again: %d, was %d", id, after, before)
+		}
+	}
+}
+
+// TestInfoTabCorrectsTheSpokenLanguage checks that a done film's info tab names the language heard in it in a drop-down of the languages the speech recognition can be told, one it detected that the settings do not offer among them; that naming another keeps it for the film, without building the drop-down again, and offers to transcribe the film again in it, which processes it again; and that the offer goes once the film was heard in that language. A film still being processed, or one no job has processed, has no drop-down.
+func TestInfoTabCorrectsTheSpokenLanguage(t *testing.T) {
+	a := newFakeApp()
+	a.side, a.item.Spoken = "info", "ja"
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if !app.Exists(whole(msgs.FilmSpokenLanguage())) || app.Find("id:film-info-speech-language").Props.Label != msgs.FilmSpokenLanguage() {
+		t.Fatalf("no spoken language in the info tab: %q", app.Texts())
+	}
+	if !app.Exists(whole(msgs.SettingsSpeechLanguageJa())) {
+		t.Fatalf("the drop-down does not show the language heard: %q", app.Texts())
+	}
+	if app.Exists("id:film-info-transcribe-again") {
+		t.Fatal("transcribing again is offered for the language heard")
+	}
+	field := app.Find("id:film-info-speech-language").ID
+	app.Press("id:film-info-speech-language")
+	app.Press(fmt.Sprintf("id:film-info-speech-language-%d", slices.Index(media.SpeechLanguages(), "en")))
+	if !slices.Equal(a.calls, []string{"speech en"}) {
+		t.Fatalf("naming English called %q", a.calls)
+	}
+	if v := app.Find("id:film-info-speech-language"); v.ID != field {
+		t.Fatal("the drop-down was built again as a language was named")
+	}
+	if want := msgs.FilmTranscribeAgain(msgs.SettingsSpeechLanguageEn()); !app.Exists(whole(want)) {
+		t.Fatalf("no %q in %q", want, app.Texts())
+	}
+	app.Press("id:film-info-transcribe-again")
+	if !slices.Contains(a.calls, "reprocess") {
+		t.Fatalf("transcribing again called %q", a.calls)
+	}
+	change(app, a, func() { a.item.Spoken = "en" })
+	if app.Exists("id:film-info-transcribe-again") {
+		t.Fatal("transcribing again is still offered once the film was heard in the language named")
+	}
+	// A language whisper detected that the settings do not offer is still one to choose.
+	change(app, a, func() { a.item.Spoken, a.item.SpeechLanguage = "sv", "" })
+	app.Press("id:film-info-speech-language")
+	if !app.Exists(fmt.Sprintf("id:film-info-speech-language-%d", len(media.SpeechLanguages()))) || !app.Exists(whole("SV")) {
+		t.Fatalf("the detected language is not among the choices: %q", app.Texts())
+	}
+	app.ClosePopup()
+	for _, item := range []Item{
+		{Key: "running", JobID: "running", Stage: core.StageTranscribing, VideoPath: "/films/running/video.mp4"},
+		{Key: "loose", VideoPath: "/films/loose.mp4"},
+	} {
+		change(app, a, func() { a.item = item })
+		if app.Exists("id:film-info-speech-language") {
+			t.Fatalf("film %s offers a spoken language", item.Key)
 		}
 	}
 }

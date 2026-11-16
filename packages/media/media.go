@@ -41,7 +41,7 @@ type Pipeline interface {
 	Export(ctx context.Context, videoPath string, original, translated []core.Segment) (string, error)
 }
 
-// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done; Untranslated counts the lines this run's translation left untranslated. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path.
+// Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done; Untranslated counts the lines this run's translation left untranslated. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path. A job whose SpeechLanguage is set has p.Transcribe hear that language (Tools.Transcribe reads it from the context) rather than the one Tools names for every video.
 //
 // Once transcribed, a job making a film for the first time reports its transcript as job.SubtitlePath with StageTranslating, so the film can be watched with its original lines while it is translated.
 //
@@ -78,6 +78,10 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 		// The language heard goes out with the job's next report, as the transcription ends.
 		Spoken: func(language string) { job.SpokenLanguage = language },
 	})
+	// A film the user said is spoken in another language than the settings name is heard in its own (core.Job.SpeechLanguage).
+	if code := strings.TrimSpace(job.SpeechLanguage); code != "" {
+		ctx = withSpeechLanguage(ctx, code)
+	}
 	if job.Redo == "" {
 		job.Untranslated = 0
 	}

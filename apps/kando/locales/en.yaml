@@ -795,6 +795,12 @@ filmSpeedRate:
   description: "A playback speed, as on the player's speed button and in its menu: the speed as a multiple of normal."
   placeholders:
     rate: { type: "String", example: "1.5" }
+filmSpokenLanguage:
+  message: "Spoken Language"
+  description: "Heading in a done film's Info tab over the drop-down naming the language spoken in the film, which the speech recognition hears when the film is processed again, and that drop-down's name."
+filmSpokenLanguageUnknown:
+  message: "Unknown"
+  description: "Shown in a film's Spoken Language drop-down when the speech recognition did not say which language it heard and the user named none."
 filmStartProcessing:
   message: "Start Processing"
   description: "Player title bar button: starts the job that downloads, transcribes and translates this film."
@@ -853,6 +859,11 @@ filmTabInfo:
 filmTabStyle:
   message: "Style"
   description: "Side panel tab with the subtitle style."
+filmTranscribeAgain:
+  message: "Transcribe Again in {language}"
+  description: "Button in a film's Info tab, under the Spoken Language drop-down, shown when the language chosen there is not the one heard in the film: processes the film again, transcribing its speech in that language."
+  placeholders:
+    language: { type: "String", example: "Japanese" }
 filmTranslateAgain:
   message: "Translate Again Into"
   description: "Submenu of the player's ⋯ menu listing the target languages, the one set in the settings first and the film's own checked: translates its subtitles again into the language chosen."
@@ -1260,6 +1271,11 @@ filmsSortTitle:
 filmsSortWatched:
   message: "Recently Watched"
   description: "Sort order of the grid of finished films, and its item in the sort menu: the films played last come first, those never played after them."
+filmsSpokenEmpty:
+  message: "No films in {language} from this source yet."
+  description: "Shown when none of the films of the source chosen in the sidebar was heard in the language chosen under Languages."
+  placeholders:
+    language: { type: "String", example: "Japanese" }
 filmsStageComplete:
   message: "Done"
   description: "Stage of a job: finished."
@@ -3536,6 +3552,12 @@ sidebarJobsFailed:
   description: "Sidebar status line, after the processing count: how many videos failed to process and need attention."
   placeholders:
     count: { type: "int", example: "1" }
+sidebarLanguages:
+  message: "Languages"
+  description: "Heading of the sidebar's list of the languages heard in the library's films, shown when there are films in more than one."
+sidebarLanguagesAll:
+  message: "All Languages"
+  description: "First row of the sidebar's Languages list: shows the films of every language."
 sidebarLibrary:
   message: "Library"
   description: "Caption over the open library's name in the library switcher at the top of the sidebar."

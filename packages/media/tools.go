@@ -36,7 +36,7 @@ type Tools struct {
 	EveryAPI string
 	// WhisperModel is the path of a ggml model file for whisper.cpp.
 	WhisperModel string
-	// SpeechLanguage is the language spoken in the videos, as whisper.cpp's -l names it (one of SpeechLanguages); empty lets whisper detect it.
+	// SpeechLanguage is the language spoken in the videos, as whisper.cpp's -l names it (one of SpeechLanguages); empty lets whisper detect it. A job that names the language of its own video (core.Job.SpeechLanguage) is heard in that one instead (Run).
 	SpeechLanguage string
 	Translator     ChatTranslator
 	// Cookies is the browser whose login Download borrows, as yt-dlp's --cookies-from-browser names it (chrome, safari, firefox, edge, brave); empty borrows none.
@@ -384,7 +384,11 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 			reportProgress(ctx, core.Fraction(f))
 		}
 	}
-	language := strings.TrimSpace(t.SpeechLanguage)
+	// A film the user said is spoken in a language of its own is heard in it (withSpeechLanguage); the others in the one the settings name, or whichever whisper detects.
+	language := speechLanguageOf(ctx)
+	if language == "" {
+		language = strings.TrimSpace(t.SpeechLanguage)
+	}
 	if language == "" {
 		language = "auto"
 	}

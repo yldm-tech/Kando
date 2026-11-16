@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"kando/packages/core"
@@ -52,4 +53,17 @@ func reportSpoken(ctx context.Context, language string) {
 	if trace := traceOf(ctx); trace != nil && trace.Spoken != nil && language != "" {
 		trace.Spoken(language)
 	}
+}
+
+type speechLanguageKey struct{}
+
+// withSpeechLanguage returns ctx telling Tools.Transcribe the language spoken in the video, as whisper's code, in place of Tools.SpeechLanguage: the language the user said a film is spoken in (core.Job.SpeechLanguage).
+func withSpeechLanguage(ctx context.Context, code string) context.Context {
+	return context.WithValue(ctx, speechLanguageKey{}, code)
+}
+
+// speechLanguageOf is the language withSpeechLanguage put in ctx, or "".
+func speechLanguageOf(ctx context.Context) string {
+	code, _ := ctx.Value(speechLanguageKey{}).(string)
+	return strings.TrimSpace(code)
 }

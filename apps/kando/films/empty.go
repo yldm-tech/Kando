@@ -2,6 +2,7 @@ package films
 
 import (
 	"kando/apps/kando/desktop"
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
@@ -42,6 +43,17 @@ func (emptySource) Render(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
 		core.Text{ContentFunc: func() string { return locales.FilmsSourceEmpty(cx) }, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)},
+	}}
+}
+
+// emptySpoken is what the grid shows when none of the done films of the source chosen in the sidebar was heard in the language chosen under it, code being whisper's code for it.
+type emptySpoken struct{ code func() string }
+
+// Render implements core.Node.
+func (e emptySpoken) Render(cx *core.Scope) core.Node {
+	colors := ui.ColorsOf(cx)
+	return core.View{Style: core.Style{FlexGrow: 1, AlignItems: core.AlignCenter, Padding: core.Symmetric(80, 28)}, Children: []core.Node{
+		core.Text{ContentFunc: func() string { return locales.FilmsSpokenEmpty(cx, subtitle.SpokenLanguageName(cx, e.code())) }, Style: ui.TypeBody, StyleFunc: ui.Colored(colors.Muted)},
 	}}
 }
 

@@ -17,8 +17,19 @@ import (
 //   - sidebar-switcher-open: the library switcher pressed, its menu open (library_switcher_open); the menu is the system's, which the picture does not show
 //   - sidebar-empty: a new empty library, every count 0 (library_empty)
 //   - sidebar-focused: 全部影片 chosen with a click, so the sidebar holds the focus and rings the chosen row
+//   - sidebar-languages: the films heard in three languages, so the sidebar lists them under the sources, and 英语 chosen, the grid showing the films heard in English
 func TestScreenshotsSidebar(t *testing.T) {
 	f := newScreenshotFixture(t)
+	f.shoot(t, "sidebar-languages", func(a *app, tt *nsgotest.App, _ chan func()) {
+		screenshotReady(t, f, a)
+		heard := map[string]string{"j1": "en", "j3": "en", "j8": "en", "j9": "en", "j10": "en", "j4": "zh", "j11": "zh", "j15": "ja"}
+		for i, job := range a.library.Jobs {
+			a.library.Jobs[i].SpokenLanguage = heard[job.ID]
+		}
+		refresh(tt, a)
+		tt.Press("id:spoken-en")
+		tt.HoverOut()
+	})
 	f.shoot(t, "library-prototype-size", func(a *app, tt *nsgotest.App, _ chan func()) {
 		screenshotReady(t, f, a)
 	})

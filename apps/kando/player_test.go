@@ -2259,3 +2259,38 @@ func TestTransportMenusKeepSpaceAndTheArrows(t *testing.T) {
 		t.Fatal("Space did not play once the menu closed")
 	}
 }
+
+// TestFilmKeepsTheSpokenLanguageNamed checks that the language the info tab names as the one spoken in a done film is kept with its job in library.json, that a language whisper is not offered for, or one named for a film still being processed, is not, and that processing the film again keeps it, so the job is transcribed in it (media.Run) rather than in the settings' language.
+func TestFilmKeepsTheSpokenLanguageNamed(t *testing.T) {
+	a, tt, updates := newTestApp(t, &fakePipeline{})
+	path := filepath.Join(t.TempDir(), "library.json")
+	a.openLibrary(path)
+	a.library.Upsert(core.Job{ID: "talk", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, Language: "简体中文", SpokenLanguage: "ja",
+		VideoPath: "/videos/talk.mp4", SubtitlePath: "/videos/talk.bilingual.srt", CompletedAt: time.Now()})
+	a.openKey = "talk"
+	refresh(tt, a)
+	a.SetFilmSpeechLanguage("xx")
+	if job, _ := a.library.Find("talk"); job.SpeechLanguage != "" {
+		t.Fatalf("a language whisper is not offered for was kept: %q", job.SpeechLanguage)
+	}
+	a.SetFilmSpeechLanguage("en")
+	saved, err := shelf.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job, _ := saved.Find("talk"); job.SpeechLanguage != "en" || job.SpokenLanguage != "ja" {
+		t.Fatalf("library.json keeps %+v", job)
+	}
+	a.RetryOpen("talk")
+	if job, _ := a.library.Find("talk"); job.Stage == core.StageComplete || job.SpeechLanguage != "en" {
+		t.Fatalf("processing the film again queued %+v", job)
+	}
+	a.SetFilmSpeechLanguage("ko")
+	if job, _ := a.library.Find("talk"); job.SpeechLanguage != "en" {
+		t.Fatalf("a film being processed took the language %q", job.SpeechLanguage)
+	}
+	settle(t, a, tt, updates)
+	if job, _ := a.library.Find("talk"); job.Stage != core.StageComplete || job.SpeechLanguage != "en" {
+		t.Fatalf("processed again %+v", job)
+	}
+}

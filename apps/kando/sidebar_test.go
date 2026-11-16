@@ -204,6 +204,78 @@ func TestSidebarListsTheSourcesWithCounts(t *testing.T) {
 	}
 }
 
+// TestSidebarFiltersByTheSpokenLanguage checks that the sidebar lists the languages heard in the library's done films once there are more than one, counting only done films, that choosing one shows only the films heard in it, together with the source chosen, without the hero, that a language none of the films is heard in any longer filters nothing out, and that another library starts with every language.
+func TestSidebarFiltersByTheSpokenLanguage(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	a.library.Jobs = []core.Job{
+		{ID: "yt-ja", Source: "https://youtu.be/TRWgBxVAb1M", Stage: core.StageComplete, VideoPath: "/videos/yt-ja/video.mp4", SpokenLanguage: "ja"},
+		{ID: "yt-en", Source: "https://youtu.be/jNQXAC9IVRw", Stage: core.StageComplete, VideoPath: "/videos/yt-en/video.mp4", SpokenLanguage: "en"},
+		{ID: "file-ja", Source: "file:///videos/file-ja/video.mp4", Stage: core.StageComplete, VideoPath: "/videos/file-ja/video.mp4", SpokenLanguage: "ja"},
+		{ID: "old", Source: "file:///videos/old/video.mp4", Stage: core.StageComplete, VideoPath: "/videos/old/video.mp4"},
+		{ID: "running", Source: "https://youtu.be/running", Stage: core.StageTranscribing, SpokenLanguage: "ko"},
+	}
+	refresh(tt, a)
+	if got := tt.Find("id:spoken-count-ja").Text; got != "2" {
+		t.Fatalf("日语 shows %q, want 2", got)
+	}
+	if got := tt.Find("id:spoken-count-en").Text; got != "1" {
+		t.Fatalf("英语 shows %q, want 1", got)
+	}
+	if tt.Exists("id:spoken-ko") {
+		t.Fatal("a job still in 处理中 counts for its language")
+	}
+	shows := func(keys ...string) {
+		t.Helper()
+		for _, key := range []string{"yt-ja", "yt-en", "file-ja", "old"} {
+			if want := slices.Contains(keys, key); tt.Exists("id:film-"+key) != want {
+				t.Fatalf("film %s shown %v, want %v: %q", key, !want, want, tt.Texts())
+			}
+		}
+	}
+	shows("yt-ja", "yt-en", "file-ja", "old")
+	if !tt.Exists("id:films-hero") {
+		t.Fatal("no hero before a language is chosen")
+	}
+	tt.Press("id:spoken-ja")
+	refresh(tt, a)
+	if a.SpokenFilter() != "ja" || a.page != pageFilms {
+		t.Fatalf("filter %q on page %q", a.SpokenFilter(), a.page)
+	}
+	shows("yt-ja", "file-ja")
+	if tt.Exists("id:films-hero") {
+		t.Fatal("the hero shows while a language is chosen")
+	}
+	// Both filters apply.
+	tt.Press("id:source-" + sidebar.SourceYouTube)
+	refresh(tt, a)
+	shows("yt-ja")
+	tt.Press("id:spoken-en")
+	refresh(tt, a)
+	shows("yt-en")
+	tt.Press("id:source-" + sidebar.SourceLocal)
+	refresh(tt, a)
+	if !hasText(tt, testlocale.Messages().FilmsSpokenEmpty(testlocale.Messages().SettingsSpeechLanguageEn())) {
+		t.Fatalf("no word that no local film is in English: %q", tt.Texts())
+	}
+	tt.Press("id:spoken-" + sidebar.SpokenAll)
+	refresh(tt, a)
+	shows("file-ja", "old")
+	// Once the films are heard in one language, the list goes and the language chosen filters nothing out.
+	tt.Press("id:source-" + sidebar.SourceAll)
+	tt.Press("id:spoken-en")
+	a.library.Jobs = slices.DeleteFunc(a.library.Jobs, func(job core.Job) bool { return job.ID == "yt-en" })
+	refresh(tt, a)
+	if tt.Exists("id:sidebar-languages") || a.SpokenFilter() != sidebar.SpokenAll {
+		t.Fatalf("languages listed %v, filter %q, with films heard in one", tt.Exists("id:sidebar-languages"), a.SpokenFilter())
+	}
+	shows("yt-ja", "file-ja", "old")
+	a.side.spoken = "ja"
+	a.sidebarLibraryChanged()
+	if a.side.spoken != sidebar.SpokenAll {
+		t.Fatalf("another library kept the language %q", a.side.spoken)
+	}
+}
+
 // TestSidebarCountFollowsTheSelection checks that a source's count stays in the secondary text's color on its chosen row, as on the others, with or without the sidebar's focus: NSGo's sidebar marks the chosen row with a faint fill of the text's color, which the count reads on as the label does. MyGo's macOS sidebar filled the row with the accent while it had the focus and turned the count near white; NSGo draws one look everywhere, which this checks instead.
 func TestSidebarCountFollowsTheSelection(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})

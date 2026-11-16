@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"kando/apps/kando/films"
@@ -64,6 +65,36 @@ func (a *app) SourceCount(source string) int {
 		}
 	}
 	return n
+}
+
+// SpokenCounts is how many done films of the open library were heard in each language (films.SpokenCounts); a job still in 处理中 is not one yet.
+func (a *app) SpokenCounts() []sidebar.SpokenCount {
+	var done []films.Film
+	for _, item := range a.films() {
+		if !films.InQueue(item) {
+			done = append(done, item)
+		}
+	}
+	return films.SpokenCounts(done)
+}
+
+// SpokenFilter is the language the sidebar chose while it lists it: the list shows only while the library's done films were heard in more than one language, and a language none of them is heard in any longer, as after the last was removed or heard anew, filters nothing out.
+func (a *app) SpokenFilter() string {
+	code := a.side.spoken
+	if code == sidebar.SpokenAll {
+		return code
+	}
+	counts := a.SpokenCounts()
+	if len(counts) < 2 || !slices.ContainsFunc(counts, func(c sidebar.SpokenCount) bool { return c.Code == code }) {
+		return sidebar.SpokenAll
+	}
+	return code
+}
+
+// SetSpokenFilter goes to the library page, closing the open film, and shows the films heard in code there, among those from the source chosen.
+func (a *app) SetSpokenFilter(code string) {
+	a.Select(pageFilms)
+	a.side.spoken = code
 }
 
 func (a *app) Query() *string { return &a.side.query }
@@ -133,9 +164,10 @@ func (a *app) Jobs() sidebar.Jobs {
 // ShowJobs shows 处理中: the library page with every source, the open film closed.
 func (a *app) ShowJobs() { a.SetSourceFilter(sidebar.SourceAll) }
 
-// sidebarLibraryChanged runs after the open library changed (libraryChanged in sidebarHooks): the sidebar shows all of the new library's films, with no search, and the switcher's counts are read again, the library just left among them.
+// sidebarLibraryChanged runs after the open library changed (libraryChanged in sidebarHooks): the sidebar shows all of the new library's films, in every language, with no search, and the switcher's counts are read again, the library just left among them.
 func (a *app) sidebarLibraryChanged() {
 	a.side.filter = sidebar.SourceAll
+	a.side.spoken = sidebar.SpokenAll
 	a.side.query = ""
 	a.countLibraries()
 }

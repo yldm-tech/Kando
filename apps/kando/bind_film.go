@@ -9,6 +9,7 @@ import (
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
 	"kando/packages/core"
+	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 )
@@ -23,7 +24,7 @@ func (a *app) filmPage(item func() films.Film) ns.Node {
 // filmItem is the library's film as the player shows it.
 func filmItem(f films.Film) film.Item {
 	return film.Item{Key: f.Key, Title: f.Title, Name: f.Name, Source: f.Source, Detail: f.Detail, Stage: f.Stage,
-		JobID: f.JobID, VideoPath: f.VideoPath, SubtitlePath: f.SubtitlePath, Language: f.Language, Spoken: f.Spoken, Untranslated: f.Untranslated, TranslationErr: f.TranslationErr}
+		JobID: f.JobID, VideoPath: f.VideoPath, SubtitlePath: f.SubtitlePath, Language: f.Language, Spoken: f.Spoken, SpeechLanguage: f.SpeechLanguage, Untranslated: f.Untranslated, TranslationErr: f.TranslationErr}
 }
 
 // openFilm is the film the player shows: the open key's, on the shelf or among the jobs.
@@ -95,6 +96,23 @@ func (a *app) RetryOpen(id string) {
 			a.openKey = a.queue.job.ID
 			a.loadSubtitles(a.queue.job.ID, a.queue.job.SubtitlePath)
 		}
+	}
+}
+
+// SetFilmSpeechLanguage is the info tab's spoken language: its job, a done film's, keeps code as the language spoken in the open film (core.Job.SpeechLanguage), saved in library.json, so Process Again transcribes it in that language rather than the one the settings name for every video. code is one of the languages the settings offer (media.SpeechLanguages) or the one heard in the film; any other, a film without a job and one still being processed change nothing.
+func (a *app) SetFilmSpeechLanguage(code string) {
+	item, ok := a.openFilm()
+	if !ok || item.JobID == "" {
+		return
+	}
+	job, ok := a.library.Find(item.JobID)
+	if !ok || job.Stage != core.StageComplete || job.SpeechLanguage == code || (!media.KnownSpeechLanguage(code) && code != job.SpokenLanguage) {
+		return
+	}
+	job.SpeechLanguage = code
+	a.library.Upsert(job)
+	if err := a.library.Save(); err != nil {
+		a.saveErr = a.shelfSaveErr(err, a.messages().LibraryShelfSaveFailed)
 	}
 }
 

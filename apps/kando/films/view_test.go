@@ -23,6 +23,7 @@ import (
 type fakeApp struct {
 	live.Rev
 	dir, page, filter, query, source string
+	spoken                           string
 	making                           bool
 	name                             string
 	place                            string
@@ -51,7 +52,7 @@ type fakeApp struct {
 func newFakeApp() *fakeApp {
 	lib := "/films/我的影片.kando"
 	return &fakeApp{
-		dir: lib, page: sidebar.PageFilms, filter: sidebar.SourceAll, sort: SortAdded, place: "/films", language: "简体中文",
+		dir: lib, page: sidebar.PageFilms, filter: sidebar.SourceAll, spoken: sidebar.SpokenAll, sort: SortAdded, place: "/films", language: "简体中文",
 		name: "新资料库",
 		items: []Film{
 			{Key: "done", JobID: "done", Title: "Rivers of Europe", Name: "Rivers of Europe", Source: "https://youtu.be/rivers", Stage: core.StageComplete,
@@ -152,6 +153,7 @@ func (f *fakeApp) LinkFocus() *bool                   { return &f.linkFocus }
 func (f *fakeApp) Query() *string                     { return &f.query }
 func (f *fakeApp) JobFilm(id string) (Film, bool)     { return Find(f.items, id) }
 func (f *fakeApp) SourceFilter() string               { return f.filter }
+func (f *fakeApp) SpokenFilter() string               { return f.spoken }
 func (f *fakeApp) Enqueue(...string) error            { return nil }
 func (f *fakeApp) Cancel(id string)                   { f.call("cancel", id) }
 func (f *fakeApp) RunningJob() string                 { return "running" }
