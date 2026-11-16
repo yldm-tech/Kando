@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -423,5 +424,28 @@ func TestStatusCardOpensThePalette(t *testing.T) {
 	app.Press("id:sidebar-palette")
 	if !slices.Equal(a.calls, []string{"palette"}) {
 		t.Fatalf("the button called %q", a.calls)
+	}
+}
+
+// TestLanguageTagsFollowTheAppearance checks that a language's code (JA) is drawn in the theme's accent ink in both appearances, which reads at its 9 points on the dark sidebar where the accent's own blue does not.
+func TestLanguageTagsFollowTheAppearance(t *testing.T) {
+	a := newFakeApp()
+	a.bySpoken = []SpokenCount{{Code: "ja", Count: 3}, {Code: "en", Count: 1}}
+	var k theme.Colors
+	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+	app := nsgotest.Start(t, func(cx *core.Scope) core.Node {
+		a.Attach(cx)
+		theme.Apply(cx)
+		k = theme.Of(cx)
+		return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1}, Children: []core.Node{View{App: a}}}
+	}, nsgotest.Size(1100, 720), nsgotest.Environment(env))
+	tag := func() core.Color { return app.Find("id:spoken-ja >> " + `text:"JA"`).TextStyle.Color }
+	if got := tag(); got != k.AccentInk() {
+		t.Fatalf("JA is %#x on the light sidebar, want the accent ink %#x", uint32(got), uint32(k.AccentInk()))
+	}
+	env.Dark = true
+	app.SetEnvironment(env)
+	if got := tag(); got != k.AccentInk() || got == theme.Accent {
+		t.Fatalf("JA is %#x on the dark sidebar, want the dark accent ink %#x", uint32(got), uint32(k.AccentInk()))
 	}
 }

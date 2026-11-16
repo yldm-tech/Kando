@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -41,7 +42,7 @@ func (l languages) Render(cx *core.Scope) core.Node {
 		}
 		return ""
 	})
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	return core.Show{When: func() bool { return len(rows.Get()) > 0 }, Then: func(cx *core.Scope) core.Node {
 		return core.View{
 			// The list takes the room its rows need, under the sources, and scrolls when the sidebar is too short for it.
@@ -52,7 +53,7 @@ func (l languages) Render(cx *core.Scope) core.Node {
 					list := rows.Get()
 					items := make([]ui.SidebarItem, len(list))
 					for i, r := range list {
-						items[i] = ui.SidebarItem{ID: r.code, Text: r.label, TestID: "spoken-" + r.code, Content: languageContent(colors, r)}
+						items[i] = ui.SidebarItem{ID: r.code, Text: r.label, TestID: "spoken-" + r.code, Content: languageContent(colors, k, r)}
 					}
 					return []ui.SidebarSection{{Title: locales.SidebarLanguages(cx), Items: items}}
 				},
@@ -79,14 +80,14 @@ func languageRowsOf(cx *core.Scope, counts []SpokenCount) []languageRow {
 	return rows
 }
 
-// languageContent is a row's mark, label and count, as sourceContent draws a source's: 全部语言 has the languages icon and no count, and a language its code in the icon's place, as the posters tag it (JA).
-func languageContent(colors ui.Colors, r languageRow) core.Node {
+// languageContent is a row's mark, label and count, as sourceContent draws a source's: 全部语言 has the languages icon and no count, and a language its code in the icon's place, as the posters tag it (JA), in the accent ink, which reads at its size in both appearances.
+func languageContent(colors ui.Colors, k theme.Colors, r languageRow) core.Node {
 	label := ui.Text(r.label, 13, ui.Regular, colors.Text)
 	label.MaxLines, label.Style.FlexGrow, label.Style.FlexShrink = 1, 1, 1
 	if r.code == SpokenAll {
 		return core.Group{ui.Icon(svg(iconLanguages), 16, colors.Accent), label}
 	}
-	tag := ui.Text(strings.ToUpper(r.code), 9, ui.Bold, colors.Accent)
+	tag := ui.Text(strings.ToUpper(r.code), 9, ui.Bold, k.AccentInk)
 	tag.MaxLines, tag.Style.TextAlign = 1, core.TextAlignCenter
 	count := ui.Tabular(ui.Text(strconv.Itoa(r.count), 12, ui.Regular, colors.Muted))
 	count.TestID, count.Style.FlexShrink = "spoken-count-"+r.code, 0

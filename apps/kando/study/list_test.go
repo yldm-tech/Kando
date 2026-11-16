@@ -8,6 +8,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
@@ -144,5 +145,27 @@ func TestSheetStartsTheReview(t *testing.T) {
 	app.Press("role:button " + msgs.SavedReviewDue(3))
 	if !slices.Equal(a.calls, []string{"review"}) {
 		t.Fatalf("calls %q", a.calls)
+	}
+}
+
+// TestSheetFollowsTheAppearance checks the saved-lines sheet in the window's theme as the system turns dark: a line's text turns light, and the wash under a line the pointer rests on is white over the dark sheet, as black is over the light one, rather than black on both.
+func TestSheetFollowsTheAppearance(t *testing.T) {
+	a := &fakeApp{entries: []Entry{{ID: "a", Film: "Talk", Original: "Every river", Translation: "每条河"}}}
+	app := start(t, a, func(cx *core.Scope) core.Node {
+		theme.Apply(cx)
+		return Sheet{App: a}
+	})
+	line := "role:button " + testlocale.Messages().SavedWhere("Talk", "0:00.0") + " Every river 每条河"
+	row := func() *nsgotest.View { return app.Find(line) }
+	app.Hover(line)
+	if got := row().Style.Background; got != core.RGBA(0x000000, 0.05) {
+		t.Fatalf("a line under the pointer is washed in %#x on the light sheet, want black at 5%%", uint32(got))
+	}
+	app.SetEnvironment(testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, Dark: true}))
+	if got := row().Style.Background; got != core.RGBA(0xFFFFFF, 0.05) {
+		t.Fatalf("a line under the pointer is washed in %#x on the dark sheet, want white at 5%%", uint32(got))
+	}
+	if r, g, b, _ := app.Find(whole("Every river")).TextStyle.Color.Components(); r < 0.7 || g < 0.7 || b < 0.7 {
+		t.Fatalf("a line's original is %#x on the dark sheet, want a light ink", uint32(app.Find(whole("Every river")).TextStyle.Color))
 	}
 }

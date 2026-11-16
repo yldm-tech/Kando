@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -820,5 +821,68 @@ func TestMoreActionsNamesItsFilm(t *testing.T) {
 		if got := app.Find(fmt.Sprintf("id:film-more >> nth=%d", i)).Props.Label; got != msgs.FilmsMoreActions(name) {
 			t.Fatalf("⋯ %d is named %q, want %q", i, got, msgs.FilmsMoreActions(name))
 		}
+	}
+}
+
+// startThemed is start in the window's theme, as the main window's view applies it, with k, Kando's roles at its root, which follow the environment.
+func startThemed(t *testing.T, a *fakeApp, env ns.Environment) (*nsgotest.App, *theme.Colors) {
+	t.Helper()
+	k := new(theme.Colors)
+	app := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
+		a.Attach(cx)
+		theme.Apply(cx)
+		*k = theme.Of(cx)
+		return ns.View{Style: ns.Style{FlexGrow: 1}, Children: []ns.Node{View{App: a}}}
+	}, nsgotest.Size(1068, 782), nsgotest.Environment(env))
+	return app, k
+}
+
+// TestEmptyLibraryArtFollowsTheAppearance checks that the play tile over an empty library is the theme's tile in both appearances, a step off the dark page rather than a near-white square on it, with its glyph in the accent.
+func TestEmptyLibraryArtFollowsTheAppearance(t *testing.T) {
+	a := newFakeApp()
+	a.items = nil
+	env := testEnvironment()
+	app, k := startThemed(t, a, env)
+	tile := func() *nsgotest.View { return app.Find("id:films-start-art") }
+	if got := tile().Style.Background; got != k.Tile() {
+		t.Fatalf("the tile is %#x on the light page, want the theme's tile %#x", uint32(got), uint32(k.Tile()))
+	}
+	env.Dark = true
+	app.SetEnvironment(env)
+	if got := tile().Style.Background; got != k.Tile() {
+		t.Fatalf("the tile is %#x on the dark page, want the theme's tile %#x", uint32(got), uint32(k.Tile()))
+	}
+	if r, g, b, _ := tile().Style.Background.Components(); r > 0.3 || g > 0.3 || b > 0.3 {
+		t.Fatalf("the tile is %#x on the dark page, want a dark face", uint32(tile().Style.Background))
+	}
+	inked := 0
+	for _, op := range app.Find("id:films-start-art >> id:films-start-glyph").Ops {
+		if op.Color == 0 {
+			continue
+		}
+		if inked++; ns.Color(op.Color) != theme.Accent {
+			t.Fatalf("the glyph is drawn in %#x, want the accent %#x", uint32(op.Color), uint32(theme.Accent))
+		}
+	}
+	if inked == 0 {
+		t.Fatal("the tile draws no glyph")
+	}
+}
+
+// TestWorkingRemedyFollowsTheAppearance checks that what a failed card says while its remedy is at work (as while yt-dlp updates) is in the theme's accent ink, which reads on the dark card where the accent's own blue does not, and that the red of a remedy not at work is the theme's danger ink.
+func TestWorkingRemedyFollowsTheAppearance(t *testing.T) {
+	a := newFakeApp()
+	a.queue = []Film{{Key: "failed", JobID: "failed", Title: "Region", Name: "Region", Source: "https://youtu.be/region", Stage: core.StageFailed}}
+	a.remedies["failed"] = Remedy{Headline: "正在更新 yt-dlp…", Working: true}
+	env := testEnvironment()
+	env.Dark = true
+	app, k := startThemed(t, a, env)
+	ink := func() ns.Color { return app.Find(whole(a.remedies["failed"].Headline)).TextStyle.Color }
+	if got := ink(); got != k.AccentInk() || got == theme.Accent {
+		t.Fatalf("the remedy at work says it in %#x on the dark card, want the dark accent ink %#x", uint32(got), uint32(k.AccentInk()))
+	}
+	change(app, a, func() { a.remedies["failed"] = Remedy{Headline: "你所在的地区不能看"} })
+	if got := ink(); got != k.DangerInk() {
+		t.Fatalf("the remedy says it in %#x, want the danger ink %#x", uint32(got), uint32(k.DangerInk()))
 	}
 }
