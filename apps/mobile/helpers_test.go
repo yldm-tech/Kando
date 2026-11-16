@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,6 +87,22 @@ func (p *phone) pair(d *synctest.Desktop) {
 	}
 	p.app.Press("id:pair-confirm")
 	p.app.WaitFor("id:home-desktop-"+store.DesktopID(d.Fingerprint), wait)
+}
+
+// pairedWith keeps d in dir as paired, pairing over the protocol rather than through the pairing page, and returns the option that starts the phone with the token in its secure store.
+func pairedWith(t *testing.T, d *synctest.Desktop, dir string) nsgotest.Option {
+	t.Helper()
+	c := sync.NewClient(d.Addr, d.Fingerprint, "")
+	defer c.Close()
+	resp, err := c.Pair(context.Background(), sync.PairRequest{Code: "123456", Device: "Test Phone", Platform: sync.PlatformIOS})
+	if err != nil {
+		t.Fatal(err)
+	}
+	desk := store.Desktop{ID: store.DesktopID(d.Fingerprint), Name: resp.Desktop, Addr: d.Addr, Fingerprint: d.Fingerprint, DeviceID: resp.DeviceID, Paired: now()}
+	if err := store.Open(dir).SaveDesktops([]store.Desktop{desk}); err != nil {
+		t.Fatal(err)
+	}
+	return nsgotest.Secrets(map[string]string{store.TokenAccount(desk.ID): resp.Token})
 }
 
 // fillPairing types the address and the code into the pairing page.

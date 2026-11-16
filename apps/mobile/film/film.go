@@ -102,7 +102,7 @@ func Page(cx *core.Scope, s *session.Session, desktop, library string, f sync.Fi
 	})
 	progress := core.Show{When: func() bool { _, ok := transfer(); return ok }, Then: func(cx *core.Scope) core.Node {
 		return core.View{Style: core.Style{Gap: 6}, Children: []core.Node{
-			ui.Progress{TestID: "film-progress", Label: locales.FilmDownload(cx), Value: func() float32 { t, _ := transfer(); return t.Fraction() }},
+			ui.Progress{TestID: "film-progress", Label: locales.FilmDownload(cx), Value: func() float32 { t, _ := transfer(); return t.Fraction() * 100 }},
 			core.Text{TestID: "film-status", ContentFunc: func() string { return look.Status(cx, s, key) }, LiveRegion: core.LiveRegionPolite, Style: look.Caption, StyleFunc: ui.Colored(colors.Muted)},
 		}}
 	}}

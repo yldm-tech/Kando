@@ -32,6 +32,10 @@ func TestADownloadPausesAndResumes(t *testing.T) {
 	d.Stall(300_000)
 	p.app.Press("id:film-download")
 	p.app.WaitFor("text:"+msgs.FilmDownloading(30), wait)
+	// The bar takes a percentage, as its text does.
+	if now := p.app.Find("id:film-progress").Props.Value.Now; now < 29 || now > 31 {
+		t.Fatalf("the progress bar is at %v%%, its text at 30%%", now)
+	}
 	p.app.Press("id:film-pause")
 	p.app.WaitFor("text:"+msgs.FilmPaused(30), wait)
 	p.waitFile(filepath.Join(dir, store.PartFile), 300_000)
