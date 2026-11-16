@@ -210,12 +210,20 @@ func TestPhoneSyncPairsWithTheCodeShownAndServesTheLibrary(t *testing.T) {
 		t.Fatalf("cues %+v", cues)
 	}
 
-	part, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (*psync.Part, error) { return c.Video(ctx, "yt", 1, 3, "") })
+	// The body is read inside the call: phoneCall cancels its context once the call returns, which ends the body.
+	var body []byte
+	part, err := phoneCall(t, a, tt, updates, func(ctx context.Context) (*psync.Part, error) {
+		p, err := c.Video(ctx, "yt", 1, 3, "")
+		if err != nil {
+			return nil, err
+		}
+		defer p.Body.Close()
+		body, err = io.ReadAll(p.Body)
+		return p, err
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	body, _ := io.ReadAll(part.Body)
-	part.Body.Close()
 	if string(body) != "ide" || part.Start != 1 || part.End != 3 || part.Total != 5 || part.ETag == "" {
 		t.Fatalf("part %q %+v", body, part)
 	}
