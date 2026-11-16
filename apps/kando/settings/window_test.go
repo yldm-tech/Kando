@@ -37,6 +37,7 @@ type fakeApp struct {
 	trashOpen               bool
 	trashID                 string
 	spoken                  string
+	source                  string
 	provider                string
 	base, key, model        string
 	testing, connected      bool
@@ -131,6 +132,8 @@ func (f *fakeApp) CloseTrashSpeechModel()                { f.trashOpen = false }
 func (f *fakeApp) TrashSpeechModel(id string)            { f.call("trash " + id) }
 func (f *fakeApp) SpeechLanguage() string                { return f.spoken }
 func (f *fakeApp) SetSpeechLanguage(code string)         { f.spoken = code }
+func (f *fakeApp) SpeechSource() string                  { return f.source }
+func (f *fakeApp) SetSpeechSource(source string)         { f.source = source }
 func (f *fakeApp) CurrentPreset() (Preset, bool) {
 	if preset, ok := PresetByID(testlocale.Messages(), f.provider); ok {
 		return preset, true
@@ -705,5 +708,25 @@ func TestSpeechPageTakesAModelFile(t *testing.T) {
 	change(app, a, func() { a.tools.WhisperModel = "/elsewhere/ggml-small.bin" })
 	if app.Exists("id:settings-model-row-file") {
 		t.Fatal("a catalog model's file has a row of its own")
+	}
+}
+
+// TestDownloadSourceDropDown checks that the 语音识别 page offers Hugging Face, chosen by default, and hf-mirror.com as where the models download from, and that choosing one hands the app its source.
+func TestDownloadSourceDropDown(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionSpeech
+	app := start(t, a)
+	if !app.Exists(whole(testlocale.Messages().SettingsSpeechSource())) || !app.Exists(whole("Hugging Face")) {
+		t.Fatalf("texts %q", app.Texts())
+	}
+	app.Press("id:settings-speech-source")
+	app.Press("role:option hf-mirror.com")
+	if a.source != media.SpeechSourceMirror {
+		t.Fatalf("source %q", a.source)
+	}
+	app.Press("id:settings-speech-source")
+	app.Press("role:option Hugging Face")
+	if a.source != "" {
+		t.Fatalf("source %q after Hugging Face", a.source)
 	}
 }

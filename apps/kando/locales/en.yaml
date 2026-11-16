@@ -3117,11 +3117,17 @@ settingsSpeechDownload:
 settingsSpeechDownloadDisconnected:
   message: "The connection dropped. Check your network and download again."
   description: "Error on the Speech Recognition page and in the guide: the connection to the server failed or broke off during a whisper model's download. It may fail before any data arrived, so it does not promise to resume."
+settingsSpeechDownloadDisconnectedMirror:
+  message: "The connection to Hugging Face failed. Check your network, or set Download Source to hf-mirror.com in Settings › Speech Recognition, and download again."
+  description: "Error on the Speech Recognition page and in the guide: the connection to Hugging Face failed or broke off during a whisper model's download. hf-mirror.com is a mirror of Hugging Face reachable where Hugging Face often is not, as in mainland China; Download Source is the name of the Speech Recognition page's row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are."
 settingsSpeechDownloadFailedStatus:
   message: "The server answered HTTP {status}. Try again later."
   description: "Error on the Speech Recognition page and in the guide: the server answered a whisper model's download with an error status."
   placeholders:
     status: { type: "int", example: "503" }
+settingsSpeechDownloadMismatch:
+  message: "The downloaded file didn't match the model's checksum, so it was deleted. Download it again."
+  description: "Error on the Speech Recognition page and in the guide: the downloaded whisper model's size or SHA-256 is not the one Kando expects, so the file was thrown away."
 settingsSpeechDownloadProgress:
   message: "{model} download progress"
   description: "Accessible name of a whisper model's download progress bar."
@@ -3130,6 +3136,9 @@ settingsSpeechDownloadProgress:
 settingsSpeechDownloadStalled:
   message: "The download stopped receiving data. Download again to continue from where it stopped."
   description: "Error on the Speech Recognition page and in the guide: no data arrived for a long while during a whisper model's download; downloading again resumes it."
+settingsSpeechDownloadStalledMirror:
+  message: "Hugging Face stopped sending data. Download again to continue from where it stopped, or set Download Source to hf-mirror.com in Settings › Speech Recognition."
+  description: "Error on the Speech Recognition page and in the guide: no data arrived from Hugging Face for a long while during a whisper model's download; downloading again resumes it. hf-mirror.com is a mirror of Hugging Face; Download Source is the name of the row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are."
 settingsSpeechDownloaded:
   message: "Downloaded"
   description: "At the end of a whisper model's row: the model is on disk."
@@ -3241,6 +3250,14 @@ settingsSpeechReveal:
 settingsSpeechSaveFailed:
   message: "Couldn't save the model: {error}"
   description: "Error when the chosen whisper model could not be saved to settings.json."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
+settingsSpeechSource:
+  message: "Download Source"
+  description: "Title of the Speech Recognition page's row choosing where whisper models download from, Hugging Face or its mirror hf-mirror.com, and the name of its drop-down."
+settingsSpeechSourceSaveFailed:
+  message: "Couldn't save the download source: {error}"
+  description: "Error when the chosen download source of the whisper models could not be saved to settings.json."
   placeholders:
     error: { type: "String", example: "permission denied" }
 settingsSpeechSpokenAuto:

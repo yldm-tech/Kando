@@ -113,7 +113,7 @@ func TestSpeechModelSelectionIsSaved(t *testing.T) {
 	}
 }
 
-// TestSpeechDownloadResumesAfterADrop checks a speech model's download whose connection drops: the page says so and that downloading again continues, and 下载 then asks the server only for the rest and puts the whole model to use.
+// TestSpeechDownloadResumesAfterADrop checks a speech model's download from Hugging Face whose connection drops: the page says so, suggests hf-mirror.com, and 下载 then asks the server only for the rest and puts the whole model to use.
 func TestSpeechDownloadResumesAfterADrop(t *testing.T) {
 	data := []byte(strings.Repeat("ggml", 1024))
 	var ranges []string
@@ -129,9 +129,7 @@ func TestSpeechDownloadResumesAfterADrop(t *testing.T) {
 		http.ServeContent(w, r, "ggml-tiny.bin", time.Time{}, bytes.NewReader(data))
 	}))
 	t.Cleanup(srv.Close)
-	saved := whisperModelBaseURL
-	whisperModelBaseURL = srv.URL
-	t.Cleanup(func() { whisperModelBaseURL = saved })
+	serveSpeechModels(t, srv.URL, data, nil)
 	a, tt, updates := newTestApp(t, media.Tools{})
 	a.prefs.modelsDir = t.TempDir()
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
@@ -139,7 +137,7 @@ func TestSpeechDownloadResumesAfterADrop(t *testing.T) {
 	a.DownloadModel("tiny")
 	waitUntil(t, tt, a, updates, func() bool { return a.Downloading() == "" })
 	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
-	wantText(t, tt, "连接断了。检查网络后再下载一次。")
+	wantText(t, tt, "连接 Hugging Face 失败。检查网络，或在「设置 › 语音识别」里把下载源换成 hf-mirror.com，再下载一次。")
 	if info, err := os.Stat(filepath.Join(a.prefs.modelsDir, "ggml-tiny.bin.partial")); err != nil || info.Size() != 1000 {
 		t.Fatalf("the dropped download kept %v, err %v", info, err)
 	}
@@ -158,6 +156,100 @@ func TestSpeechDownloadResumesAfterADrop(t *testing.T) {
 	}
 	if a.pipeline.(media.Tools).WhisperModel != model || a.DownloadErr() != "" {
 		t.Fatalf("model in use %q, error %q", a.pipeline.(media.Tools).WhisperModel, a.DownloadErr())
+	}
+}
+
+// TestSpeechDownloadThatFailsTheChecksumIsDropped checks a speech model's download whose file is not the one the catalog pins, as a mirror could serve: the page says the file did not match and was deleted, nothing is left in the models folder, and the model in use stays.
+func TestSpeechDownloadThatFailsTheChecksumIsDropped(t *testing.T) {
+	data := []byte(strings.Repeat("ggml", 1024))
+	other := []byte(strings.Repeat("lmgg", 1024))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "ggml-tiny.bin", time.Time{}, bytes.NewReader(other))
+	}))
+	t.Cleanup(srv.Close)
+	serveSpeechModels(t, srv.URL, data, nil)
+	a, tt, updates := newTestApp(t, media.Tools{WhisperModel: "/models/ggml-base.bin"})
+	a.prefs.modelsDir = t.TempDir()
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+
+	a.DownloadModel("tiny")
+	waitUntil(t, tt, a, updates, func() bool { return a.Downloading() == "" })
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
+	wantText(t, tt, "下载的文件与模型的校验值不符，已删除。请重新下载。")
+	if entries, _ := os.ReadDir(a.prefs.modelsDir); len(entries) != 0 {
+		t.Fatalf("the models folder holds %v", entries)
+	}
+	if got := a.pipeline.(media.Tools).WhisperModel; got != "/models/ggml-base.bin" {
+		t.Fatalf("model in use %q", got)
+	}
+}
+
+// TestSpeechSourceIsSavedAndUsed chooses hf-mirror.com as the download source on the 语音识别 page: settings.json keeps it, the next start takes it back, and the next download fetches from it. Hugging Face saves nothing, and a source Kando does not know is ignored.
+func TestSpeechSourceIsSavedAndUsed(t *testing.T) {
+	data := []byte(strings.Repeat("ggml", 256))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeContent(w, r, "ggml-tiny.bin", time.Time{}, bytes.NewReader(data))
+	}))
+	t.Cleanup(srv.Close)
+	var sources []string
+	serveSpeechModels(t, srv.URL, data, &sources)
+	a, tt, updates := newTestApp(t, media.Tools{})
+	a.prefs.modelsDir = t.TempDir()
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	tt = settingsOpenAt(a, tt, settings.SectionSpeech)
+	// The source row is below the models, past a 640-point window, so the window is made tall enough to hold the whole page and the drop-down's list.
+	tt.Resize(880, 1600)
+	wantText(t, tt, "下载源")
+	tt.Press("id:settings-speech-source")
+	tt.Press("role:option hf-mirror.com")
+	if a.prefs.speechSource != media.SpeechSourceMirror {
+		t.Fatalf("source %q", a.prefs.speechSource)
+	}
+	saved := loadSavedSettings(a.settingsPath)
+	if saved.SpeechSource != media.SpeechSourceMirror {
+		t.Fatalf("saved %#v", saved.savedSpeech)
+	}
+	next, _, _ := newTestApp(t, media.Tools{})
+	next.restoreSpeech(saved)
+	if next.prefs.speechSource != media.SpeechSourceMirror {
+		t.Fatalf("restored %q", next.prefs.speechSource)
+	}
+
+	a.DownloadModel("tiny")
+	waitUntil(t, tt, a, updates, func() bool { return a.Downloading() == "" })
+	if !slices.Equal(sources, []string{media.SpeechSourceMirror}) || a.DownloadErr() != "" {
+		t.Fatalf("downloaded from %q, error %q", sources, a.DownloadErr())
+	}
+	if got := a.pipeline.(media.Tools).WhisperModel; got != filepath.Join(a.prefs.modelsDir, "ggml-tiny.bin") {
+		t.Fatalf("model in use %q", got)
+	}
+
+	tt.Press("id:settings-speech-source")
+	tt.Press("role:option Hugging Face")
+	if a.prefs.speechSource != "" {
+		t.Fatalf("source %q after Hugging Face", a.prefs.speechSource)
+	}
+	data2, err := os.ReadFile(a.settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data2), "speechSource") {
+		t.Fatalf("Hugging Face was saved: %s", data2)
+	}
+	a.SetSpeechSource("elsewhere")
+	if a.prefs.speechSource != "" {
+		t.Fatalf("an unknown source was taken: %q", a.prefs.speechSource)
+	}
+}
+
+// TestSavedSpeechSourceIsCleaned trims the saved download source and drops one Kando does not know, which leaves the models to download from Hugging Face.
+func TestSavedSpeechSourceIsCleaned(t *testing.T) {
+	for _, tc := range []struct{ saved, want string }{{" hf-mirror ", media.SpeechSourceMirror}, {"huggingface", ""}, {"https://example.com", ""}, {"", ""}} {
+		s := savedSpeech{SpeechSource: tc.saved}
+		s.clean()
+		if s.SpeechSource != tc.want {
+			t.Fatalf("%q cleaned to %q, want %q", tc.saved, s.SpeechSource, tc.want)
+		}
 	}
 }
 

@@ -618,6 +618,7 @@ var Parameters = map[string][]string{
 	"SettingsSpeechModelStats":           {"speed", "accuracy", "size"},
 	"SettingsSpeechNotModelFile":         {"file"},
 	"SettingsSpeechSaveFailed":           {"error_"},
+	"SettingsSpeechSourceSaveFailed":     {"error_"},
 	"SettingsSpeechTrashConfirm":         {"model"},
 	"SettingsSpeechTrashFailed":          {"model"},
 	"SettingsSpeechTrashInUse":           {"model"},
@@ -833,6 +834,7 @@ type Translation struct {
 	SettingsSpeechModelStats           func(speed string, accuracy string, size string) string
 	SettingsSpeechNotModelFile         func(file string) string
 	SettingsSpeechSaveFailed           func(error_ string) string
+	SettingsSpeechSourceSaveFailed     func(error_ string) string
 	SettingsSpeechTrashConfirm         func(model string) string
 	SettingsSpeechTrashFailed          func(model string) string
 	SettingsSpeechTrashInUse           func(model string) string
@@ -1573,7 +1575,10 @@ const (
 	textSettingsSpeechChooseFile
 	textSettingsSpeechDownload
 	textSettingsSpeechDownloadDisconnected
+	textSettingsSpeechDownloadDisconnectedMirror
+	textSettingsSpeechDownloadMismatch
 	textSettingsSpeechDownloadStalled
+	textSettingsSpeechDownloadStalledMirror
 	textSettingsSpeechDownloaded
 	textSettingsSpeechLanguageAr
 	textSettingsSpeechLanguageDe
@@ -1601,6 +1606,7 @@ const (
 	textSettingsSpeechNote
 	textSettingsSpeechRecommended
 	textSettingsSpeechReveal
+	textSettingsSpeechSource
 	textSettingsSpeechSpokenAuto
 	textSettingsSpeechSpokenLanguage
 	textSettingsSpeechSpokenNote
@@ -2389,7 +2395,10 @@ var keyOfText = [numTexts]string{
 	"settingsSpeechChooseFile",
 	"settingsSpeechDownload",
 	"settingsSpeechDownloadDisconnected",
+	"settingsSpeechDownloadDisconnectedMirror",
+	"settingsSpeechDownloadMismatch",
 	"settingsSpeechDownloadStalled",
+	"settingsSpeechDownloadStalledMirror",
 	"settingsSpeechDownloaded",
 	"settingsSpeechLanguageAr",
 	"settingsSpeechLanguageDe",
@@ -2417,6 +2426,7 @@ var keyOfText = [numTexts]string{
 	"settingsSpeechNote",
 	"settingsSpeechRecommended",
 	"settingsSpeechReveal",
+	"settingsSpeechSource",
 	"settingsSpeechSpokenAuto",
 	"settingsSpeechSpokenLanguage",
 	"settingsSpeechSpokenNote",
@@ -3203,7 +3213,10 @@ var textsEn = i18n.NewTexts(""+
 	"Choose Model File…"+
 	"Download"+
 	"The connection dropped. Check your network and download again."+
+	"The connection to Hugging Face failed. Check your network, or set Download Source to hf-mirror.com in Settings › Speech Recognition, and download again."+
+	"The downloaded file didn't match the model's checksum, so it was deleted. Download it again."+
 	"The download stopped receiving data. Download again to continue from where it stopped."+
+	"Hugging Face stopped sending data. Download again to continue from where it stopped, or set Download Source to hf-mirror.com in Settings › Speech Recognition."+
 	"Downloaded"+
 	"Arabic"+
 	"German"+
@@ -3231,6 +3244,7 @@ var textsEn = i18n.NewTexts(""+
 	"Larger models are more accurate but slower; if unsure, use the recommended one."+
 	"Recommended"+
 	"Show in Finder"+
+	"Download Source"+
 	"Detect Automatically"+
 	"Spoken Language"+
 	"The language spoken in the videos. Automatic detection listens to the first 30 seconds, so it can guess wrong when a video opens with music or with another language; choose the language then."+
@@ -4014,7 +4028,10 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		8,
 		62,
+		154,
+		92,
 		86,
+		160,
 		10,
 		6,
 		6,
@@ -4042,6 +4059,7 @@ var textsEn = i18n.NewTexts(""+
 		79,
 		11,
 		14,
+		15,
 		20,
 		15,
 		191,
@@ -4828,7 +4846,10 @@ var textsJa = i18n.NewTexts(""+
 	"モデルファイルを選択…"+
 	"ダウンロード"+
 	"接続が切れました。ネットワークを確認して、もう一度ダウンロードしてください。"+
+	"Hugging Face に接続できませんでした。ネットワークを確認するか、「設定 › 音声認識」でダウンロード元を hf-mirror.com に変えて、もう一度ダウンロードしてください。"+
+	"ダウンロードしたファイルがモデルのチェックサムと一致しないため、削除しました。もう一度ダウンロードしてください。"+
 	"データが届かなくなり、ダウンロードが止まりました。もう一度ダウンロードすると、途中から再開します。"+
+	"Hugging Face からデータが届かなくなり、ダウンロードが止まりました。もう一度ダウンロードすると途中から再開します。「設定 › 音声認識」でダウンロード元を hf-mirror.com に変えることもできます。"+
 	"ダウンロード済み"+
 	"アラビア語"+
 	"ドイツ語"+
@@ -4856,6 +4877,7 @@ var textsJa = i18n.NewTexts(""+
 	"大きいモデルほど正確ですが遅くなるので、迷ったらおすすめのモデルを使ってください。"+
 	"おすすめ"+
 	"Finder で表示"+
+	"ダウンロード元"+
 	"自動で認識"+
 	"認識する言語"+
 	"動画で話されている言語です。自動認識は最初の 30 秒だけを聞くため、冒頭が音楽や別の言語だと誤ることがあります。そのときは言語を選んでください。"+
@@ -5639,7 +5661,10 @@ var textsJa = i18n.NewTexts(""+
 		33,
 		18,
 		114,
+		225,
+		168,
 		147,
+		270,
 		24,
 		15,
 		12,
@@ -5667,6 +5692,7 @@ var textsJa = i18n.NewTexts(""+
 		123,
 		12,
 		16,
+		21,
 		15,
 		18,
 		211,
@@ -6453,7 +6479,10 @@ var textsKo = i18n.NewTexts(""+
 	"모델 파일 선택…"+
 	"다운로드"+
 	"연결이 끊어졌습니다. 네트워크를 확인한 뒤 다시 다운로드하세요."+
+	"Hugging Face에 연결하지 못했습니다. 네트워크를 확인하거나 ‘설정 › 음성 인식’에서 다운로드 소스를 hf-mirror.com으로 바꾼 뒤 다시 다운로드하세요."+
+	"다운로드한 파일이 모델의 체크섬과 일치하지 않아 삭제했습니다. 다시 다운로드하세요."+
 	"데이터가 더 이상 오지 않아 다운로드가 멈췄습니다. 다시 다운로드하면 중단된 곳부터 이어받습니다."+
+	"Hugging Face에서 데이터가 더 이상 오지 않아 다운로드가 멈췄습니다. 다시 다운로드하면 중단된 곳부터 이어받습니다. ‘설정 › 음성 인식’에서 다운로드 소스를 hf-mirror.com으로 바꿀 수도 있습니다."+
 	"다운로드됨"+
 	"아랍어"+
 	"독일어"+
@@ -6481,6 +6510,7 @@ var textsKo = i18n.NewTexts(""+
 	"모델이 클수록 정확하지만 느리므로, 잘 모르겠으면 추천 모델을 사용하십시오."+
 	"추천"+
 	"Finder에서 보기"+
+	"다운로드 소스"+
 	"자동 인식"+
 	"인식 언어"+
 	"동영상에서 말하는 언어입니다. 자동 인식은 처음 30초만 듣기 때문에 시작 부분이 음악이거나 다른 언어이면 잘못 알아들을 수 있습니다. 그럴 때는 언어를 직접 선택하십시오."+
@@ -7264,7 +7294,10 @@ var textsKo = i18n.NewTexts(""+
 		23,
 		12,
 		89,
+		198,
+		118,
 		136,
+		263,
 		15,
 		9,
 		9,
@@ -7291,6 +7324,7 @@ var textsKo = i18n.NewTexts(""+
 		36,
 		106,
 		6,
+		19,
 		19,
 		13,
 		13,
@@ -8078,7 +8112,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"选择模型文件…"+
 	"下载"+
 	"连接断了。检查网络后再下载一次。"+
+	"连接 Hugging Face 失败。检查网络，或在「设置 › 语音识别」里把下载源换成 hf-mirror.com，再下载一次。"+
+	"下载的文件与模型的校验值不符，已删除。请重新下载。"+
 	"下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"+
+	"Hugging Face 一直不发数据，下载停住了。重新下载会从断开的地方接着下，也可以在「设置 › 语音识别」里把下载源换成 hf-mirror.com。"+
 	"已下载"+
 	"阿拉伯语"+
 	"德语"+
@@ -8106,6 +8143,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"模型越大越准，也越慢；不确定就用推荐的。"+
 	"推荐"+
 	"在访达中显示"+
+	"下载源"+
 	"自动识别"+
 	"识别语言"+
 	"视频里说的语言。自动识别只听开头 30 秒，开头是音乐或者另一种语言时可能认错，这时直接选定语言。"+
@@ -8889,7 +8927,10 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		6,
 		48,
+		135,
+		75,
 		87,
+		176,
 		9,
 		12,
 		6,
@@ -8917,6 +8958,7 @@ var textsZhHans = i18n.NewTexts(""+
 		60,
 		6,
 		18,
+		9,
 		12,
 		12,
 		139,
@@ -9703,7 +9745,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"選擇模型檔案…"+
 	"下載"+
 	"連線中斷了。檢查網路後再下載一次。"+
+	"連線 Hugging Face 失敗。檢查網路，或在「設定 › 語音辨識」中把下載來源換成 hf-mirror.com，再下載一次。"+
+	"下載的檔案與模型的校驗值不符，已刪除。請重新下載。"+
 	"下載停住了，一直收不到資料。重新下載會從中斷的地方接著下。"+
+	"Hugging Face 一直沒有傳來資料，下載停住了。重新下載會從中斷的地方接著下，也可以在「設定 › 語音辨識」中把下載來源換成 hf-mirror.com。"+
 	"已下載"+
 	"阿拉伯語"+
 	"德語"+
@@ -9731,6 +9776,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"模型越大越準，也越慢；不確定就用推薦的。"+
 	"推薦"+
 	"在 Finder 中顯示"+
+	"下載來源"+
 	"自動辨識"+
 	"辨識語言"+
 	"影片裡說的語言。自動辨識只聽開頭 30 秒，開頭是音樂或另一種語言時可能認錯，這時直接選定語言。"+
@@ -10514,7 +10560,10 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		6,
 		51,
+		138,
+		75,
 		87,
+		185,
 		9,
 		12,
 		6,
@@ -10542,6 +10591,7 @@ var textsZhHant = i18n.NewTexts(""+
 		60,
 		6,
 		20,
+		12,
 		12,
 		12,
 		136,
@@ -11244,6 +11294,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSpeechSaveFailed != nil {
 		s.SettingsSpeechSaveFailed = t.SettingsSpeechSaveFailed
+	}
+	if t.SettingsSpeechSourceSaveFailed != nil {
+		s.SettingsSpeechSourceSaveFailed = t.SettingsSpeechSourceSaveFailed
 	}
 	if t.SettingsSpeechTrashConfirm != nil {
 		s.SettingsSpeechTrashConfirm = t.SettingsSpeechTrashConfirm
@@ -24336,6 +24389,19 @@ func (msgs Messages) SettingsSpeechDownloadDisconnected() string {
 	return msgs.text(textSettingsSpeechDownloadDisconnected)
 }
 
+// SettingsSpeechDownloadDisconnectedMirror says "The connection to Hugging Face failed. Check your network, or set Download Source to hf-mirror.com in Settings › Speech Recognition, and download again."
+// in the language the app shows under cx.
+//
+// Error on the Speech Recognition page and in the guide: the connection to Hugging Face failed or broke off during a whisper model's download. hf-mirror.com is a mirror of Hugging Face reachable where Hugging Face often is not, as in mainland China; Download Source is the name of the Speech Recognition page's row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are.
+func SettingsSpeechDownloadDisconnectedMirror(cx *core.Scope) string {
+	return For(cx).SettingsSpeechDownloadDisconnectedMirror()
+}
+
+// SettingsSpeechDownloadDisconnectedMirror is the package's SettingsSpeechDownloadDisconnectedMirror in the language of msgs.
+func (msgs Messages) SettingsSpeechDownloadDisconnectedMirror() string {
+	return msgs.text(textSettingsSpeechDownloadDisconnectedMirror)
+}
+
 // SettingsSpeechDownloadFailedStatus says "The server answered HTTP {status}. Try again later."
 // in the language the app shows under cx.
 //
@@ -24366,6 +24432,19 @@ func (msgs Messages) SettingsSpeechDownloadFailedStatus(status int) string {
 			return "伺服器回傳 HTTP " + i18n.FormatNumber("zh-Hant", float64(status)) + "，請稍後再試。"
 		}
 	}
+}
+
+// SettingsSpeechDownloadMismatch says "The downloaded file didn't match the model's checksum, so it was deleted. Download it again."
+// in the language the app shows under cx.
+//
+// Error on the Speech Recognition page and in the guide: the downloaded whisper model's size or SHA-256 is not the one Kando expects, so the file was thrown away.
+func SettingsSpeechDownloadMismatch(cx *core.Scope) string {
+	return For(cx).SettingsSpeechDownloadMismatch()
+}
+
+// SettingsSpeechDownloadMismatch is the package's SettingsSpeechDownloadMismatch in the language of msgs.
+func (msgs Messages) SettingsSpeechDownloadMismatch() string {
+	return msgs.text(textSettingsSpeechDownloadMismatch)
 }
 
 // SettingsSpeechDownloadProgress says "{model} download progress"
@@ -24411,6 +24490,19 @@ func SettingsSpeechDownloadStalled(cx *core.Scope) string {
 // SettingsSpeechDownloadStalled is the package's SettingsSpeechDownloadStalled in the language of msgs.
 func (msgs Messages) SettingsSpeechDownloadStalled() string {
 	return msgs.text(textSettingsSpeechDownloadStalled)
+}
+
+// SettingsSpeechDownloadStalledMirror says "Hugging Face stopped sending data. Download again to continue from where it stopped, or set Download Source to hf-mirror.com in Settings › Speech Recognition."
+// in the language the app shows under cx.
+//
+// Error on the Speech Recognition page and in the guide: no data arrived from Hugging Face for a long while during a whisper model's download; downloading again resumes it. hf-mirror.com is a mirror of Hugging Face; Download Source is the name of the row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are.
+func SettingsSpeechDownloadStalledMirror(cx *core.Scope) string {
+	return For(cx).SettingsSpeechDownloadStalledMirror()
+}
+
+// SettingsSpeechDownloadStalledMirror is the package's SettingsSpeechDownloadStalledMirror in the language of msgs.
+func (msgs Messages) SettingsSpeechDownloadStalledMirror() string {
+	return msgs.text(textSettingsSpeechDownloadStalledMirror)
 }
 
 // SettingsSpeechDownloaded says "Downloaded"
@@ -24894,6 +24986,47 @@ func (msgs Messages) SettingsSpeechSaveFailed(error_ string) string {
 			return "模型无法保存：" + error_
 		case "zh-Hant":
 			return "模型無法儲存：" + error_
+		}
+	}
+}
+
+// SettingsSpeechSource says "Download Source"
+// in the language the app shows under cx.
+//
+// Title of the Speech Recognition page's row choosing where whisper models download from, Hugging Face or its mirror hf-mirror.com, and the name of its drop-down.
+func SettingsSpeechSource(cx *core.Scope) string { return For(cx).SettingsSpeechSource() }
+
+// SettingsSpeechSource is the package's SettingsSpeechSource in the language of msgs.
+func (msgs Messages) SettingsSpeechSource() string { return msgs.text(textSettingsSpeechSource) }
+
+// SettingsSpeechSourceSaveFailed says "Couldn't save the download source: {error}"
+// in the language the app shows under cx.
+//
+// Error when the chosen download source of the whisper models could not be saved to settings.json.
+func SettingsSpeechSourceSaveFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsSpeechSourceSaveFailed(error_)
+}
+
+// SettingsSpeechSourceSaveFailed is the package's SettingsSpeechSourceSaveFailed in the language of msgs.
+func (msgs Messages) SettingsSpeechSourceSaveFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechSourceSaveFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSpeechSourceSaveFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't save the download source: " + msgs.arg(error_)
+		case "ja":
+			return "ダウンロード元を保存できません：" + error_
+		case "ko":
+			return "다운로드 소스를 저장할 수 없습니다: " + error_
+		case "zh-Hans":
+			return "下载源无法保存：" + error_
+		case "zh-Hant":
+			return "下載來源無法儲存：" + error_
 		}
 	}
 }

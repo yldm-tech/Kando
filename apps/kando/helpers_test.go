@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"image"
 	"os"
 	"path/filepath"
@@ -481,4 +483,23 @@ func backgroundUnder(v *nsgotest.View) ns.Color {
 		}
 	}
 	return 0
+}
+
+// serveSpeechModels points the whisper model downloads at url, from whichever download source, and pins every catalog model to data, the file the test's server serves, so the downloads pass the checksum. sources records the download source of every download.
+func serveSpeechModels(t *testing.T, url string, data []byte, sources *[]string) {
+	t.Helper()
+	oldURL, oldModel := whisperModelBaseURL, speechModelFor
+	whisperModelBaseURL = func(source string) string {
+		if sources != nil {
+			*sources = append(*sources, source)
+		}
+		return url
+	}
+	sum := sha256.Sum256(data)
+	speechModelFor = func(id string) (media.SpeechModel, bool) {
+		model, ok := media.SpeechModelByID(id)
+		model.SHA256, model.Size = hex.EncodeToString(sum[:]), int64(len(data))
+		return model, ok
+	}
+	t.Cleanup(func() { whisperModelBaseURL, speechModelFor = oldURL, oldModel })
 }

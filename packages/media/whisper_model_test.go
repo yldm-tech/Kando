@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -62,6 +63,7 @@ func TestResolveSpeechModel(t *testing.T) {
 }
 
 func TestDownloadSpeechModel(t *testing.T) {
+	data := []byte("hello")
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/ggml-tiny.bin" {
 			t.Errorf("path %s", r.URL.Path)
@@ -72,7 +74,7 @@ func TestDownloadSpeechModel(t *testing.T) {
 	defer srv.Close()
 	var got int64
 	dir := t.TempDir()
-	path, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, func(written, total int64) {
+	path, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, func(written, total int64) {
 		got = written
 		if total != 5 {
 			t.Errorf("total = %d", total)
@@ -81,12 +83,12 @@ func TestDownloadSpeechModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(path)
+	saved, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != "hello" || got != 5 {
-		t.Fatalf("data %q written %d", data, got)
+	if string(saved) != "hello" || got != 5 {
+		t.Fatalf("data %q written %d", saved, got)
 	}
 	if _, err := os.Stat(path + ".partial"); !os.IsNotExist(err) {
 		t.Fatal("partial file was left behind")
@@ -106,7 +108,7 @@ func TestDownloadSpeechModelCancelRemovesPartial(t *testing.T) {
 		cancel()
 	}()
 	dir := t.TempDir()
-	_, err := DownloadSpeechModel(ctx, srv.URL, "ggml-tiny.bin", dir, nil)
+	_, err := DownloadSpeechModel(ctx, srv.URL, tinyModel([]byte("model")), dir, nil)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v", err)
 	}
@@ -116,6 +118,91 @@ func TestDownloadSpeechModelCancelRemovesPartial(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("left %d files", len(entries))
+	}
+}
+
+// tinyModel is ggml-tiny.bin pinned to data's size and checksum, as the catalog pins the real file's.
+func tinyModel(data []byte) SpeechModel {
+	return SpeechModel{ID: "tiny", File: "ggml-tiny.bin", SHA256: sha(data), Size: int64(len(data))}
+}
+
+// TestSpeechModelsArePinned checks that every catalog model is pinned to a SHA-256 and a size, so that no download from any source is used unchecked.
+func TestSpeechModelsArePinned(t *testing.T) {
+	for _, model := range SpeechModels() {
+		if len(model.SHA256) != 64 || strings.Trim(model.SHA256, "0123456789abcdef") != "" {
+			t.Errorf("%s: SHA256 %q", model.ID, model.SHA256)
+		}
+		if model.Size <= 0 {
+			t.Errorf("%s: size %d", model.ID, model.Size)
+		}
+	}
+}
+
+// TestSpeechSourceBaseURL serves the models from Hugging Face, or from hf-mirror.com under the same paths, and from Hugging Face for a source it does not know.
+func TestSpeechSourceBaseURL(t *testing.T) {
+	for source, want := range map[string]string{"": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main", SpeechSourceMirror: "https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main", "elsewhere": WhisperModelBaseURL} {
+		if got := SpeechSourceBaseURL(source); got != want {
+			t.Errorf("SpeechSourceBaseURL(%q) = %q, want %q", source, got, want)
+		}
+	}
+}
+
+// A server that sends another file of the model's size, as a mirror could, fails the checksum: the download says so and keeps nothing, so the next one starts over rather than resuming it.
+func TestDownloadSpeechModelRejectsAnotherFile(t *testing.T) {
+	data := modelBytes(64 << 10)
+	other := bytes.Clone(data)
+	other[len(other)/2] ^= 0xff
+	var requests []string
+	srv := modelServer(t, other, `"v1"`, &requests)
+	dir := t.TempDir()
+	_, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil)
+	if !errors.Is(err, ErrSpeechModelMismatch) || !strings.Contains(err.Error(), "checksum") {
+		t.Fatalf("err = %v, want ErrSpeechModelMismatch for the checksum", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("left %v", entries)
+	}
+}
+
+// A server that says the file is not the model's size fails the download before a byte of it is written.
+func TestDownloadSpeechModelRejectsAnotherSize(t *testing.T) {
+	data := modelBytes(64 << 10)
+	var requests []string
+	srv := modelServer(t, data[:1000], `"v1"`, &requests)
+	dir := t.TempDir()
+	_, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil)
+	if !errors.Is(err, ErrSpeechModelMismatch) {
+		t.Fatalf("err = %v, want ErrSpeechModelMismatch", err)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("left %v", entries)
+	}
+}
+
+// A resumed download whose rest makes up another file fails the checksum and drops what the earlier one kept too.
+func TestDownloadSpeechModelRejectsAResumedMismatch(t *testing.T) {
+	data := modelBytes(64 << 10)
+	var requests []string
+	srv := modelServer(t, data, `"v1"`, &requests)
+	dir := t.TempDir()
+	leavePartial(t, dir, make([]byte, 1000), `"v1"`)
+	_, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil)
+	if !errors.Is(err, ErrSpeechModelMismatch) {
+		t.Fatalf("err = %v, want ErrSpeechModelMismatch", err)
+	}
+	if len(requests) != 1 || requests[0] != "bytes=1000-" {
+		t.Fatalf("requests %q, want one resume", requests)
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("left %v", entries)
+	}
+}
+
+// A model the catalog pins nothing for is not downloaded.
+func TestDownloadSpeechModelNeedsAPin(t *testing.T) {
+	_, err := DownloadSpeechModel(context.Background(), "http://127.0.0.1:1", SpeechModel{ID: "tiny", File: "ggml-tiny.bin"}, t.TempDir(), nil)
+	if err == nil || !strings.Contains(err.Error(), "no checksum pinned") {
+		t.Fatalf("err = %v", err)
 	}
 }
 
@@ -171,7 +258,7 @@ func TestDownloadSpeechModelStallKeepsPartial(t *testing.T) {
 	data := modelBytes(64 << 10)
 	srv := stallingServer(t, data, 1000)
 	dir := t.TempDir()
-	_, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil)
+	_, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil)
 	if !errors.Is(err, ErrStalled) {
 		t.Fatalf("err = %v, want ErrStalled", err)
 	}
@@ -203,7 +290,7 @@ func TestDownloadSpeechModelResumes(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	dir := t.TempDir()
-	if _, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil); !errors.Is(err, ErrDisconnected) {
+	if _, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil); !errors.Is(err, ErrDisconnected) {
 		t.Fatalf("err = %v, want ErrDisconnected", err)
 	}
 	info, err := os.Stat(filepath.Join(dir, "ggml-tiny.bin.partial"))
@@ -213,7 +300,7 @@ func TestDownloadSpeechModelResumes(t *testing.T) {
 	kept := info.Size()
 
 	var first, last, total int64 = -1, 0, 0
-	path, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, func(written, whole int64) {
+	path, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, func(written, whole int64) {
 		if first < 0 {
 			first = written
 		}
@@ -247,7 +334,7 @@ func TestDownloadSpeechModelRestartsWhenRangeIsIgnored(t *testing.T) {
 	t.Cleanup(srv.Close)
 	dir := t.TempDir()
 	leavePartial(t, dir, data[:1000], `"v1"`)
-	if _, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil); err != nil {
+	if _, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	wantModel(t, dir, data)
@@ -269,7 +356,7 @@ func TestDownloadSpeechModelRestartsWhenTheFileChanged(t *testing.T) {
 	t.Cleanup(srv.Close)
 	dir := t.TempDir()
 	leavePartial(t, dir, []byte("an older model"), `"v1"`)
-	if _, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil); err != nil {
+	if _, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	wantModel(t, dir, data)
@@ -298,7 +385,7 @@ func TestDownloadSpeechModelRestartsWhenTheRangeStartsElsewhere(t *testing.T) {
 	t.Cleanup(srv.Close)
 	dir := t.TempDir()
 	leavePartial(t, dir, data[:1000], `"v1"`)
-	if _, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil); err != nil {
+	if _, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	wantModel(t, dir, data)
@@ -316,7 +403,7 @@ func TestDownloadSpeechModelWithoutValidatorStartsOver(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "ggml-tiny.bin.partial"), []byte("junk"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil); err != nil {
+	if _, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	wantModel(t, dir, data)
@@ -332,7 +419,7 @@ func TestDownloadSpeechModelPartialAlreadyWhole(t *testing.T) {
 	srv := modelServer(t, data, `"v1"`, &requests)
 	dir := t.TempDir()
 	leavePartial(t, dir, data, `"v1"`)
-	if _, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil); err != nil {
+	if _, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel(data), dir, nil); err != nil {
 		t.Fatal(err)
 	}
 	wantModel(t, dir, data)
@@ -345,7 +432,7 @@ func TestDownloadSpeechModelStatus(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "gone", http.StatusNotFound) }))
 	t.Cleanup(srv.Close)
 	dir := t.TempDir()
-	_, err := DownloadSpeechModel(context.Background(), srv.URL, "ggml-tiny.bin", dir, nil)
+	_, err := DownloadSpeechModel(context.Background(), srv.URL, tinyModel([]byte("model")), dir, nil)
 	var status interface{ StatusCode() int }
 	if !errors.As(err, &status) || status.StatusCode() != http.StatusNotFound {
 		t.Fatalf("err = %v, want HTTP 404", err)
@@ -362,7 +449,7 @@ func TestDownloadSpeechModelCancelRemovesResumedPartial(t *testing.T) {
 	dir := t.TempDir()
 	leavePartial(t, dir, data[:500], `"v1"`)
 	ctx, cancel := context.WithCancel(context.Background())
-	_, err := DownloadSpeechModel(ctx, srv.URL, "ggml-tiny.bin", dir, func(written, total int64) { cancel() })
+	_, err := DownloadSpeechModel(ctx, srv.URL, tinyModel(data), dir, func(written, total int64) { cancel() })
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("err = %v", err)
 	}

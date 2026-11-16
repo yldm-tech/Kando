@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,32 +17,38 @@ import (
 	ns "github.com/nsgo-dev/nsgo/core"
 )
 
-// Settings › 语音识别 and 通用: the whisper model, its download and its file, the language spoken in the videos, and the tools' versions.
+// Settings › 语音识别 and 通用: the whisper model, its download, where it downloads from and its file, the language spoken in the videos, and the tools' versions.
 
-// savedSpeech is the speech model's part of settings.json: the model's file, and the language spoken in the videos as whisper's code, empty for whisper to detect it.
+// savedSpeech is the speech model's part of settings.json: the model's file, the language spoken in the videos as whisper's code, empty for whisper to detect it, and where the models download from, empty for Hugging Face (media.SpeechSources).
 type savedSpeech struct {
 	WhisperModel   string `json:"whisperModel,omitempty"`
 	SpeechLanguage string `json:"speechLanguage,omitempty"`
+	SpeechSource   string `json:"speechSource,omitempty"`
 }
 
-// clean trims the model's path and the language, and drops a language whisper is not offered for (media.SpeechLanguages), which leaves whisper to detect it.
+// clean trims the model's path, the language and the download source, drops a language whisper is not offered for (media.SpeechLanguages), which leaves whisper to detect it, and a source Kando does not know, which leaves the models to download from Hugging Face.
 func (s *savedSpeech) clean() {
 	s.WhisperModel = strings.TrimSpace(s.WhisperModel)
 	s.SpeechLanguage = strings.TrimSpace(s.SpeechLanguage)
 	if !media.KnownSpeechLanguage(s.SpeechLanguage) {
 		s.SpeechLanguage = ""
 	}
+	if s.SpeechSource = strings.TrimSpace(s.SpeechSource); !slices.Contains(media.SpeechSources(), s.SpeechSource) {
+		s.SpeechSource = ""
+	}
 }
 
 func (a *app) saveSpeech(saved *savedSettings) {
+	saved.SpeechSource = a.prefs.speechSource
 	if tools, ok := a.pipeline.(media.Tools); ok {
 		saved.WhisperModel = tools.WhisperModel
 		saved.SpeechLanguage = tools.SpeechLanguage
 	}
 }
 
-// restoreSpeech uses the model saved last time unless KANDO_WHISPER_MODEL names one or the saved file is gone, and the language saved last time.
+// restoreSpeech uses the model saved last time unless KANDO_WHISPER_MODEL names one or the saved file is gone, and the language and the download source saved last time.
 func (a *app) restoreSpeech(saved savedSettings) {
+	a.prefs.speechSource = saved.SpeechSource
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
 		return
@@ -65,6 +72,17 @@ func (a *app) useSpeechLanguage(code string) {
 	a.pipeline = tools
 	if err := a.saveSettings(); err != nil {
 		a.saveErr = a.messages().SettingsSpeechLanguageSaveFailed(err.Error())
+	}
+}
+
+// useSpeechSource downloads the whisper models from source from the next download on (one already running keeps its source): source is one of media.SpeechSources. Any other source is ignored.
+func (a *app) useSpeechSource(source string) {
+	if !slices.Contains(media.SpeechSources(), source) || a.prefs.speechSource == source {
+		return
+	}
+	a.prefs.speechSource = source
+	if err := a.saveSettings(); err != nil {
+		a.saveErr = a.messages().SettingsSpeechSourceSaveFailed(err.Error())
 	}
 }
 
@@ -134,11 +152,15 @@ func (a *app) pickSpeechModel() {
 	})
 }
 
-// whisperModelBaseURL is where downloadSpeechModel fetches the whisper models from. Tests point it at a server of their own.
-var whisperModelBaseURL = media.WhisperModelBaseURL
+// whisperModelBaseURL is where downloadSpeechModel fetches the whisper models from, given the download source chosen. Tests point it at a server of their own, and speechModelFor at the files that server makes up.
+var whisperModelBaseURL = media.SpeechSourceBaseURL
 
+// speechModelFor is the whisper catalog model id, whose pinned size and checksum its download must match.
+var speechModelFor = media.SpeechModelByID
+
+// downloadSpeechModel downloads the whisper catalog model id from the download source chosen, checks it against the catalog's checksum and uses it. Why it failed is kept with the source it came from (settings.DownloadError), so the page can suggest the mirror when Hugging Face could not be reached.
 func (a *app) downloadSpeechModel(id string) {
-	model, ok := media.SpeechModelByID(id)
+	model, ok := speechModelFor(id)
 	if !ok || a.prefs.downloading != "" {
 		return
 	}
@@ -153,10 +175,12 @@ func (a *app) downloadSpeechModel(id string) {
 	a.prefs.downloadErr = nil
 	a.prefs.downloadCancel = cancel
 	dir := a.prefs.modelsDir
+	source := a.prefs.speechSource
+	base := whisperModelBaseURL(source)
 	update := a.update
 	go func() {
 		var last time.Time
-		path, err := media.DownloadSpeechModel(ctx, whisperModelBaseURL, model.File, dir, func(written, total int64) {
+		path, err := media.DownloadSpeechModel(ctx, base, model, dir, func(written, total int64) {
 			if time.Since(last) < 200*time.Millisecond && written != total {
 				return
 			}
@@ -177,7 +201,7 @@ func (a *app) downloadSpeechModel(id string) {
 			a.prefs.downloadCancel = nil
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
-					a.prefs.downloadErr = err
+					a.prefs.downloadErr = settings.DownloadError{Source: source, Err: err}
 				}
 				return
 			}

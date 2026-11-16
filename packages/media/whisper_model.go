@@ -2,6 +2,8 @@ package media
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +18,26 @@ import (
 // WhisperModelBaseURL is the whisper.cpp ggml model repository.
 const WhisperModelBaseURL = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 
+// WhisperMirrorBaseURL is the same repository on hf-mirror.com, which serves Hugging Face's files under the same paths and is reachable where huggingface.co often is not, as in mainland China.
+const WhisperMirrorBaseURL = "https://hf-mirror.com/ggerganov/whisper.cpp/resolve/main"
+
+// SpeechSourceMirror is the download source of the whisper models that is hf-mirror.com. The zero source, "", is Hugging Face itself.
+const SpeechSourceMirror = "hf-mirror"
+
+// SpeechSources are the download sources of the whisper models, in the order the speech settings list them: Hugging Face, then hf-mirror.com.
+func SpeechSources() []string { return []string{"", SpeechSourceMirror} }
+
+// SpeechSourceBaseURL is where source serves the whisper models from: hf-mirror.com for SpeechSourceMirror, Hugging Face for anything else.
+func SpeechSourceBaseURL(source string) string {
+	if source == SpeechSourceMirror {
+		return WhisperMirrorBaseURL
+	}
+	return WhisperModelBaseURL
+}
+
+// ErrSpeechModelMismatch is wrapped by DownloadSpeechModel's error when what the server sent is not the model's file: its size or its SHA-256 is not the one pinned in the catalog.
+var ErrSpeechModelMismatch = errors.New("download does not match the model's pinned checksum")
+
 // SpeechModel is one whisper.cpp model the speech settings can select. Its name and what it is good for are the app's to say, by ID.
 type SpeechModel struct {
 	ID          string
@@ -24,18 +46,21 @@ type SpeechModel struct {
 	SizeLabel   string
 	File        string
 	Recommended bool
+	// SHA256 and Size are those of File in ggerganov/whisper.cpp on Hugging Face, as its Git LFS pointer gives them; a download that does not match them is thrown away (DownloadSpeechModel), whichever source served it.
+	SHA256 string
+	Size   int64
 }
 
 // SpeechModels is the whisper.cpp catalog shown in speech settings, smallest first.
 func SpeechModels() []SpeechModel {
 	return []SpeechModel{
-		{ID: "tiny", Speed: 5, Accuracy: 2, SizeLabel: "77.7 MB", File: "ggml-tiny.bin"},
-		{ID: "base", Speed: 4, Accuracy: 3, SizeLabel: "148 MB", File: "ggml-base.bin"},
-		{ID: "small", Speed: 3, Accuracy: 4, SizeLabel: "487.6 MB", File: "ggml-small.bin"},
-		{ID: "medium", Speed: 2, Accuracy: 4, SizeLabel: "1.53 GB", File: "ggml-medium.bin"},
-		{ID: "large-v3-turbo-q5", Speed: 4, Accuracy: 5, SizeLabel: "574 MB", File: "ggml-large-v3-turbo-q5_0.bin", Recommended: true},
-		{ID: "large-v3-turbo", Speed: 3, Accuracy: 5, SizeLabel: "1.62 GB", File: "ggml-large-v3-turbo.bin"},
-		{ID: "large-v3", Speed: 2, Accuracy: 5, SizeLabel: "3.1 GB", File: "ggml-large-v3.bin"},
+		{ID: "tiny", Speed: 5, Accuracy: 2, SizeLabel: "77.7 MB", File: "ggml-tiny.bin", SHA256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21", Size: 77691713},
+		{ID: "base", Speed: 4, Accuracy: 3, SizeLabel: "148 MB", File: "ggml-base.bin", SHA256: "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe", Size: 147951465},
+		{ID: "small", Speed: 3, Accuracy: 4, SizeLabel: "487.6 MB", File: "ggml-small.bin", SHA256: "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b", Size: 487601967},
+		{ID: "medium", Speed: 2, Accuracy: 4, SizeLabel: "1.53 GB", File: "ggml-medium.bin", SHA256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208", Size: 1533763059},
+		{ID: "large-v3-turbo-q5", Speed: 4, Accuracy: 5, SizeLabel: "574 MB", File: "ggml-large-v3-turbo-q5_0.bin", SHA256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2", Size: 574041195, Recommended: true},
+		{ID: "large-v3-turbo", Speed: 3, Accuracy: 5, SizeLabel: "1.62 GB", File: "ggml-large-v3-turbo.bin", SHA256: "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69", Size: 1624555275},
+		{ID: "large-v3", Speed: 2, Accuracy: 5, SizeLabel: "3.1 GB", File: "ggml-large-v3.bin", SHA256: "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2", Size: 3095033483},
 	}
 }
 
@@ -104,20 +129,26 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir() && info.Size() > 0
 }
 
-// DownloadSpeechModel fetches file from baseURL into dir and returns the finished path. A download that stops for any reason but ctx ending keeps what arrived in file.partial, with what the server called that file beside it (speechPartial), and the next download of file asks the server only for the rest; one whose ctx ends, as when the user cancels it, leaves nothing behind. progress gets how much of the whole file is on disk, counting what an earlier download left, and the whole file's size, or -1 while the server has not said.
-func DownloadSpeechModel(ctx context.Context, baseURL, file, dir string, progress func(written, total int64)) (string, error) {
+// DownloadSpeechModel fetches model's file from baseURL into dir, checks it against the size and SHA-256 the catalog pins for it, and returns the finished path. A download that stops for any reason but ctx ending keeps what arrived in file.partial, with what the server called that file beside it (speechPartial), and the next download of file asks the server only for the rest; one whose ctx ends, as when the user cancels it, leaves nothing behind, and so does one that is not the model's file (ErrSpeechModelMismatch), since its rest would not make it so. progress gets how much of the whole file is on disk, counting what an earlier download left, and the whole file's size.
+func DownloadSpeechModel(ctx context.Context, baseURL string, model SpeechModel, dir string, progress func(written, total int64)) (string, error) {
+	if model.SHA256 == "" || model.Size <= 0 {
+		return "", fmt.Errorf("%s: no checksum pinned", model.File)
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	dest := filepath.Join(dir, file)
+	dest := filepath.Join(dir, model.File)
 	part := speechPartial{data: dest + ".partial", validator: dest + ".partial.validator"}
-	url := strings.TrimRight(baseURL, "/") + "/" + file
-	err := part.fetch(ctx, url, file, true, progress)
+	url := strings.TrimRight(baseURL, "/") + "/" + model.File
+	err := part.fetch(ctx, url, model.File, model.Size, true, progress)
 	if errors.Is(err, errRestart) {
-		err = part.fetch(ctx, url, file, false, progress)
+		err = part.fetch(ctx, url, model.File, model.Size, false, progress)
+	}
+	if err == nil {
+		err = checkSpeechDownload(ctx, part.data, model)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
+		if ctx.Err() != nil || errors.Is(err, ErrSpeechModelMismatch) {
 			part.remove()
 		}
 		return "", err
@@ -129,6 +160,43 @@ func DownloadSpeechModel(ctx context.Context, baseURL, file, dir string, progres
 		return "", err
 	}
 	return dest, nil
+}
+
+// checkSpeechDownload fails with ErrSpeechModelMismatch unless the file at path is model's: its size and SHA-256 those pinned in the catalog. A ctx that ends while it reads the file ends the check with ctx's error.
+func checkSpeechDownload(ctx context.Context, path string, model SpeechModel) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Size() != model.Size {
+		return fmt.Errorf("%w: %s is %d bytes, want %d", ErrSpeechModelMismatch, model.File, info.Size(), model.Size)
+	}
+	sum := sha256.New()
+	if _, err := io.Copy(sum, ctxReader{ctx: ctx, r: f}); err != nil {
+		return err
+	}
+	if got := hex.EncodeToString(sum.Sum(nil)); got != model.SHA256 {
+		return fmt.Errorf("%w: %s has checksum %s, want %s", ErrSpeechModelMismatch, model.File, got, model.SHA256)
+	}
+	return nil
+}
+
+// ctxReader reads r until ctx ends, then fails with ctx's error, so reading a model of gigabytes stops when its download is canceled.
+type ctxReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (c ctxReader) Read(p []byte) (int, error) {
+	if err := c.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return c.r.Read(p)
 }
 
 // errRestart is speechPartial.fetch's answer when the server will not send the rest of what the partial file holds, so the download starts again from the first byte.
@@ -181,8 +249,8 @@ func (p speechPartial) start(validator string) (*os.File, error) {
 	return out, nil
 }
 
-// fetch downloads url into data: when resume is set and data holds the start of the file, only the rest of it, which the server must send as a 206 that starts where data ends and names the same file; otherwise, or when the server answers with the whole file, from the first byte. It returns errRestart when the server will send neither the rest nor the whole file in one answer.
-func (p speechPartial) fetch(ctx context.Context, url, name string, resume bool, progress func(written, total int64)) error {
+// fetch downloads url into data: when resume is set and data holds the start of the file, only the rest of it, which the server must send as a 206 that starts where data ends and names the same file; otherwise, or when the server answers with the whole file, from the first byte. It returns errRestart when the server will send neither the rest nor the whole file in one answer, and fails with ErrSpeechModelMismatch before writing anything when the server says the file is not want bytes long. progress is told want as the whole size when the server does not say.
+func (p speechPartial) fetch(ctx context.Context, url, name string, want int64, resume bool, progress func(written, total int64)) error {
 	var offset int64
 	var validator string
 	if resume {
@@ -203,6 +271,9 @@ func (p speechPartial) fetch(ctx context.Context, url, name string, resume bool,
 	switch {
 	case resp.StatusCode == http.StatusOK:
 		offset = 0
+		if total >= 0 && total != want {
+			return fmt.Errorf("%w: %s is %d bytes, want %d", ErrSpeechModelMismatch, name, total, want)
+		}
 		if out, err = p.start(responseValidator(resp)); err != nil {
 			return err
 		}
@@ -217,6 +288,9 @@ func (p speechPartial) fetch(ctx context.Context, url, name string, resume bool,
 			total = size
 		case total >= 0:
 			total += offset
+		}
+		if total >= 0 && total != want {
+			return fmt.Errorf("%w: %s is %d bytes, want %d", ErrSpeechModelMismatch, name, total, want)
 		}
 		if out, err = os.OpenFile(p.data, os.O_WRONLY|os.O_APPEND, 0); err != nil {
 			return err
@@ -234,7 +308,11 @@ func (p speechPartial) fetch(ctx context.Context, url, name string, resume bool,
 	default:
 		return &downloadStatusError{name: name, code: resp.StatusCode}
 	}
-	written, copyErr := copyProgress(out, resp.Body, offset, total, progress)
+	whole := total
+	if whole < 0 {
+		whole = want
+	}
+	written, copyErr := copyProgress(out, resp.Body, offset, whole, progress)
 	if err := out.Close(); copyErr == nil {
 		copyErr = err
 	}

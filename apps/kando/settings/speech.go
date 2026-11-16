@@ -15,7 +15,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// speech is the 语音识别 page: the whisper models, one of which recognizes speech, all but the recommended one, Small and Base under 更多模型 until they are on disk, their downloads and what can be done with the files on disk, and the language spoken in the videos.
+// speech is the 语音识别 page: the whisper models, one of which recognizes speech, all but the recommended one, Small and Base under 更多模型 until they are on disk, their downloads, where they download from and what can be done with the files on disk, and the language spoken in the videos.
 type speech struct{ s screen }
 
 // Render implements core.Node.
@@ -58,6 +58,7 @@ func (p speech) Render(cx *core.Scope) core.Node {
 		group,
 		form.Note(static(locales.SettingsSpeechNote(cx)), 0),
 		failed,
+		downloadSource(cx, a),
 		spokenLanguage(cx, a),
 		form.Note(static(locales.SettingsSpeechSpokenNote(cx)), 0),
 		trashDialog{a: a},
@@ -138,6 +139,28 @@ func (r fileRow) Render(cx *core.Scope) core.Node {
 			Style:    core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(54), Padding: core.Symmetric(8, 14), Gap: 12, AlignItems: core.AlignCenter},
 			Children: []core.Node{radio, texts}}
 	})
+}
+
+// downloadSource is the card choosing where the whisper models download from: Hugging Face, or hf-mirror.com where Hugging Face cannot be reached. Every download is checked against the catalog's checksum, whichever serves it.
+func downloadSource(cx *core.Scope, a App) core.Node {
+	sources := media.SpeechSources()
+	options := make([]ui.Option[string], len(sources))
+	for i, source := range sources {
+		options[i] = ui.Option[string]{Value: source, Label: speechSourceName(source)}
+	}
+	choose := ui.Select[string]{Options: options, Label: locales.SettingsSpeechSource(cx), TestID: "settings-speech-source",
+		Value: live.Func(a, a.SpeechSource), OnChange: live.On(a, a.SetSpeechSource), Style: core.Style{Width: core.Pt(160)}}
+	card := form.Card(form.Row{Title: locales.SettingsSpeechSource(cx), NoGroup: true, Trailing: []core.Node{choose}})
+	card.Style.Margin = core.Edges{Top: 10}
+	return card
+}
+
+// speechSourceName is how the download source drop-down names a source of media.SpeechSources: by the site's own name, in every language.
+func speechSourceName(source string) string {
+	if source == media.SpeechSourceMirror {
+		return "hf-mirror.com"
+	}
+	return "Hugging Face"
 }
 
 // spokenLanguage is the card naming the language spoken in the videos: 自动识别, which lets whisper detect it from each video's first 30 seconds, or one of the languages whisper is told to hear. The drop-down shows the languages' names; what is saved is whisper's code.

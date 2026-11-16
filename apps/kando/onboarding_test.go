@@ -360,9 +360,7 @@ func fakeModelServer(t *testing.T, size int, release chan struct{}) *httptest.Se
 	t.Cleanup(srv.Close)
 	// A test that fails while a download waits on the held-back body leaves the download's goroutine blocked on the test's updates, so the request would never end and Close would wait for it until the test binary times out, hiding the failure: the connections are cut first, which ends the handler.
 	t.Cleanup(srv.CloseClientConnections)
-	old := whisperModelBaseURL
-	whisperModelBaseURL = srv.URL
-	t.Cleanup(func() { whisperModelBaseURL = old })
+	serveSpeechModels(t, srv.URL, []byte(strings.Repeat("x", size)), nil)
 	return srv
 }
 

@@ -89,6 +89,9 @@ type App interface {
 	// SpeechLanguage is the language spoken in the videos as whisper's code, one of media.SpeechLanguages, or "" for whisper to detect it; SetSpeechLanguage changes and saves it.
 	SpeechLanguage() string
 	SetSpeechLanguage(code string)
+	// SpeechSource is where the whisper models download from, one of media.SpeechSources: "" for Hugging Face; SetSpeechSource changes and saves it.
+	SpeechSource() string
+	SetSpeechSource(source string)
 
 	CurrentPreset() (Preset, bool)
 	Presets() []Preset

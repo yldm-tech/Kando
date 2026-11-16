@@ -97,6 +97,10 @@ func (a *app) SpeechLanguage() string {
 
 func (a *app) SetSpeechLanguage(code string) { a.useSpeechLanguage(code) }
 
+func (a *app) SpeechSource() string { return a.prefs.speechSource }
+
+func (a *app) SetSpeechSource(source string) { a.useSpeechSource(source) }
+
 // CurrentPreset and Presets read the presets' names and blurbs in the interface's language each time the page draws them.
 func (a *app) CurrentPreset() (settings.Preset, bool) {
 	return settings.PresetByID(a.messages(), a.prefs.llmProvider)

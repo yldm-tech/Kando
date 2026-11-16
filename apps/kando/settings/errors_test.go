@@ -52,6 +52,9 @@ func TestSpeechDownloadErrorSaysWhy(t *testing.T) {
 		{rejected(503), "服务器返回 HTTP 503，请稍后再试。"},
 		{fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected), "连接断了。检查网络后再下载一次。"},
 		{errors.New("no space left on device"), "no space left on device"},
+		{DownloadError{Source: media.SpeechSourceMirror, Err: fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected)}, "连接断了。检查网络后再下载一次。"},
+		{DownloadError{Source: media.SpeechSourceMirror, Err: media.ErrStalled}, "下载停住了，一直收不到数据。重新下载会从断开的地方接着下。"},
+		{DownloadError{Err: rejected(503)}, "服务器返回 HTTP 503，请稍后再试。"},
 	} {
 		if got := SpeechDownloadError(testlocale.Messages(), tc.err); got != tc.want {
 			t.Errorf("SpeechDownloadError(%v) = %q, want %q", tc.err, got, tc.want)
@@ -150,5 +153,26 @@ func TestDefaultModelPrefersChatModels(t *testing.T) {
 		if got := DefaultModel(tc.preset, tc.models); got != tc.want {
 			t.Errorf("DefaultModel(%q, %q) = %q, want %q", tc.preset.Model, tc.models, got, tc.want)
 		}
+	}
+}
+
+// TestSpeechDownloadErrorSuggestsTheMirror checks that a download from Hugging Face whose connection failed or stalled suggests hf-mirror.com, and that one which failed the checksum, from either source, says the file was deleted.
+func TestSpeechDownloadErrorSuggestsTheMirror(t *testing.T) {
+	m := testlocale.Messages()
+	for _, tc := range []struct {
+		err  error
+		want string
+	}{
+		{DownloadError{Err: fmt.Errorf("%w: dial tcp: i/o timeout", media.ErrDisconnected)}, m.SettingsSpeechDownloadDisconnectedMirror()},
+		{DownloadError{Err: media.ErrStalled}, m.SettingsSpeechDownloadStalledMirror()},
+		{DownloadError{Err: fmt.Errorf("%w: ggml-tiny.bin has checksum 00, want ff", media.ErrSpeechModelMismatch)}, m.SettingsSpeechDownloadMismatch()},
+		{DownloadError{Source: media.SpeechSourceMirror, Err: fmt.Errorf("%w: ggml-tiny.bin is 5 bytes, want 9", media.ErrSpeechModelMismatch)}, m.SettingsSpeechDownloadMismatch()},
+	} {
+		if got := SpeechDownloadError(m, tc.err); got != tc.want {
+			t.Errorf("SpeechDownloadError(%v) = %q, want %q", tc.err, got, tc.want)
+		}
+	}
+	if got := SpeechDownloadError(m, DownloadError{Err: media.ErrStalled}); !strings.Contains(got, "hf-mirror.com") {
+		t.Errorf("a stall from Hugging Face says %q, which does not name hf-mirror.com", got)
 	}
 }

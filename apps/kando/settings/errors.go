@@ -49,14 +49,26 @@ func (e ModelFileError) Error() string { return e.Path + ": " + e.Err.Error() }
 
 func (e ModelFileError) Unwrap() error { return e.Err }
 
+// DownloadError is why a speech model's download from the download source Source (media.SpeechSources) failed: Err. SpeechDownloadError suggests hf-mirror.com when Hugging Face could not be reached.
+type DownloadError struct {
+	Source string
+	Err    error
+}
+
+func (e DownloadError) Error() string { return e.Err.Error() }
+
+func (e DownloadError) Unwrap() error { return e.Err }
+
 // ErrNoModelsDir is a speech model download's error when Kando has no folder to put the models in.
 var ErrNoModelsDir = errors.New("no models folder")
 
-// SpeechDownloadError says in plain words, in the language of m, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there.
+// SpeechDownloadError says in plain words, in the language of m, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there; one from Hugging Face also suggests downloading from hf-mirror.com instead, which is reachable where Hugging Face often is not.
 func SpeechDownloadError(m locales.Messages, err error) string {
 	var status interface{ StatusCode() int }
 	var trash TrashError
 	var file ModelFileError
+	var download DownloadError
+	fromHuggingFace := errors.As(err, &download) && download.Source == ""
 	switch {
 	case err == nil:
 		return ""
@@ -72,10 +84,16 @@ func SpeechDownloadError(m locales.Messages, err error) string {
 		return m.SettingsSpeechTrashFailed(SpeechModelNameIn(m, trash.ID))
 	case errors.Is(err, ErrNoModelsDir):
 		return m.SettingsSpeechNoModelsDir()
+	case errors.Is(err, media.ErrSpeechModelMismatch):
+		return m.SettingsSpeechDownloadMismatch()
+	case errors.Is(err, media.ErrStalled) && fromHuggingFace:
+		return m.SettingsSpeechDownloadStalledMirror()
 	case errors.Is(err, media.ErrStalled):
 		return m.SettingsSpeechDownloadStalled()
 	case errors.As(err, &status):
 		return m.SettingsSpeechDownloadFailedStatus(status.StatusCode())
+	case errors.Is(err, media.ErrDisconnected) && fromHuggingFace:
+		return m.SettingsSpeechDownloadDisconnectedMirror()
 	case errors.Is(err, media.ErrDisconnected):
 		return m.SettingsSpeechDownloadDisconnected()
 	}

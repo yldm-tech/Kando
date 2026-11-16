@@ -34,6 +34,7 @@ type settingsUI struct {
 	downloadTotal   int64
 	downloadErr     error
 	downloadCancel  context.CancelFunc
+	speechSource    string // where the whisper models download from, one of media.SpeechSources: "" for Hugging Face
 	llmProvider     string
 	llmBase         string
 	llmModel        string
