@@ -974,7 +974,7 @@ type Translation struct {
 	SettingsGeneralCLINotOnPath              func(path string, dir string) string
 	SettingsGeneralCLIOther                  func(path string) string
 	SettingsGeneralDownloadFailed            func(error_ string) string
-	SettingsGeneralLastCheck                 func(when time.Time) string
+	SettingsGeneralLastCheck                 func(hc string, when time.Time) string
 	SettingsGeneralShowInFinder              func(platform string) string
 	SettingsGeneralSignInChecking            func(browser string) string
 	SettingsGeneralSignInOn                  func(browser string) string
@@ -985,7 +985,7 @@ type Translation struct {
 	SettingsLibrarySaveFailed                func(error_ string) string
 	SettingsLookColorOf                      func(line string) string
 	SettingsPhoneAddress                     func(count int) string
-	SettingsPhoneDeviceSeen                  func(platform string, when time.Time) string
+	SettingsPhoneDeviceSeen                  func(hc string, platform string, when time.Time) string
 	SettingsPhoneFirewall                    func(platform string) string
 	SettingsPhoneRevokeFailed                func(error_ string) string
 	SettingsPhoneRevokeLabel                 func(name string) string
@@ -28483,7 +28483,7 @@ func (msgs Messages) SettingsGeneralLastCheck(when time.Time) string {
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].SettingsGeneralLastCheck; f != nil {
-			return f(when)
+			return f(msgs.hc, when)
 		}
 		switch lang {
 		case "", "en":
@@ -29694,7 +29694,7 @@ func (msgs Messages) SettingsPhoneDeviceSeen(platform string, when time.Time) st
 	}
 	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
 		if f := supplied[lang].SettingsPhoneDeviceSeen; f != nil {
-			return f(platform, when)
+			return f(msgs.hc, platform, when)
 		}
 		switch lang {
 		case "", "en":

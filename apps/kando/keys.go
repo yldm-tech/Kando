@@ -113,7 +113,7 @@ func (a *app) wireKeys(cx *core.Scope) core.Node {
 			if s.InText {
 				when = core.KeyAlways
 			}
-			cx.OnKeyWith(s.Key, core.KeyOptions{Repeat: s.Repeat, When: when}, live.Do(a, a.keyRun(cx, s.Key)))
+			cx.OnKeyWith(s.Key, core.KeyOptions{Repeat: s.Repeat, When: when, OverModals: true}, live.Do(a, a.keyRun(cx, s.Key)))
 		}
 		return nil
 	})

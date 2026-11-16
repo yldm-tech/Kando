@@ -74,6 +74,9 @@ type settingsUI struct {
 	win      *core.Window
 	opening  bool
 	inWindow bool
+	// overMain shows the settings over the main window even where the platform opens windows. The tests set it: nsgotest's host opens the app's windows on a desktop, but its steps act on the main window alone.
+	// TODO(nsgo): let nsgotest's steps act on a window the app opened other than the main one, then test the settings in their own window and drop overMain
+	overMain bool
 	// frame is where the settings window was last, as desktop.Frame reports it, which settings.json keeps so the window opens there again (savedInterface).
 	frame core.WindowFrame
 }
@@ -237,8 +240,12 @@ func (a *app) showSettingsWindow() {
 	})
 }
 
-// openSettingsWindow opens the settings window, a window of the app's own, or the settings over the main window where the platform opens none, as nsgotest's host does.
+// openSettingsWindow opens the settings window, a window of the app's own, or the settings over the main window where the platform opens none or the tests ask for that (overMain).
 func (a *app) openSettingsWindow() {
+	if a.prefs.overMain {
+		a.prefs.inWindow = true
+		return
+	}
 	// TODO(nsgo#108): open the settings as a child window of the main one, which moves, minimizes and comes forward with it, as MyGo's WindowOptions.Parent did https://github.com/nsgo-dev/nsgo/issues/108
 	w := nsdesktop.OpenWindow(a.cx, nsdesktop.WindowOptions{
 		Title:       locales.SettingsWindowTitle(a.cx),

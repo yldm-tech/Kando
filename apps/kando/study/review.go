@@ -52,7 +52,7 @@ func (r Review) Render(cx *core.Scope) core.Node {
 	revealed := live.Memo(cx, a, func() bool { return card().Revealed })
 	title := func() string { return locales.SavedReviewTitle(cx) }
 	// The keys go with the dialog: Space shows the translation, 1 and 2 answer once it shows, R plays the sound again.
-	cx.OnKeyWith("space", core.KeyOptions{When: core.KeyAlways}, live.Do(a, func() {
+	cx.OnKeyWith("space", core.KeyOptions{When: core.KeyAlways, OverModals: true}, live.Do(a, func() {
 		if c := a.ReviewCard(); !c.Done && !c.Revealed {
 			a.ReviewReveal()
 		}
@@ -64,9 +64,9 @@ func (r Review) Render(cx *core.Scope) core.Node {
 			}
 		})
 	}
-	cx.OnKeyWith("1", core.KeyOptions{When: core.KeyAlways}, grade(false))
-	cx.OnKeyWith("2", core.KeyOptions{When: core.KeyAlways}, grade(true))
-	cx.OnKeyWith("r", core.KeyOptions{When: core.KeyAlways}, live.Do(a, func() {
+	cx.OnKeyWith("1", core.KeyOptions{When: core.KeyAlways, OverModals: true}, grade(false))
+	cx.OnKeyWith("2", core.KeyOptions{When: core.KeyAlways, OverModals: true}, grade(true))
+	cx.OnKeyWith("r", core.KeyOptions{When: core.KeyAlways, OverModals: true}, live.Do(a, func() {
 		if !a.ReviewCard().Done {
 			a.ReviewReplay()
 		}

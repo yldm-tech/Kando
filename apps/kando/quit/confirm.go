@@ -29,7 +29,7 @@ func (c Confirm) Render(cx *core.Scope) core.Node {
 	}
 	return core.Show{When: c.Open, Then: func(cx *core.Scope) core.Node {
 		// Enter answers 取消, the default answer, wherever the keyboard focus is in the dialog; the binding goes when the dialog does.
-		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways}, cancel)
+		cx.OnKeyWith("enter", core.KeyOptions{When: core.KeyAlways, OverModals: true}, cancel)
 		// The dialog's words are set as it is built, so it is built again for another film or language.
 		return core.Dynamic(func(cx *core.Scope) core.Node {
 			// TODO(nsgo#145): give ui.Dialog and ui.AlertDialog TitleFunc and DescriptionFunc twins so the words follow the film and the language without building the dialog again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
