@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"kando/apps/kando/film"
@@ -36,6 +37,22 @@ func TestSettingsWindowSwitchesCategoryAndToggles(t *testing.T) {
 	saved := loadSavedSettings(a.settingsPath)
 	if saved.TranslateContext == nil || *saved.TranslateContext != a.prefs.translateContext {
 		t.Fatalf("saved %#v", saved.TranslateContext)
+	}
+}
+
+// TestSettingsSaySaveFailed checks that a switch turned on a settings page whose settings.json cannot be written says so under the page, rather than seeming to stick until Kando quits.
+func TestSettingsSaySaveFailed(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	// A file where settings.json's folder should be cannot hold it.
+	blocker := filepath.Join(t.TempDir(), "Kando")
+	if err := os.WriteFile(blocker, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	a.settingsPath = filepath.Join(blocker, "settings.json")
+	tt = settingsOpenAt(a, tt, settings.SectionTranslate)
+	tt.Press("智能翻译")
+	if prefix := testlocale.Messages().SettingsSaveFailed(""); !strings.HasPrefix(a.saveErr, prefix) || !hasText(tt, a.saveErr) {
+		t.Fatalf("save error %q, texts %q", a.saveErr, tt.Texts())
 	}
 }
 

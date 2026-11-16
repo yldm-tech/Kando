@@ -1,10 +1,16 @@
 package locales
 
 import (
+	"go/scanner"
+	"go/token"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -50,6 +56,52 @@ func TestInterfaceIsTheCatalogs(t *testing.T) {
 	want := slices.Sorted(slices.Values(Interface))
 	if !slices.Equal(got, want) {
 		t.Errorf("the catalogs are %q, Interface %q", got, want)
+	}
+}
+
+// unusedAllowed are the messages no Go file of the app names that stay in the catalogs: appName, which NSGo reads by its key for the menu bar and the packages, and the words of what waits on NSGo, which the TODO(nsgo#N) at each place names.
+var unusedAllowed = []string{
+	"appName",
+	// nsgo#199: titles, buttons and filters of the file and folder panels (dialogs.go).
+	"libraryPickVideosTitle", "libraryPickVideosButton", "libraryVideoFilter", "libraryImportTitle", "libraryImportButton", "libraryPlaceTitle", "libraryPlaceButton",
+	// nsgo#118: the system menu items NSGo has no role for (menu.go).
+	"menuServices", "menuPasteAndMatchStyle", "menuDelete", "menuSpeech", "menuStartSpeaking", "menuStopSpeaking", "menuBringAllToFront",
+	// nsgo#32: the updater's state and switches under Version (settings/general.go).
+	"settingsGeneralUpdateAvailable", "settingsGeneralLastCheck", "settingsGeneralAutoCheck", "settingsGeneralAutoDownload", "settingsGeneralAutoDownloadHint",
+}
+
+// Every message of the source catalog is named by the app's Go code outside this package's generated file and the tests, so translators keep no strings nobody sees. A message no longer said is deleted from all five catalogs; one waiting on NSGo goes in unusedAllowed.
+func TestEveryMessageIsUsed(t *testing.T) {
+	used := map[string]bool{}
+	err := filepath.WalkDir("..", func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") || filepath.Base(path) == "catalog_gen.go" {
+			return err
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		var s scanner.Scanner
+		fset := token.NewFileSet()
+		s.Init(fset.AddFile(path, -1, len(src)), src, nil, 0)
+		for {
+			_, tok, lit := s.Scan()
+			if tok == token.EOF {
+				return nil
+			}
+			if tok == token.IDENT {
+				used[lit] = true
+			}
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k := range readCatalog(t, Source) {
+		r, size := utf8.DecodeRuneInString(k)
+		if !used[string(unicode.ToUpper(r))+k[size:]] && !slices.Contains(unusedAllowed, k) {
+			t.Errorf("no Go file says %s; delete it from the catalogs", k)
+		}
 	}
 }
 

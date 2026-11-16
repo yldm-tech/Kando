@@ -72,7 +72,8 @@ type paletteAnswer struct {
 	// horizon is how far the film had been watched when it was asked, and model the model that answered.
 	horizon time.Duration
 	model   string
-	// explained is the original of the line Explain Line explained, which the card shows over the explanation; "" for an answer to a question.
+	// explain marks every card of Explain Line, on its way, failed or done, which the card heads and words as an explanation rather than an answer; explained is the original of the line it explained, which the card shows over the explanation, "" for an answer to a question.
+	explain   bool
 	explained string
 	film      string
 }

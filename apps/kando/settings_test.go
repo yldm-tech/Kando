@@ -460,7 +460,7 @@ func TestSettingsInEnglish(t *testing.T) {
 	a.syncLLM(tools)
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	tt = settingsOpenAt(a, tt, settings.SectionAI)
-	for _, text := range []string{"General", "Speech Recognition", "AI Service", "Translation", "Subtitle Style", "Keyboard Shortcuts", "Account & Upload", "Service", "Model", "Test Connection", "Not tested", "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."} {
+	for _, text := range []string{"General", "Speech Recognition", "AI Service", "Translation", "Subtitle Style", "Keyboard Shortcuts", "Account & Upload", "Service", "Model", "Test Connection", "Not tested", testlocale.Messages().SettingsAIKeyEveryAPILogin()} {
 		wantText(t, tt, text)
 	}
 	// The empty API Key field says EveryAPI does without one.

@@ -727,7 +727,7 @@ func TestEnqueueSaysWhyASourceIsRefused(t *testing.T) {
 	}
 	a.prefs.language = "简体中文"
 	a.edit(func(s *session) { s.LibraryDir = "" })
-	if err := a.Enqueue("https://example.com/v"); err == nil || err.Error() != "先创建或导入一个资料库" {
+	if err := a.Enqueue("https://example.com/v"); err == nil || err.Error() != testlocale.Messages().QueueNoLibrary() {
 		t.Fatalf("err %v", err)
 	}
 	if len(a.library.Jobs) != 0 {
@@ -1078,7 +1078,7 @@ func TestAFailedDownloadOffersWhatFixesIt(t *testing.T) {
 		{"https://nonexistent-host-kando-review.invalid/video/1", core.FailHost, "", "找不到 nonexistent-host-kando-review.invalid", "网络正常的话，多半是链接里的网址写错了，或者这个网站已经关闭。换个链接，或检查网络后再重试。", []string{"换个链接", "重试"}},
 		{yt, core.FailCookies, "safari", "读不到 Safari 的登录", "macOS 只让有「完全磁盘访问权限」的 App 读 Safari 的登录。在系统设置里允许看懂，回来再重试，或改用别的浏览器。", []string{"打开系统设置", "已允许，重试", "改用 Chrome"}},
 		{yt, core.FailCookies, "chrome", "读不到 Chrome 的登录", "这台电脑上找不到 Chrome 的登录数据。换一个已登录的浏览器再试。", []string{"改用 Safari"}},
-		{"https://www.youtube.com/watch?v=dQw4w9WgX", core.FailBadLink, "", "链接不完整", "链接好像少了一截，重试也下载不了。复制完整的链接，换个链接再试。", []string{"换个链接"}},
+		{"https://www.youtube.com/watch?v=dQw4w9WgX", core.FailBadLink, "", "链接不完整", testlocale.Messages().QueueRemedyBadLinkWhy(), []string{"换个链接"}},
 	} {
 		film := failedJob(t, a, tc.source, tc.kind, tc.cookies)
 		if tc.kind == core.FailCookies && tc.cookies == "safari" {
@@ -2840,7 +2840,7 @@ func TestAFailedRetranslationSaysTheAccountIsOutOfCredit(t *testing.T) {
 	}
 }
 
-// Retry All queues again the failures that need no choice of the user's, oldest first, and leaves a login to borrow, a cancelled job and the others to their own cards; Remove Failed takes every failed card off and leaves a cancelled one.
+// Retry All queues again the failures that need no choice of the user's, oldest first, and leaves a login to borrow, a cancelled job and the others to their own cards; Clear Failed takes every failed card off and leaves a cancelled one.
 func TestRetryAllAndRemoveFailed(t *testing.T) {
 	g := newGatePipeline()
 	a, tt, _ := newTestApp(t, g)
@@ -2867,18 +2867,18 @@ func TestRetryAllAndRemoveFailed(t *testing.T) {
 	refresh(tt, a)
 	tt.Press("queue-remove-failed")
 	if _, ok := a.library.Find("login"); ok {
-		t.Fatal("Remove Failed kept a failed card")
+		t.Fatal("Clear Failed kept a failed card")
 	}
 	if _, ok := a.library.Find("other"); ok {
-		t.Fatal("Remove Failed kept a failed card")
+		t.Fatal("Clear Failed kept a failed card")
 	}
 	if _, ok := a.library.Find("stopped"); !ok {
-		t.Fatal("Remove Failed took a cancelled card")
+		t.Fatal("Clear Failed took a cancelled card")
 	}
 	<-g.started
 }
 
-// With a source chosen in the sidebar, Retry All and Remove Failed act only on the failed cards 处理中 shows, those from that source, and leave the others' failures as they are.
+// With a source chosen in the sidebar, Retry All and Clear Failed act only on the failed cards 处理中 shows, those from that source, and leave the others' failures as they are.
 func TestRetryAllAndRemoveFailedKeepToTheSourceShown(t *testing.T) {
 	g := newGatePipeline()
 	a, tt, _ := newTestApp(t, g)
@@ -2910,12 +2910,12 @@ func TestRetryAllAndRemoveFailedKeepToTheSourceShown(t *testing.T) {
 	tt.Press("queue-remove-failed")
 	for _, id := range []string{"yt3", "yt4"} {
 		if _, ok := a.library.Find(id); ok {
-			t.Fatalf("Remove Failed on YouTube's page kept %s", id)
+			t.Fatalf("Clear Failed on YouTube's page kept %s", id)
 		}
 	}
 	for _, id := range []string{"web1", "web2"} {
 		if _, ok := a.library.Find(id); !ok {
-			t.Fatalf("Remove Failed on YouTube's page took %s from another source", id)
+			t.Fatalf("Clear Failed on YouTube's page took %s from another source", id)
 		}
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -342,10 +343,10 @@ func (m modelMore) Render(cx *core.Scope) core.Node {
 	return core.View{Ref: place, Style: core.Style{FlexShrink: 0}, Children: []core.Node{button}}
 }
 
-// modelMenu is what can be done with a downloaded model's file, from ⋯ after 已下载: show it in Finder, wherever it is, and move it to the Trash when Kando downloaded it, unless it is a model in use (the one chosen, or the one a running job started with) or a download is running. It is built as the menu opens, so it says what is true then.
+// modelMenu is what can be done with a downloaded model's file, from ⋯ after 已下载: show it in the system's file manager, wherever it is, and move it to the Trash when Kando downloaded it, unless it is a model in use (the one chosen, or the one a running job started with) or a download is running. It is built as the menu opens, so it says what is true then.
 func modelMenu(cx *core.Scope, a App, model media.SpeechModel) []nsdesktop.MenuItem {
 	installed := a.InstalledSpeechModel(model.ID)
-	items := []nsdesktop.MenuItem{{Label: locales.SettingsSpeechReveal(cx), OnSelect: live.Do(a, func() { a.Reveal(installed) })}}
+	items := []nsdesktop.MenuItem{{Label: locales.SettingsSpeechReveal(cx, desktop.Platform(cx)), OnSelect: live.Do(a, func() { a.Reveal(installed) })}}
 	if !a.OwnsSpeechModel(model.ID) {
 		return items
 	}

@@ -136,8 +136,8 @@ func TestMenuFollowsTheFilm(t *testing.T) {
 	if !findMenuItem(t, bar, "显示", "全屏").Disabled || !findMenuItem(t, bar, "窗口", "播放器").Disabled {
 		t.Fatal("player items enabled without a film")
 	}
-	if library := findMenuItem(t, bar, "窗口", "片库"); !library.Checkable || !library.Checked {
-		t.Fatalf("片库 is not checked in the library: %+v", library)
+	if library := findMenuItem(t, bar, "窗口", testlocale.Messages().MenuWindowLibrary()); !library.Checkable || !library.Checked {
+		t.Fatalf("%s is not checked in the library: %+v", testlocale.Messages().MenuWindowLibrary(), library)
 	}
 
 	a, _, _ = openClip(t, 2)
@@ -150,8 +150,8 @@ func TestMenuFollowsTheFilm(t *testing.T) {
 	if player := findMenuItem(t, bar, "窗口", "播放器"); player.Disabled || !player.Checked {
 		t.Fatalf("播放器 with the film open: %+v", player)
 	}
-	if findMenuItem(t, bar, "窗口", "片库").Checked {
-		t.Fatal("片库 checked with the film open")
+	if findMenuItem(t, bar, "窗口", testlocale.Messages().MenuWindowLibrary()).Checked {
+		t.Fatalf("%s checked with the film open", testlocale.Messages().MenuWindowLibrary())
 	}
 }
 
@@ -212,7 +212,7 @@ func TestMenuWaitsBehindAFilePanel(t *testing.T) {
 	release := a.holdModal()
 	refresh(tt, a)
 	bar := a.menuBar(a.cx)
-	for _, it := range []struct{ menu, label string }{{"文件", "打开资料库…"}, {"文件", "新建资料库…"}, {"文件", "打开本地视频…"}, {"文件", testlocale.Messages().MenuRevealLibrary(platformName())}, {"看懂", "设置…"}, {"窗口", "片库"}, {"帮助", "快捷键速查"}} {
+	for _, it := range []struct{ menu, label string }{{"文件", "打开资料库…"}, {"文件", "新建资料库…"}, {"文件", "打开本地视频…"}, {"文件", testlocale.Messages().MenuRevealLibrary(platformName())}, {"看懂", "设置…"}, {"窗口", testlocale.Messages().MenuWindowLibrary()}, {"帮助", "快捷键速查"}} {
 		if !findMenuItem(t, bar, it.menu, it.label).Disabled {
 			t.Fatalf("%s › %s enabled behind a file panel", it.menu, it.label)
 		}
@@ -258,13 +258,13 @@ func TestSyncMenuInstallsOnlyChanges(t *testing.T) {
 	a.toggleCheatsheet()
 	refresh(tt, a)
 	third := a.menu.installed
-	tt.ChooseMenu("窗口", "片库")
+	tt.ChooseMenu("窗口", testlocale.Messages().MenuWindowLibrary())
 	refresh(tt, a)
 	if a.menu.installed == third {
 		t.Fatal("choosing a checkable item left the menu bar as it was installed")
 	}
 	if a.page != pageFilms || a.openKey != "" {
-		t.Fatalf("片库 showed page %q open %q", a.page, a.openKey)
+		t.Fatalf("%s showed page %q open %q", testlocale.Messages().MenuWindowLibrary(), a.page, a.openKey)
 	}
 }
 

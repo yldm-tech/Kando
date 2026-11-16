@@ -193,7 +193,13 @@ func (f *fakeApp) Shortcuts(cx *core.Scope) []Shortcut {
 // start shows the settings window of a, 880 by 640 as it opens, on a Mac, in testlocale's language. account stands for the 账号与上传 page.
 func start(t *testing.T, a *fakeApp) *nsgotest.App {
 	t.Helper()
-	env := testlocale.Environment(core.Environment{OS: core.OSMacOS, Idiom: core.IdiomDesktop, AppleKeyboard: true})
+	return startOn(t, a, core.OSMacOS)
+}
+
+// startOn is start on the desktop of os, with that system's words for its file manager and keys.
+func startOn(t *testing.T, a *fakeApp, os core.OS) *nsgotest.App {
+	t.Helper()
+	env := testlocale.Environment(core.Environment{OS: os, Idiom: core.IdiomDesktop, AppleKeyboard: os == core.OSMacOS})
 	account := core.Text{TestID: "account-page", Content: "account"}
 	return nsgotest.Start(t, func(cx *core.Scope) core.Node {
 		a.Attach(cx)
@@ -412,6 +418,28 @@ func TestCLICardCopies(t *testing.T) {
 	}
 }
 
+// TestModelMenuNamesTheFileManager checks that ⋯ after a downloaded model offers to show its file in the file manager of the system Kando runs on, as every other such item does, rather than in Finder everywhere.
+func TestModelMenuNamesTheFileManager(t *testing.T) {
+	msgs := testlocale.Messages()
+	for _, tc := range []struct {
+		os       core.OS
+		platform string
+	}{{core.OSMacOS, "macOS"}, {core.OSWindows, "Windows"}, {core.OSLinux, "Linux"}} {
+		t.Run(tc.platform, func(t *testing.T) {
+			a := newFakeApp()
+			a.section = SectionSpeech
+			app := startOn(t, a, tc.os)
+			app.Press("id:settings-model-more-base")
+			if got := app.PopupMenu; len(got) == 0 || got[0].Label != msgs.SettingsSpeechReveal(tc.platform) {
+				t.Fatalf("menu %+v, want %q first", got, msgs.SettingsSpeechReveal(tc.platform))
+			}
+		})
+	}
+	if msgs.SettingsSpeechReveal("Windows") == msgs.SettingsSpeechReveal("macOS") {
+		t.Fatal("Windows is told of Finder")
+	}
+}
+
 func TestSpeechPage(t *testing.T) {
 	a := newFakeApp()
 	a.section = SectionSpeech
@@ -479,7 +507,7 @@ func TestSpeechPage(t *testing.T) {
 	}
 }
 
-// TestAIPageSaysWhatTheServiceNeeds checks the footnote and the API Key field for each kind of service: EveryAPI without a key uses the everyapi sign-in and its field says the key is optional; a cloud service keeps its key on this Mac and offers 获取 API Key; a service on this computer says what it is; a custom endpoint says which ones work.
+// TestAIPageSaysWhatTheServiceNeeds checks the footnote and the API Key field for each kind of service: EveryAPI without a key uses the everyapi sign-in and its field says the key is optional; a cloud service keeps its key on this computer and offers 获取 API Key; a service on this computer says what it is; a custom endpoint says which ones work.
 func TestAIPageSaysWhatTheServiceNeeds(t *testing.T) {
 	a := newFakeApp()
 	a.section = SectionAI
@@ -654,9 +682,10 @@ func TestLanguageDropDownsSearch(t *testing.T) {
 	a = newFakeApp()
 	a.section = SectionTranslate
 	app = start(t, a)
+	// A Chinese user finds Vietnamese by its Chinese name, as the spoken-language list names it, not by the language's own name.
 	name := msgs.SettingsLanguageVietnamese()
 	app.Press("id:settings-translate-language")
-	app.Type("label:"+msgs.SettingsLanguagesSearch(), name)
+	app.Type("label:"+msgs.SettingsLanguagesSearch(), "越南")
 	if !app.Exists("role:option "+name) || app.Exists("role:option "+msgs.SettingsLanguageEnglish()) {
 		t.Fatalf("the search did not filter the target languages: %q", app.Texts())
 	}

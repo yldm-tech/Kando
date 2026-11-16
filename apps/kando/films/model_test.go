@@ -86,7 +86,7 @@ func TestStepsLeaveOutDownloadingForLocalFiles(t *testing.T) {
 func TestLinkChipNamesThePlatform(t *testing.T) {
 	for raw, want := range map[string]string{
 		"https://www.youtube.com/watch?v=TRWgBxVAb1M":           "YouTube",
-		"https://www.youtube.com/playlist?list=PL590L5WQmH8fJ5": "YouTube · 合集",
+		"https://www.youtube.com/playlist?list=PL590L5WQmH8fJ5": testlocale.Messages().FilmsLinkPlaylist("YouTube"),
 		"https://www.bilibili.com/video/BV1GJ411x7h7":           "哔哩哔哩",
 		"https://space.bilibili.com/946974":                     "哔哩哔哩 · 频道",
 		"https://vimeo.com/76979871":                            "Vimeo",
@@ -225,7 +225,7 @@ func TestTimeLeftIsToldOnlyFromARate(t *testing.T) {
 		{"too little done", at(0.04, 0, time.Minute), "翻译中 · 19/480 句"},
 		{"minutes", at(0.25, 0, 2*time.Minute), "翻译中 · 120/480 句 · 约剩 6 分钟"},
 		{"resumed halfway", at(0.6, 0.5, time.Minute), "翻译中 · 288/480 句 · 约剩 4 分钟"},
-		{"under a minute", at(0.9, 0, 3*time.Minute), "翻译中 · 432/480 句 · 不到 1 分钟"},
+		{"under a minute", at(0.9, 0, 3*time.Minute), "翻译中 · 432/480 句 · " + m.FilmsQueueUnderAMinute()},
 		{"not timed", Film{JobID: "j", Source: "https://youtu.be/x", Stage: core.StageTranscribing, Progress: core.Fraction(0.5)}, "生成字幕中 · 50%"},
 	} {
 		if got := queueMetaAt(m, tc.item, now); got != tc.want {

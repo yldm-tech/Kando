@@ -36,7 +36,14 @@ func (a *app) TranslateContext() *bool { return &a.prefs.translateContext }
 
 func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
 
-func (a *app) Save() error { return a.saveSettings() }
+// Save writes settings.json once a page of the settings window changed a setting, as the General, Translate, Subtitle Style and Account & Upload pages do, and says in the window's error line and the sidebar's status row when it could not, so a setting that did not stick is not taken for one that did.
+func (a *app) Save() error {
+	err := a.saveSettings()
+	if err != nil {
+		a.saveErr = a.messages().SettingsSaveFailed(err.Error())
+	}
+	return err
+}
 
 // Redetect looks for the programs Kando runs, for the kando command, and for the browsers the extension's host is registered with, again.
 func (a *app) Redetect() {

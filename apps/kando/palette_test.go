@@ -20,6 +20,7 @@ import (
 	"kando/packages/core"
 	"kando/packages/media"
 
+	ns "github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
@@ -231,12 +232,12 @@ func TestPaletteCommandsFollowTheScreen(t *testing.T) {
 		return false
 	}
 	lib := labels()
-	if has(lib, "显示/隐藏字幕") || has(lib, "切换为仅译文") || has(lib, "片库") || !has(lib, "打开本地视频…") || !has(lib, "设置 › 语音识别") {
+	if has(lib, "显示/隐藏字幕") || has(lib, "切换为仅译文") || has(lib, testlocale.Messages().MenuWindowLibrary()) || !has(lib, "打开本地视频…") || !has(lib, "设置 › 语音识别") {
 		t.Fatalf("library commands %q", lib)
 	}
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	player := labels()
-	if !has(player, "显示/隐藏字幕") || !has(player, "切换为仅译文") || has(player, "切换为双语") || has(player, "播放器") || !has(player, "片库") {
+	if !has(player, "显示/隐藏字幕") || !has(player, "切换为仅译文") || has(player, "切换为双语") || has(player, "播放器") || !has(player, testlocale.Messages().MenuWindowLibrary()) {
 		t.Fatalf("player commands %q", player)
 	}
 	paletteOpen(t, a, tt, updates)
@@ -757,7 +758,7 @@ func TestPaletteInEnglish(t *testing.T) {
 	if got := a.PaletteView(a.cx).Placeholder; got != "Films, commands or watched lines…" {
 		t.Fatalf("library placeholder %q", got)
 	}
-	for _, want := range []string{"Commands", "Type to search films, commands and watched lines · ↑↓ to select · Return to run"} {
+	for _, want := range []string{"Commands", testlocale.Messages().PaletteFooter("macOS")} {
 		wantText(t, tt, want)
 	}
 	paletteType(tt, "volcano")
@@ -818,11 +819,16 @@ func TestPaletteExplainsTheLinePlaying(t *testing.T) {
 	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
 	refresh(tt, a)
 	tt.Key("e")
+	msgs := testlocale.Messages()
 	if !a.palette.open || a.palette.answer == nil || !a.palette.answer.busy {
 		t.Fatalf("E: palette open %v answer %+v", a.palette.open, a.palette.answer)
 	}
+	// The card is the line's explanation from the start, not an answer to a question.
+	if !hasText(tt, msgs.PaletteExplaining("m1")) || !hasText(tt, msgs.PaletteHeadingExplain()) || hasText(tt, msgs.PaletteHeadingAnswer()) {
+		t.Fatalf("E: texts %q", tt.Texts())
+	}
 	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
-	for _, want := range []string{"These sweeping curves are called meanders.\n\n河曲是河流的大弯道。", "▶ 1:10", "m1 讲解"} {
+	for _, want := range []string{"These sweeping curves are called meanders.\n\n河曲是河流的大弯道。", "▶ 1:10", msgs.PaletteExplainNote("m1"), msgs.PaletteHeadingExplain()} {
 		if !hasText(tt, want) {
 			t.Fatalf("missing %q in %q", want, tt.Texts())
 		}
@@ -870,35 +876,60 @@ func TestPaletteAnswersInTheFilmsLanguage(t *testing.T) {
 	ask(func() { a.ExplainLine(1) }, "简体中文")
 }
 
-// TestPaletteExplainWithoutAIOffersItsSettings checks that Explain Line, with no AI service set, gets the palette's prompt to set one rather than a question sent nowhere.
+// TestPaletteExplainWithoutAIOffersItsSettings checks that Explain Line, with no AI service set, gets the palette's prompt to set one rather than a question sent nowhere, in words about explaining a line rather than answering questions.
 func TestPaletteExplainWithoutAIOffersItsSettings(t *testing.T) {
+	msgs := testlocale.Messages()
 	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	a.ExplainLine(1)
 	refresh(tt, a)
-	if !a.palette.open || !hasText(tt, testlocale.Messages().PaletteNoAI()) || !hasText(tt, testlocale.Messages().PaletteNoAIAction()) {
+	if !a.palette.open || !hasText(tt, msgs.PaletteExplainNoAI()) || !hasText(tt, msgs.PaletteNoAIAction()) || !hasText(tt, msgs.PaletteHeadingExplain()) || hasText(tt, msgs.PaletteNoAI()) {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
 
-// TestPaletteSaysWhatItTakesWhereItOpens checks that the palette's field is named, and its footer says what Return does, for where it opens: over the library it finds films, commands and lines and runs them; in the player it also asks the open film, which Return does while the ask row is highlighted.
-func TestPaletteSaysWhatItTakesWhereItOpens(t *testing.T) {
-	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+// TestPaletteExplainFailureSaysSo checks that when the AI service fails to explain a line, the card says no explanation came back, not that a question went unanswered.
+func TestPaletteExplainFailureSaysSo(t *testing.T) {
 	msgs := testlocale.Messages()
-	paletteOpen(t, a, tt, updates)
-	if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabel() {
-		t.Fatalf("field over the library is named %q, want %q", got, msgs.PaletteFieldLabel())
-	}
-	if !hasText(tt, msgs.PaletteFooter()) {
-		t.Fatalf("no library footer in %q", tt.Texts())
-	}
-	tt.Key("escape")
+	srv, _ := fakeLLM(t, "{}")
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "wrong", Model: "m1"}}
+	a, tt, updates := paletteLibrary(t, tools)
 	paletteOpenFilm(t, a, tt, updates, "rivers")
-	paletteOpen(t, a, tt, updates)
-	if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabelFilm() {
-		t.Fatalf("field in the player is named %q, want %q", got, msgs.PaletteFieldLabelFilm())
+	apply(tt, a, func() { a.ExplainLine(1) })
+	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
+	if !a.palette.answer.failed || !strings.HasPrefix(a.palette.answer.say(a.cx), msgs.PaletteExplainFailed("")) || !hasText(tt, msgs.PaletteHeadingExplain()) {
+		t.Fatalf("answer %+v, texts %q", a.palette.answer, tt.Texts())
 	}
-	if !hasText(tt, msgs.PaletteFooterFilm()) {
-		t.Fatalf("no player footer in %q", tt.Texts())
+}
+
+// TestPaletteSaysWhatItTakesWhereItOpens checks that the palette's field is named, and its footer says what Return does, for where it opens: over the library it finds films, commands and lines and runs them; in the player it also asks the open film, which Return does while the ask row is highlighted. The footer names the key as the system's keyboards do: Return on a Mac, Enter on Windows and Linux.
+func TestPaletteSaysWhatItTakesWhereItOpens(t *testing.T) {
+	for _, tc := range []struct {
+		os  ns.OS
+		key string
+	}{{ns.OSMacOS, "Return"}, {ns.OSWindows, "Enter"}, {ns.OSLinux, "Enter"}} {
+		t.Run(string(tc.os), func(t *testing.T) {
+			usePlatform(t, tc.os)
+			a, tt, updates := paletteLibrary(t, &fakePipeline{})
+			msgs := testlocale.Messages()
+			paletteOpen(t, a, tt, updates)
+			if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabel() {
+				t.Fatalf("field over the library is named %q, want %q", got, msgs.PaletteFieldLabel())
+			}
+			footer := msgs.PaletteFooter(platformName())
+			if !strings.Contains(footer, tc.key) || !hasText(tt, footer) {
+				t.Fatalf("library footer %q, want one naming %s, in %q", footer, tc.key, tt.Texts())
+			}
+			tt.Key("escape")
+			paletteOpenFilm(t, a, tt, updates, "rivers")
+			paletteOpen(t, a, tt, updates)
+			if got := tt.Find("id:palette-field").Props.Label; got != msgs.PaletteFieldLabelFilm() {
+				t.Fatalf("field in the player is named %q, want %q", got, msgs.PaletteFieldLabelFilm())
+			}
+			footer = msgs.PaletteFooterFilm(platformName())
+			if !strings.Contains(footer, tc.key) || !hasText(tt, footer) {
+				t.Fatalf("player footer %q, want one naming %s, in %q", footer, tc.key, tt.Texts())
+			}
+		})
 	}
 }

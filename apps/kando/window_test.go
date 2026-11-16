@@ -296,7 +296,7 @@ func TestClosingTheWindowElsewhereQuits(t *testing.T) {
 	}
 }
 
-// TestWindowMenuBringsTheWindowBack checks that a row of the Window menu, here 片库, shows the main window its close button put away before it acts on it, and that its put away and back are passed on to the player.
+// TestWindowMenuBringsTheWindowBack checks that a row of the Window menu, here 资料库, shows the main window its close button put away before it acts on it, and that its put away and back are passed on to the player.
 func TestWindowMenuBringsTheWindowBack(t *testing.T) {
 	setWindowHidesOnClose(t, true)
 	a, tt, _ := newTestApp(t, &fakePipeline{})

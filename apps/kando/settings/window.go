@@ -39,7 +39,7 @@ type App interface {
 	// SettingsQuery is the text of the window's search field.
 	SettingsQuery() *string
 	SaveErr() string
-	// Save writes the settings to settings.json.
+	// Save writes the settings to settings.json; when it cannot, SaveErr says so.
 	Save() error
 
 	LibraryDir() string

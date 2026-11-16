@@ -131,7 +131,7 @@ func demo(learning []string, target string) (code, original, translation string)
 	return code, demoLines[code], translation
 }
 
-// LinkHint is what the line under the third step's field says about raw, in the interface's language under cx: nothing for an empty field, what the link points at when ParseLink reads it, or why it cannot be added. ok is false for a link that cannot be added: one that does not read as a link to a video on the web, and a channel or a list that names no single video, because a job downloads one video (yt-dlp runs with --no-playlist).
+// LinkHint is what the line under the third step's field says about raw, in the interface's language under cx: nothing for an empty field, what the link points at when ParseLink reads it, or why it cannot be added. ok is false for a link that cannot be added: one that does not read as a link to a video on the web. A channel or a list that names no single video can be: the guide's button opens the dialog that lists its videos, as the library's link field does.
 func LinkHint(cx *ns.Scope, raw string) (hint string, ok bool) { return linkHint(locales.For(cx), raw) }
 
 // Addable is LinkHint's ok alone, for the app's handler of the third step's button, which needs no words.
@@ -153,13 +153,13 @@ func linkHint(m locales.Messages, raw string) (hint string, ok bool) {
 	site := sitename.In(m, link.Site)
 	switch {
 	case link.Kind == core.LinkChannel && site == "":
-		return m.OnboardingLinkChannelUnnamed(), false
+		return m.OnboardingLinkChannelUnnamed(), true
 	case link.Kind == core.LinkChannel:
-		return m.OnboardingLinkChannel(site), false
+		return m.OnboardingLinkChannel(site), true
 	case !link.OneVideo() && site == "":
-		return m.OnboardingLinkListUnnamed(), false
+		return m.OnboardingLinkListUnnamed(), true
 	case !link.OneVideo():
-		return m.OnboardingLinkList(site), false
+		return m.OnboardingLinkList(site), true
 	case link.Kind == core.LinkPlaylist && site == "":
 		return m.OnboardingLinkPlaylistVideoUnnamed(), true
 	case link.Kind == core.LinkPlaylist:

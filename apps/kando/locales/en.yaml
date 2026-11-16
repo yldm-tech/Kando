@@ -605,9 +605,6 @@ filmInfoLanguages:
   placeholders:
     spoken: { type: "String", example: "Japanese" }
     target: { type: "String", example: "Simplified Chinese" }
-filmHideSidebar:
-  message: "Hide Sidebar"
-  description: "Button at the player's top right that folds the side panel away."
 filmJobRecord:
   message: "Job record"
   description: "Label in the Info tab over the path of the library file that records the jobs."
@@ -643,7 +640,7 @@ filmLoadingSubtitles:
   description: "Shown in the side panel while the subtitle file is read."
 filmLocalFile:
   message: "Local file"
-  description: "The Info tab's source of a film opened from a file on this Mac."
+  description: "The Info tab's source of a film opened from a file on this computer."
 filmLocalVideo:
   message: "Local Video"
   description: "Chip in the Info tab of a local video no job has processed."
@@ -1197,13 +1194,6 @@ filmsQueueTranscribingPercent:
 filmsQueueTranslating:
   message: "Translating"
   description: "Line under the title of a job translating its subtitles, before it says how many lines are done."
-filmsQueueTranslatingBatch:
-  message: "Translating · Batch {batch}/{batches} · {size, plural, one {# line} other {# lines}} per batch"
-  description: "Line under the title of a job translating its subtitles in batches."
-  placeholders:
-    batch: { type: "int", example: "2" }
-    batches: { type: "int", example: "5" }
-    size: { type: "int", example: "40" }
 filmsQueueTranslatingLines:
   message: "Translating · {lines} of {total} lines"
   description: "Line under the title of a job translating its subtitles: how many lines are done of how many."
@@ -1235,7 +1225,7 @@ filmsRemoveConfirm:
   placeholders:
     name: { type: "String", example: "Learn Rust" }
 filmsRemoveFailed:
-  message: "Remove Failed"
+  message: "Clear Failed"
   description: "Button on the Processing heading when two or more videos failed: removes their cards. Their downloaded files stay in the library."
 filmsRemoveFiles:
   message: "The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay where they are."
@@ -1467,11 +1457,6 @@ libraryRemoved:
   description: "Message bar after a film whose video is outside the library was taken off the library."
   placeholders:
     name: { type: "String", example: "Learn Rust" }
-libraryRevealFailed:
-  message: "Couldn't open the enclosing folder: {error}"
-  description: "Error when the folder holding a file could not be opened."
-  placeholders:
-    error: { type: "String", example: "exit status 1" }
 libraryRevealNotOpened:
   message: "Couldn't open the enclosing folder: no app opened it."
   description: "Error when the folder holding a file could not be opened because the system had no app open it."
@@ -1765,13 +1750,13 @@ onboardingLanguagesNote:
   message: "The languages you choose decide which model the next step recommends; whisper recognizes the others too."
   description: "Note under the first step's language tiles."
 onboardingLinkChannel:
-  message: "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos"
-  description: "Line under the link field for a link to a channel on a named site."
+  message: "Recognized as a {site} channel. Kando lists its videos before adding them"
+  description: "Line under the link field for a link to a channel on a named site: the guide's button opens the dialog that lists the channel's videos and adds them."
   placeholders:
     site: { type: "String", example: "YouTube" }
 onboardingLinkChannelUnnamed:
-  message: "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos"
-  description: "Line under the link field for a link to a channel on a site without a known name."
+  message: "Recognized as a channel. Kando lists its videos before adding them"
+  description: "Line under the link field for a link to a channel on a site without a known name: the guide's button opens the dialog that lists the channel's videos and adds them."
 onboardingLinkDescription:
   message: "Any video from YouTube, Bilibili or another site yt-dlp can download from will do."
   description: "Line under the third step's title."
@@ -1782,13 +1767,13 @@ onboardingLinkLabel:
   message: "Link to the first video"
   description: "Accessible name of the third step's link field."
 onboardingLinkList:
-  message: "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos"
-  description: "Line under the link field for a link to a playlist on a named site that names no single video."
+  message: "Recognized as a {site} playlist. Kando lists its videos before adding them"
+  description: "Line under the link field for a link to a playlist on a named site that names no single video: the guide's button opens the dialog that lists the playlist's videos and adds them."
   placeholders:
     site: { type: "String", example: "YouTube" }
 onboardingLinkListUnnamed:
-  message: "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos"
-  description: "Line under the link field for a link to a playlist on a site without a known name that names no single video."
+  message: "Recognized as a playlist. Kando lists its videos before adding them"
+  description: "Line under the link field for a link to a playlist on a site without a known name that names no single video: the guide's button opens the dialog that lists the playlist's videos and adds them."
 onboardingLinkNotVideo:
   message: "This doesn't look like a video link"
   description: "Line under the third step's link field when the text does not read as a video link."
@@ -2004,12 +1989,25 @@ paletteAsking:
   description: "Answer card while the question is on its way to the AI model."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
+paletteExplainFailed:
+  message: "No explanation came back: {error}"
+  description: "Explanation card when the AI service returned no explanation of the line; error is the service's error message."
+  placeholders:
+    error: { type: "String", example: "context deadline exceeded" }
 paletteExplainLine:
   message: "Explain Line"
   description: "Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette."
+paletteExplainNoAI:
+  message: "Explaining lines needs an AI service. Choose a model in “AI Service” first."
+  description: "Explanation card when Explain Line was chosen with no AI service set."
 paletteExplainNote:
   message: "Explained by {model}"
   description: "Footnote under the explanation of a subtitle line (Explain Line): which model explained it."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
+paletteExplaining:
+  message: "Asking {model} to explain the line…"
+  description: "Explanation card while the line is on its way to the AI model (Explain Line)."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
 paletteFieldLabel:
@@ -2019,17 +2017,24 @@ paletteFieldLabelFilm:
   message: "Commands, lines or questions"
   description: "Accessible name of the command palette's field in the player, where a question can also be asked about the open film."
 paletteFooter:
-  message: "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
-  description: "Footer of the command palette over the library: what typing, the arrow keys and Return do."
+  message: "Type to search films, commands and watched lines · ↑↓ to select · {platform, select, macOS {Return} other {Enter}} to run"
+  description: "Footer of the command palette over the library: what typing, the arrow keys and Return (Enter on Windows and Linux) do. platform is the system the app runs on; each case names the key as that system's keyboards do."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
 paletteFooterFilm:
-  message: "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"
-  description: "Footer of the command palette in the player: what typing, the arrow keys and Return do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise."
+  message: "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · {platform, select, macOS {Return} other {Enter}} to ask or run"
+  description: "Footer of the command palette in the player: what typing, the arrow keys and Return (Enter on Windows and Linux) do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise. platform is the system the app runs on; each case names the key as that system's keyboards do."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
 paletteHeadingAnswer:
   message: "Answer"
   description: "Heading of the card with the answer to a question about the film."
 paletteHeadingCommands:
   message: "Commands"
   description: "Heading of the commands the command palette found."
+paletteHeadingExplain:
+  message: "Explanation"
+  description: "Heading of the card with the explanation of a subtitle line (Explain Line), in place of paletteHeadingAnswer."
 paletteHeadingFilms:
   message: "Films"
   description: "Heading of the films of the library whose names hold what was typed in the command palette; choosing one plays it."
@@ -2273,8 +2278,8 @@ precheckEveryAPIMissing:
   message: "Translation needs the everyapi command-line program, or an API Key in “AI Service”"
   description: "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and the everyapi command-line program, whose sign-in it would use, is not on this computer. everyapi is the program's name and stays as it is."
 precheckEveryAPISignedOut:
-  message: "Run everyapi auth login in Terminal, or enter an API Key in “AI Service”"
-  description: "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and nobody is signed in to the everyapi command-line program. everyapi auth login is the command to type and stays as it is; Terminal is the app it is typed in."
+  message: "Run everyapi auth login in a terminal, or enter an API Key in “AI Service”"
+  description: "Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and nobody is signed in to the everyapi command-line program. everyapi auth login is the command to type and stays as it is; a terminal is the program it is typed in (Terminal on macOS, Windows Terminal or PowerShell on Windows)."
 precheckFailedDownload:
   message: "Download failed: {detail}"
   description: "Card of a job whose download failed for an unknown reason, with what yt-dlp said (often English)."
@@ -2427,7 +2432,7 @@ queueNoLanguage:
   message: "Enter a target language"
   description: "Why a job cannot start: the subtitle target language is empty in the settings."
 queueNoLibrary:
-  message: "Create or import a library first"
+  message: "Create or open a library first"
   description: "Why a link cannot be added: no library is open."
 queueNoVideoToImport:
   message: "No video to import"
@@ -2445,11 +2450,6 @@ queueNotifyUntranslated:
   description: "Body of the notification posted while Kando is in the background, when a video's job is done but its subtitles could not be translated, as when no AI service is set up or it refused the key. The notification's title is the video's title; the reason says why, a full sentence of its own."
   placeholders:
     reason: { type: "String", example: "No AI model is chosen." }
-queueOpenSettingsFailed:
-  message: "Couldn't open System Settings: {error}"
-  description: "Message bar when System Settings could not be opened."
-  placeholders:
-    error: { type: "String", example: "exit status 1" }
 queueOpenSettingsNoApp:
   message: "Couldn't open System Settings: no app opened it."
   description: "Message bar when the Full Disk Access pane of System Settings could not be opened because the system had no app open it."
@@ -2956,8 +2956,8 @@ settingsAIBlurbGroq:
   message: "Groq's OpenAI-compatible API"
   description: "What the Groq service is. A phrase."
 settingsAIBlurbLMStudio:
-  message: "LM Studio on this Mac"
-  description: "What the LM Studio service is: LM Studio running on this Mac. A phrase."
+  message: "LM Studio on this computer"
+  description: "What the LM Studio service is: LM Studio running on this computer. A phrase."
 settingsAIBlurbMistral:
   message: "Mistral's OpenAI-compatible API"
   description: "What the Mistral service is. A phrase."
@@ -2965,8 +2965,8 @@ settingsAIBlurbMoonshot:
   message: "Moonshot's OpenAI-compatible API"
   description: "What the Kimi service is: Moonshot AI's API. A phrase."
 settingsAIBlurbOllama:
-  message: "Ollama on this Mac"
-  description: "What the Ollama service is: Ollama running on this Mac. A phrase."
+  message: "Ollama on this computer"
+  description: "What the Ollama service is: Ollama running on this computer. A phrase."
 settingsAIBlurbOpenAI:
   message: "OpenAI's official API"
   description: "What the OpenAI service is. A phrase."
@@ -3000,7 +3000,7 @@ settingsAIEveryAPIFailed:
   placeholders:
     error: { type: "String", example: "EveryAPI credential: everyapi: exit status 2" }
 settingsAIEveryAPIMissing:
-  message: "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."
+  message: "Not found on this computer. Get it from everyapi.ai, then choose Detect Again."
   description: "Under the everyapi command line row when the program is not on this computer. Detect Again is the button beside it (settingsAIRedetect)."
 settingsAIEveryAPIOpenFailed:
   message: "Couldn't open everyapi.ai: {error}"
@@ -3008,7 +3008,7 @@ settingsAIEveryAPIOpenFailed:
   placeholders:
     error: { type: "String", example: "exit status 1" }
 settingsAIEveryAPISignedOut:
-  message: "Not signed in. Run everyapi auth login in Terminal, then choose Detect Again."
+  message: "Not signed in. Run everyapi auth login in a terminal, then choose Detect Again."
   description: "Under the everyapi command line row when nobody is signed in to the program. everyapi auth login is the command to type and stays as it is; Detect Again is the button beside it (settingsAIRedetect)."
 settingsAIGetEveryAPI:
   message: "Get EveryAPI"
@@ -3017,20 +3017,20 @@ settingsAIGetKey:
   message: "Get API Key"
   description: "Button after the API Key field, on the AI Service page and in the first-run guide, that opens the service's page where an API key is made, in the browser."
 settingsAIKeyEveryAPILogin:
-  message: "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."
+  message: "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this computer."
   description: "The AI Service page's footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program."
 settingsAIKeyOptional:
   message: "Optional"
   description: "Placeholder of the empty API Key field when the service works without one: EveryAPI, which uses the everyapi sign-in, and services on this computer such as Ollama."
 settingsAIKeyStoredLocally:
-  message: "The API Key is kept only in the settings file on this Mac."
+  message: "The API Key is kept only in the settings file on this computer."
   description: "The AI Service page's footnote for a cloud service, and its first sentence for an OpenAI Compatible endpoint."
 settingsAILoadingModels:
   message: "Getting the model list…"
   description: "In the Model row while the service's models are being fetched."
 settingsAILocalService:
   message: "Local · {name}"
-  description: "A service running on this Mac in the service pop-up: the group, then the service's name."
+  description: "A service running on this computer in the service pop-up: the group, then the service's name."
   placeholders:
     name: { type: "String", example: "Ollama" }
 settingsAIModel:
@@ -3540,6 +3540,11 @@ settingsLookYield:
 settingsLookYieldHint:
   message: "Keeps them clear of the control bar"
   description: "Under the switch moving subtitles up."
+settingsSaveFailed:
+  message: "Couldn't save the settings: {error}"
+  description: "Error in the settings window and the sidebar's status row when a setting changed on the General, Translate, Subtitle Style or Account & Upload page could not be saved to settings.json."
+  placeholders:
+    error: { type: "String", example: "permission denied" }
 settingsSearchClear:
   message: "Clear Search"
   description: "Accessible name of the button at the end of the settings window's search field that empties it."
@@ -3751,8 +3756,10 @@ settingsSpeechRecommended:
   message: "Recommended"
   description: "Badge after the name of the recommended whisper model."
 settingsSpeechReveal:
-  message: "Show in Finder"
-  description: "Menu item of a downloaded whisper model that shows its file in Finder."
+  message: "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
+  description: "Menu item of a downloaded whisper model that shows its file in Finder, File Explorer or the file manager. platform is the system the app runs on."
+  placeholders:
+    platform: { type: "String", example: "macOS" }
 settingsSpeechSaveFailed:
   message: "Couldn't save the model: {error}"
   description: "Error when the chosen whisper model could not be saved to settings.json."
@@ -3845,10 +3852,10 @@ sidebarChooseLibrary:
   description: "The library switcher's name line while no library is open."
 sidebarCommands:
   message: "Commands"
-  description: "Accessible name of the button on the sidebar's status card that opens the command palette, on Windows and Linux, which have no app menu bar."
+  description: "Accessible name of the button on the status row at the foot of the sidebar that opens the command palette, on Windows and Linux, which have no app menu bar."
 sidebarCommandsTooltip:
   message: "Commands ({shortcut})"
-  description: "Tooltip of the button on the sidebar's status card that opens the command palette, with its shortcut as the system writes it."
+  description: "Tooltip of the button on the status row at the foot of the sidebar that opens the command palette, with its shortcut as the system writes it."
   placeholders:
     shortcut: { type: "String", example: "Ctrl+K" }
 sidebarJobsActive:
@@ -3919,7 +3926,7 @@ sidebarSearchPlaceholder:
   description: "Placeholder of the search field under the library switcher in the sidebar, which filters the finished films by name; the app adds the shortcut after it."
 sidebarSettings:
   message: "Settings"
-  description: "Accessible name of the gear on the status card, which opens the settings that fix what is missing."
+  description: "Accessible name of the gear on the status row at the foot of the sidebar, which opens the settings that fix what is missing."
 sidebarSourceAll:
   message: "All Films"
   description: "Sidebar item showing every film of the library; also the library page's title then."
@@ -3934,7 +3941,7 @@ sidebarSourceWeb:
   description: "Sidebar item showing the films from websites other than YouTube and Bilibili."
 sidebarStatus:
   message: "Status"
-  description: "Accessible name of the status card at the foot of the sidebar."
+  description: "Accessible name of the status row at the foot of the sidebar."
 sidebarSwitcherLabel:
   message: "Switch library, current: {name}"
   description: "Accessible name of the library switcher: what it does and the open library."

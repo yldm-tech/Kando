@@ -498,7 +498,6 @@ var Parameters = map[string][]string{
 	"FilmsQueueSavingTo":                       {"library"},
 	"FilmsQueueShowAll":                        {"count"},
 	"FilmsQueueTranscribingPercent":            {"percent"},
-	"FilmsQueueTranslatingBatch":               {"batch", "batches", "size"},
 	"FilmsQueueTranslatingLines":               {"lines", "total"},
 	"FilmsQueueWaitingAhead":                   {"count"},
 	"FilmsQueueWatch":                          {"name"},
@@ -518,7 +517,6 @@ var Parameters = map[string][]string{
 	"LibraryAddedStarting":                     {"count"},
 	"LibraryMoveOutFailed":                     {"error_"},
 	"LibraryRemoved":                           {"name"},
-	"LibraryRevealFailed":                      {"error_"},
 	"LibrarySaveFailed":                        {"error_"},
 	"LibraryShelfDamaged":                      {"error_"},
 	"LibraryShelfDamagedUnsaved":               {"error_"},
@@ -557,7 +555,11 @@ var Parameters = map[string][]string{
 	"PaletteAskFailed":                         {"error_"},
 	"PaletteAskRow":                            {"question"},
 	"PaletteAsking":                            {"model"},
+	"PaletteExplainFailed":                     {"error_"},
 	"PaletteExplainNote":                       {"model"},
+	"PaletteExplaining":                        {"model"},
+	"PaletteFooter":                            {"platform"},
+	"PaletteFooterFilm":                        {"platform"},
 	"PaletteJumpTo":                            {"time_"},
 	"PaletteLibrarySaveFailed":                 {"error_"},
 	"PaletteSettingsSection":                   {"section"},
@@ -589,7 +591,6 @@ var Parameters = map[string][]string{
 	"QueueMakeSubtitlesFailed":                 {"name", "reason"},
 	"QueueNotifyFailed":                        {"reason"},
 	"QueueNotifyUntranslated":                  {"reason"},
-	"QueueOpenSettingsFailed":                  {"error_"},
 	"QueueQuitWhileRunningMessage":             {"film"},
 	"QueueRedoFailed":                          {"name", "reason"},
 	"QueueRemedyAgeNeed":                       {"site"},
@@ -661,6 +662,7 @@ var Parameters = map[string][]string{
 	"SettingsGeneralUpdateAvailable":           {"version"},
 	"SettingsLibrarySaveFailed":                {"error_"},
 	"SettingsLookColorOf":                      {"line"},
+	"SettingsSaveFailed":                       {"error_"},
 	"SettingsSpeechDownloadFailedStatus":       {"status"},
 	"SettingsSpeechDownloadFailedStatusMirror": {"status"},
 	"SettingsSpeechDownloadProgress":           {"model"},
@@ -669,6 +671,7 @@ var Parameters = map[string][]string{
 	"SettingsSpeechModelFileUnreadable":        {"file"},
 	"SettingsSpeechModelStats":                 {"speed", "accuracy", "size"},
 	"SettingsSpeechNotModelFile":               {"file"},
+	"SettingsSpeechReveal":                     {"platform"},
 	"SettingsSpeechSaveFailed":                 {"error_"},
 	"SettingsSpeechSourceSaveFailed":           {"error_"},
 	"SettingsSpeechTrashConfirm":               {"model"},
@@ -769,7 +772,6 @@ type Translation struct {
 	FilmsQueueSavingTo                       func(library string) string
 	FilmsQueueShowAll                        func(count int) string
 	FilmsQueueTranscribingPercent            func(percent string) string
-	FilmsQueueTranslatingBatch               func(batch int, batches int, size int) string
 	FilmsQueueTranslatingLines               func(lines int, total int) string
 	FilmsQueueWaitingAhead                   func(count int) string
 	FilmsQueueWatch                          func(name string) string
@@ -789,7 +791,6 @@ type Translation struct {
 	LibraryAddedStarting                     func(count int) string
 	LibraryMoveOutFailed                     func(error_ string) string
 	LibraryRemoved                           func(name string) string
-	LibraryRevealFailed                      func(error_ string) string
 	LibrarySaveFailed                        func(error_ string) string
 	LibraryShelfDamaged                      func(error_ string) string
 	LibraryShelfDamagedUnsaved               func(error_ string) string
@@ -828,7 +829,11 @@ type Translation struct {
 	PaletteAskFailed                         func(error_ string) string
 	PaletteAskRow                            func(question string) string
 	PaletteAsking                            func(model string) string
+	PaletteExplainFailed                     func(error_ string) string
 	PaletteExplainNote                       func(model string) string
+	PaletteExplaining                        func(model string) string
+	PaletteFooter                            func(platform string) string
+	PaletteFooterFilm                        func(platform string) string
 	PaletteJumpTo                            func(time_ string) string
 	PaletteLibrarySaveFailed                 func(error_ string) string
 	PaletteSettingsSection                   func(section string) string
@@ -860,7 +865,6 @@ type Translation struct {
 	QueueMakeSubtitlesFailed                 func(name string, reason string) string
 	QueueNotifyFailed                        func(reason string) string
 	QueueNotifyUntranslated                  func(reason string) string
-	QueueOpenSettingsFailed                  func(error_ string) string
 	QueueQuitWhileRunningMessage             func(film string) string
 	QueueRedoFailed                          func(name string, reason string) string
 	QueueRemedyAgeNeed                       func(site string) string
@@ -932,6 +936,7 @@ type Translation struct {
 	SettingsGeneralUpdateAvailable           func(version string) string
 	SettingsLibrarySaveFailed                func(error_ string) string
 	SettingsLookColorOf                      func(line string) string
+	SettingsSaveFailed                       func(error_ string) string
 	SettingsSpeechDownloadFailedStatus       func(status int) string
 	SettingsSpeechDownloadFailedStatusMirror func(status int) string
 	SettingsSpeechDownloadProgress           func(model string) string
@@ -940,6 +945,7 @@ type Translation struct {
 	SettingsSpeechModelFileUnreadable        func(file string) string
 	SettingsSpeechModelStats                 func(speed string, accuracy string, size string) string
 	SettingsSpeechNotModelFile               func(file string) string
+	SettingsSpeechReveal                     func(platform string) string
 	SettingsSpeechSaveFailed                 func(error_ string) string
 	SettingsSpeechSourceSaveFailed           func(error_ string) string
 	SettingsSpeechTrashConfirm               func(model string) string
@@ -1109,7 +1115,6 @@ const (
 	textFilmFontSans
 	textFilmFontSerif
 	textFilmFullScreen
-	textFilmHideSidebar
 	textFilmJobRecord
 	textFilmKeySpace
 	textFilmKindBilingual
@@ -1404,12 +1409,12 @@ const (
 	textOnboardingWelcome
 	textOnboardingWelcomeDescription
 	textPaletteExplainLine
+	textPaletteExplainNoAI
 	textPaletteFieldLabel
 	textPaletteFieldLabelFilm
-	textPaletteFooter
-	textPaletteFooterFilm
 	textPaletteHeadingAnswer
 	textPaletteHeadingCommands
+	textPaletteHeadingExplain
 	textPaletteHeadingFilms
 	textPaletteHeadingLines
 	textPaletteMenuItem
@@ -1792,7 +1797,6 @@ const (
 	textSettingsSpeechNoModelsDir
 	textSettingsSpeechNote
 	textSettingsSpeechRecommended
-	textSettingsSpeechReveal
 	textSettingsSpeechSource
 	textSettingsSpeechSpokenAuto
 	textSettingsSpeechSpokenLanguage
@@ -2008,7 +2012,6 @@ var keyOfText = [numTexts]string{
 	"filmFontSans",
 	"filmFontSerif",
 	"filmFullScreen",
-	"filmHideSidebar",
 	"filmJobRecord",
 	"filmKeySpace",
 	"filmKindBilingual",
@@ -2303,12 +2306,12 @@ var keyOfText = [numTexts]string{
 	"onboardingWelcome",
 	"onboardingWelcomeDescription",
 	"paletteExplainLine",
+	"paletteExplainNoAI",
 	"paletteFieldLabel",
 	"paletteFieldLabelFilm",
-	"paletteFooter",
-	"paletteFooterFilm",
 	"paletteHeadingAnswer",
 	"paletteHeadingCommands",
+	"paletteHeadingExplain",
 	"paletteHeadingFilms",
 	"paletteHeadingLines",
 	"paletteMenuItem",
@@ -2691,7 +2694,6 @@ var keyOfText = [numTexts]string{
 	"settingsSpeechNoModelsDir",
 	"settingsSpeechNote",
 	"settingsSpeechRecommended",
-	"settingsSpeechReveal",
 	"settingsSpeechSource",
 	"settingsSpeechSpokenAuto",
 	"settingsSpeechSpokenLanguage",
@@ -2905,7 +2907,6 @@ var textsEn = i18n.NewTexts(""+
 	"Sans Serif"+
 	"Serif"+
 	"Full Screen"+
-	"Hide Sidebar"+
 	"Job record"+
 	"Space"+
 	"Bilingual subtitles"+
@@ -3036,7 +3037,7 @@ var textsEn = i18n.NewTexts(""+
 	"under a minute left"+
 	"Queued"+
 	"Remove"+
-	"Remove Failed"+
+	"Clear Failed"+
 	"The video and its subtitles will be moved to the Trash, where you can get them back. Other files in its folder stay where they are."+
 	"The film's folder will be moved to the Trash. You can get its video, cover and subtitles back from there."+
 	"Remove from Library…"+
@@ -3158,11 +3159,11 @@ var textsEn = i18n.NewTexts(""+
 	"Korean"+
 	"Mandarin"+
 	"The languages you choose decide which model the next step recommends; whisper recognizes the others too."+
-	"This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos"+
+	"Recognized as a channel. Kando lists its videos before adding them"+
 	"Any video from YouTube, Bilibili or another site yt-dlp can download from will do."+
 	"Press Enter to start. No link? Skip for now and drag a local video into the window later."+
 	"Link to the first video"+
-	"This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos"+
+	"Recognized as a playlist. Kando lists its videos before adding them"+
 	"This doesn't look like a video link"+
 	"Paste a YouTube or Bilibili link"+
 	"Recognized as a web video. Only this one is added, not the whole playlist"+
@@ -3200,12 +3201,12 @@ var textsEn = i18n.NewTexts(""+
 	"Welcome to Kando"+
 	"Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."+
 	"Explain Line"+
+	"Explaining lines needs an AI service. Choose a model in “AI Service” first."+
 	"Films, commands or watched lines"+
 	"Commands, lines or questions"+
-	"Type to search films, commands and watched lines · ↑↓ to select · Return to run"+
-	"Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"+
 	"Answer"+
 	"Commands"+
+	"Explanation"+
 	"Films"+
 	"Lines"+
 	"Ask This Film / Commands…"+
@@ -3260,7 +3261,7 @@ var textsEn = i18n.NewTexts(""+
 	"Paste a video link first, or choose a local file."+
 	"Couldn't get the sign-in from the everyapi command-line program; see “AI Service”"+
 	"Translation needs the everyapi command-line program, or an API Key in “AI Service”"+
-	"Run everyapi auth login in Terminal, or enter an API Key in “AI Service”"+
+	"Run everyapi auth login in a terminal, or enter an API Key in “AI Service”"+
 	"This is a link to a playlist, not to one video. List its videos first, then add them."+
 	"The video has no sound, so there is no speech to transcribe"+
 	"Choose a model in “AI Service” first"+
@@ -3288,7 +3289,7 @@ var textsEn = i18n.NewTexts(""+
 	"Local video selected"+
 	"Still no browser whose sign-in Kando can use."+
 	"Enter a target language"+
-	"Create or import a library first"+
+	"Create or open a library first"+
 	"No video to import"+
 	"The bilingual subtitles are ready."+
 	"Couldn't open System Settings: no app opened it."+
@@ -3379,10 +3380,10 @@ var textsEn = i18n.NewTexts(""+
 	"DeepSeek's OpenAI-compatible API"+
 	"EveryAPI's OpenAI-compatible API"+
 	"Groq's OpenAI-compatible API"+
-	"LM Studio on this Mac"+
+	"LM Studio on this computer"+
 	"Mistral's OpenAI-compatible API"+
 	"Moonshot's OpenAI-compatible API"+
-	"Ollama on this Mac"+
+	"Ollama on this computer"+
 	"OpenAI's official API"+
 	"Models from many providers through one API"+
 	"SiliconFlow's OpenAI-compatible API"+
@@ -3392,13 +3393,13 @@ var textsEn = i18n.NewTexts(""+
 	"Any service compatible with OpenAI Chat Completions works."+
 	"Connected"+
 	"everyapi command line"+
-	"Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."+
-	"Not signed in. Run everyapi auth login in Terminal, then choose Detect Again."+
+	"Not found on this computer. Get it from everyapi.ai, then choose Detect Again."+
+	"Not signed in. Run everyapi auth login in a terminal, then choose Detect Again."+
 	"Get EveryAPI"+
 	"Get API Key"+
-	"Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."+
+	"Without an API Key, Kando uses the sign-in of the everyapi command-line program on this computer."+
 	"Optional"+
-	"The API Key is kept only in the settings file on this Mac."+
+	"The API Key is kept only in the settings file on this computer."+
 	"Getting the model list…"+
 	"Model"+
 	"This service doesn't offer a model list; check the Base URL, or type the model's ID"+
@@ -3588,7 +3589,6 @@ var textsEn = i18n.NewTexts(""+
 	"There is no models folder yet"+
 	"Larger models are more accurate but slower; if unsure, use the recommended one."+
 	"Recommended"+
-	"Show in Finder"+
 	"Download Source"+
 	"Detect Automatically"+
 	"Spoken Language"+
@@ -3799,7 +3799,6 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		5,
 		11,
-		12,
 		10,
 		5,
 		19,
@@ -3930,7 +3929,7 @@ var textsEn = i18n.NewTexts(""+
 		19,
 		6,
 		6,
-		13,
+		12,
 		131,
 		105,
 		22,
@@ -4052,11 +4051,11 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		8,
 		104,
-		107,
+		66,
 		82,
 		89,
 		23,
-		108,
+		67,
 		35,
 		32,
 		73,
@@ -4094,12 +4093,12 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		113,
 		12,
+		79,
 		32,
 		28,
-		85,
-		113,
 		6,
 		8,
+		11,
 		5,
 		5,
 		27,
@@ -4154,7 +4153,7 @@ var textsEn = i18n.NewTexts(""+
 		49,
 		85,
 		86,
-		76,
+		78,
 		85,
 		59,
 		40,
@@ -4182,7 +4181,7 @@ var textsEn = i18n.NewTexts(""+
 		20,
 		45,
 		23,
-		32,
+		30,
 		18,
 		34,
 		48,
@@ -4273,10 +4272,10 @@ var textsEn = i18n.NewTexts(""+
 		32,
 		32,
 		28,
-		21,
+		26,
 		31,
 		32,
-		18,
+		23,
 		21,
 		42,
 		35,
@@ -4286,13 +4285,13 @@ var textsEn = i18n.NewTexts(""+
 		58,
 		9,
 		21,
-		73,
-		77,
+		78,
+		79,
 		12,
 		11,
-		92,
+		97,
 		8,
-		58,
+		63,
 		25,
 		5,
 		83,
@@ -4482,7 +4481,6 @@ var textsEn = i18n.NewTexts(""+
 		29,
 		79,
 		11,
-		14,
 		15,
 		20,
 		15,
@@ -4587,7 +4585,7 @@ var textsJa = i18n.NewTexts(""+
 	"動画はダウンロードが完了しても自動ではアップロードされません。再生画面でアップロードをクリックしてください。各ストレージのキーは別々に、このコンピュータの設定ファイルにだけ保存されます。"+
 	"ストレージに接続できませんでした。ネットワークを確認してもう一度お試しください。"+
 	"ストレージが応答しなくなりました。ネットワークを確認してもう一度お試しください。"+
-	"動画が 5 GB を超えています。1 回のアップロードで送れる上限です。"+
+	"動画が 5 GB を超えています。1 回のアップロードで送れるのは 5 GB までです。"+
 	"アップロード中"+
 	"別の動画をアップロード中"+
 	"動画ファイルがこのコンピュータにありません"+
@@ -4696,7 +4694,6 @@ var textsJa = i18n.NewTexts(""+
 	"ゴシック体"+
 	"明朝体"+
 	"フルスクリーン"+
-	"サイドバーを隠す"+
 	"ジョブの記録"+
 	"スペース"+
 	"二言語字幕"+
@@ -4879,7 +4876,7 @@ var textsJa = i18n.NewTexts(""+
 	"動画を選択"+
 	"選択"+
 	"ライブラリの保存場所"+
-	"ファイルのあるフォルダを開けません: 開けるアプリがありません。"+
+	"ファイルのあるフォルダを開けません：開けるアプリがありません。"+
 	"動画を検索"+
 	"動画の一覧を最後まで読み込めなかったため、再起動するまで一覧を保存しません。"+
 	"動画"+
@@ -4949,11 +4946,11 @@ var textsJa = i18n.NewTexts(""+
 	"韓国語"+
 	"中国語"+
 	"選んだ言語で次のステップのおすすめモデルが決まり、選ばなかった言語も whisper が認識します。"+
-	"チャンネルのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください"+
+	"チャンネルとして認識しました。動画を一覧にしてから追加します"+
 	"YouTube、bilibili のほか、yt-dlp でダウンロードできるサイトの動画ならどれでも使えます。"+
 	"Enter キーで開始します。リンクがなければスキップして、あとでローカル動画をウインドウにドラッグできます。"+
 	"最初の動画のリンク"+
-	"再生リストのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください"+
+	"再生リストとして認識しました。動画を一覧にしてから追加します"+
 	"動画のリンクではないようです"+
 	"YouTube または bilibili のリンクを貼り付け"+
 	"Web 動画として認識しました。再生リスト全体ではなく、この動画だけを追加します"+
@@ -4991,12 +4988,12 @@ var textsJa = i18n.NewTexts(""+
 	"Kando へようこそ"+
 	"YouTube や bilibili のリンクを貼り付けるか、ローカル動画をドラッグすれば、観ながら学べます。まず言語を選びましょう。"+
 	"このセリフを解説"+
+	"セリフを解説するには AI サービスが必要です。まず「AI サービス」でモデルを選んでください。"+
 	"動画、コマンド、または見たセリフ"+
 	"コマンド、セリフ、または質問"+
-	"入力すると動画、コマンド、見たセリフを検索 · ↑↓ で選択 · Return で実行"+
-	"入力すると動画、コマンド、見たセリフを検索、またはこの動画に質問 · ↑↓ で選択 · Return で質問または実行"+
 	"回答"+
 	"コマンド"+
+	"解説"+
 	"動画"+
 	"セリフ"+
 	"この動画に質問 / コマンド…"+
@@ -5040,12 +5037,12 @@ var textsJa = i18n.NewTexts(""+
 	"字幕ファイルが見つかりません"+
 	"字幕を読み込めません"+
 	"この動画は再生できません"+
-	"プレイリスト全体を追加"+
+	"再生リスト全体を追加"+
 	"キャンセル"+
 	"動画が見つかりませんでした。"+
 	"動画を探しています…"+
 	"動画の読み込みに時間がかかりすぎました。しばらくしてからもう一度お試しください。"+
-	"プレイリスト"+
+	"再生リスト"+
 	"チャンネル"+
 	"チャンネルのリンクで、1 本の動画ではありません。先に動画を一覧にしてから追加してください。"+
 	"まず動画のリンクを貼り付けるか、ローカルファイルを選択してください。"+
@@ -5079,7 +5076,7 @@ var textsJa = i18n.NewTexts(""+
 	"ローカル動画を選択しました"+
 	"ログインを借用できるブラウザはまだ見つかりません。"+
 	"翻訳先の言語を入力してください"+
-	"先にライブラリを作成するか読み込んでください"+
+	"先にライブラリを作成するか開いてください"+
 	"読み込める動画がありません"+
 	"二言語字幕ができました。"+
 	"システム設定を開けませんでした：開けるアプリがありません。"+
@@ -5089,7 +5086,7 @@ var textsJa = i18n.NewTexts(""+
 	"年齢確認が必要です"+
 	"許可済み、再試行"+
 	"リンクが不完全です"+
-	"リンクの一部が欠けているようで、再試行してもダウンロードできません。リンク全体をコピーし、別のリンクとしてもう一度試してください。"+
+	"リンクの一部が欠けているようで、再試行してもダウンロードできません。リンク全体をコピーして、もう一度試してください。"+
 	"bilibili"+
 	"アップデートを確認"+
 	"yt-dlp をダウンロードして再試行"+
@@ -5142,7 +5139,7 @@ var textsJa = i18n.NewTexts(""+
 	"コンポーネントを確認中…"+
 	"準備ができました。処理を開始できます"+
 	"完了"+
-	"保存したセリフはまだありません。映画の再生中に B を押すと、聞いているセリフを保存できます。"+
+	"保存したセリフはまだありません。動画の再生中に B を押すと、聞いているセリフを保存できます。"+
 	"Anki に書き出す…"+
 	"キャンセル"+
 	"設定を開く"+
@@ -5150,7 +5147,7 @@ var textsJa = i18n.NewTexts(""+
 	"このセリフを保存"+
 	"保存済み"+
 	"保存したセリフ…"+
-	"この映画に保存したセリフはありません"+
+	"この動画に保存したセリフはありません"+
 	"保存を解除しました"+
 	"セリフを保存しました"+
 	"このライブラリの保存したセリフを読み込めませんでした。ファイルはそのままにし、今保存したセリフは残りません。"+
@@ -5170,10 +5167,10 @@ var textsJa = i18n.NewTexts(""+
 	"DeepSeek の OpenAI 互換 API"+
 	"EveryAPI の OpenAI 互換 API"+
 	"Groq の OpenAI 互換 API"+
-	"この Mac の LM Studio"+
+	"このコンピュータの LM Studio"+
 	"Mistral の OpenAI 互換 API"+
 	"Moonshot の OpenAI 互換 API"+
-	"この Mac の Ollama"+
+	"このコンピュータの Ollama"+
 	"OpenAI の公式 API"+
 	"1 つの API で複数社のモデルを利用"+
 	"SiliconFlow の OpenAI 互換 API"+
@@ -5183,13 +5180,13 @@ var textsJa = i18n.NewTexts(""+
 	"OpenAI Chat Completions 互換のサービスなら利用できます。"+
 	"接続に成功しました"+
 	"everyapi コマンドラインツール"+
-	"この Mac に見つかりません。everyapi.ai から入手して、「再検出」を押してください。"+
+	"このコンピュータに見つかりません。everyapi.ai から入手して、「再検出」を押してください。"+
 	"ログインしていません。ターミナルで everyapi auth login を実行してから、「再検出」を押してください。"+
 	"EveryAPI を入手"+
 	"API Key を取得"+
-	"API Key を入力しない場合は、この Mac の everyapi コマンドラインツールのログインを使います。"+
+	"API Key を入力しない場合は、このコンピュータの everyapi コマンドラインツールのログインを使います。"+
 	"省略可"+
-	"API Key はこの Mac の設定ファイルにだけ保存されます。"+
+	"API Key はこのコンピュータの設定ファイルにだけ保存されます。"+
 	"モデルの一覧を取得中…"+
 	"モデル"+
 	"このサービスはモデルの一覧を提供していません。Base URL を確認するか、モデル ID を入力してください"+
@@ -5338,7 +5335,7 @@ var textsJa = i18n.NewTexts(""+
 	"単独キーのショートカットは、入力欄にフォーカスがないときだけ有効です。"+
 	"コマンドやキーを検索"+
 	"はっきりした英語の解説やポッドキャストを、ほぼ一瞬で。"+
-	"最も正確で、最も遅いモデルです。騒がしい環境、複数人の会話、少数言語の映画に向いています。"+
+	"最も正確で、最も遅いモデルです。騒がしい環境、複数人の会話、少数言語の動画に向いています。"+
 	"圧縮版とほぼ同じ結果で、容量は約 3 倍です。"+
 	"ほとんどの場合はこれ。最高に近い精度で、サイズが小さく高速です。"+
 	"なまりが強い内容や早口の内容でより正確ですが、明らかに遅くなります。"+
@@ -5379,7 +5376,6 @@ var textsJa = i18n.NewTexts(""+
 	"モデルのフォルダがまだありません"+
 	"大きいモデルほど正確ですが遅くなるので、迷ったらおすすめのモデルを使ってください。"+
 	"おすすめ"+
-	"Finder で表示"+
 	"ダウンロード元"+
 	"自動で認識"+
 	"認識する言語"+
@@ -5481,7 +5477,7 @@ var textsJa = i18n.NewTexts(""+
 		279,
 		120,
 		120,
-		92,
+		104,
 		21,
 		36,
 		63,
@@ -5590,7 +5586,6 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		9,
 		21,
-		24,
 		18,
 		12,
 		15,
@@ -5773,7 +5768,7 @@ var textsJa = i18n.NewTexts(""+
 		15,
 		6,
 		30,
-		92,
+		93,
 		15,
 		114,
 		6,
@@ -5843,11 +5838,11 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		9,
 		132,
-		144,
+		90,
 		119,
 		153,
 		27,
-		144,
+		90,
 		42,
 		54,
 		112,
@@ -5885,12 +5880,12 @@ var textsJa = i18n.NewTexts(""+
 		21,
 		165,
 		24,
+		130,
 		48,
 		42,
-		103,
-		151,
 		6,
 		12,
+		6,
 		6,
 		9,
 		39,
@@ -5934,12 +5929,12 @@ var textsJa = i18n.NewTexts(""+
 		42,
 		30,
 		36,
-		33,
+		30,
 		15,
 		42,
 		30,
 		120,
-		18,
+		15,
 		15,
 		134,
 		102,
@@ -5973,7 +5968,7 @@ var textsJa = i18n.NewTexts(""+
 		39,
 		75,
 		45,
-		66,
+		60,
 		39,
 		36,
 		87,
@@ -5983,7 +5978,7 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		24,
 		27,
-		195,
+		174,
 		8,
 		27,
 		43,
@@ -6064,10 +6059,10 @@ var textsJa = i18n.NewTexts(""+
 		30,
 		30,
 		26,
-		24,
+		37,
 		29,
 		30,
-		21,
+		34,
 		20,
 		46,
 		33,
@@ -6077,13 +6072,13 @@ var textsJa = i18n.NewTexts(""+
 		72,
 		27,
 		39,
-		113,
+		126,
 		138,
 		18,
 		17,
-		125,
+		138,
 		9,
-		73,
+		86,
 		33,
 		9,
 		139,
@@ -6273,7 +6268,6 @@ var textsJa = i18n.NewTexts(""+
 		48,
 		123,
 		12,
-		16,
 		21,
 		15,
 		18,
@@ -6378,7 +6372,7 @@ var textsKo = i18n.NewTexts(""+
 	"동영상은 다운로드가 끝나도 자동으로 업로드되지 않습니다. 재생 화면에서 업로드를 클릭하십시오. 각 스토리지의 키는 따로, 이 컴퓨터의 설정 파일에만 저장됩니다."+
 	"스토리지에 연결할 수 없습니다. 네트워크를 확인하고 다시 시도하십시오."+
 	"스토리지가 응답하지 않습니다. 네트워크를 확인하고 다시 시도하십시오."+
-	"동영상이 5 GB보다 큽니다. 한 번에 업로드할 수 있는 최대 크기입니다."+
+	"동영상이 5 GB보다 큽니다. 한 번에 업로드할 수 있는 크기는 5 GB까지입니다."+
 	"업로드 중"+
 	"다른 영상을 업로드하는 중"+
 	"동영상 파일이 이 컴퓨터에 없습니다"+
@@ -6487,7 +6481,6 @@ var textsKo = i18n.NewTexts(""+
 	"고딕체"+
 	"명조체"+
 	"전체 화면"+
-	"사이드바 숨기기"+
 	"작업 기록"+
 	"스페이스"+
 	"이중 언어 자막"+
@@ -6740,11 +6733,11 @@ var textsKo = i18n.NewTexts(""+
 	"한국어"+
 	"중국어"+
 	"선택한 언어에 따라 다음 단계의 추천 모델이 정해지며, 선택하지 않은 언어도 whisper가 인식합니다."+
-	"채널 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요"+
+	"채널로 인식했습니다. 동영상 목록을 먼저 보여 준 다음 추가합니다"+
 	"YouTube, Bilibili를 비롯해 yt-dlp로 내려받을 수 있는 사이트의 동영상이라면 모두 가능합니다."+
 	"Enter 키를 눌러 시작합니다. 링크가 없으면 건너뛰고 나중에 로컬 동영상을 윈도우로 끌어다 놓으면 됩니다."+
 	"첫 번째 동영상 링크"+
-	"재생목록 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요"+
+	"재생목록으로 인식했습니다. 동영상 목록을 먼저 보여 준 다음 추가합니다"+
 	"동영상 링크가 아닌 것 같습니다"+
 	"YouTube 또는 Bilibili 링크 붙여 넣기"+
 	"웹 동영상으로 인식했습니다. 재생목록 전체가 아니라 이 동영상만 추가합니다"+
@@ -6782,12 +6775,12 @@ var textsKo = i18n.NewTexts(""+
 	"Kando에 오신 것을 환영합니다"+
 	"YouTube, Bilibili 링크를 붙여 넣거나 로컬 동영상을 끌어다 놓으면 보면서 배울 수 있습니다. 먼저 언어를 선택하세요."+
 	"이 대사 설명"+
+	"대사를 설명하려면 AI 서비스가 필요합니다. 먼저 ‘AI 서비스’에서 모델을 선택하십시오."+
 	"영상, 명령 또는 본 대사"+
 	"명령, 대사 또는 질문"+
-	"입력하면 영상, 명령, 본 대사 검색 · ↑↓ 선택 · Return 실행"+
-	"입력하면 영상, 명령, 본 대사 검색 또는 이 영상에 질문 · ↑↓ 선택 · Return 질문 또는 실행"+
 	"답변"+
 	"명령"+
+	"설명"+
 	"영상"+
 	"대사"+
 	"이 영상에 질문 / 명령…"+
@@ -6870,7 +6863,7 @@ var textsKo = i18n.NewTexts(""+
 	"로컬 동영상을 선택했습니다"+
 	"로그인을 빌려 쓸 수 있는 브라우저를 여전히 찾지 못했습니다."+
 	"대상 언어를 입력하십시오"+
-	"먼저 라이브러리를 만들거나 가져오십시오"+
+	"먼저 라이브러리를 만들거나 여십시오"+
 	"가져올 수 있는 동영상이 없습니다"+
 	"이중 언어 자막이 준비되었습니다."+
 	"시스템 설정을 열 수 없습니다: 열 수 있는 앱이 없습니다."+
@@ -6880,7 +6873,7 @@ var textsKo = i18n.NewTexts(""+
 	"연령 확인이 필요합니다"+
 	"허용 완료, 다시 시도"+
 	"링크가 불완전합니다"+
-	"링크 일부가 빠진 것 같아 다시 시도해도 다운로드할 수 없습니다. 전체 링크를 복사해 다른 링크로 다시 시도하십시오."+
+	"링크 일부가 빠진 것 같아 다시 시도해도 다운로드할 수 없습니다. 전체 링크를 복사해 다시 시도하십시오."+
 	"Bilibili"+
 	"업데이트 확인"+
 	"yt-dlp 다운로드 후 다시 시도"+
@@ -6933,7 +6926,7 @@ var textsKo = i18n.NewTexts(""+
 	"구성 요소 확인 중…"+
 	"준비되었습니다. 처리를 시작할 수 있습니다"+
 	"완료"+
-	"아직 저장한 대사가 없습니다. 영화를 재생하는 동안 B를 누르면 듣고 있는 대사를 저장합니다."+
+	"아직 저장한 대사가 없습니다. 영상을 재생하는 동안 B를 누르면 듣고 있는 대사를 저장합니다."+
 	"Anki로 내보내기…"+
 	"취소"+
 	"설정 열기"+
@@ -6941,7 +6934,7 @@ var textsKo = i18n.NewTexts(""+
 	"이 대사 저장"+
 	"저장됨"+
 	"저장한 대사…"+
-	"이 영화에 저장한 대사가 없습니다"+
+	"이 영상에 저장한 대사가 없습니다"+
 	"저장을 해제했습니다"+
 	"대사를 저장했습니다"+
 	"이 라이브러리의 저장한 대사를 읽을 수 없습니다. 파일은 그대로 두며, 지금 저장하는 대사는 남지 않습니다."+
@@ -6961,10 +6954,10 @@ var textsKo = i18n.NewTexts(""+
 	"DeepSeek의 OpenAI 호환 API"+
 	"EveryAPI의 OpenAI 호환 API"+
 	"Groq의 OpenAI 호환 API"+
-	"이 Mac의 LM Studio"+
+	"이 컴퓨터의 LM Studio"+
 	"Mistral의 OpenAI 호환 API"+
 	"Moonshot의 OpenAI 호환 API"+
-	"이 Mac의 Ollama"+
+	"이 컴퓨터의 Ollama"+
 	"OpenAI 공식 API"+
 	"하나의 API로 여러 회사의 모델 호출"+
 	"SiliconFlow의 OpenAI 호환 API"+
@@ -6974,13 +6967,13 @@ var textsKo = i18n.NewTexts(""+
 	"OpenAI Chat Completions와 호환되는 서비스라면 모두 사용할 수 있습니다."+
 	"연결되었습니다"+
 	"everyapi 명령줄 도구"+
-	"이 Mac에서 찾을 수 없습니다. everyapi.ai에서 받은 다음 ‘다시 감지’를 누르십시오."+
+	"이 컴퓨터에서 찾을 수 없습니다. everyapi.ai에서 받은 다음 ‘다시 감지’를 누르십시오."+
 	"로그인되어 있지 않습니다. 터미널에서 everyapi auth login을 실행한 다음 ‘다시 감지’를 누르십시오."+
 	"EveryAPI 받기"+
 	"API Key 받기"+
-	"API Key를 입력하지 않으면 이 Mac에 있는 everyapi 명령줄 도구의 로그인을 사용합니다."+
+	"API Key를 입력하지 않으면 이 컴퓨터에 있는 everyapi 명령줄 도구의 로그인을 사용합니다."+
 	"선택 사항"+
-	"API Key는 이 Mac의 설정 파일에만 저장됩니다."+
+	"API Key는 이 컴퓨터의 설정 파일에만 저장됩니다."+
 	"모델 목록을 가져오는 중…"+
 	"모델"+
 	"이 서비스는 모델 목록을 제공하지 않습니다. Base URL을 확인하거나 모델 ID를 입력하십시오"+
@@ -7129,7 +7122,7 @@ var textsKo = i18n.NewTexts(""+
 	"단일 키 단축키는 입력란에 초점이 없을 때만 작동합니다."+
 	"명령 또는 키 검색"+
 	"또렷한 영어 강의나 팟캐스트를 거의 바로 처리합니다."+
-	"가장 정확하고 가장 느립니다. 시끄러운 환경, 여러 사람의 대화, 소수 언어 영화에 적합합니다."+
+	"가장 정확하고 가장 느립니다. 시끄러운 환경, 여러 사람의 대화, 소수 언어 영상에 적합합니다."+
 	"압축 버전과 결과가 거의 같고, 차지하는 공간은 약 3배입니다."+
 	"대부분의 경우에 알맞습니다. 최고에 가까운 정확도에 크기가 작고 빠릅니다."+
 	"억양이 강하거나 말이 빠른 내용에 더 정확하지만 눈에 띄게 느립니다."+
@@ -7170,7 +7163,6 @@ var textsKo = i18n.NewTexts(""+
 	"아직 모델 폴더가 없습니다"+
 	"모델이 클수록 정확하지만 느리므로, 잘 모르겠으면 추천 모델을 사용하십시오."+
 	"추천"+
-	"Finder에서 보기"+
 	"다운로드 소스"+
 	"자동 인식"+
 	"인식 언어"+
@@ -7272,7 +7264,7 @@ var textsKo = i18n.NewTexts(""+
 		223,
 		99,
 		98,
-		93,
+		100,
 		13,
 		36,
 		49,
@@ -7381,7 +7373,6 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		9,
 		13,
-		22,
 		13,
 		12,
 		20,
@@ -7634,11 +7625,11 @@ var textsKo = i18n.NewTexts(""+
 		9,
 		9,
 		132,
-		127,
+		90,
 		120,
 		143,
 		27,
-		133,
+		99,
 		43,
 		44,
 		105,
@@ -7676,10 +7667,10 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		153,
 		17,
+		120,
 		32,
 		28,
-		80,
-		122,
+		6,
 		6,
 		6,
 		6,
@@ -7764,7 +7755,7 @@ var textsKo = i18n.NewTexts(""+
 		38,
 		84,
 		35,
-		57,
+		51,
 		46,
 		46,
 		77,
@@ -7774,7 +7765,7 @@ var textsKo = i18n.NewTexts(""+
 		32,
 		28,
 		28,
-		159,
+		142,
 		8,
 		19,
 		37,
@@ -7855,10 +7846,10 @@ var textsKo = i18n.NewTexts(""+
 		29,
 		29,
 		25,
-		20,
+		26,
 		28,
 		29,
-		17,
+		23,
 		17,
 		47,
 		32,
@@ -7868,13 +7859,13 @@ var textsKo = i18n.NewTexts(""+
 		90,
 		21,
 		25,
-		110,
+		116,
 		132,
 		15,
 		14,
-		110,
+		116,
 		13,
-		58,
+		64,
 		36,
 		6,
 		120,
@@ -8064,7 +8055,6 @@ var textsKo = i18n.NewTexts(""+
 		36,
 		106,
 		6,
-		19,
 		19,
 		13,
 		13,
@@ -8278,7 +8268,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"黑体"+
 	"宋体"+
 	"全屏"+
-	"收起侧栏"+
 	"任务记录"+
 	"空格"+
 	"双语字幕"+
@@ -8376,7 +8365,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"最近完成"+
 	"继续观看"+
 	"日"+
-	"한"+
+	"韩"+
 	"简中"+
 	"繁中"+
 	"视频链接"+
@@ -8406,7 +8395,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"处理中"+
 	"生成字幕中"+
 	"翻译中"+
-	"不到 1 分钟"+
+	"剩不到 1 分钟"+
 	"排队中"+
 	"移除"+
 	"移除失败项"+
@@ -8463,7 +8452,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"资料库放在哪里"+
 	"无法打开所在文件夹：没有应用能打开它。"+
 	"搜索影片"+
-	"视频库没有完整读取，所以重新启动前看懂不会保存视频库。"+
+	"资料库的影片列表没有完整读取，所以重新启动前看懂不会保存这个列表。"+
 	"视频"+
 	"看懂"+
 	"显示日志文件"+
@@ -8503,7 +8492,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"切换全屏幕"+
 	"撤销"+
 	"看懂官网"+
-	"片库"+
+	"资料库"+
 	"播放器"+
 	"缩放"+
 	"已设置"+
@@ -8516,7 +8505,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"看原片，字幕跟着你的语言走"+
 	"粘贴链接，双语字幕自动生成"+
 	"语音识别，就在这台电脑上"+
-	"语音识别，就在这台 Mac上"+
+	"语音识别，就在这台 Mac 上"+
 	"继续"+
 	"完成"+
 	"下载"+
@@ -8531,20 +8520,20 @@ var textsZhHans = i18n.NewTexts(""+
 	"韩语"+
 	"普通话"+
 	"选好的语言决定下一步推荐哪个模型；没选的语言 whisper 也能识别。"+
-	"这是这个网站频道的链接。现在一次加入一个视频，请粘贴其中一个视频的链接"+
+	"识别为频道，会先列出其中的视频再加入"+
 	"YouTube、哔哩哔哩，以及 yt-dlp 能下载的网站上的视频都可以。"+
 	"回车开始；没有链接也可以先跳过，之后把本地视频拖进窗口。"+
 	"第一个视频的链接"+
-	"这是这个网站列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接"+
+	"识别为播放列表，会先列出其中的视频再加入"+
 	"这不像一个视频链接"+
 	"粘贴 YouTube 或哔哩哔哩链接"+
-	"识别为 这个网站 视频，只加入这一个，不加入整个列表"+
+	"识别为网页视频，只加入这一个，不加入整个播放列表"+
 	"粘贴第一个链接"+
 	"识别为网页视频"+
 	"先随便看看"+
 	"已下载 · 正在使用"+
 	"语音识别用 whisper.cpp 在这台电脑上运行。模型下载一次，之后离线也能用。"+
-	"语音识别用 whisper.cpp 在这台 Mac上运行。模型下载一次，之后离线也能用。"+
+	"语音识别用 whisper.cpp 在这台 Mac 上运行。模型下载一次，之后离线也能用。"+
 	"还没有语音识别模型，下载一个才能生成字幕"+
 	"下载会在后台继续，可以先进入下一步。"+
 	"以后可以在 设置 › 语音识别 换别的模型。"+
@@ -8573,12 +8562,12 @@ var textsZhHans = i18n.NewTexts(""+
 	"欢迎使用看懂"+
 	"粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"+
 	"讲解这句"+
+	"讲解台词要用 AI 服务，先在「AI 服务」里选好一个模型。"+
 	"影片、命令或看过的台词"+
 	"命令、台词或问题"+
-	"打字时搜影片、命令和看过的台词 · ↑↓ 选择 · Return 执行"+
-	"打字时搜影片、命令和看过的台词，或问这部影片 · ↑↓ 选择 · Return 提问或执行"+
 	"回答"+
 	"命令"+
+	"讲解"+
 	"影片"+
 	"台词"+
 	"问这部影片 / 命令…"+
@@ -8622,19 +8611,19 @@ var textsZhHans = i18n.NewTexts(""+
 	"字幕文件不在了"+
 	"字幕无法读取"+
 	"这个视频播不了"+
-	"加入整个合集"+
+	"加入整个播放列表"+
 	"取消"+
 	"没有找到视频。"+
 	"正在查找视频…"+
 	"读取视频用时太久，请稍后再试。"+
-	"合集"+
+	"播放列表"+
 	"频道"+
-	"这是这个网站频道的链接，不是单个视频。请先列出它的视频再加入。"+
+	"这是频道链接，不是单个视频。请先列出它的视频再加入。"+
 	"先粘贴一个视频链接，或选择本地文件。"+
 	"无法从 everyapi 命令行工具取得登录，详见「AI 服务」"+
 	"翻译需要 everyapi 命令行工具，或在「AI 服务」里填 Key"+
 	"在终端运行 everyapi auth login 登录，或在「AI 服务」里填 Key"+
-	"这是这个网站合集的链接，不是单个视频。请先列出它的视频再加入。"+
+	"这是播放列表链接，不是单个视频。请先列出它的视频再加入。"+
 	"这个视频没有声音，没有可以识别的台词"+
 	"先在「AI 服务」里选一个模型"+
 	"先新建或打开一个资料库"+
@@ -8661,7 +8650,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"已选择本地视频"+
 	"还是没找到能借用登录的浏览器。"+
 	"请填写目标语言"+
-	"先创建或导入一个资料库"+
+	"先新建或打开一个资料库"+
 	"没有可导入的视频"+
 	"双语字幕做好了。"+
 	"没能打开系统设置：没有应用能打开它。"+
@@ -8671,7 +8660,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"需要年龄验证"+
 	"已允许，重试"+
 	"链接不完整"+
-	"链接好像少了一截，重试也下载不了。复制完整的链接，换个链接再试。"+
+	"链接好像少了一截，重试也下载不了。复制完整的链接后再试。"+
 	"B 站"+
 	"检查更新"+
 	"下载 yt-dlp 并重试"+
@@ -8810,10 +8799,10 @@ var textsZhHans = i18n.NewTexts(""+
 	"已连接"+
 	"断开连接"+
 	"扩展"+
-	"让看懂的扩展从你的浏览器里加入视频。"+
+	"用看懂的扩展从浏览器里加入视频。"+
 	"Chrome、Edge：扩展程序 › 开发者模式 › 加载已解压的扩展程序。Firefox：about:debugging › 此 Firefox › 临时载入附加组件。"+
-	"没有找到扩展能用的浏览器。"+
-	"这份看懂没有附带扩展文件夹。"+
+	"没有找到能用这个扩展的浏览器。"+
+	"这个版本的看懂没有附带扩展文件夹。"+
 	"、"+
 	"显示扩展文件夹"+
 	"命令行与 MCP"+
@@ -8864,26 +8853,26 @@ var textsZhHans = i18n.NewTexts(""+
 	"键盘 按键 命令"+
 	"whisper 模型 下载 识别 HuggingFace Hugging Face Vimpo hyperframes 识别语言 下载源 镜像 hf-mirror.com 模型文件 ggml"+
 	"目标语言 智能翻译 上下文 提示词 恢复默认"+
-	"العربية"+
-	"Nederlands"+
-	"English"+
-	"Français"+
-	"Deutsch"+
-	"हिन्दी"+
-	"Bahasa Indonesia"+
-	"Italiano"+
-	"日本語"+
-	"한국어"+
-	"Polski"+
-	"Português"+
-	"Русский"+
+	"阿拉伯语"+
+	"荷兰语"+
+	"英语"+
+	"法语"+
+	"德语"+
+	"印地语"+
+	"印度尼西亚语"+
+	"意大利语"+
+	"日语"+
+	"韩语"+
+	"波兰语"+
+	"葡萄牙语"+
+	"俄语"+
 	"简体中文"+
-	"Español"+
-	"ไทย"+
+	"西班牙语"+
+	"泰语"+
 	"繁体中文"+
-	"Türkçe"+
-	"Українська"+
-	"Tiếng Việt"+
+	"土耳其语"+
+	"乌克兰语"+
+	"越南语"+
 	"搜索语言"+
 	"粗体"+
 	"默认显示方式"+
@@ -8961,7 +8950,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"还没有模型目录"+
 	"模型越大越准，也越慢；不确定就用推荐的。"+
 	"推荐"+
-	"在访达中显示"+
 	"下载源"+
 	"自动识别"+
 	"识别语言"+
@@ -8987,8 +8975,8 @@ var textsZhHans = i18n.NewTexts(""+
 	"全部语言"+
 	"资料库"+
 	"从列表移出"+
-	"新建资料库..."+
-	"打开资料库..."+
+	"新建资料库…"+
+	"打开资料库…"+
 	"新建资料库…"+
 	"打开已有资料库…"+
 	"清除搜索"+
@@ -9173,7 +9161,6 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		12,
-		12,
 		6,
 		12,
 		6,
@@ -9300,7 +9287,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		15,
 		9,
-		15,
+		18,
 		9,
 		6,
 		15,
@@ -9357,7 +9344,7 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		57,
 		12,
-		81,
+		99,
 		6,
 		6,
 		18,
@@ -9397,7 +9384,7 @@ var textsZhHans = i18n.NewTexts(""+
 		15,
 		6,
 		12,
-		6,
+		9,
 		9,
 		6,
 		9,
@@ -9410,7 +9397,7 @@ var textsZhHans = i18n.NewTexts(""+
 		39,
 		39,
 		36,
-		34,
+		35,
 		6,
 		6,
 		6,
@@ -9425,20 +9412,20 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		9,
 		90,
-		105,
+		54,
 		81,
 		84,
 		24,
-		105,
+		60,
 		27,
 		36,
-		74,
+		72,
 		21,
 		21,
 		15,
 		25,
 		100,
-		98,
+		99,
 		60,
 		54,
 		58,
@@ -9467,10 +9454,10 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		98,
 		12,
+		76,
 		33,
 		24,
-		79,
-		109,
+		6,
 		6,
 		6,
 		6,
@@ -9516,19 +9503,19 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		18,
 		21,
-		18,
+		24,
 		6,
 		21,
 		21,
 		45,
+		12,
 		6,
-		6,
-		93,
+		78,
 		54,
 		70,
 		71,
 		76,
-		93,
+		84,
 		54,
 		39,
 		33,
@@ -9565,7 +9552,7 @@ var textsZhHans = i18n.NewTexts(""+
 		18,
 		18,
 		15,
-		96,
+		84,
 		5,
 		12,
 		23,
@@ -9704,10 +9691,10 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		12,
 		6,
-		54,
+		48,
 		159,
-		39,
-		42,
+		45,
+		51,
 		3,
 		21,
 		16,
@@ -9758,26 +9745,26 @@ var textsZhHans = i18n.NewTexts(""+
 		20,
 		133,
 		58,
-		14,
-		10,
-		7,
-		9,
-		7,
-		18,
-		16,
-		8,
-		9,
+		12,
 		9,
 		6,
-		10,
-		14,
+		6,
+		6,
+		9,
+		18,
 		12,
-		8,
+		6,
+		6,
 		9,
 		12,
-		8,
-		20,
-		14,
+		6,
+		12,
+		12,
+		6,
+		12,
+		12,
+		12,
+		9,
 		12,
 		6,
 		18,
@@ -9855,7 +9842,6 @@ var textsZhHans = i18n.NewTexts(""+
 		21,
 		60,
 		6,
-		18,
 		9,
 		12,
 		12,
@@ -10069,7 +10055,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"黑體"+
 	"宋體"+
 	"全螢幕"+
-	"收合側邊欄"+
 	"工作記錄"+
 	"空白鍵"+
 	"雙語字幕"+
@@ -10197,7 +10182,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"處理中"+
 	"產生字幕中"+
 	"翻譯中"+
-	"不到 1 分鐘"+
+	"剩不到 1 分鐘"+
 	"排隊中"+
 	"移除"+
 	"移除失敗項目"+
@@ -10254,7 +10239,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"資料庫要放在哪裡"+
 	"無法打開所在的檔案夾：沒有應用程式能打開它。"+
 	"搜尋影片"+
-	"影片庫沒有完整讀取，所以重新啟動前看懂不會儲存影片庫。"+
+	"資料庫的影片清單沒有完整讀取，所以重新啟動前看懂不會儲存這個清單。"+
 	"影片"+
 	"看懂"+
 	"顯示記錄檔"+
@@ -10294,7 +10279,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"切換全螢幕"+
 	"還原"+
 	"看懂官網"+
-	"片庫"+
+	"資料庫"+
 	"播放器"+
 	"縮放"+
 	"已設定"+
@@ -10322,14 +10307,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"韓語"+
 	"普通話"+
 	"選好的語言決定下一步推薦哪個模型；沒選的語言 whisper 也能辨識。"+
-	"這是這個網站頻道的連結。目前一次加入一個影片，請貼上其中一個影片的連結"+
+	"辨識為頻道，會先列出其中的影片再加入"+
 	"YouTube、嗶哩嗶哩，以及 yt-dlp 能下載的網站上的影片都可以。"+
 	"按 Enter 開始；沒有連結也可以先略過，之後把本機影片拖進視窗。"+
 	"第一個影片的連結"+
-	"這是這個網站清單的連結。目前一次加入一個影片，請貼上其中一個影片的連結"+
+	"辨識為播放清單，會先列出其中的影片再加入"+
 	"這不像是影片連結"+
 	"貼上 YouTube 或嗶哩嗶哩連結"+
-	"辨識為網頁影片，只加入這一個，不加入整個清單"+
+	"辨識為網頁影片，只加入這一個，不加入整個播放清單"+
 	"貼上第一個連結"+
 	"辨識為網頁影片"+
 	"先隨便看看"+
@@ -10364,12 +10349,12 @@ var textsZhHant = i18n.NewTexts(""+
 	"歡迎使用看懂"+
 	"貼上 YouTube、嗶哩嗶哩連結或拖入本機影片，就能邊看邊學。先選好語言。"+
 	"講解這句"+
+	"講解台詞需要 AI 服務，請先在「AI 服務」中選好一個模型。"+
 	"影片、指令或看過的台詞"+
 	"指令、台詞或問題"+
-	"輸入時搜尋影片、指令和看過的台詞 · ↑↓ 選擇 · Return 執行"+
-	"輸入時搜尋影片、指令和看過的台詞，或問這部影片 · ↑↓ 選擇 · Return 提問或執行"+
 	"回答"+
 	"指令"+
+	"講解"+
 	"影片"+
 	"台詞"+
 	"問這部影片 / 指令…"+
@@ -10413,19 +10398,19 @@ var textsZhHant = i18n.NewTexts(""+
 	"字幕檔已不存在"+
 	"無法讀取字幕"+
 	"這部影片無法播放"+
-	"加入整個合集"+
+	"加入整個播放清單"+
 	"取消"+
 	"找不到影片。"+
 	"正在尋找影片…"+
 	"讀取影片花太久時間，請稍後再試。"+
-	"合集"+
+	"播放清單"+
 	"頻道"+
-	"這是這個網站頻道的連結，不是單一影片。請先列出它的影片再加入。"+
+	"這是頻道連結，不是單一影片。請先列出它的影片再加入。"+
 	"先貼上一個影片連結，或選擇本機檔案。"+
 	"無法從 everyapi 命令列工具取得登入，詳見「AI 服務」"+
 	"翻譯需要 everyapi 命令列工具，或在「AI 服務」中填入 Key"+
 	"在終端機執行 everyapi auth login 登入，或在「AI 服務」中填入 Key"+
-	"這是這個網站合集的連結，不是單一影片。請先列出它的影片再加入。"+
+	"這是播放清單連結，不是單一影片。請先列出它的影片再加入。"+
 	"這部影片沒有聲音，沒有可以辨識的台詞"+
 	"先在「AI 服務」中選一個模型"+
 	"先新增或打開一個資料庫"+
@@ -10452,7 +10437,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"已選擇本機影片"+
 	"仍然找不到可借用登入的瀏覽器。"+
 	"請填寫目標語言"+
-	"先建立或匯入一個資料庫"+
+	"先新增或打開一個資料庫"+
 	"沒有可匯入的影片"+
 	"雙語字幕做好了。"+
 	"無法打開系統設定：沒有應用程式能打開它。"+
@@ -10462,7 +10447,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"需要年齡驗證"+
 	"已允許，重試"+
 	"連結不完整"+
-	"連結好像少了一截，重試也無法下載。複製完整的連結，換個連結再試。"+
+	"連結好像少了一截，重試也無法下載。複製完整的連結後再試。"+
 	"B 站"+
 	"檢查更新"+
 	"下載 yt-dlp 並重試"+
@@ -10601,10 +10586,10 @@ var textsZhHant = i18n.NewTexts(""+
 	"已連接"+
 	"中斷連接"+
 	"擴充功能"+
-	"讓看懂的擴充功能從你的瀏覽器加入影片。"+
+	"用看懂的擴充功能從瀏覽器加入影片。"+
 	"Chrome、Edge：擴充功能 › 開發人員模式 › 載入未封裝項目。Firefox：about:debugging › 這個 Firefox › 載入暫時性附加元件。"+
-	"沒有找到擴充功能能用的瀏覽器。"+
-	"這份看懂沒有附帶擴充功能資料夾。"+
+	"沒有找到能使用這個擴充功能的瀏覽器。"+
+	"這個版本的看懂沒有附帶擴充功能資料夾。"+
 	"、"+
 	"顯示擴充功能資料夾"+
 	"命令列與 MCP"+
@@ -10655,26 +10640,26 @@ var textsZhHant = i18n.NewTexts(""+
 	"鍵盤 按鍵 指令"+
 	"whisper 模型 下載 辨識 HuggingFace Hugging Face Vimpo hyperframes 辨識語言 下載來源 鏡像 hf-mirror.com 模型檔案 ggml"+
 	"目標語言 智慧翻譯 上下文 提示詞 恢復預設"+
-	"العربية"+
-	"Nederlands"+
-	"English"+
-	"Français"+
-	"Deutsch"+
-	"हिन्दी"+
-	"Bahasa Indonesia"+
-	"Italiano"+
-	"日本語"+
-	"한국어"+
-	"Polski"+
-	"Português"+
-	"Русский"+
+	"阿拉伯語"+
+	"荷蘭語"+
+	"英語"+
+	"法語"+
+	"德語"+
+	"印地語"+
+	"印尼語"+
+	"義大利語"+
+	"日語"+
+	"韓語"+
+	"波蘭語"+
+	"葡萄牙語"+
+	"俄語"+
 	"簡體中文"+
-	"Español"+
-	"ไทย"+
+	"西班牙語"+
+	"泰語"+
 	"繁體中文"+
-	"Türkçe"+
-	"Українська"+
-	"Tiếng Việt"+
+	"土耳其語"+
+	"烏克蘭語"+
+	"越南語"+
 	"搜尋語言"+
 	"粗體"+
 	"預設顯示方式"+
@@ -10752,7 +10737,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"還沒有模型資料夾"+
 	"模型越大越準，也越慢；不確定就用推薦的。"+
 	"推薦"+
-	"在 Finder 中顯示"+
 	"下載來源"+
 	"自動辨識"+
 	"辨識語言"+
@@ -10963,7 +10947,6 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		9,
-		15,
 		12,
 		9,
 		12,
@@ -11091,7 +11074,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		15,
 		9,
-		15,
+		18,
 		9,
 		6,
 		18,
@@ -11148,7 +11131,7 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		66,
 		12,
-		81,
+		99,
 		6,
 		6,
 		15,
@@ -11188,7 +11171,7 @@ var textsZhHant = i18n.NewTexts(""+
 		15,
 		6,
 		12,
-		6,
+		9,
 		9,
 		6,
 		9,
@@ -11216,14 +11199,14 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		9,
 		90,
-		105,
+		54,
 		81,
 		88,
 		24,
-		105,
+		60,
 		24,
 		36,
-		66,
+		72,
 		21,
 		21,
 		15,
@@ -11258,10 +11241,10 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		98,
 		12,
+		79,
 		33,
 		24,
-		82,
-		112,
+		6,
 		6,
 		6,
 		6,
@@ -11307,19 +11290,19 @@ var textsZhHant = i18n.NewTexts(""+
 		21,
 		18,
 		24,
-		18,
+		24,
 		6,
 		18,
 		21,
 		48,
+		12,
 		6,
-		6,
-		93,
+		78,
 		54,
 		70,
 		74,
 		82,
-		93,
+		84,
 		54,
 		39,
 		33,
@@ -11356,7 +11339,7 @@ var textsZhHant = i18n.NewTexts(""+
 		18,
 		18,
 		15,
-		96,
+		84,
 		5,
 		12,
 		23,
@@ -11495,10 +11478,10 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		12,
 		12,
-		57,
+		51,
 		159,
-		45,
-		48,
+		54,
+		57,
 		3,
 		27,
 		16,
@@ -11549,26 +11532,26 @@ var textsZhHant = i18n.NewTexts(""+
 		20,
 		136,
 		58,
-		14,
-		10,
-		7,
-		9,
-		7,
-		18,
-		16,
-		8,
-		9,
+		12,
 		9,
 		6,
-		10,
-		14,
-		12,
-		8,
+		6,
+		6,
+		9,
 		9,
 		12,
-		8,
-		20,
-		14,
+		6,
+		6,
+		9,
+		12,
+		6,
+		12,
+		12,
+		6,
+		12,
+		12,
+		12,
+		9,
 		12,
 		6,
 		18,
@@ -11646,7 +11629,6 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		60,
 		6,
-		20,
 		12,
 		12,
 		12,
@@ -11993,9 +11975,6 @@ func Supply(lang string, t Translation) {
 	if t.FilmsQueueTranscribingPercent != nil {
 		s.FilmsQueueTranscribingPercent = t.FilmsQueueTranscribingPercent
 	}
-	if t.FilmsQueueTranslatingBatch != nil {
-		s.FilmsQueueTranslatingBatch = t.FilmsQueueTranslatingBatch
-	}
 	if t.FilmsQueueTranslatingLines != nil {
 		s.FilmsQueueTranslatingLines = t.FilmsQueueTranslatingLines
 	}
@@ -12052,9 +12031,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.LibraryRemoved != nil {
 		s.LibraryRemoved = t.LibraryRemoved
-	}
-	if t.LibraryRevealFailed != nil {
-		s.LibraryRevealFailed = t.LibraryRevealFailed
 	}
 	if t.LibrarySaveFailed != nil {
 		s.LibrarySaveFailed = t.LibrarySaveFailed
@@ -12170,8 +12146,20 @@ func Supply(lang string, t Translation) {
 	if t.PaletteAsking != nil {
 		s.PaletteAsking = t.PaletteAsking
 	}
+	if t.PaletteExplainFailed != nil {
+		s.PaletteExplainFailed = t.PaletteExplainFailed
+	}
 	if t.PaletteExplainNote != nil {
 		s.PaletteExplainNote = t.PaletteExplainNote
+	}
+	if t.PaletteExplaining != nil {
+		s.PaletteExplaining = t.PaletteExplaining
+	}
+	if t.PaletteFooter != nil {
+		s.PaletteFooter = t.PaletteFooter
+	}
+	if t.PaletteFooterFilm != nil {
+		s.PaletteFooterFilm = t.PaletteFooterFilm
 	}
 	if t.PaletteJumpTo != nil {
 		s.PaletteJumpTo = t.PaletteJumpTo
@@ -12265,9 +12253,6 @@ func Supply(lang string, t Translation) {
 	}
 	if t.QueueNotifyUntranslated != nil {
 		s.QueueNotifyUntranslated = t.QueueNotifyUntranslated
-	}
-	if t.QueueOpenSettingsFailed != nil {
-		s.QueueOpenSettingsFailed = t.QueueOpenSettingsFailed
 	}
 	if t.QueueQuitWhileRunningMessage != nil {
 		s.QueueQuitWhileRunningMessage = t.QueueQuitWhileRunningMessage
@@ -12482,6 +12467,9 @@ func Supply(lang string, t Translation) {
 	if t.SettingsLookColorOf != nil {
 		s.SettingsLookColorOf = t.SettingsLookColorOf
 	}
+	if t.SettingsSaveFailed != nil {
+		s.SettingsSaveFailed = t.SettingsSaveFailed
+	}
 	if t.SettingsSpeechDownloadFailedStatus != nil {
 		s.SettingsSpeechDownloadFailedStatus = t.SettingsSpeechDownloadFailedStatus
 	}
@@ -12505,6 +12493,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSpeechNotModelFile != nil {
 		s.SettingsSpeechNotModelFile = t.SettingsSpeechNotModelFile
+	}
+	if t.SettingsSpeechReveal != nil {
+		s.SettingsSpeechReveal = t.SettingsSpeechReveal
 	}
 	if t.SettingsSpeechSaveFailed != nil {
 		s.SettingsSpeechSaveFailed = t.SettingsSpeechSaveFailed
@@ -14948,15 +14939,6 @@ func (msgs Messages) FilmInfoLanguages(spoken string, target string) string {
 	}
 }
 
-// FilmHideSidebar says "Hide Sidebar"
-// in the language the app shows under cx.
-//
-// Button at the player's top right that folds the side panel away.
-func FilmHideSidebar(cx *core.Scope) string { return For(cx).FilmHideSidebar() }
-
-// FilmHideSidebar is the package's FilmHideSidebar in the language of msgs.
-func (msgs Messages) FilmHideSidebar() string { return msgs.text(textFilmHideSidebar) }
-
 // FilmJobRecord says "Job record"
 // in the language the app shows under cx.
 //
@@ -15071,7 +15053,7 @@ func (msgs Messages) FilmLoadingSubtitles() string { return msgs.text(textFilmLo
 // FilmLocalFile says "Local file"
 // in the language the app shows under cx.
 //
-// The Info tab's source of a film opened from a file on this Mac.
+// The Info tab's source of a film opened from a file on this computer.
 func FilmLocalFile(cx *core.Scope) string { return For(cx).FilmLocalFile() }
 
 // FilmLocalFile is the package's FilmLocalFile in the language of msgs.
@@ -15990,9 +15972,9 @@ func (msgs Messages) FilmStatusTranslated(percent int) string {
 		case "ko":
 			return "자막 " + i18n.FormatNumber("ko", float64(percent)) + "% 번역됨"
 		case "zh-Hans":
-			return "字幕 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
+			return "已译 " + i18n.FormatNumber("zh-Hans", float64(percent)) + "%"
 		case "zh-Hant":
-			return "字幕 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
+			return "已譯 " + i18n.FormatNumber("zh-Hant", float64(percent)) + "%"
 		}
 	}
 }
@@ -16185,7 +16167,7 @@ func (msgs Messages) FilmTranscribeAgain(language string) string {
 		case "ja":
 			return language + "で認識し直す"
 		case "ko":
-			return "다시 인식: " + language
+			return language + "(으)로 다시 인식"
 		case "zh-Hans":
 			return "用" + language + "重新识别"
 		case "zh-Hant":
@@ -16641,13 +16623,13 @@ func (msgs Messages) FilmsLinkPlaylist(site string) string {
 		case "", "en":
 			return msgs.arg(site) + " · Playlist"
 		case "ja":
-			return site + " · プレイリスト"
+			return site + " · 再生リスト"
 		case "ko":
 			return site + " · 재생목록"
 		case "zh-Hans":
-			return site + " · 合集"
+			return site + " · 播放列表"
 		case "zh-Hant":
-			return site + " · 合集"
+			return site + " · 播放清單"
 		}
 	}
 }
@@ -16725,7 +16707,7 @@ func (msgs Messages) FilmsMoreActions(film string) string {
 		case "ko":
 			return film + "의 기타 동작"
 		case "zh-Hans":
-			return "“" + film + "”的更多操作"
+			return "「" + film + "」的更多操作"
 		case "zh-Hant":
 			return "「" + film + "」的更多動作"
 		}
@@ -17573,53 +17555,6 @@ func FilmsQueueTranslating(cx *core.Scope) string { return For(cx).FilmsQueueTra
 // FilmsQueueTranslating is the package's FilmsQueueTranslating in the language of msgs.
 func (msgs Messages) FilmsQueueTranslating() string { return msgs.text(textFilmsQueueTranslating) }
 
-// FilmsQueueTranslatingBatch says "Translating · Batch {batch}/{batches} · {size, plural, one {# line} other {# lines}} per batch"
-// in the language the app shows under cx.
-//
-// Line under the title of a job translating its subtitles in batches.
-func FilmsQueueTranslatingBatch(cx *core.Scope, batch int, batches int, size int) string {
-	return For(cx).FilmsQueueTranslatingBatch(batch, batches, size)
-}
-
-// FilmsQueueTranslatingBatch is the package's FilmsQueueTranslatingBatch in the language of msgs.
-func (msgs Messages) FilmsQueueTranslatingBatch(batch int, batches int, size int) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmsQueueTranslatingBatch(batch, batches, size))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].FilmsQueueTranslatingBatch; f != nil {
-			return f(batch, batches, size)
-		}
-		switch lang {
-		case "", "en":
-			var b strings.Builder
-			b.WriteString("Translating · Batch ")
-			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(batch))))
-			b.WriteString("/")
-			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(batches))))
-			b.WriteString(" · ")
-			switch i18n.Cardinal("en", float64(size)) {
-			case i18n.One:
-				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(size))))
-				b.WriteString(" line")
-			default:
-				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(size))))
-				b.WriteString(" lines")
-			}
-			b.WriteString(" per batch")
-			return b.String()
-		case "ja":
-			return "翻訳中 · バッチ " + i18n.FormatNumber("ja", float64(batch)) + "/" + i18n.FormatNumber("ja", float64(batches)) + " · 1 バッチ " + i18n.FormatNumber("ja", float64(size)) + " 行"
-		case "ko":
-			return "번역 중 · " + i18n.FormatNumber("ko", float64(batch)) + "/" + i18n.FormatNumber("ko", float64(batches)) + "번째 묶음 · 묶음당 " + i18n.FormatNumber("ko", float64(size)) + "줄"
-		case "zh-Hans":
-			return "翻译中 · 第 " + i18n.FormatNumber("zh-Hans", float64(batch)) + "/" + i18n.FormatNumber("zh-Hans", float64(batches)) + " 批 · 每批 " + i18n.FormatNumber("zh-Hans", float64(size)) + " 句"
-		case "zh-Hant":
-			return "翻譯中 · 第 " + i18n.FormatNumber("zh-Hant", float64(batch)) + "/" + i18n.FormatNumber("zh-Hant", float64(batches)) + " 批 · 每批 " + i18n.FormatNumber("zh-Hant", float64(size)) + " 句"
-		}
-	}
-}
-
 // FilmsQueueTranslatingLines says "Translating · {lines} of {total} lines"
 // in the language the app shows under cx.
 //
@@ -17725,7 +17660,7 @@ func (msgs Messages) FilmsQueueWatch(name string) string {
 		case "ko":
 			return "‘" + name + "’ 보기"
 		case "zh-Hans":
-			return "观看“" + name + "”"
+			return "观看「" + name + "」"
 		case "zh-Hant":
 			return "觀看「" + name + "」"
 		}
@@ -17771,7 +17706,7 @@ func (msgs Messages) FilmsRemoveConfirm(name string) string {
 	}
 }
 
-// FilmsRemoveFailed says "Remove Failed"
+// FilmsRemoveFailed says "Clear Failed"
 // in the language the app shows under cx.
 //
 // Button on the Processing heading when two or more videos failed: removes their cards. Their downloaded files stay in the library.
@@ -17968,7 +17903,7 @@ func (msgs Messages) FilmsRetranslateConfirm(name string, language string) strin
 		case "ko":
 			return "‘" + name + "’을(를) " + language + "(으)로 번역할까요?"
 		case "zh-Hans":
-			return "把“" + name + "”翻译为" + language + "？"
+			return "把「" + name + "」翻译为" + language + "？"
 		case "zh-Hant":
 			return "把「" + name + "」翻譯為" + language + "？"
 		}
@@ -18180,7 +18115,7 @@ func (msgs Messages) FilmsSortButton(order string) string {
 		case "", "en":
 			return "Sort: " + msgs.arg(order)
 		case "ja":
-			return "並べ替え: " + order
+			return "並べ替え：" + order
 		case "ko":
 			return "정렬: " + order
 		case "zh-Hans":
@@ -18682,7 +18617,7 @@ func (msgs Messages) LibraryMoveOutFailed(error_ string) string {
 		case "", "en":
 			return "Couldn't move the library to its new folder: " + msgs.arg(error_)
 		case "ja":
-			return "ライブラリを新しいフォルダに移動できません: " + error_
+			return "ライブラリを新しいフォルダに移動できません：" + error_
 		case "ko":
 			return "라이브러리를 새 폴더로 옮길 수 없습니다: " + error_
 		case "zh-Hans":
@@ -18804,38 +18739,6 @@ func (msgs Messages) LibraryRemoved(name string) string {
 	}
 }
 
-// LibraryRevealFailed says "Couldn't open the enclosing folder: {error}"
-// in the language the app shows under cx.
-//
-// Error when the folder holding a file could not be opened.
-func LibraryRevealFailed(cx *core.Scope, error_ string) string {
-	return For(cx).LibraryRevealFailed(error_)
-}
-
-// LibraryRevealFailed is the package's LibraryRevealFailed in the language of msgs.
-func (msgs Messages) LibraryRevealFailed(error_ string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibraryRevealFailed(error_))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].LibraryRevealFailed; f != nil {
-			return f(error_)
-		}
-		switch lang {
-		case "", "en":
-			return "Couldn't open the enclosing folder: " + msgs.arg(error_)
-		case "ja":
-			return "ファイルのあるフォルダを開けません: " + error_
-		case "ko":
-			return "파일이 있는 폴더를 열 수 없습니다: " + error_
-		case "zh-Hans":
-			return "无法打开所在文件夹：" + error_
-		case "zh-Hant":
-			return "無法打開所在的檔案夾：" + error_
-		}
-	}
-}
-
 // LibraryRevealNotOpened says "Couldn't open the enclosing folder: no app opened it."
 // in the language the app shows under cx.
 //
@@ -18911,9 +18814,9 @@ func (msgs Messages) LibraryShelfDamaged(error_ string) string {
 		case "ko":
 			return "동영상 목록에 읽을 수 없는 내용이 있어 원래 파일을 library.json.bad로 저장했습니다: " + error_
 		case "zh-Hans":
-			return "视频库有读不懂的内容，原文件已另存为 library.json.bad：" + error_
+			return "资料库的影片列表有读不懂的内容，原文件已另存为 library.json.bad：" + error_
 		case "zh-Hant":
-			return "影片庫有讀不懂的內容，原檔案已另存為 library.json.bad：" + error_
+			return "資料庫的影片清單有讀不懂的內容，原檔案已另存為 library.json.bad：" + error_
 		}
 	}
 }
@@ -18943,9 +18846,9 @@ func (msgs Messages) LibraryShelfDamagedUnsaved(error_ string) string {
 		case "ko":
 			return "동영상 목록에 읽을 수 없는 내용이 있고 따로 저장할 수도 없어, 다시 시작할 때까지 목록을 저장하지 않습니다: " + error_
 		case "zh-Hans":
-			return "视频库有读不懂的内容，也无法另存，所以重新启动前看懂不会保存视频库：" + error_
+			return "资料库的影片列表有读不懂的内容，也无法另存，所以重新启动前看懂不会保存这个列表：" + error_
 		case "zh-Hant":
-			return "影片庫有讀不懂的內容，也無法另存，所以重新啟動前看懂不會儲存影片庫：" + error_
+			return "資料庫的影片清單有讀不懂的內容，也無法另存，所以重新啟動前看懂不會儲存這個清單：" + error_
 		}
 	}
 }
@@ -18980,13 +18883,13 @@ func (msgs Messages) LibraryShelfReadFailed(error_ string) string {
 		case "", "en":
 			return "Couldn't read the film list: " + msgs.arg(error_)
 		case "ja":
-			return "動画の一覧を読み込めません: " + error_
+			return "動画の一覧を読み込めません：" + error_
 		case "ko":
 			return "동영상 목록을 읽을 수 없습니다: " + error_
 		case "zh-Hans":
-			return "视频库无法读取：" + error_
+			return "无法读取资料库的影片列表：" + error_
 		case "zh-Hant":
-			return "無法讀取影片庫：" + error_
+			return "無法讀取資料庫的影片清單：" + error_
 		}
 	}
 }
@@ -19016,9 +18919,9 @@ func (msgs Messages) LibraryShelfSaveFailed(error_ string) string {
 		case "ko":
 			return "동영상 목록을 저장할 수 없습니다: " + error_
 		case "zh-Hans":
-			return "视频库无法保存：" + error_
+			return "无法保存资料库的影片列表：" + error_
 		case "zh-Hant":
-			return "無法儲存影片庫：" + error_
+			return "無法儲存資料庫的影片清單：" + error_
 		}
 	}
 }
@@ -19099,9 +19002,9 @@ func (msgs Messages) LibraryTranslateOffer(count int) string {
 			b.WriteString(" subtitles in the original language only.")
 			return b.String()
 		case "ja":
-			return i18n.FormatNumber("ja", float64(count)) + " 本の字幕が原文のみです。"
+			return i18n.FormatNumber("ja", float64(count)) + " 本は字幕が原文のみです。"
 		case "ko":
-			return i18n.FormatNumber("ko", float64(count)) + "편의 자막이 원문만 있습니다."
+			return i18n.FormatNumber("ko", float64(count)) + "편은 자막이 원문만 있습니다."
 		case "zh-Hans":
 			return i18n.FormatNumber("zh-Hans", float64(count)) + " 部影片的字幕只有原文。"
 		case "zh-Hant":
@@ -19161,7 +19064,7 @@ func (msgs Messages) LibraryTrashUnsupported(name string) string {
 		case "", "en":
 			return "Couldn't move “" + msgs.arg(name) + "” to the Trash: Kando can't use a Trash on this computer. Its files are where they were."
 		case "ja":
-			return "「" + name + "」をゴミ箱に入れられませんでした: このコンピュータでは Kando はゴミ箱を使えません。ファイルは元の場所に残っています。"
+			return "「" + name + "」をゴミ箱に入れられませんでした：このコンピュータでは Kando はゴミ箱を使えません。ファイルは元の場所に残っています。"
 		case "ko":
 			return "‘" + name + "’을(를) 휴지통으로 옮기지 못했습니다: 이 컴퓨터에서는 Kando가 휴지통을 쓸 수 없습니다. 파일은 그대로 있습니다."
 		case "zh-Hans":
@@ -19223,7 +19126,7 @@ func (msgs Messages) LibrarySortSaveFailed(error_ string) string {
 		case "", "en":
 			return "Couldn't save the sort order: " + msgs.arg(error_)
 		case "ja":
-			return "並べ替えの設定を保存できませんでした: " + error_
+			return "並べ替えの設定を保存できませんでした：" + error_
 		case "ko":
 			return "정렬 방식을 저장할 수 없습니다: " + error_
 		case "zh-Hans":
@@ -20054,10 +19957,10 @@ func OnboardingLanguagesNote(cx *core.Scope) string { return For(cx).OnboardingL
 // OnboardingLanguagesNote is the package's OnboardingLanguagesNote in the language of msgs.
 func (msgs Messages) OnboardingLanguagesNote() string { return msgs.text(textOnboardingLanguagesNote) }
 
-// OnboardingLinkChannel says "This is a link to a {site} channel. Videos are added one at a time for now, so paste the link of one of its videos"
+// OnboardingLinkChannel says "Recognized as a {site} channel. Kando lists its videos before adding them"
 // in the language the app shows under cx.
 //
-// Line under the link field for a link to a channel on a named site.
+// Line under the link field for a link to a channel on a named site: the guide's button opens the dialog that lists the channel's videos and adds them.
 func OnboardingLinkChannel(cx *core.Scope, site string) string {
 	return For(cx).OnboardingLinkChannel(site)
 }
@@ -20073,23 +19976,23 @@ func (msgs Messages) OnboardingLinkChannel(site string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "This is a link to a " + msgs.arg(site) + " channel. Videos are added one at a time for now, so paste the link of one of its videos"
+			return "Recognized as a " + msgs.arg(site) + " channel. Kando lists its videos before adding them"
 		case "ja":
-			return site + " のチャンネルのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください"
+			return site + " のチャンネルとして認識しました。動画を一覧にしてから追加します"
 		case "ko":
-			return site + " 채널 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요"
+			return site + " 채널로 인식했습니다. 동영상 목록을 먼저 보여 준 다음 추가합니다"
 		case "zh-Hans":
-			return "这是" + site + "频道的链接。现在一次加入一个视频，请粘贴其中一个视频的链接"
+			return "识别为 " + site + " 频道，会先列出其中的视频再加入"
 		case "zh-Hant":
-			return "這是" + site + "頻道的連結。目前一次加入一個影片，請貼上其中一個影片的連結"
+			return "辨識為 " + site + " 頻道，會先列出其中的影片再加入"
 		}
 	}
 }
 
-// OnboardingLinkChannelUnnamed says "This is a link to a channel. Videos are added one at a time for now, so paste the link of one of its videos"
+// OnboardingLinkChannelUnnamed says "Recognized as a channel. Kando lists its videos before adding them"
 // in the language the app shows under cx.
 //
-// Line under the link field for a link to a channel on a site without a known name.
+// Line under the link field for a link to a channel on a site without a known name: the guide's button opens the dialog that lists the channel's videos and adds them.
 func OnboardingLinkChannelUnnamed(cx *core.Scope) string {
 	return For(cx).OnboardingLinkChannelUnnamed()
 }
@@ -20128,10 +20031,10 @@ func OnboardingLinkLabel(cx *core.Scope) string { return For(cx).OnboardingLinkL
 // OnboardingLinkLabel is the package's OnboardingLinkLabel in the language of msgs.
 func (msgs Messages) OnboardingLinkLabel() string { return msgs.text(textOnboardingLinkLabel) }
 
-// OnboardingLinkList says "This is a link to a {site} playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+// OnboardingLinkList says "Recognized as a {site} playlist. Kando lists its videos before adding them"
 // in the language the app shows under cx.
 //
-// Line under the link field for a link to a playlist on a named site that names no single video.
+// Line under the link field for a link to a playlist on a named site that names no single video: the guide's button opens the dialog that lists the playlist's videos and adds them.
 func OnboardingLinkList(cx *core.Scope, site string) string { return For(cx).OnboardingLinkList(site) }
 
 // OnboardingLinkList is the package's OnboardingLinkList in the language of msgs.
@@ -20145,23 +20048,23 @@ func (msgs Messages) OnboardingLinkList(site string) string {
 		}
 		switch lang {
 		case "", "en":
-			return "This is a link to a " + msgs.arg(site) + " playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+			return "Recognized as a " + msgs.arg(site) + " playlist. Kando lists its videos before adding them"
 		case "ja":
-			return site + " の再生リストのリンクです。今は動画を 1 本ずつ追加するので、その中の動画のリンクを貼り付けてください"
+			return site + " の再生リストとして認識しました。動画を一覧にしてから追加します"
 		case "ko":
-			return site + " 재생목록 링크입니다. 지금은 동영상을 하나씩 추가하므로, 그중 한 동영상의 링크를 붙여 넣으세요"
+			return site + " 재생목록으로 인식했습니다. 동영상 목록을 먼저 보여 준 다음 추가합니다"
 		case "zh-Hans":
-			return "这是" + site + "列表的链接。现在一次加入一个视频，请粘贴其中一个视频的链接"
+			return "识别为 " + site + " 播放列表，会先列出其中的视频再加入"
 		case "zh-Hant":
-			return "這是" + site + "清單的連結。目前一次加入一個影片，請貼上其中一個影片的連結"
+			return "辨識為 " + site + " 播放清單，會先列出其中的影片再加入"
 		}
 	}
 }
 
-// OnboardingLinkListUnnamed says "This is a link to a playlist. Videos are added one at a time for now, so paste the link of one of its videos"
+// OnboardingLinkListUnnamed says "Recognized as a playlist. Kando lists its videos before adding them"
 // in the language the app shows under cx.
 //
-// Line under the link field for a link to a playlist on a site without a known name that names no single video.
+// Line under the link field for a link to a playlist on a site without a known name that names no single video: the guide's button opens the dialog that lists the playlist's videos and adds them.
 func OnboardingLinkListUnnamed(cx *core.Scope) string { return For(cx).OnboardingLinkListUnnamed() }
 
 // OnboardingLinkListUnnamed is the package's OnboardingLinkListUnnamed in the language of msgs.
@@ -20214,9 +20117,9 @@ func (msgs Messages) OnboardingLinkPlaylistVideo(site string) string {
 		case "ko":
 			return site + " 동영상으로 인식했습니다. 재생목록 전체가 아니라 이 동영상만 추가합니다"
 		case "zh-Hans":
-			return "识别为 " + site + " 视频，只加入这一个，不加入整个列表"
+			return "识别为 " + site + " 视频，只加入这一个，不加入整个播放列表"
 		case "zh-Hant":
-			return "辨識為 " + site + " 影片，只加入這一個，不加入整個清單"
+			return "辨識為 " + site + " 影片，只加入這一個，不加入整個播放清單"
 		}
 	}
 }
@@ -21132,7 +21035,7 @@ func (msgs Messages) PaletteAskRow(question string) string {
 		case "ko":
 			return "이 영상에 질문: “" + question + "”"
 		case "zh-Hans":
-			return "问这部影片：“" + question + "”"
+			return "问这部影片：「" + question + "」"
 		case "zh-Hant":
 			return "問這部影片：「" + question + "」"
 		}
@@ -21169,6 +21072,38 @@ func (msgs Messages) PaletteAsking(model string) string {
 	}
 }
 
+// PaletteExplainFailed says "No explanation came back: {error}"
+// in the language the app shows under cx.
+//
+// Explanation card when the AI service returned no explanation of the line; error is the service's error message.
+func PaletteExplainFailed(cx *core.Scope, error_ string) string {
+	return For(cx).PaletteExplainFailed(error_)
+}
+
+// PaletteExplainFailed is the package's PaletteExplainFailed in the language of msgs.
+func (msgs Messages) PaletteExplainFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteExplainFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PaletteExplainFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "No explanation came back: " + msgs.arg(error_)
+		case "ja":
+			return "解説を得られませんでした：" + error_
+		case "ko":
+			return "설명을 받지 못했습니다: " + error_
+		case "zh-Hans":
+			return "没有拿到讲解：" + error_
+		case "zh-Hant":
+			return "沒有拿到講解：" + error_
+		}
+	}
+}
+
 // PaletteExplainLine says "Explain Line"
 // in the language the app shows under cx.
 //
@@ -21177,6 +21112,15 @@ func PaletteExplainLine(cx *core.Scope) string { return For(cx).PaletteExplainLi
 
 // PaletteExplainLine is the package's PaletteExplainLine in the language of msgs.
 func (msgs Messages) PaletteExplainLine() string { return msgs.text(textPaletteExplainLine) }
+
+// PaletteExplainNoAI says "Explaining lines needs an AI service. Choose a model in “AI Service” first."
+// in the language the app shows under cx.
+//
+// Explanation card when Explain Line was chosen with no AI service set.
+func PaletteExplainNoAI(cx *core.Scope) string { return For(cx).PaletteExplainNoAI() }
+
+// PaletteExplainNoAI is the package's PaletteExplainNoAI in the language of msgs.
+func (msgs Messages) PaletteExplainNoAI() string { return msgs.text(textPaletteExplainNoAI) }
 
 // PaletteExplainNote says "Explained by {model}"
 // in the language the app shows under cx.
@@ -21210,6 +21154,36 @@ func (msgs Messages) PaletteExplainNote(model string) string {
 	}
 }
 
+// PaletteExplaining says "Asking {model} to explain the line…"
+// in the language the app shows under cx.
+//
+// Explanation card while the line is on its way to the AI model (Explain Line).
+func PaletteExplaining(cx *core.Scope, model string) string { return For(cx).PaletteExplaining(model) }
+
+// PaletteExplaining is the package's PaletteExplaining in the language of msgs.
+func (msgs Messages) PaletteExplaining(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteExplaining(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PaletteExplaining; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Asking " + msgs.arg(model) + " to explain the line…"
+		case "ja":
+			return model + " にこのセリフの解説を頼んでいます…"
+		case "ko":
+			return model + "에 이 대사의 설명을 요청하는 중…"
+		case "zh-Hans":
+			return "正在请 " + model + " 讲解这句…"
+		case "zh-Hant":
+			return "正在請 " + model + " 講解這句…"
+		}
+	}
+}
+
 // PaletteFieldLabel says "Films, commands or watched lines"
 // in the language the app shows under cx.
 //
@@ -21228,23 +21202,157 @@ func PaletteFieldLabelFilm(cx *core.Scope) string { return For(cx).PaletteFieldL
 // PaletteFieldLabelFilm is the package's PaletteFieldLabelFilm in the language of msgs.
 func (msgs Messages) PaletteFieldLabelFilm() string { return msgs.text(textPaletteFieldLabelFilm) }
 
-// PaletteFooter says "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
+// PaletteFooter says "Type to search films, commands and watched lines · ↑↓ to select · {platform, select, macOS {Return} other {Enter}} to run"
 // in the language the app shows under cx.
 //
-// Footer of the command palette over the library: what typing, the arrow keys and Return do.
-func PaletteFooter(cx *core.Scope) string { return For(cx).PaletteFooter() }
+// Footer of the command palette over the library: what typing, the arrow keys and Return (Enter on Windows and Linux) do. platform is the system the app runs on; each case names the key as that system's keyboards do.
+func PaletteFooter(cx *core.Scope, platform string) string { return For(cx).PaletteFooter(platform) }
 
 // PaletteFooter is the package's PaletteFooter in the language of msgs.
-func (msgs Messages) PaletteFooter() string { return msgs.text(textPaletteFooter) }
+func (msgs Messages) PaletteFooter(platform string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteFooter(platform))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PaletteFooter; f != nil {
+			return f(platform)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Type to search films, commands and watched lines · ↑↓ to select · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" to run")
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			b.WriteString("入力すると動画、コマンド、見たセリフを検索 · ↑↓ で選択 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" で実行")
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			b.WriteString("입력하면 영상, 명령, 본 대사 검색 · ↑↓ 선택 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" 실행")
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			b.WriteString("打字时搜影片、命令和看过的台词 · ↑↓ 选择 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" 执行")
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			b.WriteString("輸入時搜尋影片、指令和看過的台詞 · ↑↓ 選擇 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" 執行")
+			return b.String()
+		}
+	}
+}
 
-// PaletteFooterFilm says "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"
+// PaletteFooterFilm says "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · {platform, select, macOS {Return} other {Enter}} to ask or run"
 // in the language the app shows under cx.
 //
-// Footer of the command palette in the player: what typing, the arrow keys and Return do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise.
-func PaletteFooterFilm(cx *core.Scope) string { return For(cx).PaletteFooterFilm() }
+// Footer of the command palette in the player: what typing, the arrow keys and Return (Enter on Windows and Linux) do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise. platform is the system the app runs on; each case names the key as that system's keyboards do.
+func PaletteFooterFilm(cx *core.Scope, platform string) string {
+	return For(cx).PaletteFooterFilm(platform)
+}
 
 // PaletteFooterFilm is the package's PaletteFooterFilm in the language of msgs.
-func (msgs Messages) PaletteFooterFilm() string { return msgs.text(textPaletteFooterFilm) }
+func (msgs Messages) PaletteFooterFilm(platform string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteFooterFilm(platform))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PaletteFooterFilm; f != nil {
+			return f(platform)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString("Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" to ask or run")
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			b.WriteString("入力すると動画、コマンド、見たセリフを検索、またはこの動画に質問 · ↑↓ で選択 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" で質問または実行")
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			b.WriteString("입력하면 영상, 명령, 본 대사 검색 또는 이 영상에 질문 · ↑↓ 선택 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" 질문 또는 실행")
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			b.WriteString("打字时搜影片、命令和看过的台词，或问这部影片 · ↑↓ 选择 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" 提问或执行")
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			b.WriteString("輸入時搜尋影片、指令和看過的台詞，或問這部影片 · ↑↓ 選擇 · ")
+			switch platform {
+			case "macOS":
+				b.WriteString("Return")
+			default:
+				b.WriteString("Enter")
+			}
+			b.WriteString(" 提問或執行")
+			return b.String()
+		}
+	}
+}
 
 // PaletteHeadingAnswer says "Answer"
 // in the language the app shows under cx.
@@ -21263,6 +21371,15 @@ func PaletteHeadingCommands(cx *core.Scope) string { return For(cx).PaletteHeadi
 
 // PaletteHeadingCommands is the package's PaletteHeadingCommands in the language of msgs.
 func (msgs Messages) PaletteHeadingCommands() string { return msgs.text(textPaletteHeadingCommands) }
+
+// PaletteHeadingExplain says "Explanation"
+// in the language the app shows under cx.
+//
+// Heading of the card with the explanation of a subtitle line (Explain Line), in place of paletteHeadingAnswer.
+func PaletteHeadingExplain(cx *core.Scope) string { return For(cx).PaletteHeadingExplain() }
+
+// PaletteHeadingExplain is the package's PaletteHeadingExplain in the language of msgs.
+func (msgs Messages) PaletteHeadingExplain() string { return msgs.text(textPaletteHeadingExplain) }
 
 // PaletteHeadingFilms says "Films"
 // in the language the app shows under cx.
@@ -21337,9 +21454,9 @@ func (msgs Messages) PaletteLibrarySaveFailed(error_ string) string {
 		case "ko":
 			return "동영상 목록을 저장할 수 없습니다: " + error_
 		case "zh-Hans":
-			return "视频库无法保存：" + error_
+			return "无法保存资料库的影片列表：" + error_
 		case "zh-Hant":
-			return "無法儲存影片庫：" + error_
+			return "無法儲存資料庫的影片清單：" + error_
 		}
 	}
 }
@@ -22139,13 +22256,13 @@ func (msgs Messages) PlaylistSeveral(count int) string {
 			}
 			return b.String()
 		case "ja":
-			return i18n.FormatNumber("ja", float64(count)) + " 件のプレイリストとチャンネル"
+			return i18n.FormatNumber("ja", float64(count)) + " 件の再生リストとチャンネル"
 		case "ko":
 			return "재생목록과 채널 " + i18n.FormatNumber("ko", float64(count)) + "개"
 		case "zh-Hans":
-			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个合集和频道"
+			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个播放列表和频道"
 		case "zh-Hant":
-			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個合集和頻道"
+			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個播放清單和頻道"
 		}
 	}
 }
@@ -22282,10 +22399,10 @@ func PrecheckEveryAPIMissing(cx *core.Scope) string { return For(cx).PrecheckEve
 // PrecheckEveryAPIMissing is the package's PrecheckEveryAPIMissing in the language of msgs.
 func (msgs Messages) PrecheckEveryAPIMissing() string { return msgs.text(textPrecheckEveryAPIMissing) }
 
-// PrecheckEveryAPISignedOut says "Run everyapi auth login in Terminal, or enter an API Key in “AI Service”"
+// PrecheckEveryAPISignedOut says "Run everyapi auth login in a terminal, or enter an API Key in “AI Service”"
 // in the language the app shows under cx.
 //
-// Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and nobody is signed in to the everyapi command-line program. everyapi auth login is the command to type and stays as it is; Terminal is the app it is typed in.
+// Message bar, the sidebar's status line, the first-run guide and the command palette when the AI service is EveryAPI with no API Key and nobody is signed in to the everyapi command-line program. everyapi auth login is the command to type and stays as it is; a terminal is the program it is typed in (Terminal on macOS, Windows Terminal or PowerShell on Windows).
 func PrecheckEveryAPISignedOut(cx *core.Scope) string { return For(cx).PrecheckEveryAPISignedOut() }
 
 // PrecheckEveryAPISignedOut is the package's PrecheckEveryAPISignedOut in the language of msgs.
@@ -22476,9 +22593,9 @@ func (msgs Messages) PrecheckList(site string) string {
 		case "ko":
 			return site + " 재생목록 링크이며 동영상 하나가 아닙니다. 먼저 동영상 목록을 불러온 뒤 추가하세요."
 		case "zh-Hans":
-			return "这是" + site + "合集的链接，不是单个视频。请先列出它的视频再加入。"
+			return "这是" + site + "播放列表的链接，不是单个视频。请先列出它的视频再加入。"
 		case "zh-Hant":
-			return "這是" + site + "合集的連結，不是單一影片。請先列出它的影片再加入。"
+			return "這是" + site + "播放清單的連結，不是單一影片。請先列出它的影片再加入。"
 		}
 	}
 }
@@ -22933,7 +23050,7 @@ func (msgs Messages) QueueMakeSubtitlesFailed(name string, reason string) string
 		case "ko":
 			return "‘" + name + "’의 자막을 만들지 못했습니다. " + reason
 		case "zh-Hans":
-			return "没能为“" + name + "”生成字幕。" + reason
+			return "没能为「" + name + "」生成字幕。" + reason
 		case "zh-Hant":
 			return "沒能為「" + name + "」產生字幕。" + reason
 		}
@@ -22958,7 +23075,7 @@ func QueueNoLanguage(cx *core.Scope) string { return For(cx).QueueNoLanguage() }
 // QueueNoLanguage is the package's QueueNoLanguage in the language of msgs.
 func (msgs Messages) QueueNoLanguage() string { return msgs.text(textQueueNoLanguage) }
 
-// QueueNoLibrary says "Create or import a library first"
+// QueueNoLibrary says "Create or open a library first"
 // in the language the app shows under cx.
 //
 // Why a link cannot be added: no library is open.
@@ -23045,38 +23162,6 @@ func (msgs Messages) QueueNotifyUntranslated(reason string) string {
 			return "字幕做好了，但只有原文。" + reason
 		case "zh-Hant":
 			return "字幕做好了，但只有原文。" + reason
-		}
-	}
-}
-
-// QueueOpenSettingsFailed says "Couldn't open System Settings: {error}"
-// in the language the app shows under cx.
-//
-// Message bar when System Settings could not be opened.
-func QueueOpenSettingsFailed(cx *core.Scope, error_ string) string {
-	return For(cx).QueueOpenSettingsFailed(error_)
-}
-
-// QueueOpenSettingsFailed is the package's QueueOpenSettingsFailed in the language of msgs.
-func (msgs Messages) QueueOpenSettingsFailed(error_ string) string {
-	if i18n.IsPseudo(msgs.lang) {
-		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueOpenSettingsFailed(error_))
-	}
-	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
-		if f := supplied[lang].QueueOpenSettingsFailed; f != nil {
-			return f(error_)
-		}
-		switch lang {
-		case "", "en":
-			return "Couldn't open System Settings: " + msgs.arg(error_)
-		case "ja":
-			return "システム設定を開けませんでした：" + error_
-		case "ko":
-			return "시스템 설정을 열 수 없습니다: " + error_
-		case "zh-Hans":
-			return "没能打开系统设置：" + error_
-		case "zh-Hant":
-			return "無法打開系統設定：" + error_
 		}
 	}
 }
@@ -23180,7 +23265,7 @@ func (msgs Messages) QueueRedoFailed(name string, reason string) string {
 		case "ko":
 			return "‘" + name + "’은(는) 기존 자막을 유지합니다: 다시 번역하지 못했습니다. " + reason
 		case "zh-Hans":
-			return "“" + name + "”保留原来的字幕：没能重新翻译。" + reason
+			return "「" + name + "」保留原来的字幕：没能重新翻译。" + reason
 		case "zh-Hant":
 			return "「" + name + "」保留原來的字幕：沒能重新翻譯。" + reason
 		}
@@ -24289,7 +24374,7 @@ func (msgs Messages) QueueReprocessFailed(name string, reason string) string {
 		case "ko":
 			return "‘" + name + "’은(는) 기존 자막을 유지합니다: 다시 처리하지 못했습니다. " + reason
 		case "zh-Hans":
-			return "“" + name + "”保留原来的字幕：没能重新处理。" + reason
+			return "「" + name + "」保留原来的字幕：没能重新处理。" + reason
 		case "zh-Hant":
 			return "「" + name + "」保留原來的字幕：沒能重新處理。" + reason
 		}
@@ -24319,9 +24404,9 @@ func (msgs Messages) QueueSaveFailed(error_ string) string {
 		case "ko":
 			return "동영상 목록을 저장할 수 없습니다: " + error_
 		case "zh-Hans":
-			return "视频库无法保存：" + error_
+			return "无法保存资料库的影片列表：" + error_
 		case "zh-Hant":
-			return "無法儲存影片庫：" + error_
+			return "無法儲存資料庫的影片清單：" + error_
 		}
 	}
 }
@@ -24927,7 +25012,7 @@ func (msgs Messages) SavedExported(count int) string {
 		case "ko":
 			return "대사 " + i18n.FormatNumber("ko", float64(count)) + "개를 오디오와 함께 내보냈습니다. ‘Kando Saved Lines audio’의 파일을 Anki의 collection.media 폴더에 복사한 다음 Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
 		case "zh-Hans":
-			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句及其音频。把“Kando Saved Lines audio”里的文件拷贝到 Anki 的 collection.media 文件夹，再在 Anki 中导入“Kando Saved Lines.txt”。"
+			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句及其音频。把「Kando Saved Lines audio」里的文件拷贝到 Anki 的 collection.media 文件夹，再在 Anki 中导入「Kando Saved Lines.txt」。"
 		case "zh-Hant":
 			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句及其音訊。把「Kando Saved Lines audio」裡的檔案拷貝到 Anki 的 collection.media 檔案夾，再在 Anki 中匯入「Kando Saved Lines.txt」。"
 		}
@@ -24967,11 +25052,11 @@ func (msgs Messages) SavedExportedNoAudio(count int) string {
 			b.WriteString(" as ffmpeg is not installed or the videos are not in the library. Import “Kando Saved Lines.txt” in Anki.")
 			return b.String()
 		case "ja":
-			return i18n.FormatNumber("ja", float64(count)) + " 件のセリフを音声なしで書き出しました。ffmpeg がインストールされていないか、映画がライブラリにありません。Anki で「Kando Saved Lines.txt」を読み込んでください。"
+			return i18n.FormatNumber("ja", float64(count)) + " 件のセリフを音声なしで書き出しました。ffmpeg がインストールされていないか、動画がライブラリにありません。Anki で「Kando Saved Lines.txt」を読み込んでください。"
 		case "ko":
-			return "대사 " + i18n.FormatNumber("ko", float64(count)) + "개를 오디오 없이 내보냈습니다. ffmpeg가 설치되어 있지 않거나 영화가 라이브러리에 없습니다. Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
+			return "대사 " + i18n.FormatNumber("ko", float64(count)) + "개를 오디오 없이 내보냈습니다. ffmpeg가 설치되어 있지 않거나 영상이 라이브러리에 없습니다. Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
 		case "zh-Hans":
-			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句，但没有音频：未安装 ffmpeg，或影片已不在资料库中。在 Anki 中导入“Kando Saved Lines.txt”即可。"
+			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句，但没有音频：未安装 ffmpeg，或影片已不在资料库中。在 Anki 中导入「Kando Saved Lines.txt」即可。"
 		case "zh-Hant":
 			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句，但沒有音訊：未安裝 ffmpeg，或影片已不在資料庫中。在 Anki 中匯入「Kando Saved Lines.txt」即可。"
 		}
@@ -25017,7 +25102,7 @@ func (msgs Messages) SavedExportedSomeAudio(lines int, sounds int) string {
 		case "ko":
 			return "대사 " + i18n.FormatNumber("ko", float64(lines)) + "개를 내보냈습니다(오디오 포함 " + i18n.FormatNumber("ko", float64(sounds)) + "개). ‘Kando Saved Lines audio’의 파일을 Anki의 collection.media 폴더에 복사한 다음 Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
 		case "zh-Hans":
-			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句，其中 " + i18n.FormatNumber("zh-Hans", float64(sounds)) + " 句有音频。把“Kando Saved Lines audio”里的文件拷贝到 Anki 的 collection.media 文件夹，再在 Anki 中导入“Kando Saved Lines.txt”。"
+			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句，其中 " + i18n.FormatNumber("zh-Hans", float64(sounds)) + " 句有音频。把「Kando Saved Lines audio」里的文件拷贝到 Anki 的 collection.media 文件夹，再在 Anki 中导入「Kando Saved Lines.txt」。"
 		case "zh-Hant":
 			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句，其中 " + i18n.FormatNumber("zh-Hant", float64(sounds)) + " 句有音訊。把「Kando Saved Lines audio」裡的檔案拷貝到 Anki 的 collection.media 檔案夾，再在 Anki 中匯入「Kando Saved Lines.txt」。"
 		}
@@ -25502,10 +25587,10 @@ func SettingsAIBlurbGroq(cx *core.Scope) string { return For(cx).SettingsAIBlurb
 // SettingsAIBlurbGroq is the package's SettingsAIBlurbGroq in the language of msgs.
 func (msgs Messages) SettingsAIBlurbGroq() string { return msgs.text(textSettingsAIBlurbGroq) }
 
-// SettingsAIBlurbLMStudio says "LM Studio on this Mac"
+// SettingsAIBlurbLMStudio says "LM Studio on this computer"
 // in the language the app shows under cx.
 //
-// What the LM Studio service is: LM Studio running on this Mac. A phrase.
+// What the LM Studio service is: LM Studio running on this computer. A phrase.
 func SettingsAIBlurbLMStudio(cx *core.Scope) string { return For(cx).SettingsAIBlurbLMStudio() }
 
 // SettingsAIBlurbLMStudio is the package's SettingsAIBlurbLMStudio in the language of msgs.
@@ -25529,10 +25614,10 @@ func SettingsAIBlurbMoonshot(cx *core.Scope) string { return For(cx).SettingsAIB
 // SettingsAIBlurbMoonshot is the package's SettingsAIBlurbMoonshot in the language of msgs.
 func (msgs Messages) SettingsAIBlurbMoonshot() string { return msgs.text(textSettingsAIBlurbMoonshot) }
 
-// SettingsAIBlurbOllama says "Ollama on this Mac"
+// SettingsAIBlurbOllama says "Ollama on this computer"
 // in the language the app shows under cx.
 //
-// What the Ollama service is: Ollama running on this Mac. A phrase.
+// What the Ollama service is: Ollama running on this computer. A phrase.
 func SettingsAIBlurbOllama(cx *core.Scope) string { return For(cx).SettingsAIBlurbOllama() }
 
 // SettingsAIBlurbOllama is the package's SettingsAIBlurbOllama in the language of msgs.
@@ -25655,7 +25740,7 @@ func (msgs Messages) SettingsAIEveryAPIFailed(error_ string) string {
 	}
 }
 
-// SettingsAIEveryAPIMissing says "Not found on this Mac. Get it from everyapi.ai, then choose Detect Again."
+// SettingsAIEveryAPIMissing says "Not found on this computer. Get it from everyapi.ai, then choose Detect Again."
 // in the language the app shows under cx.
 //
 // Under the everyapi command line row when the program is not on this computer. Detect Again is the button beside it (settingsAIRedetect).
@@ -25698,7 +25783,7 @@ func (msgs Messages) SettingsAIEveryAPIOpenFailed(error_ string) string {
 	}
 }
 
-// SettingsAIEveryAPISignedOut says "Not signed in. Run everyapi auth login in Terminal, then choose Detect Again."
+// SettingsAIEveryAPISignedOut says "Not signed in. Run everyapi auth login in a terminal, then choose Detect Again."
 // in the language the app shows under cx.
 //
 // Under the everyapi command line row when nobody is signed in to the program. everyapi auth login is the command to type and stays as it is; Detect Again is the button beside it (settingsAIRedetect).
@@ -25727,7 +25812,7 @@ func SettingsAIGetKey(cx *core.Scope) string { return For(cx).SettingsAIGetKey()
 // SettingsAIGetKey is the package's SettingsAIGetKey in the language of msgs.
 func (msgs Messages) SettingsAIGetKey() string { return msgs.text(textSettingsAIGetKey) }
 
-// SettingsAIKeyEveryAPILogin says "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this Mac."
+// SettingsAIKeyEveryAPILogin says "Without an API Key, Kando uses the sign-in of the everyapi command-line program on this computer."
 // in the language the app shows under cx.
 //
 // The AI Service page's footnote when the service is EveryAPI and no API Key is filled in. everyapi is the command-line program.
@@ -25747,7 +25832,7 @@ func SettingsAIKeyOptional(cx *core.Scope) string { return For(cx).SettingsAIKey
 // SettingsAIKeyOptional is the package's SettingsAIKeyOptional in the language of msgs.
 func (msgs Messages) SettingsAIKeyOptional() string { return msgs.text(textSettingsAIKeyOptional) }
 
-// SettingsAIKeyStoredLocally says "The API Key is kept only in the settings file on this Mac."
+// SettingsAIKeyStoredLocally says "The API Key is kept only in the settings file on this computer."
 // in the language the app shows under cx.
 //
 // The AI Service page's footnote for a cloud service, and its first sentence for an OpenAI Compatible endpoint.
@@ -25770,7 +25855,7 @@ func (msgs Messages) SettingsAILoadingModels() string { return msgs.text(textSet
 // SettingsAILocalService says "Local · {name}"
 // in the language the app shows under cx.
 //
-// A service running on this Mac in the service pop-up: the group, then the service's name.
+// A service running on this computer in the service pop-up: the group, then the service's name.
 func SettingsAILocalService(cx *core.Scope, name string) string {
 	return For(cx).SettingsAILocalService(name)
 }
@@ -27918,6 +28003,38 @@ func SettingsLookYieldHint(cx *core.Scope) string { return For(cx).SettingsLookY
 // SettingsLookYieldHint is the package's SettingsLookYieldHint in the language of msgs.
 func (msgs Messages) SettingsLookYieldHint() string { return msgs.text(textSettingsLookYieldHint) }
 
+// SettingsSaveFailed says "Couldn't save the settings: {error}"
+// in the language the app shows under cx.
+//
+// Error in the settings window and the sidebar's status row when a setting changed on the General, Translate, Subtitle Style or Account & Upload page could not be saved to settings.json.
+func SettingsSaveFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsSaveFailed(error_)
+}
+
+// SettingsSaveFailed is the package's SettingsSaveFailed in the language of msgs.
+func (msgs Messages) SettingsSaveFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSaveFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSaveFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't save the settings: " + msgs.arg(error_)
+		case "ja":
+			return "設定を保存できませんでした：" + error_
+		case "ko":
+			return "설정을 저장하지 못했습니다: " + error_
+		case "zh-Hans":
+			return "设置无法保存：" + error_
+		case "zh-Hant":
+			return "設定無法儲存：" + error_
+		}
+	}
+}
+
 // SettingsSearchClear says "Clear Search"
 // in the language the app shows under cx.
 //
@@ -28235,7 +28352,7 @@ func (msgs Messages) SettingsSpeechDownloadFailedStatusMirror(status int) string
 		case "", "en":
 			return "Hugging Face answered HTTP " + msgs.arg(i18n.FormatNumber("en", float64(status))) + ". Try again later, or download from hf-mirror.com."
 		case "ja":
-			return "Hugging Face が HTTP " + i18n.FormatNumber("ja", float64(status)) + " を返しました。しばらくしてからもう一度お試しいただくか、hf-mirror.com からダウンロードしてください。"
+			return "Hugging Face が HTTP " + i18n.FormatNumber("ja", float64(status)) + " を返しました。しばらくしてからもう一度試すか、hf-mirror.com からダウンロードしてください。"
 		case "ko":
 			return "Hugging Face가 HTTP " + i18n.FormatNumber("ko", float64(status)) + " 오류를 반환했습니다. 잠시 후 다시 시도하거나 hf-mirror.com에서 다운로드하세요."
 		case "zh-Hans":
@@ -28774,14 +28891,82 @@ func (msgs Messages) SettingsSpeechRecommended() string {
 	return msgs.text(textSettingsSpeechRecommended)
 }
 
-// SettingsSpeechReveal says "Show in Finder"
+// SettingsSpeechReveal says "{platform, select, macOS {Show in Finder} Windows {Show in File Explorer} other {Show in File Manager}}"
 // in the language the app shows under cx.
 //
-// Menu item of a downloaded whisper model that shows its file in Finder.
-func SettingsSpeechReveal(cx *core.Scope) string { return For(cx).SettingsSpeechReveal() }
+// Menu item of a downloaded whisper model that shows its file in Finder, File Explorer or the file manager. platform is the system the app runs on.
+func SettingsSpeechReveal(cx *core.Scope, platform string) string {
+	return For(cx).SettingsSpeechReveal(platform)
+}
 
 // SettingsSpeechReveal is the package's SettingsSpeechReveal in the language of msgs.
-func (msgs Messages) SettingsSpeechReveal() string { return msgs.text(textSettingsSpeechReveal) }
+func (msgs Messages) SettingsSpeechReveal(platform string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsSpeechReveal(platform))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsSpeechReveal; f != nil {
+			return f(platform)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("Show in Finder")
+			case "Windows":
+				b.WriteString("Show in File Explorer")
+			default:
+				b.WriteString("Show in File Manager")
+			}
+			return b.String()
+		case "ja":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("Finder で表示")
+			case "Windows":
+				b.WriteString("エクスプローラーで表示")
+			default:
+				b.WriteString("ファイルマネージャーで表示")
+			}
+			return b.String()
+		case "ko":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("Finder에서 보기")
+			case "Windows":
+				b.WriteString("파일 탐색기에서 보기")
+			default:
+				b.WriteString("파일 관리자에서 보기")
+			}
+			return b.String()
+		case "zh-Hans":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("在访达中显示")
+			case "Windows":
+				b.WriteString("在文件资源管理器中显示")
+			default:
+				b.WriteString("在文件管理器中显示")
+			}
+			return b.String()
+		case "zh-Hant":
+			var b strings.Builder
+			switch platform {
+			case "macOS":
+				b.WriteString("在 Finder 中顯示")
+			case "Windows":
+				b.WriteString("在檔案總管中顯示")
+			default:
+				b.WriteString("在檔案管理員中顯示")
+			}
+			return b.String()
+		}
+	}
+}
 
 // SettingsSpeechSaveFailed says "Couldn't save the model: {error}"
 // in the language the app shows under cx.
@@ -29196,7 +29381,7 @@ func (msgs Messages) SidebarChooseLibrary() string { return msgs.text(textSideba
 // SidebarCommands says "Commands"
 // in the language the app shows under cx.
 //
-// Accessible name of the button on the sidebar's status card that opens the command palette, on Windows and Linux, which have no app menu bar.
+// Accessible name of the button on the status row at the foot of the sidebar that opens the command palette, on Windows and Linux, which have no app menu bar.
 func SidebarCommands(cx *core.Scope) string { return For(cx).SidebarCommands() }
 
 // SidebarCommands is the package's SidebarCommands in the language of msgs.
@@ -29205,7 +29390,7 @@ func (msgs Messages) SidebarCommands() string { return msgs.text(textSidebarComm
 // SidebarCommandsTooltip says "Commands ({shortcut})"
 // in the language the app shows under cx.
 //
-// Tooltip of the button on the sidebar's status card that opens the command palette, with its shortcut as the system writes it.
+// Tooltip of the button on the status row at the foot of the sidebar that opens the command palette, with its shortcut as the system writes it.
 func SidebarCommandsTooltip(cx *core.Scope, shortcut string) string {
 	return For(cx).SidebarCommandsTooltip(shortcut)
 }
@@ -29675,7 +29860,7 @@ func (msgs Messages) SidebarSearchPlaceholder() string {
 // SidebarSettings says "Settings"
 // in the language the app shows under cx.
 //
-// Accessible name of the gear on the status card, which opens the settings that fix what is missing.
+// Accessible name of the gear on the status row at the foot of the sidebar, which opens the settings that fix what is missing.
 func SidebarSettings(cx *core.Scope) string { return For(cx).SidebarSettings() }
 
 // SidebarSettings is the package's SidebarSettings in the language of msgs.
@@ -29720,7 +29905,7 @@ func (msgs Messages) SidebarSourceWeb() string { return msgs.text(textSidebarSou
 // SidebarStatus says "Status"
 // in the language the app shows under cx.
 //
-// Accessible name of the status card at the foot of the sidebar.
+// Accessible name of the status row at the foot of the sidebar.
 func SidebarStatus(cx *core.Scope) string { return For(cx).SidebarStatus() }
 
 // SidebarStatus is the package's SidebarStatus in the language of msgs.

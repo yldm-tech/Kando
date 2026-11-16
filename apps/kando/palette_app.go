@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/hotkey"
@@ -395,14 +396,14 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 	v := cmdpalette.View{
 		Label:       locales.PaletteFieldLabel(cx),
 		Placeholder: locales.PalettePlaceholder(cx),
-		Footer:      locales.PaletteFooter(cx),
+		Footer:      locales.PaletteFooter(cx, desktop.Platform(cx)),
 		Selected:    -1,
 	}
 	// In the player the palette also asks the open film, which its field's name and its footer say.
 	if inFilm {
 		v.Label = locales.PaletteFieldLabelFilm(cx)
 		v.Placeholder = locales.PalettePlaceholderFilm(cx)
-		v.Footer = locales.PaletteFooterFilm(cx)
+		v.Footer = locales.PaletteFooterFilm(cx, desktop.Platform(cx))
 	}
 	asks := 0
 	if a.paletteAsks() {
@@ -440,7 +441,7 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 
 // paletteAnswerView is the answer card as palette draws it, in the language the app shows under cx.
 func paletteAnswerView(cx *core.Scope, ans *paletteAnswer) *cmdpalette.Answer {
-	out := &cmdpalette.Answer{Busy: ans.busy, Text: ans.text}
+	out := &cmdpalette.Answer{Busy: ans.busy, Text: ans.text, Explain: ans.explain}
 	if ans.say != nil {
 		out.Text = ans.say(cx)
 	}
@@ -551,15 +552,15 @@ func (a *app) paletteDropAnswer() {
 	}
 }
 
-// paletteTranslator is the AI service set in 「AI 服务」, when one is set that can answer: a model at an endpoint, with a key, or through the EveryAPI CLI unless the sidebar's check found it signed out. When it cannot, why says so in the words the sidebar's status line uses for the same reason, in the language the app shows under the scope it is given, and is nil when it can.
-func (a *app) paletteTranslator() (t media.ChatTranslator, why func(*core.Scope) string) {
+// paletteTranslator is the AI service set in 「AI 服务」, when one is set that can answer: a model at an endpoint, with a key, or through the EveryAPI CLI unless the sidebar's check found it signed out. When it cannot, why says so, in the language the app shows under the scope it is given: noAI when no service is set, which names what was asked of it (a question, or Explain Line), otherwise the words the sidebar's status line uses for the same reason. why is nil when it can.
+func (a *app) paletteTranslator(noAI func(*core.Scope) string) (t media.ChatTranslator, why func(*core.Scope) string) {
 	tools, ok := a.pipeline.(media.Tools)
 	if !ok {
-		return media.ChatTranslator{}, locales.PaletteNoAI
+		return media.ChatTranslator{}, noAI
 	}
 	t = tools.Translator
 	if strings.TrimSpace(t.Model) == "" || strings.TrimSpace(t.BaseURL) == "" {
-		return t, locales.PaletteNoAI
+		return t, noAI
 	}
 	if everyAPICLIMissing(t) {
 		return t, everyAPIMissing
@@ -578,7 +579,7 @@ func (a *app) paletteAsk() {
 	}
 	question := strings.TrimSpace(a.palette.query)
 	a.paletteDropAnswer()
-	t, why := a.paletteTranslator()
+	t, why := a.paletteTranslator(locales.PaletteNoAI)
 	if why != nil {
 		a.palette.answer = &paletteAnswer{needsAI: true, say: why}
 		return
@@ -602,13 +603,17 @@ func (a *app) paletteAsk() {
 	a.paletteSend(t, item, palettePrompt(paletteAnswerLanguage(item, a.prefs.language), horizon), paletteContext(item.Name, seen)+"\n\n问题："+question, seen, paletteAnswer{horizon: horizon})
 }
 
-// paletteSend sends user, with the instruction system, to t, the AI service set, about item, and shows its reply in the answer card once it comes: the answer and the lines of seen it rests on (paletteParseReply). Meanwhile the card says the question is on its way; when the service fails it says why and offers the service's settings. done is the card the answer fills in: how far the film had been watched, or the line it explains, and the chips it has before those the reply names.
+// paletteSend sends user, with the instruction system, to t, the AI service set, about item, and shows its reply in the answer card once it comes: the answer and the lines of seen it rests on (paletteParseReply). Meanwhile the card says the question, or the line to explain, is on its way; when the service fails it says why and offers the service's settings. done is the card the answer fills in: how far the film had been watched, or the line it explains (done.explain), and the chips it has before those the reply names.
 func (a *app) paletteSend(t media.ChatTranslator, item films.Film, system, user string, seen []lines.Line, done paletteAnswer) {
 	model := strings.TrimSpace(t.Model)
 	a.palette.askGen++
 	gen := a.palette.askGen
 	done.model, done.film = model, item.Key
-	a.palette.answer = &paletteAnswer{busy: true, say: func(cx *core.Scope) string { return locales.PaletteAsking(cx, model) }, horizon: done.horizon, model: model, film: item.Key}
+	busy, failed := locales.PaletteAsking, locales.PaletteAskFailed
+	if done.explain {
+		busy, failed = locales.PaletteExplaining, locales.PaletteExplainFailed
+	}
+	a.palette.answer = &paletteAnswer{busy: true, explain: done.explain, say: func(cx *core.Scope) string { return busy(cx, model) }, horizon: done.horizon, model: model, film: item.Key}
 	ctx, cancel := context.WithTimeout(context.Background(), paletteAskTimeout)
 	a.palette.cancel = cancel
 	update := a.update
@@ -622,7 +627,7 @@ func (a *app) paletteSend(t media.ChatTranslator, item films.Film, system, user 
 			a.palette.cancel = nil
 			if err != nil {
 				// The service's settings are the likely fix for a refused key, a wrong model or a signed-out CLI, so the card offers them as it does when none is set.
-				a.palette.answer = &paletteAnswer{failed: true, needsAI: true, say: func(cx *core.Scope) string { return locales.PaletteAskFailed(cx, err.Error()) }}
+				a.palette.answer = &paletteAnswer{failed: true, needsAI: true, explain: done.explain, say: func(cx *core.Scope) string { return failed(cx, err.Error()) }}
 				return
 			}
 			text, refs := paletteParseReply(reply, seen)
@@ -658,9 +663,9 @@ func (a *app) ExplainLine(i int) {
 	}
 	a.palette.query = ""
 	a.paletteDropAnswer()
-	t, why := a.paletteTranslator()
+	t, why := a.paletteTranslator(locales.PaletteExplainNoAI)
 	if why != nil {
-		a.palette.answer = &paletteAnswer{needsAI: true, say: why}
+		a.palette.answer = &paletteAnswer{needsAI: true, explain: true, say: why}
 		return
 	}
 	from, to := max(i-paletteExplainBefore, 0), min(i+paletteExplainAfter+1, len(cues))
@@ -672,7 +677,7 @@ func (a *app) ExplainLine(i int) {
 	line := around[i-from]
 	quoted := cmp.Or(line.Original, line.Translation)
 	user := paletteContext(item.Name, around) + "\n\n要讲解的一句：[" + cmdpalette.Clock(line.Start) + "] " + quoted
-	a.paletteSend(t, item, paletteExplainPrompt(paletteAnswerLanguage(item, a.prefs.language)), user, around, paletteAnswer{explained: quoted, refs: []time.Duration{line.Start}})
+	a.paletteSend(t, item, paletteExplainPrompt(paletteAnswerLanguage(item, a.prefs.language)), user, around, paletteAnswer{explain: true, explained: quoted, refs: []time.Duration{line.Start}})
 }
 
 // paletteExplainPlaying is E: Explain Line on the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.

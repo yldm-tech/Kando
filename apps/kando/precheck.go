@@ -100,7 +100,7 @@ func (a *app) untranslatable() bool {
 	return ok && (strings.TrimSpace(tools.Translator.Model) == "" || everyAPICLIMissing(tools.Translator))
 }
 
-// precheckWhole says that link names a channel, a list or a page that lists videos rather than one video, which a job would download whole or pick a video of, naming the site when Kando knows it, in the language of m. It asks for the link of one of its videos, as the onboarding's link field does (onboarding.LinkHint, which also refuses a local file and so is not used here).
+// precheckWhole says that link names a channel, a list or a page that lists videos rather than one video, which a job would download whole or pick a video of, naming the site when Kando knows it, in the language of m. It asks for its videos to be listed first, which the playlist dialog does where the pipeline can list them (playlistSplit).
 func precheckWhole(m locales.Messages, link core.Link) string {
 	site := sitename.In(m, link.Site)
 	switch {

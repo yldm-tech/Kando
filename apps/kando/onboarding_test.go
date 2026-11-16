@@ -210,7 +210,7 @@ func TestOnboardingLanguageGoesToTheJobs(t *testing.T) {
 	a.OnboardingSave()
 	refresh(tt, a)
 	// The tiles leave out the language subtitles are translated into.
-	if textCount(tt, "日语") != 0 {
+	if tt.Exists("id:onboarding-tile-ja") || !tt.Exists("id:onboarding-tile-en") {
 		t.Fatalf("the target's own tile is offered: %q", tt.Texts())
 	}
 	if saved := readSettingsFile(t, a.settingsPath); saved["language"] != "日本語" {
@@ -245,9 +245,9 @@ func TestOnboardingLinkIsEnqueued(t *testing.T) {
 	}
 }
 
-// TestOnboardingRefusesWhatIsNotAVideo checks that a link that is not a video, or names a whole channel, cannot be added: the hint says why, the button stays off and Return does nothing.
+// TestOnboardingRefusesWhatIsNotAVideo checks that a link that is not a video, or a site's page that lists videos without being a playlist, cannot be added: the hint says why, the button stays off and Return does nothing.
 func TestOnboardingRefusesWhatIsNotAVideo(t *testing.T) {
-	for _, link := range []string{"not a link", "https://www.youtube.com/@SomeChannel"} {
+	for _, link := range []string{"not a link", "https://www.youtube.com/"} {
 		t.Run(link, func(t *testing.T) {
 			a, tt, _, _ := newFirstRunApp(t, &fakePipeline{})
 			a.onb.step = 3
@@ -262,6 +262,36 @@ func TestOnboardingRefusesWhatIsNotAVideo(t *testing.T) {
 			}
 			if hint, ok := onboarding.LinkHint(a.cx, link); ok || textCount(tt, hint) == 0 {
 				t.Fatalf("hint %q ok %v, texts %q", hint, ok, tt.Texts())
+			}
+		})
+	}
+}
+
+// TestOnboardingListsAPlaylist checks that a playlist or a channel, the first link many paste, is taken by the guide: its button closes the guide onto the dialog that lists the videos, as the library's link field does, and queues nothing until the dialog is told to.
+func TestOnboardingListsAPlaylist(t *testing.T) {
+	msgs := testlocale.Messages()
+	for _, tc := range []struct{ link, hint string }{
+		{testPlaylist, msgs.OnboardingLinkList("YouTube")},
+		{testChannel, msgs.OnboardingLinkChannel("YouTube")},
+	} {
+		t.Run(tc.link, func(t *testing.T) {
+			p := newListingPipeline(map[string]media.Listing{testPlaylist: testListing, testChannel: {Title: "Veritasium", Videos: testListing.Videos}})
+			a, tt, updates, _ := newFirstRunApp(t, p)
+			a.onb.step = 3
+			*a.OnboardingLink() = tc.link
+			refresh(tt, a)
+			if !hasText(tt, tc.hint) || tt.Find(msgs.OnboardingAddAndStart()).Props.Disabled {
+				t.Fatalf("hint or button for %s: %q", tc.link, tt.Texts())
+			}
+			tt.Press(msgs.OnboardingAddAndStart())
+			if a.OnboardingStep() != 0 || !a.playlist.open || len(a.library.Jobs) != 0 {
+				t.Fatalf("step %d, dialog open %v, jobs %d", a.OnboardingStep(), a.playlist.open, len(a.library.Jobs))
+			}
+			<-p.calls
+			waitUntil(t, tt, a, updates, func() bool { return !a.playlist.loading })
+			tt.Press("id:playlist-add")
+			if got := playlistJobSources(a); len(got) != 3 {
+				t.Fatalf("jobs %q", got)
 			}
 		})
 	}

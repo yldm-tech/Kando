@@ -245,7 +245,7 @@ func (a *app) reopenOnboarding() {
 	a.openOnboarding()
 }
 
-// onboardingFinish is the last step's primary button: with a link it opens the library and adds the link to its queue through Enqueue, without one it only closes the guide. A link the queue does not take keeps the guide open, saying why.
+// onboardingFinish is the last step's primary button: with a link it opens the library and adds the link to its queue through Enqueue, without one it only closes the guide. A playlist or a channel closes the guide onto the dialog that lists its videos (libraryEnqueue), as the library's link field does. A link the queue does not take keeps the guide open, saying why.
 func (a *app) onboardingFinish() {
 	raw := strings.TrimSpace(a.onb.link)
 	if raw == "" {
@@ -257,6 +257,16 @@ func (a *app) onboardingFinish() {
 	}
 	link, _ := core.ParseLink(raw)
 	a.onboardingLibrary()
+	if _, lists := a.playlistSplit([]string{link.URL}); len(lists) > 0 {
+		if msg, _ := a.precheckReady(); msg != "" {
+			a.onb.linkErr, a.onb.errLink = msg, a.onb.link
+			return
+		}
+		a.onb.link, a.onb.linkErr = "", ""
+		a.closeOnboarding()
+		a.libraryEnqueue(link.URL)
+		return
+	}
 	if msg, _ := a.precheck([]string{link.URL}); msg != "" {
 		a.onb.linkErr, a.onb.errLink = msg, a.onb.link
 		return

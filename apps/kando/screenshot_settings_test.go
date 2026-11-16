@@ -38,7 +38,7 @@ func TestScreenshotsSettings(t *testing.T) {
 		tools.EveryAPI = ""
 		a.syncLLM(tools.UseEveryAPICLI())
 	})
-	// The everyapi program is there but nobody signed in to it, as the sidebar's check found: the row says what to run in Terminal.
+	// The everyapi program is there but nobody signed in to it, as the sidebar's check found: the row says what to run in a terminal.
 	shootSettings(t, f, settings.SectionAI, "settings-ai-everyapi-signed-out", shown, models, turbo, func(a *app) {
 		a.side.ready.signInDone, a.side.ready.signInErr = true, media.ErrEveryAPISignedOut
 	})

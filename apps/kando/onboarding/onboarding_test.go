@@ -374,8 +374,8 @@ func TestLinkFieldSaysWhatALinkIs(t *testing.T) {
 	a.step = 3
 	app := start(t, a, core.OSMacOS)
 	msgs := testlocale.Messages()
-	app.Type("id:onboarding-link", "https://www.youtube.com/@SomeChannel")
-	if a.link != "https://www.youtube.com/@SomeChannel" {
+	app.Type("id:onboarding-link", "https://www.youtube.com/")
+	if a.link != "https://www.youtube.com/" {
 		t.Fatalf("link %q after typing", a.link)
 	}
 	hint := app.Find("id:onboarding-link-hint")
@@ -384,11 +384,20 @@ func TestLinkFieldSaysWhatALinkIs(t *testing.T) {
 	}
 	next := app.Find("id:onboarding-next")
 	if !next.Props.Disabled || next.Props.Label != msgs.OnboardingAddAndStart() {
-		t.Fatalf("primary button %q disabled %v for a channel", next.Props.Label, next.Props.Disabled)
+		t.Fatalf("primary button %q disabled %v for a site's home page", next.Props.Label, next.Props.Disabled)
 	}
 	app.Submit("id:onboarding-link")
 	if len(a.calls) != 0 {
-		t.Fatalf("Return added a channel: %q", a.calls)
+		t.Fatalf("Return added a site's home page: %q", a.calls)
+	}
+	// A channel is taken: the guide's button lists its videos, as the library's link field does.
+	app.Clear("id:onboarding-link")
+	app.Type("id:onboarding-link", "https://www.youtube.com/@SomeChannel")
+	if hint := app.Find("id:onboarding-link-hint"); hint.Text != msgs.OnboardingLinkChannel("YouTube") || hint.TextStyle.Color != lightSuccessInk {
+		t.Fatalf("hint %q in %v for a channel", hint.Text, hint.TextStyle.Color)
+	}
+	if app.Find("id:onboarding-next").Props.Disabled {
+		t.Fatal("primary button disabled for a channel")
 	}
 	app.Clear("id:onboarding-link")
 	app.Type("id:onboarding-link", "https://youtu.be/k9Yt2LmQ0pX")

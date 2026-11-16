@@ -21,7 +21,7 @@ func TestAppRegistersTheBundleLanguages(t *testing.T) {
 	}
 }
 
-// TestTargetLanguagesAreNamedEverywhere checks that every target language the settings offer is named by the settings, the player and the library alike in every interface language, has a short tag of its own for a poster's badge, and is known to the first-run guide as the language it is written in, so a language added to settings.LanguageChoices is not shown as its stored value in one place and named in another.
+// TestTargetLanguagesAreNamedEverywhere checks that every target language the settings offer is named by the settings, the player and the library alike in every interface language, has a short tag of its own for a poster's badge, and is known to the first-run guide as the language it is written in, so a language added to settings.LanguageChoices is not shown as its stored value in one place and named in another, and that it is named as the spoken-language settings name it.
 func TestTargetLanguagesAreNamedEverywhere(t *testing.T) {
 	tags := map[string]string{}
 	codes := map[string]string{}
@@ -46,6 +46,15 @@ func TestTargetLanguagesAreNamedEverywhere(t *testing.T) {
 		}
 		tags[short] = value
 		code := onboarding.LanguageCode(value)
+		// The target and the spoken-language drop-downs name a language alike, so typing its name in either search finds it; Chinese, which the speech settings name once, is named by its script here.
+		if code != "" && code != "zh" {
+			for _, tag := range locales.Interface {
+				m := locales.In(tag)
+				if target, spoken := subtitle.TargetLanguageNameIn(m, value), subtitle.SpokenLanguageNameIn(m, code); target != spoken {
+					t.Errorf("%s: the target language %q is named %q, the spoken one %q", tag, value, target, spoken)
+				}
+			}
+		}
 		if code == "" {
 			t.Errorf("the guide does not know what language %q is", value)
 		} else if other, ok := codes[code]; ok && !(code == "zh" && strings.Contains(other+value, "中文")) {
