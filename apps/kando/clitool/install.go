@@ -57,10 +57,10 @@ func (s Status) MCPCommand() string {
 	return s.Exe
 }
 
-// EnvHere is this computer: the running executable, a terminal's PATH as far as the app can know it, and /usr/local/bin, /opt/homebrew/bin on macOS and ~/.local/bin to install in. It reads /etc/paths, so it runs off the UI thread.
+// EnvHere is this computer: the running executable, or the AppImage it runs from (cliToolAppExe), a terminal's PATH as far as the app can know it, and /usr/local/bin, /opt/homebrew/bin on macOS and ~/.local/bin to install in. It reads /etc/paths, so it runs off the UI thread.
 func EnvHere() Env {
 	exe, _ := os.Executable()
-	env := Env{Exe: exe, Searched: cliToolTerminalPath()}
+	env := Env{Exe: cliToolAppExe(runtime.GOOS, exe, os.Getenv("APPIMAGE")), Searched: cliToolTerminalPath()}
 	if runtime.GOOS == "windows" {
 		return env
 	}
@@ -73,6 +73,17 @@ func EnvHere() Env {
 		env.InstallTo = append(env.InstallTo, env.Own)
 	}
 	return env
+}
+
+// cliToolAppExe is the file the command and MCP clients run Kando by: on Linux, the AppImage Kando was started from, which its runtime names in $APPIMAGE (appImage) and which passes the command's arguments on to Kando, as exe, the executable inside it, is in the AppImage's mount under /tmp, which goes when Kando quits; otherwise exe.
+func cliToolAppExe(goos, exe, appImage string) string {
+	if goos != "linux" || !filepath.IsAbs(appImage) {
+		return exe
+	}
+	if info, err := os.Stat(appImage); err != nil || !info.Mode().IsRegular() {
+		return exe
+	}
+	return appImage
 }
 
 // cliToolTerminalPath is where a terminal looks for commands. An app opened from Finder or a desktop launcher has a shorter PATH than a terminal, so on macOS it adds what path_helper gives every login shell, /etc/paths and the files of /etc/paths.d, and Homebrew's /opt/homebrew/bin, which its installer puts on the shell's PATH. Folders a user adds in a shell's startup file are known only when the app was started from that shell.
@@ -197,7 +208,7 @@ func (e *BlockedError) Error() string {
 	return strings.Join(e.Paths, ", ") + " belongs to another program"
 }
 
-// cliToolIsKando reports whether link, a symbolic link to target as os.Readlink gives it, runs a Kando that Install may replace with a link to exe: this app itself, a copy inside a Kando.app bundle (Contents/MacOS), an app MyGo's Linux packages install (/opt/kando/kando from the .deb and the PKGBUILD, ~/.local/kando.app/kando from the install script, where local is the folder above own, ~/.local/bin), or a link to nothing that named a Kando.app, as one to an app since deleted from the Trash. A kando of another program, even a link to a file named kando, as a package manager's (npm's ../lib/node_modules/x/bin/kando, Homebrew's ../Cellar/kando/1.0/bin/kando), is not, so it stays.
+// cliToolIsKando reports whether link, a symbolic link to target as os.Readlink gives it, runs a Kando that Install may replace with a link to exe: this app itself, a copy inside a Kando.app bundle (Contents/MacOS), an app MyGo's Linux packages install (/opt/kando/kando from the .deb and the PKGBUILD, ~/.local/kando.app/kando from the install script, where local is the folder above own, ~/.local/bin), or a link to nothing that named a Kando.app, as one to an app since deleted from the Trash, or the kando in an AppImage's mount (cliToolInAppImageMount), which an earlier Kando started from its AppImage linked to. A kando of another program, even a link to a file named kando, as a package manager's (npm's ../lib/node_modules/x/bin/kando, Homebrew's ../Cellar/kando/1.0/bin/kando), is not, so it stays.
 func cliToolIsKando(link, target, exe, own string) bool {
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(filepath.Dir(link), target)
@@ -210,7 +221,7 @@ func cliToolIsKando(link, target, exe, own string) bool {
 	resolved, err := filepath.EvalSymlinks(link)
 	if err != nil {
 		// A dangling link: what it named is gone, so only its path says whose it was.
-		return errors.Is(err, fs.ErrNotExist) && (strings.Contains(target, "Kando.app") || slices.Contains(known, target))
+		return errors.Is(err, fs.ErrNotExist) && (strings.Contains(target, "Kando.app") || slices.Contains(known, target) || cliToolInAppImageMount(target))
 	}
 	if cliToolRuns(resolved, exe) {
 		return true
@@ -221,6 +232,11 @@ func cliToolIsKando(link, target, exe, own string) bool {
 		}
 	}
 	return false
+}
+
+// cliToolInAppImageMount reports whether path is the kando at the top of an AppImage's mount, a folder named .mount_ and the start of the AppImage's name, as the AppImage runtime mounts Kando's.
+func cliToolInAppImageMount(path string) bool {
+	return filepath.Base(path) == cliToolName && strings.HasPrefix(filepath.Base(filepath.Dir(path)), ".mount_")
 }
 
 // Install links kando to exe in the first folder of env.InstallTo that takes it, and returns the link. A folder takes it when it is writable and has no kando, or a kando that is a link to a Kando executable (cliToolIsKando), which it replaces; it never overwrites a file or a link to another program (BlockedError), and never asks for administrator rights. It makes env.Own when it is missing. It refuses an exe in a place that goes away (ErrTemporary), as the link would soon lead nowhere.
