@@ -68,6 +68,13 @@ func (a *app) LibraryCount(dir string) (int, bool) {
 
 func (a *app) Readiness() sidebar.Readiness { return a.readiness() }
 
+// PaletteButton is set where the app has no menu bar of its own (appMenuBar), so the status card's button is the way to the palette there.
+func (a *app) PaletteButton() bool { return !appMenuBar }
+
+func (a *app) PaletteKey() string { return paletteKey }
+
+func (a *app) TogglePalette() { a.togglePalette() }
+
 // sidebarLibraryChanged runs after the open library changed (libraryChanged in sidebarHooks): the sidebar shows all of the new library's films, with no search, and the switcher's counts are read again, the library just left among them.
 func (a *app) sidebarLibraryChanged() {
 	a.side.filter = sidebar.SourceAll

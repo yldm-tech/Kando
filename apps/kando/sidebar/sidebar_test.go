@@ -33,6 +33,8 @@ type fakeApp struct {
 	ready     Readiness
 	saveErr   string
 	calls     []string
+	// paletteButton is PaletteButton: whether the status card has the palette's button.
+	paletteButton bool
 }
 
 func newFakeApp() *fakeApp {
@@ -63,6 +65,9 @@ func (f *fakeApp) SourceCount(s string) int { return f.bySource[s] }
 func (f *fakeApp) Query() *string           { return &f.query }
 func (f *fakeApp) QueryFocus() *bool        { return &f.focus }
 func (f *fakeApp) Readiness() Readiness     { return f.ready }
+func (f *fakeApp) PaletteButton() bool      { return f.paletteButton }
+func (f *fakeApp) PaletteKey() string       { return "mod+k" }
+func (f *fakeApp) TogglePalette()           { f.calls = append(f.calls, "palette") }
 func (f *fakeApp) OpenSettings(section string) {
 	f.calls = append(f.calls, "settings "+section)
 }
@@ -287,5 +292,22 @@ func TestTitleIsTheFolderWithoutItsExtension(t *testing.T) {
 		if got := Title(dir); got != want {
 			t.Errorf("Title(%q) = %q, want %q", dir, got, want)
 		}
+	}
+}
+
+// TestStatusCardOpensThePalette checks that the status card carries the palette's button only while PaletteButton holds, named for what it opens, and that it opens the palette.
+func TestStatusCardOpensThePalette(t *testing.T) {
+	a := newFakeApp()
+	if app := start(t, a); app.Exists("id:sidebar-palette") {
+		t.Fatal("the palette's button shows without PaletteButton")
+	}
+	a.paletteButton = true
+	app := start(t, a)
+	if got := app.Find("id:sidebar-palette").Props.Label; got != testlocale.Messages().SidebarCommands() {
+		t.Fatalf("the button is named %q", got)
+	}
+	app.Press("id:sidebar-palette")
+	if !slices.Equal(a.calls, []string{"palette"}) {
+		t.Fatalf("the button called %q", a.calls)
 	}
 }

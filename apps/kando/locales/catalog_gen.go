@@ -521,6 +521,7 @@ var Parameters = map[string][]string{
 	"OnboardingToolProgress":             {"percent"},
 	"PaletteAnswerNote":                  {"at", "model"},
 	"PaletteAskFailed":                   {"error_"},
+	"PaletteAskRow":                      {"question"},
 	"PaletteAsking":                      {"model"},
 	"PaletteJumpTo":                      {"time_"},
 	"PaletteLibrarySaveFailed":           {"error_"},
@@ -610,6 +611,7 @@ var Parameters = map[string][]string{
 	"SettingsSpeechTrashFailed":          {"model"},
 	"SettingsSpeechTrashInUse":           {"model"},
 	"SettingsSpeechTrashMessage":         {"size"},
+	"SidebarCommandsTooltip":             {"shortcut"},
 	"SidebarLibraryCount":                {"name", "count"},
 	"SidebarMenuShowInFinder":            {"platform"},
 	"SidebarRevealLibrary":               {"name", "platform"},
@@ -723,6 +725,7 @@ type Translation struct {
 	OnboardingToolProgress             func(percent int) string
 	PaletteAnswerNote                  func(at string, model string) string
 	PaletteAskFailed                   func(error_ string) string
+	PaletteAskRow                      func(question string) string
 	PaletteAsking                      func(model string) string
 	PaletteJumpTo                      func(time_ string) string
 	PaletteLibrarySaveFailed           func(error_ string) string
@@ -812,6 +815,7 @@ type Translation struct {
 	SettingsSpeechTrashFailed          func(model string) string
 	SettingsSpeechTrashInUse           func(model string) string
 	SettingsSpeechTrashMessage         func(size string) string
+	SidebarCommandsTooltip             func(shortcut string) string
 	SidebarLibraryCount                func(name string, count int) string
 	SidebarMenuShowInFinder            func(platform string) string
 	SidebarRevealLibrary               func(name string, platform string) string
@@ -1233,7 +1237,6 @@ const (
 	textOnboardingWelcomeDescription
 	textPaletteFieldLabel
 	textPaletteFooter
-	textPaletteFooterFilm
 	textPaletteHeadingAnswer
 	textPaletteHeadingCommands
 	textPaletteHeadingLines
@@ -1243,7 +1246,6 @@ const (
 	textPaletteNoSubtitles
 	textPaletteNotWatched
 	textPaletteNothingFound
-	textPaletteNothingFoundAsk
 	textPalettePlaceholder
 	textPalettePlaceholderFilm
 	textPlayerKeepAwake
@@ -1541,6 +1543,7 @@ const (
 	textSettingsWindowTitle
 	textSidebarBrowse
 	textSidebarChooseLibrary
+	textSidebarCommands
 	textSidebarLibrary
 	textSidebarMenuForget
 	textSidebarMenuNewLibrary
@@ -1995,7 +1998,6 @@ var keyOfText = [numTexts]string{
 	"onboardingWelcomeDescription",
 	"paletteFieldLabel",
 	"paletteFooter",
-	"paletteFooterFilm",
 	"paletteHeadingAnswer",
 	"paletteHeadingCommands",
 	"paletteHeadingLines",
@@ -2005,7 +2007,6 @@ var keyOfText = [numTexts]string{
 	"paletteNoSubtitles",
 	"paletteNotWatched",
 	"paletteNothingFound",
-	"paletteNothingFoundAsk",
 	"palettePlaceholder",
 	"palettePlaceholderFilm",
 	"playerKeepAwake",
@@ -2303,6 +2304,7 @@ var keyOfText = [numTexts]string{
 	"settingsWindowTitle",
 	"sidebarBrowse",
 	"sidebarChooseLibrary",
+	"sidebarCommands",
 	"sidebarLibrary",
 	"sidebarMenuForget",
 	"sidebarMenuNewLibrary",
@@ -2755,7 +2757,6 @@ var textsEn = i18n.NewTexts(""+
 	"Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."+
 	"Commands, lines or questions"+
 	"Type to search commands and watched lines · ↑↓ to select · Return to run"+
-	"Typing only searches commands and lines · Return asks · ↑↓ to select"+
 	"Answer"+
 	"Commands"+
 	"Lines"+
@@ -2765,7 +2766,6 @@ var textsEn = i18n.NewTexts(""+
 	"This film has no subtitles yet, so it can't be answered."+
 	"You haven't started watching this film. Play some of it first, then ask."+
 	"No commands or watched lines found."+
-	"No commands or watched lines found. Press Return to ask this film."+
 	"Commands or watched lines…"+
 	"Commands, lines, or ask this film…"+
 	"Playing a video"+
@@ -3063,6 +3063,7 @@ var textsEn = i18n.NewTexts(""+
 	"Settings"+
 	"Browse"+
 	"Choose a Library"+
+	"Commands"+
 	"Library"+
 	"Remove from List"+
 	"New Library…"+
@@ -3512,7 +3513,6 @@ var textsEn = i18n.NewTexts(""+
 		113,
 		28,
 		78,
-		74,
 		6,
 		8,
 		5,
@@ -3522,7 +3522,6 @@ var textsEn = i18n.NewTexts(""+
 		56,
 		72,
 		35,
-		66,
 		28,
 		36,
 		15,
@@ -3820,6 +3819,7 @@ var textsEn = i18n.NewTexts(""+
 		8,
 		6,
 		16,
+		8,
 		7,
 		16,
 		14,
@@ -4272,7 +4272,6 @@ var textsJa = i18n.NewTexts(""+
 	"YouTube や bilibili のリンクを貼り付けるか、ローカル動画をドラッグすれば、観ながら学べます。まず言語を選びましょう。"+
 	"コマンド、セリフ、または質問"+
 	"入力するとコマンドと見たセリフを検索 · ↑↓ で選択 · Return で実行"+
-	"入力中はコマンドとセリフだけを検索 · Return で質問 · ↑↓ で選択"+
 	"回答"+
 	"コマンド"+
 	"セリフ"+
@@ -4282,7 +4281,6 @@ var textsJa = i18n.NewTexts(""+
 	"この動画にはまだ字幕がないため、答えられません。"+
 	"この動画はまだ見始めていません。少し再生してから質問してください。"+
 	"コマンドも見たセリフも見つかりません。"+
-	"コマンドも見たセリフも見つかりません。Return キーを押すと、この動画に質問します。"+
 	"コマンドまたは見たセリフ…"+
 	"コマンド、セリフ、またはこの動画に質問…"+
 	"動画を再生中"+
@@ -4580,6 +4578,7 @@ var textsJa = i18n.NewTexts(""+
 	"設定"+
 	"ブラウザ"+
 	"ライブラリを選択"+
+	"コマンド"+
 	"ライブラリ"+
 	"リストから取り除く"+
 	"新規ライブラリ…"+
@@ -5029,7 +5028,6 @@ var textsJa = i18n.NewTexts(""+
 		165,
 		42,
 		94,
-		91,
 		6,
 		12,
 		9,
@@ -5039,7 +5037,6 @@ var textsJa = i18n.NewTexts(""+
 		72,
 		99,
 		57,
-		118,
 		39,
 		60,
 		18,
@@ -5337,6 +5334,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		12,
 		24,
+		12,
 		15,
 		27,
 		24,
@@ -5789,7 +5787,6 @@ var textsKo = i18n.NewTexts(""+
 	"YouTube, Bilibili 링크를 붙여 넣거나 로컬 동영상을 끌어다 놓으면 보면서 배울 수 있습니다. 먼저 언어를 선택하세요."+
 	"명령, 대사 또는 질문"+
 	"입력하면 명령과 본 대사 검색 · ↑↓ 선택 · Return 실행"+
-	"입력 중에는 명령과 대사만 검색 · Return으로 질문 · ↑↓ 선택"+
 	"답변"+
 	"명령"+
 	"대사"+
@@ -5799,7 +5796,6 @@ var textsKo = i18n.NewTexts(""+
 	"이 영상에는 아직 자막이 없어 답할 수 없습니다."+
 	"이 영상은 아직 보기 시작하지 않았습니다. 조금 재생한 다음 질문하십시오."+
 	"명령이나 본 대사를 찾지 못했습니다."+
-	"명령이나 본 대사를 찾지 못했습니다. Return 키를 누르면 이 영상에 질문합니다."+
 	"명령 또는 본 대사…"+
 	"명령, 대사 또는 이 영상에 질문…"+
 	"동영상 재생 중"+
@@ -6097,6 +6093,7 @@ var textsKo = i18n.NewTexts(""+
 	"설정"+
 	"브라우저"+
 	"라이브러리 선택"+
+	"명령"+
 	"라이브러리"+
 	"목록에서 제거"+
 	"새 라이브러리…"+
@@ -6546,7 +6543,6 @@ var textsKo = i18n.NewTexts(""+
 		153,
 		28,
 		74,
-		83,
 		6,
 		6,
 		6,
@@ -6556,7 +6552,6 @@ var textsKo = i18n.NewTexts(""+
 		65,
 		101,
 		50,
-		105,
 		27,
 		45,
 		20,
@@ -6854,6 +6849,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		12,
 		22,
+		6,
 		15,
 		19,
 		22,
@@ -7306,7 +7302,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"+
 	"命令、台词或问题"+
 	"打字时搜命令和看过的台词 · ↑↓ 选择 · Return 执行"+
-	"打字时只搜命令和台词 · Return 才提问 · ↑↓ 选择"+
 	"回答"+
 	"命令"+
 	"台词"+
@@ -7316,7 +7311,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"这部影片还没有字幕，没法回答。"+
 	"这部影片还没开始看。先播放一段，再来问。"+
 	"没有找到命令或看过的台词。"+
-	"没有找到命令或看过的台词。按 Return 问这部影片。"+
 	"命令或看过的台词…"+
 	"命令、台词，或直接问这部影片…"+
 	"正在播放视频"+
@@ -7614,6 +7608,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"设置"+
 	"浏览"+
 	"选择资料库"+
+	"命令"+
 	"资料库"+
 	"从列表移出"+
 	"新建资料库..."+
@@ -8063,7 +8058,6 @@ var textsZhHans = i18n.NewTexts(""+
 		98,
 		24,
 		70,
-		67,
 		6,
 		6,
 		6,
@@ -8073,7 +8067,6 @@ var textsZhHans = i18n.NewTexts(""+
 		45,
 		60,
 		39,
-		68,
 		27,
 		45,
 		18,
@@ -8371,6 +8364,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		6,
 		15,
+		6,
 		9,
 		15,
 		18,
@@ -8823,7 +8817,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"貼上 YouTube、嗶哩嗶哩連結或拖入本機影片，就能邊看邊學。先選好語言。"+
 	"指令、台詞或問題"+
 	"輸入時搜尋指令和看過的台詞 · ↑↓ 選擇 · Return 執行"+
-	"輸入時只搜尋指令和台詞 · Return 才提問 · ↑↓ 選擇"+
 	"回答"+
 	"指令"+
 	"台詞"+
@@ -8833,7 +8826,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"這部影片還沒有字幕，無法回答。"+
 	"這部影片還沒開始看。先播放一段，再來問。"+
 	"沒有找到指令或看過的台詞。"+
-	"沒有找到指令或看過的台詞。按 Return 問這部影片。"+
 	"指令或看過的台詞…"+
 	"指令、台詞，或直接問這部影片…"+
 	"正在播放影片"+
@@ -9131,6 +9123,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"設定"+
 	"瀏覽"+
 	"選擇資料庫"+
+	"指令"+
 	"資料庫"+
 	"從清單中移除"+
 	"新增資料庫…"+
@@ -9580,7 +9573,6 @@ var textsZhHant = i18n.NewTexts(""+
 		98,
 		24,
 		73,
-		70,
 		6,
 		6,
 		6,
@@ -9590,7 +9582,6 @@ var textsZhHant = i18n.NewTexts(""+
 		45,
 		60,
 		39,
-		68,
 		27,
 		45,
 		18,
@@ -9888,6 +9879,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		6,
 		15,
+		6,
 		9,
 		18,
 		18,
@@ -10280,6 +10272,9 @@ func Supply(lang string, t Translation) {
 	if t.PaletteAskFailed != nil {
 		s.PaletteAskFailed = t.PaletteAskFailed
 	}
+	if t.PaletteAskRow != nil {
+		s.PaletteAskRow = t.PaletteAskRow
+	}
 	if t.PaletteAsking != nil {
 		s.PaletteAsking = t.PaletteAsking
 	}
@@ -10546,6 +10541,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsSpeechTrashMessage != nil {
 		s.SettingsSpeechTrashMessage = t.SettingsSpeechTrashMessage
+	}
+	if t.SidebarCommandsTooltip != nil {
+		s.SidebarCommandsTooltip = t.SidebarCommandsTooltip
 	}
 	if t.SidebarLibraryCount != nil {
 		s.SidebarLibraryCount = t.SidebarLibraryCount
@@ -17673,6 +17671,36 @@ func (msgs Messages) PaletteAskFailed(error_ string) string {
 	}
 }
 
+// PaletteAskRow says "Ask this film: “{question}”"
+// in the language the app shows under cx.
+//
+// First row of the command palette in the player once something is typed: Return or a click asks the AI service the typed question about the open film.
+func PaletteAskRow(cx *core.Scope, question string) string { return For(cx).PaletteAskRow(question) }
+
+// PaletteAskRow is the package's PaletteAskRow in the language of msgs.
+func (msgs Messages) PaletteAskRow(question string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteAskRow(question))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PaletteAskRow; f != nil {
+			return f(question)
+		}
+		switch lang {
+		case "", "en":
+			return "Ask this film: “" + msgs.arg(question) + "”"
+		case "ja":
+			return "この動画に質問：「" + question + "」"
+		case "ko":
+			return "이 영상에 질문: “" + question + "”"
+		case "zh-Hans":
+			return "问这部影片：“" + question + "”"
+		case "zh-Hant":
+			return "問這部影片：「" + question + "」"
+		}
+	}
+}
+
 // PaletteAsking says "Asking {model}…"
 // in the language the app shows under cx.
 //
@@ -17715,20 +17743,11 @@ func (msgs Messages) PaletteFieldLabel() string { return msgs.text(textPaletteFi
 // PaletteFooter says "Type to search commands and watched lines · ↑↓ to select · Return to run"
 // in the language the app shows under cx.
 //
-// Footer of the command palette over the library: what typing, the arrow keys and Return do.
+// Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do.
 func PaletteFooter(cx *core.Scope) string { return For(cx).PaletteFooter() }
 
 // PaletteFooter is the package's PaletteFooter in the language of msgs.
 func (msgs Messages) PaletteFooter() string { return msgs.text(textPaletteFooter) }
-
-// PaletteFooterFilm says "Typing only searches commands and lines · Return asks · ↑↓ to select"
-// in the language the app shows under cx.
-//
-// Footer of the command palette in the player: typing only searches, Return asks the question.
-func PaletteFooterFilm(cx *core.Scope) string { return For(cx).PaletteFooterFilm() }
-
-// PaletteFooterFilm is the package's PaletteFooterFilm in the language of msgs.
-func (msgs Messages) PaletteFooterFilm() string { return msgs.text(textPaletteFooterFilm) }
 
 // PaletteHeadingAnswer says "Answer"
 // in the language the app shows under cx.
@@ -17872,15 +17891,6 @@ func PaletteNothingFound(cx *core.Scope) string { return For(cx).PaletteNothingF
 
 // PaletteNothingFound is the package's PaletteNothingFound in the language of msgs.
 func (msgs Messages) PaletteNothingFound() string { return msgs.text(textPaletteNothingFound) }
-
-// PaletteNothingFoundAsk says "No commands or watched lines found. Press Return to ask this film."
-// in the language the app shows under cx.
-//
-// Note when the palette's query found nothing in the player, where Return asks the query of the film.
-func PaletteNothingFoundAsk(cx *core.Scope) string { return For(cx).PaletteNothingFoundAsk() }
-
-// PaletteNothingFoundAsk is the package's PaletteNothingFoundAsk in the language of msgs.
-func (msgs Messages) PaletteNothingFoundAsk() string { return msgs.text(textPaletteNothingFoundAsk) }
 
 // PalettePlaceholder says "Commands or watched lines…"
 // in the language the app shows under cx.
@@ -23620,6 +23630,47 @@ func SidebarChooseLibrary(cx *core.Scope) string { return For(cx).SidebarChooseL
 
 // SidebarChooseLibrary is the package's SidebarChooseLibrary in the language of msgs.
 func (msgs Messages) SidebarChooseLibrary() string { return msgs.text(textSidebarChooseLibrary) }
+
+// SidebarCommands says "Commands"
+// in the language the app shows under cx.
+//
+// Accessible name of the button on the sidebar's status card that opens the command palette, on Windows and Linux, which have no app menu bar.
+func SidebarCommands(cx *core.Scope) string { return For(cx).SidebarCommands() }
+
+// SidebarCommands is the package's SidebarCommands in the language of msgs.
+func (msgs Messages) SidebarCommands() string { return msgs.text(textSidebarCommands) }
+
+// SidebarCommandsTooltip says "Commands ({shortcut})"
+// in the language the app shows under cx.
+//
+// Tooltip of the button on the sidebar's status card that opens the command palette, with its shortcut as the system writes it.
+func SidebarCommandsTooltip(cx *core.Scope, shortcut string) string {
+	return For(cx).SidebarCommandsTooltip(shortcut)
+}
+
+// SidebarCommandsTooltip is the package's SidebarCommandsTooltip in the language of msgs.
+func (msgs Messages) SidebarCommandsTooltip(shortcut string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SidebarCommandsTooltip(shortcut))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SidebarCommandsTooltip; f != nil {
+			return f(shortcut)
+		}
+		switch lang {
+		case "", "en":
+			return "Commands (" + msgs.arg(shortcut) + ")"
+		case "ja":
+			return "コマンド（" + shortcut + "）"
+		case "ko":
+			return "명령(" + shortcut + ")"
+		case "zh-Hans":
+			return "命令（" + shortcut + "）"
+		case "zh-Hant":
+			return "指令（" + shortcut + "）"
+		}
+	}
+}
 
 // SidebarLibrary says "Library"
 // in the language the app shows under cx.

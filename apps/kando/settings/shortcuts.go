@@ -2,8 +2,8 @@ package settings
 
 import (
 	"slices"
-	"strings"
 
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings/form"
@@ -61,7 +61,7 @@ func shortcutGroups(cx *core.Scope, rows []Shortcut) core.Node {
 			lines = append(lines, core.View{Style: core.Style{Direction: core.Row, FlexShrink: 0, MinHeight: core.Pt(36), Padding: core.Symmetric(4, 14), Gap: 10, AlignItems: core.AlignCenter},
 				Children: []core.Node{
 					core.Text{Content: row.Label, Style: core.Style{FontSize: 13, Color: form.Text, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}},
-					keycap(cx.KeyLabel(row.Key)),
+					keycap(hotkey.Label(cx, row.Key)),
 				}})
 		}
 		nodes = append(nodes, form.Label(group, 8), form.Card(lines...))
@@ -76,11 +76,8 @@ func keycap(keys string) core.Node {
 		Children: []core.Node{core.Text{Content: keys, MaxLines: 1, Style: core.Style{FontSize: 12, Color: form.Text}}}}
 }
 
-// shortcutMatches reports whether the search query finds row by what it does, its group or its keys as the platform writes them, ignoring case.
+// shortcutMatches reports whether the search query finds row, as the command palette finds a command (hotkey.Match): every word of it in what the row does, its group or its keys as the page writes them, ignoring case.
 func shortcutMatches(cx *core.Scope, row Shortcut, query string) bool {
-	q := strings.ToLower(strings.TrimSpace(query))
-	if q == "" {
-		return true
-	}
-	return strings.Contains(strings.ToLower(row.Group+" "+row.Label+" "+cx.KeyLabel(row.Key)), q)
+	_, ok := hotkey.Match(query, row.Label, row.Group, hotkey.Label(cx, row.Key))
+	return ok
 }

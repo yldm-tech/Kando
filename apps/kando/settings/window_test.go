@@ -169,7 +169,7 @@ func (f *fakeApp) YieldSubs() bool                 { return f.yield }
 func (f *fakeApp) SetYieldSubs(on bool)            { f.yield = on }
 func (f *fakeApp) ShortcutQuery() *string          { return &f.shortcutQuery }
 func (f *fakeApp) Shortcuts(cx *core.Scope) []Shortcut {
-	return []Shortcut{{Group: "看懂", Label: "设置…", Key: "mod+,"}, {Group: "显示", Label: "全屏", Key: "f"}}
+	return []Shortcut{{Group: "看懂", Label: "设置…", Key: "mod+,"}, {Group: "显示", Label: "全屏", Key: "f"}, {Group: "显示", Label: "返回资料库", Key: "escape"}}
 }
 
 // start shows the settings window of a, 880 by 640 as it opens, on a Mac, in testlocale's language. account stands for the 账号与上传 page.
@@ -519,5 +519,24 @@ func TestShortcutsPage(t *testing.T) {
 	app.Type("id:settings-shortcut-search", "没有")
 	if !app.Exists(whole(testlocale.Messages().SettingsShortcutsNone())) {
 		t.Fatalf("texts %q", app.Texts())
+	}
+}
+
+// TestShortcutsPageWritesKeysAsThePaletteDoes checks that Escape reads Esc on the page, as on the cheat sheet and in the palette, not macOS's ⎋, that the search finds a row by its key as written there, and that a query of several words finds the rows that hold every one of them in their label, group or key.
+func TestShortcutsPageWritesKeysAsThePaletteDoes(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionShortcuts
+	app := start(t, a)
+	if !app.Exists(whole("Esc")) || app.Exists(whole("⎋")) {
+		t.Fatalf("Escape is not written Esc: %q", app.Texts())
+	}
+	app.Type("id:settings-shortcut-search", "esc")
+	if !app.Exists(whole("返回资料库")) || app.Exists(whole("全屏")) || app.Exists(whole("设置…")) {
+		t.Fatalf("esc: texts %q", app.Texts())
+	}
+	app.Clear("id:settings-shortcut-search")
+	app.Type("id:settings-shortcut-search", "显示 f")
+	if !app.Exists(whole("全屏")) || app.Exists(whole("返回资料库")) || app.Exists(whole("设置…")) {
+		t.Fatalf("显示 f: texts %q", app.Texts())
 	}
 }

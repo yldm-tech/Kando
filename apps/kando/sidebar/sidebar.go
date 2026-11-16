@@ -71,6 +71,10 @@ type App interface {
 	OpenSettings(section string)
 	// Readiness is what the status line at the foot of the sidebar says.
 	Readiness() Readiness
+	// PaletteButton reports whether the status card carries a button that opens the command palette: where the app has no menu bar of its own (Windows, Linux), so the palette, and through it the commands of the menu bar alone and the shortcut cheat sheet, can be found without knowing its key. PaletteKey is that key in NSGo's form ("mod+k"), which the button's tooltip writes as the platform does, and TogglePalette opens the palette.
+	PaletteButton() bool
+	PaletteKey() string
+	TogglePalette()
 }
 
 // The card the sidebar is drawn on, floating over the window's material: the prototype's white at 42% with a white inner hairline, a dark outer one and a soft shadow, 8 points in from the window's edges.

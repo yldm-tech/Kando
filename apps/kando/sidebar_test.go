@@ -692,3 +692,39 @@ func TestFindKeepsSearchingSubtitlesInAFilm(t *testing.T) {
 		t.Fatalf("over a film: 搜索影片 %+v, 搜索字幕 %+v", library, subtitles)
 	}
 }
+
+// TestSidebarOpensThePaletteWithoutAMenuBar checks that where the app has no menu bar of its own, as on Windows and Linux, the status card has a button that opens the command palette, which lists the shortcut cheat sheet first, its tooltip naming the key as the platform writes it; and that where the menu bar carries the palette and the cheat sheet, as on macOS, it has none.
+func TestSidebarOpensThePaletteWithoutAMenuBar(t *testing.T) {
+	keep := appMenuBar
+	t.Cleanup(func() { appMenuBar = keep })
+	appMenuBar = false
+	usePlatform(t, ns.OSWindows)
+	msgs := testlocale.Messages()
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	if got := tt.Find("id:sidebar-palette").Props.Label; got != msgs.SidebarCommands() {
+		t.Fatalf("the status card's palette button is named %q", got)
+	}
+	tt.Hover("id:sidebar-palette")
+	tt.Advance(time.Second)
+	refresh(tt, a)
+	wantText(t, tt, msgs.SidebarCommandsTooltip("Ctrl+K"))
+	tt.Press("id:sidebar-palette")
+	refresh(tt, a)
+	if !a.palette.open {
+		t.Fatal("the button did not open the palette")
+	}
+	if v := a.PaletteView(a.cx); len(v.Commands) == 0 || v.Commands[0].Label != msgs.CheatsheetMenuItem() {
+		t.Fatalf("the palette opens with %+v", v.Commands)
+	}
+	tt.Press(msgs.CheatsheetMenuItem())
+	refresh(tt, a)
+	if !a.overlay.cheatsheet || a.palette.open {
+		t.Fatalf("cheat sheet %v, palette %v", a.overlay.cheatsheet, a.palette.open)
+	}
+
+	appMenuBar = true
+	_, mac, _ := newTestApp(t, &fakePipeline{})
+	if mac.Exists("id:sidebar-palette") {
+		t.Fatal("the status card has the palette's button beside a menu bar")
+	}
+}

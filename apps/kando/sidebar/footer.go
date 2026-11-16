@@ -1,10 +1,12 @@
 package sidebar
 
 import (
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
 	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -45,7 +47,7 @@ var (
 	missingDot     = core.RGB(0xFF9F0A)
 )
 
-// footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, and a gear that opens the settings where it is fixed.
+// footer is the status card pinned to the bottom of the sidebar: an 8-point dot, green when a job can start and orange when something is missing, the message saying which, a gear that opens the settings where it is fixed, and before the gear, where the app has no menu bar (PaletteButton), a button that opens the command palette, its key in its tooltip.
 type footer struct{ a App }
 
 // Render implements core.Node.
@@ -70,6 +72,15 @@ func (f footer) Render(cx *core.Scope) core.Node {
 	// The gear's button is the prototype's 26-point square, the gear in the message's color.
 	gear := ui.IconButton{Icon: svg(iconGear), LabelFunc: func() string { return locales.SidebarSettings(cx) }, Size: 26, Tint: ui.Fixed(footerText), TestID: "sidebar-settings",
 		OnPress: live.Do(a, func() { a.OpenSettings(a.Readiness().Section) })}
+	buttons := []core.Node{dot, message}
+	if a.PaletteButton() {
+		// The palette's button is the gear's twin, so the two read as the card's pair of actions.
+		palette := ui.IconButton{Icon: lucide.Command, LabelFunc: func() string { return locales.SidebarCommands(cx) }, Size: 26, Tint: ui.Fixed(footerText), TestID: "sidebar-palette",
+			OnPress: live.Do(a, a.TogglePalette)}
+		buttons = append(buttons, ui.Tooltip{TextFunc: func() string { return locales.SidebarCommandsTooltip(cx, hotkey.Label(cx, a.PaletteKey())) }, Trigger: palette,
+			Style: core.Style{FlexShrink: 0}})
+	}
+	buttons = append(buttons, gear)
 	// The hairline is a ring outside the edge that takes no room, as the prototype's box-shadow.
 	// A group named 状态, as MyGo's labeled row was: assistive technology reads the name before the dot's and the message's.
 	return core.View{
@@ -77,6 +88,6 @@ func (f footer) Render(cx *core.Scope) core.Node {
 		LabelFunc: func() string { return locales.SidebarStatus(cx) },
 		Style: core.Style{Direction: core.Row, FlexShrink: 0, Margin: core.Edges{Top: 8, Right: insetEnd, Bottom: 8, Left: insetStart}, Padding: core.Symmetric(10, 12), Gap: 10,
 			AlignItems: core.AlignCenter, CornerRadius: 11, Background: footerFill, Shadows: []core.BoxShadow{{Spread: 0.5, Color: footerHairline}}},
-		Children: []core.Node{dot, message, gear},
+		Children: buttons,
 	}
 }

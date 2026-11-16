@@ -35,7 +35,11 @@ func (f *fakeApp) PaletteEvent(ev Event) {
 	case ev.Close, ev.Toggle:
 		f.open = false
 	case ev.Move != 0:
-		f.view.Selected = min(max(f.view.Selected+ev.Move, 0), len(f.view.Lines)+len(f.view.Commands)-1)
+		rows := len(f.view.Lines) + len(f.view.Commands)
+		if f.view.Ask != "" {
+			rows++
+		}
+		f.view.Selected = min(max(f.view.Selected+ev.Move, 0), rows-1)
 	}
 }
 
@@ -146,6 +150,39 @@ func TestPaletteHighlightsTheSelectedRow(t *testing.T) {
 	change(app, a, func() { a.view.Selected = 0 })
 	if got := app.Find("打开本地视频…").Style.Background; got == selected {
 		t.Fatal("the row stays highlighted after the highlight moved")
+	}
+}
+
+// TestPaletteAskRowComesFirst checks that the row that asks the film is drawn before the others and counted first: highlighted at 0, a click on it picks 0, and the rows after it count from 1.
+func TestPaletteAskRowComesFirst(t *testing.T) {
+	a := newFakeApp()
+	a.view.Ask = "问这部影片：“河”"
+	app := start(t, a, 720)
+	if got := app.Find(a.view.Ask).Style.Background; got != selected {
+		t.Fatalf("the ask row's background is %v, want %v", got, selected)
+	}
+	if got := app.Find("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle.").Style.Background; got == selected {
+		t.Fatal("the line is highlighted with the ask row")
+	}
+	app.Press(a.view.Ask)
+	if ev := a.last(t); ev.Pick != 0 {
+		t.Fatalf("a click on the ask row: %+v", ev)
+	}
+	app.Press("0:00.4 每条河都始于高山上的一股细流。 Every river begins as a trickle.")
+	if ev := a.last(t); ev.Pick != 1 {
+		t.Fatalf("a click on the line: %+v", ev)
+	}
+	app.Press("设置 › AI 服务")
+	if ev := a.last(t); ev.Pick != 4 {
+		t.Fatalf("a click on the third command: %+v", ev)
+	}
+	change(app, a, func() { a.view.Selected = 2 })
+	if got := app.Find("打开本地视频…").Style.Background; got != selected {
+		t.Fatalf("the first command's background is %v at 2, want %v", got, selected)
+	}
+	change(app, a, func() { a.view.Ask = "" })
+	if app.Exists("问这部影片：“河”") {
+		t.Fatal("the ask row stays without a question")
 	}
 }
 

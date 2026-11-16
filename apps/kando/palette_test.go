@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"kando/apps/kando/film"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
@@ -240,14 +241,13 @@ func TestPaletteCommandsFollowTheScreen(t *testing.T) {
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "仅译文")
 	tt.Key("down")
-	tt.Key("up")
 	tt.Key("enter")
 	if a.player.subMode != "translation" {
 		t.Fatalf("sub mode %q", a.player.subMode)
 	}
 }
 
-// TestPaletteArrowsMoveAcrossGroups checks that ↓ moves from the last line to the first command and stops at the last row, and ↑ comes back.
+// TestPaletteArrowsMoveAcrossGroups checks that ↓ moves from the row that asks the film over the lines to the first command and stops at the last row, and ↑ comes back.
 func TestPaletteArrowsMoveAcrossGroups(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	paletteOpenFilm(t, a, tt, updates, "rivers")
@@ -257,20 +257,21 @@ func TestPaletteArrowsMoveAcrossGroups(t *testing.T) {
 	if len(v.Lines) != 1 || len(v.Commands) < 2 {
 		t.Fatalf("view %+v", v)
 	}
-	for range len(v.Lines) {
+	rows := 1 + len(v.Lines) + len(v.Commands)
+	for range 1 + len(v.Lines) {
 		tt.Key("down")
 	}
-	if a.palette.sel != len(v.Lines) {
-		t.Fatalf("selected %d after %d lines", a.palette.sel, len(v.Lines))
+	if a.palette.sel != 1+len(v.Lines) {
+		t.Fatalf("selected %d after the ask row and %d lines", a.palette.sel, len(v.Lines))
 	}
-	for range len(v.Lines) + len(v.Commands) + 3 {
+	for range rows + 3 {
 		tt.Key("down")
 	}
-	if a.palette.sel != len(v.Lines)+len(v.Commands)-1 {
-		t.Fatalf("selected %d of %d rows", a.palette.sel, len(v.Lines)+len(v.Commands))
+	if a.palette.sel != rows-1 {
+		t.Fatalf("selected %d of %d rows", a.palette.sel, rows)
 	}
 	tt.Key("up")
-	if a.palette.sel != len(v.Lines)+len(v.Commands)-2 {
+	if a.palette.sel != rows-2 {
 		t.Fatalf("↑ selected %d", a.palette.sel)
 	}
 }
@@ -654,7 +655,7 @@ func TestPaletteSaysTheEveryAPICLIIsMissing(t *testing.T) {
 	}
 }
 
-// TestPaletteSaysWhenNothingIsFound checks that a query that finds no line and no command says so, over the library, and in the player with the hint that Return asks the film.
+// TestPaletteSaysWhenNothingIsFound checks that a query that finds no line and no command says so, over the library, and in the player under the row that asks the film, which Return runs.
 func TestPaletteSaysWhenNothingIsFound(t *testing.T) {
 	a, tt, updates := paletteLibrary(t, &fakePipeline{})
 	msgs := testlocale.Messages()
@@ -667,8 +668,83 @@ func TestPaletteSaysWhenNothingIsFound(t *testing.T) {
 	paletteOpenFilm(t, a, tt, updates, "rivers")
 	paletteOpen(t, a, tt, updates)
 	paletteType(tt, "火山")
-	if !hasText(tt, msgs.PaletteNothingFoundAsk()) {
+	if !hasText(tt, msgs.PaletteNothingFound()) || !hasText(tt, msgs.PaletteAskRow("火山")) || a.PaletteView(a.cx).Selected != 0 {
 		t.Fatalf("texts %q", tt.Texts())
+	}
+}
+
+// TestPaletteHighlightsWhatReturnDoes checks that in the player the row Return runs is the one highlighted: once something is typed, a row that asks the film comes first and is highlighted, and Return asks; with ↓ on a command, Return runs the command and asks nothing.
+func TestPaletteHighlightsWhatReturnDoes(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, "仅原文")
+	ask := testlocale.Messages().PaletteAskRow("仅原文")
+	v := a.PaletteView(a.cx)
+	if v.Ask != ask || v.Selected != 0 || len(v.Lines) != 0 || len(v.Commands) != 1 {
+		t.Fatalf("view %+v", v)
+	}
+	wantText(t, tt, ask)
+	tt.Key("down")
+	if v := a.PaletteView(a.cx); v.Selected != 1 {
+		t.Fatalf("↓ selected %d", v.Selected)
+	}
+	tt.Key("enter")
+	if a.palette.answer != nil || a.player.subMode != film.SubOriginal || a.palette.open {
+		t.Fatalf("answer %+v, sub mode %q, palette open %v", a.palette.answer, a.player.subMode, a.palette.open)
+	}
+	// Over the library no row asks: Return runs the first row found.
+	tt.Key("escape")
+	refresh(tt, a)
+	a.Select(pageFilms)
+	refresh(tt, a)
+	paletteOpen(t, a, tt, updates)
+	paletteType(tt, "打开本地")
+	if v := a.PaletteView(a.cx); v.Ask != "" || v.Selected != 0 {
+		t.Fatalf("library view %+v", v)
+	}
+}
+
+// TestPaletteFindsCommandsAsTheShortcutsPageDoes checks that the palette finds a command by its key as written there, Esc for 返回资料库, and by every word of a query in its label, group or key, and that it lists first the commands whose label starts with the query, so Return runs the closest one.
+func TestPaletteFindsCommandsAsTheShortcutsPageDoes(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	labels := func(query string) []string {
+		a.palette.query = query
+		_, cmds := a.paletteFound(a.cx)
+		var out []string
+		for _, c := range cmds {
+			out = append(out, c.label)
+		}
+		return out
+	}
+	msgs := testlocale.Messages()
+	if got := labels("esc"); !slices.Equal(got, []string{msgs.FilmBackToLibrary()}) {
+		t.Fatalf("esc found %q", got)
+	}
+	if got := labels("显示 f"); !slices.Contains(got, "全屏") || slices.Contains(got, msgs.FilmBackToLibrary()) {
+		t.Fatalf("显示 f found %q", got)
+	}
+	got := labels("字幕")
+	if len(got) < 3 || !strings.HasPrefix(got[0], "字幕") || !slices.Contains(got, "显示/隐藏字幕") {
+		t.Fatalf("字幕 found %q", got)
+	}
+	a.palette.query = ""
+}
+
+// TestPaletteListsTheCheatSheetFirst checks that the palette opens with the shortcut cheat sheet first among its commands, over the library and in the player, so the list of shortcuts is a press away on every platform.
+func TestPaletteListsTheCheatSheetFirst(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, &fakePipeline{})
+	first := testlocale.Messages().CheatsheetMenuItem()
+	paletteOpen(t, a, tt, updates)
+	if v := a.PaletteView(a.cx); len(v.Commands) != paletteFirstCommands || v.Commands[0].Label != first {
+		t.Fatalf("library commands %+v", v.Commands)
+	}
+	tt.Key("escape")
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	paletteOpen(t, a, tt, updates)
+	if v := a.PaletteView(a.cx); len(v.Commands) != paletteFirstCommands || v.Commands[0].Label != first {
+		t.Fatalf("player commands %+v", v.Commands)
 	}
 }
 

@@ -4,6 +4,7 @@ package palette
 import (
 	"slices"
 
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
@@ -43,12 +44,14 @@ type Answer struct {
 type View struct {
 	Placeholder string
 	Footer      string
-	Answer      *Answer
-	Lines       []Line
-	Commands    []Command
+	// Ask is the row that asks the open film what was typed, which comes first of the rows when there is one; "" shows none.
+	Ask      string
+	Answer   *Answer
+	Lines    []Line
+	Commands []Command
 	// Empty is the note shown in place of the results when the query found nothing; "" shows none.
 	Empty string
-	// Selected is the highlighted row, counting the lines first and the commands after them; -1 highlights none.
+	// Selected is the highlighted row, counting the Ask row first when there is one, then the lines, then the commands; -1 highlights none.
 	Selected int
 }
 
@@ -120,7 +123,7 @@ var (
 	placeholder = core.RGBA(0xFFFFFF, 0.45)
 )
 
-// Palette draws the palette over the window in the dark theme while the app's PaletteOpen holds: the window dimmed, and near its top dark glass with the field, the answer, the lines and the commands. Escape or a click outside it report Close, ⌘K reports Toggle.
+// Palette draws the palette over the window in the dark theme while the app's PaletteOpen holds: the window dimmed, and near its top dark glass with the field, the row that asks the film, the answer, the lines and the commands. Escape or a click outside it report Close, ⌘K reports Toggle.
 type Palette struct{ App App }
 
 // Render implements core.Node.
@@ -166,12 +169,20 @@ func (p panel) Render(cx *core.Scope) core.Node {
 	lines := core.NewMemoFunc(cx, func() []Line { return view.Get().Lines }, slices.Equal[[]Line])
 	commands := core.NewMemoFunc(cx, func() []Command { return view.Get().Commands }, slices.Equal[[]Command])
 	sel := core.NewMemo(cx, func() int { return view.Get().Selected })
-	list := &rows{lines: map[int]*core.Ref{}, commands: map[int]*core.Ref{}}
+	ask := core.NewMemo(cx, func() string { return view.Get().Ask })
+	// first is where the lines' rows start: after the Ask row while there is one.
+	first := func() int {
+		if ask.Get() != "" {
+			return 1
+		}
+		return 0
+	}
+	list := &rows{ask: &core.Ref{}, lines: map[int]*core.Ref{}, commands: map[int]*core.Ref{}}
 
 	// The keys work wherever the keyboard focus is in the palette, before the window's own, which would act on the film behind it: ↑ and ↓ move the highlight and bring it into view, Escape closes the palette, and ⌘K, which opened it, closes it again.
 	move := func(by int) {
 		send(func(ev *Event) { ev.Move = by })
-		list.reveal(core.Untracked(cx, sel.Get), len(core.Untracked(cx, lines.Get)))
+		list.reveal(core.Untracked(cx, sel.Get), core.Untracked(cx, first), len(core.Untracked(cx, lines.Get)))
 	}
 	cx.OnKeyWith("down", core.KeyOptions{When: core.KeyAlways, Repeat: true}, func() { move(1) })
 	cx.OnKeyWith("up", core.KeyOptions{When: core.KeyAlways, Repeat: true}, func() { move(-1) })
@@ -179,6 +190,9 @@ func (p panel) Render(cx *core.Scope) core.Node {
 	cx.OnKeyWith("mod+k", core.KeyOptions{When: core.KeyAlways}, func() { send(func(ev *Event) { ev.Toggle = true }) })
 
 	results := core.View{Style: core.Style{Padding: core.All(8), Gap: 2, AlignItems: core.AlignStretch}, Children: []core.Node{
+		core.Show{When: func() bool { return ask.Get() != "" }, Then: func(cx *core.Scope) core.Node {
+			return commandRow(cx, list.ask, func() Command { return Command{Label: ask.Get()} }, func() bool { return sel.Get() == 0 }, func() { send(func(ev *Event) { ev.Pick = 0 }) })
+		}},
 		answer{view: view, send: send},
 		core.Show{When: func() bool { return view.Get().Empty != "" }, Then: func(cx *core.Scope) core.Node {
 			return core.Text{ContentFunc: func() string { return view.Get().Empty }, Style: core.Style{FontSize: 13, Opacity: core.Alpha(0.55), Padding: core.Symmetric(8, 10)}}
@@ -194,7 +208,8 @@ func (p panel) Render(cx *core.Scope) core.Node {
 				}
 				return Line{}
 			}
-			return lineRow(cx, list.ref(cx, list.lines, i), line, func() bool { return sel.Get() == i }, func() { send(func(ev *Event) { ev.Pick = i }) })
+			at := func() int { return first() + i }
+			return lineRow(cx, list.ref(cx, list.lines, i), line, func() bool { return sel.Get() == at() }, func() { send(func(ev *Event) { ev.Pick = core.Untracked(cx, at) }) })
 		}),
 		core.Show{When: func() bool { return len(commands.Get()) > 0 }, Then: func(cx *core.Scope) core.Node {
 			return heading(func() string { return locales.PaletteHeadingCommands(cx) }, 8)
@@ -207,7 +222,7 @@ func (p panel) Render(cx *core.Scope) core.Node {
 				}
 				return Command{}
 			}
-			at := func() int { return len(lines.Get()) + i }
+			at := func() int { return first() + len(lines.Get()) + i }
 			return commandRow(cx, list.ref(cx, list.commands, i), command, func() bool { return sel.Get() == at() }, func() { send(func(ev *Event) { ev.Pick = core.Untracked(cx, at) }) })
 		}),
 	}}
@@ -265,7 +280,7 @@ func rowStyle(on func() bool) func() core.Style {
 
 // commandRow is a command's row: its label 13 and its shortcut 11 at 55%, 34 high.
 func commandRow(cx *core.Scope, ref *core.Ref, cmd func() Command, on func() bool, press func()) core.Node {
-	keys := func() string { return keyText(cx, cmd().Key) }
+	keys := func() string { return hotkey.Label(cx, cmd().Key) }
 	return core.View{Ref: ref, Children: []core.Node{base.Button{
 		LabelFunc: func() string { return cmd().Label },
 		OnPress:   func(core.PressEvent) { press() },
@@ -278,17 +293,6 @@ func commandRow(cx *core.Scope, ref *core.Ref, cmd func() Command, on func() boo
 			}},
 		},
 	}}}
-}
-
-// keyText is a command's shortcut as the platform's menus write it, and Esc for Escape alone, as the cheat sheet writes it.
-func keyText(cx *core.Scope, key string) string {
-	switch key {
-	case "":
-		return ""
-	case "escape":
-		return "Esc"
-	}
-	return cx.KeyLabel(key)
 }
 
 // lineRow is a subtitle line's row: its time 11 at 70% in a column of 40, then the translation 13 over the original 12 at 70%, and the film's name after them when there is one.
@@ -378,8 +382,9 @@ func (c answer) Render(cx *core.Scope) core.Node {
 	}}
 }
 
-// rows are the refs of the result rows the palette shows, by their place in the lines and in the commands, so ↑ and ↓ can bring the highlighted row into view.
+// rows are the refs of the result rows the palette shows: the Ask row's, and the others by their place in the lines and in the commands, so ↑ and ↓ can bring the highlighted row into view.
 type rows struct {
+	ask             *core.Ref
 	lines, commands map[int]*core.Ref
 }
 
@@ -395,11 +400,15 @@ func (r *rows) ref(cx *core.Scope, group map[int]*core.Ref, i int) *core.Ref {
 	return ref
 }
 
-// reveal scrolls the list the least that shows row sel whole, counted as View.Selected counts the rows over lines lines, once the highlight has moved there, as MyGo's ScrollIntoView did.
-func (r *rows) reveal(sel, lines int) {
-	group, i := r.lines, sel
-	if sel >= lines {
-		group, i = r.commands, sel-lines
+// reveal scrolls the list the least that shows row sel whole, counted as View.Selected counts the rows, the lines' starting at first and lines of them, once the highlight has moved there, as MyGo's ScrollIntoView did.
+func (r *rows) reveal(sel, first, lines int) {
+	if sel < first {
+		r.ask.Reveal(core.RevealOptions{Vertical: core.ScrollAlignNearest})
+		return
+	}
+	group, i := r.lines, sel-first
+	if i >= lines {
+		group, i = r.commands, i-lines
 	}
 	if row, ok := group[i]; ok {
 		row.Reveal(core.RevealOptions{Vertical: core.ScrollAlignNearest})
@@ -417,7 +426,7 @@ func count(n int) []int {
 
 // equalView reports whether a and b show the same.
 func equalView(a, b View) bool {
-	return a.Placeholder == b.Placeholder && a.Footer == b.Footer && a.Empty == b.Empty && a.Selected == b.Selected &&
+	return a.Placeholder == b.Placeholder && a.Footer == b.Footer && a.Ask == b.Ask && a.Empty == b.Empty && a.Selected == b.Selected &&
 		equalAnswer(a.Answer, b.Answer) && slices.Equal(a.Lines, b.Lines) && slices.Equal(a.Commands, b.Commands)
 }
 

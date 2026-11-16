@@ -16,9 +16,8 @@ import (
 type paletteUI struct {
 	open  bool
 	query string
-	// sel is the highlighted row, counting the lines first and the commands after them. moved is set once ↑ or ↓ moved it since the query last changed: until then Return with a query asks the open film rather than running the row, as the prototype's footer says. The palette brings the highlighted row into view itself as ↑ and ↓ move it.
-	sel   int
-	moved bool
+	// sel is the highlighted row, which Return runs, counting the row that asks the open film first when there is one (paletteAsks), then the lines, then the commands. It goes back to the first row as the query changes. The palette brings the highlighted row into view itself as ↑ and ↓ move it.
+	sel int
 	// furthest is how far each video has been played on from its start, by path (palettePlaying), kept in library.json with the shelf (shelf.Library.Furthest). The palette finds and sends only lines up to it, so it gives nothing away of what has not been watched. dirty is set while it holds more than library.json does.
 	furthest map[string]time.Duration
 	dirty    bool

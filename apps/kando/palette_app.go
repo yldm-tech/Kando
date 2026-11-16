@@ -13,6 +13,7 @@ import (
 
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/locales"
 	cmdpalette "kando/apps/kando/palette"
 	"kando/apps/kando/settings"
@@ -37,9 +38,10 @@ const (
 	paletteAskTimeout = 90 * time.Second
 )
 
-// paletteCommand is a row of the palette's 命令 group: what it says, its shortcut outside the palette in NSGo's form ("" for none), and what it does.
+// paletteCommand is a row of the palette's 命令 group: what it says, the title of the menu it is in ("" for none), its shortcut outside the palette in NSGo's form ("" for none), and what it does.
 type paletteCommand struct {
 	label string
+	group string
 	key   string
 	run   func()
 }
@@ -53,7 +55,6 @@ func (a *app) togglePalette() {
 	a.palette.open = true
 	a.palette.query = ""
 	a.palette.sel = 0
-	a.palette.moved = false
 	a.palette.answer = nil
 	a.palette.hitsFor = ""
 	if a.palette.release == nil {
@@ -299,7 +300,7 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 			if mode == a.player.subMode {
 				continue
 			}
-			out = append(out, paletteCommand{label: locales.PaletteSwitchTo(cx, film.ModeName(cx, mode)), run: func() {
+			out = append(out, paletteCommand{label: locales.PaletteSwitchTo(cx, film.ModeName(cx, mode)), group: groupTitle(cx, groupSubtitles), run: func() {
 				a.SetSubMode(mode)
 				a.flash(a.messages().PaletteSubtitleMode(film.ModeName(cx, mode)))
 			}})
@@ -330,7 +331,7 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 		if s.Group == groupWindow && s.Checked != nil && s.Checked() {
 			continue
 		}
-		out = append(out, paletteCommand{label: s.Label, key: s.Key, run: s.guarded()})
+		out = append(out, paletteCommand{label: s.Label, group: groupTitle(cx, s.Group), key: s.Key, run: s.guarded()})
 	}
 	for _, id := range settings.IDs() {
 		out = append(out, paletteCommand{label: locales.PaletteSettingsSection(cx, settings.Title(cx, id)), run: func() { a.OpenSettings(id) }})
@@ -338,20 +339,38 @@ func (a *app) paletteCommands(cx *core.Scope) []paletteCommand {
 	return out
 }
 
-// paletteFound is what the palette lists for the query, the commands' labels in the language the app shows under cx: its lines and the commands whose names hold it, or the first commands while nothing is typed.
+// paletteFound is what the palette lists for the query, the commands' labels in the language the app shows under cx: its lines and the commands it finds as Settings › 快捷键 finds its rows (hotkey.Match), those whose label starts with it first; or, while nothing is typed, the first commands, the shortcut cheat sheet before them, so the list of shortcuts is a press away where no menu bar shows it.
 func (a *app) paletteFound(cx *core.Scope) ([]paletteHit, []paletteCommand) {
-	query := strings.ToLower(strings.TrimSpace(a.palette.query))
+	query := strings.TrimSpace(a.palette.query)
 	cmds := a.paletteCommands(cx)
 	if query == "" {
+		if i := slices.IndexFunc(cmds, func(c paletteCommand) bool { return c.key == cheatsheetKey }); i > 0 {
+			cmds = slices.Concat(cmds[i:i+1], cmds[:i], cmds[i+1:])
+		}
 		return nil, cmds[:min(len(cmds), paletteFirstCommands)]
 	}
-	var found []paletteCommand
+	type ranked struct {
+		cmd  paletteCommand
+		rank int
+	}
+	var found []ranked
 	for _, c := range cmds {
-		if strings.Contains(strings.ToLower(c.label), query) {
-			found = append(found, c)
+		if rank, ok := hotkey.Match(query, c.label, c.group, hotkey.Label(cx, c.key)); ok {
+			found = append(found, ranked{c, rank})
 		}
 	}
-	return a.paletteLines(), found
+	slices.SortStableFunc(found, func(x, y ranked) int { return x.rank - y.rank })
+	out := make([]paletteCommand, len(found))
+	for i, f := range found {
+		out[i] = f.cmd
+	}
+	return a.paletteLines(), out
+}
+
+// paletteAsks reports whether the palette offers to ask the open film what was typed: in the player, once something is. Its row comes first, before the lines and the commands, and is the one highlighted until ↑ or ↓ moves on, so Return asks only while the row that says so is highlighted.
+func (a *app) paletteAsks() bool {
+	_, inFilm := a.paletteOpenFilm()
+	return inFilm && strings.TrimSpace(a.palette.query) != ""
 }
 
 // PaletteOpen reports whether the palette shows (cmdpalette.App).
@@ -371,7 +390,11 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 	}
 	if inFilm {
 		v.Placeholder = locales.PalettePlaceholderFilm(cx)
-		v.Footer = locales.PaletteFooterFilm(cx)
+	}
+	asks := 0
+	if a.paletteAsks() {
+		v.Ask = locales.PaletteAskRow(cx, strings.TrimSpace(a.palette.query))
+		asks = 1
 	}
 	for _, hit := range lines {
 		l := cmdpalette.Line{At: cmdpalette.ClockTenths(hit.cue.start), Translation: hit.cue.translation, Original: hit.cue.original}
@@ -386,16 +409,12 @@ func (a *app) PaletteView(cx *core.Scope) cmdpalette.View {
 	for _, c := range cmds {
 		v.Commands = append(v.Commands, cmdpalette.Command{Label: c.label, Key: c.key})
 	}
-	total := len(v.Lines) + len(v.Commands)
-	if total > 0 {
+	found := len(v.Lines) + len(v.Commands)
+	if total := asks + found; total > 0 {
 		v.Selected = min(a.palette.sel, total-1)
 	}
-	if total == 0 && a.palette.answer == nil && strings.TrimSpace(a.palette.query) != "" {
-		// Over the library the note says nothing was found; in the player it says Return asks the query instead.
+	if found == 0 && a.palette.answer == nil && strings.TrimSpace(a.palette.query) != "" {
 		v.Empty = locales.PaletteNothingFound(cx)
-		if inFilm {
-			v.Empty = locales.PaletteNothingFoundAsk(cx)
-		}
 	}
 	if ans := a.palette.answer; ans != nil {
 		v.Answer = paletteAnswerView(cx, ans)
@@ -431,20 +450,21 @@ func (a *app) PaletteEvent(ev cmdpalette.Event) {
 	}
 	v := a.PaletteView(a.cx)
 	total := len(v.Lines) + len(v.Commands)
+	if v.Ask != "" {
+		total++
+	}
 	switch {
 	case ev.Close, ev.Toggle:
 		a.paletteClose()
 	case ev.Typed:
 		a.palette.sel = 0
-		a.palette.moved = false
 		a.paletteDropAnswer()
 	case ev.Move != 0:
 		if total > 0 {
 			a.palette.sel = min(max(v.Selected+ev.Move, 0), total-1)
-			a.palette.moved = true
 		}
 	case ev.Submit:
-		a.paletteSubmit(v)
+		a.paletteRun(v.Selected)
 	case ev.Pick >= 0:
 		a.paletteRun(ev.Pick)
 	case ev.Ref >= 0:
@@ -460,20 +480,15 @@ func (a *app) PaletteEvent(ev cmdpalette.Event) {
 	}
 }
 
-// paletteSubmit is Return in the field. In the player, a question typed and not yet moved off with the arrow keys is asked of the film, as the prototype's footer says; otherwise the highlighted row runs.
-func (a *app) paletteSubmit(v cmdpalette.View) {
-	_, inFilm := a.paletteOpenFilm()
-	if inFilm && strings.TrimSpace(a.palette.query) != "" && !a.palette.moved {
-		a.paletteAsk()
-		return
-	}
-	if v.Selected >= 0 {
-		a.paletteRun(v.Selected)
-	}
-}
-
-// paletteRun closes the palette and runs row i, counting the lines first and the commands after them: a line opens its film at its start, a command runs.
+// paletteRun runs row i, as Return runs the highlighted row and a click the row clicked, counting the row that asks the film first when there is one (paletteAsks), then the lines, then the commands: the first asks the film what was typed, and keeps the palette open for the answer; a line closes it and opens its film at its start, a command closes it and runs.
 func (a *app) paletteRun(i int) {
+	if a.paletteAsks() {
+		if i == 0 {
+			a.paletteAsk()
+			return
+		}
+		i--
+	}
 	lines, cmds := a.paletteFound(a.cx)
 	switch {
 	case i < 0:

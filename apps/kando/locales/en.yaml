@@ -1712,6 +1712,11 @@ paletteAskFailed:
   description: "Answer card when the AI service returned no answer; error is the service's error message."
   placeholders:
     error: { type: "String", example: "401 Unauthorized" }
+paletteAskRow:
+  message: "Ask this film: “{question}”"
+  description: "First row of the command palette in the player once something is typed: Return or a click asks the AI service the typed question about the open film."
+  placeholders:
+    question: { type: "String", example: "Who is the man in the hat?" }
 paletteAsking:
   message: "Asking {model}…"
   description: "Answer card while the question is on its way to the AI model."
@@ -1722,10 +1727,7 @@ paletteFieldLabel:
   description: "Accessible name of the command palette's field."
 paletteFooter:
   message: "Type to search commands and watched lines · ↑↓ to select · Return to run"
-  description: "Footer of the command palette over the library: what typing, the arrow keys and Return do."
-paletteFooterFilm:
-  message: "Typing only searches commands and lines · Return asks · ↑↓ to select"
-  description: "Footer of the command palette in the player: typing only searches, Return asks the question."
+  description: "Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do."
 paletteHeadingAnswer:
   message: "Answer"
   description: "Heading of the card with the answer to a question about the film."
@@ -1763,9 +1765,6 @@ paletteNotWatched:
 paletteNothingFound:
   message: "No commands or watched lines found."
   description: "Note when the palette's query found nothing over the library."
-paletteNothingFoundAsk:
-  message: "No commands or watched lines found. Press Return to ask this film."
-  description: "Note when the palette's query found nothing in the player, where Return asks the query of the film."
 palettePlaceholder:
   message: "Commands or watched lines…"
   description: "Placeholder of the command palette's field over the library."
@@ -3100,6 +3099,14 @@ sidebarBrowse:
 sidebarChooseLibrary:
   message: "Choose a Library"
   description: "The library switcher's name line while no library is open."
+sidebarCommands:
+  message: "Commands"
+  description: "Accessible name of the button on the sidebar's status card that opens the command palette, on Windows and Linux, which have no app menu bar."
+sidebarCommandsTooltip:
+  message: "Commands ({shortcut})"
+  description: "Tooltip of the button on the sidebar's status card that opens the command palette, with its shortcut as the system writes it."
+  placeholders:
+    shortcut: { type: "String", example: "Ctrl+K" }
 sidebarLibrary:
   message: "Library"
   description: "Caption over the open library's name in the library switcher at the top of the sidebar."

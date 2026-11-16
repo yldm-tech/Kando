@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"kando/apps/kando/hotkey"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
 
@@ -159,11 +160,11 @@ func group(cx *core.Scope, g Group) core.Node {
 	return core.View{Style: core.Style{Gap: lineGap, MinWidth: core.Pt(0)}, Children: nodes}
 }
 
-// keycap draws combos as the platform shows a shortcut. On macOS several share one keycap, as the prototype draws ⌘← ⌘→; elsewhere they stand side by side, each the platform's own. Escape alone reads Esc on every platform, as the prototype writes it: macOS's menu glyph ⎋ on a keycap reads like an undo arrow.
+// keycap draws combos as the platform shows a shortcut, each written as the palette and Settings › 快捷键 write it (hotkey.Label). On macOS several share one keycap, as the prototype draws ⌘← ⌘→; elsewhere they stand side by side, each the platform's own. Escape alone reads Esc, and Escape to assistive technology.
 func keycap(cx *core.Scope, combos []string) core.Node {
 	texts := make([]string, len(combos))
 	for i, k := range combos {
-		texts[i] = comboText(cx, k)
+		texts[i] = hotkey.Label(cx, k)
 	}
 	label := strings.Join(texts, " ")
 	if len(combos) == 1 && isEscape(combos[0]) {
@@ -190,14 +191,6 @@ func plate(text string) core.Node {
 }
 
 func isEscape(key string) bool { return key == "escape" }
-
-// comboText is key as the platform's menus write it, and Esc for Escape alone.
-func comboText(cx *core.Scope, key string) string {
-	if isEscape(key) {
-		return "Esc"
-	}
-	return cx.KeyLabel(key)
-}
 
 // equalGroups reports whether a and b list the same lines under the same headings.
 func equalGroups(a, b []Group) bool {

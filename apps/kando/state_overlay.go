@@ -82,7 +82,7 @@ func cheatsheetLayout(cx *core.Scope) []cheatsheetGroup {
 		}},
 		{groupWindow, []cheatsheetLine{
 			{locales.CheatsheetPalette(cx), []string{"mod+k"}},
-			{"", []string{"mod+/"}},
+			{"", []string{cheatsheetKey}},
 			{locales.CheatsheetSettings(cx), []string{"mod+,"}},
 			{"", []string{"escape"}},
 		}},
@@ -168,6 +168,9 @@ func (a *app) overlayHooks() areaHooks { return areaHooks{} }
 // overlayKeys are the shortcuts of the overlays.
 func (a *app) overlayKeys(cx *core.Scope) []shortcut {
 	return []shortcut{
-		{Group: groupHelp, Label: locales.CheatsheetMenuItem(cx), Key: "mod+/", Run: a.toggleCheatsheet},
+		{Group: groupHelp, Label: locales.CheatsheetMenuItem(cx), Key: cheatsheetKey, Run: a.toggleCheatsheet},
 	}
 }
+
+// cheatsheetKey is ⌘/, which opens the cheat sheet and closes it again; the palette lists its row first while nothing is typed (paletteFound).
+const cheatsheetKey = "mod+/"
