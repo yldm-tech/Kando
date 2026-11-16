@@ -27,21 +27,25 @@ type App interface {
 	RemoveSaved(id string)
 	// CloseSaved closes the sheet.
 	CloseSaved()
-	// ExportSaved exports the saved lines for Anki into a folder the user picks; ExportState is how the export goes, and RevealExport shows its notes' file in the file manager.
+	// ExportSaved exports the saved lines for Anki into a folder the user picks; ExportState is how the export goes, StopExport stops the one running, and RevealExport shows its notes' file in the file manager. ExportSettings closes the sheet and opens the settings that install ffmpeg, which the export cuts the lines' audio with.
 	ExportSaved()
 	ExportState() Export
+	StopExport()
 	RevealExport()
+	ExportSettings()
 	// DueCount is how many saved lines are due for review; StartReview closes the sheet and reviews them (Review).
 	DueCount() int
 	StartReview()
 }
 
-// Export is how the export of the saved lines goes: Busy while it runs, Done lines of Total; once Finished, the Lines and the Sounds it wrote, or Err, why it failed.
+// Export is how the export of the saved lines goes: Busy while it runs, Done lines of Total; once Finished, the Lines and the Sounds it wrote, or Err, why it failed, or Stopped once the user stopped it. NoFFmpeg reports that ffmpeg is not installed, so no line has its audio.
 type Export struct {
 	Busy, Finished bool
 	Done, Total    int
 	Lines, Sounds  int
 	Err            string
+	Stopped        bool
+	NoFFmpeg       bool
 }
 
 // Entry is a saved line as the sheet lists it.
@@ -60,7 +64,7 @@ const (
 	sheetHeight core.Points = 600
 )
 
-// Sheet lists the saved lines of the library, newest first: each with its film and where in it the line is, its original and its translation. A click plays the film from the line, the × beside it removes it, and Done, Escape and closing the sheet run CloseSaved. Export for Anki… under the list exports them, and the line beside it says how the export goes and what it wrote (exportStatus); Review starts the review of the lines due, with how many are.
+// Sheet lists the saved lines of the library, newest first: each with its film and where in it the line is, its original and its translation. A click plays the film from the line, the × beside it removes it, and Done, Escape and closing the sheet run CloseSaved. Export for Anki… under the list exports them, Cancel in its place stops an export running, and the line beside it says how the export goes and what it wrote (exportStatus), with Open Settings after an export that had no ffmpeg to cut the audio with; Review starts the review of the lines due, with how many are.
 type Sheet struct {
 	App App
 }
@@ -108,11 +112,20 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 	due := live.Memo(cx, a, a.DueCount)
 	footer := core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{
 		exportStatus(cx, export),
-		core.Show{When: func() bool { e := export(); return e.Finished && e.Err == "" }, Then: func(cx *core.Scope) core.Node {
+		core.Show{When: func() bool { e := export(); return e.Finished && e.Err == "" && !e.Stopped }, Then: func(cx *core.Scope) core.Node {
 			return textButton(func(cx *core.Scope) string { return locales.FilmShowInFinder(cx, desktop.Platform(cx)) }, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-reveal", OnPress: live.Do(a, a.RevealExport)})
 		}},
-		textButton(locales.SavedExport, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export", OnPress: live.Do(a, a.ExportSaved),
-			Disabled: func() bool { return export().Busy || len(entries()) == 0 }}),
+		core.Show{When: func() bool { e := export(); return e.Finished && e.NoFFmpeg && e.Err == "" && !e.Stopped }, Then: func(cx *core.Scope) core.Node {
+			return textButton(locales.SavedExportOpenSettings, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-settings", OnPress: live.Do(a, a.ExportSettings)})
+		}},
+		core.Show{When: func() bool { return export().Busy },
+			Then: func(cx *core.Scope) core.Node {
+				return textButton(locales.SavedExportCancel, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export-cancel", OnPress: live.Do(a, a.StopExport)})
+			},
+			Else: func(cx *core.Scope) core.Node {
+				return textButton(locales.SavedExport, ui.Button{Variant: ui.ButtonSecondary, TestID: "saved-export", OnPress: live.Do(a, a.ExportSaved),
+					Disabled: func() bool { return len(entries()) == 0 }})
+			}},
 		core.Dynamic(func(cx *core.Scope) core.Node {
 			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the count without building the button again, which takes the keyboard focus off it; then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
 			n := due()
@@ -137,7 +150,7 @@ func (s Sheet) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// exportStatus says how the export of the saved lines goes, in the room left of the sheet's buttons: how many lines it has done while it runs, what it wrote and where Anki wants it once it is done, or why it failed; nothing before the first.
+// exportStatus says how the export of the saved lines goes, in the room left of the sheet's buttons: how many lines it has done while it runs, what it wrote, how many of the lines with their audio, and where Anki wants it once it is done, that it was stopped, or why it failed; nothing before the first.
 func exportStatus(cx *core.Scope, export func() Export) core.Node {
 	colors := ui.ColorsOf(cx)
 	text := func() string {
@@ -147,10 +160,14 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 			return locales.SavedExporting(cx, e.Done, e.Total)
 		case !e.Finished:
 			return ""
+		case e.Stopped:
+			return locales.SavedExportStopped(cx)
 		case e.Err != "":
 			return locales.SavedExportFailed(cx, e.Err)
 		case e.Sounds == 0:
 			return locales.SavedExportedNoAudio(cx, e.Lines)
+		case e.Sounds < e.Lines:
+			return locales.SavedExportedSomeAudio(cx, e.Lines, e.Sounds)
 		}
 		return locales.SavedExported(cx, e.Lines)
 	}

@@ -1,14 +1,18 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/saved"
+	"kando/apps/kando/settings"
+	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 )
@@ -109,8 +113,46 @@ func TestExportSavedWritesTheNotes(t *testing.T) {
 		t.Fatalf("export %+v, the sheet shows %q", a.saved.export, tt.Texts())
 	}
 	notes, err := os.ReadFile(filepath.Join(out, saved.ExportFile))
-	if err != nil || !strings.Contains(string(notes), "Hello.\t你好。\ttalk\t0:01.0\t\n") {
+	if err != nil || !strings.Contains(string(notes), "\"Hello.\"\t\"你好。\ntalk · 0:01.0\"\n") {
 		t.Fatalf("notes %q, %v", notes, err)
+	}
+	// Without ffmpeg the sheet offers the settings that install it.
+	tt.Press("id:saved-export-settings")
+	if a.saved.sheet || a.modalOpen() {
+		t.Fatalf("Open Settings left the sheet open %v, modal %v", a.saved.sheet, a.modalOpen())
+	}
+	wantSettings(t, a, settings.SectionGeneral)
+}
+
+// TestExportSavedCanBeStopped starts an export whose ffmpeg takes its time and stops it with the sheet's Cancel, which takes the place of Export for Anki… while it runs: the sheet says it stopped, not why a context ended, writes no notes and offers Export for Anki… again.
+func TestExportSavedCanBeStopped(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the stand-in for ffmpeg is a shell script")
+	}
+	ffmpeg := filepath.Join(t.TempDir(), "ffmpeg")
+	if err := os.WriteFile(ffmpeg, []byte("#!/bin/sh\nexec sleep 20\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	a, tt, updates, item := playerFilm(t, 12, media.Tools{FFmpeg: ffmpeg})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	tt.Key("escape")
+	out := t.TempDir()
+	tt.PickDirectories = func(ns.DirectoriesRequest) []ns.Directory { return []ns.Directory{{Path: out}} }
+	apply(tt, a, a.ExportSaved)
+	msgs := a.messages()
+	if !a.saved.export.busy || tt.Exists("id:saved-export") {
+		t.Fatalf("while it runs the sheet shows %q", tt.Texts())
+	}
+	tt.Press("id:saved-export-cancel")
+	waitUntil(t, tt, a, updates, func() bool { return a.saved.export.finished })
+	if !tt.Exists(whole(msgs.SavedExportStopped())) || tt.Exists("id:saved-export-reveal") || tt.Exists("id:saved-export-cancel") || tt.Find("id:saved-export").Props.Disabled {
+		t.Fatalf("once stopped the sheet shows %q", tt.Texts())
+	}
+	if _, err := os.Stat(filepath.Join(out, saved.ExportFile)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a stopped export wrote its notes: %v", err)
 	}
 }
 

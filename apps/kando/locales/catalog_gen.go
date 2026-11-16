@@ -617,6 +617,7 @@ var Parameters = map[string][]string{
 	"SavedExportFailed":                  {"error_"},
 	"SavedExported":                      {"count"},
 	"SavedExportedNoAudio":               {"count"},
+	"SavedExportedSomeAudio":             {"lines", "sounds"},
 	"SavedExporting":                     {"done", "total"},
 	"SavedReviewDone":                    {"count"},
 	"SavedReviewDue":                     {"count"},
@@ -870,6 +871,7 @@ type Translation struct {
 	SavedExportFailed                  func(error_ string) string
 	SavedExported                      func(count int) string
 	SavedExportedNoAudio               func(count int) string
+	SavedExportedSomeAudio             func(lines int, sounds int) string
 	SavedExporting                     func(done int, total int) string
 	SavedReviewDone                    func(count int) string
 	SavedReviewDue                     func(count int) string
@@ -1508,6 +1510,9 @@ const (
 	textSavedDone
 	textSavedEmpty
 	textSavedExport
+	textSavedExportCancel
+	textSavedExportOpenSettings
+	textSavedExportStopped
 	textSavedKeySaveLine
 	textSavedMark
 	textSavedMenuItem
@@ -2377,6 +2382,9 @@ var keyOfText = [numTexts]string{
 	"savedDone",
 	"savedEmpty",
 	"savedExport",
+	"savedExportCancel",
+	"savedExportOpenSettings",
+	"savedExportStopped",
 	"savedKeySaveLine",
 	"savedMark",
 	"savedMenuItem",
@@ -3244,6 +3252,9 @@ var textsEn = i18n.NewTexts(""+
 	"Done"+
 	"No saved lines yet. Press B while a film plays to save the line you hear."+
 	"Export for Anki…"+
+	"Cancel"+
+	"Open Settings"+
+	"Export stopped."+
 	"Save Line"+
 	"Saved"+
 	"Saved Lines…"+
@@ -4108,6 +4119,9 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		73,
 		18,
+		6,
+		13,
+		15,
 		9,
 		5,
 		14,
@@ -4975,6 +4989,9 @@ var textsJa = i18n.NewTexts(""+
 	"完了"+
 	"保存したセリフはまだありません。映画の再生中に B を押すと、聞いているセリフを保存できます。"+
 	"Anki に書き出す…"+
+	"キャンセル"+
+	"設定を開く"+
+	"書き出しを中止しました。"+
 	"このセリフを保存"+
 	"保存済み"+
 	"保存したセリフ…"+
@@ -5839,6 +5856,9 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		135,
 		23,
+		15,
+		15,
+		36,
 		24,
 		12,
 		24,
@@ -6706,6 +6726,9 @@ var textsKo = i18n.NewTexts(""+
 	"완료"+
 	"아직 저장한 대사가 없습니다. 영화를 재생하는 동안 B를 누르면 듣고 있는 대사를 저장합니다."+
 	"Anki로 내보내기…"+
+	"취소"+
+	"설정 열기"+
+	"내보내기를 중지했습니다."+
 	"이 대사 저장"+
 	"저장됨"+
 	"저장한 대사…"+
@@ -7570,6 +7593,9 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		126,
 		23,
+		6,
+		13,
+		35,
 		17,
 		9,
 		19,
@@ -8437,6 +8463,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"完成"+
 	"还没有收藏的句子。播放影片时按 B 即可收藏正在听的这句。"+
 	"导出到 Anki…"+
+	"取消"+
+	"打开设置"+
+	"已停止导出。"+
 	"收藏这句"+
 	"已收藏"+
 	"收藏的句子…"+
@@ -9301,6 +9330,9 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		81,
 		17,
+		6,
+		12,
+		18,
 		12,
 		9,
 		18,
@@ -10168,6 +10200,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"完成"+
 	"還沒有收藏的句子。播放影片時按 B 即可收藏正在聽的這句。"+
 	"匯出到 Anki…"+
+	"取消"+
+	"打開設定"+
+	"已停止匯出。"+
 	"收藏這句"+
 	"已收藏"+
 	"收藏的句子…"+
@@ -11032,6 +11067,9 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		81,
 		17,
+		6,
+		12,
+		18,
 		12,
 		9,
 		18,
@@ -11953,6 +11991,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SavedExportedNoAudio != nil {
 		s.SavedExportedNoAudio = t.SavedExportedNoAudio
+	}
+	if t.SavedExportedSomeAudio != nil {
+		s.SavedExportedSomeAudio = t.SavedExportedSomeAudio
 	}
 	if t.SavedExporting != nil {
 		s.SavedExporting = t.SavedExporting
@@ -23860,6 +23901,15 @@ func SavedExport(cx *core.Scope) string { return For(cx).SavedExport() }
 // SavedExport is the package's SavedExport in the language of msgs.
 func (msgs Messages) SavedExport() string { return msgs.text(textSavedExport) }
 
+// SavedExportCancel says "Cancel"
+// in the language the app shows under cx.
+//
+// Button of the Saved Lines sheet in place of Export for Anki… while an export runs: stops it.
+func SavedExportCancel(cx *core.Scope) string { return For(cx).SavedExportCancel() }
+
+// SavedExportCancel is the package's SavedExportCancel in the language of msgs.
+func (msgs Messages) SavedExportCancel() string { return msgs.text(textSavedExportCancel) }
+
 // SavedExportFailed says "Couldn't export the saved lines: {error}"
 // in the language the app shows under cx.
 //
@@ -23891,6 +23941,24 @@ func (msgs Messages) SavedExportFailed(error_ string) string {
 		}
 	}
 }
+
+// SavedExportOpenSettings says "Open Settings"
+// in the language the app shows under cx.
+//
+// Button of the Saved Lines sheet after an export without audio because ffmpeg is not installed: opens the settings section that installs it.
+func SavedExportOpenSettings(cx *core.Scope) string { return For(cx).SavedExportOpenSettings() }
+
+// SavedExportOpenSettings is the package's SavedExportOpenSettings in the language of msgs.
+func (msgs Messages) SavedExportOpenSettings() string { return msgs.text(textSavedExportOpenSettings) }
+
+// SavedExportStopped says "Export stopped."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, after the user cancelled the export.
+func SavedExportStopped(cx *core.Scope) string { return For(cx).SavedExportStopped() }
+
+// SavedExportStopped is the package's SavedExportStopped in the language of msgs.
+func (msgs Messages) SavedExportStopped() string { return msgs.text(textSavedExportStopped) }
 
 // SavedExported says "{count, plural, one {Exported # line with its audio.} other {Exported # lines with their audio.}} Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
 // in the language the app shows under cx.
@@ -23974,6 +24042,52 @@ func (msgs Messages) SavedExportedNoAudio(count int) string {
 			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 句，但没有音频：未安装 ffmpeg，或影片已不在资料库中。在 Anki 中导入“Kando Saved Lines.txt”即可。"
 		case "zh-Hant":
 			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 句，但沒有音訊：未安裝 ffmpeg，或影片已不在資料庫中。在 Anki 中匯入「Kando Saved Lines.txt」即可。"
+		}
+	}
+}
+
+// SavedExportedSomeAudio says "{lines, plural, one {Exported # line,} other {Exported # lines,}} {sounds} with audio. Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
+// in the language the app shows under cx.
+//
+// Saved Lines sheet, once an export is done that cut the audio of only some lines (the others' videos are gone or ffmpeg could not cut them): how many lines it wrote, how many with audio, and how to bring them into Anki. The quoted names are the export's folder and file, which are not translated.
+func SavedExportedSomeAudio(cx *core.Scope, lines int, sounds int) string {
+	return For(cx).SavedExportedSomeAudio(lines, sounds)
+}
+
+// SavedExportedSomeAudio is the package's SavedExportedSomeAudio in the language of msgs.
+func (msgs Messages) SavedExportedSomeAudio(lines int, sounds int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SavedExportedSomeAudio(lines, sounds))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SavedExportedSomeAudio; f != nil {
+			return f(lines, sounds)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			switch i18n.Cardinal("en", float64(lines)) {
+			case i18n.One:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" line,")
+			default:
+				b.WriteString("Exported ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(lines))))
+				b.WriteString(" lines,")
+			}
+			b.WriteString(" ")
+			b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(sounds))))
+			b.WriteString(" with audio. Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki.")
+			return b.String()
+		case "ja":
+			return i18n.FormatNumber("ja", float64(lines)) + " 件のセリフを書き出しました（音声付きは " + i18n.FormatNumber("ja", float64(sounds)) + " 件）。「Kando Saved Lines audio」のファイルを Anki の collection.media フォルダにコピーしてから、Anki で「Kando Saved Lines.txt」を読み込んでください。"
+		case "ko":
+			return "대사 " + i18n.FormatNumber("ko", float64(lines)) + "개를 내보냈습니다(오디오 포함 " + i18n.FormatNumber("ko", float64(sounds)) + "개). ‘Kando Saved Lines audio’의 파일을 Anki의 collection.media 폴더에 복사한 다음 Anki에서 ‘Kando Saved Lines.txt’를 가져오십시오."
+		case "zh-Hans":
+			return "已导出 " + i18n.FormatNumber("zh-Hans", float64(lines)) + " 句，其中 " + i18n.FormatNumber("zh-Hans", float64(sounds)) + " 句有音频。把“Kando Saved Lines audio”里的文件拷贝到 Anki 的 collection.media 文件夹，再在 Anki 中导入“Kando Saved Lines.txt”。"
+		case "zh-Hant":
+			return "已匯出 " + i18n.FormatNumber("zh-Hant", float64(lines)) + " 句，其中 " + i18n.FormatNumber("zh-Hant", float64(sounds)) + " 句有音訊。把「Kando Saved Lines audio」裡的檔案拷貝到 Anki 的 collection.media 檔案夾，再在 Anki 中匯入「Kando Saved Lines.txt」。"
 		}
 	}
 }

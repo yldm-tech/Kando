@@ -31,13 +31,14 @@ type savedUI struct {
 	review savedReview
 }
 
-// savedExport is an export of the saved lines (saved.Export): busy while it runs, with how many lines it has done of total; once done, what it wrote, or why it failed. cancel stops the one running. gen numbers the exports, so a report of one that was stopped is dropped.
+// savedExport is an export of the saved lines (saved.Export): busy while it runs, with how many lines it has done of total; once done, what it wrote, or why it failed, context.Canceled once stopped. noFFmpeg is set when it ran without ffmpeg, so without the lines' audio. cancel stops the one running. gen numbers the exports, so a report of one that another took over from is dropped.
 type savedExport struct {
 	busy        bool
 	done, total int
 	result      saved.Exported
 	err         error
 	finished    bool
+	noFFmpeg    bool
 	cancel      context.CancelFunc
 	gen         int
 }
@@ -203,8 +204,8 @@ func (a *app) ExportSaved() {
 		book := a.saved.book
 		book.Lines = slices.Clone(book.Lines)
 		delays := maps.Clone(a.player.delays)
-		a.saved.export = savedExport{busy: true, total: len(book.Lines), cancel: cancel, gen: gen}
 		ffmpeg, update := a.ffmpegPath(), a.update
+		a.saved.export = savedExport{busy: true, total: len(book.Lines), noFFmpeg: ffmpeg == "", cancel: cancel, gen: gen}
 		report := func(fn func(e *savedExport)) {
 			update(func() {
 				if a.saved.export.gen == gen {
@@ -218,13 +219,13 @@ func (a *app) ExportSaved() {
 			})
 			report(func(e *savedExport) {
 				cancel()
-				*e = savedExport{finished: true, result: result, err: err, gen: gen, total: e.total, done: e.done}
+				*e = savedExport{finished: true, result: result, err: err, noFFmpeg: e.noFFmpeg, gen: gen, total: e.total, done: e.done}
 			})
 		}()
 	})
 }
 
-// savedStopExport stops the export running, as the app quits or another starts.
+// savedStopExport stops the export running, as the user cancels it, the app quits or another starts.
 func (a *app) savedStopExport() {
 	if a.saved.export.cancel != nil {
 		a.saved.export.cancel()

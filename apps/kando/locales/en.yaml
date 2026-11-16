@@ -2722,11 +2722,20 @@ savedEmpty:
 savedExport:
   message: "Export for Anki…"
   description: "File menu item and button of the Saved Lines sheet: writes the saved lines, with each line's audio, into a folder the user picks, as a text file Anki imports."
+savedExportCancel:
+  message: "Cancel"
+  description: "Button of the Saved Lines sheet in place of Export for Anki… while an export runs: stops it."
 savedExportFailed:
   message: "Couldn't export the saved lines: {error}"
   description: "Saved Lines sheet, when the export failed, with the system's reason."
   placeholders:
     error: { type: "String", example: "permission denied" }
+savedExportOpenSettings:
+  message: "Open Settings"
+  description: "Button of the Saved Lines sheet after an export without audio because ffmpeg is not installed: opens the settings section that installs it."
+savedExportStopped:
+  message: "Export stopped."
+  description: "Saved Lines sheet, after the user cancelled the export."
 savedExported:
   message: "{count, plural, one {Exported # line with its audio.} other {Exported # lines with their audio.}} Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
   description: "Saved Lines sheet, once the export is done: what it wrote and how to bring it into Anki. The quoted names are the export's folder and file, which are not translated."
@@ -2737,6 +2746,12 @@ savedExportedNoAudio:
   description: "Saved Lines sheet, once an export is done that could cut no audio. The quoted name is the export's file, which is not translated."
   placeholders:
     count: { type: "int", example: "12" }
+savedExportedSomeAudio:
+  message: "{lines, plural, one {Exported # line,} other {Exported # lines,}} {sounds} with audio. Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
+  description: "Saved Lines sheet, once an export is done that cut the audio of only some lines (the others' videos are gone or ffmpeg could not cut them): how many lines it wrote, how many with audio, and how to bring them into Anki. The quoted names are the export's folder and file, which are not translated."
+  placeholders:
+    lines: { type: "int", example: "12" }
+    sounds: { type: "int", example: "9" }
 savedExporting:
   message: "Exporting {done} of {total}…"
   description: "Saved Lines sheet, while the export runs: how many lines it has written of all of them."
