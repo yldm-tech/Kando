@@ -507,6 +507,9 @@ filmDelay:
 filmDismiss:
   message: "Close Message"
   description: "Close button of the upload notice over the picture."
+filmExplainLine:
+  message: "Explain Line"
+  description: "First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the command palette."
 filmFaceBold:
   message: "Bold {line}"
   description: "Accessible name of a line's bold toggle."
@@ -605,8 +608,8 @@ filmLoopGapOn:
   message: "Pause Between Repeats: On"
   description: "Message on the picture after Pause Between Repeats was turned on: a looped line now waits, after each pass, for as long as it played before it plays again."
 filmLoopLine:
-  message: "Loop Line"
-  description: "Accessible name and tooltip of the transport's toggle that plays the subtitle line playing over and over (its shortcut follows the tooltip)."
+  message: "Loop"
+  description: "Accessible name and tooltip of the transport's toggle that plays the subtitle line playing over and over, lit while a loop of one line or of several plays (its shortcut follows the tooltip). Keep it free of a count of lines: Shift+L makes the loop span several."
 filmLoopLines:
   message: "Loop: Lines {from}–{to}"
   description: "Message on the picture after the loop was made to span several subtitle lines (Shift+L, or Shift and a click on a line): the numbers, counting from 1, of its first and its last line."
@@ -614,11 +617,11 @@ filmLoopLines:
     from: { type: "int", example: "3" }
     to: { type: "int", example: "5" }
 filmLoopOff:
-  message: "Loop Line: Off"
-  description: "Message on the picture after the line loop was turned off."
+  message: "Loop: Off"
+  description: "Message on the picture after the loop, of one line or of several, was turned off."
 filmLoopOn:
-  message: "Loop Line: On"
-  description: "Message on the picture after the line loop was turned on."
+  message: "Loop: On"
+  description: "Message on the picture after the loop was turned on for the line playing."
 filmMatchOf:
   message: "Match {number} of {total}"
   description: "Message on the picture after Return or Shift+Return in the subtitle search jumped to a line holding the search: which match it is, counting from 1, and how many lines hold it."
@@ -1833,6 +1836,14 @@ paletteAsking:
   description: "Answer card while the question is on its way to the AI model."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
+paletteExplainLine:
+  message: "Explain Line"
+  description: "Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette."
+paletteExplainNote:
+  message: "Explained by {model}"
+  description: "Footnote under the explanation of a subtitle line (Explain Line): which model explained it."
+  placeholders:
+    model: { type: "String", example: "gpt-4o-mini" }
 paletteFieldLabel:
   message: "Commands, lines or questions"
   description: "Accessible name of the command palette's field."
@@ -1928,8 +1939,8 @@ playerKeyLoopGap:
   message: "Pause Between Repeats"
   description: "Menu item of the Playback menu, checked while on: a looped line waits, after each pass, for as long as it played, so the learner can say it after it, and then plays again by itself."
 playerKeyLoopLine:
-  message: "Loop Line"
-  description: "Shortcut row and menu item: play the subtitle line playing over and over, or stop doing so."
+  message: "Loop"
+  description: "Shortcut row and menu item, checked while a loop plays: play the subtitle line playing over and over, or stop the loop, of one line or of several (Shift+L)."
 playerKeyMute:
   message: "Mute/Unmute"
   description: "Shortcut row and menu item: mute or unmute."
@@ -3005,7 +3016,7 @@ settingsKeywordsGeneral:
   message: "library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify"
   description: "Search keywords of the General settings section, separated by spaces, besides its title. Not shown; the sidebar's search finds the section by them. Use the words the section's page shows."
 settingsKeywordsLook:
-  message: "subtitles display bilingual original only translation only order translation original dim blank make room preview"
+  message: "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"
   description: "Search keywords of the Subtitle Style settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsShortcuts:
   message: "keyboard keys commands"
@@ -3084,6 +3095,14 @@ settingsLibrarySaveFailed:
   description: "Error when the libraries could not be saved to settings.json."
   placeholders:
     error: { type: "String", example: "permission denied" }
+settingsLookBold:
+  message: "Bold"
+  description: "Row of Settings › Subtitle Style, under a line's name (Translation, Original): draws that line in bold."
+settingsLookColorOf:
+  message: "{line} Color"
+  description: "Accessible name of the color choice of one subtitle line in Settings › Subtitle Style. {line} is the line's name, Translation or Original."
+  placeholders:
+    line: { type: "String", example: "Translation" }
 settingsLookMode:
   message: "Default display"
   description: "Row title: which subtitle lines the player shows by default."
@@ -3096,9 +3115,6 @@ settingsLookModeOriginal:
 settingsLookModeTranslation:
   message: "Translation Only"
   description: "Segment: show only the translated line."
-settingsLookNote:
-  message: "Size, color and font are changed while playing, in “Subtitle Style” in the sidebar. Changes here apply to the player at the same time."
-  description: "Footnote under the subtitle preview. “Subtitle Style” is the panel of the player's sidebar; use its name there."
 settingsLookOrder:
   message: "Bilingual order"
   description: "Row title: which line is on top in bilingual subtitles."
@@ -3123,6 +3139,9 @@ settingsLookPreviewTag:
 settingsLookPreviewTranslation:
   message: "Every river begins as a trickle high in the mountains."
   description: "The translated line of the sample subtitle in the preview, in the interface's language. The same sentence as settingsLookPreviewOriginal."
+settingsLookStyle:
+  message: "Style"
+  description: "Label over the card of Settings › Subtitle Style that picks the subtitles' preset and font."
 settingsLookUntranslated:
   message: "Translation only, before the translation is ready"
   description: "Row title: what Translation Only shows for a line whose translation has not arrived yet."

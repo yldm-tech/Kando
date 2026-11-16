@@ -139,6 +139,8 @@ type App interface {
 	ToggleMute()
 	// FeedbackSubtitles opens the 反馈问题 dialog for this film's subtitles.
 	FeedbackSubtitles()
+	// ExplainLine has the AI service explain cue i, its meaning, key words and grammar, in the command palette.
+	ExplainLine(i int)
 }
 
 // Video is what the system's player plays and how. Source is "" while there is nothing to play, as while a video the system cannot open is copied into one it can (Remux).

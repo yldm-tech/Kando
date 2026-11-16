@@ -807,3 +807,51 @@ func TestPaletteFindsFilmsByName(t *testing.T) {
 		t.Fatalf("Return on the film in the player: palette open %v, film %q", a.palette.open, a.openKey)
 	}
 }
+
+// TestPaletteExplainsTheLinePlaying checks that E, in a film with lines, opens the palette with the AI service explaining the line playing, with no question typed: it sends that line, past the furthest point played as well, with the lines just before it, and not the film's other lines, and the card shows the line's original over the explanation, a chip that plays the line and which model explained it.
+func TestPaletteExplainsTheLinePlaying(t *testing.T) {
+	srv, seen := fakeLLM(t, `{"answer":"河曲是河流的大弯道。","refs":["1:10"]}`)
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}}
+	a, tt, updates := paletteLibrary(t, tools)
+	item, _ := a.paletteFilm("rivers")
+	a.OpenAt(item, 71*time.Second)
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready })
+	refresh(tt, a)
+	tt.Key("e")
+	if !a.palette.open || a.palette.answer == nil || !a.palette.answer.busy {
+		t.Fatalf("E: palette open %v answer %+v", a.palette.open, a.palette.answer)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
+	for _, want := range []string{"These sweeping curves are called meanders.\n\n河曲是河流的大弯道。", "▶ 1:10", "m1 讲解"} {
+		if !hasText(tt, want) {
+			t.Fatalf("missing %q in %q", want, tt.Texts())
+		}
+	}
+	if chips := a.palette.answer.refs; len(chips) != 1 || chips[0] != 70*time.Second+400*time.Millisecond {
+		t.Fatalf("chips %v", chips)
+	}
+	sent := strings.Join(*seen, "\n")
+	for _, want := range []string{"要讲解的一句：[1:10] These sweeping curves are called meanders.", "数千年间，河道被切割得越来越深。", "Every word in the subtitles can be looked up.", "语法"} {
+		if !strings.Contains(sent, want) {
+			t.Fatalf("sent %q, want %q in it", sent, want)
+		}
+	}
+	if strings.Contains(sent, "Every river begins") {
+		t.Fatalf("sent lines far from the one explained: %q", sent)
+	}
+	tt.Press("跳到 1:10")
+	if a.palette.open {
+		t.Fatal("the chip left the palette open")
+	}
+}
+
+// TestPaletteExplainWithoutAIOffersItsSettings checks that Explain Line, with no AI service set, gets the palette's prompt to set one rather than a question sent nowhere.
+func TestPaletteExplainWithoutAIOffersItsSettings(t *testing.T) {
+	a, tt, updates := paletteLibrary(t, media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1"}})
+	paletteOpenFilm(t, a, tt, updates, "rivers")
+	a.ExplainLine(1)
+	refresh(tt, a)
+	if !a.palette.open || !hasText(tt, testlocale.Messages().PaletteNoAI()) || !hasText(tt, testlocale.Messages().PaletteNoAIAction()) {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+}

@@ -730,3 +730,42 @@ func TestDownloadSourceDropDown(t *testing.T) {
 		t.Fatalf("source %q after Hugging Face", a.source)
 	}
 }
+
+// TestLookPageChangesTheStyle checks that the 字幕外观 page changes how subtitles look, as the player's style view does, and saves each change: a preset gives the lines its boxes and sizes, the font both lines, and each line its size, color and weight, which the preview draws; the note that sent the user to the player for them is gone.
+func TestLookPageChangesTheStyle(t *testing.T) {
+	a := newFakeApp()
+	a.section = SectionLook
+	a.cue = subtitle.Look{Preset: "outline", Shadow: true,
+		Translation: subtitle.Face{Family: subtitle.FontDefault, Size: 30, Color: "#FFFFFF", Bold: true},
+		Original:    subtitle.Face{Family: subtitle.FontDefault, Size: 22, Color: "#FFD60A"}}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	saves := func() int {
+		return len(slices.DeleteFunc(slices.Clone(a.calls), func(c string) bool { return c != "save" }))
+	}
+	app.Press("id:settings-look-preset >> " + whole(msgs.FilmPresetBox()))
+	if !a.cue.Box || a.cue.Shadow || a.cue.Preset != "box" || saves() != 1 {
+		t.Fatalf("Box preset: look %+v, %d saves", a.cue, saves())
+	}
+	app.Press("id:settings-look-preset >> " + whole(msgs.FilmPresetLarge()))
+	if a.cue.Box || a.cue.Translation.Size != 42 || a.cue.Original.Size != 30 {
+		t.Fatalf("Large preset: look %+v", a.cue)
+	}
+	app.Press("id:settings-look-font")
+	app.Press(whole(msgs.FilmFontHiragino()))
+	if a.cue.Translation.Family != subtitle.FontHiragino || a.cue.Original.Family != subtitle.FontHiragino {
+		t.Fatalf("font: look %+v", a.cue)
+	}
+	if font := app.Find(whole(msgs.SettingsLookPreviewTranslation())).TextStyle.Font.Family; !strings.Contains(font, "Hiragino Sans GB") {
+		t.Fatalf("the preview draws in %q", font)
+	}
+	app.Press("id:settings-look-color-original >> " + whole(msgs.FilmColorOrange()))
+	app.Press("id:settings-look-bold-original")
+	app.AccessibilityAction("id:settings-look-size-translation-thumb", core.ActionIncrement)
+	if a.cue.Original.Color != "#FF9F0A" || !a.cue.Original.Bold || a.cue.Translation.Size != 43 || a.cue.Translation.Color != "#FFFFFF" {
+		t.Fatalf("faces: look %+v", a.cue)
+	}
+	if !app.Exists(whole("43")) || saves() != 6 {
+		t.Fatalf("size shown %v, %d saves", app.Exists(whole("43")), saves())
+	}
+}

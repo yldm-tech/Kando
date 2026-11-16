@@ -6,18 +6,19 @@ import (
 	"slices"
 	"time"
 
+	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 
 	"github.com/nsgo-dev/nsgo/core"
 )
 
-// DefaultLook is the prototype's: outlined, the translation 30 bold white over the original 22 yellow, at the bottom. A face's Family is the value saved in the settings (默认, 苹方, 冬青黑体, 黑体 or 宋体), not what the style view shows: fontName names it.
+// DefaultLook is the prototype's: outlined, the translation 30 bold white over the original 22 yellow, at the bottom. A face's Family is the value saved in the settings (默认, 苹方, 冬青黑体, 黑体 or 宋体), not what the style view shows: subtitle.FontName names it.
 func DefaultLook() Look {
 	return Look{
 		Preset: "outline", Shadow: true,
-		Translation: Face{Family: fontDefault, Size: 30, Color: "#FFFFFF", Bold: true},
-		Original:    Face{Family: fontDefault, Size: 22, Color: "#FFD60A"},
+		Translation: Face{Family: subtitle.FontDefault, Size: 30, Color: "#FFFFFF", Bold: true},
+		Original:    Face{Family: subtitle.FontDefault, Size: 22, Color: "#FFD60A"},
 	}
 }
 
@@ -215,7 +216,7 @@ var outlineCopies = []struct {
 
 // lineText is the text of a subtitle line in its face, over extra. Every copy but the first, which sizes the line, is left out of what assistive technology reads.
 func lineText(text func() string, line styledLine, extra core.Style) core.Node {
-	st := core.Style{FontSize: core.Points(line.face.Size), LineHeightMultiple: 1.3, TextAlign: core.TextAlignCenter, FontFamily: fontFamily(line.face.Family)}
+	st := core.Style{FontSize: core.Points(line.face.Size), LineHeightMultiple: 1.3, TextAlign: core.TextAlignCenter, FontFamily: subtitle.FontFamily(line.face.Family)}
 	if line.face.Bold {
 		st.FontWeight = core.FontWeightBold
 	}
@@ -293,56 +294,6 @@ func styledLines(a lineSettings, text string) []styledLine {
 		return add(add(nil, original, look.Original), translation, look.Translation)
 	}
 	return add(add(nil, translation, look.Translation), original, look.Original)
-}
-
-// The font families a face can have, as the settings save them. They are data, not text: fontName names them in the interface's language. 默认 leaves the line in the system's font; 苹方 and 冬青黑体 are macOS's own Chinese fonts, the ones the style view offers there; 黑体 and 宋体 are a sans-serif and a serif Chinese font, the ones it offers on Windows and Linux.
-const (
-	fontDefault  = "默认"
-	fontPingFang = "苹方"
-	fontHiragino = "冬青黑体"
-	fontSans     = "黑体"
-	fontSerif    = "宋体"
-)
-
-// fontFamilies are the fonts that draw each saved family, a CSS list for a style's FontFamily: the family's own font first, then a font of the same kind on each system (macOS, Windows, Linux), so a family saved on one system still draws in its kind on another, and on a Linux without the first a common substitute does.
-var fontFamilies = map[string]string{
-	fontPingFang: "PingFang SC, Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei",
-	fontHiragino: "Hiragino Sans GB, Noto Sans CJK SC, Source Han Sans SC, Microsoft YaHei",
-	fontSans:     "Microsoft YaHei, Noto Sans CJK SC, Source Han Sans SC, WenQuanYi Micro Hei, PingFang SC",
-	fontSerif:    "SimSun, Noto Serif CJK SC, Source Han Serif SC, AR PL UMing CN, Songti SC",
-}
-
-// fontFamily is the font list that draws the saved family name, or "" for 默认 and a family it does not know, which keep the system's font.
-func fontFamily(name string) string {
-	return fontFamilies[name]
-}
-
-// styleFonts are the families the style view offers on os, as the settings save them: macOS's own fonts on macOS, as the prototype has them, and elsewhere a sans-serif and a serif font, which look apart on every system that has Chinese fonts.
-func styleFonts(os core.OS) []string {
-	if os == core.OSMacOS {
-		return []string{fontDefault, fontPingFang, fontHiragino}
-	}
-	return []string{fontDefault, fontSans, fontSerif}
-}
-
-// fontName is what the style view calls a saved font family in the language the interface shows under cx; a family it does not know is shown as saved.
-func fontName(cx *core.Scope, family string) string { return fontNameIn(locales.For(cx), family) }
-
-// fontNameIn is fontName in the language of m.
-func fontNameIn(m locales.Messages, family string) string {
-	switch family {
-	case fontDefault:
-		return m.FilmFontDefault()
-	case fontPingFang:
-		return m.FilmFontPingFang()
-	case fontHiragino:
-		return m.FilmFontHiragino()
-	case fontSans:
-		return m.FilmFontSans()
-	case fontSerif:
-		return m.FilmFontSerif()
-	}
-	return family
 }
 
 // DelayText writes a subtitle delay as the mode menu and the OSD show it, to a tenth of a second, in the language the interface shows under cx: "+0.3 秒", "-0.1 秒", "0.0 秒".

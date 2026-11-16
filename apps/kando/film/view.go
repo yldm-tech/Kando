@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
@@ -219,9 +220,9 @@ func (s *screen) stage() core.Node {
 			}},
 			core.Show{When: func() bool { return source() != "" }, Then: func(cx *core.Scope) core.Node { return s.video(cx, natural) }},
 			core.Show{When: func() bool { return note() != stageNoteState{} }, Then: func(cx *core.Scope) core.Node {
-				return core.View{PointerEvents: core.PointerEventsNone,
-					Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Top: core.Pt(0), Bottom: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(80, 24)},
-					Children: []core.Node{core.Text{TestID: "film-stage-note",
+				return core.View{PointerEvents: core.PointerEventsBoxNone,
+					Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Right: core.Pt(0), Top: core.Pt(0), Bottom: core.Pt(0), AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter, Padding: core.Symmetric(80, 24), Gap: 12},
+					Children: []core.Node{core.Text{TestID: "film-stage-note", PointerEvents: core.PointerEventsNone,
 						ContentFunc: func() string {
 							n := note()
 							switch {
@@ -238,10 +239,24 @@ func (s *screen) stage() core.Node {
 								return core.Style{Color: colors.Text()}
 							}
 							return core.Style{Color: colors.Muted()}
-						}}}}
+						}},
+						s.unplayableRemedy(note),
+					}}
 			}},
 		},
 	}
+}
+
+// unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file.
+func (s *screen) unplayableRemedy(note func() stageNoteState) core.Node {
+	a := s.a
+	return core.Show{When: func() bool { return note().err != "" && a.PlayPath() != "" }, Then: func(cx *core.Scope) core.Node {
+		// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			return ui.Button{TestID: "film-stage-reveal", Text: locales.FilmShowInFinder(cx, desktop.Platform(cx)), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+				OnPress: live.Do(a, func() { a.Reveal(a.PlayPath()) })}
+		})
+	}}
 }
 
 // stageNoteState is what the stage says in place of the picture: why it would not play, that it opens, or how far the film's job is.

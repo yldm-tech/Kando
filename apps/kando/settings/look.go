@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"fmt"
+
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
@@ -11,7 +13,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// look is the 字幕外观 page: a preview of the subtitles in the player's look, and how the player shows them. The preview is drawn in the player's dark theme.
+// look is the 字幕外观 page: a preview of the subtitles in the player's look, how the player shows them, and the look itself: its preset, its font, and each line's size, color and weight, with the controls the player's style view uses where they fit a card (package subtitle). The preview is drawn in the player's dark theme. Every change is the player's at once, and saved.
 type look struct{ s screen }
 
 // Render implements core.Node.
@@ -23,9 +25,19 @@ func (p look) Render(cx *core.Scope) core.Node {
 			a.SetYieldSubs(on)
 			a.Save()
 		})}
+	look := live.Func(a, func() subtitle.Look { return *a.Cue() })
+	edit := subtitle.Edit(func(change func(l *subtitle.Look)) {
+		live.Do(a, func() {
+			change(a.Cue())
+			a.Save()
+		})()
+	})
+	presets := make([]ui.Option[string], len(subtitle.Presets))
+	for i, preset := range subtitle.Presets {
+		presets[i] = ui.Option[string]{Value: preset.ID, Label: subtitle.PresetName(cx, preset.ID)}
+	}
 	return form.Page(
 		lookPreview{a: a},
-		form.Note(static(locales.SettingsLookNote(cx)), 6),
 		form.Card(
 			choice{a: a, id: "settings-look-mode", title: locales.SettingsLookMode(cx), get: a.SubMode, set: a.SetSubMode, options: []ui.Option[string]{
 				{Value: subtitle.Original, Label: locales.SettingsLookModeOriginal(cx)}, {Value: subtitle.Translation, Label: locales.SettingsLookModeTranslation(cx)}, {Value: subtitle.Bilingual, Label: locales.SettingsLookModeBilingual(cx)},
@@ -41,7 +53,48 @@ func (p look) Render(cx *core.Scope) core.Node {
 			form.Separator(true),
 			yield,
 		),
+		form.Label(locales.SettingsLookStyle(cx), 12),
+		form.Card(
+			form.Row{Title: locales.FilmStylePresets(cx), Trailing: []core.Node{ui.Tabs[string]{TestID: "settings-look-preset", Label: locales.FilmStylePresets(cx), Size: ui.SizeSmall, Options: presets,
+				Value: func() string { return subtitle.PresetOf(look()) },
+				OnChange: func(id string) {
+					for _, preset := range subtitle.Presets {
+						if preset.ID == id {
+							edit(preset.Apply)
+						}
+					}
+				}}}},
+			form.Separator(true),
+			form.Row{Title: locales.FilmStyleFont(cx), Trailing: []core.Node{subtitle.FontSelect(cx, "settings-look-font", look, edit)}},
+		),
+		faceCard(cx, subtitle.TranslationLine, look, edit),
+		faceCard(cx, subtitle.OriginalLine, look, edit),
 	)
+}
+
+// faceCard sets one line's size, color and weight, under the line's name.
+func faceCard(cx *core.Scope, line subtitle.Line, look func() subtitle.Look, edit subtitle.Edit) core.Node {
+	face := func() subtitle.Face { l := look(); return *line.Face(&l) }
+	size := subtitle.SizeSlider(cx, "settings-look-size-"+line.ID, line, look, edit)
+	size.Style = core.Style{Width: core.Pt(180)}
+	colors := make([]ui.Option[string], len(subtitle.Colors))
+	for i, hex := range subtitle.Colors {
+		colors[i] = ui.Option[string]{Value: hex, Label: subtitle.ColorName(cx, hex)}
+	}
+	return core.Group{
+		form.Label(line.Name(cx), 12),
+		form.Card(
+			form.Row{Title: locales.FilmStyleSize(cx), Trailing: []core.Node{size, form.Value(func() string { return fmt.Sprintf("%.0f", face().Size) }, 12)}},
+			form.Separator(true),
+			form.Row{Title: locales.FilmStyleColor(cx), Trailing: []core.Node{ui.Tabs[string]{TestID: "settings-look-color-" + line.ID, Label: locales.SettingsLookColorOf(cx, line.Name(cx)), Size: ui.SizeSmall, Options: colors,
+				Value:    func() string { return face().Color },
+				OnChange: func(hex string) { edit(func(l *subtitle.Look) { line.Face(l).Color = hex }) }}}},
+			form.Separator(true),
+			form.Row{Title: locales.SettingsLookBold(cx), Trailing: []core.Node{ui.Switch{TestID: "settings-look-bold-" + line.ID, Label: locales.FilmFaceBold(cx, line.Name(cx)),
+				Checked:  func() bool { return face().Bold },
+				OnChange: func(on bool) { edit(func(l *subtitle.Look) { line.Face(l).Bold = on }) }}}},
+		),
+	}
 }
 
 // choice is a row with a segmented control choosing among options; a change is set and saved. A value none of the options holds, as the player's 关闭 for the display mode, leaves every segment unchosen.
@@ -75,7 +128,7 @@ type previewState struct {
 	mode, order string
 }
 
-// lookPreview draws the sample cue over the prototype's landscape as the player would: the lines the display mode shows, in its order, with the faces of the look, as high above the bottom as the player puts them.
+// lookPreview draws the sample cue over the prototype's landscape as the player would: the lines the display mode shows, in its order, with the faces of the look, in its font, as high above the bottom as the player puts them.
 type lookPreview struct{ a App }
 
 // Render implements core.Node.
@@ -99,7 +152,7 @@ func (p lookPreview) Render(cx *core.Scope) core.Node {
 		}
 		texts := make([]core.Node, len(lines))
 		for i, line := range lines {
-			style := core.Style{FontSize: core.Points(line.face.Size), LineHeightMultiple: 1.3, TextAlign: core.TextAlignCenter, Color: faceColor(line.face.Color)}
+			style := core.Style{FontSize: core.Points(line.face.Size), LineHeightMultiple: 1.3, TextAlign: core.TextAlignCenter, Color: faceColor(line.face.Color), FontFamily: subtitle.FontFamily(line.face.Family)}
 			if line.face.Bold {
 				style.FontWeight = ui.Bold
 			}

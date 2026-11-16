@@ -536,6 +536,7 @@ var Parameters = map[string][]string{
 	"PaletteAskFailed":                   {"error_"},
 	"PaletteAskRow":                      {"question"},
 	"PaletteAsking":                      {"model"},
+	"PaletteExplainNote":                 {"model"},
 	"PaletteJumpTo":                      {"time_"},
 	"PaletteLibrarySaveFailed":           {"error_"},
 	"PaletteSettingsSection":             {"section"},
@@ -621,6 +622,7 @@ var Parameters = map[string][]string{
 	"SettingsGeneralToolDetail":          {"use", "where"},
 	"SettingsGeneralUpdateAvailable":     {"version"},
 	"SettingsLibrarySaveFailed":          {"error_"},
+	"SettingsLookColorOf":                {"line"},
 	"SettingsSpeechDownloadFailedStatus": {"status"},
 	"SettingsSpeechDownloadProgress":     {"model"},
 	"SettingsSpeechLanguageSaveFailed":   {"error_"},
@@ -763,6 +765,7 @@ type Translation struct {
 	PaletteAskFailed                   func(error_ string) string
 	PaletteAskRow                      func(question string) string
 	PaletteAsking                      func(model string) string
+	PaletteExplainNote                 func(model string) string
 	PaletteJumpTo                      func(time_ string) string
 	PaletteLibrarySaveFailed           func(error_ string) string
 	PaletteSettingsSection             func(section string) string
@@ -848,6 +851,7 @@ type Translation struct {
 	SettingsGeneralToolDetail          func(use string, where string) string
 	SettingsGeneralUpdateAvailable     func(version string) string
 	SettingsLibrarySaveFailed          func(error_ string) string
+	SettingsLookColorOf                func(line string) string
 	SettingsSpeechDownloadFailedStatus func(status int) string
 	SettingsSpeechDownloadProgress     func(model string) string
 	SettingsSpeechLanguageSaveFailed   func(error_ string) string
@@ -1004,6 +1008,7 @@ const (
 	textFilmCopyTranslation
 	textFilmDelay
 	textFilmDismiss
+	textFilmExplainLine
 	textFilmFeedbackSubtitles
 	textFilmFiles
 	textFilmFolder
@@ -1294,6 +1299,7 @@ const (
 	textOnboardingWatchLanguagesLabel
 	textOnboardingWelcome
 	textOnboardingWelcomeDescription
+	textPaletteExplainLine
 	textPaletteFieldLabel
 	textPaletteFooter
 	textPaletteHeadingAnswer
@@ -1566,11 +1572,11 @@ const (
 	textSettingsLanguageUkrainian
 	textSettingsLanguageVietnamese
 	textSettingsLanguagesSearch
+	textSettingsLookBold
 	textSettingsLookMode
 	textSettingsLookModeBilingual
 	textSettingsLookModeOriginal
 	textSettingsLookModeTranslation
-	textSettingsLookNote
 	textSettingsLookOrder
 	textSettingsLookOrderOriginalFirst
 	textSettingsLookOrderTranslationFirst
@@ -1579,6 +1585,7 @@ const (
 	textSettingsLookPreviewOriginal
 	textSettingsLookPreviewTag
 	textSettingsLookPreviewTranslation
+	textSettingsLookStyle
 	textSettingsLookUntranslated
 	textSettingsLookUntranslatedBlank
 	textSettingsLookUntranslatedDim
@@ -1837,6 +1844,7 @@ var keyOfText = [numTexts]string{
 	"filmCopyTranslation",
 	"filmDelay",
 	"filmDismiss",
+	"filmExplainLine",
 	"filmFeedbackSubtitles",
 	"filmFiles",
 	"filmFolder",
@@ -2127,6 +2135,7 @@ var keyOfText = [numTexts]string{
 	"onboardingWatchLanguagesLabel",
 	"onboardingWelcome",
 	"onboardingWelcomeDescription",
+	"paletteExplainLine",
 	"paletteFieldLabel",
 	"paletteFooter",
 	"paletteHeadingAnswer",
@@ -2399,11 +2408,11 @@ var keyOfText = [numTexts]string{
 	"settingsLanguageUkrainian",
 	"settingsLanguageVietnamese",
 	"settingsLanguagesSearch",
+	"settingsLookBold",
 	"settingsLookMode",
 	"settingsLookModeBilingual",
 	"settingsLookModeOriginal",
 	"settingsLookModeTranslation",
-	"settingsLookNote",
 	"settingsLookOrder",
 	"settingsLookOrderOriginalFirst",
 	"settingsLookOrderTranslationFirst",
@@ -2412,6 +2421,7 @@ var keyOfText = [numTexts]string{
 	"settingsLookPreviewOriginal",
 	"settingsLookPreviewTag",
 	"settingsLookPreviewTranslation",
+	"settingsLookStyle",
 	"settingsLookUntranslated",
 	"settingsLookUntranslatedBlank",
 	"settingsLookUntranslatedDim",
@@ -2668,6 +2678,7 @@ var textsEn = i18n.NewTexts(""+
 	"Copy Translation"+
 	"Subtitle Delay"+
 	"Close Message"+
+	"Explain Line"+
 	"Send Feedback on This Film's Subtitles…"+
 	"Files"+
 	"Film Folder"+
@@ -2691,9 +2702,9 @@ var textsEn = i18n.NewTexts(""+
 	"Local Video"+
 	"Pause Between Repeats: Off"+
 	"Pause Between Repeats: On"+
-	"Loop Line"+
-	"Loop Line: Off"+
-	"Loop Line: On"+
+	"Loop"+
+	"Loop: Off"+
+	"Loop: On"+
 	"Bilingual"+
 	"Display"+
 	"Off"+
@@ -2958,6 +2969,7 @@ var textsEn = i18n.NewTexts(""+
 	"Languages of the videos you watch"+
 	"Welcome to Kando"+
 	"Paste a YouTube or Bilibili link, or drag in a local video, and learn as you watch. First, choose your languages."+
+	"Explain Line"+
 	"Commands, lines or questions"+
 	"Type to search films, commands and watched lines · ↑↓ to select · Return to run"+
 	"Answer"+
@@ -2981,7 +2993,7 @@ var textsEn = i18n.NewTexts(""+
 	"Faster"+
 	"Larger Subtitles"+
 	"Pause Between Repeats"+
-	"Loop Line"+
+	"Loop"+
 	"Mute/Unmute"+
 	"Next Line"+
 	"Pause After Each Line"+
@@ -3205,7 +3217,7 @@ var textsEn = i18n.NewTexts(""+
 	"translation service EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key model test connection"+
 	"Google sign in sign out object storage upload R2 S3 OSS COS Endpoint Region Bucket Access Key Secret path style"+
 	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify"+
-	"subtitles display bilingual original only translation only order translation original dim blank make room preview"+
+	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"keyboard keys commands"+
 	"whisper models download recognition transcription HuggingFace Vimpo hyperframes"+
 	"target language smart translation context prompt restore default"+
@@ -3230,11 +3242,11 @@ var textsEn = i18n.NewTexts(""+
 	"Ukrainian"+
 	"Vietnamese"+
 	"Search languages"+
+	"Bold"+
 	"Default display"+
 	"Bilingual"+
 	"Original Only"+
 	"Translation Only"+
-	"Size, color and font are changed while playing, in “Subtitle Style” in the sidebar. Changes here apply to the player at the same time."+
 	"Bilingual order"+
 	"Original on Top"+
 	"Translation on Top"+
@@ -3243,6 +3255,7 @@ var textsEn = i18n.NewTexts(""+
 	"Chaque rivière commence par un mince filet d'eau en haut des montagnes."+
 	"Preview"+
 	"Every river begins as a trickle high in the mountains."+
+	"Style"+
 	"Translation only, before the translation is ready"+
 	"Leave Blank"+
 	"Dim Original"+
@@ -3496,6 +3509,7 @@ var textsEn = i18n.NewTexts(""+
 		16,
 		14,
 		13,
+		12,
 		41,
 		5,
 		11,
@@ -3519,9 +3533,9 @@ var textsEn = i18n.NewTexts(""+
 		11,
 		26,
 		25,
+		4,
 		9,
-		14,
-		13,
+		8,
 		9,
 		7,
 		3,
@@ -3786,6 +3800,7 @@ var textsEn = i18n.NewTexts(""+
 		33,
 		16,
 		113,
+		12,
 		28,
 		85,
 		6,
@@ -3809,7 +3824,7 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		16,
 		21,
-		9,
+		4,
 		11,
 		9,
 		21,
@@ -4033,7 +4048,7 @@ var textsEn = i18n.NewTexts(""+
 		156,
 		111,
 		226,
-		113,
+		141,
 		22,
 		79,
 		64,
@@ -4058,11 +4073,11 @@ var textsEn = i18n.NewTexts(""+
 		9,
 		10,
 		16,
+		4,
 		15,
 		9,
 		13,
 		16,
-		138,
 		15,
 		15,
 		18,
@@ -4071,6 +4086,7 @@ var textsEn = i18n.NewTexts(""+
 		72,
 		7,
 		54,
+		5,
 		49,
 		11,
 		12,
@@ -4327,6 +4343,7 @@ var textsJa = i18n.NewTexts(""+
 	"訳文をコピー"+
 	"字幕の遅延"+
 	"メッセージを閉じる"+
+	"このセリフを解説"+
 	"この動画の字幕を報告…"+
 	"ファイル"+
 	"動画のフォルダ"+
@@ -4617,6 +4634,7 @@ var textsJa = i18n.NewTexts(""+
 	"よく観る動画の言語"+
 	"Kando へようこそ"+
 	"YouTube や bilibili のリンクを貼り付けるか、ローカル動画をドラッグすれば、観ながら学べます。まず言語を選びましょう。"+
+	"このセリフを解説"+
 	"コマンド、セリフ、または質問"+
 	"入力すると動画、コマンド、見たセリフを検索 · ↑↓ で選択 · Return で実行"+
 	"回答"+
@@ -4864,7 +4882,7 @@ var textsJa = i18n.NewTexts(""+
 	"翻訳 サービス EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key モデル 接続テスト"+
 	"Google ログイン ログアウト オブジェクトストレージ アップロード R2 S3 OSS COS Endpoint Region Bucket Access Key Secret パス形式"+
 	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知"+
-	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー"+
+	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"キーボード キー コマンド"+
 	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Vimpo hyperframes"+
 	"翻訳先の言語 スマート翻訳 文脈 プロンプト デフォルトに戻す"+
@@ -4889,11 +4907,11 @@ var textsJa = i18n.NewTexts(""+
 	"ウクライナ語"+
 	"ベトナム語"+
 	"言語を検索"+
+	"太字"+
 	"デフォルトの表示方法"+
 	"二言語"+
 	"原文のみ"+
 	"訳文のみ"+
-	"文字サイズ、色、フォントは再生中にサイドバーの「字幕のスタイル」で調整します。ここでの変更はプレーヤーにも同時に反映されます。"+
 	"二言語の順序"+
 	"原文を上に"+
 	"訳文を上に"+
@@ -4902,6 +4920,7 @@ var textsJa = i18n.NewTexts(""+
 	"Every river begins as a trickle high in the mountains."+
 	"プレビュー"+
 	"どんな川も、山の高みのひとすじの細い流れから始まります。"+
+	"スタイル"+
 	"訳文のみで、訳文がまだないとき"+
 	"空白にする"+
 	"原文を薄く表示"+
@@ -5155,6 +5174,7 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		15,
 		27,
+		24,
 		33,
 		12,
 		21,
@@ -5445,6 +5465,7 @@ var textsJa = i18n.NewTexts(""+
 		27,
 		21,
 		165,
+		24,
 		42,
 		103,
 		6,
@@ -5692,7 +5713,7 @@ var textsJa = i18n.NewTexts(""+
 		160,
 		156,
 		303,
-		113,
+		163,
 		35,
 		89,
 		85,
@@ -5717,11 +5738,11 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		15,
 		15,
+		6,
 		30,
 		9,
 		12,
 		12,
-		189,
 		18,
 		15,
 		15,
@@ -5730,6 +5751,7 @@ var textsJa = i18n.NewTexts(""+
 		54,
 		15,
 		84,
+		12,
 		45,
 		15,
 		21,
@@ -5986,6 +6008,7 @@ var textsKo = i18n.NewTexts(""+
 	"번역 복사"+
 	"자막 지연"+
 	"메시지 닫기"+
+	"이 대사 설명"+
 	"이 영상의 자막 피드백…"+
 	"파일"+
 	"영상 폴더"+
@@ -6276,6 +6299,7 @@ var textsKo = i18n.NewTexts(""+
 	"자주 보는 동영상의 언어"+
 	"Kando에 오신 것을 환영합니다"+
 	"YouTube, Bilibili 링크를 붙여 넣거나 로컬 동영상을 끌어다 놓으면 보면서 배울 수 있습니다. 먼저 언어를 선택하세요."+
+	"이 대사 설명"+
 	"명령, 대사 또는 질문"+
 	"입력하면 영상, 명령, 본 대사 검색 · ↑↓ 선택 · Return 실행"+
 	"답변"+
@@ -6523,7 +6547,7 @@ var textsKo = i18n.NewTexts(""+
 	"번역 서비스 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral Qwen Kimi Zhipu SiliconFlow Ollama LM Studio Base URL API Key 모델 연결 테스트"+
 	"Google 로그인 로그아웃 오브젝트 스토리지 업로드 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 경로 스타일"+
 	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림"+
-	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기"+
+	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"키보드 키 명령"+
 	"whisper 모델 다운로드 인식 전사 HuggingFace Vimpo hyperframes"+
 	"대상 언어 스마트 번역 문맥 프롬프트 기본값 복원"+
@@ -6548,11 +6572,11 @@ var textsKo = i18n.NewTexts(""+
 	"우크라이나어"+
 	"베트남어"+
 	"언어 검색"+
+	"굵게"+
 	"기본 표시 방식"+
 	"이중 언어"+
 	"원문만"+
 	"번역만"+
-	"글자 크기, 색상, 서체는 재생 중에 사이드바의 ‘자막 스타일’에서 조정합니다. 여기서 바꾼 내용은 플레이어에도 함께 적용됩니다."+
 	"이중 언어 순서"+
 	"원문을 위에"+
 	"번역을 위에"+
@@ -6561,6 +6585,7 @@ var textsKo = i18n.NewTexts(""+
 	"Every river begins as a trickle high in the mountains."+
 	"미리 보기"+
 	"모든 강은 높은 산의 가느다란 물줄기에서 시작됩니다."+
+	"스타일"+
 	"번역만 표시할 때 번역이 아직 없으면"+
 	"비워 두기"+
 	"원문 흐리게"+
@@ -6814,6 +6839,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		13,
 		16,
+		17,
 		33,
 		6,
 		13,
@@ -7104,6 +7130,7 @@ var textsKo = i18n.NewTexts(""+
 		33,
 		38,
 		153,
+		17,
 		28,
 		80,
 		6,
@@ -7351,7 +7378,7 @@ var textsKo = i18n.NewTexts(""+
 		155,
 		137,
 		237,
-		120,
+		158,
 		20,
 		71,
 		67,
@@ -7376,11 +7403,11 @@ var textsKo = i18n.NewTexts(""+
 		18,
 		12,
 		13,
+		6,
 		20,
 		13,
 		9,
 		9,
-		178,
 		20,
 		16,
 		16,
@@ -7389,6 +7416,7 @@ var textsKo = i18n.NewTexts(""+
 		54,
 		13,
 		73,
+		9,
 		50,
 		13,
 		16,
@@ -7645,6 +7673,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"拷贝译文"+
 	"字幕延迟"+
 	"关闭提示"+
+	"讲解这句"+
 	"反馈这部影片的字幕…"+
 	"文件"+
 	"影片文件夹"+
@@ -7668,9 +7697,9 @@ var textsZhHans = i18n.NewTexts(""+
 	"本地视频"+
 	"循环间停顿：关"+
 	"循环间停顿：开"+
-	"单句循环"+
-	"单句循环：关"+
-	"单句循环：开"+
+	"循环"+
+	"循环：关"+
+	"循环：开"+
 	"双语"+
 	"显示"+
 	"关闭"+
@@ -7935,6 +7964,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"常看哪些语言的视频"+
 	"欢迎使用看懂"+
 	"粘贴 YouTube、哔哩哔哩链接或拖入本地视频，就能边看边学。先选好语言。"+
+	"讲解这句"+
 	"命令、台词或问题"+
 	"打字时搜影片、命令和看过的台词 · ↑↓ 选择 · Return 执行"+
 	"回答"+
@@ -7958,7 +7988,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"加速播放"+
 	"放大字幕"+
 	"循环间停顿"+
-	"单句循环"+
+	"循环"+
 	"静音/取消静音"+
 	"下一句"+
 	"逐句暂停"+
@@ -8182,7 +8212,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"翻译 服务 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通义千问 Kimi 智谱 硅基流动 Ollama LM Studio Base URL API Key 模型 测试连接"+
 	"Google 登录 退出 对象存储 上传 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路径样式"+
 	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知"+
-	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览"+
+	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"键盘 按键 命令"+
 	"whisper 模型 下载 识别 HuggingFace Vimpo hyperframes"+
 	"目标语言 智能翻译 上下文 提示词 恢复默认"+
@@ -8207,11 +8237,11 @@ var textsZhHans = i18n.NewTexts(""+
 	"Українська"+
 	"Tiếng Việt"+
 	"搜索语言"+
+	"粗体"+
 	"默认显示方式"+
 	"双语"+
 	"仅原文"+
 	"仅译文"+
-	"字号、颜色和字体在播放时从侧栏的「字幕样式」调整，这里的改动和播放器同步生效。"+
 	"双语顺序"+
 	"原文在上"+
 	"译文在上"+
@@ -8220,6 +8250,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"Every river begins as a trickle high in the mountains."+
 	"预览"+
 	"每条河都始于高山上的一股细流。"+
+	"样式"+
 	"仅译文时，译文还没好"+
 	"留空"+
 	"弱化原文"+
@@ -8473,6 +8504,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		12,
+		12,
 		30,
 		6,
 		15,
@@ -8496,9 +8528,9 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		21,
 		21,
+		6,
 		12,
-		18,
-		18,
+		12,
 		6,
 		6,
 		6,
@@ -8763,6 +8795,7 @@ var textsZhHans = i18n.NewTexts(""+
 		27,
 		18,
 		98,
+		12,
 		24,
 		79,
 		6,
@@ -8786,7 +8819,7 @@ var textsZhHans = i18n.NewTexts(""+
 		12,
 		12,
 		15,
-		12,
+		6,
 		19,
 		9,
 		12,
@@ -9010,7 +9043,7 @@ var textsZhHans = i18n.NewTexts(""+
 		158,
 		108,
 		207,
-		95,
+		130,
 		20,
 		58,
 		58,
@@ -9035,11 +9068,11 @@ var textsZhHans = i18n.NewTexts(""+
 		20,
 		14,
 		12,
+		6,
 		18,
 		6,
 		9,
 		9,
-		117,
 		12,
 		12,
 		12,
@@ -9048,6 +9081,7 @@ var textsZhHans = i18n.NewTexts(""+
 		54,
 		6,
 		45,
+		6,
 		30,
 		6,
 		12,
@@ -9304,6 +9338,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"拷貝譯文"+
 	"字幕延遲"+
 	"關閉提示"+
+	"講解這句"+
 	"回報這部影片的字幕…"+
 	"檔案"+
 	"影片資料夾"+
@@ -9327,9 +9362,9 @@ var textsZhHant = i18n.NewTexts(""+
 	"本機影片"+
 	"循環間停頓：關"+
 	"循環間停頓：開"+
-	"單句循環"+
-	"單句循環：關"+
-	"單句循環：開"+
+	"循環"+
+	"循環：關"+
+	"循環：開"+
 	"雙語"+
 	"顯示"+
 	"關閉"+
@@ -9594,6 +9629,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"常看哪些語言的影片"+
 	"歡迎使用看懂"+
 	"貼上 YouTube、嗶哩嗶哩連結或拖入本機影片，就能邊看邊學。先選好語言。"+
+	"講解這句"+
 	"指令、台詞或問題"+
 	"輸入時搜尋影片、指令和看過的台詞 · ↑↓ 選擇 · Return 執行"+
 	"回答"+
@@ -9617,7 +9653,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"加速播放"+
 	"放大字幕"+
 	"循環間停頓"+
-	"單句循環"+
+	"循環"+
 	"靜音/取消靜音"+
 	"下一句"+
 	"逐句暫停"+
@@ -9841,7 +9877,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"翻譯 服務 EveryAPI OpenAI OpenRouter Groq DeepSeek xAI Mistral 通義千問 Kimi 智譜 矽基流動 Ollama LM Studio Base URL API Key 模型 測試連線"+
 	"Google 登入 登出 物件儲存 上傳 R2 S3 OSS COS Endpoint Region Bucket Access Key Secret 路徑樣式"+
 	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知"+
-	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽"+
+	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"鍵盤 按鍵 指令"+
 	"whisper 模型 下載 辨識 HuggingFace Vimpo hyperframes"+
 	"目標語言 智慧翻譯 上下文 提示詞 恢復預設"+
@@ -9866,11 +9902,11 @@ var textsZhHant = i18n.NewTexts(""+
 	"Українська"+
 	"Tiếng Việt"+
 	"搜尋語言"+
+	"粗體"+
 	"預設顯示方式"+
 	"雙語"+
 	"僅原文"+
 	"僅譯文"+
-	"字級、顏色和字體在播放時從側邊欄的「字幕樣式」調整，這裡的變更會和播放器同步生效。"+
 	"雙語順序"+
 	"原文在上"+
 	"譯文在上"+
@@ -9879,6 +9915,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"Every river begins as a trickle high in the mountains."+
 	"預覽"+
 	"每條河都始於高山上的一股細流。"+
+	"樣式"+
 	"僅譯文時，譯文還沒好"+
 	"留空"+
 	"淡化原文"+
@@ -10132,6 +10169,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		12,
+		12,
 		30,
 		6,
 		15,
@@ -10155,9 +10193,9 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		21,
 		21,
+		6,
 		12,
-		18,
-		18,
+		12,
 		6,
 		6,
 		6,
@@ -10422,6 +10460,7 @@ var textsZhHant = i18n.NewTexts(""+
 		27,
 		18,
 		98,
+		12,
 		24,
 		82,
 		6,
@@ -10445,7 +10484,7 @@ var textsZhHant = i18n.NewTexts(""+
 		12,
 		12,
 		15,
-		12,
+		6,
 		19,
 		9,
 		12,
@@ -10669,7 +10708,7 @@ var textsZhHant = i18n.NewTexts(""+
 		158,
 		108,
 		201,
-		95,
+		130,
 		20,
 		58,
 		58,
@@ -10694,11 +10733,11 @@ var textsZhHant = i18n.NewTexts(""+
 		20,
 		14,
 		12,
+		6,
 		18,
 		6,
 		9,
 		9,
-		123,
 		12,
 		12,
 		12,
@@ -10707,6 +10746,7 @@ var textsZhHant = i18n.NewTexts(""+
 		54,
 		6,
 		45,
+		6,
 		30,
 		6,
 		12,
@@ -11227,6 +11267,9 @@ func Supply(lang string, t Translation) {
 	if t.PaletteAsking != nil {
 		s.PaletteAsking = t.PaletteAsking
 	}
+	if t.PaletteExplainNote != nil {
+		s.PaletteExplainNote = t.PaletteExplainNote
+	}
 	if t.PaletteJumpTo != nil {
 		s.PaletteJumpTo = t.PaletteJumpTo
 	}
@@ -11481,6 +11524,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsLibrarySaveFailed != nil {
 		s.SettingsLibrarySaveFailed = t.SettingsLibrarySaveFailed
+	}
+	if t.SettingsLookColorOf != nil {
+		s.SettingsLookColorOf = t.SettingsLookColorOf
 	}
 	if t.SettingsSpeechDownloadFailedStatus != nil {
 		s.SettingsSpeechDownloadFailedStatus = t.SettingsSpeechDownloadFailedStatus
@@ -13497,6 +13543,15 @@ func FilmDismiss(cx *core.Scope) string { return For(cx).FilmDismiss() }
 // FilmDismiss is the package's FilmDismiss in the language of msgs.
 func (msgs Messages) FilmDismiss() string { return msgs.text(textFilmDismiss) }
 
+// FilmExplainLine says "Explain Line"
+// in the language the app shows under cx.
+//
+// First item of a subtitle line's right-click menu in the side panel: the AI service explains the line's meaning, key words and grammar in the command palette.
+func FilmExplainLine(cx *core.Scope) string { return For(cx).FilmExplainLine() }
+
+// FilmExplainLine is the package's FilmExplainLine in the language of msgs.
+func (msgs Messages) FilmExplainLine() string { return msgs.text(textFilmExplainLine) }
+
 // FilmFaceBold says "Bold {line}"
 // in the language the app shows under cx.
 //
@@ -13858,10 +13913,10 @@ func FilmLoopGapOn(cx *core.Scope) string { return For(cx).FilmLoopGapOn() }
 // FilmLoopGapOn is the package's FilmLoopGapOn in the language of msgs.
 func (msgs Messages) FilmLoopGapOn() string { return msgs.text(textFilmLoopGapOn) }
 
-// FilmLoopLine says "Loop Line"
+// FilmLoopLine says "Loop"
 // in the language the app shows under cx.
 //
-// Accessible name and tooltip of the transport's toggle that plays the subtitle line playing over and over (its shortcut follows the tooltip).
+// Accessible name and tooltip of the transport's toggle that plays the subtitle line playing over and over, lit while a loop of one line or of several plays (its shortcut follows the tooltip). Keep it free of a count of lines: Shift+L makes the loop span several.
 func FilmLoopLine(cx *core.Scope) string { return For(cx).FilmLoopLine() }
 
 // FilmLoopLine is the package's FilmLoopLine in the language of msgs.
@@ -13897,19 +13952,19 @@ func (msgs Messages) FilmLoopLines(from int, to int) string {
 	}
 }
 
-// FilmLoopOff says "Loop Line: Off"
+// FilmLoopOff says "Loop: Off"
 // in the language the app shows under cx.
 //
-// Message on the picture after the line loop was turned off.
+// Message on the picture after the loop, of one line or of several, was turned off.
 func FilmLoopOff(cx *core.Scope) string { return For(cx).FilmLoopOff() }
 
 // FilmLoopOff is the package's FilmLoopOff in the language of msgs.
 func (msgs Messages) FilmLoopOff() string { return msgs.text(textFilmLoopOff) }
 
-// FilmLoopOn says "Loop Line: On"
+// FilmLoopOn says "Loop: On"
 // in the language the app shows under cx.
 //
-// Message on the picture after the line loop was turned on.
+// Message on the picture after the loop was turned on for the line playing.
 func FilmLoopOn(cx *core.Scope) string { return For(cx).FilmLoopOn() }
 
 // FilmLoopOn is the package's FilmLoopOn in the language of msgs.
@@ -19252,6 +19307,47 @@ func (msgs Messages) PaletteAsking(model string) string {
 	}
 }
 
+// PaletteExplainLine says "Explain Line"
+// in the language the app shows under cx.
+//
+// Study menu item and shortcut row (E): the AI service explains the subtitle line playing, its meaning, key words and grammar, in the command palette.
+func PaletteExplainLine(cx *core.Scope) string { return For(cx).PaletteExplainLine() }
+
+// PaletteExplainLine is the package's PaletteExplainLine in the language of msgs.
+func (msgs Messages) PaletteExplainLine() string { return msgs.text(textPaletteExplainLine) }
+
+// PaletteExplainNote says "Explained by {model}"
+// in the language the app shows under cx.
+//
+// Footnote under the explanation of a subtitle line (Explain Line): which model explained it.
+func PaletteExplainNote(cx *core.Scope, model string) string {
+	return For(cx).PaletteExplainNote(model)
+}
+
+// PaletteExplainNote is the package's PaletteExplainNote in the language of msgs.
+func (msgs Messages) PaletteExplainNote(model string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.PaletteExplainNote(model))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].PaletteExplainNote; f != nil {
+			return f(model)
+		}
+		switch lang {
+		case "", "en":
+			return "Explained by " + msgs.arg(model)
+		case "ja":
+			return model + " が解説"
+		case "ko":
+			return model + " 설명"
+		case "zh-Hans":
+			return model + " 讲解"
+		case "zh-Hant":
+			return model + " 講解"
+		}
+	}
+}
+
 // PaletteFieldLabel says "Commands, lines or questions"
 // in the language the app shows under cx.
 //
@@ -19615,10 +19711,10 @@ func PlayerKeyLoopGap(cx *core.Scope) string { return For(cx).PlayerKeyLoopGap()
 // PlayerKeyLoopGap is the package's PlayerKeyLoopGap in the language of msgs.
 func (msgs Messages) PlayerKeyLoopGap() string { return msgs.text(textPlayerKeyLoopGap) }
 
-// PlayerKeyLoopLine says "Loop Line"
+// PlayerKeyLoopLine says "Loop"
 // in the language the app shows under cx.
 //
-// Shortcut row and menu item: play the subtitle line playing over and over, or stop doing so.
+// Shortcut row and menu item, checked while a loop plays: play the subtitle line playing over and over, or stop the loop, of one line or of several (Shift+L).
 func PlayerKeyLoopLine(cx *core.Scope) string { return For(cx).PlayerKeyLoopLine() }
 
 // PlayerKeyLoopLine is the package's PlayerKeyLoopLine in the language of msgs.
@@ -24373,7 +24469,7 @@ func SettingsKeywordsGeneral(cx *core.Scope) string { return For(cx).SettingsKey
 // SettingsKeywordsGeneral is the package's SettingsKeywordsGeneral in the language of msgs.
 func (msgs Messages) SettingsKeywordsGeneral() string { return msgs.text(textSettingsKeywordsGeneral) }
 
-// SettingsKeywordsLook says "subtitles display bilingual original only translation only order translation original dim blank make room preview"
+// SettingsKeywordsLook says "subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"
 // in the language the app shows under cx.
 //
 // Search keywords of the Subtitle Style settings section, separated by spaces, besides its title. Not shown.
@@ -24652,6 +24748,47 @@ func (msgs Messages) SettingsLibrarySaveFailed(error_ string) string {
 	}
 }
 
+// SettingsLookBold says "Bold"
+// in the language the app shows under cx.
+//
+// Row of Settings › Subtitle Style, under a line's name (Translation, Original): draws that line in bold.
+func SettingsLookBold(cx *core.Scope) string { return For(cx).SettingsLookBold() }
+
+// SettingsLookBold is the package's SettingsLookBold in the language of msgs.
+func (msgs Messages) SettingsLookBold() string { return msgs.text(textSettingsLookBold) }
+
+// SettingsLookColorOf says "{line} Color"
+// in the language the app shows under cx.
+//
+// Accessible name of the color choice of one subtitle line in Settings › Subtitle Style. {line} is the line's name, Translation or Original.
+func SettingsLookColorOf(cx *core.Scope, line string) string {
+	return For(cx).SettingsLookColorOf(line)
+}
+
+// SettingsLookColorOf is the package's SettingsLookColorOf in the language of msgs.
+func (msgs Messages) SettingsLookColorOf(line string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsLookColorOf(line))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsLookColorOf; f != nil {
+			return f(line)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(line) + " Color"
+		case "ja":
+			return line + "の色"
+		case "ko":
+			return line + " 색상"
+		case "zh-Hans":
+			return line + "颜色"
+		case "zh-Hant":
+			return line + "顏色"
+		}
+	}
+}
+
 // SettingsLookMode says "Default display"
 // in the language the app shows under cx.
 //
@@ -24693,15 +24830,6 @@ func SettingsLookModeTranslation(cx *core.Scope) string { return For(cx).Setting
 func (msgs Messages) SettingsLookModeTranslation() string {
 	return msgs.text(textSettingsLookModeTranslation)
 }
-
-// SettingsLookNote says "Size, color and font are changed while playing, in “Subtitle Style” in the sidebar. Changes here apply to the player at the same time."
-// in the language the app shows under cx.
-//
-// Footnote under the subtitle preview. “Subtitle Style” is the panel of the player's sidebar; use its name there.
-func SettingsLookNote(cx *core.Scope) string { return For(cx).SettingsLookNote() }
-
-// SettingsLookNote is the package's SettingsLookNote in the language of msgs.
-func (msgs Messages) SettingsLookNote() string { return msgs.text(textSettingsLookNote) }
 
 // SettingsLookOrder says "Bilingual order"
 // in the language the app shows under cx.
@@ -24788,6 +24916,15 @@ func SettingsLookPreviewTranslation(cx *core.Scope) string {
 func (msgs Messages) SettingsLookPreviewTranslation() string {
 	return msgs.text(textSettingsLookPreviewTranslation)
 }
+
+// SettingsLookStyle says "Style"
+// in the language the app shows under cx.
+//
+// Label over the card of Settings › Subtitle Style that picks the subtitles' preset and font.
+func SettingsLookStyle(cx *core.Scope) string { return For(cx).SettingsLookStyle() }
+
+// SettingsLookStyle is the package's SettingsLookStyle in the language of msgs.
+func (msgs Messages) SettingsLookStyle() string { return msgs.text(textSettingsLookStyle) }
 
 // SettingsLookUntranslated says "Translation only, before the translation is ready"
 // in the language the app shows under cx.

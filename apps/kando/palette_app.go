@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -55,6 +56,11 @@ func (a *app) togglePalette() {
 		a.paletteClose()
 		return
 	}
+	a.paletteShow()
+}
+
+// paletteShow opens the palette with an empty query, holding the window's modal flag, and reads the subtitle files it searches.
+func (a *app) paletteShow() {
 	a.palette.open = true
 	a.palette.query = ""
 	a.palette.sel = 0
@@ -437,7 +443,11 @@ func paletteAnswerView(cx *core.Scope, ans *paletteAnswer) *cmdpalette.Answer {
 	if ans.needsAI {
 		out.Action = locales.PaletteNoAIAction(cx)
 	}
-	if !ans.busy && !ans.needsAI && !ans.failed && ans.model != "" {
+	switch {
+	case ans.busy || ans.needsAI || ans.failed || ans.model == "":
+	case ans.explained != "":
+		out.Note = locales.PaletteExplainNote(cx, ans.model)
+	default:
 		out.Note = locales.PaletteAnswerNote(cx, cmdpalette.Clock(ans.horizon), ans.model)
 	}
 	for _, ref := range ans.refs {
@@ -585,14 +595,18 @@ func (a *app) paletteAsk() {
 		a.palette.answer = &paletteAnswer{failed: true, say: locales.PaletteNotWatched}
 		return
 	}
+	a.paletteSend(t, item, palettePrompt(a.prefs.language, horizon), paletteContext(item.Name, seen)+"\n\n问题："+question, seen, paletteAnswer{horizon: horizon})
+}
+
+// paletteSend sends user, with the instruction system, to t, the AI service set, about item, and shows its reply in the answer card once it comes: the answer and the lines of seen it rests on (paletteParseReply). Meanwhile the card says the question is on its way; when the service fails it says why and offers the service's settings. done is the card the answer fills in: how far the film had been watched, or the line it explains, and the chips it has before those the reply names.
+func (a *app) paletteSend(t media.ChatTranslator, item films.Film, system, user string, seen []lines.Line, done paletteAnswer) {
 	model := strings.TrimSpace(t.Model)
 	a.palette.askGen++
 	gen := a.palette.askGen
-	a.palette.answer = &paletteAnswer{busy: true, say: func(cx *core.Scope) string { return locales.PaletteAsking(cx, model) }, horizon: horizon, model: model, film: item.Key}
+	done.model, done.film = model, item.Key
+	a.palette.answer = &paletteAnswer{busy: true, say: func(cx *core.Scope) string { return locales.PaletteAsking(cx, model) }, horizon: done.horizon, model: model, film: item.Key}
 	ctx, cancel := context.WithTimeout(context.Background(), paletteAskTimeout)
 	a.palette.cancel = cancel
-	system := palettePrompt(a.prefs.language, horizon)
-	user := paletteContext(item.Name, seen) + "\n\n问题：" + question
 	update := a.update
 	go func() {
 		defer cancel()
@@ -608,9 +622,75 @@ func (a *app) paletteAsk() {
 				return
 			}
 			text, refs := paletteParseReply(reply, seen)
-			a.palette.answer = &paletteAnswer{text: text, refs: refs, horizon: horizon, model: model, film: item.Key}
+			for _, ref := range refs {
+				if !slices.Contains(done.refs, ref) {
+					done.refs = append(done.refs, ref)
+				}
+			}
+			done.text = text
+			if done.explained != "" {
+				done.text = done.explained + "\n\n" + text
+			}
+			a.palette.answer = &done
 		})
 	}()
+}
+
+// paletteExplainBefore and paletteExplainAfter are how many lines before the line Explain Line explains, and after it, go with it as its context.
+const (
+	paletteExplainBefore = 2
+	paletteExplainAfter  = 1
+)
+
+// ExplainLine is Explain Line on line i of the open film's subtitles, from the subtitle list's right-click menu or E (paletteExplainPlaying): the palette opens with the AI service set explaining the line, its meaning, its key words and its grammar, from the line and the lines around it, with no question to type. The line goes even when it is past the furthest point played, as the subtitle list shows every line. The card starts with the line's original and its first chip plays the line. Without an AI service the card offers its settings, as for a question (paletteAsk).
+func (a *app) ExplainLine(i int) {
+	item, ok := a.paletteOpenFilm()
+	cues := a.playerCues()
+	if !ok || i < 0 || i >= len(cues) {
+		return
+	}
+	if !a.palette.open {
+		a.paletteShow()
+	}
+	a.palette.query = ""
+	a.paletteDropAnswer()
+	t, why := a.paletteTranslator()
+	if why != nil {
+		a.palette.answer = &paletteAnswer{needsAI: true, say: why}
+		return
+	}
+	from, to := max(i-paletteExplainBefore, 0), min(i+paletteExplainAfter+1, len(cues))
+	around := make([]lines.Line, 0, to-from)
+	for _, cue := range cues[from:to] {
+		translation, original := lines.Split(cue.Text)
+		around = append(around, lines.New(cue.Start, translation, original))
+	}
+	line := around[i-from]
+	quoted := cmp.Or(line.Original, line.Translation)
+	user := paletteContext(item.Name, around) + "\n\n要讲解的一句：[" + cmdpalette.Clock(line.Start) + "] " + quoted
+	a.paletteSend(t, item, paletteExplainPrompt(a.prefs.language), user, around, paletteAnswer{explained: quoted, refs: []time.Duration{line.Start}})
+}
+
+// paletteExplainPlaying is E: Explain Line on the line playing, or between lines on the line just heard, or before the first on the line coming, as L picks the line it loops.
+func (a *app) paletteExplainPlaying() {
+	prev, cur, next := film.CueNear(a.playerCues(), a.playerLineAt())
+	for _, i := range []int{cur, prev, next} {
+		if i >= 0 {
+			a.ExplainLine(i)
+			return
+		}
+	}
+}
+
+// paletteExplainPrompt is the instruction Explain Line is sent with: explain the original of the line named last, in the language subtitles are translated into, as JSON in the form palettePrompt asks for.
+func paletteExplainPrompt(language string) string {
+	if strings.TrimSpace(language) == "" {
+		language = "简体中文"
+	}
+	return "你在帮用户借助影片学外语。用户消息里是一部影片的几行字幕，每行以 [分:秒] 开头，后面是译文和原文，最后一行是要讲解的那一句。" +
+		"用" + language + "讲解这一句的原文：先说整句的意思，再挑出关键的词或短语说明词义和用法，最后讲值得注意的语法或口语说法；前后几行只用来理解语境。" +
+		"简短，每部分一两句，分行写。" +
+		`只输出一个 JSON 对象：{"answer": "讲解", "refs": ["分:秒"]}，refs 是讲解提到的字幕行开头的时间，照字幕里写的抄，最多 3 个。`
 }
 
 // palettePrompt is the instruction a question about a film is sent with: answer from the subtitles seen so far only, in the language subtitles are translated into, as JSON with the moments the answer rests on.

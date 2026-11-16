@@ -1646,11 +1646,11 @@ func TestLoopLineTakesTheLinePlaying(t *testing.T) {
 	} {
 		a.player.opening = tc.at
 		a.ToggleLoopLine()
-		if loop := a.player.film.loop; !loop.on || loop.start != tc.start || loop.end != tc.end || a.player.film.osd != "单句循环：开" {
+		if loop := a.player.film.loop; !loop.on || loop.start != tc.start || loop.end != tc.end || a.player.film.osd != "循环：开" {
 			t.Fatalf("at %v: loop %+v osd %q, want %v to %v", tc.at, loop, a.player.film.osd, tc.start, tc.end)
 		}
 		a.ToggleLoopLine()
-		if a.player.film.loop.on || a.player.film.osd != "单句循环：关" {
+		if a.player.film.loop.on || a.player.film.osd != "循环：关" {
 			t.Fatalf("at %v: loop %+v osd %q after L again", tc.at, a.player.film.loop, a.player.film.osd)
 		}
 	}
@@ -1800,7 +1800,7 @@ func TestExtendLoopTakesInTheNextLine(t *testing.T) {
 			t.Fatalf("loop %+v osd %q, want %v to %v and %q", loop, a.player.film.osd, start, end, osd)
 		}
 	}
-	extend(time.Second, 3*time.Second, "单句循环：开")
+	extend(time.Second, 3*time.Second, "循环：开")
 	extend(time.Second, 5*time.Second, "循环第 1–2 句")
 	extend(time.Second, 9*time.Second, "循环第 1–3 句")
 	extend(time.Second, 0, "循环第 1–4 句")
@@ -1844,7 +1844,7 @@ func TestExtendLoopKey(t *testing.T) {
 func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
 	a, tt, _ := playerOpenWithLines(t)
 	tt.Key("l")
-	if loop := a.player.film.loop; !loop.on || loop.start != time.Second || loop.end != 3*time.Second || !hasText(tt, "单句循环：开") {
+	if loop := a.player.film.loop; !loop.on || loop.start != time.Second || loop.end != 3*time.Second || !hasText(tt, "循环：开") {
 		t.Fatalf("L before the first line looped %+v; texts %q", loop, tt.Texts())
 	}
 	if !tt.Find("id:film-loop").Props.Selected {
@@ -1864,7 +1864,7 @@ func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
 		t.Fatal("the loop's return wrote where the film continues from")
 	}
 	tt.Key("l")
-	if a.player.film.loop.on || !hasText(tt, "单句循环：关") {
+	if a.player.film.loop.on || !hasText(tt, "循环：关") {
 		t.Fatalf("L kept looping %+v; texts %q", a.player.film.loop, tt.Texts())
 	}
 	playerPlayTo(tt, a, 1100*time.Millisecond)
@@ -2030,7 +2030,7 @@ func TestShortLoopIgnoresAReportFromItsEnd(t *testing.T) {
 	}
 }
 
-// TestLoopToggleLoopsTheLine clicks the transport's 单句循环: it waits for the film's lines, then loops the line and is lit, and a second click stops it.
+// TestLoopToggleLoopsTheLine clicks the transport's 循环 (Loop): it waits for the film's lines, then loops the line and is lit, and a second click stops it.
 func TestLoopToggleLoopsTheLine(t *testing.T) {
 	a, tt, _ := playerOpen(t)
 	apply(tt, a, func() { a.player.subs.cues = nil })
@@ -2172,7 +2172,7 @@ func TestCopyCurrentLineWaitsForTheSubtitles(t *testing.T) {
 	}
 }
 
-// TestCueMenuCopiesTheLine right-clicks lines of the side panel's subtitle list: a bilingual line offers its two lines together, its original and its translation, each put on the clipboard as chosen, and a line without a translation offers only itself; copying is no seek.
+// TestCueMenuCopiesTheLine right-clicks lines of the side panel's subtitle list: a bilingual line offers to explain it first, then its two lines together, its original and its translation, each put on the clipboard as chosen, and a line without a translation offers only itself; copying is no seek.
 func TestCueMenuCopiesTheLine(t *testing.T) {
 	_, tt, _ := playerOpen(t)
 	copyFrom := func(line, item, want string) {
@@ -2189,7 +2189,7 @@ func TestCueMenuCopiesTheLine(t *testing.T) {
 	for _, it := range tt.PopupMenu {
 		labels = append(labels, it.Label)
 	}
-	if want := []string{"拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(labels, want) {
+	if want := []string{"讲解这句", "", "拷贝台词", "拷贝原文", "拷贝译文"}; !slices.Equal(labels, want) {
 		t.Fatalf("the bilingual line's menu is %q, want %q", labels, want)
 	}
 	tt.ClosePopup()

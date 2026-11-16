@@ -12,48 +12,10 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// stylePresets are the style view's presets, as the prototype has them (script 3272): outlined, on boxes, and outlined larger. presetLabel names them.
-var stylePresets = []struct {
-	id         string
-	box        bool
-	tran, orig float32
-	// sample is the size of the 字幕 its card shows.
-	sample core.Points
-}{
-	{"outline", false, 30, 22, 15},
-	{"box", true, 30, 22, 15},
-	{"large", false, 42, 30, 20},
-}
-
-// presetLabel is what a preset is called in the language the interface shows under cx.
-func presetLabel(cx *core.Scope, id string) string {
-	switch id {
-	case "box":
-		return locales.FilmPresetBox(cx)
-	case "large":
-		return locales.FilmPresetLarge(cx)
-	}
-	return locales.FilmPresetOutline(cx)
-}
-
-// styleColors are the colors a line can take; colorName names them.
-var styleColors = []string{"#FFFFFF", "#FFD60A", "#FF9F0A"}
-
-// colorName is what a line's color is called in the language the interface shows under cx.
-func colorName(cx *core.Scope, hex string) string {
-	switch hex {
-	case "#FFD60A":
-		return locales.FilmColorYellow(cx)
-	case "#FF9F0A":
-		return locales.FilmColorOrange(cx)
-	}
-	return locales.FilmColorWhite(cx)
-}
-
 // styleModes are the modes the style view's 显示字幕 offers, in its order.
 var styleModes = []string{SubOff, SubOriginal, SubTranslation, SubBilingual}
 
-// styleView is the subtitle configuration shown by the 样式 tab or the mode menu's 样式…: playback mode and delay, then the presets, font, order, position, size, color and weight of each line. Each control changes the look in place and has the app keep it (LookChanged).
+// styleView is the subtitle configuration shown by the 样式 tab or the mode menu's 样式…: playback mode and delay, then the presets, font, order, position, size, color and weight of each line. Each control changes the look in place and has the app keep it (LookChanged). The choices of the look and the font and size controls are package subtitle's, which Settings › 字幕外观 shares.
 func (s *screen) styleView(cx *core.Scope) core.Node {
 	a := s.a
 	look := func() Look { a.Track(); return *a.Cue() }
@@ -63,6 +25,7 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			a.LookChanged()
 		})
 	}
+	change := func(fn func(l *Look)) { edit(fn)() }
 	// The segmented controls show their options' labels as they are built, as ui.Tabs takes static ones, so they are built again when the language changes, which happens in the settings, away from them; none holds the keyboard's text. A control whose language shows only in its accessible name reads it once instead, as the size sliders do.
 	modes := core.Dynamic(func(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give ui.Tabs LabelFunc twins for its name and its options' labels so they follow the interface language without building the control again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
@@ -91,32 +54,15 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			// Picking a place also puts subtitles dragged away from it (Lift) back there.
 			OnChange: func(high bool) { edit(func(l *Look) { l.High, l.Lift = high, 0 })() }}
 	})
-	// The menu lists the families the platform offers (styleFonts) by their names in the interface's language, and the look keeps the saved value of the one chosen.
-	font := core.Dynamic(func(cx *core.Scope) core.Node {
-		// TODO(nsgo#145): give ui.Select LabelFunc twins for its name and its options' labels so they follow the interface language without building the drop-down again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
-		fonts := styleFonts(cx.Env().OS())
-		opts := make([]ui.Option[string], len(fonts))
-		for i, family := range fonts {
-			opts[i] = ui.Option[string]{Value: family, Label: fontName(cx, family)}
-		}
-		return ui.Select[string]{TestID: "film-style-font", Label: locales.FilmStyleFont(cx), Options: opts,
-			Value: func() string { return look().Translation.Family },
-			OnChange: func(family string) {
-				edit(func(l *Look) { l.Translation.Family, l.Original.Family = family, family })()
-			},
-			Style: core.Style{Width: core.Pt(150)}}
-	})
-	presets := make([]core.Node, len(stylePresets))
-	for i, p := range stylePresets {
-		on := func() bool { return look().Preset == p.id || look().Preset == "" && i == 0 }
-		presets[i] = presetCard(cx, "film-style-preset-"+p.id, func() string { return presetLabel(cx, p.id) }, p.box, p.sample, on, func() {
+	font := subtitle.FontSelect(cx, "film-style-font", look, change)
+	presets := make([]core.Node, len(subtitle.Presets))
+	for i, p := range subtitle.Presets {
+		on := func() bool { return subtitle.PresetOf(look()) == p.ID }
+		presets[i] = presetCard(cx, "film-style-preset-"+p.ID, func() string { return subtitle.PresetName(cx, p.ID) }, p.Box, p.Sample, on, func() {
 			if on() {
 				return
 			}
-			edit(func(l *Look) {
-				l.Preset, l.Box, l.Shadow = p.id, p.box, !p.box
-				l.Translation.Size, l.Original.Size = p.tran, p.orig
-			})()
+			change(p.Apply)
 		})
 	}
 	presetRow := core.View{TestID: "film-style-preset", Role: core.RoleRadioGroup, LabelFunc: func() string { return locales.FilmStylePresets(cx) },
@@ -141,8 +87,8 @@ func (s *screen) styleView(cx *core.Scope) core.Node {
 			styleRow(func() string { return locales.FilmStylePosition(cx) }, true, place),
 		),
 	}
-	content = append(content, s.faceGroup(cx, "translation", func() string { return locales.FilmLineTranslation(cx) }, func(l *Look) *Face { return &l.Translation }, look, edit, 16, 48)...)
-	content = append(content, s.faceGroup(cx, "original", func() string { return locales.FilmLineOriginal(cx) }, func(l *Look) *Face { return &l.Original }, look, edit, 12, 40)...)
+	content = append(content, s.faceGroup(cx, subtitle.TranslationLine, look, edit)...)
+	content = append(content, s.faceGroup(cx, subtitle.OriginalLine, look, edit)...)
 	return core.Scroll{TestID: "film-style", Style: core.Style{FlexGrow: 1, MinHeight: core.Pt(0)}, Children: []core.Node{
 		core.View{Style: core.Style{Padding: core.Edges{Right: 14, Bottom: 16, Left: 14}, Gap: 14}, Children: content},
 	}}
@@ -193,22 +139,20 @@ func presetCard(cx *core.Scope, id string, label func() string, box bool, sample
 		}}
 }
 
-// faceGroup sets one line's size, between lo and hi, its color and whether it is bold. id keys its controls and name heads it; of picks the line's face out of a look.
-func (s *screen) faceGroup(cx *core.Scope, id string, name func() string, of func(l *Look) *Face, look func() Look, edit func(func(l *Look)) func(), lo, hi float64) []core.Node {
+// faceGroup sets one line's size, its color and whether it is bold, under the line's name.
+func (s *screen) faceGroup(cx *core.Scope, line subtitle.Line, look func() Look, edit func(func(l *Look)) func()) []core.Node {
+	id, of := line.ID, line.Face
+	name := func() string { return line.Name(cx) }
 	face := func() Face { l := look(); return *of(&l) }
-	// TODO(nsgo#145): give ui.Slider's Label a LabelFunc twin, as base.Slider's, so the size slider's accessible name follows the interface language as it changes; it is read once here https://github.com/nsgo-dev/nsgo/issues/145
-	size := ui.Slider{TestID: "film-style-size-" + id, Label: locales.FilmFaceSize(cx, name()), Min: lo, Max: hi, Step: 1,
-		Value:    func() float64 { return float64(face().Size) },
-		OnChange: func(v float64) { edit(func(l *Look) { of(l).Size = float32(v) })() },
-		Style:    core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}}
+	size := subtitle.SizeSlider(cx, "film-style-size-"+id, line, look, func(fn func(l *Look)) { edit(fn)() })
 	sizeRow := core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, Gap: 10, AlignItems: core.AlignCenter}, Children: []core.Node{
 		size,
 		core.Text{ContentFunc: func() string { return fmt.Sprintf("%.0f", face().Size) }, Style: core.Style{FontVariant: core.FontTabularNums, FontSize: 13, LineHeight: 18, Width: core.Pt(22), TextAlign: core.TextAlignEnd, FlexShrink: 0, Color: onGlass, Opacity: core.Alpha(0.7)}},
 	}}
-	colors := make([]core.Node, 0, len(styleColors)+2)
-	for _, hex := range styleColors {
+	colors := make([]core.Node, 0, len(subtitle.Colors)+2)
+	for _, hex := range subtitle.Colors {
 		on := func() bool { return face().Color == hex }
-		colors = append(colors, colorDot(cx, "film-style-color-"+id+hex, hex, func() string { return locales.FilmFaceColor(cx, name(), colorName(cx, hex)) }, on,
+		colors = append(colors, colorDot(cx, "film-style-color-"+id+hex, hex, func() string { return locales.FilmFaceColor(cx, name(), subtitle.ColorName(cx, hex)) }, on,
 			edit(func(l *Look) { of(l).Color = hex })))
 	}
 	colors = append(colors,

@@ -52,7 +52,7 @@ func TestSettingsSearchFindsCategories(t *testing.T) {
 	}
 }
 
-// TestLookSettingsChangeThePlayer chooses the subtitle settings on the 字幕外观 page: they are the player's own state, and they are saved.
+// TestLookSettingsChangeThePlayer chooses the subtitle settings on the 字幕外观 page, which lines show and how they look: they are the player's own state, and they are saved.
 func TestLookSettingsChangeThePlayer(t *testing.T) {
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
@@ -73,6 +73,14 @@ func TestLookSettingsChangeThePlayer(t *testing.T) {
 	saved := loadSavedSettings(a.settingsPath)
 	if saved.SubMode != film.SubOriginal || saved.SubOrder != film.SubOriginalFirst || saved.Untranslated != film.UntranslatedBlank || saved.YieldSubs == nil || *saved.YieldSubs {
 		t.Fatalf("saved %q %q %q %v", saved.SubMode, saved.SubOrder, saved.Untranslated, saved.YieldSubs)
+	}
+	tt.Press("id:settings-look-preset >> " + whole("底框"))
+	tt.Press("id:settings-look-bold-original")
+	if look := a.player.look; !look.Box || look.Preset != "box" || !look.Original.Bold {
+		t.Fatalf("the player's look %+v", look)
+	}
+	if look := loadSavedSettings(a.settingsPath).Look; look == nil || !look.Box || !look.Original.Bold {
+		t.Fatalf("saved look %+v", look)
 	}
 }
 

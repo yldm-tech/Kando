@@ -129,7 +129,7 @@ type App interface {
 	InterfaceLanguage() string
 	SetInterfaceLanguage(tag string)
 
-	// Cue is the subtitle look the player draws with; the 字幕外观 page previews it and does not change it.
+	// Cue is the subtitle look the player draws with, which the 字幕外观 page previews and changes; Save keeps it.
 	Cue() *subtitle.Look
 	SubMode() string
 	SetSubMode(mode string)

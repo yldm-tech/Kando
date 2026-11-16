@@ -5,7 +5,6 @@ import (
 	"image"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -203,6 +202,7 @@ func (f *fakeApp) SetVolume(v float64)                     { f.volume = v }
 func (f *fakeApp) ToggleMute()                             { f.muted = !f.muted }
 func (f *fakeApp) FeedbackSubtitles()                      { f.call("feedback") }
 func (f *fakeApp) Flash(text string)                       { f.osd = text }
+func (f *fakeApp) ExplainLine(i int)                       { f.call(fmt.Sprintf("explain %d", i)) }
 
 // start shows the open film of a as the main window does, on a Mac, in testlocale's language.
 func start(t *testing.T, a *fakeApp) *nsgotest.App {
@@ -394,6 +394,25 @@ func TestCueListScrollsWithinThePanel(t *testing.T) {
 	}
 }
 
+// TestCueMenuExplainsTheLine checks that a right click on a line of the subtitle list offers Explain Line first, which asks the app to explain that line by its index, and still offers to copy it.
+func TestCueMenuExplainsTheLine(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	app.RightClick(inList("Bye."))
+	var labels []string
+	for _, item := range app.PopupMenu {
+		labels = append(labels, item.Label)
+	}
+	if len(labels) == 0 || labels[0] != msgs.FilmExplainLine() || !slices.Contains(labels, msgs.FilmCopyLine()) {
+		t.Fatalf("the line's menu is %q", labels)
+	}
+	app.ChoosePopup(msgs.FilmExplainLine())
+	if !slices.Contains(a.calls, "explain 1") {
+		t.Fatalf("calls %q", a.calls)
+	}
+}
+
 // TestCueListLetsTheUserReadAway scrolls the subtitle list away from the playing line by hand: as the film moves on to the next line the list stays where it was scrolled to, and a pill offers to go back to the line playing, which brings the list back to it and goes. A line clicked plays and the list follows from it again, and so does a line reached by a move of the user's, as A, D or R, while one scrolled out of view by playing on does not.
 func TestCueListLetsTheUserReadAway(t *testing.T) {
 	a := newFakeApp()
@@ -566,7 +585,7 @@ func TestCueRowsSeekAndCopy(t *testing.T) {
 	for _, it := range app.PopupMenu {
 		labels = append(labels, it.Label)
 	}
-	if want := []string{msgs.FilmCopyLine(), msgs.FilmCopyOriginal(), msgs.FilmCopyTranslation()}; !slices.Equal(labels, want) {
+	if want := []string{msgs.FilmExplainLine(), "", msgs.FilmCopyLine(), msgs.FilmCopyOriginal(), msgs.FilmCopyTranslation()}; !slices.Equal(labels, want) {
 		t.Fatalf("the bilingual line's menu is %q, want %q", labels, want)
 	}
 	app.ChoosePopup(msgs.FilmCopyOriginal())
@@ -574,8 +593,8 @@ func TestCueRowsSeekAndCopy(t *testing.T) {
 		t.Fatalf("拷贝原文 copied %q", app.Clipboard)
 	}
 	app.RightClick(whole("Bye."))
-	if len(app.PopupMenu) != 1 {
-		t.Fatalf("the line without a translation offers %d items", len(app.PopupMenu))
+	if len(app.PopupMenu) != 3 {
+		t.Fatalf("the line without a translation offers %d items, want Explain Line, a separator and Copy Line", len(app.PopupMenu))
 	}
 	app.ChoosePopup(msgs.FilmCopyLine())
 	if app.Clipboard != "Bye." {
@@ -987,65 +1006,6 @@ func TestPictureFillsTheStage(t *testing.T) {
 	}
 }
 
-// TestStyleFontsArePlatformsOwn checks that the font menu offers macOS's own fonts on macOS, as the prototype has them, and a sans-serif and a serif font on Windows and Linux, where PingFang and Hiragino are not installed and would draw in the default font.
-func TestStyleFontsArePlatformsOwn(t *testing.T) {
-	for os, want := range map[ns.OS][]string{
-		ns.OSMacOS:   {"默认", "苹方", "冬青黑体"},
-		ns.OSWindows: {"默认", "黑体", "宋体"},
-		ns.OSLinux:   {"默认", "黑体", "宋体"},
-	} {
-		if got := styleFonts(os); !slices.Equal(got, want) {
-			t.Errorf("%v offers %q, want %q", os, got, want)
-		}
-	}
-}
-
-// TestFontFamilyHasAFontOnEverySystem checks that each saved family other than 默认 draws in a font of its kind on each system: its list names a font macOS has, one Windows has and one a Linux with Noto CJK has, so a family saved on one system does not fall back to the default font on another, and the menu's choices look apart everywhere.
-func TestFontFamilyHasAFontOnEverySystem(t *testing.T) {
-	systems := map[string]map[string][]string{
-		"sans": {
-			"darwin":  {"PingFang SC", "Hiragino Sans GB"},
-			"windows": {"Microsoft YaHei"},
-			"linux":   {"Noto Sans CJK SC"},
-		},
-		"serif": {
-			"darwin":  {"Songti SC"},
-			"windows": {"SimSun"},
-			"linux":   {"Noto Serif CJK SC"},
-		},
-	}
-	kinds := map[string]string{"苹方": "sans", "冬青黑体": "sans", "黑体": "sans", "宋体": "serif"}
-	for family, kind := range kinds {
-		list := strings.Split(fontFamily(family), ", ")
-		for goos, fonts := range systems[kind] {
-			if !slices.ContainsFunc(fonts, func(f string) bool { return slices.Contains(list, f) }) {
-				t.Errorf("%s draws in %q, none of %s's %s fonts %q", family, list, goos, kind, fonts)
-			}
-		}
-	}
-	if got := fontFamily("苹方"); !strings.HasPrefix(got, "PingFang SC,") {
-		t.Errorf("苹方 draws in %q, want PingFang SC first", got)
-	}
-	if got := fontFamily("宋体"); strings.Contains(got, "Sans") {
-		t.Errorf("宋体 falls back to a sans-serif font: %q", got)
-	}
-	for _, family := range []string{"默认", "", "Comic Sans"} {
-		if got := fontFamily(family); got != "" {
-			t.Errorf("%q draws in %q, want the system's font", family, got)
-		}
-	}
-}
-
-// TestFontNamesFollowTheInterface checks that the style view names every saved family, the new ones too, and shows one it does not know as saved.
-func TestFontNamesFollowTheInterface(t *testing.T) {
-	m := testlocale.Messages()
-	for family, want := range map[string]string{"默认": "默认", "苹方": "苹方", "冬青黑体": "冬青黑体", "黑体": "黑体", "宋体": "宋体", "Comic Sans": "Comic Sans"} {
-		if got := fontNameIn(m, family); got != want {
-			t.Errorf("fontName(%q) = %q, want %q", family, got, want)
-		}
-	}
-}
-
 // TestChaptersCoverTheTranscript cuts 100 seconds of subtitles into the least 4 片段 by time: the cut at 25 seconds falls inside 第二句 and moves to 第三句's start at 40, the cuts at 50 and 75 to 第四句's at 70, so three 片段 cover the subtitles end to end, each named after the line it starts with.
 func TestChaptersCoverTheTranscript(t *testing.T) {
 	cues := []core.Segment{
@@ -1161,4 +1121,74 @@ func clipName(a *fakeApp, n int) string {
 		return m.FilmClipSpan(n, cueClock(ch.Start), cueClock(ch.End))
 	}
 	return m.FilmClip(n, cueClock(ch.Start), cueClock(ch.End), ch.Title)
+}
+
+// TestDeadEndsOfferTheirRemedy checks the notes the player shows in place of what it cannot show: subtitles that did not load in a done film's job offer Process Entire Film Again, in the subtitle list and in the clips alike, which runs the film's job again; a video no job processed has Start Processing in the title bar instead and gets no second button; and a video that would not play offers to show it in Finder.
+func TestDeadEndsOfferTheirRemedy(t *testing.T) {
+	msgs := testlocale.Messages()
+	a := newFakeApp()
+	a.subs = Subs{Key: "talk", Ready: true, Err: "subtitle-missing"}
+	app := start(t, a)
+	if !app.Exists(whole("error subtitle-missing")) {
+		t.Fatalf("no note: %q", app.Texts())
+	}
+	app.Press("id:film-subs-reprocess")
+	if !slices.Contains(a.calls, "retry job") || app.Find("id:film-subs-reprocess").Props.Label != msgs.FilmReprocess() {
+		t.Fatalf("calls %q", a.calls)
+	}
+	app.Press("id:film-tab-clips")
+	app.Press("id:film-subs-reprocess")
+	if n := len(slices.DeleteFunc(slices.Clone(a.calls), func(c string) bool { return c != "retry job" })); n != 2 {
+		t.Fatalf("the clips tab's button ran the job %d times in all, calls %q", n, a.calls)
+	}
+
+	b := newFakeApp()
+	b.item.JobID, b.item.Stage = "", ""
+	b.subs = Subs{Key: "talk", Ready: true, Err: "subtitle-unreadable"}
+	app = start(t, b)
+	if !app.Exists(whole("error subtitle-unreadable")) || app.Exists("id:film-subs-reprocess") {
+		t.Fatalf("a video no job processed: %q", app.Texts())
+	}
+
+	c := newFakeApp()
+	c.err = "video-unplayable"
+	c.video.Source = ""
+	app = start(t, c)
+	if !app.Exists(whole("error video-unplayable")) {
+		t.Fatalf("no note: %q", app.Texts())
+	}
+	app.Press("id:film-stage-reveal")
+	if !slices.Contains(c.calls, "reveal /films/talk/talk.mp4") || app.Find("id:film-stage-reveal").Props.Label != msgs.FilmShowInFinder("macOS") {
+		t.Fatalf("calls %q", c.calls)
+	}
+}
+
+// TestHeldLineCanBeSelected checks that while the film is held on a line, the subtitle list shows that line in a card whose text can be selected, a word or the whole line, with the line the mode hides blurred, and an Explain Line that explains that line; it goes as the film plays.
+func TestHeldLineCanBeSelected(t *testing.T) {
+	a := newFakeApp()
+	a.mode = SubOriginal
+	a.play = &fakePlay{head: 1500 * time.Millisecond, length: 10 * time.Second}
+	app := start(t, a)
+	card := "id:film-held-line"
+	if !app.Exists(card+" >> "+whole("Hello.")) || !app.Exists(card+" >> "+whole("你好。")) {
+		t.Fatalf("the held line: %q", app.Texts())
+	}
+	if !app.Find("id:film-held-text").Props.SelectionArea {
+		t.Fatal("the held line's text cannot be selected")
+	}
+	if e := app.Find(card + " >> " + whole("你好。")).Style.Effects; e == nil || len(e.Filters) == 0 {
+		t.Fatal("the translation Original Only hides shows unblurred")
+	}
+	app.Press("id:film-held-explain")
+	if !slices.Contains(a.calls, "explain 0") {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() { a.play.playing = true })
+	if app.Exists(card) {
+		t.Fatal("the card stayed while the film plays")
+	}
+	change(app, a, func() { a.play.playing, a.play.head = false, 3500*time.Millisecond })
+	if app.Exists(card) {
+		t.Fatal("a card shows between lines")
+	}
 }

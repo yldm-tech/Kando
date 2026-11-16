@@ -199,7 +199,7 @@ func (a *app) LoopThrough(i int) {
 	a.playerFlashLoop(cues)
 }
 
-// playerFlashLoop says on the picture which lines loop: Loop Line: On for one, else the first and the last by their numbers.
+// playerFlashLoop says on the picture which lines loop: Loop: On for one, else the first and the last by their numbers.
 func (a *app) playerFlashLoop(cues []core.Segment) {
 	loop := a.player.film.loop
 	from, to := -1, -1

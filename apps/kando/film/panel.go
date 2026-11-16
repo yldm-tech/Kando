@@ -139,10 +139,9 @@ func (s *screen) panelTabBar(cx *ns.Scope) ns.Node {
 		Children: tabs}
 }
 
-// subsTab lists the cues with the time each starts, the playing one lit and kept in view as it changes. A click plays from a cue, and a right click copies it (cueMenu). The field above it searches both lines.
+// subsTab lists the cues with the time each starts, the playing one lit and kept in view as it changes. A click plays from a cue, and a right click explains or copies it (cueMenu). The field above it searches both lines, and while the film is held the line it is held on shows under it, to select and copy from (heldLine).
 func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 	a := s.a
-	colors := ui.ColorsOf(cx)
 	state := live.Memo(cx, a, func() subsState {
 		subs, item := a.Subs(), s.item()
 		switch {
@@ -182,7 +181,7 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		case subsLoading:
 			return panelNote(func() string { return locales.FilmLoadingSubtitles(cx) }, nil)
 		case subsFailed:
-			return panelNote(live.Func(a, func() string { return a.ErrText(cx, a.Subs().Err) }), colors.Danger)
+			return s.subsFailed(cx)
 		case subsNone:
 			return panelNote(func() string { return locales.FilmNoSubtitlesYet(cx) }, nil)
 		case subsEmpty:
@@ -204,8 +203,63 @@ func (s *screen) subsTab(cx *ns.Scope) ns.Node {
 		a.Flash(locales.FilmMatchOf(cx, k+1, len(rows)))
 	}
 	return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{
-		ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 8, Left: 14}, Gap: 8}, Children: []ns.Node{s.searchField(cx, step), chip}},
+		ns.View{Style: ns.Style{Padding: ns.Edges{Right: 14, Bottom: 8, Left: 14}, Gap: 8}, Children: []ns.Node{s.searchField(cx, step), chip, s.heldLine(cx, cues, func() bool { return state() == subsReady })}},
 		ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Padding: ns.Edges{Right: 8, Bottom: 12, Left: 8}}, Children: []ns.Node{body}},
+	}}
+}
+
+// heldLine is the line the picture is held on, while the film is held on one, in a card whose text the user can select, a word of it or the whole line, and copy, as the list's rows, which play their line at a click, cannot be. Its lines are the row's: those the mode shows, and the one it hides blurred until the pointer rests on the card. Explain Line under them has the AI service explain the line. It goes as the film plays on, so it never moves under the pointer. ready reports whether the film's lines are read.
+func (s *screen) heldLine(cx *ns.Scope, cues func() []core.Segment, ready func() bool) ns.Node {
+	a := s.a
+	index := ns.NewMemo(cx, func() int {
+		a.Track()
+		if p := a.Play(); p == nil || p.Playing() || !ready() {
+			return -1
+		}
+		return cueIndex(cues(), s.playhead()-a.Delay())
+	}).Get
+	return ns.Show{When: func() bool { return index() >= 0 }, Then: func(cx *ns.Scope) ns.Node {
+		lines := live.Func(a, func() cueLines {
+			list, i := cues(), index()
+			if i < 0 || i >= len(list) {
+				return cueLines{}
+			}
+			shown, hidden := listLines(a, list[i].Text)
+			return cueLines{shown: shown, hidden: hidden}
+		})
+		nth := func(i int) func() string {
+			return func() string {
+				if l := lines().shown; i < len(l) {
+					return l[i]
+				}
+				return ""
+			}
+		}
+		hovered := ns.NewSignal(cx, false)
+		explain := func() string { return locales.FilmExplainLine(cx) }
+		return ns.View{TestID: "film-held-line", Style: ns.Style{Padding: ns.Symmetric(10, 12), Gap: 8, CornerRadius: 12, Background: panelCard},
+			OnMouseEnter: func(ns.MouseEvent) { hovered.Set(true) }, OnMouseLeave: func(ns.MouseEvent) { hovered.Set(false) },
+			Children: []ns.Node{
+				ns.View{TestID: "film-held-text", Selectable: true, Style: ns.Style{Gap: 2}, Children: []ns.Node{
+					ns.Text{ContentFunc: nth(0), Style: ns.Style{FontSize: 14, LineHeight: 19, Color: onGlass}},
+					ns.Show{When: func() bool { return nth(1)() != "" }, Then: func(*ns.Scope) ns.Node {
+						return ns.Text{ContentFunc: nth(1), Style: cueSecondStyle}
+					}},
+					ns.Show{When: func() bool { return lines().hidden != "" }, Then: func(*ns.Scope) ns.Node {
+						return ns.Text{ContentFunc: func() string { return lines().hidden }, Style: cueSecondStyle,
+							StyleFunc: func() ns.Style {
+								if hovered.Get() {
+									return ns.Style{Transition: cuePeekTransition}
+								}
+								return ns.Style{Opacity: ns.Alpha(0.45), Filters: []ns.Filter{ns.Blur(5)}, Transition: cuePeekTransition}
+							}}
+					}},
+				}},
+				base.Button{TestID: "film-held-explain", LabelFunc: explain, OnPress: live.On(a, func(ns.PressEvent) { a.ExplainLine(index()) }),
+					Style: ns.Style{AlignSelf: ns.AlignStart, Height: ns.Pt(24), Padding: ns.Symmetric(0, 10), CornerRadius: 12, JustifyContent: ns.JustifyCenter, Background: ns.RGBA(0xFFFFFF, 0.14),
+						Hover: &ns.Style{Background: ns.RGBA(0xFFFFFF, 0.22)}, FocusVisible: ui.FocusRing(cx, -2)},
+					Children: []ns.Node{ns.Text{ContentFunc: explain, MaxLines: 1, Style: ns.Style{FontSize: 12, LineHeight: 16, FontWeight: ns.FontWeightSemibold, Color: onGlass}}}},
+			}}
 	}}
 }
 
@@ -432,7 +486,7 @@ func cueClockWidth(cx *ns.Scope, a App, cues func() []core.Segment) func() ns.Po
 	})
 }
 
-// cueRow is one cue of the list: its start, in a column clockWidth wide, and its lines as the picture shows them, in their order (listLines). The line the mode hides, as the translation in Original Only, shows under them blurred until the pointer rests on the row or the keyboard focus is in it, so the list reads as a transcript without giving away what the learner listens for. The row is named by both lines in their order, is selected while it plays, and has a bar at its start while its line loops. A click plays from its start, with Shift has the loop run through its line (LoopThrough), and a right click copies it (cueMenu).
+// cueRow is one cue of the list: its start, in a column clockWidth wide, and its lines as the picture shows them, in their order (listLines). The line the mode hides, as the translation in Original Only, shows under them blurred until the pointer rests on the row or the keyboard focus is in it, so the list reads as a transcript without giving away what the learner listens for. The row is named by both lines in their order, is selected while it plays, and has a bar at its start while its line loops. A click plays from its start, with Shift has the loop run through its line (LoopThrough), and a right click explains or copies it (cueMenu).
 func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, index func() int, current func() bool, clockWidth func() ns.Points) ns.Node {
 	a := s.a
 	looped := live.Func(a, func() bool {
@@ -514,7 +568,7 @@ func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, index func() int,
 				}},
 			},
 		}}, OnContextMenu: func(e ns.ContextMenuEvent) {
-			nsdesktop.PopupMenu(cx, cueMenu(cx, cue()), e.PagePosition, nil)
+			nsdesktop.PopupMenu(cx, cueMenu(cx, cue(), live.Do(a, func() { a.ExplainLine(index()) })), e.PagePosition, nil)
 		}}
 }
 
@@ -533,9 +587,13 @@ var cueSecondStyle = ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass, Opac
 // cuePeekTransition clears a row's hidden line, and blurs it again, gently.
 var cuePeekTransition = ns.Transition{Duration: 150 * time.Millisecond, Easing: ns.EaseOut, Properties: ns.TransitionOpacity}
 
-// cueMenu is what a right click on a cue of the list offers: copying the cue as the list shows it, and, for a cue that has a translation, its original or its translation alone.
-func cueMenu(cx *ns.Scope, cue core.Segment) []nsdesktop.MenuItem {
-	items := []nsdesktop.MenuItem{{Label: locales.FilmCopyLine(cx), OnSelect: func() { cx.SetClipboard(LineText(cue.Text)) }}}
+// cueMenu is what a right click on a cue of the list offers: explaining it with the AI service (explain), then copying the cue as the list shows it, and, for a cue that has a translation, its original or its translation alone.
+func cueMenu(cx *ns.Scope, cue core.Segment, explain func()) []nsdesktop.MenuItem {
+	items := []nsdesktop.MenuItem{
+		{Label: locales.FilmExplainLine(cx), OnSelect: explain},
+		{Separator: true},
+		{Label: locales.FilmCopyLine(cx), OnSelect: func() { cx.SetClipboard(LineText(cue.Text)) }},
+	}
 	translation, original := splitCue(cue.Text)
 	if translation == "" || original == "" {
 		return items
@@ -549,7 +607,6 @@ func cueMenu(cx *ns.Scope, cue core.Segment) []nsdesktop.MenuItem {
 // clipsTab is the film cut into 片段 of equal time; a click plays from one, and the playing one is lit.
 func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 	a := s.a
-	colors := ui.ColorsOf(cx)
 	cues := filmCues(cx, a)
 	length := live.Memo(cx, a, a.PlayLength)
 	chapters := ns.NewMemoFunc(cx, func() []Chapter { return Chapters(cues(), length()) }, slices.Equal[[]Chapter]).Get
@@ -568,7 +625,7 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 		case state() == subsLoading:
 			return panelNote(func() string { return locales.FilmLoadingSubtitles(cx) }, nil)
 		case state() == subsFailed:
-			return panelNote(live.Func(a, func() string { return a.ErrText(cx, a.Subs().Err) }), colors.Danger)
+			return s.subsFailed(cx)
 		}
 		return ns.Show{When: func() bool { return len(chapters()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
 			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Gap: 8}, Children: []ns.Node{
@@ -946,8 +1003,24 @@ func panelGroup(children ...ns.Node) ns.Node {
 	return ns.View{Style: ns.Style{CornerRadius: 14, Background: panelCard}, Children: children}
 }
 
+// subsFailed says why the film's subtitles did not load, the subtitle file gone or unreadable, in the danger color, over what writes them again: for a done film's job Process Entire Film Again, as its ⋯ offers. A video no job has processed has Start Processing in the title bar, and a job that failed Retry, so they get no button here. It is built under a region, which builds it again as the film or the language changes.
+func (s *screen) subsFailed(cx *ns.Scope) ns.Node {
+	a := s.a
+	note := panelNote(live.Func(a, func() string { return a.ErrText(cx, a.Subs().Err) }), ui.ColorsOf(cx).Danger)
+	item := s.item()
+	if item.JobID == "" || item.Stage != core.StageComplete {
+		return note
+	}
+	note.Style.Margin = ns.Edges{Top: 30, Right: 10, Bottom: 12, Left: 10}
+	return ns.View{Style: ns.Style{AlignItems: ns.AlignCenter}, Children: []ns.Node{
+		note,
+		ui.Button{TestID: "film-subs-reprocess", Text: locales.FilmReprocess(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+			OnPress: live.Do(a, func() { a.RetryOpen(s.item().JobID) })},
+	}}
+}
+
 // panelNote is a line of the panel saying why it lists nothing, in color, or white when nil.
-func panelNote(text func() string, color func() ns.Color) ns.Node {
+func panelNote(text func() string, color func() ns.Color) ns.Text {
 	return ns.Text{ContentFunc: text, Style: ns.Style{FontSize: 12, LineHeight: 16, Color: onGlass, Opacity: ns.Alpha(0.6), Margin: ns.Symmetric(30, 10), TextAlign: ns.TextAlignCenter},
 		StyleFunc: func() ns.Style {
 			if color != nil {
