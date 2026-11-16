@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -204,7 +205,8 @@ func launchApp() error {
 
 // launchExe is the program that starts the app of the executable exe on goos: on Linux the AppImage appImage ($APPIMAGE) when the app runs from one, as its executable is in a folder the AppImage mounts only while it runs, which would go away with the command; exe otherwise.
 func launchExe(goos, exe, appImage string) string {
-	if goos == "linux" && filepath.IsAbs(appImage) {
+	// appImage is a Linux path, absolute by Linux's rules whatever system reads it (path, not filepath).
+	if goos == "linux" && path.IsAbs(appImage) {
 		return appImage
 	}
 	return exe
