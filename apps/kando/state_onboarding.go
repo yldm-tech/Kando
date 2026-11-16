@@ -392,6 +392,12 @@ func (a *app) onboardingTools(cx *ns.Scope) []onboarding.Tool {
 			rows[i].State, rows[i].Err = onboarding.ToolMissing, settings.KitsError(locales.For(cx), a.kits.errs[name])
 		default:
 			rows[i].State = onboarding.ToolUnavailable
+			if src, ok := media.SourceFor(name); ok {
+				rows[i].Page = src.Page
+				if src.Scoop != "" {
+					rows[i].Install = "scoop install " + src.Scoop
+				}
+			}
 		}
 	}
 	return rows

@@ -214,6 +214,28 @@ func TestTilesToggleTheLanguages(t *testing.T) {
 	}
 }
 
+// TestSecondStepProgramKandoCannotDownload checks the row of a program Kando cannot download, as on Windows: the line under it says how to install it, with Scoop's command when there is one, it links to its download page, and the card's head offers 重新检测 once it is installed.
+func TestSecondStepProgramKandoCannotDownload(t *testing.T) {
+	a := newFakeApp()
+	a.step = 2
+	a.tools[1] = Tool{Name: "ffmpeg", Use: "video", State: ToolUnavailable, Page: "https://www.gyan.dev/ffmpeg/builds/", Install: "scoop install ffmpeg"}
+	app := start(t, a, core.OSWindows)
+	msgs := testlocale.Messages()
+	if !app.Exists(`text:"`+msgs.OnboardingToolUnavailableCommand("scoop install ffmpeg")+`"`) || !app.Exists("id:onboarding-tool-page-ffmpeg") || app.Exists("id:onboarding-tool-ffmpeg") {
+		t.Fatalf("the row of a program Kando cannot download: %q", app.Texts())
+	}
+	app.Press("id:onboarding-tools-redetect")
+	wantCalls(t, a, "redetect")
+	change(app, a, func() { a.tools[1].Install = "" })
+	if !app.Exists(`text:"` + msgs.OnboardingToolUnavailable() + `"`) {
+		t.Fatalf("without a command to install it: %q", app.Texts())
+	}
+	change(app, a, func() { a.tools[1].State = ToolReady })
+	if app.Exists("id:onboarding-tools-redetect") || app.Exists("id:onboarding-tool-page-ffmpeg") {
+		t.Fatal("redetect or the page link stays once the program is there")
+	}
+}
+
 func TestSecondStepRowsAndTheirButtons(t *testing.T) {
 	a := newFakeApp()
 	a.step = 2

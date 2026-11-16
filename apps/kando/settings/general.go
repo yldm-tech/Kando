@@ -31,10 +31,15 @@ func (g general) Render(cx *core.Scope) core.Node {
 	redetect := core.Show{When: live.Func(a, func() bool { _, known := a.Tools(); return known }), Then: func(cx *core.Scope) core.Node {
 		return form.Button{Text: locales.SettingsGeneralRedetect(cx), OnPress: live.Do(a, a.Redetect), TestID: "settings-redetect"}
 	}}
-	note := locales.SettingsGeneralToolsNote(cx)
-	// Where Kando downloads no programs, as on Windows, they are the user's to install.
+	note := static(locales.SettingsGeneralToolsNote(cx))
+	// Where Kando downloads no programs, as on Windows, they are the user's to install: from each one's page, which its row links to, or on Windows all at once with Scoop, whose folder 重新检测 looks in.
 	if _, ok := media.KitFor("ffmpeg"); !ok {
-		note = locales.SettingsGeneralToolsNoteManual(cx)
+		note = func() string {
+			if command := scoopCommand(); command != "" {
+				return locales.SettingsGeneralToolsNoteScoop(cx, command)
+			}
+			return locales.SettingsGeneralToolsNoteManual(cx)
+		}
 	}
 	tool := func(mark, name, use string, path func(media.Tools) string) core.Node {
 		return toolRow{s: g.s, mark: mark, name: name, use: use, path: path}
@@ -52,9 +57,23 @@ func (g general) Render(cx *core.Scope) core.Node {
 			form.Separator(false),
 			tool("W", "whisper-cli", locales.SettingsGeneralUseWhisper(cx), func(t media.Tools) string { return t.Whisper }),
 		),
-		form.Note(static(note), 0),
+		form.Note(note, 0),
 		cli{g.s},
 	)
+}
+
+// scoopCommand is the command that installs every program Kando runs with Scoop, "" where Scoop names none of them, off Windows.
+func scoopCommand() string {
+	var names []string
+	for _, program := range []string{"yt-dlp", "ffmpeg", "whisper-cli"} {
+		if src, ok := media.SourceFor(program); ok && src.Scoop != "" {
+			names = append(names, src.Scoop)
+		}
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	return "scoop install " + strings.Join(names, " ")
 }
 
 // static is text as a binding that does not change.
@@ -248,7 +267,15 @@ func (r toolRow) Render(cx *core.Scope) core.Node {
 					return locales.SettingsGeneralDownload(cx)
 				})}
 		}
-		return form.Status(colors.Danger, colors.Muted, static(locales.SettingsGeneralNotInstalled(cx)))
+		missing := form.Status(colors.Danger, colors.Muted, static(locales.SettingsGeneralNotInstalled(cx)))
+		// Where Kando cannot download it, as on Windows, the program's own page of builds is where to get it.
+		if src, ok := media.SourceFor(r.name); ok {
+			return core.View{Style: core.Style{Direction: core.Row, Gap: 12, AlignItems: core.AlignCenter, FlexShrink: 0}, Children: []core.Node{
+				missing,
+				ui.Link{Text: locales.SettingsGeneralToolPage(cx), Label: locales.SettingsGeneralToolPageLabel(cx, r.name), Href: src.Page, TestID: "settings-tool-page-" + r.name},
+			}}
+		}
+		return missing
 	})
 	k := theme.Of(cx)
 	tile := core.View{Style: core.Style{Width: core.Pt(30), Height: core.Pt(30), FlexShrink: 0, CornerRadius: 8, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter}, StyleFunc: ui.Filled(k.Tile),

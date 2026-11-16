@@ -100,7 +100,7 @@ Kando は `yt-dlp`、`ffmpeg`、`whisper-cli`（whisper.cpp）を実行します
 
 tools リリースは Tools ワークフロー（`.github/workflows/tools.yml`）が `.github/tools.env` で固定したソースからビルドし、Kando はダウンロードしたものをアプリに組み込んだ SHA-256 で検証してから使います。ダウンロードしたプログラムは `settings.json` の隣の `tools` フォルダ（macOS では `~/Library/Application Support/Kando/tools`、Linux では `~/.config/Kando/tools`）に置かれます。Kando はまずここを探し、次に `PATH` と `/opt/homebrew/bin`、`/usr/local/bin`、`/home/linuxbrew/.linuxbrew/bin` を探します。Finder やデスクトップのランチャーから開いたアプリには最小限の `PATH` しか渡されないためです。「設定」›「一般」には使っているプログラムが表示され、足りないものは「ダウンロード」か「再試行」で取得でき、「再検出」で探し直します。`yt-dlp` が古いためにダウンロードに失敗した場合は「アップデートして再試行」が表示され、インストールしたときと同じ方法で更新して再試行します。
 
-Windows ではまだ自動でダウンロードしません。同じプログラムをパッケージマネージャーでインストールし、`PATH` に含まれていることを確認してください。
+Windows ではまだ自動でダウンロードしません。[Scoop](https://scoop.sh) なら `scoop install yt-dlp ffmpeg whisper-cpp` でインストールできます。または各プログラムのビルド（[yt-dlp.exe](https://github.com/yt-dlp/yt-dlp/releases/latest)、[gyan.dev の FFmpeg](https://www.gyan.dev/ffmpeg/builds/)、[whisper.cpp のリリース](https://github.com/ggml-org/whisper.cpp/releases)の `whisper-bin-x64.zip`）を入手し、そのフォルダを `PATH` に追加してください。「設定」›「一般」とはじめにガイドは、足りないプログラムごとにそのページへのリンクを表示します。Kando は `PATH` のほか、winget（`%LocalAppData%\Microsoft\WinGet\Links`）、Scoop（`~\scoop\shims`）、Chocolatey（`%ProgramData%\chocolatey\bin`）がプログラムを置くフォルダも探すので、Kando の起動後にインストールしたものも「再検出」で見つかります。
 
 ## 使い方
 

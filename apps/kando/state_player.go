@@ -16,7 +16,7 @@ type playerUI struct {
 	// play is the video open in the system's player (playback.go), from when startPlayback opens it until it stops; it plays only once the player has loaded it (filmPlay.loaded). playPath is its video, the film's own, "" without one.
 	play     *filmPlay
 	playPath string
-	// playErr is playerErrUnplayable when the video would not play, or "".
+	// playErr is playerErrUnplayable when the video would not play, playerErrPlugins when GStreamer lacks the plug-ins for it, or "".
 	playErr string
 	// playGen counts the videos opened and the seeks made, so a report meant for one before is dropped.
 	playGen  int

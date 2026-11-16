@@ -86,6 +86,41 @@ func kitOn(platform, program string) (Kit, bool) {
 	return Kit{}, false
 }
 
+// Source is where the user gets a program that Kando downloads no kit of on this platform, as on Windows (KitFor).
+type Source struct {
+	// Page is the program's own page of builds for the platform, or of how to install it.
+	Page string
+	// Scoop is the name Scoop's main bucket installs it by (scoop install <name>), on Windows; "" elsewhere.
+	Scoop string
+}
+
+// SourceFor is where the user gets program on this computer's platform; false for a program Kando names no source of.
+func SourceFor(program string) (Source, bool) { return sourceOn(runtime.GOOS, program) }
+
+func sourceOn(goos, program string) (Source, bool) {
+	if goos == "windows" {
+		// yt-dlp.exe is on its releases page; ffmpeg.org sends Windows users to gyan.dev's builds; whisper.cpp publishes whisper-bin-x64.zip and the others in its numbered releases, not the one its latest version is tagged with.
+		switch program {
+		case "yt-dlp":
+			return Source{Page: "https://github.com/yt-dlp/yt-dlp/releases/latest", Scoop: "yt-dlp"}, true
+		case "ffmpeg":
+			return Source{Page: "https://www.gyan.dev/ffmpeg/builds/", Scoop: "ffmpeg"}, true
+		case "whisper-cli":
+			return Source{Page: "https://github.com/ggml-org/whisper.cpp/releases", Scoop: "whisper-cpp"}, true
+		}
+		return Source{}, false
+	}
+	switch program {
+	case "yt-dlp":
+		return Source{Page: "https://github.com/yt-dlp/yt-dlp/wiki/Installation"}, true
+	case "ffmpeg":
+		return Source{Page: "https://ffmpeg.org/download.html"}, true
+	case "whisper-cli":
+		return Source{Page: "https://github.com/ggml-org/whisper.cpp"}, true
+	}
+	return Source{}, false
+}
+
 // ownTool is program in the folder of the kit that provides it, or "" when Kando has not downloaded it.
 func ownTool(program string) string {
 	if OwnToolsDir == "" {

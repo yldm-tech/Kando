@@ -296,6 +296,27 @@ func TestUnsupportedVideoEncodedWhenTheCopyFails(t *testing.T) {
 	}
 }
 
+// TestVideoWithoutGStreamerPlugins has the system's player fail as it does on Linux without the GStreamer plug-ins the video needs: no copy is made, as none would play, and the page says which to install, with the command that installs them to copy.
+func TestVideoWithoutGStreamerPlugins(t *testing.T) {
+	bin := t.TempDir()
+	ffmpeg := writeFakeScript(t, bin, "ffmpeg", "for last; do :; done\n[ \"$last\" = pipe:1 ] && exit 1\nprintf copy > \"$last\"\n")
+	a, tt, updates, item := playerFilm(t, 12, media.Tools{FFmpeg: ffmpeg})
+	playerOpenFilm(t, a, tt, updates, item)
+	apply(tt, a, func() {
+		a.VideoFailed(errors.New("Your GStreamer installation is missing a plug-in. No installed GStreamer plug-in can play this format (H.264 / AAC need gst-libav or gst-plugins-ugly / -bad)."))
+	})
+	if a.player.playErr != playerErrPlugins || a.player.play.remux != 0 || a.player.remuxStop != nil || tt.Exists("id:film-video") {
+		t.Fatalf("error %q, copy %v", a.player.playErr, a.player.play.remux)
+	}
+	wantText(t, tt, testlocale.Messages().PlayerMissingPlugins())
+	wantText(t, tt, film.GStreamerInstall)
+	tt.Press("id:film-stage-copy-command")
+	if got := tt.Clipboard; got != film.GStreamerInstall {
+		t.Fatalf("copied %q, want %q", got, film.GStreamerInstall)
+	}
+	wantText(t, tt, testlocale.Messages().FilmCommandCopied())
+}
+
 // TestUnsupportedVideoWithoutFFmpeg: without ffmpeg there is no copy to make, and the page says the video cannot be played.
 func TestUnsupportedVideoWithoutFFmpeg(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)

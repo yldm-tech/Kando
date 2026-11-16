@@ -100,7 +100,7 @@ make build
 
 tools 發佈由 Tools 工作流程（`.github/workflows/tools.yml`）依 `.github/tools.env` 中固定的原始碼建置，看懂使用每個下載前都會以內建的 SHA-256 驗證。下載的程式放在 `settings.json` 旁的 `tools` 資料夾（macOS 上是 `~/Library/Application Support/Kando/tools`，Linux 上是 `~/.config/Kando/tools`）。看懂會先在這裡找，再找 `PATH` 以及 `/opt/homebrew/bin`、`/usr/local/bin` 和 `/home/linuxbrew/.linuxbrew/bin`，因為從 Finder 或桌面啟動器開啟的應用程式只會拿到精簡的 `PATH`。「設定 › 一般」會顯示使用的是哪個程式，缺少的可以按「下載」或「重試」，按「重新偵測」會再找一次。若因 `yt-dlp` 版本過舊而下載失敗，看懂會提供「更新並重試」，依原本的安裝方式更新它並重試。
 
-在 Windows 上看懂暫時還不會自動下載：請用你的套件管理器安裝相同的程式，並確認它們位於 `PATH` 中。
+在 Windows 上看懂暫時還不會自動下載。可以用 [Scoop](https://scoop.sh) 執行 `scoop install yt-dlp ffmpeg whisper-cpp` 安裝；或下載各程式自己的版本（[yt-dlp.exe](https://github.com/yt-dlp/yt-dlp/releases/latest)、[gyan.dev 的 FFmpeg](https://www.gyan.dev/ffmpeg/builds/)、[whisper.cpp 發行版](https://github.com/ggml-org/whisper.cpp/releases)中的 `whisper-bin-x64.zip`），並把所在資料夾加入 `PATH`。「設定 › 一般」和入門導覽會為每個缺少的程式附上它的下載頁面連結。除了 `PATH`，看懂也會在 winget（`%LocalAppData%\Microsoft\WinGet\Links`）、Scoop（`~\scoop\shims`）和 Chocolatey（`%ProgramData%\chocolatey\bin`）放置程式的資料夾中尋找，所以看懂開啟後才安裝的程式，按「重新偵測」也能找到。
 
 ## 開始使用
 

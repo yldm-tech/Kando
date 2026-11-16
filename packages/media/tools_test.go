@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -669,5 +670,83 @@ func TestDownloadReusesAFinishedVideo(t *testing.T) {
 	}
 	if data, _ := os.ReadFile(runs); strings.Count(string(data), "run") != 1 {
 		t.Fatalf("yt-dlp ran %q", data)
+	}
+}
+
+// TestLookToolFindsPackageManagerPrograms checks that a program in a package manager's folder that is not on PATH is found, as one winget or Scoop installed on Windows after Kando started, whose folder Kando's PATH does not have yet: there by its .exe.
+func TestLookToolFindsPackageManagerPrograms(t *testing.T) {
+	dir := t.TempDir()
+	file := "ffmpeg"
+	if runtime.GOOS == "windows" {
+		file = "ffmpeg.exe"
+	}
+	if err := os.WriteFile(filepath.Join(dir, file), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", t.TempDir())
+	saved, savedOwn := extraToolDirs, OwnToolsDir
+	extraToolDirs, OwnToolsDir = []string{filepath.Join(dir, "missing"), dir}, ""
+	t.Cleanup(func() { extraToolDirs, OwnToolsDir = saved, savedOwn })
+	if got := lookTool("ffmpeg"); got != filepath.Join(dir, file) {
+		t.Fatalf("lookTool = %q, want %q", got, filepath.Join(dir, file))
+	}
+	if got := lookTool("whisper-cli"); got != "" {
+		t.Fatalf("lookTool found a whisper-cli that is not there: %q", got)
+	}
+}
+
+// TestPackageManagerDirsOnWindows checks the folders where winget, Scoop and Chocolatey put the programs they install, where the user's environment says they are, and where they are by default.
+func TestPackageManagerDirsOnWindows(t *testing.T) {
+	env := map[string]string{
+		"LOCALAPPDATA": filepath.Join("C:", "Users", "me", "AppData", "Local"),
+		"ProgramFiles": filepath.Join("C:", "Program Files"),
+		"USERPROFILE":  filepath.Join("C:", "Users", "me"),
+		"ProgramData":  filepath.Join("C:", "ProgramData"),
+	}
+	want := []string{
+		filepath.Join(env["LOCALAPPDATA"], "Microsoft", "WinGet", "Links"),
+		filepath.Join(env["ProgramFiles"], "WinGet", "Links"),
+		filepath.Join(env["USERPROFILE"], "scoop", "shims"),
+		filepath.Join(env["ProgramData"], "scoop", "shims"),
+		filepath.Join(env["ProgramData"], "chocolatey", "bin"),
+	}
+	if got := packageManagerDirs("windows", func(key string) string { return env[key] }); !slices.Equal(got, want) {
+		t.Errorf("by default: %q, want %q", got, want)
+	}
+	env["SCOOP"], env["SCOOP_GLOBAL"], env["ChocolateyInstall"] = filepath.Join("D:", "scoop"), filepath.Join("D:", "scoop-global"), filepath.Join("D:", "choco")
+	want[2], want[3], want[4] = filepath.Join("D:", "scoop", "shims"), filepath.Join("D:", "scoop-global", "shims"), filepath.Join("D:", "choco", "bin")
+	if got := packageManagerDirs("windows", func(key string) string { return env[key] }); !slices.Equal(got, want) {
+		t.Errorf("moved: %q, want %q", got, want)
+	}
+	if got := packageManagerDirs("windows", func(string) string { return "" }); len(got) != 0 {
+		t.Errorf("with no environment: %q", got)
+	}
+	if got := packageManagerDirs("linux", func(key string) string { return env[key] }); !slices.Contains(got, "/home/linuxbrew/.linuxbrew/bin") {
+		t.Errorf("on Linux: %q", got)
+	}
+}
+
+// TestMoviesDirIsTheSystemsVideosFolder checks that a new library goes in the videos folder the system names (VideosDir), as one Windows moved or a Linux desktop names in the user's language, and otherwise in the home folder's.
+func TestMoviesDirIsTheSystemsVideosFolder(t *testing.T) {
+	saved := VideosDir
+	t.Cleanup(func() { VideosDir = saved })
+	VideosDir = ""
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip(err)
+	}
+	want := filepath.Join(home, "Videos")
+	if runtime.GOOS == "darwin" {
+		want = filepath.Join(home, "Movies")
+	}
+	if got := MoviesDir(); got != want {
+		t.Fatalf("MoviesDir = %q, want %q", got, want)
+	}
+	VideosDir = filepath.Join(t.TempDir(), "Vidéos")
+	if got := MoviesDir(); got != VideosDir {
+		t.Fatalf("MoviesDir = %q, want %q", got, VideosDir)
+	}
+	if got := DefaultLibraryDir(); filepath.Dir(got) != VideosDir {
+		t.Fatalf("DefaultLibraryDir = %q, want it in %q", got, VideosDir)
 	}
 }

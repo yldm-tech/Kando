@@ -240,11 +240,36 @@ func (s *screen) stage() core.Node {
 							}
 							return core.Style{Color: colors.Muted()}
 						}},
+						s.pluginsRemedy(note),
 						s.unplayableRemedy(note),
 					}}
 			}},
 		},
 	}
+}
+
+// pluginsRemedy is what goes under the note of a video the system's player cannot play for want of GStreamer plug-ins, on Linux: the command that installs them on Debian and Ubuntu, which can be selected, and a button that copies it.
+func (s *screen) pluginsRemedy(note func() stageNoteState) core.Node {
+	return core.Show{When: func() bool { return note().err == ErrMissingPlugins }, Then: func(cx *core.Scope) core.Node {
+		colors := ui.ColorsOf(cx)
+		copied := core.NewSignal(cx, false)
+		return core.View{Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, MaxWidth: core.Pct(100)}, Children: []core.Node{
+			core.Text{TestID: "film-stage-command", Content: GStreamerInstall, Selectable: core.SelectableOn,
+				Style: core.Style{FontFamily: "monospace", FontSize: 11, LineHeight: 16, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Muted)},
+			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language and 已拷贝 without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+			core.Dynamic(func(cx *core.Scope) core.Node {
+				text := locales.FilmCopyCommand(cx)
+				if copied.Get() {
+					text = locales.FilmCommandCopied(cx)
+				}
+				return ui.Button{TestID: "film-stage-copy-command", Text: text, Variant: ui.ButtonSecondary, Size: ui.SizeSmall,
+					OnPress: func() {
+						cx.SetClipboard(GStreamerInstall)
+						copied.Set(true)
+					}}
+			}),
+		}}
+	}}
 }
 
 // unplayableRemedy is the button under the note of a video that would not play: Show in Finder, or the system's file manager, on the video, which the user can open in another player or replace. Processing the film again would not help, as it plays the same file.

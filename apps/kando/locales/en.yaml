@@ -489,9 +489,15 @@ filmColorWhite:
 filmColorYellow:
   message: "Yellow"
   description: "A subtitle line's color."
+filmCommandCopied:
+  message: "Copied"
+  description: "Copy Command once it has copied the command."
 filmCopy:
   message: "Copy"
   description: "Button copying a link or path to the clipboard."
+filmCopyCommand:
+  message: "Copy Command"
+  description: "Button under the note of a video that needs GStreamer plug-ins, on Linux: copies the command that installs them."
 filmCopyLine:
   message: "Copy Line"
   description: "Item of a subtitle line's context menu in the side panel: copies the line, the translation over the original as the list shows them."
@@ -1377,6 +1383,9 @@ libraryNameEmpty:
 libraryNameHasPath:
   message: "A library name can't contain a path."
   description: "Error in the new-library sheet: the name holds a slash or is . or .."
+libraryNameNotAllowed:
+  message: "Windows doesn't allow this name. Leave out < > : \" | ? * and don't use a name Windows reserves, such as CON or NUL."
+  description: "Error in the new-library sheet on Windows: the name holds a character Windows refuses in a file's name, or is a device name it reserves."
 libraryNameTaken:
   message: "A library with this name already exists. Choose another name."
   description: "Error in the new-library sheet: a library of that name is already in the chosen folder."
@@ -1868,8 +1877,13 @@ onboardingToolProgress:
   placeholders:
     percent: { type: "int", example: "42" }
 onboardingToolUnavailable:
-  message: "Install it with your package manager and make sure it is on PATH"
-  description: "Line under a program in the guide on a system Kando cannot download it for, such as Windows."
+  message: "Install it from its download page and add it to PATH"
+  description: "Line under a program in the guide on a system Kando cannot download it for, beside the link to its download page."
+onboardingToolUnavailableCommand:
+  message: "Install it with {command}, or from its download page"
+  description: "Line under a program in the guide on Windows, where Kando cannot download it; {command} installs it with the Scoop package manager and is not translated."
+  placeholders:
+    command: { type: "String", example: "scoop install ffmpeg" }
 onboardingToolsDownloading:
   message: "Downloading the programs Kando needs"
   description: "Head of the guide's card of programs while Kando downloads some of them."
@@ -2071,6 +2085,9 @@ playerKeyVolumeDown:
 playerKeyVolumeUp:
   message: "Volume Up"
   description: "Shortcut row and menu item: louder."
+playerMissingPlugins:
+  message: "This video needs GStreamer plug-ins that aren't installed. On Debian or Ubuntu, run the command below in a terminal; on other systems, install GTK 4's GStreamer media backend and GStreamer's good, bad and libav plug-ins. Then reopen Kando."
+  description: "Shown in place of the picture on Linux when the system's player has no GStreamer plug-in for the video; the command to copy, for Debian and Ubuntu, is under it."
 playerOsdCopied:
   message: "Copied"
   description: "Message on the picture after the playing subtitle line was copied."
@@ -2114,7 +2131,7 @@ playerSubsUnreadable:
   description: "Shown in the subtitle list when the subtitle file cannot be read or parsed."
 playerUnplayable:
   message: "This video can't be played"
-  description: "Shown in place of the picture when ffmpeg cannot open the video."
+  description: "Shown in place of the picture when the system's player cannot play the video, nor the copies ffmpeg makes of it for the player."
 playlistAdd:
   message: "{count, plural, one {Add # Video} other {Add # Videos}}"
   description: "Button of the playlist dialog that adds the videos found to the library's queue, those the library does not have yet."
@@ -3195,12 +3212,25 @@ settingsGeneralToolDetail:
   placeholders:
     use: { type: "String", example: "Downloads online videos" }
     where: { type: "String", example: "/opt/homebrew/bin/yt-dlp" }
+settingsGeneralToolPage:
+  message: "Download Page"
+  description: "Link at the end of a program's row in Settings › General and in the guide, on a system where Kando cannot download the program (Windows): opens the program's own page of builds."
+settingsGeneralToolPageLabel:
+  message: "{program} download page"
+  description: "What assistive technology reads for the Download Page link of a program; {program} is its name, such as ffmpeg."
+  placeholders:
+    program: { type: "String", example: "ffmpeg" }
 settingsGeneralToolsNote:
   message: "Kando downloads the programs it is missing. Those already installed on this computer are used as they are."
   description: "Footnote under the programs Kando runs: Kando downloads the missing ones itself."
 settingsGeneralToolsNoteManual:
-  message: "These programs come from this computer; Kando doesn't install or update them."
-  description: "Footnote under the programs Kando runs, on a system where it does not download them (Windows): they are the user's to install."
+  message: "Kando doesn't download these programs on this system. Install each from its download page and add its folder to PATH, then choose Detect Again."
+  description: "Footnote under the programs Kando runs, on a system where it does not download them and Scoop does not run: they are the user's to install, and Detect Again finds them."
+settingsGeneralToolsNoteScoop:
+  message: "Kando doesn't download these programs on Windows. Install them by running {command} in a terminal, or each from its download page and add its folder to PATH, then choose Detect Again."
+  description: "Footnote under the programs Kando runs on Windows, where it does not download them; {command} installs all of them with the Scoop package manager and is not translated."
+  placeholders:
+    command: { type: "String", example: "scoop install yt-dlp ffmpeg whisper-cpp" }
 settingsGeneralUpdateAvailable:
   message: "Version {version} is available"
   description: "Under Version in Settings › General when the last check found a newer version; {version} is its number, such as 0.4.0."

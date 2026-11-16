@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync/atomic"
 
+	kcore "kando/packages/core"
+
 	"github.com/nsgo-dev/nsgo/core"
 )
 
@@ -97,20 +99,17 @@ func Platform(cx *core.Scope) string {
 	return "other"
 }
 
-// DroppedPaths are the files of a drop, as core.View's OnFileDrop reports them as file: URLs, as paths on this system; what is no file: URL is left out.
+// DroppedPaths are the files of a drop, as core.View's OnFileDrop reports them as file: URLs, as paths on this system (kcore.FilePath): on Windows file:///C:/dir/file is C:\dir\file, and file://server/share/file, a file of a network folder, \\server\share\file. What is no file: URL is left out.
 func DroppedPaths(uris []string) []string {
 	var paths []string
 	for _, uri := range uris {
 		u, err := url.Parse(uri)
-		if err != nil || u.Scheme != "file" || u.Path == "" {
+		if err != nil {
 			continue
 		}
-		path := u.Path
-		// A Windows path comes as file:///C:/dir/file, its drive after the slash.
-		if len(path) > 2 && path[0] == '/' && path[2] == ':' {
-			path = path[1:]
+		if path, ok := kcore.FilePath(u); ok {
+			paths = append(paths, path)
 		}
-		paths = append(paths, filepath.FromSlash(path))
 	}
 	return paths
 }

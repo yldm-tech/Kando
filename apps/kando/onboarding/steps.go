@@ -206,6 +206,9 @@ func (t toolsCard) Render(cx *core.Scope) core.Node {
 	a := t.a
 	tools := core.NewMemoFunc(cx, live.Func(a, func() []Tool { return a.OnboardingTools(cx) }), slices.Equal[[]Tool])
 	ready := func() bool { _, ready, _ := toolsHead(cx, tools.Get()); return ready }
+	unavailable := func() bool {
+		return slices.ContainsFunc(tools.Get(), func(t Tool) bool { return t.State == ToolUnavailable })
+	}
 	missing := func() []Tool {
 		return slices.DeleteFunc(slices.Clone(tools.Get()), func(t Tool) bool { return t.State == ToolReady })
 	}
@@ -216,6 +219,10 @@ func (t toolsCard) Render(cx *core.Scope) core.Node {
 				core.Show{When: ready, Then: func(cx *core.Scope) core.Node {
 					return core.View{Role: core.RoleImage, Accessible: true, LabelFunc: func() string { head, _, _ := toolsHead(cx, tools.Get()); return head },
 						Children: []core.Node{mark(readyMark)}}
+				}},
+				// A program Kando cannot download is the user's to install, after which Kando looks for it again.
+				core.Show{When: unavailable, Then: func(cx *core.Scope) core.Node {
+					return smallButton(cx, "onboarding-tools-redetect", func() string { return locales.SettingsGeneralRedetect(cx) }, ui.Button{OnPress: live.Do(a, a.Redetect)})
 				}},
 			}},
 			core.Each(missing, func(t Tool) string { return t.Name }, func(cx *core.Scope, t func() Tool, _ func() int) core.Node {
@@ -266,6 +273,11 @@ func (r toolRow) Render(cx *core.Scope) core.Node {
 				}
 				return locales.OnboardingDownload(cx)
 			}, ui.Button{OnPress: live.Do(a, func() { a.OnboardingDownloadTool(name) })})
+		case ToolUnavailable:
+			if page := t().Page; page != "" {
+				return ui.Link{Text: locales.SettingsGeneralToolPage(cx), Label: locales.SettingsGeneralToolPageLabel(cx, name), Href: page, TestID: "onboarding-tool-page-" + name,
+					Style: core.Style{AlignSelf: core.AlignCenter, FlexShrink: 0}}
+			}
 		}
 		return core.Group(nil)
 	})
@@ -283,6 +295,8 @@ func toolSub(cx *core.Scope, t Tool) (string, core.Color) {
 		return locales.OnboardingToolConnecting(cx), k.AccentInk()
 	case t.State == ToolDownloading:
 		return locales.OnboardingToolProgress(cx, int(t.Progress*100)), k.AccentInk()
+	case t.State == ToolUnavailable && t.Install != "":
+		return locales.OnboardingToolUnavailableCommand(cx, t.Install), k.WarnInk()
 	case t.State == ToolUnavailable:
 		return locales.OnboardingToolUnavailable(cx), k.WarnInk()
 	case t.Err != "":

@@ -313,6 +313,23 @@ func TestPageScrollsWithinTheWindow(t *testing.T) {
 	}
 }
 
+// TestGeneralPageLinksWhereToGetAProgram checks that a program Kando cannot download, here whisper-cli, links to the page it is got from, which one it downloads, yt-dlp, does not need; and that where Kando downloads none of them, as on Windows, the footnote says how to install them all with Scoop.
+func TestGeneralPageLinksWhereToGetAProgram(t *testing.T) {
+	app := start(t, newFakeApp())
+	msgs := testlocale.Messages()
+	if !app.Exists("id:settings-tool-page-whisper-cli") || app.Exists("id:settings-tool-page-yt-dlp") {
+		t.Fatalf("download page links: whisper-cli %v, yt-dlp %v", app.Exists("id:settings-tool-page-whisper-cli"), app.Exists("id:settings-tool-page-yt-dlp"))
+	}
+	if !app.Exists(whole(msgs.SettingsGeneralToolPage())) {
+		t.Fatalf("no %q in %q", msgs.SettingsGeneralToolPage(), app.Texts())
+	}
+	if _, kits := media.KitFor("ffmpeg"); !kits {
+		if note := msgs.SettingsGeneralToolsNoteScoop(scoopCommand()); scoopCommand() == "" || !app.Exists(whole(note)) {
+			t.Fatalf("no %q in %q", note, app.Texts())
+		}
+	}
+}
+
 func TestGeneralPage(t *testing.T) {
 	a := newFakeApp()
 	app := start(t, a)

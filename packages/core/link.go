@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 )
 
@@ -142,13 +143,17 @@ func FileURL(path string) string {
 	return (&url.URL{Scheme: "file", Path: p}).String()
 }
 
-// FilePath is the path on this machine of the file a file:// URL names, the inverse of FileURL. On Windows the slash before a drive letter is dropped and the slashes become backslashes, so file:///C:/Users/me/clip.mp4 is C:\Users\me\clip.mp4. It reports false for a URL of another scheme, one without a path, and one whose host names another machine (anything but empty or localhost).
+// FilePath is the path on this machine of the file a file:// URL names, the inverse of FileURL. On Windows the slash before a drive letter is dropped and the slashes become backslashes, so file:///C:/Users/me/clip.mp4 is C:\Users\me\clip.mp4, and a host that names another machine is a share on it, as File Explorer drops a file of a network folder, so file://server/share/clip.mp4 is \\server\share\clip.mp4. It reports false for a URL of another scheme and one without a path; for one whose host names another machine (anything but empty or localhost) other than on Windows, which has no paths of other machines; and on Windows for one of a share's own folder, file://server/share, which is no file.
 func FilePath(u *url.URL) (string, bool) {
 	if u == nil || !strings.EqualFold(u.Scheme, "file") || u.Path == "" {
 		return "", false
 	}
 	if u.Host != "" && !strings.EqualFold(u.Host, "localhost") {
-		return "", false
+		share, rest, _ := strings.Cut(strings.TrimPrefix(u.Path, "/"), "/")
+		if runtime.GOOS != "windows" || share == "" || rest == "" {
+			return "", false
+		}
+		return filepath.FromSlash("//" + u.Host + u.Path), true
 	}
 	p := u.Path
 	if rest, ok := strings.CutPrefix(p, "/"); ok {

@@ -254,6 +254,36 @@ func TestFilePathRejects(t *testing.T) {
 	}
 }
 
+// TestFilePathOfAShare checks that on Windows a file: URL whose host names another machine, as File Explorer drops a file of a network folder, is the file's UNC path, and that elsewhere, which has no paths of other machines, it is none.
+func TestFilePathOfAShare(t *testing.T) {
+	u, err := url.Parse("file://server/share/%E8%A7%86%E9%A2%91/a%20b.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := FilePath(u)
+	if runtime.GOOS != "windows" {
+		if ok {
+			t.Fatalf("FilePath(%q) = %q, want false off Windows", u, got)
+		}
+		return
+	}
+	if want := `\\server\share\视频\a b.mp4`; !ok || got != want {
+		t.Fatalf("FilePath(%q) = %q, %v, want %q", u, got, ok, want)
+	}
+	if source := FileURL(got); source != "file:////server/share/%E8%A7%86%E9%A2%91/a%20b.mp4" {
+		t.Errorf("FileURL(%q) = %q", got, source)
+	}
+	for _, raw := range []string{"file://server/share", "file://server/share/", "file://server/"} {
+		u, err := url.Parse(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, ok := FilePath(u); ok {
+			t.Errorf("FilePath(%q) = %q, want false: a share's folder is no file", raw, got)
+		}
+	}
+}
+
 // TestFileURLRoundTrips checks that a local video's source, as the app makes it from the path of a file on this machine, is a job source NewJob accepts and leads back to the same file.
 func TestFileURLRoundTrips(t *testing.T) {
 	paths := []string{"/Users/me/Movies/clip.mp4", "/Users/me/a b/片 1.mp4", "/tmp/a#b?c%.mp4", "/C:/odd/dir.mp4"}

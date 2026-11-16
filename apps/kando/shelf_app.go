@@ -6,6 +6,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -39,7 +40,7 @@ func (a *app) pickLibraryParent() {
 
 // createLibrary makes a .kando bundle and switches to it. A folder that is already there is opened as it is.
 func (a *app) createLibrary() {
-	file, err := libraryFileName(a.messages(), a.snap().LibraryName)
+	file, err := films.LibraryFolder(a.messages(), runtime.GOOS, a.snap().LibraryName)
 	if err != nil {
 		a.saveErr = err.Error()
 		return
@@ -63,20 +64,6 @@ func (a *app) createLibrary() {
 	a.switchLibrary(dir)
 	a.edit(func(s *session) { s.MakingLibrary = false })
 	a.page = pageFilms
-}
-
-// libraryFileName is the folder name of a library called name, or why there can be none, in the language of m.
-func libraryFileName(m locales.Messages, name string) (string, error) {
-	name = strings.TrimSpace(name)
-	name = strings.TrimSuffix(name, media.LibraryExt)
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "", errors.New(m.LibraryNameEmpty())
-	}
-	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
-		return "", errors.New(m.LibraryNameHasPath())
-	}
-	return name + media.LibraryExt, nil
 }
 
 // beginNewLibrary opens the create form even when a library is already open, and picks a name that is not taken.
