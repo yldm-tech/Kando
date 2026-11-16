@@ -3,15 +3,23 @@ package browse
 import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/sites"
+	"kando/apps/kando/sites/catalog"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// startWidth is how wide the start's text runs at most, so its two sentences wrap into a short paragraph under the title rather than across the whole page.
-const startWidth core.Points = 460
+// startWidth is how wide the start's text and its sites run at most, so its sentence stays a short line under the title and its tiles three to a row.
+const startWidth core.Points = 520
 
-// start is the page before a web page is open, and after home: the globe, what the page is for, and 清除登录信息… at its foot where the pages' sign-ins can be cleared.
+// startSites are the sites the start offers, by domain, in the order they show: the ones learners study from most.
+var startSites = []string{"youtube.com", "bilibili.com", "ted.com", "nhk.or.jp", "nicovideo.jp", "bbc.co.uk"}
+
+// startColumns is how many of startSites a row of the start holds.
+const startColumns = 3
+
+// start is the page before a web page is open, and after home: the globe, what the page is for, the sites learners study from most, which open in the browser, 支持的网站…, which lists the rest, and 清除登录信息… at its foot where the pages' sign-ins can be cleared.
 type start struct{ a App }
 
 // Render implements core.Node.
@@ -35,12 +43,18 @@ func (s start) Render(cx *core.Scope) core.Node {
 	status := core.View{
 		Role:      core.RoleGroup,
 		LabelFunc: heading,
-		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), MaxWidth: core.Pt(startWidth), JustifyContent: core.JustifyCenter,
+		Style: core.Style{FlexGrow: 1, FlexShrink: 1, Width: core.Pct(100), MinWidth: core.Pt(0), MaxWidth: core.Pt(startWidth), JustifyContent: core.JustifyCenter,
 			AlignItems: core.AlignCenter, Padding: core.Symmetric(24, 24)},
 		Children: []core.Node{
 			core.View{Style: core.Style{Margin: core.Edges{Bottom: 16}}, Children: []core.Node{ui.Icon(svg(iconGlobeThin), 48, colors.Muted)}},
 			title,
 			description,
+			startTiles(cx, a),
+			// The button's words are set as it is built, so it is built again for another language.
+			core.Dynamic(func(cx *core.Scope) core.Node {
+				// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+				return ui.Button{Text: locales.SitesMenuItem(cx), Variant: ui.ButtonGhost, Size: ui.SizeSmall, TestID: "browse-sites", OnPress: live.Do(a, a.OpenSites)}
+			}),
 		},
 	}
 	clear := core.Show{When: func() bool { return state().Clearable }, Then: func(*core.Scope) core.Node {
@@ -58,5 +72,38 @@ func (s start) Render(cx *core.Scope) core.Node {
 		TestID:   "browse-start",
 		Style:    core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignCenter},
 		Children: []core.Node{status, clear},
+	}
+}
+
+// startTiles are startSites as the sites sheet draws them, startColumns to a row across the start's width; pressing one opens it.
+func startTiles(cx *core.Scope, a App) core.Node {
+	var found []catalog.Site
+	for _, domain := range startSites {
+		for _, s := range catalog.Load().Sites {
+			if s.Domain == domain {
+				found = append(found, s)
+				break
+			}
+		}
+	}
+	var rows []core.Node
+	for i := 0; i < len(found); i += startColumns {
+		var cells []core.Node
+		for j := i; j < i+startColumns; j++ {
+			cell := core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, FlexBasis: core.Pt(0), MinWidth: core.Pt(0), AlignItems: core.AlignStretch}}
+			if j < len(found) {
+				site := found[j]
+				cell.Children = []core.Node{sites.Tile(cx, a, func() catalog.Site { return site }, live.Do(a, func() { a.OpenSite(site) }))}
+			}
+			cells = append(cells, cell)
+		}
+		rows = append(rows, core.View{Style: core.Style{Direction: core.Row, Gap: 8, AlignItems: core.AlignStretch}, Children: cells})
+	}
+	return core.View{
+		TestID:    "browse-sites-tiles",
+		Role:      core.RoleGroup,
+		LabelFunc: func() string { return locales.SitesGridLabel(cx) },
+		Style:     core.Style{AlignSelf: core.AlignStretch, Gap: 8, Margin: core.Edges{Top: 24, Bottom: 8}},
+		Children:  rows,
 	}
 }

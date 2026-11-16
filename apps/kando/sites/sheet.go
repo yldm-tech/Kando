@@ -20,8 +20,14 @@ import (
 // App is the sheet's state, which the app keeps: the search, and the logos read so far. The sheet reads it inside its bindings through live.Func and changes the search through live.On, so what it changes shows at once (package live).
 type App interface {
 	live.State
+	Logos
 	SitesQuery() *string
-	// SiteLogo is the bytes of s's logo, the same slice each time, or nil when it has none and the sheet draws its initial.
+	// OpenSite opens s in the browser (浏览), as a tile does when pressed, closing the sheet.
+	OpenSite(s catalog.Site)
+}
+
+// Logos is where a tile's logo comes from, the app, which reads each logo once: SiteLogo is the bytes of s's logo, the same slice each time, or nil when it has none and the tile draws its initial.
+type Logos interface {
 	SiteLogo(s catalog.Site) []byte
 }
 
@@ -174,12 +180,13 @@ func grid(cx *core.Scope, a App, found *core.Memo[[]catalog.Site]) core.Node {
 		ColumnGap:     gap,
 		Style:         core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0)},
 		Row: func(cx *core.Scope, row core.ListRow) core.Node {
-			return tile(cx, a, func() catalog.Site {
+			site := func() catalog.Site {
 				if sites, i := found.Get(), row.Index(); i < len(sites) {
 					return sites[i]
 				}
 				return catalog.Site{}
-			})
+			}
+			return Tile(cx, a, site, live.Do(a, func() { a.OpenSite(site()) }))
 		},
 	}
 	return core.View{
@@ -190,19 +197,22 @@ func grid(cx *core.Scope, a App, found *core.Memo[[]catalog.Site]) core.Node {
 	}
 }
 
-// tile is a site: its logo, its name, and its domain under it.
-func tile(cx *core.Scope, a App, site func() catalog.Site) core.Node {
+// Tile is a site, which open opens: its logo, its name, and its domain under it. The sheet lists the sites as tiles, and the browser's start the ones learners open most; open runs on the press as it is given, so a handler that changes the app's state comes wrapped in live.Do.
+func Tile(cx *core.Scope, logos Logos, site func() catalog.Site, open func()) core.Node {
 	colors := ui.ColorsOf(cx)
 	name := func() string { return site().Name }
 	domain := func() string { return site().Domain }
-	return core.View{
-		Role:      core.RoleGroup,
+	return base.Button{
+		TestID:    "site-tile",
 		LabelFunc: func() string { return locales.SitesTileLabel(cx, name(), domain()) },
+		OnPress:   func(core.PressEvent) { open() },
 		Style: core.Style{Direction: core.Row, Height: core.Pt(tileH), Gap: 10, AlignItems: core.AlignCenter, Padding: core.Symmetric(0, 10),
 			CornerRadius: 10},
-		StyleFunc: ui.Filled(colors.Surface),
+		StyleFunc: func() core.Style {
+			return core.Style{Background: colors.Surface(), Hover: &core.Style{Background: colors.Hover()}, Active: &core.Style{Background: colors.Pressed()}, FocusVisible: ui.FocusRing(cx, 2)}
+		},
 		Children: []core.Node{
-			logo(cx, a, site),
+			logo(cx, logos, site),
 			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 1}, Children: []core.Node{
 				core.Text{ContentFunc: name, MaxLines: 1, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold},
 					StyleFunc: ui.Colored(colors.Text)},
@@ -213,9 +223,9 @@ func tile(cx *core.Scope, a App, site func() catalog.Site) core.Node {
 }
 
 // logo is the site's logo on a white plate, or its initial on a plate of a color of its own when it has none.
-func logo(cx *core.Scope, a App, site func() catalog.Site) core.Node {
+func logo(cx *core.Scope, logos Logos, site func() catalog.Site) core.Node {
 	plateStyle := core.Style{Width: core.Pt(logoSize), Height: core.Pt(logoSize), FlexShrink: 0, CornerRadius: logoR, JustifyContent: core.JustifyCenter, AlignItems: core.AlignCenter}
-	data := func() []byte { return a.SiteLogo(site()) }
+	data := func() []byte { return logos.SiteLogo(site()) }
 	return core.Show{
 		When: func() bool { return data() != nil },
 		Then: func(*core.Scope) core.Node {

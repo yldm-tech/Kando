@@ -107,3 +107,19 @@ func TestFilterFindsSitesByNameDomainAliasAndLink(t *testing.T) {
 		t.Errorf("an empty search found %d of %d", len(got), len(c.Sites))
 	}
 }
+
+// A site opens at its domain, and a featured site whose videos have a host of their own under it, at that host.
+func TestHomeOpensTheSitesVideos(t *testing.T) {
+	want := map[string]string{"youtube.com": "https://youtube.com", "qq.com": "https://v.qq.com", "nhk.or.jp": "https://nhk.or.jp", "ted.com": "https://ted.com"}
+	for _, s := range Load().Sites {
+		if home, ok := want[s.Domain]; ok {
+			if got := s.Home(); got != home {
+				t.Errorf("%s opens at %s, want %s", s.Domain, got, home)
+			}
+			delete(want, s.Domain)
+		}
+	}
+	if len(want) != 0 {
+		t.Fatalf("not in the catalog: %v", want)
+	}
+}

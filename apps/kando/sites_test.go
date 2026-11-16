@@ -110,3 +110,27 @@ func TestSupportedSitesInEnglish(t *testing.T) {
 		t.Fatal("the sheet still reads Chinese")
 	}
 }
+
+// A tile of the sheet opens its site in the browser, from wherever the sheet was opened: the sheet closes, giving back the window's modal flag, and the browser's page loads the site. The browser's start offers the sheet and its own tiles too.
+func TestSupportedSitesOpenInBrowse(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	a.OpenSites()
+	refresh(tt, a)
+	tt.Press("label:" + msgs.SitesTileLabel("YouTube", "youtube.com"))
+	if a.sites.open || a.modalOpen() || a.page != pageBrowse || a.browse.source != "https://youtube.com" {
+		t.Fatalf("open %v, modal %v, page %q, loading %q", a.sites.open, a.modalOpen(), a.page, a.browse.source)
+	}
+	a.browseHome()
+	refresh(tt, a)
+	tt.Press("id:browse-sites")
+	if !a.sites.open {
+		t.Fatal("支持的网站… on the start did not open the sheet")
+	}
+	a.sitesClose()
+	refresh(tt, a)
+	tt.Press("id:browse-sites-tiles >> label:" + msgs.SitesTileLabel("NHK", "nhk.or.jp"))
+	if a.page != pageBrowse || a.browse.url != "https://nhk.or.jp" {
+		t.Fatalf("page %q at %q", a.page, a.browse.url)
+	}
+}

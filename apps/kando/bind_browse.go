@@ -11,8 +11,9 @@ import (
 
 // The browser's reads and clicks (browse.App). The browser reads them in its bindings and calls the actions from its handlers, which tell the revision (package live), so none of them calls Changed itself.
 
+// BrowseState names the page's video and says what the library has of it only while the browser's page shows, as the library's jobs are looked through for it each time the app changes.
 func (a *app) BrowseState() browse.State {
-	return browse.State{
+	s := browse.State{
 		Page:         a.browseShowing(),
 		NotVideo:     a.browseShowing() && browseNotVideo(a.browse.url),
 		Loading:      a.browse.loading,
@@ -21,6 +22,10 @@ func (a *app) BrowseState() browse.State {
 		Clearable:    a.browse.clear != nil,
 		Clearing:     a.browse.clearing,
 	}
+	if s.Page && !s.NotVideo && a.page == pageBrowse {
+		s.Title, s.Have = a.browseVideo()
+	}
+	return s
 }
 
 func (a *app) BrowseSource() string { return a.browse.source }
@@ -56,6 +61,8 @@ func (a *app) BrowseStop() { a.browseStop() }
 func (a *app) BrowseHome() { a.browseHome() }
 
 func (a *app) BrowseDownload() { a.browseDownload() }
+
+func (a *app) BrowseShowFilm(id string) { a.browseShowFilm(id) }
 
 func (a *app) BrowseNotice() *browse.Notice { return &a.browse.notice }
 

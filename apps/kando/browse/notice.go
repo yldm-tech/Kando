@@ -9,7 +9,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// notice is the message bar under the toolbar: what went wrong, or that something worked, with 打开设置 when a setting fixes what it says, and its close button.
+// notice is the message bar under the toolbar: what went wrong, or that something worked, with 打开设置 when a setting fixes what it says, 在资料库中显示 when it names a video the library has, and its close button.
 type notice struct{ a App }
 
 // Render implements core.Node.
@@ -35,6 +35,18 @@ func noticeBar(cx *core.Scope, a App) core.Node {
 				OnPress: live.Do(a, func() { a.OpenSettings(a.BrowseNotice().Section) })}
 		})
 	}}
+	film := core.Show{When: live.Memo(cx, a, func() bool { return a.BrowseNotice().Film != "" }), Then: func(*core.Scope) core.Node {
+		// The button's words are set as it is built, so it is built again for another language.
+		return core.Dynamic(func(cx *core.Scope) core.Node {
+			// TODO(nsgo#145): give ui.Button a TextFunc twin so its text follows the interface language without building the button again, then drop this Dynamic https://github.com/nsgo-dev/nsgo/issues/145
+			return ui.Button{Text: locales.BrowseShowInLibrary(cx), Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "browse-notice-film",
+				OnPress: live.Do(a, func() {
+					n := a.BrowseNotice()
+					n.Open = false
+					a.BrowseShowFilm(n.Film)
+				})}
+		})
+	}}
 	closer := ui.IconButton{Icon: lucide.X, LabelFunc: func() string { return locales.BrowseNoticeClose(cx) }, Size: 22, TestID: "browse-notice-close",
 		OnPress: live.Do(a, func() { a.BrowseNotice().Open = false })}
 	// TODO(nsgo#144): give core.Role a status role, so assistive technology reads the bar as a status as MyGo's InfoBar was (RoleStatus); a polite live region, which reads its text as it changes, stands in for it https://github.com/nsgo-dev/nsgo/issues/144
@@ -52,6 +64,7 @@ func noticeBar(cx *core.Scope, a App) core.Node {
 		Children: []core.Node{
 			core.Text{ContentFunc: text, Style: ui.TypeBody.Merge(core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}), StyleFunc: ui.Colored(colors.Text)},
 			settings,
+			film,
 			closer,
 		},
 	}

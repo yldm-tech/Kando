@@ -48,6 +48,15 @@ func (a *app) sitesClose() {
 	}
 }
 
+// sitesOpen opens s in the browser, as a tile of the sheet or of the browser's start does: the sheet closes if it is open, the window goes to the browser's page, closing the film open, and the page loads the site's home.
+func (a *app) sitesOpen(s catalog.Site) {
+	if a.sites.open {
+		a.sitesClose()
+	}
+	a.Select(pageBrowse)
+	a.browseLoad(s.Home())
+}
+
 // sitesLogo reads s's embedded logo the first time its tile shows, and keeps it.
 func (a *app) sitesLogo(s catalog.Site) []byte {
 	if data, ok := a.sites.logos[s.Domain]; ok {

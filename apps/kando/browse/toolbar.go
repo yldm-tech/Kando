@@ -62,14 +62,9 @@ func (t toolbar) Render(cx *core.Scope) core.Node {
 		},
 	}
 	download := ui.Tooltip{
-		TextFunc: func() string {
-			if state().NotVideo {
-				return locales.BrowseDownloadNotVideo(cx)
-			}
-			return locales.BrowseDownloadTooltip(cx)
-		},
-		Style:   core.Style{FlexShrink: 0},
-		Trigger: downloadPill{a: a, state: state},
+		TextFunc: func() string { return downloadTooltip(cx, state()) },
+		Style:    core.Style{FlexShrink: 0},
+		Trigger:  downloadPill{a: a, state: state},
 	}
 	bar.Children = []core.Node{buttons, address{a}, download}
 	return bar
@@ -130,7 +125,37 @@ func (f address) Render(cx *core.Scope) core.Node {
 	}
 }
 
-// downloadPill is 下载视频, off before a page opens and on a page that lists videos without being one (State.NotVideo), a pill as high as the library's toolbar pills (34 points) filled with the accent, as MyGo's primary button was there. ui.Button keeps to its sizes, so the pill is drawn on base.Button with ui.Button's primary colors.
+// downloadTooltip is what 下载视频's tooltip says in state: why it is off on a page that lists videos, and else what pressing it does to the page's video, named when its title is known.
+func downloadTooltip(cx *core.Scope, state State) string {
+	switch {
+	case state.NotVideo:
+		return locales.BrowseDownloadNotVideo(cx)
+	case state.Have == HaveDone && state.Title != "":
+		return locales.BrowseInLibraryTitled(cx, state.Title)
+	case state.Have == HaveDone:
+		return locales.BrowseInLibraryTooltip(cx)
+	case state.Have == HaveQueued && state.Title != "":
+		return locales.BrowseQueuedTitled(cx, state.Title)
+	case state.Have == HaveQueued:
+		return locales.BrowseQueuedTooltip(cx)
+	case state.Title != "":
+		return locales.BrowseDownloadTitled(cx, state.Title)
+	}
+	return locales.BrowseDownloadTooltip(cx)
+}
+
+// downloadLabel is 下载视频's words in state: 已在资料库中 or 已在队列中 where the library has the page's video already, which pressing it then shows.
+func downloadLabel(cx *core.Scope, state State) string {
+	switch state.Have {
+	case HaveDone:
+		return locales.BrowseInLibrary(cx)
+	case HaveQueued:
+		return locales.BrowseQueued(cx)
+	}
+	return locales.BrowseDownload(cx)
+}
+
+// downloadPill is 下载视频, off before a page opens and on a page that lists videos without being one (State.NotVideo), a pill as high as the library's toolbar pills (34 points) filled with the accent, as MyGo's primary button was there. Where the library has the page's video already it says so and shows it (downloadLabel). ui.Button keeps to its sizes, so the pill is drawn on base.Button with ui.Button's primary colors.
 type downloadPill struct {
 	a     App
 	state func() State
@@ -139,9 +164,10 @@ type downloadPill struct {
 // Render implements core.Node.
 func (d downloadPill) Render(cx *core.Scope) core.Node {
 	a, state := d.a, d.state
+	label := func() string { return downloadLabel(cx, state()) }
 	return base.Button{
 		TestID:    "browse-download",
-		LabelFunc: func() string { return locales.BrowseDownload(cx) },
+		LabelFunc: label,
 		Disabled:  func() bool { s := state(); return !s.Page || s.NotVideo },
 		OnPress:   live.On(a, func(core.PressEvent) { a.BrowseDownload() }),
 		Style: core.Style{Height: core.Pt(34), CornerRadius: 17, BorderCurve: core.BorderCurveContinuous, Padding: core.Symmetric(0, 18),
@@ -151,7 +177,7 @@ func (d downloadPill) Render(cx *core.Scope) core.Node {
 			return core.Style{Background: p.Accent, Hover: &core.Style{Background: p.AccentHover}, Active: &core.Style{Background: p.AccentPressed}, FocusVisible: ui.FocusRing(cx, 2)}
 		},
 		Children: []core.Node{core.Text{
-			ContentFunc: func() string { return locales.BrowseDownload(cx) },
+			ContentFunc: label,
 			MaxLines:    1,
 			Style:       core.Style{FontSize: 14, LineHeight: 20},
 			StyleFunc:   func() core.Style { return core.Style{Color: cx.Palette().AccentText} },

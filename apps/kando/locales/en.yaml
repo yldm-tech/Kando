@@ -136,6 +136,11 @@ appSettings:
 browseAdded:
   message: "Added to the library. Processing started."
   description: "Message bar of the Browse page after Download Video added the page to the library's queue."
+browseAddedTitled:
+  message: "Added “{title}” to the library. Processing started."
+  description: "Message bar of the Browse page after Download Video added the page's video to the library's queue, naming the video by the page's title."
+  placeholders:
+    title: { type: "String", example: "Learn French in 10 Minutes" }
 browseAddressLabel:
   message: "Address"
   description: "Accessible name of the Browse page's address field."
@@ -174,6 +179,11 @@ browseDownload:
 browseDownloadNotVideo:
   message: "This page isn't a video. Open one of its videos first."
   description: "Tooltip of the Browse page's Download Video button while it is off, and its message bar, when the page shown lists videos without being one: a site's home page, search results, a feed, a hashtag, a channel or a playlist."
+browseDownloadTitled:
+  message: "Add “{title}” to the library"
+  description: "Tooltip of the Browse page's Download Video button, naming the page's video by its title."
+  placeholders:
+    title: { type: "String", example: "Learn French in 10 Minutes" }
 browseDownloadTooltip:
   message: "Add this page's video to the library"
   description: "Tooltip of the Browse page's Download Video button."
@@ -189,6 +199,17 @@ browseForward:
 browseHome:
   message: "Home"
   description: "Browse page toolbar button that closes the web page and shows the start of the Browse page."
+browseInLibrary:
+  message: "In Library"
+  description: "Label of the Browse page's Download Video button while the page's video is already a film of the library; pressing it opens the film."
+browseInLibraryTitled:
+  message: "Open “{title}” in the library"
+  description: "Tooltip of the Browse page's In Library button, naming the film it opens."
+  placeholders:
+    title: { type: "String", example: "Learn French in 10 Minutes" }
+browseInLibraryTooltip:
+  message: "Open this video in the library"
+  description: "Tooltip of the Browse page's In Library button when the film's name is not known."
 browseLoadFailed:
   message: "Couldn't open the page: {error}"
   description: "Message bar of the Browse page when a web page failed to load; error is the web engine's reason."
@@ -203,9 +224,23 @@ browseOpenLocation:
 browseOpenSettings:
   message: "Open Settings"
   description: "Button in the Browse page's message bar opening the settings that fix what it says."
+browseQueued:
+  message: "Queued"
+  description: "Label of the Browse page's Download Video button while the page's video is waiting in the library's queue or being processed; pressing it shows its card in Processing."
+browseQueuedTitled:
+  message: "Show “{title}” in the queue"
+  description: "Tooltip of the Browse page's Queued button, naming the video whose card it shows."
+  placeholders:
+    title: { type: "String", example: "Learn French in 10 Minutes" }
+browseQueuedTooltip:
+  message: "Show this video in the queue"
+  description: "Tooltip of the Browse page's Queued button when the video's name is not known."
 browseReload:
   message: "Reload Page"
   description: "Browse page toolbar button and menu item (⌘R) loading the web page again."
+browseShowInLibrary:
+  message: "Show in Library"
+  description: "Button of the Browse page's message bar that goes to the library and shows the video the bar speaks of: the film, once processed, or its card in Processing."
 browseStop:
   message: "Stop Loading"
   description: "Browse page toolbar button, in place of Reload while a web page loads, that stops loading it."

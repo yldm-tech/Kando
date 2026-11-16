@@ -3,6 +3,8 @@ package browse
 
 import (
 	"kando/apps/kando/live"
+	"kando/apps/kando/sites"
+	"kando/apps/kando/sites/catalog"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -14,6 +16,10 @@ type State struct {
 	Page bool
 	// NotVideo is set while the page lists videos without being one, as a site's home page, its search results or a channel do: 下载视频 is off on it, and its tooltip says why.
 	NotVideo bool
+	// Title names the page's video, "" while it is not known: the library's name for it once the library has it, and else the page's own title.
+	Title string
+	// Have is what the library holds of the page's video: "" nothing yet, HaveQueued a job waiting or being processed, HaveDone a film. 下载视频 then says so and shows it rather than adding it again.
+	Have string
 	// Loading is set while the page loads; reload then stops it.
 	Loading      bool
 	CanGoBack    bool
@@ -23,11 +29,18 @@ type State struct {
 	Clearing  bool
 }
 
-// Notice is the message bar under the toolbar: Kind is "warning" or "success", Section the settings section that fixes what it says ("" when none does), and Open whether it shows.
+// What State.Have says the library holds of the page's video.
+const (
+	HaveQueued = "queued"
+	HaveDone   = "done"
+)
+
+// Notice is the message bar under the toolbar: Kind is "warning" or "success", Section the settings section that fixes what it says ("" when none does), Film the job its 在资料库中显示 shows (BrowseShowFilm, "" for none), and Open whether it shows.
 type Notice struct {
 	Kind    string
 	Text    string
 	Section string
+	Film    string
 	Open    bool
 }
 
@@ -60,8 +73,10 @@ type App interface {
 	BrowseStop()
 	// BrowseHome closes the web page and shows the page's start.
 	BrowseHome()
-	// BrowseDownload adds the page shown to the library's queue.
+	// BrowseDownload adds the page shown to the library's queue, or shows its video where the library has it already (State.Have).
 	BrowseDownload()
+	// BrowseShowFilm shows job id in the library: the film, once it is done, and else its card in 处理中.
+	BrowseShowFilm(id string)
 	BrowseNotice() *Notice
 	// BrowseClearOpen reports whether the 清除登录信息 confirmation is open; BrowseAskClear opens it, BrowseClear clears once it is confirmed and BrowseCancelClear closes it without clearing.
 	BrowseClearOpen() bool
@@ -70,6 +85,10 @@ type App interface {
 	BrowseCancelClear()
 	// OpenSettings shows the settings at section, as the message bar's 打开设置 asks.
 	OpenSettings(section string)
+	// The start's sites: their logos, OpenSite, which opens one in the browser, and OpenSites, which opens the sheet that lists them all (支持的网站…).
+	sites.Logos
+	OpenSite(s catalog.Site)
+	OpenSites()
 }
 
 // View is the browser across the content column: the toolbar along its top, the message bar, then the web page, or the start before a page is open, and the confirmation of 清除登录信息 over them.

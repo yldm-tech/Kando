@@ -79,6 +79,18 @@ func (s Site) Matches(query string) bool {
 	return true
 }
 
+// Home is the address that opens the site in a browser: https:// and its domain, or, for a featured site whose videos live on a host of their own under its domain, as 腾讯视频's v.qq.com under qq.com, that host, the first of its aliases under the domain.
+func (s Site) Home() string {
+	if s.Featured {
+		for _, alias := range s.Aliases {
+			if strings.HasSuffix(alias, "."+s.Domain) {
+				return "https://" + alias
+			}
+		}
+	}
+	return "https://" + s.Domain
+}
+
 // linkHost is the host of query when it is a link, with or without its scheme, as https://www.youtube.com/watch?v=… or youtu.be/…; "" otherwise.
 func linkHost(query string) string {
 	q := strings.ToLower(strings.TrimSpace(query))

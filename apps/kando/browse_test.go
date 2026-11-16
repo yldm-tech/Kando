@@ -15,6 +15,7 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/sidebar"
+	"kando/packages/core"
 	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
@@ -293,7 +294,8 @@ func TestBrowseNoticeFollowsWhatItSays(t *testing.T) {
 		t.Fatalf("%q still shows after %v", a.browse.notice.Text, noticeFor+time.Second)
 	}
 
-	// The same video again is in the queue already, which says so until another page shows.
+	// The same video again, on a page that moved to it without saying so, is in the library already, which says so until another page shows.
+	browseReport(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=Rv3Hn7Qm2Ts"})
 	tt.Press("id:browse-download")
 	tt.AnswerScript(browsePage, `"`+video+`"`, "")
 	tt.Settle()
@@ -339,6 +341,144 @@ func TestBrowseNoticeFollowsWhatItSays(t *testing.T) {
 	refresh(tt, a)
 	if a.browse.notice.Open {
 		t.Fatalf("%q still shows with everything in", a.browse.notice.Text)
+	}
+}
+
+// wantTooltip fails t unless 下载视频's tooltip says want, once the pointer rests on it.
+func wantTooltip(t *testing.T, tt *nsgotest.App, want string) {
+	t.Helper()
+	tt.Hover("id:browse-download")
+	tt.Advance(time.Second)
+	defer tt.HoverOut()
+	if !hasText(tt, want) {
+		t.Fatalf("下载视频's tooltip does not say %q: %q", want, tt.Texts())
+	}
+}
+
+// 下载视频's tooltip names the page's video by the title the web view reported once the page loaded, and, on a site that is one page, by the title the page says it moved to; a title reported for another address names nothing.
+func TestBrowseNamesThePagesVideo(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	browseOpen(t, a, tt, "https://www.youtube.com/watch?v=TRWgBxVAb1M")
+	wantTooltip(t, tt, msgs.BrowseDownloadTooltip())
+	browseReport(tt, ns.WebNavigation{URL: "https://www.youtube.com/watch?v=TRWgBxVAb1M", Title: " French in 10 Minutes - YouTube "})
+	wantTooltip(t, tt, msgs.BrowseDownloadTitled("French in 10 Minutes - YouTube"))
+	if !strings.Contains(tt.Find(browsePage).Web.InjectedJavaScriptBeforeContent, browse.TitleMessage) {
+		t.Fatal("the pages do not say when their title changes")
+	}
+	tt.PostMessage(browsePage, browse.HistoryMessage+"push")
+	tt.AnswerScript(browsePage, `"https://www.youtube.com/watch?v=jNQXAC9IVRw"`, "")
+	tt.Settle()
+	wantTooltip(t, tt, msgs.BrowseDownloadTooltip())
+	tt.PostMessage(browsePage, browse.TitleMessage)
+	tt.AnswerScript(browsePage, `["https://www.youtube.com/watch?v=jNQXAC9IVRw", "Me at the zoo - YouTube"]`, "")
+	tt.Settle()
+	wantTooltip(t, tt, msgs.BrowseDownloadTitled("Me at the zoo - YouTube"))
+	tt.PostMessage(browsePage, browse.TitleMessage)
+	tt.AnswerScript(browsePage, `["file:///etc/passwd", "passwd"]`, "")
+	tt.Settle()
+	if a.browse.title != "Me at the zoo - YouTube" {
+		t.Fatalf("title %q from a page that is not on the web", a.browse.title)
+	}
+}
+
+// After 下载视频 the message bar names the video it added and shows it in the library; while the library has it, 下载视频 reads 已在队列中 and then 已在资料库中, adds nothing again and shows it instead: its card in 处理中, then the film.
+func TestBrowseDownloadSaysWhatBecameOfTheVideo(t *testing.T) {
+	p := &fakePipeline{block: true}
+	a, tt, updates, _ := browseApp(t, p)
+	msgs := testlocale.Messages()
+	video := "https://www.youtube.com/watch?v=TRWgBxVAb1M"
+	browseOpen(t, a, tt, video)
+	browseReport(tt, ns.WebNavigation{URL: video, Title: "French in 10 Minutes"})
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"`+video+`"`, "")
+	tt.Settle()
+	if len(a.library.Jobs) != 1 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	id := a.library.Jobs[0].ID
+	wantText(t, tt, msgs.BrowseAddedTitled("French in 10 Minutes"))
+	if a.browse.notice.Film != id || !tt.Exists("id:browse-notice-film") {
+		t.Fatalf("notice %+v", a.browse.notice)
+	}
+	if !tt.Exists("id:browse-download >> " + whole(msgs.BrowseQueued())) {
+		t.Fatalf("下载视频 does not read %q with the video in the queue: %q", msgs.BrowseQueued(), tt.Texts())
+	}
+	wantTooltip(t, tt, msgs.BrowseQueuedTitled("French in 10 Minutes"))
+	tt.Press("id:browse-notice-film")
+	if a.page != pageFilms || !a.lib.queueOpen || a.openKey != "" || a.browse.notice.Open {
+		t.Fatalf("page %q, queue open %v, film %q, notice %+v", a.page, a.lib.queueOpen, a.openKey, a.browse.notice)
+	}
+
+	a.Select(pageBrowse)
+	a.lib.queueOpen = false
+	refresh(tt, a)
+	tt.Press("id:browse-download")
+	if len(a.library.Jobs) != 1 || a.page != pageFilms || !a.lib.queueOpen {
+		t.Fatalf("pressing 已在队列中: jobs %d, page %q, queue open %v", len(a.library.Jobs), a.page, a.lib.queueOpen)
+	}
+
+	p.block = false
+	a.Cancel(id)
+	settle(t, a, tt, updates)
+	a.Retry(id)
+	settle(t, a, tt, updates)
+	if job, _ := a.library.Find(id); job.Stage != core.StageComplete {
+		t.Fatalf("job %+v", job)
+	}
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	if !tt.Exists("id:browse-download >> " + whole(msgs.BrowseInLibrary())) {
+		t.Fatalf("下载视频 does not read %q with the video in the library: %q", msgs.BrowseInLibrary(), tt.Texts())
+	}
+	tt.Press("id:browse-download")
+	if len(a.library.Jobs) != 1 || a.page != pageFilms || a.openKey != id {
+		t.Fatalf("pressing 已在资料库中: jobs %d, page %q, film %q", len(a.library.Jobs), a.page, a.openKey)
+	}
+}
+
+// ⌘D is 下载视频 in the File menu: it adds a video's page, and does nothing on a page that lists videos or on a video the library has.
+func TestBrowseDownloadShortcut(t *testing.T) {
+	a, tt, updates, _ := browseApp(t, &fakePipeline{})
+	browseOpen(t, a, tt, "https://www.youtube.com/results?search_query=french")
+	tt.Key("mod+d")
+	if len(browseCommands(tt, nsgotest.WebInjectJavaScript)) != 0 {
+		t.Fatal("⌘D asked a page of videos for its address")
+	}
+	video := "https://www.youtube.com/watch?v=TRWgBxVAb1M"
+	browseReport(tt, ns.WebNavigation{URL: video})
+	tt.Key("mod+d")
+	tt.AnswerScript(browsePage, `"`+video+`"`, "")
+	settle(t, a, tt, updates)
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != video {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	asked := len(browseCommands(tt, nsgotest.WebInjectJavaScript))
+	tt.Key("mod+d")
+	if len(browseCommands(tt, nsgotest.WebInjectJavaScript)) != asked || a.page != pageBrowse {
+		t.Fatalf("⌘D on a video the library has: page %q", a.page)
+	}
+}
+
+// A page the web view had not reported moving to may show a video the library has: the message bar says so and shows it.
+func TestBrowseDownloadShowsAVideoAlreadyThere(t *testing.T) {
+	a, tt, updates, _ := browseApp(t, &fakePipeline{})
+	done := "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	if err := a.Enqueue(done); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	browseOpen(t, a, tt, "https://www.youtube.com/watch?v=TRWgBxVAb1M")
+	tt.Press("id:browse-download")
+	tt.AnswerScript(browsePage, `"`+done+`"`, "")
+	tt.Settle()
+	id := a.library.Jobs[0].ID
+	if len(a.library.Jobs) != 1 || a.browse.notice.Film != id || a.browse.notice.Text != testlocale.Messages().QueueAlreadyInLibrary() {
+		t.Fatalf("jobs %d, notice %+v", len(a.library.Jobs), a.browse.notice)
+	}
+	tt.Press("id:browse-notice-film")
+	if a.page != pageFilms || a.openKey != id {
+		t.Fatalf("page %q, film %q", a.page, a.openKey)
 	}
 }
 
@@ -605,25 +745,25 @@ func TestSidebarBrowseRow(t *testing.T) {
 	}
 }
 
-// The web view, kept while another page shows, would play on a video in it: its sound goes off while another page shows and comes back with the browser's page. A web view that went with its column plays nothing.
-func TestBrowseMutesWhileAnotherPageShows(t *testing.T) {
+// The web view, kept while another page shows, would play on a video in it: its videos pause and its sound goes off while another page shows, and the sound comes back with the browser's page without the videos playing again. A web view that went with its column plays nothing.
+func TestBrowseQuietWhileAnotherPageShows(t *testing.T) {
 	a, tt, _, _ := browseApp(t, &fakePipeline{})
 	browseOpen(t, a, tt, "https://www.youtube.com/watch?v=x")
 	if len(browseScripts(tt)) != 0 {
-		t.Fatalf("muted on its own page: %q", browseScripts(tt))
+		t.Fatalf("quieted on its own page: %q", browseScripts(tt))
 	}
 	tt.Press("id:source-" + sidebar.SourceAll)
-	if !a.browse.muted {
-		t.Fatal("the page's sound stayed on")
+	if !a.browse.quiet {
+		t.Fatal("the page's videos played on")
 	}
-	if kept := len(tt.QueryMounted(browsePage)) == 1; kept && !slices.Equal(browseScripts(tt), []string{browse.MuteScript(true)}) {
+	if kept := len(tt.QueryMounted(browsePage)) == 1; kept && !slices.Equal(browseScripts(tt), []string{browse.QuietScript(true)}) {
 		t.Fatalf("on the library: scripts %q", browseScripts(tt))
 	}
 	tt.Press("id:source-" + sidebar.PageBrowse)
-	if a.browse.muted {
+	if a.browse.quiet {
 		t.Fatal("the page's sound stayed off on its own page")
 	}
-	if scripts := browseScripts(tt); len(scripts) == 0 || scripts[len(scripts)-1] != browse.MuteScript(false) {
+	if scripts := browseScripts(tt); len(scripts) == 0 || scripts[len(scripts)-1] != browse.QuietScript(false) {
 		t.Fatalf("back on the browser: scripts %q", scripts)
 	}
 }

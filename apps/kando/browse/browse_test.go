@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/sites/catalog"
 	"kando/packages/media"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -61,12 +63,16 @@ func (f *fakeApp) BrowseReload()                          { f.call("reload") }
 func (f *fakeApp) BrowseStop()                            { f.call("stop") }
 func (f *fakeApp) BrowseHome()                            { f.call("home") }
 func (f *fakeApp) BrowseDownload()                        { f.call("download") }
+func (f *fakeApp) BrowseShowFilm(id string)               { f.call("show " + id) }
 func (f *fakeApp) BrowseNotice() *Notice                  { return &f.notice }
 func (f *fakeApp) BrowseClearOpen() bool                  { return f.clearOpen }
 func (f *fakeApp) BrowseAskClear()                        { f.call("ask clear"); f.clearOpen = true }
 func (f *fakeApp) BrowseClear()                           { f.call("clear"); f.clearOpen = false }
 func (f *fakeApp) BrowseCancelClear()                     { f.call("cancel clear"); f.clearOpen = false }
 func (f *fakeApp) OpenSettings(section string)            { f.settingsAt = section }
+func (f *fakeApp) SiteLogo(s catalog.Site) []byte         { return catalog.Logo(s) }
+func (f *fakeApp) OpenSite(s catalog.Site)                { f.call("open " + s.Domain) }
+func (f *fakeApp) OpenSites()                             { f.call("sites") }
 
 // show shows the browser of a across the window, on a Mac, in testlocale's language.
 func show(t *testing.T, a *fakeApp) *nsgotest.App {
@@ -181,6 +187,40 @@ func TestToolbarDrivesTheApp(t *testing.T) {
 	}
 }
 
+// Where the library has the page's video, 下载视频 says so, 已在队列中 or 已在资料库中, and its tooltip names the video and what pressing it does; pressing it is still the app's 下载视频, which shows the video then.
+func TestDownloadSaysWhatTheLibraryHas(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	msgs := testlocale.Messages()
+	tooltip := func(want string) {
+		t.Helper()
+		app.Hover("id:browse-download")
+		app.Advance(time.Second)
+		defer app.HoverOut()
+		if !app.Exists(whole(want)) {
+			t.Fatalf("the tooltip does not say %q: %q", want, app.Texts())
+		}
+	}
+	change(app, a, func() { onPage(a, "https://www.youtube.com/watch?v=x"); a.state.Title = "Me at the zoo" })
+	tooltip(msgs.BrowseDownloadTitled("Me at the zoo"))
+	for _, c := range []struct{ have, label, tip, untitled string }{
+		{HaveQueued, msgs.BrowseQueued(), msgs.BrowseQueuedTitled("Me at the zoo"), msgs.BrowseQueuedTooltip()},
+		{HaveDone, msgs.BrowseInLibrary(), msgs.BrowseInLibraryTitled("Me at the zoo"), msgs.BrowseInLibraryTooltip()},
+	} {
+		change(app, a, func() { a.state.Have, a.state.Title = c.have, "Me at the zoo" })
+		if pill := app.Find("id:browse-download"); pill.Props.Label != c.label || !app.Exists("id:browse-download >> "+whole(c.label)) || !app.Enabled("id:browse-download") {
+			t.Fatalf("with %s, 下载视频 reads %q", c.have, pill.Props.Label)
+		}
+		tooltip(c.tip)
+		change(app, a, func() { a.state.Title = "" })
+		tooltip(c.untitled)
+	}
+	app.Press("id:browse-download")
+	if !slices.Equal(a.calls, []string{"download"}) {
+		t.Fatalf("calls %q", a.calls)
+	}
+}
+
 // ⌘L's request puts the keyboard in the address field and the app hears it take the keyboard; Enter opens what it holds.
 func TestAddressField(t *testing.T) {
 	a := &fakeApp{}
@@ -221,6 +261,12 @@ func TestNoticeShowsAndCloses(t *testing.T) {
 	app.Press(testlocale.Messages().BrowseNoticeClose())
 	if a.notice.Open || app.Exists("id:browse-notice") {
 		t.Fatal("the close button left the bar open")
+	}
+	// A bar that names a video the library has shows it there, closing.
+	change(app, a, func() { a.notice = Notice{Kind: "success", Text: "已加入资料库", Film: "job-1", Open: true} })
+	app.Press(whole(testlocale.Messages().BrowseShowInLibrary()))
+	if a.notice.Open || !slices.Equal(a.calls, []string{"show job-1"}) {
+		t.Fatalf("open %v, calls %q", a.notice.Open, a.calls)
 	}
 }
 
@@ -307,6 +353,38 @@ func TestAllowedOnlyTheWeb(t *testing.T) {
 	}
 	if !(webOnly{}).Allows(core.AccessRequest{Permission: core.AccessNetwork, Resource: "file:///x"}) {
 		t.Error("webOnly holds back what is not a page of the web view")
+	}
+}
+
+// The start offers the sites learners study from most, each opening in the browser, and 支持的网站…, which lists the rest.
+func TestStartOpensSites(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	msgs := testlocale.Messages()
+	for _, s := range [][2]string{{"YouTube", "youtube.com"}, {"哔哩哔哩", "bilibili.com"}, {"TED", "ted.com"}, {"NHK", "nhk.or.jp"}, {"niconico", "nicovideo.jp"}, {"BBC", "bbc.co.uk"}} {
+		if !app.Exists("id:browse-sites-tiles >> label:" + msgs.SitesTileLabel(s[0], s[1])) {
+			t.Fatalf("no tile of %s on the start: %q", s[1], app.Texts())
+		}
+	}
+	app.Press("label:" + msgs.SitesTileLabel("TED", "ted.com"))
+	app.Press("id:browse-sites")
+	if !slices.Equal(a.calls, []string{"open ted.com", "sites"}) {
+		t.Fatalf("calls %q", a.calls)
+	}
+	change(app, a, func() { onPage(a, "https://www.ted.com/") })
+	if app.Exists("id:browse-sites-tiles") {
+		t.Fatal("the start's sites show over a page")
+	}
+}
+
+// While another page shows, the page's videos pause as well as go silent, so they stop downloading and autoplay does not move on; coming back turns on only the sound the browser turned off, and plays nothing.
+func TestQuietScriptPausesWithoutResuming(t *testing.T) {
+	quiet, heard := QuietScript(true), QuietScript(false)
+	if !strings.Contains(quiet, "m.pause()") || !strings.Contains(quiet, "m.muted = true") || !strings.Contains(quiet, "kandoMuted") {
+		t.Fatalf("quieting does not pause and mute: %s", quiet)
+	}
+	if strings.Contains(heard, "play(") || strings.Contains(heard, "pause") || !strings.Contains(heard, "[data-kando-muted]") {
+		t.Fatalf("coming back does more than unmute what it muted: %s", heard)
 	}
 }
 

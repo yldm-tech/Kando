@@ -24,9 +24,12 @@ type fakeApp struct {
 	logos  map[string][]byte
 	open   bool
 	closed int
+	opened []string
 }
 
 func (f *fakeApp) SitesQuery() *string { return &f.query }
+
+func (f *fakeApp) OpenSite(s catalog.Site) { f.opened = append(f.opened, s.Domain) }
 
 func (f *fakeApp) SiteLogo(s catalog.Site) []byte {
 	if data, ok := f.logos[s.Domain]; ok {
@@ -151,5 +154,18 @@ func TestSheetStaysWhileTheAppChanges(t *testing.T) {
 	change(app, a, func() {})
 	if v := app.Find("id:sites-search"); v.ID != field || app.Find("id:sites").ID != sheet || !v.Focused || v.Text != "nico" {
 		t.Fatalf("the sheet was built again: field %d (was %d) focused %v holding %q", v.ID, field, v.Focused, v.Text)
+	}
+}
+
+// A tile is a button that opens its site in the browser, the site the tile shows as the search narrows the grid.
+func TestTileOpensItsSite(t *testing.T) {
+	a := &fakeApp{}
+	app := show(t, a)
+	msgs := testlocale.Messages()
+	app.Press("label:" + msgs.SitesTileLabel("YouTube", "youtube.com"))
+	change(app, a, func() { a.query = "ted" })
+	app.Press("label:" + msgs.SitesTileLabel("TED", "ted.com"))
+	if len(a.opened) != 2 || a.opened[0] != "youtube.com" || a.opened[1] != "ted.com" {
+		t.Fatalf("opened %q", a.opened)
 	}
 }

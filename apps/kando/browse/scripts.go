@@ -7,7 +7,10 @@ import "runtime"
 // HistoryMessage starts what Script has a page post when it changes its address without loading another page: "push", "replace" or "pop" follows it.
 const HistoryMessage = "kando-history:"
 
-// Script runs in each page before its own scripts. A link or a script that opens a window loads its address in the same view when the user clicked it, and does nothing otherwise, as a pop-up a script opens by itself, so the page never opens a window of the app; the web view's Access keeps it to http and https addresses. A page that changes its address without loading another, as a site that is one page does, says so (HistoryMessage), and the app reads the address from the page (the app's browseHeard).
+// TitleMessage is what Script has a page post when its title changes, as a site that is one page sets the title of the video it moved to after its address.
+const TitleMessage = "kando-title"
+
+// Script runs in each page before its own scripts. A link or a script that opens a window loads its address in the same view when the user clicked it, and does nothing otherwise, as a pop-up a script opens by itself, so the page never opens a window of the app; the web view's Access keeps it to http and https addresses. A page that changes its address without loading another, as a site that is one page does, says so (HistoryMessage), as does one whose title changes (TitleMessage), and the app reads the address and the title from the page (the app's browseHeard).
 func Script() string {
 	// TODO(nsgo#113): hear a page open a window, with whether the user asked for it, and change its address and title within the document from the web view itself, as MyGo's SetWindowOpenHandler and OnPageTitleUpdated did, then drop this script https://github.com/nsgo-dev/nsgo/issues/113
 	return `(() => {
@@ -41,13 +44,24 @@ func Script() string {
     };
   }
   addEventListener("popstate", () => post("pop"));
+  let title = null;
+  const retitled = () => {
+    if (document.title === title) return;
+    title = document.title;
+    try { window.nsgo.postMessage("` + TitleMessage + `"); } catch (e) {}
+  };
+  const watchTitle = () => {
+    new MutationObserver(retitled).observe(document.head || document.documentElement, { childList: true, subtree: true, characterData: true });
+    retitled();
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watchTitle); else watchTitle();
 })();`
 }
 
-// MuteScript mutes the page's videos and sounds, marking the ones it muted, or unmutes those it marked, so what the page muted itself stays muted.
-func MuteScript(muted bool) string {
-	if muted {
-		return `for (const m of document.querySelectorAll("video, audio")) { if (!m.muted) { m.muted = true; m.dataset.kandoMuted = "1"; } }`
+// QuietScript quiets the page's videos and sounds while another page of the window shows (quiet), or lets them be heard again once the browser's shows. Quieting pauses what plays, so a hidden video stops downloading and decoding and the site's autoplay does not move on to the next one, and mutes what is not muted, marking it, as a page may start playing again by itself. Letting them be heard unmutes what it marked, so what the page muted itself stays muted, and leaves what it paused paused, for the learner to play again.
+func QuietScript(quiet bool) string {
+	if quiet {
+		return `for (const m of document.querySelectorAll("video, audio")) { m.pause(); if (!m.muted) { m.muted = true; m.dataset.kandoMuted = "1"; } }`
 	}
 	return `for (const m of document.querySelectorAll("[data-kando-muted]")) { m.muted = false; delete m.dataset.kandoMuted; }`
 }

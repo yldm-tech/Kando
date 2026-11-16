@@ -21,3 +21,5 @@ func (a *app) sitesOverlay(*core.Scope) core.Node {
 func (a *app) SitesQuery() *string { return &a.sites.query }
 
 func (a *app) SiteLogo(s catalog.Site) []byte { return a.sitesLogo(s) }
+
+func (a *app) OpenSite(s catalog.Site) { a.sitesOpen(s) }

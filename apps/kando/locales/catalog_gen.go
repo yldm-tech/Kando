@@ -431,8 +431,12 @@ var Parameters = map[string][]string{
 	"AccountUploadUnsaved":               {"error_"},
 	"AccountUploaded":                    {"key"},
 	"AccountUploadingPercent":            {"percent"},
+	"BrowseAddedTitled":                  {"title"},
 	"BrowseClearFailed":                  {"error_"},
+	"BrowseDownloadTitled":               {"title"},
+	"BrowseInLibraryTitled":              {"title"},
 	"BrowseLoadFailed":                   {"error_"},
+	"BrowseQueuedTitled":                 {"title"},
 	"FeedbackBrowserFailed":              {"repo"},
 	"FeedbackEnvDetail":                  {"version", "system"},
 	"FeedbackPreviewLabel":               {"label"},
@@ -635,8 +639,12 @@ type Translation struct {
 	AccountUploadUnsaved               func(error_ string) string
 	AccountUploaded                    func(key string) string
 	AccountUploadingPercent            func(percent int) string
+	BrowseAddedTitled                  func(title string) string
 	BrowseClearFailed                  func(error_ string) string
+	BrowseDownloadTitled               func(title string) string
+	BrowseInLibraryTitled              func(title string) string
 	BrowseLoadFailed                   func(error_ string) string
+	BrowseQueuedTitled                 func(title string) string
 	FeedbackBrowserFailed              func(repo string) string
 	FeedbackEnvDetail                  func(version string, system string) string
 	FeedbackPreviewLabel               func(label string) string
@@ -883,10 +891,15 @@ const (
 	textBrowseEmptyTitle
 	textBrowseForward
 	textBrowseHome
+	textBrowseInLibrary
+	textBrowseInLibraryTooltip
 	textBrowseNoticeClose
 	textBrowseOpenLocation
 	textBrowseOpenSettings
+	textBrowseQueued
+	textBrowseQueuedTooltip
 	textBrowseReload
+	textBrowseShowInLibrary
 	textBrowseStop
 	textCheatsheetClose
 	textCheatsheetHint
@@ -1656,10 +1669,15 @@ var keyOfText = [numTexts]string{
 	"browseEmptyTitle",
 	"browseForward",
 	"browseHome",
+	"browseInLibrary",
+	"browseInLibraryTooltip",
 	"browseNoticeClose",
 	"browseOpenLocation",
 	"browseOpenSettings",
+	"browseQueued",
+	"browseQueuedTooltip",
 	"browseReload",
+	"browseShowInLibrary",
 	"browseStop",
 	"cheatsheetClose",
 	"cheatsheetHint",
@@ -2427,10 +2445,15 @@ var textsEn = i18n.NewTexts(""+
 	"Open a page with a video"+
 	"Forward"+
 	"Home"+
+	"In Library"+
+	"Open this video in the library"+
 	"Close Message"+
 	"Open Location…"+
 	"Open Settings"+
+	"Queued"+
+	"Show this video in the queue"+
 	"Reload Page"+
+	"Show in Library"+
 	"Stop Loading"+
 	"Close"+
 	"Single keys work only while no text field has focus"+
@@ -3195,10 +3218,15 @@ var textsEn = i18n.NewTexts(""+
 		24,
 		7,
 		4,
+		10,
+		30,
 		13,
 		16,
 		13,
+		6,
+		28,
 		11,
+		15,
 		12,
 		5,
 		51,
@@ -3966,10 +3994,15 @@ var textsJa = i18n.NewTexts(""+
 	"動画のあるページを開く"+
 	"進む"+
 	"ホーム"+
+	"ライブラリにあります"+
+	"この動画をライブラリで開く"+
 	"メッセージを閉じる"+
 	"場所を開く…"+
 	"設定を開く"+
+	"キューにあります"+
+	"この動画をキューに表示"+
 	"再読み込み"+
+	"ライブラリで表示"+
 	"読み込みを中止"+
 	"閉じる"+
 	"単独のキーは入力欄にフォーカスがないときだけ使えます"+
@@ -4734,10 +4767,15 @@ var textsJa = i18n.NewTexts(""+
 		33,
 		6,
 		9,
+		30,
+		39,
 		27,
 		18,
 		15,
+		24,
+		33,
 		15,
+		24,
 		21,
 		9,
 		78,
@@ -5505,10 +5543,15 @@ var textsKo = i18n.NewTexts(""+
 	"동영상이 있는 페이지 열기"+
 	"앞으로"+
 	"홈"+
+	"라이브러리에 있음"+
+	"라이브러리에서 이 동영상 열기"+
 	"메시지 닫기"+
 	"위치 열기…"+
 	"설정 열기"+
+	"대기열에 있음"+
+	"대기열에서 이 동영상 보기"+
 	"새로고침"+
+	"라이브러리에서 보기"+
 	"로드 중지"+
 	"닫기"+
 	"단일 키는 입력란에 포커스가 없을 때만 작동합니다"+
@@ -6273,10 +6316,15 @@ var textsKo = i18n.NewTexts(""+
 		36,
 		9,
 		3,
+		25,
+		42,
 		16,
 		16,
 		13,
+		19,
+		36,
 		12,
+		28,
 		13,
 		6,
 		69,
@@ -7044,10 +7092,15 @@ var textsZhHans = i18n.NewTexts(""+
 	"打开有视频的网页"+
 	"前进"+
 	"主页"+
+	"已在资料库中"+
+	"在资料库中打开这个视频"+
 	"关闭提示"+
 	"打开位置…"+
 	"打开设置"+
+	"已在队列中"+
+	"在处理队列中显示这个视频"+
 	"重新载入"+
+	"在资料库中显示"+
 	"停止载入"+
 	"关闭"+
 	"单键只在没有输入框获焦时生效"+
@@ -7812,10 +7865,15 @@ var textsZhHans = i18n.NewTexts(""+
 		24,
 		6,
 		6,
+		18,
+		33,
 		12,
 		15,
 		12,
+		15,
+		36,
 		12,
+		21,
 		12,
 		6,
 		42,
@@ -8583,10 +8641,15 @@ var textsZhHant = i18n.NewTexts(""+
 	"打開有影片的網頁"+
 	"下一頁"+
 	"首頁"+
+	"已在資料庫中"+
+	"在資料庫中打開這個影片"+
 	"關閉提示"+
 	"打開位置…"+
 	"打開設定"+
+	"已在佇列中"+
+	"在處理佇列中顯示這個影片"+
 	"重新載入"+
+	"在資料庫中顯示"+
 	"停止載入"+
 	"關閉"+
 	"單鍵只在沒有輸入框取得焦點時生效"+
@@ -9351,10 +9414,15 @@ var textsZhHant = i18n.NewTexts(""+
 		24,
 		9,
 		6,
+		18,
+		33,
 		12,
 		15,
 		12,
+		15,
+		36,
 		12,
+		21,
 		12,
 		6,
 		48,
@@ -10146,11 +10214,23 @@ func Supply(lang string, t Translation) {
 	if t.AccountUploadingPercent != nil {
 		s.AccountUploadingPercent = t.AccountUploadingPercent
 	}
+	if t.BrowseAddedTitled != nil {
+		s.BrowseAddedTitled = t.BrowseAddedTitled
+	}
 	if t.BrowseClearFailed != nil {
 		s.BrowseClearFailed = t.BrowseClearFailed
 	}
+	if t.BrowseDownloadTitled != nil {
+		s.BrowseDownloadTitled = t.BrowseDownloadTitled
+	}
+	if t.BrowseInLibraryTitled != nil {
+		s.BrowseInLibraryTitled = t.BrowseInLibraryTitled
+	}
 	if t.BrowseLoadFailed != nil {
 		s.BrowseLoadFailed = t.BrowseLoadFailed
+	}
+	if t.BrowseQueuedTitled != nil {
+		s.BrowseQueuedTitled = t.BrowseQueuedTitled
 	}
 	if t.FeedbackBrowserFailed != nil {
 		s.FeedbackBrowserFailed = t.FeedbackBrowserFailed
@@ -11241,6 +11321,36 @@ func BrowseAdded(cx *core.Scope) string { return For(cx).BrowseAdded() }
 // BrowseAdded is the package's BrowseAdded in the language of msgs.
 func (msgs Messages) BrowseAdded() string { return msgs.text(textBrowseAdded) }
 
+// BrowseAddedTitled says "Added “{title}” to the library. Processing started."
+// in the language the app shows under cx.
+//
+// Message bar of the Browse page after Download Video added the page's video to the library's queue, naming the video by the page's title.
+func BrowseAddedTitled(cx *core.Scope, title string) string { return For(cx).BrowseAddedTitled(title) }
+
+// BrowseAddedTitled is the package's BrowseAddedTitled in the language of msgs.
+func (msgs Messages) BrowseAddedTitled(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseAddedTitled(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].BrowseAddedTitled; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Added “" + msgs.arg(title) + "” to the library. Processing started."
+		case "ja":
+			return "「" + title + "」をライブラリに追加して処理を開始しました。"
+		case "ko":
+			return "‘" + title + "’을(를) 라이브러리에 추가하고 처리를 시작했습니다."
+		case "zh-Hans":
+			return "已把「" + title + "」加入资料库，开始处理。"
+		case "zh-Hant":
+			return "已把「" + title + "」加入資料庫，開始處理。"
+		}
+	}
+}
+
 // BrowseAddressLabel says "Address"
 // in the language the app shows under cx.
 //
@@ -11374,6 +11484,38 @@ func BrowseDownloadNotVideo(cx *core.Scope) string { return For(cx).BrowseDownlo
 // BrowseDownloadNotVideo is the package's BrowseDownloadNotVideo in the language of msgs.
 func (msgs Messages) BrowseDownloadNotVideo() string { return msgs.text(textBrowseDownloadNotVideo) }
 
+// BrowseDownloadTitled says "Add “{title}” to the library"
+// in the language the app shows under cx.
+//
+// Tooltip of the Browse page's Download Video button, naming the page's video by its title.
+func BrowseDownloadTitled(cx *core.Scope, title string) string {
+	return For(cx).BrowseDownloadTitled(title)
+}
+
+// BrowseDownloadTitled is the package's BrowseDownloadTitled in the language of msgs.
+func (msgs Messages) BrowseDownloadTitled(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseDownloadTitled(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].BrowseDownloadTitled; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Add “" + msgs.arg(title) + "” to the library"
+		case "ja":
+			return "「" + title + "」をライブラリに追加"
+		case "ko":
+			return "‘" + title + "’을(를) 라이브러리에 추가"
+		case "zh-Hans":
+			return "把「" + title + "」加入资料库"
+		case "zh-Hant":
+			return "把「" + title + "」加入資料庫"
+		}
+	}
+}
+
 // BrowseDownloadTooltip says "Add this page's video to the library"
 // in the language the app shows under cx.
 //
@@ -11418,6 +11560,56 @@ func BrowseHome(cx *core.Scope) string { return For(cx).BrowseHome() }
 
 // BrowseHome is the package's BrowseHome in the language of msgs.
 func (msgs Messages) BrowseHome() string { return msgs.text(textBrowseHome) }
+
+// BrowseInLibrary says "In Library"
+// in the language the app shows under cx.
+//
+// Label of the Browse page's Download Video button while the page's video is already a film of the library; pressing it opens the film.
+func BrowseInLibrary(cx *core.Scope) string { return For(cx).BrowseInLibrary() }
+
+// BrowseInLibrary is the package's BrowseInLibrary in the language of msgs.
+func (msgs Messages) BrowseInLibrary() string { return msgs.text(textBrowseInLibrary) }
+
+// BrowseInLibraryTitled says "Open “{title}” in the library"
+// in the language the app shows under cx.
+//
+// Tooltip of the Browse page's In Library button, naming the film it opens.
+func BrowseInLibraryTitled(cx *core.Scope, title string) string {
+	return For(cx).BrowseInLibraryTitled(title)
+}
+
+// BrowseInLibraryTitled is the package's BrowseInLibraryTitled in the language of msgs.
+func (msgs Messages) BrowseInLibraryTitled(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseInLibraryTitled(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].BrowseInLibraryTitled; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Open “" + msgs.arg(title) + "” in the library"
+		case "ja":
+			return "「" + title + "」をライブラリで開く"
+		case "ko":
+			return "라이브러리에서 ‘" + title + "’ 열기"
+		case "zh-Hans":
+			return "在资料库中打开「" + title + "」"
+		case "zh-Hant":
+			return "在資料庫中打開「" + title + "」"
+		}
+	}
+}
+
+// BrowseInLibraryTooltip says "Open this video in the library"
+// in the language the app shows under cx.
+//
+// Tooltip of the Browse page's In Library button when the film's name is not known.
+func BrowseInLibraryTooltip(cx *core.Scope) string { return For(cx).BrowseInLibraryTooltip() }
+
+// BrowseInLibraryTooltip is the package's BrowseInLibraryTooltip in the language of msgs.
+func (msgs Messages) BrowseInLibraryTooltip() string { return msgs.text(textBrowseInLibraryTooltip) }
 
 // BrowseLoadFailed says "Couldn't open the page: {error}"
 // in the language the app shows under cx.
@@ -11476,6 +11668,56 @@ func BrowseOpenSettings(cx *core.Scope) string { return For(cx).BrowseOpenSettin
 // BrowseOpenSettings is the package's BrowseOpenSettings in the language of msgs.
 func (msgs Messages) BrowseOpenSettings() string { return msgs.text(textBrowseOpenSettings) }
 
+// BrowseQueued says "Queued"
+// in the language the app shows under cx.
+//
+// Label of the Browse page's Download Video button while the page's video is waiting in the library's queue or being processed; pressing it shows its card in Processing.
+func BrowseQueued(cx *core.Scope) string { return For(cx).BrowseQueued() }
+
+// BrowseQueued is the package's BrowseQueued in the language of msgs.
+func (msgs Messages) BrowseQueued() string { return msgs.text(textBrowseQueued) }
+
+// BrowseQueuedTitled says "Show “{title}” in the queue"
+// in the language the app shows under cx.
+//
+// Tooltip of the Browse page's Queued button, naming the video whose card it shows.
+func BrowseQueuedTitled(cx *core.Scope, title string) string {
+	return For(cx).BrowseQueuedTitled(title)
+}
+
+// BrowseQueuedTitled is the package's BrowseQueuedTitled in the language of msgs.
+func (msgs Messages) BrowseQueuedTitled(title string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.BrowseQueuedTitled(title))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].BrowseQueuedTitled; f != nil {
+			return f(title)
+		}
+		switch lang {
+		case "", "en":
+			return "Show “" + msgs.arg(title) + "” in the queue"
+		case "ja":
+			return "「" + title + "」をキューに表示"
+		case "ko":
+			return "대기열에서 ‘" + title + "’ 보기"
+		case "zh-Hans":
+			return "在处理队列中显示「" + title + "」"
+		case "zh-Hant":
+			return "在處理佇列中顯示「" + title + "」"
+		}
+	}
+}
+
+// BrowseQueuedTooltip says "Show this video in the queue"
+// in the language the app shows under cx.
+//
+// Tooltip of the Browse page's Queued button when the video's name is not known.
+func BrowseQueuedTooltip(cx *core.Scope) string { return For(cx).BrowseQueuedTooltip() }
+
+// BrowseQueuedTooltip is the package's BrowseQueuedTooltip in the language of msgs.
+func (msgs Messages) BrowseQueuedTooltip() string { return msgs.text(textBrowseQueuedTooltip) }
+
 // BrowseReload says "Reload Page"
 // in the language the app shows under cx.
 //
@@ -11484,6 +11726,15 @@ func BrowseReload(cx *core.Scope) string { return For(cx).BrowseReload() }
 
 // BrowseReload is the package's BrowseReload in the language of msgs.
 func (msgs Messages) BrowseReload() string { return msgs.text(textBrowseReload) }
+
+// BrowseShowInLibrary says "Show in Library"
+// in the language the app shows under cx.
+//
+// Button of the Browse page's message bar that goes to the library and shows the video the bar speaks of: the film, once processed, or its card in Processing.
+func BrowseShowInLibrary(cx *core.Scope) string { return For(cx).BrowseShowInLibrary() }
+
+// BrowseShowInLibrary is the package's BrowseShowInLibrary in the language of msgs.
+func (msgs Messages) BrowseShowInLibrary() string { return msgs.text(textBrowseShowInLibrary) }
 
 // BrowseStop says "Stop Loading"
 // in the language the app shows under cx.
