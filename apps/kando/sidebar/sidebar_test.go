@@ -425,3 +425,47 @@ func TestStatusCardOpensThePalette(t *testing.T) {
 		t.Fatalf("the button called %q", a.calls)
 	}
 }
+
+// TestSidebarStopsShowTheKeyboardAndThePointer checks that the library switcher, the window's first Tab stop, shows the focus ring as the other stops of the sidebar do, that the jobs line is shaded under the pointer as the switcher is, and that the switcher's and the search field's fills line up with the source rows', with the rows' corners.
+func TestSidebarStopsShowTheKeyboardAndThePointer(t *testing.T) {
+	a := newFakeApp()
+	a.jobs = Jobs{Active: 1}
+	app := start(t, a)
+	app.Key("tab")
+	switcher := app.Find("id:sidebar-switcher")
+	if !switcher.Focused {
+		t.Fatal("Tab did not put the keyboard on the library switcher")
+	}
+	if switcher.Style.Outline.Width == 0 {
+		t.Fatal("the library switcher shows no focus ring with the keyboard on it")
+	}
+
+	if app.Find("id:sidebar-jobs").Style.Background != 0 {
+		t.Fatal("the jobs line is shaded before the pointer is over it")
+	}
+	app.Hover("id:sidebar-jobs")
+	if app.Find("id:sidebar-jobs").Style.Background == 0 {
+		t.Fatal("the jobs line is not shaded under the pointer")
+	}
+	app.HoverOut()
+
+	frame := func(selector string) core.Bounds {
+		t.Helper()
+		v := app.Find(selector)
+		b := v.Frame
+		for p := v.Parent; p != nil; p = p.Parent {
+			b.Origin.X += p.Frame.Origin.X - p.Offset.X
+			b.Origin.Y += p.Frame.Origin.Y - p.Offset.Y
+		}
+		return b
+	}
+	row := frame("id:source-" + SourceAll)
+	for _, selector := range []string{"id:sidebar-switcher", "id:sidebar-search"} {
+		if b := frame(selector); b.Origin.X != row.Origin.X || b.Size.Width != row.Size.Width {
+			t.Fatalf("%s spans x %v to %v, the source rows %v to %v", selector, b.Origin.X, b.Origin.X+b.Size.Width, row.Origin.X, row.Origin.X+row.Size.Width)
+		}
+	}
+	if r, want := switcher.Style.CornerRadius, app.Find("id:source-"+SourceAll).Style.CornerRadius; r != want {
+		t.Fatalf("the switcher's corners are %v, the source rows' %v", r, want)
+	}
+}

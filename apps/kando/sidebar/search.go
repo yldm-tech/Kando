@@ -73,6 +73,6 @@ func searchField(cx *core.Scope, a App, field *core.Ref) core.Node {
 	glass := core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(7), Left: core.Pt(9)},
 		Children: []core.Node{ui.Icon(lucide.Search, 14, colors.Muted)}}
 	return core.View{Style: rowStyle, Children: []core.Node{
-		core.View{Style: core.Style{FlexGrow: 1, MinWidth: core.Pt(0)}, Children: []core.Node{input, glass, clearButton, escape}},
+		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{input, glass, clearButton, escape}},
 	}}
 }
