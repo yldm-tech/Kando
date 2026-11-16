@@ -113,6 +113,24 @@ func (a *app) remoteHandle(method string, params json.RawMessage) (any, error) {
 			return nil, err
 		}
 		return a.remoteShow(ctx, p)
+	case remote.MethodBrowserState:
+		p, err := remote.Params[remote.BrowserStateParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return a.remoteBrowserState(ctx, p)
+	case remote.MethodBrowserAdd:
+		p, err := remote.Params[remote.BrowserAddParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return a.remoteBrowserAdd(ctx, p)
+	case remote.MethodBrowserShow:
+		p, err := remote.Params[remote.BrowserShowParams](params)
+		if err != nil {
+			return nil, err
+		}
+		return a.remoteBrowserShow(ctx, p)
 	}
 	return nil, remote.Errorf(remote.CodeUnknownMethod, "unknown method %q", method)
 }

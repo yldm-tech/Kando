@@ -38,10 +38,11 @@ func (a *app) TranslatePrompt() *string { return &a.prefs.translatePrompt }
 
 func (a *app) Save() error { return a.saveSettings() }
 
-// Redetect looks for the programs Kando runs, and for the kando command, again.
+// Redetect looks for the programs Kando runs, for the kando command, and for the browsers the extension's host is registered with, again.
 func (a *app) Redetect() {
 	a.redetectTools()
 	a.cliToolCheck()
+	a.browserExtCheck()
 }
 
 func (a *app) ToolDownload(program string) settings.ToolFetch {
@@ -176,6 +177,7 @@ func (a *app) OpenSettings(section string) {
 	a.findSpeechModels()
 	if section == settings.SectionGeneral {
 		a.cliToolCheck()
+		a.browserExtCheck()
 	}
 	a.showSettingsWindow()
 }
@@ -187,10 +189,11 @@ func (a *app) SettingsSection() string {
 	return a.prefs.section
 }
 
-// SetSettingsSection shows section; 通用 looks for the kando command again, as a terminal may have installed or removed it since.
+// SetSettingsSection shows section; 通用 looks for the kando command and the browsers again, as a terminal may have installed or removed it since, and a browser may have been installed.
 func (a *app) SetSettingsSection(section string) {
 	if section == settings.SectionGeneral && a.SettingsSection() != section {
 		a.cliToolCheck()
+		a.browserExtCheck()
 	}
 	a.prefs.section = section
 }

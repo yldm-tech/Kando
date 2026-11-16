@@ -1,0 +1,32 @@
+{
+  "name": {
+    "message": "Kando"
+  },
+  "description": {
+    "message": "동영상 사이트의 페이지에서 동영상을 Kando에 추가합니다."
+  },
+  "buttonAdd": {
+    "message": "동영상 다운로드"
+  },
+  "buttonQueued": {
+    "message": "대기열에 있음"
+  },
+  "buttonDone": {
+    "message": "라이브러리에 있음"
+  },
+  "menuAdd": {
+    "message": "동영상을 Kando에 추가"
+  },
+  "popupAdd": {
+    "message": "Kando에 추가"
+  },
+  "popupShow": {
+    "message": "Kando에서 보기"
+  },
+  "popupNoVideo": {
+    "message": "동영상 페이지를 열면 Kando에 추가할 수 있습니다."
+  },
+  "popupConnect": {
+    "message": "Kando 설정 › 일반 › 브라우저 확장 프로그램에서 이 브라우저를 연결하세요."
+  }
+}

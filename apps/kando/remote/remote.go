@@ -42,9 +42,15 @@ const (
 	MethodSites = "sites.search"
 	// MethodShow takes ShowParams, a Film's ID or "" for the library and where to play the film from, brings the window to the front showing it, and answers ShowResult, what it shows. IDParams are ShowParams without a time.
 	MethodShow = "app.show"
+	// MethodBrowserState takes BrowserStateParams and answers BrowserState: what the open library has of the videos a page of the browser extension shows, and the words of its buttons, as the built-in browser's pages ask for them.
+	MethodBrowserState = "browser.state"
+	// MethodBrowserAdd takes BrowserAddParams, one video of a page of the browser extension, adds it as the built-in browser's 下载视频 does, and answers BrowserAdded.
+	MethodBrowserAdd = "browser.add"
+	// MethodBrowserShow takes BrowserShowParams and brings the window to the front showing the video's film, or the library when it has none, and answers BrowserShown.
+	MethodBrowserShow = "browser.show"
 )
 
-// Language is the language the app answers in: the messages of Errors, the status lines of Films and Jobs, the Readiness of Status and the reasons of AddFailed are English, whatever language the window shows, as the command line and the MCP server say everything else in English. Machine-readable values, as codes, stages and IDs, are never translated; names that come from the user or the videos, as titles, and the target Language of Status, Film and Job, which the settings name in the user's words, are kept as they are.
+// Language is the language the app answers in, but for the browser extension's methods (MethodBrowserState, MethodBrowserAdd), whose words the extension shows in the pages and its popup in the language the window shows, as the built-in browser's buttons do: the messages of Errors, the status lines of Films and Jobs, the Readiness of Status and the reasons of AddFailed are English, whatever language the window shows, as the command line and the MCP server say everything else in English. Machine-readable values, as codes, stages and IDs, are never translated; names that come from the user or the videos, as titles, and the target Language of Status, Film and Job, which the settings name in the user's words, are kept as they are.
 const Language = "en"
 
 // The codes of an Error.
@@ -294,6 +300,48 @@ type AddFailed struct {
 	JobID  string `json:"job_id,omitempty"`
 	Stage  string `json:"stage,omitempty"`
 	FilmID string `json:"film_id,omitempty"`
+}
+
+// BrowserStateParams are the links of the videos a page shows: at most MaxAsk of the browse package's, each to one video of a site its buttons know; the app leaves out any other.
+type BrowserStateParams struct {
+	URLs []string `json:"urls"`
+}
+
+// BrowserState is what MethodBrowserState answers, as the built-in browser's buttons are told it (the browse package's PageState): their words, and what the open library has of each video asked about, by its link as asked: "" nothing, "queued" a job waiting or being processed, "done" a film.
+type BrowserState struct {
+	Text BrowserText       `json:"text"`
+	Have map[string]string `json:"have"`
+}
+
+// BrowserText is the words of the page's buttons in the language the window shows: 下载视频, 已在队列中 and 已在资料库中.
+type BrowserText struct {
+	Add    string `json:"add"`
+	Queued string `json:"queued"`
+	Done   string `json:"done"`
+}
+
+// BrowserAddParams are the video a page of the browser extension adds: its link, to one video of a site the browse package's buttons know, and its title as the page names it, "" when it does not.
+type BrowserAddParams struct {
+	URL   string `json:"url"`
+	Title string `json:"title,omitempty"`
+}
+
+// BrowserAdded is what MethodBrowserAdd did. Have is what the library has of the video afterwards, as BrowserState says it. Shown reports that the library had it already and the window came to the front showing it, as 下载视频 does on such a video. Failed reports that it could not be added; the window then came to the front on the library, whose message bar says why. Message is what happened in the window's words, for the extension's popup.
+type BrowserAdded struct {
+	Have    string `json:"have"`
+	Shown   bool   `json:"shown,omitempty"`
+	Failed  bool   `json:"failed,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// BrowserShowParams name the video whose film MethodBrowserShow shows, by its link.
+type BrowserShowParams struct {
+	URL string `json:"url"`
+}
+
+// BrowserShown is what MethodBrowserShow showed: Film reports whether it was the video's film, or its card in the queue, rather than the library alone.
+type BrowserShown struct {
+	Film bool `json:"film"`
 }
 
 // Cue is one line of a film's subtitles: when it shows, in milliseconds from the start, what was said, and its translation, "" for a line the translation left out.

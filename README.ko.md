@@ -197,6 +197,15 @@ WebMCP를 지원하는 브라우저에서는 랜딩 페이지 [kando.yldm.ai](ht
 
 <a id="configuration"></a>
 
+## 브라우저 확장 프로그램
+
+Kando 확장 프로그램은 Kando 내장 브라우저의 ‘동영상 다운로드’와 + 버튼을 YouTube, bilibili 등 Kando 브라우저가 아는 동영상 사이트의 페이지에 넣어 줍니다. 로그인해 둔 Chrome, Edge, Brave, Vivaldi, Arc, Chromium, Firefox에서 쓸 수 있습니다. 툴바 버튼으로 현재 탭의 동영상을 추가하거나 Kando에서 볼 수 있고, 동영상 링크의 오른쪽 클릭 메뉴에는 ‘동영상을 Kando에 추가’가 있습니다. 확장 프로그램은 네이티브 메시징(native messaging)으로 이 컴퓨터의 Kando와만 통신하며, Kando가 실행 중이 아니면 실행합니다.
+
+1. 설정 › 일반 › 브라우저 확장 프로그램에서 ‘연결’을 클릭합니다. Kando가 찾은 브라우저에 자신을 등록합니다(‘연결 해제’로 되돌릴 수 있습니다).
+2. ‘확장 프로그램 폴더 보기’를 클릭한 뒤 그 폴더를 로드합니다. Chrome과 Edge는 확장 프로그램 › 개발자 모드 › 압축해제된 확장 프로그램을 로드합니다. Firefox는 `about:debugging` › 이 Firefox › 임시 부가 기능 로드에서 폴더 안의 `manifest.json`을 고릅니다. Firefox는 종료하면 임시 부가 기능을 제거합니다.
+
+Chrome 웹 스토어와 addons.mozilla.org 등록은 추후 제공됩니다. 각 릴리스에는 Chromium 계열 브라우저용과 Firefox용으로 압축한 확장 프로그램 zip도 첨부됩니다.
+
 ## 구성
 
 Google 클라이언트 ID와 시크릿, `KANDO_SOCKET`을 제외한 아래 항목은 모두 앱에서도 설정할 수 있습니다(라이브러리는 사이드바에서, 나머지는 설정에서). 환경 변수가 설정되어 있으면 앱에 저장된 값 대신 그 값을 사용합니다.

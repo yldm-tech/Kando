@@ -172,7 +172,7 @@ func (c *Client) Close() error {
 	return err
 }
 
-// launchApp starts the app this program belongs to, without bringing it to the front: on macOS the .app bundle the executable is in, through open; elsewhere, or for an executable outside a bundle, the executable itself with no arguments, in a session of its own so it outlives the command.
+// launchApp starts the app this program belongs to, without bringing it to the front: on macOS the .app bundle the executable is in, through open; on Linux the AppImage it runs from, if any (launchExe); elsewhere, or for an executable outside a bundle, the executable itself with no arguments, in a session of its own so it outlives the command, and the browser that started the command as the extension's host (package browserext), which ends the host's processes with it (detach).
 func launchApp() error {
 	exe, err := os.Executable()
 	if err != nil {
@@ -181,17 +181,33 @@ func launchApp() error {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	name, args := launchCommand(runtime.GOOS, exe, os.Getenv("KANDO_SOCKET") != "")
+	name, args := launchCommand(runtime.GOOS, launchExe(runtime.GOOS, exe, os.Getenv("APPIMAGE")), os.Getenv("KANDO_SOCKET") != "")
 	if name == "open" {
 		return exec.Command(name, args...).Run()
 	}
-	cmd := exec.Command(name, args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
-	detach(cmd)
-	if err := cmd.Start(); err != nil {
-		return err
+	start := func(detach func(*exec.Cmd)) error {
+		cmd := exec.Command(name, args...)
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = nil, nil, nil
+		detach(cmd)
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+		return cmd.Process.Release()
 	}
-	return cmd.Process.Release()
+	err = start(detach)
+	if err != nil && detachInJob != nil {
+		// A Windows job that does not let its processes break away refuses detach's; the app then starts in the job, as it did before.
+		err = start(detachInJob)
+	}
+	return err
+}
+
+// launchExe is the program that starts the app of the executable exe on goos: on Linux the AppImage appImage ($APPIMAGE) when the app runs from one, as its executable is in a folder the AppImage mounts only while it runs, which would go away with the command; exe otherwise.
+func launchExe(goos, exe, appImage string) string {
+	if goos == "linux" && filepath.IsAbs(appImage) {
+		return appImage
+	}
+	return exe
 }
 
 // launchCommand is the program and arguments launchApp runs on goos to start the app of the executable exe. On macOS an executable inside a .app bundle starts the bundle through open -g, in the background; open passes on the caller's environment but brings a running copy of the bundle forward instead of starting another, so with KANDO_SOCKET set (ownSocket), which names a socket the running copy may not listen on, it adds -n to start a copy that does. Anything else runs exe itself.

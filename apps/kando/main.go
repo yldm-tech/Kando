@@ -55,6 +55,7 @@ type app struct {
 	kits     kitsUI     // state_kits.go
 	remote   remoteUI   // state_remote.go
 	cliTool  cliToolUI  // state_cli.go
+	ext      extUI      // state_browserext.go
 	updates  updatesUI  // state_updates.go
 	window   windowUI   // state_window.go
 	logs     logsUI     // state_logs.go
@@ -84,6 +85,7 @@ func newApp(pipeline media.Pipeline, update func(fn func())) *app {
 		kits:     newKitsUI(),
 		remote:   newRemoteUI(),
 		cliTool:  newCLIToolUI(),
+		ext:      newExtUI(),
 		updates:  newUpdatesUI(),
 		window:   newWindowUI(),
 		logs:     newLogsUI(),

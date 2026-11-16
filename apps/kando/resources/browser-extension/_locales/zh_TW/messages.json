@@ -1,0 +1,32 @@
+{
+  "name": {
+    "message": "看懂"
+  },
+  "description": {
+    "message": "在影片網站的頁面中把影片加入看懂。"
+  },
+  "buttonAdd": {
+    "message": "下載影片"
+  },
+  "buttonQueued": {
+    "message": "已在佇列中"
+  },
+  "buttonDone": {
+    "message": "已在資料庫中"
+  },
+  "menuAdd": {
+    "message": "把影片加入看懂"
+  },
+  "popupAdd": {
+    "message": "加入看懂"
+  },
+  "popupShow": {
+    "message": "在看懂中顯示"
+  },
+  "popupNoVideo": {
+    "message": "打開一部影片的頁面，就能把它加入看懂。"
+  },
+  "popupConnect": {
+    "message": "請在看懂的設定 › 一般 › 瀏覽器擴充功能中連接這個瀏覽器。"
+  }
+}

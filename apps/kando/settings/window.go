@@ -62,6 +62,11 @@ type App interface {
 	CLI() CLI
 	InstallCLI()
 	CLICopied(text string)
+	// BrowserExtension is where the browser extension stands, which the 浏览器扩展 card shows; ConnectBrowsers registers Kando as its host with every browser found, DisconnectBrowsers unregisters it, and ShowExtensionFolder shows the extension's folder in the file manager, each off the UI thread.
+	BrowserExtension() BrowserExtension
+	ConnectBrowsers()
+	DisconnectBrowsers()
+	ShowExtensionFolder()
 	// CheckForUpdates checks for a newer version of Kando at once and shows what it finds.
 	CheckForUpdates()
 	// JobNotifications is whether Kando posts a notification when a video's job is done or failed while it is in the background; SetJobNotifications changes it.

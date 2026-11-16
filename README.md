@@ -187,6 +187,15 @@ Other MCP clients take the same command in their `mcpServers` setting:
 
 The landing page, [kando.yldm.ai](https://kando.yldm.ai), gives browser agents WebMCP tools in browsers that support WebMCP: `search_supported_sites` checks whether Kando downloads from a website, `get_download` gives the download link for a system, `get_started` returns the setup steps, and `list_features` lists what Kando does.
 
+## Browser extension
+
+Kando's extension puts the same Download Video and + buttons as Kando's own browser into the pages of YouTube, bilibili and the other video sites Kando's browser knows, in Chrome, Edge, Brave, Vivaldi, Arc, Chromium or Firefox, where you are signed in. The toolbar button adds the tab's video or shows it in Kando, and the menu on a link to a video has Add Video to Kando. The extension talks only to Kando on your computer, through native messaging, and opens Kando when it is not running.
+
+1. In Settings › General › Browser Extension, click Connect. Kando registers itself with the browsers it finds (Disconnect undoes it).
+2. Click Show Extension Folder, then load that folder: in Chrome and Edge, Extensions › Developer mode › Load unpacked; in Firefox, `about:debugging` › This Firefox › Load Temporary Add-on, picking its `manifest.json`. Firefox removes a temporary add-on when it quits.
+
+Listings in the Chrome Web Store and on addons.mozilla.org are to come. Each release also attaches the extension zipped for Chromium browsers and for Firefox.
+
 ## Configuration
 
 Everything below except the Google client id and secret and `KANDO_SOCKET` can also be set in the app (the library from the sidebar, the rest in Settings). An environment variable, when set, takes the place of the value saved in the app.

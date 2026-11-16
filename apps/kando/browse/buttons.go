@@ -60,6 +60,11 @@ func ParseAsk(data string) ([]string, bool) {
 	if json.Unmarshal([]byte(rest), &links) != nil {
 		return nil, false
 	}
+	return AskLinks(links), true
+}
+
+// AskLinks are the links among the first MaxAsk of links that are to one video (VideoLink), each once, as an AskMessage or the browser extension asks about them.
+func AskLinks(links []string) []string {
 	var out []string
 	seen := map[string]bool{}
 	for _, u := range links[:min(len(links), MaxAsk)] {
@@ -68,7 +73,7 @@ func ParseAsk(data string) ([]string, bool) {
 			out = append(out, u)
 		}
 	}
-	return out, true
+	return out
 }
 
 // ParseAdd reads an AddMessage: the link to one video it adds (VideoLink), and the title the page gave it, on one line, without control characters and at most maxTitle characters long; false when data is no AddMessage or names no video.
@@ -81,7 +86,15 @@ func ParseAdd(data string) (link, title string, ok bool) {
 		URL   string `json:"url"`
 		Title string `json:"title"`
 	}
-	if json.Unmarshal([]byte(rest), &add) != nil || !VideoLink(add.URL) {
+	if json.Unmarshal([]byte(rest), &add) != nil {
+		return "", "", false
+	}
+	return AddVideo(add.URL, add.Title)
+}
+
+// AddVideo reads what an AddMessage or the browser extension adds: the link to one video (VideoLink), and the title the page gave it, on one line, without control characters and at most maxTitle characters long; false when link names no video.
+func AddVideo(link, title string) (string, string, bool) {
+	if !VideoLink(link) {
 		return "", "", false
 	}
 	title = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
@@ -89,48 +102,59 @@ func ParseAdd(data string) (link, title string, ok bool) {
 			return ' '
 		}
 		return r
-	}, add.Title)), " ")
+	}, title)), " ")
 	if utf8.RuneCountInString(title) > maxTitle {
 		title = strings.TrimSpace(string([]rune(title)[:maxTitle])) + "…"
 	}
-	return add.URL, title, true
+	return link, title, true
 }
 
-// buttonsScript is the part of Script that draws the page's buttons. It reads videoSites as VideoLink does, finds the videos of a page by its links (a[href]) that are videos' and hold a picture, rather than by the sites' own components, and looks again as the page changes, a site that is one page as much as any other: once things settle after a change of the page or its address. Its buttons never move what the page lays out: + and the marks of the videos the library has float over the top-left corner of the thumbnails, above whatever the site draws over them, and each thumbnail's link holds only a button that takes no room, for the keyboard, marked so another look does not add it again; 下载视频 goes into the site's row of buttons or floats over the player. They live in a closed shadow root, drawn with inline styles only, so the page's styles and its content security policy leave them be, and they keep to themselves only the events of their own clicks, keys and the app's StateMessage. A click adds only when the user made it (event.isTrusted); the app checks again what it adds (the app's browsePageAdd).
-func buttonsScript() string {
+// webViewBridge is how the buttons of the built-in browser's pages speak to the app: tell posts to the web view (window.nsgo.postMessage), and hear takes the app's StateMessage, which it posts to the page (core.Ref.PostMessage), keeping it from the page's own listeners. Without the web view's postMessage the page gets no buttons.
+const webViewBridge = `  const host = window.nsgo, post = host && host.postMessage;
+  if (typeof post !== "function") return;
+  const tell = (data) => { try { post.call(host, data); } catch (e) {} };
+  const hear = (fn) => addEventListener("message", (e) => {
+    if (typeof e.data !== "string" || !e.data.startsWith(STATE)) return;
+    e.stopImmediatePropagation();
+    fn(e.data);
+  }, true);
+`
+
+// extensionBridge is how the buttons of the browser extension's pages (ExtensionFiles' content.js) speak to Kando: tell sends to the extension's background (runtime.sendMessage), which relays to Kando through its native messaging host, and hear takes the StateMessage the background answers with. Kando does not tell the page as things change, as the app tells its own browser's pages (the app's browsePagePush), so the bridge asks again: every five seconds about the videos Kando has queued, until they are done, while the page shows, and about every video the page asked about once the page shows again, which also brings the buttons' words in Kando's language as it is now.
+const extensionBridge = `  const api = globalThis.browser || globalThis.chrome;
+  if (!api || !api.runtime || typeof api.runtime.sendMessage !== "function") return;
+  let heard = null;
+  const asked = new Set(), queued = new Set();
+  const deliver = (answer) => {
+    if (typeof answer !== "string" || !answer.startsWith(STATE) || !heard) return;
+    try {
+      const m = JSON.parse(answer.slice(STATE.length));
+      for (const [url, state] of Object.entries((m && m.have) || {})) { if (state === "queued") queued.add(url); else queued.delete(url); }
+    } catch (e) { return; }
+    heard(answer);
+  };
+  const tell = (data) => {
+    if (data.startsWith(ASK)) {
+      try { for (const url of JSON.parse(data.slice(ASK.length))) { asked.delete(url); asked.add(url); } } catch (e) {}
+      while (asked.size > KEEP) asked.delete(asked.values().next().value);
+    }
+    let sent;
+    try { sent = api.runtime.sendMessage(data); } catch (e) { return; }
+    if (sent && typeof sent.then === "function") sent.then(deliver, () => {});
+  };
+  const again = (urls) => { const all = [...urls]; while (all.length) tell(ASK + JSON.stringify(all.splice(0, MAX_ASK))); };
+  setInterval(() => { if (queued.size && document.visibilityState === "visible") again(queued); }, 5000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") again(asked); });
+  const hear = (fn) => { heard = fn; };
+`
+
+// buttonsScript is the part of Script, and of the browser extension's content script (ExtensionScript), that draws the page's buttons; bridge is the JavaScript that declares how they speak to Kando, tell(data) and hear(fn) (webViewBridge, extensionBridge), and may return when the page cannot. It reads videoSites as VideoLink does (sitesScript), finds the videos of a page by its links (a[href]) that are videos' and hold a picture, rather than by the sites' own components, and looks again as the page changes, a site that is one page as much as any other: once things settle after a change of the page or its address. Its buttons never move what the page lays out: + and the marks of the videos the library has float over the top-left corner of the thumbnails, above whatever the site draws over them, and each thumbnail's link holds only a button that takes no room, for the keyboard, marked so another look does not add it again; 下载视频 goes into the site's row of buttons or floats over the player. They live in a closed shadow root, drawn with inline styles only, so the page's styles and its content security policy leave them be, and they keep to themselves only the events of their own clicks, keys and the app's StateMessage. A click adds only when the user made it (event.isTrusted); the app checks again what it adds (the app's browsePageAdd).
+func buttonsScript(bridge string) string {
 	return `(() => {
   const ASK = "` + AskMessage + `", ADD = "` + AddMessage + `", STATE = "` + StateMessage + `";
   const MAX_URL = ` + strconv.Itoa(MaxVideoURL) + `, MAX_ASK = ` + strconv.Itoa(MaxAsk) + `, KEEP = ` + strconv.Itoa(PageVideos) + `;
   const MARK = "data-kando-add", PILL = "data-kando-video";
-  const bridge = window.nsgo, send = bridge && bridge.postMessage;
-  if (typeof send !== "function") return;
-  const tell = (data) => { try { send.call(bridge, data); } catch (e) {} };
-  const sites = (` + videoSitesJSON() + `).map((s) => ({
-    domain: s.domain, not: s.not || [], rows: s.rows || [], titles: s.titles || [], cut: s.cut || [],
-    videos: s.videos.map((v) => ({ path: new RegExp(v.path), param: v.param || "", value: v.param ? new RegExp(v.value) : null })),
-  }));
-  const siteOf = (hostname) => {
-    const host = hostname.toLowerCase().replace(/\.$/, "");
-    const bare = host.replace(/^www\./, "").replace(/^m\./, "");
-    for (const s of sites) {
-      if (host !== s.domain && !host.endsWith("." + s.domain)) continue;
-      return s.not.includes(bare) ? null : s;
-    }
-    return null;
-  };
-  // videoOf is the link raw resolves to when it is one video's, as VideoLink decides it, and "" otherwise.
-  const videoOf = (raw) => {
-    if (!raw || raw.length > MAX_URL) return "";
-    let u;
-    try { u = new URL(raw, document.baseURI); } catch (e) { return ""; }
-    if ((u.protocol !== "http:" && u.protocol !== "https:") || u.href.length > MAX_URL) return "";
-    const s = siteOf(u.hostname);
-    if (!s) return "";
-    for (const v of s.videos) {
-      if (v.path.test(u.pathname) && (!v.param || v.value.test(u.searchParams.get(v.param) || ""))) return u.href;
-    }
-    return "";
-  };
+` + sitesScript("document.baseURI") + bridge + `
 
   // What the library has of the videos asked about, oldest first, and the words of the buttons, which the app sends with its first answer.
   let text = null;
@@ -146,16 +170,14 @@ func buttonsScript() string {
       while (pending.length) tell(ASK + JSON.stringify(pending.splice(0, MAX_ASK)));
     }, 150);
   };
-  addEventListener("message", (e) => {
-    if (typeof e.data !== "string" || !e.data.startsWith(STATE)) return;
-    e.stopImmediatePropagation();
+  hear((data) => {
     let m;
-    try { m = JSON.parse(e.data.slice(STATE.length)); } catch (err) { return; }
+    try { m = JSON.parse(data.slice(STATE.length)); } catch (err) { return; }
     if (!m || typeof m !== "object") return;
     if (m.text && typeof m.text === "object") text = m.text;
     for (const [url, state] of Object.entries(m.have || {})) if (have.has(url)) have.set(url, state === "queued" || state === "done" ? state : "");
     paint();
-  }, true);
+  });
 
   // The buttons, each a host element whose closed shadow root holds the button: 下载视频 (PILL), the + over the thumbnail under the pointer or the keyboard (PLUS), a mark over each thumbnail of a video the library has (BADGE), and, inside each thumbnail's link, a button the keyboard reaches it by, which shows nothing itself (MARK).
   const PLUS = "data-kando-plus", BADGE = "data-kando-mark";

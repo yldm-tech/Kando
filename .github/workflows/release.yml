@@ -87,7 +87,7 @@ jobs:
           .github/scripts/set-version.sh "$VERSION"
           .github/scripts/changelog.sh add "$VERSION"
           # Named, as the changelog is a new file until the first release writes it, and git commit -a leaves new files out.
-          git add -- apps/kando/nsgo.yaml apps/kando/CHANGELOG.md
+          git add -- apps/kando/nsgo.yaml apps/kando/resources/browser-extension/manifest.json apps/kando/CHANGELOG.md
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): $VERSION"
           fi
@@ -185,6 +185,18 @@ jobs:
           cat checksums-*.txt > checksums.txt
           rm checksums-*.txt
           sha256sum --check --strict checksums.txt
+      # The browser extension of the tag, zipped for the browsers built on Chromium and for Firefox (.github/scripts/browser-extension.sh), released and attested beside the packages.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+          path: source
+          persist-credentials: false
+      - name: Browser extension
+        working-directory: source
+        run: |
+          .github/scripts/browser-extension.sh ../dist
+          cd ../dist
+          sha256sum kando-browser-extension-*.zip >>checksums.txt
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-checksums: dist/checksums.txt

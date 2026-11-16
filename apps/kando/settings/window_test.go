@@ -28,6 +28,7 @@ type fakeApp struct {
 	versions                map[string]string
 	fetch                   map[string]ToolFetch
 	cli                     CLI
+	ext                     BrowserExtension
 	notify                  bool
 	models                  map[string]string
 	owned                   map[string]bool
@@ -112,6 +113,10 @@ func (f *fakeApp) DownloadTool(program string)           { f.call("download " + 
 func (f *fakeApp) CLI() CLI                              { return f.cli }
 func (f *fakeApp) InstallCLI()                           { f.call("install cli") }
 func (f *fakeApp) CLICopied(text string)                 { f.cli.Copied = text }
+func (f *fakeApp) BrowserExtension() BrowserExtension    { return f.ext }
+func (f *fakeApp) ConnectBrowsers()                      { f.call("connect browsers") }
+func (f *fakeApp) DisconnectBrowsers()                   { f.call("disconnect browsers") }
+func (f *fakeApp) ShowExtensionFolder()                  { f.call("show extension folder") }
 func (f *fakeApp) CheckForUpdates()                      { f.call("check updates") }
 func (f *fakeApp) JobNotifications() bool                { return f.notify }
 func (f *fakeApp) SetJobNotifications(on bool)           { f.notify = on }

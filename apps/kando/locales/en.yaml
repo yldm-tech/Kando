@@ -3132,6 +3132,47 @@ settingsGeneralAutoDownload:
 settingsGeneralAutoDownloadHint:
   message: "The new version opens the next time you launch Kando."
   description: "Under the automatic download switch in Settings › General."
+settingsGeneralBrowser:
+  message: "Browser Extension"
+  description: "Heading of the General settings card about Kando's extension for Chrome, Edge, Firefox and other browsers."
+settingsGeneralBrowserBrowsers:
+  message: "Browsers"
+  description: "Title of the row of the Browser Extension card that connects Kando to the browsers on the computer, so its extension can reach Kando."
+settingsGeneralBrowserConnect:
+  message: "Connect"
+  description: "Button of the Browsers row: registers Kando with the browsers on the computer so its extension can reach it."
+settingsGeneralBrowserConnected:
+  message: "Connected"
+  description: "Status at the end of the Browsers row once every browser on the computer is connected."
+settingsGeneralBrowserConnectedTo:
+  message: "Connected to {browsers}."
+  description: "Line under Browsers: the browsers Kando is connected to, by their names joined with settingsGeneralBrowserSeparator."
+  placeholders:
+    browsers: { type: "String", example: "Chrome, Firefox" }
+settingsGeneralBrowserDisconnect:
+  message: "Disconnect"
+  description: "Button of the Browsers row once connected: unregisters Kando from every browser."
+settingsGeneralBrowserFolder:
+  message: "Extension"
+  description: "Title of the row of the Browser Extension card whose button shows the extension's folder, to load it in the browser."
+settingsGeneralBrowserHint:
+  message: "Lets Kando's extension add videos from your browser."
+  description: "Line under Browsers before any browser is connected: what connecting is for."
+settingsGeneralBrowserLoadHint:
+  message: "Chrome, Edge: Extensions › Developer mode › Load unpacked. Firefox: about:debugging › This Firefox › Load Temporary Add-on."
+  description: "Line under Extension: how to load the extension's folder, in the words of each browser's own menus and buttons."
+settingsGeneralBrowserNone:
+  message: "No browser the extension runs in was found."
+  description: "Line under Browsers when none of Chrome, Edge, Brave, Vivaldi, Arc, Chromium and Firefox is on the computer."
+settingsGeneralBrowserNotShipped:
+  message: "This copy of Kando has no extension folder."
+  description: "Error under the Browser Extension card when Show Extension Folder finds no extension in the app, as in a build that is not packaged."
+settingsGeneralBrowserSeparator:
+  message: ", "
+  description: "What joins the names of the browsers in settingsGeneralBrowserConnectedTo."
+settingsGeneralBrowserShowFolder:
+  message: "Show Extension Folder"
+  description: "Button of the Extension row: shows the folder of Kando's browser extension in the file manager, to load it in the browser."
 settingsGeneralCLI:
   message: "Command Line & MCP"
   description: "Heading of the General settings card about Kando's command line and its MCP server for AI assistants."

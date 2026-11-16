@@ -197,6 +197,15 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 
 <a id="configuration"></a>
 
+## 瀏覽器擴充功能
+
+看懂的擴充功能把看懂內建瀏覽器裡的「下載影片」和 + 按鈕放進 YouTube、嗶哩嗶哩等看懂瀏覽器認得的影片網站頁面，在你已登入的 Chrome、Edge、Brave、Vivaldi、Arc、Chromium 或 Firefox 中使用。工具列按鈕可以加入目前分頁的影片或在看懂中顯示它，影片連結的右鍵選單裡有「把影片加入看懂」。擴充功能只透過原生訊息（native messaging）與你電腦上的看懂通訊，看懂沒開啟時會自動開啟它。
+
+1. 在設定 › 一般 › 瀏覽器擴充功能中按「連接」，看懂會在找到的瀏覽器中登記自己（「中斷連接」可以撤銷）。
+2. 按「顯示擴充功能資料夾」，然後載入這個資料夾：Chrome 和 Edge 在擴充功能 › 開發人員模式 › 載入未封裝項目；Firefox 在 `about:debugging` › 這個 Firefox › 載入暫時性附加元件，選擇其中的 `manifest.json`。Firefox 結束後會移除暫時性附加元件。
+
+Chrome 線上應用程式商店和 addons.mozilla.org 的上架版本稍後提供。每個版本的發布也附上分別為 Chromium 系瀏覽器和 Firefox 打包的擴充功能 zip。
+
 ## 組態設定
 
 下列所有項目，除了 Google 用戶端 ID、用戶端密鑰和 `KANDO_SOCKET` 之外，也都可以在應用程式中設定（資料庫在側邊欄設定，其餘在「設定」中）。環境變數一旦設定，就會取代應用程式中儲存的值。
