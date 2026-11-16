@@ -13,7 +13,7 @@ import (
 // pageFill is the page's background before the page paints its own, as a browser's is.
 var pageFill = core.RGB(0xFFFFFF)
 
-// page is the web view showing the web page. Its pages are someone else's: they may go to http and https addresses and to pages of their own (about:, data:, blob:), and nowhere else (webOnly), and they reach the app only through what they post to window.nsgo, which BrowseMessage hears as a plain string.
+// page is the web view showing the web page. Its pages are someone else's: they may go to http and https addresses and to pages of their own (about:, data:, blob:), and nowhere else (webOnly), and they reach the app only through what they post to window.nsgo, which BrowseMessage hears as a plain string with the origin of the page that posted it. Every page reaches it, of whichever site the user went on to, as the app checks what each message asks of it.
 type page struct{ a App }
 
 // Render implements core.Node.
@@ -32,7 +32,8 @@ func (p page) Render(cx *core.Scope) core.Node {
 		BackForwardGestures:             true,
 		OnNavigationStateChange:         live.On(a, a.BrowseNavigated),
 		OnError:                         live.On(a, a.BrowseFailed),
-		OnMessage:                       live.On(a, a.BrowseMessage),
+		MessageOrigins:                  []string{"*"},
+		OnMessageFrom:                   live.On(a, a.BrowseMessage),
 		Style:                           core.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), Background: pageFill},
 		// The start shows in its place after home, while the web view keeps the pages before it.
 		StyleFunc: live.Func(a, func() core.Style {

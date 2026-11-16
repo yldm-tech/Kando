@@ -123,3 +123,18 @@ func TestHomeOpensTheSitesVideos(t *testing.T) {
 		t.Fatalf("not in the catalog: %v", want)
 	}
 }
+
+// A link or a page's origin is on a site of the catalog when its host is a site's domain or an alias's, or under one; text, a file and a page without an origin are on none.
+func TestOnFindsTheSiteOfALinkOrAnOrigin(t *testing.T) {
+	c := Load()
+	for _, on := range []string{"https://www.youtube.com", "https://youtu.be/jNQXAC9IVRw", "https://search.bilibili.com/all?keyword=x", "http://WWW.BILIBILI.COM./video/BV1xx411c7mD"} {
+		if !c.On(on) {
+			t.Errorf("%q is on no site", on)
+		}
+	}
+	for _, off := range []string{"https://example.invalid", "https://notyoutube.invalid/watch", "null", "", "youtube", "YouTube", "file:///Users/me/youtube.com", "kando://youtube.com", "youtube.com/watch?v=x"} {
+		if c.On(off) {
+			t.Errorf("%q is on a site", off)
+		}
+	}
+}

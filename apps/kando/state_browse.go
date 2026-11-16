@@ -50,6 +50,8 @@ type browseUI struct {
 	agent *browseAgent
 	// quiet is whether the page's videos and sounds are paused and muted, as they are while another page of the window shows (browseAfterChange).
 	quiet bool
+	// buttons is what the page's own buttons were told (state_browse_buttons.go).
+	buttons browseButtons
 }
 
 func newBrowseUI() browseUI {
@@ -181,7 +183,7 @@ func (a *app) browseNavigate(rawURL string) {
 	a.browse.view.InjectJavaScript("location.assign(" + string(quoted) + ")")
 }
 
-// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, pauses the page's videos and turns its sound off while another page shows, and turns the sound on again without playing them once the browser's shows, as the hidden web view keeps its page and a video in it plays on, and keeps the message bar about what is still so (browseFollowNotice). It reports whether it closed the confirmation or changed the bar.
+// browseAfterChange closes the confirmation, giving back the window's modal flag, when the window went to another page, which no longer draws it, pauses the page's videos and turns its sound off while another page shows, and turns the sound on again without playing them once the browser's shows, as the hidden web view keeps its page and a video in it plays on, keeps the message bar about what is still so (browseFollowNotice) and tells the page's own buttons what changed for them (browsePagePush). It reports whether it closed the confirmation or changed the bar.
 func (a *app) browseAfterChange() bool {
 	changed := a.browseFollowNotice()
 	if a.page != pageBrowse && a.browse.clearOpen {
@@ -195,6 +197,7 @@ func (a *app) browseAfterChange() bool {
 			a.browse.view.InjectJavaScript(browse.QuietScript(quiet))
 		}
 	}
+	a.browsePagePush()
 	return changed
 }
 
@@ -226,6 +229,7 @@ func (a *app) browseColumnGone() {
 	}
 	a.browse.loading, a.browse.canBack, a.browse.canForward = false, false, false
 	a.browse.focused, a.browse.quiet, a.browse.cutShort = false, false, false
+	a.browse.buttons = browseButtons{}
 }
 
 // browseNavigated follows the page's address and history as the web view reports them: as a page starts loading, finishes and navigates. The address field follows the page unless the user is typing in it. A page of the page's own making (data:, blob:, about: other than the start's blank page), where the web view lets it go (browse/page.go), keeps the last web address, which 下载视频 then adds. A load that starts takes away the message that a page did not load.
@@ -281,8 +285,17 @@ func (a *app) browseCutShort() {
 	}
 }
 
-// browseHeard is what a page posted: that it changed its address without loading another page, or its title (browse.Script), as the web view reports nothing then. The address and the title are read from the page itself rather than taken from what it posted, which any page could fill with another site's address. A page that pushed an address has the one it left to go back to, and none to go forward to.
-func (a *app) browseHeard(data string) {
+// browseHeard is what a page posted: that it changed its address without loading another page, or its title (browse.Script), as the web view reports nothing then, or what its own buttons ask and add (browsePageAsk, browsePageAdd). The address and the title are read from the page itself rather than taken from what it posted, which any page could fill with another site's address. A page that pushed an address has the one it left to go back to, and none to go forward to.
+func (a *app) browseHeard(msg core.WebMessage) {
+	data := msg.Data
+	if links, ok := browse.ParseAsk(data); ok {
+		a.browsePageAsk(msg.Origin, links)
+		return
+	}
+	if link, title, ok := browse.ParseAdd(data); ok {
+		a.browsePageAdd(msg.Origin, link, title)
+		return
+	}
 	if data == browse.TitleMessage {
 		a.browse.view.Evaluate("[location.href, document.title]", func(raw string, err error) {
 			var page []string
@@ -321,13 +334,9 @@ func (a *app) browseGo() {
 	a.browseLoad(browse.Target(text, a.prefs.interfaceLanguage))
 }
 
-// browseDownload adds the page shown to the library's queue, read from the page itself, as a site that changes its page without loading another may not have said so; the address the web view last reported stands in when the page cannot answer. A video the library has already, as 下载视频 then says, it shows there instead (browseShowFilm).
+// browseDownload adds the page shown to the library's queue, read from the page itself, as a site that changes its page without loading another may not have said so; the address the web view last reported stands in when the page cannot answer. A video the library has already, as 下载视频 then says, it shows there instead (browseShowHad).
 func (a *app) browseDownload() {
-	if !a.browseShowing() {
-		return
-	}
-	if job, ok := a.browseJob(a.browse.url); ok {
-		a.browseShowFilm(job.ID)
+	if !a.browseShowing() || a.browseShowHad(a.browse.url) {
 		return
 	}
 	a.browse.view.Evaluate("location.href", func(raw string, err error) {
@@ -336,13 +345,29 @@ func (a *app) browseDownload() {
 		if err == nil && json.Unmarshal([]byte(raw), &now) == nil && browse.Allowed(now) {
 			u = now
 		}
-		a.browseEnqueue(u)
+		a.browseEnqueue(u, "")
 		a.Changed()
 	})
 }
 
-// browseEnqueue adds u to the library's queue, as the library's link field does, and the message bar says so, naming the video by the page's title when it is known, with 在资料库中显示 for its card, and Add Whole Playlist for a video of a playlist (core.Link.WholeList): a playlist or a channel opens the dialog that lists its videos (browseAskList), a page that lists videos without being one, which 下载视频 is off on, is not added, what precheck finds wrong shows in the message bar with the setting that fixes it, and the pipeline's own checks, with the remedies of a failed job, take care of a page without a video it can download. What the bar says of the page closes once another page shows; what it says of the app, once that is fixed.
-func (a *app) browseEnqueue(u string) {
+// browseAdd is 下载视频 for the video at u, as the page's own buttons ask for it (browsePageAdd): the video the library has already it shows there (browseShowHad), and any other it adds as the toolbar's does (browseEnqueue), named by title when the page gave one.
+func (a *app) browseAdd(u, title string) {
+	if !a.browseShowHad(u) {
+		a.browseEnqueue(u, title)
+	}
+}
+
+// browseShowHad shows the video at u in the library when the library has a job for it that is waiting, running or done (browseJob), as 下载视频 does on such a video, and reports whether it did.
+func (a *app) browseShowHad(u string) bool {
+	job, ok := a.browseJob(u)
+	if ok {
+		a.browseShowFilm(job.ID)
+	}
+	return ok
+}
+
+// browseEnqueue adds u to the library's queue, as the library's link field does, and the message bar says so, naming the video by title, or by the page's title when title is "" and the page shown is u's, with 在资料库中显示 for its card, and Add Whole Playlist for a video of a playlist (core.Link.WholeList): a playlist or a channel opens the dialog that lists its videos (browseAskList), a page that lists videos without being one, which 下载视频 is off on, is not added, what precheck finds wrong shows in the message bar with the setting that fixes it, and the pipeline's own checks, with the remedies of a failed job, take care of a page without a video it can download. What the bar says of the page closes once another page shows; what it says of the app, once that is fixed.
+func (a *app) browseEnqueue(u, title string) {
 	if !browse.Allowed(u) {
 		return
 	}
@@ -373,9 +398,12 @@ func (a *app) browseEnqueue(u string) {
 		a.browse.noticeURL = a.browse.url
 		return
 	}
+	if title == "" && a.browse.titleURL == u {
+		title = a.browse.title
+	}
 	text := a.messages().BrowseAdded()
-	if a.browse.titleURL == u && a.browse.title != "" {
-		text = a.messages().BrowseAddedTitled(a.browse.title)
+	if title != "" {
+		text = a.messages().BrowseAddedTitled(title)
 	}
 	job, _ := a.browseJob(u)
 	a.browseTell(text, job.ID)

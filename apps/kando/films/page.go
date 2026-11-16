@@ -27,6 +27,8 @@ type App interface {
 	PickLibrary()
 	// OpenSites opens the 支持的网站 sheet.
 	OpenSites()
+	// Select shows a page of the window, as sidebar.PageBrowse, the built-in browser, which 浏览网站 opens.
+	Select(page string)
 	// BeginNew opens the new-library sheet.
 	BeginNew()
 	CancelMaking()

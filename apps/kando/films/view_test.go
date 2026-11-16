@@ -82,6 +82,7 @@ func (f *fakeApp) Films() []Film          { return f.items }
 func (f *fakeApp) Source() *string        { return &f.source }
 func (f *fakeApp) PickLibrary()           { f.call("pick-library") }
 func (f *fakeApp) OpenSites()             { f.call("sites") }
+func (f *fakeApp) Select(page string)     { f.call("select " + page) }
 func (f *fakeApp) BeginNew()              { f.call("new"); f.making = true }
 func (f *fakeApp) CancelMaking()          { f.call("cancel-making"); f.making = false }
 func (f *fakeApp) LibraryPlace() string   { return f.place }
@@ -581,7 +582,8 @@ func TestTopBarAddsTheLink(t *testing.T) {
 	app.Submit("id:films-link")
 	app.Press(whole(msgs.FilmsStart()))
 	app.Press("id:films-local")
-	wantCalls(t, a, "start https://www.bilibili.com/video/BV1GJ411x7h7", "start https://www.bilibili.com/video/BV1GJ411x7h7", "pick-videos")
+	app.Press(whole(msgs.FilmsBrowseSites()))
+	wantCalls(t, a, "start https://www.bilibili.com/video/BV1GJ411x7h7", "start https://www.bilibili.com/video/BV1GJ411x7h7", "pick-videos", "select "+sidebar.PageBrowse)
 	change(app, a, func() { a.linkFocus = true })
 	if !app.Find("id:films-link").Focused || a.linkFocus {
 		t.Fatal("换个链接's request did not focus the link field")
@@ -739,6 +741,8 @@ func TestEmptyPagesSayWhatToDo(t *testing.T) {
 	}
 	app.Press("id:empty-sites")
 	wantCalls(t, a, "sites")
+	app.Press("id:empty-browse")
+	wantCalls(t, a, "select "+sidebar.PageBrowse)
 	// A source no film comes from says so; a search no film matches offers to clear it.
 	change(app, a, func() { a.items, a.filter = newFakeApp().items, sidebar.SourceLocal })
 	if !app.Exists(whole(msgs.FilmsSourceEmpty())) {

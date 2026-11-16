@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -795,5 +797,177 @@ func TestBrowseReadySweepsTheCookies(t *testing.T) {
 	}
 	if browseAt < 0 || queueAt < 0 || browseAt > queueAt {
 		t.Fatalf("browse ready at %d, queue ready at %d: the queue's first job would start before the browser's", browseAt, queueAt)
+	}
+}
+
+// browsePageStates are what the app told the page's buttons (browse.StateMessage), oldest first.
+func browsePageStates(t *testing.T, tt *nsgotest.App) []browse.PageState {
+	t.Helper()
+	var out []browse.PageState
+	for _, data := range browseCommands(tt, nsgotest.WebPostMessage) {
+		rest, ok := strings.CutPrefix(data, browse.StateMessage)
+		if !ok {
+			t.Fatalf("the app posted %q to the page", data)
+		}
+		var s browse.PageState
+		if err := json.Unmarshal([]byte(rest), &s); err != nil {
+			t.Fatalf("the app posted %q: %v", data, err)
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// browsePagePost has the page at pageURL post data, as its buttons do, from pageURL's origin, the web view shown or hidden behind another page of the window.
+func browsePagePost(tt *nsgotest.App, pageURL, data string) {
+	u, _ := url.Parse(pageURL)
+	origin := "null"
+	if u != nil && u.Host != "" {
+		origin = u.Scheme + "://" + u.Host
+	}
+	tt.Report(nsgotest.Event{Kind: nsgotest.EventMessage, ID: tt.FindMounted(browsePage).ID, Text: data, Origin: origin, URL: pageURL, MainFrame: true})
+	tt.Settle()
+}
+
+func browseAskData(links ...string) string {
+	data, _ := json.Marshal(links)
+	return browse.AskMessage + string(data)
+}
+
+func browseAddData(link, title string) string {
+	data, _ := json.Marshal(map[string]string{"url": link, "title": title})
+	return browse.AddMessage + string(data)
+}
+
+// The page's buttons ask what the library has of the videos the page shows, and the app answers a page of a site the catalog lists with their words, as 下载视频 says them, and what the library has of each; a page of another site gets nothing.
+func TestBrowsePageButtonsAskWhatTheLibraryHas(t *testing.T) {
+	a, tt, updates, _ := browseApp(t, &fakePipeline{})
+	msgs := testlocale.Messages()
+	done, other := "https://www.youtube.com/watch?v=jNQXAC9IVRw", "https://www.youtube.com/shorts/TRWgBxVAb1M"
+	if err := a.Enqueue("https://youtu.be/jNQXAC9IVRw"); err != nil {
+		t.Fatal(err)
+	}
+	settle(t, a, tt, updates)
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	home := "https://www.youtube.com/"
+	browseOpen(t, a, tt, home)
+	browsePagePost(tt, home, browseAskData(done, other, "https://www.youtube.com/@veritasium"))
+	states := browsePageStates(t, tt)
+	want := browse.PageState{Text: browse.PageText{Add: msgs.BrowseDownload(), Queued: msgs.BrowseQueued(), Done: msgs.BrowseInLibrary()}, Have: map[string]string{done: browse.HaveDone, other: ""}}
+	if len(states) != 1 || !reflect.DeepEqual(states[0], want) {
+		t.Fatalf("answers %+v, want %+v", states, want)
+	}
+	for _, origin := range []string{"https://example.com/", "null"} {
+		browsePagePost(tt, origin, browseAskData(done))
+	}
+	if n := len(browsePageStates(t, tt)); n != 1 {
+		t.Fatalf("pages of no site of the catalog got %d answers", n-1)
+	}
+	// Nothing changed, so nothing more is told.
+	a.Changed()
+	refresh(tt, a)
+	if n := len(browsePageStates(t, tt)); n != 1 {
+		t.Fatalf("%d answers without a change", n)
+	}
+}
+
+// A click on a page's button adds its video as 下载视频 does: one job, the message bar naming the video by the title the page gave it, with 在资料库中显示; the page then hears the video is queued, and done once it is. Clicking it again shows the video in the library, as the toolbar's pill does on a video the library has.
+func TestBrowsePageButtonAddsAsDownloadDoes(t *testing.T) {
+	p := &fakePipeline{block: true}
+	a, tt, updates, _ := browseApp(t, p)
+	msgs := testlocale.Messages()
+	home, video := "https://www.youtube.com/", "https://www.youtube.com/watch?v=jNQXAC9IVRw&pp=ygUF"
+	browseOpen(t, a, tt, home)
+	browsePagePost(tt, home, browseAskData(video))
+	browsePagePost(tt, home, browseAddData(video, "Me at the zoo"))
+	if len(a.library.Jobs) != 1 || a.library.Jobs[0].Source != video {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	id := a.library.Jobs[0].ID
+	wantText(t, tt, msgs.BrowseAddedTitled("Me at the zoo"))
+	if a.browse.notice.Film != id || !tt.Exists("id:browse-notice-film") || a.page != pageBrowse {
+		t.Fatalf("notice %+v, page %q", a.browse.notice, a.page)
+	}
+	states := browsePageStates(t, tt)
+	if last := states[len(states)-1]; last.Have[video] != browse.HaveQueued {
+		t.Fatalf("the page heard %+v", states)
+	}
+	// The toolbar's 下载视频 is off on the home page, which lists videos without being one.
+	if tt.Enabled("id:browse-download") {
+		t.Fatal("下载视频 is on on YouTube's home")
+	}
+
+	browsePagePost(tt, home, browseAddData(video, "Me at the zoo"))
+	if len(a.library.Jobs) != 1 || a.page != pageFilms || !a.lib.queueOpen {
+		t.Fatalf("a second click: jobs %d, page %q, queue open %v", len(a.library.Jobs), a.page, a.lib.queueOpen)
+	}
+
+	p.block = false
+	a.Cancel(id)
+	settle(t, a, tt, updates)
+	a.Retry(id)
+	settle(t, a, tt, updates)
+	a.Select(pageBrowse)
+	refresh(tt, a)
+	states = browsePageStates(t, tt)
+	if last := states[len(states)-1]; last.Have[video] != browse.HaveDone {
+		t.Fatalf("the page heard %+v once the film was done", states)
+	}
+}
+
+// The app takes a click on a page's button only for a video a page of a site the catalog lists shows while the browser's page shows, as any script of a page can post one: not from another site, not a playlist, a channel or a site's home, nor while another page of the window shows.
+func TestBrowsePageButtonAddsOnlyWhatItShould(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	home, video := "https://www.youtube.com/", "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+	browseOpen(t, a, tt, home)
+	browsePagePost(tt, "https://example.com/", browseAddData(video, ""))
+	for _, u := range []string{"https://www.youtube.com/playlist?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf", "https://www.youtube.com/@veritasium", home, "https://example.com/watch?v=jNQXAC9IVRw"} {
+		browsePagePost(tt, home, browseAddData(u, ""))
+	}
+	a.Select(pageFilms)
+	refresh(tt, a)
+	browsePagePost(tt, home, browseAddData(video, ""))
+	if len(a.library.Jobs) != 0 || a.browse.notice.Open {
+		t.Fatalf("jobs %+v, notice %+v", a.library.Jobs, a.browse.notice)
+	}
+	// What precheck finds missing it says in the message bar, as for 下载视频.
+	a.Select(pageBrowse)
+	a.pipeline = media.Tools{}
+	refresh(tt, a)
+	browsePagePost(tt, home, browseAddData(video, ""))
+	if len(a.library.Jobs) != 0 || !a.browse.notice.Open || a.browse.notice.Section != settings.SectionGeneral {
+		t.Fatalf("jobs %+v, notice %+v", a.library.Jobs, a.browse.notice)
+	}
+}
+
+// The page's buttons speak the interface's language, and the page hears their words again once it changes.
+func TestBrowsePageButtonsFollowTheLanguage(t *testing.T) {
+	a, tt, _, _ := browseApp(t, &fakePipeline{})
+	home := "https://www.bilibili.com/"
+	browseOpen(t, a, tt, home)
+	browsePagePost(tt, "https://search.bilibili.com/all?keyword=x", browseAskData("https://www.bilibili.com/video/BV1xx411c7mD/"))
+	a.SetInterfaceLanguage("en")
+	refresh(tt, a)
+	states := browsePageStates(t, tt)
+	en := browse.PageText{Add: "Download Video", Queued: "Queued", Done: "In Library"}
+	if len(states) != 2 || states[0].Text.Add != testlocale.Messages().BrowseDownload() || states[1].Text != en || len(states[1].Have) != 0 {
+		t.Fatalf("the page heard %+v", states)
+	}
+}
+
+// 浏览网站 beside the link field and on the page of an empty library opens the browser.
+func TestLibraryOpensTheBrowser(t *testing.T) {
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	wantText(t, tt, testlocale.Messages().FilmsEmptyTitle())
+	tt.Press("id:empty-browse")
+	if a.page != pageBrowse || !hasText(tt, testlocale.Messages().BrowseEmptyTitle()) {
+		t.Fatalf("page %q, texts %q", a.page, tt.Texts())
+	}
+	a.Select(pageFilms)
+	refresh(tt, a)
+	tt.Press("id:films-browse")
+	if a.page != pageBrowse {
+		t.Fatalf("page %q", a.page)
 	}
 }

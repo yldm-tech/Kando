@@ -882,6 +882,9 @@ filmUploadCancel:
 filmVolume:
   message: "Volume"
   description: "Accessible name of the volume slider."
+filmsBrowseSites:
+  message: "Browse Sites"
+  description: "Button beside the library's link field, and on the page of an empty library, that opens the built-in browser (Browse) to find a video in."
 filmsCancel:
   message: "Cancel"
   description: "Button that closes a sheet or dialog without doing anything."

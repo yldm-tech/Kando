@@ -1,4 +1,4 @@
-// Package browse draws the built-in browser (浏览): a toolbar with back, forward, reload, home, the address field and 下载视频, the message bar under it, and the web page, or the page's start before a web page is open. The page's address, its state and what the buttons do belong to the app (state_browse.go); this package draws them, shows the page in NSGo's web view and hands the clicks and the page's reports back.
+// Package browse draws the built-in browser (浏览): a toolbar with back, forward, reload, home, the address field and 下载视频, the message bar under it, and the web page, or the page's start before a web page is open. The page's address, its state and what the buttons do belong to the app (state_browse.go); this package draws them, shows the page in NSGo's web view, puts the browser's own buttons into the pages of the sites it knows (buttons.go) and hands the clicks and the page's reports back.
 package browse
 
 import (
@@ -59,10 +59,10 @@ type App interface {
 	// BrowseUserAgent is the pages' user agent, "" for the platform's own; BrowseScript runs in each page before the page's own scripts.
 	BrowseUserAgent() string
 	BrowseScript() string
-	// BrowseNavigated hears the page's address and history as it starts loading, finishes and navigates, BrowseFailed a page that failed to load or a navigation the web view refused, and BrowseMessage what a page posted to window.nsgo.
+	// BrowseNavigated hears the page's address and history as it starts loading, finishes and navigates, BrowseFailed a page that failed to load or a navigation the web view refused, and BrowseMessage what a page posted to window.nsgo, with the page's origin.
 	BrowseNavigated(nav core.WebNavigation)
 	BrowseFailed(err error)
-	BrowseMessage(data string)
+	BrowseMessage(msg core.WebMessage)
 	// BrowseAddress is the address field's text.
 	BrowseAddress() *string
 	// BrowseAddressFocus asks for the keyboard in the address field; the page gives it and clears the request.

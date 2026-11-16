@@ -41,7 +41,7 @@ func (a *app) BrowseNavigated(nav core.WebNavigation) { a.browseNavigated(nav) }
 
 func (a *app) BrowseFailed(err error) { a.browseFailed(err) }
 
-func (a *app) BrowseMessage(data string) { a.browseHeard(data) }
+func (a *app) BrowseMessage(msg core.WebMessage) { a.browseHeard(msg) }
 
 func (a *app) BrowseAddress() *string { return &a.browse.address }
 
@@ -68,7 +68,7 @@ func (a *app) BrowseShowFilm(id string) { a.browseShowFilm(id) }
 // BrowseAddList lists the videos of the playlist at source and asks before it adds them, as the message bar's Add Whole Playlist does after one of its videos was added.
 func (a *app) BrowseAddList(source string) {
 	a.browse.notice.Open = false
-	a.browseEnqueue(source)
+	a.browseEnqueue(source, "")
 }
 
 func (a *app) BrowseNotice() *browse.Notice { return &a.browse.notice }
