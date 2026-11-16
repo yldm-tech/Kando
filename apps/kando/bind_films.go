@@ -160,6 +160,10 @@ func (a *app) Quote(item films.Film) (translation, original string) {
 func (a *app) Open(item films.Film) {
 	// Jumping to a line of the open film plays it from there as a seek does, keeping its state; opening any film, the one that just closed included, starts it afresh.
 	a.player.playSame = a.player.playJump && item.Key != "" && item.Key == a.openKey
+	// A film opened without a point picked for it (OpenAt), as from its poster, the hero, the notice or the menu bar, opens held where it stopped last time, as 继续 would play it, so playing it on keeps that place rather than starting over and saving a new one in its place.
+	if !a.player.playJump {
+		a.player.playFrom, _ = films.ResumeFrom(a, item)
+	}
 	a.openKey = item.Key
 	a.loadSubtitles(item.Key, item.SubtitlePath)
 	a.startPlayback(item.VideoPath)

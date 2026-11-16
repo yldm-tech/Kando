@@ -650,7 +650,7 @@ func TestScrubberSeeksOnRelease(t *testing.T) {
 	}
 }
 
-// TestOpeningAFilmKeepsWhereItStopped opens a film that stopped at 0:06 last time from its poster, which holds it on its first frame, and goes back without playing it: the film still continues from 0:06, in the app and in library.json.
+// TestOpeningAFilmKeepsWhereItStopped opens a film that stopped at 0:06 last time from its poster, which holds it there, and goes back without playing it: the film still continues from 0:06, in the app and in library.json.
 func TestOpeningAFilmKeepsWhereItStopped(t *testing.T) {
 	a, tt, updates, item := playerFilm(t, 12, nil)
 	path := filepath.Join(t.TempDir(), "library.json")
@@ -669,6 +669,40 @@ func TestOpeningAFilmKeepsWhereItStopped(t *testing.T) {
 	}
 	if at := onDisk(t, path).Positions[item.VideoPath]; at != 6*time.Second {
 		t.Fatalf("library.json keeps %v for the film, want 6s", at)
+	}
+}
+
+// TestOpeningAFilmFromItsPosterResumesWhereItStopped opens a film that stopped at 0:06 last time from its poster in the grid, plays it on for two seconds, pauses and goes back: it opened held at 0:06, so it now resumes at 0:08 rather than at the 0:02 a start from 0:00 would have put in place of 0:06. A film stopped within 3 seconds of its start opens at the start, as the hero's 继续 does.
+func TestOpeningAFilmFromItsPosterResumesWhereItStopped(t *testing.T) {
+	a, tt, updates, item := playerFilm(t, 12, nil)
+	apply(tt, a, func() { a.player.positions = map[string]time.Duration{item.VideoPath: 6 * time.Second} })
+	tt.Press("id:film-" + item.Key)
+	waitUntil(t, tt, a, updates, func() bool { return a.player.subs.ready && a.player.film.info.Folder != "" })
+	if a.openKey != item.Key {
+		t.Fatalf("pressing the poster opened %q", a.openKey)
+	}
+	if at := a.PlayHead(); at != 6*time.Second {
+		t.Errorf("the film opened at %v, want where it stopped, 0:06", at)
+	}
+	playerLoadFilm(tt, a, 12*time.Second)
+	if a.player.play.Playing() {
+		t.Fatal("opening the film from its poster played it")
+	}
+	// The system's player reports where it plays from where it was asked to start, once there.
+	start := a.PlayHead()
+	playerPlayTo(tt, a, start)
+	tt.Key("space")
+	playerPlayTo(tt, a, start+2*time.Second)
+	tt.Key("space")
+	tt.Press("id:film-back")
+	if at := a.ResumeAt(item.VideoPath); at != 8*time.Second {
+		t.Fatalf("after opening from the poster and playing two seconds the film resumes at %v, want 0:08: the 0:06 it stopped at was lost", at)
+	}
+
+	apply(tt, a, func() { a.player.positions[item.VideoPath] = 2 * time.Second })
+	tt.Press("id:film-" + item.Key)
+	if at := a.PlayHead(); at != 0 {
+		t.Fatalf("a film stopped at 0:02 opened at %v, want its start", at)
 	}
 }
 

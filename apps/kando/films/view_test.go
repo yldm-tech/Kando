@@ -297,6 +297,15 @@ func TestFilmMenuOffersWhatCanBeDone(t *testing.T) {
 	}
 	app.ChoosePopup(msgs.FilmsRename())
 	wantCalls(t, a, "ask-rename done")
+	// A film stopped partway can also start over, as the poster and 播放 open it where it stopped.
+	a.resume[a.items[0].VideoPath] = 70 * time.Second
+	app.RightClick("id:film-done")
+	if len(app.PopupMenu) < 2 || app.PopupMenu[1].Label != msgs.FilmsPlayFromBeginning() {
+		t.Fatalf("the menu of a film stopped partway: %+v", app.PopupMenu)
+	}
+	app.ChoosePopup(msgs.FilmsPlayFromBeginning())
+	wantCalls(t, a, "open-at done 0s")
+	delete(a.resume, a.items[0].VideoPath)
 	// The rename sheet holds the title, and Enter renames.
 	if !app.Exists("id:rename-name") {
 		t.Fatalf("no rename field\n%s", app.Dump())

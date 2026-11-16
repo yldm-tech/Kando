@@ -29,8 +29,8 @@ func HeroFilm(items []Film) (Film, bool) {
 	return Film{}, false
 }
 
-// resumeFrom is where 继续 picks up a film: where it stopped, unless that is within 3 seconds of either end.
-func resumeFrom(a App, item Film) (time.Duration, bool) {
+// ResumeFrom is where a film opens or 继续 picks it up: where it stopped, unless that is within 3 seconds of either end. Every way of opening a film but 从头看 and a jump to a line starts there (app.Open).
+func ResumeFrom(a App, item Film) (time.Duration, bool) {
 	at := a.ResumeAt(item.VideoPath)
 	if at < 3*time.Second {
 		return 0, false
@@ -84,7 +84,7 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 			}}
 	}}
 	resume := live.Memo(cx, a, func() time.Duration {
-		at, _ := resumeFrom(a, item())
+		at, _ := ResumeFrom(a, item())
 		return at
 	})
 	play := heroButton{main: true, testID: "hero-play",

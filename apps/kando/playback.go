@@ -73,7 +73,7 @@ func (a *app) playerNow() time.Time {
 	return time.Now()
 }
 
-// startPlayback opens path on the film page, in the system's player, held on its first frame or, for 继续, 从头看 and a jump to a line, playing from where it was asked to (playFrom, playJump). A missing file leaves the page as a subtitle list. A jump within the open film's video (playSame) seeks it rather than open it again.
+// startPlayback opens path on the film page, in the system's player, held where it is asked to open (playFrom: where the film stopped last time, or its first frame) or, for 继续, 从头看 and a jump to a line, playing from where it was asked to (playFrom, playJump). A missing file leaves the page as a subtitle list. A jump within the open film's video (playSame) seeks it rather than open it again.
 func (a *app) startPlayback(path string) {
 	at := a.player.playFrom
 	jump, same := a.player.playJump, a.player.playSame

@@ -1068,6 +1068,7 @@ const (
 	textFilmsPathNotSet
 	textFilmsPickVideosEllipsis
 	textFilmsPlay
+	textFilmsPlayFromBeginning
 	textFilmsQueueCancel
 	textFilmsQueueCanceled
 	textFilmsQueueCollapse
@@ -1830,6 +1831,7 @@ var keyOfText = [numTexts]string{
 	"filmsPathNotSet",
 	"filmsPickVideosEllipsis",
 	"filmsPlay",
+	"filmsPlayFromBeginning",
 	"filmsQueueCancel",
 	"filmsQueueCanceled",
 	"filmsQueueCollapse",
@@ -2590,6 +2592,7 @@ var textsEn = i18n.NewTexts(""+
 	"Not Set"+
 	"Choose Local Videos…"+
 	"Play"+
+	"Play from Beginning"+
 	"Cancel Processing"+
 	"Canceled"+
 	"Show Less"+
@@ -3347,6 +3350,7 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		22,
 		4,
+		19,
 		17,
 		8,
 		9,
@@ -4107,6 +4111,7 @@ var textsJa = i18n.NewTexts(""+
 	"未設定"+
 	"ローカル動画を選択…"+
 	"再生"+
+	"最初から再生"+
 	"処理をキャンセル"+
 	"キャンセル済み"+
 	"折りたたむ"+
@@ -4864,6 +4869,7 @@ var textsJa = i18n.NewTexts(""+
 		9,
 		30,
 		6,
+		18,
 		24,
 		21,
 		15,
@@ -5624,6 +5630,7 @@ var textsKo = i18n.NewTexts(""+
 	"설정 안 됨"+
 	"로컬 동영상 선택…"+
 	"재생"+
+	"처음부터 재생"+
 	"처리 취소"+
 	"취소됨"+
 	"접기"+
@@ -6381,6 +6388,7 @@ var textsKo = i18n.NewTexts(""+
 		14,
 		26,
 		6,
+		19,
 		13,
 		9,
 		6,
@@ -7141,6 +7149,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"未设置"+
 	"选择本地视频…"+
 	"播放"+
+	"从头播放"+
 	"取消处理"+
 	"已取消"+
 	"收起"+
@@ -7898,6 +7907,7 @@ var textsZhHans = i18n.NewTexts(""+
 		9,
 		21,
 		6,
+		12,
 		12,
 		9,
 		6,
@@ -8658,6 +8668,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"未設定"+
 	"選擇本機影片…"+
 	"播放"+
+	"從頭播放"+
 	"取消處理"+
 	"已取消"+
 	"收合"+
@@ -9415,6 +9426,7 @@ var textsZhHant = i18n.NewTexts(""+
 		9,
 		21,
 		6,
+		12,
 		12,
 		9,
 		6,
@@ -14227,6 +14239,15 @@ func FilmsPlay(cx *core.Scope) string { return For(cx).FilmsPlay() }
 
 // FilmsPlay is the package's FilmsPlay in the language of msgs.
 func (msgs Messages) FilmsPlay() string { return msgs.text(textFilmsPlay) }
+
+// FilmsPlayFromBeginning says "Play from Beginning"
+// in the language the app shows under cx.
+//
+// Menu item of a film stopped partway, from ⋯ or a right click on its poster or the large card: play it from the beginning rather than from where it stopped.
+func FilmsPlayFromBeginning(cx *core.Scope) string { return For(cx).FilmsPlayFromBeginning() }
+
+// FilmsPlayFromBeginning is the package's FilmsPlayFromBeginning in the language of msgs.
+func (msgs Messages) FilmsPlayFromBeginning() string { return msgs.text(textFilmsPlayFromBeginning) }
 
 // FilmsPosterBilingual says "Bilingual · {language}"
 // in the language the app shows under cx.

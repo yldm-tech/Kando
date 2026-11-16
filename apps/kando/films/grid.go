@@ -67,7 +67,7 @@ var (
 	posterLifted   = []core.BoxShadow{{Offset: core.Point{Y: 14}, Blur: 30, Color: core.RGBA(0x000000, 0.22)}}
 )
 
-// doneCard is a film in the grid: the poster opens it, and ⋯ and a right click offer 播放, 在访达中显示, 重命名…, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
+// doneCard is a film in the grid: the poster opens it where it stopped last time, and ⋯ and a right click offer 播放, 从头播放 for a film stopped partway, 在访达中显示, 重命名…, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
 type doneCard struct {
 	a    App
 	item func() Film
@@ -131,8 +131,12 @@ func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 	do := func(fn func(Film)) func() { return live.Do(a, func() { fn(item) }) }
 	items := []nsdesktop.MenuItem{
 		{Label: locales.FilmsPlay(cx), OnSelect: do(a.Open)},
-		{Label: locales.FilmsShowInFinder(cx, desktop.Platform(cx)), OnSelect: live.Do(a, func() { a.Reveal(item.VideoPath) })},
 	}
+	// 播放 opens the film where it stopped (ResumeFrom), so a film stopped partway can also start over, as the hero's 从头看 does.
+	if _, ok := ResumeFrom(a, item); ok {
+		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsPlayFromBeginning(cx), OnSelect: live.Do(a, func() { a.OpenAt(item, 0) })})
+	}
+	items = append(items, nsdesktop.MenuItem{Label: locales.FilmsShowInFinder(cx, desktop.Platform(cx)), OnSelect: live.Do(a, func() { a.Reveal(item.VideoPath) })})
 	if item.VideoPath != "" {
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsRename(cx), OnSelect: do(a.AskRename)})
 	}

@@ -933,6 +933,9 @@ filmsPickVideosEllipsis:
 filmsPlay:
   message: "Play"
   description: "Menu item and button that play a film."
+filmsPlayFromBeginning:
+  message: "Play from Beginning"
+  description: "Menu item of a film stopped partway, from ⋯ or a right click on its poster or the large card: play it from the beginning rather than from where it stopped."
 filmsPosterBilingual:
   message: "Bilingual · {language}"
   description: "Small tag over a poster: the film has bilingual subtitles, with the short tag of the translation's language."
