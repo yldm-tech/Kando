@@ -54,9 +54,9 @@ func TestScreenshotsSettings(t *testing.T) {
 		a.kits.running = map[string]*kitDownload{"ffmpeg": {written: 13 << 20, total: 31 << 20, cancel: func() {}}}
 		a.kits.errs = map[string]error{"whisper-cli": media.ErrStalled}
 	})
-	// A speech model's download that lost its connection: the page says so, and that downloading again picks up where it stopped.
+	// A speech model's download from Hugging Face that lost its connection: the page says so, with 从 hf-mirror.com 下载 next to it.
 	shootSettingsScrolled(t, f, settings.SectionSpeech, "settings-speech-download-failed", shown, models, turbo, func(a *app) {
-		a.prefs.downloadErr = fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected)
+		a.prefs.downloadErr = settings.DownloadError{ID: "large-v3-turbo-q5", Err: fmt.Errorf("%w: unexpected EOF", media.ErrDisconnected)}
 	})
 }
 
@@ -116,7 +116,7 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			fn(a)
 		}
 		a.OpenSettings(section)
-		env := testEnvironment()
+		env := screenshotEnvironment()
 		env.TitleBar = ns.Edges{Top: 50, Left: 72}
 		// The settings window's own view, as openSettingsWindow opens it, on the test's graph.
 		tt := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
@@ -131,7 +131,7 @@ func shootSettingsAt(t *testing.T, f *screenshotFixture, section, name, shown, m
 			// Headless runs have no pixels, so the scenes run their steps; the pictures come from `nsgo test -target`, which saves them under .nsgo/test/screenshots/<target> (README's Screenshots).
 			return
 		}
-		tt.Screenshot(name)
+		tt.Screenshot(screenshotName(env, name))
 	})
 }
 

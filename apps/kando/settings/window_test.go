@@ -34,6 +34,7 @@ type fakeApp struct {
 	downloading             string
 	written, total          int64
 	downloadErr             string
+	downloadMirror          bool
 	trashOpen               bool
 	trashID                 string
 	spoken                  string
@@ -122,6 +123,8 @@ func (f *fakeApp) Downloading() string                   { return f.downloading 
 func (f *fakeApp) DownloadWritten() int64                { return f.written }
 func (f *fakeApp) DownloadTotal() int64                  { return f.total }
 func (f *fakeApp) DownloadErr() string                   { return f.downloadErr }
+func (f *fakeApp) DownloadMirror() bool                  { return f.downloadMirror }
+func (f *fakeApp) DownloadFromMirror()                   { f.call("download from mirror") }
 func (f *fakeApp) CancelDownload()                       { f.call("cancel download") }
 func (f *fakeApp) DownloadModel(id string)               { f.call("download model " + id) }
 func (f *fakeApp) OwnsSpeechModel(id string) bool        { return f.owned[id] }

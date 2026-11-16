@@ -6,6 +6,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/sidebar"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -17,7 +18,7 @@ type noLibrary struct{ a App }
 // Render implements core.Node.
 func (n noLibrary) Render(cx *core.Scope) core.Node {
 	a := n.a
-	return statusPage(cx, libraryArt, locales.FilmsNoLibraryTitle, func(cx *core.Scope) string { return locales.FilmsNoLibraryDescription(cx, desktop.Platform(cx)) },
+	return statusPage(cx, core.SVGView{SVG: libraryArt, Style: core.Style{FlexShrink: 0}}, locales.FilmsNoLibraryTitle, func(cx *core.Scope) string { return locales.FilmsNoLibraryDescription(cx, desktop.Platform(cx)) },
 		textButton(locales.FilmsNewLibraryEllipsis, ui.Button{TestID: "empty-new", OnPress: live.Do(a, a.BeginNew)}),
 		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-open", OnPress: live.Do(a, a.PickLibrary)}),
 	)
@@ -29,7 +30,7 @@ type emptyLibrary struct{ a App }
 // Render implements core.Node.
 func (e emptyLibrary) Render(cx *core.Scope) core.Node {
 	a := e.a
-	return statusPage(cx, startArt, locales.FilmsEmptyTitle, locales.FilmsEmptyDescription,
+	return statusPage(cx, startTile(cx), locales.FilmsEmptyTitle, locales.FilmsEmptyDescription,
 		textButton(locales.FilmsPickVideosEllipsis, ui.Button{TestID: "empty-pick", OnPress: live.Do(a, a.PickVideos)}),
 		textButton(locales.FilmsBrowseSites, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-browse", OnPress: live.Do(a, func() { a.Select(sidebar.PageBrowse) })}),
 		textButton(locales.FilmsOpenLibraryEllipsis, ui.Button{Variant: ui.ButtonSecondary, TestID: "empty-open", OnPress: live.Do(a, a.PickLibrary)}),
@@ -75,12 +76,23 @@ func (n noMatch) Render(cx *core.Scope) core.Node {
 	}}
 }
 
-// statusPage is an empty page as the prototype draws it: the colored illustration, the title at 20 points, the description centered in gray, and the actions in a row, in a column 420 wide, 90 points under the message bar.
-func statusPage(cx *core.Scope, art *core.SVG, title, description func(*core.Scope) string, actions ...core.Node) core.Node {
+// startTile is the play tile over a library that holds no film yet: the theme's gray tile with a hairline, and the play mark in the accent on it.
+func startTile(cx *core.Scope) core.Node {
+	k := theme.Of(cx)
+	return core.View{TestID: "films-start-art",
+		Style:     core.Style{Width: core.Pt(88), Height: core.Pt(88), FlexShrink: 0, CornerRadius: 24, BorderWidth: 0.5, AlignItems: core.AlignCenter, JustifyContent: core.JustifyCenter},
+		StyleFunc: func() core.Style { return core.Style{Background: k.Tile(), BorderColor: k.Shade(0.06)} },
+		Children: []core.Node{
+			core.Icon{SVG: startGlyph, TestID: "films-start-glyph", Style: core.Style{Width: core.Pt(44), Height: core.Pt(44)}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Accent)},
+		}}
+}
+
+// statusPage is an empty page as the prototype draws it: the illustration, the title at 20 points, the description centered in gray, and the actions in a row, in a column 420 wide, 90 points under the message bar.
+func statusPage(cx *core.Scope, art core.Node, title, description func(*core.Scope) string, actions ...core.Node) core.Node {
 	colors := ui.ColorsOf(cx)
 	return core.View{Style: core.Style{AlignItems: core.AlignCenter, Padding: core.Symmetric(90, 28)}, Children: []core.Node{
 		core.View{Style: core.Style{MaxWidth: core.Pt(420), AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
-			core.SVGView{SVG: art, Style: core.Style{FlexShrink: 0}},
+			art,
 			heading(2, core.Text{ContentFunc: func() string { return title(cx) }, Style: core.Style{FontSize: 20, FontWeight: ui.Bold, Margin: core.Edges{Top: 6}}, StyleFunc: ui.Colored(colors.Text)}),
 			core.Text{ContentFunc: func() string { return description(cx) }, Style: core.Style{FontSize: 13, LineHeight: 20, TextAlign: core.TextAlignCenter}, StyleFunc: ui.Colored(colors.Muted)},
 			core.View{Style: core.Style{Direction: core.Row, Gap: 10, Wrap: core.Wrap, JustifyContent: core.JustifyCenter, Margin: core.Edges{Top: 8}}, Children: actions},

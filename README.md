@@ -267,7 +267,7 @@ The PNG files come from the same tests run in real windows on macOS, which saves
 go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
 ```
 
-`KANDO_SCREENSHOTS_LANG` (`en`, `zh-Hans`, `zh-Hant`, `ja` or `ko`, given with another `-env`) renders them in that interface language, with a demo library for its reader; `-run TestScreenshotsReadme` renders the four pictures of the READMEs, kept in `docs/assets/<language>/`.
+`KANDO_SCREENSHOTS_LANG` (`en`, `zh-Hans`, `zh-Hant`, `ja` or `ko`, given with another `-env`) renders them in that interface language, with a demo library for its reader; `-run TestScreenshotsReadme` renders the four pictures of the READMEs, kept in `docs/assets/<language>/`. `KANDO_SCREENSHOTS_DARK=1` renders them in the dark appearance, each saved as `<scene>-dark.png`.
 
 Repository layout:
 

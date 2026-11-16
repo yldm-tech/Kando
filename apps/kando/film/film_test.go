@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -1395,6 +1396,26 @@ func TestHeldLineCanBeSelected(t *testing.T) {
 	change(app, a, func() { a.play.playing, a.play.head = false, 3500*time.Millisecond })
 	if app.Exists(card) {
 		t.Fatal("a card shows between lines")
+	}
+}
+
+// TestInfoTabSourceLinkReadsOnTheDarkPanel checks that the link to a film's source in the info tab is in the theme's accent ink for the dark player, which reads at its size on the dark panel where the accent's own blue does not.
+func TestInfoTabSourceLinkReadsOnTheDarkPanel(t *testing.T) {
+	a := newFakeApp()
+	a.side, a.item.Source = "info", "https://youtu.be/talk"
+	var k theme.Colors
+	app := nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
+		a.Attach(cx)
+		theme.Apply(cx)
+		return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, AlignItems: ns.AlignStretch}, Children: []ns.Node{ns.Func(func(cx *ns.Scope) ns.Node {
+			theme.Dark(cx)
+			k = theme.Of(cx)
+			return View{App: a, Item: live.Func(a, func() Item { return a.item })}
+		})}}
+	}, nsgotest.Size(1100, 720), nsgotest.Environment(testlocale.Environment(ns.Environment{OS: ns.OSMacOS, Idiom: ns.IdiomDesktop, AppleKeyboard: true})))
+	link := app.Find(whole("https://youtu.be/talk"))
+	if got := link.TextStyle.Color; got != k.AccentInk() || got == theme.Accent {
+		t.Fatalf("the source link is %#x on the dark panel, want the dark accent ink %#x", uint32(got), uint32(k.AccentInk()))
 	}
 }
 

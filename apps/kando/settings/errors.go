@@ -49,8 +49,9 @@ func (e ModelFileError) Error() string { return e.Path + ": " + e.Err.Error() }
 
 func (e ModelFileError) Unwrap() error { return e.Err }
 
-// DownloadError is why a speech model's download from the download source Source (media.SpeechSources) failed: Err. SpeechDownloadError suggests hf-mirror.com when Hugging Face could not be reached.
+// DownloadError is why the download of the whisper catalog model ID from the download source Source (media.SpeechSources) failed: Err. SpeechDownloadError suggests hf-mirror.com when Hugging Face could not be reached or refused it, and MirrorHelps offers to download ID from there.
 type DownloadError struct {
+	ID     string
 	Source string
 	Err    error
 }
@@ -62,7 +63,20 @@ func (e DownloadError) Unwrap() error { return e.Err }
 // ErrNoModelsDir is a speech model download's error when Kando has no folder to put the models in.
 var ErrNoModelsDir = errors.New("no models folder")
 
-// SpeechDownloadError says in plain words, in the language of m, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there; one from Hugging Face also suggests downloading from hf-mirror.com instead, which is reachable where Hugging Face often is not.
+// MirrorHelps reports whether downloading from hf-mirror.com may get the speech model whose download err failed, and which model that is: Hugging Face could not be reached, stopped sending, or refused it, as it does where it is blocked. A file that failed its checksum would not be another from the mirror.
+func MirrorHelps(err error) (id string, ok bool) {
+	var download DownloadError
+	var status interface{ StatusCode() int }
+	if !errors.As(err, &download) || download.Source != "" {
+		return "", false
+	}
+	if errors.Is(err, media.ErrStalled) || errors.Is(err, media.ErrDisconnected) || errors.As(err, &status) {
+		return download.ID, true
+	}
+	return "", false
+}
+
+// SpeechDownloadError says in plain words, in the language of m, why a speech model's download failed, or "" when it did not. A stalled or dropped download kept what it got, so these say that downloading again picks up from there; one from Hugging Face also suggests downloading from hf-mirror.com instead, which is reachable where Hugging Face often is not, and which the page offers next to the error (MirrorHelps).
 func SpeechDownloadError(m locales.Messages, err error) string {
 	var status interface{ StatusCode() int }
 	var trash TrashError
@@ -90,6 +104,8 @@ func SpeechDownloadError(m locales.Messages, err error) string {
 		return m.SettingsSpeechDownloadStalledMirror()
 	case errors.Is(err, media.ErrStalled):
 		return m.SettingsSpeechDownloadStalled()
+	case errors.As(err, &status) && fromHuggingFace:
+		return m.SettingsSpeechDownloadFailedStatusMirror(status.StatusCode())
 	case errors.As(err, &status):
 		return m.SettingsSpeechDownloadFailedStatus(status.StatusCode())
 	case errors.Is(err, media.ErrDisconnected) && fromHuggingFace:

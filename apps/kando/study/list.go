@@ -10,6 +10,7 @@ import (
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/saved"
+	"kando/apps/kando/theme"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -178,7 +179,7 @@ func exportStatus(cx *core.Scope, export func() Export) core.Node {
 
 // entryRow is a saved line of the sheet: its film and time over its original and its translation, which a click plays from, and the × that removes it. A line whose video is gone does not play and says so.
 func entryRow(cx *core.Scope, a App, entry func() Entry) core.Node {
-	colors := ui.ColorsOf(cx)
+	colors, k := ui.ColorsOf(cx), theme.Of(cx)
 	where := func() string {
 		e := entry()
 		if e.Gone {
@@ -190,8 +191,8 @@ func entryRow(cx *core.Scope, a App, entry func() Entry) core.Node {
 		LabelFunc: func() string { return strings.TrimSpace(where() + " " + entry().Original + " " + entry().Translation) },
 		Disabled:  func() bool { return entry().Gone },
 		OnPress:   live.On(a, func(core.PressEvent) { a.OpenSaved(entry().ID) }),
-		Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2, Padding: core.Symmetric(8, 10), CornerRadius: 8,
-			Hover: &core.Style{Background: core.RGBA(0x000000, 0.05)}, FocusVisible: ui.FocusRing(cx, -2)},
+		Style:     core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2, Padding: core.Symmetric(8, 10), CornerRadius: 8, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() core.Style { return core.Style{Hover: &core.Style{Background: k.Shade(0.05)}} },
 		Children: []core.Node{
 			core.Text{ContentFunc: where, MaxLines: 1, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
 			core.Text{ContentFunc: func() string { return entry().Original }, Style: core.Style{FontSize: 14, LineHeight: 19}, StyleFunc: ui.Colored(colors.Text)},

@@ -13,6 +13,7 @@ import (
 	"kando/apps/kando/film/subtitle"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/theme"
 	"kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/base"
@@ -899,7 +900,7 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 			source = ns.Text{Content: locales.FilmLocalFile(cx), Style: ns.Style{FontSize: 12, LineHeight: 17, Color: onGlass, Opacity: ns.Alpha(0.9)}}
 		} else {
 			source = ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, AlignItems: ns.AlignStart}, Children: []ns.Node{
-				ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0)}, Children: []ns.Node{ui.Link{Text: st.source, Href: st.source, Style: ns.Style{FontSize: 12, LineHeight: 17}}}},
+				ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0)}, Children: []ns.Node{sourceLink(cx, st.source)}},
 				copyInfoButton(cx, st.source),
 			}}
 		}
@@ -921,6 +922,21 @@ func (s *screen) infoTab(cx *ns.Scope) ns.Node {
 // monoStyle is a path's text in the info tab: Menlo, at size over lineHeight, in white at alpha.
 func monoStyle(size, lineHeight ns.Points, alpha float32) ns.Style {
 	return ns.Style{FontFamily: "Menlo, " + ns.FontMonospace, FontSize: size, LineHeight: lineHeight, Color: onGlass, Opacity: ns.Alpha(alpha)}
+}
+
+// sourceLink is the film's source in the info tab, a link that opens it, as ui.Link draws one but in the theme's accent ink, which reads on the dark panel where the accent's own blue does not.
+// TODO(nsgo#366): ui.Link draws its text in Palette().Accent with no way to give it another color (ui/link.go:41-44); go back to ui.Link once it takes one https://github.com/nsgo-dev/nsgo/issues/366
+func sourceLink(cx *ns.Scope, href string) ns.Node {
+	ink := theme.Of(cx).AccentInk
+	return base.Link{Href: href, Label: href,
+		Style: ns.Style{Group: "link", AlignSelf: ns.AlignStart, CornerRadius: ui.RadiusSmall},
+		StyleFunc: func() ns.Style {
+			return ns.Style{FocusVisible: ui.FocusRing(cx, 2)}
+		},
+		Children: []ns.Node{ns.Text{Content: href, Style: ui.TypeBody,
+			StyleFunc: func() ns.Style {
+				return ns.Style{Color: ink(), GroupStyle: &ns.GroupStyle{Name: "link", Hover: &ns.Style{TextDecoration: ns.TextDecorationUnderline}}}
+			}}}}
 }
 
 // copyInfoButton puts value on the clipboard.

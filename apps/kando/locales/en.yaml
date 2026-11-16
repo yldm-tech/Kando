@@ -1686,6 +1686,9 @@ onboardingAIModelUnchecked:
   description: "Second step's line about translation before the EveryAPI sign-in was checked: the model, and that the sign-in on this computer is used and checked later."
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
+onboardingAINeedsBaseURL:
+  message: "Enter the Base URL in Settings to translate"
+  description: "Second step's line about translation when the chosen service is a custom endpoint without a Base URL yet, which is typed in Settings › AI Service; the guide has no field for it, and its Settings… button opens that page. Keep Base URL as it is."
 onboardingAINeedsKey:
   message: "Enter the service's API Key to translate"
   description: "Second step's line about translation when the chosen cloud service, such as OpenAI, has no API Key yet."
@@ -3358,7 +3361,7 @@ settingsKeywordsShortcuts:
   message: "keyboard keys commands"
   description: "Search keywords of the Keyboard Shortcuts settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsSpeech:
-  message: "whisper models download recognition transcription HuggingFace Vimpo hyperframes"
+  message: "whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"
   description: "Search keywords of the Speech Recognition settings section, separated by spaces, besides its title. Not shown."
 settingsKeywordsTranslate:
   message: "target language smart translation context prompt restore default"
@@ -3572,13 +3575,21 @@ settingsSpeechDownloadDisconnected:
   message: "The connection dropped. Check your network and download again."
   description: "Error on the Speech Recognition page and in the guide: the connection to the server failed or broke off during a whisper model's download. It may fail before any data arrived, so it does not promise to resume."
 settingsSpeechDownloadDisconnectedMirror:
-  message: "The connection to Hugging Face failed. Check your network, or set Download Source to hf-mirror.com in Settings › Speech Recognition, and download again."
-  description: "Error on the Speech Recognition page and in the guide: the connection to Hugging Face failed or broke off during a whisper model's download. hf-mirror.com is a mirror of Hugging Face reachable where Hugging Face often is not, as in mainland China; Download Source is the name of the Speech Recognition page's row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are."
+  message: "The connection to Hugging Face failed. Check your network, or download from hf-mirror.com."
+  description: "Error on the Speech Recognition page and in the guide: the connection to Hugging Face failed or broke off during a whisper model's download. hf-mirror.com is a mirror of Hugging Face reachable where Hugging Face often is not, as in mainland China; the error is shown next to the button that downloads the model from there (settingsSpeechDownloadFromMirror). Keep hf-mirror.com and Hugging Face as they are."
 settingsSpeechDownloadFailedStatus:
   message: "The server answered HTTP {status}. Try again later."
   description: "Error on the Speech Recognition page and in the guide: the server answered a whisper model's download with an error status."
   placeholders:
     status: { type: "int", example: "503" }
+settingsSpeechDownloadFailedStatusMirror:
+  message: "Hugging Face answered HTTP {status}. Try again later, or download from hf-mirror.com."
+  description: "Error on the Speech Recognition page and in the guide: Hugging Face answered a whisper model's download with an error status, as it does where it is blocked. hf-mirror.com is a mirror of Hugging Face; the error is shown next to the button that downloads the model from there (settingsSpeechDownloadFromMirror). Keep hf-mirror.com and Hugging Face as they are."
+  placeholders:
+    status: { type: "int", example: "451" }
+settingsSpeechDownloadFromMirror:
+  message: "Download from hf-mirror.com"
+  description: "Button next to the error of a whisper model's download from Hugging Face that failed, on the Speech Recognition page and in the guide: sets the download source to hf-mirror.com, a mirror of Hugging Face, and downloads the model again from there. Keep hf-mirror.com as it is."
 settingsSpeechDownloadMismatch:
   message: "The downloaded file didn't match the model's checksum, so it was deleted. Download it again."
   description: "Error on the Speech Recognition page and in the guide: the downloaded whisper model's size or SHA-256 is not the one Kando expects, so the file was thrown away."
@@ -3591,8 +3602,8 @@ settingsSpeechDownloadStalled:
   message: "The download stopped receiving data. Download again to continue from where it stopped."
   description: "Error on the Speech Recognition page and in the guide: no data arrived for a long while during a whisper model's download; downloading again resumes it."
 settingsSpeechDownloadStalledMirror:
-  message: "Hugging Face stopped sending data. Download again to continue from where it stopped, or set Download Source to hf-mirror.com in Settings › Speech Recognition."
-  description: "Error on the Speech Recognition page and in the guide: no data arrived from Hugging Face for a long while during a whisper model's download; downloading again resumes it. hf-mirror.com is a mirror of Hugging Face; Download Source is the name of the row choosing it (settingsSpeechSource). Keep hf-mirror.com and Hugging Face as they are."
+  message: "Hugging Face stopped sending data. Download again to continue from where it stopped, or download from hf-mirror.com."
+  description: "Error on the Speech Recognition page and in the guide: no data arrived from Hugging Face for a long while during a whisper model's download; downloading again resumes it. hf-mirror.com is a mirror of Hugging Face; the error is shown next to the button that downloads the model from there (settingsSpeechDownloadFromMirror). Keep hf-mirror.com and Hugging Face as they are."
 settingsSpeechDownloaded:
   message: "Downloaded"
   description: "At the end of a whisper model's row: the model is on disk."

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -161,6 +162,118 @@ func TestSwitchingTheLLMEndpointDropsTheKey(t *testing.T) {
 	a.applyLLM()
 	if got := translator(t, a); got.BaseURL != "https://proxy.example.com/v1" || got.APIKey != "" {
 		t.Fatalf("typing a custom Base URL kept the EveryAPI key: base %q key %q", got.BaseURL, got.APIKey)
+	}
+}
+
+// TestACustomEndpointCanBeFilledInKeyFirst checks that 自定义 starts with no endpoint, key or model of the service before, that its key may be typed before its Base URL without being dropped, and that the key typed is never sent to the service chosen before: the models are only asked of the endpoint typed. A key that has listed the models of its endpoint belongs to it, and is dropped when the Base URL then moves to another host.
+func TestACustomEndpointCanBeFilledInKeyFirst(t *testing.T) {
+	llmEnv(t, "", "", "")
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.openai.com/v1", Model: "gpt-4.1-mini", APIKey: "sk-openai"}}
+	a, tt, updates := newTestApp(t, tools)
+	a.syncLLM(tools)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	type asked struct{ base, key string }
+	var mu sync.Mutex
+	var calls []asked
+	a.prefs.listModels = func(_ context.Context, tr media.ChatTranslator) ([]string, error) {
+		mu.Lock()
+		calls = append(calls, asked{tr.BaseURL, tr.APIKey})
+		mu.Unlock()
+		return []string{"proxy-chat"}, nil
+	}
+	tt = settingsOpenAt(a, tt, settings.SectionAI)
+	waitUntil(t, tt, a, updates, func() bool { return !a.prefs.llmModelsLoading && !a.prefs.llmWaiting })
+
+	a.selectLLM("custom")
+	refresh(tt, a)
+	if got := translator(t, a); got.BaseURL != "" || got.APIKey != "" || got.Model != "" || a.prefs.llmKey != "" {
+		t.Fatalf("自定义 kept the service before: %+v, field %q", got, a.prefs.llmKey)
+	}
+	tt.Type("id:settings-llm-key", "sk-proxy")
+	tt.Type("id:settings-llm-base", "https://proxy.example.com/v1")
+	if got := translator(t, a); got.BaseURL != "https://proxy.example.com/v1" || got.APIKey != "sk-proxy" || a.prefs.llmProvider != "custom" {
+		t.Fatalf("after the key and then the Base URL: %+v, provider %q", got, a.prefs.llmProvider)
+	}
+	waitUntil(t, tt, a, updates, func() bool { return a.prefs.llmModel == "proxy-chat" })
+	mu.Lock()
+	for _, c := range calls {
+		if c.key == "sk-proxy" && c.base != "https://proxy.example.com/v1" {
+			t.Errorf("the new key was sent to %q", c.base)
+		}
+	}
+	mu.Unlock()
+
+	tt.Clear("id:settings-llm-base")
+	tt.Type("id:settings-llm-base", "https://elsewhere.example.com/v1")
+	if got := translator(t, a); got.APIKey != "" || a.prefs.llmKey != "" {
+		t.Fatalf("the key the proxy took followed to another host: %q, field %q", got.APIKey, a.prefs.llmKey)
+	}
+}
+
+// TestSwitchingServicesKeepsEachOnesKeyAndModel checks that a service chosen again comes back with the key and model it was left with, also after Kando starts again, that each key only goes back to its own host, and that 自定义 takes back the last custom endpoint with its key.
+func TestSwitchingServicesKeepsEachOnesKeyAndModel(t *testing.T) {
+	llmEnv(t, "", "", "")
+	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}}
+	a := newApp(tools, func(func()) {})
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.syncLLM(tools)
+	set := func(key, model string) {
+		a.prefs.llmKey, a.prefs.llmModel = key, model
+		a.applyLLM()
+	}
+	want := func(step, base, key, model string) {
+		t.Helper()
+		if got := translator(t, a); got.BaseURL != base || got.APIKey != key || got.Model != model || a.prefs.llmKey != key || a.prefs.llmModel != model {
+			t.Fatalf("%s: translator %+v, fields key %q model %q, want base %q key %q model %q", step, got, a.prefs.llmKey, a.prefs.llmModel, base, key, model)
+		}
+	}
+
+	a.selectLLM("openai")
+	set("sk-openai", "gpt-4.1")
+	a.selectLLM("deepseek")
+	want("DeepSeek the first time", "https://api.deepseek.com/v1", "", "deepseek-chat")
+	set("sk-deepseek", "deepseek-reasoner")
+	a.selectLLM("openai")
+	want("back on OpenAI", "https://api.openai.com/v1", "sk-openai", "gpt-4.1")
+	a.selectLLM("custom")
+	want("自定义 the first time", "", "", "")
+	a.prefs.llmBase = "https://proxy.example.com/v1"
+	set("sk-proxy", "proxy-chat")
+	a.selectLLM("groq")
+	want("Groq the first time", "https://api.groq.com/openai/v1", "", "llama-3.3-70b-versatile")
+
+	next := newApp(media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}}, func(func()) {})
+	next.settingsPath = a.settingsPath
+	next.restoreLLM(loadSavedSettings(a.settingsPath))
+	a = next
+	want("after starting again", "https://api.groq.com/openai/v1", "", "llama-3.3-70b-versatile")
+	a.selectLLM("deepseek")
+	want("DeepSeek after starting again", "https://api.deepseek.com/v1", "sk-deepseek", "deepseek-reasoner")
+	a.selectLLM("custom")
+	want("自定义 after starting again", "https://proxy.example.com/v1", "sk-proxy", "proxy-chat")
+
+	// A remembered key whose endpoint is not the service's is not sent to the service.
+	a.prefs.llmServices["mistral"] = savedLLMService{BaseURL: "https://evil.example.com/v1", APIKey: "sk-elsewhere", Model: "m"}
+	a.selectLLM("mistral")
+	want("Mistral with another host's key", "https://api.mistral.ai/v1", "", "m")
+}
+
+// TestSavedLLMServicesAreCleaned checks that the services remembered in settings.json are trimmed, and that one of a preset Kando does not know, or without its endpoint, is dropped.
+func TestSavedLLMServicesAreCleaned(t *testing.T) {
+	s := savedLLM{LLMServices: map[string]savedLLMService{
+		"deepseek": {BaseURL: " https://api.deepseek.com/v1 ", Model: " deepseek-chat ", APIKey: " sk-ds "},
+		"gone":     {BaseURL: "https://gone.example.com/v1", APIKey: "sk-gone"},
+		"openai":   {APIKey: "sk-openai"},
+	}}
+	s.clean()
+	want := map[string]savedLLMService{"deepseek": {BaseURL: "https://api.deepseek.com/v1", Model: "deepseek-chat", APIKey: "sk-ds"}}
+	if !maps.Equal(s.LLMServices, want) {
+		t.Fatalf("cleaned to %#v", s.LLMServices)
+	}
+	empty := savedLLM{LLMServices: map[string]savedLLMService{"gone": {}}}
+	empty.clean()
+	if empty.LLMServices != nil {
+		t.Fatalf("cleaned to %#v, want none", empty.LLMServices)
 	}
 }
 
@@ -371,26 +484,31 @@ func TestEveryAPICLIThatFailsOtherwiseSaysWhat(t *testing.T) {
 	}
 }
 
-// TestSwitchingTheServiceChoosesItsModel checks that choosing another service does not keep the model of the one before, which the new service does not have: a service with a default model of its own gets it, one without gets none until its list is fetched, where a chat model is preferred to the first id listed.
+// TestSwitchingTheServiceChoosesItsModel checks that choosing another service does not keep the model of the one before, which the new service does not have: a service with a default model of its own gets it, every one in the cloud among them, and one on this computer gets none until its list is fetched, where a chat model is preferred to the first id listed and is tested at once.
 func TestSwitchingTheServiceChoosesItsModel(t *testing.T) {
 	tools := media.Tools{Translator: media.ChatTranslator{BaseURL: media.EveryAPIBaseURL, Model: media.EveryAPIModel}}
 	a, tt, updates := newTestApp(t, tools)
 	a.syncLLM(tools)
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	a.prefs.listModels = func(_ context.Context, tr media.ChatTranslator) ([]string, error) {
-		if tr.BaseURL == "https://api.groq.com/openai/v1" {
-			return []string{"distil-whisper-large-v3-en", "llama-3.3-70b-versatile", "whisper-large-v3"}, nil
+		if tr.BaseURL == "http://127.0.0.1:11434/v1" {
+			return []string{"all-minilm", "llama-guard3", "nomic-embed-text", "qwen3:8b"}, nil
 		}
 		return offlineModels(context.Background(), tr)
+	}
+	var pinged []string
+	a.prefs.pingLLM = func(_ context.Context, tr media.ChatTranslator) error {
+		pinged = append(pinged, tr.Model)
+		return nil
 	}
 
 	a.selectLLM("openai")
 	if got := translator(t, a); got.Model != "gpt-4.1-mini" || a.prefs.llmModel != "gpt-4.1-mini" {
 		t.Fatalf("OpenAI's model %q, field %q", got.Model, a.prefs.llmModel)
 	}
-	a.selectLLM("custom")
-	if got := translator(t, a); got.BaseURL != "https://api.openai.com/v1" || got.Model != "gpt-4.1-mini" {
-		t.Fatalf("choosing 自定义 on the same endpoint changed it: base %q model %q", got.BaseURL, got.Model)
+	a.selectLLM("groq")
+	if got := translator(t, a); got.Model != "llama-3.3-70b-versatile" {
+		t.Fatalf("Groq's model %q", got.Model)
 	}
 	a.selectLLM("everyapi")
 	if got := translator(t, a); got.Model != media.EveryAPIModel {
@@ -399,14 +517,41 @@ func TestSwitchingTheServiceChoosesItsModel(t *testing.T) {
 
 	tt = settingsOpenAt(a, tt, settings.SectionAI)
 	waitUntil(t, tt, a, updates, func() bool { return !a.prefs.llmModelsLoading && !a.prefs.llmWaiting })
-	a.selectLLM("groq")
-	if got := translator(t, a); got.Model == media.EveryAPIModel {
-		t.Fatalf("Groq kept EveryAPI's model %q", got.Model)
+	a.selectLLM("ollama")
+	if got := translator(t, a); got.Model != "" {
+		t.Fatalf("Ollama kept the model %q", got.Model)
 	}
 	refresh(tt, a)
-	waitUntil(t, tt, a, updates, func() bool { return a.prefs.llmModel != "" })
-	if got := translator(t, a); got.Model != "llama-3.3-70b-versatile" || loadSavedSettings(a.settingsPath).LLMModel != "llama-3.3-70b-versatile" {
-		t.Fatalf("Groq's model %q saved %q", got.Model, loadSavedSettings(a.settingsPath).LLMModel)
+	waitUntil(t, tt, a, updates, func() bool { return a.prefs.llmModel != "" && !a.prefs.testingLLM })
+	if got := translator(t, a); got.Model != "qwen3:8b" || loadSavedSettings(a.settingsPath).LLMModel != "qwen3:8b" {
+		t.Fatalf("Ollama's model %q saved %q", got.Model, loadSavedSettings(a.settingsPath).LLMModel)
+	}
+	if !slices.Equal(pinged, []string{"qwen3:8b"}) || !a.LLMConnected() {
+		t.Fatalf("tested %q, connected %v", pinged, a.LLMConnected())
+	}
+}
+
+// TestAServiceThatDropsItsDefaultModelGetsAnother checks that the model a service in the cloud fills in is replaced by a chat model it lists when it no longer lists that one, and that a model of the user's own is kept even then.
+func TestAServiceThatDropsItsDefaultModelGetsAnother(t *testing.T) {
+	llmEnv(t, "", "", "")
+	listed := []string{"meta-llama/llama-guard-4-12b", "playai-tts", "qwen/qwen3-32b"}
+	for _, tc := range []struct{ model, want string }{
+		{"llama-3.3-70b-versatile", "qwen/qwen3-32b"},
+		{"my-own-model", "my-own-model"},
+	} {
+		t.Run(tc.model, func(t *testing.T) {
+			tools := media.Tools{Translator: media.ChatTranslator{BaseURL: "https://api.groq.com/openai/v1", Model: tc.model, APIKey: "gsk-test"}}
+			a, tt, updates := newTestApp(t, tools)
+			a.syncLLM(tools)
+			a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+			a.prefs.listModels = func(context.Context, media.ChatTranslator) ([]string, error) { return listed, nil }
+			a.prefs.pingLLM = func(context.Context, media.ChatTranslator) error { return nil }
+			tt = settingsOpenAt(a, tt, settings.SectionAI)
+			waitUntil(t, tt, a, updates, func() bool { return a.prefs.llmModels != nil && !a.prefs.testingLLM })
+			if got := translator(t, a).Model; got != tc.want {
+				t.Fatalf("model %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

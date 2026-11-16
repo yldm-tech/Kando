@@ -32,9 +32,10 @@ func (p ai) Render(cx *core.Scope) core.Node {
 func aiService(cx *core.Scope, a App) core.Node {
 	// mark is the service's logo, built again only when the service changes.
 	provider := core.NewMemo(cx, live.Func(a, func() string { preset, _ := a.CurrentPreset(); return preset.ID }))
-	mark := core.Dynamic(func(*core.Scope) core.Node {
+	mark := core.Dynamic(func(cx *core.Scope) core.Node {
 		if logo := providerMark(provider.Get()); logo != nil {
-			return core.SVGView{SVG: logo, Style: core.Style{Width: core.Pt(16), Height: core.Pt(16), FlexShrink: 0}}
+			// A mono mark is drawn in currentColor, which is black where nothing above it sets a color, so the mark takes the text's; a color mark ignores it.
+			return core.SVGView{SVG: logo, TestID: "settings-llm-logo", Style: core.Style{Width: core.Pt(16), Height: core.Pt(16), FlexShrink: 0}, StyleFunc: ui.Colored(ui.ColorsOf(cx).Text)}
 		}
 		return core.Group(nil)
 	})

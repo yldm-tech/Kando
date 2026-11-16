@@ -12,10 +12,10 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// Service is a translation service the second step offers, as Settings › AI 服务 lists it: its id, its name as the drop-down shows it, whether the step asks for its API Key (Key), and whether it has a page where the key is made, which 获取 API Key opens (KeyPage).
+// Service is a translation service the second step offers, as Settings › AI 服务 lists it: its id, its name as the drop-down shows it, whether the step asks for its API Key (Key), whether it has a page where the key is made, which 获取 API Key opens (KeyPage), and whether it is set up in Settings › AI 服务 instead, as a custom endpoint, whose Base URL the step has no field for (InSettings).
 type Service struct {
-	ID, Name     string
-	Key, KeyPage bool
+	ID, Name                 string
+	Key, KeyPage, InSettings bool
 }
 
 // aiCard is the second step's card of the translation service, so the guide ends with translation working: the service, chosen in place, with which model translates or what it still needs; its API Key where it takes one, with 获取 API Key; and 测试连接 with its result. EveryAPI without a key signs in with the everyapi command-line program instead, so while that program is missing the card offers 获取 EveryAPI and 重新检测 in place of the test. 设置… opens Settings › AI 服务 for the rest, as another model or a custom endpoint.
@@ -93,7 +93,7 @@ func (c aiCard) Render(cx *core.Scope) core.Node {
 	return card(head, key, rule(), foot)
 }
 
-// serviceSelect is the drop-down of the services, as Settings › AI 服务 has it. ui.Select takes its name and options as it is built, so it is built again when the language shown changes the names, which happens while the settings, not this field, have the keyboard.
+// serviceSelect is the drop-down of the services, as Settings › AI 服务 has it; one set up there, as a custom endpoint, opens it. ui.Select takes its name and options as it is built, so it is built again when the language shown changes the names, which happens while the settings, not this field, have the keyboard.
 func serviceSelect(cx *core.Scope, a App) core.Node {
 	face := live.Memo(cx, a, func() selectFace {
 		var names []string
@@ -110,7 +110,14 @@ func serviceSelect(cx *core.Scope, a App) core.Node {
 			options = append(options, ui.Option[string]{Value: id, Label: name})
 		}
 		return ui.Select[string]{TestID: "onboarding-ai-service", Label: f.label, Options: options, Style: core.Style{Width: core.Pt(150), FlexShrink: 0, AlignSelf: core.AlignCenter},
-			Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, a.SelectLLM)}
+			Value: live.Func(a, a.LLMProvider), OnChange: live.On(a, func(id string) {
+				a.SelectLLM(id)
+				for _, s := range a.OnboardingServices(cx) {
+					if s.ID == id && s.InSettings {
+						a.OpenSettings(sectionid.AI)
+					}
+				}
+			})}
 	})
 }
 

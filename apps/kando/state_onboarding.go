@@ -304,6 +304,7 @@ func (a *app) onboardingModels(cx *ns.Scope) []onboarding.Model {
 		}
 		if a.onb.lastDownload == id && a.prefs.downloading == "" {
 			m.Err = settings.SpeechDownloadError(locales.For(cx), a.prefs.downloadErr)
+			_, m.Mirror = settings.MirrorHelps(a.prefs.downloadErr)
 		}
 		out = append(out, m)
 	}

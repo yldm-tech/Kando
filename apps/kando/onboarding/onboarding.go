@@ -41,8 +41,9 @@ type Model struct {
 	State ModelState
 	// Progress is how much of a download has arrived, from 0 to 1, or negative while its size is not known yet.
 	Progress float64
-	// Err is why the last download of this model failed.
-	Err string
+	// Err is why the last download of this model failed; Mirror is set when it failed where hf-mirror.com may get the model, as when Hugging Face could not be reached, so the row offers to download it from there.
+	Err    string
+	Mirror bool
 }
 
 // ToolState is where a program Kando runs is.
@@ -101,8 +102,9 @@ type App interface {
 	OnboardingDownloadTool(name string)
 	// OnboardingModels is the speech models the second step offers for the languages chosen.
 	OnboardingModels(cx *core.Scope) []Model
-	// OnboardingDownload starts downloading a model, OnboardingCancelDownload stops the download running, and OnboardingUseModel makes a downloaded model the one in use. OnboardingDownloading reports whether a download runs, as only one runs at a time.
+	// OnboardingDownload starts downloading a model, OnboardingDownloadFromMirror makes hf-mirror.com the download source and downloads it from there, OnboardingCancelDownload stops the download running, and OnboardingUseModel makes a downloaded model the one in use. OnboardingDownloading reports whether a download runs, as only one runs at a time.
 	OnboardingDownload(id string)
+	OnboardingDownloadFromMirror(id string)
 	OnboardingCancelDownload()
 	OnboardingUseModel(id string)
 	OnboardingDownloading() bool

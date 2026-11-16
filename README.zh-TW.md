@@ -277,7 +277,7 @@ PNG 檔要在 macOS 上以真實視窗執行同樣的測試來產生，存放在
 go tool nsgo test -target macos -run TestScreenshots -env KANDO_SCREENSHOTS=1 apps/kando
 ```
 
-設定 `KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja` 或 `ko`，以另一個 `-env` 傳入）會以對應的介面語言繪製，示範資料庫也會換成該語言讀者的內容；`-run TestScreenshotsReadme` 會繪製各語言 README 使用的四張圖，存放在 `docs/assets/<語言>/`。
+設定 `KANDO_SCREENSHOTS_LANG`（`en`、`zh-Hans`、`zh-Hant`、`ja` 或 `ko`，以另一個 `-env` 傳入）會以對應的介面語言繪製，示範資料庫也會換成該語言讀者的內容；`-run TestScreenshotsReadme` 會繪製各語言 README 使用的四張圖，存放在 `docs/assets/<語言>/`。設定 `KANDO_SCREENSHOTS_DARK=1` 會以深色外觀繪製，每張圖存為 `<場景>-dark.png`。
 
 存放庫結構：
 
