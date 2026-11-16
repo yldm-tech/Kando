@@ -3,6 +3,7 @@ package film
 import (
 	"fmt"
 	"image"
+	"net/url"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -1355,5 +1356,20 @@ func TestHeldLineCanBeSelected(t *testing.T) {
 	change(app, a, func() { a.play.playing, a.play.head = false, 3500*time.Millisecond })
 	if app.Exists(card) {
 		t.Fatal("a card shows between lines")
+	}
+}
+
+// TestPosterURL checks that the poster's file: URL leads back to its file when the folder yt-dlp named after the video's title holds a '#', a '%' or a '?', as YouTube titles often do, which an unescaped URL takes for a fragment, a broken escape or a query.
+func TestPosterURL(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "#live 100% [abc]?", "poster.jpg")
+	u, err := url.Parse(fileURL(path))
+	if err != nil {
+		t.Fatalf("url.Parse(%q): %v", fileURL(path), err)
+	}
+	if got, ok := core.FilePath(u); !ok || got != path {
+		t.Fatalf("FilePath(%q) = %q, %v, want %q", fileURL(path), got, ok, path)
+	}
+	if fileURL("") != "" {
+		t.Errorf("fileURL(\"\") = %q, want \"\"", fileURL(""))
 	}
 }

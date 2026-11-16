@@ -1,13 +1,13 @@
 package film
 
 import (
-	"path/filepath"
 	"time"
 
 	"kando/apps/kando/desktop"
 	"kando/apps/kando/live"
 	"kando/apps/kando/locales"
 	"kando/apps/kando/theme"
+	kcore "kando/packages/core"
 
 	"github.com/nsgo-dev/nsgo/core"
 	"github.com/nsgo-dev/nsgo/ui"
@@ -320,12 +320,13 @@ func (s *screen) video(cx *core.Scope, natural *core.Signal[core.Size]) core.Nod
 // fillStyle fills the parent, over what is in it.
 var fillStyle = core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0)}
 
-// fileURL is the file: URL of path, for an image's source.
+// fileURL is the file: URL of path, for an image's source, escaped (core.FileURL), as the folder yt-dlp names after a video's title may hold a '#' or a '%'.
 func fileURL(path string) string {
 	if path == "" {
 		return ""
 	}
-	return "file://" + filepath.ToSlash(path)
+	// TODO(nsgo#365): NSGo's image loader reads file:///C:/dir/poster.jpg as \C:\dir\poster.jpg on Windows, so the poster does not show there until it reads the drive back https://github.com/nsgo-dev/nsgo/issues/365
+	return kcore.FileURL(path)
 }
 
 // gradients darken the top and the bottom of the picture under the title bar and the transport, and fade with them.
