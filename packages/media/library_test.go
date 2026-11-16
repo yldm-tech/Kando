@@ -3,6 +3,7 @@ package media
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -305,8 +306,17 @@ func TestWatchLibraryFollowsARename(t *testing.T) {
 	})
 	time.Sleep(40 * time.Millisecond)
 	renamed := filepath.Join(parent, "missav.kando")
-	if err := os.Rename(dir, renamed); err != nil {
-		t.Fatal(err)
+	// On Windows a folder cannot be renamed while a handle to it is open, and the watch opens it every 20 ms to read it, so a rename that meets a read fails for that moment; it is tried again, as a file manager does.
+	deadline := time.Now().Add(time.Second)
+	for {
+		err := os.Rename(dir, renamed)
+		if err == nil {
+			break
+		}
+		if runtime.GOOS != "windows" || time.Now().After(deadline) {
+			t.Fatal(err)
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 	select {
 	case next := <-got:
