@@ -739,9 +739,19 @@ filmRemove:
 filmReprocess:
   message: "Process Entire Film Again"
   description: "Item of the player's ⋯ menu that processes a finished film again from the start."
+filmReprocessFailed:
+  message: "Couldn't process again. {reason}"
+  description: "Player title bar line when processing the open film again (Process Again) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key."
+  placeholders:
+    reason: { type: "String", example: "The AI service refused the API key." }
 filmRetry:
   message: "Retry"
   description: "Player title bar button: runs this failed film's job again."
+filmRetranslateFailed:
+  message: "Couldn't translate again. {reason}"
+  description: "Player title bar line when translating the open film again (Translate Again or Translate Missing Lines) failed: the film keeps the subtitles it had. reason is a full sentence saying why."
+  placeholders:
+    reason: { type: "String", example: "The AI service refused the API key." }
 filmReveal:
   message: "Show"
   description: "Button on a file of the Info tab that shows it in Finder."
@@ -1218,7 +1228,7 @@ filmsReprocessConfirm:
     name: { type: "String", example: "Learn Rust" }
 filmsReprocessConfirmMessage:
   message: "Its speech will be transcribed again and every line translated into {language}, which uses your AI service."
-  description: "Message of the dialog confirming Process Again: what it costs. language is the target language set now, which may differ from the one the film was translated into."
+  description: "Message of the dialog confirming Process Again: what it costs. language is the language the film was translated into, or the target language set now for a film that was not translated."
   placeholders:
     language: { type: "String", example: "Simplified Chinese" }
 filmsRetranslateConfirm:

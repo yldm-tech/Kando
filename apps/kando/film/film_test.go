@@ -113,6 +113,7 @@ func (f *fakeApp) TargetLanguage() string                      { return "简体�
 func (f *fakeApp) TranslateFilmMissing()                       { f.call("translate missing") }
 func (f *fakeApp) StageLabel(_ *ns.Scope, s core.Stage) string { return string(s) }
 func (f *fakeApp) JobStatus(*ns.Scope) string                  { return f.jobStatus }
+func (f *fakeApp) RedoFailure(*ns.Scope) (string, string)      { return "", "" }
 func (f *fakeApp) FillsWindow() bool                           { return f.fills }
 func (f *fakeApp) Play() Player {
 	if f.play == nil {

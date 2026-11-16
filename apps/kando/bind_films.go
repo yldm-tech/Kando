@@ -183,9 +183,9 @@ func (a *app) OpenAt(item films.Film, at time.Duration) {
 	a.Open(item)
 }
 
-// AskReprocess opens the confirmation of 重新处理 for item, as processing a film again transcribes it and pays for its translation again. With no target language set there is nothing to confirm: Reprocess says so at once. The confirmation holds the window's modal flag until it closes (CloseReprocess).
+// AskReprocess opens the confirmation of 重新处理 for item, as processing a film again transcribes it and pays for its translation again. With no language to translate it into there is nothing to confirm: Reprocess says so at once. The confirmation holds the window's modal flag until it closes (CloseReprocess).
 func (a *app) AskReprocess(item films.Film) {
-	if strings.TrimSpace(a.prefs.language) == "" {
+	if a.libraryReprocessLanguage(item) == "" {
 		a.Reprocess(item)
 		return
 	}
@@ -197,7 +197,15 @@ func (a *app) AskReprocess(item films.Film) {
 }
 
 func (a *app) Reprocessing() (*bool, films.Film, string) {
-	return &a.lib.reprocessOpen, a.lib.reprocessing, a.prefs.language
+	return &a.lib.reprocessOpen, a.lib.reprocessing, a.libraryReprocessLanguage(a.lib.reprocessing)
+}
+
+// libraryReprocessLanguage is the language 重新处理 translates item into: a job's film keeps its own (queueReprocessLanguage), and a video no job has processed takes the one the settings name.
+func (a *app) libraryReprocessLanguage(item films.Film) string {
+	if job, ok := a.library.Find(item.JobID); ok && item.JobID != "" {
+		return a.queueReprocessLanguage(job)
+	}
+	return strings.TrimSpace(a.prefs.language)
 }
 
 // CloseReprocess closes the confirmation of 重新处理 and gives back the window's modal flag it held, so the menu bar's commands run again at once.
@@ -219,7 +227,7 @@ func (a *app) ReprocessFilm() {
 // libraryReprocessOverlay is the confirmation of 重新处理 over the window (overlays), so the film page asks too.
 func (a *app) libraryReprocessOverlay(*ns.Scope) ns.Node { return films.ReprocessDialog{App: a} }
 
-// Reprocess runs a done film through the pipeline again, into the target language set now: a job again from its source, a video no job has processed from its file, which is also how 生成字幕 makes the subtitles of a video found in the folder without any (startFilm). Either stays the done film it was until the new subtitles are written (core.RedoAll, core.Job.FromFolder).
+// Reprocess runs a done film through the pipeline again, into the language it was translated into (queueReprocessLanguage): a job again from its source, a video no job has processed from its file, which is also how 生成字幕 makes the subtitles of a video found in the folder without any (startFilm). Either stays the done film it was until the new subtitles are written (core.RedoAll, core.Job.FromFolder).
 func (a *app) Reprocess(item films.Film) {
 	delete(a.lib.quotes, item.SubtitlePath)
 	if item.JobID != "" {
@@ -417,7 +425,7 @@ func (a *app) TrashFilm(item films.Film) {
 	}
 }
 
-// filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos or any folder too, or is the root itself, the video and its subtitles. A video outside the library has none.
+// filmFiles is what moving a film to the Trash moves: the folder of a film inside the library root, or, when that folder holds other videos or any folder too, or is the root itself, the video and its subtitles, Kando's transcript beside subtitles of the user's among them (media.TranscriptOf). A video outside the library has none.
 func filmFiles(root string, item films.Film) []string {
 	video := item.VideoPath
 	if video == "" || !films.InDir(root, video) {
@@ -429,7 +437,7 @@ func filmFiles(root string, item films.Film) []string {
 	}
 	files := []string{video}
 	base := strings.TrimSuffix(video, filepath.Ext(video))
-	for _, sub := range []string{item.SubtitlePath, base + ".srt", base + ".bilingual.srt"} {
+	for _, sub := range []string{item.SubtitlePath, base + ".srt", media.TranscriptOf(video), base + ".bilingual.srt"} {
 		if sub != "" && fileExists(sub) && !slices.Contains(files, sub) {
 			files = append(files, sub)
 		}

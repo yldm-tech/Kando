@@ -96,9 +96,10 @@ func TestGatherVideosMovesLooseFilesIntoAFolder(t *testing.T) {
 	dir := t.TempDir()
 	video := filepath.Join(dir, "talk.mp4")
 	srt := filepath.Join(dir, "talk.srt")
+	aside := filepath.Join(dir, "talk.kando.srt")
 	bilingual := filepath.Join(dir, "talk.bilingual.srt")
 	note := filepath.Join(dir, "notes.txt")
-	for _, path := range []string{video, srt, bilingual, note} {
+	for _, path := range []string{video, srt, aside, bilingual, note} {
 		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -107,7 +108,7 @@ func TestGatherVideosMovesLooseFilesIntoAFolder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if moved[video] != filepath.Join(dir, "talk", "video.mp4") || moved[bilingual] != filepath.Join(dir, "talk", "video.bilingual.srt") {
+	if moved[video] != filepath.Join(dir, "talk", "video.mp4") || moved[bilingual] != filepath.Join(dir, "talk", "video.bilingual.srt") || moved[aside] != filepath.Join(dir, "talk", "video.kando.srt") {
 		t.Fatalf("moved = %#v", moved)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "talk", "video.srt")); err != nil {

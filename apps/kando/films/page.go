@@ -60,9 +60,9 @@ type App interface {
 	// OpenAt opens a film and starts its picture at at.
 	OpenAt(item Film, at time.Duration)
 	Reveal(path string)
-	// Reprocess makes the subtitles of a done film again, from its download, in the target language set now, or those of a video found in the folder that has none (生成字幕). Either keeps the film as it was if its job fails or is stopped.
+	// Reprocess makes the subtitles of a done film again, from its download, in the language it was translated into (the target language set now for one that was not translated), or those of a video found in the folder that has none (生成字幕). Either keeps the film as it was if its job fails or is stopped.
 	Reprocess(item Film)
-	// AskReprocess asks to confirm Reprocess, which transcribes the film and pays for its translation again. Reprocessing is whether its confirmation is open, the film it asked about and the target language set now, which the film would be translated into; CloseReprocess closes it without processing anything. The confirmation is drawn over the window (ReprocessDialog), as the film page asks too.
+	// AskReprocess asks to confirm Reprocess, which transcribes the film and pays for its translation again. Reprocessing is whether its confirmation is open, the film it asked about and the language it would be translated into; CloseReprocess closes it without processing anything. The confirmation is drawn over the window (ReprocessDialog), as the film page asks too.
 	AskReprocess(item Film)
 	Reprocessing() (open *bool, item Film, language string)
 	CloseReprocess()
@@ -149,7 +149,7 @@ type Notice struct {
 	Text string
 	// Section is the settings section 打开设置 opens; empty shows no button.
 	Section string
-	// Film is the job ID of the film the bar's 打开 opens, such as the film a link just added is already in the library as; empty shows no button.
+	// Film is the key of the film the bar's 打开 opens, its job's ID or the path of a video of the library's folder no job holds, such as the film a link or a video just added is already in the library as; empty shows no button.
 	Film string
 	// List is the whole playlist the bar's Add Whole Playlist adds (App.AddList), as after one of its videos was added; empty shows no button.
 	List string

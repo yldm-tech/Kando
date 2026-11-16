@@ -96,7 +96,7 @@ type Job struct {
 	Redo Redo
 	// RedoLanguage is the language a RedoAll or RedoTranslation job translates into; it becomes Language once the job completes. Empty for any other job.
 	RedoLanguage string
-	// SpokenLanguage is the language the speech recognition heard in the video, as its code (ja, en, zh), once the job transcribed it; empty before then and for a job whose transcript was read back from a run that did not keep it. A job that transcribes the video again hears it anew.
+	// SpokenLanguage is the language the speech recognition heard in the video, as its code (ja, en, zh), once the job transcribed it; empty before then and for a job whose transcript was read back from a run that did not keep it. A job that transcribes the video again hears it anew; one processing a done film again entirely (RedoAll) keeps the film's until it completes, so one that fails or is stopped leaves the film heard as it was.
 	SpokenLanguage string
 	// SpeechLanguage is the language the user said is spoken in this job's video, as whisper's code (ja, en), which the speech recognition is told to hear each time the job transcribes it, in place of the one the settings name for every video; empty hears the settings' language. Unlike SpokenLanguage it is the user's choice, so it stays when a run fails or the film is processed again.
 	SpeechLanguage string

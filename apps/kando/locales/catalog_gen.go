@@ -456,6 +456,8 @@ var Parameters = map[string][]string{
 	"FilmLineOf":                         {"line", "total"},
 	"FilmLoopLines":                      {"from", "to"},
 	"FilmMatchOf":                        {"number", "total"},
+	"FilmReprocessFailed":                {"reason"},
+	"FilmRetranslateFailed":              {"reason"},
 	"FilmRevealFile":                     {"file"},
 	"FilmSeconds":                        {"seconds"},
 	"FilmShowInFinder":                   {"platform"},
@@ -709,6 +711,8 @@ type Translation struct {
 	FilmLineOf                         func(line int, total int) string
 	FilmLoopLines                      func(from int, to int) string
 	FilmMatchOf                        func(number int, total int) string
+	FilmReprocessFailed                func(reason string) string
+	FilmRetranslateFailed              func(reason string) string
 	FilmRevealFile                     func(file string) string
 	FilmSeconds                        func(seconds string) string
 	FilmShowInFinder                   func(platform string) string
@@ -11471,6 +11475,12 @@ func Supply(lang string, t Translation) {
 	if t.FilmMatchOf != nil {
 		s.FilmMatchOf = t.FilmMatchOf
 	}
+	if t.FilmReprocessFailed != nil {
+		s.FilmReprocessFailed = t.FilmReprocessFailed
+	}
+	if t.FilmRetranslateFailed != nil {
+		s.FilmRetranslateFailed = t.FilmRetranslateFailed
+	}
 	if t.FilmRevealFile != nil {
 		s.FilmRevealFile = t.FilmRevealFile
 	}
@@ -14857,6 +14867,38 @@ func FilmReprocess(cx *core.Scope) string { return For(cx).FilmReprocess() }
 // FilmReprocess is the package's FilmReprocess in the language of msgs.
 func (msgs Messages) FilmReprocess() string { return msgs.text(textFilmReprocess) }
 
+// FilmReprocessFailed says "Couldn't process again. {reason}"
+// in the language the app shows under cx.
+//
+// Player title bar line when processing the open film again (Process Again) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key.
+func FilmReprocessFailed(cx *core.Scope, reason string) string {
+	return For(cx).FilmReprocessFailed(reason)
+}
+
+// FilmReprocessFailed is the package's FilmReprocessFailed in the language of msgs.
+func (msgs Messages) FilmReprocessFailed(reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmReprocessFailed(reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmReprocessFailed; f != nil {
+			return f(reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't process again. " + msgs.arg(reason)
+		case "ja":
+			return "再処理できませんでした。" + reason
+		case "ko":
+			return "다시 처리하지 못했습니다. " + reason
+		case "zh-Hans":
+			return "没能重新处理。" + reason
+		case "zh-Hant":
+			return "沒能重新處理。" + reason
+		}
+	}
+}
+
 // FilmRetry says "Retry"
 // in the language the app shows under cx.
 //
@@ -14865,6 +14907,38 @@ func FilmRetry(cx *core.Scope) string { return For(cx).FilmRetry() }
 
 // FilmRetry is the package's FilmRetry in the language of msgs.
 func (msgs Messages) FilmRetry() string { return msgs.text(textFilmRetry) }
+
+// FilmRetranslateFailed says "Couldn't translate again. {reason}"
+// in the language the app shows under cx.
+//
+// Player title bar line when translating the open film again (Translate Again or Translate Missing Lines) failed: the film keeps the subtitles it had. reason is a full sentence saying why.
+func FilmRetranslateFailed(cx *core.Scope, reason string) string {
+	return For(cx).FilmRetranslateFailed(reason)
+}
+
+// FilmRetranslateFailed is the package's FilmRetranslateFailed in the language of msgs.
+func (msgs Messages) FilmRetranslateFailed(reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.FilmRetranslateFailed(reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].FilmRetranslateFailed; f != nil {
+			return f(reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't translate again. " + msgs.arg(reason)
+		case "ja":
+			return "再翻訳できませんでした。" + reason
+		case "ko":
+			return "다시 번역하지 못했습니다. " + reason
+		case "zh-Hans":
+			return "没能重新翻译。" + reason
+		case "zh-Hant":
+			return "沒能重新翻譯。" + reason
+		}
+	}
+}
 
 // FilmReveal says "Show"
 // in the language the app shows under cx.
@@ -17166,7 +17240,7 @@ func (msgs Messages) FilmsReprocessConfirm(name string) string {
 // FilmsReprocessConfirmMessage says "Its speech will be transcribed again and every line translated into {language}, which uses your AI service."
 // in the language the app shows under cx.
 //
-// Message of the dialog confirming Process Again: what it costs. language is the target language set now, which may differ from the one the film was translated into.
+// Message of the dialog confirming Process Again: what it costs. language is the language the film was translated into, or the target language set now for a film that was not translated.
 func FilmsReprocessConfirmMessage(cx *core.Scope, language string) string {
 	return For(cx).FilmsReprocessConfirmMessage(language)
 }

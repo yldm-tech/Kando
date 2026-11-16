@@ -40,6 +40,8 @@ type App interface {
 	StageLabel(cx *ns.Scope, stage core.Stage) string
 	// JobStatus is what the open film's job is doing and how far it has gone, as its card in the library says, in the language the interface shows under cx; "" while no job of it waits or runs.
 	JobStatus(cx *ns.Scope) string
+	// RedoFailure is why processing or translating the open film, a done one, again failed, in the language the interface shows under cx, and the settings section that fixes it, "" for none; "" unless its last redo failed. The film keeps the subtitles it had.
+	RedoFailure(cx *ns.Scope) (text, section string)
 	// FillsWindow reports whether the film takes the whole window, its title bar lying under the window's traffic lights, rather than the content column beside the sidebar.
 	FillsWindow() bool
 	// Play is the picture open now, nil until the system's player has loaded it and while there is none. PlayPath is the video opening or open, "" without one; PlayErr is why it would not play, an error ID ErrText names, or "".

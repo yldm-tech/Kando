@@ -950,3 +950,20 @@ func TestRemoteCuesKeepTheTranslationsOfLinesShownAtTheSameTime(t *testing.T) {
 		t.Fatalf("files of different lengths: cues %+v", got)
 	}
 }
+
+// kando add of a video of the library's folder that no job holds and that has subtitles beside it skips it as the film it is, naming that film, so nothing writes its subtitles again.
+func TestRemoteAddSkipsAFolderFilm(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, _, updates, item := folderLibrary(t, p, true)
+	remoteServe(t, a)
+	added, err := remoteCall[remote.AddResult](t, updates, remote.MethodAdd, remote.AddParams{Sources: []string{core.FileURL(item.VideoPath)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(added.Jobs) != 0 || len(added.Skipped) != 1 || len(a.library.Jobs) != 0 {
+		t.Fatalf("added %+v, jobs %+v", added, a.library.Jobs)
+	}
+	if s := added.Skipped[0]; s.Reason != remoteMessages().QueueAlreadyInLibrary() || s.JobID != "" || s.FilmID != item.Key || s.Stage != "complete" {
+		t.Fatalf("skipped as %+v", s)
+	}
+}
