@@ -374,7 +374,6 @@ export function Player() {
               </div>
             </div>
             <div className="kp-pane" {...tabs.panel(1)}>
-              <p className="kp-note">{app("filmClipsNote")}</p>
               {content.clipSpans.map((span, k) => (
                 <button
                   key={k}

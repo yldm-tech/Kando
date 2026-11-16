@@ -95,7 +95,6 @@ export const appKeys = [
   "filmSearchLines",
   "filmClickToJump",
   "filmNoMatch",
-  "filmClipsNote",
   "filmClipSpan",
   "filmSource",
   "filmLineOriginal",
