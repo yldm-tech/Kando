@@ -297,6 +297,8 @@ type storedJob struct {
 	SpokenLanguage string `json:"spokenLanguage,omitempty"`
 	// SpeechLanguage is the language the user said the job's video is spoken in (core.Job.SpeechLanguage).
 	SpeechLanguage string `json:"speechLanguage,omitempty"`
+	// FromFolder is whether the job processes a video found in the library's folder that no job held (core.Job.FromFolder).
+	FromFolder bool `json:"fromFolder,omitempty"`
 }
 
 func storeJob(job core.Job) storedJob {
@@ -305,7 +307,7 @@ func storeJob(job core.Job) storedJob {
 		Title: job.Title, Thumbnail: job.Thumbnail,
 		VideoPath: job.VideoPath, SubtitlePath: job.SubtitlePath, LibraryDir: job.LibraryDir,
 		CompletedAt: job.CompletedAt, FailKind: job.FailKind, Cookies: job.Cookies, Untranslated: job.Untranslated, TranslationError: job.TranslationErr,
-		Transcribed: job.Transcribed, Redo: job.Redo, RedoLanguage: job.RedoLanguage, SpokenLanguage: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage,
+		Transcribed: job.Transcribed, Redo: job.Redo, RedoLanguage: job.RedoLanguage, SpokenLanguage: job.SpokenLanguage, SpeechLanguage: job.SpeechLanguage, FromFolder: job.FromFolder,
 	}
 	switch {
 	case errors.Is(job.Err, context.Canceled):
@@ -324,7 +326,7 @@ func (s storedJob) job() core.Job {
 		Title: s.Title, Thumbnail: s.Thumbnail,
 		VideoPath: s.VideoPath, SubtitlePath: s.SubtitlePath, LibraryDir: s.LibraryDir,
 		CompletedAt: s.CompletedAt, FailKind: s.FailKind, Cookies: s.Cookies, Untranslated: s.Untranslated, TranslationErr: s.TranslationError,
-		Transcribed: s.Transcribed, Redo: s.Redo, RedoLanguage: s.RedoLanguage, SpokenLanguage: s.SpokenLanguage, SpeechLanguage: s.SpeechLanguage,
+		Transcribed: s.Transcribed, Redo: s.Redo, RedoLanguage: s.RedoLanguage, SpokenLanguage: s.SpokenLanguage, SpeechLanguage: s.SpeechLanguage, FromFolder: s.FromFolder,
 	}
 	switch s.Error {
 	case "":

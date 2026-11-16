@@ -24,7 +24,7 @@ type App interface {
 	Cancel(id string)
 	// RunningJob is the ID of the job being processed now, or "", as films.App.RunningJob.
 	RunningJob() string
-	// ProcessFilm runs the open film, a video no job has processed, through the pipeline, keeping its picture.
+	// ProcessFilm runs the open film, a video found in the library's folder that no job has processed, through the pipeline, keeping its picture: at once for one without subtitles, once confirmed for one whose subtitles found beside it it would replace.
 	ProcessFilm()
 	Remove(id string)
 	RetryOpen(id string)

@@ -66,7 +66,7 @@ var (
 	posterLifted = []core.BoxShadow{{Offset: core.Point{Y: 14}, Blur: 30, Color: core.RGBA(0x000000, 0.22)}}
 )
 
-// doneCard is a film in the grid: the poster opens it where it stopped last time, and ⋯ and a right click offer 播放, 从头播放 for a film stopped partway, 在访达中显示, 重命名…, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line.
+// doneCard is a film in the grid: the poster opens it where it stopped last time, and ⋯ and a right click offer 播放, 从头播放 for a film stopped partway, 在访达中显示, 重命名…, 重新处理, 重新翻译 and 从资料库移除, and 补译未译的句子 for a film whose translation left lines untranslated, which also has that button under its line. A video found in the folder without subtitles has 生成字幕 under its line and in place of 重新处理 (needsSubtitles).
 type doneCard struct {
 	a    App
 	item func() Film
@@ -113,11 +113,17 @@ func (d doneCard) Render(cx *core.Scope) core.Node {
 	missing := core.Show{When: func() bool { return item().JobID != "" && item().Untranslated > 0 }, Then: func(*core.Scope) core.Node {
 		return untranslatedActions{a: a, item: item}
 	}}
+	makeSubs := core.Show{When: func() bool { return needsSubtitles(item()) }, Then: func(*core.Scope) core.Node {
+		return core.View{Style: core.Style{Margin: core.Edges{Top: 3}, AlignSelf: core.AlignStart}, Children: []core.Node{
+			textButton(locales.FilmsMakeSubtitles, ui.Button{Size: ui.SizeSmall, TestID: "film-make-subtitles", OnPress: live.Do(a, func() { a.Reprocess(item()) })}),
+		}}
+	}}
 	caption := core.View{Style: core.Style{Direction: core.Row, Gap: 6, AlignItems: core.AlignStart}, Children: []core.Node{
 		core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0), Gap: 2}, Children: []core.Node{
 			core.Text{ContentFunc: name, MaxLines: 2, EllipsizeMode: core.EllipsizeTail, Style: core.Style{FontSize: 13, FontWeight: ui.Semibold, LineHeight: 17}, StyleFunc: ui.Colored(colors.Text)},
 			meta,
 			missing,
+			makeSubs,
 		}},
 		moreButton{a: a, item: item, testID: "film-more"},
 	}}
@@ -199,6 +205,11 @@ func (u untranslatedActions) Render(cx *core.Scope) core.Node {
 	}}
 }
 
+// needsSubtitles reports whether item is a video found in the library's folder that no job has processed and that has no subtitles beside it, whose card offers 生成字幕: nothing is replaced, so it starts without asking, as adding a video does.
+func needsSubtitles(item Film) bool {
+	return item.JobID == "" && item.SubtitlePath == ""
+}
+
 // filmMenu is what can be done with a done film, from ⋯ or a right click on its poster or the hero, in the system's menu. Its reveal item names the file manager of the system the app runs on, as the buttons beside it do. It is built as the menu opens, so it says what is true then.
 func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 	do := func(fn func(Film)) func() { return live.Do(a, func() { fn(item) }) }
@@ -213,7 +224,11 @@ func filmMenu(cx *core.Scope, a App, item Film) []nsdesktop.MenuItem {
 	if item.VideoPath != "" {
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsRename(cx), OnSelect: do(a.AskRename)})
 	}
-	items = append(items, nsdesktop.MenuItem{Label: locales.FilmsReprocess(cx), OnSelect: do(a.AskReprocess)})
+	if needsSubtitles(item) {
+		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsMakeSubtitles(cx), OnSelect: do(a.Reprocess)})
+	} else {
+		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsReprocess(cx), OnSelect: do(a.AskReprocess)})
+	}
 	if item.JobID != "" {
 		into := subtitle.TranslateIntoMenu(cx, a.TargetLanguage(), item.Language, func(language string) { live.Do(a, func() { a.TranslateAgain(item, language) })() })
 		items = append(items, nsdesktop.MenuItem{Label: locales.FilmsTranslateAgain(cx), Items: into})

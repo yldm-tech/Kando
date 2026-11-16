@@ -384,19 +384,41 @@ func (a *app) chooseLocal(path string) bool {
 	return true
 }
 
-// startFilm processes a video that is already in the library and stays on it, with its picture still playing. A job that cannot be added closes the film.
+// startFilm processes item, a video found in the library's folder that no job holds, on a card of its own that leaves the film as it was if the job fails or is stopped (queueFromFolder), as 生成字幕 and 重新处理 do from the library and the player. An open film stays open on the job, its picture still playing. When the job cannot be queued the message bar says why; the film page, which draws no message bar, opens the settings that fix it, as Retry does, or else closes the film so the library shows why. A film without subtitles that will have no translator says so too, as adding a video does (untranslatable): its subtitles will be the original lines.
 func (a *app) startFilm(item films.Film) {
-	if !a.chooseLocal(item.VideoPath) {
+	m := a.messages()
+	msg, section := a.precheck([]string{core.FileURL(item.VideoPath)})
+	id := ""
+	if msg == "" {
+		var err error
+		id, err = a.queueFromFolder(item)
+		var dup *queueDuplicate
+		switch {
+		case errors.As(err, &dup):
+			msg = sourceError(m, err)
+		case err != nil:
+			msg, section = err.Error(), settings.SectionTranslate
+		}
+	}
+	if msg != "" {
+		a.warn(msg, section)
+		if a.openKey != "" && a.openKey == item.Key {
+			if section != "" {
+				a.OpenSettings(section)
+			} else {
+				a.closeFilm()
+			}
+		}
 		return
 	}
-	a.page = pageFilms
-	a.start()
-	if a.queue.job == nil {
-		a.closeFilm()
-		return
+	if item.SubtitlePath == "" && a.untranslatable() {
+		a.warn(m.LibraryAddedUntranslated(), settings.SectionAI)
 	}
-	a.openKey = a.queue.job.ID
-	a.loadSubtitles(a.queue.job.ID, a.queue.job.SubtitlePath)
+	if a.openKey != "" && (a.openKey == item.Key || a.openKey == id) {
+		a.openKey = id
+		job, _ := a.library.Find(id)
+		a.loadSubtitles(id, job.SubtitlePath)
+	}
 }
 
 // savePositions writes the player's resume positions, when each video last played and its subtitle delays into library.json with the jobs.
@@ -482,6 +504,58 @@ func (a *app) queueRedoEnded(job core.Job) core.Job {
 	job.Err, job.FailKind, job.Progress = nil, "", core.Progress{}
 	job.Redo, job.RedoLanguage = "", ""
 	return job
+}
+
+// queueFromFolder queues a job for item, a video found in the library's folder that no job holds (films.List), on a card of its own in the open library, and returns its ID. Like a job's 重新处理, it leaves the film as it was until the new subtitles are written (core.Job.FromFolder): the job starts from the video where it is, and a film with subtitles found beside it keeps them until then and is translated again into the language the settings name now (core.RedoAll), while one without any is made as a video added now is. A video the open library has a job for already, as one whose job failed before it found the video, is queued as Enqueue queues it (queueTake). It returns why it could not queue the job, which is when no target language is set or that job is waiting, running or done.
+func (a *app) queueFromFolder(item films.Film) (string, error) {
+	source := core.FileURL(item.VideoPath)
+	job, err := a.newJob(source)
+	var dup *queueDuplicate
+	if errors.As(err, &dup) {
+		return a.queueTake(source)
+	}
+	if err != nil {
+		return "", err
+	}
+	job.FromFolder, job.VideoPath = true, item.VideoPath
+	if item.SubtitlePath != "" {
+		job.SubtitlePath = item.SubtitlePath
+		job.Redo, job.RedoLanguage = core.RedoAll, job.Language
+	}
+	// The job holds the video from now on, so the folder's film leaves the shelf as it is queued: a film open on it moves to the job first, or it would be closed as one that left (closeFilmThatLeft).
+	if a.openKey != "" && a.openKey == item.Key {
+		a.openKey = job.ID
+	}
+	a.queueAgain(job, nil)
+	return job.ID, nil
+}
+
+// queueFolderEnded takes job, which was processing a video found in the library's folder (core.Job.FromFolder) and has failed or been stopped, off the shelf, so the folder's film is back as it was, with the subtitles found beside it, and an open film stays open on it. The message bar says why the job failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
+func (a *app) queueFolderEnded(job core.Job) {
+	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
+		m := a.messages()
+		reason, section := failureHint(m, films.Film{Detail: statusText(m, job)})
+		if job.Redo == core.RedoAll {
+			a.warn(m.QueueReprocessFailed(a.libraryJobName(job), reason), section)
+		} else {
+			a.warn(m.QueueMakeSubtitlesFailed(a.libraryJobName(job), reason), section)
+		}
+	}
+	// The film open on the job goes back to the folder's video before the job leaves, as remove closes a film open on a job it removes.
+	following := a.openKey == job.ID && job.VideoPath != ""
+	if following {
+		a.openKey = job.VideoPath
+	}
+	a.remove(job.ID)
+	if following {
+		if item, ok := films.Find(a.films(), job.VideoPath); ok {
+			a.loadSubtitles(item.Key, item.SubtitlePath)
+		} else {
+			a.closeFilm()
+		}
+	}
+	// The areas hear of the shelf as show tells them of a job it keeps.
+	a.areasShelfChanged()
 }
 
 // queueAgain queues job, made ready by queueRetryable or queueRetranslate, again under the same ID and goes to the library, where the card already on screen follows it. err is why the job cannot be queued: errInQueue leaves everything as it is, and any other is said on the line under the link field.
@@ -775,8 +849,17 @@ func (a *app) show(job core.Job) {
 	rewritten := job.Stage == core.StageComplete && was.Stage != "" && was.Stage != core.StageComplete
 	// A redo that failed is notified as the failure it was, though the film goes back to the done grid.
 	ended := job
+	if job.Stage == core.StageFailed && job.FromFolder {
+		a.queueFolderEnded(job)
+		a.queueNotifyEnded(was.Stage, ended)
+		return
+	}
 	if job.Stage == core.StageFailed && job.Redo != "" {
 		job = a.queueRedoEnded(job)
+	}
+	// A job that has completed is a film of its own, no longer a video of the folder's to put back.
+	if job.Stage == core.StageComplete {
+		job.FromFolder = false
 	}
 	a.library.Upsert(job)
 	if err := a.library.Save(); err != nil {

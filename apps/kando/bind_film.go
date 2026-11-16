@@ -38,10 +38,15 @@ func (a *app) openFilm() (films.Film, bool) {
 	return a.JobFilm(a.openKey)
 }
 
-// ProcessFilm is the player's 开始处理: the open film, a video no job has processed, goes into the queue, its picture playing on.
+// ProcessFilm is the player's button for the open film, a video found in the folder that no job has processed: 生成字幕 makes the subtitles of one without any at once, and 重新处理整部影片 asks first for one with subtitles found beside it, which it would replace (AskReprocess). Either goes into the queue, its picture playing on (startFilm).
 func (a *app) ProcessFilm() {
-	if item, ok := a.openFilm(); ok {
-		a.startFilm(item)
+	item, ok := a.openFilm()
+	switch {
+	case !ok:
+	case item.SubtitlePath == "":
+		a.Reprocess(item)
+	default:
+		a.AskReprocess(item)
 	}
 }
 

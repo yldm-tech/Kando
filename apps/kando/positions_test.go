@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"kando/apps/kando/films"
 	"kando/packages/core"
 )
 
@@ -136,7 +135,7 @@ func TestResumePositionFollowsARenamedLibrary(t *testing.T) {
 	}
 }
 
-// TestStartFilmKeepsThePicture checks that 开始处理 on an open library video keeps its picture playing while the page moves to the video's new job.
+// TestStartFilmKeepsThePicture checks that 生成字幕 on an open library video keeps its picture playing while the page moves to the video's new job.
 func TestStartFilmKeepsThePicture(t *testing.T) {
 	dir := t.TempDir()
 	video := filepath.Join(dir, "talk.mp4")
@@ -148,8 +147,14 @@ func TestStartFilmKeepsThePicture(t *testing.T) {
 	// The video is on the shelf, as a library video is, so the player keeps its film open while the shelf changes.
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.refreshLibrary()
+	// The refresh gathered the video into a folder of its own; the player is open on the film the library shows for it.
+	if len(a.films()) != 1 {
+		t.Fatalf("films %+v", a.films())
+	}
+	item := a.films()[0]
+	a.openKey = item.Key
 	play := a.player.play
-	a.startFilm(films.Film{Key: video, VideoPath: video})
+	a.startFilm(item)
 	if a.queue.job == nil || a.openKey != a.queue.job.ID || a.player.play != play {
 		t.Fatalf("job %+v open %q picture kept %v", a.queue.job, a.openKey, a.player.play == play)
 	}

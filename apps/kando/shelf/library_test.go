@@ -434,6 +434,24 @@ func TestLibraryKeepsTheSpokenLanguage(t *testing.T) {
 	}
 }
 
+// A job processing a video found in the library's folder stays one across a restart, so if the job read back as queued then fails, the video is still put back as the film it was rather than left as a failed card.
+func TestLibraryKeepsAJobFromTheFolder(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, _ := Load(path)
+	lib.Upsert(core.Job{ID: "a", Source: "file:///films/talk.mp4", VideoPath: "/films/talk.mp4", Stage: core.StageTranscribing, FromFolder: true})
+	lib.Upsert(core.Job{ID: "b", Source: "file:///films/other.mp4", Stage: core.StageQueued})
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, _ := Load(path)
+	if a, _ := loaded.Find("a"); !a.FromFolder || a.Stage != core.StageQueued {
+		t.Fatalf("job from the folder %+v", a)
+	}
+	if b, _ := loaded.Find("b"); b.FromFolder {
+		t.Fatalf("job added %+v", b)
+	}
+}
+
 // TestRenameKeepsTheTitleGivenInKando checks that a title the user gives a video is kept trimmed, read back from library.json, dropped by an empty one, and that Rename says whether anything changed.
 func TestRenameKeepsTheTitleGivenInKando(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "library.json")

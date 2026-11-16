@@ -60,7 +60,7 @@ type App interface {
 	// OpenAt opens a film and starts its picture at at.
 	OpenAt(item Film, at time.Duration)
 	Reveal(path string)
-	// Reprocess makes the subtitles of a done film again, from its download, in the target language set now.
+	// Reprocess makes the subtitles of a done film again, from its download, in the target language set now, or those of a video found in the folder that has none (生成字幕). Either keeps the film as it was if its job fails or is stopped.
 	Reprocess(item Film)
 	// AskReprocess asks to confirm Reprocess, which transcribes the film and pays for its translation again. Reprocessing is whether its confirmation is open, the film it asked about and the target language set now, which the film would be translated into; CloseReprocess closes it without processing anything. The confirmation is drawn over the window (ReprocessDialog), as the film page asks too.
 	AskReprocess(item Film)

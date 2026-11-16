@@ -380,7 +380,7 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 	}
 }
 
-// TestOpenFilmStartsLocalVideo opens a video no job has processed: it shows 还没有字幕 and 开始处理, which makes its subtitles, the film staying open on its job.
+// TestOpenFilmStartsLocalVideo opens a video no job has processed: it shows 还没有字幕 and 生成字幕, which makes its subtitles, the film staying open on its job.
 func TestOpenFilmStartsLocalVideo(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "interview.mp4"), []byte("v"), 0o644); err != nil {
@@ -398,6 +398,7 @@ func TestOpenFilmStartsLocalVideo(t *testing.T) {
 	item := a.films()[at]
 	playerOpenFilm(t, a, tt, updates, item)
 	wantText(t, tt, testlocale.Messages().FilmNoSubtitlesYet())
+	wantText(t, tt, testlocale.Messages().FilmMakeSubtitles())
 	tt.Press("id:film-start")
 	settle(t, a, tt, updates)
 	if a.queue.job == nil || a.queue.job.Stage != core.StageComplete || a.openKey != a.queue.job.ID {

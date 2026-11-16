@@ -87,7 +87,7 @@ func translatedPercent(cues []core.Segment) int {
 
 // filmActions is which of the film's buttons the title bar shows, which change only as its job moves on or its files come.
 type filmActions struct {
-	// job is "cancel", "start", "failed" or "" for the job's own buttons.
+	// job is "cancel", "make", "reprocess", "failed" or "" for the job's own buttons: "make" and "reprocess" start a video found in the library's folder that no job holds, one without subtitles or one with subtitles found beside it.
 	job string
 	// reveal is the path 在访达中显示 shows, "" for none.
 	reveal string
@@ -95,7 +95,7 @@ type filmActions struct {
 	more   bool
 }
 
-// actions are the film's buttons at the end of the title bar: the job's own (start, cancel, retry), then 在访达中显示, the upload and the ⋯ menu. The job buttons act on this film's job only and do not wait for whatever else runs: a job started or retried while another runs waits in the queue behind it.
+// actions are the film's buttons at the end of the title bar: the job's own (生成字幕 or 重新处理整部影片, cancel, retry), then 在访达中显示, the upload and the ⋯ menu. The job buttons act on this film's job only and do not wait for whatever else runs: a job started or retried while another runs waits in the queue behind it.
 func (s *screen) actions() ns.Node {
 	a, cx := s.a, s.cx
 	which := live.Memo(cx, a, func() filmActions {
@@ -104,8 +104,10 @@ func (s *screen) actions() ns.Node {
 		switch {
 		case item.JobID != "" && item.Stage != "" && !item.Stage.Done():
 			f.job = "cancel"
+		case item.JobID == "" && item.SubtitlePath == "":
+			f.job = "make"
 		case item.JobID == "":
-			f.job = "start"
+			f.job = "reprocess"
 		case item.Stage == core.StageFailed:
 			f.job = "failed"
 		}
@@ -126,8 +128,10 @@ func (s *screen) actions() ns.Node {
 			status := ns.Text{TestID: "film-job-status", ContentFunc: live.Func(a, func() string { return a.JobStatus(cx) }), MaxLines: 1, EllipsizeMode: ns.EllipsizeTail,
 				Style: ns.Style{FontSize: 12, FlexShrink: 1, MinWidth: ns.Pt(0), Color: onGlass, Opacity: ns.Alpha(0.8)}}
 			row.Children = append(row.Children, status, ui.Button{TestID: "film-cancel", Text: locales.FilmCancel(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, func() { a.Cancel(s.item().JobID) })})
-		case "start":
-			row.Children = append(row.Children, ui.Button{TestID: "film-start", Text: locales.FilmStartProcessing(cx), OnPress: live.Do(a, a.ProcessFilm)})
+		case "make":
+			row.Children = append(row.Children, ui.Button{TestID: "film-start", Text: locales.FilmMakeSubtitles(cx), OnPress: live.Do(a, a.ProcessFilm)})
+		case "reprocess":
+			row.Children = append(row.Children, ui.Button{TestID: "film-start", Text: locales.FilmReprocess(cx), OnPress: live.Do(a, a.ProcessFilm)})
 		case "failed":
 			row.Children = append(row.Children,
 				ui.Button{TestID: "film-remove", Text: locales.FilmRemove(cx), Variant: ui.ButtonSecondary, OnPress: live.Do(a, func() { a.Remove(s.item().JobID) })},

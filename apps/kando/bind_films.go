@@ -219,14 +219,14 @@ func (a *app) ReprocessFilm() {
 // libraryReprocessOverlay is the confirmation of 重新处理 over the window (overlays), so the film page asks too.
 func (a *app) libraryReprocessOverlay(*ns.Scope) ns.Node { return films.ReprocessDialog{App: a} }
 
-// Reprocess runs a done film through the pipeline again, into the target language set now: a job again from its source, a video no job has processed from its file. A film with a job stays the done film it was until the new subtitles are written (core.RedoAll).
+// Reprocess runs a done film through the pipeline again, into the target language set now: a job again from its source, a video no job has processed from its file, which is also how 生成字幕 makes the subtitles of a video found in the folder without any (startFilm). Either stays the done film it was until the new subtitles are written (core.RedoAll, core.Job.FromFolder).
 func (a *app) Reprocess(item films.Film) {
 	delete(a.lib.quotes, item.SubtitlePath)
 	if item.JobID != "" {
 		a.Retry(item.JobID)
 		return
 	}
-	a.libraryEnqueue(core.FileURL(item.VideoPath))
+	a.startFilm(item)
 }
 
 // TranslateAgain translates a done film's transcript again into language, without downloading or transcribing it, as 重新翻译为 ▸ does from the library and the film page's ⋯ (film.App). Translating into another language than the film's replaces its translation, so that waits for the user to confirm (RetranslateDialog); the confirmation holds the window's modal flag until it closes (CloseRetranslate).
@@ -531,22 +531,23 @@ func (a *app) libraryQueue(sources []string) bool {
 	return added > 0
 }
 
-// dropFiles adds every video among files dropped on the window, or picked with 本地视频, to the queue. Files that are not videos are left out; when none is a video, the message bar says what can be added. Files dropped on another page or over an open film, or picked from there with ⌘O, take the window to the library, whose message bar and queue show what became of them.
+// dropFiles adds every video among files and folders dropped on the window, picked with 本地视频 or opened with Kando, to the queue: a folder adds the videos in it and in its folders, in their names' order (films.DroppedVideos). Files that are not videos are left out, and the message bar says how many after what was added; when none is a video, it says what can be added. Files dropped on another page or over an open film, or picked from there with ⌘O, take the window to the library, whose message bar and queue show what became of them.
 func (a *app) dropFiles(paths []string) {
 	if a.page != pageFilms || a.openKey != "" {
 		a.Select(pageFilms)
 	}
-	var sources []string
-	for _, path := range paths {
-		if media.IsVideoFile(path) {
-			sources = append(sources, core.FileURL(path))
-		}
-	}
-	if len(sources) == 0 {
+	videos, skipped := films.DroppedVideos(paths, a.prefs.interfaceLanguage)
+	if len(videos) == 0 {
 		a.warn(a.messages().PrecheckNoVideo(), "")
 		return
 	}
-	a.libraryEnqueue(sources...)
+	sources := make([]string, len(videos))
+	for i, path := range videos {
+		sources[i] = core.FileURL(path)
+	}
+	if a.libraryEnqueue(sources...) && skipped > 0 {
+		a.lib.notice.Text = a.messages().LibrarySkippedNotVideos(a.lib.notice.Text, skipped)
+	}
 }
 
 // libraryKeys are the library's shortcuts. ⌘F searches the library's films in the sidebar's search field (sidebarSearch). It shares ⌘F with the player's 搜索字幕: this row holds only while no film is open and that one only while one is, so one of them at most runs it, and the menu bar shows ⌘F by that one (menuSharedKeyCarriers, menu.go).

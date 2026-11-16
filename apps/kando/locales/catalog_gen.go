@@ -516,6 +516,7 @@ var Parameters = map[string][]string{
 	"LibraryShelfDamagedUnsaved":         {"error_"},
 	"LibraryShelfReadFailed":             {"error_"},
 	"LibraryShelfSaveFailed":             {"error_"},
+	"LibrarySkippedNotVideos":            {"added", "count"},
 	"LibraryTrashFailed":                 {"name"},
 	"LibraryTrashUnsupported":            {"name"},
 	"LibraryTrashed":                     {"name"},
@@ -574,6 +575,7 @@ var Parameters = map[string][]string{
 	"QueueBorrowed":                      {"browser"},
 	"QueueDoneElsewhere":                 {"name", "library"},
 	"QueueFailedElsewhere":               {"name", "library"},
+	"QueueMakeSubtitlesFailed":           {"name", "reason"},
 	"QueueNotifyFailed":                  {"reason"},
 	"QueueOpenSettingsFailed":            {"error_"},
 	"QueueQuitWhileRunningMessage":       {"film"},
@@ -767,6 +769,7 @@ type Translation struct {
 	LibraryShelfDamagedUnsaved         func(error_ string) string
 	LibraryShelfReadFailed             func(error_ string) string
 	LibraryShelfSaveFailed             func(error_ string) string
+	LibrarySkippedNotVideos            func(added string, count int) string
 	LibraryTrashFailed                 func(name string) string
 	LibraryTrashUnsupported            func(name string) string
 	LibraryTrashed                     func(name string) string
@@ -825,6 +828,7 @@ type Translation struct {
 	QueueBorrowed                      func(browser string) string
 	QueueDoneElsewhere                 func(name string, library string) string
 	QueueFailedElsewhere               func(name string, library string) string
+	QueueMakeSubtitlesFailed           func(name string, reason string) string
 	QueueNotifyFailed                  func(reason string) string
 	QueueOpenSettingsFailed            func(error_ string) string
 	QueueQuitWhileRunningMessage       func(film string) string
@@ -1079,6 +1083,7 @@ const (
 	textFilmLoopLine
 	textFilmLoopOff
 	textFilmLoopOn
+	textFilmMakeSubtitles
 	textFilmModeBilingual
 	textFilmModeHeading
 	textFilmModeOff
@@ -1125,7 +1130,6 @@ const (
 	textFilmSpeedNormal
 	textFilmSpokenLanguage
 	textFilmSpokenLanguageUnknown
-	textFilmStartProcessing
 	textFilmStyleColor
 	textFilmStyleFont
 	textFilmStyleMenuItem
@@ -1165,6 +1169,7 @@ const (
 	textFilmsLinkLabel
 	textFilmsLinkPlaceholder
 	textFilmsLocalVideo
+	textFilmsMakeSubtitles
 	textFilmsNewLibraryEllipsis
 	textFilmsNewLibraryName
 	textFilmsNewLibraryPlace
@@ -1947,6 +1952,7 @@ var keyOfText = [numTexts]string{
 	"filmLoopLine",
 	"filmLoopOff",
 	"filmLoopOn",
+	"filmMakeSubtitles",
 	"filmModeBilingual",
 	"filmModeHeading",
 	"filmModeOff",
@@ -1993,7 +1999,6 @@ var keyOfText = [numTexts]string{
 	"filmSpeedNormal",
 	"filmSpokenLanguage",
 	"filmSpokenLanguageUnknown",
-	"filmStartProcessing",
 	"filmStyleColor",
 	"filmStyleFont",
 	"filmStyleMenuItem",
@@ -2033,6 +2038,7 @@ var keyOfText = [numTexts]string{
 	"filmsLinkLabel",
 	"filmsLinkPlaceholder",
 	"filmsLocalVideo",
+	"filmsMakeSubtitles",
 	"filmsNewLibraryEllipsis",
 	"filmsNewLibraryName",
 	"filmsNewLibraryPlace",
@@ -2813,6 +2819,7 @@ var textsEn = i18n.NewTexts(""+
 	"Loop"+
 	"Loop: Off"+
 	"Loop: On"+
+	"Make Subtitles"+
 	"Bilingual"+
 	"Display"+
 	"Off"+
@@ -2859,7 +2866,6 @@ var textsEn = i18n.NewTexts(""+
 	"Normal"+
 	"Spoken Language"+
 	"Unknown"+
-	"Start Processing"+
 	"Color"+
 	"Font"+
 	"Style…"+
@@ -2899,6 +2905,7 @@ var textsEn = i18n.NewTexts(""+
 	"Video Link"+
 	"Paste a video link from YouTube, Bilibili and more"+
 	"Local Video"+
+	"Make Subtitles"+
 	"New Library…"+
 	"Name"+
 	"Location"+
@@ -3676,6 +3683,7 @@ var textsEn = i18n.NewTexts(""+
 		4,
 		9,
 		8,
+		14,
 		9,
 		7,
 		3,
@@ -3722,7 +3730,6 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		15,
 		7,
-		16,
 		5,
 		4,
 		8,
@@ -3762,6 +3769,7 @@ var textsEn = i18n.NewTexts(""+
 		10,
 		50,
 		11,
+		14,
 		14,
 		4,
 		8,
@@ -4542,6 +4550,7 @@ var textsJa = i18n.NewTexts(""+
 	"セリフをリピート"+
 	"セリフリピート：オフ"+
 	"セリフリピート：オン"+
+	"字幕を作成"+
 	"二言語"+
 	"表示"+
 	"オフ"+
@@ -4588,7 +4597,6 @@ var textsJa = i18n.NewTexts(""+
 	"標準"+
 	"認識する言語"+
 	"不明"+
-	"処理を開始"+
 	"色"+
 	"フォント"+
 	"スタイル…"+
@@ -4628,6 +4636,7 @@ var textsJa = i18n.NewTexts(""+
 	"動画のリンク"+
 	"YouTube や bilibili などの動画リンクを貼り付け"+
 	"ローカル動画"+
+	"字幕を作成"+
 	"新規ライブラリ…"+
 	"名前"+
 	"場所"+
@@ -5405,6 +5414,7 @@ var textsJa = i18n.NewTexts(""+
 		24,
 		30,
 		30,
+		15,
 		9,
 		6,
 		6,
@@ -5451,7 +5461,6 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		18,
 		6,
-		15,
 		3,
 		12,
 		15,
@@ -5491,6 +5500,7 @@ var textsJa = i18n.NewTexts(""+
 		18,
 		60,
 		18,
+		15,
 		24,
 		6,
 		6,
@@ -6271,6 +6281,7 @@ var textsKo = i18n.NewTexts(""+
 	"대사 반복"+
 	"대사 반복: 끔"+
 	"대사 반복: 켬"+
+	"자막 만들기"+
 	"이중 언어"+
 	"표시"+
 	"끄기"+
@@ -6317,7 +6328,6 @@ var textsKo = i18n.NewTexts(""+
 	"보통"+
 	"인식 언어"+
 	"알 수 없음"+
-	"처리 시작"+
 	"색상"+
 	"글꼴"+
 	"스타일…"+
@@ -6357,6 +6367,7 @@ var textsKo = i18n.NewTexts(""+
 	"동영상 링크"+
 	"YouTube, Bilibili 등의 동영상 링크 붙여넣기"+
 	"로컬 동영상"+
+	"자막 만들기"+
 	"새로운 라이브러리…"+
 	"이름"+
 	"위치"+
@@ -7134,6 +7145,7 @@ var textsKo = i18n.NewTexts(""+
 		13,
 		18,
 		18,
+		16,
 		13,
 		6,
 		6,
@@ -7180,7 +7192,6 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		13,
 		14,
-		13,
 		6,
 		6,
 		12,
@@ -7219,6 +7230,7 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		16,
 		54,
+		16,
 		16,
 		28,
 		6,
@@ -8000,6 +8012,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"循环"+
 	"循环：关"+
 	"循环：开"+
+	"生成字幕"+
 	"双语"+
 	"显示"+
 	"关闭"+
@@ -8046,7 +8059,6 @@ var textsZhHans = i18n.NewTexts(""+
 	"正常"+
 	"识别语言"+
 	"未知"+
-	"开始处理"+
 	"颜色"+
 	"字体"+
 	"样式…"+
@@ -8086,6 +8098,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"视频链接"+
 	"粘贴 YouTube、哔哩哔哩等视频链接"+
 	"本地视频"+
+	"生成字幕"+
 	"新建资料库…"+
 	"名称"+
 	"位置"+
@@ -8863,6 +8876,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		12,
 		6,
 		6,
 		6,
@@ -8909,7 +8923,6 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		6,
-		12,
 		6,
 		6,
 		9,
@@ -8948,6 +8961,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		44,
+		12,
 		12,
 		18,
 		6,
@@ -9729,6 +9743,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"循環"+
 	"循環：關"+
 	"循環：開"+
+	"產生字幕"+
 	"雙語"+
 	"顯示"+
 	"關閉"+
@@ -9775,7 +9790,6 @@ var textsZhHant = i18n.NewTexts(""+
 	"正常"+
 	"辨識語言"+
 	"未知"+
-	"開始處理"+
 	"顏色"+
 	"字體"+
 	"樣式…"+
@@ -9815,6 +9829,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"影片連結"+
 	"貼上 YouTube、嗶哩嗶哩等影片連結"+
 	"本機影片"+
+	"產生字幕"+
 	"新增資料庫…"+
 	"名稱"+
 	"位置"+
@@ -10592,6 +10607,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		12,
 		6,
 		6,
 		6,
@@ -10638,7 +10654,6 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		6,
-		12,
 		6,
 		6,
 		9,
@@ -10677,6 +10692,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		44,
+		12,
 		12,
 		18,
 		6,
@@ -11635,6 +11651,9 @@ func Supply(lang string, t Translation) {
 	if t.LibraryShelfSaveFailed != nil {
 		s.LibraryShelfSaveFailed = t.LibraryShelfSaveFailed
 	}
+	if t.LibrarySkippedNotVideos != nil {
+		s.LibrarySkippedNotVideos = t.LibrarySkippedNotVideos
+	}
 	if t.LibraryTrashFailed != nil {
 		s.LibraryTrashFailed = t.LibraryTrashFailed
 	}
@@ -11808,6 +11827,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.QueueFailedElsewhere != nil {
 		s.QueueFailedElsewhere = t.QueueFailedElsewhere
+	}
+	if t.QueueMakeSubtitlesFailed != nil {
+		s.QueueMakeSubtitlesFailed = t.QueueMakeSubtitlesFailed
 	}
 	if t.QueueNotifyFailed != nil {
 		s.QueueNotifyFailed = t.QueueNotifyFailed
@@ -14464,6 +14486,15 @@ func FilmLoopOn(cx *core.Scope) string { return For(cx).FilmLoopOn() }
 // FilmLoopOn is the package's FilmLoopOn in the language of msgs.
 func (msgs Messages) FilmLoopOn() string { return msgs.text(textFilmLoopOn) }
 
+// FilmMakeSubtitles says "Make Subtitles"
+// in the language the app shows under cx.
+//
+// Player title bar button for a video found in the library folder that has no subtitles: transcribes and translates it.
+func FilmMakeSubtitles(cx *core.Scope) string { return For(cx).FilmMakeSubtitles() }
+
+// FilmMakeSubtitles is the package's FilmMakeSubtitles in the language of msgs.
+func (msgs Messages) FilmMakeSubtitles() string { return msgs.text(textFilmMakeSubtitles) }
+
 // FilmMatchOf says "Match {number} of {total}"
 // in the language the app shows under cx.
 //
@@ -15195,15 +15226,6 @@ func (msgs Messages) FilmSpokenLanguageUnknown() string {
 	return msgs.text(textFilmSpokenLanguageUnknown)
 }
 
-// FilmStartProcessing says "Start Processing"
-// in the language the app shows under cx.
-//
-// Player title bar button: starts the job that downloads, transcribes and translates this film.
-func FilmStartProcessing(cx *core.Scope) string { return For(cx).FilmStartProcessing() }
-
-// FilmStartProcessing is the package's FilmStartProcessing in the language of msgs.
-func (msgs Messages) FilmStartProcessing() string { return msgs.text(textFilmStartProcessing) }
-
 // FilmStatusTranslated says "{percent}% translated"
 // in the language the app shows under cx.
 //
@@ -15922,6 +15944,15 @@ func (msgs Messages) FilmsLocalVideoTooltip(shortcut string) string {
 		}
 	}
 }
+
+// FilmsMakeSubtitles says "Make Subtitles"
+// in the language the app shows under cx.
+//
+// Button under a video found in the library folder that has no subtitles, and the same item in its menu instead of Process Again: transcribes and translates it.
+func FilmsMakeSubtitles(cx *core.Scope) string { return For(cx).FilmsMakeSubtitles() }
+
+// FilmsMakeSubtitles is the package's FilmsMakeSubtitles in the language of msgs.
+func (msgs Messages) FilmsMakeSubtitles() string { return msgs.text(textFilmsMakeSubtitles) }
 
 // FilmsMoreActions says "More Actions for {film}"
 // in the language the app shows under cx.
@@ -18191,6 +18222,51 @@ func (msgs Messages) LibraryShelfSaveFailed(error_ string) string {
 			return "视频库无法保存：" + error_
 		case "zh-Hant":
 			return "無法儲存影片庫：" + error_
+		}
+	}
+}
+
+// LibrarySkippedNotVideos says "{added} {count, plural, one {Skipped # file that isn't a video.} other {Skipped # files that aren't videos.}}"
+// in the language the app shows under cx.
+//
+// Message bar after files or folders were dropped or opened and some of the files in them were not videos, which were left out. added is the message bar's sentence about the videos added, such as “Added 3 videos. Processing started.”; count is how many files were left out. A folder adds the videos directly in it and in its subfolders.
+func LibrarySkippedNotVideos(cx *core.Scope, added string, count int) string {
+	return For(cx).LibrarySkippedNotVideos(added, count)
+}
+
+// LibrarySkippedNotVideos is the package's LibrarySkippedNotVideos in the language of msgs.
+func (msgs Messages) LibrarySkippedNotVideos(added string, count int) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.LibrarySkippedNotVideos(added, count))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].LibrarySkippedNotVideos; f != nil {
+			return f(added, count)
+		}
+		switch lang {
+		case "", "en":
+			var b strings.Builder
+			b.WriteString(msgs.arg(added))
+			b.WriteString(" ")
+			switch i18n.Cardinal("en", float64(count)) {
+			case i18n.One:
+				b.WriteString("Skipped ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" file that isn't a video.")
+			default:
+				b.WriteString("Skipped ")
+				b.WriteString(msgs.arg(i18n.FormatNumber("en", float64(count))))
+				b.WriteString(" files that aren't videos.")
+			}
+			return b.String()
+		case "ja":
+			return added + "動画ではないファイル " + i18n.FormatNumber("ja", float64(count)) + " 個をスキップしました。"
+		case "ko":
+			return added + " 동영상이 아닌 파일 " + i18n.FormatNumber("ko", float64(count)) + "개를 건너뛰었습니다."
+		case "zh-Hans":
+			return added + "已跳过 " + i18n.FormatNumber("zh-Hans", float64(count)) + " 个不是视频的文件。"
+		case "zh-Hant":
+			return added + "已略過 " + i18n.FormatNumber("zh-Hant", float64(count)) + " 個不是影片的檔案。"
 		}
 	}
 }
@@ -21890,6 +21966,38 @@ func QueueLocalChosen(cx *core.Scope) string { return For(cx).QueueLocalChosen()
 
 // QueueLocalChosen is the package's QueueLocalChosen in the language of msgs.
 func (msgs Messages) QueueLocalChosen() string { return msgs.text(textQueueLocalChosen) }
+
+// QueueMakeSubtitlesFailed says "Couldn't make subtitles for “{name}”. {reason}"
+// in the language the app shows under cx.
+//
+// Message bar when Make Subtitles on a video found in the library folder failed: the video stays as it was, without subtitles. reason is a full sentence saying why, such as that the speech model is missing.
+func QueueMakeSubtitlesFailed(cx *core.Scope, name string, reason string) string {
+	return For(cx).QueueMakeSubtitlesFailed(name, reason)
+}
+
+// QueueMakeSubtitlesFailed is the package's QueueMakeSubtitlesFailed in the language of msgs.
+func (msgs Messages) QueueMakeSubtitlesFailed(name string, reason string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.QueueMakeSubtitlesFailed(name, reason))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].QueueMakeSubtitlesFailed; f != nil {
+			return f(name, reason)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't make subtitles for “" + msgs.arg(name) + "”. " + msgs.arg(reason)
+		case "ja":
+			return "「" + name + "」の字幕を作成できませんでした。" + reason
+		case "ko":
+			return "‘" + name + "’의 자막을 만들지 못했습니다. " + reason
+		case "zh-Hans":
+			return "没能为“" + name + "”生成字幕。" + reason
+		case "zh-Hant":
+			return "沒能為「" + name + "」產生字幕。" + reason
+		}
+	}
+}
 
 // QueueNoBrowserAgain says "Still no browser whose sign-in Kando can use."
 // in the language the app shows under cx.

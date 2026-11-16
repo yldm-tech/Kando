@@ -100,6 +100,8 @@ type Job struct {
 	SpokenLanguage string
 	// SpeechLanguage is the language the user said is spoken in this job's video, as whisper's code (ja, en), which the speech recognition is told to hear each time the job transcribes it, in place of the one the settings name for every video; empty hears the settings' language. Unlike SpokenLanguage it is the user's choice, so it stays when a run fails or the film is processed again.
 	SpeechLanguage string
+	// FromFolder is true for a job made to process a video found in the library's folder that no job held. Until the job completes, that video is still the film the folder shows, with the subtitles found beside it, so a job that fails or is stopped is taken off the shelf, leaving the film as it was, rather than kept as a failed card. It is cleared once the job completes.
+	FromFolder bool
 }
 
 // Redo is what a job made to process a done film again does. RedoTranslation and RedoMissing read the subtitles the film's job exported beside its video and neither download nor transcribe it again; RedoAll runs every stage.

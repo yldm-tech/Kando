@@ -515,6 +515,37 @@ func TestAFilmWithoutATranslationOffersToTranslateIt(t *testing.T) {
 	wantCalls(t, a, "translate-missing done", "settings ai", "translate-missing algebra")
 }
 
+// A video found in the library's folder without subtitles offers 生成字幕 under its line and in its menu in place of 重新处理, which start it without asking; one with subtitles found beside it offers 重新处理, which asks first.
+func TestAFolderVideoOffersToMakeItsSubtitles(t *testing.T) {
+	a := newFakeApp()
+	bare := a.dir + "/Lecture 2.mp4"
+	a.items = []Film{
+		{Key: bare, Title: "Lecture 2", Name: "Lecture 2", Detail: bare, VideoPath: bare},
+		{Key: "copied", Title: "Copied", Name: "Copied", VideoPath: a.dir + "/Copied/video.mp4", SubtitlePath: a.dir + "/Copied/video.bilingual.srt"},
+	}
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	if got := len(app.Query("id:film-make-subtitles")); got != 1 {
+		t.Fatalf("%d 生成字幕 buttons for one video without subtitles: %q", got, app.Texts())
+	}
+	app.Press("id:film-make-subtitles")
+	wantCalls(t, a, "reprocess "+bare)
+	app.Press("id:film-more >> nth=0")
+	var labels []string
+	for _, it := range app.PopupMenu {
+		labels = append(labels, it.Label)
+	}
+	want := []string{msgs.FilmsPlay(), msgs.FilmsShowInFinder("macOS"), msgs.FilmsRename(), msgs.FilmsMakeSubtitles(), "", msgs.FilmsRemoveFromLibrary()}
+	if !slices.Equal(labels, want) {
+		t.Fatalf("menu %q, want %q", labels, want)
+	}
+	app.ChoosePopup(msgs.FilmsMakeSubtitles())
+	wantCalls(t, a, "reprocess "+bare)
+	app.Press("id:film-more >> nth=1")
+	app.ChoosePopup(msgs.FilmsReprocess())
+	wantCalls(t, a, "ask-reprocess copied")
+}
+
 func TestNoticeOffersItsButtons(t *testing.T) {
 	a := newFakeApp()
 	a.notice = Notice{Kind: "warning", Text: "这个视频已在资料库中。", Section: "translate", Film: "done", Open: true}

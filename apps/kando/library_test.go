@@ -371,6 +371,39 @@ func TestDropWithoutVideosSaysWhatCanBeAdded(t *testing.T) {
 	}
 }
 
+// A dropped folder adds the videos in it in episode order, numbers by value, and the message bar says how many were added and how many files were left out as not videos.
+func TestDropFolderAddsItsVideos(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, updates := newTestApp(t, g)
+	course := filepath.Join(t.TempDir(), "Course")
+	for _, name := range []string{"Episode 10.mp4", "Episode 2.mp4", "notes.pdf", "Episode 1.srt"} {
+		if err := os.MkdirAll(course, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(course, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tt.DropFiles("id:main-column", fileURLs(course)...)
+	refresh(tt, a)
+	var sources []string
+	for _, id := range append([]string{a.RunningJob()}, a.queue.order...) {
+		sources = append(sources, stageOf(t, a, id).Source)
+	}
+	if want := []string{core.FileURL(filepath.Join(course, "Episode 2.mp4")), core.FileURL(filepath.Join(course, "Episode 10.mp4"))}; !slices.Equal(sources, want) {
+		t.Fatalf("queued %q, want %q", sources, want)
+	}
+	m := testlocale.Messages()
+	if want := m.LibrarySkippedNotVideos(m.LibraryAddedStarting(2), 2); a.lib.notice.Text != want || !shows(tt, want) {
+		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
+	}
+	nextStarted(t, g, updates)
+	g.release <- struct{}{}
+	nextStarted(t, g, updates)
+	g.release <- struct{}{}
+	settle(t, a, tt, updates)
+}
+
 // TestDropElsewhereShowsTheLibrary drops files on a settings page and over an open film: neither page shows the library's message bar or queue, so the drop takes the window to the library, where both say what became of the files.
 func TestDropElsewhereShowsTheLibrary(t *testing.T) {
 	src := t.TempDir()

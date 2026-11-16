@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -2362,8 +2363,10 @@ func (p *retranslatePipeline) Check() error { return nil }
 
 func (p *retranslatePipeline) Download(_ context.Context, source string) (string, error) {
 	p.downloads++
-	if path, ok := strings.CutPrefix(source, "file://"); ok {
-		return path, nil
+	if u, err := url.Parse(source); err == nil {
+		if path, ok := core.FilePath(u); ok {
+			return path, nil
+		}
 	}
 	return p.video, nil
 }
@@ -2897,5 +2900,160 @@ func TestWaitingCardsCountTheJobsAhead(t *testing.T) {
 	}
 	if ahead[ids["https://example.com/a"]] != 0 || ahead[ids["https://example.com/b"]] != 1 || ahead[ids["https://example.com/c"]] != 2 {
 		t.Fatalf("ahead %v for %v", ahead, ids)
+	}
+}
+
+// noSpeechPipeline is retranslatePipeline but for its transcription, which hears no speech, so a job that transcribes fails (media.ErrNoSpeech).
+type noSpeechPipeline struct{ *retranslatePipeline }
+
+func (p noSpeechPipeline) Transcribe(context.Context, string) ([]core.Segment, error) {
+	p.transcriptions++
+	return nil, nil
+}
+
+// folderLibrary is a library holding one video found in its folder that no job holds, Lecture, with bilingual subtitles beside it when subtitled; the settings name 日本語 as the target language. It returns the film the library shows for it.
+func folderLibrary(t *testing.T, p media.Pipeline, subtitled bool) (*app, *nsgotest.App, chan func(), films.Film) {
+	t.Helper()
+	lib := filepath.Join(t.TempDir(), "Films.kando")
+	video := filepath.Join(lib, "Lecture", "video.mp4")
+	if err := os.MkdirAll(filepath.Dir(video), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{video: "v"}
+	if subtitled {
+		files[filepath.Join(lib, "Lecture", "video.bilingual.srt")] = "1\n00:00:01,000 --> 00:00:02,000\n你好。\nHello.\n\n"
+	}
+	for path, body := range files {
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a, tt, updates := newTestApp(t, p)
+	a.edit(func(s *session) { s.LibraryDir = lib })
+	a.prefs.language = "日本語"
+	a.library.Jobs = nil
+	a.refreshLibrary()
+	refresh(tt, a)
+	item, ok := films.Find(a.films(), video)
+	if !ok || item.JobID != "" || (item.SubtitlePath != "") != subtitled {
+		t.Fatalf("films %+v", a.films())
+	}
+	return a, tt, updates, item
+}
+
+// folderVideoKept checks that item, a video found in the library's folder, is again the film it was, with no job holding it and the subtitles it had, and that its card is back on the done grid.
+func folderVideoKept(t *testing.T, a *app, tt *nsgotest.App, item films.Film) {
+	t.Helper()
+	if len(a.library.Jobs) != 0 {
+		t.Fatalf("jobs left on the shelf %+v", a.library.Jobs)
+	}
+	refresh(tt, a)
+	now, ok := films.Find(a.films(), item.Key)
+	if !ok || now.JobID != "" || now.SubtitlePath != item.SubtitlePath || films.InQueue(now) {
+		t.Fatalf("film %+v, was %+v", now, item)
+	}
+	if a.openKey == "" && !tt.Exists("id:film-"+item.Key) {
+		t.Fatalf("the film is not on the done grid: %q", tt.Texts())
+	}
+}
+
+// 生成字幕 under a video found in the library's folder makes its subtitles on a card of its own, which becomes the film once it is done.
+func TestMakeSubtitlesOfAFolderVideo(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates, item := folderLibrary(t, p, false)
+	tt.Press("id:film-make-subtitles")
+	settle(t, a, tt, updates)
+	if len(a.library.Jobs) != 1 {
+		t.Fatalf("jobs %+v", a.library.Jobs)
+	}
+	job := a.library.Jobs[0]
+	if job.Stage != core.StageComplete || job.FromFolder || job.VideoPath != item.VideoPath || job.SubtitlePath != strings.TrimSuffix(item.VideoPath, ".mp4")+".bilingual.srt" || p.language != "日本語" || p.transcriptions != 1 {
+		t.Fatalf("job %+v, %d transcriptions in %q", job, p.transcriptions, p.language)
+	}
+	if done, ok := films.Find(a.films(), job.ID); !ok || done.VideoPath != item.VideoPath || len(a.films()) != 1 {
+		t.Fatalf("films %+v", a.films())
+	}
+}
+
+// 生成字幕 that fails puts the video back as it was, without a failed card, and the message bar says why; one stopped while it runs says nothing. A film open on it stays open, back on the video.
+func TestAFailedMakeSubtitlesKeepsTheFolderVideo(t *testing.T) {
+	t.Run("fails", func(t *testing.T) {
+		p := noSpeechPipeline{&retranslatePipeline{}}
+		a, tt, updates, item := folderLibrary(t, p, false)
+		a.Reprocess(item)
+		if job := a.library.Jobs[0]; !job.FromFolder || !a.running() {
+			t.Fatalf("job %+v running %v", job, a.running())
+		}
+		settle(t, a, tt, updates)
+		if p.transcriptions != 1 {
+			t.Fatalf("%d transcriptions", p.transcriptions)
+		}
+		if want := testlocale.Messages().QueueMakeSubtitlesFailed(item.Name, ""); !a.lib.notice.Open || !strings.HasPrefix(a.lib.notice.Text, want) || a.lib.notice.Text == want {
+			t.Fatalf("notice %+v, want it to start with %q and say why", a.lib.notice, want)
+		}
+		folderVideoKept(t, a, tt, item)
+	})
+	t.Run("stopped from the open film", func(t *testing.T) {
+		p := &retranslatePipeline{hold: true}
+		a, tt, updates, item := folderLibrary(t, p, false)
+		a.Open(item)
+		refresh(tt, a)
+		tt.Press("id:film-start")
+		job := a.library.Jobs[0]
+		if a.openKey != job.ID || !a.running() {
+			t.Fatalf("open %q, job %+v, running %v", a.openKey, job, a.running())
+		}
+		queueUntilState(t, updates, func() bool { return stageOf(t, a, job.ID).Stage == core.StageTranslating })
+		a.Cancel(job.ID)
+		settle(t, a, tt, updates)
+		if a.lib.notice.Open || a.openKey != item.Key || !hasText(tt, testlocale.Messages().FilmMakeSubtitles()) {
+			t.Fatalf("notice %+v, open %q, texts %q", a.lib.notice, a.openKey, tt.Texts())
+		}
+		folderVideoKept(t, a, tt, item)
+		a.closeFilm()
+		folderVideoKept(t, a, tt, item)
+	})
+}
+
+// 重新处理 of a video found in the library's folder with subtitles beside it asks first, and if its translation fails the video keeps its subtitles, as a job's 重新处理 keeps the film.
+func TestAFailedReprocessKeepsTheFolderVideo(t *testing.T) {
+	p := &retranslatePipeline{translateErr: errors.New("translation API returned 401 Unauthorized: invalid key")}
+	a, tt, updates, item := folderLibrary(t, p, true)
+	bilingual := readFile(t, item.SubtitlePath)
+	chooseFilmMenu(t, tt, testlocale.Messages().FilmsReprocess())
+	tt.Press("id:reprocess-confirm-run")
+	if job := a.library.Jobs[0]; !job.FromFolder || job.Redo != core.RedoAll || job.RedoLanguage != "日本語" || job.SubtitlePath != item.SubtitlePath {
+		t.Fatalf("job %+v", job)
+	}
+	settle(t, a, tt, updates)
+	if want := testlocale.Messages().QueueReprocessFailed(item.Name, testlocale.Messages().PrecheckTranslateAuth()); a.lib.notice.Text != want || a.lib.notice.Section != settings.SectionAI {
+		t.Fatalf("notice %+v, want %q", a.lib.notice, want)
+	}
+	if now := readFile(t, item.SubtitlePath); now != bilingual {
+		t.Fatalf("subtitles are now %q", now)
+	}
+	folderVideoKept(t, a, tt, item)
+}
+
+// The film page of a video found in the library's folder with subtitles beside it offers 重新处理整部影片, which asks first, as it would replace them; once confirmed the film stays open on its job.
+func TestAFolderVideoWithSubtitlesAsksBeforeProcessingFromTheFilm(t *testing.T) {
+	p := &retranslatePipeline{}
+	a, tt, updates, item := folderLibrary(t, p, true)
+	a.Open(item)
+	refresh(tt, a)
+	if !hasText(tt, testlocale.Messages().FilmReprocess()) {
+		t.Fatalf("no 重新处理整部影片: %q", tt.Texts())
+	}
+	tt.Press("id:film-start")
+	if !tt.Exists("id:reprocess-confirm") || len(a.library.Jobs) != 0 {
+		t.Fatalf("it did not ask first: jobs %+v", a.library.Jobs)
+	}
+	tt.Press("id:reprocess-confirm-run")
+	if len(a.library.Jobs) != 1 || a.openKey != a.library.Jobs[0].ID {
+		t.Fatalf("open %q, jobs %+v", a.openKey, a.library.Jobs)
+	}
+	settle(t, a, tt, updates)
+	if job := a.library.Jobs[0]; job.Stage != core.StageComplete || job.FromFolder || job.Redo != "" || job.Language != "日本語" || job.SubtitlePath != item.SubtitlePath {
+		t.Fatalf("job %+v", job)
 	}
 }

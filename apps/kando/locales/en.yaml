@@ -622,6 +622,9 @@ filmLoopOff:
 filmLoopOn:
   message: "Loop: On"
   description: "Message on the picture after the loop was turned on for the line playing."
+filmMakeSubtitles:
+  message: "Make Subtitles"
+  description: "Player title bar button for a video found in the library folder that has no subtitles: transcribes and translates it."
 filmMatchOf:
   message: "Match {number} of {total}"
   description: "Message on the picture after Return or Shift+Return in the subtitle search jumped to a line holding the search: which match it is, counting from 1, and how many lines hold it."
@@ -801,9 +804,6 @@ filmSpokenLanguage:
 filmSpokenLanguageUnknown:
   message: "Unknown"
   description: "Shown in a film's Spoken Language drop-down when the speech recognition did not say which language it heard and the user named none."
-filmStartProcessing:
-  message: "Start Processing"
-  description: "Player title bar button: starts the job that downloads, transcribes and translates this film."
 filmStatusTranslated:
   message: "{percent}% translated"
   description: "Line under the film's title in the player: how much of its subtitles is translated."
@@ -976,6 +976,9 @@ filmsLocalVideoTooltip:
   description: "Tooltip of the toolbar button that adds video files, with its shortcut as the system writes it."
   placeholders:
     shortcut: { type: "String", example: "⌘O" }
+filmsMakeSubtitles:
+  message: "Make Subtitles"
+  description: "Button under a video found in the library folder that has no subtitles, and the same item in its menu instead of Process Again: transcribes and translates it."
 filmsMoreActions:
   message: "More Actions for {film}"
   description: "Accessible name of the ⋯ button beside a poster's title, naming the film it acts on."
@@ -1436,6 +1439,12 @@ libraryShelfSaveFailed:
   description: "Error when the list of films and jobs (library.json) could not be saved."
   placeholders:
     error: { type: "String", example: "permission denied" }
+librarySkippedNotVideos:
+  message: "{added} {count, plural, one {Skipped # file that isn't a video.} other {Skipped # files that aren't videos.}}"
+  description: "Message bar after files or folders were dropped or opened and some of the files in them were not videos, which were left out. added is the message bar's sentence about the videos added, such as “Added 3 videos. Processing started.”; count is how many files were left out. A folder adds the videos directly in it and in its subfolders."
+  placeholders:
+    added: { type: "String", example: "Added 3 videos. Processing started." }
+    count: { type: "int", example: "2" }
 libraryTrashFailed:
   message: "Couldn't move “{name}” to the Trash. Its files are where they were."
   description: "Message bar when a film could not be moved to the Trash: its volume has no Trash, a file was gone, or the system refused; nothing was deleted. The system's reason is in Kando's log, not in the sentence."
@@ -2309,6 +2318,12 @@ queueKeepAwake:
 queueLocalChosen:
   message: "Local video selected"
   description: "Status once a local video was put in the link field."
+queueMakeSubtitlesFailed:
+  message: "Couldn't make subtitles for “{name}”. {reason}"
+  description: "Message bar when Make Subtitles on a video found in the library folder failed: the video stays as it was, without subtitles. reason is a full sentence saying why, such as that the speech model is missing."
+  placeholders:
+    name: { type: "String", example: "Learn Rust" }
+    reason: { type: "String", example: "No speech was heard in this video." }
 queueNoBrowserAgain:
   message: "Still no browser whose sign-in Kando can use."
   description: "Message bar after Find Browsers Again still found none."
