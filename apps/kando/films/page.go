@@ -77,10 +77,10 @@ type App interface {
 	// Remove drops a job's card; its video, if any, stays in the library.
 	Remove(id string)
 	Retry(id string)
-	// Failures is how many failed jobs of 处理中 RetryAll would queue again, those whose fix needs no choice of the user's (not a login, a members-only, private, region-locked or DRM video), and how many RemoveFailed would take off; a cancelled job counts for neither. RetryAll queues them again, oldest first, behind the jobs waiting; RemoveFailed removes their cards, keeping their files.
-	Failures() (retryable, failed int)
-	RetryAll()
-	RemoveFailed()
+	// Failures is how many failed jobs of 处理中 from source, the sidebar source the page shows (sidebar.SourceAll for every one), RetryAll would queue again, those whose fix needs no choice of the user's (not a login, a members-only, private, region-locked or DRM video), and how many RemoveFailed would take off; a cancelled job counts for neither. RetryAll queues them again, oldest first, behind the jobs waiting; RemoveFailed removes their cards, keeping their files. Neither touches a failure from another source, whose card 处理中 does not show.
+	Failures(source string) (retryable, failed int)
+	RetryAll(source string)
+	RemoveFailed(source string)
 	// Withdraw is the × of a waiting or running card: a waiting job that has done nothing yet (no video, no transcript, no film it redoes) leaves the queue and the shelf, and any other is cancelled (Cancel), its card staying.
 	Withdraw(id string)
 	// FailureHint says, for a failed job, what went wrong and the settings section that fixes it ("" when none does). FailureDetail is its whole error, as the tool said it, which the card's tooltip shows. ReportFailure opens the feedback dialog to report it, with the job's stage and error attached.
@@ -284,7 +284,7 @@ func (s shelf) Render(cx *core.Scope) core.Node {
 			return hero{a: a, item: func() Film { return model().hero }, compact: func() bool { return len(model().queue) > 0 }}
 		}},
 		core.Show{When: func() bool { return len(model().queue) > 0 }, Then: func(*core.Scope) core.Node {
-			return queueSection{a: a, queue: func() []Film { return model().queue }}
+			return queueSection{a: a, source: s.source, queue: func() []Film { return model().queue }}
 		}},
 		core.Show{When: func() bool { return model().empty }, Then: func(*core.Scope) core.Node { return emptyLibrary{a} }},
 		core.Show{When: func() bool { return model().emptySource }, Then: func(*core.Scope) core.Node { return emptySource{} }},

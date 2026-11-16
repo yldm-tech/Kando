@@ -16,6 +16,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -279,12 +280,15 @@ func queueFresh(job core.Job) bool {
 	return job.VideoPath == "" && !job.Transcribed && job.Redo == "" && job.CompletedAt.IsZero()
 }
 
-// queueFailures is the open library's failed jobs, oldest first, that a bulk action of 处理中 acts on: retryable those Retry All queues again, failed every one. A cancelled job is neither.
-func (a *app) queueFailures() (retryable, failed []core.Job) {
+// queueFailures is the open library's failed jobs from source, oldest first, that a bulk action of 处理中 acts on: retryable those Retry All queues again, failed every one. source is the sidebar source the page shows, so a bulk action never touches a card 处理中 hides; sidebar.SourceAll takes those of every source. A cancelled job is neither.
+func (a *app) queueFailures(source string) (retryable, failed []core.Job) {
 	root := a.snap().LibraryDir
 	for i := len(a.library.Jobs) - 1; i >= 0; i-- {
 		job := a.library.Jobs[i]
 		if job.Stage != core.StageFailed || errors.Is(job.Err, context.Canceled) || job.ID == a.queue.active || !films.InLibrary(root, job) {
+			continue
+		}
+		if source != sidebar.SourceAll && films.SourceOf(films.Film{Source: job.Source}) != source {
 			continue
 		}
 		failed = append(failed, job)
@@ -304,14 +308,14 @@ func queueRetriesAlone(kind core.FailKind) bool {
 	return false
 }
 
-func (a *app) Failures() (retryable, failed int) {
-	r, f := a.queueFailures()
+func (a *app) Failures(source string) (retryable, failed int) {
+	r, f := a.queueFailures(source)
 	return len(r), len(f)
 }
 
-// RetryAll queues again, oldest first, every failed job of the open library that needs no choice of the user's (queueRetriesAlone). One that cannot be queued, as without a target language, says why in the message bar as Retry does, once.
-func (a *app) RetryAll() {
-	retryable, _ := a.queueFailures()
+// RetryAll queues again, oldest first, every failed job of the open library from source that needs no choice of the user's (queueRetriesAlone). One that cannot be queued, as without a target language, says why in the message bar as Retry does, once.
+func (a *app) RetryAll(source string) {
+	retryable, _ := a.queueFailures(source)
 	var first error
 	for _, job := range retryable {
 		ready, err := a.queueRetryable(job)
@@ -328,9 +332,9 @@ func (a *app) RetryAll() {
 	}
 }
 
-// RemoveFailed removes the card of every failed job of the open library; their downloads stay where they are.
-func (a *app) RemoveFailed() {
-	_, failed := a.queueFailures()
+// RemoveFailed removes the card of every failed job of the open library from source; their downloads stay where they are.
+func (a *app) RemoveFailed(source string) {
+	_, failed := a.queueFailures(source)
 	for _, job := range failed {
 		a.remove(job.ID)
 	}

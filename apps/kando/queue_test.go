@@ -23,6 +23,7 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -2829,14 +2830,14 @@ func TestRetryAllAndRemoveFailed(t *testing.T) {
 	// The shelf keeps its jobs newest first.
 	a.library.Jobs = []core.Job{failed("net", core.FailNetwork), failed("login", core.FailLogin), stopped, failed("plain", "")}
 	refresh(tt, a)
-	if r, f := a.Failures(); r != 2 || f != 3 {
+	if r, f := a.Failures(sidebar.SourceAll); r != 2 || f != 3 {
 		t.Fatalf("failures %d retryable, %d failed", r, f)
 	}
 	tt.Press("queue-retry-all")
 	if a.RunningJob() != "plain" || stageOf(t, a, "net").Stage != core.StageQueued || stageOf(t, a, "login").Stage != core.StageFailed || stageOf(t, a, "stopped").Stage != core.StageFailed {
 		t.Fatalf("after Retry All: running %q, jobs %+v", a.RunningJob(), a.library.Jobs)
 	}
-	if r, f := a.Failures(); r != 0 || f != 1 {
+	if r, f := a.Failures(sidebar.SourceAll); r != 0 || f != 1 {
 		t.Fatalf("failures after Retry All: %d retryable, %d failed", r, f)
 	}
 
@@ -2853,6 +2854,48 @@ func TestRetryAllAndRemoveFailed(t *testing.T) {
 		t.Fatal("Remove Failed took a cancelled card")
 	}
 	<-g.started
+}
+
+// With a source chosen in the sidebar, Retry All and Remove Failed act only on the failed cards 处理中 shows, those from that source, and leave the others' failures as they are.
+func TestRetryAllAndRemoveFailedKeepToTheSourceShown(t *testing.T) {
+	g := newGatePipeline()
+	a, tt, _ := newTestApp(t, g)
+	failed := func(id, source string) core.Job {
+		return core.Job{ID: id, Source: source, Language: "简体中文", Stage: core.StageFailed, Err: errors.New("download: boom"), LibraryDir: "/videos"}
+	}
+	a.library.Jobs = []core.Job{
+		failed("yt1", "https://youtu.be/TRWgBxVAb1M"), failed("yt2", "https://youtu.be/dQw4w9WgXcQ"),
+		failed("web1", "https://example.com/a"), failed("web2", "https://example.com/b"),
+	}
+	a.SetSourceFilter(sidebar.SourceYouTube)
+	refresh(tt, a)
+	if r, f := a.Failures(sidebar.SourceYouTube); r != 2 || f != 2 {
+		t.Fatalf("YouTube's failures %d retryable, %d failed, want 2 and 2", r, f)
+	}
+	tt.Press("queue-retry-all")
+	for _, id := range []string{"web1", "web2"} {
+		if stageOf(t, a, id).Stage != core.StageFailed {
+			t.Fatalf("Retry All on YouTube's page queued %s again: %+v", id, a.library.Jobs)
+		}
+	}
+	if stageOf(t, a, "yt2").Stage != core.StageQueued && a.RunningJob() != "yt2" {
+		t.Fatalf("Retry All left YouTube's yt2 failed: %+v", a.library.Jobs)
+	}
+	<-g.started
+
+	a.library.Jobs = append(a.library.Jobs, failed("yt3", "https://youtu.be/9bZkp7q19f0"), failed("yt4", "https://youtu.be/kJQP7kiw5Fk"))
+	refresh(tt, a)
+	tt.Press("queue-remove-failed")
+	for _, id := range []string{"yt3", "yt4"} {
+		if _, ok := a.library.Find(id); ok {
+			t.Fatalf("Remove Failed on YouTube's page kept %s", id)
+		}
+	}
+	for _, id := range []string{"web1", "web2"} {
+		if _, ok := a.library.Find(id); !ok {
+			t.Fatalf("Remove Failed on YouTube's page took %s from another source", id)
+		}
+	}
 }
 
 // The × of a waiting card takes a job that has done nothing yet off the shelf, and cancels one that has, as a film waiting to be processed again, which keeps its card.
