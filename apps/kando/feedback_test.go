@@ -304,15 +304,16 @@ func TestFeedbackScrubsCredentialsAndTheHomeFolder(t *testing.T) {
 	t.Setenv("EVERYAPI_API_KEY", "ea-secret-value-123")
 	a, tt, _ := newTestApp(t, &fakePipeline{})
 	a.prefs.llmKey = "sk-live-0123456789abcdef"
+	a.prefs.llmServices = map[string]savedLLMService{"custom": {BaseURL: "https://proxy.internal.example/v1", APIKey: "kept-for-later-5566"}}
 	a.cloud.ossSecret = "oss-secret-998877"
 	a.cloud.googleEmail = "someone@example.com"
 	chooseHelp(t, a, tt, "反馈问题…")
 	a.feedback.form.Title = "key sk-live-0123456789abcdef"
-	a.feedback.form.Description = "open " + filepath.Join(home, "Movies", "a.kando") + " with https://llm.internal.example/v1 and ea-secret-value-123, oss-secret-998877, someone@example.com, /Volumes/Disk/x/y"
+	a.feedback.form.Description = "open " + filepath.Join(home, "Movies", "a.kando") + " with https://llm.internal.example/v1 and ea-secret-value-123, https://proxy.internal.example/v1 kept-for-later-5566, oss-secret-998877, someone@example.com, /Volumes/Disk/x/y"
 	refresh(tt, a)
 	issue := a.FeedbackView(a.cx).Issue
 	for _, s := range []string{issue.Title, issue.Body, issue.Full, issue.URL, issue.Preview(testlocale.Messages()), feedbackPreviewText(tt)} {
-		for _, leak := range []string{home, "sk-live", "llm.internal.example", "ea-secret", "oss-secret", "someone@example.com", "/Volumes/Disk"} {
+		for _, leak := range []string{home, "sk-live", "llm.internal.example", "ea-secret", "proxy.internal.example", "kept-for-later", "oss-secret", "someone@example.com", "/Volumes/Disk"} {
 			if strings.Contains(s, leak) {
 				t.Fatalf("%q leaked into %q", leak, s)
 			}

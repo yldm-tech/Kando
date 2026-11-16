@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"kando/apps/kando/film"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 
@@ -49,6 +50,29 @@ func TestSettingsSearchFindsCategories(t *testing.T) {
 	tt.Type("搜索设置", "没有这种设置")
 	if !hasText(tt, "没有匹配的设置") || hasText(tt, "账号与上传") {
 		t.Fatalf("texts %q", tt.Texts())
+	}
+	// The speech page's controls are found by their names, as the hint after a failed download from Hugging Face sends users to the download source.
+	for _, query := range []string{"下载源", "镜像", "hf-mirror", "识别语言", "模型文件", "ggml"} {
+		tt.Clear("搜索设置")
+		tt.Type("搜索设置", query)
+		if !hasText(tt, "语音识别") || hasText(tt, "账号与上传") {
+			t.Fatalf("%q: texts %q", query, tt.Texts())
+		}
+	}
+}
+
+// TestSettingsSearchFindsTheSpeechControlsInEnglish searches the English settings for the speech page's controls by their names.
+func TestSettingsSearchFindsTheSpeechControlsInEnglish(t *testing.T) {
+	testlocale.Use(t, "en")
+	a, tt, _ := newTestApp(t, &fakePipeline{})
+	tt = settingsOpenAt(a, tt, settings.SectionGeneral)
+	msgs := testlocale.Messages()
+	for _, query := range []string{"download source", "mirror", "hf-mirror.com", "spoken language", "model file", "ggml", "hugging face"} {
+		tt.Clear(msgs.SettingsSearchLabel())
+		tt.Type(msgs.SettingsSearchLabel(), query)
+		if !hasText(tt, msgs.SettingsSectionSpeech()) || hasText(tt, msgs.SettingsSectionAccount()) {
+			t.Fatalf("%q: texts %q", query, tt.Texts())
+		}
 	}
 }
 

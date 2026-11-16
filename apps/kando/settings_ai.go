@@ -4,23 +4,34 @@ import (
 	"context"
 	"errors"
 	"log"
+	"maps"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
 	"kando/apps/kando/films"
+	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 )
 
 // Settings › AI 服务: the translation model's provider, endpoint and key.
 
-// savedLLM is the AI service's part of settings.json.
+// savedLLM is the AI service's part of settings.json: the service in use, and LLMServices, the others used before, by their preset id (settings.Presets), so choosing one again brings back its key and model.
 type savedLLM struct {
-	LLMProvider string `json:"llmProvider,omitempty"`
-	LLMBaseURL  string `json:"llmBaseURL,omitempty"`
-	LLMModel    string `json:"llmModel,omitempty"`
-	LLMAPIKey   string `json:"llmAPIKey,omitempty"`
+	LLMProvider string                     `json:"llmProvider,omitempty"`
+	LLMBaseURL  string                     `json:"llmBaseURL,omitempty"`
+	LLMModel    string                     `json:"llmModel,omitempty"`
+	LLMAPIKey   string                     `json:"llmAPIKey,omitempty"`
+	LLMServices map[string]savedLLMService `json:"llmServices,omitempty"`
+}
+
+// savedLLMService is a service used before: its endpoint, which only 自定义 takes back, as the others have their preset's, the model chosen on it and its key, which goes back only to the host it was used with.
+type savedLLMService struct {
+	BaseURL string `json:"baseURL,omitempty"`
+	Model   string `json:"model,omitempty"`
+	APIKey  string `json:"apiKey,omitempty"`
 }
 
 func (s *savedLLM) clean() {
@@ -28,6 +39,17 @@ func (s *savedLLM) clean() {
 	s.LLMModel = strings.TrimSpace(s.LLMModel)
 	s.LLMAPIKey = strings.TrimSpace(s.LLMAPIKey)
 	s.LLMProvider = strings.TrimSpace(s.LLMProvider)
+	for id, service := range s.LLMServices {
+		service = savedLLMService{BaseURL: strings.TrimSpace(service.BaseURL), Model: strings.TrimSpace(service.Model), APIKey: strings.TrimSpace(service.APIKey)}
+		if _, known := settings.PresetByID(locales.In(locales.Source), id); !known || service.BaseURL == "" {
+			delete(s.LLMServices, id)
+			continue
+		}
+		s.LLMServices[id] = service
+	}
+	if len(s.LLMServices) == 0 {
+		s.LLMServices = nil
+	}
 }
 
 func (a *app) saveLLM(saved *savedSettings) {
@@ -37,6 +59,7 @@ func (a *app) saveLLM(saved *savedSettings) {
 		saved.LLMModel = tools.Translator.Model
 		saved.LLMAPIKey = tools.Translator.APIKey
 	}
+	saved.LLMServices = maps.Clone(a.prefs.llmServices)
 }
 
 // restoreLLM uses the AI service saved last time for what the environment does not name. The provider is read from the endpoint, not from the saved llmProvider.
@@ -51,6 +74,7 @@ func (a *app) restoreLLM(saved savedSettings) {
 	if os.Getenv("KANDO_LLM_MODEL") == "" && saved.LLMModel != "" {
 		tools.Translator.Model = saved.LLMModel
 	}
+	a.prefs.llmServices = maps.Clone(saved.LLMServices)
 	// A key goes only to the endpoint it belongs to: KANDO_LLM_API_KEY to whichever endpoint is in use, EVERYAPI_API_KEY to EveryAPI only, the saved key to the host it was saved with. ToolsFromEnv may have put EVERYAPI_API_KEY in for its EveryAPI default, which the saved endpoint can replace.
 	if os.Getenv("KANDO_LLM_API_KEY") == "" {
 		everyAPIKey := os.Getenv("EVERYAPI_API_KEY")
@@ -66,14 +90,27 @@ func (a *app) restoreLLM(saved savedSettings) {
 	a.syncLLM(tools.UseEveryAPICLI())
 }
 
+// syncLLM shows the tools' AI service in the settings, its key as the key of its endpoint (llmKeyOwner).
 func (a *app) syncLLM(tools media.Tools) {
 	a.pipeline = tools
 	a.prefs.llmBase = tools.Translator.BaseURL
 	a.prefs.llmModel = tools.Translator.Model
 	a.prefs.llmKey = tools.Translator.APIKey
+	a.prefs.llmKeyOwner = llmKeyOwner{key: tools.Translator.APIKey, base: tools.Translator.BaseURL}
 	a.prefs.llmProvider = settings.ProviderID(tools.Translator.BaseURL)
 }
 
+// llmKeyOwner is the key in the API Key field and the endpoint it belongs to: the one it came from settings.json, the environment or a service used before with, or the one that listed its models or passed the connection test with it. A key typed since belongs to no endpoint yet, so it goes with the Base URL as that is typed, in whichever order the two are filled in.
+type llmKeyOwner struct{ key, base string }
+
+// llmKeyUsed records that the key of translator worked on its endpoint, as when the endpoint listed its models or passed the connection test with it, so the key is not sent elsewhere when the Base URL moves to another host.
+func (a *app) llmKeyUsed(translator media.ChatTranslator) {
+	if translator.APIKey != "" && translator.APIKey == strings.TrimSpace(a.prefs.llmKey) {
+		a.prefs.llmKeyOwner = llmKeyOwner{key: translator.APIKey, base: translator.BaseURL}
+	}
+}
+
+// selectLLM switches to the service id. The service in use is remembered first (llmRemember), and the one chosen comes back as it was left: its model and the key it had, which goes back only to the host it was used with. A service not used before gets its preset's endpoint and model, which adoptLLMModel fills in once the service lists its models when the preset names none, and no key. 自定义 has no endpoint of its own: it takes back the last custom endpoint, or starts with none, so neither the endpoint nor the key of the service before is kept for it.
 func (a *app) selectLLM(id string) {
 	if a.prefs.llmProvider == id {
 		return
@@ -82,13 +119,36 @@ func (a *app) selectLLM(id string) {
 	if !ok {
 		return
 	}
+	a.llmRemember()
 	a.prefs.llmProvider = id
-	// Another endpoint does not have the model of the one before: the preset's own default goes in, or none, which adoptLLMModel fills in once the service lists its models. 自定义 has no endpoint and keeps both.
-	if preset.BaseURL != "" {
-		a.prefs.llmBase = preset.BaseURL
-		a.prefs.llmModel = preset.Model
+	base, model, key := preset.BaseURL, preset.Model, ""
+	if before, used := a.prefs.llmServices[id]; used {
+		if base == "" {
+			base = before.BaseURL
+		}
+		if before.Model != "" {
+			model = before.Model
+		}
+		if settings.SameHost(before.BaseURL, base) {
+			key = before.APIKey
+		}
 	}
+	a.prefs.llmBase, a.prefs.llmModel, a.prefs.llmKey = base, model, key
+	a.prefs.llmKeyOwner = llmKeyOwner{key: key, base: base}
 	a.applyLLM()
+}
+
+// llmRemember keeps the AI service in use, its endpoint, model and key, under its preset id for when it is chosen again (selectLLM); settings.json keeps them too (savedLLM.LLMServices).
+func (a *app) llmRemember() {
+	tools, ok := a.pipeline.(media.Tools)
+	base := strings.TrimSpace(tools.Translator.BaseURL)
+	if !ok || base == "" {
+		return
+	}
+	if a.prefs.llmServices == nil {
+		a.prefs.llmServices = map[string]savedLLMService{}
+	}
+	a.prefs.llmServices[settings.ProviderID(base)] = savedLLMService{BaseURL: base, Model: strings.TrimSpace(tools.Translator.Model), APIKey: tools.Translator.APIKey}
 }
 
 func (a *app) applyLLM() {
@@ -98,8 +158,8 @@ func (a *app) applyLLM() {
 	}
 	base := strings.TrimSpace(a.prefs.llmBase)
 	key := strings.TrimSpace(a.prefs.llmKey)
-	// The key in the field belongs to the endpoint it was in use with. When the service or Base URL moves to another host and the key was not retyped, it is dropped rather than sent there.
-	if key != "" && key == tools.Translator.APIKey && !settings.SameHost(base, tools.Translator.BaseURL) {
+	// A key that belongs to an endpoint (llmKeyOwner) is dropped rather than sent elsewhere when the Base URL moves to another host. A key typed since belongs to none yet and goes with the Base URL, so a custom endpoint can be filled in key first.
+	if owner := a.prefs.llmKeyOwner; key != "" && key == owner.key && !settings.SameHost(base, owner.base) {
 		key = ""
 		a.prefs.llmKey = ""
 	}
@@ -107,6 +167,7 @@ func (a *app) applyLLM() {
 	if base == media.EveryAPIBaseURL && key == "" {
 		key = os.Getenv("EVERYAPI_API_KEY")
 		a.prefs.llmKey = key
+		a.prefs.llmKeyOwner = llmKeyOwner{key: key, base: base}
 	}
 	if base != tools.Translator.BaseURL || key != tools.Translator.APIKey {
 		a.prefs.llmEdited = time.Now()
@@ -193,13 +254,13 @@ func (a *app) testLLM() {
 	a.llmForgetTest()
 	a.prefs.testingLLM = true
 	gen := a.prefs.llmTestGen
-	translator := tools.Translator
+	translator, ping := tools.Translator, a.prefs.pingLLM
 	credential := translator.Credential != nil
 	update := a.update
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		err := translator.Ping(ctx)
+		err := ping(ctx, translator)
 		update(func() {
 			if gen != a.prefs.llmTestGen {
 				return
@@ -209,6 +270,8 @@ func (a *app) testLLM() {
 			a.prefs.llmTestErr = err
 			if err != nil {
 				log.Printf("settings: the AI service's connection test failed: %v", err)
+			} else {
+				a.llmKeyUsed(translator)
 			}
 			a.areasLLMTested(err, credential)
 		})
@@ -289,18 +352,26 @@ func (a *app) fetchLLMModels(force bool) bool {
 				return
 			}
 			a.prefs.llmModels = models
+			a.llmKeyUsed(translator)
 			a.adoptLLMModel()
 		})
 	}()
 	return true
 }
 
-// adoptLLMModel picks a model when none is chosen yet: the service's own default when it offers it, else the first chat model it lists (settings.DefaultModel). A model already chosen is kept even when the list lacks it; the drop-down shows it on top.
+// adoptLLMModel picks a model when none is chosen yet, or when the one in use is the service's own default and the service no longer lists it: the service's own default when it offers it, else the first chat model it lists (settings.DefaultModel). A model the user chose is kept even when the list lacks it; the drop-down shows it on top. The model picked is tested at once, where the service can answer without a key or has one and EveryAPI's sign-in is not missing, so the page says whether translation works.
 func (a *app) adoptLLMModel() {
-	if strings.TrimSpace(a.prefs.llmModel) != "" || len(a.prefs.llmModels) == 0 {
+	if len(a.prefs.llmModels) == 0 {
 		return
 	}
 	preset, _ := settings.PresetByID(a.messages(), a.prefs.llmProvider)
+	model := strings.TrimSpace(a.prefs.llmModel)
+	if model != "" && (model != preset.Model || slices.Contains(a.prefs.llmModels, model)) {
+		return
+	}
 	a.prefs.llmModel = settings.DefaultModel(preset, a.prefs.llmModels)
 	a.applyLLM()
+	if tools, ok := a.pipeline.(media.Tools); ok && (!preset.NeedsKey() || tools.Translator.APIKey != "") && !everyAPICLIMissing(tools.Translator) {
+		a.testLLM()
+	}
 }
