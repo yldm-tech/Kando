@@ -442,9 +442,6 @@ filmClipSpan:
     number: { type: "int", example: "3" }
     start: { type: "String", example: "1:00" }
     end: { type: "String", example: "1:30" }
-filmClipsNote:
-  message: "Subtitles are split evenly by time into 4–12 clips of about 30 seconds each."
-  description: "Line over the Clips tab's list: how the film is cut."
 filmColorOrange:
   message: "Orange"
   description: "A subtitle line's color."
@@ -584,9 +581,12 @@ filmModeOriginal:
 filmModeTranslation:
   message: "Translation Only"
   description: "Subtitle mode: only the translated line shows."
+filmModeTranslationBlankNote:
+  message: "Blank until the translation is ready"
+  description: "Line under the Translation Only row of the subtitle mode menu, when the settings leave a line without a translation blank on the picture."
 filmModeTranslationNote:
   message: "Shows the original, dimmed, until the translation is ready"
-  description: "Line under the Translation Only row of the subtitle mode menu."
+  description: "Line under the Translation Only row of the subtitle mode menu, when the settings show a line without a translation as its original, dimmed."
 filmMoreActions:
   message: "More Actions"
   description: "Accessible name of the player's ⋯ menu button."

@@ -350,8 +350,8 @@ func TestFilmSideShowsChaptersAndStyle(t *testing.T) {
 	playerOpenFilm(t, a, tt, updates, item)
 	playerLoadFilm(tt, a, 65*time.Second)
 	tt.Press("id:film-tab-clips")
-	// 65 seconds of film make the least 4 片段, each named after the line that started last by its start.
-	for _, text := range []string{"片段 1 · 0:00–0:16", "片段 4 · 0:48–1:05", "你好。", "Hello."} {
+	// The film's two lines start in its first 5 seconds, so the even cuts of its 65 seconds have no line to start on: one 片段 covers the film, named after its first line.
+	for _, text := range []string{"片段 1 · 0:00–1:05", "你好。", "Hello."} {
 		wantText(t, tt, text)
 	}
 	tt.Press("id:film-tab-info")
@@ -1422,14 +1422,15 @@ func TestMediaKeysWhileTheFilmOpens(t *testing.T) {
 	}
 }
 
-// TestSpeedOnLinuxStaysAtOne picks 2× on Linux, where the system's player plays every film at the speed it was recorded at: the speed button and the settings keep 2×, but the player is asked for 1×, and the playhead, which the subtitles and the loop follow, moves at it.
+// TestSpeedOnLinuxStaysAtOne opens a film on Linux with 2× kept in the settings, where the system's player plays every film at the speed it was recorded at: the transport has no speed button, ⇧. and ⇧, change nothing and say nothing on the picture, and the settings keep 2×; the player is asked for 1×, and the playhead, which the subtitles and the loop follow, moves at it.
 func TestSpeedOnLinuxStaysAtOne(t *testing.T) {
 	usePlatform(t, ns.OSLinux)
 	a, tt, _ := playerOpen(t)
-	for range 4 {
-		tt.Key("shift+.")
-	}
-	if a.player.rate != 2 || !hasText(tt, film.RateTextIn(testlocale.Messages(), 2)) || playerVideoConfig(tt).Rate != 1 {
+	apply(tt, a, func() { a.player.rate = 2; a.playerApplyRate() })
+	tt.Key("shift+,")
+	tt.Key("shift+.")
+	m := testlocale.Messages()
+	if a.player.rate != 2 || tt.Exists("id:film-speed") || hasText(tt, m.PlayerOsdSpeed(film.RateTextIn(m, 1.5))) || hasText(tt, film.RateTextIn(m, 2)) || playerVideoConfig(tt).Rate != 1 {
 		t.Fatalf("rate %v, the player asked for %v; texts %q", a.player.rate, playerVideoConfig(tt).Rate, tt.Texts())
 	}
 	tt.Key("space")
@@ -1451,6 +1452,7 @@ func TestSpeedKeysStepThroughTheRates(t *testing.T) {
 			t.Fatalf("after %s: rate %v, want %v; player %+v; texts %q", k, a.player.rate, rate, playerVideoConfig(tt), tt.Texts())
 		}
 	}
+	key("shift+.", 1.1, "速度 1.1×")
 	key("shift+.", 1.25, "速度 1.25×")
 	key("shift+.", 1.5, "速度 1.5×")
 	key("shift+.", 2, "速度 2×")
@@ -1463,6 +1465,8 @@ func TestSpeedKeysStepThroughTheRates(t *testing.T) {
 	for range 4 {
 		tt.Key("shift+,")
 	}
+	key("shift+,", 0.8, "速度 0.8×")
+	key("shift+,", 0.75, "速度 0.75×")
 	key("shift+,", 0.5, "速度 0.5×")
 	// The playhead moves on at the film's speed.
 	tt.Key("space")
@@ -1487,7 +1491,7 @@ func TestSpeedSettingsRoundTrip(t *testing.T) {
 	for _, tc := range []struct {
 		saved string
 		want  float64
-	}{{"3", 2}, {"0.1", 0.5}, {"0.6", 0.5}, {"0.9", 1}, {"1.3", 1.25}, {"0", 1}, {"-1", 1}} {
+	}{{"3", 2}, {"0.1", 0.5}, {"0.6", 0.5}, {"0.93", 0.9}, {"0.97", 1}, {"1.3", 1.25}, {"0", 1}, {"-1", 1}} {
 		path := filepath.Join(t.TempDir(), "settings.json")
 		if err := os.WriteFile(path, []byte(`{"rate": `+tc.saved+`}`), 0o600); err != nil {
 			t.Fatal(err)

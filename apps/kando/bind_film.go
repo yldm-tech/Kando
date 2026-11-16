@@ -373,6 +373,8 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	volume := func() bool { return open() && !menus() }
 	// L also works while the picture opens, so turning the loop off is not missed then.
 	opening := func() bool { return a.openKey != "" && a.player.play != nil }
+	// The speed keys work where the system's player plays at the speed picked, not on Linux (film.RateWorks).
+	speed := func() bool { return open() && film.RateWorks(cx) }
 	return []shortcut{
 		{Group: groupPlayback, Label: locales.PlayerKeyPlayPause(cx), Key: "space", When: transport, Run: func() { a.player.play.toggle() }},
 		{Group: groupPlayback, Label: locales.FilmSkipBack(cx, 5), Key: "left", Repeat: true, When: transport, Run: func() { a.Skip(-5 * time.Second) }},
@@ -386,8 +388,8 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeUp(cx), Key: "up", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyVolumeDown(cx), Key: "down", Repeat: true, When: volume, Run: func() { a.playerNudgeVolume(-1) }},
 		{Group: groupPlayback, Label: locales.PlayerKeyMute(cx), Key: "m", When: open, Run: a.ToggleMute},
-		{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: "shift+,", Repeat: true, When: open, Run: func() { a.playerStepRate(-1) }},
-		{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: "shift+.", Repeat: true, When: open, Run: func() { a.playerStepRate(1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: "shift+,", Repeat: true, When: speed, Run: func() { a.playerStepRate(-1) }},
+		{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: "shift+.", Repeat: true, When: speed, Run: func() { a.playerStepRate(1) }},
 		{Group: groupSubtitles, Label: locales.PlayerKeyToggleSubtitles(cx), Key: "v", When: open, Run: a.toggleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyCycleSubtitles(cx), Key: "s", When: open, Run: a.cycleSubtitles},
 		{Group: groupSubtitles, Label: locales.PlayerKeyDelayEarlier(cx), Key: "z", Repeat: true, When: open, Run: func() { a.nudgeDelay(-100 * time.Millisecond) }},

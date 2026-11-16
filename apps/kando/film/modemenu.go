@@ -31,12 +31,15 @@ var modeChoices = []struct {
 	{SubBilingual, "s"},
 }
 
-// modeNote is the line under a row of the mode menu, or "" for a row without one.
-func modeNote(cx *core.Scope, mode string) string {
+// modeNote is the line under a row of the mode menu, or "" for a row without one. Translation Only's says what the picture shows for a line not translated yet, which untranslated, the setting, picks (pictureLines).
+func modeNote(cx *core.Scope, mode, untranslated string) string {
 	switch mode {
 	case SubOff:
 		return locales.FilmModeOffNote(cx)
 	case SubTranslation:
+		if untranslated == UntranslatedBlank {
+			return locales.FilmModeTranslationBlankNote(cx)
+		}
 		return locales.FilmModeTranslationNote(cx)
 	}
 	return ""
@@ -137,10 +140,11 @@ func (s *screen) modeRow(cx *core.Scope, mode, key string) core.Node {
 	a := s.a
 	on := live.Func(a, func() bool { return a.SubMode() == mode })
 	name := func() string { return ModeName(cx, mode) }
+	note := live.Func(a, func() string { return modeNote(cx, mode, a.Untranslated()) })
 	text := core.View{Style: core.Style{FlexGrow: 1, Gap: 1}, Children: []core.Node{
 		core.Text{ContentFunc: name, Style: core.Style{FontSize: 13, LineHeight: 18, Color: onGlass}},
-		core.Show{When: func() bool { return modeNote(cx, mode) != "" }, Then: func(cx *core.Scope) core.Node {
-			return core.Text{ContentFunc: func() string { return modeNote(cx, mode) }, Style: core.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: core.Alpha(0.6)}}
+		core.Show{When: func() bool { return note() != "" }, Then: func(cx *core.Scope) core.Node {
+			return core.Text{ContentFunc: note, Style: core.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: core.Alpha(0.6)}}
 		}},
 	}}
 	keycap := core.Text{ContentFunc: func() string { return cx.KeyLabel(key) }, Style: core.Style{FontSize: 11, LineHeight: 18, FlexShrink: 0, Color: onGlass, Opacity: core.Alpha(0.5)}}

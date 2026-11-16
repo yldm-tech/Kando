@@ -318,7 +318,7 @@ func TestPanelTabsAndTheStyleView(t *testing.T) {
 		t.Fatalf("the subtitle tab lists %q", app.Texts())
 	}
 	app.Press("id:film-tab-clips")
-	if a.side != "clips" || !app.Exists(whole(msgs.FilmClipsNote())) {
+	if a.side != "clips" || !app.Exists(`label:"`+msgs.FilmClip(1)+`"`) {
 		t.Fatalf("the clips tab: side %q texts %q", a.side, app.Texts())
 	}
 	app.Press("id:film-tab-info")
@@ -423,6 +423,51 @@ func TestModeMenuPicksTheMode(t *testing.T) {
 	}
 }
 
+// TestModeMenuNoteFollowsUntranslated opens the subtitle menu: the line under Translation Only says what the picture shows for a line not yet translated, its original dimmed or nothing, as the setting picks, and follows the setting while the menu is open.
+func TestModeMenuNoteFollowsUntranslated(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	msgs := testlocale.Messages()
+	app.Press("id:film-mode")
+	if !app.Exists(whole(msgs.FilmModeTranslationNote())) || app.Exists(whole(msgs.FilmModeTranslationBlankNote())) {
+		t.Fatalf("with untranslated lines dimmed the menu reads %q", app.Texts())
+	}
+	change(app, a, func() { a.untrans = UntranslatedBlank })
+	if app.Exists(whole(msgs.FilmModeTranslationNote())) || !app.Exists(whole(msgs.FilmModeTranslationBlankNote())) {
+		t.Fatalf("with untranslated lines left blank the menu reads %q", app.Texts())
+	}
+}
+
+// TestCueClockFitsAnHourLongFilm lists the lines of a film over an hour long: a line's start, as 1:02:03.0, stays on one line in a column wide enough for it, wider than the column of a short film.
+func TestCueClockFitsAnHourLongFilm(t *testing.T) {
+	short := start(t, newFakeApp())
+	narrow := short.Find(whole("0:01.0")).Frame.Size.Width
+	a := newFakeApp()
+	a.play = &fakePlay{length: 65 * time.Minute}
+	a.subs.Cues = append(a.subs.Cues, core.Segment{Start: time.Hour + 2*time.Minute + 3*time.Second, End: time.Hour + 2*time.Minute + 5*time.Second, Text: "再见。\nSee you."})
+	app := start(t, a)
+	for _, text := range []string{"0:01.0", "1:02:03.0"} {
+		clock := app.Find(whole(text))
+		if size := clock.Frame.Size; size.Height > 15 || size.Width <= narrow {
+			t.Fatalf("%s is %vx%v, the column of a short film %v wide", text, size.Width, size.Height, narrow)
+		}
+	}
+}
+
+// TestClipPlaysFromItsLineWithTheDelay presses a 片段 with the subtitles moved 2 seconds later: it plays from its line where the picture shows it, 2 seconds after the line's start.
+func TestClipPlaysFromItsLineWithTheDelay(t *testing.T) {
+	a := newFakeApp()
+	a.delay = 2 * time.Second
+	a.play = &fakePlay{length: 120 * time.Second}
+	a.subs.Cues = chapterCues
+	app := start(t, a)
+	app.Press("id:film-tab-clips")
+	app.Press(`label:"` + testlocale.Messages().FilmClip(2) + `"`)
+	if !slices.Contains(a.calls, "seek 37s") {
+		t.Fatalf("the second 片段 played with %v, want seek 37s", a.calls)
+	}
+}
+
 // TestSpeedMenuSetsTheRate opens the transport's speed menu and picks 1.5×; the button keeps its width at every speed, so the scrubber beside it does not move.
 func TestSpeedMenuSetsTheRate(t *testing.T) {
 	a := newFakeApp()
@@ -438,6 +483,17 @@ func TestSpeedMenuSetsTheRate(t *testing.T) {
 	}
 	if got := app.Find("id:film-speed").Frame.Size.Width; got != width {
 		t.Fatalf("the speed button is %v wide at 1.5×, %v at 1×", got, width)
+	}
+}
+
+// TestSpeedMenuIsGoneOnLinux shows the transport on Linux, where the system's player plays every film at the speed it was recorded at: it has no speed button, which would name a speed the film does not play at, and keeps the rest.
+func TestSpeedMenuIsGoneOnLinux(t *testing.T) {
+	a := newFakeApp()
+	a.rate = 2
+	app := start(t, a)
+	app.SetEnvironment(testlocale.Environment(ns.Environment{OS: ns.OSLinux, Idiom: ns.IdiomDesktop}))
+	if app.Exists("id:film-speed") || !app.Exists("id:film-mode") {
+		t.Fatalf("the transport on Linux: speed %v, mode %v", app.Exists("id:film-speed"), app.Exists("id:film-mode"))
 	}
 }
 
@@ -729,7 +785,7 @@ func TestFontNamesFollowTheInterface(t *testing.T) {
 	}
 }
 
-// TestChaptersCoverTheTranscript cuts 100 seconds of subtitles into the least 4 片段, each named after the line that started last by its start.
+// TestChaptersCoverTheTranscript cuts 100 seconds of subtitles into the least 4 片段 by time: the cut at 25 seconds falls inside 第二句 and moves to 第三句's start at 40, the cuts at 50 and 75 to 第四句's at 70, so three 片段 cover the subtitles end to end, each named after the line it starts with.
 func TestChaptersCoverTheTranscript(t *testing.T) {
 	cues := []core.Segment{
 		{Start: 0, End: 7 * time.Second, Text: "第一句\nFirst."},
@@ -737,9 +793,50 @@ func TestChaptersCoverTheTranscript(t *testing.T) {
 		{Start: 40 * time.Second, End: 70 * time.Second, Text: "第三句\nThird."},
 		{Start: 70 * time.Second, End: 100 * time.Second, Text: "第四句\nFourth."},
 	}
-	chapters := Chapters(cues, 0)
-	if len(chapters) != 4 || chapters[0].Title != "第一句" || chapters[0].Start != 0 || chapters[3].End != 100*time.Second {
+	want := []Chapter{
+		{Start: 0, End: 40 * time.Second, Title: "第一句", Detail: "First."},
+		{Start: 40 * time.Second, End: 70 * time.Second, Title: "第三句", Detail: "Third."},
+		{Start: 70 * time.Second, End: 100 * time.Second, Title: "第四句", Detail: "Fourth."},
+	}
+	if chapters := Chapters(cues, 0); !slices.Equal(chapters, want) {
 		t.Fatalf("chapters %#v", chapters)
+	}
+}
+
+// chapterCues are two minutes of lines whose even cuts at 30, 60 and 90 seconds fall inside a line.
+var chapterCues = []core.Segment{
+	{Start: 0, End: 10 * time.Second, Text: "一\nOne."},
+	{Start: 10 * time.Second, End: 35 * time.Second, Text: "二\nTwo."},
+	{Start: 35 * time.Second, End: 62 * time.Second, Text: "三\nThree."},
+	{Start: 62 * time.Second, End: 95 * time.Second, Text: "四\nFour."},
+	{Start: 95 * time.Second, End: 120 * time.Second, Text: "五\nFive."},
+}
+
+// TestChaptersStartOnALine cuts films into 片段 that start and end where a line starts, never inside one, each named after the line it starts with: a cut inside a line moves to the next line's start, cuts that move to the same line make one 片段, and a cut after the last line's start goes.
+func TestChaptersStartOnALine(t *testing.T) {
+	type span struct {
+		from, to time.Duration
+		title    string
+	}
+	s := time.Second
+	tests := []struct {
+		name   string
+		cues   []core.Segment
+		length time.Duration
+		want   []span
+	}{
+		{"cuts inside lines", chapterCues, 120 * s, []span{{0, 35 * s, "一"}, {35 * s, 62 * s, "三"}, {62 * s, 95 * s, "四"}, {95 * s, 120 * s, "五"}}},
+		{"a long gap", []core.Segment{{Start: 0, End: 5 * s, Text: "一"}, {Start: 100 * s, End: 110 * s, Text: "二"}}, 120 * s, []span{{0, 100 * s, "一"}, {100 * s, 120 * s, "二"}}},
+		{"lines only at the start", []core.Segment{{Start: 0, End: 5 * s, Text: "一"}, {Start: 6 * s, End: 10 * s, Text: "二"}}, 120 * s, []span{{0, 120 * s, "一"}}},
+	}
+	for _, tt := range tests {
+		var got []span
+		for _, ch := range Chapters(tt.cues, tt.length) {
+			got = append(got, span{ch.Start, ch.End, ch.Title})
+		}
+		if !slices.Equal(got, tt.want) {
+			t.Errorf("%s: chapters %v, want %v", tt.name, got, tt.want)
+		}
 	}
 }
 

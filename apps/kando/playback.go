@@ -135,10 +135,9 @@ func (a *app) playerVideo() film.Video {
 	}
 }
 
-// playerSpeed is how fast the system's player plays the open film, which the playhead, the subtitles' timers and the loop follow: the player's speed (app.player.rate), but 1 on Linux, where the system's player plays every film at the speed it was recorded at. The speed button and the settings keep the speed picked there all the same.
+// playerSpeed is how fast the system's player plays the open film, which the playhead, the subtitles' timers and the loop follow: the player's speed (app.player.rate), but 1 where the system's player plays every film at the speed it was recorded at (film.RateWorks), Linux, which has no speed button and no speed keys then. The settings keep the speed picked elsewhere all the same.
 func (a *app) playerSpeed() float64 {
-	if a.cx != nil && a.cx.Env().OS() == ns.OSLinux {
-		// TODO(nsgo#110): play at the film's speed on Linux too, where NSGo's player ignores core.Video's Rate, as MyGo's player and its atempo sound did; the speed menu and ⇧, ⇧. change it there without effect until then https://github.com/nsgo-dev/nsgo/issues/110
+	if a.cx != nil && !film.RateWorks(a.cx) {
 		return 1
 	}
 	return a.player.rate

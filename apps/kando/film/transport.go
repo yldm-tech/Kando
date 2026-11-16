@@ -57,7 +57,7 @@ func (s *screen) transport() core.Node {
 				clock(left, "-", true),
 				s.volume(cx),
 				row(2,
-					s.speedMenu(cx),
+					core.Show{When: func() bool { return RateWorks(cx) }, Then: s.speedMenu},
 					s.loopToggle(cx),
 					s.modeMenu(cx),
 					glyphToggle(cx, svg(iconPanel), panelLabel, withKey(cx, panelLabel, "mod+shift+t"), 34, 30, 18, 15, "film-panel-toggle", live.Func(a, a.Panel), live.Do(a, a.TogglePanel)),

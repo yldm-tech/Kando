@@ -3,6 +3,7 @@ package film
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -258,6 +259,7 @@ func (s *screen) cueList(cx *ns.Scope) ns.Node {
 		}
 		return cueIndex(cues(), s.playhead()-a.Delay())
 	}).Get
+	clockWidth := cueClockWidth(cx, a, cues)
 	list := &ns.Ref{}
 	// The list follows the playing cue as it changes, not as it is scrolled by hand or narrowed by the search.
 	followed := -2
@@ -298,7 +300,7 @@ func (s *screen) cueList(cx *ns.Scope) ns.Node {
 						i := row.Index()
 						return i < len(rows) && rows[i] == current()
 					}
-					return s.cueRow(cx, cue, on)
+					return s.cueRow(cx, cue, on, clockWidth)
 				}}
 		},
 		Else: func(cx *ns.Scope) ns.Node {
@@ -307,8 +309,23 @@ func (s *screen) cueList(cx *ns.Scope) ns.Node {
 	}
 }
 
-// cueRow is one cue of the list: its start, the translation and the original under it. A click plays from its start, and a right click copies it (cueMenu).
-func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, current func() bool) ns.Node {
+// cueClockStyle is the style of a line's start in the subtitle list.
+var cueClockStyle = ns.Style{FontSize: 11, LineHeight: 15, FontVariant: ns.FontTabularNums, Color: onGlass, Opacity: ns.Alpha(0.7), FlexShrink: 0, Margin: ns.Edges{Top: 2}}
+
+// cueClockWidth is the width of the subtitle list's column of starts: the latest start the film can have, its length or the last line's start, as the column draws it, so every start fits on one line, an hour's as well; at least 38, the prototype's.
+func cueClockWidth(cx *ns.Scope, a App, cues func() []core.Segment) func() ns.Points {
+	return live.Memo(cx, a, func() ns.Points {
+		latest := a.PlayLength()
+		if list := cues(); len(list) > 0 {
+			latest = max(latest, list[len(list)-1].Start)
+		}
+		m := cx.MeasureText(cueClockTenths(latest), ns.Font{Size: cueClockStyle.FontSize, Variant: cueClockStyle.FontVariant})
+		return ns.Points(max(38, float32(math.Ceil(float64(m.Width)))))
+	})
+}
+
+// cueRow is one cue of the list: its start, in a column clockWidth wide, the translation and the original under it. A click plays from its start, and a right click copies it (cueMenu).
+func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, current func() bool, clockWidth func() ns.Points) ns.Node {
 	a := s.a
 	lines := func() (string, string) {
 		translation, original := splitCue(cue().Text)
@@ -332,7 +349,8 @@ func (s *screen) cueRow(cx *ns.Scope, cue func() core.Segment, current func() bo
 			return ns.Style{}
 		},
 		Children: []ns.Node{
-			ns.Text{ContentFunc: func() string { return cueClockTenths(cue().Start) }, Style: ns.Style{FontSize: 11, LineHeight: 15, FontVariant: ns.FontTabularNums, Color: onGlass, Opacity: ns.Alpha(0.7), Width: ns.Pt(38), FlexShrink: 0, Margin: ns.Edges{Top: 2}}},
+			ns.Text{ContentFunc: func() string { return cueClockTenths(cue().Start) }, MaxLines: 1, Style: cueClockStyle,
+				StyleFunc: func() ns.Style { return ns.Style{Width: ns.Pt(clockWidth())} }},
 			ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: ns.Pt(0), Gap: 2}, Children: []ns.Node{
 				ns.Text{ContentFunc: main, Style: ns.Style{FontSize: 14, LineHeight: 19, Color: onGlass}, StyleFunc: func() ns.Style {
 					if current() {
@@ -389,9 +407,6 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 		}
 		return ns.Show{When: func() bool { return len(chapters()) > 0 }, Then: func(cx *ns.Scope) ns.Node {
 			return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0), Gap: 8}, Children: []ns.Node{
-				ns.View{Style: ns.Style{MinHeight: ns.Pt(30), JustifyContent: ns.JustifyCenter}, Children: []ns.Node{
-					ns.Text{ContentFunc: func() string { return locales.FilmClipsNote(cx) }, Style: ns.Style{FontSize: 11, LineHeight: 15, Color: onGlass, Opacity: ns.Alpha(0.7)}},
-				}},
 				ns.List{TestID: "film-clips", Style: ns.Style{FlexGrow: 1, MinHeight: ns.Pt(0)}, Gap: 8, EstimatedSize: 64,
 					Count: func() int { return len(chapters()) },
 					Key:   func(i int) any { return i },
@@ -415,14 +430,14 @@ func (s *screen) clipsTab(cx *ns.Scope) ns.Node {
 // clipTiles are the colors of the 片段's tiles, the prototype's stand-ins for a frame of each.
 var clipTiles = []ns.Color{ns.RGB(0x3E6A5B), ns.RGB(0x6A8EA1), ns.RGB(0x4B7A8C), ns.RGB(0x5D7F63), ns.RGB(0x7C8F6B), ns.RGB(0x2E5B6E)}
 
-// chapterRow is a 片段 of the clips tab: a tile with a frame of it, once read, and its start; the span it covers, and the line it is named after.
+// chapterRow is a 片段 of the clips tab: a tile with a frame of it, once read, and its start; the span it covers, and the line it is named after. Its times are the cues', so it plays from its start moved by the subtitle delay, where the picture shows its first line, as a line of the subtitle list does, and is lit while the playhead, moved back by the delay, is in it.
 func (s *screen) chapterRow(cx *ns.Scope, index func() int, ch func() Chapter) ns.Node {
 	a := s.a
 	active := func() bool {
 		if a.Play() == nil {
 			return false
 		}
-		at, c := s.playhead(), ch()
+		at, c := s.playhead()-a.Delay(), ch()
 		return at >= c.Start && (c.End <= c.Start || at < c.End)
 	}
 	frame := live.Func(a, func() ns.ImageSource {
@@ -449,7 +464,7 @@ func (s *screen) chapterRow(cx *ns.Scope, index func() int, ch func() Chapter) n
 	}
 	return base.Button{
 		LabelFunc: func() string { return locales.FilmClip(cx, index()+1) },
-		OnPress:   live.On(a, func(ns.PressEvent) { a.Seek(ch().Start) }),
+		OnPress:   live.On(a, func(ns.PressEvent) { a.Seek(ch().Start + a.Delay()) }),
 		Style: ns.Style{Direction: ns.Row, Gap: 12, Padding: ns.All(8), CornerRadius: 12, AlignItems: ns.AlignCenter,
 			Hover: &ns.Style{Background: panelLine}, FocusVisible: ui.FocusRing(cx, -2)},
 		StyleFunc: func() ns.Style {
@@ -765,7 +780,7 @@ type Chapter struct {
 	Title, Detail string
 }
 
-// Chapters cuts the film into 4 to 12 片段 of equal time, about 30 seconds each, from the start to length, or to the last cue's end when that is later or length is not known. Each is named after the cue playing as it starts, or the first one after it: the translation, with the original as its detail (prototype script 3248-3259).
+// Chapters cuts the film, from the start to length, or to the last cue's end when that is later or length is not known, into up to 12 片段: evenly into 4 to 12 first (prototype script 3248-3259), and then every cut but the start moves to where a cue starts, so no 片段 starts or ends inside a line. A cut inside a line or a gap moves to the next cue's start, cuts that move to the same cue make one, and a cut with no cue starting after it goes. Their times are the cues', which the subtitle delay moves on the picture. Each is named after the cue it starts with, the first after the cue playing at the start or the first one: the translation, with the original as its detail.
 func Chapters(cues []core.Segment, length time.Duration) []Chapter {
 	if len(cues) == 0 {
 		return nil
@@ -776,10 +791,26 @@ func Chapters(cues []core.Segment, length time.Duration) []Chapter {
 	}
 	n := int((end + 15*time.Second) / (30 * time.Second))
 	n = min(max(n, 4), 12)
-	out := make([]Chapter, 0, n)
-	for k := range n {
-		from := end * time.Duration(k) / time.Duration(n)
-		to := end * time.Duration(k+1) / time.Duration(n)
+	starts := make([]time.Duration, 1, n)
+	next := 0
+	for k := 1; k < n; k++ {
+		cut := end * time.Duration(k) / time.Duration(n)
+		for next < len(cues) && cues[next].Start < cut {
+			next++
+		}
+		if next == len(cues) {
+			break
+		}
+		if at := cues[next].Start; at > starts[len(starts)-1] && at < end {
+			starts = append(starts, at)
+		}
+	}
+	out := make([]Chapter, 0, len(starts))
+	for i, from := range starts {
+		to := end
+		if i+1 < len(starts) {
+			to = starts[i+1]
+		}
 		out = append(out, chapterAt(cues, from, to))
 	}
 	return out
