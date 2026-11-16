@@ -914,7 +914,7 @@ func TestHeroShadowReachesPastTheShelf(t *testing.T) {
 	if tt.Find("id:films-hero").Style.Clip {
 		t.Fatal("the hero clips its children, which takes its shadow off on a Mac")
 	}
-	// TODO(nsgo#119): read the pixels beside the hero's sides, darker than the page under it, as MyGo's Tester.Image let the test do; nsgotest renders no pixels headless, so the test checks that the page's padding leaves the shadow room inside the scroll view, which clips it https://github.com/nsgo-dev/nsgo/issues/119
+	// TODO(nsgo): read the pixels of tt.Capture() beside the hero's sides under nsgo test -target, darker than the page under it, as MyGo's Tester.Image let the test do, once a macOS capture shows layer shadows: nsgotest's macOS screenshot draws the window with NSView's cacheDisplayInRect, which leaves out Core Animation shadows, so the capture shows no shadow under any view. Until then the test checks that the page's padding leaves the shadow room inside the scroll view, which clips it
 	var scroll *nsgotest.View
 	for v := tt.Find("id:films-hero").Parent; v != nil; v = v.Parent {
 		if v.Kind.String() == "scroll" {

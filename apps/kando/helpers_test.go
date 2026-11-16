@@ -25,7 +25,7 @@ import (
 	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
-// The tests start the app as a user meets it, with nsgotest: newTestApp mounts the main view headless (nsgotest.Start), and the steps press, type and read what shows by selectors, as nsgotest names them: a bare string is a test ID, else an accessibility label, else a whole text; "text:" a substring and `text:"…"` a whole text; "role:button 保存" a role and its name; "id:" a test ID alone. A test that changes the app's state itself, as MyGo's tests set a field and drew a frame, calls refresh, which tells the revision and settles, in place of tt.Frame(). Headless, the graph runs on the test's goroutine, so a test reads and writes the app's state directly between steps.
+// The tests start the app as a user meets it, with nsgotest: newTestApp mounts the main view headless (nsgotest.Start), and the steps press, type and read what shows by selectors, as nsgotest names them: a bare string is a test ID, else an accessibility label, else a whole text; "text:" a substring and `text:"…"` a whole text; "role:button 保存" a role and its name; "id:" a test ID alone. A test that changes the app's state itself, as MyGo's tests set a field and drew a frame, calls refresh, which tells the revision and settles, in place of tt.Frame(). Headless, the graph runs on the test's goroutine, so a test reads and writes the app's state directly between steps; under `nsgo test -target` the engine runs on a goroutine of its own, so refresh, apply and the helpers that apply background updates run the change on it (onEngine), and a test that calls into the graph itself between steps does so through onEngine too.
 //
 // MyGo's Tester and nsgotest, step by step:
 //   - tt.Frame() after changing the state: refresh(tt, a); after a step: nothing, every step settles
@@ -140,14 +140,28 @@ func (a *app) testView(cx *ns.Scope) ns.Node {
 
 // refresh tells the revision that the test changed the app's state and settles, as MyGo's Tester.Frame drew the state the test had set.
 func refresh(tt *nsgotest.App, a *app) {
-	a.Changed()
+	onEngine(a, a.Changed)
 	tt.Settle()
 }
 
-// apply runs a background update on the test's goroutine, as the engine runs one, and refreshes.
+// apply runs a background update on the engine's goroutine (onEngine), as the app's update does, and refreshes.
 func apply(tt *nsgotest.App, a *app, fn func()) {
-	fn()
+	onEngine(a, fn)
 	refresh(tt, a)
+}
+
+// onEngine runs fn on the goroutine that owns the app's graph and returns once it ran. Headless that is the test's own goroutine, so fn just runs. Under `nsgo test -target` the app's engine runs on a goroutine of its own beside the test's: a Changed the test calls itself runs the bindings on the wrong goroutine, racing the engine, and tells the engine nothing, so the window never shows the state the test set; posted through the app's scope it runs where the engine commits what it changed. The test's writes before the call reach the engine through the post, so a test still sets the app's state directly between steps, then calls refresh.
+func onEngine(a *app, fn func()) {
+	if nsgotest.Target() == "" {
+		fn()
+		return
+	}
+	ran := make(chan struct{})
+	a.cx.Post(func() {
+		defer close(ran)
+		fn()
+	})
+	<-ran
 }
 
 // hasText reports whether a text shows that is s as a whole.
@@ -200,7 +214,7 @@ func settle(t *testing.T, a *app, tt *nsgotest.App, updates chan func()) {
 	for a.running() {
 		select {
 		case fn := <-updates:
-			fn()
+			onEngine(a, fn)
 		case <-timeout:
 			t.Fatalf("job still running, status %q", a.queue.status)
 		}
@@ -273,6 +287,22 @@ func textCount(tt *nsgotest.App, s string) int {
 	return n
 }
 
+// capturedColor is the color of the captured window img, width points wide, at the point (x, y) in the window's points: the pixels of the point's square averaged, 8 bits a channel, in the display's color space (nsgotest's Capture).
+func capturedColor(img image.Image, width ns.Points, x, y ns.Points) [3]uint8 {
+	scale := float64(img.Bounds().Dx()) / float64(width)
+	x0, y0 := int(float64(x)*scale), int(float64(y)*scale)
+	n := max(int(scale), 1)
+	var sum [3]uint32
+	for py := y0; py < y0+n; py++ {
+		for px := x0; px < x0+n; px++ {
+			r, g, b, _ := img.At(img.Bounds().Min.X+px, img.Bounds().Min.Y+py).RGBA()
+			sum[0], sum[1], sum[2] = sum[0]+r>>8, sum[1]+g>>8, sum[2]+b>>8
+		}
+	}
+	d := uint32(n * n)
+	return [3]uint8{uint8(sum[0] / d), uint8(sum[1] / d), uint8(sum[2] / d)}
+}
+
 func sampleStage(img *image.RGBA) [3]uint8 {
 	// The film picture fills the page while it is open, so the middle of the window is on it.
 	b := img.Bounds()
@@ -313,8 +343,10 @@ func waitUntil(t *testing.T, tt *nsgotest.App, a *app, updates <-chan func(), do
 	for !done() {
 		select {
 		case fn := <-updates:
-			fn()
-			a.Changed()
+			onEngine(a, func() {
+				fn()
+				a.Changed()
+			})
 		case <-timeout:
 			t.Fatal("timed out waiting for a background update")
 		}

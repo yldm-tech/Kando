@@ -205,12 +205,26 @@ func TestCheatsheetIsDark(t *testing.T) {
 	a.overlay.cheatsheet = true
 	refresh(tt, a)
 	title := tt.Find(whole(testlocale.Messages().CheatsheetTitle()))
-	// TODO(nsgo#119): check the glass's color over the blurred window under the sheet's scrim, about rgb(51, 51, 54), as the pixels of MyGo's Tester.Image did, once nsgotest gives a test the bytes of its screenshot https://github.com/nsgo-dev/nsgo/issues/119
 	if r, g, b, _ := title.TextStyle.Color.Components(); r < 0.9 || g < 0.9 || b < 0.9 {
 		t.Fatalf("the cheat sheet's title is %#x, want the dark theme's light words", uint32(title.TextStyle.Color))
 	}
 	if r, g, b, alpha := backgroundUnder(title).Components(); r > 0.2 || g > 0.2 || b > 0.2 || alpha < 0.8 {
 		t.Fatalf("cheat sheet behind its title = %#x, want the dark glass", uint32(backgroundUnder(title)))
+	}
+	// Headless runs have no pixels (nsgotest's Capture skips them), so the glass itself is checked on a platform only, under nsgo test -target: over the light window blurred under the sheet's scrim it is about rgb(51, 51, 54), as MyGo's Tester.Image read it. The point is in the sheet's left padding, halfway down, where no words are.
+	if nsgotest.Target() == "" {
+		return
+	}
+	sheet := title
+	for sheet.Style.Background == 0 {
+		sheet = sheet.Parent
+	}
+	box := pageFrame(sheet)
+	got := capturedColor(tt.Capture(), 1100, box.Origin.X+8, box.Origin.Y+box.Size.Height/2)
+	for i, want := range [3]int{51, 51, 54} {
+		if d := int(got[i]) - want; d < -16 || d > 16 {
+			t.Fatalf("the cheat sheet's glass is rgb%v in its left padding, want about rgb(51, 51, 54)", got)
+		}
 	}
 }
 

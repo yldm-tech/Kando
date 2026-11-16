@@ -177,7 +177,7 @@ func TestScreenshotsLibrary(t *testing.T) {
 	f.shoot(t, "library-new-linux", func(a *app, tt *nsgotest.App, _ chan func()) { a.BeginNew() })
 	// The hero film with the picture its site gives it, which takes the place of the frame grabbed for it, as a library from an earlier Kando shows once the site is asked. The site's picture is the fixture's generic scene at full size. It runs last: it leaves the site's picture in the film's cover.jpg.
 	f.shoot(t, "library-site-cover", func(a *app, tt *nsgotest.App, updates chan func()) {
-		picture, err := os.ReadFile(filepath.Join("testdata", "scenes", "generic-1920.png"))
+		picture, err := screenshotScenes.ReadFile(scenePath("generic", 1920))
 		if err != nil {
 			t.Fatal(err)
 		}

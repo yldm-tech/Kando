@@ -240,7 +240,7 @@ func screenshotWait(t *testing.T, tt *nsgotest.App, a *app, updates chan func(),
 	for !done() {
 		select {
 		case fn := <-updates:
-			fn()
+			onEngine(a, fn)
 		case <-deadline:
 			t.Fatalf("%s did not load; texts %q", what, tt.Texts())
 		}
@@ -256,8 +256,14 @@ func screenshotOpen(t *testing.T, a *app, tt *nsgotest.App, updates chan func(),
 	if !ok {
 		t.Fatalf("film %s is not on the open library's shelf", id)
 	}
-	a.player.playFrom = at
-	a.Open(item)
+	onEngine(a, func() {
+		a.player.playFrom = at
+		a.Open(item)
+		if p := a.player.play; p != nil && nsgotest.Target() != "" {
+			// TODO(nsgo#107): hand the system's player the film's video once Kando plays what ffmpeg decodes; the system's player on a platform cannot open the fake ffmpeg's placeholder and would say so a moment later, after the remuxes the fake ffmpeg cannot make, leaving the scene to show whichever of opening or 无法播放 it caught, so on a platform the scenes give it nothing to play and report its load and progress themselves (screenshotLoad, screenshotProgress) https://github.com/nsgo-dev/nsgo/issues/107
+			p.source = ""
+		}
+	})
 	refresh(tt, a)
 	picture := a.ffmpegPath() != "" && item.VideoPath != ""
 	screenshotWait(t, tt, a, updates, "film "+id, func() bool {
@@ -267,6 +273,11 @@ func screenshotOpen(t *testing.T, a *app, tt *nsgotest.App, updates chan func(),
 		t.Fatalf("film %s: %s", id, a.player.playErr)
 	}
 	if !picture {
+		return
+	}
+	if nsgotest.Target() != "" {
+		// On a platform no decoder runs (above), so the clock moves the same second in one step: each step settles for a tenth of a second of quiet there, and twenty of them took most of a scene's time.
+		tt.Advance(time.Second)
 		return
 	}
 	// The picture's first frame comes from the decoder in the background.

@@ -43,7 +43,7 @@ func TestScreenshotsPlayer(t *testing.T) {
 			open(a, tt, updates, "j1", 3*time.Second)
 			tt.Key("space")
 			tt.HoverAt("id:film", ns.Point{X: 400, Y: 300})
-			tt.Progress("id:film-video", 3*time.Second, a.PlayLength())
+			screenshotProgress(tt, a, 3*time.Second)
 			refresh(tt, a)
 			tt.Advance(rest)
 			// Let the fade end.
@@ -119,15 +119,32 @@ func TestScreenshotsPlayer(t *testing.T) {
 	}))
 }
 
-// screenshotLoad has the system's player report the open film loaded, as a platform's does once it has opened the video, so the scene shows the film's transport as it plays.
+// screenshotLoad has the system's player report the open film loaded, as a platform's does once it has opened the video, so the scene shows the film's transport as it plays. Headless nsgotest reports it to the video view (tt.Play); on a platform, where nsgotest leaves such reports to the platform and the scenes give the system's player nothing to play (screenshotOpen), the report goes to the app's handler of it on the engine's goroutine.
 func screenshotLoad(tt *nsgotest.App, a *app) {
-	if a.player.play == nil || !tt.Exists("id:film-video") {
+	if a.player.play == nil || a.player.playErr != "" {
 		return
 	}
 	length := a.PlayLength()
 	if length <= 0 {
 		length = 5 * time.Minute
 	}
-	tt.Play("id:film-video", ns.VideoInfo{Duration: length, Size: ns.Size{Width: 1920, Height: 1080}})
+	info := ns.VideoInfo{Duration: length, Size: ns.Size{Width: 1920, Height: 1080}}
+	switch {
+	case nsgotest.Target() != "":
+		onEngine(a, func() { a.VideoLoaded(info) })
+	case tt.Exists("id:film-video"):
+		tt.Play("id:film-video", info)
+	default:
+		return
+	}
 	refresh(tt, a)
+}
+
+// screenshotProgress has the system's player report the open film played to position, as screenshotLoad reports its load.
+func screenshotProgress(tt *nsgotest.App, a *app, position time.Duration) {
+	if nsgotest.Target() == "" {
+		tt.Progress("id:film-video", position, a.PlayLength())
+		return
+	}
+	onEngine(a, func() { a.VideoProgress(position, a.PlayLength()) })
 }

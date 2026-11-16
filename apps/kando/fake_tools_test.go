@@ -1,12 +1,14 @@
 package main
 
 import (
+	"embed"
 	"encoding/binary"
 	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -18,7 +20,7 @@ import (
 	"time"
 )
 
-// The screenshot fixture (screenshot_helpers_test.go) runs the window with fake ffmpeg, yt-dlp and whisper-cli instead of whatever this machine has installed, so the scenes show the same versions, paths and pictures everywhere. Their videos are placeholders the fake ffmpeg plays: a gradient (writeFakeClip) or one of the prototype's scene pictures in testdata/scenes (writeFakeScene). Each fake is a link named after the tool to this test binary; run under that name, the binary acts as the tool and exits before any test runs.
+// The screenshot fixture (screenshot_helpers_test.go) runs the window with fake ffmpeg, yt-dlp and whisper-cli instead of whatever this machine has installed, so the scenes show the same versions, paths and pictures everywhere. Their videos are placeholders the fake ffmpeg plays: a gradient (writeFakeClip) or one of the prototype's scene pictures (screenshotScenes, writeFakeScene). Each fake is a link named after the tool to this test binary; run under that name, the binary acts as the tool and exits before any test runs.
 
 // The fake tools' versions, as their --version (ffmpeg -version) prints them.
 const (
@@ -96,30 +98,33 @@ func fakeExe(t *testing.T, exe, path string) string {
 	return path
 }
 
-// fakeClip is a video for the fake ffmpeg: its length and its picture, which is the same in every frame: the colors at the top and bottom of a gradient, or, when scene is set, the scene picture whose files are scene+"-640.png" and scene+"-1920.png".
+// fakeClip is a video for the fake ffmpeg: its length and its picture, which is the same in every frame: the colors at the top and bottom of a gradient, or, when scene is set, the scene picture of that name (screenshotScenes).
 type fakeClip struct {
 	seconds     int
 	top, bottom color.RGBA
 	scene       string
 }
 
-// screenshotScenes is the folder of the prototype's scene pictures, each drawn at 640×360 and 1920×1080 (<name>-640.png, <name>-1920.png). They are the prototype's art for each film, which the fake ffmpeg shows as the film's picture.
-const screenshotScenes = "testdata/scenes"
+// screenshotScenes holds the prototype's scene pictures, each drawn at 640×360 and 1920×1080 (testdata/scenes/<name>-640.png, <name>-1920.png). They are the prototype's art for each film, which the fake ffmpeg shows as the film's picture. They are built into the test binary rather than read from testdata, because the tests do not always run in this package's folder: `nsgo test -target macos` runs them in the app bundle's Contents/MacOS, and the fake ffmpeg, this same binary, runs wherever Kando starts it.
+//
+//go:embed testdata/scenes
+var screenshotScenes embed.FS
 
-// writeFakeScene writes a placeholder video at path that the fake ffmpeg plays as a clip of seconds showing the prototype's scene name (river, market, ocean, lecture, meeting, street, podcast or generic) from testdata/scenes. The placeholder names the pictures by their absolute path, since the fake ffmpeg does not run in this package's folder.
+// scenePath is the path in screenshotScenes of the scene picture name at width, 640 or 1920.
+func scenePath(name string, width int) string {
+	return fmt.Sprintf("testdata/scenes/%s-%d.png", name, width)
+}
+
+// writeFakeScene writes a placeholder video at path that the fake ffmpeg plays as a clip of seconds showing the prototype's scene name (river, market, ocean, lecture, meeting, street, podcast or generic) from screenshotScenes.
 func writeFakeScene(t *testing.T, path string, seconds int, scene string) {
 	t.Helper()
-	base, err := filepath.Abs(filepath.Join(screenshotScenes, scene))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(base + "-1920.png"); err != nil {
+	if _, err := fs.Stat(screenshotScenes, scenePath(scene, 1920)); err != nil {
 		t.Fatalf("scene %q: %v", scene, err)
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(fmt.Sprintf("kando fake scene %d %s\n", seconds, base)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(fmt.Sprintf("kando fake scene %d %s\n", seconds, scene)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -431,13 +436,13 @@ func (c fakeClip) picture(width, height int) (*image.RGBA, error) {
 	return img, nil
 }
 
-// scenePicture is the scene picture at base scaled to width×height: the 640-wide file for a picture no wider than it, such as a poster, the 1920-wide one otherwise, each sampled bilinearly.
-func scenePicture(base string, width, height int) (*image.RGBA, error) {
-	name := base + "-1920.png"
+// scenePicture is the scene picture name scaled to width×height: the 640-wide file for a picture no wider than it, such as a poster, the 1920-wide one otherwise, each sampled bilinearly.
+func scenePicture(scene string, width, height int) (*image.RGBA, error) {
+	name := scenePath(scene, 1920)
 	if width <= 640 {
-		name = base + "-640.png"
+		name = scenePath(scene, 640)
 	}
-	file, err := os.Open(name)
+	file, err := screenshotScenes.Open(name)
 	if err != nil {
 		return nil, err
 	}

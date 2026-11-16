@@ -70,7 +70,7 @@ func screenshotQueueDownloading(t *testing.T, a *app, updates chan func()) {
 	for !slices.ContainsFunc(a.library.Jobs, func(j core.Job) bool { return j.Stage == core.StageDownloading }) {
 		select {
 		case fn := <-updates:
-			fn()
+			onEngine(a, fn)
 		case <-deadline:
 			t.Fatalf("no job started downloading: %+v", a.library.Jobs)
 		}
