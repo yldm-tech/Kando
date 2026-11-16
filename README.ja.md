@@ -21,7 +21,7 @@ Kando は、ある言語で話されている動画からその言語を学ぶ�
 ## 機能
 
 - YouTube、Bilibili、そのほか yt-dlp が対応するサイトのリンクを貼り付けて動画を追加できます（対応サイトはロゴ付きで「ヘルプ」›「対応サイト…」に一覧があります）。ローカルファイル（mp4、mov、mkv、webm などの動画ファイル）を選ぶか、ウィンドウにドラッグすることもできます。ローカルファイルはコピーせず、その場所のまま文字起こしします。
-- サイドバーの「ブラウザ」は内蔵ブラウザです。サイトを開き、必要ならログインして「動画をダウンロード」をクリックすると、表示中のページをライブラリに追加できます。以後のダウンロードは、「ブラウザ」、リンク欄、コマンドライン、MCP のどこからでも、ここでログインしたサイトのログイン状態を引き継ぎます。「ログイン情報を消去…」でそれらすべてからログアウトします。
+- サイドバーの「ブラウザ」は内蔵ブラウザです。サイトを開き、必要ならログインして「動画をダウンロード」をクリックすると、表示中のページをライブラリに追加できます。ここでのログイン状態は、今のところダウンロードには使われません（[nsgo-dev/nsgo#112](https://github.com/nsgo-dev/nsgo/issues/112)）。ログインが必要な動画はダウンロードに失敗し、代わりにブラウザでログインしているアカウントを使うよう Kando が提案します。
 - ジョブはダウンロード、文字起こし、翻訳、書き出しの順に 1 件ずつ実行されます。失敗したジョブには理由と、それを解決する設定へのリンクが表示され、再試行や削除ができます。
 - 音声認識は whisper.cpp でお使いのコンピューター上で行い、話されている言語は whisper.cpp が判別します。「設定」›「音声認識」には Tiny（77.7 MB）から Large v3（3.1 GB）まで 7 種類の whisper モデルが並び、選んだものを Hugging Face からダウンロードします。
 - 翻訳はデフォルトで EveryAPI を使いますが、OpenAI 互換のチャット API ならどれでも使えます。「設定」›「AI サービス」には OpenAI、OpenRouter、Groq、DeepSeek、xAI、Mistral、Qwen（DashScope）、Kimi、Zhipu GLM、SiliconFlow、Ollama、LM Studio のプリセットと、カスタムエンドポイントがあります。翻訳先の言語、モデルに直前のセリフも読ませる文脈考慮モード、プロンプトは「設定」›「翻訳」で変更できます。
@@ -50,6 +50,8 @@ macOS（Apple シリコンと Intel）、Windows（x86-64 と ARM64）、Linux�
 - Arch Linux とその派生ディストリビューション: `kando-<version>-linux-<arch>.pkg.tar.gz` を `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz` でインストールします。
 - その他の Linux ディストリビューション: `kando-<version>-linux-<arch>.AppImage` はインストール不要です。`chmod +x` で実行可能にしてから開きます。GTK 4 はシステムのものを使います。
 
+Linux では、プレーヤーは GTK 4 の GStreamer メディアバックエンドで動画を再生しますが、パッケージはまだこれを一緒にインストールしません（[nsgo-dev/nsgo#139](https://github.com/nsgo-dev/nsgo/issues/139)）。Debian と Ubuntu では `sudo apt install libgtk-4-media-gstreamer gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav` でインストールしてください。その他のディストリビューションでは、GTK 4 の GStreamer バックエンドと、GStreamer の good、bad、libav プラグインをインストールしてください。
+
 リリースのインストールスクリプトを実行することもできます。お使いのマシン向けのパッケージをダウンロードし、`.sha256` で検証してからインストールします。macOS ではディスクイメージのアプリを `/Applications`（書き込めない場合は `~/Applications`）に、Linux では `pacman` があれば Arch のパッケージを、なければ `apt` で Debian のパッケージを、いずれも `sudo` でインストールします。
 
 ```sh
@@ -66,11 +68,11 @@ Windows では PowerShell で `irm https://github.com/yldm-tech/Kando/releases/l
 
 ### アップデート
 
-Kando は GitHub にある署名済みのリリースから自分自身をアップデートします。起動から 10 秒後にバックグラウンドで確認し、その後は 1 日に 1 回確認します。新しいバージョンがあると、そのリリースノートを表示するウィンドウが開き、「アップデートをインストール」「後で通知」「このバージョンをスキップ」を選べます。「アップデートをインストール」は新しいバージョンをダウンロードして署名を検証し、Kando を再起動して新しいバージョンに切り替えるか尋ねます。再起動しなければ、次に Kando を起動したときに新しいバージョンになります。スキップしたバージョンはバックグラウンドの確認では再び表示されませんが、その次のバージョンは表示されます。
+Kando は GitHub にある署名済みのリリースから自分自身をアップデートします。macOS と Windows では、Kando に同梱されたアップデーター（macOS は Sparkle、Windows は WinSparkle）がバックグラウンドでおよそ 1 日に 1 回確認します。新しいバージョンがあると、そのウィンドウで「アップデートをインストール」「後で通知」「このバージョンをスキップ」を選べます。「アップデートをインストール」は新しいバージョンをダウンロードして署名を検証し、インストールして Kando を再起動します。このウィンドウにはまだリリースノートが表示されません（[nsgo-dev/nsgo#32](https://github.com/nsgo-dev/nsgo/issues/32)）。リリースノートはそのリリースのページにあります。
 
-すぐに確認するには、macOS ではメニューバーの「Kando」›「アップデートを確認…」を選びます。メニューバーのない Linux と Windows では、コマンドパレット（Ctrl+K）で「アップデートを確認…」を選びます。「設定」›「一般」の「バージョン」の横にも「アップデートを確認…」ボタンがあり、その下に前回の確認で見つかった新しいバージョンか、前回確認した日時が表示されます。「アップデートを自動的に確認」と「アップデートを自動的にダウンロードしてインストール」のスイッチも「設定」›「一般」にあります。アップデートをダウンロードするのはバックグラウンドの確認だけなので、後者は前者がオンのときだけ表示されます。後者をオンにすると、バックグラウンドの確認で見つかった新しいバージョンを確認なしでインストールし、次に Kando を起動したときに切り替わります。
+すぐに確認するには、macOS ではメニューバーの「Kando」›「アップデートを確認…」を選びます。メニューバーのない Linux と Windows では、コマンドパレット（Ctrl+K）で「アップデートを確認…」を選びます。「設定」›「一般」の「バージョン」の横にも「アップデートを確認…」ボタンがあります。
 
-自分のファイルを置き換えられない Kando は自動アップデートしません。Linux ではどのインストール方法でもそうです。`.deb` と Arch のパッケージはパッケージマネージャーが管理する `/opt/kando` に Kando をインストールし、Kando には apt や pacman のリポジトリがないため、新しいバージョンが出ると Kando はそのリリースのページを開きます。最初と同じ方法で新しいパッケージをインストールするか、インストールスクリプトをもう一度実行してください。
+Linux では、Kando は起動したときと Kando に戻ってきたときに、同じフィードを 1 日に 1 回まで確認します。新しいバージョンがあると確認のダイアログを出します。`.deb` でインストールした場合は、「アップデート」で新しいパッケージをダウンロードして署名を検証し、パスワードを入力すると `dpkg` でインストールします。Arch のパッケージと AppImage はその場でアップデートできません。「アップデート」はそのリリースのページを開くので、最初と同じ方法で新しいバージョンをインストールするか、インストールスクリプトをもう一度実行してください。
 
 ### ソースからビルド
 
@@ -91,7 +93,7 @@ Kando は `yt-dlp`、`ffmpeg`、`whisper-cli`（whisper.cpp）を実行します
 | プログラム | 用途 | Kando がダウンロードするもの |
 | --- | --- | --- |
 | `yt-dlp` | オンライン動画のダウンロード。ローカルファイルを含め、すべてのジョブで Kando はこれを必要とします。 | [yt-dlp の公式リリース](https://github.com/yt-dlp/yt-dlp/releases)の単体ファイル版。 |
-| `ffmpeg` | 音声の抽出、カバー画像の取得、プレーヤーでの映像と音声のデコード。プレーヤーは macOS、Linux、Windows のいずれでもシステムのオーディオ出力で音声を再生します。 | FFmpeg 9.0.2（macOS 版は `ffplay` 付き）。このリポジトリの [tools リリース](https://github.com/yldm-tech/Kando/releases/tag/tools-1)から。 |
+| `ffmpeg` | 音声の抽出、カバー画像の取得。システムのプレーヤーがそのままでは開けない動画には、プレーヤー用の MP4 のコピーを作り、Kando のキャッシュフォルダに置きます。 | FFmpeg 9.0.2（macOS 版は `ffplay` 付き）。このリポジトリの [tools リリース](https://github.com/yldm-tech/Kando/releases/tag/tools-1)から。 |
 | `whisper-cli`（whisper.cpp） | 音声認識。 | whisper.cpp 1.9.5（macOS 版は Metal 対応）。同じリリースから。 |
 | whisper.cpp の ggml モデル | はじめにガイドか「設定」›「音声認識」でダウンロードするか、`KANDO_WHISPER_MODEL` でモデルファイルを指定します。 | |
 
@@ -200,7 +202,7 @@ WebMCP に対応したブラウザでは、ランディングページ [kando.yl
 | `KANDO_LLM_API_KEY` | なし | 翻訳プロバイダー用の Bearer トークン。サインイン中の EveryAPI アカウントより優先されます。 |
 | `EVERYAPI_API_KEY` | なし | EveryAPI のキー。`KANDO_LLM_BASE_URL` が未設定で `KANDO_LLM_API_KEY` が空のとき、CLI のログインの代わりに使われます。 |
 | `KANDO_OUTPUT_DIR` | 最後に開いたライブラリ | 起動時に開くライブラリのフォルダ。新しい動画と字幕はここに保存されます。 |
-| `KANDO_SOCKET` | `settings.json` と同じフォルダの `kando.sock` | アプリが待ち受け、`kando` コマンドラインと `kando mcp` が接続するソケットのパス。アプリとコマンドの両方に同じパスを設定します。Kando は 1 人のユーザーにつき 1 つだけ動き、もう一度起動すると最初の Kando が前面に出ます。`KANDO_SOCKET` を設定して起動したものは開発用などの意図した 2 つ目の Kando で、自分のライブラリと設定を使うよう専用の `HOME` も必要です。[コマンドラインと MCP](#command-line-and-mcp) を参照してください。 |
+| `KANDO_SOCKET` | `settings.json` と同じフォルダの `kando.sock` | アプリが待ち受け、`kando` コマンドラインと `kando mcp` が接続するソケットのパス。アプリとコマンドの両方に同じパスを設定します。Kando は 1 人のユーザーにつき 1 つだけ動き、もう一度起動すると最初の Kando が前面に出ます。macOS では、`KANDO_SOCKET` を設定して起動したものは開発用などの意図した 2 つ目の Kando で、自分のライブラリと設定を使うよう専用の `HOME` も必要です。Windows と Linux では、今のところこうして起動した Kando も最初の Kando に引き渡されるため（[nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)）、先に自分の Kando を終了してください。[コマンドラインと MCP](#command-line-and-mcp) を参照してください。 |
 | `KANDO_GOOGLE_CLIENT_ID` | なし | 「設定」›「アカウントとアップロード」で Google にサインインするための OAuth クライアント ID。未設定の場合、サインインボタンは無効になります。設定ファイルには保存されません。 |
 | `KANDO_GOOGLE_CLIENT_SECRET` | なし | 同じ OAuth クライアントのクライアントシークレット（省略可）。 |
 | `KANDO_STORAGE` | `r2` | アップロード先: `r2`、`s3`（または `aws`）、`oss`（または `aliyun`）、`cos`（または `tencent`）、`compat`（または `s3compat`）。それ以外の値は R2 として扱われます。 |
@@ -228,9 +230,7 @@ WebMCP に対応したブラウザでは、ランディングページ [kando.yl
 Kando は自身のファイルをユーザー設定ディレクトリに保存します。macOS では `~/Library/Application Support/Kando`、Windows では `%AppData%\Kando`、Linux では `~/.config/Kando` です。
 
 - `library.json`: 完了済みと処理中のジョブ、および各動画の再生を止めた位置。
-- `settings.json`: 設定。API キー、オブジェクトストレージのキー、Google のリフレッシュトークンも平文で含まれます。このファイルは現在のユーザーアカウントだけが読み取れます。
-- `window-state.json`: ウィンドウのサイズと位置。
-- `updater.json`: アップデートについての選択（「設定」›「一般」の 2 つのスイッチ、スキップしたバージョン）と、Kando が前回アップデートを確認した日時。
+- `settings.json`: 設定と各ウィンドウのサイズと位置。API キー、オブジェクトストレージのキー、Google のリフレッシュトークンも平文で含まれます。このファイルは現在のユーザーアカウントだけが読み取れます。
 - `models/`: 「設定」›「音声認識」でダウンロードした whisper モデル。
 
 `video.*` という名前ではない動画のカバー画像は、macOS では `~/Library/Caches/Kando/posters`、Windows では `%LocalAppData%\Kando\posters`、Linux では `~/.cache/Kando/posters` にキャッシュされます。
@@ -258,7 +258,7 @@ make build  # build the app for this platform into apps/kando/build
 
 `make dev` は `go tool nsgo dev apps/kando` を実行します。アプリをビルドして開き、Go ファイルを保存するたびにビルドし直して再起動します。
 
-スクリーンショットテストは、固定のデモライブラリから主要な画面を実行します。空のダミーのホームフォルダと、ダミーの `ffmpeg`、`yt-dlp`、`whisper-cli` を使うため、ユーザー自身の設定、ライブラリ、ツールは読み込みません。`go test` ではウィンドウなしで実行し、各画面を操作して検証しますが、画像は描画しません。NSGo のウィンドウなしのテスターはまだピクセルを描画しないためです（[nsgo-dev/nsgo#119](https://github.com/nsgo-dev/nsgo/issues/119)）。`KANDO_SCREENSHOTS` を設定しなければスキップされます。
+スクリーンショットテストは、固定のデモライブラリから主要な画面を実行します。空のダミーのホームフォルダと、ダミーの `ffmpeg`、`yt-dlp`、`whisper-cli` を使うため、ユーザー自身の設定、ライブラリ、ツールは読み込みません。`go test` ではウィンドウなしで実行し、各画面を操作して検証しますが、画像は描画しません。NSGo のウィンドウなしのテスターはピクセルを描画しないためです。`KANDO_SCREENSHOTS` を設定しなければスキップされます。
 
 ```sh
 KANDO_SCREENSHOTS=1 go test ./apps/kando/... -run TestScreenshots

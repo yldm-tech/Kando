@@ -21,7 +21,7 @@
 ## 功能
 
 - 添加视频：粘贴 YouTube、哔哩哔哩或 yt-dlp 支持的其他任何网站的链接（“帮助 › 支持的网站…”列出了全部网站及其标志），或者选择本地文件（mp4、mov、mkv、webm 等视频文件），也可以直接拖到窗口上。本地文件在原位置转录，不会被复制。
-- 侧栏的“浏览”是内置浏览器：打开网站，需要时先登录，然后点“下载视频”把当前网页加入资料库。之后每次下载，无论来自“浏览”、链接栏、命令行还是 MCP，都会带上在这里登录过的网站的登录状态；“清除登录信息…”会退出全部这些网站。
+- 侧栏的“浏览”是内置浏览器：打开网站，需要时先登录，然后点“下载视频”把当前网页加入资料库。下载暂时还用不上在这里登录的状态（[nsgo-dev/nsgo#112](https://github.com/nsgo-dev/nsgo/issues/112)）：需要登录账号的视频会下载失败，看懂会提示改用你在浏览器里已登录的账号。
 - 任务按顺序逐个处理，依次经过下载、转录、翻译和导出。失败的任务会显示原因，并给出对应设置项的入口，可以重试或移除。
 - 语音识别由 whisper.cpp 在你的电脑上完成，它会检测说话的语言。“设置 › 语音识别”列出七个 whisper 模型，从 Tiny（77.7 MB）到 Large v3（3.1 GB），你选中的模型会从 Hugging Face 下载。
 - 台词默认由 EveryAPI 翻译，也可以使用任何 OpenAI 兼容的聊天 API：“设置 › AI 服务”提供 OpenAI、OpenRouter、Groq、DeepSeek、xAI、Mistral、通义千问（DashScope）、Kimi、智谱 GLM、硅基流动、Ollama 和 LM Studio 的预设，还可以自定义接口地址。目标语言、“智能翻译”（让模型参考前面几句台词）和提示词，都可以在“设置 › 翻译”中修改。
@@ -50,6 +50,8 @@ macOS（Apple 芯片和 Intel）、Windows（x86-64 和 ARM64）和 Linux（x86-
 - Arch Linux 及其衍生发行版：选 `kando-<version>-linux-<arch>.pkg.tar.gz`，用 `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz` 安装。
 - 其他 Linux 发行版：`kando-<version>-linux-<arch>.AppImage` 不用安装，用 `chmod +x` 加上可执行权限后直接打开。它使用系统自带的 GTK 4。
 
+在 Linux 上，播放器通过 GTK 4 的 GStreamer 媒体后端播放视频，而安装包暂时不会自动装上它（[nsgo-dev/nsgo#139](https://github.com/nsgo-dev/nsgo/issues/139)）：Debian 和 Ubuntu 上用 `sudo apt install libgtk-4-media-gstreamer gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav` 安装；其他发行版请安装 GTK 4 的 GStreamer 后端，以及 GStreamer 的 good、bad 和 libav 插件。
+
 也可以运行该版本附带的安装脚本，它会下载适合你机器的安装包，按 `.sha256` 校验后安装：在 macOS 上把磁盘映像里的应用装进 `/Applications`（没有写入权限时装进 `~/Applications`），在 Linux 上用 `pacman` 安装 Arch 软件包，没有 `pacman` 时用 `apt` 安装 Debian 软件包，都通过 `sudo` 进行：
 
 ```sh
@@ -66,11 +68,11 @@ curl -fsSL https://github.com/yldm-tech/Kando/releases/latest/download/install.s
 
 ### 更新
 
-看懂会从 GitHub 上已签名的版本自动更新。它在打开 10 秒后在后台检查一次，之后每天检查一次；有新版本时，会弹出窗口显示更新说明，并提供“安装更新”“稍后提醒我”和“跳过这个版本”。“安装更新”会下载新版本、校验签名，然后提示重新启动看懂进入新版本；不重新启动的话，下次打开看懂时就是新版本。跳过的版本不会再由后台检查提示，但之后的新版本仍会提示。
+看懂会从 GitHub 上已签名的版本自动更新。在 macOS 和 Windows 上，看懂内置的更新组件（macOS 上是 Sparkle，Windows 上是 WinSparkle）在后台大约每天检查一次；有新版本时，它的窗口提供“安装更新”“稍后提醒我”和“跳过这个版本”，“安装更新”会下载新版本、校验签名、安装并重新启动看懂。这个窗口暂时不显示更新说明（[nsgo-dev/nsgo#32](https://github.com/nsgo-dev/nsgo/issues/32)），更新说明请看该版本的发布页面。
 
-要立即检查，在 macOS 上选择菜单栏中的“看懂 › 检查更新…”；Linux 和 Windows 没有菜单栏，请在命令面板（Ctrl+K）中选择“检查更新…”。“设置 › 通用”中“版本”旁边也有“检查更新…”按钮，下方会显示上次检查发现的新版本，或上次检查的时间。“自动检查更新”和“自动下载并安装更新”两个开关也在“设置 › 通用”中。只有打开前者时才会显示后者，因为只有后台检查会下载更新；打开后者后，后台检查发现新版本会直接安装，不再询问，下次打开看懂时生效。
+要立即检查，在 macOS 上选择菜单栏中的“看懂 › 检查更新…”；Linux 和 Windows 没有菜单栏，请在命令面板（Ctrl+K）中选择“检查更新…”。“设置 › 通用”中“版本”旁边也有“检查更新…”按钮。
 
-无法替换自身文件的看懂不会自动更新。在 Linux 上所有安装方式都是这样：`.deb` 和 Arch 软件包把看懂安装在由包管理器管理的 `/opt/kando` 中，而看懂没有 apt 或 pacman 软件源，所以有新版本时看懂会打开该版本的发布页面；请按第一次安装的方式安装新的软件包，或者再运行一次安装脚本。
+在 Linux 上，看懂在打开时和你回到看懂时检查同一个更新源，每天最多一次。有新版本时它会询问；如果是用 `.deb` 安装的，点“更新”会下载新的软件包、校验签名，并在你输入密码后用 `dpkg` 安装。Arch 软件包和 AppImage 不能原地更新：“更新”会打开该版本的发布页面，请按第一次安装的方式安装新版本，或者再运行一次安装脚本。
 
 ### 从源码构建
 
@@ -91,7 +93,7 @@ make build
 | 程序 | 用途 | 看懂下载的版本 |
 | --- | --- | --- |
 | `yt-dlp` | 下载在线视频。每个任务都需要它，本地文件也不例外。 | [yt-dlp 官方发布](https://github.com/yt-dlp/yt-dlp/releases)的单文件版。 |
-| `ffmpeg` | 提取音频、截取封面，以及在播放器中解码画面和声音；播放器在 macOS、Linux 和 Windows 上都通过系统的音频输出播放声音。 | FFmpeg 9.0.2（macOS 版带 `ffplay`），来自本仓库的 [tools 发布](https://github.com/yldm-tech/Kando/releases/tag/tools-1)。 |
+| `ffmpeg` | 提取音频、截取封面；系统播放器无法直接打开某个视频时，为它生成一份 MP4 副本供播放器播放，存放在看懂的缓存文件夹中。 | FFmpeg 9.0.2（macOS 版带 `ffplay`），来自本仓库的 [tools 发布](https://github.com/yldm-tech/Kando/releases/tag/tools-1)。 |
 | `whisper-cli`（whisper.cpp） | 语音识别。 | whisper.cpp 1.9.5（macOS 版启用 Metal），来自同一个发布。 |
 | 一个 whisper.cpp ggml 模型 | 在入门引导或“设置 › 语音识别”中下载，或者用 `KANDO_WHISPER_MODEL` 指向一个模型文件。 | |
 
@@ -200,7 +202,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 | `KANDO_LLM_API_KEY` | 无 | 翻译服务商的 API 密钥（以 Bearer 方式发送）。它优先于已登录的 EveryAPI 账号。 |
 | `EVERYAPI_API_KEY` | 无 | EveryAPI 密钥，在 `KANDO_LLM_BASE_URL` 未设置且 `KANDO_LLM_API_KEY` 为空时使用，代替 CLI 登录。 |
 | `KANDO_OUTPUT_DIR` | 上次打开的资料库 | 启动时打开的资料库文件夹，新的视频和字幕都存放在这里。 |
-| `KANDO_SOCKET` | `settings.json` 旁的 `kando.sock` | 应用监听、`kando` 命令行和 `kando mcp` 连接的套接字路径。应用和命令需要设置成同一个路径。同一个用户只运行一个看懂，再次启动只会把已运行的那个带到前台；设置了 `KANDO_SOCKET` 启动的是有意运行的第二个看懂（例如开发时），它还需要单独的 `HOME`，才能使用自己的资料库和设置。参见[命令行与 MCP](#command-line-and-mcp)。 |
+| `KANDO_SOCKET` | `settings.json` 旁的 `kando.sock` | 应用监听、`kando` 命令行和 `kando mcp` 连接的套接字路径。应用和命令需要设置成同一个路径。同一个用户只运行一个看懂，再次启动只会把已运行的那个带到前台。在 macOS 上，设置了 `KANDO_SOCKET` 启动的是有意运行的第二个看懂（例如开发时），它还需要单独的 `HOME`，才能使用自己的资料库和设置；在 Windows 和 Linux 上，这样启动的看懂暂时也会交给已运行的那个（[nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)），请先退出自己的看懂。参见[命令行与 MCP](#command-line-and-mcp)。 |
 | `KANDO_GOOGLE_CLIENT_ID` | 无 | 用于在“设置 › 账号与上传”中登录的 Google OAuth 客户端 ID。不设置时登录按钮不可用。它永远不会保存到设置文件中。 |
 | `KANDO_GOOGLE_CLIENT_SECRET` | 无 | 同一 OAuth 客户端的客户端密钥，可选。 |
 | `KANDO_STORAGE` | `r2` | 上传目标：`r2`、`s3`（或 `aws`）、`oss`（或 `aliyun`）、`cos`（或 `tencent`）、`compat`（或 `s3compat`）。其他任何值都按 R2 处理。 |
@@ -228,9 +230,7 @@ claude mcp add kando -- /Applications/Kando.app/Contents/MacOS/Kando mcp
 看懂把自己的文件放在用户配置目录中（macOS 上是 `~/Library/Application Support/Kando`，Windows 上是 `%AppData%\Kando`，Linux 上是 `~/.config/Kando`），包括：
 
 - `library.json`：所有任务（已完成的和进行中的），以及每个视频上次播放到的位置。
-- `settings.json`：设置，包括 API 密钥、对象存储密钥和 Google 刷新令牌，均以明文保存。该文件仅当前用户可读。
-- `window-state.json`：窗口大小和位置。
-- `updater.json`：你对更新的选择（“设置 › 通用”中的两个开关、跳过的版本）以及看懂上次检查更新的时间。
+- `settings.json`：设置以及各窗口的大小和位置，包括 API 密钥、对象存储密钥和 Google 刷新令牌，均以明文保存。该文件仅当前用户可读。
 - `models/`：在“设置 › 语音识别”中下载的 whisper 模型。
 
 文件名不是 `video.*` 的视频，其封面图缓存在 `~/Library/Caches/Kando/posters`（macOS）、`%LocalAppData%\Kando\posters`（Windows）和 `~/.cache/Kando/posters`（Linux）中。
@@ -258,7 +258,7 @@ make build  # 为当前平台构建应用，输出到 apps/kando/build
 
 `make dev` 运行 `go tool nsgo dev apps/kando`：它会构建并打开应用，每次保存 Go 文件后重新构建并重启应用。
 
-截图测试会从一个固定的演示资料库运行主要场景，运行时使用空的模拟主目录以及模拟的 `ffmpeg`、`yt-dlp` 和 `whisper-cli`，因此不会读取你的设置、资料库或工具。`go test` 以无界面方式运行它们：会走完并检查每个场景，但不生成图片，因为 NSGo 的无界面测试器还不渲染像素（[nsgo-dev/nsgo#119](https://github.com/nsgo-dev/nsgo/issues/119)）；没有设置 `KANDO_SCREENSHOTS` 时会跳过：
+截图测试会从一个固定的演示资料库运行主要场景，运行时使用空的模拟主目录以及模拟的 `ffmpeg`、`yt-dlp` 和 `whisper-cli`，因此不会读取你的设置、资料库或工具。`go test` 以无界面方式运行它们：会走完并检查每个场景，但不生成图片，因为 NSGo 的无界面测试器不渲染像素；没有设置 `KANDO_SCREENSHOTS` 时会跳过：
 
 ```sh
 KANDO_SCREENSHOTS=1 go test ./apps/kando/... -run TestScreenshots

@@ -21,7 +21,7 @@ The interface is in English, Simplified Chinese, Traditional Chinese, Japanese a
 ## Features
 
 - Add a video by pasting a link from YouTube, Bilibili or any other site yt-dlp supports (Help › Supported Websites… lists them, with their logos), or pick a local file (mp4, mov, mkv, webm and other video files) or drag it onto the window. Local files are transcribed where they are, not copied.
-- Browse, in the sidebar, is a built-in browser: open a site, sign in if it needs it, and click Download Video to add the page you are on. Every download, from Browse, the link field, the command line or MCP, carries the sign-in of the sites you signed in to there; Clear Sign-in Data… signs you out of all of them.
+- Browse, in the sidebar, is a built-in browser: open a site, sign in if it needs it, and click Download Video to add the page you are on. Downloads do not use the sign-in you made there yet ([nsgo-dev/nsgo#112](https://github.com/nsgo-dev/nsgo/issues/112)): a video that needs a signed-in account fails, and Kando offers to use the account you are signed in to in your browser instead.
 - Jobs run one after another through download, transcription, translation and export. A failed job says why, links to the setting that fixes it, and can be retried or removed.
 - Speech is recognized on your computer with whisper.cpp, which detects the spoken language. Settings › Speech Recognition lists seven whisper models, from Tiny (77.7 MB) to Large v3 (3.1 GB), and downloads the one you choose from Hugging Face.
 - Lines are translated by EveryAPI by default, or by any OpenAI-compatible chat API: Settings › AI Service has presets for OpenAI, OpenRouter, Groq, DeepSeek, xAI, Mistral, Qwen (DashScope), Kimi, Zhipu GLM, SiliconFlow, Ollama and LM Studio, plus a custom endpoint. The target language, a context-aware mode that lets the model read the preceding lines, and the prompt can be changed in Settings › Translation.
@@ -46,6 +46,8 @@ Builds for macOS (Apple silicon and Intel), Windows (x86-64 and ARM64) and Linux
 - Arch Linux and its derivatives: `kando-<version>-linux-<arch>.pkg.tar.gz`, installed with `sudo pacman -U ./kando-<version>-linux-<arch>.pkg.tar.gz`.
 - Other Linux distributions: `kando-<version>-linux-<arch>.AppImage` runs without installing: make it executable with `chmod +x` and open it. It takes GTK 4 from the system.
 
+On Linux the player plays videos through GTK 4's GStreamer media backend, which the packages do not install yet ([nsgo-dev/nsgo#139](https://github.com/nsgo-dev/nsgo/issues/139)): on Debian and Ubuntu, install it with `sudo apt install libgtk-4-media-gstreamer gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav`; on other distributions, install GTK 4's GStreamer backend and GStreamer's good, bad and libav plugins.
+
 Or run the release's install script, which downloads the package for your machine, checks it against its `.sha256` and installs it: on macOS the app from the disk image into `/Applications` (or `~/Applications` when it cannot write there), on Linux the Arch package with `pacman`, else the Debian one with `apt`, through `sudo`:
 
 ```sh
@@ -60,11 +62,11 @@ The macOS disk images of releases newer than 0.5.1 are signed with YLDM's Develo
 
 ### Updates
 
-Kando updates itself from the signed releases on GitHub. It checks in the background 10 seconds after it opens and then once a day; when a new version is out, a window shows its release notes and offers Install Update, Remind Me Later and Skip This Version. Install Update downloads the new version, checks its signature and offers to relaunch Kando into it; otherwise it opens the next time you launch Kando. A version you skipped is not offered again by the background checks, but the next one is.
+Kando updates itself from the signed releases on GitHub. On macOS and Windows the updater bundled with Kando, Sparkle on macOS and WinSparkle on Windows, checks in the background about once a day; when a new version is out, its window offers Install Update, Remind Me Later and Skip This Version, and Install Update downloads the new version, checks its signature, installs it and relaunches Kando. The window does not show the release notes yet ([nsgo-dev/nsgo#32](https://github.com/nsgo-dev/nsgo/issues/32)); they are on the release's page.
 
-To check now, choose Kando › Check for Updates… in the menu bar on macOS, or Check for Updates… in the command palette (Ctrl+K) on Linux and Windows, which have no menu bar; Settings › General also has a Check for Updates… button next to Version, under which it shows the newer version the last check found or when Kando last checked. The switches Check for updates automatically and Download and install updates automatically are in Settings › General too. The second shows only while the first is on, as only the background checks download updates; with it on, they install a new version without asking, and it opens the next time you launch Kando.
+To check now, choose Kando › Check for Updates… in the menu bar on macOS, or Check for Updates… in the command palette (Ctrl+K) on Linux and Windows, which have no menu bar; Settings › General also has a Check for Updates… button next to Version.
 
-A copy of Kando that cannot replace its own files does not update itself. On Linux that is every copy: the `.deb` and the Arch package install Kando in `/opt/kando`, a folder the package manager owns, and there is no apt or pacman repository for Kando, so when a new version is out Kando offers its release page; install the new package the way you installed the first, or run the install script again.
+On Linux, Kando checks the same feed when it opens and when you come back to it, at most once a day. When a new version is out it asks; if Kando was installed from the `.deb`, Update downloads the new package, checks its signature and installs it with `dpkg` once you enter your password. The Arch package and the AppImage are not updated in place: Update opens the release's page, so install the new version the way you installed the first, or run the install script again.
 
 ### Build from source
 
@@ -85,7 +87,7 @@ Kando runs `yt-dlp`, `ffmpeg` and `whisper-cli` (whisper.cpp). On macOS and Linu
 | Program | Used for | What Kando downloads |
 | --- | --- | --- |
 | `yt-dlp` | Downloading online videos. Kando asks for it for every job, local files included. | The standalone build from the [yt-dlp release](https://github.com/yt-dlp/yt-dlp/releases). |
-| `ffmpeg` | Extracting the audio, grabbing covers, and decoding the picture and the sound in the player, which plays the sound through the system's audio output on macOS, Linux and Windows. | FFmpeg 9.0.2, with `ffplay` on macOS, from this repository's [tools release](https://github.com/yldm-tech/Kando/releases/tag/tools-1). |
+| `ffmpeg` | Extracting the audio and grabbing covers; and, for a video the system's player cannot open as it is, making an MP4 copy for the player, kept in Kando's cache folder. | FFmpeg 9.0.2, with `ffplay` on macOS, from this repository's [tools release](https://github.com/yldm-tech/Kando/releases/tag/tools-1). |
 | `whisper-cli` (whisper.cpp) | Speech recognition. | whisper.cpp 1.9.5, with Metal on macOS, from the same release. |
 | A whisper.cpp ggml model | Download one in the Getting Started guide or Settings › Speech Recognition, or point `KANDO_WHISPER_MODEL` at a model file. | |
 
@@ -190,7 +192,7 @@ Everything below except the Google client id and secret and `KANDO_SOCKET` can a
 | `KANDO_LLM_API_KEY` | none | Bearer token for the translation provider. It overrides the signed-in EveryAPI account. |
 | `EVERYAPI_API_KEY` | none | EveryAPI key, used when `KANDO_LLM_BASE_URL` is unset and `KANDO_LLM_API_KEY` is empty, instead of the CLI login. |
 | `KANDO_OUTPUT_DIR` | the library opened last | Library folder to open at launch, where new videos and subtitles go. |
-| `KANDO_SOCKET` | `kando.sock` beside `settings.json` | Path of the socket the app listens on and the `kando` command line and `kando mcp` connect to. Set it to the same path for the app and for the commands. Only one copy of Kando runs for a user, and launching another brings the first one forward; a copy started with `KANDO_SOCKET` set is a second copy on purpose, as for development, and needs its own `HOME` too, so that it keeps its own library and settings. See [Command line and MCP](#command-line-and-mcp). |
+| `KANDO_SOCKET` | `kando.sock` beside `settings.json` | Path of the socket the app listens on and the `kando` command line and `kando mcp` connect to. Set it to the same path for the app and for the commands. Only one copy of Kando runs for a user, and launching another brings the first one forward. On macOS a copy started with `KANDO_SOCKET` set is a second copy on purpose, as for development, and needs its own `HOME` too, so that it keeps its own library and settings; on Windows and Linux such a copy is handed to the running one for now ([nsgo-dev/nsgo#332](https://github.com/nsgo-dev/nsgo/issues/332)), so quit your own Kando first. See [Command line and MCP](#command-line-and-mcp). |
 | `KANDO_GOOGLE_CLIENT_ID` | none | Google OAuth client id for signing in on Settings › Account & Upload. Without it the sign-in button is disabled. It is never saved to the settings file. |
 | `KANDO_GOOGLE_CLIENT_SECRET` | none | Optional client secret for the same OAuth client. |
 | `KANDO_STORAGE` | `r2` | Where uploads go: `r2`, `s3` (or `aws`), `oss` (or `aliyun`), `cos` (or `tencent`), `compat` (or `s3compat`). Any other value means R2. |
@@ -218,9 +220,7 @@ Removing a film from the library moves the film's folder to the Trash, or only i
 Kando keeps its own files in the user config directory, `~/Library/Application Support/Kando` on macOS, `%AppData%\Kando` on Windows and `~/.config/Kando` on Linux:
 
 - `library.json`: the jobs, finished and in progress, and where each video stopped playing.
-- `settings.json`: the settings, including the API key, the object storage keys and the Google refresh token, in plain text. The file is readable only by your user.
-- `window-state.json`: window sizes and positions.
-- `updater.json`: your update choices (the two switches of Settings › General, a version you skipped) and when Kando last checked for updates.
+- `settings.json`: the settings, including the API key, the object storage keys and the Google refresh token, in plain text, and the windows' sizes and positions. The file is readable only by your user.
 - `models/`: whisper models downloaded in Settings › Speech Recognition.
 
 Cover images of videos that are not named `video.*` are cached in `~/Library/Caches/Kando/posters` on macOS, `%LocalAppData%\Kando\posters` on Windows and `~/.cache/Kando/posters` on Linux.
@@ -248,7 +248,7 @@ make build  # build the app for this platform into apps/kando/build
 
 `make dev` runs `go tool nsgo dev apps/kando`, which builds the app, opens it, and builds and restarts it each time you save a Go file.
 
-The screenshot tests run the main scenes from a fixed demo library, in an empty fake home folder with fake `ffmpeg`, `yt-dlp` and `whisper-cli`, so they do not read your settings, libraries or tools. `go test` runs them headless, where they play each scene and check it but draw no pictures, as NSGo's headless tester renders no pixels yet ([nsgo-dev/nsgo#119](https://github.com/nsgo-dev/nsgo/issues/119)); they are skipped unless `KANDO_SCREENSHOTS` is set:
+The screenshot tests run the main scenes from a fixed demo library, in an empty fake home folder with fake `ffmpeg`, `yt-dlp` and `whisper-cli`, so they do not read your settings, libraries or tools. `go test` runs them headless, where they play each scene and check it but draw no pictures, as NSGo's headless tester renders no pixels; they are skipped unless `KANDO_SCREENSHOTS` is set:
 
 ```sh
 KANDO_SCREENSHOTS=1 go test ./apps/kando/... -run TestScreenshots
