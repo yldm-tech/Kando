@@ -235,6 +235,7 @@ func (f *screenshotFixture) shootSize(t *testing.T, name string, width, height n
 		env := testEnvironment()
 		env.TitleBar = ns.Edges{Top: 28, Left: 80}
 		tt := nsgotest.Start(t, a.testView, nsgotest.Size(width, height), nsgotest.Environment(env))
+		// TODO(nsgo#380): drop this cleanup once a disposed nsgotest App closes the menu it leaves open https://github.com/nsgo-dev/nsgo/issues/380
 		// A scene that opens the system's menu, as ⋯ on a poster, the library switcher or a right click on a line do, leaves it open for its picture. On a platform that menu tracks the pointer and the keyboard in a loop of its own, which outlives the scene's window: the next scene's first click or key in the same process would only close it, so 视频链接 took no focus and ⇧⌘C did nothing. The menu closes as the scene ends, after its picture, even when the scene failed.
 		t.Cleanup(func() {
 			if tt.PopupMenu != nil {
