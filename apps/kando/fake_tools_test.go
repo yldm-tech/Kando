@@ -313,7 +313,7 @@ func fakeYTDLP(args []string) int {
 	return 0
 }
 
-// fakeFFmpeg answers the calls Kando makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, and its sound as 48 kHz stereo f32le (fakeSound), for the player; and one frame as JPEG, for a poster. The input must be a placeholder from writeFakeClip; any other file is not a video to it.
+// fakeFFmpeg answers the calls Kando makes to ffmpeg: -version; probing a video (-i alone), which describes the clip on stderr; streaming its frames as raw RGBA, and its sound as 48 kHz stereo f32le (fakeSound), for the player; one frame as JPEG, for a poster; and the sound of a span as AAC, for the review of saved lines. The input must be a placeholder from writeFakeClip; any other file is not a video to it.
 func fakeFFmpeg(args []string) int {
 	if slices.Contains(args, "-version") {
 		fmt.Println(fakeFFmpegVersion)
@@ -351,6 +351,14 @@ func fakeFFmpeg(args []string) int {
 			return 1
 		}
 		if err := jpeg.Encode(os.Stdout, picture, &jpeg.Options{Quality: 90}); err != nil {
+			return 1
+		}
+		return 0
+	case slices.Contains(args, "-vn") && fakeArg(args, "-c:a") == "aac":
+		// The sound of a span of the clip, as the review and the export for Anki cut it (saved.CutClip): a placeholder at the last argument, naming the span it was asked for.
+		out := args[len(args)-1]
+		if err := os.WriteFile(out, []byte(fmt.Sprintf("kando fake sound %s %s\n", fakeArg(args, "-ss"), fakeArg(args, "-t"))), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
 		return 0

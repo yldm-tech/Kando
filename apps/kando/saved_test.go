@@ -9,6 +9,7 @@ import (
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/saved"
+	"kando/packages/media"
 
 	ns "github.com/nsgo-dev/nsgo/core"
 )
@@ -150,5 +151,39 @@ func TestReviewSchedulesTheLines(t *testing.T) {
 	tt.Press("id:review-close")
 	if a.saved.review.open || a.modalOpen() {
 		t.Fatal("Done left the review open")
+	}
+}
+
+// TestReviewCutsAndPlaysTheSound reviews a saved line with ffmpeg at hand (the fake one): N cuts the line's sound off the engine's goroutine into the review's own folder, the card plays it once it is cut, and Escape, closing the review, takes the folder away.
+func TestReviewCutsAndPlaysTheSound(t *testing.T) {
+	tools := media.Tools{FFmpeg: fakeTool(t, filepath.Join(t.TempDir(), "bin"), "ffmpeg")}
+	a, tt, updates, item := playerFilm(t, 12, tools)
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	playerPlayTo(tt, a, 1500*time.Millisecond)
+	tt.Key("b")
+	tt.Key("n")
+	dir := a.saved.review.dir
+	if dir == "" || !a.saved.review.open {
+		t.Fatalf("N opened no review with a folder for its sounds: %+v", a.saved.review)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	waitUntil(t, tt, a, updates, func() bool { return a.ReviewCard().Clip != "" })
+	card := a.ReviewCard()
+	if filepath.Dir(card.Clip) != dir || !card.Playing || card.Plays != 1 || card.NoAudio {
+		t.Fatalf("once cut the card is %+v, want its sound in %s playing", card, dir)
+	}
+	if data, err := os.ReadFile(card.Clip); err != nil || !strings.HasPrefix(string(data), "kando fake sound ") {
+		t.Fatalf("the sound holds %q, %v", data, err)
+	}
+	if v := tt.Find("id:review-clip").Video; v.Source != card.Clip || v.Paused {
+		t.Fatalf("the review plays %+v, want %s", v, card.Clip)
+	}
+	tt.Key("escape")
+	if a.saved.review.open || a.modalOpen() {
+		t.Fatal("Escape left the review open")
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("the review's folder of sounds is still there: %v", err)
 	}
 }

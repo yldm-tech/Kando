@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -526,5 +527,60 @@ func TestUpsertCarriesTheTitleToTheNewVideo(t *testing.T) {
 	lib.Upsert(core.Job{ID: "a", Stage: core.StageTranscribing, VideoPath: "/lib/Site title [x]/video.mp4", Title: "Site title"})
 	if len(lib.Names) != 1 || lib.Names["/lib/Site title [x]/video.mp4"] != "My talk" {
 		t.Fatalf("names %v", lib.Names)
+	}
+}
+
+// TestStoredJobKeepsEveryField fills every field of core.Job but its live Progress, saves it and reads it back, so a field added to core.Job but not to storedJob, or copied one way only (storeJob, storedJob.job), fails here rather than being dropped from library.json on the next save. The job is a failed one, a stage Load keeps as it is.
+func TestStoredJobKeepsEveryField(t *testing.T) {
+	var job core.Job
+	v := reflect.ValueOf(&job).Elem()
+	for i := range v.NumField() {
+		field, value := v.Type().Field(i), v.Field(i)
+		switch {
+		case field.Name == "Progress":
+		case field.Name == "Stage":
+			job.Stage = core.StageFailed
+		case field.Name == "Err":
+			job.Err = errors.New("the download stopped")
+		case value.Kind() == reflect.String:
+			value.SetString("kept " + field.Name)
+		case value.Kind() == reflect.Bool:
+			value.SetBool(true)
+		case value.Kind() == reflect.Int:
+			value.SetInt(int64(i + 1))
+		case field.Type == reflect.TypeFor[time.Time]():
+			value.Set(reflect.ValueOf(time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)))
+		default:
+			t.Fatalf("core.Job.%s is a %s, which this test does not fill; give it a value here", field.Name, field.Type)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "library.json")
+	lib, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lib.Upsert(job)
+	if err := lib.Save(); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := Load(path)
+	if err != nil || len(loaded.Jobs) != 1 {
+		t.Fatalf("jobs %#v, %v", loaded.Jobs, err)
+	}
+	got := reflect.ValueOf(loaded.Jobs[0])
+	for i := range v.NumField() {
+		name := v.Type().Field(i).Name
+		if name == "Progress" {
+			continue
+		}
+		if name == "Err" {
+			if loaded.Jobs[0].Err == nil || loaded.Jobs[0].Err.Error() != job.Err.Error() {
+				t.Errorf("Err came back as %v, want %v", loaded.Jobs[0].Err, job.Err)
+			}
+			continue
+		}
+		if want, back := v.Field(i).Interface(), got.Field(i).Interface(); !reflect.DeepEqual(back, want) {
+			t.Errorf("%s came back as %#v, want %#v", name, back, want)
+		}
 	}
 }

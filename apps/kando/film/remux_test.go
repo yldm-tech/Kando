@@ -6,9 +6,52 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
+
+// The stand-in for ffmpeg is this test binary under the name ffmpeg (standInFFmpeg), so it runs on Windows too, which starts no shell script. Started under that name, it writes "copy" to the file its last argument names, as ffmpeg writes its output there, and then, while a file named slow is beside it, waits five seconds, as a long copy does, until it is stopped.
+func init() {
+	if strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe") != "ffmpeg" {
+		return
+	}
+	if err := os.WriteFile(os.Args[len(os.Args)-1], []byte("copy"), 0o644); err != nil {
+		os.Exit(1)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(os.Args[0]), "slow")); err == nil {
+		time.Sleep(5 * time.Second)
+	}
+	os.Exit(0)
+}
+
+// standInFFmpeg puts the stand-in for ffmpeg in dir and returns its path: a link to this test binary named ffmpeg, ffmpeg.exe on Windows, which runs a file as a program only by that name and makes symbolic links only in developer mode, so there it is a hard link, or a copy where dir is on another volume.
+func standInFFmpeg(t *testing.T, dir string) string {
+	t.Helper()
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "ffmpeg")
+	if runtime.GOOS != "windows" {
+		if err := os.Symlink(exe, path); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	path += ".exe"
+	if os.Link(exe, path) == nil {
+		return path
+	}
+	data, err := os.ReadFile(exe)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
 
 // TestRemuxArgsCopyThenEncode checks ffmpeg's arguments for the copies the system's player plays: the first picture and sound copied as they are into an MP4, or encoded as H.264 and AAC, without the streams an MP4 cannot hold, its index at the front.
 func TestRemuxArgsCopyThenEncode(t *testing.T) {
@@ -59,15 +102,8 @@ func TestRemuxPathFollowsTheVideo(t *testing.T) {
 
 // TestRemuxKeepsOneFilmsCopies runs Remux with a stand-in for ffmpeg that writes its output file, and checks that the copy lands at its path, that the copies of another video are cleared, that a copy already made is kept as it is, and that without ffmpeg there is no copy.
 func TestRemuxKeepsOneFilmsCopies(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the stand-in for ffmpeg is a shell script")
-	}
 	dir := t.TempDir()
-	ffmpeg := filepath.Join(dir, "ffmpeg")
-	// The stand-in writes "copy" to the file named by its last argument, as ffmpeg writes its output there.
-	if err := os.WriteFile(ffmpeg, []byte("#!/bin/sh\nfor last; do :; done\nprintf copy > \"$last\"\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	ffmpeg := standInFFmpeg(t, dir)
 	cache := filepath.Join(dir, "cache")
 	if err := os.MkdirAll(cache, 0o755); err != nil {
 		t.Fatal(err)
@@ -111,16 +147,9 @@ func TestRemuxKeepsOneFilmsCopies(t *testing.T) {
 
 // TestRemuxRunsWriteFilesOfTheirOwn starts a copy, stops it while ffmpeg writes, and checks that a second run of the same copy, started meanwhile, still lands: the stopped run removes only the file it wrote.
 func TestRemuxRunsWriteFilesOfTheirOwn(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("the stand-in for ffmpeg is a shell script")
-	}
 	dir := t.TempDir()
-	ffmpeg := filepath.Join(dir, "ffmpeg")
-	// The stand-in writes its output, then waits a while when told to by a file beside it, as a long copy does.
-	script := "#!/bin/sh\nfor last; do :; done\nprintf copy > \"$last\"\nif [ -f \"" + filepath.Join(dir, "slow") + "\" ]; then exec sleep 5; fi\n"
-	if err := os.WriteFile(ffmpeg, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	// The stand-in writes its output, then waits while the file slow is beside it, as a long copy does.
+	ffmpeg := standInFFmpeg(t, dir)
 	video := filepath.Join(dir, "a.mkv")
 	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
 		t.Fatal(err)
