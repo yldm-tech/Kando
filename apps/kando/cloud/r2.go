@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
@@ -73,13 +74,14 @@ func Open(cfg Store) (Client, error) {
 	}
 }
 
-func (c *client) Put(ctx context.Context, bucket, key, contentType string, body io.Reader, size int64) error {
+// Put sends body as one PutObject with its payload unsigned, on http as the SDK already does on https: signing it would read the whole file to hash it before sending a byte, which on http (a MinIO on the home network) doubles the reading of a long film and has the progress run to the end twice.
+func (c *client) Put(ctx context.Context, bucket, key, contentType string, body io.ReadSeeker, size int64) error {
 	_, err := c.api.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(bucket),
 		Key:           aws.String(key),
 		Body:          body,
 		ContentLength: aws.Int64(size),
 		ContentType:   aws.String(contentType),
-	})
+	}, s3.WithAPIOptions(v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware))
 	return err
 }

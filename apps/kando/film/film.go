@@ -40,6 +40,8 @@ type App interface {
 	StageLabel(cx *ns.Scope, stage core.Stage) string
 	// JobStatus is what the open film's job is doing and how far it has gone, as its card in the library says, in the language the interface shows under cx; "" while no job of it waits or runs.
 	JobStatus(cx *ns.Scope) string
+	// RedoFailure is why processing or translating the open film, a done one, again failed, in the language the interface shows under cx, and the settings section that fixes it, "" for none; "" unless its last redo failed. The film keeps the subtitles it had.
+	RedoFailure(cx *ns.Scope) (text, section string)
 	// FillsWindow reports whether the film takes the whole window, its title bar lying under the window's traffic lights, rather than the content column beside the sidebar.
 	FillsWindow() bool
 	// Play is the picture open now, nil until the system's player has loaded it and while there is none. PlayPath is the video opening or open, "" without one; PlayErr is why it would not play, an error ID ErrText names, or "".
@@ -94,6 +96,8 @@ type App interface {
 	SetSubOrder(order string)
 	// Peek is the index of the cue the picture shows both lines of, whatever SubMode, or -1.
 	Peek() int
+	// HeldLine is the index of the cue the film is held at the end of, by Pause After Each Line or a looped line's stop, or -1. The picture, the subtitle list and the held-line card show it, though the playhead has stopped just past its end, where the next cue may have started (playingCue).
+	HeldLine() int
 	// Untranslated is UntranslatedDim or UntranslatedBlank: what SubTranslation shows for a cue that has no translation.
 	Untranslated() string
 	// YieldSubs moves the subtitles up while the player's controls show.
@@ -176,7 +180,7 @@ type Upload struct {
 	Progress float64
 	// Canceling is whether a busy upload was asked to stop and waits for the storage's client to give up, when its cancel button is off.
 	Canceling bool
-	// Fix is the label of the button that opens 账号 to clear a blocked upload, as 去设置; "" when none helps.
+	// Fix is the label of the button that opens 账号 to clear a blocked upload, or one that failed because of the storage filled in there, as 去设置; "" when none helps.
 	Fix string
 }
 
@@ -295,6 +299,15 @@ func CueAt(cues []core.Segment, at time.Duration) (core.Segment, bool) {
 		return core.Segment{}, false
 	}
 	return cues[i], true
+}
+
+// playingCue is the index of the cue the picture shows at the playhead, as cueIndex finds it, or the one the film is held at the end of (App.HeldLine), or -1.
+func (s *screen) playingCue(list []core.Segment) int {
+	at := s.playhead() - s.a.Delay()
+	if i := s.a.HeldLine(); i >= 0 && i < len(list) {
+		return i
+	}
+	return cueIndex(list, at)
 }
 
 // cueIndex is the index of the line CueAt finds, or -1.

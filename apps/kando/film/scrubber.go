@@ -24,7 +24,7 @@ var (
 // scrubberHeight is the scrubber's: the track 7 down, 5 high, and the strip of the cues 15 down, 3 high.
 const scrubberHeight ns.Points = 22
 
-// scrubber is the film's progress bar: a white fill over the track, behind it a band over the span looped, under it a strip marking each cue, blue where it has a translation and dashed orange where it has only one line, and ticks between the 片段. Dragging it moves the time shown and seeks once released; a click or the arrow keys seek at once. While the pointer is over it, a card above it shows the time there and that moment's line.
+// scrubber is the film's progress bar: a white fill over the track, behind it a band over the span looped, under it a strip marking each cue, blue where it has a translation and dashed orange where it has only one line, and ticks between the 片段, each where the picture plays it, the subtitle delay counted. Dragging it moves the time shown and seeks once released; a click or the arrow keys seek at once. While the pointer is over it, a card above it shows the time there and that moment's line.
 func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 	a := s.a
 	length := live.Func(a, func() float64 { return max(a.PlayLength().Seconds(), 1) })
@@ -36,10 +36,12 @@ func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 		hi := length()
 		w := float32(size.Width)
 		at := func(t time.Duration) float32 { return w * float32(t.Seconds()/hi) }
+		// shown is where a moment of the subtitles is heard in the picture, the subtitle delay counted, kept on the track.
+		delay := a.Delay()
+		shown := func(t time.Duration) float32 { return min(max(at(t+delay), 0), w) }
 		frac := float32(s.shownHead().Seconds() / hi)
 		// The span looped, where the picture plays it, the subtitle delay counted, to the video's end for a loop without one.
 		if from, to, ok := loop(); ok {
-			delay := a.Delay()
 			x1 := w
 			if to > 0 {
 				x1 = at(to + delay)
@@ -54,7 +56,10 @@ func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 		d.Restore()
 		list := cues()
 		for _, cue := range list {
-			x0, x1 := at(cue.Start), at(cue.End)
+			if cue.End <= cue.Start {
+				continue
+			}
+			x0, x1 := shown(cue.Start), shown(cue.End)
 			if x1 <= x0 {
 				continue
 			}
@@ -67,8 +72,8 @@ func (s *screen) scrubber(cx *ns.Scope) ns.Node {
 			}
 		}
 		for i, ch := range Chapters(list, seconds(hi)) {
-			if i > 0 {
-				d.SetFillColor(scrubTick).FillRect(at(ch.Start)-1, 7, 2, 5)
+			if x := shown(ch.Start); i > 0 && x > 0 && x < w {
+				d.SetFillColor(scrubTick).FillRect(x-1, 7, 2, 5)
 			}
 		}
 	}

@@ -29,6 +29,11 @@ type TranslateChecker interface {
 	CheckTranslate() error
 }
 
+// hearer is a Pipeline that says how its Transcribe hears the speech of a video under ctx, as Tools does: by the speech model and in the language it is told, "" for one it detects. Speech that a redo kept aside is read back by a run that hears it the same way (pendingHeard); a pipeline that is not a hearer always hears the same way.
+type hearer interface {
+	hearing(ctx context.Context) (model, language string)
+}
+
 // Pipeline is the cross-platform boundary for media processing. Implementations keep OS-specific details out of the core package.
 type Pipeline interface {
 	// Check reports missing tools or settings before a job spends time downloading.
@@ -43,16 +48,18 @@ type Pipeline interface {
 
 // Run drives job through every stage of p. report receives the job each time its stage changes, ending with StageComplete or StageFailed, and each time a stage reports through the context's Trace how far it has gone (job.Progress) or what the video is called (job.Title, job.Thumbnail); the final job is returned. Progress starts again at each stage and is cleared once the job is done; Untranslated counts the lines this run's translation left untranslated. A local video (a file:// source) is not downloaded, so its job goes from StageQueued straight to StageTranscribing; p.Download still runs to check the file and give its path. A job whose SpeechLanguage is set has p.Transcribe hear that language (Tools.Transcribe reads it from the context) rather than the one Tools names for every video.
 //
-// Once transcribed, a job making a film for the first time reports its transcript as job.SubtitlePath with StageTranslating, so the film can be watched with its original lines while it is translated.
+// Once transcribed, a job making a film for the first time reports its transcript as job.SubtitlePath with StageTranslating, so the film can be watched with its original lines while it is translated. Its transcript is "<video>.srt", unless a local video already has a "<video>.srt" beside it that Kando did not write (foreignTranscript), as subtitles the user brought with it: that file is left as it is, and Kando keeps its transcript in "<video>.kando.srt" (TranscriptOf), which Export writes too.
 //
 // A job run again resumes after the stages an earlier run finished. A link whose video is still at job.VideoPath is not downloaded again, so the retry works offline or after the site took the video down. Once transcribed, the speech is saved beside the video before the translation starts and job.Transcribed set; a job that comes back with it set reads that transcript back instead of calling p.Transcribe, and goes straight to StageTranslating. A job whose Transcribed is false, as a done film processed again, or whose video had to be downloaded again, is transcribed anew.
 //
-// A job whose Redo is RedoTranslation or RedoMissing translates a done film again from the subtitles its earlier run exported beside job.VideoPath (exportSubtitles): it neither downloads nor transcribes, so it goes from StageQueued straight to StageTranslating, and a pipeline that is a TranslateChecker checks only what translating needs. RedoTranslation translates every line of the transcript again; RedoMissing sends p.Translate only the lines the bilingual subtitles left untranslated and keeps the rest. A film whose transcript is gone fails with ErrNoTranscript, and one whose bilingual subtitles no longer match it, as ones edited by hand, fails a RedoMissing with ErrSubtitlesChanged rather than translating every line over them. A job whose Redo is RedoAll runs every stage as a job run again does, but keeps the speech it transcribed in a hidden file beside the video (pendingTranscriptPath) rather than over the film's transcript, which Export replaces. Until the new subtitles are exported a redo keeps the film's Language, Untranslated and CompletedAt, and its subtitles on disk are untouched, so a redo that fails still describes them; once it is complete its Language is language and Redo and RedoLanguage are cleared.
+// A job whose Redo is RedoTranslation or RedoMissing translates a done film again from the subtitles its earlier run exported beside job.VideoPath (exportSubtitles): it neither downloads nor transcribes, so it goes from StageQueued straight to StageTranslating, and a pipeline that is a TranslateChecker checks only what translating needs. RedoTranslation translates every line of the transcript again; RedoMissing sends p.Translate only the lines the bilingual subtitles left untranslated and keeps the rest. A film whose transcript is gone fails with ErrNoTranscript, and one whose bilingual subtitles no longer match it, as ones edited by hand, fails a RedoMissing with ErrSubtitlesChanged rather than translating every line over them. A job whose Redo is RedoAll runs every stage as a job run again does, but keeps the speech it transcribed in a hidden file beside the video (pendingTranscriptPath) rather than over the film's transcript, which Export replaces, with how it was heard (pendingHeard): a RedoAll run again after it failed or was stopped reads that speech back when the pipeline hears the video the same way, and transcribes it again when the speech model or the language it is told changed. Until the new subtitles are exported a redo keeps the film's Language, SpokenLanguage, Untranslated and CompletedAt, and its subtitles on disk are untouched, so a redo that fails still describes them; once it is complete its Language is language, its SpokenLanguage the one its transcription heard, and Redo and RedoLanguage are cleared.
 //
 // A job making a film for the first time (Redo empty) whose translation fails as a whole, other than by being stopped, or whose pipeline has no translator (TranslateChecker), still completes: Export writes the transcript and a bilingual file of the original lines alone, every line counts as untranslated, and job.TranslationErr says why. Translating its missing lines (RedoMissing) translates it later. A redo whose translation fails fails, leaving the film as it was.
 //
 // The translation keeps each batch it has done in a hidden file beside the video (withCheckpoint) until the job exports, so a job whose translation stopped partway, cancelled, quit or failed, does not pay for those batches again when it runs again with the same lines and language.
 func Run(ctx context.Context, p Pipeline, job core.Job, language string, report func(core.Job)) core.Job {
+	// heard is the language a RedoAll job's transcription heard, which becomes the film's SpokenLanguage only once the job is complete, so a redo that fails or is stopped leaves the film's as it was.
+	var heard string
 	enter := func(stage core.Stage) {
 		job.Stage = stage
 		job.Progress = core.Progress{}
@@ -75,8 +82,14 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			job.Title, job.Thumbnail = info.Title, info.Thumbnail
 			report(job)
 		},
-		// The language heard goes out with the job's next report, as the transcription ends.
-		Spoken: func(language string) { job.SpokenLanguage = language },
+		// The language heard goes out with the job's next report, as the transcription ends. A redo keeps the film's until it is complete (heard).
+		Spoken: func(language string) {
+			if job.Redo == core.RedoAll {
+				heard = language
+				return
+			}
+			job.SpokenLanguage = language
+		},
 	})
 	// A film the user said is spoken in another language than the settings name is heard in its own (core.Job.SpeechLanguage).
 	if code := strings.TrimSpace(job.SpeechLanguage); code != "" {
@@ -105,9 +118,13 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 
 	var original, earlier []core.Segment
+	// transcript is where the job keeps the original speech, which Export writes too: the film's transcript (TranscriptOf), or for a video whose "<video>.srt" is not Kando's, a file beside it of Kando's own (asideTranscriptPath).
+	var transcript string
 	if !job.Redo.TranslatesOnly() {
 		_, local := localVideoPath(job.Source)
 		video := job.VideoPath
+		// same is false once the video is not the file an earlier run heard, as one downloaded again.
+		same := true
 		if local || !downloaded(video) {
 			if !local {
 				enter(core.StageDownloading)
@@ -124,18 +141,34 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			}
 			// A link downloaded again lands on the same path as before, so the transcript beside it may have been made from the file this download replaced, such as a silent track that never merged.
 			if !local {
-				job.Transcribed = false
+				job.Transcribed, same = false, false
 			}
 		}
 		// A transcript saved beside another file is not this video's.
 		if video != job.VideoPath {
-			job.Transcribed = false
+			job.Transcribed, same = false, false
 		}
 		job.VideoPath = video
 
-		transcript := transcriptPath(video)
-		if job.Redo == core.RedoAll {
+		transcript = TranscriptOf(video)
+		var model, language string
+		if h, ok := p.(hearer); ok {
+			model, language = h.hearing(ctx)
+		}
+		switch {
+		case job.Redo == core.RedoAll:
 			transcript = pendingTranscriptPath(video)
+			// A redo that failed or was stopped after it transcribed kept the speech it heard aside; run again, it reads that back when this run would hear the speech the same way, with the same model in the same language, rather than transcribing the film again.
+			was, ok := readPendingHeard(video)
+			if ok && !job.Transcribed && same && was.Model == model && was.Language == language {
+				job.Transcribed = true
+			}
+			if ok && job.Transcribed {
+				heard = was.Spoken
+			}
+		case job.Redo == "" && !job.Transcribed && local && foreignTranscript(video):
+			// A "<video>.srt" Kando did not write, as subtitles the user brought with a video, stays as it is.
+			transcript = asideTranscriptPath(video)
 		}
 		if job.Transcribed {
 			// A transcript that is gone or unreadable is made again, as if it had never been saved.
@@ -152,8 +185,14 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 			if len(original) == 0 {
 				return fail("transcribe", ErrNoSpeech)
 			}
-			// The transcript is kept before the translation starts, so a translation that fails does not cost the minutes of transcribing again. A transcript that cannot be saved only means a retry transcribes again; Export, which writes beside the video too, says why the folder cannot be written.
+			// The transcript is kept before the translation starts, so a translation that fails does not cost the minutes of transcribing again. A transcript that cannot be saved only means a retry transcribes again; Export, which writes beside the video too, says why the folder cannot be written. A redo's says how it was heard, written once the speech it describes is.
+			if job.Redo == core.RedoAll {
+				_ = os.Remove(pendingHeardPath(video))
+			}
 			job.Transcribed = saveTranscript(transcript, original) == nil
+			if job.Redo == core.RedoAll && job.Transcribed {
+				savePendingHeard(video, pendingHeard{Model: model, Language: language, Spoken: heard})
+			}
 		}
 		// Until its subtitles are exported, a film being made for the first time shows its transcript, the original lines, so it can be watched while it is translated; Export puts the bilingual subtitles in its place. A redo keeps the film's own subtitles until then.
 		if job.Redo == "" && job.Transcribed {
@@ -204,7 +243,11 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 
 	enter(core.StageExporting)
-	subtitles, err := p.Export(ctx, job.VideoPath, original, translated)
+	// A redo exports the film's transcript (TranscriptOf) in place of the one it kept aside.
+	if job.Redo != "" || transcript == "" {
+		transcript = TranscriptOf(job.VideoPath)
+	}
+	subtitles, err := p.Export(withTranscript(ctx, transcript), job.VideoPath, original, translated)
 	if err != nil {
 		return fail("export", err)
 	}
@@ -214,6 +257,10 @@ func Run(ctx context.Context, p Pipeline, job core.Job, language string, report 
 	}
 	if job.Redo == core.RedoAll {
 		_ = os.Remove(pendingTranscriptPath(job.VideoPath))
+		_ = os.Remove(pendingHeardPath(job.VideoPath))
+		if heard != "" {
+			job.SpokenLanguage = heard
+		}
 	}
 	job.SubtitlePath = subtitles
 	job.CompletedAt = time.Now()

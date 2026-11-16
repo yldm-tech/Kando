@@ -110,6 +110,23 @@ func linkHost(query string) string {
 	return strings.TrimSuffix(u.Hostname(), ".")
 }
 
+// On reports whether rawURL, an http or https address or a page's origin (https://www.youtube.com), is on a site of c: its host is a site's domain, or a domain among its aliases, or under one. Anything else, as a page without an origin ("null") or a file, is on none.
+func (c Catalog) On(rawURL string) bool {
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || (!strings.EqualFold(u.Scheme, "http") && !strings.EqualFold(u.Scheme, "https")) || u.Hostname() == "" {
+		return false
+	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	for _, s := range c.Sites {
+		for _, domain := range append([]string{s.Domain}, s.Aliases...) {
+			if strings.Contains(domain, ".") && (host == domain || strings.HasSuffix(host, "."+domain)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Filter is the sites of c that query finds (Matches), in their order.
 func (c Catalog) Filter(query string) []Site {
 	if strings.TrimSpace(query) == "" {

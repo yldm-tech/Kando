@@ -16,6 +16,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 
@@ -35,6 +36,8 @@ type jobQueue struct {
 	active string
 	// whisperModel is the whisper model file the running job took from the pipeline when it started, "" while none runs. The 语音识别 page counts it as in use, so it is not moved to the Trash under the job.
 	whisperModel string
+	// redoEnded is the jobs that were processing or translating a done film again (core.Job.Redo) and failed or were stopped since they were last queued, as they ended, by ID. Each film is the done film it was (queueRedoEnded), so it is not said to be done anew (queueEndedElsewhere), and the film page says why its redo failed (RedoFailure), as it draws no message bar.
+	redoEnded map[string]core.Job
 	// ran is the IDs of the jobs the queue has run to the end since launch, whichever library they saved into. jobs.list keeps listing them after they end even when another library is open (remoteQueue), so a client waiting on one sees how it ended rather than losing it.
 	ran map[string]bool
 	// cancel stops the running job; with errQuitting the job reports nothing more. done is closed once the running job's pipeline has returned.
@@ -169,7 +172,7 @@ func (a *app) queueEnqueue(sources []string) (added int, err error) {
 	return added, first
 }
 
-// queueTake queues the job for source and returns its ID: a new job, or, when the open library already has a failed or cancelled job for the same video, that job again on its card (retry), so the shelf keeps one card for it. A video already waiting, running or done is not queued again; the error is then a *queueDuplicate naming its job.
+// queueTake queues the job for source and returns its ID: a new job, or, when the open library already has a failed or cancelled job for the same video, that job again on its card (retry), so the shelf keeps one card for it. A video already waiting, running or done is not queued again; the error is then a *queueDuplicate naming its job. A local video that is a film of the library's folder no job holds (films.List), as one dropped again from the library's own folder, is that film: with subtitles beside it, it is in the library already, and the *queueDuplicate names it, so its subtitles are neither paid for nor written again; without any, its job leaves it as it was if it fails or is stopped, as 生成字幕 does (queueFromFolder).
 func (a *app) queueTake(source string) (string, error) {
 	job, err := a.newJob(source)
 	var dup *queueDuplicate
@@ -187,11 +190,28 @@ func (a *app) queueTake(source string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if path := queueLocalPath(job.Source); path != "" {
+		if item, ok := films.Find(a.films(), path); ok && item.JobID == "" {
+			if item.SubtitlePath != "" {
+				return "", &queueDuplicate{ID: item.Key, Stage: core.StageComplete, m: a.messages()}
+			}
+			a.queueFolderJob(&job, item)
+		}
+	}
 	a.queueAdd(job)
 	return job.ID, nil
 }
 
-// queueDuplicate is why newJob makes no job for a source whose video the open library already has a job for: ID is that job, and Stage its stage, StageQueued for one that is running but has not returned from its pipeline yet. Its message is in the language of m, the interface's when newJob made it.
+// queueLocalPath is the cleaned path of the video a local source names (a file:// URL), "" for a link.
+func queueLocalPath(source string) string {
+	link, ok := core.ParseLink(strings.TrimSpace(source))
+	if !ok || link.Platform != core.PlatformLocal || link.ID == "" {
+		return ""
+	}
+	return filepath.Clean(link.ID)
+}
+
+// queueDuplicate is why newJob makes no job for a source whose video the open library already has a job for: ID is that job, and Stage its stage, StageQueued for one that is running but has not returned from its pipeline yet. For a film of the library's folder that no job holds (queueTake), ID is the film's key and Stage StageComplete. Its message is in the language of m, the interface's when newJob made it.
 type queueDuplicate struct {
 	ID    string
 	Stage core.Stage
@@ -205,14 +225,21 @@ func (e *queueDuplicate) Error() string {
 	return e.m.QueueAlreadyQueued()
 }
 
-// queueFindSource is the job of the open library for the same video as source (queueSourceKey). A job waiting, running or done comes before a failed or cancelled one, so a video already processed is not queued again because an earlier try of it failed.
+// queueFindSource is the job of the open library for the same video as source (queueSourceKey), or, for a local video, the job whose video it is, as a downloaded film's video dropped on the window. A job waiting, running or done comes before a failed or cancelled one, so a video already processed is not queued again because an earlier try of it failed.
 func (a *app) queueFindSource(source string) (core.Job, bool) {
 	root := a.snap().LibraryDir
 	key := queueSourceKey(source)
+	video := queueLocalPath(source)
+	same := func(job core.Job) bool {
+		if queueSourceKey(job.Source) == key {
+			return true
+		}
+		return video != "" && job.VideoPath != "" && filepath.Clean(job.VideoPath) == video
+	}
 	var failed core.Job
 	found := false
 	for _, job := range a.library.Jobs {
-		if !films.InLibrary(root, job) || queueSourceKey(job.Source) != key {
+		if !films.InLibrary(root, job) || !same(job) {
 			continue
 		}
 		if job.Stage != core.StageFailed {
@@ -279,12 +306,15 @@ func queueFresh(job core.Job) bool {
 	return job.VideoPath == "" && !job.Transcribed && job.Redo == "" && job.CompletedAt.IsZero()
 }
 
-// queueFailures is the open library's failed jobs, oldest first, that a bulk action of 处理中 acts on: retryable those Retry All queues again, failed every one. A cancelled job is neither.
-func (a *app) queueFailures() (retryable, failed []core.Job) {
+// queueFailures is the open library's failed jobs from source, oldest first, that a bulk action of 处理中 acts on: retryable those Retry All queues again, failed every one. source is the sidebar source the page shows, so a bulk action never touches a card 处理中 hides; sidebar.SourceAll takes those of every source. A cancelled job is neither.
+func (a *app) queueFailures(source string) (retryable, failed []core.Job) {
 	root := a.snap().LibraryDir
 	for i := len(a.library.Jobs) - 1; i >= 0; i-- {
 		job := a.library.Jobs[i]
 		if job.Stage != core.StageFailed || errors.Is(job.Err, context.Canceled) || job.ID == a.queue.active || !films.InLibrary(root, job) {
+			continue
+		}
+		if source != sidebar.SourceAll && films.SourceOf(films.Film{Source: job.Source}) != source {
 			continue
 		}
 		failed = append(failed, job)
@@ -304,14 +334,14 @@ func queueRetriesAlone(kind core.FailKind) bool {
 	return false
 }
 
-func (a *app) Failures() (retryable, failed int) {
-	r, f := a.queueFailures()
+func (a *app) Failures(source string) (retryable, failed int) {
+	r, f := a.queueFailures(source)
 	return len(r), len(f)
 }
 
-// RetryAll queues again, oldest first, every failed job of the open library that needs no choice of the user's (queueRetriesAlone). One that cannot be queued, as without a target language, says why in the message bar as Retry does, once.
-func (a *app) RetryAll() {
-	retryable, _ := a.queueFailures()
+// RetryAll queues again, oldest first, every failed job of the open library from source that needs no choice of the user's (queueRetriesAlone). One that cannot be queued, as without a target language, says why in the message bar as Retry does, once.
+func (a *app) RetryAll(source string) {
+	retryable, _ := a.queueFailures(source)
 	var first error
 	for _, job := range retryable {
 		ready, err := a.queueRetryable(job)
@@ -328,9 +358,9 @@ func (a *app) RetryAll() {
 	}
 }
 
-// RemoveFailed removes the card of every failed job of the open library; their downloads stay where they are.
-func (a *app) RemoveFailed() {
-	_, failed := a.queueFailures()
+// RemoveFailed removes the card of every failed job of the open library from source; their downloads stay where they are.
+func (a *app) RemoveFailed(source string) {
+	_, failed := a.queueFailures(source)
 	for _, job := range failed {
 		a.remove(job.ID)
 	}
@@ -436,6 +466,7 @@ func (a *app) remove(id string) {
 		a.queue.removed = map[string]bool{}
 	}
 	a.queue.removed[id] = true
+	delete(a.queue.redoEnded, id)
 	if id == a.queue.active {
 		a.queue.stopActive(context.Canceled)
 	}
@@ -458,7 +489,7 @@ func (a *app) remove(id string) {
 	a.queueTellSystem()
 }
 
-// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says (core.RedoAll): its speech is transcribed anew, into the target language the settings name now rather than the one it was translated into, and it stays the done film it was until the new subtitles are written, so a run that fails or is stopped puts it back as it was (queueRedoEnded). A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
+// retry queues a failed, cancelled or finished job again under the same ID and goes to the library, where the card already on screen follows it. It resumes after the stages it finished (media.Run): the video it downloaded and the speech it transcribed are used again. A done film is processed again entirely but for its download, as Process Entire Film Again says (core.RedoAll): its speech is transcribed anew, and translated into the language it was translated into (queueReprocessLanguage), and it stays the done film it was until the new subtitles are written, so a run that fails or is stopped puts it back as it was (queueRedoEnded). A job still running or waiting is left alone; one without a language when the settings name none says so on the line under the link field.
 func (a *app) retry(job core.Job) {
 	a.queueAgain(a.queueRetryable(job))
 }
@@ -488,8 +519,12 @@ func (a *app) queueRetranslate(job core.Job, redo core.Redo, into string) error 
 	return nil
 }
 
-// queueRedoEnded is job, which was processing or translating a done film again (core.Job.Redo) and has failed or been stopped, put back as the done film it was: its subtitles are still the ones it had, which the job still describes. The message bar says why the job failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
+// queueRedoEnded is job, which was processing or translating a done film again (core.Job.Redo) and has failed or been stopped, put back as the done film it was: its subtitles are still the ones it had, which the job still describes, and so is the language heard in it (media.Run). The message bar says why the job failed, and the film page too while the film is open (jobQueue.redoEnded); a job the user cancelled, or one stopped by a switch of library, says nothing.
 func (a *app) queueRedoEnded(job core.Job) core.Job {
+	if a.queue.redoEnded == nil {
+		a.queue.redoEnded = map[string]core.Job{}
+	}
+	a.queue.redoEnded[job.ID] = job
 	if !errors.Is(job.Err, context.Canceled) && !errors.Is(job.Err, core.ErrLibrarySwitched) {
 		m := a.messages()
 		reason, section := failureHint(m, films.Film{Detail: statusText(m, job)})
@@ -517,6 +552,13 @@ func (a *app) queueFromFolder(item films.Film) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	a.queueFolderJob(&job, item)
+	a.queueAgain(job, nil)
+	return job.ID, nil
+}
+
+// queueFolderJob makes job, a new job for item, a video found in the library's folder that no job holds, the job that processes it as the folder's film it is (queueFromFolder).
+func (a *app) queueFolderJob(job *core.Job, item films.Film) {
 	job.FromFolder, job.VideoPath = true, item.VideoPath
 	if item.SubtitlePath != "" {
 		job.SubtitlePath = item.SubtitlePath
@@ -526,8 +568,6 @@ func (a *app) queueFromFolder(item films.Film) (string, error) {
 	if a.openKey != "" && a.openKey == item.Key {
 		a.openKey = job.ID
 	}
-	a.queueAgain(job, nil)
-	return job.ID, nil
 }
 
 // queueFolderEnded takes job, which was processing a video found in the library's folder (core.Job.FromFolder) and has failed or been stopped, off the shelf, so the folder's film is back as it was, with the subtitles found beside it, and an open film stays open on it. The message bar says why the job failed; a job the user cancelled, or one stopped by a switch of library, says nothing.
@@ -575,13 +615,13 @@ func (a *app) queueAgain(job core.Job, err error) {
 // errInQueue is queueRetryable's answer for a job that is running or waiting already.
 var errInQueue = errors.New("the job is already running or waiting in the queue")
 
-// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. A done film is made ready to be processed again entirely (core.RedoAll), into the language the settings name now, which becomes its Language once it is done. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
+// queueRetryable is job ready for queueAdd to queue again under the same ID, with the language the settings name when it has none, or why it cannot be: errInQueue for a job running or waiting already, or, in the interface's language, that no language is set. A done film is made ready to be processed again entirely (core.RedoAll), into the language queueReprocessLanguage picks, which becomes its Language once it is done. It changes nothing, neither the page, the selected card nor the line under the link field, so the window's retry, queueTake (a video added again from kando add, MCP or the top bar of another page, queued where the user is) and the control socket's jobs.retry, which must not move the window, all start from it.
 func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 	if job.ID == a.queue.active || job.Stage == core.StageQueued {
 		return core.Job{}, errInQueue
 	}
 	if job.Stage == core.StageComplete {
-		language := strings.TrimSpace(a.prefs.language)
+		language := a.queueReprocessLanguage(job)
 		if language == "" {
 			return core.Job{}, errors.New(a.messages().QueueNoLanguage())
 		}
@@ -596,6 +636,14 @@ func (a *app) queueRetryable(job core.Job) (core.Job, error) {
 		return core.Job{}, errors.New(a.messages().QueueNoLanguage())
 	}
 	return job, nil
+}
+
+// queueReprocessLanguage is the language processing done film job again entirely translates it into: the one it was translated into, so transcribing its speech again, as in the language the user said it is spoken in, does not change its translation; for a film that translated none of its lines (core.Job.TranslationErr), or has no language, the one the settings name now. "" when neither names one.
+func (a *app) queueReprocessLanguage(job core.Job) string {
+	if language := strings.TrimSpace(job.Language); language != "" && job.TranslationErr == "" {
+		return language
+	}
+	return strings.TrimSpace(a.prefs.language)
 }
 
 func (a *app) newDraft() {
@@ -622,6 +670,7 @@ func (a *app) start() {
 
 // queueAdd puts job on the shelf as queued, behind the jobs already waiting, and starts it if nothing is running.
 func (a *app) queueAdd(job core.Job) {
+	delete(a.queue.redoEnded, job.ID)
 	job.Stage = core.StageQueued
 	job.Err = nil
 	job.FailKind = ""
@@ -814,10 +863,10 @@ func (a *app) queueLetSleep() {
 	}
 }
 
-// queueEndedElsewhere tells, in the library's message bar, that job id, which saved into a library that is not open, is done or has failed: its card leaves 处理中 then, and only its own library shows it. A job that was cancelled or removed says nothing.
+// queueEndedElsewhere tells, in the library's message bar, that job id, which saved into a library that is not open, is done or has failed: its card leaves 处理中 then, and only its own library shows it. A job that was cancelled or removed says nothing, and neither does one whose processing or translating a done film again failed or was stopped: its film is done as it was, not anew, and the bar already says why it failed (queueRedoEnded).
 func (a *app) queueEndedElsewhere(id string) {
 	job, ok := a.library.Find(id)
-	if !ok || a.queue.removed[id] || job.LibraryDir == "" || films.InLibrary(a.snap().LibraryDir, job) {
+	if _, redo := a.queue.redoEnded[id]; !ok || redo || a.queue.removed[id] || job.LibraryDir == "" || films.InLibrary(a.snap().LibraryDir, job) {
 		return
 	}
 	library := films.LibraryName(job.LibraryDir)

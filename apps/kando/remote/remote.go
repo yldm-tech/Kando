@@ -253,8 +253,9 @@ type Job struct {
 	// Status is the line the window shows for it, in English (Language).
 	Status string `json:"status,omitempty"`
 	// Error is why a failed job failed; Canceled is set for one that was stopped instead.
-	Error     string `json:"error,omitempty"`
-	Canceled  bool   `json:"canceled,omitempty"`
+	Error    string `json:"error,omitempty"`
+	Canceled bool   `json:"canceled,omitempty"`
+	// Language is what the job translates the subtitles into: for a job processing or translating a done film again, the language it was asked for, which its film's subtitles are in once it is done.
 	Language  string `json:"language,omitempty"`
 	VideoPath string `json:"video_path,omitempty"`
 	Subtitles string `json:"subtitles,omitempty"`

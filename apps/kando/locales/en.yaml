@@ -21,7 +21,7 @@ accountCompatRegionHint:
   description: "Hint under the S3-compatible storage's Region field."
 accountFixSettings:
   message: "Open Settings"
-  description: "Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage."
+  description: "Button in the player's upload capsule opening Settings › Account & Upload to fill in the storage, or to correct it after an upload failed because of it."
 accountGoogleFailed:
   message: "Google sign-in didn't finish"
   description: "Error under the account card when the Google sign-in failed or was cancelled."
@@ -90,6 +90,11 @@ accountStoreOSS:
 accountUploadCanceled:
   message: "Upload canceled"
   description: "The player's upload capsule after the upload was canceled with its Cancel button."
+accountUploadDenied:
+  message: "These keys can't write to the bucket {bucket}. Give them write access, or use other keys."
+  description: "Upload error: the storage refused the keys write access to the bucket (AccessDenied). The settings button follows it."
+  placeholders:
+    bucket: { type: "String", example: "clips" }
 accountUploadFailed:
   message: "Upload failed"
   description: "Upload error whose cause is hidden because it would show a key."
@@ -98,14 +103,49 @@ accountUploadFailedBecause:
   description: "Upload error with the storage's error message."
   placeholders:
     error: { type: "String", example: "status 403" }
+accountUploadFailedSeeLog:
+  message: "Upload failed. The details are in the log file."
+  description: "Upload error that none of the others names; the storage's own error is in the log file (Help › Show Log File)."
+accountUploadInsecure:
+  message: "Couldn't connect securely to {host}. Check whether the Endpoint is http or https, and its certificate."
+  description: "Upload error: the TLS connection to the storage failed, because the certificate is not trusted or the server speaks plain http. Endpoint is the field's name, not translated. The settings button follows it."
+  placeholders:
+    host: { type: "String", example: "minio.local:9000" }
+accountUploadKeys:
+  message: "The storage didn't accept the Access Key or Secret. Check them."
+  description: "Upload error: the storage rejected the keys (SignatureDoesNotMatch, InvalidAccessKeyId). Access Key and Secret are the fields' names, not translated. The settings button follows it."
+accountUploadNoBucket:
+  message: "There's no bucket named {bucket}. Check the Bucket, or create it first."
+  description: "Upload error: the bucket does not exist (NoSuchBucket). Bucket is the field's name, not translated. The settings button follows it."
+  placeholders:
+    bucket: { type: "String", example: "clips" }
 accountUploadNote:
   message: "Videos aren't uploaded automatically when a download finishes: click Upload in the player. Each storage's keys are saved separately, only in the settings file on this computer."
   description: "Note under the object storage card: uploads are by hand, and where the keys are kept."
+accountUploadOffline:
+  message: "Couldn't connect to the storage. Check the network and try again."
+  description: "Upload error: the connection to the storage could not be made or broke off."
+accountUploadRegion:
+  message: "The bucket {bucket} is in another region. Check the Region or Endpoint."
+  description: "Upload error: the request was signed for another region than the bucket's (PermanentRedirect, AuthorizationHeaderMalformed). Region and Endpoint are the fields' names, not translated. The settings button follows it."
+  placeholders:
+    bucket: { type: "String", example: "clips" }
+accountUploadStalled:
+  message: "The storage stopped answering. Check the network and try again."
+  description: "Upload error: the storage took no data and gave no answer for a minute."
 accountUploadTo:
   message: "Upload to {store}"
   description: "The player's upload button, naming the storage (R2, S3, OSS, COS or S3 Compatible)."
   placeholders:
     store: { type: "String", example: "R2" }
+accountUploadTooLarge:
+  message: "The video is larger than 5 GB, the most one upload can send."
+  description: "Upload error: the video is larger than one upload to object storage can take."
+accountUploadUnreachable:
+  message: "Couldn't find {host}. Check the Endpoint or Region."
+  description: "Upload error: the storage's host name does not resolve. Endpoint and Region are the fields' names, not translated. The settings button follows it."
+  placeholders:
+    host: { type: "String", example: "clips.s3.ap-northeast-1.amazonaws.com" }
 accountUploadUnsaved:
   message: "The film was uploaded, but couldn't be marked as uploaded: {error}"
   description: "Error in the sidebar when a film was uploaded but settings.json, which remembers uploaded films across restarts, could not be written."
@@ -745,9 +785,19 @@ filmRemove:
 filmReprocess:
   message: "Process Entire Film Again"
   description: "Item of the player's ⋯ menu that processes a finished film again from the start."
+filmReprocessFailed:
+  message: "Couldn't process again. {reason}"
+  description: "Player title bar line when processing the open film again (Process Again) failed: the film keeps the subtitles it had. reason is a full sentence saying why, such as that the AI service refused the key."
+  placeholders:
+    reason: { type: "String", example: "The AI service refused the API key." }
 filmRetry:
   message: "Retry"
   description: "Player title bar button: runs this failed film's job again."
+filmRetranslateFailed:
+  message: "Couldn't translate again. {reason}"
+  description: "Player title bar line when translating the open film again (Translate Again or Translate Missing Lines) failed: the film keeps the subtitles it had. reason is a full sentence saying why."
+  placeholders:
+    reason: { type: "String", example: "The AI service refused the API key." }
 filmReveal:
   message: "Show"
   description: "Button on a file of the Info tab that shows it in Finder."
@@ -888,6 +938,9 @@ filmUploadCancel:
 filmVolume:
   message: "Volume"
   description: "Accessible name of the volume slider."
+filmsBrowseSites:
+  message: "Browse Sites"
+  description: "Button beside the library's link field, and on the page of an empty library, that opens the built-in browser (Browse) to find a video in."
 filmsCancel:
   message: "Cancel"
   description: "Button that closes a sheet or dialog without doing anything."
@@ -1224,7 +1277,7 @@ filmsReprocessConfirm:
     name: { type: "String", example: "Learn Rust" }
 filmsReprocessConfirmMessage:
   message: "Its speech will be transcribed again and every line translated into {language}, which uses your AI service."
-  description: "Message of the dialog confirming Process Again: what it costs. language is the target language set now, which may differ from the one the film was translated into."
+  description: "Message of the dialog confirming Process Again: what it costs. language is the language the film was translated into, or the target language set now for a film that was not translated."
   placeholders:
     language: { type: "String", example: "Simplified Chinese" }
 filmsRetranslateConfirm:
@@ -1947,11 +2000,17 @@ paletteExplainNote:
   placeholders:
     model: { type: "String", example: "gpt-4o-mini" }
 paletteFieldLabel:
+  message: "Films, commands or watched lines"
+  description: "Accessible name of the command palette's field over the library, where it finds films, commands and lines but takes no question."
+paletteFieldLabelFilm:
   message: "Commands, lines or questions"
-  description: "Accessible name of the command palette's field."
+  description: "Accessible name of the command palette's field in the player, where a question can also be asked about the open film."
 paletteFooter:
   message: "Type to search films, commands and watched lines · ↑↓ to select · Return to run"
-  description: "Footer of the command palette, over the library and in the player: what typing, the arrow keys and Return do."
+  description: "Footer of the command palette over the library: what typing, the arrow keys and Return do."
+paletteFooterFilm:
+  message: "Type to search films, commands and watched lines, or to ask this film · ↑↓ to select · Return to ask or run"
+  description: "Footer of the command palette in the player: what typing, the arrow keys and Return do. Return asks the open film the typed question while its row is highlighted, and runs the highlighted command otherwise."
 paletteHeadingAnswer:
   message: "Answer"
   description: "Heading of the card with the answer to a question about the film."
@@ -2739,11 +2798,20 @@ savedEmpty:
 savedExport:
   message: "Export for Anki…"
   description: "File menu item and button of the Saved Lines sheet: writes the saved lines, with each line's audio, into a folder the user picks, as a text file Anki imports."
+savedExportCancel:
+  message: "Cancel"
+  description: "Button of the Saved Lines sheet in place of Export for Anki… while an export runs: stops it."
 savedExportFailed:
   message: "Couldn't export the saved lines: {error}"
   description: "Saved Lines sheet, when the export failed, with the system's reason."
   placeholders:
     error: { type: "String", example: "permission denied" }
+savedExportOpenSettings:
+  message: "Open Settings"
+  description: "Button of the Saved Lines sheet after an export without audio because ffmpeg is not installed: opens the settings section that installs it."
+savedExportStopped:
+  message: "Export stopped."
+  description: "Saved Lines sheet, after the user cancelled the export."
 savedExported:
   message: "{count, plural, one {Exported # line with its audio.} other {Exported # lines with their audio.}} Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
   description: "Saved Lines sheet, once the export is done: what it wrote and how to bring it into Anki. The quoted names are the export's folder and file, which are not translated."
@@ -2754,6 +2822,12 @@ savedExportedNoAudio:
   description: "Saved Lines sheet, once an export is done that could cut no audio. The quoted name is the export's file, which is not translated."
   placeholders:
     count: { type: "int", example: "12" }
+savedExportedSomeAudio:
+  message: "{lines, plural, one {Exported # line,} other {Exported # lines,}} {sounds} with audio. Copy the files of “Kando Saved Lines audio” into Anki's collection.media folder, then import “Kando Saved Lines.txt” in Anki."
+  description: "Saved Lines sheet, once an export is done that cut the audio of only some lines (the others' videos are gone or ffmpeg could not cut them): how many lines it wrote, how many with audio, and how to bring them into Anki. The quoted names are the export's folder and file, which are not translated."
+  placeholders:
+    lines: { type: "int", example: "12" }
+    sounds: { type: "int", example: "9" }
 savedExporting:
   message: "Exporting {done} of {total}…"
   description: "Saved Lines sheet, while the export runs: how many lines it has written of all of them."
@@ -3754,6 +3828,12 @@ sidebarRevealLibrary:
   placeholders:
     name: { type: "String", example: "My Films" }
     platform: { type: "String", example: "macOS" }
+sidebarRowCount:
+  message: "{name}, {count, plural, one {# film} other {# films}}"
+  description: "Accessible name of a sidebar row of a source or a spoken language: its name and how many films the library page shows for it, the count the row draws at its end."
+  placeholders:
+    name: { type: "String", example: "YouTube" }
+    count: { type: "int", example: "12" }
 sidebarSearchClear:
   message: "Clear Search"
   description: "Accessible name of the button at the end of the sidebar’s search field that empties it."

@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,6 +21,8 @@ import (
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/core"
+
+	"github.com/aws/smithy-go"
 )
 
 func TestCloudSettingsRoundTrip(t *testing.T) {
@@ -331,13 +337,81 @@ func TestAccountPageShowsS3Fields(t *testing.T) {
 
 func TestUploadFailureHidesTheSecret(t *testing.T) {
 	m := testlocale.Messages()
-	msg := uploadFailure(m, errors.New("signature secret-value"), "secret-value", "key")
+	cfg := cloud.Store{Bucket: "clips", AccessKey: "key", Secret: "secret-value"}
+	msg := uploadFailure(m, &smithy.GenericAPIError{Code: "Odd", Message: "signature secret-value"}, cfg)
 	if msg != "上传失败" || strings.Contains(msg, "secret-value") {
 		t.Fatalf("msg = %q", msg)
 	}
-	plain := uploadFailure(m, errors.New("status 403"), "secret-value", "key")
-	if plain != "上传失败：status 403" {
+	plain := uploadFailure(m, &smithy.GenericAPIError{Code: "InvalidBucketName", Message: "The specified bucket is not valid."}, cfg)
+	if plain != "上传失败：InvalidBucketName: The specified bucket is not valid." {
 		t.Fatalf("msg = %q", plain)
+	}
+}
+
+// TestUploadFailureSaysWhatToDo reads the capsule's sentence for each way an upload fails, and whether it offers to open the settings, where the endpoint, region, bucket and keys are filled in: not the SDK's whole English error, which goes to the log.
+func TestUploadFailureSaysWhatToDo(t *testing.T) {
+	m := testlocale.Messages()
+	cfg := cloud.Store{Kind: cloud.KindCompat, Bucket: "clips", AccessKey: "key", Secret: "secret-value"}
+	refused := &url.Error{Op: "Put", URL: "http://minio.local:9000/clips/a.mp4", Err: &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connect: connection refused")}}
+	noHost := &url.Error{Op: "Put", URL: "http://clips.minio.invalid/a.mp4", Err: &net.OpError{Op: "dial", Net: "tcp", Err: &net.DNSError{Err: "no such host", Name: "clips.minio.invalid", IsNotFound: true}}}
+	for _, tc := range []struct {
+		err  error
+		want string
+		fix  bool
+	}{
+		{fmt.Errorf("operation error S3: PutObject, %w", &smithy.GenericAPIError{Code: "SignatureDoesNotMatch", Message: "The request signature we calculated does not match"}), m.AccountUploadKeys(), true},
+		{&smithy.GenericAPIError{Code: "AccessDenied"}, m.AccountUploadDenied("clips"), true},
+		{&smithy.GenericAPIError{Code: "NoSuchBucket"}, m.AccountUploadNoBucket("clips"), true},
+		{&smithy.GenericAPIError{Code: "PermanentRedirect"}, m.AccountUploadRegion("clips"), true},
+		{noHost, m.AccountUploadUnreachable("clips.minio.invalid"), true},
+		{fmt.Errorf("upload: %w", cloud.ErrStalled), m.AccountUploadStalled(), false},
+		{refused, m.AccountUploadOffline(), false},
+		{fmt.Errorf("video.mp4: %w", cloud.ErrTooLarge), m.AccountUploadTooLarge(), false},
+		{errors.New("something else"), m.AccountUploadFailedSeeLog(), false},
+	} {
+		if got := uploadFailure(m, tc.err, cfg); got != tc.want {
+			t.Errorf("%v reads %q, want %q", tc.err, got, tc.want)
+		}
+		if got := uploadNeedsSettings(tc.err); got != tc.fix {
+			t.Errorf("%v offers the settings: %v, want %v", tc.err, got, tc.fix)
+		}
+	}
+}
+
+// TestUploadFailureOffersTheSettings fails an upload because the storage does not take the keys: the capsule says so with a button to the settings, and the log has the storage's whole error, without the secret.
+func TestUploadFailureOffersTheSettings(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "talk.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var logged strings.Builder
+	was := log.Writer()
+	log.SetOutput(&logged)
+	t.Cleanup(func() { log.SetOutput(was) })
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
+	failure := fmt.Errorf("operation error S3: PutObject, %w", &smithy.GenericAPIError{Code: "SignatureDoesNotMatch", Message: "string to sign has secret-value"})
+	a.cloud.uploader = func(context.Context, cloud.Store, []cloud.File, func(int64, int64)) error { return failure }
+	item := films.Film{VideoPath: video}
+	a.BeginUpload(item)
+	cloudUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	m := testlocale.Messages()
+	view := a.UploadView(item)
+	if view.Status != film.UploadFailed || view.Detail != m.AccountUploadKeys() || view.Fix != m.AccountFixSettings() {
+		t.Fatalf("upload %+v", view)
+	}
+	if got := logged.String(); !strings.Contains(got, "upload: talk.mp4 to r2 failed: operation error S3: PutObject, api error SignatureDoesNotMatch: string to sign has ***") || strings.Contains(got, "secret-value") {
+		t.Fatalf("log %q", got)
+	}
+	// The next upload starts without the button.
+	a.cloud.uploader = func(context.Context, cloud.Store, []cloud.File, func(int64, int64)) error { return nil }
+	a.BeginUpload(item)
+	cloudUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	if view := a.UploadView(item); view.Status != film.UploadDone || view.Fix != "" {
+		t.Fatalf("after another upload %+v", view)
 	}
 }
 
@@ -375,7 +449,7 @@ func TestAccountPageInEnglish(t *testing.T) {
 	if got, want := a.uploadLabel(), "Upload to S3 Compatible"; got != want {
 		t.Fatalf("label %q, want %q", got, want)
 	}
-	if got, want := uploadFailure(a.messages(), errors.New("status 403"), "secret-value", "key"), "Upload failed: status 403"; got != want {
+	if got, want := uploadFailure(a.messages(), &smithy.GenericAPIError{Code: "NoSuchBucket"}, cloud.Store{Bucket: "clips"}), "There's no bucket named clips. Check the Bucket, or create it first."; got != want {
 		t.Fatalf("failure %q, want %q", got, want)
 	}
 	if got, want := uploadProgress(a.messages(), 1, 4), "Uploading 25%"; got != want {
@@ -493,7 +567,7 @@ func TestUploadFailureIsNotACancel(t *testing.T) {
 	a.edit(func(s *session) { s.LibraryDir = dir })
 	a.cloud.googleEmail = "a@b.c"
 	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
-	failure := errors.New("status 403")
+	failure := &smithy.GenericAPIError{Code: "AccessDenied", Message: "Access Denied"}
 	contexts := make(chan context.Context, 1)
 	a.cloud.uploader = func(ctx context.Context, _ cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
 		contexts <- ctx
@@ -505,7 +579,7 @@ func TestUploadFailureIsNotACancel(t *testing.T) {
 	<-(<-contexts).Done()
 	cloudUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
 	view := a.UploadView(item)
-	if want := uploadFailure(a.messages(), failure, "secret-value", "key"); view.Status != film.UploadFailed || view.Detail != want {
+	if want := uploadFailure(a.messages(), failure, a.currentStore()); view.Status != film.UploadFailed || view.Detail != want {
 		t.Fatalf("upload %+v, want failed with %q", view, want)
 	}
 }
@@ -589,5 +663,34 @@ func TestUploadProgressOnlyAsThePercentChanges(t *testing.T) {
 	// 0%, 1%, 2% and the finish
 	if n := len(updates) - before; n != 4 {
 		t.Fatalf("the upload posted %d updates, want 4", n)
+	}
+}
+
+// TestUploadHasNoDeadline starts an upload and reads its context: a feature-length film on a home connection takes longer than any fixed limit, so the upload runs until it is sent, stalls, or is canceled.
+func TestUploadHasNoDeadline(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "film.mp4")
+	if err := os.WriteFile(video, []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	updates := make(chan func(), 4)
+	a := newApp(&fakePipeline{}, func(fn func()) { updates <- fn })
+	a.edit(func(s *session) { s.LibraryDir = dir })
+	a.cloud.r2Endpoint, a.cloud.r2Bucket, a.cloud.r2AccessKey, a.cloud.r2Secret = "acct", "clips", "key", "secret-value"
+	contexts := make(chan context.Context, 1)
+	a.cloud.uploader = func(ctx context.Context, _ cloud.Store, _ []cloud.File, _ func(int64, int64)) error {
+		contexts <- ctx
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	item := films.Film{VideoPath: video}
+	a.BeginUpload(item)
+	if deadline, ok := (<-contexts).Deadline(); ok {
+		t.Fatalf("the upload must end by %v", deadline)
+	}
+	a.CancelUpload()
+	cloudUntil(t, updates, func() bool { return a.cloud.uploadPath == "" })
+	if view := a.UploadView(item); view.Status != film.UploadCanceled {
+		t.Fatalf("upload %+v", view)
 	}
 }

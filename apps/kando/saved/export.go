@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -34,7 +35,7 @@ type Exported struct {
 	File          string
 }
 
-// Export writes the lines of b into dir for Anki: ExportFile, a note per line, and in ExportAudio the sound of each line, cut out of its video with ffmpeg, which the line's note plays. delay is how far the subtitles of the video at a path were moved against its picture, so the sound is where the line is heard. A line whose video is gone, or every line when ffmpeg is "", is written without its sound. progress, when set, is told after each line. A stopped ctx stops it, leaving what it wrote.
+// Export writes the lines of b into dir for Anki: ExportFile, a note per line, and in ExportAudio the sound of each line, cut out of its video with ffmpeg, which the line's note plays. delay is how far the subtitles of the video at a path were moved against its picture, so the sound is where the line is heard. A line whose video is gone, or every line when ffmpeg is "", is written without its sound, as is a line ffmpeg could not cut, which the log says; Exported.Sounds counts the lines with one. progress, when set, is told after each line. A stopped ctx stops it, leaving what it wrote.
 func Export(ctx context.Context, ffmpeg string, b Book, delay func(video string) time.Duration, dir string, progress func(done, total int)) (Exported, error) {
 	out := Exported{File: filepath.Join(dir, ExportFile)}
 	audio := filepath.Join(dir, ExportAudio)
@@ -58,6 +59,8 @@ func Export(ctx context.Context, ffmpeg string, b Book, delay func(video string)
 				out.Sounds++
 			} else if ctx.Err() != nil {
 				return out, ctx.Err()
+			} else {
+				log.Printf("saved: no sound for the line at %s of %s: %v", Clock(l.Start), filepath.Base(video), err)
 			}
 		}
 		if progress != nil {
@@ -90,25 +93,32 @@ type Row struct {
 	Sound string
 }
 
-// WriteNotes writes rows as a file Anki's text import reads: UTF-8, a tab between fields, a note per line, and the header lines Anki 2.1.55 and later read, which say so and name the columns, so no option of the import needs changing. The fields are the original, the translation, the film, where in it the line starts and the line's sound, [sound:file] for Anki to play. Text is written as it is, not as HTML, and tabs or line breaks in it become spaces.
+// WriteNotes writes rows as a file Anki's text import (File › Import) reads into its stock Basic note type as it is: UTF-8, a tab between fields, a note per line, and the header lines Anki 2.1.55 and later read. Every field is in double quotes, any quote in it doubled, as Anki's reader takes them, so tabs, line breaks, quotes and a leading # stay in the field rather than split it, run it into the next notes or make it a comment. The header names no columns, so Anki puts the fields into the note type's fields in order, whatever Anki's language calls them: the first, Front, is the original; the second, Back, is the translation, the line's sound, [sound:file] for Anki to play, and the film and where in it the line starts, each on a line of its own. #notetype picks the note type named Basic where the collection has one; Anki keeps the one it adds with where it has none, as in a collection made in another language. The text is not HTML: Anki escapes it and turns its line breaks into line breaks of the card.
 func WriteNotes(w io.Writer, rows []Row) error {
 	bw := bufio.NewWriter(w)
-	fmt.Fprint(bw, "#separator:tab\n#html:false\n#columns:Original\tTranslation\tFilm\tTime\tAudio\n")
+	fmt.Fprint(bw, "#separator:tab\n#html:false\n#notetype:Basic\n")
 	for _, r := range rows {
-		sound := ""
-		if r.Sound != "" {
-			sound = "[sound:" + r.Sound + "]"
+		var back []string
+		if t := strings.TrimSpace(r.Line.Translation); t != "" {
+			back = append(back, t)
 		}
-		fields := []string{field(r.Line.Original), field(r.Line.Translation), field(r.Line.Film), Clock(r.Line.Start), sound}
-		fmt.Fprint(bw, strings.Join(fields, "\t"), "\n")
+		if r.Sound != "" {
+			back = append(back, "[sound:"+r.Sound+"]")
+		}
+		where := Clock(r.Line.Start)
+		if f := strings.TrimSpace(r.Line.Film); f != "" {
+			where = f + " · " + where
+		}
+		back = append(back, where)
+		fmt.Fprint(bw, field(r.Line.Original), "\t", field(strings.Join(back, "\n")), "\n")
 	}
 	return bw.Flush()
 }
 
-// field is s as one field of a note: on one line, without tabs, and not starting with the # Anki takes for a header line.
+// field is s as one field of a note, in double quotes with each quote in it doubled, its line breaks written \n.
 func field(s string) string {
-	s = strings.Join(strings.FieldsFunc(s, func(r rune) bool { return r == '\t' || r == '\n' || r == '\r' }), " ")
-	return strings.TrimPrefix(strings.TrimSpace(s), "#")
+	s = strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(s), "\r\n", "\n"), "\r", "\n")
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
 
 // SoundName is the file the sound of l is written to: kando- and a hash of its video and its start, so the lines of every export share Anki's one media folder without two of them taking one name, and exporting again writes each line's sound over its own.

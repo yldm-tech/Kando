@@ -30,9 +30,12 @@ func (n notice) Render(cx *core.Scope) core.Node {
 	look := live.Memo(cx, a, func() noticeLook {
 		bar := a.Notice()
 		l := noticeLook{open: bar.Open, success: bar.Kind == "success", text: bar.Text, section: bar.Section, list: bar.List}
-		// The film named may have been removed since the bar opened; then there is nothing to open and no button.
+		// The film named may have been removed since the bar opened; then there is nothing to open and no button. It is a film of the library's, a job's or a video of its folder no job holds, or a job's the queue runs for another library.
 		if bar.Film != "" {
-			l.film, _ = a.JobFilm(bar.Film)
+			var ok bool
+			if l.film, ok = Find(a.Films(), bar.Film); !ok {
+				l.film, _ = a.JobFilm(bar.Film)
+			}
 		}
 		return l
 	})

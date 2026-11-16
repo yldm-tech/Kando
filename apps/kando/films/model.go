@@ -166,26 +166,34 @@ func BySource(items []Film, source string) []Film {
 	return out
 }
 
-// BySpoken keeps the films heard in code, whisper's code for a language (Film.Spoken); sidebar.SpokenAll keeps them all.
+// Heard is the language a film is filed under by what is spoken in it, as whisper's code: the one the speech recognition heard (Film.Spoken), or, before it told one, as for a film transcribed before Kando kept it, the one the user named for the film (Film.SpeechLanguage). Empty when neither is known.
+func Heard(item Film) string {
+	if item.Spoken != "" {
+		return item.Spoken
+	}
+	return item.SpeechLanguage
+}
+
+// BySpoken keeps the films heard in code, whisper's code for a language (Heard); sidebar.SpokenAll keeps them all.
 func BySpoken(items []Film, code string) []Film {
 	if code == sidebar.SpokenAll {
 		return items
 	}
 	var out []Film
 	for _, item := range items {
-		if item.Spoken == code {
+		if Heard(item) == code {
 			out = append(out, item)
 		}
 	}
 	return out
 }
 
-// SpokenCounts is how many of items were heard in each language, those whose language is not known left out: the language most were heard in first, languages as many films were heard in by their codes.
+// SpokenCounts is how many of items were heard in each language (Heard), those whose language is not known left out: the language most were heard in first, languages as many films were heard in by their codes.
 func SpokenCounts(items []Film) []sidebar.SpokenCount {
 	n := map[string]int{}
 	for _, item := range items {
-		if item.Spoken != "" {
-			n[item.Spoken]++
+		if code := Heard(item); code != "" {
+			n[code]++
 		}
 	}
 	out := make([]sidebar.SpokenCount, 0, len(n))
@@ -219,6 +227,17 @@ func ByTitle(items []Film, query string) []Film {
 		}
 	}
 	return out
+}
+
+// Shown is the films of items the library page's grid shows, in their order: the done ones, no longer in 处理中, from source (BySource), heard in spoken (BySpoken) and whose names hold query (ByTitle). Return in the sidebar's search field acts on the same films, so it never opens one the grid hides.
+func Shown(items []Film, source, spoken, query string) []Film {
+	var done []Film
+	for _, item := range BySource(items, source) {
+		if !InQueue(item) {
+			done = append(done, item)
+		}
+	}
+	return ByTitle(BySpoken(done, spoken), query)
 }
 
 func Find(items []Film, key string) (Film, bool) {
@@ -363,14 +382,15 @@ func QueueOrder(items []Film) []Film {
 	return slices.Concat(running, waiting, failed)
 }
 
-// QueueSummary is the line beside 处理中, such as "1 个进行中 · 2 个排队 · 2 个需要处理".
+// QueueSummary is the line beside 处理中, such as "1 个进行中 · 2 个排队 · 2 个需要处理". A cancelled job is none of them, as the sidebar's count and the bulk buttons leave it out.
 func QueueSummary(m locales.Messages, items []Film) string {
 	running, queued, failed := 0, 0, 0
 	for _, item := range items {
-		switch item.Stage {
-		case core.StageFailed:
+		switch {
+		case Canceled(item):
+		case item.Stage == core.StageFailed:
 			failed++
-		case core.StageQueued:
+		case item.Stage == core.StageQueued:
 			queued++
 		default:
 			running++
@@ -491,12 +511,13 @@ func LanguageShort(m locales.Messages, language string) string {
 	return language
 }
 
-// PosterLanguages is the tag over a done film's poster, in the language of m: the language heard in it, as JA, and the one it was translated into only when that is not target, the language the settings translate new films into, as JA → 简中. A film whose spoken language is not known says it is bilingual in its translation's language.
+// PosterLanguages is the tag over a done film's poster, in the language of m: the language heard in it (Heard), as JA, and the one it was translated into only when that is not target, the language the settings translate new films into, as JA → 简中. A film whose spoken language is not known says it is bilingual in its translation's language.
 func PosterLanguages(m locales.Messages, item Film, target string) string {
-	if item.Spoken == "" {
+	heard := Heard(item)
+	if heard == "" {
 		return m.FilmsPosterBilingual(LanguageShort(m, item.Language))
 	}
-	spoken := strings.ToUpper(item.Spoken)
+	spoken := strings.ToUpper(heard)
 	if item.Language == target {
 		return spoken
 	}

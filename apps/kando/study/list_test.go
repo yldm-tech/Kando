@@ -29,6 +29,8 @@ type fakeApp struct {
 func (f *fakeApp) ExportSaved()        { f.calls = append(f.calls, "export") }
 func (f *fakeApp) ExportState() Export { return f.export }
 func (f *fakeApp) RevealExport()       { f.calls = append(f.calls, "reveal") }
+func (f *fakeApp) StopExport()         { f.calls = append(f.calls, "stop") }
+func (f *fakeApp) ExportSettings()     { f.calls = append(f.calls, "settings") }
 func (f *fakeApp) DueCount() int       { return f.due }
 func (f *fakeApp) StartReview()        { f.calls = append(f.calls, "review") }
 
@@ -85,7 +87,7 @@ func TestSheetListsTheSavedLines(t *testing.T) {
 	}
 }
 
-// TestSheetSaysHowTheExportGoes checks that Export for Anki… asks for the export, is off while one runs or with no line to export, and that the line beside it counts the lines done, then says what was written, offering to show it, or why it failed.
+// TestSheetSaysHowTheExportGoes checks that Export for Anki… asks for the export, gives way to Cancel, which stops it, while one runs, and is off with no line to export, and that the line beside it counts the lines done, then says what was written and how many lines have their audio, offering to show it, and the settings that install ffmpeg when there was none, that it was stopped, or why it failed.
 func TestSheetSaysHowTheExportGoes(t *testing.T) {
 	a := &fakeApp{entries: []Entry{{ID: "a", Film: "Talk", Original: "Hello."}}}
 	app := start(t, a, func(*core.Scope) core.Node { return Sheet{App: a} })
@@ -97,29 +99,43 @@ func TestSheetSaysHowTheExportGoes(t *testing.T) {
 	a.export = Export{Busy: true, Done: 1, Total: 3}
 	a.Changed()
 	app.Settle()
-	if !app.Exists(whole(msgs.SavedExporting(1, 3))) || !app.Find("id:saved-export").Props.Disabled {
+	if !app.Exists(whole(msgs.SavedExporting(1, 3))) || app.Exists("id:saved-export") || !app.Exists("id:saved-export-cancel >> "+whole(msgs.SavedExportCancel())) {
 		t.Fatalf("while it runs: %q", app.Texts())
+	}
+	app.Press("id:saved-export-cancel")
+	a.export = Export{Finished: true, Stopped: true, Done: 1, Total: 3}
+	a.Changed()
+	app.Settle()
+	if !app.Exists(whole(msgs.SavedExportStopped())) || app.Exists("id:saved-export-reveal") || app.Exists("id:saved-export-cancel") || app.Find("id:saved-export").Props.Disabled {
+		t.Fatalf("once stopped: %q", app.Texts())
 	}
 	a.export = Export{Finished: true, Lines: 3, Sounds: 3}
 	a.Changed()
 	app.Settle()
-	if !app.Exists(whole(msgs.SavedExported(3))) {
+	if !app.Exists(whole(msgs.SavedExported(3))) || app.Exists("id:saved-export-settings") {
 		t.Fatalf("once done: %q", app.Texts())
 	}
 	app.Press("id:saved-export-reveal")
-	a.export = Export{Finished: true, Lines: 3}
+	a.export = Export{Finished: true, Lines: 3, Sounds: 2}
+	a.Changed()
+	app.Settle()
+	if !app.Exists(whole(msgs.SavedExportedSomeAudio(3, 2))) {
+		t.Fatalf("done with some audio: %q", app.Texts())
+	}
+	a.export = Export{Finished: true, Lines: 3, NoFFmpeg: true}
 	a.Changed()
 	app.Settle()
 	if !app.Exists(whole(msgs.SavedExportedNoAudio(3))) {
 		t.Fatalf("done without audio: %q", app.Texts())
 	}
+	app.Press("id:saved-export-settings")
 	a.export = Export{Finished: true, Err: "permission denied"}
 	a.Changed()
 	app.Settle()
 	if !app.Exists(whole(msgs.SavedExportFailed("permission denied"))) || app.Exists("id:saved-export-reveal") {
 		t.Fatalf("once failed: %q", app.Texts())
 	}
-	if !slices.Equal(a.calls, []string{"export", "reveal"}) {
+	if !slices.Equal(a.calls, []string{"export", "stop", "reveal", "settings"}) {
 		t.Fatalf("calls %q", a.calls)
 	}
 	a.entries = nil

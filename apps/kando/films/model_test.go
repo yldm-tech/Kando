@@ -1,11 +1,13 @@
 package films
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"kando/apps/kando/locales/testlocale"
+	"kando/apps/kando/sidebar"
 	"kando/packages/core"
 	"kando/packages/media"
 )
@@ -31,6 +33,32 @@ func TestQueueOrderRunsOldestFirst(t *testing.T) {
 	}
 	if got := QueueSummary(testlocale.Messages(), items[2:3]); got != "1 个进行中" {
 		t.Fatalf("summary %q", got)
+	}
+	// A cancelled job needs nothing, as the sidebar's count and the bulk buttons say.
+	stopped := append(items, Film{Key: "stopped", JobID: "6", Stage: core.StageFailed, Stopped: true})
+	if got := QueueSummary(testlocale.Messages(), stopped); got != "1 个进行中 · 2 个排队 · 2 个需要处理" {
+		t.Fatalf("summary with a cancelled job %q", got)
+	}
+}
+
+// TestHeardFallsBackToTheLanguageNamed checks that a film the speech recognition has not told the language of, as one transcribed before Kando kept it, is filed under the language the user named for it (Film.SpeechLanguage): the language filter, its counts, the order by language and the poster's tag take it, and the language heard wins over it once there is one.
+func TestHeardFallsBackToTheLanguageNamed(t *testing.T) {
+	items := []Film{
+		{Key: "named", SpeechLanguage: "ja", Language: "简体中文"},
+		{Key: "heard", Spoken: "en", SpeechLanguage: "ja", Language: "简体中文"},
+		{Key: "unknown", Language: "简体中文"},
+	}
+	if got := BySpoken(items, "ja"); len(got) != 1 || got[0].Key != "named" {
+		t.Fatalf("films in ja %+v, want the one named ja", got)
+	}
+	if got := SpokenCounts(items); !slices.Equal(got, []sidebar.SpokenCount{{Code: "en", Count: 1}, {Code: "ja", Count: 1}}) {
+		t.Fatalf("counts %+v", got)
+	}
+	if got := keysOf(Sorted(items, SortSpoken, testlocale.Current(), neverPlayed)); got != "named,heard,unknown" {
+		t.Fatalf("by spoken language %s", got)
+	}
+	if got := PosterLanguages(testlocale.Messages(), items[0], "简体中文"); got != "JA" {
+		t.Fatalf("poster tag %q, want JA", got)
 	}
 }
 

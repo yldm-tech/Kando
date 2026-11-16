@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"math"
 	"slices"
 	"time"
@@ -69,6 +71,24 @@ func (a *app) JobStatus(cx *ns.Scope) string {
 		return ""
 	}
 	return films.QueueMeta(locales.For(cx), item)
+}
+
+// RedoFailure is why processing or translating the open film again failed, as the message bar says it, and the settings section that fixes it (jobQueue.redoEnded); both "" unless the open film is done and its last redo since it was queued failed rather than being stopped.
+func (a *app) RedoFailure(cx *ns.Scope) (text, section string) {
+	item, ok := a.openFilm()
+	if !ok || item.JobID == "" || item.Stage != core.StageComplete {
+		return "", ""
+	}
+	ended, ok := a.queue.redoEnded[item.JobID]
+	if !ok || ended.Err == nil || errors.Is(ended.Err, context.Canceled) || errors.Is(ended.Err, core.ErrLibrarySwitched) {
+		return "", ""
+	}
+	m := locales.For(cx)
+	reason, section := failureHint(m, films.Film{Detail: statusText(m, ended)})
+	if ended.Redo == core.RedoAll {
+		return m.FilmReprocessFailed(reason), section
+	}
+	return m.FilmRetranslateFailed(reason), section
 }
 
 // StageLabel names a job's stage as the library does.
@@ -386,7 +406,7 @@ func (a *app) copyCurrentLine() {
 	if subs.key != a.openKey || !subs.ready || a.cx == nil {
 		return
 	}
-	cue, ok := film.CueAt(subs.cues, a.PlayHead()-a.Delay())
+	cue, ok := film.CueAt(subs.cues, a.playerLineAt())
 	if !ok {
 		return
 	}

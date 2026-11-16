@@ -133,7 +133,7 @@ To get the `kando` command:
 | `kando jobs [job-id]` | Lists the jobs: the running one, the waiting ones, then the finished ones; with an id, shows that job alone. |
 | `kando add <link-or-file>... [--wait] [--yes]` | Queues links and local video files, as Start Processing does, and prints each job's id. Relative paths are taken from the current directory. A playlist or channel link adds its videos (a channel's 50 most recent) without those the library has, after saying what it holds and asking; `--yes` adds them without asking, and without a terminal to ask on it is needed. |
 | `kando cancel <job-id>` | Stops a running job, or takes a waiting one out of the queue. |
-| `kando retry <job-id> [--wait]` | Queues a failed, canceled or finished job again under the same id, as Retry and Process Again do, without changing what the window shows. A running or waiting job is refused. |
+| `kando retry <job-id> [--wait]` | Queues a failed, canceled or finished job again under the same id, as Retry and Process Again do, without changing what the window shows. A finished film is translated again into the language its subtitles are in, or into the target language set in Kando if it was not translated. A running or waiting job is refused. |
 | `kando remove <job-id>` | Takes a job off the library, as Remove does, stopping it first when it is running. Its files stay on disk. |
 | `kando sites [query] [--limit N]` | Searches the websites Kando downloads from, by name, domain or a video link. |
 | `kando open [film-id] [--at T]` | Brings Kando to the front, showing a film, or the library without an id. `--at` plays the film from that time of its subtitles, such as a line `kando search` found. A film still being processed shows the library instead, with a note. |

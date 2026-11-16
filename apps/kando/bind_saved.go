@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 
 	"kando/apps/kando/films"
 	"kando/apps/kando/live"
 	"kando/apps/kando/saved"
+	"kando/apps/kando/settings"
 	"kando/apps/kando/study"
 
 	"github.com/nsgo-dev/nsgo/core"
@@ -111,14 +114,26 @@ func (a *app) RemoveSaved(id string) {
 	a.savedWrite()
 }
 
-// ExportState is how the export of the saved lines goes, as the sheet says it.
+// ExportState is how the export of the saved lines goes, as the sheet says it. An export the user stopped (StopExport) is Stopped, not failed with the context's error.
 func (a *app) ExportState() study.Export {
 	e := a.saved.export
-	out := study.Export{Busy: e.busy, Finished: e.finished, Done: e.done, Total: e.total, Lines: e.result.Lines, Sounds: e.result.Sounds}
-	if e.err != nil {
+	out := study.Export{Busy: e.busy, Finished: e.finished, Done: e.done, Total: e.total, Lines: e.result.Lines, Sounds: e.result.Sounds, NoFFmpeg: e.noFFmpeg}
+	switch {
+	case errors.Is(e.err, context.Canceled):
+		out.Stopped = true
+	case e.err != nil:
 		out.Err = e.err.Error()
 	}
 	return out
+}
+
+// StopExport is the sheet's Cancel: it stops the export running, which then says it stopped.
+func (a *app) StopExport() { a.savedStopExport() }
+
+// ExportSettings is the sheet's Open Settings after an export without ffmpeg: the sheet closes and the settings open at the section that installs it.
+func (a *app) ExportSettings() {
+	a.CloseSaved()
+	a.OpenSettings(settings.SectionGeneral)
 }
 
 // RevealExport shows the notes' file the last export wrote in the file manager.

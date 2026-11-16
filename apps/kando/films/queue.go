@@ -15,10 +15,11 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// queueSection is 处理中: a card for every job that is waiting, running, failed or was cancelled, in QueueOrder. Past QueueShown cards it shows the first ones and a button for the rest.
+// queueSection is 处理中: a card for every job that is waiting, running, failed or was cancelled, in QueueOrder, those from source. Past QueueShown cards it shows the first ones and a button for the rest.
 type queueSection struct {
-	a     App
-	queue func() []Film
+	a      App
+	source func() string
+	queue  func() []Film
 }
 
 // Render implements core.Node.
@@ -53,15 +54,15 @@ func (q queueSection) Render(cx *ns.Scope) ns.Node {
 	summary := func() string { return QueueSummary(locales.For(cx), q.queue()) }
 	// Past one failure, the heading offers to retry or remove them all at once, as after the cause of a batch of failures was fixed.
 	failures := live.Memo(cx, a, func() [2]int {
-		retryable, failed := a.Failures()
+		retryable, failed := a.Failures(q.source())
 		return [2]int{retryable, failed}
 	})
 	bulk := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 6, FlexShrink: 0}, Children: []ns.Node{
 		ns.Show{When: func() bool { return failures()[1] > 1 }, Then: func(*ns.Scope) ns.Node {
-			return textButton(locales.FilmsRemoveFailed, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-remove-failed", OnPress: live.Do(a, a.RemoveFailed)})
+			return textButton(locales.FilmsRemoveFailed, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-remove-failed", OnPress: live.Do(a, func() { a.RemoveFailed(q.source()) })})
 		}},
 		ns.Show{When: func() bool { return failures()[0] > 1 }, Then: func(*ns.Scope) ns.Node {
-			return textButton(locales.FilmsRetryAll, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-retry-all", OnPress: live.Do(a, a.RetryAll)})
+			return textButton(locales.FilmsRetryAll, ui.Button{Variant: ui.ButtonSecondary, Size: ui.SizeSmall, TestID: "queue-retry-all", OnPress: live.Do(a, func() { a.RetryAll(q.source()) })})
 		}},
 	}}
 	head := ns.View{Style: ns.Style{Direction: ns.Row, Gap: 12, AlignItems: ns.AlignCenter}, Children: []ns.Node{

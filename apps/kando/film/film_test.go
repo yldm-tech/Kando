@@ -3,6 +3,7 @@ package film
 import (
 	"fmt"
 	"image"
+	"math"
 	"net/url"
 	"path/filepath"
 	"slices"
@@ -114,6 +115,7 @@ func (f *fakeApp) TargetLanguage() string                      { return "简体�
 func (f *fakeApp) TranslateFilmMissing()                       { f.call("translate missing") }
 func (f *fakeApp) StageLabel(_ *ns.Scope, s core.Stage) string { return string(s) }
 func (f *fakeApp) JobStatus(*ns.Scope) string                  { return f.jobStatus }
+func (f *fakeApp) RedoFailure(*ns.Scope) (string, string)      { return "", "" }
 func (f *fakeApp) FillsWindow() bool                           { return f.fills }
 func (f *fakeApp) Play() Player {
 	if f.play == nil {
@@ -163,6 +165,7 @@ func (f *fakeApp) SetFilmSide(side string) { f.side = side }
 func (f *fakeApp) Seek(at time.Duration)   { f.call("seek " + at.String()); f.jumps++ }
 func (f *fakeApp) Jumps() int              { return f.jumps }
 func (f *fakeApp) Peek() int               { return f.peek }
+func (f *fakeApp) HeldLine() int           { return -1 }
 func (f *fakeApp) Skip(d time.Duration)    { f.call("skip " + d.String()) }
 func (f *fakeApp) PrevLine()               { f.call("prev line") }
 func (f *fakeApp) NextLine()               { f.call("next line") }
@@ -651,6 +654,42 @@ func TestLoopSpanShows(t *testing.T) {
 	change(app, a, func() { a.loop, a.looping = [2]time.Duration{time.Second, 6 * time.Second}, true })
 	if !band() || len(app.Query("id:film-cue-looped")) != 2 {
 		t.Fatalf("looping two lines: band %v, %d rows marked", band(), len(app.Query("id:film-cue-looped")))
+	}
+}
+
+// TestScrubberMarksFollowTheDelay checks that the scrubber's strip of cues sits where the picture plays them, the subtitle delay counted, as the loop band and the hover card do, and keeps on the track for a line the delay pushes past the video's start.
+func TestScrubberMarksFollowTheDelay(t *testing.T) {
+	a := newFakeApp()
+	a.play = &fakePlay{head: 0, length: 10 * time.Second}
+	app := start(t, a)
+	// strip is where each mark of the cues' strip starts and ends, by its color.
+	strip := func() [][2]float32 {
+		var out [][2]float32
+		var fill ns.Color
+		for _, op := range app.Find("id:film-scrub-marks").Ops {
+			switch {
+			case op.Color != 0:
+				fill = op.Color
+			case fill == scrubTranslated && op.Y == 15 && op.W > 0:
+				out = append(out, [2]float32{op.X, op.X + op.W})
+			}
+		}
+		return out
+	}
+	w := float32(app.Find("id:film-scrub-marks").Frame.Size.Width)
+	near := func(got [][2]float32, want [2]float32) bool {
+		return len(got) == 1 && math.Abs(float64(got[0][0]-want[0])) < 0.5 && math.Abs(float64(got[0][1]-want[1])) < 0.5
+	}
+	if got := strip(); !near(got, [2]float32{w * 0.1, w * 0.3}) {
+		t.Fatalf("without a delay the first line is marked at %v of %v", got, w)
+	}
+	change(app, a, func() { a.delay = 2 * time.Second })
+	if got := strip(); !near(got, [2]float32{w * 0.3, w * 0.5}) {
+		t.Fatalf("2 seconds late the first line is marked at %v of %v", got, w)
+	}
+	change(app, a, func() { a.delay = -2 * time.Second })
+	if got := strip(); !near(got, [2]float32{0, w * 0.1}) {
+		t.Fatalf("2 seconds early the first line is marked at %v of %v", got, w)
 	}
 }
 

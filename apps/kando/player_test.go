@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"kando/apps/kando/locales"
 	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/nowplaying"
+	cmdpalette "kando/apps/kando/palette"
 	"kando/apps/kando/settings"
 	"kando/apps/kando/shelf"
 	"kando/packages/core"
@@ -1729,6 +1731,61 @@ func playerOpenWithLines(t *testing.T) (*app, *nsgotest.App, chan func()) {
 	return a, tt, updates
 }
 
+// playerOpenWithLinesAndAI is playerOpenWithLines with an AI service set, which explains every line it is asked about; seen is what it was sent.
+func playerOpenWithLinesAndAI(t *testing.T) (*app, *nsgotest.App, chan func(), *[]string) {
+	t.Helper()
+	srv, seen := fakeLLM(t, `{"answer":"讲解。","refs":[]}`)
+	a, tt, updates, item := playerFilm(t, 12, media.Tools{Translator: media.ChatTranslator{BaseURL: srv.URL + "/v1", APIKey: "k", Model: "m1"}})
+	playerOpenFilm(t, a, tt, updates, item)
+	playerLoadFilm(tt, a, 12*time.Second)
+	apply(tt, a, func() { a.player.subs.cues = lineCues })
+	return a, tt, updates, seen
+}
+
+// playerWantHeldOn checks that the film, held at the end of line i of lineCues, whose original is original, takes that line and not the one after it, though the playhead has reached it: the picture and the held-line card show it, ⇧⌘C copies it, B saves it (and B again takes it out), E explains it, and R, last, plays it again from its start.
+func playerWantHeldOn(t *testing.T, a *app, tt *nsgotest.App, updates chan func(), seen *[]string, i int, original string) {
+	t.Helper()
+	if a.player.play.Playing() {
+		t.Fatalf("the film plays on at %v", a.PlayHead())
+	}
+	if !onPicture(tt, original) || !tt.Exists("id:film-held-text >> "+whole(original)) {
+		t.Fatalf("held at the end of %q at %v, the window shows %q", original, a.PlayHead(), tt.Texts())
+	}
+	for _, other := range lineCues {
+		if _, o := film.SplitCue(other.Text); o != original && onPicture(tt, o) {
+			t.Fatalf("held at the end of %q, the picture shows %q", original, o)
+		}
+	}
+	tt.Clipboard = ""
+	tt.Key("mod+shift+c")
+	if _, got := film.SplitCue(tt.Clipboard); got != original {
+		t.Fatalf("⇧⌘C copied %q, want %q", tt.Clipboard, original)
+	}
+	tt.Key("b")
+	if lines := a.savedBook().Lines; len(lines) != 1 || lines[0].Original != original || !a.LineSaved(i) {
+		t.Fatalf("B saved %+v, want %q", lines, original)
+	}
+	tt.Key("b")
+	if lines := a.savedBook().Lines; len(lines) != 0 {
+		t.Fatalf("B again left %+v", lines)
+	}
+	*seen = nil
+	tt.Key("e")
+	waitUntil(t, tt, a, updates, func() bool { return a.palette.answer != nil && !a.palette.answer.busy })
+	if sent := strings.Join(*seen, "\n"); !strings.Contains(sent, "要讲解的一句：["+cmdpalette.Clock(lineCues[i].Start)+"] "+original) {
+		t.Fatalf("E explained %q, want %q", sent, original)
+	}
+	tt.Key("escape")
+	if a.palette.open {
+		t.Fatal("Escape left the palette open")
+	}
+	before := len(playerSeeks(tt))
+	tt.Key("r")
+	if got := playerSeeks(tt); len(got) != before+1 || got[len(got)-1] != lineCues[i].Start+a.player.film.delay {
+		t.Fatalf("R seeked %v, want to %v", got, lineCues[i].Start)
+	}
+}
+
 // TestLineKeysMoveBetweenLines checks A, D and R on lineCues, with the subtitles half a second late: D plays from the next line's start, A from the line before, or from the start of the line playing once more than a second of it has played, R from the start of the line playing, or between lines of the line just heard, each saying which line it is. Before the first line and after the last has started, there is nowhere to go, and the picture says so.
 func TestLineKeysMoveBetweenLines(t *testing.T) {
 	a, tt, _ := playerOpenWithLines(t)
@@ -1898,7 +1955,7 @@ func TestLoopLineSeeksBackAtItsEnd(t *testing.T) {
 
 // TestPauseAfterEachLine turns on Pause After Each Line with P and plays: the film pauses as each line ends, on the app's clock, so the learner can repeat it or write it down, and Space plays on to the next line's end, where it pauses again; R plays the same line again and pauses at its end. The transport's toggle is lit while it is on, and the setting is kept.
 func TestPauseAfterEachLine(t *testing.T) {
-	a, tt, _ := playerOpenWithLines(t)
+	a, tt, updates, seen := playerOpenWithLinesAndAI(t)
 	tt.Key("p")
 	if !a.player.pauseLines || !hasText(tt, "逐句暂停：开") || !tt.Find("id:film-pause-lines").Props.Selected {
 		t.Fatalf("P: on %v, texts %q", a.player.pauseLines, tt.Texts())
@@ -1913,8 +1970,31 @@ func TestPauseAfterEachLine(t *testing.T) {
 	if a.player.play.Playing() || a.PlayHead() < 3*time.Second || len(playerSeeks(tt)) != 0 {
 		t.Fatalf("at the first line's end: playing %v, at %v, seeks %v", a.player.play.Playing(), a.PlayHead(), playerSeeks(tt))
 	}
+	// The second line starts as the first ends, so the playhead held just past the end is in it; the film still takes the line just heard, each time it holds there.
+	for range 3 {
+		refresh(tt, a)
+		playerWantHeldOn(t, a, tt, updates, seen, 0, "One.")
+		playerPlayTo(tt, a, time.Second)
+		tt.Advance(2100 * time.Millisecond)
+	}
+	// D goes on to the line after the one held on, not past it.
+	tt.Key("d")
+	if got := playerSeeks(tt); got[len(got)-1] != 3*time.Second {
+		t.Fatalf("D held at the first line's end seeked %v", got)
+	}
+	playerPlayTo(tt, a, 3*time.Second)
+	tt.Advance(2100 * time.Millisecond)
+	if a.player.play.Playing() || a.PlayHead() < 5*time.Second {
+		t.Fatalf("D, then the second line's end: playing %v, at %v", a.player.play.Playing(), a.PlayHead())
+	}
+	apply(tt, a, func() { a.playerSeek(time.Second) })
+	playerPlayTo(tt, a, time.Second)
+	tt.Advance(2100 * time.Millisecond)
 	// The system's player reports where it held, a little before the line's end.
 	playerPlayTo(tt, a, 2950*time.Millisecond)
+	if !onPicture(tt, "One.") {
+		t.Fatalf("held a little before the first line's end, the picture shows %q", tt.Texts())
+	}
 	tt.Key("space")
 	tt.Advance(time.Second)
 	if !a.player.play.Playing() {
@@ -1946,7 +2026,7 @@ func TestPauseAfterEachLine(t *testing.T) {
 
 // TestPauseAfterEachLineInALoop loops a line with Pause After Each Line on: at the line's end the film pauses rather than go back, and Space plays the line again from its start.
 func TestPauseAfterEachLineInALoop(t *testing.T) {
-	a, tt, _ := playerOpenWithLines(t)
+	a, tt, updates, seen := playerOpenWithLinesAndAI(t)
 	tt.Key("p")
 	tt.Key("l")
 	tt.Key("space")
@@ -1959,6 +2039,16 @@ func TestPauseAfterEachLineInALoop(t *testing.T) {
 	tt.Advance(10 * time.Millisecond)
 	if got := playerSeeks(tt); len(got) != 1 || got[0] != time.Second || !a.player.play.Playing() {
 		t.Fatalf("Space after the pause: seeks %v, playing %v", got, a.player.play.Playing())
+	}
+	// Held at the looped line's end, the film takes the looped line, though the next starts there, on every pass.
+	for range 3 {
+		playerPlayTo(tt, a, 2*time.Second)
+		tt.Advance(1100 * time.Millisecond)
+		refresh(tt, a)
+		playerWantHeldOn(t, a, tt, updates, seen, 0, "One.")
+		if !a.LoopLine() {
+			t.Fatal("the keys on the held line stopped the loop")
+		}
 	}
 }
 
@@ -1981,6 +2071,9 @@ func TestLoopGapWaitsTheLinesLength(t *testing.T) {
 	tt.Advance(1800 * time.Millisecond)
 	if a.player.play.Playing() || len(playerSeeks(tt)) != 0 {
 		t.Fatal("the gap ended before the line's length")
+	}
+	if !onPicture(tt, "One.") || onPicture(tt, "Two.") {
+		t.Fatalf("in the gap the picture shows %q, want the looped line", tt.Texts())
 	}
 	tt.Advance(300 * time.Millisecond)
 	if got := playerSeeks(tt); len(got) != 1 || got[0] != time.Second || !a.player.play.Playing() {

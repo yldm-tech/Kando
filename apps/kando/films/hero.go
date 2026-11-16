@@ -164,11 +164,10 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		quoteBox,
 		ns.View{Style: ns.Style{Direction: ns.Row, Gap: 10, Wrap: ns.Wrap, Margin: ns.Edges{Top: 6}}, Children: []ns.Node{play, alt}},
 	}}
-	// TODO(nsgo#145): give base.Button a HintFunc twin, so the hero's hint follows the interface language as it changes; it is read once, as the hero is built https://github.com/nsgo-dev/nsgo/issues/145
+	// The hero is named by its film and has no hint: one would be read once, as the hero is built, and so could say 最近完成 over a kicker that says 继续观看; the kicker, the title and the buttons inside it say the rest.
 	box := base.Button{
 		TestID:    "films-hero",
 		LabelFunc: func() string { return filmName(item()) },
-		Hint:      locales.FilmsHeroKicker(cx),
 		OnPress:   live.On(a, func(ns.PressEvent) { a.Open(item()) }),
 		Style: ns.Style{CornerRadius: 18, Cursor: ns.CursorDefault,
 			Shadows: []ns.BoxShadow{{Offset: ns.Point{Y: 12}, Blur: 32, Color: ns.RGBA(0x000000, 0.16)}}, FocusVisible: ui.FocusRing(cx, 2)},

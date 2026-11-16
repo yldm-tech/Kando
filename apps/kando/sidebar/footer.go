@@ -124,9 +124,15 @@ func (j jobsLine) Render(cx *core.Scope) core.Node {
 				}
 				return core.Style{Background: colors.Accent()}
 			}}
+		// It is shaded under the pointer and while pressed, as the switcher is; its padding, taken back by its margins, gives the shade room around the dot and the count without moving them.
+		k := theme.Of(cx)
 		return base.Button{TestID: "sidebar-jobs", LabelFunc: text, OnPress: live.On(a, func(core.PressEvent) { a.ShowJobs() }),
-			Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, Cursor: core.CursorDefault, CornerRadius: 6, FocusVisible: ui.FocusRing(cx, 2)},
+			Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignCenter, Cursor: core.CursorDefault, CornerRadius: 6, Padding: core.Symmetric(3, 6), Margin: core.Symmetric(-3, -6),
+				FocusVisible: ui.FocusRing(cx, 2)},
+			StyleFunc: func() core.Style {
+				return core.Style{Hover: &core.Style{Background: k.Shade(0.05)}, Active: &core.Style{Background: k.Shade(0.07)}}
+			},
 			Children: []core.Node{dot, core.Text{ContentFunc: text, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
-				Style: core.Style{FontSize: 11, LineHeight: 15, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(theme.Of(cx).Strong)}}}
+				Style: core.Style{FontSize: 11, LineHeight: 15, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(k.Strong)}}}
 	}}
 }

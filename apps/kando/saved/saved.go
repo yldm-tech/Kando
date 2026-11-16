@@ -139,10 +139,7 @@ const sameStart = time.Millisecond
 
 // Find is the index of the line of video, a path as Key gives it, that starts at start, or -1.
 func (b Book) Find(video string, start time.Duration) int {
-	return slices.IndexFunc(b.Lines, func(l Line) bool {
-		d := l.Start - start
-		return l.Video == video && d < sameStart && d > -sameStart
-	})
+	return slices.IndexFunc(b.Lines, func(l Line) bool { return l.Video == video && SameStart(l.Start, start) })
 }
 
 // Toggle saves l, first and due at once, or removes the line of its video and start when it was saved, and reports whether it is saved now.
@@ -155,6 +152,29 @@ func (b *Book) Toggle(l Line) bool {
 	l.Due = l.SavedAt
 	b.Lines = slices.Insert(b.Lines, 0, l)
 	return true
+}
+
+// FillTranslations gives each line of video, a path as Key gives it, that was saved without a translation, as one saved while its film was still being translated, the translation at gives for its start now: the translation and the original of the subtitle line starting there, ok false with none. It takes it only when that line still says the line's original, so a film made again with other lines leaves it alone. A line that has a translation keeps it as it was saved. It reports whether any line changed.
+func (b *Book) FillTranslations(video string, at func(start time.Duration) (translation, original string, ok bool)) bool {
+	changed := false
+	for i, l := range b.Lines {
+		if l.Video != video || l.Translation != "" {
+			continue
+		}
+		translation, original, ok := at(l.Start)
+		if !ok || strings.TrimSpace(translation) == "" || strings.TrimSpace(original) != strings.TrimSpace(l.Original) {
+			continue
+		}
+		b.Lines[i].Translation = strings.TrimSpace(translation)
+		changed = true
+	}
+	return changed
+}
+
+// SameStart reports whether a and b are one line's start, as Find takes them.
+func SameStart(a, b time.Duration) bool {
+	d := a - b
+	return d < sameStart && d > -sameStart
 }
 
 // Remove drops the line of video that starts at start, and reports whether there was one.

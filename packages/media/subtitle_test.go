@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -128,5 +129,71 @@ func TestExportSubtitlesKeepsAnUntranslatedLine(t *testing.T) {
 	want := []core.Segment{{Start: 0, End: time.Second, Text: "Hello."}, {Start: time.Second, End: 2 * time.Second, Text: "再见。\nBye."}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("read back %#v from\n%s", got, data)
+	}
+}
+
+// ownSubtitles is Tools reading a local video in place, as localSteps, which exports its subtitles beside the video as Tools does.
+type ownSubtitles struct{ localSteps }
+
+func (ownSubtitles) Export(ctx context.Context, video string, original, translated []core.Segment) (string, error) {
+	return exportSubtitles(ctx, video, original, translated)
+}
+
+// A local video with subtitles of the user's own beside it, Movie.srt, keeps them: Kando's transcript goes beside them as Movie.kando.srt, which the film shows while it is translated and which translating it again reads, and processing the video again later leaves Movie.srt as it is too. A video whose Movie.srt is Kando's own, exported with its bilingual subtitles, has it written again.
+func TestRunLeavesTheUsersOwnSubtitles(t *testing.T) {
+	dir := t.TempDir()
+	video := filepath.Join(dir, "Movie.mp4")
+	own := "1\n00:00:01,000 --> 00:00:02,000\nThe user's own line.\n\n"
+	for path, body := range map[string]string{video: "v", filepath.Join(dir, "Movie.srt"): own} {
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	read := func(name string) string {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	job, err := core.NewJob(core.FileURL(video))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var shown []string
+	done := Run(context.Background(), ownSubtitles{}, job, "简体中文", func(j core.Job) {
+		if j.Stage == core.StageTranslating {
+			shown = append(shown, j.SubtitlePath)
+		}
+	})
+	if done.Stage != core.StageComplete || done.SubtitlePath != filepath.Join(dir, "Movie.bilingual.srt") {
+		t.Fatalf("done %+v", done)
+	}
+	if read("Movie.srt") != own || !strings.Contains(read("Movie.kando.srt"), "hello") || TranscriptOf(video) != filepath.Join(dir, "Movie.kando.srt") {
+		t.Fatalf("Movie.srt %q, Movie.kando.srt %q", read("Movie.srt"), read("Movie.kando.srt"))
+	}
+	if len(shown) == 0 || shown[0] != filepath.Join(dir, "Movie.kando.srt") {
+		t.Fatalf("shown while translating %q", shown)
+	}
+
+	again := done
+	again.Stage, again.Redo = core.StageQueued, core.RedoTranslation
+	p := &redoPipeline{t: t}
+	if final := Run(context.Background(), p, again, "日本語", func(core.Job) {}); final.Stage != core.StageComplete || !reflect.DeepEqual(p.sent, []string{"hello"}) {
+		t.Fatalf("translated again %+v, sent %q", final, p.sent)
+	}
+	fresh, _ := core.NewJob(core.FileURL(video))
+	if final := Run(context.Background(), ownSubtitles{}, fresh, "简体中文", func(core.Job) {}); final.Stage != core.StageComplete || read("Movie.srt") != own {
+		t.Fatalf("processed again %+v, Movie.srt %q", final, read("Movie.srt"))
+	}
+
+	// Kando's own transcript, beside the bilingual subtitles it exported with it, is Kando's to write again.
+	if err := os.Remove(filepath.Join(dir, "Movie.kando.srt")); err != nil {
+		t.Fatal(err)
+	}
+	fresh, _ = core.NewJob(core.FileURL(video))
+	if final := Run(context.Background(), ownSubtitles{}, fresh, "简体中文", func(core.Job) {}); final.Stage != core.StageComplete || !strings.Contains(read("Movie.srt"), "hello") {
+		t.Fatalf("processed again %+v, Movie.srt %q", final, read("Movie.srt"))
 	}
 }

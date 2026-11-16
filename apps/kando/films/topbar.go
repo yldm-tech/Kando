@@ -14,6 +14,7 @@ import (
 	"github.com/nsgo-dev/nsgo/base"
 	ns "github.com/nsgo-dev/nsgo/core"
 	nsdesktop "github.com/nsgo-dev/nsgo/desktop"
+	"github.com/nsgo-dev/nsgo/icons/lucide"
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
@@ -33,7 +34,7 @@ func pill(k theme.Colors) ns.Style {
 
 var pillShadow = []ns.BoxShadow{{Offset: ns.Point{Y: 2}, Blur: 8, Color: ns.RGBA(0x000000, 0.06)}}
 
-// topBar is the bar along the top of the library: the source being shown, the link field, 本地视频 and 开始处理. Enter in the field adds the link as 开始处理 does. It lies over the page's scroll view, which scrolls under it, and drags the window. It takes the prototype's toolbar: 65 points high, its controls 10 from its top and 14 from its end, and its title 24 from its start at 15 points; on macOS the sidebar holds the traffic lights, so none of its room is the window controls', and elsewhere it keeps clear of those at its end and is at least as tall as the title bar.
+// topBar is the bar along the top of the library: the source being shown, the link field, 浏览网站, which opens the built-in browser to find a video in, 本地视频 and 开始处理. Enter in the field adds the link as 开始处理 does. It lies over the page's scroll view, which scrolls under it, and drags the window. It takes the prototype's toolbar: 65 points high, its controls 10 from its top and 14 from its end, and its title 24 from its start at 15 points; on macOS the sidebar holds the traffic lights, so none of its room is the window controls', and elsewhere it keeps clear of those at its end and is at least as tall as the title bar.
 type topBar struct {
 	a      App
 	source func() string
@@ -54,7 +55,7 @@ func (b topBar) Render(cx *ns.Scope) ns.Node {
 		return ns.Style{Shadows: []ns.BoxShadow{{Offset: ns.Point{Y: 2}, Blur: 8, Color: colors.Accent().Faded(0.3)}}}
 	}, Children: []ns.Node{textButton(locales.FilmsStart, ui.Button{Size: ui.SizeLarge, TestID: "films-start", OnPress: live.Do(a, a.Start)})}}
 	tools := ns.View{Style: ns.Style{Direction: ns.Row, AlignItems: ns.AlignCenter, Gap: 10, FlexShrink: 0, Margin: ns.Edges{Left: 2}},
-		Children: []ns.Node{localButton{a}, start}}
+		Children: []ns.Node{browseButton{a}, localButton{a}, start}}
 	end := ns.View{Style: ns.Style{Direction: ns.Row, AlignItems: ns.AlignCenter, Gap: 10, FlexShrink: 1, MinWidth: ns.Pt(0)}, Children: []ns.Node{linkField{a}, tools}}
 	return ns.View{
 		TestID:    "films-top-bar",
@@ -69,6 +70,33 @@ func (b topBar) Render(cx *ns.Scope) ns.Node {
 		},
 		Children: []ns.Node{head, end},
 	}
+}
+
+// browseButton is 浏览网站 in a pill as 本地视频's, with the compass of the sidebar's 浏览, whose page it opens.
+type browseButton struct{ a App }
+
+// Render implements core.Node.
+func (b browseButton) Render(cx *ns.Scope) ns.Node {
+	a := b.a
+	colors := ui.ColorsOf(cx)
+	label := func() string { return locales.FilmsBrowseSites(cx) }
+	button := base.Button{
+		TestID:    "films-browse",
+		LabelFunc: label,
+		OnPress:   live.On(a, func(ns.PressEvent) { a.Select(sidebar.PageBrowse) }),
+		Style: ns.Style{Direction: ns.Row, FlexGrow: 1, Height: ns.Pt(28), CornerRadius: 14, AlignItems: ns.AlignCenter, JustifyContent: ns.JustifyCenter, Gap: 6,
+			Padding: ns.Edges{Left: 10, Right: 12}, Cursor: ns.CursorDefault, FocusVisible: ui.FocusRing(cx, -2)},
+		StyleFunc: func() ns.Style {
+			return ns.Style{Hover: &ns.Style{Background: colors.Hover()}, Active: &ns.Style{Background: colors.Pressed()}}
+		},
+		Children: []ns.Node{
+			ui.Icon(lucide.Compass, 15, colors.Text),
+			ns.Text{ContentFunc: label, MaxLines: 1, Style: ns.Style{FontSize: 13}, StyleFunc: ui.Colored(colors.Text)},
+		},
+	}
+	k := theme.Of(cx)
+	return ns.View{Style: ns.Style{Direction: ns.Row, FlexShrink: 0, Height: ns.Pt(34), Padding: ns.Symmetric(0, 3), CornerRadius: 17, AlignItems: ns.AlignCenter,
+		BorderWidth: 0.5}, StyleFunc: func() ns.Style { return pill(k) }, Children: []ns.Node{button}}
 }
 
 // localButton is 本地视频 as the prototype groups it: a 28-point button in a white pill at least 104 wide, wider for a longer label, that lifts it off what scrolls under the bar. Its tooltip names the shortcut that does the same, as the platform writes it (⌘O on macOS, Ctrl+O elsewhere).

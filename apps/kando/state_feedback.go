@@ -166,7 +166,7 @@ func (a *app) feedbackFacts() feedback.Facts {
 		return facts
 	}
 	facts.Film = a.feedbackFilmLines(item)
-	if cue, ok := feedbackCue(a.player.subs.cues, a.PlayHead()-a.player.film.delay); ok && a.player.subs.key == item.Key {
+	if cue, ok := feedbackCue(a.player.subs.cues, a.playerLineAt()); ok && a.player.subs.key == item.Key {
 		translation, original := film.SplitCue(cue.Text)
 		facts.Excerpt = &feedback.Excerpt{At: cue.Start, Original: original, Translation: translation}
 	}

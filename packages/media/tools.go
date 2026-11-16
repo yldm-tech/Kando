@@ -224,6 +224,15 @@ func (t Tools) Check() error {
 	return errors.Join(errs...)
 }
 
+// hearing is how Transcribe hears the speech of a video under ctx: with the whisper model WhisperModel, in the language a film the user said is spoken in a language of its own is heard in (withSpeechLanguage), else in the one the settings name, "" for whichever whisper detects (hearer).
+func (t Tools) hearing(ctx context.Context) (model, language string) {
+	language = speechLanguageOf(ctx)
+	if language == "" {
+		language = strings.TrimSpace(t.SpeechLanguage)
+	}
+	return t.WhisperModel, language
+}
+
 // CheckTranslate reports what translating needs and is missing, the translator's model and its sign-in, which Check leaves out (TranslateChecker).
 func (t Tools) CheckTranslate() error {
 	var errs []error
@@ -424,11 +433,7 @@ func (t Tools) Transcribe(ctx context.Context, videoPath string) ([]core.Segment
 			reportProgress(ctx, core.Fraction(f))
 		}
 	}
-	// A film the user said is spoken in a language of its own is heard in it (withSpeechLanguage); the others in the one the settings name, or whichever whisper detects.
-	language := speechLanguageOf(ctx)
-	if language == "" {
-		language = strings.TrimSpace(t.SpeechLanguage)
-	}
+	_, language := t.hearing(ctx)
 	if language == "" {
 		language = "auto"
 	}

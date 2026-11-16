@@ -275,7 +275,7 @@ func addTools(server *mcp.Server, a *app) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "kando_retry_job",
-		Description: "Queue a Kando job again by its id, under the same id: a failed or canceled job, or a complete one to process its video again from the start, which writes its subtitles again. Returns the job as it is once queued; follow it with kando_get_job as after kando_add_videos. A job still running or waiting is refused. When the job cannot start now, as with no library open or a program missing, the call fails with a not_ready message that says what to fix. Call it only when the user asked to retry or reprocess the job.",
+		Description: "Queue a Kando job again by its id, under the same id: a failed or canceled job, or a complete one to process its video again from the start, which writes its subtitles again, translated into the language they are in (or the target language set in Kando for a film that was not translated). Returns the job, its language the one it translates into, as it is once queued; follow it with kando_get_job as after kando_add_videos. A job still running or waiting is refused. When the job cannot start now, as with no library open or a program missing, the call fails with a not_ready message that says what to fix. Call it only when the user asked to retry or reprocess the job.",
 		Annotations: &mcp.ToolAnnotations{Title: "Retry a Kando job", ReadOnlyHint: false, DestructiveHint: boolPtr(true), IdempotentHint: false, OpenWorldHint: boolPtr(true)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in jobInput) (*mcp.CallToolResult, remote.Job, error) {
 		var job remote.Job

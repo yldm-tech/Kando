@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -118,5 +119,43 @@ func TestMoveVideosFollowsRenamedFolders(t *testing.T) {
 	})
 	if !moved || b.Lines[1].Video != "A Talk/video.mp4" || b.Lines[0].Video != filepath.Join(string(filepath.Separator), "elsewhere", "video.mp4") {
 		t.Fatalf("moved %v, lines %+v", moved, b.Lines)
+	}
+}
+
+// TestFillTranslationsCompletesUntranslatedLines fills the lines of one video saved without a translation from the subtitles as they are now: a line whose subtitle line still says its original takes the translation, to the millisecond the book keeps; a line with a translation keeps its own, one whose subtitle line now says something else or has no translation yet stays empty, and the lines of another video are left alone.
+func TestFillTranslationsCompletesUntranslatedLines(t *testing.T) {
+	b := Book{Lines: []Line{
+		{Video: "Talk/video.mp4", Start: time.Second, Original: "Hello."},
+		{Video: "Talk/video.mp4", Start: 2 * time.Second, Original: "Kept.", Translation: "保留。"},
+		{Video: "Talk/video.mp4", Start: 3 * time.Second, Original: "Changed."},
+		{Video: "Talk/video.mp4", Start: 4 * time.Second, Original: "Later."},
+		{Video: "Other/video.mp4", Start: time.Second, Original: "Hello."},
+	}}
+	subs := map[time.Duration][2]string{
+		time.Second + 400*time.Microsecond: {"你好。", "Hello."},
+		2 * time.Second:                    {"新的。", "Kept."},
+		3 * time.Second:                    {"别的。", "Something else."},
+		4 * time.Second:                    {"", "Later."},
+	}
+	at := func(start time.Duration) (string, string, bool) {
+		for s, l := range subs {
+			if SameStart(s, start) {
+				return l[0], l[1], true
+			}
+		}
+		return "", "", false
+	}
+	if !b.FillTranslations("Talk/video.mp4", at) {
+		t.Fatal("no line was filled")
+	}
+	var got []string
+	for _, l := range b.Lines {
+		got = append(got, l.Translation)
+	}
+	if want := []string{"你好。", "保留。", "", "", ""}; !slices.Equal(got, want) {
+		t.Fatalf("translations %q, want %q", got, want)
+	}
+	if b.FillTranslations("Talk/video.mp4", at) {
+		t.Fatal("filling again changed a line")
 	}
 }

@@ -58,7 +58,7 @@ func SortLabel(m locales.Messages, order string) string {
 // sourceOrder is the sources in the order the sidebar lists them, which SortSource groups the films in.
 var sourceOrder = []string{sidebar.SourceYouTube, sidebar.SourceBilibili, sidebar.SourceWeb, sidebar.SourceLocal}
 
-// Sorted returns items in order, leaving items as they are. items are the films added last first, as List gives them, which SortAdded keeps. SortWatched puts the films played last first, by played, when the video at a path last played (App.PlayedAt), and those never played after them. SortTitle orders them by name as tag, the interface's language, orders words (Chinese by pinyin, numbers by value, so "Lecture 2" comes before "Lecture 10"); SortSource groups them by source in the sidebar's order, other sites by their names; SortSpoken groups them by the language heard in them, by its name in tag's language, those whose language is not known last. Films the order does not tell apart keep the order they were added in.
+// Sorted returns items in order, leaving items as they are. items are the films added last first, as List gives them, which SortAdded keeps. SortWatched puts the films played last first, by played, when the video at a path last played (App.PlayedAt), and those never played after them. SortTitle orders them by name as tag, the interface's language, orders words (Chinese by pinyin, numbers by value, so "Lecture 2" comes before "Lecture 10"); SortSource groups them by source in the sidebar's order, other sites by their names; SortSpoken groups them by the language heard in them (Heard), by its name in tag's language, those whose language is not known last. Films the order does not tell apart keep the order they were added in.
 func Sorted(items []Film, order, tag string, played func(path string) time.Time) []Film {
 	order = ValidSort(order)
 	if order == SortAdded || len(items) < 2 {
@@ -87,10 +87,10 @@ func Sorted(items []Film, order, tag string, played func(path string) time.Time)
 		case SortTitle:
 			e.key = col.KeyFromString(&buf, filmName(item))
 		case SortSpoken:
-			if item.Spoken == "" {
+			if heard := Heard(item); heard == "" {
 				e.rank = 1
 			} else {
-				e.key = col.KeyFromString(&buf, subtitle.SpokenLanguageNameIn(locales.In(tag), item.Spoken))
+				e.key = col.KeyFromString(&buf, subtitle.SpokenLanguageNameIn(locales.In(tag), heard))
 			}
 		default:
 			e.rank = slices.Index(sourceOrder, SourceOf(item))

@@ -440,6 +440,9 @@ func (a *app) remoteAdd(ctx context.Context, p remote.AddParams) (remote.AddResu
 						videos = map[int]string{}
 					}
 					videos[len(res.Skipped)] = job.VideoPath
+				} else {
+					// A video of the library's folder that no job holds is that film, named by its key (queueTake).
+					skip.JobID, skip.FilmID = "", dup.ID
 				}
 				res.Skipped = append(res.Skipped, skip)
 			case err != nil:
@@ -810,12 +813,12 @@ func remoteFilmOfIn(m locales.Messages, item films.Film) remote.Film {
 	return f
 }
 
-// remoteFilmFiles fills in what f's files on disk tell: the original subtitles beside its video. Its bilingual subtitles are the film's own (remoteFilmOf), which for a video no job has processed are the ones the library scan found beside it (media.Video.Subtitles), so the window and the socket show the same.
+// remoteFilmFiles fills in what f's files on disk tell: the original subtitles beside its video, the transcript Kando made of it (media.TranscriptOf). Its bilingual subtitles are the film's own (remoteFilmOf), which for a video no job has processed are the ones the library scan found beside it (media.Video.Subtitles), so the window and the socket show the same.
 func remoteFilmFiles(f *remote.Film) {
 	if f.VideoPath == "" {
 		return
 	}
-	if original := strings.TrimSuffix(f.VideoPath, filepath.Ext(f.VideoPath)) + ".srt"; fileExists(original) {
+	if original := media.TranscriptOf(f.VideoPath); fileExists(original) {
 		f.OriginalSubtitles = original
 	}
 }
@@ -824,7 +827,8 @@ func remoteFilmFiles(f *remote.Film) {
 func (a *app) remoteJobOf(job core.Job) remote.Job {
 	name := a.libraryJobName(job)
 	m := remoteMessages()
-	status, _ := failureHint(m, films.FromJob(job, name, statusText(m, job)))
+	item := films.FromJob(job, name, statusText(m, job))
+	status, _ := failureHint(m, item)
 	j := remote.Job{
 		ID:        job.ID,
 		Source:    job.Source,
@@ -833,7 +837,7 @@ func (a *app) remoteJobOf(job core.Job) remote.Job {
 		Progress:  remoteProgress(job.Stage, job.Progress, true),
 		Status:    status,
 		Canceled:  errors.Is(job.Err, context.Canceled),
-		Language:  job.Language,
+		Language:  item.Target,
 		VideoPath: job.VideoPath,
 		Subtitles: job.SubtitlePath,
 	}
