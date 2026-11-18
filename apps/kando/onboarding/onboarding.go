@@ -172,13 +172,17 @@ func (v View) Render(cx *core.Scope) core.Node {
 		// TODO(nsgo#145): give base.Dialog (and ui.Dialog) a LabelFunc twin, so the sheet's accessible name follows the interface language as it changes; it is read once as the sheet opens, and a Dynamic would build the sheet again and take the link field's focus with it https://github.com/nsgo-dev/nsgo/issues/145
 		Label: locales.OnboardingWelcome(cx),
 		// TODO(nsgo#347): give ui.Dialog a StyleFunc twin, so a bare dialog's own face and rim can follow the appearance; its Style is merged as it is, so the dialog's face and rim are left clear here and the sheet inside draws them (sheet) https://github.com/nsgo-dev/nsgo/issues/347
-		// Its corners are the platform's dialogs' in the design (theme.RadiiOf): 20 on macOS, 8 on Windows, 12 on Linux.
-		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: theme.RadiiOf(cx).Dialog, Background: transparent,
+		// Its corners are the platform's dialogs' in the design (sheetRadius), and the sheet's face and rim inside are one point tighter.
+		Style: core.Style{Width: core.Pt(sheetWidth), Height: core.Pt(sheetHeight), CornerRadius: sheetRadius(cx), Background: transparent,
 			BorderWidth: 0.5, BorderColor: transparent,
 			Shadows: []core.BoxShadow{{Offset: core.Point{Y: 24}, Blur: 70, Color: core.RGBA(0x000000, 0.35)}}},
 		Children: []core.Node{sheet{a}},
 	}
 }
+
+// sheetRadius is the sheet's corner radius: the platform's dialogs' in the design (theme.RadiiOf), 8 on Windows and 12 on Linux, but no more than ui.RadiusDialog, because a bare ui.Dialog clips what it holds at ui.RadiusDialog - 1 whatever its own CornerRadius, so macOS's 20 would round only the clear box and its shadow while the face stayed at 15.
+// TODO(nsgo): let a bare ui.Dialog's clip follow its Style's CornerRadius (ui/dialog.go sets RadiusDialog - 1), so the sheet can take macOS's 20 from theme.RadiiOf.
+func sheetRadius(cx *core.Scope) core.Points { return min(theme.RadiiOf(cx).Dialog, ui.RadiusDialog) }
 
 // sheet is what the dialog holds, built as it opens: the art and the step side by side, on the sheet's face with its hairline rim.
 type sheet struct{ a App }
@@ -196,11 +200,14 @@ func (s sheet) Render(cx *core.Scope) core.Node {
 	})
 	k := theme.Of(cx)
 	// The rim is a ring inside the edge, over the art too, as the dialog's border was.
-	rim := core.View{PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), CornerRadius: theme.RadiiOf(cx).Dialog - 1},
+	inner := sheetRadius(cx) - 1
+	rim := core.View{TestID: "onboarding-rim", PointerEvents: core.PointerEventsNone, Style: core.Style{Position: core.Absolute, Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0), Left: core.Pt(0), CornerRadius: inner},
 		StyleFunc: func() core.Style {
 			return core.Style{Shadows: []core.BoxShadow{{Spread: 0.5, Color: k.Shade(0.22), Inset: true}}}
 		}}
-	return core.View{Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch}, StyleFunc: ui.Filled(k.Window),
+	// The face clips itself to the rim's corners, which are tighter than the dialog's own clip on Windows and Linux.
+	return core.View{TestID: "onboarding-face", Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, MinHeight: core.Pt(0), AlignItems: core.AlignStretch,
+		CornerRadius: inner, BorderCurve: core.BorderCurveContinuous, Overflow: core.Hidden}, StyleFunc: ui.Filled(k.Window),
 		Children: []core.Node{art{a: a, step: step}, content{a: a, step: step}, rim}}
 }
 

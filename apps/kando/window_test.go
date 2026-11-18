@@ -314,7 +314,7 @@ func TestWindowMenuBringsTheWindowBack(t *testing.T) {
 	}
 }
 
-// The main window's text is in the design's font of the platform it runs on, in the interface's language, which a dialog drawn over the window takes too: the system's on macOS, Segoe UI Variable on Windows and Cantarell on Linux.
+// The main window's text is in the design's font of the platform it runs on, in the interface's language as it changes, which a dialog drawn over the window takes too: the system's on macOS, Segoe UI Variable on Windows and Cantarell on Linux.
 func TestWindowTextIsInThePlatformsFont(t *testing.T) {
 	if nsgotest.Target() != "" {
 		t.Skip("a target runs on its own system, which the environment does not change")
@@ -331,6 +331,14 @@ func TestWindowTextIsInThePlatformsFont(t *testing.T) {
 		refresh(tt, a)
 		if got := tt.Find("id:newlib-create >> text").TextStyle.Font.Family; got != want {
 			t.Errorf("%v: the new-library dialog's text in %q, want %q", os, got, want)
+		}
+		// The font follows the interface's language through the root's binding: the sidebar is not built again, and its text takes the CJK family of Japanese.
+		status := tt.Find("id:sidebar-status")
+		a.cx.SetLocale("ja")
+		refresh(tt, a)
+		again := tt.Find("id:sidebar-status")
+		if got, want := again.TextStyle.Font.Family, theme.FontFor(os, "ja"); got != want || again.ID != status.ID {
+			t.Errorf("%v: in Japanese the sidebar's text in %q, want %q (built again: %v)", os, got, want, again.ID != status.ID)
 		}
 	}
 }
