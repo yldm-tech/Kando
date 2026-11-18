@@ -60,6 +60,8 @@ type fakeApp struct {
 	untranslated            string
 	yield                   bool
 	shortcutQuery           string
+	offline, aiLocal        bool
+	cacheClear              CacheClear
 	calls                   []string
 }
 
@@ -200,6 +202,11 @@ func (f *fakeApp) SetUntranslated(mode string)     { f.untranslated = mode }
 func (f *fakeApp) YieldSubs() bool                 { return f.yield }
 func (f *fakeApp) SetYieldSubs(on bool)            { f.yield = on }
 func (f *fakeApp) ShortcutQuery() *string          { return &f.shortcutQuery }
+func (f *fakeApp) Offline() bool                   { return f.offline }
+func (f *fakeApp) SetOffline(on bool)              { f.call("offline " + strconv.FormatBool(on)); f.offline = on }
+func (f *fakeApp) AILocal() bool                   { return f.aiLocal }
+func (f *fakeApp) ClearCache()                     { f.call("clear cache"); f.cacheClear = CacheClear{Busy: true} }
+func (f *fakeApp) CacheClear() CacheClear          { return f.cacheClear }
 func (f *fakeApp) Shortcuts(cx *core.Scope) []Shortcut {
 	return []Shortcut{{Group: "看懂", Label: "设置…", Key: "mod+,"}, {Group: "显示", Label: "全屏", Key: "f"}, {Group: "显示", Label: "返回资料库", Key: "escape"}}
 }

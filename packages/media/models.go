@@ -14,6 +14,9 @@ import (
 
 // Models lists the model ids the endpoint offers, from the OpenAI-compatible GET /models, sorted and without repeats, so the AI service's model is chosen from what the service has rather than typed. A key the API rejects is renewed once through Credential, as Chat does.
 func (t ChatTranslator) Models(ctx context.Context) ([]string, error) {
+	if err := t.offline(); err != nil {
+		return nil, err
+	}
 	endpoint := Endpoint{BaseURL: strings.TrimSpace(t.BaseURL), APIKey: t.APIKey}
 	if t.Credential != nil {
 		var err error

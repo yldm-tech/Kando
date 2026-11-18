@@ -159,6 +159,13 @@ type App interface {
 	YieldSubs() bool
 	SetYieldSubs(on bool)
 
+	// Offline is whether offline mode is on, which the 隐私 page's switch turns; SetOffline turns it on or off and saves that. AILocal reports whether the AI service in use runs on this computer (media.ChatTranslator.Local), which offline mode lets through. ClearCache removes the rebuildable caches off the UI thread, and CacheClear is where that stands.
+	Offline() bool
+	SetOffline(on bool)
+	AILocal() bool
+	ClearCache()
+	CacheClear() CacheClear
+
 	// Shortcuts is the app's shortcut table, its words in the language the app shows under cx.
 	Shortcuts(cx *core.Scope) []Shortcut
 	// ShortcutQuery is the text of the 快捷键 page's search field.
@@ -346,6 +353,8 @@ func (s screen) page(cx *core.Scope, id string, account core.Node) core.Node {
 		return translate{s}
 	case SectionLook:
 		return look{s}
+	case SectionPrivacy:
+		return privacy{s}
 	case SectionShortcuts:
 		return shortcuts{s}
 	case SectionPhone:

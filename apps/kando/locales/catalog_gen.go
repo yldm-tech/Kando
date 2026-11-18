@@ -725,6 +725,11 @@ var Parameters = map[string][]string{
 	"SettingsPhoneRevokeFailed":                {"error_"},
 	"SettingsPhoneRevokeLabel":                 {"name"},
 	"SettingsPhoneStartFailed":                 {"error_"},
+	"SettingsPrivacyCleared":                   {"size"},
+	"SettingsPrivacyClearFailed":               {"error_"},
+	"SettingsPrivacySaveFailed":                {"error_"},
+	"SettingsPrivacyStepAICloud":               {"service"},
+	"SettingsPrivacyStepAILocal":               {"service"},
 	"SettingsSaveFailed":                       {"error_"},
 	"SettingsSpeechDownloadFailedStatus":       {"status"},
 	"SettingsSpeechDownloadFailedStatusMirror": {"status"},
@@ -1062,6 +1067,11 @@ type Translation struct {
 	SettingsPhoneRevokeFailed                func(error_ string) string
 	SettingsPhoneRevokeLabel                 func(name string) string
 	SettingsPhoneStartFailed                 func(error_ string) string
+	SettingsPrivacyCleared                   func(size string) string
+	SettingsPrivacyClearFailed               func(error_ string) string
+	SettingsPrivacySaveFailed                func(error_ string) string
+	SettingsPrivacyStepAICloud               func(service string) string
+	SettingsPrivacyStepAILocal               func(service string) string
 	SettingsSaveFailed                       func(error_ string) string
 	SettingsSpeechDownloadFailedStatus       func(status int) string
 	SettingsSpeechDownloadFailedStatusMirror func(status int) string
@@ -1671,6 +1681,14 @@ const (
 	textPrecheckTranslateQuota
 	textPrecheckTranslateRejected
 	textPrecheckTranslateTimeout
+	textPrivacyNoBrowse
+	textPrivacyNoCloudAI
+	textPrivacyNoDownload
+	textPrivacyNoNetworkDownload
+	textPrivacyNoSignIn
+	textPrivacyNoUpdate
+	textPrivacyNoUpload
+	textPrivacyNoYtdlpUpdate
 	textQueueAlreadyInLibrary
 	textQueueAlreadyQueued
 	textQueueBusy
@@ -1744,6 +1762,7 @@ const (
 	textQueueYtdlpHintPipx
 	textReadinessCheckingSignIn
 	textReadinessCheckingTools
+	textReadinessOffline
 	textReadinessReady
 	textSavedDone
 	textSavedEmpty
@@ -1891,6 +1910,7 @@ const (
 	textSettingsKeywordsGeneral
 	textSettingsKeywordsLook
 	textSettingsKeywordsPhone
+	textSettingsKeywordsPrivacy
 	textSettingsKeywordsShortcuts
 	textSettingsKeywordsSpeech
 	textSettingsKeywordsTranslate
@@ -1949,6 +1969,37 @@ const (
 	textSettingsPhoneRevoke
 	textSettingsPhoneSwitch
 	textSettingsPhoneSwitchHint
+	textSettingsPrivacyCache
+	textSettingsPrivacyCacheHint
+	textSettingsPrivacyClearCache
+	textSettingsPrivacyClearedNothing
+	textSettingsPrivacyClearing
+	textSettingsPrivacyData
+	textSettingsPrivacyOffline
+	textSettingsPrivacyOfflineHint
+	textSettingsPrivacyStepAI
+	textSettingsPrivacyStepBrowse
+	textSettingsPrivacyStepBrowseDetail
+	textSettingsPrivacyStepDownload
+	textSettingsPrivacyStepDownloadDetail
+	textSettingsPrivacyStepPhone
+	textSettingsPrivacyStepPhoneDetail
+	textSettingsPrivacySteps
+	textSettingsPrivacyStepSpeech
+	textSettingsPrivacyStepSpeechDetail
+	textSettingsPrivacyStepTools
+	textSettingsPrivacyStepToolsDetail
+	textSettingsPrivacyStepUpdates
+	textSettingsPrivacyStepUpdatesDetail
+	textSettingsPrivacyStepUpdatesOffline
+	textSettingsPrivacyStepUpload
+	textSettingsPrivacyStepUploadDetail
+	textSettingsPrivacyTagCloud
+	textSettingsPrivacyTagLAN
+	textSettingsPrivacyTagLocal
+	textSettingsPrivacyTagManual
+	textSettingsPrivacyTagNetwork
+	textSettingsPrivacyTagOff
 	textSettingsSearchClear
 	textSettingsSearchLabel
 	textSettingsSearchNone
@@ -1958,6 +2009,7 @@ const (
 	textSettingsSectionGeneral
 	textSettingsSectionLook
 	textSettingsSectionPhone
+	textSettingsSectionPrivacy
 	textSettingsSectionShortcuts
 	textSettingsSectionSpeech
 	textSettingsSectionTranslate
@@ -2656,6 +2708,14 @@ var keyOfText = [numTexts]string{
 	"precheckTranslateQuota",
 	"precheckTranslateRejected",
 	"precheckTranslateTimeout",
+	"privacyNoBrowse",
+	"privacyNoCloudAI",
+	"privacyNoDownload",
+	"privacyNoNetworkDownload",
+	"privacyNoSignIn",
+	"privacyNoUpdate",
+	"privacyNoUpload",
+	"privacyNoYtdlpUpdate",
 	"queueAlreadyInLibrary",
 	"queueAlreadyQueued",
 	"queueBusy",
@@ -2729,6 +2789,7 @@ var keyOfText = [numTexts]string{
 	"queueYtdlpHintPipx",
 	"readinessCheckingSignIn",
 	"readinessCheckingTools",
+	"readinessOffline",
 	"readinessReady",
 	"savedDone",
 	"savedEmpty",
@@ -2876,6 +2937,7 @@ var keyOfText = [numTexts]string{
 	"settingsKeywordsGeneral",
 	"settingsKeywordsLook",
 	"settingsKeywordsPhone",
+	"settingsKeywordsPrivacy",
 	"settingsKeywordsShortcuts",
 	"settingsKeywordsSpeech",
 	"settingsKeywordsTranslate",
@@ -2934,6 +2996,37 @@ var keyOfText = [numTexts]string{
 	"settingsPhoneRevoke",
 	"settingsPhoneSwitch",
 	"settingsPhoneSwitchHint",
+	"settingsPrivacyCache",
+	"settingsPrivacyCacheHint",
+	"settingsPrivacyClearCache",
+	"settingsPrivacyClearedNothing",
+	"settingsPrivacyClearing",
+	"settingsPrivacyData",
+	"settingsPrivacyOffline",
+	"settingsPrivacyOfflineHint",
+	"settingsPrivacyStepAI",
+	"settingsPrivacyStepBrowse",
+	"settingsPrivacyStepBrowseDetail",
+	"settingsPrivacyStepDownload",
+	"settingsPrivacyStepDownloadDetail",
+	"settingsPrivacyStepPhone",
+	"settingsPrivacyStepPhoneDetail",
+	"settingsPrivacySteps",
+	"settingsPrivacyStepSpeech",
+	"settingsPrivacyStepSpeechDetail",
+	"settingsPrivacyStepTools",
+	"settingsPrivacyStepToolsDetail",
+	"settingsPrivacyStepUpdates",
+	"settingsPrivacyStepUpdatesDetail",
+	"settingsPrivacyStepUpdatesOffline",
+	"settingsPrivacyStepUpload",
+	"settingsPrivacyStepUploadDetail",
+	"settingsPrivacyTagCloud",
+	"settingsPrivacyTagLAN",
+	"settingsPrivacyTagLocal",
+	"settingsPrivacyTagManual",
+	"settingsPrivacyTagNetwork",
+	"settingsPrivacyTagOff",
 	"settingsSearchClear",
 	"settingsSearchLabel",
 	"settingsSearchNone",
@@ -2943,6 +3036,7 @@ var keyOfText = [numTexts]string{
 	"settingsSectionGeneral",
 	"settingsSectionLook",
 	"settingsSectionPhone",
+	"settingsSectionPrivacy",
 	"settingsSectionShortcuts",
 	"settingsSectionSpeech",
 	"settingsSectionTranslate",
@@ -3639,6 +3733,14 @@ var textsEn = i18n.NewTexts(""+
 	"Your AI service account is out of credit. Top it up, then retry."+
 	"The AI service refused the request. Check the address and model in “AI Service”."+
 	"The AI service didn't respond, even after automatic retries. Retry later."+
+	"Offline mode is on, so web pages are not opened. Turn it off in Privacy to browse."+
+	"Offline mode is on, so the cloud AI service is not used. Switch to Ollama or LM Studio in AI Service, or turn offline mode off."+
+	"Offline mode is on, so videos are not downloaded from links. Choose a local video, or turn offline mode off in Privacy."+
+	"Offline mode is on, so nothing is downloaded."+
+	"Offline mode is on, so you cannot sign in."+
+	"Offline mode is on, so Kando does not check for updates."+
+	"Offline mode is on, so nothing is uploaded."+
+	"Offline mode is on, so yt-dlp is not updated."+
 	"This video is already in the library."+
 	"This video is already in the queue."+
 	"A video is already being processed. Add this one when it's done"+
@@ -3712,6 +3814,7 @@ var textsEn = i18n.NewTexts(""+
 	"run pipx upgrade yt-dlp in a terminal"+
 	"Checking the EveryAPI sign-in…"+
 	"Checking components…"+
+	"Offline mode · only what runs on this computer"+
 	"Ready to process"+
 	"Done"+
 	"No saved lines yet. Press B while a film plays to save the line you hear."+
@@ -3859,6 +3962,7 @@ var textsEn = i18n.NewTexts(""+
 	"library location Finder File Explorer file manager interface language version components yt-dlp ffmpeg whisper-cli detect again command line terminal kando install MCP Claude Code Cursor copy config update notifications notify browser sign-in signed in cookies members-only age-restricted Chrome Safari Firefox Edge Brave Chromium keychain Full Disk Access"+
 	"subtitles display bilingual original only translation only order translation original dim blank make room preview preset font size color bold"+
 	"iPhone Android phone mobile sync pair QR code Wi-Fi network device revoke"+
+	"privacy offline network internet cache clear"+
 	"keyboard keys commands"+
 	"whisper models download recognition transcription HuggingFace Hugging Face Vimpo hyperframes spoken language download source mirror hf-mirror.com model file ggml"+
 	"target language smart translation context prompt restore default"+
@@ -3917,6 +4021,37 @@ var textsEn = i18n.NewTexts(""+
 	"Revoke"+
 	"Phone Sync"+
 	"Watch this computer's films in Kando on an iPhone or Android phone on the same network."+
+	"Rebuildable cache"+
+	"Site thumbnails, cover frames and copies made for playback. They are made again when needed; subtitles and videos are not touched."+
+	"Clear Cache"+
+	"There was no cache to clear."+
+	"Clearing…"+
+	"Data on this computer"+
+	"Offline mode"+
+	"Kando doesn't download videos from links, call a cloud AI service, upload, or download components and models. Speech recognition still runs on this computer, and so do translation and proofreading with Ollama or LM Studio."+
+	"Translation, proofreading and explanations"+
+	"Browse"+
+	"Web pages you open in Kando"+
+	"Download from a link"+
+	"yt-dlp, only when you add a link"+
+	"Phone Sync"+
+	"Your local network only, with phones you paired"+
+	"What uses the network"+
+	"Speech recognition"+
+	"whisper.cpp, with the model on this computer"+
+	"Components and speech models"+
+	"Only when you press Download"+
+	"Update checks"+
+	"Once a day, and when you choose Check for Updates"+
+	"Offline mode stops the check you start; the daily check still runs"+
+	"Upload"+
+	"Object storage, only when you press Upload"+
+	"Cloud · sends subtitle text"+
+	"Local network"+
+	"This computer only"+
+	"When you ask"+
+	"Network"+
+	"Off while offline"+
 	"Clear Search"+
 	"Search settings"+
 	"No matching settings"+
@@ -3926,6 +4061,7 @@ var textsEn = i18n.NewTexts(""+
 	"General"+
 	"Subtitle Style"+
 	"Phone Sync"+
+	"Privacy"+
 	"Keyboard Shortcuts"+
 	"Speech Recognition"+
 	"Translation"+
@@ -4619,6 +4755,14 @@ var textsEn = i18n.NewTexts(""+
 		64,
 		84,
 		73,
+		82,
+		127,
+		119,
+		45,
+		42,
+		56,
+		43,
+		45,
 		37,
 		35,
 		63,
@@ -4692,6 +4836,7 @@ var textsEn = i18n.NewTexts(""+
 		37,
 		32,
 		22,
+		47,
 		16,
 		4,
 		73,
@@ -4839,6 +4984,7 @@ var textsEn = i18n.NewTexts(""+
 		356,
 		141,
 		73,
+		44,
 		22,
 		161,
 		64,
@@ -4897,6 +5043,37 @@ var textsEn = i18n.NewTexts(""+
 		6,
 		10,
 		87,
+		17,
+		130,
+		11,
+		28,
+		11,
+		21,
+		12,
+		222,
+		42,
+		6,
+		27,
+		20,
+		32,
+		10,
+		47,
+		21,
+		18,
+		44,
+		28,
+		28,
+		13,
+		49,
+		66,
+		6,
+		42,
+		28,
+		13,
+		18,
+		12,
+		7,
+		17,
 		12,
 		15,
 		20,
@@ -4906,6 +5083,7 @@ var textsEn = i18n.NewTexts(""+
 		7,
 		14,
 		10,
+		7,
 		18,
 		18,
 		11,
@@ -5602,6 +5780,14 @@ var textsJa = i18n.NewTexts(""+
 	"AI サービスのアカウントのクレジットが不足しています。チャージしてから再試行してください。"+
 	"AI サービスがリクエストを拒否しました。「AI サービス」のアドレスとモデルを確認してください。"+
 	"AI サービスから応答がなく、自動で再試行してもうまくいきませんでした。しばらくしてから再試行してください。"+
+	"オフラインモード中はウェブページを開きません。閲覧するには「プライバシー」でオフラインモードをオフにしてください。"+
+	"オフラインモード中はクラウドの AI サービスを使いません。「AI サービス」でこのコンピュータの Ollama か LM Studio に切り替えるか、オフラインモードをオフにしてください。"+
+	"オフラインモード中はリンクから動画をダウンロードできません。ローカルのファイルを選ぶか、「プライバシー」でオフラインモードをオフにしてください。"+
+	"オフラインモード中はダウンロードしません。"+
+	"オフラインモード中はサインインできません。"+
+	"オフラインモード中はアップデートを確認しません。"+
+	"オフラインモード中はアップロードできません。"+
+	"オフラインモード中はダウンロード用コンポーネントを更新できません。"+
 	"この動画はすでにライブラリにあります。"+
 	"この動画はすでにキューにあります。"+
 	"ほかの動画を処理中です。完了してから追加してください"+
@@ -5675,6 +5861,7 @@ var textsJa = i18n.NewTexts(""+
 	"ターミナルで pipx upgrade yt-dlp を実行してください"+
 	"EveryAPI のログインを確認中…"+
 	"コンポーネントを確認中…"+
+	"オフラインモード · このコンピュータの機能のみ"+
 	"準備ができました。処理を開始できます"+
 	"完了"+
 	"保存したセリフはまだありません。動画の再生中に B を押すと、聞いているセリフを保存できます。"+
@@ -5822,6 +6009,7 @@ var textsJa = i18n.NewTexts(""+
 	"ライブラリ 場所 Finder エクスプローラー ファイルマネージャー 表示言語 バージョン コンポーネント yt-dlp ffmpeg whisper-cli 再検出 コマンドライン ターミナル kando インストール MCP Claude Code Cursor 設定をコピー アップデート 通知 ブラウザ ログイン Cookie メンバー限定 年齢確認 Chrome Safari Firefox Edge キーチェーン フルディスクアクセス"+
 	"字幕 表示方法 二言語 原文のみ 訳文のみ 順序 訳文 原文 薄く 空白 移動 プレビュー プリセット フォント サイズ 色 太字"+
 	"iPhone Android スマホ スマートフォン 同期 ペアリング QR コード Wi-Fi ネットワーク デバイス 取り消し"+
+	"プライバシー オフライン ネットワーク インターネット キャッシュ 消去"+
 	"キーボード キー コマンド"+
 	"whisper モデル ダウンロード 認識 文字起こし HuggingFace Hugging Face Vimpo hyperframes 認識する言語 話されている言語 ダウンロード元 ミラー hf-mirror.com モデルファイル ggml"+
 	"翻訳先の言語 スマート翻訳 文脈 プロンプト デフォルトに戻す"+
@@ -5880,6 +6068,37 @@ var textsJa = i18n.NewTexts(""+
 	"取り消す"+
 	"スマートフォン同期"+
 	"同じネットワークにある iPhone や Android スマートフォンの Kando で、このコンピュータの動画を観られます。"+
+	"再作成できるキャッシュ"+
+	"サイトのサムネイル、カバー用のフレーム、再生用に変換したコピー。必要になれば作り直します。字幕と動画には触れません。"+
+	"キャッシュを消去"+
+	"消去するキャッシュはありませんでした。"+
+	"消去中…"+
+	"このコンピュータのデータ"+
+	"オフラインモード"+
+	"オンにすると、リンクから動画をダウンロードせず、クラウドの AI サービスを呼ばず、アップロードせず、コンポーネントやモデルもダウンロードしません。音声認識はこのコンピュータで続けて行い、Ollama や LM Studio を使うときは翻訳と校正も続けます。"+
+	"翻訳・校正・解説"+
+	"ブラウズ"+
+	"Kando で開いたウェブページ"+
+	"リンクからダウンロード"+
+	"yt-dlp。リンクを追加したときだけ"+
+	"スマートフォン同期"+
+	"ローカルネットワーク内で、ペアリングしたスマートフォンとだけ"+
+	"ネットワークを使うもの"+
+	"音声認識"+
+	"whisper.cpp。モデルはこのコンピュータにあります"+
+	"コンポーネントと音声モデル"+
+	"「ダウンロード」を押したときだけ"+
+	"アップデートの確認"+
+	"1 日 1 回と、「アップデートを確認」を選んだとき"+
+	"オフラインモードで止まるのは手動の確認だけです。1 日 1 回の自動確認は続きます"+
+	"アップロード"+
+	"オブジェクトストレージ。「アップロード」を押したときだけ"+
+	"クラウド · 字幕を送信"+
+	"ローカルネットワーク"+
+	"このコンピュータのみ"+
+	"操作したときだけ"+
+	"ネットワーク"+
+	"オフライン中は停止"+
 	"検索をクリア"+
 	"設定を検索"+
 	"一致する設定はありません"+
@@ -5889,6 +6108,7 @@ var textsJa = i18n.NewTexts(""+
 	"一般"+
 	"字幕のスタイル"+
 	"スマートフォン同期"+
+	"プライバシー"+
 	"キーボードショートカット"+
 	"音声認識"+
 	"翻訳"+
@@ -6582,6 +6802,14 @@ var textsJa = i18n.NewTexts(""+
 		132,
 		135,
 		156,
+		171,
+		236,
+		216,
+		63,
+		63,
+		72,
+		66,
+		99,
 		57,
 		51,
 		78,
@@ -6655,6 +6883,7 @@ var textsJa = i18n.NewTexts(""+
 		66,
 		39,
 		36,
+		67,
 		54,
 		6,
 		135,
@@ -6802,6 +7031,7 @@ var textsJa = i18n.NewTexts(""+
 		445,
 		163,
 		133,
+		98,
 		35,
 		219,
 		85,
@@ -6860,6 +7090,37 @@ var textsJa = i18n.NewTexts(""+
 		12,
 		27,
 		144,
+		33,
+		174,
+		24,
+		57,
+		12,
+		36,
+		24,
+		346,
+		24,
+		12,
+		36,
+		33,
+		45,
+		27,
+		90,
+		33,
+		12,
+		65,
+		39,
+		48,
+		27,
+		68,
+		113,
+		18,
+		84,
+		31,
+		30,
+		30,
+		24,
+		18,
+		27,
 		18,
 		15,
 		36,
@@ -6869,6 +7130,7 @@ var textsJa = i18n.NewTexts(""+
 		6,
 		21,
 		27,
+		18,
 		36,
 		12,
 		6,
@@ -7565,6 +7827,14 @@ var textsKo = i18n.NewTexts(""+
 	"AI 서비스 계정의 크레딧이 부족합니다. 충전한 후 다시 시도하십시오."+
 	"AI 서비스가 요청을 거부했습니다. ‘AI 서비스’에서 주소와 모델을 확인하십시오."+
 	"AI 서비스가 응답하지 않으며, 자동으로 다시 시도해도 해결되지 않았습니다. 잠시 후 다시 시도하십시오."+
+	"오프라인 모드에서는 웹 페이지를 열지 않습니다. 탐색하려면 '개인정보 보호'에서 오프라인 모드를 끄십시오."+
+	"오프라인 모드에서는 클라우드 AI 서비스를 사용하지 않습니다. 'AI 서비스'에서 이 컴퓨터의 Ollama나 LM Studio로 바꾸거나 오프라인 모드를 끄십시오."+
+	"오프라인 모드에서는 링크의 동영상을 다운로드할 수 없습니다. 로컬 파일을 선택하거나 '개인정보 보호'에서 오프라인 모드를 끄십시오."+
+	"오프라인 모드에서는 다운로드하지 않습니다."+
+	"오프라인 모드에서는 로그인할 수 없습니다."+
+	"오프라인 모드에서는 업데이트를 확인하지 않습니다."+
+	"오프라인 모드에서는 업로드할 수 없습니다."+
+	"오프라인 모드에서는 다운로드 구성 요소를 업데이트할 수 없습니다."+
 	"이 동영상은 이미 라이브러리에 있습니다."+
 	"이 동영상은 이미 대기열에 있습니다."+
 	"이미 처리 중인 동영상이 있습니다. 완료된 후 추가하십시오"+
@@ -7638,6 +7908,7 @@ var textsKo = i18n.NewTexts(""+
 	"터미널에서 pipx upgrade yt-dlp를 실행하십시오"+
 	"EveryAPI 로그인 확인 중…"+
 	"구성 요소 확인 중…"+
+	"오프라인 모드 · 이 컴퓨터의 기능만 사용"+
 	"준비되었습니다. 처리를 시작할 수 있습니다"+
 	"완료"+
 	"아직 저장한 대사가 없습니다. 영상을 재생하는 동안 B를 누르면 듣고 있는 대사를 저장합니다."+
@@ -7785,6 +8056,7 @@ var textsKo = i18n.NewTexts(""+
 	"라이브러리 위치 Finder 파일 탐색기 파일 관리자 인터페이스 언어 버전 구성 요소 yt-dlp ffmpeg whisper-cli 다시 감지 명령줄 터미널 kando 설치 MCP Claude Code Cursor 설정 복사 업데이트 알림 브라우저 로그인 쿠키 멤버십 연령 확인 Chrome Safari Firefox Edge 키체인 전체 디스크 접근 권한"+
 	"자막 표시 방식 이중 언어 원문만 번역만 순서 번역 원문 흐리게 비워 두기 이동 미리 보기 프리셋 서체 크기 색상 굵게"+
 	"iPhone Android 휴대폰 스마트폰 동기화 페어링 QR 코드 Wi-Fi 네트워크 기기 해제"+
+	"개인정보 오프라인 네트워크 인터넷 캐시 지우기"+
 	"키보드 키 명령"+
 	"whisper 모델 다운로드 인식 전사 HuggingFace Hugging Face Vimpo hyperframes 인식 언어 다운로드 소스 미러 hf-mirror.com 모델 파일 ggml"+
 	"대상 언어 스마트 번역 문맥 프롬프트 기본값 복원"+
@@ -7843,6 +8115,37 @@ var textsKo = i18n.NewTexts(""+
 	"해제"+
 	"휴대폰 동기화"+
 	"같은 네트워크의 iPhone이나 Android 휴대폰에서 Kando로 이 컴퓨터의 영상을 볼 수 있습니다."+
+	"다시 만들 수 있는 캐시"+
+	"사이트 썸네일, 표지 프레임, 재생용으로 변환한 사본입니다. 필요할 때 다시 만들며 자막과 동영상은 건드리지 않습니다."+
+	"캐시 지우기"+
+	"지울 캐시가 없었습니다."+
+	"지우는 중…"+
+	"이 컴퓨터의 데이터"+
+	"오프라인 모드"+
+	"켜면 링크의 동영상을 다운로드하지 않고, 클라우드 AI 서비스를 호출하지 않으며, 업로드하지 않고, 구성 요소와 모델도 다운로드하지 않습니다. 음성 인식은 이 컴퓨터에서 계속 진행되며 Ollama나 LM Studio를 쓸 때는 번역과 교정도 계속됩니다."+
+	"번역, 교정, 해설"+
+	"탐색"+
+	"Kando에서 연 웹 페이지"+
+	"링크에서 다운로드"+
+	"yt-dlp. 링크를 추가할 때만"+
+	"휴대폰 동기화"+
+	"로컬 네트워크 안에서 페어링한 휴대폰과만"+
+	"네트워크를 사용하는 항목"+
+	"음성 인식"+
+	"whisper.cpp. 모델은 이 컴퓨터에 있습니다"+
+	"구성 요소와 음성 모델"+
+	"'다운로드'를 누를 때만"+
+	"업데이트 확인"+
+	"하루 한 번, 그리고 '업데이트 확인'을 선택할 때"+
+	"오프라인 모드는 직접 하는 확인만 멈춥니다. 하루 한 번의 자동 확인은 계속됩니다"+
+	"업로드"+
+	"오브젝트 스토리지. '업로드'를 누를 때만"+
+	"클라우드 · 자막 전송"+
+	"로컬 네트워크"+
+	"이 컴퓨터만"+
+	"직접 할 때만"+
+	"네트워크"+
+	"오프라인 중 중지"+
 	"검색 지우기"+
 	"설정 검색"+
 	"일치하는 설정이 없습니다"+
@@ -7852,6 +8155,7 @@ var textsKo = i18n.NewTexts(""+
 	"일반"+
 	"자막 스타일"+
 	"휴대폰 동기화"+
+	"개인정보 보호"+
 	"단축키"+
 	"음성 인식"+
 	"번역"+
@@ -8545,6 +8849,14 @@ var textsKo = i18n.NewTexts(""+
 		93,
 		110,
 		140,
+		147,
+		195,
+		183,
+		61,
+		59,
+		71,
+		59,
+		92,
 		56,
 		50,
 		80,
@@ -8618,6 +8930,7 @@ var textsKo = i18n.NewTexts(""+
 		57,
 		32,
 		27,
+		56,
 		59,
 		6,
 		126,
@@ -8765,6 +9078,7 @@ var textsKo = i18n.NewTexts(""+
 		359,
 		158,
 		100,
+		65,
 		20,
 		158,
 		67,
@@ -8823,6 +9137,37 @@ var textsKo = i18n.NewTexts(""+
 		6,
 		19,
 		117,
+		31,
+		162,
+		16,
+		33,
+		16,
+		26,
+		19,
+		321,
+		22,
+		6,
+		29,
+		25,
+		34,
+		19,
+		58,
+		35,
+		13,
+		52,
+		30,
+		31,
+		19,
+		64,
+		111,
+		9,
+		55,
+		29,
+		19,
+		16,
+		17,
+		12,
+		23,
 		16,
 		13,
 		35,
@@ -8831,6 +9176,7 @@ var textsKo = i18n.NewTexts(""+
 		20,
 		6,
 		16,
+		19,
 		19,
 		9,
 		13,
@@ -9528,6 +9874,14 @@ var textsZhHans = i18n.NewTexts(""+
 	"AI 服务账户余额不足。充值后再重试。"+
 	"AI 服务拒绝了请求，检查「AI 服务」里的地址和模型。"+
 	"AI 服务一直没有回应，已自动重试，还是不行。稍后再重试。"+
+	"离线模式下不打开网页。要浏览，请在「隐私」里关闭离线模式。"+
+	"离线模式下不使用云端 AI 服务。请在「AI 服务」里改用本机的 Ollama 或 LM Studio，或关闭离线模式。"+
+	"离线模式下不能下载在线视频。可以选择本地文件，或在「隐私」里关闭离线模式。"+
+	"离线模式下不下载。"+
+	"离线模式下不能登录。"+
+	"离线模式下不检查更新。"+
+	"离线模式下不能上传。"+
+	"离线模式下不能更新下载组件。"+
 	"这个视频已在资料库中。"+
 	"这个视频已在处理队列中。"+
 	"已有视频在处理，等它完成后再添加"+
@@ -9601,6 +9955,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"在终端里运行 pipx upgrade yt-dlp"+
 	"正在检查 EveryAPI 登录…"+
 	"正在检查组件…"+
+	"离线模式 · 只用本机能力"+
 	"已就绪，可以开始处理"+
 	"完成"+
 	"还没有收藏的句子。播放影片时按 B 即可收藏正在听的这句。"+
@@ -9748,6 +10103,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"资料库 位置 访达 文件资源管理器 文件管理器 界面语言 版本 组件 yt-dlp ffmpeg whisper-cli 重新检测 命令行 终端 kando 安装 MCP Claude Code Cursor 拷贝配置 更新 通知 浏览器 登录 借用 Cookie 会员 年龄验证 Chrome Safari Firefox Edge 钥匙串 完全磁盘访问权限"+
 	"字幕 显示方式 双语 仅原文 仅译文 顺序 译文 原文 弱化 留空 让位 预览 预设 字体 字号 颜色 粗体"+
 	"iPhone Android 手机 移动 同步 配对 二维码 Wi-Fi 网络 设备 撤销"+
+	"隐私 离线 联网 网络 缓存 清除"+
 	"键盘 按键 命令"+
 	"whisper 模型 下载 识别 HuggingFace Hugging Face Vimpo hyperframes 识别语言 下载源 镜像 hf-mirror.com 模型文件 ggml"+
 	"目标语言 智能翻译 上下文 提示词 恢复默认"+
@@ -9806,6 +10162,37 @@ var textsZhHans = i18n.NewTexts(""+
 	"撤销"+
 	"手机同步"+
 	"在同一网络下的 iPhone 或 Android 手机上，用看懂观看这台电脑里的影片。"+
+	"可重建的缓存"+
+	"网站缩略图、封面截帧和为播放转换的副本。需要时会重新生成，不动字幕和影片。"+
+	"清除缓存"+
+	"没有需要清除的缓存。"+
+	"清除中…"+
+	"本机数据"+
+	"离线模式"+
+	"开启后不下载在线视频、不调用云端 AI 服务、不上传，也不下载组件和模型。语音识别照常在本机进行；用 Ollama 或 LM Studio 时，翻译和校对也照常进行。"+
+	"翻译、校对和讲解"+
+	"浏览"+
+	"在看懂里打开的网页"+
+	"下载在线视频"+
+	"yt-dlp，只在你添加链接时"+
+	"手机同步"+
+	"只在局域网内，和你配对过的手机"+
+	"每一步会不会联网"+
+	"语音识别"+
+	"whisper.cpp，模型在本机"+
+	"组件和语音模型"+
+	"只在你点「下载」时"+
+	"检查更新"+
+	"每天一次，以及你点「检查更新」时"+
+	"离线模式只停用手动检查；每天一次的自动检查仍会进行"+
+	"上传"+
+	"对象存储，只在你点「上传」时"+
+	"云端 · 发送字幕文本"+
+	"局域网"+
+	"仅本机"+
+	"手动触发"+
+	"联网"+
+	"离线时停用"+
 	"清除搜索"+
 	"搜索设置"+
 	"没有匹配的设置"+
@@ -9815,6 +10202,7 @@ var textsZhHans = i18n.NewTexts(""+
 	"通用"+
 	"字幕外观"+
 	"手机同步"+
+	"隐私"+
 	"快捷键"+
 	"语音识别"+
 	"翻译"+
@@ -10508,6 +10896,14 @@ var textsZhHans = i18n.NewTexts(""+
 		51,
 		72,
 		81,
+		87,
+		130,
+		111,
+		27,
+		30,
+		33,
+		30,
+		42,
 		33,
 		36,
 		48,
@@ -10581,6 +10977,7 @@ var textsZhHans = i18n.NewTexts(""+
 		38,
 		31,
 		21,
+		34,
 		30,
 		6,
 		81,
@@ -10728,6 +11125,7 @@ var textsZhHans = i18n.NewTexts(""+
 		320,
 		130,
 		79,
+		41,
 		20,
 		133,
 		58,
@@ -10786,6 +11184,37 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		95,
+		18,
+		111,
+		12,
+		30,
+		12,
+		12,
+		12,
+		203,
+		24,
+		6,
+		27,
+		18,
+		33,
+		12,
+		45,
+		24,
+		12,
+		29,
+		21,
+		27,
+		12,
+		48,
+		75,
+		6,
+		42,
+		28,
+		9,
+		9,
+		12,
+		6,
+		15,
 		12,
 		12,
 		21,
@@ -10795,6 +11224,7 @@ var textsZhHans = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		6,
 		9,
 		12,
 		6,
@@ -11491,6 +11921,14 @@ var textsZhHant = i18n.NewTexts(""+
 	"AI 服務帳戶餘額不足。儲值後再重試。"+
 	"AI 服務拒絕了請求，檢查「AI 服務」中的位址和模型。"+
 	"AI 服務一直沒有回應，已自動重試，還是不行。稍後再重試。"+
+	"離線模式下不開啟網頁。要瀏覽，請在「隱私」中關閉離線模式。"+
+	"離線模式下不使用雲端 AI 服務。請在「AI 服務」中改用本機的 Ollama 或 LM Studio，或關閉離線模式。"+
+	"離線模式下無法下載線上影片。可以選擇本機檔案，或在「隱私」中關閉離線模式。"+
+	"離線模式下不下載。"+
+	"離線模式下無法登入。"+
+	"離線模式下不檢查更新。"+
+	"離線模式下無法上傳。"+
+	"離線模式下無法更新下載元件。"+
 	"這個影片已在資料庫中。"+
 	"這個影片已在處理佇列中。"+
 	"已有影片在處理，等它完成後再加入"+
@@ -11564,6 +12002,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"在終端機中執行 pipx upgrade yt-dlp"+
 	"正在檢查 EveryAPI 登入…"+
 	"正在檢查元件…"+
+	"離線模式 · 只用本機能力"+
 	"已就緒，可以開始處理"+
 	"完成"+
 	"還沒有收藏的句子。播放影片時按 B 即可收藏正在聽的這句。"+
@@ -11711,6 +12150,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"資料庫 位置 Finder 檔案總管 檔案管理員 介面語言 版本 元件 yt-dlp ffmpeg whisper-cli 重新偵測 命令列 終端機 kando 安裝 MCP Claude Code Cursor 拷貝設定 更新 通知 瀏覽器 登入 借用 Cookie 會員 年齡驗證 Chrome Safari Firefox Edge 鑰匙圈 完整取用磁碟"+
 	"字幕 顯示方式 雙語 僅原文 僅譯文 順序 譯文 原文 淡化 留空 讓位 預覽 預設 字體 字級 顏色 粗體"+
 	"iPhone Android 手機 行動 同步 配對 QR 碼 Wi-Fi 網路 裝置 撤銷"+
+	"隱私 離線 連網 網路 快取 清除"+
 	"鍵盤 按鍵 指令"+
 	"whisper 模型 下載 辨識 HuggingFace Hugging Face Vimpo hyperframes 辨識語言 下載來源 鏡像 hf-mirror.com 模型檔案 ggml"+
 	"目標語言 智慧翻譯 上下文 提示詞 恢復預設"+
@@ -11769,6 +12209,37 @@ var textsZhHant = i18n.NewTexts(""+
 	"撤銷"+
 	"手機同步"+
 	"在同一網路上的 iPhone 或 Android 手機，用看懂觀看這台電腦裡的影片。"+
+	"可重建的快取"+
+	"網站縮圖、封面截圖和為播放轉換的副本。需要時會重新產生，不動字幕和影片。"+
+	"清除快取"+
+	"沒有需要清除的快取。"+
+	"清除中…"+
+	"本機資料"+
+	"離線模式"+
+	"開啟後不下載線上影片、不呼叫雲端 AI 服務、不上傳，也不下載元件和模型。語音辨識照常在本機進行；使用 Ollama 或 LM Studio 時，翻譯和校對也照常進行。"+
+	"翻譯、校對和講解"+
+	"瀏覽"+
+	"在看懂裡開啟的網頁"+
+	"下載線上影片"+
+	"yt-dlp，只在你加入連結時"+
+	"手機同步"+
+	"只在區域網路內，和你配對過的手機"+
+	"每一步會不會連網"+
+	"語音辨識"+
+	"whisper.cpp，模型在本機"+
+	"元件和語音模型"+
+	"只在你點「下載」時"+
+	"檢查更新"+
+	"每天一次，以及你點「檢查更新」時"+
+	"離線模式只停用手動檢查；每天一次的自動檢查仍會進行"+
+	"上傳"+
+	"物件儲存，只在你點「上傳」時"+
+	"雲端 · 傳送字幕文字"+
+	"區域網路"+
+	"僅本機"+
+	"手動觸發"+
+	"連網"+
+	"離線時停用"+
 	"清除搜尋"+
 	"搜尋設定"+
 	"沒有符合的設定"+
@@ -11778,6 +12249,7 @@ var textsZhHant = i18n.NewTexts(""+
 	"一般"+
 	"字幕外觀"+
 	"手機同步"+
+	"隱私"+
 	"快速鍵"+
 	"語音辨識"+
 	"翻譯"+
@@ -12471,6 +12943,14 @@ var textsZhHant = i18n.NewTexts(""+
 		51,
 		72,
 		81,
+		87,
+		130,
+		111,
+		27,
+		30,
+		33,
+		30,
+		42,
 		33,
 		36,
 		48,
@@ -12544,6 +13024,7 @@ var textsZhHant = i18n.NewTexts(""+
 		41,
 		31,
 		21,
+		34,
 		30,
 		6,
 		81,
@@ -12691,6 +13172,7 @@ var textsZhHant = i18n.NewTexts(""+
 		308,
 		130,
 		76,
+		41,
 		20,
 		136,
 		58,
@@ -12749,6 +13231,37 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		92,
+		18,
+		108,
+		12,
+		30,
+		12,
+		12,
+		12,
+		206,
+		24,
+		6,
+		27,
+		18,
+		33,
+		12,
+		48,
+		24,
+		12,
+		29,
+		21,
+		27,
+		12,
+		48,
+		75,
+		6,
+		42,
+		28,
+		12,
+		9,
+		12,
+		6,
+		15,
 		12,
 		12,
 		21,
@@ -12758,6 +13271,7 @@ var textsZhHant = i18n.NewTexts(""+
 		6,
 		12,
 		12,
+		6,
 		9,
 		12,
 		6,
@@ -13837,6 +14351,21 @@ func Supply(lang string, t Translation) {
 	}
 	if t.SettingsPhoneStartFailed != nil {
 		s.SettingsPhoneStartFailed = t.SettingsPhoneStartFailed
+	}
+	if t.SettingsPrivacyCleared != nil {
+		s.SettingsPrivacyCleared = t.SettingsPrivacyCleared
+	}
+	if t.SettingsPrivacyClearFailed != nil {
+		s.SettingsPrivacyClearFailed = t.SettingsPrivacyClearFailed
+	}
+	if t.SettingsPrivacySaveFailed != nil {
+		s.SettingsPrivacySaveFailed = t.SettingsPrivacySaveFailed
+	}
+	if t.SettingsPrivacyStepAICloud != nil {
+		s.SettingsPrivacyStepAICloud = t.SettingsPrivacyStepAICloud
+	}
+	if t.SettingsPrivacyStepAILocal != nil {
+		s.SettingsPrivacyStepAILocal = t.SettingsPrivacyStepAILocal
 	}
 	if t.SettingsSaveFailed != nil {
 		s.SettingsSaveFailed = t.SettingsSaveFailed
@@ -26461,6 +26990,80 @@ func (msgs Messages) PrecheckTranslateTimeout() string {
 	return msgs.text(textPrecheckTranslateTimeout)
 }
 
+// PrivacyNoBrowse says "Offline mode is on, so web pages are not opened. Turn it off in Privacy to browse."
+// in the language the app shows under cx.
+//
+// A message bar of the in-app browser when a page is asked for while offline mode is on.
+func PrivacyNoBrowse(cx *core.Scope) string { return For(cx).PrivacyNoBrowse() }
+
+// PrivacyNoBrowse is the package's PrivacyNoBrowse in the language of msgs.
+func (msgs Messages) PrivacyNoBrowse() string { return msgs.text(textPrivacyNoBrowse) }
+
+// PrivacyNoCloudAI says "Offline mode is on, so the cloud AI service is not used. Switch to Ollama or LM Studio in AI Service, or turn offline mode off."
+// in the language the app shows under cx.
+//
+// Why nothing was translated, proofread or explained while offline mode is on and the AI service is in the cloud; also the sidebar's status line then.
+func PrivacyNoCloudAI(cx *core.Scope) string { return For(cx).PrivacyNoCloudAI() }
+
+// PrivacyNoCloudAI is the package's PrivacyNoCloudAI in the language of msgs.
+func (msgs Messages) PrivacyNoCloudAI() string { return msgs.text(textPrivacyNoCloudAI) }
+
+// PrivacyNoDownload says "Offline mode is on, so videos are not downloaded from links. Choose a local video, or turn offline mode off in Privacy."
+// in the language the app shows under cx.
+//
+// Why a link was not added while offline mode is on.
+func PrivacyNoDownload(cx *core.Scope) string { return For(cx).PrivacyNoDownload() }
+
+// PrivacyNoDownload is the package's PrivacyNoDownload in the language of msgs.
+func (msgs Messages) PrivacyNoDownload() string { return msgs.text(textPrivacyNoDownload) }
+
+// PrivacyNoNetworkDownload says "Offline mode is on, so nothing is downloaded."
+// in the language the app shows under cx.
+//
+// Why a program or a speech model was not downloaded while offline mode is on.
+func PrivacyNoNetworkDownload(cx *core.Scope) string { return For(cx).PrivacyNoNetworkDownload() }
+
+// PrivacyNoNetworkDownload is the package's PrivacyNoNetworkDownload in the language of msgs.
+func (msgs Messages) PrivacyNoNetworkDownload() string {
+	return msgs.text(textPrivacyNoNetworkDownload)
+}
+
+// PrivacyNoSignIn says "Offline mode is on, so you cannot sign in."
+// in the language the app shows under cx.
+//
+// Why Google sign-in did not start while offline mode is on.
+func PrivacyNoSignIn(cx *core.Scope) string { return For(cx).PrivacyNoSignIn() }
+
+// PrivacyNoSignIn is the package's PrivacyNoSignIn in the language of msgs.
+func (msgs Messages) PrivacyNoSignIn() string { return msgs.text(textPrivacyNoSignIn) }
+
+// PrivacyNoUpdate says "Offline mode is on, so Kando does not check for updates."
+// in the language the app shows under cx.
+//
+// A message bar when Check for Updates is chosen while offline mode is on.
+func PrivacyNoUpdate(cx *core.Scope) string { return For(cx).PrivacyNoUpdate() }
+
+// PrivacyNoUpdate is the package's PrivacyNoUpdate in the language of msgs.
+func (msgs Messages) PrivacyNoUpdate() string { return msgs.text(textPrivacyNoUpdate) }
+
+// PrivacyNoUpload says "Offline mode is on, so nothing is uploaded."
+// in the language the app shows under cx.
+//
+// The player's upload capsule while offline mode is on.
+func PrivacyNoUpload(cx *core.Scope) string { return For(cx).PrivacyNoUpload() }
+
+// PrivacyNoUpload is the package's PrivacyNoUpload in the language of msgs.
+func (msgs Messages) PrivacyNoUpload() string { return msgs.text(textPrivacyNoUpload) }
+
+// PrivacyNoYtdlpUpdate says "Offline mode is on, so yt-dlp is not updated."
+// in the language the app shows under cx.
+//
+// A message bar when a failed card's Update yt-dlp is pressed while offline mode is on.
+func PrivacyNoYtdlpUpdate(cx *core.Scope) string { return For(cx).PrivacyNoYtdlpUpdate() }
+
+// PrivacyNoYtdlpUpdate is the package's PrivacyNoYtdlpUpdate in the language of msgs.
+func (msgs Messages) PrivacyNoYtdlpUpdate() string { return msgs.text(textPrivacyNoYtdlpUpdate) }
+
 // QueueAlreadyInLibrary says "This video is already in the library."
 // in the language the app shows under cx.
 //
@@ -28752,6 +29355,15 @@ func (msgs Messages) ReadinessMissingTools(tools string) string {
 		}
 	}
 }
+
+// ReadinessOffline says "Offline mode · only what runs on this computer"
+// in the language the app shows under cx.
+//
+// The sidebar's status line when a job can start and offline mode is on.
+func ReadinessOffline(cx *core.Scope) string { return For(cx).ReadinessOffline() }
+
+// ReadinessOffline is the package's ReadinessOffline in the language of msgs.
+func (msgs Messages) ReadinessOffline() string { return msgs.text(textReadinessOffline) }
 
 // ReadinessReady says "Ready to process"
 // in the language the app shows under cx.
@@ -31551,6 +32163,15 @@ func SettingsKeywordsPhone(cx *core.Scope) string { return For(cx).SettingsKeywo
 // SettingsKeywordsPhone is the package's SettingsKeywordsPhone in the language of msgs.
 func (msgs Messages) SettingsKeywordsPhone() string { return msgs.text(textSettingsKeywordsPhone) }
 
+// SettingsKeywordsPrivacy says "privacy offline network internet cache clear"
+// in the language the app shows under cx.
+//
+// Words the settings search finds the Privacy section by, besides its title.
+func SettingsKeywordsPrivacy(cx *core.Scope) string { return For(cx).SettingsKeywordsPrivacy() }
+
+// SettingsKeywordsPrivacy is the package's SettingsKeywordsPrivacy in the language of msgs.
+func (msgs Messages) SettingsKeywordsPrivacy() string { return msgs.text(textSettingsKeywordsPrivacy) }
+
 // SettingsKeywordsShortcuts says "keyboard keys commands"
 // in the language the app shows under cx.
 //
@@ -32514,6 +33135,505 @@ func SettingsPhoneSwitchHint(cx *core.Scope) string { return For(cx).SettingsPho
 // SettingsPhoneSwitchHint is the package's SettingsPhoneSwitchHint in the language of msgs.
 func (msgs Messages) SettingsPhoneSwitchHint() string { return msgs.text(textSettingsPhoneSwitchHint) }
 
+// SettingsPrivacyCache says "Rebuildable cache"
+// in the language the app shows under cx.
+//
+// Row title in Settings › Privacy: the caches Clear Cache removes.
+func SettingsPrivacyCache(cx *core.Scope) string { return For(cx).SettingsPrivacyCache() }
+
+// SettingsPrivacyCache is the package's SettingsPrivacyCache in the language of msgs.
+func (msgs Messages) SettingsPrivacyCache() string { return msgs.text(textSettingsPrivacyCache) }
+
+// SettingsPrivacyCacheHint says "Site thumbnails, cover frames and copies made for playback. They are made again when needed; subtitles and videos are not touched."
+// in the language the app shows under cx.
+//
+// Under Rebuildable cache in Settings › Privacy.
+func SettingsPrivacyCacheHint(cx *core.Scope) string { return For(cx).SettingsPrivacyCacheHint() }
+
+// SettingsPrivacyCacheHint is the package's SettingsPrivacyCacheHint in the language of msgs.
+func (msgs Messages) SettingsPrivacyCacheHint() string {
+	return msgs.text(textSettingsPrivacyCacheHint)
+}
+
+// SettingsPrivacyClearCache says "Clear Cache"
+// in the language the app shows under cx.
+//
+// Button in Settings › Privacy that removes the rebuildable cache.
+func SettingsPrivacyClearCache(cx *core.Scope) string { return For(cx).SettingsPrivacyClearCache() }
+
+// SettingsPrivacyClearCache is the package's SettingsPrivacyClearCache in the language of msgs.
+func (msgs Messages) SettingsPrivacyClearCache() string {
+	return msgs.text(textSettingsPrivacyClearCache)
+}
+
+// SettingsPrivacyCleared says "Cleared {size}. Subtitles and videos were kept."
+// in the language the app shows under cx.
+//
+// Under Rebuildable cache after Clear Cache, with how much it freed.
+func SettingsPrivacyCleared(cx *core.Scope, size string) string {
+	return For(cx).SettingsPrivacyCleared(size)
+}
+
+// SettingsPrivacyCleared is the package's SettingsPrivacyCleared in the language of msgs.
+func (msgs Messages) SettingsPrivacyCleared(size string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPrivacyCleared(size))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPrivacyCleared; f != nil {
+			return f(size)
+		}
+		switch lang {
+		case "", "en":
+			return "Cleared " + msgs.arg(size) + ". Subtitles and videos were kept."
+		case "ja":
+			return size + " を消去しました。字幕と動画はそのままです。"
+		case "ko":
+			return size + "를 지웠습니다. 자막과 동영상은 그대로입니다."
+		case "zh-Hans":
+			return "已清除 " + size + "，字幕和影片都保留。"
+		case "zh-Hant":
+			return "已清除 " + size + "，字幕和影片都保留。"
+		}
+	}
+}
+
+// SettingsPrivacyClearedNothing says "There was no cache to clear."
+// in the language the app shows under cx.
+//
+// Under Rebuildable cache after Clear Cache found nothing.
+func SettingsPrivacyClearedNothing(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyClearedNothing()
+}
+
+// SettingsPrivacyClearedNothing is the package's SettingsPrivacyClearedNothing in the language of msgs.
+func (msgs Messages) SettingsPrivacyClearedNothing() string {
+	return msgs.text(textSettingsPrivacyClearedNothing)
+}
+
+// SettingsPrivacyClearFailed says "Some files could not be removed: {error}"
+// in the language the app shows under cx.
+//
+// Under Rebuildable cache after Clear Cache left files, with the system's reason in English.
+func SettingsPrivacyClearFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsPrivacyClearFailed(error_)
+}
+
+// SettingsPrivacyClearFailed is the package's SettingsPrivacyClearFailed in the language of msgs.
+func (msgs Messages) SettingsPrivacyClearFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPrivacyClearFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPrivacyClearFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Some files could not be removed: " + msgs.arg(error_)
+		case "ja":
+			return "一部のファイルを削除できませんでした：" + error_
+		case "ko":
+			return "일부 파일을 삭제하지 못했습니다: " + error_
+		case "zh-Hans":
+			return "有些文件没能删除：" + error_
+		case "zh-Hant":
+			return "有些檔案無法刪除：" + error_
+		}
+	}
+}
+
+// SettingsPrivacyClearing says "Clearing…"
+// in the language the app shows under cx.
+//
+// The Clear Cache button while the files are being removed.
+func SettingsPrivacyClearing(cx *core.Scope) string { return For(cx).SettingsPrivacyClearing() }
+
+// SettingsPrivacyClearing is the package's SettingsPrivacyClearing in the language of msgs.
+func (msgs Messages) SettingsPrivacyClearing() string { return msgs.text(textSettingsPrivacyClearing) }
+
+// SettingsPrivacyData says "Data on this computer"
+// in the language the app shows under cx.
+//
+// Section label in Settings › Privacy above the cache row.
+func SettingsPrivacyData(cx *core.Scope) string { return For(cx).SettingsPrivacyData() }
+
+// SettingsPrivacyData is the package's SettingsPrivacyData in the language of msgs.
+func (msgs Messages) SettingsPrivacyData() string { return msgs.text(textSettingsPrivacyData) }
+
+// SettingsPrivacyOffline says "Offline mode"
+// in the language the app shows under cx.
+//
+// Switch in Settings › Privacy that stops every network use.
+func SettingsPrivacyOffline(cx *core.Scope) string { return For(cx).SettingsPrivacyOffline() }
+
+// SettingsPrivacyOffline is the package's SettingsPrivacyOffline in the language of msgs.
+func (msgs Messages) SettingsPrivacyOffline() string { return msgs.text(textSettingsPrivacyOffline) }
+
+// SettingsPrivacyOfflineHint says "Kando doesn't download videos from links, call a cloud AI service, upload, or download components and models. Speech recognition still runs on this computer, and so do translation and proofreading with Ollama or LM Studio."
+// in the language the app shows under cx.
+//
+// Under the Offline mode switch.
+func SettingsPrivacyOfflineHint(cx *core.Scope) string { return For(cx).SettingsPrivacyOfflineHint() }
+
+// SettingsPrivacyOfflineHint is the package's SettingsPrivacyOfflineHint in the language of msgs.
+func (msgs Messages) SettingsPrivacyOfflineHint() string {
+	return msgs.text(textSettingsPrivacyOfflineHint)
+}
+
+// SettingsPrivacySaveFailed says "Couldn't save offline mode: {error}"
+// in the language the app shows under cx.
+//
+// Error when the offline switch could not be saved to settings.json, with the system's reason in English.
+func SettingsPrivacySaveFailed(cx *core.Scope, error_ string) string {
+	return For(cx).SettingsPrivacySaveFailed(error_)
+}
+
+// SettingsPrivacySaveFailed is the package's SettingsPrivacySaveFailed in the language of msgs.
+func (msgs Messages) SettingsPrivacySaveFailed(error_ string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPrivacySaveFailed(error_))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPrivacySaveFailed; f != nil {
+			return f(error_)
+		}
+		switch lang {
+		case "", "en":
+			return "Couldn't save offline mode: " + msgs.arg(error_)
+		case "ja":
+			return "オフラインモードを保存できません：" + error_
+		case "ko":
+			return "오프라인 모드를 저장할 수 없습니다: " + error_
+		case "zh-Hans":
+			return "无法保存离线模式：" + error_
+		case "zh-Hant":
+			return "無法儲存離線模式：" + error_
+		}
+	}
+}
+
+// SettingsPrivacyStepAI says "Translation, proofreading and explanations"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy: what the AI service does.
+func SettingsPrivacyStepAI(cx *core.Scope) string { return For(cx).SettingsPrivacyStepAI() }
+
+// SettingsPrivacyStepAI is the package's SettingsPrivacyStepAI in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepAI() string { return msgs.text(textSettingsPrivacyStepAI) }
+
+// SettingsPrivacyStepAICloud says "{service}, which receives the subtitle text"
+// in the language the app shows under cx.
+//
+// Under the AI row when the AI service is not on this computer, with its name.
+func SettingsPrivacyStepAICloud(cx *core.Scope, service string) string {
+	return For(cx).SettingsPrivacyStepAICloud(service)
+}
+
+// SettingsPrivacyStepAICloud is the package's SettingsPrivacyStepAICloud in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepAICloud(service string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPrivacyStepAICloud(service))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPrivacyStepAICloud; f != nil {
+			return f(service)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(service) + ", which receives the subtitle text"
+		case "ja":
+			return service + "。字幕のテキストをサービスに送ります"
+		case "ko":
+			return service + ". 자막 텍스트를 서비스에 보냅니다"
+		case "zh-Hans":
+			return service + "，会把字幕文本发给服务商"
+		case "zh-Hant":
+			return service + "，會把字幕文字傳給服務商"
+		}
+	}
+}
+
+// SettingsPrivacyStepAILocal says "{service}, running on this computer"
+// in the language the app shows under cx.
+//
+// Under the AI row when the AI service runs on this computer, with its name.
+func SettingsPrivacyStepAILocal(cx *core.Scope, service string) string {
+	return For(cx).SettingsPrivacyStepAILocal(service)
+}
+
+// SettingsPrivacyStepAILocal is the package's SettingsPrivacyStepAILocal in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepAILocal(service string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.SettingsPrivacyStepAILocal(service))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].SettingsPrivacyStepAILocal; f != nil {
+			return f(service)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(service) + ", running on this computer"
+		case "ja":
+			return service + "。このコンピュータで動きます"
+		case "ko":
+			return service + ". 이 컴퓨터에서 실행됩니다"
+		case "zh-Hans":
+			return service + "，在本机运行"
+		case "zh-Hant":
+			return service + "，在本機執行"
+		}
+	}
+}
+
+// SettingsPrivacyStepBrowse says "Browse"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy: the in-app browser.
+func SettingsPrivacyStepBrowse(cx *core.Scope) string { return For(cx).SettingsPrivacyStepBrowse() }
+
+// SettingsPrivacyStepBrowse is the package's SettingsPrivacyStepBrowse in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepBrowse() string {
+	return msgs.text(textSettingsPrivacyStepBrowse)
+}
+
+// SettingsPrivacyStepBrowseDetail says "Web pages you open in Kando"
+// in the language the app shows under cx.
+//
+// Under the Browse row of the network table.
+func SettingsPrivacyStepBrowseDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepBrowseDetail()
+}
+
+// SettingsPrivacyStepBrowseDetail is the package's SettingsPrivacyStepBrowseDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepBrowseDetail() string {
+	return msgs.text(textSettingsPrivacyStepBrowseDetail)
+}
+
+// SettingsPrivacyStepDownload says "Download from a link"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy: yt-dlp downloading a video.
+func SettingsPrivacyStepDownload(cx *core.Scope) string { return For(cx).SettingsPrivacyStepDownload() }
+
+// SettingsPrivacyStepDownload is the package's SettingsPrivacyStepDownload in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepDownload() string {
+	return msgs.text(textSettingsPrivacyStepDownload)
+}
+
+// SettingsPrivacyStepDownloadDetail says "yt-dlp, only when you add a link"
+// in the language the app shows under cx.
+//
+// Under the download row of the network table.
+func SettingsPrivacyStepDownloadDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepDownloadDetail()
+}
+
+// SettingsPrivacyStepDownloadDetail is the package's SettingsPrivacyStepDownloadDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepDownloadDetail() string {
+	return msgs.text(textSettingsPrivacyStepDownloadDetail)
+}
+
+// SettingsPrivacyStepPhone says "Phone Sync"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy: serving films to paired phones.
+func SettingsPrivacyStepPhone(cx *core.Scope) string { return For(cx).SettingsPrivacyStepPhone() }
+
+// SettingsPrivacyStepPhone is the package's SettingsPrivacyStepPhone in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepPhone() string {
+	return msgs.text(textSettingsPrivacyStepPhone)
+}
+
+// SettingsPrivacyStepPhoneDetail says "Your local network only, with phones you paired"
+// in the language the app shows under cx.
+//
+// Under the Phone Sync row of the network table: offline mode does not stop it.
+func SettingsPrivacyStepPhoneDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepPhoneDetail()
+}
+
+// SettingsPrivacyStepPhoneDetail is the package's SettingsPrivacyStepPhoneDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepPhoneDetail() string {
+	return msgs.text(textSettingsPrivacyStepPhoneDetail)
+}
+
+// SettingsPrivacySteps says "What uses the network"
+// in the language the app shows under cx.
+//
+// Section label in Settings › Privacy above the table of steps.
+func SettingsPrivacySteps(cx *core.Scope) string { return For(cx).SettingsPrivacySteps() }
+
+// SettingsPrivacySteps is the package's SettingsPrivacySteps in the language of msgs.
+func (msgs Messages) SettingsPrivacySteps() string { return msgs.text(textSettingsPrivacySteps) }
+
+// SettingsPrivacyStepSpeech says "Speech recognition"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy.
+func SettingsPrivacyStepSpeech(cx *core.Scope) string { return For(cx).SettingsPrivacyStepSpeech() }
+
+// SettingsPrivacyStepSpeech is the package's SettingsPrivacyStepSpeech in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepSpeech() string {
+	return msgs.text(textSettingsPrivacyStepSpeech)
+}
+
+// SettingsPrivacyStepSpeechDetail says "whisper.cpp, with the model on this computer"
+// in the language the app shows under cx.
+//
+// Under the speech recognition row of the network table.
+func SettingsPrivacyStepSpeechDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepSpeechDetail()
+}
+
+// SettingsPrivacyStepSpeechDetail is the package's SettingsPrivacyStepSpeechDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepSpeechDetail() string {
+	return msgs.text(textSettingsPrivacyStepSpeechDetail)
+}
+
+// SettingsPrivacyStepTools says "Components and speech models"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy: downloading yt-dlp, ffmpeg, whisper-cli and models.
+func SettingsPrivacyStepTools(cx *core.Scope) string { return For(cx).SettingsPrivacyStepTools() }
+
+// SettingsPrivacyStepTools is the package's SettingsPrivacyStepTools in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepTools() string {
+	return msgs.text(textSettingsPrivacyStepTools)
+}
+
+// SettingsPrivacyStepToolsDetail says "Only when you press Download"
+// in the language the app shows under cx.
+//
+// Under the components row of the network table.
+func SettingsPrivacyStepToolsDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepToolsDetail()
+}
+
+// SettingsPrivacyStepToolsDetail is the package's SettingsPrivacyStepToolsDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepToolsDetail() string {
+	return msgs.text(textSettingsPrivacyStepToolsDetail)
+}
+
+// SettingsPrivacyStepUpdates says "Update checks"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy.
+func SettingsPrivacyStepUpdates(cx *core.Scope) string { return For(cx).SettingsPrivacyStepUpdates() }
+
+// SettingsPrivacyStepUpdates is the package's SettingsPrivacyStepUpdates in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepUpdates() string {
+	return msgs.text(textSettingsPrivacyStepUpdates)
+}
+
+// SettingsPrivacyStepUpdatesDetail says "Once a day, and when you choose Check for Updates"
+// in the language the app shows under cx.
+//
+// Under the update row of the network table.
+func SettingsPrivacyStepUpdatesDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepUpdatesDetail()
+}
+
+// SettingsPrivacyStepUpdatesDetail is the package's SettingsPrivacyStepUpdatesDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepUpdatesDetail() string {
+	return msgs.text(textSettingsPrivacyStepUpdatesDetail)
+}
+
+// SettingsPrivacyStepUpdatesOffline says "Offline mode stops the check you start; the daily check still runs"
+// in the language the app shows under cx.
+//
+// Under the update row while offline mode is on: the updater's own daily check cannot be stopped yet.
+func SettingsPrivacyStepUpdatesOffline(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepUpdatesOffline()
+}
+
+// SettingsPrivacyStepUpdatesOffline is the package's SettingsPrivacyStepUpdatesOffline in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepUpdatesOffline() string {
+	return msgs.text(textSettingsPrivacyStepUpdatesOffline)
+}
+
+// SettingsPrivacyStepUpload says "Upload"
+// in the language the app shows under cx.
+//
+// Row of the network table in Settings › Privacy.
+func SettingsPrivacyStepUpload(cx *core.Scope) string { return For(cx).SettingsPrivacyStepUpload() }
+
+// SettingsPrivacyStepUpload is the package's SettingsPrivacyStepUpload in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepUpload() string {
+	return msgs.text(textSettingsPrivacyStepUpload)
+}
+
+// SettingsPrivacyStepUploadDetail says "Object storage, only when you press Upload"
+// in the language the app shows under cx.
+//
+// Under the upload row of the network table.
+func SettingsPrivacyStepUploadDetail(cx *core.Scope) string {
+	return For(cx).SettingsPrivacyStepUploadDetail()
+}
+
+// SettingsPrivacyStepUploadDetail is the package's SettingsPrivacyStepUploadDetail in the language of msgs.
+func (msgs Messages) SettingsPrivacyStepUploadDetail() string {
+	return msgs.text(textSettingsPrivacyStepUploadDetail)
+}
+
+// SettingsPrivacyTagCloud says "Cloud · sends subtitle text"
+// in the language the app shows under cx.
+//
+// Tag of the AI row when the service is in the cloud and offline mode is off.
+func SettingsPrivacyTagCloud(cx *core.Scope) string { return For(cx).SettingsPrivacyTagCloud() }
+
+// SettingsPrivacyTagCloud is the package's SettingsPrivacyTagCloud in the language of msgs.
+func (msgs Messages) SettingsPrivacyTagCloud() string { return msgs.text(textSettingsPrivacyTagCloud) }
+
+// SettingsPrivacyTagLAN says "Local network"
+// in the language the app shows under cx.
+//
+// Tag of the Phone Sync row.
+func SettingsPrivacyTagLAN(cx *core.Scope) string { return For(cx).SettingsPrivacyTagLAN() }
+
+// SettingsPrivacyTagLAN is the package's SettingsPrivacyTagLAN in the language of msgs.
+func (msgs Messages) SettingsPrivacyTagLAN() string { return msgs.text(textSettingsPrivacyTagLAN) }
+
+// SettingsPrivacyTagLocal says "This computer only"
+// in the language the app shows under cx.
+//
+// Tag of a row that never uses the network.
+func SettingsPrivacyTagLocal(cx *core.Scope) string { return For(cx).SettingsPrivacyTagLocal() }
+
+// SettingsPrivacyTagLocal is the package's SettingsPrivacyTagLocal in the language of msgs.
+func (msgs Messages) SettingsPrivacyTagLocal() string { return msgs.text(textSettingsPrivacyTagLocal) }
+
+// SettingsPrivacyTagManual says "When you ask"
+// in the language the app shows under cx.
+//
+// Tag of a row that uses the network only when the user starts it.
+func SettingsPrivacyTagManual(cx *core.Scope) string { return For(cx).SettingsPrivacyTagManual() }
+
+// SettingsPrivacyTagManual is the package's SettingsPrivacyTagManual in the language of msgs.
+func (msgs Messages) SettingsPrivacyTagManual() string {
+	return msgs.text(textSettingsPrivacyTagManual)
+}
+
+// SettingsPrivacyTagNetwork says "Network"
+// in the language the app shows under cx.
+//
+// Tag of a row that uses the network.
+func SettingsPrivacyTagNetwork(cx *core.Scope) string { return For(cx).SettingsPrivacyTagNetwork() }
+
+// SettingsPrivacyTagNetwork is the package's SettingsPrivacyTagNetwork in the language of msgs.
+func (msgs Messages) SettingsPrivacyTagNetwork() string {
+	return msgs.text(textSettingsPrivacyTagNetwork)
+}
+
+// SettingsPrivacyTagOff says "Off while offline"
+// in the language the app shows under cx.
+//
+// Tag of a row offline mode stops.
+func SettingsPrivacyTagOff(cx *core.Scope) string { return For(cx).SettingsPrivacyTagOff() }
+
+// SettingsPrivacyTagOff is the package's SettingsPrivacyTagOff in the language of msgs.
+func (msgs Messages) SettingsPrivacyTagOff() string { return msgs.text(textSettingsPrivacyTagOff) }
+
 // SettingsSaveFailed says "Couldn't save the settings: {error}"
 // in the language the app shows under cx.
 //
@@ -32628,6 +33748,15 @@ func SettingsSectionPhone(cx *core.Scope) string { return For(cx).SettingsSectio
 
 // SettingsSectionPhone is the package's SettingsSectionPhone in the language of msgs.
 func (msgs Messages) SettingsSectionPhone() string { return msgs.text(textSettingsSectionPhone) }
+
+// SettingsSectionPrivacy says "Privacy"
+// in the language the app shows under cx.
+//
+// Settings section and sidebar item: offline mode, what uses the network, and the cache.
+func SettingsSectionPrivacy(cx *core.Scope) string { return For(cx).SettingsSectionPrivacy() }
+
+// SettingsSectionPrivacy is the package's SettingsSectionPrivacy in the language of msgs.
+func (msgs Messages) SettingsSectionPrivacy() string { return msgs.text(textSettingsSectionPrivacy) }
 
 // SettingsSectionShortcuts says "Keyboard Shortcuts"
 // in the language the app shows under cx.

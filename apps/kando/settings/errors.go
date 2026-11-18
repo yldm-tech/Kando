@@ -16,6 +16,8 @@ func KitsError(m locales.Messages, err error) string {
 	switch {
 	case err == nil:
 		return ""
+	case errors.Is(err, media.ErrOffline):
+		return m.PrivacyNoNetworkDownload()
 	case errors.Is(err, media.ErrStalled):
 		return m.KitsDownloadStalled()
 	case errors.As(err, &status):
@@ -86,6 +88,8 @@ func SpeechDownloadError(m locales.Messages, err error) string {
 	switch {
 	case err == nil:
 		return ""
+	case errors.Is(err, media.ErrOffline):
+		return m.PrivacyNoNetworkDownload()
 	case errors.As(err, &file) && errors.Is(file.Err, media.ErrNotSpeechModel):
 		return m.SettingsSpeechNotModelFile(filepath.Base(file.Path))
 	case errors.As(err, &file):
@@ -118,6 +122,9 @@ func SpeechDownloadError(m locales.Messages, err error) string {
 
 // LLMModelsError says in plain words, in the language of m, why the AI service's model list could not be fetched.
 func LLMModelsError(m locales.Messages, err error) string {
+	if errors.Is(err, media.ErrOffline) {
+		return m.PrivacyNoCloudAI()
+	}
 	var status interface{ StatusCode() int }
 	if errors.As(err, &status) {
 		switch status.StatusCode() {
@@ -142,6 +149,8 @@ func LLMTestError(m locales.Messages, err error) string {
 		return m.SettingsAITestNoModel()
 	case errors.Is(err, media.ErrNoBaseURL):
 		return m.SettingsAITestNoBaseURL()
+	case errors.Is(err, media.ErrOffline):
+		return m.PrivacyNoCloudAI()
 	case errors.Is(err, media.ErrEveryAPIMissing):
 		return m.PrecheckEveryAPIMissing()
 	case errors.Is(err, media.ErrEveryAPISignedOut):

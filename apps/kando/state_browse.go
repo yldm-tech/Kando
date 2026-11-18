@@ -10,6 +10,7 @@ import (
 	"kando/apps/kando/film"
 	"kando/apps/kando/films"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/settings/sectionid"
 	kcore "kando/packages/core"
 	"kando/packages/media"
 
@@ -167,6 +168,11 @@ func (a *app) browseShowFilm(id string) {
 
 // browseLoad opens rawURL, an http or https address, in the web view, which the first address makes.
 func (a *app) browseLoad(rawURL string) {
+	// Offline mode opens no page (state_privacy.go); the page's own links are refused by its access (BrowseOffline).
+	if a.privacy.offline {
+		a.browseWarn(a.messages().PrivacyNoBrowse(), sectionid.Privacy)
+		return
+	}
 	a.browseCutShort()
 	a.browse.url, a.browse.loading = rawURL, true
 	a.browse.address, a.browse.shown = rawURL, rawURL

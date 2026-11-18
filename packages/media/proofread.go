@@ -32,6 +32,9 @@ The user sends a JSON array of the lines, each {"id": its number, "text": the li
 
 // Proofread corrects the words a speech recognizer misheard in segments, in batches of proofreadBatch lines, through the same endpoint and model translations use. A correction is kept only where it puts words in place of others (ApplyFixes), and one made in two lines or more is made wherever else the film has the same words (spreadFixes), as a model corrects a recurring term in most of the lines it is in but not all. A batch whose reply cannot be used after it was sent again keeps its lines as they were heard, and the rest of the film is still proofread; a key, model or address the API rejects, or an account out of credit, fails the proofreading, which Run then skips.
 func (t ChatTranslator) Proofread(ctx context.Context, segments []core.Segment, title string) ([]core.Segment, error) {
+	if err := t.offline(); err != nil {
+		return nil, err
+	}
 	endpoint := Endpoint{BaseURL: t.BaseURL, APIKey: t.APIKey}
 	if t.Credential != nil {
 		var err error
