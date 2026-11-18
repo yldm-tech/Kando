@@ -126,6 +126,8 @@ type App interface {
 	Rate() float64
 	SetRate(rate float64)
 	SpeedMenu() *bool
+	// SpeedKeys are the keys that step the speed down and up on os, as the shortcut table has them under the preset chosen in Settings › 快捷键, for the speed button's tooltip: ⇧, and ⇧. with Kando's own keys, [ and ] under mpv's.
+	SpeedKeys(os ns.OS) (slower, faster string)
 	// Search is the query of the subtitle list; SearchFocus asks the list's search field for the keyboard focus once.
 	Search() *string
 	SearchFocus() *bool

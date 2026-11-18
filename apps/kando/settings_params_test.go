@@ -6,9 +6,11 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"kando/apps/kando/hotkey"
 	"kando/apps/kando/locales"
+	"kando/apps/kando/locales/testlocale"
 	"kando/apps/kando/settings"
 	"kando/packages/media"
 
@@ -153,8 +155,9 @@ func TestAppearanceFollowsTheChoice(t *testing.T) {
 	}
 }
 
-// TestShortcutPresetMovesThePlayersKeys: the mpv preset moves the line keys to mpv's subtitle seek and the volume to 9 and 0, the menu and the settings page list the keys it gives, it is saved, and Kando's own keys come back with the system preset.
+// TestShortcutPresetMovesThePlayersKeys: the mpv preset moves the line keys to mpv's subtitle seek and the volume to 9 and 0, the menu and the settings page list the keys it gives, it is saved, and Kando's own keys come back with the system preset. It runs on Windows, as macOS keeps the line keys (TestShortcutPresetKeepsTheMacsSpaceKeys).
 func TestShortcutPresetMovesThePlayersKeys(t *testing.T) {
+	usePlatform(t, core.OSWindows)
 	a, _, _ := libraryWith(t, "Talk")
 	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
 	keyOf := func(label string) string {
@@ -188,4 +191,84 @@ func TestShortcutPresetMovesThePlayersKeys(t *testing.T) {
 	if keyOf(m.PlayerKeyPrevLine()) != "a" {
 		t.Fatal("Kando's keys did not come back")
 	}
+}
+
+// TestShortcutPresetKeepsTheMacsSpaceKeys: on macOS, whose Mission Control moves between Spaces on ⌃← and ⌃→ before the window sees them, the mpv preset leaves the line keys on A and D and still moves the rest of mpv's keys.
+func TestShortcutPresetKeepsTheMacsSpaceKeys(t *testing.T) {
+	usePlatform(t, core.OSMacOS)
+	a, _, _ := libraryWith(t, "Talk")
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	a.SetShortcutPreset(hotkey.PresetMPV)
+	m := locales.In(locales.Default)
+	keys := map[string]string{}
+	for _, s := range a.shortcuts(a.cx) {
+		keys[s.Label] = s.Key
+	}
+	if keys[m.PlayerKeyPrevLine()] != "a" || keys[m.PlayerKeyNextLine()] != "d" || keys[m.PlayerKeyVolumeUp()] != "0" {
+		t.Fatalf("mpv on macOS: lines %q %q, volume %q", keys[m.PlayerKeyPrevLine()], keys[m.PlayerKeyNextLine()], keys[m.PlayerKeyVolumeUp()])
+	}
+}
+
+// TestCheatsheetFollowsTheShortcutPreset builds the cheat sheet under every preset on macOS and Windows: each of its lines names the same commands as under Kando's own keys, by the keys the preset gives them, so under mpv 音量 shows 0 and 9 rather than ↑ and ↓, which mpv gives the 30-second skip.
+func TestCheatsheetFollowsTheShortcutPreset(t *testing.T) {
+	for _, os := range []core.OS{core.OSMacOS, core.OSWindows} {
+		usePlatform(t, os)
+		a, _, _ := libraryWith(t, "Talk")
+		// commands is each line of the sheet by its label: the labels of the rows its keys name, in the table as it is now.
+		commands := func() map[string]string {
+			byKey := map[string][]string{}
+			for _, s := range a.shortcuts(a.cx) {
+				if s.Key != "" {
+					byKey[s.Key] = append(byKey[s.Key], s.Label)
+				}
+			}
+			out := map[string]string{}
+			for _, g := range a.cheatsheetGroups(a.cx) {
+				for _, k := range g.Keys {
+					var rows []string
+					for _, combo := range k.Combos {
+						rows = append(rows, byKey[combo]...)
+					}
+					slices.Sort(rows)
+					out[g.Title+" › "+k.Label] = strings.Join(rows, " | ")
+				}
+			}
+			return out
+		}
+		own := commands()
+		for _, preset := range hotkey.Presets() {
+			a.prefs.shortcutPreset = preset
+			got := commands()
+			if len(got) != len(own) {
+				t.Fatalf("%v %s: %d lines, want %d", os, preset, len(got), len(own))
+			}
+			for line, rows := range own {
+				if got[line] != rows {
+					t.Fatalf("%v %s: %s names %q, want %q", os, preset, line, got[line], rows)
+				}
+			}
+		}
+	}
+}
+
+// TestSpeedTooltipFollowsTheShortcutPreset: the speed button's tooltip names the keys that step the speed under the preset chosen, ⇧, and ⇧. with Kando's own and [ and ] under mpv's, and changes with it while the film is open.
+func TestSpeedTooltipFollowsTheShortcutPreset(t *testing.T) {
+	a, tt, _ := playerOpen(t)
+	a.settingsPath = filepath.Join(t.TempDir(), "settings.json")
+	m := testlocale.Messages()
+	want := func(slower, faster string) {
+		t.Helper()
+		text := m.FilmSpeed() + " " + a.cx.KeyLabel(slower) + " / " + a.cx.KeyLabel(faster)
+		tt.Hover("id:film-speed")
+		tt.Advance(time.Second)
+		defer tt.HoverOut()
+		if !hasText(tt, text) {
+			t.Fatalf("the speed tooltip does not say %q: %q", text, tt.Texts())
+		}
+	}
+	want("shift+,", "shift+.")
+	apply(tt, a, func() { a.SetShortcutPreset(hotkey.PresetMPV) })
+	want("[", "]")
+	apply(tt, a, func() { a.SetShortcutPreset(hotkey.PresetIINA) })
+	want("alt+mod+[", "alt+mod+]")
 }

@@ -183,7 +183,7 @@ func TestCheatsheetPlacesOtherAreasRows(t *testing.T) {
 		{Group: groupStudy, Label: "复习", Key: "n"},
 	}
 	var got []string
-	for _, g := range cheatsheetGroupsOf(a.cx, rows) {
+	for _, g := range cheatsheetGroupsOf(a.cx, hotkey.PresetSystem, rows) {
 		line := g.Title + ":"
 		for _, k := range g.Keys {
 			line += " " + k.Label

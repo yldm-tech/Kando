@@ -1,5 +1,7 @@
 package hotkey
 
+import "github.com/nsgo-dev/nsgo/core"
+
 // The shortcut presets Settings › 快捷键 offers: the app's own keys (PresetSystem, the platform's usual ones), or the player's keys moved to where IINA or mpv put the same commands, for someone whose hands know those players. A preset moves only the player's keys whose command the other player has (Remap); the keys Kando adds for studying, such as the line keys, stay where they are.
 const (
 	PresetSystem = ""
@@ -32,7 +34,7 @@ var presetKeys = map[string]map[string]string{
 		"mod+-":   "shift+f",
 	},
 	PresetMPV: {
-		// mpv: Ctrl+← and Ctrl+→ go to the previous and next subtitle, ↑ and ↓ seek further (a minute in mpv, Kando's longer skip here), 9 and 0 set the volume, [ and ] the speed, and G and F scale the subtitles. Z, X, V, M, F, L and Space are mpv's as they are.
+		// mpv: Ctrl+← and Ctrl+→ go to the previous and next subtitle (not on macOS, which takes them, systemKeys), ↑ and ↓ seek further (a minute in mpv, Kando's longer skip here), 9 and 0 set the volume, [ and ] the speed, and G and F scale the subtitles. Z, X, V, M, F, L and Space are mpv's as they are.
 		"a":         "ctrl+left",
 		"d":         "ctrl+right",
 		"mod+left":  "down",
@@ -46,10 +48,21 @@ var presetKeys = map[string]map[string]string{
 	},
 }
 
-// Remap is the key a player's row with key has under preset: the one presetKeys moves it to, or key itself.
-func Remap(preset, key string) string {
-	if moved, ok := presetKeys[preset][key]; ok {
-		return moved
+// systemKeys are the keys a system takes for itself before they reach the app's window, by system, which a preset does not move a row to: macOS's Mission Control moves between Spaces on ⌃← and ⌃→ by default.
+var systemKeys = map[core.OS][]string{
+	core.OSMacOS: {"ctrl+left", "ctrl+right"},
+}
+
+// Remap is the key a player's row with key has under preset on os: the one presetKeys moves it to, or key itself where the preset does not move it or the system takes the key it would move to (systemKeys).
+func Remap(preset string, os core.OS, key string) string {
+	moved, ok := presetKeys[preset][key]
+	if !ok {
+		return key
 	}
-	return key
+	for _, taken := range systemKeys[os] {
+		if moved == taken {
+			return key
+		}
+	}
+	return moved
 }
