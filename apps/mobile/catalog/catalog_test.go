@@ -85,7 +85,7 @@ func TestMergeListsEachFilmOnceWithTheLatestPosition(t *testing.T) {
 	kept := []store.Film{
 		{Desktop: "studio", Library: "Japanese Class", Film: film("f1", "Morning Talk", "youtube", day), PositionMS: 30_000, PositionAt: day, Added: day},
 		{Desktop: "studio", Library: "Japanese Class", Film: film("f2", "Evening Talk", "bilibili", day), PositionMS: 90_000, PositionAt: day.Add(2 * time.Hour), Added: day},
-		{Desktop: "gone", Library: "Old", Film: film("f9", "Old Film", "local", day), Added: day.Add(time.Hour)},
+		{Desktop: "gone", Library: "Old", Film: film("f9", "Old Film", "local", day.Add(time.Hour)), Added: day},
 	}
 	got := Merge(computers, kept)
 	if want := []string{"gone/f9", "studio/f1", "studio/f2"}; !slices.Equal(keys(got), want) {
@@ -99,6 +99,47 @@ func TestMergeListsEachFilmOnceWithTheLatestPosition(t *testing.T) {
 	}
 	if got[0].Library.Name != "Old" || got[0].Library.ID != "" || got[0].Position.At != 0 {
 		t.Errorf("a film only the phone keeps: %+v", got[0])
+	}
+}
+
+// A film the phone played from the beginning since its computer left it partway is the phone's, at the beginning, and goes from the films to go on with; one the phone never played keeps the computer's position.
+func TestMergeTakesThePhonesReturnToTheBeginning(t *testing.T) {
+	computers := []Computer{{ID: "studio", Name: "Studio", Listing: Listing{Libraries: []Library{
+		{Library: sync.Library{ID: "lib", Name: "Japanese Class"}, Films: []sync.Film{film("f1", "Morning Talk", "youtube", day), film("f2", "Evening Talk", "youtube", day)},
+			Positions: map[string]Position{"f1": {At: 4 * time.Minute, When: day, Device: "Studio"}, "f2": {At: 4 * time.Minute, When: day, Device: "Studio"}}},
+	}}}}
+	kept := []store.Film{
+		{Desktop: "studio", Library: "Japanese Class", Film: film("f1", "Morning Talk", "youtube", day), PositionAt: day.Add(time.Minute), Added: day},
+		{Desktop: "studio", Library: "Japanese Class", Film: film("f2", "Evening Talk", "youtube", day), Added: day},
+	}
+	got := Merge(computers, kept)
+	if p := got[0].Position; !p.Mine || p.At != 0 {
+		t.Errorf("a film played from the beginning on the phone since: %+v", p)
+	}
+	if p := got[1].Position; p.Mine || p.At != 4*time.Minute {
+		t.Errorf("a film the phone never played: %+v", p)
+	}
+	if c := keys(Continue(got, 5)); !slices.Equal(c, []string{"studio/f2"}) {
+		t.Errorf("go on with %q", c)
+	}
+}
+
+// A film the phone keeps is ordered by when it last changed on its computer whether or not its computer lists it, so it keeps its place while its computer is out of reach; one whose computer gave no time, by when the phone downloaded it.
+func TestMergeOrdersAKeptFilmTheSameWhetherItsComputerAnswers(t *testing.T) {
+	listed := []Computer{{ID: "studio", Name: "Studio", Listing: Listing{Libraries: []Library{
+		{Library: sync.Library{ID: "lib", Name: "Japanese Class"}, Films: []sync.Film{film("f1", "Morning Talk", "youtube", day), film("f2", "Evening Talk", "youtube", day.Add(-2*time.Hour))}},
+	}}}}
+	unanswered := []Computer{{ID: "studio", Name: "Studio"}}
+	kept := []store.Film{
+		{Desktop: "studio", Library: "Japanese Class", Film: film("f2", "Evening Talk", "youtube", day.Add(-2*time.Hour)), Added: day.Add(time.Hour)},
+		{Desktop: "gone", Library: "Old", Film: sync.Film{ID: "f9", Title: "Old Film"}, Added: day.Add(-time.Hour)},
+	}
+	want := []string{"studio/f1", "gone/f9", "studio/f2"}
+	if got := keys(Merge(listed, kept)); !slices.Equal(got, want) {
+		t.Errorf("with the computer answering, merged %q, want %q", got, want)
+	}
+	if got, want := keys(Merge(unanswered, kept)), []string{"gone/f9", "studio/f2"}; !slices.Equal(got, want) {
+		t.Errorf("with the computer out of reach, merged %q, want %q", got, want)
 	}
 }
 

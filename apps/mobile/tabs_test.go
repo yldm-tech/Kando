@@ -326,3 +326,25 @@ func TestATabletShowsASidebarOnItsSideAndATabBarUpright(t *testing.T) {
 	}
 	p.app.Answer(0)
 }
+
+// Unpaired in Settings while the Library shows the page of one of its films kept on the phone, a computer leaves that page open: the film still plays from the phone.
+func TestUnpairingInSettingsKeepsThePageOfAFilmOnThePhone(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(talkRow(id), wait)
+	p.app.Press(talkRow(id))
+	p.app.WaitFor("id:film-play", wait)
+	p.openTab(settingsTab, msgs.SettingsTitle())
+	p.app.Press("id:settings-computer-options-" + id)
+	p.app.Answer(1)
+	p.app.WaitForGone("id:settings-computer-"+id, wait)
+	p.openTab(filmsTab, msgs.FilmsTitle())
+	p.app.WaitFor("id:film-play", wait)
+	p.app.HeaderBack("id:film-page")
+	p.app.WaitFor("id:films-unpaired", wait)
+	p.app.Find(talkRow(id))
+}

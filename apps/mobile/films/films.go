@@ -49,15 +49,17 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 		library: core.NewSignal(cx, catalog.Scope{}),
 		entries: core.NewMemoFunc(cx, s.Entries, nil),
 	}
-	// The lines kept on the phone are read for a search once there is one, and again as the films on the phone change.
+	// The lines kept on the phone are read for a search once there is one, and again as the films on the phone change. Both inputs are memos, so typing on or a saved position, which change neither, does not read them again: the resource loads afresh whenever its source reruns.
+	searching := core.NewMemo(cx, func() bool { return v.query.Get() != "" })
+	linesKey := core.NewMemo(cx, s.LinesKey)
 	v.lines = core.NewResource(cx, func() (string, bool) {
-		return s.LinesKey(), v.query.Get() != ""
+		return linesKey.Get(), searching.Get()
 	}, func(ctx context.Context, key string, _ core.ResourceInfo) (map[string][]sync.Cue, error) {
 		return s.Lines(ctx, key), nil
 	})
-	// A library gone from the merged list, as its computer unpaired, takes the switcher back to every library.
+	// A library gone from the merged list, as its computer unpaired or no longer lists it, takes the switcher back to every library. A computer that did not answer lists nothing until it does, so its library stays chosen meanwhile, with the films of it on the phone.
 	cx.Effect(func() {
-		if lib := v.library.Get(); lib.Desktop != "" && !v.hasLibrary(lib) {
+		if lib := v.library.Get(); lib.Desktop != "" && !v.hasLibrary(lib) && !v.unanswered(lib.Desktop) {
 			v.library.Set(catalog.Scope{})
 		}
 	})
@@ -93,6 +95,15 @@ func (v *view) hasLibrary(lib catalog.Scope) bool {
 		}
 	}
 	return false
+}
+
+// unanswered reports whether the paired computer id has not listed its films since its last read failed, or has not yet.
+func (v *view) unanswered(id string) bool {
+	if _, paired := v.s.Desktop(id); !paired {
+		return false
+	}
+	sh := v.s.Shelf(id)
+	return sh.Err != nil || !sh.Listed
 }
 
 // scoped is the merged list narrowed to the library the switcher shows.

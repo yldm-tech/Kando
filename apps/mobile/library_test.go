@@ -10,6 +10,9 @@ import (
 	"kando/apps/mobile/store"
 	"kando/packages/sync"
 	"kando/packages/sync/synctest"
+
+	"github.com/nsgo-dev/nsgo/core"
+	"github.com/nsgo-dev/nsgo/nsgotest"
 )
 
 // newDesktopWithMovies is newDesktop with a second library, Movies, of a film from Bilibili an hour older than the talk.
@@ -223,5 +226,131 @@ func TestARevokedPhoneIsAskedToPairAgain(t *testing.T) {
 	}
 	if p.app.Exists(talkRow(id)) || p.app.Exists("id:computers-retry-"+id) {
 		t.Fatal("beside the request to pair again the Library shows the desktop's films or a retry")
+	}
+}
+
+// A search reads the lines kept on the phone once: typing on, which leaves the films on the phone as they are, does not read them again.
+func TestSearchReadsTheKeptLinesOnceAsItIsTyped(t *testing.T) {
+	dir := t.TempDir()
+	f := keepTalk(t, dir)
+	p := startPhone(t, dir)
+	p.app.WaitFor(talkRow("gonedesk"), wait)
+	p.app.Type("id:films-search", "how")
+	hit := "id:films-hit-gonedesk-f1"
+	p.app.WaitFor(hit, wait)
+	// The lines on disk go from under the search: read again, the hit would go with them.
+	if err := store.Open(dir).SaveCues(f.Desktop, f.Film.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	p.app.Type("id:films-search", " are")
+	for range 30 {
+		p.app.Settle()
+		if !p.app.Exists(hit) {
+			t.Fatal("typing on read the lines kept on the phone again")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// A computer out of reach on a pull to refresh leaves the library chosen as it was, the switcher there to take the list back to every library.
+func TestAFailedRefreshKeepsTheLibraryChosen(t *testing.T) {
+	d := newDesktopWithMovies(t)
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	p.app.WaitFor(filmRow(id, "f2"), wait)
+	p.app.Press("id:films-library")
+	p.app.Answer(2)
+	p.app.WaitForGone(talkRow(id), wait)
+	d.Close()
+	p.app.PullToRefresh("id:films-scroll")
+	p.app.WaitFor("id:computers-retry-"+id, wait)
+	if got, want := p.texts("id:films-library"), msgs.FilmsLibraryOn("Movies", "Studio"); got != want {
+		t.Fatalf("after a failed refresh the switcher says %q, want %q", got, want)
+	}
+	if p.app.Exists(talkRow(id)) {
+		t.Fatal("after a failed refresh the list shows the films of every library")
+	}
+	p.app.Press("id:films-library")
+	p.app.Answer(0)
+	p.app.WaitFor(talkRow(id), wait)
+}
+
+// A film's options pause a download under way, resume it and cancel it, which deletes what it downloaded.
+func TestAFilmsOptionsPauseResumeAndCancelItsDownload(t *testing.T) {
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir))
+	id := store.DesktopID(d.Fingerprint)
+	options := "id:films-options-" + id + "-f1"
+	p.app.WaitFor(options, wait)
+	d.Stall(300_000)
+	p.app.Press(options)
+	p.app.Answer(0)
+	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloading(30), wait)
+	p.app.Press(options)
+	if got, want := p.alertLabels(), []string{msgs.FilmPause(), msgs.FilmCancel(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+		t.Fatalf("the options of a film downloading are %q, want %q", got, want)
+	}
+	p.app.Answer(0)
+	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmPaused(30), wait)
+	folder := filepath.Join("films", id, "f1")
+	p.waitFile(filepath.Join(folder, store.PartFile), 300_000)
+	p.app.Press(options)
+	if got, want := p.alertLabels(), []string{msgs.FilmResume(), msgs.FilmCancel(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+		t.Fatalf("the options of a film paused are %q, want %q", got, want)
+	}
+	p.app.Answer(0)
+	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloading(60), wait)
+	p.app.Press(options)
+	p.app.Answer(1)
+	p.waitFile(folder, -1)
+	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10", wait)
+}
+
+// Played from the beginning from its options, a film the computer left partway is the phone's from then on: it goes from the films to go on with, and its row no longer says where the computer left it.
+func TestPlayFromTheBeginningOutdatesTheComputersPosition(t *testing.T) {
+	d := newDesktop(t)
+	d.SetState("lib", now().Add(-time.Hour), sync.Record{Kind: sync.KindPosition, ID: "f1", Film: "f1",
+		Fields: map[string]sync.Field{sync.FieldPositionMS: {Value: sync.Value(4000)}}})
+	dir := t.TempDir()
+	secrets := pairedWith(t, d, dir)
+	id := store.DesktopID(d.Fingerprint)
+	keepTalkFrom(t, dir, id)
+	p := startPhone(t, dir, secrets)
+	card := "id:films-continue-" + id + "-f1"
+	p.app.WaitFor(card, wait)
+	p.app.Press("id:films-options-" + id + "-f1")
+	if got, want := p.alertLabels(), []string{msgs.FilmPlay(), msgs.FilmsPlayFromStart(), msgs.FilmDelete(), msgs.FilmsDetails(), msgs.CommonCancel()}; !slices.Equal(got, want) {
+		t.Fatalf("the options of a film left partway are %q, want %q", got, want)
+	}
+	p.app.Answer(1)
+	p.app.WaitFor("id:player-video", wait)
+	p.app.WaitUntil(wait, func() bool {
+		films, err := store.Open(dir).Films()
+		return err == nil && len(films) == 1 && films[0].PositionMS == 0 && !films[0].PositionAt.IsZero()
+	})
+	p = startPhone(t, dir, secrets)
+	p.app.WaitFor(talkRow(id)+" >> text:YouTube · 0:10 · "+msgs.FilmDownloaded(), wait)
+	if p.app.Exists(card) {
+		t.Fatal("a film played from the beginning still shows where the computer left it")
+	}
+}
+
+// A tablet shows a film's options in a dialog in the middle of the screen, not an action sheet.
+func TestATabletShowsAFilmsOptionsInADialog(t *testing.T) {
+	if nsgotest.Target() != "" {
+		t.Skip("the idiom is the platform's on a target")
+	}
+	d := newDesktop(t)
+	dir := t.TempDir()
+	p := startPhone(t, dir, pairedWith(t, d, dir), nsgotest.Size(1180, 820), nsgotest.Environment(core.Environment{Locale: lang, Idiom: core.IdiomTablet}))
+	options := "id:films-options-" + store.DesktopID(d.Fingerprint) + "-f1"
+	p.app.WaitFor(options, wait)
+	p.app.Press(options)
+	if alerts := p.app.Alerts(); len(alerts) == 0 || alerts[len(alerts)-1].Sheet {
+		t.Fatal("a tablet shows a film's options as an action sheet")
 	}
 }

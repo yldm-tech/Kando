@@ -512,10 +512,10 @@ func (s *Session) Delete(key string) {
 	s.remove(key)
 }
 
-// SavePosition keeps where the film under key was left playing.
+// SavePosition keeps where the film under key was left playing, and that it was left there now, even where it was left there before: a film played from the beginning again is newer on the phone than where a computer left it (catalog.Merge).
 func (s *Session) SavePosition(key string, at time.Duration) {
 	f, ok := s.Film(key)
-	if !ok || f.PositionMS == at.Milliseconds() {
+	if !ok {
 		return
 	}
 	f.PositionMS, f.PositionAt = at.Milliseconds(), s.cfg.Now()

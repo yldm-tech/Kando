@@ -101,7 +101,7 @@ type Computer struct {
 	Listing  Listing
 }
 
-// Entry is a film of the merged library: the computer it is from, by its ID on the phone and its name, its library, which a film only the phone still keeps knows by name alone, the film, when it came, and where it was last left on any device.
+// Entry is a film of the merged library: the computer it is from, by its ID on the phone and its name, its library, which a film only the phone still keeps knows by name alone, the film, when it last changed on its computer (sync.Film.Updated), which the list is ordered by, and where it was last left on any device.
 type Entry struct {
 	Desktop  string
 	Computer string
@@ -114,7 +114,7 @@ type Entry struct {
 // Key names the entry's film on the phone (store.Key).
 func (e Entry) Key() string { return store.Key(e.Desktop, e.Film.ID) }
 
-// Merge is the films the computers list and those the phone keeps, each once, the latest first: a film both have is the computer's, as it lists it now, with where it was left last of the computer's and the phone's positions. A film the phone keeps from a computer that does not list it, as one out of reach or unpaired, is the phone's.
+// Merge is the films the computers list and those the phone keeps, each once, the latest first by when each last changed on its computer, so a film keeps its place whether or not its computer answers: a film both have is the computer's, as it lists it now, with where it was left last of the computer's and the phone's positions, the phone's being newer even where it went back to the beginning. A film the phone keeps from a computer that does not list it, as one out of reach or unpaired, is the phone's. A film whose computer gave no time is ordered by when the phone downloaded it.
 func Merge(computers []Computer, kept []store.Film) []Entry {
 	var out []Entry
 	at := map[string]int{}
@@ -133,7 +133,7 @@ func Merge(computers []Computer, kept []store.Film) []Entry {
 	for _, k := range kept {
 		mine := Position{At: time.Duration(k.PositionMS) * time.Millisecond, When: k.PositionAt, Mine: true}
 		if i, ok := at[k.Key()]; ok {
-			if k.PositionMS > 0 && (out[i].Position.At <= 0 || !out[i].Position.When.After(k.PositionAt)) {
+			if (k.PositionMS > 0 || !k.PositionAt.IsZero()) && (out[i].Position.At <= 0 || !out[i].Position.When.After(k.PositionAt)) {
 				out[i].Position = mine
 			}
 			if out[i].Added.IsZero() {
@@ -141,7 +141,10 @@ func Merge(computers []Computer, kept []store.Film) []Entry {
 			}
 			continue
 		}
-		e := Entry{Desktop: k.Desktop, Library: sync.Library{Name: k.Library}, Film: k.Film, Added: k.Added}
+		e := Entry{Desktop: k.Desktop, Library: sync.Library{Name: k.Library}, Film: k.Film, Added: k.Film.Updated}
+		if e.Added.IsZero() {
+			e.Added = k.Added
+		}
 		if k.PositionMS > 0 {
 			e.Position = mine
 		}

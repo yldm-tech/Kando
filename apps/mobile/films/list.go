@@ -46,7 +46,10 @@ func (v *view) list(cx *core.Scope) core.Node {
 					})}},
 					core.Text{TestID: "films-count", ContentFunc: func() string { return locales.FilmsCount(cx, len(v.results())) }, MaxLines: 1, Style: look.Subhead, StyleFunc: ui.Colored(colors.Muted)},
 				}},
-				core.Show{When: func() bool { return len(catalog.Libraries(v.s.Computers(), v.entries.Get())) > 1 }, Then: v.switcher},
+				// The switcher shows while a library is chosen even where it is the only one left, as its computer did not answer, so the list can be taken back to every library.
+				core.Show{When: func() bool {
+					return v.library.Get().Desktop != "" || len(catalog.Libraries(v.s.Computers(), v.entries.Get())) > 1
+				}, Then: v.switcher},
 				v.chips(cx),
 			}}
 		}},
