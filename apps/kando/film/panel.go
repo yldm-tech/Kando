@@ -947,19 +947,9 @@ func monoStyle(size, lineHeight ns.Points, alpha float32) ns.Style {
 	return ns.Style{FontFamily: "Menlo, " + ns.FontMonospace, FontSize: size, LineHeight: lineHeight, Color: onGlass, Opacity: ns.Alpha(alpha)}
 }
 
-// sourceLink is the film's source in the info tab, a link that opens it, as ui.Link draws one but in the theme's accent ink, which reads on the dark panel where the accent's own blue does not.
-// TODO(nsgo#366): ui.Link draws its text in Palette().Accent with no way to give it another color (ui/link.go:41-44); go back to ui.Link once it takes one https://github.com/nsgo-dev/nsgo/issues/366
+// sourceLink is the film's source in the info tab, a link that opens it, in the theme's accent ink, which reads on the dark panel where the accent's own blue does not. The panel is always dark (theme.Dark), so the ink read as it is built stays right.
 func sourceLink(cx *ns.Scope, href string) ns.Node {
-	ink := theme.Of(cx).AccentInk
-	return base.Link{Href: href, Label: href,
-		Style: ns.Style{Group: "link", AlignSelf: ns.AlignStart, CornerRadius: ui.RadiusSmall},
-		StyleFunc: func() ns.Style {
-			return ns.Style{FocusVisible: ui.FocusRing(cx, 2)}
-		},
-		Children: []ns.Node{ns.Text{Content: href, Style: ui.TypeBody,
-			StyleFunc: func() ns.Style {
-				return ns.Style{Color: ink(), GroupStyle: &ns.GroupStyle{Name: "link", Hover: &ns.Style{TextDecoration: ns.TextDecorationUnderline}}}
-			}}}}
+	return ui.Link{Text: href, Href: href, Style: ns.Style{Color: theme.Of(cx).AccentInk()}}
 }
 
 // copyInfoButton puts value on the clipboard.
