@@ -194,7 +194,8 @@ func recapSheet(cx *core.Scope, p *play, r *recapper) core.Node {
 	c := func() recapCard { return r.card.Get() }
 	ai := func() core.Color { return theme.AI }
 	items := func() []recapItem { return c().items }
-	rows := core.Each(items, func(it recapItem) time.Duration { return it.start }, func(cx *core.Scope, it func() recapItem, i func() int) core.Node {
+	// Keyed by the whole moment: two of the lines watched shown in its place may start together.
+	rows := core.Each(items, func(it recapItem) recapItem { return it }, func(cx *core.Scope, it func() recapItem, i func() int) core.Node {
 		return base.Button{TestID: "player-recap-item", LabelFunc: func() string { return locales.PlayerRecapJump(cx, clock(it().start), it().text) },
 			OnPress: func(core.PressEvent) { r.jump(i()) },
 			Style: core.Style{Direction: core.Row, Gap: 10, AlignItems: core.AlignStart, Padding: core.All(12), CornerRadius: 12, BorderCurve: core.BorderCurveContinuous,

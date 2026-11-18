@@ -5,7 +5,6 @@ import (
 	"context"
 	"slices"
 	"strings"
-	"time"
 
 	"kando/apps/kando/explain"
 	"kando/apps/kando/films"
@@ -114,7 +113,7 @@ func (s phoneStudy) Explain(ctx context.Context, _ psync.Caller, req psync.LineE
 	if err != nil {
 		return psync.Explanation{}, err
 	}
-	before, line := phoneStudyLines(req)
+	before, line := phonesync.ExplainLines(req, explainBefore)
 	ctx, cancel := context.WithTimeout(ctx, explainTimeout)
 	defer cancel()
 	reply, err := ask.t.Chat(ctx, explain.Prompt(ask.language, line.Translation != "" && line.Original != ""), explain.Request(remoteFilmTitle(f), before, line))
@@ -150,7 +149,7 @@ func (s phoneStudy) Ask(ctx context.Context, _ psync.Caller, req psync.ExplainAs
 	if err != nil {
 		return psync.ExplainAnswer{}, err
 	}
-	before, line := phoneStudyLines(req.LineExplain)
+	before, line := phonesync.ExplainLines(req.LineExplain, explainBefore)
 	var explained explain.Sections
 	for _, sec := range req.Explained {
 		switch sec.Kind {
@@ -188,7 +187,7 @@ func (s phoneStudy) Recap(ctx context.Context, _ psync.Caller, req psync.FilmRec
 	}
 	var seen []lines.Line
 	for _, c := range req.Lines {
-		if l := phoneStudyLine(c); l.Original != "" || l.Translation != "" {
+		if l := phonesync.Line(c); l.Original != "" || l.Translation != "" {
 			seen = append(seen, l)
 		}
 	}
@@ -207,17 +206,4 @@ func (s phoneStudy) Recap(ctx context.Context, _ psync.Caller, req psync.FilmRec
 		out.Items = append(out.Items, psync.RecapItem{StartMS: it.At.Milliseconds(), Text: it.Text})
 	}
 	return out, nil
-}
-
-// phoneStudyLine is a line a phone sends, as Explain Line and the recap read lines.
-func phoneStudyLine(c psync.Cue) lines.Line {
-	return lines.New(time.Duration(c.StartMS)*time.Millisecond, strings.TrimSpace(c.Translation), strings.TrimSpace(c.Original))
-}
-
-// phoneStudyLines are the line req explains and the lines before it that go with it, at most explainBefore of them; the lines after it are left out.
-func phoneStudyLines(req psync.LineExplain) (before []lines.Line, line lines.Line) {
-	for _, c := range req.Lines[max(req.Index-explainBefore, 0):req.Index] {
-		before = append(before, phoneStudyLine(c))
-	}
-	return before, phoneStudyLine(req.Lines[req.Index])
 }
