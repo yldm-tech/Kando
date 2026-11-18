@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"path/filepath"
 	"time"
+
+	"kando/packages/sync"
 )
 
 // linksFile keeps the links sent from this phone that their computer has not taken yet.
@@ -17,6 +19,8 @@ type Link struct {
 	Desktop string    `json:"desktop"`
 	URL     string    `json:"url"`
 	Added   time.Time `json:"added"`
+	// Refusal is why the computer refused the link, nil while it waits for the computer: kept, so a link refused before the app was closed still says why rather than going out again on its own.
+	Refusal *sync.ErrorBody `json:"refusal,omitempty"`
 }
 
 // Links are the links not taken yet, oldest first, none before any were kept.

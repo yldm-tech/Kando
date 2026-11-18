@@ -241,17 +241,7 @@ func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.J
 		}
 		return core.ImageSource{}
 	}
-	// opening is a done job whose film is being looked up on its computer.
-	opening := core.NewSignal(cx, false)
-	open := func() {
-		opening.Set(true)
-		s.JobFilm(desktop, j(), func(lib sync.Library, f sync.Film, ok bool) {
-			opening.Set(false)
-			if ok {
-				act.Film(desktop, lib, f)
-			}
-		})
-	}
+	open := func() { s.JobFilm(desktop, j(), func(lib sync.Library, f sync.Film) { act.Film(desktop, lib, f) }) }
 	confirmCancel := func() {
 		title := j().Title
 		cx.ShowAlert(core.AlertConfig{Title: locales.JobsCancelTitle(cx, title, name(s, desktop)), Sheet: !look.Tablet(cx), Cancelable: true, Actions: []core.AlertAction{
@@ -276,7 +266,7 @@ func jobCard(cx *core.Scope, s *session.Session, desktop string, j func() sync.J
 			return ui.IconButton{TestID: "jobs-cancel-" + id, Icon: lucide.X, LabelFunc: func() string { return locales.JobsCancel(cx) }, Size: 34, Disabled: busy, OnPress: confirmCancel}
 		}},
 		core.Show{When: func() bool { return state() == sync.JobDone && j().Film != "" }, Then: func(cx *core.Scope) core.Node {
-			return pill(cx, "jobs-open-"+id, true, func() string { return locales.JobsOpen(cx) }, open)
+			return pillBusy(cx, "jobs-open-"+id, true, func() string { return locales.JobsOpen(cx) }, open, func() bool { return s.Busy(desktop, id) })
 		}},
 	}}
 	return card(cx, "jobs-job-"+id, func() bool { return state() == sync.JobFailed },

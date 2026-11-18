@@ -461,6 +461,7 @@ func For(cx *core.Scope) Messages {
 // its method, for the TSX declarations of the messages
 // (tsx.RegisterMessages).
 var Parameters = map[string][]string{
+	"AddNoLinks":           {"name"},
 	"AddNote":              {"name"},
 	"AddNoteOffline":       {"name"},
 	"ComputersCertificate": {"name"},
@@ -481,6 +482,7 @@ var Parameters = map[string][]string{
 	"JobsDoneBody":         {"title"},
 	"JobsDoneTitle":        {"name"},
 	"JobsFailedCount":      {"count"},
+	"JobsFilmGone":         {"name"},
 	"JobsFrom":             {"status", "device"},
 	"JobsLinksOff":         {"name"},
 	"JobsNotReady":         {"name", "message"},
@@ -506,6 +508,7 @@ var Parameters = map[string][]string{
 // catalog.
 type Translation struct {
 	Texts                map[string]string
+	AddNoLinks           func(name string) string
 	AddNote              func(name string) string
 	AddNoteOffline       func(name string) string
 	ComputersCertificate func(name string) string
@@ -526,6 +529,7 @@ type Translation struct {
 	JobsDoneBody         func(title string) string
 	JobsDoneTitle        func(name string) string
 	JobsFailedCount      func(count int) string
+	JobsFilmGone         func(name string) string
 	JobsFrom             func(status string, device string) string
 	JobsLinksOff         func(name string) string
 	JobsNotReady         func(name string, message string) string
@@ -2334,6 +2338,9 @@ func Supply(lang string, t Translation) {
 		}
 	}
 	s := supplied[lang]
+	if t.AddNoLinks != nil {
+		s.AddNoLinks = t.AddNoLinks
+	}
 	if t.AddNote != nil {
 		s.AddNote = t.AddNote
 	}
@@ -2393,6 +2400,9 @@ func Supply(lang string, t Translation) {
 	}
 	if t.JobsFailedCount != nil {
 		s.JobsFailedCount = t.JobsFailedCount
+	}
+	if t.JobsFilmGone != nil {
+		s.JobsFilmGone = t.JobsFilmGone
 	}
 	if t.JobsFrom != nil {
 		s.JobsFrom = t.JobsFrom
@@ -2484,6 +2494,36 @@ func AddLinkPlaceholder(cx *core.Scope) string { return For(cx).AddLinkPlacehold
 
 // AddLinkPlaceholder is the package's AddLinkPlaceholder in the language of msgs.
 func (msgs Messages) AddLinkPlaceholder() string { return msgs.text(textAddLinkPlaceholder) }
+
+// AddNoLinks says "{name} doesn't take links."
+// in the language the app shows under cx.
+//
+// Add sheet: under the form when the chosen computer answers but does not take links from phones.
+func AddNoLinks(cx *core.Scope, name string) string { return For(cx).AddNoLinks(name) }
+
+// AddNoLinks is the package's AddNoLinks in the language of msgs.
+func (msgs Messages) AddNoLinks(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.AddNoLinks(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].AddNoLinks; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return msgs.arg(name) + " doesn't take links."
+		case "ja":
+			return name + " はリンクを受け取りません。"
+		case "ko":
+			return name + "은(는) 링크를 받지 않습니다."
+		case "zh-Hans":
+			return name + " 不接收链接。"
+		case "zh-Hant":
+			return name + " 不接收連結。"
+		}
+	}
+}
 
 // AddNotALink says "This isn't a link to a video on the web."
 // in the language the app shows under cx.
@@ -3643,6 +3683,36 @@ func (msgs Messages) JobsFailedCount(count int) string {
 			return i18n.FormatNumber("zh-Hans", float64(count)) + " 个任务要你处理"
 		case "zh-Hant":
 			return i18n.FormatNumber("zh-Hant", float64(count)) + " 個任務需要你處理"
+		}
+	}
+}
+
+// JobsFilmGone says "This film is no longer on {name}, or its library is locked."
+// in the language the app shows under cx.
+//
+// Toast: a done job's Open found no film on the computer: it was removed, or its library is locked.
+func JobsFilmGone(cx *core.Scope, name string) string { return For(cx).JobsFilmGone(name) }
+
+// JobsFilmGone is the package's JobsFilmGone in the language of msgs.
+func (msgs Messages) JobsFilmGone(name string) string {
+	if i18n.IsPseudo(msgs.lang) {
+		return i18n.Pseudo(msgs.lang, Messages{lang: Source, mark: true}.JobsFilmGone(name))
+	}
+	for lang := msgs.lang; ; lang = i18n.Parent(lang) {
+		if f := supplied[lang].JobsFilmGone; f != nil {
+			return f(name)
+		}
+		switch lang {
+		case "", "en":
+			return "This film is no longer on " + msgs.arg(name) + ", or its library is locked."
+		case "ja":
+			return "この動画は " + name + " にもうないか、ライブラリがロックされています。"
+		case "ko":
+			return "이 영상은 " + name + "에 더 이상 없거나 라이브러리가 잠겨 있습니다."
+		case "zh-Hans":
+			return name + " 上已经没有这部影片，或者它所在的资料库已上锁。"
+		case "zh-Hant":
+			return name + " 上已經沒有這部影片，或者它所在的資料庫已上鎖。"
 		}
 	}
 }

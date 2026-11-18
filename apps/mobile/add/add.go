@@ -9,6 +9,7 @@ import (
 	"kando/apps/mobile/session"
 	"kando/apps/mobile/store"
 	kcore "kando/packages/core"
+	"kando/packages/sync"
 
 	"github.com/nsgo-dev/nsgo/base"
 	"github.com/nsgo-dev/nsgo/core"
@@ -36,7 +37,12 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 			}
 		}
 		for _, d := range list {
-			if s.Queue(d.ID).Reach == session.Online {
+			if q := s.Queue(d.ID); q.Reach == session.Online && takes(q) {
+				return d.ID
+			}
+		}
+		for _, d := range list {
+			if takes(s.Queue(d.ID)) {
 				return d.ID
 			}
 		}
@@ -49,7 +55,7 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 	send := func() {
 		l, ok := link()
 		to := desktop()
-		if !ok || to == "" {
+		if !ok || to == "" || !takes(s.Queue(to)) {
 			return
 		}
 		s.Send(to, l.URL)
@@ -98,7 +104,15 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 				}}
 			}},
 			core.Text{TestID: "add-note", ContentFunc: func() string {
-				if s.Queue(desktop()).Reach == session.Online {
+				q := s.Queue(desktop())
+				switch {
+				case q.Reach == session.Older:
+					return locales.JobsOlder(cx)
+				case q.Reach == session.Revoked:
+					return locales.ComputersUnpaired(cx, desktopName())
+				case !takes(q):
+					return locales.AddNoLinks(cx, desktopName())
+				case q.Reach == session.Online:
 					return locales.AddNote(cx, desktopName())
 				}
 				return locales.AddNoteOffline(cx, desktopName())
@@ -107,7 +121,7 @@ func Sheet(cx *core.Scope, s *session.Session, open func() bool, close func(), s
 		Footer: []core.Node{
 			look.Button{Kind: look.Plain, Text: func() string { return locales.CommonCancel(cx) }, TestID: "add-cancel", OnPress: close},
 			look.Button{Kind: look.Primary, Text: func() string { return locales.AddSend(cx) }, Icon: lucide.Send, TestID: "add-send",
-				Disabled: func() bool { return !valid() || desktop() == "" }, OnPress: send},
+				Disabled: func() bool { to := desktop(); return !valid() || to == "" || !takes(s.Queue(to)) }, OnPress: send},
 		}}
 }
 
@@ -123,6 +137,17 @@ func pasteButton(cx *core.Scope, paste func()) core.Node {
 			ui.Icon(lucide.ClipboardPaste, 16, ui.Inherited),
 			core.Text{ContentFunc: text, MaxLines: 1, Style: look.Subhead.Merge(core.Style{FontWeight: core.FontWeightSemibold})},
 		}}
+}
+
+// takes reports whether a computer's queue may take a link: not one too old for links or that revoked the phone, nor one that answers without listing sync.OpJobCreate. One not reached yet may, and the link waits on the phone until it answers.
+func takes(q session.Queue) bool {
+	switch q.Reach {
+	case session.Older, session.Revoked:
+		return false
+	case session.Online:
+		return q.Can(sync.OpJobCreate)
+	}
+	return true
 }
 
 // site is the site a link is on, as its chip names it: the site Kando knows it as, else its host.

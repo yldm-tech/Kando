@@ -7,6 +7,11 @@ addLinkLabel:
 addLinkPlaceholder:
   message: "Paste a YouTube, Bilibili or other link"
   description: "Add sheet: placeholder of the link field."
+addNoLinks:
+  message: "{name} doesn't take links."
+  description: "Add sheet: under the form when the chosen computer answers but does not take links from phones."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 addNotALink:
   message: "This isn't a link to a video on the web."
   description: "Add sheet: what is in the field is not a web link."
@@ -271,6 +276,11 @@ jobsFailedCount:
   description: "Jobs page, a computer's card: how many jobs failed while none runs."
   placeholders:
     count: { type: "int", example: "1" }
+jobsFilmGone:
+  message: "This film is no longer on {name}, or its library is locked."
+  description: "Toast: a done job's Open found no film on the computer: it was removed, or its library is locked."
+  placeholders:
+    name: { type: "String", example: "Studio" }
 jobsFixedRetry:
   message: "Fixed It, Try Again"
   description: "Button of a job that failed for something fixed on the computer."

@@ -21,11 +21,7 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			if job.Film != "" {
 				t.Action = locales.JobsOpen(cx)
 				t.OnAction = func() {
-					s.JobFilm(desktop, job, func(lib sync.Library, f sync.Film, ok bool) {
-						if ok {
-							openFilm(desktop, lib, f)
-						}
-					})
+					s.JobFilm(desktop, job, func(lib sync.Library, f sync.Film) { openFilm(desktop, lib, f) })
 				}
 			}
 			toaster.Show(t)
@@ -41,10 +37,12 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			toaster.Show(ui.ToastContent{Type: ui.ToastInfo, Title: title})
 		},
 		Failed: func(desktop string, err error) {
-			// A computer that answered refused the action, as for a job whose state changed meanwhile; one that did not answer is out of reach.
+			// A done job's film the computer does not serve is told as such; a computer that answered refused the action, as for a job whose state changed meanwhile; one that did not answer is out of reach.
 			title := locales.ComputersUnreachable(cx, name(desktop))
 			var e *sync.Error
 			switch p := session.ProblemOf(err); {
+			case errors.Is(err, session.ErrFilmGone):
+				title = locales.JobsFilmGone(cx, name(desktop))
 			case p == session.Unpaired || p == session.Certificate:
 				title = locales.ComputersUnpaired(cx, name(desktop))
 			case errors.As(err, &e):
