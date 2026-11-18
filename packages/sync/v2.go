@@ -113,11 +113,18 @@ type JobOptions struct {
 	Subtitles string `json:"subtitles,omitempty"`
 }
 
-// The values of JobOptions.
+// The values of JobOptions: a desktop that lists OptionQuality takes QualityBest and Quality720, and one that lists OptionSubtitles takes SubtitlesPlatform and SubtitlesRecognize.
 const (
 	QualityBest        = "best"
+	Quality720         = "720p"
 	SubtitlesPlatform  = "platform"
 	SubtitlesRecognize = "recognize"
+)
+
+// The job options a desktop may list in Hello.Options, as JobOptions' JSON names.
+const (
+	OptionQuality   = "quality"
+	OptionSubtitles = "subtitles"
 )
 
 // JobCreated is the answer to JobCreate: the job queued, or Pending, when the desktop asks its user first and no job is made yet. A link the desktop has a job for already answers that job with Existing set, rather than a second job.
