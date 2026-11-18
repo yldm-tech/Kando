@@ -55,8 +55,8 @@ func desktopWith(t *testing.T, lines []sync.Cue, updated time.Time) *synctest.De
 func playKept(t *testing.T, d *synctest.Desktop, dir string) *phone {
 	t.Helper()
 	p := startPhone(t, dir, pairedWith(t, d, dir))
-	p.app.WaitFor("id:downloads-film-f1", wait)
-	p.app.Press("id:downloads-film-f1")
+	p.app.WaitFor(talkRow(store.DesktopID(d.Fingerprint)), wait)
+	p.app.Press(talkRow(store.DesktopID(d.Fingerprint)))
 	p.app.WaitFor("id:film-play", wait)
 	p.app.Press("id:film-play")
 	p.app.WaitFor("id:player-video", wait)
