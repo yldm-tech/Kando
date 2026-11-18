@@ -11,7 +11,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// queueToasts has toaster tell what happens to the computers' queues while the app is open: a job that finished, as a banner whose Open opens its film (openFilm), a link a computer took, and an action that failed.
+// queueToasts has toaster tell what happens to the computers' queues while the app is open: a job that finished, as a banner whose Open opens its film (openFilm), a link a computer took, a list it subscribed to, and an action that failed.
 // TODO(nsgo#59): tell a finished job with a push notification while the app is closed too; NSGo has no remote push (APNs, FCM) yet, so the banner shows only while the app is open https://github.com/nsgo-dev/nsgo/issues/59
 func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFilm func(desktop string, lib sync.Library, f sync.Film)) {
 	name := func(desktop string) string { d, _ := s.Desktop(desktop); return d.Name }
@@ -36,6 +36,13 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			}
 			toaster.Show(ui.ToastContent{Type: ui.ToastInfo, Title: title})
 		},
+		Subscribed: func(desktop string, got sync.Subscribed) {
+			title := locales.AddSubscribed(cx, got.Subscription.Name, name(desktop))
+			if got.Existing {
+				title = locales.AddSubscribedExisting(cx, got.Subscription.Name, name(desktop))
+			}
+			toaster.Show(ui.ToastContent{Type: ui.ToastSuccess, Title: title})
+		},
 		Failed: func(desktop string, err error) {
 			// A done job's film the computer does not serve is told as such; a computer that answered refused the action, as for a job whose state changed meanwhile; one that did not answer is out of reach.
 			title := locales.ComputersUnreachable(cx, name(desktop))
@@ -48,7 +55,12 @@ func queueToasts(cx *core.Scope, s *session.Session, toaster *ui.Toaster, openFi
 			case errors.As(err, &e):
 				title = locales.JobsActionFailed(cx, name(desktop))
 			}
-			toaster.Show(ui.ToastContent{Type: ui.ToastError, Title: title})
+			t := ui.ToastContent{Type: ui.ToastError, Title: title}
+			// A computer not ready for it says why in its own words, as that the library is locked or it has no downloader; the protocol carries them in English.
+			if e != nil && (e.Code == sync.CodeNotReady || e.Code == sync.CodeInvalid) && e.Message != "" {
+				t.Description = e.Message
+			}
+			toaster.Show(t)
 		},
 	})
 }

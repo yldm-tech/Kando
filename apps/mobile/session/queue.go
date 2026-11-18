@@ -36,8 +36,9 @@ const (
 // Queue is a computer's queue as the phone follows it.
 type Queue struct {
 	Reach Reach
-	// Ops are the operations the computer answers, as it said when it last answered (sync.Hello).
-	Ops []string
+	// Ops are the operations the computer answers, as it said when it last answered (sync.Hello); ReadOnly is a computer whose user made this phone read-only, which refuses every operation that changes something.
+	Ops      []string
+	ReadOnly bool
 	// Jobs are its jobs as it last told them: the running one, the waiting ones in the order they will run, then the others, newest first.
 	Jobs []sync.Job
 	// Seen is when it last answered, zero before it has.
@@ -47,16 +48,20 @@ type Queue struct {
 // Can reports whether the computer answers op.
 func (q Queue) Can(op string) bool { return slices.Contains(q.Ops, op) }
 
+// Lets reports whether the computer answers op and lets this phone call it: one that changes something (sync.Mutates) is refused to a read-only phone.
+func (q Queue) Lets(op string) bool { return q.Can(op) && !(q.ReadOnly && sync.Mutates(op)) }
+
 // Outgoing is a link sent from this phone that its computer has not taken yet: waiting for the computer while Refusal is nil, else refused for Refusal's reason (its Code one of sync's, its Message in the computer's words), which is kept with the link.
 type Outgoing struct {
 	store.Link
 }
 
-// QueueEvents are what the app is told of the queues, on the engine's goroutine: a job that finished while the app followed it, a link a computer took, and an action on a job or a link that failed.
+// QueueEvents are what the app is told of the queues, on the engine's goroutine: a job that finished while the app followed it, a link a computer took, a list a computer subscribed to (Session.Subscribe), and an action on a job, a link or a subscription that failed.
 type QueueEvents struct {
-	Done   func(desktop string, job sync.Job)
-	Sent   func(desktop string, created sync.JobCreated)
-	Failed func(desktop string, err error)
+	Done       func(desktop string, job sync.Job)
+	Sent       func(desktop string, created sync.JobCreated)
+	Subscribed func(desktop string, got sync.Subscribed)
+	Failed     func(desktop string, err error)
 }
 
 // remote is the session's part that follows the queues. Its fields belong to the engine's goroutine, but for linksMu's and ctx.
@@ -357,7 +362,7 @@ func (s *Session) followQueue(ctx context.Context, id string, c *sync.Client, f 
 		}
 		post(func() {
 			s.setQueue(id, func(Queue) Queue {
-				return Queue{Reach: Online, Ops: hello.Ops, Jobs: list.Jobs, Seen: s.cfg.Now()}
+				return Queue{Reach: Online, Ops: hello.Ops, ReadOnly: hello.ReadOnly, Jobs: list.Jobs, Seen: s.cfg.Now()}
 			})
 			s.sendWaiting(id)
 		})

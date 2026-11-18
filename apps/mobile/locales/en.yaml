@@ -31,6 +31,36 @@ addPaste:
 addSend:
   message: "Send"
   description: "Add sheet: button that sends the link to the computer."
+addSubscribe:
+  message: "Subscribe"
+  description: "Add sheet: the button that subscribes the computer to a channel or playlist link, in place of Send."
+addSubscribeNote:
+  message: "{name} follows this list and adds its new videos as they come."
+  description: "Add sheet: under the form, for a channel or playlist link, what the computer does with it."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addSubscribeOffline:
+  message: "{name} is offline. Subscribe once it's back."
+  description: "Add sheet: for a channel or playlist link while the computer cannot be reached; subscribing needs it to answer."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addSubscribeReadOnly:
+  message: "{name} lets this phone look but not subscribe."
+  description: "Add sheet: for a channel or playlist link, when the computer made this phone read-only."
+  placeholders:
+    name: { type: "String", example: "Studio" }
+addSubscribed:
+  message: "{name} subscribed to “{title}”"
+  description: "Toast: the computer subscribed to the channel or playlist the phone sent."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
+    name: { type: "String", example: "Studio" }
+addSubscribedExisting:
+  message: "{name} already follows “{title}”"
+  description: "Toast: the computer was subscribed to the list the phone sent already."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
+    name: { type: "String", example: "Studio" }
 addTitle:
   message: "Add Video"
   description: "Title of the Add sheet, and the spoken name of the + button that opens it."
@@ -259,6 +289,120 @@ filmsSourceWeb:
 filmsSourceYoutube:
   message: "YouTube"
   description: "Library chip and a film's source: films from YouTube."
+filmsStatDays:
+  message: "{count, plural, one {# day} other {# days}}"
+  description: "Library stats tile: the streak, days in a row with study."
+  placeholders:
+    count: { type: "int", example: "5" }
+filmsStatStreak:
+  message: "Streak"
+  description: "Library stats tile: label under the days in a row."
+filmsStatToday:
+  message: "Watched today"
+  description: "Library stats tile: label under the minutes of films played today."
+filmsStatVocabulary:
+  message: "Vocabulary"
+  description: "Library stats tile: label under the count of words saved to the vocabulary."
+filmsStatWords:
+  message: "{count, plural, one {# word} other {# words}}"
+  description: "Library stats tile: how many words the vocabulary holds."
+  placeholders:
+    count: { type: "int", example: "38" }
+filmsSubscriptionAuto:
+  message: "Add New Videos Automatically"
+  description: "Subscription sheet: switch that has the computer queue the new videos by themselves rather than wait for the user."
+filmsSubscriptionAutoDetail:
+  message: "At most {count} each check; the rest wait here."
+  description: "Subscription sheet: under the switch, how many new videos a check queues at most."
+  placeholders:
+    count: { type: "int", example: "3" }
+filmsSubscriptionChannel:
+  message: "Channel"
+  description: "Subscription sheet: what a subscription follows, a channel."
+filmsSubscriptionCollection:
+  message: "Collection"
+  description: "Subscription sheet: what a subscription follows, a Bilibili collection."
+filmsSubscriptionDone:
+  message: "Done"
+  description: "Subscription sheet: button that closes it."
+filmsSubscriptionFailed:
+  message: "The last check failed: {error}"
+  description: "Subscription sheet: why the computer's last check of the list failed, in the computer's words."
+  placeholders:
+    error: { type: "String", example: "yt-dlp could not reach the site" }
+filmsSubscriptionGone:
+  message: "{site} no longer has this list. {computer} still looks for it once a day."
+  description: "Subscription sheet: the site deleted the list."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionGoneLabel:
+  message: "{name}, deleted by its site"
+  description: "Library subscriptions row, for assistive technology: a subscription whose list is gone."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+filmsSubscriptionLabel:
+  message: "{name}, {count, plural, =0 {no new videos} one {# new video} other {# new videos}}"
+  description: "Library subscriptions row, for assistive technology: a subscription and how many new videos wait on it."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+    count: { type: "int", example: "2" }
+filmsSubscriptionMeta:
+  message: "{site} · {kind} · {computer}"
+  description: "Subscription sheet: under its name, the site, what it follows and the computer that checks it."
+  placeholders:
+    site: { type: "String", example: "YouTube" }
+    kind: { type: "String", example: "Channel" }
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionNew:
+  message: "{count}"
+  description: "Library subscriptions row: the badge with how many new videos wait on a subscription."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsSubscriptionNone:
+  message: "No new videos. New ones wait here for you."
+  description: "Subscription sheet: no new video waits, for a subscription that asks first."
+filmsSubscriptionNoneAuto:
+  message: "No new videos. New ones are added to Jobs automatically."
+  description: "Subscription sheet: no new video waits, for a subscription that adds them by itself."
+filmsSubscriptionPaused:
+  message: "Paused on {computer}."
+  description: "Subscription sheet: the computer does not check the list now."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionPausedLabel:
+  message: "{name}, paused"
+  description: "Library subscriptions row, for assistive technology: a paused subscription."
+  placeholders:
+    name: { type: "String", example: "Earth Science" }
+filmsSubscriptionPlaylist:
+  message: "Playlist"
+  description: "Subscription sheet: what a subscription follows, a playlist."
+filmsSubscriptionReadOnly:
+  message: "{computer} lets this phone look at its subscriptions but not change them."
+  description: "Subscription sheet: the computer made this phone read-only, so the sheet offers no action."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmsSubscriptionSpace:
+  message: "Uploader"
+  description: "Subscription sheet: what a subscription follows, a Bilibili uploader's space."
+filmsSubscriptionTake:
+  message: "Add All to Jobs"
+  description: "Subscription sheet: button that sends every new video waiting on it to the computer's queue."
+filmsSubscriptionWaiting:
+  message: "{count, plural, =0 {New Videos} one {# New Video} other {# New Videos}}"
+  description: "Subscription sheet: heading of the new videos waiting for the user."
+  placeholders:
+    count: { type: "int", example: "2" }
+filmsSubscriptions:
+  message: "Subscriptions"
+  description: "Library: heading of the computers' subscriptions."
+filmsSubscriptionsAdd:
+  message: "Add"
+  description: "Library: beside the subscriptions' heading, opens the Add sheet, which takes a channel or playlist link."
+filmsSubscriptionsAddLabel:
+  message: "Add a subscription"
+  description: "Library: what assistive technology reads for the subscriptions' Add button."
 filmsTitle:
   message: "Library"
   description: "Tab and title of the Library: the films on the phone and the computers' libraries."
@@ -268,6 +412,19 @@ filmsUnpairedBody:
 filmsUnpairedTitle:
   message: "Not connected to a computer yet"
   description: "Title of the Library's card while no computer is paired."
+filmsUnsubscribe:
+  message: "Unsubscribe"
+  description: "Subscription sheet: the row that removes the subscription, and its confirmation's button."
+filmsUnsubscribeMessage:
+  message: "The videos it added stay in the library on {computer}."
+  description: "Confirmation before unsubscribing: what stays."
+  placeholders:
+    computer: { type: "String", example: "Studio" }
+filmsUnsubscribeTitle:
+  message: "Unsubscribe from “{title}”?"
+  description: "Confirmation before unsubscribing."
+  placeholders:
+    title: { type: "String", example: "Earth Science" }
 learnDueIn:
   message: "{count, plural, one {Due in # day} other {Due in # days}}"
   description: "Under a word or a line: when it is next due for review."

@@ -20,9 +20,17 @@ type queue struct {
 	made    int
 	pending []string
 	updates int
-	// drops are how many links still to take and hang up on (DropCreates); older is a desktop speaking protocol v1 alone (SetOlder).
-	drops int
-	older bool
+	// drops are how many links still to take and hang up on (DropCreates); older is a desktop speaking protocol v1 alone (SetOlder); readOnly a desktop whose user made the phones read-only (SetReadOnly).
+	drops    int
+	older    bool
+	readOnly bool
+}
+
+// SetReadOnly makes every paired phone read-only while on, as the desktop's user can in Settings › Phone Sync: Hello says so, and the calls that change something are refused with sync.CodeReadOnly.
+func (d *Desktop) SetReadOnly(on bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.queue.readOnly = on
 }
 
 // SetOlder makes the desktop speak protocol v1 alone while older, as an older Kando: it has no v2 call path, which it answers 404 with Go's plain-text body.
@@ -84,7 +92,7 @@ func (d *Desktop) call(w http.ResponseWriter, r *http.Request) {
 	token, _ := bytes.CutPrefix([]byte(r.Header.Get("Authorization")), []byte("Bearer "))
 	d.mu.Lock()
 	name := d.names[string(token)]
-	older := d.queue.older
+	older, readOnly := d.queue.older, d.queue.readOnly
 	d.mu.Unlock()
 	if older {
 		http.NotFound(w, r)
@@ -103,7 +111,7 @@ func (d *Desktop) call(w http.ResponseWriter, r *http.Request) {
 		d.queue.drops--
 	}
 	d.mu.Unlock()
-	caller := sync.Caller{DeviceID: "dev-" + string(token[:min(6, len(token))]), Name: name}
+	caller := sync.Caller{DeviceID: "dev-" + string(token[:min(6, len(token))]), Name: name, ReadOnly: readOnly}
 	if drop {
 		sync.HandleCall(httptest.NewRecorder(), r, d.desk, caller)
 		panic(http.ErrAbortHandler)
