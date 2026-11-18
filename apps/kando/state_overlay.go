@@ -119,11 +119,11 @@ type cheatsheetLine struct {
 // cheatsheetGroups is the shortcut table's rows with a key as the cheat sheet lists them, in the language the app shows under cx: the groups and lines of cheatsheetLayout, then every row the layout does not place, under its menu's group (grouped, menu.go), in a group of the layout of that name or in a group of its own after them. So the sheet lists the whole table, and a row an area adds shows on it before the layout names it.
 func (a *app) cheatsheetGroups(cx *core.Scope) []cheatsheet.Group {
 	rows := slices.DeleteFunc(a.shortcuts(cx), func(s shortcut) bool { return s.Key == "" })
-	return cheatsheetGroupsOf(cx, rows)
+	return cheatsheetGroupsOf(cx, a.prefs.shortcutPreset, rows)
 }
 
-// cheatsheetGroupsOf arranges rows of the shortcut table as cheatsheetGroups describes.
-func cheatsheetGroupsOf(cx *core.Scope, rows []shortcut) []cheatsheet.Group {
+// cheatsheetGroupsOf arranges rows of the shortcut table, their keys as preset gives them (keysPreset), as cheatsheetGroups describes. The layout names rows by Kando's own keys, so its lines move their keys through the same preset (presetKey) before they look for the rows: under mpv the volume line names 0 and 9, not ↑ and ↓, which mpv gives the 30-second skip.
+func cheatsheetGroupsOf(cx *core.Scope, preset string, rows []shortcut) []cheatsheet.Group {
 	labels := map[string]string{}
 	for _, s := range rows {
 		if _, ok := labels[s.Key]; !ok {
@@ -136,6 +136,10 @@ func cheatsheetGroupsOf(cx *core.Scope, rows []shortcut) []cheatsheet.Group {
 	for _, g := range cheatsheetLayout(cx) {
 		var keys []cheatsheet.Key
 		for _, l := range g.lines {
+			l.combos = slices.Clone(l.combos)
+			for i, k := range l.combos {
+				l.combos[i] = presetKey(preset, cx.Env().OS(), g.group, k)
+			}
 			if slices.ContainsFunc(l.combos, func(k string) bool { _, ok := labels[k]; return !ok }) {
 				continue
 			}

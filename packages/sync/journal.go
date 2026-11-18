@@ -19,6 +19,8 @@ type Journal struct {
 	rev    int64
 	jobs   []Job
 	events []Event
+	// learning is the revision of each library's last learning state event, by its ID.
+	learning map[string]int64
 	// wake is closed, and made anew, at each change, waking the calls waiting on it.
 	wake chan struct{}
 }
@@ -85,6 +87,10 @@ func (j *Journal) PublishState(library string) {
 	defer j.mu.Unlock()
 	j.rev++
 	j.add(Event{Rev: j.rev, Kind: EventState, ID: library})
+	if j.learning == nil {
+		j.learning = map[string]int64{}
+	}
+	j.learning[library] = j.rev
 	close(j.wake)
 	j.wake = make(chan struct{})
 }
@@ -102,6 +108,17 @@ func (j *Journal) List() JobList {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	return JobList{Epoch: j.epoch, Rev: j.rev, Jobs: append([]Job{}, j.jobs...)}
+}
+
+// Learning is, by library ID, the revision at which each library's learning state last changed (PublishState) in the journal's epoch, which the storage relay's state.json tells phones (RelayState.Learning).
+func (j *Journal) Learning() map[string]int64 {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	out := make(map[string]int64, len(j.learning))
+	for lib, rev := range j.learning {
+		out[lib] = rev
+	}
+	return out
 }
 
 // Job is job id as last published.

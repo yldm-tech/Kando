@@ -214,6 +214,7 @@ func (f *fakeApp) ModeMenu() *bool                         { return &f.modeMenu 
 func (f *fakeApp) Rate() float64                           { return f.rate }
 func (f *fakeApp) SetRate(rate float64)                    { f.rate = rate }
 func (f *fakeApp) SpeedMenu() *bool                        { return &f.speedMenu }
+func (f *fakeApp) SpeedKeys(ns.OS) (string, string)        { return "shift+,", "shift+." }
 func (f *fakeApp) Search() *string                         { return &f.search }
 func (f *fakeApp) SearchFocus() *bool                      { return &f.focus }
 func (f *fakeApp) SearchFocused() *bool                    { return &f.focused }

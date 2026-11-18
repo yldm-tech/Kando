@@ -73,11 +73,13 @@ var heroShade = ns.Gradient{Kind: ns.GradientLinear, Angle: 90, Stops: []ns.Colo
 	{Color: ns.RGBA(0x000000, 0), At: ns.Pct(70)},
 }}
 
-// hero is the large card of the film HeroFilm picks: its poster under a dark gradient, its title, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does. While compact reports true, as while 处理中 has cards under it, it is lower and shows only its kicker, title and buttons, so the queue and the first posters fit a laptop's window.
+// hero is the large card of the film HeroFilm picks: its poster under a dark gradient, its title, its line, its first bilingual line, and play or continue. A click elsewhere on it opens the film, and a right click offers what the film's poster in the grid does. While compact reports true, as when the page is too short for the whole card over 处理中 and the first posters (heroFits), it is lower and shows only its kicker, title and buttons.
 type hero struct {
 	a       App
 	item    func() Film
 	compact func() bool
+	// placed hears where the hero is in the content column as it is laid out.
+	placed func(ns.Bounds)
 }
 
 // The hero's height, full and compact.
@@ -105,7 +107,7 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 				}},
 				ns.Show{When: func() bool { return quote().original != "" }, Then: func(*ns.Scope) ns.Node {
 					return ns.Text{ContentFunc: func() string { return quote().original }, MaxLines: 2, EllipsizeMode: ns.EllipsizeTail,
-						Style: ns.Style{FontSize: 12, LineHeight: 15, Color: onPicture}}
+						Style: ns.Style{FontSize: 12, LineHeight: 15, Color: onPicture.Faded(0.8)}}
 				}},
 			}}
 	}}
@@ -185,6 +187,7 @@ func (h hero) Render(cx *ns.Scope) ns.Node {
 		)},
 	}
 	return ns.View{
+		OnLayout:      h.placed,
 		OnContextMenu: func(e ns.ContextMenuEvent) { nsdesktop.PopupMenu(cx, filmMenu(cx, a, item()), e.PagePosition, nil) },
 		Children:      []ns.Node{box},
 	}

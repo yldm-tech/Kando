@@ -498,7 +498,7 @@ func (a *app) playerKeys(cx *ns.Scope) []shortcut {
 	}
 	mute := slices.IndexFunc(rows, func(s shortcut) bool { return s.Key == "m" })
 	return slices.Insert(rows, mute+1,
-		shortcut{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: "shift+,", Repeat: true, When: open, Run: func() { a.playerStepRate(-1) }},
-		shortcut{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: "shift+.", Repeat: true, When: open, Run: func() { a.playerStepRate(1) }},
+		shortcut{Group: groupPlayback, Label: locales.PlayerKeySlower(cx), Key: playerSlowerKey, Repeat: true, When: open, Run: func() { a.playerStepRate(-1) }},
+		shortcut{Group: groupPlayback, Label: locales.PlayerKeyFaster(cx), Key: playerFasterKey, Repeat: true, When: open, Run: func() { a.playerStepRate(1) }},
 	)
 }

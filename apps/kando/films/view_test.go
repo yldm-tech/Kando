@@ -245,12 +245,12 @@ func testEnvironment() ns.Environment {
 	return testlocale.Environment(ns.Environment{OS: ns.OSMacOS, Idiom: ns.IdiomDesktop, AppleKeyboard: true})
 }
 
-// start shows the library page of a as the main window's content column does, on a Mac, in testlocale's language.
+// start shows the library page of a as the main window's content column does, on a Mac, in testlocale's language. It is as high as the window, as the window's row of sidebar and page holds it, however short the window is.
 func start(t *testing.T, a *fakeApp) *nsgotest.App {
 	t.Helper()
 	return nsgotest.Start(t, func(cx *ns.Scope) ns.Node {
 		a.Attach(cx)
-		return ns.View{Style: ns.Style{FlexGrow: 1}, Children: []ns.Node{View{App: a}}}
+		return ns.View{Style: ns.Style{FlexGrow: 1, FlexShrink: 1, MinHeight: ns.Pt(0)}, Children: []ns.Node{View{App: a}}}
 	}, nsgotest.Size(1068, 782), nsgotest.Environment(testEnvironment()))
 }
 
@@ -1172,3 +1172,54 @@ func TestListDateReadsInNowsTimeZone(t *testing.T) {
 
 // filmKeys is the keys of items joined by commas, as the fake's calls record them.
 func filmKeys(items []Film) string { return strings.Join(Keys(items), ",") }
+
+// TestHeroIsWholeWhereThePageHasRoom: the hero is the design's whole card, with its line and its first bilingual line, whenever the page is high enough to show it, 处理中 under it and the first row of posters under that; and the compact card otherwise, with 处理中 or without, so a short window still shows a poster.
+func TestHeroIsWholeWhereThePageHasRoom(t *testing.T) {
+	a := newFakeApp()
+	app := start(t, a)
+	isWhole := func() bool {
+		t.Helper()
+		got := app.Find("id:films-hero").Frame.Size.Height
+		full := got == heroHeight
+		if full != app.Exists(whole("“河流塑造了大地”")) || full != app.Exists("id:films-hero >> "+whole("YouTube · 2:05")) {
+			t.Fatalf("the hero %v high shows its quote %v and its line %v", got, app.Exists(whole("“河流塑造了大地”")), app.Exists("id:films-hero >> "+whole("YouTube · 2:05")))
+		}
+		if !full && got != heroCompactHeight {
+			t.Fatalf("the hero is %v high", got)
+		}
+		return full
+	}
+	// A tall window has room for the whole card over 处理中; a short one has not.
+	app.Resize(1068, 1100)
+	if !isWhole() {
+		t.Fatal("the hero in a tall window over 处理中 is compact")
+	}
+	app.Resize(1068, 560)
+	if isWhole() {
+		t.Fatal("the hero in a short window over 处理中 is whole")
+	}
+	// Whole or compact, the first poster's picture is on the page, and the whole card shows exactly while it would leave it there.
+	sweep := func(queued bool) {
+		t.Helper()
+		for height := ns.Points(560); height <= 1100; height += 10 {
+			app.Resize(1068, height)
+			poster := app.Find("id:film-done >> nth=0").Bounds()
+			bottom := poster.Origin.Y + poster.Size.Height
+			full := isWhole()
+			if full && bottom > height {
+				t.Fatalf("queued %v, %v high: the whole hero pushes the first poster to %v", queued, height, bottom)
+			}
+			if !full && bottom+heroHeight-heroCompactHeight <= height {
+				t.Fatalf("queued %v, %v high: the hero is compact with room for the whole card (poster at %v)", queued, height, bottom)
+			}
+		}
+	}
+	sweep(true)
+	change(app, a, func() { a.items = a.items[:2] })
+	sweep(false)
+	// Without 处理中 a short window still keeps the compact card.
+	app.Resize(1068, 560)
+	if isWhole() {
+		t.Fatal("the hero in a short window is whole")
+	}
+}

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"kando/apps/kando/film"
+
+	"github.com/nsgo-dev/nsgo/core"
 )
 
 // Rate is how fast films play, one of film.Rates, for the transport's speed button (film.App).
@@ -13,6 +15,17 @@ func (a *app) Rate() float64 { return a.player.rate }
 
 // SpeedMenu is whether the transport's speed menu is open.
 func (a *app) SpeedMenu() *bool { return &a.player.film.speedMenu }
+
+// SpeedKeys are the keys of the speed rows of the table on os under the preset chosen (presetKey), for the speed button's tooltip.
+func (a *app) SpeedKeys(os core.OS) (slower, faster string) {
+	return presetKey(a.prefs.shortcutPreset, os, groupPlayback, playerSlowerKey), presetKey(a.prefs.shortcutPreset, os, groupPlayback, playerFasterKey)
+}
+
+// playerSlowerKey and playerFasterKey are Kando's own keys that step the speed down and up (playerKeys).
+const (
+	playerSlowerKey = "shift+,"
+	playerFasterKey = "shift+."
+)
 
 // SetRate plays films at rate, the nearest of film.Rates, says so on the picture and on the speed button at once, has the open film take it up at once and the settings keep it once the speed has rested (playerRateChanged).
 func (a *app) SetRate(rate float64) {
