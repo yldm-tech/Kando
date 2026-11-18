@@ -130,6 +130,8 @@ type Session struct {
 	// prefsMu orders the saves of the preferences as saveMu does the desktops': prefsSaving is the generation SetPrefs last gave out, prefsSaved the one last written.
 	prefsMu                 gosync.Mutex
 	prefsSaving, prefsSaved uint64
+	// learn is the learner's study (learning.go).
+	learn *learn
 }
 
 // filmSave is what is still to be written of a film's record: next, once pending; or its folder deleted, once removed.
@@ -183,6 +185,7 @@ func New(cx *core.Scope, cfg Config) *Session {
 		filmSaves: map[string]*filmSave{},
 		closed:    make(chan struct{}),
 	}
+	s.learn = newLearn(s)
 	cx.Cleanup(func() {
 		close(s.closed)
 		for _, j := range s.jobs {
@@ -322,7 +325,7 @@ func (s *Session) AddDesktop(d store.Desktop) {
 	s.setDesktops(list)
 }
 
-// Unpair forgets desktop id and stops its downloads; the films kept from it stay.
+// Unpair forgets desktop id and what the phone kept of its learning state, and stops its downloads; the films kept from it stay.
 func (s *Session) Unpair(id string) {
 	for key, j := range s.jobs {
 		if f, ok := s.Film(key); ok && f.Desktop == id {
@@ -336,6 +339,7 @@ func (s *Session) Unpair(id string) {
 		delete(s.clients, id)
 	}
 	s.setDesktops(slices.DeleteFunc(slices.Clone(s.desktops.Get()), func(d store.Desktop) bool { return d.ID == id }))
+	s.learnForget(id)
 }
 
 func (s *Session) setDesktops(list []store.Desktop) {

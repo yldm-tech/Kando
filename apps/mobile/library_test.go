@@ -64,8 +64,10 @@ func TestARevokedPhoneIsAskedToPairAgain(t *testing.T) {
 	d := newDesktop(t)
 	p := startPhone(t, "")
 	p.pair(d)
-	d.RevokeAll()
 	id := store.DesktopID(d.Fingerprint)
+	// The learning state is read once pairing is done; revoked before then, the phone would show the page that says so over the Library (learn_test.go).
+	p.waitLearned(id)
+	d.RevokeAll()
 	p.app.PullToRefresh("id:films-scroll")
 	p.app.WaitFor("id:computers-pair-again-"+id, wait)
 	if got, want := p.texts("id:computers-problem-"+id), msgs.ComputersUnpaired("Studio"); !strings.Contains(got, want) {

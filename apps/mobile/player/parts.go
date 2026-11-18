@@ -7,6 +7,7 @@ import (
 	"kando/apps/mobile/cues"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
+	"kando/apps/mobile/substyle"
 	"kando/apps/mobile/theme"
 	kcore "kando/packages/core"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/nsgo-dev/nsgo/ui"
 )
 
-// The faces of the lines over the video, as the desktop's default look has them: the translation bold in white over the original in yellow, each on a dark box, in sizes for the phone's screen by layout.
+// The faces of the lines over the video, as the desktop's default look has them: the translation bold in white over the original in yellow, each on a dark box, in sizes for the phone's screen by layout; Settings › Subtitle Style changes the original's color, their size and where they show (package substyle).
 var (
 	translationColor = core.RGB(0xFFFFFF)
 	originalColor    = theme.SubtitleYellow
@@ -44,12 +45,14 @@ func subtitles(cx *core.Scope, p *play, shape func() layout, controlsOver func()
 		return kcore.PictureLines(p.shownMode(), kcore.SubTranslationFirst, kcore.UntranslatedDim, list[i].Translation, list[i].Original)
 	}, slices.Equal[[]kcore.CueLine])
 	body := core.Dynamic(func(cx *core.Scope) core.Node {
+		style := p.s.Prefs().Subtitles
 		tr, orig := lineSizes(shape())
+		tr, orig = substyle.Sizes(style, tr, orig)
 		var children []core.Node
 		for _, l := range shown.Get() {
 			size, color, weight := tr, translationColor, core.FontWeightBold
 			if l.Original {
-				size, color, weight = orig, originalColor, core.FontWeightMedium
+				size, color, weight = orig, substyle.Color(style.Color), core.FontWeightMedium
 			}
 			holder := core.Style{MaxWidth: core.Pct(100), CornerRadius: 6, Padding: core.Symmetric(2, 10), Background: lineBox}
 			if l.Dim {
@@ -70,6 +73,17 @@ func subtitles(cx *core.Scope, p *play, shape func() layout, controlsOver func()
 				if controlsOver() {
 					bottom = 120
 				}
+			}
+			if p.s.Prefs().Subtitles.Top {
+				// At the top they keep clear of the top bar the same way they keep clear of the transport at the foot.
+				top := core.Points(10)
+				if shape() == full {
+					top = 28
+					if controlsOver() {
+						top = 72
+					}
+				}
+				return core.Style{Top: core.Pt(top), PaddingEnv: core.EnvEdges{Left: core.EnvSafeArea, Right: core.EnvSafeArea}}
 			}
 			return core.Style{Bottom: core.Pt(bottom), PaddingEnv: core.EnvEdges{Left: core.EnvSafeArea, Right: core.EnvSafeArea}}
 		},

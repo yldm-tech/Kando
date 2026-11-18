@@ -7,6 +7,7 @@ tool github.com/nsgo-dev/nsgo/cmd/nsgo
 require (
 	github.com/nsgo-dev/nsgo v0.1.1-0.20261118094851-ec272782be28
 	kando/packages/core v0.0.0
+	kando/packages/study v0.0.0
 	kando/packages/sync v0.0.0
 )
 
@@ -35,5 +36,6 @@ require (
 
 replace (
 	kando/packages/core => ../../packages/core
+	kando/packages/study => ../../packages/study
 	kando/packages/sync => ../../packages/sync
 )

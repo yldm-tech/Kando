@@ -9,12 +9,62 @@ import (
 // prefsFile keeps the phone's own preferences.
 const prefsFile = "prefs.json"
 
-// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one). The languages are the phone's until the protocol carries them to the computer (yldm-tech/Kando#217).
+// Prefs are what the user chose on this phone: whether they went through the introduction, the languages they watch (whisper's codes, as "en") and the language they want the subtitles translated into (a BCP 47 tag, as "zh-Hans"; "" before they chose one), which the paired computers translate into too (TargetPending from the user's choice until a computer took it); the daily goal in minutes of films played (0 for the default), whether to be reminded to review, and how the player draws subtitles.
 type Prefs struct {
-	Onboarded bool     `json:"onboarded"`
-	Spoken    []string `json:"spoken,omitempty"`
-	Target    string   `json:"target,omitempty"`
+	Onboarded     bool     `json:"onboarded"`
+	Spoken        []string `json:"spoken,omitempty"`
+	Target        string   `json:"target,omitempty"`
+	TargetPending bool     `json:"target_pending,omitempty"`
+	Goal          int      `json:"goal,omitempty"`
+	Remind        bool     `json:"remind,omitempty"`
+	Subtitles     SubStyle `json:"subtitles,omitzero"`
 }
+
+// SubStyle is how the player draws subtitles: their size, from SubSmall to SubHuge, the color of the original line, from SubYellow on, and whether they show at the top of the picture rather than at its foot. The zero SubStyle is the player's own: medium, yellow, at the foot.
+type SubStyle struct {
+	Size  SubSize  `json:"size,omitempty"`
+	Color SubColor `json:"color,omitempty"`
+	Top   bool     `json:"top,omitempty"`
+}
+
+// SubSize is a subtitle size; the zero one is medium.
+type SubSize int8
+
+const (
+	SubSmall  SubSize = -1
+	SubMedium SubSize = 0
+	SubLarge  SubSize = 1
+	SubHuge   SubSize = 2
+)
+
+// SubSizes are the sizes in the order the settings offer them.
+var SubSizes = []SubSize{SubSmall, SubMedium, SubLarge, SubHuge}
+
+// Scale is how much larger than medium lines of size z are drawn.
+func (z SubSize) Scale() float32 {
+	switch z {
+	case SubSmall:
+		return 0.82
+	case SubLarge:
+		return 1.18
+	case SubHuge:
+		return 1.4
+	}
+	return 1
+}
+
+// SubColor is the color of the original line; the zero one is yellow.
+type SubColor uint8
+
+const (
+	SubYellow SubColor = iota
+	SubWhite
+	SubCyan
+	SubPink
+)
+
+// SubColors are the colors in the order the settings offer them.
+var SubColors = []SubColor{SubYellow, SubWhite, SubCyan, SubPink}
 
 // Prefs are the kept preferences, the zero Prefs before any were kept.
 func (s *Store) Prefs() (Prefs, error) {

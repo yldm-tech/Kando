@@ -1,10 +1,11 @@
-// Package settings is the Settings tab: the computers the phone is paired with, each of which it can unpair, and the way to pair another; the language the user wants subtitles in; and where Kando's source is, with the introduction to see again.
+// Package settings is the Settings tab: the computers the phone is paired with, each of which it can unpair, and the way to pair another; the language subtitles are translated into, which the computers translate into too, and how the player draws them; the phone's own daily goal and review reminder; and where Kando's source is, with the introduction to see again. It has the page the phone shows once a computer no longer takes it too (revoked.go).
 package settings
 
 import (
 	"strings"
 
 	"kando/apps/mobile/langs"
+	"kando/apps/mobile/learning"
 	"kando/apps/mobile/locales"
 	"kando/apps/mobile/look"
 	"kando/apps/mobile/onboarding"
@@ -19,8 +20,8 @@ import (
 
 // Actions are where the tab leads; Unpaired runs once the user unpaired computer id, for the pages of it to go.
 type Actions struct {
-	Pair, Target, Introduction func()
-	Unpaired                   func(id string)
+	Pair, Target, Style, Goal, Introduction func()
+	Unpaired                                func(id string)
 }
 
 // Page is the tab's root page.
@@ -49,7 +50,27 @@ func Page(cx *core.Scope, s *session.Session, act Actions) base.NavPage {
 						Leading: look.IconTile(cx, lucide.Languages, look.ToneAccent),
 						Title:   func() string { return locales.SettingsTarget(cx) },
 						Value:   func() string { return langs.TargetName(s.Target()) },
-						OnPress: act.Target}),
+						OnPress: act.Target},
+					look.Row{TestID: "settings-style", Index: func() int { return 1 }, Inset: 56, Chevron: true,
+						Leading: look.IconTile(cx, lucide.Type, look.ToneAccent),
+						Title:   func() string { return locales.SettingsSubtitleStyle(cx) },
+						Value: func() string {
+							st := s.Prefs().Subtitles
+							return sizeName(cx, st.Size) + " · " + colorName(cx, st.Color)
+						},
+						OnPress: act.Style}),
+				section(cx, func() string { return locales.SettingsThisDevice(cx) },
+					look.Row{TestID: "settings-goal", Inset: 56, Chevron: true,
+						Leading: look.IconTile(cx, lucide.Target, look.ToneAccent),
+						Title:   func() string { return locales.SettingsGoal(cx) },
+						Value:   func() string { return locales.SettingsGoalValue(cx, s.Goal()) },
+						OnPress: act.Goal},
+					look.Row{TestID: "settings-remind", Index: func() int { return 1 }, Inset: 56, TitleLines: 1,
+						Leading: look.IconTile(cx, lucide.Bell, look.ToneAccent),
+						Title:   func() string { return locales.SettingsRemind(cx) },
+						Detail:  func() string { return locales.SettingsRemindDetail(cx, learning.ReminderHour) },
+						Trailing: ui.Switch{TestID: "settings-remind-switch", Label: locales.SettingsRemind(cx), Variant: ui.SwitchSystem,
+							Checked: func() bool { return s.Prefs().Remind }, OnChange: s.SetRemind}}),
 				section(cx, func() string { return locales.SettingsAbout(cx) },
 					look.Row{TestID: "settings-source", Inset: 56,
 						Leading: look.IconTile(cx, lucide.Code, look.ToneAccent),
@@ -106,11 +127,7 @@ func TargetPage(cx *core.Scope, s *session.Session, back func()) base.NavPage {
 			Trailing: core.Show{When: func() bool { return s.Target() == l.Code }, Then: func(*core.Scope) core.Node {
 				return ui.Icon(lucide.Check, 20, colors.Accent)
 			}},
-			OnPress: func() {
-				p := s.Prefs()
-				p.Target = l.Code
-				s.SetPrefs(p)
-			}})
+			OnPress: func() { s.SetTarget(l.Code) }})
 	}
 	return ui.NavPage(cx, base.NavPage{TitleFunc: func() string { return locales.SettingsTarget(cx) }, TestID: "settings-target-page", Children: []core.Node{
 		core.Scroll{Ref: ref, Style: core.Style{FlexGrow: 1, FlexShrink: 1}, Children: []core.Node{
